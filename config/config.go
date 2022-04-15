@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"time"
@@ -16,6 +17,8 @@ import (
 
 type DBBackendType string
 type ProviderType string
+type OSType string
+type OSArch string
 
 const (
 	// MySQLBackend represents the MySQL DB backend
@@ -28,6 +31,21 @@ const (
 
 	// LXDProvider represents the LXD provider.
 	LXDProvider ProviderType = "lxd"
+
+	// DefaultConfigFilePath is the default path on disk to the runner-manager
+	// configuration file.
+	DefaultConfigFilePath = "/etc/runner-manager/config.toml"
+)
+
+const (
+	Windows OSType = "windows"
+	Linux   OSType = "linux"
+)
+
+const (
+	Amd64 OSArch = "amd64"
+	I386  OSArch = "i386"
+	Arm64 OSArch = "arm64"
 )
 
 // NewConfig returns a new Config
@@ -46,9 +64,10 @@ type Config struct {
 	APIServer    APIServer    `toml:"apiserver" json:"apiserver"`
 	Database     Database     `toml:"database" json:"database"`
 	Repositories []Repository `toml:"repository" json:"repository"`
-	Providers    []Provider   `toml:"providers" json:"providers"`
+	Providers    []Provider   `toml:"provider" json:"provider"`
 	Github       Github       `toml:"github"`
-	// Runner    Runner    `toml:"runner" json:"runner"`
+	// LogFile is the location of the log file.
+	LogFile string `toml:"log_file"`
 }
 
 // Validate validates the config
@@ -80,14 +99,14 @@ func (c *Config) Validate() error {
 		// repos can use the same provider.
 		found := false
 		for _, provider := range c.Providers {
-			if provider.Name == repo.ProviderName {
+			if provider.Name == repo.Pool.ProviderName {
 				found = true
 				break
 			}
 		}
 
 		if !found {
-			return fmt.Errorf("provider %s defined in repo %q is not defined", repo.ProviderName, repo)
+			return fmt.Errorf("provider %s defined in repo %s/%s is not defined", repo.Pool.ProviderName, repo.Owner, repo.Name)
 		}
 	}
 
@@ -97,7 +116,7 @@ func (c *Config) Validate() error {
 // Github hold configuration options specific to interacting with github.
 // Currently that is just a OAuth2 personal token.
 type Github struct {
-	OAuth2Token string `toml:"oauth2_token" json:"oauth2_token"`
+	OAuth2Token string `toml:"oauth2_token" json:"oauth2-token"`
 }
 
 func (g *Github) Validate() error {
@@ -111,16 +130,29 @@ func (g *Github) Validate() error {
 type LXD struct {
 	// UnixSocket is the path on disk to the LXD unix socket. If defined,
 	// this is prefered over connecting via HTTPs.
-	UnixSocket string `toml:"unix_socket_path" json:"unix_socket_path"`
+	UnixSocket string `toml:"unix_socket_path" json:"unix-socket-path"`
 
-	// Addresses holds the IP address.
-	Address string `toml:"address" json:"address"`
+	// Project name is the name of the project in which this runner will create
+	// instances. If this option is not set, the default project will be used.
+	// The project used here, must have all required profiles created by you
+	// beforehand. For LXD, the "flavor" used in the runner definition for a pool
+	// equates to a profile in the desired project.
+	ProjectName string `toml:"project_name" json:"project-name"`
+
+	// IncludeDefaultProfile specifies whether or not this provider will always add
+	// the "default" profile to any newly created instance.
+	IncludeDefaultProfile bool `toml:"include_default_profile" json:"include-default-profile"`
+
+	// URL holds the IP address.
+	URL string `toml:"address" json:"address"`
 	// ClientCertificate is the x509 client certificate path used for authentication.
 	ClientCertificate string `toml:"client_certificate" json:"client_certificate"`
 	// ClientKey is the key used for client certificate authentication.
-	ClientKey string `toml:"client_key" json:"client_key"`
+	ClientKey string `toml:"client_key" json:"client-key"`
 	// TLS certificate of the remote server. If not specified, the system CA is used.
-	TLSServerCert string `toml:"tls_server_certificate" json:"tls_server_certificate"`
+	TLSServerCert string `toml:"tls_server_certificate" json:"tls-server-certificate"`
+	// TLSCA is the TLS CA certificate when running LXD in PKI mode.
+	TLSCA string `toml:"tls_ca" json:"tls-ca"`
 }
 
 func (l *LXD) Validate() error {
@@ -132,12 +164,12 @@ func (l *LXD) Validate() error {
 		return nil
 	}
 
-	if l.Address == "" {
+	if l.URL == "" {
 		return fmt.Errorf("unix_socket or address must be specified")
 	}
 
-	if ip := net.ParseIP(l.Address); ip == nil {
-		return fmt.Errorf("invalid address specified")
+	if _, err := url.Parse(l.URL); err != nil {
+		return fmt.Errorf("invalid LXD URL")
 	}
 
 	if l.ClientCertificate == "" || l.ClientKey == "" {
@@ -164,7 +196,7 @@ func (l *LXD) Validate() error {
 // A provider offers compute resources on which we spin up self hosted runners.
 type Provider struct {
 	Name         string       `toml:"name" json:"name"`
-	ProviderType ProviderType `toml:"provider_type" json:"provider_type"`
+	ProviderType ProviderType `toml:"provider_type" json:"provider-type"`
 	LXD          LXD          `toml:"lxd" json:"lxd"`
 }
 
@@ -184,6 +216,82 @@ func (p *Provider) Validate() error {
 	return nil
 }
 
+// Runner represents a runner type. The runner type is defined by the labels
+// it has, the image it runs on and the size of the compute system that was
+// requested.
+type Runner struct {
+	// Name is the name of this runner.
+	Name string `toml:"name" json:"name"`
+	// Labels is a list of labels that will be set for this runner in github.
+	// The labels will be used in workflows to request a particular kind of
+	// runner.
+	Labels []string `toml:"labels" json:"labels"`
+	// MaxRunners is the maximum number of self hosted action runners
+	// of any type that are spun up for this repo. If current worker count
+	// is not enough to handle jobs comming in, a new runner will be spun up,
+	// until MaxWorkers count is hit.
+	MaxRunners int `toml:"max_runners" json:"max-runners"`
+	// MinRunners is the minimum number of self hosted runners that will
+	// be maintained for this repo. If no jobs are sent to the workers,
+	// idle workers will be removed until the MinWorkers setting is reached.
+	MinRunners int `toml:"min_runners" json:"min-runners"`
+
+	// Flavor is the size of the VM that will be spun up.
+	Flavor string `toml:"flavor" json:"flavor"`
+	// Image is the image that the VM will run. Each
+	Image string `toml:"image" json:"image"`
+
+	// OSType overrides the OS type that comes in from the Image. If the image
+	// on a particular provider does not have this information set within it's metadata
+	// you must set this option, so the runner-manager knows how to configure
+	// the worker.
+	OSType OSType `toml:"os_type" json:"os-type"`
+	// OSArch overrides the OS architecture that comes in from the Image.
+	// If the image metadata does not include information about the OS architecture,
+	// you must set this option, so the runner-manager knows how to configure the worker.
+	OSArch OSArch `toml:"os_arch" json:"os-arch"`
+}
+
+// TODO: validate rest
+func (r *Runner) Validate() error {
+	if len(r.Labels) == 0 {
+		return fmt.Errorf("missing labels")
+	}
+
+	if r.Name == "" {
+		return fmt.Errorf("name is not set")
+	}
+
+	return nil
+}
+
+type Pool struct {
+	// ProviderName is the name of the provider that will be used for this pool.
+	// A provider with the name specified in this setting, must be defined in
+	// the Providers array in the main config.
+	ProviderName string `toml:"provider_name" json:"provider-name"`
+
+	// Runners represents a list of runner types defined for this pool.
+	Runners []Runner `toml:"runners" json:"runners"`
+}
+
+func (p *Pool) Validate() error {
+	if p.ProviderName == "" {
+		return fmt.Errorf("missing provider_name")
+	}
+
+	if len(p.Runners) == 0 {
+		return fmt.Errorf("no runners defined for pool")
+	}
+
+	for _, runner := range p.Runners {
+		if err := runner.Validate(); err != nil {
+			return errors.Wrap(err, "validating runner for pool")
+		}
+	}
+	return nil
+}
+
 // Repository defines the settings for a pool associated with a particular repository.
 type Repository struct {
 	// Owner is the user under which the repo is created
@@ -193,22 +301,10 @@ type Repository struct {
 	// WebsocketSecret is the shared secret used to create the hash of
 	// the webhook body. We use this to validate that the webhook message
 	// came in from the correct repo.
-	WebhookSecret string `toml:"webhook_secret" json:"webhook_secret"`
+	WebhookSecret string `toml:"webhook_secret" json:"webhook-secret"`
 
-	// MaxRunners is the maximum number of self hosted action runners
-	// of any type that are spun up for this repo. If current worker count
-	// is not enough to handle jobs comming in, a new runner will be spun up,
-	// until MaxWorkers count is hit.
-	MaxRunners int `toml:"max_runners" json:"max_runners"`
-	// MinRunners is the minimum number of self hosted runners that will
-	// be maintained for this repo. If no jobs are sent to the workers,
-	// idle workers will be removed until the MinWorkers setting is reached.
-	MinRunners int `toml:"min_runners" json:"min_runners"`
-
-	// ProviderName is the name of the provider that will be used for this repo.
-	// A provider with the name specified in this setting, must be defined in
-	// the Providers array in the main config.
-	ProviderName string `toml:"provider_name" json:"provider_name"`
+	// Pool is the pool defined for this repository.
+	Pool Pool `toml:"pool" json:"pool"`
 }
 
 func (r *Repository) String() string {
@@ -228,17 +324,10 @@ func (r *Repository) Validate() error {
 		return fmt.Errorf("missing webhook_secret")
 	}
 
-	if r.MaxRunners < 1 || r.MaxRunners < r.MinRunners {
-		return fmt.Errorf("max_runners must be a positive, non-zero value, greated than min_runners")
+	if err := r.Pool.Validate(); err != nil {
+		return errors.Wrapf(err, "validating pool for %s", r)
 	}
 
-	if r.MinRunners < 1 {
-		return fmt.Errorf("min_runners must be a positive, non-zero value, smaller than max_runners")
-	}
-
-	if r.ProviderName == "" {
-		return fmt.Errorf("missing provider name")
-	}
 	return nil
 }
 

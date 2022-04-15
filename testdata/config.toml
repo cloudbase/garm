@@ -1,0 +1,53 @@
+log_file = "/tmp/runner-manager.log"
+
+[apiserver]
+  bind = "0.0.0.0"
+  port = 9997
+  use_tls = false
+  [apiserver.tls]
+    certificate = ""
+    key = ""
+    ca_certificate = ""
+
+[database]
+  debug = true
+  backend = "sqlite3"
+  [database.mysql]
+    username = ""
+    password = ""
+    hostname = ""
+    database = ""
+  [database.sqlite3]
+    db_file = "/tmp/file.db"
+
+[[repository]]
+  owner = "gabriel-samfira"
+  name = "scripts"
+  webhook_secret = "oP0@41IB)OcjW!zE7RF`fE5atfU;Ul`aSCu&nCtS?KogC!?b>@fP@1M@Gi#NT5$J"
+  [repository.pool]
+    provider_name = "lxd_local"
+
+    [[repository.pool.runners]]
+      name = "large" 
+      labels = ["my-runner"]
+      max_runners = 10
+      min_runners = 1
+      # For LXD, flavor referes to a profile with this name, in which default resources
+      # are defined.
+      flavor = "large"
+      image = "ubuntu:20.04"
+
+[[provider]]
+  name = "lxd_local"
+  provider_type = "lxd"
+  [provider.lxd]
+    unix_socket_path = "/var/snap/lxd/common/lxd/unix.socket"
+    include_default_profile = false
+    project_name = "github"
+    address = ""
+    client_certificate = ""
+    client_key = ""
+    tls_server_certificate = ""
+
+[github]
+  oauth2_token = "super secret"
