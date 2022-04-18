@@ -1,4 +1,4 @@
-log_file = "/tmp/runner-manager.log"
+# log_file = "/tmp/runner-manager.log"
 
 [apiserver]
   bind = "0.0.0.0"

@@ -35,11 +35,28 @@ const (
 	// DefaultConfigFilePath is the default path on disk to the runner-manager
 	// configuration file.
 	DefaultConfigFilePath = "/etc/runner-manager/config.toml"
+	// DefaultConfigDir is the default path on disk to the config dir. The config
+	// file will probably be in the same folder, but it is not mandatory.
+	DefaultConfigDir = "/etc/runner-manager"
+
+	// DefaultUser is the default username that should exist on the instances.
+	DefaultUser = "runner"
+	// DefaultUserShell is the shell for the default user.
+	DefaultUserShell = "/bin/bash"
+)
+
+var (
+	// DefaultUserGroups are the groups the default user will be part of.
+	DefaultUserGroups = []string{
+		"sudo", "adm", "cdrom", "dialout",
+		"dip", "video", "plugdev", "netdev",
+	}
 )
 
 const (
 	Windows OSType = "windows"
 	Linux   OSType = "linux"
+	Unknown OSType = "unknown"
 )
 
 const (
@@ -57,10 +74,17 @@ func NewConfig(cfgFile string) (*Config, error) {
 	if err := config.Validate(); err != nil {
 		return nil, errors.Wrap(err, "validating config")
 	}
+	if config.ConfigDir == "" {
+		config.ConfigDir = DefaultConfigDir
+	}
 	return &config, nil
 }
 
 type Config struct {
+	// ConfigDir is the folder where the runner may save any aditional files
+	// or configurations it may need. Things like auto-generated SSH keys that
+	// may be used to access the runner instances.
+	ConfigDir    string       `toml:"config_dir" json:"config-dir"`
 	APIServer    APIServer    `toml:"apiserver" json:"apiserver"`
 	Database     Database     `toml:"database" json:"database"`
 	Repositories []Repository `toml:"repository" json:"repository"`
@@ -153,6 +177,8 @@ type LXD struct {
 	TLSServerCert string `toml:"tls_server_certificate" json:"tls-server-certificate"`
 	// TLSCA is the TLS CA certificate when running LXD in PKI mode.
 	TLSCA string `toml:"tls_ca" json:"tls-ca"`
+
+	// TODO: add simplestreams sources
 }
 
 func (l *LXD) Validate() error {
@@ -308,7 +334,7 @@ type Repository struct {
 }
 
 func (r *Repository) String() string {
-	return fmt.Sprintf("%s/%s", r.Owner, r.Name)
+	return fmt.Sprintf("https://github.com/%s/%s", r.Owner, r.Name)
 }
 
 func (r *Repository) Validate() error {

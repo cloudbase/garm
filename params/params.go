@@ -1,5 +1,7 @@
 package params
 
+import "github.com/google/go-github/v43/github"
+
 type OSType string
 
 const (
@@ -27,4 +29,27 @@ type Instance struct {
 	// Addresses is a list of IP addresses the provider reports
 	// for this instance.
 	Addresses []string `json:"ip_addresses,omitempty"`
+}
+
+type BootstrapInstance struct {
+	Tools []*github.RunnerApplicationDownload `json:"tools"`
+	// RepoURL is the URL the github runner agent needs to configure itself.
+	RepoURL string `json:"repo_url"`
+	// GithubRunnerAccessToken is the token we fetch from github to allow the runner to
+	// register itself.
+	GithubRunnerAccessToken string `json:"github_runner_access_token"`
+	// RunnerType is the name of the defined runner type in a particular pool. The provider
+	// needs this to determine which flavor/image/settings it needs to use to create the
+	// instance. This is provider/runner specific. The config for the runner type is defined
+	// in the configuration file, as part of the pool definition.
+	RunnerType string `json:"runner_type"`
+	// CallbackUrl is the URL where the instance can send a post, signaling
+	// progress or status.
+	CallbackURL string `json:"callback_url"`
+	// InstanceToken is the token that needs to be set by the instance in the headers
+	// in order to send updated back to the runner-manager via CallbackURL.
+	InstanceToken string `json:"instance_token"`
+	// SSHKeys are the ssh public keys we may want to inject inside the runners, if the
+	// provider supports it.
+	SSHKeys []string `json:"ssh_keys"`
 }

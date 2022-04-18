@@ -2,13 +2,12 @@ package common
 
 import (
 	"context"
-
-	"github.com/google/go-github/v43/github"
+	"runner-manager/params"
 )
 
 type Provider interface {
 	// CreateInstance creates a new compute instance in the provider.
-	CreateInstance(ctx context.Context, runnerType string, tools github.RunnerApplicationDownload) error
+	CreateInstance(ctx context.Context, bootstrapParams params.BootstrapInstance) error
 	// Delete instance will delete the instance in a provider.
 	DeleteInstance(ctx context.Context, instance string) error
 	// ListInstances will list all instances for a provider.
