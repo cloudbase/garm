@@ -7,19 +7,20 @@ import (
 	"github.com/pkg/errors"
 )
 
-var CloudConfigTemplate = `
-#!/bin/bash
+var CloudConfigTemplate = `#!/bin/bash
 
 set -ex
+set -o pipefail
 
-curl -o "/home/runner/{{ .FileName }}" "{{ .DownloadURL }}"
-mkdir -p /home/runner/action-runner
-tar xf "/home/runner/{{ .FileName }}" -C /home/runner/action-runner/
-chown {{ .RunnerUsername }}:{{ .RunnerGroup }} -R /home/{{ .RunnerUsername }}/action-runner/
+curl -L -o "/home/runner/{{ .FileName }}" "{{ .DownloadURL }}"
+mkdir -p /home/runner/actions-runner
+tar xf "/home/runner/{{ .FileName }}" -C /home/runner/actions-runner/
+chown {{ .RunnerUsername }}:{{ .RunnerGroup }} -R /home/{{ .RunnerUsername }}/actions-runner/
 sudo /home/{{ .RunnerUsername }}/actions-runner/bin/installdependencies.sh
 sudo -u {{ .RunnerUsername }} -- /home/{{ .RunnerUsername }}/actions-runner/config.sh --unattended --url "{{ .RepoURL }}" --token "{{ .GithubToken }}" --name "{{ .RunnerName }}" --labels "{{ .RunnerLabels }}" --ephemeral
-/home/{{ .RunnerUsername }}/actions-runner/svc.sh install
-/home/{{ .RunnerUsername }}/actions-runner/svc.sh start
+cd /home/{{ .RunnerUsername }}/actions-runner
+./svc.sh install {{ .RunnerUsername }}
+./svc.sh start
 `
 
 type InstallRunnerParams struct {

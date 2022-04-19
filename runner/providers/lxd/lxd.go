@@ -2,8 +2,8 @@ package lxd
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"strings"
 
 	"runner-manager/cloudconfig"
@@ -18,14 +18,29 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
+	"gopkg.in/yaml.v3"
 )
 
 var _ common.Provider = &LXD{}
 
 var (
-	archMap map[string]string = map[string]string{
-		"x86_64": "x64",
-		"amd64":  "x64",
+	// lxdToGithubArchMap translates LXD architectures to Github tools architectures.
+	// TODO: move this in a separate package. This will most likely be used
+	// by any other provider.
+	lxdToGithubArchMap map[string]string = map[string]string{
+		"x86_64":  "x64",
+		"amd64":   "x64",
+		"armv7l":  "arm",
+		"aarch64": "arm64",
+		"x64":     "x64",
+		"arm":     "arm",
+		"arm64":   "arm64",
+	}
+
+	configToLXDArchMap map[config.OSArch]string = map[config.OSArch]string{
+		config.Amd64: "x86_64",
+		config.Arm64: "aarch64",
+		config.Arm:   "armv7l",
 	}
 )
 
@@ -36,22 +51,46 @@ const (
 
 func getClientFromConfig(ctx context.Context, cfg *config.LXD) (cli lxd.InstanceServer, err error) {
 	if cfg.UnixSocket != "" {
-		cli, err = lxd.ConnectLXDUnixWithContext(ctx, cfg.UnixSocket, nil)
-	} else {
-		connectArgs := lxd.ConnectionArgs{
-			TLSServerCert: cfg.TLSServerCert,
-			TLSCA:         cfg.TLSCA,
-			TLSClientCert: cfg.ClientCertificate,
-			TLSClientKey:  cfg.ClientKey,
+		return lxd.ConnectLXDUnixWithContext(ctx, cfg.UnixSocket, nil)
+	}
+
+	var srvCrtContents, tlsCAContents, clientCertContents, clientKeyContents []byte
+
+	if cfg.TLSServerCert != "" {
+		srvCrtContents, err = ioutil.ReadFile(cfg.TLSServerCert)
+		if err != nil {
+			return nil, errors.Wrap(err, "reading TLSServerCert")
 		}
-		cli, err = lxd.ConnectLXD(cfg.URL, &connectArgs)
 	}
 
-	if err != nil {
-		return nil, errors.Wrap(err, "connecting to LXD")
+	if cfg.TLSCA != "" {
+		tlsCAContents, err = ioutil.ReadFile(cfg.TLSCA)
+		if err != nil {
+			return nil, errors.Wrap(err, "reading TLSCA")
+		}
 	}
 
-	return cli, nil
+	if cfg.ClientCertificate != "" {
+		clientCertContents, err = ioutil.ReadFile(cfg.ClientCertificate)
+		if err != nil {
+			return nil, errors.Wrap(err, "reading ClientCertificate")
+		}
+	}
+
+	if cfg.ClientKey != "" {
+		clientKeyContents, err = ioutil.ReadFile(cfg.ClientKey)
+		if err != nil {
+			return nil, errors.Wrap(err, "reading ClientKey")
+		}
+	}
+
+	connectArgs := lxd.ConnectionArgs{
+		TLSServerCert: string(srvCrtContents),
+		TLSCA:         string(tlsCAContents),
+		TLSClientCert: string(clientCertContents),
+		TLSClientKey:  string(clientKeyContents),
+	}
+	return lxd.ConnectLXD(cfg.URL, &connectArgs)
 }
 
 func projectName(cfg config.LXD) string {
@@ -93,6 +132,10 @@ func NewProvider(ctx context.Context, cfg *config.Provider, pool *config.Pool) (
 		cfg:  cfg,
 		pool: pool,
 		cli:  cli,
+		imageManager: &image{
+			cli:     cli,
+			remotes: cfg.LXD.ImageRemotes,
+		},
 	}
 
 	return provider, nil
@@ -108,6 +151,8 @@ type LXD struct {
 	ctx context.Context
 	// cli is the LXD client.
 	cli lxd.InstanceServer
+	// imageManager downloads images from remotes
+	imageManager *image
 }
 
 func (l *LXD) getProfiles(runner config.Runner) ([]string, error) {
@@ -134,20 +179,6 @@ func (l *LXD) getProfiles(runner config.Runner) ([]string, error) {
 	return ret, nil
 }
 
-// TODO: Add image details cache. Avoid doing a request if not necessary.
-func (l *LXD) getImageDetails(runner config.Runner) (*api.Image, error) {
-	alias, _, err := l.cli.GetImageAlias(runner.Image)
-	if err != nil {
-		return nil, errors.Wrapf(err, "resolving alias: %s", runner.Image)
-	}
-
-	image, _, err := l.cli.GetImage(alias.Target)
-	if err != nil {
-		return nil, errors.Wrap(err, "fetching image details")
-	}
-	return image, nil
-}
-
 func (l *LXD) getCloudConfig(runner config.Runner, bootstrapParams params.BootstrapInstance, tools github.RunnerApplicationDownload, runnerName string) (string, error) {
 	cloudCfg := cloudconfig.NewDefaultCloudInitConfig()
 
@@ -168,8 +199,9 @@ func (l *LXD) getCloudConfig(runner config.Runner, bootstrapParams params.Bootst
 	}
 
 	cloudCfg.AddSSHKey(bootstrapParams.SSHKeys...)
-	cloudCfg.AddFile(installScript, "/var/run/install_runner.sh", "root:root", "755")
-	cloudCfg.AddRunCmd("/var/run/install_runner.sh")
+	cloudCfg.AddFile(installScript, "/install_runner.sh", "root:root", "755")
+	cloudCfg.AddRunCmd("/install_runner.sh")
+	cloudCfg.AddRunCmd("rm -f /install_runner.sh")
 
 	asStr, err := cloudCfg.Serialize()
 	if err != nil {
@@ -192,12 +224,14 @@ func (l *LXD) getTools(image *api.Image, tools []*github.RunnerApplicationDownlo
 		return github.RunnerApplicationDownload{}, errors.Wrap(err, "fetching OS type")
 	}
 
+	// Validate image OS. Linux only for now.
 	switch osType {
 	case config.Linux:
 	default:
 		return github.RunnerApplicationDownload{}, fmt.Errorf("this provider does not support OS type: %s", osType)
 	}
 
+	// Find tools for OS/Arch.
 	for _, tool := range tools {
 		if tool == nil {
 			continue
@@ -212,12 +246,31 @@ func (l *LXD) getTools(image *api.Image, tools []*github.RunnerApplicationDownlo
 			return *tool, nil
 		}
 
-		arch, ok := archMap[image.Architecture]
-		if ok && arch == *tool.Architecture {
+		arch, ok := lxdToGithubArchMap[image.Architecture]
+		if ok && arch == *tool.Architecture && *tool.OS == string(osType) {
 			return *tool, nil
 		}
 	}
 	return github.RunnerApplicationDownload{}, fmt.Errorf("failed to find tools for OS %s and arch %s", osType, image.Architecture)
+}
+
+func (l *LXD) resolveArchitecture(runner config.Runner) (string, error) {
+	if string(runner.OSArch) == "" {
+		return configToLXDArchMap[config.Amd64], nil
+	}
+	arch, ok := configToLXDArchMap[runner.OSArch]
+	if !ok {
+		return "", fmt.Errorf("architecture %s is not supported", runner.OSArch)
+	}
+	return arch, nil
+}
+
+// sadly, the security.secureboot flag is a string encoded boolean.
+func (l *LXD) secureBootEnabled() string {
+	if l.cfg.LXD.SecureBoot {
+		return "true"
+	}
+	return "false"
 }
 
 func (l *LXD) getCreateInstanceArgs(bootstrapParams params.BootstrapInstance) (api.InstancesPost, error) {
@@ -233,7 +286,12 @@ func (l *LXD) getCreateInstanceArgs(bootstrapParams params.BootstrapInstance) (a
 		return api.InstancesPost{}, errors.Wrap(err, "fetching profiles")
 	}
 
-	image, err := l.getImageDetails(runner)
+	arch, err := l.resolveArchitecture(runner)
+	if err != nil {
+		return api.InstancesPost{}, errors.Wrap(err, "fetching archictecture")
+	}
+
+	image, err := l.imageManager.EnsureImage(runner.Image, config.LXDImageVirtualMachine, arch)
 	if err != nil {
 		return api.InstancesPost{}, errors.Wrap(err, "getting image details")
 	}
@@ -254,17 +312,50 @@ func (l *LXD) getCreateInstanceArgs(bootstrapParams params.BootstrapInstance) (a
 			Profiles:     profiles,
 			Description:  "Github runner provisioned by runner-manager",
 			Config: map[string]string{
-				"user.user-data": cloudCfg,
+				"user.user-data":      cloudCfg,
+				"security.secureboot": l.secureBootEnabled(),
 			},
 		},
 		Source: api.InstanceSource{
-			Type:  "image",
-			Alias: runner.Image,
+			Type:        "image",
+			Fingerprint: image.Fingerprint,
 		},
 		Name: name,
 		Type: api.InstanceTypeVM,
 	}
 	return args, nil
+}
+
+func (l *LXD) launchInstance(createArgs api.InstancesPost) error {
+	// Get LXD to create the instance (background operation)
+	op, err := l.cli.CreateInstance(createArgs)
+	if err != nil {
+		return errors.Wrap(err, "creating instance")
+	}
+
+	// Wait for the operation to complete
+	err = op.Wait()
+	if err != nil {
+		return errors.Wrap(err, "waiting for instance creation")
+	}
+
+	// Get LXD to start the instance (background operation)
+	reqState := api.InstanceStatePut{
+		Action:  "start",
+		Timeout: -1,
+	}
+
+	op, err = l.cli.UpdateInstanceState(createArgs.Name, reqState, "")
+	if err != nil {
+		return errors.Wrap(err, "starting instance")
+	}
+
+	// Wait for the operation to complete
+	err = op.Wait()
+	if err != nil {
+		return errors.Wrap(err, "waiting for instance to start")
+	}
+	return nil
 }
 
 // CreateInstance creates a new compute instance in the provider.
@@ -274,9 +365,9 @@ func (l *LXD) CreateInstance(ctx context.Context, bootstrapParams params.Bootstr
 		return errors.Wrap(err, "fetching create args")
 	}
 
-	asJs, err := json.MarshalIndent(args, "", "  ")
+	asJs, err := yaml.Marshal(args)
 	fmt.Println(string(asJs), err)
-	return nil
+	return l.launchInstance(args)
 }
 
 // Delete instance will delete the instance in a provider.

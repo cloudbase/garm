@@ -16,6 +16,7 @@ import (
 
 	"github.com/google/go-github/v43/github"
 	"golang.org/x/oauth2"
+	"gopkg.in/yaml.v3"
 )
 
 var (
@@ -94,7 +95,12 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("got tools: %v", tools)
+
+	toolsAsYaml, err := yaml.Marshal(tools)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("got tools:\n%s\n", string(toolsAsYaml))
 
 	log.Print("fetching runner token")
 	ghRunnerToken, _, err := ghClient.Actions.CreateRegistrationToken(ctx, cfg.Repositories[0].Owner, cfg.Repositories[0].Name)

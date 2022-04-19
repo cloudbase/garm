@@ -30,6 +30,7 @@ var (
 		"suse":    config.Linux,
 		"fedora":  config.Linux,
 		"flatcar": config.Linux,
+		"gentoo":  config.Linux,
 		"windows": config.Windows,
 	}
 )

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
-	"net/url"
 	"os"
 	"path/filepath"
 	"time"
@@ -63,6 +62,7 @@ const (
 	Amd64 OSArch = "amd64"
 	I386  OSArch = "i386"
 	Arm64 OSArch = "arm64"
+	Arm   OSArch = "arm"
 )
 
 // NewConfig returns a new Config
@@ -146,74 +146,6 @@ type Github struct {
 func (g *Github) Validate() error {
 	if g.OAuth2Token == "" {
 		return fmt.Errorf("missing github oauth2 token")
-	}
-	return nil
-}
-
-// LXD holds connection information for an LXD cluster.
-type LXD struct {
-	// UnixSocket is the path on disk to the LXD unix socket. If defined,
-	// this is prefered over connecting via HTTPs.
-	UnixSocket string `toml:"unix_socket_path" json:"unix-socket-path"`
-
-	// Project name is the name of the project in which this runner will create
-	// instances. If this option is not set, the default project will be used.
-	// The project used here, must have all required profiles created by you
-	// beforehand. For LXD, the "flavor" used in the runner definition for a pool
-	// equates to a profile in the desired project.
-	ProjectName string `toml:"project_name" json:"project-name"`
-
-	// IncludeDefaultProfile specifies whether or not this provider will always add
-	// the "default" profile to any newly created instance.
-	IncludeDefaultProfile bool `toml:"include_default_profile" json:"include-default-profile"`
-
-	// URL holds the IP address.
-	URL string `toml:"address" json:"address"`
-	// ClientCertificate is the x509 client certificate path used for authentication.
-	ClientCertificate string `toml:"client_certificate" json:"client_certificate"`
-	// ClientKey is the key used for client certificate authentication.
-	ClientKey string `toml:"client_key" json:"client-key"`
-	// TLS certificate of the remote server. If not specified, the system CA is used.
-	TLSServerCert string `toml:"tls_server_certificate" json:"tls-server-certificate"`
-	// TLSCA is the TLS CA certificate when running LXD in PKI mode.
-	TLSCA string `toml:"tls_ca" json:"tls-ca"`
-
-	// TODO: add simplestreams sources
-}
-
-func (l *LXD) Validate() error {
-	if l.UnixSocket != "" {
-		if _, err := os.Stat(l.UnixSocket); err != nil {
-			return fmt.Errorf("could not access unix socket %s: %q", l.UnixSocket, err)
-		}
-
-		return nil
-	}
-
-	if l.URL == "" {
-		return fmt.Errorf("unix_socket or address must be specified")
-	}
-
-	if _, err := url.Parse(l.URL); err != nil {
-		return fmt.Errorf("invalid LXD URL")
-	}
-
-	if l.ClientCertificate == "" || l.ClientKey == "" {
-		return fmt.Errorf("client_certificate and client_key are mandatory when connecting via HTTPs")
-	}
-
-	if _, err := os.Stat(l.ClientCertificate); err != nil {
-		return fmt.Errorf("failed to access client certificate %s: %q", l.ClientCertificate, err)
-	}
-
-	if _, err := os.Stat(l.ClientKey); err != nil {
-		return fmt.Errorf("failed to access client key %s: %q", l.ClientKey, err)
-	}
-
-	if l.TLSServerCert != "" {
-		if _, err := os.Stat(l.TLSServerCert); err != nil {
-			return fmt.Errorf("failed to access tls_server_certificate %s: %q", l.TLSServerCert, err)
-		}
 	}
 	return nil
 }

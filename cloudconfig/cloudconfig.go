@@ -16,6 +16,7 @@ func NewDefaultCloudInitConfig() *CloudInit {
 		PackageUpgrade: true,
 		Packages: []string{
 			"curl",
+			"tar",
 		},
 		SystemInfo: &SystemInfo{
 			DefaultUser: DefaultUser{
