@@ -3,7 +3,6 @@ package lxd
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"strings"
 
 	"runner-manager/cloudconfig"
@@ -22,6 +21,12 @@ import (
 )
 
 var _ common.Provider = &LXD{}
+
+const (
+	// We look for this key in the config of the instances to determine if they are
+	// created by us or not.
+	controllerIDKeyName = "user.runner-controller-id"
+)
 
 var (
 	// lxdToGithubArchMap translates LXD architectures to Github tools architectures.
@@ -49,58 +54,7 @@ const (
 	DefaultProjectName        = "runner-manager-project"
 )
 
-func getClientFromConfig(ctx context.Context, cfg *config.LXD) (cli lxd.InstanceServer, err error) {
-	if cfg.UnixSocket != "" {
-		return lxd.ConnectLXDUnixWithContext(ctx, cfg.UnixSocket, nil)
-	}
-
-	var srvCrtContents, tlsCAContents, clientCertContents, clientKeyContents []byte
-
-	if cfg.TLSServerCert != "" {
-		srvCrtContents, err = ioutil.ReadFile(cfg.TLSServerCert)
-		if err != nil {
-			return nil, errors.Wrap(err, "reading TLSServerCert")
-		}
-	}
-
-	if cfg.TLSCA != "" {
-		tlsCAContents, err = ioutil.ReadFile(cfg.TLSCA)
-		if err != nil {
-			return nil, errors.Wrap(err, "reading TLSCA")
-		}
-	}
-
-	if cfg.ClientCertificate != "" {
-		clientCertContents, err = ioutil.ReadFile(cfg.ClientCertificate)
-		if err != nil {
-			return nil, errors.Wrap(err, "reading ClientCertificate")
-		}
-	}
-
-	if cfg.ClientKey != "" {
-		clientKeyContents, err = ioutil.ReadFile(cfg.ClientKey)
-		if err != nil {
-			return nil, errors.Wrap(err, "reading ClientKey")
-		}
-	}
-
-	connectArgs := lxd.ConnectionArgs{
-		TLSServerCert: string(srvCrtContents),
-		TLSCA:         string(tlsCAContents),
-		TLSClientCert: string(clientCertContents),
-		TLSClientKey:  string(clientKeyContents),
-	}
-	return lxd.ConnectLXD(cfg.URL, &connectArgs)
-}
-
-func projectName(cfg config.LXD) string {
-	if cfg.ProjectName != "" {
-		return cfg.ProjectName
-	}
-	return DefaultProjectName
-}
-
-func NewProvider(ctx context.Context, cfg *config.Provider, pool *config.Pool) (common.Provider, error) {
+func NewProvider(ctx context.Context, cfg *config.Provider, pool *config.Pool, controllerID string) (common.Provider, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, errors.Wrap(err, "validating provider config")
 	}
@@ -128,10 +82,11 @@ func NewProvider(ctx context.Context, cfg *config.Provider, pool *config.Pool) (
 	cli = cli.UseProject(projectName(cfg.LXD))
 
 	provider := &LXD{
-		ctx:  ctx,
-		cfg:  cfg,
-		pool: pool,
-		cli:  cli,
+		ctx:          ctx,
+		cfg:          cfg,
+		pool:         pool,
+		cli:          cli,
+		controllerID: controllerID,
 		imageManager: &image{
 			cli:     cli,
 			remotes: cfg.LXD.ImageRemotes,
@@ -153,6 +108,8 @@ type LXD struct {
 	cli lxd.InstanceServer
 	// imageManager downloads images from remotes
 	imageManager *image
+	// controllerID is the ID of this controller
+	controllerID string
 }
 
 func (l *LXD) getProfiles(runner config.Runner) ([]string, error) {
@@ -314,6 +271,7 @@ func (l *LXD) getCreateInstanceArgs(bootstrapParams params.BootstrapInstance) (a
 			Config: map[string]string{
 				"user.user-data":      cloudCfg,
 				"security.secureboot": l.secureBootEnabled(),
+				controllerIDKeyName:   l.controllerID,
 			},
 		},
 		Source: api.InstanceSource{
@@ -359,43 +317,108 @@ func (l *LXD) launchInstance(createArgs api.InstancesPost) error {
 }
 
 // CreateInstance creates a new compute instance in the provider.
-func (l *LXD) CreateInstance(ctx context.Context, bootstrapParams params.BootstrapInstance) error {
+func (l *LXD) CreateInstance(ctx context.Context, bootstrapParams params.BootstrapInstance) (params.Instance, error) {
 	args, err := l.getCreateInstanceArgs(bootstrapParams)
 	if err != nil {
-		return errors.Wrap(err, "fetching create args")
+		return params.Instance{}, errors.Wrap(err, "fetching create args")
 	}
 
 	asJs, err := yaml.Marshal(args)
 	fmt.Println(string(asJs), err)
-	return l.launchInstance(args)
+	if err := l.launchInstance(args); err != nil {
+		return params.Instance{}, errors.Wrap(err, "creating instance")
+	}
+
+	return l.GetInstance(ctx, args.Name)
+}
+
+// GetInstance will return details about one instance.
+func (l *LXD) GetInstance(ctx context.Context, instanceName string) (params.Instance, error) {
+	instance, _, err := l.cli.GetInstanceFull(instanceName)
+	if err != nil {
+		return params.Instance{}, errors.Wrap(err, "fetching instance")
+	}
+
+	return lxdInstanceToAPIInstance(instance), nil
 }
 
 // Delete instance will delete the instance in a provider.
 func (l *LXD) DeleteInstance(ctx context.Context, instance string) error {
+	if err := l.setState(instance, "start", true); err != nil {
+		return errors.Wrap(err, "stopping instance")
+	}
+
+	op, err := l.cli.DeleteInstance(instance)
+	if err != nil {
+		return errors.Wrap(err, "removing instance")
+	}
+
+	err = op.Wait()
+	if err != nil {
+		return errors.Wrap(err, "waiting for instance deletion")
+	}
 	return nil
 }
 
 // ListInstances will list all instances for a provider.
-func (l *LXD) ListInstances(ctx context.Context) error {
-	return nil
+func (l *LXD) ListInstances(ctx context.Context) ([]params.Instance, error) {
+	instances, err := l.cli.GetInstancesFull(api.InstanceTypeAny)
+	if err != nil {
+		return []params.Instance{}, errors.Wrap(err, "fetching instances")
+	}
+
+	ret := []params.Instance{}
+
+	for _, instance := range instances {
+		if id, ok := instance.ExpandedConfig[controllerIDKeyName]; ok && id == l.controllerID {
+			ret = append(ret, lxdInstanceToAPIInstance(&instance))
+		}
+	}
+
+	return ret, nil
 }
 
 // RemoveAllInstances will remove all instances created by this provider.
 func (l *LXD) RemoveAllInstances(ctx context.Context) error {
+	instances, err := l.ListInstances(ctx)
+	if err != nil {
+		return errors.Wrap(err, "fetching instance list")
+	}
+
+	for _, instance := range instances {
+		// TODO: remove in parallel
+		if err := l.DeleteInstance(ctx, instance.Name); err != nil {
+			return errors.Wrapf(err, "removing instance %s", instance.Name)
+		}
+	}
+
 	return nil
 }
 
-// Status returns the instance status.
-func (l *LXD) Status(ctx context.Context, instance string) error {
+func (l *LXD) setState(instance, state string, force bool) error {
+	reqState := api.InstanceStatePut{
+		Action:  state,
+		Timeout: -1,
+		Force:   force,
+	}
+
+	op, err := l.cli.UpdateInstanceState(instance, reqState, "")
+	if err != nil {
+		return errors.Wrapf(err, "setting state to %s", state)
+	}
+	err = op.Wait()
+	if err != nil {
+		return errors.Wrapf(err, "waiting for instance to transition to state %s", state)
+	}
 	return nil
 }
 
 // Stop shuts down the instance.
-func (l *LXD) Stop(ctx context.Context, instance string) error {
-	return nil
+func (l *LXD) Stop(ctx context.Context, instance string, force bool) error {
+	return l.setState(instance, "stop", force)
 }
 
 // Start boots up an instance.
 func (l *LXD) Start(ctx context.Context, instance string) error {
-	return nil
+	return l.setState(instance, "start", false)
 }

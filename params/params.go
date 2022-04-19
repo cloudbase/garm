@@ -1,12 +1,9 @@
 package params
 
-import "github.com/google/go-github/v43/github"
+import (
+	"runner-manager/config"
 
-type OSType string
-
-const (
-	Linux   OSType = "linux"
-	Windows OSType = "windows"
+	"github.com/google/go-github/v43/github"
 )
 
 type Instance struct {
@@ -21,14 +18,18 @@ type Instance struct {
 	Name string `json:"name,omitempty"`
 	// OSType is the operating system type. For now, only Linux and
 	// Windows are supported.
-	OSType OSType `json:"os_type,omitempty"`
+	OSType config.OSType `json:"os-type,omitempty"`
+	// OSName is the name of the OS. Eg: ubuntu, centos, etc.
+	OSName string `json:"os-name,omitempty"`
 	// OSVersion is the version of the operating system.
-	OSVersion string `json:"os_version,omitempty"`
+	OSVersion string `json:"os-version,omitempty"`
 	// OSArch is the operating system architecture.
-	OSArch string `json:"os_arch,omitempty"`
+	OSArch string `json:"os-arch,omitempty"`
 	// Addresses is a list of IP addresses the provider reports
 	// for this instance.
-	Addresses []string `json:"ip_addresses,omitempty"`
+	Addresses []string `json:"ip-addresses,omitempty"`
+	// Status is the status of the instance inside the provider (eg: running, stopped, etc)
+	Status string `json:"status"`
 }
 
 type BootstrapInstance struct {
@@ -42,14 +43,14 @@ type BootstrapInstance struct {
 	// needs this to determine which flavor/image/settings it needs to use to create the
 	// instance. This is provider/runner specific. The config for the runner type is defined
 	// in the configuration file, as part of the pool definition.
-	RunnerType string `json:"runner_type"`
+	RunnerType string `json:"runner-type"`
 	// CallbackUrl is the URL where the instance can send a post, signaling
 	// progress or status.
-	CallbackURL string `json:"callback_url"`
+	CallbackURL string `json:"callback-url"`
 	// InstanceToken is the token that needs to be set by the instance in the headers
 	// in order to send updated back to the runner-manager via CallbackURL.
-	InstanceToken string `json:"instance_token"`
+	InstanceToken string `json:"instance-token"`
 	// SSHKeys are the ssh public keys we may want to inject inside the runners, if the
 	// provider supports it.
-	SSHKeys []string `json:"ssh_keys"`
+	SSHKeys []string `json:"ssh-keys"`
 }
