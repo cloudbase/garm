@@ -3,9 +3,7 @@ package lxd
 import (
 	"context"
 	"fmt"
-	"strings"
 
-	"runner-manager/cloudconfig"
 	"runner-manager/config"
 	runnerErrors "runner-manager/errors"
 	"runner-manager/params"
@@ -47,6 +45,12 @@ var (
 		config.Arm64: "aarch64",
 		config.Arm:   "armv7l",
 	}
+
+	lxdToConfigArch map[string]config.OSArch = map[string]config.OSArch{
+		"x86_64":  config.Amd64,
+		"aarch64": config.Arm64,
+		"armv7l":  config.Arm,
+	}
 )
 
 const (
@@ -54,20 +58,13 @@ const (
 	DefaultProjectName        = "runner-manager-project"
 )
 
-func NewProvider(ctx context.Context, cfg *config.Provider, pool *config.Pool, controllerID string) (common.Provider, error) {
+func NewProvider(ctx context.Context, cfg *config.Provider, controllerID string) (common.Provider, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, errors.Wrap(err, "validating provider config")
-	}
-	if err := pool.Validate(); err != nil {
-		return nil, errors.Wrap(err, "validating pool")
 	}
 
 	if cfg.ProviderType != config.LXDProvider {
 		return nil, fmt.Errorf("invalid provider type %s, expected %s", cfg.ProviderType, config.LXDProvider)
-	}
-
-	if cfg.Name != pool.ProviderName {
-		return nil, fmt.Errorf("provider %s is not responsible for pool", cfg.Name)
 	}
 
 	cli, err := getClientFromConfig(ctx, &cfg.LXD)
@@ -84,7 +81,6 @@ func NewProvider(ctx context.Context, cfg *config.Provider, pool *config.Pool, c
 	provider := &LXD{
 		ctx:          ctx,
 		cfg:          cfg,
-		pool:         pool,
 		cli:          cli,
 		controllerID: controllerID,
 		imageManager: &image{
@@ -99,9 +95,6 @@ func NewProvider(ctx context.Context, cfg *config.Provider, pool *config.Pool, c
 type LXD struct {
 	// cfg is the provider config for this provider.
 	cfg *config.Provider
-	// pool holds the config for the pool this provider is
-	// responsible for.
-	pool *config.Pool
 	// ctx is the context.
 	ctx context.Context
 	// cli is the LXD client.
@@ -112,7 +105,7 @@ type LXD struct {
 	controllerID string
 }
 
-func (l *LXD) getProfiles(runner config.Runner) ([]string, error) {
+func (l *LXD) getProfiles(flavor string) ([]string, error) {
 	ret := []string{}
 	if l.cfg.LXD.IncludeDefaultProfile {
 		ret = append(ret, "default")
@@ -128,43 +121,12 @@ func (l *LXD) getProfiles(runner config.Runner) ([]string, error) {
 		set[profile] = struct{}{}
 	}
 
-	if _, ok := set[runner.Flavor]; !ok {
-		return nil, errors.Wrapf(runnerErrors.ErrNotFound, "looking for profile %s", runner.Flavor)
+	if _, ok := set[flavor]; !ok {
+		return nil, errors.Wrapf(runnerErrors.ErrNotFound, "looking for profile %s", flavor)
 	}
 
-	ret = append(ret, runner.Flavor)
+	ret = append(ret, flavor)
 	return ret, nil
-}
-
-func (l *LXD) getCloudConfig(runner config.Runner, bootstrapParams params.BootstrapInstance, tools github.RunnerApplicationDownload, runnerName string) (string, error) {
-	cloudCfg := cloudconfig.NewDefaultCloudInitConfig()
-
-	installRunnerParams := cloudconfig.InstallRunnerParams{
-		FileName:       *tools.Filename,
-		DownloadURL:    *tools.DownloadURL,
-		GithubToken:    bootstrapParams.GithubRunnerAccessToken,
-		RunnerUsername: config.DefaultUser,
-		RunnerGroup:    config.DefaultUser,
-		RepoURL:        bootstrapParams.RepoURL,
-		RunnerName:     runnerName,
-		RunnerLabels:   strings.Join(runner.Labels, ","),
-	}
-
-	installScript, err := cloudconfig.InstallRunnerScript(installRunnerParams)
-	if err != nil {
-		return "", errors.Wrap(err, "generating script")
-	}
-
-	cloudCfg.AddSSHKey(bootstrapParams.SSHKeys...)
-	cloudCfg.AddFile(installScript, "/install_runner.sh", "root:root", "755")
-	cloudCfg.AddRunCmd("/install_runner.sh")
-	cloudCfg.AddRunCmd("rm -f /install_runner.sh")
-
-	asStr, err := cloudCfg.Serialize()
-	if err != nil {
-		return "", errors.Wrap(err, "creating cloud config")
-	}
-	return asStr, nil
 }
 
 func (l *LXD) getTools(image *api.Image, tools []*github.RunnerApplicationDownload) (github.RunnerApplicationDownload, error) {
@@ -211,17 +173,6 @@ func (l *LXD) getTools(image *api.Image, tools []*github.RunnerApplicationDownlo
 	return github.RunnerApplicationDownload{}, fmt.Errorf("failed to find tools for OS %s and arch %s", osType, image.Architecture)
 }
 
-func (l *LXD) resolveArchitecture(runner config.Runner) (string, error) {
-	if string(runner.OSArch) == "" {
-		return configToLXDArchMap[config.Amd64], nil
-	}
-	arch, ok := configToLXDArchMap[runner.OSArch]
-	if !ok {
-		return "", fmt.Errorf("architecture %s is not supported", runner.OSArch)
-	}
-	return arch, nil
-}
-
 // sadly, the security.secureboot flag is a string encoded boolean.
 func (l *LXD) secureBootEnabled() string {
 	if l.cfg.LXD.SecureBoot {
@@ -232,23 +183,18 @@ func (l *LXD) secureBootEnabled() string {
 
 func (l *LXD) getCreateInstanceArgs(bootstrapParams params.BootstrapInstance) (api.InstancesPost, error) {
 	name := fmt.Sprintf("runner-manager-%s", uuid.New())
-	runner, err := util.FindRunnerType(bootstrapParams.RunnerType, l.pool.Runners)
 
-	if err != nil {
-		return api.InstancesPost{}, errors.Wrap(err, "fetching runner")
-	}
-
-	profiles, err := l.getProfiles(runner)
+	profiles, err := l.getProfiles(bootstrapParams.Flavor)
 	if err != nil {
 		return api.InstancesPost{}, errors.Wrap(err, "fetching profiles")
 	}
 
-	arch, err := l.resolveArchitecture(runner)
+	arch, err := resolveArchitecture(bootstrapParams.OSArch)
 	if err != nil {
 		return api.InstancesPost{}, errors.Wrap(err, "fetching archictecture")
 	}
 
-	image, err := l.imageManager.EnsureImage(runner.Image, config.LXDImageVirtualMachine, arch)
+	image, err := l.imageManager.EnsureImage(bootstrapParams.Image, config.LXDImageVirtualMachine, arch)
 	if err != nil {
 		return api.InstancesPost{}, errors.Wrap(err, "getting image details")
 	}
@@ -258,7 +204,7 @@ func (l *LXD) getCreateInstanceArgs(bootstrapParams params.BootstrapInstance) (a
 		return api.InstancesPost{}, errors.Wrap(err, "getting tools")
 	}
 
-	cloudCfg, err := l.getCloudConfig(runner, bootstrapParams, tools, name)
+	cloudCfg, err := util.GetCloudConfig(bootstrapParams, tools, name)
 	if err != nil {
 		return api.InstancesPost{}, errors.Wrap(err, "generating cloud-config")
 	}

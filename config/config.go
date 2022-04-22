@@ -84,14 +84,15 @@ type Config struct {
 	// ConfigDir is the folder where the runner may save any aditional files
 	// or configurations it may need. Things like auto-generated SSH keys that
 	// may be used to access the runner instances.
-	ConfigDir    string       `toml:"config_dir" json:"config-dir"`
-	APIServer    APIServer    `toml:"apiserver" json:"apiserver"`
-	Database     Database     `toml:"database" json:"database"`
-	Repositories []Repository `toml:"repository" json:"repository"`
-	Providers    []Provider   `toml:"provider" json:"provider"`
-	Github       Github       `toml:"github"`
+	ConfigDir     string         `toml:"config_dir,omitempty" json:"config-dir,omitempty"`
+	APIServer     APIServer      `toml:"apiserver,omitempty" json:"apiserver,omitempty"`
+	Database      Database       `toml:"database,omitempty" json:"database,omitempty"`
+	Repositories  []Repository   `toml:"repository,omitempty" json:"repository,omitempty"`
+	Organizations []Organization `toml:"organization,omitempty" json:"organization,omitempty"`
+	Providers     []Provider     `toml:"provider,omitempty" json:"provider,omitempty"`
+	Github        Github         `toml:"github,omitempty"`
 	// LogFile is the location of the log file.
-	LogFile string `toml:"log_file"`
+	LogFile string `toml:"log_file,omitempty"`
 }
 
 // Validate validates the config
@@ -134,7 +135,57 @@ func (c *Config) Validate() error {
 		}
 	}
 
+	for _, org := range c.Organizations {
+		if err := org.Validate(); err != nil {
+			return errors.Wrap(err, "validating organization")
+		}
+
+		// We also need to validate that the provider used for this
+		// repo, has been defined in the providers section. Multiple
+		// repos can use the same provider.
+		found := false
+		for _, provider := range c.Providers {
+			if provider.Name == org.Pool.ProviderName {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			return fmt.Errorf("provider %s defined in org %s is not defined", org.Pool.ProviderName, org.Name)
+		}
+	}
+
 	return nil
+}
+
+// Organization represents a Github organization for which we can manage runners.
+type Organization struct {
+	// Name is the name of the organization.
+	Name string `toml:"name" json:"name"`
+	// WebsocketSecret is the shared secret used to create the hash of
+	// the webhook body. We use this to validate that the webhook message
+	// came in from the correct repo.
+	WebhookSecret string `toml:"webhook_secret" json:"webhook-secret"`
+
+	// Pool is the pool defined for this repository.
+	Pool Pool `toml:"pool" json:"pool"`
+}
+
+func (o *Organization) Validate() error {
+	if o.Name == "" {
+		return fmt.Errorf("missing org name")
+	}
+
+	if err := o.Pool.Validate(); err != nil {
+		return errors.Wrap(err, "validating org pool")
+	}
+
+	return nil
+}
+
+func (o *Organization) String() string {
+	return fmt.Sprintf("https://github.com/%s", o.Name)
 }
 
 // Github hold configuration options specific to interacting with github.
@@ -450,6 +501,19 @@ type APIServer struct {
 	UseTLS      bool      `toml:"use_tls" json:"use-tls"`
 	TLSConfig   TLSConfig `toml:"tls" json:"tls"`
 	CORSOrigins []string  `toml:"cors_origins" json:"cors-origins"`
+}
+
+func (a *APIServer) APITLSConfig() (*tls.Config, error) {
+	if !a.UseTLS {
+		return nil, nil
+	}
+
+	return a.TLSConfig.TLSConfig()
+}
+
+// BindAddress returns a host:port string.
+func (a *APIServer) BindAddress() string {
+	return fmt.Sprintf("%s:%d", a.Bind, a.Port)
 }
 
 // Validate validates the API server config

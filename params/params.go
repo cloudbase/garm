@@ -24,7 +24,7 @@ type Instance struct {
 	// OSVersion is the version of the operating system.
 	OSVersion string `json:"os-version,omitempty"`
 	// OSArch is the operating system architecture.
-	OSArch string `json:"os-arch,omitempty"`
+	OSArch config.OSArch `json:"os-arch,omitempty"`
 	// Addresses is a list of IP addresses the provider reports
 	// for this instance.
 	Addresses []string `json:"ip-addresses,omitempty"`
@@ -53,4 +53,9 @@ type BootstrapInstance struct {
 	// SSHKeys are the ssh public keys we may want to inject inside the runners, if the
 	// provider supports it.
 	SSHKeys []string `json:"ssh-keys"`
+
+	OSArch config.OSArch `json:"arch"`
+	Flavor string        `json:"flavor"`
+	Image  string        `json:"image"`
+	Labels []string      `json:"labels"`
 }

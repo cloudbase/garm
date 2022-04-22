@@ -2,6 +2,7 @@ package util
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -14,12 +15,16 @@ import (
 	"path"
 	"strings"
 
+	"github.com/google/go-github/v43/github"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/oauth2"
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 
+	"runner-manager/cloudconfig"
 	"runner-manager/config"
 	runnerErrors "runner-manager/errors"
+	"runner-manager/params"
 )
 
 var (
@@ -109,4 +114,47 @@ func OSToOSType(os string) (config.OSType, error) {
 		return config.Unknown, fmt.Errorf("no OS to OS type mapping for %s", os)
 	}
 	return osType, nil
+}
+
+func GithubClientFromConfig(ctx context.Context, cfg config.Github) (*github.Client, error) {
+	ts := oauth2.StaticTokenSource(
+		&oauth2.Token{AccessToken: cfg.OAuth2Token},
+	)
+
+	tc := oauth2.NewClient(ctx, ts)
+
+	ghClient := github.NewClient(tc)
+
+	return ghClient, nil
+}
+
+func GetCloudConfig(bootstrapParams params.BootstrapInstance, tools github.RunnerApplicationDownload, runnerName string) (string, error) {
+	cloudCfg := cloudconfig.NewDefaultCloudInitConfig()
+
+	installRunnerParams := cloudconfig.InstallRunnerParams{
+		FileName:       *tools.Filename,
+		DownloadURL:    *tools.DownloadURL,
+		GithubToken:    bootstrapParams.GithubRunnerAccessToken,
+		RunnerUsername: config.DefaultUser,
+		RunnerGroup:    config.DefaultUser,
+		RepoURL:        bootstrapParams.RepoURL,
+		RunnerName:     runnerName,
+		RunnerLabels:   strings.Join(bootstrapParams.Labels, ","),
+	}
+
+	installScript, err := cloudconfig.InstallRunnerScript(installRunnerParams)
+	if err != nil {
+		return "", errors.Wrap(err, "generating script")
+	}
+
+	cloudCfg.AddSSHKey(bootstrapParams.SSHKeys...)
+	cloudCfg.AddFile(installScript, "/install_runner.sh", "root:root", "755")
+	cloudCfg.AddRunCmd("/install_runner.sh")
+	cloudCfg.AddRunCmd("rm -f /install_runner.sh")
+
+	asStr, err := cloudCfg.Serialize()
+	if err != nil {
+		return "", errors.Wrap(err, "creating cloud config")
+	}
+	return asStr, nil
 }

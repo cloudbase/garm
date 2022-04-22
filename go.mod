@@ -5,6 +5,8 @@ go 1.18
 require (
 	github.com/BurntSushi/toml v0.3.1
 	github.com/google/go-github/v43 v43.0.0
+	github.com/gorilla/handlers v1.5.1
+	github.com/gorilla/mux v1.8.0
 	github.com/lxc/lxd v0.0.0-20220415052741-1170f2806124
 	github.com/pborman/uuid v1.2.1
 	github.com/pkg/errors v0.9.1
@@ -15,6 +17,7 @@ require (
 )
 
 require (
+	github.com/felixge/httpsnoop v1.0.1 // indirect
 	github.com/flosch/pongo2 v0.0.0-20200913210552-0d938eb266f3 // indirect
 	github.com/go-macaroon-bakery/macaroonpb v1.0.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect

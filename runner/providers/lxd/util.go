@@ -2,6 +2,7 @@ package lxd
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"runner-manager/config"
@@ -41,8 +42,14 @@ func lxdInstanceToAPIInstance(instance *api.InstanceFull) params.Instance {
 			}
 		}
 	}
+
+	instanceArch, ok := lxdToConfigArch[instance.Architecture]
+	if !ok {
+		log.Printf("failed to find OS architecture")
+	}
+
 	return params.Instance{
-		OSArch:     instance.Architecture,
+		OSArch:     instanceArch,
 		ProviderID: instance.Name,
 		Name:       instance.Name,
 		OSType:     osType,
@@ -102,4 +109,15 @@ func projectName(cfg config.LXD) string {
 		return cfg.ProjectName
 	}
 	return DefaultProjectName
+}
+
+func resolveArchitecture(osArch config.OSArch) (string, error) {
+	if string(osArch) == "" {
+		return configToLXDArchMap[config.Amd64], nil
+	}
+	arch, ok := configToLXDArchMap[osArch]
+	if !ok {
+		return "", fmt.Errorf("architecture %s is not supported", osArch)
+	}
+	return arch, nil
 }

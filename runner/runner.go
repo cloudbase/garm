@@ -2,11 +2,14 @@ package runner
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runner-manager/config"
+	gErrors "runner-manager/errors"
 	"runner-manager/runner/common"
+	"runner-manager/runner/providers"
 	"runner-manager/util"
 	"sync"
 
@@ -15,10 +18,22 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-func NewRunner(ctx context.Context, cfg *config.Config) (*Runner, error) {
+func NewRunner(ctx context.Context, cfg config.Config) (*Runner, error) {
+	ghc, err := util.GithubClientFromConfig(ctx, cfg.Github)
+	if err != nil {
+		return nil, errors.Wrap(err, "getting github client")
+	}
+
+	providers, err := providers.LoadProvidersFromConfig(ctx, cfg, "")
+	if err != nil {
+		return nil, errors.Wrap(err, "loading providers")
+	}
+
 	runner := &Runner{
-		ctx:    ctx,
-		config: cfg,
+		ctx:       ctx,
+		config:    cfg,
+		ghc:       ghc,
+		providers: providers,
 	}
 
 	if err := runner.ensureSSHKeys(); err != nil {
@@ -34,8 +49,35 @@ type Runner struct {
 	ctx context.Context
 	ghc *github.Client
 
-	config *config.Config
-	pools  []common.PoolManager
+	controllerID string
+
+	config        config.Config
+	repositories  map[string]common.PoolManager
+	organizations map[string]common.PoolManager
+	providers     map[string]common.Provider
+}
+
+func (r *Runner) getRepoSecret(repoName string) (string, error) {
+	return "", nil
+}
+
+func (r *Runner) getOrgSecret(orgName string) (string, error) {
+	return "", nil
+}
+
+func (r *Runner) ValidateHookBody(hookTargetType, signature, entity string, body []byte) error {
+	var secret string
+	var err error
+	switch hookTargetType {
+	case "repository":
+		secret, err = r.getRepoSecret(entity)
+	case "organization":
+		secret, err = r.getOrgSecret(entity)
+	default:
+		return gErrors.NewBadRequestError("invalid hook type: %s", hookTargetType)
+	}
+	fmt.Println(secret, err)
+	return nil
 }
 
 func (r *Runner) sshDir() string {
