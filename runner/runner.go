@@ -2,15 +2,22 @@ package runner
 
 import (
 	"context"
-	"fmt"
+	"crypto/hmac"
+	"crypto/sha1"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"hash"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runner-manager/config"
 	gErrors "runner-manager/errors"
+	"runner-manager/params"
 	"runner-manager/runner/common"
 	"runner-manager/runner/providers"
 	"runner-manager/util"
+	"strings"
 	"sync"
 
 	"github.com/google/go-github/v43/github"
@@ -57,26 +64,102 @@ type Runner struct {
 	providers     map[string]common.Provider
 }
 
-func (r *Runner) getRepoSecret(repoName string) (string, error) {
-	return "", nil
-}
-
-func (r *Runner) getOrgSecret(orgName string) (string, error) {
-	return "", nil
-}
-
-func (r *Runner) ValidateHookBody(hookTargetType, signature, entity string, body []byte) error {
-	var secret string
-	var err error
-	switch hookTargetType {
-	case "repository":
-		secret, err = r.getRepoSecret(entity)
-	case "organization":
-		secret, err = r.getOrgSecret(entity)
-	default:
-		return gErrors.NewBadRequestError("invalid hook type: %s", hookTargetType)
+func (r *Runner) findRepoPool(name string) (common.PoolManager, error) {
+	if pool, ok := r.repositories[name]; ok {
+		return pool, nil
 	}
-	fmt.Println(secret, err)
+	return nil, errors.Wrapf(gErrors.ErrNotFound, "repository %s not configured", name)
+}
+
+func (r *Runner) findOrgPool(name string) (common.PoolManager, error) {
+	if pool, ok := r.organizations[name]; ok {
+		return pool, nil
+	}
+	return nil, errors.Wrapf(gErrors.ErrNotFound, "organization %s not configured", name)
+}
+
+func (r *Runner) validateHookBody(signature, secret string, body []byte) error {
+	if secret == "" {
+		// A secret was not set. Skip validation of body.
+		return nil
+	}
+
+	if signature == "" {
+		// A secret was set in our config, but a signature was not received
+		// from Github. Authentication of the body cannot be done.
+		return gErrors.NewUnauthorizedError("missing github signature")
+	}
+
+	sigParts := strings.SplitN(signature, "=", 2)
+	if len(sigParts) != 2 {
+		// We expect the signature from github to be of the format:
+		// hashType=hashValue
+		// ie: sha256=1fc917c7ad66487470e466c0ad40ddd45b9f7730a4b43e1b2542627f0596bbdc
+		return gErrors.NewBadRequestError("invalid signature format")
+	}
+
+	var hashFunc func() hash.Hash
+	switch sigParts[0] {
+	case "sha256":
+		hashFunc = sha256.New
+	case "sha1":
+		hashFunc = sha1.New
+	default:
+		return gErrors.NewBadRequestError("unknown signature type")
+	}
+
+	mac := hmac.New(hashFunc, []byte(secret))
+	_, err := mac.Write(body)
+	if err != nil {
+		return errors.Wrap(err, "failed to compute sha256")
+	}
+	expectedMAC := hex.EncodeToString(mac.Sum(nil))
+
+	if !hmac.Equal([]byte(sigParts[1]), []byte(expectedMAC)) {
+		return gErrors.NewUnauthorizedError("signature missmatch")
+	}
+
+	return nil
+}
+
+func (r *Runner) DispatchWorkflowJob(hookTargetType, signature string, jobData []byte) error {
+	if jobData == nil || len(jobData) == 0 {
+		return gErrors.NewBadRequestError("missing job data")
+	}
+
+	var job params.WorkflowJob
+	if err := json.Unmarshal(jobData, &job); err != nil {
+		return errors.Wrapf(gErrors.ErrBadRequest, "invalid job data: %s", err)
+	}
+
+	var entity string
+	var pool common.PoolManager
+	var err error
+
+	switch HookTargetType(hookTargetType) {
+	case RepoHook:
+		entity = job.Repository.FullName
+		pool, err = r.findRepoPool(entity)
+	case OrganizationHook:
+		entity = job.Organization.Login
+		pool, err = r.findOrgPool(entity)
+	default:
+		return gErrors.NewBadRequestError("cannot handle hook target type %s", hookTargetType)
+	}
+
+	if err != nil {
+		// We don't have a repository or organization configured that
+		// can handle this workflow job.
+		return errors.Wrap(err, "fetching pool")
+	}
+
+	// We found a pool. Validate the webhook job. If a secret is configured,
+	// we make sure that the source of this workflow job is valid.
+	secret := pool.WebhookSecret()
+	if err := r.validateHookBody(signature, secret, jobData); err != nil {
+		return errors.Wrap(err, "validating webhook data")
+	}
+
 	return nil
 }
 

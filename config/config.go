@@ -42,6 +42,9 @@ const (
 	DefaultUser = "runner"
 	// DefaultUserShell is the shell for the default user.
 	DefaultUserShell = "/bin/bash"
+
+	// DefaultPoolQueueSize is the default size for a pool queue.
+	DefaultPoolQueueSize = 10
 )
 
 var (
@@ -279,6 +282,9 @@ type Pool struct {
 	// A provider with the name specified in this setting, must be defined in
 	// the Providers array in the main config.
 	ProviderName string `toml:"provider_name" json:"provider-name"`
+
+	// QueueSize defines the number of jobs this pool can handle simultaneously.
+	QueueSize uint `toml:"queue_size" json:"queue-size"`
 
 	// Runners represents a list of runner types defined for this pool.
 	Runners []Runner `toml:"runners" json:"runners"`

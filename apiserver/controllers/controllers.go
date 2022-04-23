@@ -9,7 +9,7 @@ import (
 
 	"runner-manager/apiserver/params"
 	gErrors "runner-manager/errors"
-	"runner-manager/github"
+	runnerParams "runner-manager/params"
 	"runner-manager/runner"
 
 	"github.com/pkg/errors"
@@ -56,7 +56,7 @@ func handleError(w http.ResponseWriter, err error) {
 func (a *APIController) authenticateHook(body []byte, headers http.Header) error {
 	// signature := headers.Get("X-Hub-Signature-256")
 	hookType := headers.Get("X-Github-Hook-Installation-Target-Type")
-	var workflowJob github.WorkflowJob
+	var workflowJob runnerParams.WorkflowJob
 	if err := json.Unmarshal(body, &workflowJob); err != nil {
 		return gErrors.NewBadRequestError("invalid post body: %s", err)
 	}
@@ -83,19 +83,10 @@ func (a *APIController) handleWorkflowJobEvent(w http.ResponseWriter, r *http.Re
 	fmt.Printf(">>> Signature: %s\n", signature)
 	fmt.Printf(">>> HookType: %s\n", hookType)
 
-	var workflowJob github.WorkflowJob
-	if err := json.Unmarshal(body, &workflowJob); err != nil {
-		handleError(w, gErrors.ErrBadRequest)
+	if err := a.r.DispatchWorkflowJob(hookType, signature, body); err != nil {
+		handleError(w, err)
 		return
 	}
-	// entity := workflowJob.Repository.Owner.Login
-
-	asJs, err := json.MarshalIndent(workflowJob, "", "  ")
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	fmt.Printf("%s\n", string(asJs))
 }
 
 func (a *APIController) CatchAll(w http.ResponseWriter, r *http.Request) {
@@ -103,9 +94,9 @@ func (a *APIController) CatchAll(w http.ResponseWriter, r *http.Request) {
 	for key, val := range headers {
 		fmt.Printf("%s --> %v\n", key, val)
 	}
-	event := github.Event(headers.Get("X-Github-Event"))
+	event := runnerParams.Event(headers.Get("X-Github-Event"))
 	switch event {
-	case github.WorkflowJobEvent:
+	case runnerParams.WorkflowJobEvent:
 		a.handleWorkflowJobEvent(w, r)
 	default:
 		log.Printf("ignoring unknown event %s", event)

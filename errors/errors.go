@@ -14,6 +14,8 @@ var (
 	ErrDuplicateEntity = NewDuplicateUserError("duplicate")
 	// ErrBadRequest is returned is a malformed request is sent
 	ErrBadRequest = NewBadRequestError("invalid request")
+	// ErrTimeout is returned when a timeout occurs.
+	ErrTimeout = fmt.Errorf("timed out")
 )
 
 type baseError struct {

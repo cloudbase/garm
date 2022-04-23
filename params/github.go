@@ -1,4 +1,4 @@
-package github
+package params
 
 import "time"
 
