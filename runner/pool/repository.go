@@ -19,19 +19,20 @@ import (
 // test that we implement PoolManager
 var _ common.PoolManager = &Repository{}
 
-func NewRepositoryRunnerPool(ctx context.Context, cfg config.Repository, ghcli *github.Client, provider common.Provider) (common.PoolManager, error) {
+func NewRepositoryRunnerPool(ctx context.Context, cfg config.Repository, provider common.Provider, ghcli *github.Client, controllerID string) (common.PoolManager, error) {
 	queueSize := cfg.Pool.QueueSize
 	if queueSize == 0 {
 		queueSize = config.DefaultPoolQueueSize
 	}
 	repo := &Repository{
-		ctx:      ctx,
-		cfg:      cfg,
-		ghcli:    ghcli,
-		provider: provider,
-		jobQueue: make(chan params.WorkflowJob, queueSize),
-		quit:     make(chan struct{}),
-		done:     make(chan struct{}),
+		ctx:          ctx,
+		cfg:          cfg,
+		ghcli:        ghcli,
+		provider:     provider,
+		controllerID: controllerID,
+		jobQueue:     make(chan params.WorkflowJob, queueSize),
+		quit:         make(chan struct{}),
+		done:         make(chan struct{}),
 	}
 
 	if err := repo.fetchTools(); err != nil {
@@ -41,19 +42,25 @@ func NewRepositoryRunnerPool(ctx context.Context, cfg config.Repository, ghcli *
 }
 
 type Repository struct {
-	ctx      context.Context
-	cfg      config.Repository
-	ghcli    *github.Client
-	provider common.Provider
-	tools    []*github.RunnerApplicationDownload
-	jobQueue chan params.WorkflowJob
-	quit     chan struct{}
-	done     chan struct{}
-	mux      sync.Mutex
+	ctx          context.Context
+	controllerID string
+	cfg          config.Repository
+	ghcli        *github.Client
+	provider     common.Provider
+	tools        []*github.RunnerApplicationDownload
+	jobQueue     chan params.WorkflowJob
+	quit         chan struct{}
+	done         chan struct{}
+	mux          sync.Mutex
 }
 
-func (r *Repository) getGithubRunners() ([]github.Runner, error) {
-	return nil, nil
+func (r *Repository) getGithubRunners() ([]*github.Runner, error) {
+	runners, _, err := r.ghcli.Actions.ListRunners(r.ctx, r.cfg.Owner, r.cfg.Name, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "fetching runners")
+	}
+
+	return runners.Runners, nil
 }
 
 func (r *Repository) getProviderInstances() ([]params.Instance, error) {
@@ -92,7 +99,7 @@ func (r *Repository) Wait() error {
 
 func (r *Repository) loop() {
 	defer close(r.done)
-	// TODO: Consolidate runners on loop start. Local runners must match runners
+	// TODO: Consolidate runners on loop start. Provider runners must match runners
 	// in github and DB. When a Workflow job is received, we will first create/update
 	// an entity in the database, before sending the request to the provider to create/delete
 	// an instance. If a "queued" job is received, we create an entity in the db with
@@ -116,6 +123,8 @@ func (r *Repository) loop() {
 				// Create instance.
 			case "completed":
 				// Remove instance.
+			case "in_progress":
+				// update state
 			}
 			fmt.Println(job)
 		case <-time.After(3 * time.Hour):

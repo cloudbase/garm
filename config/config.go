@@ -232,7 +232,9 @@ func (p *Provider) Validate() error {
 // it has, the image it runs on and the size of the compute system that was
 // requested.
 type Runner struct {
-	// Name is the name of this runner.
+	// Name is the name of this runner. The name needs to be unique within a provider,
+	// and is used as an ID. If you wish to change the name, you must make sure all
+	// runners of this type are deleted.
 	Name string `toml:"name" json:"name"`
 	// Labels is a list of labels that will be set for this runner in github.
 	// The labels will be used in workflows to request a particular kind of
@@ -241,12 +243,13 @@ type Runner struct {
 	// MaxRunners is the maximum number of self hosted action runners
 	// of any type that are spun up for this repo. If current worker count
 	// is not enough to handle jobs comming in, a new runner will be spun up,
-	// until MaxWorkers count is hit.
+	// until MaxWorkers count is hit. Set this to 0 to disable MaxRunners.
 	MaxRunners int `toml:"max_runners" json:"max-runners"`
-	// MinRunners is the minimum number of self hosted runners that will
-	// be maintained for this repo. If no jobs are sent to the workers,
-	// idle workers will be removed until the MinWorkers setting is reached.
-	MinRunners int `toml:"min_runners" json:"min-runners"`
+	// MinIdleRunners is the minimum number of idle self hosted runners that will
+	// be maintained for this repo. Ensuring a few idle runners, speeds up jobs, especially
+	// on providers where cold boot takes a long time. The pool will attempt to maintain at
+	// least this many idle workers, unless MaxRunners is hit. Set this to 0, for on-demand.
+	MinIdleRunners int `toml:"min_idle_runners" json:"min-runners"`
 
 	// Flavor is the size of the VM that will be spun up.
 	Flavor string `toml:"flavor" json:"flavor"`
@@ -262,6 +265,21 @@ type Runner struct {
 	// If the image metadata does not include information about the OS architecture,
 	// you must set this option, so the runner-manager knows how to configure the worker.
 	OSArch OSArch `toml:"os_arch" json:"os-arch"`
+}
+
+func (r *Runner) HasAllLabels(labels []string) bool {
+	hashed := map[string]struct{}{}
+	for _, val := range r.Labels {
+		hashed[val] = struct{}{}
+	}
+
+	for _, val := range labels {
+		if _, ok := hashed[val]; !ok {
+			return false
+		}
+	}
+
+	return true
 }
 
 // TODO: validate rest
@@ -352,6 +370,12 @@ type Database struct {
 	DbBackend DBBackendType `toml:"backend" json:"backend"`
 	MySQL     MySQL         `toml:"mysql" json:"mysql"`
 	SQLite    SQLite        `toml:"sqlite3" json:"sqlite3"`
+	// Passphrase is used to encrypt any sensitive info before
+	// inserting it into the database. This is just temporary until
+	// we move to something like vault or barbican for secrets storage.
+	// Don't lose or change this. It will invalidate all encrypted data
+	// in the DB. This field must be set and must be exactly 32 characters.
+	Passphrase string `toml:"passphrase"`
 }
 
 // GormParams returns the database type and connection URI
@@ -381,6 +405,9 @@ func (d *Database) GormParams() (dbType DBBackendType, uri string, err error) {
 func (d *Database) Validate() error {
 	if d.DbBackend == "" {
 		return fmt.Errorf("invalid databse configuration: backend is required")
+	}
+	if len(d.Passphrase) != 32 {
+		return fmt.Errorf("passphrase must be set and it must be a string of 32 characters (aes 256)")
 	}
 	switch d.DbBackend {
 	case MySQLBackend:

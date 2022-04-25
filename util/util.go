@@ -3,6 +3,8 @@ package util
 import (
 	"bytes"
 	"context"
+	"crypto/aes"
+	"crypto/cipher"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -20,12 +22,17 @@ import (
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/oauth2"
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
+	"gorm.io/driver/mysql"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 
 	"runner-manager/cloudconfig"
 	"runner-manager/config"
 	runnerErrors "runner-manager/errors"
 	"runner-manager/params"
 )
+
+const alphanumeric = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 
 var (
 	OSToOSTypeMap map[string]config.OSType = map[string]config.OSType{
@@ -157,4 +164,93 @@ func GetCloudConfig(bootstrapParams params.BootstrapInstance, tools github.Runne
 		return "", errors.Wrap(err, "creating cloud config")
 	}
 	return asStr, nil
+}
+
+// NewDBConn returns a new gorm db connection, given the config
+func NewDBConn(dbCfg config.Database) (conn *gorm.DB, err error) {
+	dbType, connURI, err := dbCfg.GormParams()
+	if err != nil {
+		return nil, errors.Wrap(err, "getting DB URI string")
+	}
+	switch dbType {
+	case config.MySQLBackend:
+		conn, err = gorm.Open(mysql.Open(connURI), &gorm.Config{})
+	case config.SQLiteBackend:
+		conn, err = gorm.Open(sqlite.Open(connURI), &gorm.Config{})
+	}
+	if err != nil {
+		return nil, errors.Wrap(err, "connecting to database")
+	}
+
+	if dbCfg.Debug {
+		conn = conn.Debug()
+	}
+	return conn, nil
+}
+
+// GetRandomString returns a secure random string
+func GetRandomString(n int) (string, error) {
+	data := make([]byte, n)
+	_, err := rand.Read(data)
+	if err != nil {
+		return "", errors.Wrap(err, "getting random data")
+	}
+	for i, b := range data {
+		data[i] = alphanumeric[b%byte(len(alphanumeric))]
+	}
+
+	return string(data), nil
+}
+
+func Aes256EncodeString(target string, passphrase string) ([]byte, error) {
+	if len(passphrase) != 32 {
+		return nil, fmt.Errorf("invalid passphrase length (expected length 32 characters)")
+	}
+
+	toEncrypt := []byte(target)
+	block, err := aes.NewCipher([]byte(passphrase))
+	if err != nil {
+		return nil, errors.Wrap(err, "creating cipher")
+	}
+
+	aesgcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, errors.Wrap(err, "creating new aead")
+	}
+
+	nonce := make([]byte, aesgcm.NonceSize())
+	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
+		return nil, errors.Wrap(err, "creating nonce")
+	}
+
+	ciphertext := aesgcm.Seal(nonce, nonce, toEncrypt, nil)
+	return ciphertext, nil
+}
+
+func Aes256DecodeString(target []byte, passphrase string) (string, error) {
+	if len(passphrase) != 32 {
+		return "", fmt.Errorf("invalid passphrase length (expected length 32 characters)")
+	}
+
+	block, err := aes.NewCipher([]byte(passphrase))
+	if err != nil {
+		return "", errors.Wrap(err, "creating cipher")
+	}
+
+	aesgcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", errors.Wrap(err, "creating new aead")
+	}
+
+	nonceSize := aesgcm.NonceSize()
+	if len(target) < nonceSize {
+		return "", fmt.Errorf("failed to decrypt text")
+	}
+
+	nonce, ciphertext := target[:nonceSize], target[nonceSize:]
+	plaintext, err := aesgcm.Open(nil, nonce, ciphertext, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to decrypt text")
+	}
+	return string(plaintext), nil
 }

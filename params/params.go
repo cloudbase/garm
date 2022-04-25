@@ -59,3 +59,46 @@ type BootstrapInstance struct {
 	Image  string        `json:"image"`
 	Labels []string      `json:"labels"`
 }
+
+type Tag struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type Pool struct {
+	ID             string        `json:"id"`
+	ProviderName   string        `json:"provider_name"`
+	MaxRunners     uint          `json:"max_runners"`
+	MinIdleRunners uint          `json:"min_idle_runners"`
+	Image          string        `json:"image"`
+	Flavor         string        `json:"flavor"`
+	OSType         config.OSType `json:"os_type"`
+	OSArch         config.OSArch `json:"os_arch"`
+	Tags           []Tag         `json:"tags"`
+}
+
+type Repository struct {
+	ID            string `json:"id"`
+	Owner         string `json:"owner"`
+	Name          string `json:"name"`
+	WebhookSecret string `json:"-"`
+	Pools         []Pool `json:"pool,omitempty"`
+}
+
+type Organization struct {
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	WebhookSecret string `json:"-"`
+	Pools         []Pool `json:"pool,omitempty"`
+}
+
+type CreatePoolParams struct {
+	ProviderName   string        `json:"provider_name"`
+	MaxRunners     uint          `json:"max_runners"`
+	MinIdleRunners uint          `json:"min_idle_runners"`
+	Image          string        `json:"image"`
+	Flavor         string        `json:"flavor"`
+	OSType         config.OSType `json:"os_type"`
+	OSArch         config.OSArch `json:"os_arch"`
+	Tags           []string      `json:"tags"`
+}
