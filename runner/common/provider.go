@@ -13,7 +13,7 @@ type Provider interface {
 	// GetInstance will return details about one instance.
 	GetInstance(ctx context.Context, instance string) (params.Instance, error)
 	// ListInstances will list all instances for a provider.
-	ListInstances(ctx context.Context) ([]params.Instance, error)
+	ListInstances(ctx context.Context, poolID string) ([]params.Instance, error)
 	// RemoveAllInstances will remove all instances created by this provider.
 	RemoveAllInstances(ctx context.Context) error
 	// Stop shuts down the instance.

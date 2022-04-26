@@ -16,6 +16,10 @@ type Base struct {
 }
 
 func (b *Base) BeforeCreate(tx *gorm.DB) error {
+	emptyId := uuid.UUID{}
+	if b.ID != emptyId {
+		return nil
+	}
 	b.ID = uuid.NewV4()
 	return nil
 }
@@ -23,7 +27,8 @@ func (b *Base) BeforeCreate(tx *gorm.DB) error {
 type Tag struct {
 	Base
 
-	Name string `gorm:"type:varchar(64);uniqueIndex"`
+	Name  string  `gorm:"type:varchar(64);uniqueIndex"`
+	Pools []*Pool `gorm:"many2many:pool_tags;"`
 }
 
 type Pool struct {
@@ -36,7 +41,13 @@ type Pool struct {
 	Flavor         string `gorm:"index:idx_pool_type,unique"`
 	OSType         config.OSType
 	OSArch         config.OSArch
-	Tags           []Tag `gorm:"foreignKey:id"`
+	Tags           []*Tag `gorm:"many2many:pool_tags;"`
+
+	RepoID     uuid.UUID
+	Repository Repository `gorm:"foreignKey:RepoID"`
+
+	OrgID        uuid.UUID
+	Organization Organization `gorm:"foreignKey:OrgID"`
 }
 
 type Repository struct {
@@ -45,7 +56,7 @@ type Repository struct {
 	Owner         string `gorm:"index:idx_owner,unique"`
 	Name          string `gorm:"index:idx_owner,unique"`
 	WebhookSecret []byte
-	Pools         []Pool `gorm:"foreignKey:id"`
+	Pools         []Pool `gorm:"foreignKey:RepoID"`
 }
 
 type Organization struct {
@@ -53,5 +64,29 @@ type Organization struct {
 
 	Name          string `gorm:"uniqueIndex"`
 	WebhookSecret []byte
-	Pools         []Pool `gorm:"foreignKey:id"`
+	Pools         []Pool `gorm:"foreignKey:OrgID"`
+}
+
+type Address struct {
+	Base
+
+	Address string
+	Type    string
+}
+
+type Instance struct {
+	Base
+
+	Name          string `gorm:"uniqueIndex"`
+	OSType        config.OSType
+	OSArch        config.OSArch
+	OSName        string
+	OSVersion     string
+	Addresses     []Address `gorm:"foreignKey:id"`
+	Status        string
+	RunnerStatus  string
+	CallbackURL   string
+	CallbackToken string
+
+	Pool Pool `gorm:"foreignKey:id"`
 }

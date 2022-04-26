@@ -45,6 +45,8 @@ const (
 
 	// DefaultPoolQueueSize is the default size for a pool queue.
 	DefaultPoolQueueSize = 10
+
+	GithubBaseURL = "https://github.com"
 )
 
 var (

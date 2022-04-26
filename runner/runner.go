@@ -9,16 +9,20 @@ import (
 	"encoding/json"
 	"hash"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
+
 	"runner-manager/config"
+	"runner-manager/database"
+	dbCommon "runner-manager/database/common"
 	gErrors "runner-manager/errors"
 	"runner-manager/params"
 	"runner-manager/runner/common"
 	"runner-manager/runner/providers"
 	"runner-manager/util"
-	"strings"
-	"sync"
 
 	"github.com/google/go-github/v43/github"
 	"github.com/pkg/errors"
@@ -26,7 +30,7 @@ import (
 )
 
 func NewRunner(ctx context.Context, cfg config.Config) (*Runner, error) {
-	ghc, err := util.GithubClientFromConfig(ctx, cfg.Github)
+	ghc, err := util.GithubClient(ctx, cfg.Github.OAuth2Token)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting github client")
 	}
@@ -35,10 +39,15 @@ func NewRunner(ctx context.Context, cfg config.Config) (*Runner, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "loading providers")
 	}
+	db, err := database.NewDatabase(ctx, cfg.Database)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	runner := &Runner{
 		ctx:       ctx,
 		config:    cfg,
+		db:        db,
 		ghc:       ghc,
 		providers: providers,
 	}
@@ -55,6 +64,7 @@ type Runner struct {
 
 	ctx context.Context
 	ghc *github.Client
+	db  dbCommon.Store
 
 	controllerID string
 
@@ -64,10 +74,29 @@ type Runner struct {
 	providers     map[string]common.Provider
 }
 
-func (r *Runner) findRepoPool(name string) (common.PoolManager, error) {
-	if pool, ok := r.repositories[name]; ok {
-		return pool, nil
-	}
+func (r *Runner) loadPools() error {
+	r.mux.Lock()
+	defer r.mux.Unlock()
+
+	// repos, err := r.db.ListRepositories(r.ctx)
+	// if err != nil {
+	// 	return errors.Wrap(err, "fetching repositories")
+	// }
+
+	return nil
+}
+
+func (r *Runner) findRepoPool(owner, name string) (common.PoolManager, error) {
+	r.mux.Lock()
+	defer r.mux.Unlock()
+
+	// key := fmt.Sprintf("%s/%s", owner, name)
+	// if repo, ok := r.repositories[key]; ok {
+	// 	return pool, nil
+	// }
+
+	// repo, err := r.db.GetRepository(r.ctx, owner, name)
+	// r.repositories[key] = repo
 	return nil, errors.Wrapf(gErrors.ErrNotFound, "repository %s not configured", name)
 }
 
@@ -132,17 +161,14 @@ func (r *Runner) DispatchWorkflowJob(hookTargetType, signature string, jobData [
 		return errors.Wrapf(gErrors.ErrBadRequest, "invalid job data: %s", err)
 	}
 
-	var entity string
-	var pool common.PoolManager
+	var poolManager common.PoolManager
 	var err error
 
 	switch HookTargetType(hookTargetType) {
 	case RepoHook:
-		entity = job.Repository.FullName
-		pool, err = r.findRepoPool(entity)
+		poolManager, err = r.findRepoPool(job.Repository.Owner.Login, job.Repository.Name)
 	case OrganizationHook:
-		entity = job.Organization.Login
-		pool, err = r.findOrgPool(entity)
+		poolManager, err = r.findOrgPool(job.Organization.Login)
 	default:
 		return gErrors.NewBadRequestError("cannot handle hook target type %s", hookTargetType)
 	}
@@ -150,12 +176,12 @@ func (r *Runner) DispatchWorkflowJob(hookTargetType, signature string, jobData [
 	if err != nil {
 		// We don't have a repository or organization configured that
 		// can handle this workflow job.
-		return errors.Wrap(err, "fetching pool")
+		return errors.Wrap(err, "fetching poolManager")
 	}
 
 	// We found a pool. Validate the webhook job. If a secret is configured,
 	// we make sure that the source of this workflow job is valid.
-	secret := pool.WebhookSecret()
+	secret := poolManager.WebhookSecret()
 	if err := r.validateHookBody(signature, secret, jobData); err != nil {
 		return errors.Wrap(err, "validating webhook data")
 	}

@@ -45,6 +45,8 @@ func (s *sqlDatabase) migrateDB() error {
 		&Pool{},
 		&Repository{},
 		&Organization{},
+		&Address{},
+		&Instance{},
 	); err != nil {
 		return err
 	}
@@ -54,29 +56,11 @@ func (s *sqlDatabase) migrateDB() error {
 
 func (s *sqlDatabase) sqlToCommonTags(tag Tag) params.Tag {
 	return params.Tag{
+		// ID:   tag.ID.String(),
 		ID:   tag.ID.String(),
 		Name: tag.Name,
 	}
 }
-
-// func (s *sqlDatabase) sqlToCommonRunner(runner Runner) params.Runner {
-// 	ret := params.Runner{
-// 		ID:             runner.ID.String(),
-// 		MaxRunners:     runner.MaxRunners,
-// 		MinIdleRunners: runner.MinIdleRunners,
-// 		Image:          runner.Image,
-// 		Flavor:         runner.Flavor,
-// 		OSArch:         runner.OSArch,
-// 		OSType:         runner.OSType,
-// 		Tags:           make([]params.Tag, len(runner.Tags)),
-// 	}
-
-// 	for idx, val := range runner.Tags {
-// 		ret.Tags[idx] = s.sqlToCommonTags(val)
-// 	}
-
-// 	return ret
-// }
 
 func (s *sqlDatabase) sqlToCommonPool(pool Pool) params.Pool {
 	ret := params.Pool{
@@ -92,7 +76,7 @@ func (s *sqlDatabase) sqlToCommonPool(pool Pool) params.Pool {
 	}
 
 	for idx, val := range pool.Tags {
-		ret.Tags[idx] = s.sqlToCommonTags(val)
+		ret.Tags[idx] = s.sqlToCommonTags(*val)
 	}
 
 	return ret
@@ -149,7 +133,19 @@ func (s *sqlDatabase) CreateRepository(ctx context.Context, owner, name, webhook
 	return param, nil
 }
 
-func (s *sqlDatabase) getRepo(ctx context.Context, id string) (Repository, error) {
+func (s *sqlDatabase) getRepo(ctx context.Context, owner, name string) (Repository, error) {
+	var repo Repository
+	q := s.conn.Preload(clause.Associations).Where("name = ? and owner = ?", name, owner).First(&repo)
+	if q.Error != nil {
+		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
+			return Repository{}, runnerErrors.ErrNotFound
+		}
+		return Repository{}, errors.Wrap(q.Error, "fetching repository from database")
+	}
+	return repo, nil
+}
+
+func (s *sqlDatabase) getRepoByID(ctx context.Context, id string) (Repository, error) {
 	u := uuid.Parse(id)
 	if u == nil {
 		return Repository{}, errors.Wrap(runnerErrors.NewBadRequestError(""), "parsing id")
@@ -165,8 +161,8 @@ func (s *sqlDatabase) getRepo(ctx context.Context, id string) (Repository, error
 	return repo, nil
 }
 
-func (s *sqlDatabase) GetRepository(ctx context.Context, id string) (params.Repository, error) {
-	repo, err := s.getRepo(ctx, id)
+func (s *sqlDatabase) GetRepository(ctx context.Context, owner, name string) (params.Repository, error) {
+	repo, err := s.getRepo(ctx, owner, name)
 	if err != nil {
 		return params.Repository{}, errors.Wrap(err, "fetching repo")
 	}
@@ -196,8 +192,8 @@ func (s *sqlDatabase) ListRepositories(ctx context.Context) ([]params.Repository
 	return ret, nil
 }
 
-func (s *sqlDatabase) DeleteRepository(ctx context.Context, id string) error {
-	repo, err := s.getRepo(ctx, id)
+func (s *sqlDatabase) DeleteRepository(ctx context.Context, owner, name string) error {
+	repo, err := s.getRepo(ctx, owner, name)
 	if err != nil {
 		if err == runnerErrors.ErrNotFound {
 			return nil
@@ -238,7 +234,19 @@ func (s *sqlDatabase) CreateOrganization(ctx context.Context, name, webhookSecre
 	return param, nil
 }
 
-func (s *sqlDatabase) getOrg(ctx context.Context, id string) (Organization, error) {
+func (s *sqlDatabase) getOrg(ctx context.Context, name string) (Organization, error) {
+	var org Organization
+	q := s.conn.Preload(clause.Associations).Where("name = ?", name).First(&org)
+	if q.Error != nil {
+		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
+			return Organization{}, runnerErrors.ErrNotFound
+		}
+		return Organization{}, errors.Wrap(q.Error, "fetching org from database")
+	}
+	return org, nil
+}
+
+func (s *sqlDatabase) getOrgByID(ctx context.Context, id string) (Organization, error) {
 	u := uuid.Parse(id)
 	if u == nil {
 		return Organization{}, errors.Wrap(runnerErrors.NewBadRequestError(""), "parsing id")
@@ -254,8 +262,8 @@ func (s *sqlDatabase) getOrg(ctx context.Context, id string) (Organization, erro
 	return org, nil
 }
 
-func (s *sqlDatabase) GetOrganization(ctx context.Context, id string) (params.Organization, error) {
-	org, err := s.getOrg(ctx, id)
+func (s *sqlDatabase) GetOrganization(ctx context.Context, name string) (params.Organization, error) {
+	org, err := s.getOrg(ctx, name)
 	if err != nil {
 		return params.Organization{}, errors.Wrap(err, "fetching repo")
 	}
@@ -285,8 +293,8 @@ func (s *sqlDatabase) ListOrganizations(ctx context.Context) ([]params.Organizat
 	return ret, nil
 }
 
-func (s *sqlDatabase) DeleteOrganization(ctx context.Context, id string) error {
-	org, err := s.getOrg(ctx, id)
+func (s *sqlDatabase) DeleteOrganization(ctx context.Context, name string) error {
+	org, err := s.getOrg(ctx, name)
 	if err != nil {
 		if err == runnerErrors.ErrNotFound {
 			return nil
@@ -327,7 +335,7 @@ func (s *sqlDatabase) CreateRepositoryPool(ctx context.Context, repoId string, p
 		return params.Pool{}, runnerErrors.NewBadRequestError("no tags specified")
 	}
 
-	repo, err := s.getRepo(ctx, repoId)
+	repo, err := s.getRepoByID(ctx, repoId)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching repo")
 	}
@@ -340,22 +348,34 @@ func (s *sqlDatabase) CreateRepositoryPool(ctx context.Context, repoId string, p
 		Flavor:         param.Flavor,
 		OSType:         param.OSType,
 		OSArch:         param.OSArch,
+		RepoID:         repo.ID,
 	}
 
-	tags := make([]Tag, len(param.Tags))
-	for idx, val := range param.Tags {
+	tags := []Tag{}
+	for _, val := range param.Tags {
 		t, err := s.getOrCreateTag(val)
 		if err != nil {
 			return params.Pool{}, errors.Wrap(err, "fetching tag")
 		}
-		tags[idx] = t
+		fmt.Printf(">>>> Tag name: %s --> ID: %s\n", t.Name, t.ID)
+		tags = append(tags, t)
+		// newPool.Tags = append(newPool.Tags, &t)
 	}
 
-	err = s.conn.Model(&repo).Association("Pools").Append(&newPool)
-	if err != nil {
+	q := s.conn.Create(&newPool)
+	if q.Error != nil {
 		return params.Pool{}, errors.Wrap(err, "adding pool")
 	}
-	return s.sqlToCommonPool(newPool), nil
+
+	for _, tt := range tags {
+		s.conn.Model(&newPool).Association("Tags").Append(&tt)
+	}
+
+	repo, err = s.getRepoByID(ctx, repoId)
+	if err != nil {
+		return params.Pool{}, errors.Wrap(err, "fetching repo")
+	}
+	return s.sqlToCommonPool(repo.Pools[0]), nil
 }
 
 func (s *sqlDatabase) CreateOrganizationPool(ctx context.Context, orgId string, param params.CreatePoolParams) (params.Pool, error) {
@@ -363,7 +383,7 @@ func (s *sqlDatabase) CreateOrganizationPool(ctx context.Context, orgId string, 
 		return params.Pool{}, runnerErrors.NewBadRequestError("no tags specified")
 	}
 
-	org, err := s.getOrg(ctx, orgId)
+	org, err := s.getOrgByID(ctx, orgId)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching org")
 	}
@@ -378,15 +398,16 @@ func (s *sqlDatabase) CreateOrganizationPool(ctx context.Context, orgId string, 
 		OSArch:         param.OSArch,
 	}
 
-	tags := make([]Tag, len(param.Tags))
+	tags := make([]*Tag, len(param.Tags))
 	for idx, val := range param.Tags {
 		t, err := s.getOrCreateTag(val)
 		if err != nil {
 			return params.Pool{}, errors.Wrap(err, "fetching tag")
 		}
-		tags[idx] = t
+		tags[idx] = &t
 	}
 
+	newPool.Tags = append(newPool.Tags, tags...)
 	err = s.conn.Model(&org).Association("Pools").Append(&newPool)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "adding pool")
@@ -394,58 +415,174 @@ func (s *sqlDatabase) CreateOrganizationPool(ctx context.Context, orgId string, 
 	return s.sqlToCommonPool(newPool), nil
 }
 
-func (s *sqlDatabase) GetRepositoryPool(ctx context.Context, repoID, poolID string) (params.Pool, error) {
-	repo, err := s.getRepo(ctx, repoID)
+func (s *sqlDatabase) getRepoPool(ctx context.Context, repoID, poolID string) (Pool, error) {
+	repo, err := s.getRepoByID(ctx, repoID)
 	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "fetching repo")
+		return Pool{}, errors.Wrap(err, "fetching repo")
 	}
 	u := uuid.Parse(poolID)
 	if u == nil {
-		return params.Pool{}, fmt.Errorf("invalid pool id")
+		return Pool{}, fmt.Errorf("invalid pool id")
 	}
 	var pool []Pool
 	err = s.conn.Model(&repo).Association("Pools").Find(&pool, "id = ?", u)
 	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "fetching pool")
+		return Pool{}, errors.Wrap(err, "fetching pool")
 	}
 	if len(pool) == 0 {
-		return params.Pool{}, runnerErrors.ErrNotFound
+		return Pool{}, runnerErrors.ErrNotFound
 	}
-	return s.sqlToCommonPool(pool[0]), nil
+
+	return pool[0], nil
 }
 
-func (s *sqlDatabase) GetOrganizationPool(ctx context.Context, orgID, poolID string) (params.Pool, error) {
-	org, err := s.getOrg(ctx, orgID)
+func (s *sqlDatabase) GetRepositoryPool(ctx context.Context, repoID, poolID string) (params.Pool, error) {
+	pool, err := s.getRepoPool(ctx, repoID, poolID)
 	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "fetching org")
+		return params.Pool{}, errors.Wrap(err, "fetching pool")
+	}
+	return s.sqlToCommonPool(pool), nil
+}
+
+func (s *sqlDatabase) getOrgPool(ctx context.Context, orgID, poolID string) (Pool, error) {
+	org, err := s.getOrgByID(ctx, orgID)
+	if err != nil {
+		return Pool{}, errors.Wrap(err, "fetching repo")
 	}
 	u := uuid.Parse(poolID)
 	if u == nil {
-		return params.Pool{}, fmt.Errorf("invalid pool id")
+		return Pool{}, fmt.Errorf("invalid pool id")
 	}
 	var pool []Pool
 	err = s.conn.Model(&org).Association("Pools").Find(&pool, "id = ?", u)
 	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "fetching pool")
+		return Pool{}, errors.Wrap(err, "fetching pool")
 	}
 	if len(pool) == 0 {
-		return params.Pool{}, runnerErrors.ErrNotFound
+		return Pool{}, runnerErrors.ErrNotFound
 	}
-	return s.sqlToCommonPool(pool[0]), nil
+
+	return pool[0], nil
+}
+
+func (s *sqlDatabase) GetOrganizationPool(ctx context.Context, orgID, poolID string) (params.Pool, error) {
+	pool, err := s.getOrgPool(ctx, orgID, poolID)
+	if err != nil {
+		return params.Pool{}, errors.Wrap(err, "fetching pool")
+	}
+	return s.sqlToCommonPool(pool), nil
 }
 
 func (s *sqlDatabase) DeleteRepositoryPool(ctx context.Context, repoID, poolID string) error {
+	pool, err := s.getRepoPool(ctx, repoID, poolID)
+	if err != nil {
+		if errors.Is(err, runnerErrors.ErrNotFound) {
+			return nil
+		}
+		return errors.Wrap(err, "looking up repo pool")
+	}
+	q := s.conn.Delete(&pool)
+	if q.Error != nil && !errors.Is(q.Error, gorm.ErrRecordNotFound) {
+		return errors.Wrap(q.Error, "deleting pool")
+	}
 	return nil
 }
 
 func (s *sqlDatabase) DeleteOrganizationPool(ctx context.Context, orgID, poolID string) error {
+	pool, err := s.getOrgPool(ctx, orgID, poolID)
+	if err != nil {
+		if errors.Is(err, runnerErrors.ErrNotFound) {
+			return nil
+		}
+		return errors.Wrap(err, "looking up repo pool")
+	}
+	q := s.conn.Delete(&pool)
+	if q.Error != nil && !errors.Is(q.Error, gorm.ErrRecordNotFound) {
+		return errors.Wrap(q.Error, "deleting pool")
+	}
 	return nil
 }
 
-func (s *sqlDatabase) UpdateRepositoryPool(ctx context.Context, repoID, poolID string) (params.Pool, error) {
+func (s *sqlDatabase) UpdateRepositoryPool(ctx context.Context, repoID, poolID string, param params.UpdatePoolParams) (params.Pool, error) {
 	return params.Pool{}, nil
 }
 
-func (s *sqlDatabase) UpdateOrganizationPool(ctx context.Context, orgID, poolID string) (params.Pool, error) {
+func (s *sqlDatabase) UpdateOrganizationPool(ctx context.Context, orgID, poolID string, param params.UpdatePoolParams) (params.Pool, error) {
 	return params.Pool{}, nil
+}
+
+func (s *sqlDatabase) findPoolByTags(id, poolType string, tags []string) (params.Pool, error) {
+	if len(tags) == 0 {
+		return params.Pool{}, runnerErrors.NewBadRequestError("missing tags")
+	}
+	u := uuid.Parse(id)
+	if u == nil {
+		return params.Pool{}, errors.Wrap(runnerErrors.NewBadRequestError(""), "parsing id")
+	}
+
+	var pool Pool
+	where := fmt.Sprintf("tags.name in ? and %s = ?", poolType)
+	q := s.conn.Joins("JOIN pool_tags on pool_tags.pool_id=pools.id").
+		Joins("JOIN tags on tags.id=pool_tags.tag_id").
+		Group("pools.id").
+		Preload("Tags").
+		Having("count(1) = ?", len(tags)).
+		Where(where, tags, id).First(&pool)
+
+	if q.Error != nil {
+		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
+			return params.Pool{}, runnerErrors.ErrNotFound
+		}
+		return params.Pool{}, errors.Wrap(q.Error, "fetching pool")
+	}
+
+	return s.sqlToCommonPool(pool), nil
+}
+
+func (s *sqlDatabase) FindRepositoryPoolByTags(ctx context.Context, repoID string, tags []string) (params.Pool, error) {
+	pool, err := s.findPoolByTags(repoID, "repo_id", tags)
+	if err != nil {
+		return params.Pool{}, errors.Wrap(err, "fetching pool")
+	}
+	return pool, nil
+}
+
+func (s *sqlDatabase) FindOrganizationPoolByTags(ctx context.Context, orgID string, tags []string) (params.Pool, error) {
+	pool, err := s.findPoolByTags(orgID, "org_id", tags)
+	if err != nil {
+		return params.Pool{}, errors.Wrap(err, "fetching pool")
+	}
+	return pool, nil
+}
+
+func (s *sqlDatabase) CreateInstance(ctx context.Context, poolID string, param params.CreateInstanceParams) (params.Instance, error) {
+	return params.Instance{}, nil
+}
+
+func (s *sqlDatabase) DeleteInstance(ctx context.Context, poolID string, instanceID string) error {
+	return nil
+}
+
+func (s *sqlDatabase) UpdateInstance(ctx context.Context, instanceID string, param params.UpdateInstanceParams) (params.Instance, error) {
+	return params.Instance{}, nil
+}
+
+func (s *sqlDatabase) ListInstances(ctx context.Context, poolID string) ([]params.Instance, error) {
+	return []params.Instance{}, nil
+}
+
+func (s *sqlDatabase) ListRepoInstances(ctx context.Context, repoID string) ([]params.Instance, error) {
+	return []params.Instance{}, nil
+}
+
+func (s *sqlDatabase) ListOrgInstances(ctx context.Context, orgID string) ([]params.Instance, error) {
+	return []params.Instance{}, nil
+}
+
+func (s *sqlDatabase) GetInstance(ctx context.Context, poolID string, instanceID string) (params.Instance, error) {
+	return params.Instance{}, nil
+}
+
+func (s *sqlDatabase) GetInstanceByName(ctx context.Context, instanceName string) (params.Instance, error) {
+	return params.Instance{}, nil
 }

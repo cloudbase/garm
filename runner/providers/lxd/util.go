@@ -7,6 +7,7 @@ import (
 	"log"
 	"runner-manager/config"
 	"runner-manager/params"
+	"runner-manager/runner/providers/common"
 	"runner-manager/util"
 	"strings"
 
@@ -31,14 +32,17 @@ func lxdInstanceToAPIInstance(instance *api.InstanceFull) params.Instance {
 	}
 
 	state := instance.State
-	addresses := []string{}
+	addresses := []params.Address{}
 	if state.Network != nil {
 		for _, details := range state.Network {
 			for _, addr := range details.Addresses {
 				if addr.Scope != "global" {
 					continue
 				}
-				addresses = append(addresses, addr.Address)
+				addresses = append(addresses, params.Address{
+					Address: addr.Address,
+					Type:    params.PublicAddress,
+				})
 			}
 		}
 	}
@@ -56,7 +60,18 @@ func lxdInstanceToAPIInstance(instance *api.InstanceFull) params.Instance {
 		OSName:     strings.ToLower(os),
 		OSVersion:  osRelease,
 		Addresses:  addresses,
-		Status:     state.Status,
+		Status:     lxdStatusToProviderStatus(state.Status),
+	}
+}
+
+func lxdStatusToProviderStatus(status string) common.InstanceStatus {
+	switch status {
+	case "Running":
+		return common.InstanceRunning
+	case "Stopped":
+		return common.InstanceStopped
+	default:
+		return common.InstanceStatusUnknown
 	}
 }
 

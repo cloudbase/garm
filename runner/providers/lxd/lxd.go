@@ -13,7 +13,6 @@ import (
 	"github.com/google/go-github/v43/github"
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/shared/api"
-	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 )
@@ -24,6 +23,7 @@ const (
 	// We look for this key in the config of the instances to determine if they are
 	// created by us or not.
 	controllerIDKeyName = "user.runner-controller-id"
+	poolIDKey           = "user.runner-pool-id"
 )
 
 var (
@@ -182,7 +182,7 @@ func (l *LXD) secureBootEnabled() string {
 }
 
 func (l *LXD) getCreateInstanceArgs(bootstrapParams params.BootstrapInstance) (api.InstancesPost, error) {
-	name := fmt.Sprintf("runner-manager-%s", uuid.New())
+	// name := fmt.Sprintf("runner-manager-%s", uuid.New())
 
 	profiles, err := l.getProfiles(bootstrapParams.Flavor)
 	if err != nil {
@@ -204,7 +204,7 @@ func (l *LXD) getCreateInstanceArgs(bootstrapParams params.BootstrapInstance) (a
 		return api.InstancesPost{}, errors.Wrap(err, "getting tools")
 	}
 
-	cloudCfg, err := util.GetCloudConfig(bootstrapParams, tools, name)
+	cloudCfg, err := util.GetCloudConfig(bootstrapParams, tools, bootstrapParams.Name)
 	if err != nil {
 		return api.InstancesPost{}, errors.Wrap(err, "generating cloud-config")
 	}
@@ -218,13 +218,14 @@ func (l *LXD) getCreateInstanceArgs(bootstrapParams params.BootstrapInstance) (a
 				"user.user-data":      cloudCfg,
 				"security.secureboot": l.secureBootEnabled(),
 				controllerIDKeyName:   l.controllerID,
+				poolIDKey:             bootstrapParams.PoolID,
 			},
 		},
 		Source: api.InstanceSource{
 			Type:        "image",
 			Fingerprint: image.Fingerprint,
 		},
-		Name: name,
+		Name: bootstrapParams.Name,
 		Type: api.InstanceTypeVM,
 	}
 	return args, nil
@@ -307,7 +308,7 @@ func (l *LXD) DeleteInstance(ctx context.Context, instance string) error {
 }
 
 // ListInstances will list all instances for a provider.
-func (l *LXD) ListInstances(ctx context.Context) ([]params.Instance, error) {
+func (l *LXD) ListInstances(ctx context.Context, poolID string) ([]params.Instance, error) {
 	instances, err := l.cli.GetInstancesFull(api.InstanceTypeAny)
 	if err != nil {
 		return []params.Instance{}, errors.Wrap(err, "fetching instances")
@@ -317,6 +318,13 @@ func (l *LXD) ListInstances(ctx context.Context) ([]params.Instance, error) {
 
 	for _, instance := range instances {
 		if id, ok := instance.ExpandedConfig[controllerIDKeyName]; ok && id == l.controllerID {
+			if poolID != "" {
+				id := instance.ExpandedConfig[poolID]
+				if id != poolID {
+					// Pool ID was specified. Filter out instances belonging to other pools.
+					continue
+				}
+			}
 			ret = append(ret, lxdInstanceToAPIInstance(&instance))
 		}
 	}
@@ -326,7 +334,7 @@ func (l *LXD) ListInstances(ctx context.Context) ([]params.Instance, error) {
 
 // RemoveAllInstances will remove all instances created by this provider.
 func (l *LXD) RemoveAllInstances(ctx context.Context) error {
-	instances, err := l.ListInstances(ctx)
+	instances, err := l.ListInstances(ctx, "")
 	if err != nil {
 		return errors.Wrap(err, "fetching instance list")
 	}

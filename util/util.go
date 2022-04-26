@@ -123,9 +123,9 @@ func OSToOSType(os string) (config.OSType, error) {
 	return osType, nil
 }
 
-func GithubClientFromConfig(ctx context.Context, cfg config.Github) (*github.Client, error) {
+func GithubClient(ctx context.Context, token string) (*github.Client, error) {
 	ts := oauth2.StaticTokenSource(
-		&oauth2.Token{AccessToken: cfg.OAuth2Token},
+		&oauth2.Token{AccessToken: token},
 	)
 
 	tc := oauth2.NewClient(ctx, ts)
