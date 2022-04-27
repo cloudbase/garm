@@ -147,6 +147,8 @@ func GetCloudConfig(bootstrapParams params.BootstrapInstance, tools github.Runne
 		RepoURL:        bootstrapParams.RepoURL,
 		RunnerName:     runnerName,
 		RunnerLabels:   strings.Join(bootstrapParams.Labels, ","),
+		CallbackURL:    bootstrapParams.CallbackURL,
+		CallbackToken:  bootstrapParams.InstanceToken,
 	}
 
 	installScript, err := cloudconfig.InstallRunnerScript(installRunnerParams)

@@ -2,6 +2,7 @@ package sql
 
 import (
 	"runner-manager/config"
+	"runner-manager/runner/providers/common"
 	"time"
 
 	uuid "github.com/satori/go.uuid"
@@ -42,12 +43,15 @@ type Pool struct {
 	OSType         config.OSType
 	OSArch         config.OSArch
 	Tags           []*Tag `gorm:"many2many:pool_tags;"`
+	Enabled        bool
 
 	RepoID     uuid.UUID
 	Repository Repository `gorm:"foreignKey:RepoID"`
 
 	OrgID        uuid.UUID
 	Organization Organization `gorm:"foreignKey:OrgID"`
+
+	Instances []Instance `gorm:"foreignKey:PoolID"`
 }
 
 type Repository struct {
@@ -77,16 +81,17 @@ type Address struct {
 type Instance struct {
 	Base
 
-	Name          string `gorm:"uniqueIndex"`
-	OSType        config.OSType
-	OSArch        config.OSArch
-	OSName        string
-	OSVersion     string
-	Addresses     []Address `gorm:"foreignKey:id"`
-	Status        string
-	RunnerStatus  string
-	CallbackURL   string
-	CallbackToken string
+	ProviderID   string `gorm:"uniqueIndex"`
+	Name         string `gorm:"uniqueIndex"`
+	OSType       config.OSType
+	OSArch       config.OSArch
+	OSName       string
+	OSVersion    string
+	Addresses    []Address `gorm:"foreignKey:id"`
+	Status       common.InstanceStatus
+	RunnerStatus common.RunnerStatus
+	CallbackURL  string
 
-	Pool Pool `gorm:"foreignKey:id"`
+	PoolID uuid.UUID
+	Pool   Pool `gorm:"foreignKey:PoolID"`
 }

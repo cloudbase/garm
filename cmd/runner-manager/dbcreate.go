@@ -98,7 +98,7 @@ func main() {
 	}
 	fmt.Println(pool2)
 
-	pool3, err := db.FindRepositoryPoolByTags(ctx, repo.ID, []string{"myrunner", "superAwesome3"})
+	pool3, err := db.FindRepositoryPoolByTags(ctx, repo.ID, []string{"myrunner", "superAwesome2"})
 	if err != nil {
 		log.Fatal(err)
 	}

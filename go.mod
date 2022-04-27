@@ -4,11 +4,13 @@ go 1.18
 
 require (
 	github.com/BurntSushi/toml v0.3.1
+	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/google/go-github/v43 v43.0.0
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0
 	github.com/lxc/lxd v0.0.0-20220415052741-1170f2806124
+	github.com/nbutton23/zxcvbn-go v0.0.0-20210217022336-fa2cb2858354
 	github.com/pborman/uuid v1.2.1
 	github.com/pkg/errors v0.9.1
 	github.com/satori/go.uuid v1.2.0

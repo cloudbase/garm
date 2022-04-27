@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+	zxcvbn "github.com/nbutton23/zxcvbn-go"
 	"github.com/pkg/errors"
 )
 
@@ -79,23 +80,20 @@ func NewConfig(cfgFile string) (*Config, error) {
 	if err := config.Validate(); err != nil {
 		return nil, errors.Wrap(err, "validating config")
 	}
-	if config.ConfigDir == "" {
-		config.ConfigDir = DefaultConfigDir
+	if config.Default.ConfigDir == "" {
+		config.Default.ConfigDir = DefaultConfigDir
 	}
 	return &config, nil
 }
 
 type Config struct {
-	// ConfigDir is the folder where the runner may save any aditional files
-	// or configurations it may need. Things like auto-generated SSH keys that
-	// may be used to access the runner instances.
-	ConfigDir     string         `toml:"config_dir,omitempty" json:"config-dir,omitempty"`
+	Default       Default        `toml:"default" json:"default"`
 	APIServer     APIServer      `toml:"apiserver,omitempty" json:"apiserver,omitempty"`
 	Database      Database       `toml:"database,omitempty" json:"database,omitempty"`
 	Repositories  []Repository   `toml:"repository,omitempty" json:"repository,omitempty"`
 	Organizations []Organization `toml:"organization,omitempty" json:"organization,omitempty"`
 	Providers     []Provider     `toml:"provider,omitempty" json:"provider,omitempty"`
-	Github        Github         `toml:"github,omitempty"`
+	Github        []Github       `toml:"github,omitempty"`
 	// LogFile is the location of the log file.
 	LogFile string `toml:"log_file,omitempty"`
 }
@@ -109,8 +107,14 @@ func (c *Config) Validate() error {
 		return errors.Wrap(err, "validating database config")
 	}
 
-	if err := c.Github.Validate(); err != nil {
-		return errors.Wrap(err, "validating github config")
+	if err := c.Default.Validate(); err != nil {
+		return errors.Wrap(err, "validating default section")
+	}
+
+	for _, gh := range c.Github {
+		if err := gh.Validate(); err != nil {
+			return errors.Wrap(err, "validating github config")
+		}
 	}
 
 	for _, provider := range c.Providers {
@@ -164,6 +168,35 @@ func (c *Config) Validate() error {
 	return nil
 }
 
+type Default struct {
+	// ConfigDir is the folder where the runner may save any aditional files
+	// or configurations it may need. Things like auto-generated SSH keys that
+	// may be used to access the runner instances.
+	ConfigDir   string `toml:"config_dir,omitempty" json:"config-dir,omitempty"`
+	CallbackURL string `toml:"callback_url" json:"callback-url"`
+
+	// JWTSecret is used to sign JWT tokens that will be used by instances to
+	// call home.
+	JWTSecret string `toml:"jwt_secret" json:"jwt-secret"`
+}
+
+func (d *Default) Validate() error {
+	if d.CallbackURL == "" {
+		return fmt.Errorf("missing callback_url")
+	}
+
+	if d.JWTSecret == "" {
+		return fmt.Errorf("missing jwt secret")
+	}
+
+	passwordStenght := zxcvbn.PasswordStrength(d.JWTSecret, nil)
+	if passwordStenght.Score < 4 {
+		return fmt.Errorf("jwt_secret is too weak")
+	}
+
+	return nil
+}
+
 // Organization represents a Github organization for which we can manage runners.
 type Organization struct {
 	// Name is the name of the organization.
@@ -196,6 +229,8 @@ func (o *Organization) String() string {
 // Github hold configuration options specific to interacting with github.
 // Currently that is just a OAuth2 personal token.
 type Github struct {
+	Name        string `toml:"name" json:"name"`
+	Description string `toml:"description" json:"description"`
 	OAuth2Token string `toml:"oauth2_token" json:"oauth2-token"`
 }
 

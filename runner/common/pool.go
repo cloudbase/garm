@@ -2,6 +2,13 @@ package common
 
 import "runner-manager/params"
 
+type PoolType string
+
+const (
+	RepositoryPool   PoolType = "repository"
+	OrganizationPool PoolType = "organization"
+)
+
 type PoolManager interface {
 	WebhookSecret() string
 	HandleWorkflowJob(job params.WorkflowJob) error

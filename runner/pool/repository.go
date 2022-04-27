@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"runner-manager/auth"
 	"runner-manager/config"
 	dbCommon "runner-manager/database/common"
 	runnerErrors "runner-manager/errors"
@@ -145,6 +146,7 @@ func (r *Repository) consolidate() {
 }
 
 func (r *Repository) addPendingInstances() {
+	// TODO: filter instances by status.
 	instances, err := r.store.ListRepoInstances(r.ctx, r.id)
 	if err != nil {
 		log.Printf("failed to fetch instances from store: %s", err)
@@ -205,8 +207,6 @@ func (r *Repository) cleanupOrphanedGithubRunners(runners []*github.Runner) erro
 		}
 
 		removeRunner := false
-		// check locally and delete
-		// dbInstance, err := r.store.GetInstance()
 		poolID, err := r.poolIDFromLabels(runner.Labels)
 		if err != nil {
 			if !errors.Is(err, runnerErrors.ErrNotFound) {
@@ -222,7 +222,7 @@ func (r *Repository) cleanupOrphanedGithubRunners(runners []*github.Runner) erro
 			continue
 		}
 
-		dbInstance, err := r.store.GetInstance(r.ctx, poolID, *runner.Name)
+		dbInstance, err := r.store.GetInstanceByName(r.ctx, poolID, *runner.Name)
 		if err != nil {
 			if !errors.Is(err, runnerErrors.ErrNotFound) {
 				return errors.Wrap(err, "fetching instance from DB")
@@ -241,33 +241,24 @@ func (r *Repository) cleanupOrphanedGithubRunners(runners []*github.Runner) erro
 				return fmt.Errorf("unknown provider %s for pool %s", pool.ProviderName, pool.ID)
 			}
 
-			instance, err := provider.GetInstance(r.ctx, dbInstance.Name)
-			if err != nil {
-				if !errors.Is(err, runnerErrors.ErrNotFound) {
-					return errors.Wrap(err, "fetching instance from provider")
-				}
-				// instance was manually deleted?
-				removeRunner = true
-			} else {
-				if providerCommon.InstanceStatus(instance.Status) == providerCommon.InstanceRunning {
-					// instance is running, but github reports runner as offline. Log the event.
-					// This scenario requires manual intervention.
-					// Perhaps it just came online and github did not yet change it's status?
-					log.Printf("instance %s is online but github reports runner as offline", instance.Name)
-					continue
-				}
-				//start the instance
-				if err := provider.Start(r.ctx, instance.ProviderID); err != nil {
-					return errors.Wrapf(err, "starting instance %s", instance.ProviderID)
-				}
-				// we started the instance. Give it a chance to come online
+			if providerCommon.InstanceStatus(dbInstance.Status) == providerCommon.InstanceRunning {
+				// instance is running, but github reports runner as offline. Log the event.
+				// This scenario requires manual intervention.
+				// Perhaps it just came online and github did not yet change it's status?
+				log.Printf("instance %s is online but github reports runner as offline", dbInstance.Name)
 				continue
 			}
+			//start the instance
+			if err := provider.Start(r.ctx, dbInstance.ProviderID); err != nil {
+				return errors.Wrapf(err, "starting instance %s", dbInstance.ProviderID)
+			}
+			// we started the instance. Give it a chance to come online
+			continue
+		}
 
-			if removeRunner {
-				if _, err := r.ghcli.Actions.RemoveRunner(r.ctx, r.cfg.Owner, r.cfg.Name, *runner.ID); err != nil {
-					return errors.Wrap(err, "removing runner")
-				}
+		if removeRunner {
+			if _, err := r.ghcli.Actions.RemoveRunner(r.ctx, r.cfg.Owner, r.cfg.Name, *runner.ID); err != nil {
+				return errors.Wrap(err, "removing runner")
 			}
 		}
 	}
@@ -306,7 +297,7 @@ func (r *Repository) cleanupOrphanedProviderRunners(runners []*github.Runner) er
 		}
 		if ok := runnerNames[instance.Name]; !ok {
 			// Set pending_delete on DB field. Allow consolidate() to remove it.
-			_, err = r.store.UpdateInstance(r.ctx, instance.Name, params.UpdateInstanceParams{})
+			_, err = r.store.UpdateInstance(r.ctx, instance.ID, params.UpdateInstanceParams{})
 			if err != nil {
 				return errors.Wrap(err, "syncing local state with github")
 			}
@@ -430,12 +421,18 @@ func (r *Repository) addInstanceToProvider(instance params.Instance) error {
 		return errors.Wrap(err, "creating runner token")
 	}
 
+	entity := fmt.Sprintf("%s/%s", r.cfg.Owner, r.cfg.Name)
+	jwtToken, err := auth.NewInstanceJWTToken(instance, r.cfg.Internal.JWTSecret, entity, common.RepositoryPool)
+	if err != nil {
+		return errors.Wrap(err, "fetching instance jwt token")
+	}
+
 	bootstrapArgs := params.BootstrapInstance{
 		Tools:                   r.tools,
 		RepoURL:                 r.githubURL(),
 		GithubRunnerAccessToken: *tk.Token,
 		CallbackURL:             instance.CallbackURL,
-		InstanceToken:           instance.CallbackToken,
+		InstanceToken:           jwtToken,
 		OSArch:                  pool.OSArch,
 		Flavor:                  pool.Flavor,
 		Image:                   pool.Image,
@@ -457,11 +454,6 @@ func (r *Repository) addInstanceToProvider(instance params.Instance) error {
 // TODO: add function to set runner status to idle when instance calls home on callback url
 
 func (r *Repository) AddRunner(ctx context.Context, poolID string) error {
-	callbackToken, err := util.GetRandomString(32)
-	if err != nil {
-		return errors.Wrap(err, "fetching callbackToken")
-	}
-
 	pool, ok := r.pools[poolID]
 	if !ok {
 		return runnerErrors.NewNotFoundError("invalid provider ID")
@@ -470,17 +462,16 @@ func (r *Repository) AddRunner(ctx context.Context, poolID string) error {
 	name := fmt.Sprintf("runner-manager-%s", uuid.New())
 
 	createParams := params.CreateInstanceParams{
-		Name:          name,
-		Pool:          poolID,
-		Status:        providerCommon.InstancePendingCreate,
-		RunnerStatus:  providerCommon.RunnerPending,
-		OSArch:        pool.OSArch,
-		OSType:        pool.OSType,
-		CallbackToken: callbackToken,
-		CallbackURL:   r.cfg.Internal.InstanceCallbackURL,
+		Name:         name,
+		Pool:         poolID,
+		Status:       providerCommon.InstancePendingCreate,
+		RunnerStatus: providerCommon.RunnerPending,
+		OSArch:       pool.OSArch,
+		OSType:       pool.OSType,
+		CallbackURL:  r.cfg.Internal.InstanceCallbackURL,
 	}
 
-	_, err = r.store.CreateInstance(r.ctx, poolID, createParams)
+	_, err := r.store.CreateInstance(r.ctx, poolID, createParams)
 	if err != nil {
 		return errors.Wrap(err, "creating instance")
 	}

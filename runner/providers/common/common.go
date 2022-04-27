@@ -10,7 +10,9 @@ const (
 	InstancePendingCreate InstanceStatus = "pending_create"
 	InstanceStatusUnknown InstanceStatus = "unknown"
 
-	RunnerIdle    RunnerStatus = "idle"
-	RunnerPending RunnerStatus = "pending"
-	RunnerActive  RunnerStatus = "active"
+	RunnerIdle       RunnerStatus = "idle"
+	RunnerPending    RunnerStatus = "pending"
+	RunnerInstalling RunnerStatus = "installing"
+	RunnerFailed     RunnerStatus = "failed"
+	RunnerActive     RunnerStatus = "active"
 )

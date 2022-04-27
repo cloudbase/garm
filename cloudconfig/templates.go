@@ -12,15 +12,53 @@ var CloudConfigTemplate = `#!/bin/bash
 set -ex
 set -o pipefail
 
-curl -L -o "/home/runner/{{ .FileName }}" "{{ .DownloadURL }}"
-mkdir -p /home/runner/actions-runner
-tar xf "/home/runner/{{ .FileName }}" -C /home/runner/actions-runner/
-chown {{ .RunnerUsername }}:{{ .RunnerGroup }} -R /home/{{ .RunnerUsername }}/actions-runner/
-sudo /home/{{ .RunnerUsername }}/actions-runner/bin/installdependencies.sh
-sudo -u {{ .RunnerUsername }} -- /home/{{ .RunnerUsername }}/actions-runner/config.sh --unattended --url "{{ .RepoURL }}" --token "{{ .GithubToken }}" --name "{{ .RunnerName }}" --labels "{{ .RunnerLabels }}" --ephemeral
+CALLBACK_URL="{{ .CallbackURL }}"
+BEARER_TOKEN="{{ .CallbackToken }}"
+
+function call() {
+	PAYLOAD="$1"
+	curl -s -X POST -d \'${PAYLOAD}\' -H 'Accept: application/json' -H "Authorization: Bearer ${BEARER_TOKEN}" "${CALLBACK_URL}" || echo "failed to call home: exit code ($?)"
+}
+
+function sendStatus() {
+	MSG="$1"
+	call '{"status": "installing", "message": "'$MSG'"}'
+}
+
+function success() {
+	MSG="$1"
+	call '{"status": "active", "message": "'$MSG'"}'
+}
+
+function fail() {
+	MSG="$1"
+	call '{"status": "failed", "message": "'$MSG'"}'
+	exit 1
+}
+
+sendStatus "downloading tools from {{ .DownloadURL }}"
+curl -L -o "/home/runner/{{ .FileName }}" "{{ .DownloadURL }}" || fail "failed to download tools"
+
+mkdir -p /home/runner/actions-runner || fail "failed to create actions-runner folder"
+
+sendStatus "extracting runner"
+tar xf "/home/runner/{{ .FileName }}" -C /home/runner/actions-runner/ || fail "failed to extract runner"
+chown {{ .RunnerUsername }}:{{ .RunnerGroup }} -R /home/{{ .RunnerUsername }}/actions-runner/ || fail "failed to change owner"
+
+sendStatus "installing dependencies"
 cd /home/{{ .RunnerUsername }}/actions-runner
-./svc.sh install {{ .RunnerUsername }}
-./svc.sh start
+sudo ./bin/installdependencies.sh || fail "failed to install dependencies"
+
+sendStatus "configuring runner"
+sudo -u {{ .RunnerUsername }} -- ./config.sh --unattended --url "{{ .RepoURL }}" --token "{{ .GithubToken }}" --name "{{ .RunnerName }}" --labels "{{ .RunnerLabels }}" --ephemeral || fail "failed to configure runner"
+
+sendStatus "installing runner service"
+./svc.sh install {{ .RunnerUsername }} || fail "failed to install service"
+
+sendStatus "starting service"
+./svc.sh start || fail "failed to start service"
+
+success "runner successfully installed"
 `
 
 type InstallRunnerParams struct {
@@ -32,6 +70,8 @@ type InstallRunnerParams struct {
 	GithubToken    string
 	RunnerName     string
 	RunnerLabels   string
+	CallbackURL    string
+	CallbackToken  string
 }
 
 func InstallRunnerScript(params InstallRunnerParams) ([]byte, error) {

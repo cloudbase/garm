@@ -24,16 +24,15 @@ import (
 	"runner-manager/runner/providers"
 	"runner-manager/util"
 
-	"github.com/google/go-github/v43/github"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/ssh"
 )
 
 func NewRunner(ctx context.Context, cfg config.Config) (*Runner, error) {
-	ghc, err := util.GithubClient(ctx, cfg.Github.OAuth2Token)
-	if err != nil {
-		return nil, errors.Wrap(err, "getting github client")
-	}
+	// ghc, err := util.GithubClient(ctx, cfg.Github.OAuth2Token)
+	// if err != nil {
+	// 	return nil, errors.Wrap(err, "getting github client")
+	// }
 
 	providers, err := providers.LoadProvidersFromConfig(ctx, cfg, "")
 	if err != nil {
@@ -45,10 +44,10 @@ func NewRunner(ctx context.Context, cfg config.Config) (*Runner, error) {
 	}
 
 	runner := &Runner{
-		ctx:       ctx,
-		config:    cfg,
-		db:        db,
-		ghc:       ghc,
+		ctx:    ctx,
+		config: cfg,
+		db:     db,
+		// ghc:       ghc,
 		providers: providers,
 	}
 
@@ -63,8 +62,8 @@ type Runner struct {
 	mux sync.Mutex
 
 	ctx context.Context
-	ghc *github.Client
-	db  dbCommon.Store
+	// ghc *github.Client
+	db dbCommon.Store
 
 	controllerID string
 
@@ -190,7 +189,7 @@ func (r *Runner) DispatchWorkflowJob(hookTargetType, signature string, jobData [
 }
 
 func (r *Runner) sshDir() string {
-	return filepath.Join(r.config.ConfigDir, "ssh")
+	return filepath.Join(r.config.Default.ConfigDir, "ssh")
 }
 
 func (r *Runner) sshKeyPath() string {

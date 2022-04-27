@@ -63,8 +63,7 @@ type Instance struct {
 	PoolID       string                `json:"pool_id"`
 
 	// Do not serialize sensitive info.
-	CallbackURL   string `json:"-"`
-	CallbackToken string `json:"-"`
+	CallbackURL string `json:"-"`
 }
 
 type BootstrapInstance struct {
@@ -107,12 +106,14 @@ type Pool struct {
 	OSType         config.OSType `json:"os_type"`
 	OSArch         config.OSArch `json:"os_arch"`
 	Tags           []Tag         `json:"tags"`
+	Enabled        bool          `json:"enabled"`
 }
 
 type Internal struct {
 	OAuth2Token         string `json:"oauth2"`
 	ControllerID        string `json:"controller_id"`
 	InstanceCallbackURL string `json:"instance_callback_url"`
+	JWTSecret           string `json:"jwt_secret"`
 }
 
 type Repository struct {
@@ -143,33 +144,39 @@ type CreatePoolParams struct {
 	OSType         config.OSType `json:"os_type"`
 	OSArch         config.OSArch `json:"os_arch"`
 	Tags           []string      `json:"tags"`
+	Enabled        bool          `json:"enabled"`
 }
 
-/*
-	Name          string `gorm:"uniqueIndex"`
-	OSType        config.OSType
-	OSArch        config.OSArch
-	OSName        string
-	OSVersion     string
-	Addresses     []Address `gorm:"foreignKey:id"`
-	Status        string
-	RunnerStatus  string
-	CallbackURL   string
-	CallbackToken []byte
-
-	Pool Pool `gorm:"foreignKey:id"`
-*/
-
 type CreateInstanceParams struct {
-	Name          string
-	OSType        config.OSType
-	OSArch        config.OSArch
-	Status        common.InstanceStatus
-	RunnerStatus  common.RunnerStatus
-	CallbackURL   string
-	CallbackToken string
+	Name         string
+	OSType       config.OSType
+	OSArch       config.OSArch
+	Status       common.InstanceStatus
+	RunnerStatus common.RunnerStatus
+	CallbackURL  string
 
 	Pool string
 }
 
-type UpdatePoolParams struct{}
+/*
+type Pool struct {
+	ID             string        `json:"id"`
+	ProviderName   string        `json:"provider_name"`
+	MaxRunners     uint          `json:"max_runners"`
+	MinIdleRunners uint          `json:"min_idle_runners"`
+	Image          string        `json:"image"`
+	Flavor         string        `json:"flavor"`
+	OSType         config.OSType `json:"os_type"`
+	OSArch         config.OSArch `json:"os_arch"`
+	Tags           []Tag         `json:"tags"`
+	Enabled        bool          `json:"enabled"`
+}
+*/
+type UpdatePoolParams struct {
+	Tags           []Tag  `json:"tags"`
+	Enabled        bool   `json:"enabled"`
+	MaxRunners     uint   `json:"max_runners"`
+	MinIdleRunners uint   `json:"min_idle_runners"`
+	Image          string `json:"image"`
+	Flavor         string `json:"flavor"`
+}
