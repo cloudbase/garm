@@ -1,4 +1,11 @@
+[default]
+config_dir = "/etc/runner-manager"
+callback_url = "https://webhooks.samfira.com/api/v1/instances/status"
 # log_file = "/tmp/runner-manager.log"
+
+[jwt_auth]
+secret = "L&CGG?%VaV;Zs5CnGqaWINDBhx<GSU*IIrS&gX*TA&e$f<P@KMVdg2To^w5'ms!<"
+time_to_live = "3h"
 
 [apiserver]
   bind = "0.0.0.0"
@@ -19,23 +26,6 @@
     database = ""
   [database.sqlite3]
     db_file = "/tmp/file.db"
-
-[[repository]]
-  owner = "gabriel-samfira"
-  name = "scripts"
-  webhook_secret = "oP0@41IB)OcjW!zE7RF`fE5atfU;Ul`aSCu&nCtS?KogC!?b>@fP@1M@Gi#NT5$J"
-  [repository.pool]
-    provider_name = "lxd_local"
-
-    [[repository.pool.runners]]
-      name = "large" 
-      labels = ["my-runner"]
-      max_runners = 10
-      min_runners = 1
-      # For LXD, flavor referes to a profile with this name, in which default resources
-      # are defined.
-      flavor = "large"
-      image = "ubuntu:20.04"
 
 [[provider]]
   name = "lxd_local"
@@ -67,5 +57,7 @@
         skip_verify = false
 
 
-[github]
-  oauth2_token = "super secret"
+[[github]]
+  name = "example"
+  description = "github token or user example"
+  oauth2_token = "super secret token"

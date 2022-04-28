@@ -3,8 +3,10 @@ package params
 import (
 	"runner-manager/config"
 	"runner-manager/runner/providers/common"
+	"time"
 
 	"github.com/google/go-github/v43/github"
+	uuid "github.com/satori/go.uuid"
 )
 
 type AddressType string
@@ -17,20 +19,6 @@ const (
 type Address struct {
 	Address string      `json:"address"`
 	Type    AddressType `json:"type"`
-}
-
-type UpdateInstanceParams struct {
-	ProviderID string `json:"provider_id,omitempty"`
-	// OSName is the name of the OS. Eg: ubuntu, centos, etc.
-	OSName string `json:"os_name,omitempty"`
-	// OSVersion is the version of the operating system.
-	OSVersion string `json:"os_version,omitempty"`
-	// Addresses is a list of IP addresses the provider reports
-	// for this instance.
-	Addresses []Address `json:"addresses,omitempty"`
-	// Status is the status of the instance inside the provider (eg: running, stopped, etc)
-	Status       common.InstanceStatus `json:"status"`
-	RunnerStatus common.RunnerStatus   `json:"runner_status"`
 }
 
 type Instance struct {
@@ -117,66 +105,55 @@ type Internal struct {
 }
 
 type Repository struct {
-	ID    string `json:"id"`
-	Owner string `json:"owner"`
-	Name  string `json:"name"`
-	Pools []Pool `json:"pool,omitempty"`
+	ID              string `json:"id"`
+	Owner           string `json:"owner"`
+	Name            string `json:"name"`
+	Pools           []Pool `json:"pool,omitempty"`
+	CredentialsName string `json:"credentials_name"`
 	// Do not serialize sensitive info.
 	WebhookSecret string   `json:"-"`
 	Internal      Internal `json:"-"`
 }
 
 type Organization struct {
-	ID    string `json:"id"`
-	Name  string `json:"name"`
-	Pools []Pool `json:"pool,omitempty"`
+	ID              string `json:"id"`
+	Name            string `json:"name"`
+	Pools           []Pool `json:"pool,omitempty"`
+	CredentialsName string `json:"credentials_name"`
 	// Do not serialize sensitive info.
 	WebhookSecret string   `json:"-"`
 	Internal      Internal `json:"-"`
 }
 
-type CreatePoolParams struct {
-	ProviderName   string        `json:"provider_name"`
-	MaxRunners     uint          `json:"max_runners"`
-	MinIdleRunners uint          `json:"min_idle_runners"`
-	Image          string        `json:"image"`
-	Flavor         string        `json:"flavor"`
-	OSType         config.OSType `json:"os_type"`
-	OSArch         config.OSArch `json:"os_arch"`
-	Tags           []string      `json:"tags"`
-	Enabled        bool          `json:"enabled"`
+// Users holds information about a particular user
+type User struct {
+	ID        string    `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Email     string    `json:"email"`
+	Username  string    `json:"username"`
+	FullName  string    `json:"full_name"`
+	Password  string    `json:"-"`
+	Enabled   bool      `json:"enabled"`
+	IsAdmin   bool      `json:"is_admin"`
 }
 
-type CreateInstanceParams struct {
-	Name         string
-	OSType       config.OSType
-	OSArch       config.OSArch
-	Status       common.InstanceStatus
-	RunnerStatus common.RunnerStatus
-	CallbackURL  string
-
-	Pool string
+// JWTResponse holds the JWT token returned as a result of a
+// successful auth
+type JWTResponse struct {
+	Token string `json:"token"`
 }
 
-/*
-type Pool struct {
-	ID             string        `json:"id"`
-	ProviderName   string        `json:"provider_name"`
-	MaxRunners     uint          `json:"max_runners"`
-	MinIdleRunners uint          `json:"min_idle_runners"`
-	Image          string        `json:"image"`
-	Flavor         string        `json:"flavor"`
-	OSType         config.OSType `json:"os_type"`
-	OSArch         config.OSArch `json:"os_arch"`
-	Tags           []Tag         `json:"tags"`
-	Enabled        bool          `json:"enabled"`
+type ControllerInfo struct {
+	ControllerID uuid.UUID `json:"controller_id"`
 }
-*/
-type UpdatePoolParams struct {
-	Tags           []Tag  `json:"tags"`
-	Enabled        bool   `json:"enabled"`
-	MaxRunners     uint   `json:"max_runners"`
-	MinIdleRunners uint   `json:"min_idle_runners"`
-	Image          string `json:"image"`
-	Flavor         string `json:"flavor"`
+
+type GithubCredentials struct {
+	Name        string `json:"name,omitempty"`
+	Description string `json:"description,omitempty"`
+}
+
+type Provider struct {
+	Name         string              `json:"name"`
+	ProviderType config.ProviderType `json:"type"`
 }

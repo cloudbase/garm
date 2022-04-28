@@ -6,12 +6,12 @@ import (
 )
 
 type Store interface {
-	CreateRepository(ctx context.Context, owner, name, webhookSecret string) (params.Repository, error)
+	CreateRepository(ctx context.Context, owner, name, credentialsName, webhookSecret string) (params.Repository, error)
 	GetRepository(ctx context.Context, owner, name string) (params.Repository, error)
 	ListRepositories(ctx context.Context) ([]params.Repository, error)
 	DeleteRepository(ctx context.Context, owner, name string) error
 
-	CreateOrganization(ctx context.Context, name, webhookSecret string) (params.Organization, error)
+	CreateOrganization(ctx context.Context, name, credentialsName, webhookSecret string) (params.Organization, error)
 	GetOrganization(ctx context.Context, name string) (params.Organization, error)
 	ListOrganizations(ctx context.Context) ([]params.Organization, error)
 	DeleteOrganization(ctx context.Context, name string) error
@@ -41,4 +41,12 @@ type Store interface {
 
 	// GetInstance(ctx context.Context, poolID string, instanceID string) (params.Instance, error)
 	GetInstanceByName(ctx context.Context, poolID string, instanceName string) (params.Instance, error)
+
+	CreateUser(ctx context.Context, user params.NewUserParams) (params.User, error)
+	GetUser(ctx context.Context, user string) (params.User, error)
+	UpdateUser(ctx context.Context, user string, param params.UpdateUserParams) (params.User, error)
+	HasAdminUser(ctx context.Context) bool
+
+	ControllerInfo() (params.ControllerInfo, error)
+	InitController() (params.ControllerInfo, error)
 }

@@ -21,6 +21,7 @@ import (
 	gErrors "runner-manager/errors"
 	"runner-manager/params"
 	"runner-manager/runner/common"
+	"runner-manager/runner/pool"
 	"runner-manager/runner/providers"
 	"runner-manager/util"
 
@@ -46,13 +47,19 @@ func NewRunner(ctx context.Context, cfg config.Config) (*Runner, error) {
 	runner := &Runner{
 		ctx:    ctx,
 		config: cfg,
-		db:     db,
+		store:  db,
 		// ghc:       ghc,
-		providers: providers,
+		repositories:  map[string]common.PoolManager{},
+		organizations: map[string]common.PoolManager{},
+		providers:     providers,
 	}
 
 	if err := runner.ensureSSHKeys(); err != nil {
 		return nil, errors.Wrap(err, "ensuring SSH keys")
+	}
+
+	if err := runner.loadReposAndOrgs(); err != nil {
+		return nil, errors.Wrap(err, "loading pool managers")
 	}
 
 	return runner, nil
@@ -63,7 +70,7 @@ type Runner struct {
 
 	ctx context.Context
 	// ghc *github.Client
-	db dbCommon.Store
+	store dbCommon.Store
 
 	controllerID string
 
@@ -73,35 +80,170 @@ type Runner struct {
 	providers     map[string]common.Provider
 }
 
-func (r *Runner) loadPools() error {
+func (r *Runner) CreateRepository(ctx context.Context) error {
+	return nil
+}
+
+func (r *Runner) ListRepositories(ctx context.Context) error {
+	return nil
+}
+
+func (r *Runner) GetRepository(ctx context.Context) error {
+	return nil
+}
+
+func (r *Runner) DeleteRepository(ctx context.Context) error {
+	return nil
+}
+
+func (r *Runner) UpdateRepository(ctx context.Context) error {
+	return nil
+}
+
+func (r *Runner) CreateRepoPool(ctx context.Context) error {
+	return nil
+}
+
+func (r *Runner) DeleteRepoPool(ctx context.Context) error {
+	return nil
+}
+
+func (r *Runner) ListRepoPools(ctx context.Context) error {
+	return nil
+}
+
+func (r *Runner) UpdateRepoPool(ctx context.Context) error {
+	return nil
+}
+
+func (r *Runner) ListPoolInstances(ctx context.Context) error {
+	return nil
+}
+
+func (r *Runner) ListCredentials(ctx context.Context) ([]params.GithubCredentials, error) {
+	ret := []params.GithubCredentials{}
+
+	for _, val := range r.config.Github {
+		ret = append(ret, params.GithubCredentials{
+			Name:        val.Name,
+			Description: val.Description,
+		})
+	}
+	return ret, nil
+}
+
+func (r *Runner) ListProviders(ctx context.Context) ([]params.Provider, error) {
+	ret := []params.Provider{}
+
+	for _, val := range r.providers {
+		ret = append(ret, val.AsParams())
+	}
+	return ret, nil
+}
+
+func (r *Runner) loadReposAndOrgs() error {
 	r.mux.Lock()
 	defer r.mux.Unlock()
 
-	// repos, err := r.db.ListRepositories(r.ctx)
-	// if err != nil {
-	// 	return errors.Wrap(err, "fetching repositories")
-	// }
+	repos, err := r.store.ListRepositories(r.ctx)
+	if err != nil {
+		return errors.Wrap(err, "fetching repositories")
+	}
+
+	for _, repo := range repos {
+		log.Printf("creating pool manager for %s/%s", repo.Owner, repo.Name)
+		poolManager, err := pool.NewRepositoryPoolManager(r.ctx, repo, r.providers, r.store)
+		if err != nil {
+			return errors.Wrap(err, "creating pool manager")
+		}
+		r.repositories[repo.ID] = poolManager
+	}
 
 	return nil
 }
 
-func (r *Runner) findRepoPool(owner, name string) (common.PoolManager, error) {
+func (r *Runner) Start() error {
+	for _, repo := range r.repositories {
+		if err := repo.Start(); err != nil {
+			return errors.Wrap(err, "starting repo pool manager")
+		}
+	}
+
+	for _, org := range r.organizations {
+		if err := org.Start(); err != nil {
+			return errors.Wrap(err, "starting org pool manager")
+		}
+	}
+	return nil
+}
+
+func (r *Runner) Stop() error {
+	for _, repo := range r.repositories {
+		if err := repo.Stop(); err != nil {
+			return errors.Wrap(err, "starting repo pool manager")
+		}
+	}
+
+	for _, org := range r.organizations {
+		if err := org.Stop(); err != nil {
+			return errors.Wrap(err, "starting org pool manager")
+		}
+	}
+	return nil
+}
+
+func (r *Runner) Wait() error {
+	var wg sync.WaitGroup
+
+	for poolId, repo := range r.repositories {
+		wg.Add(1)
+		go func(id string, poolMgr common.PoolManager) {
+			defer wg.Done()
+			if err := poolMgr.Wait(); err != nil {
+				log.Printf("timed out waiting for pool manager %s to exit", id)
+			}
+		}(poolId, repo)
+	}
+
+	for poolId, org := range r.organizations {
+		wg.Add(1)
+		go func(id string, poolMgr common.PoolManager) {
+			defer wg.Done()
+			if err := poolMgr.Wait(); err != nil {
+				log.Printf("timed out waiting for pool manager %s to exit", id)
+			}
+		}(poolId, org)
+	}
+	wg.Wait()
+	return nil
+}
+
+func (r *Runner) findRepoPoolManager(owner, name string) (common.PoolManager, error) {
 	r.mux.Lock()
 	defer r.mux.Unlock()
 
-	// key := fmt.Sprintf("%s/%s", owner, name)
-	// if repo, ok := r.repositories[key]; ok {
-	// 	return pool, nil
-	// }
+	repo, err := r.store.GetRepository(r.ctx, owner, name)
+	if err != nil {
+		return nil, errors.Wrap(err, "fetching repo")
+	}
 
-	// repo, err := r.db.GetRepository(r.ctx, owner, name)
-	// r.repositories[key] = repo
-	return nil, errors.Wrapf(gErrors.ErrNotFound, "repository %s not configured", name)
+	if repo, ok := r.repositories[repo.ID]; ok {
+		return repo, nil
+	}
+	return nil, errors.Wrapf(gErrors.ErrNotFound, "repository %s/%s not configured", owner, name)
 }
 
-func (r *Runner) findOrgPool(name string) (common.PoolManager, error) {
-	if pool, ok := r.organizations[name]; ok {
-		return pool, nil
+func (r *Runner) findOrgPoolManager(name string) (common.PoolManager, error) {
+	r.mux.Lock()
+	defer r.mux.Unlock()
+
+	org, err := r.store.GetOrganization(r.ctx, name)
+	if err != nil {
+		return nil, errors.Wrap(err, "fetching repo")
+	}
+
+	if orgPoolMgr, ok := r.organizations[org.ID]; ok {
+		return orgPoolMgr, nil
 	}
 	return nil, errors.Wrapf(gErrors.ErrNotFound, "organization %s not configured", name)
 }
@@ -165,9 +307,9 @@ func (r *Runner) DispatchWorkflowJob(hookTargetType, signature string, jobData [
 
 	switch HookTargetType(hookTargetType) {
 	case RepoHook:
-		poolManager, err = r.findRepoPool(job.Repository.Owner.Login, job.Repository.Name)
+		poolManager, err = r.findRepoPoolManager(job.Repository.Owner.Login, job.Repository.Name)
 	case OrganizationHook:
-		poolManager, err = r.findOrgPool(job.Organization.Login)
+		poolManager, err = r.findOrgPoolManager(job.Organization.Login)
 	default:
 		return gErrors.NewBadRequestError("cannot handle hook target type %s", hookTargetType)
 	}
@@ -183,6 +325,10 @@ func (r *Runner) DispatchWorkflowJob(hookTargetType, signature string, jobData [
 	secret := poolManager.WebhookSecret()
 	if err := r.validateHookBody(signature, secret, jobData); err != nil {
 		return errors.Wrap(err, "validating webhook data")
+	}
+
+	if err := poolManager.HandleWorkflowJob(job); err != nil {
+		return errors.Wrap(err, "handling workflow job")
 	}
 
 	return nil

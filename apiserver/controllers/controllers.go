@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"runner-manager/apiserver/params"
+	"runner-manager/auth"
 	gErrors "runner-manager/errors"
 	runnerParams "runner-manager/params"
 	"runner-manager/runner"
@@ -15,14 +16,16 @@ import (
 	"github.com/pkg/errors"
 )
 
-func NewAPIController(r *runner.Runner) (*APIController, error) {
+func NewAPIController(r *runner.Runner, auth *auth.Authenticator) (*APIController, error) {
 	return &APIController{
-		r: r,
+		r:    r,
+		auth: auth,
 	}, nil
 }
 
 type APIController struct {
-	r *runner.Runner
+	r    *runner.Runner
+	auth *auth.Authenticator
 }
 
 func handleError(w http.ResponseWriter, err error) {
@@ -112,4 +115,103 @@ func (a *APIController) NotFoundHandler(w http.ResponseWriter, r *http.Request) 
 	}
 	w.WriteHeader(http.StatusNotFound)
 	json.NewEncoder(w).Encode(apiErr)
+}
+
+// LoginHandler returns a jwt token
+func (a *APIController) LoginHandler(w http.ResponseWriter, r *http.Request) {
+	var loginInfo runnerParams.PasswordLoginParams
+	if err := json.NewDecoder(r.Body).Decode(&loginInfo); err != nil {
+		handleError(w, gErrors.ErrBadRequest)
+		return
+	}
+
+	if err := loginInfo.Validate(); err != nil {
+		handleError(w, err)
+		return
+	}
+
+	ctx := r.Context()
+	ctx, err := a.auth.AuthenticateUser(ctx, loginInfo)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+
+	tokenString, err := a.auth.GetJWTToken(ctx)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(runnerParams.JWTResponse{Token: tokenString})
+}
+
+func (a *APIController) FirstRunHandler(w http.ResponseWriter, r *http.Request) {
+	if a.auth.IsInitialized() {
+		err := gErrors.NewConflictError("already initialized")
+		handleError(w, err)
+		return
+	}
+
+	ctx := r.Context()
+
+	var newUserParams runnerParams.NewUserParams
+	if err := json.NewDecoder(r.Body).Decode(&newUserParams); err != nil {
+		handleError(w, gErrors.ErrBadRequest)
+		return
+	}
+
+	newUser, err := a.auth.InitController(ctx, newUserParams)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(newUser)
+
+}
+
+func (a *APIController) ListCredentials(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	creds, err := a.r.ListCredentials(ctx)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+
+	json.NewEncoder(w).Encode(creds)
+}
+
+func (a *APIController) ListProviders(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	providers, err := a.r.ListProviders(ctx)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+
+	json.NewEncoder(w).Encode(providers)
+}
+
+func (a *APIController) CreateRepoHandler(w http.ResponseWriter, r *http.Request) {
+	// ctx := r.Context()
+
+	// var repoData runnerParams.CreateRepoParams
+	// if err := json.NewDecoder(r.Body).Decode(&repoData); err != nil {
+	// 	handleError(w, gErrors.ErrBadRequest)
+	// 	return
+	// }
+
+	// pasteInfo, err := p.paster.Create(
+	// 	ctx, pasteData.Data, pasteData.Name,
+	// 	pasteData.Language, pasteData.Description,
+	// 	pasteData.Expires, pasteData.Public, "",
+	// 	pasteData.Metadata)
+	// if err != nil {
+	// 	handleError(w, err)
+	// 	return
+	// }
+	// w.Header().Set("Content-Type", "application/json")
+	// json.NewEncoder(w).Encode(pasteInfo)
+
 }

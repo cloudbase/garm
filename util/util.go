@@ -15,10 +15,13 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"regexp"
 	"strings"
+	"unicode"
 
 	"github.com/google/go-github/v43/github"
 	"github.com/pkg/errors"
+	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/oauth2"
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
@@ -28,11 +31,13 @@ import (
 
 	"runner-manager/cloudconfig"
 	"runner-manager/config"
-	runnerErrors "runner-manager/errors"
 	"runner-manager/params"
 )
 
 const alphanumeric = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+
+// From: https://www.alexedwards.net/blog/validation-snippets-for-go#email-validation
+var rxEmail = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
 
 var (
 	OSToOSTypeMap map[string]config.OSType = map[string]config.OSType{
@@ -47,11 +52,28 @@ var (
 	}
 )
 
+// IsValidEmail returs a bool indicating if an email is valid
+func IsValidEmail(email string) bool {
+	if len(email) > 254 || !rxEmail.MatchString(email) {
+		return false
+	}
+	return true
+}
+
+func IsAlphanumeric(s string) bool {
+	for _, r := range s {
+		if !unicode.IsLetter(r) && !unicode.IsNumber(r) {
+			return false
+		}
+	}
+	return true
+}
+
 // GetLoggingWriter returns a new io.Writer suitable for logging.
 func GetLoggingWriter(cfg *config.Config) (io.Writer, error) {
 	var writer io.Writer = os.Stdout
-	if cfg.LogFile != "" {
-		dirname := path.Dir(cfg.LogFile)
+	if cfg.Default.LogFile != "" {
+		dirname := path.Dir(cfg.Default.LogFile)
 		if _, err := os.Stat(dirname); err != nil {
 			if !os.IsNotExist(err) {
 				return nil, fmt.Errorf("failed to create log folder")
@@ -61,7 +83,7 @@ func GetLoggingWriter(cfg *config.Config) (io.Writer, error) {
 			}
 		}
 		writer = &lumberjack.Logger{
-			Filename:   cfg.LogFile,
+			Filename:   cfg.Default.LogFile,
 			MaxSize:    500, // megabytes
 			MaxBackups: 3,
 			MaxAge:     28,   //days
@@ -69,16 +91,6 @@ func GetLoggingWriter(cfg *config.Config) (io.Writer, error) {
 		}
 	}
 	return writer, nil
-}
-
-func FindRunnerType(runnerType string, runners []config.Runner) (config.Runner, error) {
-	for _, runner := range runners {
-		if runner.Name == runnerType {
-			return runner, nil
-		}
-	}
-
-	return config.Runner{}, runnerErrors.ErrNotFound
 }
 
 func ConvertFileToBase64(file string) (string, error) {
@@ -255,4 +267,14 @@ func Aes256DecodeString(target []byte, passphrase string) (string, error) {
 		return "", fmt.Errorf("failed to decrypt text")
 	}
 	return string(plaintext), nil
+}
+
+// PaswsordToBcrypt returns a bcrypt hash of the specified password using the default cost
+func PaswsordToBcrypt(password string) (string, error) {
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		// TODO: make this a fatal error, that should return a 500 error to user
+		return "", fmt.Errorf("failed to hash password")
+	}
+	return string(hashedPassword), nil
 }

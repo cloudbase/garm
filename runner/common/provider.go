@@ -20,4 +20,6 @@ type Provider interface {
 	Stop(ctx context.Context, instance string, force bool) error
 	// Start boots up an instance.
 	Start(ctx context.Context, instance string) error
+
+	AsParams() params.Provider
 }

@@ -46,10 +46,6 @@ func NewRepositoryPoolManager(ctx context.Context, cfg params.Repository, provid
 		quit:         make(chan struct{}),
 		done:         make(chan struct{}),
 	}
-
-	if err := repo.fetchTools(); err != nil {
-		return nil, errors.Wrap(err, "initializing tools")
-	}
 	return repo, nil
 }
 
@@ -96,6 +92,10 @@ func (r *Repository) getProviderInstances() ([]params.Instance, error) {
 }
 
 func (r *Repository) Start() error {
+	if err := r.fetchTools(); err != nil {
+		return errors.Wrap(err, "initializing tools")
+	}
+
 	runners, err := r.getGithubRunners()
 	if err != nil {
 		return errors.Wrap(err, "fetching github runners")
@@ -334,7 +334,8 @@ func (r *Repository) ensureMinIdleRunners() {
 			projectedInstanceCount := len(existingInstances) + required
 			if uint(projectedInstanceCount) > pool.MaxRunners {
 				// ensure we don't go above max workers
-				required = (len(existingInstances) + required) - int(pool.MaxRunners)
+				delta := projectedInstanceCount - int(pool.MaxRunners)
+				required = required - delta
 			}
 		}
 

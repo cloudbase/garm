@@ -231,6 +231,13 @@ func (l *LXD) getCreateInstanceArgs(bootstrapParams params.BootstrapInstance) (a
 	return args, nil
 }
 
+func (l *LXD) AsParams() params.Provider {
+	return params.Provider{
+		Name:         l.cfg.Name,
+		ProviderType: l.cfg.ProviderType,
+	}
+}
+
 func (l *LXD) launchInstance(createArgs api.InstancesPost) error {
 	// Get LXD to create the instance (background operation)
 	op, err := l.cli.CreateInstance(createArgs)

@@ -11,9 +11,8 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/lxc/lxd v0.0.0-20220415052741-1170f2806124
 	github.com/nbutton23/zxcvbn-go v0.0.0-20210217022336-fa2cb2858354
-	github.com/pborman/uuid v1.2.1
 	github.com/pkg/errors v0.9.1
-	github.com/satori/go.uuid v1.2.0
+	github.com/satori/go.uuid v1.2.1-0.20181028125025-b2ce2384e17b
 	golang.org/x/crypto v0.0.0-20220321153916-2c7772ba3064
 	golang.org/x/oauth2 v0.0.0-20180821212333-d2e6202438be
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
@@ -38,6 +37,7 @@ require (
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
 	github.com/kr/fs v0.1.0 // indirect
 	github.com/mattn/go-sqlite3 v1.14.12 // indirect
+	github.com/pborman/uuid v1.2.1 // indirect
 	github.com/pkg/sftp v1.13.4 // indirect
 	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/rogpeppe/fastuuid v1.2.0 // indirect

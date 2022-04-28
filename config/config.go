@@ -87,15 +87,12 @@ func NewConfig(cfgFile string) (*Config, error) {
 }
 
 type Config struct {
-	Default       Default        `toml:"default" json:"default"`
-	APIServer     APIServer      `toml:"apiserver,omitempty" json:"apiserver,omitempty"`
-	Database      Database       `toml:"database,omitempty" json:"database,omitempty"`
-	Repositories  []Repository   `toml:"repository,omitempty" json:"repository,omitempty"`
-	Organizations []Organization `toml:"organization,omitempty" json:"organization,omitempty"`
-	Providers     []Provider     `toml:"provider,omitempty" json:"provider,omitempty"`
-	Github        []Github       `toml:"github,omitempty"`
-	// LogFile is the location of the log file.
-	LogFile string `toml:"log_file,omitempty"`
+	Default   Default    `toml:"default" json:"default"`
+	APIServer APIServer  `toml:"apiserver,omitempty" json:"apiserver,omitempty"`
+	Database  Database   `toml:"database,omitempty" json:"database,omitempty"`
+	Providers []Provider `toml:"provider,omitempty" json:"provider,omitempty"`
+	Github    []Github   `toml:"github,omitempty"`
+	JWTAuth   JWTAuth    `toml:"jwt_auth" json:"jwt-auth"`
 }
 
 // Validate validates the config
@@ -117,51 +114,13 @@ func (c *Config) Validate() error {
 		}
 	}
 
+	if err := c.JWTAuth.Validate(); err != nil {
+		return errors.Wrap(err, "validating jwt config")
+	}
+
 	for _, provider := range c.Providers {
 		if err := provider.Validate(); err != nil {
 			return errors.Wrap(err, "validating provider")
-		}
-	}
-
-	for _, repo := range c.Repositories {
-		if err := repo.Validate(); err != nil {
-			return errors.Wrap(err, "validating repository")
-		}
-
-		// We also need to validate that the provider used for this
-		// repo, has been defined in the providers section. Multiple
-		// repos can use the same provider.
-		found := false
-		for _, provider := range c.Providers {
-			if provider.Name == repo.Pool.ProviderName {
-				found = true
-				break
-			}
-		}
-
-		if !found {
-			return fmt.Errorf("provider %s defined in repo %s/%s is not defined", repo.Pool.ProviderName, repo.Owner, repo.Name)
-		}
-	}
-
-	for _, org := range c.Organizations {
-		if err := org.Validate(); err != nil {
-			return errors.Wrap(err, "validating organization")
-		}
-
-		// We also need to validate that the provider used for this
-		// repo, has been defined in the providers section. Multiple
-		// repos can use the same provider.
-		found := false
-		for _, provider := range c.Providers {
-			if provider.Name == org.Pool.ProviderName {
-				found = true
-				break
-			}
-		}
-
-		if !found {
-			return fmt.Errorf("provider %s defined in org %s is not defined", org.Pool.ProviderName, org.Name)
 		}
 	}
 
@@ -174,10 +133,8 @@ type Default struct {
 	// may be used to access the runner instances.
 	ConfigDir   string `toml:"config_dir,omitempty" json:"config-dir,omitempty"`
 	CallbackURL string `toml:"callback_url" json:"callback-url"`
-
-	// JWTSecret is used to sign JWT tokens that will be used by instances to
-	// call home.
-	JWTSecret string `toml:"jwt_secret" json:"jwt-secret"`
+	// LogFile is the location of the log file.
+	LogFile string `toml:"log_file,omitempty" json:"log-file"`
 }
 
 func (d *Default) Validate() error {
@@ -185,45 +142,7 @@ func (d *Default) Validate() error {
 		return fmt.Errorf("missing callback_url")
 	}
 
-	if d.JWTSecret == "" {
-		return fmt.Errorf("missing jwt secret")
-	}
-
-	passwordStenght := zxcvbn.PasswordStrength(d.JWTSecret, nil)
-	if passwordStenght.Score < 4 {
-		return fmt.Errorf("jwt_secret is too weak")
-	}
-
 	return nil
-}
-
-// Organization represents a Github organization for which we can manage runners.
-type Organization struct {
-	// Name is the name of the organization.
-	Name string `toml:"name" json:"name"`
-	// WebsocketSecret is the shared secret used to create the hash of
-	// the webhook body. We use this to validate that the webhook message
-	// came in from the correct repo.
-	WebhookSecret string `toml:"webhook_secret" json:"webhook-secret"`
-
-	// Pool is the pool defined for this repository.
-	Pool Pool `toml:"pool" json:"pool"`
-}
-
-func (o *Organization) Validate() error {
-	if o.Name == "" {
-		return fmt.Errorf("missing org name")
-	}
-
-	if err := o.Pool.Validate(); err != nil {
-		return errors.Wrap(err, "validating org pool")
-	}
-
-	return nil
-}
-
-func (o *Organization) String() string {
-	return fmt.Sprintf("https://github.com/%s", o.Name)
 }
 
 // Github hold configuration options specific to interacting with github.
@@ -262,142 +181,6 @@ func (p *Provider) Validate() error {
 	default:
 		return fmt.Errorf("unknown provider type: %s", p.ProviderType)
 	}
-	return nil
-}
-
-// Runner represents a runner type. The runner type is defined by the labels
-// it has, the image it runs on and the size of the compute system that was
-// requested.
-type Runner struct {
-	// Name is the name of this runner. The name needs to be unique within a provider,
-	// and is used as an ID. If you wish to change the name, you must make sure all
-	// runners of this type are deleted.
-	Name string `toml:"name" json:"name"`
-	// Labels is a list of labels that will be set for this runner in github.
-	// The labels will be used in workflows to request a particular kind of
-	// runner.
-	Labels []string `toml:"labels" json:"labels"`
-	// MaxRunners is the maximum number of self hosted action runners
-	// of any type that are spun up for this repo. If current worker count
-	// is not enough to handle jobs comming in, a new runner will be spun up,
-	// until MaxWorkers count is hit. Set this to 0 to disable MaxRunners.
-	MaxRunners int `toml:"max_runners" json:"max-runners"`
-	// MinIdleRunners is the minimum number of idle self hosted runners that will
-	// be maintained for this repo. Ensuring a few idle runners, speeds up jobs, especially
-	// on providers where cold boot takes a long time. The pool will attempt to maintain at
-	// least this many idle workers, unless MaxRunners is hit. Set this to 0, for on-demand.
-	MinIdleRunners int `toml:"min_idle_runners" json:"min-runners"`
-
-	// Flavor is the size of the VM that will be spun up.
-	Flavor string `toml:"flavor" json:"flavor"`
-	// Image is the image that the VM will run. Each
-	Image string `toml:"image" json:"image"`
-
-	// OSType overrides the OS type that comes in from the Image. If the image
-	// on a particular provider does not have this information set within it's metadata
-	// you must set this option, so the runner-manager knows how to configure
-	// the worker.
-	OSType OSType `toml:"os_type" json:"os-type"`
-	// OSArch overrides the OS architecture that comes in from the Image.
-	// If the image metadata does not include information about the OS architecture,
-	// you must set this option, so the runner-manager knows how to configure the worker.
-	OSArch OSArch `toml:"os_arch" json:"os-arch"`
-}
-
-func (r *Runner) HasAllLabels(labels []string) bool {
-	hashed := map[string]struct{}{}
-	for _, val := range r.Labels {
-		hashed[val] = struct{}{}
-	}
-
-	for _, val := range labels {
-		if _, ok := hashed[val]; !ok {
-			return false
-		}
-	}
-
-	return true
-}
-
-// TODO: validate rest
-func (r *Runner) Validate() error {
-	if len(r.Labels) == 0 {
-		return fmt.Errorf("missing labels")
-	}
-
-	if r.Name == "" {
-		return fmt.Errorf("name is not set")
-	}
-
-	return nil
-}
-
-type Pool struct {
-	// ProviderName is the name of the provider that will be used for this pool.
-	// A provider with the name specified in this setting, must be defined in
-	// the Providers array in the main config.
-	ProviderName string `toml:"provider_name" json:"provider-name"`
-
-	// QueueSize defines the number of jobs this pool can handle simultaneously.
-	QueueSize uint `toml:"queue_size" json:"queue-size"`
-
-	// Runners represents a list of runner types defined for this pool.
-	Runners []Runner `toml:"runners" json:"runners"`
-}
-
-func (p *Pool) Validate() error {
-	if p.ProviderName == "" {
-		return fmt.Errorf("missing provider_name")
-	}
-
-	if len(p.Runners) == 0 {
-		return fmt.Errorf("no runners defined for pool")
-	}
-
-	for _, runner := range p.Runners {
-		if err := runner.Validate(); err != nil {
-			return errors.Wrap(err, "validating runner for pool")
-		}
-	}
-	return nil
-}
-
-// Repository defines the settings for a pool associated with a particular repository.
-type Repository struct {
-	// Owner is the user under which the repo is created
-	Owner string `toml:"owner" json:"owner"`
-	// Name is the name of the repo.
-	Name string `toml:"name" json:"name"`
-	// WebsocketSecret is the shared secret used to create the hash of
-	// the webhook body. We use this to validate that the webhook message
-	// came in from the correct repo.
-	WebhookSecret string `toml:"webhook_secret" json:"webhook-secret"`
-
-	// Pool is the pool defined for this repository.
-	Pool Pool `toml:"pool" json:"pool"`
-}
-
-func (r *Repository) String() string {
-	return fmt.Sprintf("https://github.com/%s/%s", r.Owner, r.Name)
-}
-
-func (r *Repository) Validate() error {
-	if r.Owner == "" {
-		return fmt.Errorf("missing owner")
-	}
-
-	if r.Name == "" {
-		return fmt.Errorf("missing repo name")
-	}
-
-	if r.WebhookSecret == "" {
-		return fmt.Errorf("missing webhook_secret")
-	}
-
-	if err := r.Pool.Validate(); err != nil {
-		return errors.Wrapf(err, "validating pool for %s", r)
-	}
-
 	return nil
 }
 
@@ -603,6 +386,48 @@ func (a *APIServer) Validate() error {
 		// IP address specified in this setting will raise an error
 		// when we try to bind to it.
 		return fmt.Errorf("invalid IP address")
+	}
+	return nil
+}
+
+type timeToLive string
+
+func (d *timeToLive) Duration() time.Duration {
+	duration, err := time.ParseDuration(string(*d))
+	if err != nil {
+		return DefaultJWTTTL
+	}
+	return duration
+}
+
+func (d *timeToLive) UnmarshalText(text []byte) error {
+	_, err := time.ParseDuration(string(text))
+	if err != nil {
+		return errors.Wrap(err, "parsing time_to_live")
+	}
+
+	*d = timeToLive(text)
+	return nil
+}
+
+// JWTAuth holds settings used to generate JWT tokens
+type JWTAuth struct {
+	Secret     string     `toml:"secret" json:"secret"`
+	TimeToLive timeToLive `toml:"time_to_live" json:"time-to-live"`
+}
+
+// Validate validates the JWTAuth config
+func (j *JWTAuth) Validate() error {
+	// TODO: Set defaults somewhere else.
+	if j.TimeToLive.Duration() < DefaultJWTTTL {
+		j.TimeToLive = timeToLive(DefaultJWTTTL.String())
+	}
+	if j.Secret == "" {
+		return fmt.Errorf("invalid JWT secret")
+	}
+	passwordStenght := zxcvbn.PasswordStrength(j.Secret, nil)
+	if passwordStenght.Score < 4 {
+		return fmt.Errorf("jwt_secret is too weak")
 	}
 	return nil
 }

@@ -5,6 +5,7 @@ import (
 	"runner-manager/runner/providers/common"
 	"time"
 
+	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
 	"gorm.io/gorm"
 )
@@ -21,7 +22,11 @@ func (b *Base) BeforeCreate(tx *gorm.DB) error {
 	if b.ID != emptyId {
 		return nil
 	}
-	b.ID = uuid.NewV4()
+	newID, err := uuid.NewV4()
+	if err != nil {
+		return errors.Wrap(err, "generating id")
+	}
+	b.ID = newID
 	return nil
 }
 
@@ -57,18 +62,20 @@ type Pool struct {
 type Repository struct {
 	Base
 
-	Owner         string `gorm:"index:idx_owner,unique"`
-	Name          string `gorm:"index:idx_owner,unique"`
-	WebhookSecret []byte
-	Pools         []Pool `gorm:"foreignKey:RepoID"`
+	CredentialsName string
+	Owner           string `gorm:"index:idx_owner,unique"`
+	Name            string `gorm:"index:idx_owner,unique"`
+	WebhookSecret   []byte
+	Pools           []Pool `gorm:"foreignKey:RepoID"`
 }
 
 type Organization struct {
 	Base
 
-	Name          string `gorm:"uniqueIndex"`
-	WebhookSecret []byte
-	Pools         []Pool `gorm:"foreignKey:OrgID"`
+	CredentialsName string
+	Name            string `gorm:"uniqueIndex"`
+	WebhookSecret   []byte
+	Pools           []Pool `gorm:"foreignKey:OrgID"`
 }
 
 type Address struct {
@@ -94,4 +101,21 @@ type Instance struct {
 
 	PoolID uuid.UUID
 	Pool   Pool `gorm:"foreignKey:PoolID"`
+}
+
+type User struct {
+	Base
+
+	Username string `gorm:"uniqueIndex;varchar(64)"`
+	FullName string `gorm:"type:varchar(254)"`
+	Email    string `gorm:"type:varchar(254);unique;index:idx_email"`
+	Password string `gorm:"type:varchar(60)"`
+	IsAdmin  bool
+	Enabled  bool
+}
+
+type ControllerInfo struct {
+	Base
+
+	ControllerID uuid.UUID
 }
