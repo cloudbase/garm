@@ -941,6 +941,18 @@ func (s *sqlDatabase) getUserByUsernameOrEmail(user string) (User, error) {
 	return dbUser, nil
 }
 
+func (s *sqlDatabase) getUserByID(userID string) (User, error) {
+	var dbUser User
+	q := s.conn.Model(&User{}).Where("id = ?", userID).First(&dbUser)
+	if q.Error != nil {
+		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
+			return User{}, runnerErrors.ErrNotFound
+		}
+		return User{}, errors.Wrap(q.Error, "fetching user")
+	}
+	return dbUser, nil
+}
+
 func (s *sqlDatabase) CreateUser(ctx context.Context, user params.NewUserParams) (params.User, error) {
 	if user.Username == "" || user.Email == "" {
 		return params.User{}, runnerErrors.NewBadRequestError("missing username or email")
@@ -978,7 +990,7 @@ func (s *sqlDatabase) HasAdminUser(ctx context.Context) bool {
 }
 
 func (s *sqlDatabase) GetUser(ctx context.Context, user string) (params.User, error) {
-	dbUser, err := s.getUserByUsernameOrEmail(user)
+	dbUser, err := s.getUserByID(user)
 	if err != nil {
 		return params.User{}, errors.Wrap(err, "fetching user")
 	}
