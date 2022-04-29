@@ -308,3 +308,35 @@ func (a *APIController) UpdateRepoHandler(w http.ResponseWriter, r *http.Request
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(repo)
 }
+
+func (a *APIController) CreateRepoPoolHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	vars := mux.Vars(r)
+	repoID, ok := vars["repoID"]
+	if !ok {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(params.APIErrorResponse{
+			Error:   "Bad Request",
+			Details: "No repo ID specified",
+		})
+		return
+	}
+
+	var poolData runnerParams.CreatePoolParams
+	if err := json.NewDecoder(r.Body).Decode(&poolData); err != nil {
+		log.Printf("failed to decode: %+v", err)
+		handleError(w, gErrors.ErrBadRequest)
+		return
+	}
+
+	pool, err := a.r.CreateRepoPool(ctx, repoID, poolData)
+	if err != nil {
+		log.Printf("error creating repository pool: %+v", err)
+		handleError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(pool)
+}

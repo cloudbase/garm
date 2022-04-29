@@ -182,8 +182,9 @@ func (l *LXD) secureBootEnabled() string {
 }
 
 func (l *LXD) getCreateInstanceArgs(bootstrapParams params.BootstrapInstance) (api.InstancesPost, error) {
-	// name := fmt.Sprintf("runner-manager-%s", uuid.New())
-
+	if bootstrapParams.Name == "" {
+		return api.InstancesPost{}, runnerErrors.NewBadRequestError("missing name")
+	}
 	profiles, err := l.getProfiles(bootstrapParams.Flavor)
 	if err != nil {
 		return api.InstancesPost{}, errors.Wrap(err, "fetching profiles")

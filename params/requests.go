@@ -1,6 +1,7 @@
 package params
 
 import (
+	"fmt"
 	"runner-manager/config"
 	"runner-manager/errors"
 	"runner-manager/runner/providers/common"
@@ -77,6 +78,34 @@ type CreatePoolParams struct {
 	OSArch         config.OSArch `json:"os_arch"`
 	Tags           []string      `json:"tags"`
 	Enabled        bool          `json:"enabled"`
+}
+
+func (p *CreatePoolParams) Validate() error {
+	if p.ProviderName == "" {
+		return fmt.Errorf("missing provider")
+	}
+
+	if p.MinIdleRunners > p.MaxRunners {
+		return fmt.Errorf("min_idle_runners cannot be larger than max_runners")
+	}
+
+	if p.MaxRunners == 0 {
+		return fmt.Errorf("max_runners cannot be 0")
+	}
+
+	if len(p.Tags) == 0 {
+		return fmt.Errorf("missing tags")
+	}
+
+	if p.Flavor == "" {
+		return fmt.Errorf("missing flavor")
+	}
+
+	if p.Image == "" {
+		return fmt.Errorf("missing image")
+	}
+
+	return nil
 }
 
 type UpdateInstanceParams struct {

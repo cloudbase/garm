@@ -41,10 +41,10 @@ type UnauthorizedError struct {
 }
 
 // NewNotFoundError returns a new NotFoundError
-func NewNotFoundError(msg string) error {
+func NewNotFoundError(msg string, a ...interface{}) error {
 	return &NotFoundError{
 		baseError{
-			msg: msg,
+			msg: fmt.Sprintf(msg, a...),
 		},
 	}
 }

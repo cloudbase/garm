@@ -2,6 +2,7 @@ package pool
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
@@ -191,7 +192,8 @@ func (r *Repository) addPendingInstances() {
 			// not in pending_create status. Skip.
 			continue
 		}
-
+		asJs, _ := json.MarshalIndent(instance, "", "  ")
+		log.Printf(">>> %s", string(asJs))
 		if err := r.addInstanceToProvider(instance); err != nil {
 			log.Printf("failed to create instance in provider: %s", err)
 		}
@@ -435,7 +437,7 @@ func (r *Repository) deleteInstanceFromProvider(instance params.Instance) error 
 func (r *Repository) addInstanceToProvider(instance params.Instance) error {
 	pool, ok := r.pools[instance.PoolID]
 	if !ok {
-		return runnerErrors.NewNotFoundError("invalid pool ID")
+		return runnerErrors.NewNotFoundError("invalid pool ID: %s", instance.PoolID)
 	}
 
 	provider, ok := r.providers[pool.ProviderName]
@@ -462,6 +464,7 @@ func (r *Repository) addInstanceToProvider(instance params.Instance) error {
 	}
 
 	bootstrapArgs := params.BootstrapInstance{
+		Name:                    instance.Name,
 		Tools:                   r.tools,
 		RepoURL:                 r.githubURL(),
 		GithubRunnerAccessToken: *tk.Token,

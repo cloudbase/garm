@@ -506,7 +506,7 @@ func (s *sqlDatabase) CreateOrganizationPool(ctx context.Context, orgId string, 
 	return s.sqlToCommonPool(newPool), nil
 }
 
-func (s *sqlDatabase) getRepoPools(ctx context.Context, repoID string, preloadAll bool) ([]Pool, error) {
+func (s *sqlDatabase) getRepoPools(ctx context.Context, repoID string, preload ...string) ([]Pool, error) {
 	repo, err := s.getRepoByID(ctx, repoID)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching repo")
@@ -514,8 +514,10 @@ func (s *sqlDatabase) getRepoPools(ctx context.Context, repoID string, preloadAl
 
 	var pools []Pool
 	q := s.conn.Model(&repo)
-	if preloadAll {
-		q = q.Preload(clause.Associations)
+	if len(preload) > 0 {
+		for _, item := range preload {
+			q = q.Preload(item)
+		}
 	}
 	err = q.Association("Pools").Find(&pools)
 	if err != nil {
@@ -545,7 +547,7 @@ func (s *sqlDatabase) getOrgPools(ctx context.Context, orgID string, preloadAll 
 }
 
 func (s *sqlDatabase) ListRepoPools(ctx context.Context, repoID string) ([]params.Pool, error) {
-	pools, err := s.getRepoPools(ctx, repoID, false)
+	pools, err := s.getRepoPools(ctx, repoID, "Tags")
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching pools")
 	}
@@ -750,7 +752,7 @@ func (s *sqlDatabase) sqlToParamsInstance(instance Instance) params.Instance {
 		OSArch:       instance.OSArch,
 		Status:       instance.Status,
 		RunnerStatus: instance.RunnerStatus,
-		PoolID:       instance.Pool.ID.String(),
+		PoolID:       instance.PoolID.String(),
 		CallbackURL:  instance.CallbackURL,
 	}
 
@@ -907,7 +909,7 @@ func (s *sqlDatabase) ListInstances(ctx context.Context, poolID string) ([]param
 }
 
 func (s *sqlDatabase) ListRepoInstances(ctx context.Context, repoID string) ([]params.Instance, error) {
-	pools, err := s.getRepoPools(ctx, repoID, true)
+	pools, err := s.getRepoPools(ctx, repoID, "Instances")
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching repo")
 	}
