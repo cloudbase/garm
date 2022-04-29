@@ -45,7 +45,8 @@ type Store interface {
 	ListOrgInstances(ctx context.Context, orgID string) ([]params.Instance, error)
 
 	// GetInstance(ctx context.Context, poolID string, instanceID string) (params.Instance, error)
-	GetInstanceByName(ctx context.Context, poolID string, instanceName string) (params.Instance, error)
+	GetPoolInstanceByName(ctx context.Context, poolID string, instanceName string) (params.Instance, error)
+	GetInstanceByName(ctx context.Context, instanceName string) (params.Instance, error)
 
 	GetUser(ctx context.Context, user string) (params.User, error)
 	GetUserByID(ctx context.Context, userID string) (params.User, error)

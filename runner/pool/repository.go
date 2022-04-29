@@ -2,7 +2,6 @@ package pool
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
@@ -173,7 +172,6 @@ func (r *Repository) consolidate() {
 	r.mux.Lock()
 	defer r.mux.Unlock()
 
-	log.Printf("Webhook secret: %s", r.cfg.WebhookSecret)
 	r.deletePendingInstances()
 	r.addPendingInstances()
 	r.ensureMinIdleRunners()
@@ -192,8 +190,8 @@ func (r *Repository) addPendingInstances() {
 			// not in pending_create status. Skip.
 			continue
 		}
-		asJs, _ := json.MarshalIndent(instance, "", "  ")
-		log.Printf(">>> %s", string(asJs))
+		// asJs, _ := json.MarshalIndent(instance, "", "  ")
+		// log.Printf(">>> %s", string(asJs))
 		if err := r.addInstanceToProvider(instance); err != nil {
 			log.Printf("failed to create instance in provider: %s", err)
 		}
@@ -214,7 +212,7 @@ func (r *Repository) deletePendingInstances() {
 		}
 
 		if err := r.deleteInstanceFromProvider(instance); err != nil {
-			log.Printf("failed to delete instance from provider: %s", err)
+			log.Printf("failed to delete instance from provider: %+v", err)
 		}
 	}
 }
@@ -257,7 +255,7 @@ func (r *Repository) cleanupOrphanedGithubRunners(runners []*github.Runner) erro
 			continue
 		}
 
-		dbInstance, err := r.store.GetInstanceByName(r.ctx, poolID, *runner.Name)
+		dbInstance, err := r.store.GetPoolInstanceByName(r.ctx, poolID, *runner.Name)
 		if err != nil {
 			if !errors.Is(err, runnerErrors.ErrNotFound) {
 				return errors.Wrap(err, "fetching instance from DB")
@@ -343,14 +341,20 @@ func (r *Repository) cleanupOrphanedProviderRunners(runners []*github.Runner) er
 
 func (r *Repository) ensureMinIdleRunners() {
 	for poolID, pool := range r.pools {
+		if !pool.Enabled {
+			log.Printf("pool %s is disabled, skipping", pool.ID)
+			continue
+		}
 		existingInstances, err := r.store.ListInstances(r.ctx, poolID)
 		if err != nil {
 			log.Printf("failed to ensure minimum idle workers for pool %s: %s", poolID, err)
 			return
 		}
 
+		// asJs, _ := json.MarshalIndent(existingInstances, "", "  ")
+		// log.Printf(">>> %s", string(asJs))
 		if uint(len(existingInstances)) >= pool.MaxRunners {
-			log.Printf("max workers reached for pool %s, skipping idle worker creation", poolID)
+			log.Printf("max workers (%d) reached for pool %s, skipping idle worker creation", pool.MaxRunners, poolID)
 			continue
 		}
 
@@ -428,7 +432,7 @@ func (r *Repository) deleteInstanceFromProvider(instance params.Instance) error 
 		return errors.Wrap(err, "removing instance")
 	}
 
-	if err := r.store.DeleteInstance(r.ctx, pool.ID, instance.ID); err != nil {
+	if err := r.store.DeleteInstance(r.ctx, pool.ID, instance.Name); err != nil {
 		return errors.Wrap(err, "deleting instance from database")
 	}
 	return nil
@@ -557,6 +561,94 @@ func (r *Repository) WebhookSecret() string {
 	return r.cfg.WebhookSecret
 }
 
+func (r *Repository) poolIDFromStringLabels(labels []string) (string, error) {
+	for _, lbl := range labels {
+		if strings.HasPrefix(lbl, poolIDLabelprefix) {
+			return lbl[len(poolIDLabelprefix):], nil
+		}
+	}
+	return "", runnerErrors.ErrNotFound
+}
+
+func (r *Repository) fetchInstanceFromJob(job params.WorkflowJob) (params.Instance, error) {
+	// asJs, _ := json.MarshalIndent(job, "", "  ")
+	// log.Printf(">>> Job data: %s", string(asJs))
+	runnerName := job.WorkflowJob.RunnerName
+	runner, err := r.store.GetInstanceByName(r.ctx, runnerName)
+	if err != nil {
+		return params.Instance{}, errors.Wrap(err, "fetching instance")
+	}
+
+	return runner, nil
+}
+
+func (r *Repository) setInstanceRunnerStatus(job params.WorkflowJob, status providerCommon.RunnerStatus) error {
+	runner, err := r.fetchInstanceFromJob(job)
+	if err != nil {
+		return errors.Wrap(err, "fetching instance")
+	}
+
+	updateParams := params.UpdateInstanceParams{
+		RunnerStatus: status,
+	}
+
+	if _, err := r.store.UpdateInstance(r.ctx, runner.ID, updateParams); err != nil {
+		return errors.Wrap(err, "updating runner state")
+	}
+	return nil
+}
+
+func (r *Repository) setInstanceStatus(job params.WorkflowJob, status providerCommon.InstanceStatus) error {
+	runner, err := r.fetchInstanceFromJob(job)
+	if err != nil {
+		return errors.Wrap(err, "fetching instance")
+	}
+
+	updateParams := params.UpdateInstanceParams{
+		Status: status,
+	}
+
+	if _, err := r.store.UpdateInstance(r.ctx, runner.ID, updateParams); err != nil {
+		return errors.Wrap(err, "updating runner state")
+	}
+	return nil
+}
+
+func (r *Repository) acquireNewInstance(job params.WorkflowJob) error {
+	requestedLabels := job.WorkflowJob.Labels
+	if len(requestedLabels) == 0 {
+		// no labels were requested.
+		return nil
+	}
+
+	pool, err := r.store.FindRepositoryPoolByTags(r.ctx, r.id, requestedLabels)
+	if err != nil {
+		return errors.Wrap(err, "fetching suitable pool")
+	}
+
+	if !pool.Enabled {
+		log.Printf("selecte pool (%s) is disabled", pool.ID)
+		return nil
+	}
+
+	// TODO: implement count
+	poolInstances, err := r.store.ListInstances(r.ctx, pool.ID)
+	if err != nil {
+		return errors.Wrap(err, "fetching instances")
+	}
+
+	if len(poolInstances) >= int(pool.MaxRunners) {
+		log.Printf("max_runners (%d) reached for pool %s, skipping...", pool.MaxRunners, pool.ID)
+		return nil
+	}
+
+	if err := r.AddRunner(r.ctx, pool.ID); err != nil {
+		log.Printf("failed to add runner to pool %s", pool.ID)
+		return errors.Wrap(err, "adding runner")
+	}
+	return nil
+}
+
 func (r *Repository) HandleWorkflowJob(job params.WorkflowJob) error {
 	if job.Repository.Name != r.cfg.Name || job.Repository.Owner.Login != r.cfg.Owner {
 		return runnerErrors.NewBadRequestError("job not meant for this pool manager")
@@ -565,11 +657,28 @@ func (r *Repository) HandleWorkflowJob(job params.WorkflowJob) error {
 	switch job.Action {
 	case "queued":
 		// Create instance in database and set it to pending create.
+		if err := r.acquireNewInstance(job); err != nil {
+			log.Printf("failed to add instance")
+		}
 	case "completed":
-		// Set instance in database to pending delete. Unassigned jobs will have
-		// an empty runner_name. There is nothing to to in that case.
+		// Set instance in database to pending delete.
+		if job.WorkflowJob.RunnerName == "" {
+			// Unassigned jobs will have an empty runner_name.
+			// There is nothing to to in this case.
+			log.Printf("no runner was assigned. Skipping.")
+			return nil
+		}
+		log.Printf("marking instance %s as pending_delete", job.WorkflowJob.RunnerName)
+		if err := r.setInstanceStatus(job, providerCommon.InstancePendingDelete); err != nil {
+			log.Printf("failed to update runner %s status", job.WorkflowJob.RunnerName)
+			return errors.Wrap(err, "updating runner")
+		}
 	case "in_progress":
 		// update instance workload state. Set job_id in instance state.
+		if err := r.setInstanceRunnerStatus(job, providerCommon.RunnerActive); err != nil {
+			log.Printf("failed to update runner %s status", job.WorkflowJob.RunnerName)
+			return errors.Wrap(err, "updating runner")
+		}
 	}
 	return nil
 }

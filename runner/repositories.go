@@ -8,6 +8,7 @@ import (
 	"runner-manager/params"
 	"runner-manager/runner/common"
 	"runner-manager/runner/pool"
+	"runner-manager/util"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -173,6 +174,11 @@ func (r *Runner) CreateRepoPool(ctx context.Context, repoID string, param params
 	r.mux.Lock()
 	defer r.mux.Unlock()
 
+	repo, ok := r.repositories[repoID]
+	if !ok {
+		return params.Pool{}, runnerErrors.ErrNotFound
+	}
+
 	if err := param.Validate(); err != nil {
 		return params.Pool{}, errors.Wrapf(runnerErrors.ErrBadRequest, "validating params: %s", err)
 	}
@@ -185,14 +191,36 @@ func (r *Runner) CreateRepoPool(ctx context.Context, repoID string, param params
 		return params.Pool{}, runnerErrors.NewBadRequestError("invalid OS architecture %s", param.OSArch)
 	}
 
-	_, ok := r.providers[param.ProviderName]
+	_, ok = r.providers[param.ProviderName]
 	if !ok {
 		return params.Pool{}, runnerErrors.NewBadRequestError("no such provider %s", param.ProviderName)
 	}
 
+	ghArch, err := util.ResolveToGithubArch(string(param.OSArch))
+	if err != nil {
+		return params.Pool{}, errors.Wrap(err, "invalid arch")
+	}
+
+	osType, err := util.ResolveToGithubOSType(string(param.OSType))
+	if err != nil {
+		return params.Pool{}, errors.Wrap(err, "invalid os type")
+	}
+
+	extraLabels := []string{
+		"self-hosted",
+		ghArch,
+		osType,
+	}
+
+	param.Tags = append(param.Tags, extraLabels...)
+
 	pool, err := r.store.CreateRepositoryPool(ctx, repoID, param)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "creating pool")
+	}
+
+	if err := repo.AddPool(ctx, pool); err != nil {
+		return params.Pool{}, errors.Wrap(err, "adding pool to manager")
 	}
 
 	return pool, nil

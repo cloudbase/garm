@@ -299,7 +299,10 @@ func (l *LXD) GetInstance(ctx context.Context, instanceName string) (params.Inst
 
 // Delete instance will delete the instance in a provider.
 func (l *LXD) DeleteInstance(ctx context.Context, instance string) error {
-	if err := l.setState(instance, "start", true); err != nil {
+	if err := l.setState(instance, "stop", true); err != nil {
+		if isNotFoundError(err) {
+			return nil
+		}
 		return errors.Wrap(err, "stopping instance")
 	}
 

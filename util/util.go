@@ -31,6 +31,7 @@ import (
 
 	"runner-manager/cloudconfig"
 	"runner-manager/config"
+	runnerErrors "runner-manager/errors"
 	"runner-manager/params"
 )
 
@@ -50,7 +51,40 @@ var (
 		"gentoo":  config.Linux,
 		"windows": config.Windows,
 	}
+
+	githubArchMapping map[string]string = map[string]string{
+		"x86_64":  "x64",
+		"amd64":   "x64",
+		"armv7l":  "arm",
+		"aarch64": "arm64",
+		"x64":     "x64",
+		"arm":     "arm",
+		"arm64":   "arm64",
+	}
+
+	githubOSTypeMap map[string]string = map[string]string{
+		"linux":   "linux",
+		"windows": "win",
+	}
 )
+
+func ResolveToGithubArch(arch string) (string, error) {
+	ghArch, ok := githubArchMapping[arch]
+	if !ok {
+		return "", runnerErrors.NewNotFoundError("arch %s is unknown", arch)
+	}
+
+	return ghArch, nil
+}
+
+func ResolveToGithubOSType(osType string) (string, error) {
+	ghOS, ok := githubOSTypeMap[osType]
+	if !ok {
+		return "", runnerErrors.NewNotFoundError("os %s is unknown", osType)
+	}
+
+	return ghOS, nil
+}
 
 // IsValidEmail returs a bool indicating if an email is valid
 func IsValidEmail(email string) bool {

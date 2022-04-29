@@ -2,9 +2,12 @@ package lxd
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net/http"
+	"os"
 	"runner-manager/config"
 	"runner-manager/params"
 	"runner-manager/runner/providers/common"
@@ -15,6 +18,25 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	"github.com/pkg/errors"
 )
+
+var httpResponseErrors = map[int][]error{
+	http.StatusNotFound: {os.ErrNotExist, sql.ErrNoRows},
+}
+
+// isNotFoundError returns true if the error is considered a Not Found error.
+func isNotFoundError(err error) bool {
+	if api.StatusErrorCheck(err, http.StatusNotFound) {
+		return true
+	}
+
+	for _, checkErr := range httpResponseErrors[http.StatusNotFound] {
+		if errors.Is(err, checkErr) {
+			return true
+		}
+	}
+
+	return false
+}
 
 func lxdInstanceToAPIInstance(instance *api.InstanceFull) params.Instance {
 	os, ok := instance.ExpandedConfig["image.os"]

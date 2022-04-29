@@ -56,6 +56,7 @@ func NewRunner(ctx context.Context, cfg config.Config) (*Runner, error) {
 		repositories:  map[string]common.PoolManager{},
 		organizations: map[string]common.PoolManager{},
 		providers:     providers,
+		controllerID:  ctrlId.ControllerID.String(),
 		credentials:   creds,
 	}
 
