@@ -39,6 +39,7 @@ func NewRepositoryPoolManager(ctx context.Context, cfg params.Repository, provid
 		ctx:          ctx,
 		cfg:          cfg,
 		ghcli:        ghc,
+		id:           cfg.ID,
 		store:        store,
 		providers:    providers,
 		pools:        pools,
@@ -46,6 +47,11 @@ func NewRepositoryPoolManager(ctx context.Context, cfg params.Repository, provid
 		quit:         make(chan struct{}),
 		done:         make(chan struct{}),
 	}
+
+	if err := repo.loadPools(); err != nil {
+		return nil, errors.Wrap(err, "loading pools")
+	}
+
 	return repo, nil
 }
 
@@ -65,6 +71,33 @@ type Repository struct {
 	mux sync.Mutex
 }
 
+func (r *Repository) RefreshState(cfg params.Repository) error {
+	r.mux.Lock()
+	defer r.mux.Unlock()
+
+	r.cfg = cfg
+	ghc, err := util.GithubClient(r.ctx, r.cfg.Internal.OAuth2Token)
+	if err != nil {
+		return errors.Wrap(err, "getting github client")
+	}
+	r.ghcli = ghc
+	return nil
+}
+
+func (r *Repository) loadPools() error {
+	pools, err := r.store.ListRepoPools(r.ctx, r.id)
+	if err != nil {
+		return errors.Wrap(err, "fetching pools")
+	}
+
+	for _, pool := range pools {
+		if err := r.AddPool(r.ctx, pool); err != nil {
+			return errors.Wrap(err, "adding pool")
+		}
+	}
+	return nil
+}
+
 func (r *Repository) AddPool(ctx context.Context, pool params.Pool) error {
 	r.mux.Lock()
 	defer r.mux.Unlock()
@@ -73,7 +106,6 @@ func (r *Repository) AddPool(ctx context.Context, pool params.Pool) error {
 		return nil
 	}
 
-	// start pool loop
 	r.pools[pool.ID] = pool
 	return nil
 }
@@ -140,6 +172,7 @@ func (r *Repository) consolidate() {
 	r.mux.Lock()
 	defer r.mux.Unlock()
 
+	log.Printf("Webhook secret: %s", r.cfg.WebhookSecret)
 	r.deletePendingInstances()
 	r.addPendingInstances()
 	r.ensureMinIdleRunners()
@@ -481,7 +514,11 @@ func (r *Repository) AddRunner(ctx context.Context, poolID string) error {
 }
 
 func (r *Repository) loop() {
-	defer close(r.done)
+	defer func() {
+		log.Printf("repository %s/%s loop exited", r.cfg.Owner, r.cfg.Name)
+		close(r.done)
+	}()
+	log.Printf("starting loop for %s/%s", r.cfg.Owner, r.cfg.Name)
 	// TODO: Consolidate runners on loop start. Provider runners must match runners
 	// in github and DB. When a Workflow job is received, we will first create/update
 	// an entity in the database, before sending the request to the provider to create/delete

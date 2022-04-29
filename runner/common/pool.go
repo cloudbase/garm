@@ -12,6 +12,7 @@ const (
 type PoolManager interface {
 	WebhookSecret() string
 	HandleWorkflowJob(job params.WorkflowJob) error
+	RefreshState(cfg params.Repository) error
 
 	// PoolManager lifecycle functions. Start/stop pool.
 	Start() error

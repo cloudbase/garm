@@ -15,10 +15,11 @@ import (
 	"strings"
 	"sync"
 
+	"runner-manager/auth"
 	"runner-manager/config"
 	"runner-manager/database"
 	dbCommon "runner-manager/database/common"
-	gErrors "runner-manager/errors"
+	runnerErrors "runner-manager/errors"
 	"runner-manager/params"
 	"runner-manager/runner/common"
 	"runner-manager/runner/pool"
@@ -44,6 +45,11 @@ func NewRunner(ctx context.Context, cfg config.Config) (*Runner, error) {
 		log.Fatal(err)
 	}
 
+	creds := map[string]config.Github{}
+
+	for _, ghcreds := range cfg.Github {
+		creds[ghcreds.Name] = ghcreds
+	}
 	runner := &Runner{
 		ctx:    ctx,
 		config: cfg,
@@ -52,6 +58,7 @@ func NewRunner(ctx context.Context, cfg config.Config) (*Runner, error) {
 		repositories:  map[string]common.PoolManager{},
 		organizations: map[string]common.PoolManager{},
 		providers:     providers,
+		credentials:   creds,
 	}
 
 	if err := runner.ensureSSHKeys(); err != nil {
@@ -78,26 +85,160 @@ type Runner struct {
 	repositories  map[string]common.PoolManager
 	organizations map[string]common.PoolManager
 	providers     map[string]common.Provider
+	credentials   map[string]config.Github
 }
 
-func (r *Runner) CreateRepository(ctx context.Context) error {
+func (r *Runner) CreateRepository(ctx context.Context, param params.CreateRepoParams) (repo params.Repository, err error) {
+	if !auth.IsAdmin(ctx) {
+		return repo, runnerErrors.ErrUnauthorized
+	}
+
+	if err := param.Validate(); err != nil {
+		return params.Repository{}, errors.Wrap(err, "validating params")
+	}
+
+	creds, ok := r.credentials[param.CredentialsName]
+	if !ok {
+		return params.Repository{}, runnerErrors.NewBadRequestError("credentials %s not defined", param.CredentialsName)
+	}
+
+	_, err = r.store.GetRepository(ctx, param.Owner, param.Name)
+	if err != nil {
+		if !errors.Is(err, runnerErrors.ErrNotFound) {
+			return params.Repository{}, errors.Wrap(err, "fetching repo")
+		}
+	} else {
+		return params.Repository{}, runnerErrors.NewConflictError("repository %s/%s already exists", param.Owner, param.Name)
+	}
+
+	repo, err = r.store.CreateRepository(ctx, param.Owner, param.Name, creds.Name, param.WebhookSecret)
+	if err != nil {
+		return params.Repository{}, errors.Wrap(err, "creating repository")
+	}
+
+	defer func() {
+		if err != nil {
+			r.store.DeleteRepository(ctx, repo.ID, true)
+		}
+	}()
+
+	poolMgr, err := r.loadRepoPoolManager(repo)
+	if err := poolMgr.Start(); err != nil {
+		return params.Repository{}, errors.Wrap(err, "starting pool manager")
+	}
+	r.repositories[repo.ID] = poolMgr
+	return repo, nil
+}
+
+func (r *Runner) ListRepositories(ctx context.Context) ([]params.Repository, error) {
+	if !auth.IsAdmin(ctx) {
+		return nil, runnerErrors.ErrUnauthorized
+	}
+
+	repos, err := r.store.ListRepositories(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "listing repositories")
+	}
+
+	return repos, nil
+}
+
+func (r *Runner) GetRepositoryByID(ctx context.Context, repoID string) (params.Repository, error) {
+	if !auth.IsAdmin(ctx) {
+		return params.Repository{}, runnerErrors.ErrUnauthorized
+	}
+
+	repo, err := r.store.GetRepositoryByID(ctx, repoID)
+	if err != nil {
+		return params.Repository{}, errors.Wrap(err, "fetching repository")
+	}
+	return repo, nil
+}
+
+func (r *Runner) DeleteRepository(ctx context.Context, repoID string) error {
+	if !auth.IsAdmin(ctx) {
+		return runnerErrors.ErrUnauthorized
+	}
+
+	repo, err := r.store.GetRepositoryByID(ctx, repoID)
+	if err != nil {
+		return errors.Wrap(err, "fetching repo")
+	}
+
+	poolMgr, ok := r.repositories[repo.ID]
+	if ok {
+		if err := poolMgr.Stop(); err != nil {
+			log.Printf("failed to stop pool for repo %s", repo.ID)
+		}
+		delete(r.repositories, repoID)
+	}
+
+	pools, err := r.store.ListRepoPools(ctx, repoID)
+	if err != nil {
+		return errors.Wrap(err, "fetching repo pools")
+	}
+
+	if len(pools) > 0 {
+		poolIds := []string{}
+		for _, pool := range pools {
+			poolIds = append(poolIds, pool.ID)
+		}
+
+		return runnerErrors.NewBadRequestError("repo has pools defined (%s)", strings.Join(poolIds, ", "))
+	}
+
+	if err := r.store.DeleteRepository(ctx, repoID, true); err != nil {
+		return errors.Wrap(err, "removing repository")
+	}
 	return nil
 }
 
-func (r *Runner) ListRepositories(ctx context.Context) error {
-	return nil
-}
+func (r *Runner) UpdateRepository(ctx context.Context, repoID string, param params.UpdateRepositoryParams) (params.Repository, error) {
+	if !auth.IsAdmin(ctx) {
+		return params.Repository{}, runnerErrors.ErrUnauthorized
+	}
 
-func (r *Runner) GetRepository(ctx context.Context) error {
-	return nil
-}
+	r.mux.Lock()
+	defer r.mux.Unlock()
 
-func (r *Runner) DeleteRepository(ctx context.Context) error {
-	return nil
-}
+	repo, err := r.store.GetRepositoryByID(ctx, repoID)
+	if err != nil {
+		return params.Repository{}, errors.Wrap(err, "fetching repo")
+	}
 
-func (r *Runner) UpdateRepository(ctx context.Context) error {
-	return nil
+	if param.CredentialsName != "" {
+		// Check that credentials are set before saving to db
+		if _, ok := r.credentials[param.CredentialsName]; !ok {
+			return params.Repository{}, runnerErrors.NewBadRequestError("invalid credentials (%s) for repo %s/%s", param.CredentialsName, repo.Owner, repo.Name)
+		}
+	}
+
+	repo, err = r.store.UpdateRepository(ctx, repoID, param)
+	if err != nil {
+		return params.Repository{}, errors.Wrap(err, "updating repo")
+	}
+
+	log.Printf("post-update webhook secret: %s", repo.WebhookSecret)
+	poolMgr, ok := r.repositories[repo.ID]
+	if ok {
+		internalCfg, err := r.getInternalConfig(repo)
+		if err != nil {
+			return params.Repository{}, errors.Wrap(err, "fetching internal config")
+		}
+		repo.Internal = internalCfg
+		// stop the pool mgr
+		if err := poolMgr.RefreshState(repo); err != nil {
+			return params.Repository{}, errors.Wrap(err, "updating pool manager")
+		}
+	} else {
+		poolMgr, err := r.loadRepoPoolManager(repo)
+		if err != nil {
+			return params.Repository{}, errors.Wrap(err, "loading pool manager")
+		}
+		r.repositories[repo.ID] = poolMgr
+	}
+
+	return repo, nil
 }
 
 func (r *Runner) CreateRepoPool(ctx context.Context) error {
@@ -141,6 +282,33 @@ func (r *Runner) ListProviders(ctx context.Context) ([]params.Provider, error) {
 	return ret, nil
 }
 
+func (r *Runner) getInternalConfig(repo params.Repository) (params.Internal, error) {
+	creds, ok := r.credentials[repo.CredentialsName]
+	if !ok {
+		return params.Internal{}, runnerErrors.NewBadRequestError("invalid credentials (%s) for repo %s/%s", repo.CredentialsName, repo.Owner, repo.Name)
+	}
+
+	return params.Internal{
+		OAuth2Token:         creds.OAuth2Token,
+		ControllerID:        r.controllerID,
+		InstanceCallbackURL: r.config.Default.CallbackURL,
+		JWTSecret:           r.config.JWTAuth.Secret,
+	}, nil
+}
+
+func (r *Runner) loadRepoPoolManager(repo params.Repository) (common.PoolManager, error) {
+	cfg, err := r.getInternalConfig(repo)
+	if err != nil {
+		return nil, errors.Wrap(err, "fetching internal config")
+	}
+	repo.Internal = cfg
+	poolManager, err := pool.NewRepositoryPoolManager(r.ctx, repo, r.providers, r.store)
+	if err != nil {
+		return nil, errors.Wrap(err, "creating pool manager")
+	}
+	return poolManager, nil
+}
+
 func (r *Runner) loadReposAndOrgs() error {
 	r.mux.Lock()
 	defer r.mux.Unlock()
@@ -152,9 +320,9 @@ func (r *Runner) loadReposAndOrgs() error {
 
 	for _, repo := range repos {
 		log.Printf("creating pool manager for %s/%s", repo.Owner, repo.Name)
-		poolManager, err := pool.NewRepositoryPoolManager(r.ctx, repo, r.providers, r.store)
+		poolManager, err := r.loadRepoPoolManager(repo)
 		if err != nil {
-			return errors.Wrap(err, "creating pool manager")
+			return errors.Wrap(err, "loading repo pool manager")
 		}
 		r.repositories[repo.ID] = poolManager
 	}
@@ -163,6 +331,9 @@ func (r *Runner) loadReposAndOrgs() error {
 }
 
 func (r *Runner) Start() error {
+	r.mux.Lock()
+	defer r.mux.Unlock()
+
 	for _, repo := range r.repositories {
 		if err := repo.Start(); err != nil {
 			return errors.Wrap(err, "starting repo pool manager")
@@ -178,6 +349,9 @@ func (r *Runner) Start() error {
 }
 
 func (r *Runner) Stop() error {
+	r.mux.Lock()
+	defer r.mux.Unlock()
+
 	for _, repo := range r.repositories {
 		if err := repo.Stop(); err != nil {
 			return errors.Wrap(err, "starting repo pool manager")
@@ -193,6 +367,9 @@ func (r *Runner) Stop() error {
 }
 
 func (r *Runner) Wait() error {
+	r.mux.Lock()
+	defer r.mux.Unlock()
+
 	var wg sync.WaitGroup
 
 	for poolId, repo := range r.repositories {
@@ -230,7 +407,7 @@ func (r *Runner) findRepoPoolManager(owner, name string) (common.PoolManager, er
 	if repo, ok := r.repositories[repo.ID]; ok {
 		return repo, nil
 	}
-	return nil, errors.Wrapf(gErrors.ErrNotFound, "repository %s/%s not configured", owner, name)
+	return nil, errors.Wrapf(runnerErrors.ErrNotFound, "repository %s/%s not configured", owner, name)
 }
 
 func (r *Runner) findOrgPoolManager(name string) (common.PoolManager, error) {
@@ -245,7 +422,7 @@ func (r *Runner) findOrgPoolManager(name string) (common.PoolManager, error) {
 	if orgPoolMgr, ok := r.organizations[org.ID]; ok {
 		return orgPoolMgr, nil
 	}
-	return nil, errors.Wrapf(gErrors.ErrNotFound, "organization %s not configured", name)
+	return nil, errors.Wrapf(runnerErrors.ErrNotFound, "organization %s not configured", name)
 }
 
 func (r *Runner) validateHookBody(signature, secret string, body []byte) error {
@@ -257,7 +434,7 @@ func (r *Runner) validateHookBody(signature, secret string, body []byte) error {
 	if signature == "" {
 		// A secret was set in our config, but a signature was not received
 		// from Github. Authentication of the body cannot be done.
-		return gErrors.NewUnauthorizedError("missing github signature")
+		return runnerErrors.NewUnauthorizedError("missing github signature")
 	}
 
 	sigParts := strings.SplitN(signature, "=", 2)
@@ -265,7 +442,7 @@ func (r *Runner) validateHookBody(signature, secret string, body []byte) error {
 		// We expect the signature from github to be of the format:
 		// hashType=hashValue
 		// ie: sha256=1fc917c7ad66487470e466c0ad40ddd45b9f7730a4b43e1b2542627f0596bbdc
-		return gErrors.NewBadRequestError("invalid signature format")
+		return runnerErrors.NewBadRequestError("invalid signature format")
 	}
 
 	var hashFunc func() hash.Hash
@@ -275,7 +452,7 @@ func (r *Runner) validateHookBody(signature, secret string, body []byte) error {
 	case "sha1":
 		hashFunc = sha1.New
 	default:
-		return gErrors.NewBadRequestError("unknown signature type")
+		return runnerErrors.NewBadRequestError("unknown signature type")
 	}
 
 	mac := hmac.New(hashFunc, []byte(secret))
@@ -286,7 +463,7 @@ func (r *Runner) validateHookBody(signature, secret string, body []byte) error {
 	expectedMAC := hex.EncodeToString(mac.Sum(nil))
 
 	if !hmac.Equal([]byte(sigParts[1]), []byte(expectedMAC)) {
-		return gErrors.NewUnauthorizedError("signature missmatch")
+		return runnerErrors.NewUnauthorizedError("signature missmatch")
 	}
 
 	return nil
@@ -294,12 +471,12 @@ func (r *Runner) validateHookBody(signature, secret string, body []byte) error {
 
 func (r *Runner) DispatchWorkflowJob(hookTargetType, signature string, jobData []byte) error {
 	if jobData == nil || len(jobData) == 0 {
-		return gErrors.NewBadRequestError("missing job data")
+		return runnerErrors.NewBadRequestError("missing job data")
 	}
 
 	var job params.WorkflowJob
 	if err := json.Unmarshal(jobData, &job); err != nil {
-		return errors.Wrapf(gErrors.ErrBadRequest, "invalid job data: %s", err)
+		return errors.Wrapf(runnerErrors.ErrBadRequest, "invalid job data: %s", err)
 	}
 
 	var poolManager common.PoolManager
@@ -311,7 +488,7 @@ func (r *Runner) DispatchWorkflowJob(hookTargetType, signature string, jobData [
 	case OrganizationHook:
 		poolManager, err = r.findOrgPoolManager(job.Organization.Login)
 	default:
-		return gErrors.NewBadRequestError("cannot handle hook target type %s", hookTargetType)
+		return runnerErrors.NewBadRequestError("cannot handle hook target type %s", hookTargetType)
 	}
 
 	if err != nil {

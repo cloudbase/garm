@@ -8,8 +8,10 @@ import (
 type Store interface {
 	CreateRepository(ctx context.Context, owner, name, credentialsName, webhookSecret string) (params.Repository, error)
 	GetRepository(ctx context.Context, owner, name string) (params.Repository, error)
+	GetRepositoryByID(ctx context.Context, repoID string) (params.Repository, error)
 	ListRepositories(ctx context.Context) ([]params.Repository, error)
-	DeleteRepository(ctx context.Context, owner, name string) error
+	DeleteRepository(ctx context.Context, repoID string, hardDelete bool) error
+	UpdateRepository(ctx context.Context, repoID string, param params.UpdateRepositoryParams) (params.Repository, error)
 
 	CreateOrganization(ctx context.Context, name, credentialsName, webhookSecret string) (params.Organization, error)
 	GetOrganization(ctx context.Context, name string) (params.Organization, error)
@@ -21,6 +23,9 @@ type Store interface {
 
 	GetRepositoryPool(ctx context.Context, repoID, poolID string) (params.Pool, error)
 	GetOrganizationPool(ctx context.Context, orgID, poolID string) (params.Pool, error)
+
+	ListRepoPools(ctx context.Context, repoID string) ([]params.Pool, error)
+	ListOrgPools(ctx context.Context, orgID string) ([]params.Pool, error)
 
 	DeleteRepositoryPool(ctx context.Context, repoID, poolID string) error
 	DeleteOrganizationPool(ctx context.Context, orgID, poolID string) error
@@ -42,8 +47,10 @@ type Store interface {
 	// GetInstance(ctx context.Context, poolID string, instanceID string) (params.Instance, error)
 	GetInstanceByName(ctx context.Context, poolID string, instanceName string) (params.Instance, error)
 
-	CreateUser(ctx context.Context, user params.NewUserParams) (params.User, error)
 	GetUser(ctx context.Context, user string) (params.User, error)
+	GetUserByID(ctx context.Context, userID string) (params.User, error)
+
+	CreateUser(ctx context.Context, user params.NewUserParams) (params.User, error)
 	UpdateUser(ctx context.Context, user string, param params.UpdateUserParams) (params.User, error)
 	HasAdminUser(ctx context.Context) bool
 

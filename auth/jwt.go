@@ -88,7 +88,7 @@ func (amw *jwtMiddleware) claimsToContext(ctx context.Context, claims *JWTClaims
 		return nil, runnerErrors.ErrUnauthorized
 	}
 
-	userInfo, err := amw.store.GetUser(ctx, claims.UserID)
+	userInfo, err := amw.store.GetUserByID(ctx, claims.UserID)
 	if err != nil {
 		return ctx, runnerErrors.ErrUnauthorized
 	}

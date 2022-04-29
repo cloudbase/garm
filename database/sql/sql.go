@@ -138,6 +138,38 @@ func (s *sqlDatabase) CreateRepository(ctx context.Context, owner, name, credent
 	return param, nil
 }
 
+func (s *sqlDatabase) UpdateRepository(ctx context.Context, repoID string, param params.UpdateRepositoryParams) (params.Repository, error) {
+	repo, err := s.getRepoByID(ctx, repoID)
+	if err != nil {
+		return params.Repository{}, errors.Wrap(err, "fetching repo")
+	}
+
+	if param.CredentialsName != "" {
+		repo.CredentialsName = param.CredentialsName
+	}
+
+	if param.WebhookSecret != "" {
+		secret, err := util.Aes256EncodeString(param.WebhookSecret, s.cfg.Passphrase)
+		if err != nil {
+			return params.Repository{}, fmt.Errorf("failed to encrypt string")
+		}
+		repo.WebhookSecret = secret
+	}
+
+	q := s.conn.Save(&repo)
+	if q.Error != nil {
+		return params.Repository{}, errors.Wrap(err, "saving repo")
+	}
+
+	newParams := s.sqlToCommonRepository(repo)
+	secret, err := util.Aes256DecodeString(repo.WebhookSecret, s.cfg.Passphrase)
+	if err != nil {
+		return params.Repository{}, errors.Wrap(err, "decrypting secret")
+	}
+	newParams.WebhookSecret = secret
+	return newParams, nil
+}
+
 func (s *sqlDatabase) getRepo(ctx context.Context, owner, name string, preloadAll bool) (Repository, error) {
 	var repo Repository
 
@@ -159,15 +191,20 @@ func (s *sqlDatabase) getRepo(ctx context.Context, owner, name string, preloadAl
 	return repo, nil
 }
 
-func (s *sqlDatabase) getRepoByID(ctx context.Context, id string) (Repository, error) {
+func (s *sqlDatabase) getRepoByID(ctx context.Context, id string, preload ...string) (Repository, error) {
 	u, err := uuid.FromString(id)
 	if err != nil {
 		return Repository{}, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
 	}
 	var repo Repository
-	q := s.conn.
-		Where("id = ?", u).
-		First(&repo)
+
+	q := s.conn
+	if len(preload) > 0 {
+		for _, field := range preload {
+			q = q.Preload(field)
+		}
+	}
+	q = q.Where("id = ?", u).First(&repo)
 
 	if q.Error != nil {
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
@@ -194,6 +231,22 @@ func (s *sqlDatabase) GetRepository(ctx context.Context, owner, name string) (pa
 	return param, nil
 }
 
+func (s *sqlDatabase) GetRepositoryByID(ctx context.Context, repoID string) (params.Repository, error) {
+	repo, err := s.getRepoByID(ctx, repoID, "Pools")
+	if err != nil {
+		return params.Repository{}, errors.Wrap(err, "fetching repo")
+	}
+
+	param := s.sqlToCommonRepository(repo)
+	secret, err := util.Aes256DecodeString(repo.WebhookSecret, s.cfg.Passphrase)
+	if err != nil {
+		return params.Repository{}, errors.Wrap(err, "decrypting secret")
+	}
+	param.WebhookSecret = secret
+
+	return param, nil
+}
+
 func (s *sqlDatabase) ListRepositories(ctx context.Context) ([]params.Repository, error) {
 	var repos []Repository
 	q := s.conn.Find(&repos)
@@ -204,13 +257,21 @@ func (s *sqlDatabase) ListRepositories(ctx context.Context) ([]params.Repository
 	ret := make([]params.Repository, len(repos))
 	for idx, val := range repos {
 		ret[idx] = s.sqlToCommonRepository(val)
+		if len(val.WebhookSecret) > 0 {
+			secret, err := util.Aes256DecodeString(val.WebhookSecret, s.cfg.Passphrase)
+			if err != nil {
+				return nil, errors.Wrap(err, "decrypting secret")
+			}
+			ret[idx].WebhookSecret = secret
+		}
 	}
 
 	return ret, nil
 }
 
-func (s *sqlDatabase) DeleteRepository(ctx context.Context, owner, name string) error {
-	repo, err := s.getRepo(ctx, owner, name, false)
+// func (s *sqlDatabase) DeleteRepository(ctx context.Context, owner, name string, hardDelete bool) error {
+func (s *sqlDatabase) DeleteRepository(ctx context.Context, repoID string, hardDelete bool) error {
+	repo, err := s.getRepoByID(ctx, repoID)
 	if err != nil {
 		if err == runnerErrors.ErrNotFound {
 			return nil
@@ -218,7 +279,11 @@ func (s *sqlDatabase) DeleteRepository(ctx context.Context, owner, name string) 
 		return errors.Wrap(err, "fetching repo")
 	}
 
-	q := s.conn.Delete(&repo)
+	q := s.conn
+	if hardDelete {
+		q = q.Unscoped()
+	}
+	q = q.Delete(&repo)
 	if q.Error != nil && !errors.Is(q.Error, gorm.ErrRecordNotFound) {
 		return errors.Wrap(q.Error, "deleting repo")
 	}
@@ -477,6 +542,34 @@ func (s *sqlDatabase) getOrgPools(ctx context.Context, orgID string, preloadAll 
 	}
 
 	return pools, nil
+}
+
+func (s *sqlDatabase) ListRepoPools(ctx context.Context, repoID string) ([]params.Pool, error) {
+	pools, err := s.getRepoPools(ctx, repoID, false)
+	if err != nil {
+		return nil, errors.Wrap(err, "fetching pools")
+	}
+
+	ret := make([]params.Pool, len(pools))
+	for idx, pool := range pools {
+		ret[idx] = s.sqlToCommonPool(pool)
+	}
+
+	return ret, nil
+}
+
+func (s *sqlDatabase) ListOrgPools(ctx context.Context, orgID string) ([]params.Pool, error) {
+	pools, err := s.getOrgPools(ctx, orgID, false)
+	if err != nil {
+		return nil, errors.Wrap(err, "fetching pools")
+	}
+
+	ret := make([]params.Pool, len(pools))
+	for idx, pool := range pools {
+		ret[idx] = s.sqlToCommonPool(pool)
+	}
+
+	return ret, nil
 }
 
 func (s *sqlDatabase) getRepoPool(ctx context.Context, repoID, poolID string) (Pool, error) {
@@ -990,7 +1083,15 @@ func (s *sqlDatabase) HasAdminUser(ctx context.Context) bool {
 }
 
 func (s *sqlDatabase) GetUser(ctx context.Context, user string) (params.User, error) {
-	dbUser, err := s.getUserByID(user)
+	dbUser, err := s.getUserByUsernameOrEmail(user)
+	if err != nil {
+		return params.User{}, errors.Wrap(err, "fetching user")
+	}
+	return s.sqlToParamsUser(dbUser), nil
+}
+
+func (s *sqlDatabase) GetUserByID(ctx context.Context, userID string) (params.User, error) {
+	dbUser, err := s.getUserByID(userID)
 	if err != nil {
 		return params.User{}, errors.Wrap(err, "fetching user")
 	}

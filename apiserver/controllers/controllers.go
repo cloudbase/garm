@@ -13,6 +13,7 @@ import (
 	runnerParams "runner-manager/params"
 	"runner-manager/runner"
 
+	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 )
 
@@ -194,24 +195,116 @@ func (a *APIController) ListProviders(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *APIController) CreateRepoHandler(w http.ResponseWriter, r *http.Request) {
-	// ctx := r.Context()
+	ctx := r.Context()
 
-	// var repoData runnerParams.CreateRepoParams
-	// if err := json.NewDecoder(r.Body).Decode(&repoData); err != nil {
-	// 	handleError(w, gErrors.ErrBadRequest)
-	// 	return
-	// }
+	var repoData runnerParams.CreateRepoParams
+	if err := json.NewDecoder(r.Body).Decode(&repoData); err != nil {
+		handleError(w, gErrors.ErrBadRequest)
+		return
+	}
 
-	// pasteInfo, err := p.paster.Create(
-	// 	ctx, pasteData.Data, pasteData.Name,
-	// 	pasteData.Language, pasteData.Description,
-	// 	pasteData.Expires, pasteData.Public, "",
-	// 	pasteData.Metadata)
-	// if err != nil {
-	// 	handleError(w, err)
-	// 	return
-	// }
-	// w.Header().Set("Content-Type", "application/json")
-	// json.NewEncoder(w).Encode(pasteInfo)
+	repo, err := a.r.CreateRepository(ctx, repoData)
+	if err != nil {
+		log.Printf("error creating repository: %+v", err)
+		handleError(w, err)
+		return
+	}
 
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(repo)
+}
+
+func (a *APIController) ListReposHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	repos, err := a.r.ListRepositories(ctx)
+	if err != nil {
+		log.Printf("listing repos: %+v", err)
+		handleError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(repos)
+}
+
+func (a *APIController) GetRepoByIDHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	vars := mux.Vars(r)
+	repoID, ok := vars["repoID"]
+	if !ok {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(params.APIErrorResponse{
+			Error:   "Bad Request",
+			Details: "No repo ID specified",
+		})
+		return
+	}
+
+	repo, err := a.r.GetRepositoryByID(ctx, repoID)
+	if err != nil {
+		log.Printf("fetching repo: %+v", err)
+		handleError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(repo)
+}
+
+func (a *APIController) DeleteRepoHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	vars := mux.Vars(r)
+	repoID, ok := vars["repoID"]
+	if !ok {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(params.APIErrorResponse{
+			Error:   "Bad Request",
+			Details: "No repo ID specified",
+		})
+		return
+	}
+
+	if err := a.r.DeleteRepository(ctx, repoID); err != nil {
+		log.Printf("fetching repo: %+v", err)
+		handleError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+}
+
+func (a *APIController) UpdateRepoHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	vars := mux.Vars(r)
+	repoID, ok := vars["repoID"]
+	if !ok {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(params.APIErrorResponse{
+			Error:   "Bad Request",
+			Details: "No repo ID specified",
+		})
+		return
+	}
+
+	var updatePayload runnerParams.UpdateRepositoryParams
+	if err := json.NewDecoder(r.Body).Decode(&updatePayload); err != nil {
+		handleError(w, gErrors.ErrBadRequest)
+		return
+	}
+
+	repo, err := a.r.UpdateRepository(ctx, repoID, updatePayload)
+	if err != nil {
+		log.Printf("error updating repository: %+v", err)
+		handleError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(repo)
 }

@@ -56,6 +56,12 @@ func main() {
 		log.Fatalf("failed to create controller: %+v", err)
 	}
 
+	// If there are many repos/pools, this may take a long time.
+	// TODO: start pool managers in the background and log errors.
+	if err := runner.Start(); err != nil {
+		log.Fatal(err)
+	}
+
 	db, err := database.NewDatabase(ctx, cfg.Database)
 	if err != nil {
 		log.Fatal(err)
