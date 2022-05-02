@@ -174,7 +174,7 @@ func (r *Runner) CreateRepoPool(ctx context.Context, repoID string, param params
 	r.mux.Lock()
 	defer r.mux.Unlock()
 
-	repo, ok := r.repositories[repoID]
+	_, ok := r.repositories[repoID]
 	if !ok {
 		return params.Pool{}, runnerErrors.ErrNotFound
 	}
@@ -196,6 +196,13 @@ func (r *Runner) CreateRepoPool(ctx context.Context, repoID string, param params
 		return params.Pool{}, runnerErrors.NewBadRequestError("no such provider %s", param.ProviderName)
 	}
 
+	// github automatically adds the "self-hosted" tag as well as the OS type (linux, windows, etc)
+	// and architecture (arm, x64, etc) to all self hosted runners. When a workflow job comes in, we try
+	// to find a pool based on the labels that are set in the workflow. If we don't explicitly define these
+	// default tags for each pool, and the user targets these labels, we won't be able to match any pools.
+	// The downside is that all pools with the same OS and arch will have these default labels. Users should
+	// set distinct and unique labels on each pool, and explicitly target those labels, or risk assigning
+	// the job to the wrong worker type.
 	ghArch, err := util.ResolveToGithubArch(string(param.OSArch))
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "invalid arch")
@@ -219,23 +226,67 @@ func (r *Runner) CreateRepoPool(ctx context.Context, repoID string, param params
 		return params.Pool{}, errors.Wrap(err, "creating pool")
 	}
 
-	if err := repo.AddPool(ctx, pool); err != nil {
-		return params.Pool{}, errors.Wrap(err, "adding pool to manager")
-	}
-
 	return pool, nil
 }
 
-func (r *Runner) DeleteRepoPool(ctx context.Context) error {
+func (r *Runner) GetRepoPoolByID(ctx context.Context, repoID, poolID string) (params.Pool, error) {
+	if !auth.IsAdmin(ctx) {
+		return params.Pool{}, runnerErrors.ErrUnauthorized
+	}
+
+	pool, err := r.store.GetRepositoryPool(ctx, repoID, poolID)
+	if err != nil {
+		return params.Pool{}, errors.Wrap(err, "fetching pool")
+	}
+	return pool, nil
+}
+
+func (r *Runner) DeleteRepoPool(ctx context.Context, repoID, poolID string) error {
+	if !auth.IsAdmin(ctx) {
+		return runnerErrors.ErrUnauthorized
+	}
+
+	pool, err := r.store.GetRepositoryPool(ctx, repoID, poolID)
+	if err != nil {
+		if !errors.Is(err, runnerErrors.ErrNotFound) {
+			return errors.Wrap(err, "fetching pool")
+		}
+		return nil
+	}
+
+	instances, err := r.store.ListInstances(ctx, pool.ID)
+	if err != nil {
+		return errors.Wrap(err, "fetching instances")
+	}
+
+	// TODO: implement a count function
+	if len(instances) > 0 {
+		runnerIDs := []string{}
+		for _, run := range instances {
+			runnerIDs = append(runnerIDs, run.ID)
+		}
+		return runnerErrors.NewBadRequestError("pool has runners: %s", strings.Join(runnerIDs, ", "))
+	}
+
+	if err := r.store.DeleteRepositoryPool(ctx, repoID, poolID); err != nil {
+		// deleted by some othe call?
+		if !errors.Is(err, runnerErrors.ErrNotFound) {
+			return errors.Wrap(err, "deleting pool")
+		}
+	}
 	return nil
 }
 
-func (r *Runner) ListRepoPools(ctx context.Context) error {
-	return nil
-}
+func (r *Runner) ListRepoPools(ctx context.Context, repoID string) ([]params.Pool, error) {
+	if !auth.IsAdmin(ctx) {
+		return []params.Pool{}, runnerErrors.ErrUnauthorized
+	}
 
-func (r *Runner) UpdateRepoPool(ctx context.Context) error {
-	return nil
+	pools, err := r.store.ListRepoPools(ctx, repoID)
+	if err != nil {
+		return nil, errors.Wrap(err, "fetching pools")
+	}
+	return pools, nil
 }
 
 func (r *Runner) ListPoolInstances(ctx context.Context) error {
@@ -268,4 +319,35 @@ func (r *Runner) findRepoPoolManager(owner, name string) (common.PoolManager, er
 		return repo, nil
 	}
 	return nil, errors.Wrapf(runnerErrors.ErrNotFound, "repository %s/%s not configured", owner, name)
+}
+
+func (r *Runner) UpdateRepoPool(ctx context.Context, repoID, poolID string, param params.UpdatePoolParams) (params.Pool, error) {
+	if !auth.IsAdmin(ctx) {
+		return params.Pool{}, runnerErrors.ErrUnauthorized
+	}
+
+	pool, err := r.store.GetRepositoryPool(ctx, repoID, poolID)
+	if err != nil {
+		return params.Pool{}, errors.Wrap(err, "fetching pool")
+	}
+
+	maxRunners := pool.MaxRunners
+	minIdleRunners := pool.MinIdleRunners
+
+	if param.MaxRunners != nil {
+		maxRunners = *param.MaxRunners
+	}
+	if param.MinIdleRunners != nil {
+		minIdleRunners = *param.MinIdleRunners
+	}
+
+	if minIdleRunners < maxRunners {
+		return params.Pool{}, runnerErrors.NewBadRequestError("min_idle_runners cannot be larger than max_runners")
+	}
+
+	newPool, err := r.store.UpdateRepositoryPool(ctx, repoID, poolID, param)
+	if err != nil {
+		return params.Pool{}, errors.Wrap(err, "updating pool")
+	}
+	return newPool, nil
 }

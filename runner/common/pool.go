@@ -1,7 +1,6 @@
 package common
 
 import (
-	"context"
 	"runner-manager/params"
 )
 
@@ -16,7 +15,7 @@ type PoolManager interface {
 	WebhookSecret() string
 	HandleWorkflowJob(job params.WorkflowJob) error
 	RefreshState(cfg params.Repository) error
-	AddPool(ctx context.Context, pool params.Pool) error
+	// AddPool(ctx context.Context, pool params.Pool) error
 
 	// PoolManager lifecycle functions. Start/stop pool.
 	Start() error

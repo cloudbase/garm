@@ -749,9 +749,13 @@ func (s *sqlDatabase) sqlAddressToParamsAddress(addr Address) params.Address {
 }
 
 func (s *sqlDatabase) sqlToParamsInstance(instance Instance) params.Instance {
+	var id string
+	if instance.ProviderID != nil {
+		id = *instance.ProviderID
+	}
 	ret := params.Instance{
 		ID:           instance.ID.String(),
-		ProviderID:   instance.ProviderID,
+		ProviderID:   id,
 		Name:         instance.Name,
 		OSType:       instance.OSType,
 		OSName:       instance.OSName,
@@ -883,7 +887,7 @@ func (s *sqlDatabase) UpdateInstance(ctx context.Context, instanceID string, par
 	}
 
 	if param.ProviderID != "" {
-		instance.ProviderID = param.ProviderID
+		instance.ProviderID = &param.ProviderID
 	}
 
 	if param.OSName != "" {
@@ -997,7 +1001,7 @@ func (s *sqlDatabase) updatePool(pool Pool, param params.UpdatePoolParams) (para
 		return params.Pool{}, errors.Wrap(q.Error, "saving database entry")
 	}
 
-	if len(param.Tags) > 0 {
+	if param.Tags != nil && len(param.Tags) > 0 {
 		tags := make([]Tag, len(param.Tags))
 		for idx, t := range param.Tags {
 			tags[idx] = Tag{
@@ -1099,7 +1103,7 @@ func (s *sqlDatabase) CreateUser(ctx context.Context, user params.NewUserParams)
 	if q.Error != nil {
 		return params.User{}, errors.Wrap(q.Error, "creating user")
 	}
-	return params.User{}, nil
+	return s.sqlToParamsUser(newUser), nil
 }
 
 func (s *sqlDatabase) HasAdminUser(ctx context.Context) bool {

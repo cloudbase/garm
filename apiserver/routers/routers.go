@@ -41,12 +41,17 @@ func NewAPIRouter(han *controllers.APIController, logWriter io.Writer, authMiddl
 	// Repos and pools //
 	/////////////////////
 	// Get pool
-	apiRouter.Handle("/repositories/{repoID}/pools/{poolID:poolID\\/?}", log(os.Stdout, http.HandlerFunc(han.CatchAll))).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/repositories/{repoID}/pools/{poolID}/", log(os.Stdout, http.HandlerFunc(han.GetRepoPoolHandler))).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/repositories/{repoID}/pools/{poolID}", log(os.Stdout, http.HandlerFunc(han.GetRepoPoolHandler))).Methods("GET", "OPTIONS")
 	// Delete pool
-	apiRouter.Handle("/repositories/{repoID}/pools/{poolID:poolID\\/?}", log(os.Stdout, http.HandlerFunc(han.CatchAll))).Methods("DELETE", "OPTIONS")
+	apiRouter.Handle("/repositories/{repoID}/pools/{poolID}/", log(os.Stdout, http.HandlerFunc(han.DeleteRepoPoolHandler))).Methods("DELETE", "OPTIONS")
+	apiRouter.Handle("/repositories/{repoID}/pools/{poolID}", log(os.Stdout, http.HandlerFunc(han.DeleteRepoPoolHandler))).Methods("DELETE", "OPTIONS")
+	// Update pool
+	apiRouter.Handle("/repositories/{repoID}/pools/{poolID}/", log(os.Stdout, http.HandlerFunc(han.UpdateRepoPoolHandler))).Methods("PUT", "OPTIONS")
+	apiRouter.Handle("/repositories/{repoID}/pools/{poolID}", log(os.Stdout, http.HandlerFunc(han.UpdateRepoPoolHandler))).Methods("PUT", "OPTIONS")
 	// List pools
-	apiRouter.Handle("/repositories/{repoID}/pools/", log(os.Stdout, http.HandlerFunc(han.CatchAll))).Methods("GET", "OPTIONS")
-	apiRouter.Handle("/repositories/{repoID}/pools", log(os.Stdout, http.HandlerFunc(han.CatchAll))).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/repositories/{repoID}/pools/", log(os.Stdout, http.HandlerFunc(han.ListRepoPoolsHandler))).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/repositories/{repoID}/pools", log(os.Stdout, http.HandlerFunc(han.ListRepoPoolsHandler))).Methods("GET", "OPTIONS")
 	// Create pool
 	apiRouter.Handle("/repositories/{repoID}/pools/", log(os.Stdout, http.HandlerFunc(han.CreateRepoPoolHandler))).Methods("POST", "OPTIONS")
 	apiRouter.Handle("/repositories/{repoID}/pools", log(os.Stdout, http.HandlerFunc(han.CreateRepoPoolHandler))).Methods("POST", "OPTIONS")

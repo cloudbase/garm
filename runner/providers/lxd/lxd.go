@@ -14,7 +14,6 @@ import (
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v3"
 )
 
 var _ common.Provider = &LXD{}
@@ -159,8 +158,8 @@ func (l *LXD) getTools(image *api.Image, tools []*github.RunnerApplicationDownlo
 			continue
 		}
 
-		fmt.Println(*tool.Architecture, *tool.OS)
-		fmt.Printf("image arch: %s --> osType: %s\n", image.Architecture, string(osType))
+		// fmt.Println(*tool.Architecture, *tool.OS)
+		// fmt.Printf("image arch: %s --> osType: %s\n", image.Architecture, string(osType))
 		if *tool.Architecture == image.Architecture && *tool.OS == string(osType) {
 			return *tool, nil
 		}
@@ -278,8 +277,8 @@ func (l *LXD) CreateInstance(ctx context.Context, bootstrapParams params.Bootstr
 		return params.Instance{}, errors.Wrap(err, "fetching create args")
 	}
 
-	asJs, err := yaml.Marshal(args)
-	fmt.Println(string(asJs), err)
+	// asJs, err := yaml.Marshal(args)
+	// fmt.Println(string(asJs), err)
 	if err := l.launchInstance(args); err != nil {
 		return params.Instance{}, errors.Wrap(err, "creating instance")
 	}

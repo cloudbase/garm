@@ -28,16 +28,11 @@ type Authenticator struct {
 }
 
 func (a *Authenticator) IsInitialized() bool {
-	info, err := a.store.ControllerInfo()
-	if err != nil {
-		return false
+	if a.store.HasAdminUser(context.Background()) {
+		return true
 	}
 
-	if info.ControllerID.String() == "" {
-		return false
-	}
-
-	return true
+	return false
 }
 
 func (a *Authenticator) GetJWTToken(ctx context.Context) (string, error) {
@@ -105,9 +100,6 @@ func (a *Authenticator) InitController(ctx context.Context, param params.NewUser
 
 	param.Password = hashed
 
-	if _, err := a.store.InitController(); err != nil {
-		return params.User{}, errors.Wrap(err, "initializing controller")
-	}
 	return a.store.CreateUser(ctx, param)
 }
 

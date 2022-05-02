@@ -340,3 +340,111 @@ func (a *APIController) CreateRepoPoolHandler(w http.ResponseWriter, r *http.Req
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(pool)
 }
+
+func (a *APIController) ListRepoPoolsHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	repoID, ok := vars["repoID"]
+	if !ok {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(params.APIErrorResponse{
+			Error:   "Bad Request",
+			Details: "No repo ID specified",
+		})
+		return
+	}
+
+	pools, err := a.r.ListRepoPools(ctx, repoID)
+	if err != nil {
+		log.Printf("listing pools: %+v", err)
+		handleError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(pools)
+}
+
+func (a *APIController) GetRepoPoolHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	repoID, repoOk := vars["repoID"]
+	poolID, poolOk := vars["poolID"]
+	if !repoOk || !poolOk {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(params.APIErrorResponse{
+			Error:   "Bad Request",
+			Details: "No repo or pool ID specified",
+		})
+		return
+	}
+
+	pool, err := a.r.GetRepoPoolByID(ctx, repoID, poolID)
+	if err != nil {
+		log.Printf("listing pools: %+v", err)
+		handleError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(pool)
+}
+
+func (a *APIController) DeleteRepoPoolHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	vars := mux.Vars(r)
+	repoID, repoOk := vars["repoID"]
+	poolID, poolOk := vars["poolID"]
+	if !repoOk || !poolOk {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(params.APIErrorResponse{
+			Error:   "Bad Request",
+			Details: "No repo or pool ID specified",
+		})
+		return
+	}
+
+	if err := a.r.DeleteRepoPool(ctx, repoID, poolID); err != nil {
+		log.Printf("removing pool: %+v", err)
+		handleError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+}
+
+func (a *APIController) UpdateRepoPoolHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	vars := mux.Vars(r)
+	repoID, repoOk := vars["repoID"]
+	poolID, poolOk := vars["poolID"]
+	if !repoOk || !poolOk {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(params.APIErrorResponse{
+			Error:   "Bad Request",
+			Details: "No repo or pool ID specified",
+		})
+		return
+	}
+
+	var poolData runnerParams.UpdatePoolParams
+	if err := json.NewDecoder(r.Body).Decode(&poolData); err != nil {
+		log.Printf("failed to decode: %+v", err)
+		handleError(w, gErrors.ErrBadRequest)
+		return
+	}
+
+	pool, err := a.r.UpdateRepoPool(ctx, repoID, poolID, poolData)
+	if err != nil {
+		log.Printf("error creating repository pool: %+v", err)
+		handleError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(pool)
+}

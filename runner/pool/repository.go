@@ -30,11 +30,7 @@ func NewRepositoryPoolManager(ctx context.Context, cfg params.Repository, provid
 	if err != nil {
 		return nil, errors.Wrap(err, "getting github client")
 	}
-	pools := map[string]params.Pool{}
 
-	for _, val := range cfg.Pools {
-		pools[val.ID] = val
-	}
 	repo := &Repository{
 		ctx:          ctx,
 		cfg:          cfg,
@@ -42,14 +38,9 @@ func NewRepositoryPoolManager(ctx context.Context, cfg params.Repository, provid
 		id:           cfg.ID,
 		store:        store,
 		providers:    providers,
-		pools:        pools,
 		controllerID: cfg.Internal.ControllerID,
 		quit:         make(chan struct{}),
 		done:         make(chan struct{}),
-	}
-
-	if err := repo.loadPools(); err != nil {
-		return nil, errors.Wrap(err, "loading pools")
 	}
 
 	return repo, nil
@@ -66,7 +57,6 @@ type Repository struct {
 	quit         chan struct{}
 	done         chan struct{}
 	id           string
-	pools        map[string]params.Pool
 
 	mux sync.Mutex
 }
@@ -81,32 +71,6 @@ func (r *Repository) RefreshState(cfg params.Repository) error {
 		return errors.Wrap(err, "getting github client")
 	}
 	r.ghcli = ghc
-	return nil
-}
-
-func (r *Repository) loadPools() error {
-	pools, err := r.store.ListRepoPools(r.ctx, r.id)
-	if err != nil {
-		return errors.Wrap(err, "fetching pools")
-	}
-
-	for _, pool := range pools {
-		if err := r.AddPool(r.ctx, pool); err != nil {
-			return errors.Wrap(err, "adding pool")
-		}
-	}
-	return nil
-}
-
-func (r *Repository) AddPool(ctx context.Context, pool params.Pool) error {
-	r.mux.Lock()
-	defer r.mux.Unlock()
-
-	if _, ok := r.pools[pool.ID]; ok {
-		return nil
-	}
-
-	r.pools[pool.ID] = pool
 	return nil
 }
 
@@ -249,9 +213,12 @@ func (r *Repository) cleanupOrphanedGithubRunners(runners []*github.Runner) erro
 			continue
 		}
 
-		pool, ok := r.pools[poolID]
-		if !ok {
-			// not a pool we manage.
+		pool, err := r.store.GetRepositoryPool(r.ctx, r.id, poolID)
+		if err != nil {
+			if !errors.Is(err, runnerErrors.ErrNotFound) {
+				return errors.Wrap(err, "fetching pool")
+			}
+			// not pool we manage.
 			continue
 		}
 
@@ -340,21 +307,26 @@ func (r *Repository) cleanupOrphanedProviderRunners(runners []*github.Runner) er
 }
 
 func (r *Repository) ensureMinIdleRunners() {
-	for poolID, pool := range r.pools {
+	pools, err := r.store.ListRepoPools(r.ctx, r.id)
+	if err != nil {
+		log.Printf("error listing pools: %s", err)
+		return
+	}
+	for _, pool := range pools {
 		if !pool.Enabled {
 			log.Printf("pool %s is disabled, skipping", pool.ID)
 			continue
 		}
-		existingInstances, err := r.store.ListInstances(r.ctx, poolID)
+		existingInstances, err := r.store.ListInstances(r.ctx, pool.ID)
 		if err != nil {
-			log.Printf("failed to ensure minimum idle workers for pool %s: %s", poolID, err)
+			log.Printf("failed to ensure minimum idle workers for pool %s: %s", pool.ID, err)
 			return
 		}
 
 		// asJs, _ := json.MarshalIndent(existingInstances, "", "  ")
 		// log.Printf(">>> %s", string(asJs))
 		if uint(len(existingInstances)) >= pool.MaxRunners {
-			log.Printf("max workers (%d) reached for pool %s, skipping idle worker creation", pool.MaxRunners, poolID)
+			log.Printf("max workers (%d) reached for pool %s, skipping idle worker creation", pool.MaxRunners, pool.ID)
 			continue
 		}
 
@@ -379,9 +351,9 @@ func (r *Repository) ensureMinIdleRunners() {
 		}
 
 		for i := 0; i < required; i++ {
-			log.Printf("addind new idle worker to pool %s", poolID)
-			if err := r.AddRunner(r.ctx, poolID); err != nil {
-				log.Printf("failed to add new instance for pool %s: %s", poolID, err)
+			log.Printf("addind new idle worker to pool %s", pool.ID)
+			if err := r.AddRunner(r.ctx, pool.ID); err != nil {
+				log.Printf("failed to add new instance for pool %s: %s", pool.ID, err)
 			}
 		}
 	}
@@ -418,9 +390,9 @@ func (r *Repository) updateArgsFromProviderInstance(providerInstance params.Inst
 }
 
 func (r *Repository) deleteInstanceFromProvider(instance params.Instance) error {
-	pool, ok := r.pools[instance.PoolID]
-	if !ok {
-		return runnerErrors.NewNotFoundError("invalid pool ID")
+	pool, err := r.store.GetRepositoryPool(r.ctx, r.id, instance.PoolID)
+	if err != nil {
+		return errors.Wrap(err, "fetching pool")
 	}
 
 	provider, ok := r.providers[pool.ProviderName]
@@ -439,9 +411,9 @@ func (r *Repository) deleteInstanceFromProvider(instance params.Instance) error 
 }
 
 func (r *Repository) addInstanceToProvider(instance params.Instance) error {
-	pool, ok := r.pools[instance.PoolID]
-	if !ok {
-		return runnerErrors.NewNotFoundError("invalid pool ID: %s", instance.PoolID)
+	pool, err := r.store.GetRepositoryPool(r.ctx, r.id, instance.PoolID)
+	if err != nil {
+		return errors.Wrap(err, "fetching pool")
 	}
 
 	provider, ok := r.providers[pool.ProviderName]
@@ -495,9 +467,9 @@ func (r *Repository) addInstanceToProvider(instance params.Instance) error {
 // TODO: add function to set runner status to idle when instance calls home on callback url
 
 func (r *Repository) AddRunner(ctx context.Context, poolID string) error {
-	pool, ok := r.pools[poolID]
-	if !ok {
-		return runnerErrors.NewNotFoundError("invalid provider ID")
+	pool, err := r.store.GetRepositoryPool(r.ctx, r.id, poolID)
+	if err != nil {
+		return errors.Wrap(err, "fetching pool")
 	}
 
 	name := fmt.Sprintf("runner-manager-%s", uuid.New())
@@ -512,7 +484,7 @@ func (r *Repository) AddRunner(ctx context.Context, poolID string) error {
 		CallbackURL:  r.cfg.Internal.InstanceCallbackURL,
 	}
 
-	_, err := r.store.CreateInstance(r.ctx, poolID, createParams)
+	_, err = r.store.CreateInstance(r.ctx, poolID, createParams)
 	if err != nil {
 		return errors.Wrap(err, "creating instance")
 	}
@@ -592,6 +564,7 @@ func (r *Repository) setInstanceRunnerStatus(job params.WorkflowJob, status prov
 		RunnerStatus: status,
 	}
 
+	log.Printf("setting runner status for %s to %s", runner.Name, status)
 	if _, err := r.store.UpdateInstance(r.ctx, runner.ID, updateParams); err != nil {
 		return errors.Wrap(err, "updating runner state")
 	}
@@ -625,9 +598,10 @@ func (r *Repository) acquireNewInstance(job params.WorkflowJob) error {
 	if err != nil {
 		return errors.Wrap(err, "fetching suitable pool")
 	}
+	log.Printf("adding new runner with requested tags %s in pool %s", strings.Join(job.WorkflowJob.Labels, ", "), pool.ID)
 
 	if !pool.Enabled {
-		log.Printf("selecte pool (%s) is disabled", pool.ID)
+		log.Printf("selected pool (%s) is disabled", pool.ID)
 		return nil
 	}
 

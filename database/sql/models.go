@@ -88,8 +88,8 @@ type Address struct {
 type Instance struct {
 	Base
 
-	ProviderID   string `gorm:"uniqueIndex"`
-	Name         string `gorm:"uniqueIndex"`
+	ProviderID   *string `gorm:"uniqueIndex"`
+	Name         string  `gorm:"uniqueIndex"`
 	OSType       config.OSType
 	OSArch       config.OSArch
 	OSName       string
