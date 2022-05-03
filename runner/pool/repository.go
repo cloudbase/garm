@@ -382,7 +382,7 @@ func (r *Repository) updateArgsFromProviderInstance(providerInstance params.Inst
 	return params.UpdateInstanceParams{
 		ProviderID:   providerInstance.ProviderID,
 		OSName:       providerInstance.OSName,
-		OSVersion:    providerInstance.OSName,
+		OSVersion:    providerInstance.OSVersion,
 		Addresses:    providerInstance.Addresses,
 		Status:       providerInstance.Status,
 		RunnerStatus: providerInstance.RunnerStatus,
@@ -464,8 +464,6 @@ func (r *Repository) addInstanceToProvider(instance params.Instance) error {
 	return nil
 }
 
-// TODO: add function to set runner status to idle when instance calls home on callback url
-
 func (r *Repository) AddRunner(ctx context.Context, poolID string) error {
 	pool, err := r.store.GetRepositoryPool(r.ctx, r.id, poolID)
 	if err != nil {
@@ -484,9 +482,21 @@ func (r *Repository) AddRunner(ctx context.Context, poolID string) error {
 		CallbackURL:  r.cfg.Internal.InstanceCallbackURL,
 	}
 
-	_, err = r.store.CreateInstance(r.ctx, poolID, createParams)
+	instance, err := r.store.CreateInstance(r.ctx, poolID, createParams)
 	if err != nil {
 		return errors.Wrap(err, "creating instance")
+	}
+
+	updateParams := params.UpdateInstanceParams{
+		OSName:     instance.OSName,
+		OSVersion:  instance.OSVersion,
+		Addresses:  instance.Addresses,
+		Status:     instance.Status,
+		ProviderID: instance.ProviderID,
+	}
+
+	if _, err := r.store.UpdateInstance(r.ctx, instance.ID, updateParams); err != nil {
+		return errors.Wrap(err, "updating runner state")
 	}
 
 	return nil
@@ -654,22 +664,5 @@ func (r *Repository) HandleWorkflowJob(job params.WorkflowJob) error {
 			return errors.Wrap(err, "updating runner")
 		}
 	}
-	return nil
-}
-
-func (r *Repository) ListInstances() ([]params.Instance, error) {
-	return nil, nil
-}
-
-func (r *Repository) GetInstance() (params.Instance, error) {
-	return params.Instance{}, nil
-}
-func (r *Repository) DeleteInstance() error {
-	return nil
-}
-func (r *Repository) StopInstance() error {
-	return nil
-}
-func (r *Repository) StartInstance() error {
 	return nil
 }

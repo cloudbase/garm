@@ -235,6 +235,7 @@ func (l *LXD) AsParams() params.Provider {
 	return params.Provider{
 		Name:         l.cfg.Name,
 		ProviderType: l.cfg.ProviderType,
+		Description:  l.cfg.Description,
 	}
 }
 

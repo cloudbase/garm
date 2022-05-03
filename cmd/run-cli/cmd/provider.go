@@ -52,10 +52,10 @@ func init() {
 
 func formatProviders(providers []params.Provider) {
 	t := table.NewWriter()
-	header := table.Row{"Name", "Description"}
+	header := table.Row{"Name", "Description", "Type"}
 	t.AppendHeader(header)
 	for _, val := range providers {
-		t.AppendRow(table.Row{val.Name, val.ProviderType})
+		t.AppendRow(table.Row{val.Name, val.Description, val.ProviderType})
 		t.AppendSeparator()
 	}
 	fmt.Println(t.Render())

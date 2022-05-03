@@ -449,3 +449,96 @@ func (a *APIController) UpdateRepoPoolHandler(w http.ResponseWriter, r *http.Req
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(pool)
 }
+
+func (a *APIController) ListRepoInstancesHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	repoID, ok := vars["repoID"]
+	if !ok {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(params.APIErrorResponse{
+			Error:   "Bad Request",
+			Details: "No repo ID specified",
+		})
+		return
+	}
+
+	instances, err := a.r.ListRepoInstances(ctx, repoID)
+	if err != nil {
+		log.Printf("listing pools: %+v", err)
+		handleError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(instances)
+}
+
+func (a *APIController) ListPoolInstancesHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	poolID, ok := vars["poolID"]
+	if !ok {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(params.APIErrorResponse{
+			Error:   "Bad Request",
+			Details: "No repo ID specified",
+		})
+		return
+	}
+
+	instances, err := a.r.ListPoolInstances(ctx, poolID)
+	if err != nil {
+		log.Printf("listing pools: %+v", err)
+		handleError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(instances)
+}
+
+func (a *APIController) GetInstanceHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	instanceName, ok := vars["instanceName"]
+	if !ok {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(params.APIErrorResponse{
+			Error:   "Bad Request",
+			Details: "No repo ID specified",
+		})
+		return
+	}
+
+	instance, err := a.r.GetInstance(ctx, instanceName)
+	if err != nil {
+		log.Printf("listing pools: %+v", err)
+		handleError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(instance)
+}
+
+func (a *APIController) InstanceStatusMessageHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var updateMessage runnerParams.InstanceUpdateMessage
+	if err := json.NewDecoder(r.Body).Decode(&updateMessage); err != nil {
+		log.Printf("failed to decode: %+v", err)
+		handleError(w, gErrors.ErrBadRequest)
+		return
+	}
+
+	log.Printf("Update body is: %v", updateMessage)
+	if err := a.r.AddInstanceStatusMessage(ctx, updateMessage); err != nil {
+		log.Printf("error saving status message: %+v", err)
+		handleError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+}

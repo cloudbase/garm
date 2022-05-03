@@ -205,7 +205,7 @@ func GetCloudConfig(bootstrapParams params.BootstrapInstance, tools github.Runne
 	cloudCfg.AddSSHKey(bootstrapParams.SSHKeys...)
 	cloudCfg.AddFile(installScript, "/install_runner.sh", "root:root", "755")
 	cloudCfg.AddRunCmd("/install_runner.sh")
-	cloudCfg.AddRunCmd("rm -f /install_runner.sh")
+	// cloudCfg.AddRunCmd("rm -f /install_runner.sh")
 
 	asStr, err := cloudCfg.Serialize()
 	if err != nil {

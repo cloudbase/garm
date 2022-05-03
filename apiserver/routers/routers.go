@@ -12,7 +12,7 @@ import (
 	"runner-manager/auth"
 )
 
-func NewAPIRouter(han *controllers.APIController, logWriter io.Writer, authMiddleware, initMiddleware auth.Middleware) *mux.Router {
+func NewAPIRouter(han *controllers.APIController, logWriter io.Writer, authMiddleware, initMiddleware, instanceMiddleware auth.Middleware) *mux.Router {
 	router := mux.NewRouter()
 	log := gorillaHandlers.CombinedLoggingHandler
 
@@ -28,6 +28,11 @@ func NewAPIRouter(han *controllers.APIController, logWriter io.Writer, authMiddl
 	firstRunRouter := apiSubRouter.PathPrefix("/first-run").Subrouter()
 	firstRunRouter.Handle("/", log(os.Stdout, http.HandlerFunc(han.FirstRunHandler))).Methods("POST", "OPTIONS")
 
+	// Instance callback
+	callbackRouter := apiSubRouter.PathPrefix("/callbacks").Subrouter()
+	callbackRouter.Handle("/status/", log(os.Stdout, http.HandlerFunc(han.InstanceStatusMessageHandler))).Methods("POST", "OPTIONS")
+	callbackRouter.Handle("/status", log(os.Stdout, http.HandlerFunc(han.InstanceStatusMessageHandler))).Methods("POST", "OPTIONS")
+	callbackRouter.Use(instanceMiddleware.Middleware)
 	// Login
 	authRouter := apiSubRouter.PathPrefix("/auth").Subrouter()
 	authRouter.Handle("/{login:login\\/?}", log(os.Stdout, http.HandlerFunc(han.LoginHandler))).Methods("POST", "OPTIONS")
@@ -36,6 +41,17 @@ func NewAPIRouter(han *controllers.APIController, logWriter io.Writer, authMiddl
 	apiRouter := apiSubRouter.PathPrefix("").Subrouter()
 	apiRouter.Use(initMiddleware.Middleware)
 	apiRouter.Use(authMiddleware.Middleware)
+
+	// Runners (instances)
+	// List pool instances
+	apiRouter.Handle("/pools/instances/{poolID}/", log(os.Stdout, http.HandlerFunc(han.ListPoolInstancesHandler))).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/pools/instances/{poolID}", log(os.Stdout, http.HandlerFunc(han.ListPoolInstancesHandler))).Methods("GET", "OPTIONS")
+	// Get instance
+	apiRouter.Handle("/instances/{instanceName}/", log(os.Stdout, http.HandlerFunc(han.GetInstanceHandler))).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/instances/{instanceName}", log(os.Stdout, http.HandlerFunc(han.GetInstanceHandler))).Methods("GET", "OPTIONS")
+	// Delete instance
+	// apiRouter.Handle("/instances/{instanceName}/", log(os.Stdout, http.HandlerFunc(han.CatchAll))).Methods("DELETE", "OPTIONS")
+	// apiRouter.Handle("/instances/{instanceName}", log(os.Stdout, http.HandlerFunc(han.CatchAll))).Methods("DELETE", "OPTIONS")
 
 	/////////////////////
 	// Repos and pools //
@@ -55,6 +71,10 @@ func NewAPIRouter(han *controllers.APIController, logWriter io.Writer, authMiddl
 	// Create pool
 	apiRouter.Handle("/repositories/{repoID}/pools/", log(os.Stdout, http.HandlerFunc(han.CreateRepoPoolHandler))).Methods("POST", "OPTIONS")
 	apiRouter.Handle("/repositories/{repoID}/pools", log(os.Stdout, http.HandlerFunc(han.CreateRepoPoolHandler))).Methods("POST", "OPTIONS")
+
+	// Repo instances list
+	apiRouter.Handle("/repositories/{repoID}/instances/", log(os.Stdout, http.HandlerFunc(han.ListRepoInstancesHandler))).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/repositories/{repoID}/instances", log(os.Stdout, http.HandlerFunc(han.ListRepoInstancesHandler))).Methods("GET", "OPTIONS")
 
 	// Get repo
 	apiRouter.Handle("/repositories/{repoID}/", log(os.Stdout, http.HandlerFunc(han.GetRepoByIDHandler))).Methods("GET", "OPTIONS")

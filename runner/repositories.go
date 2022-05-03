@@ -283,8 +283,16 @@ func (r *Runner) ListRepoPools(ctx context.Context, repoID string) ([]params.Poo
 	return pools, nil
 }
 
-func (r *Runner) ListPoolInstances(ctx context.Context) error {
-	return nil
+func (r *Runner) ListPoolInstances(ctx context.Context, poolID string) ([]params.Instance, error) {
+	if !auth.IsAdmin(ctx) {
+		return nil, runnerErrors.ErrUnauthorized
+	}
+
+	instances, err := r.store.ListInstances(ctx, poolID)
+	if err != nil {
+		return []params.Instance{}, errors.Wrap(err, "fetching instances")
+	}
+	return instances, nil
 }
 
 func (r *Runner) loadRepoPoolManager(repo params.Repository) (common.PoolManager, error) {
@@ -344,4 +352,54 @@ func (r *Runner) UpdateRepoPool(ctx context.Context, repoID, poolID string, para
 		return params.Pool{}, errors.Wrap(err, "updating pool")
 	}
 	return newPool, nil
+}
+
+func (r *Runner) ListRepoInstances(ctx context.Context, repoID string) ([]params.Instance, error) {
+	if !auth.IsAdmin(ctx) {
+		return nil, runnerErrors.ErrUnauthorized
+	}
+
+	instances, err := r.store.ListRepoInstances(ctx, repoID)
+	if err != nil {
+		return []params.Instance{}, errors.Wrap(err, "fetching instances")
+	}
+	return instances, nil
+}
+
+// TODO: move these in another file
+
+func (r *Runner) GetInstance(ctx context.Context, instanceName string) (params.Instance, error) {
+	if !auth.IsAdmin(ctx) {
+		return params.Instance{}, runnerErrors.ErrUnauthorized
+	}
+
+	instance, err := r.store.GetInstanceByName(ctx, instanceName)
+	if err != nil {
+		return params.Instance{}, errors.Wrap(err, "fetching instance")
+	}
+	return instance, nil
+}
+
+func (r *Runner) AddInstanceStatusMessage(ctx context.Context, param params.InstanceUpdateMessage) error {
+	instanceID := auth.InstanceID(ctx)
+	if instanceID == "" {
+		return runnerErrors.ErrUnauthorized
+	}
+
+	if err := r.store.AddInstanceStatusMessage(ctx, instanceID, param.Message); err != nil {
+		return errors.Wrap(err, "adding status update")
+	}
+
+	// if param.Status == providerCommon.RunnerIdle {
+	// }
+
+	updateParams := params.UpdateInstanceParams{
+		RunnerStatus: param.Status,
+	}
+
+	if _, err := r.store.UpdateInstance(r.ctx, instanceID, updateParams); err != nil {
+		return errors.Wrap(err, "updating runner state")
+	}
+
+	return nil
 }

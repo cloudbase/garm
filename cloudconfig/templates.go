@@ -17,22 +17,22 @@ BEARER_TOKEN="{{ .CallbackToken }}"
 
 function call() {
 	PAYLOAD="$1"
-	curl -s -X POST -d \'${PAYLOAD}\' -H 'Accept: application/json' -H "Authorization: Bearer ${BEARER_TOKEN}" "${CALLBACK_URL}" || echo "failed to call home: exit code ($?)"
+	curl -s -X POST -d "${PAYLOAD}" -H 'Accept: application/json' -H "Authorization: Bearer ${BEARER_TOKEN}" "${CALLBACK_URL}" || echo "failed to call home: exit code ($?)"
 }
 
 function sendStatus() {
 	MSG="$1"
-	call '{"status": "installing", "message": "'$MSG'"}'
+	call "{\"status\": \"installing\", \"message\": \"$MSG\"}"
 }
 
 function success() {
 	MSG="$1"
-	call '{"status": "active", "message": "'$MSG'"}'
+	call "{\"status\": \"idle\", \"message\": \"$MSG\"}"
 }
 
 function fail() {
 	MSG="$1"
-	call '{"status": "failed", "message": "'$MSG'"}'
+	call "{\"status\": \"failed\", \"message\": \"$MSG\"}"
 	exit 1
 }
 

@@ -83,6 +83,18 @@ type Address struct {
 
 	Address string
 	Type    string
+
+	InstanceID uuid.UUID
+	Instance   Instance `gorm:"foreignKey:InstanceID"`
+}
+
+type InstanceStatusUpdate struct {
+	Base
+
+	Message string `gorm:"type:text"`
+
+	InstanceID uuid.UUID
+	Instance   Instance `gorm:"foreignKey:InstanceID"`
 }
 
 type Instance struct {
@@ -94,13 +106,15 @@ type Instance struct {
 	OSArch       config.OSArch
 	OSName       string
 	OSVersion    string
-	Addresses    []Address `gorm:"foreignKey:id"`
+	Addresses    []Address `gorm:"foreignKey:InstanceID"`
 	Status       common.InstanceStatus
 	RunnerStatus common.RunnerStatus
 	CallbackURL  string
 
 	PoolID uuid.UUID
 	Pool   Pool `gorm:"foreignKey:PoolID"`
+
+	StatusMessages []InstanceStatusUpdate `gorm:"foreignKey:InstanceID"`
 }
 
 type User struct {

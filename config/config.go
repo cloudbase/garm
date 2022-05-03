@@ -165,6 +165,7 @@ func (g *Github) Validate() error {
 type Provider struct {
 	Name         string       `toml:"name" json:"name"`
 	ProviderType ProviderType `toml:"provider_type" json:"provider-type"`
+	Description  string       `toml:"description" json:"description"`
 	LXD          LXD          `toml:"lxd" json:"lxd"`
 }
 

@@ -148,3 +148,8 @@ type UpdateRepositoryParams struct {
 	CredentialsName string `json:"credentials_name"`
 	WebhookSecret   string `json:"webhook_secret"`
 }
+
+type InstanceUpdateMessage struct {
+	Status  common.RunnerStatus `json:"status"`
+	Message string              `json:"message"`
+}

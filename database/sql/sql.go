@@ -45,6 +45,7 @@ func (s *sqlDatabase) migrateDB() error {
 		&Repository{},
 		&Organization{},
 		&Address{},
+		&InstanceStatusUpdate{},
 		&Instance{},
 		&ControllerInfo{},
 		&User{},
@@ -470,7 +471,9 @@ func (s *sqlDatabase) CreateRepositoryPool(ctx context.Context, repoId string, p
 	}
 
 	for _, tt := range tags {
-		s.conn.Model(&newPool).Association("Tags").Append(&tt)
+		if err := s.conn.Model(&newPool).Association("Tags").Append(&tt); err != nil {
+			return params.Pool{}, errors.Wrap(err, "saving tag")
+		}
 	}
 
 	pool, err := s.getPoolByID(ctx, newPool.ID.String(), "Tags")
@@ -783,21 +786,29 @@ func (s *sqlDatabase) sqlToParamsInstance(instance Instance) params.Instance {
 		id = *instance.ProviderID
 	}
 	ret := params.Instance{
-		ID:           instance.ID.String(),
-		ProviderID:   id,
-		Name:         instance.Name,
-		OSType:       instance.OSType,
-		OSName:       instance.OSName,
-		OSVersion:    instance.OSVersion,
-		OSArch:       instance.OSArch,
-		Status:       instance.Status,
-		RunnerStatus: instance.RunnerStatus,
-		PoolID:       instance.PoolID.String(),
-		CallbackURL:  instance.CallbackURL,
+		ID:             instance.ID.String(),
+		ProviderID:     id,
+		Name:           instance.Name,
+		OSType:         instance.OSType,
+		OSName:         instance.OSName,
+		OSVersion:      instance.OSVersion,
+		OSArch:         instance.OSArch,
+		Status:         instance.Status,
+		RunnerStatus:   instance.RunnerStatus,
+		PoolID:         instance.PoolID.String(),
+		CallbackURL:    instance.CallbackURL,
+		StatusMessages: []params.StatusMessage{},
 	}
 
 	for _, addr := range instance.Addresses {
 		ret.Addresses = append(ret.Addresses, s.sqlAddressToParamsAddress(addr))
+	}
+
+	for _, msg := range instance.StatusMessages {
+		ret.StatusMessages = append(ret.StatusMessages, params.StatusMessage{
+			CreatedAt: msg.CreatedAt,
+			Message:   msg.Message,
+		})
 	}
 	return ret
 }
@@ -864,9 +875,18 @@ func (s *sqlDatabase) getPoolInstanceByName(ctx context.Context, poolID string, 
 	return instance, nil
 }
 
-func (s *sqlDatabase) getInstanceByName(ctx context.Context, instanceName string) (Instance, error) {
+func (s *sqlDatabase) getInstanceByName(ctx context.Context, instanceName string, preload ...string) (Instance, error) {
 	var instance Instance
-	q := s.conn.Model(&Instance{}).
+
+	q := s.conn
+
+	if len(preload) > 0 {
+		for _, item := range preload {
+			q = q.Preload(item)
+		}
+	}
+
+	q = q.Model(&Instance{}).
 		Preload(clause.Associations).
 		Where("name = ?", instanceName).
 		First(&instance)
@@ -885,7 +905,7 @@ func (s *sqlDatabase) GetPoolInstanceByName(ctx context.Context, poolID string, 
 }
 
 func (s *sqlDatabase) GetInstanceByName(ctx context.Context, instanceName string) (params.Instance, error) {
-	instance, err := s.getInstanceByName(ctx, instanceName)
+	instance, err := s.getInstanceByName(ctx, instanceName, "StatusMessages")
 	if err != nil {
 		return params.Instance{}, errors.Wrap(err, "fetching instance")
 	}
@@ -902,6 +922,22 @@ func (s *sqlDatabase) DeleteInstance(ctx context.Context, poolID string, instanc
 			return nil
 		}
 		return errors.Wrap(q.Error, "deleting instance")
+	}
+	return nil
+}
+
+func (s *sqlDatabase) AddInstanceStatusMessage(ctx context.Context, instanceID string, statusMessage string) error {
+	instance, err := s.getInstanceByID(ctx, instanceID)
+	if err != nil {
+		return errors.Wrap(err, "updating instance")
+	}
+
+	msg := InstanceStatusUpdate{
+		Message: statusMessage,
+	}
+
+	if err := s.conn.Model(&instance).Association("StatusMessages").Append(&msg); err != nil {
+		return errors.Wrap(err, "adding status message")
 	}
 	return nil
 }

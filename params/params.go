@@ -21,6 +21,11 @@ type Address struct {
 	Type    AddressType `json:"type"`
 }
 
+type StatusMessage struct {
+	CreatedAt time.Time `json:"created_at"`
+	Message   string    `json:"message"`
+}
+
 type Instance struct {
 	// ID is the database ID of this instance.
 	ID string `json:"id"`
@@ -49,6 +54,8 @@ type Instance struct {
 	Status       common.InstanceStatus `json:"status"`
 	RunnerStatus common.RunnerStatus   `json:"runner_status"`
 	PoolID       string                `json:"pool_id"`
+
+	StatusMessages []StatusMessage `json:"status_messages,omitempty"`
 
 	// Do not serialize sensitive info.
 	CallbackURL string `json:"-"`
@@ -157,4 +164,5 @@ type GithubCredentials struct {
 type Provider struct {
 	Name         string              `json:"name"`
 	ProviderType config.ProviderType `json:"type"`
+	Description  string              `json:"description"`
 }

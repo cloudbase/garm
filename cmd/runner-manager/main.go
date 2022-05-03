@@ -90,6 +90,11 @@ func main() {
 		log.Fatalf("failed to create controller: %+v", err)
 	}
 
+	instanceMiddleware, err := auth.NewInstanceMiddleware(db, cfg.JWTAuth)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	jwtMiddleware, err := auth.NewjwtMiddleware(db, cfg.JWTAuth)
 	if err != nil {
 		log.Fatal(err)
@@ -100,7 +105,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	router := routers.NewAPIRouter(controller, logWriter, jwtMiddleware, initMiddleware)
+	router := routers.NewAPIRouter(controller, logWriter, jwtMiddleware, initMiddleware, instanceMiddleware)
 
 	tlsCfg, err := cfg.APIServer.APITLSConfig()
 	if err != nil {

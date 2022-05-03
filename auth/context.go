@@ -8,6 +8,21 @@ import (
 
 type contextFlags string
 
+/*
+// InstanceJWTClaims holds JWT claims
+type InstanceJWTClaims struct {
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	PoolID string `json:"provider_id"`
+	// Scope is either repository or organization
+	Scope common.PoolType `json:"scope"`
+	// Entity is the repo or org name
+	Entity string `json:"entity"`
+	jwt.StandardClaims
+}
+
+*/
+
 const (
 	isAdminKey  contextFlags = "is_admin"
 	fullNameKey contextFlags = "full_name"
@@ -15,7 +30,80 @@ const (
 	UserIDFlag    contextFlags = "user_id"
 	isEnabledFlag contextFlags = "is_enabled"
 	jwtTokenFlag  contextFlags = "jwt_token"
+
+	instanceIDKey       contextFlags = "id"
+	instanceNameKey     contextFlags = "name"
+	instancePoolIDKey   contextFlags = "pool_id"
+	instancePoolTypeKey contextFlags = "scope"
+	instanceEntityKey   contextFlags = "entity"
 )
+
+func SetInstanceID(ctx context.Context, id string) context.Context {
+	return context.WithValue(ctx, instanceIDKey, id)
+}
+
+func InstanceID(ctx context.Context) string {
+	elem := ctx.Value(instanceIDKey)
+	if elem == nil {
+		return ""
+	}
+	return elem.(string)
+}
+
+func SetInstanceName(ctx context.Context, val string) context.Context {
+	return context.WithValue(ctx, instanceNameKey, val)
+}
+
+func InstanceName(ctx context.Context) string {
+	elem := ctx.Value(instanceNameKey)
+	if elem == nil {
+		return ""
+	}
+	return elem.(string)
+}
+
+func SetInstancePoolID(ctx context.Context, val string) context.Context {
+	return context.WithValue(ctx, instancePoolIDKey, val)
+}
+
+func InstancePoolID(ctx context.Context) string {
+	elem := ctx.Value(instancePoolIDKey)
+	if elem == nil {
+		return ""
+	}
+	return elem.(string)
+}
+
+func SetInstancePoolType(ctx context.Context, val string) context.Context {
+	return context.WithValue(ctx, instancePoolTypeKey, val)
+}
+
+func InstancePoolType(ctx context.Context) string {
+	elem := ctx.Value(instancePoolTypeKey)
+	if elem == nil {
+		return ""
+	}
+	return elem.(string)
+}
+
+func SetInstanceEntity(ctx context.Context, val string) context.Context {
+	return context.WithValue(ctx, instanceEntityKey, val)
+}
+
+func InstanceEntity(ctx context.Context) string {
+	elem := ctx.Value(instanceEntityKey)
+	if elem == nil {
+		return ""
+	}
+	return elem.(string)
+}
+
+func PopulateInstanceContext(ctx context.Context, instance params.Instance) context.Context {
+	ctx = SetInstanceID(ctx, instance.ID)
+	ctx = SetInstanceName(ctx, instance.Name)
+	ctx = SetInstancePoolID(ctx, instance.PoolID)
+	return ctx
+}
 
 // PopulateContext sets the appropriate fields in the context, based on
 // the user object

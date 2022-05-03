@@ -281,3 +281,54 @@ func (c *Client) UpdateRepoPool(repoID, poolID string, param params.UpdatePoolPa
 	}
 	return response, nil
 }
+
+func (c *Client) ListRepoInstances(repoID string) ([]params.Instance, error) {
+	url := fmt.Sprintf("%s/api/v1/repositories/%s/instances", c.Config.BaseURL, repoID)
+
+	var response []params.Instance
+	resp, err := c.client.R().
+		SetResult(&response).
+		Get(url)
+	if err != nil || resp.IsError() {
+		apiErr, decErr := c.decodeAPIError(resp.Body())
+		if decErr != nil {
+			return response, errors.Wrap(decErr, "sending request")
+		}
+		return response, fmt.Errorf("error performing login: %s", apiErr.Details)
+	}
+	return response, nil
+}
+
+func (c *Client) ListPoolInstances(poolID string) ([]params.Instance, error) {
+	url := fmt.Sprintf("%s/api/v1/pools/instances/%s", c.Config.BaseURL, poolID)
+
+	var response []params.Instance
+	resp, err := c.client.R().
+		SetResult(&response).
+		Get(url)
+	if err != nil || resp.IsError() {
+		apiErr, decErr := c.decodeAPIError(resp.Body())
+		if decErr != nil {
+			return response, errors.Wrap(decErr, "sending request")
+		}
+		return response, fmt.Errorf("error performing login: %s", apiErr.Details)
+	}
+	return response, nil
+}
+
+func (c *Client) GetInstanceByName(instanceName string) (params.Instance, error) {
+	url := fmt.Sprintf("%s/api/v1/instances/%s", c.Config.BaseURL, instanceName)
+
+	var response params.Instance
+	resp, err := c.client.R().
+		SetResult(&response).
+		Get(url)
+	if err != nil || resp.IsError() {
+		apiErr, decErr := c.decodeAPIError(resp.Body())
+		if decErr != nil {
+			return response, errors.Wrap(decErr, "sending request")
+		}
+		return response, fmt.Errorf("error performing login: %s", apiErr.Details)
+	}
+	return response, nil
+}
