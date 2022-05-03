@@ -6,36 +6,170 @@ package cmd
 
 import (
 	"fmt"
+	"runner-manager/params"
 
+	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/spf13/cobra"
+)
+
+var (
+	repoOwner         string
+	repoName          string
+	repoWebhookSecret string
+	repoCreds         string
 )
 
 // repositoryCmd represents the repository command
 var repositoryCmd = &cobra.Command{
 	Use:          "repository",
+	Aliases:      []string{"repo"},
 	SilenceUsage: true,
-	Short:        "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	Short:        "Manage repositories",
+	Long: `Add, remove or update repositories for which we manage
+self hosted runners.
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("repository called")
+This command allows you to define a new repository or manage an existing
+repository for which the runner-manager maintains pools of self hosted runners.`,
+	Run: nil,
+}
+
+var repoAddCmd = &cobra.Command{
+	Use:          "add",
+	Aliases:      []string{"create"},
+	Short:        "Add repository",
+	Long:         `Add a new repository to the manager.`,
+	SilenceUsage: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if needsInit {
+			return needsInitError
+		}
+
+		newRepoReq := params.CreateRepoParams{
+			Owner:           repoOwner,
+			Name:            repoName,
+			WebhookSecret:   repoWebhookSecret,
+			CredentialsName: repoCreds,
+		}
+		repo, err := cli.CreateRepository(newRepoReq)
+		if err != nil {
+			return err
+		}
+		formatOneRepository(repo)
+		return nil
+	},
+}
+
+var repoListCmd = &cobra.Command{
+	Use:          "list",
+	Aliases:      []string{"ls"},
+	Short:        "List repositories",
+	Long:         `List all configured respositories that are currently managed.`,
+	SilenceUsage: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if needsInit {
+			return needsInitError
+		}
+
+		repos, err := cli.ListRepositories()
+		if err != nil {
+			return err
+		}
+		formatRepositories(repos)
+		return nil
+	},
+}
+
+var repoShowCmd = &cobra.Command{
+	Use:          "show",
+	Short:        "Show details for one repository",
+	Long:         `Displays detailed information about a single repository.`,
+	SilenceUsage: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if needsInit {
+			return needsInitError
+		}
+		if len(args) == 0 {
+			return fmt.Errorf("requires a repository ID")
+		}
+		if len(args) > 1 {
+			return fmt.Errorf("too many arguments")
+		}
+		repo, err := cli.GetRepository(args[0])
+		if err != nil {
+			return err
+		}
+		formatOneRepository(repo)
+		return nil
+	},
+}
+
+var repoDeleteCmd = &cobra.Command{
+	Use:          "delete",
+	Aliases:      []string{"remove", "rm", "del"},
+	Short:        "Removes one repository",
+	Long:         `Delete one repository from the manager.`,
+	SilenceUsage: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if needsInit {
+			return needsInitError
+		}
+		if len(args) == 0 {
+			return fmt.Errorf("requires a repository ID")
+		}
+		if len(args) > 1 {
+			return fmt.Errorf("too many arguments")
+		}
+		if err := cli.DeleteRepository(args[0]); err != nil {
+			return err
+		}
+		return nil
 	},
 }
 
 func init() {
+
+	repoAddCmd.Flags().StringVar(&repoOwner, "owner", "", "The owner of this repository")
+	repoAddCmd.Flags().StringVar(&repoName, "name", "", "The name of the repository")
+	repoAddCmd.Flags().StringVar(&repoWebhookSecret, "webhook-secret", "", "The webhook secret for this repository")
+	repoAddCmd.Flags().StringVar(&repoCreds, "credentials", "", "Credentials name. See credentials list.")
+	repoAddCmd.MarkFlagRequired("credentials")
+	repoAddCmd.MarkFlagRequired("owner")
+	repoAddCmd.MarkFlagRequired("name")
+
+	repositoryCmd.AddCommand(
+		repoListCmd,
+		repoAddCmd,
+		repoShowCmd,
+		repoDeleteCmd,
+	)
+
 	rootCmd.AddCommand(repositoryCmd)
+}
 
-	// Here you will define your flags and configuration settings.
+func formatRepositories(repos []params.Repository) {
+	t := table.NewWriter()
+	header := table.Row{"ID", "Owner", "Name", "Credentials name"}
+	t.AppendHeader(header)
+	for _, val := range repos {
+		t.AppendRow(table.Row{val.ID, val.Owner, val.Name, val.CredentialsName})
+		t.AppendSeparator()
+	}
+	fmt.Println(t.Render())
+}
 
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// repositoryCmd.PersistentFlags().String("foo", "", "A help for foo")
+func formatOneRepository(repo params.Repository) {
+	t := table.NewWriter()
+	header := table.Row{"Field", "Value"}
+	t.AppendHeader(header)
+	t.AppendRow(table.Row{"ID", repo.ID})
+	t.AppendRow(table.Row{"Owner", repo.Owner})
+	t.AppendRow(table.Row{"Name", repo.Name})
+	t.AppendRow(table.Row{"Credentials", repo.CredentialsName})
 
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// repositoryCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	if len(repo.Pools) > 0 {
+		for _, pool := range repo.Pools {
+			t.AppendRow(table.Row{"Pools", pool.ID})
+		}
+	}
+	fmt.Println(t.Render())
 }

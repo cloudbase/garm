@@ -95,6 +95,7 @@ type Pool struct {
 	OSArch         config.OSArch `json:"os_arch"`
 	Tags           []Tag         `json:"tags"`
 	Enabled        bool          `json:"enabled"`
+	Instances      []Instance    `json:"instances"`
 }
 
 type Internal struct {

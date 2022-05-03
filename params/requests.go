@@ -47,7 +47,7 @@ type NewUserParams struct {
 }
 
 type UpdatePoolParams struct {
-	Tags           []Tag         `json:"tags"`
+	Tags           []string      `json:"tags"`
 	Enabled        *bool         `json:"enabled"`
 	MaxRunners     *uint         `json:"max_runners"`
 	MinIdleRunners *uint         `json:"min_idle_runners"`

@@ -248,10 +248,7 @@ func (r *Runner) DeleteRepoPool(ctx context.Context, repoID, poolID string) erro
 
 	pool, err := r.store.GetRepositoryPool(ctx, repoID, poolID)
 	if err != nil {
-		if !errors.Is(err, runnerErrors.ErrNotFound) {
-			return errors.Wrap(err, "fetching pool")
-		}
-		return nil
+		return errors.Wrap(err, "fetching pool")
 	}
 
 	instances, err := r.store.ListInstances(ctx, pool.ID)
@@ -269,10 +266,7 @@ func (r *Runner) DeleteRepoPool(ctx context.Context, repoID, poolID string) erro
 	}
 
 	if err := r.store.DeleteRepositoryPool(ctx, repoID, poolID); err != nil {
-		// deleted by some othe call?
-		if !errors.Is(err, runnerErrors.ErrNotFound) {
-			return errors.Wrap(err, "deleting pool")
-		}
+		return errors.Wrap(err, "deleting pool")
 	}
 	return nil
 }
@@ -341,7 +335,7 @@ func (r *Runner) UpdateRepoPool(ctx context.Context, repoID, poolID string, para
 		minIdleRunners = *param.MinIdleRunners
 	}
 
-	if minIdleRunners < maxRunners {
+	if minIdleRunners > maxRunners {
 		return params.Pool{}, runnerErrors.NewBadRequestError("min_idle_runners cannot be larger than max_runners")
 	}
 

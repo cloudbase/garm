@@ -6,7 +6,9 @@ package cmd
 
 import (
 	"fmt"
+	"runner-manager/params"
 
+	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/spf13/cobra"
 )
 
@@ -32,10 +34,29 @@ func init() {
 			Long:         `List all cloud providers configured with the service.`,
 			SilenceUsage: true,
 			RunE: func(cmd *cobra.Command, args []string) error {
-				fmt.Println("provider list called")
-				return fmt.Errorf("I failed :(")
+				if needsInit {
+					return needsInitError
+				}
+
+				providers, err := cli.ListProviders()
+				if err != nil {
+					return err
+				}
+				formatProviders(providers)
+				return nil
 			},
 		})
 
 	rootCmd.AddCommand(providerCmd)
+}
+
+func formatProviders(providers []params.Provider) {
+	t := table.NewWriter()
+	header := table.Row{"Name", "Description"}
+	t.AppendHeader(header)
+	for _, val := range providers {
+		t.AppendRow(table.Row{val.Name, val.ProviderType})
+		t.AppendSeparator()
+	}
+	fmt.Println(t.Render())
 }

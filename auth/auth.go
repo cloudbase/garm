@@ -115,7 +115,7 @@ func (a *Authenticator) AuthenticateUser(ctx context.Context, info params.Passwo
 	user, err := a.store.GetUser(ctx, info.Username)
 
 	if err != nil {
-		if err == runnerErrors.ErrNotFound {
+		if errors.Is(err, runnerErrors.ErrNotFound) {
 			return ctx, runnerErrors.ErrUnauthorized
 		}
 		return ctx, errors.Wrap(err, "authenticating")

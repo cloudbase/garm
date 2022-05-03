@@ -75,10 +75,15 @@ func (s *sqlDatabase) sqlToCommonPool(pool Pool) params.Pool {
 		OSType:         pool.OSType,
 		Enabled:        pool.Enabled,
 		Tags:           make([]params.Tag, len(pool.Tags)),
+		Instances:      make([]params.Instance, len(pool.Instances)),
 	}
 
 	for idx, val := range pool.Tags {
 		ret.Tags[idx] = s.sqlToCommonTags(*val)
+	}
+
+	for idx, inst := range pool.Instances {
+		ret.Instances[idx] = s.sqlToParamsInstance(inst)
 	}
 
 	return ret
@@ -273,9 +278,6 @@ func (s *sqlDatabase) ListRepositories(ctx context.Context) ([]params.Repository
 func (s *sqlDatabase) DeleteRepository(ctx context.Context, repoID string, hardDelete bool) error {
 	repo, err := s.getRepoByID(ctx, repoID)
 	if err != nil {
-		if err == runnerErrors.ErrNotFound {
-			return nil
-		}
 		return errors.Wrap(err, "fetching repo")
 	}
 
@@ -391,13 +393,10 @@ func (s *sqlDatabase) ListOrganizations(ctx context.Context) ([]params.Organizat
 func (s *sqlDatabase) DeleteOrganization(ctx context.Context, name string) error {
 	org, err := s.getOrg(ctx, name, false)
 	if err != nil {
-		if err == runnerErrors.ErrNotFound {
-			return nil
-		}
 		return errors.Wrap(err, "fetching repo")
 	}
 
-	q := s.conn.Delete(&org)
+	q := s.conn.Unscoped().Delete(&org)
 	if q.Error != nil && !errors.Is(q.Error, gorm.ErrRecordNotFound) {
 		return errors.Wrap(q.Error, "deleting org")
 	}
@@ -579,7 +578,7 @@ func (s *sqlDatabase) ListOrgPools(ctx context.Context, orgID string) ([]params.
 	return ret, nil
 }
 
-func (s *sqlDatabase) getRepoPool(ctx context.Context, repoID, poolID string) (Pool, error) {
+func (s *sqlDatabase) getRepoPool(ctx context.Context, repoID, poolID string, preload ...string) (Pool, error) {
 	repo, err := s.getRepoByID(ctx, repoID)
 	if err != nil {
 		return Pool{}, errors.Wrap(err, "fetching repo")
@@ -589,8 +588,16 @@ func (s *sqlDatabase) getRepoPool(ctx context.Context, repoID, poolID string) (P
 	if err != nil {
 		return Pool{}, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
 	}
+
+	q := s.conn
+	if len(preload) > 0 {
+		for _, item := range preload {
+			q = q.Preload(item)
+		}
+	}
+
 	var pool []Pool
-	err = s.conn.Model(&repo).Association("Pools").Find(&pool, "id = ?", u)
+	err = q.Model(&repo).Association("Pools").Find(&pool, "id = ?", u)
 	if err != nil {
 		return Pool{}, errors.Wrap(err, "fetching pool")
 	}
@@ -602,7 +609,7 @@ func (s *sqlDatabase) getRepoPool(ctx context.Context, repoID, poolID string) (P
 }
 
 func (s *sqlDatabase) GetRepositoryPool(ctx context.Context, repoID, poolID string) (params.Pool, error) {
-	pool, err := s.getRepoPool(ctx, repoID, poolID)
+	pool, err := s.getRepoPool(ctx, repoID, poolID, "Tags", "Instances")
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}
@@ -670,12 +677,9 @@ func (s *sqlDatabase) GetOrganizationPool(ctx context.Context, orgID, poolID str
 func (s *sqlDatabase) DeleteRepositoryPool(ctx context.Context, repoID, poolID string) error {
 	pool, err := s.getRepoPool(ctx, repoID, poolID)
 	if err != nil {
-		if errors.Is(err, runnerErrors.ErrNotFound) {
-			return nil
-		}
 		return errors.Wrap(err, "looking up repo pool")
 	}
-	q := s.conn.Delete(&pool)
+	q := s.conn.Unscoped().Delete(&pool)
 	if q.Error != nil && !errors.Is(q.Error, gorm.ErrRecordNotFound) {
 		return errors.Wrap(q.Error, "deleting pool")
 	}
@@ -685,12 +689,9 @@ func (s *sqlDatabase) DeleteRepositoryPool(ctx context.Context, repoID, poolID s
 func (s *sqlDatabase) DeleteOrganizationPool(ctx context.Context, orgID, poolID string) error {
 	pool, err := s.getOrgPool(ctx, orgID, poolID, false)
 	if err != nil {
-		if errors.Is(err, runnerErrors.ErrNotFound) {
-			return nil
-		}
 		return errors.Wrap(err, "looking up repo pool")
 	}
-	q := s.conn.Delete(&pool)
+	q := s.conn.Unscoped().Delete(&pool)
 	if q.Error != nil && !errors.Is(q.Error, gorm.ErrRecordNotFound) {
 		return errors.Wrap(q.Error, "deleting pool")
 	}
@@ -866,12 +867,9 @@ func (s *sqlDatabase) GetInstanceByName(ctx context.Context, instanceName string
 func (s *sqlDatabase) DeleteInstance(ctx context.Context, poolID string, instanceName string) error {
 	instance, err := s.getPoolInstanceByName(ctx, poolID, instanceName)
 	if err != nil {
-		if errors.Is(err, runnerErrors.ErrNotFound) {
-			return nil
-		}
 		return errors.Wrap(err, "deleting instance")
 	}
-	if q := s.conn.Delete(&instance); q.Error != nil {
+	if q := s.conn.Unscoped().Delete(&instance); q.Error != nil {
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
 			return nil
 		}
@@ -1005,7 +1003,7 @@ func (s *sqlDatabase) updatePool(pool Pool, param params.UpdatePoolParams) (para
 		tags := make([]Tag, len(param.Tags))
 		for idx, t := range param.Tags {
 			tags[idx] = Tag{
-				Name: t.Name,
+				Name: t,
 			}
 		}
 
@@ -1018,7 +1016,7 @@ func (s *sqlDatabase) updatePool(pool Pool, param params.UpdatePoolParams) (para
 }
 
 func (s *sqlDatabase) UpdateRepositoryPool(ctx context.Context, repoID, poolID string, param params.UpdatePoolParams) (params.Pool, error) {
-	pool, err := s.getRepoPool(ctx, repoID, poolID)
+	pool, err := s.getRepoPool(ctx, repoID, poolID, "Tags")
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}

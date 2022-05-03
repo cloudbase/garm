@@ -98,7 +98,9 @@ func NewAPIRouter(han *controllers.APIController, logWriter io.Writer, authMiddl
 	apiRouter.Handle("/organizations", log(os.Stdout, http.HandlerFunc(han.CatchAll))).Methods("POST", "OPTIONS")
 
 	// Credentials and providers
+	apiRouter.Handle("/credentials/", log(os.Stdout, http.HandlerFunc(han.ListCredentials))).Methods("GET", "OPTIONS")
 	apiRouter.Handle("/credentials", log(os.Stdout, http.HandlerFunc(han.ListCredentials))).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/providers/", log(os.Stdout, http.HandlerFunc(han.ListProviders))).Methods("GET", "OPTIONS")
 	apiRouter.Handle("/providers", log(os.Stdout, http.HandlerFunc(han.ListProviders))).Methods("GET", "OPTIONS")
 
 	return router

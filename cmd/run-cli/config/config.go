@@ -35,6 +35,14 @@ func LoadConfig() (*Config, error) {
 		return nil, errors.Wrap(err, "fetching config")
 	}
 
+	if _, err := os.Stat(cfgFile); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			// return empty config
+			return &Config{}, nil
+		}
+		return nil, errors.Wrap(err, "accessing config file")
+	}
+
 	var config Config
 	if _, err := toml.DecodeFile(cfgFile, &config); err != nil {
 		return nil, errors.Wrap(err, "decoding toml")

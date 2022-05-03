@@ -95,9 +95,7 @@ func (a *APIController) handleWorkflowJobEvent(w http.ResponseWriter, r *http.Re
 
 func (a *APIController) CatchAll(w http.ResponseWriter, r *http.Request) {
 	headers := r.Header.Clone()
-	// for key, val := range headers {
-	// 	fmt.Printf("%s --> %v\n", key, val)
-	// }
+
 	event := runnerParams.Event(headers.Get("X-Github-Event"))
 	switch event {
 	case runnerParams.WorkflowJobEvent:
@@ -115,6 +113,7 @@ func (a *APIController) NotFoundHandler(w http.ResponseWriter, r *http.Request) 
 		Error:   "Not found",
 	}
 	w.WriteHeader(http.StatusNotFound)
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(apiErr)
 }
 
@@ -180,6 +179,7 @@ func (a *APIController) ListCredentials(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(creds)
 }
 
@@ -191,6 +191,7 @@ func (a *APIController) ListProviders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(providers)
 }
 

@@ -6,7 +6,9 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 
+	"runner-manager/cmd/run-cli/common"
 	"runner-manager/cmd/run-cli/config"
 	"runner-manager/params"
 
@@ -33,9 +35,13 @@ run-cli login --name=dev --url=https://runner.example.com --username=admin --pas
 `,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if cfg != nil {
-			if cfg.HasManager(loginName) {
-				return fmt.Errorf("a manager with name %s already exists in your local config", loginName)
+			if cfg.HasManager(loginProfileName) {
+				return fmt.Errorf("a manager with name %s already exists in your local config", loginProfileName)
 			}
+		}
+
+		if err := promptUnsetInitVariables(); err != nil {
+			return err
 		}
 
 		newUser := params.NewUserParams{
@@ -44,7 +50,9 @@ run-cli login --name=dev --url=https://runner.example.com --username=admin --pas
 			FullName: loginFullName,
 			Email:    loginEmail,
 		}
-		response, err := cli.InitManager(loginURL, newUser)
+
+		url := strings.TrimSuffix(loginURL, "/")
+		response, err := cli.InitManager(url, newUser)
 		if err != nil {
 			return errors.Wrap(err, "initializing manager")
 		}
@@ -54,25 +62,18 @@ run-cli login --name=dev --url=https://runner.example.com --username=admin --pas
 			Password: loginPassword,
 		}
 
-		token, err := cli.Login(loginURL, loginParams)
+		token, err := cli.Login(url, loginParams)
 		if err != nil {
 			return errors.Wrap(err, "authenticating")
 		}
 
-		if cfg == nil {
-			// we're creating a new config
-			cfg = &config.Config{
-				Managers: []config.Manager{},
-			}
-		}
-
 		cfg.Managers = append(cfg.Managers, config.Manager{
-			Name:    loginName,
-			BaseURL: loginURL,
+			Name:    loginProfileName,
+			BaseURL: url,
 			Token:   token,
 		})
 
-		cfg.ActiveManager = loginName
+		cfg.ActiveManager = loginProfileName
 
 		if err := cfg.SaveConfig(); err != nil {
 			return errors.Wrap(err, "saving config")
@@ -83,21 +84,42 @@ run-cli login --name=dev --url=https://runner.example.com --username=admin --pas
 	},
 }
 
+func promptUnsetInitVariables() error {
+	var err error
+	if loginUserName == "" {
+		loginUserName, err = common.PromptString("Username")
+		if err != nil {
+			return err
+		}
+	}
+
+	if loginEmail == "" {
+		loginEmail, err = common.PromptString("Email")
+		if err != nil {
+			return err
+		}
+	}
+
+	if loginPassword == "" {
+		loginPassword, err = common.PromptPassword("Password")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func init() {
 	rootCmd.AddCommand(initCmd)
 
-	initCmd.Flags().StringVarP(&loginName, "name", "n", "", "A name for this runner manager")
+	initCmd.Flags().StringVarP(&loginProfileName, "name", "n", "", "A name for this runner manager")
 	initCmd.Flags().StringVarP(&loginURL, "url", "a", "", "The base URL for the runner manager API")
 	initCmd.Flags().StringVarP(&loginUserName, "username", "u", "", "The desired administrative username")
-	initCmd.Flags().StringVarP(&loginPassword, "password", "p", "", "The admin password")
-	initCmd.Flags().StringVarP(&loginFullName, "full-name", "f", "", "Full name of the user")
 	initCmd.Flags().StringVarP(&loginEmail, "email", "e", "", "Email address")
+	initCmd.Flags().StringVarP(&loginFullName, "full-name", "f", "", "Full name of the user")
+	initCmd.Flags().StringVarP(&loginPassword, "password", "p", "", "The admin password")
 	initCmd.MarkFlagRequired("name")
 	initCmd.MarkFlagRequired("url")
-	initCmd.MarkFlagRequired("username")
-	initCmd.MarkFlagRequired("password")
-	initCmd.MarkFlagRequired("full-name")
-	initCmd.MarkFlagRequired("email")
 }
 
 func renderUserTable(user params.User) {
