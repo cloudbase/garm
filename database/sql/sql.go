@@ -446,6 +446,15 @@ func (s *sqlDatabase) CreateRepositoryPool(ctx context.Context, repoId string, p
 		Enabled:        param.Enabled,
 	}
 
+	_, err = s.getRepoPoolByUniqueFields(ctx, repoId, newPool.ProviderName, newPool.Image, newPool.Flavor)
+	if err != nil {
+		if !errors.Is(err, runnerErrors.ErrNotFound) {
+			return params.Pool{}, errors.Wrap(err, "creating pool")
+		}
+	} else {
+		return params.Pool{}, runnerErrors.NewConflictError("pool with the same image and flavor already exists on this provider")
+	}
+
 	tags := []Tag{}
 	for _, val := range param.Tags {
 		t, err := s.getOrCreateTag(val)
@@ -576,6 +585,25 @@ func (s *sqlDatabase) ListOrgPools(ctx context.Context, orgID string) ([]params.
 	}
 
 	return ret, nil
+}
+
+func (s *sqlDatabase) getRepoPoolByUniqueFields(ctx context.Context, repoID string, provider, image, flavor string) (Pool, error) {
+	repo, err := s.getRepoByID(ctx, repoID)
+	if err != nil {
+		return Pool{}, errors.Wrap(err, "fetching repo")
+	}
+
+	q := s.conn
+	var pool []Pool
+	err = q.Model(&repo).Association("Pools").Find(&pool, "provider_name = ? and image = ? and flavor = ?", provider, image, flavor)
+	if err != nil {
+		return Pool{}, errors.Wrap(err, "fetching pool")
+	}
+	if len(pool) == 0 {
+		return Pool{}, runnerErrors.ErrNotFound
+	}
+
+	return pool[0], nil
 }
 
 func (s *sqlDatabase) getRepoPool(ctx context.Context, repoID, poolID string, preload ...string) (Pool, error) {

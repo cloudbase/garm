@@ -159,6 +159,7 @@ func formatRepositories(repos []params.Repository) {
 
 func formatOneRepository(repo params.Repository) {
 	t := table.NewWriter()
+	rowConfigAutoMerge := table.RowConfig{AutoMerge: true}
 	header := table.Row{"Field", "Value"}
 	t.AppendHeader(header)
 	t.AppendRow(table.Row{"ID", repo.ID})
@@ -168,8 +169,13 @@ func formatOneRepository(repo params.Repository) {
 
 	if len(repo.Pools) > 0 {
 		for _, pool := range repo.Pools {
-			t.AppendRow(table.Row{"Pools", pool.ID})
+			t.AppendRow(table.Row{"Pools", pool.ID}, rowConfigAutoMerge)
 		}
 	}
+	t.SetColumnConfigs([]table.ColumnConfig{
+		{Number: 1, AutoMerge: true},
+		{Number: 2, AutoMerge: true},
+	})
+
 	fmt.Println(t.Render())
 }
