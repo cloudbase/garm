@@ -332,7 +332,7 @@ func (r *Repository) ensureMinIdleRunners() {
 
 		idleOrPendingWorkers := []params.Instance{}
 		for _, inst := range existingInstances {
-			if providerCommon.RunnerStatus(inst.RunnerStatus) == providerCommon.RunnerIdle || providerCommon.RunnerStatus(inst.RunnerStatus) == providerCommon.RunnerPending {
+			if providerCommon.RunnerStatus(inst.RunnerStatus) != providerCommon.RunnerActive {
 				idleOrPendingWorkers = append(idleOrPendingWorkers, inst)
 			}
 		}

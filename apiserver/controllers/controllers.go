@@ -206,7 +206,7 @@ func (a *APIController) CreateRepoHandler(w http.ResponseWriter, r *http.Request
 
 	repo, err := a.r.CreateRepository(ctx, repoData)
 	if err != nil {
-		log.Printf("error creating repository: %+v", err)
+		log.Printf("error creating repository: %s", err)
 		handleError(w, err)
 		return
 	}
@@ -220,7 +220,7 @@ func (a *APIController) ListReposHandler(w http.ResponseWriter, r *http.Request)
 
 	repos, err := a.r.ListRepositories(ctx)
 	if err != nil {
-		log.Printf("listing repos: %+v", err)
+		log.Printf("listing repos: %s", err)
 		handleError(w, err)
 		return
 	}
@@ -245,7 +245,7 @@ func (a *APIController) GetRepoByIDHandler(w http.ResponseWriter, r *http.Reques
 
 	repo, err := a.r.GetRepositoryByID(ctx, repoID)
 	if err != nil {
-		log.Printf("fetching repo: %+v", err)
+		log.Printf("fetching repo: %s", err)
 		handleError(w, err)
 		return
 	}
@@ -269,7 +269,7 @@ func (a *APIController) DeleteRepoHandler(w http.ResponseWriter, r *http.Request
 	}
 
 	if err := a.r.DeleteRepository(ctx, repoID); err != nil {
-		log.Printf("fetching repo: %+v", err)
+		log.Printf("fetching repo: %s", err)
 		handleError(w, err)
 		return
 	}
@@ -301,7 +301,7 @@ func (a *APIController) UpdateRepoHandler(w http.ResponseWriter, r *http.Request
 
 	repo, err := a.r.UpdateRepository(ctx, repoID, updatePayload)
 	if err != nil {
-		log.Printf("error updating repository: %+v", err)
+		log.Printf("error updating repository: %s", err)
 		handleError(w, err)
 		return
 	}
@@ -326,14 +326,14 @@ func (a *APIController) CreateRepoPoolHandler(w http.ResponseWriter, r *http.Req
 
 	var poolData runnerParams.CreatePoolParams
 	if err := json.NewDecoder(r.Body).Decode(&poolData); err != nil {
-		log.Printf("failed to decode: %+v", err)
+		log.Printf("failed to decode: %s", err)
 		handleError(w, gErrors.ErrBadRequest)
 		return
 	}
 
 	pool, err := a.r.CreateRepoPool(ctx, repoID, poolData)
 	if err != nil {
-		log.Printf("error creating repository pool: %+v", err)
+		log.Printf("error creating repository pool: %s", err)
 		handleError(w, err)
 		return
 	}
@@ -357,7 +357,7 @@ func (a *APIController) ListRepoPoolsHandler(w http.ResponseWriter, r *http.Requ
 
 	pools, err := a.r.ListRepoPools(ctx, repoID)
 	if err != nil {
-		log.Printf("listing pools: %+v", err)
+		log.Printf("listing pools: %s", err)
 		handleError(w, err)
 		return
 	}
@@ -382,7 +382,7 @@ func (a *APIController) GetRepoPoolHandler(w http.ResponseWriter, r *http.Reques
 
 	pool, err := a.r.GetRepoPoolByID(ctx, repoID, poolID)
 	if err != nil {
-		log.Printf("listing pools: %+v", err)
+		log.Printf("listing pools: %s", err)
 		handleError(w, err)
 		return
 	}
@@ -407,7 +407,7 @@ func (a *APIController) DeleteRepoPoolHandler(w http.ResponseWriter, r *http.Req
 	}
 
 	if err := a.r.DeleteRepoPool(ctx, repoID, poolID); err != nil {
-		log.Printf("removing pool: %+v", err)
+		log.Printf("removing pool: %s", err)
 		handleError(w, err)
 		return
 	}
@@ -434,14 +434,14 @@ func (a *APIController) UpdateRepoPoolHandler(w http.ResponseWriter, r *http.Req
 
 	var poolData runnerParams.UpdatePoolParams
 	if err := json.NewDecoder(r.Body).Decode(&poolData); err != nil {
-		log.Printf("failed to decode: %+v", err)
+		log.Printf("failed to decode: %s", err)
 		handleError(w, gErrors.ErrBadRequest)
 		return
 	}
 
 	pool, err := a.r.UpdateRepoPool(ctx, repoID, poolID, poolData)
 	if err != nil {
-		log.Printf("error creating repository pool: %+v", err)
+		log.Printf("error creating repository pool: %s", err)
 		handleError(w, err)
 		return
 	}
@@ -465,7 +465,7 @@ func (a *APIController) ListRepoInstancesHandler(w http.ResponseWriter, r *http.
 
 	instances, err := a.r.ListRepoInstances(ctx, repoID)
 	if err != nil {
-		log.Printf("listing pools: %+v", err)
+		log.Printf("listing pools: %s", err)
 		handleError(w, err)
 		return
 	}
@@ -489,7 +489,7 @@ func (a *APIController) ListPoolInstancesHandler(w http.ResponseWriter, r *http.
 
 	instances, err := a.r.ListPoolInstances(ctx, poolID)
 	if err != nil {
-		log.Printf("listing pools: %+v", err)
+		log.Printf("listing pools: %s", err)
 		handleError(w, err)
 		return
 	}
@@ -513,7 +513,7 @@ func (a *APIController) GetInstanceHandler(w http.ResponseWriter, r *http.Reques
 
 	instance, err := a.r.GetInstance(ctx, instanceName)
 	if err != nil {
-		log.Printf("listing pools: %+v", err)
+		log.Printf("listing pools: %s", err)
 		handleError(w, err)
 		return
 	}
@@ -527,14 +527,13 @@ func (a *APIController) InstanceStatusMessageHandler(w http.ResponseWriter, r *h
 
 	var updateMessage runnerParams.InstanceUpdateMessage
 	if err := json.NewDecoder(r.Body).Decode(&updateMessage); err != nil {
-		log.Printf("failed to decode: %+v", err)
+		log.Printf("failed to decode: %s", err)
 		handleError(w, gErrors.ErrBadRequest)
 		return
 	}
 
-	log.Printf("Update body is: %v", updateMessage)
 	if err := a.r.AddInstanceStatusMessage(ctx, updateMessage); err != nil {
-		log.Printf("error saving status message: %+v", err)
+		log.Printf("error saving status message: %s", err)
 		handleError(w, err)
 		return
 	}
