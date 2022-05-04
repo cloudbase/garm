@@ -2,13 +2,12 @@ package runner
 
 import (
 	"context"
-	"log"
 	"garm/auth"
 	runnerErrors "garm/errors"
 	"garm/params"
 	"garm/runner/common"
 	"garm/runner/pool"
-	"garm/util"
+	"log"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -150,9 +149,13 @@ func (r *Runner) UpdateRepository(ctx context.Context, repoID string, param para
 		if err != nil {
 			return params.Repository{}, errors.Wrap(err, "fetching internal config")
 		}
+		newState := params.UpdatePoolStateParams{
+			WebhookSecret: repo.WebhookSecret,
+			Internal:      internalCfg,
+		}
 		repo.Internal = internalCfg
 		// stop the pool mgr
-		if err := poolMgr.RefreshState(repo); err != nil {
+		if err := poolMgr.RefreshState(newState); err != nil {
 			return params.Repository{}, errors.Wrap(err, "updating pool manager")
 		}
 	} else {
@@ -179,49 +182,12 @@ func (r *Runner) CreateRepoPool(ctx context.Context, repoID string, param params
 		return params.Pool{}, runnerErrors.ErrNotFound
 	}
 
-	if err := param.Validate(); err != nil {
-		return params.Pool{}, errors.Wrapf(runnerErrors.ErrBadRequest, "validating params: %s", err)
-	}
-
-	if !IsSupportedOSType(param.OSType) {
-		return params.Pool{}, runnerErrors.NewBadRequestError("invalid OS type %s", param.OSType)
-	}
-
-	if !IsSupportedArch(param.OSArch) {
-		return params.Pool{}, runnerErrors.NewBadRequestError("invalid OS architecture %s", param.OSArch)
-	}
-
-	_, ok = r.providers[param.ProviderName]
-	if !ok {
-		return params.Pool{}, runnerErrors.NewBadRequestError("no such provider %s", param.ProviderName)
-	}
-
-	// github automatically adds the "self-hosted" tag as well as the OS type (linux, windows, etc)
-	// and architecture (arm, x64, etc) to all self hosted runners. When a workflow job comes in, we try
-	// to find a pool based on the labels that are set in the workflow. If we don't explicitly define these
-	// default tags for each pool, and the user targets these labels, we won't be able to match any pools.
-	// The downside is that all pools with the same OS and arch will have these default labels. Users should
-	// set distinct and unique labels on each pool, and explicitly target those labels, or risk assigning
-	// the job to the wrong worker type.
-	ghArch, err := util.ResolveToGithubArch(string(param.OSArch))
+	createPoolParams, err := r.appendTagsToCreatePoolParams(param)
 	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "invalid arch")
+		return params.Pool{}, errors.Wrap(err, "fetching pool params")
 	}
 
-	osType, err := util.ResolveToGithubOSType(string(param.OSType))
-	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "invalid os type")
-	}
-
-	extraLabels := []string{
-		"self-hosted",
-		ghArch,
-		osType,
-	}
-
-	param.Tags = append(param.Tags, extraLabels...)
-
-	pool, err := r.store.CreateRepositoryPool(ctx, repoID, param)
+	pool, err := r.store.CreateRepositoryPool(ctx, repoID, createPoolParams)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "creating pool")
 	}
@@ -295,34 +261,6 @@ func (r *Runner) ListPoolInstances(ctx context.Context, poolID string) ([]params
 	return instances, nil
 }
 
-func (r *Runner) loadRepoPoolManager(repo params.Repository) (common.PoolManager, error) {
-	cfg, err := r.getInternalConfig(repo.CredentialsName)
-	if err != nil {
-		return nil, errors.Wrap(err, "fetching internal config")
-	}
-	repo.Internal = cfg
-	poolManager, err := pool.NewRepositoryPoolManager(r.ctx, repo, r.providers, r.store)
-	if err != nil {
-		return nil, errors.Wrap(err, "creating pool manager")
-	}
-	return poolManager, nil
-}
-
-func (r *Runner) findRepoPoolManager(owner, name string) (common.PoolManager, error) {
-	r.mux.Lock()
-	defer r.mux.Unlock()
-
-	repo, err := r.store.GetRepository(r.ctx, owner, name)
-	if err != nil {
-		return nil, errors.Wrap(err, "fetching repo")
-	}
-
-	if repo, ok := r.repositories[repo.ID]; ok {
-		return repo, nil
-	}
-	return nil, errors.Wrapf(runnerErrors.ErrNotFound, "repository %s/%s not configured", owner, name)
-}
-
 func (r *Runner) UpdateRepoPool(ctx context.Context, repoID, poolID string, param params.UpdatePoolParams) (params.Pool, error) {
 	if !auth.IsAdmin(ctx) {
 		return params.Pool{}, runnerErrors.ErrUnauthorized
@@ -366,40 +304,30 @@ func (r *Runner) ListRepoInstances(ctx context.Context, repoID string) ([]params
 	return instances, nil
 }
 
-// TODO: move these in another file
-
-func (r *Runner) GetInstance(ctx context.Context, instanceName string) (params.Instance, error) {
-	if !auth.IsAdmin(ctx) {
-		return params.Instance{}, runnerErrors.ErrUnauthorized
-	}
-
-	instance, err := r.store.GetInstanceByName(ctx, instanceName)
+func (r *Runner) loadRepoPoolManager(repo params.Repository) (common.PoolManager, error) {
+	cfg, err := r.getInternalConfig(repo.CredentialsName)
 	if err != nil {
-		return params.Instance{}, errors.Wrap(err, "fetching instance")
+		return nil, errors.Wrap(err, "fetching internal config")
 	}
-	return instance, nil
+	repo.Internal = cfg
+	poolManager, err := pool.NewRepositoryPoolManager(r.ctx, repo, r.providers, r.store)
+	if err != nil {
+		return nil, errors.Wrap(err, "creating pool manager")
+	}
+	return poolManager, nil
 }
 
-func (r *Runner) AddInstanceStatusMessage(ctx context.Context, param params.InstanceUpdateMessage) error {
-	instanceID := auth.InstanceID(ctx)
-	if instanceID == "" {
-		return runnerErrors.ErrUnauthorized
+func (r *Runner) findRepoPoolManager(owner, name string) (common.PoolManager, error) {
+	r.mux.Lock()
+	defer r.mux.Unlock()
+
+	repo, err := r.store.GetRepository(r.ctx, owner, name)
+	if err != nil {
+		return nil, errors.Wrap(err, "fetching repo")
 	}
 
-	if err := r.store.AddInstanceStatusMessage(ctx, instanceID, param.Message); err != nil {
-		return errors.Wrap(err, "adding status update")
+	if repo, ok := r.repositories[repo.ID]; ok {
+		return repo, nil
 	}
-
-	// if param.Status == providerCommon.RunnerIdle {
-	// }
-
-	updateParams := params.UpdateInstanceParams{
-		RunnerStatus: param.Status,
-	}
-
-	if _, err := r.store.UpdateInstance(r.ctx, instanceID, updateParams); err != nil {
-		return errors.Wrap(err, "updating runner state")
-	}
-
-	return nil
+	return nil, errors.Wrapf(runnerErrors.ErrNotFound, "repository %s/%s not configured", owner, name)
 }

@@ -35,6 +35,23 @@ func (c *CreateRepoParams) Validate() error {
 	return nil
 }
 
+type CreateOrgParams struct {
+	Name            string `json:"name"`
+	CredentialsName string `json:"credentials_name"`
+	WebhookSecret   string `json:"webhook_secret"`
+}
+
+func (c *CreateOrgParams) Validate() error {
+	if c.Name == "" {
+		return errors.NewBadRequestError("missing repo name")
+	}
+
+	if c.CredentialsName == "" {
+		return errors.NewBadRequestError("missing credentials name")
+	}
+	return nil
+}
+
 // NewUserParams holds the needed information to create
 // a new user
 type NewUserParams struct {

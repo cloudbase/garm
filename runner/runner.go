@@ -15,6 +15,7 @@ import (
 	"strings"
 	"sync"
 
+	"garm/auth"
 	"garm/config"
 	"garm/database"
 	dbCommon "garm/database/common"
@@ -101,8 +102,6 @@ func (r *Runner) ListProviders(ctx context.Context) ([]params.Provider, error) {
 	ret := []params.Provider{}
 
 	for _, val := range r.providers {
-		params := val.AsParams()
-		log.Printf(">>>>> %s", params.Name)
 		ret = append(ret, val.AsParams())
 	}
 	return ret, nil
@@ -138,6 +137,20 @@ func (r *Runner) loadReposAndOrgs() error {
 			return errors.Wrap(err, "loading repo pool manager")
 		}
 		r.repositories[repo.ID] = poolManager
+	}
+
+	orgs, err := r.store.ListOrganizations(r.ctx)
+	if err != nil {
+		return errors.Wrap(err, "fetching repositories")
+	}
+
+	for _, org := range orgs {
+		log.Printf("creating pool manager for organization %s", org.Name)
+		poolManager, err := r.loadOrgPoolManager(org)
+		if err != nil {
+			return errors.Wrap(err, "loading repo pool manager")
+		}
+		r.organizations[org.ID] = poolManager
 	}
 
 	return nil
@@ -206,21 +219,6 @@ func (r *Runner) Wait() error {
 	}
 	wg.Wait()
 	return nil
-}
-
-func (r *Runner) findOrgPoolManager(name string) (common.PoolManager, error) {
-	r.mux.Lock()
-	defer r.mux.Unlock()
-
-	org, err := r.store.GetOrganization(r.ctx, name)
-	if err != nil {
-		return nil, errors.Wrap(err, "fetching repo")
-	}
-
-	if orgPoolMgr, ok := r.organizations[org.ID]; ok {
-		return orgPoolMgr, nil
-	}
-	return nil, errors.Wrapf(runnerErrors.ErrNotFound, "organization %s not configured", name)
 }
 
 func (r *Runner) validateHookBody(signature, secret string, body []byte) error {
@@ -378,6 +376,88 @@ func (r *Runner) ensureSSHKeys() error {
 
 	if err := ioutil.WriteFile(pubKeyFile, pubKey, 0o600); err != nil {
 		return errors.Wrap(err, "writing public key")
+	}
+
+	return nil
+}
+
+func (r *Runner) appendTagsToCreatePoolParams(param params.CreatePoolParams) (params.CreatePoolParams, error) {
+	if err := param.Validate(); err != nil {
+		return params.CreatePoolParams{}, errors.Wrapf(runnerErrors.ErrBadRequest, "validating params: %s", err)
+	}
+
+	if !IsSupportedOSType(param.OSType) {
+		return params.CreatePoolParams{}, runnerErrors.NewBadRequestError("invalid OS type %s", param.OSType)
+	}
+
+	if !IsSupportedArch(param.OSArch) {
+		return params.CreatePoolParams{}, runnerErrors.NewBadRequestError("invalid OS architecture %s", param.OSArch)
+	}
+
+	_, ok := r.providers[param.ProviderName]
+	if !ok {
+		return params.CreatePoolParams{}, runnerErrors.NewBadRequestError("no such provider %s", param.ProviderName)
+	}
+
+	// github automatically adds the "self-hosted" tag as well as the OS type (linux, windows, etc)
+	// and architecture (arm, x64, etc) to all self hosted runners. When a workflow job comes in, we try
+	// to find a pool based on the labels that are set in the workflow. If we don't explicitly define these
+	// default tags for each pool, and the user targets these labels, we won't be able to match any pools.
+	// The downside is that all pools with the same OS and arch will have these default labels. Users should
+	// set distinct and unique labels on each pool, and explicitly target those labels, or risk assigning
+	// the job to the wrong worker type.
+	ghArch, err := util.ResolveToGithubArch(string(param.OSArch))
+	if err != nil {
+		return params.CreatePoolParams{}, errors.Wrap(err, "invalid arch")
+	}
+
+	osType, err := util.ResolveToGithubOSType(string(param.OSType))
+	if err != nil {
+		return params.CreatePoolParams{}, errors.Wrap(err, "invalid os type")
+	}
+
+	extraLabels := []string{
+		"self-hosted",
+		ghArch,
+		osType,
+	}
+
+	param.Tags = append(param.Tags, extraLabels...)
+
+	return param, nil
+}
+
+func (r *Runner) GetInstance(ctx context.Context, instanceName string) (params.Instance, error) {
+	if !auth.IsAdmin(ctx) {
+		return params.Instance{}, runnerErrors.ErrUnauthorized
+	}
+
+	instance, err := r.store.GetInstanceByName(ctx, instanceName)
+	if err != nil {
+		return params.Instance{}, errors.Wrap(err, "fetching instance")
+	}
+	return instance, nil
+}
+
+func (r *Runner) AddInstanceStatusMessage(ctx context.Context, param params.InstanceUpdateMessage) error {
+	instanceID := auth.InstanceID(ctx)
+	if instanceID == "" {
+		return runnerErrors.ErrUnauthorized
+	}
+
+	if err := r.store.AddInstanceStatusMessage(ctx, instanceID, param.Message); err != nil {
+		return errors.Wrap(err, "adding status update")
+	}
+
+	// if param.Status == providerCommon.RunnerIdle {
+	// }
+
+	updateParams := params.UpdateInstanceParams{
+		RunnerStatus: param.Status,
+	}
+
+	if _, err := r.store.UpdateInstance(r.ctx, instanceID, updateParams); err != nil {
+		return errors.Wrap(err, "updating runner state")
 	}
 
 	return nil

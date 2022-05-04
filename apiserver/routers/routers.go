@@ -96,40 +96,40 @@ func NewAPIRouter(han *controllers.APIController, logWriter io.Writer, authMiddl
 	// Organizations and pools //
 	/////////////////////////////
 	// Get pool
-	apiRouter.Handle("/organizations/{orgID}/pools/{poolID}/", log(os.Stdout, http.HandlerFunc(han.CatchAll))).Methods("GET", "OPTIONS")
-	apiRouter.Handle("/organizations/{orgID}/pools/{poolID}", log(os.Stdout, http.HandlerFunc(han.CatchAll))).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/organizations/{orgID}/pools/{poolID}/", log(os.Stdout, http.HandlerFunc(han.GetOrgPoolHandler))).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/organizations/{orgID}/pools/{poolID}", log(os.Stdout, http.HandlerFunc(han.GetOrgPoolHandler))).Methods("GET", "OPTIONS")
 	// Delete pool
-	apiRouter.Handle("/organizations/{orgID}/pools/{poolID}/", log(os.Stdout, http.HandlerFunc(han.CatchAll))).Methods("DELETE", "OPTIONS")
-	apiRouter.Handle("/organizations/{orgID}/pools/{poolID}", log(os.Stdout, http.HandlerFunc(han.CatchAll))).Methods("DELETE", "OPTIONS")
+	apiRouter.Handle("/organizations/{orgID}/pools/{poolID}/", log(os.Stdout, http.HandlerFunc(han.DeleteOrgPoolHandler))).Methods("DELETE", "OPTIONS")
+	apiRouter.Handle("/organizations/{orgID}/pools/{poolID}", log(os.Stdout, http.HandlerFunc(han.DeleteOrgPoolHandler))).Methods("DELETE", "OPTIONS")
 	// Update pool
-	apiRouter.Handle("/organizations/{orgID}/pools/{poolID}/", log(os.Stdout, http.HandlerFunc(han.CatchAll))).Methods("PUT", "OPTIONS")
-	apiRouter.Handle("/organizations/{orgID}/pools/{poolID}", log(os.Stdout, http.HandlerFunc(han.CatchAll))).Methods("PUT", "OPTIONS")
+	apiRouter.Handle("/organizations/{orgID}/pools/{poolID}/", log(os.Stdout, http.HandlerFunc(han.UpdateOrgPoolHandler))).Methods("PUT", "OPTIONS")
+	apiRouter.Handle("/organizations/{orgID}/pools/{poolID}", log(os.Stdout, http.HandlerFunc(han.UpdateOrgPoolHandler))).Methods("PUT", "OPTIONS")
 	// List pools
-	apiRouter.Handle("/organizations/{orgID}/pools/", log(os.Stdout, http.HandlerFunc(han.CatchAll))).Methods("GET", "OPTIONS")
-	apiRouter.Handle("/organizations/{orgID}/pools", log(os.Stdout, http.HandlerFunc(han.CatchAll))).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/organizations/{orgID}/pools/", log(os.Stdout, http.HandlerFunc(han.ListOrgPoolsHandler))).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/organizations/{orgID}/pools", log(os.Stdout, http.HandlerFunc(han.ListOrgPoolsHandler))).Methods("GET", "OPTIONS")
 	// Create pool
-	apiRouter.Handle("/organizations/{orgID}/pools/", log(os.Stdout, http.HandlerFunc(han.CatchAll))).Methods("POST", "OPTIONS")
-	apiRouter.Handle("/organizations/{orgID}/pools", log(os.Stdout, http.HandlerFunc(han.CatchAll))).Methods("POST", "OPTIONS")
+	apiRouter.Handle("/organizations/{orgID}/pools/", log(os.Stdout, http.HandlerFunc(han.CreateOrgPoolHandler))).Methods("POST", "OPTIONS")
+	apiRouter.Handle("/organizations/{orgID}/pools", log(os.Stdout, http.HandlerFunc(han.CreateOrgPoolHandler))).Methods("POST", "OPTIONS")
 
 	// Repo instances list
-	apiRouter.Handle("/organizations/{orgID}/instances/", log(os.Stdout, http.HandlerFunc(han.CatchAll))).Methods("GET", "OPTIONS")
-	apiRouter.Handle("/organizations/{orgID}/instances", log(os.Stdout, http.HandlerFunc(han.CatchAll))).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/organizations/{orgID}/instances/", log(os.Stdout, http.HandlerFunc(han.ListOrgInstancesHandler))).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/organizations/{orgID}/instances", log(os.Stdout, http.HandlerFunc(han.ListOrgInstancesHandler))).Methods("GET", "OPTIONS")
 
 	// Get org
-	apiRouter.Handle("/organizations/{orgID}/", log(os.Stdout, http.HandlerFunc(han.CatchAll))).Methods("GET", "OPTIONS")
-	apiRouter.Handle("/organizations/{orgID}", log(os.Stdout, http.HandlerFunc(han.CatchAll))).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/organizations/{orgID}/", log(os.Stdout, http.HandlerFunc(han.GetOrgByIDHandler))).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/organizations/{orgID}", log(os.Stdout, http.HandlerFunc(han.GetOrgByIDHandler))).Methods("GET", "OPTIONS")
 	// Update org
-	apiRouter.Handle("/organizations/{orgID}/", log(os.Stdout, http.HandlerFunc(han.CatchAll))).Methods("PUT", "OPTIONS")
-	apiRouter.Handle("/organizations/{orgID}", log(os.Stdout, http.HandlerFunc(han.CatchAll))).Methods("PUT", "OPTIONS")
+	apiRouter.Handle("/organizations/{orgID}/", log(os.Stdout, http.HandlerFunc(han.UpdateOrgHandler))).Methods("PUT", "OPTIONS")
+	apiRouter.Handle("/organizations/{orgID}", log(os.Stdout, http.HandlerFunc(han.UpdateOrgHandler))).Methods("PUT", "OPTIONS")
 	// Delete org
-	apiRouter.Handle("/organizations/{orgID}/", log(os.Stdout, http.HandlerFunc(han.CatchAll))).Methods("DELETE", "OPTIONS")
-	apiRouter.Handle("/organizations/{orgID}", log(os.Stdout, http.HandlerFunc(han.CatchAll))).Methods("DELETE", "OPTIONS")
+	apiRouter.Handle("/organizations/{orgID}/", log(os.Stdout, http.HandlerFunc(han.DeleteOrgHandler))).Methods("DELETE", "OPTIONS")
+	apiRouter.Handle("/organizations/{orgID}", log(os.Stdout, http.HandlerFunc(han.DeleteOrgHandler))).Methods("DELETE", "OPTIONS")
 	// List orgs
-	apiRouter.Handle("/organizations/", log(os.Stdout, http.HandlerFunc(han.CatchAll))).Methods("GET", "OPTIONS")
-	apiRouter.Handle("/organizations", log(os.Stdout, http.HandlerFunc(han.CatchAll))).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/organizations/", log(os.Stdout, http.HandlerFunc(han.ListOrgsHandler))).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/organizations", log(os.Stdout, http.HandlerFunc(han.ListOrgsHandler))).Methods("GET", "OPTIONS")
 	// Create org
-	apiRouter.Handle("/organizations/", log(os.Stdout, http.HandlerFunc(han.CatchAll))).Methods("POST", "OPTIONS")
-	apiRouter.Handle("/organizations", log(os.Stdout, http.HandlerFunc(han.CatchAll))).Methods("POST", "OPTIONS")
+	apiRouter.Handle("/organizations/", log(os.Stdout, http.HandlerFunc(han.CreateOrgHandler))).Methods("POST", "OPTIONS")
+	apiRouter.Handle("/organizations", log(os.Stdout, http.HandlerFunc(han.CreateOrgHandler))).Methods("POST", "OPTIONS")
 
 	// Credentials and providers
 	apiRouter.Handle("/credentials/", log(os.Stdout, http.HandlerFunc(han.ListCredentials))).Methods("GET", "OPTIONS")

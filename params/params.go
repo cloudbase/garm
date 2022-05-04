@@ -166,3 +166,8 @@ type Provider struct {
 	ProviderType config.ProviderType `json:"type"`
 	Description  string              `json:"description"`
 }
+
+type UpdatePoolStateParams struct {
+	WebhookSecret string
+	Internal      Internal
+}
