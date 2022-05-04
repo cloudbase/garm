@@ -95,7 +95,7 @@ func (r *organization) FetchTools() ([]*github.RunnerApplicationDownload, error)
 }
 
 func (r *organization) FetchDbInstances() ([]params.Instance, error) {
-	return r.store.ListRepoInstances(r.ctx, r.id)
+	return r.store.ListOrgInstances(r.ctx, r.id)
 }
 
 func (r *organization) RemoveGithubRunner(runnerID int64) error {
@@ -104,7 +104,7 @@ func (r *organization) RemoveGithubRunner(runnerID int64) error {
 }
 
 func (r *organization) ListPools() ([]params.Pool, error) {
-	pools, err := r.store.ListRepoPools(r.ctx, r.id)
+	pools, err := r.store.ListOrgPools(r.ctx, r.id)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching pools")
 	}
@@ -141,7 +141,7 @@ func (r *organization) GetCallbackURL() string {
 }
 
 func (r *organization) FindPoolByTags(labels []string) (params.Pool, error) {
-	pool, err := r.store.FindRepositoryPoolByTags(r.ctx, r.id, labels)
+	pool, err := r.store.FindOrganizationPoolByTags(r.ctx, r.id, labels)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching suitable pool")
 	}
@@ -149,7 +149,7 @@ func (r *organization) FindPoolByTags(labels []string) (params.Pool, error) {
 }
 
 func (r *organization) GetPoolByID(poolID string) (params.Pool, error) {
-	pool, err := r.store.GetRepositoryPool(r.ctx, r.id, poolID)
+	pool, err := r.store.GetOrganizationPool(r.ctx, r.id, poolID)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}

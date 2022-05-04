@@ -10,14 +10,14 @@ type Store interface {
 	GetRepository(ctx context.Context, owner, name string) (params.Repository, error)
 	GetRepositoryByID(ctx context.Context, repoID string) (params.Repository, error)
 	ListRepositories(ctx context.Context) ([]params.Repository, error)
-	DeleteRepository(ctx context.Context, repoID string, hardDelete bool) error
+	DeleteRepository(ctx context.Context, repoID string) error
 	UpdateRepository(ctx context.Context, repoID string, param params.UpdateRepositoryParams) (params.Repository, error)
 
 	CreateOrganization(ctx context.Context, name, credentialsName, webhookSecret string) (params.Organization, error)
 	GetOrganization(ctx context.Context, name string) (params.Organization, error)
 	GetOrganizationByID(ctx context.Context, orgID string) (params.Organization, error)
 	ListOrganizations(ctx context.Context) ([]params.Organization, error)
-	DeleteOrganization(ctx context.Context, name string) error
+	DeleteOrganization(ctx context.Context, orgID string) error
 	UpdateOrganization(ctx context.Context, orgID string, param params.UpdateRepositoryParams) (params.Organization, error)
 
 	CreateRepositoryPool(ctx context.Context, repoId string, param params.CreatePoolParams) (params.Pool, error)

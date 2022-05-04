@@ -113,7 +113,7 @@ func (r *Runner) DeleteOrganization(ctx context.Context, orgID string) error {
 	}
 
 	if err := r.store.DeleteOrganization(ctx, orgID); err != nil {
-		return errors.Wrap(err, "removing repository")
+		return errors.Wrapf(err, "removing organization %s", orgID)
 	}
 	return nil
 }

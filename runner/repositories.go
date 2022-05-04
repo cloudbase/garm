@@ -43,7 +43,7 @@ func (r *Runner) CreateRepository(ctx context.Context, param params.CreateRepoPa
 
 	defer func() {
 		if err != nil {
-			r.store.DeleteRepository(ctx, repo.ID, true)
+			r.store.DeleteRepository(ctx, repo.ID)
 		}
 	}()
 
@@ -112,7 +112,7 @@ func (r *Runner) DeleteRepository(ctx context.Context, repoID string) error {
 		return runnerErrors.NewBadRequestError("repo has pools defined (%s)", strings.Join(poolIds, ", "))
 	}
 
-	if err := r.store.DeleteRepository(ctx, repoID, true); err != nil {
+	if err := r.store.DeleteRepository(ctx, repoID); err != nil {
 		return errors.Wrap(err, "removing repository")
 	}
 	return nil

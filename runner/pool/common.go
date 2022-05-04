@@ -253,6 +253,8 @@ func (r *basePool) addInstanceToProvider(instance params.Instance) error {
 		return runnerErrors.NewNotFoundError("invalid provider ID")
 	}
 
+	log.Printf(">>> %v", pool.Tags)
+
 	labels := []string{}
 	for _, tag := range pool.Tags {
 		labels = append(labels, tag.Name)

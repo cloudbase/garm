@@ -50,10 +50,10 @@ type Pool struct {
 	Tags           []*Tag `gorm:"many2many:pool_tags;"`
 	Enabled        bool
 
-	RepoID     uuid.UUID
+	RepoID     uuid.UUID  `gorm:"index"`
 	Repository Repository `gorm:"foreignKey:RepoID"`
 
-	OrgID        uuid.UUID
+	OrgID        uuid.UUID    `gorm:"index"`
 	Organization Organization `gorm:"foreignKey:OrgID"`
 
 	Instances []Instance `gorm:"foreignKey:PoolID"`

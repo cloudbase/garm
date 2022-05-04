@@ -23,7 +23,7 @@ func (a *APIController) CreateOrgHandler(w http.ResponseWriter, r *http.Request)
 
 	repo, err := a.r.CreateOrganization(ctx, repoData)
 	if err != nil {
-		log.Printf("error creating repository: %s", err)
+		log.Printf("error creating repository: %+v", err)
 		handleError(w, err)
 		return
 	}
@@ -86,7 +86,7 @@ func (a *APIController) DeleteOrgHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	if err := a.r.DeleteOrganization(ctx, orgID); err != nil {
-		log.Printf("fetching org: %s", err)
+		log.Printf("removing org: %+v", err)
 		handleError(w, err)
 		return
 	}

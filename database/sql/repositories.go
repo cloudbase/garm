@@ -77,17 +77,13 @@ func (s *sqlDatabase) ListRepositories(ctx context.Context) ([]params.Repository
 	return ret, nil
 }
 
-func (s *sqlDatabase) DeleteRepository(ctx context.Context, repoID string, hardDelete bool) error {
+func (s *sqlDatabase) DeleteRepository(ctx context.Context, repoID string) error {
 	repo, err := s.getRepoByID(ctx, repoID)
 	if err != nil {
 		return errors.Wrap(err, "fetching repo")
 	}
 
-	q := s.conn
-	if hardDelete {
-		q = q.Unscoped()
-	}
-	q = q.Delete(&repo)
+	q := s.conn.Unscoped().Delete(&repo)
 	if q.Error != nil && !errors.Is(q.Error, gorm.ErrRecordNotFound) {
 		return errors.Wrap(q.Error, "deleting repo")
 	}
