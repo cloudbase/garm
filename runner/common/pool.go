@@ -1,7 +1,7 @@
 package common
 
 import (
-	"runner-manager/params"
+	"garm/params"
 )
 
 type PoolType string

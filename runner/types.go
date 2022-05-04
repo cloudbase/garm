@@ -1,6 +1,6 @@
 package runner
 
-import "runner-manager/config"
+import "garm/config"
 
 type HookTargetType string
 

@@ -2,9 +2,9 @@ package params
 
 import (
 	"fmt"
-	"runner-manager/config"
-	"runner-manager/errors"
-	"runner-manager/runner/providers/common"
+	"garm/config"
+	"garm/errors"
+	"garm/runner/providers/common"
 )
 
 type InstanceRequest struct {

@@ -1,8 +1,8 @@
 package sql
 
 import (
-	"runner-manager/config"
-	"runner-manager/runner/providers/common"
+	"garm/config"
+	"garm/runner/providers/common"
 	"time"
 
 	"github.com/pkg/errors"

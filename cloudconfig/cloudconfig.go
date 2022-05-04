@@ -3,7 +3,7 @@ package cloudconfig
 import (
 	"encoding/base64"
 	"fmt"
-	"runner-manager/config"
+	"garm/config"
 	"strings"
 	"sync"
 

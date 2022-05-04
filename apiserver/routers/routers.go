@@ -8,8 +8,8 @@ import (
 	gorillaHandlers "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 
-	"runner-manager/apiserver/controllers"
-	"runner-manager/auth"
+	"garm/apiserver/controllers"
+	"garm/auth"
 )
 
 func NewAPIRouter(han *controllers.APIController, logWriter io.Writer, authMiddleware, initMiddleware, instanceMiddleware auth.Middleware) *mux.Router {

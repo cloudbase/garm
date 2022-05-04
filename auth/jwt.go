@@ -7,10 +7,10 @@ import (
 	"net/http"
 	"strings"
 
-	apiParams "runner-manager/apiserver/params"
-	"runner-manager/config"
-	dbCommon "runner-manager/database/common"
-	runnerErrors "runner-manager/errors"
+	apiParams "garm/apiserver/params"
+	"garm/config"
+	dbCommon "garm/database/common"
+	runnerErrors "garm/errors"
 
 	"github.com/golang-jwt/jwt"
 )

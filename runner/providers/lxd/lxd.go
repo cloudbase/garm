@@ -3,12 +3,13 @@ package lxd
 import (
 	"context"
 	"fmt"
+	"log"
 
-	"runner-manager/config"
-	runnerErrors "runner-manager/errors"
-	"runner-manager/params"
-	"runner-manager/runner/common"
-	"runner-manager/util"
+	"garm/config"
+	runnerErrors "garm/errors"
+	"garm/params"
+	"garm/runner/common"
+	"garm/util"
 
 	"github.com/google/go-github/v43/github"
 	lxd "github.com/lxc/lxd/client"
@@ -53,8 +54,8 @@ var (
 )
 
 const (
-	DefaultProjectDescription = "This project was created automatically by runner-manager to be used for github ephemeral action runners."
-	DefaultProjectName        = "runner-manager-project"
+	DefaultProjectDescription = "This project was created automatically by garm to be used for github ephemeral action runners."
+	DefaultProjectName        = "garm-project"
 )
 
 func NewProvider(ctx context.Context, cfg *config.Provider, controllerID string) (common.Provider, error) {
@@ -213,7 +214,7 @@ func (l *LXD) getCreateInstanceArgs(bootstrapParams params.BootstrapInstance) (a
 		InstancePut: api.InstancePut{
 			Architecture: image.Architecture,
 			Profiles:     profiles,
-			Description:  "Github runner provisioned by runner-manager",
+			Description:  "Github runner provisioned by garm",
 			Config: map[string]string{
 				"user.user-data":      cloudCfg,
 				"security.secureboot": l.secureBootEnabled(),
@@ -232,6 +233,7 @@ func (l *LXD) getCreateInstanceArgs(bootstrapParams params.BootstrapInstance) (a
 }
 
 func (l *LXD) AsParams() params.Provider {
+	log.Printf("<<<<< %s", l.cfg.Name)
 	return params.Provider{
 		Name:         l.cfg.Name,
 		ProviderType: l.cfg.ProviderType,

@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"runner-manager/config"
-	dbCommon "runner-manager/database/common"
-	runnerErrors "runner-manager/errors"
-	"runner-manager/params"
-	"runner-manager/runner/common"
+	"garm/config"
+	dbCommon "garm/database/common"
+	runnerErrors "garm/errors"
+	"garm/params"
+	"garm/runner/common"
 	"strings"
 	"time"
 
@@ -34,7 +34,7 @@ func NewInstanceJWTToken(instance params.Instance, secret, entity string, poolTy
 	claims := InstanceJWTClaims{
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: expireToken,
-			Issuer:    "runner-manager",
+			Issuer:    "garm",
 		},
 		ID:     instance.ID,
 		Name:   instance.Name,

@@ -3,7 +3,7 @@ package auth
 import (
 	"context"
 
-	"runner-manager/params"
+	"garm/params"
 )
 
 type contextFlags string

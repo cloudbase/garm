@@ -3,12 +3,12 @@ package runner
 import (
 	"context"
 	"log"
-	"runner-manager/auth"
-	runnerErrors "runner-manager/errors"
-	"runner-manager/params"
-	"runner-manager/runner/common"
-	"runner-manager/runner/pool"
-	"runner-manager/util"
+	"garm/auth"
+	runnerErrors "garm/errors"
+	"garm/params"
+	"garm/runner/common"
+	"garm/runner/pool"
+	"garm/util"
 	"strings"
 
 	"github.com/pkg/errors"

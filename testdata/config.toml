@@ -1,7 +1,7 @@
 [default]
-config_dir = "/etc/runner-manager"
+config_dir = "/etc/garm"
 callback_url = "https://webhooks.samfira.com/api/v1/instances/status"
-# log_file = "/tmp/runner-manager.log"
+# log_file = "/tmp/garm.log"
 
 [jwt_auth]
 secret = "L&CGG?%VaV;Zs5CnGqaWINDBhx<GSU*IIrS&gX*TA&e$f<P@KMVdg2To^w5'ms!<"

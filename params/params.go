@@ -1,8 +1,8 @@
 package params
 
 import (
-	"runner-manager/config"
-	"runner-manager/runner/providers/common"
+	"garm/config"
+	"garm/runner/providers/common"
 	"time"
 
 	"github.com/google/go-github/v43/github"
@@ -73,7 +73,7 @@ type BootstrapInstance struct {
 	// progress or status.
 	CallbackURL string `json:"callback-url"`
 	// InstanceToken is the token that needs to be set by the instance in the headers
-	// in order to send updated back to the runner-manager via CallbackURL.
+	// in order to send updated back to the garm via CallbackURL.
 	InstanceToken string `json:"instance-token"`
 	// SSHKeys are the ssh public keys we may want to inject inside the runners, if the
 	// provider supports it.

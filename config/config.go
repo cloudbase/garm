@@ -32,12 +32,12 @@ const (
 	// LXDProvider represents the LXD provider.
 	LXDProvider ProviderType = "lxd"
 
-	// DefaultConfigFilePath is the default path on disk to the runner-manager
+	// DefaultConfigFilePath is the default path on disk to the garm
 	// configuration file.
-	DefaultConfigFilePath = "/etc/runner-manager/config.toml"
+	DefaultConfigFilePath = "/etc/garm/config.toml"
 	// DefaultConfigDir is the default path on disk to the config dir. The config
 	// file will probably be in the same folder, but it is not mandatory.
-	DefaultConfigDir = "/etc/runner-manager"
+	DefaultConfigDir = "/etc/garm"
 
 	// DefaultUser is the default username that should exist on the instances.
 	DefaultUser = "runner"

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"runner-manager/config"
-	runnerErrors "runner-manager/errors"
+	"garm/config"
+	runnerErrors "garm/errors"
 
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/shared/api"

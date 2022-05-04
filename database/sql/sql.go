@@ -3,11 +3,11 @@ package sql
 import (
 	"context"
 	"fmt"
-	"runner-manager/config"
-	"runner-manager/database/common"
-	runnerErrors "runner-manager/errors"
-	"runner-manager/params"
-	"runner-manager/util"
+	"garm/config"
+	"garm/database/common"
+	runnerErrors "garm/errors"
+	"garm/params"
+	"garm/util"
 
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"

@@ -1,4 +1,4 @@
-module runner-manager
+module garm
 
 go 1.18
 

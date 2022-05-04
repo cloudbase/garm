@@ -3,8 +3,8 @@ package auth
 import (
 	"encoding/json"
 	"net/http"
-	"runner-manager/apiserver/params"
-	"runner-manager/database/common"
+	"garm/apiserver/params"
+	"garm/database/common"
 )
 
 // NewjwtMiddleware returns a populated jwtMiddleware

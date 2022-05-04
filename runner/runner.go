@@ -15,14 +15,14 @@ import (
 	"strings"
 	"sync"
 
-	"runner-manager/config"
-	"runner-manager/database"
-	dbCommon "runner-manager/database/common"
-	runnerErrors "runner-manager/errors"
-	"runner-manager/params"
-	"runner-manager/runner/common"
-	"runner-manager/runner/providers"
-	"runner-manager/util"
+	"garm/config"
+	"garm/database"
+	dbCommon "garm/database/common"
+	runnerErrors "garm/errors"
+	"garm/params"
+	"garm/runner/common"
+	"garm/runner/providers"
+	"garm/util"
 
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/ssh"
@@ -101,6 +101,8 @@ func (r *Runner) ListProviders(ctx context.Context) ([]params.Provider, error) {
 	ret := []params.Provider{}
 
 	for _, val := range r.providers {
+		params := val.AsParams()
+		log.Printf(">>>>> %s", params.Name)
 		ret = append(ret, val.AsParams())
 	}
 	return ret, nil

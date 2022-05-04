@@ -2,7 +2,7 @@ package common
 
 import (
 	"context"
-	"runner-manager/params"
+	"garm/params"
 )
 
 type Store interface {

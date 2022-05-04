@@ -29,10 +29,10 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 
-	"runner-manager/cloudconfig"
-	"runner-manager/config"
-	runnerErrors "runner-manager/errors"
-	"runner-manager/params"
+	"garm/cloudconfig"
+	"garm/config"
+	runnerErrors "garm/errors"
+	"garm/params"
 )
 
 const alphanumeric = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"

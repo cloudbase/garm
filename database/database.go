@@ -3,9 +3,9 @@ package database
 import (
 	"context"
 	"fmt"
-	"runner-manager/config"
-	"runner-manager/database/common"
-	"runner-manager/database/sql"
+	"garm/config"
+	"garm/database/common"
+	"garm/database/sql"
 )
 
 func NewDatabase(ctx context.Context, cfg config.Database) (common.Store, error) {

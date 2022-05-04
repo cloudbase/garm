@@ -2,11 +2,11 @@ package auth
 
 import (
 	"context"
-	"runner-manager/config"
-	"runner-manager/database/common"
-	runnerErrors "runner-manager/errors"
-	"runner-manager/params"
-	"runner-manager/util"
+	"garm/config"
+	"garm/database/common"
+	runnerErrors "garm/errors"
+	"garm/params"
+	"garm/util"
 	"time"
 
 	"github.com/golang-jwt/jwt"
@@ -45,7 +45,7 @@ func (a *Authenticator) GetJWTToken(ctx context.Context) (string, error) {
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: expireToken,
 			// TODO: make this configurable
-			Issuer: "runner-manager",
+			Issuer: "garm",
 		},
 		UserID:   UserID(ctx),
 		TokenID:  tokenID,

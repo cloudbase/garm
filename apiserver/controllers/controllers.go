@@ -6,11 +6,11 @@ import (
 	"log"
 	"net/http"
 
-	"runner-manager/apiserver/params"
-	"runner-manager/auth"
-	gErrors "runner-manager/errors"
-	runnerParams "runner-manager/params"
-	"runner-manager/runner"
+	"garm/apiserver/params"
+	"garm/auth"
+	gErrors "garm/errors"
+	runnerParams "garm/params"
+	"garm/runner"
 
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"

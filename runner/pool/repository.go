@@ -8,14 +8,14 @@ import (
 	"sync"
 	"time"
 
-	"runner-manager/auth"
-	"runner-manager/config"
-	dbCommon "runner-manager/database/common"
-	runnerErrors "runner-manager/errors"
-	"runner-manager/params"
-	"runner-manager/runner/common"
-	providerCommon "runner-manager/runner/providers/common"
-	"runner-manager/util"
+	"garm/auth"
+	"garm/config"
+	dbCommon "garm/database/common"
+	runnerErrors "garm/errors"
+	"garm/params"
+	"garm/runner/common"
+	providerCommon "garm/runner/providers/common"
+	"garm/util"
 
 	"github.com/google/go-github/v43/github"
 	"github.com/google/uuid"
@@ -268,7 +268,7 @@ func (r *Repository) cleanupOrphanedGithubRunners(runners []*github.Runner) erro
 // cleanupOrphanedProviderRunners compares runners in github with local runners and removes
 // any local runners that are not present in Github. Runners that are "idle" in our
 // provider, but do not exist in github, will be removed. This can happen if the
-// runner-manager was offline while a job was executed by a github action. When this
+// garm was offline while a job was executed by a github action. When this
 // happens, github will remove the ephemeral worker and send a webhook our way.
 // If we were offline and did not process the webhook, the instance will linger.
 // We need to remove it from the provider and database.
@@ -363,19 +363,12 @@ func (r *Repository) githubURL() string {
 	return fmt.Sprintf("%s/%s/%s", config.GithubBaseURL, r.cfg.Owner, r.cfg.Name)
 }
 
-func (r *Repository) poolLabel() string {
-	return fmt.Sprintf("%s%s", poolIDLabelprefix, r.id)
+func (r *Repository) poolLabel(poolID string) string {
+	return fmt.Sprintf("%s%s", poolIDLabelprefix, poolID)
 }
 
 func (r *Repository) controllerLabel() string {
 	return fmt.Sprintf("%s%s", controllerLabelPrefix, r.controllerID)
-}
-
-func (r *Repository) getLabels() []string {
-	return []string{
-		r.poolLabel(),
-		r.controllerLabel(),
-	}
 }
 
 func (r *Repository) updateArgsFromProviderInstance(providerInstance params.Instance) params.UpdateInstanceParams {
@@ -425,7 +418,8 @@ func (r *Repository) addInstanceToProvider(instance params.Instance) error {
 	for _, tag := range pool.Tags {
 		labels = append(labels, tag.Name)
 	}
-	labels = append(labels, r.getLabels()...)
+	labels = append(labels, r.controllerLabel())
+	labels = append(labels, r.poolLabel(pool.ID))
 
 	tk, _, err := r.ghcli.Actions.CreateRegistrationToken(r.ctx, r.cfg.Owner, r.cfg.Name)
 
@@ -470,7 +464,7 @@ func (r *Repository) AddRunner(ctx context.Context, poolID string) error {
 		return errors.Wrap(err, "fetching pool")
 	}
 
-	name := fmt.Sprintf("runner-manager-%s", uuid.New())
+	name := fmt.Sprintf("garm-%s", uuid.New())
 
 	createParams := params.CreateInstanceParams{
 		Name:         name,

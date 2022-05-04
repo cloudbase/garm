@@ -66,8 +66,9 @@ type LXD struct {
 	// the "default" profile to any newly created instance.
 	IncludeDefaultProfile bool `toml:"include_default_profile" json:"include-default-profile"`
 
-	// URL holds the IP address.
-	URL string `toml:"address" json:"address"`
+	// URL holds the URL of the remote LXD server.
+	// example: https://10.10.10.1:8443/
+	URL string `toml:"url" json:"url"`
 	// ClientCertificate is the x509 client certificate path used for authentication.
 	ClientCertificate string `toml:"client_certificate" json:"client_certificate"`
 	// ClientKey is the key used for client certificate authentication.
