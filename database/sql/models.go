@@ -40,11 +40,11 @@ type Tag struct {
 type Pool struct {
 	Base
 
-	ProviderName   string `gorm:"index:idx_pool_type,unique"`
+	ProviderName   string `gorm:"index:idx_pool_type"`
 	MaxRunners     uint
 	MinIdleRunners uint
-	Image          string `gorm:"index:idx_pool_type,unique"`
-	Flavor         string `gorm:"index:idx_pool_type,unique"`
+	Image          string `gorm:"index:idx_pool_type"`
+	Flavor         string `gorm:"index:idx_pool_type"`
 	OSType         config.OSType
 	OSArch         config.OSArch
 	Tags           []*Tag `gorm:"many2many:pool_tags;"`

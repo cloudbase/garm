@@ -19,9 +19,6 @@ import (
 	"garm/util"
 
 	"github.com/pkg/errors"
-	// "github.com/google/go-github/v43/github"
-	// "golang.org/x/oauth2"
-	// "gopkg.in/yaml.v3"
 )
 
 var (

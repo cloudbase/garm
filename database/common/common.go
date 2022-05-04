@@ -15,8 +15,10 @@ type Store interface {
 
 	CreateOrganization(ctx context.Context, name, credentialsName, webhookSecret string) (params.Organization, error)
 	GetOrganization(ctx context.Context, name string) (params.Organization, error)
+	GetOrganizationByID(ctx context.Context, orgID string) (params.Organization, error)
 	ListOrganizations(ctx context.Context) ([]params.Organization, error)
 	DeleteOrganization(ctx context.Context, name string) error
+	UpdateOrganization(ctx context.Context, orgID string, param params.UpdateRepositoryParams) (params.Organization, error)
 
 	CreateRepositoryPool(ctx context.Context, repoId string, param params.CreatePoolParams) (params.Pool, error)
 	CreateOrganizationPool(ctx context.Context, orgId string, param params.CreatePoolParams) (params.Pool, error)
@@ -44,7 +46,6 @@ type Store interface {
 	ListRepoInstances(ctx context.Context, repoID string) ([]params.Instance, error)
 	ListOrgInstances(ctx context.Context, orgID string) ([]params.Instance, error)
 
-	// GetInstance(ctx context.Context, poolID string, instanceID string) (params.Instance, error)
 	GetPoolInstanceByName(ctx context.Context, poolID string, instanceName string) (params.Instance, error)
 	GetInstanceByName(ctx context.Context, instanceName string) (params.Instance, error)
 	AddInstanceStatusMessage(ctx context.Context, instanceID string, statusMessage string) error
