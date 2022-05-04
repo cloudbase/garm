@@ -1,5 +1,5 @@
-//go:build windows && ignore
-// +build windows,ignore
+//go:build windows && !linux
+// +build windows,!linux
 
 package main
 
