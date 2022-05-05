@@ -1,0 +1,83 @@
+package runner
+
+import (
+	"context"
+
+	"garm/auth"
+	runnerErrors "garm/errors"
+	"garm/params"
+
+	"github.com/pkg/errors"
+)
+
+func (r *Runner) ListAllPools(ctx context.Context) ([]params.Pool, error) {
+	if !auth.IsAdmin(ctx) {
+		return []params.Pool{}, runnerErrors.ErrUnauthorized
+	}
+	pools, err := r.store.ListAllPools(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "fetching pools")
+	}
+	return pools, nil
+}
+
+func (r *Runner) GetPoolByID(ctx context.Context, poolID string) (params.Pool, error) {
+	if !auth.IsAdmin(ctx) {
+		return params.Pool{}, runnerErrors.ErrUnauthorized
+	}
+
+	pool, err := r.store.GetPoolByID(ctx, poolID)
+	if err != nil {
+		return params.Pool{}, errors.Wrap(err, "fetching pool")
+	}
+	return pool, nil
+}
+
+func (r *Runner) DeletePoolByID(ctx context.Context, poolID string) error {
+	if !auth.IsAdmin(ctx) {
+		return runnerErrors.ErrUnauthorized
+	}
+
+	if err := r.store.DeletePoolByID(ctx, poolID); err != nil {
+		return errors.Wrap(err, "fetching pool")
+	}
+	return nil
+}
+
+func (r *Runner) UpdatePoolByID(ctx context.Context, poolID string, param params.UpdatePoolParams) (params.Pool, error) {
+	if !auth.IsAdmin(ctx) {
+		return params.Pool{}, runnerErrors.ErrUnauthorized
+	}
+
+	pool, err := r.store.GetPoolByID(ctx, poolID)
+	if err != nil {
+		return params.Pool{}, errors.Wrap(err, "fetching pool")
+	}
+
+	maxRunners := pool.MaxRunners
+	minIdleRunners := pool.MinIdleRunners
+
+	if param.MaxRunners != nil {
+		maxRunners = *param.MaxRunners
+	}
+	if param.MinIdleRunners != nil {
+		minIdleRunners = *param.MinIdleRunners
+	}
+
+	if minIdleRunners > maxRunners {
+		return params.Pool{}, runnerErrors.NewBadRequestError("min_idle_runners cannot be larger than max_runners")
+	}
+
+	var newPool params.Pool
+
+	if pool.RepoID != "" {
+		newPool, err = r.store.UpdateRepositoryPool(ctx, pool.RepoID, poolID, param)
+	} else if pool.OrgID != "" {
+		newPool, err = r.store.UpdateOrganizationPool(ctx, pool.OrgID, poolID, param)
+	}
+
+	if err != nil {
+		return params.Pool{}, errors.Wrap(err, "updating pool")
+	}
+	return newPool, nil
+}

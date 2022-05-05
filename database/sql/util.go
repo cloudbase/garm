@@ -1,9 +1,11 @@
 package sql
 
 import (
+	"fmt"
 	"garm/params"
 
 	"github.com/pkg/errors"
+	uuid "github.com/satori/go.uuid"
 	"gorm.io/gorm"
 )
 
@@ -71,6 +73,18 @@ func (s *sqlDatabase) sqlToCommonPool(pool Pool) params.Pool {
 		Enabled:        pool.Enabled,
 		Tags:           make([]params.Tag, len(pool.Tags)),
 		Instances:      make([]params.Instance, len(pool.Instances)),
+	}
+
+	if pool.RepoID != uuid.Nil {
+		ret.RepoID = pool.RepoID.String()
+		if pool.Repository.Owner != "" && pool.Repository.Name != "" {
+			ret.RepoName = fmt.Sprintf("%s/%s", pool.Repository.Owner, pool.Repository.Name)
+		}
+	}
+
+	if pool.OrgID != uuid.Nil && pool.Organization.Name != "" {
+		ret.OrgID = pool.OrgID.String()
+		ret.OrgName = pool.Organization.Name
 	}
 
 	for idx, val := range pool.Tags {

@@ -138,12 +138,99 @@ func (c *Client) GetInstanceByName(instanceName string) (params.Instance, error)
 }
 
 func (c *Client) ListPoolInstances(poolID string) ([]params.Instance, error) {
-	url := fmt.Sprintf("%s/api/v1/pools/instances/%s", c.Config.BaseURL, poolID)
+	url := fmt.Sprintf("%s/api/v1/pools/%s/instances", c.Config.BaseURL, poolID)
 
 	var response []params.Instance
 	resp, err := c.client.R().
 		SetResult(&response).
 		Get(url)
+	if err != nil || resp.IsError() {
+		apiErr, decErr := c.decodeAPIError(resp.Body())
+		if decErr != nil {
+			return response, errors.Wrap(decErr, "sending request")
+		}
+		return response, fmt.Errorf("error performing login: %s", apiErr.Details)
+	}
+	return response, nil
+}
+
+func (c *Client) ListAllInstances() ([]params.Instance, error) {
+	url := fmt.Sprintf("%s/api/v1/instances", c.Config.BaseURL)
+
+	var response []params.Instance
+	resp, err := c.client.R().
+		SetResult(&response).
+		Get(url)
+	if err != nil || resp.IsError() {
+		apiErr, decErr := c.decodeAPIError(resp.Body())
+		if decErr != nil {
+			return response, errors.Wrap(decErr, "sending request")
+		}
+		return response, fmt.Errorf("error performing login: %s", apiErr.Details)
+	}
+	return response, nil
+}
+
+func (c *Client) GetPoolByID(poolID string) (params.Pool, error) {
+	url := fmt.Sprintf("%s/api/v1/pools/%s", c.Config.BaseURL, poolID)
+
+	var response params.Pool
+	resp, err := c.client.R().
+		SetResult(&response).
+		Get(url)
+	if err != nil || resp.IsError() {
+		apiErr, decErr := c.decodeAPIError(resp.Body())
+		if decErr != nil {
+			return response, errors.Wrap(decErr, "sending request")
+		}
+		return response, fmt.Errorf("error performing login: %s", apiErr.Details)
+	}
+	return response, nil
+}
+
+func (c *Client) ListAllPools() ([]params.Pool, error) {
+	url := fmt.Sprintf("%s/api/v1/pools", c.Config.BaseURL)
+
+	var response []params.Pool
+	resp, err := c.client.R().
+		SetResult(&response).
+		Get(url)
+	if err != nil || resp.IsError() {
+		apiErr, decErr := c.decodeAPIError(resp.Body())
+		if decErr != nil {
+			return response, errors.Wrap(decErr, "sending request")
+		}
+		return response, fmt.Errorf("error performing login: %s", apiErr.Details)
+	}
+	return response, nil
+}
+
+func (c *Client) DeletePoolByID(poolID string) error {
+	url := fmt.Sprintf("%s/api/v1/pools/%s", c.Config.BaseURL, poolID)
+	resp, err := c.client.R().
+		Delete(url)
+	if err != nil || resp.IsError() {
+		apiErr, decErr := c.decodeAPIError(resp.Body())
+		if decErr != nil {
+			return errors.Wrap(decErr, "sending request")
+		}
+		return fmt.Errorf("error deleting pool by ID: %s", apiErr.Details)
+	}
+	return nil
+}
+
+func (c *Client) UpdatePoolByID(poolID string, param params.UpdatePoolParams) (params.Pool, error) {
+	url := fmt.Sprintf("%s/api/v1/pools/%s", c.Config.BaseURL, poolID)
+
+	var response params.Pool
+	body, err := json.Marshal(param)
+	if err != nil {
+		return response, err
+	}
+	resp, err := c.client.R().
+		SetBody(body).
+		SetResult(&response).
+		Put(url)
 	if err != nil || resp.IsError() {
 		apiErr, decErr := c.decodeAPIError(resp.Body())
 		if decErr != nil {

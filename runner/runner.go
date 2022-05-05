@@ -483,6 +483,18 @@ func (r *Runner) GetInstance(ctx context.Context, instanceName string) (params.I
 	return instance, nil
 }
 
+func (r *Runner) ListAllInstances(ctx context.Context) ([]params.Instance, error) {
+	if !auth.IsAdmin(ctx) {
+		return nil, runnerErrors.ErrUnauthorized
+	}
+
+	instances, err := r.store.ListAllInstances(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "fetcing instances")
+	}
+	return instances, nil
+}
+
 func (r *Runner) AddInstanceStatusMessage(ctx context.Context, param params.InstanceUpdateMessage) error {
 	instanceID := auth.InstanceID(ctx)
 	if instanceID == "" {
@@ -492,9 +504,6 @@ func (r *Runner) AddInstanceStatusMessage(ctx context.Context, param params.Inst
 	if err := r.store.AddInstanceStatusMessage(ctx, instanceID, param.Message); err != nil {
 		return errors.Wrap(err, "adding status update")
 	}
-
-	// if param.Status == providerCommon.RunnerIdle {
-	// }
 
 	updateParams := params.UpdateInstanceParams{
 		RunnerStatus: param.Status,

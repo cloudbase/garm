@@ -43,11 +43,11 @@ spin up instances with access to a GPU, on the desired provider.`,
 	Run: nil,
 }
 
-var poolAddCmd = &cobra.Command{
+var repoPoolAddCmd = &cobra.Command{
 	Use:          "add",
 	Aliases:      []string{"create"},
 	Short:        "Add pool",
-	Long:         `Add a new pool repository to the manager.`,
+	Long:         `Add a new pool to a repository.`,
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if needsInit {
@@ -86,7 +86,7 @@ var poolAddCmd = &cobra.Command{
 	},
 }
 
-var poolListCmd = &cobra.Command{
+var repoPoolListCmd = &cobra.Command{
 	Use:          "list",
 	Aliases:      []string{"ls"},
 	Short:        "List repository pools",
@@ -114,7 +114,7 @@ var poolListCmd = &cobra.Command{
 	},
 }
 
-var poolShowCmd = &cobra.Command{
+var repoPoolShowCmd = &cobra.Command{
 	Use:   "show",
 	Short: "Show details for one pool",
 	Long:  `Displays detailed information about a single pool.`,
@@ -137,7 +137,7 @@ var poolShowCmd = &cobra.Command{
 	},
 }
 
-var poolDeleteCmd = &cobra.Command{
+var repoPoolDeleteCmd = &cobra.Command{
 	Use:          "delete",
 	Aliases:      []string{"remove", "rm", "del"},
 	Short:        "Removes one pool",
@@ -158,7 +158,7 @@ var poolDeleteCmd = &cobra.Command{
 	},
 }
 
-var poolUpdateCmd = &cobra.Command{
+var repoPoolUpdateCmd = &cobra.Command{
 	Use:   "update",
 	Short: "Update one pool",
 	Long: `Updates pool characteristics.
@@ -222,35 +222,35 @@ explicitly remove them using the runner delete command.
 }
 
 func init() {
-	poolAddCmd.Flags().StringVar(&poolProvider, "provider-name", "", "The name of the provider where runners will be created.")
-	poolAddCmd.Flags().StringVar(&poolImage, "image", "", "The provider-specific image name to use for runners in this pool.")
-	poolAddCmd.Flags().StringVar(&poolFlavor, "flavor", "", "The flavor to use for this runner.")
-	poolAddCmd.Flags().StringVar(&poolTags, "tags", "", "A comma separated list of tags to assign to this runner.")
-	poolAddCmd.Flags().StringVar(&poolOSType, "os-type", "linux", "Operating system type (windows, linux, etc).")
-	poolAddCmd.Flags().StringVar(&poolOSArch, "os-arch", "amd64", "Operating system architecture (amd64, arm, etc).")
-	poolAddCmd.Flags().UintVar(&poolMaxRunners, "max-runners", 5, "The maximum number of runner this pool will create.")
-	poolAddCmd.Flags().UintVar(&poolMinIdleRunners, "min-idle-runners", 1, "Attempt to maintain a minimum of idle self-hosted runners of this type.")
-	poolAddCmd.Flags().BoolVar(&poolEnabled, "enabled", false, "Enable this pool.")
-	poolAddCmd.MarkFlagRequired("provider-name")
-	poolAddCmd.MarkFlagRequired("image")
-	poolAddCmd.MarkFlagRequired("flavor")
-	poolAddCmd.MarkFlagRequired("tags")
+	repoPoolAddCmd.Flags().StringVar(&poolProvider, "provider-name", "", "The name of the provider where runners will be created.")
+	repoPoolAddCmd.Flags().StringVar(&poolImage, "image", "", "The provider-specific image name to use for runners in this pool.")
+	repoPoolAddCmd.Flags().StringVar(&poolFlavor, "flavor", "", "The flavor to use for this runner.")
+	repoPoolAddCmd.Flags().StringVar(&poolTags, "tags", "", "A comma separated list of tags to assign to this runner.")
+	repoPoolAddCmd.Flags().StringVar(&poolOSType, "os-type", "linux", "Operating system type (windows, linux, etc).")
+	repoPoolAddCmd.Flags().StringVar(&poolOSArch, "os-arch", "amd64", "Operating system architecture (amd64, arm, etc).")
+	repoPoolAddCmd.Flags().UintVar(&poolMaxRunners, "max-runners", 5, "The maximum number of runner this pool will create.")
+	repoPoolAddCmd.Flags().UintVar(&poolMinIdleRunners, "min-idle-runners", 1, "Attempt to maintain a minimum of idle self-hosted runners of this type.")
+	repoPoolAddCmd.Flags().BoolVar(&poolEnabled, "enabled", false, "Enable this pool.")
+	repoPoolAddCmd.MarkFlagRequired("provider-name")
+	repoPoolAddCmd.MarkFlagRequired("image")
+	repoPoolAddCmd.MarkFlagRequired("flavor")
+	repoPoolAddCmd.MarkFlagRequired("tags")
 
-	poolUpdateCmd.Flags().StringVar(&poolImage, "image", "", "The provider-specific image name to use for runners in this pool.")
-	poolUpdateCmd.Flags().StringVar(&poolFlavor, "flavor", "", "The flavor to use for this runner.")
-	poolUpdateCmd.Flags().StringVar(&poolTags, "tags", "", "A comma separated list of tags to assign to this runner.")
-	poolUpdateCmd.Flags().StringVar(&poolOSType, "os-type", "linux", "Operating system type (windows, linux, etc).")
-	poolUpdateCmd.Flags().StringVar(&poolOSArch, "os-arch", "amd64", "Operating system architecture (amd64, arm, etc).")
-	poolUpdateCmd.Flags().UintVar(&poolMaxRunners, "max-runners", 5, "The maximum number of runner this pool will create.")
-	poolUpdateCmd.Flags().UintVar(&poolMinIdleRunners, "min-idle-runners", 1, "Attempt to maintain a minimum of idle self-hosted runners of this type.")
-	poolUpdateCmd.Flags().BoolVar(&poolEnabled, "enabled", false, "Enable this pool.")
+	repoPoolUpdateCmd.Flags().StringVar(&poolImage, "image", "", "The provider-specific image name to use for runners in this pool.")
+	repoPoolUpdateCmd.Flags().StringVar(&poolFlavor, "flavor", "", "The flavor to use for this runner.")
+	repoPoolUpdateCmd.Flags().StringVar(&poolTags, "tags", "", "A comma separated list of tags to assign to this runner.")
+	repoPoolUpdateCmd.Flags().StringVar(&poolOSType, "os-type", "linux", "Operating system type (windows, linux, etc).")
+	repoPoolUpdateCmd.Flags().StringVar(&poolOSArch, "os-arch", "amd64", "Operating system architecture (amd64, arm, etc).")
+	repoPoolUpdateCmd.Flags().UintVar(&poolMaxRunners, "max-runners", 5, "The maximum number of runner this pool will create.")
+	repoPoolUpdateCmd.Flags().UintVar(&poolMinIdleRunners, "min-idle-runners", 1, "Attempt to maintain a minimum of idle self-hosted runners of this type.")
+	repoPoolUpdateCmd.Flags().BoolVar(&poolEnabled, "enabled", false, "Enable this pool.")
 
 	repoPoolCmd.AddCommand(
 		poolListCmd,
-		poolAddCmd,
-		poolShowCmd,
-		poolDeleteCmd,
-		poolUpdateCmd,
+		repoPoolAddCmd,
+		repoPoolShowCmd,
+		repoPoolDeleteCmd,
+		repoPoolUpdateCmd,
 	)
 
 	repositoryCmd.AddCommand(repoPoolCmd)
@@ -258,7 +258,7 @@ func init() {
 
 func formatPools(pools []params.Pool) {
 	t := table.NewWriter()
-	header := table.Row{"ID", "Image", "Flavor", "Tags", "Enabled"}
+	header := table.Row{"ID", "Image", "Flavor", "Tags", "Belongs to", "Level", "Enabled"}
 	t.AppendHeader(header)
 
 	for _, pool := range pools {
@@ -266,7 +266,17 @@ func formatPools(pools []params.Pool) {
 		for _, tag := range pool.Tags {
 			tags = append(tags, tag.Name)
 		}
-		t.AppendRow(table.Row{pool.ID, pool.Image, pool.Flavor, strings.Join(tags, " "), pool.Enabled})
+		var belongsTo string
+		var level string
+
+		if pool.RepoID != "" && pool.RepoName != "" {
+			belongsTo = pool.RepoName
+			level = "repo"
+		} else if pool.OrgID != "" && pool.OrgName != "" {
+			belongsTo = pool.OrgName
+			level = "org"
+		}
+		t.AppendRow(table.Row{pool.ID, pool.Image, pool.Flavor, strings.Join(tags, " "), belongsTo, level, pool.Enabled})
 		t.AppendSeparator()
 	}
 	fmt.Println(t.Render())
@@ -283,6 +293,17 @@ func formatOnePool(pool params.Pool) {
 		tags = append(tags, tag.Name)
 	}
 
+	var belongsTo string
+	var level string
+
+	if pool.RepoID != "" && pool.RepoName != "" {
+		belongsTo = pool.RepoName
+		level = "repo"
+	} else if pool.OrgID != "" && pool.OrgName != "" {
+		belongsTo = pool.OrgName
+		level = "org"
+	}
+
 	t.AppendHeader(header)
 	t.AppendRow(table.Row{"ID", pool.ID})
 	t.AppendRow(table.Row{"Provider Name", pool.ProviderName})
@@ -293,6 +314,8 @@ func formatOnePool(pool params.Pool) {
 	t.AppendRow(table.Row{"Max Runners", pool.MaxRunners})
 	t.AppendRow(table.Row{"Min Idle Runners", pool.MinIdleRunners})
 	t.AppendRow(table.Row{"Tags", strings.Join(tags, ", ")})
+	t.AppendRow(table.Row{"Belongs to", belongsTo})
+	t.AppendRow(table.Row{"Level", level})
 	t.AppendRow(table.Row{"Enabled", pool.Enabled})
 
 	if len(pool.Instances) > 0 {

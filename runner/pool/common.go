@@ -146,7 +146,7 @@ func (r *basePool) acquireNewInstance(job params.WorkflowJob) error {
 	}
 
 	// TODO: implement count
-	poolInstances, err := r.store.ListInstances(r.ctx, pool.ID)
+	poolInstances, err := r.store.ListPoolInstances(r.ctx, pool.ID)
 	if err != nil {
 		return errors.Wrap(err, "fetching instances")
 	}
@@ -365,7 +365,7 @@ func (r *basePool) ensureIdleRunnersForOnePool(pool params.Pool) {
 		log.Printf("pool %s is disabled, skipping", pool.ID)
 		return
 	}
-	existingInstances, err := r.store.ListInstances(r.ctx, pool.ID)
+	existingInstances, err := r.store.ListPoolInstances(r.ctx, pool.ID)
 	if err != nil {
 		log.Printf("failed to ensure minimum idle workers for pool %s: %s", pool.ID, err)
 		return

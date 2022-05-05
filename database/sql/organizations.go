@@ -182,7 +182,7 @@ func (s *sqlDatabase) CreateOrganizationPool(ctx context.Context, orgId string, 
 		}
 	}
 
-	pool, err := s.getPoolByID(ctx, newPool.ID.String(), "Tags")
+	pool, err := s.getPoolByID(ctx, newPool.ID.String(), "Tags", "Instances", "Organization", "Repository")
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}
@@ -247,7 +247,7 @@ func (s *sqlDatabase) ListOrgInstances(ctx context.Context, orgID string) ([]par
 }
 
 func (s *sqlDatabase) UpdateOrganizationPool(ctx context.Context, orgID, poolID string, param params.UpdatePoolParams) (params.Pool, error) {
-	pool, err := s.getOrgPool(ctx, orgID, poolID, "Tags")
+	pool, err := s.getOrgPool(ctx, orgID, poolID, "Tags", "Instances", "Organization", "Repository")
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}

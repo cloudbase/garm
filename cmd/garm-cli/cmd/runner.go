@@ -7,14 +7,22 @@ package cmd
 import (
 	"fmt"
 	"garm/params"
+	"os"
 
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/spf13/cobra"
 )
 
+var (
+	runnerRepository   string
+	runnerOrganization string
+	runnerAll          bool
+)
+
 // runnerCmd represents the runner command
 var runnerCmd = &cobra.Command{
 	Use:          "runner",
+	Aliases:      []string{"run"},
 	SilenceUsage: true,
 	Short:        "List runners in a pool",
 	Long: `Given a pool ID, of either a repository or an organization,
@@ -23,25 +31,63 @@ list all instances.`,
 }
 
 var runnerListCmd = &cobra.Command{
-	Use:          "list",
-	Aliases:      []string{"ls"},
-	Short:        "List pool runners",
-	Long:         `List all configured pools for a given repository.`,
+	Use:     "list",
+	Aliases: []string{"ls"},
+	Short:   "List runners",
+	Long: `List runners of pools, repositories, orgs or all of the above.
+	
+This command expects to get either a pool ID as a positional parameter, or it expects
+that one of the supported switches be used to fetch runners of --repo, --org or --all
+
+Example:
+
+	List runners from one pool:
+	garm-cli runner list e87e70bd-3d0d-4b25-be9a-86b85e114bcb
+
+	List runners from one repo:
+	garm-cli runner list --repo=05e7eac6-4705-486d-89c9-0170bbb576af
+
+	List runners from one org:
+	garm-cli runner list --org=5493e51f-3170-4ce3-9f05-3fe690fc6ec6
+
+	List all runners from all pools belonging to all repos and orgs:
+	garm-cli runner list --all
+
+`,
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if needsInit {
 			return needsInitError
 		}
 
-		if len(args) == 0 {
-			return fmt.Errorf("requires a pool ID")
+		var instances []params.Instance
+		var err error
+
+		switch len(args) {
+		case 1:
+			if cmd.Flags().Changed("repo") ||
+				cmd.Flags().Changed("org") ||
+				cmd.Flags().Changed("all") {
+
+				return fmt.Errorf("specifying a pool ID and any of [all org repo] are mutually exclusive")
+			}
+			instances, err = cli.ListPoolInstances(args[0])
+		case 0:
+			if cmd.Flags().Changed("repo") {
+				instances, err = cli.ListRepoInstances(runnerRepository)
+			} else if cmd.Flags().Changed("org") {
+				instances, err = cli.ListOrgInstances(runnerOrganization)
+			} else if cmd.Flags().Changed("all") {
+				instances, err = cli.ListAllInstances()
+			} else {
+				cmd.Help()
+				os.Exit(0)
+			}
+		default:
+			cmd.Help()
+			os.Exit(0)
 		}
 
-		if len(args) > 1 {
-			return fmt.Errorf("too many arguments")
-		}
-
-		instances, err := cli.ListPoolInstances(args[0])
 		if err != nil {
 			return err
 		}
@@ -78,6 +124,11 @@ var runnerShowCmd = &cobra.Command{
 }
 
 func init() {
+	runnerListCmd.Flags().StringVarP(&runnerRepository, "repo", "r", "", "List all runners from all pools within this repository.")
+	runnerListCmd.Flags().StringVarP(&runnerOrganization, "org", "o", "", "List all runners from all pools withing this organization.")
+	runnerListCmd.Flags().BoolVarP(&runnerAll, "all", "a", false, "List all runners, regardless of org or repo.")
+	runnerListCmd.MarkFlagsMutuallyExclusive("repo", "org", "all")
+
 	runnerCmd.AddCommand(
 		runnerListCmd,
 		runnerShowCmd,

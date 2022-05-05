@@ -28,6 +28,11 @@ type Store interface {
 
 	ListRepoPools(ctx context.Context, repoID string) ([]params.Pool, error)
 	ListOrgPools(ctx context.Context, orgID string) ([]params.Pool, error)
+	// Probably a bad idea without some king of filter or at least pagination
+	// TODO: add filter/pagination
+	ListAllPools(ctx context.Context) ([]params.Pool, error)
+	GetPoolByID(ctx context.Context, poolID string) (params.Pool, error)
+	DeletePoolByID(ctx context.Context, poolID string) error
 
 	DeleteRepositoryPool(ctx context.Context, repoID, poolID string) error
 	DeleteOrganizationPool(ctx context.Context, orgID, poolID string) error
@@ -42,9 +47,13 @@ type Store interface {
 	DeleteInstance(ctx context.Context, poolID string, instanceID string) error
 	UpdateInstance(ctx context.Context, instanceID string, param params.UpdateInstanceParams) (params.Instance, error)
 
-	ListInstances(ctx context.Context, poolID string) ([]params.Instance, error)
+	ListPoolInstances(ctx context.Context, poolID string) ([]params.Instance, error)
 	ListRepoInstances(ctx context.Context, repoID string) ([]params.Instance, error)
 	ListOrgInstances(ctx context.Context, orgID string) ([]params.Instance, error)
+
+	// Probably a bad idea without some king of filter or at least pagination
+	// TODO: add filter/pagination
+	ListAllInstances(ctx context.Context) ([]params.Instance, error)
 
 	GetPoolInstanceByName(ctx context.Context, poolID string, instanceName string) (params.Instance, error)
 	GetInstanceByName(ctx context.Context, instanceName string) (params.Instance, error)

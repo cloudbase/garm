@@ -266,27 +266,3 @@ func (a *APIController) UpdateOrgPoolHandler(w http.ResponseWriter, r *http.Requ
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(pool)
 }
-
-func (a *APIController) ListOrgInstancesHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	vars := mux.Vars(r)
-	orgID, ok := vars["orgID"]
-	if !ok {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(params.APIErrorResponse{
-			Error:   "Bad Request",
-			Details: "No org ID specified",
-		})
-		return
-	}
-
-	instances, err := a.r.ListOrgInstances(ctx, orgID)
-	if err != nil {
-		log.Printf("listing pools: %s", err)
-		handleError(w, err)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(instances)
-}

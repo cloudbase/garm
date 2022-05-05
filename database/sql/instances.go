@@ -182,7 +182,7 @@ func (s *sqlDatabase) UpdateInstance(ctx context.Context, instanceID string, par
 	return s.sqlToParamsInstance(instance), nil
 }
 
-func (s *sqlDatabase) ListInstances(ctx context.Context, poolID string) ([]params.Instance, error) {
+func (s *sqlDatabase) ListPoolInstances(ctx context.Context, poolID string) ([]params.Instance, error) {
 	pool, err := s.getPoolByID(ctx, poolID, "Tags", "Instances")
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching pool")
@@ -191,6 +191,20 @@ func (s *sqlDatabase) ListInstances(ctx context.Context, poolID string) ([]param
 	ret := make([]params.Instance, len(pool.Instances))
 	for idx, inst := range pool.Instances {
 		ret[idx] = s.sqlToParamsInstance(inst)
+	}
+	return ret, nil
+}
+
+func (s *sqlDatabase) ListAllInstances(ctx context.Context) ([]params.Instance, error) {
+	var instances []Instance
+
+	q := s.conn.Model(&Instance{}).Find(&instances)
+	if q.Error != nil {
+		return nil, errors.Wrap(q.Error, "fetching instances")
+	}
+	ret := make([]params.Instance, len(instances))
+	for idx, instance := range instances {
+		ret[idx] = s.sqlToParamsInstance(instance)
 	}
 	return ret, nil
 }

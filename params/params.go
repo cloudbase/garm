@@ -103,6 +103,10 @@ type Pool struct {
 	Tags           []Tag         `json:"tags"`
 	Enabled        bool          `json:"enabled"`
 	Instances      []Instance    `json:"instances"`
+	RepoID         string        `json:"repo_id,omitempty"`
+	RepoName       string        `json:"repo_name,omitempty"`
+	OrgID          string        `json:"org_id,omitempty"`
+	OrgName        string        `json:"org_name,omitempty"`
 }
 
 type Internal struct {

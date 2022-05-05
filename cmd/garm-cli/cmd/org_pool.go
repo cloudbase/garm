@@ -34,7 +34,7 @@ var orgPoolAddCmd = &cobra.Command{
 	Use:          "add",
 	Aliases:      []string{"create"},
 	Short:        "Add pool",
-	Long:         `Add a new pool organization to the manager.`,
+	Long:         `Add a new pool to an organization.`,
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if needsInit {

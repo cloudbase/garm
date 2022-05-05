@@ -266,27 +266,3 @@ func (a *APIController) UpdateRepoPoolHandler(w http.ResponseWriter, r *http.Req
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(pool)
 }
-
-func (a *APIController) ListRepoInstancesHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	vars := mux.Vars(r)
-	repoID, ok := vars["repoID"]
-	if !ok {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(params.APIErrorResponse{
-			Error:   "Bad Request",
-			Details: "No repo ID specified",
-		})
-		return
-	}
-
-	instances, err := a.r.ListRepoInstances(ctx, repoID)
-	if err != nil {
-		log.Printf("listing pools: %s", err)
-		handleError(w, err)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(instances)
-}

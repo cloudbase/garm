@@ -217,7 +217,7 @@ func (r *Runner) DeleteRepoPool(ctx context.Context, repoID, poolID string) erro
 		return errors.Wrap(err, "fetching pool")
 	}
 
-	instances, err := r.store.ListInstances(ctx, pool.ID)
+	instances, err := r.store.ListPoolInstances(ctx, pool.ID)
 	if err != nil {
 		return errors.Wrap(err, "fetching instances")
 	}
@@ -254,7 +254,7 @@ func (r *Runner) ListPoolInstances(ctx context.Context, poolID string) ([]params
 		return nil, runnerErrors.ErrUnauthorized
 	}
 
-	instances, err := r.store.ListInstances(ctx, poolID)
+	instances, err := r.store.ListPoolInstances(ctx, poolID)
 	if err != nil {
 		return []params.Instance{}, errors.Wrap(err, "fetching instances")
 	}

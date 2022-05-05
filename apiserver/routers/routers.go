@@ -42,16 +42,34 @@ func NewAPIRouter(han *controllers.APIController, logWriter io.Writer, authMiddl
 	apiRouter.Use(initMiddleware.Middleware)
 	apiRouter.Use(authMiddleware.Middleware)
 
-	// Runners (instances)
+	///////////
+	// Pools //
+	///////////
+	// List all pools
+	apiRouter.Handle("/pools/", log(os.Stdout, http.HandlerFunc(han.ListAllPoolsHandler))).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/pools", log(os.Stdout, http.HandlerFunc(han.ListAllPoolsHandler))).Methods("GET", "OPTIONS")
+	// Get one pool
+	apiRouter.Handle("/pools/{poolID}/", log(os.Stdout, http.HandlerFunc(han.GetPoolByIDHandler))).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/pools/{poolID}", log(os.Stdout, http.HandlerFunc(han.GetPoolByIDHandler))).Methods("GET", "OPTIONS")
+	// Delete one pool
+	apiRouter.Handle("/pools/{poolID}/", log(os.Stdout, http.HandlerFunc(han.DeletePoolByIDHandler))).Methods("DELETE", "OPTIONS")
+	apiRouter.Handle("/pools/{poolID}", log(os.Stdout, http.HandlerFunc(han.DeletePoolByIDHandler))).Methods("DELETE", "OPTIONS")
+	// Update one pool
+	apiRouter.Handle("/pools/{poolID}/", log(os.Stdout, http.HandlerFunc(han.UpdatePoolByIDHandler))).Methods("PUT", "OPTIONS")
+	apiRouter.Handle("/pools/{poolID}", log(os.Stdout, http.HandlerFunc(han.UpdatePoolByIDHandler))).Methods("PUT", "OPTIONS")
 	// List pool instances
-	apiRouter.Handle("/pools/instances/{poolID}/", log(os.Stdout, http.HandlerFunc(han.ListPoolInstancesHandler))).Methods("GET", "OPTIONS")
-	apiRouter.Handle("/pools/instances/{poolID}", log(os.Stdout, http.HandlerFunc(han.ListPoolInstancesHandler))).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/pools/{poolID}/instances/", log(os.Stdout, http.HandlerFunc(han.ListPoolInstancesHandler))).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/pools/{poolID}/instances", log(os.Stdout, http.HandlerFunc(han.ListPoolInstancesHandler))).Methods("GET", "OPTIONS")
+
+	/////////////
+	// Runners //
+	/////////////
+	// List runners
+	apiRouter.Handle("/instances/", log(os.Stdout, http.HandlerFunc(han.ListAllInstancesHandler))).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/instances", log(os.Stdout, http.HandlerFunc(han.ListAllInstancesHandler))).Methods("GET", "OPTIONS")
 	// Get instance
 	apiRouter.Handle("/instances/{instanceName}/", log(os.Stdout, http.HandlerFunc(han.GetInstanceHandler))).Methods("GET", "OPTIONS")
 	apiRouter.Handle("/instances/{instanceName}", log(os.Stdout, http.HandlerFunc(han.GetInstanceHandler))).Methods("GET", "OPTIONS")
-	// Delete instance
-	// apiRouter.Handle("/instances/{instanceName}/", log(os.Stdout, http.HandlerFunc(han.CatchAll))).Methods("DELETE", "OPTIONS")
-	// apiRouter.Handle("/instances/{instanceName}", log(os.Stdout, http.HandlerFunc(han.CatchAll))).Methods("DELETE", "OPTIONS")
 
 	/////////////////////
 	// Repos and pools //

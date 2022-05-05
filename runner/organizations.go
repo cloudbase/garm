@@ -218,7 +218,7 @@ func (r *Runner) DeleteOrgPool(ctx context.Context, orgID, poolID string) error 
 		return errors.Wrap(err, "fetching pool")
 	}
 
-	instances, err := r.store.ListInstances(ctx, pool.ID)
+	instances, err := r.store.ListPoolInstances(ctx, pool.ID)
 	if err != nil {
 		return errors.Wrap(err, "fetching instances")
 	}
