@@ -36,7 +36,7 @@ type Client struct {
 func (c *Client) decodeAPIError(body []byte) (apiParams.APIErrorResponse, error) {
 	var errDetails apiParams.APIErrorResponse
 	if err := json.Unmarshal(body, &errDetails); err != nil {
-		return apiParams.APIErrorResponse{}, errors.Wrap(err, "decoding response")
+		return apiParams.APIErrorResponse{}, fmt.Errorf("invalid response from server, use --debug for more info")
 	}
 
 	return errDetails, fmt.Errorf("error in API call: %s", errDetails.Details)

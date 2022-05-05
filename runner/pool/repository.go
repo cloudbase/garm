@@ -164,3 +164,7 @@ func (r *repository) ValidateOwner(job params.WorkflowJob) error {
 	}
 	return nil
 }
+
+func (r *repository) ID() string {
+	return r.id
+}

@@ -15,6 +15,7 @@ type PoolManager interface {
 	WebhookSecret() string
 	HandleWorkflowJob(job params.WorkflowJob) error
 	RefreshState(param params.UpdatePoolStateParams) error
+	ID() string
 	// AddPool(ctx context.Context, pool params.Pool) error
 
 	// PoolManager lifecycle functions. Start/stop pool.

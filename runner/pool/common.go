@@ -360,57 +360,65 @@ func (r *basePool) updateArgsFromProviderInstance(providerInstance params.Instan
 	}
 }
 
+func (r *basePool) ensureIdleRunnersForOnePool(pool params.Pool) {
+	if !pool.Enabled {
+		log.Printf("pool %s is disabled, skipping", pool.ID)
+		return
+	}
+	existingInstances, err := r.store.ListInstances(r.ctx, pool.ID)
+	if err != nil {
+		log.Printf("failed to ensure minimum idle workers for pool %s: %s", pool.ID, err)
+		return
+	}
+
+	if uint(len(existingInstances)) >= pool.MaxRunners {
+		log.Printf("max workers (%d) reached for pool %s, skipping idle worker creation", pool.MaxRunners, pool.ID)
+		return
+	}
+
+	idleOrPendingWorkers := []params.Instance{}
+	for _, inst := range existingInstances {
+		if providerCommon.RunnerStatus(inst.RunnerStatus) != providerCommon.RunnerActive {
+			idleOrPendingWorkers = append(idleOrPendingWorkers, inst)
+		}
+	}
+
+	var required int
+	if len(idleOrPendingWorkers) < int(pool.MinIdleRunners) {
+		// get the needed delta.
+		required = int(pool.MinIdleRunners) - len(idleOrPendingWorkers)
+
+		projectedInstanceCount := len(existingInstances) + required
+		if uint(projectedInstanceCount) > pool.MaxRunners {
+			// ensure we don't go above max workers
+			delta := projectedInstanceCount - int(pool.MaxRunners)
+			required = required - delta
+		}
+	}
+
+	for i := 0; i < required; i++ {
+		log.Printf("addind new idle worker to pool %s", pool.ID)
+		if err := r.AddRunner(r.ctx, pool.ID); err != nil {
+			log.Printf("failed to add new instance for pool %s: %s", pool.ID, err)
+		}
+	}
+}
+
 func (r *basePool) ensureMinIdleRunners() {
 	pools, err := r.helper.ListPools()
 	if err != nil {
 		log.Printf("error listing pools: %s", err)
 		return
 	}
+	wg := sync.WaitGroup{}
+	wg.Add(len(pools))
 	for _, pool := range pools {
-		if !pool.Enabled {
-			log.Printf("pool %s is disabled, skipping", pool.ID)
-			continue
-		}
-		existingInstances, err := r.store.ListInstances(r.ctx, pool.ID)
-		if err != nil {
-			log.Printf("failed to ensure minimum idle workers for pool %s: %s", pool.ID, err)
-			return
-		}
-
-		// asJs, _ := json.MarshalIndent(existingInstances, "", "  ")
-		// log.Printf(">>> %s", string(asJs))
-		if uint(len(existingInstances)) >= pool.MaxRunners {
-			log.Printf("max workers (%d) reached for pool %s, skipping idle worker creation", pool.MaxRunners, pool.ID)
-			continue
-		}
-
-		idleOrPendingWorkers := []params.Instance{}
-		for _, inst := range existingInstances {
-			if providerCommon.RunnerStatus(inst.RunnerStatus) != providerCommon.RunnerActive {
-				idleOrPendingWorkers = append(idleOrPendingWorkers, inst)
-			}
-		}
-
-		var required int
-		if len(idleOrPendingWorkers) < int(pool.MinIdleRunners) {
-			// get the needed delta.
-			required = int(pool.MinIdleRunners) - len(idleOrPendingWorkers)
-
-			projectedInstanceCount := len(existingInstances) + required
-			if uint(projectedInstanceCount) > pool.MaxRunners {
-				// ensure we don't go above max workers
-				delta := projectedInstanceCount - int(pool.MaxRunners)
-				required = required - delta
-			}
-		}
-
-		for i := 0; i < required; i++ {
-			log.Printf("addind new idle worker to pool %s", pool.ID)
-			if err := r.AddRunner(r.ctx, pool.ID); err != nil {
-				log.Printf("failed to add new instance for pool %s: %s", pool.ID, err)
-			}
-		}
+		go func(pool params.Pool) {
+			defer wg.Done()
+			r.ensureIdleRunnersForOnePool(pool)
+		}(pool)
 	}
+	wg.Wait()
 }
 
 // cleanupOrphanedGithubRunners will forcefully remove any github runners that appear
@@ -562,8 +570,17 @@ func (r *basePool) consolidate() {
 	r.mux.Lock()
 	defer r.mux.Unlock()
 
-	r.deletePendingInstances()
-	r.addPendingInstances()
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		r.deletePendingInstances()
+	}()
+	go func() {
+		defer wg.Done()
+		r.addPendingInstances()
+	}()
+	wg.Wait()
 	r.ensureMinIdleRunners()
 }
 
@@ -611,4 +628,8 @@ func (r *basePool) RefreshState(param params.UpdatePoolStateParams) error {
 
 func (r *basePool) WebhookSecret() string {
 	return r.helper.WebhookSecret()
+}
+
+func (r *basePool) ID() string {
+	return r.helper.ID()
 }

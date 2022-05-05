@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"hash"
 	"io/ioutil"
 	"log"
@@ -14,6 +15,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"garm/auth"
 	"garm/config"
@@ -130,27 +132,51 @@ func (r *Runner) loadReposAndOrgs() error {
 		return errors.Wrap(err, "fetching repositories")
 	}
 
-	for _, repo := range repos {
-		log.Printf("creating pool manager for %s/%s", repo.Owner, repo.Name)
-		poolManager, err := r.loadRepoPoolManager(repo)
-		if err != nil {
-			return errors.Wrap(err, "loading repo pool manager")
-		}
-		r.repositories[repo.ID] = poolManager
-	}
-
 	orgs, err := r.store.ListOrganizations(r.ctx)
 	if err != nil {
 		return errors.Wrap(err, "fetching repositories")
 	}
 
+	expectedReplies := len(repos) + len(orgs)
+	repoPoolMgrChan := make(chan common.PoolManager, len(repos))
+	orgPoolMgrChan := make(chan common.PoolManager, len(orgs))
+	errChan := make(chan error, expectedReplies)
+
+	for _, repo := range repos {
+		go func(repo params.Repository) {
+			log.Printf("creating pool manager for %s/%s", repo.Owner, repo.Name)
+			poolManager, err := r.loadRepoPoolManager(repo)
+			if err != nil {
+				errChan <- err
+				return
+			}
+			repoPoolMgrChan <- poolManager
+		}(repo)
+	}
+
 	for _, org := range orgs {
-		log.Printf("creating pool manager for organization %s", org.Name)
-		poolManager, err := r.loadOrgPoolManager(org)
-		if err != nil {
-			return errors.Wrap(err, "loading repo pool manager")
+		go func(org params.Organization) {
+			log.Printf("creating pool manager for organization %s", org.Name)
+			poolManager, err := r.loadOrgPoolManager(org)
+			if err != nil {
+				errChan <- err
+				return
+			}
+			orgPoolMgrChan <- poolManager
+		}(org)
+	}
+
+	for i := 0; i < expectedReplies; i++ {
+		select {
+		case repoPool := <-repoPoolMgrChan:
+			r.repositories[repoPool.ID()] = repoPool
+		case orgPool := <-orgPoolMgrChan:
+			r.organizations[orgPool.ID()] = orgPool
+		case err := <-errChan:
+			return errors.Wrap(err, "failed to load repos and pools")
+		case <-time.After(60 * time.Second):
+			return fmt.Errorf("timed out waiting for pool mamager load")
 		}
-		r.organizations[org.ID] = poolManager
 	}
 
 	return nil
@@ -160,15 +186,33 @@ func (r *Runner) Start() error {
 	r.mux.Lock()
 	defer r.mux.Unlock()
 
+	expectedReplies := len(r.repositories) + len(r.organizations)
+	errChan := make(chan error, expectedReplies)
+
 	for _, repo := range r.repositories {
-		if err := repo.Start(); err != nil {
-			return errors.Wrap(err, "starting repo pool manager")
-		}
+		go func(repo common.PoolManager) {
+			err := repo.Start()
+			errChan <- err
+
+		}(repo)
 	}
 
 	for _, org := range r.organizations {
-		if err := org.Start(); err != nil {
-			return errors.Wrap(err, "starting org pool manager")
+		go func(org common.PoolManager) {
+			err := org.Start()
+			errChan <- err
+		}(org)
+
+	}
+
+	for i := 0; i < expectedReplies; i++ {
+		select {
+		case err := <-errChan:
+			if err != nil {
+				return errors.Wrap(err, "starting pool manager")
+			}
+		case <-time.After(60 * time.Second):
+			return fmt.Errorf("timed out waiting for pool mamager start")
 		}
 	}
 	return nil
@@ -180,13 +224,13 @@ func (r *Runner) Stop() error {
 
 	for _, repo := range r.repositories {
 		if err := repo.Stop(); err != nil {
-			return errors.Wrap(err, "starting repo pool manager")
+			return errors.Wrap(err, "stopping repo pool manager")
 		}
 	}
 
 	for _, org := range r.organizations {
 		if err := org.Stop(); err != nil {
-			return errors.Wrap(err, "starting org pool manager")
+			return errors.Wrap(err, "stopping org pool manager")
 		}
 	}
 	return nil

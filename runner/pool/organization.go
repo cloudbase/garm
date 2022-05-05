@@ -162,3 +162,7 @@ func (r *organization) ValidateOwner(job params.WorkflowJob) error {
 	}
 	return nil
 }
+
+func (r *organization) ID() string {
+	return r.id
+}
