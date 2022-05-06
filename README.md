@@ -43,7 +43,7 @@ API endpoint:
 POST /webhooks
 ```
 
-This API endpoint must be added to your github repository or organization, and must be publicly accessible. There is no authentication on this URL. Validation of the workflow POST body is done, if a secret is configured when defining the repository or organization in ```garm```. Optionally, you can place a reverse proxy in front of it, and configure [basic auth](https://docs.nginx.com/nginx/admin-guide/security-controls/configuring-http-basic-authentication/).
+This API endpoint must be added to your github repository or organization, and must be publicly accessible. There is no authentication on this URL. Validation of the workflow POST body is done, if a secret is configured (highly recommended) when defining the repository or organization in ```garm```. Optionally, you can place a reverse proxy in front of it, and configure [basic auth](https://docs.nginx.com/nginx/admin-guide/security-controls/configuring-http-basic-authentication/).
 
 
 ### The callback_url option
@@ -395,7 +395,11 @@ ubuntu@experiments:~$ garm-cli credentials list
 Now we can add a repository to ```garm```:
 
 ```bash
-ubuntu@experiments:~$ garm-cli repository create --credentials=gabriel --owner=gabriel-samfira --name=scripts --webhook-secret="super secret webhook secret you configured in github webhooks"
+ubuntu@experiments:~$ garm-cli repository create \
+      --credentials=gabriel \
+      --owner=gabriel-samfira \
+      --name=scripts \
+      --webhook-secret="super secret webhook secret you configured in github webhooks"
 +-------------+--------------------------------------+
 | FIELD       | VALUE                                |
 +-------------+--------------------------------------+
@@ -409,7 +413,10 @@ ubuntu@experiments:~$ garm-cli repository create --credentials=gabriel --owner=g
 To add an organization, use the following command:
 
 ```bash
-ubuntu@experiments:~$ garm-cli organization create --credentials=gabriel --name=gsamfira --webhook-secret="$SECRET"
+ubuntu@experiments:~$ garm-cli organization create \
+      --credentials=gabriel \
+      --name=gsamfira \
+      --webhook-secret="$SECRET"
 +-------------+--------------------------------------+
 | FIELD       | VALUE                                |
 +-------------+--------------------------------------+
@@ -579,7 +586,9 @@ ubuntu@experiments:~$ garm-cli runner ls fb25f308-7ad2-4769-988e-6ec2935f642a
 Let's update the pool and request it maintaine a number of minimum idle runners equal to 3:
 
 ```bash
-ubuntu@experiments:~$ garm-cli pool update fb25f308-7ad2-4769-988e-6ec2935f642a --min-idle-runners=3 --max-runners=10
+ubuntu@experiments:~$ garm-cli pool update fb25f308-7ad2-4769-988e-6ec2935f642a \
+      --min-idle-runners=3 \
+      --max-runners=10
 +------------------+----------------------------------------------------------------------------------+
 | FIELD            | VALUE                                                                            |
 +------------------+----------------------------------------------------------------------------------+
