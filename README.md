@@ -323,7 +323,7 @@ This will start the API and migrate the database. Note, if you're using MySQL, y
 Before you can use ```garm```, you need to initialize it. This means we need to create an admin user, and login:
 
 ```bash
-ubuntu@experiments:~$ garm-cli init --name="local_garm" --url https://webhooks.samfira.com
+ubuntu@experiments:~$ garm-cli init --name="local_garm" --url https://garm.example.com
 Username: admin
 Email: root@localhost
 ✔ Password: *************█
