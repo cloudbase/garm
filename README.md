@@ -123,7 +123,7 @@ gabriel@rossak:~$ generate_secret
 9Q<fVm5dtRhUIJ>*nsr*S54g0imK64(!2$Ns6C!~VsH(p)cFj+AMLug%LM!R%FOQ
 ```
 
-You can use the same function to generate a proper ```JWT``` secret for the config, and one for the database passphrase used to encrypt sensitive data before being saved in the database.
+You can use the same function to generate a proper ```JWT``` secret for the config. The database passphrase used to encrypt sensitive data before being saved in the database must be 32 characters in size.
 
 ### Configuring github credentials
 
@@ -543,7 +543,7 @@ ubuntu@experiments:~$ lxc list
 +-------------------------------------------+---------+-------------------------+------+-----------------+-----------+
 ```
 
-It make take a couple of minutes for the runner to come online, as the instance will do a full upgrade, then download the runner and install it. But once the installation is done you should see something like this:
+It might take a couple of minutes for the runner to come online, as the instance will do a full upgrade, then download the runner and install it. But once the installation is done you should see something like this:
 
 ```bash
 ubuntu@experiments:~$ garm-cli runner show garm-edeb8f46-ab09-4ed9-88fc-2731ecf9aabe
