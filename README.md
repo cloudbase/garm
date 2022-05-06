@@ -583,7 +583,7 @@ ubuntu@experiments:~$ garm-cli runner ls fb25f308-7ad2-4769-988e-6ec2935f642a
 
 ## Updating a pool
 
-Let's update the pool and request it maintaine a number of minimum idle runners equal to 3:
+Let's update the pool and request that it maintain a number of minimum idle runners equal to 3:
 
 ```bash
 ubuntu@experiments:~$ garm-cli pool update fb25f308-7ad2-4769-988e-6ec2935f642a \
