@@ -45,7 +45,7 @@ type InstanceJWTClaims struct {
 
 func NewInstanceJWTToken(instance params.Instance, secret, entity string, poolType common.PoolType) (string, error) {
 	// make TTL configurable?
-	expireToken := time.Now().Add(3 * time.Hour).Unix()
+	expireToken := time.Now().Add(15 * time.Minute).Unix()
 	claims := InstanceJWTClaims{
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: expireToken,
@@ -139,6 +139,10 @@ func (amw *instanceMiddleware) Middleware(next http.Handler) http.Handler {
 		if err != nil {
 			invalidAuthResponse(w)
 			return
+		}
+
+		if InstanceID(ctx) == "" {
+			invalidAuthResponse(w)
 		}
 
 		// ctx = SetJWTClaim(ctx, *claims)

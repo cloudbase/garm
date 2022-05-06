@@ -19,6 +19,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net"
 	"os"
 	"path/filepath"
@@ -410,6 +411,7 @@ type timeToLive string
 func (d *timeToLive) Duration() time.Duration {
 	duration, err := time.ParseDuration(string(*d))
 	if err != nil {
+		log.Printf("failed to parse duration: %s", err)
 		return DefaultJWTTTL
 	}
 	return duration

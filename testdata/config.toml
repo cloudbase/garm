@@ -1,45 +1,125 @@
+
 [default]
-config_dir = "/etc/garm"
-callback_url = "https://webhooks.samfira.com/api/v1/instances/status"
-# log_file = "/tmp/garm.log"
+# This URL is used by instances to send back status messages as they install
+# the github actions runner. Status messages can be seen by querying the
+# runner status in garm.
+callback_url = "https://garm.example.com/api/v1/callbacks/status"
+# This folder is defined here for future use. Right now, we create a SSH
+# public/private key-pair.
+config_dir = "/home/runner/garm"
+# Uncomment this line if you'd like to log to a file instead of standard output.
+# log_file = "/tmp/runner-manager.log"
 
 [jwt_auth]
-secret = "L&CGG?%VaV;Zs5CnGqaWINDBhx<GSU*IIrS&gX*TA&e$f<P@KMVdg2To^w5'ms!<"
-time_to_live = "3h"
+# A JWT token secret used to sign tokens.
+# Obviously, this needs to be changed :).
+secret = ")9gk_4A6KrXz9D2u`0@MPea*sd6W`%@5MAWpWWJ3P3EqW~qB!!(Vd$FhNc*eU4vG"
+
+# Time to live for tokens. Both the instances and you will use JWT tokens to
+# authenticate against the API. However, this TTL is applied only to tokens you
+# get when logging into the API. The tokens issued to the instances we manage,
+# have a hardcoded TTL of 15 minutes. The minimum TTL for this token is 24h.
+time_to_live = "8760h"
 
 [apiserver]
+  # Bind the API to this IP
   bind = "0.0.0.0"
+  # Bind the API to this port
   port = 9997
+  # Whether or not to set up TLS for the API endpoint. If this is set to true,
+  # you must have a valid apiserver.tls section.
   use_tls = false
   [apiserver.tls]
+    # Path on disk to a x509 certificate.
     certificate = ""
+    # The path on disk to the corresponding private key for the certificate.
     key = ""
+    # CA certificate bundle to use.
     ca_certificate = ""
 
 [database]
-  debug = true
+  # Turn on/off debugging for database queries.
+  debug = false
+  # Database backend to use. Currently supported backends are:
+  #   * sqlite3
+  #   * mysql
   backend = "sqlite3"
+  # the passphrase option is a temporary measure by which we encrypt the webhook
+  # secret that gets saved to the database, using AES256. In the future, secrets
+  # will be saved to something like Barbican or Vault, eliminating the need for
+  # this.
+  passphrase = "n<$n&P#L*TWqOh95_bN5J1r4mhxY7R84HZ%pvM#1vxJ<7~q%YVsCwU@Z60;7~Djo"
   [database.mysql]
+    # If MySQL is used, these are the credentials and connection information used
+    # to connect to the server instance.
+    # database username
     username = ""
+    # Database password
     password = ""
+    # hostname to connect to
     hostname = ""
+    # database name
     database = ""
   [database.sqlite3]
-    db_file = "/tmp/file.db"
+    # Path on disk to the sqlite3 database file.
+    db_file = "/home/runner/file.db"
 
+
+# Currently, providers are defined statically in the config. This is due to the fact
+# that we have not yet added support for storing secrets in something like Barbican
+# or Vault. This will change in the future. However, for now, it's important to remember
+# that once you create a pool using one of the providers defined here, the name of that
+# provider must not be changes, or the pool will no longer work. Make sure you remove any
+# pools before removing or changing a provider.
 [[provider]]
+  # An arbitrary string describing this provider.
   name = "lxd_local"
+  # Provider type. Garm is designed to allow creating providers which are used to spin
+  # up compute resources, which in turn will run the github runner software.
+  # Currently, LXD is the only supprted provider, but more will be written in the future.
   provider_type = "lxd"
+  # A short description of this provider. The name, description and provider types will
+  # be included in the information returned by the API when listing available providers.
+  description = "Local LXD installation"
   [provider.lxd]
+    # the path to the unix socket that LXD is listening on. This works if garm and LXD
+    # are on the same system, and this option takes precedence over the "url" option,
+    # which connects over the network.
     unix_socket_path = "/var/snap/lxd/common/lxd/unix.socket"
+    # When defining a pool for a repository or an organization, you have an option to
+    # specify a "flavor". In LXD terms, this translates to "profiles". Profiles allow 
+    # you to customize your instances (memory, cpu, disks, nics, etc).
+    # This option allows you to inject the "default" profile along with the profile selected
+    # by the flavor.
     include_default_profile = false
+    # enable/disable secure boot. If the image you select for the pool does not have a
+    # signed bootloader, set this to false, otherwise your instances won't boot.
     secure_boot = false
-    project_name = "github"
-    address = ""
+    # Project name to use. You can create a separate project in LXD for runners.
+    project_name = "default"
+    # URL is the address on which LXD listens for connections (ex: https://example.com:8443)
+    url = ""
+    # garm supports certificate authentication for LXD remote connections. The easiest way
+    # to get the needed certificates, is to install the lxc client and add a remote. The
+    # client_certificate, client_key and tls_server_certificate can be then fetched from
+    # $HOME/snap/lxd/common/config.
     client_certificate = ""
     client_key = ""
     tls_server_certificate = ""
     [provider.lxd.image_remotes]
+      # Image remotes are important. These are the default remotes used by lxc. The names
+      # of these remotes are important. When specifying an "image" for the pool, that image
+      # can be a hash of an existing image on your local LXD installation or it can be a
+      # remote image from one of these remotes. You can specify the images as follows:
+      # Example:
+      #
+      #    * ubuntu:20.04
+      #    * ubuntu_daily:20.04
+      #    * images:centos/8/cloud
+      #
+      # Ubuntu images come pre-installed with cloud-init which we use to set up the runner
+      # automatically and customize the runner. For non Ubuntu images, you need to use the
+      # variant that has "/cloud" in the name. Those images come with cloud-init.
       [provider.lxd.image_remotes.ubuntu]
         addr = "https://cloud-images.ubuntu.com/releases"
         public = true
@@ -56,8 +136,16 @@ time_to_live = "3h"
         protocol = "simplestreams"
         skip_verify = false
 
-
+# This is a list of credentials that you can define as part of the repository
+# or organization definitions. They are not saved inside the database, as there
+# is no Vault integration (yet). This will change in the future.
+# Credentials defined here can be listed using the API. Obviously, only the name
+# and descriptions are returned.
 [[github]]
-  name = "example"
-  description = "github token or user example"
+  name = "gabriel"
+  description = "github token or user gabriel"
+  # This is a personal token with access to the repositories and organizations
+  # you plan on adding to garm. The "workflow" option needs to be selected in order
+  # to work with repositories, and the admin:org needs to be set if you plan on
+  # adding an organization.
   oauth2_token = "super secret token"
