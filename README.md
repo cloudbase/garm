@@ -430,7 +430,7 @@ ubuntu@experiments:~$ garm-cli organization create \
 
 Pools are objects that define one type of worker and rules by which that pool of workers will be maintained. You can have multiple pools of different types of instances. Each pool can have different images, be on different providers and have different tags.
 
-Before we can create a pool, we need to list the available provider. Providers are defined in the config (see above), but we need to reference them by name in the pool.
+Before we can create a pool, we need to list the available providers. Providers are defined in the config (see above), but we need to reference them by name in the pool.
 
 ```bash
 ubuntu@experiments:~$ garm-cli provider list 
@@ -474,7 +474,7 @@ There are a bunch of things going on here, so let's break it down. We created a 
   * flavor=default - The **flavor** describes the hardware aspects of an instance. In LXD terms, this translates to [profiles](https://linuxcontainers.org/lxd/docs/master/profiles/). In LXD, profiles describe how much memory, CPU, NICs and disks a particular instance will get. Much like the flavors in OpenStack or any public cloud provider
   * image=ubuntu:20.04 - The image describes the operating system that will be spun up on the provider. LXD fetches these images from one of the configured remotes, or from the locally cached images. On AWS, this would be an AMI (for example).
   * provider-name=lxd_local - This is the provider on which we'll be spinning up runners. You can have as many providers defined as you wish, and you can reference either one of them when creating a pool.
-  * tags="ubuntu,simple-runner,repo-runner" - This list of tags will be added to all runners maintained by this pool. These are the tags you can use to target whese runners in your workflows. By default, the github runner will automatically add a few default tags (self-hosted, <architecture> -like x64, <os> - like "linux")
+  * tags="ubuntu,simple-runner,repo-runner" - This list of tags will be added to all runners maintained by this pool. These are the tags you can use to target whese runners in your workflows. By default, the github runner will automatically add a few default tags (self-hosted, x64, linux in the above example)
   * enabled=false - This option creates the pool in **disabled** state. When disabled, no new runners will be spun up.
 
 By default, a pool is created with a max worker count of ```5``` and a minimum idle runner count of ```1```. This means that this pool will create by default one runner, and will automatically add more, as jobs are triggered on github. The idea is to have at least one runner ready to accept a workflow job. The pool will keep adding workers until the max runner count is reached. Once a workflow job is complete, the runner is automatically deleted, and replaced.
