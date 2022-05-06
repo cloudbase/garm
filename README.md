@@ -660,3 +660,9 @@ Flags:
 
 Use "garm-cli [command] --help" for more information about a command.
 ```
+
+## Security considerations
+
+Garm does not apply any ACLs of any kind to the instances it creates. That task remains in the responsability of the user. [Here is a guide for creating ACLs in LXD](https://linuxcontainers.org/lxd/docs/master/howto/network_acls/). You can of course use ```iptables``` or ```nftables``` to create any rules you wish. I recommend you create a separate isolated lxd bridge for runners, and secure it using ACLs/iptables/nftables.
+
+You must make sure that the code that runs as part of the workflows is trusted, and if that cannot be done, you must make sure that any malitious code that will be pulled in by the actions and run as part of a workload, is as contained as possible. There is a nice article about [securing your workflow runs here](https://blog.gitguardian.com/github-actions-security-cheat-sheet/).
