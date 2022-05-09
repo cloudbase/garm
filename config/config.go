@@ -46,6 +46,8 @@ const (
 
 	// LXDProvider represents the LXD provider.
 	LXDProvider ProviderType = "lxd"
+	// ExternalProvider represents an external provider.
+	ExternalProvider ProviderType = "external"
 
 	// DefaultConfigFilePath is the default path on disk to the garm
 	// configuration file.
@@ -182,6 +184,7 @@ type Provider struct {
 	ProviderType ProviderType `toml:"provider_type" json:"provider-type"`
 	Description  string       `toml:"description" json:"description"`
 	LXD          LXD          `toml:"lxd" json:"lxd"`
+	External     External     `toml:"external" json:"external"`
 }
 
 func (p *Provider) Validate() error {
@@ -193,6 +196,10 @@ func (p *Provider) Validate() error {
 	case LXDProvider:
 		if err := p.LXD.Validate(); err != nil {
 			return errors.Wrap(err, "validating LXD provider info")
+		}
+	case ExternalProvider:
+		if err := p.External.Validate(); err != nil {
+			return errors.Wrap(err, "validating external provider info")
 		}
 	default:
 		return fmt.Errorf("unknown provider type: %s", p.ProviderType)

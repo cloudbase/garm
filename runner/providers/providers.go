@@ -20,6 +20,7 @@ import (
 
 	"garm/config"
 	"garm/runner/common"
+	"garm/runner/providers/external"
 	"garm/runner/providers/lxd"
 
 	"github.com/pkg/errors"
@@ -35,6 +36,13 @@ func LoadProvidersFromConfig(ctx context.Context, cfg config.Config, controllerI
 		case config.LXDProvider:
 			conf := providerCfg
 			provider, err := lxd.NewProvider(ctx, &conf, controllerID)
+			if err != nil {
+				return nil, errors.Wrap(err, "creating provider")
+			}
+			providers[providerCfg.Name] = provider
+		case config.ExternalProvider:
+			conf := providerCfg
+			provider, err := external.NewProvider(ctx, &conf, controllerID)
 			if err != nil {
 				return nil, errors.Wrap(err, "creating provider")
 			}

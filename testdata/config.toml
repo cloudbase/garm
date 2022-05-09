@@ -136,6 +136,20 @@ time_to_live = "8760h"
         protocol = "simplestreams"
         skip_verify = false
 
+# This is an example external provider. External providers are executables that
+# implement the needed interface to create/delete/list compute systems that are used
+# by garm to create runners.
+[[provider]]
+name = "openstack_external"
+description = "external openstack provider"
+provider_type = "external"
+  [provider.external]
+  # config file passed to the executable via GARM_PROVIDER_CONFIG_FILE environment variable
+  config_file = "/home/ubuntu/garm/providers.d/openstack/keystonerc"
+  # path on disk to a folder that contains a "garm-external-provider" executable. The executable
+  # can be anything (bash, a binary, python, etc)
+  provider_dir = "/home/ubuntu/garm/providers.d/openstack"
+
 # This is a list of credentials that you can define as part of the repository
 # or organization definitions. They are not saved inside the database, as there
 # is no Vault integration (yet). This will change in the future.

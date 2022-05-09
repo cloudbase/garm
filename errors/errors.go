@@ -40,6 +40,20 @@ func (b *baseError) Error() string {
 	return b.msg
 }
 
+// NewProviderError returns a new ProviderError
+func NewProviderError(msg string, a ...interface{}) error {
+	return &ProviderError{
+		baseError{
+			msg: fmt.Sprintf(msg, a...),
+		},
+	}
+}
+
+// UnauthorizedError is returned when a request is unauthorized
+type ProviderError struct {
+	baseError
+}
+
 // NewUnauthorizedError returns a new UnauthorizedError
 func NewUnauthorizedError(msg string) error {
 	return &UnauthorizedError{

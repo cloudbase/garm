@@ -298,6 +298,7 @@ func (r *basePool) addInstanceToProvider(instance params.Instance) error {
 		Flavor:                  pool.Flavor,
 		Image:                   pool.Image,
 		Labels:                  labels,
+		PoolID:                  instance.PoolID,
 	}
 
 	providerInstance, err := provider.CreateInstance(r.ctx, bootstrapArgs)
@@ -548,6 +549,7 @@ func (r *basePool) deletePendingInstances() {
 	}
 
 	for _, instance := range instances {
+		log.Printf("instance status for %s is %s", instance.Name, instance.Status)
 		if instance.Status != providerCommon.InstancePendingDelete {
 			// not in pending_delete status. Skip.
 			continue

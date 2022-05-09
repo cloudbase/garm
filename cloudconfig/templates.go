@@ -56,7 +56,7 @@ curl -L -o "/home/runner/{{ .FileName }}" "{{ .DownloadURL }}" || fail "failed t
 mkdir -p /home/runner/actions-runner || fail "failed to create actions-runner folder"
 
 sendStatus "extracting runner"
-tar xf "/home/runner/{{ .FileName }}" -C /home/runner/actions-runner/ || fail "failed to extract runner"
+tar xf "/home/{{ .RunnerUsername }}/{{ .FileName }}" -C /home/{{ .RunnerUsername }}/actions-runner/ || fail "failed to extract runner"
 chown {{ .RunnerUsername }}:{{ .RunnerGroup }} -R /home/{{ .RunnerUsername }}/actions-runner/ || fail "failed to change owner"
 
 sendStatus "installing dependencies"
