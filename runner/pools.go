@@ -52,6 +52,18 @@ func (r *Runner) DeletePoolByID(ctx context.Context, poolID string) error {
 		return runnerErrors.ErrUnauthorized
 	}
 
+	pool, err := r.store.GetPoolByID(ctx, poolID)
+	if err != nil {
+		if !errors.Is(err, runnerErrors.ErrNotFound) {
+			return errors.Wrap(err, "fetching pool")
+		}
+		return nil
+	}
+
+	if len(pool.Instances) > 0 {
+		return runnerErrors.NewBadRequestError("pool has runners")
+	}
+
 	if err := r.store.DeletePoolByID(ctx, poolID); err != nil {
 		return errors.Wrap(err, "fetching pool")
 	}
