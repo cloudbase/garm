@@ -47,8 +47,8 @@ time_to_live = "8760h"
   # the passphrase option is a temporary measure by which we encrypt the webhook
   # secret that gets saved to the database, using AES256. In the future, secrets
   # will be saved to something like Barbican or Vault, eliminating the need for
-  # this.
-  passphrase = "n<$n&P#L*TWqOh95_bN5J1r4mhxY7R84HZ%pvM#1vxJ<7~q%YVsCwU@Z60;7~Djo"
+  # this. This setting needs to be 32 characters in size.
+  passphrase = "shreotsinWadquidAitNefayctowUrph"
   [database.mysql]
     # If MySQL is used, these are the credentials and connection information used
     # to connect to the server instance.

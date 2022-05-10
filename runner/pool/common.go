@@ -303,7 +303,6 @@ func (r *basePool) addInstanceToProvider(instance params.Instance) error {
 	if err != nil {
 		return errors.Wrap(err, "creating instance")
 	}
-	log.Printf("provider CreateInstance returned error: %v", err)
 
 	updateInstanceArgs := r.updateArgsFromProviderInstance(providerInstance)
 	if _, err := r.store.UpdateInstance(r.ctx, instance.ID, updateInstanceArgs); err != nil {
