@@ -22,7 +22,7 @@ The ```garm``` configuration is a simple ```toml```. A sample of the config file
 
 There are two URLs that you need to give special consideration to, besides the ones used by the CLI to interact with the system. Those tow API endpoints are:
 
-  * Wenhook endpoint
+  * Webhook endpoint
 
 ```
 POST /webhooks
