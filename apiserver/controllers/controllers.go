@@ -96,8 +96,6 @@ func (a *APIController) handleWorkflowJobEvent(w http.ResponseWriter, r *http.Re
 
 	signature := r.Header.Get("X-Hub-Signature-256")
 	hookType := r.Header.Get("X-Github-Hook-Installation-Target-Type")
-	// fmt.Printf(">>> Signature: %s\n", signature)
-	// fmt.Printf(">>> HookType: %s\n", hookType)
 
 	if err := a.r.DispatchWorkflowJob(hookType, signature, body); err != nil {
 		log.Printf("failed to dispatch work: %s", err)

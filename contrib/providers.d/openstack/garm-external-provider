@@ -46,6 +46,13 @@ GARM_TO_GH_ARCH_MAP["amd64"]="x64"
 GARM_TO_GH_ARCH_MAP["arm"]="arm"
 GARM_TO_GH_ARCH_MAP["arm64"]="arm64"
 
+declare -A STATUS_MAP
+STATUS_MAP["ACTIVE"]="running"
+STATUS_MAP["SHUTOFF"]="stopped"
+STATUS_MAP["BUILD"]="pending_create"
+STATUS_MAP["ERROR"]="error"
+STATUS_MAP["DELETING"]="pending_delete"
+
 function checkValNotNull() {
     if [ -z "$1" -o "$1" == "null" ];then
         echo "failed to fetch value $2"
@@ -92,8 +99,9 @@ function waitForVolume() {
     set +e
     status=$(openstack volume show "${volumeName}" -f json | jq -r -c '.status')
     if [ $? -ne 0 ];then
+        CODE=$?
         set -e
-        return $?
+        return $CODE
     fi
     set -e
     while [ "${status}" != "available" -a "${status}" != "error" ];do
@@ -238,7 +246,7 @@ function waitForServer() {
     status=$(echo "${srv_info}" | jq -r -c '.status')
 
     while [ "${status}" != "ERROR" -a "${status}" != "ACTIVE" ];do
-        sleep 2
+        sleep 0.5
         srv_info=$(openstack server show -f json "${srv_id}")
         [ $? -ne 0 ] && return $?
         status=$(echo "${srv_info}" | jq -r -c '.status')
@@ -283,26 +291,35 @@ function CreateInstance() {
     fi
 
     set +e
-    SRV_DETAILS=$(openstack server create ${SOURCE_ARGS} --flavor "${FLAVOR}" --user-data="${CC_FILE}" --network="${NET}" "${INSTANCE_NAME}")
+
+    TAGS="--tag garm-controller-id=${GARM_CONTROLLER_ID} --tag garm-pool-id=${GARM_POOL_ID}"
+    SRV_DETAILS=$(openstack server create --os-compute-api-version 2.52 ${SOURCE_ARGS} ${TAGS} --flavor "${FLAVOR}" --user-data="${CC_FILE}" --network="${NET}" "${INSTANCE_NAME}")
     if [ $? -ne 0 ];then
         openstack volume delete "${INSTANCE_NAME}" || true
         exit 1
     fi
     SRV_DETAILS=$(waitForServer "${INSTANCE_NAME}")
     if [ $? -ne 0 ];then
-        CODE="$?"
+        CODE=$?
         # cleanup
         rm -f "${CC_FILE}" || true 
         openstack server delete "${INSTANCE_NAME}" || true
         openstack volume delete "${INSTANCE_NAME}" || true
         set -e
-        return $CODE
+        FAULT=$(echo "${SRV_DETAILS}"| jq -rc '.fault')
+        echo "Failed to create server: ${FAULT}"
+        exit $CODE
     fi
     set -e
     rm -f "${CC_FILE}" || true
 
     SRV_ID=$(echo "${SRV_DETAILS}" | jq -r -c '.id')
     STATUS=$(echo "${SRV_DETAILS}" | jq -r -c '.status')
+    FAULT=$(echo "${SRV_DETAILS}" | jq -r -c '.fault')
+    FAULT_VAL=""
+    if [ ! -z "${FAULT}" -a "${FAULT}" != "null" ];then
+        FAULT_VAL=$(echo "${FAULT}" | base64 -w0)
+    fi
 
     jq -rnc \
         --arg PROVIDER_ID ${SRV_ID} \
@@ -311,8 +328,10 @@ function CreateInstance() {
         --arg OS_NAME "${DISTRO}" \
         --arg OS_VERSION "${VERSION}" \
         --arg ARCH "${ARCH}" \
-        --arg STATUS "${STATUS}" \
-        '{"id": "", "provider_id": $PROVIDER_ID, "name": $NAME, "os_type": $OS_TYPE, "os_name": $OS_NAME, "os_version": $OS_VERSION, "os_arch": $ARCH, "status": $STATUS, "runner_status": "", "pool_id": ""}'
+        --arg STATUS "${STATUS_MAP[${STATUS}]}" \
+        --arg POOL_ID "${GARM_POOL_ID}" \
+        --arg FAULT "${FAULT_VAL}" \
+        '{"provider_id": $PROVIDER_ID, "name": $NAME, "os_type": $OS_TYPE, "os_name": $OS_NAME, "os_version": $OS_VERSION, "os_arch": $ARCH, "status": $STATUS, "pool_id": $POOL_ID, "provider_fault": $FAULT}'
 }
 
 function DeleteInstance() {
@@ -322,7 +341,17 @@ function DeleteInstance() {
         return 1
     fi
 
-    instance_info=$(openstack server show "${instance_id}" -f json)
+    set +e
+    instance_info=$(openstack server show "${instance_id}" -f json 2>&1)
+    if [ $? -ne 0 ];then
+        CODE=$?
+        set -e
+        if [ "${instance_info}" == "No server with a name or ID of*" ];then
+            return 0
+        fi
+        return $CODE
+    fi
+    set -e
     VOLUMES=$(echo "${instance_info}" | jq -r -c '.volumes_attached[] | .id')
 
     openstack server delete "${instance_id}"

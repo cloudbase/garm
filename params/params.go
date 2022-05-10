@@ -42,7 +42,7 @@ type StatusMessage struct {
 
 type Instance struct {
 	// ID is the database ID of this instance.
-	ID string `json:"id"`
+	ID string `json:"id,omitempty"`
 	// PeoviderID is the unique ID the provider associated
 	// with the compute instance. We use this to identify the
 	// instance in the provider.
@@ -65,14 +65,16 @@ type Instance struct {
 	// for this instance.
 	Addresses []Address `json:"addresses,omitempty"`
 	// Status is the status of the instance inside the provider (eg: running, stopped, etc)
-	Status       common.InstanceStatus `json:"status"`
-	RunnerStatus common.RunnerStatus   `json:"runner_status"`
-	PoolID       string                `json:"pool_id"`
+	Status        common.InstanceStatus `json:"status,omitempty"`
+	RunnerStatus  common.RunnerStatus   `json:"runner_status,omitempty"`
+	PoolID        string                `json:"pool_id,omitempty"`
+	ProviderFault []byte                `json:"provider_fault,omitempty"`
 
 	StatusMessages []StatusMessage `json:"status_messages,omitempty"`
 
 	// Do not serialize sensitive info.
-	CallbackURL string `json:"-"`
+	CallbackURL   string `json:"-"`
+	CreateAttempt int    `json:"-"`
 }
 
 type BootstrapInstance struct {

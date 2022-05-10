@@ -16,9 +16,7 @@ package lxd
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"log"
 
 	"garm/config"
 	runnerErrors "garm/errors"
@@ -225,8 +223,6 @@ func (l *LXD) getCreateInstanceArgs(bootstrapParams params.BootstrapInstance) (a
 		return api.InstancesPost{}, errors.Wrap(err, "generating cloud-config")
 	}
 
-	fmt.Printf(">>> Cloud-config: \n%s\n", cloudCfg)
-
 	args := api.InstancesPost{
 		InstancePut: api.InstancePut{
 			Architecture: image.Architecture,
@@ -250,7 +246,6 @@ func (l *LXD) getCreateInstanceArgs(bootstrapParams params.BootstrapInstance) (a
 }
 
 func (l *LXD) AsParams() params.Provider {
-	log.Printf("<<<<< %s", l.cfg.Name)
 	return params.Provider{
 		Name:         l.cfg.Name,
 		ProviderType: l.cfg.ProviderType,
@@ -292,8 +287,6 @@ func (l *LXD) launchInstance(createArgs api.InstancesPost) error {
 
 // CreateInstance creates a new compute instance in the provider.
 func (l *LXD) CreateInstance(ctx context.Context, bootstrapParams params.BootstrapInstance) (params.Instance, error) {
-	asJs, _ := json.MarshalIndent(bootstrapParams, "", "  ")
-	fmt.Printf(">>> %s\n", string(asJs))
 	args, err := l.getCreateInstanceArgs(bootstrapParams)
 	if err != nil {
 		return params.Instance{}, errors.Wrap(err, "fetching create args")
@@ -310,8 +303,6 @@ func (l *LXD) CreateInstance(ctx context.Context, bootstrapParams params.Bootstr
 		return params.Instance{}, errors.Wrap(err, "fetching instance")
 	}
 
-	asJs2, _ := json.MarshalIndent(ret, "", "  ")
-	fmt.Printf(">>>22 %s\n", string(asJs2))
 	return ret, nil
 }
 

@@ -114,16 +114,18 @@ type InstanceStatusUpdate struct {
 type Instance struct {
 	Base
 
-	ProviderID   *string `gorm:"uniqueIndex"`
-	Name         string  `gorm:"uniqueIndex"`
-	OSType       config.OSType
-	OSArch       config.OSArch
-	OSName       string
-	OSVersion    string
-	Addresses    []Address `gorm:"foreignKey:InstanceID"`
-	Status       common.InstanceStatus
-	RunnerStatus common.RunnerStatus
-	CallbackURL  string
+	ProviderID    *string `gorm:"uniqueIndex"`
+	Name          string  `gorm:"uniqueIndex"`
+	OSType        config.OSType
+	OSArch        config.OSArch
+	OSName        string
+	OSVersion     string
+	Addresses     []Address `gorm:"foreignKey:InstanceID"`
+	Status        common.InstanceStatus
+	RunnerStatus  common.RunnerStatus
+	CallbackURL   string
+	ProviderFault []byte `gorm:"type:longblob"`
+	CreateAttempt int
 
 	PoolID uuid.UUID
 	Pool   Pool `gorm:"foreignKey:PoolID"`

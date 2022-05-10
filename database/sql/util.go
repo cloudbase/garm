@@ -41,6 +41,11 @@ func (s *sqlDatabase) sqlToParamsInstance(instance Instance) params.Instance {
 		PoolID:         instance.PoolID.String(),
 		CallbackURL:    instance.CallbackURL,
 		StatusMessages: []params.StatusMessage{},
+		CreateAttempt:  instance.CreateAttempt,
+	}
+
+	if len(instance.ProviderFault) > 0 {
+		ret.ProviderFault = instance.ProviderFault
 	}
 
 	for _, addr := range instance.Addresses {

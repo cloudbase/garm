@@ -20,13 +20,26 @@ type RunnerStatus string
 const (
 	InstanceRunning       InstanceStatus = "running"
 	InstanceStopped       InstanceStatus = "stopped"
+	InstanceError         InstanceStatus = "error"
 	InstancePendingDelete InstanceStatus = "pending_delete"
 	InstancePendingCreate InstanceStatus = "pending_create"
 	InstanceStatusUnknown InstanceStatus = "unknown"
 
 	RunnerIdle       RunnerStatus = "idle"
 	RunnerPending    RunnerStatus = "pending"
+	RunnerTerminated RunnerStatus = "terminated"
 	RunnerInstalling RunnerStatus = "installing"
 	RunnerFailed     RunnerStatus = "failed"
 	RunnerActive     RunnerStatus = "active"
 )
+
+func IsValidStatus(status InstanceStatus) bool {
+	switch status {
+	case InstanceRunning, InstanceError, InstancePendingCreate,
+		InstancePendingDelete, InstanceStatusUnknown, InstanceStopped:
+
+		return true
+	default:
+		return false
+	}
+}

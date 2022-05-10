@@ -175,6 +175,11 @@ func (s *sqlDatabase) UpdateInstance(ctx context.Context, instanceID string, par
 	if string(param.Status) != "" {
 		instance.Status = param.Status
 	}
+	if param.CreateAttempt != 0 {
+		instance.CreateAttempt = param.CreateAttempt
+	}
+
+	instance.ProviderFault = param.ProviderFault
 
 	q := s.conn.Save(&instance)
 	if q.Error != nil {

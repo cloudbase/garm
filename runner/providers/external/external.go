@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 
 	"garm/config"
 	garmErrors "garm/errors"
 	"garm/params"
 	"garm/runner/common"
+	providerCommon "garm/runner/providers/common"
 	"garm/util/exec"
 
 	"github.com/pkg/errors"
@@ -44,6 +46,26 @@ func (e *external) configEnvVar() string {
 	return fmt.Sprintf("GARM_PROVIDER_CONFIG_FILE=%s", e.cfg.External.ConfigFile)
 }
 
+func (e *external) validateCreateResult(inst params.Instance, bootstrapParams params.BootstrapInstance) error {
+	if inst.ProviderID == "" {
+		return garmErrors.NewProviderError("missing provider ID after create call")
+	}
+
+	if inst.Name == "" {
+		return garmErrors.NewProviderError("missing instance name after create call")
+	}
+
+	if inst.OSName == "" || inst.OSArch == "" || inst.OSType == "" {
+		// we can still function without this info (I think)
+		log.Printf("WARNING: missing OS information after create call")
+	}
+	if !providerCommon.IsValidStatus(inst.Status) {
+		return garmErrors.NewProviderError("invalid status returned (%s) after create call", inst.Status)
+	}
+
+	return nil
+}
+
 // CreateInstance creates a new compute instance in the provider.
 func (e *external) CreateInstance(ctx context.Context, bootstrapParams params.BootstrapInstance) (params.Instance, error) {
 	asEnv := bootstrapParamsToEnv(bootstrapParams)
@@ -66,6 +88,13 @@ func (e *external) CreateInstance(ctx context.Context, bootstrapParams params.Bo
 	if err := json.Unmarshal(out, &param); err != nil {
 		return params.Instance{}, garmErrors.NewProviderError("failed to decode response from binary: %s", err)
 	}
+
+	if err := e.validateCreateResult(param, bootstrapParams); err != nil {
+		return params.Instance{}, garmErrors.NewProviderError("failed to validate result: %s", err)
+	}
+
+	retAsJs, _ := json.MarshalIndent(param, "", "  ")
+	log.Printf("provider returned: %s", string(retAsJs))
 	return param, nil
 }
 

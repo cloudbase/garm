@@ -182,6 +182,10 @@ func formatSingleInstance(instance params.Instance) {
 		}
 	}
 
+	if len(instance.ProviderFault) > 0 {
+		t.AppendRow(table.Row{"Provider Fault", string(instance.ProviderFault)}, table.RowConfig{AutoMerge: true})
+	}
+
 	if len(instance.StatusMessages) > 0 {
 		for _, msg := range instance.StatusMessages {
 			t.AppendRow(table.Row{"Status Updates", fmt.Sprintf("%s: %s", msg.CreatedAt.Format("2006-01-02T15:04:05"), msg.Message)}, table.RowConfig{AutoMerge: true})
@@ -190,7 +194,7 @@ func formatSingleInstance(instance params.Instance) {
 
 	t.SetColumnConfigs([]table.ColumnConfig{
 		{Number: 1, AutoMerge: true},
-		{Number: 2, AutoMerge: false},
+		{Number: 2, AutoMerge: false, WidthMax: 100},
 	})
 	fmt.Println(t.Render())
 }

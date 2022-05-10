@@ -1,4 +1,4 @@
-# OpenStack external provider for GARM
+# OpenStack external provider for garm
 
 This is an example external provider, written for OpenStack. It is a simple bash script that implements the external provider interface, in order to supply ```garm``` with compute instances. This is just an example, complete with a sample config file.
 

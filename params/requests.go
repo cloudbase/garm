@@ -89,12 +89,13 @@ type UpdatePoolParams struct {
 }
 
 type CreateInstanceParams struct {
-	Name         string
-	OSType       config.OSType
-	OSArch       config.OSArch
-	Status       common.InstanceStatus
-	RunnerStatus common.RunnerStatus
-	CallbackURL  string
+	Name          string
+	OSType        config.OSType
+	OSArch        config.OSArch
+	Status        common.InstanceStatus
+	RunnerStatus  common.RunnerStatus
+	CallbackURL   string
+	CreateAttempt int `json:"-"`
 
 	Pool string
 }
@@ -149,8 +150,10 @@ type UpdateInstanceParams struct {
 	// for this instance.
 	Addresses []Address `json:"addresses,omitempty"`
 	// Status is the status of the instance inside the provider (eg: running, stopped, etc)
-	Status       common.InstanceStatus `json:"status"`
-	RunnerStatus common.RunnerStatus   `json:"runner_status"`
+	Status        common.InstanceStatus `json:"status,omitempty"`
+	RunnerStatus  common.RunnerStatus   `json:"runner_status,omitempty"`
+	ProviderFault []byte                `json:"provider_fault,omitempty"`
+	CreateAttempt int                   `json:"-"`
 }
 
 type UpdateUserParams struct {
