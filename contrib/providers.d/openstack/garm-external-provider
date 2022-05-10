@@ -5,7 +5,7 @@ set -o pipefail
 
 if [ ! -t 0 ]
 then
-	INPUT=$(cat -)
+    INPUT=$(cat -)
 fi
 MYPATH=$(realpath ${BASH_SOURCE[0]})
 MYDIR=$(dirname "${MYPATH}")
@@ -255,10 +255,10 @@ function waitForServer() {
 }
 
 function CreateInstance() {
-	if [ -z "$INPUT" ];then
+    if [ -z "$INPUT" ];then
         echo "expected build params in stdin"
         exit 1
-	fi
+    fi
 
     CC_FILE=$(getCloudConfig)
     FLAVOR=$(flavor)
@@ -382,33 +382,33 @@ function StopServer() {
 }
 
 case "$GARM_COMMAND" in
-	"CreateInstance")
-		CreateInstance
-		;;
-	"DeleteInstance")
+    "CreateInstance")
+        CreateInstance
+        ;;
+    "DeleteInstance")
         DeleteInstance
-		;;
-	"GetInstance")
-		echo "GetInstance not implemented"
+        ;;
+    "GetInstance")
+        echo "GetInstance not implemented"
         exit 1
-		;;
-	"ListInstances")
-		echo "ListInstances not implemented"
+        ;;
+    "ListInstances")
+        echo "ListInstances not implemented"
         exit 1
-		;;
-	"StartInstance")
-		StartInstance
-		;;
-	"StopInstance")
-		StopServer
-		;;
-	"RemoveAllInstances")
-		echo "RemoveAllInstances not implemented"
+        ;;
+    "StartInstance")
+        StartInstance
+        ;;
+    "StopInstance")
+        StopServer
+        ;;
+    "RemoveAllInstances")
+        echo "RemoveAllInstances not implemented"
         exit 1
-		;;
-	*)
-		echo "Invalid GARM provider command: \"$GARM_COMMAND\""
-		exit 1
-		;;
+        ;;
+    *)
+        echo "Invalid GARM provider command: \"$GARM_COMMAND\""
+        exit 1
+        ;;
 esac
 
