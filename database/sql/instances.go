@@ -66,9 +66,6 @@ func (s *sqlDatabase) getInstanceByID(ctx context.Context, instanceID string) (I
 func (s *sqlDatabase) getPoolInstanceByName(ctx context.Context, poolID string, instanceName string) (Instance, error) {
 	pool, err := s.getPoolByID(ctx, poolID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return Instance{}, errors.Wrap(runnerErrors.ErrNotFound, "fetching instance")
-		}
 		return Instance{}, errors.Wrap(err, "fetching pool")
 	}
 
@@ -78,7 +75,10 @@ func (s *sqlDatabase) getPoolInstanceByName(ctx context.Context, poolID string, 
 		Where("name = ? and pool_id = ?", instanceName, pool.ID).
 		First(&instance)
 	if q.Error != nil {
-		return Instance{}, errors.Wrap(q.Error, "fetching instance")
+		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
+			return Instance{}, errors.Wrap(runnerErrors.ErrNotFound, "fetching pool instance by name")
+		}
+		return Instance{}, errors.Wrap(q.Error, "fetching pool instance by name")
 	}
 	return instance, nil
 }
@@ -99,7 +99,10 @@ func (s *sqlDatabase) getInstanceByName(ctx context.Context, instanceName string
 		Where("name = ?", instanceName).
 		First(&instance)
 	if q.Error != nil {
-		return Instance{}, errors.Wrap(q.Error, "fetching instance")
+		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
+			return Instance{}, errors.Wrap(runnerErrors.ErrNotFound, "fetching instance by name")
+		}
+		return Instance{}, errors.Wrap(q.Error, "fetching instance by name")
 	}
 	return instance, nil
 }

@@ -683,7 +683,7 @@ func (r *basePool) addPendingInstances() {
 		wg.Add(1)
 		go func(instance params.Instance) {
 			defer wg.Done()
-			log.Printf("creating instance %s in provider", instance.Name)
+			log.Printf("creating instance %s in pool %s", instance.Name, instance.PoolID)
 			if err := r.addInstanceToProvider(instance); err != nil {
 				log.Printf("failed to add instance to provider: %s", err)
 				errAsBytes := []byte(err.Error())
