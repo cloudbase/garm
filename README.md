@@ -131,7 +131,8 @@ Garm needs a [Personal Access Token (PAT)](https://docs.github.com/en/authentica
 
 From the list of scopes, you will need to select:
 
-  * ```workflow``` - for access to repository level workflows
+  * ```public_repo``` - for access to a repository
+  * ```repo``` - for access to a private repository
   * ```admin:org``` - if you plan on using this with an organization to which you have access
 
 The resulting token must be configured in the ```[[github]]``` section of the config. Sample as follows:
