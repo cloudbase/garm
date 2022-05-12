@@ -1,0 +1,13 @@
+[Unit]
+Description=GitHub Actions Runner Manager (garm)
+After=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/garm -config /etc/garm/config.toml
+Restart=always
+RestartSec=5s
+User=garm
+
+[Install]
+WantedBy=multi-user.target

@@ -197,7 +197,9 @@ You can choose either one of these. For most cases, ```SQLite3``` should do, but
 
 ### Provider configuration
 
-Garm was designed to be extensible. The database layer as well as the providers are defined as interfaces. Currently the only implementation of a provider is for [LXD](https://linuxcontainers.org/lxd/introduction/), but will be extended to include more providers in the future. LXD is the simplest cloud-like system you can easily set up on any GNU/Linux machine, which allows you to create both containers and Virtual Machines.
+Garm was designed to be extensible. The database layer as well as the providers are defined as interfaces. Currently there are two providers:
+  * [LXD](https://linuxcontainers.org/lxd/introduction/)
+  * External
 
 Garm leverages the virtual machines feature of LXD to create the runners, and the provider itself allows you to separate those machines from the rest of your LXD workloads, by using LXD projects. Here is a sample config section for an LXD provider:
 

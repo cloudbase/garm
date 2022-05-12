@@ -6,7 +6,7 @@
 callback_url = "https://garm.example.com/api/v1/callbacks/status"
 # This folder is defined here for future use. Right now, we create a SSH
 # public/private key-pair.
-config_dir = "/home/runner/garm"
+config_dir = "/etc/garm"
 # Uncomment this line if you'd like to log to a file instead of standard output.
 # log_file = "/tmp/runner-manager.log"
 
@@ -62,7 +62,7 @@ time_to_live = "8760h"
     database = ""
   [database.sqlite3]
     # Path on disk to the sqlite3 database file.
-    db_file = "/home/runner/file.db"
+    db_file = "/etc/garm/garm.db"
 
 
 # Currently, providers are defined statically in the config. This is due to the fact
@@ -145,10 +145,10 @@ description = "external openstack provider"
 provider_type = "external"
   [provider.external]
   # config file passed to the executable via GARM_PROVIDER_CONFIG_FILE environment variable
-  config_file = "/home/ubuntu/garm/providers.d/openstack/keystonerc"
+  config_file = "/etc/garm/providers.d/openstack/keystonerc"
   # path on disk to a folder that contains a "garm-external-provider" executable. The executable
   # can be anything (bash, a binary, python, etc)
-  provider_dir = "/home/ubuntu/garm/providers.d/openstack"
+  provider_dir = "/etc/garm/providers.d/openstack"
 
 [[provider]]
 name = "azure_external"
@@ -156,10 +156,10 @@ description = "external azure provider"
 provider_type = "external"
   [provider.external]
   # config file passed to the executable via GARM_PROVIDER_CONFIG_FILE environment variable
-  config_file = "/home/ubuntu/garm/providers.d/azure/config.sh"
+  config_file = "/etc/garm/providers.d/azure/config.sh"
   # path on disk to a folder that contains a "garm-external-provider" executable. The executable
   # can be anything (bash, a binary, python, etc)
-  provider_dir = "/home/ubuntu/garm/providers.d/azure"
+  provider_dir = "/etc/garm/providers.d/azure"
 
 # This is a list of credentials that you can define as part of the repository
 # or organization definitions. They are not saved inside the database, as there
