@@ -136,7 +136,7 @@ time_to_live = "8760h"
         protocol = "simplestreams"
         skip_verify = false
 
-# This is an example external provider. External providers are executables that
+# These are examples of external providers. External providers are executables that
 # implement the needed interface to create/delete/list compute systems that are used
 # by garm to create runners.
 [[provider]]
@@ -149,6 +149,17 @@ provider_type = "external"
   # path on disk to a folder that contains a "garm-external-provider" executable. The executable
   # can be anything (bash, a binary, python, etc)
   provider_dir = "/home/ubuntu/garm/providers.d/openstack"
+
+[[provider]]
+name = "azure_external"
+description = "external azure provider"
+provider_type = "external"
+  [provider.external]
+  # config file passed to the executable via GARM_PROVIDER_CONFIG_FILE environment variable
+  config_file = "/home/ubuntu/garm/providers.d/azure/config.sh"
+  # path on disk to a folder that contains a "garm-external-provider" executable. The executable
+  # can be anything (bash, a binary, python, etc)
+  provider_dir = "/home/ubuntu/garm/providers.d/azure"
 
 # This is a list of credentials that you can define as part of the repository
 # or organization definitions. They are not saved inside the database, as there
