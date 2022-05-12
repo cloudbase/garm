@@ -29,7 +29,7 @@ type External struct {
 func (e *External) ExecutablePath() (string, error) {
 	execPath := filepath.Join(e.ProviderDir, "garm-external-provider")
 	if !filepath.IsAbs(execPath) {
-		return "", fmt.Errorf("executable path must be an absolut epath")
+		return "", fmt.Errorf("executable path must be an absolute path")
 	}
 	return filepath.Join(e.ProviderDir, "garm-external-provider"), nil
 }
@@ -37,7 +37,7 @@ func (e *External) ExecutablePath() (string, error) {
 func (e *External) Validate() error {
 	if e.ConfigFile != "" {
 		if _, err := os.Stat(e.ConfigFile); err != nil {
-			return fmt.Errorf("failed to access cofig file %s", e.ConfigFile)
+			return fmt.Errorf("failed to access config file %s", e.ConfigFile)
 		}
 		if !filepath.IsAbs(e.ConfigFile) {
 			return fmt.Errorf("path to config file must be an absolute path")
