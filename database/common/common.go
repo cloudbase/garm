@@ -65,6 +65,8 @@ type Store interface {
 	ListRepoInstances(ctx context.Context, repoID string) ([]params.Instance, error)
 	ListOrgInstances(ctx context.Context, orgID string) ([]params.Instance, error)
 
+	PoolInstanceCount(ctx context.Context, poolID string) (int64, error)
+
 	// Probably a bad idea without some king of filter or at least pagination
 	// TODO: add filter/pagination
 	ListAllInstances(ctx context.Context) ([]params.Instance, error)

@@ -230,3 +230,17 @@ func (s *sqlDatabase) ListAllInstances(ctx context.Context) ([]params.Instance, 
 	}
 	return ret, nil
 }
+
+func (s *sqlDatabase) PoolInstanceCount(ctx context.Context, poolID string) (int64, error) {
+	pool, err := s.getPoolByID(ctx, poolID)
+	if err != nil {
+		return 0, errors.Wrap(err, "fetching pool")
+	}
+
+	var cnt int64
+	q := s.conn.Model(&Instance{}).Where("pool_id = ?", pool.ID).Count(&cnt)
+	if q.Error != nil {
+		return 0, errors.Wrap(q.Error, "fetching instance count")
+	}
+	return cnt, nil
+}

@@ -22,7 +22,9 @@ const (
 	InstanceStopped       InstanceStatus = "stopped"
 	InstanceError         InstanceStatus = "error"
 	InstancePendingDelete InstanceStatus = "pending_delete"
+	InstanceDeleting      InstanceStatus = "deleting"
 	InstancePendingCreate InstanceStatus = "pending_create"
+	InstanceCreating      InstanceStatus = "creating"
 	InstanceStatusUnknown InstanceStatus = "unknown"
 
 	RunnerIdle       RunnerStatus = "idle"
@@ -36,7 +38,8 @@ const (
 func IsValidStatus(status InstanceStatus) bool {
 	switch status {
 	case InstanceRunning, InstanceError, InstancePendingCreate,
-		InstancePendingDelete, InstanceStatusUnknown, InstanceStopped:
+		InstancePendingDelete, InstanceStatusUnknown, InstanceStopped,
+		InstanceCreating, InstanceDeleting:
 
 		return true
 	default:
