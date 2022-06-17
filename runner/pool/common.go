@@ -405,7 +405,6 @@ func (r *basePool) updateArgsFromProviderInstance(providerInstance params.Instan
 
 func (r *basePool) ensureIdleRunnersForOnePool(pool params.Pool) {
 	if !pool.Enabled {
-		log.Printf("pool %s is disabled, skipping", pool.ID)
 		return
 	}
 	existingInstances, err := r.store.ListPoolInstances(r.ctx, pool.ID)
@@ -449,7 +448,6 @@ func (r *basePool) ensureIdleRunnersForOnePool(pool params.Pool) {
 
 func (r *basePool) retryFailedInstancesForOnePool(pool params.Pool) {
 	if !pool.Enabled {
-		log.Printf("pool %s is disabled, skipping", pool.ID)
 		return
 	}
 
@@ -464,7 +462,6 @@ func (r *basePool) retryFailedInstancesForOnePool(pool params.Pool) {
 			continue
 		}
 		if instance.CreateAttempt >= maxCreateAttempts {
-			log.Printf("instance %s max create attempts (%d) reached", instance.Name, instance.CreateAttempt)
 			continue
 		}
 

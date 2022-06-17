@@ -16,6 +16,7 @@ package lxd
 
 import (
 	"fmt"
+	"log"
 	"strings"
 
 	"garm/config"
@@ -108,9 +109,22 @@ func (i *image) copyImageFromRemote(remote config.LXDRemote, imageName string, i
 	}
 
 	// Ask LXD to copy the image from the remote server
+	imgAliases := []api.ImageAlias{}
+	found := false
+	for _, alias := range image.Aliases {
+		if alias.Name == imageName {
+			found = true
+			break
+		}
+	}
+	if !found {
+		imgAliases = append(imgAliases, api.ImageAlias{Name: imageName})
+	}
+
 	imgCopyArgs := &lxd.ImageCopyArgs{
 		AutoUpdate:  true,
 		CopyAliases: true,
+		Aliases:     imgAliases,
 	}
 	op, err := i.cli.CopyImage(imgCli, *image, imgCopyArgs)
 	if err != nil {
@@ -146,6 +160,8 @@ func (i *image) EnsureImage(imageName string, imageType config.LXDImageType, arc
 
 	if img, err := i.getLocalImageByAlias(parsedName, imageType, arch); err == nil {
 		return img, nil
+	} else {
+		log.Printf("failed to fetch local image of type %v with name %s and arch %s: %s", imageType, parsedName, arch, err)
 	}
 
 	img, err := i.copyImageFromRemote(remote, parsedName, imageType, arch)
