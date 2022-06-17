@@ -72,6 +72,7 @@ var (
 	DefaultUserGroups = []string{
 		"sudo", "adm", "cdrom", "dialout",
 		"dip", "video", "plugdev", "netdev",
+		"docker", "lxd",
 	}
 )
 

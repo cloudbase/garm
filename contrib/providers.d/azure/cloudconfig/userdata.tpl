@@ -17,6 +17,8 @@ system_info:
             - video
             - plugdev
             - netdev
+            - docker
+            - lxd
         sudo: ALL=(ALL) NOPASSWD:ALL
 runcmd:
     - /install_runner.sh
