@@ -15,8 +15,10 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/BurntSushi/toml"
 	"github.com/pkg/errors"
@@ -66,11 +68,14 @@ func LoadConfig() (*Config, error) {
 }
 
 type Config struct {
+	mux           sync.Mutex
 	Managers      []Manager `toml:"manager"`
 	ActiveManager string    `toml:"active_manager"`
 }
 
 func (c *Config) HasManager(mgr string) bool {
+	c.mux.Lock()
+	defer c.mux.Unlock()
 	if mgr == "" {
 		return false
 	}
@@ -82,7 +87,58 @@ func (c *Config) HasManager(mgr string) bool {
 	return false
 }
 
+func (c *Config) SetManagerToken(name, token string) error {
+	c.mux.Lock()
+	defer c.mux.Unlock()
+	found := false
+	newManagerList := []Manager{}
+	for _, mgr := range c.Managers {
+		newMgr := Manager{
+			Name:    mgr.Name,
+			BaseURL: mgr.BaseURL,
+			Token:   mgr.Token,
+		}
+		if mgr.Name == name {
+			found = true
+			newMgr.Token = token
+		}
+		newManagerList = append(newManagerList, newMgr)
+	}
+	if !found {
+		return fmt.Errorf("profile %s not found", name)
+	}
+	c.Managers = newManagerList
+	return nil
+}
+
+func (c *Config) DeleteProfile(name string) error {
+	c.mux.Lock()
+	defer c.mux.Unlock()
+	newManagers := []Manager{}
+	for _, val := range c.Managers {
+		if val.Name == name {
+			continue
+		}
+		newManagers = append(newManagers, Manager{
+			Name:    val.Name,
+			BaseURL: val.BaseURL,
+			Token:   val.Token,
+		})
+	}
+	c.Managers = newManagers
+	if c.ActiveManager == name {
+		if len(c.Managers) > 0 {
+			c.ActiveManager = c.Managers[0].Name
+		} else {
+			c.ActiveManager = ""
+		}
+	}
+	return nil
+}
+
 func (c *Config) GetActiveConfig() (Manager, error) {
+	c.mux.Lock()
+	defer c.mux.Unlock()
 	if c.ActiveManager == "" {
 		return Manager{}, runnerErrors.ErrNotFound
 	}
@@ -96,6 +152,8 @@ func (c *Config) GetActiveConfig() (Manager, error) {
 }
 
 func (c *Config) SaveConfig() error {
+	c.mux.Lock()
+	defer c.mux.Unlock()
 	cfgFile, err := getConfigFilePath()
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {

@@ -30,7 +30,7 @@ var (
 	active         string
 	needsInit      bool
 	debug          bool
-	needsInitError = fmt.Errorf("Please log into a garm first")
+	needsInitError = fmt.Errorf("Please log into a garm installation first")
 )
 
 // rootCmd represents the base command when called without any subcommands

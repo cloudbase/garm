@@ -37,11 +37,11 @@ var initCmd = &cobra.Command{
 A newly installed runner manager needs to be initialized to become
 functional. This command sets the administrative user and password,
 generates a controller UUID which is used internally to identify runners
-created by the manager and enables the service.
+created by the manager and adds the profile to the local client config.
 
 Example usage:
 
-garm-cli login --name=dev --url=https://runner.example.com --username=admin --password=superSecretPassword
+garm-cli init --name=dev --url=https://runner.example.com --username=admin --password=superSecretPassword
 `,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if cfg != nil {
