@@ -94,6 +94,14 @@ func (r *Runner) UpdatePoolByID(ctx context.Context, poolID string, param params
 		return params.Pool{}, runnerErrors.NewBadRequestError("min_idle_runners cannot be larger than max_runners")
 	}
 
+	if param.Tags != nil && len(param.Tags) > 0 {
+		newTags, err := r.processTags(string(pool.OSArch), string(pool.OSType), param.Tags)
+		if err != nil {
+			return params.Pool{}, errors.Wrap(err, "processing tags")
+		}
+		param.Tags = newTags
+	}
+
 	var newPool params.Pool
 
 	if pool.RepoID != "" {

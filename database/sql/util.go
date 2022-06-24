@@ -207,12 +207,14 @@ func (s *sqlDatabase) updatePool(pool Pool, param params.UpdatePoolParams) (para
 		return params.Pool{}, errors.Wrap(q.Error, "saving database entry")
 	}
 
+	tags := []Tag{}
 	if param.Tags != nil && len(param.Tags) > 0 {
-		tags := make([]Tag, len(param.Tags))
-		for idx, t := range param.Tags {
-			tags[idx] = Tag{
-				Name: t,
+		for _, val := range param.Tags {
+			t, err := s.getOrCreateTag(val)
+			if err != nil {
+				return params.Pool{}, errors.Wrap(err, "fetching tag")
 			}
+			tags = append(tags, t)
 		}
 
 		if err := s.conn.Model(&pool).Association("Tags").Replace(&tags); err != nil {

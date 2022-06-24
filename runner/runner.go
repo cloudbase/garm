@@ -457,6 +457,17 @@ func (r *Runner) appendTagsToCreatePoolParams(param params.CreatePoolParams) (pa
 		return params.CreatePoolParams{}, runnerErrors.NewBadRequestError("no such provider %s", param.ProviderName)
 	}
 
+	newTags, err := r.processTags(string(param.OSArch), string(param.OSType), param.Tags)
+	if err != nil {
+		return params.CreatePoolParams{}, errors.Wrap(err, "processing tags")
+	}
+
+	param.Tags = newTags
+
+	return param, nil
+}
+
+func (r *Runner) processTags(osArch, osType string, tags []string) ([]string, error) {
 	// github automatically adds the "self-hosted" tag as well as the OS type (linux, windows, etc)
 	// and architecture (arm, x64, etc) to all self hosted runners. When a workflow job comes in, we try
 	// to find a pool based on the labels that are set in the workflow. If we don't explicitly define these
@@ -464,25 +475,29 @@ func (r *Runner) appendTagsToCreatePoolParams(param params.CreatePoolParams) (pa
 	// The downside is that all pools with the same OS and arch will have these default labels. Users should
 	// set distinct and unique labels on each pool, and explicitly target those labels, or risk assigning
 	// the job to the wrong worker type.
-	ghArch, err := util.ResolveToGithubArch(string(param.OSArch))
+	ghArch, err := util.ResolveToGithubArch(osArch)
 	if err != nil {
-		return params.CreatePoolParams{}, errors.Wrap(err, "invalid arch")
+		return nil, errors.Wrap(err, "invalid arch")
 	}
 
-	osType, err := util.ResolveToGithubOSType(string(param.OSType))
+	ghOSType, err := util.ResolveToGithubOSType(osType)
 	if err != nil {
-		return params.CreatePoolParams{}, errors.Wrap(err, "invalid os type")
+		return nil, errors.Wrap(err, "invalid os type")
 	}
 
-	extraLabels := []string{
+	labels := []string{
 		"self-hosted",
 		ghArch,
-		osType,
+		ghOSType,
 	}
 
-	param.Tags = append(param.Tags, extraLabels...)
+	for _, val := range tags {
+		if val != "self-hosted" && val != ghArch && val != ghOSType {
+			labels = append(labels, val)
+		}
+	}
 
-	return param, nil
+	return labels, nil
 }
 
 func (r *Runner) GetInstance(ctx context.Context, instanceName string) (params.Instance, error) {
