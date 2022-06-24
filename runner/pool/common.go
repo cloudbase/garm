@@ -536,25 +536,8 @@ func (r *basePool) cleanupOrphanedGithubRunners(runners []*github.Runner) error 
 		}
 
 		removeRunner := false
-		poolID, err := r.poolIDFromLabels(runner.Labels)
-		if err != nil {
-			if !errors.Is(err, runnerErrors.ErrNotFound) {
-				return errors.Wrap(err, "finding pool")
-			}
-			// not a runner we manage
-			continue
-		}
 
-		pool, err := r.helper.GetPoolByID(poolID)
-		if err != nil {
-			if !errors.Is(err, runnerErrors.ErrNotFound) {
-				return errors.Wrap(err, "fetching pool")
-			}
-			// not pool we manage.
-			continue
-		}
-
-		dbInstance, err := r.store.GetPoolInstanceByName(r.ctx, poolID, *runner.Name)
+		dbInstance, err := r.store.GetInstanceByName(r.ctx, *runner.Name)
 		if err != nil {
 			if !errors.Is(err, runnerErrors.ErrNotFound) {
 				return errors.Wrap(err, "fetching instance from DB")
@@ -563,6 +546,11 @@ func (r *basePool) cleanupOrphanedGithubRunners(runners []*github.Runner) error 
 			// removal may have failed?
 			removeRunner = true
 		} else {
+			pool, err := r.helper.GetPoolByID(dbInstance.PoolID)
+			if err != nil {
+				return errors.Wrap(err, "fetching pool")
+			}
+
 			if providerCommon.InstanceStatus(dbInstance.Status) == providerCommon.InstancePendingDelete {
 				// already marked for deleting. Let consolidate take care of it.
 				continue

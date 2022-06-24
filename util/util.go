@@ -61,6 +61,7 @@ var (
 		"centos":  config.Linux,
 		"suse":    config.Linux,
 		"fedora":  config.Linux,
+		"debian":  config.Linux,
 		"flatcar": config.Linux,
 		"gentoo":  config.Linux,
 		"windows": config.Windows,
