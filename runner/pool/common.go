@@ -535,51 +535,67 @@ func (r *basePool) cleanupOrphanedGithubRunners(runners []*github.Runner) error 
 			continue
 		}
 
-		removeRunner := false
-
 		dbInstance, err := r.store.GetInstanceByName(r.ctx, *runner.Name)
 		if err != nil {
 			if !errors.Is(err, runnerErrors.ErrNotFound) {
 				return errors.Wrap(err, "fetching instance from DB")
 			}
-			// We no longer have a DB entry for this instance. Previous forceful
-			// removal may have failed?
-			removeRunner = true
-		} else {
-			pool, err := r.helper.GetPoolByID(dbInstance.PoolID)
-			if err != nil {
-				return errors.Wrap(err, "fetching pool")
-			}
-
-			if providerCommon.InstanceStatus(dbInstance.Status) == providerCommon.InstancePendingDelete {
-				// already marked for deleting. Let consolidate take care of it.
-				continue
-			}
-			// check if the provider still has the instance.
-			provider, ok := r.providers[pool.ProviderName]
-			if !ok {
-				return fmt.Errorf("unknown provider %s for pool %s", pool.ProviderName, pool.ID)
-			}
-
-			if providerCommon.InstanceStatus(dbInstance.Status) == providerCommon.InstanceRunning {
-				// instance is running, but github reports runner as offline. Log the event.
-				// This scenario requires manual intervention.
-				// Perhaps it just came online and github did not yet change it's status?
-				log.Printf("instance %s is online but github reports runner as offline", dbInstance.Name)
-				continue
-			}
-			//start the instance
-			if err := provider.Start(r.ctx, dbInstance.ProviderID); err != nil {
-				return errors.Wrapf(err, "starting instance %s", dbInstance.ProviderID)
-			}
-			// we started the instance. Give it a chance to come online
-			continue
-		}
-
-		if removeRunner {
+			// We no longer have a DB entry for this instance, and the runner appears offline in github.
+			// Previous forceful removal may have failed?
+			log.Printf("Runner %s has no database entry in garm, removing from github", *runner.Name)
 			if err := r.helper.RemoveGithubRunner(*runner.ID); err != nil {
 				return errors.Wrap(err, "removing runner")
 			}
+			continue
+		}
+
+		if providerCommon.InstanceStatus(dbInstance.Status) == providerCommon.InstancePendingDelete {
+			// already marked for deleting, which means the github workflow finished.
+			// Let consolidate take care of it.
+			continue
+		}
+
+		pool, err := r.helper.GetPoolByID(dbInstance.PoolID)
+		if err != nil {
+			return errors.Wrap(err, "fetching pool")
+		}
+
+		// check if the provider still has the instance.
+		provider, ok := r.providers[pool.ProviderName]
+		if !ok {
+			return fmt.Errorf("unknown provider %s for pool %s", pool.ProviderName, pool.ID)
+		}
+
+		// Check if the instance is still on the provider.
+		_, err = provider.GetInstance(r.ctx, dbInstance.Name)
+		if err != nil {
+			if !errors.Is(err, runnerErrors.ErrNotFound) {
+				return errors.Wrap(err, "fetching instance from provider")
+			}
+			// The runner instance is no longer on the provider, and it appears offline in github.
+			// It should be safe to force remove it.
+			log.Printf("Runner instance for %s is no longer on the provider, removing from github", dbInstance.Name)
+			if err := r.helper.RemoveGithubRunner(*runner.ID); err != nil {
+				return errors.Wrap(err, "removing runner from github")
+			}
+			// Remove the database entry for the runner.
+			log.Printf("Removing %s from database", dbInstance.Name)
+			if err := r.store.DeleteInstance(r.ctx, dbInstance.PoolID, dbInstance.Name); err != nil {
+				return errors.Wrap(err, "removing runner from database")
+			}
+			continue
+		}
+
+		if providerCommon.InstanceStatus(dbInstance.Status) == providerCommon.InstanceRunning {
+			// instance is running, but github reports runner as offline. Log the event.
+			// This scenario requires manual intervention.
+			// Perhaps it just came online and github did not yet change it's status?
+			log.Printf("instance %s is online but github reports runner as offline", dbInstance.Name)
+			continue
+		}
+		//start the instance
+		if err := provider.Start(r.ctx, dbInstance.ProviderID); err != nil {
+			return errors.Wrapf(err, "starting instance %s", dbInstance.ProviderID)
 		}
 	}
 	return nil

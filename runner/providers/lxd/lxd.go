@@ -310,6 +310,9 @@ func (l *LXD) CreateInstance(ctx context.Context, bootstrapParams params.Bootstr
 func (l *LXD) GetInstance(ctx context.Context, instanceName string) (params.Instance, error) {
 	instance, _, err := l.cli.GetInstanceFull(instanceName)
 	if err != nil {
+		if isNotFoundError(err) {
+			return params.Instance{}, errors.Wrapf(runnerErrors.ErrNotFound, "fetching instance: %q", err)
+		}
 		return params.Instance{}, errors.Wrap(err, "fetching instance")
 	}
 

@@ -58,7 +58,7 @@ type Store interface {
 	FindOrganizationPoolByTags(ctx context.Context, orgID string, tags []string) (params.Pool, error)
 
 	CreateInstance(ctx context.Context, poolID string, param params.CreateInstanceParams) (params.Instance, error)
-	DeleteInstance(ctx context.Context, poolID string, instanceID string) error
+	DeleteInstance(ctx context.Context, poolID string, instanceName string) error
 	UpdateInstance(ctx context.Context, instanceID string, param params.UpdateInstanceParams) (params.Instance, error)
 
 	ListPoolInstances(ctx context.Context, poolID string) ([]params.Instance, error)

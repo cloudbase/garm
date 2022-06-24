@@ -121,6 +121,8 @@ func (e *external) GetInstance(ctx context.Context, instance string) (params.Ins
 		fmt.Sprintf("GARM_INSTANCE_ID=%s", instance),
 	}
 
+	// TODO(gabriel-samfira): handle error types. Of particular insterest is to
+	// know when the error is ErrNotFound.
 	out, err := exec.Exec(ctx, e.execPath, nil, asEnv)
 	if err != nil {
 		return params.Instance{}, garmErrors.NewProviderError("provider binary %s returned error: %s", e.execPath, err)
