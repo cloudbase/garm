@@ -325,7 +325,12 @@ func (l *LXD) DeleteInstance(ctx context.Context, instance string) error {
 		if isNotFoundError(err) {
 			return nil
 		}
-		return errors.Wrap(err, "stopping instance")
+		// I am not proud of this, but the drivers.ErrInstanceIsStopped from LXD pulls in
+		// a ton of CGO, linux specific dependencies, that don't make sense having
+		// in garm.
+		if !(err.Error() == errInstanceIsStopped.Error()) {
+			return errors.Wrap(err, "stopping instance")
+		}
 	}
 
 	op, err := l.cli.DeleteInstance(instance)

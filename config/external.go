@@ -36,11 +36,11 @@ func (e *External) ExecutablePath() (string, error) {
 
 func (e *External) Validate() error {
 	if e.ConfigFile != "" {
-		if _, err := os.Stat(e.ConfigFile); err != nil {
-			return fmt.Errorf("failed to access config file %s", e.ConfigFile)
-		}
 		if !filepath.IsAbs(e.ConfigFile) {
 			return fmt.Errorf("path to config file must be an absolute path")
+		}
+		if _, err := os.Stat(e.ConfigFile); err != nil {
+			return fmt.Errorf("failed to access config file %s", e.ConfigFile)
 		}
 	}
 

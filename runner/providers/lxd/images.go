@@ -29,16 +29,16 @@ import (
 )
 
 type image struct {
-	remotes map[string]config.LXDRemote
+	remotes map[string]config.LXDImageRemote
 
 	cli lxd.InstanceServer
 }
 
 // parseImageName parses the image name that comes in from the config and returns a
 // remote. If no remote is configured with the given name, an error is returned.
-func (i *image) parseImageName(imageName string) (config.LXDRemote, string, error) {
+func (i *image) parseImageName(imageName string) (config.LXDImageRemote, string, error) {
 	if !strings.Contains(imageName, ":") {
-		return config.LXDRemote{}, "", fmt.Errorf("image does not include a remote")
+		return config.LXDImageRemote{}, "", fmt.Errorf("image does not include a remote")
 	}
 
 	details := strings.SplitN(imageName, ":", 2)
@@ -47,7 +47,7 @@ func (i *image) parseImageName(imageName string) (config.LXDRemote, string, erro
 			return val, details[1], nil
 		}
 	}
-	return config.LXDRemote{}, "", runnerErrors.ErrNotFound
+	return config.LXDImageRemote{}, "", runnerErrors.ErrNotFound
 }
 
 func (i *image) getLocalImageByAlias(imageName string, imageType config.LXDImageType, arch string) (*api.Image, error) {
@@ -68,7 +68,7 @@ func (i *image) getLocalImageByAlias(imageName string, imageType config.LXDImage
 	return image, nil
 }
 
-func (i *image) clientFromRemoteArgs(remote config.LXDRemote) (lxd.ImageServer, error) {
+func (i *image) clientFromRemoteArgs(remote config.LXDImageRemote) (lxd.ImageServer, error) {
 	connectArgs := &lxd.ConnectionArgs{
 		InsecureSkipVerify: remote.InsecureSkipVerify,
 	}
@@ -79,7 +79,7 @@ func (i *image) clientFromRemoteArgs(remote config.LXDRemote) (lxd.ImageServer, 
 	return d, nil
 }
 
-func (i *image) copyImageFromRemote(remote config.LXDRemote, imageName string, imageType config.LXDImageType, arch string) (*api.Image, error) {
+func (i *image) copyImageFromRemote(remote config.LXDImageRemote, imageName string, imageType config.LXDImageType, arch string) (*api.Image, error) {
 	imgCli, err := i.clientFromRemoteArgs(remote)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching image server client")

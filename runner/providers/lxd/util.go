@@ -34,6 +34,10 @@ import (
 	"github.com/pkg/errors"
 )
 
+var (
+	errInstanceIsStopped error = fmt.Errorf("The instance is already stopped")
+)
+
 var httpResponseErrors = map[int][]error{
 	http.StatusNotFound: {os.ErrNotExist, sql.ErrNoRows},
 }

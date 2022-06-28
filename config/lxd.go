@@ -35,14 +35,16 @@ const (
 	LXDImageContainer      LXDImageType      = "container"
 )
 
-type LXDRemote struct {
+// LXDImageRemote holds information about a remote server from which LXD can fetch
+// OS images. Typically this will be a simplestreams server.
+type LXDImageRemote struct {
 	Address            string            `toml:"addr" json:"addr"`
 	Public             bool              `toml:"public" json:"public"`
 	Protocol           LXDRemoteProtocol `toml:"protocol" json:"protocol"`
 	InsecureSkipVerify bool              `toml:"skip_verify" json:"skip-verify"`
 }
 
-func (l *LXDRemote) Validate() error {
+func (l *LXDImageRemote) Validate() error {
 	if l.Protocol != SimpleStreams {
 		// Only supports simplestreams for now.
 		return fmt.Errorf("invalid remote protocol %s. Supported protocols: %s", l.Protocol, SimpleStreams)
@@ -94,7 +96,7 @@ type LXD struct {
 
 	// ImageRemotes is a map to a set of remote image repositories we can use to
 	// download images.
-	ImageRemotes map[string]LXDRemote `toml:"image_remotes" json:"image-remotes"`
+	ImageRemotes map[string]LXDImageRemote `toml:"image_remotes" json:"image-remotes"`
 
 	// SecureBoot enables secure boot for VMs spun up using this provider.
 	SecureBoot bool `yaml:"secure_boot" json:"secure-boot"`
@@ -113,12 +115,17 @@ func (l *LXD) Validate() error {
 		return fmt.Errorf("unix_socket or address must be specified")
 	}
 
-	if _, err := url.Parse(l.URL); err != nil {
+	url, err := url.ParseRequestURI(l.URL)
+	if err != nil {
 		return fmt.Errorf("invalid LXD URL")
 	}
 
+	if url.Scheme != "https" {
+		return fmt.Errorf("address must be https")
+	}
+
 	if l.ClientCertificate == "" || l.ClientKey == "" {
-		return fmt.Errorf("client_certificate and client_key are mandatory when connecting via HTTPs")
+		return fmt.Errorf("client_certificate and client_key are mandatory")
 	}
 
 	if _, err := os.Stat(l.ClientCertificate); err != nil {

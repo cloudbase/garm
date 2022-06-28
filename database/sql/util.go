@@ -76,6 +76,10 @@ func (s *sqlDatabase) sqlToCommonOrganization(org Organization) params.Organizat
 		Pools:           make([]params.Pool, len(org.Pools)),
 	}
 
+	for idx, pool := range org.Pools {
+		ret.Pools[idx] = s.sqlToCommonPool(pool)
+	}
+
 	return ret
 }
 
