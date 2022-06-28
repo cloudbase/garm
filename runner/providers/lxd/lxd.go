@@ -328,7 +328,7 @@ func (l *LXD) DeleteInstance(ctx context.Context, instance string) error {
 		// I am not proud of this, but the drivers.ErrInstanceIsStopped from LXD pulls in
 		// a ton of CGO, linux specific dependencies, that don't make sense having
 		// in garm.
-		if !(err.Error() == errInstanceIsStopped.Error()) {
+		if !(errors.Cause(err).Error() == errInstanceIsStopped.Error()) {
 			return errors.Wrap(err, "stopping instance")
 		}
 	}
