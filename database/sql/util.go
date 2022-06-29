@@ -87,17 +87,18 @@ func (s *sqlDatabase) sqlToCommonOrganization(org Organization) params.Organizat
 
 func (s *sqlDatabase) sqlToCommonPool(pool Pool) params.Pool {
 	ret := params.Pool{
-		ID:             pool.ID.String(),
-		ProviderName:   pool.ProviderName,
-		MaxRunners:     pool.MaxRunners,
-		MinIdleRunners: pool.MinIdleRunners,
-		Image:          pool.Image,
-		Flavor:         pool.Flavor,
-		OSArch:         pool.OSArch,
-		OSType:         pool.OSType,
-		Enabled:        pool.Enabled,
-		Tags:           make([]params.Tag, len(pool.Tags)),
-		Instances:      make([]params.Instance, len(pool.Instances)),
+		ID:                     pool.ID.String(),
+		ProviderName:           pool.ProviderName,
+		MaxRunners:             pool.MaxRunners,
+		MinIdleRunners:         pool.MinIdleRunners,
+		Image:                  pool.Image,
+		Flavor:                 pool.Flavor,
+		OSArch:                 pool.OSArch,
+		OSType:                 pool.OSType,
+		Enabled:                pool.Enabled,
+		Tags:                   make([]params.Tag, len(pool.Tags)),
+		Instances:              make([]params.Instance, len(pool.Instances)),
+		RunnerBootstrapTimeout: pool.RunnerBootstrapTimeout,
 	}
 
 	if pool.RepoID != uuid.Nil {
@@ -207,6 +208,10 @@ func (s *sqlDatabase) updatePool(pool Pool, param params.UpdatePoolParams) (para
 
 	if param.OSType != "" {
 		pool.OSType = param.OSType
+	}
+
+	if param.RunnerBootstrapTimeout > 0 {
+		pool.RunnerBootstrapTimeout = param.RunnerBootstrapTimeout
 	}
 
 	if q := s.conn.Save(&pool); q.Error != nil {

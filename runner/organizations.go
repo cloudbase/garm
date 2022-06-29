@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"garm/auth"
+	"garm/config"
 	runnerErrors "garm/errors"
 	"garm/params"
 	"garm/runner/common"
@@ -200,6 +201,10 @@ func (r *Runner) CreateOrgPool(ctx context.Context, orgID string, param params.C
 	createPoolParams, err := r.appendTagsToCreatePoolParams(param)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool params")
+	}
+
+	if param.RunnerBootstrapTimeout == 0 {
+		param.RunnerBootstrapTimeout = config.DefaultRunnerBootstrapTimeout
 	}
 
 	pool, err := r.store.CreateOrganizationPool(ctx, orgID, createPoolParams)

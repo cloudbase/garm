@@ -64,6 +64,11 @@ const (
 	// DefaultPoolQueueSize is the default size for a pool queue.
 	DefaultPoolQueueSize = 10
 
+	// DefaultRunnerBootstrapTimeout is the default timeout in minutes a runner is
+	// considered to be defunct. If a runner does not join github in the alloted amount
+	// of time and no new updates have been made to it's state, it will be removed.
+	DefaultRunnerBootstrapTimeout = 20
+
 	GithubBaseURL = "https://github.com"
 )
 

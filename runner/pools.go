@@ -90,6 +90,10 @@ func (r *Runner) UpdatePoolByID(ctx context.Context, poolID string, param params
 		minIdleRunners = *param.MinIdleRunners
 	}
 
+	if param.RunnerBootstrapTimeout == 0 {
+		return params.Pool{}, runnerErrors.NewBadRequestError("runner_bootstrap_timeout cannot be 0")
+	}
+
 	if minIdleRunners > maxRunners {
 		return params.Pool{}, runnerErrors.NewBadRequestError("min_idle_runners cannot be larger than max_runners")
 	}

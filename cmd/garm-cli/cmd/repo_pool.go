@@ -25,15 +25,16 @@ import (
 )
 
 var (
-	poolProvider       string
-	poolMaxRunners     uint
-	poolMinIdleRunners uint
-	poolImage          string
-	poolFlavor         string
-	poolOSType         string
-	poolOSArch         string
-	poolTags           string
-	poolEnabled        bool
+	poolProvider               string
+	poolMaxRunners             uint
+	poolMinIdleRunners         uint
+	poolImage                  string
+	poolFlavor                 string
+	poolOSType                 string
+	poolOSArch                 string
+	poolTags                   string
+	poolEnabled                bool
+	poolRunnerBootstrapTimeout uint
 )
 
 // repoPoolCmd represents the pool command
@@ -323,6 +324,7 @@ func formatOnePool(pool params.Pool) {
 	t.AppendRow(table.Row{"OS Architecture", pool.OSArch})
 	t.AppendRow(table.Row{"Max Runners", pool.MaxRunners})
 	t.AppendRow(table.Row{"Min Idle Runners", pool.MinIdleRunners})
+	t.AppendRow(table.Row{"Runner Bootstrap Timeout", pool.RunnerBootstrapTimeout})
 	t.AppendRow(table.Row{"Tags", strings.Join(tags, ", ")})
 	t.AppendRow(table.Row{"Belongs to", belongsTo})
 	t.AppendRow(table.Row{"Level", level})

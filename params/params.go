@@ -111,21 +111,29 @@ type Tag struct {
 }
 
 type Pool struct {
-	ID             string        `json:"id"`
-	ProviderName   string        `json:"provider_name"`
-	MaxRunners     uint          `json:"max_runners"`
-	MinIdleRunners uint          `json:"min_idle_runners"`
-	Image          string        `json:"image"`
-	Flavor         string        `json:"flavor"`
-	OSType         config.OSType `json:"os_type"`
-	OSArch         config.OSArch `json:"os_arch"`
-	Tags           []Tag         `json:"tags"`
-	Enabled        bool          `json:"enabled"`
-	Instances      []Instance    `json:"instances"`
-	RepoID         string        `json:"repo_id,omitempty"`
-	RepoName       string        `json:"repo_name,omitempty"`
-	OrgID          string        `json:"org_id,omitempty"`
-	OrgName        string        `json:"org_name,omitempty"`
+	ID                     string        `json:"id"`
+	ProviderName           string        `json:"provider_name"`
+	MaxRunners             uint          `json:"max_runners"`
+	MinIdleRunners         uint          `json:"min_idle_runners"`
+	Image                  string        `json:"image"`
+	Flavor                 string        `json:"flavor"`
+	OSType                 config.OSType `json:"os_type"`
+	OSArch                 config.OSArch `json:"os_arch"`
+	Tags                   []Tag         `json:"tags"`
+	Enabled                bool          `json:"enabled"`
+	Instances              []Instance    `json:"instances"`
+	RepoID                 string        `json:"repo_id,omitempty"`
+	RepoName               string        `json:"repo_name,omitempty"`
+	OrgID                  string        `json:"org_id,omitempty"`
+	OrgName                string        `json:"org_name,omitempty"`
+	RunnerBootstrapTimeout uint          `json:"runner_bootstrap_timeout"`
+}
+
+func (p *Pool) RunnerTimeout() uint {
+	if p.RunnerBootstrapTimeout == 0 {
+		return config.DefaultRunnerBootstrapTimeout
+	}
+	return p.RunnerBootstrapTimeout
 }
 
 type Internal struct {

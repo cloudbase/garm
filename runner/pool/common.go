@@ -91,19 +91,46 @@ func (r *basePool) cleanupOrphanedProviderRunners(runners []*github.Runner) erro
 		}
 
 		if ok := runnerNames[instance.Name]; !ok {
-			// if instance.Status == providerCommon.InstanceRunning {
-			// 	if time.Since(instance.UpdatedAt).Minutes() < 20 {
-			// 		// Allow up to 20 minutes for instance to finish installing.
-			// 		// Anything beyond that is considered a timeout and the instance
-			// 		// is marked for deletion.
-			// 		// TODO(gabriel-samfira): Make the timeout configurable.
-			// 		continue
-			// 	}
-			// }
 			// Set pending_delete on DB field. Allow consolidate() to remove it.
 			if err := r.setInstanceStatus(instance.Name, providerCommon.InstancePendingDelete, nil); err != nil {
 				log.Printf("failed to update runner %s status", instance.Name)
 				return errors.Wrap(err, "updating runner")
+			}
+		}
+	}
+	return nil
+}
+
+// reapTimedOutRunners will mark as pending_delete any runner that has a status
+// of "running" in the provider, but that has not registered with Github, and has
+// received no new updates in the configured timeout interval.
+func (r *basePool) reapTimedOutRunners(runners []*github.Runner) error {
+	log.Printf("Checking for timed out runners")
+	dbInstances, err := r.helper.FetchDbInstances()
+	if err != nil {
+		return errors.Wrap(err, "fetching instances from db")
+	}
+
+	runnerNames := map[string]bool{}
+	for _, run := range runners {
+		runnerNames[*run.Name] = true
+	}
+
+	for _, instance := range dbInstances {
+		if ok := runnerNames[instance.Name]; !ok {
+			if instance.Status == providerCommon.InstanceRunning {
+				pool, err := r.store.GetPoolByID(r.ctx, instance.PoolID)
+				if err != nil {
+					return errors.Wrap(err, "fetching instance pool info")
+				}
+				if time.Since(instance.UpdatedAt).Minutes() < float64(pool.RunnerTimeout()) {
+					continue
+				}
+				log.Printf("reaping instance %s due to timeout", instance.Name)
+				if err := r.setInstanceStatus(instance.Name, providerCommon.InstancePendingDelete, nil); err != nil {
+					log.Printf("failed to update runner %s status", instance.Name)
+					return errors.Wrap(err, "updating runner")
+				}
 			}
 		}
 	}
@@ -312,8 +339,14 @@ func (r *basePool) AddRunner(ctx context.Context, poolID string) error {
 }
 
 func (r *basePool) loop() {
+	consolidateTimer := time.NewTicker(5 * time.Second)
+	reapTimer := time.NewTicker(5 * time.Minute)
+	toolUpdateTimer := time.NewTicker(3 * time.Hour)
 	defer func() {
 		log.Printf("repository %s loop exited", r.helper.String())
+		consolidateTimer.Stop()
+		reapTimer.Stop()
+		toolUpdateTimer.Stop()
 		close(r.done)
 	}()
 	log.Printf("starting loop for %s", r.helper.String())
@@ -330,10 +363,23 @@ func (r *basePool) loop() {
 
 	for {
 		select {
-		case <-time.After(5 * time.Second):
+		case <-reapTimer.C:
+			runners, err := r.helper.GetGithubRunners()
+			if err != nil {
+				log.Printf("error fetching github runners: %s", err)
+				continue
+			}
+			if err := r.reapTimedOutRunners(runners); err != nil {
+				log.Printf("failed to reap timed out runners: %q", err)
+			}
+
+			if err := r.cleanupOrphanedGithubRunners(runners); err != nil {
+				log.Printf("failed to clean orphaned github runners: %q", err)
+			}
+		case <-consolidateTimer.C:
 			// consolidate.
 			r.consolidate()
-		case <-time.After(3 * time.Hour):
+		case <-toolUpdateTimer.C:
 			// Update tools cache.
 			tools, err := r.helper.FetchTools()
 			if err != nil {

@@ -78,14 +78,15 @@ type NewUserParams struct {
 }
 
 type UpdatePoolParams struct {
-	Tags           []string      `json:"tags"`
-	Enabled        *bool         `json:"enabled"`
-	MaxRunners     *uint         `json:"max_runners"`
-	MinIdleRunners *uint         `json:"min_idle_runners"`
-	Image          string        `json:"image"`
-	Flavor         string        `json:"flavor"`
-	OSType         config.OSType `json:"os_type"`
-	OSArch         config.OSArch `json:"os_arch"`
+	Tags                   []string      `json:"tags"`
+	Enabled                *bool         `json:"enabled"`
+	MaxRunners             *uint         `json:"max_runners"`
+	MinIdleRunners         *uint         `json:"min_idle_runners"`
+	RunnerBootstrapTimeout uint          `json:"runner_bootstrap_timeout"`
+	Image                  string        `json:"image"`
+	Flavor                 string        `json:"flavor"`
+	OSType                 config.OSType `json:"os_type"`
+	OSArch                 config.OSArch `json:"os_arch"`
 }
 
 type CreateInstanceParams struct {
@@ -101,15 +102,16 @@ type CreateInstanceParams struct {
 }
 
 type CreatePoolParams struct {
-	ProviderName   string        `json:"provider_name"`
-	MaxRunners     uint          `json:"max_runners"`
-	MinIdleRunners uint          `json:"min_idle_runners"`
-	Image          string        `json:"image"`
-	Flavor         string        `json:"flavor"`
-	OSType         config.OSType `json:"os_type"`
-	OSArch         config.OSArch `json:"os_arch"`
-	Tags           []string      `json:"tags"`
-	Enabled        bool          `json:"enabled"`
+	ProviderName           string        `json:"provider_name"`
+	MaxRunners             uint          `json:"max_runners"`
+	MinIdleRunners         uint          `json:"min_idle_runners"`
+	Image                  string        `json:"image"`
+	Flavor                 string        `json:"flavor"`
+	OSType                 config.OSType `json:"os_type"`
+	OSArch                 config.OSArch `json:"os_arch"`
+	Tags                   []string      `json:"tags"`
+	Enabled                bool          `json:"enabled"`
+	RunnerBootstrapTimeout uint          `json:"runner_bootstrap_timeout"`
 }
 
 func (p *CreatePoolParams) Validate() error {

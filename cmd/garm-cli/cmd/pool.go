@@ -161,15 +161,16 @@ var poolAddCmd = &cobra.Command{
 
 		tags := strings.Split(poolTags, ",")
 		newPoolParams := params.CreatePoolParams{
-			ProviderName:   poolProvider,
-			MaxRunners:     poolMaxRunners,
-			MinIdleRunners: poolMinIdleRunners,
-			Image:          poolImage,
-			Flavor:         poolFlavor,
-			OSType:         config.OSType(poolOSType),
-			OSArch:         config.OSArch(poolOSArch),
-			Tags:           tags,
-			Enabled:        poolEnabled,
+			ProviderName:           poolProvider,
+			MaxRunners:             poolMaxRunners,
+			MinIdleRunners:         poolMinIdleRunners,
+			Image:                  poolImage,
+			Flavor:                 poolFlavor,
+			OSType:                 config.OSType(poolOSType),
+			OSArch:                 config.OSArch(poolOSArch),
+			Tags:                   tags,
+			Enabled:                poolEnabled,
+			RunnerBootstrapTimeout: poolRunnerBootstrapTimeout,
 		}
 		if err := newPoolParams.Validate(); err != nil {
 			return err
@@ -252,6 +253,10 @@ explicitly remove them using the runner delete command.
 			poolUpdateParams.Enabled = &poolEnabled
 		}
 
+		if cmd.Flags().Changed("runner-bootstrap-timeout") {
+			poolUpdateParams.RunnerBootstrapTimeout = poolRunnerBootstrapTimeout
+		}
+
 		pool, err := cli.UpdatePoolByID(args[0], poolUpdateParams)
 		if err != nil {
 			return err
@@ -276,6 +281,7 @@ func init() {
 	poolUpdateCmd.Flags().UintVar(&poolMaxRunners, "max-runners", 5, "The maximum number of runner this pool will create.")
 	poolUpdateCmd.Flags().UintVar(&poolMinIdleRunners, "min-idle-runners", 1, "Attempt to maintain a minimum of idle self-hosted runners of this type.")
 	poolUpdateCmd.Flags().BoolVar(&poolEnabled, "enabled", false, "Enable this pool.")
+	poolUpdateCmd.Flags().UintVar(&poolRunnerBootstrapTimeout, "runner-bootstrap-timeout", 20, "Duration in minutes after which a runner is considered failed if it does not join Github.")
 
 	poolAddCmd.Flags().StringVar(&poolProvider, "provider-name", "", "The name of the provider where runners will be created.")
 	poolAddCmd.Flags().StringVar(&poolImage, "image", "", "The provider-specific image name to use for runners in this pool.")
@@ -284,6 +290,7 @@ func init() {
 	poolAddCmd.Flags().StringVar(&poolOSType, "os-type", "linux", "Operating system type (windows, linux, etc).")
 	poolAddCmd.Flags().StringVar(&poolOSArch, "os-arch", "amd64", "Operating system architecture (amd64, arm, etc).")
 	poolAddCmd.Flags().UintVar(&poolMaxRunners, "max-runners", 5, "The maximum number of runner this pool will create.")
+	poolAddCmd.Flags().UintVar(&poolRunnerBootstrapTimeout, "runner-bootstrap-timeout", 20, "Duration in minutes after which a runner is considered failed if it does not join Github.")
 	poolAddCmd.Flags().UintVar(&poolMinIdleRunners, "min-idle-runners", 1, "Attempt to maintain a minimum of idle self-hosted runners of this type.")
 	poolAddCmd.Flags().BoolVar(&poolEnabled, "enabled", false, "Enable this pool.")
 	poolAddCmd.MarkFlagRequired("provider-name")

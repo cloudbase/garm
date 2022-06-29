@@ -62,6 +62,8 @@ func (a *APIController) GetPoolByIDHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	pool.RunnerBootstrapTimeout = pool.RunnerTimeout()
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(pool)
 }
