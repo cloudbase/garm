@@ -39,6 +39,7 @@ import (
 	"garm/params"
 	"garm/runner/common"
 	"garm/runner/providers"
+	providerCommon "garm/runner/providers/common"
 	"garm/util"
 
 	"github.com/pkg/errors"
@@ -538,9 +539,60 @@ func (r *Runner) AddInstanceStatusMessage(ctx context.Context, param params.Inst
 		RunnerStatus: param.Status,
 	}
 
+	if param.AgentID != nil {
+		updateParams.AgentID = *param.AgentID
+	}
+
 	if _, err := r.store.UpdateInstance(r.ctx, instanceID, updateParams); err != nil {
 		return errors.Wrap(err, "updating runner state")
 	}
 
+	return nil
+}
+
+func (r *Runner) ForceDeleteRunner(ctx context.Context, instanceName string) error {
+	if !auth.IsAdmin(ctx) {
+		return runnerErrors.ErrUnauthorized
+	}
+
+	instance, err := r.store.GetInstanceByName(ctx, instanceName)
+	if err != nil {
+		return errors.Wrap(err, "fetching instance")
+	}
+
+	if instance.Status != providerCommon.InstanceRunning {
+		return runnerErrors.NewBadRequestError("runner must be in %q state", providerCommon.InstanceRunning)
+	}
+
+	pool, err := r.store.GetPoolByID(ctx, instance.PoolID)
+	if err != nil {
+		return errors.Wrap(err, "fetching pool")
+	}
+
+	var poolMgr common.PoolManager
+
+	if pool.RepoID != "" {
+		repo, err := r.store.GetRepositoryByID(ctx, pool.RepoID)
+		if err != nil {
+			return errors.Wrap(err, "fetching repo")
+		}
+		poolMgr, err = r.findRepoPoolManager(repo.Owner, repo.Name)
+		if err != nil {
+			return errors.Wrapf(err, "fetching pool manager for repo %s", pool.RepoName)
+		}
+	} else if pool.OrgID != "" {
+		org, err := r.store.GetOrganizationByID(ctx, pool.OrgID)
+		if err != nil {
+			return errors.Wrap(err, "fetching org")
+		}
+		poolMgr, err = r.findOrgPoolManager(org.Name)
+		if err != nil {
+			return errors.Wrapf(err, "fetching pool manager for org %s", pool.OrgName)
+		}
+	}
+
+	if err := poolMgr.ForceDeleteRunner(instance); err != nil {
+		return errors.Wrap(err, "removing runner")
+	}
 	return nil
 }

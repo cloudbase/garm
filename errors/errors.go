@@ -29,7 +29,8 @@ var (
 	// ErrBadRequest is returned is a malformed request is sent
 	ErrBadRequest = NewBadRequestError("invalid request")
 	// ErrTimeout is returned when a timeout occurs.
-	ErrTimeout = fmt.Errorf("timed out")
+	ErrTimeout       = fmt.Errorf("timed out")
+	ErrUnprocessable = fmt.Errorf("cannot process request")
 )
 
 type baseError struct {

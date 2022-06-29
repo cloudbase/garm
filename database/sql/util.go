@@ -31,6 +31,7 @@ func (s *sqlDatabase) sqlToParamsInstance(instance Instance) params.Instance {
 	ret := params.Instance{
 		ID:             instance.ID.String(),
 		ProviderID:     id,
+		AgentID:        instance.AgentID,
 		Name:           instance.Name,
 		OSType:         instance.OSType,
 		OSName:         instance.OSName,
@@ -42,6 +43,7 @@ func (s *sqlDatabase) sqlToParamsInstance(instance Instance) params.Instance {
 		CallbackURL:    instance.CallbackURL,
 		StatusMessages: []params.StatusMessage{},
 		CreateAttempt:  instance.CreateAttempt,
+		UpdatedAt:      instance.UpdatedAt,
 	}
 
 	if len(instance.ProviderFault) > 0 {

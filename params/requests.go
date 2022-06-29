@@ -153,6 +153,7 @@ type UpdateInstanceParams struct {
 	Status        common.InstanceStatus `json:"status,omitempty"`
 	RunnerStatus  common.RunnerStatus   `json:"runner_status,omitempty"`
 	ProviderFault []byte                `json:"provider_fault,omitempty"`
+	AgentID       int64                 `json:"-"`
 	CreateAttempt int                   `json:"-"`
 }
 
@@ -186,4 +187,5 @@ type UpdateRepositoryParams struct {
 type InstanceUpdateMessage struct {
 	Status  common.RunnerStatus `json:"status"`
 	Message string              `json:"message"`
+	AgentID *int64              `json:"agent_id"`
 }

@@ -78,12 +78,15 @@ func NewAPIRouter(han *controllers.APIController, logWriter io.Writer, authMiddl
 	/////////////
 	// Runners //
 	/////////////
-	// List runners
-	apiRouter.Handle("/instances/", log(os.Stdout, http.HandlerFunc(han.ListAllInstancesHandler))).Methods("GET", "OPTIONS")
-	apiRouter.Handle("/instances", log(os.Stdout, http.HandlerFunc(han.ListAllInstancesHandler))).Methods("GET", "OPTIONS")
 	// Get instance
 	apiRouter.Handle("/instances/{instanceName}/", log(os.Stdout, http.HandlerFunc(han.GetInstanceHandler))).Methods("GET", "OPTIONS")
 	apiRouter.Handle("/instances/{instanceName}", log(os.Stdout, http.HandlerFunc(han.GetInstanceHandler))).Methods("GET", "OPTIONS")
+	// Delete runner
+	apiRouter.Handle("/instances/{instanceName}/", log(os.Stdout, http.HandlerFunc(han.DeleteInstanceHandler))).Methods("DELETE", "OPTIONS")
+	apiRouter.Handle("/instances/{instanceName}", log(os.Stdout, http.HandlerFunc(han.DeleteInstanceHandler))).Methods("DELETE", "OPTIONS")
+	// List runners
+	apiRouter.Handle("/instances/", log(os.Stdout, http.HandlerFunc(han.ListAllInstancesHandler))).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/instances", log(os.Stdout, http.HandlerFunc(han.ListAllInstancesHandler))).Methods("GET", "OPTIONS")
 
 	/////////////////////
 	// Repos and pools //

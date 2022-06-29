@@ -26,10 +26,11 @@ const (
 )
 
 type PoolManager interface {
+	ID() string
 	WebhookSecret() string
 	HandleWorkflowJob(job params.WorkflowJob) error
 	RefreshState(param params.UpdatePoolStateParams) error
-	ID() string
+	ForceDeleteRunner(runner params.Instance) error
 	// AddPool(ctx context.Context, pool params.Pool) error
 
 	// PoolManager lifecycle functions. Start/stop pool.

@@ -41,7 +41,8 @@ function sendStatus() {
 
 function success() {
 	MSG="$1"
-	call "{\"status\": \"idle\", \"message\": \"$MSG\"}"
+	ID=$2
+	call "{\"status\": \"idle\", \"message\": \"$MSG\", \"agent_id\": $ID}"
 }
 
 function fail() {
@@ -72,7 +73,14 @@ sendStatus "installing runner service"
 sendStatus "starting service"
 ./svc.sh start || fail "failed to start service"
 
-success "runner successfully installed"
+set +e
+AGENT_ID=$(grep "agentId" /home/{{ .RunnerUsername }}/actions-runner/.runner |  tr -d -c 0-9)
+if [ $? -ne 0 ];then
+	fail "failed to get agent ID"
+fi
+set -e
+
+success "runner successfully installed" $AGENT_ID
 `
 
 type InstallRunnerParams struct {

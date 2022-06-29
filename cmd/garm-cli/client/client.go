@@ -151,6 +151,20 @@ func (c *Client) GetInstanceByName(instanceName string) (params.Instance, error)
 	return response, nil
 }
 
+func (c *Client) DeleteRunner(instanceName string) error {
+	url := fmt.Sprintf("%s/api/v1/instances/%s", c.Config.BaseURL, instanceName)
+	resp, err := c.client.R().
+		Delete(url)
+	if err != nil || resp.IsError() {
+		apiErr, decErr := c.decodeAPIError(resp.Body())
+		if decErr != nil {
+			return errors.Wrap(decErr, "sending request")
+		}
+		return fmt.Errorf("error deleting runner: %s", apiErr.Details)
+	}
+	return nil
+}
+
 func (c *Client) ListPoolInstances(poolID string) ([]params.Instance, error) {
 	url := fmt.Sprintf("%s/api/v1/pools/%s/instances", c.Config.BaseURL, poolID)
 

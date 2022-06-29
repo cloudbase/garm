@@ -47,6 +47,8 @@ type Instance struct {
 	// with the compute instance. We use this to identify the
 	// instance in the provider.
 	ProviderID string `json:"provider_id,omitempty"`
+	// AgentID is the github runner agent ID.
+	AgentID int64 `json:"agent_id"`
 	// Name is the name associated with an instance. Depending on
 	// the provider, this may or may not be useful in the context of
 	// the provider, but we can use it internally to identify the
@@ -73,8 +75,9 @@ type Instance struct {
 	StatusMessages []StatusMessage `json:"status_messages,omitempty"`
 
 	// Do not serialize sensitive info.
-	CallbackURL   string `json:"-"`
-	CreateAttempt int    `json:"-"`
+	CallbackURL   string    `json:"-"`
+	CreateAttempt int       `json:"-"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }
 
 type BootstrapInstance struct {

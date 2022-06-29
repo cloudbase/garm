@@ -159,6 +159,10 @@ func (s *sqlDatabase) UpdateInstance(ctx context.Context, instanceID string, par
 		return params.Instance{}, errors.Wrap(err, "updating instance")
 	}
 
+	if param.AgentID != 0 {
+		instance.AgentID = param.AgentID
+	}
+
 	if param.ProviderID != "" {
 		instance.ProviderID = &param.ProviderID
 	}

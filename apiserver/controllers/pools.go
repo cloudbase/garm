@@ -88,7 +88,6 @@ func (a *APIController) DeletePoolByIDHandler(w http.ResponseWriter, r *http.Req
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-
 }
 
 func (a *APIController) UpdatePoolByIDHandler(w http.ResponseWriter, r *http.Request) {

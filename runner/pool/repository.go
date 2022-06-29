@@ -114,9 +114,8 @@ func (r *repository) FetchDbInstances() ([]params.Instance, error) {
 	return r.store.ListRepoInstances(r.ctx, r.id)
 }
 
-func (r *repository) RemoveGithubRunner(runnerID int64) error {
-	_, err := r.ghcli.Actions.RemoveRunner(r.ctx, r.cfg.Owner, r.cfg.Name, runnerID)
-	return errors.Wrap(err, "removing runner")
+func (r *repository) RemoveGithubRunner(runnerID int64) (*github.Response, error) {
+	return r.ghcli.Actions.RemoveRunner(r.ctx, r.cfg.Owner, r.cfg.Name, runnerID)
 }
 
 func (r *repository) ListPools() ([]params.Pool, error) {

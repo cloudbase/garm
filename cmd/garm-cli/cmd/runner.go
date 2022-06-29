@@ -27,6 +27,7 @@ var (
 	runnerRepository   string
 	runnerOrganization string
 	runnerAll          bool
+	forceRemove        bool
 )
 
 // runnerCmd represents the runner command
@@ -133,15 +134,54 @@ var runnerShowCmd = &cobra.Command{
 	},
 }
 
+var runnerDeleteCmd = &cobra.Command{
+	Use:     "delete",
+	Short:   "Remove a runner",
+	Aliases: []string{"remove", "rm", "del"},
+	Long: `Remove a runner.
+
+This command deletes an existing runner. If it registered in Github
+and we recorded an agent ID for it, we will attempt to remove it from
+Github first, then mark the runner as pending_delete so it will be
+cleaned up by the provider.
+
+NOTE: An active runner cannot be removed from Github. You will have
+to either cancel the workflow or wait for it to finish.
+`,
+	SilenceUsage: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if needsInit {
+			return needsInitError
+		}
+
+		if len(args) == 0 {
+			return fmt.Errorf("requires a runner name")
+		}
+
+		if !forceRemove {
+			return fmt.Errorf("use --force-remove-runner=true to remove a runner")
+		}
+
+		if err := cli.DeleteRunner(args[0]); err != nil {
+			return err
+		}
+		return nil
+	},
+}
+
 func init() {
 	runnerListCmd.Flags().StringVarP(&runnerRepository, "repo", "r", "", "List all runners from all pools within this repository.")
 	runnerListCmd.Flags().StringVarP(&runnerOrganization, "org", "o", "", "List all runners from all pools withing this organization.")
 	runnerListCmd.Flags().BoolVarP(&runnerAll, "all", "a", false, "List all runners, regardless of org or repo.")
 	runnerListCmd.MarkFlagsMutuallyExclusive("repo", "org", "all")
 
+	runnerDeleteCmd.Flags().BoolVarP(&forceRemove, "force-remove-runner", "f", false, "Confirm you want to delete a runner")
+	runnerDeleteCmd.MarkFlagsMutuallyExclusive("force-remove-runner")
+
 	runnerCmd.AddCommand(
 		runnerListCmd,
 		runnerShowCmd,
+		runnerDeleteCmd,
 	)
 
 	rootCmd.AddCommand(runnerCmd)

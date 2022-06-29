@@ -58,20 +58,43 @@ func (a *APIController) GetInstanceHandler(w http.ResponseWriter, r *http.Reques
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(params.APIErrorResponse{
 			Error:   "Bad Request",
-			Details: "No pool ID specified",
+			Details: "No runner name specified",
 		})
 		return
 	}
 
 	instance, err := a.r.GetInstance(ctx, instanceName)
 	if err != nil {
-		log.Printf("listing pools: %s", err)
+		log.Printf("listing instances: %s", err)
 		handleError(w, err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(instance)
+}
+
+func (a *APIController) DeleteInstanceHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	instanceName, ok := vars["instanceName"]
+	if !ok {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(params.APIErrorResponse{
+			Error:   "Bad Request",
+			Details: "No instance name specified",
+		})
+		return
+	}
+
+	if err := a.r.ForceDeleteRunner(ctx, instanceName); err != nil {
+		log.Printf("removing runner: %s", err)
+		handleError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 }
 
 func (a *APIController) ListRepoInstancesHandler(w http.ResponseWriter, r *http.Request) {

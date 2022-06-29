@@ -24,6 +24,7 @@ import (
 	"garm/runner/common"
 	providerCommon "garm/runner/providers/common"
 	"log"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -69,11 +70,6 @@ type basePool struct {
 // If we were offline and did not process the webhook, the instance will linger.
 // We need to remove it from the provider and database.
 func (r *basePool) cleanupOrphanedProviderRunners(runners []*github.Runner) error {
-	// runners, err := r.getGithubRunners()
-	// if err != nil {
-	// 	return errors.Wrap(err, "fetching github runners")
-	// }
-
 	dbInstances, err := r.helper.FetchDbInstances()
 	if err != nil {
 		return errors.Wrap(err, "fetching instances from db")
@@ -85,18 +81,119 @@ func (r *basePool) cleanupOrphanedProviderRunners(runners []*github.Runner) erro
 	}
 
 	for _, instance := range dbInstances {
-		if providerCommon.InstanceStatus(instance.Status) == providerCommon.InstancePendingCreate || providerCommon.InstanceStatus(instance.Status) == providerCommon.InstancePendingDelete {
+		switch providerCommon.InstanceStatus(instance.Status) {
+		case providerCommon.InstancePendingCreate,
+			providerCommon.InstancePendingDelete:
 			// this instance is in the process of being created or is awaiting deletion.
-			// Instances in pending_Create did not get a chance to register themselves in,
+			// Instances in pending_create did not get a chance to register themselves in,
 			// github so we let them be for now.
 			continue
 		}
+
 		if ok := runnerNames[instance.Name]; !ok {
+			// if instance.Status == providerCommon.InstanceRunning {
+			// 	if time.Since(instance.UpdatedAt).Minutes() < 20 {
+			// 		// Allow up to 20 minutes for instance to finish installing.
+			// 		// Anything beyond that is considered a timeout and the instance
+			// 		// is marked for deletion.
+			// 		// TODO(gabriel-samfira): Make the timeout configurable.
+			// 		continue
+			// 	}
+			// }
 			// Set pending_delete on DB field. Allow consolidate() to remove it.
 			if err := r.setInstanceStatus(instance.Name, providerCommon.InstancePendingDelete, nil); err != nil {
 				log.Printf("failed to update runner %s status", instance.Name)
 				return errors.Wrap(err, "updating runner")
 			}
+		}
+	}
+	return nil
+}
+
+// cleanupOrphanedGithubRunners will forcefully remove any github runners that appear
+// as offline and for which we no longer have a local instance.
+// This may happen if someone manually deletes the instance in the provider. We need to
+// first remove the instance from github, and then from our database.
+func (r *basePool) cleanupOrphanedGithubRunners(runners []*github.Runner) error {
+	for _, runner := range runners {
+		status := runner.GetStatus()
+		if status != "offline" {
+			// Runner is online. Ignore it.
+			continue
+		}
+
+		dbInstance, err := r.store.GetInstanceByName(r.ctx, *runner.Name)
+		if err != nil {
+			if !errors.Is(err, runnerErrors.ErrNotFound) {
+				return errors.Wrap(err, "fetching instance from DB")
+			}
+			// We no longer have a DB entry for this instance, and the runner appears offline in github.
+			// Previous forceful removal may have failed?
+			log.Printf("Runner %s has no database entry in garm, removing from github", *runner.Name)
+			resp, err := r.helper.RemoveGithubRunner(*runner.ID)
+			if err != nil {
+				// Removed in the meantime?
+				if resp != nil && resp.StatusCode == http.StatusNotFound {
+					continue
+				}
+				return errors.Wrap(err, "removing runner")
+			}
+			continue
+		}
+
+		if providerCommon.InstanceStatus(dbInstance.Status) == providerCommon.InstancePendingDelete {
+			// already marked for deleting, which means the github workflow finished.
+			// Let consolidate take care of it.
+			continue
+		}
+
+		pool, err := r.helper.GetPoolByID(dbInstance.PoolID)
+		if err != nil {
+			return errors.Wrap(err, "fetching pool")
+		}
+
+		// check if the provider still has the instance.
+		provider, ok := r.providers[pool.ProviderName]
+		if !ok {
+			return fmt.Errorf("unknown provider %s for pool %s", pool.ProviderName, pool.ID)
+		}
+
+		// Check if the instance is still on the provider.
+		_, err = provider.GetInstance(r.ctx, dbInstance.Name)
+		if err != nil {
+			if !errors.Is(err, runnerErrors.ErrNotFound) {
+				return errors.Wrap(err, "fetching instance from provider")
+			}
+			// The runner instance is no longer on the provider, and it appears offline in github.
+			// It should be safe to force remove it.
+			log.Printf("Runner instance for %s is no longer on the provider, removing from github", dbInstance.Name)
+			resp, err := r.helper.RemoveGithubRunner(*runner.ID)
+			if err != nil {
+				// Removed in the meantime?
+				if resp != nil && resp.StatusCode == http.StatusNotFound {
+					log.Printf("runner dissapeared from github")
+				} else {
+					return errors.Wrap(err, "removing runner from github")
+				}
+			}
+			// Remove the database entry for the runner.
+			log.Printf("Removing %s from database", dbInstance.Name)
+			if err := r.store.DeleteInstance(r.ctx, dbInstance.PoolID, dbInstance.Name); err != nil {
+				return errors.Wrap(err, "removing runner from database")
+			}
+			continue
+		}
+
+		if providerCommon.InstanceStatus(dbInstance.Status) == providerCommon.InstanceRunning {
+			// instance is running, but github reports runner as offline. Log the event.
+			// This scenario requires manual intervention.
+			// Perhaps it just came online and github did not yet change it's status?
+			log.Printf("instance %s is online but github reports runner as offline", dbInstance.Name)
+			continue
+		}
+		//start the instance
+		if err := provider.Start(r.ctx, dbInstance.ProviderID); err != nil {
+			return errors.Wrapf(err, "starting instance %s", dbInstance.ProviderID)
 		}
 	}
 	return nil
@@ -363,18 +460,18 @@ func (r *basePool) HandleWorkflowJob(job params.WorkflowJob) error {
 			log.Printf("no runner was assigned. Skipping.")
 			return nil
 		}
+		// update instance workload state.
+		if err := r.setInstanceRunnerStatus(job, providerCommon.RunnerTerminated); err != nil {
+			log.Printf("failed to update runner %s status", job.WorkflowJob.RunnerName)
+			return errors.Wrap(err, "updating runner")
+		}
 		log.Printf("marking instance %s as pending_delete", job.WorkflowJob.RunnerName)
 		if err := r.setInstanceStatus(job.WorkflowJob.RunnerName, providerCommon.InstancePendingDelete, nil); err != nil {
 			log.Printf("failed to update runner %s status", job.WorkflowJob.RunnerName)
 			return errors.Wrap(err, "updating runner")
 		}
-		// update instance workload state. Set job_id in instance state.
-		if err := r.setInstanceRunnerStatus(job, providerCommon.RunnerTerminated); err != nil {
-			log.Printf("failed to update runner %s status", job.WorkflowJob.RunnerName)
-			return errors.Wrap(err, "updating runner")
-		}
 	case "in_progress":
-		// update instance workload state. Set job_id in instance state.
+		// update instance workload state.
 		if err := r.setInstanceRunnerStatus(job, providerCommon.RunnerActive); err != nil {
 			log.Printf("failed to update runner %s status", job.WorkflowJob.RunnerName)
 			return errors.Wrap(err, "updating runner")
@@ -523,84 +620,6 @@ func (r *basePool) ensureMinIdleRunners() {
 	wg.Wait()
 }
 
-// cleanupOrphanedGithubRunners will forcefully remove any github runners that appear
-// as offline and for which we no longer have a local instance.
-// This may happen if someone manually deletes the instance in the provider. We need to
-// first remove the instance from github, and then from our database.
-func (r *basePool) cleanupOrphanedGithubRunners(runners []*github.Runner) error {
-	for _, runner := range runners {
-		status := runner.GetStatus()
-		if status != "offline" {
-			// Runner is online. Ignore it.
-			continue
-		}
-
-		dbInstance, err := r.store.GetInstanceByName(r.ctx, *runner.Name)
-		if err != nil {
-			if !errors.Is(err, runnerErrors.ErrNotFound) {
-				return errors.Wrap(err, "fetching instance from DB")
-			}
-			// We no longer have a DB entry for this instance, and the runner appears offline in github.
-			// Previous forceful removal may have failed?
-			log.Printf("Runner %s has no database entry in garm, removing from github", *runner.Name)
-			if err := r.helper.RemoveGithubRunner(*runner.ID); err != nil {
-				return errors.Wrap(err, "removing runner")
-			}
-			continue
-		}
-
-		if providerCommon.InstanceStatus(dbInstance.Status) == providerCommon.InstancePendingDelete {
-			// already marked for deleting, which means the github workflow finished.
-			// Let consolidate take care of it.
-			continue
-		}
-
-		pool, err := r.helper.GetPoolByID(dbInstance.PoolID)
-		if err != nil {
-			return errors.Wrap(err, "fetching pool")
-		}
-
-		// check if the provider still has the instance.
-		provider, ok := r.providers[pool.ProviderName]
-		if !ok {
-			return fmt.Errorf("unknown provider %s for pool %s", pool.ProviderName, pool.ID)
-		}
-
-		// Check if the instance is still on the provider.
-		_, err = provider.GetInstance(r.ctx, dbInstance.Name)
-		if err != nil {
-			if !errors.Is(err, runnerErrors.ErrNotFound) {
-				return errors.Wrap(err, "fetching instance from provider")
-			}
-			// The runner instance is no longer on the provider, and it appears offline in github.
-			// It should be safe to force remove it.
-			log.Printf("Runner instance for %s is no longer on the provider, removing from github", dbInstance.Name)
-			if err := r.helper.RemoveGithubRunner(*runner.ID); err != nil {
-				return errors.Wrap(err, "removing runner from github")
-			}
-			// Remove the database entry for the runner.
-			log.Printf("Removing %s from database", dbInstance.Name)
-			if err := r.store.DeleteInstance(r.ctx, dbInstance.PoolID, dbInstance.Name); err != nil {
-				return errors.Wrap(err, "removing runner from database")
-			}
-			continue
-		}
-
-		if providerCommon.InstanceStatus(dbInstance.Status) == providerCommon.InstanceRunning {
-			// instance is running, but github reports runner as offline. Log the event.
-			// This scenario requires manual intervention.
-			// Perhaps it just came online and github did not yet change it's status?
-			log.Printf("instance %s is online but github reports runner as offline", dbInstance.Name)
-			continue
-		}
-		//start the instance
-		if err := provider.Start(r.ctx, dbInstance.ProviderID); err != nil {
-			return errors.Wrapf(err, "starting instance %s", dbInstance.ProviderID)
-		}
-	}
-	return nil
-}
-
 func (r *basePool) deleteInstanceFromProvider(instance params.Instance) error {
 	pool, err := r.helper.GetPoolByID(instance.PoolID)
 	if err != nil {
@@ -657,17 +676,49 @@ func (r *basePool) deletePendingInstances() {
 		if err := r.setInstanceStatus(instance.Name, providerCommon.InstanceDeleting, nil); err != nil {
 			log.Printf("failed to update runner %s status", instance.Name)
 		}
-		go func(instance params.Instance) {
-			if err := r.deleteInstanceFromProvider(instance); err != nil {
-				// failed to remove from provider. Set the status back to pending_delete, which
-				// will retry the operation.
-				if err := r.setInstanceStatus(instance.Name, providerCommon.InstancePendingDelete, nil); err != nil {
-					log.Printf("failed to update runner %s status", instance.Name)
+		go func(instance params.Instance) (err error) {
+			defer func(instance params.Instance) {
+				if err != nil {
+					// failed to remove from provider. Set the status back to pending_delete, which
+					// will retry the operation.
+					if err := r.setInstanceStatus(instance.Name, providerCommon.InstancePendingDelete, nil); err != nil {
+						log.Printf("failed to update runner %s status", instance.Name)
+					}
 				}
+			}(instance)
+
+			err = r.deleteInstanceFromProvider(instance)
+			if err != nil {
 				log.Printf("failed to delete instance from provider: %+v", err)
 			}
+			return
 		}(instance)
 	}
+}
+
+func (r *basePool) ForceDeleteRunner(runner params.Instance) error {
+	if runner.AgentID != 0 {
+		resp, err := r.helper.RemoveGithubRunner(runner.AgentID)
+		if err != nil {
+			if resp != nil {
+				switch resp.StatusCode {
+				case http.StatusUnprocessableEntity:
+					return errors.Wrapf(runnerErrors.ErrUnprocessable, "removing runner: %q", err)
+				case http.StatusNotFound:
+					return errors.Wrapf(runnerErrors.ErrNotFound, "removing runner: %q", err)
+				default:
+					return errors.Wrap(err, "removing runner")
+				}
+			}
+			return errors.Wrap(err, "removing runner")
+		}
+	}
+
+	if err := r.setInstanceStatus(runner.Name, providerCommon.InstancePendingDelete, nil); err != nil {
+		log.Printf("failed to update runner %s status", runner.Name)
+		return errors.Wrap(err, "updating runner")
+	}
+	return nil
 }
 
 func (r *basePool) addPendingInstances() {

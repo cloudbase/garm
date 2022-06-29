@@ -112,9 +112,8 @@ func (r *organization) FetchDbInstances() ([]params.Instance, error) {
 	return r.store.ListOrgInstances(r.ctx, r.id)
 }
 
-func (r *organization) RemoveGithubRunner(runnerID int64) error {
-	_, err := r.ghcli.Actions.RemoveOrganizationRunner(r.ctx, r.cfg.Name, runnerID)
-	return errors.Wrap(err, "removing runner")
+func (r *organization) RemoveGithubRunner(runnerID int64) (*github.Response, error) {
+	return r.ghcli.Actions.RemoveOrganizationRunner(r.ctx, r.cfg.Name, runnerID)
 }
 
 func (r *organization) ListPools() ([]params.Pool, error) {

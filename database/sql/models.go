@@ -116,6 +116,7 @@ type Instance struct {
 
 	ProviderID    *string `gorm:"uniqueIndex"`
 	Name          string  `gorm:"uniqueIndex"`
+	AgentID       int64
 	OSType        config.OSType
 	OSArch        config.OSArch
 	OSName        string

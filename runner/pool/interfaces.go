@@ -25,7 +25,7 @@ type poolHelper interface {
 	GetGithubRunners() ([]*github.Runner, error)
 	FetchTools() ([]*github.RunnerApplicationDownload, error)
 	FetchDbInstances() ([]params.Instance, error)
-	RemoveGithubRunner(runnerID int64) error
+	RemoveGithubRunner(runnerID int64) (*github.Response, error)
 	ListPools() ([]params.Pool, error)
 	GithubURL() string
 	JwtToken() string
