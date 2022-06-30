@@ -1,4 +1,4 @@
-FROM golang:alpine
+FROM docker.io/golang:alpine
 
 WORKDIR /root
 USER root
