@@ -23,6 +23,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var Version string
+
 var (
 	cfg            *config.Config
 	mgr            config.Manager

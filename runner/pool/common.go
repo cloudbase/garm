@@ -17,17 +17,18 @@ package pool
 import (
 	"context"
 	"fmt"
+	"log"
+	"net/http"
+	"strings"
+	"sync"
+	"time"
+
 	"garm/auth"
 	dbCommon "garm/database/common"
 	runnerErrors "garm/errors"
 	"garm/params"
 	"garm/runner/common"
 	providerCommon "garm/runner/providers/common"
-	"log"
-	"net/http"
-	"strings"
-	"sync"
-	"time"
 
 	"github.com/google/go-github/v43/github"
 	"github.com/google/uuid"

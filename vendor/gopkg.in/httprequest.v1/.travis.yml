@@ -1,0 +1,5 @@
+language: go
+go_import_path: "gopkg.in/httprequest.v1"
+go: 
+  - "1.11.x"
+script: GO111MODULE=on go test ./...
