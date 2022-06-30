@@ -203,8 +203,8 @@ func (r *Runner) CreateRepoPool(ctx context.Context, repoID string, param params
 		return params.Pool{}, errors.Wrap(err, "fetching pool params")
 	}
 
-	if param.RunnerBootstrapTimeout == 0 {
-		param.RunnerBootstrapTimeout = config.DefaultRunnerBootstrapTimeout
+	if createPoolParams.RunnerBootstrapTimeout == 0 {
+		createPoolParams.RunnerBootstrapTimeout = config.DefaultRunnerBootstrapTimeout
 	}
 
 	pool, err := r.store.CreateRepositoryPool(ctx, repoID, createPoolParams)

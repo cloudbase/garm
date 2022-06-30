@@ -164,15 +164,16 @@ func (s *sqlDatabase) CreateRepositoryPool(ctx context.Context, repoId string, p
 	}
 
 	newPool := Pool{
-		ProviderName:   param.ProviderName,
-		MaxRunners:     param.MaxRunners,
-		MinIdleRunners: param.MinIdleRunners,
-		Image:          param.Image,
-		Flavor:         param.Flavor,
-		OSType:         param.OSType,
-		OSArch:         param.OSArch,
-		RepoID:         repo.ID,
-		Enabled:        param.Enabled,
+		ProviderName:           param.ProviderName,
+		MaxRunners:             param.MaxRunners,
+		MinIdleRunners:         param.MinIdleRunners,
+		Image:                  param.Image,
+		Flavor:                 param.Flavor,
+		OSType:                 param.OSType,
+		OSArch:                 param.OSArch,
+		RepoID:                 repo.ID,
+		Enabled:                param.Enabled,
+		RunnerBootstrapTimeout: param.RunnerBootstrapTimeout,
 	}
 
 	_, err = s.getRepoPoolByUniqueFields(ctx, repoId, newPool.ProviderName, newPool.Image, newPool.Flavor)

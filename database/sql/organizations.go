@@ -156,15 +156,16 @@ func (s *sqlDatabase) CreateOrganizationPool(ctx context.Context, orgId string, 
 	}
 
 	newPool := Pool{
-		ProviderName:   param.ProviderName,
-		MaxRunners:     param.MaxRunners,
-		MinIdleRunners: param.MinIdleRunners,
-		Image:          param.Image,
-		Flavor:         param.Flavor,
-		OSType:         param.OSType,
-		OSArch:         param.OSArch,
-		OrgID:          org.ID,
-		Enabled:        param.Enabled,
+		ProviderName:           param.ProviderName,
+		MaxRunners:             param.MaxRunners,
+		MinIdleRunners:         param.MinIdleRunners,
+		Image:                  param.Image,
+		Flavor:                 param.Flavor,
+		OSType:                 param.OSType,
+		OSArch:                 param.OSArch,
+		OrgID:                  org.ID,
+		Enabled:                param.Enabled,
+		RunnerBootstrapTimeout: param.RunnerBootstrapTimeout,
 	}
 
 	_, err = s.getOrgPoolByUniqueFields(ctx, orgId, newPool.ProviderName, newPool.Image, newPool.Flavor)
