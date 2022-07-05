@@ -32,6 +32,8 @@ import (
 	"garm/runner"
 	"garm/util"
 
+	"github.com/gorilla/handlers"
+	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 )
 
@@ -117,6 +119,12 @@ func main() {
 	}
 
 	router := routers.NewAPIRouter(controller, logWriter, jwtMiddleware, initMiddleware, instanceMiddleware)
+	corsMw := mux.CORSMethodMiddleware(router)
+	router.Use(corsMw)
+
+	allowedOrigins := handlers.AllowedOrigins(cfg.APIServer.CORSOrigins)
+	methodsOk := handlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "OPTIONS", "DELETE"})
+	headersOk := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"})
 
 	tlsCfg, err := cfg.APIServer.APITLSConfig()
 	if err != nil {
@@ -127,7 +135,7 @@ func main() {
 		Addr:      cfg.APIServer.BindAddress(),
 		TLSConfig: tlsCfg,
 		// Pass our instance of gorilla/mux in.
-		Handler: router,
+		Handler: handlers.CORS(methodsOk, headersOk, allowedOrigins)(router),
 	}
 
 	listener, err := net.Listen("tcp", srv.Addr)

@@ -141,9 +141,18 @@ func (c *Config) Validate() error {
 		return errors.Wrap(err, "validating jwt config")
 	}
 
+	providerNames := map[string]int{}
+
 	for _, provider := range c.Providers {
 		if err := provider.Validate(); err != nil {
 			return errors.Wrap(err, "validating provider")
+		}
+		providerNames[provider.Name] += 1
+	}
+
+	for name, count := range providerNames {
+		if count > 1 {
+			return fmt.Errorf("duplicate provider name %s", name)
 		}
 	}
 
@@ -165,10 +174,12 @@ func (d *Default) Validate() error {
 		return fmt.Errorf("missing callback_url")
 	}
 
-	if d.ConfigDir != "" {
-		if _, err := os.Stat(d.ConfigDir); err != nil {
-			return errors.Wrap(err, "accessing config dir")
-		}
+	if d.ConfigDir == "" {
+		return fmt.Errorf("config_dir cannot be empty")
+	}
+
+	if _, err := os.Stat(d.ConfigDir); err != nil {
+		return errors.Wrap(err, "accessing config dir")
 	}
 
 	return nil
