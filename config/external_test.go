@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -72,6 +73,14 @@ func TestExternal(t *testing.T) {
 			},
 			errString: "path to provider dir must be absolute",
 		},
+		{
+			name: "Provider executable not found",
+			cfg: External{
+				ConfigFile:  "",
+				ProviderDir: "/tmp",
+			},
+			errString: "checking provider executable: stat /tmp/garm-external-provider: no such file or directory",
+		},
 	}
 
 	for _, tc := range tests {
@@ -85,4 +94,17 @@ func TestExternal(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestProviderExecutableIsExecutable(t *testing.T) {
+	cfg := getDefaultExternalConfig(t)
+
+	execPath, err := cfg.ExecutablePath()
+	assert.Nil(t, err)
+	err = os.Chmod(execPath, 0o644)
+	assert.Nil(t, err)
+
+	err = cfg.Validate()
+	assert.NotNil(t, err)
+	assert.EqualError(t, err, fmt.Sprintf("external provider binary %s is not executable", execPath))
 }

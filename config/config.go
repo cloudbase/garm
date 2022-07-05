@@ -165,6 +165,12 @@ func (d *Default) Validate() error {
 		return fmt.Errorf("missing callback_url")
 	}
 
+	if d.ConfigDir != "" {
+		if _, err := os.Stat(d.ConfigDir); err != nil {
+			return errors.Wrap(err, "accessing config dir")
+		}
+	}
+
 	return nil
 }
 

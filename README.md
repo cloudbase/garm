@@ -17,8 +17,15 @@ git clone https://github.com/cloudbase/garm
 cd garm
 go install ./...
 ```
-
 You should now have both ```garm``` and ```garm-cli``` in your ```$GOPATH/bin``` folder.
+
+If you have docker/podman installed, you can also build statically linked binaries by running:
+
+```bash
+make
+```
+
+The ```garm``` and ```garm-cli``` binaries will be built and copied to the ```bin/``` folder in your current working directory.
 
 ## Install the service
 
@@ -31,10 +38,18 @@ useradd --shell /usr/bin/false \
     --no-create-home garm
 ```
 
-Copy the binary from your ```$GOPATH``` to somewhere in the system ```$PATH```:
+The ```lxd``` group is only needed if you have a local LXD install and want to connect to the unix socket to use it. If you're connecting to a remote LXD server over TCP, you can skip adding the ```garm``` user to the ```lxd``` group.
+
+Copy the binary to somewhere in the system ```$PATH```:
 
 ```bash
 sudo cp $(go env GOPATH)/bin/garm /usr/local/bin/garm
+```
+
+Or if you built garm using ```make```:
+
+```bash
+sudo cp ./bin/garm /usr/local/bin/garm
 ```
 
 Create the config folder:
