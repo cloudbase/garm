@@ -21,7 +21,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func getDefaultExternalConfig(t *testing.T) External {
@@ -101,10 +101,10 @@ func TestExternal(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			err := tc.cfg.Validate()
 			if tc.errString == "" {
-				assert.Nil(t, err)
+				require.Nil(t, err)
 			} else {
-				assert.NotNil(t, err)
-				assert.EqualError(t, err, tc.errString)
+				require.NotNil(t, err)
+				require.EqualError(t, err, tc.errString)
 			}
 		})
 	}
@@ -114,11 +114,11 @@ func TestProviderExecutableIsExecutable(t *testing.T) {
 	cfg := getDefaultExternalConfig(t)
 
 	execPath, err := cfg.ExecutablePath()
-	assert.Nil(t, err)
+	require.Nil(t, err)
 	err = os.Chmod(execPath, 0o644)
-	assert.Nil(t, err)
+	require.Nil(t, err)
 
 	err = cfg.Validate()
-	assert.NotNil(t, err)
-	assert.EqualError(t, err, fmt.Sprintf("external provider binary %s is not executable", execPath))
+	require.NotNil(t, err)
+	require.EqualError(t, err, fmt.Sprintf("external provider binary %s is not executable", execPath))
 }

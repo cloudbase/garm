@@ -254,12 +254,12 @@ func (d *Database) GormParams() (dbType DBBackendType, uri string, err error) {
 	case MySQLBackend:
 		uri, err = d.MySQL.ConnectionString()
 		if err != nil {
-			return "", "", errors.Wrap(err, "validating mysql config")
+			return "", "", errors.Wrap(err, "fetching mysql connection string")
 		}
 	case SQLiteBackend:
 		uri, err = d.SQLite.ConnectionString()
 		if err != nil {
-			return "", "", errors.Wrap(err, "validating mysql config")
+			return "", "", errors.Wrap(err, "fetching sqlite3 connection string")
 		}
 	default:
 		return "", "", fmt.Errorf("invalid database backend: %s", dbType)
@@ -272,9 +272,16 @@ func (d *Database) Validate() error {
 	if d.DbBackend == "" {
 		return fmt.Errorf("invalid databse configuration: backend is required")
 	}
+
 	if len(d.Passphrase) != 32 {
 		return fmt.Errorf("passphrase must be set and it must be a string of 32 characters (aes 256)")
 	}
+
+	passwordStenght := zxcvbn.PasswordStrength(d.Passphrase, nil)
+	if passwordStenght.Score < 4 {
+		return fmt.Errorf("database passphrase is too weak")
+	}
+
 	switch d.DbBackend {
 	case MySQLBackend:
 		if err := d.MySQL.Validate(); err != nil {

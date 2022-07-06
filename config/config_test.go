@@ -20,11 +20,12 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var (
-	EncryptionPassphrase = "bocyasicgatEtenOubwonIbsudNutDom"
+	EncryptionPassphrase     = "bocyasicgatEtenOubwonIbsudNutDom"
+	WeakEncryptionPassphrase = "1234567890abcdefghijklmnopqrstuv"
 )
 
 func getDefaultSectionConfig(configDir string) Default {
@@ -50,6 +51,15 @@ func getDefaultAPIServerConfig() APIServer {
 		UseTLS:      true,
 		TLSConfig:   getDefaultTLSConfig(),
 		CORSOrigins: []string{},
+	}
+}
+
+func getMySQLDefaultConfig() MySQL {
+	return MySQL{
+		Username:     "test",
+		Password:     "test",
+		Hostname:     "127.0.0.1",
+		DatabaseName: "garm",
 	}
 }
 
@@ -114,7 +124,7 @@ func TestConfig(t *testing.T) {
 	cfg := getDefaultConfig(t)
 
 	err := cfg.Validate()
-	assert.Nil(t, err)
+	require.Nil(t, err)
 }
 
 func TestDefaultSectionConfig(t *testing.T) {
@@ -165,10 +175,10 @@ func TestDefaultSectionConfig(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			err := tc.cfg.Validate()
 			if tc.errString == "" {
-				assert.Nil(t, err)
+				require.Nil(t, err)
 			} else {
-				assert.NotNil(t, err)
-				assert.Regexp(t, tc.errString, err.Error())
+				require.NotNil(t, err)
+				require.Regexp(t, tc.errString, err.Error())
 			}
 		})
 	}
@@ -253,10 +263,10 @@ func TestValidateAPIServerConfig(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			err := tc.cfg.Validate()
 			if tc.errString == "" {
-				assert.Nil(t, err)
+				require.Nil(t, err)
 			} else {
-				assert.NotNil(t, err)
-				assert.Regexp(t, tc.errString, err.Error())
+				require.NotNil(t, err)
+				require.Regexp(t, tc.errString, err.Error())
 			}
 		})
 	}
@@ -266,31 +276,31 @@ func TestAPIBindAddress(t *testing.T) {
 	cfg := getDefaultAPIServerConfig()
 
 	err := cfg.Validate()
-	assert.Nil(t, err)
-	assert.Equal(t, cfg.BindAddress(), "0.0.0.0:9998")
+	require.Nil(t, err)
+	require.Equal(t, cfg.BindAddress(), "0.0.0.0:9998")
 }
 
 func TestAPITLSconfig(t *testing.T) {
 	cfg := getDefaultAPIServerConfig()
 
 	err := cfg.Validate()
-	assert.Nil(t, err)
+	require.Nil(t, err)
 
 	tlsCfg, err := cfg.APITLSConfig()
-	assert.Nil(t, err)
-	assert.NotNil(t, tlsCfg)
+	require.Nil(t, err)
+	require.NotNil(t, tlsCfg)
 
 	// Any error in the TLSConfig should return an error here.
 	cfg.TLSConfig = TLSConfig{}
 	tlsCfg, err = cfg.APITLSConfig()
-	assert.NotNil(t, err)
-	assert.EqualError(t, err, "missing crt or key")
+	require.NotNil(t, err)
+	require.EqualError(t, err, "missing crt or key")
 
 	// If TLS is disabled, don't validate TLSconfig.
 	cfg.UseTLS = false
 	tlsCfg, err = cfg.APITLSConfig()
-	assert.Nil(t, err)
-	assert.Nil(t, tlsCfg)
+	require.Nil(t, err)
+	require.Nil(t, tlsCfg)
 }
 
 func TestTLSConfig(t *testing.T) {
@@ -309,7 +319,7 @@ func TestTLSConfig(t *testing.T) {
 	cfg := getDefaultTLSConfig()
 
 	err = cfg.Validate()
-	assert.Nil(t, err)
+	require.Nil(t, err)
 
 	tests := []struct {
 		name      string
@@ -372,12 +382,119 @@ func TestTLSConfig(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			tlsCfg, err := tc.cfg.TLSConfig()
 			if tc.errString == "" {
-				assert.Nil(t, err)
-				assert.NotNil(t, tlsCfg)
+				require.Nil(t, err)
+				require.NotNil(t, tlsCfg)
 			} else {
-				assert.NotNil(t, err)
-				assert.Nil(t, tlsCfg)
-				assert.Regexp(t, tc.errString, err.Error())
+				require.NotNil(t, err)
+				require.Nil(t, tlsCfg)
+				require.Regexp(t, tc.errString, err.Error())
+			}
+		})
+	}
+}
+
+func TestDatabaseConfig(t *testing.T) {
+	dir, err := ioutil.TempDir("", "garm-config-test")
+	if err != nil {
+		t.Fatalf("failed to create temporary directory: %s", err)
+	}
+	t.Cleanup(func() { os.RemoveAll(dir) })
+	cfg := getDefaultDatabaseConfig(dir)
+
+	tests := []struct {
+		name      string
+		cfg       Database
+		errString string
+	}{
+		{
+			name:      "Config is valid",
+			cfg:       cfg,
+			errString: "",
+		},
+		{
+			name: "Missing backend",
+			cfg: Database{
+				DbBackend:  "",
+				SQLite:     cfg.SQLite,
+				Passphrase: cfg.Passphrase,
+			},
+			errString: "invalid databse configuration: backend is required",
+		},
+		{
+			name: "Invalid backend type",
+			cfg: Database{
+				DbBackend:  DBBackendType("bogus"),
+				SQLite:     cfg.SQLite,
+				Passphrase: cfg.Passphrase,
+			},
+			errString: "invalid database backend: bogus",
+		},
+		{
+			name: "Missing passphrase",
+			cfg: Database{
+				DbBackend:  cfg.DbBackend,
+				SQLite:     cfg.SQLite,
+				Passphrase: "",
+			},
+			errString: "passphrase must be set and it must be a string of 32 characters*",
+		},
+		{
+			name: "passphrase has invalid length",
+			cfg: Database{
+				DbBackend:  cfg.DbBackend,
+				SQLite:     cfg.SQLite,
+				Passphrase: "testing",
+			},
+			errString: "passphrase must be set and it must be a string of 32 characters*",
+		},
+		{
+			name: "passphrase is too weak",
+			cfg: Database{
+				DbBackend:  cfg.DbBackend,
+				SQLite:     cfg.SQLite,
+				Passphrase: WeakEncryptionPassphrase,
+			},
+			errString: "database passphrase is too weak",
+		},
+		{
+			name: "sqlite3 backend is missconfigured",
+			cfg: Database{
+				DbBackend: cfg.DbBackend,
+				SQLite: SQLite{
+					DBFile: "",
+				},
+				Passphrase: cfg.Passphrase,
+			},
+			errString: "validating sqlite3 config: no valid db_file was specified",
+		},
+		{
+			name: "mysql backend is missconfigured",
+			cfg: Database{
+				DbBackend:  MySQLBackend,
+				MySQL:      MySQL{},
+				Passphrase: cfg.Passphrase,
+			},
+			errString: "validating mysql config: database, username, password, hostname are mandatory parameters for the database section",
+		},
+		{
+			name: "mysql backend is configured and valid",
+			cfg: Database{
+				DbBackend:  MySQLBackend,
+				MySQL:      getMySQLDefaultConfig(),
+				Passphrase: cfg.Passphrase,
+			},
+			errString: "",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.cfg.Validate()
+			if tc.errString == "" {
+				require.Nil(t, err)
+			} else {
+				require.NotNil(t, err)
+				require.Regexp(t, tc.errString, err.Error())
 			}
 		})
 	}
