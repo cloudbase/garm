@@ -173,3 +173,212 @@ func TestDefaultSectionConfig(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateAPIServerConfig(t *testing.T) {
+	cfg := getDefaultAPIServerConfig()
+
+	tests := []struct {
+		name      string
+		cfg       APIServer
+		errString string
+	}{
+		{
+			name:      "Config is valid",
+			cfg:       cfg,
+			errString: "",
+		},
+		{
+			name: "Bind address is empty",
+			cfg: APIServer{
+				Bind: "",
+				Port: 9998,
+			},
+			errString: "invalid IP address",
+		},
+		{
+			name: "Bind address is invalid",
+			cfg: APIServer{
+				Bind: "not an IP",
+				Port: 9998,
+			},
+			errString: "invalid IP address",
+		},
+		{
+			name: "Bind address is valid IPv6",
+			cfg: APIServer{
+				Bind: "::",
+				Port: 9998,
+			},
+			errString: "",
+		},
+		{
+			name: "Port is not set",
+			cfg: APIServer{
+				Bind: cfg.Bind,
+				Port: 0,
+			},
+			errString: "invalid port nr 0",
+		},
+		{
+			name: "Port is not valid",
+			cfg: APIServer{
+				Bind: cfg.Bind,
+				Port: 65536,
+			},
+			errString: "invalid port nr 65536",
+		},
+		{
+			name: "Invalid TLS config",
+			cfg: APIServer{
+				Bind:      cfg.Bind,
+				Port:      cfg.Port,
+				TLSConfig: TLSConfig{},
+				UseTLS:    true,
+			},
+			errString: "TLS validation failed:*",
+		},
+		{
+			name: "Skip TLS config validation if UseTLS is false",
+			cfg: APIServer{
+				Bind:      cfg.Bind,
+				Port:      cfg.Port,
+				TLSConfig: TLSConfig{},
+				UseTLS:    false,
+			},
+			errString: "",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.cfg.Validate()
+			if tc.errString == "" {
+				assert.Nil(t, err)
+			} else {
+				assert.NotNil(t, err)
+				assert.Regexp(t, tc.errString, err.Error())
+			}
+		})
+	}
+}
+
+func TestAPIBindAddress(t *testing.T) {
+	cfg := getDefaultAPIServerConfig()
+
+	err := cfg.Validate()
+	assert.Nil(t, err)
+	assert.Equal(t, cfg.BindAddress(), "0.0.0.0:9998")
+}
+
+func TestAPITLSconfig(t *testing.T) {
+	cfg := getDefaultAPIServerConfig()
+
+	err := cfg.Validate()
+	assert.Nil(t, err)
+
+	tlsCfg, err := cfg.APITLSConfig()
+	assert.Nil(t, err)
+	assert.NotNil(t, tlsCfg)
+
+	// Any error in the TLSConfig should return an error here.
+	cfg.TLSConfig = TLSConfig{}
+	tlsCfg, err = cfg.APITLSConfig()
+	assert.NotNil(t, err)
+	assert.EqualError(t, err, "missing crt or key")
+
+	// If TLS is disabled, don't validate TLSconfig.
+	cfg.UseTLS = false
+	tlsCfg, err = cfg.APITLSConfig()
+	assert.Nil(t, err)
+	assert.Nil(t, tlsCfg)
+}
+
+func TestTLSConfig(t *testing.T) {
+	dir, err := ioutil.TempDir("", "garm-config-test")
+	if err != nil {
+		t.Fatalf("failed to create temporary directory: %s", err)
+	}
+	t.Cleanup(func() { os.RemoveAll(dir) })
+
+	invalidCert := filepath.Join(dir, "invalid_cert.pem")
+	err = ioutil.WriteFile(invalidCert, []byte("bogus content"), 0755)
+	if err != nil {
+		t.Fatalf("failed to write file: %s", err)
+	}
+
+	cfg := getDefaultTLSConfig()
+
+	err = cfg.Validate()
+	assert.Nil(t, err)
+
+	tests := []struct {
+		name      string
+		cfg       TLSConfig
+		errString string
+	}{
+		{
+			name:      "Config is valid",
+			cfg:       cfg,
+			errString: "",
+		},
+		{
+			name: "missing crt",
+			cfg: TLSConfig{
+				CRT:    "",
+				Key:    cfg.Key,
+				CACert: cfg.CACert,
+			},
+			errString: "missing crt or key",
+		},
+		{
+			name: "missing key",
+			cfg: TLSConfig{
+				CRT:    cfg.CRT,
+				Key:    "",
+				CACert: cfg.CACert,
+			},
+			errString: "missing crt or key",
+		},
+		{
+			name: "invalid CA cert",
+			cfg: TLSConfig{
+				CRT:    cfg.CRT,
+				Key:    cfg.Key,
+				CACert: invalidCert,
+			},
+			errString: "failed to parse CA cert",
+		},
+		{
+			name: "invalid cert",
+			cfg: TLSConfig{
+				CRT:    invalidCert,
+				Key:    cfg.Key,
+				CACert: cfg.CACert,
+			},
+			errString: "tls: failed to find any PEM data in certificate input",
+		},
+		{
+			name: "invalid key",
+			cfg: TLSConfig{
+				CRT:    cfg.CRT,
+				Key:    invalidCert,
+				CACert: cfg.CACert,
+			},
+			errString: "tls: failed to find any PEM data in key input",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			tlsCfg, err := tc.cfg.TLSConfig()
+			if tc.errString == "" {
+				assert.Nil(t, err)
+				assert.NotNil(t, tlsCfg)
+			} else {
+				assert.NotNil(t, err)
+				assert.Nil(t, tlsCfg)
+				assert.Regexp(t, tc.errString, err.Error())
+			}
+		})
+	}
+}

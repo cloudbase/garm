@@ -357,7 +357,7 @@ type TLSConfig struct {
 // API server
 func (t *TLSConfig) TLSConfig() (*tls.Config, error) {
 	// TLS config not present.
-	if t.CRT == "" && t.Key == "" {
+	if t.CRT == "" || t.Key == "" {
 		return nil, fmt.Errorf("missing crt or key")
 	}
 
@@ -423,7 +423,7 @@ func (a *APIServer) Validate() error {
 		}
 	}
 	if a.Port > 65535 || a.Port < 1 {
-		return fmt.Errorf("invalid port nr %q", a.Port)
+		return fmt.Errorf("invalid port nr %d", a.Port)
 	}
 
 	ip := net.ParseIP(a.Bind)
