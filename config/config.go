@@ -445,12 +445,25 @@ func (a *APIServer) Validate() error {
 
 type timeToLive string
 
-func (d *timeToLive) Duration() time.Duration {
+func (d *timeToLive) ParseDuration() (time.Duration, error) {
 	duration, err := time.ParseDuration(string(*d))
+	if err != nil {
+		return 0, err
+	}
+	return duration, nil
+}
+
+func (d *timeToLive) Duration() time.Duration {
+	duration, err := d.ParseDuration()
 	if err != nil {
 		log.Printf("failed to parse duration: %s", err)
 		return DefaultJWTTTL
 	}
+	// TODO(gabriel-samfira): should we have a minimum TTL?
+	if duration < DefaultJWTTTL {
+		return DefaultJWTTTL
+	}
+
 	return duration
 }
 
@@ -472,10 +485,10 @@ type JWTAuth struct {
 
 // Validate validates the JWTAuth config
 func (j *JWTAuth) Validate() error {
-	// TODO: Set defaults somewhere else.
-	if j.TimeToLive.Duration() < DefaultJWTTTL {
-		j.TimeToLive = timeToLive(DefaultJWTTTL.String())
+	if _, err := j.TimeToLive.ParseDuration(); err != nil {
+		return errors.Wrap(err, "parsing duration")
 	}
+
 	if j.Secret == "" {
 		return fmt.Errorf("invalid JWT secret")
 	}

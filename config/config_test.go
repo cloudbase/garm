@@ -19,6 +19,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -498,4 +499,158 @@ func TestDatabaseConfig(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGormParams(t *testing.T) {
+	dir, err := ioutil.TempDir("", "garm-config-test")
+	if err != nil {
+		t.Fatalf("failed to create temporary directory: %s", err)
+	}
+	t.Cleanup(func() { os.RemoveAll(dir) })
+	cfg := getDefaultDatabaseConfig(dir)
+
+	dbType, uri, err := cfg.GormParams()
+	require.Nil(t, err)
+	require.Equal(t, SQLiteBackend, dbType)
+	require.Equal(t, filepath.Join(dir, "garm.db"), uri)
+
+	cfg.DbBackend = MySQLBackend
+	cfg.MySQL = getMySQLDefaultConfig()
+	cfg.SQLite = SQLite{}
+
+	dbType, uri, err = cfg.GormParams()
+	require.Nil(t, err)
+	require.Equal(t, MySQLBackend, dbType)
+	require.Equal(t, "test:test@tcp(127.0.0.1)/garm?charset=utf8&parseTime=True&loc=Local&timeout=5s", uri)
+
+}
+
+func TestSQLiteConfig(t *testing.T) {
+	dir, err := ioutil.TempDir("", "garm-config-test")
+	if err != nil {
+		t.Fatalf("failed to create temporary directory: %s", err)
+	}
+	t.Cleanup(func() { os.RemoveAll(dir) })
+
+	tests := []struct {
+		name      string
+		cfg       SQLite
+		errString string
+	}{
+		{
+			name: "Config is valid",
+			cfg: SQLite{
+				DBFile: filepath.Join(dir, "garm.db"),
+			},
+			errString: "",
+		},
+		{
+			name: "db_file is empty",
+			cfg: SQLite{
+				DBFile: "",
+			},
+			errString: "no valid db_file was specified",
+		},
+		{
+			name: "db_file must not be a relative path",
+			cfg: SQLite{
+				DBFile: "../test.db",
+			},
+			errString: "please specify an absolute path for db_file",
+		},
+		{
+			name: "parent folder must exist",
+			cfg: SQLite{
+				DBFile: "/i/dont/exist/test.db",
+			},
+			errString: "accessing db_file parent dir:.*no such file or directory",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.cfg.Validate()
+			if tc.errString == "" {
+				require.Nil(t, err)
+			} else {
+				require.NotNil(t, err)
+				require.Regexp(t, tc.errString, err.Error())
+			}
+		})
+	}
+}
+
+func TestJWTAuthConfig(t *testing.T) {
+	cfg := JWTAuth{
+		Secret:     EncryptionPassphrase,
+		TimeToLive: "48h",
+	}
+
+	tests := []struct {
+		name      string
+		cfg       JWTAuth
+		errString string
+	}{
+		{
+			name:      "Config is valid",
+			cfg:       cfg,
+			errString: "",
+		},
+		{
+			name: "secret is empty",
+			cfg: JWTAuth{
+				Secret:     "",
+				TimeToLive: cfg.TimeToLive,
+			},
+			errString: "invalid JWT secret",
+		},
+		{
+			name: "secret is weak",
+			cfg: JWTAuth{
+				Secret:     WeakEncryptionPassphrase,
+				TimeToLive: cfg.TimeToLive,
+			},
+			errString: "jwt_secret is too weak",
+		},
+		{
+			name: "time to live is invalid",
+			cfg: JWTAuth{
+				Secret:     cfg.Secret,
+				TimeToLive: "bogus",
+			},
+			errString: "parsing duration: time: invalid duration*",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.cfg.Validate()
+			if tc.errString == "" {
+				require.Nil(t, err)
+			} else {
+				require.NotNil(t, err)
+				require.Regexp(t, tc.errString, err.Error())
+			}
+		})
+	}
+}
+
+func TestTimeToLiveDuration(t *testing.T) {
+	cfg := JWTAuth{
+		Secret:     EncryptionPassphrase,
+		TimeToLive: "48h",
+	}
+
+	require.Equal(t, cfg.TimeToLive.Duration(), 48*time.Hour)
+
+	cfg.TimeToLive = "1h"
+	require.Equal(t, cfg.TimeToLive.Duration(), DefaultJWTTTL)
+
+	cfg.TimeToLive = "72h"
+	require.Equal(t, cfg.TimeToLive.Duration(), 72*time.Hour)
+
+	cfg.TimeToLive = "2d"
+	_, err := cfg.TimeToLive.ParseDuration()
+	require.NotNil(t, err)
+	require.EqualError(t, err, "time: unknown unit \"d\" in duration \"2d\"")
 }
