@@ -78,11 +78,11 @@ type NewUserParams struct {
 }
 
 type UpdatePoolParams struct {
-	Tags                   []string      `json:"tags"`
-	Enabled                *bool         `json:"enabled"`
-	MaxRunners             *uint         `json:"max_runners"`
-	MinIdleRunners         *uint         `json:"min_idle_runners"`
-	RunnerBootstrapTimeout uint          `json:"runner_bootstrap_timeout"`
+	Tags                   []string      `json:"tags,omitempty"`
+	Enabled                *bool         `json:"enabled,omitempty"`
+	MaxRunners             *uint         `json:"max_runners,omitempty"`
+	MinIdleRunners         *uint         `json:"min_idle_runners,omitempty"`
+	RunnerBootstrapTimeout *uint         `json:"runner_bootstrap_timeout,omitempty"`
 	Image                  string        `json:"image"`
 	Flavor                 string        `json:"flavor"`
 	OSType                 config.OSType `json:"os_type"`

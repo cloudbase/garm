@@ -90,7 +90,7 @@ func (r *Runner) UpdatePoolByID(ctx context.Context, poolID string, param params
 		minIdleRunners = *param.MinIdleRunners
 	}
 
-	if param.RunnerBootstrapTimeout == 0 {
+	if param.RunnerBootstrapTimeout != nil && *param.RunnerBootstrapTimeout == 0 {
 		return params.Pool{}, runnerErrors.NewBadRequestError("runner_bootstrap_timeout cannot be 0")
 	}
 

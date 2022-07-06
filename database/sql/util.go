@@ -210,8 +210,8 @@ func (s *sqlDatabase) updatePool(pool Pool, param params.UpdatePoolParams) (para
 		pool.OSType = param.OSType
 	}
 
-	if param.RunnerBootstrapTimeout > 0 {
-		pool.RunnerBootstrapTimeout = param.RunnerBootstrapTimeout
+	if param.RunnerBootstrapTimeout != nil && *param.RunnerBootstrapTimeout > 0 {
+		pool.RunnerBootstrapTimeout = *param.RunnerBootstrapTimeout
 	}
 
 	if q := s.conn.Save(&pool); q.Error != nil {

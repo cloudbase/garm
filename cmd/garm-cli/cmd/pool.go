@@ -254,7 +254,7 @@ explicitly remove them using the runner delete command.
 		}
 
 		if cmd.Flags().Changed("runner-bootstrap-timeout") {
-			poolUpdateParams.RunnerBootstrapTimeout = poolRunnerBootstrapTimeout
+			poolUpdateParams.RunnerBootstrapTimeout = &poolRunnerBootstrapTimeout
 		}
 
 		pool, err := cli.UpdatePoolByID(args[0], poolUpdateParams)
