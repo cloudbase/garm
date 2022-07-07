@@ -118,22 +118,18 @@ func (a *Authenticator) InitController(ctx context.Context, param params.NewUser
 }
 
 func (a *Authenticator) AuthenticateUser(ctx context.Context, info params.PasswordLoginParams) (context.Context, error) {
-	if info.Username == "" {
-		return ctx, runnerErrors.ErrUnauthorized
-	}
-
-	if info.Password == "" {
+	if info.Username == "" || info.Password == "" {
 		return ctx, runnerErrors.ErrUnauthorized
 	}
 
 	user, err := a.store.GetUser(ctx, info.Username)
-
 	if err != nil {
 		if errors.Is(err, runnerErrors.ErrNotFound) {
 			return ctx, runnerErrors.ErrUnauthorized
 		}
 		return ctx, errors.Wrap(err, "authenticating")
 	}
+
 	if !user.Enabled {
 		return ctx, runnerErrors.ErrUnauthorized
 	}

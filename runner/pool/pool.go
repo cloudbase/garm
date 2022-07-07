@@ -237,17 +237,11 @@ func (r *basePool) fetchInstance(runnerName string) (params.Instance, error) {
 }
 
 func (r *basePool) setInstanceRunnerStatus(job params.WorkflowJob, status providerCommon.RunnerStatus) error {
-	runner, err := r.fetchInstance(job.WorkflowJob.RunnerName)
-	if err != nil {
-		return errors.Wrap(err, "fetching instance")
-	}
-
 	updateParams := params.UpdateInstanceParams{
 		RunnerStatus: status,
 	}
 
-	log.Printf("setting runner status for %s to %s", runner.Name, status)
-	if _, err := r.store.UpdateInstance(r.ctx, runner.ID, updateParams); err != nil {
+	if err := r.updateInstance(job.WorkflowJob.RunnerName, updateParams); err != nil {
 		return errors.Wrap(err, "updating runner state")
 	}
 	return nil
@@ -609,13 +603,12 @@ func (r *basePool) retryFailedInstancesForOnePool(pool params.Pool) {
 			continue
 		}
 
-		// cleanup the failed instance from provider. If we have a provider ID, we use that
-		// for cleanup. Otherwise, attempt to pass in the name of the instance to the provider, in an
-		// attempt to cleanup the failed machine.
 		// NOTE(gabriel-samfira): this is done in parallel. If there are many failed instances
 		// this has the potential to create many API requests to the target provider.
 		// TODO(gabriel-samfira): implement request throttling.
 		if instance.ProviderID == "" && instance.Name == "" {
+			// This really should not happen, but no harm in being extra paranoid. The name is set
+			// when creating a db entity for the runner, so we should at least have a name.
 			return
 		}
 		// TODO(gabriel-samfira): Incrementing CreateAttempt should be done within a transaction.
@@ -695,16 +688,6 @@ func (r *basePool) deleteInstanceFromProvider(instance params.Instance) error {
 	return nil
 }
 
-func (r *basePool) poolIDFromLabels(labels []*github.RunnerLabels) (string, error) {
-	for _, lbl := range labels {
-		if strings.HasPrefix(*lbl.Name, poolIDLabelprefix) {
-			labelName := *lbl.Name
-			return labelName[len(poolIDLabelprefix):], nil
-		}
-	}
-	return "", runnerErrors.ErrNotFound
-}
-
 func (r *basePool) deletePendingInstances() {
 	instances, err := r.helper.FetchDbInstances()
 	if err != nil {
@@ -741,31 +724,6 @@ func (r *basePool) deletePendingInstances() {
 			return
 		}(instance)
 	}
-}
-
-func (r *basePool) ForceDeleteRunner(runner params.Instance) error {
-	if runner.AgentID != 0 {
-		resp, err := r.helper.RemoveGithubRunner(runner.AgentID)
-		if err != nil {
-			if resp != nil {
-				switch resp.StatusCode {
-				case http.StatusUnprocessableEntity:
-					return errors.Wrapf(runnerErrors.ErrUnprocessable, "removing runner: %q", err)
-				case http.StatusNotFound:
-					return errors.Wrapf(runnerErrors.ErrNotFound, "removing runner: %q", err)
-				default:
-					return errors.Wrap(err, "removing runner")
-				}
-			}
-			return errors.Wrap(err, "removing runner")
-		}
-	}
-
-	if err := r.setInstanceStatus(runner.Name, providerCommon.InstancePendingDelete, nil); err != nil {
-		log.Printf("failed to update runner %s status", runner.Name)
-		return errors.Wrap(err, "updating runner")
-	}
-	return nil
 }
 
 func (r *basePool) addPendingInstances() {
@@ -878,4 +836,29 @@ func (r *basePool) WebhookSecret() string {
 
 func (r *basePool) ID() string {
 	return r.helper.ID()
+}
+
+func (r *basePool) ForceDeleteRunner(runner params.Instance) error {
+	if runner.AgentID != 0 {
+		resp, err := r.helper.RemoveGithubRunner(runner.AgentID)
+		if err != nil {
+			if resp != nil {
+				switch resp.StatusCode {
+				case http.StatusUnprocessableEntity:
+					return errors.Wrapf(runnerErrors.ErrUnprocessable, "removing runner: %q", err)
+				case http.StatusNotFound:
+					return errors.Wrapf(runnerErrors.ErrNotFound, "removing runner: %q", err)
+				default:
+					return errors.Wrap(err, "removing runner")
+				}
+			}
+			return errors.Wrap(err, "removing runner")
+		}
+	}
+
+	if err := r.setInstanceStatus(runner.Name, providerCommon.InstancePendingDelete, nil); err != nil {
+		log.Printf("failed to update runner %s status", runner.Name)
+		return errors.Wrap(err, "updating runner")
+	}
+	return nil
 }

@@ -64,7 +64,7 @@ var _ poolHelper = &repository{}
 type repository struct {
 	cfg   params.Repository
 	ctx   context.Context
-	ghcli *github.Client
+	ghcli common.GithubClient
 	id    string
 	store dbCommon.Store
 
@@ -91,7 +91,7 @@ func (r *repository) GetGithubToken() string {
 }
 
 func (r *repository) GetGithubRunners() ([]*github.Runner, error) {
-	runners, _, err := r.ghcli.Actions.ListRunners(r.ctx, r.cfg.Owner, r.cfg.Name, nil)
+	runners, _, err := r.ghcli.ListRunners(r.ctx, r.cfg.Owner, r.cfg.Name, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching runners")
 	}
@@ -102,7 +102,7 @@ func (r *repository) GetGithubRunners() ([]*github.Runner, error) {
 func (r *repository) FetchTools() ([]*github.RunnerApplicationDownload, error) {
 	r.mux.Lock()
 	defer r.mux.Unlock()
-	tools, _, err := r.ghcli.Actions.ListRunnerApplicationDownloads(r.ctx, r.cfg.Owner, r.cfg.Name)
+	tools, _, err := r.ghcli.ListRunnerApplicationDownloads(r.ctx, r.cfg.Owner, r.cfg.Name)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching runner tools")
 	}
@@ -115,7 +115,7 @@ func (r *repository) FetchDbInstances() ([]params.Instance, error) {
 }
 
 func (r *repository) RemoveGithubRunner(runnerID int64) (*github.Response, error) {
-	return r.ghcli.Actions.RemoveRunner(r.ctx, r.cfg.Owner, r.cfg.Name, runnerID)
+	return r.ghcli.RemoveRunner(r.ctx, r.cfg.Owner, r.cfg.Name, runnerID)
 }
 
 func (r *repository) ListPools() ([]params.Pool, error) {
@@ -135,7 +135,7 @@ func (r *repository) JwtToken() string {
 }
 
 func (r *repository) GetGithubRegistrationToken() (string, error) {
-	tk, _, err := r.ghcli.Actions.CreateRegistrationToken(r.ctx, r.cfg.Owner, r.cfg.Name)
+	tk, _, err := r.ghcli.CreateRegistrationToken(r.ctx, r.cfg.Owner, r.cfg.Name)
 
 	if err != nil {
 		return "", errors.Wrap(err, "creating runner token")

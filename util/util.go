@@ -15,15 +15,11 @@
 package util
 
 import (
-	"bytes"
 	"context"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
-	"crypto/rsa"
-	"crypto/x509"
 	"encoding/base64"
-	"encoding/pem"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -37,16 +33,13 @@ import (
 	"garm/config"
 	runnerErrors "garm/errors"
 	"garm/params"
+	"garm/runner/common"
 
 	"github.com/google/go-github/v43/github"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/bcrypt"
-	"golang.org/x/crypto/ssh"
 	"golang.org/x/oauth2"
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
-	"gorm.io/driver/mysql"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
 )
 
 const alphanumeric = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
@@ -56,15 +49,23 @@ var rxEmail = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9
 
 var (
 	OSToOSTypeMap map[string]config.OSType = map[string]config.OSType{
-		"ubuntu":  config.Linux,
-		"rhel":    config.Linux,
-		"centos":  config.Linux,
-		"suse":    config.Linux,
-		"fedora":  config.Linux,
-		"debian":  config.Linux,
-		"flatcar": config.Linux,
-		"gentoo":  config.Linux,
-		"windows": config.Windows,
+		"almalinux":  config.Linux,
+		"alma":       config.Linux,
+		"alpine":     config.Linux,
+		"archlinux":  config.Linux,
+		"arch":       config.Linux,
+		"centos":     config.Linux,
+		"ubuntu":     config.Linux,
+		"rhel":       config.Linux,
+		"suse":       config.Linux,
+		"opensuse":   config.Linux,
+		"fedora":     config.Linux,
+		"debian":     config.Linux,
+		"flatcar":    config.Linux,
+		"gentoo":     config.Linux,
+		"rockylinux": config.Linux,
+		"rocky":      config.Linux,
+		"windows":    config.Windows,
 	}
 
 	githubArchMapping map[string]string = map[string]string{
@@ -151,31 +152,6 @@ func ConvertFileToBase64(file string) (string, error) {
 	return base64.StdEncoding.EncodeToString(bytes), nil
 }
 
-// GenerateSSHKeyPair generates a private/public key-pair.
-// Shamlessly copied from: https://stackoverflow.com/questions/21151714/go-generate-an-ssh-public-key
-func GenerateSSHKeyPair() (pubKey, privKey []byte, err error) {
-	privateKey, err := rsa.GenerateKey(rand.Reader, 4096)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// generate and write private key as PEM
-	var privKeyBuf bytes.Buffer
-
-	privateKeyPEM := &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(privateKey)}
-	if err := pem.Encode(&privKeyBuf, privateKeyPEM); err != nil {
-		return nil, nil, err
-	}
-
-	// generate and write public key
-	pub, err := ssh.NewPublicKey(&privateKey.PublicKey)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return ssh.MarshalAuthorizedKey(pub), privKeyBuf.Bytes(), nil
-}
-
 func OSToOSType(os string) (config.OSType, error) {
 	osType, ok := OSToOSTypeMap[strings.ToLower(os)]
 	if !ok {
@@ -184,7 +160,7 @@ func OSToOSType(os string) (config.OSType, error) {
 	return osType, nil
 }
 
-func GithubClient(ctx context.Context, token string) (*github.Client, error) {
+func GithubClient(ctx context.Context, token string) (common.GithubClient, error) {
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: token},
 	)
@@ -193,7 +169,7 @@ func GithubClient(ctx context.Context, token string) (*github.Client, error) {
 
 	ghClient := github.NewClient(tc)
 
-	return ghClient, nil
+	return ghClient.Actions, nil
 }
 
 func GetCloudConfig(bootstrapParams params.BootstrapInstance, tools github.RunnerApplicationDownload, runnerName string) (string, error) {
@@ -227,28 +203,6 @@ func GetCloudConfig(bootstrapParams params.BootstrapInstance, tools github.Runne
 		return "", errors.Wrap(err, "creating cloud config")
 	}
 	return asStr, nil
-}
-
-// NewDBConn returns a new gorm db connection, given the config
-func NewDBConn(dbCfg config.Database) (conn *gorm.DB, err error) {
-	dbType, connURI, err := dbCfg.GormParams()
-	if err != nil {
-		return nil, errors.Wrap(err, "getting DB URI string")
-	}
-	switch dbType {
-	case config.MySQLBackend:
-		conn, err = gorm.Open(mysql.Open(connURI), &gorm.Config{})
-	case config.SQLiteBackend:
-		conn, err = gorm.Open(sqlite.Open(connURI), &gorm.Config{})
-	}
-	if err != nil {
-		return nil, errors.Wrap(err, "connecting to database")
-	}
-
-	if dbCfg.Debug {
-		conn = conn.Debug()
-	}
-	return conn, nil
 }
 
 // GetRandomString returns a secure random string
@@ -322,7 +276,6 @@ func Aes256DecodeString(target []byte, passphrase string) (string, error) {
 func PaswsordToBcrypt(password string) (string, error) {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		// TODO: make this a fatal error, that should return a 500 error to user
 		return "", fmt.Errorf("failed to hash password")
 	}
 	return string(hashedPassword), nil

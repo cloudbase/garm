@@ -55,6 +55,8 @@ func handleError(w http.ResponseWriter, err error) {
 	case *gErrors.UnauthorizedError:
 		w.WriteHeader(http.StatusUnauthorized)
 		apiErr.Error = "Not Authorized"
+		// Don't include details on 401 errors.
+		apiErr.Details = ""
 	case *gErrors.BadRequestError:
 		w.WriteHeader(http.StatusBadRequest)
 		apiErr.Error = "Bad Request"
@@ -64,6 +66,8 @@ func handleError(w http.ResponseWriter, err error) {
 	default:
 		w.WriteHeader(http.StatusInternalServerError)
 		apiErr.Error = "Server error"
+		// Don't include details on server error.
+		apiErr.Details = ""
 	}
 
 	json.NewEncoder(w).Encode(apiErr)

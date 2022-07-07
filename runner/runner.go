@@ -25,7 +25,6 @@ import (
 	"hash"
 	"io/ioutil"
 	"log"
-	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -76,10 +75,6 @@ func NewRunner(ctx context.Context, cfg config.Config) (*Runner, error) {
 		providers:     providers,
 		controllerID:  ctrlId.ControllerID.String(),
 		credentials:   creds,
-	}
-
-	if err := runner.ensureSSHKeys(); err != nil {
-		return nil, errors.Wrap(err, "ensuring SSH keys")
 	}
 
 	if err := runner.loadReposAndOrgs(); err != nil {
@@ -403,41 +398,6 @@ func (r *Runner) sshPubKey() ([]byte, error) {
 		return nil, errors.Wrapf(err, "reading public key %s", r.sshPubKeyPath())
 	}
 	return key, nil
-}
-
-func (r *Runner) ensureSSHKeys() error {
-	sshDir := r.sshDir()
-
-	if _, err := os.Stat(sshDir); err != nil {
-		if !errors.Is(err, os.ErrNotExist) {
-			return errors.Wrapf(err, "checking SSH dir %s", sshDir)
-		}
-		if err := os.MkdirAll(sshDir, 0o700); err != nil {
-			return errors.Wrapf(err, "creating ssh dir %s", sshDir)
-		}
-	}
-
-	privKeyFile := r.sshKeyPath()
-	pubKeyFile := r.sshPubKeyPath()
-
-	if _, err := os.Stat(privKeyFile); err == nil {
-		return nil
-	}
-
-	pubKey, privKey, err := util.GenerateSSHKeyPair()
-	if err != nil {
-		errors.Wrap(err, "generating keypair")
-	}
-
-	if err := ioutil.WriteFile(privKeyFile, privKey, 0o600); err != nil {
-		return errors.Wrap(err, "writing private key")
-	}
-
-	if err := ioutil.WriteFile(pubKeyFile, pubKey, 0o600); err != nil {
-		return errors.Wrap(err, "writing public key")
-	}
-
-	return nil
 }
 
 func (r *Runner) appendTagsToCreatePoolParams(param params.CreatePoolParams) (params.CreatePoolParams, error) {

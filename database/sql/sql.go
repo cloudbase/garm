@@ -16,16 +16,40 @@ package sql
 
 import (
 	"context"
-	"garm/config"
-	"garm/database/common"
-	"garm/util"
 
 	"github.com/pkg/errors"
+	"gorm.io/driver/mysql"
+	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+
+	"garm/config"
+	"garm/database/common"
 )
 
+// newDBConn returns a new gorm db connection, given the config
+func newDBConn(dbCfg config.Database) (conn *gorm.DB, err error) {
+	dbType, connURI, err := dbCfg.GormParams()
+	if err != nil {
+		return nil, errors.Wrap(err, "getting DB URI string")
+	}
+	switch dbType {
+	case config.MySQLBackend:
+		conn, err = gorm.Open(mysql.Open(connURI), &gorm.Config{})
+	case config.SQLiteBackend:
+		conn, err = gorm.Open(sqlite.Open(connURI), &gorm.Config{})
+	}
+	if err != nil {
+		return nil, errors.Wrap(err, "connecting to database")
+	}
+
+	if dbCfg.Debug {
+		conn = conn.Debug()
+	}
+	return conn, nil
+}
+
 func NewSQLDatabase(ctx context.Context, cfg config.Database) (common.Store, error) {
-	conn, err := util.NewDBConn(cfg)
+	conn, err := newDBConn(cfg)
 	if err != nil {
 		return nil, errors.Wrap(err, "creating DB connection")
 	}
