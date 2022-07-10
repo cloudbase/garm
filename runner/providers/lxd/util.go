@@ -20,15 +20,19 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"garm/config"
 	"garm/params"
 	"garm/runner/providers/common"
 	"garm/util"
 
+	"github.com/juju/clock"
+	"github.com/juju/retry"
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/pkg/errors"
@@ -176,4 +180,40 @@ func resolveArchitecture(osArch config.OSArch) (string, error) {
 		return "", fmt.Errorf("architecture %s is not supported", osArch)
 	}
 	return arch, nil
+}
+
+// waitDeviceActive is a function capable of figuring out when a Equinix Metal
+// device is active
+func (l *LXD) waitInstanceHasIP(ctx context.Context, instanceName string) (params.Instance, error) {
+	var p params.Instance
+	var errIPNotFound error = fmt.Errorf("ip not found")
+	err := retry.Call(retry.CallArgs{
+		Func: func() error {
+			var err error
+			p, err = l.GetInstance(ctx, instanceName)
+			if err != nil {
+				return errors.Wrap(err, "fetching instance")
+			}
+			for _, addr := range p.Addresses {
+				ip := net.ParseIP(addr.Address)
+				if ip == nil {
+					continue
+				}
+				if ip.To4() == nil {
+					continue
+				}
+				return nil
+			}
+			return errIPNotFound
+		},
+		Attempts: 20,
+		Delay:    5 * time.Second,
+		Clock:    clock.WallClock,
+	})
+
+	if err != nil && err != errIPNotFound {
+		return params.Instance{}, err
+	}
+
+	return p, nil
 }

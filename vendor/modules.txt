@@ -60,6 +60,15 @@ github.com/jinzhu/inflection
 # github.com/jinzhu/now v1.1.5
 ## explicit; go 1.12
 github.com/jinzhu/now
+# github.com/juju/clock v0.0.0-20220704231616-a2b96c8eeb27
+## explicit; go 1.17
+github.com/juju/clock
+# github.com/juju/errors v0.0.0-20220328032053-6664a20db930
+## explicit; go 1.17
+github.com/juju/errors
+# github.com/juju/retry v0.0.0-20220204093819-62423bf33287
+## explicit; go 1.17
+github.com/juju/retry
 # github.com/juju/webbrowser v1.0.0
 ## explicit; go 1.11
 github.com/juju/webbrowser
@@ -150,10 +159,16 @@ github.com/spf13/cobra
 # github.com/spf13/pflag v1.0.5
 ## explicit; go 1.12
 github.com/spf13/pflag
+# github.com/stretchr/objx v0.4.0
+## explicit; go 1.12
+github.com/stretchr/objx
 # github.com/stretchr/testify v1.8.0
 ## explicit; go 1.13
 github.com/stretchr/testify/assert
+github.com/stretchr/testify/mock
 github.com/stretchr/testify/require
+# github.com/xdg-go/stringprep v1.0.3
+## explicit; go 1.11
 # golang.org/x/crypto v0.0.0-20220321153916-2c7772ba3064
 ## explicit; go 1.17
 golang.org/x/crypto/bcrypt
@@ -237,8 +252,6 @@ google.golang.org/protobuf/reflect/protoregistry
 google.golang.org/protobuf/runtime/protoiface
 google.golang.org/protobuf/runtime/protoimpl
 google.golang.org/protobuf/types/descriptorpb
-# gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c
-## explicit; go 1.11
 # gopkg.in/errgo.v1 v1.0.1
 ## explicit
 gopkg.in/errgo.v1

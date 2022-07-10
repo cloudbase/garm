@@ -298,7 +298,7 @@ func (l *LXD) CreateInstance(ctx context.Context, bootstrapParams params.Bootstr
 		return params.Instance{}, errors.Wrap(err, "creating instance")
 	}
 
-	ret, err := l.GetInstance(ctx, args.Name)
+	ret, err := l.waitInstanceHasIP(ctx, args.Name)
 	if err != nil {
 		return params.Instance{}, errors.Wrap(err, "fetching instance")
 	}

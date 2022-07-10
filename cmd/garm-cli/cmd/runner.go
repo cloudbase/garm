@@ -218,7 +218,7 @@ func formatSingleInstance(instance params.Instance) {
 
 	if len(instance.Addresses) > 0 {
 		for _, addr := range instance.Addresses {
-			t.AppendRow(table.Row{"Addresses", addr}, table.RowConfig{AutoMerge: true})
+			t.AppendRow(table.Row{"Addresses", addr.Address}, table.RowConfig{AutoMerge: true})
 		}
 	}
 
