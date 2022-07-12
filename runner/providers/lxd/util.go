@@ -161,7 +161,13 @@ func getClientFromConfig(ctx context.Context, cfg *config.LXD) (cli lxd.Instance
 		TLSClientCert: string(clientCertContents),
 		TLSClientKey:  string(clientKeyContents),
 	}
-	return lxd.ConnectLXD(cfg.URL, &connectArgs)
+
+	lxdCLI, err := lxd.ConnectLXD(cfg.URL, &connectArgs)
+	if err != nil {
+		return nil, errors.Wrap(err, "connecting to LXD")
+	}
+
+	return lxdCLI, nil
 }
 
 func projectName(cfg config.LXD) string {

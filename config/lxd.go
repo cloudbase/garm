@@ -99,7 +99,19 @@ type LXD struct {
 	ImageRemotes map[string]LXDImageRemote `toml:"image_remotes" json:"image-remotes"`
 
 	// SecureBoot enables secure boot for VMs spun up using this provider.
-	SecureBoot bool `yaml:"secure_boot" json:"secure-boot"`
+	SecureBoot bool `toml:"secure_boot" json:"secure-boot"`
+
+	// InstanceType allows you to choose between a virtual machine and a container
+	InstanceType LXDImageType `toml:"instance_type" json:"instance-type"`
+}
+
+func (l *LXD) GetInstanceType() LXDImageType {
+	switch l.InstanceType {
+	case LXDImageVirtualMachine, LXDImageContainer:
+		return l.InstanceType
+	default:
+		return LXDImageVirtualMachine
+	}
 }
 
 func (l *LXD) Validate() error {

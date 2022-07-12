@@ -17,6 +17,7 @@ package lxd
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"garm/config"
 	runnerErrors "garm/errors"
@@ -80,24 +81,11 @@ func NewProvider(ctx context.Context, cfg *config.Provider, controllerID string)
 		return nil, fmt.Errorf("invalid provider type %s, expected %s", cfg.ProviderType, config.LXDProvider)
 	}
 
-	cli, err := getClientFromConfig(ctx, &cfg.LXD)
-	if err != nil {
-		return nil, errors.Wrap(err, "creating LXD client")
-	}
-
-	_, _, err = cli.GetProject(projectName(cfg.LXD))
-	if err != nil {
-		return nil, errors.Wrapf(err, "fetching project name: %s", projectName(cfg.LXD))
-	}
-	cli = cli.UseProject(projectName(cfg.LXD))
-
 	provider := &LXD{
 		ctx:          ctx,
 		cfg:          cfg,
-		cli:          cli,
 		controllerID: controllerID,
 		imageManager: &image{
-			cli:     cli,
 			remotes: cfg.LXD.ImageRemotes,
 		},
 	}
@@ -116,6 +104,30 @@ type LXD struct {
 	imageManager *image
 	// controllerID is the ID of this controller
 	controllerID string
+
+	mux sync.Mutex
+}
+
+func (l *LXD) getCLI() (lxd.InstanceServer, error) {
+	l.mux.Lock()
+	defer l.mux.Unlock()
+
+	if l.cli != nil {
+		return l.cli, nil
+	}
+	cli, err := getClientFromConfig(l.ctx, &l.cfg.LXD)
+	if err != nil {
+		return nil, errors.Wrap(err, "creating LXD client")
+	}
+
+	_, _, err = cli.GetProject(projectName(l.cfg.LXD))
+	if err != nil {
+		return nil, errors.Wrapf(err, "fetching project name: %s", projectName(l.cfg.LXD))
+	}
+	cli = cli.UseProject(projectName(l.cfg.LXD))
+	l.cli = cli
+
+	return cli, nil
 }
 
 func (l *LXD) getProfiles(flavor string) ([]string, error) {
@@ -126,7 +138,12 @@ func (l *LXD) getProfiles(flavor string) ([]string, error) {
 
 	set := map[string]struct{}{}
 
-	profiles, err := l.cli.GetProfileNames()
+	cli, err := l.getCLI()
+	if err != nil {
+		return nil, errors.Wrap(err, "fetching client")
+	}
+
+	profiles, err := cli.GetProfileNames()
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching profile names")
 	}
@@ -208,7 +225,9 @@ func (l *LXD) getCreateInstanceArgs(bootstrapParams params.BootstrapInstance) (a
 		return api.InstancesPost{}, errors.Wrap(err, "fetching archictecture")
 	}
 
-	image, err := l.imageManager.EnsureImage(bootstrapParams.Image, config.LXDImageVirtualMachine, arch)
+	instanceType := l.cfg.LXD.GetInstanceType()
+
+	image, err := l.imageManager.EnsureImage(bootstrapParams.Image, instanceType, arch, l.cli)
 	if err != nil {
 		return api.InstancesPost{}, errors.Wrap(err, "getting image details")
 	}
@@ -223,24 +242,29 @@ func (l *LXD) getCreateInstanceArgs(bootstrapParams params.BootstrapInstance) (a
 		return api.InstancesPost{}, errors.Wrap(err, "generating cloud-config")
 	}
 
+	configMap := map[string]string{
+		"user.user-data":    cloudCfg,
+		controllerIDKeyName: l.controllerID,
+		poolIDKey:           bootstrapParams.PoolID,
+	}
+
+	if instanceType == config.LXDImageVirtualMachine {
+		configMap["security.secureboot"] = l.secureBootEnabled()
+	}
+
 	args := api.InstancesPost{
 		InstancePut: api.InstancePut{
 			Architecture: image.Architecture,
 			Profiles:     profiles,
 			Description:  "Github runner provisioned by garm",
-			Config: map[string]string{
-				"user.user-data":      cloudCfg,
-				"security.secureboot": l.secureBootEnabled(),
-				controllerIDKeyName:   l.controllerID,
-				poolIDKey:             bootstrapParams.PoolID,
-			},
+			Config:       configMap,
 		},
 		Source: api.InstanceSource{
 			Type:        "image",
 			Fingerprint: image.Fingerprint,
 		},
 		Name: bootstrapParams.Name,
-		Type: api.InstanceTypeVM,
+		Type: api.InstanceType(instanceType),
 	}
 	return args, nil
 }
@@ -254,8 +278,12 @@ func (l *LXD) AsParams() params.Provider {
 }
 
 func (l *LXD) launchInstance(createArgs api.InstancesPost) error {
+	cli, err := l.getCLI()
+	if err != nil {
+		return errors.Wrap(err, "fetching client")
+	}
 	// Get LXD to create the instance (background operation)
-	op, err := l.cli.CreateInstance(createArgs)
+	op, err := cli.CreateInstance(createArgs)
 	if err != nil {
 		return errors.Wrap(err, "creating instance")
 	}
@@ -272,7 +300,7 @@ func (l *LXD) launchInstance(createArgs api.InstancesPost) error {
 		Timeout: -1,
 	}
 
-	op, err = l.cli.UpdateInstanceState(createArgs.Name, reqState, "")
+	op, err = cli.UpdateInstanceState(createArgs.Name, reqState, "")
 	if err != nil {
 		return errors.Wrap(err, "starting instance")
 	}
@@ -292,8 +320,6 @@ func (l *LXD) CreateInstance(ctx context.Context, bootstrapParams params.Bootstr
 		return params.Instance{}, errors.Wrap(err, "fetching create args")
 	}
 
-	// asJs, err := yaml.Marshal(args)
-	// fmt.Println(string(asJs), err)
 	if err := l.launchInstance(args); err != nil {
 		return params.Instance{}, errors.Wrap(err, "creating instance")
 	}
@@ -308,7 +334,11 @@ func (l *LXD) CreateInstance(ctx context.Context, bootstrapParams params.Bootstr
 
 // GetInstance will return details about one instance.
 func (l *LXD) GetInstance(ctx context.Context, instanceName string) (params.Instance, error) {
-	instance, _, err := l.cli.GetInstanceFull(instanceName)
+	cli, err := l.getCLI()
+	if err != nil {
+		return params.Instance{}, errors.Wrap(err, "fetching client")
+	}
+	instance, _, err := cli.GetInstanceFull(instanceName)
 	if err != nil {
 		if isNotFoundError(err) {
 			return params.Instance{}, errors.Wrapf(runnerErrors.ErrNotFound, "fetching instance: %q", err)
@@ -321,6 +351,11 @@ func (l *LXD) GetInstance(ctx context.Context, instanceName string) (params.Inst
 
 // Delete instance will delete the instance in a provider.
 func (l *LXD) DeleteInstance(ctx context.Context, instance string) error {
+	cli, err := l.getCLI()
+	if err != nil {
+		return errors.Wrap(err, "fetching client")
+	}
+
 	if err := l.setState(instance, "stop", true); err != nil {
 		if isNotFoundError(err) {
 			return nil
@@ -333,7 +368,7 @@ func (l *LXD) DeleteInstance(ctx context.Context, instance string) error {
 		}
 	}
 
-	op, err := l.cli.DeleteInstance(instance)
+	op, err := cli.DeleteInstance(instance)
 	if err != nil {
 		return errors.Wrap(err, "removing instance")
 	}
@@ -347,7 +382,12 @@ func (l *LXD) DeleteInstance(ctx context.Context, instance string) error {
 
 // ListInstances will list all instances for a provider.
 func (l *LXD) ListInstances(ctx context.Context, poolID string) ([]params.Instance, error) {
-	instances, err := l.cli.GetInstancesFull(api.InstanceTypeAny)
+	cli, err := l.getCLI()
+	if err != nil {
+		return []params.Instance{}, errors.Wrap(err, "fetching client")
+	}
+
+	instances, err := cli.GetInstancesFull(api.InstanceTypeAny)
 	if err != nil {
 		return []params.Instance{}, errors.Wrap(err, "fetching instances")
 	}
@@ -394,7 +434,12 @@ func (l *LXD) setState(instance, state string, force bool) error {
 		Force:   force,
 	}
 
-	op, err := l.cli.UpdateInstanceState(instance, reqState, "")
+	cli, err := l.getCLI()
+	if err != nil {
+		return errors.Wrap(err, "fetching client")
+	}
+
+	op, err := cli.UpdateInstanceState(instance, reqState, "")
 	if err != nil {
 		return errors.Wrapf(err, "setting state to %s", state)
 	}
