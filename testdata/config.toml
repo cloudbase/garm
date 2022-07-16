@@ -170,9 +170,10 @@ provider_type = "external"
   [provider.external]
   # config file passed to the executable via GARM_PROVIDER_CONFIG_FILE environment variable
   config_file = "/etc/garm/providers.d/azure/config.sh"
-  # path on disk to a folder that contains a "garm-external-provider" executable. The executable
-  # can be anything (bash, a binary, python, etc)
-  provider_dir = "/etc/garm/providers.d/azure"
+  # Absolute path to an executable that implements the provider logic. This executable can be
+  # anything (bash, a binary, python, etc). See documentation in this repo on how to write an
+  # external provider.
+  provider_executable = "/etc/garm/providers.d/azure/garm-external-provider"
 
 # This is a list of credentials that you can define as part of the repository
 # or organization definitions. They are not saved inside the database, as there

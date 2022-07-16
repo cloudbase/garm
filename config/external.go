@@ -38,14 +38,22 @@ type External struct {
 	// ProviderDir is the path on disk to a folder containing an executable
 	// called "garm-external-provider".
 	ProviderDir string `toml:"provider_dir" json:"provider-dir"`
+	// ProviderExecutable is the full path to the executable that implements
+	// the provider. If specified, it will take precedence over the "garm-external-provider"
+	// executable in the ProviderDir.
+	ProviderExecutable string `toml:"provider_executable" json:"provider-executable"`
 }
 
 func (e *External) ExecutablePath() (string, error) {
-	execPath := filepath.Join(e.ProviderDir, "garm-external-provider")
+	execPath := e.ProviderExecutable
+	if execPath == "" {
+		execPath = filepath.Join(e.ProviderDir, "garm-external-provider")
+	}
+
 	if !filepath.IsAbs(execPath) {
 		return "", fmt.Errorf("executable path must be an absolute path")
 	}
-	return filepath.Join(e.ProviderDir, "garm-external-provider"), nil
+	return execPath, nil
 }
 
 func (e *External) Validate() error {
@@ -56,14 +64,6 @@ func (e *External) Validate() error {
 		if _, err := os.Stat(e.ConfigFile); err != nil {
 			return fmt.Errorf("failed to access config file %s", e.ConfigFile)
 		}
-	}
-
-	if e.ProviderDir == "" {
-		return fmt.Errorf("missing provider dir")
-	}
-
-	if !filepath.IsAbs(e.ProviderDir) {
-		return fmt.Errorf("path to provider dir must be absolute")
 	}
 
 	execPath, err := e.ExecutablePath()

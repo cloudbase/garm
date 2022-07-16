@@ -72,20 +72,20 @@ func TestExternal(t *testing.T) {
 			errString: "failed to access config file /there/is/no/config/here",
 		},
 		{
-			name: "Missing provider dir",
-			cfg: External{
-				ConfigFile:  "",
-				ProviderDir: "",
-			},
-			errString: "missing provider dir",
-		},
-		{
-			name: "Provider dir must not be relative",
+			name: "Provider dir path must be absolute",
 			cfg: External{
 				ConfigFile:  "",
 				ProviderDir: "../test",
 			},
-			errString: "path to provider dir must be absolute",
+			errString: "fetching executable path: executable path must be an absolute path",
+		},
+		{
+			name: "Provider executable path must be absolute",
+			cfg: External{
+				ConfigFile:         "",
+				ProviderExecutable: "../test",
+			},
+			errString: "fetching executable path: executable path must be an absolute path",
 		},
 		{
 			name: "Provider executable not found",
