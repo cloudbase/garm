@@ -29,6 +29,11 @@ time_to_live = "8760h"
   # Whether or not to set up TLS for the API endpoint. If this is set to true,
   # you must have a valid apiserver.tls section.
   use_tls = false
+  # Set a list of allowed origins
+  # By default, if this option is ommited or empty, we will check
+  # only that the origin is the same as the originating server.
+  # A literal of "*" will allow any origin
+  cors_origins = ["*"]
   [apiserver.tls]
     # Path on disk to a x509 certificate.
     certificate = ""
@@ -92,6 +97,14 @@ time_to_live = "8760h"
     # This option allows you to inject the "default" profile along with the profile selected
     # by the flavor.
     include_default_profile = false
+    # instance_type defines the type of instances this provider will create.
+    #
+    # Options are:
+    #
+    #   * virtual-machine (default)
+    #   * container
+    #
+    instance_type = "virtual-machine"
     # enable/disable secure boot. If the image you select for the pool does not have a
     # signed bootloader, set this to false, otherwise your instances won't boot.
     secure_boot = false
