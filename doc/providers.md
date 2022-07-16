@@ -33,7 +33,7 @@ Garm leverages the virtual machines feature of LXD to create the runners. Here i
     # which connects over the network.
     unix_socket_path = "/var/snap/lxd/common/lxd/unix.socket"
     # When defining a pool for a repository or an organization, you have an option to
-    # specify a "flavor". In LXD terms, this translates to "profiles". Profiles allow 
+    # specify a "flavor". In LXD terms, this translates to "profiles". Profiles allow
     # you to customize your instances (memory, cpu, disks, nics, etc).
     # This option allows you to inject the "default" profile along with the profile selected
     # by the flavor.
@@ -119,21 +119,22 @@ name = "openstack_external"
 description = "external openstack provider"
 provider_type = "external"
   [provider.external]
-  # config file passed to the executable via GARM_PROVIDER_CONFIG_FILE environment variable.
-  # This file needs to exist, and it must contain valid access credentials to your openstack
-  # cloud.
+  # config file passed to the executable via GARM_PROVIDER_CONFIG_FILE environment variable
   config_file = "/etc/garm/providers.d/openstack/keystonerc"
-  # path on disk to a folder that contains a "garm-external-provider" executable. The executable
-  # can be anything (bash, a binary, python, etc)
-  provider_dir = "/etc/garm/providers.d/openstack"
+  # Absolute path to an executable that implements the provider logic. This executable can be
+  # anything (bash, a binary, python, etc). See documentation in this repo on how to write an
+  # external provider.
+  provider_executable = "/etc/garm/providers.d/openstack/garm-external-provider"
 ```
 
-The external provider has two options that are important:
+The external provider has three options:
 
   * ```provider_dir```
+  * ```provider_executable```
   * ```config_file```
 
-The ```provider_dir``` option is the location on disk where the executable that implements the business logic of the provider, resides. The external provider will look for an executable called ```garm-external-provider``` in this folder. If it finds it, it will delegate all operations to it.
+
+The ```provider_executable``` option is the absolute path to an executable that implements the provider logic. Garm will delegate all provider operations to this executable. If this option is not set, garm will look for a ```provider_dir``` with an executable called ```garm-external-provider``` in it. If both the ```provider_executable``` and ```provider_dir``` are specified, the ```provider_executable``` option takes precedence.
 
 The ```config_file``` option is a path on disk to an arbitrary file, that is passed to the external executable via the environment variable ```GARM_PROVIDER_CONFIG_FILE```. This file is relevant to the external binary only. In the case of the OpenStack provider, this file contains access information for an OpenStack cloud (what you would tipically find in a ```keystonerc``` file) as well as some provider specific options like whether or not to boot from volume and which tenant network to use. You can check out the [sample config file](../contrib/providers.d/openstack/keystonerc) in this repository.
 

@@ -92,7 +92,7 @@ time_to_live = "8760h"
     # which connects over the network.
     unix_socket_path = "/var/snap/lxd/common/lxd/unix.socket"
     # When defining a pool for a repository or an organization, you have an option to
-    # specify a "flavor". In LXD terms, this translates to "profiles". Profiles allow 
+    # specify a "flavor". In LXD terms, this translates to "profiles". Profiles allow
     # you to customize your instances (memory, cpu, disks, nics, etc).
     # This option allows you to inject the "default" profile along with the profile selected
     # by the flavor.
@@ -159,9 +159,10 @@ provider_type = "external"
   [provider.external]
   # config file passed to the executable via GARM_PROVIDER_CONFIG_FILE environment variable
   config_file = "/etc/garm/providers.d/openstack/keystonerc"
-  # path on disk to a folder that contains a "garm-external-provider" executable. The executable
-  # can be anything (bash, a binary, python, etc)
-  provider_dir = "/etc/garm/providers.d/openstack"
+  # Absolute path to an executable that implements the provider logic. This executable can be
+  # anything (bash, a binary, python, etc). See documentation in this repo on how to write an
+  # external provider.
+  provider_executable = "/etc/garm/providers.d/openstack/garm-external-provider"
 
 [[provider]]
 name = "azure_external"
