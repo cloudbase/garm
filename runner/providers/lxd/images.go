@@ -113,8 +113,6 @@ func (i *image) copyImageFromRemote(remote config.LXDImageRemote, imageName stri
 		return nil, errors.Wrap(err, "waiting for image copy operation")
 	}
 
-	// We should now have the image locally. Force another query. This probably makes no sense,
-	// but this is done only once.
 	return image, nil
 }
 
@@ -134,13 +132,14 @@ func (i *image) EnsureImage(imageName string, imageType config.LXDImageType, arc
 		return nil, errors.Wrap(err, "parsing image name")
 	}
 
-	if img, err := i.getLocalImageByAlias(parsedName, imageType, arch, cli); err == nil {
+	if img, err := i.copyImageFromRemote(remote, parsedName, imageType, arch, cli); err == nil {
 		return img, nil
 	} else {
-		log.Printf("failed to fetch local image of type %v with name %s and arch %s: %s", imageType, parsedName, arch, err)
+		log.Printf("failed to fetch image of type %v with name %s and arch %s: %s", imageType, parsedName, arch, err)
 	}
 
-	img, err := i.copyImageFromRemote(remote, parsedName, imageType, arch, cli)
+	log.Printf("attempting to find %s for arch %s locally", parsedName, arch)
+	img, err := i.getLocalImageByAlias(parsedName, imageType, arch, cli)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching image")
 	}
