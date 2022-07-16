@@ -845,14 +845,17 @@ func (r *basePool) ForceDeleteRunner(runner params.Instance) error {
 			if resp != nil {
 				switch resp.StatusCode {
 				case http.StatusUnprocessableEntity:
-					return errors.Wrapf(runnerErrors.ErrUnprocessable, "removing runner: %q", err)
+					return errors.Wrapf(runnerErrors.ErrBadRequest, "removing runner: %q", err)
 				case http.StatusNotFound:
-					return errors.Wrapf(runnerErrors.ErrNotFound, "removing runner: %q", err)
+					// Runner may have been deleted by a finished job, or manually by the user.
+					log.Printf("runner with agent id %d was not found in github", runner.AgentID)
 				default:
 					return errors.Wrap(err, "removing runner")
 				}
+			} else {
+				// We got a nil response. Assume we are in error.
+				return errors.Wrap(err, "removing runner")
 			}
-			return errors.Wrap(err, "removing runner")
 		}
 	}
 
