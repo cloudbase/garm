@@ -129,13 +129,12 @@ provider_type = "external"
 
 The external provider has three options:
 
-  * ```provider_dir```
   * ```provider_executable```
   * ```config_file```
 
 
-The ```provider_executable``` option is the absolute path to an executable that implements the provider logic. Garm will delegate all provider operations to this executable. If this option is not set, garm will look for a ```provider_dir``` with an executable called ```garm-external-provider``` in it. If both the ```provider_executable``` and ```provider_dir``` are specified, the ```provider_executable``` option takes precedence.
+The ```provider_executable``` option is the absolute path to an executable that implements the provider logic. Garm will delegate all provider operations to this executable. This executable can be anything (bash, python, perl, go, etc). See [Writing an external provider](./external_provider.md) for more details.
 
-The ```config_file``` option is a path on disk to an arbitrary file, that is passed to the external executable via the environment variable ```GARM_PROVIDER_CONFIG_FILE```. This file is relevant to the external binary only. In the case of the OpenStack provider, this file contains access information for an OpenStack cloud (what you would tipically find in a ```keystonerc``` file) as well as some provider specific options like whether or not to boot from volume and which tenant network to use. You can check out the [sample config file](../contrib/providers.d/openstack/keystonerc) in this repository.
+The ```config_file``` option is a path on disk to an arbitrary file, that is passed to the external executable via the environment variable ```GARM_PROVIDER_CONFIG_FILE```. This file is only relevant to the external provider. Garm itself does not read it. In the case of the OpenStack provider, this file contains access information for an OpenStack cloud (what you would tipically find in a ```keystonerc``` file) as well as some provider specific options like whether or not to boot from volume and which tenant network to use. You can check out the [sample config file](../contrib/providers.d/openstack/keystonerc) in this repository.
 
 If you want to implement an external provider, you can use this file for anything you need to pass into the binary when ```garm``` calls it to execute a particular operation.
