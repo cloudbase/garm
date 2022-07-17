@@ -16,6 +16,7 @@ package common
 
 import (
 	"garm/params"
+	"time"
 )
 
 type PoolType string
@@ -23,6 +24,10 @@ type PoolType string
 const (
 	RepositoryPool   PoolType = "repository"
 	OrganizationPool PoolType = "organization"
+
+	PoolConsilitationInterval = 5 * time.Second
+	PoolReapTimeoutInterval   = 5 * time.Minute
+	PoolToolUpdateInterval    = 3 * time.Hour
 )
 
 type PoolManager interface {

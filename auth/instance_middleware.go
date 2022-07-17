@@ -43,9 +43,11 @@ type InstanceJWTClaims struct {
 	jwt.StandardClaims
 }
 
-func NewInstanceJWTToken(instance params.Instance, secret, entity string, poolType common.PoolType) (string, error) {
-	// make TTL configurable?
-	expireToken := time.Now().Add(15 * time.Minute).Unix()
+func NewInstanceJWTToken(instance params.Instance, secret, entity string, poolType common.PoolType, ttlMinutes uint) (string, error) {
+	// Token expiration is equal to the bootstrap timeout set on the pool plus the polling
+	// interval garm uses to check for timed out runners. Runners that have not sent their info
+	// by the end of this interval are most likely failed and will be reaped by garm anyway.
+	expireToken := time.Now().Add(time.Duration(ttlMinutes)*time.Minute + common.PoolReapTimeoutInterval).Unix()
 	claims := InstanceJWTClaims{
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: expireToken,

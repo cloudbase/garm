@@ -334,9 +334,9 @@ func (r *basePool) AddRunner(ctx context.Context, poolID string) error {
 }
 
 func (r *basePool) loop() {
-	consolidateTimer := time.NewTicker(5 * time.Second)
-	reapTimer := time.NewTicker(5 * time.Minute)
-	toolUpdateTimer := time.NewTicker(3 * time.Hour)
+	consolidateTimer := time.NewTicker(common.PoolConsilitationInterval)
+	reapTimer := time.NewTicker(common.PoolReapTimeoutInterval)
+	toolUpdateTimer := time.NewTicker(common.PoolToolUpdateInterval)
 	defer func() {
 		log.Printf("repository %s loop exited", r.helper.String())
 		consolidateTimer.Stop()
@@ -416,8 +416,14 @@ func (r *basePool) addInstanceToProvider(instance params.Instance) error {
 		return errors.Wrap(err, "fetching registration token")
 	}
 
+	jwtValidity := pool.RunnerTimeout()
+	var poolType common.PoolType = common.RepositoryPool
+	if pool.OrgID != "" {
+		poolType = common.OrganizationPool
+	}
+
 	entity := r.helper.String()
-	jwtToken, err := auth.NewInstanceJWTToken(instance, r.helper.JwtToken(), entity, common.RepositoryPool)
+	jwtToken, err := auth.NewInstanceJWTToken(instance, r.helper.JwtToken(), entity, poolType, jwtValidity)
 	if err != nil {
 		return errors.Wrap(err, "fetching instance jwt token")
 	}

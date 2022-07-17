@@ -21,7 +21,7 @@ In the webhook configuration page under ```Content type``` you will need to sele
 The webhook secret must be secure. Use something like this to generate one:
 
 ```bash
-gabriel@rossak:~$ function generate_secret () { 
+gabriel@rossak:~$ function generate_secret () {
     tr -dc 'a-zA-Z0-9!@#$%^&*()_+?><~\`;' < /dev/urandom | head -c 64;
     echo ''
 }
@@ -35,19 +35,13 @@ Next, you can choose which events GitHub should send to ```garm``` via webhooks.
 
 ## The callback_url option
 
-If you want your runners to be able to call back home and update their status as they install, you will need to configure the ```callback_url``` option in the ```garm``` server config. This URL needs to point to the following API endpoint:
+Your runners will call back home with status updates as they install. Once they are set up, they will also send the GitHub agent ID they were allocated. You will need to configure the ```callback_url``` option in the ```garm``` server config. This URL needs to point to the following API endpoint:
 
 ```
 POST /api/v1/callbacks/status
 ```
 
-While not critical, this allows instances to call back home, set their own status as installation procedes and send back messages which can be viewed by running:
-
-```bash
-garm-cli runner show <runner_name>
-```
-
-For example:
+Example of a runner sending status updates:
 
 ```bash
 garm-cli runner show garm-f5227755-129d-4e2d-b306-377a8f3a5dfe
@@ -82,6 +76,6 @@ For example, in a scenario where you expose the API endpoint directly, this sett
 callback_url = "https://garm.example.com/api/v1/callbacks/status"
 ```
 
-Authentication is done using a short-lived (15 minutes) JWT token, that gets generated for a particular instance that we are spinning up. That JWT token only has access to update it's own status. No other API endpoints will work with that JWT token.
+Authentication is done using a short-lived JWT token, that gets generated for a particular instance that we are spinning up. That JWT token only has access to update it's own status. No other API endpoints will work with that JWT token. The validity of the token is equal to the pool bootstrap timeout value (default 20 minutes) plus the garm polling interval (5 minutes).
 
 There is a sample ```nginx``` config [in the testdata folder](/testdata/nginx-server.conf). Feel free to customize it whichever way you see fit.
