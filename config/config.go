@@ -100,11 +100,11 @@ func NewConfig(cfgFile string) (*Config, error) {
 	if _, err := toml.DecodeFile(cfgFile, &config); err != nil {
 		return nil, errors.Wrap(err, "decoding toml")
 	}
-	if err := config.Validate(); err != nil {
-		return nil, errors.Wrap(err, "validating config")
-	}
 	if config.Default.ConfigDir == "" {
 		config.Default.ConfigDir = DefaultConfigDir
+	}
+	if err := config.Validate(); err != nil {
+		return nil, errors.Wrap(err, "validating config")
 	}
 	return &config, nil
 }
