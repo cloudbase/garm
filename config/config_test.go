@@ -655,3 +655,61 @@ func TestTimeToLiveDuration(t *testing.T) {
 	require.NotNil(t, err)
 	require.EqualError(t, err, "time: unknown unit \"d\" in duration \"2d\"")
 }
+
+func TestNewConfig(t *testing.T) {
+	cfg, err := NewConfig("testdata/test-valid-config.toml")
+	require.Nil(t, err)
+	require.NotNil(t, cfg)
+	require.Equal(t, "https://garm.example.com/", cfg.Default.CallbackURL)
+	require.Equal(t, "./testdata/config_dir", cfg.Default.ConfigDir)
+	require.Equal(t, "0.0.0.0", cfg.APIServer.Bind)
+	require.Equal(t, 9998, cfg.APIServer.Port)
+	require.Equal(t, false, cfg.APIServer.UseTLS)
+	require.Equal(t, DBBackendType("mysql"), cfg.Database.DbBackend)
+	require.Equal(t, "bocyasicgatEtenOubwonIbsudNutDom", cfg.Database.Passphrase)
+	require.Equal(t, "test", cfg.Database.MySQL.Username)
+	require.Equal(t, "test", cfg.Database.MySQL.Password)
+	require.Equal(t, "127.0.0.1", cfg.Database.MySQL.Hostname)
+	require.Equal(t, "garm", cfg.Database.MySQL.DatabaseName)
+	require.Equal(t, "bocyasicgatEtenOubwonIbsudNutDom", cfg.JWTAuth.Secret)
+	require.Equal(t, timeToLive("48h"), cfg.JWTAuth.TimeToLive)
+}
+
+func TestNewConfigEmptyConfigDir(t *testing.T) {
+	dirPath, err := ioutil.TempDir("", "garm-config-test")
+	if err != nil {
+		t.Fatalf("failed to create temporary directory: %s", err)
+	}
+	defer os.RemoveAll(dirPath)
+	DefaultConfigDir = dirPath
+
+	cfg, err := NewConfig("testdata/test-empty-config-dir.toml")
+	require.Nil(t, err)
+	require.NotNil(t, cfg)
+	require.Equal(t, cfg.Default.ConfigDir, dirPath)
+	require.Equal(t, "https://garm.example.com/", cfg.Default.CallbackURL)
+	require.Equal(t, "0.0.0.0", cfg.APIServer.Bind)
+	require.Equal(t, 9998, cfg.APIServer.Port)
+	require.Equal(t, false, cfg.APIServer.UseTLS)
+	require.Equal(t, DBBackendType("mysql"), cfg.Database.DbBackend)
+	require.Equal(t, "test", cfg.Database.MySQL.Username)
+	require.Equal(t, "test", cfg.Database.MySQL.Password)
+	require.Equal(t, "127.0.0.1", cfg.Database.MySQL.Hostname)
+	require.Equal(t, "garm", cfg.Database.MySQL.DatabaseName)
+	require.Equal(t, "bocyasicgatEtenOubwonIbsudNutDom", cfg.JWTAuth.Secret)
+	require.Equal(t, timeToLive("48h"), cfg.JWTAuth.TimeToLive)
+}
+
+func TestNewConfigInvalidTomlPath(t *testing.T) {
+	cfg, err := NewConfig("this is not a file path")
+	require.Nil(t, cfg)
+	require.NotNil(t, err)
+	require.Regexp(t, "decoding toml", err.Error())
+}
+
+func TestNewConfigInvalidConfig(t *testing.T) {
+	cfg, err := NewConfig("testdata/test-invalid-config.toml")
+	require.Nil(t, cfg)
+	require.NotNil(t, err)
+	require.Regexp(t, "validating config", err.Error())
+}
