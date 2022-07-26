@@ -1,0 +1,2 @@
+[apiserver]
+  port = -2  # this is considered an invalid port for garm

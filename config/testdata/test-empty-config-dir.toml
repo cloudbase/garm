@@ -1,0 +1,22 @@
+[default]
+  callback_url = "https://garm.example.com/"
+  config_dir = ""
+
+[apiserver]
+  bind = "0.0.0.0"
+  port = 9998
+  use_tls = false
+
+[database]
+  backend = "mysql"
+  passphrase = "bocyasicgatEtenOubwonIbsudNutDom"
+
+  [database.mysql]
+    username = "test"
+    password = "test"
+    hostname = "127.0.0.1"
+    database = "garm"
+
+[jwt_auth]
+  secret = "bocyasicgatEtenOubwonIbsudNutDom"
+  time_to_live = "48h"
