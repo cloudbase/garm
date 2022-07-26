@@ -294,6 +294,7 @@ func TestAPITLSconfig(t *testing.T) {
 	// Any error in the TLSConfig should return an error here.
 	cfg.TLSConfig = TLSConfig{}
 	tlsCfg, err = cfg.APITLSConfig()
+	require.Nil(t, tlsCfg)
 	require.NotNil(t, err)
 	require.EqualError(t, err, "missing crt or key")
 
