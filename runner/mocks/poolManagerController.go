@@ -65,13 +65,31 @@ func (_m *PoolManagerController) CreateRepoPoolManager(ctx context.Context, repo
 }
 
 // DeleteOrgPoolManager provides a mock function with given fields: org
-func (_m *PoolManagerController) DeleteOrgPoolManager(org params.Organization) {
-	_m.Called(org)
+func (_m *PoolManagerController) DeleteOrgPoolManager(org params.Organization) error {
+	ret := _m.Called(org)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(params.Organization) error); ok {
+		r0 = rf(org)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
 }
 
 // DeleteRepoPoolManager provides a mock function with given fields: repo
-func (_m *PoolManagerController) DeleteRepoPoolManager(repo params.Repository) {
-	_m.Called(repo)
+func (_m *PoolManagerController) DeleteRepoPoolManager(repo params.Repository) error {
+	ret := _m.Called(repo)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(params.Repository) error); ok {
+		r0 = rf(repo)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
 }
 
 // GetOrgPoolManager provides a mock function with given fields: org
@@ -98,7 +116,7 @@ func (_m *PoolManagerController) GetOrgPoolManager(org params.Organization) (com
 }
 
 // GetOrgPoolManagers provides a mock function with given fields:
-func (_m *PoolManagerController) GetOrgPoolManagers() map[string]common.PoolManager {
+func (_m *PoolManagerController) GetOrgPoolManagers() (map[string]common.PoolManager, error) {
 	ret := _m.Called()
 
 	var r0 map[string]common.PoolManager
@@ -110,7 +128,14 @@ func (_m *PoolManagerController) GetOrgPoolManagers() map[string]common.PoolMana
 		}
 	}
 
-	return r0
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // GetRepoPoolManager provides a mock function with given fields: repo
@@ -137,7 +162,7 @@ func (_m *PoolManagerController) GetRepoPoolManager(repo params.Repository) (com
 }
 
 // GetRepoPoolManagers provides a mock function with given fields:
-func (_m *PoolManagerController) GetRepoPoolManagers() map[string]common.PoolManager {
+func (_m *PoolManagerController) GetRepoPoolManagers() (map[string]common.PoolManager, error) {
 	ret := _m.Called()
 
 	var r0 map[string]common.PoolManager
@@ -149,7 +174,14 @@ func (_m *PoolManagerController) GetRepoPoolManagers() map[string]common.PoolMan
 		}
 	}
 
-	return r0
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 type mockConstructorTestingTNewPoolManagerController interface {
