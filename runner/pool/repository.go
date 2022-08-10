@@ -33,25 +33,26 @@ import (
 // test that we implement PoolManager
 var _ poolHelper = &repository{}
 
-func NewRepositoryPoolManager(ctx context.Context, cfg params.Repository, providers map[string]common.Provider, store dbCommon.Store) (common.PoolManager, error) {
-	ghc, err := util.GithubClient(ctx, cfg.Internal.OAuth2Token)
+func NewRepositoryPoolManager(ctx context.Context, cfg params.Repository, cfgInternal params.Internal, providers map[string]common.Provider, store dbCommon.Store) (common.PoolManager, error) {
+	ghc, err := util.GithubClient(ctx, cfgInternal.OAuth2Token)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting github client")
 	}
 
 	helper := &repository{
-		cfg:   cfg,
-		ctx:   ctx,
-		ghcli: ghc,
-		id:    cfg.ID,
-		store: store,
+		cfg:         cfg,
+		cfgInternal: cfgInternal,
+		ctx:         ctx,
+		ghcli:       ghc,
+		id:          cfg.ID,
+		store:       store,
 	}
 
 	repo := &basePool{
 		ctx:          ctx,
 		store:        store,
 		providers:    providers,
-		controllerID: cfg.Internal.ControllerID,
+		controllerID: cfgInternal.ControllerID,
 		quit:         make(chan struct{}),
 		done:         make(chan struct{}),
 		helper:       helper,
@@ -62,11 +63,12 @@ func NewRepositoryPoolManager(ctx context.Context, cfg params.Repository, provid
 var _ poolHelper = &repository{}
 
 type repository struct {
-	cfg   params.Repository
-	ctx   context.Context
-	ghcli common.GithubClient
-	id    string
-	store dbCommon.Store
+	cfg         params.Repository
+	cfgInternal params.Internal
+	ctx         context.Context
+	ghcli       common.GithubClient
+	id          string
+	store       dbCommon.Store
 
 	mux sync.Mutex
 }
@@ -76,7 +78,6 @@ func (r *repository) UpdateState(param params.UpdatePoolStateParams) error {
 	defer r.mux.Unlock()
 
 	r.cfg.WebhookSecret = param.WebhookSecret
-	r.cfg.Internal = param.Internal
 
 	ghc, err := util.GithubClient(r.ctx, r.GetGithubToken())
 	if err != nil {
@@ -87,7 +88,7 @@ func (r *repository) UpdateState(param params.UpdatePoolStateParams) error {
 }
 
 func (r *repository) GetGithubToken() string {
-	return r.cfg.Internal.OAuth2Token
+	return r.cfgInternal.OAuth2Token
 }
 
 func (r *repository) GetGithubRunners() ([]*github.Runner, error) {
@@ -131,7 +132,7 @@ func (r *repository) GithubURL() string {
 }
 
 func (r *repository) JwtToken() string {
-	return r.cfg.Internal.JWTSecret
+	return r.cfgInternal.JWTSecret
 }
 
 func (r *repository) GetGithubRegistrationToken() (string, error) {
@@ -152,7 +153,7 @@ func (r *repository) WebhookSecret() string {
 }
 
 func (r *repository) GetCallbackURL() string {
-	return r.cfg.Internal.InstanceCallbackURL
+	return r.cfgInternal.InstanceCallbackURL
 }
 
 func (r *repository) FindPoolByTags(labels []string) (params.Pool, error) {

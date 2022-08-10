@@ -150,8 +150,7 @@ type Repository struct {
 	Pools           []Pool `json:"pool,omitempty"`
 	CredentialsName string `json:"credentials_name"`
 	// Do not serialize sensitive info.
-	WebhookSecret string   `json:"-"`
-	Internal      Internal `json:"-"`
+	WebhookSecret string `json:"-"`
 }
 
 type Organization struct {
@@ -160,8 +159,7 @@ type Organization struct {
 	Pools           []Pool `json:"pool,omitempty"`
 	CredentialsName string `json:"credentials_name"`
 	// Do not serialize sensitive info.
-	WebhookSecret string   `json:"-"`
-	Internal      Internal `json:"-"`
+	WebhookSecret string `json:"-"`
 }
 
 // Users holds information about a particular user
@@ -200,5 +198,4 @@ type Provider struct {
 
 type UpdatePoolStateParams struct {
 	WebhookSecret string
-	Internal      Internal
 }

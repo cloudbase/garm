@@ -37,6 +37,7 @@ import (
 	runnerErrors "garm/errors"
 	"garm/params"
 	"garm/runner/common"
+	"garm/runner/pool"
 	"garm/runner/providers"
 	providerCommon "garm/runner/providers/common"
 	"garm/util"
@@ -66,15 +67,21 @@ func NewRunner(ctx context.Context, cfg config.Config) (*Runner, error) {
 	for _, ghcreds := range cfg.Github {
 		creds[ghcreds.Name] = ghcreds
 	}
-	runner := &Runner{
-		ctx:           ctx,
+
+	poolManagerCtrl := &poolManagerCtrl{
+		controllerID:  ctrlId.ControllerID.String(),
 		config:        cfg,
-		store:         db,
+		credentials:   creds,
 		repositories:  map[string]common.PoolManager{},
 		organizations: map[string]common.PoolManager{},
-		providers:     providers,
-		controllerID:  ctrlId.ControllerID.String(),
-		credentials:   creds,
+	}
+	runner := &Runner{
+		ctx:             ctx,
+		config:          cfg,
+		store:           db,
+		poolManagerCtrl: poolManagerCtrl,
+		providers:       providers,
+		credentials:     creds,
 	}
 
 	if err := runner.loadReposAndOrgs(); err != nil {
@@ -84,18 +91,124 @@ func NewRunner(ctx context.Context, cfg config.Config) (*Runner, error) {
 	return runner, nil
 }
 
-type Runner struct {
+type poolManagerCtrl struct {
 	mux sync.Mutex
 
-	config       config.Config
 	controllerID string
-	ctx          context.Context
-	store        dbCommon.Store
+	config       config.Config
+	credentials  map[string]config.Github
 
 	repositories  map[string]common.PoolManager
 	organizations map[string]common.PoolManager
-	providers     map[string]common.Provider
-	credentials   map[string]config.Github
+}
+
+func (p *poolManagerCtrl) CreateRepoPoolManager(ctx context.Context, repo params.Repository, providers map[string]common.Provider, store dbCommon.Store) (common.PoolManager, error) {
+	p.mux.Lock()
+	defer p.mux.Unlock()
+
+	cfgInternal, err := p.getInternalConfig(repo.CredentialsName)
+	if err != nil {
+		return nil, errors.Wrap(err, "fetching internal config")
+	}
+	poolManager, err := pool.NewRepositoryPoolManager(ctx, repo, cfgInternal, providers, store)
+	if err != nil {
+		return nil, errors.Wrap(err, "creating repo pool manager")
+	}
+	p.repositories[repo.ID] = poolManager
+	return poolManager, nil
+}
+
+func (p *poolManagerCtrl) GetRepoPoolManager(repo params.Repository) (common.PoolManager, error) {
+	if repoPoolMgr, ok := p.repositories[repo.ID]; ok {
+		return repoPoolMgr, nil
+	}
+	return nil, errors.Wrapf(runnerErrors.ErrNotFound, "repository %s/%s pool manager not loaded", repo.Owner, repo.Name)
+}
+
+func (p *poolManagerCtrl) DeleteRepoPoolManager(repo params.Repository) error {
+	p.mux.Lock()
+	defer p.mux.Unlock()
+
+	poolMgr, ok := p.repositories[repo.ID]
+	if ok {
+		if err := poolMgr.Stop(); err != nil {
+			return errors.Wrap(err, "stopping repo pool manager")
+		}
+		delete(p.repositories, repo.ID)
+	}
+	return nil
+}
+
+func (p *poolManagerCtrl) GetRepoPoolManagers() (map[string]common.PoolManager, error) {
+	return p.repositories, nil
+}
+
+func (p *poolManagerCtrl) CreateOrgPoolManager(ctx context.Context, org params.Organization, providers map[string]common.Provider, store dbCommon.Store) (common.PoolManager, error) {
+	p.mux.Lock()
+	defer p.mux.Unlock()
+
+	cfgInternal, err := p.getInternalConfig(org.CredentialsName)
+	if err != nil {
+		return nil, errors.Wrap(err, "fetching internal config")
+	}
+	poolManager, err := pool.NewOrganizationPoolManager(ctx, org, cfgInternal, providers, store)
+	if err != nil {
+		return nil, errors.Wrap(err, "creating org pool manager")
+	}
+	p.organizations[org.ID] = poolManager
+	return poolManager, nil
+}
+
+func (p *poolManagerCtrl) GetOrgPoolManager(org params.Organization) (common.PoolManager, error) {
+	if orgPoolMgr, ok := p.organizations[org.ID]; ok {
+		return orgPoolMgr, nil
+	}
+	return nil, errors.Wrapf(runnerErrors.ErrNotFound, "organization %s pool manager not loaded", org.Name)
+}
+
+func (p *poolManagerCtrl) DeleteOrgPoolManager(org params.Organization) error {
+	p.mux.Lock()
+	defer p.mux.Unlock()
+
+	poolMgr, ok := p.organizations[org.ID]
+	if ok {
+		if err := poolMgr.Stop(); err != nil {
+			return errors.Wrap(err, "stopping org pool manager")
+		}
+		delete(p.organizations, org.ID)
+	}
+	return nil
+}
+
+func (p *poolManagerCtrl) GetOrgPoolManagers() (map[string]common.PoolManager, error) {
+	return p.organizations, nil
+}
+
+func (p *poolManagerCtrl) getInternalConfig(credsName string) (params.Internal, error) {
+	creds, ok := p.credentials[credsName]
+	if !ok {
+		return params.Internal{}, runnerErrors.NewBadRequestError("invalid credential name (%s)", credsName)
+	}
+
+	return params.Internal{
+		OAuth2Token:         creds.OAuth2Token,
+		ControllerID:        p.controllerID,
+		InstanceCallbackURL: p.config.Default.CallbackURL,
+		JWTSecret:           p.config.JWTAuth.Secret,
+	}, nil
+}
+
+type Runner struct {
+	mux sync.Mutex
+
+	config config.Config
+	ctx    context.Context
+	store  dbCommon.Store
+
+	poolManagerCtrl PoolManagerController
+
+	providers   map[string]common.Provider
+	credentials map[string]config.Github
 }
 
 func (r *Runner) ListCredentials(ctx context.Context) ([]params.GithubCredentials, error) {
@@ -119,20 +232,6 @@ func (r *Runner) ListProviders(ctx context.Context) ([]params.Provider, error) {
 	return ret, nil
 }
 
-func (r *Runner) getInternalConfig(credsName string) (params.Internal, error) {
-	creds, ok := r.credentials[credsName]
-	if !ok {
-		return params.Internal{}, runnerErrors.NewBadRequestError("invalid credential name (%s)", credsName)
-	}
-
-	return params.Internal{
-		OAuth2Token:         creds.OAuth2Token,
-		ControllerID:        r.controllerID,
-		InstanceCallbackURL: r.config.Default.CallbackURL,
-		JWTSecret:           r.config.JWTAuth.Secret,
-	}, nil
-}
-
 func (r *Runner) loadReposAndOrgs() error {
 	r.mux.Lock()
 	defer r.mux.Unlock()
@@ -144,48 +243,36 @@ func (r *Runner) loadReposAndOrgs() error {
 
 	orgs, err := r.store.ListOrganizations(r.ctx)
 	if err != nil {
-		return errors.Wrap(err, "fetching repositories")
+		return errors.Wrap(err, "fetching organizations")
 	}
 
 	expectedReplies := len(repos) + len(orgs)
-	repoPoolMgrChan := make(chan common.PoolManager, len(repos))
-	orgPoolMgrChan := make(chan common.PoolManager, len(orgs))
 	errChan := make(chan error, expectedReplies)
 
 	for _, repo := range repos {
 		go func(repo params.Repository) {
-			log.Printf("creating pool manager for %s/%s", repo.Owner, repo.Name)
-			poolManager, err := r.loadRepoPoolManager(repo)
-			if err != nil {
-				errChan <- err
-				return
-			}
-			repoPoolMgrChan <- poolManager
+			log.Printf("creating pool manager for repo %s/%s", repo.Owner, repo.Name)
+			_, err := r.poolManagerCtrl.CreateRepoPoolManager(r.ctx, repo, r.providers, r.store)
+			errChan <- err
 		}(repo)
 	}
 
 	for _, org := range orgs {
 		go func(org params.Organization) {
 			log.Printf("creating pool manager for organization %s", org.Name)
-			poolManager, err := r.loadOrgPoolManager(org)
-			if err != nil {
-				errChan <- err
-				return
-			}
-			orgPoolMgrChan <- poolManager
+			_, err := r.poolManagerCtrl.CreateOrgPoolManager(r.ctx, org, r.providers, r.store)
+			errChan <- err
 		}(org)
 	}
 
 	for i := 0; i < expectedReplies; i++ {
 		select {
-		case repoPool := <-repoPoolMgrChan:
-			r.repositories[repoPool.ID()] = repoPool
-		case orgPool := <-orgPoolMgrChan:
-			r.organizations[orgPool.ID()] = orgPool
 		case err := <-errChan:
-			return errors.Wrap(err, "failed to load repos and pools")
+			if err != nil {
+				return errors.Wrap(err, "failed to load pool managers for repos and orgs")
+			}
 		case <-time.After(60 * time.Second):
-			return fmt.Errorf("timed out waiting for pool mamager load")
+			return fmt.Errorf("timed out waiting for pool manager load")
 		}
 	}
 
@@ -196,10 +283,20 @@ func (r *Runner) Start() error {
 	r.mux.Lock()
 	defer r.mux.Unlock()
 
-	expectedReplies := len(r.repositories) + len(r.organizations)
+	repositories, err := r.poolManagerCtrl.GetRepoPoolManagers()
+	if err != nil {
+		return errors.Wrap(err, "fetch repo pool managers")
+	}
+
+	organizations, err := r.poolManagerCtrl.GetOrgPoolManagers()
+	if err != nil {
+		return errors.Wrap(err, "fetch org pool managers")
+	}
+
+	expectedReplies := len(repositories) + len(organizations)
 	errChan := make(chan error, expectedReplies)
 
-	for _, repo := range r.repositories {
+	for _, repo := range repositories {
 		go func(repo common.PoolManager) {
 			err := repo.Start()
 			errChan <- err
@@ -207,7 +304,7 @@ func (r *Runner) Start() error {
 		}(repo)
 	}
 
-	for _, org := range r.organizations {
+	for _, org := range organizations {
 		go func(org common.PoolManager) {
 			err := org.Start()
 			errChan <- err
@@ -232,13 +329,21 @@ func (r *Runner) Stop() error {
 	r.mux.Lock()
 	defer r.mux.Unlock()
 
-	for _, repo := range r.repositories {
+	repos, err := r.poolManagerCtrl.GetRepoPoolManagers()
+	if err != nil {
+		return errors.Wrap(err, "fetch repo pool managers")
+	}
+	for _, repo := range repos {
 		if err := repo.Stop(); err != nil {
 			return errors.Wrap(err, "stopping repo pool manager")
 		}
 	}
 
-	for _, org := range r.organizations {
+	orgs, err := r.poolManagerCtrl.GetOrgPoolManagers()
+	if err != nil {
+		return errors.Wrap(err, "fetch org pool managers")
+	}
+	for _, org := range orgs {
 		if err := org.Stop(); err != nil {
 			return errors.Wrap(err, "stopping org pool manager")
 		}
@@ -252,7 +357,11 @@ func (r *Runner) Wait() error {
 
 	var wg sync.WaitGroup
 
-	for poolId, repo := range r.repositories {
+	repos, err := r.poolManagerCtrl.GetRepoPoolManagers()
+	if err != nil {
+		return errors.Wrap(err, "fetch repo pool managers")
+	}
+	for poolId, repo := range repos {
 		wg.Add(1)
 		go func(id string, poolMgr common.PoolManager) {
 			defer wg.Done()
@@ -262,7 +371,11 @@ func (r *Runner) Wait() error {
 		}(poolId, repo)
 	}
 
-	for poolId, org := range r.organizations {
+	orgs, err := r.poolManagerCtrl.GetOrgPoolManagers()
+	if err != nil {
+		return errors.Wrap(err, "fetch org pool managers")
+	}
+	for poolId, org := range orgs {
 		wg.Add(1)
 		go func(id string, poolMgr common.PoolManager) {
 			defer wg.Done()
@@ -320,7 +433,7 @@ func (r *Runner) validateHookBody(signature, secret string, body []byte) error {
 }
 
 func (r *Runner) DispatchWorkflowJob(hookTargetType, signature string, jobData []byte) error {
-	if jobData == nil || len(jobData) == 0 {
+	if len(jobData) == 0 {
 		return runnerErrors.NewBadRequestError("missing job data")
 	}
 
@@ -480,7 +593,7 @@ func (r *Runner) ListAllInstances(ctx context.Context) ([]params.Instance, error
 
 	instances, err := r.store.ListAllInstances(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "fetcing instances")
+		return nil, errors.Wrap(err, "fetching instances")
 	}
 	return instances, nil
 }
