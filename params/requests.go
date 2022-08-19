@@ -57,7 +57,7 @@ type CreateOrgParams struct {
 
 func (c *CreateOrgParams) Validate() error {
 	if c.Name == "" {
-		return errors.NewBadRequestError("missing repo name")
+		return errors.NewBadRequestError("missing org name")
 	}
 
 	if c.CredentialsName == "" {

@@ -24,7 +24,6 @@ import (
 	runnerErrors "garm/errors"
 	"garm/params"
 	"garm/runner/common"
-	"garm/runner/pool"
 
 	"github.com/pkg/errors"
 )
@@ -63,11 +62,16 @@ func (r *Runner) CreateRepository(ctx context.Context, param params.CreateRepoPa
 		}
 	}()
 
-	poolMgr, err := r.loadRepoPoolManager(repo)
-	if err := poolMgr.Start(); err != nil {
-		return params.Repository{}, errors.Wrap(err, "starting pool manager")
+	poolMgr, err := r.poolManagerCtrl.CreateRepoPoolManager(r.ctx, repo, r.providers, r.store)
+	if err != nil {
+		return params.Repository{}, errors.Wrap(err, "creating repo pool manager")
 	}
-	r.repositories[repo.ID] = poolMgr
+	if err := poolMgr.Start(); err != nil {
+		if deleteErr := r.poolManagerCtrl.DeleteRepoPoolManager(repo); deleteErr != nil {
+			log.Printf("failed to cleanup pool manager for repo %s", repo.ID)
+		}
+		return params.Repository{}, errors.Wrap(err, "starting repo pool manager")
+	}
 	return repo, nil
 }
 
@@ -106,14 +110,6 @@ func (r *Runner) DeleteRepository(ctx context.Context, repoID string) error {
 		return errors.Wrap(err, "fetching repo")
 	}
 
-	poolMgr, ok := r.repositories[repo.ID]
-	if ok {
-		if err := poolMgr.Stop(); err != nil {
-			log.Printf("failed to stop pool for repo %s", repo.ID)
-		}
-		delete(r.repositories, repoID)
-	}
-
 	pools, err := r.store.ListRepoPools(ctx, repoID)
 	if err != nil {
 		return errors.Wrap(err, "fetching repo pools")
@@ -126,6 +122,10 @@ func (r *Runner) DeleteRepository(ctx context.Context, repoID string) error {
 		}
 
 		return runnerErrors.NewBadRequestError("repo has pools defined (%s)", strings.Join(poolIds, ", "))
+	}
+
+	if err := r.poolManagerCtrl.DeleteRepoPoolManager(repo); err != nil {
+		return errors.Wrap(err, "deleting repo pool manager")
 	}
 
 	if err := r.store.DeleteRepository(ctx, repoID); err != nil {
@@ -159,27 +159,19 @@ func (r *Runner) UpdateRepository(ctx context.Context, repoID string, param para
 		return params.Repository{}, errors.Wrap(err, "updating repo")
 	}
 
-	poolMgr, ok := r.repositories[repo.ID]
-	if ok {
-		internalCfg, err := r.getInternalConfig(repo.CredentialsName)
-		if err != nil {
-			return params.Repository{}, errors.Wrap(err, "fetching internal config")
-		}
+	poolMgr, err := r.poolManagerCtrl.GetRepoPoolManager(repo)
+	if err != nil {
 		newState := params.UpdatePoolStateParams{
 			WebhookSecret: repo.WebhookSecret,
-			Internal:      internalCfg,
 		}
-		repo.Internal = internalCfg
 		// stop the pool mgr
 		if err := poolMgr.RefreshState(newState); err != nil {
-			return params.Repository{}, errors.Wrap(err, "updating pool manager")
+			return params.Repository{}, errors.Wrap(err, "updating repo pool manager")
 		}
 	} else {
-		poolMgr, err := r.loadRepoPoolManager(repo)
-		if err != nil {
-			return params.Repository{}, errors.Wrap(err, "loading pool manager")
+		if _, err := r.poolManagerCtrl.CreateRepoPoolManager(r.ctx, repo, r.providers, r.store); err != nil {
+			return params.Repository{}, errors.Wrap(err, "creating repo pool manager")
 		}
-		r.repositories[repo.ID] = poolMgr
 	}
 
 	return repo, nil
@@ -193,8 +185,12 @@ func (r *Runner) CreateRepoPool(ctx context.Context, repoID string, param params
 	r.mux.Lock()
 	defer r.mux.Unlock()
 
-	_, ok := r.repositories[repoID]
-	if !ok {
+	repo, err := r.store.GetRepositoryByID(ctx, repoID)
+	if err != nil {
+		return params.Pool{}, errors.Wrap(err, "fetching repo")
+	}
+
+	if _, err := r.poolManagerCtrl.GetRepoPoolManager(repo); err != nil {
 		return params.Pool{}, runnerErrors.ErrNotFound
 	}
 
@@ -324,19 +320,6 @@ func (r *Runner) ListRepoInstances(ctx context.Context, repoID string) ([]params
 	return instances, nil
 }
 
-func (r *Runner) loadRepoPoolManager(repo params.Repository) (common.PoolManager, error) {
-	cfg, err := r.getInternalConfig(repo.CredentialsName)
-	if err != nil {
-		return nil, errors.Wrap(err, "fetching internal config")
-	}
-	repo.Internal = cfg
-	poolManager, err := pool.NewRepositoryPoolManager(r.ctx, repo, r.providers, r.store)
-	if err != nil {
-		return nil, errors.Wrap(err, "creating pool manager")
-	}
-	return poolManager, nil
-}
-
 func (r *Runner) findRepoPoolManager(owner, name string) (common.PoolManager, error) {
 	r.mux.Lock()
 	defer r.mux.Unlock()
@@ -346,8 +329,9 @@ func (r *Runner) findRepoPoolManager(owner, name string) (common.PoolManager, er
 		return nil, errors.Wrap(err, "fetching repo")
 	}
 
-	if repo, ok := r.repositories[repo.ID]; ok {
-		return repo, nil
+	poolManager, err := r.poolManagerCtrl.GetRepoPoolManager(repo)
+	if err != nil {
+		return nil, errors.Wrap(err, "fetching pool manager for repo")
 	}
-	return nil, errors.Wrapf(runnerErrors.ErrNotFound, "repository %s/%s not configured", owner, name)
+	return poolManager, nil
 }

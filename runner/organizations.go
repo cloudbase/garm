@@ -24,7 +24,6 @@ import (
 	runnerErrors "garm/errors"
 	"garm/params"
 	"garm/runner/common"
-	"garm/runner/pool"
 
 	"github.com/pkg/errors"
 )
@@ -46,7 +45,7 @@ func (r *Runner) CreateOrganization(ctx context.Context, param params.CreateOrgP
 	_, err = r.store.GetOrganization(ctx, param.Name)
 	if err != nil {
 		if !errors.Is(err, runnerErrors.ErrNotFound) {
-			return params.Organization{}, errors.Wrap(err, "fetching repo")
+			return params.Organization{}, errors.Wrap(err, "fetching org")
 		}
 	} else {
 		return params.Organization{}, runnerErrors.NewConflictError("organization %s already exists", param.Name)
@@ -63,11 +62,16 @@ func (r *Runner) CreateOrganization(ctx context.Context, param params.CreateOrgP
 		}
 	}()
 
-	poolMgr, err := r.loadOrgPoolManager(org)
-	if err := poolMgr.Start(); err != nil {
-		return params.Organization{}, errors.Wrap(err, "starting pool manager")
+	poolMgr, err := r.poolManagerCtrl.CreateOrgPoolManager(r.ctx, org, r.providers, r.store)
+	if err != nil {
+		return params.Organization{}, errors.Wrap(err, "creating org pool manager")
 	}
-	r.organizations[org.ID] = poolMgr
+	if err := poolMgr.Start(); err != nil {
+		if deleteErr := r.poolManagerCtrl.DeleteOrgPoolManager(org); deleteErr != nil {
+			log.Printf("failed to cleanup pool manager for org %s", org.ID)
+		}
+		return params.Organization{}, errors.Wrap(err, "starting org pool manager")
+	}
 	return org, nil
 }
 
@@ -91,7 +95,7 @@ func (r *Runner) GetOrganizationByID(ctx context.Context, orgID string) (params.
 
 	org, err := r.store.GetOrganizationByID(ctx, orgID)
 	if err != nil {
-		return params.Organization{}, errors.Wrap(err, "fetching repository")
+		return params.Organization{}, errors.Wrap(err, "fetching organization")
 	}
 	return org, nil
 }
@@ -103,20 +107,12 @@ func (r *Runner) DeleteOrganization(ctx context.Context, orgID string) error {
 
 	org, err := r.store.GetOrganizationByID(ctx, orgID)
 	if err != nil {
-		return errors.Wrap(err, "fetching repo")
-	}
-
-	poolMgr, ok := r.organizations[org.ID]
-	if ok {
-		if err := poolMgr.Stop(); err != nil {
-			log.Printf("failed to stop pool for repo %s", org.ID)
-		}
-		delete(r.organizations, orgID)
+		return errors.Wrap(err, "fetching org")
 	}
 
 	pools, err := r.store.ListOrgPools(ctx, orgID)
 	if err != nil {
-		return errors.Wrap(err, "fetching repo pools")
+		return errors.Wrap(err, "fetching org pools")
 	}
 
 	if len(pools) > 0 {
@@ -125,7 +121,11 @@ func (r *Runner) DeleteOrganization(ctx context.Context, orgID string) error {
 			poolIds = append(poolIds, pool.ID)
 		}
 
-		return runnerErrors.NewBadRequestError("repo has pools defined (%s)", strings.Join(poolIds, ", "))
+		return runnerErrors.NewBadRequestError("org has pools defined (%s)", strings.Join(poolIds, ", "))
+	}
+
+	if err := r.poolManagerCtrl.DeleteOrgPoolManager(org); err != nil {
+		return errors.Wrap(err, "deleting org pool manager")
 	}
 
 	if err := r.store.DeleteOrganization(ctx, orgID); err != nil {
@@ -159,27 +159,19 @@ func (r *Runner) UpdateOrganization(ctx context.Context, orgID string, param par
 		return params.Organization{}, errors.Wrap(err, "updating org")
 	}
 
-	poolMgr, ok := r.organizations[org.ID]
-	if ok {
-		internalCfg, err := r.getInternalConfig(org.CredentialsName)
-		if err != nil {
-			return params.Organization{}, errors.Wrap(err, "fetching internal config")
-		}
+	poolMgr, err := r.poolManagerCtrl.GetOrgPoolManager(org)
+	if err != nil {
 		newState := params.UpdatePoolStateParams{
 			WebhookSecret: org.WebhookSecret,
-			Internal:      internalCfg,
 		}
-		org.Internal = internalCfg
 		// stop the pool mgr
 		if err := poolMgr.RefreshState(newState); err != nil {
-			return params.Organization{}, errors.Wrap(err, "updating pool manager")
+			return params.Organization{}, errors.Wrap(err, "updating org pool manager")
 		}
 	} else {
-		poolMgr, err := r.loadOrgPoolManager(org)
-		if err != nil {
-			return params.Organization{}, errors.Wrap(err, "loading pool manager")
+		if _, err := r.poolManagerCtrl.CreateOrgPoolManager(r.ctx, org, r.providers, r.store); err != nil {
+			return params.Organization{}, errors.Wrap(err, "creating org pool manager")
 		}
-		r.organizations[org.ID] = poolMgr
 	}
 
 	return org, nil
@@ -193,8 +185,12 @@ func (r *Runner) CreateOrgPool(ctx context.Context, orgID string, param params.C
 	r.mux.Lock()
 	defer r.mux.Unlock()
 
-	_, ok := r.organizations[orgID]
-	if !ok {
+	org, err := r.store.GetOrganizationByID(ctx, orgID)
+	if err != nil {
+		return params.Pool{}, errors.Wrap(err, "fetching org")
+	}
+
+	if _, err := r.poolManagerCtrl.GetOrgPoolManager(org); err != nil {
 		return params.Pool{}, runnerErrors.ErrNotFound
 	}
 
@@ -313,30 +309,18 @@ func (r *Runner) ListOrgInstances(ctx context.Context, orgID string) ([]params.I
 	return instances, nil
 }
 
-func (r *Runner) loadOrgPoolManager(org params.Organization) (common.PoolManager, error) {
-	cfg, err := r.getInternalConfig(org.CredentialsName)
-	if err != nil {
-		return nil, errors.Wrap(err, "fetching internal config")
-	}
-	org.Internal = cfg
-	poolManager, err := pool.NewOrganizationPoolManager(r.ctx, org, r.providers, r.store)
-	if err != nil {
-		return nil, errors.Wrap(err, "creating pool manager")
-	}
-	return poolManager, nil
-}
-
 func (r *Runner) findOrgPoolManager(name string) (common.PoolManager, error) {
 	r.mux.Lock()
 	defer r.mux.Unlock()
 
 	org, err := r.store.GetOrganization(r.ctx, name)
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching repo")
+		return nil, errors.Wrap(err, "fetching org")
 	}
 
-	if orgPoolMgr, ok := r.organizations[org.ID]; ok {
-		return orgPoolMgr, nil
+	poolManager, err := r.poolManagerCtrl.GetOrgPoolManager(org)
+	if err != nil {
+		return nil, errors.Wrap(err, "fetching pool manager for org")
 	}
-	return nil, errors.Wrapf(runnerErrors.ErrNotFound, "organization %s not configured", name)
+	return poolManager, nil
 }
