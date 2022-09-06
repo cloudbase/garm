@@ -1,6 +1,6 @@
 [default]
   callback_url = "https://garm.example.com/"
-  config_dir = "./testdata/config_dir"
+  config_dir = "./testdata"
 
 [apiserver]
   bind = "0.0.0.0"

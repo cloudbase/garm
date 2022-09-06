@@ -661,7 +661,7 @@ func TestNewConfig(t *testing.T) {
 	require.Nil(t, err)
 	require.NotNil(t, cfg)
 	require.Equal(t, "https://garm.example.com/", cfg.Default.CallbackURL)
-	require.Equal(t, "./testdata/config_dir", cfg.Default.ConfigDir)
+	require.Equal(t, "./testdata", cfg.Default.ConfigDir)
 	require.Equal(t, "0.0.0.0", cfg.APIServer.Bind)
 	require.Equal(t, 9998, cfg.APIServer.Port)
 	require.Equal(t, false, cfg.APIServer.UseTLS)
