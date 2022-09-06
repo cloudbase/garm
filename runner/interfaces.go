@@ -21,6 +21,8 @@ import (
 	"garm/runner/common"
 )
 
+//go:generate mockery --name=PoolManagerController
+
 type PoolManagerController interface {
 	CreateRepoPoolManager(ctx context.Context, repo params.Repository, providers map[string]common.Provider, store dbCommon.Store) (common.PoolManager, error)
 	GetRepoPoolManager(repo params.Repository) (common.PoolManager, error)
