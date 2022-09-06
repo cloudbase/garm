@@ -21,6 +21,7 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 
 	"garm/config"
 	"garm/database/common"
@@ -32,11 +33,17 @@ func newDBConn(dbCfg config.Database) (conn *gorm.DB, err error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "getting DB URI string")
 	}
+
+	gormConfig := &gorm.Config{}
+	if !dbCfg.Debug {
+		gormConfig.Logger = logger.Default.LogMode(logger.Silent)
+	}
+
 	switch dbType {
 	case config.MySQLBackend:
-		conn, err = gorm.Open(mysql.Open(connURI), &gorm.Config{})
+		conn, err = gorm.Open(mysql.Open(connURI), gormConfig)
 	case config.SQLiteBackend:
-		conn, err = gorm.Open(sqlite.Open(connURI), &gorm.Config{})
+		conn, err = gorm.Open(sqlite.Open(connURI), gormConfig)
 	}
 	if err != nil {
 		return nil, errors.Wrap(err, "connecting to database")
