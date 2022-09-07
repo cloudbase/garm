@@ -26,6 +26,7 @@ import (
 	"garm/runner/common"
 	runnerCommonMocks "garm/runner/common/mocks"
 	runnerMocks "garm/runner/mocks"
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/mock"
@@ -33,22 +34,44 @@ import (
 )
 
 type RepoTestFixtures struct {
-	AdminContext     context.Context
-	Store            dbCommon.Store
-	StoreRepos       map[string]params.Repository
-	Providers        map[string]common.Provider
-	Credentials      map[string]config.Github
-	CreateRepoParams params.CreateRepoParams
-	ErrMock          error
-	ProviderMock     *runnerCommonMocks.Provider
-	PoolMgrMock      *runnerCommonMocks.PoolManager
-	PoolMgrCtrlMock  *runnerMocks.PoolManagerController
+	AdminContext          context.Context
+	Store                 dbCommon.Store
+	StoreRepos            map[string]params.Repository
+	Providers             map[string]common.Provider
+	Credentials           map[string]config.Github
+	CreateRepoParams      params.CreateRepoParams
+	CreatePoolParams      params.CreatePoolParams
+	UpdateRepoParams      params.UpdateRepositoryParams
+	UpdatePoolStateParams params.UpdatePoolStateParams
+	ErrMock               error
+	ProviderMock          *runnerCommonMocks.Provider
+	PoolMgrMock           *runnerCommonMocks.PoolManager
+	PoolMgrCtrlMock       *runnerMocks.PoolManagerController
 }
 
 type RepoTestSuite struct {
 	suite.Suite
 	Fixtures *RepoTestFixtures
 	Runner   *Runner
+}
+
+func (s *RepoTestSuite) reposMapValues(repos map[string]params.Repository) []params.Repository {
+	reposSlice := []params.Repository{}
+	for _, value := range repos {
+		reposSlice = append(reposSlice, value)
+	}
+	return reposSlice
+}
+
+func (s *RepoTestSuite) equalReposByName(expected, actual []params.Repository) {
+	s.Require().Equal(len(expected), len(actual))
+
+	sort.Slice(expected, func(i, j int) bool { return expected[i].Name > expected[j].Name })
+	sort.Slice(actual, func(i, j int) bool { return actual[i].Name > actual[j].Name })
+
+	for i := 0; i < len(expected); i++ {
+		s.Require().Equal(expected[i].Name, actual[i].Name)
+	}
 }
 
 func (s *RepoTestSuite) SetupTest() {
@@ -98,6 +121,24 @@ func (s *RepoTestSuite) SetupTest() {
 			Owner:           "test-owner-create",
 			Name:            "test-repo-create",
 			CredentialsName: "test-creds",
+		},
+		CreatePoolParams: params.CreatePoolParams{
+			ProviderName:           "test-provider",
+			MaxRunners:             4,
+			MinIdleRunners:         2,
+			Image:                  "test",
+			Flavor:                 "test",
+			OSType:                 "linux",
+			OSArch:                 "arm64",
+			Tags:                   []string{"self-hosted", "arm64", "linux"},
+			RunnerBootstrapTimeout: 0,
+		},
+		UpdateRepoParams: params.UpdateRepositoryParams{
+			CredentialsName: "test-creds",
+			WebhookSecret:   "test-update-repo-webhook-secret",
+		},
+		UpdatePoolStateParams: params.UpdatePoolStateParams{
+			WebhookSecret: "test-update-repo-webhook-secret",
 		},
 		ErrMock:         fmt.Errorf("mock error"),
 		ProviderMock:    providerMock,
@@ -184,6 +225,185 @@ func (s *RepoTestSuite) TestCreateRepositoryStartPoolMgrFailed() {
 	s.Fixtures.PoolMgrMock.AssertExpectations(s.T())
 	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
 	s.Require().Equal(fmt.Sprintf("starting repo pool manager: %s", s.Fixtures.ErrMock.Error()), err.Error())
+}
+
+func (s *RepoTestSuite) TestListRepositories() {
+	repos, err := s.Runner.ListRepositories(s.Fixtures.AdminContext)
+
+	s.Require().Nil(err)
+	s.equalReposByName(s.reposMapValues(s.Fixtures.StoreRepos), repos)
+}
+
+func (s *RepoTestSuite) TestListRepositoriesErrUnauthorized() {
+	_, err := s.Runner.ListRepositories(context.Background())
+
+	s.Require().Equal(runnerErrors.ErrUnauthorized, err)
+}
+
+func (s *RepoTestSuite) TestGetRepositoryByID() {
+	repo, err := s.Runner.GetRepositoryByID(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID)
+
+	s.Require().Nil(err)
+	s.Require().Equal(s.Fixtures.StoreRepos["test-repo-1"].ID, repo.ID)
+}
+
+func (s *RepoTestSuite) TestGetRepositoryByIDErrUnauthorized() {
+	_, err := s.Runner.GetRepositoryByID(context.Background(), "dummy-repo-id")
+
+	s.Require().Equal(runnerErrors.ErrUnauthorized, err)
+}
+
+func (s *RepoTestSuite) TestDeleteRepository() {
+	s.Fixtures.PoolMgrCtrlMock.On("DeleteRepoPoolManager", mock.AnythingOfType("params.Repository")).Return(nil)
+
+	err := s.Runner.DeleteRepository(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID)
+
+	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
+	s.Require().Nil(err)
+
+	_, err = s.Fixtures.Store.GetRepositoryByID(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID)
+	s.Require().Equal("fetching repo: not found", err.Error())
+}
+
+func (s *RepoTestSuite) TestDeleteRepositoryErrUnauthorized() {
+	err := s.Runner.DeleteRepository(context.Background(), "dummy-repo-id")
+
+	s.Require().Equal(runnerErrors.ErrUnauthorized, err)
+}
+
+func (s *RepoTestSuite) TestDeleteRepositoryPoolDefinedFailed() {
+	pool, err := s.Fixtures.Store.CreateRepositoryPool(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID, s.Fixtures.CreatePoolParams)
+	if err != nil {
+		s.FailNow(fmt.Sprintf("cannot create store repositories pool: %v", err))
+	}
+
+	err = s.Runner.DeleteRepository(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID)
+
+	s.Require().Equal(runnerErrors.NewBadRequestError("repo has pools defined (%s)", pool.ID), err)
+}
+
+func (s *RepoTestSuite) TestDeleteRepositoryPoolMgrFailed() {
+	s.Fixtures.PoolMgrCtrlMock.On("DeleteRepoPoolManager", mock.AnythingOfType("params.Repository")).Return(s.Fixtures.ErrMock)
+
+	err := s.Runner.DeleteRepository(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID)
+
+	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
+	s.Require().Equal(fmt.Sprintf("deleting repo pool manager: %s", s.Fixtures.ErrMock.Error()), err.Error())
+}
+
+func (s *RepoTestSuite) TestUpdateRepository() {
+	s.Fixtures.PoolMgrCtrlMock.On("GetRepoPoolManager", mock.AnythingOfType("params.Repository")).Return(s.Fixtures.PoolMgrMock, nil)
+	s.Fixtures.PoolMgrCtrlMock.On("CreateRepoPoolManager", s.Fixtures.AdminContext, mock.AnythingOfType("params.Repository"), s.Fixtures.Providers, s.Fixtures.Store).Return(s.Fixtures.PoolMgrMock, nil)
+
+	repo, err := s.Runner.UpdateRepository(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID, s.Fixtures.UpdateRepoParams)
+
+	s.Fixtures.PoolMgrMock.AssertExpectations(s.T())
+	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
+	s.Require().Nil(err)
+	s.Require().Equal(s.Fixtures.UpdateRepoParams.CredentialsName, repo.CredentialsName)
+	s.Require().Equal(s.Fixtures.UpdateRepoParams.WebhookSecret, repo.WebhookSecret)
+}
+
+func (s *RepoTestSuite) TestUpdateRepositoryErrUnauthorized() {
+	_, err := s.Runner.UpdateRepository(context.Background(), "dummy-repo-id", s.Fixtures.UpdateRepoParams)
+
+	s.Require().Equal(runnerErrors.ErrUnauthorized, err)
+}
+
+func (s *RepoTestSuite) TestUpdateRepositoryInvalidCreds() {
+	s.Fixtures.UpdateRepoParams.CredentialsName = "invalid-creds-name"
+
+	_, err := s.Runner.UpdateRepository(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID, s.Fixtures.UpdateRepoParams)
+
+	s.Require().Equal(runnerErrors.NewBadRequestError("invalid credentials (%s) for repo %s/%s", s.Fixtures.UpdateRepoParams.CredentialsName, s.Fixtures.StoreRepos["test-repo-1"].Owner, s.Fixtures.StoreRepos["test-repo-1"].Name), err)
+}
+
+func (s *RepoTestSuite) TestUpdateRepositoryPoolMgrFailed() {
+	s.Fixtures.PoolMgrCtrlMock.On("GetRepoPoolManager", mock.AnythingOfType("params.Repository")).Return(s.Fixtures.PoolMgrMock, s.Fixtures.ErrMock)
+	s.Fixtures.PoolMgrMock.On("RefreshState", s.Fixtures.UpdatePoolStateParams).Return(s.Fixtures.ErrMock)
+
+	_, err := s.Runner.UpdateRepository(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID, s.Fixtures.UpdateRepoParams)
+
+	s.Fixtures.PoolMgrMock.AssertExpectations(s.T())
+	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
+	s.Require().Equal(fmt.Sprintf("updating repo pool manager: %s", s.Fixtures.ErrMock.Error()), err.Error())
+}
+
+func (s *RepoTestSuite) TestUpdateRepositoryCreateRepoPoolMgrFailed() {
+	s.Fixtures.PoolMgrCtrlMock.On("GetRepoPoolManager", mock.AnythingOfType("params.Repository")).Return(s.Fixtures.PoolMgrMock, nil)
+	s.Fixtures.PoolMgrCtrlMock.On("CreateRepoPoolManager", s.Fixtures.AdminContext, mock.AnythingOfType("params.Repository"), s.Fixtures.Providers, s.Fixtures.Store).Return(s.Fixtures.PoolMgrMock, s.Fixtures.ErrMock)
+
+	_, err := s.Runner.UpdateRepository(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID, s.Fixtures.UpdateRepoParams)
+
+	s.Fixtures.PoolMgrMock.AssertExpectations(s.T())
+	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
+	s.Require().Equal(fmt.Sprintf("creating repo pool manager: %s", s.Fixtures.ErrMock.Error()), err.Error())
+}
+
+func (s *RepoTestSuite) TestCreateRepoPool() {
+	s.Fixtures.PoolMgrCtrlMock.On("GetRepoPoolManager", mock.AnythingOfType("params.Repository")).Return(s.Fixtures.PoolMgrMock, nil)
+
+	pool, err := s.Runner.CreateRepoPool(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID, s.Fixtures.CreatePoolParams)
+
+	s.Fixtures.PoolMgrMock.AssertExpectations(s.T())
+	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
+	s.Require().Nil(err)
+
+	repo, err := s.Fixtures.Store.GetRepositoryByID(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID)
+	if err != nil {
+		s.FailNow(fmt.Sprintf("cannot get repo by ID: %v", err))
+	}
+	s.Require().Equal(1, len(repo.Pools))
+	s.Require().Equal(pool.ID, repo.Pools[0].ID)
+	s.Require().Equal(s.Fixtures.CreatePoolParams.ProviderName, repo.Pools[0].ProviderName)
+	s.Require().Equal(s.Fixtures.CreatePoolParams.MaxRunners, repo.Pools[0].MaxRunners)
+	s.Require().Equal(s.Fixtures.CreatePoolParams.MinIdleRunners, repo.Pools[0].MinIdleRunners)
+}
+
+func (s *RepoTestSuite) TestCreateRepoPoolErrUnauthorized() {
+	_, err := s.Runner.CreateRepoPool(context.Background(), "dummy-repo-id", s.Fixtures.CreatePoolParams)
+
+	s.Require().Equal(runnerErrors.ErrUnauthorized, err)
+}
+
+func (s *RepoTestSuite) TestCreateRepoPoolErrNotFound() {
+	s.Fixtures.PoolMgrCtrlMock.On("GetRepoPoolManager", mock.AnythingOfType("params.Repository")).Return(s.Fixtures.PoolMgrMock, s.Fixtures.ErrMock)
+
+	_, err := s.Runner.CreateRepoPool(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID, s.Fixtures.CreatePoolParams)
+
+	s.Fixtures.PoolMgrMock.AssertExpectations(s.T())
+	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
+	s.Require().Equal(runnerErrors.ErrNotFound, err)
+}
+
+func (s *RepoTestSuite) TestCreateRepoPoolFetchPoolParamsFailed() {
+	s.Fixtures.CreatePoolParams.ProviderName = "not-existent-provider-name"
+
+	s.Fixtures.PoolMgrCtrlMock.On("GetRepoPoolManager", mock.AnythingOfType("params.Repository")).Return(s.Fixtures.PoolMgrMock, nil)
+
+	_, err := s.Runner.CreateRepoPool(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID, s.Fixtures.CreatePoolParams)
+
+	s.Fixtures.PoolMgrMock.AssertExpectations(s.T())
+	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
+	s.Require().Regexp("fetching pool params: no such provider", err.Error())
+}
+
+func (s *RepoTestSuite) TestGetRepoPoolByID() {
+	repoPool, err := s.Fixtures.Store.CreateRepositoryPool(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID, s.Fixtures.CreatePoolParams)
+	if err != nil {
+		s.FailNow(fmt.Sprintf("cannot create repo pool: %s", err))
+	}
+
+	pool, err := s.Runner.GetRepoPoolByID(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID, repoPool.ID)
+
+	s.Require().Nil(err)
+	s.Require().Equal(repoPool.ID, pool.ID)
+}
+
+func (s *RepoTestSuite) TestGetRepoPoolByIDErrUnauthorized() {
+	_, err := s.Runner.GetRepoPoolByID(context.Background(), "dummy-repo-id", "dummy-pool-id")
+
+	s.Require().Equal(runnerErrors.ErrUnauthorized, err)
 }
 
 func TestRepoTestSuite(t *testing.T) {
