@@ -1,5 +1,7 @@
 #  GitHub Actions Runners Manager (garm)
 
+![Go Tests](https://github.com/cloudbase/garm/actions/workflows/go-tests.yml/badge.svg)
+
 Welcome to garm!
 
 Garm enables you to create and automatically maintain pools of [self-hosted GitHub runners](https://docs.github.com/en/actions/hosting-your-own-runners/about-self-hosted-runners), with autoscaling that can be used inside your github workflow runs.
