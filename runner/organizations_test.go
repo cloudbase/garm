@@ -28,6 +28,7 @@ import (
 	runnerMocks "garm/runner/mocks"
 	"os"
 	"path/filepath"
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/mock"
@@ -80,51 +81,44 @@ func getTestSqliteDBConfig(t *testing.T) config.Database {
 	}
 }
 
-func (s *OrgTestSuite) EqualOrgsByName(expected map[string]params.Organization, actual []params.Organization) {
+func (s *OrgTestSuite) orgsMapValues(orgs map[string]params.Organization) []params.Organization {
+	orgsSlice := []params.Organization{}
+	for _, value := range orgs {
+		orgsSlice = append(orgsSlice, value)
+	}
+	return orgsSlice
+}
+
+func (s *OrgTestSuite) equalOrgsByName(expected, actual []params.Organization) {
 	s.Require().Equal(len(expected), len(actual))
-	for _, i := range expected {
-		found := false
-		for _, j := range actual {
-			if i.Name == j.Name {
-				found = true
-				break
-			}
-		}
-		if !found {
-			s.FailNow(fmt.Sprintf("expected org (%s) cannot be found in the actual orgs", i.Name))
-		}
+
+	sort.Slice(expected, func(i, j int) bool { return expected[i].Name > expected[j].Name })
+	sort.Slice(actual, func(i, j int) bool { return actual[i].Name > actual[j].Name })
+
+	for i := 0; i < len(expected); i++ {
+		s.Require().Equal(expected[i].Name, actual[i].Name)
 	}
 }
 
-func (s *OrgTestSuite) EqualPoolsByID(expected, actual []params.Pool) {
+func (s *OrgTestSuite) equalPoolsByID(expected, actual []params.Pool) {
 	s.Require().Equal(len(expected), len(actual))
-	for _, i := range expected {
-		found := false
-		for _, j := range actual {
-			if i.ID == j.ID {
-				found = true
-				break
-			}
-		}
-		if !found {
-			s.FailNow(fmt.Sprintf("expected pool (%s) cannot be found in the actual pools", i.ID))
-		}
+
+	sort.Slice(expected, func(i, j int) bool { return expected[i].ID > expected[j].ID })
+	sort.Slice(actual, func(i, j int) bool { return actual[i].ID > actual[j].ID })
+
+	for i := 0; i < len(expected); i++ {
+		s.Require().Equal(expected[i].ID, actual[i].ID)
 	}
 }
 
-func (s *OrgTestSuite) EqualInstancesByName(expected, actual []params.Instance) {
+func (s *OrgTestSuite) equalInstancesByName(expected, actual []params.Instance) {
 	s.Require().Equal(len(expected), len(actual))
-	for _, i := range expected {
-		found := false
-		for _, j := range actual {
-			if i.Name == j.Name {
-				found = true
-				break
-			}
-		}
-		if !found {
-			s.FailNow(fmt.Sprintf("expected instance (%s) cannot be found in the actual instances", i.Name))
-		}
+
+	sort.Slice(expected, func(i, j int) bool { return expected[i].Name > expected[j].Name })
+	sort.Slice(actual, func(i, j int) bool { return actual[i].Name > actual[j].Name })
+
+	for i := 0; i < len(expected); i++ {
+		s.Require().Equal(expected[i].Name, actual[i].Name)
 	}
 }
 
@@ -293,7 +287,7 @@ func (s *OrgTestSuite) TestListOrganizations() {
 	orgs, err := s.Runner.ListOrganizations(s.Fixtures.AdminContext)
 
 	s.Require().Nil(err)
-	s.EqualOrgsByName(s.Fixtures.StoreOrgs, orgs)
+	s.equalOrgsByName(s.orgsMapValues(s.Fixtures.StoreOrgs), orgs)
 }
 
 func (s *OrgTestSuite) TestListOrganizationsErrUnauthorized() {
@@ -518,7 +512,7 @@ func (s *OrgTestSuite) TestListOrgPools() {
 	pools, err := s.Runner.ListOrgPools(s.Fixtures.AdminContext, s.Fixtures.StoreOrgs["test-org-1"].ID)
 
 	s.Require().Nil(err)
-	s.EqualPoolsByID(orgPools, pools)
+	s.equalPoolsByID(orgPools, pools)
 }
 
 func (s *OrgTestSuite) TestListOrgPoolsErrUnauthorized() {
@@ -546,7 +540,7 @@ func (s *OrgTestSuite) TestUpdateOrgPoolErrUnauthorized() {
 	s.Require().Equal(runnerErrors.ErrUnauthorized, err)
 }
 
-func (s *OrgTestSuite) TestUpdateOrgPoolCompareFailed() {
+func (s *OrgTestSuite) TestUpdateOrgPoolMinIdleGreaterThanMax() {
 	pool, err := s.Fixtures.Store.CreateOrganizationPool(s.Fixtures.AdminContext, s.Fixtures.StoreOrgs["test-org-1"].ID, s.Fixtures.CreatePoolParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create org pool: %s", err))
@@ -580,7 +574,7 @@ func (s *OrgTestSuite) TestListOrgInstances() {
 	instances, err := s.Runner.ListOrgInstances(s.Fixtures.AdminContext, s.Fixtures.StoreOrgs["test-org-1"].ID)
 
 	s.Require().Nil(err)
-	s.EqualInstancesByName(poolInstances, instances)
+	s.equalInstancesByName(poolInstances, instances)
 }
 
 func (s *OrgTestSuite) TestListOrgInstancesErrUnauthorized() {
