@@ -41,7 +41,9 @@ type RepoTestFixtures struct {
 	Credentials           map[string]config.Github
 	CreateRepoParams      params.CreateRepoParams
 	CreatePoolParams      params.CreatePoolParams
+	CreateInstanceParams  params.CreateInstanceParams
 	UpdateRepoParams      params.UpdateRepositoryParams
+	UpdatePoolParams      params.UpdatePoolParams
 	UpdatePoolStateParams params.UpdatePoolStateParams
 	ErrMock               error
 	ProviderMock          *runnerCommonMocks.Provider
@@ -74,6 +76,28 @@ func (s *RepoTestSuite) equalReposByName(expected, actual []params.Repository) {
 	}
 }
 
+func (s *RepoTestSuite) equalPoolsByID(expected, actual []params.Pool) {
+	s.Require().Equal(len(expected), len(actual))
+
+	sort.Slice(expected, func(i, j int) bool { return expected[i].ID > expected[j].ID })
+	sort.Slice(actual, func(i, j int) bool { return actual[i].ID > actual[j].ID })
+
+	for i := 0; i < len(expected); i++ {
+		s.Require().Equal(expected[i].ID, actual[i].ID)
+	}
+}
+
+func (s *RepoTestSuite) equalInstancesByID(expected, actual []params.Instance) {
+	s.Require().Equal(len(expected), len(actual))
+
+	sort.Slice(expected, func(i, j int) bool { return expected[i].ID > expected[j].ID })
+	sort.Slice(actual, func(i, j int) bool { return actual[i].ID > actual[j].ID })
+
+	for i := 0; i < len(expected); i++ {
+		s.Require().Equal(expected[i].ID, actual[i].ID)
+	}
+}
+
 func (s *RepoTestSuite) SetupTest() {
 	adminCtx := auth.GetAdminContext()
 
@@ -102,6 +126,8 @@ func (s *RepoTestSuite) SetupTest() {
 	}
 
 	// setup test fixtures
+	var maxRunners uint = 40
+	var minIdleRunners uint = 20
 	providerMock := runnerCommonMocks.NewProvider(s.T())
 	fixtures := &RepoTestFixtures{
 		AdminContext: auth.GetAdminContext(),
@@ -133,9 +159,19 @@ func (s *RepoTestSuite) SetupTest() {
 			Tags:                   []string{"self-hosted", "arm64", "linux"},
 			RunnerBootstrapTimeout: 0,
 		},
+		CreateInstanceParams: params.CreateInstanceParams{
+			Name:   "test-instance-name",
+			OSType: "linux",
+		},
 		UpdateRepoParams: params.UpdateRepositoryParams{
 			CredentialsName: "test-creds",
 			WebhookSecret:   "test-update-repo-webhook-secret",
+		},
+		UpdatePoolParams: params.UpdatePoolParams{
+			MaxRunners:     &maxRunners,
+			MinIdleRunners: &minIdleRunners,
+			Image:          "test-images-updated",
+			Flavor:         "test-flavor-updated",
 		},
 		UpdatePoolStateParams: params.UpdatePoolStateParams{
 			WebhookSecret: "test-update-repo-webhook-secret",
@@ -404,6 +440,175 @@ func (s *RepoTestSuite) TestGetRepoPoolByIDErrUnauthorized() {
 	_, err := s.Runner.GetRepoPoolByID(context.Background(), "dummy-repo-id", "dummy-pool-id")
 
 	s.Require().Equal(runnerErrors.ErrUnauthorized, err)
+}
+func (s *RepoTestSuite) TestDeleteRepoPool() {
+	pool, err := s.Fixtures.Store.CreateRepositoryPool(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID, s.Fixtures.CreatePoolParams)
+	if err != nil {
+		s.FailNow(fmt.Sprintf("cannot create repo pool: %s", err))
+	}
+
+	err = s.Runner.DeleteRepoPool(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID, pool.ID)
+
+	s.Require().Nil(err)
+
+	_, err = s.Fixtures.Store.GetRepositoryPool(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID, pool.ID)
+	s.Require().Equal("fetching pool: not found", err.Error())
+}
+
+func (s *RepoTestSuite) TestDeleteRepoPoolErrUnauthorized() {
+	err := s.Runner.DeleteRepoPool(context.Background(), "dummy-repo-id", "dummy-pool-id")
+
+	s.Require().Equal(runnerErrors.ErrUnauthorized, err)
+}
+
+func (s *RepoTestSuite) TestDeleteRepoPoolRunnersFailed() {
+	pool, err := s.Fixtures.Store.CreateRepositoryPool(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID, s.Fixtures.CreatePoolParams)
+	if err != nil {
+		s.FailNow(fmt.Sprintf("cannot create repo pool: %s", err))
+	}
+	s.Fixtures.CreateInstanceParams.Pool = pool.ID
+	instance, err := s.Fixtures.Store.CreateInstance(s.Fixtures.AdminContext, pool.ID, s.Fixtures.CreateInstanceParams)
+	if err != nil {
+		s.FailNow(fmt.Sprintf("cannot create instance: %s", err))
+	}
+
+	err = s.Runner.DeleteRepoPool(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID, pool.ID)
+
+	s.Require().Equal(runnerErrors.NewBadRequestError("pool has runners: %s", instance.ID), err)
+}
+
+func (s *RepoTestSuite) TestListRepoPools() {
+	repoPools := []params.Pool{}
+	for i := 1; i <= 2; i++ {
+		s.Fixtures.CreatePoolParams.Image = fmt.Sprintf("test-repo-%v", i)
+		pool, err := s.Fixtures.Store.CreateRepositoryPool(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID, s.Fixtures.CreatePoolParams)
+		if err != nil {
+			s.FailNow(fmt.Sprintf("cannot create repo pool: %v", err))
+		}
+		repoPools = append(repoPools, pool)
+	}
+
+	pools, err := s.Runner.ListRepoPools(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID)
+
+	s.Require().Nil(err)
+	s.equalPoolsByID(repoPools, pools)
+}
+
+func (s *RepoTestSuite) TestListRepoPoolsErrUnauthorized() {
+	_, err := s.Runner.ListRepoPools(context.Background(), "dummy-repo-id")
+
+	s.Require().Equal(runnerErrors.ErrUnauthorized, err)
+}
+
+func (s *RepoTestSuite) TestListPoolInstances() {
+	pool, err := s.Fixtures.Store.CreateRepositoryPool(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID, s.Fixtures.CreatePoolParams)
+	if err != nil {
+		s.FailNow(fmt.Sprintf("cannot create repo pool: %v", err))
+	}
+	poolInstances := []params.Instance{}
+	s.Fixtures.CreateInstanceParams.Pool = pool.ID
+	for i := 1; i <= 3; i++ {
+		s.Fixtures.CreateInstanceParams.Name = fmt.Sprintf("test-repo-%v", i)
+		instance, err := s.Fixtures.Store.CreateInstance(s.Fixtures.AdminContext, pool.ID, s.Fixtures.CreateInstanceParams)
+		if err != nil {
+			s.FailNow(fmt.Sprintf("cannot create instance: %s", err))
+		}
+		poolInstances = append(poolInstances, instance)
+	}
+
+	instances, err := s.Runner.ListPoolInstances(s.Fixtures.AdminContext, pool.ID)
+
+	s.Require().Nil(err)
+	s.equalInstancesByID(poolInstances, instances)
+}
+
+func (s *RepoTestSuite) TestListPoolInstancesErrUnauthorized() {
+	_, err := s.Runner.ListPoolInstances(context.Background(), "dummy-pool-id")
+
+	s.Require().Equal(runnerErrors.ErrUnauthorized, err)
+}
+
+func (s *RepoTestSuite) TestUpdateRepoPool() {
+	repoPool, err := s.Fixtures.Store.CreateRepositoryPool(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID, s.Fixtures.CreatePoolParams)
+	if err != nil {
+		s.FailNow(fmt.Sprintf("cannot create store repositories pool: %v", err))
+	}
+
+	pool, err := s.Runner.UpdateRepoPool(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID, repoPool.ID, s.Fixtures.UpdatePoolParams)
+
+	s.Require().Nil(err)
+	s.Require().Equal(*s.Fixtures.UpdatePoolParams.MaxRunners, pool.MaxRunners)
+	s.Require().Equal(*s.Fixtures.UpdatePoolParams.MinIdleRunners, pool.MinIdleRunners)
+}
+
+func (s *RepoTestSuite) TestUpdateRepoPoolErrUnauthorized() {
+	_, err := s.Runner.UpdateRepoPool(context.Background(), "dummy-repo-id", "dummy-pool-id", s.Fixtures.UpdatePoolParams)
+
+	s.Require().Equal(runnerErrors.ErrUnauthorized, err)
+}
+
+func (s *RepoTestSuite) TestUpdateRepoPoolMinIdleGreaterThanMax() {
+	pool, err := s.Fixtures.Store.CreateRepositoryPool(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID, s.Fixtures.CreatePoolParams)
+	if err != nil {
+		s.FailNow(fmt.Sprintf("cannot create repo pool: %s", err))
+	}
+	var maxRunners uint = 10
+	var minIdleRunners uint = 11
+	s.Fixtures.UpdatePoolParams.MaxRunners = &maxRunners
+	s.Fixtures.UpdatePoolParams.MinIdleRunners = &minIdleRunners
+
+	_, err = s.Runner.UpdateRepoPool(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID, pool.ID, s.Fixtures.UpdatePoolParams)
+
+	s.Require().Equal(runnerErrors.NewBadRequestError("min_idle_runners cannot be larger than max_runners"), err)
+}
+
+func (s *RepoTestSuite) TestListRepoInstances() {
+	pool, err := s.Fixtures.Store.CreateRepositoryPool(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID, s.Fixtures.CreatePoolParams)
+	if err != nil {
+		s.FailNow(fmt.Sprintf("cannot create repo pool: %v", err))
+	}
+	poolInstances := []params.Instance{}
+	s.Fixtures.CreateInstanceParams.Pool = pool.ID
+	for i := 1; i <= 3; i++ {
+		s.Fixtures.CreateInstanceParams.Name = fmt.Sprintf("test-repo-%v", i)
+		instance, err := s.Fixtures.Store.CreateInstance(s.Fixtures.AdminContext, pool.ID, s.Fixtures.CreateInstanceParams)
+		if err != nil {
+			s.FailNow(fmt.Sprintf("cannot create instance: %s", err))
+		}
+		poolInstances = append(poolInstances, instance)
+	}
+
+	instances, err := s.Runner.ListRepoInstances(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID)
+
+	s.Require().Nil(err)
+	s.equalInstancesByID(poolInstances, instances)
+}
+
+func (s *RepoTestSuite) TestListRepoInstancesErrUnauthorized() {
+	_, err := s.Runner.ListRepoInstances(context.Background(), "dummy-repo-id")
+
+	s.Require().Equal(runnerErrors.ErrUnauthorized, err)
+}
+
+func (s *RepoTestSuite) TestFindRepoPoolManager() {
+	s.Fixtures.PoolMgrCtrlMock.On("GetRepoPoolManager", mock.AnythingOfType("params.Repository")).Return(s.Fixtures.PoolMgrMock, nil)
+
+	poolManager, err := s.Runner.findRepoPoolManager(s.Fixtures.StoreRepos["test-repo-1"].Owner, s.Fixtures.StoreRepos["test-repo-1"].Name)
+
+	s.Fixtures.PoolMgrMock.AssertExpectations(s.T())
+	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
+	s.Require().Nil(err)
+	s.Require().Equal(s.Fixtures.PoolMgrMock, poolManager)
+}
+
+func (s *RepoTestSuite) TestFindRepoPoolManagerFetchPoolMgrFailed() {
+	s.Fixtures.PoolMgrCtrlMock.On("GetRepoPoolManager", mock.AnythingOfType("params.Repository")).Return(s.Fixtures.PoolMgrMock, s.Fixtures.ErrMock)
+
+	_, err := s.Runner.findRepoPoolManager(s.Fixtures.StoreRepos["test-repo-1"].Owner, s.Fixtures.StoreRepos["test-repo-1"].Name)
+
+	s.Fixtures.PoolMgrMock.AssertExpectations(s.T())
+	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
+	s.Require().Regexp("fetching pool manager for repo", err.Error())
 }
 
 func TestRepoTestSuite(t *testing.T) {
