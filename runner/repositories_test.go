@@ -26,6 +26,7 @@ import (
 	"garm/runner/common"
 	runnerCommonMocks "garm/runner/common/mocks"
 	runnerMocks "garm/runner/mocks"
+	"garm/util"
 	"sort"
 	"testing"
 
@@ -102,7 +103,7 @@ func (s *RepoTestSuite) SetupTest() {
 	adminCtx := auth.GetAdminContext()
 
 	// create testing sqlite database
-	dbCfg := getTestSqliteDBConfig(s.T())
+	dbCfg := util.GetTestSqliteDBConfig(s.T())
 	db, err := database.NewDatabase(adminCtx, dbCfg)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to create db connection: %s", err))

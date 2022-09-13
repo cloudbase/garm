@@ -17,36 +17,13 @@ package sql
 import (
 	"context"
 	"fmt"
-	"garm/config"
 	dbCommon "garm/database/common"
 	runnerErrors "garm/errors"
-	"os"
-	"path/filepath"
+	"garm/util"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
 )
-
-var (
-	encryptionPassphrase = "bocyasicgatEtenOubwonIbsudNutDom"
-)
-
-func getTestSqliteDBConfig(t *testing.T) config.Database {
-	dir, err := os.MkdirTemp("", "garm-config-test")
-	if err != nil {
-		t.Fatalf("failed to create temporary directory: %s", err)
-	}
-	t.Cleanup(func() { os.RemoveAll(dir) })
-
-	return config.Database{
-		Debug:      false,
-		DbBackend:  config.SQLiteBackend,
-		Passphrase: encryptionPassphrase,
-		SQLite: config.SQLite{
-			DBFile: filepath.Join(dir, "garm.db"),
-		},
-	}
-}
 
 type CtrlTestSuite struct {
 	suite.Suite
@@ -54,7 +31,7 @@ type CtrlTestSuite struct {
 }
 
 func (s *CtrlTestSuite) SetupTest() {
-	db, err := NewSQLDatabase(context.Background(), getTestSqliteDBConfig(s.T()))
+	db, err := NewSQLDatabase(context.Background(), util.GetTestSqliteDBConfig(s.T()))
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to create db connection: %s", err))
 	}

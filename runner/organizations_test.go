@@ -26,17 +26,12 @@ import (
 	"garm/runner/common"
 	runnerCommonMocks "garm/runner/common/mocks"
 	runnerMocks "garm/runner/mocks"
-	"os"
-	"path/filepath"
+	"garm/util"
 	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-)
-
-var (
-	EncryptionPassphrase = "bocyasicgatEtenOubwonIbsudNutDom"
 )
 
 type OrgTestFixtures struct {
@@ -62,23 +57,6 @@ type OrgTestSuite struct {
 	suite.Suite
 	Fixtures *OrgTestFixtures
 	Runner   *Runner
-}
-
-func getTestSqliteDBConfig(t *testing.T) config.Database {
-	dir, err := os.MkdirTemp("", "garm-config-test")
-	if err != nil {
-		t.Fatalf("failed to create temporary directory: %s", err)
-	}
-	t.Cleanup(func() { os.RemoveAll(dir) })
-
-	return config.Database{
-		Debug:      false,
-		DbBackend:  config.SQLiteBackend,
-		Passphrase: EncryptionPassphrase,
-		SQLite: config.SQLite{
-			DBFile: filepath.Join(dir, "garm.db"),
-		},
-	}
 }
 
 func (s *OrgTestSuite) orgsMapValues(orgs map[string]params.Organization) []params.Organization {
@@ -126,7 +104,7 @@ func (s *OrgTestSuite) SetupTest() {
 	adminCtx := auth.GetAdminContext()
 
 	// create testing sqlite database
-	dbCfg := getTestSqliteDBConfig(s.T())
+	dbCfg := util.GetTestSqliteDBConfig(s.T())
 	db, err := database.NewDatabase(adminCtx, dbCfg)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to create db connection: %s", err))
