@@ -12,7 +12,10 @@
 //    License for the specific language governing permissions and limitations
 //    under the License.
 
-package util
+//go:build testing
+// +build testing
+
+package testing
 
 import (
 	"garm/config"

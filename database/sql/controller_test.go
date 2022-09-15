@@ -19,7 +19,7 @@ import (
 	"fmt"
 	dbCommon "garm/database/common"
 	runnerErrors "garm/errors"
-	"garm/util"
+	garmTesting "garm/internal/testing"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -31,7 +31,7 @@ type CtrlTestSuite struct {
 }
 
 func (s *CtrlTestSuite) SetupTest() {
-	db, err := NewSQLDatabase(context.Background(), util.GetTestSqliteDBConfig(s.T()))
+	db, err := NewSQLDatabase(context.Background(), garmTesting.GetTestSqliteDBConfig(s.T()))
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to create db connection: %s", err))
 	}
