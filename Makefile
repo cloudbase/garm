@@ -5,8 +5,6 @@ IMAGE_TAG = garm-build
 USER_ID=$(shell ((docker --version | grep -q podman) && echo "0" || id -u))
 USER_GROUP=$(shell ((docker --version | grep -q podman) && echo "0" || id -g))
 
-GO_PACKAGES?=$(shell (go list ./... | grep -v 'vendor'))
-
 default: build-static
 
 .PHONY : build-static
@@ -18,4 +16,4 @@ build-static:
 
 .PHONY: test
 test:
-	go test $(GO_PACKAGES) -v $(TEST_ARGS) -timeout=15m -parallel=4
+	go test -mod=vendor -tags testing -v $(TEST_ARGS) -timeout=15m -parallel=4 ./...

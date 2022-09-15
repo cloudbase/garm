@@ -22,11 +22,11 @@ import (
 	"garm/database"
 	dbCommon "garm/database/common"
 	runnerErrors "garm/errors"
+	garmTesting "garm/internal/testing"
 	"garm/params"
 	"garm/runner/common"
 	runnerCommonMocks "garm/runner/common/mocks"
 	runnerMocks "garm/runner/mocks"
-	"garm/util"
 	"sort"
 	"testing"
 
@@ -104,7 +104,7 @@ func (s *OrgTestSuite) SetupTest() {
 	adminCtx := auth.GetAdminContext()
 
 	// create testing sqlite database
-	dbCfg := util.GetTestSqliteDBConfig(s.T())
+	dbCfg := garmTesting.GetTestSqliteDBConfig(s.T())
 	db, err := database.NewDatabase(adminCtx, dbCfg)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to create db connection: %s", err))
