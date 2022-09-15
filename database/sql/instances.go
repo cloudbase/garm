@@ -41,7 +41,7 @@ func (s *sqlDatabase) CreateInstance(ctx context.Context, poolID string, param p
 	}
 	q := s.conn.Create(&newInstance)
 	if q.Error != nil {
-		return params.Instance{}, errors.Wrap(q.Error, "creating repository")
+		return params.Instance{}, errors.Wrap(q.Error, "creating instance")
 	}
 
 	return s.sqlToParamsInstance(newInstance), nil
