@@ -26,7 +26,7 @@ import (
 )
 
 func (s *sqlDatabase) CreateInstance(ctx context.Context, poolID string, param params.CreateInstanceParams) (params.Instance, error) {
-	pool, err := s.getPoolByID(ctx, param.Pool)
+	pool, err := s.getPoolByID(ctx, poolID)
 	if err != nil {
 		return params.Instance{}, errors.Wrap(err, "fetching pool")
 	}

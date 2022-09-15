@@ -467,7 +467,6 @@ func (s *RepoTestSuite) TestDeleteRepoPoolRunnersFailed() {
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create repo pool: %s", err))
 	}
-	s.Fixtures.CreateInstanceParams.Pool = pool.ID
 	instance, err := s.Fixtures.Store.CreateInstance(s.Fixtures.AdminContext, pool.ID, s.Fixtures.CreateInstanceParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create instance: %s", err))
@@ -507,7 +506,6 @@ func (s *RepoTestSuite) TestListPoolInstances() {
 		s.FailNow(fmt.Sprintf("cannot create repo pool: %v", err))
 	}
 	poolInstances := []params.Instance{}
-	s.Fixtures.CreateInstanceParams.Pool = pool.ID
 	for i := 1; i <= 3; i++ {
 		s.Fixtures.CreateInstanceParams.Name = fmt.Sprintf("test-repo-%v", i)
 		instance, err := s.Fixtures.Store.CreateInstance(s.Fixtures.AdminContext, pool.ID, s.Fixtures.CreateInstanceParams)
@@ -569,7 +567,6 @@ func (s *RepoTestSuite) TestListRepoInstances() {
 		s.FailNow(fmt.Sprintf("cannot create repo pool: %v", err))
 	}
 	poolInstances := []params.Instance{}
-	s.Fixtures.CreateInstanceParams.Pool = pool.ID
 	for i := 1; i <= 3; i++ {
 		s.Fixtures.CreateInstanceParams.Name = fmt.Sprintf("test-repo-%v", i)
 		instance, err := s.Fixtures.Store.CreateInstance(s.Fixtures.AdminContext, pool.ID, s.Fixtures.CreateInstanceParams)

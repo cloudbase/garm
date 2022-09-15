@@ -465,7 +465,6 @@ func (s *OrgTestSuite) TestDeleteOrgPoolRunnersFailed() {
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create org pool: %v", err))
 	}
-	s.Fixtures.CreateInstanceParams.Pool = pool.ID
 	instance, err := s.Fixtures.Store.CreateInstance(s.Fixtures.AdminContext, pool.ID, s.Fixtures.CreateInstanceParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create instance: %s", err))
@@ -539,7 +538,6 @@ func (s *OrgTestSuite) TestListOrgInstances() {
 		s.FailNow(fmt.Sprintf("cannot create org pool: %v", err))
 	}
 	poolInstances := []params.Instance{}
-	s.Fixtures.CreateInstanceParams.Pool = pool.ID
 	for i := 1; i <= 3; i++ {
 		s.Fixtures.CreateInstanceParams.Name = fmt.Sprintf("test-org-%v", i)
 		instance, err := s.Fixtures.Store.CreateInstance(s.Fixtures.AdminContext, pool.ID, s.Fixtures.CreateInstanceParams)

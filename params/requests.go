@@ -97,8 +97,6 @@ type CreateInstanceParams struct {
 	RunnerStatus  common.RunnerStatus
 	CallbackURL   string
 	CreateAttempt int `json:"-"`
-
-	Pool string
 }
 
 type CreatePoolParams struct {
