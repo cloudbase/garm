@@ -77,7 +77,6 @@ func (s *InstancesTestSuite) SetupTest() {
 				OSType:      "linux",
 				OSArch:      "amd64",
 				CallbackURL: "https://garm.example.com/",
-				Pool:        pool.ID,
 			},
 		)
 		if err != nil {
@@ -103,7 +102,6 @@ func (s *InstancesTestSuite) TestCreateInstance() {
 		OSType:      "linux",
 		OSArch:      "amd64",
 		CallbackURL: "https://garm.example.com/",
-		Pool:        s.Fixtures.Pool.ID,
 	}
 
 	// call tested function

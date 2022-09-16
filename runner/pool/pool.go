@@ -316,7 +316,6 @@ func (r *basePool) AddRunner(ctx context.Context, poolID string) error {
 
 	createParams := params.CreateInstanceParams{
 		Name:          name,
-		Pool:          poolID,
 		Status:        providerCommon.InstancePendingCreate,
 		RunnerStatus:  providerCommon.RunnerPending,
 		OSArch:        pool.OSArch,
