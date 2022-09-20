@@ -37,5 +37,6 @@ type poolHelper interface {
 	ValidateOwner(job params.WorkflowJob) error
 	UpdateState(param params.UpdatePoolStateParams) error
 	WebhookSecret() string
+	GetRunnerNameFromWorkflow(job params.WorkflowJob) (string, error)
 	ID() string
 }

@@ -73,6 +73,17 @@ type repository struct {
 	mux sync.Mutex
 }
 
+func (r *repository) GetRunnerNameFromWorkflow(job params.WorkflowJob) (string, error) {
+	workflow, _, err := r.ghcli.GetWorkflowJobByID(r.ctx, job.Repository.Owner.Login, job.Repository.Name, job.WorkflowJob.ID)
+	if err != nil {
+		return "", errors.Wrap(err, "fetching workflow info")
+	}
+	if workflow.RunnerName != nil {
+		return *workflow.RunnerName, nil
+	}
+	return "", fmt.Errorf("failed to find runner name from workflow")
+}
+
 func (r *repository) UpdateState(param params.UpdatePoolStateParams) error {
 	r.mux.Lock()
 	defer r.mux.Unlock()
