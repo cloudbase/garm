@@ -71,6 +71,17 @@ type organization struct {
 	mux sync.Mutex
 }
 
+func (r *organization) GetRunnerNameFromWorkflow(job params.WorkflowJob) (string, error) {
+	workflow, _, err := r.ghcli.GetWorkflowJobByID(r.ctx, job.Organization.Login, job.Repository.Name, job.WorkflowJob.ID)
+	if err != nil {
+		return "", errors.Wrap(err, "fetching workflow info")
+	}
+	if workflow.RunnerName != nil {
+		return *workflow.RunnerName, nil
+	}
+	return "", fmt.Errorf("failed to find runner name from workflow")
+}
+
 func (r *organization) UpdateState(param params.UpdatePoolStateParams) error {
 	r.mux.Lock()
 	defer r.mux.Unlock()
@@ -143,7 +154,7 @@ func (r *organization) GetGithubRegistrationToken() (string, error) {
 }
 
 func (r *organization) String() string {
-	return fmt.Sprintf("%s", r.cfg.Name)
+	return r.cfg.Name
 }
 
 func (r *organization) WebhookSecret() string {
