@@ -28,6 +28,7 @@ require (
 	gorm.io/driver/mysql v1.3.3
 	gorm.io/driver/sqlite v1.3.2
 	gorm.io/gorm v1.23.4
+	gopkg.in/DATA-DOG/go-sqlmock.v1 v1.3.0
 )
 
 require (
