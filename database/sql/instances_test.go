@@ -20,6 +20,8 @@ import (
 	dbCommon "garm/database/common"
 	garmTesting "garm/internal/testing"
 	"garm/params"
+	"garm/runner/providers/common"
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -35,6 +37,17 @@ type InstancesTestSuite struct {
 	suite.Suite
 	Store    dbCommon.Store
 	Fixtures *InstancesTestFixtures
+}
+
+func (s *InstancesTestSuite) equalInstancesByName(expected, actual []params.Instance) {
+	s.Require().Equal(len(expected), len(actual))
+
+	sort.Slice(expected, func(i, j int) bool { return expected[i].Name > expected[j].Name })
+	sort.Slice(actual, func(i, j int) bool { return actual[i].Name > actual[j].Name })
+
+	for i := 0; i < len(expected); i++ {
+		s.Require().Equal(expected[i].Name, actual[i].Name)
+	}
 }
 
 func (s *InstancesTestSuite) SetupTest() {
@@ -73,10 +86,12 @@ func (s *InstancesTestSuite) SetupTest() {
 			context.Background(),
 			pool.ID,
 			params.CreateInstanceParams{
-				Name:        fmt.Sprintf("test-instance-%v", i),
-				OSType:      "linux",
-				OSArch:      "amd64",
-				CallbackURL: "https://garm.example.com/",
+				Name:         fmt.Sprintf("test-instance-%d", i),
+				OSType:       "linux",
+				OSArch:       "amd64",
+				CallbackURL:  "https://garm.example.com/",
+				Status:       common.InstanceRunning,
+				RunnerStatus: common.RunnerIdle,
 			},
 		)
 		if err != nil {
@@ -120,7 +135,7 @@ func (s *InstancesTestSuite) TestCreateInstance() {
 	s.Require().Equal(storeInstance.CallbackURL, instance.CallbackURL)
 }
 
-func (s *InstancesTestSuite) TestCreateInstanceFetchPoolFailed() {
+func (s *InstancesTestSuite) TestCreateInstanceInvalidPoolID() {
 	_, err := s.Store.CreateInstance(context.Background(), "dummy-pool-id", params.CreateInstanceParams{})
 
 	s.Require().Equal("fetching pool: parsing id: invalid request", err.Error())
@@ -139,7 +154,7 @@ func (s *InstancesTestSuite) TestGetPoolInstanceByName() {
 	s.Require().Equal(storeInstance.CallbackURL, instance.CallbackURL)
 }
 
-func (s *InstancesTestSuite) TestGetPoolInstanceByNameFetchInstanceFailed() {
+func (s *InstancesTestSuite) TestGetPoolInstanceByNameNotFound() {
 	_, err := s.Store.GetPoolInstanceByName(context.Background(), s.Fixtures.Pool.ID, "not-existent-instance-name")
 
 	s.Require().Equal("fetching instance: fetching pool instance by name: not found", err.Error())
@@ -162,6 +177,115 @@ func (s *InstancesTestSuite) TestGetInstanceByNameFetchInstanceFailed() {
 	_, err := s.Store.GetInstanceByName(context.Background(), "not-existent-instance-name")
 
 	s.Require().Equal("fetching instance: fetching instance by name: not found", err.Error())
+}
+
+func (s *InstancesTestSuite) TestDeleteInstance() {
+	storeInstance := s.Fixtures.Instances[0]
+	err := s.Store.DeleteInstance(context.Background(), s.Fixtures.Pool.ID, storeInstance.Name)
+
+	s.Require().Nil(err)
+
+	_, err = s.Store.GetPoolInstanceByName(context.Background(), s.Fixtures.Pool.ID, storeInstance.Name)
+	s.Require().Equal("fetching instance: fetching pool instance by name: not found", err.Error())
+}
+
+func (s *InstancesTestSuite) TestDeleteInstanceInvalidPoolID() {
+	err := s.Store.DeleteInstance(context.Background(), "dummy-pool-id", "dummy-instance-name")
+
+	s.Require().Equal("deleting instance: fetching pool: parsing id: invalid request", err.Error())
+}
+
+func (s *InstancesTestSuite) TestAddInstanceStatusMessage() {
+	storeInstance := s.Fixtures.Instances[0]
+	statusMsg := "test-status-message"
+
+	err := s.Store.AddInstanceStatusMessage(context.Background(), storeInstance.ID, statusMsg)
+
+	s.Require().Nil(err)
+	instance, err := s.Store.GetInstanceByName(context.Background(), storeInstance.Name)
+	if err != nil {
+		s.FailNow(fmt.Sprintf("failed to get db instance: %s", err))
+	}
+	s.Require().Equal(1, len(instance.StatusMessages))
+	s.Require().Equal(statusMsg, instance.StatusMessages[0].Message)
+}
+
+func (s *InstancesTestSuite) TestAddInstanceStatusMessageInvalidPoolID() {
+	err := s.Store.AddInstanceStatusMessage(context.Background(), "dummy-id", "dummy-message")
+
+	s.Require().Equal("updating instance: parsing id: invalid request", err.Error())
+}
+
+func (s *InstancesTestSuite) TestUpdateInstance() {
+	updateInstanceParams := params.UpdateInstanceParams{
+		ProviderID:    "update-provider-test",
+		OSName:        "ubuntu",
+		OSVersion:     "focal",
+		Status:        common.InstancePendingDelete,
+		RunnerStatus:  common.RunnerActive,
+		AgentID:       4,
+		CreateAttempt: 3,
+		Addresses: []params.Address{
+			{
+				Address: "12.10.12.10",
+				Type:    params.PublicAddress,
+			},
+			{
+				Address: "10.1.1.2",
+				Type:    params.PrivateAddress,
+			},
+		},
+	}
+
+	instance, err := s.Store.UpdateInstance(context.Background(), s.Fixtures.Instances[0].ID, updateInstanceParams)
+
+	s.Require().Nil(err)
+	s.Require().Equal(updateInstanceParams.ProviderID, instance.ProviderID)
+	s.Require().Equal(updateInstanceParams.OSName, instance.OSName)
+	s.Require().Equal(updateInstanceParams.OSVersion, instance.OSVersion)
+	s.Require().Equal(updateInstanceParams.Status, instance.Status)
+	s.Require().Equal(updateInstanceParams.RunnerStatus, instance.RunnerStatus)
+	s.Require().Equal(updateInstanceParams.AgentID, instance.AgentID)
+	s.Require().Equal(updateInstanceParams.CreateAttempt, instance.CreateAttempt)
+}
+
+func (s *InstancesTestSuite) TestUpdateInstanceInvalidPoolID() {
+	_, err := s.Store.UpdateInstance(context.Background(), "dummy-id", params.UpdateInstanceParams{})
+
+	s.Require().Equal("updating instance: parsing id: invalid request", err.Error())
+}
+
+func (s *InstancesTestSuite) TestListPoolInstances() {
+	instances, err := s.Store.ListPoolInstances(context.Background(), s.Fixtures.Pool.ID)
+
+	s.Require().Nil(err)
+	s.equalInstancesByName(s.Fixtures.Instances, instances)
+}
+
+func (s *InstancesTestSuite) TestListPoolInstancesInvalidPoolID() {
+	_, err := s.Store.ListPoolInstances(context.Background(), "dummy-pool-id")
+
+	s.Require().Equal("fetching pool: parsing id: invalid request", err.Error())
+}
+
+func (s *InstancesTestSuite) TestListAllInstances() {
+	instances, err := s.Store.ListAllInstances(context.Background())
+
+	s.Require().Nil(err)
+	s.equalInstancesByName(s.Fixtures.Instances, instances)
+}
+
+func (s *InstancesTestSuite) TestPoolInstanceCount() {
+	instancesCount, err := s.Store.PoolInstanceCount(context.Background(), s.Fixtures.Pool.ID)
+
+	s.Require().Nil(err)
+	s.Require().Equal(int64(len(s.Fixtures.Instances)), instancesCount)
+}
+
+func (s *InstancesTestSuite) TestPoolInstanceCountInvalidPoolID() {
+	_, err := s.Store.PoolInstanceCount(context.Background(), "dummy-pool-id")
+
+	s.Require().Equal("fetching pool: parsing id: invalid request", err.Error())
 }
 
 func TestInstTestSuite(t *testing.T) {
