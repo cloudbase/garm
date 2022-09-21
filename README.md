@@ -1,6 +1,6 @@
 #  GitHub Actions Runners Manager (garm)
 
-![Go Tests](https://github.com/cloudbase/garm/actions/workflows/go-tests.yml/badge.svg)
+[![Go Tests](https://github.com/cloudbase/garm/actions/workflows/go-tests.yml/badge.svg)](https://github.com/cloudbase/garm/actions/workflows/go-tests.yml)
 
 Welcome to garm!
 
