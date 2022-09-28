@@ -253,6 +253,9 @@ google.golang.org/protobuf/reflect/protoregistry
 google.golang.org/protobuf/runtime/protoiface
 google.golang.org/protobuf/runtime/protoimpl
 google.golang.org/protobuf/types/descriptorpb
+# gopkg.in/DATA-DOG/go-sqlmock.v1 v1.3.0
+## explicit
+gopkg.in/DATA-DOG/go-sqlmock.v1
 # gopkg.in/errgo.v1 v1.0.1
 ## explicit
 gopkg.in/errgo.v1
