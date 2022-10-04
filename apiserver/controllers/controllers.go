@@ -102,7 +102,10 @@ func (a *APIController) handleWorkflowJobEvent(w http.ResponseWriter, r *http.Re
 	hookType := r.Header.Get("X-Github-Hook-Installation-Target-Type")
 
 	if err := a.r.DispatchWorkflowJob(hookType, signature, body); err != nil {
-		log.Printf("failed to dispatch work: %s", err)
+		if errors.Is(err, gErrors.ErrNotFound) {
+			log.Printf("got not found error from DispatchWorkflowJob. webhook not meant for us?: %q", err)
+			return
+		}
 		handleError(w, err)
 		return
 	}
@@ -183,7 +186,6 @@ func (a *APIController) FirstRunHandler(w http.ResponseWriter, r *http.Request) 
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(newUser)
-
 }
 
 func (a *APIController) ListCredentials(w http.ResponseWriter, r *http.Request) {
