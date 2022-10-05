@@ -17,6 +17,7 @@ package pool
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 
 	"garm/config"
@@ -184,7 +185,7 @@ func (r *repository) GetPoolByID(poolID string) (params.Pool, error) {
 }
 
 func (r *repository) ValidateOwner(job params.WorkflowJob) error {
-	if job.Repository.Name != r.cfg.Name || job.Repository.Owner.Login != r.cfg.Owner {
+	if !strings.EqualFold(job.Repository.Name, r.cfg.Name) || !strings.EqualFold(job.Repository.Owner.Login, r.cfg.Owner) {
 		return runnerErrors.NewBadRequestError("job not meant for this pool manager")
 	}
 	return nil

@@ -85,10 +85,7 @@ func (s *sqlDatabase) CreateUser(ctx context.Context, user params.NewUserParams)
 func (s *sqlDatabase) HasAdminUser(ctx context.Context) bool {
 	var user User
 	q := s.conn.Model(&User{}).Where("is_admin = ?", true).First(&user)
-	if q.Error != nil {
-		return false
-	}
-	return true
+	return q.Error == nil
 }
 
 func (s *sqlDatabase) GetUser(ctx context.Context, user string) (params.User, error) {

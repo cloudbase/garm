@@ -16,6 +16,7 @@ package sql
 
 import (
 	"context"
+	"log"
 
 	"github.com/pkg/errors"
 	"gorm.io/driver/mysql"
@@ -79,6 +80,17 @@ type sqlDatabase struct {
 }
 
 func (s *sqlDatabase) migrateDB() error {
+	if s.conn.Migrator().HasIndex(&Organization{}, "idx_organizations_name") {
+		if err := s.conn.Migrator().DropIndex(&Organization{}, "idx_organizations_name"); err != nil {
+			log.Printf("failed to drop index idx_organizations_name: %s", err)
+		}
+	}
+
+	if s.conn.Migrator().HasIndex(&Repository{}, "idx_owner") {
+		if err := s.conn.Migrator().DropIndex(&Repository{}, "idx_owner"); err != nil {
+			log.Printf("failed to drop index idx_owner: %s", err)
+		}
+	}
 	if err := s.conn.AutoMigrate(
 		&Tag{},
 		&Pool{},

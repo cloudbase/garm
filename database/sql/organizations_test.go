@@ -139,6 +139,13 @@ func (s *OrgTestSuite) TestGetOrganization() {
 	s.Require().Equal(s.Fixtures.Orgs[0].ID, org.ID)
 }
 
+func (s *OrgTestSuite) TestGetOrganizationCaseInsensitive() {
+	org, err := s.Store.GetOrganization(context.Background(), "TeSt-oRg-1")
+
+	s.Require().Nil(err)
+	s.Require().Equal("test-org-1", org.Name)
+}
+
 func (s *OrgTestSuite) TestGetOrganizationNotFound() {
 	_, err := s.Store.GetOrganization(context.Background(), "dummy-name")
 
