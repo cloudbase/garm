@@ -78,8 +78,8 @@ type Repository struct {
 	Base
 
 	CredentialsName string
-	Owner           string `gorm:"index:idx_owner,unique"`
-	Name            string `gorm:"index:idx_owner,unique"`
+	Owner           string `gorm:"index:idx_owner_nocase,unique,collate:nocase"`
+	Name            string `gorm:"index:idx_owner_nocase,unique,collate:nocase"`
 	WebhookSecret   []byte
 	Pools           []Pool `gorm:"foreignKey:RepoID"`
 }
@@ -88,7 +88,7 @@ type Organization struct {
 	Base
 
 	CredentialsName string
-	Name            string `gorm:"uniqueIndex"`
+	Name            string `gorm:"index:idx_org_name_nocase,collate:nocase"`
 	WebhookSecret   []byte
 	Pools           []Pool `gorm:"foreignKey:OrgID"`
 }

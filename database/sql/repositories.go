@@ -282,7 +282,7 @@ func (s *sqlDatabase) UpdateRepositoryPool(ctx context.Context, repoID, poolID s
 func (s *sqlDatabase) getRepo(ctx context.Context, owner, name string) (Repository, error) {
 	var repo Repository
 
-	q := s.conn.Where("name = ? and owner = ?", name, owner).
+	q := s.conn.Where("name = ? COLLATE NOCASE and owner = ? COLLATE NOCASE", name, owner).
 		First(&repo)
 
 	q = q.First(&repo)
