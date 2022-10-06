@@ -28,9 +28,12 @@ import (
 )
 
 type OrgTestFixtures struct {
-	Orgs             []params.Organization
-	CreateOrgParams  params.CreateOrgParams
-	UpdateRepoParams params.UpdateRepositoryParams
+	Orgs                 []params.Organization
+	CreateOrgParams      params.CreateOrgParams
+	CreatePoolParams     params.CreatePoolParams
+	CreateInstanceParams params.CreateInstanceParams
+	UpdateRepoParams     params.UpdateRepositoryParams
+	UpdatePoolParams     params.UpdatePoolParams
 }
 
 type OrgTestSuite struct {
@@ -40,6 +43,28 @@ type OrgTestSuite struct {
 }
 
 func (s *OrgTestSuite) equalOrgsByName(expected, actual []params.Organization) {
+	s.Require().Equal(len(expected), len(actual))
+
+	sort.Slice(expected, func(i, j int) bool { return expected[i].Name > expected[j].Name })
+	sort.Slice(actual, func(i, j int) bool { return actual[i].Name > actual[j].Name })
+
+	for i := 0; i < len(expected); i++ {
+		s.Require().Equal(expected[i].Name, actual[i].Name)
+	}
+}
+
+func (s *OrgTestSuite) equalPoolsByID(expected, actual []params.Pool) {
+	s.Require().Equal(len(expected), len(actual))
+
+	sort.Slice(expected, func(i, j int) bool { return expected[i].ID > expected[j].ID })
+	sort.Slice(actual, func(i, j int) bool { return actual[i].ID > actual[j].ID })
+
+	for i := 0; i < len(expected); i++ {
+		s.Require().Equal(expected[i].ID, actual[i].ID)
+	}
+}
+
+func (s *OrgTestSuite) equalInstancesByName(expected, actual []params.Instance) {
 	s.Require().Equal(len(expected), len(actual))
 
 	sort.Slice(expected, func(i, j int) bool { return expected[i].Name > expected[j].Name })
@@ -70,10 +95,13 @@ func (s *OrgTestSuite) SetupTest() {
 		if err != nil {
 			s.FailNow(fmt.Sprintf("failed to create database object (test-org-%d)", i))
 		}
+
 		orgs = append(orgs, org)
 	}
 
 	// setup test fixtures
+	var maxRunners uint = 30
+	var minIdleRunners uint = 10
 	fixtures := &OrgTestFixtures{
 		Orgs: orgs,
 		CreateOrgParams: params.CreateOrgParams{
@@ -81,9 +109,29 @@ func (s *OrgTestSuite) SetupTest() {
 			CredentialsName: "new-creds",
 			WebhookSecret:   "new-webhook-secret",
 		},
+		CreatePoolParams: params.CreatePoolParams{
+			ProviderName:   "test-provider",
+			MaxRunners:     3,
+			MinIdleRunners: 1,
+			Image:          "test-image",
+			Flavor:         "test-flavor",
+			OSType:         "linux",
+			OSArch:         "amd64",
+			Tags:           []string{"self-hosted", "arm64", "linux"},
+		},
+		CreateInstanceParams: params.CreateInstanceParams{
+			Name:   "test-instance-name",
+			OSType: "linux",
+		},
 		UpdateRepoParams: params.UpdateRepositoryParams{
 			CredentialsName: "test-update-creds",
 			WebhookSecret:   "test-update-repo-webhook-secret",
+		},
+		UpdatePoolParams: params.UpdatePoolParams{
+			MaxRunners:     &maxRunners,
+			MinIdleRunners: &minIdleRunners,
+			Image:          "test-update-image",
+			Flavor:         "test-update-flavor",
 		},
 	}
 	s.Fixtures = fixtures
@@ -203,6 +251,160 @@ func (s *OrgTestSuite) TestGetOrganizationByIDInvalidOrgID() {
 
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching org: parsing id: invalid request", err.Error())
+}
+
+func (s *OrgTestSuite) TestCreateOrganizationPool() {
+	pool, err := s.Store.CreateOrganizationPool(context.Background(), s.Fixtures.Orgs[0].ID, s.Fixtures.CreatePoolParams)
+
+	s.Require().Nil(err)
+
+	org, err := s.Store.GetOrganizationByID(context.Background(), s.Fixtures.Orgs[0].ID)
+	if err != nil {
+		s.FailNow(fmt.Sprintf("cannot get org by ID: %v", err))
+	}
+	s.Require().Equal(1, len(org.Pools))
+	s.Require().Equal(pool.ID, org.Pools[0].ID)
+	s.Require().Equal(s.Fixtures.CreatePoolParams.ProviderName, org.Pools[0].ProviderName)
+	s.Require().Equal(s.Fixtures.CreatePoolParams.MaxRunners, org.Pools[0].MaxRunners)
+	s.Require().Equal(s.Fixtures.CreatePoolParams.MinIdleRunners, org.Pools[0].MinIdleRunners)
+}
+
+func (s *OrgTestSuite) TestCreateOrganizationPoolMissingTags() {
+	s.Fixtures.CreatePoolParams.Tags = []string{}
+
+	_, err := s.Store.CreateOrganizationPool(context.Background(), s.Fixtures.Orgs[0].ID, s.Fixtures.CreatePoolParams)
+
+	s.Require().NotNil(err)
+	s.Require().Equal("no tags specified", err.Error())
+}
+
+func (s *OrgTestSuite) TestCreateOrganizationPoolInvalidOrgID() {
+	_, err := s.Store.CreateOrganizationPool(context.Background(), "dummy-org-id", s.Fixtures.CreatePoolParams)
+
+	s.Require().NotNil(err)
+	s.Require().Equal("fetching org: parsing id: invalid request", err.Error())
+}
+
+func (s *OrgTestSuite) TestListOrgPools() {
+	orgPools := []params.Pool{}
+	for i := 1; i <= 2; i++ {
+		s.Fixtures.CreatePoolParams.Flavor = fmt.Sprintf("test-flavor-%v", i)
+		pool, err := s.Store.CreateOrganizationPool(context.Background(), s.Fixtures.Orgs[0].ID, s.Fixtures.CreatePoolParams)
+		if err != nil {
+			s.FailNow(fmt.Sprintf("cannot create org pool: %v", err))
+		}
+		orgPools = append(orgPools, pool)
+	}
+
+	pools, err := s.Store.ListOrgPools(context.Background(), s.Fixtures.Orgs[0].ID)
+
+	s.Require().Nil(err)
+	s.equalPoolsByID(orgPools, pools)
+}
+
+func (s *OrgTestSuite) TestListOrgPoolsInvalidOrgID() {
+	_, err := s.Store.ListOrgPools(context.Background(), "dummy-org-id")
+
+	s.Require().NotNil(err)
+	s.Require().Equal("fetching pools: fetching org: parsing id: invalid request", err.Error())
+}
+
+func (s *OrgTestSuite) TestGetOrganizationPool() {
+	pool, err := s.Store.CreateOrganizationPool(context.Background(), s.Fixtures.Orgs[0].ID, s.Fixtures.CreatePoolParams)
+	if err != nil {
+		s.FailNow(fmt.Sprintf("cannot create org pool: %v", err))
+	}
+
+	orgPool, err := s.Store.GetOrganizationPool(context.Background(), s.Fixtures.Orgs[0].ID, pool.ID)
+
+	s.Require().Nil(err)
+	s.Require().Equal(orgPool.ID, pool.ID)
+}
+
+func (s *OrgTestSuite) TestGetOrganizationPoolInvalidOrgID() {
+	_, err := s.Store.GetOrganizationPool(context.Background(), "dummy-org-id", "dummy-pool-id")
+
+	s.Require().NotNil(err)
+	s.Require().Equal("fetching pool: fetching org: parsing id: invalid request", err.Error())
+}
+
+func (s *OrgTestSuite) TestDeleteOrganizationPool() {
+	pool, err := s.Store.CreateOrganizationPool(context.Background(), s.Fixtures.Orgs[0].ID, s.Fixtures.CreatePoolParams)
+	if err != nil {
+		s.FailNow(fmt.Sprintf("cannot create org pool: %v", err))
+	}
+
+	err = s.Store.DeleteOrganizationPool(context.Background(), s.Fixtures.Orgs[0].ID, pool.ID)
+
+	s.Require().Nil(err)
+	_, err = s.Store.GetOrganizationPool(context.Background(), s.Fixtures.Orgs[0].ID, pool.ID)
+	s.Require().Equal("fetching pool: not found", err.Error())
+}
+
+func (s *OrgTestSuite) TestDeleteOrganizationPoolInvalidOrgID() {
+	err := s.Store.DeleteOrganizationPool(context.Background(), "dummy-org-id", "dummy-pool-id")
+
+	s.Require().NotNil(err)
+	s.Require().Equal("looking up org pool: fetching org: parsing id: invalid request", err.Error())
+}
+
+func (s *OrgTestSuite) TestFindOrganizationPoolByTagsMissingTags() {
+	tags := []string{}
+
+	_, err := s.Store.FindOrganizationPoolByTags(context.Background(), s.Fixtures.Orgs[0].ID, tags)
+
+	s.Require().NotNil(err)
+	s.Require().Equal("fetching pool: missing tags", err.Error())
+}
+
+func (s *OrgTestSuite) TestListOrgInstances() {
+	pool, err := s.Store.CreateOrganizationPool(context.Background(), s.Fixtures.Orgs[0].ID, s.Fixtures.CreatePoolParams)
+	if err != nil {
+		s.FailNow(fmt.Sprintf("cannot create org pool: %v", err))
+	}
+	poolInstances := []params.Instance{}
+	for i := 1; i <= 3; i++ {
+		s.Fixtures.CreateInstanceParams.Name = fmt.Sprintf("test-org-%v", i)
+		instance, err := s.Store.CreateInstance(context.Background(), pool.ID, s.Fixtures.CreateInstanceParams)
+		if err != nil {
+			s.FailNow(fmt.Sprintf("cannot create instance: %s", err))
+		}
+		poolInstances = append(poolInstances, instance)
+	}
+
+	instances, err := s.Store.ListOrgInstances(context.Background(), s.Fixtures.Orgs[0].ID)
+
+	s.Require().Nil(err)
+	s.equalInstancesByName(poolInstances, instances)
+}
+
+func (s *OrgTestSuite) TestListOrgInstancesInvalidOrgID() {
+	_, err := s.Store.ListOrgInstances(context.Background(), "dummy-org-id")
+
+	s.Require().NotNil(err)
+	s.Require().Equal("fetching org: fetching org: parsing id: invalid request", err.Error())
+}
+
+func (s *OrgTestSuite) TestUpdateOrganizationPool() {
+	pool, err := s.Store.CreateOrganizationPool(context.Background(), s.Fixtures.Orgs[0].ID, s.Fixtures.CreatePoolParams)
+	if err != nil {
+		s.FailNow(fmt.Sprintf("cannot create org pool: %v", err))
+	}
+
+	pool, err = s.Store.UpdateOrganizationPool(context.Background(), s.Fixtures.Orgs[0].ID, pool.ID, s.Fixtures.UpdatePoolParams)
+
+	s.Require().Nil(err)
+	s.Require().Equal(*s.Fixtures.UpdatePoolParams.MaxRunners, pool.MaxRunners)
+	s.Require().Equal(*s.Fixtures.UpdatePoolParams.MinIdleRunners, pool.MinIdleRunners)
+	s.Require().Equal(s.Fixtures.UpdatePoolParams.Image, pool.Image)
+	s.Require().Equal(s.Fixtures.UpdatePoolParams.Flavor, pool.Flavor)
+}
+
+func (s *OrgTestSuite) TestUpdateOrganizationPoolInvalidOrgID() {
+	_, err := s.Store.UpdateOrganizationPool(context.Background(), "dummy-org-id", "dummy-pool-id", s.Fixtures.UpdatePoolParams)
+
+	s.Require().NotNil(err)
+	s.Require().Equal("fetching pool: fetching org: parsing id: invalid request", err.Error())
 }
 
 func TestOrgTestSuite(t *testing.T) {
