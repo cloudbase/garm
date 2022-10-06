@@ -16,15 +16,22 @@ package sql
 
 import (
 	"context"
+	"flag"
 	"fmt"
+	"regexp"
 	"sort"
 
 	dbCommon "garm/database/common"
+	runnerErrors "garm/errors"
 	garmTesting "garm/internal/testing"
 	"garm/params"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
+	"gopkg.in/DATA-DOG/go-sqlmock.v1"
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 type OrgTestFixtures struct {
@@ -34,12 +41,14 @@ type OrgTestFixtures struct {
 	CreateInstanceParams params.CreateInstanceParams
 	UpdateRepoParams     params.UpdateRepositoryParams
 	UpdatePoolParams     params.UpdatePoolParams
+	SQLMock              sqlmock.Sqlmock
 }
 
 type OrgTestSuite struct {
 	suite.Suite
-	Store    dbCommon.Store
-	Fixtures *OrgTestFixtures
+	Store          dbCommon.Store
+	StoreSQLMocked *sqlDatabase
+	Fixtures       *OrgTestFixtures
 }
 
 func (s *OrgTestSuite) equalOrgsByName(expected, actual []params.Organization) {
@@ -75,6 +84,13 @@ func (s *OrgTestSuite) equalInstancesByName(expected, actual []params.Instance) 
 	}
 }
 
+func (s *OrgTestSuite) assertSQLMockExpectations() {
+	err := s.Fixtures.SQLMock.ExpectationsWereMet()
+	if err != nil {
+		s.FailNow(fmt.Sprintf("failed to meet sqlmock expectations, got error: %v", err))
+	}
+}
+
 func (s *OrgTestSuite) SetupTest() {
 	// create testing sqlite database
 	db, err := NewSQLDatabase(context.Background(), garmTesting.GetTestSqliteDBConfig(s.T()))
@@ -97,6 +113,29 @@ func (s *OrgTestSuite) SetupTest() {
 		}
 
 		orgs = append(orgs, org)
+	}
+
+	// create store with mocked sql connection
+	sqlDB, sqlMock, err := sqlmock.New()
+	if err != nil {
+		s.FailNow(fmt.Sprintf("failed to run 'sqlmock.New()', got error: %v", err))
+	}
+	s.T().Cleanup(func() { sqlDB.Close() })
+	mysqlConfig := mysql.Config{
+		Conn:                      sqlDB,
+		SkipInitializeWithVersion: true,
+	}
+	gormConfig := &gorm.Config{}
+	if flag.Lookup("test.v").Value.String() == "false" {
+		gormConfig.Logger = logger.Default.LogMode(logger.Silent)
+	}
+	gormConn, err := gorm.Open(mysql.New(mysqlConfig), gormConfig)
+	if err != nil {
+		s.FailNow(fmt.Sprintf("fail to open gorm connection: %v", err))
+	}
+	s.StoreSQLMocked = &sqlDatabase{
+		conn: gormConn,
+		cfg:  garmTesting.GetTestSqliteDBConfig(s.T()),
 	}
 
 	// setup test fixtures
@@ -133,6 +172,7 @@ func (s *OrgTestSuite) SetupTest() {
 			Image:          "test-update-image",
 			Flavor:         "test-update-flavor",
 		},
+		SQLMock: sqlMock,
 	}
 	s.Fixtures = fixtures
 }
@@ -179,6 +219,24 @@ func (s *OrgTestSuite) TestCreateOrganizationInvalidDBPassphrase() {
 	s.Require().Equal("failed to encrypt string", err.Error())
 }
 
+func (s *OrgTestSuite) TestCreateOrganizationDBCreateErr() {
+	s.Fixtures.SQLMock.ExpectBegin()
+	s.Fixtures.SQLMock.
+		ExpectExec(regexp.QuoteMeta("INSERT INTO `organizations`")).
+		WillReturnError(fmt.Errorf("creating org mock error"))
+	s.Fixtures.SQLMock.ExpectRollback()
+
+	_, err := s.StoreSQLMocked.CreateOrganization(
+		context.Background(),
+		s.Fixtures.CreateOrgParams.Name,
+		s.Fixtures.CreateOrgParams.CredentialsName,
+		s.Fixtures.CreateOrgParams.WebhookSecret)
+
+	s.assertSQLMockExpectations()
+	s.Require().NotNil(err)
+	s.Require().Equal("creating org: creating org mock error", err.Error())
+}
+
 func (s *OrgTestSuite) TestGetOrganization() {
 	org, err := s.Store.GetOrganization(context.Background(), s.Fixtures.Orgs[0].Name)
 
@@ -201,11 +259,36 @@ func (s *OrgTestSuite) TestGetOrganizationNotFound() {
 	s.Require().Equal("fetching org: not found", err.Error())
 }
 
+func (s *OrgTestSuite) TestGetOrganizationDBDecryptingErr() {
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE name = ? COLLATE NOCASE AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT 1")).
+		WithArgs(s.Fixtures.Orgs[0].Name).
+		WillReturnRows(sqlmock.NewRows([]string{"name"}).AddRow(s.Fixtures.Orgs[0].Name))
+
+	_, err := s.StoreSQLMocked.GetOrganization(context.Background(), s.Fixtures.Orgs[0].Name)
+
+	s.assertSQLMockExpectations()
+	s.Require().NotNil(err)
+	s.Require().Equal("decrypting secret: failed to decrypt text", err.Error())
+}
+
 func (s *OrgTestSuite) TestListOrganizations() {
 	orgs, err := s.Store.ListOrganizations(context.Background())
 
 	s.Require().Nil(err)
 	s.equalOrgsByName(s.Fixtures.Orgs, orgs)
+}
+
+func (s *OrgTestSuite) TestListOrganizationsDBFetchErr() {
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE `organizations`.`deleted_at` IS NULL")).
+		WillReturnError(fmt.Errorf("fetching user from database mock error"))
+
+	_, err := s.StoreSQLMocked.ListOrganizations(context.Background())
+
+	s.assertSQLMockExpectations()
+	s.Require().NotNil(err)
+	s.Require().Equal("fetching user from database: fetching user from database mock error", err.Error())
 }
 
 func (s *OrgTestSuite) TestDeleteOrganization() {
@@ -224,6 +307,25 @@ func (s *OrgTestSuite) TestDeleteOrganizationInvalidOrgID() {
 	s.Require().Equal("fetching org: parsing id: invalid request", err.Error())
 }
 
+func (s *OrgTestSuite) TestDeleteOrganizationDBDeleteErr() {
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT 1")).
+		WithArgs(s.Fixtures.Orgs[0].ID).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Orgs[0].ID))
+	s.Fixtures.SQLMock.ExpectBegin()
+	s.Fixtures.SQLMock.
+		ExpectExec(regexp.QuoteMeta("DELETE FROM `organizations`")).
+		WithArgs(s.Fixtures.Orgs[0].ID).
+		WillReturnError(fmt.Errorf("mocked delete org error"))
+	s.Fixtures.SQLMock.ExpectRollback()
+
+	err := s.StoreSQLMocked.DeleteOrganization(context.Background(), s.Fixtures.Orgs[0].ID)
+
+	s.assertSQLMockExpectations()
+	s.Require().NotNil(err)
+	s.Require().Equal("deleting org: mocked delete org error", err.Error())
+}
+
 func (s *OrgTestSuite) TestUpdateOrganization() {
 	org, err := s.Store.UpdateOrganization(context.Background(), s.Fixtures.Orgs[0].ID, s.Fixtures.UpdateRepoParams)
 
@@ -239,6 +341,60 @@ func (s *OrgTestSuite) TestUpdateOrganizationInvalidOrgID() {
 	s.Require().Equal("fetching org: parsing id: invalid request", err.Error())
 }
 
+func (s *OrgTestSuite) TestUpdateOrganizationDBEncryptErr() {
+	s.StoreSQLMocked.cfg.Passphrase = "wrong-passphrase"
+
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT 1")).
+		WithArgs(s.Fixtures.Orgs[0].ID).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Orgs[0].ID))
+
+	_, err := s.StoreSQLMocked.UpdateOrganization(context.Background(), s.Fixtures.Orgs[0].ID, s.Fixtures.UpdateRepoParams)
+
+	s.assertSQLMockExpectations()
+	s.Require().NotNil(err)
+	s.Require().Equal("failed to encrypt string", err.Error())
+}
+
+func (s *OrgTestSuite) TestUpdateOrganizationDBSaveErr() {
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT 1")).
+		WithArgs(s.Fixtures.Orgs[0].ID).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Orgs[0].ID))
+	s.Fixtures.SQLMock.ExpectBegin()
+	s.Fixtures.SQLMock.
+		ExpectExec(("UPDATE `organizations` SET")).
+		WillReturnError(fmt.Errorf("saving org mock error"))
+	s.Fixtures.SQLMock.ExpectRollback()
+
+	_, err := s.StoreSQLMocked.UpdateOrganization(context.Background(), s.Fixtures.Orgs[0].ID, s.Fixtures.UpdateRepoParams)
+
+	s.assertSQLMockExpectations()
+	s.Require().NotNil(err)
+	s.Require().Equal("saving org: saving org mock error", err.Error())
+}
+
+func (s *OrgTestSuite) TestUpdateOrganizationDBDecryptingErr() {
+	s.StoreSQLMocked.cfg.Passphrase = "wrong-passphrase"
+	s.Fixtures.UpdateRepoParams.WebhookSecret = ""
+
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT 1")).
+		WithArgs(s.Fixtures.Orgs[0].ID).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Orgs[0].ID))
+	s.Fixtures.SQLMock.ExpectBegin()
+	s.Fixtures.SQLMock.
+		ExpectExec(("UPDATE `organizations` SET")).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	s.Fixtures.SQLMock.ExpectCommit()
+
+	_, err := s.StoreSQLMocked.UpdateOrganization(context.Background(), s.Fixtures.Orgs[0].ID, s.Fixtures.UpdateRepoParams)
+
+	s.assertSQLMockExpectations()
+	s.Require().NotNil(err)
+	s.Require().Equal("decrypting secret: invalid passphrase length (expected length 32 characters)", err.Error())
+}
+
 func (s *OrgTestSuite) TestGetOrganizationByID() {
 	org, err := s.Store.GetOrganizationByID(context.Background(), s.Fixtures.Orgs[0].ID)
 
@@ -251,6 +407,23 @@ func (s *OrgTestSuite) TestGetOrganizationByIDInvalidOrgID() {
 
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching org: parsing id: invalid request", err.Error())
+}
+
+func (s *OrgTestSuite) TestGetOrganizationByIDDBDecryptingErr() {
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT 1")).
+		WithArgs(s.Fixtures.Orgs[0].ID).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Orgs[0].ID))
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE `pools`.`org_id` = ? AND `pools`.`deleted_at` IS NULL")).
+		WithArgs(s.Fixtures.Orgs[0].ID).
+		WillReturnRows(sqlmock.NewRows([]string{"org_id"}).AddRow(s.Fixtures.Orgs[0].ID))
+
+	_, err := s.StoreSQLMocked.GetOrganizationByID(context.Background(), s.Fixtures.Orgs[0].ID)
+
+	s.assertSQLMockExpectations()
+	s.Require().NotNil(err)
+	s.Require().Equal("decrypting secret: failed to decrypt text", err.Error())
 }
 
 func (s *OrgTestSuite) TestCreateOrganizationPool() {
@@ -283,6 +456,223 @@ func (s *OrgTestSuite) TestCreateOrganizationPoolInvalidOrgID() {
 
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching org: parsing id: invalid request", err.Error())
+}
+
+func (s *OrgTestSuite) TestCreateOrganizationPoolDBCreateErr() {
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT 1")).
+		WithArgs(s.Fixtures.Orgs[0].ID).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Orgs[0].ID))
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT 1")).
+		WithArgs(s.Fixtures.Orgs[0].ID).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Orgs[0].ID))
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE `pools`.`org_id` = ? AND (provider_name = ? and image = ? and flavor = ?) AND `pools`.`deleted_at` IS NULL")).
+		WillReturnError(fmt.Errorf("mocked creating pool error"))
+
+	_, err := s.StoreSQLMocked.CreateOrganizationPool(context.Background(), s.Fixtures.Orgs[0].ID, s.Fixtures.CreatePoolParams)
+
+	s.assertSQLMockExpectations()
+	s.Require().NotNil(err)
+	s.Require().Equal("creating pool: fetching pool: mocked creating pool error", err.Error())
+}
+
+func (s *OrgTestSuite) TestCreateOrganizationDBPoolAlreadyExistErr() {
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT 1")).
+		WithArgs(s.Fixtures.Orgs[0].ID).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Orgs[0].ID))
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT 1")).
+		WithArgs(s.Fixtures.Orgs[0].ID).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Orgs[0].ID))
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE `pools`.`org_id` = ? AND (provider_name = ? and image = ? and flavor = ?) AND `pools`.`deleted_at` IS NULL")).
+		WithArgs(
+			s.Fixtures.Orgs[0].ID,
+			s.Fixtures.CreatePoolParams.ProviderName,
+			s.Fixtures.CreatePoolParams.Image,
+			s.Fixtures.CreatePoolParams.Flavor).
+		WillReturnRows(sqlmock.NewRows([]string{"org_id", "provider_name", "image", "flavor"}).
+			AddRow(
+				s.Fixtures.Orgs[0].ID,
+				s.Fixtures.CreatePoolParams.ProviderName,
+				s.Fixtures.CreatePoolParams.Image,
+				s.Fixtures.CreatePoolParams.Flavor))
+
+	_, err := s.StoreSQLMocked.CreateOrganizationPool(context.Background(), s.Fixtures.Orgs[0].ID, s.Fixtures.CreatePoolParams)
+
+	s.assertSQLMockExpectations()
+	s.Require().NotNil(err)
+	s.Require().Equal(runnerErrors.NewConflictError("pool with the same image and flavor already exists on this provider"), err)
+}
+
+func (s *OrgTestSuite) TestCreateOrganizationPoolDBFetchTagErr() {
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT 1")).
+		WithArgs(s.Fixtures.Orgs[0].ID).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Orgs[0].ID))
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT 1")).
+		WithArgs(s.Fixtures.Orgs[0].ID).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Orgs[0].ID))
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE `pools`.`org_id` = ? AND (provider_name = ? and image = ? and flavor = ?) AND `pools`.`deleted_at` IS NULL")).
+		WithArgs(
+			s.Fixtures.Orgs[0].ID,
+			s.Fixtures.CreatePoolParams.ProviderName,
+			s.Fixtures.CreatePoolParams.Image,
+			s.Fixtures.CreatePoolParams.Flavor).
+		WillReturnRows(sqlmock.NewRows([]string{"org_id"}))
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `tags` WHERE name = ? AND `tags`.`deleted_at` IS NULL ORDER BY `tags`.`id` LIMIT 1")).
+		WillReturnError(fmt.Errorf("mocked fetching tag error"))
+
+	_, err := s.StoreSQLMocked.CreateOrganizationPool(context.Background(), s.Fixtures.Orgs[0].ID, s.Fixtures.CreatePoolParams)
+
+	s.assertSQLMockExpectations()
+	s.Require().NotNil(err)
+	s.Require().Equal("fetching tag: fetching tag from database: mocked fetching tag error", err.Error())
+}
+
+func (s *OrgTestSuite) TestCreateOrganizationPoolDBAddingPoolErr() {
+	s.Fixtures.CreatePoolParams.Tags = []string{"linux"}
+
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT 1")).
+		WithArgs(s.Fixtures.Orgs[0].ID).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Orgs[0].ID))
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT 1")).
+		WithArgs(s.Fixtures.Orgs[0].ID).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Orgs[0].ID))
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE `pools`.`org_id` = ? AND (provider_name = ? and image = ? and flavor = ?) AND `pools`.`deleted_at` IS NULL")).
+		WithArgs(
+			s.Fixtures.Orgs[0].ID,
+			s.Fixtures.CreatePoolParams.ProviderName,
+			s.Fixtures.CreatePoolParams.Image,
+			s.Fixtures.CreatePoolParams.Flavor).
+		WillReturnRows(sqlmock.NewRows([]string{"org_id"}))
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `tags` WHERE name = ? AND `tags`.`deleted_at` IS NULL ORDER BY `tags`.`id` LIMIT 1")).
+		WillReturnRows(sqlmock.NewRows([]string{"linux"}))
+	s.Fixtures.SQLMock.ExpectBegin()
+	s.Fixtures.SQLMock.
+		ExpectExec(regexp.QuoteMeta("INSERT INTO `tags`")).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	s.Fixtures.SQLMock.ExpectCommit()
+	s.Fixtures.SQLMock.ExpectBegin()
+	s.Fixtures.SQLMock.
+		ExpectExec(regexp.QuoteMeta("INSERT INTO `pools`")).
+		WillReturnError(fmt.Errorf("mocked adding pool error"))
+	s.Fixtures.SQLMock.ExpectRollback()
+
+	_, err := s.StoreSQLMocked.CreateOrganizationPool(context.Background(), s.Fixtures.Orgs[0].ID, s.Fixtures.CreatePoolParams)
+
+	s.assertSQLMockExpectations()
+	s.Require().NotNil(err)
+	s.Require().Equal("adding pool: mocked adding pool error", err.Error())
+}
+
+func (s *OrgTestSuite) TestCreateOrganizationPoolDBSaveTagErr() {
+	s.Fixtures.CreatePoolParams.Tags = []string{"linux"}
+
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT 1")).
+		WithArgs(s.Fixtures.Orgs[0].ID).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Orgs[0].ID))
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT 1")).
+		WithArgs(s.Fixtures.Orgs[0].ID).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Orgs[0].ID))
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE `pools`.`org_id` = ? AND (provider_name = ? and image = ? and flavor = ?) AND `pools`.`deleted_at` IS NULL")).
+		WithArgs(
+			s.Fixtures.Orgs[0].ID,
+			s.Fixtures.CreatePoolParams.ProviderName,
+			s.Fixtures.CreatePoolParams.Image,
+			s.Fixtures.CreatePoolParams.Flavor).
+		WillReturnRows(sqlmock.NewRows([]string{"org_id"}))
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `tags` WHERE name = ? AND `tags`.`deleted_at` IS NULL ORDER BY `tags`.`id` LIMIT 1")).
+		WillReturnRows(sqlmock.NewRows([]string{"linux"}))
+	s.Fixtures.SQLMock.ExpectBegin()
+	s.Fixtures.SQLMock.
+		ExpectExec(regexp.QuoteMeta("INSERT INTO `tags`")).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	s.Fixtures.SQLMock.ExpectCommit()
+	s.Fixtures.SQLMock.ExpectBegin()
+	s.Fixtures.SQLMock.
+		ExpectExec(regexp.QuoteMeta("INSERT INTO `pools`")).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	s.Fixtures.SQLMock.ExpectCommit()
+	s.Fixtures.SQLMock.ExpectBegin()
+	s.Fixtures.SQLMock.
+		ExpectExec(regexp.QuoteMeta("UPDATE `pools` SET")).
+		WillReturnError(fmt.Errorf("mocked saving tag error"))
+	s.Fixtures.SQLMock.ExpectRollback()
+
+	_, err := s.StoreSQLMocked.CreateOrganizationPool(context.Background(), s.Fixtures.Orgs[0].ID, s.Fixtures.CreatePoolParams)
+
+	s.assertSQLMockExpectations()
+	s.Require().NotNil(err)
+	s.Require().Equal("saving tag: mocked saving tag error", err.Error())
+}
+
+func (s *OrgTestSuite) TestCreateOrganizationPoolDBFetchPoolErr() {
+	s.Fixtures.CreatePoolParams.Tags = []string{"linux"}
+
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT 1")).
+		WithArgs(s.Fixtures.Orgs[0].ID).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Orgs[0].ID))
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT 1")).
+		WithArgs(s.Fixtures.Orgs[0].ID).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Orgs[0].ID))
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE `pools`.`org_id` = ? AND (provider_name = ? and image = ? and flavor = ?) AND `pools`.`deleted_at` IS NULL")).
+		WithArgs(
+			s.Fixtures.Orgs[0].ID,
+			s.Fixtures.CreatePoolParams.ProviderName,
+			s.Fixtures.CreatePoolParams.Image,
+			s.Fixtures.CreatePoolParams.Flavor).
+		WillReturnRows(sqlmock.NewRows([]string{"org_id"}))
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `tags` WHERE name = ? AND `tags`.`deleted_at` IS NULL ORDER BY `tags`.`id` LIMIT 1")).
+		WillReturnRows(sqlmock.NewRows([]string{"linux"}))
+	s.Fixtures.SQLMock.ExpectBegin()
+	s.Fixtures.SQLMock.
+		ExpectExec(regexp.QuoteMeta("INSERT INTO `tags`")).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	s.Fixtures.SQLMock.ExpectCommit()
+	s.Fixtures.SQLMock.ExpectBegin()
+	s.Fixtures.SQLMock.
+		ExpectExec(regexp.QuoteMeta("INSERT INTO `pools`")).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	s.Fixtures.SQLMock.ExpectCommit()
+	s.Fixtures.SQLMock.ExpectBegin()
+	s.Fixtures.SQLMock.
+		ExpectExec(regexp.QuoteMeta("UPDATE `pools` SET")).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	s.Fixtures.SQLMock.
+		ExpectExec(regexp.QuoteMeta("INSERT INTO `tags`")).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	s.Fixtures.SQLMock.
+		ExpectExec(regexp.QuoteMeta("INSERT INTO `pool_tags`")).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	s.Fixtures.SQLMock.ExpectCommit()
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE id = ? AND `pools`.`deleted_at` IS NULL ORDER BY `pools`.`id` LIMIT 1")).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}))
+
+	_, err := s.StoreSQLMocked.CreateOrganizationPool(context.Background(), s.Fixtures.Orgs[0].ID, s.Fixtures.CreatePoolParams)
+
+	s.assertSQLMockExpectations()
+	s.Require().NotNil(err)
+	s.Require().Equal("fetching pool: not found", err.Error())
 }
 
 func (s *OrgTestSuite) TestListOrgPools() {
@@ -346,6 +736,48 @@ func (s *OrgTestSuite) TestDeleteOrganizationPoolInvalidOrgID() {
 
 	s.Require().NotNil(err)
 	s.Require().Equal("looking up org pool: fetching org: parsing id: invalid request", err.Error())
+}
+
+func (s *OrgTestSuite) TestDeleteOrganizationPoolDBDeleteErr() {
+	pool, err := s.Store.CreateOrganizationPool(context.Background(), s.Fixtures.Orgs[0].ID, s.Fixtures.CreatePoolParams)
+	if err != nil {
+		s.FailNow(fmt.Sprintf("cannot create org pool: %v", err))
+	}
+
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT 1")).
+		WithArgs(s.Fixtures.Orgs[0].ID).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Orgs[0].ID))
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE `pools`.`org_id` = ? AND id = ? AND `pools`.`deleted_at` IS NULL")).
+		WithArgs(s.Fixtures.Orgs[0].ID, pool.ID).
+		WillReturnRows(sqlmock.NewRows([]string{"org_id", "id"}).AddRow(s.Fixtures.Orgs[0].ID, pool.ID))
+	s.Fixtures.SQLMock.ExpectBegin()
+	s.Fixtures.SQLMock.
+		ExpectExec(regexp.QuoteMeta("DELETE FROM `pools` WHERE `pools`.`id` = ?")).
+		WithArgs(pool.ID).
+		WillReturnError(fmt.Errorf("mocked deleting pool error"))
+	s.Fixtures.SQLMock.ExpectRollback()
+
+	err = s.StoreSQLMocked.DeleteOrganizationPool(context.Background(), s.Fixtures.Orgs[0].ID, pool.ID)
+
+	s.assertSQLMockExpectations()
+	s.Require().NotNil(err)
+	s.Require().Equal("deleting pool: mocked deleting pool error", err.Error())
+}
+
+func (s *OrgTestSuite) TestFindOrganizationPoolByTags() {
+	orgPool, err := s.Store.CreateOrganizationPool(context.Background(), s.Fixtures.Orgs[0].ID, s.Fixtures.CreatePoolParams)
+	if err != nil {
+		s.FailNow(fmt.Sprintf("cannot create org pool: %v", err))
+	}
+
+	pool, err := s.Store.FindOrganizationPoolByTags(context.Background(), s.Fixtures.Orgs[0].ID, s.Fixtures.CreatePoolParams.Tags)
+
+	s.Require().Nil(err)
+	s.Require().Equal(orgPool.ID, pool.ID)
+	s.Require().Equal(orgPool.Image, pool.Image)
+	s.Require().Equal(orgPool.Flavor, pool.Flavor)
 }
 
 func (s *OrgTestSuite) TestFindOrganizationPoolByTagsMissingTags() {
