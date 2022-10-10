@@ -117,7 +117,7 @@ func (s *sqlDatabase) UpdateOrganization(ctx context.Context, orgID string, para
 
 	q := s.conn.Save(&org)
 	if q.Error != nil {
-		return params.Organization{}, errors.Wrap(err, "saving org")
+		return params.Organization{}, errors.Wrap(q.Error, "saving org")
 	}
 
 	newParams := s.sqlToCommonOrganization(org)
@@ -188,7 +188,7 @@ func (s *sqlDatabase) CreateOrganizationPool(ctx context.Context, orgId string, 
 
 	q := s.conn.Create(&newPool)
 	if q.Error != nil {
-		return params.Pool{}, errors.Wrap(err, "adding pool")
+		return params.Pool{}, errors.Wrap(q.Error, "adding pool")
 	}
 
 	for _, tt := range tags {
