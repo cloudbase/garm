@@ -30,10 +30,12 @@ import (
 	"github.com/pkg/errors"
 )
 
-type DBBackendType string
-type ProviderType string
-type OSType string
-type OSArch string
+type (
+	DBBackendType string
+	ProviderType  string
+	OSType        string
+	OSArch        string
+)
 
 const (
 	// MySQLBackend represents the MySQL DB backend
@@ -65,15 +67,17 @@ const (
 	// considered to be defunct. If a runner does not join github in the alloted amount
 	// of time and no new updates have been made to it's state, it will be removed.
 	DefaultRunnerBootstrapTimeout = 20
-
-	GithubBaseURL = "https://github.com"
 )
 
 var (
+	GithubBaseURL = "https://github.com"
+	// IsGithubEnterprise is necessary as the github client has two separate constructors.
+	IsGithubEnterprise = false
+
 	// DefaultConfigDir is the default path on disk to the config dir. The config
 	// file will probably be in the same folder, but it is not mandatory.
 	DefaultConfigDir = "/etc/garm"
-	
+
 	// DefaultUserGroups are the groups the default user will be part of.
 	DefaultUserGroups = []string{
 		"sudo", "adm", "cdrom", "dialout",
@@ -107,6 +111,12 @@ func NewConfig(cfgFile string) (*Config, error) {
 	if err := config.Validate(); err != nil {
 		return nil, errors.Wrap(err, "validating config")
 	}
+
+	if config.Default.GithubEnterpriseURL != "" {
+		IsGithubEnterprise = true
+		GithubBaseURL = config.Default.GithubEnterpriseURL
+	}
+
 	return &config, nil
 }
 
@@ -168,6 +178,8 @@ type Default struct {
 	CallbackURL string `toml:"callback_url" json:"callback-url"`
 	// LogFile is the location of the log file.
 	LogFile string `toml:"log_file,omitempty" json:"log-file"`
+
+	GithubEnterpriseURL string `toml:"github_enterprise_url,omitempty" json:"github-enterprise-url"`
 }
 
 func (d *Default) Validate() error {

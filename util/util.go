@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"path"
 	"regexp"
@@ -136,7 +137,7 @@ func GetLoggingWriter(cfg *config.Config) (io.Writer, error) {
 			Filename:   cfg.Default.LogFile,
 			MaxSize:    500, // megabytes
 			MaxBackups: 3,
-			MaxAge:     28,   //days
+			MaxAge:     28,   // days
 			Compress:   true, // disabled by default
 		}
 	}
@@ -167,7 +168,17 @@ func GithubClient(ctx context.Context, token string) (common.GithubClient, error
 
 	tc := oauth2.NewClient(ctx, ts)
 
-	ghClient := github.NewClient(tc)
+	var ghClient *github.Client
+	var err error
+	if config.IsGithubEnterprise {
+		ghClient, err = github.NewEnterpriseClient(config.GithubBaseURL, config.GithubBaseURL, tc)
+		log.Printf("Using GitHub Enterprise at %s", config.GithubBaseURL)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		ghClient = github.NewClient(tc)
+	}
 
 	return ghClient.Actions, nil
 }
