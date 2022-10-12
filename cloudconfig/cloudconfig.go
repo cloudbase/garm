@@ -15,6 +15,7 @@
 package cloudconfig
 
 import (
+	"crypto/x509"
 	"encoding/base64"
 	"fmt"
 	"garm/config"
@@ -73,6 +74,29 @@ type CloudInit struct {
 	SystemInfo        *SystemInfo `yaml:"system_info,omitempty"`
 	RunCmd            []string    `yaml:"runcmd,omitempty"`
 	WriteFiles        []File      `yaml:"write_files,omitempty"`
+	CACerts           CACerts     `yaml:"ca-certs,omitempty"`
+}
+
+type CACerts struct {
+	RemoveDefaults bool     `yaml:"remove-defaults"`
+	Trusted        []string `yaml:"trusted"`
+}
+
+func (c *CloudInit) AddCACert(cert []byte) error {
+	c.mux.Lock()
+	defer c.mux.Unlock()
+
+	if cert == nil {
+		return nil
+	}
+
+	roots := x509.NewCertPool()
+	if ok := roots.AppendCertsFromPEM(cert); !ok {
+		return fmt.Errorf("failed to parse CA cert bundle")
+	}
+	c.CACerts.Trusted = append(c.CACerts.Trusted, string(cert))
+
+	return nil
 }
 
 func (c *CloudInit) AddSSHKey(keys ...string) {

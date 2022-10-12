@@ -58,7 +58,8 @@ type basePool struct {
 	quit      chan struct{}
 	done      chan struct{}
 
-	helper poolHelper
+	helper       poolHelper
+	credsDetails params.GithubCredentials
 
 	mux sync.Mutex
 }
@@ -454,6 +455,7 @@ func (r *basePool) addInstanceToProvider(instance params.Instance) error {
 		Image:                   pool.Image,
 		Labels:                  labels,
 		PoolID:                  instance.PoolID,
+		CACertBundle:            r.credsDetails.CABundle,
 	}
 
 	var instanceIDToDelete string

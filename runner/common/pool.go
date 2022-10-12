@@ -27,7 +27,9 @@ const (
 
 	PoolConsilitationInterval = 5 * time.Second
 	PoolReapTimeoutInterval   = 5 * time.Minute
-	PoolToolUpdateInterval    = 3 * time.Hour
+	// Temporary tools download token is valid for 1 hour by default.
+	// Set this to less than an hour so as not to run into 401 errors.
+	PoolToolUpdateInterval = 50 * time.Minute
 )
 
 type PoolManager interface {

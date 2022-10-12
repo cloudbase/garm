@@ -190,11 +190,24 @@ func (p *poolManagerCtrl) getInternalConfig(credsName string) (params.Internal, 
 		return params.Internal{}, runnerErrors.NewBadRequestError("invalid credential name (%s)", credsName)
 	}
 
+	caBundle, err := creds.CACertBundle()
+	if err != nil {
+		return params.Internal{}, fmt.Errorf("fetching CA bundle for creds: %w", err)
+	}
+
 	return params.Internal{
 		OAuth2Token:         creds.OAuth2Token,
 		ControllerID:        p.controllerID,
 		InstanceCallbackURL: p.config.Default.CallbackURL,
 		JWTSecret:           p.config.JWTAuth.Secret,
+		GithubCredentialsDetails: params.GithubCredentials{
+			Name:          creds.Name,
+			Description:   creds.Description,
+			BaseURL:       creds.BaseURL,
+			APIBaseURL:    creds.APIBaseURL,
+			UploadBaseURL: creds.UploadBaseURL,
+			CABundle:      caBundle,
+		},
 	}, nil
 }
 
@@ -219,8 +232,11 @@ func (r *Runner) ListCredentials(ctx context.Context) ([]params.GithubCredential
 
 	for _, val := range r.config.Github {
 		ret = append(ret, params.GithubCredentials{
-			Name:        val.Name,
-			Description: val.Description,
+			Name:          val.Name,
+			Description:   val.Description,
+			BaseURL:       val.BaseEndpoint(),
+			APIBaseURL:    val.APIEndpoint(),
+			UploadBaseURL: val.UploadEndpoint(),
 		})
 	}
 	return ret, nil

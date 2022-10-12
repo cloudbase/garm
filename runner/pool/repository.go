@@ -20,7 +20,6 @@ import (
 	"strings"
 	"sync"
 
-	"garm/config"
 	dbCommon "garm/database/common"
 	runnerErrors "garm/errors"
 	"garm/params"
@@ -35,7 +34,7 @@ import (
 var _ poolHelper = &repository{}
 
 func NewRepositoryPoolManager(ctx context.Context, cfg params.Repository, cfgInternal params.Internal, providers map[string]common.Provider, store dbCommon.Store) (common.PoolManager, error) {
-	ghc, err := util.GithubClient(ctx, cfgInternal.OAuth2Token)
+	ghc, err := util.GithubClient(ctx, cfgInternal.OAuth2Token, cfgInternal.GithubCredentialsDetails)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting github client")
 	}
@@ -57,6 +56,7 @@ func NewRepositoryPoolManager(ctx context.Context, cfg params.Repository, cfgInt
 		quit:         make(chan struct{}),
 		done:         make(chan struct{}),
 		helper:       helper,
+		credsDetails: cfgInternal.GithubCredentialsDetails,
 	}
 	return repo, nil
 }
@@ -91,7 +91,7 @@ func (r *repository) UpdateState(param params.UpdatePoolStateParams) error {
 
 	r.cfg.WebhookSecret = param.WebhookSecret
 
-	ghc, err := util.GithubClient(r.ctx, r.GetGithubToken())
+	ghc, err := util.GithubClient(r.ctx, r.GetGithubToken(), r.cfgInternal.GithubCredentialsDetails)
 	if err != nil {
 		return errors.Wrap(err, "getting github client")
 	}
@@ -140,7 +140,7 @@ func (r *repository) ListPools() ([]params.Pool, error) {
 }
 
 func (r *repository) GithubURL() string {
-	return fmt.Sprintf("%s/%s/%s", config.GithubBaseURL, r.cfg.Owner, r.cfg.Name)
+	return fmt.Sprintf("%s/%s/%s", r.cfgInternal.GithubCredentialsDetails.BaseURL, r.cfg.Owner, r.cfg.Name)
 }
 
 func (r *repository) JwtToken() string {

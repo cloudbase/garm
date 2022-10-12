@@ -98,6 +98,8 @@ type BootstrapInstance struct {
 	// provider supports it.
 	SSHKeys []string `json:"ssh-keys"`
 
+	CACertBundle []byte `json:"ca-cert-bundle"`
+
 	OSArch config.OSArch `json:"arch"`
 	Flavor string        `json:"flavor"`
 	Image  string        `json:"image"`
@@ -141,6 +143,9 @@ type Internal struct {
 	ControllerID        string `json:"controller_id"`
 	InstanceCallbackURL string `json:"instance_callback_url"`
 	JWTSecret           string `json:"jwt_secret"`
+	// GithubCredentialsDetails contains all info about the credentials, except the
+	// token, which is added above.
+	GithubCredentialsDetails GithubCredentials `json:"gh_creds_details"`
 }
 
 type Repository struct {
@@ -186,8 +191,12 @@ type ControllerInfo struct {
 }
 
 type GithubCredentials struct {
-	Name        string `json:"name,omitempty"`
-	Description string `json:"description,omitempty"`
+	Name          string `json:"name,omitempty"`
+	Description   string `json:"description,omitempty"`
+	BaseURL       string `json:"base_url"`
+	APIBaseURL    string `json:"api_base_url"`
+	UploadBaseURL string `json:"upload_base_url"`
+	CABundle      []byte `json:"ca_bundle,omitempty"`
 }
 
 type Provider struct {

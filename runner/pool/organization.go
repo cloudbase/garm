@@ -20,7 +20,6 @@ import (
 	"strings"
 	"sync"
 
-	"garm/config"
 	dbCommon "garm/database/common"
 	runnerErrors "garm/errors"
 	"garm/params"
@@ -35,7 +34,7 @@ import (
 var _ poolHelper = &organization{}
 
 func NewOrganizationPoolManager(ctx context.Context, cfg params.Organization, cfgInternal params.Internal, providers map[string]common.Provider, store dbCommon.Store) (common.PoolManager, error) {
-	ghc, err := util.GithubClient(ctx, cfgInternal.OAuth2Token)
+	ghc, err := util.GithubClient(ctx, cfgInternal.OAuth2Token, cfgInternal.GithubCredentialsDetails)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting github client")
 	}
@@ -57,6 +56,7 @@ func NewOrganizationPoolManager(ctx context.Context, cfg params.Organization, cf
 		quit:         make(chan struct{}),
 		done:         make(chan struct{}),
 		helper:       helper,
+		credsDetails: cfgInternal.GithubCredentialsDetails,
 	}
 	return repo, nil
 }
@@ -89,7 +89,7 @@ func (r *organization) UpdateState(param params.UpdatePoolStateParams) error {
 
 	r.cfg.WebhookSecret = param.WebhookSecret
 
-	ghc, err := util.GithubClient(r.ctx, r.GetGithubToken())
+	ghc, err := util.GithubClient(r.ctx, r.GetGithubToken(), r.cfgInternal.GithubCredentialsDetails)
 	if err != nil {
 		return errors.Wrap(err, "getting github client")
 	}
@@ -138,7 +138,7 @@ func (r *organization) ListPools() ([]params.Pool, error) {
 }
 
 func (r *organization) GithubURL() string {
-	return fmt.Sprintf("%s/%s", config.GithubBaseURL, r.cfg.Name)
+	return fmt.Sprintf("%s/%s", r.cfgInternal.GithubCredentialsDetails.BaseURL, r.cfg.Name)
 }
 
 func (r *organization) JwtToken() string {

@@ -19,10 +19,13 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path"
 	"regexp"
@@ -160,14 +163,33 @@ func OSToOSType(os string) (config.OSType, error) {
 	return osType, nil
 }
 
-func GithubClient(ctx context.Context, token string) (common.GithubClient, error) {
+func GithubClient(ctx context.Context, token string, credsDetails params.GithubCredentials) (common.GithubClient, error) {
+	var roots *x509.CertPool
+	if credsDetails.CABundle != nil && len(credsDetails.CABundle) > 0 {
+		roots = x509.NewCertPool()
+		ok := roots.AppendCertsFromPEM(credsDetails.CABundle)
+		if !ok {
+			return nil, fmt.Errorf("failed to parse CA cert")
+		}
+	}
+	httpTransport := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			ClientCAs: roots,
+		},
+	}
+	httpClient := &http.Client{Transport: httpTransport}
+	ctx = context.WithValue(ctx, oauth2.HTTPClient, httpClient)
+
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: token},
 	)
-
 	tc := oauth2.NewClient(ctx, ts)
 
-	ghClient := github.NewClient(tc)
+	// ghClient := github.NewClient(tc)
+	ghClient, err := github.NewEnterpriseClient(credsDetails.APIBaseURL, credsDetails.UploadBaseURL, tc)
+	if err != nil {
+		return nil, errors.Wrap(err, "fetching github client")
+	}
 
 	return ghClient.Actions, nil
 }
@@ -176,16 +198,17 @@ func GetCloudConfig(bootstrapParams params.BootstrapInstance, tools github.Runne
 	cloudCfg := cloudconfig.NewDefaultCloudInitConfig()
 
 	installRunnerParams := cloudconfig.InstallRunnerParams{
-		FileName:       *tools.Filename,
-		DownloadURL:    *tools.DownloadURL,
-		GithubToken:    bootstrapParams.GithubRunnerAccessToken,
-		RunnerUsername: config.DefaultUser,
-		RunnerGroup:    config.DefaultUser,
-		RepoURL:        bootstrapParams.RepoURL,
-		RunnerName:     runnerName,
-		RunnerLabels:   strings.Join(bootstrapParams.Labels, ","),
-		CallbackURL:    bootstrapParams.CallbackURL,
-		CallbackToken:  bootstrapParams.InstanceToken,
+		FileName:          *tools.Filename,
+		DownloadURL:       *tools.DownloadURL,
+		TempDownloadToken: *tools.TempDownloadToken,
+		GithubToken:       bootstrapParams.GithubRunnerAccessToken,
+		RunnerUsername:    config.DefaultUser,
+		RunnerGroup:       config.DefaultUser,
+		RepoURL:           bootstrapParams.RepoURL,
+		RunnerName:        runnerName,
+		RunnerLabels:      strings.Join(bootstrapParams.Labels, ","),
+		CallbackURL:       bootstrapParams.CallbackURL,
+		CallbackToken:     bootstrapParams.InstanceToken,
 	}
 
 	installScript, err := cloudconfig.InstallRunnerScript(installRunnerParams)
@@ -197,6 +220,12 @@ func GetCloudConfig(bootstrapParams params.BootstrapInstance, tools github.Runne
 	cloudCfg.AddFile(installScript, "/install_runner.sh", "root:root", "755")
 	cloudCfg.AddRunCmd("/install_runner.sh")
 	cloudCfg.AddRunCmd("rm -f /install_runner.sh")
+
+	if bootstrapParams.CACertBundle != nil && len(bootstrapParams.CACertBundle) > 0 {
+		if err := cloudCfg.AddCACert(bootstrapParams.CACertBundle); err != nil {
+			return "", errors.Wrap(err, "adding CA cert bundle")
+		}
+	}
 
 	asStr, err := cloudCfg.Serialize()
 	if err != nil {

@@ -63,10 +63,10 @@ func init() {
 
 func formatGithubCredentials(creds []params.GithubCredentials) {
 	t := table.NewWriter()
-	header := table.Row{"Name", "Description"}
+	header := table.Row{"Name", "Description", "Base URL", "API URL", "Upload URL"}
 	t.AppendHeader(header)
 	for _, val := range creds {
-		t.AppendRow(table.Row{val.Name, val.Description})
+		t.AppendRow(table.Row{val.Name, val.Description, val.BaseURL, val.APIBaseURL, val.UploadBaseURL})
 		t.AppendSeparator()
 	}
 	fmt.Println(t.Render())

@@ -52,7 +52,16 @@ function fail() {
 }
 
 sendStatus "downloading tools from {{ .DownloadURL }}"
-curl -L -o "/home/runner/{{ .FileName }}" "{{ .DownloadURL }}" || fail "failed to download tools"
+
+TEMP_TOKEN=""
+
+
+
+if [ ! -z "{{ .TempDownloadToken }}" ]; then
+	TEMP_TOKEN="Authorization: Bearer {{ .TempDownloadToken }}"
+fi
+
+curl -L -H "${TEMP_TOKEN}" -o "/home/runner/{{ .FileName }}" "{{ .DownloadURL }}" || fail "failed to download tools"
 
 mkdir -p /home/runner/actions-runner || fail "failed to create actions-runner folder"
 
@@ -84,16 +93,17 @@ success "runner successfully installed" $AGENT_ID
 `
 
 type InstallRunnerParams struct {
-	FileName       string
-	DownloadURL    string
-	RunnerUsername string
-	RunnerGroup    string
-	RepoURL        string
-	GithubToken    string
-	RunnerName     string
-	RunnerLabels   string
-	CallbackURL    string
-	CallbackToken  string
+	FileName          string
+	DownloadURL       string
+	RunnerUsername    string
+	RunnerGroup       string
+	RepoURL           string
+	GithubToken       string
+	RunnerName        string
+	RunnerLabels      string
+	CallbackURL       string
+	CallbackToken     string
+	TempDownloadToken string
 }
 
 func InstallRunnerScript(params InstallRunnerParams) ([]byte, error) {
