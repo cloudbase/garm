@@ -1,0 +1,133 @@
+// Copyright 2022 Cloudbase Solutions SRL
+//
+//    Licensed under the Apache License, Version 2.0 (the "License"); you may
+//    not use this file except in compliance with the License. You may obtain
+//    a copy of the License at
+//
+//         http://www.apache.org/licenses/LICENSE-2.0
+//
+//    Unless required by applicable law or agreed to in writing, software
+//    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+//    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+//    License for the specific language governing permissions and limitations
+//    under the License.
+
+package sql
+
+import (
+	"context"
+	"fmt"
+	dbCommon "garm/database/common"
+	garmTesting "garm/internal/testing"
+	"garm/params"
+	"sort"
+	"testing"
+
+	"github.com/stretchr/testify/suite"
+)
+
+type PoolsTestFixtures struct {
+	Org   params.Organization
+	Pools []params.Pool
+}
+
+type PoolsTestSuite struct {
+	suite.Suite
+	Store    dbCommon.Store
+	Fixtures *PoolsTestFixtures
+}
+
+func (s *PoolsTestSuite) equalPoolsByID(expected, actual []params.Pool) {
+	s.Require().Equal(len(expected), len(actual))
+
+	sort.Slice(expected, func(i, j int) bool { return expected[i].ID > expected[j].ID })
+	sort.Slice(actual, func(i, j int) bool { return actual[i].ID > actual[j].ID })
+
+	for i := 0; i < len(expected); i++ {
+		s.Require().Equal(expected[i].ID, actual[i].ID)
+	}
+}
+
+func (s *PoolsTestSuite) SetupTest() {
+	// create testing sqlite database
+	db, err := NewSQLDatabase(context.Background(), garmTesting.GetTestSqliteDBConfig(s.T()))
+	if err != nil {
+		s.FailNow(fmt.Sprintf("failed to create db connection: %s", err))
+	}
+	s.Store = db
+
+	// create an organization for testing purposes
+	org, err := s.Store.CreateOrganization(context.Background(), "test-org", "test-creds", "test-webhookSecret")
+	if err != nil {
+		s.FailNow(fmt.Sprintf("failed to create org: %s", err))
+	}
+
+	// create some pool objects in the database, for testing purposes
+	orgPools := []params.Pool{}
+	for i := 1; i <= 3; i++ {
+		pool, err := db.CreateOrganizationPool(
+			context.Background(),
+			org.ID,
+			params.CreatePoolParams{
+				ProviderName:   "test-provider",
+				MaxRunners:     4,
+				MinIdleRunners: 2,
+				Image:          fmt.Sprintf("test-image-%d", i),
+				Flavor:         "test-flavor",
+				OSType:         "linux",
+				Tags:           []string{"self-hosted", "amd64", "linux"},
+			},
+		)
+		if err != nil {
+			s.FailNow(fmt.Sprintf("cannot create org pool: %v", err))
+		}
+		orgPools = append(orgPools, pool)
+	}
+
+	// setup test fixtures
+	fixtures := &PoolsTestFixtures{
+		Org:   org,
+		Pools: orgPools,
+	}
+	s.Fixtures = fixtures
+}
+
+func (s *PoolsTestSuite) TestListAllPools() {
+	pools, err := s.Store.ListAllPools(context.Background())
+
+	s.Require().Nil(err)
+	s.equalPoolsByID(s.Fixtures.Pools, pools)
+}
+
+func (s *PoolsTestSuite) TestGetPoolByID() {
+	pool, err := s.Store.GetPoolByID(context.Background(), s.Fixtures.Pools[0].ID)
+
+	s.Require().Nil(err)
+	s.Require().Equal(s.Fixtures.Pools[0].ID, pool.ID)
+}
+
+func (s *PoolsTestSuite) TestGetPoolByIDInvalidPoolID() {
+	_, err := s.Store.GetPoolByID(context.Background(), "dummy-pool-id")
+
+	s.Require().NotNil(err)
+	s.Require().Equal("fetching pool by ID: parsing id: invalid request", err.Error())
+}
+
+func (s *PoolsTestSuite) TestDeletePoolByID() {
+	err := s.Store.DeletePoolByID(context.Background(), s.Fixtures.Pools[0].ID)
+
+	s.Require().Nil(err)
+	_, err = s.Store.GetPoolByID(context.Background(), s.Fixtures.Pools[0].ID)
+	s.Require().Equal("fetching pool by ID: not found", err.Error())
+}
+
+func (s *PoolsTestSuite) TestDeletePoolByIDInvalidPoolID() {
+	err := s.Store.DeletePoolByID(context.Background(), "dummy-pool-id")
+
+	s.Require().NotNil(err)
+	s.Require().Equal("fetching pool by ID: parsing id: invalid request", err.Error())
+}
+
+func TestPoolsTestSuite(t *testing.T) {
+	suite.Run(t, new(PoolsTestSuite))
+}
