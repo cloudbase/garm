@@ -19,7 +19,7 @@ import (
 	"garm/runner/providers/common"
 	"time"
 
-	"github.com/google/go-github/v43/github"
+	"github.com/google/go-github/v47/github"
 	uuid "github.com/satori/go.uuid"
 )
 
@@ -159,6 +159,15 @@ type Repository struct {
 }
 
 type Organization struct {
+	ID              string `json:"id"`
+	Name            string `json:"name"`
+	Pools           []Pool `json:"pool,omitempty"`
+	CredentialsName string `json:"credentials_name"`
+	// Do not serialize sensitive info.
+	WebhookSecret string `json:"-"`
+}
+
+type Enterprise struct {
 	ID              string `json:"id"`
 	Name            string `json:"name"`
 	Pools           []Pool `json:"pool,omitempty"`

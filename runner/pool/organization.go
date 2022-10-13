@@ -17,6 +17,7 @@ package pool
 import (
 	"context"
 	"fmt"
+	"math"
 	"strings"
 	"sync"
 
@@ -26,7 +27,7 @@ import (
 	"garm/runner/common"
 	"garm/util"
 
-	"github.com/google/go-github/v43/github"
+	"github.com/google/go-github/v47/github"
 	"github.com/pkg/errors"
 )
 
@@ -34,7 +35,7 @@ import (
 var _ poolHelper = &organization{}
 
 func NewOrganizationPoolManager(ctx context.Context, cfg params.Organization, cfgInternal params.Internal, providers map[string]common.Provider, store dbCommon.Store) (common.PoolManager, error) {
-	ghc, err := util.GithubClient(ctx, cfgInternal.OAuth2Token, cfgInternal.GithubCredentialsDetails)
+	ghc, _, err := util.GithubClient(ctx, cfgInternal.OAuth2Token, cfgInternal.GithubCredentialsDetails)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting github client")
 	}
@@ -89,7 +90,7 @@ func (r *organization) UpdateState(param params.UpdatePoolStateParams) error {
 
 	r.cfg.WebhookSecret = param.WebhookSecret
 
-	ghc, err := util.GithubClient(r.ctx, r.GetGithubToken(), r.cfgInternal.GithubCredentialsDetails)
+	ghc, _, err := util.GithubClient(r.ctx, r.GetGithubToken(), r.cfgInternal.GithubCredentialsDetails)
 	if err != nil {
 		return errors.Wrap(err, "getting github client")
 	}
@@ -102,12 +103,30 @@ func (r *organization) GetGithubToken() string {
 }
 
 func (r *organization) GetGithubRunners() ([]*github.Runner, error) {
-	runners, _, err := r.ghcli.ListOrganizationRunners(r.ctx, r.cfg.Name, nil)
+	opts := github.ListOptions{
+		PerPage: 100,
+		Page:    1,
+	}
+	runners, _, err := r.ghcli.ListOrganizationRunners(r.ctx, r.cfg.Name, &opts)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching runners")
 	}
 
-	return runners.Runners, nil
+	ret := []*github.Runner{}
+	ret = append(ret, runners.Runners...)
+	pages := math.Ceil(float64(runners.TotalCount) / float64(100))
+	if pages > 1 {
+		for i := 2; i <= int(pages); i++ {
+			opts.Page = i
+			runners, _, err = r.ghcli.ListOrganizationRunners(r.ctx, r.cfg.Name, &opts)
+			if err != nil {
+				return nil, errors.Wrap(err, "fetching runners")
+			}
+			ret = append(ret, runners.Runners...)
+		}
+	}
+
+	return ret, nil
 }
 
 func (r *organization) FetchTools() ([]*github.RunnerApplicationDownload, error) {

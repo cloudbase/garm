@@ -18,6 +18,29 @@ type PoolManagerController struct {
 	mock.Mock
 }
 
+// CreateEnterprisePoolManager provides a mock function with given fields: ctx, enterprise, providers, store
+func (_m *PoolManagerController) CreateEnterprisePoolManager(ctx context.Context, enterprise params.Enterprise, providers map[string]common.Provider, store databasecommon.Store) (common.PoolManager, error) {
+	ret := _m.Called(ctx, enterprise, providers, store)
+
+	var r0 common.PoolManager
+	if rf, ok := ret.Get(0).(func(context.Context, params.Enterprise, map[string]common.Provider, databasecommon.Store) common.PoolManager); ok {
+		r0 = rf(ctx, enterprise, providers, store)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(common.PoolManager)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, params.Enterprise, map[string]common.Provider, databasecommon.Store) error); ok {
+		r1 = rf(ctx, enterprise, providers, store)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // CreateOrgPoolManager provides a mock function with given fields: ctx, org, providers, store
 func (_m *PoolManagerController) CreateOrgPoolManager(ctx context.Context, org params.Organization, providers map[string]common.Provider, store databasecommon.Store) (common.PoolManager, error) {
 	ret := _m.Called(ctx, org, providers, store)
@@ -64,6 +87,20 @@ func (_m *PoolManagerController) CreateRepoPoolManager(ctx context.Context, repo
 	return r0, r1
 }
 
+// DeleteEnterprisePoolManager provides a mock function with given fields: enterprise
+func (_m *PoolManagerController) DeleteEnterprisePoolManager(enterprise params.Enterprise) error {
+	ret := _m.Called(enterprise)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(params.Enterprise) error); ok {
+		r0 = rf(enterprise)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // DeleteOrgPoolManager provides a mock function with given fields: org
 func (_m *PoolManagerController) DeleteOrgPoolManager(org params.Organization) error {
 	ret := _m.Called(org)
@@ -90,6 +127,52 @@ func (_m *PoolManagerController) DeleteRepoPoolManager(repo params.Repository) e
 	}
 
 	return r0
+}
+
+// GetEnterprisePoolManager provides a mock function with given fields: enterprise
+func (_m *PoolManagerController) GetEnterprisePoolManager(enterprise params.Enterprise) (common.PoolManager, error) {
+	ret := _m.Called(enterprise)
+
+	var r0 common.PoolManager
+	if rf, ok := ret.Get(0).(func(params.Enterprise) common.PoolManager); ok {
+		r0 = rf(enterprise)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(common.PoolManager)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(params.Enterprise) error); ok {
+		r1 = rf(enterprise)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetEnterprisePoolManagers provides a mock function with given fields:
+func (_m *PoolManagerController) GetEnterprisePoolManagers() (map[string]common.PoolManager, error) {
+	ret := _m.Called()
+
+	var r0 map[string]common.PoolManager
+	if rf, ok := ret.Get(0).(func() map[string]common.PoolManager); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[string]common.PoolManager)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // GetOrgPoolManager provides a mock function with given fields: org

@@ -6,7 +6,7 @@ require (
 	github.com/BurntSushi/toml v0.4.1
 	github.com/go-resty/resty/v2 v2.7.0
 	github.com/golang-jwt/jwt v3.2.2+incompatible
-	github.com/google/go-github/v43 v43.0.0
+	github.com/google/go-github/v47 v47.1.0
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0
@@ -71,3 +71,5 @@ require (
 	gopkg.in/macaroon-bakery.v2 v2.3.0 // indirect
 	gopkg.in/macaroon.v2 v2.1.0 // indirect
 )
+
+replace github.com/google/go-github/v47 => github.com/gabriel-samfira/go-github/v47 v47.1.1-0.20221013145953-21e3b4d7b0c1

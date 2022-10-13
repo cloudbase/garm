@@ -23,9 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"hash"
-	"io/ioutil"
 	"log"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -43,7 +41,6 @@ import (
 	"garm/util"
 
 	"github.com/pkg/errors"
-	"golang.org/x/crypto/ssh"
 )
 
 func NewRunner(ctx context.Context, cfg config.Config) (*Runner, error) {
@@ -100,6 +97,7 @@ type poolManagerCtrl struct {
 
 	repositories  map[string]common.PoolManager
 	organizations map[string]common.PoolManager
+	enterprises   map[string]common.PoolManager
 }
 
 func (p *poolManagerCtrl) CreateRepoPoolManager(ctx context.Context, repo params.Repository, providers map[string]common.Provider, store dbCommon.Store) (common.PoolManager, error) {
@@ -182,6 +180,47 @@ func (p *poolManagerCtrl) DeleteOrgPoolManager(org params.Organization) error {
 
 func (p *poolManagerCtrl) GetOrgPoolManagers() (map[string]common.PoolManager, error) {
 	return p.organizations, nil
+}
+
+func (p *poolManagerCtrl) CreateEnterprisePoolManager(ctx context.Context, enterprise params.Enterprise, providers map[string]common.Provider, store dbCommon.Store) (common.PoolManager, error) {
+	p.mux.Lock()
+	defer p.mux.Unlock()
+
+	cfgInternal, err := p.getInternalConfig(enterprise.CredentialsName)
+	if err != nil {
+		return nil, errors.Wrap(err, "fetching internal config")
+	}
+	poolManager, err := pool.NewEnterprisePoolManager(ctx, enterprise, cfgInternal, providers, store)
+	if err != nil {
+		return nil, errors.Wrap(err, "creating enterprise pool manager")
+	}
+	p.enterprises[enterprise.ID] = poolManager
+	return poolManager, nil
+}
+
+func (p *poolManagerCtrl) GetEnterprisePoolManager(enterprise params.Enterprise) (common.PoolManager, error) {
+	if enterprisePoolMgr, ok := p.enterprises[enterprise.ID]; ok {
+		return enterprisePoolMgr, nil
+	}
+	return nil, errors.Wrapf(runnerErrors.ErrNotFound, "enterprise %s pool manager not loaded", enterprise.Name)
+}
+
+func (p *poolManagerCtrl) DeleteEnterprisePoolManager(enterprise params.Enterprise) error {
+	p.mux.Lock()
+	defer p.mux.Unlock()
+
+	poolMgr, ok := p.enterprises[enterprise.ID]
+	if ok {
+		if err := poolMgr.Stop(); err != nil {
+			return errors.Wrap(err, "stopping enterprise pool manager")
+		}
+		delete(p.enterprises, enterprise.ID)
+	}
+	return nil
+}
+
+func (p *poolManagerCtrl) GetEnterprisePoolManagers() (map[string]common.PoolManager, error) {
+	return p.enterprises, nil
 }
 
 func (p *poolManagerCtrl) getInternalConfig(credsName string) (params.Internal, error) {
@@ -472,6 +511,8 @@ func (r *Runner) DispatchWorkflowJob(hookTargetType, signature string, jobData [
 		poolManager, err = r.findRepoPoolManager(job.Repository.Owner.Login, job.Repository.Name)
 	case OrganizationHook:
 		poolManager, err = r.findOrgPoolManager(job.Organization.Login)
+	case EnterpriseHook:
+		poolManager, err = r.findEnterprisePoolManager(job.Enterprise.Slug)
 	default:
 		return runnerErrors.NewBadRequestError("cannot handle hook target type %s", hookTargetType)
 	}
@@ -494,45 +535,6 @@ func (r *Runner) DispatchWorkflowJob(hookTargetType, signature string, jobData [
 	}
 
 	return nil
-}
-
-func (r *Runner) sshDir() string {
-	return filepath.Join(r.config.Default.ConfigDir, "ssh")
-}
-
-func (r *Runner) sshKeyPath() string {
-	keyPath := filepath.Join(r.sshDir(), "runner_rsa_key")
-	return keyPath
-}
-
-func (r *Runner) sshPubKeyPath() string {
-	keyPath := filepath.Join(r.sshDir(), "runner_rsa_key.pub")
-	return keyPath
-}
-
-func (r *Runner) parseSSHKey() (ssh.Signer, error) {
-	r.mux.Lock()
-	defer r.mux.Unlock()
-
-	key, err := ioutil.ReadFile(r.sshKeyPath())
-	if err != nil {
-		return nil, errors.Wrapf(err, "reading private key %s", r.sshKeyPath())
-	}
-
-	signer, err := ssh.ParsePrivateKey(key)
-	if err != nil {
-		return nil, errors.Wrapf(err, "parsing private key %s", r.sshKeyPath())
-	}
-
-	return signer, nil
-}
-
-func (r *Runner) sshPubKey() ([]byte, error) {
-	key, err := ioutil.ReadFile(r.sshPubKeyPath())
-	if err != nil {
-		return nil, errors.Wrapf(err, "reading public key %s", r.sshPubKeyPath())
-	}
-	return key, nil
 }
 
 func (r *Runner) appendTagsToCreatePoolParams(param params.CreatePoolParams) (params.CreatePoolParams, error) {

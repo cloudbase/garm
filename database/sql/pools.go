@@ -42,7 +42,7 @@ func (s *sqlDatabase) ListAllPools(ctx context.Context) ([]params.Pool, error) {
 }
 
 func (s *sqlDatabase) GetPoolByID(ctx context.Context, poolID string) (params.Pool, error) {
-	pool, err := s.getPoolByID(ctx, poolID, "Tags", "Instances", "Organization", "Repository")
+	pool, err := s.getPoolByID(ctx, poolID, "Tags", "Instances", "Enterprise", "Organization", "Repository")
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool by ID")
 	}

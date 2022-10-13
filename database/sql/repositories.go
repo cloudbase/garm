@@ -205,7 +205,7 @@ func (s *sqlDatabase) CreateRepositoryPool(ctx context.Context, repoId string, p
 		}
 	}
 
-	pool, err := s.getPoolByID(ctx, newPool.ID.String(), "Tags", "Instances", "Organization", "Repository")
+	pool, err := s.getPoolByID(ctx, newPool.ID.String(), "Tags", "Instances", "Enterprise", "Organization", "Repository")
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}
@@ -271,7 +271,7 @@ func (s *sqlDatabase) ListRepoInstances(ctx context.Context, repoID string) ([]p
 }
 
 func (s *sqlDatabase) UpdateRepositoryPool(ctx context.Context, repoID, poolID string, param params.UpdatePoolParams) (params.Pool, error) {
-	pool, err := s.getRepoPool(ctx, repoID, poolID, "Tags", "Instances", "Organization", "Repository")
+	pool, err := s.getRepoPool(ctx, repoID, poolID, "Tags", "Instances", "Enterprise", "Organization", "Repository")
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}

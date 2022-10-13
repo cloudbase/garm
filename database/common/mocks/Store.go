@@ -49,6 +49,48 @@ func (_m *Store) ControllerInfo() (params.ControllerInfo, error) {
 	return r0, r1
 }
 
+// CreateEnterprise provides a mock function with given fields: ctx, name, credentialsName, webhookSecret
+func (_m *Store) CreateEnterprise(ctx context.Context, name string, credentialsName string, webhookSecret string) (params.Enterprise, error) {
+	ret := _m.Called(ctx, name, credentialsName, webhookSecret)
+
+	var r0 params.Enterprise
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) params.Enterprise); ok {
+		r0 = rf(ctx, name, credentialsName, webhookSecret)
+	} else {
+		r0 = ret.Get(0).(params.Enterprise)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, string) error); ok {
+		r1 = rf(ctx, name, credentialsName, webhookSecret)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// CreateEnterprisePool provides a mock function with given fields: ctx, enterpriseID, param
+func (_m *Store) CreateEnterprisePool(ctx context.Context, enterpriseID string, param params.CreatePoolParams) (params.Pool, error) {
+	ret := _m.Called(ctx, enterpriseID, param)
+
+	var r0 params.Pool
+	if rf, ok := ret.Get(0).(func(context.Context, string, params.CreatePoolParams) params.Pool); ok {
+		r0 = rf(ctx, enterpriseID, param)
+	} else {
+		r0 = ret.Get(0).(params.Pool)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string, params.CreatePoolParams) error); ok {
+		r1 = rf(ctx, enterpriseID, param)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // CreateInstance provides a mock function with given fields: ctx, poolID, param
 func (_m *Store) CreateInstance(ctx context.Context, poolID string, param params.CreateInstanceParams) (params.Instance, error) {
 	ret := _m.Called(ctx, poolID, param)
@@ -175,6 +217,34 @@ func (_m *Store) CreateUser(ctx context.Context, user params.NewUserParams) (par
 	return r0, r1
 }
 
+// DeleteEnterprise provides a mock function with given fields: ctx, enterpriseID
+func (_m *Store) DeleteEnterprise(ctx context.Context, enterpriseID string) error {
+	ret := _m.Called(ctx, enterpriseID)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = rf(ctx, enterpriseID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// DeleteEnterprisePool provides a mock function with given fields: ctx, enterpriseID, poolID
+func (_m *Store) DeleteEnterprisePool(ctx context.Context, enterpriseID string, poolID string) error {
+	ret := _m.Called(ctx, enterpriseID, poolID)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
+		r0 = rf(ctx, enterpriseID, poolID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // DeleteInstance provides a mock function with given fields: ctx, poolID, instanceName
 func (_m *Store) DeleteInstance(ctx context.Context, poolID string, instanceName string) error {
 	ret := _m.Called(ctx, poolID, instanceName)
@@ -259,6 +329,27 @@ func (_m *Store) DeleteRepositoryPool(ctx context.Context, repoID string, poolID
 	return r0
 }
 
+// FindEnterprisePoolByTags provides a mock function with given fields: ctx, enterpriseID, tags
+func (_m *Store) FindEnterprisePoolByTags(ctx context.Context, enterpriseID string, tags []string) (params.Pool, error) {
+	ret := _m.Called(ctx, enterpriseID, tags)
+
+	var r0 params.Pool
+	if rf, ok := ret.Get(0).(func(context.Context, string, []string) params.Pool); ok {
+		r0 = rf(ctx, enterpriseID, tags)
+	} else {
+		r0 = ret.Get(0).(params.Pool)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string, []string) error); ok {
+		r1 = rf(ctx, enterpriseID, tags)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // FindOrganizationPoolByTags provides a mock function with given fields: ctx, orgID, tags
 func (_m *Store) FindOrganizationPoolByTags(ctx context.Context, orgID string, tags []string) (params.Pool, error) {
 	ret := _m.Called(ctx, orgID, tags)
@@ -294,6 +385,69 @@ func (_m *Store) FindRepositoryPoolByTags(ctx context.Context, repoID string, ta
 	var r1 error
 	if rf, ok := ret.Get(1).(func(context.Context, string, []string) error); ok {
 		r1 = rf(ctx, repoID, tags)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetEnterprise provides a mock function with given fields: ctx, name
+func (_m *Store) GetEnterprise(ctx context.Context, name string) (params.Enterprise, error) {
+	ret := _m.Called(ctx, name)
+
+	var r0 params.Enterprise
+	if rf, ok := ret.Get(0).(func(context.Context, string) params.Enterprise); ok {
+		r0 = rf(ctx, name)
+	} else {
+		r0 = ret.Get(0).(params.Enterprise)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, name)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetEnterpriseByID provides a mock function with given fields: ctx, enterpriseID
+func (_m *Store) GetEnterpriseByID(ctx context.Context, enterpriseID string) (params.Enterprise, error) {
+	ret := _m.Called(ctx, enterpriseID)
+
+	var r0 params.Enterprise
+	if rf, ok := ret.Get(0).(func(context.Context, string) params.Enterprise); ok {
+		r0 = rf(ctx, enterpriseID)
+	} else {
+		r0 = ret.Get(0).(params.Enterprise)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, enterpriseID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetEnterprisePool provides a mock function with given fields: ctx, enterpriseID, poolID
+func (_m *Store) GetEnterprisePool(ctx context.Context, enterpriseID string, poolID string) (params.Pool, error) {
+	ret := _m.Called(ctx, enterpriseID, poolID)
+
+	var r0 params.Pool
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) params.Pool); ok {
+		r0 = rf(ctx, enterpriseID, poolID)
+	} else {
+		r0 = ret.Get(0).(params.Pool)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, enterpriseID, poolID)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -613,6 +767,75 @@ func (_m *Store) ListAllPools(ctx context.Context) ([]params.Pool, error) {
 	return r0, r1
 }
 
+// ListEnterpriseInstances provides a mock function with given fields: ctx, enterpriseID
+func (_m *Store) ListEnterpriseInstances(ctx context.Context, enterpriseID string) ([]params.Instance, error) {
+	ret := _m.Called(ctx, enterpriseID)
+
+	var r0 []params.Instance
+	if rf, ok := ret.Get(0).(func(context.Context, string) []params.Instance); ok {
+		r0 = rf(ctx, enterpriseID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]params.Instance)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, enterpriseID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ListEnterprisePools provides a mock function with given fields: ctx, enterpriseID
+func (_m *Store) ListEnterprisePools(ctx context.Context, enterpriseID string) ([]params.Pool, error) {
+	ret := _m.Called(ctx, enterpriseID)
+
+	var r0 []params.Pool
+	if rf, ok := ret.Get(0).(func(context.Context, string) []params.Pool); ok {
+		r0 = rf(ctx, enterpriseID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]params.Pool)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, enterpriseID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ListEnterprises provides a mock function with given fields: ctx
+func (_m *Store) ListEnterprises(ctx context.Context) ([]params.Enterprise, error) {
+	ret := _m.Called(ctx)
+
+	var r0 []params.Enterprise
+	if rf, ok := ret.Get(0).(func(context.Context) []params.Enterprise); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]params.Enterprise)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // ListOrgInstances provides a mock function with given fields: ctx, orgID
 func (_m *Store) ListOrgInstances(ctx context.Context, orgID string) ([]params.Instance, error) {
 	ret := _m.Called(ctx, orgID)
@@ -788,6 +1011,48 @@ func (_m *Store) PoolInstanceCount(ctx context.Context, poolID string) (int64, e
 	var r1 error
 	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
 		r1 = rf(ctx, poolID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// UpdateEnterprise provides a mock function with given fields: ctx, enterpriseID, param
+func (_m *Store) UpdateEnterprise(ctx context.Context, enterpriseID string, param params.UpdateRepositoryParams) (params.Enterprise, error) {
+	ret := _m.Called(ctx, enterpriseID, param)
+
+	var r0 params.Enterprise
+	if rf, ok := ret.Get(0).(func(context.Context, string, params.UpdateRepositoryParams) params.Enterprise); ok {
+		r0 = rf(ctx, enterpriseID, param)
+	} else {
+		r0 = ret.Get(0).(params.Enterprise)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string, params.UpdateRepositoryParams) error); ok {
+		r1 = rf(ctx, enterpriseID, param)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// UpdateEnterprisePool provides a mock function with given fields: ctx, enterpriseID, poolID, param
+func (_m *Store) UpdateEnterprisePool(ctx context.Context, enterpriseID string, poolID string, param params.UpdatePoolParams) (params.Pool, error) {
+	ret := _m.Called(ctx, enterpriseID, poolID, param)
+
+	var r0 params.Pool
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, params.UpdatePoolParams) params.Pool); ok {
+		r0 = rf(ctx, enterpriseID, poolID, param)
+	} else {
+		r0 = ret.Get(0).(params.Pool)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, params.UpdatePoolParams) error); ok {
+		r1 = rf(ctx, enterpriseID, poolID, param)
 	} else {
 		r1 = ret.Error(1)
 	}

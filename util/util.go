@@ -38,7 +38,7 @@ import (
 	"garm/params"
 	"garm/runner/common"
 
-	"github.com/google/go-github/v43/github"
+	"github.com/google/go-github/v47/github"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/oauth2"
@@ -163,13 +163,13 @@ func OSToOSType(os string) (config.OSType, error) {
 	return osType, nil
 }
 
-func GithubClient(ctx context.Context, token string, credsDetails params.GithubCredentials) (common.GithubClient, error) {
+func GithubClient(ctx context.Context, token string, credsDetails params.GithubCredentials) (common.GithubClient, common.GithubEnterpriseClient, error) {
 	var roots *x509.CertPool
 	if credsDetails.CABundle != nil && len(credsDetails.CABundle) > 0 {
 		roots = x509.NewCertPool()
 		ok := roots.AppendCertsFromPEM(credsDetails.CABundle)
 		if !ok {
-			return nil, fmt.Errorf("failed to parse CA cert")
+			return nil, nil, fmt.Errorf("failed to parse CA cert")
 		}
 	}
 	httpTransport := &http.Transport{
@@ -185,13 +185,12 @@ func GithubClient(ctx context.Context, token string, credsDetails params.GithubC
 	)
 	tc := oauth2.NewClient(ctx, ts)
 
-	// ghClient := github.NewClient(tc)
 	ghClient, err := github.NewEnterpriseClient(credsDetails.APIBaseURL, credsDetails.UploadBaseURL, tc)
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching github client")
+		return nil, nil, errors.Wrap(err, "fetching github client")
 	}
 
-	return ghClient.Actions, nil
+	return ghClient.Actions, ghClient.Enterprise, nil
 }
 
 func GetCloudConfig(bootstrapParams params.BootstrapInstance, tools github.RunnerApplicationDownload, runnerName string) (string, error) {

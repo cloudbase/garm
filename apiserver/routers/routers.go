@@ -165,6 +165,45 @@ func NewAPIRouter(han *controllers.APIController, logWriter io.Writer, authMiddl
 	apiRouter.Handle("/organizations/", log(logWriter, http.HandlerFunc(han.CreateOrgHandler))).Methods("POST", "OPTIONS")
 	apiRouter.Handle("/organizations", log(logWriter, http.HandlerFunc(han.CreateOrgHandler))).Methods("POST", "OPTIONS")
 
+	/////////////////////////////
+	//  Enterprises and pools  //
+	/////////////////////////////
+	// Get pool
+	apiRouter.Handle("/enterprises/{enterpriseID}/pools/{poolID}/", log(os.Stdout, http.HandlerFunc(han.GetEnterprisePoolHandler))).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/enterprises/{enterpriseID}/pools/{poolID}", log(os.Stdout, http.HandlerFunc(han.GetEnterprisePoolHandler))).Methods("GET", "OPTIONS")
+	// Delete pool
+	apiRouter.Handle("/enterprises/{enterpriseID}/pools/{poolID}/", log(os.Stdout, http.HandlerFunc(han.DeleteEnterprisePoolHandler))).Methods("DELETE", "OPTIONS")
+	apiRouter.Handle("/enterprises/{enterpriseID}/pools/{poolID}", log(os.Stdout, http.HandlerFunc(han.DeleteEnterprisePoolHandler))).Methods("DELETE", "OPTIONS")
+	// Update pool
+	apiRouter.Handle("/enterprises/{enterpriseID}/pools/{poolID}/", log(os.Stdout, http.HandlerFunc(han.UpdateEnterprisePoolHandler))).Methods("PUT", "OPTIONS")
+	apiRouter.Handle("/enterprises/{enterpriseID}/pools/{poolID}", log(os.Stdout, http.HandlerFunc(han.UpdateEnterprisePoolHandler))).Methods("PUT", "OPTIONS")
+	// List pools
+	apiRouter.Handle("/enterprises/{enterpriseID}/pools/", log(os.Stdout, http.HandlerFunc(han.ListEnterprisePoolsHandler))).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/enterprises/{enterpriseID}/pools", log(os.Stdout, http.HandlerFunc(han.ListEnterprisePoolsHandler))).Methods("GET", "OPTIONS")
+	// Create pool
+	apiRouter.Handle("/enterprises/{enterpriseID}/pools/", log(os.Stdout, http.HandlerFunc(han.CreateEnterprisePoolHandler))).Methods("POST", "OPTIONS")
+	apiRouter.Handle("/enterprises/{enterpriseID}/pools", log(os.Stdout, http.HandlerFunc(han.CreateEnterprisePoolHandler))).Methods("POST", "OPTIONS")
+
+	// Repo instances list
+	apiRouter.Handle("/enterprises/{enterpriseID}/instances/", log(os.Stdout, http.HandlerFunc(han.ListEnterpriseInstancesHandler))).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/enterprises/{enterpriseID}/instances", log(os.Stdout, http.HandlerFunc(han.ListEnterpriseInstancesHandler))).Methods("GET", "OPTIONS")
+
+	// Get org
+	apiRouter.Handle("/enterprises/{enterpriseID}/", log(os.Stdout, http.HandlerFunc(han.GetEnterpriseByIDHandler))).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/enterprises/{enterpriseID}", log(os.Stdout, http.HandlerFunc(han.GetEnterpriseByIDHandler))).Methods("GET", "OPTIONS")
+	// Update org
+	apiRouter.Handle("/enterprises/{enterpriseID}/", log(os.Stdout, http.HandlerFunc(han.UpdateEnterpriseHandler))).Methods("PUT", "OPTIONS")
+	apiRouter.Handle("/enterprises/{enterpriseID}", log(os.Stdout, http.HandlerFunc(han.UpdateEnterpriseHandler))).Methods("PUT", "OPTIONS")
+	// Delete org
+	apiRouter.Handle("/enterprises/{enterpriseID}/", log(os.Stdout, http.HandlerFunc(han.DeleteEnterpriseHandler))).Methods("DELETE", "OPTIONS")
+	apiRouter.Handle("/enterprises/{enterpriseID}", log(os.Stdout, http.HandlerFunc(han.DeleteEnterpriseHandler))).Methods("DELETE", "OPTIONS")
+	// List orgs
+	apiRouter.Handle("/enterprises/", log(os.Stdout, http.HandlerFunc(han.ListEnterprisesHandler))).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/enterprises", log(os.Stdout, http.HandlerFunc(han.ListEnterprisesHandler))).Methods("GET", "OPTIONS")
+	// Create org
+	apiRouter.Handle("/enterprises/", log(os.Stdout, http.HandlerFunc(han.CreateEnterpriseHandler))).Methods("POST", "OPTIONS")
+	apiRouter.Handle("/enterprises", log(os.Stdout, http.HandlerFunc(han.CreateEnterpriseHandler))).Methods("POST", "OPTIONS")
+
 	// Credentials and providers
 	apiRouter.Handle("/credentials/", log(logWriter, http.HandlerFunc(han.ListCredentials))).Methods("GET", "OPTIONS")
 	apiRouter.Handle("/credentials", log(logWriter, http.HandlerFunc(han.ListCredentials))).Methods("GET", "OPTIONS")

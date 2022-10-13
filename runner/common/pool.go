@@ -32,6 +32,7 @@ const (
 	PoolToolUpdateInterval = 50 * time.Minute
 )
 
+//go:generate mockery --all
 type PoolManager interface {
 	ID() string
 	WebhookSecret() string

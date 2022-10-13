@@ -65,12 +65,12 @@ const (
 	// of time and no new updates have been made to it's state, it will be removed.
 	DefaultRunnerBootstrapTimeout = 20
 
-	// DefaultGithubURL is the default URL where Github or Github Enterprise can be accessed
-	GithubBaseURL = "https://github.com"
+	// DefaultGithubURL is the default URL where Github or Github Enterprise can be accessed.
+	DefaultGithubURL = "https://github.com"
 
-	// defaultBaseURL is the default URL for the github API
+	// defaultBaseURL is the default URL for the github API.
 	defaultBaseURL = "https://api.github.com/"
-	// uploadBaseURL is the default URL for guthub uploads
+	// uploadBaseURL is the default URL for guthub uploads.
 	uploadBaseURL = "https://uploads.github.com/"
 )
 
@@ -250,7 +250,7 @@ func (g *Github) BaseEndpoint() string {
 	if g.BaseURL != "" {
 		return g.BaseURL
 	}
-	return GithubBaseURL
+	return DefaultGithubURL
 }
 
 func (g *Github) Validate() error {

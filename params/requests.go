@@ -66,6 +66,23 @@ func (c *CreateOrgParams) Validate() error {
 	return nil
 }
 
+type CreateEnterpriseParams struct {
+	Name            string `json:"name"`
+	CredentialsName string `json:"credentials_name"`
+	WebhookSecret   string `json:"webhook_secret"`
+}
+
+func (c *CreateEnterpriseParams) Validate() error {
+	if c.Name == "" {
+		return errors.NewBadRequestError("missing org name")
+	}
+
+	if c.CredentialsName == "" {
+		return errors.NewBadRequestError("missing credentials name")
+	}
+	return nil
+}
+
 // NewUserParams holds the needed information to create
 // a new user
 type NewUserParams struct {
