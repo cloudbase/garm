@@ -23,29 +23,29 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (c *Client) ListOrganizations() ([]params.Organization, error) {
-	var orgs []params.Organization
-	url := fmt.Sprintf("%s/api/v1/organizations", c.Config.BaseURL)
+func (c *Client) ListEnterprises() ([]params.Enterprise, error) {
+	var enterprises []params.Enterprise
+	url := fmt.Sprintf("%s/api/v1/enterprises", c.Config.BaseURL)
 	resp, err := c.client.R().
-		SetResult(&orgs).
+		SetResult(&enterprises).
 		Get(url)
 	if err != nil || resp.IsError() {
 		apiErr, decErr := c.decodeAPIError(resp.Body())
 		if decErr != nil {
 			return nil, errors.Wrap(decErr, "sending request")
 		}
-		return nil, fmt.Errorf("error fetching orgs: %s", apiErr.Details)
+		return nil, fmt.Errorf("error fetching enterprises: %s", apiErr.Details)
 	}
-	return orgs, nil
+	return enterprises, nil
 }
 
-func (c *Client) CreateOrganization(param params.CreateOrgParams) (params.Organization, error) {
-	var response params.Organization
-	url := fmt.Sprintf("%s/api/v1/organizations", c.Config.BaseURL)
+func (c *Client) CreateEnterprise(param params.CreateEnterpriseParams) (params.Enterprise, error) {
+	var response params.Enterprise
+	url := fmt.Sprintf("%s/api/v1/enterprises", c.Config.BaseURL)
 
 	body, err := json.Marshal(param)
 	if err != nil {
-		return params.Organization{}, err
+		return params.Enterprise{}, err
 	}
 	resp, err := c.client.R().
 		SetBody(body).
@@ -56,14 +56,14 @@ func (c *Client) CreateOrganization(param params.CreateOrgParams) (params.Organi
 		if decErr != nil {
 			return response, errors.Wrap(decErr, "sending request")
 		}
-		return response, fmt.Errorf("error creating org: %s", apiErr.Details)
+		return response, fmt.Errorf("error creating enterprise: %s", apiErr.Details)
 	}
 	return response, nil
 }
 
-func (c *Client) GetOrganization(orgID string) (params.Organization, error) {
-	var response params.Organization
-	url := fmt.Sprintf("%s/api/v1/organizations/%s", c.Config.BaseURL, orgID)
+func (c *Client) GetEnterprise(enterpriseID string) (params.Enterprise, error) {
+	var response params.Enterprise
+	url := fmt.Sprintf("%s/api/v1/enterprises/%s", c.Config.BaseURL, enterpriseID)
 	resp, err := c.client.R().
 		SetResult(&response).
 		Get(url)
@@ -72,13 +72,13 @@ func (c *Client) GetOrganization(orgID string) (params.Organization, error) {
 		if decErr != nil {
 			return response, errors.Wrap(decErr, "sending request")
 		}
-		return response, fmt.Errorf("error fetching org: %s", apiErr.Details)
+		return response, fmt.Errorf("error fetching enterprise: %s", apiErr.Details)
 	}
 	return response, nil
 }
 
-func (c *Client) DeleteOrganization(orgID string) error {
-	url := fmt.Sprintf("%s/api/v1/organizations/%s", c.Config.BaseURL, orgID)
+func (c *Client) DeleteEnterprise(enterpriseID string) error {
+	url := fmt.Sprintf("%s/api/v1/enterprises/%s", c.Config.BaseURL, enterpriseID)
 	resp, err := c.client.R().
 		Delete(url)
 	if err != nil || resp.IsError() {
@@ -86,13 +86,13 @@ func (c *Client) DeleteOrganization(orgID string) error {
 		if decErr != nil {
 			return errors.Wrap(decErr, "sending request")
 		}
-		return fmt.Errorf("error removing org: %s", apiErr.Details)
+		return fmt.Errorf("error fetching removing enterprise: %s", apiErr.Details)
 	}
 	return nil
 }
 
-func (c *Client) CreateOrgPool(orgID string, param params.CreatePoolParams) (params.Pool, error) {
-	url := fmt.Sprintf("%s/api/v1/organizations/%s/pools", c.Config.BaseURL, orgID)
+func (c *Client) CreateEnterprisePool(enterpriseID string, param params.CreatePoolParams) (params.Pool, error) {
+	url := fmt.Sprintf("%s/api/v1/enterprises/%s/pools", c.Config.BaseURL, enterpriseID)
 
 	var response params.Pool
 	body, err := json.Marshal(param)
@@ -108,13 +108,13 @@ func (c *Client) CreateOrgPool(orgID string, param params.CreatePoolParams) (par
 		if decErr != nil {
 			return response, errors.Wrap(decErr, "sending request")
 		}
-		return response, fmt.Errorf("error creating org pool: %s", apiErr.Details)
+		return response, fmt.Errorf("error creating enterprise pool: %s", apiErr.Details)
 	}
 	return response, nil
 }
 
-func (c *Client) ListOrgPools(orgID string) ([]params.Pool, error) {
-	url := fmt.Sprintf("%s/api/v1/organizations/%s/pools", c.Config.BaseURL, orgID)
+func (c *Client) ListEnterprisePools(enterpriseID string) ([]params.Pool, error) {
+	url := fmt.Sprintf("%s/api/v1/enterprises/%s/pools", c.Config.BaseURL, enterpriseID)
 
 	var response []params.Pool
 	resp, err := c.client.R().
@@ -125,13 +125,13 @@ func (c *Client) ListOrgPools(orgID string) ([]params.Pool, error) {
 		if decErr != nil {
 			return response, errors.Wrap(decErr, "sending request")
 		}
-		return response, fmt.Errorf("error listing org pools: %s", apiErr.Details)
+		return response, fmt.Errorf("error listing enterprise pools: %s", apiErr.Details)
 	}
 	return response, nil
 }
 
-func (c *Client) GetOrgPool(orgID, poolID string) (params.Pool, error) {
-	url := fmt.Sprintf("%s/api/v1/organizations/%s/pools/%s", c.Config.BaseURL, orgID, poolID)
+func (c *Client) GetEnterprisePool(enterpriseID, poolID string) (params.Pool, error) {
+	url := fmt.Sprintf("%s/api/v1/enterprises/%s/pools/%s", c.Config.BaseURL, enterpriseID, poolID)
 
 	var response params.Pool
 	resp, err := c.client.R().
@@ -142,13 +142,13 @@ func (c *Client) GetOrgPool(orgID, poolID string) (params.Pool, error) {
 		if decErr != nil {
 			return response, errors.Wrap(decErr, "sending request")
 		}
-		return response, fmt.Errorf("error fetching org pool: %s", apiErr.Details)
+		return response, fmt.Errorf("error fetching enterprise pool: %s", apiErr.Details)
 	}
 	return response, nil
 }
 
-func (c *Client) DeleteOrgPool(orgID, poolID string) error {
-	url := fmt.Sprintf("%s/api/v1/organizations/%s/pools/%s", c.Config.BaseURL, orgID, poolID)
+func (c *Client) DeleteEnterprisePool(enterpriseID, poolID string) error {
+	url := fmt.Sprintf("%s/api/v1/enterprises/%s/pools/%s", c.Config.BaseURL, enterpriseID, poolID)
 
 	resp, err := c.client.R().
 		Delete(url)
@@ -158,13 +158,13 @@ func (c *Client) DeleteOrgPool(orgID, poolID string) error {
 		if decErr != nil {
 			return errors.Wrap(decErr, "sending request")
 		}
-		return fmt.Errorf("error deleting org pool: %s", apiErr.Details)
+		return fmt.Errorf("error deleting enterprise pool: %s", apiErr.Details)
 	}
 	return nil
 }
 
-func (c *Client) UpdateOrgPool(orgID, poolID string, param params.UpdatePoolParams) (params.Pool, error) {
-	url := fmt.Sprintf("%s/api/v1/organizations/%s/pools/%s", c.Config.BaseURL, orgID, poolID)
+func (c *Client) UpdateEnterprisePool(enterpriseID, poolID string, param params.UpdatePoolParams) (params.Pool, error) {
+	url := fmt.Sprintf("%s/api/v1/enterprises/%s/pools/%s", c.Config.BaseURL, enterpriseID, poolID)
 
 	var response params.Pool
 	body, err := json.Marshal(param)
@@ -180,13 +180,13 @@ func (c *Client) UpdateOrgPool(orgID, poolID string, param params.UpdatePoolPara
 		if decErr != nil {
 			return response, errors.Wrap(decErr, "sending request")
 		}
-		return response, fmt.Errorf("error updating org pool: %s", apiErr.Details)
+		return response, fmt.Errorf("error updating enterprise pool: %s", apiErr.Details)
 	}
 	return response, nil
 }
 
-func (c *Client) ListOrgInstances(orgID string) ([]params.Instance, error) {
-	url := fmt.Sprintf("%s/api/v1/organizations/%s/instances", c.Config.BaseURL, orgID)
+func (c *Client) ListEnterpriseInstances(enterpriseID string) ([]params.Instance, error) {
+	url := fmt.Sprintf("%s/api/v1/enterprises/%s/instances", c.Config.BaseURL, enterpriseID)
 
 	var response []params.Instance
 	resp, err := c.client.R().
@@ -197,7 +197,7 @@ func (c *Client) ListOrgInstances(orgID string) ([]params.Instance, error) {
 		if decErr != nil {
 			return response, errors.Wrap(decErr, "sending request")
 		}
-		return response, fmt.Errorf("error listing org instances: %s", apiErr.Details)
+		return response, fmt.Errorf("error listing enterprise instances: %s", apiErr.Details)
 	}
 	return response, nil
 }

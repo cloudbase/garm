@@ -286,6 +286,9 @@ func formatPools(pools []params.Pool) {
 		} else if pool.OrgID != "" && pool.OrgName != "" {
 			belongsTo = pool.OrgName
 			level = "org"
+		} else if pool.EnterpriseID != "" && pool.EnterpriseName != "" {
+			belongsTo = pool.EnterpriseName
+			level = "enterprise"
 		}
 		t.AppendRow(table.Row{pool.ID, pool.Image, pool.Flavor, strings.Join(tags, " "), belongsTo, level, pool.Enabled})
 		t.AppendSeparator()
@@ -313,6 +316,9 @@ func formatOnePool(pool params.Pool) {
 	} else if pool.OrgID != "" && pool.OrgName != "" {
 		belongsTo = pool.OrgName
 		level = "org"
+	} else if pool.EnterpriseID != "" && pool.EnterpriseName != "" {
+		belongsTo = pool.EnterpriseName
+		level = "enterprise"
 	}
 
 	t.AppendHeader(header)

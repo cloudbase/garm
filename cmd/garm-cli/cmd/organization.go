@@ -38,7 +38,7 @@ var organizationCmd = &cobra.Command{
 self hosted runners.
 
 This command allows you to define a new organization or manage an existing
-organization for which the garm maintains pools of self hosted runners.`,
+organization for which garm maintains pools of self hosted runners.`,
 	Run: nil,
 }
 
@@ -71,7 +71,7 @@ var orgListCmd = &cobra.Command{
 	Use:          "list",
 	Aliases:      []string{"ls"},
 	Short:        "List organizations",
-	Long:         `List all configured respositories that are currently managed.`,
+	Long:         `List all configured organizations that are currently managed.`,
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if needsInit {
@@ -112,29 +112,6 @@ var orgShowCmd = &cobra.Command{
 }
 
 var orgDeleteCmd = &cobra.Command{
-	Use:          "delete",
-	Aliases:      []string{"remove", "rm", "del"},
-	Short:        "Removes one organization",
-	Long:         `Delete one organization from the manager.`,
-	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		if needsInit {
-			return needsInitError
-		}
-		if len(args) == 0 {
-			return fmt.Errorf("requires a organization ID")
-		}
-		if len(args) > 1 {
-			return fmt.Errorf("too many arguments")
-		}
-		if err := cli.DeleteOrganization(args[0]); err != nil {
-			return err
-		}
-		return nil
-	},
-}
-
-var orgInstanceListCmd = &cobra.Command{
 	Use:          "delete",
 	Aliases:      []string{"remove", "rm", "del"},
 	Short:        "Removes one organization",

@@ -128,6 +128,8 @@ type Pool struct {
 	RepoName               string        `json:"repo_name,omitempty"`
 	OrgID                  string        `json:"org_id,omitempty"`
 	OrgName                string        `json:"org_name,omitempty"`
+	EnterpriseID           string        `json:"enterprise_id,omitempty"`
+	EnterpriseName         string        `json:"enterprise_name,omitempty"`
 	RunnerBootstrapTimeout uint          `json:"runner_bootstrap_timeout"`
 }
 

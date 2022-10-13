@@ -71,6 +71,7 @@ func NewRunner(ctx context.Context, cfg config.Config) (*Runner, error) {
 		credentials:   creds,
 		repositories:  map[string]common.PoolManager{},
 		organizations: map[string]common.PoolManager{},
+		enterprises:   map[string]common.PoolManager{},
 	}
 	runner := &Runner{
 		ctx:             ctx,
@@ -81,7 +82,7 @@ func NewRunner(ctx context.Context, cfg config.Config) (*Runner, error) {
 		credentials:     creds,
 	}
 
-	if err := runner.loadReposAndOrgs(); err != nil {
+	if err := runner.loadReposOrgsAndEnterprises(); err != nil {
 		return nil, errors.Wrap(err, "loading pool managers")
 	}
 
@@ -293,7 +294,7 @@ func (r *Runner) ListProviders(ctx context.Context) ([]params.Provider, error) {
 	return ret, nil
 }
 
-func (r *Runner) loadReposAndOrgs() error {
+func (r *Runner) loadReposOrgsAndEnterprises() error {
 	r.mux.Lock()
 	defer r.mux.Unlock()
 
@@ -307,7 +308,12 @@ func (r *Runner) loadReposAndOrgs() error {
 		return errors.Wrap(err, "fetching organizations")
 	}
 
-	expectedReplies := len(repos) + len(orgs)
+	enterprises, err := r.store.ListEnterprises(r.ctx)
+	if err != nil {
+		return errors.Wrap(err, "fetching enterprises")
+	}
+
+	expectedReplies := len(repos) + len(orgs) + len(enterprises)
 	errChan := make(chan error, expectedReplies)
 
 	for _, repo := range repos {
@@ -324,6 +330,14 @@ func (r *Runner) loadReposAndOrgs() error {
 			_, err := r.poolManagerCtrl.CreateOrgPoolManager(r.ctx, org, r.providers, r.store)
 			errChan <- err
 		}(org)
+	}
+
+	for _, enterprise := range enterprises {
+		go func(enterprise params.Enterprise) {
+			log.Printf("creating pool manager for enterprise %s", enterprise.Name)
+			_, err := r.poolManagerCtrl.CreateEnterprisePoolManager(r.ctx, enterprise, r.providers, r.store)
+			errChan <- err
+		}(enterprise)
 	}
 
 	for i := 0; i < expectedReplies; i++ {
@@ -354,7 +368,12 @@ func (r *Runner) Start() error {
 		return errors.Wrap(err, "fetch org pool managers")
 	}
 
-	expectedReplies := len(repositories) + len(organizations)
+	enterprises, err := r.poolManagerCtrl.GetEnterprisePoolManagers()
+	if err != nil {
+		return errors.Wrap(err, "fetch enterprise pool managers")
+	}
+
+	expectedReplies := len(repositories) + len(organizations) + len(enterprises)
 	errChan := make(chan error, expectedReplies)
 
 	for _, repo := range repositories {
@@ -370,6 +389,14 @@ func (r *Runner) Start() error {
 			err := org.Start()
 			errChan <- err
 		}(org)
+
+	}
+
+	for _, enterprise := range enterprises {
+		go func(org common.PoolManager) {
+			err := org.Start()
+			errChan <- err
+		}(enterprise)
 
 	}
 
@@ -687,6 +714,15 @@ func (r *Runner) ForceDeleteRunner(ctx context.Context, instanceName string) err
 		poolMgr, err = r.findOrgPoolManager(org.Name)
 		if err != nil {
 			return errors.Wrapf(err, "fetching pool manager for org %s", pool.OrgName)
+		}
+	} else if pool.EnterpriseID != "" {
+		enterprise, err := r.store.GetEnterpriseByID(ctx, pool.EnterpriseID)
+		if err != nil {
+			return errors.Wrap(err, "fetching enterprise")
+		}
+		poolMgr, err = r.findEnterprisePoolManager(enterprise.Name)
+		if err != nil {
+			return errors.Wrapf(err, "fetching pool manager for enterprise %s", pool.EnterpriseName)
 		}
 	}
 

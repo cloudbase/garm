@@ -353,7 +353,7 @@ func (r *basePool) loop() {
 	reapTimer := time.NewTicker(common.PoolReapTimeoutInterval)
 	toolUpdateTimer := time.NewTicker(common.PoolToolUpdateInterval)
 	defer func() {
-		log.Printf("repository %s loop exited", r.helper.String())
+		log.Printf("%s loop exited", r.helper.String())
 		consolidateTimer.Stop()
 		reapTimer.Stop()
 		toolUpdateTimer.Stop()
@@ -896,6 +896,7 @@ func (r *basePool) ForceDeleteRunner(runner params.Instance) error {
 			}
 		}
 	}
+	log.Printf("setting instance status for: %v", runner.Name)
 
 	if err := r.setInstanceStatus(runner.Name, providerCommon.InstancePendingDelete, nil); err != nil {
 		log.Printf("failed to update runner %s status", runner.Name)

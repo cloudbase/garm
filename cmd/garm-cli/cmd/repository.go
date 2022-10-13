@@ -136,29 +136,6 @@ var repoDeleteCmd = &cobra.Command{
 	},
 }
 
-var repoInstanceListCmd = &cobra.Command{
-	Use:          "delete",
-	Aliases:      []string{"remove", "rm", "del"},
-	Short:        "Removes one repository",
-	Long:         `Delete one repository from the manager.`,
-	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		if needsInit {
-			return needsInitError
-		}
-		if len(args) == 0 {
-			return fmt.Errorf("requires a repository ID")
-		}
-		if len(args) > 1 {
-			return fmt.Errorf("too many arguments")
-		}
-		if err := cli.DeleteRepository(args[0]); err != nil {
-			return err
-		}
-		return nil
-	},
-}
-
 func init() {
 
 	repoAddCmd.Flags().StringVar(&repoOwner, "owner", "", "The owner of this repository")

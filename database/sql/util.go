@@ -128,6 +128,11 @@ func (s *sqlDatabase) sqlToCommonPool(pool Pool) params.Pool {
 		ret.OrgName = pool.Organization.Name
 	}
 
+	if pool.EnterpriseID != uuid.Nil && pool.Enterprise.Name != "" {
+		ret.EnterpriseID = pool.EnterpriseID.String()
+		ret.EnterpriseName = pool.Enterprise.Name
+	}
+
 	for idx, val := range pool.Tags {
 		ret.Tags[idx] = s.sqlToCommonTags(*val)
 	}

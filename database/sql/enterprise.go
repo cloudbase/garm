@@ -229,7 +229,7 @@ func (s *sqlDatabase) FindEnterprisePoolByTags(ctx context.Context, enterpriseID
 }
 
 func (s *sqlDatabase) ListEnterprisePools(ctx context.Context, enterpriseID string) ([]params.Pool, error) {
-	pools, err := s.getEnterprisePools(ctx, enterpriseID, "Tags")
+	pools, err := s.getEnterprisePools(ctx, enterpriseID, "Tags", "Enterprise")
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching pools")
 	}

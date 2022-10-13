@@ -158,7 +158,7 @@ func (a *APIController) ListEnterpriseInstancesHandler(w http.ResponseWriter, r 
 		return
 	}
 
-	instances, err := a.r.ListOrgInstances(ctx, enterpriseID)
+	instances, err := a.r.ListEnterpriseInstances(ctx, enterpriseID)
 	if err != nil {
 		log.Printf("listing instances: %s", err)
 		handleError(w, err)

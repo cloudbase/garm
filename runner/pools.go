@@ -16,6 +16,7 @@ package runner
 
 import (
 	"context"
+	"fmt"
 
 	"garm/auth"
 	runnerErrors "garm/errors"
@@ -112,6 +113,10 @@ func (r *Runner) UpdatePoolByID(ctx context.Context, poolID string, param params
 		newPool, err = r.store.UpdateRepositoryPool(ctx, pool.RepoID, poolID, param)
 	} else if pool.OrgID != "" {
 		newPool, err = r.store.UpdateOrganizationPool(ctx, pool.OrgID, poolID, param)
+	} else if pool.EnterpriseID != "" {
+		newPool, err = r.store.UpdateEnterprisePool(ctx, pool.EnterpriseID, poolID, param)
+	} else {
+		return params.Pool{}, fmt.Errorf("pool not bound to a repo, org or enterprise")
 	}
 
 	if err != nil {
