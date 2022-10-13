@@ -135,7 +135,7 @@ Pools are objects that define one type of worker and rules by which that pool of
 Before we can create a pool, we need to list the available providers. Providers are defined in the config (see above), but we need to reference them by name in the pool.
 
 ```bash
-ubuntu@experiments:~$ garm-cli provider list 
+ubuntu@experiments:~$ garm-cli provider list
 +-----------+------------------------+------+
 | NAME      | DESCRIPTION            | TYPE |
 +-----------+------------------------+------+

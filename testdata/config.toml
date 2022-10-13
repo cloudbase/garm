@@ -192,3 +192,18 @@ provider_type = "external"
   # to work with repositories, and the admin:org needs to be set if you plan on
   # adding an organization.
   oauth2_token = "super secret token"
+  # base_url (optional) is the URL at which your GitHub Enterprise Server can be accessed.
+  # If these credentials are for github.com, leave this setting blank
+  base_url = "https://ghe.example.com"
+  # api_base_url (optional) is the base URL where the GitHub Enterprise Server API can be accessed.
+  # Leave this blank if these credentials are for github.com.
+  api_base_url = "https://ghe.example.com"
+  # upload_base_url (optional) is the base URL where the GitHub Enterprise Server upload API can be accessed.
+  # Leave this blank if these credentials are for github.com, or if you don't have a separate URL
+  # for the upload API.
+  upload_base_url = "https://api.ghe.example.com"
+  # ca_cert_bundle (optional) is the CA certificate bundle in PEM format that will be used by the github
+  # client to talk to the API. This bundle will also be sent to all runners as bootstrap params.
+  # Use this option if you're using a self signed certificate.
+  # Leave this blank if you're using github.com or if your certificare is signed by a valid CA.
+  ca_cert_bundle = "/etc/garm/ghe.crt"
