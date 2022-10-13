@@ -16,25 +16,33 @@ package sql
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	dbCommon "garm/database/common"
 	garmTesting "garm/internal/testing"
 	"garm/params"
+	"regexp"
 	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
+	"gopkg.in/DATA-DOG/go-sqlmock.v1"
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 type PoolsTestFixtures struct {
-	Org   params.Organization
-	Pools []params.Pool
+	Org     params.Organization
+	Pools   []params.Pool
+	SQLMock sqlmock.Sqlmock
 }
 
 type PoolsTestSuite struct {
 	suite.Suite
-	Store    dbCommon.Store
-	Fixtures *PoolsTestFixtures
+	Store          dbCommon.Store
+	StoreSQLMocked *sqlDatabase
+	Fixtures       *PoolsTestFixtures
 }
 
 func (s *PoolsTestSuite) equalPoolsByID(expected, actual []params.Pool) {
@@ -45,6 +53,13 @@ func (s *PoolsTestSuite) equalPoolsByID(expected, actual []params.Pool) {
 
 	for i := 0; i < len(expected); i++ {
 		s.Require().Equal(expected[i].ID, actual[i].ID)
+	}
+}
+
+func (s *PoolsTestSuite) assertSQLMockExpectations() {
+	err := s.Fixtures.SQLMock.ExpectationsWereMet()
+	if err != nil {
+		s.FailNow(fmt.Sprintf("failed to meet sqlmock expectations, got error: %v", err))
 	}
 }
 
@@ -84,10 +99,33 @@ func (s *PoolsTestSuite) SetupTest() {
 		orgPools = append(orgPools, pool)
 	}
 
+	// create store with mocked sql connection
+	sqlDB, sqlMock, err := sqlmock.New()
+	if err != nil {
+		s.FailNow(fmt.Sprintf("failed to run 'sqlmock.New()', got error: %v", err))
+	}
+	s.T().Cleanup(func() { sqlDB.Close() })
+	mysqlConfig := mysql.Config{
+		Conn:                      sqlDB,
+		SkipInitializeWithVersion: true,
+	}
+	gormConfig := &gorm.Config{}
+	if flag.Lookup("test.v").Value.String() == "false" {
+		gormConfig.Logger = logger.Default.LogMode(logger.Silent)
+	}
+	gormConn, err := gorm.Open(mysql.New(mysqlConfig), gormConfig)
+	if err != nil {
+		s.FailNow(fmt.Sprintf("fail to open gorm connection: %v", err))
+	}
+	s.StoreSQLMocked = &sqlDatabase{
+		conn: gormConn,
+	}
+
 	// setup test fixtures
 	fixtures := &PoolsTestFixtures{
-		Org:   org,
-		Pools: orgPools,
+		Org:     org,
+		Pools:   orgPools,
+		SQLMock: sqlMock,
 	}
 	s.Fixtures = fixtures
 }
@@ -97,6 +135,18 @@ func (s *PoolsTestSuite) TestListAllPools() {
 
 	s.Require().Nil(err)
 	s.equalPoolsByID(s.Fixtures.Pools, pools)
+}
+
+func (s *PoolsTestSuite) TestListAllPoolsDBFetchErr() {
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE `pools`.`deleted_at` IS NULL")).
+		WillReturnError(fmt.Errorf("mocked fetching all pools error"))
+
+	_, err := s.StoreSQLMocked.ListAllPools(context.Background())
+
+	s.assertSQLMockExpectations()
+	s.Require().NotNil(err)
+	s.Require().Equal("fetching all pools: mocked fetching all pools error", err.Error())
 }
 
 func (s *PoolsTestSuite) TestGetPoolByID() {
@@ -126,6 +176,24 @@ func (s *PoolsTestSuite) TestDeletePoolByIDInvalidPoolID() {
 
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching pool by ID: parsing id: invalid request", err.Error())
+}
+
+func (s *PoolsTestSuite) TestDeletePoolByIDDBRemoveErr() {
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE id = ? AND `pools`.`deleted_at` IS NULL ORDER BY `pools`.`id` LIMIT 1	")).
+		WithArgs(s.Fixtures.Pools[0].ID).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Pools[0].ID))
+	s.Fixtures.SQLMock.ExpectBegin()
+	s.Fixtures.SQLMock.
+		ExpectExec(regexp.QuoteMeta("DELETE FROM `pools` WHERE `pools`.`id` = ?")).
+		WillReturnError(fmt.Errorf("mocked removing pool error"))
+	s.Fixtures.SQLMock.ExpectRollback()
+
+	err := s.StoreSQLMocked.DeletePoolByID(context.Background(), s.Fixtures.Pools[0].ID)
+
+	s.assertSQLMockExpectations()
+	s.Require().NotNil(err)
+	s.Require().Equal("removing pool: mocked removing pool error", err.Error())
 }
 
 func TestPoolsTestSuite(t *testing.T) {
