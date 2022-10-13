@@ -29,9 +29,9 @@ github.com/golang-jwt/jwt
 # github.com/golang/protobuf v1.5.2
 ## explicit; go 1.9
 github.com/golang/protobuf/proto
-# github.com/google/go-github/v43 v43.0.0
+# github.com/google/go-github/v47 v47.1.0 => github.com/gabriel-samfira/go-github/v47 v47.1.1-0.20221013145953-21e3b4d7b0c1
 ## explicit; go 1.17
-github.com/google/go-github/v43/github
+github.com/google/go-github/v47/github
 # github.com/google/go-querystring v1.1.0
 ## explicit; go 1.10
 github.com/google/go-querystring/query
@@ -292,3 +292,4 @@ gorm.io/gorm/logger
 gorm.io/gorm/migrator
 gorm.io/gorm/schema
 gorm.io/gorm/utils
+# github.com/google/go-github/v47 => github.com/gabriel-samfira/go-github/v47 v47.1.1-0.20221013145953-21e3b4d7b0c1
