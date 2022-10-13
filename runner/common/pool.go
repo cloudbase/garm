@@ -28,8 +28,9 @@ const (
 	PoolConsilitationInterval = 5 * time.Second
 	PoolReapTimeoutInterval   = 5 * time.Minute
 	// Temporary tools download token is valid for 1 hour by default.
-	// Set this to less than an hour so as not to run into 401 errors.
-	PoolToolUpdateInterval = 50 * time.Minute
+	// Set this to 15 minutes. This should allow enough time even on slow
+	// clouds for the instance to spin up, download the tools and join gh.
+	PoolToolUpdateInterval = 15 * time.Minute
 )
 
 //go:generate mockery --all
