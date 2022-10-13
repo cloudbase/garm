@@ -243,9 +243,9 @@ func (p *poolManagerCtrl) getInternalConfig(credsName string) (params.Internal, 
 		GithubCredentialsDetails: params.GithubCredentials{
 			Name:          creds.Name,
 			Description:   creds.Description,
-			BaseURL:       creds.BaseURL,
-			APIBaseURL:    creds.APIBaseURL,
-			UploadBaseURL: creds.UploadBaseURL,
+			BaseURL:       creds.BaseEndpoint(),
+			APIBaseURL:    creds.APIEndpoint(),
+			UploadBaseURL: creds.UploadEndpoint(),
 			CABundle:      caBundle,
 		},
 	}, nil

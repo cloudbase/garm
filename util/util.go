@@ -196,10 +196,23 @@ func GithubClient(ctx context.Context, token string, credsDetails params.GithubC
 func GetCloudConfig(bootstrapParams params.BootstrapInstance, tools github.RunnerApplicationDownload, runnerName string) (string, error) {
 	cloudCfg := cloudconfig.NewDefaultCloudInitConfig()
 
+	if tools.Filename == nil {
+		return "", fmt.Errorf("missing tools filename")
+	}
+
+	if tools.DownloadURL == nil {
+		return "", fmt.Errorf("missing tools download URL")
+	}
+
+	var tempToken string
+	if tools.TempDownloadToken != nil {
+		tempToken = *tools.TempDownloadToken
+	}
+
 	installRunnerParams := cloudconfig.InstallRunnerParams{
 		FileName:          *tools.Filename,
 		DownloadURL:       *tools.DownloadURL,
-		TempDownloadToken: *tools.TempDownloadToken,
+		TempDownloadToken: tempToken,
 		GithubToken:       bootstrapParams.GithubRunnerAccessToken,
 		RunnerUsername:    config.DefaultUser,
 		RunnerGroup:       config.DefaultUser,
