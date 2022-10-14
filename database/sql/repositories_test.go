@@ -27,9 +27,12 @@ import (
 )
 
 type RepoTestFixtures struct {
-	Repos            []params.Repository
-	CreateRepoParams params.CreateRepoParams
-	UpdateRepoParams params.UpdateRepositoryParams
+	Repos                []params.Repository
+	CreateRepoParams     params.CreateRepoParams
+	CreatePoolParams     params.CreatePoolParams
+	CreateInstanceParams params.CreateInstanceParams
+	UpdateRepoParams     params.UpdateRepositoryParams
+	UpdatePoolParams     params.UpdatePoolParams
 }
 
 type RepoTestSuite struct {
@@ -46,6 +49,28 @@ func (s *RepoTestSuite) equalReposByName(expected, actual []params.Repository) {
 
 	for i := 0; i < len(expected); i++ {
 		s.Require().Equal(expected[i].Name, actual[i].Name)
+	}
+}
+
+func (s *RepoTestSuite) equalPoolsByID(expected, actual []params.Pool) {
+	s.Require().Equal(len(expected), len(actual))
+
+	sort.Slice(expected, func(i, j int) bool { return expected[i].ID > expected[j].ID })
+	sort.Slice(actual, func(i, j int) bool { return actual[i].ID > actual[j].ID })
+
+	for i := 0; i < len(expected); i++ {
+		s.Require().Equal(expected[i].ID, actual[i].ID)
+	}
+}
+
+func (s *RepoTestSuite) equalInstancesByID(expected, actual []params.Instance) {
+	s.Require().Equal(len(expected), len(actual))
+
+	sort.Slice(expected, func(i, j int) bool { return expected[i].ID > expected[j].ID })
+	sort.Slice(actual, func(i, j int) bool { return actual[i].ID > actual[j].ID })
+
+	for i := 0; i < len(expected); i++ {
+		s.Require().Equal(expected[i].ID, actual[i].ID)
 	}
 }
 
@@ -75,6 +100,8 @@ func (s *RepoTestSuite) SetupTest() {
 	}
 
 	// setup test fixtures
+	var maxRunners uint = 40
+	var minIdleRunners uint = 20
 	fixtures := &RepoTestFixtures{
 		Repos: repos,
 		CreateRepoParams: params.CreateRepoParams{
@@ -83,9 +110,29 @@ func (s *RepoTestSuite) SetupTest() {
 			CredentialsName: "test-creds-repo",
 			WebhookSecret:   "test-webhook-secret",
 		},
+		CreatePoolParams: params.CreatePoolParams{
+			ProviderName:   "test-provider",
+			MaxRunners:     4,
+			MinIdleRunners: 2,
+			Image:          "test-image",
+			Flavor:         "test-flavor",
+			OSType:         "windows",
+			OSArch:         "amd64",
+			Tags:           []string{"self-hosted", "arm64", "windows"},
+		},
+		CreateInstanceParams: params.CreateInstanceParams{
+			Name:   "test-instance",
+			OSType: "linux",
+		},
 		UpdateRepoParams: params.UpdateRepositoryParams{
 			CredentialsName: "test-update-creds",
 			WebhookSecret:   "test-update-webhook-secret",
+		},
+		UpdatePoolParams: params.UpdatePoolParams{
+			MaxRunners:     &maxRunners,
+			MinIdleRunners: &minIdleRunners,
+			Image:          "test-update-image",
+			Flavor:         "test-update-flavor",
 		},
 	}
 	s.Fixtures = fixtures
@@ -198,6 +245,179 @@ func (s *RepoTestSuite) TestUpdateRepositoryInvalidRepoID() {
 
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching repo: parsing id: invalid request", err.Error())
+}
+
+func (s *RepoTestSuite) TestGetRepositoryByID() {
+	repo, err := s.Store.GetRepositoryByID(context.Background(), s.Fixtures.Repos[0].ID)
+
+	s.Require().Nil(err)
+	s.Require().Equal(s.Fixtures.Repos[0].ID, repo.ID)
+}
+
+func (s *RepoTestSuite) TestGetRepositoryByIDInvalidRepoID() {
+	_, err := s.Store.GetRepositoryByID(context.Background(), "dummy-repo-id")
+
+	s.Require().NotNil(err)
+	s.Require().Equal("fetching repo: parsing id: invalid request", err.Error())
+}
+
+func (s *RepoTestSuite) TestCreateRepositoryPool() {
+	pool, err := s.Store.CreateRepositoryPool(context.Background(), s.Fixtures.Repos[0].ID, s.Fixtures.CreatePoolParams)
+
+	s.Require().Nil(err)
+	repo, err := s.Store.GetRepositoryByID(context.Background(), s.Fixtures.Repos[0].ID)
+	if err != nil {
+		s.FailNow(fmt.Sprintf("cannot get repo by ID: %v", err))
+	}
+	s.Require().Equal(1, len(repo.Pools))
+	s.Require().Equal(pool.ID, repo.Pools[0].ID)
+	s.Require().Equal(s.Fixtures.CreatePoolParams.ProviderName, repo.Pools[0].ProviderName)
+	s.Require().Equal(s.Fixtures.CreatePoolParams.MaxRunners, repo.Pools[0].MaxRunners)
+	s.Require().Equal(s.Fixtures.CreatePoolParams.MinIdleRunners, repo.Pools[0].MinIdleRunners)
+}
+
+func (s *RepoTestSuite) TestCreateRepositoryPoolMissingTags() {
+	s.Fixtures.CreatePoolParams.Tags = []string{}
+
+	_, err := s.Store.CreateRepositoryPool(context.Background(), s.Fixtures.Repos[0].ID, s.Fixtures.CreatePoolParams)
+
+	s.Require().NotNil(err)
+	s.Require().Equal("no tags specified", err.Error())
+}
+
+func (s *RepoTestSuite) TestCreateRepositoryPoolInvalidRepoID() {
+	_, err := s.Store.CreateRepositoryPool(context.Background(), "dummy-repo-id", s.Fixtures.CreatePoolParams)
+
+	s.Require().NotNil(err)
+	s.Require().Equal("fetching repo: parsing id: invalid request", err.Error())
+}
+
+func (s *RepoTestSuite) TestListRepoPools() {
+	repoPools := []params.Pool{}
+	for i := 1; i <= 2; i++ {
+		s.Fixtures.CreatePoolParams.Flavor = fmt.Sprintf("test-flavor-%d", i)
+		pool, err := s.Store.CreateRepositoryPool(context.Background(), s.Fixtures.Repos[0].ID, s.Fixtures.CreatePoolParams)
+		if err != nil {
+			s.FailNow(fmt.Sprintf("cannot create repo pool: %v", err))
+		}
+		repoPools = append(repoPools, pool)
+	}
+
+	pools, err := s.Store.ListRepoPools(context.Background(), s.Fixtures.Repos[0].ID)
+
+	s.Require().Nil(err)
+	s.equalPoolsByID(repoPools, pools)
+}
+
+func (s *RepoTestSuite) TestListRepoPoolsInvalidRepoID() {
+	_, err := s.Store.ListRepoPools(context.Background(), "dummy-repo-id")
+
+	s.Require().NotNil(err)
+	s.Require().Equal("fetching pools: fetching repo: parsing id: invalid request", err.Error())
+}
+
+func (s *RepoTestSuite) TestGetRepositoryPool() {
+	pool, err := s.Store.CreateRepositoryPool(context.Background(), s.Fixtures.Repos[0].ID, s.Fixtures.CreatePoolParams)
+	if err != nil {
+		s.FailNow(fmt.Sprintf("cannot create repo pool: %v", err))
+	}
+
+	repoPool, err := s.Store.GetRepositoryPool(context.Background(), s.Fixtures.Repos[0].ID, pool.ID)
+
+	s.Require().Nil(err)
+	s.Require().Equal(repoPool.ID, pool.ID)
+}
+
+func (s *RepoTestSuite) TestGetRepositoryPoolInvalidRepoID() {
+	_, err := s.Store.GetRepositoryPool(context.Background(), "dummy-repo-id", "dummy-pool-id")
+
+	s.Require().NotNil(err)
+	s.Require().Equal("fetching pool: fetching repo: parsing id: invalid request", err.Error())
+}
+
+func (s *RepoTestSuite) TestDeleteRepositoryPool() {
+	pool, err := s.Store.CreateRepositoryPool(context.Background(), s.Fixtures.Repos[0].ID, s.Fixtures.CreatePoolParams)
+	if err != nil {
+		s.FailNow(fmt.Sprintf("cannot create repo pool: %v", err))
+	}
+
+	err = s.Store.DeleteRepositoryPool(context.Background(), s.Fixtures.Repos[0].ID, pool.ID)
+
+	s.Require().Nil(err)
+	_, err = s.Store.GetOrganizationPool(context.Background(), s.Fixtures.Repos[0].ID, pool.ID)
+	s.Require().Equal("fetching pool: fetching org: not found", err.Error())
+}
+
+func (s *RepoTestSuite) TestDeleteRepositoryPoolInvalidRepoID() {
+	err := s.Store.DeleteRepositoryPool(context.Background(), "dummy-repo-id", "dummy-pool-id")
+
+	s.Require().NotNil(err)
+	s.Require().Equal("looking up repo pool: fetching repo: parsing id: invalid request", err.Error())
+}
+
+func (s *RepoTestSuite) TestFindRepositoryPoolByTags() {
+	repoPool, err := s.Store.CreateRepositoryPool(context.Background(), s.Fixtures.Repos[0].ID, s.Fixtures.CreatePoolParams)
+	if err != nil {
+		s.FailNow(fmt.Sprintf("cannot create repo pool: %v", err))
+	}
+
+	pool, err := s.Store.FindRepositoryPoolByTags(context.Background(), s.Fixtures.Repos[0].ID, s.Fixtures.CreatePoolParams.Tags)
+	s.Require().Nil(err)
+	s.Require().Equal(repoPool.ID, pool.ID)
+	s.Require().Equal(repoPool.Image, pool.Image)
+	s.Require().Equal(repoPool.Flavor, pool.Flavor)
+}
+
+func (s *RepoTestSuite) TestFindRepositoryPoolByTagsMissingTags() {
+	tags := []string{}
+
+	_, err := s.Store.FindRepositoryPoolByTags(context.Background(), s.Fixtures.Repos[0].ID, tags)
+
+	s.Require().NotNil(err)
+	s.Require().Equal("fetching pool: missing tags", err.Error())
+}
+
+func (s *RepoTestSuite) TestListRepoInstances() {
+	pool, err := s.Store.CreateRepositoryPool(context.Background(), s.Fixtures.Repos[0].ID, s.Fixtures.CreatePoolParams)
+	if err != nil {
+		s.FailNow(fmt.Sprintf("cannot create repo pool: %v", err))
+	}
+	poolInstances := []params.Instance{}
+	for i := 1; i <= 3; i++ {
+		s.Fixtures.CreateInstanceParams.Name = fmt.Sprintf("test-repo-%d", i)
+		instance, err := s.Store.CreateInstance(context.Background(), pool.ID, s.Fixtures.CreateInstanceParams)
+		if err != nil {
+			s.FailNow(fmt.Sprintf("cannot create instance: %s", err))
+		}
+		poolInstances = append(poolInstances, instance)
+	}
+
+	instances, err := s.Store.ListRepoInstances(context.Background(), s.Fixtures.Repos[0].ID)
+
+	s.Require().Nil(err)
+	s.equalInstancesByID(poolInstances, instances)
+}
+
+func (s *RepoTestSuite) TestUpdateRepositoryPool() {
+	repoPool, err := s.Store.CreateRepositoryPool(context.Background(), s.Fixtures.Repos[0].ID, s.Fixtures.CreatePoolParams)
+	if err != nil {
+		s.FailNow(fmt.Sprintf("cannot create repo pool: %v", err))
+	}
+
+	pool, err := s.Store.UpdateRepositoryPool(context.Background(), s.Fixtures.Repos[0].ID, repoPool.ID, s.Fixtures.UpdatePoolParams)
+
+	s.Require().Nil(err)
+	s.Require().Equal(*s.Fixtures.UpdatePoolParams.MaxRunners, pool.MaxRunners)
+	s.Require().Equal(*s.Fixtures.UpdatePoolParams.MinIdleRunners, pool.MinIdleRunners)
+	s.Require().Equal(s.Fixtures.UpdatePoolParams.Image, pool.Image)
+	s.Require().Equal(s.Fixtures.UpdatePoolParams.Flavor, pool.Flavor)
+}
+
+func (s *RepoTestSuite) TestUpdateRepositoryPoolInvalidRepoID() {
+	_, err := s.Store.UpdateRepositoryPool(context.Background(), "dummy-org-id", "dummy-repo-id", s.Fixtures.UpdatePoolParams)
+
+	s.Require().NotNil(err)
+	s.Require().Equal("fetching pool: fetching repo: parsing id: invalid request", err.Error())
 }
 
 func TestRepoTestSuite(t *testing.T) {
