@@ -125,7 +125,7 @@ func (s *sqlDatabase) UpdateRepository(ctx context.Context, repoID string, param
 
 	q := s.conn.Save(&repo)
 	if q.Error != nil {
-		return params.Repository{}, errors.Wrap(err, "saving repo")
+		return params.Repository{}, errors.Wrap(q.Error, "saving repo")
 	}
 
 	newParams := s.sqlToCommonRepository(repo)
@@ -196,7 +196,7 @@ func (s *sqlDatabase) CreateRepositoryPool(ctx context.Context, repoId string, p
 
 	q := s.conn.Create(&newPool)
 	if q.Error != nil {
-		return params.Pool{}, errors.Wrap(err, "adding pool")
+		return params.Pool{}, errors.Wrap(q.Error, "adding pool")
 	}
 
 	for _, tt := range tags {
