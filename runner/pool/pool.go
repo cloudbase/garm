@@ -63,6 +63,16 @@ type basePool struct {
 	mux sync.Mutex
 }
 
+func controllerIDFromLabels(labels []*github.RunnerLabels) string {
+	for _, lbl := range labels {
+		if lbl.Name != nil && strings.HasPrefix(*lbl.Name, controllerLabelPrefix) {
+			labelName := *lbl.Name
+			return labelName[len(controllerLabelPrefix):]
+		}
+	}
+	return ""
+}
+
 // cleanupOrphanedProviderRunners compares runners in github with local runners and removes
 // any local runners that are not present in Github. Runners that are "idle" in our
 // provider, but do not exist in github, will be removed. This can happen if the
@@ -143,6 +153,12 @@ func (r *basePool) reapTimedOutRunners(runners []*github.Runner) error {
 // first remove the instance from github, and then from our database.
 func (r *basePool) cleanupOrphanedGithubRunners(runners []*github.Runner) error {
 	for _, runner := range runners {
+		runnerControllerID := controllerIDFromLabels(runner.Labels)
+		if runnerControllerID != r.controllerID {
+			// Not a runner we manage. Do not remove foreign runner.
+			continue
+		}
+
 		status := runner.GetStatus()
 		if status != "offline" {
 			// Runner is online. Ignore it.
