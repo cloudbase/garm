@@ -10,6 +10,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0
+	github.com/gorilla/websocket v1.5.0
 	github.com/jedib0t/go-pretty/v6 v6.3.1
 	github.com/juju/clock v0.0.0-20220704231616-a2b96c8eeb27
 	github.com/juju/retry v0.0.0-20220204093819-62423bf33287
@@ -23,12 +24,12 @@ require (
 	golang.org/x/crypto v0.0.0-20220321153916-2c7772ba3064
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8
 	golang.org/x/sys v0.0.0-20220330033206-e17cdc41300f
+	gopkg.in/DATA-DOG/go-sqlmock.v1 v1.3.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gopkg.in/yaml.v3 v3.0.1
 	gorm.io/driver/mysql v1.3.3
 	gorm.io/driver/sqlite v1.3.2
 	gorm.io/gorm v1.23.4
-	gopkg.in/DATA-DOG/go-sqlmock.v1 v1.3.0
 )
 
 require (
@@ -40,7 +41,6 @@ require (
 	github.com/go-sql-driver/mysql v1.6.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
-	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect

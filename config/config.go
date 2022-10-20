@@ -73,7 +73,7 @@ var (
 	// DefaultConfigDir is the default path on disk to the config dir. The config
 	// file will probably be in the same folder, but it is not mandatory.
 	DefaultConfigDir = "/etc/garm"
-	
+
 	// DefaultUserGroups are the groups the default user will be part of.
 	DefaultUserGroups = []string{
 		"sudo", "adm", "cdrom", "dialout",
@@ -167,7 +167,8 @@ type Default struct {
 	ConfigDir   string `toml:"config_dir,omitempty" json:"config-dir,omitempty"`
 	CallbackURL string `toml:"callback_url" json:"callback-url"`
 	// LogFile is the location of the log file.
-	LogFile string `toml:"log_file,omitempty" json:"log-file"`
+	LogFile           string `toml:"log_file,omitempty" json:"log-file"`
+	EnableLogStreamer bool   `toml:"enable_log_streamer"`
 }
 
 func (d *Default) Validate() error {

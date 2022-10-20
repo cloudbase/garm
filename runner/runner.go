@@ -212,6 +212,9 @@ type Runner struct {
 }
 
 func (r *Runner) ListCredentials(ctx context.Context) ([]params.GithubCredentials, error) {
+	if !auth.IsAdmin(ctx) {
+		return nil, runnerErrors.ErrUnauthorized
+	}
 	ret := []params.GithubCredentials{}
 
 	for _, val := range r.config.Github {
@@ -224,6 +227,9 @@ func (r *Runner) ListCredentials(ctx context.Context) ([]params.GithubCredential
 }
 
 func (r *Runner) ListProviders(ctx context.Context) ([]params.Provider, error) {
+	if !auth.IsAdmin(ctx) {
+		return nil, runnerErrors.ErrUnauthorized
+	}
 	ret := []params.Provider{}
 
 	for _, val := range r.providers {
