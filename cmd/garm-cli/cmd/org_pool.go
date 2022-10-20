@@ -48,7 +48,7 @@ var orgPoolAddCmd = &cobra.Command{
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if needsInit {
-			return needsInitError
+			return errNeedsInitError
 		}
 
 		if len(args) == 0 {
@@ -91,7 +91,7 @@ var orgPoolListCmd = &cobra.Command{
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if needsInit {
-			return needsInitError
+			return errNeedsInitError
 		}
 
 		if len(args) == 0 {
@@ -117,7 +117,7 @@ var orgPoolShowCmd = &cobra.Command{
 	Long:  `Displays detailed information about a single pool.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if needsInit {
-			return needsInitError
+			return errNeedsInitError
 		}
 
 		if len(args) < 2 || len(args) > 2 {
@@ -142,7 +142,7 @@ var orgPoolDeleteCmd = &cobra.Command{
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if needsInit {
-			return needsInitError
+			return errNeedsInitError
 		}
 		if len(args) < 2 || len(args) > 2 {
 			return fmt.Errorf("command requires orgID and poolID")
@@ -167,7 +167,7 @@ explicitly remove them using the runner delete command.
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if needsInit {
-			return needsInitError
+			return errNeedsInitError
 		}
 
 		if len(args) < 2 || len(args) > 2 {

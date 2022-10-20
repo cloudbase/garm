@@ -72,7 +72,7 @@ Example:
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if needsInit {
-			return needsInitError
+			return errNeedsInitError
 		}
 
 		var instances []params.Instance
@@ -121,7 +121,7 @@ var runnerShowCmd = &cobra.Command{
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if needsInit {
-			return needsInitError
+			return errNeedsInitError
 		}
 
 		if len(args) == 0 {
@@ -158,7 +158,7 @@ to either cancel the workflow or wait for it to finish.
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if needsInit {
-			return needsInitError
+			return errNeedsInitError
 		}
 
 		if len(args) == 0 {

@@ -45,7 +45,7 @@ func init() {
 			SilenceUsage: true,
 			RunE: func(cmd *cobra.Command, args []string) error {
 				if needsInit {
-					return needsInitError
+					return errNeedsInitError
 				}
 
 				providers, err := cli.ListProviders()

@@ -26,13 +26,13 @@ import (
 var Version string
 
 var (
-	cfg            *config.Config
-	mgr            config.Manager
-	cli            *client.Client
-	active         string
-	needsInit      bool
-	debug          bool
-	needsInitError = fmt.Errorf("Please log into a garm installation first")
+	cfg               *config.Config
+	mgr               config.Manager
+	cli               *client.Client
+	active            string
+	needsInit         bool
+	debug             bool
+	errNeedsInitError = fmt.Errorf("please log into a garm installation first")
 )
 
 // rootCmd represents the base command when called without any subcommands

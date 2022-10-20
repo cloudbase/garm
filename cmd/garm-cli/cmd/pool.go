@@ -68,7 +68,7 @@ Example:
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if needsInit {
-			return needsInitError
+			return errNeedsInitError
 		}
 
 		var pools []params.Pool
@@ -108,7 +108,7 @@ var poolShowCmd = &cobra.Command{
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if needsInit {
-			return needsInitError
+			return errNeedsInitError
 		}
 
 		if len(args) == 0 {
@@ -136,7 +136,7 @@ var poolDeleteCmd = &cobra.Command{
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if needsInit {
-			return needsInitError
+			return errNeedsInitError
 		}
 
 		if len(args) == 0 {
@@ -162,7 +162,7 @@ var poolAddCmd = &cobra.Command{
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if needsInit {
-			return needsInitError
+			return errNeedsInitError
 		}
 
 		tags := strings.Split(poolTags, ",")
@@ -216,7 +216,7 @@ explicitly remove them using the runner delete command.
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if needsInit {
-			return needsInitError
+			return errNeedsInitError
 		}
 
 		if len(args) == 0 {

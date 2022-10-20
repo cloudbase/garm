@@ -50,7 +50,7 @@ var orgAddCmd = &cobra.Command{
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if needsInit {
-			return needsInitError
+			return errNeedsInitError
 		}
 
 		newOrgReq := params.CreateOrgParams{
@@ -75,7 +75,7 @@ var orgListCmd = &cobra.Command{
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if needsInit {
-			return needsInitError
+			return errNeedsInitError
 		}
 
 		orgs, err := cli.ListOrganizations()
@@ -94,7 +94,7 @@ var orgShowCmd = &cobra.Command{
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if needsInit {
-			return needsInitError
+			return errNeedsInitError
 		}
 		if len(args) == 0 {
 			return fmt.Errorf("requires a organization ID")
@@ -119,7 +119,7 @@ var orgDeleteCmd = &cobra.Command{
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if needsInit {
-			return needsInitError
+			return errNeedsInitError
 		}
 		if len(args) == 0 {
 			return fmt.Errorf("requires a organization ID")
@@ -154,10 +154,10 @@ func init() {
 
 func formatOrganizations(orgs []params.Organization) {
 	t := table.NewWriter()
-	header := table.Row{"ID", "Name", "Credentials name"}
+	header := table.Row{"ID", "Name", "Credentials name", "Pool mgr running"}
 	t.AppendHeader(header)
 	for _, val := range orgs {
-		t.AppendRow(table.Row{val.ID, val.Name, val.CredentialsName})
+		t.AppendRow(table.Row{val.ID, val.Name, val.CredentialsName, val.PoolManagerStatus.IsRunning})
 		t.AppendSeparator()
 	}
 	fmt.Println(t.Render())
@@ -171,7 +171,10 @@ func formatOneOrganization(org params.Organization) {
 	t.AppendRow(table.Row{"ID", org.ID})
 	t.AppendRow(table.Row{"Name", org.Name})
 	t.AppendRow(table.Row{"Credentials", org.CredentialsName})
-
+	t.AppendRow(table.Row{"Pool manager running", org.PoolManagerStatus.IsRunning})
+	if !org.PoolManagerStatus.IsRunning {
+		t.AppendRow(table.Row{"Failure reason", org.PoolManagerStatus.FailureReason})
+	}
 	if len(org.Pools) > 0 {
 		for _, pool := range org.Pools {
 			t.AppendRow(table.Row{"Pools", pool.ID}, rowConfigAutoMerge)

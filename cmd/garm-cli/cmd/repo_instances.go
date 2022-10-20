@@ -37,7 +37,7 @@ var repoRunnerListCmd = &cobra.Command{
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if needsInit {
-			return needsInitError
+			return errNeedsInitError
 		}
 
 		if len(args) == 0 {

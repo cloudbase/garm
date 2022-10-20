@@ -16,6 +16,7 @@ package runner
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"strings"
 
@@ -85,7 +86,21 @@ func (r *Runner) ListOrganizations(ctx context.Context) ([]params.Organization, 
 		return nil, errors.Wrap(err, "listing organizations")
 	}
 
-	return orgs, nil
+	var allOrgs []params.Organization
+
+	for _, org := range orgs {
+		poolMgr, err := r.poolManagerCtrl.GetOrgPoolManager(org)
+		if err != nil {
+			org.PoolManagerStatus.IsRunning = false
+			org.PoolManagerStatus.FailureReason = fmt.Sprintf("failed to get pool manager: %q", err)
+		} else {
+			org.PoolManagerStatus = poolMgr.Status()
+		}
+
+		allOrgs = append(allOrgs, org)
+	}
+
+	return allOrgs, nil
 }
 
 func (r *Runner) GetOrganizationByID(ctx context.Context, orgID string) (params.Organization, error) {
@@ -97,6 +112,13 @@ func (r *Runner) GetOrganizationByID(ctx context.Context, orgID string) (params.
 	if err != nil {
 		return params.Organization{}, errors.Wrap(err, "fetching organization")
 	}
+
+	poolMgr, err := r.poolManagerCtrl.GetOrgPoolManager(org)
+	if err != nil {
+		org.PoolManagerStatus.IsRunning = false
+		org.PoolManagerStatus.FailureReason = fmt.Sprintf("failed to get pool manager: %q", err)
+	}
+	org.PoolManagerStatus = poolMgr.Status()
 	return org, nil
 }
 

@@ -16,6 +16,7 @@ package runner
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"strings"
 
@@ -85,7 +86,20 @@ func (r *Runner) ListRepositories(ctx context.Context) ([]params.Repository, err
 		return nil, errors.Wrap(err, "listing repositories")
 	}
 
-	return repos, nil
+	var allRepos []params.Repository
+
+	for _, repo := range repos {
+		poolMgr, err := r.poolManagerCtrl.GetRepoPoolManager(repo)
+		if err != nil {
+			repo.PoolManagerStatus.IsRunning = false
+			repo.PoolManagerStatus.FailureReason = fmt.Sprintf("failed to get pool manager: %q", err)
+		} else {
+			repo.PoolManagerStatus = poolMgr.Status()
+		}
+		allRepos = append(allRepos, repo)
+	}
+
+	return allRepos, nil
 }
 
 func (r *Runner) GetRepositoryByID(ctx context.Context, repoID string) (params.Repository, error) {
@@ -97,6 +111,13 @@ func (r *Runner) GetRepositoryByID(ctx context.Context, repoID string) (params.R
 	if err != nil {
 		return params.Repository{}, errors.Wrap(err, "fetching repository")
 	}
+
+	poolMgr, err := r.poolManagerCtrl.GetRepoPoolManager(repo)
+	if err != nil {
+		repo.PoolManagerStatus.IsRunning = false
+		repo.PoolManagerStatus.FailureReason = fmt.Sprintf("failed to get pool manager: %q", err)
+	}
+	repo.PoolManagerStatus = poolMgr.Status()
 	return repo, nil
 }
 

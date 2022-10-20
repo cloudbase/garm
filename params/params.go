@@ -151,29 +151,32 @@ type Internal struct {
 }
 
 type Repository struct {
-	ID              string `json:"id"`
-	Owner           string `json:"owner"`
-	Name            string `json:"name"`
-	Pools           []Pool `json:"pool,omitempty"`
-	CredentialsName string `json:"credentials_name"`
+	ID                string            `json:"id"`
+	Owner             string            `json:"owner"`
+	Name              string            `json:"name"`
+	Pools             []Pool            `json:"pool,omitempty"`
+	CredentialsName   string            `json:"credentials_name"`
+	PoolManagerStatus PoolManagerStatus `json:"pool_manager_status,omitempty"`
 	// Do not serialize sensitive info.
 	WebhookSecret string `json:"-"`
 }
 
 type Organization struct {
-	ID              string `json:"id"`
-	Name            string `json:"name"`
-	Pools           []Pool `json:"pool,omitempty"`
-	CredentialsName string `json:"credentials_name"`
+	ID                string            `json:"id"`
+	Name              string            `json:"name"`
+	Pools             []Pool            `json:"pool,omitempty"`
+	CredentialsName   string            `json:"credentials_name"`
+	PoolManagerStatus PoolManagerStatus `json:"pool_manager_status,omitempty"`
 	// Do not serialize sensitive info.
 	WebhookSecret string `json:"-"`
 }
 
 type Enterprise struct {
-	ID              string `json:"id"`
-	Name            string `json:"name"`
-	Pools           []Pool `json:"pool,omitempty"`
-	CredentialsName string `json:"credentials_name"`
+	ID                string            `json:"id"`
+	Name              string            `json:"name"`
+	Pools             []Pool            `json:"pool,omitempty"`
+	CredentialsName   string            `json:"credentials_name"`
+	PoolManagerStatus PoolManagerStatus `json:"pool_manager_status,omitempty"`
 	// Do not serialize sensitive info.
 	WebhookSecret string `json:"-"`
 }
@@ -218,4 +221,9 @@ type Provider struct {
 
 type UpdatePoolStateParams struct {
 	WebhookSecret string
+}
+
+type PoolManagerStatus struct {
+	IsRunning     bool   `json:"running"`
+	FailureReason string `json:"failure_reason,omitempty"`
 }

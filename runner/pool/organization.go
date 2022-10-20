@@ -17,6 +17,7 @@ package pool
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 	"sync"
 
@@ -48,7 +49,7 @@ func NewOrganizationPoolManager(ctx context.Context, cfg params.Organization, cf
 		store:       store,
 	}
 
-	repo := &basePool{
+	repo := &basePoolManager{
 		ctx:          ctx,
 		store:        store,
 		providers:    providers,
@@ -110,6 +111,9 @@ func (r *organization) GetGithubRunners() ([]*github.Runner, error) {
 	for {
 		runners, ghResp, err := r.ghcli.ListOrganizationRunners(r.ctx, r.cfg.Name, &opts)
 		if err != nil {
+			if ghResp.StatusCode == http.StatusUnauthorized {
+				return nil, errors.Wrap(runnerErrors.ErrUnauthorized, "fetching runners")
+			}
 			return nil, errors.Wrap(err, "fetching runners")
 		}
 		allRunners = append(allRunners, runners.Runners...)
@@ -125,8 +129,11 @@ func (r *organization) GetGithubRunners() ([]*github.Runner, error) {
 func (r *organization) FetchTools() ([]*github.RunnerApplicationDownload, error) {
 	r.mux.Lock()
 	defer r.mux.Unlock()
-	tools, _, err := r.ghcli.ListOrganizationRunnerApplicationDownloads(r.ctx, r.cfg.Name)
+	tools, ghResp, err := r.ghcli.ListOrganizationRunnerApplicationDownloads(r.ctx, r.cfg.Name)
 	if err != nil {
+		if ghResp.StatusCode == http.StatusUnauthorized {
+			return nil, errors.Wrap(runnerErrors.ErrUnauthorized, "fetching tools")
+		}
 		return nil, errors.Wrap(err, "fetching runner tools")
 	}
 

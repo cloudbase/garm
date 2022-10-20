@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"fmt"
 	"garm/auth"
 	"garm/config"
 	runnerErrors "garm/errors"
@@ -72,7 +73,20 @@ func (r *Runner) ListEnterprises(ctx context.Context) ([]params.Enterprise, erro
 		return nil, errors.Wrap(err, "listing enterprises")
 	}
 
-	return enterprises, nil
+	var allEnterprises []params.Enterprise
+
+	for _, enterprise := range enterprises {
+		poolMgr, err := r.poolManagerCtrl.GetEnterprisePoolManager(enterprise)
+		if err != nil {
+			enterprise.PoolManagerStatus.IsRunning = false
+			enterprise.PoolManagerStatus.FailureReason = fmt.Sprintf("failed to get pool manager: %q", err)
+		} else {
+			enterprise.PoolManagerStatus = poolMgr.Status()
+		}
+		allEnterprises = append(allEnterprises, enterprise)
+	}
+
+	return allEnterprises, nil
 }
 
 func (r *Runner) GetEnterpriseByID(ctx context.Context, enterpriseID string) (params.Enterprise, error) {
@@ -84,6 +98,12 @@ func (r *Runner) GetEnterpriseByID(ctx context.Context, enterpriseID string) (pa
 	if err != nil {
 		return params.Enterprise{}, errors.Wrap(err, "fetching enterprise")
 	}
+	poolMgr, err := r.poolManagerCtrl.GetEnterprisePoolManager(enterprise)
+	if err != nil {
+		enterprise.PoolManagerStatus.IsRunning = false
+		enterprise.PoolManagerStatus.FailureReason = fmt.Sprintf("failed to get pool manager: %q", err)
+	}
+	enterprise.PoolManagerStatus = poolMgr.Status()
 	return enterprise, nil
 }
 

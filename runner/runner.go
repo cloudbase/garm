@@ -421,19 +421,49 @@ func (r *Runner) Stop() error {
 	if err != nil {
 		return errors.Wrap(err, "fetch repo pool managers")
 	}
-	for _, repo := range repos {
-		if err := repo.Stop(); err != nil {
-			return errors.Wrap(err, "stopping repo pool manager")
-		}
-	}
 
 	orgs, err := r.poolManagerCtrl.GetOrgPoolManagers()
 	if err != nil {
 		return errors.Wrap(err, "fetch org pool managers")
 	}
+
+	enterprises, err := r.poolManagerCtrl.GetEnterprisePoolManagers()
+	if err != nil {
+		return errors.Wrap(err, "fetch enterprise pool managers")
+	}
+
+	expectedReplies := len(repos) + len(orgs) + len(enterprises)
+	errChan := make(chan error, expectedReplies)
+
+	for _, repo := range repos {
+		go func(poolMgr common.PoolManager) {
+			err := poolMgr.Stop()
+			errChan <- err
+		}(repo)
+	}
+
 	for _, org := range orgs {
-		if err := org.Stop(); err != nil {
-			return errors.Wrap(err, "stopping org pool manager")
+		go func(poolMgr common.PoolManager) {
+			err := poolMgr.Stop()
+			errChan <- err
+		}(org)
+	}
+
+	for _, enterprise := range enterprises {
+		go func(poolMgr common.PoolManager) {
+			err := poolMgr.Stop()
+			errChan <- err
+		}(enterprise)
+	}
+
+	for i := 0; i < expectedReplies; i++ {
+		select {
+		case err := <-errChan:
+			if err != nil {
+				return errors.Wrap(err, "stopping pool manager")
+			}
+		case <-time.After(60 * time.Second):
+			return fmt.Errorf("timed out waiting for pool mamager stop")
 		}
 	}
 	return nil
@@ -449,6 +479,17 @@ func (r *Runner) Wait() error {
 	if err != nil {
 		return errors.Wrap(err, "fetch repo pool managers")
 	}
+
+	orgs, err := r.poolManagerCtrl.GetOrgPoolManagers()
+	if err != nil {
+		return errors.Wrap(err, "fetch org pool managers")
+	}
+
+	enterprises, err := r.poolManagerCtrl.GetEnterprisePoolManagers()
+	if err != nil {
+		return errors.Wrap(err, "fetch enterprise pool managers")
+	}
+
 	for poolId, repo := range repos {
 		wg.Add(1)
 		go func(id string, poolMgr common.PoolManager) {
@@ -459,10 +500,6 @@ func (r *Runner) Wait() error {
 		}(poolId, repo)
 	}
 
-	orgs, err := r.poolManagerCtrl.GetOrgPoolManagers()
-	if err != nil {
-		return errors.Wrap(err, "fetch org pool managers")
-	}
 	for poolId, org := range orgs {
 		wg.Add(1)
 		go func(id string, poolMgr common.PoolManager) {
@@ -472,6 +509,17 @@ func (r *Runner) Wait() error {
 			}
 		}(poolId, org)
 	}
+
+	for poolId, enterprise := range enterprises {
+		wg.Add(1)
+		go func(id string, poolMgr common.PoolManager) {
+			defer wg.Done()
+			if err := poolMgr.Wait(); err != nil {
+				log.Printf("timed out waiting for pool manager %s to exit", id)
+			}
+		}(poolId, enterprise)
+	}
+
 	wg.Wait()
 	return nil
 }
