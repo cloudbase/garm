@@ -12,7 +12,7 @@ import (
 
 // ListRunnerApplicationDownloads lists self-hosted runner application binaries that can be downloaded and run.
 //
-// GitHub API docs: https://docs.github.com/en/rest/actions/self-hosted-runners#list-runner-applications-for-a-repository
+// GitHub API docs: https://docs.github.com/en/rest/actions/self-hosted-runners#list-runner-applications-for-an-enterprise
 func (s *EnterpriseService) ListRunnerApplicationDownloads(ctx context.Context, enterprise string) ([]*RunnerApplicationDownload, *Response, error) {
 	u := fmt.Sprintf("enterprises/%v/actions/runners/downloads", enterprise)
 	req, err := s.client.NewRequest("GET", u, nil)

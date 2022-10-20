@@ -38,7 +38,7 @@ import (
 	"garm/params"
 	"garm/runner/common"
 
-	"github.com/google/go-github/v47/github"
+	"github.com/google/go-github/v48/github"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/oauth2"

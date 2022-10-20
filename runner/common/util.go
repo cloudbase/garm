@@ -3,7 +3,7 @@ package common
 import (
 	"context"
 
-	"github.com/google/go-github/v47/github"
+	"github.com/google/go-github/v48/github"
 )
 
 // GithubClient that describes the minimum list of functions we need to interact with github.
