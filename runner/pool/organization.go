@@ -17,7 +17,6 @@ package pool
 import (
 	"context"
 	"fmt"
-	"math"
 	"strings"
 	"sync"
 
@@ -105,28 +104,22 @@ func (r *organization) GetGithubToken() string {
 func (r *organization) GetGithubRunners() ([]*github.Runner, error) {
 	opts := github.ListOptions{
 		PerPage: 100,
-		Page:    1,
-	}
-	runners, _, err := r.ghcli.ListOrganizationRunners(r.ctx, r.cfg.Name, &opts)
-	if err != nil {
-		return nil, errors.Wrap(err, "fetching runners")
 	}
 
-	ret := []*github.Runner{}
-	ret = append(ret, runners.Runners...)
-	pages := math.Ceil(float64(runners.TotalCount) / float64(100))
-	if pages > 1 {
-		for i := 2; i <= int(pages); i++ {
-			opts.Page = i
-			runners, _, err = r.ghcli.ListOrganizationRunners(r.ctx, r.cfg.Name, &opts)
-			if err != nil {
-				return nil, errors.Wrap(err, "fetching runners")
-			}
-			ret = append(ret, runners.Runners...)
+	var allRunners []*github.Runner
+	for {
+		runners, ghResp, err := r.ghcli.ListOrganizationRunners(r.ctx, r.cfg.Name, &opts)
+		if err != nil {
+			return nil, errors.Wrap(err, "fetching runners")
 		}
+		allRunners = append(allRunners, runners.Runners...)
+		if ghResp.NextPage == 0 {
+			break
+		}
+		opts.Page = ghResp.NextPage
 	}
 
-	return ret, nil
+	return allRunners, nil
 }
 
 func (r *organization) FetchTools() ([]*github.RunnerApplicationDownload, error) {
