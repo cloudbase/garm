@@ -62,8 +62,11 @@ type enterprise struct {
 }
 
 func (r *enterprise) GetRunnerNameFromWorkflow(job params.WorkflowJob) (string, error) {
-	workflow, _, err := r.ghcli.GetWorkflowJobByID(r.ctx, job.Repository.Owner.Login, job.Repository.Name, job.WorkflowJob.ID)
+	workflow, ghResp, err := r.ghcli.GetWorkflowJobByID(r.ctx, job.Repository.Owner.Login, job.Repository.Name, job.WorkflowJob.ID)
 	if err != nil {
+		if ghResp.StatusCode == http.StatusUnauthorized {
+			return "", errors.Wrap(runnerErrors.ErrUnauthorized, "fetching runners")
+		}
 		return "", errors.Wrap(err, "fetching workflow info")
 	}
 	if workflow.RunnerName != nil {
@@ -153,9 +156,12 @@ func (r *enterprise) JwtToken() string {
 }
 
 func (r *enterprise) GetGithubRegistrationToken() (string, error) {
-	tk, _, err := r.ghcEnterpriseCli.CreateRegistrationToken(r.ctx, r.cfg.Name)
+	tk, ghResp, err := r.ghcEnterpriseCli.CreateRegistrationToken(r.ctx, r.cfg.Name)
 
 	if err != nil {
+		if ghResp.StatusCode == http.StatusUnauthorized {
+			return "", errors.Wrap(runnerErrors.ErrUnauthorized, "fetching registration token")
+		}
 		return "", errors.Wrap(err, "creating runner token")
 	}
 	return *tk.Token, nil

@@ -183,6 +183,13 @@ func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner)
 				if resp != nil && resp.StatusCode == http.StatusNotFound {
 					continue
 				}
+
+				if errors.Is(err, runnerErrors.ErrUnauthorized) {
+					failureReason := fmt.Sprintf("failed to remove github runner: %q", err)
+					r.setPoolRunningState(false, failureReason)
+					log.Print(failureReason)
+				}
+
 				return errors.Wrap(err, "removing runner")
 			}
 			continue
@@ -220,6 +227,12 @@ func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner)
 				if resp != nil && resp.StatusCode == http.StatusNotFound {
 					log.Printf("runner dissapeared from github")
 				} else {
+					if errors.Is(err, runnerErrors.ErrUnauthorized) {
+						failureReason := fmt.Sprintf("failed to remove github runner: %q", err)
+						r.setPoolRunningState(false, failureReason)
+						log.Print(failureReason)
+					}
+
 					return errors.Wrap(err, "removing runner from github")
 				}
 			}
@@ -385,9 +398,7 @@ func (r *basePoolManager) loop() {
 					r.setPoolRunningState(false, failureReason)
 					log.Print(failureReason)
 					if errors.Is(err, runnerErrors.ErrUnauthorized) {
-						r.waitForTimeoutOrCanceled(common.UnauthorizedBackoffTimer)
-					} else {
-						r.waitForTimeoutOrCanceled(60 * time.Second)
+						break
 					}
 					continue
 				}
@@ -409,9 +420,7 @@ func (r *basePoolManager) loop() {
 					r.setPoolRunningState(false, failureReason)
 					log.Print(failureReason)
 					if errors.Is(err, runnerErrors.ErrUnauthorized) {
-						r.waitForTimeoutOrCanceled(common.UnauthorizedBackoffTimer)
-					} else {
-						r.waitForTimeoutOrCanceled(60 * time.Second)
+						break
 					}
 					continue
 				}
@@ -505,6 +514,11 @@ func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error 
 
 	tk, err := r.helper.GetGithubRegistrationToken()
 	if err != nil {
+		if errors.Is(err, runnerErrors.ErrUnauthorized) {
+			failureReason := fmt.Sprintf("failed to fetch registration token: %q", err)
+			r.setPoolRunningState(false, failureReason)
+			log.Print(failureReason)
+		}
 		return errors.Wrap(err, "fetching registration token")
 	}
 
@@ -577,6 +591,11 @@ func (r *basePoolManager) getRunnerNameFromJob(job params.WorkflowJob) (string, 
 	log.Printf("runner name not found in workflow job, attempting to fetch from API")
 	runnerName, err := r.helper.GetRunnerNameFromWorkflow(job)
 	if err != nil {
+		if errors.Is(err, runnerErrors.ErrUnauthorized) {
+			failureReason := fmt.Sprintf("failed to fetch runner name from API: %q", err)
+			r.setPoolRunningState(false, failureReason)
+			log.Print(failureReason)
+		}
 		return "", errors.Wrap(err, "fetching runner name from API")
 	}
 
@@ -915,6 +934,11 @@ func (r *basePoolManager) Wait() error {
 func (r *basePoolManager) runnerCleanup() error {
 	runners, err := r.helper.GetGithubRunners()
 	if err != nil {
+		if errors.Is(err, runnerErrors.ErrUnauthorized) {
+			failureReason := fmt.Sprintf("failed to fetch runners: %q", err)
+			r.setPoolRunningState(false, failureReason)
+			log.Print(failureReason)
+		}
 		return errors.Wrap(err, "fetching github runners")
 	}
 	if err := r.cleanupOrphanedProviderRunners(runners); err != nil {
@@ -963,6 +987,13 @@ func (r *basePoolManager) ForceDeleteRunner(runner params.Instance) error {
 				case http.StatusNotFound:
 					// Runner may have been deleted by a finished job, or manually by the user.
 					log.Printf("runner with agent id %d was not found in github", runner.AgentID)
+				case http.StatusUnauthorized:
+					// Mark the pool as offline from this point forward
+					failureReason := fmt.Sprintf("failed to remove runner: %q", err)
+					r.setPoolRunningState(false, failureReason)
+					log.Print(failureReason)
+					// evaluate the next switch case.
+					fallthrough
 				default:
 					return errors.Wrap(err, "removing runner")
 				}
