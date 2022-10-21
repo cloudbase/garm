@@ -59,7 +59,7 @@ sendStatus "starting service"
 ./svc.sh start || fail "failed to start service"
 
 set +e
-AGENT_ID=$(grep "agentId" /home/{{ .RunnerUsername }}/actions-runner/.runner |  tr -d -c 0-9)
+AGENT_ID=$(grep "agentId" /home/runner/actions-runner/.runner |  tr -d -c 0-9)
 if [ $? -ne 0 ];then
 	fail "failed to get agent ID"
 fi
