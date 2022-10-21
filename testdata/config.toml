@@ -10,6 +10,9 @@ config_dir = "/etc/garm"
 # Uncomment this line if you'd like to log to a file instead of standard output.
 # log_file = "/tmp/runner-manager.log"
 
+# Enable streaming logs via web sockets. Use garm-cli debug-log.
+enable_log_streamer = false
+
 [jwt_auth]
 # A JWT token secret used to sign tokens.
 # Obviously, this needs to be changed :).
