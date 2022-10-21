@@ -18,6 +18,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -31,6 +32,7 @@ import (
 	"garm/database/common"
 	"garm/runner"
 	"garm/util"
+	"garm/websocket"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -75,7 +77,19 @@ func main() {
 	if err != nil {
 		log.Fatalf("fetching log writer: %+v", err)
 	}
-	log.SetOutput(logWriter)
+
+	var writers []io.Writer = []io.Writer{
+		logWriter,
+	}
+	var hub *websocket.Hub
+	if cfg.Default.EnableLogStreamer {
+		hub = websocket.NewHub(ctx)
+		hub.Start()
+		defer hub.Stop()
+		writers = append(writers, hub)
+	}
+
+	log.SetOutput(io.MultiWriter(writers...))
 
 	db, err := database.NewDatabase(ctx, cfg.Database)
 	if err != nil {
@@ -98,7 +112,7 @@ func main() {
 	}
 
 	authenticator := auth.NewAuthenticator(cfg.JWTAuth, db)
-	controller, err := controllers.NewAPIController(runner, authenticator)
+	controller, err := controllers.NewAPIController(runner, authenticator, hub)
 	if err != nil {
 		log.Fatalf("failed to create controller: %+v", err)
 	}

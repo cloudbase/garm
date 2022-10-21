@@ -25,20 +25,29 @@ import (
 	gErrors "garm/errors"
 	runnerParams "garm/params"
 	"garm/runner"
+	wsWriter "garm/websocket"
 
+	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 )
 
-func NewAPIController(r *runner.Runner, auth *auth.Authenticator) (*APIController, error) {
+func NewAPIController(r *runner.Runner, auth *auth.Authenticator, hub *wsWriter.Hub) (*APIController, error) {
 	return &APIController{
 		r:    r,
 		auth: auth,
+		hub:  hub,
+		upgrader: websocket.Upgrader{
+			ReadBufferSize:  1024,
+			WriteBufferSize: 16384,
+		},
 	}, nil
 }
 
 type APIController struct {
-	r    *runner.Runner
-	auth *auth.Authenticator
+	r        *runner.Runner
+	auth     *auth.Authenticator
+	hub      *wsWriter.Hub
+	upgrader websocket.Upgrader
 }
 
 func handleError(w http.ResponseWriter, err error) {
@@ -122,6 +131,42 @@ func (a *APIController) CatchAll(w http.ResponseWriter, r *http.Request) {
 		log.Printf("ignoring unknown event %s", event)
 		return
 	}
+}
+
+func (a *APIController) WSHandler(writer http.ResponseWriter, req *http.Request) {
+	ctx := req.Context()
+	if !auth.IsAdmin(ctx) {
+		writer.WriteHeader(http.StatusForbidden)
+		writer.Write([]byte("you need admin level access to view logs"))
+		return
+	}
+
+	if a.hub == nil {
+		handleError(writer, gErrors.NewBadRequestError("log streamer is disabled"))
+		return
+	}
+
+	conn, err := a.upgrader.Upgrade(writer, req, nil)
+	if err != nil {
+		log.Printf("error upgrading to websockets: %v", err)
+		return
+	}
+
+	// TODO (gsamfira): Handle ExpiresAt. Right now, if a client uses
+	// a valid token to authenticate, and keeps the websocket connection
+	// open, it will allow that client to stream logs via websockets
+	// until the connection is broken. We need to forcefully disconnect
+	// the client once the token expires.
+	client, err := wsWriter.NewClient(conn, a.hub)
+	if err != nil {
+		log.Printf("failed to create new client: %v", err)
+		return
+	}
+	if err := a.hub.Register(client); err != nil {
+		log.Printf("failed to register new client: %v", err)
+		return
+	}
+	client.Go()
 }
 
 // NotFoundHandler is returned when an invalid URL is acccessed
