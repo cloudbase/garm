@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -8,6 +9,8 @@ import (
 	"os"
 	"os/signal"
 	"time"
+
+	apiParams "garm/apiserver/params"
 
 	"github.com/gorilla/websocket"
 	"github.com/spf13/cobra"
@@ -37,9 +40,14 @@ var logCmd = &cobra.Command{
 		header := http.Header{}
 		header.Add("Authorization", fmt.Sprintf("Bearer %s", mgr.Token))
 
-		c, _, err := websocket.DefaultDialer.Dial(u.String(), header)
+		c, response, err := websocket.DefaultDialer.Dial(u.String(), header)
 		if err != nil {
-			log.Fatal("dial:", err)
+			var resp apiParams.APIErrorResponse
+			var msg string
+			if err := json.NewDecoder(response.Body).Decode(&resp); err == nil {
+				msg = resp.Details
+			}
+			log.Fatalf("failed to stream logs: %s (%s)", msg, response.Status)
 		}
 		defer c.Close()
 
@@ -50,7 +58,7 @@ var logCmd = &cobra.Command{
 			for {
 				_, message, err := c.ReadMessage()
 				if err != nil {
-					log.Print("read:", err)
+					log.Printf("read: %q", err)
 					return
 				}
 				log.Print(string(message))
