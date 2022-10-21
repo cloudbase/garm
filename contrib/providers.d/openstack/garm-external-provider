@@ -275,7 +275,7 @@ function CreateInstance() {
     checkValNotNull "${VERSION}" "os_version" || return $?
     ARCH=$(echo "${IMAGE_DETAILS}" | jq -c -r '.properties.architecture')
     checkValNotNull "${ARCH}" "architecture" || return $?
-    GH_ARCH=OS_TO_GH_ARCH_MAP[${ARCH}]
+    GH_ARCH=${OS_TO_GH_ARCH_MAP[${ARCH}]}
 
     if [ -z "${GH_ARCH}" ];then
         GH_ARCH=${ARCH}
