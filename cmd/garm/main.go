@@ -89,7 +89,8 @@ func main() {
 		writers = append(writers, hub)
 	}
 
-	log.SetOutput(io.MultiWriter(writers...))
+	multiWriter := io.MultiWriter(writers...)
+	log.SetOutput(multiWriter)
 
 	db, err := database.NewDatabase(ctx, cfg.Database)
 	if err != nil {
@@ -132,7 +133,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	router := routers.NewAPIRouter(controller, logWriter, jwtMiddleware, initMiddleware, instanceMiddleware)
+	router := routers.NewAPIRouter(controller, multiWriter, jwtMiddleware, initMiddleware, instanceMiddleware)
 	corsMw := mux.CORSMethodMiddleware(router)
 	router.Use(corsMw)
 
