@@ -53,7 +53,7 @@ var logCmd = &cobra.Command{
 					log.Print("read:", err)
 					return
 				}
-				log.Print(message)
+				log.Print(string(message))
 			}
 		}()
 
