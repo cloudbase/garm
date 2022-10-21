@@ -83,6 +83,20 @@ func (_m *PoolManager) Start() error {
 	return r0
 }
 
+// Status provides a mock function with given fields:
+func (_m *PoolManager) Status() params.PoolManagerStatus {
+	ret := _m.Called()
+
+	var r0 params.PoolManagerStatus
+	if rf, ok := ret.Get(0).(func() params.PoolManagerStatus); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(params.PoolManagerStatus)
+	}
+
+	return r0
+}
+
 // Stop provides a mock function with given fields:
 func (_m *PoolManager) Stop() error {
 	ret := _m.Called()

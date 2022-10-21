@@ -19,7 +19,7 @@ import (
 	"garm/runner/providers/common"
 	"time"
 
-	"github.com/google/go-github/v43/github"
+	"github.com/google/go-github/v48/github"
 	uuid "github.com/satori/go.uuid"
 )
 
@@ -98,6 +98,8 @@ type BootstrapInstance struct {
 	// provider supports it.
 	SSHKeys []string `json:"ssh-keys"`
 
+	CACertBundle []byte `json:"ca-cert-bundle"`
+
 	OSArch config.OSArch `json:"arch"`
 	Flavor string        `json:"flavor"`
 	Image  string        `json:"image"`
@@ -126,6 +128,8 @@ type Pool struct {
 	RepoName               string        `json:"repo_name,omitempty"`
 	OrgID                  string        `json:"org_id,omitempty"`
 	OrgName                string        `json:"org_name,omitempty"`
+	EnterpriseID           string        `json:"enterprise_id,omitempty"`
+	EnterpriseName         string        `json:"enterprise_name,omitempty"`
 	RunnerBootstrapTimeout uint          `json:"runner_bootstrap_timeout"`
 }
 
@@ -141,23 +145,38 @@ type Internal struct {
 	ControllerID        string `json:"controller_id"`
 	InstanceCallbackURL string `json:"instance_callback_url"`
 	JWTSecret           string `json:"jwt_secret"`
+	// GithubCredentialsDetails contains all info about the credentials, except the
+	// token, which is added above.
+	GithubCredentialsDetails GithubCredentials `json:"gh_creds_details"`
 }
 
 type Repository struct {
-	ID              string `json:"id"`
-	Owner           string `json:"owner"`
-	Name            string `json:"name"`
-	Pools           []Pool `json:"pool,omitempty"`
-	CredentialsName string `json:"credentials_name"`
+	ID                string            `json:"id"`
+	Owner             string            `json:"owner"`
+	Name              string            `json:"name"`
+	Pools             []Pool            `json:"pool,omitempty"`
+	CredentialsName   string            `json:"credentials_name"`
+	PoolManagerStatus PoolManagerStatus `json:"pool_manager_status,omitempty"`
 	// Do not serialize sensitive info.
 	WebhookSecret string `json:"-"`
 }
 
 type Organization struct {
-	ID              string `json:"id"`
-	Name            string `json:"name"`
-	Pools           []Pool `json:"pool,omitempty"`
-	CredentialsName string `json:"credentials_name"`
+	ID                string            `json:"id"`
+	Name              string            `json:"name"`
+	Pools             []Pool            `json:"pool,omitempty"`
+	CredentialsName   string            `json:"credentials_name"`
+	PoolManagerStatus PoolManagerStatus `json:"pool_manager_status,omitempty"`
+	// Do not serialize sensitive info.
+	WebhookSecret string `json:"-"`
+}
+
+type Enterprise struct {
+	ID                string            `json:"id"`
+	Name              string            `json:"name"`
+	Pools             []Pool            `json:"pool,omitempty"`
+	CredentialsName   string            `json:"credentials_name"`
+	PoolManagerStatus PoolManagerStatus `json:"pool_manager_status,omitempty"`
 	// Do not serialize sensitive info.
 	WebhookSecret string `json:"-"`
 }
@@ -186,8 +205,12 @@ type ControllerInfo struct {
 }
 
 type GithubCredentials struct {
-	Name        string `json:"name,omitempty"`
-	Description string `json:"description,omitempty"`
+	Name          string `json:"name,omitempty"`
+	Description   string `json:"description,omitempty"`
+	BaseURL       string `json:"base_url"`
+	APIBaseURL    string `json:"api_base_url"`
+	UploadBaseURL string `json:"upload_base_url"`
+	CABundle      []byte `json:"ca_bundle,omitempty"`
 }
 
 type Provider struct {
@@ -198,4 +221,9 @@ type Provider struct {
 
 type UpdatePoolStateParams struct {
 	WebhookSecret string
+}
+
+type PoolManagerStatus struct {
+	IsRunning     bool   `json:"running"`
+	FailureReason string `json:"failure_reason,omitempty"`
 }

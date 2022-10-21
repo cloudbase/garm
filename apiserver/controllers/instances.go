@@ -136,7 +136,31 @@ func (a *APIController) ListOrgInstancesHandler(w http.ResponseWriter, r *http.R
 
 	instances, err := a.r.ListOrgInstances(ctx, orgID)
 	if err != nil {
-		log.Printf("listing pools: %s", err)
+		log.Printf("listing instances: %s", err)
+		handleError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(instances)
+}
+
+func (a *APIController) ListEnterpriseInstancesHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	enterpriseID, ok := vars["enterpriseID"]
+	if !ok {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(params.APIErrorResponse{
+			Error:   "Bad Request",
+			Details: "No enterprise ID specified",
+		})
+		return
+	}
+
+	instances, err := a.r.ListEnterpriseInstances(ctx, enterpriseID)
+	if err != nil {
+		log.Printf("listing instances: %s", err)
 		handleError(w, err)
 		return
 	}

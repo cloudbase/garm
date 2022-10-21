@@ -51,7 +51,7 @@ var repoAddCmd = &cobra.Command{
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if needsInit {
-			return needsInitError
+			return errNeedsInitError
 		}
 
 		newRepoReq := params.CreateRepoParams{
@@ -77,7 +77,7 @@ var repoListCmd = &cobra.Command{
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if needsInit {
-			return needsInitError
+			return errNeedsInitError
 		}
 
 		repos, err := cli.ListRepositories()
@@ -96,7 +96,7 @@ var repoShowCmd = &cobra.Command{
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if needsInit {
-			return needsInitError
+			return errNeedsInitError
 		}
 		if len(args) == 0 {
 			return fmt.Errorf("requires a repository ID")
@@ -121,30 +121,7 @@ var repoDeleteCmd = &cobra.Command{
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if needsInit {
-			return needsInitError
-		}
-		if len(args) == 0 {
-			return fmt.Errorf("requires a repository ID")
-		}
-		if len(args) > 1 {
-			return fmt.Errorf("too many arguments")
-		}
-		if err := cli.DeleteRepository(args[0]); err != nil {
-			return err
-		}
-		return nil
-	},
-}
-
-var repoInstanceListCmd = &cobra.Command{
-	Use:          "delete",
-	Aliases:      []string{"remove", "rm", "del"},
-	Short:        "Removes one repository",
-	Long:         `Delete one repository from the manager.`,
-	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		if needsInit {
-			return needsInitError
+			return errNeedsInitError
 		}
 		if len(args) == 0 {
 			return fmt.Errorf("requires a repository ID")
@@ -181,10 +158,10 @@ func init() {
 
 func formatRepositories(repos []params.Repository) {
 	t := table.NewWriter()
-	header := table.Row{"ID", "Owner", "Name", "Credentials name"}
+	header := table.Row{"ID", "Owner", "Name", "Credentials name", "Pool mgr running"}
 	t.AppendHeader(header)
 	for _, val := range repos {
-		t.AppendRow(table.Row{val.ID, val.Owner, val.Name, val.CredentialsName})
+		t.AppendRow(table.Row{val.ID, val.Owner, val.Name, val.CredentialsName, val.PoolManagerStatus.IsRunning})
 		t.AppendSeparator()
 	}
 	fmt.Println(t.Render())
@@ -199,6 +176,10 @@ func formatOneRepository(repo params.Repository) {
 	t.AppendRow(table.Row{"Owner", repo.Owner})
 	t.AppendRow(table.Row{"Name", repo.Name})
 	t.AppendRow(table.Row{"Credentials", repo.CredentialsName})
+	t.AppendRow(table.Row{"Pool manager running", repo.PoolManagerStatus.IsRunning})
+	if !repo.PoolManagerStatus.IsRunning {
+		t.AppendRow(table.Row{"Failure reason", repo.PoolManagerStatus.FailureReason})
+	}
 
 	if len(repo.Pools) > 0 {
 		for _, pool := range repo.Pools {

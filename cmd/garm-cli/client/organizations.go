@@ -56,7 +56,7 @@ func (c *Client) CreateOrganization(param params.CreateOrgParams) (params.Organi
 		if decErr != nil {
 			return response, errors.Wrap(decErr, "sending request")
 		}
-		return response, fmt.Errorf("error performing login: %s", apiErr.Details)
+		return response, fmt.Errorf("error creating org: %s", apiErr.Details)
 	}
 	return response, nil
 }
@@ -72,7 +72,7 @@ func (c *Client) GetOrganization(orgID string) (params.Organization, error) {
 		if decErr != nil {
 			return response, errors.Wrap(decErr, "sending request")
 		}
-		return response, fmt.Errorf("error fetching orgs: %s", apiErr.Details)
+		return response, fmt.Errorf("error fetching org: %s", apiErr.Details)
 	}
 	return response, nil
 }
@@ -86,7 +86,7 @@ func (c *Client) DeleteOrganization(orgID string) error {
 		if decErr != nil {
 			return errors.Wrap(decErr, "sending request")
 		}
-		return fmt.Errorf("error fetching orgs: %s", apiErr.Details)
+		return fmt.Errorf("error removing org: %s", apiErr.Details)
 	}
 	return nil
 }

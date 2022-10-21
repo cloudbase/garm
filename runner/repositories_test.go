@@ -265,6 +265,8 @@ func (s *RepoTestSuite) TestCreateRepositoryStartPoolMgrFailed() {
 }
 
 func (s *RepoTestSuite) TestListRepositories() {
+	s.Fixtures.PoolMgrCtrlMock.On("GetRepoPoolManager", mock.AnythingOfType("params.Repository")).Return(s.Fixtures.PoolMgrMock, nil)
+	s.Fixtures.PoolMgrMock.On("Status").Return(params.PoolManagerStatus{IsRunning: true}, nil)
 	repos, err := s.Runner.ListRepositories(s.Fixtures.AdminContext)
 
 	s.Require().Nil(err)
@@ -278,6 +280,8 @@ func (s *RepoTestSuite) TestListRepositoriesErrUnauthorized() {
 }
 
 func (s *RepoTestSuite) TestGetRepositoryByID() {
+	s.Fixtures.PoolMgrCtrlMock.On("GetRepoPoolManager", mock.AnythingOfType("params.Repository")).Return(s.Fixtures.PoolMgrMock, nil)
+	s.Fixtures.PoolMgrMock.On("Status").Return(params.PoolManagerStatus{IsRunning: true}, nil)
 	repo, err := s.Runner.GetRepositoryByID(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID)
 
 	s.Require().Nil(err)

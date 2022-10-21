@@ -18,7 +18,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -66,7 +65,13 @@ const (
 	// of time and no new updates have been made to it's state, it will be removed.
 	DefaultRunnerBootstrapTimeout = 20
 
-	GithubBaseURL = "https://github.com"
+	// DefaultGithubURL is the default URL where Github or Github Enterprise can be accessed.
+	DefaultGithubURL = "https://github.com"
+
+	// defaultBaseURL is the default URL for the github API.
+	defaultBaseURL = "https://api.github.com/"
+	// uploadBaseURL is the default URL for guthub uploads.
+	uploadBaseURL = "https://uploads.github.com/"
 )
 
 var (
@@ -190,15 +195,69 @@ func (d *Default) Validate() error {
 // Github hold configuration options specific to interacting with github.
 // Currently that is just a OAuth2 personal token.
 type Github struct {
-	Name        string `toml:"name" json:"name"`
-	Description string `toml:"description" json:"description"`
-	OAuth2Token string `toml:"oauth2_token" json:"oauth2-token"`
+	Name          string `toml:"name" json:"name"`
+	Description   string `toml:"description" json:"description"`
+	OAuth2Token   string `toml:"oauth2_token" json:"oauth2-token"`
+	APIBaseURL    string `toml:"api_base_url" json:"api-base-url"`
+	UploadBaseURL string `toml:"upload_base_url" json:"upload-base-url"`
+	BaseURL       string `toml:"base_url" json:"base-url"`
+	// CACertBundlePath is the path on disk to a CA certificate bundle that
+	// can validate the endpoints defined above. Leave empty if not using a
+	// self signed certificate.
+	CACertBundlePath string `toml:"ca_cert_bundle" json:"ca-cert-bundle"`
+}
+
+func (g *Github) APIEndpoint() string {
+	if g.APIBaseURL != "" {
+		return g.APIBaseURL
+	}
+	return defaultBaseURL
+}
+
+func (g *Github) CACertBundle() ([]byte, error) {
+	if g.CACertBundlePath == "" {
+		// No CA bundle defined.
+		return nil, nil
+	}
+	if _, err := os.Stat(g.CACertBundlePath); err != nil {
+		return nil, errors.Wrap(err, "accessing CA bundle")
+	}
+
+	contents, err := os.ReadFile(g.CACertBundlePath)
+	if err != nil {
+		return nil, errors.Wrap(err, "reading CA bundle")
+	}
+
+	roots := x509.NewCertPool()
+	if ok := roots.AppendCertsFromPEM(contents); !ok {
+		return nil, fmt.Errorf("failed to parse CA cert bundle")
+	}
+
+	return contents, nil
+}
+
+func (g *Github) UploadEndpoint() string {
+	if g.UploadBaseURL == "" {
+		if g.APIBaseURL != "" {
+			return g.APIBaseURL
+		}
+		return uploadBaseURL
+	}
+	return g.UploadBaseURL
+}
+
+func (g *Github) BaseEndpoint() string {
+	if g.BaseURL != "" {
+		return g.BaseURL
+	}
+	return DefaultGithubURL
 }
 
 func (g *Github) Validate() error {
 	if g.OAuth2Token == "" {
 		return fmt.Errorf("missing github oauth2 token")
 	}
+
 	return nil
 }
 
@@ -372,7 +431,7 @@ func (t *TLSConfig) TLSConfig() (*tls.Config, error) {
 
 	var roots *x509.CertPool
 	if t.CACert != "" {
-		caCertPEM, err := ioutil.ReadFile(t.CACert)
+		caCertPEM, err := os.ReadFile(t.CACert)
 		if err != nil {
 			return nil, err
 		}

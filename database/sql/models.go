@@ -71,6 +71,9 @@ type Pool struct {
 	OrgID        uuid.UUID    `gorm:"index"`
 	Organization Organization `gorm:"foreignKey:OrgID"`
 
+	EnterpriseID uuid.UUID  `gorm:"index"`
+	Enterprise   Enterprise `gorm:"foreignKey:EnterpriseID"`
+
 	Instances []Instance `gorm:"foreignKey:PoolID"`
 }
 
@@ -91,6 +94,15 @@ type Organization struct {
 	Name            string `gorm:"index:idx_org_name_nocase,collate:nocase"`
 	WebhookSecret   []byte
 	Pools           []Pool `gorm:"foreignKey:OrgID"`
+}
+
+type Enterprise struct {
+	Base
+
+	CredentialsName string
+	Name            string `gorm:"index:idx_ent_name_nocase,collate:nocase"`
+	WebhookSecret   []byte
+	Pools           []Pool `gorm:"foreignKey:EnterpriseID"`
 }
 
 type Address struct {

@@ -19,6 +19,7 @@ import (
 	"garm/params"
 )
 
+//go:generate mockery --all
 type Provider interface {
 	// CreateInstance creates a new compute instance in the provider.
 	CreateInstance(ctx context.Context, bootstrapParams params.BootstrapInstance) (params.Instance, error)

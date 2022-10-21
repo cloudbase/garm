@@ -62,7 +62,7 @@ var repoPoolAddCmd = &cobra.Command{
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if needsInit {
-			return needsInitError
+			return errNeedsInitError
 		}
 
 		if len(args) == 0 {
@@ -97,41 +97,13 @@ var repoPoolAddCmd = &cobra.Command{
 	},
 }
 
-var repoPoolListCmd = &cobra.Command{
-	Use:          "list",
-	Aliases:      []string{"ls"},
-	Short:        "List repository pools",
-	Long:         `List all configured pools for a given repository.`,
-	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		if needsInit {
-			return needsInitError
-		}
-
-		if len(args) == 0 {
-			return fmt.Errorf("requires a repository ID")
-		}
-
-		if len(args) > 1 {
-			return fmt.Errorf("too many arguments")
-		}
-
-		pools, err := cli.ListRepoPools(args[0])
-		if err != nil {
-			return err
-		}
-		formatPools(pools)
-		return nil
-	},
-}
-
 var repoPoolShowCmd = &cobra.Command{
 	Use:   "show",
 	Short: "Show details for one pool",
 	Long:  `Displays detailed information about a single pool.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if needsInit {
-			return needsInitError
+			return errNeedsInitError
 		}
 
 		if len(args) < 2 || len(args) > 2 {
@@ -156,7 +128,7 @@ var repoPoolDeleteCmd = &cobra.Command{
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if needsInit {
-			return needsInitError
+			return errNeedsInitError
 		}
 		if len(args) < 2 || len(args) > 2 {
 			return fmt.Errorf("command requires repoID and poolID")
@@ -181,7 +153,7 @@ explicitly remove them using the runner delete command.
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if needsInit {
-			return needsInitError
+			return errNeedsInitError
 		}
 
 		if len(args) < 2 || len(args) > 2 {
@@ -286,6 +258,9 @@ func formatPools(pools []params.Pool) {
 		} else if pool.OrgID != "" && pool.OrgName != "" {
 			belongsTo = pool.OrgName
 			level = "org"
+		} else if pool.EnterpriseID != "" && pool.EnterpriseName != "" {
+			belongsTo = pool.EnterpriseName
+			level = "enterprise"
 		}
 		t.AppendRow(table.Row{pool.ID, pool.Image, pool.Flavor, strings.Join(tags, " "), belongsTo, level, pool.Enabled})
 		t.AppendSeparator()
@@ -313,6 +288,9 @@ func formatOnePool(pool params.Pool) {
 	} else if pool.OrgID != "" && pool.OrgName != "" {
 		belongsTo = pool.OrgName
 		level = "org"
+	} else if pool.EnterpriseID != "" && pool.EnterpriseName != "" {
+		belongsTo = pool.EnterpriseName
+		level = "enterprise"
 	}
 
 	t.AppendHeader(header)

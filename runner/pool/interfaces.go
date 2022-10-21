@@ -17,19 +17,21 @@ package pool
 import (
 	"garm/params"
 
-	"github.com/google/go-github/v43/github"
+	"github.com/google/go-github/v48/github"
 )
 
 type poolHelper interface {
 	GetGithubToken() string
 	GetGithubRunners() ([]*github.Runner, error)
-	FetchTools() ([]*github.RunnerApplicationDownload, error)
-	FetchDbInstances() ([]params.Instance, error)
+	GetGithubRegistrationToken() (string, error)
+	GetRunnerNameFromWorkflow(job params.WorkflowJob) (string, error)
 	RemoveGithubRunner(runnerID int64) (*github.Response, error)
+	FetchTools() ([]*github.RunnerApplicationDownload, error)
+
+	FetchDbInstances() ([]params.Instance, error)
 	ListPools() ([]params.Pool, error)
 	GithubURL() string
 	JwtToken() string
-	GetGithubRegistrationToken() (string, error)
 	String() string
 	GetCallbackURL() string
 	FindPoolByTags(labels []string) (params.Pool, error)
@@ -37,6 +39,5 @@ type poolHelper interface {
 	ValidateOwner(job params.WorkflowJob) error
 	UpdateState(param params.UpdatePoolStateParams) error
 	WebhookSecret() string
-	GetRunnerNameFromWorkflow(job params.WorkflowJob) (string, error)
 	ID() string
 }

@@ -17,17 +17,17 @@ package pool
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 	"sync"
 
-	"garm/config"
 	dbCommon "garm/database/common"
 	runnerErrors "garm/errors"
 	"garm/params"
 	"garm/runner/common"
 	"garm/util"
 
-	"github.com/google/go-github/v43/github"
+	"github.com/google/go-github/v48/github"
 	"github.com/pkg/errors"
 )
 
@@ -35,7 +35,7 @@ import (
 var _ poolHelper = &repository{}
 
 func NewRepositoryPoolManager(ctx context.Context, cfg params.Repository, cfgInternal params.Internal, providers map[string]common.Provider, store dbCommon.Store) (common.PoolManager, error) {
-	ghc, err := util.GithubClient(ctx, cfgInternal.OAuth2Token)
+	ghc, _, err := util.GithubClient(ctx, cfgInternal.OAuth2Token, cfgInternal.GithubCredentialsDetails)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting github client")
 	}
@@ -49,7 +49,7 @@ func NewRepositoryPoolManager(ctx context.Context, cfg params.Repository, cfgInt
 		store:       store,
 	}
 
-	repo := &basePool{
+	repo := &basePoolManager{
 		ctx:          ctx,
 		store:        store,
 		providers:    providers,
@@ -57,6 +57,7 @@ func NewRepositoryPoolManager(ctx context.Context, cfg params.Repository, cfgInt
 		quit:         make(chan struct{}),
 		done:         make(chan struct{}),
 		helper:       helper,
+		credsDetails: cfgInternal.GithubCredentialsDetails,
 	}
 	return repo, nil
 }
@@ -75,8 +76,11 @@ type repository struct {
 }
 
 func (r *repository) GetRunnerNameFromWorkflow(job params.WorkflowJob) (string, error) {
-	workflow, _, err := r.ghcli.GetWorkflowJobByID(r.ctx, job.Repository.Owner.Login, job.Repository.Name, job.WorkflowJob.ID)
+	workflow, ghResp, err := r.ghcli.GetWorkflowJobByID(r.ctx, job.Repository.Owner.Login, job.Repository.Name, job.WorkflowJob.ID)
 	if err != nil {
+		if ghResp.StatusCode == http.StatusUnauthorized {
+			return "", errors.Wrap(runnerErrors.ErrUnauthorized, "fetching runner name")
+		}
 		return "", errors.Wrap(err, "fetching workflow info")
 	}
 	if workflow.RunnerName != nil {
@@ -91,7 +95,7 @@ func (r *repository) UpdateState(param params.UpdatePoolStateParams) error {
 
 	r.cfg.WebhookSecret = param.WebhookSecret
 
-	ghc, err := util.GithubClient(r.ctx, r.GetGithubToken())
+	ghc, _, err := util.GithubClient(r.ctx, r.GetGithubToken(), r.cfgInternal.GithubCredentialsDetails)
 	if err != nil {
 		return errors.Wrap(err, "getting github client")
 	}
@@ -104,19 +108,37 @@ func (r *repository) GetGithubToken() string {
 }
 
 func (r *repository) GetGithubRunners() ([]*github.Runner, error) {
-	runners, _, err := r.ghcli.ListRunners(r.ctx, r.cfg.Owner, r.cfg.Name, nil)
-	if err != nil {
-		return nil, errors.Wrap(err, "fetching runners")
+	opts := github.ListOptions{
+		PerPage: 100,
 	}
 
-	return runners.Runners, nil
+	var allRunners []*github.Runner
+	for {
+		runners, ghResp, err := r.ghcli.ListRunners(r.ctx, r.cfg.Owner, r.cfg.Name, &opts)
+		if err != nil {
+			if ghResp.StatusCode == http.StatusUnauthorized {
+				return nil, errors.Wrap(runnerErrors.ErrUnauthorized, "fetching runners")
+			}
+			return nil, errors.Wrap(err, "fetching runners")
+		}
+		allRunners = append(allRunners, runners.Runners...)
+		if ghResp.NextPage == 0 {
+			break
+		}
+		opts.Page = ghResp.NextPage
+	}
+
+	return allRunners, nil
 }
 
 func (r *repository) FetchTools() ([]*github.RunnerApplicationDownload, error) {
 	r.mux.Lock()
 	defer r.mux.Unlock()
-	tools, _, err := r.ghcli.ListRunnerApplicationDownloads(r.ctx, r.cfg.Owner, r.cfg.Name)
+	tools, ghResp, err := r.ghcli.ListRunnerApplicationDownloads(r.ctx, r.cfg.Owner, r.cfg.Name)
 	if err != nil {
+		if ghResp.StatusCode == http.StatusUnauthorized {
+			return nil, errors.Wrap(runnerErrors.ErrUnauthorized, "fetching tools")
+		}
 		return nil, errors.Wrap(err, "fetching runner tools")
 	}
 
@@ -140,7 +162,7 @@ func (r *repository) ListPools() ([]params.Pool, error) {
 }
 
 func (r *repository) GithubURL() string {
-	return fmt.Sprintf("%s/%s/%s", config.GithubBaseURL, r.cfg.Owner, r.cfg.Name)
+	return fmt.Sprintf("%s/%s/%s", r.cfgInternal.GithubCredentialsDetails.BaseURL, r.cfg.Owner, r.cfg.Name)
 }
 
 func (r *repository) JwtToken() string {
@@ -148,9 +170,12 @@ func (r *repository) JwtToken() string {
 }
 
 func (r *repository) GetGithubRegistrationToken() (string, error) {
-	tk, _, err := r.ghcli.CreateRegistrationToken(r.ctx, r.cfg.Owner, r.cfg.Name)
+	tk, ghResp, err := r.ghcli.CreateRegistrationToken(r.ctx, r.cfg.Owner, r.cfg.Name)
 
 	if err != nil {
+		if ghResp.StatusCode == http.StatusUnauthorized {
+			return "", errors.Wrap(runnerErrors.ErrUnauthorized, "fetching token")
+		}
 		return "", errors.Wrap(err, "creating runner token")
 	}
 	return *tk.Token, nil

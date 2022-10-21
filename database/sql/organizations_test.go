@@ -288,7 +288,7 @@ func (s *OrgTestSuite) TestListOrganizationsDBFetchErr() {
 
 	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching user from database: fetching user from database mock error", err.Error())
+	s.Require().Equal("fetching org from database: fetching user from database mock error", err.Error())
 }
 
 func (s *OrgTestSuite) TestDeleteOrganization() {

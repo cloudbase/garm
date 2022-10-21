@@ -72,7 +72,7 @@ func (s *sqlDatabase) ListOrganizations(ctx context.Context) ([]params.Organizat
 	var orgs []Organization
 	q := s.conn.Find(&orgs)
 	if q.Error != nil {
-		return []params.Organization{}, errors.Wrap(q.Error, "fetching user from database")
+		return []params.Organization{}, errors.Wrap(q.Error, "fetching org from database")
 	}
 
 	ret := make([]params.Organization, len(orgs))
@@ -197,7 +197,7 @@ func (s *sqlDatabase) CreateOrganizationPool(ctx context.Context, orgId string, 
 		}
 	}
 
-	pool, err := s.getPoolByID(ctx, newPool.ID.String(), "Tags", "Instances", "Organization", "Repository")
+	pool, err := s.getPoolByID(ctx, newPool.ID.String(), "Tags", "Instances", "Enterprise", "Organization", "Repository")
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}
@@ -262,7 +262,7 @@ func (s *sqlDatabase) ListOrgInstances(ctx context.Context, orgID string) ([]par
 }
 
 func (s *sqlDatabase) UpdateOrganizationPool(ctx context.Context, orgID, poolID string, param params.UpdatePoolParams) (params.Pool, error) {
-	pool, err := s.getOrgPool(ctx, orgID, poolID, "Tags", "Instances", "Organization", "Repository")
+	pool, err := s.getOrgPool(ctx, orgID, poolID, "Tags", "Instances", "Enterprise", "Organization", "Repository")
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}

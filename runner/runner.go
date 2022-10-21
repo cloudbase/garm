@@ -23,9 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"hash"
-	"io/ioutil"
 	"log"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -43,7 +41,6 @@ import (
 	"garm/util"
 
 	"github.com/pkg/errors"
-	"golang.org/x/crypto/ssh"
 )
 
 func NewRunner(ctx context.Context, cfg config.Config) (*Runner, error) {
@@ -74,6 +71,7 @@ func NewRunner(ctx context.Context, cfg config.Config) (*Runner, error) {
 		credentials:   creds,
 		repositories:  map[string]common.PoolManager{},
 		organizations: map[string]common.PoolManager{},
+		enterprises:   map[string]common.PoolManager{},
 	}
 	runner := &Runner{
 		ctx:             ctx,
@@ -84,7 +82,7 @@ func NewRunner(ctx context.Context, cfg config.Config) (*Runner, error) {
 		credentials:     creds,
 	}
 
-	if err := runner.loadReposAndOrgs(); err != nil {
+	if err := runner.loadReposOrgsAndEnterprises(); err != nil {
 		return nil, errors.Wrap(err, "loading pool managers")
 	}
 
@@ -100,6 +98,7 @@ type poolManagerCtrl struct {
 
 	repositories  map[string]common.PoolManager
 	organizations map[string]common.PoolManager
+	enterprises   map[string]common.PoolManager
 }
 
 func (p *poolManagerCtrl) CreateRepoPoolManager(ctx context.Context, repo params.Repository, providers map[string]common.Provider, store dbCommon.Store) (common.PoolManager, error) {
@@ -184,10 +183,56 @@ func (p *poolManagerCtrl) GetOrgPoolManagers() (map[string]common.PoolManager, e
 	return p.organizations, nil
 }
 
+func (p *poolManagerCtrl) CreateEnterprisePoolManager(ctx context.Context, enterprise params.Enterprise, providers map[string]common.Provider, store dbCommon.Store) (common.PoolManager, error) {
+	p.mux.Lock()
+	defer p.mux.Unlock()
+
+	cfgInternal, err := p.getInternalConfig(enterprise.CredentialsName)
+	if err != nil {
+		return nil, errors.Wrap(err, "fetching internal config")
+	}
+	poolManager, err := pool.NewEnterprisePoolManager(ctx, enterprise, cfgInternal, providers, store)
+	if err != nil {
+		return nil, errors.Wrap(err, "creating enterprise pool manager")
+	}
+	p.enterprises[enterprise.ID] = poolManager
+	return poolManager, nil
+}
+
+func (p *poolManagerCtrl) GetEnterprisePoolManager(enterprise params.Enterprise) (common.PoolManager, error) {
+	if enterprisePoolMgr, ok := p.enterprises[enterprise.ID]; ok {
+		return enterprisePoolMgr, nil
+	}
+	return nil, errors.Wrapf(runnerErrors.ErrNotFound, "enterprise %s pool manager not loaded", enterprise.Name)
+}
+
+func (p *poolManagerCtrl) DeleteEnterprisePoolManager(enterprise params.Enterprise) error {
+	p.mux.Lock()
+	defer p.mux.Unlock()
+
+	poolMgr, ok := p.enterprises[enterprise.ID]
+	if ok {
+		if err := poolMgr.Stop(); err != nil {
+			return errors.Wrap(err, "stopping enterprise pool manager")
+		}
+		delete(p.enterprises, enterprise.ID)
+	}
+	return nil
+}
+
+func (p *poolManagerCtrl) GetEnterprisePoolManagers() (map[string]common.PoolManager, error) {
+	return p.enterprises, nil
+}
+
 func (p *poolManagerCtrl) getInternalConfig(credsName string) (params.Internal, error) {
 	creds, ok := p.credentials[credsName]
 	if !ok {
 		return params.Internal{}, runnerErrors.NewBadRequestError("invalid credential name (%s)", credsName)
+	}
+
+	caBundle, err := creds.CACertBundle()
+	if err != nil {
+		return params.Internal{}, fmt.Errorf("fetching CA bundle for creds: %w", err)
 	}
 
 	return params.Internal{
@@ -195,6 +240,14 @@ func (p *poolManagerCtrl) getInternalConfig(credsName string) (params.Internal, 
 		ControllerID:        p.controllerID,
 		InstanceCallbackURL: p.config.Default.CallbackURL,
 		JWTSecret:           p.config.JWTAuth.Secret,
+		GithubCredentialsDetails: params.GithubCredentials{
+			Name:          creds.Name,
+			Description:   creds.Description,
+			BaseURL:       creds.BaseEndpoint(),
+			APIBaseURL:    creds.APIEndpoint(),
+			UploadBaseURL: creds.UploadEndpoint(),
+			CABundle:      caBundle,
+		},
 	}, nil
 }
 
@@ -219,8 +272,11 @@ func (r *Runner) ListCredentials(ctx context.Context) ([]params.GithubCredential
 
 	for _, val := range r.config.Github {
 		ret = append(ret, params.GithubCredentials{
-			Name:        val.Name,
-			Description: val.Description,
+			Name:          val.Name,
+			Description:   val.Description,
+			BaseURL:       val.BaseEndpoint(),
+			APIBaseURL:    val.APIEndpoint(),
+			UploadBaseURL: val.UploadEndpoint(),
 		})
 	}
 	return ret, nil
@@ -238,7 +294,7 @@ func (r *Runner) ListProviders(ctx context.Context) ([]params.Provider, error) {
 	return ret, nil
 }
 
-func (r *Runner) loadReposAndOrgs() error {
+func (r *Runner) loadReposOrgsAndEnterprises() error {
 	r.mux.Lock()
 	defer r.mux.Unlock()
 
@@ -252,7 +308,12 @@ func (r *Runner) loadReposAndOrgs() error {
 		return errors.Wrap(err, "fetching organizations")
 	}
 
-	expectedReplies := len(repos) + len(orgs)
+	enterprises, err := r.store.ListEnterprises(r.ctx)
+	if err != nil {
+		return errors.Wrap(err, "fetching enterprises")
+	}
+
+	expectedReplies := len(repos) + len(orgs) + len(enterprises)
 	errChan := make(chan error, expectedReplies)
 
 	for _, repo := range repos {
@@ -269,6 +330,14 @@ func (r *Runner) loadReposAndOrgs() error {
 			_, err := r.poolManagerCtrl.CreateOrgPoolManager(r.ctx, org, r.providers, r.store)
 			errChan <- err
 		}(org)
+	}
+
+	for _, enterprise := range enterprises {
+		go func(enterprise params.Enterprise) {
+			log.Printf("creating pool manager for enterprise %s", enterprise.Name)
+			_, err := r.poolManagerCtrl.CreateEnterprisePoolManager(r.ctx, enterprise, r.providers, r.store)
+			errChan <- err
+		}(enterprise)
 	}
 
 	for i := 0; i < expectedReplies; i++ {
@@ -299,7 +368,12 @@ func (r *Runner) Start() error {
 		return errors.Wrap(err, "fetch org pool managers")
 	}
 
-	expectedReplies := len(repositories) + len(organizations)
+	enterprises, err := r.poolManagerCtrl.GetEnterprisePoolManagers()
+	if err != nil {
+		return errors.Wrap(err, "fetch enterprise pool managers")
+	}
+
+	expectedReplies := len(repositories) + len(organizations) + len(enterprises)
 	errChan := make(chan error, expectedReplies)
 
 	for _, repo := range repositories {
@@ -315,6 +389,14 @@ func (r *Runner) Start() error {
 			err := org.Start()
 			errChan <- err
 		}(org)
+
+	}
+
+	for _, enterprise := range enterprises {
+		go func(org common.PoolManager) {
+			err := org.Start()
+			errChan <- err
+		}(enterprise)
 
 	}
 
@@ -339,19 +421,49 @@ func (r *Runner) Stop() error {
 	if err != nil {
 		return errors.Wrap(err, "fetch repo pool managers")
 	}
-	for _, repo := range repos {
-		if err := repo.Stop(); err != nil {
-			return errors.Wrap(err, "stopping repo pool manager")
-		}
-	}
 
 	orgs, err := r.poolManagerCtrl.GetOrgPoolManagers()
 	if err != nil {
 		return errors.Wrap(err, "fetch org pool managers")
 	}
+
+	enterprises, err := r.poolManagerCtrl.GetEnterprisePoolManagers()
+	if err != nil {
+		return errors.Wrap(err, "fetch enterprise pool managers")
+	}
+
+	expectedReplies := len(repos) + len(orgs) + len(enterprises)
+	errChan := make(chan error, expectedReplies)
+
+	for _, repo := range repos {
+		go func(poolMgr common.PoolManager) {
+			err := poolMgr.Stop()
+			errChan <- err
+		}(repo)
+	}
+
 	for _, org := range orgs {
-		if err := org.Stop(); err != nil {
-			return errors.Wrap(err, "stopping org pool manager")
+		go func(poolMgr common.PoolManager) {
+			err := poolMgr.Stop()
+			errChan <- err
+		}(org)
+	}
+
+	for _, enterprise := range enterprises {
+		go func(poolMgr common.PoolManager) {
+			err := poolMgr.Stop()
+			errChan <- err
+		}(enterprise)
+	}
+
+	for i := 0; i < expectedReplies; i++ {
+		select {
+		case err := <-errChan:
+			if err != nil {
+				return errors.Wrap(err, "stopping pool manager")
+			}
+		case <-time.After(60 * time.Second):
+			return fmt.Errorf("timed out waiting for pool mamager stop")
 		}
 	}
 	return nil
@@ -367,6 +479,17 @@ func (r *Runner) Wait() error {
 	if err != nil {
 		return errors.Wrap(err, "fetch repo pool managers")
 	}
+
+	orgs, err := r.poolManagerCtrl.GetOrgPoolManagers()
+	if err != nil {
+		return errors.Wrap(err, "fetch org pool managers")
+	}
+
+	enterprises, err := r.poolManagerCtrl.GetEnterprisePoolManagers()
+	if err != nil {
+		return errors.Wrap(err, "fetch enterprise pool managers")
+	}
+
 	for poolId, repo := range repos {
 		wg.Add(1)
 		go func(id string, poolMgr common.PoolManager) {
@@ -377,10 +500,6 @@ func (r *Runner) Wait() error {
 		}(poolId, repo)
 	}
 
-	orgs, err := r.poolManagerCtrl.GetOrgPoolManagers()
-	if err != nil {
-		return errors.Wrap(err, "fetch org pool managers")
-	}
 	for poolId, org := range orgs {
 		wg.Add(1)
 		go func(id string, poolMgr common.PoolManager) {
@@ -390,6 +509,17 @@ func (r *Runner) Wait() error {
 			}
 		}(poolId, org)
 	}
+
+	for poolId, enterprise := range enterprises {
+		wg.Add(1)
+		go func(id string, poolMgr common.PoolManager) {
+			defer wg.Done()
+			if err := poolMgr.Wait(); err != nil {
+				log.Printf("timed out waiting for pool manager %s to exit", id)
+			}
+		}(poolId, enterprise)
+	}
+
 	wg.Wait()
 	return nil
 }
@@ -456,6 +586,8 @@ func (r *Runner) DispatchWorkflowJob(hookTargetType, signature string, jobData [
 		poolManager, err = r.findRepoPoolManager(job.Repository.Owner.Login, job.Repository.Name)
 	case OrganizationHook:
 		poolManager, err = r.findOrgPoolManager(job.Organization.Login)
+	case EnterpriseHook:
+		poolManager, err = r.findEnterprisePoolManager(job.Enterprise.Slug)
 	default:
 		return runnerErrors.NewBadRequestError("cannot handle hook target type %s", hookTargetType)
 	}
@@ -478,45 +610,6 @@ func (r *Runner) DispatchWorkflowJob(hookTargetType, signature string, jobData [
 	}
 
 	return nil
-}
-
-func (r *Runner) sshDir() string {
-	return filepath.Join(r.config.Default.ConfigDir, "ssh")
-}
-
-func (r *Runner) sshKeyPath() string {
-	keyPath := filepath.Join(r.sshDir(), "runner_rsa_key")
-	return keyPath
-}
-
-func (r *Runner) sshPubKeyPath() string {
-	keyPath := filepath.Join(r.sshDir(), "runner_rsa_key.pub")
-	return keyPath
-}
-
-func (r *Runner) parseSSHKey() (ssh.Signer, error) {
-	r.mux.Lock()
-	defer r.mux.Unlock()
-
-	key, err := ioutil.ReadFile(r.sshKeyPath())
-	if err != nil {
-		return nil, errors.Wrapf(err, "reading private key %s", r.sshKeyPath())
-	}
-
-	signer, err := ssh.ParsePrivateKey(key)
-	if err != nil {
-		return nil, errors.Wrapf(err, "parsing private key %s", r.sshKeyPath())
-	}
-
-	return signer, nil
-}
-
-func (r *Runner) sshPubKey() ([]byte, error) {
-	key, err := ioutil.ReadFile(r.sshPubKeyPath())
-	if err != nil {
-		return nil, errors.Wrapf(err, "reading public key %s", r.sshPubKeyPath())
-	}
-	return key, nil
 }
 
 func (r *Runner) appendTagsToCreatePoolParams(param params.CreatePoolParams) (params.CreatePoolParams, error) {
@@ -669,6 +762,15 @@ func (r *Runner) ForceDeleteRunner(ctx context.Context, instanceName string) err
 		poolMgr, err = r.findOrgPoolManager(org.Name)
 		if err != nil {
 			return errors.Wrapf(err, "fetching pool manager for org %s", pool.OrgName)
+		}
+	} else if pool.EnterpriseID != "" {
+		enterprise, err := r.store.GetEnterpriseByID(ctx, pool.EnterpriseID)
+		if err != nil {
+			return errors.Wrap(err, "fetching enterprise")
+		}
+		poolMgr, err = r.findEnterprisePoolManager(enterprise.Name)
+		if err != nil {
+			return errors.Wrapf(err, "fetching pool manager for enterprise %s", pool.EnterpriseName)
 		}
 	}
 

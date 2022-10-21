@@ -5,7 +5,7 @@ package mocks
 import (
 	context "context"
 
-	github "github.com/google/go-github/v43/github"
+	github "github.com/google/go-github/v48/github"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -71,6 +71,38 @@ func (_m *GithubClient) CreateRegistrationToken(ctx context.Context, owner strin
 	var r2 error
 	if rf, ok := ret.Get(2).(func(context.Context, string, string) error); ok {
 		r2 = rf(ctx, owner, repo)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// GetWorkflowJobByID provides a mock function with given fields: ctx, owner, repo, jobID
+func (_m *GithubClient) GetWorkflowJobByID(ctx context.Context, owner string, repo string, jobID int64) (*github.WorkflowJob, *github.Response, error) {
+	ret := _m.Called(ctx, owner, repo, jobID)
+
+	var r0 *github.WorkflowJob
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, int64) *github.WorkflowJob); ok {
+		r0 = rf(ctx, owner, repo, jobID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*github.WorkflowJob)
+		}
+	}
+
+	var r1 *github.Response
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, int64) *github.Response); ok {
+		r1 = rf(ctx, owner, repo, jobID)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(*github.Response)
+		}
+	}
+
+	var r2 error
+	if rf, ok := ret.Get(2).(func(context.Context, string, string, int64) error); ok {
+		r2 = rf(ctx, owner, repo, jobID)
 	} else {
 		r2 = ret.Error(2)
 	}

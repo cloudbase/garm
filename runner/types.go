@@ -21,6 +21,7 @@ type HookTargetType string
 const (
 	RepoHook         HookTargetType = "repository"
 	OrganizationHook HookTargetType = "organization"
+	EnterpriseHook   HookTargetType = "business"
 )
 
 var (

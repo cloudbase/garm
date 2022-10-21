@@ -26,6 +26,7 @@ import (
 var (
 	runnerRepository   string
 	runnerOrganization string
+	runnerEnterprise   string
 	runnerAll          bool
 	forceRemove        bool
 )
@@ -61,6 +62,9 @@ Example:
 	List runners from one org:
 	garm-cli runner list --org=5493e51f-3170-4ce3-9f05-3fe690fc6ec6
 
+	List runners from one enterprise:
+	garm-cli runner list --enterprise=a966188b-0e05-4edc-9b82-bc81a1fd38ed
+
 	List all runners from all pools belonging to all repos and orgs:
 	garm-cli runner list --all
 
@@ -68,7 +72,7 @@ Example:
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if needsInit {
-			return needsInitError
+			return errNeedsInitError
 		}
 
 		var instances []params.Instance
@@ -78,9 +82,10 @@ Example:
 		case 1:
 			if cmd.Flags().Changed("repo") ||
 				cmd.Flags().Changed("org") ||
+				cmd.Flags().Changed("enterprise") ||
 				cmd.Flags().Changed("all") {
 
-				return fmt.Errorf("specifying a pool ID and any of [all org repo] are mutually exclusive")
+				return fmt.Errorf("specifying a pool ID and any of [all org repo enterprise] are mutually exclusive")
 			}
 			instances, err = cli.ListPoolInstances(args[0])
 		case 0:
@@ -88,6 +93,8 @@ Example:
 				instances, err = cli.ListRepoInstances(runnerRepository)
 			} else if cmd.Flags().Changed("org") {
 				instances, err = cli.ListOrgInstances(runnerOrganization)
+			} else if cmd.Flags().Changed("enterprise") {
+				instances, err = cli.ListEnterpriseInstances(runnerEnterprise)
 			} else if cmd.Flags().Changed("all") {
 				instances, err = cli.ListAllInstances()
 			} else {
@@ -114,7 +121,7 @@ var runnerShowCmd = &cobra.Command{
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if needsInit {
-			return needsInitError
+			return errNeedsInitError
 		}
 
 		if len(args) == 0 {
@@ -151,7 +158,7 @@ to either cancel the workflow or wait for it to finish.
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if needsInit {
-			return needsInitError
+			return errNeedsInitError
 		}
 
 		if len(args) == 0 {
@@ -172,8 +179,9 @@ to either cancel the workflow or wait for it to finish.
 func init() {
 	runnerListCmd.Flags().StringVarP(&runnerRepository, "repo", "r", "", "List all runners from all pools within this repository.")
 	runnerListCmd.Flags().StringVarP(&runnerOrganization, "org", "o", "", "List all runners from all pools withing this organization.")
+	runnerListCmd.Flags().StringVarP(&runnerEnterprise, "enterprise", "e", "", "List all runners from all pools withing this enterprise.")
 	runnerListCmd.Flags().BoolVarP(&runnerAll, "all", "a", false, "List all runners, regardless of org or repo.")
-	runnerListCmd.MarkFlagsMutuallyExclusive("repo", "org", "all")
+	runnerListCmd.MarkFlagsMutuallyExclusive("repo", "org", "enterprise", "all")
 
 	runnerDeleteCmd.Flags().BoolVarP(&forceRemove, "force-remove-runner", "f", false, "Confirm you want to delete a runner")
 	runnerDeleteCmd.MarkFlagsMutuallyExclusive("force-remove-runner")

@@ -262,6 +262,8 @@ func (s *OrgTestSuite) TestCreateOrganizationStartPoolMgrFailed() {
 }
 
 func (s *OrgTestSuite) TestListOrganizations() {
+	s.Fixtures.PoolMgrCtrlMock.On("GetOrgPoolManager", mock.AnythingOfType("params.Organization")).Return(s.Fixtures.PoolMgrMock, nil)
+	s.Fixtures.PoolMgrMock.On("Status").Return(params.PoolManagerStatus{IsRunning: true}, nil)
 	orgs, err := s.Runner.ListOrganizations(s.Fixtures.AdminContext)
 
 	s.Require().Nil(err)
@@ -275,6 +277,8 @@ func (s *OrgTestSuite) TestListOrganizationsErrUnauthorized() {
 }
 
 func (s *OrgTestSuite) TestGetOrganizationByID() {
+	s.Fixtures.PoolMgrCtrlMock.On("GetOrgPoolManager", mock.AnythingOfType("params.Organization")).Return(s.Fixtures.PoolMgrMock, nil)
+	s.Fixtures.PoolMgrMock.On("Status").Return(params.PoolManagerStatus{IsRunning: true}, nil)
 	org, err := s.Runner.GetOrganizationByID(s.Fixtures.AdminContext, s.Fixtures.StoreOrgs["test-org-1"].ID)
 
 	s.Require().Nil(err)

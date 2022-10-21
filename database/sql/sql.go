@@ -96,13 +96,14 @@ func (s *sqlDatabase) migrateDB() error {
 		&Pool{},
 		&Repository{},
 		&Organization{},
+		&Enterprise{},
 		&Address{},
 		&InstanceStatusUpdate{},
 		&Instance{},
 		&ControllerInfo{},
 		&User{},
 	); err != nil {
-		return err
+		return errors.Wrap(err, "running auto migrate")
 	}
 
 	return nil

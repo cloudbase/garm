@@ -17,17 +17,17 @@ package pool
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 	"sync"
 
-	"garm/config"
 	dbCommon "garm/database/common"
 	runnerErrors "garm/errors"
 	"garm/params"
 	"garm/runner/common"
 	"garm/util"
 
-	"github.com/google/go-github/v43/github"
+	"github.com/google/go-github/v48/github"
 	"github.com/pkg/errors"
 )
 
@@ -35,7 +35,7 @@ import (
 var _ poolHelper = &organization{}
 
 func NewOrganizationPoolManager(ctx context.Context, cfg params.Organization, cfgInternal params.Internal, providers map[string]common.Provider, store dbCommon.Store) (common.PoolManager, error) {
-	ghc, err := util.GithubClient(ctx, cfgInternal.OAuth2Token)
+	ghc, _, err := util.GithubClient(ctx, cfgInternal.OAuth2Token, cfgInternal.GithubCredentialsDetails)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting github client")
 	}
@@ -49,7 +49,7 @@ func NewOrganizationPoolManager(ctx context.Context, cfg params.Organization, cf
 		store:       store,
 	}
 
-	repo := &basePool{
+	repo := &basePoolManager{
 		ctx:          ctx,
 		store:        store,
 		providers:    providers,
@@ -57,6 +57,7 @@ func NewOrganizationPoolManager(ctx context.Context, cfg params.Organization, cf
 		quit:         make(chan struct{}),
 		done:         make(chan struct{}),
 		helper:       helper,
+		credsDetails: cfgInternal.GithubCredentialsDetails,
 	}
 	return repo, nil
 }
@@ -73,8 +74,11 @@ type organization struct {
 }
 
 func (r *organization) GetRunnerNameFromWorkflow(job params.WorkflowJob) (string, error) {
-	workflow, _, err := r.ghcli.GetWorkflowJobByID(r.ctx, job.Organization.Login, job.Repository.Name, job.WorkflowJob.ID)
+	workflow, ghResp, err := r.ghcli.GetWorkflowJobByID(r.ctx, job.Organization.Login, job.Repository.Name, job.WorkflowJob.ID)
 	if err != nil {
+		if ghResp.StatusCode == http.StatusUnauthorized {
+			return "", errors.Wrap(runnerErrors.ErrUnauthorized, "fetching runner name")
+		}
 		return "", errors.Wrap(err, "fetching workflow info")
 	}
 	if workflow.RunnerName != nil {
@@ -89,7 +93,7 @@ func (r *organization) UpdateState(param params.UpdatePoolStateParams) error {
 
 	r.cfg.WebhookSecret = param.WebhookSecret
 
-	ghc, err := util.GithubClient(r.ctx, r.GetGithubToken())
+	ghc, _, err := util.GithubClient(r.ctx, r.GetGithubToken(), r.cfgInternal.GithubCredentialsDetails)
 	if err != nil {
 		return errors.Wrap(err, "getting github client")
 	}
@@ -102,19 +106,37 @@ func (r *organization) GetGithubToken() string {
 }
 
 func (r *organization) GetGithubRunners() ([]*github.Runner, error) {
-	runners, _, err := r.ghcli.ListOrganizationRunners(r.ctx, r.cfg.Name, nil)
-	if err != nil {
-		return nil, errors.Wrap(err, "fetching runners")
+	opts := github.ListOptions{
+		PerPage: 100,
 	}
 
-	return runners.Runners, nil
+	var allRunners []*github.Runner
+	for {
+		runners, ghResp, err := r.ghcli.ListOrganizationRunners(r.ctx, r.cfg.Name, &opts)
+		if err != nil {
+			if ghResp.StatusCode == http.StatusUnauthorized {
+				return nil, errors.Wrap(runnerErrors.ErrUnauthorized, "fetching runners")
+			}
+			return nil, errors.Wrap(err, "fetching runners")
+		}
+		allRunners = append(allRunners, runners.Runners...)
+		if ghResp.NextPage == 0 {
+			break
+		}
+		opts.Page = ghResp.NextPage
+	}
+
+	return allRunners, nil
 }
 
 func (r *organization) FetchTools() ([]*github.RunnerApplicationDownload, error) {
 	r.mux.Lock()
 	defer r.mux.Unlock()
-	tools, _, err := r.ghcli.ListOrganizationRunnerApplicationDownloads(r.ctx, r.cfg.Name)
+	tools, ghResp, err := r.ghcli.ListOrganizationRunnerApplicationDownloads(r.ctx, r.cfg.Name)
 	if err != nil {
+		if ghResp.StatusCode == http.StatusUnauthorized {
+			return nil, errors.Wrap(runnerErrors.ErrUnauthorized, "fetching tools")
+		}
 		return nil, errors.Wrap(err, "fetching runner tools")
 	}
 
@@ -138,7 +160,7 @@ func (r *organization) ListPools() ([]params.Pool, error) {
 }
 
 func (r *organization) GithubURL() string {
-	return fmt.Sprintf("%s/%s", config.GithubBaseURL, r.cfg.Name)
+	return fmt.Sprintf("%s/%s", r.cfgInternal.GithubCredentialsDetails.BaseURL, r.cfg.Name)
 }
 
 func (r *organization) JwtToken() string {
@@ -146,9 +168,13 @@ func (r *organization) JwtToken() string {
 }
 
 func (r *organization) GetGithubRegistrationToken() (string, error) {
-	tk, _, err := r.ghcli.CreateOrganizationRegistrationToken(r.ctx, r.cfg.Name)
+	tk, ghResp, err := r.ghcli.CreateOrganizationRegistrationToken(r.ctx, r.cfg.Name)
 
 	if err != nil {
+		if ghResp.StatusCode == http.StatusUnauthorized {
+			return "", errors.Wrap(runnerErrors.ErrUnauthorized, "fetching token")
+		}
+
 		return "", errors.Wrap(err, "creating runner token")
 	}
 	return *tk.Token, nil

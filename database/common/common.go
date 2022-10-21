@@ -19,7 +19,7 @@ import (
 	"garm/params"
 )
 
-type Store interface {
+type RepoStore interface {
 	CreateRepository(ctx context.Context, owner, name, credentialsName, webhookSecret string) (params.Repository, error)
 	GetRepository(ctx context.Context, owner, name string) (params.Repository, error)
 	GetRepositoryByID(ctx context.Context, repoID string) (params.Repository, error)
@@ -27,6 +27,18 @@ type Store interface {
 	DeleteRepository(ctx context.Context, repoID string) error
 	UpdateRepository(ctx context.Context, repoID string, param params.UpdateRepositoryParams) (params.Repository, error)
 
+	CreateRepositoryPool(ctx context.Context, repoId string, param params.CreatePoolParams) (params.Pool, error)
+
+	GetRepositoryPool(ctx context.Context, repoID, poolID string) (params.Pool, error)
+	DeleteRepositoryPool(ctx context.Context, repoID, poolID string) error
+	UpdateRepositoryPool(ctx context.Context, repoID, poolID string, param params.UpdatePoolParams) (params.Pool, error)
+	FindRepositoryPoolByTags(ctx context.Context, repoID string, tags []string) (params.Pool, error)
+
+	ListRepoPools(ctx context.Context, repoID string) ([]params.Pool, error)
+	ListRepoInstances(ctx context.Context, repoID string) ([]params.Instance, error)
+}
+
+type OrgStore interface {
 	CreateOrganization(ctx context.Context, name, credentialsName, webhookSecret string) (params.Organization, error)
 	GetOrganization(ctx context.Context, name string) (params.Organization, error)
 	GetOrganizationByID(ctx context.Context, orgID string) (params.Organization, error)
@@ -34,53 +46,77 @@ type Store interface {
 	DeleteOrganization(ctx context.Context, orgID string) error
 	UpdateOrganization(ctx context.Context, orgID string, param params.UpdateRepositoryParams) (params.Organization, error)
 
-	CreateRepositoryPool(ctx context.Context, repoId string, param params.CreatePoolParams) (params.Pool, error)
 	CreateOrganizationPool(ctx context.Context, orgId string, param params.CreatePoolParams) (params.Pool, error)
-
-	GetRepositoryPool(ctx context.Context, repoID, poolID string) (params.Pool, error)
 	GetOrganizationPool(ctx context.Context, orgID, poolID string) (params.Pool, error)
+	DeleteOrganizationPool(ctx context.Context, orgID, poolID string) error
+	UpdateOrganizationPool(ctx context.Context, orgID, poolID string, param params.UpdatePoolParams) (params.Pool, error)
 
-	ListRepoPools(ctx context.Context, repoID string) ([]params.Pool, error)
+	FindOrganizationPoolByTags(ctx context.Context, orgID string, tags []string) (params.Pool, error)
 	ListOrgPools(ctx context.Context, orgID string) ([]params.Pool, error)
+	ListOrgInstances(ctx context.Context, orgID string) ([]params.Instance, error)
+}
+
+type EnterpriseStore interface {
+	CreateEnterprise(ctx context.Context, name, credentialsName, webhookSecret string) (params.Enterprise, error)
+	GetEnterprise(ctx context.Context, name string) (params.Enterprise, error)
+	GetEnterpriseByID(ctx context.Context, enterpriseID string) (params.Enterprise, error)
+	ListEnterprises(ctx context.Context) ([]params.Enterprise, error)
+	DeleteEnterprise(ctx context.Context, enterpriseID string) error
+	UpdateEnterprise(ctx context.Context, enterpriseID string, param params.UpdateRepositoryParams) (params.Enterprise, error)
+
+	CreateEnterprisePool(ctx context.Context, enterpriseID string, param params.CreatePoolParams) (params.Pool, error)
+	GetEnterprisePool(ctx context.Context, enterpriseID, poolID string) (params.Pool, error)
+	DeleteEnterprisePool(ctx context.Context, enterpriseID, poolID string) error
+	UpdateEnterprisePool(ctx context.Context, enterpriseID, poolID string, param params.UpdatePoolParams) (params.Pool, error)
+
+	FindEnterprisePoolByTags(ctx context.Context, enterpriseID string, tags []string) (params.Pool, error)
+	ListEnterprisePools(ctx context.Context, enterpriseID string) ([]params.Pool, error)
+	ListEnterpriseInstances(ctx context.Context, enterpriseID string) ([]params.Instance, error)
+}
+
+type PoolStore interface {
 	// Probably a bad idea without some king of filter or at least pagination
 	// TODO: add filter/pagination
 	ListAllPools(ctx context.Context) ([]params.Pool, error)
 	GetPoolByID(ctx context.Context, poolID string) (params.Pool, error)
 	DeletePoolByID(ctx context.Context, poolID string) error
 
-	DeleteRepositoryPool(ctx context.Context, repoID, poolID string) error
-	DeleteOrganizationPool(ctx context.Context, orgID, poolID string) error
-
-	UpdateRepositoryPool(ctx context.Context, repoID, poolID string, param params.UpdatePoolParams) (params.Pool, error)
-	UpdateOrganizationPool(ctx context.Context, orgID, poolID string, param params.UpdatePoolParams) (params.Pool, error)
-
-	FindRepositoryPoolByTags(ctx context.Context, repoID string, tags []string) (params.Pool, error)
-	FindOrganizationPoolByTags(ctx context.Context, orgID string, tags []string) (params.Pool, error)
-
-	CreateInstance(ctx context.Context, poolID string, param params.CreateInstanceParams) (params.Instance, error)
-	DeleteInstance(ctx context.Context, poolID string, instanceName string) error
-	UpdateInstance(ctx context.Context, instanceID string, param params.UpdateInstanceParams) (params.Instance, error)
-
 	ListPoolInstances(ctx context.Context, poolID string) ([]params.Instance, error)
-	ListRepoInstances(ctx context.Context, repoID string) ([]params.Instance, error)
-	ListOrgInstances(ctx context.Context, orgID string) ([]params.Instance, error)
 
 	PoolInstanceCount(ctx context.Context, poolID string) (int64, error)
-
-	// Probably a bad idea without some king of filter or at least pagination
-	// TODO: add filter/pagination
-	ListAllInstances(ctx context.Context) ([]params.Instance, error)
-
 	GetPoolInstanceByName(ctx context.Context, poolID string, instanceName string) (params.Instance, error)
-	GetInstanceByName(ctx context.Context, instanceName string) (params.Instance, error)
-	AddInstanceStatusMessage(ctx context.Context, instanceID string, statusMessage string) error
+}
 
+type UserStore interface {
 	GetUser(ctx context.Context, user string) (params.User, error)
 	GetUserByID(ctx context.Context, userID string) (params.User, error)
 
 	CreateUser(ctx context.Context, user params.NewUserParams) (params.User, error)
 	UpdateUser(ctx context.Context, user string, param params.UpdateUserParams) (params.User, error)
 	HasAdminUser(ctx context.Context) bool
+}
+
+type InstanceStore interface {
+	CreateInstance(ctx context.Context, poolID string, param params.CreateInstanceParams) (params.Instance, error)
+	DeleteInstance(ctx context.Context, poolID string, instanceName string) error
+	UpdateInstance(ctx context.Context, instanceID string, param params.UpdateInstanceParams) (params.Instance, error)
+
+	// Probably a bad idea without some king of filter or at least pagination
+	// TODO: add filter/pagination
+	ListAllInstances(ctx context.Context) ([]params.Instance, error)
+
+	GetInstanceByName(ctx context.Context, instanceName string) (params.Instance, error)
+	AddInstanceStatusMessage(ctx context.Context, instanceID string, statusMessage string) error
+}
+
+//go:generate mockery --name=Store
+type Store interface {
+	RepoStore
+	OrgStore
+	EnterpriseStore
+	PoolStore
+	UserStore
+	InstanceStore
 
 	ControllerInfo() (params.ControllerInfo, error)
 	InitController() (params.ControllerInfo, error)

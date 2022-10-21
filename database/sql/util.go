@@ -85,6 +85,21 @@ func (s *sqlDatabase) sqlToCommonOrganization(org Organization) params.Organizat
 	return ret
 }
 
+func (s *sqlDatabase) sqlToCommonEnterprise(enterprise Enterprise) params.Enterprise {
+	ret := params.Enterprise{
+		ID:              enterprise.ID.String(),
+		Name:            enterprise.Name,
+		CredentialsName: enterprise.CredentialsName,
+		Pools:           make([]params.Pool, len(enterprise.Pools)),
+	}
+
+	for idx, pool := range enterprise.Pools {
+		ret.Pools[idx] = s.sqlToCommonPool(pool)
+	}
+
+	return ret
+}
+
 func (s *sqlDatabase) sqlToCommonPool(pool Pool) params.Pool {
 	ret := params.Pool{
 		ID:                     pool.ID.String(),
@@ -111,6 +126,11 @@ func (s *sqlDatabase) sqlToCommonPool(pool Pool) params.Pool {
 	if pool.OrgID != uuid.Nil && pool.Organization.Name != "" {
 		ret.OrgID = pool.OrgID.String()
 		ret.OrgName = pool.Organization.Name
+	}
+
+	if pool.EnterpriseID != uuid.Nil && pool.Enterprise.Name != "" {
+		ret.EnterpriseID = pool.EnterpriseID.String()
+		ret.EnterpriseName = pool.Enterprise.Name
 	}
 
 	for idx, val := range pool.Tags {

@@ -27,6 +27,7 @@ import (
 var (
 	poolRepository   string
 	poolOrganization string
+	poolEnterprise   string
 	poolAll          bool
 )
 
@@ -57,6 +58,9 @@ Example:
 	List pools from one org:
 	garm-cli pool list --org=5493e51f-3170-4ce3-9f05-3fe690fc6ec6
 
+	List pools from one enterprise:
+	garm-cli pool list --org=a8ee4c66-e762-4cbe-a35d-175dba2c9e62
+
 	List all pools from all repos and orgs:
 	garm-cli pool list --all
 
@@ -64,7 +68,7 @@ Example:
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if needsInit {
-			return needsInitError
+			return errNeedsInitError
 		}
 
 		var pools []params.Pool
@@ -76,6 +80,8 @@ Example:
 				pools, err = cli.ListRepoPools(poolRepository)
 			} else if cmd.Flags().Changed("org") {
 				pools, err = cli.ListOrgPools(poolOrganization)
+			} else if cmd.Flags().Changed("enterprise") {
+				pools, err = cli.ListEnterprisePools(poolEnterprise)
 			} else if cmd.Flags().Changed("all") {
 				pools, err = cli.ListAllPools()
 			} else {
@@ -102,7 +108,7 @@ var poolShowCmd = &cobra.Command{
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if needsInit {
-			return needsInitError
+			return errNeedsInitError
 		}
 
 		if len(args) == 0 {
@@ -130,7 +136,7 @@ var poolDeleteCmd = &cobra.Command{
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if needsInit {
-			return needsInitError
+			return errNeedsInitError
 		}
 
 		if len(args) == 0 {
@@ -156,7 +162,7 @@ var poolAddCmd = &cobra.Command{
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if needsInit {
-			return needsInitError
+			return errNeedsInitError
 		}
 
 		tags := strings.Split(poolTags, ",")
@@ -183,6 +189,8 @@ var poolAddCmd = &cobra.Command{
 			pool, err = cli.CreateRepoPool(poolRepository, newPoolParams)
 		} else if cmd.Flags().Changed("org") {
 			pool, err = cli.CreateOrgPool(poolOrganization, newPoolParams)
+		} else if cmd.Flags().Changed("enterprise") {
+			pool, err = cli.CreateEnterprisePool(poolEnterprise, newPoolParams)
 		} else {
 			cmd.Help()
 			os.Exit(0)
@@ -208,7 +216,7 @@ explicitly remove them using the runner delete command.
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if needsInit {
-			return needsInitError
+			return errNeedsInitError
 		}
 
 		if len(args) == 0 {
@@ -270,8 +278,9 @@ explicitly remove them using the runner delete command.
 func init() {
 	poolListCmd.Flags().StringVarP(&poolRepository, "repo", "r", "", "List all pools within this repository.")
 	poolListCmd.Flags().StringVarP(&poolOrganization, "org", "o", "", "List all pools withing this organization.")
+	poolListCmd.Flags().StringVarP(&poolEnterprise, "enterprise", "e", "", "List all pools withing this enterprise.")
 	poolListCmd.Flags().BoolVarP(&poolAll, "all", "a", false, "List all pools, regardless of org or repo.")
-	poolListCmd.MarkFlagsMutuallyExclusive("repo", "org", "all")
+	poolListCmd.MarkFlagsMutuallyExclusive("repo", "org", "all", "enterprise")
 
 	poolUpdateCmd.Flags().StringVar(&poolImage, "image", "", "The provider-specific image name to use for runners in this pool.")
 	poolUpdateCmd.Flags().StringVar(&poolFlavor, "flavor", "", "The flavor to use for this runner.")
@@ -300,7 +309,8 @@ func init() {
 
 	poolAddCmd.Flags().StringVarP(&poolRepository, "repo", "r", "", "Add the new pool within this repository.")
 	poolAddCmd.Flags().StringVarP(&poolOrganization, "org", "o", "", "Add the new pool withing this organization.")
-	poolAddCmd.MarkFlagsMutuallyExclusive("repo", "org")
+	poolAddCmd.Flags().StringVarP(&poolEnterprise, "enterprise", "e", "", "Add the new pool withing this enterprise.")
+	poolAddCmd.MarkFlagsMutuallyExclusive("repo", "org", "enterprise")
 
 	poolCmd.AddCommand(
 		poolListCmd,

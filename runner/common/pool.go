@@ -27,9 +27,19 @@ const (
 
 	PoolConsilitationInterval = 5 * time.Second
 	PoolReapTimeoutInterval   = 5 * time.Minute
-	PoolToolUpdateInterval    = 3 * time.Hour
+	// Temporary tools download token is valid for 1 hour by default.
+	// Set this to 15 minutes. This should allow enough time even on slow
+	// clouds for the instance to spin up, download the tools and join gh.
+	PoolToolUpdateInterval = 15 * time.Minute
+
+	// UnauthorizedBackoffTimer is the time we wait before making another request
+	// after getting an unauthorized error from github. It is unlikely that a second
+	// request will not receive the same error, unless the config is changed with new
+	// credentials and garm is restarted.
+	UnauthorizedBackoffTimer = 3 * time.Hour
 )
 
+//go:generate mockery --all
 type PoolManager interface {
 	ID() string
 	WebhookSecret() string
@@ -41,5 +51,6 @@ type PoolManager interface {
 	// PoolManager lifecycle functions. Start/stop pool.
 	Start() error
 	Stop() error
+	Status() params.PoolManagerStatus
 	Wait() error
 }
