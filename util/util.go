@@ -24,7 +24,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
@@ -147,7 +146,7 @@ func GetLoggingWriter(cfg *config.Config) (io.Writer, error) {
 }
 
 func ConvertFileToBase64(file string) (string, error) {
-	bytes, err := ioutil.ReadFile(file)
+	bytes, err := os.ReadFile(file)
 	if err != nil {
 		return "", errors.Wrap(err, "reading file")
 	}
@@ -214,6 +213,7 @@ func GetCloudConfig(bootstrapParams params.BootstrapInstance, tools github.Runne
 		DownloadURL:       *tools.DownloadURL,
 		TempDownloadToken: tempToken,
 		GithubToken:       bootstrapParams.GithubRunnerAccessToken,
+		TokenURL:          bootstrapParams.TokenURL,
 		RunnerUsername:    config.DefaultUser,
 		RunnerGroup:       config.DefaultUser,
 		RepoURL:           bootstrapParams.RepoURL,

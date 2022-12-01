@@ -145,6 +145,20 @@ function downloadURL() {
     echo "${URL}"
 }
 
+function tempDownloadToken() {
+    # temp_download_token
+    [ -z "$1" -o -z "$2" ] && return 1
+    GH_ARCH="${GARM_TO_GH_ARCH_MAP[$2]}"
+    TOKEN=$(echo "$INPUT" | jq -c -r --arg OS "$1" --arg ARCH "$GH_ARCH" '(.tools[] | select( .os == $OS and .architecture == $ARCH)).temp_download_token')
+    echo "${TOKEN}"
+}
+
+function runnerTokenURL() {
+    TOKEN_URL=$(echo "$INPUT" | jq -c -r '."token-url"')
+    checkValNotNull "${TOKEN_URL}" "token-url" || return $?
+    echo "${TOKEN_URL}"
+}
+
 function downloadFilename() {
     [ -z "$1" -o -z "$2" ] && return 1
     GH_ARCH="${GARM_TO_GH_ARCH_MAP[$2]}"
@@ -177,8 +191,19 @@ function repoURL() {
     echo "${REPO}"
 }
 
+function getRegistrationTokenFromAPI() {
+    TOKEN_URL=$(runnerTokenURL)
+    BEARER_TOKEN=$(callbackToken)
+    TOKEN=$(curl -s -X GET -H 'Accept: application/json' -H "Authorization: Bearer ${BEARER_TOKEN}" "${TOKEN_URL}")
+    checkValNotNull "${TOKEN}" "repo_url" || return $?
+    echo "${TOKEN}"
+}
+
 function ghAccessToken() {
     TOKEN=$(echo "$INPUT" | jq -c -r '.github_runner_access_token')
+    if [ -z "$TOKEN" ];then
+        TOKEN=$(getRegistrationTokenFromAPI)
+    fi
     checkValNotNull "${TOKEN}" "github_runner_access_token" || return $?
     echo "${TOKEN}"
 }
@@ -215,6 +240,7 @@ function getCloudConfig() {
 
     ARCH=$(requestedArch)
     DW_URL=$(downloadURL "${OS_TYPE}" "${ARCH}")
+    DW_TOKEN=$(tempDownloadToken "${OS_TYPE}" "${ARCH}")
     DW_FILENAME=$(downloadFilename "${OS_TYPE}" "${ARCH}")
     LABELS=$(labels)
 
@@ -230,6 +256,7 @@ function getCloudConfig() {
     -e "s|GH_TARGET_URL|$(repoURL)|g" \
     -e "s|GH_RUNNER_TOKEN|$(ghAccessToken)|g" \
     -e "s|GH_RUNNER_NAME|$(instanceName)|g" \
+    -e "s|GH_TEMP_DOWNLOAD_TOKEN|${DW_TOKEN}|g" \
     -e "s|GH_RUNNER_LABELS|${LABELS}|g" > ${TMP_SCRIPT}
 
     AS_B64=$(base64 -w0 ${TMP_SCRIPT})
@@ -306,7 +333,7 @@ function CreateInstance() {
     if [ $? -ne 0 ];then
         CODE=$?
         # cleanup
-        rm -f "${CC_FILE}" || true 
+        rm -f "${CC_FILE}" || true
         openstack server delete "${INSTANCE_NAME}" || true
         openstack volume delete "${INSTANCE_NAME}" || true
         set -e

@@ -16,8 +16,10 @@ package sql
 
 import (
 	"context"
+	"fmt"
 	runnerErrors "garm/errors"
 	"garm/params"
+	"garm/util"
 
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
@@ -30,14 +32,22 @@ func (s *sqlDatabase) CreateInstance(ctx context.Context, poolID string, param p
 	if err != nil {
 		return params.Instance{}, errors.Wrap(err, "fetching pool")
 	}
+	var ghToken []byte
+	if param.GithubRegistrationToken != nil {
+		ghToken, err = util.Aes256EncodeString(string(param.GithubRegistrationToken), s.cfg.Passphrase)
+		if err != nil {
+			return params.Instance{}, fmt.Errorf("failed to encrypt gh token")
+		}
+	}
 	newInstance := Instance{
-		Pool:         pool,
-		Name:         param.Name,
-		Status:       param.Status,
-		RunnerStatus: param.RunnerStatus,
-		OSType:       param.OSType,
-		OSArch:       param.OSArch,
-		CallbackURL:  param.CallbackURL,
+		Pool:                    pool,
+		Name:                    param.Name,
+		Status:                  param.Status,
+		RunnerStatus:            param.RunnerStatus,
+		OSType:                  param.OSType,
+		OSArch:                  param.OSArch,
+		CallbackURL:             param.CallbackURL,
+		GithubRegistrationToken: ghToken,
 	}
 	q := s.conn.Create(&newInstance)
 	if q.Error != nil {
@@ -112,6 +122,15 @@ func (s *sqlDatabase) GetPoolInstanceByName(ctx context.Context, poolID string, 
 	if err != nil {
 		return params.Instance{}, errors.Wrap(err, "fetching instance")
 	}
+
+	if instance.GithubRegistrationToken != nil {
+		token, err := util.Aes256DecodeString(instance.GithubRegistrationToken, s.cfg.Passphrase)
+		if err != nil {
+			return params.Instance{}, errors.Wrap(err, "decoing token")
+		}
+		instance.GithubRegistrationToken = []byte(token)
+	}
+
 	return s.sqlToParamsInstance(instance), nil
 }
 
@@ -119,6 +138,14 @@ func (s *sqlDatabase) GetInstanceByName(ctx context.Context, instanceName string
 	instance, err := s.getInstanceByName(ctx, instanceName, "StatusMessages")
 	if err != nil {
 		return params.Instance{}, errors.Wrap(err, "fetching instance")
+	}
+
+	if instance.GithubRegistrationToken != nil {
+		token, err := util.Aes256DecodeString(instance.GithubRegistrationToken, s.cfg.Passphrase)
+		if err != nil {
+			return params.Instance{}, errors.Wrap(err, "decoing token")
+		}
+		instance.GithubRegistrationToken = []byte(token)
 	}
 	return s.sqlToParamsInstance(instance), nil
 }

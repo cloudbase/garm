@@ -4,6 +4,11 @@
 # the github actions runner. Status messages can be seen by querying the
 # runner status in garm.
 callback_url = "https://garm.example.com/api/v1/callbacks/status"
+
+# This URL is used to retrieve a github runner registration token for a particular
+# instance. Once the instance transitions to "installed", this endpoint should
+# no longer be accessible.
+token_url = "https://garm.example.com/api/v1/callbacks/tokens"
 # This folder is defined here for future use. Right now, we create a SSH
 # public/private key-pair.
 config_dir = "/etc/garm"

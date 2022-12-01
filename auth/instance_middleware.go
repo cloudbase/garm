@@ -26,6 +26,7 @@ import (
 	runnerErrors "garm/errors"
 	"garm/params"
 	"garm/runner/common"
+	providerCommon "garm/runner/providers/common"
 
 	"github.com/golang-jwt/jwt"
 	"github.com/pkg/errors"
@@ -145,6 +146,14 @@ func (amw *instanceMiddleware) Middleware(next http.Handler) http.Handler {
 
 		if InstanceID(ctx) == "" {
 			invalidAuthResponse(w)
+			return
+		}
+
+		runnerStatus := InstanceRunnerStatus(ctx)
+		if runnerStatus != providerCommon.RunnerInstalling && runnerStatus != providerCommon.RunnerPending {
+			// Instances that have finished installing can no longer authenticate to the API
+			invalidAuthResponse(w)
+			return
 		}
 
 		// ctx = SetJWTClaim(ctx, *claims)

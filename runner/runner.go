@@ -722,6 +722,20 @@ func (r *Runner) AddInstanceStatusMessage(ctx context.Context, param params.Inst
 	return nil
 }
 
+func (r *Runner) GetInstanceGithubRegistrationToken(ctx context.Context) (string, error) {
+	instanceID := auth.InstanceID(ctx)
+	if instanceID == "" {
+		return "", runnerErrors.ErrUnauthorized
+	}
+
+	status := auth.InstanceRunnerStatus(ctx)
+	if status != providerCommon.RunnerPending && status != providerCommon.RunnerInstalling {
+		return "", runnerErrors.ErrUnauthorized
+	}
+	token := auth.InstanceGithubToken(ctx)
+	return token, nil
+}
+
 func (r *Runner) ForceDeleteRunner(ctx context.Context, instanceName string) error {
 	if !auth.IsAdmin(ctx) {
 		return runnerErrors.ErrUnauthorized

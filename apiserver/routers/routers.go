@@ -45,6 +45,8 @@ func NewAPIRouter(han *controllers.APIController, logWriter io.Writer, authMiddl
 	callbackRouter := apiSubRouter.PathPrefix("/callbacks").Subrouter()
 	callbackRouter.Handle("/status/", log(logWriter, http.HandlerFunc(han.InstanceStatusMessageHandler))).Methods("POST", "OPTIONS")
 	callbackRouter.Handle("/status", log(logWriter, http.HandlerFunc(han.InstanceStatusMessageHandler))).Methods("POST", "OPTIONS")
+	callbackRouter.Handle("/token/", log(logWriter, http.HandlerFunc(han.InstanceGithubRegistrationTokenHandler))).Methods("GET", "OPTIONS")
+	callbackRouter.Handle("/token", log(logWriter, http.HandlerFunc(han.InstanceGithubRegistrationTokenHandler))).Methods("GET", "OPTIONS")
 	callbackRouter.Use(instanceMiddleware.Middleware)
 	// Login
 	authRouter := apiSubRouter.PathPrefix("/auth").Subrouter()

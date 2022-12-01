@@ -345,15 +345,24 @@ func (r *basePoolManager) AddRunner(ctx context.Context, poolID string) error {
 	}
 
 	name := fmt.Sprintf("garm-%s", uuid.New())
-
+	tk, err := r.helper.GetGithubRegistrationToken()
+	if err != nil {
+		if errors.Is(err, runnerErrors.ErrUnauthorized) {
+			failureReason := fmt.Sprintf("failed to fetch registration token: %q", err)
+			r.setPoolRunningState(false, failureReason)
+			log.Print(failureReason)
+		}
+		return errors.Wrap(err, "fetching registration token")
+	}
 	createParams := params.CreateInstanceParams{
-		Name:          name,
-		Status:        providerCommon.InstancePendingCreate,
-		RunnerStatus:  providerCommon.RunnerPending,
-		OSArch:        pool.OSArch,
-		OSType:        pool.OSType,
-		CallbackURL:   r.helper.GetCallbackURL(),
-		CreateAttempt: 1,
+		Name:                    name,
+		Status:                  providerCommon.InstancePendingCreate,
+		RunnerStatus:            providerCommon.RunnerPending,
+		OSArch:                  pool.OSArch,
+		OSType:                  pool.OSType,
+		GithubRegistrationToken: []byte(tk),
+		CallbackURL:             r.helper.GetCallbackURL(),
+		CreateAttempt:           1,
 	}
 
 	_, err = r.store.CreateInstance(r.ctx, poolID, createParams)
@@ -512,14 +521,17 @@ func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error 
 	labels = append(labels, r.controllerLabel())
 	labels = append(labels, r.poolLabel(pool.ID))
 
-	tk, err := r.helper.GetGithubRegistrationToken()
-	if err != nil {
-		if errors.Is(err, runnerErrors.ErrUnauthorized) {
-			failureReason := fmt.Sprintf("failed to fetch registration token: %q", err)
-			r.setPoolRunningState(false, failureReason)
-			log.Print(failureReason)
+	if instance.GithubRegistrationToken == nil {
+		tk, err := r.helper.GetGithubRegistrationToken()
+		if err != nil {
+			if errors.Is(err, runnerErrors.ErrUnauthorized) {
+				failureReason := fmt.Sprintf("failed to fetch registration token: %q", err)
+				r.setPoolRunningState(false, failureReason)
+				log.Print(failureReason)
+			}
+			return errors.Wrap(err, "fetching registration token")
 		}
-		return errors.Wrap(err, "fetching registration token")
+		instance.GithubRegistrationToken = []byte(tk)
 	}
 
 	jwtValidity := pool.RunnerTimeout()
@@ -538,7 +550,7 @@ func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error 
 		Name:                    instance.Name,
 		Tools:                   r.tools,
 		RepoURL:                 r.helper.GithubURL(),
-		GithubRunnerAccessToken: tk,
+		GithubRunnerAccessToken: string(instance.GithubRegistrationToken),
 		CallbackURL:             instance.CallbackURL,
 		InstanceToken:           jwtToken,
 		OSArch:                  pool.OSArch,

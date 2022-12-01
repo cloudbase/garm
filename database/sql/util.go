@@ -29,21 +29,22 @@ func (s *sqlDatabase) sqlToParamsInstance(instance Instance) params.Instance {
 		id = *instance.ProviderID
 	}
 	ret := params.Instance{
-		ID:             instance.ID.String(),
-		ProviderID:     id,
-		AgentID:        instance.AgentID,
-		Name:           instance.Name,
-		OSType:         instance.OSType,
-		OSName:         instance.OSName,
-		OSVersion:      instance.OSVersion,
-		OSArch:         instance.OSArch,
-		Status:         instance.Status,
-		RunnerStatus:   instance.RunnerStatus,
-		PoolID:         instance.PoolID.String(),
-		CallbackURL:    instance.CallbackURL,
-		StatusMessages: []params.StatusMessage{},
-		CreateAttempt:  instance.CreateAttempt,
-		UpdatedAt:      instance.UpdatedAt,
+		ID:                      instance.ID.String(),
+		ProviderID:              id,
+		AgentID:                 instance.AgentID,
+		Name:                    instance.Name,
+		OSType:                  instance.OSType,
+		OSName:                  instance.OSName,
+		OSVersion:               instance.OSVersion,
+		OSArch:                  instance.OSArch,
+		Status:                  instance.Status,
+		RunnerStatus:            instance.RunnerStatus,
+		PoolID:                  instance.PoolID.String(),
+		CallbackURL:             instance.CallbackURL,
+		StatusMessages:          []params.StatusMessage{},
+		CreateAttempt:           instance.CreateAttempt,
+		UpdatedAt:               instance.UpdatedAt,
+		GithubRegistrationToken: instance.GithubRegistrationToken,
 	}
 
 	if len(instance.ProviderFault) > 0 {

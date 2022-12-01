@@ -73,11 +73,12 @@ type Instance struct {
 	ProviderFault []byte                `json:"provider_fault,omitempty"`
 
 	StatusMessages []StatusMessage `json:"status_messages,omitempty"`
+	UpdatedAt      time.Time       `json:"updated_at"`
 
 	// Do not serialize sensitive info.
-	CallbackURL   string    `json:"-"`
-	CreateAttempt int       `json:"-"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	CallbackURL             string `json:"-"`
+	CreateAttempt           int    `json:"-"`
+	GithubRegistrationToken []byte `json:"-"`
 }
 
 type BootstrapInstance struct {
@@ -91,6 +92,8 @@ type BootstrapInstance struct {
 	// CallbackUrl is the URL where the instance can send a post, signaling
 	// progress or status.
 	CallbackURL string `json:"callback-url"`
+	// TokenURL is the URL where instances can fetch github runner registratin tokens.
+	TokenURL string `json:"token-url"`
 	// InstanceToken is the token that needs to be set by the instance in the headers
 	// in order to send updated back to the garm via CallbackURL.
 	InstanceToken string `json:"instance-token"`

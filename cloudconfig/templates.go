@@ -27,7 +27,17 @@ set -ex
 set -o pipefail
 
 CALLBACK_URL="{{ .CallbackURL }}"
+TOKEN_URL="{{ .TokenURL }}"
 BEARER_TOKEN="{{ .CallbackToken }}"
+GITHUB_TOKEN="{{ .GithubToken }}"
+
+if [ -z "$GITHUB_TOKEN" ];then
+	if [ -z "$TOKEN_URL" ];then
+		echo "no token is available and TOKEN_URL is not set"
+		exit 1
+	fi
+	GITHUB_TOKEN=$(curl -s -X GET -H 'Accept: application/json' -H "Authorization: Bearer ${BEARER_TOKEN}" "${TOKEN_URL}")
+fi
 
 function call() {
 	PAYLOAD="$1"
@@ -55,13 +65,11 @@ sendStatus "downloading tools from {{ .DownloadURL }}"
 
 TEMP_TOKEN=""
 
-
-
 if [ ! -z "{{ .TempDownloadToken }}" ]; then
 	TEMP_TOKEN="Authorization: Bearer {{ .TempDownloadToken }}"
 fi
 
-curl -L -H "${TEMP_TOKEN}" -o "/home/runner/{{ .FileName }}" "{{ .DownloadURL }}" || fail "failed to download tools"
+curl -L -H "${TEMP_TOKEN}" -o "/home/{{ .RunnerUsername }}/{{ .FileName }}" "{{ .DownloadURL }}" || fail "failed to download tools"
 
 mkdir -p /home/runner/actions-runner || fail "failed to create actions-runner folder"
 
@@ -74,7 +82,7 @@ cd /home/{{ .RunnerUsername }}/actions-runner
 sudo ./bin/installdependencies.sh || fail "failed to install dependencies"
 
 sendStatus "configuring runner"
-sudo -u {{ .RunnerUsername }} -- ./config.sh --unattended --url "{{ .RepoURL }}" --token "{{ .GithubToken }}" --name "{{ .RunnerName }}" --labels "{{ .RunnerLabels }}" --ephemeral || fail "failed to configure runner"
+sudo -u {{ .RunnerUsername }} -- ./config.sh --unattended --url "{{ .RepoURL }}" --token "$GITHUB_TOKEN" --name "{{ .RunnerName }}" --labels "{{ .RunnerLabels }}" --ephemeral || fail "failed to configure runner"
 
 sendStatus "installing runner service"
 ./svc.sh install {{ .RunnerUsername }} || fail "failed to install service"
@@ -99,6 +107,7 @@ type InstallRunnerParams struct {
 	RunnerGroup       string
 	RepoURL           string
 	GithubToken       string
+	TokenURL          string
 	RunnerName        string
 	RunnerLabels      string
 	CallbackURL       string

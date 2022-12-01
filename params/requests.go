@@ -107,13 +107,14 @@ type UpdatePoolParams struct {
 }
 
 type CreateInstanceParams struct {
-	Name          string
-	OSType        config.OSType
-	OSArch        config.OSArch
-	Status        common.InstanceStatus
-	RunnerStatus  common.RunnerStatus
-	CallbackURL   string
-	CreateAttempt int `json:"-"`
+	Name                    string
+	OSType                  config.OSType
+	OSArch                  config.OSArch
+	Status                  common.InstanceStatus
+	RunnerStatus            common.RunnerStatus
+	CallbackURL             string
+	CreateAttempt           int    `json:"-"`
+	GithubRegistrationToken []byte `json:"-"`
 }
 
 type CreatePoolParams struct {

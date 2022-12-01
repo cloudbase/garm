@@ -18,6 +18,7 @@ import (
 	"context"
 
 	"garm/params"
+	"garm/runner/providers/common"
 )
 
 type contextFlags string
@@ -45,11 +46,13 @@ const (
 	isEnabledFlag contextFlags = "is_enabled"
 	jwtTokenFlag  contextFlags = "jwt_token"
 
-	instanceIDKey       contextFlags = "id"
-	instanceNameKey     contextFlags = "name"
-	instancePoolIDKey   contextFlags = "pool_id"
-	instancePoolTypeKey contextFlags = "scope"
-	instanceEntityKey   contextFlags = "entity"
+	instanceIDKey        contextFlags = "id"
+	instanceNameKey      contextFlags = "name"
+	instancePoolIDKey    contextFlags = "pool_id"
+	instancePoolTypeKey  contextFlags = "scope"
+	instanceEntityKey    contextFlags = "entity"
+	instanceRunnerStatus contextFlags = "status"
+	instanceGithubToken  contextFlags = "github_token"
 )
 
 func SetInstanceID(ctx context.Context, id string) context.Context {
@@ -58,6 +61,30 @@ func SetInstanceID(ctx context.Context, id string) context.Context {
 
 func InstanceID(ctx context.Context) string {
 	elem := ctx.Value(instanceIDKey)
+	if elem == nil {
+		return ""
+	}
+	return elem.(string)
+}
+
+func SetInstanceRunnerStatus(ctx context.Context, val common.RunnerStatus) context.Context {
+	return context.WithValue(ctx, instanceRunnerStatus, val)
+}
+
+func InstanceRunnerStatus(ctx context.Context) common.RunnerStatus {
+	elem := ctx.Value(instanceRunnerStatus)
+	if elem == nil {
+		return common.RunnerPending
+	}
+	return elem.(common.RunnerStatus)
+}
+
+func SetInstanceGithubToken(ctx context.Context, val string) context.Context {
+	return context.WithValue(ctx, instanceGithubToken, val)
+}
+
+func InstanceGithubToken(ctx context.Context) string {
+	elem := ctx.Value(instanceGithubToken)
 	if elem == nil {
 		return ""
 	}
@@ -116,6 +143,8 @@ func PopulateInstanceContext(ctx context.Context, instance params.Instance) cont
 	ctx = SetInstanceID(ctx, instance.ID)
 	ctx = SetInstanceName(ctx, instance.Name)
 	ctx = SetInstancePoolID(ctx, instance.PoolID)
+	ctx = SetInstanceRunnerStatus(ctx, instance.RunnerStatus)
+	ctx = SetInstanceGithubToken(ctx, string(instance.GithubRegistrationToken))
 	return ctx
 }
 
