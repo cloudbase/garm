@@ -41,13 +41,16 @@ func NewAPIRouter(han *controllers.APIController, logWriter io.Writer, authMiddl
 	firstRunRouter := apiSubRouter.PathPrefix("/first-run").Subrouter()
 	firstRunRouter.Handle("/", log(logWriter, http.HandlerFunc(han.FirstRunHandler))).Methods("POST", "OPTIONS")
 
-	// Instance callback
+	// Instance URLs
 	callbackRouter := apiSubRouter.PathPrefix("/callbacks").Subrouter()
 	callbackRouter.Handle("/status/", log(logWriter, http.HandlerFunc(han.InstanceStatusMessageHandler))).Methods("POST", "OPTIONS")
 	callbackRouter.Handle("/status", log(logWriter, http.HandlerFunc(han.InstanceStatusMessageHandler))).Methods("POST", "OPTIONS")
-	callbackRouter.Handle("/token/", log(logWriter, http.HandlerFunc(han.InstanceGithubRegistrationTokenHandler))).Methods("GET", "OPTIONS")
-	callbackRouter.Handle("/token", log(logWriter, http.HandlerFunc(han.InstanceGithubRegistrationTokenHandler))).Methods("GET", "OPTIONS")
 	callbackRouter.Use(instanceMiddleware.Middleware)
+
+	metadataRouter := apiSubRouter.PathPrefix("/metadata").Subrouter()
+	metadataRouter.Handle("/token/", log(logWriter, http.HandlerFunc(han.InstanceGithubRegistrationTokenHandler))).Methods("GET", "OPTIONS")
+	metadataRouter.Handle("/token", log(logWriter, http.HandlerFunc(han.InstanceGithubRegistrationTokenHandler))).Methods("GET", "OPTIONS")
+	metadataRouter.Use(instanceMiddleware.Middleware)
 	// Login
 	authRouter := apiSubRouter.PathPrefix("/auth").Subrouter()
 	authRouter.Handle("/{login:login\\/?}", log(logWriter, http.HandlerFunc(han.LoginHandler))).Methods("POST", "OPTIONS")

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -ex
+set -e
 set -o pipefail
 
 CALLBACK_URL="GARM_CALLBACK_URL"

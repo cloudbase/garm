@@ -193,6 +193,10 @@ func (r *repository) GetCallbackURL() string {
 	return r.cfgInternal.InstanceCallbackURL
 }
 
+func (r *repository) GetMetadataURL() string {
+	return r.cfgInternal.InstanceMetadataURL
+}
+
 func (r *repository) FindPoolByTags(labels []string) (params.Pool, error) {
 	pool, err := r.store.FindRepositoryPoolByTags(r.ctx, r.id, labels)
 	if err != nil {

@@ -47,6 +47,7 @@ func (s *sqlDatabase) CreateInstance(ctx context.Context, poolID string, param p
 		OSType:                  param.OSType,
 		OSArch:                  param.OSArch,
 		CallbackURL:             param.CallbackURL,
+		MetadataURL:             param.MetadataURL,
 		GithubRegistrationToken: ghToken,
 	}
 	q := s.conn.Create(&newInstance)

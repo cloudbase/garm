@@ -192,6 +192,10 @@ func (r *organization) GetCallbackURL() string {
 	return r.cfgInternal.InstanceCallbackURL
 }
 
+func (r *organization) GetMetadataURL() string {
+	return r.cfgInternal.InstanceMetadataURL
+}
+
 func (r *organization) FindPoolByTags(labels []string) (params.Pool, error) {
 	pool, err := r.store.FindOrganizationPoolByTags(r.ctx, r.id, labels)
 	if err != nil {

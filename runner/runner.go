@@ -239,6 +239,7 @@ func (p *poolManagerCtrl) getInternalConfig(credsName string) (params.Internal, 
 		OAuth2Token:         creds.OAuth2Token,
 		ControllerID:        p.controllerID,
 		InstanceCallbackURL: p.config.Default.CallbackURL,
+		InstanceMetadataURL: p.config.Default.MetadataURL,
 		JWTSecret:           p.config.JWTAuth.Secret,
 		GithubCredentialsDetails: params.GithubCredentials{
 			Name:          creds.Name,

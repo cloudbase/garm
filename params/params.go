@@ -77,6 +77,7 @@ type Instance struct {
 
 	// Do not serialize sensitive info.
 	CallbackURL             string `json:"-"`
+	MetadataURL             string `json:"-"`
 	CreateAttempt           int    `json:"-"`
 	GithubRegistrationToken []byte `json:"-"`
 }
@@ -92,8 +93,8 @@ type BootstrapInstance struct {
 	// CallbackUrl is the URL where the instance can send a post, signaling
 	// progress or status.
 	CallbackURL string `json:"callback-url"`
-	// TokenURL is the URL where instances can fetch github runner registratin tokens.
-	TokenURL string `json:"token-url"`
+	// MetadataURL is the URL where instances can fetch information needed to set themselves up.
+	MetadataURL string `json:"metadata-url"`
 	// InstanceToken is the token that needs to be set by the instance in the headers
 	// in order to send updated back to the garm via CallbackURL.
 	InstanceToken string `json:"instance-token"`
@@ -147,6 +148,7 @@ type Internal struct {
 	OAuth2Token         string `json:"oauth2"`
 	ControllerID        string `json:"controller_id"`
 	InstanceCallbackURL string `json:"instance_callback_url"`
+	InstanceMetadataURL string `json:"instance_metadata_url"`
 	JWTSecret           string `json:"jwt_secret"`
 	// GithubCredentialsDetails contains all info about the credentials, except the
 	// token, which is added above.

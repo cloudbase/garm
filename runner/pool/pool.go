@@ -362,6 +362,7 @@ func (r *basePoolManager) AddRunner(ctx context.Context, poolID string) error {
 		OSType:                  pool.OSType,
 		GithubRegistrationToken: []byte(tk),
 		CallbackURL:             r.helper.GetCallbackURL(),
+		MetadataURL:             r.helper.GetMetadataURL(),
 		CreateAttempt:           1,
 	}
 
@@ -551,6 +552,7 @@ func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error 
 		Tools:                   r.tools,
 		RepoURL:                 r.helper.GithubURL(),
 		GithubRunnerAccessToken: string(instance.GithubRegistrationToken),
+		MetadataURL:             instance.MetadataURL,
 		CallbackURL:             instance.CallbackURL,
 		InstanceToken:           jwtToken,
 		OSArch:                  pool.OSArch,

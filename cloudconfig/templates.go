@@ -23,25 +23,25 @@ import (
 
 var CloudConfigTemplate = `#!/bin/bash
 
-set -ex
+set -e
 set -o pipefail
 
 CALLBACK_URL="{{ .CallbackURL }}"
-TOKEN_URL="{{ .TokenURL }}"
+METADATA_URL="{{ .MetadataURL }}"
 BEARER_TOKEN="{{ .CallbackToken }}"
 GITHUB_TOKEN="{{ .GithubToken }}"
 
 if [ -z "$GITHUB_TOKEN" ];then
-	if [ -z "$TOKEN_URL" ];then
-		echo "no token is available and TOKEN_URL is not set"
+	if [ -z "$METADATA_URL" ];then
+		echo "no token is available and METADATA_URL is not set"
 		exit 1
 	fi
-	GITHUB_TOKEN=$(curl -s -X GET -H 'Accept: application/json' -H "Authorization: Bearer ${BEARER_TOKEN}" "${TOKEN_URL}")
+	GITHUB_TOKEN=$(curl --fail -s -X GET -H 'Accept: application/json' -H "Authorization: Bearer ${BEARER_TOKEN}" "${METADATA_URL}/token")
 fi
 
 function call() {
 	PAYLOAD="$1"
-	curl -s -X POST -d "${PAYLOAD}" -H 'Accept: application/json' -H "Authorization: Bearer ${BEARER_TOKEN}" "${CALLBACK_URL}" || echo "failed to call home: exit code ($?)"
+	curl --fail -s -X POST -d "${PAYLOAD}" -H 'Accept: application/json' -H "Authorization: Bearer ${BEARER_TOKEN}" "${CALLBACK_URL}" || echo "failed to call home: exit code ($?)"
 }
 
 function sendStatus() {
@@ -107,7 +107,7 @@ type InstallRunnerParams struct {
 	RunnerGroup       string
 	RepoURL           string
 	GithubToken       string
-	TokenURL          string
+	MetadataURL       string
 	RunnerName        string
 	RunnerLabels      string
 	CallbackURL       string

@@ -212,8 +212,7 @@ func GetCloudConfig(bootstrapParams params.BootstrapInstance, tools github.Runne
 		FileName:          *tools.Filename,
 		DownloadURL:       *tools.DownloadURL,
 		TempDownloadToken: tempToken,
-		GithubToken:       bootstrapParams.GithubRunnerAccessToken,
-		TokenURL:          bootstrapParams.TokenURL,
+		MetadataURL:       bootstrapParams.MetadataURL,
 		RunnerUsername:    config.DefaultUser,
 		RunnerGroup:       config.DefaultUser,
 		RepoURL:           bootstrapParams.RepoURL,
@@ -221,6 +220,11 @@ func GetCloudConfig(bootstrapParams params.BootstrapInstance, tools github.Runne
 		RunnerLabels:      strings.Join(bootstrapParams.Labels, ","),
 		CallbackURL:       bootstrapParams.CallbackURL,
 		CallbackToken:     bootstrapParams.InstanceToken,
+	}
+
+	if bootstrapParams.MetadataURL == "" {
+		// Token URL is not set. Add the GH runner registration token to userdata.
+		installRunnerParams.GithubToken = bootstrapParams.GithubRunnerAccessToken
 	}
 
 	installScript, err := cloudconfig.InstallRunnerScript(installRunnerParams)

@@ -18,7 +18,7 @@ import (
 )
 
 // test that we implement PoolManager
-var _ poolHelper = &organization{}
+var _ poolHelper = &enterprise{}
 
 func NewEnterprisePoolManager(ctx context.Context, cfg params.Enterprise, cfgInternal params.Internal, providers map[string]common.Provider, store dbCommon.Store) (common.PoolManager, error) {
 	ghc, ghEnterpriseClient, err := util.GithubClient(ctx, cfgInternal.OAuth2Token, cfgInternal.GithubCredentialsDetails)
@@ -177,6 +177,10 @@ func (r *enterprise) WebhookSecret() string {
 
 func (r *enterprise) GetCallbackURL() string {
 	return r.cfgInternal.InstanceCallbackURL
+}
+
+func (r *enterprise) GetMetadataURL() string {
+	return r.cfgInternal.InstanceMetadataURL
 }
 
 func (r *enterprise) FindPoolByTags(labels []string) (params.Pool, error) {

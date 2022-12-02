@@ -173,8 +173,9 @@ type Default struct {
 	ConfigDir string `toml:"config_dir,omitempty" json:"config-dir,omitempty"`
 	// CallbackURL is the URL where the instances can send back status reports.
 	CallbackURL string `toml:"callback_url" json:"callback-url"`
-	// TokenURL is the URL where instances can fetch a github runner registration token.
-	TokenURL string `toml:"token_url" json:"token-url"`
+	// MetadataURL is the URL where instances can fetch information they may need
+	// to set themselves up.
+	MetadataURL string `toml:"metadata_url" json:"metadata-url"`
 	// LogFile is the location of the log file.
 	LogFile           string `toml:"log_file,omitempty" json:"log-file"`
 	EnableLogStreamer bool   `toml:"enable_log_streamer"`
@@ -190,9 +191,9 @@ func (d *Default) Validate() error {
 		return errors.Wrap(err, "validating callback_url")
 	}
 
-	if d.TokenURL != "" {
-		if _, err := url.Parse(d.TokenURL); err != nil {
-			return errors.Wrap(err, "validating token_url")
+	if d.MetadataURL != "" {
+		if _, err := url.Parse(d.MetadataURL); err != nil {
+			return errors.Wrap(err, "validating metadata_url")
 		}
 	}
 

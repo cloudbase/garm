@@ -154,9 +154,9 @@ function tempDownloadToken() {
 }
 
 function runnerTokenURL() {
-    TOKEN_URL=$(echo "$INPUT" | jq -c -r '."token-url"')
-    checkValNotNull "${TOKEN_URL}" "token-url" || return $?
-    echo "${TOKEN_URL}"
+    METADATA_URL=$(echo "$INPUT" | jq -c -r '."metadata-url"')
+    checkValNotNull "${METADATA_URL}" "metadata-url" || return $?
+    echo "${METADATA_URL}/token/"
 }
 
 function downloadFilename() {
@@ -194,7 +194,7 @@ function repoURL() {
 function getRegistrationTokenFromAPI() {
     TOKEN_URL=$(runnerTokenURL)
     BEARER_TOKEN=$(callbackToken)
-    TOKEN=$(curl -s -X GET -H 'Accept: application/json' -H "Authorization: Bearer ${BEARER_TOKEN}" "${TOKEN_URL}")
+    TOKEN=$(curl --fail -s -X GET -H 'Accept: application/json' -H "Authorization: Bearer ${BEARER_TOKEN}" "${TOKEN_URL}")
     checkValNotNull "${TOKEN}" "repo_url" || return $?
     echo "${TOKEN}"
 }

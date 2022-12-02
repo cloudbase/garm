@@ -113,6 +113,7 @@ type CreateInstanceParams struct {
 	Status                  common.InstanceStatus
 	RunnerStatus            common.RunnerStatus
 	CallbackURL             string
+	MetadataURL             string
 	CreateAttempt           int    `json:"-"`
 	GithubRegistrationToken []byte `json:"-"`
 }

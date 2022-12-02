@@ -34,6 +34,7 @@ type poolHelper interface {
 	JwtToken() string
 	String() string
 	GetCallbackURL() string
+	GetMetadataURL() string
 	FindPoolByTags(labels []string) (params.Pool, error)
 	GetPoolByID(poolID string) (params.Pool, error)
 	ValidateOwner(job params.WorkflowJob) error

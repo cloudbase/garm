@@ -41,6 +41,7 @@ func (s *sqlDatabase) sqlToParamsInstance(instance Instance) params.Instance {
 		RunnerStatus:            instance.RunnerStatus,
 		PoolID:                  instance.PoolID.String(),
 		CallbackURL:             instance.CallbackURL,
+		MetadataURL:             instance.MetadataURL,
 		StatusMessages:          []params.StatusMessage{},
 		CreateAttempt:           instance.CreateAttempt,
 		UpdatedAt:               instance.UpdatedAt,

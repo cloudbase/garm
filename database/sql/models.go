@@ -138,6 +138,7 @@ type Instance struct {
 	Status                  common.InstanceStatus
 	RunnerStatus            common.RunnerStatus
 	CallbackURL             string
+	MetadataURL             string
 	ProviderFault           []byte `gorm:"type:longblob"`
 	CreateAttempt           int
 	GithubRegistrationToken []byte `gorm:"type:longblob"`
