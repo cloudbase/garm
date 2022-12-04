@@ -27,7 +27,6 @@ import (
 	"garm/runner/common"
 	runnerCommonMocks "garm/runner/common/mocks"
 	runnerMocks "garm/runner/mocks"
-	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/mock"
@@ -57,47 +56,6 @@ type OrgTestSuite struct {
 	suite.Suite
 	Fixtures *OrgTestFixtures
 	Runner   *Runner
-}
-
-func (s *OrgTestSuite) orgsMapValues(orgs map[string]params.Organization) []params.Organization {
-	orgsSlice := []params.Organization{}
-	for _, value := range orgs {
-		orgsSlice = append(orgsSlice, value)
-	}
-	return orgsSlice
-}
-
-func (s *OrgTestSuite) equalOrgsByName(expected, actual []params.Organization) {
-	s.Require().Equal(len(expected), len(actual))
-
-	sort.Slice(expected, func(i, j int) bool { return expected[i].Name > expected[j].Name })
-	sort.Slice(actual, func(i, j int) bool { return actual[i].Name > actual[j].Name })
-
-	for i := 0; i < len(expected); i++ {
-		s.Require().Equal(expected[i].Name, actual[i].Name)
-	}
-}
-
-func (s *OrgTestSuite) equalPoolsByID(expected, actual []params.Pool) {
-	s.Require().Equal(len(expected), len(actual))
-
-	sort.Slice(expected, func(i, j int) bool { return expected[i].ID > expected[j].ID })
-	sort.Slice(actual, func(i, j int) bool { return actual[i].ID > actual[j].ID })
-
-	for i := 0; i < len(expected); i++ {
-		s.Require().Equal(expected[i].ID, actual[i].ID)
-	}
-}
-
-func (s *OrgTestSuite) equalInstancesByName(expected, actual []params.Instance) {
-	s.Require().Equal(len(expected), len(actual))
-
-	sort.Slice(expected, func(i, j int) bool { return expected[i].Name > expected[j].Name })
-	sort.Slice(actual, func(i, j int) bool { return actual[i].Name > actual[j].Name })
-
-	for i := 0; i < len(expected); i++ {
-		s.Require().Equal(expected[i].Name, actual[i].Name)
-	}
 }
 
 func (s *OrgTestSuite) SetupTest() {
@@ -267,7 +225,7 @@ func (s *OrgTestSuite) TestListOrganizations() {
 	orgs, err := s.Runner.ListOrganizations(s.Fixtures.AdminContext)
 
 	s.Require().Nil(err)
-	s.equalOrgsByName(s.orgsMapValues(s.Fixtures.StoreOrgs), orgs)
+	garmTesting.EqualDBEntityByName(s.T(), garmTesting.DBEntityMapToSlice(s.Fixtures.StoreOrgs), orgs)
 }
 
 func (s *OrgTestSuite) TestListOrganizationsErrUnauthorized() {
@@ -493,7 +451,7 @@ func (s *OrgTestSuite) TestListOrgPools() {
 	pools, err := s.Runner.ListOrgPools(s.Fixtures.AdminContext, s.Fixtures.StoreOrgs["test-org-1"].ID)
 
 	s.Require().Nil(err)
-	s.equalPoolsByID(orgPools, pools)
+	garmTesting.EqualDBEntityID(s.T(), orgPools, pools)
 }
 
 func (s *OrgTestSuite) TestListOrgPoolsErrUnauthorized() {
@@ -554,7 +512,7 @@ func (s *OrgTestSuite) TestListOrgInstances() {
 	instances, err := s.Runner.ListOrgInstances(s.Fixtures.AdminContext, s.Fixtures.StoreOrgs["test-org-1"].ID)
 
 	s.Require().Nil(err)
-	s.equalInstancesByName(poolInstances, instances)
+	garmTesting.EqualDBEntityID(s.T(), poolInstances, instances)
 }
 
 func (s *OrgTestSuite) TestListOrgInstancesErrUnauthorized() {
@@ -585,5 +543,6 @@ func (s *OrgTestSuite) TestFindOrgPoolManagerFetchPoolMgrFailed() {
 }
 
 func TestOrgTestSuite(t *testing.T) {
+	t.Parallel()
 	suite.Run(t, new(OrgTestSuite))
 }

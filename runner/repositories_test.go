@@ -27,7 +27,6 @@ import (
 	"garm/runner/common"
 	runnerCommonMocks "garm/runner/common/mocks"
 	runnerMocks "garm/runner/mocks"
-	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/mock"
@@ -56,47 +55,6 @@ type RepoTestSuite struct {
 	suite.Suite
 	Fixtures *RepoTestFixtures
 	Runner   *Runner
-}
-
-func (s *RepoTestSuite) reposMapValues(repos map[string]params.Repository) []params.Repository {
-	reposSlice := []params.Repository{}
-	for _, value := range repos {
-		reposSlice = append(reposSlice, value)
-	}
-	return reposSlice
-}
-
-func (s *RepoTestSuite) equalReposByName(expected, actual []params.Repository) {
-	s.Require().Equal(len(expected), len(actual))
-
-	sort.Slice(expected, func(i, j int) bool { return expected[i].Name > expected[j].Name })
-	sort.Slice(actual, func(i, j int) bool { return actual[i].Name > actual[j].Name })
-
-	for i := 0; i < len(expected); i++ {
-		s.Require().Equal(expected[i].Name, actual[i].Name)
-	}
-}
-
-func (s *RepoTestSuite) equalPoolsByID(expected, actual []params.Pool) {
-	s.Require().Equal(len(expected), len(actual))
-
-	sort.Slice(expected, func(i, j int) bool { return expected[i].ID > expected[j].ID })
-	sort.Slice(actual, func(i, j int) bool { return actual[i].ID > actual[j].ID })
-
-	for i := 0; i < len(expected); i++ {
-		s.Require().Equal(expected[i].ID, actual[i].ID)
-	}
-}
-
-func (s *RepoTestSuite) equalInstancesByID(expected, actual []params.Instance) {
-	s.Require().Equal(len(expected), len(actual))
-
-	sort.Slice(expected, func(i, j int) bool { return expected[i].ID > expected[j].ID })
-	sort.Slice(actual, func(i, j int) bool { return actual[i].ID > actual[j].ID })
-
-	for i := 0; i < len(expected); i++ {
-		s.Require().Equal(expected[i].ID, actual[i].ID)
-	}
 }
 
 func (s *RepoTestSuite) SetupTest() {
@@ -270,7 +228,7 @@ func (s *RepoTestSuite) TestListRepositories() {
 	repos, err := s.Runner.ListRepositories(s.Fixtures.AdminContext)
 
 	s.Require().Nil(err)
-	s.equalReposByName(s.reposMapValues(s.Fixtures.StoreRepos), repos)
+	garmTesting.EqualDBEntityByName(s.T(), garmTesting.DBEntityMapToSlice(s.Fixtures.StoreRepos), repos)
 }
 
 func (s *RepoTestSuite) TestListRepositoriesErrUnauthorized() {
@@ -495,7 +453,7 @@ func (s *RepoTestSuite) TestListRepoPools() {
 	pools, err := s.Runner.ListRepoPools(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID)
 
 	s.Require().Nil(err)
-	s.equalPoolsByID(repoPools, pools)
+	garmTesting.EqualDBEntityID(s.T(), repoPools, pools)
 }
 
 func (s *RepoTestSuite) TestListRepoPoolsErrUnauthorized() {
@@ -522,7 +480,7 @@ func (s *RepoTestSuite) TestListPoolInstances() {
 	instances, err := s.Runner.ListPoolInstances(s.Fixtures.AdminContext, pool.ID)
 
 	s.Require().Nil(err)
-	s.equalInstancesByID(poolInstances, instances)
+	garmTesting.EqualDBEntityID(s.T(), poolInstances, instances)
 }
 
 func (s *RepoTestSuite) TestListPoolInstancesErrUnauthorized() {
@@ -583,7 +541,7 @@ func (s *RepoTestSuite) TestListRepoInstances() {
 	instances, err := s.Runner.ListRepoInstances(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID)
 
 	s.Require().Nil(err)
-	s.equalInstancesByID(poolInstances, instances)
+	garmTesting.EqualDBEntityID(s.T(), poolInstances, instances)
 }
 
 func (s *RepoTestSuite) TestListRepoInstancesErrUnauthorized() {
@@ -614,5 +572,6 @@ func (s *RepoTestSuite) TestFindRepoPoolManagerFetchPoolMgrFailed() {
 }
 
 func TestRepoTestSuite(t *testing.T) {
+	t.Parallel()
 	suite.Run(t, new(RepoTestSuite))
 }

@@ -74,7 +74,7 @@ type CreateEnterpriseParams struct {
 
 func (c *CreateEnterpriseParams) Validate() error {
 	if c.Name == "" {
-		return errors.NewBadRequestError("missing org name")
+		return errors.NewBadRequestError("missing enterprise name")
 	}
 
 	if c.CredentialsName == "" {

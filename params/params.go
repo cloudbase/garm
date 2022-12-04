@@ -82,6 +82,14 @@ type Instance struct {
 	GithubRegistrationToken []byte `json:"-"`
 }
 
+func (i Instance) GetName() string {
+	return i.Name
+}
+
+func (i Instance) GetID() string {
+	return i.ID
+}
+
 type BootstrapInstance struct {
 	Name  string                              `json:"name"`
 	Tools []*github.RunnerApplicationDownload `json:"tools"`
@@ -137,6 +145,10 @@ type Pool struct {
 	RunnerBootstrapTimeout uint          `json:"runner_bootstrap_timeout"`
 }
 
+func (p Pool) GetID() string {
+	return p.ID
+}
+
 func (p *Pool) RunnerTimeout() uint {
 	if p.RunnerBootstrapTimeout == 0 {
 		return config.DefaultRunnerBootstrapTimeout
@@ -166,6 +178,14 @@ type Repository struct {
 	WebhookSecret string `json:"-"`
 }
 
+func (r Repository) GetName() string {
+	return r.Name
+}
+
+func (r Repository) GetID() string {
+	return r.ID
+}
+
 type Organization struct {
 	ID                string            `json:"id"`
 	Name              string            `json:"name"`
@@ -176,6 +196,14 @@ type Organization struct {
 	WebhookSecret string `json:"-"`
 }
 
+func (o Organization) GetName() string {
+	return o.Name
+}
+
+func (o Organization) GetID() string {
+	return o.ID
+}
+
 type Enterprise struct {
 	ID                string            `json:"id"`
 	Name              string            `json:"name"`
@@ -184,6 +212,14 @@ type Enterprise struct {
 	PoolManagerStatus PoolManagerStatus `json:"pool_manager_status,omitempty"`
 	// Do not serialize sensitive info.
 	WebhookSecret string `json:"-"`
+}
+
+func (e Enterprise) GetName() string {
+	return e.Name
+}
+
+func (e Enterprise) GetID() string {
+	return e.ID
 }
 
 // Users holds information about a particular user

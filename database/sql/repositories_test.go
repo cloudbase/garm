@@ -60,17 +60,6 @@ func (s *RepoTestSuite) equalReposByName(expected, actual []params.Repository) {
 	}
 }
 
-func (s *RepoTestSuite) equalPoolsByID(expected, actual []params.Pool) {
-	s.Require().Equal(len(expected), len(actual))
-
-	sort.Slice(expected, func(i, j int) bool { return expected[i].ID > expected[j].ID })
-	sort.Slice(actual, func(i, j int) bool { return actual[i].ID > actual[j].ID })
-
-	for i := 0; i < len(expected); i++ {
-		s.Require().Equal(expected[i].ID, actual[i].ID)
-	}
-}
-
 func (s *RepoTestSuite) equalInstancesByID(expected, actual []params.Instance) {
 	s.Require().Equal(len(expected), len(actual))
 
@@ -714,7 +703,7 @@ func (s *RepoTestSuite) TestListRepoPools() {
 	pools, err := s.Store.ListRepoPools(context.Background(), s.Fixtures.Repos[0].ID)
 
 	s.Require().Nil(err)
-	s.equalPoolsByID(repoPools, pools)
+	garmTesting.EqualDBEntityID(s.T(), repoPools, pools)
 }
 
 func (s *RepoTestSuite) TestListRepoPoolsInvalidRepoID() {
