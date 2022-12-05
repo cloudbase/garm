@@ -156,7 +156,7 @@ function tempDownloadToken() {
 function runnerTokenURL() {
     METADATA_URL=$(echo "$INPUT" | jq -c -r '."metadata-url"')
     checkValNotNull "${METADATA_URL}" "metadata-url" || return $?
-    echo "${METADATA_URL}/token/"
+    echo "${METADATA_URL}/runner-registration-token/"
 }
 
 function downloadFilename() {

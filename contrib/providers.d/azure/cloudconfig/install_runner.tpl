@@ -6,11 +6,17 @@ set -o pipefail
 CALLBACK_URL="GARM_CALLBACK_URL"
 BEARER_TOKEN="GARM_CALLBACK_TOKEN"
 DOWNLOAD_URL="GH_DOWNLOAD_URL"
+DOWNLOAD_TOKEN="GH_TEMP_DOWNLOAD_TOKEN"
 FILENAME="GH_FILENAME"
 TARGET_URL="GH_TARGET_URL"
 RUNNER_TOKEN="GH_RUNNER_TOKEN"
 RUNNER_NAME="GH_RUNNER_NAME"
 RUNNER_LABELS="GH_RUNNER_LABELS"
+TEMP_TOKEN=""
+
+if [ ! -z "$DOWNLOAD_TOKEN" ]; then
+	TEMP_TOKEN="Authorization: Bearer $DOWNLOAD_TOKEN"
+fi
 
 function call() {
 	PAYLOAD="$1"
@@ -34,10 +40,8 @@ function fail() {
 	exit 1
 }
 
-
-
 sendStatus "downloading tools from ${DOWNLOAD_URL}"
-curl -L -o "/home/runner/${FILENAME}" "${DOWNLOAD_URL}" || fail "failed to download tools"
+curl -L -H "${TEMP_TOKEN}" -o "/home/runner/${FILENAME}" "${DOWNLOAD_URL}" || fail "failed to download tools"
 
 mkdir -p /home/runner/actions-runner || fail "failed to create actions-runner folder"
 

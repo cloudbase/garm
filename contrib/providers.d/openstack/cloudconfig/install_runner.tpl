@@ -18,7 +18,6 @@ if [ ! -z "$DOWNLOAD_TOKEN" ]; then
 	TEMP_TOKEN="Authorization: Bearer $DOWNLOAD_TOKEN"
 fi
 
-
 function call() {
 	PAYLOAD="$1"
 	curl -s -X POST -d "${PAYLOAD}" -H 'Accept: application/json' -H "Authorization: Bearer ${BEARER_TOKEN}" "${CALLBACK_URL}" || echo "failed to call home: exit code ($?)"
@@ -40,8 +39,6 @@ function fail() {
 	call "{\"status\": \"failed\", \"message\": \"$MSG\"}"
 	exit 1
 }
-
-
 
 sendStatus "downloading tools from ${DOWNLOAD_URL}"
 curl -L -H "${TEMP_TOKEN}" -o "/home/runner/${FILENAME}" "${DOWNLOAD_URL}" || fail "failed to download tools"

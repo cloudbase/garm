@@ -36,7 +36,7 @@ if [ -z "$GITHUB_TOKEN" ];then
 		echo "no token is available and METADATA_URL is not set"
 		exit 1
 	fi
-	GITHUB_TOKEN=$(curl --fail -s -X GET -H 'Accept: application/json' -H "Authorization: Bearer ${BEARER_TOKEN}" "${METADATA_URL}/token")
+	GITHUB_TOKEN=$(curl --fail -s -X GET -H 'Accept: application/json' -H "Authorization: Bearer ${BEARER_TOKEN}" "${METADATA_URL}/runner-registration-token/")
 fi
 
 function call() {
