@@ -522,19 +522,6 @@ func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error 
 	labels = append(labels, r.controllerLabel())
 	labels = append(labels, r.poolLabel(pool.ID))
 
-	if instance.GithubRegistrationToken == nil {
-		tk, err := r.helper.GetGithubRegistrationToken()
-		if err != nil {
-			if errors.Is(err, runnerErrors.ErrUnauthorized) {
-				failureReason := fmt.Sprintf("failed to fetch registration token: %q", err)
-				r.setPoolRunningState(false, failureReason)
-				log.Print(failureReason)
-			}
-			return errors.Wrap(err, "fetching registration token")
-		}
-		instance.GithubRegistrationToken = []byte(tk)
-	}
-
 	jwtValidity := pool.RunnerTimeout()
 	var poolType common.PoolType = common.RepositoryPool
 	if pool.OrgID != "" {
@@ -560,10 +547,6 @@ func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error 
 		Labels:        labels,
 		PoolID:        instance.PoolID,
 		CACertBundle:  r.credsDetails.CABundle,
-	}
-
-	if instance.MetadataURL == "" {
-		bootstrapArgs.GithubRunnerAccessToken = string(instance.GithubRegistrationToken)
 	}
 
 	var instanceIDToDelete string
@@ -984,6 +967,10 @@ func (r *basePoolManager) RefreshState(param params.UpdatePoolStateParams) error
 
 func (r *basePoolManager) WebhookSecret() string {
 	return r.helper.WebhookSecret()
+}
+
+func (r *basePoolManager) GithubRunnerRegistrationToken() (string, error) {
+	return r.helper.GetGithubRegistrationToken()
 }
 
 func (r *basePoolManager) ID() string {

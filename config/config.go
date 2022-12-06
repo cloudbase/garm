@@ -185,16 +185,16 @@ func (d *Default) Validate() error {
 	if d.CallbackURL == "" {
 		return fmt.Errorf("missing callback_url")
 	}
-
 	_, err := url.Parse(d.CallbackURL)
 	if err != nil {
 		return errors.Wrap(err, "validating callback_url")
 	}
 
-	if d.MetadataURL != "" {
-		if _, err := url.Parse(d.MetadataURL); err != nil {
-			return errors.Wrap(err, "validating metadata_url")
-		}
+	if d.MetadataURL == "" {
+		return fmt.Errorf("missing metadata-url")
+	}
+	if _, err := url.Parse(d.MetadataURL); err != nil {
+		return errors.Wrap(err, "validating metadata_url")
 	}
 
 	if d.ConfigDir == "" {

@@ -29,15 +29,12 @@ set -o pipefail
 CALLBACK_URL="{{ .CallbackURL }}"
 METADATA_URL="{{ .MetadataURL }}"
 BEARER_TOKEN="{{ .CallbackToken }}"
-GITHUB_TOKEN="{{ .GithubToken }}"
 
-if [ -z "$GITHUB_TOKEN" ];then
-	if [ -z "$METADATA_URL" ];then
-		echo "no token is available and METADATA_URL is not set"
-		exit 1
-	fi
-	GITHUB_TOKEN=$(curl --fail -s -X GET -H 'Accept: application/json' -H "Authorization: Bearer ${BEARER_TOKEN}" "${METADATA_URL}/runner-registration-token/")
+if [ -z "$METADATA_URL" ];then
+	echo "no token is available and METADATA_URL is not set"
+	exit 1
 fi
+GITHUB_TOKEN=$(curl --fail -s -X GET -H 'Accept: application/json' -H "Authorization: Bearer ${BEARER_TOKEN}" "${METADATA_URL}/runner-registration-token/")
 
 function call() {
 	PAYLOAD="$1"
@@ -106,7 +103,6 @@ type InstallRunnerParams struct {
 	RunnerUsername    string
 	RunnerGroup       string
 	RepoURL           string
-	GithubToken       string
 	MetadataURL       string
 	RunnerName        string
 	RunnerLabels      string

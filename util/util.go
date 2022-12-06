@@ -222,11 +222,6 @@ func GetCloudConfig(bootstrapParams params.BootstrapInstance, tools github.Runne
 		CallbackToken:     bootstrapParams.InstanceToken,
 	}
 
-	if bootstrapParams.MetadataURL == "" {
-		// Token URL is not set. Add the GH runner registration token to userdata.
-		installRunnerParams.GithubToken = bootstrapParams.GithubRunnerAccessToken
-	}
-
 	installScript, err := cloudconfig.InstallRunnerScript(installRunnerParams)
 	if err != nil {
 		return "", errors.Wrap(err, "generating script")

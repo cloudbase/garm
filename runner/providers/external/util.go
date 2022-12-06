@@ -29,7 +29,6 @@ func bootstrapParamsToEnv(param params.BootstrapInstance) []string {
 		fmt.Sprintf("%s_BOOTSTRAP_CALLBACK_URL='%s'", envPrefix, param.CallbackURL),
 		fmt.Sprintf("%s_BOOTSTRAP_REPO_URL='%s'", envPrefix, param.RepoURL),
 		fmt.Sprintf("%s_BOOTSTRAP_LABELS='%s'", envPrefix, strings.Join(param.Labels, ",")),
-		fmt.Sprintf("%s_BOOTSTRAP_GITHUB_ACCESS_TOKEN='%s'", envPrefix, param.GithubRunnerAccessToken),
 	}
 
 	for idx, tool := range param.Tools {

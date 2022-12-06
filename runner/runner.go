@@ -724,8 +724,8 @@ func (r *Runner) AddInstanceStatusMessage(ctx context.Context, param params.Inst
 }
 
 func (r *Runner) GetInstanceGithubRegistrationToken(ctx context.Context) (string, error) {
-	instanceID := auth.InstanceID(ctx)
-	if instanceID == "" {
+	instanceName := auth.InstanceName(ctx)
+	if instanceName == "" {
 		return "", runnerErrors.ErrUnauthorized
 	}
 
@@ -733,8 +733,63 @@ func (r *Runner) GetInstanceGithubRegistrationToken(ctx context.Context) (string
 	if status != providerCommon.RunnerPending && status != providerCommon.RunnerInstalling {
 		return "", runnerErrors.ErrUnauthorized
 	}
-	token := auth.InstanceGithubToken(ctx)
+
+	instance, err := r.store.GetInstanceByName(ctx, instanceName)
+	if err != nil {
+		return "", errors.Wrap(err, "fetching instance")
+	}
+
+	poolMgr, err := r.getPoolManagerFromInstance(ctx, instance)
+	if err != nil {
+		return "", errors.Wrap(err, "fetching pool manager for instance")
+	}
+
+	token, err := poolMgr.GithubRunnerRegistrationToken()
+	if err != nil {
+		return "", errors.Wrap(err, "fetching runner token")
+	}
+
 	return token, nil
+}
+
+func (r *Runner) getPoolManagerFromInstance(ctx context.Context, instance params.Instance) (common.PoolManager, error) {
+	pool, err := r.store.GetPoolByID(ctx, instance.PoolID)
+	if err != nil {
+		return nil, errors.Wrap(err, "fetching pool")
+	}
+
+	var poolMgr common.PoolManager
+
+	if pool.RepoID != "" {
+		repo, err := r.store.GetRepositoryByID(ctx, pool.RepoID)
+		if err != nil {
+			return nil, errors.Wrap(err, "fetching repo")
+		}
+		poolMgr, err = r.findRepoPoolManager(repo.Owner, repo.Name)
+		if err != nil {
+			return nil, errors.Wrapf(err, "fetching pool manager for repo %s", pool.RepoName)
+		}
+	} else if pool.OrgID != "" {
+		org, err := r.store.GetOrganizationByID(ctx, pool.OrgID)
+		if err != nil {
+			return nil, errors.Wrap(err, "fetching org")
+		}
+		poolMgr, err = r.findOrgPoolManager(org.Name)
+		if err != nil {
+			return nil, errors.Wrapf(err, "fetching pool manager for org %s", pool.OrgName)
+		}
+	} else if pool.EnterpriseID != "" {
+		enterprise, err := r.store.GetEnterpriseByID(ctx, pool.EnterpriseID)
+		if err != nil {
+			return nil, errors.Wrap(err, "fetching enterprise")
+		}
+		poolMgr, err = r.findEnterprisePoolManager(enterprise.Name)
+		if err != nil {
+			return nil, errors.Wrapf(err, "fetching pool manager for enterprise %s", pool.EnterpriseName)
+		}
+	}
+
+	return poolMgr, nil
 }
 
 func (r *Runner) ForceDeleteRunner(ctx context.Context, instanceName string) error {
@@ -747,46 +802,9 @@ func (r *Runner) ForceDeleteRunner(ctx context.Context, instanceName string) err
 		return errors.Wrap(err, "fetching instance")
 	}
 
-	switch instance.Status {
-	case providerCommon.InstanceRunning, providerCommon.InstanceError:
-	default:
-		return runnerErrors.NewBadRequestError("runner must be in %q or %q state", providerCommon.InstanceRunning, providerCommon.InstanceError)
-	}
-
-	pool, err := r.store.GetPoolByID(ctx, instance.PoolID)
+	poolMgr, err := r.getPoolManagerFromInstance(ctx, instance)
 	if err != nil {
-		return errors.Wrap(err, "fetching pool")
-	}
-
-	var poolMgr common.PoolManager
-
-	if pool.RepoID != "" {
-		repo, err := r.store.GetRepositoryByID(ctx, pool.RepoID)
-		if err != nil {
-			return errors.Wrap(err, "fetching repo")
-		}
-		poolMgr, err = r.findRepoPoolManager(repo.Owner, repo.Name)
-		if err != nil {
-			return errors.Wrapf(err, "fetching pool manager for repo %s", pool.RepoName)
-		}
-	} else if pool.OrgID != "" {
-		org, err := r.store.GetOrganizationByID(ctx, pool.OrgID)
-		if err != nil {
-			return errors.Wrap(err, "fetching org")
-		}
-		poolMgr, err = r.findOrgPoolManager(org.Name)
-		if err != nil {
-			return errors.Wrapf(err, "fetching pool manager for org %s", pool.OrgName)
-		}
-	} else if pool.EnterpriseID != "" {
-		enterprise, err := r.store.GetEnterpriseByID(ctx, pool.EnterpriseID)
-		if err != nil {
-			return errors.Wrap(err, "fetching enterprise")
-		}
-		poolMgr, err = r.findEnterprisePoolManager(enterprise.Name)
-		if err != nil {
-			return errors.Wrapf(err, "fetching pool manager for enterprise %s", pool.EnterpriseName)
-		}
+		return errors.Wrap(err, "fetching pool manager for instance")
 	}
 
 	if err := poolMgr.ForceDeleteRunner(instance); err != nil {

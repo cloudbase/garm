@@ -16,7 +16,6 @@ package config
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -25,13 +24,13 @@ import (
 )
 
 func getDefaultExternalConfig(t *testing.T) External {
-	dir, err := ioutil.TempDir("", "garm-test")
+	dir, err := os.MkdirTemp("", "garm-test")
 	if err != nil {
 		t.Fatalf("failed to create temporary directory: %s", err)
 	}
 	t.Cleanup(func() { os.RemoveAll(dir) })
 
-	err = ioutil.WriteFile(filepath.Join(dir, "garm-external-provider"), []byte{}, 0755)
+	err = os.WriteFile(filepath.Join(dir, "garm-external-provider"), []byte{}, 0755)
 	if err != nil {
 		t.Fatalf("failed to write file: %s", err)
 	}

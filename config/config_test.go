@@ -15,7 +15,6 @@
 package config
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -33,6 +32,7 @@ func getDefaultSectionConfig(configDir string) Default {
 	return Default{
 		ConfigDir:   configDir,
 		CallbackURL: "https://garm.example.com/",
+		MetadataURL: "https://garm.example.com/api/v1/metadata",
 		LogFile:     filepath.Join(configDir, "garm.log"),
 	}
 }
@@ -105,7 +105,7 @@ func getDefaultJWTCofig() JWTAuth {
 }
 
 func getDefaultConfig(t *testing.T) Config {
-	dir, err := ioutil.TempDir("", "garm-config-test")
+	dir, err := os.MkdirTemp("", "garm-config-test")
 	if err != nil {
 		t.Fatalf("failed to create temporary directory: %s", err)
 	}
@@ -129,7 +129,7 @@ func TestConfig(t *testing.T) {
 }
 
 func TestDefaultSectionConfig(t *testing.T) {
-	dir, err := ioutil.TempDir("", "garm-config-test")
+	dir, err := os.MkdirTemp("", "garm-config-test")
 	if err != nil {
 		t.Fatalf("failed to create temporary directory: %s", err)
 	}
@@ -150,14 +150,25 @@ func TestDefaultSectionConfig(t *testing.T) {
 			name: "CallbackURL cannot be empty",
 			cfg: Default{
 				CallbackURL: "",
+				MetadataURL: cfg.MetadataURL,
 				ConfigDir:   cfg.ConfigDir,
 			},
 			errString: "missing callback_url",
 		},
 		{
+			name: "MetadataURL cannot be empty",
+			cfg: Default{
+				CallbackURL: cfg.CallbackURL,
+				MetadataURL: "",
+				ConfigDir:   cfg.ConfigDir,
+			},
+			errString: "missing metadata-url",
+		},
+		{
 			name: "ConfigDir cannot be empty",
 			cfg: Default{
 				CallbackURL: cfg.CallbackURL,
+				MetadataURL: cfg.MetadataURL,
 				ConfigDir:   "",
 			},
 			errString: "config_dir cannot be empty",
@@ -166,6 +177,7 @@ func TestDefaultSectionConfig(t *testing.T) {
 			name: "config_dir must exist and be accessible",
 			cfg: Default{
 				CallbackURL: cfg.CallbackURL,
+				MetadataURL: cfg.MetadataURL,
 				ConfigDir:   "/i/do/not/exist",
 			},
 			errString: "accessing config dir: stat /i/do/not/exist:.*",
@@ -306,14 +318,14 @@ func TestAPITLSconfig(t *testing.T) {
 }
 
 func TestTLSConfig(t *testing.T) {
-	dir, err := ioutil.TempDir("", "garm-config-test")
+	dir, err := os.MkdirTemp("", "garm-config-test")
 	if err != nil {
 		t.Fatalf("failed to create temporary directory: %s", err)
 	}
 	t.Cleanup(func() { os.RemoveAll(dir) })
 
 	invalidCert := filepath.Join(dir, "invalid_cert.pem")
-	err = ioutil.WriteFile(invalidCert, []byte("bogus content"), 0755)
+	err = os.WriteFile(invalidCert, []byte("bogus content"), 0755)
 	if err != nil {
 		t.Fatalf("failed to write file: %s", err)
 	}
@@ -396,7 +408,7 @@ func TestTLSConfig(t *testing.T) {
 }
 
 func TestDatabaseConfig(t *testing.T) {
-	dir, err := ioutil.TempDir("", "garm-config-test")
+	dir, err := os.MkdirTemp("", "garm-config-test")
 	if err != nil {
 		t.Fatalf("failed to create temporary directory: %s", err)
 	}
@@ -503,7 +515,7 @@ func TestDatabaseConfig(t *testing.T) {
 }
 
 func TestGormParams(t *testing.T) {
-	dir, err := ioutil.TempDir("", "garm-config-test")
+	dir, err := os.MkdirTemp("", "garm-config-test")
 	if err != nil {
 		t.Fatalf("failed to create temporary directory: %s", err)
 	}
@@ -527,7 +539,7 @@ func TestGormParams(t *testing.T) {
 }
 
 func TestSQLiteConfig(t *testing.T) {
-	dir, err := ioutil.TempDir("", "garm-config-test")
+	dir, err := os.MkdirTemp("", "garm-config-test")
 	if err != nil {
 		t.Fatalf("failed to create temporary directory: %s", err)
 	}
@@ -676,7 +688,7 @@ func TestNewConfig(t *testing.T) {
 }
 
 func TestNewConfigEmptyConfigDir(t *testing.T) {
-	dirPath, err := ioutil.TempDir("", "garm-config-test")
+	dirPath, err := os.MkdirTemp("", "garm-config-test")
 	if err != nil {
 		t.Fatalf("failed to create temporary directory: %s", err)
 	}

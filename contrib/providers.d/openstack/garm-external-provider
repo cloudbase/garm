@@ -191,20 +191,11 @@ function repoURL() {
     echo "${REPO}"
 }
 
-function getRegistrationTokenFromAPI() {
+function ghAccessToken() {
     TOKEN_URL=$(runnerTokenURL)
     BEARER_TOKEN=$(callbackToken)
     TOKEN=$(curl --fail -s -X GET -H 'Accept: application/json' -H "Authorization: Bearer ${BEARER_TOKEN}" "${TOKEN_URL}")
     checkValNotNull "${TOKEN}" "repo_url" || return $?
-    echo "${TOKEN}"
-}
-
-function ghAccessToken() {
-    TOKEN=$(echo "$INPUT" | jq -c -r '.github_runner_access_token')
-    if [ -z "$TOKEN" ];then
-        TOKEN=$(getRegistrationTokenFromAPI)
-    fi
-    checkValNotNull "${TOKEN}" "github_runner_access_token" || return $?
     echo "${TOKEN}"
 }
 

@@ -16,10 +16,8 @@ package sql
 
 import (
 	"context"
-	"fmt"
 	runnerErrors "garm/errors"
 	"garm/params"
-	"garm/util"
 
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
@@ -32,36 +30,22 @@ func (s *sqlDatabase) CreateInstance(ctx context.Context, poolID string, param p
 	if err != nil {
 		return params.Instance{}, errors.Wrap(err, "fetching pool")
 	}
-	var ghToken []byte
-	if param.GithubRegistrationToken != nil {
-		ghToken, err = util.Aes256EncodeString(string(param.GithubRegistrationToken), s.cfg.Passphrase)
-		if err != nil {
-			return params.Instance{}, fmt.Errorf("failed to encrypt gh token")
-		}
-	}
+
 	newInstance := Instance{
-		Pool:                    pool,
-		Name:                    param.Name,
-		Status:                  param.Status,
-		RunnerStatus:            param.RunnerStatus,
-		OSType:                  param.OSType,
-		OSArch:                  param.OSArch,
-		CallbackURL:             param.CallbackURL,
-		MetadataURL:             param.MetadataURL,
-		GithubRegistrationToken: ghToken,
+		Pool:         pool,
+		Name:         param.Name,
+		Status:       param.Status,
+		RunnerStatus: param.RunnerStatus,
+		OSType:       param.OSType,
+		OSArch:       param.OSArch,
+		CallbackURL:  param.CallbackURL,
+		MetadataURL:  param.MetadataURL,
 	}
 	q := s.conn.Create(&newInstance)
 	if q.Error != nil {
 		return params.Instance{}, errors.Wrap(q.Error, "creating instance")
 	}
 
-	if newInstance.GithubRegistrationToken != nil {
-		decodedTk, err := util.Aes256DecodeString(newInstance.GithubRegistrationToken, s.cfg.Passphrase)
-		if err != nil {
-			return params.Instance{}, errors.Wrap(err, "decrypting GithubRegistrationToken")
-		}
-		newInstance.GithubRegistrationToken = []byte(decodedTk)
-	}
 	return s.sqlToParamsInstance(newInstance), nil
 }
 
@@ -131,20 +115,6 @@ func (s *sqlDatabase) GetPoolInstanceByName(ctx context.Context, poolID string, 
 		return params.Instance{}, errors.Wrap(err, "fetching instance")
 	}
 
-	if instance.GithubRegistrationToken != nil {
-		token, err := util.Aes256DecodeString(instance.GithubRegistrationToken, s.cfg.Passphrase)
-		if err != nil {
-			return params.Instance{}, errors.Wrap(err, "decoing token")
-		}
-		instance.GithubRegistrationToken = []byte(token)
-	}
-	if instance.GithubRegistrationToken != nil {
-		decodedTk, err := util.Aes256DecodeString(instance.GithubRegistrationToken, s.cfg.Passphrase)
-		if err != nil {
-			return params.Instance{}, errors.Wrap(err, "decrypting GithubRegistrationToken")
-		}
-		instance.GithubRegistrationToken = []byte(decodedTk)
-	}
 	return s.sqlToParamsInstance(instance), nil
 }
 
@@ -154,13 +124,6 @@ func (s *sqlDatabase) GetInstanceByName(ctx context.Context, instanceName string
 		return params.Instance{}, errors.Wrap(err, "fetching instance")
 	}
 
-	if instance.GithubRegistrationToken != nil {
-		token, err := util.Aes256DecodeString(instance.GithubRegistrationToken, s.cfg.Passphrase)
-		if err != nil {
-			return params.Instance{}, errors.Wrap(err, "decoing token")
-		}
-		instance.GithubRegistrationToken = []byte(token)
-	}
 	return s.sqlToParamsInstance(instance), nil
 }
 
@@ -246,13 +209,7 @@ func (s *sqlDatabase) UpdateInstance(ctx context.Context, instanceID string, par
 			return params.Instance{}, errors.Wrap(err, "updating addresses")
 		}
 	}
-	if instance.GithubRegistrationToken != nil {
-		decodedTk, err := util.Aes256DecodeString(instance.GithubRegistrationToken, s.cfg.Passphrase)
-		if err != nil {
-			return params.Instance{}, errors.Wrap(err, "decrypting GithubRegistrationToken")
-		}
-		instance.GithubRegistrationToken = []byte(decodedTk)
-	}
+
 	return s.sqlToParamsInstance(instance), nil
 }
 
@@ -264,13 +221,6 @@ func (s *sqlDatabase) ListPoolInstances(ctx context.Context, poolID string) ([]p
 
 	ret := make([]params.Instance, len(pool.Instances))
 	for idx, inst := range pool.Instances {
-		if inst.GithubRegistrationToken != nil {
-			decodedTk, err := util.Aes256DecodeString(inst.GithubRegistrationToken, s.cfg.Passphrase)
-			if err != nil {
-				return nil, errors.Wrap(err, "decrypting GithubRegistrationToken")
-			}
-			inst.GithubRegistrationToken = []byte(decodedTk)
-		}
 		ret[idx] = s.sqlToParamsInstance(inst)
 	}
 	return ret, nil
@@ -285,13 +235,6 @@ func (s *sqlDatabase) ListAllInstances(ctx context.Context) ([]params.Instance, 
 	}
 	ret := make([]params.Instance, len(instances))
 	for idx, instance := range instances {
-		if instance.GithubRegistrationToken != nil {
-			decodedTk, err := util.Aes256DecodeString(instance.GithubRegistrationToken, s.cfg.Passphrase)
-			if err != nil {
-				return nil, errors.Wrap(err, "decrypting GithubRegistrationToken")
-			}
-			instance.GithubRegistrationToken = []byte(decodedTk)
-		}
 		ret[idx] = s.sqlToParamsInstance(instance)
 	}
 	return ret, nil

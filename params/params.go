@@ -76,10 +76,9 @@ type Instance struct {
 	UpdatedAt      time.Time       `json:"updated_at"`
 
 	// Do not serialize sensitive info.
-	CallbackURL             string `json:"-"`
-	MetadataURL             string `json:"-"`
-	CreateAttempt           int    `json:"-"`
-	GithubRegistrationToken []byte `json:"-"`
+	CallbackURL   string `json:"-"`
+	MetadataURL   string `json:"-"`
+	CreateAttempt int    `json:"-"`
 }
 
 func (i Instance) GetName() string {
@@ -95,9 +94,6 @@ type BootstrapInstance struct {
 	Tools []*github.RunnerApplicationDownload `json:"tools"`
 	// RepoURL is the URL the github runner agent needs to configure itself.
 	RepoURL string `json:"repo_url"`
-	// GithubRunnerAccessToken is the token we fetch from github to allow the runner to
-	// register itself.
-	GithubRunnerAccessToken string `json:"github_runner_access_token"`
 	// CallbackUrl is the URL where the instance can send a post, signaling
 	// progress or status.
 	CallbackURL string `json:"callback-url"`

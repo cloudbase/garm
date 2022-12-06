@@ -23,21 +23,6 @@ import (
 
 type contextFlags string
 
-/*
-// InstanceJWTClaims holds JWT claims
-type InstanceJWTClaims struct {
-	ID     string `json:"id"`
-	Name   string `json:"name"`
-	PoolID string `json:"provider_id"`
-	// Scope is either repository or organization
-	Scope common.PoolType `json:"scope"`
-	// Entity is the repo or org name
-	Entity string `json:"entity"`
-	jwt.StandardClaims
-}
-
-*/
-
 const (
 	isAdminKey  contextFlags = "is_admin"
 	fullNameKey contextFlags = "full_name"
@@ -52,7 +37,6 @@ const (
 	instancePoolTypeKey  contextFlags = "scope"
 	instanceEntityKey    contextFlags = "entity"
 	instanceRunnerStatus contextFlags = "status"
-	instanceGithubToken  contextFlags = "github_token"
 )
 
 func SetInstanceID(ctx context.Context, id string) context.Context {
@@ -77,18 +61,6 @@ func InstanceRunnerStatus(ctx context.Context) common.RunnerStatus {
 		return common.RunnerPending
 	}
 	return elem.(common.RunnerStatus)
-}
-
-func SetInstanceGithubToken(ctx context.Context, val string) context.Context {
-	return context.WithValue(ctx, instanceGithubToken, val)
-}
-
-func InstanceGithubToken(ctx context.Context) string {
-	elem := ctx.Value(instanceGithubToken)
-	if elem == nil {
-		return ""
-	}
-	return elem.(string)
 }
 
 func SetInstanceName(ctx context.Context, val string) context.Context {
@@ -144,7 +116,6 @@ func PopulateInstanceContext(ctx context.Context, instance params.Instance) cont
 	ctx = SetInstanceName(ctx, instance.Name)
 	ctx = SetInstancePoolID(ctx, instance.PoolID)
 	ctx = SetInstanceRunnerStatus(ctx, instance.RunnerStatus)
-	ctx = SetInstanceGithubToken(ctx, string(instance.GithubRegistrationToken))
 	return ctx
 }
 
