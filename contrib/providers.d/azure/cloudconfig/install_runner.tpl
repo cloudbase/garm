@@ -20,7 +20,7 @@ fi
 
 function call() {
 	PAYLOAD="$1"
-	curl -s -X POST -d "${PAYLOAD}" -H 'Accept: application/json' -H "Authorization: Bearer ${BEARER_TOKEN}" "${CALLBACK_URL}" || echo "failed to call home: exit code ($?)"
+	curl --fail -s -X POST -d "${PAYLOAD}" -H 'Accept: application/json' -H "Authorization: Bearer ${BEARER_TOKEN}" "${CALLBACK_URL}" || echo "failed to call home: exit code ($?)"
 }
 
 function sendStatus() {
@@ -41,7 +41,7 @@ function fail() {
 }
 
 sendStatus "downloading tools from ${DOWNLOAD_URL}"
-curl -L -H "${TEMP_TOKEN}" -o "/home/runner/${FILENAME}" "${DOWNLOAD_URL}" || fail "failed to download tools"
+curl --fail -L -H "${TEMP_TOKEN}" -o "/home/runner/${FILENAME}" "${DOWNLOAD_URL}" || fail "failed to download tools"
 
 mkdir -p /home/runner/actions-runner || fail "failed to create actions-runner folder"
 
