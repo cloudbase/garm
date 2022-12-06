@@ -548,19 +548,22 @@ func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error 
 	}
 
 	bootstrapArgs := params.BootstrapInstance{
-		Name:                    instance.Name,
-		Tools:                   r.tools,
-		RepoURL:                 r.helper.GithubURL(),
-		GithubRunnerAccessToken: string(instance.GithubRegistrationToken),
-		MetadataURL:             instance.MetadataURL,
-		CallbackURL:             instance.CallbackURL,
-		InstanceToken:           jwtToken,
-		OSArch:                  pool.OSArch,
-		Flavor:                  pool.Flavor,
-		Image:                   pool.Image,
-		Labels:                  labels,
-		PoolID:                  instance.PoolID,
-		CACertBundle:            r.credsDetails.CABundle,
+		Name:          instance.Name,
+		Tools:         r.tools,
+		RepoURL:       r.helper.GithubURL(),
+		MetadataURL:   instance.MetadataURL,
+		CallbackURL:   instance.CallbackURL,
+		InstanceToken: jwtToken,
+		OSArch:        pool.OSArch,
+		Flavor:        pool.Flavor,
+		Image:         pool.Image,
+		Labels:        labels,
+		PoolID:        instance.PoolID,
+		CACertBundle:  r.credsDetails.CABundle,
+	}
+
+	if instance.MetadataURL == "" {
+		bootstrapArgs.GithubRunnerAccessToken = string(instance.GithubRegistrationToken)
 	}
 
 	var instanceIDToDelete string

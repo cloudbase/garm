@@ -255,6 +255,13 @@ func (s *sqlDatabase) ListOrgInstances(ctx context.Context, orgID string) ([]par
 	ret := []params.Instance{}
 	for _, pool := range pools {
 		for _, instance := range pool.Instances {
+			if instance.GithubRegistrationToken != nil {
+				decodedTk, err := util.Aes256DecodeString(instance.GithubRegistrationToken, s.cfg.Passphrase)
+				if err != nil {
+					return nil, errors.Wrap(err, "decrypting GithubRegistrationToken")
+				}
+				instance.GithubRegistrationToken = []byte(decodedTk)
+			}
 			ret = append(ret, s.sqlToParamsInstance(instance))
 		}
 	}
