@@ -345,25 +345,16 @@ func (r *basePoolManager) AddRunner(ctx context.Context, poolID string) error {
 	}
 
 	name := fmt.Sprintf("garm-%s", uuid.New())
-	tk, err := r.helper.GetGithubRegistrationToken()
-	if err != nil {
-		if errors.Is(err, runnerErrors.ErrUnauthorized) {
-			failureReason := fmt.Sprintf("failed to fetch registration token: %q", err)
-			r.setPoolRunningState(false, failureReason)
-			log.Print(failureReason)
-		}
-		return errors.Wrap(err, "fetching registration token")
-	}
+
 	createParams := params.CreateInstanceParams{
-		Name:                    name,
-		Status:                  providerCommon.InstancePendingCreate,
-		RunnerStatus:            providerCommon.RunnerPending,
-		OSArch:                  pool.OSArch,
-		OSType:                  pool.OSType,
-		GithubRegistrationToken: []byte(tk),
-		CallbackURL:             r.helper.GetCallbackURL(),
-		MetadataURL:             r.helper.GetMetadataURL(),
-		CreateAttempt:           1,
+		Name:          name,
+		Status:        providerCommon.InstancePendingCreate,
+		RunnerStatus:  providerCommon.RunnerPending,
+		OSArch:        pool.OSArch,
+		OSType:        pool.OSType,
+		CallbackURL:   r.helper.GetCallbackURL(),
+		MetadataURL:   r.helper.GetMetadataURL(),
+		CreateAttempt: 1,
 	}
 
 	_, err = r.store.CreateInstance(r.ctx, poolID, createParams)

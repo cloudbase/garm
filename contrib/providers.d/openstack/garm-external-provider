@@ -146,7 +146,6 @@ function downloadURL() {
 }
 
 function tempDownloadToken() {
-    # temp_download_token
     [ -z "$1" -o -z "$2" ] && return 1
     GH_ARCH="${GARM_TO_GH_ARCH_MAP[$2]}"
     TOKEN=$(echo "$INPUT" | jq -c -r --arg OS "$1" --arg ARCH "$GH_ARCH" '(.tools[] | select( .os == $OS and .architecture == $ARCH)).temp_download_token')

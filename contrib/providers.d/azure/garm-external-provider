@@ -75,7 +75,6 @@ function downloadURL() {
 }
 
 function tempDownloadToken() {
-    # temp_download_token
     [ -z "$1" -o -z "$2" ] && return 1
     GH_ARCH="${GARM_TO_GH_ARCH_MAP[$2]}"
     TOKEN=$(echo "$INPUT" | jq -c -r --arg OS "$1" --arg ARCH "$GH_ARCH" '(.tools[] | select( .os == $OS and .architecture == $ARCH)).temp_download_token')
@@ -127,20 +126,11 @@ function repoURL() {
     echo "${REPO}"
 }
 
-function getRegistrationTokenFromAPI() {
+function ghAccessToken() {
     TOKEN_URL=$(runnerTokenURL)
     BEARER_TOKEN=$(callbackToken)
     TOKEN=$(curl --fail -s -X GET -H 'Accept: application/json' -H "Authorization: Bearer ${BEARER_TOKEN}" "${TOKEN_URL}")
     checkValNotNull "${TOKEN}" "repo_url" || return $?
-    echo "${TOKEN}"
-}
-
-function ghAccessToken() {
-    TOKEN=$(echo "$INPUT" | jq -c -r '.github_runner_access_token')
-    if [ -z "$TOKEN" ];then
-        TOKEN=$(getRegistrationTokenFromAPI)
-    fi
-    checkValNotNull "${TOKEN}" "github_runner_access_token" || return $?
     echo "${TOKEN}"
 }
 
