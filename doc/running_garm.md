@@ -81,7 +81,7 @@ Global Flags:
 Use "garm-cli completion [command] --help" for more information about a command.
 ```
 
-## Adding a repository/organization
+## Adding a repository/organization/enterprise
 
 To add a repository, we need credentials. Let's list the available credentials currently configured. These credentials are added to ```garm``` using the config file (see above), but we need to reference them by name when creating a repo.
 
@@ -123,6 +123,22 @@ ubuntu@experiments:~$ garm-cli organization create \
 | FIELD       | VALUE                                |
 +-------------+--------------------------------------+
 | ID          | 7f0b83d5-3dc0-42de-b189-f9bbf1ae8901 |
+| Name        | gsamfira                             |
+| Credentials | gabriel                              |
++-------------+--------------------------------------+
+```
+
+To add an enterprise, use the following command:
+
+```bash
+ubuntu@experiments:~$ garm-cli enterprise create \
+      --credentials=gabriel \
+      --name=gsamfira \
+      --webhook-secret="$SECRET"
++-------------+--------------------------------------+
+| FIELD       | VALUE                                |
++-------------+--------------------------------------+
+| ID          | 0925033b-049f-4334-a460-c26f979d2356 |
 | Name        | gsamfira                             |
 | Credentials | gabriel                              |
 +-------------+--------------------------------------+
@@ -356,18 +372,22 @@ Usage:
 Available Commands:
   completion   Generate the autocompletion script for the specified shell
   credentials  List configured credentials
+  debug-log    Stream garm log
+  enterprise   Manage enterprise
   help         Help about any command
   init         Initialize a newly installed garm
-  login        Log into a manager
   organization Manage organizations
   pool         List pools
+  profile      Add, delete or update profiles
   provider     Interacts with the providers API resource.
   repository   Manage repositories
   runner       List runners in a pool
+  version      Print version and exit
 
 Flags:
       --debug   Enable debug on all API calls
   -h, --help    help for garm-cli
 
 Use "garm-cli [command] --help" for more information about a command.
+
 ```
