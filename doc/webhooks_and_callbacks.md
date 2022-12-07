@@ -68,7 +68,7 @@ garm-cli runner show garm-f5227755-129d-4e2d-b306-377a8f3a5dfe
 +-----------------+--------------------------------------------------------------------------------------------------------------------------------------------------+
 ```
 
-This URL if set, must be accessible by the instance. If you wish to restrict access to it, a reverse proxy can be configured to accept requests only from networks in which the runners ```garm``` manages will be spun up. This URL doesn't need to be globally accessible, it just needs to be accessible by the instances.
+This URL must be set and must be accessible by the instance. If you wish to restrict access to it, a reverse proxy can be configured to accept requests only from networks in which the runners ```garm``` manages will be spun up. This URL doesn't need to be globally accessible, it just needs to be accessible by the instances.
 
 For example, in a scenario where you expose the API endpoint directly, this setting could look like the following:
 
@@ -76,6 +76,20 @@ For example, in a scenario where you expose the API endpoint directly, this sett
 callback_url = "https://garm.example.com/api/v1/callbacks/status"
 ```
 
-Authentication is done using a short-lived JWT token, that gets generated for a particular instance that we are spinning up. That JWT token only has access to update it's own status. No other API endpoints will work with that JWT token. The validity of the token is equal to the pool bootstrap timeout value (default 20 minutes) plus the garm polling interval (5 minutes).
+Authentication is done using a short-lived JWT token, that gets generated for a particular instance that we are spinning up. That JWT token grants access to the instance to only update it's own status and to fetch metadata for itself. No other API endpoints will work with that JWT token. The validity of the token is equal to the pool bootstrap timeout value (default 20 minutes) plus the garm polling interval (5 minutes).
 
 There is a sample ```nginx``` config [in the testdata folder](/testdata/nginx-server.conf). Feel free to customize it whichever way you see fit.
+
+## The metadata_url option
+
+The metadata URL is the base URL for any information an instance may need to fetch in order to finish setting itself up. As this URL may be placed behind a reverse proxy, you'll need to configure it in the ```garm``` config file. Ultimately this URL will need to point to the following ```garm``` API endpoint:
+
+```bash
+GET /api/v1/metadata
+```
+
+This URL needs to be accessible only by the instances ```garm``` sets up. This URL will not be used by anyone else. To configure it in ```garm``` add the following line in the ```[default]``` section of your ```garm``` config:
+
+```toml
+metadata_url = "https://garm.example.com/api/v1/metadata"
+```
