@@ -110,6 +110,7 @@ func (s *sqlDatabase) sqlToCommonPool(pool Pool) params.Pool {
 		ProviderName:           pool.ProviderName,
 		MaxRunners:             pool.MaxRunners,
 		MinIdleRunners:         pool.MinIdleRunners,
+		RunnerPrefix:           pool.RunnerPrefix,
 		Image:                  pool.Image,
 		Flavor:                 pool.Flavor,
 		OSArch:                 pool.OSArch,
@@ -217,6 +218,8 @@ func (s *sqlDatabase) updatePool(pool Pool, param params.UpdatePoolParams) (para
 	if param.Image != "" {
 		pool.Image = param.Image
 	}
+
+	pool.RunnerPrefix = param.GetRunnerPrefix()
 
 	if param.MaxRunners != nil {
 		pool.MaxRunners = *param.MaxRunners

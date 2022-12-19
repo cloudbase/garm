@@ -56,6 +56,7 @@ type Pool struct {
 	Base
 
 	ProviderName           string `gorm:"index:idx_pool_type"`
+	RunnerPrefix           string
 	MaxRunners             uint
 	MinIdleRunners         uint
 	RunnerBootstrapTimeout uint

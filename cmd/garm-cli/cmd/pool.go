@@ -45,7 +45,7 @@ var poolListCmd = &cobra.Command{
 	Aliases: []string{"ls"},
 	Short:   "List pools",
 	Long: `List pools of repositories, orgs or all of the above.
-	
+
 This command will list pools from one repo, one org or all pools
 on the system. The list flags are mutually exclusive. You must however
 specify one of them.
@@ -167,6 +167,7 @@ var poolAddCmd = &cobra.Command{
 
 		tags := strings.Split(poolTags, ",")
 		newPoolParams := params.CreatePoolParams{
+			RunnerPrefix:           poolRunnerPrefix,
 			ProviderName:           poolProvider,
 			MaxRunners:             poolMaxRunners,
 			MinIdleRunners:         poolMinIdleRunners,
@@ -257,6 +258,10 @@ explicitly remove them using the runner delete command.
 			poolUpdateParams.MinIdleRunners = &poolMinIdleRunners
 		}
 
+		if cmd.Flags().Changed("runner-prefix") {
+			poolUpdateParams.RunnerPrefix = poolRunnerPrefix
+		}
+
 		if cmd.Flags().Changed("enabled") {
 			poolUpdateParams.Enabled = &poolEnabled
 		}
@@ -287,6 +292,7 @@ func init() {
 	poolUpdateCmd.Flags().StringVar(&poolTags, "tags", "", "A comma separated list of tags to assign to this runner.")
 	poolUpdateCmd.Flags().StringVar(&poolOSType, "os-type", "linux", "Operating system type (windows, linux, etc).")
 	poolUpdateCmd.Flags().StringVar(&poolOSArch, "os-arch", "amd64", "Operating system architecture (amd64, arm, etc).")
+	poolUpdateCmd.Flags().StringVar(&poolRunnerPrefix, "runner-prefix", "", "The name prefix to use for runners in this pool.")
 	poolUpdateCmd.Flags().UintVar(&poolMaxRunners, "max-runners", 5, "The maximum number of runner this pool will create.")
 	poolUpdateCmd.Flags().UintVar(&poolMinIdleRunners, "min-idle-runners", 1, "Attempt to maintain a minimum of idle self-hosted runners of this type.")
 	poolUpdateCmd.Flags().BoolVar(&poolEnabled, "enabled", false, "Enable this pool.")
@@ -295,6 +301,7 @@ func init() {
 	poolAddCmd.Flags().StringVar(&poolProvider, "provider-name", "", "The name of the provider where runners will be created.")
 	poolAddCmd.Flags().StringVar(&poolImage, "image", "", "The provider-specific image name to use for runners in this pool.")
 	poolAddCmd.Flags().StringVar(&poolFlavor, "flavor", "", "The flavor to use for this runner.")
+	poolAddCmd.Flags().StringVar(&poolRunnerPrefix, "runner-prefix", "", "The name prefix to use for runners in this pool.")
 	poolAddCmd.Flags().StringVar(&poolTags, "tags", "", "A comma separated list of tags to assign to this runner.")
 	poolAddCmd.Flags().StringVar(&poolOSType, "os-type", "linux", "Operating system type (windows, linux, etc).")
 	poolAddCmd.Flags().StringVar(&poolOSArch, "os-arch", "amd64", "Operating system architecture (amd64, arm, etc).")

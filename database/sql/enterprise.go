@@ -145,6 +145,7 @@ func (s *sqlDatabase) CreateEnterprisePool(ctx context.Context, enterpriseID str
 		ProviderName:           param.ProviderName,
 		MaxRunners:             param.MaxRunners,
 		MinIdleRunners:         param.MinIdleRunners,
+		RunnerPrefix:           param.RunnerPrefix,
 		Image:                  param.Image,
 		Flavor:                 param.Flavor,
 		OSType:                 param.OSType,

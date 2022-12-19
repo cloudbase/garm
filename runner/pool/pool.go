@@ -32,8 +32,8 @@ import (
 	providerCommon "garm/runner/providers/common"
 
 	"github.com/google/go-github/v48/github"
-	"github.com/google/uuid"
 	"github.com/pkg/errors"
+	"github.com/teris-io/shortid"
 )
 
 var (
@@ -388,13 +388,20 @@ func (r *basePoolManager) acquireNewInstance(job params.WorkflowJob) error {
 	return nil
 }
 
+// use own alphabet to avoid '-' and '_' in the shortid
+const shortidABC = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
 func (r *basePoolManager) AddRunner(ctx context.Context, poolID string) error {
 	pool, err := r.helper.GetPoolByID(poolID)
 	if err != nil {
 		return errors.Wrap(err, "fetching pool")
 	}
 
-	name := fmt.Sprintf("garm-%s", uuid.New())
+	prefix := pool.RunnerPrefix
+	if prefix == "" {
+		prefix = params.DefaultRunnerPrefix
+	}
+	name := fmt.Sprintf("%s-%s", prefix, shortid.MustNew(0, shortidABC, 42).String())
 
 	createParams := params.CreateInstanceParams{
 		Name:          name,

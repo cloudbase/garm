@@ -63,6 +63,7 @@ var orgPoolAddCmd = &cobra.Command{
 		newPoolParams := params.CreatePoolParams{
 			ProviderName:   poolProvider,
 			MaxRunners:     poolMaxRunners,
+			RunnerPrefix:   poolRunnerPrefix,
 			MinIdleRunners: poolMinIdleRunners,
 			Image:          poolImage,
 			Flavor:         poolFlavor,
@@ -196,6 +197,10 @@ explicitly remove them using the runner delete command.
 			poolUpdateParams.OSArch = config.OSArch(poolOSArch)
 		}
 
+		if cmd.Flags().Changed("runner-prefix") {
+			poolUpdateParams.RunnerPrefix = poolRunnerPrefix
+		}
+
 		if cmd.Flags().Changed("max-runners") {
 			poolUpdateParams.MaxRunners = &poolMaxRunners
 		}
@@ -225,6 +230,7 @@ func init() {
 	orgPoolAddCmd.Flags().StringVar(&poolTags, "tags", "", "A comma separated list of tags to assign to this runner.")
 	orgPoolAddCmd.Flags().StringVar(&poolOSType, "os-type", "linux", "Operating system type (windows, linux, etc).")
 	orgPoolAddCmd.Flags().StringVar(&poolOSArch, "os-arch", "amd64", "Operating system architecture (amd64, arm, etc).")
+	orgPoolAddCmd.Flags().StringVar(&poolRunnerPrefix, "runner-prefix", "", "The name prefix to use for runners in this pool.")
 	orgPoolAddCmd.Flags().UintVar(&poolMaxRunners, "max-runners", 5, "The maximum number of runner this pool will create.")
 	orgPoolAddCmd.Flags().UintVar(&poolMinIdleRunners, "min-idle-runners", 1, "Attempt to maintain a minimum of idle self-hosted runners of this type.")
 	orgPoolAddCmd.Flags().BoolVar(&poolEnabled, "enabled", false, "Enable this pool.")
@@ -238,6 +244,7 @@ func init() {
 	orgPoolUpdateCmd.Flags().StringVar(&poolTags, "tags", "", "A comma separated list of tags to assign to this runner.")
 	orgPoolUpdateCmd.Flags().StringVar(&poolOSType, "os-type", "linux", "Operating system type (windows, linux, etc).")
 	orgPoolUpdateCmd.Flags().StringVar(&poolOSArch, "os-arch", "amd64", "Operating system architecture (amd64, arm, etc).")
+	orgPoolUpdateCmd.Flags().StringVar(&poolRunnerPrefix, "runner-prefix", "", "The name prefix to use for runners in this pool.")
 	orgPoolUpdateCmd.Flags().UintVar(&poolMaxRunners, "max-runners", 5, "The maximum number of runner this pool will create.")
 	orgPoolUpdateCmd.Flags().UintVar(&poolMinIdleRunners, "min-idle-runners", 1, "Attempt to maintain a minimum of idle self-hosted runners of this type.")
 	orgPoolUpdateCmd.Flags().BoolVar(&poolEnabled, "enabled", false, "Enable this pool.")

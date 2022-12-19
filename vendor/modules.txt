@@ -168,6 +168,9 @@ github.com/stretchr/testify/assert
 github.com/stretchr/testify/mock
 github.com/stretchr/testify/require
 github.com/stretchr/testify/suite
+# github.com/teris-io/shortid v0.0.0-20220617161101-71ec9f2aa569
+## explicit; go 1.18
+github.com/teris-io/shortid
 # github.com/xdg-go/stringprep v1.0.3
 ## explicit; go 1.11
 # golang.org/x/crypto v0.0.0-20220321153916-2c7772ba3064
