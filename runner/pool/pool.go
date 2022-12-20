@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"strings"
 	"sync"
@@ -415,11 +416,13 @@ func (r *basePoolManager) AddRunner(ctx context.Context, poolID string) error {
 }
 
 func (r *basePoolManager) loop() {
+	scaleDownTimer := time.NewTicker(common.PoolScaleDownInterval)
 	consolidateTimer := time.NewTicker(common.PoolConsilitationInterval)
 	reapTimer := time.NewTicker(common.PoolReapTimeoutInterval)
 	toolUpdateTimer := time.NewTicker(common.PoolToolUpdateInterval)
 	defer func() {
 		log.Printf("%s loop exited", r.helper.String())
+		scaleDownTimer.Stop()
 		consolidateTimer.Stop()
 		reapTimer.Stop()
 		toolUpdateTimer.Stop()
@@ -462,6 +465,8 @@ func (r *basePoolManager) loop() {
 			case <-consolidateTimer.C:
 				// consolidate.
 				r.consolidate()
+			case <-scaleDownTimer.C:
+				r.scaleDown()
 			case <-toolUpdateTimer.C:
 				// Update tools cache.
 				tools, err := r.helper.FetchTools()
@@ -753,6 +758,50 @@ func (r *basePoolManager) updateArgsFromProviderInstance(providerInstance params
 		ProviderFault: providerInstance.ProviderFault,
 	}
 }
+func (r *basePoolManager) scaleDownOnePool(pool params.Pool) {
+	if !pool.Enabled {
+		return
+	}
+
+	existingInstances, err := r.store.ListPoolInstances(r.ctx, pool.ID)
+	if err != nil {
+		log.Printf("failed to ensure minimum idle workers for pool %s: %s", pool.ID, err)
+		return
+	}
+
+	idleWorkers := []params.Instance{}
+	for _, inst := range existingInstances {
+		if providerCommon.RunnerStatus(inst.RunnerStatus) == providerCommon.RunnerIdle &&
+			providerCommon.InstanceStatus(inst.Status) == providerCommon.InstanceRunning {
+			idleWorkers = append(idleWorkers, inst)
+		}
+	}
+
+	if len(idleWorkers) == 0 {
+		return
+	}
+
+	surplus := float64(len(idleWorkers) - int(pool.MinIdleRunners))
+
+	if surplus <= 0 {
+		return
+	}
+
+	scaleDownFactor := 0.5 // could be configurable
+	numScaleDown := int(math.Ceil(surplus * scaleDownFactor))
+
+	if numScaleDown <= 0 || numScaleDown > len(idleWorkers) {
+		log.Printf("invalid number of instances to scale down: %v, check your scaleDownFactor: %v\n", numScaleDown, scaleDownFactor)
+		return
+	}
+
+	for _, instanceToDelete := range idleWorkers[:numScaleDown] {
+		log.Printf("scaling down idle worker %s from pool %s\n", instanceToDelete.Name, pool.ID)
+		if err := r.ForceDeleteRunner(instanceToDelete); err != nil {
+			log.Printf("failed to delete instance %s: %s", instanceToDelete.ID, err)
+		}
+	}
+}
 
 func (r *basePoolManager) ensureIdleRunnersForOnePool(pool params.Pool) {
 	if !pool.Enabled {
@@ -857,6 +906,23 @@ func (r *basePoolManager) retryFailedInstances() {
 		go func(pool params.Pool) {
 			defer wg.Done()
 			r.retryFailedInstancesForOnePool(pool)
+		}(pool)
+	}
+	wg.Wait()
+}
+
+func (r *basePoolManager) scaleDown() {
+	pools, err := r.helper.ListPools()
+	if err != nil {
+		log.Printf("error listing pools: %s", err)
+		return
+	}
+	wg := sync.WaitGroup{}
+	wg.Add(len(pools))
+	for _, pool := range pools {
+		go func(pool params.Pool) {
+			defer wg.Done()
+			r.scaleDownOnePool(pool)
 		}(pool)
 	}
 	wg.Wait()
