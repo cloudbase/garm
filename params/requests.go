@@ -74,7 +74,7 @@ type CreateEnterpriseParams struct {
 
 func (c *CreateEnterpriseParams) Validate() error {
 	if c.Name == "" {
-		return errors.NewBadRequestError("missing org name")
+		return errors.NewBadRequestError("missing enterprise name")
 	}
 
 	if c.CredentialsName == "" {
@@ -113,6 +113,7 @@ type CreateInstanceParams struct {
 	Status        common.InstanceStatus
 	RunnerStatus  common.RunnerStatus
 	CallbackURL   string
+	MetadataURL   string
 	CreateAttempt int `json:"-"`
 }
 
@@ -172,6 +173,7 @@ type UpdateInstanceParams struct {
 	ProviderFault []byte                `json:"provider_fault,omitempty"`
 	AgentID       int64                 `json:"-"`
 	CreateAttempt int                   `json:"-"`
+	TokenFetched  *bool                 `json:"-"`
 }
 
 type UpdateUserParams struct {

@@ -43,6 +43,7 @@ const (
 type PoolManager interface {
 	ID() string
 	WebhookSecret() string
+	GithubRunnerRegistrationToken() (string, error)
 	HandleWorkflowJob(job params.WorkflowJob) error
 	RefreshState(param params.UpdatePoolStateParams) error
 	ForceDeleteRunner(runner params.Instance) error

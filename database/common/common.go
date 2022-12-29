@@ -106,7 +106,8 @@ type InstanceStore interface {
 	ListAllInstances(ctx context.Context) ([]params.Instance, error)
 
 	GetInstanceByName(ctx context.Context, instanceName string) (params.Instance, error)
-	AddInstanceStatusMessage(ctx context.Context, instanceID string, statusMessage string) error
+	AddInstanceEvent(ctx context.Context, instanceID string, event params.EventType, eventLevel params.EventLevel, eventMessage string) error
+	ListInstanceEvents(ctx context.Context, instanceID string, eventType params.EventType, eventLevel params.EventLevel) ([]params.StatusMessage, error)
 }
 
 //go:generate mockery --name=Store

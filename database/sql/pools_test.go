@@ -22,7 +22,6 @@ import (
 	garmTesting "garm/internal/testing"
 	"garm/params"
 	"regexp"
-	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -43,17 +42,6 @@ type PoolsTestSuite struct {
 	Store          dbCommon.Store
 	StoreSQLMocked *sqlDatabase
 	Fixtures       *PoolsTestFixtures
-}
-
-func (s *PoolsTestSuite) equalPoolsByID(expected, actual []params.Pool) {
-	s.Require().Equal(len(expected), len(actual))
-
-	sort.Slice(expected, func(i, j int) bool { return expected[i].ID > expected[j].ID })
-	sort.Slice(actual, func(i, j int) bool { return actual[i].ID > actual[j].ID })
-
-	for i := 0; i < len(expected); i++ {
-		s.Require().Equal(expected[i].ID, actual[i].ID)
-	}
 }
 
 func (s *PoolsTestSuite) assertSQLMockExpectations() {
@@ -134,7 +122,7 @@ func (s *PoolsTestSuite) TestListAllPools() {
 	pools, err := s.Store.ListAllPools(context.Background())
 
 	s.Require().Nil(err)
-	s.equalPoolsByID(s.Fixtures.Pools, pools)
+	garmTesting.EqualDBEntityID(s.T(), s.Fixtures.Pools, pools)
 }
 
 func (s *PoolsTestSuite) TestListAllPoolsDBFetchErr() {

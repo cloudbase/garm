@@ -16,6 +16,7 @@ package sql
 
 import (
 	"garm/config"
+	"garm/params"
 	"garm/runner/providers/common"
 	"time"
 
@@ -118,7 +119,9 @@ type Address struct {
 type InstanceStatusUpdate struct {
 	Base
 
-	Message string `gorm:"type:text"`
+	EventType  params.EventType `gorm:"index:eventType"`
+	EventLevel params.EventLevel
+	Message    string `gorm:"type:text"`
 
 	InstanceID uuid.UUID
 	Instance   Instance `gorm:"foreignKey:InstanceID"`
@@ -138,8 +141,10 @@ type Instance struct {
 	Status        common.InstanceStatus
 	RunnerStatus  common.RunnerStatus
 	CallbackURL   string
+	MetadataURL   string
 	ProviderFault []byte `gorm:"type:longblob"`
 	CreateAttempt int
+	TokenFetched  bool
 
 	PoolID uuid.UUID
 	Pool   Pool `gorm:"foreignKey:PoolID"`

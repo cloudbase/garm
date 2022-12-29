@@ -18,24 +18,10 @@ import (
 	"context"
 
 	"garm/params"
+	"garm/runner/providers/common"
 )
 
 type contextFlags string
-
-/*
-// InstanceJWTClaims holds JWT claims
-type InstanceJWTClaims struct {
-	ID     string `json:"id"`
-	Name   string `json:"name"`
-	PoolID string `json:"provider_id"`
-	// Scope is either repository or organization
-	Scope common.PoolType `json:"scope"`
-	// Entity is the repo or org name
-	Entity string `json:"entity"`
-	jwt.StandardClaims
-}
-
-*/
 
 const (
 	isAdminKey  contextFlags = "is_admin"
@@ -45,11 +31,13 @@ const (
 	isEnabledFlag contextFlags = "is_enabled"
 	jwtTokenFlag  contextFlags = "jwt_token"
 
-	instanceIDKey       contextFlags = "id"
-	instanceNameKey     contextFlags = "name"
-	instancePoolIDKey   contextFlags = "pool_id"
-	instancePoolTypeKey contextFlags = "scope"
-	instanceEntityKey   contextFlags = "entity"
+	instanceIDKey        contextFlags = "id"
+	instanceNameKey      contextFlags = "name"
+	instancePoolIDKey    contextFlags = "pool_id"
+	instancePoolTypeKey  contextFlags = "scope"
+	instanceEntityKey    contextFlags = "entity"
+	instanceRunnerStatus contextFlags = "status"
+	instanceTokenFetched contextFlags = "tokenFetched"
 )
 
 func SetInstanceID(ctx context.Context, id string) context.Context {
@@ -62,6 +50,30 @@ func InstanceID(ctx context.Context) string {
 		return ""
 	}
 	return elem.(string)
+}
+
+func SetInstanceTokenFetched(ctx context.Context, fetched bool) context.Context {
+	return context.WithValue(ctx, instanceTokenFetched, fetched)
+}
+
+func InstanceTokenFetched(ctx context.Context) bool {
+	elem := ctx.Value(instanceTokenFetched)
+	if elem == nil {
+		return false
+	}
+	return elem.(bool)
+}
+
+func SetInstanceRunnerStatus(ctx context.Context, val common.RunnerStatus) context.Context {
+	return context.WithValue(ctx, instanceRunnerStatus, val)
+}
+
+func InstanceRunnerStatus(ctx context.Context) common.RunnerStatus {
+	elem := ctx.Value(instanceRunnerStatus)
+	if elem == nil {
+		return common.RunnerPending
+	}
+	return elem.(common.RunnerStatus)
 }
 
 func SetInstanceName(ctx context.Context, val string) context.Context {
@@ -116,6 +128,8 @@ func PopulateInstanceContext(ctx context.Context, instance params.Instance) cont
 	ctx = SetInstanceID(ctx, instance.ID)
 	ctx = SetInstanceName(ctx, instance.Name)
 	ctx = SetInstancePoolID(ctx, instance.PoolID)
+	ctx = SetInstanceRunnerStatus(ctx, instance.RunnerStatus)
+	ctx = SetInstanceTokenFetched(ctx, instance.TokenFetched)
 	return ctx
 }
 

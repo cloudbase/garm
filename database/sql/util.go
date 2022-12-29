@@ -41,9 +41,11 @@ func (s *sqlDatabase) sqlToParamsInstance(instance Instance) params.Instance {
 		RunnerStatus:   instance.RunnerStatus,
 		PoolID:         instance.PoolID.String(),
 		CallbackURL:    instance.CallbackURL,
+		MetadataURL:    instance.MetadataURL,
 		StatusMessages: []params.StatusMessage{},
 		CreateAttempt:  instance.CreateAttempt,
 		UpdatedAt:      instance.UpdatedAt,
+		TokenFetched:   instance.TokenFetched,
 	}
 
 	if len(instance.ProviderFault) > 0 {
@@ -56,8 +58,10 @@ func (s *sqlDatabase) sqlToParamsInstance(instance Instance) params.Instance {
 
 	for _, msg := range instance.StatusMessages {
 		ret.StatusMessages = append(ret.StatusMessages, params.StatusMessage{
-			CreatedAt: msg.CreatedAt,
-			Message:   msg.Message,
+			CreatedAt:  msg.CreatedAt,
+			Message:    msg.Message,
+			EventType:  msg.EventType,
+			EventLevel: msg.EventLevel,
 		})
 	}
 	return ret

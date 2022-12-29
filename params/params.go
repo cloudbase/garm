@@ -24,10 +24,23 @@ import (
 )
 
 type AddressType string
+type EventType string
+type EventLevel string
 
 const (
 	PublicAddress  AddressType = "public"
 	PrivateAddress AddressType = "private"
+)
+
+const (
+	StatusEvent     EventType = "status"
+	FetchTokenEvent EventType = "fetchToken"
+)
+
+const (
+	EventInfo    EventLevel = "info"
+	EventWarning EventLevel = "warning"
+	EventError   EventLevel = "error"
 )
 
 type Address struct {
@@ -36,8 +49,10 @@ type Address struct {
 }
 
 type StatusMessage struct {
-	CreatedAt time.Time `json:"created_at"`
-	Message   string    `json:"message"`
+	CreatedAt  time.Time  `json:"created_at"`
+	Message    string     `json:"message"`
+	EventType  EventType  `json:"event_type"`
+	EventLevel EventLevel `json:"event_level"`
 }
 
 type Instance struct {
@@ -73,11 +88,21 @@ type Instance struct {
 	ProviderFault []byte                `json:"provider_fault,omitempty"`
 
 	StatusMessages []StatusMessage `json:"status_messages,omitempty"`
+	UpdatedAt      time.Time       `json:"updated_at"`
 
 	// Do not serialize sensitive info.
-	CallbackURL   string    `json:"-"`
-	CreateAttempt int       `json:"-"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	CallbackURL   string `json:"-"`
+	MetadataURL   string `json:"-"`
+	CreateAttempt int    `json:"-"`
+	TokenFetched  bool   `json:"-"`
+}
+
+func (i Instance) GetName() string {
+	return i.Name
+}
+
+func (i Instance) GetID() string {
+	return i.ID
 }
 
 type BootstrapInstance struct {
@@ -85,12 +110,11 @@ type BootstrapInstance struct {
 	Tools []*github.RunnerApplicationDownload `json:"tools"`
 	// RepoURL is the URL the github runner agent needs to configure itself.
 	RepoURL string `json:"repo_url"`
-	// GithubRunnerAccessToken is the token we fetch from github to allow the runner to
-	// register itself.
-	GithubRunnerAccessToken string `json:"github_runner_access_token"`
 	// CallbackUrl is the URL where the instance can send a post, signaling
 	// progress or status.
 	CallbackURL string `json:"callback-url"`
+	// MetadataURL is the URL where instances can fetch information needed to set themselves up.
+	MetadataURL string `json:"metadata-url"`
 	// InstanceToken is the token that needs to be set by the instance in the headers
 	// in order to send updated back to the garm via CallbackURL.
 	InstanceToken string `json:"instance-token"`
@@ -133,6 +157,10 @@ type Pool struct {
 	RunnerBootstrapTimeout uint          `json:"runner_bootstrap_timeout"`
 }
 
+func (p Pool) GetID() string {
+	return p.ID
+}
+
 func (p *Pool) RunnerTimeout() uint {
 	if p.RunnerBootstrapTimeout == 0 {
 		return config.DefaultRunnerBootstrapTimeout
@@ -144,6 +172,7 @@ type Internal struct {
 	OAuth2Token         string `json:"oauth2"`
 	ControllerID        string `json:"controller_id"`
 	InstanceCallbackURL string `json:"instance_callback_url"`
+	InstanceMetadataURL string `json:"instance_metadata_url"`
 	JWTSecret           string `json:"jwt_secret"`
 	// GithubCredentialsDetails contains all info about the credentials, except the
 	// token, which is added above.
@@ -161,6 +190,14 @@ type Repository struct {
 	WebhookSecret string `json:"-"`
 }
 
+func (r Repository) GetName() string {
+	return r.Name
+}
+
+func (r Repository) GetID() string {
+	return r.ID
+}
+
 type Organization struct {
 	ID                string            `json:"id"`
 	Name              string            `json:"name"`
@@ -171,6 +208,14 @@ type Organization struct {
 	WebhookSecret string `json:"-"`
 }
 
+func (o Organization) GetName() string {
+	return o.Name
+}
+
+func (o Organization) GetID() string {
+	return o.ID
+}
+
 type Enterprise struct {
 	ID                string            `json:"id"`
 	Name              string            `json:"name"`
@@ -179,6 +224,14 @@ type Enterprise struct {
 	PoolManagerStatus PoolManagerStatus `json:"pool_manager_status,omitempty"`
 	// Do not serialize sensitive info.
 	WebhookSecret string `json:"-"`
+}
+
+func (e Enterprise) GetName() string {
+	return e.Name
+}
+
+func (e Enterprise) GetID() string {
+	return e.ID
 }
 
 // Users holds information about a particular user
@@ -226,4 +279,9 @@ type UpdatePoolStateParams struct {
 type PoolManagerStatus struct {
 	IsRunning     bool   `json:"running"`
 	FailureReason string `json:"failure_reason,omitempty"`
+}
+
+type RunnerInfo struct {
+	Name   string
+	Labels []string
 }

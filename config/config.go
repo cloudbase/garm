@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"time"
@@ -169,8 +170,12 @@ type Default struct {
 	// ConfigDir is the folder where the runner may save any aditional files
 	// or configurations it may need. Things like auto-generated SSH keys that
 	// may be used to access the runner instances.
-	ConfigDir   string `toml:"config_dir,omitempty" json:"config-dir,omitempty"`
+	ConfigDir string `toml:"config_dir,omitempty" json:"config-dir,omitempty"`
+	// CallbackURL is the URL where the instances can send back status reports.
 	CallbackURL string `toml:"callback_url" json:"callback-url"`
+	// MetadataURL is the URL where instances can fetch information they may need
+	// to set themselves up.
+	MetadataURL string `toml:"metadata_url" json:"metadata-url"`
 	// LogFile is the location of the log file.
 	LogFile           string `toml:"log_file,omitempty" json:"log-file"`
 	EnableLogStreamer bool   `toml:"enable_log_streamer"`
@@ -179,6 +184,17 @@ type Default struct {
 func (d *Default) Validate() error {
 	if d.CallbackURL == "" {
 		return fmt.Errorf("missing callback_url")
+	}
+	_, err := url.Parse(d.CallbackURL)
+	if err != nil {
+		return errors.Wrap(err, "validating callback_url")
+	}
+
+	if d.MetadataURL == "" {
+		return fmt.Errorf("missing metadata-url")
+	}
+	if _, err := url.Parse(d.MetadataURL); err != nil {
+		return errors.Wrap(err, "validating metadata_url")
 	}
 
 	if d.ConfigDir == "" {

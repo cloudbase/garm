@@ -77,8 +77,7 @@ func invalidAuthResponse(w http.ResponseWriter) {
 	w.Header().Add("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(
 		apiParams.APIErrorResponse{
-			Error:   "Authentication failed",
-			Details: "Invalid authentication token",
+			Error: "Authentication failed",
 		})
 }
 

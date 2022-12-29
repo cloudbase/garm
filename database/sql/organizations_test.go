@@ -51,28 +51,6 @@ type OrgTestSuite struct {
 	Fixtures       *OrgTestFixtures
 }
 
-func (s *OrgTestSuite) equalOrgsByName(expected, actual []params.Organization) {
-	s.Require().Equal(len(expected), len(actual))
-
-	sort.Slice(expected, func(i, j int) bool { return expected[i].Name > expected[j].Name })
-	sort.Slice(actual, func(i, j int) bool { return actual[i].Name > actual[j].Name })
-
-	for i := 0; i < len(expected); i++ {
-		s.Require().Equal(expected[i].Name, actual[i].Name)
-	}
-}
-
-func (s *OrgTestSuite) equalPoolsByID(expected, actual []params.Pool) {
-	s.Require().Equal(len(expected), len(actual))
-
-	sort.Slice(expected, func(i, j int) bool { return expected[i].ID > expected[j].ID })
-	sort.Slice(actual, func(i, j int) bool { return actual[i].ID > actual[j].ID })
-
-	for i := 0; i < len(expected); i++ {
-		s.Require().Equal(expected[i].ID, actual[i].ID)
-	}
-}
-
 func (s *OrgTestSuite) equalInstancesByName(expected, actual []params.Instance) {
 	s.Require().Equal(len(expected), len(actual))
 
@@ -276,7 +254,7 @@ func (s *OrgTestSuite) TestListOrganizations() {
 	orgs, err := s.Store.ListOrganizations(context.Background())
 
 	s.Require().Nil(err)
-	s.equalOrgsByName(s.Fixtures.Orgs, orgs)
+	garmTesting.EqualDBEntityByName(s.T(), s.Fixtures.Orgs, orgs)
 }
 
 func (s *OrgTestSuite) TestListOrganizationsDBFetchErr() {
@@ -689,7 +667,7 @@ func (s *OrgTestSuite) TestListOrgPools() {
 	pools, err := s.Store.ListOrgPools(context.Background(), s.Fixtures.Orgs[0].ID)
 
 	s.Require().Nil(err)
-	s.equalPoolsByID(orgPools, pools)
+	garmTesting.EqualDBEntityID(s.T(), orgPools, pools)
 }
 
 func (s *OrgTestSuite) TestListOrgPoolsInvalidOrgID() {

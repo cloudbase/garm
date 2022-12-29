@@ -24,7 +24,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
@@ -39,6 +38,7 @@ import (
 	"garm/runner/common"
 
 	"github.com/google/go-github/v48/github"
+	gorillaHandlers "github.com/gorilla/handlers"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/oauth2"
@@ -147,7 +147,7 @@ func GetLoggingWriter(cfg *config.Config) (io.Writer, error) {
 }
 
 func ConvertFileToBase64(file string) (string, error) {
-	bytes, err := ioutil.ReadFile(file)
+	bytes, err := os.ReadFile(file)
 	if err != nil {
 		return "", errors.Wrap(err, "reading file")
 	}
@@ -213,7 +213,7 @@ func GetCloudConfig(bootstrapParams params.BootstrapInstance, tools github.Runne
 		FileName:          *tools.Filename,
 		DownloadURL:       *tools.DownloadURL,
 		TempDownloadToken: tempToken,
-		GithubToken:       bootstrapParams.GithubRunnerAccessToken,
+		MetadataURL:       bootstrapParams.MetadataURL,
 		RunnerUsername:    config.DefaultUser,
 		RunnerGroup:       config.DefaultUser,
 		RepoURL:           bootstrapParams.RepoURL,
@@ -320,4 +320,10 @@ func PaswsordToBcrypt(password string) (string, error) {
 		return "", fmt.Errorf("failed to hash password")
 	}
 	return string(hashedPassword), nil
+}
+
+func NewLoggingMiddleware(writer io.Writer) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return gorillaHandlers.CombinedLoggingHandler(writer, next)
+	}
 }

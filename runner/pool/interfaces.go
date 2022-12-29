@@ -24,7 +24,7 @@ type poolHelper interface {
 	GetGithubToken() string
 	GetGithubRunners() ([]*github.Runner, error)
 	GetGithubRegistrationToken() (string, error)
-	GetRunnerNameFromWorkflow(job params.WorkflowJob) (string, error)
+	GetRunnerInfoFromWorkflow(job params.WorkflowJob) (params.RunnerInfo, error)
 	RemoveGithubRunner(runnerID int64) (*github.Response, error)
 	FetchTools() ([]*github.RunnerApplicationDownload, error)
 
@@ -34,6 +34,7 @@ type poolHelper interface {
 	JwtToken() string
 	String() string
 	GetCallbackURL() string
+	GetMetadataURL() string
 	FindPoolByTags(labels []string) (params.Pool, error)
 	GetPoolByID(poolID string) (params.Pool, error)
 	ValidateOwner(job params.WorkflowJob) error

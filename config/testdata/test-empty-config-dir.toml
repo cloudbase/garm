@@ -1,5 +1,6 @@
 [default]
   callback_url = "https://garm.example.com/"
+  metadata_url = "https://garm.example.com/"
   config_dir = ""
 
 [apiserver]
