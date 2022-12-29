@@ -731,6 +731,13 @@ func (r *Runner) GetInstanceGithubRegistrationToken(ctx context.Context) (string
 		return "", runnerErrors.ErrUnauthorized
 	}
 
+	// Check if this instance already fetched a registration token. We only allow an instance to
+	// fetch one token. If the instance fails to bootstrap after a token is fetched, we reset the
+	// token fetched field when re-queueing the instance.
+	if auth.InstanceTokenFetched(ctx) {
+		return "", runnerErrors.ErrUnauthorized
+	}
+
 	status := auth.InstanceRunnerStatus(ctx)
 	if status != providerCommon.RunnerPending && status != providerCommon.RunnerInstalling {
 		return "", runnerErrors.ErrUnauthorized
@@ -746,19 +753,18 @@ func (r *Runner) GetInstanceGithubRegistrationToken(ctx context.Context) (string
 		return "", errors.Wrap(err, "fetching pool manager for instance")
 	}
 
-	tokenEvents, err := r.store.ListInstanceEvents(ctx, instance.ID, params.FetchTokenEvent, "")
-	if err != nil {
-		return "", errors.Wrap(err, "fetching instance events")
-	}
-
-	if len(tokenEvents) > 0 {
-		// Token already retrieved
-		return "", runnerErrors.ErrUnauthorized
-	}
-
 	token, err := poolMgr.GithubRunnerRegistrationToken()
 	if err != nil {
 		return "", errors.Wrap(err, "fetching runner token")
+	}
+
+	tokenFetched := true
+	updateParams := params.UpdateInstanceParams{
+		TokenFetched: &tokenFetched,
+	}
+
+	if _, err := r.store.UpdateInstance(r.ctx, instance.ID, updateParams); err != nil {
+		return "", errors.Wrap(err, "setting token_fetched for instance")
 	}
 
 	if err := r.store.AddInstanceEvent(ctx, instance.ID, params.FetchTokenEvent, params.EventInfo, "runner registration token was retrieved"); err != nil {

@@ -144,6 +144,7 @@ type Instance struct {
 	MetadataURL   string
 	ProviderFault []byte `gorm:"type:longblob"`
 	CreateAttempt int
+	TokenFetched  bool
 
 	PoolID uuid.UUID
 	Pool   Pool `gorm:"foreignKey:PoolID"`

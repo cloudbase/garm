@@ -218,6 +218,10 @@ func (s *sqlDatabase) UpdateInstance(ctx context.Context, instanceID string, par
 		instance.CreateAttempt = param.CreateAttempt
 	}
 
+	if param.TokenFetched != nil {
+		instance.TokenFetched = *param.TokenFetched
+	}
+
 	instance.ProviderFault = param.ProviderFault
 
 	q := s.conn.Save(&instance)

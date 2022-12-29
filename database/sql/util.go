@@ -45,6 +45,7 @@ func (s *sqlDatabase) sqlToParamsInstance(instance Instance) params.Instance {
 		StatusMessages: []params.StatusMessage{},
 		CreateAttempt:  instance.CreateAttempt,
 		UpdatedAt:      instance.UpdatedAt,
+		TokenFetched:   instance.TokenFetched,
 	}
 
 	if len(instance.ProviderFault) > 0 {

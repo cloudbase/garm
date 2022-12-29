@@ -3,19 +3,21 @@
 set -e
 set -o pipefail
 
+METADATA_URL="GARM_METADATA_URL"
 CALLBACK_URL="GARM_CALLBACK_URL"
 BEARER_TOKEN="GARM_CALLBACK_TOKEN"
 DOWNLOAD_URL="GH_DOWNLOAD_URL"
 DOWNLOAD_TOKEN="GH_TEMP_DOWNLOAD_TOKEN"
 FILENAME="GH_FILENAME"
 TARGET_URL="GH_TARGET_URL"
-RUNNER_TOKEN="GH_RUNNER_TOKEN"
 RUNNER_NAME="GH_RUNNER_NAME"
 RUNNER_LABELS="GH_RUNNER_LABELS"
 TEMP_TOKEN=""
 
-if [ ! -z "$DOWNLOAD_TOKEN" ]; then
-	TEMP_TOKEN="Authorization: Bearer $DOWNLOAD_TOKEN"
+
+if [ -z "$METADATA_URL" ];then
+	echo "no token is available and METADATA_URL is not set"
+	exit 1
 fi
 
 function call() {
@@ -40,6 +42,10 @@ function fail() {
 	exit 1
 }
 
+if [ ! -z "$DOWNLOAD_TOKEN" ]; then
+	TEMP_TOKEN="Authorization: Bearer $DOWNLOAD_TOKEN"
+fi
+
 sendStatus "downloading tools from ${DOWNLOAD_URL}"
 curl --fail -L -H "${TEMP_TOKEN}" -o "/home/runner/${FILENAME}" "${DOWNLOAD_URL}" || fail "failed to download tools"
 
@@ -53,8 +59,11 @@ sendStatus "installing dependencies"
 cd /home/runner/actions-runner
 sudo ./bin/installdependencies.sh || fail "failed to install dependencies"
 
+sendStatus "fetching runner registration token"
+GITHUB_TOKEN=$(curl --fail -s -X GET -H 'Accept: application/json' -H "Authorization: Bearer ${BEARER_TOKEN}" "${METADATA_URL}" || fail "failed to get runner registration token")
+
 sendStatus "configuring runner"
-sudo -u runner -- ./config.sh --unattended --url "${TARGET_URL}" --token "${RUNNER_TOKEN}" --name "${RUNNER_NAME}" --labels "${RUNNER_LABELS}" --ephemeral || fail "failed to configure runner"
+sudo -u runner -- ./config.sh --unattended --url "${TARGET_URL}" --token "${GITHUB_TOKEN}" --name "${RUNNER_NAME}" --labels "${RUNNER_LABELS}" --ephemeral || fail "failed to configure runner"
 
 sendStatus "installing runner service"
 ./svc.sh install runner || fail "failed to install service"

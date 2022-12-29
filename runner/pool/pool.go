@@ -76,19 +76,6 @@ func controllerIDFromLabels(labels []string) string {
 	return ""
 }
 
-func poolIDFromLabels(labels []string) string {
-	for _, lbl := range labels {
-		if strings.HasPrefix(lbl, poolIDLabelprefix) {
-			return lbl[len(poolIDLabelprefix):]
-		}
-	}
-	return ""
-}
-
-func poolIsOwnedBy(pool params.Pool, ownerID string) bool {
-	return pool.RepoID == ownerID || pool.OrgID == ownerID || pool.EnterpriseID == ownerID
-}
-
 func labelsFromRunner(runner *github.Runner) []string {
 	if runner == nil || runner.Labels == nil {
 		return []string{}
@@ -104,18 +91,11 @@ func labelsFromRunner(runner *github.Runner) []string {
 	return labels
 }
 
-func (r *basePoolManager) isControllerRunner(labels []string) bool {
+// isManagedRunner returns true if labels indicate the runner belongs to a pool
+// this manager is responsible for.
+func (r *basePoolManager) isManagedRunner(labels []string) bool {
 	runnerControllerID := controllerIDFromLabels(labels)
-	if runnerControllerID != r.controllerID {
-		return false
-	}
-
-	poolID := poolIDFromLabels(labels)
-	if poolID == "" {
-		return false
-	}
-	_, err := r.helper.GetPoolByID(poolID)
-	return err == nil
+	return runnerControllerID == r.controllerID
 }
 
 // cleanupOrphanedProviderRunners compares runners in github with local runners and removes
@@ -133,7 +113,8 @@ func (r *basePoolManager) cleanupOrphanedProviderRunners(runners []*github.Runne
 
 	runnerNames := map[string]bool{}
 	for _, run := range runners {
-		if !r.isControllerRunner(labelsFromRunner(run)) {
+		if !r.isManagedRunner(labelsFromRunner(run)) {
+			log.Printf("runner %s is not managed by a pool belonging to %s", *run.Name, r.helper.String())
 			continue
 		}
 		runnerNames[*run.Name] = true
@@ -171,7 +152,8 @@ func (r *basePoolManager) reapTimedOutRunners(runners []*github.Runner) error {
 
 	runnerNames := map[string]bool{}
 	for _, run := range runners {
-		if !r.isControllerRunner(labelsFromRunner(run)) {
+		if !r.isManagedRunner(labelsFromRunner(run)) {
+			log.Printf("runner %s is not managed by a pool belonging to %s", *run.Name, r.helper.String())
 			continue
 		}
 		runnerNames[*run.Name] = true
@@ -202,7 +184,8 @@ func (r *basePoolManager) reapTimedOutRunners(runners []*github.Runner) error {
 // first remove the instance from github, and then from our database.
 func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner) error {
 	for _, runner := range runners {
-		if !r.isControllerRunner(labelsFromRunner(runner)) {
+		if !r.isManagedRunner(labelsFromRunner(runner)) {
+			log.Printf("runner %s is not managed by a pool belonging to %s", *runner.Name, r.helper.String())
 			continue
 		}
 
@@ -247,9 +230,6 @@ func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner)
 		pool, err := r.helper.GetPoolByID(dbInstance.PoolID)
 		if err != nil {
 			return errors.Wrap(err, "fetching pool")
-		}
-		if !poolIsOwnedBy(pool, r.ID()) {
-			continue
 		}
 
 		// check if the provider still has the instance.
@@ -627,26 +607,37 @@ func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error 
 }
 
 func (r *basePoolManager) getRunnerDetailsFromJob(job params.WorkflowJob) (params.RunnerInfo, error) {
-	if job.WorkflowJob.RunnerName != "" {
-		return params.RunnerInfo{
-			Name:   job.WorkflowJob.RunnerName,
-			Labels: job.WorkflowJob.Labels,
-		}, nil
+	runnerInfo := params.RunnerInfo{
+		Name:   job.WorkflowJob.RunnerName,
+		Labels: job.WorkflowJob.Labels,
 	}
 
-	// Runner name was not set in WorkflowJob by github. We can still attempt to
-	// fetch the info we need, using the workflow run ID, from the API.
-	log.Printf("runner name not found in workflow job, attempting to fetch from API")
-	runnerInfo, err := r.helper.GetRunnerInfoFromWorkflow(job)
-	if err != nil {
-		if errors.Is(err, runnerErrors.ErrUnauthorized) {
-			failureReason := fmt.Sprintf("failed to fetch runner name from API: %q", err)
-			r.setPoolRunningState(false, failureReason)
-			log.Print(failureReason)
+	var err error
+	if job.WorkflowJob.RunnerName == "" {
+		// Runner name was not set in WorkflowJob by github. We can still attempt to
+		// fetch the info we need, using the workflow run ID, from the API.
+		log.Printf("runner name not found in workflow job, attempting to fetch from API")
+		runnerInfo, err = r.helper.GetRunnerInfoFromWorkflow(job)
+		if err != nil {
+			if errors.Is(err, runnerErrors.ErrUnauthorized) {
+				failureReason := fmt.Sprintf("failed to fetch runner name from API: %q", err)
+				r.setPoolRunningState(false, failureReason)
+				log.Print(failureReason)
+			}
+			return params.RunnerInfo{}, errors.Wrap(err, "fetching runner name from API")
 		}
-		return params.RunnerInfo{}, errors.Wrap(err, "fetching runner name from API")
 	}
 
+	runnerDetails, err := r.store.GetInstanceByName(context.Background(), runnerInfo.Name)
+	if err != nil {
+		log.Printf("could not find runner details for %s", runnerInfo.Name)
+		return params.RunnerInfo{}, errors.Wrap(err, "fetching runner details")
+	}
+
+	if _, err := r.helper.GetPoolByID(runnerDetails.PoolID); err != nil {
+		log.Printf("runner %s (pool ID: %s) does not belong to any pool we manage: %s", runnerDetails.Name, runnerDetails.PoolID, err)
+		return params.RunnerInfo{}, errors.Wrap(err, "fetching pool for instance")
+	}
 	return runnerInfo, nil
 }
 
@@ -672,12 +663,8 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 		runnerInfo, err := r.getRunnerDetailsFromJob(job)
 		if err != nil {
 			// Unassigned jobs will have an empty runner_name.
-			// There is nothing to to in this case.
-			log.Printf("no runner was assigned. Skipping.")
-			return nil
-		}
-
-		if !r.isControllerRunner(runnerInfo.Labels) {
+			// We also need to ignore not found errors, as we may get a webhook regarding
+			// a workflow that is handled by a runner at a different hierarchy level.
 			return nil
 		}
 
@@ -702,11 +689,15 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 		// a runner set. In such cases, we attemt to fetch it from the API.
 		runnerInfo, err := r.getRunnerDetailsFromJob(job)
 		if err != nil {
+			if errors.Is(err, runnerErrors.ErrNotFound) {
+				// This is most likely a runner we're not managing. If we define a repo from within an org
+				// and also define that same org, we will get a hook from github from both the repo and the org
+				// regarding the same workflow. We look for the runner in the database, and make sure it exists and is
+				// part of a pool that this manager is responsible for. A not found error here will most likely mean
+				// that we are not responsible for that runner, and we should ignore it.
+				return nil
+			}
 			return errors.Wrap(err, "determining runner name")
-		}
-
-		if !r.isControllerRunner(runnerInfo.Labels) {
-			return nil
 		}
 
 		// update instance workload state.
@@ -816,8 +807,10 @@ func (r *basePoolManager) retryFailedInstancesForOnePool(pool params.Pool) {
 			// TODO(gabriel-samfira): Incrementing CreateAttempt should be done within a transaction.
 			// It's fairly safe to do here (for now), as there should be no other code path that updates
 			// an instance in this state.
+			var tokenFetched bool = false
 			updateParams := params.UpdateInstanceParams{
 				CreateAttempt: inst.CreateAttempt + 1,
+				TokenFetched:  &tokenFetched,
 				Status:        providerCommon.InstancePendingCreate,
 			}
 			log.Printf("queueing previously failed instance %s for retry", inst.Name)

@@ -94,6 +94,7 @@ type Instance struct {
 	CallbackURL   string `json:"-"`
 	MetadataURL   string `json:"-"`
 	CreateAttempt int    `json:"-"`
+	TokenFetched  bool   `json:"-"`
 }
 
 func (i Instance) GetName() string {

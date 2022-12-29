@@ -190,14 +190,6 @@ function repoURL() {
     echo "${REPO}"
 }
 
-function ghAccessToken() {
-    TOKEN_URL=$(runnerTokenURL)
-    BEARER_TOKEN=$(callbackToken)
-    TOKEN=$(curl --fail -s -X GET -H 'Accept: application/json' -H "Authorization: Bearer ${BEARER_TOKEN}" "${TOKEN_URL}")
-    checkValNotNull "${TOKEN}" "repo_url" || return $?
-    echo "${TOKEN}"
-}
-
 function callbackURL() {
     CB_URL=$(echo "$INPUT" | jq -c -r '."callback-url"')
     checkValNotNull "${CB_URL}" "callback-url" || return $?
@@ -244,7 +236,7 @@ function getCloudConfig() {
     -e "s|GH_DOWNLOAD_URL|${DW_URL}|g" \
     -e "s|GH_FILENAME|${DW_FILENAME}|g" \
     -e "s|GH_TARGET_URL|$(repoURL)|g" \
-    -e "s|GH_RUNNER_TOKEN|$(ghAccessToken)|g" \
+    -e "s|GARM_METADATA_URL|$(runnerTokenURL)|g" \
     -e "s|GH_RUNNER_NAME|$(instanceName)|g" \
     -e "s|GH_TEMP_DOWNLOAD_TOKEN|${DW_TOKEN}|g" \
     -e "s|GH_RUNNER_LABELS|${LABELS}|g" > ${TMP_SCRIPT}

@@ -173,6 +173,7 @@ type UpdateInstanceParams struct {
 	ProviderFault []byte                `json:"provider_fault,omitempty"`
 	AgentID       int64                 `json:"-"`
 	CreateAttempt int                   `json:"-"`
+	TokenFetched  *bool                 `json:"-"`
 }
 
 type UpdateUserParams struct {
