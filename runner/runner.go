@@ -824,6 +824,12 @@ func (r *Runner) ForceDeleteRunner(ctx context.Context, instanceName string) err
 		return errors.Wrap(err, "fetching instance")
 	}
 
+	switch instance.Status {
+	case providerCommon.InstanceRunning, providerCommon.InstanceError:
+	default:
+		return runnerErrors.NewBadRequestError("runner must be in %q or %q state", providerCommon.InstanceRunning, providerCommon.InstanceError)
+	}
+
 	poolMgr, err := r.getPoolManagerFromInstance(ctx, instance)
 	if err != nil {
 		return errors.Wrap(err, "fetching pool manager for instance")
