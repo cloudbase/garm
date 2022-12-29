@@ -14,13 +14,13 @@ type Store struct {
 	mock.Mock
 }
 
-// AddInstanceStatusMessage provides a mock function with given fields: ctx, instanceID, statusMessage
-func (_m *Store) AddInstanceStatusMessage(ctx context.Context, instanceID string, statusMessage string) error {
-	ret := _m.Called(ctx, instanceID, statusMessage)
+// AddInstanceEvent provides a mock function with given fields: ctx, instanceID, event, statusMessage
+func (_m *Store) AddInstanceEvent(ctx context.Context, instanceID string, event params.EventType, statusMessage string) error {
+	ret := _m.Called(ctx, instanceID, event, statusMessage)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
-		r0 = rf(ctx, instanceID, statusMessage)
+	if rf, ok := ret.Get(0).(func(context.Context, string, params.EventType, string) error); ok {
+		r0 = rf(ctx, instanceID, event, statusMessage)
 	} else {
 		r0 = ret.Error(0)
 	}

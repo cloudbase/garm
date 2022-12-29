@@ -343,11 +343,11 @@ func (s *InstancesTestSuite) TestDeleteInstanceDBDeleteErr() {
 	s.Require().Equal("deleting instance: mocked delete instance error", err.Error())
 }
 
-func (s *InstancesTestSuite) TestAddInstanceStatusMessage() {
+func (s *InstancesTestSuite) TestAddInstanceEvent() {
 	storeInstance := s.Fixtures.Instances[0]
 	statusMsg := "test-status-message"
 
-	err := s.Store.AddInstanceStatusMessage(context.Background(), storeInstance.ID, statusMsg)
+	err := s.Store.AddInstanceEvent(context.Background(), storeInstance.ID, params.StatusEvent, params.EventInfo, statusMsg)
 
 	s.Require().Nil(err)
 	instance, err := s.Store.GetInstanceByName(context.Background(), storeInstance.Name)
@@ -358,13 +358,13 @@ func (s *InstancesTestSuite) TestAddInstanceStatusMessage() {
 	s.Require().Equal(statusMsg, instance.StatusMessages[0].Message)
 }
 
-func (s *InstancesTestSuite) TestAddInstanceStatusMessageInvalidPoolID() {
-	err := s.Store.AddInstanceStatusMessage(context.Background(), "dummy-id", "dummy-message")
+func (s *InstancesTestSuite) TestAddInstanceEventInvalidPoolID() {
+	err := s.Store.AddInstanceEvent(context.Background(), "dummy-id", params.StatusEvent, params.EventInfo, "dummy-message")
 
 	s.Require().Equal("updating instance: parsing id: invalid request", err.Error())
 }
 
-func (s *InstancesTestSuite) TestAddInstanceStatusMessageDBUpdateErr() {
+func (s *InstancesTestSuite) TestAddInstanceEventDBUpdateErr() {
 	instance := s.Fixtures.Instances[0]
 	statusMsg := "test-status-message"
 
@@ -390,7 +390,7 @@ func (s *InstancesTestSuite) TestAddInstanceStatusMessageDBUpdateErr() {
 		WillReturnError(fmt.Errorf("mocked add status message error"))
 	s.Fixtures.SQLMock.ExpectRollback()
 
-	err := s.StoreSQLMocked.AddInstanceStatusMessage(context.Background(), instance.ID, statusMsg)
+	err := s.StoreSQLMocked.AddInstanceEvent(context.Background(), instance.ID, params.StatusEvent, params.EventInfo, statusMsg)
 
 	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
@@ -496,7 +496,7 @@ func (s *InstancesTestSuite) TestListPoolInstances() {
 func (s *InstancesTestSuite) TestListPoolInstancesInvalidPoolID() {
 	_, err := s.Store.ListPoolInstances(context.Background(), "dummy-pool-id")
 
-	s.Require().Equal("fetching pool: parsing id: invalid request", err.Error())
+	s.Require().Equal("parsing id: invalid request", err.Error())
 }
 
 func (s *InstancesTestSuite) TestListAllInstances() {

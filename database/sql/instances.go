@@ -141,14 +141,42 @@ func (s *sqlDatabase) DeleteInstance(ctx context.Context, poolID string, instanc
 	return nil
 }
 
-func (s *sqlDatabase) AddInstanceStatusMessage(ctx context.Context, instanceID string, statusMessage string) error {
+func (s *sqlDatabase) ListInstanceEvents(ctx context.Context, instanceID string, eventType params.EventType, eventLevel params.EventLevel) ([]params.StatusMessage, error) {
+	var events []InstanceStatusUpdate
+	query := s.conn.Model(&InstanceStatusUpdate{}).Where("instance_id = ?", instanceID)
+	if eventLevel != "" {
+		query = query.Where("event_level = ?", eventLevel)
+	}
+
+	if eventType != "" {
+		query = query.Where("event_type = ?", eventType)
+	}
+
+	if result := query.Find(&events); result.Error != nil {
+		return nil, errors.Wrap(result.Error, "fetching events")
+	}
+
+	eventParams := make([]params.StatusMessage, len(events))
+	for idx, val := range events {
+		eventParams[idx] = params.StatusMessage{
+			Message:    val.Message,
+			EventType:  val.EventType,
+			EventLevel: val.EventLevel,
+		}
+	}
+	return eventParams, nil
+}
+
+func (s *sqlDatabase) AddInstanceEvent(ctx context.Context, instanceID string, event params.EventType, eventLevel params.EventLevel, statusMessage string) error {
 	instance, err := s.getInstanceByID(ctx, instanceID)
 	if err != nil {
 		return errors.Wrap(err, "updating instance")
 	}
 
 	msg := InstanceStatusUpdate{
-		Message: statusMessage,
+		Message:    statusMessage,
+		EventType:  event,
+		EventLevel: eventLevel,
 	}
 
 	if err := s.conn.Model(&instance).Association("StatusMessages").Append(&msg); err != nil {
@@ -214,13 +242,20 @@ func (s *sqlDatabase) UpdateInstance(ctx context.Context, instanceID string, par
 }
 
 func (s *sqlDatabase) ListPoolInstances(ctx context.Context, poolID string) ([]params.Instance, error) {
-	pool, err := s.getPoolByID(ctx, poolID, "Tags", "Instances")
+	u, err := uuid.FromString(poolID)
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching pool")
+		return nil, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
 	}
 
-	ret := make([]params.Instance, len(pool.Instances))
-	for idx, inst := range pool.Instances {
+	var instances []Instance
+	query := s.conn.Model(&Instance{}).Where("pool_id = ?", u)
+
+	if err := query.Find(&instances); err.Error != nil {
+		return nil, errors.Wrap(err.Error, "fetching instances")
+	}
+
+	ret := make([]params.Instance, len(instances))
+	for idx, inst := range instances {
 		ret[idx] = s.sqlToParamsInstance(inst)
 	}
 	return ret, nil

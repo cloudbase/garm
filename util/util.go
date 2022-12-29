@@ -38,6 +38,7 @@ import (
 	"garm/runner/common"
 
 	"github.com/google/go-github/v48/github"
+	gorillaHandlers "github.com/gorilla/handlers"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/oauth2"
@@ -319,4 +320,10 @@ func PaswsordToBcrypt(password string) (string, error) {
 		return "", fmt.Errorf("failed to hash password")
 	}
 	return string(hashedPassword), nil
+}
+
+func NewLoggingMiddleware(writer io.Writer) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return gorillaHandlers.CombinedLoggingHandler(writer, next)
+	}
 }

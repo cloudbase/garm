@@ -584,8 +584,10 @@ func (r *Runner) DispatchWorkflowJob(hookTargetType, signature string, jobData [
 
 	switch HookTargetType(hookTargetType) {
 	case RepoHook:
+		log.Printf("got hook for repo %s/%s", job.Repository.Owner.Login, job.Repository.Name)
 		poolManager, err = r.findRepoPoolManager(job.Repository.Owner.Login, job.Repository.Name)
 	case OrganizationHook:
+		log.Printf("got hook for org %s", job.Organization.Login)
 		poolManager, err = r.findOrgPoolManager(job.Organization.Login)
 	case EnterpriseHook:
 		poolManager, err = r.findEnterprisePoolManager(job.Enterprise.Slug)
@@ -704,7 +706,7 @@ func (r *Runner) AddInstanceStatusMessage(ctx context.Context, param params.Inst
 		return runnerErrors.ErrUnauthorized
 	}
 
-	if err := r.store.AddInstanceStatusMessage(ctx, instanceID, param.Message); err != nil {
+	if err := r.store.AddInstanceEvent(ctx, instanceID, params.StatusEvent, params.EventInfo, param.Message); err != nil {
 		return errors.Wrap(err, "adding status update")
 	}
 
@@ -744,9 +746,23 @@ func (r *Runner) GetInstanceGithubRegistrationToken(ctx context.Context) (string
 		return "", errors.Wrap(err, "fetching pool manager for instance")
 	}
 
+	tokenEvents, err := r.store.ListInstanceEvents(ctx, instance.ID, params.FetchTokenEvent, "")
+	if err != nil {
+		return "", errors.Wrap(err, "fetching instance events")
+	}
+
+	if len(tokenEvents) > 0 {
+		// Token already retrieved
+		return "", runnerErrors.ErrUnauthorized
+	}
+
 	token, err := poolMgr.GithubRunnerRegistrationToken()
 	if err != nil {
 		return "", errors.Wrap(err, "fetching runner token")
+	}
+
+	if err := r.store.AddInstanceEvent(ctx, instance.ID, params.FetchTokenEvent, params.EventInfo, "runner registration token was retrieved"); err != nil {
+		return "", errors.Wrap(err, "recording event")
 	}
 
 	return token, nil

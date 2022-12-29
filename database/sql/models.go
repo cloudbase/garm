@@ -16,6 +16,7 @@ package sql
 
 import (
 	"garm/config"
+	"garm/params"
 	"garm/runner/providers/common"
 	"time"
 
@@ -118,7 +119,9 @@ type Address struct {
 type InstanceStatusUpdate struct {
 	Base
 
-	Message string `gorm:"type:text"`
+	EventType  params.EventType `gorm:"index:eventType"`
+	EventLevel params.EventLevel
+	Message    string `gorm:"type:text"`
 
 	InstanceID uuid.UUID
 	Instance   Instance `gorm:"foreignKey:InstanceID"`

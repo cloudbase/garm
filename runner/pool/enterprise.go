@@ -61,18 +61,25 @@ type enterprise struct {
 	mux sync.Mutex
 }
 
-func (r *enterprise) GetRunnerNameFromWorkflow(job params.WorkflowJob) (string, error) {
+func (r *enterprise) GetRunnerInfoFromWorkflow(job params.WorkflowJob) (params.RunnerInfo, error) {
+	if err := r.ValidateOwner(job); err != nil {
+		return params.RunnerInfo{}, errors.Wrap(err, "validating owner")
+	}
 	workflow, ghResp, err := r.ghcli.GetWorkflowJobByID(r.ctx, job.Repository.Owner.Login, job.Repository.Name, job.WorkflowJob.ID)
 	if err != nil {
 		if ghResp.StatusCode == http.StatusUnauthorized {
-			return "", errors.Wrap(runnerErrors.ErrUnauthorized, "fetching runners")
+			return params.RunnerInfo{}, errors.Wrap(runnerErrors.ErrUnauthorized, "fetching workflow info")
 		}
-		return "", errors.Wrap(err, "fetching workflow info")
+		return params.RunnerInfo{}, errors.Wrap(err, "fetching workflow info")
 	}
+
 	if workflow.RunnerName != nil {
-		return *workflow.RunnerName, nil
+		return params.RunnerInfo{
+			Name:   *workflow.RunnerName,
+			Labels: workflow.Labels,
+		}, nil
 	}
-	return "", fmt.Errorf("failed to find runner name from workflow")
+	return params.RunnerInfo{}, fmt.Errorf("failed to find runner name from workflow")
 }
 
 func (r *enterprise) UpdateState(param params.UpdatePoolStateParams) error {

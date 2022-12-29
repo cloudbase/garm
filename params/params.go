@@ -24,10 +24,23 @@ import (
 )
 
 type AddressType string
+type EventType string
+type EventLevel string
 
 const (
 	PublicAddress  AddressType = "public"
 	PrivateAddress AddressType = "private"
+)
+
+const (
+	StatusEvent     EventType = "status"
+	FetchTokenEvent EventType = "fetchToken"
+)
+
+const (
+	EventInfo    EventLevel = "info"
+	EventWarning EventLevel = "warning"
+	EventError   EventLevel = "error"
 )
 
 type Address struct {
@@ -36,8 +49,10 @@ type Address struct {
 }
 
 type StatusMessage struct {
-	CreatedAt time.Time `json:"created_at"`
-	Message   string    `json:"message"`
+	CreatedAt  time.Time  `json:"created_at"`
+	Message    string     `json:"message"`
+	EventType  EventType  `json:"event_type"`
+	EventLevel EventLevel `json:"event_level"`
 }
 
 type Instance struct {
@@ -263,4 +278,9 @@ type UpdatePoolStateParams struct {
 type PoolManagerStatus struct {
 	IsRunning     bool   `json:"running"`
 	FailureReason string `json:"failure_reason,omitempty"`
+}
+
+type RunnerInfo struct {
+	Name   string
+	Labels []string
 }

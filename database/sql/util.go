@@ -57,8 +57,10 @@ func (s *sqlDatabase) sqlToParamsInstance(instance Instance) params.Instance {
 
 	for _, msg := range instance.StatusMessages {
 		ret.StatusMessages = append(ret.StatusMessages, params.StatusMessage{
-			CreatedAt: msg.CreatedAt,
-			Message:   msg.Message,
+			CreatedAt:  msg.CreatedAt,
+			Message:    msg.Message,
+			EventType:  msg.EventType,
+			EventLevel: msg.EventLevel,
 		})
 	}
 	return ret
