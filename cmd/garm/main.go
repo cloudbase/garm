@@ -172,11 +172,7 @@ func main() {
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		log.Printf("graceful api server shutdown failed: %+v", err)
 	}
-	log.Printf("stopping runner loop")
-	if err := runner.Stop(); err != nil {
-		log.Printf("failed to shutdown workers: %+v", err)
-		os.Exit(1)
-	}
+
 	log.Printf("waiting for runner to stop")
 	if err := runner.Wait(); err != nil {
 		log.Printf("failed to shutdown workers: %+v", err)
