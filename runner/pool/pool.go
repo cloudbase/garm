@@ -989,7 +989,7 @@ func (r *basePoolManager) consolidate() {
 func (r *basePoolManager) Wait() error {
 	select {
 	case <-r.done:
-	case <-time.After(20 * time.Second):
+	case <-time.After(60 * time.Second):
 		return errors.Wrap(runnerErrors.ErrTimeout, "waiting for pool to stop")
 	}
 	return nil

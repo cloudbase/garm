@@ -22,7 +22,9 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
 	"os/signal"
+	"time"
 
 	"garm/apiserver/controllers"
 	"garm/apiserver/routers"
@@ -159,10 +161,25 @@ func main() {
 	}
 
 	go func() {
-		if err := srv.Serve(listener); err != nil {
-			log.Fatalf("Listening: %+v", err)
+		if err := srv.Serve(listener); err != http.ErrServerClosed {
+			log.Printf("Listening: %+v", err)
 		}
 	}()
 
 	<-ctx.Done()
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer shutdownCancel()
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		log.Printf("graceful api server shutdown failed: %+v", err)
+	}
+	log.Printf("stopping runner loop")
+	if err := runner.Stop(); err != nil {
+		log.Printf("failed to shutdown workers: %+v", err)
+		os.Exit(1)
+	}
+	log.Printf("waiting for runner to stop")
+	if err := runner.Wait(); err != nil {
+		log.Printf("failed to shutdown workers: %+v", err)
+		os.Exit(1)
+	}
 }

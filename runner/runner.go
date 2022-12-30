@@ -439,6 +439,11 @@ func (r *Runner) Stop() error {
 	for _, repo := range repos {
 		go func(poolMgr common.PoolManager) {
 			err := poolMgr.Stop()
+			if err != nil {
+				errChan <- err
+				return
+			}
+			err = poolMgr.Wait()
 			errChan <- err
 		}(repo)
 	}
@@ -446,6 +451,11 @@ func (r *Runner) Stop() error {
 	for _, org := range orgs {
 		go func(poolMgr common.PoolManager) {
 			err := poolMgr.Stop()
+			if err != nil {
+				errChan <- err
+				return
+			}
+			err = poolMgr.Wait()
 			errChan <- err
 		}(org)
 	}
@@ -453,6 +463,11 @@ func (r *Runner) Stop() error {
 	for _, enterprise := range enterprises {
 		go func(poolMgr common.PoolManager) {
 			err := poolMgr.Stop()
+			if err != nil {
+				errChan <- err
+				return
+			}
+			err = poolMgr.Wait()
 			errChan <- err
 		}(enterprise)
 	}
