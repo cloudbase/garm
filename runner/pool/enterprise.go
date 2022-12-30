@@ -67,7 +67,7 @@ func (r *enterprise) GetRunnerInfoFromWorkflow(job params.WorkflowJob) (params.R
 	}
 	workflow, ghResp, err := r.ghcli.GetWorkflowJobByID(r.ctx, job.Repository.Owner.Login, job.Repository.Name, job.WorkflowJob.ID)
 	if err != nil {
-		if ghResp.StatusCode == http.StatusUnauthorized {
+		if ghResp != nil && ghResp.StatusCode == http.StatusUnauthorized {
 			return params.RunnerInfo{}, errors.Wrap(runnerErrors.ErrUnauthorized, "fetching workflow info")
 		}
 		return params.RunnerInfo{}, errors.Wrap(err, "fetching workflow info")
@@ -110,7 +110,7 @@ func (r *enterprise) GetGithubRunners() ([]*github.Runner, error) {
 	for {
 		runners, ghResp, err := r.ghcEnterpriseCli.ListRunners(r.ctx, r.cfg.Name, &opts)
 		if err != nil {
-			if ghResp.StatusCode == http.StatusUnauthorized {
+			if ghResp != nil && ghResp.StatusCode == http.StatusUnauthorized {
 				return nil, errors.Wrap(runnerErrors.ErrUnauthorized, "fetching runners")
 			}
 			return nil, errors.Wrap(err, "fetching runners")
@@ -129,7 +129,7 @@ func (r *enterprise) FetchTools() ([]*github.RunnerApplicationDownload, error) {
 	defer r.mux.Unlock()
 	tools, ghResp, err := r.ghcEnterpriseCli.ListRunnerApplicationDownloads(r.ctx, r.cfg.Name)
 	if err != nil {
-		if ghResp.StatusCode == http.StatusUnauthorized {
+		if ghResp != nil && ghResp.StatusCode == http.StatusUnauthorized {
 			return nil, errors.Wrap(runnerErrors.ErrUnauthorized, "fetching runners")
 		}
 		return nil, errors.Wrap(err, "fetching runner tools")
@@ -166,7 +166,7 @@ func (r *enterprise) GetGithubRegistrationToken() (string, error) {
 	tk, ghResp, err := r.ghcEnterpriseCli.CreateRegistrationToken(r.ctx, r.cfg.Name)
 
 	if err != nil {
-		if ghResp.StatusCode == http.StatusUnauthorized {
+		if ghResp != nil && ghResp.StatusCode == http.StatusUnauthorized {
 			return "", errors.Wrap(runnerErrors.ErrUnauthorized, "fetching registration token")
 		}
 		return "", errors.Wrap(err, "creating runner token")
