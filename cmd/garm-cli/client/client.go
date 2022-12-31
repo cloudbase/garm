@@ -47,6 +47,24 @@ type Client struct {
 	client      *resty.Client
 }
 
+func (c *Client) handleError(err error, resp *resty.Response) error {
+	var ret error
+	if err != nil {
+		ret = fmt.Errorf("request returned error: %s", err)
+	}
+
+	if resp != nil && resp.IsError() {
+		body := resp.Body()
+		if len(body) > 0 {
+			apiErr, decErr := c.decodeAPIError(resp.Body())
+			if decErr == nil {
+				ret = fmt.Errorf("API returned error: %s", apiErr.Details)
+			}
+		}
+	}
+	return ret
+}
+
 func (c *Client) decodeAPIError(body []byte) (apiParams.APIErrorResponse, error) {
 	var errDetails apiParams.APIErrorResponse
 	if err := json.Unmarshal(body, &errDetails); err != nil {
