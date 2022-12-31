@@ -19,8 +19,6 @@ import (
 	"fmt"
 
 	"garm/params"
-
-	"github.com/pkg/errors"
 )
 
 func (c *Client) ListOrganizations() ([]params.Organization, error) {
@@ -29,12 +27,8 @@ func (c *Client) ListOrganizations() ([]params.Organization, error) {
 	resp, err := c.client.R().
 		SetResult(&orgs).
 		Get(url)
-	if err != nil || resp.IsError() {
-		apiErr, decErr := c.decodeAPIError(resp.Body())
-		if decErr != nil {
-			return nil, errors.Wrap(decErr, "sending request")
-		}
-		return nil, fmt.Errorf("error fetching orgs: %s", apiErr.Details)
+	if err := c.handleError(err, resp); err != nil {
+		return nil, err
 	}
 	return orgs, nil
 }
@@ -51,12 +45,8 @@ func (c *Client) CreateOrganization(param params.CreateOrgParams) (params.Organi
 		SetBody(body).
 		SetResult(&response).
 		Post(url)
-	if err != nil || resp.IsError() {
-		apiErr, decErr := c.decodeAPIError(resp.Body())
-		if decErr != nil {
-			return response, errors.Wrap(decErr, "sending request")
-		}
-		return response, fmt.Errorf("error creating org: %s", apiErr.Details)
+	if err := c.handleError(err, resp); err != nil {
+		return params.Organization{}, err
 	}
 	return response, nil
 }
@@ -67,12 +57,8 @@ func (c *Client) GetOrganization(orgID string) (params.Organization, error) {
 	resp, err := c.client.R().
 		SetResult(&response).
 		Get(url)
-	if err != nil || resp.IsError() {
-		apiErr, decErr := c.decodeAPIError(resp.Body())
-		if decErr != nil {
-			return response, errors.Wrap(decErr, "sending request")
-		}
-		return response, fmt.Errorf("error fetching org: %s", apiErr.Details)
+	if err := c.handleError(err, resp); err != nil {
+		return params.Organization{}, err
 	}
 	return response, nil
 }
@@ -81,12 +67,8 @@ func (c *Client) DeleteOrganization(orgID string) error {
 	url := fmt.Sprintf("%s/api/v1/organizations/%s", c.Config.BaseURL, orgID)
 	resp, err := c.client.R().
 		Delete(url)
-	if err != nil || resp.IsError() {
-		apiErr, decErr := c.decodeAPIError(resp.Body())
-		if decErr != nil {
-			return errors.Wrap(decErr, "sending request")
-		}
-		return fmt.Errorf("error removing org: %s", apiErr.Details)
+	if err := c.handleError(err, resp); err != nil {
+		return err
 	}
 	return nil
 }
@@ -103,12 +85,8 @@ func (c *Client) CreateOrgPool(orgID string, param params.CreatePoolParams) (par
 		SetBody(body).
 		SetResult(&response).
 		Post(url)
-	if err != nil || resp.IsError() {
-		apiErr, decErr := c.decodeAPIError(resp.Body())
-		if decErr != nil {
-			return response, errors.Wrap(decErr, "sending request")
-		}
-		return response, fmt.Errorf("error creating org pool: %s", apiErr.Details)
+	if err := c.handleError(err, resp); err != nil {
+		return params.Pool{}, err
 	}
 	return response, nil
 }
@@ -120,12 +98,8 @@ func (c *Client) ListOrgPools(orgID string) ([]params.Pool, error) {
 	resp, err := c.client.R().
 		SetResult(&response).
 		Get(url)
-	if err != nil || resp.IsError() {
-		apiErr, decErr := c.decodeAPIError(resp.Body())
-		if decErr != nil {
-			return response, errors.Wrap(decErr, "sending request")
-		}
-		return response, fmt.Errorf("error listing org pools: %s", apiErr.Details)
+	if err := c.handleError(err, resp); err != nil {
+		return nil, err
 	}
 	return response, nil
 }
@@ -137,12 +111,8 @@ func (c *Client) GetOrgPool(orgID, poolID string) (params.Pool, error) {
 	resp, err := c.client.R().
 		SetResult(&response).
 		Get(url)
-	if err != nil || resp.IsError() {
-		apiErr, decErr := c.decodeAPIError(resp.Body())
-		if decErr != nil {
-			return response, errors.Wrap(decErr, "sending request")
-		}
-		return response, fmt.Errorf("error fetching org pool: %s", apiErr.Details)
+	if err := c.handleError(err, resp); err != nil {
+		return params.Pool{}, err
 	}
 	return response, nil
 }
@@ -153,12 +123,8 @@ func (c *Client) DeleteOrgPool(orgID, poolID string) error {
 	resp, err := c.client.R().
 		Delete(url)
 
-	if err != nil || resp.IsError() {
-		apiErr, decErr := c.decodeAPIError(resp.Body())
-		if decErr != nil {
-			return errors.Wrap(decErr, "sending request")
-		}
-		return fmt.Errorf("error deleting org pool: %s", apiErr.Details)
+	if err := c.handleError(err, resp); err != nil {
+		return err
 	}
 	return nil
 }
@@ -175,12 +141,8 @@ func (c *Client) UpdateOrgPool(orgID, poolID string, param params.UpdatePoolPara
 		SetBody(body).
 		SetResult(&response).
 		Put(url)
-	if err != nil || resp.IsError() {
-		apiErr, decErr := c.decodeAPIError(resp.Body())
-		if decErr != nil {
-			return response, errors.Wrap(decErr, "sending request")
-		}
-		return response, fmt.Errorf("error updating org pool: %s", apiErr.Details)
+	if err := c.handleError(err, resp); err != nil {
+		return params.Pool{}, err
 	}
 	return response, nil
 }
@@ -192,12 +154,8 @@ func (c *Client) ListOrgInstances(orgID string) ([]params.Instance, error) {
 	resp, err := c.client.R().
 		SetResult(&response).
 		Get(url)
-	if err != nil || resp.IsError() {
-		apiErr, decErr := c.decodeAPIError(resp.Body())
-		if decErr != nil {
-			return response, errors.Wrap(decErr, "sending request")
-		}
-		return response, fmt.Errorf("error listing org instances: %s", apiErr.Details)
+	if err := c.handleError(err, resp); err != nil {
+		return nil, err
 	}
 	return response, nil
 }
