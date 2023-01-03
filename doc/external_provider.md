@@ -126,63 +126,77 @@ Here is a sample of that:
 
 ```json
 {
-  "name": "garm-fc7b3174-9695-460e-b9c7-ae75ee217b53",
+  "name": "garm-e73542f6-2c10-48bb-bfe7-a0374618f405",
   "tools": [
     {
       "os": "osx",
       "architecture": "x64",
-      "download_url": "https://github.com/actions/runner/releases/download/v2.291.1/actions-runner-osx-x64-2.291.1.tar.gz",
-      "filename": "actions-runner-osx-x64-2.291.1.tar.gz",
-      "sha256_checksum": "1ed51d6f35af946e97bb1e10f1272197ded20dd55186ae463563cd2f58f476dc"
+      "download_url": "https://github.com/actions/runner/releases/download/v2.299.1/actions-runner-osx-x64-2.299.1.tar.gz",
+      "filename": "actions-runner-osx-x64-2.299.1.tar.gz",
+      "sha256_checksum": "b0128120f2bc48e5f24df513d77d1457ae845a692f60acf3feba63b8d01a8fdc"
     },
     {
       "os": "linux",
       "architecture": "x64",
-      "download_url": "https://github.com/actions/runner/releases/download/v2.291.1/actions-runner-linux-x64-2.291.1.tar.gz",
-      "filename": "actions-runner-linux-x64-2.291.1.tar.gz",
-      "sha256_checksum": "1bde3f2baf514adda5f8cf2ce531edd2f6be52ed84b9b6733bf43006d36dcd4c"
+      "download_url": "https://github.com/actions/runner/releases/download/v2.299.1/actions-runner-linux-x64-2.299.1.tar.gz",
+      "filename": "actions-runner-linux-x64-2.299.1.tar.gz",
+      "sha256_checksum": "147c14700c6cb997421b9a239c012197f11ea9854cd901ee88ead6fe73a72c74"
     },
     {
       "os": "win",
       "architecture": "x64",
-      "download_url": "https://github.com/actions/runner/releases/download/v2.291.1/actions-runner-win-x64-2.291.1.zip",
-      "filename": "actions-runner-win-x64-2.291.1.zip",
-      "sha256_checksum": "2a504f852b0ab0362d08a36a84984753c2ac159ef17e5d1cd93f661ecd367cbd"
+      "download_url": "https://github.com/actions/runner/releases/download/v2.299.1/actions-runner-win-x64-2.299.1.zip",
+      "filename": "actions-runner-win-x64-2.299.1.zip",
+      "sha256_checksum": "f7940b16451d6352c38066005f3ee6688b53971fcc20e4726c7907b32bfdf539"
     },
     {
       "os": "linux",
       "architecture": "arm",
-      "download_url": "https://github.com/actions/runner/releases/download/v2.291.1/actions-runner-linux-arm-2.291.1.tar.gz",
-      "filename": "actions-runner-linux-arm-2.291.1.tar.gz",
-      "sha256_checksum": "a78e86ba6428a28733730bdff3a807480f9eeb843f4c64bd1bbc45de13e61348"
+      "download_url": "https://github.com/actions/runner/releases/download/v2.299.1/actions-runner-linux-arm-2.299.1.tar.gz",
+      "filename": "actions-runner-linux-arm-2.299.1.tar.gz",
+      "sha256_checksum": "a4d66a766ff3b9e07e3e068a1d88b04e51c27c9b94ae961717e0a5f9ada998e6"
     },
     {
       "os": "linux",
       "architecture": "arm64",
-      "download_url": "https://github.com/actions/runner/releases/download/v2.291.1/actions-runner-linux-arm64-2.291.1.tar.gz",
-      "filename": "actions-runner-linux-arm64-2.291.1.tar.gz",
-      "sha256_checksum": "c4823bd8322f80cb24a311ef49273f0677ff938530248242de7df33800a22900"
+      "download_url": "https://github.com/actions/runner/releases/download/v2.299.1/actions-runner-linux-arm64-2.299.1.tar.gz",
+      "filename": "actions-runner-linux-arm64-2.299.1.tar.gz",
+      "sha256_checksum": "debe1cc9656963000a4fbdbb004f475ace5b84360ace2f7a191c1ccca6a16c00"
+    },
+    {
+      "os": "osx",
+      "architecture": "arm64",
+      "download_url": "https://github.com/actions/runner/releases/download/v2.299.1/actions-runner-osx-arm64-2.299.1.tar.gz",
+      "filename": "actions-runner-osx-arm64-2.299.1.tar.gz",
+      "sha256_checksum": "f73849b9a78459d2e08b9d3d2f60464a55920de120e228b0645b01abe68d9072"
+    },
+    {
+      "os": "win",
+      "architecture": "arm64",
+      "download_url": "https://github.com/actions/runner/releases/download/v2.299.1/actions-runner-win-arm64-2.299.1.zip",
+      "filename": "actions-runner-win-arm64-2.299.1.zip",
+      "sha256_checksum": "d1a9d8209f03589c8dc05ee17ae8d194756377773a4010683348cdd6eefa2da7"
     }
   ],
   "repo_url": "https://github.com/gabriel-samfira/scripts",
-  "github_runner_access_token": "super secret token",
   "callback-url": "https://garm.example.com/api/v1/callbacks/status",
+  "metadata-url": "https://garm.example.com/api/v1/metadata",
   "instance-token": "super secret JWT token",
   "ssh-keys": null,
+  "ca-cert-bundle": null,
   "arch": "amd64",
   "flavor": "m1.small",
-  "image": "050f1e00-7eab-4f47-b10b-796df34d2e6b",
+  "image": "8ed8a690-69b6-49eb-982f-dcb466895e2d",
   "labels": [
     "ubuntu",
-    "simple-runner",
-    "repo-runner",
     "self-hosted",
     "x64",
     "linux",
+    "openstack",
     "runner-controller-id:f9286791-1589-4f39-a106-5b68c2a18af4",
-    "runner-pool-id:fb25f308-7ad2-4769-988e-6ec2935f642a"
+    "runner-pool-id:9dcf590a-1192-4a9c-b3e4-e0902974c2c0"
   ],
-  "pool_id": "fb25f308-7ad2-4769-988e-6ec2935f642a"
+  "pool_id": "9dcf590a-1192-4a9c-b3e4-e0902974c2c0"
 }
 ```
 
