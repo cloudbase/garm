@@ -215,7 +215,7 @@ Then you can easily parse it. If you're using ```bash```, you can use the amazin
 
 You will have to parse the bootstrap params, verify that the requested image exists, gather operating system information, CPU architecture information and using that information, you will need to select the appropriate tools for the arch/OS combination you are deploying.
 
-Refer to the OpenStack or Azure providers available in the [providers.d](../contrib/providers.d/) folder.
+Refer to the OpenStack or Azure providers available in the [providers.d](../contrib/providers.d/) folder. Of particular interest are the [cloudconfig folders](../contrib/providers.d/openstack/cloudconfig/), where the instance user data templates are stored. These templates are used to generate the needed automation for the instances to download the github runner agent, send back status updates (including the final github runner agent ID), and download the github runner registration token from garm.
 
 ### CreateInstance outputs
 
@@ -259,8 +259,6 @@ If the target instance does not exist in the provider, this command is expected 
 
 ## GetInstance
 
-NOTE: This operation is currently not use by ```garm```, but should be implemented.
-
 The ```GetInstance``` command will return details about the instance, as seen by the provider.
 
 Available environment variables:
@@ -274,8 +272,6 @@ On success, this command is expected to return a valid ```json``` that can be un
 On failure, this command is expected to return a non-zero exit code.
 
 ## ListInstances
-
-NOTE: This operation is currently not use by ```garm```, but should be implemented.
 
 The ```ListInstances``` command will print to standard output, a json that is unserializable into an **array** of ```Instance{}```.
 
@@ -293,9 +289,7 @@ On failure, a non-zero exit code is expected.
 
 ## RemoveAllInstances
 
-NOTE: This operation is currently not use by ```garm```, but should be implemented.
-
-The ```RemoveAllInstances``` operation will remove all resources created in a cloud that have been tagged with the ```GARM_CONTROLLER_ID```.
+The ```RemoveAllInstances``` operation will remove all resources created in a cloud that have been tagged with the ```GARM_CONTROLLER_ID```. External providers should tag all resources they create with the garm controller ID. That tag can then be used to identify all resources when attempting to delete all instances.
 
 Available environment variables:
 

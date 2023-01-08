@@ -178,11 +178,21 @@ func (r *basePoolManager) reapTimedOutRunners(runners []*github.Runner) error {
 	return nil
 }
 
+func instanceInList(instanceName string, instances []params.Instance) bool {
+	for _, val := range instances {
+		if val.Name == instanceName {
+			return true
+		}
+	}
+	return false
+}
+
 // cleanupOrphanedGithubRunners will forcefully remove any github runners that appear
 // as offline and for which we no longer have a local instance.
 // This may happen if someone manually deletes the instance in the provider. We need to
 // first remove the instance from github, and then from our database.
 func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner) error {
+	poolInstanceCache := map[string][]params.Instance{}
 	for _, runner := range runners {
 		if !r.isManagedRunner(labelsFromRunner(runner)) {
 			log.Printf("runner %s is not managed by a pool belonging to %s", *runner.Name, r.helper.String())
@@ -238,12 +248,17 @@ func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner)
 			return fmt.Errorf("unknown provider %s for pool %s", pool.ProviderName, pool.ID)
 		}
 
-		// Check if the instance is still on the provider.
-		_, err = provider.GetInstance(r.ctx, dbInstance.Name)
-		if err != nil {
-			if !errors.Is(err, runnerErrors.ErrNotFound) {
-				return errors.Wrap(err, "fetching instance from provider")
+		var poolInstances []params.Instance
+		poolInstances, ok = poolInstanceCache[pool.ID]
+		if !ok {
+			poolInstances, err = provider.ListInstances(r.ctx, pool.ID)
+			if err != nil {
+				return errors.Wrapf(err, "fetching instances for pool %s", pool.ID)
 			}
+			poolInstanceCache[pool.ID] = poolInstances
+		}
+
+		if !instanceInList(dbInstance.Name, poolInstances) {
 			// The runner instance is no longer on the provider, and it appears offline in github.
 			// It should be safe to force remove it.
 			log.Printf("Runner instance for %s is no longer on the provider, removing from github", dbInstance.Name)
@@ -470,36 +485,43 @@ func (r *basePoolManager) loop() {
 				return
 			}
 		default:
-			log.Printf("attempting to start pool manager for %s", r.helper.String())
-			tools, err := r.helper.FetchTools()
-			var failureReason string
-			if err != nil {
-				failureReason = fmt.Sprintf("failed to fetch tools from github for %s: %q", r.helper.String(), err)
-				r.setPoolRunningState(false, failureReason)
-				log.Print(failureReason)
-				if errors.Is(err, runnerErrors.ErrUnauthorized) {
-					r.waitForTimeoutOrCanceled(common.UnauthorizedBackoffTimer)
-				} else {
-					r.waitForTimeoutOrCanceled(60 * time.Second)
+			select {
+			case <-r.ctx.Done():
+				// daemon is shutting down.
+				return
+			case <-r.quit:
+				// this worker was stopped.
+				return
+			default:
+				log.Printf("attempting to start pool manager for %s", r.helper.String())
+				tools, err := r.helper.FetchTools()
+				var failureReason string
+				if err != nil {
+					failureReason = fmt.Sprintf("failed to fetch tools from github for %s: %q", r.helper.String(), err)
+					r.setPoolRunningState(false, failureReason)
+					log.Print(failureReason)
+					if errors.Is(err, runnerErrors.ErrUnauthorized) {
+						r.waitForTimeoutOrCanceled(common.UnauthorizedBackoffTimer)
+					} else {
+						r.waitForTimeoutOrCanceled(60 * time.Second)
+					}
+					continue
 				}
-				continue
-			}
-			r.mux.Lock()
-			r.tools = tools
-			r.mux.Unlock()
+				r.mux.Lock()
+				r.tools = tools
+				r.mux.Unlock()
 
-			if err := r.runnerCleanup(); err != nil {
-				failureReason = fmt.Sprintf("failed to clean runners for %s: %q", r.helper.String(), err)
-				r.setPoolRunningState(false, failureReason)
-				log.Print(failureReason)
-				if errors.Is(err, runnerErrors.ErrUnauthorized) {
-					r.waitForTimeoutOrCanceled(common.UnauthorizedBackoffTimer)
-				} else {
-					r.waitForTimeoutOrCanceled(60 * time.Second)
+				if err := r.runnerCleanup(); err != nil {
+					failureReason = fmt.Sprintf("failed to clean runners for %s: %q", r.helper.String(), err)
+					log.Print(failureReason)
+					if errors.Is(err, runnerErrors.ErrUnauthorized) {
+						r.setPoolRunningState(false, failureReason)
+						r.waitForTimeoutOrCanceled(common.UnauthorizedBackoffTimer)
+					}
+					continue
 				}
-				continue
+				r.setPoolRunningState(true, "")
 			}
-			r.setPoolRunningState(true, "")
 		}
 	}
 }

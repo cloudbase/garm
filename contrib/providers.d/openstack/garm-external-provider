@@ -279,7 +279,7 @@ function CreateInstance() {
     OS_TYPE=$(echo "${IMAGE_DETAILS}" | jq -c -r '.properties.os_type')
     checkValNotNull "${OS_TYPE}" "os_type" || return $?
     DISTRO=$(echo "${IMAGE_DETAILS}" | jq -c -r '.properties.os_distro')
-    checkValNotNull "${OS_TYPE}" "os_distro" || return $?
+    checkValNotNull "${DISTRO}" "os_distro" || return $?
     VERSION=$(echo "${IMAGE_DETAILS}" | jq -c -r '.properties.os_version')
     checkValNotNull "${VERSION}" "os_version" || return $?
     ARCH=$(echo "${IMAGE_DETAILS}" | jq -c -r '.properties.architecture')
@@ -306,7 +306,8 @@ function CreateInstance() {
     set +e
 
     TAGS="--tag garm-controller-id=${GARM_CONTROLLER_ID} --tag garm-pool-id=${GARM_POOL_ID}"
-    SRV_DETAILS=$(openstack server create --os-compute-api-version 2.52 ${SOURCE_ARGS} ${TAGS} --flavor "${FLAVOR}" --user-data="${CC_FILE}" --network="${NET}" "${INSTANCE_NAME}")
+    PROPERTIES="--property os_type=${OS_TYPE} --property os_name=${DISTRO} --property os_version=${VERSION} --property os_arch=${GH_ARCH} --property pool_id=${GARM_POOL_ID}"
+    SRV_DETAILS=$(openstack server create --os-compute-api-version 2.52 ${SOURCE_ARGS} ${TAGS} ${PROPERTIES} --flavor "${FLAVOR}" --user-data="${CC_FILE}" --network="${NET}" "${INSTANCE_NAME}")
     if [ $? -ne 0 ];then
         openstack volume delete "${INSTANCE_NAME}" || true
         exit 1
@@ -394,6 +395,25 @@ function StopServer() {
     openstack server stop "${instance_id}"
 }
 
+function ListInstances() {
+    INSTANCES=$(openstack server list --os-compute-api-version 2.52 --tags garm-pool-id=${GARM_POOL_ID} --long -f json)
+    echo ${INSTANCES} | jq -r '
+        .[] | .Properties * {
+            provider_id: .ID,
+            name: .Name,
+            status: {"ACTIVE": "running", "SHUTOFF": "stopped", "BUILD": "pending_create", "ERROR": "error", "DELETING": "pending_delete"}[.Status]
+        }'
+}
+
+function GetInstance() {
+    INSTANCE=$(openstack server show --os-compute-api-version 2.52 ${GARM_INSTANCE_ID} -f json)
+    echo ${INSTANCES} | jq -r '.properties * {
+        provider_id: .id,
+        name: .name,
+        status: {"ACTIVE": "running", "SHUTOFF": "stopped", "BUILD": "pending_create", "ERROR": "error", "DELETING": "pending_delete"}[.status]
+    }'
+}
+
 case "$GARM_COMMAND" in
     "CreateInstance")
         CreateInstance
@@ -402,12 +422,10 @@ case "$GARM_COMMAND" in
         DeleteInstance
         ;;
     "GetInstance")
-        echo "GetInstance not implemented"
-        exit 1
+        GetInstance
         ;;
     "ListInstances")
-        echo "ListInstances not implemented"
-        exit 1
+        ListInstances
         ;;
     "StartInstance")
         StartInstance
