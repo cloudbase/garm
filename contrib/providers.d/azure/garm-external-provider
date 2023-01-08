@@ -226,7 +226,7 @@ function CreateInstance() {
     OS_VERSION=$(echo "${IMAGE_URN}" | cut -d ':' -f3)
     ARCH="amd64"
 
-    TAGS="garm-controller-id=${GARM_CONTROLLER_ID} garm-pool-id=${GARM_POOL_ID}"
+    TAGS="garm_controller_id=${GARM_CONTROLLER_ID} garm_pool_id=${GARM_POOL_ID} os_type=${OS_TYPE} os_name=${OS_NAME} os_version=${OS_VERSION} os_arch=${ARCH}"
 
     set +e
 
@@ -298,6 +298,37 @@ function StopServer() {
     az vm deallocate -g "${instance_id}" -n "${instance_id}" -o none --only-show-errors
 }
 
+function GetInstance() {
+    local instance_id="${GARM_INSTANCE_ID}"
+    info=$(az vm show -d -n $instance_id -g $instance_id -o json --only-show-errors 2>&1)
+    echo $info | jq -r '
+        {
+            provider_id: .name,
+            name: .name,
+            os_type: .tags.os_type,
+            os_name: .tags.os_name,
+            os_version: .tags.os_version,
+            os_arch: .tags.os_arch,
+            pool_id: .tags.garm_pool_id,
+            status: {"VM starting": "pending_create", "VM running": "running", "VM stopping": "stopped", "VM stopped": "stopped", "VM deallocating": "stopped", "VM deallocated": "stopped"}[.powerState]
+        }'
+}
+
+function ListInstances() {
+    INSTANCES=$(az vm list --query "[?tags.garm_pool_id == '${GARM_POOL_ID}']" -o json --only-show-errors 2>&1)
+    echo $info | jq -r '
+        .[] | {
+            provider_id: .name,
+            name: .name,
+            os_type: .tags.os_type,
+            os_name: .tags.os_name,
+            os_version: .tags.os_version,
+            os_arch: .tags.os_arch,
+            pool_id: .tags.garm_pool_id,
+            status: {"Creating": "pending_create", "Migrating": "pending_create", "Failed": "error", "Succeeded": "running", "Deleting": "pending_delete"}[.provisioningState]
+        }'
+}
+
 # Login to Azure
 checkValNotNull "${AZURE_SUBSCRIPTION_ID}" "AZURE_SUBSCRIPTION_ID"
 checkValNotNull "${AZURE_TENANT_ID}" "AZURE_TENANT_ID"
@@ -317,12 +348,10 @@ case "$GARM_COMMAND" in
         DeleteInstance
         ;;
     "GetInstance")
-        echo "GetInstance not implemented"
-        exit 1
+        GetInstance
         ;;
     "ListInstances")
-        echo "ListInstances not implemented"
-        exit 1
+        ListInstances
         ;;
     "StartInstance")
         StartInstance
