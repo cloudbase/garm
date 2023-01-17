@@ -16,9 +16,12 @@ package controllers
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"os"
+	"strings"
 
 	"garm/apiserver/params"
 	"garm/auth"
@@ -30,9 +33,15 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 func NewAPIController(r *runner.Runner, auth *auth.Authenticator, hub *wsWriter.Hub) (*APIController, error) {
+	id, err := r.GetControllerID()
+	if err != nil {
+		return nil, errors.Wrap(err, "getting controller ID")
+	}
+
 	return &APIController{
 		r:    r,
 		auth: auth,
@@ -41,6 +50,7 @@ func NewAPIController(r *runner.Runner, auth *auth.Authenticator, hub *wsWriter.
 			ReadBufferSize:  1024,
 			WriteBufferSize: 16384,
 		},
+		id: id.String(),
 	}, nil
 }
 
@@ -49,6 +59,8 @@ type APIController struct {
 	auth     *auth.Authenticator
 	hub      *wsWriter.Hub
 	upgrader websocket.Upgrader
+	// holds this controller's id
+	id string
 }
 
 func handleError(w http.ResponseWriter, err error) {
@@ -85,6 +97,37 @@ func handleError(w http.ResponseWriter, err error) {
 	}
 }
 
+// GetControllerInfo returns means to identify this very garm instance.
+// This is very useful for debugging and monitoring purposes.
+func (a *APIController) GetControllerInfo() (hostname, controllerId string) {
+
+	// the hostname is neither fixed nor in our control
+	// so we get it every time to avoid confusion
+	var err error
+	hostname, err = os.Hostname()
+	if err != nil {
+		log.Printf("error getting hostname: %q", err)
+		return "", ""
+	}
+
+	return hostname, a.id
+}
+
+// metric to count total webhooks received
+// at this point the webhook is not yet authenticated and
+// we don't know if it's meant for us or not
+var webhooksReceived = prometheus.NewCounterVec(prometheus.CounterOpts{
+	Name: "garm_webhooks_received",
+	Help: "The total number of webhooks received",
+}, []string{"valid", "reason", "hostname", "controller_id"})
+
+func init() {
+	err := prometheus.Register(webhooksReceived)
+	if err != nil {
+		log.Printf("error registering prometheus metric: %q", err)
+	}
+}
+
 func (a *APIController) handleWorkflowJobEvent(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	body, err := io.ReadAll(r.Body)
@@ -96,14 +139,23 @@ func (a *APIController) handleWorkflowJobEvent(w http.ResponseWriter, r *http.Re
 	signature := r.Header.Get("X-Hub-Signature-256")
 	hookType := r.Header.Get("X-Github-Hook-Installation-Target-Type")
 
+	hostname, controllerId := a.GetControllerInfo()
+
 	if err := a.r.DispatchWorkflowJob(hookType, signature, body); err != nil {
 		if errors.Is(err, gErrors.ErrNotFound) {
+			webhooksReceived.WithLabelValues("false", "owner_unknown", hostname, controllerId).Inc()
 			log.Printf("got not found error from DispatchWorkflowJob. webhook not meant for us?: %q", err)
 			return
+		} else if strings.Contains(err.Error(), "signature") { // TODO: check error type
+			webhooksReceived.WithLabelValues("false", "signature_invalid", hostname, controllerId).Inc()
+		} else {
+			webhooksReceived.WithLabelValues("false", "unknown", hostname, controllerId).Inc()
 		}
+
 		handleError(w, err)
 		return
 	}
+	webhooksReceived.WithLabelValues("true", "", hostname, controllerId).Inc()
 }
 
 func (a *APIController) CatchAll(w http.ResponseWriter, r *http.Request) {
@@ -168,6 +220,19 @@ func (a *APIController) NotFoundHandler(w http.ResponseWriter, r *http.Request) 
 	if err := json.NewEncoder(w).Encode(apiErr); err != nil {
 		log.Printf("failet to write response: %q", err)
 	}
+}
+
+func (a *APIController) MetricsTokenHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	token, err := a.auth.GetJWTMetricsToken(ctx)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, `{"token": "%s"}`, token)
 }
 
 // LoginHandler returns a jwt token

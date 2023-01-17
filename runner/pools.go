@@ -29,6 +29,7 @@ func (r *Runner) ListAllPools(ctx context.Context) ([]params.Pool, error) {
 	if !auth.IsAdmin(ctx) {
 		return []params.Pool{}, runnerErrors.ErrUnauthorized
 	}
+
 	pools, err := r.store.ListAllPools(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching pools")

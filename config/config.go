@@ -476,14 +476,30 @@ func (t *TLSConfig) Validate() error {
 	return nil
 }
 
+type MetricsConfig struct {
+	Port     int  `toml:"port" json:"port"`
+	Disabled bool `toml:"disabled" json:"disabled"`
+	NoAuth   bool `toml:"no_auth" json:"no-auth"`
+}
+
+// MetricsBindAddress returns a host:port string.
+func (a *APIServer) MetricsBindAddress() string {
+	metricsPort := a.MetricsConfig.Port
+	if metricsPort == 0 {
+		metricsPort = 8081
+	}
+	return fmt.Sprintf("%s:%d", a.Bind, metricsPort)
+}
+
 // APIServer holds configuration for the API server
 // worker
 type APIServer struct {
-	Bind        string    `toml:"bind" json:"bind"`
-	Port        int       `toml:"port" json:"port"`
-	UseTLS      bool      `toml:"use_tls" json:"use-tls"`
-	TLSConfig   TLSConfig `toml:"tls" json:"tls"`
-	CORSOrigins []string  `toml:"cors_origins" json:"cors-origins"`
+	Bind          string        `toml:"bind" json:"bind"`
+	Port          int           `toml:"port" json:"port"`
+	UseTLS        bool          `toml:"use_tls" json:"use-tls"`
+	TLSConfig     TLSConfig     `toml:"tls" json:"tls"`
+	CORSOrigins   []string      `toml:"cors_origins" json:"cors-origins"`
+	MetricsConfig MetricsConfig `toml:"metrics" json:"metrics"`
 }
 
 func (a *APIServer) APITLSConfig() (*tls.Config, error) {

@@ -41,6 +41,7 @@ import (
 	"garm/util"
 
 	"github.com/pkg/errors"
+	uuid "github.com/satori/go.uuid"
 )
 
 func NewRunner(ctx context.Context, cfg config.Config) (*Runner, error) {
@@ -263,6 +264,14 @@ type Runner struct {
 
 	providers   map[string]common.Provider
 	credentials map[string]config.Github
+}
+
+func (r *Runner) GetControllerID() (uuid.UUID, error) {
+	info, err := r.store.ControllerInfo()
+	if err != nil {
+		return uuid.Nil, errors.Wrap(err, "fetching controller info")
+	}
+	return info.ControllerID, nil
 }
 
 func (r *Runner) ListCredentials(ctx context.Context) ([]params.GithubCredentials, error) {

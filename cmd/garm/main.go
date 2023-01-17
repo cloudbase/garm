@@ -39,6 +39,8 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var (
@@ -167,6 +169,28 @@ func main() {
 			log.Printf("Listening: %+v", err)
 		}
 	}()
+
+	if !cfg.APIServer.MetricsConfig.Disabled {
+		go func() {
+
+			metricsMiddleware := auth.NewMetricsMiddleware(cfg.JWTAuth)
+
+			r := mux.NewRouter()
+			r.Handle("/metrics", promhttp.Handler())
+			if !cfg.APIServer.MetricsConfig.NoAuth {
+				r.Use(metricsMiddleware.Middleware)
+			}
+
+			err := prometheus.Register(controllers.NewGarmCollector(controller))
+			if err != nil {
+				log.Printf("failed to register prometheus collector: %+v", err)
+			}
+
+			if err := http.ListenAndServe(cfg.APIServer.MetricsBindAddress(), r); err != nil {
+				log.Printf("metrics server failed: %+v", err)
+			}
+		}()
+	}
 
 	<-ctx.Done()
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 60*time.Second)
