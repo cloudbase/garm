@@ -16,7 +16,10 @@ package sql
 
 import (
 	"fmt"
+
+	"garm/config"
 	"garm/params"
+	"garm/util"
 
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
@@ -89,19 +92,29 @@ func (s *sqlDatabase) sqlToCommonOrganization(org Organization) params.Organizat
 	return ret
 }
 
-func (s *sqlDatabase) sqlToCommonEnterprise(enterprise Enterprise) params.Enterprise {
+func (s *sqlDatabase) sqlToCommonEnterprise(enterprise Enterprise, cfg config.Database) (params.Enterprise, error) {
+	secret := ""
+	if len(enterprise.WebhookSecret) > 0 {
+		var err error
+		secret, err = util.Aes256DecodeString(enterprise.WebhookSecret, s.cfg.Passphrase)
+		if err != nil {
+			return params.Enterprise{}, errors.Wrap(err, "decrypting secret")
+		}
+	}
+
 	ret := params.Enterprise{
 		ID:              enterprise.ID.String(),
 		Name:            enterprise.Name,
 		CredentialsName: enterprise.CredentialsName,
 		Pools:           make([]params.Pool, len(enterprise.Pools)),
+		WebhookSecret:   secret,
 	}
 
 	for idx, pool := range enterprise.Pools {
 		ret.Pools[idx] = s.sqlToCommonPool(pool)
 	}
 
-	return ret
+	return ret, nil
 }
 
 func (s *sqlDatabase) sqlToCommonPool(pool Pool) params.Pool {
