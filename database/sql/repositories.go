@@ -167,6 +167,7 @@ func (s *sqlDatabase) CreateRepositoryPool(ctx context.Context, repoId string, p
 		ProviderName:           param.ProviderName,
 		MaxRunners:             param.MaxRunners,
 		MinIdleRunners:         param.MinIdleRunners,
+		RunnerPrefix:           param.RunnerPrefix,
 		Image:                  param.Image,
 		Flavor:                 param.Flavor,
 		OSType:                 param.OSType,

@@ -138,6 +138,7 @@ type Tag struct {
 
 type Pool struct {
 	ID                     string        `json:"id"`
+	RunnerPrefix           string        `json:"runner_prefix"`
 	ProviderName           string        `json:"provider_name"`
 	MaxRunners             uint          `json:"max_runners"`
 	MinIdleRunners         uint          `json:"min_idle_runners"`

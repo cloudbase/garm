@@ -28,6 +28,7 @@ var (
 	poolProvider               string
 	poolMaxRunners             uint
 	poolMinIdleRunners         uint
+	poolRunnerPrefix           string
 	poolImage                  string
 	poolFlavor                 string
 	poolOSType                 string
@@ -77,6 +78,7 @@ var repoPoolAddCmd = &cobra.Command{
 		newPoolParams := params.CreatePoolParams{
 			ProviderName:   poolProvider,
 			MaxRunners:     poolMaxRunners,
+			RunnerPrefix:   poolRunnerPrefix,
 			MinIdleRunners: poolMinIdleRunners,
 			Image:          poolImage,
 			Flavor:         poolFlavor,
@@ -182,6 +184,10 @@ explicitly remove them using the runner delete command.
 			poolUpdateParams.OSArch = config.OSArch(poolOSArch)
 		}
 
+		if cmd.Flags().Changed("runner-prefix") {
+			poolUpdateParams.RunnerPrefix = poolRunnerPrefix
+		}
+
 		if cmd.Flags().Changed("max-runners") {
 			poolUpdateParams.MaxRunners = &poolMaxRunners
 		}
@@ -211,6 +217,7 @@ func init() {
 	repoPoolAddCmd.Flags().StringVar(&poolTags, "tags", "", "A comma separated list of tags to assign to this runner.")
 	repoPoolAddCmd.Flags().StringVar(&poolOSType, "os-type", "linux", "Operating system type (windows, linux, etc).")
 	repoPoolAddCmd.Flags().StringVar(&poolOSArch, "os-arch", "amd64", "Operating system architecture (amd64, arm, etc).")
+	repoPoolAddCmd.Flags().StringVar(&poolRunnerPrefix, "runner-prefix", "", "The name prefix to use for runners in this pool.")
 	repoPoolAddCmd.Flags().UintVar(&poolMaxRunners, "max-runners", 5, "The maximum number of runner this pool will create.")
 	repoPoolAddCmd.Flags().UintVar(&poolMinIdleRunners, "min-idle-runners", 1, "Attempt to maintain a minimum of idle self-hosted runners of this type.")
 	repoPoolAddCmd.Flags().BoolVar(&poolEnabled, "enabled", false, "Enable this pool.")
@@ -224,6 +231,7 @@ func init() {
 	repoPoolUpdateCmd.Flags().StringVar(&poolTags, "tags", "", "A comma separated list of tags to assign to this runner.")
 	repoPoolUpdateCmd.Flags().StringVar(&poolOSType, "os-type", "linux", "Operating system type (windows, linux, etc).")
 	repoPoolUpdateCmd.Flags().StringVar(&poolOSArch, "os-arch", "amd64", "Operating system architecture (amd64, arm, etc).")
+	repoPoolUpdateCmd.Flags().StringVar(&poolRunnerPrefix, "runner-prefix", "", "The name prefix to use for runners in this pool.")
 	repoPoolUpdateCmd.Flags().UintVar(&poolMaxRunners, "max-runners", 5, "The maximum number of runner this pool will create.")
 	repoPoolUpdateCmd.Flags().UintVar(&poolMinIdleRunners, "min-idle-runners", 1, "Attempt to maintain a minimum of idle self-hosted runners of this type.")
 	repoPoolUpdateCmd.Flags().BoolVar(&poolEnabled, "enabled", false, "Enable this pool.")
@@ -241,7 +249,7 @@ func init() {
 
 func formatPools(pools []params.Pool) {
 	t := table.NewWriter()
-	header := table.Row{"ID", "Image", "Flavor", "Tags", "Belongs to", "Level", "Enabled"}
+	header := table.Row{"ID", "Image", "Flavor", "Tags", "Belongs to", "Level", "Enabled", "Runner Prefix"}
 	t.AppendHeader(header)
 
 	for _, pool := range pools {
@@ -262,7 +270,7 @@ func formatPools(pools []params.Pool) {
 			belongsTo = pool.EnterpriseName
 			level = "enterprise"
 		}
-		t.AppendRow(table.Row{pool.ID, pool.Image, pool.Flavor, strings.Join(tags, " "), belongsTo, level, pool.Enabled})
+		t.AppendRow(table.Row{pool.ID, pool.Image, pool.Flavor, strings.Join(tags, " "), belongsTo, level, pool.Enabled, pool.RunnerPrefix})
 		t.AppendSeparator()
 	}
 	fmt.Println(t.Render())
@@ -307,6 +315,7 @@ func formatOnePool(pool params.Pool) {
 	t.AppendRow(table.Row{"Belongs to", belongsTo})
 	t.AppendRow(table.Row{"Level", level})
 	t.AppendRow(table.Row{"Enabled", pool.Enabled})
+	t.AppendRow(table.Row{"Runner Prefix", pool.RunnerPrefix})
 
 	if len(pool.Instances) > 0 {
 		for _, instance := range pool.Instances {
