@@ -20,8 +20,17 @@ build-static:
 .PHONY: test
 test: verify go-test
 
+install-lint-deps:
+	@$(GO) install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+
+lint:
+	@golangci-lint run --timeout=8m --build-tags testing
+
 go-test:
-	go test -race -mod=vendor -tags testing -v $(TEST_ARGS) -timeout=15m -parallel=4 -count=1 ./...
+	@$(GO) test -race -mod=vendor -tags testing -v $(TEST_ARGS) -timeout=15m -parallel=4 -count=1 ./...
+
+fmt:
+	@$(GO) fmt $$(go list ./...)
 
 fmtcheck:
 	@gofmt -l -s $$(go list ./... | sed 's|garm/||g') | grep ".*\.go"; if [ "$$?" -eq 0 ]; then echo "gofmt check failed; please tun gofmt -w -s"; exit 1;fi
@@ -33,4 +42,4 @@ verify-vendor: ## verify if all the go.mod/go.sum files are up-to-date
 	@diff -r -u -q ${ROOTDIR} ${TMPDIR}/garm >/dev/null 2>&1; if [ "$$?" -ne 0 ];then echo "please run: go mod tidy && go mod vendor"; exit 1; fi
 	@rm -rf ${TMPDIR}
 
-verify: verify-vendor fmtcheck
+verify: verify-vendor lint fmtcheck
