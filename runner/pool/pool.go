@@ -580,13 +580,9 @@ func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error 
 	labels = append(labels, r.poolLabel(pool.ID))
 
 	jwtValidity := pool.RunnerTimeout()
-	var poolType common.PoolType = common.RepositoryPool
-	if pool.OrgID != "" {
-		poolType = common.OrganizationPool
-	}
 
 	entity := r.helper.String()
-	jwtToken, err := auth.NewInstanceJWTToken(instance, r.helper.JwtToken(), entity, poolType, jwtValidity)
+	jwtToken, err := auth.NewInstanceJWTToken(instance, r.helper.JwtToken(), entity, pool.PoolType(), jwtValidity)
 	if err != nil {
 		return errors.Wrap(err, "fetching instance jwt token")
 	}

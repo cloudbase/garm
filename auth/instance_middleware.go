@@ -38,13 +38,13 @@ type InstanceJWTClaims struct {
 	Name   string `json:"name"`
 	PoolID string `json:"provider_id"`
 	// Scope is either repository or organization
-	Scope common.PoolType `json:"scope"`
+	Scope params.PoolType `json:"scope"`
 	// Entity is the repo or org name
 	Entity string `json:"entity"`
 	jwt.StandardClaims
 }
 
-func NewInstanceJWTToken(instance params.Instance, secret, entity string, poolType common.PoolType, ttlMinutes uint) (string, error) {
+func NewInstanceJWTToken(instance params.Instance, secret, entity string, poolType params.PoolType, ttlMinutes uint) (string, error) {
 	// Token expiration is equal to the bootstrap timeout set on the pool plus the polling
 	// interval garm uses to check for timed out runners. Runners that have not sent their info
 	// by the end of this interval are most likely failed and will be reaped by garm anyway.
