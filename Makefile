@@ -18,7 +18,9 @@ build-static:
 	@echo Binaries are available in $(PWD)/bin
 
 .PHONY: test
-test:
+test: verify go-test
+
+go-test:
 	go test -race -mod=vendor -tags testing -v $(TEST_ARGS) -timeout=15m -parallel=4 -count=1 ./...
 
 fmtcheck:

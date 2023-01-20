@@ -128,7 +128,6 @@ func (amw *jwtMiddleware) Middleware(next http.Handler) http.Handler {
 			return
 		}
 
-		ctx = SetJWTClaim(ctx, *claims)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

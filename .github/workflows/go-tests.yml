@@ -8,6 +8,12 @@ on:
     branches:
       - main
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+permissions: {}
+
 jobs:
   linters:
     name: Linters
@@ -48,4 +54,4 @@ jobs:
       - run: go version
 
       - name: Run GARM Go Tests
-        run: make test
+        run: make go-test
