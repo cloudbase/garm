@@ -97,6 +97,8 @@ type NewUserParams struct {
 }
 
 type UpdatePoolParams struct {
+	RunnerPrefix
+
 	Tags                   []string      `json:"tags,omitempty"`
 	Enabled                *bool         `json:"enabled,omitempty"`
 	MaxRunners             *uint         `json:"max_runners,omitempty"`
@@ -104,16 +106,8 @@ type UpdatePoolParams struct {
 	RunnerBootstrapTimeout *uint         `json:"runner_bootstrap_timeout,omitempty"`
 	Image                  string        `json:"image"`
 	Flavor                 string        `json:"flavor"`
-	RunnerPrefix           string        `json:"runner_prefix"`
 	OSType                 config.OSType `json:"os_type"`
 	OSArch                 config.OSArch `json:"os_arch"`
-}
-
-func (p *UpdatePoolParams) GetRunnerPrefix() string {
-	if p.RunnerPrefix == "" {
-		p.RunnerPrefix = DefaultRunnerPrefix
-	}
-	return p.RunnerPrefix
 }
 
 type CreateInstanceParams struct {
@@ -128,8 +122,9 @@ type CreateInstanceParams struct {
 }
 
 type CreatePoolParams struct {
+	RunnerPrefix
+
 	ProviderName           string        `json:"provider_name"`
-	RunnerPrefix           string        `json:"runner_prefix"`
 	MaxRunners             uint          `json:"max_runners"`
 	MinIdleRunners         uint          `json:"min_idle_runners"`
 	Image                  string        `json:"image"`
