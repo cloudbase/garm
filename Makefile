@@ -5,19 +5,23 @@ IMAGE_TAG = garm-build
 USER_ID=$(shell ((docker --version | grep -q podman) && echo "0" || id -u))
 USER_GROUP=$(shell ((docker --version | grep -q podman) && echo "0" || id -g))
 ROOTDIR=$(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+GOPATH ?= $(shell go env GOPATH)
 GO ?= go
 
 
-default: build-static
+default: install
 
-.PHONY : build-static
+.PHONY : build-static test install-lint-deps lint go-test fmt fmtcheck verify-vendor verify
 build-static:
 	@echo Building garm
 	docker build --tag $(IMAGE_TAG) .
 	docker run --rm -e USER_ID=$(USER_ID) -e USER_GROUP=$(USER_GROUP) -v $(PWD):/build/garm:z $(IMAGE_TAG) /build-static.sh
 	@echo Binaries are available in $(PWD)/bin
 
-.PHONY: test
+install:
+	@$(GO) install ./...
+	@echo Binaries available in ${GOPATH}
+
 test: verify go-test
 
 install-lint-deps:
