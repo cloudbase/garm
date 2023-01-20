@@ -43,7 +43,9 @@ func (a *APIController) CreateRepoHandler(w http.ResponseWriter, r *http.Request
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(repo)
+	if err := json.NewEncoder(w).Encode(repo); err != nil {
+		log.Printf("failed to encode response: %q", err)
+	}
 }
 
 func (a *APIController) ListReposHandler(w http.ResponseWriter, r *http.Request) {
@@ -57,7 +59,9 @@ func (a *APIController) ListReposHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(repos)
+	if err := json.NewEncoder(w).Encode(repos); err != nil {
+		log.Printf("failed to encode response: %q", err)
+	}
 }
 
 func (a *APIController) GetRepoByIDHandler(w http.ResponseWriter, r *http.Request) {
@@ -67,10 +71,12 @@ func (a *APIController) GetRepoByIDHandler(w http.ResponseWriter, r *http.Reques
 	repoID, ok := vars["repoID"]
 	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(params.APIErrorResponse{
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
 			Error:   "Bad Request",
 			Details: "No repo ID specified",
-		})
+		}); err != nil {
+			log.Printf("failed to encode response: %q", err)
+		}
 		return
 	}
 
@@ -82,7 +88,9 @@ func (a *APIController) GetRepoByIDHandler(w http.ResponseWriter, r *http.Reques
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(repo)
+	if err := json.NewEncoder(w).Encode(repo); err != nil {
+		log.Printf("failed to encode response: %q", err)
+	}
 }
 
 func (a *APIController) DeleteRepoHandler(w http.ResponseWriter, r *http.Request) {
@@ -92,10 +100,12 @@ func (a *APIController) DeleteRepoHandler(w http.ResponseWriter, r *http.Request
 	repoID, ok := vars["repoID"]
 	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(params.APIErrorResponse{
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
 			Error:   "Bad Request",
 			Details: "No repo ID specified",
-		})
+		}); err != nil {
+			log.Printf("failed to encode response: %q", err)
+		}
 		return
 	}
 
@@ -117,10 +127,12 @@ func (a *APIController) UpdateRepoHandler(w http.ResponseWriter, r *http.Request
 	repoID, ok := vars["repoID"]
 	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(params.APIErrorResponse{
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
 			Error:   "Bad Request",
 			Details: "No repo ID specified",
-		})
+		}); err != nil {
+			log.Printf("failed to encode response: %q", err)
+		}
 		return
 	}
 
@@ -138,7 +150,9 @@ func (a *APIController) UpdateRepoHandler(w http.ResponseWriter, r *http.Request
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(repo)
+	if err := json.NewEncoder(w).Encode(repo); err != nil {
+		log.Printf("failed to encode response: %q", err)
+	}
 }
 
 func (a *APIController) CreateRepoPoolHandler(w http.ResponseWriter, r *http.Request) {
@@ -148,10 +162,12 @@ func (a *APIController) CreateRepoPoolHandler(w http.ResponseWriter, r *http.Req
 	repoID, ok := vars["repoID"]
 	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(params.APIErrorResponse{
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
 			Error:   "Bad Request",
 			Details: "No repo ID specified",
-		})
+		}); err != nil {
+			log.Printf("failed to encode response: %q", err)
+		}
 		return
 	}
 
@@ -170,7 +186,9 @@ func (a *APIController) CreateRepoPoolHandler(w http.ResponseWriter, r *http.Req
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(pool)
+	if err := json.NewEncoder(w).Encode(pool); err != nil {
+		log.Printf("failed to encode response: %q", err)
+	}
 }
 
 func (a *APIController) ListRepoPoolsHandler(w http.ResponseWriter, r *http.Request) {
@@ -179,10 +197,12 @@ func (a *APIController) ListRepoPoolsHandler(w http.ResponseWriter, r *http.Requ
 	repoID, ok := vars["repoID"]
 	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(params.APIErrorResponse{
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
 			Error:   "Bad Request",
 			Details: "No repo ID specified",
-		})
+		}); err != nil {
+			log.Printf("failed to encode response: %q", err)
+		}
 		return
 	}
 
@@ -194,7 +214,9 @@ func (a *APIController) ListRepoPoolsHandler(w http.ResponseWriter, r *http.Requ
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(pools)
+	if err := json.NewEncoder(w).Encode(pools); err != nil {
+		log.Printf("failed to encode response: %q", err)
+	}
 }
 
 func (a *APIController) GetRepoPoolHandler(w http.ResponseWriter, r *http.Request) {
@@ -204,10 +226,12 @@ func (a *APIController) GetRepoPoolHandler(w http.ResponseWriter, r *http.Reques
 	poolID, poolOk := vars["poolID"]
 	if !repoOk || !poolOk {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(params.APIErrorResponse{
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
 			Error:   "Bad Request",
 			Details: "No repo or pool ID specified",
-		})
+		}); err != nil {
+			log.Printf("failed to encode response: %q", err)
+		}
 		return
 	}
 
@@ -219,7 +243,9 @@ func (a *APIController) GetRepoPoolHandler(w http.ResponseWriter, r *http.Reques
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(pool)
+	if err := json.NewEncoder(w).Encode(pool); err != nil {
+		log.Printf("failed to encode response: %q", err)
+	}
 }
 
 func (a *APIController) DeleteRepoPoolHandler(w http.ResponseWriter, r *http.Request) {
@@ -230,10 +256,12 @@ func (a *APIController) DeleteRepoPoolHandler(w http.ResponseWriter, r *http.Req
 	poolID, poolOk := vars["poolID"]
 	if !repoOk || !poolOk {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(params.APIErrorResponse{
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
 			Error:   "Bad Request",
 			Details: "No repo or pool ID specified",
-		})
+		}); err != nil {
+			log.Printf("failed to encode response: %q", err)
+		}
 		return
 	}
 
@@ -256,10 +284,12 @@ func (a *APIController) UpdateRepoPoolHandler(w http.ResponseWriter, r *http.Req
 	poolID, poolOk := vars["poolID"]
 	if !repoOk || !poolOk {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(params.APIErrorResponse{
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
 			Error:   "Bad Request",
 			Details: "No repo or pool ID specified",
-		})
+		}); err != nil {
+			log.Printf("failed to encode response: %q", err)
+		}
 		return
 	}
 
@@ -278,5 +308,7 @@ func (a *APIController) UpdateRepoPoolHandler(w http.ResponseWriter, r *http.Req
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(pool)
+	if err := json.NewEncoder(w).Encode(pool); err != nil {
+		log.Printf("failed to encode response: %q", err)
+	}
 }

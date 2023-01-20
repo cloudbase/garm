@@ -38,7 +38,9 @@ func (a *APIController) ListAllPoolsHandler(w http.ResponseWriter, r *http.Reque
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(pools)
+	if err := json.NewEncoder(w).Encode(pools); err != nil {
+		log.Printf("failed to encode response: %q", err)
+	}
 }
 
 func (a *APIController) GetPoolByIDHandler(w http.ResponseWriter, r *http.Request) {
@@ -48,10 +50,12 @@ func (a *APIController) GetPoolByIDHandler(w http.ResponseWriter, r *http.Reques
 	poolID, ok := vars["poolID"]
 	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(params.APIErrorResponse{
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
 			Error:   "Bad Request",
 			Details: "No pool ID specified",
-		})
+		}); err != nil {
+			log.Printf("failed to encode response: %q", err)
+		}
 		return
 	}
 
@@ -65,7 +69,9 @@ func (a *APIController) GetPoolByIDHandler(w http.ResponseWriter, r *http.Reques
 	pool.RunnerBootstrapTimeout = pool.RunnerTimeout()
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(pool)
+	if err := json.NewEncoder(w).Encode(pool); err != nil {
+		log.Printf("failed to encode response: %q", err)
+	}
 }
 
 func (a *APIController) DeletePoolByIDHandler(w http.ResponseWriter, r *http.Request) {
@@ -75,10 +81,12 @@ func (a *APIController) DeletePoolByIDHandler(w http.ResponseWriter, r *http.Req
 	poolID, ok := vars["poolID"]
 	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(params.APIErrorResponse{
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
 			Error:   "Bad Request",
 			Details: "No pool ID specified",
-		})
+		}); err != nil {
+			log.Printf("failed to encode response: %q", err)
+		}
 		return
 	}
 
@@ -99,10 +107,12 @@ func (a *APIController) UpdatePoolByIDHandler(w http.ResponseWriter, r *http.Req
 	poolID, ok := vars["poolID"]
 	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(params.APIErrorResponse{
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
 			Error:   "Bad Request",
 			Details: "No pool ID specified",
-		})
+		}); err != nil {
+			log.Printf("failed to encode response: %q", err)
+		}
 		return
 	}
 
@@ -121,6 +131,7 @@ func (a *APIController) UpdatePoolByIDHandler(w http.ResponseWriter, r *http.Req
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(pool)
-
+	if err := json.NewEncoder(w).Encode(pool); err != nil {
+		log.Printf("failed to encode response: %q", err)
+	}
 }

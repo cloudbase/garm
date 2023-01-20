@@ -157,20 +157,6 @@ func FullName(ctx context.Context) string {
 	return name.(string)
 }
 
-// SetJWTClaim will set the JWT claim in the context
-func SetJWTClaim(ctx context.Context, claim JWTClaims) context.Context {
-	return context.WithValue(ctx, jwtTokenFlag, claim)
-}
-
-// JWTClaim returns the JWT claim saved in the context
-func JWTClaim(ctx context.Context) JWTClaims {
-	jwtClaim := ctx.Value(jwtTokenFlag)
-	if jwtClaim == nil {
-		return JWTClaims{}
-	}
-	return jwtClaim.(JWTClaims)
-}
-
 // SetIsEnabled sets a flag indicating if account is enabled
 func SetIsEnabled(ctx context.Context, enabled bool) context.Context {
 	return context.WithValue(ctx, isEnabledFlag, enabled)

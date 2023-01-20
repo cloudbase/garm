@@ -18,7 +18,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -128,28 +127,28 @@ func getClientFromConfig(ctx context.Context, cfg *config.LXD) (cli lxd.Instance
 	var srvCrtContents, tlsCAContents, clientCertContents, clientKeyContents []byte
 
 	if cfg.TLSServerCert != "" {
-		srvCrtContents, err = ioutil.ReadFile(cfg.TLSServerCert)
+		srvCrtContents, err = os.ReadFile(cfg.TLSServerCert)
 		if err != nil {
 			return nil, errors.Wrap(err, "reading TLSServerCert")
 		}
 	}
 
 	if cfg.TLSCA != "" {
-		tlsCAContents, err = ioutil.ReadFile(cfg.TLSCA)
+		tlsCAContents, err = os.ReadFile(cfg.TLSCA)
 		if err != nil {
 			return nil, errors.Wrap(err, "reading TLSCA")
 		}
 	}
 
 	if cfg.ClientCertificate != "" {
-		clientCertContents, err = ioutil.ReadFile(cfg.ClientCertificate)
+		clientCertContents, err = os.ReadFile(cfg.ClientCertificate)
 		if err != nil {
 			return nil, errors.Wrap(err, "reading ClientCertificate")
 		}
 	}
 
 	if cfg.ClientKey != "" {
-		clientKeyContents, err = ioutil.ReadFile(cfg.ClientKey)
+		clientKeyContents, err = os.ReadFile(cfg.ClientKey)
 		if err != nil {
 			return nil, errors.Wrap(err, "reading ClientKey")
 		}

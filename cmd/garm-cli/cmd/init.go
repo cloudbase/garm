@@ -128,8 +128,8 @@ func init() {
 	initCmd.Flags().StringVarP(&loginEmail, "email", "e", "", "Email address")
 	initCmd.Flags().StringVarP(&loginFullName, "full-name", "f", "", "Full name of the user")
 	initCmd.Flags().StringVarP(&loginPassword, "password", "p", "", "The admin password")
-	initCmd.MarkFlagRequired("name")
-	initCmd.MarkFlagRequired("url")
+	initCmd.MarkFlagRequired("name") //nolint
+	initCmd.MarkFlagRequired("url")  //nolint
 }
 
 func renderUserTable(user params.User) {

@@ -139,8 +139,8 @@ func init() {
 	enterpriseAddCmd.Flags().StringVar(&enterpriseName, "name", "", "The name of the enterprise")
 	enterpriseAddCmd.Flags().StringVar(&enterpriseWebhookSecret, "webhook-secret", "", "The webhook secret for this enterprise")
 	enterpriseAddCmd.Flags().StringVar(&enterpriseCreds, "credentials", "", "Credentials name. See credentials list.")
-	enterpriseAddCmd.MarkFlagRequired("credentials")
-	enterpriseAddCmd.MarkFlagRequired("name")
+	enterpriseAddCmd.MarkFlagRequired("credentials") //nolint
+	enterpriseAddCmd.MarkFlagRequired("name")        //nolint
 
 	enterpriseCmd.AddCommand(
 		enterpriseListCmd,

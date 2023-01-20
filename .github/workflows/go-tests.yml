@@ -8,10 +8,40 @@ on:
     branches:
       - main
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+permissions: {}
+
 jobs:
+  linters:
+    name: Linters
+    runs-on: ubuntu-20.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libbtrfs-dev build-essential
+
+      - uses: actions/setup-go@v3
+        with:
+          go-version: 'stable'
+      - uses: actions/checkout@v3
+      - uses: golangci/golangci-lint-action@v3
+        with:
+          skip-cache: true
+          args: --timeout=8m --build-tags testing
+      - name: Verify go vendor, go modules and gofmt
+        run: |
+          sudo apt-get install -y jq
+          make verify
+
   go-tests:
     runs-on: ubuntu-latest
-
+    needs: [linters]
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -24,4 +54,4 @@ jobs:
       - run: go version
 
       - name: Run GARM Go Tests
-        run: make test
+        run: make go-test

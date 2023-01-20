@@ -73,7 +73,6 @@ func NewInstanceJWTToken(instance params.Instance, secret, entity string, poolTy
 // used with gorilla
 type instanceMiddleware struct {
 	store dbCommon.Store
-	auth  *Authenticator
 	cfg   config.JWTAuth
 }
 
@@ -156,7 +155,6 @@ func (amw *instanceMiddleware) Middleware(next http.Handler) http.Handler {
 			return
 		}
 
-		// ctx = SetJWTClaim(ctx, *claims)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

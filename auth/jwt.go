@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 
@@ -42,7 +43,6 @@ type JWTClaims struct {
 // used with gorilla
 type jwtMiddleware struct {
 	store dbCommon.Store
-	auth  *Authenticator
 	cfg   config.JWTAuth
 }
 
@@ -75,10 +75,12 @@ func (amw *jwtMiddleware) claimsToContext(ctx context.Context, claims *JWTClaims
 func invalidAuthResponse(w http.ResponseWriter) {
 	w.WriteHeader(http.StatusUnauthorized)
 	w.Header().Add("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(
+	if err := json.NewEncoder(w).Encode(
 		apiParams.APIErrorResponse{
 			Error: "Authentication failed",
-		})
+		}); err != nil {
+		log.Printf("failed to encode response: %s", err)
+	}
 }
 
 // Middleware implements the middleware interface
@@ -126,7 +128,6 @@ func (amw *jwtMiddleware) Middleware(next http.Handler) http.Handler {
 			return
 		}
 
-		ctx = SetJWTClaim(ctx, *claims)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

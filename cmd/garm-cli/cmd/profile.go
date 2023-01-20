@@ -218,8 +218,8 @@ func init() {
 	profileAddCmd.Flags().StringVarP(&loginURL, "url", "a", "", "The base URL for the runner manager API")
 	profileAddCmd.Flags().StringVarP(&loginUserName, "username", "u", "", "Username to log in as")
 	profileAddCmd.Flags().StringVarP(&loginPassword, "password", "p", "", "The user passowrd")
-	profileAddCmd.MarkFlagRequired("name")
-	profileAddCmd.MarkFlagRequired("url")
+	profileAddCmd.MarkFlagRequired("name") //nolint
+	profileAddCmd.MarkFlagRequired("url")  //nolint
 
 	profileCmd.AddCommand(
 		profileListCmd,

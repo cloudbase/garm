@@ -1009,7 +1009,7 @@ func (r *basePoolManager) deletePendingInstances() {
 				return errors.Wrap(err, "deleting instance from database")
 			}
 			return
-		}(instance)
+		}(instance) //nolint
 	}
 }
 
