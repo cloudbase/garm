@@ -19,12 +19,7 @@ import (
 	"time"
 )
 
-type PoolType string
-
 const (
-	RepositoryPool   PoolType = "repository"
-	OrganizationPool PoolType = "organization"
-
 	PoolScaleDownInterval     = 1 * time.Minute
 	PoolConsilitationInterval = 5 * time.Second
 	PoolReapTimeoutInterval   = 5 * time.Minute

@@ -23,9 +23,16 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
+type PoolType string
 type AddressType string
 type EventType string
 type EventLevel string
+
+const (
+	RepositoryPool   PoolType = "repository"
+	OrganizationPool PoolType = "organization"
+	EnterprisePool   PoolType = "enterprise"
+)
 
 const (
 	PublicAddress  AddressType = "public"
@@ -168,6 +175,17 @@ func (p *Pool) RunnerTimeout() uint {
 		return config.DefaultRunnerBootstrapTimeout
 	}
 	return p.RunnerBootstrapTimeout
+}
+
+func (p *Pool) PoolType() PoolType {
+	if p.RepoID != "" {
+		return RepositoryPool
+	} else if p.OrgID != "" {
+		return OrganizationPool
+	} else if p.EnterpriseID != "" {
+		return EnterprisePool
+	}
+	return ""
 }
 
 type Internal struct {
