@@ -1,19 +1,19 @@
 # Writing an external provider
 
-External provider enables you to write a fully functional provider, using any scripring or programming language. Garm will then call your executable to manage the lifecycle of the instances hosting the runners. This document describes the API that an executable needs to implement to be usable by ```garm```.
+External provider enables you to write a fully functional provider, using any scripting or programming language. Garm will then call your executable to manage the lifecycle of the instances hosting the runners. This document describes the API that an executable needs to implement to be usable by ```garm```.
 
 ## Environment variables
 
 When ```garm``` calls your executable, a number of environment variables are set, depending on the operation. There are two environment variable will always be set regardless of operation. Those variables are:
 
-  * ```GARM_COMMAND```
-  * ```GARM_PROVIDER_CONFIG_FILE```
+* ```GARM_COMMAND```
+* ```GARM_PROVIDER_CONFIG_FILE```
 
 The following are variables that are specific to some operations:
 
-  * ```GARM_CONTROLLER_ID```
-  * ```GARM_POOL_ID```
-  * ```GARM_INSTANCE_ID```
+* ```GARM_CONTROLLER_ID```
+* ```GARM_POOL_ID```
+* ```GARM_INSTANCE_ID```
 
 ### The GARM_COMMAND variable
 
@@ -54,21 +54,21 @@ esac
 
 The ```GARM_CONTROLLER_ID``` variable is set for two operations:
 
-  * CreateInstance
-  * RemoveAllInstances
+* CreateInstance
+* RemoveAllInstances
 
 This variable contains the ```UUID4``` identifying a ```garm``` installation. Whenever you start up ```garm``` for the first time, a new ```UUID4``` is generated and saved in ```garm's``` database. This ID is meant to be used to track all resources created by ```garm``` within a provider. That way, if you decide to tare it all down, you have a way of identifying what was created by one particular installation of ```garm```.
 
 This is useful if various teams from your company use the same credentials to access a cloud. You won't accidentally clobber someone else's resources.
 
-In most clouds you can attach ```tags``` to resources. You can use the controller ID as one of the tagg suring the ```CreateInstance``` operation.
+In most clouds you can attach ```tags``` to resources. You can use the controller ID as one of the tags during the ```CreateInstance``` operation.
 
-# The GARM_POOL_ID variable
+### The GARM_POOL_ID variable
 
-The ```GARM_POOL_ID``` anvironment variable is an ```UUID4``` describing the pool in which a runner is created. This variable is set in two operations:
+The ```GARM_POOL_ID``` environment variable is an ```UUID4``` describing the pool in which a runner is created. This variable is set in two operations:
 
-  * CreateInstance
-  * ListInstances
+* CreateInstance
+* ListInstances
 
 As is with ```GARM_CONTROLLER_ID```, this ID can also be attached as a tag in most clouds.
 
@@ -76,26 +76,26 @@ As is with ```GARM_CONTROLLER_ID```, this ID can also be attached as a tag in mo
 
 The ```GARM_INSTANCE_ID``` environment variable is used in four operations:
 
-  * GetInstance
-  * DeleteInstance
-  * Start
-  * Stop
+* GetInstance
+* DeleteInstance
+* Start
+* Stop
 
 It contains the ```provider_id``` of the instance. The ```provider_id``` is a unique identifier, specific to the IaaS in which the compute resource was created. In OpenStack, it's an ```UUID4```, while in LXD, it's the virtual machine's name.
 
-We need this ID whenever we need to execute an operation that targets one specific runner. 
+We need this ID whenever we need to execute an operation that targets one specific runner.
 
-# Operations
+## Operations
 
 The operations that a provider must implement are described in the ```Provider``` interface available [here](https://github.com/cloudbase/garm/blob/main/runner/common/provider.go#L22-L39). The external provider implements this interface, and delegates each operation to your external executable. These operations are:
 
-  * CreateInstance
-  * DeleteInstance
-  * GetInstance
-  * ListInstances
-  * RemoveAllInstances
-  * Stop
-  * Start
+* CreateInstance
+* DeleteInstance
+* GetInstance
+* ListInstances
+* RemoveAllInstances
+* Stop
+* Start
 
 The ```AsParams()``` function does not need to be implemented by the external executable.
 
@@ -115,101 +115,101 @@ Your external provider will need to be able to handle both. The instance name ge
 
 The ```CreateInstance``` command is the only command that receives information using, environment variables and standard input. The available environment variables are:
 
-  * GARM_PROVIDER_CONFIG_FILE - Config file specific to your executable
-  * GARM_COMMAND - the command we need to run
-  * GARM_CONTROLLER_ID - The unique ID of the ```garm``` installation
-  * GARM_POOL_ID - The unique ID of the pool this node is a part of
+* GARM_PROVIDER_CONFIG_FILE - Config file specific to your executable
+* GARM_COMMAND - the command we need to run
+* GARM_CONTROLLER_ID - The unique ID of the ```garm``` installation
+* GARM_POOL_ID - The unique ID of the pool this node is a part of
 
 The information sent in via standard input is a ```json``` serialized instance of the [BootstrapInstance structure](https://github.com/cloudbase/garm/blob/main/params/params.go#L80-L103)
 
 Here is a sample of that:
 
-```json
-{
-  "name": "garm-e73542f6-2c10-48bb-bfe7-a0374618f405",
-  "tools": [
-    {
-      "os": "osx",
-      "architecture": "x64",
-      "download_url": "https://github.com/actions/runner/releases/download/v2.299.1/actions-runner-osx-x64-2.299.1.tar.gz",
-      "filename": "actions-runner-osx-x64-2.299.1.tar.gz",
-      "sha256_checksum": "b0128120f2bc48e5f24df513d77d1457ae845a692f60acf3feba63b8d01a8fdc"
-    },
-    {
-      "os": "linux",
-      "architecture": "x64",
-      "download_url": "https://github.com/actions/runner/releases/download/v2.299.1/actions-runner-linux-x64-2.299.1.tar.gz",
-      "filename": "actions-runner-linux-x64-2.299.1.tar.gz",
-      "sha256_checksum": "147c14700c6cb997421b9a239c012197f11ea9854cd901ee88ead6fe73a72c74"
-    },
-    {
-      "os": "win",
-      "architecture": "x64",
-      "download_url": "https://github.com/actions/runner/releases/download/v2.299.1/actions-runner-win-x64-2.299.1.zip",
-      "filename": "actions-runner-win-x64-2.299.1.zip",
-      "sha256_checksum": "f7940b16451d6352c38066005f3ee6688b53971fcc20e4726c7907b32bfdf539"
-    },
-    {
-      "os": "linux",
-      "architecture": "arm",
-      "download_url": "https://github.com/actions/runner/releases/download/v2.299.1/actions-runner-linux-arm-2.299.1.tar.gz",
-      "filename": "actions-runner-linux-arm-2.299.1.tar.gz",
-      "sha256_checksum": "a4d66a766ff3b9e07e3e068a1d88b04e51c27c9b94ae961717e0a5f9ada998e6"
-    },
-    {
-      "os": "linux",
-      "architecture": "arm64",
-      "download_url": "https://github.com/actions/runner/releases/download/v2.299.1/actions-runner-linux-arm64-2.299.1.tar.gz",
-      "filename": "actions-runner-linux-arm64-2.299.1.tar.gz",
-      "sha256_checksum": "debe1cc9656963000a4fbdbb004f475ace5b84360ace2f7a191c1ccca6a16c00"
-    },
-    {
-      "os": "osx",
-      "architecture": "arm64",
-      "download_url": "https://github.com/actions/runner/releases/download/v2.299.1/actions-runner-osx-arm64-2.299.1.tar.gz",
-      "filename": "actions-runner-osx-arm64-2.299.1.tar.gz",
-      "sha256_checksum": "f73849b9a78459d2e08b9d3d2f60464a55920de120e228b0645b01abe68d9072"
-    },
-    {
-      "os": "win",
-      "architecture": "arm64",
-      "download_url": "https://github.com/actions/runner/releases/download/v2.299.1/actions-runner-win-arm64-2.299.1.zip",
-      "filename": "actions-runner-win-arm64-2.299.1.zip",
-      "sha256_checksum": "d1a9d8209f03589c8dc05ee17ae8d194756377773a4010683348cdd6eefa2da7"
-    }
-  ],
-  "repo_url": "https://github.com/gabriel-samfira/scripts",
-  "callback-url": "https://garm.example.com/api/v1/callbacks/status",
-  "metadata-url": "https://garm.example.com/api/v1/metadata",
-  "instance-token": "super secret JWT token",
-  "ssh-keys": null,
-  "ca-cert-bundle": null,
-  "arch": "amd64",
-  "flavor": "m1.small",
-  "image": "8ed8a690-69b6-49eb-982f-dcb466895e2d",
-  "labels": [
-    "ubuntu",
-    "self-hosted",
-    "x64",
-    "linux",
-    "openstack",
-    "runner-controller-id:f9286791-1589-4f39-a106-5b68c2a18af4",
-    "runner-pool-id:9dcf590a-1192-4a9c-b3e4-e0902974c2c0"
-  ],
-  "pool_id": "9dcf590a-1192-4a9c-b3e4-e0902974c2c0"
-}
-```
+  ```json
+  {
+    "name": "garm-e73542f6-2c10-48bb-bfe7-a0374618f405",
+    "tools": [
+      {
+        "os": "osx",
+        "architecture": "x64",
+        "download_url": "https://github.com/actions/runner/releases/download/v2.299.1/actions-runner-osx-x64-2.299.1.tar.gz",
+        "filename": "actions-runner-osx-x64-2.299.1.tar.gz",
+        "sha256_checksum": "b0128120f2bc48e5f24df513d77d1457ae845a692f60acf3feba63b8d01a8fdc"
+      },
+      {
+        "os": "linux",
+        "architecture": "x64",
+        "download_url": "https://github.com/actions/runner/releases/download/v2.299.1/actions-runner-linux-x64-2.299.1.tar.gz",
+        "filename": "actions-runner-linux-x64-2.299.1.tar.gz",
+        "sha256_checksum": "147c14700c6cb997421b9a239c012197f11ea9854cd901ee88ead6fe73a72c74"
+      },
+      {
+        "os": "win",
+        "architecture": "x64",
+        "download_url": "https://github.com/actions/runner/releases/download/v2.299.1/actions-runner-win-x64-2.299.1.zip",
+        "filename": "actions-runner-win-x64-2.299.1.zip",
+        "sha256_checksum": "f7940b16451d6352c38066005f3ee6688b53971fcc20e4726c7907b32bfdf539"
+      },
+      {
+        "os": "linux",
+        "architecture": "arm",
+        "download_url": "https://github.com/actions/runner/releases/download/v2.299.1/actions-runner-linux-arm-2.299.1.tar.gz",
+        "filename": "actions-runner-linux-arm-2.299.1.tar.gz",
+        "sha256_checksum": "a4d66a766ff3b9e07e3e068a1d88b04e51c27c9b94ae961717e0a5f9ada998e6"
+      },
+      {
+        "os": "linux",
+        "architecture": "arm64",
+        "download_url": "https://github.com/actions/runner/releases/download/v2.299.1/actions-runner-linux-arm64-2.299.1.tar.gz",
+        "filename": "actions-runner-linux-arm64-2.299.1.tar.gz",
+        "sha256_checksum": "debe1cc9656963000a4fbdbb004f475ace5b84360ace2f7a191c1ccca6a16c00"
+      },
+      {
+        "os": "osx",
+        "architecture": "arm64",
+        "download_url": "https://github.com/actions/runner/releases/download/v2.299.1/actions-runner-osx-arm64-2.299.1.tar.gz",
+        "filename": "actions-runner-osx-arm64-2.299.1.tar.gz",
+        "sha256_checksum": "f73849b9a78459d2e08b9d3d2f60464a55920de120e228b0645b01abe68d9072"
+      },
+      {
+        "os": "win",
+        "architecture": "arm64",
+        "download_url": "https://github.com/actions/runner/releases/download/v2.299.1/actions-runner-win-arm64-2.299.1.zip",
+        "filename": "actions-runner-win-arm64-2.299.1.zip",
+        "sha256_checksum": "d1a9d8209f03589c8dc05ee17ae8d194756377773a4010683348cdd6eefa2da7"
+      }
+    ],
+    "repo_url": "https://github.com/gabriel-samfira/scripts",
+    "callback-url": "https://garm.example.com/api/v1/callbacks/status",
+    "metadata-url": "https://garm.example.com/api/v1/metadata",
+    "instance-token": "super secret JWT token",
+    "ssh-keys": null,
+    "ca-cert-bundle": null,
+    "arch": "amd64",
+    "flavor": "m1.small",
+    "image": "8ed8a690-69b6-49eb-982f-dcb466895e2d",
+    "labels": [
+      "ubuntu",
+      "self-hosted",
+      "x64",
+      "linux",
+      "openstack",
+      "runner-controller-id:f9286791-1589-4f39-a106-5b68c2a18af4",
+      "runner-pool-id:9dcf590a-1192-4a9c-b3e4-e0902974c2c0"
+    ],
+    "pool_id": "9dcf590a-1192-4a9c-b3e4-e0902974c2c0"
+  }
+  ```
 
 In your executable you can read in this blob, by using something like this:
 
-```bash
-# Test if the stdin file descriptor is opened
-if [ ! -t 0 ]
-then
-    # Read in the information from standard in
-    INPUT=$(cat -)
-fi
-```
+  ```bash
+  # Test if the stdin file descriptor is opened
+  if [ ! -t 0 ]
+  then
+      # Read in the information from standard in
+      INPUT=$(cat -)
+  fi
+  ```
 
 Then you can easily parse it. If you're using ```bash```, you can use the amazing [jq json processor](https://stedolan.github.io/jq/). Other programming languages have suitable libraries that can handle ```json```.
 
@@ -219,29 +219,29 @@ Refer to the OpenStack or Azure providers available in the [providers.d](../cont
 
 ### CreateInstance outputs
 
-On success, your executable is expected to print to standard output a json that can be unserialized into an ```Instance{}``` structure [defined here](https://github.com/cloudbase/garm/blob/main/params/params.go#L43-L78).
+On success, your executable is expected to print to standard output a json that can be deserialized into an ```Instance{}``` structure [defined here](https://github.com/cloudbase/garm/blob/main/params/params.go#L43-L78).
 
 Not all fields are expected to be populated by the provider. The ones that should be set are:
 
-```json
-{
-  "provider_id": "88818ff3-1fca-4cb5-9b37-84bfc3511ea6",
-  "name": "garm-0542a982-4a0d-4aca-aef0-d736c96f61ca",
-  "os_type": "linux",
-  "os_name": "ubuntu",
-  "os_version": "20.04",
-  "os_arch": "x86_64",
-  "status": "running",
-  "pool_id": "41c4a43a-acee-493a-965b-cf340b2c775d",
-  "provider_fault": ""
-}
-```
+  ```json
+  {
+    "provider_id": "88818ff3-1fca-4cb5-9b37-84bfc3511ea6",
+    "name": "garm-0542a982-4a0d-4aca-aef0-d736c96f61ca",
+    "os_type": "linux",
+    "os_name": "ubuntu",
+    "os_version": "20.04",
+    "os_arch": "x86_64",
+    "status": "running",
+    "pool_id": "41c4a43a-acee-493a-965b-cf340b2c775d",
+    "provider_fault": ""
+  }
+  ```
 
 In case of error, ```garm``` expects at the very least to see a non-zero exit code. If possible, your executable should return as much information as possible via the above ```json```, with the ```status``` field set to ```error``` and the ```provider_fault``` set to a meaningful error message describing what has happened. That information will be visible when doing a:
 
-```bash
-garm-cli runner show <runner name>
-```
+  ```bash
+  garm-cli runner show <runner name>
+  ```
 
 ## DeleteInstance
 
@@ -249,9 +249,9 @@ The ```DeleteInstance``` command will permanently remove an instance from the cl
 
 Available environment variables:
 
-  * GARM_COMMAND
-  * GARM_PROVIDER_CONFIG_FILE
-  * GARM_INSTANCE_ID
+* GARM_COMMAND
+* GARM_PROVIDER_CONFIG_FILE
+* GARM_INSTANCE_ID
 
 This command is not expected to output anything. On success it should simply ```exit 0```.
 
@@ -263,23 +263,23 @@ The ```GetInstance``` command will return details about the instance, as seen by
 
 Available environment variables:
 
-  * GARM_COMMAND
-  * GARM_PROVIDER_CONFIG_FILE
-  * GARM_INSTANCE_ID
+* GARM_COMMAND
+* GARM_PROVIDER_CONFIG_FILE
+* GARM_INSTANCE_ID
 
-On success, this command is expected to return a valid ```json``` that can be unserialized into an ```Instance{}``` structure (see CreateInstance). If possible, IP addresses allocated to the VM should be returned in adition to the sample ```json``` printed above.
+On success, this command is expected to return a valid ```json``` that can be deserialized into an ```Instance{}``` structure (see CreateInstance). If possible, IP addresses allocated to the VM should be returned in addition to the sample ```json``` printed above.
 
 On failure, this command is expected to return a non-zero exit code.
 
 ## ListInstances
 
-The ```ListInstances``` command will print to standard output, a json that is unserializable into an **array** of ```Instance{}```.
+The ```ListInstances``` command will print to standard output, a json that is deserializable into an **array** of ```Instance{}```.
 
 Available environment variables:
 
-  * GARM_COMMAND
-  * GARM_PROVIDER_CONFIG_FILE
-  * GARM_POOL_ID
+* GARM_COMMAND
+* GARM_PROVIDER_CONFIG_FILE
+* GARM_POOL_ID
 
 This command must list all instances that have been tagged with the value in ```GARM_POOL_ID```.
 
@@ -293,9 +293,9 @@ The ```RemoveAllInstances``` operation will remove all resources created in a cl
 
 Available environment variables:
 
-  * GARM_COMMAND
-  * GARM_PROVIDER_CONFIG_FILE
-  * GARM_CONTROLLER_ID
+* GARM_COMMAND
+* GARM_PROVIDER_CONFIG_FILE
+* GARM_CONTROLLER_ID
 
 On success, no output is expected.
 
@@ -307,14 +307,13 @@ The ```Start``` operation will start the virtual machine in the selected cloud.
 
 Available environment variables:
 
-  * GARM_COMMAND
-  * GARM_PROVIDER_CONFIG_FILE
-  * GARM_INSTANCE_ID
+* GARM_COMMAND
+* GARM_PROVIDER_CONFIG_FILE
+* GARM_INSTANCE_ID
 
 On success, no output is expected.
 
 On failure, a non-zero exit code is expected.
-
 
 ## Stop
 
@@ -324,9 +323,9 @@ The ```Stop``` operation will stop the virtual machine in the selected cloud.
 
 Available environment variables:
 
-  * GARM_COMMAND
-  * GARM_PROVIDER_CONFIG_FILE
-  * GARM_INSTANCE_ID
+* GARM_COMMAND
+* GARM_PROVIDER_CONFIG_FILE
+* GARM_INSTANCE_ID
 
 On success, no output is expected.
 

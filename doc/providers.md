@@ -1,8 +1,9 @@
 # Provider configuration
 
 Garm was designed to be extensible. The database layer as well as the providers are defined as interfaces. Currently there are two providers:
-  * [LXD](https://linuxcontainers.org/lxd/introduction/)
-  * External
+
+* [LXD](https://linuxcontainers.org/lxd/introduction/)
+* External
 
 LXD is the simplest cloud-like system you can easily set up on any GNU/Linux machine, which enables you to create both containers and Virtual Machines. The ```external``` provider is a special type of provider, which delegates functionality to external executables.
 
@@ -22,7 +23,7 @@ Garm leverages the virtual machines feature of LXD to create the runners. Here i
   name = "lxd_local"
   # Provider type. Garm is designed to allow creating providers which are used to spin
   # up compute resources, which in turn will run the github runner software.
-  # Currently, LXD is the only supprted provider, but more will be written in the future.
+  # Currently, LXD is the only supported provider, but more will be written in the future.
   provider_type = "lxd"
   # A short description of this provider. The name, description and provider types will
   # be included in the information returned by the API when listing available providers.
@@ -91,22 +92,21 @@ By default, garm does not load any image remotes. You get to choose which remote
 
 The sample config file in this repository has the usual default ```LXD``` remotes:
 
-  * https://cloud-images.ubuntu.com/releases (ubuntu) - Official Ubuntu images
-  * https://cloud-images.ubuntu.com/daily (ubuntu_daily) - Official Ubuntu images, daily build
-  * https://images.linuxcontainers.org (images) - Comunity maintained images for various operating systems
+* <https://cloud-images.ubuntu.com/releases> (ubuntu) - Official Ubuntu images
+* <https://cloud-images.ubuntu.com/daily> (ubuntu_daily) - Official Ubuntu images, daily build
+* <https://images.linuxcontainers.org> (images) - Community maintained images for various operating systems
 
-When creating a new pool, you'll be able to specify which image you want to use. The images are referenced by ```remote_name:image_tag```. For example, if you want to launch a runner on an Ubuntu 20.04, the image name would be ```ubuntu:20.04```. For a daily image it would be ```ubuntu_daily:20.04```. And for one of the unnoficial images it would be ```images:centos/8-Stream/cloud```. Note, for unofficial images you need to use the tags that have ```/cloud``` in the name. These images come pre-installed with ```cloud-init``` which we need to set up the runners automatically.
+When creating a new pool, you'll be able to specify which image you want to use. The images are referenced by ```remote_name:image_tag```. For example, if you want to launch a runner on an Ubuntu 20.04, the image name would be ```ubuntu:20.04```. For a daily image it would be ```ubuntu_daily:20.04```. And for one of the unofficial images it would be ```images:centos/8-Stream/cloud```. Note, for unofficial images you need to use the tags that have ```/cloud``` in the name. These images come pre-installed with ```cloud-init``` which we need to set up the runners automatically.
 
 You can also create your own image remote, where you can host your own custom images. If you want to build your own images, have a look at [distrobuilder](https://github.com/lxc/distrobuilder).
 
-Image remotes in the ```garm``` config, is a map of strings to remote settins. The name of the remote is the last bit of string in the section header. For example, the following section ```[provider.lxd.image_remotes.ubuntu_daily]```, defines the image remote named **ubuntu_daily**. Use this name to reference images inside that remote.
-
+Image remotes in the ```garm``` config, is a map of strings to remote settings. The name of the remote is the last bit of string in the section header. For example, the following section ```[provider.lxd.image_remotes.ubuntu_daily]```, defines the image remote named **ubuntu_daily**. Use this name to reference images inside that remote.
 
 ## The External provider
 
 The external provider is a special kind of provider. It delegates the functionality needed to create the runners to external executables. These executables can be either binaries or scripts. As long as they adhere to the needed interface, they can be used to create runners in any target IaaS. This is identical to what ```containerd``` does with ```CNIs```.
 
-There is currently one external provider for [OpenStack](https://www.openstack.org/) available in the [contrb folder of this repository](../contrib/providers.d/openstack). The provider is written in ```bash``` and it is just a sample. A production ready provider would need more error checking and idempotency, but it serves as an example of what can be done. As it stands, it is functional.
+There is currently one external provider for [OpenStack](https://www.openstack.org/) available in the [contrib folder of this repository](../contrib/providers.d/openstack). The provider is written in ```bash``` and it is just a sample. A production ready provider would need more error checking and idempotency, but it serves as an example of what can be done. As it stands, it is functional.
 
 The configuration for an external provider is quite simple:
 
@@ -129,12 +129,11 @@ provider_type = "external"
 
 The external provider has three options:
 
-  * ```provider_executable```
-  * ```config_file```
-
+* ```provider_executable```
+* ```config_file```
 
 The ```provider_executable``` option is the absolute path to an executable that implements the provider logic. Garm will delegate all provider operations to this executable. This executable can be anything (bash, python, perl, go, etc). See [Writing an external provider](./external_provider.md) for more details.
 
-The ```config_file``` option is a path on disk to an arbitrary file, that is passed to the external executable via the environment variable ```GARM_PROVIDER_CONFIG_FILE```. This file is only relevant to the external provider. Garm itself does not read it. In the case of the OpenStack provider, this file contains access information for an OpenStack cloud (what you would tipically find in a ```keystonerc``` file) as well as some provider specific options like whether or not to boot from volume and which tenant network to use. You can check out the [sample config file](../contrib/providers.d/openstack/keystonerc) in this repository.
+The ```config_file``` option is a path on disk to an arbitrary file, that is passed to the external executable via the environment variable ```GARM_PROVIDER_CONFIG_FILE```. This file is only relevant to the external provider. Garm itself does not read it. In the case of the OpenStack provider, this file contains access information for an OpenStack cloud (what you would typically find in a ```keystonerc``` file) as well as some provider specific options like whether or not to boot from volume and which tenant network to use. You can check out the [sample config file](../contrib/providers.d/openstack/keystonerc) in this repository.
 
 If you want to implement an external provider, you can use this file for anything you need to pass into the binary when ```garm``` calls it to execute a particular operation.

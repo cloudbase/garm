@@ -1,4 +1,4 @@
-#  GitHub Actions Runners Manager (garm)
+# GitHub Actions Runners Manager (garm)
 
 [![Go Tests](https://github.com/cloudbase/garm/actions/workflows/go-tests.yml/badge.svg)](https://github.com/cloudbase/garm/actions/workflows/go-tests.yml)
 
@@ -6,7 +6,7 @@ Welcome to garm!
 
 Garm enables you to create and automatically maintain pools of [self-hosted GitHub runners](https://docs.github.com/en/actions/hosting-your-own-runners/about-self-hosted-runners), with autoscaling that can be used inside your github workflow runs.
 
-The goal of ```garm``` is to be simple to set up, simple to configure and simple to use. It is a single binary that can run on any GNU/Linux machine without any other requirements other than the providers it creates the runners in. It is intended to be easy to deploy in any environment and can create runners in any system you can write a provider for. There is no complicated setup process and no extremely complex concepts to understant. Once set up, it's meant to stay out of your way.  
+The goal of ```garm``` is to be simple to set up, simple to configure and simple to use. It is a single binary that can run on any GNU/Linux machine without any other requirements other than the providers it creates the runners in. It is intended to be easy to deploy in any environment and can create runners in any system you can write a provider for. There is no complicated setup process and no extremely complex concepts to understand. Once set up, it's meant to stay out of your way.
 
 Garm supports creating pools on either GitHub itself or on your own deployment of [GitHub Enterprise Server](https://docs.github.com/en/enterprise-server@3.5/admin/overview/about-github-enterprise-server). For instructions on how to use ```garm``` with GHE, see the [credentials](/doc/github_credentials.md) section of the documentation.
 
@@ -16,18 +16,19 @@ Garm supports creating pools on either GitHub itself or on your own deployment o
 
 You need to have Go installed, then run:
 
-```bash
-git clone https://github.com/cloudbase/garm
-cd garm
-go install ./...
-```
+  ```bash
+  git clone https://github.com/cloudbase/garm
+  cd garm
+  go install ./...
+  ```
+
 You should now have both ```garm``` and ```garm-cli``` in your ```$GOPATH/bin``` folder.
 
 If you have docker/podman installed, you can also build statically linked binaries by running:
 
-```bash
-make
-```
+  ```bash
+  make
+  ```
 
 The ```garm``` and ```garm-cli``` binaries will be built and copied to the ```bin/``` folder in your current working directory.
 
@@ -35,69 +36,69 @@ The ```garm``` and ```garm-cli``` binaries will be built and copied to the ```bi
 
 Add a new system user:
 
-```bash
-useradd --shell /usr/bin/false \
-    --system \
-    --groups lxd \
-    --no-create-home garm
-```
+  ```bash
+  useradd --shell /usr/bin/false \
+      --system \
+      --groups lxd \
+      --no-create-home garm
+  ```
 
 The ```lxd``` group is only needed if you have a local LXD install and want to connect to the unix socket to use it. If you're connecting to a remote LXD server over TCP, you can skip adding the ```garm``` user to the ```lxd``` group.
 
 Copy the binary to somewhere in the system ```$PATH```:
 
-```bash
-sudo cp $(go env GOPATH)/bin/garm /usr/local/bin/garm
-```
+  ```bash
+  sudo cp $(go env GOPATH)/bin/garm /usr/local/bin/garm
+  ```
 
 Or if you built garm using ```make```:
 
-```bash
-sudo cp ./bin/garm /usr/local/bin/garm
-```
+  ```bash
+  sudo cp ./bin/garm /usr/local/bin/garm
+  ```
 
 Create the config folder:
 
-```bash
-sudo mkdir -p /etc/garm
-```
+  ```bash
+  sudo mkdir -p /etc/garm
+  ```
 
 Copy the config template:
 
-```bash
-sudo cp ./testdata/config.toml /etc/garm/
-```
+  ```bash
+  sudo cp ./testdata/config.toml /etc/garm/
+  ```
 
 Copy the external provider (optional):
 
-```bash
-sudo cp -a ./contrib/providers.d /etc/garm/
-```
+  ```bash
+  sudo cp -a ./contrib/providers.d /etc/garm/
+  ```
 
 Copy the systemd service file:
 
-```bash
-sudo cp ./contrib/garm.service /etc/systemd/system/
-```
+  ```bash
+  sudo cp ./contrib/garm.service /etc/systemd/system/
+  ```
 
 Change permissions on config folder:
 
-```bash
-sudo chown -R garm:garm /etc/garm
-sudo chmod 750 -R /etc/garm
-```
+  ```bash
+  sudo chown -R garm:garm /etc/garm
+  sudo chmod 750 -R /etc/garm
+  ```
 
 Enable the service:
 
-```bash
-sudo systemctl enable garm
-```
+  ```bash
+  sudo systemctl enable garm
+  ```
 
 Customize the config in ```/etc/garm/config.toml```, and start the service:
 
-```bash
-sudo systemctl start garm
-```
+  ```bash
+  sudo systemctl start garm
+  ```
 
 ## Configuration
 
@@ -105,9 +106,9 @@ The ```garm``` configuration is a simple ```toml```. A sample of the config file
 
 There are 3 major sections of the config that require your attention:
 
-  * [Github credentials section](/doc/github_credentials.md)
-  * [Providers section](/doc/providers.md)
-  * [The database section](/doc/database.md)
+* [Github credentials section](/doc/github_credentials.md)
+* [Providers section](/doc/providers.md)
+* [The database section](/doc/database.md)
 
 Once you've configured your database, providers and github credentials, you'll need to configure your [webhooks and the callback_url](/doc/webhooks_and_callbacks.md).
 
@@ -115,12 +116,11 @@ At this point, you should be done. Have a look at the [running garm document](/d
 
 If you would like to use ```garm``` with a different IaaS than the ones already available, have a loot at the [writing an external provider](/doc/external_provider.md) page.
 
-
 ## Security considerations
 
-Garm does not apply any ACLs of any kind to the instances it creates. That task remains in the responsability of the user. [Here is a guide for creating ACLs in LXD](https://linuxcontainers.org/lxd/docs/master/howto/network_acls/). You can of course use ```iptables``` or ```nftables``` to create any rules you wish. I recommend you create a separate isolated lxd bridge for runners, and secure it using ACLs/iptables/nftables.
+Garm does not apply any ACLs of any kind to the instances it creates. That task remains in the responsibility of the user. [Here is a guide for creating ACLs in LXD](https://linuxcontainers.org/lxd/docs/master/howto/network_acls/). You can of course use ```iptables``` or ```nftables``` to create any rules you wish. I recommend you create a separate isolated lxd bridge for runners, and secure it using ACLs/iptables/nftables.
 
-You must make sure that the code that runs as part of the workflows is trusted, and if that cannot be done, you must make sure that any malitious code that will be pulled in by the actions and run as part of a workload, is as contained as possible. There is a nice article about [securing your workflow runs here](https://blog.gitguardian.com/github-actions-security-cheat-sheet/).
+You must make sure that the code that runs as part of the workflows is trusted, and if that cannot be done, you must make sure that any malicious code that will be pulled in by the actions and run as part of a workload, is as contained as possible. There is a nice article about [securing your workflow runs here](https://blog.gitguardian.com/github-actions-security-cheat-sheet/).
 
 ## Write your own provider
 
