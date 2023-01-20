@@ -142,9 +142,9 @@ func init() {
 	repoAddCmd.Flags().StringVar(&repoName, "name", "", "The name of the repository")
 	repoAddCmd.Flags().StringVar(&repoWebhookSecret, "webhook-secret", "", "The webhook secret for this repository")
 	repoAddCmd.Flags().StringVar(&repoCreds, "credentials", "", "Credentials name. See credentials list.")
-	repoAddCmd.MarkFlagRequired("credentials")
-	repoAddCmd.MarkFlagRequired("owner")
-	repoAddCmd.MarkFlagRequired("name")
+	repoAddCmd.MarkFlagRequired("credentials") //nolint
+	repoAddCmd.MarkFlagRequired("owner")       //nolint
+	repoAddCmd.MarkFlagRequired("name")        //nolint
 
 	repositoryCmd.AddCommand(
 		repoListCmd,

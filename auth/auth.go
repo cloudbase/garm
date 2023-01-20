@@ -42,11 +42,7 @@ type Authenticator struct {
 }
 
 func (a *Authenticator) IsInitialized() bool {
-	if a.store.HasAdminUser(context.Background()) {
-		return true
-	}
-
-	return false
+	return a.store.HasAdminUser(context.Background())
 }
 
 func (a *Authenticator) GetJWTToken(ctx context.Context) (string, error) {

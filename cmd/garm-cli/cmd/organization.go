@@ -139,8 +139,8 @@ func init() {
 	orgAddCmd.Flags().StringVar(&orgName, "name", "", "The name of the organization")
 	orgAddCmd.Flags().StringVar(&orgWebhookSecret, "webhook-secret", "", "The webhook secret for this organization")
 	orgAddCmd.Flags().StringVar(&orgCreds, "credentials", "", "Credentials name. See credentials list.")
-	orgAddCmd.MarkFlagRequired("credentials")
-	orgAddCmd.MarkFlagRequired("name")
+	orgAddCmd.MarkFlagRequired("credentials") //nolint
+	orgAddCmd.MarkFlagRequired("name")        //nolint
 
 	organizationCmd.AddCommand(
 		orgListCmd,

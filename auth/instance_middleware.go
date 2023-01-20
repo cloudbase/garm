@@ -73,7 +73,6 @@ func NewInstanceJWTToken(instance params.Instance, secret, entity string, poolTy
 // used with gorilla
 type instanceMiddleware struct {
 	store dbCommon.Store
-	auth  *Authenticator
 	cfg   config.JWTAuth
 }
 

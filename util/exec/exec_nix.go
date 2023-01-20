@@ -8,9 +8,5 @@ import (
 )
 
 func IsExecutable(path string) bool {
-	if unix.Access(path, unix.X_OK) == nil {
-		return true
-	}
-
-	return false
+	return unix.Access(path, unix.X_OK) == nil
 }

@@ -16,6 +16,7 @@ package auth
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"garm/apiserver/params"
@@ -40,7 +41,9 @@ func (i *initRequired) Middleware(next http.Handler) http.Handler {
 		if err != nil || ctrlInfo.ControllerID.String() == "" {
 			w.Header().Add("Content-Type", "application/json")
 			w.WriteHeader(http.StatusConflict)
-			json.NewEncoder(w).Encode(params.InitializationRequired)
+			if err := json.NewEncoder(w).Encode(params.InitializationRequired); err != nil {
+				log.Printf("failed to encode response: %s", err)
+			}
 			return
 		}
 		ctx := r.Context()

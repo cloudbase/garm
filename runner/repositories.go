@@ -59,7 +59,9 @@ func (r *Runner) CreateRepository(ctx context.Context, param params.CreateRepoPa
 
 	defer func() {
 		if err != nil {
-			r.store.DeleteRepository(ctx, repo.ID)
+			if deleteErr := r.store.DeleteRepository(ctx, repo.ID); deleteErr != nil {
+				log.Printf("failed to delete repository: %s", deleteErr)
+			}
 		}
 	}()
 

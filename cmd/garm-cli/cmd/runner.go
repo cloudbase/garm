@@ -98,11 +98,11 @@ Example:
 			} else if cmd.Flags().Changed("all") {
 				instances, err = cli.ListAllInstances()
 			} else {
-				cmd.Help()
+				cmd.Help() //nolint
 				os.Exit(0)
 			}
 		default:
-			cmd.Help()
+			cmd.Help() //nolint
 			os.Exit(0)
 		}
 

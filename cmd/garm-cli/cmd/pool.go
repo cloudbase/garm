@@ -85,11 +85,11 @@ Example:
 			} else if cmd.Flags().Changed("all") {
 				pools, err = cli.ListAllPools()
 			} else {
-				cmd.Help()
+				cmd.Help() //nolint
 				os.Exit(0)
 			}
 		default:
-			cmd.Help()
+			cmd.Help() //nolint
 			os.Exit(0)
 		}
 
@@ -195,7 +195,7 @@ var poolAddCmd = &cobra.Command{
 		} else if cmd.Flags().Changed("enterprise") {
 			pool, err = cli.CreateEnterprisePool(poolEnterprise, newPoolParams)
 		} else {
-			cmd.Help()
+			cmd.Help() //nolint
 			os.Exit(0)
 		}
 
@@ -313,10 +313,10 @@ func init() {
 	poolAddCmd.Flags().UintVar(&poolRunnerBootstrapTimeout, "runner-bootstrap-timeout", 20, "Duration in minutes after which a runner is considered failed if it does not join Github.")
 	poolAddCmd.Flags().UintVar(&poolMinIdleRunners, "min-idle-runners", 1, "Attempt to maintain a minimum of idle self-hosted runners of this type.")
 	poolAddCmd.Flags().BoolVar(&poolEnabled, "enabled", false, "Enable this pool.")
-	poolAddCmd.MarkFlagRequired("provider-name")
-	poolAddCmd.MarkFlagRequired("image")
-	poolAddCmd.MarkFlagRequired("flavor")
-	poolAddCmd.MarkFlagRequired("tags")
+	poolAddCmd.MarkFlagRequired("provider-name") //nolint
+	poolAddCmd.MarkFlagRequired("image")         //nolint
+	poolAddCmd.MarkFlagRequired("flavor")        //nolint
+	poolAddCmd.MarkFlagRequired("tags")          //nolint
 
 	poolAddCmd.Flags().StringVarP(&poolRepository, "repo", "r", "", "Add the new pool within this repository.")
 	poolAddCmd.Flags().StringVarP(&poolOrganization, "org", "o", "", "Add the new pool withing this organization.")

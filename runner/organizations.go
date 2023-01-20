@@ -59,7 +59,9 @@ func (r *Runner) CreateOrganization(ctx context.Context, param params.CreateOrgP
 
 	defer func() {
 		if err != nil {
-			r.store.DeleteOrganization(ctx, org.ID)
+			if deleteErr := r.store.DeleteOrganization(ctx, org.ID); deleteErr != nil {
+				log.Printf("failed to delete org: %s", deleteErr)
+			}
 		}
 	}()
 

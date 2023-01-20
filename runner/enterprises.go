@@ -45,7 +45,9 @@ func (r *Runner) CreateEnterprise(ctx context.Context, param params.CreateEnterp
 
 	defer func() {
 		if err != nil {
-			r.store.DeleteEnterprise(ctx, enterprise.ID)
+			if deleteErr := r.store.DeleteEnterprise(ctx, enterprise.ID); deleteErr != nil {
+				log.Printf("failed to delete enterprise: %s", deleteErr)
+			}
 		}
 	}()
 

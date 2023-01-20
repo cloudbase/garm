@@ -225,10 +225,10 @@ func init() {
 	repoPoolAddCmd.Flags().UintVar(&poolMaxRunners, "max-runners", 5, "The maximum number of runner this pool will create.")
 	repoPoolAddCmd.Flags().UintVar(&poolMinIdleRunners, "min-idle-runners", 1, "Attempt to maintain a minimum of idle self-hosted runners of this type.")
 	repoPoolAddCmd.Flags().BoolVar(&poolEnabled, "enabled", false, "Enable this pool.")
-	repoPoolAddCmd.MarkFlagRequired("provider-name")
-	repoPoolAddCmd.MarkFlagRequired("image")
-	repoPoolAddCmd.MarkFlagRequired("flavor")
-	repoPoolAddCmd.MarkFlagRequired("tags")
+	repoPoolAddCmd.MarkFlagRequired("provider-name") //nolint
+	repoPoolAddCmd.MarkFlagRequired("image")         //nolint
+	repoPoolAddCmd.MarkFlagRequired("flavor")        //nolint
+	repoPoolAddCmd.MarkFlagRequired("tags")          //nolint
 
 	repoPoolUpdateCmd.Flags().StringVar(&poolImage, "image", "", "The provider-specific image name to use for runners in this pool.")
 	repoPoolUpdateCmd.Flags().StringVar(&poolFlavor, "flavor", "", "The flavor to use for this runner.")

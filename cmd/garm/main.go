@@ -86,8 +86,10 @@ func main() {
 	var hub *websocket.Hub
 	if cfg.Default.EnableLogStreamer {
 		hub = websocket.NewHub(ctx)
-		hub.Start()
-		defer hub.Stop()
+		if err := hub.Start(); err != nil {
+			log.Fatal(err)
+		}
+		defer hub.Stop() //nolint
 		writers = append(writers, hub)
 	}
 

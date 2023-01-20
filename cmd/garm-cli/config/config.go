@@ -162,7 +162,7 @@ func (c *Config) SaveConfig() error {
 	}
 	cfgHandle, err := os.Create(cfgFile)
 	if err != nil {
-		errors.Wrap(err, "getting file handle")
+		return errors.Wrap(err, "getting file handle")
 	}
 
 	encoder := toml.NewEncoder(cfgHandle)
