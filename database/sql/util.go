@@ -106,11 +106,13 @@ func (s *sqlDatabase) sqlToCommonEnterprise(enterprise Enterprise) params.Enterp
 
 func (s *sqlDatabase) sqlToCommonPool(pool Pool) params.Pool {
 	ret := params.Pool{
-		ID:                     pool.ID.String(),
-		ProviderName:           pool.ProviderName,
-		MaxRunners:             pool.MaxRunners,
-		MinIdleRunners:         pool.MinIdleRunners,
-		RunnerPrefix:           pool.RunnerPrefix,
+		ID:             pool.ID.String(),
+		ProviderName:   pool.ProviderName,
+		MaxRunners:     pool.MaxRunners,
+		MinIdleRunners: pool.MinIdleRunners,
+		RunnerPrefix: params.RunnerPrefix{
+			Prefix: pool.RunnerPrefix,
+		},
 		Image:                  pool.Image,
 		Flavor:                 pool.Flavor,
 		OSArch:                 pool.OSArch,

@@ -395,15 +395,11 @@ func (r *basePoolManager) AddRunner(ctx context.Context, poolID string) error {
 		return errors.Wrap(err, "fetching pool")
 	}
 
-	prefix := pool.RunnerPrefix
-	if prefix == "" {
-		prefix = params.DefaultRunnerPrefix
-	}
 	suffix, err := shortid.Generate()
 	if err != nil {
 		suffix = uuid.New().String()
 	}
-	name := fmt.Sprintf("%s-%s", prefix, suffix)
+	name := fmt.Sprintf("%s-%s", pool.GetRunnerPrefix(), suffix)
 
 	createParams := params.CreateInstanceParams{
 		Name:          name,

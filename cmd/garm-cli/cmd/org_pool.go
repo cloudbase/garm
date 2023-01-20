@@ -61,9 +61,11 @@ var orgPoolAddCmd = &cobra.Command{
 
 		tags := strings.Split(poolTags, ",")
 		newPoolParams := params.CreatePoolParams{
-			ProviderName:   poolProvider,
-			MaxRunners:     poolMaxRunners,
-			RunnerPrefix:   poolRunnerPrefix,
+			ProviderName: poolProvider,
+			MaxRunners:   poolMaxRunners,
+			RunnerPrefix: params.RunnerPrefix{
+				Prefix: poolRunnerPrefix,
+			},
 			MinIdleRunners: poolMinIdleRunners,
 			Image:          poolImage,
 			Flavor:         poolFlavor,
@@ -198,7 +200,9 @@ explicitly remove them using the runner delete command.
 		}
 
 		if cmd.Flags().Changed("runner-prefix") {
-			poolUpdateParams.RunnerPrefix = poolRunnerPrefix
+			poolUpdateParams.RunnerPrefix = params.RunnerPrefix{
+				Prefix: poolRunnerPrefix,
+			}
 		}
 
 		if cmd.Flags().Changed("max-runners") {
