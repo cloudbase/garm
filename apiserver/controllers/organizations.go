@@ -43,7 +43,9 @@ func (a *APIController) CreateOrgHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(repo)
+	if err := json.NewEncoder(w).Encode(repo); err != nil {
+		log.Printf("failed to encode response: %q", err)
+	}
 }
 
 func (a *APIController) ListOrgsHandler(w http.ResponseWriter, r *http.Request) {
@@ -57,7 +59,9 @@ func (a *APIController) ListOrgsHandler(w http.ResponseWriter, r *http.Request) 
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(orgs)
+	if err := json.NewEncoder(w).Encode(orgs); err != nil {
+		log.Printf("failed to encode response: %q", err)
+	}
 }
 
 func (a *APIController) GetOrgByIDHandler(w http.ResponseWriter, r *http.Request) {
@@ -67,10 +71,12 @@ func (a *APIController) GetOrgByIDHandler(w http.ResponseWriter, r *http.Request
 	orgID, ok := vars["orgID"]
 	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(params.APIErrorResponse{
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
 			Error:   "Bad Request",
 			Details: "No org ID specified",
-		})
+		}); err != nil {
+			log.Printf("failed to encode response: %q", err)
+		}
 		return
 	}
 
@@ -82,7 +88,9 @@ func (a *APIController) GetOrgByIDHandler(w http.ResponseWriter, r *http.Request
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(org)
+	if err := json.NewEncoder(w).Encode(org); err != nil {
+		log.Printf("failed to encode response: %q", err)
+	}
 }
 
 func (a *APIController) DeleteOrgHandler(w http.ResponseWriter, r *http.Request) {
@@ -92,10 +100,12 @@ func (a *APIController) DeleteOrgHandler(w http.ResponseWriter, r *http.Request)
 	orgID, ok := vars["orgID"]
 	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(params.APIErrorResponse{
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
 			Error:   "Bad Request",
 			Details: "No org ID specified",
-		})
+		}); err != nil {
+			log.Printf("failed to encode response: %q", err)
+		}
 		return
 	}
 
@@ -117,10 +127,12 @@ func (a *APIController) UpdateOrgHandler(w http.ResponseWriter, r *http.Request)
 	orgID, ok := vars["orgID"]
 	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(params.APIErrorResponse{
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
 			Error:   "Bad Request",
 			Details: "No org ID specified",
-		})
+		}); err != nil {
+			log.Printf("failed to encode response: %q", err)
+		}
 		return
 	}
 
@@ -138,7 +150,9 @@ func (a *APIController) UpdateOrgHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(org)
+	if err := json.NewEncoder(w).Encode(org); err != nil {
+		log.Printf("failed to encode response: %q", err)
+	}
 }
 
 func (a *APIController) CreateOrgPoolHandler(w http.ResponseWriter, r *http.Request) {
@@ -148,10 +162,12 @@ func (a *APIController) CreateOrgPoolHandler(w http.ResponseWriter, r *http.Requ
 	orgID, ok := vars["orgID"]
 	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(params.APIErrorResponse{
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
 			Error:   "Bad Request",
 			Details: "No org ID specified",
-		})
+		}); err != nil {
+			log.Printf("failed to encode response: %q", err)
+		}
 		return
 	}
 
@@ -170,7 +186,9 @@ func (a *APIController) CreateOrgPoolHandler(w http.ResponseWriter, r *http.Requ
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(pool)
+	if err := json.NewEncoder(w).Encode(pool); err != nil {
+		log.Printf("failed to encode response: %q", err)
+	}
 }
 
 func (a *APIController) ListOrgPoolsHandler(w http.ResponseWriter, r *http.Request) {
@@ -179,10 +197,12 @@ func (a *APIController) ListOrgPoolsHandler(w http.ResponseWriter, r *http.Reque
 	orgID, ok := vars["orgID"]
 	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(params.APIErrorResponse{
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
 			Error:   "Bad Request",
 			Details: "No org ID specified",
-		})
+		}); err != nil {
+			log.Printf("failed to encode response: %q", err)
+		}
 		return
 	}
 
@@ -194,7 +214,9 @@ func (a *APIController) ListOrgPoolsHandler(w http.ResponseWriter, r *http.Reque
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(pools)
+	if err := json.NewEncoder(w).Encode(pools); err != nil {
+		log.Printf("failed to encode response: %q", err)
+	}
 }
 
 func (a *APIController) GetOrgPoolHandler(w http.ResponseWriter, r *http.Request) {
@@ -204,10 +226,12 @@ func (a *APIController) GetOrgPoolHandler(w http.ResponseWriter, r *http.Request
 	poolID, poolOk := vars["poolID"]
 	if !repoOk || !poolOk {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(params.APIErrorResponse{
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
 			Error:   "Bad Request",
 			Details: "No org or pool ID specified",
-		})
+		}); err != nil {
+			log.Printf("failed to encode response: %q", err)
+		}
 		return
 	}
 
@@ -219,7 +243,9 @@ func (a *APIController) GetOrgPoolHandler(w http.ResponseWriter, r *http.Request
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(pool)
+	if err := json.NewEncoder(w).Encode(pool); err != nil {
+		log.Printf("failed to encode response: %q", err)
+	}
 }
 
 func (a *APIController) DeleteOrgPoolHandler(w http.ResponseWriter, r *http.Request) {
@@ -230,10 +256,12 @@ func (a *APIController) DeleteOrgPoolHandler(w http.ResponseWriter, r *http.Requ
 	poolID, poolOk := vars["poolID"]
 	if !orgOk || !poolOk {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(params.APIErrorResponse{
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
 			Error:   "Bad Request",
 			Details: "No org or pool ID specified",
-		})
+		}); err != nil {
+			log.Printf("failed to encode response: %q", err)
+		}
 		return
 	}
 
@@ -256,10 +284,12 @@ func (a *APIController) UpdateOrgPoolHandler(w http.ResponseWriter, r *http.Requ
 	poolID, poolOk := vars["poolID"]
 	if !orgOk || !poolOk {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(params.APIErrorResponse{
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
 			Error:   "Bad Request",
 			Details: "No org or pool ID specified",
-		})
+		}); err != nil {
+			log.Printf("failed to encode response: %q", err)
+		}
 		return
 	}
 
@@ -278,5 +308,7 @@ func (a *APIController) UpdateOrgPoolHandler(w http.ResponseWriter, r *http.Requ
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(pool)
+	if err := json.NewEncoder(w).Encode(pool); err != nil {
+		log.Printf("failed to encode response: %q", err)
+	}
 }

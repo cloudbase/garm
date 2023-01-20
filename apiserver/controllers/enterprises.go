@@ -43,7 +43,9 @@ func (a *APIController) CreateEnterpriseHandler(w http.ResponseWriter, r *http.R
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(enterprise)
+	if err := json.NewEncoder(w).Encode(enterprise); err != nil {
+		log.Printf("failed to encode response: %q", err)
+	}
 }
 
 func (a *APIController) ListEnterprisesHandler(w http.ResponseWriter, r *http.Request) {
@@ -57,7 +59,9 @@ func (a *APIController) ListEnterprisesHandler(w http.ResponseWriter, r *http.Re
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(enterprise)
+	if err := json.NewEncoder(w).Encode(enterprise); err != nil {
+		log.Printf("failed to encode response: %q", err)
+	}
 }
 
 func (a *APIController) GetEnterpriseByIDHandler(w http.ResponseWriter, r *http.Request) {
@@ -67,10 +71,12 @@ func (a *APIController) GetEnterpriseByIDHandler(w http.ResponseWriter, r *http.
 	enterpriseID, ok := vars["enterpriseID"]
 	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(params.APIErrorResponse{
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
 			Error:   "Bad Request",
 			Details: "No enterprise ID specified",
-		})
+		}); err != nil {
+			log.Printf("failed to encode response: %q", err)
+		}
 		return
 	}
 
@@ -82,7 +88,9 @@ func (a *APIController) GetEnterpriseByIDHandler(w http.ResponseWriter, r *http.
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(enterprise)
+	if err := json.NewEncoder(w).Encode(enterprise); err != nil {
+		log.Printf("failed to encode response: %q", err)
+	}
 }
 
 func (a *APIController) DeleteEnterpriseHandler(w http.ResponseWriter, r *http.Request) {
@@ -92,10 +100,12 @@ func (a *APIController) DeleteEnterpriseHandler(w http.ResponseWriter, r *http.R
 	enterpriseID, ok := vars["enterpriseID"]
 	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(params.APIErrorResponse{
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
 			Error:   "Bad Request",
 			Details: "No enterprise ID specified",
-		})
+		}); err != nil {
+			log.Printf("failed to encode response: %q", err)
+		}
 		return
 	}
 
@@ -117,10 +127,12 @@ func (a *APIController) UpdateEnterpriseHandler(w http.ResponseWriter, r *http.R
 	enterpriseID, ok := vars["enterpriseID"]
 	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(params.APIErrorResponse{
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
 			Error:   "Bad Request",
 			Details: "No enterprise ID specified",
-		})
+		}); err != nil {
+			log.Printf("failed to encode response: %q", err)
+		}
 		return
 	}
 
@@ -138,7 +150,9 @@ func (a *APIController) UpdateEnterpriseHandler(w http.ResponseWriter, r *http.R
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(enterprise)
+	if err := json.NewEncoder(w).Encode(enterprise); err != nil {
+		log.Printf("failed to encode response: %q", err)
+	}
 }
 
 func (a *APIController) CreateEnterprisePoolHandler(w http.ResponseWriter, r *http.Request) {
@@ -148,10 +162,12 @@ func (a *APIController) CreateEnterprisePoolHandler(w http.ResponseWriter, r *ht
 	enterpriseID, ok := vars["enterpriseID"]
 	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(params.APIErrorResponse{
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
 			Error:   "Bad Request",
 			Details: "No enterprise ID specified",
-		})
+		}); err != nil {
+			log.Printf("failed to encode response: %q", err)
+		}
 		return
 	}
 
@@ -170,7 +186,9 @@ func (a *APIController) CreateEnterprisePoolHandler(w http.ResponseWriter, r *ht
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(pool)
+	if err := json.NewEncoder(w).Encode(pool); err != nil {
+		log.Printf("failed to encode response: %q", err)
+	}
 }
 
 func (a *APIController) ListEnterprisePoolsHandler(w http.ResponseWriter, r *http.Request) {
@@ -179,10 +197,12 @@ func (a *APIController) ListEnterprisePoolsHandler(w http.ResponseWriter, r *htt
 	enterpriseID, ok := vars["enterpriseID"]
 	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(params.APIErrorResponse{
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
 			Error:   "Bad Request",
 			Details: "No enterprise ID specified",
-		})
+		}); err != nil {
+			log.Printf("failed to encode response: %q", err)
+		}
 		return
 	}
 
@@ -194,7 +214,10 @@ func (a *APIController) ListEnterprisePoolsHandler(w http.ResponseWriter, r *htt
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(pools)
+	if err := json.NewEncoder(w).Encode(pools); err != nil {
+		log.Printf("failed to encode response: %q", err)
+	}
+
 }
 
 func (a *APIController) GetEnterprisePoolHandler(w http.ResponseWriter, r *http.Request) {
@@ -204,10 +227,12 @@ func (a *APIController) GetEnterprisePoolHandler(w http.ResponseWriter, r *http.
 	poolID, poolOk := vars["poolID"]
 	if !enterpriseOk || !poolOk {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(params.APIErrorResponse{
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
 			Error:   "Bad Request",
 			Details: "No enterprise or pool ID specified",
-		})
+		}); err != nil {
+			log.Printf("failed to encode response: %q", err)
+		}
 		return
 	}
 
@@ -219,7 +244,9 @@ func (a *APIController) GetEnterprisePoolHandler(w http.ResponseWriter, r *http.
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(pool)
+	if err := json.NewEncoder(w).Encode(pool); err != nil {
+		log.Printf("failed to encode response: %q", err)
+	}
 }
 
 func (a *APIController) DeleteEnterprisePoolHandler(w http.ResponseWriter, r *http.Request) {
@@ -230,10 +257,12 @@ func (a *APIController) DeleteEnterprisePoolHandler(w http.ResponseWriter, r *ht
 	poolID, poolOk := vars["poolID"]
 	if !enterpriseOk || !poolOk {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(params.APIErrorResponse{
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
 			Error:   "Bad Request",
 			Details: "No enterprise or pool ID specified",
-		})
+		}); err != nil {
+			log.Printf("failed to encode response: %q", err)
+		}
 		return
 	}
 
@@ -256,10 +285,12 @@ func (a *APIController) UpdateEnterprisePoolHandler(w http.ResponseWriter, r *ht
 	poolID, poolOk := vars["poolID"]
 	if !enterpriseOk || !poolOk {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(params.APIErrorResponse{
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
 			Error:   "Bad Request",
 			Details: "No enterprise or pool ID specified",
-		})
+		}); err != nil {
+			log.Printf("failed to encode response: %q", err)
+		}
 		return
 	}
 
@@ -278,5 +309,7 @@ func (a *APIController) UpdateEnterprisePoolHandler(w http.ResponseWriter, r *ht
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(pool)
+	if err := json.NewEncoder(w).Encode(pool); err != nil {
+		log.Printf("failed to encode response: %q", err)
+	}
 }

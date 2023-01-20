@@ -16,7 +16,7 @@ package controllers
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 
@@ -79,29 +79,14 @@ func handleError(w http.ResponseWriter, err error) {
 		apiErr.Details = ""
 	}
 
-	json.NewEncoder(w).Encode(apiErr)
-}
-
-func (a *APIController) authenticateHook(body []byte, headers http.Header) error {
-	// signature := headers.Get("X-Hub-Signature-256")
-	hookType := headers.Get("X-Github-Hook-Installation-Target-Type")
-	var workflowJob runnerParams.WorkflowJob
-	if err := json.Unmarshal(body, &workflowJob); err != nil {
-		return gErrors.NewBadRequestError("invalid post body: %s", err)
+	if err := json.NewEncoder(w).Encode(apiErr); err != nil {
+		log.Printf("failed to encode response: %q", err)
 	}
-
-	switch hookType {
-	case "repository":
-	case "organization":
-	default:
-		return gErrors.NewBadRequestError("invalid hook type: %s", hookType)
-	}
-	return nil
 }
 
 func (a *APIController) handleWorkflowJobEvent(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
-	body, err := ioutil.ReadAll(r.Body)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		handleError(w, gErrors.NewBadRequestError("invalid post body: %s", err))
 		return
@@ -137,7 +122,9 @@ func (a *APIController) WSHandler(writer http.ResponseWriter, req *http.Request)
 	ctx := req.Context()
 	if !auth.IsAdmin(ctx) {
 		writer.WriteHeader(http.StatusForbidden)
-		writer.Write([]byte("you need admin level access to view logs"))
+		if _, err := writer.Write([]byte("you need admin level access to view logs")); err != nil {
+			log.Printf("failed to encode response: %q", err)
+		}
 		return
 	}
 
@@ -177,7 +164,9 @@ func (a *APIController) NotFoundHandler(w http.ResponseWriter, r *http.Request) 
 	}
 	w.WriteHeader(http.StatusNotFound)
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(apiErr)
+	if err := json.NewEncoder(w).Encode(apiErr); err != nil {
+		log.Printf("failet to write response: %q", err)
+	}
 }
 
 // LoginHandler returns a jwt token
@@ -206,7 +195,9 @@ func (a *APIController) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(runnerParams.JWTResponse{Token: tokenString})
+	if err := json.NewEncoder(w).Encode(runnerParams.JWTResponse{Token: tokenString}); err != nil {
+		log.Printf("failed to encode response: %q", err)
+	}
 }
 
 func (a *APIController) FirstRunHandler(w http.ResponseWriter, r *http.Request) {
@@ -230,7 +221,9 @@ func (a *APIController) FirstRunHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(newUser)
+	if err := json.NewEncoder(w).Encode(newUser); err != nil {
+		log.Printf("failed to encode response: %q", err)
+	}
 }
 
 func (a *APIController) ListCredentials(w http.ResponseWriter, r *http.Request) {
@@ -242,7 +235,9 @@ func (a *APIController) ListCredentials(w http.ResponseWriter, r *http.Request) 
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(creds)
+	if err := json.NewEncoder(w).Encode(creds); err != nil {
+		log.Printf("failed to encode response: %q", err)
+	}
 }
 
 func (a *APIController) ListProviders(w http.ResponseWriter, r *http.Request) {
@@ -254,5 +249,7 @@ func (a *APIController) ListProviders(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(providers)
+	if err := json.NewEncoder(w).Encode(providers); err != nil {
+		log.Printf("failed to encode response: %q", err)
+	}
 }

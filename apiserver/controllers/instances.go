@@ -32,10 +32,12 @@ func (a *APIController) ListPoolInstancesHandler(w http.ResponseWriter, r *http.
 	poolID, ok := vars["poolID"]
 	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(params.APIErrorResponse{
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
 			Error:   "Bad Request",
 			Details: "No pool ID specified",
-		})
+		}); err != nil {
+			log.Printf("failed to encode response: %q", err)
+		}
 		return
 	}
 
@@ -47,7 +49,9 @@ func (a *APIController) ListPoolInstancesHandler(w http.ResponseWriter, r *http.
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(instances)
+	if err := json.NewEncoder(w).Encode(instances); err != nil {
+		log.Printf("failed to encode response: %q", err)
+	}
 }
 
 func (a *APIController) GetInstanceHandler(w http.ResponseWriter, r *http.Request) {
@@ -56,10 +60,12 @@ func (a *APIController) GetInstanceHandler(w http.ResponseWriter, r *http.Reques
 	instanceName, ok := vars["instanceName"]
 	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(params.APIErrorResponse{
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
 			Error:   "Bad Request",
 			Details: "No runner name specified",
-		})
+		}); err != nil {
+			log.Printf("failed to encode response: %q", err)
+		}
 		return
 	}
 
@@ -71,7 +77,9 @@ func (a *APIController) GetInstanceHandler(w http.ResponseWriter, r *http.Reques
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(instance)
+	if err := json.NewEncoder(w).Encode(instance); err != nil {
+		log.Printf("failed to encode response: %q", err)
+	}
 }
 
 func (a *APIController) DeleteInstanceHandler(w http.ResponseWriter, r *http.Request) {
@@ -80,10 +88,12 @@ func (a *APIController) DeleteInstanceHandler(w http.ResponseWriter, r *http.Req
 	instanceName, ok := vars["instanceName"]
 	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(params.APIErrorResponse{
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
 			Error:   "Bad Request",
 			Details: "No instance name specified",
-		})
+		}); err != nil {
+			log.Printf("failed to encode response: %q", err)
+		}
 		return
 	}
 
@@ -103,10 +113,12 @@ func (a *APIController) ListRepoInstancesHandler(w http.ResponseWriter, r *http.
 	repoID, ok := vars["repoID"]
 	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(params.APIErrorResponse{
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
 			Error:   "Bad Request",
 			Details: "No repo ID specified",
-		})
+		}); err != nil {
+			log.Printf("failed to encode response: %q", err)
+		}
 		return
 	}
 
@@ -118,7 +130,9 @@ func (a *APIController) ListRepoInstancesHandler(w http.ResponseWriter, r *http.
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(instances)
+	if err := json.NewEncoder(w).Encode(instances); err != nil {
+		log.Printf("failed to encode response: %q", err)
+	}
 }
 
 func (a *APIController) ListOrgInstancesHandler(w http.ResponseWriter, r *http.Request) {
@@ -127,10 +141,12 @@ func (a *APIController) ListOrgInstancesHandler(w http.ResponseWriter, r *http.R
 	orgID, ok := vars["orgID"]
 	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(params.APIErrorResponse{
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
 			Error:   "Bad Request",
 			Details: "No org ID specified",
-		})
+		}); err != nil {
+			log.Printf("failed to encode response: %q", err)
+		}
 		return
 	}
 
@@ -142,7 +158,9 @@ func (a *APIController) ListOrgInstancesHandler(w http.ResponseWriter, r *http.R
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(instances)
+	if err := json.NewEncoder(w).Encode(instances); err != nil {
+		log.Printf("failed to encode response: %q", err)
+	}
 }
 
 func (a *APIController) ListEnterpriseInstancesHandler(w http.ResponseWriter, r *http.Request) {
@@ -151,10 +169,12 @@ func (a *APIController) ListEnterpriseInstancesHandler(w http.ResponseWriter, r 
 	enterpriseID, ok := vars["enterpriseID"]
 	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(params.APIErrorResponse{
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
 			Error:   "Bad Request",
 			Details: "No enterprise ID specified",
-		})
+		}); err != nil {
+			log.Printf("failed to encode response: %q", err)
+		}
 		return
 	}
 
@@ -166,7 +186,9 @@ func (a *APIController) ListEnterpriseInstancesHandler(w http.ResponseWriter, r 
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(instances)
+	if err := json.NewEncoder(w).Encode(instances); err != nil {
+		log.Printf("failed to encode response: %q", err)
+	}
 }
 
 func (a *APIController) ListAllInstancesHandler(w http.ResponseWriter, r *http.Request) {
@@ -180,7 +202,9 @@ func (a *APIController) ListAllInstancesHandler(w http.ResponseWriter, r *http.R
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(instances)
+	if err := json.NewEncoder(w).Encode(instances); err != nil {
+		log.Printf("failed to encode response: %q", err)
+	}
 }
 
 func (a *APIController) InstanceStatusMessageHandler(w http.ResponseWriter, r *http.Request) {
@@ -214,5 +238,7 @@ func (a *APIController) InstanceGithubRegistrationTokenHandler(w http.ResponseWr
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(token))
+	if _, err := w.Write([]byte(token)); err != nil {
+		log.Printf("failed to encode response: %q", err)
+	}
 }

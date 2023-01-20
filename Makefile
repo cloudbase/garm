@@ -4,6 +4,9 @@ IMAGE_TAG = garm-build
 
 USER_ID=$(shell ((docker --version | grep -q podman) && echo "0" || id -u))
 USER_GROUP=$(shell ((docker --version | grep -q podman) && echo "0" || id -g))
+ROOTDIR=$(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+GO ?= go
+
 
 default: build-static
 
@@ -17,3 +20,11 @@ build-static:
 .PHONY: test
 test:
 	go test -race -mod=vendor -tags testing -v $(TEST_ARGS) -timeout=15m -parallel=4 -count=1 ./...
+
+verify-vendor: ## verify if all the go.mod/go.sum files are up-to-date
+	$(eval TMPDIR := $(shell mktemp -d))
+	@cp -R ${ROOTDIR} ${TMPDIR}
+	@(cd ${TMPDIR}/garm && ${GO} mod tidy)
+	@diff -r -u -q ${ROOTDIR} ${TMPDIR}/garm
+	@rm -rf ${TMPDIR}
+
