@@ -21,6 +21,9 @@ build-static:
 test:
 	go test -race -mod=vendor -tags testing -v $(TEST_ARGS) -timeout=15m -parallel=4 -count=1 ./...
 
+fmtcheck:
+	@gofmt -l -s $$(go list ./... | sed 's|garm/||g') | grep ".*\.go"; if [ "$$?" -eq 0 ]; then echo "gofmt check failed; please tun gofmt -w -s"; exit 1;fi
+
 verify-vendor: ## verify if all the go.mod/go.sum files are up-to-date
 	$(eval TMPDIR := $(shell mktemp -d))
 	@cp -R ${ROOTDIR} ${TMPDIR}
@@ -28,3 +31,4 @@ verify-vendor: ## verify if all the go.mod/go.sum files are up-to-date
 	@diff -r -u -q ${ROOTDIR} ${TMPDIR}/garm
 	@rm -rf ${TMPDIR}
 
+verify: verify-vendor fmtcheck
