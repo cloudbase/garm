@@ -4,16 +4,14 @@ The ```github``` config section holds credentials and API endpoint information f
 
 Tying the API endpoint info to the credentials allows us to use the same ```garm``` installation with both [github.com](https://github.com) and private deployments. All you have to do is to add the needed endpoint info (see bellow).
 
-
 Garm uses a [Personal Access Token (PAT)](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token) to create runner registration tokens, list current self hosted runners and potentially remove them if they become orphaned (the VM was manually removed on the provider).
-
 
 From the list of scopes, you will need to select:
 
-  * ```public_repo``` - for access to a repository
-  * ```repo``` - for access to a private repository
-  * ```admin:org``` - if you plan on using this with an organization to which you have access
-  * ```manage_runners:enterprise``` - if you plan to use garm at the enterprise level
+* ```public_repo``` - for access to a repository
+* ```repo``` - for access to a private repository
+* ```admin:org``` - if you plan on using this with an organization to which you have access
+* ```manage_runners:enterprise``` - if you plan to use garm at the enterprise level
 
 The resulting token must be configured in the ```[[github]]``` section of the config. Sample as follows:
 
@@ -44,10 +42,10 @@ The resulting token must be configured in the ```[[github]]``` section of the co
   # ca_cert_bundle (optional) is the CA certificate bundle in PEM format that will be used by the github
   # client to talk to the API. This bundle will also be sent to all runners as bootstrap params.
   # Use this option if you're using a self signed certificate.
-  # Leave this blank if you're using github.com or if your certificare is signed by a valid CA.
+  # Leave this blank if you're using github.com or if your certificate is signed by a valid CA.
   ca_cert_bundle = "/etc/garm/ghe.crt"
 ```
 
-The double paranthesis means that this is an array. You can specify the ```[[github]]``` section multiple times, with different tokens from different users, or with different access levels. You will then be able to list the available credentials using the API, and reference these credentials when adding repositories or organizations.
+The double parenthesis means that this is an array. You can specify the ```[[github]]``` section multiple times, with different tokens from different users, or with different access levels. You will then be able to list the available credentials using the API, and reference these credentials when adding repositories or organizations.
 
 The API will only ever return the name and description to the API consumer.
