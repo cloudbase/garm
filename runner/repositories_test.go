@@ -17,6 +17,8 @@ package runner
 import (
 	"context"
 	"fmt"
+	"testing"
+
 	"garm/auth"
 	"garm/config"
 	"garm/database"
@@ -27,7 +29,6 @@ import (
 	"garm/runner/common"
 	runnerCommonMocks "garm/runner/common/mocks"
 	runnerMocks "garm/runner/mocks"
-	"testing"
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
@@ -106,6 +107,7 @@ func (s *RepoTestSuite) SetupTest() {
 			Owner:           "test-owner-create",
 			Name:            "test-repo-create",
 			CredentialsName: "test-creds",
+			WebhookSecret:   "test-create-repo-webhook-secret",
 		},
 		CreatePoolParams: params.CreatePoolParams{
 			ProviderName:           "test-provider",
@@ -404,6 +406,7 @@ func (s *RepoTestSuite) TestGetRepoPoolByIDErrUnauthorized() {
 
 	s.Require().Equal(runnerErrors.ErrUnauthorized, err)
 }
+
 func (s *RepoTestSuite) TestDeleteRepoPool() {
 	pool, err := s.Fixtures.Store.CreateRepositoryPool(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID, s.Fixtures.CreatePoolParams)
 	if err != nil {

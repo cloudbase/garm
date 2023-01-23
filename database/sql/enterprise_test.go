@@ -354,7 +354,7 @@ func (s *EnterpriseTestSuite) TestUpdateEnterpriseDBSaveErr() {
 
 func (s *EnterpriseTestSuite) TestUpdateEnterpriseDBDecryptingErr() {
 	s.StoreSQLMocked.cfg.Passphrase = "wrong-passphrase"
-	s.Fixtures.UpdateRepoParams.WebhookSecret = "some-webhook-secret"
+	s.Fixtures.UpdateRepoParams.WebhookSecret = "webhook-secret"
 
 	s.Fixtures.SQLMock.
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `enterprises` WHERE id = ? AND `enterprises`.`deleted_at` IS NULL ORDER BY `enterprises`.`id` LIMIT 1")).

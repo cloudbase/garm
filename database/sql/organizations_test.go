@@ -354,7 +354,7 @@ func (s *OrgTestSuite) TestUpdateOrganizationDBSaveErr() {
 
 func (s *OrgTestSuite) TestUpdateOrganizationDBDecryptingErr() {
 	s.StoreSQLMocked.cfg.Passphrase = "wrong-passphrase"
-	s.Fixtures.UpdateRepoParams.WebhookSecret = "some-webhook-secret"
+	s.Fixtures.UpdateRepoParams.WebhookSecret = "webhook-secret"
 
 	s.Fixtures.SQLMock.
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT 1")).
