@@ -11,6 +11,7 @@ import (
 	"time"
 
 	apiParams "garm/apiserver/params"
+	"garm/util"
 
 	"github.com/gorilla/websocket"
 	"github.com/spf13/cobra"
@@ -61,7 +62,7 @@ var logCmd = &cobra.Command{
 					log.Printf("read: %q", err)
 					return
 				}
-				log.Print(string(message))
+				log.Print(util.SanitizeLogEntry(string(message)))
 			}
 		}()
 

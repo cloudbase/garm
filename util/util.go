@@ -327,3 +327,7 @@ func NewLoggingMiddleware(writer io.Writer) func(http.Handler) http.Handler {
 		return gorillaHandlers.CombinedLoggingHandler(writer, next)
 	}
 }
+
+func SanitizeLogEntry(entry string) string {
+	return strings.Replace(strings.Replace(entry, "\n", "", -1), "\r", "", -1)
+}

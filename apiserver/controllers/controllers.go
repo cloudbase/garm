@@ -25,6 +25,7 @@ import (
 	gErrors "garm/errors"
 	runnerParams "garm/params"
 	"garm/runner"
+	"garm/util"
 	wsWriter "garm/websocket"
 
 	"github.com/gorilla/websocket"
@@ -113,7 +114,7 @@ func (a *APIController) CatchAll(w http.ResponseWriter, r *http.Request) {
 	case runnerParams.WorkflowJobEvent:
 		a.handleWorkflowJobEvent(w, r)
 	default:
-		log.Printf("ignoring unknown event %s", event)
+		log.Printf("ignoring unknown event %s", util.SanitizeLogEntry(string(event)))
 		return
 	}
 }

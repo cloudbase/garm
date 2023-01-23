@@ -599,10 +599,10 @@ func (r *Runner) DispatchWorkflowJob(hookTargetType, signature string, jobData [
 
 	switch HookTargetType(hookTargetType) {
 	case RepoHook:
-		log.Printf("got hook for repo %s/%s", job.Repository.Owner.Login, job.Repository.Name)
+		log.Printf("got hook for repo %s/%s", util.SanitizeLogEntry(job.Repository.Owner.Login), util.SanitizeLogEntry(job.Repository.Name))
 		poolManager, err = r.findRepoPoolManager(job.Repository.Owner.Login, job.Repository.Name)
 	case OrganizationHook:
-		log.Printf("got hook for org %s", job.Organization.Login)
+		log.Printf("got hook for org %s", util.SanitizeLogEntry(job.Organization.Login))
 		poolManager, err = r.findOrgPoolManager(job.Organization.Login)
 	case EnterpriseHook:
 		poolManager, err = r.findEnterprisePoolManager(job.Enterprise.Slug)
