@@ -30,6 +30,7 @@ import (
 	"garm/params"
 	"garm/runner/common"
 	providerCommon "garm/runner/providers/common"
+	"garm/util"
 
 	"github.com/google/go-github/v48/github"
 	"github.com/google/uuid"
@@ -365,7 +366,7 @@ func (r *basePoolManager) acquireNewInstance(job params.WorkflowJob) error {
 		}
 		return errors.Wrap(err, "fetching suitable pool")
 	}
-	log.Printf("adding new runner with requested tags %s in pool %s", strings.Join(job.WorkflowJob.Labels, ", "), pool.ID)
+	log.Printf("adding new runner with requested tags %s in pool %s", util.SanitizeLogEntry(strings.Join(job.WorkflowJob.Labels, ", ")), util.SanitizeLogEntry(pool.ID))
 
 	if !pool.Enabled {
 		log.Printf("selected pool (%s) is disabled", pool.ID)
@@ -658,7 +659,7 @@ func (r *basePoolManager) getRunnerDetailsFromJob(job params.WorkflowJob) (param
 
 	runnerDetails, err := r.store.GetInstanceByName(context.Background(), runnerInfo.Name)
 	if err != nil {
-		log.Printf("could not find runner details for %s", runnerInfo.Name)
+		log.Printf("could not find runner details for %s", util.SanitizeLogEntry(runnerInfo.Name))
 		return params.RunnerInfo{}, errors.Wrap(err, "fetching runner details")
 	}
 
@@ -701,15 +702,15 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 			if errors.Is(err, runnerErrors.ErrNotFound) {
 				return nil
 			}
-			log.Printf("failed to update runner %s status", runnerInfo.Name)
+			log.Printf("failed to update runner %s status", util.SanitizeLogEntry(runnerInfo.Name))
 			return errors.Wrap(err, "updating runner")
 		}
-		log.Printf("marking instance %s as pending_delete", runnerInfo.Name)
+		log.Printf("marking instance %s as pending_delete", util.SanitizeLogEntry(runnerInfo.Name))
 		if err := r.setInstanceStatus(runnerInfo.Name, providerCommon.InstancePendingDelete, nil); err != nil {
 			if errors.Is(err, runnerErrors.ErrNotFound) {
 				return nil
 			}
-			log.Printf("failed to update runner %s status", runnerInfo.Name)
+			log.Printf("failed to update runner %s status", util.SanitizeLogEntry(runnerInfo.Name))
 			return errors.Wrap(err, "updating runner")
 		}
 	case "in_progress":
@@ -733,7 +734,7 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 			if errors.Is(err, runnerErrors.ErrNotFound) {
 				return nil
 			}
-			log.Printf("failed to update runner %s status", runnerInfo.Name)
+			log.Printf("failed to update runner %s status", util.SanitizeLogEntry(runnerInfo.Name))
 			return errors.Wrap(err, "updating runner")
 		}
 	}
