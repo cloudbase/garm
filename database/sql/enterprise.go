@@ -13,13 +13,12 @@ import (
 )
 
 func (s *sqlDatabase) CreateEnterprise(ctx context.Context, name, credentialsName, webhookSecret string) (params.Enterprise, error) {
-	secret := []byte{}
-	var err error
-	if webhookSecret != "" {
-		secret, err = util.Aes256EncodeString(webhookSecret, s.cfg.Passphrase)
-		if err != nil {
-			return params.Enterprise{}, errors.Wrap(err, "encoding secret")
-		}
+	if webhookSecret == "" {
+		return params.Enterprise{}, errors.New("creating enterprise: missing secret")
+	}
+	secret, err := util.Aes256EncodeString(webhookSecret, s.cfg.Passphrase)
+	if err != nil {
+		return params.Enterprise{}, errors.Wrap(err, "encoding secret")
 	}
 	newEnterprise := Enterprise{
 		Name:            name,
@@ -32,7 +31,7 @@ func (s *sqlDatabase) CreateEnterprise(ctx context.Context, name, credentialsNam
 		return params.Enterprise{}, errors.Wrap(q.Error, "creating enterprise")
 	}
 
-	param, err := s.sqlToCommonEnterprise(newEnterprise, s.cfg)
+	param, err := s.sqlToCommonEnterprise(newEnterprise)
 	if err != nil {
 		return params.Enterprise{}, errors.Wrap(err, "creating enterprise")
 	}
@@ -46,7 +45,7 @@ func (s *sqlDatabase) GetEnterprise(ctx context.Context, name string) (params.En
 		return params.Enterprise{}, errors.Wrap(err, "fetching enterprise")
 	}
 
-	param, err := s.sqlToCommonEnterprise(enterprise, s.cfg)
+	param, err := s.sqlToCommonEnterprise(enterprise)
 	if err != nil {
 		return params.Enterprise{}, errors.Wrap(err, "fetching enterprise")
 	}
@@ -59,7 +58,7 @@ func (s *sqlDatabase) GetEnterpriseByID(ctx context.Context, enterpriseID string
 		return params.Enterprise{}, errors.Wrap(err, "fetching enterprise")
 	}
 
-	param, err := s.sqlToCommonEnterprise(enterprise, s.cfg)
+	param, err := s.sqlToCommonEnterprise(enterprise)
 	if err != nil {
 		return params.Enterprise{}, errors.Wrap(err, "fetching enterprise")
 	}
@@ -76,7 +75,7 @@ func (s *sqlDatabase) ListEnterprises(ctx context.Context) ([]params.Enterprise,
 	ret := make([]params.Enterprise, len(enterprises))
 	for idx, val := range enterprises {
 		var err error
-		ret[idx], err = s.sqlToCommonEnterprise(val, s.cfg)
+		ret[idx], err = s.sqlToCommonEnterprise(val)
 		if err != nil {
 			return nil, errors.Wrap(err, "fetching enterprises")
 		}
@@ -122,7 +121,7 @@ func (s *sqlDatabase) UpdateEnterprise(ctx context.Context, enterpriseID string,
 		return params.Enterprise{}, errors.Wrap(q.Error, "saving enterprise")
 	}
 
-	newParams, err := s.sqlToCommonEnterprise(enterprise, s.cfg)
+	newParams, err := s.sqlToCommonEnterprise(enterprise)
 	if err != nil {
 		return params.Enterprise{}, errors.Wrap(err, "updating enterprise")
 	}

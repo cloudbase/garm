@@ -238,16 +238,16 @@ func (s *EnterpriseTestSuite) TestGetEnterpriseNotFound() {
 }
 
 func (s *EnterpriseTestSuite) TestGetEnterpriseDBDecryptingErr() {
-	// s.Fixtures.SQLMock.
-	//	ExpectQuery(regexp.QuoteMeta("SELECT * FROM `enterprises` WHERE name = ? COLLATE NOCASE AND `enterprises`.`deleted_at` IS NULL ORDER BY `enterprises`.`id` LIMIT 1")).
-	//	WithArgs(s.Fixtures.Enterprises[0].Name).
-	//	WillReturnRows(sqlmock.NewRows([]string{"name"}).AddRow(s.Fixtures.Enterprises[0].Name))
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `enterprises` WHERE name = ? COLLATE NOCASE AND `enterprises`.`deleted_at` IS NULL ORDER BY `enterprises`.`id` LIMIT 1")).
+		WithArgs(s.Fixtures.Enterprises[0].Name).
+		WillReturnRows(sqlmock.NewRows([]string{"name"}).AddRow(s.Fixtures.Enterprises[0].Name))
 
-	//_, err := s.StoreSQLMocked.GetEnterprise(context.Background(), s.Fixtures.Enterprises[0].Name)
+	_, err := s.StoreSQLMocked.GetEnterprise(context.Background(), s.Fixtures.Enterprises[0].Name)
 
-	// s.assertSQLMockExpectations()
-	// s.Require().NotNil(err)
-	// s.Require().Equal("decrypting secret: failed to decrypt text", err.Error())
+	s.assertSQLMockExpectations()
+	s.Require().NotNil(err)
+	s.Require().Equal("fetching enterprise: missing secret", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestListEnterprises() {
@@ -353,24 +353,19 @@ func (s *EnterpriseTestSuite) TestUpdateEnterpriseDBSaveErr() {
 }
 
 func (s *EnterpriseTestSuite) TestUpdateEnterpriseDBDecryptingErr() {
-	// s.StoreSQLMocked.cfg.Passphrase = "wrong-passphrase"
-	// s.Fixtures.UpdateRepoParams.WebhookSecret = ""
+	s.StoreSQLMocked.cfg.Passphrase = "wrong-passphrase"
+	s.Fixtures.UpdateRepoParams.WebhookSecret = "some-webhook-secret"
 
-	// s.Fixtures.SQLMock.
-	// 	ExpectQuery(regexp.QuoteMeta("SELECT * FROM `enterprises` WHERE id = ? AND `enterprises`.`deleted_at` IS NULL ORDER BY `enterprises`.`id` LIMIT 1")).
-	// 	WithArgs(s.Fixtures.Enterprises[0].ID).
-	// 	WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Enterprises[0].ID))
-	// s.Fixtures.SQLMock.ExpectBegin()
-	// s.Fixtures.SQLMock.
-	// 	ExpectExec(("UPDATE `enterprises` SET")).
-	// 	WillReturnResult(sqlmock.NewResult(1, 1))
-	// s.Fixtures.SQLMock.ExpectCommit()
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `enterprises` WHERE id = ? AND `enterprises`.`deleted_at` IS NULL ORDER BY `enterprises`.`id` LIMIT 1")).
+		WithArgs(s.Fixtures.Enterprises[0].ID).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Enterprises[0].ID))
 
-	// _, err := s.StoreSQLMocked.UpdateEnterprise(context.Background(), s.Fixtures.Enterprises[0].ID, s.Fixtures.UpdateRepoParams)
+	_, err := s.StoreSQLMocked.UpdateEnterprise(context.Background(), s.Fixtures.Enterprises[0].ID, s.Fixtures.UpdateRepoParams)
 
-	// s.assertSQLMockExpectations()
-	// s.Require().NotNil(err)
-	// s.Require().Equal("decrypting secret: invalid passphrase length (expected length 32 characters)", err.Error())
+	s.assertSQLMockExpectations()
+	s.Require().NotNil(err)
+	s.Require().Equal("encoding secret: invalid passphrase length (expected length 32 characters)", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestGetEnterpriseByID() {
@@ -388,20 +383,20 @@ func (s *EnterpriseTestSuite) TestGetEnterpriseByIDInvalidEnterpriseID() {
 }
 
 func (s *EnterpriseTestSuite) TestGetEnterpriseByIDDBDecryptingErr() {
-	// s.Fixtures.SQLMock.
-	// 	ExpectQuery(regexp.QuoteMeta("SELECT * FROM `enterprises` WHERE id = ? AND `enterprises`.`deleted_at` IS NULL ORDER BY `enterprises`.`id` LIMIT 1")).
-	// 	WithArgs(s.Fixtures.Enterprises[0].ID).
-	// 	WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Enterprises[0].ID))
-	// s.Fixtures.SQLMock.
-	// 	ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE `pools`.`enterprise_id` = ? AND `pools`.`deleted_at` IS NULL")).
-	// 	WithArgs(s.Fixtures.Enterprises[0].ID).
-	// 	WillReturnRows(sqlmock.NewRows([]string{"enterprise_id"}).AddRow(s.Fixtures.Enterprises[0].ID))
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `enterprises` WHERE id = ? AND `enterprises`.`deleted_at` IS NULL ORDER BY `enterprises`.`id` LIMIT 1")).
+		WithArgs(s.Fixtures.Enterprises[0].ID).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Enterprises[0].ID))
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE `pools`.`enterprise_id` = ? AND `pools`.`deleted_at` IS NULL")).
+		WithArgs(s.Fixtures.Enterprises[0].ID).
+		WillReturnRows(sqlmock.NewRows([]string{"enterprise_id"}).AddRow(s.Fixtures.Enterprises[0].ID))
 
-	// _, err := s.StoreSQLMocked.GetEnterpriseByID(context.Background(), s.Fixtures.Enterprises[0].ID)
+	_, err := s.StoreSQLMocked.GetEnterpriseByID(context.Background(), s.Fixtures.Enterprises[0].ID)
 
-	// s.assertSQLMockExpectations()
-	// s.Require().NotNil(err)
-	// s.Require().Equal("decrypting secret: failed to decrypt text", err.Error())
+	s.assertSQLMockExpectations()
+	s.Require().NotNil(err)
+	s.Require().Equal("fetching enterprise: missing secret", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestCreateEnterprisePool() {

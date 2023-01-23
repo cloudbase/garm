@@ -17,6 +17,7 @@ package sql
 import (
 	"context"
 	"fmt"
+
 	runnerErrors "garm/errors"
 	"garm/params"
 	"garm/util"
@@ -27,13 +28,12 @@ import (
 )
 
 func (s *sqlDatabase) CreateOrganization(ctx context.Context, name, credentialsName, webhookSecret string) (params.Organization, error) {
-	secret := []byte{}
-	var err error
-	if webhookSecret != "" {
-		secret, err = util.Aes256EncodeString(webhookSecret, s.cfg.Passphrase)
-		if err != nil {
-			return params.Organization{}, fmt.Errorf("failed to encrypt string")
-		}
+	if webhookSecret == "" {
+		return params.Organization{}, errors.New("creating org: missing secret")
+	}
+	secret, err := util.Aes256EncodeString(webhookSecret, s.cfg.Passphrase)
+	if err != nil {
+		return params.Organization{}, fmt.Errorf("failed to encrypt string")
 	}
 	newOrg := Organization{
 		Name:            name,
@@ -46,7 +46,10 @@ func (s *sqlDatabase) CreateOrganization(ctx context.Context, name, credentialsN
 		return params.Organization{}, errors.Wrap(q.Error, "creating org")
 	}
 
-	param := s.sqlToCommonOrganization(newOrg)
+	param, err := s.sqlToCommonOrganization(newOrg)
+	if err != nil {
+		return params.Organization{}, errors.Wrap(err, "creating org")
+	}
 	param.WebhookSecret = webhookSecret
 
 	return param, nil
@@ -58,12 +61,10 @@ func (s *sqlDatabase) GetOrganization(ctx context.Context, name string) (params.
 		return params.Organization{}, errors.Wrap(err, "fetching org")
 	}
 
-	param := s.sqlToCommonOrganization(org)
-	secret, err := util.Aes256DecodeString(org.WebhookSecret, s.cfg.Passphrase)
+	param, err := s.sqlToCommonOrganization(org)
 	if err != nil {
-		return params.Organization{}, errors.Wrap(err, "decrypting secret")
+		return params.Organization{}, errors.Wrap(err, "fetching org")
 	}
-	param.WebhookSecret = secret
 
 	return param, nil
 }
@@ -77,7 +78,11 @@ func (s *sqlDatabase) ListOrganizations(ctx context.Context) ([]params.Organizat
 
 	ret := make([]params.Organization, len(orgs))
 	for idx, val := range orgs {
-		ret[idx] = s.sqlToCommonOrganization(val)
+		var err error
+		ret[idx], err = s.sqlToCommonOrganization(val)
+		if err != nil {
+			return nil, errors.Wrap(err, "fetching org")
+		}
 	}
 
 	return ret, nil
@@ -110,7 +115,7 @@ func (s *sqlDatabase) UpdateOrganization(ctx context.Context, orgID string, para
 	if param.WebhookSecret != "" {
 		secret, err := util.Aes256EncodeString(param.WebhookSecret, s.cfg.Passphrase)
 		if err != nil {
-			return params.Organization{}, fmt.Errorf("failed to encrypt string")
+			return params.Organization{}, fmt.Errorf("saving org: failed to encrypt string: %w", err)
 		}
 		org.WebhookSecret = secret
 	}
@@ -120,12 +125,10 @@ func (s *sqlDatabase) UpdateOrganization(ctx context.Context, orgID string, para
 		return params.Organization{}, errors.Wrap(q.Error, "saving org")
 	}
 
-	newParams := s.sqlToCommonOrganization(org)
-	secret, err := util.Aes256DecodeString(org.WebhookSecret, s.cfg.Passphrase)
+	newParams, err := s.sqlToCommonOrganization(org)
 	if err != nil {
-		return params.Organization{}, errors.Wrap(err, "decrypting secret")
+		return params.Organization{}, errors.Wrap(err, "saving org")
 	}
-	newParams.WebhookSecret = secret
 	return newParams, nil
 }
 
@@ -135,13 +138,10 @@ func (s *sqlDatabase) GetOrganizationByID(ctx context.Context, orgID string) (pa
 		return params.Organization{}, errors.Wrap(err, "fetching org")
 	}
 
-	param := s.sqlToCommonOrganization(org)
-	secret, err := util.Aes256DecodeString(org.WebhookSecret, s.cfg.Passphrase)
+	param, err := s.sqlToCommonOrganization(org)
 	if err != nil {
-		return params.Organization{}, errors.Wrap(err, "decrypting secret")
+		return params.Organization{}, errors.Wrap(err, "fetching enterprise")
 	}
-	param.WebhookSecret = secret
-
 	return param, nil
 }
 

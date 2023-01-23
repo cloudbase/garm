@@ -18,12 +18,13 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	dbCommon "garm/database/common"
-	garmTesting "garm/internal/testing"
-	"garm/params"
 	"regexp"
 	"sort"
 	"testing"
+
+	dbCommon "garm/database/common"
+	garmTesting "garm/internal/testing"
+	"garm/params"
 
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
@@ -97,7 +98,7 @@ func (s *RepoTestSuite) SetupTest() {
 			fmt.Sprintf("test-webhook-secret-%d", i),
 		)
 		if err != nil {
-			s.FailNow(fmt.Sprintf("failed to create database object (test-repo-%d)", i))
+			s.FailNow(fmt.Sprintf("failed to create database object (test-repo-%d): %v", i, err))
 		}
 
 		repos = append(repos, repo)
@@ -271,7 +272,7 @@ func (s *RepoTestSuite) TestGetRepositoryDBDecryptingErr() {
 
 	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
-	s.Require().Equal("decrypting secret: failed to decrypt text", err.Error())
+	s.Require().Equal("fetching repo: missing secret", err.Error())
 }
 
 func (s *RepoTestSuite) TestListRepositories() {
@@ -304,7 +305,7 @@ func (s *RepoTestSuite) TestListRepositoriesDBDecryptingErr() {
 
 	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
-	s.Require().Equal("decrypting secret: invalid passphrase length (expected length 32 characters)", err.Error())
+	s.Require().Equal("fetching repositories: decrypting secret: invalid passphrase length (expected length 32 characters)", err.Error())
 }
 
 func (s *RepoTestSuite) TestDeleteRepository() {
@@ -368,7 +369,7 @@ func (s *RepoTestSuite) TestUpdateRepositoryDBEncryptErr() {
 
 	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
-	s.Require().Equal("failed to encrypt string", err.Error())
+	s.Require().Equal("saving repo: failed to encrypt string: invalid passphrase length (expected length 32 characters)", err.Error())
 }
 
 func (s *RepoTestSuite) TestUpdateRepositoryDBSaveErr() {
@@ -391,23 +392,18 @@ func (s *RepoTestSuite) TestUpdateRepositoryDBSaveErr() {
 
 func (s *RepoTestSuite) TestUpdateRepositoryDBDecryptingErr() {
 	s.StoreSQLMocked.cfg.Passphrase = "wrong-passphrase"
-	s.Fixtures.UpdateRepoParams.WebhookSecret = ""
+	s.Fixtures.UpdateRepoParams.WebhookSecret = "some-webhook-secret"
 
 	s.Fixtures.SQLMock.
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `repositories` WHERE id = ? AND `repositories`.`deleted_at` IS NULL ORDER BY `repositories`.`id` LIMIT 1")).
 		WithArgs(s.Fixtures.Repos[0].ID).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Repos[0].ID))
-	s.Fixtures.SQLMock.ExpectBegin()
-	s.Fixtures.SQLMock.
-		ExpectExec(("UPDATE `repositories` SET")).
-		WillReturnResult(sqlmock.NewResult(1, 1))
-	s.Fixtures.SQLMock.ExpectCommit()
 
 	_, err := s.StoreSQLMocked.UpdateRepository(context.Background(), s.Fixtures.Repos[0].ID, s.Fixtures.UpdateRepoParams)
 
 	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
-	s.Require().Equal("decrypting secret: invalid passphrase length (expected length 32 characters)", err.Error())
+	s.Require().Equal("saving repo: failed to encrypt string: invalid passphrase length (expected length 32 characters)", err.Error())
 }
 
 func (s *RepoTestSuite) TestGetRepositoryByID() {
@@ -438,7 +434,7 @@ func (s *RepoTestSuite) TestGetRepositoryByIDDBDecryptingErr() {
 
 	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
-	s.Require().Equal("decrypting secret: failed to decrypt text", err.Error())
+	s.Require().Equal("fetching repo: missing secret", err.Error())
 }
 
 func (s *RepoTestSuite) TestCreateRepositoryPool() {

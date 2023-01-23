@@ -55,6 +55,20 @@ type ProviderError struct {
 	baseError
 }
 
+// NewMissingSecretError returns a new MissingSecretError
+func NewMissingSecretError(msg string, a ...interface{}) error {
+	return &MissingSecretError{
+		baseError{
+			msg: fmt.Sprintf(msg, a...),
+		},
+	}
+}
+
+// MissingSecretError is returned the secret to validate a webhook is missing
+type MissingSecretError struct {
+	baseError
+}
+
 // NewUnauthorizedError returns a new UnauthorizedError
 func NewUnauthorizedError(msg string) error {
 	return &UnauthorizedError{
