@@ -16,6 +16,7 @@ package params
 
 import (
 	"fmt"
+
 	"garm/config"
 	"garm/errors"
 	"garm/runner/providers/common"
@@ -48,6 +49,9 @@ func (c *CreateRepoParams) Validate() error {
 	if c.CredentialsName == "" {
 		return errors.NewBadRequestError("missing credentials name")
 	}
+	if c.WebhookSecret == "" {
+		return errors.NewMissingSecretError("missing secret")
+	}
 	return nil
 }
 
@@ -65,6 +69,9 @@ func (c *CreateOrgParams) Validate() error {
 	if c.CredentialsName == "" {
 		return errors.NewBadRequestError("missing credentials name")
 	}
+	if c.WebhookSecret == "" {
+		return errors.NewMissingSecretError("missing secret")
+	}
 	return nil
 }
 
@@ -78,9 +85,11 @@ func (c *CreateEnterpriseParams) Validate() error {
 	if c.Name == "" {
 		return errors.NewBadRequestError("missing enterprise name")
 	}
-
 	if c.CredentialsName == "" {
 		return errors.NewBadRequestError("missing credentials name")
+	}
+	if c.WebhookSecret == "" {
+		return errors.NewMissingSecretError("missing secret")
 	}
 	return nil
 }
