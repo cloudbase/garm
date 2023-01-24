@@ -17,6 +17,7 @@ package sql
 import (
 	"context"
 	"fmt"
+
 	runnerErrors "garm/errors"
 	"garm/params"
 	"garm/util"
@@ -27,13 +28,12 @@ import (
 )
 
 func (s *sqlDatabase) CreateRepository(ctx context.Context, owner, name, credentialsName, webhookSecret string) (params.Repository, error) {
-	secret := []byte{}
-	var err error
-	if webhookSecret != "" {
-		secret, err = util.Aes256EncodeString(webhookSecret, s.cfg.Passphrase)
-		if err != nil {
-			return params.Repository{}, fmt.Errorf("failed to encrypt string")
-		}
+	if webhookSecret == "" {
+		return params.Repository{}, errors.New("creating repo: missing secret")
+	}
+	secret, err := util.Aes256EncodeString(webhookSecret, s.cfg.Passphrase)
+	if err != nil {
+		return params.Repository{}, fmt.Errorf("failed to encrypt string")
 	}
 	newRepo := Repository{
 		Name:            name,
@@ -47,8 +47,10 @@ func (s *sqlDatabase) CreateRepository(ctx context.Context, owner, name, credent
 		return params.Repository{}, errors.Wrap(q.Error, "creating repository")
 	}
 
-	param := s.sqlToCommonRepository(newRepo)
-	param.WebhookSecret = webhookSecret
+	param, err := s.sqlToCommonRepository(newRepo)
+	if err != nil {
+		return params.Repository{}, errors.Wrap(err, "creating repository")
+	}
 
 	return param, nil
 }
@@ -59,12 +61,10 @@ func (s *sqlDatabase) GetRepository(ctx context.Context, owner, name string) (pa
 		return params.Repository{}, errors.Wrap(err, "fetching repo")
 	}
 
-	param := s.sqlToCommonRepository(repo)
-	secret, err := util.Aes256DecodeString(repo.WebhookSecret, s.cfg.Passphrase)
+	param, err := s.sqlToCommonRepository(repo)
 	if err != nil {
-		return params.Repository{}, errors.Wrap(err, "decrypting secret")
+		return params.Repository{}, errors.Wrap(err, "fetching repo")
 	}
-	param.WebhookSecret = secret
 
 	return param, nil
 }
@@ -78,13 +78,10 @@ func (s *sqlDatabase) ListRepositories(ctx context.Context) ([]params.Repository
 
 	ret := make([]params.Repository, len(repos))
 	for idx, val := range repos {
-		ret[idx] = s.sqlToCommonRepository(val)
-		if len(val.WebhookSecret) > 0 {
-			secret, err := util.Aes256DecodeString(val.WebhookSecret, s.cfg.Passphrase)
-			if err != nil {
-				return nil, errors.Wrap(err, "decrypting secret")
-			}
-			ret[idx].WebhookSecret = secret
+		var err error
+		ret[idx], err = s.sqlToCommonRepository(val)
+		if err != nil {
+			return nil, errors.Wrap(err, "fetching repositories")
 		}
 	}
 
@@ -118,7 +115,7 @@ func (s *sqlDatabase) UpdateRepository(ctx context.Context, repoID string, param
 	if param.WebhookSecret != "" {
 		secret, err := util.Aes256EncodeString(param.WebhookSecret, s.cfg.Passphrase)
 		if err != nil {
-			return params.Repository{}, fmt.Errorf("failed to encrypt string")
+			return params.Repository{}, fmt.Errorf("saving repo: failed to encrypt string: %w", err)
 		}
 		repo.WebhookSecret = secret
 	}
@@ -128,12 +125,10 @@ func (s *sqlDatabase) UpdateRepository(ctx context.Context, repoID string, param
 		return params.Repository{}, errors.Wrap(q.Error, "saving repo")
 	}
 
-	newParams := s.sqlToCommonRepository(repo)
-	secret, err := util.Aes256DecodeString(repo.WebhookSecret, s.cfg.Passphrase)
+	newParams, err := s.sqlToCommonRepository(repo)
 	if err != nil {
-		return params.Repository{}, errors.Wrap(err, "decrypting secret")
+		return params.Repository{}, errors.Wrap(err, "saving repo")
 	}
-	newParams.WebhookSecret = secret
 	return newParams, nil
 }
 
@@ -143,13 +138,10 @@ func (s *sqlDatabase) GetRepositoryByID(ctx context.Context, repoID string) (par
 		return params.Repository{}, errors.Wrap(err, "fetching repo")
 	}
 
-	param := s.sqlToCommonRepository(repo)
-	secret, err := util.Aes256DecodeString(repo.WebhookSecret, s.cfg.Passphrase)
+	param, err := s.sqlToCommonRepository(repo)
 	if err != nil {
-		return params.Repository{}, errors.Wrap(err, "decrypting secret")
+		return params.Repository{}, errors.Wrap(err, "fetching repo")
 	}
-	param.WebhookSecret = secret
-
 	return param, nil
 }
 

@@ -381,7 +381,6 @@ func (r *Runner) Start() error {
 		go func(repo common.PoolManager) {
 			err := repo.Start()
 			errChan <- err
-
 		}(repo)
 	}
 
@@ -390,7 +389,6 @@ func (r *Runner) Start() error {
 			err := org.Start()
 			errChan <- err
 		}(org)
-
 	}
 
 	for _, enterprise := range enterprises {
@@ -398,7 +396,6 @@ func (r *Runner) Start() error {
 			err := org.Start()
 			errChan <- err
 		}(enterprise)
-
 	}
 
 	for i := 0; i < expectedReplies; i++ {
@@ -542,8 +539,7 @@ func (r *Runner) Wait() error {
 
 func (r *Runner) validateHookBody(signature, secret string, body []byte) error {
 	if secret == "" {
-		// A secret was not set. Skip validation of body.
-		return nil
+		return runnerErrors.NewMissingSecretError("missing secret to validate webhook signature")
 	}
 
 	if signature == "" {

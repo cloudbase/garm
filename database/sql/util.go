@@ -16,7 +16,9 @@ package sql
 
 import (
 	"fmt"
+
 	"garm/params"
+	"garm/util"
 
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
@@ -74,34 +76,52 @@ func (s *sqlDatabase) sqlAddressToParamsAddress(addr Address) params.Address {
 	}
 }
 
-func (s *sqlDatabase) sqlToCommonOrganization(org Organization) params.Organization {
+func (s *sqlDatabase) sqlToCommonOrganization(org Organization) (params.Organization, error) {
+	if len(org.WebhookSecret) == 0 {
+		return params.Organization{}, errors.New("missing secret")
+	}
+	secret, err := util.Aes256DecodeString(org.WebhookSecret, s.cfg.Passphrase)
+	if err != nil {
+		return params.Organization{}, errors.Wrap(err, "decrypting secret")
+	}
+
 	ret := params.Organization{
 		ID:              org.ID.String(),
 		Name:            org.Name,
 		CredentialsName: org.CredentialsName,
 		Pools:           make([]params.Pool, len(org.Pools)),
+		WebhookSecret:   secret,
 	}
 
 	for idx, pool := range org.Pools {
 		ret.Pools[idx] = s.sqlToCommonPool(pool)
 	}
 
-	return ret
+	return ret, nil
 }
 
-func (s *sqlDatabase) sqlToCommonEnterprise(enterprise Enterprise) params.Enterprise {
+func (s *sqlDatabase) sqlToCommonEnterprise(enterprise Enterprise) (params.Enterprise, error) {
+	if len(enterprise.WebhookSecret) == 0 {
+		return params.Enterprise{}, errors.New("missing secret")
+	}
+	secret, err := util.Aes256DecodeString(enterprise.WebhookSecret, s.cfg.Passphrase)
+	if err != nil {
+		return params.Enterprise{}, errors.Wrap(err, "decrypting secret")
+	}
+
 	ret := params.Enterprise{
 		ID:              enterprise.ID.String(),
 		Name:            enterprise.Name,
 		CredentialsName: enterprise.CredentialsName,
 		Pools:           make([]params.Pool, len(enterprise.Pools)),
+		WebhookSecret:   secret,
 	}
 
 	for idx, pool := range enterprise.Pools {
 		ret.Pools[idx] = s.sqlToCommonPool(pool)
 	}
 
-	return ret
+	return ret, nil
 }
 
 func (s *sqlDatabase) sqlToCommonPool(pool Pool) params.Pool {
@@ -158,20 +178,29 @@ func (s *sqlDatabase) sqlToCommonTags(tag Tag) params.Tag {
 	}
 }
 
-func (s *sqlDatabase) sqlToCommonRepository(repo Repository) params.Repository {
+func (s *sqlDatabase) sqlToCommonRepository(repo Repository) (params.Repository, error) {
+	if len(repo.WebhookSecret) == 0 {
+		return params.Repository{}, errors.New("missing secret")
+	}
+	secret, err := util.Aes256DecodeString(repo.WebhookSecret, s.cfg.Passphrase)
+	if err != nil {
+		return params.Repository{}, errors.Wrap(err, "decrypting secret")
+	}
+
 	ret := params.Repository{
 		ID:              repo.ID.String(),
 		Name:            repo.Name,
 		Owner:           repo.Owner,
 		CredentialsName: repo.CredentialsName,
 		Pools:           make([]params.Pool, len(repo.Pools)),
+		WebhookSecret:   secret,
 	}
 
 	for idx, pool := range repo.Pools {
 		ret.Pools[idx] = s.sqlToCommonPool(pool)
 	}
 
-	return ret
+	return ret, nil
 }
 
 func (s *sqlDatabase) sqlToParamsUser(user User) params.User {

@@ -20,12 +20,12 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
+	"testing"
 
 	dbCommon "garm/database/common"
 	runnerErrors "garm/errors"
 	garmTesting "garm/internal/testing"
 	"garm/params"
-	"testing"
 
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
@@ -194,7 +194,7 @@ func (s *EnterpriseTestSuite) TestCreateEnterpriseInvalidDBPassphrase() {
 		s.Fixtures.CreateEnterpriseParams.WebhookSecret)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("failed to encrypt string", err.Error())
+	s.Require().Equal("encoding secret: invalid passphrase length (expected length 32 characters)", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestCreateEnterpriseDBCreateErr() {
@@ -247,7 +247,7 @@ func (s *EnterpriseTestSuite) TestGetEnterpriseDBDecryptingErr() {
 
 	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
-	s.Require().Equal("decrypting secret: failed to decrypt text", err.Error())
+	s.Require().Equal("fetching enterprise: missing secret", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestListEnterprises() {
@@ -266,7 +266,7 @@ func (s *EnterpriseTestSuite) TestListEnterprisesDBFetchErr() {
 
 	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching enterprise from database: fetching user from database mock error", err.Error())
+	s.Require().Equal("fetching enterprises: fetching user from database mock error", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestDeleteEnterprise() {
@@ -331,7 +331,7 @@ func (s *EnterpriseTestSuite) TestUpdateEnterpriseDBEncryptErr() {
 
 	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
-	s.Require().Equal("failed to encrypt string", err.Error())
+	s.Require().Equal("encoding secret: invalid passphrase length (expected length 32 characters)", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestUpdateEnterpriseDBSaveErr() {
@@ -354,23 +354,18 @@ func (s *EnterpriseTestSuite) TestUpdateEnterpriseDBSaveErr() {
 
 func (s *EnterpriseTestSuite) TestUpdateEnterpriseDBDecryptingErr() {
 	s.StoreSQLMocked.cfg.Passphrase = "wrong-passphrase"
-	s.Fixtures.UpdateRepoParams.WebhookSecret = ""
+	s.Fixtures.UpdateRepoParams.WebhookSecret = "webhook-secret"
 
 	s.Fixtures.SQLMock.
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `enterprises` WHERE id = ? AND `enterprises`.`deleted_at` IS NULL ORDER BY `enterprises`.`id` LIMIT 1")).
 		WithArgs(s.Fixtures.Enterprises[0].ID).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Enterprises[0].ID))
-	s.Fixtures.SQLMock.ExpectBegin()
-	s.Fixtures.SQLMock.
-		ExpectExec(("UPDATE `enterprises` SET")).
-		WillReturnResult(sqlmock.NewResult(1, 1))
-	s.Fixtures.SQLMock.ExpectCommit()
 
 	_, err := s.StoreSQLMocked.UpdateEnterprise(context.Background(), s.Fixtures.Enterprises[0].ID, s.Fixtures.UpdateRepoParams)
 
 	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
-	s.Require().Equal("decrypting secret: invalid passphrase length (expected length 32 characters)", err.Error())
+	s.Require().Equal("encoding secret: invalid passphrase length (expected length 32 characters)", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestGetEnterpriseByID() {
@@ -401,7 +396,7 @@ func (s *EnterpriseTestSuite) TestGetEnterpriseByIDDBDecryptingErr() {
 
 	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
-	s.Require().Equal("decrypting secret: failed to decrypt text", err.Error())
+	s.Require().Equal("fetching enterprise: missing secret", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestCreateEnterprisePool() {

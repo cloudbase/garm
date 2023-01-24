@@ -2,7 +2,7 @@ package sql
 
 import (
 	"context"
-	"fmt"
+
 	runnerErrors "garm/errors"
 	"garm/params"
 	"garm/util"
@@ -13,13 +13,12 @@ import (
 )
 
 func (s *sqlDatabase) CreateEnterprise(ctx context.Context, name, credentialsName, webhookSecret string) (params.Enterprise, error) {
-	secret := []byte{}
-	var err error
-	if webhookSecret != "" {
-		secret, err = util.Aes256EncodeString(webhookSecret, s.cfg.Passphrase)
-		if err != nil {
-			return params.Enterprise{}, fmt.Errorf("failed to encrypt string")
-		}
+	if webhookSecret == "" {
+		return params.Enterprise{}, errors.New("creating enterprise: missing secret")
+	}
+	secret, err := util.Aes256EncodeString(webhookSecret, s.cfg.Passphrase)
+	if err != nil {
+		return params.Enterprise{}, errors.Wrap(err, "encoding secret")
 	}
 	newEnterprise := Enterprise{
 		Name:            name,
@@ -32,8 +31,10 @@ func (s *sqlDatabase) CreateEnterprise(ctx context.Context, name, credentialsNam
 		return params.Enterprise{}, errors.Wrap(q.Error, "creating enterprise")
 	}
 
-	param := s.sqlToCommonEnterprise(newEnterprise)
-	param.WebhookSecret = webhookSecret
+	param, err := s.sqlToCommonEnterprise(newEnterprise)
+	if err != nil {
+		return params.Enterprise{}, errors.Wrap(err, "creating enterprise")
+	}
 
 	return param, nil
 }
@@ -44,13 +45,10 @@ func (s *sqlDatabase) GetEnterprise(ctx context.Context, name string) (params.En
 		return params.Enterprise{}, errors.Wrap(err, "fetching enterprise")
 	}
 
-	param := s.sqlToCommonEnterprise(enterprise)
-	secret, err := util.Aes256DecodeString(enterprise.WebhookSecret, s.cfg.Passphrase)
+	param, err := s.sqlToCommonEnterprise(enterprise)
 	if err != nil {
-		return params.Enterprise{}, errors.Wrap(err, "decrypting secret")
+		return params.Enterprise{}, errors.Wrap(err, "fetching enterprise")
 	}
-	param.WebhookSecret = secret
-
 	return param, nil
 }
 
@@ -60,13 +58,10 @@ func (s *sqlDatabase) GetEnterpriseByID(ctx context.Context, enterpriseID string
 		return params.Enterprise{}, errors.Wrap(err, "fetching enterprise")
 	}
 
-	param := s.sqlToCommonEnterprise(enterprise)
-	secret, err := util.Aes256DecodeString(enterprise.WebhookSecret, s.cfg.Passphrase)
+	param, err := s.sqlToCommonEnterprise(enterprise)
 	if err != nil {
-		return params.Enterprise{}, errors.Wrap(err, "decrypting secret")
+		return params.Enterprise{}, errors.Wrap(err, "fetching enterprise")
 	}
-	param.WebhookSecret = secret
-
 	return param, nil
 }
 
@@ -74,12 +69,16 @@ func (s *sqlDatabase) ListEnterprises(ctx context.Context) ([]params.Enterprise,
 	var enterprises []Enterprise
 	q := s.conn.Find(&enterprises)
 	if q.Error != nil {
-		return []params.Enterprise{}, errors.Wrap(q.Error, "fetching enterprise from database")
+		return []params.Enterprise{}, errors.Wrap(q.Error, "fetching enterprises")
 	}
 
 	ret := make([]params.Enterprise, len(enterprises))
 	for idx, val := range enterprises {
-		ret[idx] = s.sqlToCommonEnterprise(val)
+		var err error
+		ret[idx], err = s.sqlToCommonEnterprise(val)
+		if err != nil {
+			return nil, errors.Wrap(err, "fetching enterprises")
+		}
 	}
 
 	return ret, nil
@@ -112,7 +111,7 @@ func (s *sqlDatabase) UpdateEnterprise(ctx context.Context, enterpriseID string,
 	if param.WebhookSecret != "" {
 		secret, err := util.Aes256EncodeString(param.WebhookSecret, s.cfg.Passphrase)
 		if err != nil {
-			return params.Enterprise{}, fmt.Errorf("failed to encrypt string")
+			return params.Enterprise{}, errors.Wrap(err, "encoding secret")
 		}
 		enterprise.WebhookSecret = secret
 	}
@@ -122,12 +121,10 @@ func (s *sqlDatabase) UpdateEnterprise(ctx context.Context, enterpriseID string,
 		return params.Enterprise{}, errors.Wrap(q.Error, "saving enterprise")
 	}
 
-	newParams := s.sqlToCommonEnterprise(enterprise)
-	secret, err := util.Aes256DecodeString(enterprise.WebhookSecret, s.cfg.Passphrase)
+	newParams, err := s.sqlToCommonEnterprise(enterprise)
 	if err != nil {
-		return params.Enterprise{}, errors.Wrap(err, "decrypting secret")
+		return params.Enterprise{}, errors.Wrap(err, "updating enterprise")
 	}
-	newParams.WebhookSecret = secret
 	return newParams, nil
 }
 

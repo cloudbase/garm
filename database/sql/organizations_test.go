@@ -20,12 +20,12 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
+	"testing"
 
 	dbCommon "garm/database/common"
 	runnerErrors "garm/errors"
 	garmTesting "garm/internal/testing"
 	"garm/params"
-	"testing"
 
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
@@ -247,7 +247,7 @@ func (s *OrgTestSuite) TestGetOrganizationDBDecryptingErr() {
 
 	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
-	s.Require().Equal("decrypting secret: failed to decrypt text", err.Error())
+	s.Require().Equal("fetching org: missing secret", err.Error())
 }
 
 func (s *OrgTestSuite) TestListOrganizations() {
@@ -331,7 +331,7 @@ func (s *OrgTestSuite) TestUpdateOrganizationDBEncryptErr() {
 
 	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
-	s.Require().Equal("failed to encrypt string", err.Error())
+	s.Require().Equal("saving org: failed to encrypt string: invalid passphrase length (expected length 32 characters)", err.Error())
 }
 
 func (s *OrgTestSuite) TestUpdateOrganizationDBSaveErr() {
@@ -354,23 +354,18 @@ func (s *OrgTestSuite) TestUpdateOrganizationDBSaveErr() {
 
 func (s *OrgTestSuite) TestUpdateOrganizationDBDecryptingErr() {
 	s.StoreSQLMocked.cfg.Passphrase = "wrong-passphrase"
-	s.Fixtures.UpdateRepoParams.WebhookSecret = ""
+	s.Fixtures.UpdateRepoParams.WebhookSecret = "webhook-secret"
 
 	s.Fixtures.SQLMock.
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT 1")).
 		WithArgs(s.Fixtures.Orgs[0].ID).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Orgs[0].ID))
-	s.Fixtures.SQLMock.ExpectBegin()
-	s.Fixtures.SQLMock.
-		ExpectExec(("UPDATE `organizations` SET")).
-		WillReturnResult(sqlmock.NewResult(1, 1))
-	s.Fixtures.SQLMock.ExpectCommit()
 
 	_, err := s.StoreSQLMocked.UpdateOrganization(context.Background(), s.Fixtures.Orgs[0].ID, s.Fixtures.UpdateRepoParams)
 
 	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
-	s.Require().Equal("decrypting secret: invalid passphrase length (expected length 32 characters)", err.Error())
+	s.Require().Equal("saving org: failed to encrypt string: invalid passphrase length (expected length 32 characters)", err.Error())
 }
 
 func (s *OrgTestSuite) TestGetOrganizationByID() {
@@ -401,7 +396,7 @@ func (s *OrgTestSuite) TestGetOrganizationByIDDBDecryptingErr() {
 
 	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
-	s.Require().Equal("decrypting secret: failed to decrypt text", err.Error())
+	s.Require().Equal("fetching enterprise: missing secret", err.Error())
 }
 
 func (s *OrgTestSuite) TestCreateOrganizationPool() {

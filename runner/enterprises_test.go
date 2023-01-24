@@ -17,6 +17,8 @@ package runner
 import (
 	"context"
 	"fmt"
+	"testing"
+
 	"garm/auth"
 	"garm/config"
 	"garm/database"
@@ -27,7 +29,6 @@ import (
 	"garm/runner/common"
 	runnerCommonMocks "garm/runner/common/mocks"
 	runnerMocks "garm/runner/mocks"
-	"testing"
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
@@ -106,6 +107,7 @@ func (s *EnterpriseTestSuite) SetupTest() {
 		CreateEnterpriseParams: params.CreateEnterpriseParams{
 			Name:            "test-enterprise-create",
 			CredentialsName: "test-creds",
+			WebhookSecret:   "test-create-enterprise-webhook-secret",
 		},
 		CreatePoolParams: params.CreatePoolParams{
 			ProviderName:           "test-provider",
