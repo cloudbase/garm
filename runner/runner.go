@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"hash"
 	"log"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -65,6 +66,10 @@ func NewRunner(ctx context.Context, cfg config.Config) (*Runner, error) {
 		creds[ghcreds.Name] = ghcreds
 	}
 
+	controllerInfo := params.ControllerInfo{
+		ControllerID: ctrlId.ControllerID,
+	}
+
 	poolManagerCtrl := &poolManagerCtrl{
 		controllerID:  ctrlId.ControllerID.String(),
 		config:        cfg,
@@ -80,6 +85,7 @@ func NewRunner(ctx context.Context, cfg config.Config) (*Runner, error) {
 		poolManagerCtrl: poolManagerCtrl,
 		providers:       providers,
 		credentials:     creds,
+		controllerInfo:  controllerInfo,
 	}
 
 	if err := runner.loadReposOrgsAndEnterprises(); err != nil {
@@ -263,6 +269,21 @@ type Runner struct {
 
 	providers   map[string]common.Provider
 	credentials map[string]config.Github
+
+	controllerInfo params.ControllerInfo
+}
+
+// GetControllerInfo returns the controller id and the hostname.
+// This data might be used in metrics and logging.
+func (r *Runner) GetControllerInfo(ctx context.Context) params.ControllerInfo {
+	// hostname could change
+	hostname, err := os.Hostname()
+	if err != nil {
+		log.Printf("error getting hostname: %v", err)
+		//not much choice but to continue
+	}
+	r.controllerInfo.Hostname = hostname
+	return r.controllerInfo
 }
 
 func (r *Runner) ListCredentials(ctx context.Context) ([]params.GithubCredentials, error) {

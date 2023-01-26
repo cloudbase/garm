@@ -71,6 +71,41 @@ func (a *Authenticator) GetJWTToken(ctx context.Context) (string, error) {
 	return tokenString, nil
 }
 
+// GetJWTMetricsToken returns a JWT token that can be used to read metrics.
+// This token is not tied to a user, no user is stored in the db.
+func (a *Authenticator) GetJWTMetricsToken(ctx context.Context) (string, error) {
+
+	if !IsAdmin(ctx) {
+		return "", runnerErrors.ErrUnauthorized
+	}
+
+	tokenID, err := util.GetRandomString(16)
+	if err != nil {
+		return "", errors.Wrap(err, "generating random string")
+	}
+	// TODO: currently this is the same TTL as the normal Token
+	// maybe we should make this configurable
+	// it's usually pretty nasty if the monitoring fails because the token expired
+	expireToken := time.Now().Add(a.cfg.TimeToLive.Duration()).Unix()
+	claims := JWTClaims{
+		StandardClaims: jwt.StandardClaims{
+			ExpiresAt: expireToken,
+			// TODO: make this configurable
+			Issuer: "garm",
+		},
+		TokenID:     tokenID,
+		IsAdmin:     false,
+		ReadMetrics: true,
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := token.SignedString([]byte(a.cfg.Secret))
+	if err != nil {
+		return "", errors.Wrap(err, "fetching token string")
+	}
+
+	return tokenString, nil
+}
+
 func (a *Authenticator) InitController(ctx context.Context, param params.NewUserParams) (params.User, error) {
 	_, err := a.store.ControllerInfo()
 	if err != nil {

@@ -19,16 +19,27 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"garm/apiserver/controllers"
 	"garm/auth"
+	"garm/config"
 	"garm/util"
 )
 
-func NewAPIRouter(han *controllers.APIController, logWriter io.Writer, authMiddleware, initMiddleware, instanceMiddleware auth.Middleware) *mux.Router {
+func NewAPIRouter(han *controllers.APIController, logWriter io.Writer, cfg *config.Config, authMiddleware, initMiddleware, instanceMiddleware, metricsMiddlerware auth.Middleware) *mux.Router {
 	router := mux.NewRouter()
 	logMiddleware := util.NewLoggingMiddleware(logWriter)
 	router.Use(logMiddleware)
+
+	if cfg.Metrics.Enable {
+		metricsRouter := router.PathPrefix("/metrics").Subrouter()
+		if !cfg.Metrics.DisableAuth {
+			metricsRouter.Use(metricsMiddlerware.Middleware)
+		}
+		metricsRouter.Handle("/", promhttp.Handler()).Methods("GET", "OPTIONS")
+		metricsRouter.Handle("", promhttp.Handler()).Methods("GET", "OPTIONS")
+	}
 
 	// Handles github webhooks
 	webhookRouter := router.PathPrefix("/webhooks").Subrouter()
@@ -60,6 +71,10 @@ func NewAPIRouter(han *controllers.APIController, logWriter io.Writer, authMiddl
 	apiRouter := apiSubRouter.PathPrefix("").Subrouter()
 	apiRouter.Use(initMiddleware.Middleware)
 	apiRouter.Use(authMiddleware.Middleware)
+
+	// Metrics Token
+	apiRouter.Handle("/metrics-token/", http.HandlerFunc(han.MetricsTokenHandler)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/metrics-token", http.HandlerFunc(han.MetricsTokenHandler)).Methods("GET", "OPTIONS")
 
 	///////////
 	// Pools //

@@ -159,3 +159,20 @@ func (c *Client) ListOrgInstances(orgID string) ([]params.Instance, error) {
 	}
 	return response, nil
 }
+
+func (c *Client) CreateMetricsToken() (string, error) {
+	url := fmt.Sprintf("%s/api/v1/metrics-token", c.Config.BaseURL)
+
+	type response struct {
+		Token string `json:"token"`
+	}
+
+	var t response
+	resp, err := c.client.R().
+		SetResult(&t).
+		Get(url)
+	if err := c.handleError(err, resp); err != nil {
+		return "", err
+	}
+	return t.Token, nil
+}

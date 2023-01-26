@@ -275,6 +275,7 @@ type JWTResponse struct {
 
 type ControllerInfo struct {
 	ControllerID uuid.UUID `json:"controller_id"`
+	Hostname     string    `json:"hostname"`
 }
 
 type GithubCredentials struct {

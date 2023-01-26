@@ -119,6 +119,7 @@ func NewConfig(cfgFile string) (*Config, error) {
 type Config struct {
 	Default   Default    `toml:"default" json:"default"`
 	APIServer APIServer  `toml:"apiserver,omitempty" json:"apiserver,omitempty"`
+	Metrics   Metrics    `toml:"metrics,omitempty" json:"metrics,omitempty"`
 	Database  Database   `toml:"database,omitempty" json:"database,omitempty"`
 	Providers []Provider `toml:"provider,omitempty" json:"provider,omitempty"`
 	Github    []Github   `toml:"github,omitempty"`
@@ -474,6 +475,11 @@ func (t *TLSConfig) Validate() error {
 		return err
 	}
 	return nil
+}
+
+type Metrics struct {
+	DisableAuth bool `toml:"disable_auth" json:"disable-auth"`
+	Enable      bool `toml:"enable" json:"enable"`
 }
 
 // APIServer holds configuration for the API server

@@ -39,6 +39,7 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 var (
@@ -110,6 +111,11 @@ func main() {
 		log.Fatalf("failed to create controller: %+v", err)
 	}
 
+	controllerInfo, err := db.ControllerInfo()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	// If there are many repos/pools, this may take a long time.
 	// TODO: start pool managers in the background and log errors.
 	if err := runner.Start(); err != nil {
@@ -117,7 +123,7 @@ func main() {
 	}
 
 	authenticator := auth.NewAuthenticator(cfg.JWTAuth, db)
-	controller, err := controllers.NewAPIController(runner, authenticator, hub)
+	controller, err := controllers.NewAPIController(runner, authenticator, hub, controllerInfo)
 	if err != nil {
 		log.Fatalf("failed to create controller: %+v", err)
 	}
@@ -137,7 +143,16 @@ func main() {
 		log.Fatal(err)
 	}
 
-	router := routers.NewAPIRouter(controller, multiWriter, jwtMiddleware, initMiddleware, instanceMiddleware)
+	metricsMiddleware, err := auth.NewMetricsMiddleware(cfg.JWTAuth)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = prometheus.Register(controllers.NewGarmCollector(runner))
+	if err != nil {
+		log.Println("failed to register garm collector in prometheus", err)
+	}
+
+	router := routers.NewAPIRouter(controller, multiWriter, cfg, jwtMiddleware, initMiddleware, instanceMiddleware, metricsMiddleware)
 	corsMw := mux.CORSMethodMiddleware(router)
 	router.Use(corsMw)
 
