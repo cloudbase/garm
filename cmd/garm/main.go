@@ -40,7 +40,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var (
@@ -112,6 +111,11 @@ func main() {
 		log.Fatalf("failed to create controller: %+v", err)
 	}
 
+	controllerInfo, err := db.ControllerInfo()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	// If there are many repos/pools, this may take a long time.
 	// TODO: start pool managers in the background and log errors.
 	if err := runner.Start(); err != nil {
@@ -119,7 +123,7 @@ func main() {
 	}
 
 	authenticator := auth.NewAuthenticator(cfg.JWTAuth, db)
-	controller, err := controllers.NewAPIController(runner, authenticator, hub)
+	controller, err := controllers.NewAPIController(runner, authenticator, hub, controllerInfo)
 	if err != nil {
 		log.Fatalf("failed to create controller: %+v", err)
 	}
@@ -139,7 +143,16 @@ func main() {
 		log.Fatal(err)
 	}
 
-	router := routers.NewAPIRouter(controller, multiWriter, jwtMiddleware, initMiddleware, instanceMiddleware)
+	metricsMiddleware, err := auth.NewMetricsMiddleware(cfg.JWTAuth)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = prometheus.Register(controllers.NewGarmCollector(runner))
+	if err != nil {
+		log.Println("failed to register garm collector in prometheus", err)
+	}
+
+	router := routers.NewAPIRouter(controller, multiWriter, cfg, jwtMiddleware, initMiddleware, instanceMiddleware, metricsMiddleware)
 	corsMw := mux.CORSMethodMiddleware(router)
 	router.Use(corsMw)
 
@@ -169,28 +182,6 @@ func main() {
 			log.Printf("Listening: %+v", err)
 		}
 	}()
-
-	if !cfg.APIServer.MetricsConfig.Disabled {
-		go func() {
-
-			metricsMiddleware := auth.NewMetricsMiddleware(cfg.JWTAuth)
-
-			r := mux.NewRouter()
-			r.Handle("/metrics", promhttp.Handler())
-			if !cfg.APIServer.MetricsConfig.NoAuth {
-				r.Use(metricsMiddleware.Middleware)
-			}
-
-			err := prometheus.Register(controllers.NewGarmCollector(controller))
-			if err != nil {
-				log.Printf("failed to register prometheus collector: %+v", err)
-			}
-
-			if err := http.ListenAndServe(cfg.APIServer.MetricsBindAddress(), r); err != nil {
-				log.Printf("metrics server failed: %+v", err)
-			}
-		}()
-	}
 
 	<-ctx.Done()
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 60*time.Second)

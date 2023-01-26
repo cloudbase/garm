@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"hash"
 	"log"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -41,7 +42,6 @@ import (
 	"garm/util"
 
 	"github.com/pkg/errors"
-	uuid "github.com/satori/go.uuid"
 )
 
 func NewRunner(ctx context.Context, cfg config.Config) (*Runner, error) {
@@ -264,14 +264,27 @@ type Runner struct {
 
 	providers   map[string]common.Provider
 	credentials map[string]config.Github
+
+	controllerInfo params.ControllerInfo
 }
 
-func (r *Runner) GetControllerID() (uuid.UUID, error) {
-	info, err := r.store.ControllerInfo()
-	if err != nil {
-		return uuid.Nil, errors.Wrap(err, "fetching controller info")
+func (r *Runner) GetControllerInfo(ctx context.Context) (params.ControllerInfo, error) {
+	if r.controllerInfo == (params.ControllerInfo{}) {
+		var err error
+		r.controllerInfo, err = r.store.ControllerInfo()
+		if err != nil {
+			return params.ControllerInfo{}, errors.Wrap(err, "fetching controller info")
+		}
 	}
-	return info.ControllerID, nil
+	if r.controllerInfo.Hostname == "" {
+		var err error
+		r.controllerInfo.Hostname, err = os.Hostname()
+		if err != nil {
+			// this returns a partial controller info, but it's better than nothing
+			return r.controllerInfo, errors.Wrap(err, "fetching hostname")
+		}
+	}
+	return r.controllerInfo, nil
 }
 
 func (r *Runner) ListCredentials(ctx context.Context) ([]params.GithubCredentials, error) {

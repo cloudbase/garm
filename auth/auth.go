@@ -74,6 +74,11 @@ func (a *Authenticator) GetJWTToken(ctx context.Context) (string, error) {
 // GetJWTMetricsToken returns a JWT token that can be used to read metrics.
 // This token is not tied to a user, no user is stored in the db.
 func (a *Authenticator) GetJWTMetricsToken(ctx context.Context) (string, error) {
+
+	if !IsAdmin(ctx) {
+		return "", runnerErrors.ErrUnauthorized
+	}
+
 	tokenID, err := util.GetRandomString(16)
 	if err != nil {
 		return "", errors.Wrap(err, "generating random string")
@@ -88,7 +93,6 @@ func (a *Authenticator) GetJWTMetricsToken(ctx context.Context) (string, error) 
 			// TODO: make this configurable
 			Issuer: "garm",
 		},
-		UserID:      "metrics",
 		TokenID:     tokenID,
 		IsAdmin:     false,
 		ReadMetrics: true,

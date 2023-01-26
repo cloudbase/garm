@@ -16,11 +16,9 @@ package controllers
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
-	"os"
 	"strings"
 
 	"garm/apiserver/params"
@@ -36,12 +34,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-func NewAPIController(r *runner.Runner, auth *auth.Authenticator, hub *wsWriter.Hub) (*APIController, error) {
-	id, err := r.GetControllerID()
-	if err != nil {
-		return nil, errors.Wrap(err, "getting controller ID")
-	}
-
+func NewAPIController(r *runner.Runner, auth *auth.Authenticator, hub *wsWriter.Hub, controllerInfo runnerParams.ControllerInfo) (*APIController, error) {
 	return &APIController{
 		r:    r,
 		auth: auth,
@@ -50,17 +43,16 @@ func NewAPIController(r *runner.Runner, auth *auth.Authenticator, hub *wsWriter.
 			ReadBufferSize:  1024,
 			WriteBufferSize: 16384,
 		},
-		id: id.String(),
+		controllerInfo: controllerInfo,
 	}, nil
 }
 
 type APIController struct {
-	r        *runner.Runner
-	auth     *auth.Authenticator
-	hub      *wsWriter.Hub
-	upgrader websocket.Upgrader
-	// holds this controller's id
-	id string
+	r              *runner.Runner
+	auth           *auth.Authenticator
+	hub            *wsWriter.Hub
+	upgrader       websocket.Upgrader
+	controllerInfo runnerParams.ControllerInfo
 }
 
 func handleError(w http.ResponseWriter, err error) {
@@ -97,22 +89,6 @@ func handleError(w http.ResponseWriter, err error) {
 	}
 }
 
-// GetControllerInfo returns means to identify this very garm instance.
-// This is very useful for debugging and monitoring purposes.
-func (a *APIController) GetControllerInfo() (hostname, controllerId string) {
-
-	// the hostname is neither fixed nor in our control
-	// so we get it every time to avoid confusion
-	var err error
-	hostname, err = os.Hostname()
-	if err != nil {
-		log.Printf("error getting hostname: %q", err)
-		return "", ""
-	}
-
-	return hostname, a.id
-}
-
 // metric to count total webhooks received
 // at this point the webhook is not yet authenticated and
 // we don't know if it's meant for us or not
@@ -139,23 +115,26 @@ func (a *APIController) handleWorkflowJobEvent(w http.ResponseWriter, r *http.Re
 	signature := r.Header.Get("X-Hub-Signature-256")
 	hookType := r.Header.Get("X-Github-Hook-Installation-Target-Type")
 
-	hostname, controllerId := a.GetControllerInfo()
+	controllerInfo, err := a.r.GetControllerInfo(r.Context())
+	if err != nil {
+		log.Printf("failed to get controller info for metics labels: %q", err)
+	}
 
 	if err := a.r.DispatchWorkflowJob(hookType, signature, body); err != nil {
 		if errors.Is(err, gErrors.ErrNotFound) {
-			webhooksReceived.WithLabelValues("false", "owner_unknown", hostname, controllerId).Inc()
+			webhooksReceived.WithLabelValues("false", "owner_unknown", controllerInfo.Hostname, controllerInfo.ControllerID.String()).Inc()
 			log.Printf("got not found error from DispatchWorkflowJob. webhook not meant for us?: %q", err)
 			return
 		} else if strings.Contains(err.Error(), "signature") { // TODO: check error type
-			webhooksReceived.WithLabelValues("false", "signature_invalid", hostname, controllerId).Inc()
+			webhooksReceived.WithLabelValues("false", "signature_invalid", controllerInfo.Hostname, controllerInfo.ControllerID.String()).Inc()
 		} else {
-			webhooksReceived.WithLabelValues("false", "unknown", hostname, controllerId).Inc()
+			webhooksReceived.WithLabelValues("false", "unknown", controllerInfo.Hostname, controllerInfo.ControllerID.String()).Inc()
 		}
 
 		handleError(w, err)
 		return
 	}
-	webhooksReceived.WithLabelValues("true", "", hostname, controllerId).Inc()
+	webhooksReceived.WithLabelValues("true", "", controllerInfo.Hostname, controllerInfo.ControllerID.String()).Inc()
 }
 
 func (a *APIController) CatchAll(w http.ResponseWriter, r *http.Request) {
@@ -225,14 +204,21 @@ func (a *APIController) NotFoundHandler(w http.ResponseWriter, r *http.Request) 
 func (a *APIController) MetricsTokenHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
+	if !auth.IsAdmin(ctx) {
+		handleError(w, gErrors.ErrUnauthorized)
+		return
+	}
+
 	token, err := a.auth.GetJWTMetricsToken(ctx)
 	if err != nil {
 		handleError(w, err)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, `{"token": "%s"}`, token)
+	err = json.NewEncoder(w).Encode(runnerParams.JWTResponse{Token: token})
+	if err != nil {
+		log.Printf("failed to encode response: %q", err)
+	}
 }
 
 // LoginHandler returns a jwt token

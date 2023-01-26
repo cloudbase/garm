@@ -24,8 +24,9 @@ import (
 type contextFlags string
 
 const (
-	isAdminKey  contextFlags = "is_admin"
-	fullNameKey contextFlags = "full_name"
+	isAdminKey     contextFlags = "is_admin"
+	fullNameKey    contextFlags = "full_name"
+	readMetricsKey contextFlags = "read_metrics"
 	// UserIDFlag is the User ID flag we set in the context
 	UserIDFlag    contextFlags = "user_id"
 	isEnabledFlag contextFlags = "is_enabled"

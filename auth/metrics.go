@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"fmt"
 	"garm/config"
 	"net/http"
@@ -13,10 +14,10 @@ type MetricsMiddleware struct {
 	cfg config.JWTAuth
 }
 
-func NewMetricsMiddleware(cfg config.JWTAuth) *MetricsMiddleware {
+func NewMetricsMiddleware(cfg config.JWTAuth) (*MetricsMiddleware, error) {
 	return &MetricsMiddleware{
 		cfg: cfg,
-	}
+	}, nil
 }
 
 func (m *MetricsMiddleware) Middleware(next http.Handler) http.Handler {
@@ -58,6 +59,9 @@ func (m *MetricsMiddleware) Middleware(next http.Handler) http.Handler {
 			invalidAuthResponse(w)
 			return
 		}
+
+		ctx = context.WithValue(ctx, isAdminKey, false)
+		ctx = context.WithValue(ctx, readMetricsKey, true)
 
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
