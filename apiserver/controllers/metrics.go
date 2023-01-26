@@ -37,11 +37,7 @@ func (c *GarmCollector) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (c *GarmCollector) Collect(ch chan<- prometheus.Metric) {
-	controllerInfo, err := c.runner.GetControllerInfo(auth.GetAdminContext())
-	if err != nil {
-		log.Printf("error on fetching controllerInfo: %s", err)
-		// continue anyway
-	}
+	controllerInfo := c.runner.GetControllerInfo(auth.GetAdminContext())
 
 	c.CollectInstanceMetric(ch, controllerInfo.Hostname, controllerInfo.ControllerID.String())
 	c.CollectHealthMetric(ch, controllerInfo.Hostname, controllerInfo.ControllerID.String())

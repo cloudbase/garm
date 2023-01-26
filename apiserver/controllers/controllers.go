@@ -115,10 +115,7 @@ func (a *APIController) handleWorkflowJobEvent(w http.ResponseWriter, r *http.Re
 	signature := r.Header.Get("X-Hub-Signature-256")
 	hookType := r.Header.Get("X-Github-Hook-Installation-Target-Type")
 
-	controllerInfo, err := a.r.GetControllerInfo(r.Context())
-	if err != nil {
-		log.Printf("failed to get controller info for metics labels: %q", err)
-	}
+	controllerInfo := a.r.GetControllerInfo(r.Context())
 
 	if err := a.r.DispatchWorkflowJob(hookType, signature, body); err != nil {
 		if errors.Is(err, gErrors.ErrNotFound) {

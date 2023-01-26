@@ -66,6 +66,10 @@ func NewRunner(ctx context.Context, cfg config.Config) (*Runner, error) {
 		creds[ghcreds.Name] = ghcreds
 	}
 
+	controllerInfo := params.ControllerInfo{
+		ControllerID: ctrlId.ControllerID,
+	}
+
 	poolManagerCtrl := &poolManagerCtrl{
 		controllerID:  ctrlId.ControllerID.String(),
 		config:        cfg,
@@ -81,6 +85,7 @@ func NewRunner(ctx context.Context, cfg config.Config) (*Runner, error) {
 		poolManagerCtrl: poolManagerCtrl,
 		providers:       providers,
 		credentials:     creds,
+		controllerInfo:  controllerInfo,
 	}
 
 	if err := runner.loadReposOrgsAndEnterprises(); err != nil {
@@ -268,23 +273,17 @@ type Runner struct {
 	controllerInfo params.ControllerInfo
 }
 
-func (r *Runner) GetControllerInfo(ctx context.Context) (params.ControllerInfo, error) {
-	if r.controllerInfo == (params.ControllerInfo{}) {
-		var err error
-		r.controllerInfo, err = r.store.ControllerInfo()
-		if err != nil {
-			return params.ControllerInfo{}, errors.Wrap(err, "fetching controller info")
-		}
+// GetControllerInfo returns the controller id and the hostname.
+// This data might be used in metrics and logging.
+func (r *Runner) GetControllerInfo(ctx context.Context) params.ControllerInfo {
+	// hostname could change
+	hostname, err := os.Hostname()
+	if err != nil {
+		log.Printf("error getting hostname: %v", err)
+		//not much choice but to continue
 	}
-	if r.controllerInfo.Hostname == "" {
-		var err error
-		r.controllerInfo.Hostname, err = os.Hostname()
-		if err != nil {
-			// this returns a partial controller info, but it's better than nothing
-			return r.controllerInfo, errors.Wrap(err, "fetching hostname")
-		}
-	}
-	return r.controllerInfo, nil
+	r.controllerInfo.Hostname = hostname
+	return r.controllerInfo
 }
 
 func (r *Runner) ListCredentials(ctx context.Context) ([]params.GithubCredentials, error) {
