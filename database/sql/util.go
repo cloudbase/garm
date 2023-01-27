@@ -250,7 +250,9 @@ func (s *sqlDatabase) updatePool(pool Pool, param params.UpdatePoolParams) (para
 		pool.Image = param.Image
 	}
 
-	pool.RunnerPrefix = param.GetRunnerPrefix()
+	if param.Prefix != "" {
+		pool.RunnerPrefix = param.Prefix
+	}
 
 	if param.MaxRunners != nil {
 		pool.MaxRunners = *param.MaxRunners
