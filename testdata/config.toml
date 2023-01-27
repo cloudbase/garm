@@ -21,6 +21,16 @@ config_dir = "/etc/garm"
 # Enable streaming logs via web sockets. Use garm-cli debug-log.
 enable_log_streamer = false
 
+[metrics]
+# Toggle metrics. If set to false, the API endpoint for metrics collection will
+# be disabled.
+enable = true
+# Toggle to disable authentication (not recommended) on the metrics endpoint.
+# If you do disable authentication, I encourage you to put a reverse proxy in front
+# of garm and limit which systems can access that particular endpoint. Ideally, you
+# would enable some kind of authentication using the reverse proxy.
+disable_auth = false
+
 [jwt_auth]
 # A JWT token secret used to sign tokens.
 # Obviously, this needs to be changed :).
@@ -29,7 +39,8 @@ secret = ")9gk_4A6KrXz9D2u`0@MPea*sd6W`%@5MAWpWWJ3P3EqW~qB!!(Vd$FhNc*eU4vG"
 # Time to live for tokens. Both the instances and you will use JWT tokens to
 # authenticate against the API. However, this TTL is applied only to tokens you
 # get when logging into the API. The tokens issued to the instances we manage,
-# have a hardcoded TTL of 15 minutes. The minimum TTL for this token is 24h.
+# have a TTL based on the runner bootstrap timeout set on each pool. The minimum
+# TTL for this token is 24h.
 time_to_live = "8760h"
 
 [apiserver]

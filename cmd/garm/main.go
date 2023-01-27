@@ -32,6 +32,7 @@ import (
 	"garm/config"
 	"garm/database"
 	"garm/database/common"
+	"garm/metrics"
 	"garm/runner"
 	"garm/util"
 	"garm/websocket"
@@ -39,7 +40,6 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
-	"github.com/prometheus/client_golang/prometheus"
 )
 
 var (
@@ -111,19 +111,13 @@ func main() {
 		log.Fatalf("failed to create controller: %+v", err)
 	}
 
-	controllerInfo, err := db.ControllerInfo()
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	// If there are many repos/pools, this may take a long time.
-	// TODO: start pool managers in the background and log errors.
 	if err := runner.Start(); err != nil {
 		log.Fatal(err)
 	}
 
 	authenticator := auth.NewAuthenticator(cfg.JWTAuth, db)
-	controller, err := controllers.NewAPIController(runner, authenticator, hub, controllerInfo)
+	controller, err := controllers.NewAPIController(runner, authenticator, hub)
 	if err != nil {
 		log.Fatalf("failed to create controller: %+v", err)
 	}
@@ -147,12 +141,18 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = prometheus.Register(controllers.NewGarmCollector(runner))
-	if err != nil {
-		log.Println("failed to register garm collector in prometheus", err)
+
+	router := routers.NewAPIRouter(controller, multiWriter, jwtMiddleware, initMiddleware, instanceMiddleware)
+
+	if cfg.Metrics.Enable {
+		log.Printf("registering prometheus metrics collectors")
+		if err := metrics.RegisterCollectors(runner); err != nil {
+			log.Fatal(err)
+		}
+		log.Printf("setting up metric routes")
+		router = routers.WithMetricsRouter(router, cfg.Metrics.DisableAuth, metricsMiddleware)
 	}
 
-	router := routers.NewAPIRouter(controller, multiWriter, cfg, jwtMiddleware, initMiddleware, instanceMiddleware, metricsMiddleware)
 	corsMw := mux.CORSMethodMiddleware(router)
 	router.Use(corsMw)
 

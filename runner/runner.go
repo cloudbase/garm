@@ -42,6 +42,7 @@ import (
 	"garm/util"
 
 	"github.com/pkg/errors"
+	uuid "github.com/satori/go.uuid"
 )
 
 func NewRunner(ctx context.Context, cfg config.Config) (*Runner, error) {
@@ -66,10 +67,6 @@ func NewRunner(ctx context.Context, cfg config.Config) (*Runner, error) {
 		creds[ghcreds.Name] = ghcreds
 	}
 
-	controllerInfo := params.ControllerInfo{
-		ControllerID: ctrlId.ControllerID,
-	}
-
 	poolManagerCtrl := &poolManagerCtrl{
 		controllerID:  ctrlId.ControllerID.String(),
 		config:        cfg,
@@ -85,7 +82,7 @@ func NewRunner(ctx context.Context, cfg config.Config) (*Runner, error) {
 		poolManagerCtrl: poolManagerCtrl,
 		providers:       providers,
 		credentials:     creds,
-		controllerInfo:  controllerInfo,
+		controllerID:    ctrlId.ControllerID,
 	}
 
 	if err := runner.loadReposOrgsAndEnterprises(); err != nil {
@@ -271,19 +268,25 @@ type Runner struct {
 	credentials map[string]config.Github
 
 	controllerInfo params.ControllerInfo
+	controllerID   uuid.UUID
 }
 
 // GetControllerInfo returns the controller id and the hostname.
 // This data might be used in metrics and logging.
-func (r *Runner) GetControllerInfo(ctx context.Context) params.ControllerInfo {
+func (r *Runner) GetControllerInfo(ctx context.Context) (params.ControllerInfo, error) {
+	if !auth.IsAdmin(ctx) {
+		return params.ControllerInfo{}, runnerErrors.ErrUnauthorized
+	}
 	// hostname could change
 	hostname, err := os.Hostname()
 	if err != nil {
-		log.Printf("error getting hostname: %v", err)
-		//not much choice but to continue
+		return params.ControllerInfo{}, errors.Wrap(err, "fetching hostname")
 	}
 	r.controllerInfo.Hostname = hostname
-	return r.controllerInfo
+	return params.ControllerInfo{
+		ControllerID: r.controllerID,
+		Hostname:     hostname,
+	}, nil
 }
 
 func (r *Runner) ListCredentials(ctx context.Context) ([]params.GithubCredentials, error) {
