@@ -20,7 +20,6 @@ import (
 	"log"
 	"net/http"
 	"strings"
-	"sync"
 
 	"garm/apiserver/params"
 	"garm/auth"
@@ -36,10 +35,6 @@ import (
 )
 
 func NewAPIController(r *runner.Runner, authenticator *auth.Authenticator, hub *wsWriter.Hub) (*APIController, error) {
-	controllerInfo, err := r.GetControllerInfo(auth.GetAdminContext())
-	if err != nil {
-		return nil, errors.Wrap(err, "getting controller info")
-	}
 	return &APIController{
 		r:    r,
 		auth: authenticator,
@@ -48,17 +43,14 @@ func NewAPIController(r *runner.Runner, authenticator *auth.Authenticator, hub *
 			ReadBufferSize:  1024,
 			WriteBufferSize: 16384,
 		},
-		cachedControllerInfo: controllerInfo,
 	}, nil
 }
 
 type APIController struct {
-	r                    *runner.Runner
-	auth                 *auth.Authenticator
-	hub                  *wsWriter.Hub
-	upgrader             websocket.Upgrader
-	cachedControllerInfo runnerParams.ControllerInfo
-	mux                  sync.Mutex
+	r        *runner.Runner
+	auth     *auth.Authenticator
+	hub      *wsWriter.Hub
+	upgrader websocket.Upgrader
 }
 
 func handleError(w http.ResponseWriter, err error) {
@@ -95,27 +87,13 @@ func handleError(w http.ResponseWriter, err error) {
 	}
 }
 
-// controllerInfo calls into runner.GetControllerInfo(), but instead of erroring out, will
-// fall back on a cached version of that info. If successful, the cached version is updated.
-func (a *APIController) controllerInfo() runnerParams.ControllerInfo {
-	// Atempt to fetch controller info. We do this on every call, in case the hostname
-	// changes while garm is running. The ControllerID will never change, once initialized.
-	info, err := a.r.GetControllerInfo(auth.GetAdminContext())
-	if err != nil {
-		// The call may fail, but we shouldn't loose metrics just because something went
-		// terribly wrong while fetching the hostname.
-		log.Printf("failed to get new controller info; falling back on cached version: %s", err)
-		return a.cachedControllerInfo
-	}
-	// Set new controller info and return it.
-	a.mux.Lock()
-	defer a.mux.Unlock()
-	a.cachedControllerInfo = info
-	return a.cachedControllerInfo
-}
-
 func (a *APIController) webhookMetricLabelValues(valid, reason string) []string {
-	controllerInfo := a.controllerInfo()
+	controllerInfo, err := a.r.GetControllerInfo(auth.GetAdminContext())
+	if err != nil {
+		log.Printf("failed to get controller info: %s", err)
+		// If labels are empty, not attempt will be made to record webhook.
+		return []string{}
+	}
 	return []string{
 		valid, reason,
 		controllerInfo.Hostname, controllerInfo.ControllerID.String(),

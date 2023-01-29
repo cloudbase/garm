@@ -2,7 +2,6 @@ package metrics
 
 import (
 	"log"
-	"sync"
 
 	"garm/auth"
 	"garm/params"
@@ -86,19 +85,6 @@ type GarmCollector struct {
 	instanceMetric       *prometheus.Desc
 	runner               *runner.Runner
 	cachedControllerInfo params.ControllerInfo
-	mux                  sync.Mutex
-}
-
-func (c *GarmCollector) controllerInfo() params.ControllerInfo {
-	controllerInfo, err := c.runner.GetControllerInfo(auth.GetAdminContext())
-	if err != nil {
-		log.Printf("error getting controller info: %s", err)
-		return c.cachedControllerInfo
-	}
-	c.mux.Lock()
-	defer c.mux.Unlock()
-	c.cachedControllerInfo = controllerInfo
-	return c.cachedControllerInfo
 }
 
 func (c *GarmCollector) Describe(ch chan<- *prometheus.Desc) {
@@ -107,7 +93,11 @@ func (c *GarmCollector) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (c *GarmCollector) Collect(ch chan<- prometheus.Metric) {
-	controllerInfo := c.controllerInfo()
+	controllerInfo, err := c.runner.GetControllerInfo(auth.GetAdminContext())
+	if err != nil {
+		log.Printf("failed to get controller info: %s", err)
+		return
+	}
 	c.CollectInstanceMetric(ch, controllerInfo.Hostname, controllerInfo.ControllerID.String())
 	c.CollectHealthMetric(ch, controllerInfo.Hostname, controllerInfo.ControllerID.String())
 }

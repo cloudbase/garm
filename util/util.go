@@ -24,6 +24,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"math/big"
 	"net/http"
 	"os"
 	"path"
@@ -334,26 +335,17 @@ func SanitizeLogEntry(entry string) string {
 	return strings.Replace(strings.Replace(entry, "\n", "", -1), "\r", "", -1)
 }
 
-func randomCharacter() string {
-	for i := 0; i < 5; i++ {
-		character, err := GetRandomString(1)
-		if err != nil {
-			continue
-		}
-		return character
-	}
-	return ""
+func toBase62(uuid []byte) string {
+	var i big.Int
+	i.SetBytes(uuid[:])
+	return i.Text(62)
 }
 
 func NewID() string {
-	newID, err := shortid.Generate()
-	if err != nil {
-		newID = uuid.New().String()
-	} else {
-		// remove underscores and hyphens from short ID. The hypens will remain
-		// if we are forced to fall back to uuid4.
-		newID = strings.Replace(newID, "_", randomCharacter(), -1)
-		newID = strings.Replace(newID, "-", randomCharacter(), -1)
+	short, err := shortid.Generate()
+	if err == nil {
+		return toBase62([]byte(short))
 	}
-	return newID
+	newUUID := uuid.New()
+	return toBase62(newUUID[:])
 }

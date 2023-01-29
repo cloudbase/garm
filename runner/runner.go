@@ -41,6 +41,8 @@ import (
 	providerCommon "garm/runner/providers/common"
 	"garm/util"
 
+	"github.com/juju/clock"
+	"github.com/juju/retry"
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
 )
@@ -277,8 +279,28 @@ func (r *Runner) GetControllerInfo(ctx context.Context) (params.ControllerInfo, 
 	if !auth.IsAdmin(ctx) {
 		return params.ControllerInfo{}, runnerErrors.ErrUnauthorized
 	}
-	// hostname could change
-	hostname, err := os.Hostname()
+	// It is unlikely that fetching the hostname will encounter an error on a standard
+	// linux (or Windows) system, but if os.Hostname() can fail, we need to at least retry
+	// a few times before giving up.
+	// This retries 10 times within one second. While it has the potential to give us a
+	// one second delay before returning either the hostname or an error, I expect this
+	// to succeed on the first try.
+	// As a side note, Windows requires a reboot for the hostname change to take effect,
+	// so if we'll ever support Windows as a target system, the hostname can be cached.
+	var hostname string
+	err := retry.Call(retry.CallArgs{
+		Func: func() error {
+			var err error
+			hostname, err = os.Hostname()
+			if err != nil {
+				return errors.Wrap(err, "fetching hostname")
+			}
+			return nil
+		},
+		Attempts: 10,
+		Delay:    100 * time.Millisecond,
+		Clock:    clock.WallClock,
+	})
 	if err != nil {
 		return params.ControllerInfo{}, errors.Wrap(err, "fetching hostname")
 	}
