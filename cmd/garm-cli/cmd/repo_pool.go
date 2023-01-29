@@ -274,7 +274,7 @@ func formatPools(pools []params.Pool) {
 			belongsTo = pool.EnterpriseName
 			level = "enterprise"
 		}
-		t.AppendRow(table.Row{pool.ID, pool.Image, pool.Flavor, strings.Join(tags, " "), belongsTo, level, pool.Enabled, pool.RunnerPrefix})
+		t.AppendRow(table.Row{pool.ID, pool.Image, pool.Flavor, strings.Join(tags, " "), belongsTo, level, pool.Enabled, pool.GetRunnerPrefix()})
 		t.AppendSeparator()
 	}
 	fmt.Println(t.Render())
@@ -319,7 +319,7 @@ func formatOnePool(pool params.Pool) {
 	t.AppendRow(table.Row{"Belongs to", belongsTo})
 	t.AppendRow(table.Row{"Level", level})
 	t.AppendRow(table.Row{"Enabled", pool.Enabled})
-	t.AppendRow(table.Row{"Runner Prefix", pool.RunnerPrefix})
+	t.AppendRow(table.Row{"Runner Prefix", pool.GetRunnerPrefix()})
 
 	if len(pool.Instances) > 0 {
 		for _, instance := range pool.Instances {

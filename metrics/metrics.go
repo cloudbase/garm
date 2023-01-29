@@ -1,21 +1,69 @@
-package controllers
+package metrics
 
 import (
 	"log"
 
 	"garm/auth"
+	"garm/params"
 	"garm/runner"
 
+	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-type GarmCollector struct {
-	healthMetric   *prometheus.Desc
-	instanceMetric *prometheus.Desc
-	runner         *runner.Runner
+var webhooksReceived *prometheus.CounterVec = nil
+
+// RecordWebhookWithLabels will increment a webhook metric identified by specific
+// values. If metrics are disabled, this function is a noop.
+func RecordWebhookWithLabels(lvs ...string) error {
+	if webhooksReceived == nil {
+		// not registered. Noop
+		return nil
+	}
+
+	counter, err := webhooksReceived.GetMetricWithLabelValues(lvs...)
+	if err != nil {
+		return errors.Wrap(err, "recording metric")
+	}
+	counter.Inc()
+	return nil
 }
 
-func NewGarmCollector(r *runner.Runner) *GarmCollector {
+func RegisterCollectors(runner *runner.Runner) error {
+	if webhooksReceived != nil {
+		// Already registered.
+		return nil
+	}
+
+	garmCollector, err := NewGarmCollector(runner)
+	if err != nil {
+		return errors.Wrap(err, "getting collector")
+	}
+
+	if err := prometheus.Register(garmCollector); err != nil {
+		return errors.Wrap(err, "registering collector")
+	}
+
+	// metric to count total webhooks received
+	// at this point the webhook is not yet authenticated and
+	// we don't know if it's meant for us or not
+	webhooksReceived = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "garm_webhooks_received",
+		Help: "The total number of webhooks received",
+	}, []string{"valid", "reason", "hostname", "controller_id"})
+
+	err = prometheus.Register(webhooksReceived)
+	if err != nil {
+		return errors.Wrap(err, "registering webhooks recv counter")
+	}
+	return nil
+}
+
+func NewGarmCollector(r *runner.Runner) (*GarmCollector, error) {
+	controllerInfo, err := r.GetControllerInfo(auth.GetAdminContext())
+	if err != nil {
+		return nil, errors.Wrap(err, "fetching controller info")
+	}
 	return &GarmCollector{
 		runner: r,
 		instanceMetric: prometheus.NewDesc(
@@ -28,7 +76,15 @@ func NewGarmCollector(r *runner.Runner) *GarmCollector {
 			"Health of the runner",
 			[]string{"hostname", "controller_id"}, nil,
 		),
-	}
+		cachedControllerInfo: controllerInfo,
+	}, nil
+}
+
+type GarmCollector struct {
+	healthMetric         *prometheus.Desc
+	instanceMetric       *prometheus.Desc
+	runner               *runner.Runner
+	cachedControllerInfo params.ControllerInfo
 }
 
 func (c *GarmCollector) Describe(ch chan<- *prometheus.Desc) {
@@ -37,8 +93,11 @@ func (c *GarmCollector) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (c *GarmCollector) Collect(ch chan<- prometheus.Metric) {
-	controllerInfo := c.runner.GetControllerInfo(auth.GetAdminContext())
-
+	controllerInfo, err := c.runner.GetControllerInfo(auth.GetAdminContext())
+	if err != nil {
+		log.Printf("failed to get controller info: %s", err)
+		return
+	}
 	c.CollectInstanceMetric(ch, controllerInfo.Hostname, controllerInfo.ControllerID.String())
 	c.CollectHealthMetric(ch, controllerInfo.Hostname, controllerInfo.ControllerID.String())
 }
@@ -61,7 +120,6 @@ func (c *GarmCollector) CollectHealthMetric(ch chan<- prometheus.Metric, hostnam
 // CollectInstanceMetric collects the metrics for the runner instances
 // reflecting the statuses and the pool they belong to.
 func (c *GarmCollector) CollectInstanceMetric(ch chan<- prometheus.Metric, hostname string, controllerID string) {
-
 	ctx := auth.GetAdminContext()
 
 	instances, err := c.runner.ListAllInstances(ctx)

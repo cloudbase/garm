@@ -24,6 +24,7 @@ import (
 	"garm/apiserver/params"
 	"garm/auth"
 	gErrors "garm/errors"
+	"garm/metrics"
 	runnerParams "garm/params"
 	"garm/runner"
 	"garm/util"
@@ -31,28 +32,25 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
-	"github.com/prometheus/client_golang/prometheus"
 )
 
-func NewAPIController(r *runner.Runner, auth *auth.Authenticator, hub *wsWriter.Hub, controllerInfo runnerParams.ControllerInfo) (*APIController, error) {
+func NewAPIController(r *runner.Runner, authenticator *auth.Authenticator, hub *wsWriter.Hub) (*APIController, error) {
 	return &APIController{
 		r:    r,
-		auth: auth,
+		auth: authenticator,
 		hub:  hub,
 		upgrader: websocket.Upgrader{
 			ReadBufferSize:  1024,
 			WriteBufferSize: 16384,
 		},
-		controllerInfo: controllerInfo,
 	}, nil
 }
 
 type APIController struct {
-	r              *runner.Runner
-	auth           *auth.Authenticator
-	hub            *wsWriter.Hub
-	upgrader       websocket.Upgrader
-	controllerInfo runnerParams.ControllerInfo
+	r        *runner.Runner
+	auth     *auth.Authenticator
+	hub      *wsWriter.Hub
+	upgrader websocket.Upgrader
 }
 
 func handleError(w http.ResponseWriter, err error) {
@@ -89,18 +87,16 @@ func handleError(w http.ResponseWriter, err error) {
 	}
 }
 
-// metric to count total webhooks received
-// at this point the webhook is not yet authenticated and
-// we don't know if it's meant for us or not
-var webhooksReceived = prometheus.NewCounterVec(prometheus.CounterOpts{
-	Name: "garm_webhooks_received",
-	Help: "The total number of webhooks received",
-}, []string{"valid", "reason", "hostname", "controller_id"})
-
-func init() {
-	err := prometheus.Register(webhooksReceived)
+func (a *APIController) webhookMetricLabelValues(valid, reason string) []string {
+	controllerInfo, err := a.r.GetControllerInfo(auth.GetAdminContext())
 	if err != nil {
-		log.Printf("error registering prometheus metric: %q", err)
+		log.Printf("failed to get controller info: %s", err)
+		// If labels are empty, not attempt will be made to record webhook.
+		return []string{}
+	}
+	return []string{
+		valid, reason,
+		controllerInfo.Hostname, controllerInfo.ControllerID.String(),
 	}
 }
 
@@ -115,23 +111,31 @@ func (a *APIController) handleWorkflowJobEvent(w http.ResponseWriter, r *http.Re
 	signature := r.Header.Get("X-Hub-Signature-256")
 	hookType := r.Header.Get("X-Github-Hook-Installation-Target-Type")
 
-	controllerInfo := a.r.GetControllerInfo(r.Context())
+	var labelValues []string
+	defer func() {
+		if len(labelValues) == 0 {
+			return
+		}
+		if err := metrics.RecordWebhookWithLabels(labelValues...); err != nil {
+			log.Printf("failed to record metric: %s", err)
+		}
+	}()
 
 	if err := a.r.DispatchWorkflowJob(hookType, signature, body); err != nil {
 		if errors.Is(err, gErrors.ErrNotFound) {
-			webhooksReceived.WithLabelValues("false", "owner_unknown", controllerInfo.Hostname, controllerInfo.ControllerID.String()).Inc()
+			labelValues = a.webhookMetricLabelValues("false", "owner_unknown")
 			log.Printf("got not found error from DispatchWorkflowJob. webhook not meant for us?: %q", err)
 			return
 		} else if strings.Contains(err.Error(), "signature") { // TODO: check error type
-			webhooksReceived.WithLabelValues("false", "signature_invalid", controllerInfo.Hostname, controllerInfo.ControllerID.String()).Inc()
+			labelValues = a.webhookMetricLabelValues("false", "signature_invalid")
 		} else {
-			webhooksReceived.WithLabelValues("false", "unknown", controllerInfo.Hostname, controllerInfo.ControllerID.String()).Inc()
+			labelValues = a.webhookMetricLabelValues("false", "unknown")
 		}
 
 		handleError(w, err)
 		return
 	}
-	webhooksReceived.WithLabelValues("true", "", controllerInfo.Hostname, controllerInfo.ControllerID.String()).Inc()
+	labelValues = a.webhookMetricLabelValues("true", "")
 }
 
 func (a *APIController) CatchAll(w http.ResponseWriter, r *http.Request) {

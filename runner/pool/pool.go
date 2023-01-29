@@ -33,9 +33,7 @@ import (
 	"garm/util"
 
 	"github.com/google/go-github/v48/github"
-	"github.com/google/uuid"
 	"github.com/pkg/errors"
-	"github.com/teris-io/shortid"
 )
 
 var (
@@ -396,11 +394,7 @@ func (r *basePoolManager) AddRunner(ctx context.Context, poolID string) error {
 		return errors.Wrap(err, "fetching pool")
 	}
 
-	suffix, err := shortid.Generate()
-	if err != nil {
-		suffix = uuid.New().String()
-	}
-	name := fmt.Sprintf("%s-%s", pool.GetRunnerPrefix(), suffix)
+	name := fmt.Sprintf("%s-%s", pool.GetRunnerPrefix(), util.NewID())
 
 	createParams := params.CreateInstanceParams{
 		Name:          name,

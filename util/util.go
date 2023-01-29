@@ -24,6 +24,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"math/big"
 	"net/http"
 	"os"
 	"path"
@@ -38,8 +39,10 @@ import (
 	"garm/runner/common"
 
 	"github.com/google/go-github/v48/github"
+	"github.com/google/uuid"
 	gorillaHandlers "github.com/gorilla/handlers"
 	"github.com/pkg/errors"
+	"github.com/teris-io/shortid"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/oauth2"
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
@@ -330,4 +333,19 @@ func NewLoggingMiddleware(writer io.Writer) func(http.Handler) http.Handler {
 
 func SanitizeLogEntry(entry string) string {
 	return strings.Replace(strings.Replace(entry, "\n", "", -1), "\r", "", -1)
+}
+
+func toBase62(uuid []byte) string {
+	var i big.Int
+	i.SetBytes(uuid[:])
+	return i.Text(62)
+}
+
+func NewID() string {
+	short, err := shortid.Generate()
+	if err == nil {
+		return toBase62([]byte(short))
+	}
+	newUUID := uuid.New()
+	return toBase62(newUUID[:])
 }

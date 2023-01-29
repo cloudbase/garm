@@ -41,7 +41,10 @@ import (
 	providerCommon "garm/runner/providers/common"
 	"garm/util"
 
+	"github.com/juju/clock"
+	"github.com/juju/retry"
 	"github.com/pkg/errors"
+	uuid "github.com/satori/go.uuid"
 )
 
 func NewRunner(ctx context.Context, cfg config.Config) (*Runner, error) {
@@ -66,10 +69,6 @@ func NewRunner(ctx context.Context, cfg config.Config) (*Runner, error) {
 		creds[ghcreds.Name] = ghcreds
 	}
 
-	controllerInfo := params.ControllerInfo{
-		ControllerID: ctrlId.ControllerID,
-	}
-
 	poolManagerCtrl := &poolManagerCtrl{
 		controllerID:  ctrlId.ControllerID.String(),
 		config:        cfg,
@@ -85,7 +84,7 @@ func NewRunner(ctx context.Context, cfg config.Config) (*Runner, error) {
 		poolManagerCtrl: poolManagerCtrl,
 		providers:       providers,
 		credentials:     creds,
-		controllerInfo:  controllerInfo,
+		controllerID:    ctrlId.ControllerID,
 	}
 
 	if err := runner.loadReposOrgsAndEnterprises(); err != nil {
@@ -271,19 +270,45 @@ type Runner struct {
 	credentials map[string]config.Github
 
 	controllerInfo params.ControllerInfo
+	controllerID   uuid.UUID
 }
 
 // GetControllerInfo returns the controller id and the hostname.
 // This data might be used in metrics and logging.
-func (r *Runner) GetControllerInfo(ctx context.Context) params.ControllerInfo {
-	// hostname could change
-	hostname, err := os.Hostname()
+func (r *Runner) GetControllerInfo(ctx context.Context) (params.ControllerInfo, error) {
+	if !auth.IsAdmin(ctx) {
+		return params.ControllerInfo{}, runnerErrors.ErrUnauthorized
+	}
+	// It is unlikely that fetching the hostname will encounter an error on a standard
+	// linux (or Windows) system, but if os.Hostname() can fail, we need to at least retry
+	// a few times before giving up.
+	// This retries 10 times within one second. While it has the potential to give us a
+	// one second delay before returning either the hostname or an error, I expect this
+	// to succeed on the first try.
+	// As a side note, Windows requires a reboot for the hostname change to take effect,
+	// so if we'll ever support Windows as a target system, the hostname can be cached.
+	var hostname string
+	err := retry.Call(retry.CallArgs{
+		Func: func() error {
+			var err error
+			hostname, err = os.Hostname()
+			if err != nil {
+				return errors.Wrap(err, "fetching hostname")
+			}
+			return nil
+		},
+		Attempts: 10,
+		Delay:    100 * time.Millisecond,
+		Clock:    clock.WallClock,
+	})
 	if err != nil {
-		log.Printf("error getting hostname: %v", err)
-		//not much choice but to continue
+		return params.ControllerInfo{}, errors.Wrap(err, "fetching hostname")
 	}
 	r.controllerInfo.Hostname = hostname
-	return r.controllerInfo
+	return params.ControllerInfo{
+		ControllerID: r.controllerID,
+		Hostname:     hostname,
+	}, nil
 }
 
 func (r *Runner) ListCredentials(ctx context.Context) ([]params.GithubCredentials, error) {
