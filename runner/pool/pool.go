@@ -836,7 +836,7 @@ func (r *basePoolManager) ensureIdleRunnersForOnePool(pool params.Pool) {
 	}
 
 	for i := 0; i < required; i++ {
-		log.Printf("addind new idle worker to pool %s", pool.ID)
+		log.Printf("adding new idle worker to pool %s", pool.ID)
 		if err := r.AddRunner(r.ctx, pool.ID); err != nil {
 			log.Printf("failed to add new instance for pool %s: %s", pool.ID, err)
 		}

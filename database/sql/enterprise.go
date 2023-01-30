@@ -195,7 +195,7 @@ func (s *sqlDatabase) CreateEnterprisePool(ctx context.Context, enterpriseID str
 }
 
 func (s *sqlDatabase) GetEnterprisePool(ctx context.Context, enterpriseID, poolID string) (params.Pool, error) {
-	pool, err := s.getEnterprisePool(ctx, enterpriseID, poolID, "Tags", "Instances")
+	pool, err := s.getEntityPool(ctx, params.EnterprisePool, enterpriseID, poolID, "Tags", "Instances")
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}
@@ -203,7 +203,7 @@ func (s *sqlDatabase) GetEnterprisePool(ctx context.Context, enterpriseID, poolI
 }
 
 func (s *sqlDatabase) DeleteEnterprisePool(ctx context.Context, enterpriseID, poolID string) error {
-	pool, err := s.getEnterprisePool(ctx, enterpriseID, poolID)
+	pool, err := s.getEntityPool(ctx, params.EnterprisePool, enterpriseID, poolID)
 	if err != nil {
 		return errors.Wrap(err, "looking up enterprise pool")
 	}
@@ -215,7 +215,7 @@ func (s *sqlDatabase) DeleteEnterprisePool(ctx context.Context, enterpriseID, po
 }
 
 func (s *sqlDatabase) UpdateEnterprisePool(ctx context.Context, enterpriseID, poolID string, param params.UpdatePoolParams) (params.Pool, error) {
-	pool, err := s.getEnterprisePool(ctx, enterpriseID, poolID, "Tags", "Instances", "Enterprise", "Organization", "Repository")
+	pool, err := s.getEntityPool(ctx, params.EnterprisePool, enterpriseID, poolID, "Tags", "Instances", "Enterprise", "Organization", "Repository")
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}
@@ -314,39 +314,6 @@ func (s *sqlDatabase) getEnterprisePoolByUniqueFields(ctx context.Context, enter
 	}
 
 	return pool[0], nil
-}
-
-func (s *sqlDatabase) getEnterprisePool(ctx context.Context, enterpriseID, poolID string, preload ...string) (Pool, error) {
-	_, err := s.getEnterpriseByID(ctx, enterpriseID)
-	if err != nil {
-		return Pool{}, errors.Wrap(err, "fetching enterprise")
-	}
-
-	u, err := uuid.FromString(poolID)
-	if err != nil {
-		return Pool{}, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
-	}
-
-	q := s.conn
-	if len(preload) > 0 {
-		for _, item := range preload {
-			q = q.Preload(item)
-		}
-	}
-
-	var pool Pool
-	err = q.Model(&Pool{}).
-		Where("id = ? and enterprise_id = ?", u, enterpriseID).
-		First(&pool).Error
-
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return Pool{}, errors.Wrap(runnerErrors.ErrNotFound, "finding pool")
-		}
-		return Pool{}, errors.Wrap(err, "fetching pool")
-	}
-
-	return pool, nil
 }
 
 func (s *sqlDatabase) getEnterprisePools(ctx context.Context, enterpriseID string, preload ...string) ([]Pool, error) {

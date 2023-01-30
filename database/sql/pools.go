@@ -16,10 +16,14 @@ package sql
 
 import (
 	"context"
+	"fmt"
 
+	runnerErrors "garm/errors"
 	"garm/params"
 
 	"github.com/pkg/errors"
+	uuid "github.com/satori/go.uuid"
+	"gorm.io/gorm"
 )
 
 func (s *sqlDatabase) ListAllPools(ctx context.Context) ([]params.Pool, error) {
@@ -62,4 +66,49 @@ func (s *sqlDatabase) DeletePoolByID(ctx context.Context, poolID string) error {
 	}
 
 	return nil
+}
+
+func (s *sqlDatabase) getEntityPool(ctx context.Context, entityType params.PoolType, entityID, poolID string, preload ...string) (Pool, error) {
+	if entityID == "" {
+		return Pool{}, errors.Wrap(runnerErrors.ErrBadRequest, "missing entity id")
+	}
+
+	u, err := uuid.FromString(poolID)
+	if err != nil {
+		return Pool{}, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
+	}
+
+	q := s.conn
+	if len(preload) > 0 {
+		for _, item := range preload {
+			q = q.Preload(item)
+		}
+	}
+
+	var fieldName string
+	switch entityType {
+	case params.RepositoryPool:
+		fieldName = "repo_id"
+	case params.OrganizationPool:
+		fieldName = "org_id"
+	case params.EnterprisePool:
+		fieldName = "enterprise_id"
+	default:
+		return Pool{}, fmt.Errorf("invalid entityType: %v", entityType)
+	}
+
+	var pool Pool
+	condition := fmt.Sprintf("id = ? and %s = ?", fieldName)
+	err = q.Model(&Pool{}).
+		Where(condition, u, entityID).
+		First(&pool).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return Pool{}, errors.Wrap(runnerErrors.ErrNotFound, "finding pool")
+		}
+		return Pool{}, errors.Wrap(err, "fetching pool")
+	}
+
+	return pool, nil
 }

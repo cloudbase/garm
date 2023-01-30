@@ -226,7 +226,7 @@ func (s *sqlDatabase) ListOrgPools(ctx context.Context, orgID string) ([]params.
 }
 
 func (s *sqlDatabase) GetOrganizationPool(ctx context.Context, orgID, poolID string) (params.Pool, error) {
-	pool, err := s.getOrgPool(ctx, orgID, poolID, "Tags", "Instances")
+	pool, err := s.getEntityPool(ctx, params.OrganizationPool, orgID, poolID, "Tags", "Instances")
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}
@@ -234,7 +234,7 @@ func (s *sqlDatabase) GetOrganizationPool(ctx context.Context, orgID, poolID str
 }
 
 func (s *sqlDatabase) DeleteOrganizationPool(ctx context.Context, orgID, poolID string) error {
-	pool, err := s.getOrgPool(ctx, orgID, poolID)
+	pool, err := s.getEntityPool(ctx, params.OrganizationPool, orgID, poolID)
 	if err != nil {
 		return errors.Wrap(err, "looking up org pool")
 	}
@@ -268,7 +268,7 @@ func (s *sqlDatabase) ListOrgInstances(ctx context.Context, orgID string) ([]par
 }
 
 func (s *sqlDatabase) UpdateOrganizationPool(ctx context.Context, orgID, poolID string, param params.UpdatePoolParams) (params.Pool, error) {
-	pool, err := s.getOrgPool(ctx, orgID, poolID, "Tags", "Instances", "Enterprise", "Organization", "Repository")
+	pool, err := s.getEntityPool(ctx, params.OrganizationPool, orgID, poolID, "Tags", "Instances", "Enterprise", "Organization", "Repository")
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}
@@ -297,39 +297,6 @@ func (s *sqlDatabase) getPoolByID(ctx context.Context, poolID string, preload ..
 		}
 		return Pool{}, errors.Wrap(q.Error, "fetching org from database")
 	}
-	return pool, nil
-}
-
-func (s *sqlDatabase) getOrgPool(ctx context.Context, orgID, poolID string, preload ...string) (Pool, error) {
-	_, err := s.getOrgByID(ctx, orgID)
-	if err != nil {
-		return Pool{}, errors.Wrap(err, "fetching org")
-	}
-
-	u, err := uuid.FromString(poolID)
-	if err != nil {
-		return Pool{}, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
-	}
-
-	q := s.conn
-	if len(preload) > 0 {
-		for _, item := range preload {
-			q = q.Preload(item)
-		}
-	}
-
-	var pool Pool
-	err = q.Model(&Pool{}).
-		Where("id = ? and org_id = ?", u, orgID).
-		First(&pool).Error
-
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return Pool{}, errors.Wrap(runnerErrors.ErrNotFound, "finding pool")
-		}
-		return Pool{}, errors.Wrap(err, "fetching pool")
-	}
-
 	return pool, nil
 }
 

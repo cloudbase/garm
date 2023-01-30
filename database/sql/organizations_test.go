@@ -688,7 +688,7 @@ func (s *OrgTestSuite) TestGetOrganizationPoolInvalidOrgID() {
 	_, err := s.Store.GetOrganizationPool(context.Background(), "dummy-org-id", "dummy-pool-id")
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching pool: fetching org: parsing id: invalid request", err.Error())
+	s.Require().Equal("fetching pool: parsing id: invalid request", err.Error())
 }
 
 func (s *OrgTestSuite) TestDeleteOrganizationPool() {
@@ -708,7 +708,7 @@ func (s *OrgTestSuite) TestDeleteOrganizationPoolInvalidOrgID() {
 	err := s.Store.DeleteOrganizationPool(context.Background(), "dummy-org-id", "dummy-pool-id")
 
 	s.Require().NotNil(err)
-	s.Require().Equal("looking up org pool: fetching org: parsing id: invalid request", err.Error())
+	s.Require().Equal("looking up org pool: parsing id: invalid request", err.Error())
 }
 
 func (s *OrgTestSuite) TestDeleteOrganizationPoolDBDeleteErr() {
@@ -717,10 +717,6 @@ func (s *OrgTestSuite) TestDeleteOrganizationPoolDBDeleteErr() {
 		s.FailNow(fmt.Sprintf("cannot create org pool: %v", err))
 	}
 
-	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT 1")).
-		WithArgs(s.Fixtures.Orgs[0].ID).
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Orgs[0].ID))
 	s.Fixtures.SQLMock.
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE (id = ? and org_id = ?) AND `pools`.`deleted_at` IS NULL ORDER BY `pools`.`id` LIMIT 1")).
 		WithArgs(pool.ID, s.Fixtures.Orgs[0].ID).
@@ -809,7 +805,7 @@ func (s *OrgTestSuite) TestUpdateOrganizationPoolInvalidOrgID() {
 	_, err := s.Store.UpdateOrganizationPool(context.Background(), "dummy-org-id", "dummy-pool-id", s.Fixtures.UpdatePoolParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching pool: fetching org: parsing id: invalid request", err.Error())
+	s.Require().Equal("fetching pool: parsing id: invalid request", err.Error())
 }
 
 func TestOrgTestSuite(t *testing.T) {
