@@ -592,6 +592,7 @@ func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error 
 		OSArch:        pool.OSArch,
 		Flavor:        pool.Flavor,
 		Image:         pool.Image,
+		ExtraSpecs:    pool.ExtraSpecs,
 		Labels:        labels,
 		PoolID:        instance.PoolID,
 		CACertBundle:  r.credsDetails.CABundle,
@@ -835,7 +836,7 @@ func (r *basePoolManager) ensureIdleRunnersForOnePool(pool params.Pool) {
 	}
 
 	for i := 0; i < required; i++ {
-		log.Printf("addind new idle worker to pool %s", pool.ID)
+		log.Printf("adding new idle worker to pool %s", pool.ID)
 		if err := r.AddRunner(r.ctx, pool.ID); err != nil {
 			log.Printf("failed to add new instance for pool %s: %s", pool.ID, err)
 		}

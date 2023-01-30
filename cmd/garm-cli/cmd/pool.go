@@ -15,20 +15,36 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"garm/config"
 	"garm/params"
 	"os"
 	"strings"
 
+	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
 var (
-	poolRepository   string
-	poolOrganization string
-	poolEnterprise   string
-	poolAll          bool
+	poolProvider               string
+	poolMaxRunners             uint
+	poolMinIdleRunners         uint
+	poolRunnerPrefix           string
+	poolImage                  string
+	poolFlavor                 string
+	poolOSType                 string
+	poolOSArch                 string
+	poolTags                   string
+	poolEnabled                bool
+	poolRunnerBootstrapTimeout uint
+	poolRepository             string
+	poolOrganization           string
+	poolEnterprise             string
+	poolExtraSpecsFile         string
+	poolExtraSpecs             string
+	poolAll                    bool
 )
 
 // runnerCmd represents the runner command
@@ -181,6 +197,23 @@ var poolAddCmd = &cobra.Command{
 			Enabled:                poolEnabled,
 			RunnerBootstrapTimeout: poolRunnerBootstrapTimeout,
 		}
+
+		if cmd.Flags().Changed("extra-specs") {
+			data, err := asRawMessage([]byte(poolExtraSpecs))
+			if err != nil {
+				return err
+			}
+			newPoolParams.ExtraSpecs = data
+		}
+
+		if poolExtraSpecsFile != "" {
+			data, err := extraSpecsFromFile(poolExtraSpecsFile)
+			if err != nil {
+				return err
+			}
+			newPoolParams.ExtraSpecs = data
+		}
+
 		if err := newPoolParams.Validate(); err != nil {
 			return err
 		}
@@ -274,6 +307,22 @@ explicitly remove them using the runner delete command.
 			poolUpdateParams.RunnerBootstrapTimeout = &poolRunnerBootstrapTimeout
 		}
 
+		if cmd.Flags().Changed("extra-specs") {
+			data, err := asRawMessage([]byte(poolExtraSpecs))
+			if err != nil {
+				return err
+			}
+			poolUpdateParams.ExtraSpecs = data
+		}
+
+		if poolExtraSpecsFile != "" {
+			data, err := extraSpecsFromFile(poolExtraSpecsFile)
+			if err != nil {
+				return err
+			}
+			poolUpdateParams.ExtraSpecs = data
+		}
+
 		pool, err := cli.UpdatePoolByID(args[0], poolUpdateParams)
 		if err != nil {
 			return err
@@ -301,6 +350,9 @@ func init() {
 	poolUpdateCmd.Flags().UintVar(&poolMinIdleRunners, "min-idle-runners", 1, "Attempt to maintain a minimum of idle self-hosted runners of this type.")
 	poolUpdateCmd.Flags().BoolVar(&poolEnabled, "enabled", false, "Enable this pool.")
 	poolUpdateCmd.Flags().UintVar(&poolRunnerBootstrapTimeout, "runner-bootstrap-timeout", 20, "Duration in minutes after which a runner is considered failed if it does not join Github.")
+	poolUpdateCmd.Flags().StringVar(&poolExtraSpecsFile, "extra-specs-file", "", "A file containing a valid json which will be passed to the IaaS provider managing the pool.")
+	poolUpdateCmd.Flags().StringVar(&poolExtraSpecs, "extra-specs", "", "A valid json which will be passed to the IaaS provider managing the pool.")
+	poolUpdateCmd.MarkFlagsMutuallyExclusive("extra-specs-file", "extra-specs")
 
 	poolAddCmd.Flags().StringVar(&poolProvider, "provider-name", "", "The name of the provider where runners will be created.")
 	poolAddCmd.Flags().StringVar(&poolImage, "image", "", "The provider-specific image name to use for runners in this pool.")
@@ -309,6 +361,8 @@ func init() {
 	poolAddCmd.Flags().StringVar(&poolTags, "tags", "", "A comma separated list of tags to assign to this runner.")
 	poolAddCmd.Flags().StringVar(&poolOSType, "os-type", "linux", "Operating system type (windows, linux, etc).")
 	poolAddCmd.Flags().StringVar(&poolOSArch, "os-arch", "amd64", "Operating system architecture (amd64, arm, etc).")
+	poolAddCmd.Flags().StringVar(&poolExtraSpecsFile, "extra-specs-file", "", "A file containing a valid json which will be passed to the IaaS provider managing the pool.")
+	poolAddCmd.Flags().StringVar(&poolExtraSpecs, "extra-specs", "", "A valid json which will be passed to the IaaS provider managing the pool.")
 	poolAddCmd.Flags().UintVar(&poolMaxRunners, "max-runners", 5, "The maximum number of runner this pool will create.")
 	poolAddCmd.Flags().UintVar(&poolRunnerBootstrapTimeout, "runner-bootstrap-timeout", 20, "Duration in minutes after which a runner is considered failed if it does not join Github.")
 	poolAddCmd.Flags().UintVar(&poolMinIdleRunners, "min-idle-runners", 1, "Attempt to maintain a minimum of idle self-hosted runners of this type.")
@@ -322,6 +376,7 @@ func init() {
 	poolAddCmd.Flags().StringVarP(&poolOrganization, "org", "o", "", "Add the new pool withing this organization.")
 	poolAddCmd.Flags().StringVarP(&poolEnterprise, "enterprise", "e", "", "Add the new pool withing this enterprise.")
 	poolAddCmd.MarkFlagsMutuallyExclusive("repo", "org", "enterprise")
+	poolAddCmd.MarkFlagsMutuallyExclusive("extra-specs-file", "extra-specs")
 
 	poolCmd.AddCommand(
 		poolListCmd,
@@ -332,4 +387,113 @@ func init() {
 	)
 
 	rootCmd.AddCommand(poolCmd)
+}
+
+func extraSpecsFromFile(specsFile string) (json.RawMessage, error) {
+	data, err := os.ReadFile(specsFile)
+	if err != nil {
+		return nil, errors.Wrap(err, "opening specs file")
+	}
+	return asRawMessage(data)
+}
+
+func asRawMessage(data []byte) (json.RawMessage, error) {
+	// unmarshaling and marshaling again will remove new lines and verify we
+	// have a valid json.
+	var unmarshaled interface{}
+	if err := json.Unmarshal(data, &unmarshaled); err != nil {
+		return nil, errors.Wrap(err, "decoding extra specs")
+	}
+
+	var asRawJson json.RawMessage
+	var err error
+	asRawJson, err = json.Marshal(unmarshaled)
+	if err != nil {
+		return nil, errors.Wrap(err, "marshaling json")
+	}
+	return asRawJson, nil
+}
+
+func formatPools(pools []params.Pool) {
+	t := table.NewWriter()
+	header := table.Row{"ID", "Image", "Flavor", "Tags", "Belongs to", "Level", "Enabled", "Runner Prefix"}
+	t.AppendHeader(header)
+
+	for _, pool := range pools {
+		tags := []string{}
+		for _, tag := range pool.Tags {
+			tags = append(tags, tag.Name)
+		}
+		var belongsTo string
+		var level string
+
+		if pool.RepoID != "" && pool.RepoName != "" {
+			belongsTo = pool.RepoName
+			level = "repo"
+		} else if pool.OrgID != "" && pool.OrgName != "" {
+			belongsTo = pool.OrgName
+			level = "org"
+		} else if pool.EnterpriseID != "" && pool.EnterpriseName != "" {
+			belongsTo = pool.EnterpriseName
+			level = "enterprise"
+		}
+		t.AppendRow(table.Row{pool.ID, pool.Image, pool.Flavor, strings.Join(tags, " "), belongsTo, level, pool.Enabled, pool.GetRunnerPrefix()})
+		t.AppendSeparator()
+	}
+	fmt.Println(t.Render())
+}
+
+func formatOnePool(pool params.Pool) {
+	t := table.NewWriter()
+	rowConfigAutoMerge := table.RowConfig{AutoMerge: true}
+
+	header := table.Row{"Field", "Value"}
+
+	tags := []string{}
+	for _, tag := range pool.Tags {
+		tags = append(tags, tag.Name)
+	}
+
+	var belongsTo string
+	var level string
+
+	if pool.RepoID != "" && pool.RepoName != "" {
+		belongsTo = pool.RepoName
+		level = "repo"
+	} else if pool.OrgID != "" && pool.OrgName != "" {
+		belongsTo = pool.OrgName
+		level = "org"
+	} else if pool.EnterpriseID != "" && pool.EnterpriseName != "" {
+		belongsTo = pool.EnterpriseName
+		level = "enterprise"
+	}
+
+	t.AppendHeader(header)
+	t.AppendRow(table.Row{"ID", pool.ID})
+	t.AppendRow(table.Row{"Provider Name", pool.ProviderName})
+	t.AppendRow(table.Row{"Image", pool.Image})
+	t.AppendRow(table.Row{"Flavor", pool.Flavor})
+	t.AppendRow(table.Row{"OS Type", pool.OSType})
+	t.AppendRow(table.Row{"OS Architecture", pool.OSArch})
+	t.AppendRow(table.Row{"Max Runners", pool.MaxRunners})
+	t.AppendRow(table.Row{"Min Idle Runners", pool.MinIdleRunners})
+	t.AppendRow(table.Row{"Runner Bootstrap Timeout", pool.RunnerBootstrapTimeout})
+	t.AppendRow(table.Row{"Tags", strings.Join(tags, ", ")})
+	t.AppendRow(table.Row{"Belongs to", belongsTo})
+	t.AppendRow(table.Row{"Level", level})
+	t.AppendRow(table.Row{"Enabled", pool.Enabled})
+	t.AppendRow(table.Row{"Runner Prefix", pool.GetRunnerPrefix()})
+	t.AppendRow(table.Row{"Extra specs", string(pool.ExtraSpecs)})
+
+	if len(pool.Instances) > 0 {
+		for _, instance := range pool.Instances {
+			t.AppendRow(table.Row{"Instances", fmt.Sprintf("%s (%s)", instance.Name, instance.ID)}, rowConfigAutoMerge)
+		}
+	}
+
+	t.SetColumnConfigs([]table.ColumnConfig{
+		{Number: 1, AutoMerge: true},
+		{Number: 2, AutoMerge: true},
+	})
+	fmt.Println(t.Render())
 }

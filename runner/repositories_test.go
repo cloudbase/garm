@@ -418,7 +418,7 @@ func (s *RepoTestSuite) TestDeleteRepoPool() {
 	s.Require().Nil(err)
 
 	_, err = s.Fixtures.Store.GetRepositoryPool(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID, pool.ID)
-	s.Require().Equal("fetching pool: not found", err.Error())
+	s.Require().Equal("fetching pool: finding pool: not found", err.Error())
 }
 
 func (s *RepoTestSuite) TestDeleteRepoPoolErrUnauthorized() {

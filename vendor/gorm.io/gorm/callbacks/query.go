@@ -117,12 +117,20 @@ func BuildQuerySQL(db *gorm.DB) {
 				} else if relation, ok := db.Statement.Schema.Relationships.Relations[join.Name]; ok {
 					tableAliasName := relation.Name
 
+					columnStmt := gorm.Statement{
+						Table: tableAliasName, DB: db, Schema: relation.FieldSchema,
+						Selects: join.Selects, Omits: join.Omits,
+					}
+
+					selectColumns, restricted := columnStmt.SelectAndOmitColumns(false, false)
 					for _, s := range relation.FieldSchema.DBNames {
-						clauseSelect.Columns = append(clauseSelect.Columns, clause.Column{
-							Table: tableAliasName,
-							Name:  s,
-							Alias: tableAliasName + "__" + s,
-						})
+						if v, ok := selectColumns[s]; (ok && v) || (!ok && !restricted) {
+							clauseSelect.Columns = append(clauseSelect.Columns, clause.Column{
+								Table: tableAliasName,
+								Name:  s,
+								Alias: tableAliasName + "__" + s,
+							})
+						}
 					}
 
 					exprs := make([]clause.Expression, len(relation.References))
@@ -252,7 +260,7 @@ func Preload(db *gorm.DB) {
 
 		for _, name := range preloadNames {
 			if rel := preloadDB.Statement.Schema.Relationships.Relations[name]; rel != nil {
-				db.AddError(preload(preloadDB.Table("").Session(&gorm.Session{}), rel, append(db.Statement.Preloads[name], db.Statement.Preloads[clause.Associations]...), preloadMap[name]))
+				db.AddError(preload(preloadDB.Table("").Session(&gorm.Session{Context: db.Statement.Context, SkipHooks: db.Statement.SkipHooks}), rel, append(db.Statement.Preloads[name], db.Statement.Preloads[clause.Associations]...), preloadMap[name]))
 			} else {
 				db.AddError(fmt.Errorf("%s: %w for schema %s", name, gorm.ErrUnsupportedRelation, db.Statement.Schema.Name))
 			}

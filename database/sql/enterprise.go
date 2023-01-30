@@ -9,6 +9,7 @@ import (
 
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -152,6 +153,10 @@ func (s *sqlDatabase) CreateEnterprisePool(ctx context.Context, enterpriseID str
 		RunnerBootstrapTimeout: param.RunnerBootstrapTimeout,
 	}
 
+	if len(param.ExtraSpecs) > 0 {
+		newPool.ExtraSpecs = datatypes.JSON(param.ExtraSpecs)
+	}
+
 	_, err = s.getEnterprisePoolByUniqueFields(ctx, enterpriseID, newPool.ProviderName, newPool.Image, newPool.Flavor)
 	if err != nil {
 		if !errors.Is(err, runnerErrors.ErrNotFound) {
@@ -190,7 +195,7 @@ func (s *sqlDatabase) CreateEnterprisePool(ctx context.Context, enterpriseID str
 }
 
 func (s *sqlDatabase) GetEnterprisePool(ctx context.Context, enterpriseID, poolID string) (params.Pool, error) {
-	pool, err := s.getEnterprisePool(ctx, enterpriseID, poolID, "Tags", "Instances")
+	pool, err := s.getEntityPool(ctx, params.EnterprisePool, enterpriseID, poolID, "Tags", "Instances")
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}
@@ -198,7 +203,7 @@ func (s *sqlDatabase) GetEnterprisePool(ctx context.Context, enterpriseID, poolI
 }
 
 func (s *sqlDatabase) DeleteEnterprisePool(ctx context.Context, enterpriseID, poolID string) error {
-	pool, err := s.getEnterprisePool(ctx, enterpriseID, poolID)
+	pool, err := s.getEntityPool(ctx, params.EnterprisePool, enterpriseID, poolID)
 	if err != nil {
 		return errors.Wrap(err, "looking up enterprise pool")
 	}
@@ -210,7 +215,7 @@ func (s *sqlDatabase) DeleteEnterprisePool(ctx context.Context, enterpriseID, po
 }
 
 func (s *sqlDatabase) UpdateEnterprisePool(ctx context.Context, enterpriseID, poolID string, param params.UpdatePoolParams) (params.Pool, error) {
-	pool, err := s.getEnterprisePool(ctx, enterpriseID, poolID, "Tags", "Instances", "Enterprise", "Organization", "Repository")
+	pool, err := s.getEntityPool(ctx, params.EnterprisePool, enterpriseID, poolID, "Tags", "Instances", "Enterprise", "Organization", "Repository")
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}
@@ -311,15 +316,10 @@ func (s *sqlDatabase) getEnterprisePoolByUniqueFields(ctx context.Context, enter
 	return pool[0], nil
 }
 
-func (s *sqlDatabase) getEnterprisePool(ctx context.Context, enterpriseID, poolID string, preload ...string) (Pool, error) {
-	enterprise, err := s.getEnterpriseByID(ctx, enterpriseID)
+func (s *sqlDatabase) getEnterprisePools(ctx context.Context, enterpriseID string, preload ...string) ([]Pool, error) {
+	_, err := s.getEnterpriseByID(ctx, enterpriseID)
 	if err != nil {
-		return Pool{}, errors.Wrap(err, "fetching enterprise")
-	}
-
-	u, err := uuid.FromString(poolID)
-	if err != nil {
-		return Pool{}, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
+		return nil, errors.Wrap(err, "fetching enterprise")
 	}
 
 	q := s.conn
@@ -329,33 +329,10 @@ func (s *sqlDatabase) getEnterprisePool(ctx context.Context, enterpriseID, poolI
 		}
 	}
 
-	var pool []Pool
-	err = q.Model(&enterprise).Association("Pools").Find(&pool, "id = ?", u)
-	if err != nil {
-		return Pool{}, errors.Wrap(err, "fetching pool")
-	}
-	if len(pool) == 0 {
-		return Pool{}, runnerErrors.ErrNotFound
-	}
-
-	return pool[0], nil
-}
-
-func (s *sqlDatabase) getEnterprisePools(ctx context.Context, enterpriseID string, preload ...string) ([]Pool, error) {
-	enterprise, err := s.getEnterpriseByID(ctx, enterpriseID)
-	if err != nil {
-		return nil, errors.Wrap(err, "fetching enterprise")
-	}
-
 	var pools []Pool
-
-	q := s.conn.Model(&enterprise)
-	if len(preload) > 0 {
-		for _, item := range preload {
-			q = q.Preload(item)
-		}
-	}
-	err = q.Association("Pools").Find(&pools)
+	err = q.Model(&Pool{}).Where("enterprise_id = ?", enterpriseID).
+		Omit("extra_specs").
+		Find(&pools).Error
 
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching pool")

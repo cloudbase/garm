@@ -688,7 +688,7 @@ func (s *EnterpriseTestSuite) TestGetEnterprisePoolInvalidEnterpriseID() {
 	_, err := s.Store.GetEnterprisePool(context.Background(), "dummy-enterprise-id", "dummy-pool-id")
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching pool: fetching enterprise: parsing id: invalid request", err.Error())
+	s.Require().Equal("fetching pool: parsing id: invalid request", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestDeleteEnterprisePool() {
@@ -701,14 +701,14 @@ func (s *EnterpriseTestSuite) TestDeleteEnterprisePool() {
 
 	s.Require().Nil(err)
 	_, err = s.Store.GetEnterprisePool(context.Background(), s.Fixtures.Enterprises[0].ID, pool.ID)
-	s.Require().Equal("fetching pool: not found", err.Error())
+	s.Require().Equal("fetching pool: finding pool: not found", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestDeleteEnterprisePoolInvalidEnterpriseID() {
 	err := s.Store.DeleteEnterprisePool(context.Background(), "dummy-enterprise-id", "dummy-pool-id")
 
 	s.Require().NotNil(err)
-	s.Require().Equal("looking up enterprise pool: fetching enterprise: parsing id: invalid request", err.Error())
+	s.Require().Equal("looking up enterprise pool: parsing id: invalid request", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestDeleteEnterprisePoolDBDeleteErr() {
@@ -718,12 +718,8 @@ func (s *EnterpriseTestSuite) TestDeleteEnterprisePoolDBDeleteErr() {
 	}
 
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `enterprises` WHERE id = ? AND `enterprises`.`deleted_at` IS NULL ORDER BY `enterprises`.`id` LIMIT 1")).
-		WithArgs(s.Fixtures.Enterprises[0].ID).
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Enterprises[0].ID))
-	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE `pools`.`enterprise_id` = ? AND id = ? AND `pools`.`deleted_at` IS NULL")).
-		WithArgs(s.Fixtures.Enterprises[0].ID, pool.ID).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE (id = ? and enterprise_id = ?) AND `pools`.`deleted_at` IS NULL ORDER BY `pools`.`id` LIMIT 1")).
+		WithArgs(pool.ID, s.Fixtures.Enterprises[0].ID).
 		WillReturnRows(sqlmock.NewRows([]string{"enterprise_id", "id"}).AddRow(s.Fixtures.Enterprises[0].ID, pool.ID))
 	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
@@ -809,7 +805,7 @@ func (s *EnterpriseTestSuite) TestUpdateEnterprisePoolInvalidEnterpriseID() {
 	_, err := s.Store.UpdateEnterprisePool(context.Background(), "dummy-enterprise-id", "dummy-pool-id", s.Fixtures.UpdatePoolParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching pool: fetching enterprise: parsing id: invalid request", err.Error())
+	s.Require().Equal("fetching pool: parsing id: invalid request", err.Error())
 }
 
 func TestEnterpriseTestSuite(t *testing.T) {

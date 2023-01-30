@@ -3,6 +3,7 @@ package migrator
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"reflect"
 	"regexp"
@@ -14,8 +15,7 @@ import (
 )
 
 var (
-	regRealDataType = regexp.MustCompile(`[^\d](\d+)[^\d]?`)
-	regFullDataType = regexp.MustCompile(`[^\d]*(\d+)[^\d]?`)
+	regFullDataType = regexp.MustCompile(`\D*(\d+)\D?`)
 )
 
 // Migrator m struct
@@ -99,7 +99,10 @@ func (m Migrator) AutoMigrate(values ...interface{}) error {
 			}
 		} else {
 			if err := m.RunWithValue(value, func(stmt *gorm.Statement) (errr error) {
-				columnTypes, _ := m.DB.Migrator().ColumnTypes(value)
+				columnTypes, err := m.DB.Migrator().ColumnTypes(value)
+				if err != nil {
+					return err
+				}
 
 				for _, dbName := range stmt.Schema.DBNames {
 					field := stmt.Schema.FieldsByDBName[dbName]
@@ -132,12 +135,12 @@ func (m Migrator) AutoMigrate(values ...interface{}) error {
 							}
 						}
 					}
+				}
 
-					for _, chk := range stmt.Schema.ParseCheckConstraints() {
-						if !tx.Migrator().HasConstraint(value, chk.Name) {
-							if err := tx.Migrator().CreateConstraint(value, chk.Name); err != nil {
-								return err
-							}
+				for _, chk := range stmt.Schema.ParseCheckConstraints() {
+					if !tx.Migrator().HasConstraint(value, chk.Name) {
+						if err := tx.Migrator().CreateConstraint(value, chk.Name); err != nil {
+							return err
 						}
 					}
 				}
@@ -220,7 +223,7 @@ func (m Migrator) CreateTable(values ...interface{}) error {
 					}
 
 					createTableSQL += ","
-					values = append(values, clause.Expr{SQL: idx.Name}, tx.Migrator().(BuildIndexOptionsInterface).BuildIndexOptions(idx.Fields, stmt))
+					values = append(values, clause.Column{Name: idx.Name}, tx.Migrator().(BuildIndexOptionsInterface).BuildIndexOptions(idx.Fields, stmt))
 				}
 			}
 
@@ -400,31 +403,52 @@ func (m Migrator) RenameColumn(value interface{}, oldName, newName string) error
 // MigrateColumn migrate column
 func (m Migrator) MigrateColumn(value interface{}, field *schema.Field, columnType gorm.ColumnType) error {
 	// found, smart migrate
-	fullDataType := strings.ToLower(m.DB.Migrator().FullDataTypeOf(field).SQL)
+	fullDataType := strings.TrimSpace(strings.ToLower(m.DB.Migrator().FullDataTypeOf(field).SQL))
 	realDataType := strings.ToLower(columnType.DatabaseTypeName())
 
-	alterColumn := false
+	var (
+		alterColumn, isSameType bool
+	)
 
-	// check size
-	if length, ok := columnType.Length(); length != int64(field.Size) {
-		if length > 0 && field.Size > 0 {
-			alterColumn = true
-		} else {
-			// has size in data type and not equal
-			// Since the following code is frequently called in the for loop, reg optimization is needed here
-			matches := regRealDataType.FindAllStringSubmatch(realDataType, -1)
-			matches2 := regFullDataType.FindAllStringSubmatch(fullDataType, -1)
-			if (len(matches) == 1 && matches[0][1] != fmt.Sprint(field.Size) || !field.PrimaryKey) &&
-				(len(matches2) == 1 && matches2[0][1] != fmt.Sprint(length) && ok) {
+	if !field.PrimaryKey {
+		// check type
+		if !strings.HasPrefix(fullDataType, realDataType) {
+			// check type aliases
+			aliases := m.DB.Migrator().GetTypeAliases(realDataType)
+			for _, alias := range aliases {
+				if strings.HasPrefix(fullDataType, alias) {
+					isSameType = true
+					break
+				}
+			}
+
+			if !isSameType {
 				alterColumn = true
 			}
 		}
 	}
 
-	// check precision
-	if precision, _, ok := columnType.DecimalSize(); ok && int64(field.Precision) != precision {
-		if regexp.MustCompile(fmt.Sprintf("[^0-9]%d[^0-9]", field.Precision)).MatchString(m.DataTypeOf(field)) {
-			alterColumn = true
+	if !isSameType {
+		// check size
+		if length, ok := columnType.Length(); length != int64(field.Size) {
+			if length > 0 && field.Size > 0 {
+				alterColumn = true
+			} else {
+				// has size in data type and not equal
+				// Since the following code is frequently called in the for loop, reg optimization is needed here
+				matches2 := regFullDataType.FindAllStringSubmatch(fullDataType, -1)
+				if !field.PrimaryKey &&
+					(len(matches2) == 1 && matches2[0][1] != fmt.Sprint(length) && ok) {
+					alterColumn = true
+				}
+			}
+		}
+
+		// check precision
+		if precision, _, ok := columnType.DecimalSize(); ok && int64(field.Precision) != precision {
+			if regexp.MustCompile(fmt.Sprintf("[^0-9]%d[^0-9]", field.Precision)).MatchString(m.DataTypeOf(field)) {
+				alterColumn = true
+			}
 		}
 	}
 
@@ -445,10 +469,20 @@ func (m Migrator) MigrateColumn(value interface{}, field *schema.Field, columnTy
 	}
 
 	// check default value
-	if v, ok := columnType.DefaultValue(); ok && v != field.DefaultValue {
-		// not primary key
-		if !field.PrimaryKey {
+	if !field.PrimaryKey {
+		dv, dvNotNull := columnType.DefaultValue()
+		if dvNotNull && field.DefaultValueInterface == nil {
+			// defalut value -> null
 			alterColumn = true
+		} else if !dvNotNull && field.DefaultValueInterface != nil {
+			// null -> default value
+			alterColumn = true
+		} else if dv != field.DefaultValue {
+			// default value not equal
+			// not both null
+			if !(field.DefaultValueInterface == nil && !dvNotNull) {
+				alterColumn = true
+			}
 		}
 	}
 
@@ -461,7 +495,7 @@ func (m Migrator) MigrateColumn(value interface{}, field *schema.Field, columnTy
 	}
 
 	if alterColumn && !field.IgnoreMigration {
-		return m.DB.Migrator().AlterColumn(value, field.Name)
+		return m.DB.Migrator().AlterColumn(value, field.DBName)
 	}
 
 	return nil
@@ -756,7 +790,8 @@ func (m Migrator) ReorderModels(values []interface{}, autoAdd bool) (results []i
 			Statement: &gorm.Statement{DB: m.DB, Dest: value},
 		}
 		beDependedOn := map[*schema.Schema]bool{}
-		if err := dep.Parse(value); err != nil {
+		// support for special table name
+		if err := dep.ParseWithSpecialTableName(value, m.DB.Statement.Table); err != nil {
 			m.DB.Logger.Error(context.Background(), "failed to parse value %#v, got error %v", value, err)
 		}
 		if _, ok := parsedSchemas[dep.Statement.Schema]; ok {
@@ -839,4 +874,14 @@ func (m Migrator) CurrentTable(stmt *gorm.Statement) interface{} {
 		return *stmt.TableExpr
 	}
 	return clause.Table{Name: stmt.Table}
+}
+
+// GetIndexes return Indexes []gorm.Index and execErr error
+func (m Migrator) GetIndexes(dst interface{}) ([]gorm.Index, error) {
+	return nil, errors.New("not support")
+}
+
+// GetTypeAliases return database type aliases
+func (m Migrator) GetTypeAliases(databaseTypeName string) []string {
+	return nil
 }

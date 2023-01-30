@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"gorm.io/gorm/migrator"
@@ -12,12 +13,13 @@ import (
 
 var (
 	sqliteSeparator    = "`|\"|'|\t"
-	indexRegexp        = regexp.MustCompile(fmt.Sprintf("CREATE(?: UNIQUE)? INDEX [%v]?[\\w\\d]+[%v]? ON (.*)$", sqliteSeparator, sqliteSeparator))
-	tableRegexp        = regexp.MustCompile(fmt.Sprintf("(?i)(CREATE TABLE [%v]?[\\w\\d]+[%v]?)(?: \\((.*)\\))?", sqliteSeparator, sqliteSeparator))
+	indexRegexp        = regexp.MustCompile(fmt.Sprintf("(?is)CREATE(?: UNIQUE)? INDEX [%v]?[\\w\\d-]+[%v]? ON (.*)$", sqliteSeparator, sqliteSeparator))
+	tableRegexp        = regexp.MustCompile(fmt.Sprintf("(?is)(CREATE TABLE [%v]?[\\w\\d-]+[%v]?)(?: \\((.*)\\))?", sqliteSeparator, sqliteSeparator))
 	separatorRegexp    = regexp.MustCompile(fmt.Sprintf("[%v]", sqliteSeparator))
 	columnsRegexp      = regexp.MustCompile(fmt.Sprintf("\\([%v]?([\\w\\d]+)[%v]?(?:,[%v]?([\\w\\d]+)[%v]){0,}\\)", sqliteSeparator, sqliteSeparator, sqliteSeparator, sqliteSeparator))
 	columnRegexp       = regexp.MustCompile(fmt.Sprintf("^[%v]?([\\w\\d]+)[%v]?\\s+([\\w\\(\\)\\d]+)(.*)$", sqliteSeparator, sqliteSeparator))
 	defaultValueRegexp = regexp.MustCompile("(?i) DEFAULT \\(?(.+)?\\)?( |COLLATE|GENERATED|$)")
+	regRealDataType    = regexp.MustCompile(`[^\d](\d+)[^\d]?`)
 )
 
 type ddl struct {
@@ -37,16 +39,17 @@ func parseDDL(strs ...string) (*ddl, error) {
 				quote        rune
 				buf          string
 			)
+			ddlBodyRunesLen := len(ddlBodyRunes)
 
 			result.head = sections[1]
 
-			for idx := 0; idx < len(ddlBodyRunes); idx++ {
+			for idx := 0; idx < ddlBodyRunesLen; idx++ {
 				var (
 					next rune = 0
 					c         = ddlBodyRunes[idx]
 				)
-				if idx+1 < len(ddlBody) {
-					next = []rune(ddlBody)[idx+1]
+				if idx+1 < ddlBodyRunesLen {
+					next = ddlBodyRunes[idx+1]
 				}
 
 				if sc := string(c); separatorRegexp.MatchString(sc) {
@@ -115,7 +118,7 @@ func parseDDL(strs ...string) (*ddl, error) {
 						PrimaryKeyValue:   sql.NullBool{Valid: true},
 						UniqueValue:       sql.NullBool{Valid: true},
 						NullableValue:     sql.NullBool{Valid: true},
-						DefaultValueValue: sql.NullString{Valid: true},
+						DefaultValueValue: sql.NullString{Valid: false},
 					}
 
 					matchUpper := strings.ToUpper(matches[3])
@@ -132,6 +135,14 @@ func parseDDL(strs ...string) (*ddl, error) {
 					}
 					if defaultMatches := defaultValueRegexp.FindStringSubmatch(matches[3]); len(defaultMatches) > 1 {
 						columnType.DefaultValueValue = sql.NullString{String: strings.Trim(defaultMatches[1], `"`), Valid: true}
+					}
+
+					// data type length
+					matches := regRealDataType.FindAllStringSubmatch(columnType.DataTypeValue.String, -1)
+					if len(matches) == 1 && len(matches[0]) == 2 {
+						size, _ := strconv.Atoi(matches[0][1])
+						columnType.LengthValue = sql.NullInt64{Valid: true, Int64: int64(size)}
+						columnType.DataTypeValue.String = strings.TrimSuffix(columnType.DataTypeValue.String, matches[0][0])
 					}
 
 					result.columns = append(result.columns, columnType)
@@ -205,7 +216,8 @@ func (d *ddl) getColumns() []string {
 		fUpper := strings.ToUpper(f)
 		if strings.HasPrefix(fUpper, "PRIMARY KEY") ||
 			strings.HasPrefix(fUpper, "CHECK") ||
-			strings.HasPrefix(fUpper, "CONSTRAINT") {
+			strings.HasPrefix(fUpper, "CONSTRAINT") ||
+			strings.Contains(fUpper, "GENERATED ALWAYS AS") {
 			continue
 		}
 

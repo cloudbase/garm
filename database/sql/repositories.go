@@ -24,6 +24,7 @@ import (
 
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -169,6 +170,10 @@ func (s *sqlDatabase) CreateRepositoryPool(ctx context.Context, repoId string, p
 		RunnerBootstrapTimeout: param.RunnerBootstrapTimeout,
 	}
 
+	if len(param.ExtraSpecs) > 0 {
+		newPool.ExtraSpecs = datatypes.JSON(param.ExtraSpecs)
+	}
+
 	_, err = s.getRepoPoolByUniqueFields(ctx, repoId, newPool.ProviderName, newPool.Image, newPool.Flavor)
 	if err != nil {
 		if !errors.Is(err, runnerErrors.ErrNotFound) {
@@ -221,7 +226,7 @@ func (s *sqlDatabase) ListRepoPools(ctx context.Context, repoID string) ([]param
 }
 
 func (s *sqlDatabase) GetRepositoryPool(ctx context.Context, repoID, poolID string) (params.Pool, error) {
-	pool, err := s.getRepoPool(ctx, repoID, poolID, "Tags", "Instances")
+	pool, err := s.getEntityPool(ctx, params.RepositoryPool, repoID, poolID, "Tags", "Instances")
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}
@@ -229,7 +234,7 @@ func (s *sqlDatabase) GetRepositoryPool(ctx context.Context, repoID, poolID stri
 }
 
 func (s *sqlDatabase) DeleteRepositoryPool(ctx context.Context, repoID, poolID string) error {
-	pool, err := s.getRepoPool(ctx, repoID, poolID)
+	pool, err := s.getEntityPool(ctx, params.RepositoryPool, repoID, poolID)
 	if err != nil {
 		return errors.Wrap(err, "looking up repo pool")
 	}
@@ -264,7 +269,7 @@ func (s *sqlDatabase) ListRepoInstances(ctx context.Context, repoID string) ([]p
 }
 
 func (s *sqlDatabase) UpdateRepositoryPool(ctx context.Context, repoID, poolID string, param params.UpdatePoolParams) (params.Pool, error) {
-	pool, err := s.getRepoPool(ctx, repoID, poolID, "Tags", "Instances", "Enterprise", "Organization", "Repository")
+	pool, err := s.getEntityPool(ctx, params.RepositoryPool, repoID, poolID, "Tags", "Instances", "Enterprise", "Organization", "Repository")
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}
@@ -317,36 +322,6 @@ func (s *sqlDatabase) findPoolByTags(id, poolType string, tags []string) (params
 	return s.sqlToCommonPool(pool), nil
 }
 
-func (s *sqlDatabase) getRepoPool(ctx context.Context, repoID, poolID string, preload ...string) (Pool, error) {
-	repo, err := s.getRepoByID(ctx, repoID)
-	if err != nil {
-		return Pool{}, errors.Wrap(err, "fetching repo")
-	}
-
-	u, err := uuid.FromString(poolID)
-	if err != nil {
-		return Pool{}, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
-	}
-
-	q := s.conn
-	if len(preload) > 0 {
-		for _, item := range preload {
-			q = q.Preload(item)
-		}
-	}
-
-	var pool []Pool
-	err = q.Model(&repo).Association("Pools").Find(&pool, "id = ?", u)
-	if err != nil {
-		return Pool{}, errors.Wrap(err, "fetching pool")
-	}
-	if len(pool) == 0 {
-		return Pool{}, runnerErrors.ErrNotFound
-	}
-
-	return pool[0], nil
-}
-
 func (s *sqlDatabase) getRepoPoolByUniqueFields(ctx context.Context, repoID string, provider, image, flavor string) (Pool, error) {
 	repo, err := s.getRepoByID(ctx, repoID)
 	if err != nil {
@@ -367,19 +342,22 @@ func (s *sqlDatabase) getRepoPoolByUniqueFields(ctx context.Context, repoID stri
 }
 
 func (s *sqlDatabase) getRepoPools(ctx context.Context, repoID string, preload ...string) ([]Pool, error) {
-	repo, err := s.getRepoByID(ctx, repoID)
+	_, err := s.getRepoByID(ctx, repoID)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching repo")
 	}
 
-	var pools []Pool
-	q := s.conn.Model(&repo)
+	q := s.conn
 	if len(preload) > 0 {
 		for _, item := range preload {
 			q = q.Preload(item)
 		}
 	}
-	err = q.Association("Pools").Find(&pools)
+
+	var pools []Pool
+	err = q.Model(&Pool{}).Where("repo_id = ?", repoID).
+		Omit("extra_specs").
+		Find(&pools).Error
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching pool")
 	}

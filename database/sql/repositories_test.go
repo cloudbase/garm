@@ -725,7 +725,7 @@ func (s *RepoTestSuite) TestGetRepositoryPoolInvalidRepoID() {
 	_, err := s.Store.GetRepositoryPool(context.Background(), "dummy-repo-id", "dummy-pool-id")
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching pool: fetching repo: parsing id: invalid request", err.Error())
+	s.Require().Equal("fetching pool: parsing id: invalid request", err.Error())
 }
 
 func (s *RepoTestSuite) TestDeleteRepositoryPool() {
@@ -738,14 +738,14 @@ func (s *RepoTestSuite) TestDeleteRepositoryPool() {
 
 	s.Require().Nil(err)
 	_, err = s.Store.GetOrganizationPool(context.Background(), s.Fixtures.Repos[0].ID, pool.ID)
-	s.Require().Equal("fetching pool: fetching org: not found", err.Error())
+	s.Require().Equal("fetching pool: finding pool: not found", err.Error())
 }
 
 func (s *RepoTestSuite) TestDeleteRepositoryPoolInvalidRepoID() {
 	err := s.Store.DeleteRepositoryPool(context.Background(), "dummy-repo-id", "dummy-pool-id")
 
 	s.Require().NotNil(err)
-	s.Require().Equal("looking up repo pool: fetching repo: parsing id: invalid request", err.Error())
+	s.Require().Equal("looking up repo pool: parsing id: invalid request", err.Error())
 }
 
 func (s *RepoTestSuite) TestDeleteRepositoryPoolDBDeleteErr() {
@@ -755,12 +755,8 @@ func (s *RepoTestSuite) TestDeleteRepositoryPoolDBDeleteErr() {
 	}
 
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `repositories` WHERE id = ? AND `repositories`.`deleted_at` IS NULL ORDER BY `repositories`.`id` LIMIT 1")).
-		WithArgs(s.Fixtures.Repos[0].ID).
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Repos[0].ID))
-	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE `pools`.`repo_id` = ? AND id = ? AND `pools`.`deleted_at` IS NULL")).
-		WithArgs(s.Fixtures.Repos[0].ID, pool.ID).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE (id = ? and repo_id = ?) AND `pools`.`deleted_at` IS NULL ORDER BY `pools`.`id` LIMIT 1")).
+		WithArgs(pool.ID, s.Fixtures.Repos[0].ID).
 		WillReturnRows(sqlmock.NewRows([]string{"repo_id", "id"}).AddRow(s.Fixtures.Repos[0].ID, pool.ID))
 	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
@@ -845,7 +841,7 @@ func (s *RepoTestSuite) TestUpdateRepositoryPoolInvalidRepoID() {
 	_, err := s.Store.UpdateRepositoryPool(context.Background(), "dummy-org-id", "dummy-repo-id", s.Fixtures.UpdatePoolParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching pool: fetching repo: parsing id: invalid request", err.Error())
+	s.Require().Equal("fetching pool: parsing id: invalid request", err.Error())
 }
 
 func TestRepoTestSuite(t *testing.T) {

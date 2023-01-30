@@ -15,6 +15,7 @@
 package params
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"garm/config"
@@ -108,15 +109,16 @@ type NewUserParams struct {
 type UpdatePoolParams struct {
 	RunnerPrefix
 
-	Tags                   []string      `json:"tags,omitempty"`
-	Enabled                *bool         `json:"enabled,omitempty"`
-	MaxRunners             *uint         `json:"max_runners,omitempty"`
-	MinIdleRunners         *uint         `json:"min_idle_runners,omitempty"`
-	RunnerBootstrapTimeout *uint         `json:"runner_bootstrap_timeout,omitempty"`
-	Image                  string        `json:"image"`
-	Flavor                 string        `json:"flavor"`
-	OSType                 config.OSType `json:"os_type"`
-	OSArch                 config.OSArch `json:"os_arch"`
+	Tags                   []string        `json:"tags,omitempty"`
+	Enabled                *bool           `json:"enabled,omitempty"`
+	MaxRunners             *uint           `json:"max_runners,omitempty"`
+	MinIdleRunners         *uint           `json:"min_idle_runners,omitempty"`
+	RunnerBootstrapTimeout *uint           `json:"runner_bootstrap_timeout,omitempty"`
+	Image                  string          `json:"image"`
+	Flavor                 string          `json:"flavor"`
+	OSType                 config.OSType   `json:"os_type"`
+	OSArch                 config.OSArch   `json:"os_arch"`
+	ExtraSpecs             json.RawMessage `json:"extra_specs,omitempty"`
 }
 
 type CreateInstanceParams struct {
@@ -133,16 +135,17 @@ type CreateInstanceParams struct {
 type CreatePoolParams struct {
 	RunnerPrefix
 
-	ProviderName           string        `json:"provider_name"`
-	MaxRunners             uint          `json:"max_runners"`
-	MinIdleRunners         uint          `json:"min_idle_runners"`
-	Image                  string        `json:"image"`
-	Flavor                 string        `json:"flavor"`
-	OSType                 config.OSType `json:"os_type"`
-	OSArch                 config.OSArch `json:"os_arch"`
-	Tags                   []string      `json:"tags"`
-	Enabled                bool          `json:"enabled"`
-	RunnerBootstrapTimeout uint          `json:"runner_bootstrap_timeout"`
+	ProviderName           string          `json:"provider_name"`
+	MaxRunners             uint            `json:"max_runners"`
+	MinIdleRunners         uint            `json:"min_idle_runners"`
+	Image                  string          `json:"image"`
+	Flavor                 string          `json:"flavor"`
+	OSType                 config.OSType   `json:"os_type"`
+	OSArch                 config.OSArch   `json:"os_arch"`
+	Tags                   []string        `json:"tags"`
+	Enabled                bool            `json:"enabled"`
+	RunnerBootstrapTimeout uint            `json:"runner_bootstrap_timeout"`
+	ExtraSpecs             json.RawMessage `json:"extra_specs,omitempty"`
 }
 
 func (p *CreatePoolParams) Validate() error {
