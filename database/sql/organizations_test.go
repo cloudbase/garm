@@ -701,7 +701,7 @@ func (s *OrgTestSuite) TestDeleteOrganizationPool() {
 
 	s.Require().Nil(err)
 	_, err = s.Store.GetOrganizationPool(context.Background(), s.Fixtures.Orgs[0].ID, pool.ID)
-	s.Require().Equal("fetching pool: not found", err.Error())
+	s.Require().Equal("fetching pool: finding pool: not found", err.Error())
 }
 
 func (s *OrgTestSuite) TestDeleteOrganizationPoolInvalidOrgID() {
@@ -722,8 +722,8 @@ func (s *OrgTestSuite) TestDeleteOrganizationPoolDBDeleteErr() {
 		WithArgs(s.Fixtures.Orgs[0].ID).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Orgs[0].ID))
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE `pools`.`org_id` = ? AND id = ? AND `pools`.`deleted_at` IS NULL")).
-		WithArgs(s.Fixtures.Orgs[0].ID, pool.ID).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE (id = ? and org_id = ?) AND `pools`.`deleted_at` IS NULL ORDER BY `pools`.`id` LIMIT 1")).
+		WithArgs(pool.ID, s.Fixtures.Orgs[0].ID).
 		WillReturnRows(sqlmock.NewRows([]string{"org_id", "id"}).AddRow(s.Fixtures.Orgs[0].ID, pool.ID))
 	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.

@@ -403,18 +403,14 @@ func (schema *Schema) ParseField(fieldStruct reflect.StructField) *Field {
 				}
 
 				if ef.PrimaryKey {
-					if val, ok := ef.TagSettings["PRIMARYKEY"]; ok && utils.CheckTruth(val) {
-						ef.PrimaryKey = true
-					} else if val, ok := ef.TagSettings["PRIMARY_KEY"]; ok && utils.CheckTruth(val) {
-						ef.PrimaryKey = true
-					} else {
+					if !utils.CheckTruth(ef.TagSettings["PRIMARYKEY"], ef.TagSettings["PRIMARY_KEY"]) {
 						ef.PrimaryKey = false
 
 						if val, ok := ef.TagSettings["AUTOINCREMENT"]; !ok || !utils.CheckTruth(val) {
 							ef.AutoIncrement = false
 						}
 
-						if ef.DefaultValue == "" {
+						if !ef.AutoIncrement && ef.DefaultValue == "" {
 							ef.HasDefaultValue = false
 						}
 					}
@@ -472,9 +468,6 @@ func (field *Field) setupValuerAndSetter() {
 		oldValuerOf := field.ValueOf
 		field.ValueOf = func(ctx context.Context, v reflect.Value) (interface{}, bool) {
 			value, zero := oldValuerOf(ctx, v)
-			if zero {
-				return value, zero
-			}
 
 			s, ok := value.(SerializerValuerInterface)
 			if !ok {
@@ -487,7 +480,7 @@ func (field *Field) setupValuerAndSetter() {
 				Destination:     v,
 				Context:         ctx,
 				fieldValue:      value,
-			}, false
+			}, zero
 		}
 	}
 
@@ -528,6 +521,9 @@ func (field *Field) setupValuerAndSetter() {
 			reflectValType := reflectV.Type()
 
 			if reflectValType.AssignableTo(field.FieldType) {
+				if reflectV.Kind() == reflect.Ptr && reflectV.Elem().Kind() == reflect.Ptr {
+					reflectV = reflect.Indirect(reflectV)
+				}
 				field.ReflectValueOf(ctx, value).Set(reflectV)
 				return
 			} else if reflectValType.ConvertibleTo(field.FieldType) {
@@ -584,6 +580,8 @@ func (field *Field) setupValuerAndSetter() {
 			case **bool:
 				if data != nil && *data != nil {
 					field.ReflectValueOf(ctx, value).SetBool(**data)
+				} else {
+					field.ReflectValueOf(ctx, value).SetBool(false)
 				}
 			case bool:
 				field.ReflectValueOf(ctx, value).SetBool(data)
@@ -603,6 +601,8 @@ func (field *Field) setupValuerAndSetter() {
 			case **int64:
 				if data != nil && *data != nil {
 					field.ReflectValueOf(ctx, value).SetInt(**data)
+				} else {
+					field.ReflectValueOf(ctx, value).SetInt(0)
 				}
 			case int64:
 				field.ReflectValueOf(ctx, value).SetInt(data)
@@ -667,6 +667,8 @@ func (field *Field) setupValuerAndSetter() {
 			case **uint64:
 				if data != nil && *data != nil {
 					field.ReflectValueOf(ctx, value).SetUint(**data)
+				} else {
+					field.ReflectValueOf(ctx, value).SetUint(0)
 				}
 			case uint64:
 				field.ReflectValueOf(ctx, value).SetUint(data)
@@ -719,6 +721,8 @@ func (field *Field) setupValuerAndSetter() {
 			case **float64:
 				if data != nil && *data != nil {
 					field.ReflectValueOf(ctx, value).SetFloat(**data)
+				} else {
+					field.ReflectValueOf(ctx, value).SetFloat(0)
 				}
 			case float64:
 				field.ReflectValueOf(ctx, value).SetFloat(data)
@@ -763,6 +767,8 @@ func (field *Field) setupValuerAndSetter() {
 			case **string:
 				if data != nil && *data != nil {
 					field.ReflectValueOf(ctx, value).SetString(**data)
+				} else {
+					field.ReflectValueOf(ctx, value).SetString("")
 				}
 			case string:
 				field.ReflectValueOf(ctx, value).SetString(data)
@@ -932,41 +938,18 @@ func (field *Field) setupValuerAndSetter() {
 }
 
 func (field *Field) setupNewValuePool() {
-	var fieldValue = reflect.New(field.FieldType).Interface()
 	if field.Serializer != nil {
 		field.NewValuePool = &sync.Pool{
 			New: func() interface{} {
 				return &serializer{
 					Field:      field,
-					Serializer: reflect.New(reflect.Indirect(reflect.ValueOf(field.Serializer)).Type()).Interface().(SerializerInterface),
+					Serializer: field.Serializer,
 				}
 			},
 		}
-	} else if _, ok := fieldValue.(sql.Scanner); !ok {
-		field.setupDefaultNewValuePool()
 	}
 
 	if field.NewValuePool == nil {
 		field.NewValuePool = poolInitializer(reflect.PtrTo(field.IndirectFieldType))
-	}
-}
-
-func (field *Field) setupDefaultNewValuePool() {
-	// set default NewValuePool
-	switch field.IndirectFieldType.Kind() {
-	case reflect.String:
-		field.NewValuePool = stringPool
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		field.NewValuePool = intPool
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		field.NewValuePool = uintPool
-	case reflect.Float32, reflect.Float64:
-		field.NewValuePool = floatPool
-	case reflect.Bool:
-		field.NewValuePool = boolPool
-	default:
-		if field.IndirectFieldType == TimeReflectType {
-			field.NewValuePool = timePool
-		}
 	}
 }

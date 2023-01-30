@@ -22,6 +22,7 @@ import (
 
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -141,6 +142,7 @@ func (s *sqlDatabase) sqlToCommonPool(pool Pool) params.Pool {
 		Tags:                   make([]params.Tag, len(pool.Tags)),
 		Instances:              make([]params.Instance, len(pool.Instances)),
 		RunnerBootstrapTimeout: pool.RunnerBootstrapTimeout,
+		ExtraSpecs:             []byte(pool.ExtraSpecs.String()),
 	}
 
 	if pool.RepoID != uuid.Nil {
@@ -268,6 +270,10 @@ func (s *sqlDatabase) updatePool(pool Pool, param params.UpdatePoolParams) (para
 
 	if param.OSType != "" {
 		pool.OSType = param.OSType
+	}
+
+	if param.ExtraSpecs != nil {
+		pool.ExtraSpecs = datatypes.JSON(param.ExtraSpecs)
 	}
 
 	if param.RunnerBootstrapTimeout != nil && *param.RunnerBootstrapTimeout > 0 {

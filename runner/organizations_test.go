@@ -415,7 +415,7 @@ func (s *OrgTestSuite) TestDeleteOrgPool() {
 	s.Require().Nil(err)
 
 	_, err = s.Fixtures.Store.GetOrganizationPool(s.Fixtures.AdminContext, s.Fixtures.StoreOrgs["test-org-1"].ID, pool.ID)
-	s.Require().Equal("fetching pool: not found", err.Error())
+	s.Require().Equal("fetching pool: finding pool: not found", err.Error())
 }
 
 func (s *OrgTestSuite) TestDeleteOrgPoolErrUnauthorized() {

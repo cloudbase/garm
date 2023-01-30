@@ -15,6 +15,7 @@
 package params
 
 import (
+	"encoding/json"
 	"garm/config"
 	"garm/runner/providers/common"
 	"time"
@@ -128,6 +129,12 @@ type BootstrapInstance struct {
 	// SSHKeys are the ssh public keys we may want to inject inside the runners, if the
 	// provider supports it.
 	SSHKeys []string `json:"ssh-keys"`
+	// ExtraSpecs is an opaque raw json that gets sent to the provider
+	// as part of the bootstrap params for instances. It can contain
+	// any kind of data needed by providers. The contents of this field means
+	// nothing to garm itself. We don't act on the information in this field at
+	// all. We only validate that it's a proper json.
+	ExtraSpecs json.RawMessage `json:"extra_specs,omitempty"`
 
 	CACertBundle []byte `json:"ca-cert-bundle"`
 
@@ -164,6 +171,12 @@ type Pool struct {
 	EnterpriseID           string        `json:"enterprise_id,omitempty"`
 	EnterpriseName         string        `json:"enterprise_name,omitempty"`
 	RunnerBootstrapTimeout uint          `json:"runner_bootstrap_timeout"`
+	// ExtraSpecs is an opaque raw json that gets sent to the provider
+	// as part of the bootstrap params for instances. It can contain
+	// any kind of data needed by providers. The contents of this field means
+	// nothing to garm itself. We don't act on the information in this field at
+	// all. We only validate that it's a proper json.
+	ExtraSpecs json.RawMessage `json:"extra_specs,omitempty"`
 }
 
 func (p Pool) GetID() string {

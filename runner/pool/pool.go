@@ -592,6 +592,7 @@ func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error 
 		OSArch:        pool.OSArch,
 		Flavor:        pool.Flavor,
 		Image:         pool.Image,
+		ExtraSpecs:    pool.ExtraSpecs,
 		Labels:        labels,
 		PoolID:        instance.PoolID,
 		CACertBundle:  r.credsDetails.CABundle,

@@ -30,6 +30,7 @@ func (s *sqlDatabase) ListAllPools(ctx context.Context) ([]params.Pool, error) {
 		Preload("Organization").
 		Preload("Repository").
 		Preload("Enterprise").
+		Omit("extra_specs").
 		Find(&pools)
 	if q.Error != nil {
 		return nil, errors.Wrap(q.Error, "fetching all pools")

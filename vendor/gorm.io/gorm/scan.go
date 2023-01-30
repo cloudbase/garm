@@ -66,25 +66,32 @@ func (db *DB) scanIntoStruct(rows Rows, reflectValue reflect.Value, values []int
 	db.RowsAffected++
 	db.AddError(rows.Scan(values...))
 
+	joinedSchemaMap := make(map[*schema.Field]interface{})
 	for idx, field := range fields {
-		if field != nil {
-			if len(joinFields) == 0 || joinFields[idx][0] == nil {
-				db.AddError(field.Set(db.Statement.Context, reflectValue, values[idx]))
-			} else {
-				relValue := joinFields[idx][0].ReflectValueOf(db.Statement.Context, reflectValue)
-				if relValue.Kind() == reflect.Ptr && relValue.IsNil() {
+		if field == nil {
+			continue
+		}
+
+		if len(joinFields) == 0 || joinFields[idx][0] == nil {
+			db.AddError(field.Set(db.Statement.Context, reflectValue, values[idx]))
+		} else {
+			joinSchema := joinFields[idx][0]
+			relValue := joinSchema.ReflectValueOf(db.Statement.Context, reflectValue)
+			if relValue.Kind() == reflect.Ptr {
+				if _, ok := joinedSchemaMap[joinSchema]; !ok {
 					if value := reflect.ValueOf(values[idx]).Elem(); value.Kind() == reflect.Ptr && value.IsNil() {
-						return
+						continue
 					}
 
 					relValue.Set(reflect.New(relValue.Type().Elem()))
+					joinedSchemaMap[joinSchema] = nil
 				}
-				db.AddError(joinFields[idx][1].Set(db.Statement.Context, relValue, values[idx]))
 			}
-
-			// release data to pool
-			field.NewValuePool.Put(values[idx])
+			db.AddError(joinFields[idx][1].Set(db.Statement.Context, relValue, values[idx]))
 		}
+
+		// release data to pool
+		field.NewValuePool.Put(values[idx])
 	}
 }
 
@@ -156,11 +163,10 @@ func Scan(rows Rows, db *DB, mode ScanMode) {
 		}
 	default:
 		var (
-			fields             = make([]*schema.Field, len(columns))
-			selectedColumnsMap = make(map[string]int, len(columns))
-			joinFields         [][2]*schema.Field
-			sch                = db.Statement.Schema
-			reflectValue       = db.Statement.ReflectValue
+			fields       = make([]*schema.Field, len(columns))
+			joinFields   [][2]*schema.Field
+			sch          = db.Statement.Schema
+			reflectValue = db.Statement.ReflectValue
 		)
 
 		if reflectValue.Kind() == reflect.Interface {
@@ -193,19 +199,24 @@ func Scan(rows Rows, db *DB, mode ScanMode) {
 
 			// Not Pluck
 			if sch != nil {
+				matchedFieldCount := make(map[string]int, len(columns))
 				for idx, column := range columns {
 					if field := sch.LookUpField(column); field != nil && field.Readable {
-						if curIndex, ok := selectedColumnsMap[column]; ok {
-							for fieldIndex, selectField := range sch.Fields[curIndex:] {
+						fields[idx] = field
+						if count, ok := matchedFieldCount[column]; ok {
+							// handle duplicate fields
+							for _, selectField := range sch.Fields {
 								if selectField.DBName == column && selectField.Readable {
-									selectedColumnsMap[column] = curIndex + fieldIndex + 1
-									fields[idx] = selectField
-									break
+									if count == 0 {
+										matchedFieldCount[column]++
+										fields[idx] = selectField
+										break
+									}
+									count--
 								}
 							}
 						} else {
-							fields[idx] = field
-							selectedColumnsMap[column] = idx
+							matchedFieldCount[column] = 1
 						}
 					} else if names := strings.Split(column, "__"); len(names) > 1 {
 						if rel, ok := sch.Relationships.Relations[names[0]]; ok {
@@ -229,11 +240,21 @@ func Scan(rows Rows, db *DB, mode ScanMode) {
 
 		switch reflectValue.Kind() {
 		case reflect.Slice, reflect.Array:
-			var elem reflect.Value
+			var (
+				elem             reflect.Value
+				recyclableStruct = reflect.New(reflectValueType)
+				isArrayKind      = reflectValue.Kind() == reflect.Array
+			)
 
 			if !update || reflectValue.Len() == 0 {
 				update = false
-				db.Statement.ReflectValue.Set(reflect.MakeSlice(reflectValue.Type(), 0, 20))
+				// if the slice cap is externally initialized, the externally initialized slice is directly used here
+				if reflectValue.Cap() == 0 {
+					db.Statement.ReflectValue.Set(reflect.MakeSlice(reflectValue.Type(), 0, 20))
+				} else if !isArrayKind {
+					reflectValue.SetLen(0)
+					db.Statement.ReflectValue.Set(reflectValue)
+				}
 			}
 
 			for initialized || rows.Next() {
@@ -254,16 +275,25 @@ func Scan(rows Rows, db *DB, mode ScanMode) {
 						}
 					}
 				} else {
-					elem = reflect.New(reflectValueType)
+					if isPtr && db.RowsAffected > 0 {
+						elem = reflect.New(reflectValueType)
+					} else {
+						elem = recyclableStruct
+					}
 				}
 
 				db.scanIntoStruct(rows, elem, values, fields, joinFields)
 
 				if !update {
-					if isPtr {
-						reflectValue = reflect.Append(reflectValue, elem)
+					if !isPtr {
+						elem = elem.Elem()
+					}
+					if isArrayKind {
+						if reflectValue.Len() >= int(db.RowsAffected) {
+							reflectValue.Index(int(db.RowsAffected - 1)).Set(elem)
+						}
 					} else {
-						reflectValue = reflect.Append(reflectValue, elem.Elem())
+						reflectValue = reflect.Append(reflectValue, elem)
 					}
 				}
 			}

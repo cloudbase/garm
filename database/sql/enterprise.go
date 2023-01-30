@@ -9,6 +9,7 @@ import (
 
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -150,6 +151,10 @@ func (s *sqlDatabase) CreateEnterprisePool(ctx context.Context, enterpriseID str
 		EnterpriseID:           enterprise.ID,
 		Enabled:                param.Enabled,
 		RunnerBootstrapTimeout: param.RunnerBootstrapTimeout,
+	}
+
+	if len(param.ExtraSpecs) > 0 {
+		newPool.ExtraSpecs = datatypes.JSON(param.ExtraSpecs)
 	}
 
 	_, err = s.getEnterprisePoolByUniqueFields(ctx, enterpriseID, newPool.ProviderName, newPool.Image, newPool.Flavor)
@@ -312,7 +317,7 @@ func (s *sqlDatabase) getEnterprisePoolByUniqueFields(ctx context.Context, enter
 }
 
 func (s *sqlDatabase) getEnterprisePool(ctx context.Context, enterpriseID, poolID string, preload ...string) (Pool, error) {
-	enterprise, err := s.getEnterpriseByID(ctx, enterpriseID)
+	_, err := s.getEnterpriseByID(ctx, enterpriseID)
 	if err != nil {
 		return Pool{}, errors.Wrap(err, "fetching enterprise")
 	}
@@ -329,33 +334,38 @@ func (s *sqlDatabase) getEnterprisePool(ctx context.Context, enterpriseID, poolI
 		}
 	}
 
-	var pool []Pool
-	err = q.Model(&enterprise).Association("Pools").Find(&pool, "id = ?", u)
+	var pool Pool
+	err = q.Model(&Pool{}).
+		Where("id = ? and enterprise_id = ?", u, enterpriseID).
+		First(&pool).Error
+
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return Pool{}, errors.Wrap(runnerErrors.ErrNotFound, "finding pool")
+		}
 		return Pool{}, errors.Wrap(err, "fetching pool")
 	}
-	if len(pool) == 0 {
-		return Pool{}, runnerErrors.ErrNotFound
-	}
 
-	return pool[0], nil
+	return pool, nil
 }
 
 func (s *sqlDatabase) getEnterprisePools(ctx context.Context, enterpriseID string, preload ...string) ([]Pool, error) {
-	enterprise, err := s.getEnterpriseByID(ctx, enterpriseID)
+	_, err := s.getEnterpriseByID(ctx, enterpriseID)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching enterprise")
 	}
 
-	var pools []Pool
-
-	q := s.conn.Model(&enterprise)
+	q := s.conn
 	if len(preload) > 0 {
 		for _, item := range preload {
 			q = q.Preload(item)
 		}
 	}
-	err = q.Association("Pools").Find(&pools)
+
+	var pools []Pool
+	err = q.Model(&Pool{}).Where("enterprise_id = ?", enterpriseID).
+		Omit("extra_specs").
+		Find(&pools).Error
 
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching pool")

@@ -24,6 +24,7 @@ import (
 
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -167,6 +168,10 @@ func (s *sqlDatabase) CreateRepositoryPool(ctx context.Context, repoId string, p
 		RepoID:                 repo.ID,
 		Enabled:                param.Enabled,
 		RunnerBootstrapTimeout: param.RunnerBootstrapTimeout,
+	}
+
+	if len(param.ExtraSpecs) > 0 {
+		newPool.ExtraSpecs = datatypes.JSON(param.ExtraSpecs)
 	}
 
 	_, err = s.getRepoPoolByUniqueFields(ctx, repoId, newPool.ProviderName, newPool.Image, newPool.Flavor)
@@ -318,7 +323,7 @@ func (s *sqlDatabase) findPoolByTags(id, poolType string, tags []string) (params
 }
 
 func (s *sqlDatabase) getRepoPool(ctx context.Context, repoID, poolID string, preload ...string) (Pool, error) {
-	repo, err := s.getRepoByID(ctx, repoID)
+	_, err := s.getRepoByID(ctx, repoID)
 	if err != nil {
 		return Pool{}, errors.Wrap(err, "fetching repo")
 	}
@@ -335,16 +340,19 @@ func (s *sqlDatabase) getRepoPool(ctx context.Context, repoID, poolID string, pr
 		}
 	}
 
-	var pool []Pool
-	err = q.Model(&repo).Association("Pools").Find(&pool, "id = ?", u)
+	var pool Pool
+	err = q.Model(&Pool{}).
+		Where("id = ? and repo_id = ?", u, repoID).
+		First(&pool).Error
+
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return Pool{}, errors.Wrap(runnerErrors.ErrNotFound, "finding pool")
+		}
 		return Pool{}, errors.Wrap(err, "fetching pool")
 	}
-	if len(pool) == 0 {
-		return Pool{}, runnerErrors.ErrNotFound
-	}
 
-	return pool[0], nil
+	return pool, nil
 }
 
 func (s *sqlDatabase) getRepoPoolByUniqueFields(ctx context.Context, repoID string, provider, image, flavor string) (Pool, error) {
@@ -367,19 +375,22 @@ func (s *sqlDatabase) getRepoPoolByUniqueFields(ctx context.Context, repoID stri
 }
 
 func (s *sqlDatabase) getRepoPools(ctx context.Context, repoID string, preload ...string) ([]Pool, error) {
-	repo, err := s.getRepoByID(ctx, repoID)
+	_, err := s.getRepoByID(ctx, repoID)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching repo")
 	}
 
-	var pools []Pool
-	q := s.conn.Model(&repo)
+	q := s.conn
 	if len(preload) > 0 {
 		for _, item := range preload {
 			q = q.Preload(item)
 		}
 	}
-	err = q.Association("Pools").Find(&pools)
+
+	var pools []Pool
+	err = q.Model(&Pool{}).Where("repo_id = ?", repoID).
+		Omit("extra_specs").
+		Find(&pools).Error
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching pool")
 	}

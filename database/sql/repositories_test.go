@@ -759,8 +759,8 @@ func (s *RepoTestSuite) TestDeleteRepositoryPoolDBDeleteErr() {
 		WithArgs(s.Fixtures.Repos[0].ID).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Repos[0].ID))
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE `pools`.`repo_id` = ? AND id = ? AND `pools`.`deleted_at` IS NULL")).
-		WithArgs(s.Fixtures.Repos[0].ID, pool.ID).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE (id = ? and repo_id = ?) AND `pools`.`deleted_at` IS NULL ORDER BY `pools`.`id` LIMIT 1")).
+		WithArgs(pool.ID, s.Fixtures.Repos[0].ID).
 		WillReturnRows(sqlmock.NewRows([]string{"repo_id", "id"}).AddRow(s.Fixtures.Repos[0].ID, pool.ID))
 	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.

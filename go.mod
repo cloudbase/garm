@@ -23,15 +23,16 @@ require (
 	github.com/spf13/cobra v1.4.1-0.20220504202302-9e88759b19cd
 	github.com/stretchr/testify v1.8.0
 	github.com/teris-io/shortid v0.0.0-20220617161101-71ec9f2aa569
-	golang.org/x/crypto v0.0.0-20220321153916-2c7772ba3064
+	golang.org/x/crypto v0.0.0-20221005025214-4161e89ecf1b
 	golang.org/x/oauth2 v0.0.0-20220223155221-ee480838109b
 	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a
 	gopkg.in/DATA-DOG/go-sqlmock.v1 v1.3.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gopkg.in/yaml.v3 v3.0.1
-	gorm.io/driver/mysql v1.3.3
-	gorm.io/driver/sqlite v1.3.2
-	gorm.io/gorm v1.23.4
+	gorm.io/datatypes v1.1.0
+	gorm.io/driver/mysql v1.4.4
+	gorm.io/driver/sqlite v1.4.3
+	gorm.io/gorm v1.24.2
 )
 
 require (
@@ -42,7 +43,7 @@ require (
 	github.com/felixge/httpsnoop v1.0.1 // indirect
 	github.com/flosch/pongo2 v0.0.0-20200913210552-0d938eb266f3 // indirect
 	github.com/go-macaroon-bakery/macaroonpb v1.0.0 // indirect
-	github.com/go-sql-driver/mysql v1.6.0 // indirect
+	github.com/go-sql-driver/mysql v1.7.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
@@ -55,7 +56,7 @@ require (
 	github.com/kr/fs v0.1.0 // indirect
 	github.com/kr/pretty v0.3.0 // indirect
 	github.com/mattn/go-runewidth v0.0.13 // indirect
-	github.com/mattn/go-sqlite3 v1.14.12 // indirect
+	github.com/mattn/go-sqlite3 v1.14.15 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
 	github.com/pborman/uuid v1.2.1 // indirect
 	github.com/pkg/sftp v1.13.4 // indirect

@@ -24,6 +24,7 @@ import (
 
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -169,6 +170,10 @@ func (s *sqlDatabase) CreateOrganizationPool(ctx context.Context, orgId string, 
 		RunnerBootstrapTimeout: param.RunnerBootstrapTimeout,
 	}
 
+	if len(param.ExtraSpecs) > 0 {
+		newPool.ExtraSpecs = datatypes.JSON(param.ExtraSpecs)
+	}
+
 	_, err = s.getOrgPoolByUniqueFields(ctx, orgId, newPool.ProviderName, newPool.Image, newPool.Flavor)
 	if err != nil {
 		if !errors.Is(err, runnerErrors.ErrNotFound) {
@@ -296,7 +301,7 @@ func (s *sqlDatabase) getPoolByID(ctx context.Context, poolID string, preload ..
 }
 
 func (s *sqlDatabase) getOrgPool(ctx context.Context, orgID, poolID string, preload ...string) (Pool, error) {
-	org, err := s.getOrgByID(ctx, orgID)
+	_, err := s.getOrgByID(ctx, orgID)
 	if err != nil {
 		return Pool{}, errors.Wrap(err, "fetching org")
 	}
@@ -313,33 +318,39 @@ func (s *sqlDatabase) getOrgPool(ctx context.Context, orgID, poolID string, prel
 		}
 	}
 
-	var pool []Pool
-	err = q.Model(&org).Association("Pools").Find(&pool, "id = ?", u)
+	var pool Pool
+	err = q.Model(&Pool{}).
+		Where("id = ? and org_id = ?", u, orgID).
+		First(&pool).Error
+
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return Pool{}, errors.Wrap(runnerErrors.ErrNotFound, "finding pool")
+		}
 		return Pool{}, errors.Wrap(err, "fetching pool")
 	}
-	if len(pool) == 0 {
-		return Pool{}, runnerErrors.ErrNotFound
-	}
 
-	return pool[0], nil
+	return pool, nil
 }
 
 func (s *sqlDatabase) getOrgPools(ctx context.Context, orgID string, preload ...string) ([]Pool, error) {
-	org, err := s.getOrgByID(ctx, orgID)
+	_, err := s.getOrgByID(ctx, orgID)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching org")
 	}
 
-	var pools []Pool
-
-	q := s.conn.Model(&org)
+	q := s.conn
 	if len(preload) > 0 {
 		for _, item := range preload {
 			q = q.Preload(item)
 		}
 	}
-	err = q.Association("Pools").Find(&pools)
+
+	var pools []Pool
+	err = q.Model(&Pool{}).
+		Where("org_id = ?", orgID).
+		Omit("extra_specs").
+		Find(&pools).Error
 
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching pool")

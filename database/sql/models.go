@@ -22,6 +22,7 @@ import (
 
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -66,6 +67,10 @@ type Pool struct {
 	OSArch                 config.OSArch
 	Tags                   []*Tag `gorm:"many2many:pool_tags;"`
 	Enabled                bool
+	// ExtraSpecs is an opaque json that gets sent to the provider
+	// as part of the bootstrap params for instances. It can contain
+	// any kind of data needed by providers.
+	ExtraSpecs datatypes.JSON
 
 	RepoID     uuid.UUID  `gorm:"index"`
 	Repository Repository `gorm:"foreignKey:RepoID"`
