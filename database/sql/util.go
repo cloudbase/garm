@@ -15,6 +15,7 @@
 package sql
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"garm/params"
@@ -142,7 +143,7 @@ func (s *sqlDatabase) sqlToCommonPool(pool Pool) params.Pool {
 		Tags:                   make([]params.Tag, len(pool.Tags)),
 		Instances:              make([]params.Instance, len(pool.Instances)),
 		RunnerBootstrapTimeout: pool.RunnerBootstrapTimeout,
-		ExtraSpecs:             []byte(pool.ExtraSpecs.String()),
+		ExtraSpecs:             json.RawMessage(pool.ExtraSpecs),
 	}
 
 	if pool.RepoID != uuid.Nil {

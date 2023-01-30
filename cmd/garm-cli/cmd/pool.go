@@ -43,6 +43,7 @@ var (
 	poolOrganization           string
 	poolEnterprise             string
 	poolExtraSpecsFile         string
+	poolExtraSpecs             string
 	poolAll                    bool
 )
 
@@ -197,6 +198,14 @@ var poolAddCmd = &cobra.Command{
 			RunnerBootstrapTimeout: poolRunnerBootstrapTimeout,
 		}
 
+		if cmd.Flags().Changed("extra-specs") {
+			data, err := asRawMessage([]byte(poolExtraSpecs))
+			if err != nil {
+				return err
+			}
+			newPoolParams.ExtraSpecs = data
+		}
+
 		if poolExtraSpecsFile != "" {
 			data, err := extraSpecsFromFile(poolExtraSpecsFile)
 			if err != nil {
@@ -298,6 +307,14 @@ explicitly remove them using the runner delete command.
 			poolUpdateParams.RunnerBootstrapTimeout = &poolRunnerBootstrapTimeout
 		}
 
+		if cmd.Flags().Changed("extra-specs") {
+			data, err := asRawMessage([]byte(poolExtraSpecs))
+			if err != nil {
+				return err
+			}
+			poolUpdateParams.ExtraSpecs = data
+		}
+
 		if poolExtraSpecsFile != "" {
 			data, err := extraSpecsFromFile(poolExtraSpecsFile)
 			if err != nil {
@@ -334,6 +351,8 @@ func init() {
 	poolUpdateCmd.Flags().BoolVar(&poolEnabled, "enabled", false, "Enable this pool.")
 	poolUpdateCmd.Flags().UintVar(&poolRunnerBootstrapTimeout, "runner-bootstrap-timeout", 20, "Duration in minutes after which a runner is considered failed if it does not join Github.")
 	poolUpdateCmd.Flags().StringVar(&poolExtraSpecsFile, "extra-specs-file", "", "A file containing a valid json which will be passed to the IaaS provider managing the pool.")
+	poolUpdateCmd.Flags().StringVar(&poolExtraSpecs, "extra-specs", "", "A valid json which will be passed to the IaaS provider managing the pool.")
+	poolUpdateCmd.MarkFlagsMutuallyExclusive("extra-specs-file", "extra-specs")
 
 	poolAddCmd.Flags().StringVar(&poolProvider, "provider-name", "", "The name of the provider where runners will be created.")
 	poolAddCmd.Flags().StringVar(&poolImage, "image", "", "The provider-specific image name to use for runners in this pool.")
@@ -343,6 +362,7 @@ func init() {
 	poolAddCmd.Flags().StringVar(&poolOSType, "os-type", "linux", "Operating system type (windows, linux, etc).")
 	poolAddCmd.Flags().StringVar(&poolOSArch, "os-arch", "amd64", "Operating system architecture (amd64, arm, etc).")
 	poolAddCmd.Flags().StringVar(&poolExtraSpecsFile, "extra-specs-file", "", "A file containing a valid json which will be passed to the IaaS provider managing the pool.")
+	poolAddCmd.Flags().StringVar(&poolExtraSpecs, "extra-specs", "", "A valid json which will be passed to the IaaS provider managing the pool.")
 	poolAddCmd.Flags().UintVar(&poolMaxRunners, "max-runners", 5, "The maximum number of runner this pool will create.")
 	poolAddCmd.Flags().UintVar(&poolRunnerBootstrapTimeout, "runner-bootstrap-timeout", 20, "Duration in minutes after which a runner is considered failed if it does not join Github.")
 	poolAddCmd.Flags().UintVar(&poolMinIdleRunners, "min-idle-runners", 1, "Attempt to maintain a minimum of idle self-hosted runners of this type.")
@@ -356,6 +376,7 @@ func init() {
 	poolAddCmd.Flags().StringVarP(&poolOrganization, "org", "o", "", "Add the new pool withing this organization.")
 	poolAddCmd.Flags().StringVarP(&poolEnterprise, "enterprise", "e", "", "Add the new pool withing this enterprise.")
 	poolAddCmd.MarkFlagsMutuallyExclusive("repo", "org", "enterprise")
+	poolAddCmd.MarkFlagsMutuallyExclusive("extra-specs-file", "extra-specs")
 
 	poolCmd.AddCommand(
 		poolListCmd,
@@ -373,6 +394,10 @@ func extraSpecsFromFile(specsFile string) (json.RawMessage, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "opening specs file")
 	}
+	return asRawMessage(data)
+}
+
+func asRawMessage(data []byte) (json.RawMessage, error) {
 	// unmarshaling and marshaling again will remove new lines and verify we
 	// have a valid json.
 	var unmarshaled interface{}
@@ -381,6 +406,7 @@ func extraSpecsFromFile(specsFile string) (json.RawMessage, error) {
 	}
 
 	var asRawJson json.RawMessage
+	var err error
 	asRawJson, err = json.Marshal(unmarshaled)
 	if err != nil {
 		return nil, errors.Wrap(err, "marshaling json")
