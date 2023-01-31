@@ -27,7 +27,7 @@ You should now have both ```garm``` and ```garm-cli``` in your ```$GOPATH/bin```
 If you have docker/podman installed, you can also build statically linked binaries by running:
 
   ```bash
-  make
+  make build-static
   ```
 
 The ```garm``` and ```garm-cli``` binaries will be built and copied to the ```bin/``` folder in your current working directory.

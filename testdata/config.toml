@@ -3,12 +3,18 @@
 # This URL is used by instances to send back status messages as they install
 # the github actions runner. Status messages can be seen by querying the
 # runner status in garm.
+# Note: If you're using a reverse proxy in front of your garm installation,
+# this URL needs to point to the address of the reverse proxy. Using TLS is
+# highly encouraged.
 callback_url = "https://garm.example.com/api/v1/callbacks/status"
 
 # This URL is used by instances to retrieve information they need to set themselves
 # up. Access to this URL is granted using the same JWT token used to send back
 # status updates. Once the instance transitions to "installed" or "failed" state,
 # access to both the status and metadata endpoints is disabled.
+# Note: If you're using a reverse proxy in front of your garm installation,
+# this URL needs to point to the address of the reverse proxy. Using TLS is
+# highly encouraged.
 metadata_url = "https://garm.example.com/api/v1/metadata"
 
 # This folder is defined here for future use. Right now, we create a SSH
@@ -28,7 +34,8 @@ enable = true
 # Toggle to disable authentication (not recommended) on the metrics endpoint.
 # If you do disable authentication, I encourage you to put a reverse proxy in front
 # of garm and limit which systems can access that particular endpoint. Ideally, you
-# would enable some kind of authentication using the reverse proxy.
+# would enable some kind of authentication using the reverse proxy, if the built-in auth
+# is not sufficient for your needs.
 disable_auth = false
 
 [jwt_auth]
@@ -57,12 +64,14 @@ time_to_live = "8760h"
   # A literal of "*" will allow any origin
   cors_origins = ["*"]
   [apiserver.tls]
-    # Path on disk to a x509 certificate.
+    # Path on disk to a x509 certificate bundle.
+    # NOTE: if your certificate is signed by an intermediary CA, this file
+    # must contain the entire certificate bundle needed for clients to validate
+    # the certificate. This usually means concatenating the certificate and the
+    # CA bundle you received.
     certificate = ""
     # The path on disk to the corresponding private key for the certificate.
     key = ""
-    # CA certificate bundle to use.
-    ca_certificate = ""
 
 [database]
   # Turn on/off debugging for database queries.
