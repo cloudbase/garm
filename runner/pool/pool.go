@@ -381,6 +381,24 @@ func (r *basePoolManager) acquireNewInstance(job params.WorkflowJob) error {
 		return nil
 	}
 
+	instances, err := r.store.ListPoolInstances(r.ctx, pool.ID)
+	if err != nil {
+		return errors.Wrap(err, "fetching instances")
+	}
+
+	idleWorkers := 0
+	for _, inst := range instances {
+		if providerCommon.RunnerStatus(inst.RunnerStatus) == providerCommon.RunnerIdle &&
+			providerCommon.InstanceStatus(inst.Status) == providerCommon.InstanceRunning {
+			idleWorkers++
+		}
+	}
+
+	if int64(idleWorkers) >= int64(pool.MinIdleRunners) {
+		log.Printf("we have enough min_idle_runners (%d) for pool %s, skipping...", pool.MinIdleRunners, pool.ID)
+		return nil
+	}
+
 	if err := r.AddRunner(r.ctx, pool.ID); err != nil {
 		log.Printf("failed to add runner to pool %s", pool.ID)
 		return errors.Wrap(err, "adding runner")
