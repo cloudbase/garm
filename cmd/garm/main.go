@@ -160,14 +160,8 @@ func main() {
 	methodsOk := handlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "OPTIONS", "DELETE"})
 	headersOk := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"})
 
-	tlsCfg, err := cfg.APIServer.APITLSConfig()
-	if err != nil {
-		log.Fatalf("failed to get TLS config: %q", err)
-	}
-
 	srv := &http.Server{
-		Addr:      cfg.APIServer.BindAddress(),
-		TLSConfig: tlsCfg,
+		Addr: cfg.APIServer.BindAddress(),
 		// Pass our instance of gorilla/mux in.
 		Handler: handlers.CORS(methodsOk, headersOk, allowedOrigins)(router),
 	}
@@ -178,8 +172,14 @@ func main() {
 	}
 
 	go func() {
-		if err := srv.Serve(listener); err != http.ErrServerClosed {
-			log.Printf("Listening: %+v", err)
+		if cfg.APIServer.UseTLS {
+			if err := srv.ServeTLS(listener, cfg.APIServer.TLSConfig.CRT, cfg.APIServer.TLSConfig.Key); err != nil {
+				log.Printf("Listening: %+v", err)
+			}
+		} else {
+			if err := srv.Serve(listener); err != http.ErrServerClosed {
+				log.Printf("Listening: %+v", err)
+			}
 		}
 	}()
 

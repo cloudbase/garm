@@ -39,9 +39,8 @@ func getDefaultSectionConfig(configDir string) Default {
 
 func getDefaultTLSConfig() TLSConfig {
 	return TLSConfig{
-		CRT:    "../testdata/certs/srv-pub.pem",
-		Key:    "../testdata/certs/srv-key.pem",
-		CACert: "../testdata/certs/ca-pub.pem",
+		CRT: "../testdata/certs/srv-pub.pem",
+		Key: "../testdata/certs/srv-key.pem",
 	}
 }
 
@@ -291,120 +290,6 @@ func TestAPIBindAddress(t *testing.T) {
 	err := cfg.Validate()
 	require.Nil(t, err)
 	require.Equal(t, cfg.BindAddress(), "0.0.0.0:9998")
-}
-
-func TestAPITLSconfig(t *testing.T) {
-	cfg := getDefaultAPIServerConfig()
-
-	err := cfg.Validate()
-	require.Nil(t, err)
-
-	tlsCfg, err := cfg.APITLSConfig()
-	require.Nil(t, err)
-	require.NotNil(t, tlsCfg)
-
-	// Any error in the TLSConfig should return an error here.
-	cfg.TLSConfig = TLSConfig{}
-	tlsCfg, err = cfg.APITLSConfig()
-	require.Nil(t, tlsCfg)
-	require.NotNil(t, err)
-	require.EqualError(t, err, "missing crt or key")
-
-	// If TLS is disabled, don't validate TLSconfig.
-	cfg.UseTLS = false
-	tlsCfg, err = cfg.APITLSConfig()
-	require.Nil(t, err)
-	require.Nil(t, tlsCfg)
-}
-
-func TestTLSConfig(t *testing.T) {
-	dir, err := os.MkdirTemp("", "garm-config-test")
-	if err != nil {
-		t.Fatalf("failed to create temporary directory: %s", err)
-	}
-	t.Cleanup(func() { os.RemoveAll(dir) })
-
-	invalidCert := filepath.Join(dir, "invalid_cert.pem")
-	err = os.WriteFile(invalidCert, []byte("bogus content"), 0755)
-	if err != nil {
-		t.Fatalf("failed to write file: %s", err)
-	}
-
-	cfg := getDefaultTLSConfig()
-
-	err = cfg.Validate()
-	require.Nil(t, err)
-
-	tests := []struct {
-		name      string
-		cfg       TLSConfig
-		errString string
-	}{
-		{
-			name:      "Config is valid",
-			cfg:       cfg,
-			errString: "",
-		},
-		{
-			name: "missing crt",
-			cfg: TLSConfig{
-				CRT:    "",
-				Key:    cfg.Key,
-				CACert: cfg.CACert,
-			},
-			errString: "missing crt or key",
-		},
-		{
-			name: "missing key",
-			cfg: TLSConfig{
-				CRT:    cfg.CRT,
-				Key:    "",
-				CACert: cfg.CACert,
-			},
-			errString: "missing crt or key",
-		},
-		{
-			name: "invalid CA cert",
-			cfg: TLSConfig{
-				CRT:    cfg.CRT,
-				Key:    cfg.Key,
-				CACert: invalidCert,
-			},
-			errString: "failed to parse CA cert",
-		},
-		{
-			name: "invalid cert",
-			cfg: TLSConfig{
-				CRT:    invalidCert,
-				Key:    cfg.Key,
-				CACert: cfg.CACert,
-			},
-			errString: "tls: failed to find any PEM data in certificate input",
-		},
-		{
-			name: "invalid key",
-			cfg: TLSConfig{
-				CRT:    cfg.CRT,
-				Key:    invalidCert,
-				CACert: cfg.CACert,
-			},
-			errString: "tls: failed to find any PEM data in key input",
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			tlsCfg, err := tc.cfg.TLSConfig()
-			if tc.errString == "" {
-				require.Nil(t, err)
-				require.NotNil(t, tlsCfg)
-			} else {
-				require.NotNil(t, err)
-				require.Nil(t, tlsCfg)
-				require.Regexp(t, tc.errString, err.Error())
-			}
-		})
-	}
 }
 
 func TestDatabaseConfig(t *testing.T) {

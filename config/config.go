@@ -433,45 +433,18 @@ func (m *MySQL) ConnectionString() (string, error) {
 
 // TLSConfig is the API server TLS config
 type TLSConfig struct {
-	CRT    string `toml:"certificate" json:"certificate"`
-	Key    string `toml:"key" json:"key"`
-	CACert string `toml:"ca_certificate" json:"ca-certificate"`
-}
-
-// TLSConfig returns a new TLSConfig suitable for use in the
-// API server
-func (t *TLSConfig) TLSConfig() (*tls.Config, error) {
-	// TLS config not present.
-	if t.CRT == "" || t.Key == "" {
-		return nil, fmt.Errorf("missing crt or key")
-	}
-
-	var roots *x509.CertPool
-	if t.CACert != "" {
-		caCertPEM, err := os.ReadFile(t.CACert)
-		if err != nil {
-			return nil, err
-		}
-		roots = x509.NewCertPool()
-		ok := roots.AppendCertsFromPEM(caCertPEM)
-		if !ok {
-			return nil, fmt.Errorf("failed to parse CA cert")
-		}
-	}
-
-	cert, err := tls.LoadX509KeyPair(t.CRT, t.Key)
-	if err != nil {
-		return nil, err
-	}
-	return &tls.Config{
-		Certificates: []tls.Certificate{cert},
-		ClientCAs:    roots,
-	}, nil
+	CRT string `toml:"certificate" json:"certificate"`
+	Key string `toml:"key" json:"key"`
 }
 
 // Validate validates the TLS config
 func (t *TLSConfig) Validate() error {
-	if _, err := t.TLSConfig(); err != nil {
+	if t.CRT == "" || t.Key == "" {
+		return fmt.Errorf("missing crt or key")
+	}
+
+	_, err := tls.LoadX509KeyPair(t.CRT, t.Key)
+	if err != nil {
 		return err
 	}
 	return nil
@@ -490,14 +463,6 @@ type APIServer struct {
 	UseTLS      bool      `toml:"use_tls" json:"use-tls"`
 	TLSConfig   TLSConfig `toml:"tls" json:"tls"`
 	CORSOrigins []string  `toml:"cors_origins" json:"cors-origins"`
-}
-
-func (a *APIServer) APITLSConfig() (*tls.Config, error) {
-	if !a.UseTLS {
-		return nil, nil
-	}
-
-	return a.TLSConfig.TLSConfig()
 }
 
 // BindAddress returns a host:port string.
