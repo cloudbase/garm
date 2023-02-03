@@ -316,7 +316,7 @@ function GetInstance() {
 
 function ListInstances() {
     INSTANCES=$(az vm list --query "[?tags.garm_pool_id == '${GARM_POOL_ID}']" -o json --only-show-errors 2>&1)
-    echo $info | jq -r '
+    echo $info | jq -r '[
         .[] | {
             provider_id: .name,
             name: .name,
@@ -326,7 +326,7 @@ function ListInstances() {
             os_arch: .tags.os_arch,
             pool_id: .tags.garm_pool_id,
             status: {"Creating": "pending_create", "Migrating": "pending_create", "Failed": "error", "Succeeded": "running", "Deleting": "pending_delete"}[.provisioningState]
-        }'
+        }]'
 }
 
 # Login to Azure

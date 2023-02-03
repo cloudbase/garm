@@ -397,12 +397,12 @@ function StopServer() {
 
 function ListInstances() {
     INSTANCES=$(openstack server list --os-compute-api-version 2.52 --tags garm-pool-id=${GARM_POOL_ID} --long -f json)
-    echo ${INSTANCES} | jq -r '
+    echo ${INSTANCES} | jq -r '[
         .[] | .Properties * {
             provider_id: .ID,
             name: .Name,
             status: {"ACTIVE": "running", "SHUTOFF": "stopped", "BUILD": "pending_create", "ERROR": "error", "DELETING": "pending_delete"}[.Status]
-        }'
+        }]'
 }
 
 function GetInstance() {
