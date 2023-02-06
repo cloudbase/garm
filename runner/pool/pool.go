@@ -888,6 +888,14 @@ func (r *basePoolManager) retryFailedInstancesForOnePool(pool params.Pool) {
 			// TODO(gabriel-samfira): implement request throttling.
 			if err := r.deleteInstanceFromProvider(inst); err != nil {
 				log.Printf("failed to delete instance %s from provider: %s", inst.Name, err)
+				// Bail here, otherwise we risk creating multiple failing instances, and losing track
+				// of them. If Create instance failed to return a proper provider ID, we rely on the
+				// name to delete the instance. If we don't bail here, and end up with multiple
+				// instances with the same name, using the name to clean up failed instances will fail
+				// on any subsequent call, unless the external or native provider takes into account
+				// non unique names and loops over all of them. Something which is extremely hacky and
+				// which we would rather avoid.
+				return
 			}
 
 			// TODO(gabriel-samfira): Incrementing CreateAttempt should be done within a transaction.
@@ -1044,6 +1052,9 @@ func (r *basePoolManager) addPendingInstances() {
 		// won't attempt to create the runner a second time.
 		if err := r.setInstanceStatus(instance.Name, providerCommon.InstanceCreating, nil); err != nil {
 			log.Printf("failed to update runner %s status", instance.Name)
+			// We failed to transition the instance to Creating. This means that garm will retry to create this instance
+			// when the loop runs again and we end up with multiple instances.
+			continue
 		}
 		go func(instance params.Instance) {
 			log.Printf("creating instance %s in pool %s", instance.Name, instance.PoolID)
