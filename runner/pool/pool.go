@@ -394,7 +394,9 @@ func (r *basePoolManager) acquireNewInstance(job params.WorkflowJob) error {
 		}
 	}
 
-	if int64(idleWorkers) >= int64(pool.MinIdleRunners) {
+	// Skip creating a new runner if we have at least one idle runner and the minimum is already satisfied.
+	// This should work even for pools that define a MinIdleRunner of 0.
+	if int64(idleWorkers) > 0 && int64(idleWorkers) >= int64(pool.MinIdleRunners) {
 		log.Printf("we have enough min_idle_runners (%d) for pool %s, skipping...", pool.MinIdleRunners, pool.ID)
 		return nil
 	}
@@ -786,8 +788,13 @@ func (r *basePoolManager) scaleDownOnePool(pool params.Pool) {
 
 	idleWorkers := []params.Instance{}
 	for _, inst := range existingInstances {
+		// Idle runners that have been spawned and are still idle after 5 minutes, are take into
+		// consideration for scale-down. The 5 minute grace period prevents a situation where a
+		// "queued" workflow triggers the creation of a new idle runner, and this routine reaps
+		// an idle runner before they have a chance to pick up a job.
 		if providerCommon.RunnerStatus(inst.RunnerStatus) == providerCommon.RunnerIdle &&
-			providerCommon.InstanceStatus(inst.Status) == providerCommon.InstanceRunning {
+			providerCommon.InstanceStatus(inst.Status) == providerCommon.InstanceRunning &&
+			time.Since(inst.UpdatedAt).Minutes() > 5 {
 			idleWorkers = append(idleWorkers, inst)
 		}
 	}
