@@ -1051,7 +1051,7 @@ func (r *basePoolManager) addPendingInstances() {
 		// Set the instance to "creating" before launching the goroutine. This will ensure that addPendingInstances()
 		// won't attempt to create the runner a second time.
 		if err := r.setInstanceStatus(instance.Name, providerCommon.InstanceCreating, nil); err != nil {
-			log.Printf("failed to update runner %s status", instance.Name)
+			log.Printf("failed to update runner %s status: %s", instance.Name, err)
 			// We failed to transition the instance to Creating. This means that garm will retry to create this instance
 			// when the loop runs again and we end up with multiple instances.
 			continue
