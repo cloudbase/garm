@@ -95,7 +95,7 @@ when GORM AutoMigrate because SQLite doesn't have time type.
 
 ## JSON_SET
 
-sqlite, mysql supported
+sqlite, mysql, postgres supported
 
 ```go
 import (
@@ -138,6 +138,23 @@ DB.Model(&UserWithJSON{}).Where("name = ?", "json-1").UpdateColumn("attributes",
 // UPDATE `user_with_jsons` SET `attributes` = JSON_SET(`attributes`, '$.friend', CAST('{"Name": "Bob", "Age": 21}' AS JSON)) WHERE name = 'json-1'
 ```
 NOTE: MariaDB does not support CAST(? AS JSON).
+
+NOTE: Path in PostgreSQL is different.
+
+```go
+// Set fields of JSON column
+datatypes.JSONSet("attributes").Set("{age}", 20).Set("{tags, 0}", "tag2").Set("{orgs, orga}", "orgb")
+
+DB.Model(&UserWithJSON{}).Where("name = ?", "json-1").UpdateColumn("attributes", datatypes.JSONSet("attributes").Set("{age}", 20).Set("{tags, 0}", "tag2").Set("{orgs, orga}", "orgb"))
+DB.Model(&UserWithJSON{}).Where("name = ?", "json-1").UpdateColumn("attributes", datatypes.JSONSet("attributes").Set("{phones}", []string{"10085", "10086"}))
+DB.Model(&UserWithJSON{}).Where("name = ?", "json-1").UpdateColumn("attributes", datatypes.JSONSet("attributes").Set("{phones}", gorm.Expr("?::jsonb", `["10085", "10086"]`)))
+DB.Model(&UserWithJSON{}).Where("name = ?", "json-1").UpdateColumn("attributes", datatypes.JSONSet("attributes").Set("{friend}", friend))
+// PostgreSQL
+// UPDATE "user_with_jsons" SET "attributes" = JSONB_SET(JSONB_SET(JSONB_SET("attributes", '{age}', '20'), '{tags, 0}', '"tag2"'), '{orgs, orga}', '"orgb"') WHERE name = 'json-1'
+// UPDATE "user_with_jsons" SET "attributes" = JSONB_SET("attributes", '{phones}', '["10085","10086"]') WHERE name = 'json-1'
+// UPDATE "user_with_jsons" SET "attributes" = JSONB_SET("attributes", '{phones}', '["10085","10086"]'::jsonb) WHERE name = 'json-1'
+// UPDATE "user_with_jsons" SET "attributes" = JSONB_SET("attributes", '{friend}', '{"Name": "Bob", "Age": 21}') WHERE name = 'json-1'
+```
 
 ## JSONType[T]
 
@@ -196,3 +213,35 @@ DB.Model(&user).Updates(jsonMap)
 ```
 
 NOTE: it's not support json query
+
+## JSONArray
+
+mysql supported
+
+```go
+import "gorm.io/datatypes"
+
+type Params struct {
+    ID          int
+    Letters     string
+    Config      datatypes.JSON
+}
+
+//Create
+DB.Create(&Param{
+    Letters: "JSONArray-1",
+    Config:      datatypes.JSON("[\"a\", \"b\"]"),
+})
+
+DB.Create(&Param{
+    Letters: "JSONArray-2",
+    Config:      datatypes.JSON("[\"a\", \"c\"]"),
+})
+
+//Query
+var retMultiple []Param
+DB.Where(datatypes.JSONArrayQuery("config").Contains("c")).Find(&retMultiple)
+}
+```
+
+

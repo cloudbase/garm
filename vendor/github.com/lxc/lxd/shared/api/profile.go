@@ -56,7 +56,12 @@ type Profile struct {
 	UsedBy []string `json:"used_by" yaml:"used_by"`
 }
 
-// Writable converts a full Profile struct into a ProfilePut struct (filters read-only fields)
+// Writable converts a full Profile struct into a ProfilePut struct (filters read-only fields).
 func (profile *Profile) Writable() ProfilePut {
 	return profile.ProfilePut
+}
+
+// URL returns the URL for the profile.
+func (profile *Profile) URL(apiVersion string, projectName string) *URL {
+	return NewURL().Path(apiVersion, "profiles", profile.Name).Project(projectName)
 }

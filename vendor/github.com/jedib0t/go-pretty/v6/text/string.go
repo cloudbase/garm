@@ -7,13 +7,9 @@ import (
 	"github.com/mattn/go-runewidth"
 )
 
-// Constants
-const (
-	EscapeReset     = EscapeStart + "0" + EscapeStop
-	EscapeStart     = "\x1b["
-	EscapeStartRune = rune(27) // \x1b
-	EscapeStop      = "m"
-	EscapeStopRune  = 'm'
+// RuneWidth stuff
+var (
+	rwCondition = runewidth.NewCondition()
 )
 
 // InsertEveryN inserts the rune every N characters in the string. For ex.:
@@ -27,25 +23,23 @@ func InsertEveryN(str string, runeToInsert rune, n int) string {
 		return str
 	}
 
-	sLen := RuneCount(str)
+	sLen := RuneWidthWithoutEscSequences(str)
 	var out strings.Builder
 	out.Grow(sLen + (sLen / n))
-	outLen, isEscSeq := 0, false
+	outLen, eSeq := 0, escSeq{}
 	for idx, c := range str {
-		if c == EscapeStartRune {
-			isEscSeq = true
+		if eSeq.isIn {
+			eSeq.InspectRune(c)
+			out.WriteRune(c)
+			continue
 		}
-
-		if !isEscSeq && outLen > 0 && (outLen%n) == 0 && idx != sLen {
+		eSeq.InspectRune(c)
+		if !eSeq.isIn && outLen > 0 && (outLen%n) == 0 && idx != sLen {
 			out.WriteRune(runeToInsert)
 		}
 		out.WriteRune(c)
-		if !isEscSeq {
+		if !eSeq.isIn {
 			outLen += RuneWidth(c)
-		}
-
-		if isEscSeq && c == EscapeStopRune {
-			isEscSeq = false
 		}
 	}
 	return out.String()
@@ -55,21 +49,19 @@ func InsertEveryN(str string, runeToInsert rune, n int) string {
 // argument string. For ex.:
 //  LongestLineLen("Ghost!\nCome back here!\nRight now!") == 15
 func LongestLineLen(str string) int {
-	maxLength, currLength, isEscSeq := 0, 0, false
+	maxLength, currLength, eSeq := 0, 0, escSeq{}
 	for _, c := range str {
-		if c == EscapeStartRune {
-			isEscSeq = true
-		} else if isEscSeq && c == EscapeStopRune {
-			isEscSeq = false
+		if eSeq.isIn {
+			eSeq.InspectRune(c)
 			continue
 		}
-
+		eSeq.InspectRune(c)
 		if c == '\n' {
 			if currLength > maxLength {
 				maxLength = currLength
 			}
 			currLength = 0
-		} else if !isEscSeq {
+		} else if !eSeq.isIn {
 			currLength += RuneWidth(c)
 		}
 	}
@@ -77,6 +69,23 @@ func LongestLineLen(str string) int {
 		maxLength = currLength
 	}
 	return maxLength
+}
+
+// OverrideRuneWidthEastAsianWidth can *probably* help with alignment, and
+// length calculation issues when dealing with Unicode character-set and a
+// non-English language set in the LANG variable.
+//
+// Set this to 'false' to force the "runewidth" library to pretend to deal with
+// English character-set. Be warned that if the text/content you are dealing
+// with contains East Asian character-set, this may result in unexpected
+// behavior.
+//
+// References:
+// * https://github.com/mattn/go-runewidth/issues/64#issuecomment-1221642154
+// * https://github.com/jedib0t/go-pretty/issues/220
+// * https://github.com/jedib0t/go-pretty/issues/204
+func OverrideRuneWidthEastAsianWidth(val bool) {
+	rwCondition.EastAsianWidth = val
 }
 
 // Pad pads the given string with as many characters as needed to make it as
@@ -88,7 +97,7 @@ func LongestLineLen(str string) int {
 //  Pad("Ghost", 7, ' ') == "Ghost  "
 //  Pad("Ghost", 10, '.') == "Ghost....."
 func Pad(str string, maxLen int, paddingChar rune) string {
-	strLen := RuneCount(str)
+	strLen := RuneWidthWithoutEscSequences(str)
 	if strLen < maxLen {
 		str += strings.Repeat(string(paddingChar), maxLen-strLen)
 	}
@@ -118,24 +127,13 @@ func RepeatAndTrim(str string, maxRunes int) string {
 //  RuneCount("Ghost") == 5
 //  RuneCount("\x1b[33mGhost\x1b[0m") == 5
 //  RuneCount("\x1b[33mGhost\x1b[0") == 5
+// Deprecated: in favor of RuneWidthWithoutEscSequences
 func RuneCount(str string) int {
-	count, isEscSeq := 0, false
-	for _, c := range str {
-		if c == EscapeStartRune {
-			isEscSeq = true
-		} else if isEscSeq {
-			if c == EscapeStopRune {
-				isEscSeq = false
-			}
-		} else {
-			count += RuneWidth(c)
-		}
-	}
-	return count
+	return RuneWidthWithoutEscSequences(str)
 }
 
 // RuneWidth returns the mostly accurate character-width of the rune. This is
-// not 100% accurate as the character width is usually dependant on the
+// not 100% accurate as the character width is usually dependent on the
 // typeface (font) used in the console/terminal. For ex.:
 //  RuneWidth('A') == 1
 //  RuneWidth('ツ') == 2
@@ -143,7 +141,28 @@ func RuneCount(str string) int {
 //  RuneWidth('︿') == 2
 //  RuneWidth(0x27) == 0
 func RuneWidth(r rune) int {
-	return runewidth.RuneWidth(r)
+	return rwCondition.RuneWidth(r)
+}
+
+// RuneWidthWithoutEscSequences is similar to RuneWidth, except for the fact
+// that it ignores escape sequences while counting. For ex.:
+//  RuneWidthWithoutEscSequences("") == 0
+//  RuneWidthWithoutEscSequences("Ghost") == 5
+//  RuneWidthWithoutEscSequences("\x1b[33mGhost\x1b[0m") == 5
+//  RuneWidthWithoutEscSequences("\x1b[33mGhost\x1b[0") == 5
+func RuneWidthWithoutEscSequences(str string) int {
+	count, eSeq := 0, escSeq{}
+	for _, c := range str {
+		if eSeq.isIn {
+			eSeq.InspectRune(c)
+			continue
+		}
+		eSeq.InspectRune(c)
+		if !eSeq.isIn {
+			count += RuneWidth(c)
+		}
+	}
+	return count
 }
 
 // Snip returns the given string with a fixed length. For ex.:
@@ -155,9 +174,9 @@ func RuneWidth(r rune) int {
 //  Snip("\x1b[33mGhost\x1b[0m", 7, "~") == "\x1b[33mGhost\x1b[0m  "
 func Snip(str string, length int, snipIndicator string) string {
 	if length > 0 {
-		lenStr := RuneCount(str)
+		lenStr := RuneWidthWithoutEscSequences(str)
 		if lenStr > length {
-			lenStrFinal := length - RuneCount(snipIndicator)
+			lenStrFinal := length - RuneWidthWithoutEscSequences(snipIndicator)
 			return Trim(str, lenStrFinal) + snipIndicator
 		}
 	}
@@ -178,27 +197,23 @@ func Trim(str string, maxLen int) string {
 	var out strings.Builder
 	out.Grow(maxLen)
 
-	outLen, isEscSeq, lastEscSeq := 0, false, strings.Builder{}
+	outLen, eSeq := 0, escSeq{}
 	for _, sChr := range str {
-		out.WriteRune(sChr)
-		if sChr == EscapeStartRune {
-			isEscSeq = true
-			lastEscSeq.Reset()
-			lastEscSeq.WriteRune(sChr)
-		} else if isEscSeq {
-			lastEscSeq.WriteRune(sChr)
-			if sChr == EscapeStopRune {
-				isEscSeq = false
-			}
-		} else {
-			outLen++
-			if outLen == maxLen {
-				break
-			}
+		if eSeq.isIn {
+			eSeq.InspectRune(sChr)
+			out.WriteRune(sChr)
+			continue
 		}
-	}
-	if lastEscSeq.Len() > 0 && lastEscSeq.String() != EscapeReset {
-		out.WriteString(EscapeReset)
+		eSeq.InspectRune(sChr)
+		if eSeq.isIn {
+			out.WriteRune(sChr)
+			continue
+		}
+		if outLen < maxLen {
+			outLen++
+			out.WriteRune(sChr)
+			continue
+		}
 	}
 	return out.String()
 }

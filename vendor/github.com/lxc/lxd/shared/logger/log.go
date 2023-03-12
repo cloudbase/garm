@@ -2,7 +2,6 @@ package logger
 
 import (
 	"io"
-	"io/ioutil"
 	"os"
 
 	"github.com/sirupsen/logrus"
@@ -13,15 +12,15 @@ import (
 
 // Setup a basic empty logger on init.
 func init() {
-	logger := logrus.StandardLogger()
-	logger.SetOutput(ioutil.Discard)
+	logger := logrus.New()
+	logger.SetOutput(io.Discard)
 
 	Log = newWrapper(logger)
 }
 
 // InitLogger intializes a full logging instance.
 func InitLogger(filepath string, syslogName string, verbose bool, debug bool, hook logrus.Hook) error {
-	logger := logrus.StandardLogger()
+	logger := logrus.New()
 	logger.Level = logrus.DebugLevel
 	logger.SetOutput(io.Discard)
 

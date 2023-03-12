@@ -1,12 +1,14 @@
 package api
 
-import "time"
+import (
+	"time"
+)
 
 // StorageVolumeSnapshotsPost represents the fields available for a new LXD storage volume snapshot
 //
 // swagger:model
 //
-// API extension: storage_api_volume_snapshots
+// API extension: storage_api_volume_snapshots.
 type StorageVolumeSnapshotsPost struct {
 	// Snapshot name
 	// Example: snap0
@@ -23,7 +25,7 @@ type StorageVolumeSnapshotsPost struct {
 //
 // swagger:model
 //
-// API extension: storage_api_volume_snapshots
+// API extension: storage_api_volume_snapshots.
 type StorageVolumeSnapshotPost struct {
 	// New snapshot name
 	// Example: snap1
@@ -34,7 +36,7 @@ type StorageVolumeSnapshotPost struct {
 //
 // swagger:model
 //
-// API extension: storage_api_volume_snapshots
+// API extension: storage_api_volume_snapshots.
 type StorageVolumeSnapshot struct {
 	StorageVolumeSnapshotPut `json:",inline" yaml:",inline"`
 
@@ -51,13 +53,18 @@ type StorageVolumeSnapshot struct {
 	//
 	// API extension: custom_block_volumes
 	ContentType string `json:"content_type" yaml:"content_type"`
+
+	// Volume snapshot creation timestamp
+	// Example: 2021-03-23T20:00:00-04:00
+	// API extension: storage_volumes_created_at
+	CreatedAt time.Time `json:"created_at" yaml:"created_at"`
 }
 
 // StorageVolumeSnapshotPut represents the modifiable fields of a LXD storage volume
 //
 // swagger:model
 //
-// API extension: storage_api_volume_snapshots
+// API extension: storage_api_volume_snapshots.
 type StorageVolumeSnapshotPut struct {
 	// Description of the storage volume
 	// Example: My custom volume

@@ -1,13 +1,15 @@
 package api
 
-import "strings"
+import (
+	"strings"
+)
 
 // NetworkACLRule represents a single rule in an ACL ruleset.
 // Refer to doc/network-acls.md for details.
 //
 // swagger:model
 //
-// API extension: network_acl
+// API extension: network_acl.
 type NetworkACLRule struct {
 	// Action to perform on rule match
 	// Example: allow
@@ -64,6 +66,7 @@ func (r *NetworkACLRule) Normalise() {
 	for i, s := range subjects {
 		subjects[i] = strings.TrimSpace(s)
 	}
+
 	r.Source = strings.Join(subjects, ",")
 
 	// Remove space from Destination subject list.
@@ -71,6 +74,7 @@ func (r *NetworkACLRule) Normalise() {
 	for i, s := range subjects {
 		subjects[i] = strings.TrimSpace(s)
 	}
+
 	r.Destination = strings.Join(subjects, ",")
 
 	// Remove space from SourcePort port list.
@@ -78,6 +82,7 @@ func (r *NetworkACLRule) Normalise() {
 	for i, s := range ports {
 		ports[i] = strings.TrimSpace(s)
 	}
+
 	r.SourcePort = strings.Join(ports, ",")
 
 	// Remove space from DestinationPort port list.
@@ -85,6 +90,7 @@ func (r *NetworkACLRule) Normalise() {
 	for i, s := range ports {
 		ports[i] = strings.TrimSpace(s)
 	}
+
 	r.DestinationPort = strings.Join(ports, ",")
 }
 
@@ -92,7 +98,7 @@ func (r *NetworkACLRule) Normalise() {
 //
 // swagger:model
 //
-// API extension: network_acl
+// API extension: network_acl.
 type NetworkACLPost struct {
 	// The new name for the ACL
 	// Example: bar
@@ -103,7 +109,7 @@ type NetworkACLPost struct {
 //
 // swagger:model
 //
-// API extension: network_acl
+// API extension: network_acl.
 type NetworkACLPut struct {
 	// Description of the ACL
 	// Example: Web servers
@@ -124,7 +130,7 @@ type NetworkACLPut struct {
 //
 // swagger:model
 //
-// API extension: network_acl
+// API extension: network_acl.
 type NetworkACL struct {
 	NetworkACLPost `yaml:",inline"`
 	NetworkACLPut  `yaml:",inline"`
@@ -144,7 +150,7 @@ func (acl *NetworkACL) Writable() NetworkACLPut {
 //
 // swagger:model
 //
-// API extension: network_acl
+// API extension: network_acl.
 type NetworkACLsPost struct {
 	NetworkACLPost `yaml:",inline"`
 	NetworkACLPut  `yaml:",inline"`

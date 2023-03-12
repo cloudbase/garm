@@ -9,7 +9,7 @@ import (
 //
 // swagger:model
 //
-// API extension: network_forward
+// API extension: network_forward.
 type NetworkForwardPort struct {
 	// Description of the forward port
 	// Example: My web server forward
@@ -48,6 +48,7 @@ func (p *NetworkForwardPort) Normalise() {
 	for i, s := range subjects {
 		subjects[i] = strings.TrimSpace(s)
 	}
+
 	p.ListenPort = strings.Join(subjects, ",")
 
 	// Remove space from TargetPort list.
@@ -55,6 +56,7 @@ func (p *NetworkForwardPort) Normalise() {
 	for i, s := range subjects {
 		subjects[i] = strings.TrimSpace(s)
 	}
+
 	p.TargetPort = strings.Join(subjects, ",")
 }
 
@@ -62,7 +64,7 @@ func (p *NetworkForwardPort) Normalise() {
 //
 // swagger:model
 //
-// API extension: network_forward
+// API extension: network_forward.
 type NetworkForwardsPost struct {
 	NetworkForwardPut `yaml:",inline"`
 
@@ -85,7 +87,7 @@ func (f *NetworkForwardsPost) Normalise() {
 //
 // swagger:model
 //
-// API extension: network_forward
+// API extension: network_forward.
 type NetworkForwardPut struct {
 	// Description of the forward listen IP
 	// Example: My public IP forward
@@ -117,7 +119,7 @@ func (f *NetworkForwardPut) Normalise() {
 //
 // swagger:model
 //
-// API extension: network_forward
+// API extension: network_forward.
 type NetworkForward struct {
 	NetworkForwardPut `yaml:",inline"`
 

@@ -1,12 +1,14 @@
 package api
 
-import "time"
+import (
+	"time"
+)
 
 // InstanceBackupsPost represents the fields available for a new LXD instance backup.
 //
 // swagger:model
 //
-// API extension: instances
+// API extension: instances.
 type InstanceBackupsPost struct {
 	// Backup name
 	// Example: backup0
@@ -39,13 +41,13 @@ type InstanceBackupsPost struct {
 //
 // swagger:model
 //
-// API extension: instances
+// API extension: instances.
 type InstanceBackup struct {
 	// Backup name
 	// Example: backup0
 	Name string `json:"name" yaml:"name"`
 
-	// When the backup was cerated
+	// When the backup was created
 	// Example: 2021-03-23T16:38:37.753398689-04:00
 	CreatedAt time.Time `json:"created_at" yaml:"created_at"`
 
@@ -70,7 +72,7 @@ type InstanceBackup struct {
 //
 // swagger:model
 //
-// API extension: instances
+// API extension: instances.
 type InstanceBackupPost struct {
 	// New backup name
 	// Example: backup1

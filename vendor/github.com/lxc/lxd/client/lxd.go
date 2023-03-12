@@ -7,22 +7,22 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	neturl "net/url"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/go-macaroon-bakery/macaroon-bakery/v3/bakery"
+	"github.com/go-macaroon-bakery/macaroon-bakery/v3/httpbakery"
 	"github.com/gorilla/websocket"
-	"gopkg.in/macaroon-bakery.v2/bakery"
-	"gopkg.in/macaroon-bakery.v2/httpbakery"
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/lxc/lxd/shared/logger"
-
-	neturl "net/url"
+	"github.com/lxc/lxd/shared/tcp"
 )
 
-// ProtocolLXD represents a LXD API server
+// ProtocolLXD represents a LXD API server.
 type ProtocolLXD struct {
 	ctx                context.Context
 	server             *api.Server
@@ -54,14 +54,14 @@ type ProtocolLXD struct {
 	project       string
 }
 
-// Disconnect gets rid of any background goroutines
+// Disconnect gets rid of any background goroutines.
 func (r *ProtocolLXD) Disconnect() {
 	if r.ctxConnected.Err() != nil {
 		r.ctxConnectedCancel()
 	}
 }
 
-// GetConnectionInfo returns the basic connection information used to interact with the server
+// GetConnectionInfo returns the basic connection information used to interact with the server.
 func (r *ProtocolLXD) GetConnectionInfo() (*ConnectionInfo, error) {
 	info := ConnectionInfo{}
 	info.Certificate = r.httpCertificate
@@ -96,6 +96,7 @@ func (r *ProtocolLXD) GetConnectionInfo() (*ConnectionInfo, error) {
 			}
 		}
 	}
+
 	info.Addresses = urls
 
 	return &info, nil
@@ -176,7 +177,7 @@ func (r *ProtocolLXD) addClientHeaders(req *http.Request) {
 	}
 }
 
-// RequireAuthenticated sets whether we expect to be authenticated with the server
+// RequireAuthenticated sets whether we expect to be authenticated with the server.
 func (r *ProtocolLXD) RequireAuthenticated(authenticated bool) {
 	r.requireAuthenticated = authenticated
 }
@@ -204,7 +205,7 @@ func (r *ProtocolLXD) RawOperation(method string, path string, data any, ETag st
 	return r.queryOperation(method, path, data, ETag)
 }
 
-// Internal functions
+// Internal functions.
 func lxdParseResponse(resp *http.Response) (*api.Response, string, error) {
 	// Get the ETag
 	etag := resp.Header.Get("ETag")
@@ -293,7 +294,8 @@ func (r *ProtocolLXD) rawQuery(method string, url string, data any, ETag string)
 	if err != nil {
 		return nil, "", err
 	}
-	defer resp.Body.Close()
+
+	defer func() { _ = resp.Body.Close() }()
 
 	return lxdParseResponse(resp)
 }
@@ -405,12 +407,14 @@ func (r *ProtocolLXD) queryOperation(method string, path string, data any, ETag 
 
 func (r *ProtocolLXD) rawWebsocket(url string) (*websocket.Conn, error) {
 	// Grab the http transport handler
-	httpTransport := r.http.Transport.(*http.Transport)
+	httpTransport, err := r.getUnderlyingHTTPTransport()
+	if err != nil {
+		return nil, err
+	}
 
 	// Setup a new websocket dialer based on it
 	dialer := websocket.Dialer{
-		//lint:ignore SA1019 DialContext doesn't exist in Go 1.13
-		NetDial:          httpTransport.Dial,
+		NetDialContext:   httpTransport.DialContext,
 		TLSClientConfig:  httpTransport.TLSClientConfig,
 		Proxy:            httpTransport.Proxy,
 		HandshakeTimeout: time.Second * 5,
@@ -422,15 +426,28 @@ func (r *ProtocolLXD) rawWebsocket(url string) (*websocket.Conn, error) {
 	r.addClientHeaders(req)
 
 	// Establish the connection
-	conn, _, err := dialer.Dial(url, req.Header)
+	conn, resp, err := dialer.Dial(url, req.Header)
 	if err != nil {
+		if resp != nil {
+			_, _, err = lxdParseResponse(resp)
+		}
+
 		return nil, err
+	}
+
+	// Set TCP timeout options.
+	remoteTCP, _ := tcp.ExtractConn(conn.UnderlyingConn())
+	if remoteTCP != nil {
+		err = tcp.SetTimeouts(remoteTCP, 0)
+		if err != nil {
+			logger.Error("Failed setting TCP timeouts on remote connection", logger.Ctx{"err": err})
+		}
 	}
 
 	// Log the data
 	logger.Debugf("Connected to the websocket: %v", url)
 
-	return conn, err
+	return conn, nil
 }
 
 func (r *ProtocolLXD) websocket(path string) (*websocket.Conn, error) {
@@ -460,4 +477,17 @@ func (r *ProtocolLXD) WithContext(ctx context.Context) InstanceServer {
 	rr := r
 	rr.ctx = ctx
 	return rr
+}
+
+// getUnderlyingHTTPTransport returns the *http.Transport used by the http client. If the http
+// client was initialized with a HTTPTransporter, it returns the wrapped *http.Transport.
+func (r *ProtocolLXD) getUnderlyingHTTPTransport() (*http.Transport, error) {
+	switch t := r.http.Transport.(type) {
+	case *http.Transport:
+		return t, nil
+	case HTTPTransporter:
+		return t.Transport(), nil
+	default:
+		return nil, fmt.Errorf("Unexpected http.Transport type, %T", r)
+	}
 }

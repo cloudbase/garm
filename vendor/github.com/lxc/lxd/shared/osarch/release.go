@@ -2,12 +2,11 @@ package osarch
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 )
 
-// GetLSBRelease returns a map with Linux distribution information
+// GetLSBRelease returns a map with Linux distribution information.
 func GetLSBRelease() (map[string]string, error) {
 	osRelease, err := getLSBRelease("/etc/os-release")
 	if os.IsNotExist(err) {
@@ -20,7 +19,7 @@ func GetLSBRelease() (map[string]string, error) {
 func getLSBRelease(filename string) (map[string]string, error) {
 	osRelease := make(map[string]string)
 
-	data, err := ioutil.ReadFile(filename)
+	data, err := os.ReadFile(filename)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return osRelease, nil

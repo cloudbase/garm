@@ -1,8 +1,19 @@
 package api
 
 import (
+	"strings"
 	"time"
 )
+
+// GetParentAndSnapshotName returns the parent name, snapshot name, and whether it actually was a snapshot name.
+func GetParentAndSnapshotName(name string) (string, string, bool) {
+	fields := strings.SplitN(name, "/", 2)
+	if len(fields) == 1 {
+		return name, "", false
+	}
+
+	return fields[0], fields[1], true
+}
 
 // InstanceType represents the type if instance being returned or requested via the API.
 type InstanceType string
@@ -20,7 +31,7 @@ const InstanceTypeVM = InstanceType("virtual-machine")
 //
 // swagger:model
 //
-// API extension: instances
+// API extension: instances.
 type InstancesPost struct {
 	InstancePut `yaml:",inline"`
 
@@ -44,7 +55,7 @@ type InstancesPost struct {
 //
 // swagger:model
 //
-// API extension: instance_bulk_state_change
+// API extension: instance_bulk_state_change.
 type InstancesPut struct {
 	// Desired runtime state
 	State *InstanceStatePut `json:"state" yaml:"state"`
@@ -54,7 +65,7 @@ type InstancesPut struct {
 //
 // swagger:model
 //
-// API extension: instances
+// API extension: instances.
 type InstancePost struct {
 	// New name for the instance
 	// Example: bar
@@ -102,7 +113,7 @@ type InstancePost struct {
 //
 // swagger:model
 //
-// API extension: instances
+// API extension: instances.
 type InstancePostTarget struct {
 	// The certificate of the migration target
 	// Example: X509 PEM certificate
@@ -121,7 +132,7 @@ type InstancePostTarget struct {
 //
 // swagger:model
 //
-// API extension: instances
+// API extension: instances.
 type InstancePut struct {
 	// Architecture name
 	// Example: x86_64
@@ -160,7 +171,7 @@ type InstancePut struct {
 //
 // swagger:model
 //
-// API extension: instances
+// API extension: instances.
 type Instance struct {
 	InstancePut `yaml:",inline"`
 
@@ -170,11 +181,11 @@ type Instance struct {
 
 	// Expanded configuration (all profiles and local config merged)
 	// Example: {"security.nesting": "true"}
-	ExpandedConfig map[string]string `json:"expanded_config" yaml:"expanded_config"`
+	ExpandedConfig map[string]string `json:"expanded_config,omitempty" yaml:"expanded_config,omitempty"`
 
 	// Expanded devices (all profiles and local devices merged)
 	// Example: {"root": {"type": "disk", "pool": "default", "path": "/"}}
-	ExpandedDevices map[string]map[string]string `json:"expanded_devices" yaml:"expanded_devices"`
+	ExpandedDevices map[string]map[string]string `json:"expanded_devices,omitempty" yaml:"expanded_devices,omitempty"`
 
 	// Instance name
 	// Example: foo
@@ -211,7 +222,7 @@ type Instance struct {
 //
 // swagger:model
 //
-// API extension: instances
+// API extension: instances.
 type InstanceFull struct {
 	Instance `yaml:",inline"`
 
@@ -227,14 +238,14 @@ type InstanceFull struct {
 
 // Writable converts a full Instance struct into a InstancePut struct (filters read-only fields).
 //
-// API extension: instances
+// API extension: instances.
 func (c *Instance) Writable() InstancePut {
 	return c.InstancePut
 }
 
 // IsActive checks whether the instance state indicates the instance is active.
 //
-// API extension: instances
+// API extension: instances.
 func (c Instance) IsActive() bool {
 	switch c.StatusCode {
 	case Stopped:
@@ -246,11 +257,16 @@ func (c Instance) IsActive() bool {
 	}
 }
 
+// URL returns the URL for the instance.
+func (c *Instance) URL(apiVersion string, project string) *URL {
+	return NewURL().Path(apiVersion, "instances", c.Name).Project(project)
+}
+
 // InstanceSource represents the creation source for a new instance.
 //
 // swagger:model
 //
-// API extension: instances
+// API extension: instances.
 type InstanceSource struct {
 	// Source type
 	// Example: image
@@ -261,7 +277,7 @@ type InstanceSource struct {
 	Certificate string `json:"certificate" yaml:"certificate"`
 
 	// Image alias name (for image source)
-	// Example: ubuntu/20.04
+	// Example: ubuntu/22.04
 	Alias string `json:"alias,omitempty" yaml:"alias,omitempty"`
 
 	// Image fingerprint (for image source)
@@ -269,7 +285,7 @@ type InstanceSource struct {
 	Fingerprint string `json:"fingerprint,omitempty" yaml:"fingerprint,omitempty"`
 
 	// Image filters (for image source)
-	// Example: {"os": "Ubuntu", "release": "focal", "variant": "cloud"}
+	// Example: {"os": "Ubuntu", "release": "jammy", "variant": "cloud"}
 	Properties map[string]string `json:"properties,omitempty" yaml:"properties,omitempty"`
 
 	// Remote server URL (for remote images)

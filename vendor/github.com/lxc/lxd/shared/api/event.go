@@ -6,6 +6,13 @@ import (
 	"time"
 )
 
+// LXD event types.
+const (
+	EventTypeLifecycle = "lifecycle"
+	EventTypeLogging   = "logging"
+	EventTypeOperation = "operation"
+)
+
 // Event represents an event entry (over websocket)
 //
 // swagger:model
@@ -35,9 +42,9 @@ type Event struct {
 	Project string `yaml:"project,omitempty" json:"project,omitempty"`
 }
 
-// ToLogging creates log record for the event
+// ToLogging creates log record for the event.
 func (event *Event) ToLogging() (EventLogRecord, error) {
-	if event.Type == "logging" {
+	if event.Type == EventTypeLogging {
 		e := &EventLogging{}
 		err := json.Unmarshal(event.Metadata, &e)
 		if err != nil {
@@ -56,8 +63,9 @@ func (event *Event) ToLogging() (EventLogRecord, error) {
 			Msg:  e.Message,
 			Ctx:  ctx,
 		}
+
 		return record, nil
-	} else if event.Type == "lifecycle" {
+	} else if event.Type == EventTypeLifecycle {
 		e := &EventLifecycle{}
 		err := json.Unmarshal(event.Metadata, &e)
 		if err != nil {
@@ -84,7 +92,7 @@ func (event *Event) ToLogging() (EventLogRecord, error) {
 		}
 
 		return record, nil
-	} else if event.Type == "operation" {
+	} else if event.Type == EventTypeOperation {
 		e := &Operation{}
 		err := json.Unmarshal(event.Metadata, &e)
 		if err != nil {
@@ -107,13 +115,14 @@ func (event *Event) ToLogging() (EventLogRecord, error) {
 				"Location", e.Location,
 			},
 		}
+
 		return record, nil
 	}
 
 	return EventLogRecord{}, fmt.Errorf("Not supported event type: %s", event.Type)
 }
 
-// EventLogRecord represents single log record
+// EventLogRecord represents single log record.
 type EventLogRecord struct {
 	Time time.Time
 	Lvl  string
@@ -121,7 +130,7 @@ type EventLogRecord struct {
 	Ctx  []any
 }
 
-// EventLogging represents a logging type event entry (admin only)
+// EventLogging represents a logging type event entry (admin only).
 type EventLogging struct {
 	Message string            `yaml:"message" json:"message"`
 	Level   string            `yaml:"level" json:"level"`
@@ -130,7 +139,7 @@ type EventLogging struct {
 
 // EventLifecycle represets a lifecycle type event entry
 //
-// API extension: event_lifecycle
+// API extension: event_lifecycle.
 type EventLifecycle struct {
 	Action  string         `yaml:"action" json:"action"`
 	Source  string         `yaml:"source" json:"source"`
@@ -142,7 +151,7 @@ type EventLifecycle struct {
 
 // EventLifecycleRequestor represents the initial requestor for an event
 //
-// API extension: event_lifecycle_requestor
+// API extension: event_lifecycle_requestor.
 type EventLifecycleRequestor struct {
 	Username string `yaml:"username" json:"username"`
 	Protocol string `yaml:"protocol" json:"protocol"`

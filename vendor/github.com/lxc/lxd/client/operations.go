@@ -1,6 +1,7 @@
 package lxd
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,7 +12,7 @@ import (
 	"github.com/lxc/lxd/shared/api"
 )
 
-// The Operation type represents an ongoing LXD operation (asynchronous processing)
+// The Operation type represents an ongoing LXD operation (asynchronous processing).
 type operation struct {
 	api.Operation
 
@@ -23,7 +24,7 @@ type operation struct {
 	chActive chan bool
 }
 
-// AddHandler adds a function to be called whenever an event is received
+// AddHandler adds a function to be called whenever an event is received.
 func (op *operation) AddHandler(function func(api.Operation)) (*EventTarget, error) {
 	// Make sure we have a listener setup
 	err := op.setupListener()
@@ -50,6 +51,7 @@ func (op *operation) AddHandler(function func(api.Operation)) (*EventTarget, err
 			op.handlerLock.Unlock()
 			return
 		}
+
 		op.handlerLock.Unlock()
 
 		function(newOp)
@@ -58,22 +60,22 @@ func (op *operation) AddHandler(function func(api.Operation)) (*EventTarget, err
 	return op.listener.AddHandler([]string{"operation"}, wrapped)
 }
 
-// Cancel will request that LXD cancels the operation (if supported)
+// Cancel will request that LXD cancels the operation (if supported).
 func (op *operation) Cancel() error {
 	return op.r.DeleteOperation(op.ID)
 }
 
-// Get returns the API operation struct
+// Get returns the API operation struct.
 func (op *operation) Get() api.Operation {
 	return op.Operation
 }
 
-// GetWebsocket returns a raw websocket connection from the operation
+// GetWebsocket returns a raw websocket connection from the operation.
 func (op *operation) GetWebsocket(secret string) (*websocket.Conn, error) {
 	return op.r.GetOperationWebsocket(op.ID, secret)
 }
 
-// RemoveHandler removes a function to be called whenever an event is received
+// RemoveHandler removes a function to be called whenever an event is received.
 func (op *operation) RemoveHandler(target *EventTarget) error {
 	// Make sure we're not racing with ourselves
 	op.handlerLock.Lock()
@@ -87,7 +89,7 @@ func (op *operation) RemoveHandler(target *EventTarget) error {
 	return op.listener.RemoveHandler(target)
 }
 
-// Refresh pulls the current version of the operation and updates the struct
+// Refresh pulls the current version of the operation and updates the struct.
 func (op *operation) Refresh() error {
 	// Get the current version of the operation
 	newOp, _, err := op.r.GetOperation(op.ID)
@@ -101,8 +103,13 @@ func (op *operation) Refresh() error {
 	return nil
 }
 
-// Wait lets you wait until the operation reaches a final state
+// Wait lets you wait until the operation reaches a final state.
 func (op *operation) Wait() error {
+	return op.WaitContext(context.Background())
+}
+
+// WaitContext lets you wait until the operation reaches a final state with context.Context.
+func (op *operation) WaitContext(ctx context.Context) error {
 	op.handlerLock.Lock()
 	// Check if not done already
 	if op.StatusCode.IsFinal() {
@@ -114,6 +121,7 @@ func (op *operation) Wait() error {
 		op.handlerLock.Unlock()
 		return nil
 	}
+
 	op.handlerLock.Unlock()
 
 	// Make sure we have a listener setup
@@ -122,7 +130,11 @@ func (op *operation) Wait() error {
 		return err
 	}
 
-	<-op.chActive
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-op.chActive:
+	}
 
 	// We're done, parse the result
 	if op.Err != "" {
@@ -141,6 +153,7 @@ func (op *operation) setupListener() error {
 	if op.handlerReady {
 		return nil
 	}
+
 	op.handlerReady = true
 
 	// Get a new listener
@@ -207,6 +220,7 @@ func (op *operation) setupListener() error {
 			op.handlerLock.Unlock()
 			return
 		}
+
 		op.handlerLock.Unlock()
 
 		// Wait for the listener or operation to be done
@@ -214,9 +228,10 @@ func (op *operation) setupListener() error {
 		case <-listener.ctx.Done():
 			op.handlerLock.Lock()
 			if op.listener != nil {
-				op.Err = fmt.Sprintf("%v", listener.err)
+				op.Err = listener.err.Error()
 				close(op.chActive)
 			}
+
 			op.handlerLock.Unlock()
 		case <-op.chActive:
 			return
@@ -254,7 +269,7 @@ func (op *operation) setupListener() error {
 	return nil
 }
 
-// The remoteOperation type represents an ongoing LXD operation between two servers
+// The remoteOperation type represents an ongoing LXD operation between two servers.
 type remoteOperation struct {
 	targetOp Operation
 
@@ -266,7 +281,7 @@ type remoteOperation struct {
 	err    error
 }
 
-// AddHandler adds a function to be called whenever an event is received
+// AddHandler adds a function to be called whenever an event is received.
 func (op *remoteOperation) AddHandler(function func(api.Operation)) (*EventTarget, error) {
 	var err error
 	var target *EventTarget
@@ -294,7 +309,7 @@ func (op *remoteOperation) AddHandler(function func(api.Operation)) (*EventTarge
 	return target, nil
 }
 
-// CancelTarget attempts to cancel the target operation
+// CancelTarget attempts to cancel the target operation.
 func (op *remoteOperation) CancelTarget() error {
 	if op.targetOp == nil {
 		return fmt.Errorf("No associated target operation")
@@ -303,7 +318,7 @@ func (op *remoteOperation) CancelTarget() error {
 	return op.targetOp.Cancel()
 }
 
-// GetTarget returns the target operation
+// GetTarget returns the target operation.
 func (op *remoteOperation) GetTarget() (*api.Operation, error) {
 	if op.targetOp == nil {
 		return nil, fmt.Errorf("No associated target operation")
@@ -313,7 +328,7 @@ func (op *remoteOperation) GetTarget() (*api.Operation, error) {
 	return &opAPI, nil
 }
 
-// Wait lets you wait until the operation reaches a final state
+// Wait lets you wait until the operation reaches a final state.
 func (op *remoteOperation) Wait() error {
 	<-op.chDone
 
