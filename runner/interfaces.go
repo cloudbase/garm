@@ -16,9 +16,10 @@ package runner
 
 import (
 	"context"
-	dbCommon "garm/database/common"
-	"garm/params"
-	"garm/runner/common"
+
+	dbCommon "github.com/cloudbase/garm/database/common"
+	"github.com/cloudbase/garm/params"
+	"github.com/cloudbase/garm/runner/common"
 )
 
 type RepoPoolManager interface {

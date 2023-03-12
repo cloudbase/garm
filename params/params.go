@@ -16,9 +16,10 @@ package params
 
 import (
 	"encoding/json"
-	"garm/config"
-	"garm/runner/providers/common"
 	"time"
+
+	"github.com/cloudbase/garm/config"
+	"github.com/cloudbase/garm/runner/providers/common"
 
 	"github.com/google/go-github/v48/github"
 	uuid "github.com/satori/go.uuid"

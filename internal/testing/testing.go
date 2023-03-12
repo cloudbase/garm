@@ -18,11 +18,12 @@
 package testing
 
 import (
-	"garm/config"
 	"os"
 	"path/filepath"
 	"sort"
 	"testing"
+
+	"github.com/cloudbase/garm/config"
 
 	"github.com/stretchr/testify/require"
 )

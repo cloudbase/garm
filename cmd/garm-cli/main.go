@@ -14,7 +14,7 @@
 
 package main
 
-import "garm/cmd/garm-cli/cmd"
+import "github.com/cloudbase/garm/cmd/garm-cli/cmd"
 
 func main() {
 	cmd.Execute()

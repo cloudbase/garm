@@ -24,8 +24,8 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
-	"garm/config"
-	"garm/database/common"
+	"github.com/cloudbase/garm/config"
+	"github.com/cloudbase/garm/database/common"
 )
 
 // newDBConn returns a new gorm db connection, given the config

@@ -1,4 +1,4 @@
-module garm
+module github.com/cloudbase/garm
 
 go 1.18
 

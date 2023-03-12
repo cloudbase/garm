@@ -3,9 +3,10 @@ package auth
 import (
 	"context"
 	"fmt"
-	"garm/config"
 	"net/http"
 	"strings"
+
+	"github.com/cloudbase/garm/config"
 
 	"github.com/golang-jwt/jwt"
 )

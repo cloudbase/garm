@@ -18,10 +18,10 @@ import (
 	"context"
 	"log"
 
-	"garm/config"
-	"garm/runner/common"
-	"garm/runner/providers/external"
-	"garm/runner/providers/lxd"
+	"github.com/cloudbase/garm/config"
+	"github.com/cloudbase/garm/runner/common"
+	"github.com/cloudbase/garm/runner/providers/external"
+	"github.com/cloudbase/garm/runner/providers/lxd"
 
 	"github.com/pkg/errors"
 )

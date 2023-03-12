@@ -21,9 +21,9 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	"garm/apiserver/controllers"
-	"garm/auth"
-	"garm/util"
+	"github.com/cloudbase/garm/apiserver/controllers"
+	"github.com/cloudbase/garm/auth"
+	"github.com/cloudbase/garm/util"
 )
 
 func WithMetricsRouter(parentRouter *mux.Router, disableAuth bool, metricsMiddlerware auth.Middleware) *mux.Router {

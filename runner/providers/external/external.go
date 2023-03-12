@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"log"
 
-	"garm/config"
-	garmErrors "garm/errors"
-	"garm/params"
-	"garm/runner/common"
-	providerCommon "garm/runner/providers/common"
-	"garm/util/exec"
+	"github.com/cloudbase/garm/config"
+	garmErrors "github.com/cloudbase/garm/errors"
+	"github.com/cloudbase/garm/params"
+	"github.com/cloudbase/garm/runner/common"
+	providerCommon "github.com/cloudbase/garm/runner/providers/common"
+	"github.com/cloudbase/garm/util/exec"
 
 	"github.com/pkg/errors"
 )

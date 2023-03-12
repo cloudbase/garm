@@ -18,8 +18,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"garm/params"
-	"garm/util"
+	"github.com/cloudbase/garm/params"
+	"github.com/cloudbase/garm/util"
 
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"

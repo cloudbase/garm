@@ -3,13 +3,14 @@ package runner
 import (
 	"context"
 	"fmt"
-	"garm/auth"
-	"garm/config"
-	runnerErrors "garm/errors"
-	"garm/params"
-	"garm/runner/common"
 	"log"
 	"strings"
+
+	"github.com/cloudbase/garm/auth"
+	"github.com/cloudbase/garm/config"
+	runnerErrors "github.com/cloudbase/garm/errors"
+	"github.com/cloudbase/garm/params"
+	"github.com/cloudbase/garm/runner/common"
 
 	"github.com/pkg/errors"
 )

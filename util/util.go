@@ -32,11 +32,11 @@ import (
 	"strings"
 	"unicode"
 
-	"garm/cloudconfig"
-	"garm/config"
-	runnerErrors "garm/errors"
-	"garm/params"
-	"garm/runner/common"
+	"github.com/cloudbase/garm/cloudconfig"
+	"github.com/cloudbase/garm/config"
+	runnerErrors "github.com/cloudbase/garm/errors"
+	"github.com/cloudbase/garm/params"
+	"github.com/cloudbase/garm/runner/common"
 
 	"github.com/google/go-github/v48/github"
 	"github.com/google/uuid"

@@ -15,8 +15,8 @@
 package sql
 
 import (
-	runnerErrors "garm/errors"
-	"garm/params"
+	runnerErrors "github.com/cloudbase/garm/errors"
+	"github.com/cloudbase/garm/params"
 
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"

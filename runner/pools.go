@@ -18,9 +18,9 @@ import (
 	"context"
 	"fmt"
 
-	"garm/auth"
-	runnerErrors "garm/errors"
-	"garm/params"
+	"github.com/cloudbase/garm/auth"
+	runnerErrors "github.com/cloudbase/garm/errors"
+	"github.com/cloudbase/garm/params"
 
 	"github.com/pkg/errors"
 )

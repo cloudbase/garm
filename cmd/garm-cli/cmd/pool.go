@@ -17,10 +17,11 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"garm/config"
-	"garm/params"
 	"os"
 	"strings"
+
+	"github.com/cloudbase/garm/config"
+	"github.com/cloudbase/garm/params"
 
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/pkg/errors"

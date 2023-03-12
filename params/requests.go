@@ -18,9 +18,9 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"garm/config"
-	"garm/errors"
-	"garm/runner/providers/common"
+	"github.com/cloudbase/garm/config"
+	"github.com/cloudbase/garm/errors"
+	"github.com/cloudbase/garm/runner/providers/common"
 )
 
 const DefaultRunnerPrefix = "garm"

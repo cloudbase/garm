@@ -18,13 +18,14 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	dbCommon "garm/database/common"
-	garmTesting "garm/internal/testing"
-	"garm/params"
-	"garm/runner/providers/common"
 	"regexp"
 	"sort"
 	"testing"
+
+	dbCommon "github.com/cloudbase/garm/database/common"
+	garmTesting "github.com/cloudbase/garm/internal/testing"
+	"github.com/cloudbase/garm/params"
+	"github.com/cloudbase/garm/runner/providers/common"
 
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 

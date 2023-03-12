@@ -16,7 +16,8 @@ package common
 
 import (
 	"context"
-	"garm/params"
+
+	"github.com/cloudbase/garm/params"
 )
 
 type RepoStore interface {

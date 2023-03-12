@@ -18,9 +18,9 @@ import (
 	"encoding/json"
 	"fmt"
 
-	apiParams "garm/apiserver/params"
-	"garm/cmd/garm-cli/config"
-	"garm/params"
+	apiParams "github.com/cloudbase/garm/apiserver/params"
+	"github.com/cloudbase/garm/cmd/garm-cli/config"
+	"github.com/cloudbase/garm/params"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/pkg/errors"

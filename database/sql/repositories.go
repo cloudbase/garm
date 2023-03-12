@@ -18,9 +18,9 @@ import (
 	"context"
 	"fmt"
 
-	runnerErrors "garm/errors"
-	"garm/params"
-	"garm/util"
+	runnerErrors "github.com/cloudbase/garm/errors"
+	"github.com/cloudbase/garm/params"
+	"github.com/cloudbase/garm/util"
 
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"

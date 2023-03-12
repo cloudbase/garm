@@ -19,8 +19,8 @@ import (
 	"log"
 	"net/http"
 
-	"garm/apiserver/params"
-	"garm/database/common"
+	"github.com/cloudbase/garm/apiserver/params"
+	"github.com/cloudbase/garm/database/common"
 )
 
 // NewjwtMiddleware returns a populated jwtMiddleware
