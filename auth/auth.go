@@ -16,12 +16,13 @@ package auth
 
 import (
 	"context"
-	"garm/config"
-	"garm/database/common"
-	runnerErrors "garm/errors"
-	"garm/params"
-	"garm/util"
 	"time"
+
+	"github.com/cloudbase/garm/config"
+	"github.com/cloudbase/garm/database/common"
+	runnerErrors "github.com/cloudbase/garm/errors"
+	"github.com/cloudbase/garm/params"
+	"github.com/cloudbase/garm/util"
 
 	"github.com/golang-jwt/jwt"
 	"github.com/nbutton23/zxcvbn-go"

@@ -16,10 +16,11 @@ package cmd
 
 import (
 	"fmt"
-	"garm/cmd/garm-cli/common"
-	"garm/cmd/garm-cli/config"
-	"garm/params"
 	"strings"
+
+	"github.com/cloudbase/garm/cmd/garm-cli/common"
+	"github.com/cloudbase/garm/cmd/garm-cli/config"
+	"github.com/cloudbase/garm/params"
 
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/spf13/cobra"

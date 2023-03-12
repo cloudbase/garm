@@ -22,10 +22,10 @@ import (
 	"sort"
 	"testing"
 
-	dbCommon "garm/database/common"
-	runnerErrors "garm/errors"
-	garmTesting "garm/internal/testing"
-	"garm/params"
+	dbCommon "github.com/cloudbase/garm/database/common"
+	runnerErrors "github.com/cloudbase/garm/errors"
+	garmTesting "github.com/cloudbase/garm/internal/testing"
+	"github.com/cloudbase/garm/params"
 
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"

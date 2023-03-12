@@ -16,9 +16,10 @@ package cmd
 
 import (
 	"fmt"
-	"garm/cmd/garm-cli/client"
-	"garm/cmd/garm-cli/config"
 	"os"
+
+	"github.com/cloudbase/garm/cmd/garm-cli/client"
+	"github.com/cloudbase/garm/cmd/garm-cli/config"
 
 	"github.com/spf13/cobra"
 )

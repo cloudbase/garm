@@ -8,7 +8,7 @@ import (
 
 // GetCluster returns information about a cluster
 //
-// If this client is not trusted, the password must be supplied
+// If this client is not trusted, the password must be supplied.
 func (r *ProtocolLXD) GetCluster() (*api.Cluster, string, error) {
 	if !r.HasExtension("clustering") {
 		return nil, "", fmt.Errorf("The server is missing the required \"clustering\" API extension")
@@ -44,7 +44,7 @@ func (r *ProtocolLXD) UpdateCluster(cluster api.ClusterPut, ETag string) (Operat
 }
 
 // DeleteClusterMember makes the given member leave the cluster (gracefully or not,
-// depending on the force flag)
+// depending on the force flag).
 func (r *ProtocolLXD) DeleteClusterMember(name string, force bool) error {
 	if !r.HasExtension("clustering") {
 		return fmt.Errorf("The server is missing the required \"clustering\" API extension")
@@ -55,7 +55,7 @@ func (r *ProtocolLXD) DeleteClusterMember(name string, force bool) error {
 		params += "?force=1"
 	}
 
-	_, err := r.queryStruct("DELETE", fmt.Sprintf("/cluster/members/%s%s", name, params), nil, "", nil)
+	_, _, err := r.query("DELETE", fmt.Sprintf("/cluster/members/%s%s", name, params), nil, "")
 	if err != nil {
 		return err
 	}
@@ -63,7 +63,7 @@ func (r *ProtocolLXD) DeleteClusterMember(name string, force bool) error {
 	return nil
 }
 
-// GetClusterMemberNames returns the URLs of the current members in the cluster
+// GetClusterMemberNames returns the URLs of the current members in the cluster.
 func (r *ProtocolLXD) GetClusterMemberNames() ([]string, error) {
 	if !r.HasExtension("clustering") {
 		return nil, fmt.Errorf("The server is missing the required \"clustering\" API extension")
@@ -81,7 +81,7 @@ func (r *ProtocolLXD) GetClusterMemberNames() ([]string, error) {
 	return urlsToResourceNames(baseURL, urls...)
 }
 
-// GetClusterMembers returns the current members of the cluster
+// GetClusterMembers returns the current members of the cluster.
 func (r *ProtocolLXD) GetClusterMembers() ([]api.ClusterMember, error) {
 	if !r.HasExtension("clustering") {
 		return nil, fmt.Errorf("The server is missing the required \"clustering\" API extension")
@@ -96,7 +96,7 @@ func (r *ProtocolLXD) GetClusterMembers() ([]api.ClusterMember, error) {
 	return members, nil
 }
 
-// GetClusterMember returns information about the given member
+// GetClusterMember returns information about the given member.
 func (r *ProtocolLXD) GetClusterMember(name string) (*api.ClusterMember, string, error) {
 	if !r.HasExtension("clustering") {
 		return nil, "", fmt.Errorf("The server is missing the required \"clustering\" API extension")
@@ -111,11 +111,12 @@ func (r *ProtocolLXD) GetClusterMember(name string) (*api.ClusterMember, string,
 	return &member, etag, nil
 }
 
-// UpdateClusterMember updates information about the given member
+// UpdateClusterMember updates information about the given member.
 func (r *ProtocolLXD) UpdateClusterMember(name string, member api.ClusterMemberPut, ETag string) error {
 	if !r.HasExtension("clustering_edit_roles") {
 		return fmt.Errorf("The server is missing the required \"clustering_edit_roles\" API extension")
 	}
+
 	if member.FailureDomain != "" {
 		if !r.HasExtension("clustering_failure_domains") {
 			return fmt.Errorf("The server is missing the required \"clustering_failure_domains\" API extension")
@@ -131,7 +132,7 @@ func (r *ProtocolLXD) UpdateClusterMember(name string, member api.ClusterMemberP
 	return nil
 }
 
-// RenameClusterMember changes the name of an existing member
+// RenameClusterMember changes the name of an existing member.
 func (r *ProtocolLXD) RenameClusterMember(name string, member api.ClusterMemberPost) error {
 	if !r.HasExtension("clustering") {
 		return fmt.Errorf("The server is missing the required \"clustering\" API extension")
@@ -159,7 +160,7 @@ func (r *ProtocolLXD) CreateClusterMember(member api.ClusterMembersPost) (Operat
 	return op, nil
 }
 
-// UpdateClusterCertificate updates the cluster certificate for every node in the cluster
+// UpdateClusterCertificate updates the cluster certificate for every node in the cluster.
 func (r *ProtocolLXD) UpdateClusterCertificate(certs api.ClusterCertificatePut, ETag string) error {
 	if !r.HasExtension("clustering_update_cert") {
 		return fmt.Errorf("The server is missing the required \"clustering_update_cert\" API extension")
@@ -171,6 +172,23 @@ func (r *ProtocolLXD) UpdateClusterCertificate(certs api.ClusterCertificatePut, 
 	}
 
 	return nil
+}
+
+// GetClusterMemberState gets state information about a cluster member.
+func (r *ProtocolLXD) GetClusterMemberState(name string) (*api.ClusterMemberState, string, error) {
+	err := r.CheckExtension("cluster_member_state")
+	if err != nil {
+		return nil, "", err
+	}
+
+	state := api.ClusterMemberState{}
+	u := api.NewURL().Path("cluster", "members", name, "state")
+	etag, err := r.queryStruct("GET", u.String(), nil, "", &state)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return &state, etag, err
 }
 
 // UpdateClusterMemberState evacuates or restores a cluster member.

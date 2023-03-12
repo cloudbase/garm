@@ -15,7 +15,7 @@
 package pool
 
 import (
-	"garm/params"
+	"github.com/cloudbase/garm/params"
 
 	"github.com/google/go-github/v48/github"
 )

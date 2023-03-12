@@ -25,10 +25,10 @@ import (
 	"strings"
 	"time"
 
-	"garm/config"
-	"garm/params"
-	"garm/runner/providers/common"
-	"garm/util"
+	"github.com/cloudbase/garm/config"
+	"github.com/cloudbase/garm/params"
+	"github.com/cloudbase/garm/runner/providers/common"
+	"github.com/cloudbase/garm/util"
 
 	"github.com/juju/clock"
 	"github.com/juju/retry"

@@ -18,9 +18,9 @@ import (
 	"fmt"
 	"strings"
 
-	"garm/cmd/garm-cli/common"
-	"garm/cmd/garm-cli/config"
-	"garm/params"
+	"github.com/cloudbase/garm/cmd/garm-cli/common"
+	"github.com/cloudbase/garm/cmd/garm-cli/config"
+	"github.com/cloudbase/garm/params"
 
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/pkg/errors"

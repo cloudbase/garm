@@ -17,8 +17,8 @@ package auth
 import (
 	"context"
 
-	"garm/params"
-	"garm/runner/providers/common"
+	"github.com/cloudbase/garm/params"
+	"github.com/cloudbase/garm/runner/providers/common"
 )
 
 type contextFlags string

@@ -178,6 +178,10 @@ func (jsonQuery *JSONQueryExpression) Build(builder clause.Builder) {
 			}
 		case "postgres":
 			switch {
+			case jsonQuery.extract:
+				builder.WriteString(fmt.Sprintf("json_extract_path_text(%v::json,", stmt.Quote(jsonQuery.column)))
+				stmt.AddVar(builder, jsonQuery.path)
+				builder.WriteByte(')')
 			case jsonQuery.hasKeys:
 				if len(jsonQuery.keys) > 0 {
 					stmt.WriteQuoted(jsonQuery.column)
@@ -293,7 +297,20 @@ func JSONSet(column string) *JSONSetExpression {
 	return &JSONSetExpression{column: column, path2value: make(map[string]interface{})}
 }
 
-// Set return clause.Expression
+// Set return clause.Expression.
+//
+//	{
+//		"age": 20,
+//		"name": "json-1",
+//		"orgs": {"orga": "orgv"},
+//		"tags": ["tag1", "tag2"]
+//	}
+//
+//	// In MySQL/SQLite, path is `age`, `name`, `orgs.orga`, `tags[0]`, `tags[1]`.
+//	DB.UpdateColumn("attr", JSONSet("attr").Set("orgs.orga", 42))
+//
+//	// In PostgreSQL, path is `{age}`, `{name}`, `{orgs,orga}`, `{tags, 0}`, `{tags, 1}`.
+//	DB.UpdateColumn("attr", JSONSet("attr").Set("{orgs, orga}", "bar"))
 func (jsonSet *JSONSetExpression) Set(path string, value interface{}) *JSONSetExpression {
 	jsonSet.mutex.Lock()
 	jsonSet.path2value[path] = value
@@ -302,7 +319,7 @@ func (jsonSet *JSONSetExpression) Set(path string, value interface{}) *JSONSetEx
 }
 
 // Build implements clause.Expression
-// only support mysql and sqlite
+// support mysql, sqlite and postgres
 func (jsonSet *JSONSetExpression) Build(builder clause.Builder) {
 	if stmt, ok := builder.(*gorm.Statement); ok {
 		switch stmt.Dialector.Name() {
@@ -369,6 +386,47 @@ func (jsonSet *JSONSetExpression) Build(builder clause.Builder) {
 				}
 			}
 			builder.WriteString(")")
+
+		case "postgres":
+			var expr clause.Expression = columnExpression(jsonSet.column)
+			for path, value := range jsonSet.path2value {
+				if _, ok = value.(clause.Expression); ok {
+					expr = gorm.Expr("JSONB_SET(?,?,?)", expr, path, value)
+					continue
+				} else {
+					b, _ := json.Marshal(value)
+					expr = gorm.Expr("JSONB_SET(?,?,?)", expr, path, string(b))
+				}
+			}
+			stmt.AddVar(builder, expr)
+		}
+	}
+}
+
+func JSONArrayQuery(column string) *JSONArrayExpression {
+	return &JSONArrayExpression{
+		column: column,
+	}
+}
+
+type JSONArrayExpression struct {
+	column      string
+	equalsValue interface{}
+}
+
+func (json *JSONArrayExpression) Contains(value interface{}) *JSONArrayExpression {
+	json.equalsValue = value
+	return json
+}
+
+// Build implements clause.Expression
+func (json *JSONArrayExpression) Build(builder clause.Builder) {
+	if stmt, ok := builder.(*gorm.Statement); ok {
+		switch stmt.Dialector.Name() {
+		case "mysql":
+			builder.WriteString("JSON_CONTAINS (" + stmt.Quote(json.column) + ", JSON_ARRAY(")
+			builder.AddVar(stmt, json.equalsValue)
+			builder.WriteString("))")
 		}
 	}
 }

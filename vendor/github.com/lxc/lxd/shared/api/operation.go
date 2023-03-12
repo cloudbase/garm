@@ -5,13 +5,13 @@ import (
 	"time"
 )
 
-// OperationClassTask represents the Task OperationClass
+// OperationClassTask represents the Task OperationClass.
 const OperationClassTask = "task"
 
-// OperationClassWebsocket represents the Websocket OperationClass
+// OperationClassWebsocket represents the Websocket OperationClass.
 const OperationClassWebsocket = "websocket"
 
-// OperationClassToken represents the Token OperationClass
+// OperationClassToken represents the Token OperationClass.
 const OperationClassToken = "token"
 
 // Operation represents a LXD background operation
@@ -103,6 +103,16 @@ func (op *Operation) ToCertificateAddToken() (*CertificateAddToken, error) {
 		Addresses:   make([]string, 0, len(addresses)),
 	}
 
+	expiresAtStr, ok := op.Metadata["expiresAt"].(string)
+	if ok {
+		expiresAt, err := time.Parse(time.RFC3339Nano, expiresAtStr)
+		if err != nil {
+			return nil, err
+		}
+
+		joinToken.ExpiresAt = expiresAt
+	}
+
 	for i, address := range addresses {
 		addressString, ok := address.(string)
 		if !ok {
@@ -137,11 +147,22 @@ func (op *Operation) ToClusterJoinToken() (*ClusterMemberJoinToken, error) {
 		return nil, fmt.Errorf("Operation addresses is type %T not []any", op.Metadata["addresses"])
 	}
 
+	expiresAtStr, ok := op.Metadata["expiresAt"].(string)
+	if !ok {
+		return nil, fmt.Errorf("Operation expiresAt is type %T not string", op.Metadata["expiresAt"])
+	}
+
+	expiresAt, err := time.Parse(time.RFC3339Nano, expiresAtStr)
+	if err != nil {
+		return nil, err
+	}
+
 	joinToken := ClusterMemberJoinToken{
 		ServerName:  serverName,
 		Secret:      secret,
 		Fingerprint: fingerprint,
 		Addresses:   make([]string, 0, len(addresses)),
+		ExpiresAt:   expiresAt,
 	}
 
 	for i, address := range addresses {

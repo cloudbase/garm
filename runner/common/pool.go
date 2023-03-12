@@ -15,8 +15,9 @@
 package common
 
 import (
-	"garm/params"
 	"time"
+
+	"github.com/cloudbase/garm/params"
 )
 
 const (

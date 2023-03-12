@@ -185,7 +185,7 @@ func BuildQuerySQL(db *gorm.DB) {
 					}
 
 					fromClause.Joins = append(fromClause.Joins, clause.Join{
-						Type:  clause.LeftJoin,
+						Type:  join.JoinType,
 						Table: clause.Table{Name: relation.FieldSchema.Table, Alias: tableAliasName},
 						ON:    clause.Where{Exprs: exprs},
 					})
@@ -257,6 +257,7 @@ func Preload(db *gorm.DB) {
 			return
 		}
 		preloadDB.Statement.ReflectValue = db.Statement.ReflectValue
+		preloadDB.Statement.Unscoped = db.Statement.Unscoped
 
 		for _, name := range preloadNames {
 			if rel := preloadDB.Statement.Schema.Relationships.Relations[name]; rel != nil {

@@ -21,12 +21,12 @@ import (
 	"strings"
 	"time"
 
-	"garm/config"
-	dbCommon "garm/database/common"
-	runnerErrors "garm/errors"
-	"garm/params"
-	"garm/runner/common"
-	providerCommon "garm/runner/providers/common"
+	"github.com/cloudbase/garm/config"
+	dbCommon "github.com/cloudbase/garm/database/common"
+	runnerErrors "github.com/cloudbase/garm/errors"
+	"github.com/cloudbase/garm/params"
+	"github.com/cloudbase/garm/runner/common"
+	providerCommon "github.com/cloudbase/garm/runner/providers/common"
 
 	"github.com/golang-jwt/jwt"
 	"github.com/pkg/errors"

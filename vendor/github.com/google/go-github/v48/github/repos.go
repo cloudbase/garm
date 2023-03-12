@@ -88,6 +88,7 @@ type Repository struct {
 	HasPages          *bool   `json:"has_pages,omitempty"`
 	HasProjects       *bool   `json:"has_projects,omitempty"`
 	HasDownloads      *bool   `json:"has_downloads,omitempty"`
+	HasDiscussions    *bool   `json:"has_discussions,omitempty"`
 	IsTemplate        *bool   `json:"is_template,omitempty"`
 	LicenseTemplate   *string `json:"license_template,omitempty"`
 	GitignoreTemplate *string `json:"gitignore_template,omitempty"`
@@ -365,12 +366,13 @@ type createRepoRequest struct {
 	Description *string `json:"description,omitempty"`
 	Homepage    *string `json:"homepage,omitempty"`
 
-	Private     *bool   `json:"private,omitempty"`
-	Visibility  *string `json:"visibility,omitempty"`
-	HasIssues   *bool   `json:"has_issues,omitempty"`
-	HasProjects *bool   `json:"has_projects,omitempty"`
-	HasWiki     *bool   `json:"has_wiki,omitempty"`
-	IsTemplate  *bool   `json:"is_template,omitempty"`
+	Private        *bool   `json:"private,omitempty"`
+	Visibility     *string `json:"visibility,omitempty"`
+	HasIssues      *bool   `json:"has_issues,omitempty"`
+	HasProjects    *bool   `json:"has_projects,omitempty"`
+	HasWiki        *bool   `json:"has_wiki,omitempty"`
+	HasDiscussions *bool   `json:"has_discussions,omitempty"`
+	IsTemplate     *bool   `json:"is_template,omitempty"`
 
 	// Creating an organization repository. Required for non-owners.
 	TeamID *int64 `json:"team_id,omitempty"`
@@ -423,6 +425,7 @@ func (s *RepositoriesService) Create(ctx context.Context, org string, repo *Repo
 		HasIssues:                 repo.HasIssues,
 		HasProjects:               repo.HasProjects,
 		HasWiki:                   repo.HasWiki,
+		HasDiscussions:            repo.HasDiscussions,
 		IsTemplate:                repo.IsTemplate,
 		TeamID:                    repo.TeamID,
 		AutoInit:                  repo.AutoInit,
@@ -840,6 +843,10 @@ type Protection struct {
 	AllowForcePushes               *AllowForcePushes               `json:"allow_force_pushes"`
 	AllowDeletions                 *AllowDeletions                 `json:"allow_deletions"`
 	RequiredConversationResolution *RequiredConversationResolution `json:"required_conversation_resolution"`
+	// LockBranch represents if the branch is marked as read-only. If this is true, users will not be able to push to the branch.
+	LockBranch *bool `json:"lock_branch,omitempty"`
+	// AllowForkSyncing represents whether users can pull changes from upstream when the branch is locked.
+	AllowForkSyncing *bool `json:"allow_fork_syncing,omitempty"`
 }
 
 // BranchProtectionRule represents the rule applied to a repositories branch.
@@ -1019,7 +1026,7 @@ type RequiredStatusCheck struct {
 type PullRequestReviewsEnforcement struct {
 	// Allow specific users, teams, or apps to bypass pull request requirements.
 	BypassPullRequestAllowances *BypassPullRequestAllowances `json:"bypass_pull_request_allowances,omitempty"`
-	// Specifies which users and teams can dismiss pull request reviews.
+	// Specifies which users, teams and apps can dismiss pull request reviews.
 	DismissalRestrictions *DismissalRestrictions `json:"dismissal_restrictions,omitempty"`
 	// Specifies if approved reviews are dismissed automatically, when a new commit is pushed.
 	DismissStaleReviews bool `json:"dismiss_stale_reviews"`
@@ -1028,6 +1035,8 @@ type PullRequestReviewsEnforcement struct {
 	// RequiredApprovingReviewCount specifies the number of approvals required before the pull request can be merged.
 	// Valid values are 1-6.
 	RequiredApprovingReviewCount int `json:"required_approving_review_count"`
+	// RequireLastPushApproval specifies whether the last pusher to a pull request branch can approve it.
+	RequireLastPushApproval bool `json:"require_last_push_approval"`
 }
 
 // PullRequestReviewsEnforcementRequest represents request to set the pull request review
@@ -1036,8 +1045,8 @@ type PullRequestReviewsEnforcement struct {
 type PullRequestReviewsEnforcementRequest struct {
 	// Allow specific users, teams, or apps to bypass pull request requirements.
 	BypassPullRequestAllowancesRequest *BypassPullRequestAllowancesRequest `json:"bypass_pull_request_allowances,omitempty"`
-	// Specifies which users and teams should be allowed to dismiss pull request reviews.
-	// User and team dismissal restrictions are only available for
+	// Specifies which users, teams and apps should be allowed to dismiss pull request reviews.
+	// User, team and app dismissal restrictions are only available for
 	// organization-owned repositories. Must be nil for personal repositories.
 	DismissalRestrictionsRequest *DismissalRestrictionsRequest `json:"dismissal_restrictions,omitempty"`
 	// Specifies if approved reviews can be dismissed automatically, when a new commit is pushed. (Required)
@@ -1055,7 +1064,7 @@ type PullRequestReviewsEnforcementRequest struct {
 type PullRequestReviewsEnforcementUpdate struct {
 	// Allow specific users, teams, or apps to bypass pull request requirements.
 	BypassPullRequestAllowancesRequest *BypassPullRequestAllowancesRequest `json:"bypass_pull_request_allowances,omitempty"`
-	// Specifies which users and teams can dismiss pull request reviews. Can be omitted.
+	// Specifies which users, teams and apps can dismiss pull request reviews. Can be omitted.
 	DismissalRestrictionsRequest *DismissalRestrictionsRequest `json:"dismissal_restrictions,omitempty"`
 	// Specifies if approved reviews can be dismissed automatically, when a new commit is pushed. Can be omitted.
 	DismissStaleReviews *bool `json:"dismiss_stale_reviews,omitempty"`
@@ -1064,6 +1073,8 @@ type PullRequestReviewsEnforcementUpdate struct {
 	// RequiredApprovingReviewCount specifies the number of approvals required before the pull request can be merged.
 	// Valid values are 1 - 6 or 0 to not require reviewers.
 	RequiredApprovingReviewCount int `json:"required_approving_review_count"`
+	// RequireLastPushApproval specifies whether the last pusher to a pull request branch can approve it.
+	RequireLastPushApproval *bool `json:"require_last_push_approval,omitempty"`
 }
 
 // RequireLinearHistory represents the configuration to enforce branches with no merge commit.
@@ -1113,7 +1124,7 @@ type BranchRestrictionsRequest struct {
 	// The list of team slugs with push access. (Required; use []string{} instead of nil for empty list.)
 	Teams []string `json:"teams"`
 	// The list of app slugs with push access.
-	Apps []string `json:"apps,omitempty"`
+	Apps []string `json:"apps"`
 }
 
 // BypassPullRequestAllowances represents the people, teams, or apps who are allowed to bypass required pull requests.
@@ -1145,10 +1156,12 @@ type DismissalRestrictions struct {
 	Users []*User `json:"users"`
 	// The list of teams which can dismiss pull request reviews.
 	Teams []*Team `json:"teams"`
+	// The list of apps which can dismiss pull request reviews.
+	Apps []*App `json:"apps"`
 }
 
 // DismissalRestrictionsRequest represents the request to create/edit the
-// restriction to allows only specific users or teams to dimiss pull request reviews. It is
+// restriction to allows only specific users, teams or apps to dimiss pull request reviews. It is
 // separate from DismissalRestrictions above because the request structure is
 // different from the response structure.
 // Note: Both Users and Teams must be nil, or both must be non-nil.
@@ -1157,6 +1170,8 @@ type DismissalRestrictionsRequest struct {
 	Users *[]string `json:"users,omitempty"`
 	// The list of team slugs which can dismiss pull request reviews. (Required; use nil to disable dismissal_restrictions or &[]string{} otherwise.)
 	Teams *[]string `json:"teams,omitempty"`
+	// The list of apps which can dismiss pull request reviews. (Required; use nil to disable dismissal_restrictions or &[]string{} otherwise.)
+	Apps *[]string `json:"apps,omitempty"`
 }
 
 // SignaturesProtectedBranch represents the protection status of an individual branch.

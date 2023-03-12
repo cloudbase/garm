@@ -15,10 +15,11 @@
 package sql
 
 import (
-	"garm/config"
-	"garm/params"
-	"garm/runner/providers/common"
 	"time"
+
+	"github.com/cloudbase/garm/config"
+	"github.com/cloudbase/garm/params"
+	"github.com/cloudbase/garm/runner/providers/common"
 
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"

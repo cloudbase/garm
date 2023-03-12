@@ -19,8 +19,8 @@ import (
 	"log"
 	"strings"
 
-	"garm/config"
-	runnerErrors "garm/errors"
+	"github.com/cloudbase/garm/config"
+	runnerErrors "github.com/cloudbase/garm/errors"
 
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/shared/api"

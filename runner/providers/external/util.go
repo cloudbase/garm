@@ -2,8 +2,9 @@ package external
 
 import (
 	"fmt"
-	"garm/params"
 	"strings"
+
+	"github.com/cloudbase/garm/params"
 )
 
 const (

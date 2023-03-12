@@ -14,7 +14,7 @@
 
 package runner
 
-import "garm/config"
+import "github.com/cloudbase/garm/config"
 
 type HookTargetType string
 

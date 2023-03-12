@@ -1,6 +1,7 @@
 package lxd
 
 import (
+	"context"
 	"io"
 	"net"
 	"net/http"
@@ -22,6 +23,7 @@ type Operation interface {
 	RemoveHandler(target *EventTarget) (err error)
 	Refresh() (err error)
 	Wait() (err error)
+	WaitContext(ctx context.Context) error
 }
 
 // The RemoteOperation type represents an Operation that may be using multiple servers.
@@ -47,6 +49,7 @@ type ImageServer interface {
 	// Image handling functions
 	GetImages() (images []api.Image, err error)
 	GetImageFingerprints() (fingerprints []string, err error)
+	GetImagesWithFilter(filters []string) (images []api.Image, err error)
 
 	GetImage(fingerprint string) (image *api.Image, ETag string, err error)
 	GetImageFile(fingerprint string, req ImageFileRequest) (resp *ImageFileResponse, err error)
@@ -156,6 +159,10 @@ type InstanceServer interface {
 	GetInstancesFull(instanceType api.InstanceType) (instances []api.InstanceFull, err error)
 	GetInstancesAllProjects(instanceType api.InstanceType) (instances []api.Instance, err error)
 	GetInstancesFullAllProjects(instanceType api.InstanceType) (instances []api.InstanceFull, err error)
+	GetInstancesWithFilter(instanceType api.InstanceType, filters []string) (instances []api.Instance, err error)
+	GetInstancesFullWithFilter(instanceType api.InstanceType, filters []string) (instances []api.InstanceFull, err error)
+	GetInstancesAllProjectsWithFilter(instanceType api.InstanceType, filters []string) (instances []api.Instance, err error)
+	GetInstancesFullAllProjectsWithFilter(instanceType api.InstanceType, filters []string) (instances []api.InstanceFull, err error)
 	GetInstance(name string) (instance *api.Instance, ETag string, err error)
 	GetInstanceFull(name string) (instance *api.InstanceFull, ETag string, err error)
 	CreateInstance(instance api.InstancesPost) (op Operation, err error)
@@ -251,6 +258,14 @@ type InstanceServer interface {
 	UpdateNetworkForward(networkName string, listenAddress string, forward api.NetworkForwardPut, ETag string) (err error)
 	DeleteNetworkForward(networkName string, listenAddress string) (err error)
 
+	// Network load balancer functions ("network_load_balancer" API extension)
+	GetNetworkLoadBalancerAddresses(networkName string) ([]string, error)
+	GetNetworkLoadBalancers(networkName string) ([]api.NetworkLoadBalancer, error)
+	GetNetworkLoadBalancer(networkName string, listenAddress string) (forward *api.NetworkLoadBalancer, ETag string, err error)
+	CreateNetworkLoadBalancer(networkName string, forward api.NetworkLoadBalancersPost) error
+	UpdateNetworkLoadBalancer(networkName string, listenAddress string, forward api.NetworkLoadBalancerPut, ETag string) (err error)
+	DeleteNetworkLoadBalancer(networkName string, listenAddress string) (err error)
+
 	// Network peer functions ("network_peer" API extension)
 	GetNetworkPeerNames(networkName string) ([]string, error)
 	GetNetworkPeers(networkName string) ([]api.NetworkPeer, error)
@@ -321,9 +336,27 @@ type InstanceServer interface {
 	UpdateStoragePool(name string, pool api.StoragePoolPut, ETag string) (err error)
 	DeleteStoragePool(name string) (err error)
 
+	// Storage bucket functions ("storage_buckets" API extension)
+	GetStoragePoolBucketNames(poolName string) ([]string, error)
+	GetStoragePoolBuckets(poolName string) ([]api.StorageBucket, error)
+	GetStoragePoolBucket(poolName string, bucketName string) (bucket *api.StorageBucket, ETag string, err error)
+	CreateStoragePoolBucket(poolName string, bucket api.StorageBucketsPost) (*api.StorageBucketKey, error)
+	UpdateStoragePoolBucket(poolName string, bucketName string, bucket api.StorageBucketPut, ETag string) (err error)
+	DeleteStoragePoolBucket(poolName string, bucketName string) (err error)
+	GetStoragePoolBucketKeyNames(poolName string, bucketName string) ([]string, error)
+	GetStoragePoolBucketKeys(poolName string, bucketName string) ([]api.StorageBucketKey, error)
+	GetStoragePoolBucketKey(poolName string, bucketName string, keyName string) (key *api.StorageBucketKey, ETag string, err error)
+	CreateStoragePoolBucketKey(poolName string, bucketName string, key api.StorageBucketKeysPost) (newKey *api.StorageBucketKey, err error)
+	UpdateStoragePoolBucketKey(poolName string, bucketName string, keyName string, key api.StorageBucketKeyPut, ETag string) (err error)
+	DeleteStoragePoolBucketKey(poolName string, bucketName string, keyName string) (err error)
+
 	// Storage volume functions ("storage" API extension)
 	GetStoragePoolVolumeNames(pool string) (names []string, err error)
+	GetStoragePoolVolumeNamesAllProjects(pool string) (names []string, err error)
 	GetStoragePoolVolumes(pool string) (volumes []api.StorageVolume, err error)
+	GetStoragePoolVolumesAllProjects(pool string) (volumes []api.StorageVolume, err error)
+	GetStoragePoolVolumesWithFilter(pool string, filters []string) (volumes []api.StorageVolume, err error)
+	GetStoragePoolVolumesWithFilterAllProjects(pool string, filters []string) (volumes []api.StorageVolume, err error)
 	GetStoragePoolVolume(pool string, volType string, name string) (volume *api.StorageVolume, ETag string, err error)
 	GetStoragePoolVolumeState(pool string, volType string, name string) (state *api.StorageVolumeState, err error)
 	CreateStoragePoolVolume(pool string, volume api.StorageVolumesPost) (err error)
@@ -364,6 +397,7 @@ type InstanceServer interface {
 	RenameClusterMember(name string, member api.ClusterMemberPost) (err error)
 	CreateClusterMember(member api.ClusterMembersPost) (op Operation, err error)
 	UpdateClusterCertificate(certs api.ClusterCertificatePut, ETag string) (err error)
+	GetClusterMemberState(name string) (*api.ClusterMemberState, string, error)
 	UpdateClusterMemberState(name string, state api.ClusterMemberStatePost) (op Operation, err error)
 	GetClusterGroups() ([]api.ClusterGroup, error)
 	GetClusterGroupNames() ([]string, error)
@@ -406,7 +440,7 @@ type BackupFileRequest struct {
 	ProgressHandler func(progress ioprogress.ProgressData)
 
 	// A canceler that can be used to interrupt some part of the image download request
-	Canceler *cancel.Canceler
+	Canceler *cancel.HTTPRequestCanceller
 }
 
 // The BackupFileResponse struct is used as the response for backup downloads.
@@ -448,7 +482,7 @@ type ImageFileRequest struct {
 	ProgressHandler func(progress ioprogress.ProgressData)
 
 	// A canceler that can be used to interrupt some part of the image download request
-	Canceler *cancel.Canceler
+	Canceler *cancel.HTTPRequestCanceller
 
 	// Path retriever for image delta downloads
 	// If set, it must return the path to the image file or an empty string if not available
@@ -489,6 +523,9 @@ type ImageCopyArgs struct {
 
 	// The transfer mode, can be "pull" (default), "push" or "relay"
 	Mode string
+
+	// List of profiles to apply on the target.
+	Profiles []string
 }
 
 // The StoragePoolVolumeCopyArgs struct is used to pass additional options
@@ -517,7 +554,7 @@ type StoragePoolVolumeMoveArgs struct {
 }
 
 // The StoragePoolVolumeBackupArgs struct is used when creating a storage volume from a backup.
-// API extension: custom_volume_backup
+// API extension: custom_volume_backup.
 type StoragePoolVolumeBackupArgs struct {
 	// The backup file
 	BackupFile io.Reader

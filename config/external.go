@@ -19,7 +19,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"garm/util/exec"
+	"github.com/cloudbase/garm/util/exec"
 
 	"github.com/pkg/errors"
 )

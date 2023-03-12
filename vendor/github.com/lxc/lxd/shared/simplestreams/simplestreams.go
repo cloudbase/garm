@@ -3,7 +3,7 @@ package simplestreams
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -21,14 +21,14 @@ var urlDefaultOS = map[string]string{
 	"https://cloud-images.ubuntu.com": "ubuntu",
 }
 
-// DownloadableFile represents a file with its URL, hash and size
+// DownloadableFile represents a file with its URL, hash and size.
 type DownloadableFile struct {
 	Path   string
 	Sha256 string
 	Size   int64
 }
 
-// NewClient returns a simplestreams client for the provided stream URL
+// NewClient returns a simplestreams client for the provided stream URL.
 func NewClient(url string, httpClient http.Client, useragent string) *SimpleStreams {
 	return &SimpleStreams{
 		http:           &httpClient,
@@ -38,7 +38,7 @@ func NewClient(url string, httpClient http.Client, useragent string) *SimpleStre
 	}
 }
 
-// SimpleStreams represents a simplestream client
+// SimpleStreams represents a simplestream client.
 type SimpleStreams struct {
 	http      *http.Client
 	url       string
@@ -53,7 +53,7 @@ type SimpleStreams struct {
 	cacheExpiry time.Duration
 }
 
-// SetCache configures the on-disk cache
+// SetCache configures the on-disk cache.
 func (s *SimpleStreams) SetCache(path string, expiry time.Duration) {
 	s.cachePath = path
 	s.cacheExpiry = expiry
@@ -72,13 +72,13 @@ func (s *SimpleStreams) readCache(path string) ([]byte, bool) {
 
 	fi, err := os.Stat(cacheName)
 	if err != nil {
-		os.Remove(cacheName)
+		_ = os.Remove(cacheName)
 		return nil, false
 	}
 
-	body, err := ioutil.ReadFile(cacheName)
+	body, err := os.ReadFile(cacheName)
 	if err != nil {
-		os.Remove(cacheName)
+		_ = os.Remove(cacheName)
 		return nil, false
 	}
 
@@ -121,7 +121,8 @@ func (s *SimpleStreams) cachedDownload(path string) ([]byte, error) {
 
 		return nil, err
 	}
-	defer r.Body.Close()
+
+	defer func() { _ = r.Body.Close() }()
 
 	if r.StatusCode != http.StatusOK {
 		// On local connectivity error, return from cache anyway
@@ -132,7 +133,7 @@ func (s *SimpleStreams) cachedDownload(path string) ([]byte, error) {
 		return nil, fmt.Errorf("Unable to fetch %s: %s", uri, r.Status)
 	}
 
-	body, err := ioutil.ReadAll(r.Body)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -140,8 +141,8 @@ func (s *SimpleStreams) cachedDownload(path string) ([]byte, error) {
 	// Attempt to store in cache
 	if s.cachePath != "" {
 		cacheName := filepath.Join(s.cachePath, fileName)
-		os.Remove(cacheName)
-		ioutil.WriteFile(cacheName, body, 0644)
+		_ = os.Remove(cacheName)
+		_ = os.WriteFile(cacheName, body, 0644)
 	}
 
 	return body, nil
@@ -318,7 +319,7 @@ func (s *SimpleStreams) getImages() ([]api.Image, []extendedAlias, error) {
 	return images, aliases, nil
 }
 
-// GetFiles returns a map of files for the provided image fingerprint
+// GetFiles returns a map of files for the provided image fingerprint.
 func (s *SimpleStreams) GetFiles(fingerprint string) (map[string]DownloadableFile, error) {
 	// Load the main stream
 	stream, err := s.parseStream()
@@ -369,7 +370,7 @@ func (s *SimpleStreams) GetFiles(fingerprint string) (map[string]DownloadableFil
 	return nil, fmt.Errorf("Couldn't find the requested image")
 }
 
-// ListAliases returns a list of image aliases for the provided image fingerprint
+// ListAliases returns a list of image aliases for the provided image fingerprint.
 func (s *SimpleStreams) ListAliases() ([]api.ImageAliasesEntry, error) {
 	_, aliasesList, err := s.getImages()
 	if err != nil {
@@ -398,13 +399,13 @@ func (s *SimpleStreams) ListAliases() ([]api.ImageAliasesEntry, error) {
 	return aliases, nil
 }
 
-// ListImages returns a list of LXD images
+// ListImages returns a list of LXD images.
 func (s *SimpleStreams) ListImages() ([]api.Image, error) {
 	images, _, err := s.getImages()
 	return images, err
 }
 
-// GetAlias returns a LXD ImageAliasesEntry for the provided alias name
+// GetAlias returns a LXD ImageAliasesEntry for the provided alias name.
 func (s *SimpleStreams) GetAlias(imageType string, name string) (*api.ImageAliasesEntry, error) {
 	_, aliasesList, err := s.getImages()
 	if err != nil {
@@ -442,7 +443,7 @@ func (s *SimpleStreams) GetAlias(imageType string, name string) (*api.ImageAlias
 	return match, nil
 }
 
-// GetAliasArchitectures returns a map of architecture / alias entries for an alias
+// GetAliasArchitectures returns a map of architecture / alias entries for an alias.
 func (s *SimpleStreams) GetAliasArchitectures(imageType string, name string) (map[string]*api.ImageAliasesEntry, error) {
 	aliases := map[string]*api.ImageAliasesEntry{}
 
@@ -474,7 +475,7 @@ func (s *SimpleStreams) GetAliasArchitectures(imageType string, name string) (ma
 	return aliases, nil
 }
 
-// GetImage returns a LXD image for the provided image fingerprint
+// GetImage returns a LXD image for the provided image fingerprint.
 func (s *SimpleStreams) GetImage(fingerprint string) (*api.Image, error) {
 	images, _, err := s.getImages()
 	if err != nil {

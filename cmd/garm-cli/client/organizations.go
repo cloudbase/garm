@@ -18,7 +18,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"garm/params"
+	"github.com/cloudbase/garm/params"
 )
 
 func (c *Client) ListOrganizations() ([]params.Organization, error) {

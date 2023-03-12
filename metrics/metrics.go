@@ -3,9 +3,9 @@ package metrics
 import (
 	"log"
 
-	"garm/auth"
-	"garm/params"
-	"garm/runner"
+	"github.com/cloudbase/garm/auth"
+	"github.com/cloudbase/garm/params"
+	"github.com/cloudbase/garm/runner"
 
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"

@@ -7,13 +7,14 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/api"
 )
 
 // Event handling functions
 
-// getEvents connects to the LXD monitoring interface
+// getEvents connects to the LXD monitoring interface.
 func (r *ProtocolLXD) getEvents(allProjects bool) (*EventListener, error) {
 	// Prevent anything else from interacting with the listeners
 	r.eventListenersLock.Lock()
@@ -51,6 +52,7 @@ func (r *ProtocolLXD) getEvents(allProjects bool) (*EventListener, error) {
 	} else {
 		url, err = r.setQueryAttributes("/events")
 	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +86,7 @@ func (r *ProtocolLXD) getEvents(allProjects bool) (*EventListener, error) {
 			if len(r.eventListeners[listener.projectName]) == 0 {
 				// We don't need the connection anymore, disconnect and clear.
 				if r.eventListeners[listener.projectName] != nil {
-					r.eventConns[listener.projectName].Close()
+					_ = r.eventConns[listener.projectName].Close()
 					delete(r.eventConns, listener.projectName)
 				}
 
@@ -94,6 +96,7 @@ func (r *ProtocolLXD) getEvents(allProjects bool) (*EventListener, error) {
 
 				return
 			}
+
 			r.eventListenersLock.Unlock()
 			r.eventConnsLock.Unlock()
 		}
@@ -146,8 +149,10 @@ func (r *ProtocolLXD) getEvents(allProjects bool) (*EventListener, error) {
 
 					go target.function(event)
 				}
+
 				listener.targetsLock.Unlock()
 			}
+
 			r.eventListenersLock.Unlock()
 		}
 	}()
@@ -187,6 +192,6 @@ func (r *ProtocolLXD) SendEvent(event api.Event) error {
 		deadline = time.Now().Add(5 * time.Second)
 	}
 
-	eventConn.SetWriteDeadline(deadline)
+	_ = eventConn.SetWriteDeadline(deadline)
 	return eventConn.WriteJSON(event)
 }

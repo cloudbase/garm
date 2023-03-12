@@ -18,9 +18,10 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"fmt"
-	"garm/config"
 	"strings"
 	"sync"
+
+	"github.com/cloudbase/garm/config"
 
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"

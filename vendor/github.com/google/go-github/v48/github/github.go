@@ -15,7 +15,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -28,12 +27,14 @@ import (
 )
 
 const (
-	Version = "v48.0.0"
+	Version = "v48.2.0"
 
-	defaultBaseURL   = "https://api.github.com/"
-	defaultUserAgent = "go-github" + "/" + Version
-	uploadBaseURL    = "https://uploads.github.com/"
+	defaultAPIVersion = "2022-11-28"
+	defaultBaseURL    = "https://api.github.com/"
+	defaultUserAgent  = "go-github" + "/" + Version
+	uploadBaseURL     = "https://uploads.github.com/"
 
+	headerAPIVersion    = "X-GitHub-Api-Version"
 	headerRateLimit     = "X-RateLimit-Limit"
 	headerRateRemaining = "X-RateLimit-Remaining"
 	headerRateReset     = "X-RateLimit-Reset"
@@ -237,6 +238,14 @@ type ListCursorOptions struct {
 	// For paginated result sets, the number of results to include per page.
 	PerPage int `url:"per_page,omitempty"`
 
+	// For paginated result sets, the number of results per page (max 100), starting from the first matching result.
+	// This parameter must not be used in combination with last.
+	First int `url:"first,omitempty"`
+
+	// For paginated result sets, the number of results per page (max 100), starting from the last matching result.
+	// This parameter must not be used in combination with first.
+	Last int `url:"last,omitempty"`
+
 	// A cursor, as given in the Link header. If specified, the query only searches for events after this cursor.
 	After string `url:"after,omitempty"`
 
@@ -385,12 +394,24 @@ func NewEnterpriseClient(baseURL, uploadURL string, httpClient *http.Client) (*C
 	return c, nil
 }
 
+// RequestOption represents an option that can modify an http.Request.
+type RequestOption func(req *http.Request)
+
+// WithVersion overrides the GitHub v3 API version for this individual request.
+// For more information, see:
+// https://github.blog/2022-11-28-to-infinity-and-beyond-enabling-the-future-of-githubs-rest-api-with-api-versioning/
+func WithVersion(version string) RequestOption {
+	return func(req *http.Request) {
+		req.Header.Set(headerAPIVersion, version)
+	}
+}
+
 // NewRequest creates an API request. A relative URL can be provided in urlStr,
 // in which case it is resolved relative to the BaseURL of the Client.
 // Relative URLs should always be specified without a preceding slash. If
 // specified, the value pointed to by body is JSON encoded and included as the
 // request body.
-func (c *Client) NewRequest(method, urlStr string, body interface{}) (*http.Request, error) {
+func (c *Client) NewRequest(method, urlStr string, body interface{}, opts ...RequestOption) (*http.Request, error) {
 	if !strings.HasSuffix(c.BaseURL.Path, "/") {
 		return nil, fmt.Errorf("BaseURL must have a trailing slash, but %q does not", c.BaseURL)
 	}
@@ -423,6 +444,12 @@ func (c *Client) NewRequest(method, urlStr string, body interface{}) (*http.Requ
 	if c.UserAgent != "" {
 		req.Header.Set("User-Agent", c.UserAgent)
 	}
+	req.Header.Set(headerAPIVersion, defaultAPIVersion)
+
+	for _, opt := range opts {
+		opt(req)
+	}
+
 	return req, nil
 }
 
@@ -430,7 +457,7 @@ func (c *Client) NewRequest(method, urlStr string, body interface{}) (*http.Requ
 // in which case it is resolved relative to the BaseURL of the Client.
 // Relative URLs should always be specified without a preceding slash.
 // Body is sent with Content-Type: application/x-www-form-urlencoded.
-func (c *Client) NewFormRequest(urlStr string, body io.Reader) (*http.Request, error) {
+func (c *Client) NewFormRequest(urlStr string, body io.Reader, opts ...RequestOption) (*http.Request, error) {
 	if !strings.HasSuffix(c.BaseURL.Path, "/") {
 		return nil, fmt.Errorf("BaseURL must have a trailing slash, but %q does not", c.BaseURL)
 	}
@@ -450,13 +477,19 @@ func (c *Client) NewFormRequest(urlStr string, body io.Reader) (*http.Request, e
 	if c.UserAgent != "" {
 		req.Header.Set("User-Agent", c.UserAgent)
 	}
+	req.Header.Set(headerAPIVersion, defaultAPIVersion)
+
+	for _, opt := range opts {
+		opt(req)
+	}
+
 	return req, nil
 }
 
 // NewUploadRequest creates an upload request. A relative URL can be provided in
 // urlStr, in which case it is resolved relative to the UploadURL of the Client.
 // Relative URLs should always be specified without a preceding slash.
-func (c *Client) NewUploadRequest(urlStr string, reader io.Reader, size int64, mediaType string) (*http.Request, error) {
+func (c *Client) NewUploadRequest(urlStr string, reader io.Reader, size int64, mediaType string, opts ...RequestOption) (*http.Request, error) {
 	if !strings.HasSuffix(c.UploadURL.Path, "/") {
 		return nil, fmt.Errorf("UploadURL must have a trailing slash, but %q does not", c.UploadURL)
 	}
@@ -478,6 +511,12 @@ func (c *Client) NewUploadRequest(urlStr string, reader io.Reader, size int64, m
 	req.Header.Set("Content-Type", mediaType)
 	req.Header.Set("Accept", mediaTypeV3)
 	req.Header.Set("User-Agent", c.UserAgent)
+	req.Header.Set(headerAPIVersion, defaultAPIVersion)
+
+	for _, opt := range opts {
+		opt(req)
+	}
+
 	return req, nil
 }
 
@@ -710,7 +749,7 @@ func (c *Client) BareDo(ctx context.Context, req *http.Request) (*Response, erro
 		// Issue #1022
 		aerr, ok := err.(*AcceptedError)
 		if ok {
-			b, readErr := ioutil.ReadAll(resp.Body)
+			b, readErr := io.ReadAll(resp.Body)
 			if readErr != nil {
 				return response, readErr
 			}
@@ -770,7 +809,7 @@ func (c *Client) checkRateLimitBeforeDo(req *http.Request, rateLimitCategory rat
 			StatusCode: http.StatusForbidden,
 			Request:    req,
 			Header:     make(http.Header),
-			Body:       ioutil.NopCloser(strings.NewReader("")),
+			Body:       io.NopCloser(strings.NewReader("")),
 		}
 		return &RateLimitError{
 			Rate:     rate,
@@ -1032,14 +1071,14 @@ func CheckResponse(r *http.Response) error {
 	}
 
 	errorResponse := &ErrorResponse{Response: r}
-	data, err := ioutil.ReadAll(r.Body)
+	data, err := io.ReadAll(r.Body)
 	if err == nil && data != nil {
 		json.Unmarshal(data, errorResponse)
 	}
 	// Re-populate error response body because GitHub error responses are often
 	// undocumented and inconsistent.
 	// Issue #1136, #540.
-	r.Body = ioutil.NopCloser(bytes.NewBuffer(data))
+	r.Body = io.NopCloser(bytes.NewBuffer(data))
 	switch {
 	case r.StatusCode == http.StatusUnauthorized && strings.HasPrefix(r.Header.Get(headerOTP), "required"):
 		return (*TwoFactorAuthError)(errorResponse)
@@ -1351,8 +1390,8 @@ func formatRateReset(d time.Duration) string {
 
 // When using roundTripWithOptionalFollowRedirect, note that it
 // is the responsibility of the caller to close the response body.
-func (c *Client) roundTripWithOptionalFollowRedirect(ctx context.Context, u string, followRedirects bool) (*http.Response, error) {
-	req, err := c.NewRequest("GET", u, nil)
+func (c *Client) roundTripWithOptionalFollowRedirect(ctx context.Context, u string, followRedirects bool, opts ...RequestOption) (*http.Response, error) {
+	req, err := c.NewRequest("GET", u, nil, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1373,7 +1412,7 @@ func (c *Client) roundTripWithOptionalFollowRedirect(ctx context.Context, u stri
 	if followRedirects && resp.StatusCode == http.StatusMovedPermanently {
 		resp.Body.Close()
 		u = resp.Header.Get("Location")
-		resp, err = c.roundTripWithOptionalFollowRedirect(ctx, u, false)
+		resp, err = c.roundTripWithOptionalFollowRedirect(ctx, u, false, opts...)
 	}
 	return resp, err
 }

@@ -8,7 +8,7 @@ import (
 //
 // swagger:model
 //
-// API extension: instances
+// API extension: instances.
 type InstanceSnapshotsPost struct {
 	// Snapshot name
 	// Example: snap0
@@ -29,7 +29,7 @@ type InstanceSnapshotsPost struct {
 //
 // swagger:model
 //
-// API extension: instances
+// API extension: instances.
 type InstanceSnapshotPost struct {
 	// New name for the snapshot
 	// Example: foo
@@ -51,7 +51,7 @@ type InstanceSnapshotPost struct {
 //
 // swagger:model
 //
-// API extension: instances
+// API extension: instances.
 type InstanceSnapshotPut struct {
 	// When the snapshot expires (gets auto-deleted)
 	// Example: 2021-03-23T17:38:37.753398689-04:00
@@ -62,7 +62,7 @@ type InstanceSnapshotPut struct {
 //
 // swagger:model
 //
-// API extension: instances
+// API extension: instances.
 type InstanceSnapshot struct {
 	InstanceSnapshotPut `yaml:",inline"`
 
@@ -88,11 +88,11 @@ type InstanceSnapshot struct {
 
 	// Expanded configuration (all profiles and local config merged)
 	// Example: {"security.nesting": "true"}
-	ExpandedConfig map[string]string `json:"expanded_config" yaml:"expanded_config"`
+	ExpandedConfig map[string]string `json:"expanded_config,omitempty" yaml:"expanded_config,omitempty"`
 
 	// Expanded devices (all profiles and local devices merged)
 	// Example: {"root": {"type": "disk", "pool": "default", "path": "/"}}
-	ExpandedDevices map[string]map[string]string `json:"expanded_devices" yaml:"expanded_devices"`
+	ExpandedDevices map[string]map[string]string `json:"expanded_devices,omitempty" yaml:"expanded_devices,omitempty"`
 
 	// Last start timestamp
 	// Example: 2021-03-23T20:00:00-04:00
@@ -120,7 +120,7 @@ type InstanceSnapshot struct {
 // Writable converts a full InstanceSnapshot struct into a InstanceSnapshotPut struct
 // (filters read-only fields).
 //
-// API extension: instances
+// API extension: instances.
 func (c *InstanceSnapshot) Writable() InstanceSnapshotPut {
 	return c.InstanceSnapshotPut
 }

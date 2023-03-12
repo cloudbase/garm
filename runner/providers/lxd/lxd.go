@@ -19,11 +19,11 @@ import (
 	"fmt"
 	"sync"
 
-	"garm/config"
-	runnerErrors "garm/errors"
-	"garm/params"
-	"garm/runner/common"
-	"garm/util"
+	"github.com/cloudbase/garm/config"
+	runnerErrors "github.com/cloudbase/garm/errors"
+	"github.com/cloudbase/garm/params"
+	"github.com/cloudbase/garm/runner/common"
+	"github.com/cloudbase/garm/util"
 
 	"github.com/google/go-github/v48/github"
 	lxd "github.com/lxc/lxd/client"

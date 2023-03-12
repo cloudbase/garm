@@ -17,9 +17,10 @@ package database
 import (
 	"context"
 	"fmt"
-	"garm/config"
-	"garm/database/common"
-	"garm/database/sql"
+
+	"github.com/cloudbase/garm/config"
+	"github.com/cloudbase/garm/database/common"
+	"github.com/cloudbase/garm/database/sql"
 )
 
 func NewDatabase(ctx context.Context, cfg config.Database) (common.Store, error) {
