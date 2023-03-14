@@ -100,6 +100,7 @@ func (e *external) CreateInstance(ctx context.Context, bootstrapParams params.Bo
 func (e *external) DeleteInstance(ctx context.Context, instance string) error {
 	asEnv := []string{
 		fmt.Sprintf("GARM_COMMAND=%s", execution.DeleteInstanceCommand),
+		fmt.Sprintf("GARM_CONTROLLER_ID=%s", e.controllerID),
 		fmt.Sprintf("GARM_INSTANCE_ID=%s", instance),
 		fmt.Sprintf("GARM_PROVIDER_CONFIG_FILE=%s", e.cfg.External.ConfigFile),
 	}
@@ -115,6 +116,7 @@ func (e *external) DeleteInstance(ctx context.Context, instance string) error {
 func (e *external) GetInstance(ctx context.Context, instance string) (params.Instance, error) {
 	asEnv := []string{
 		fmt.Sprintf("GARM_COMMAND=%s", execution.GetInstanceCommand),
+		fmt.Sprintf("GARM_CONTROLLER_ID=%s", e.controllerID),
 		fmt.Sprintf("GARM_INSTANCE_ID=%s", instance),
 		fmt.Sprintf("GARM_PROVIDER_CONFIG_FILE=%s", e.cfg.External.ConfigFile),
 	}
@@ -137,6 +139,7 @@ func (e *external) GetInstance(ctx context.Context, instance string) (params.Ins
 func (e *external) ListInstances(ctx context.Context, poolID string) ([]params.Instance, error) {
 	asEnv := []string{
 		fmt.Sprintf("GARM_COMMAND=%s", execution.ListInstancesCommand),
+		fmt.Sprintf("GARM_CONTROLLER_ID=%s", e.controllerID),
 		fmt.Sprintf("GARM_POOL_ID=%s", poolID),
 		fmt.Sprintf("GARM_PROVIDER_CONFIG_FILE=%s", e.cfg.External.ConfigFile),
 	}
@@ -171,6 +174,7 @@ func (e *external) RemoveAllInstances(ctx context.Context) error {
 func (e *external) Stop(ctx context.Context, instance string, force bool) error {
 	asEnv := []string{
 		fmt.Sprintf("GARM_COMMAND=%s", execution.StopInstanceCommand),
+		fmt.Sprintf("GARM_CONTROLLER_ID=%s", e.controllerID),
 		fmt.Sprintf("GARM_INSTANCE_ID=%s", instance),
 		fmt.Sprintf("GARM_PROVIDER_CONFIG_FILE=%s", e.cfg.External.ConfigFile),
 	}
@@ -185,6 +189,7 @@ func (e *external) Stop(ctx context.Context, instance string, force bool) error 
 func (e *external) Start(ctx context.Context, instance string) error {
 	asEnv := []string{
 		fmt.Sprintf("GARM_COMMAND=%s", execution.StartInstanceCommand),
+		fmt.Sprintf("GARM_CONTROLLER_ID=%s", e.controllerID),
 		fmt.Sprintf("GARM_INSTANCE_ID=%s", instance),
 		fmt.Sprintf("GARM_PROVIDER_CONFIG_FILE=%s", e.cfg.External.ConfigFile),
 	}
