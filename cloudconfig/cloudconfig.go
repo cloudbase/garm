@@ -21,7 +21,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/cloudbase/garm/config"
+	"github.com/cloudbase/garm/util/appdefaults"
 
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
@@ -36,10 +36,10 @@ func NewDefaultCloudInitConfig() *CloudInit {
 		},
 		SystemInfo: &SystemInfo{
 			DefaultUser: DefaultUser{
-				Name:   config.DefaultUser,
-				Home:   fmt.Sprintf("/home/%s", config.DefaultUser),
-				Shell:  config.DefaultUserShell,
-				Groups: config.DefaultUserGroups,
+				Name:   appdefaults.DefaultUser,
+				Home:   fmt.Sprintf("/home/%s", appdefaults.DefaultUser),
+				Shell:  appdefaults.DefaultUserShell,
+				Groups: appdefaults.DefaultUserGroups,
 				Sudo:   "ALL=(ALL) NOPASSWD:ALL",
 			},
 		},

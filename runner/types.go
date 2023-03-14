@@ -14,7 +14,7 @@
 
 package runner
 
-import "github.com/cloudbase/garm/config"
+import "github.com/cloudbase/garm/params"
 
 type HookTargetType string
 
@@ -26,24 +26,24 @@ const (
 
 var (
 	// Linux only for now. Will add Windows soon. (famous last words?)
-	supportedOSType map[config.OSType]struct{} = map[config.OSType]struct{}{
-		config.Linux: {},
+	supportedOSType map[params.OSType]struct{} = map[params.OSType]struct{}{
+		params.Linux: {},
 	}
 
 	// These are the architectures that Github supports.
-	supportedOSArch map[config.OSArch]struct{} = map[config.OSArch]struct{}{
-		config.Amd64: {},
-		config.Arm:   {},
-		config.Arm64: {},
+	supportedOSArch map[params.OSArch]struct{} = map[params.OSArch]struct{}{
+		params.Amd64: {},
+		params.Arm:   {},
+		params.Arm64: {},
 	}
 )
 
-func IsSupportedOSType(osType config.OSType) bool {
+func IsSupportedOSType(osType params.OSType) bool {
 	_, ok := supportedOSType[osType]
 	return ok
 }
 
-func IsSupportedArch(arch config.OSArch) bool {
+func IsSupportedArch(arch params.OSArch) bool {
 	_, ok := supportedOSArch[arch]
 	return ok
 }

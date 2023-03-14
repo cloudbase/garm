@@ -26,79 +26,19 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+	"github.com/cloudbase/garm/params"
+	"github.com/cloudbase/garm/util/appdefaults"
 	zxcvbn "github.com/nbutton23/zxcvbn-go"
 	"github.com/pkg/errors"
 )
 
 type DBBackendType string
-type ProviderType string
-type OSType string
-type OSArch string
 
 const (
 	// MySQLBackend represents the MySQL DB backend
 	MySQLBackend DBBackendType = "mysql"
 	// SQLiteBackend represents the SQLite3 DB backend
 	SQLiteBackend DBBackendType = "sqlite3"
-	// DefaultJWTTTL is the default duration in seconds a JWT token
-	// will be valid.
-	DefaultJWTTTL time.Duration = 24 * time.Hour
-
-	// LXDProvider represents the LXD provider.
-	LXDProvider ProviderType = "lxd"
-	// ExternalProvider represents an external provider.
-	ExternalProvider ProviderType = "external"
-
-	// DefaultConfigFilePath is the default path on disk to the garm
-	// configuration file.
-	DefaultConfigFilePath = "/etc/garm/config.toml"
-
-	// DefaultUser is the default username that should exist on the instances.
-	DefaultUser = "runner"
-	// DefaultUserShell is the shell for the default user.
-	DefaultUserShell = "/bin/bash"
-
-	// DefaultPoolQueueSize is the default size for a pool queue.
-	DefaultPoolQueueSize = 10
-
-	// DefaultRunnerBootstrapTimeout is the default timeout in minutes a runner is
-	// considered to be defunct. If a runner does not join github in the alloted amount
-	// of time and no new updates have been made to it's state, it will be removed.
-	DefaultRunnerBootstrapTimeout = 20
-
-	// DefaultGithubURL is the default URL where Github or Github Enterprise can be accessed.
-	DefaultGithubURL = "https://github.com"
-
-	// defaultBaseURL is the default URL for the github API.
-	defaultBaseURL = "https://api.github.com/"
-	// uploadBaseURL is the default URL for guthub uploads.
-	uploadBaseURL = "https://uploads.github.com/"
-)
-
-var (
-	// DefaultConfigDir is the default path on disk to the config dir. The config
-	// file will probably be in the same folder, but it is not mandatory.
-	DefaultConfigDir = "/etc/garm"
-
-	// DefaultUserGroups are the groups the default user will be part of.
-	DefaultUserGroups = []string{
-		"sudo", "adm", "cdrom", "dialout",
-		"dip", "video", "plugdev", "netdev",
-		"docker", "lxd",
-	}
-)
-
-const (
-	Windows OSType = "windows"
-	Linux   OSType = "linux"
-	Unknown OSType = "unknown"
-)
-
-const (
-	Amd64 OSArch = "amd64"
-	I386  OSArch = "i386"
-	Arm64 OSArch = "arm64"
-	Arm   OSArch = "arm"
 )
 
 // NewConfig returns a new Config
@@ -108,7 +48,7 @@ func NewConfig(cfgFile string) (*Config, error) {
 		return nil, errors.Wrap(err, "decoding toml")
 	}
 	if config.Default.ConfigDir == "" {
-		config.Default.ConfigDir = DefaultConfigDir
+		config.Default.ConfigDir = appdefaults.DefaultConfigDir
 	}
 	if err := config.Validate(); err != nil {
 		return nil, errors.Wrap(err, "validating config")
@@ -228,7 +168,7 @@ func (g *Github) APIEndpoint() string {
 	if g.APIBaseURL != "" {
 		return g.APIBaseURL
 	}
-	return defaultBaseURL
+	return appdefaults.GithubDefaultBaseURL
 }
 
 func (g *Github) CACertBundle() ([]byte, error) {
@@ -258,7 +198,7 @@ func (g *Github) UploadEndpoint() string {
 		if g.APIBaseURL != "" {
 			return g.APIBaseURL
 		}
-		return uploadBaseURL
+		return appdefaults.GithubDefaultUploadBaseURL
 	}
 	return g.UploadBaseURL
 }
@@ -267,7 +207,7 @@ func (g *Github) BaseEndpoint() string {
 	if g.BaseURL != "" {
 		return g.BaseURL
 	}
-	return DefaultGithubURL
+	return appdefaults.DefaultGithubURL
 }
 
 func (g *Github) Validate() error {
@@ -281,11 +221,11 @@ func (g *Github) Validate() error {
 // Provider holds access information for a particular provider.
 // A provider offers compute resources on which we spin up self hosted runners.
 type Provider struct {
-	Name         string       `toml:"name" json:"name"`
-	ProviderType ProviderType `toml:"provider_type" json:"provider-type"`
-	Description  string       `toml:"description" json:"description"`
-	LXD          LXD          `toml:"lxd" json:"lxd"`
-	External     External     `toml:"external" json:"external"`
+	Name         string              `toml:"name" json:"name"`
+	ProviderType params.ProviderType `toml:"provider_type" json:"provider-type"`
+	Description  string              `toml:"description" json:"description"`
+	LXD          LXD                 `toml:"lxd" json:"lxd"`
+	External     External            `toml:"external" json:"external"`
 }
 
 func (p *Provider) Validate() error {
@@ -294,11 +234,11 @@ func (p *Provider) Validate() error {
 	}
 
 	switch p.ProviderType {
-	case LXDProvider:
+	case params.LXDProvider:
 		if err := p.LXD.Validate(); err != nil {
 			return errors.Wrap(err, "validating LXD provider info")
 		}
-	case ExternalProvider:
+	case params.ExternalProvider:
 		if err := p.External.Validate(); err != nil {
 			return errors.Wrap(err, "validating external provider info")
 		}
@@ -505,11 +445,11 @@ func (d *timeToLive) Duration() time.Duration {
 	duration, err := d.ParseDuration()
 	if err != nil {
 		log.Printf("failed to parse duration: %s", err)
-		return DefaultJWTTTL
+		return appdefaults.DefaultJWTTTL
 	}
 	// TODO(gabriel-samfira): should we have a minimum TTL?
-	if duration < DefaultJWTTTL {
-		return DefaultJWTTTL
+	if duration < appdefaults.DefaultJWTTTL {
+		return appdefaults.DefaultJWTTTL
 	}
 
 	return duration

@@ -21,10 +21,10 @@ import (
 	"strings"
 
 	"github.com/cloudbase/garm/auth"
-	"github.com/cloudbase/garm/config"
 	runnerErrors "github.com/cloudbase/garm/errors"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
+	"github.com/cloudbase/garm/util/appdefaults"
 
 	"github.com/pkg/errors"
 )
@@ -224,7 +224,7 @@ func (r *Runner) CreateOrgPool(ctx context.Context, orgID string, param params.C
 	}
 
 	if param.RunnerBootstrapTimeout == 0 {
-		param.RunnerBootstrapTimeout = config.DefaultRunnerBootstrapTimeout
+		param.RunnerBootstrapTimeout = appdefaults.DefaultRunnerBootstrapTimeout
 	}
 
 	pool, err := r.store.CreateOrganizationPool(ctx, orgID, createPoolParams)

@@ -18,8 +18,8 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/cloudbase/garm/config"
 	"github.com/cloudbase/garm/runner/providers/common"
+	"github.com/cloudbase/garm/util/appdefaults"
 
 	"github.com/google/go-github/v48/github"
 	uuid "github.com/satori/go.uuid"
@@ -29,6 +29,16 @@ type PoolType string
 type AddressType string
 type EventType string
 type EventLevel string
+type OSType string
+type OSArch string
+type ProviderType string
+
+const (
+	// LXDProvider represents the LXD provider.
+	LXDProvider ProviderType = "lxd"
+	// ExternalProvider represents an external provider.
+	ExternalProvider ProviderType = "external"
+)
 
 const (
 	RepositoryPool   PoolType = "repository"
@@ -50,6 +60,19 @@ const (
 	EventInfo    EventLevel = "info"
 	EventWarning EventLevel = "warning"
 	EventError   EventLevel = "error"
+)
+
+const (
+	Windows OSType = "windows"
+	Linux   OSType = "linux"
+	Unknown OSType = "unknown"
+)
+
+const (
+	Amd64 OSArch = "amd64"
+	I386  OSArch = "i386"
+	Arm64 OSArch = "arm64"
+	Arm   OSArch = "arm"
 )
 
 type Address struct {
@@ -80,13 +103,13 @@ type Instance struct {
 	Name string `json:"name,omitempty"`
 	// OSType is the operating system type. For now, only Linux and
 	// Windows are supported.
-	OSType config.OSType `json:"os_type,omitempty"`
+	OSType OSType `json:"os_type,omitempty"`
 	// OSName is the name of the OS. Eg: ubuntu, centos, etc.
 	OSName string `json:"os_name,omitempty"`
 	// OSVersion is the version of the operating system.
 	OSVersion string `json:"os_version,omitempty"`
 	// OSArch is the operating system architecture.
-	OSArch config.OSArch `json:"os_arch,omitempty"`
+	OSArch OSArch `json:"os_arch,omitempty"`
 	// Addresses is a list of IP addresses the provider reports
 	// for this instance.
 	Addresses []Address `json:"addresses,omitempty"`
@@ -139,11 +162,11 @@ type BootstrapInstance struct {
 
 	CACertBundle []byte `json:"ca-cert-bundle"`
 
-	OSArch config.OSArch `json:"arch"`
-	Flavor string        `json:"flavor"`
-	Image  string        `json:"image"`
-	Labels []string      `json:"labels"`
-	PoolID string        `json:"pool_id"`
+	OSArch OSArch   `json:"arch"`
+	Flavor string   `json:"flavor"`
+	Image  string   `json:"image"`
+	Labels []string `json:"labels"`
+	PoolID string   `json:"pool_id"`
 }
 
 type Tag struct {
@@ -154,24 +177,24 @@ type Tag struct {
 type Pool struct {
 	RunnerPrefix
 
-	ID                     string        `json:"id"`
-	ProviderName           string        `json:"provider_name"`
-	MaxRunners             uint          `json:"max_runners"`
-	MinIdleRunners         uint          `json:"min_idle_runners"`
-	Image                  string        `json:"image"`
-	Flavor                 string        `json:"flavor"`
-	OSType                 config.OSType `json:"os_type"`
-	OSArch                 config.OSArch `json:"os_arch"`
-	Tags                   []Tag         `json:"tags"`
-	Enabled                bool          `json:"enabled"`
-	Instances              []Instance    `json:"instances"`
-	RepoID                 string        `json:"repo_id,omitempty"`
-	RepoName               string        `json:"repo_name,omitempty"`
-	OrgID                  string        `json:"org_id,omitempty"`
-	OrgName                string        `json:"org_name,omitempty"`
-	EnterpriseID           string        `json:"enterprise_id,omitempty"`
-	EnterpriseName         string        `json:"enterprise_name,omitempty"`
-	RunnerBootstrapTimeout uint          `json:"runner_bootstrap_timeout"`
+	ID                     string     `json:"id"`
+	ProviderName           string     `json:"provider_name"`
+	MaxRunners             uint       `json:"max_runners"`
+	MinIdleRunners         uint       `json:"min_idle_runners"`
+	Image                  string     `json:"image"`
+	Flavor                 string     `json:"flavor"`
+	OSType                 OSType     `json:"os_type"`
+	OSArch                 OSArch     `json:"os_arch"`
+	Tags                   []Tag      `json:"tags"`
+	Enabled                bool       `json:"enabled"`
+	Instances              []Instance `json:"instances"`
+	RepoID                 string     `json:"repo_id,omitempty"`
+	RepoName               string     `json:"repo_name,omitempty"`
+	OrgID                  string     `json:"org_id,omitempty"`
+	OrgName                string     `json:"org_name,omitempty"`
+	EnterpriseID           string     `json:"enterprise_id,omitempty"`
+	EnterpriseName         string     `json:"enterprise_name,omitempty"`
+	RunnerBootstrapTimeout uint       `json:"runner_bootstrap_timeout"`
 	// ExtraSpecs is an opaque raw json that gets sent to the provider
 	// as part of the bootstrap params for instances. It can contain
 	// any kind of data needed by providers. The contents of this field means
@@ -186,7 +209,7 @@ func (p Pool) GetID() string {
 
 func (p *Pool) RunnerTimeout() uint {
 	if p.RunnerBootstrapTimeout == 0 {
-		return config.DefaultRunnerBootstrapTimeout
+		return appdefaults.DefaultRunnerBootstrapTimeout
 	}
 	return p.RunnerBootstrapTimeout
 }
@@ -302,9 +325,9 @@ type GithubCredentials struct {
 }
 
 type Provider struct {
-	Name         string              `json:"name"`
-	ProviderType config.ProviderType `json:"type"`
-	Description  string              `json:"description"`
+	Name         string       `json:"name"`
+	ProviderType ProviderType `json:"type"`
+	Description  string       `json:"description"`
 }
 
 type UpdatePoolStateParams struct {

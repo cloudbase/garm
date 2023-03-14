@@ -17,7 +17,6 @@ package sql
 import (
 	"time"
 
-	"github.com/cloudbase/garm/config"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/providers/common"
 
@@ -64,8 +63,8 @@ type Pool struct {
 	RunnerBootstrapTimeout uint
 	Image                  string `gorm:"index:idx_pool_type"`
 	Flavor                 string `gorm:"index:idx_pool_type"`
-	OSType                 config.OSType
-	OSArch                 config.OSArch
+	OSType                 params.OSType
+	OSArch                 params.OSArch
 	Tags                   []*Tag `gorm:"many2many:pool_tags;"`
 	Enabled                bool
 	// ExtraSpecs is an opaque json that gets sent to the provider
@@ -140,8 +139,8 @@ type Instance struct {
 	ProviderID    *string `gorm:"uniqueIndex"`
 	Name          string  `gorm:"uniqueIndex"`
 	AgentID       int64
-	OSType        config.OSType
-	OSArch        config.OSArch
+	OSType        params.OSType
+	OSArch        params.OSArch
 	OSName        string
 	OSVersion     string
 	Addresses     []Address `gorm:"foreignKey:InstanceID"`
