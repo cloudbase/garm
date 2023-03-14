@@ -11,6 +11,7 @@ import (
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
 	providerCommon "github.com/cloudbase/garm/runner/providers/common"
+	"github.com/cloudbase/garm/runner/providers/external/execution"
 	"github.com/cloudbase/garm/util/exec"
 
 	"github.com/pkg/errors"
@@ -42,10 +43,6 @@ type external struct {
 	execPath     string
 }
 
-func (e *external) configEnvVar() string {
-	return fmt.Sprintf("GARM_PROVIDER_CONFIG_FILE=%s", e.cfg.External.ConfigFile)
-}
-
 func (e *external) validateCreateResult(inst params.Instance, bootstrapParams params.BootstrapInstance) error {
 	if inst.ProviderID == "" {
 		return garmErrors.NewProviderError("missing provider ID after create call")
@@ -68,11 +65,12 @@ func (e *external) validateCreateResult(inst params.Instance, bootstrapParams pa
 
 // CreateInstance creates a new compute instance in the provider.
 func (e *external) CreateInstance(ctx context.Context, bootstrapParams params.BootstrapInstance) (params.Instance, error) {
-	asEnv := bootstrapParamsToEnv(bootstrapParams)
-	asEnv = append(asEnv, createInstanceCommand)
-	asEnv = append(asEnv, fmt.Sprintf("GARM_CONTROLLER_ID=%s", e.controllerID))
-	asEnv = append(asEnv, fmt.Sprintf("GARM_POOL_ID=%s", bootstrapParams.PoolID))
-	asEnv = append(asEnv, e.configEnvVar())
+	asEnv := []string{
+		fmt.Sprintf("GARM_COMMAND=%s", execution.CreateInstanceCommand),
+		fmt.Sprintf("GARM_CONTROLLER_ID=%s", e.controllerID),
+		fmt.Sprintf("GARM_POOL_ID=%s", bootstrapParams.PoolID),
+		fmt.Sprintf("GARM_PROVIDER_CONFIG_FILE=%s", e.cfg.External.ConfigFile),
+	}
 
 	asJs, err := json.Marshal(bootstrapParams)
 	if err != nil {
@@ -101,9 +99,9 @@ func (e *external) CreateInstance(ctx context.Context, bootstrapParams params.Bo
 // Delete instance will delete the instance in a provider.
 func (e *external) DeleteInstance(ctx context.Context, instance string) error {
 	asEnv := []string{
-		deleteInstanceCommand,
-		e.configEnvVar(),
+		fmt.Sprintf("GARM_COMMAND=%s", execution.DeleteInstanceCommand),
 		fmt.Sprintf("GARM_INSTANCE_ID=%s", instance),
+		fmt.Sprintf("GARM_PROVIDER_CONFIG_FILE=%s", e.cfg.External.ConfigFile),
 	}
 
 	_, err := exec.Exec(ctx, e.execPath, nil, asEnv)
@@ -116,9 +114,9 @@ func (e *external) DeleteInstance(ctx context.Context, instance string) error {
 // GetInstance will return details about one instance.
 func (e *external) GetInstance(ctx context.Context, instance string) (params.Instance, error) {
 	asEnv := []string{
-		getInstanceCommand,
-		e.configEnvVar(),
+		fmt.Sprintf("GARM_COMMAND=%s", execution.GetInstanceCommand),
 		fmt.Sprintf("GARM_INSTANCE_ID=%s", instance),
+		fmt.Sprintf("GARM_PROVIDER_CONFIG_FILE=%s", e.cfg.External.ConfigFile),
 	}
 
 	// TODO(gabriel-samfira): handle error types. Of particular insterest is to
@@ -138,9 +136,9 @@ func (e *external) GetInstance(ctx context.Context, instance string) (params.Ins
 // ListInstances will list all instances for a provider.
 func (e *external) ListInstances(ctx context.Context, poolID string) ([]params.Instance, error) {
 	asEnv := []string{
-		listInstancesCommand,
-		e.configEnvVar(),
+		fmt.Sprintf("GARM_COMMAND=%s", execution.ListInstancesCommand),
 		fmt.Sprintf("GARM_POOL_ID=%s", poolID),
+		fmt.Sprintf("GARM_PROVIDER_CONFIG_FILE=%s", e.cfg.External.ConfigFile),
 	}
 
 	out, err := exec.Exec(ctx, e.execPath, nil, asEnv)
@@ -158,9 +156,9 @@ func (e *external) ListInstances(ctx context.Context, poolID string) ([]params.I
 // RemoveAllInstances will remove all instances created by this provider.
 func (e *external) RemoveAllInstances(ctx context.Context) error {
 	asEnv := []string{
-		removeAllInstancesCommand,
-		e.configEnvVar(),
+		fmt.Sprintf("GARM_COMMAND=%s", execution.RemoveAllInstancesCommand),
 		fmt.Sprintf("GARM_CONTROLLER_ID=%s", e.controllerID),
+		fmt.Sprintf("GARM_PROVIDER_CONFIG_FILE=%s", e.cfg.External.ConfigFile),
 	}
 	_, err := exec.Exec(ctx, e.execPath, nil, asEnv)
 	if err != nil {
@@ -172,9 +170,9 @@ func (e *external) RemoveAllInstances(ctx context.Context) error {
 // Stop shuts down the instance.
 func (e *external) Stop(ctx context.Context, instance string, force bool) error {
 	asEnv := []string{
-		stopInstanceCommand,
-		e.configEnvVar(),
+		fmt.Sprintf("GARM_COMMAND=%s", execution.StopInstanceCommand),
 		fmt.Sprintf("GARM_INSTANCE_ID=%s", instance),
+		fmt.Sprintf("GARM_PROVIDER_CONFIG_FILE=%s", e.cfg.External.ConfigFile),
 	}
 	_, err := exec.Exec(ctx, e.execPath, nil, asEnv)
 	if err != nil {
@@ -186,9 +184,9 @@ func (e *external) Stop(ctx context.Context, instance string, force bool) error 
 // Start boots up an instance.
 func (e *external) Start(ctx context.Context, instance string) error {
 	asEnv := []string{
-		startInstanceCommand,
-		e.configEnvVar(),
+		fmt.Sprintf("GARM_COMMAND=%s", execution.StartInstanceCommand),
 		fmt.Sprintf("GARM_INSTANCE_ID=%s", instance),
+		fmt.Sprintf("GARM_PROVIDER_CONFIG_FILE=%s", e.cfg.External.ConfigFile),
 	}
 	_, err := exec.Exec(ctx, e.execPath, nil, asEnv)
 	if err != nil {
