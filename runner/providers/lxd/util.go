@@ -176,9 +176,9 @@ func projectName(cfg config.LXD) string {
 	return DefaultProjectName
 }
 
-func resolveArchitecture(osArch config.OSArch) (string, error) {
+func resolveArchitecture(osArch params.OSArch) (string, error) {
 	if string(osArch) == "" {
-		return configToLXDArchMap[config.Amd64], nil
+		return configToLXDArchMap[params.Amd64], nil
 	}
 	arch, ok := configToLXDArchMap[osArch]
 	if !ok {

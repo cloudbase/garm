@@ -19,6 +19,7 @@ import (
 	"log"
 
 	"github.com/cloudbase/garm/config"
+	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
 	"github.com/cloudbase/garm/runner/providers/external"
 	"github.com/cloudbase/garm/runner/providers/lxd"
@@ -33,14 +34,14 @@ func LoadProvidersFromConfig(ctx context.Context, cfg config.Config, controllerI
 	for _, providerCfg := range cfg.Providers {
 		log.Printf("Loading provider %s", providerCfg.Name)
 		switch providerCfg.ProviderType {
-		case config.LXDProvider:
+		case params.LXDProvider:
 			conf := providerCfg
 			provider, err := lxd.NewProvider(ctx, &conf, controllerID)
 			if err != nil {
 				return nil, errors.Wrap(err, "creating provider")
 			}
 			providers[providerCfg.Name] = provider
-		case config.ExternalProvider:
+		case params.ExternalProvider:
 			conf := providerCfg
 			provider, err := external.NewProvider(ctx, &conf, controllerID)
 			if err != nil {

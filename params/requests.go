@@ -18,7 +18,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/cloudbase/garm/config"
 	"github.com/cloudbase/garm/errors"
 	"github.com/cloudbase/garm/runner/providers/common"
 )
@@ -26,9 +25,9 @@ import (
 const DefaultRunnerPrefix = "garm"
 
 type InstanceRequest struct {
-	Name      string        `json:"name"`
-	OSType    config.OSType `json:"os_type"`
-	OSVersion string        `json:"os_version"`
+	Name      string `json:"name"`
+	OSType    OSType `json:"os_type"`
+	OSVersion string `json:"os_version"`
 }
 
 type CreateRepoParams struct {
@@ -116,15 +115,15 @@ type UpdatePoolParams struct {
 	RunnerBootstrapTimeout *uint           `json:"runner_bootstrap_timeout,omitempty"`
 	Image                  string          `json:"image"`
 	Flavor                 string          `json:"flavor"`
-	OSType                 config.OSType   `json:"os_type"`
-	OSArch                 config.OSArch   `json:"os_arch"`
+	OSType                 OSType          `json:"os_type"`
+	OSArch                 OSArch          `json:"os_arch"`
 	ExtraSpecs             json.RawMessage `json:"extra_specs,omitempty"`
 }
 
 type CreateInstanceParams struct {
 	Name          string
-	OSType        config.OSType
-	OSArch        config.OSArch
+	OSType        OSType
+	OSArch        OSArch
 	Status        common.InstanceStatus
 	RunnerStatus  common.RunnerStatus
 	CallbackURL   string
@@ -140,8 +139,8 @@ type CreatePoolParams struct {
 	MinIdleRunners         uint            `json:"min_idle_runners"`
 	Image                  string          `json:"image"`
 	Flavor                 string          `json:"flavor"`
-	OSType                 config.OSType   `json:"os_type"`
-	OSArch                 config.OSArch   `json:"os_arch"`
+	OSType                 OSType          `json:"os_type"`
+	OSArch                 OSArch          `json:"os_arch"`
 	Tags                   []string        `json:"tags"`
 	Enabled                bool            `json:"enabled"`
 	RunnerBootstrapTimeout uint            `json:"runner_bootstrap_timeout"`

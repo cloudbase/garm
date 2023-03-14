@@ -37,6 +37,7 @@ import (
 	runnerErrors "github.com/cloudbase/garm/errors"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
+	"github.com/cloudbase/garm/util/appdefaults"
 
 	"github.com/google/go-github/v48/github"
 	"github.com/google/uuid"
@@ -54,24 +55,24 @@ const alphanumeric = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuv
 var rxEmail = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
 
 var (
-	OSToOSTypeMap map[string]config.OSType = map[string]config.OSType{
-		"almalinux":  config.Linux,
-		"alma":       config.Linux,
-		"alpine":     config.Linux,
-		"archlinux":  config.Linux,
-		"arch":       config.Linux,
-		"centos":     config.Linux,
-		"ubuntu":     config.Linux,
-		"rhel":       config.Linux,
-		"suse":       config.Linux,
-		"opensuse":   config.Linux,
-		"fedora":     config.Linux,
-		"debian":     config.Linux,
-		"flatcar":    config.Linux,
-		"gentoo":     config.Linux,
-		"rockylinux": config.Linux,
-		"rocky":      config.Linux,
-		"windows":    config.Windows,
+	OSToOSTypeMap map[string]params.OSType = map[string]params.OSType{
+		"almalinux":  params.Linux,
+		"alma":       params.Linux,
+		"alpine":     params.Linux,
+		"archlinux":  params.Linux,
+		"arch":       params.Linux,
+		"centos":     params.Linux,
+		"ubuntu":     params.Linux,
+		"rhel":       params.Linux,
+		"suse":       params.Linux,
+		"opensuse":   params.Linux,
+		"fedora":     params.Linux,
+		"debian":     params.Linux,
+		"flatcar":    params.Linux,
+		"gentoo":     params.Linux,
+		"rockylinux": params.Linux,
+		"rocky":      params.Linux,
+		"windows":    params.Windows,
 	}
 
 	githubArchMapping map[string]string = map[string]string{
@@ -158,10 +159,10 @@ func ConvertFileToBase64(file string) (string, error) {
 	return base64.StdEncoding.EncodeToString(bytes), nil
 }
 
-func OSToOSType(os string) (config.OSType, error) {
+func OSToOSType(os string) (params.OSType, error) {
 	osType, ok := OSToOSTypeMap[strings.ToLower(os)]
 	if !ok {
-		return config.Unknown, fmt.Errorf("no OS to OS type mapping for %s", os)
+		return params.Unknown, fmt.Errorf("no OS to OS type mapping for %s", os)
 	}
 	return osType, nil
 }
@@ -217,8 +218,8 @@ func GetCloudConfig(bootstrapParams params.BootstrapInstance, tools github.Runne
 		DownloadURL:       *tools.DownloadURL,
 		TempDownloadToken: tempToken,
 		MetadataURL:       bootstrapParams.MetadataURL,
-		RunnerUsername:    config.DefaultUser,
-		RunnerGroup:       config.DefaultUser,
+		RunnerUsername:    appdefaults.DefaultUser,
+		RunnerGroup:       appdefaults.DefaultUser,
 		RepoURL:           bootstrapParams.RepoURL,
 		RunnerName:        runnerName,
 		RunnerLabels:      strings.Join(bootstrapParams.Labels, ","),

@@ -19,7 +19,7 @@ import (
 var _ common.Provider = (*external)(nil)
 
 func NewProvider(ctx context.Context, cfg *config.Provider, controllerID string) (common.Provider, error) {
-	if cfg.ProviderType != config.ExternalProvider {
+	if cfg.ProviderType != params.ExternalProvider {
 		return nil, garmErrors.NewBadRequestError("invalid provider config")
 	}
 

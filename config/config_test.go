@@ -20,6 +20,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cloudbase/garm/params"
+	"github.com/cloudbase/garm/util/appdefaults"
 	"github.com/stretchr/testify/require"
 )
 
@@ -79,7 +81,7 @@ func getDefaultProvidersConfig() []Provider {
 	return []Provider{
 		{
 			Name:         "test_lxd",
-			ProviderType: LXDProvider,
+			ProviderType: params.LXDProvider,
 			Description:  "test LXD provider",
 			LXD:          lxdConfig,
 		},
@@ -542,7 +544,7 @@ func TestTimeToLiveDuration(t *testing.T) {
 	require.Equal(t, cfg.TimeToLive.Duration(), 48*time.Hour)
 
 	cfg.TimeToLive = "1h"
-	require.Equal(t, cfg.TimeToLive.Duration(), DefaultJWTTTL)
+	require.Equal(t, cfg.TimeToLive.Duration(), appdefaults.DefaultJWTTTL)
 
 	cfg.TimeToLive = "72h"
 	require.Equal(t, cfg.TimeToLive.Duration(), 72*time.Hour)
@@ -578,7 +580,7 @@ func TestNewConfigEmptyConfigDir(t *testing.T) {
 		t.Fatalf("failed to create temporary directory: %s", err)
 	}
 	defer os.RemoveAll(dirPath)
-	DefaultConfigDir = dirPath
+	appdefaults.DefaultConfigDir = dirPath
 
 	cfg, err := NewConfig("testdata/test-empty-config-dir.toml")
 	require.Nil(t, err)

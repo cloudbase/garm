@@ -20,7 +20,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/cloudbase/garm/config"
 	"github.com/cloudbase/garm/params"
 
 	"github.com/jedib0t/go-pretty/v6/table"
@@ -192,8 +191,8 @@ var poolAddCmd = &cobra.Command{
 			MinIdleRunners:         poolMinIdleRunners,
 			Image:                  poolImage,
 			Flavor:                 poolFlavor,
-			OSType:                 config.OSType(poolOSType),
-			OSArch:                 config.OSArch(poolOSArch),
+			OSType:                 params.OSType(poolOSType),
+			OSArch:                 params.OSArch(poolOSArch),
 			Tags:                   tags,
 			Enabled:                poolEnabled,
 			RunnerBootstrapTimeout: poolRunnerBootstrapTimeout,
@@ -279,11 +278,11 @@ explicitly remove them using the runner delete command.
 		}
 
 		if cmd.Flags().Changed("os-type") {
-			poolUpdateParams.OSType = config.OSType(poolOSType)
+			poolUpdateParams.OSType = params.OSType(poolOSType)
 		}
 
 		if cmd.Flags().Changed("os-arch") {
-			poolUpdateParams.OSArch = config.OSArch(poolOSArch)
+			poolUpdateParams.OSArch = params.OSArch(poolOSArch)
 		}
 
 		if cmd.Flags().Changed("max-runners") {

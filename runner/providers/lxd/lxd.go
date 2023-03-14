@@ -54,16 +54,16 @@ var (
 		"arm64":   "arm64",
 	}
 
-	configToLXDArchMap map[config.OSArch]string = map[config.OSArch]string{
-		config.Amd64: "x86_64",
-		config.Arm64: "aarch64",
-		config.Arm:   "armv7l",
+	configToLXDArchMap map[params.OSArch]string = map[params.OSArch]string{
+		params.Amd64: "x86_64",
+		params.Arm64: "aarch64",
+		params.Arm:   "armv7l",
 	}
 
-	lxdToConfigArch map[string]config.OSArch = map[string]config.OSArch{
-		"x86_64":  config.Amd64,
-		"aarch64": config.Arm64,
-		"armv7l":  config.Arm,
+	lxdToConfigArch map[string]params.OSArch = map[string]params.OSArch{
+		"x86_64":  params.Amd64,
+		"aarch64": params.Arm64,
+		"armv7l":  params.Arm,
 	}
 )
 
@@ -77,8 +77,8 @@ func NewProvider(ctx context.Context, cfg *config.Provider, controllerID string)
 		return nil, errors.Wrap(err, "validating provider config")
 	}
 
-	if cfg.ProviderType != config.LXDProvider {
-		return nil, fmt.Errorf("invalid provider type %s, expected %s", cfg.ProviderType, config.LXDProvider)
+	if cfg.ProviderType != params.LXDProvider {
+		return nil, fmt.Errorf("invalid provider type %s, expected %s", cfg.ProviderType, params.LXDProvider)
 	}
 
 	provider := &LXD{
@@ -175,7 +175,7 @@ func (l *LXD) getTools(image *api.Image, tools []*github.RunnerApplicationDownlo
 
 	// Validate image OS. Linux only for now.
 	switch osType {
-	case config.Linux:
+	case params.Linux:
 	default:
 		return github.RunnerApplicationDownload{}, fmt.Errorf("this provider does not support OS type: %s", osType)
 	}

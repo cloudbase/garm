@@ -35,6 +35,7 @@ import (
 	"github.com/cloudbase/garm/metrics"
 	"github.com/cloudbase/garm/runner"
 	"github.com/cloudbase/garm/util"
+	"github.com/cloudbase/garm/util/appdefaults"
 	"github.com/cloudbase/garm/websocket"
 
 	"github.com/gorilla/handlers"
@@ -43,7 +44,7 @@ import (
 )
 
 var (
-	conf    = flag.String("config", config.DefaultConfigFilePath, "garm config file")
+	conf    = flag.String("config", appdefaults.DefaultConfigFilePath, "garm config file")
 	version = flag.Bool("version", false, "prints version")
 )
 
