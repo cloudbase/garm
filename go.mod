@@ -16,6 +16,7 @@ require (
 	github.com/juju/retry v1.0.0
 	github.com/lxc/lxd v0.0.0-20230310224854-36b345fbd578
 	github.com/manifoldco/promptui v0.9.0
+	github.com/mattn/go-isatty v0.0.17
 	github.com/nbutton23/zxcvbn-go v0.0.0-20210217022336-fa2cb2858354
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.14.0

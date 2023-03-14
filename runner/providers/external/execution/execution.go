@@ -8,6 +8,8 @@ import (
 	"os"
 
 	"github.com/cloudbase/garm/params"
+
+	"github.com/mattn/go-isatty"
 )
 
 func GetEnvironment() (Environment, error) {
@@ -19,19 +21,20 @@ func GetEnvironment() (Environment, error) {
 		InstanceID:         os.Getenv("GARM_INSTANCE_ID"),
 	}
 
+	// If this is a CreateInstance command, we need to get the bootstrap params
+	// from stdin
 	if env.Command == CreateInstanceCommand {
-		// We need to get the bootstrap params from stdin
-		info, err := os.Stdin.Stat()
-		if err != nil {
-			return Environment{}, fmt.Errorf("failed to get stdin: %w", err)
-		}
-		if info.Size() == 0 {
-			return Environment{}, fmt.Errorf("no data found on stdin")
+		if isatty.IsTerminal(os.Stdin.Fd()) || isatty.IsCygwinTerminal(os.Stdin.Fd()) {
+			return Environment{}, fmt.Errorf("%s requires data passed into stdin", CreateInstanceCommand)
 		}
 
 		var data bytes.Buffer
 		if _, err := io.Copy(&data, os.Stdin); err != nil {
 			return Environment{}, fmt.Errorf("failed to copy bootstrap params")
+		}
+
+		if data.Len() == 0 {
+			return Environment{}, fmt.Errorf("%s requires data passed into stdin", CreateInstanceCommand)
 		}
 
 		var bootstrapParams params.BootstrapInstance
