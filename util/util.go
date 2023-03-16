@@ -250,6 +250,48 @@ func GetCloudConfig(bootstrapParams params.BootstrapInstance, tools github.Runne
 	return asStr, nil
 }
 
+func GetTools(osType params.OSType, osArch params.OSArch, tools []*github.RunnerApplicationDownload) (github.RunnerApplicationDownload, error) {
+	// Validate image OS. Linux only for now.
+	switch osType {
+	case params.Linux:
+	case params.Windows:
+	default:
+		return github.RunnerApplicationDownload{}, fmt.Errorf("unsupported OS type: %s", osType)
+	}
+
+	switch osArch {
+	case params.Amd64:
+	case params.Arm:
+	case params.Arm64:
+	default:
+		return github.RunnerApplicationDownload{}, fmt.Errorf("unsupported OS arch: %s", osArch)
+	}
+
+	// Find tools for OS/Arch.
+	for _, tool := range tools {
+		if tool == nil {
+			continue
+		}
+		if tool.OS == nil || tool.Architecture == nil {
+			continue
+		}
+
+		ghArch, err := ResolveToGithubArch(string(osArch))
+		if err != nil {
+			continue
+		}
+
+		ghOS, err := ResolveToGithubOSType(string(osType))
+		if err != nil {
+			continue
+		}
+		if *tool.Architecture == ghArch && *tool.OS == ghOS {
+			return *tool, nil
+		}
+	}
+	return github.RunnerApplicationDownload{}, fmt.Errorf("failed to find tools for OS %s and arch %s", osType, osArch)
+}
+
 // GetRandomString returns a secure random string
 func GetRandomString(n int) (string, error) {
 	data := make([]byte, n)
