@@ -163,6 +163,7 @@ type BootstrapInstance struct {
 	CACertBundle []byte `json:"ca-cert-bundle"`
 
 	OSArch OSArch   `json:"arch"`
+	OSType OSType   `json:"os_type"`
 	Flavor string   `json:"flavor"`
 	Image  string   `json:"image"`
 	Labels []string `json:"labels"`

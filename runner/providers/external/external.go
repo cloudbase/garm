@@ -43,7 +43,7 @@ type external struct {
 	execPath     string
 }
 
-func (e *external) validateCreateResult(inst params.Instance, bootstrapParams params.BootstrapInstance) error {
+func (e *external) validateCreateResult(inst params.Instance) error {
 	if inst.ProviderID == "" {
 		return garmErrors.NewProviderError("missing provider ID after create call")
 	}
@@ -87,7 +87,7 @@ func (e *external) CreateInstance(ctx context.Context, bootstrapParams params.Bo
 		return params.Instance{}, garmErrors.NewProviderError("failed to decode response from binary: %s", err)
 	}
 
-	if err := e.validateCreateResult(param, bootstrapParams); err != nil {
+	if err := e.validateCreateResult(param); err != nil {
 		return params.Instance{}, garmErrors.NewProviderError("failed to validate result: %s", err)
 	}
 

@@ -17,6 +17,7 @@ package lxd
 import (
 	"context"
 	"fmt"
+	"log"
 	"sync"
 
 	"github.com/cloudbase/garm/config"
@@ -159,7 +160,7 @@ func (l *LXD) getProfiles(flavor string) ([]string, error) {
 	return ret, nil
 }
 
-func (l *LXD) getTools(image *api.Image, tools []*github.RunnerApplicationDownload) (github.RunnerApplicationDownload, error) {
+func (l *LXD) getTools(image *api.Image, tools []*github.RunnerApplicationDownload, assumedOSType params.OSType) (github.RunnerApplicationDownload, error) {
 	if image == nil {
 		return github.RunnerApplicationDownload{}, fmt.Errorf("nil image received")
 	}
@@ -170,7 +171,8 @@ func (l *LXD) getTools(image *api.Image, tools []*github.RunnerApplicationDownlo
 
 	osType, err := util.OSToOSType(osName)
 	if err != nil {
-		return github.RunnerApplicationDownload{}, errors.Wrap(err, "fetching OS type")
+		log.Printf("failed to determine OS type from image, assuming %s", assumedOSType)
+		osType = assumedOSType
 	}
 
 	// Validate image OS. Linux only for now.
@@ -232,7 +234,7 @@ func (l *LXD) getCreateInstanceArgs(bootstrapParams params.BootstrapInstance) (a
 		return api.InstancesPost{}, errors.Wrap(err, "getting image details")
 	}
 
-	tools, err := l.getTools(image, bootstrapParams.Tools)
+	tools, err := l.getTools(image, bootstrapParams.Tools, bootstrapParams.OSType)
 	if err != nil {
 		return api.InstancesPost{}, errors.Wrap(err, "getting tools")
 	}

@@ -610,6 +610,7 @@ func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error 
 		CallbackURL:   instance.CallbackURL,
 		InstanceToken: jwtToken,
 		OSArch:        pool.OSArch,
+		OSType:        pool.OSType,
 		Flavor:        pool.Flavor,
 		Image:         pool.Image,
 		ExtraSpecs:    pool.ExtraSpecs,
