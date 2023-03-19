@@ -417,7 +417,7 @@ func UTF16ToString(s []uint16) string {
 
 func Uint16ToByteArray(u []uint16) []byte {
 	ret := make([]byte, (len(u)-1)*2)
-	for i := 1; i < len(u)-1; i++ {
+	for i := 0; i < len(u)-1; i++ {
 		binary.LittleEndian.PutUint16(ret[i*2:], uint16(u[i]))
 	}
 	return ret
