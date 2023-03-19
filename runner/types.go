@@ -27,7 +27,8 @@ const (
 var (
 	// Linux only for now. Will add Windows soon. (famous last words?)
 	supportedOSType map[params.OSType]struct{} = map[params.OSType]struct{}{
-		params.Linux: {},
+		params.Linux:   {},
+		params.Windows: {},
 	}
 
 	// These are the architectures that Github supports.
