@@ -84,6 +84,10 @@ sudo -u {{ .RunnerUsername }} -- ./config.sh --unattended --url "{{ .RepoURL }}"
 sendStatus "installing runner service"
 ./svc.sh install {{ .RunnerUsername }} || fail "failed to install service"
 
+if [ -e "/sys/fs/selinux" ];then
+    sudo chcon -R -t bin_t /home/runner/
+fi
+
 sendStatus "starting service"
 ./svc.sh start || fail "failed to start service"
 
