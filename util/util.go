@@ -226,8 +226,6 @@ func GithubClient(ctx context.Context, token string, credsDetails params.GithubC
 }
 
 func GetCloudConfig(bootstrapParams params.BootstrapInstance, tools github.RunnerApplicationDownload, runnerName string) (string, error) {
-	cloudCfg := cloudconfig.NewDefaultCloudInitConfig()
-
 	if tools.Filename == nil {
 		return "", fmt.Errorf("missing tools filename")
 	}
@@ -254,27 +252,39 @@ func GetCloudConfig(bootstrapParams params.BootstrapInstance, tools github.Runne
 		CallbackURL:       bootstrapParams.CallbackURL,
 		CallbackToken:     bootstrapParams.InstanceToken,
 	}
+	if bootstrapParams.CACertBundle != nil && len(bootstrapParams.CACertBundle) > 0 {
+		installRunnerParams.CABundle = string(bootstrapParams.CACertBundle)
+	}
 
-	installScript, err := cloudconfig.InstallRunnerScript(installRunnerParams)
+	installScript, err := cloudconfig.InstallRunnerScript(installRunnerParams, bootstrapParams.OSType)
 	if err != nil {
 		return "", errors.Wrap(err, "generating script")
 	}
 
-	cloudCfg.AddSSHKey(bootstrapParams.SSHKeys...)
-	cloudCfg.AddFile(installScript, "/install_runner.sh", "root:root", "755")
-	cloudCfg.AddRunCmd("/install_runner.sh")
-	cloudCfg.AddRunCmd("rm -f /install_runner.sh")
-
-	if bootstrapParams.CACertBundle != nil && len(bootstrapParams.CACertBundle) > 0 {
-		if err := cloudCfg.AddCACert(bootstrapParams.CACertBundle); err != nil {
-			return "", errors.Wrap(err, "adding CA cert bundle")
+	var asStr string
+	switch bootstrapParams.OSType {
+	case params.Linux:
+		cloudCfg := cloudconfig.NewDefaultCloudInitConfig()
+		cloudCfg.AddSSHKey(bootstrapParams.SSHKeys...)
+		cloudCfg.AddFile(installScript, "/install_runner.sh", "root:root", "755")
+		cloudCfg.AddRunCmd("/install_runner.sh")
+		cloudCfg.AddRunCmd("rm -f /install_runner.sh")
+		if bootstrapParams.CACertBundle != nil && len(bootstrapParams.CACertBundle) > 0 {
+			if err := cloudCfg.AddCACert(bootstrapParams.CACertBundle); err != nil {
+				return "", errors.Wrap(err, "adding CA cert bundle")
+			}
 		}
+		var err error
+		asStr, err = cloudCfg.Serialize()
+		if err != nil {
+			return "", errors.Wrap(err, "creating cloud config")
+		}
+	case params.Windows:
+		asStr = string(installScript)
+	default:
+		return "", fmt.Errorf("unknown os type: %s", bootstrapParams.OSType)
 	}
 
-	asStr, err := cloudCfg.Serialize()
-	if err != nil {
-		return "", errors.Wrap(err, "creating cloud config")
-	}
 	return asStr, nil
 }
 
