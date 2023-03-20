@@ -39,6 +39,16 @@ const (
 	// created by us or not.
 	controllerIDKeyName = "user.runner-controller-id"
 	poolIDKey           = "user.runner-pool-id"
+
+	// osTypeKeyName is the key we use in the instance config to indicate the OS
+	// platform a runner is supposed to have. This value is defined in the pool and
+	// passed into the provider as bootstrap params.
+	osTypeKeyName = "user.os-type"
+
+	// osArchKeyNAme is the key we use in the instance config to indicate the OS
+	// architecture a runner is supposed to have. This value is defined in the pool and
+	// passed into the provider as bootstrap params.
+	osArchKeyNAme = "user.os-arch"
 )
 
 var (
@@ -246,6 +256,8 @@ func (l *LXD) getCreateInstanceArgs(bootstrapParams params.BootstrapInstance) (a
 
 	configMap := map[string]string{
 		"user.user-data":    cloudCfg,
+		osTypeKeyName:       string(bootstrapParams.OSType),
+		osArchKeyNAme:       string(bootstrapParams.OSArch),
 		controllerIDKeyName: l.controllerID,
 		poolIDKey:           bootstrapParams.PoolID,
 	}

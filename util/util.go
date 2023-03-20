@@ -94,12 +94,16 @@ var (
 		"windows": "win",
 	}
 
+	//
 	githubOSTag = map[params.OSType]string{
 		params.Linux:   "Linux",
 		params.Windows: "Windows",
 	}
 )
 
+// ResolveToGithubArch returns the cpu architecture as it is defined in the GitHub
+// tools download list. We use it to find the proper tools for the OS/Arch combo we're
+// deploying.
 func ResolveToGithubArch(arch string) (string, error) {
 	ghArch, ok := githubArchMapping[arch]
 	if !ok {
@@ -109,19 +113,25 @@ func ResolveToGithubArch(arch string) (string, error) {
 	return ghArch, nil
 }
 
-func ResolveToGithubTag(os params.OSType) (string, error) {
-	ghOS, ok := githubOSTag[os]
+// ResolveToGithubArch returns the OS type as it is defined in the GitHub
+// tools download list. We use it to find the proper tools for the OS/Arch combo we're
+// deploying.
+func ResolveToGithubOSType(osType string) (string, error) {
+	ghOS, ok := githubOSTypeMap[osType]
 	if !ok {
-		return "", runnerErrors.NewNotFoundError("os %s is unknown", os)
+		return "", runnerErrors.NewNotFoundError("os %s is unknown", osType)
 	}
 
 	return ghOS, nil
 }
 
-func ResolveToGithubOSType(osType string) (string, error) {
-	ghOS, ok := githubOSTypeMap[osType]
+// ResolveToGithubTag returns the default OS tag that self hosted runners automatically
+// (and forcefully) adds to every runner that gets deployed. We need to keep track of those
+// tags internally as well.
+func ResolveToGithubTag(os params.OSType) (string, error) {
+	ghOS, ok := githubOSTag[os]
 	if !ok {
-		return "", runnerErrors.NewNotFoundError("os %s is unknown", osType)
+		return "", runnerErrors.NewNotFoundError("os %s is unknown", os)
 	}
 
 	return ghOS, nil
