@@ -1032,11 +1032,11 @@ func (r *basePoolManager) deletePendingInstances() {
 
 			err = r.deleteInstanceFromProvider(instance)
 			if err != nil {
-				log.Printf("failed to delete instance from provider: %+v", err)
+				return errors.Wrap(err, "removing instance from provider")
 			}
 
-			if err := r.store.DeleteInstance(r.ctx, instance.PoolID, instance.Name); err != nil {
-				return errors.Wrap(err, "deleting instance from database")
+			if deleteErr := r.store.DeleteInstance(r.ctx, instance.PoolID, instance.Name); deleteErr != nil {
+				return errors.Wrap(deleteErr, "deleting instance from database")
 			}
 			return
 		}(instance) //nolint

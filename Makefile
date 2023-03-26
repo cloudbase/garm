@@ -19,7 +19,7 @@ build-static:
 	@echo Binaries are available in $(PWD)/bin
 
 install:
-	@$(GO) install ./...
+	@$(GO) install -tags osusergo,netgo,sqlite_omit_load_extension ./...
 	@echo Binaries available in ${GOPATH}
 
 test: verify go-test

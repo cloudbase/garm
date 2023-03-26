@@ -150,6 +150,7 @@ var InstanceConfigKeysAny = map[string]func(value string) error{
 	"volatile.apply_quota":            validate.IsAny,
 	"volatile.uuid":                   validate.Optional(validate.IsUUID),
 	"volatile.vsock_id":               validate.Optional(validate.IsInt64),
+	"volatile.uuid.generation":        validate.Optional(validate.IsUUID),
 
 	// Caller is responsible for full validation of any raw.* value.
 	"raw.idmap": validate.IsAny,
@@ -256,8 +257,12 @@ var InstanceConfigKeysVM = map[string]func(value string) error{
 	"raw.qemu":      validate.IsAny,
 	"raw.qemu.conf": validate.IsAny,
 
-	"security.agent.metrics": validate.Optional(validate.IsBool),
-	"security.secureboot":    validate.Optional(validate.IsBool),
+	"security.agent.metrics":    validate.Optional(validate.IsBool),
+	"security.secureboot":       validate.Optional(validate.IsBool),
+	"security.sev":              validate.Optional(validate.IsBool),
+	"security.sev.policy.es":    validate.Optional(validate.IsBool),
+	"security.sev.session.dh":   validate.Optional(validate.IsAny),
+	"security.sev.session.data": validate.Optional(validate.IsAny),
 
 	"agent.nic_config": validate.Optional(validate.IsBool),
 

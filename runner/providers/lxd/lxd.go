@@ -384,11 +384,17 @@ func (l *LXD) DeleteInstance(ctx context.Context, instance string) error {
 
 	op, err := cli.DeleteInstance(instance)
 	if err != nil {
+		if isNotFoundError(err) {
+			return nil
+		}
 		return errors.Wrap(err, "removing instance")
 	}
 
 	err = op.Wait()
 	if err != nil {
+		if isNotFoundError(err) {
+			return nil
+		}
 		return errors.Wrap(err, "waiting for instance deletion")
 	}
 	return nil

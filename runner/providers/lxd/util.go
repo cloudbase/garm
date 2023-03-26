@@ -38,7 +38,8 @@ import (
 )
 
 var (
-	errInstanceIsStopped error = fmt.Errorf("The instance is already stopped") //nolint
+	//lint:ignore ST1005 imported error from lxd
+	errInstanceIsStopped error = fmt.Errorf("The instance is already stopped")
 )
 
 var httpResponseErrors = map[int][]error{

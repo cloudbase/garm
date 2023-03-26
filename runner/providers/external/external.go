@@ -12,7 +12,7 @@ import (
 	"github.com/cloudbase/garm/runner/common"
 	providerCommon "github.com/cloudbase/garm/runner/providers/common"
 	"github.com/cloudbase/garm/runner/providers/external/execution"
-	"github.com/cloudbase/garm/util/exec"
+	garmExec "github.com/cloudbase/garm/util/exec"
 
 	"github.com/pkg/errors"
 )
@@ -77,7 +77,7 @@ func (e *external) CreateInstance(ctx context.Context, bootstrapParams params.Bo
 		return params.Instance{}, errors.Wrap(err, "serializing bootstrap params")
 	}
 
-	out, err := exec.Exec(ctx, e.execPath, asJs, asEnv)
+	out, err := garmExec.Exec(ctx, e.execPath, asJs, asEnv)
 	if err != nil {
 		return params.Instance{}, garmErrors.NewProviderError("provider binary %s returned error: %s", e.execPath, err)
 	}
@@ -105,7 +105,7 @@ func (e *external) DeleteInstance(ctx context.Context, instance string) error {
 		fmt.Sprintf("GARM_PROVIDER_CONFIG_FILE=%s", e.cfg.External.ConfigFile),
 	}
 
-	_, err := exec.Exec(ctx, e.execPath, nil, asEnv)
+	_, err := garmExec.Exec(ctx, e.execPath, nil, asEnv)
 	if err != nil {
 		return garmErrors.NewProviderError("provider binary %s returned error: %s", e.execPath, err)
 	}
@@ -123,7 +123,7 @@ func (e *external) GetInstance(ctx context.Context, instance string) (params.Ins
 
 	// TODO(gabriel-samfira): handle error types. Of particular insterest is to
 	// know when the error is ErrNotFound.
-	out, err := exec.Exec(ctx, e.execPath, nil, asEnv)
+	out, err := garmExec.Exec(ctx, e.execPath, nil, asEnv)
 	if err != nil {
 		return params.Instance{}, garmErrors.NewProviderError("provider binary %s returned error: %s", e.execPath, err)
 	}
@@ -144,7 +144,7 @@ func (e *external) ListInstances(ctx context.Context, poolID string) ([]params.I
 		fmt.Sprintf("GARM_PROVIDER_CONFIG_FILE=%s", e.cfg.External.ConfigFile),
 	}
 
-	out, err := exec.Exec(ctx, e.execPath, nil, asEnv)
+	out, err := garmExec.Exec(ctx, e.execPath, nil, asEnv)
 	if err != nil {
 		return []params.Instance{}, garmErrors.NewProviderError("provider binary %s returned error: %s", e.execPath, err)
 	}
@@ -163,7 +163,7 @@ func (e *external) RemoveAllInstances(ctx context.Context) error {
 		fmt.Sprintf("GARM_CONTROLLER_ID=%s", e.controllerID),
 		fmt.Sprintf("GARM_PROVIDER_CONFIG_FILE=%s", e.cfg.External.ConfigFile),
 	}
-	_, err := exec.Exec(ctx, e.execPath, nil, asEnv)
+	_, err := garmExec.Exec(ctx, e.execPath, nil, asEnv)
 	if err != nil {
 		return garmErrors.NewProviderError("provider binary %s returned error: %s", e.execPath, err)
 	}
@@ -178,7 +178,7 @@ func (e *external) Stop(ctx context.Context, instance string, force bool) error 
 		fmt.Sprintf("GARM_INSTANCE_ID=%s", instance),
 		fmt.Sprintf("GARM_PROVIDER_CONFIG_FILE=%s", e.cfg.External.ConfigFile),
 	}
-	_, err := exec.Exec(ctx, e.execPath, nil, asEnv)
+	_, err := garmExec.Exec(ctx, e.execPath, nil, asEnv)
 	if err != nil {
 		return garmErrors.NewProviderError("provider binary %s returned error: %s", e.execPath, err)
 	}
@@ -193,7 +193,7 @@ func (e *external) Start(ctx context.Context, instance string) error {
 		fmt.Sprintf("GARM_INSTANCE_ID=%s", instance),
 		fmt.Sprintf("GARM_PROVIDER_CONFIG_FILE=%s", e.cfg.External.ConfigFile),
 	}
-	_, err := exec.Exec(ctx, e.execPath, nil, asEnv)
+	_, err := garmExec.Exec(ctx, e.execPath, nil, asEnv)
 	if err != nil {
 		return garmErrors.NewProviderError("provider binary %s returned error: %s", e.execPath, err)
 	}
