@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os/exec"
 
 	"github.com/cloudbase/garm/config"
 	garmErrors "github.com/cloudbase/garm/errors"
@@ -107,7 +108,11 @@ func (e *external) DeleteInstance(ctx context.Context, instance string) error {
 
 	_, err := garmExec.Exec(ctx, e.execPath, nil, asEnv)
 	if err != nil {
-		return garmErrors.NewProviderError("provider binary %s returned error: %s", e.execPath, err)
+		var exitErr exec.ExitError
+		if !errors.As(err, &exitErr) || exitErr.ExitCode() != execution.ExitCodeNotFound {
+			return garmErrors.NewProviderError("provider binary %s returned error: %s", e.execPath, err)
+		}
+
 	}
 	return nil
 }
