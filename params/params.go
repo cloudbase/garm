@@ -90,37 +90,61 @@ type StatusMessage struct {
 type Instance struct {
 	// ID is the database ID of this instance.
 	ID string `json:"id,omitempty"`
+
 	// PeoviderID is the unique ID the provider associated
 	// with the compute instance. We use this to identify the
 	// instance in the provider.
 	ProviderID string `json:"provider_id,omitempty"`
+
 	// AgentID is the github runner agent ID.
 	AgentID int64 `json:"agent_id"`
+
 	// Name is the name associated with an instance. Depending on
 	// the provider, this may or may not be useful in the context of
 	// the provider, but we can use it internally to identify the
 	// instance.
 	Name string `json:"name,omitempty"`
+
 	// OSType is the operating system type. For now, only Linux and
 	// Windows are supported.
 	OSType OSType `json:"os_type,omitempty"`
+
 	// OSName is the name of the OS. Eg: ubuntu, centos, etc.
 	OSName string `json:"os_name,omitempty"`
+
 	// OSVersion is the version of the operating system.
 	OSVersion string `json:"os_version,omitempty"`
+
 	// OSArch is the operating system architecture.
 	OSArch OSArch `json:"os_arch,omitempty"`
+
 	// Addresses is a list of IP addresses the provider reports
 	// for this instance.
 	Addresses []Address `json:"addresses,omitempty"`
-	// Status is the status of the instance inside the provider (eg: running, stopped, etc)
-	Status        common.InstanceStatus `json:"status,omitempty"`
-	RunnerStatus  common.RunnerStatus   `json:"runner_status,omitempty"`
-	PoolID        string                `json:"pool_id,omitempty"`
-	ProviderFault []byte                `json:"provider_fault,omitempty"`
 
+	// Status is the status of the instance inside the provider (eg: running, stopped, etc)
+	Status common.InstanceStatus `json:"status,omitempty"`
+
+	// RunnerStatus is the github runner status as it appears on GitHub.
+	RunnerStatus common.RunnerStatus `json:"runner_status,omitempty"`
+
+	// PoolID is the ID of the garm pool to which a runner belongs.
+	PoolID string `json:"pool_id,omitempty"`
+
+	// ProviderFault holds any error messages captured from the IaaS provider that is
+	// responsible for managing the lifecycle of the runner.
+	ProviderFault []byte `json:"provider_fault,omitempty"`
+
+	// StatusMessages is a list of status messages sent back by the runner as it sets itself
+	// up.
 	StatusMessages []StatusMessage `json:"status_messages,omitempty"`
-	UpdatedAt      time.Time       `json:"updated_at"`
+
+	// UpdatedAt is the timestamp of the last update to this runner.
+	UpdatedAt time.Time `json:"updated_at"`
+
+	// GithubRunnerGroup is the github runner group to which the runner belongs.
+	// The runner group must be created by someone with access to the enterprise.
+	GitHubRunnerGroup string `json:"github-runner-group"`
 
 	// Do not serialize sensitive info.
 	CallbackURL   string `json:"-"`
@@ -160,14 +184,36 @@ type BootstrapInstance struct {
 	// all. We only validate that it's a proper json.
 	ExtraSpecs json.RawMessage `json:"extra_specs,omitempty"`
 
+	// GitHubRunnerGroup is the github runner group in which the newly installed runner
+	// should be added to. The runner group must be created by someone with access to the
+	// enterprise.
+	GitHubRunnerGroup string `json:"github-runner-group"`
+
+	// CACertBundle is a CA certificate bundle which will be sent to instances and which
+	// will tipically be installed as a system wide trusted root CA. by either cloud-init
+	// or whatever mechanism the provider will use to set up the runner.
 	CACertBundle []byte `json:"ca-cert-bundle"`
 
-	OSArch OSArch   `json:"arch"`
-	OSType OSType   `json:"os_type"`
-	Flavor string   `json:"flavor"`
-	Image  string   `json:"image"`
+	// OSArch is the target OS CPU architecture of the runner.
+	OSArch OSArch `json:"arch"`
+
+	// OSType is the target OS platform of the runner (windows, linux).
+	OSType OSType `json:"os_type"`
+
+	// Flavor is the platform specific abstraction that defines what resources will be allocated
+	// to the runner (CPU, RAM, disk space, etc). This field is meaningful to the provider which
+	// handles the actual creation.
+	Flavor string `json:"flavor"`
+
+	// Image is the platform specific identifier of the operating system template that will be used
+	// to spin up a new machine.
+	Image string `json:"image"`
+
+	// Labels are a list of github runner labels that will be added to the runner.
 	Labels []string `json:"labels"`
-	PoolID string   `json:"pool_id"`
+
+	// PoolID is the ID of the garm pool to which this runner belongs.
+	PoolID string `json:"pool_id"`
 }
 
 type Tag struct {
@@ -202,6 +248,9 @@ type Pool struct {
 	// nothing to garm itself. We don't act on the information in this field at
 	// all. We only validate that it's a proper json.
 	ExtraSpecs json.RawMessage `json:"extra_specs,omitempty"`
+	// GithubRunnerGroup is the github runner group in which the runners will be added.
+	// The runner group must be created by someone with access to the enterprise.
+	GitHubRunnerGroup string `json:"github-runner-group"`
 }
 
 func (p Pool) GetID() string {

@@ -417,14 +417,15 @@ func (r *basePoolManager) AddRunner(ctx context.Context, poolID string) error {
 	name := fmt.Sprintf("%s-%s", pool.GetRunnerPrefix(), util.NewID())
 
 	createParams := params.CreateInstanceParams{
-		Name:          name,
-		Status:        providerCommon.InstancePendingCreate,
-		RunnerStatus:  providerCommon.RunnerPending,
-		OSArch:        pool.OSArch,
-		OSType:        pool.OSType,
-		CallbackURL:   r.helper.GetCallbackURL(),
-		MetadataURL:   r.helper.GetMetadataURL(),
-		CreateAttempt: 1,
+		Name:              name,
+		Status:            providerCommon.InstancePendingCreate,
+		RunnerStatus:      providerCommon.RunnerPending,
+		OSArch:            pool.OSArch,
+		OSType:            pool.OSType,
+		CallbackURL:       r.helper.GetCallbackURL(),
+		MetadataURL:       r.helper.GetMetadataURL(),
+		CreateAttempt:     1,
+		GitHubRunnerGroup: pool.GitHubRunnerGroup,
 	}
 
 	_, err = r.store.CreateInstance(r.ctx, poolID, createParams)
@@ -603,20 +604,21 @@ func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error 
 	}
 
 	bootstrapArgs := params.BootstrapInstance{
-		Name:          instance.Name,
-		Tools:         r.tools,
-		RepoURL:       r.helper.GithubURL(),
-		MetadataURL:   instance.MetadataURL,
-		CallbackURL:   instance.CallbackURL,
-		InstanceToken: jwtToken,
-		OSArch:        pool.OSArch,
-		OSType:        pool.OSType,
-		Flavor:        pool.Flavor,
-		Image:         pool.Image,
-		ExtraSpecs:    pool.ExtraSpecs,
-		Labels:        labels,
-		PoolID:        instance.PoolID,
-		CACertBundle:  r.credsDetails.CABundle,
+		Name:              instance.Name,
+		Tools:             r.tools,
+		RepoURL:           r.helper.GithubURL(),
+		MetadataURL:       instance.MetadataURL,
+		CallbackURL:       instance.CallbackURL,
+		InstanceToken:     jwtToken,
+		OSArch:            pool.OSArch,
+		OSType:            pool.OSType,
+		Flavor:            pool.Flavor,
+		Image:             pool.Image,
+		ExtraSpecs:        pool.ExtraSpecs,
+		Labels:            labels,
+		PoolID:            instance.PoolID,
+		CACertBundle:      r.credsDetails.CABundle,
+		GitHubRunnerGroup: instance.GitHubRunnerGroup,
 	}
 
 	var instanceIDToDelete string

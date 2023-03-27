@@ -63,6 +63,15 @@ function fail() {
 sendStatus "downloading tools from {{ .DownloadURL }}"
 
 TEMP_TOKEN=""
+GH_RUNNER_GROUP="{{.GitHubRunnerGroup}}"
+
+# $RUNNER_GROUP_OPT will be added to the config.sh line. If it's empty, nothing happens
+# if it holds a value, it will be part of the command.
+RUNNER_GROUP_OPT=""
+if [ ! -z $GH_RUNNER_GROUP ]
+    RUNNER_GROUP_OPT="--runnergroup=$GH_RUNNER_GROUP"
+fi
+
 
 if [ ! -z "{{ .TempDownloadToken }}" ]; then
 	TEMP_TOKEN="Authorization: Bearer {{ .TempDownloadToken }}"
@@ -81,7 +90,7 @@ cd /home/{{ .RunnerUsername }}/actions-runner
 sudo ./bin/installdependencies.sh || fail "failed to install dependencies"
 
 sendStatus "configuring runner"
-sudo -u {{ .RunnerUsername }} -- ./config.sh --unattended --url "{{ .RepoURL }}" --token "$GITHUB_TOKEN" --name "{{ .RunnerName }}" --labels "{{ .RunnerLabels }}" --ephemeral || fail "failed to configure runner"
+sudo -u {{ .RunnerUsername }} -- ./config.sh --unattended --url "{{ .RepoURL }}" --token "$GITHUB_TOKEN" $RUNNER_GROUP_OPT --name "{{ .RunnerName }}" --labels "{{ .RunnerLabels }}" --ephemeral || fail "failed to configure runner"
 
 sendStatus "installing runner service"
 ./svc.sh install {{ .RunnerUsername }} || fail "failed to install service"
@@ -274,6 +283,7 @@ function Invoke-GarmFailure() {
 $PEMData = @"
 {{.CABundle}}
 "@
+$GHRunnerGroup = "{{.GitHubRunnerGroup}}"
 
 function Install-Runner() {
 	$CallbackURL="{{.CallbackURL}}"
@@ -311,10 +321,13 @@ function Install-Runner() {
 		Update-GarmStatus -CallbackURL $CallbackURL -Message "extracting runner"
 		Add-Type -AssemblyName System.IO.Compression.FileSystem
 		[System.IO.Compression.ZipFile]::ExtractToDirectory($downloadPath, "$runnerDir")
-
+		$runnerGroupOpt = ""
+		if ($GHRunnerGroup.Length -gt 0){
+			$runnerGroupOpt = "--runnergroup $GHRunnerGroup"
+		}
 		Update-GarmStatus -CallbackURL $CallbackURL -Message "configuring and starting runner"
 		cd $runnerDir
-		./config.cmd --unattended --url "{{ .RepoURL }}" --token $GithubRegistrationToken --name "{{ .RunnerName }}" --labels "{{ .RunnerLabels }}" --ephemeral --runasservice
+		./config.cmd --unattended --url "{{ .RepoURL }}" --token $GithubRegistrationToken $runnerGroupOpt --name "{{ .RunnerName }}" --labels "{{ .RunnerLabels }}" --ephemeral --runasservice
 
 		$agentInfoFile = Join-Path $runnerDir ".runner"
 		$agentInfo = ConvertFrom-Json (gc -raw $agentInfoFile)
@@ -339,6 +352,7 @@ type InstallRunnerParams struct {
 	CallbackToken     string
 	TempDownloadToken string
 	CABundle          string
+	GitHubRunnerGroup string
 }
 
 func InstallRunnerScript(installParams InstallRunnerParams, osType params.OSType) ([]byte, error) {

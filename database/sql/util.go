@@ -33,23 +33,24 @@ func (s *sqlDatabase) sqlToParamsInstance(instance Instance) params.Instance {
 		id = *instance.ProviderID
 	}
 	ret := params.Instance{
-		ID:             instance.ID.String(),
-		ProviderID:     id,
-		AgentID:        instance.AgentID,
-		Name:           instance.Name,
-		OSType:         instance.OSType,
-		OSName:         instance.OSName,
-		OSVersion:      instance.OSVersion,
-		OSArch:         instance.OSArch,
-		Status:         instance.Status,
-		RunnerStatus:   instance.RunnerStatus,
-		PoolID:         instance.PoolID.String(),
-		CallbackURL:    instance.CallbackURL,
-		MetadataURL:    instance.MetadataURL,
-		StatusMessages: []params.StatusMessage{},
-		CreateAttempt:  instance.CreateAttempt,
-		UpdatedAt:      instance.UpdatedAt,
-		TokenFetched:   instance.TokenFetched,
+		ID:                instance.ID.String(),
+		ProviderID:        id,
+		AgentID:           instance.AgentID,
+		Name:              instance.Name,
+		OSType:            instance.OSType,
+		OSName:            instance.OSName,
+		OSVersion:         instance.OSVersion,
+		OSArch:            instance.OSArch,
+		Status:            instance.Status,
+		RunnerStatus:      instance.RunnerStatus,
+		PoolID:            instance.PoolID.String(),
+		CallbackURL:       instance.CallbackURL,
+		MetadataURL:       instance.MetadataURL,
+		StatusMessages:    []params.StatusMessage{},
+		CreateAttempt:     instance.CreateAttempt,
+		UpdatedAt:         instance.UpdatedAt,
+		TokenFetched:      instance.TokenFetched,
+		GitHubRunnerGroup: instance.GitHubRunnerGroup,
 	}
 
 	if len(instance.ProviderFault) > 0 {
@@ -144,6 +145,7 @@ func (s *sqlDatabase) sqlToCommonPool(pool Pool) params.Pool {
 		Instances:              make([]params.Instance, len(pool.Instances)),
 		RunnerBootstrapTimeout: pool.RunnerBootstrapTimeout,
 		ExtraSpecs:             json.RawMessage(pool.ExtraSpecs),
+		GitHubRunnerGroup:      pool.GitHubRunnerGroup,
 	}
 
 	if pool.RepoID != uuid.Nil {
@@ -279,6 +281,10 @@ func (s *sqlDatabase) updatePool(pool Pool, param params.UpdatePoolParams) (para
 
 	if param.RunnerBootstrapTimeout != nil && *param.RunnerBootstrapTimeout > 0 {
 		pool.RunnerBootstrapTimeout = *param.RunnerBootstrapTimeout
+	}
+
+	if param.GitHubRunnerGroup != nil {
+		pool.GitHubRunnerGroup = *param.GitHubRunnerGroup
 	}
 
 	if q := s.conn.Save(&pool); q.Error != nil {

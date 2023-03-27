@@ -128,7 +128,7 @@ func (s *PoolsTestSuite) TestListAllPools() {
 
 func (s *PoolsTestSuite) TestListAllPoolsDBFetchErr() {
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT `pools`.`id`,`pools`.`created_at`,`pools`.`updated_at`,`pools`.`deleted_at`,`pools`.`provider_name`,`pools`.`runner_prefix`,`pools`.`max_runners`,`pools`.`min_idle_runners`,`pools`.`runner_bootstrap_timeout`,`pools`.`image`,`pools`.`flavor`,`pools`.`os_type`,`pools`.`os_arch`,`pools`.`enabled`,`pools`.`repo_id`,`pools`.`org_id`,`pools`.`enterprise_id` FROM `pools` WHERE `pools`.`deleted_at` IS NULL")).
+		ExpectQuery(regexp.QuoteMeta("SELECT `pools`.`id`,`pools`.`created_at`,`pools`.`updated_at`,`pools`.`deleted_at`,`pools`.`provider_name`,`pools`.`runner_prefix`,`pools`.`max_runners`,`pools`.`min_idle_runners`,`pools`.`runner_bootstrap_timeout`,`pools`.`image`,`pools`.`flavor`,`pools`.`os_type`,`pools`.`os_arch`,`pools`.`enabled`,`pools`.`git_hub_runner_group`,`pools`.`repo_id`,`pools`.`org_id`,`pools`.`enterprise_id` FROM `pools` WHERE `pools`.`deleted_at` IS NULL")).
 		WillReturnError(fmt.Errorf("mocked fetching all pools error"))
 
 	_, err := s.StoreSQLMocked.ListAllPools(context.Background())

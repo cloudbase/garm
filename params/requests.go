@@ -118,17 +118,24 @@ type UpdatePoolParams struct {
 	OSType                 OSType          `json:"os_type"`
 	OSArch                 OSArch          `json:"os_arch"`
 	ExtraSpecs             json.RawMessage `json:"extra_specs,omitempty"`
+	// GithubRunnerGroup is the github runner group in which the runners of this
+	// pool will be added to.
+	// The runner group must be created by someone with access to the enterprise.
+	GitHubRunnerGroup *string `json:"github-runner-group,omitempty"`
 }
 
 type CreateInstanceParams struct {
-	Name          string
-	OSType        OSType
-	OSArch        OSArch
-	Status        common.InstanceStatus
-	RunnerStatus  common.RunnerStatus
-	CallbackURL   string
-	MetadataURL   string
-	CreateAttempt int `json:"-"`
+	Name         string
+	OSType       OSType
+	OSArch       OSArch
+	Status       common.InstanceStatus
+	RunnerStatus common.RunnerStatus
+	CallbackURL  string
+	MetadataURL  string
+	// GithubRunnerGroup is the github runner group to which the runner belongs.
+	// The runner group must be created by someone with access to the enterprise.
+	GitHubRunnerGroup string
+	CreateAttempt     int `json:"-"`
 }
 
 type CreatePoolParams struct {
@@ -145,6 +152,10 @@ type CreatePoolParams struct {
 	Enabled                bool            `json:"enabled"`
 	RunnerBootstrapTimeout uint            `json:"runner_bootstrap_timeout"`
 	ExtraSpecs             json.RawMessage `json:"extra_specs,omitempty"`
+	// GithubRunnerGroup is the github runner group in which the runners of this
+	// pool will be added to.
+	// The runner group must be created by someone with access to the enterprise.
+	GitHubRunnerGroup string `json:"github-runner-group"`
 }
 
 func (p *CreatePoolParams) Validate() error {
