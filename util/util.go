@@ -15,6 +15,8 @@
 package util
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/aes"
 	"crypto/cipher"
@@ -22,6 +24,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"math/big"
@@ -31,6 +34,7 @@ import (
 	"regexp"
 	"strings"
 	"unicode"
+	"unicode/utf16"
 
 	"github.com/cloudbase/garm/cloudconfig"
 	"github.com/cloudbase/garm/config"
@@ -89,8 +93,17 @@ var (
 		"linux":   "linux",
 		"windows": "win",
 	}
+
+	//
+	githubOSTag = map[params.OSType]string{
+		params.Linux:   "Linux",
+		params.Windows: "Windows",
+	}
 )
 
+// ResolveToGithubArch returns the cpu architecture as it is defined in the GitHub
+// tools download list. We use it to find the proper tools for the OS/Arch combo we're
+// deploying.
 func ResolveToGithubArch(arch string) (string, error) {
 	ghArch, ok := githubArchMapping[arch]
 	if !ok {
@@ -100,10 +113,25 @@ func ResolveToGithubArch(arch string) (string, error) {
 	return ghArch, nil
 }
 
+// ResolveToGithubArch returns the OS type as it is defined in the GitHub
+// tools download list. We use it to find the proper tools for the OS/Arch combo we're
+// deploying.
 func ResolveToGithubOSType(osType string) (string, error) {
 	ghOS, ok := githubOSTypeMap[osType]
 	if !ok {
 		return "", runnerErrors.NewNotFoundError("os %s is unknown", osType)
+	}
+
+	return ghOS, nil
+}
+
+// ResolveToGithubTag returns the default OS tag that self hosted runners automatically
+// (and forcefully) adds to every runner that gets deployed. We need to keep track of those
+// tags internally as well.
+func ResolveToGithubTag(os params.OSType) (string, error) {
+	ghOS, ok := githubOSTag[os]
+	if !ok {
+		return "", runnerErrors.NewNotFoundError("os %s is unknown", os)
 	}
 
 	return ghOS, nil
@@ -198,8 +226,6 @@ func GithubClient(ctx context.Context, token string, credsDetails params.GithubC
 }
 
 func GetCloudConfig(bootstrapParams params.BootstrapInstance, tools github.RunnerApplicationDownload, runnerName string) (string, error) {
-	cloudCfg := cloudconfig.NewDefaultCloudInitConfig()
-
 	if tools.Filename == nil {
 		return "", fmt.Errorf("missing tools filename")
 	}
@@ -225,29 +251,84 @@ func GetCloudConfig(bootstrapParams params.BootstrapInstance, tools github.Runne
 		RunnerLabels:      strings.Join(bootstrapParams.Labels, ","),
 		CallbackURL:       bootstrapParams.CallbackURL,
 		CallbackToken:     bootstrapParams.InstanceToken,
+		GitHubRunnerGroup: bootstrapParams.GitHubRunnerGroup,
+	}
+	if bootstrapParams.CACertBundle != nil && len(bootstrapParams.CACertBundle) > 0 {
+		installRunnerParams.CABundle = string(bootstrapParams.CACertBundle)
 	}
 
-	installScript, err := cloudconfig.InstallRunnerScript(installRunnerParams)
+	installScript, err := cloudconfig.InstallRunnerScript(installRunnerParams, bootstrapParams.OSType)
 	if err != nil {
 		return "", errors.Wrap(err, "generating script")
 	}
 
-	cloudCfg.AddSSHKey(bootstrapParams.SSHKeys...)
-	cloudCfg.AddFile(installScript, "/install_runner.sh", "root:root", "755")
-	cloudCfg.AddRunCmd("/install_runner.sh")
-	cloudCfg.AddRunCmd("rm -f /install_runner.sh")
+	var asStr string
+	switch bootstrapParams.OSType {
+	case params.Linux:
+		cloudCfg := cloudconfig.NewDefaultCloudInitConfig()
+		cloudCfg.AddSSHKey(bootstrapParams.SSHKeys...)
+		cloudCfg.AddFile(installScript, "/install_runner.sh", "root:root", "755")
+		cloudCfg.AddRunCmd("/install_runner.sh")
+		cloudCfg.AddRunCmd("rm -f /install_runner.sh")
+		if bootstrapParams.CACertBundle != nil && len(bootstrapParams.CACertBundle) > 0 {
+			if err := cloudCfg.AddCACert(bootstrapParams.CACertBundle); err != nil {
+				return "", errors.Wrap(err, "adding CA cert bundle")
+			}
+		}
+		var err error
+		asStr, err = cloudCfg.Serialize()
+		if err != nil {
+			return "", errors.Wrap(err, "creating cloud config")
+		}
+	case params.Windows:
+		asStr = string(installScript)
+	default:
+		return "", fmt.Errorf("unknown os type: %s", bootstrapParams.OSType)
+	}
 
-	if bootstrapParams.CACertBundle != nil && len(bootstrapParams.CACertBundle) > 0 {
-		if err := cloudCfg.AddCACert(bootstrapParams.CACertBundle); err != nil {
-			return "", errors.Wrap(err, "adding CA cert bundle")
+	return asStr, nil
+}
+
+func GetTools(osType params.OSType, osArch params.OSArch, tools []*github.RunnerApplicationDownload) (github.RunnerApplicationDownload, error) {
+	// Validate image OS. Linux only for now.
+	switch osType {
+	case params.Linux:
+	case params.Windows:
+	default:
+		return github.RunnerApplicationDownload{}, fmt.Errorf("unsupported OS type: %s", osType)
+	}
+
+	switch osArch {
+	case params.Amd64:
+	case params.Arm:
+	case params.Arm64:
+	default:
+		return github.RunnerApplicationDownload{}, fmt.Errorf("unsupported OS arch: %s", osArch)
+	}
+
+	// Find tools for OS/Arch.
+	for _, tool := range tools {
+		if tool == nil {
+			continue
+		}
+		if tool.OS == nil || tool.Architecture == nil {
+			continue
+		}
+
+		ghArch, err := ResolveToGithubArch(string(osArch))
+		if err != nil {
+			continue
+		}
+
+		ghOS, err := ResolveToGithubOSType(string(osType))
+		if err != nil {
+			continue
+		}
+		if *tool.Architecture == ghArch && *tool.OS == ghOS {
+			return *tool, nil
 		}
 	}
-
-	asStr, err := cloudCfg.Serialize()
-	if err != nil {
-		return "", errors.Wrap(err, "creating cloud config")
-	}
-	return asStr, nil
+	return github.RunnerApplicationDownload{}, fmt.Errorf("failed to find tools for OS %s and arch %s", osType, osArch)
 }
 
 // GetRandomString returns a secure random string
@@ -349,4 +430,59 @@ func NewID() string {
 	}
 	newUUID := uuid.New()
 	return toBase62(newUUID[:])
+}
+
+func UTF16FromString(s string) ([]uint16, error) {
+	buf := make([]uint16, 0, len(s)*2+1)
+	for _, r := range s {
+		buf = utf16.AppendRune(buf, r)
+	}
+	return utf16.AppendRune(buf, '\x00'), nil
+}
+
+func UTF16ToString(s []uint16) string {
+	for i, v := range s {
+		if v == 0 {
+			s = s[0:i]
+			break
+		}
+	}
+	return string(utf16.Decode(s))
+}
+
+func Uint16ToByteArray(u []uint16) []byte {
+	ret := make([]byte, (len(u)-1)*2)
+	for i := 0; i < len(u)-1; i++ {
+		binary.LittleEndian.PutUint16(ret[i*2:], uint16(u[i]))
+	}
+	return ret
+}
+
+func UTF16EncodedByteArrayFromString(s string) ([]byte, error) {
+	asUint16, err := UTF16FromString(s)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode to uint16: %w", err)
+	}
+	asBytes := Uint16ToByteArray(asUint16)
+	return asBytes, nil
+}
+
+func CompressData(data []byte) ([]byte, error) {
+	var b bytes.Buffer
+	gz := gzip.NewWriter(&b)
+
+	_, err := gz.Write(data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to compress data: %w", err)
+	}
+
+	if err = gz.Flush(); err != nil {
+		return nil, fmt.Errorf("failed to flush buffer: %w", err)
+	}
+
+	if err = gz.Close(); err != nil {
+		return nil, fmt.Errorf("failed to close buffer: %w", err)
+	}
+
+	return b.Bytes(), nil
 }

@@ -70,7 +70,8 @@ type Pool struct {
 	// ExtraSpecs is an opaque json that gets sent to the provider
 	// as part of the bootstrap params for instances. It can contain
 	// any kind of data needed by providers.
-	ExtraSpecs datatypes.JSON
+	ExtraSpecs        datatypes.JSON
+	GitHubRunnerGroup string
 
 	RepoID     uuid.UUID  `gorm:"index"`
 	Repository Repository `gorm:"foreignKey:RepoID"`
@@ -136,21 +137,22 @@ type InstanceStatusUpdate struct {
 type Instance struct {
 	Base
 
-	ProviderID    *string `gorm:"uniqueIndex"`
-	Name          string  `gorm:"uniqueIndex"`
-	AgentID       int64
-	OSType        params.OSType
-	OSArch        params.OSArch
-	OSName        string
-	OSVersion     string
-	Addresses     []Address `gorm:"foreignKey:InstanceID"`
-	Status        common.InstanceStatus
-	RunnerStatus  common.RunnerStatus
-	CallbackURL   string
-	MetadataURL   string
-	ProviderFault []byte `gorm:"type:longblob"`
-	CreateAttempt int
-	TokenFetched  bool
+	ProviderID        *string `gorm:"uniqueIndex"`
+	Name              string  `gorm:"uniqueIndex"`
+	AgentID           int64
+	OSType            params.OSType
+	OSArch            params.OSArch
+	OSName            string
+	OSVersion         string
+	Addresses         []Address `gorm:"foreignKey:InstanceID"`
+	Status            common.InstanceStatus
+	RunnerStatus      common.RunnerStatus
+	CallbackURL       string
+	MetadataURL       string
+	ProviderFault     []byte `gorm:"type:longblob"`
+	CreateAttempt     int
+	TokenFetched      bool
+	GitHubRunnerGroup string
 
 	PoolID uuid.UUID
 	Pool   Pool `gorm:"foreignKey:PoolID"`

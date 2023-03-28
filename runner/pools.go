@@ -101,7 +101,7 @@ func (r *Runner) UpdatePoolByID(ctx context.Context, poolID string, param params
 	}
 
 	if param.Tags != nil && len(param.Tags) > 0 {
-		newTags, err := r.processTags(string(pool.OSArch), string(pool.OSType), param.Tags)
+		newTags, err := r.processTags(string(pool.OSArch), pool.OSType, param.Tags)
 		if err != nil {
 			return params.Pool{}, errors.Wrap(err, "processing tags")
 		}

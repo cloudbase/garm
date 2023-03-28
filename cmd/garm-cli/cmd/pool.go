@@ -45,6 +45,7 @@ var (
 	poolExtraSpecsFile         string
 	poolExtraSpecs             string
 	poolAll                    bool
+	poolGitHubRunnerGroup      string
 )
 
 // runnerCmd represents the runner command
@@ -196,6 +197,7 @@ var poolAddCmd = &cobra.Command{
 			Tags:                   tags,
 			Enabled:                poolEnabled,
 			RunnerBootstrapTimeout: poolRunnerBootstrapTimeout,
+			GitHubRunnerGroup:      poolGitHubRunnerGroup,
 		}
 
 		if cmd.Flags().Changed("extra-specs") {
@@ -299,6 +301,10 @@ explicitly remove them using the runner delete command.
 			}
 		}
 
+		if cmd.Flags().Changed("runner-group") {
+			poolUpdateParams.GitHubRunnerGroup = &poolGitHubRunnerGroup
+		}
+
 		if cmd.Flags().Changed("enabled") {
 			poolUpdateParams.Enabled = &poolEnabled
 		}
@@ -348,6 +354,7 @@ func init() {
 	poolUpdateCmd.Flags().StringVar(&poolRunnerPrefix, "runner-prefix", "", "The name prefix to use for runners in this pool.")
 	poolUpdateCmd.Flags().UintVar(&poolMaxRunners, "max-runners", 5, "The maximum number of runner this pool will create.")
 	poolUpdateCmd.Flags().UintVar(&poolMinIdleRunners, "min-idle-runners", 1, "Attempt to maintain a minimum of idle self-hosted runners of this type.")
+	poolUpdateCmd.Flags().StringVar(&poolGitHubRunnerGroup, "runner-group", "", "The GitHub runner group in which all runners of this pool will be added.")
 	poolUpdateCmd.Flags().BoolVar(&poolEnabled, "enabled", false, "Enable this pool.")
 	poolUpdateCmd.Flags().UintVar(&poolRunnerBootstrapTimeout, "runner-bootstrap-timeout", 20, "Duration in minutes after which a runner is considered failed if it does not join Github.")
 	poolUpdateCmd.Flags().StringVar(&poolExtraSpecsFile, "extra-specs-file", "", "A file containing a valid json which will be passed to the IaaS provider managing the pool.")
@@ -363,6 +370,7 @@ func init() {
 	poolAddCmd.Flags().StringVar(&poolOSArch, "os-arch", "amd64", "Operating system architecture (amd64, arm, etc).")
 	poolAddCmd.Flags().StringVar(&poolExtraSpecsFile, "extra-specs-file", "", "A file containing a valid json which will be passed to the IaaS provider managing the pool.")
 	poolAddCmd.Flags().StringVar(&poolExtraSpecs, "extra-specs", "", "A valid json which will be passed to the IaaS provider managing the pool.")
+	poolAddCmd.Flags().StringVar(&poolGitHubRunnerGroup, "runner-group", "", "The GitHub runner group in which all runners of this pool will be added.")
 	poolAddCmd.Flags().UintVar(&poolMaxRunners, "max-runners", 5, "The maximum number of runner this pool will create.")
 	poolAddCmd.Flags().UintVar(&poolRunnerBootstrapTimeout, "runner-bootstrap-timeout", 20, "Duration in minutes after which a runner is considered failed if it does not join Github.")
 	poolAddCmd.Flags().UintVar(&poolMinIdleRunners, "min-idle-runners", 1, "Attempt to maintain a minimum of idle self-hosted runners of this type.")

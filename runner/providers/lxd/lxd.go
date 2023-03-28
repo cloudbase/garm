@@ -17,6 +17,7 @@ package lxd
 import (
 	"context"
 	"fmt"
+	"log"
 	"sync"
 
 	"github.com/cloudbase/garm/config"
@@ -38,6 +39,16 @@ const (
 	// created by us or not.
 	controllerIDKeyName = "user.runner-controller-id"
 	poolIDKey           = "user.runner-pool-id"
+
+	// osTypeKeyName is the key we use in the instance config to indicate the OS
+	// platform a runner is supposed to have. This value is defined in the pool and
+	// passed into the provider as bootstrap params.
+	osTypeKeyName = "user.os-type"
+
+	// osArchKeyNAme is the key we use in the instance config to indicate the OS
+	// architecture a runner is supposed to have. This value is defined in the pool and
+	// passed into the provider as bootstrap params.
+	osArchKeyNAme = "user.os-arch"
 )
 
 var (
@@ -159,7 +170,7 @@ func (l *LXD) getProfiles(flavor string) ([]string, error) {
 	return ret, nil
 }
 
-func (l *LXD) getTools(image *api.Image, tools []*github.RunnerApplicationDownload) (github.RunnerApplicationDownload, error) {
+func (l *LXD) getTools(image *api.Image, tools []*github.RunnerApplicationDownload, assumedOSType params.OSType) (github.RunnerApplicationDownload, error) {
 	if image == nil {
 		return github.RunnerApplicationDownload{}, fmt.Errorf("nil image received")
 	}
@@ -170,7 +181,8 @@ func (l *LXD) getTools(image *api.Image, tools []*github.RunnerApplicationDownlo
 
 	osType, err := util.OSToOSType(osName)
 	if err != nil {
-		return github.RunnerApplicationDownload{}, errors.Wrap(err, "fetching OS type")
+		log.Printf("failed to determine OS type from image, assuming %s", assumedOSType)
+		osType = assumedOSType
 	}
 
 	// Validate image OS. Linux only for now.
@@ -232,7 +244,7 @@ func (l *LXD) getCreateInstanceArgs(bootstrapParams params.BootstrapInstance) (a
 		return api.InstancesPost{}, errors.Wrap(err, "getting image details")
 	}
 
-	tools, err := l.getTools(image, bootstrapParams.Tools)
+	tools, err := l.getTools(image, bootstrapParams.Tools, bootstrapParams.OSType)
 	if err != nil {
 		return api.InstancesPost{}, errors.Wrap(err, "getting tools")
 	}
@@ -244,6 +256,8 @@ func (l *LXD) getCreateInstanceArgs(bootstrapParams params.BootstrapInstance) (a
 
 	configMap := map[string]string{
 		"user.user-data":    cloudCfg,
+		osTypeKeyName:       string(bootstrapParams.OSType),
+		osArchKeyNAme:       string(bootstrapParams.OSArch),
 		controllerIDKeyName: l.controllerID,
 		poolIDKey:           bootstrapParams.PoolID,
 	}
@@ -370,11 +384,17 @@ func (l *LXD) DeleteInstance(ctx context.Context, instance string) error {
 
 	op, err := cli.DeleteInstance(instance)
 	if err != nil {
+		if isNotFoundError(err) {
+			return nil
+		}
 		return errors.Wrap(err, "removing instance")
 	}
 
 	err = op.Wait()
 	if err != nil {
+		if isNotFoundError(err) {
+			return nil
+		}
 		return errors.Wrap(err, "waiting for instance deletion")
 	}
 	return nil

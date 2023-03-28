@@ -179,13 +179,13 @@ func (r *basePoolManager) reapTimedOutRunners(runners []*github.Runner) error {
 	return nil
 }
 
-func instanceInList(instanceName string, instances []params.Instance) bool {
+func instanceInList(instanceName string, instances []params.Instance) (params.Instance, bool) {
 	for _, val := range instances {
 		if val.Name == instanceName {
-			return true
+			return val, true
 		}
 	}
-	return false
+	return params.Instance{}, false
 }
 
 // cleanupOrphanedGithubRunners will forcefully remove any github runners that appear
@@ -252,6 +252,7 @@ func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner)
 		var poolInstances []params.Instance
 		poolInstances, ok = poolInstanceCache[pool.ID]
 		if !ok {
+			log.Printf("updating instances cache for pool %s", pool.ID)
 			poolInstances, err = provider.ListInstances(r.ctx, pool.ID)
 			if err != nil {
 				return errors.Wrapf(err, "fetching instances for pool %s", pool.ID)
@@ -259,7 +260,8 @@ func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner)
 			poolInstanceCache[pool.ID] = poolInstances
 		}
 
-		if !instanceInList(dbInstance.Name, poolInstances) {
+		providerInstance, ok := instanceInList(dbInstance.Name, poolInstances)
+		if !ok {
 			// The runner instance is no longer on the provider, and it appears offline in github.
 			// It should be safe to force remove it.
 			log.Printf("Runner instance for %s is no longer on the provider, removing from github", dbInstance.Name)
@@ -286,16 +288,18 @@ func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner)
 			continue
 		}
 
-		if providerCommon.InstanceStatus(dbInstance.Status) == providerCommon.InstanceRunning {
+		if providerInstance.Status == providerCommon.InstanceRunning {
 			// instance is running, but github reports runner as offline. Log the event.
 			// This scenario requires manual intervention.
 			// Perhaps it just came online and github did not yet change it's status?
 			log.Printf("instance %s is online but github reports runner as offline", dbInstance.Name)
 			continue
-		}
-		//start the instance
-		if err := provider.Start(r.ctx, dbInstance.ProviderID); err != nil {
-			return errors.Wrapf(err, "starting instance %s", dbInstance.ProviderID)
+		} else {
+			log.Printf("instance %s was found in stopped state; starting", dbInstance.Name)
+			//start the instance
+			if err := provider.Start(r.ctx, dbInstance.ProviderID); err != nil {
+				return errors.Wrapf(err, "starting instance %s", dbInstance.ProviderID)
+			}
 		}
 	}
 	return nil
@@ -417,14 +421,15 @@ func (r *basePoolManager) AddRunner(ctx context.Context, poolID string) error {
 	name := fmt.Sprintf("%s-%s", pool.GetRunnerPrefix(), util.NewID())
 
 	createParams := params.CreateInstanceParams{
-		Name:          name,
-		Status:        providerCommon.InstancePendingCreate,
-		RunnerStatus:  providerCommon.RunnerPending,
-		OSArch:        pool.OSArch,
-		OSType:        pool.OSType,
-		CallbackURL:   r.helper.GetCallbackURL(),
-		MetadataURL:   r.helper.GetMetadataURL(),
-		CreateAttempt: 1,
+		Name:              name,
+		Status:            providerCommon.InstancePendingCreate,
+		RunnerStatus:      providerCommon.RunnerPending,
+		OSArch:            pool.OSArch,
+		OSType:            pool.OSType,
+		CallbackURL:       r.helper.GetCallbackURL(),
+		MetadataURL:       r.helper.GetMetadataURL(),
+		CreateAttempt:     1,
+		GitHubRunnerGroup: pool.GitHubRunnerGroup,
 	}
 
 	_, err = r.store.CreateInstance(r.ctx, poolID, createParams)
@@ -603,19 +608,21 @@ func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error 
 	}
 
 	bootstrapArgs := params.BootstrapInstance{
-		Name:          instance.Name,
-		Tools:         r.tools,
-		RepoURL:       r.helper.GithubURL(),
-		MetadataURL:   instance.MetadataURL,
-		CallbackURL:   instance.CallbackURL,
-		InstanceToken: jwtToken,
-		OSArch:        pool.OSArch,
-		Flavor:        pool.Flavor,
-		Image:         pool.Image,
-		ExtraSpecs:    pool.ExtraSpecs,
-		Labels:        labels,
-		PoolID:        instance.PoolID,
-		CACertBundle:  r.credsDetails.CABundle,
+		Name:              instance.Name,
+		Tools:             r.tools,
+		RepoURL:           r.helper.GithubURL(),
+		MetadataURL:       instance.MetadataURL,
+		CallbackURL:       instance.CallbackURL,
+		InstanceToken:     jwtToken,
+		OSArch:            pool.OSArch,
+		OSType:            pool.OSType,
+		Flavor:            pool.Flavor,
+		Image:             pool.Image,
+		ExtraSpecs:        pool.ExtraSpecs,
+		Labels:            labels,
+		PoolID:            instance.PoolID,
+		CACertBundle:      r.credsDetails.CABundle,
+		GitHubRunnerGroup: instance.GitHubRunnerGroup,
 	}
 
 	var instanceIDToDelete string
@@ -1031,11 +1038,11 @@ func (r *basePoolManager) deletePendingInstances() {
 
 			err = r.deleteInstanceFromProvider(instance)
 			if err != nil {
-				log.Printf("failed to delete instance from provider: %+v", err)
+				return errors.Wrap(err, "removing instance from provider")
 			}
 
-			if err := r.store.DeleteInstance(r.ctx, instance.PoolID, instance.Name); err != nil {
-				return errors.Wrap(err, "deleting instance from database")
+			if deleteErr := r.store.DeleteInstance(r.ctx, instance.PoolID, instance.Name); deleteErr != nil {
+				return errors.Wrap(deleteErr, "deleting instance from database")
 			}
 			return
 		}(instance) //nolint

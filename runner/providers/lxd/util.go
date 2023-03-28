@@ -38,6 +38,7 @@ import (
 )
 
 var (
+	//lint:ignore ST1005 imported error from lxd
 	errInstanceIsStopped error = fmt.Errorf("The instance is already stopped")
 )
 
@@ -61,15 +62,24 @@ func isNotFoundError(err error) bool {
 }
 
 func lxdInstanceToAPIInstance(instance *api.InstanceFull) params.Instance {
-	os, ok := instance.ExpandedConfig["image.os"]
+	lxdOS, ok := instance.ExpandedConfig["image.os"]
 	if !ok {
 		log.Printf("failed to find OS in instance config")
 	}
 
-	osType, err := util.OSToOSType(os)
+	osType, err := util.OSToOSType(lxdOS)
 	if err != nil {
-		log.Printf("failed to find OS type for OS %s", os)
+		log.Printf("failed to find OS type for OS %s", lxdOS)
 	}
+
+	if osType == "" {
+		osTypeFromTag, ok := instance.ExpandedConfig[osTypeKeyName]
+		if !ok {
+			log.Printf("failed to find OS type in fallback location")
+		}
+		osType = params.OSType(osTypeFromTag)
+	}
+
 	osRelease, ok := instance.ExpandedConfig["image.release"]
 	if !ok {
 		log.Printf("failed to find OS release instance config")
@@ -101,7 +111,7 @@ func lxdInstanceToAPIInstance(instance *api.InstanceFull) params.Instance {
 		ProviderID: instance.Name,
 		Name:       instance.Name,
 		OSType:     osType,
-		OSName:     strings.ToLower(os),
+		OSName:     strings.ToLower(lxdOS),
 		OSVersion:  osRelease,
 		Addresses:  addresses,
 		Status:     lxdStatusToProviderStatus(state.Status),

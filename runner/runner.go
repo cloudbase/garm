@@ -690,7 +690,7 @@ func (r *Runner) appendTagsToCreatePoolParams(param params.CreatePoolParams) (pa
 		return params.CreatePoolParams{}, runnerErrors.NewBadRequestError("no such provider %s", param.ProviderName)
 	}
 
-	newTags, err := r.processTags(string(param.OSArch), string(param.OSType), param.Tags)
+	newTags, err := r.processTags(string(param.OSArch), param.OSType, param.Tags)
 	if err != nil {
 		return params.CreatePoolParams{}, errors.Wrap(err, "processing tags")
 	}
@@ -700,7 +700,7 @@ func (r *Runner) appendTagsToCreatePoolParams(param params.CreatePoolParams) (pa
 	return param, nil
 }
 
-func (r *Runner) processTags(osArch, osType string, tags []string) ([]string, error) {
+func (r *Runner) processTags(osArch string, osType params.OSType, tags []string) ([]string, error) {
 	// github automatically adds the "self-hosted" tag as well as the OS type (linux, windows, etc)
 	// and architecture (arm, x64, etc) to all self hosted runners. When a workflow job comes in, we try
 	// to find a pool based on the labels that are set in the workflow. If we don't explicitly define these
@@ -713,7 +713,7 @@ func (r *Runner) processTags(osArch, osType string, tags []string) ([]string, er
 		return nil, errors.Wrap(err, "invalid arch")
 	}
 
-	ghOSType, err := util.ResolveToGithubOSType(osType)
+	ghOSType, err := util.ResolveToGithubTag(osType)
 	if err != nil {
 		return nil, errors.Wrap(err, "invalid os type")
 	}

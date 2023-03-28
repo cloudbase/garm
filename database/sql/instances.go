@@ -33,14 +33,15 @@ func (s *sqlDatabase) CreateInstance(ctx context.Context, poolID string, param p
 	}
 
 	newInstance := Instance{
-		Pool:         pool,
-		Name:         param.Name,
-		Status:       param.Status,
-		RunnerStatus: param.RunnerStatus,
-		OSType:       param.OSType,
-		OSArch:       param.OSArch,
-		CallbackURL:  param.CallbackURL,
-		MetadataURL:  param.MetadataURL,
+		Pool:              pool,
+		Name:              param.Name,
+		Status:            param.Status,
+		RunnerStatus:      param.RunnerStatus,
+		OSType:            param.OSType,
+		OSArch:            param.OSArch,
+		CallbackURL:       param.CallbackURL,
+		MetadataURL:       param.MetadataURL,
+		GitHubRunnerGroup: param.GitHubRunnerGroup,
 	}
 	q := s.conn.Create(&newInstance)
 	if q.Error != nil {
