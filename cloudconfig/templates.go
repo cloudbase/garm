@@ -68,7 +68,7 @@ GH_RUNNER_GROUP="{{.GitHubRunnerGroup}}"
 # $RUNNER_GROUP_OPT will be added to the config.sh line. If it's empty, nothing happens
 # if it holds a value, it will be part of the command.
 RUNNER_GROUP_OPT=""
-if [ ! -z $GH_RUNNER_GROUP ]
+if [ ! -z $GH_RUNNER_GROUP ];then
     RUNNER_GROUP_OPT="--runnergroup=$GH_RUNNER_GROUP"
 fi
 
