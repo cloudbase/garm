@@ -130,6 +130,7 @@ func (s *OrgTestSuite) SetupTest() {
 			ProviderName:   "test-provider",
 			MaxRunners:     3,
 			MinIdleRunners: 1,
+			Enabled:        true,
 			Image:          "test-image",
 			Flavor:         "test-flavor",
 			OSType:         "linux",

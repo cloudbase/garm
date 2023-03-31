@@ -143,6 +143,7 @@ func (s *RepoTestSuite) SetupTest() {
 			MaxRunners:     4,
 			MinIdleRunners: 2,
 			Image:          "test-image",
+			Enabled:        true,
 			Flavor:         "test-flavor",
 			OSType:         "windows",
 			OSArch:         "amd64",
