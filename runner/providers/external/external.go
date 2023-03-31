@@ -108,7 +108,7 @@ func (e *external) DeleteInstance(ctx context.Context, instance string) error {
 
 	_, err := garmExec.Exec(ctx, e.execPath, nil, asEnv)
 	if err != nil {
-		var exitErr exec.ExitError
+		var exitErr *exec.ExitError
 		if !errors.As(err, &exitErr) || exitErr.ExitCode() != execution.ExitCodeNotFound {
 			return garmErrors.NewProviderError("provider binary %s returned error: %s", e.execPath, err)
 		}
