@@ -303,14 +303,14 @@ func (s *sqlDatabase) findPoolByTags(id, poolType string, tags []string) (params
 		return params.Pool{}, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
 	}
 
-	var pool Pool
-	where := fmt.Sprintf("tags.name in ? and %s = ?", poolType)
+	var pools []Pool
+	where := fmt.Sprintf("tags.name in ? and %s = ? and enabled = true", poolType)
 	q := s.conn.Joins("JOIN pool_tags on pool_tags.pool_id=pools.id").
 		Joins("JOIN tags on tags.id=pool_tags.tag_id").
 		Group("pools.id").
 		Preload("Tags").
 		Having("count(1) = ?", len(tags)).
-		Where(where, tags, u).First(&pool)
+		Where(where, tags, u).Find(&pools)
 
 	if q.Error != nil {
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
@@ -319,7 +319,11 @@ func (s *sqlDatabase) findPoolByTags(id, poolType string, tags []string) (params
 		return params.Pool{}, errors.Wrap(q.Error, "fetching pool")
 	}
 
-	return s.sqlToCommonPool(pool), nil
+	if len(pools) == 0 {
+		return params.Pool{}, runnerErrors.ErrNotFound
+	}
+
+	return s.sqlToCommonPool(pools[0]), nil
 }
 
 func (s *sqlDatabase) getRepoPoolByUniqueFields(ctx context.Context, repoID string, provider, image, flavor string) (Pool, error) {

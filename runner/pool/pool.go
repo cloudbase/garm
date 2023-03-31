@@ -364,6 +364,7 @@ func (r *basePoolManager) acquireNewInstance(job params.WorkflowJob) error {
 	pool, err := r.helper.FindPoolByTags(requestedLabels)
 	if err != nil {
 		if errors.Is(err, runnerErrors.ErrNotFound) {
+			log.Printf("failed to find an enabled pool with required labels: %s", strings.Join(requestedLabels, ", "))
 			return nil
 		}
 		return errors.Wrap(err, "fetching suitable pool")
