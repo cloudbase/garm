@@ -22,8 +22,8 @@ import (
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/util"
 
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
-	uuid "github.com/satori/go.uuid"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
@@ -212,7 +212,7 @@ func (s *sqlDatabase) CreateRepositoryPool(ctx context.Context, repoId string, p
 }
 
 func (s *sqlDatabase) ListRepoPools(ctx context.Context, repoID string) ([]params.Pool, error) {
-	pools, err := s.getRepoPools(ctx, repoID, "Tags")
+	pools, err := s.listEntityPools(ctx, params.RepositoryPool, repoID, "Tags", "Instances")
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching pools")
 	}
@@ -246,15 +246,15 @@ func (s *sqlDatabase) DeleteRepositoryPool(ctx context.Context, repoID, poolID s
 }
 
 func (s *sqlDatabase) FindRepositoryPoolByTags(ctx context.Context, repoID string, tags []string) (params.Pool, error) {
-	pool, err := s.findPoolByTags(repoID, "repo_id", tags)
+	pool, err := s.findPoolByTags(repoID, params.RepositoryPool, tags)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}
-	return pool, nil
+	return pool[0], nil
 }
 
 func (s *sqlDatabase) ListRepoInstances(ctx context.Context, repoID string) ([]params.Instance, error) {
-	pools, err := s.getRepoPools(ctx, repoID, "Instances")
+	pools, err := s.listEntityPools(ctx, params.RepositoryPool, repoID, "Tags", "Instances")
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching repo")
 	}
@@ -294,38 +294,6 @@ func (s *sqlDatabase) getRepo(ctx context.Context, owner, name string) (Reposito
 	return repo, nil
 }
 
-func (s *sqlDatabase) findPoolByTags(id, poolType string, tags []string) (params.Pool, error) {
-	if len(tags) == 0 {
-		return params.Pool{}, runnerErrors.NewBadRequestError("missing tags")
-	}
-	u, err := uuid.FromString(id)
-	if err != nil {
-		return params.Pool{}, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
-	}
-
-	var pools []Pool
-	where := fmt.Sprintf("tags.name in ? and %s = ? and enabled = true", poolType)
-	q := s.conn.Joins("JOIN pool_tags on pool_tags.pool_id=pools.id").
-		Joins("JOIN tags on tags.id=pool_tags.tag_id").
-		Group("pools.id").
-		Preload("Tags").
-		Having("count(1) = ?", len(tags)).
-		Where(where, tags, u).Find(&pools)
-
-	if q.Error != nil {
-		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
-			return params.Pool{}, runnerErrors.ErrNotFound
-		}
-		return params.Pool{}, errors.Wrap(q.Error, "fetching pool")
-	}
-
-	if len(pools) == 0 {
-		return params.Pool{}, runnerErrors.ErrNotFound
-	}
-
-	return s.sqlToCommonPool(pools[0]), nil
-}
-
 func (s *sqlDatabase) getRepoPoolByUniqueFields(ctx context.Context, repoID string, provider, image, flavor string) (Pool, error) {
 	repo, err := s.getRepoByID(ctx, repoID)
 	if err != nil {
@@ -345,32 +313,8 @@ func (s *sqlDatabase) getRepoPoolByUniqueFields(ctx context.Context, repoID stri
 	return pool[0], nil
 }
 
-func (s *sqlDatabase) getRepoPools(ctx context.Context, repoID string, preload ...string) ([]Pool, error) {
-	_, err := s.getRepoByID(ctx, repoID)
-	if err != nil {
-		return nil, errors.Wrap(err, "fetching repo")
-	}
-
-	q := s.conn
-	if len(preload) > 0 {
-		for _, item := range preload {
-			q = q.Preload(item)
-		}
-	}
-
-	var pools []Pool
-	err = q.Model(&Pool{}).Where("repo_id = ?", repoID).
-		Omit("extra_specs").
-		Find(&pools).Error
-	if err != nil {
-		return nil, errors.Wrap(err, "fetching pool")
-	}
-
-	return pools, nil
-}
-
 func (s *sqlDatabase) getRepoByID(ctx context.Context, id string, preload ...string) (Repository, error) {
-	u, err := uuid.FromString(id)
+	u, err := uuid.Parse(id)
 	if err != nil {
 		return Repository{}, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
 	}

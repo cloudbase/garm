@@ -22,7 +22,7 @@ import (
 	"github.com/cloudbase/garm/util/appdefaults"
 
 	"github.com/google/go-github/v53/github"
-	uuid "github.com/satori/go.uuid"
+	"github.com/google/uuid"
 )
 
 type (
@@ -33,6 +33,7 @@ type (
 	OSType       string
 	OSArch       string
 	ProviderType string
+	JobStatus    string
 )
 
 const (
@@ -40,6 +41,12 @@ const (
 	LXDProvider ProviderType = "lxd"
 	// ExternalProvider represents an external provider.
 	ExternalProvider ProviderType = "external"
+)
+
+const (
+	JobStatusQueued     JobStatus = "queued"
+	JobStatusInProgress JobStatus = "in_progress"
+	JobStatusCompleted  JobStatus = "completed"
 )
 
 const (
@@ -416,4 +423,54 @@ func (p RunnerPrefix) GetRunnerPrefix() string {
 		return DefaultRunnerPrefix
 	}
 	return p.Prefix
+}
+
+type Job struct {
+	// ID is the ID of the job.
+	ID int64 `json:"id"`
+	// RunID is the ID of the workflow run. A run may have multiple jobs.
+	RunID int64
+	// Action is the specific activity that triggered the event.
+	Action string `json:"run_id"`
+	// Conclusion is the outcome of the job.
+	// Possible values: "success", "failure", "neutral", "cancelled", "skipped",
+	// "timed_out", "action_required"
+	Conclusion string `json:"conclusion"`
+	// Status is the phase of the lifecycle that the job is currently in.
+	// "queued", "in_progress" and "completed".
+	Status string `json:"status"`
+	// Name is the name if the job that was triggered.
+	Name string `json:"name"`
+
+	StartedAt   time.Time
+	CompletedAt time.Time
+
+	GithubRunnerID  int64  `json:"runner_id"`
+	RunnerName      string `json:"runner_name"`
+	RunnerGroupID   int64  `json:"runner_group_id"`
+	RunnerGroupName string `json:"runner_group_name"`
+
+	// repository in which the job was triggered.
+	RepositoryName  string
+	RepositoryOwner string
+
+	Labels []string
+
+	// The entity that received the hook.
+	//
+	// Webhooks may be configured on the repo, the org and/or the enterprise.
+	// If we only configure a repo to use garm, we'll only ever receive a
+	// webhook from the repo. But if we configure the parent org of the repo and
+	// the parent enterprise of the org to use garm, a webhook will be sent for each
+	// entity type, in response to one workflow event. Thus, we will get 3 webhooks
+	// with the same run_id and job id. Record all involved entities in the same job
+	// if we have them configured in garm.
+	RepoID       uuid.UUID `json:"repo_id,omitempty"`
+	OrgID        uuid.UUID `json:"org_id,omitempty"`
+	EnterpriseID uuid.UUID `json:"enterprise_id,omitempty"`
+
+	LockedBy uuid.UUID
+
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }

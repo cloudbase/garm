@@ -33,6 +33,7 @@ import (
 	"github.com/cloudbase/garm/util"
 
 	"github.com/google/go-github/v53/github"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 )
@@ -96,62 +97,63 @@ type basePoolManager struct {
 	keyMux *keyMutex
 }
 
-func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) (err error) {
+func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 	if err := r.helper.ValidateOwner(job); err != nil {
 		return errors.Wrap(err, "validating owner")
 	}
 
+	var jobParams params.Job
+	var err error
 	defer func() {
-		if err != nil && errors.Is(err, runnerErrors.ErrUnauthorized) {
-			r.setPoolRunningState(false, fmt.Sprintf("failed to handle job: %q", err))
+		// we're updating the job in the database, regardless of whether it was successful or not.
+		// or if it was meant for this pool or not. Github will send the same job data to all hierarchies
+		// that have been configured to work with garm. Updating the job at all levels should yield the same
+		// outcome in the db.
+		if jobParams.ID != 0 {
+			if _, jobErr := r.store.CreateOrUpdateJob(r.ctx, jobParams); jobErr != nil {
+				log.Printf("failed to update job %d: %s", jobParams.ID, jobErr)
+			}
 		}
 	}()
 
 	switch job.Action {
 	case "queued":
-		// Create instance in database and set it to pending create.
-		// If we already have an idle runner around, that runner will pick up the job
-		// and trigger an "in_progress" update from github (see bellow), which in turn will set the
-		// runner state of the instance to "active". The ensureMinIdleRunners() function will
-		// exclude that runner from available runners and attempt to ensure
-		// the needed number of runners.
-		if err := r.acquireNewInstance(job); err != nil {
-			r.log("failed to add instance: %s", err)
+		// Record the job in the database. Queued jobs will be picked up by the consumeQueuedJobs() method
+		// when reconciling.
+		jobParams, err = r.paramsWorkflowJobToParamsJob(job)
+		if err != nil {
+			return errors.Wrap(err, "converting job to params")
 		}
 	case "completed":
-		// ignore the error here. A completed job may not have a runner name set
-		// if it was never assigned to a runner, and was canceled.
-		runnerInfo, err := r.getRunnerDetailsFromJob(job)
+		jobParams, err = r.paramsWorkflowJobToParamsJob(job)
 		if err != nil {
-			if !errors.Is(err, runnerErrors.ErrUnauthorized) {
+			if errors.Is(err, runnerErrors.ErrNotFound) {
 				// Unassigned jobs will have an empty runner_name.
 				// We also need to ignore not found errors, as we may get a webhook regarding
 				// a workflow that is handled by a runner at a different hierarchy level.
 				return nil
 			}
-			return errors.Wrap(err, "updating runner")
+			return errors.Wrap(err, "converting job to params")
 		}
 
 		// update instance workload state.
-		if err := r.setInstanceRunnerStatus(runnerInfo.Name, providerCommon.RunnerTerminated); err != nil {
+		if _, err := r.setInstanceRunnerStatus(jobParams.RunnerName, providerCommon.RunnerTerminated); err != nil {
 			if errors.Is(err, runnerErrors.ErrNotFound) {
 				return nil
 			}
-			r.log("failed to update runner %s status: %s", util.SanitizeLogEntry(runnerInfo.Name), err)
+			r.log("failed to update runner %s status: %s", util.SanitizeLogEntry(jobParams.RunnerName), err)
 			return errors.Wrap(err, "updating runner")
 		}
-		r.log("marking instance %s as pending_delete", util.SanitizeLogEntry(runnerInfo.Name))
-		if err := r.setInstanceStatus(runnerInfo.Name, providerCommon.InstancePendingDelete, nil); err != nil {
+		r.log("marking instance %s as pending_delete", util.SanitizeLogEntry(jobParams.RunnerName))
+		if _, err := r.setInstanceStatus(jobParams.RunnerName, providerCommon.InstancePendingDelete, nil); err != nil {
 			if errors.Is(err, runnerErrors.ErrNotFound) {
 				return nil
 			}
-			r.log("failed to update runner %s status: %s", util.SanitizeLogEntry(runnerInfo.Name), err)
+			r.log("failed to update runner %s status: %s", util.SanitizeLogEntry(jobParams.RunnerName), err)
 			return errors.Wrap(err, "updating runner")
 		}
 	case "in_progress":
-		// in_progress jobs must have a runner name/ID assigned. Sometimes github will send a hook without
-		// a runner set. In such cases, we attemt to fetch it from the API.
-		runnerInfo, err := r.getRunnerDetailsFromJob(job)
+		jobParams, err = r.paramsWorkflowJobToParamsJob(job)
 		if err != nil {
 			if errors.Is(err, runnerErrors.ErrNotFound) {
 				// This is most likely a runner we're not managing. If we define a repo from within an org
@@ -161,16 +163,27 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) (err error) 
 				// that we are not responsible for that runner, and we should ignore it.
 				return nil
 			}
-			return errors.Wrap(err, "determining runner name")
+			return errors.Wrap(err, "converting job to params")
 		}
 
 		// update instance workload state.
-		if err := r.setInstanceRunnerStatus(runnerInfo.Name, providerCommon.RunnerActive); err != nil {
+		instance, err := r.setInstanceRunnerStatus(jobParams.RunnerName, providerCommon.RunnerActive)
+		if err != nil {
 			if errors.Is(err, runnerErrors.ErrNotFound) {
 				return nil
 			}
-			r.log("failed to update runner %s status: %s", util.SanitizeLogEntry(runnerInfo.Name), err)
+			r.log("failed to update runner %s status: %s", util.SanitizeLogEntry(jobParams.RunnerName), err)
 			return errors.Wrap(err, "updating runner")
+		}
+
+		// A runner has picked up the job, and is now running it. It may need to be replaced if the pool has
+		// a minimum number of idle runners configured.
+		pool, err := r.store.GetPoolByID(r.ctx, instance.PoolID)
+		if err != nil {
+			return errors.Wrap(err, "getting pool")
+		}
+		if err := r.ensureIdleRunnersForOnePool(pool); err != nil {
+			log.Printf("error ensuring idle runners for pool %s: %s", pool.ID, err)
 		}
 	}
 	return nil
@@ -329,7 +342,7 @@ func (r *basePoolManager) cleanupOrphanedProviderRunners(runners []*github.Runne
 
 		if ok := runnerNames[instance.Name]; !ok {
 			// Set pending_delete on DB field. Allow consolidate() to remove it.
-			if err := r.setInstanceStatus(instance.Name, providerCommon.InstancePendingDelete, nil); err != nil {
+			if _, err := r.setInstanceStatus(instance.Name, providerCommon.InstancePendingDelete, nil); err != nil {
 				r.log("failed to update runner %s status: %s", instance.Name, err)
 				return errors.Wrap(err, "updating runner")
 			}
@@ -568,98 +581,42 @@ func (r *basePoolManager) fetchInstance(runnerName string) (params.Instance, err
 	return runner, nil
 }
 
-func (r *basePoolManager) setInstanceRunnerStatus(runnerName string, status providerCommon.RunnerStatus) error {
+func (r *basePoolManager) setInstanceRunnerStatus(runnerName string, status providerCommon.RunnerStatus) (params.Instance, error) {
 	updateParams := params.UpdateInstanceParams{
 		RunnerStatus: status,
 	}
 
-	if err := r.updateInstance(runnerName, updateParams); err != nil {
-		return errors.Wrap(err, "updating runner state")
+	instance, err := r.updateInstance(runnerName, updateParams)
+	if err != nil {
+		return params.Instance{}, errors.Wrap(err, "updating runner state")
 	}
-	return nil
+	return instance, nil
 }
 
-func (r *basePoolManager) updateInstance(runnerName string, update params.UpdateInstanceParams) error {
+func (r *basePoolManager) updateInstance(runnerName string, update params.UpdateInstanceParams) (params.Instance, error) {
 	runner, err := r.fetchInstance(runnerName)
 	if err != nil {
-		return errors.Wrap(err, "fetching instance")
+		return params.Instance{}, errors.Wrap(err, "fetching instance")
 	}
 
-	if _, err := r.store.UpdateInstance(r.ctx, runner.ID, update); err != nil {
-		return errors.Wrap(err, "updating runner state")
+	instance, err := r.store.UpdateInstance(r.ctx, runner.ID, update)
+	if err != nil {
+		return params.Instance{}, errors.Wrap(err, "updating runner state")
 	}
-	return nil
+	return instance, nil
 }
 
-func (r *basePoolManager) setInstanceStatus(runnerName string, status providerCommon.InstanceStatus, providerFault []byte) error {
+func (r *basePoolManager) setInstanceStatus(runnerName string, status providerCommon.InstanceStatus, providerFault []byte) (params.Instance, error) {
 	updateParams := params.UpdateInstanceParams{
 		Status:        status,
 		ProviderFault: providerFault,
 	}
 
-	if err := r.updateInstance(runnerName, updateParams); err != nil {
-		return errors.Wrap(err, "updating runner state")
-	}
-	return nil
-}
-
-func (r *basePoolManager) acquireNewInstance(job params.WorkflowJob) error {
-	requestedLabels := job.WorkflowJob.Labels
-	if len(requestedLabels) == 0 {
-		// no labels were requested.
-		return nil
-	}
-
-	pool, err := r.helper.FindPoolByTags(requestedLabels)
+	instance, err := r.updateInstance(runnerName, updateParams)
 	if err != nil {
-		if errors.Is(err, runnerErrors.ErrNotFound) {
-			r.log("failed to find an enabled pool with required labels: %s", strings.Join(requestedLabels, ", "))
-			return nil
-		}
-		return errors.Wrap(err, "fetching suitable pool")
+		return params.Instance{}, errors.Wrap(err, "updating runner state")
 	}
-	r.log("adding new runner with requested tags %s in pool %s", util.SanitizeLogEntry(strings.Join(job.WorkflowJob.Labels, ", ")), util.SanitizeLogEntry(pool.ID))
-
-	if !pool.Enabled {
-		r.log("selected pool (%s) is disabled", pool.ID)
-		return nil
-	}
-
-	poolInstances, err := r.store.PoolInstanceCount(r.ctx, pool.ID)
-	if err != nil {
-		return errors.Wrap(err, "fetching instances")
-	}
-
-	if poolInstances >= int64(pool.MaxRunners) {
-		r.log("max_runners (%d) reached for pool %s, skipping...", pool.MaxRunners, pool.ID)
-		return nil
-	}
-
-	instances, err := r.store.ListPoolInstances(r.ctx, pool.ID)
-	if err != nil {
-		return errors.Wrap(err, "fetching instances")
-	}
-
-	idleWorkers := 0
-	for _, inst := range instances {
-		if providerCommon.RunnerStatus(inst.RunnerStatus) == providerCommon.RunnerIdle &&
-			providerCommon.InstanceStatus(inst.Status) == providerCommon.InstanceRunning {
-			idleWorkers++
-		}
-	}
-
-	// Skip creating a new runner if we have at least one idle runner and the minimum is already satisfied.
-	// This should work even for pools that define a MinIdleRunner of 0.
-	if int64(idleWorkers) > 0 && int64(idleWorkers) >= int64(pool.MinIdleRunners) {
-		r.log("we have enough min_idle_runners (%d) for pool %s, skipping...", pool.MinIdleRunners, pool.ID)
-		return nil
-	}
-
-	if err := r.AddRunner(r.ctx, pool.ID); err != nil {
-		r.log("failed to add runner to pool %s", pool.ID)
-		return errors.Wrap(err, "adding runner")
-	}
-	return nil
+	return instance, nil
 }
 
 func (r *basePoolManager) AddRunner(ctx context.Context, poolID string) error {
@@ -825,6 +782,71 @@ func (r *basePoolManager) getRunnerDetailsFromJob(job params.WorkflowJob) (param
 	return runnerInfo, nil
 }
 
+// paramsWorkflowJobToParamsJob returns a params.Job from a params.WorkflowJob, and aditionally determines
+// if the runner belongs to this pool or not. It will always return a valid params.Job, even if it errs out.
+// This allows us to still update the job in the database, even if we determined that it wasn't necessarily meant
+// for this pool.
+// If garm manages multiple hierarchies (repos, org, enterprise) which involve the same repo, we will get a hook
+// whenever a job involving our repo triggers a hook. So even if the job is picked up by a runner at the enterprise
+// level, the repo and org still get a hook.
+// We even get a hook if a particular job is picked up by a GitHub hosted runner. We don't know who will pick up the job
+// until the "in_progress" event is sent and we can see which runner picked it up.
+//
+// We save the details of that job at every level, because we want to at least update the status of the job. We make
+// decissions based on the status of saved jobs. A "queued" job will prompt garm to search for an appropriate pool
+// and spin up a runner there if no other idle runner exists to pick it up.
+func (r *basePoolManager) paramsWorkflowJobToParamsJob(job params.WorkflowJob) (params.Job, error) {
+	jobParams := params.Job{
+		ID:              job.WorkflowJob.ID,
+		Action:          job.Action,
+		RunID:           job.WorkflowJob.RunID,
+		Status:          job.WorkflowJob.Status,
+		Conclusion:      job.WorkflowJob.Conclusion,
+		StartedAt:       job.WorkflowJob.StartedAt,
+		CompletedAt:     job.WorkflowJob.CompletedAt,
+		Name:            job.WorkflowJob.Name,
+		GithubRunnerID:  job.WorkflowJob.RunnerID,
+		RunnerGroupID:   job.WorkflowJob.RunnerGroupID,
+		RunnerGroupName: job.WorkflowJob.RunnerGroupName,
+		RepositoryName:  job.Repository.Name,
+		RepositoryOwner: job.Repository.Owner.Login,
+		Labels:          job.WorkflowJob.Labels,
+	}
+
+	runnerName := job.WorkflowJob.RunnerName
+	if job.Action != "queued" && runnerName == "" {
+		// Runner name was not set in WorkflowJob by github. We can still attempt to fetch the info we need,
+		// using the workflow run ID, from the API.
+		// We may still get no runner name. In situations such as jobs being cancelled before a runner had the chance
+		// to pick up the job, the runner name is not available from the API.
+		runnerInfo, err := r.getRunnerDetailsFromJob(job)
+		if err != nil && !errors.Is(err, runnerErrors.ErrNotFound) {
+			return jobParams, errors.Wrap(err, "fetching runner details")
+		}
+		runnerName = runnerInfo.Name
+	}
+
+	jobParams.RunnerName = runnerName
+
+	asUUID, err := uuid.Parse(r.ID())
+	if err != nil {
+		return jobParams, errors.Wrap(err, "parsing pool ID as UUID")
+	}
+
+	switch r.helper.PoolType() {
+	case params.EnterprisePool:
+		jobParams.EnterpriseID = asUUID
+	case params.RepositoryPool:
+		jobParams.RepoID = asUUID
+	case params.OrganizationPool:
+		jobParams.OrgID = asUUID
+	default:
+		return jobParams, errors.Errorf("unknown pool type: %s", r.helper.PoolType())
+	}
+
+	return jobParams, nil
+}
+
 func (r *basePoolManager) poolLabel(poolID string) string {
 	return fmt.Sprintf("%s%s", poolIDLabelprefix, poolID)
 }
@@ -911,6 +933,26 @@ func (r *basePoolManager) scaleDownOnePool(ctx context.Context, pool params.Pool
 	return nil
 }
 
+func (r *basePoolManager) addRunnerToPool(pool params.Pool) error {
+	if !pool.Enabled {
+		return nil
+	}
+
+	poolInstanceCount, err := r.store.PoolInstanceCount(r.ctx, pool.ID)
+	if err != nil {
+		return fmt.Errorf("failed to list pool instances: %w", err)
+	}
+
+	if poolInstanceCount >= int64(pool.MaxRunners) {
+		return fmt.Errorf("max workers (%d) reached for pool %s", pool.MaxRunners, pool.ID)
+	}
+
+	if err := r.AddRunner(r.ctx, pool.ID); err != nil {
+		return fmt.Errorf("failed to add new instance for pool %s: %s", pool.ID, err)
+	}
+	return nil
+}
+
 func (r *basePoolManager) ensureIdleRunnersForOnePool(pool params.Pool) error {
 	if !pool.Enabled {
 		return nil
@@ -918,6 +960,7 @@ func (r *basePoolManager) ensureIdleRunnersForOnePool(pool params.Pool) error {
 	existingInstances, err := r.store.ListPoolInstances(r.ctx, pool.ID)
 	if err != nil {
 		return fmt.Errorf("failed to ensure minimum idle workers for pool %s: %w", pool.ID, err)
+
 	}
 
 	if uint(len(existingInstances)) >= pool.MaxRunners {
@@ -1010,7 +1053,7 @@ func (r *basePoolManager) retryFailedInstancesForOnePool(ctx context.Context, po
 			}
 			r.log("queueing previously failed instance %s for retry", instance.Name)
 			// Set instance to pending create and wait for retry.
-			if err := r.updateInstance(instance.Name, updateParams); err != nil {
+			if _, err := r.updateInstance(instance.Name, updateParams); err != nil {
 				r.log("failed to update runner %s status: %s", instance.Name, err)
 			}
 			return nil
@@ -1131,7 +1174,7 @@ func (r *basePoolManager) deletePendingInstances() error {
 
 		// Set the status to deleting before launching the goroutine that removes
 		// the runner from the provider (which can take a long time).
-		if err := r.setInstanceStatus(instance.Name, providerCommon.InstanceDeleting, nil); err != nil {
+		if _, err := r.setInstanceStatus(instance.Name, providerCommon.InstanceDeleting, nil); err != nil {
 			r.log("failed to update runner %s status: %q", instance.Name, err)
 			r.keyMux.Unlock(instance.Name, false)
 			continue
@@ -1147,7 +1190,7 @@ func (r *basePoolManager) deletePendingInstances() error {
 					r.log("failed to remove instance %s: %s", instance.Name, err)
 					// failed to remove from provider. Set the status back to pending_delete, which
 					// will retry the operation.
-					if err := r.setInstanceStatus(instance.Name, providerCommon.InstancePendingDelete, nil); err != nil {
+					if _, err := r.setInstanceStatus(instance.Name, providerCommon.InstancePendingDelete, nil); err != nil {
 						r.log("failed to update runner %s status: %s", instance.Name, err)
 					}
 				}
@@ -1192,7 +1235,7 @@ func (r *basePoolManager) addPendingInstances() error {
 
 		// Set the instance to "creating" before launching the goroutine. This will ensure that addPendingInstances()
 		// won't attempt to create the runner a second time.
-		if err := r.setInstanceStatus(instance.Name, providerCommon.InstanceCreating, nil); err != nil {
+		if _, err := r.setInstanceStatus(instance.Name, providerCommon.InstanceCreating, nil); err != nil {
 			r.log("failed to update runner %s status: %s", instance.Name, err)
 			r.keyMux.Unlock(instance.Name, false)
 			// We failed to transition the instance to Creating. This means that garm will retry to create this instance
@@ -1206,7 +1249,7 @@ func (r *basePoolManager) addPendingInstances() error {
 			if err := r.addInstanceToProvider(instance); err != nil {
 				r.log("failed to add instance to provider: %s", err)
 				errAsBytes := []byte(err.Error())
-				if err := r.setInstanceStatus(instance.Name, providerCommon.InstanceError, errAsBytes); err != nil {
+				if _, err := r.setInstanceStatus(instance.Name, providerCommon.InstanceError, errAsBytes); err != nil {
 					r.log("failed to update runner %s status: %s", instance.Name, err)
 				}
 				r.log("failed to create instance in provider: %s", err)
@@ -1275,6 +1318,7 @@ func (r *basePoolManager) Start() error {
 	go r.startLoopForFunction(r.ensureMinIdleRunners, common.PoolConsilitationInterval, "consolidate[ensure_min_idle]", false)
 	go r.startLoopForFunction(r.retryFailedInstances, common.PoolConsilitationInterval, "consolidate[retry_failed]", false)
 	go r.startLoopForFunction(r.updateTools, common.PoolToolUpdateInterval, "update_tools", true)
+	go r.startLoopForFunction(r.consumeQueuedJobs, common.PoolConsilitationInterval, "job_queue_consumer", false)
 	return nil
 }
 
@@ -1331,9 +1375,132 @@ func (r *basePoolManager) ForceDeleteRunner(runner params.Instance) error {
 	}
 	r.log("setting instance status for: %v", runner.Name)
 
-	if err := r.setInstanceStatus(runner.Name, providerCommon.InstancePendingDelete, nil); err != nil {
+	if _, err := r.setInstanceStatus(runner.Name, providerCommon.InstancePendingDelete, nil); err != nil {
 		r.log("failed to update runner %s status: %s", runner.Name, err)
 		return errors.Wrap(err, "updating runner")
+	}
+	return nil
+}
+
+// consumeQueuedJobs qull pull all the known jobs from the database and attempt to create a new
+// runner in one of the pools it manages if it matches the requested labels.
+// This is a best effort attempt to consume queued jobs. We do not have any real way to know which
+// runner from which pool will pick up a job we react to here. For example, the same job may be received
+// by an enterprise manager, an org manager AND a repo manager. If an idle runner from another pool
+// picks up the job after we created a runner in this pool, we will have an extra runner that may or may not
+// have a job waiting for it.
+// This is not a huge problem, as we have scale down logic which should remove any idle runners that have not
+// picked up a job within a certain time frame. Also, the logic here should ensure that eventually, all known
+// queued jobs will be consumed sooner or later.
+//
+// NOTE: jobs that were created while the garm instance was down, will be unknown to garm itself and will linger
+// in queued state if the pools defined in garm have a minimum idle runner value set to 0. Simply put, garm won't
+// know about the queued jobs that we didn't get a webhook for. Listing all jobs on startup is not feasible, as
+// an enterprise may have thousands of repos and thousands of jobs in queued state. To fetch all jobs for an
+// enterprise, we'd have to list all repos, and for each repo list all jobs currently in queued state. This is
+// not desirable by any measure.
+func (r *basePoolManager) consumeQueuedJobs() error {
+	queued, err := r.store.ListEntityJobsByStatus(r.ctx, r.helper.PoolType(), r.helper.ID(), params.JobStatusQueued)
+	if err != nil {
+		return errors.Wrap(err, "listing queued jobs")
+	}
+
+	log.Printf("found %d queued jobs", len(queued))
+	for _, job := range queued {
+		if job.LockedBy != uuid.Nil && job.LockedBy.String() != r.ID() {
+			// Job was handled by us or another entity.
+			log.Printf("[Pool mgr ID %s] job %d is locked by %s", r.ID(), job.ID, job.LockedBy.String())
+			continue
+		}
+
+		if time.Since(job.CreatedAt) < time.Second*15 {
+			// give the idle runners a chance to pick up the job.
+			log.Printf("job %d was created less than 15 seconds ago. Skipping", job.ID)
+			continue
+		}
+
+		if time.Since(job.CreatedAt) >= time.Minute*5 {
+			// Job has been in queued state for 30 minutes or more. Check if it was consumed by another runner.
+			workflow, ghResp, err := r.helper.GithubCLI().GetWorkflowJobByID(r.ctx, job.RepositoryOwner, job.RepositoryName, job.ID)
+			if err != nil {
+				if ghResp != nil {
+					switch ghResp.StatusCode {
+					case http.StatusNotFound:
+						// Job does not exist in github. Remove it from the database.
+						if err := r.store.DeleteJob(r.ctx, job.ID); err != nil {
+							return errors.Wrap(err, "deleting job")
+						}
+					default:
+						log.Printf("failed to fetch job information from github: %q (status code: %d)", err, ghResp.StatusCode)
+					}
+				}
+				log.Printf("error fetching workflow info: %q", err)
+				continue
+			}
+
+			if workflow.GetStatus() != "queued" {
+				log.Printf("job is no longer in queued state on github. New status is: %s", workflow.GetStatus())
+				job.Action = workflow.GetStatus()
+				job.Status = workflow.GetStatus()
+				job.Conclusion = workflow.GetConclusion()
+				if workflow.RunnerName != nil {
+					job.RunnerName = *workflow.RunnerName
+				}
+				if workflow.RunnerID != nil {
+					job.GithubRunnerID = *workflow.RunnerID
+				}
+				if workflow.RunnerGroupName != nil {
+					job.RunnerGroupName = *workflow.RunnerGroupName
+				}
+				if workflow.RunnerGroupID != nil {
+					job.RunnerGroupID = *workflow.RunnerGroupID
+				}
+				if _, err := r.store.CreateOrUpdateJob(r.ctx, job); err != nil {
+					log.Printf("failed to update job status: %q", err)
+				}
+				continue
+			}
+
+			// Job is still queued in our db and in github. Unlock it and try again.
+			if err := r.store.UnlockJob(r.ctx, job.ID, r.ID()); err != nil {
+				// TODO: Implament a cache? Should we return here?
+				log.Printf("failed to unlock job: %q", err)
+				continue
+			}
+		}
+
+		potentialPools, err := r.store.FindPoolsMatchingAllTags(r.ctx, r.helper.PoolType(), r.helper.ID(), job.Labels)
+		if err != nil {
+			log.Printf("[Pool mgr ID %s] error finding pools matching labels: %s", r.ID(), err)
+			continue
+		}
+
+		if len(potentialPools) == 0 {
+			log.Printf("[Pool mgr ID %s] could not find pool with labels %s", r.ID(), strings.Join(job.Labels, ","))
+			continue
+		}
+
+		runnerCreated := false
+		if err := r.store.LockJob(r.ctx, job.ID, r.ID()); err != nil {
+			log.Printf("[Pool mgr ID %s] could not lock job %d: %s", r.ID(), job.ID, err)
+			continue
+		}
+		for _, pool := range potentialPools {
+			log.Printf("attempting to create a runner in pool %s for job %d", pool.ID, job.ID)
+			if err := r.addRunnerToPool(pool); err != nil {
+				log.Printf("could not add runner to pool %s: %s", pool.ID, err)
+				continue
+			}
+			log.Printf("a new runner was added to pool %s as a response to queued job %d", pool.ID, job.ID)
+			runnerCreated = true
+			break
+		}
+		if !runnerCreated {
+			log.Printf("could not create a runner for job %d; unlocking", job.ID)
+			if err := r.store.UnlockJob(r.ctx, job.ID, r.ID()); err != nil {
+				return errors.Wrap(err, "unlocking job")
+			}
+		}
 	}
 	return nil
 }

@@ -20,8 +20,8 @@ import (
 	runnerErrors "github.com/cloudbase/garm/errors"
 	"github.com/cloudbase/garm/params"
 
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
-	uuid "github.com/satori/go.uuid"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -52,7 +52,7 @@ func (s *sqlDatabase) CreateInstance(ctx context.Context, poolID string, param p
 }
 
 func (s *sqlDatabase) getInstanceByID(ctx context.Context, instanceID string) (Instance, error) {
-	u, err := uuid.FromString(instanceID)
+	u, err := uuid.Parse(instanceID)
 	if err != nil {
 		return Instance{}, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
 	}
@@ -248,7 +248,7 @@ func (s *sqlDatabase) UpdateInstance(ctx context.Context, instanceID string, par
 }
 
 func (s *sqlDatabase) ListPoolInstances(ctx context.Context, poolID string) ([]params.Instance, error) {
-	u, err := uuid.FromString(poolID)
+	u, err := uuid.Parse(poolID)
 	if err != nil {
 		return nil, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
 	}

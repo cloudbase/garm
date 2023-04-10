@@ -42,10 +42,10 @@ import (
 	"github.com/cloudbase/garm/util"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/google/uuid"
 	"github.com/juju/clock"
 	"github.com/juju/retry"
 	"github.com/pkg/errors"
-	uuid "github.com/satori/go.uuid"
 )
 
 func NewRunner(ctx context.Context, cfg config.Config) (*Runner, error) {

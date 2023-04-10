@@ -18,8 +18,8 @@ import (
 	runnerErrors "github.com/cloudbase/garm/errors"
 	"github.com/cloudbase/garm/params"
 
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
-	uuid "github.com/satori/go.uuid"
 	"gorm.io/gorm"
 )
 
@@ -42,7 +42,7 @@ func (s *sqlDatabase) InitController() (params.ControllerInfo, error) {
 		return params.ControllerInfo{}, runnerErrors.NewConflictError("controller already initialized")
 	}
 
-	newID, err := uuid.NewV4()
+	newID, err := uuid.NewUUID()
 	if err != nil {
 		return params.ControllerInfo{}, errors.Wrap(err, "generating UUID")
 	}

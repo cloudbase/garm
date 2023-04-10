@@ -21,8 +21,8 @@ import (
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/util"
 
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
-	uuid "github.com/satori/go.uuid"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )

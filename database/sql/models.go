@@ -20,8 +20,8 @@ import (
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/providers/common"
 
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
-	uuid "github.com/satori/go.uuid"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
@@ -38,7 +38,7 @@ func (b *Base) BeforeCreate(tx *gorm.DB) error {
 	if b.ID != emptyId {
 		return nil
 	}
-	newID, err := uuid.NewV4()
+	newID, err := uuid.NewUUID()
 	if err != nil {
 		return errors.Wrap(err, "generating id")
 	}
@@ -175,4 +175,60 @@ type ControllerInfo struct {
 	Base
 
 	ControllerID uuid.UUID
+}
+
+type WorkflowJob struct {
+	// ID is the ID of the job.
+	ID int64 `gorm:"index"`
+	// RunID is the ID of the workflow run. A run may have multiple jobs.
+	RunID int64
+	// Action is the specific activity that triggered the event.
+	Action string `gorm:"type:varchar(254);index"`
+	// Conclusion is the outcome of the job.
+	// Possible values: "success", "failure", "neutral", "cancelled", "skipped",
+	// "timed_out", "action_required"
+	Conclusion string
+	// Status is the phase of the lifecycle that the job is currently in.
+	// "queued", "in_progress" and "completed".
+	Status string
+	// Name is the name if the job that was triggered.
+	Name string
+
+	StartedAt   time.Time
+	CompletedAt time.Time
+
+	GithubRunnerID  int64
+	RunnerName      string
+	RunnerGroupID   int64
+	RunnerGroupName string
+
+	// repository in which the job was triggered.
+	RepositoryName  string
+	RepositoryOwner string
+
+	Labels datatypes.JSON
+
+	// The entity that received the hook.
+	//
+	// Webhooks may be configured on the repo, the org and/or the enterprise.
+	// If we only configure a repo to use garm, we'll only ever receive a
+	// webhook from the repo. But if we configure the parent org of the repo and
+	// the parent enterprise of the org to use garm, a webhook will be sent for each
+	// entity type, in response to one workflow event. Thus, we will get 3 webhooks
+	// with the same run_id and job id. Record all involved entities in the same job
+	// if we have them configured in garm.
+	RepoID     uuid.UUID  `gorm:"index"`
+	Repository Repository `gorm:"foreignKey:RepoID"`
+
+	OrgID        uuid.UUID    `gorm:"index"`
+	Organization Organization `gorm:"foreignKey:OrgID"`
+
+	EnterpriseID uuid.UUID  `gorm:"index"`
+	Enterprise   Enterprise `gorm:"foreignKey:EnterpriseID"`
+
+	LockedBy uuid.UUID
+
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	DeletedAt gorm.DeletedAt `gorm:"index"`
 }

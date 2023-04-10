@@ -65,6 +65,14 @@ type enterprise struct {
 	mux sync.Mutex
 }
 
+func (r *enterprise) GithubCLI() common.GithubClient {
+	return r.ghcli
+}
+
+func (e *enterprise) PoolType() params.PoolType {
+	return params.EnterprisePool
+}
+
 func (r *enterprise) GetRunnerInfoFromWorkflow(job params.WorkflowJob) (params.RunnerInfo, error) {
 	if err := r.ValidateOwner(job); err != nil {
 		return params.RunnerInfo{}, errors.Wrap(err, "validating owner")

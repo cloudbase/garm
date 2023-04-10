@@ -671,7 +671,7 @@ func (s *EnterpriseTestSuite) TestListEnterprisePoolsInvalidEnterpriseID() {
 	_, err := s.Store.ListEnterprisePools(context.Background(), "dummy-enterprise-id")
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching pools: fetching enterprise: parsing id: invalid request", err.Error())
+	s.Require().Equal("fetching pools: parsing id: invalid request", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestGetEnterprisePool() {
@@ -785,7 +785,7 @@ func (s *EnterpriseTestSuite) TestListEnterpriseInstancesInvalidEnterpriseID() {
 	_, err := s.Store.ListEnterpriseInstances(context.Background(), "dummy-enterprise-id")
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching enterprise: fetching enterprise: parsing id: invalid request", err.Error())
+	s.Require().Equal("fetching enterprise: parsing id: invalid request", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestUpdateEnterprisePool() {
@@ -811,5 +811,6 @@ func (s *EnterpriseTestSuite) TestUpdateEnterprisePoolInvalidEnterpriseID() {
 }
 
 func TestEnterpriseTestSuite(t *testing.T) {
+	t.Parallel()
 	suite.Run(t, new(EnterpriseTestSuite))
 }

@@ -79,6 +79,14 @@ type repository struct {
 	mux sync.Mutex
 }
 
+func (r *repository) GithubCLI() common.GithubClient {
+	return r.ghcli
+}
+
+func (r *repository) PoolType() params.PoolType {
+	return params.RepositoryPool
+}
+
 func (r *repository) GetRunnerInfoFromWorkflow(job params.WorkflowJob) (params.RunnerInfo, error) {
 	if err := r.ValidateOwner(job); err != nil {
 		return params.RunnerInfo{}, errors.Wrap(err, "validating owner")
