@@ -36,11 +36,11 @@ if [ -z "$METADATA_URL" ];then
 	echo "no token is available and METADATA_URL is not set"
 	exit 1
 fi
-GITHUB_TOKEN=$(curl --fail -s -X GET -H 'Accept: application/json' -H "Authorization: Bearer ${BEARER_TOKEN}" "${METADATA_URL}/runner-registration-token/")
+GITHUB_TOKEN=$(curl -k --fail -s -X GET -H 'Accept: application/json' -H "Authorization: Bearer ${BEARER_TOKEN}" "${METADATA_URL}/runner-registration-token/")
 
 function call() {
 	PAYLOAD="$1"
-	curl --fail -s -X POST -d "${PAYLOAD}" -H 'Accept: application/json' -H "Authorization: Bearer ${BEARER_TOKEN}" "${CALLBACK_URL}" || echo "failed to call home: exit code ($?)"
+	curl -k --fail -s -X POST -d "${PAYLOAD}" -H 'Accept: application/json' -H "Authorization: Bearer ${BEARER_TOKEN}" "${CALLBACK_URL}" || echo "failed to call home: exit code ($?)"
 }
 
 function sendStatus() {
@@ -72,22 +72,26 @@ if [ ! -z $GH_RUNNER_GROUP ];then
     RUNNER_GROUP_OPT="--runnergroup=$GH_RUNNER_GROUP"
 fi
 
+# test if runner is already installed
+if [ -d "/home/{{ .RunnerUsername }}/actions-runner/" ]; then
+	cd /home/{{ .RunnerUsername }}/actions-runner
+else
+	mkdir -p /home/runner/actions-runner || fail "failed to create actions-runner folder"
 
-if [ ! -z "{{ .TempDownloadToken }}" ]; then
-	TEMP_TOKEN="Authorization: Bearer {{ .TempDownloadToken }}"
+	if [ ! -z "{{ .TempDownloadToken }}" ]; then
+		TEMP_TOKEN="Authorization: Bearer {{ .TempDownloadToken }}"
+	fi
+
+	curl -k -L -H "${TEMP_TOKEN}" -o "/home/{{ .RunnerUsername }}/{{ .FileName }}" "{{ .DownloadURL }}" || fail "failed to download tools"
+
+	sendStatus "extracting runner"
+	tar xf "/home/{{ .RunnerUsername }}/{{ .FileName }}" -C /home/{{ .RunnerUsername }}/actions-runner/ || fail "failed to extract runner"
+	chown {{ .RunnerUsername }}:{{ .RunnerGroup }} -R /home/{{ .RunnerUsername }}/actions-runner/ || fail "failed to change owner"
+
+	sendStatus "installing dependencies"
+	cd /home/{{ .RunnerUsername }}/actions-runner
+	sudo ./bin/installdependencies.sh || fail "failed to install dependencies"
 fi
-
-curl -L -H "${TEMP_TOKEN}" -o "/home/{{ .RunnerUsername }}/{{ .FileName }}" "{{ .DownloadURL }}" || fail "failed to download tools"
-
-mkdir -p /home/runner/actions-runner || fail "failed to create actions-runner folder"
-
-sendStatus "extracting runner"
-tar xf "/home/{{ .RunnerUsername }}/{{ .FileName }}" -C /home/{{ .RunnerUsername }}/actions-runner/ || fail "failed to extract runner"
-chown {{ .RunnerUsername }}:{{ .RunnerGroup }} -R /home/{{ .RunnerUsername }}/actions-runner/ || fail "failed to change owner"
-
-sendStatus "installing dependencies"
-cd /home/{{ .RunnerUsername }}/actions-runner
-sudo ./bin/installdependencies.sh || fail "failed to install dependencies"
 
 sendStatus "configuring runner"
 sudo -u {{ .RunnerUsername }} -- ./config.sh --unattended --url "{{ .RepoURL }}" --token "$GITHUB_TOKEN" $RUNNER_GROUP_OPT --name "{{ .RunnerName }}" --labels "{{ .RunnerLabels }}" --ephemeral || fail "failed to configure runner"
