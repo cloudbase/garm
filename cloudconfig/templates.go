@@ -60,7 +60,45 @@ function fail() {
 	exit 1
 }
 
-sendStatus "downloading tools from {{ .DownloadURL }}"
+# This will echo the version number in the filename. Given a file name like: actions-runner-osx-x64-2.299.1.tar.gz
+# this will output: 2.299.1
+function getRunnerVersion() {
+    FILENAME="{{ .FileName }}"
+    [[ $FILENAME =~ ([0-9]+\.[0-9]+\.[0-9+]) ]]
+    echo $BASH_REMATCH
+}
+
+function getCachedToolsPath() {
+    CACHED_RUNNER="/opt/cache/actions-runner/latest"
+    if [ -d "$CACHED_RUNNER" ];then
+        echo "$CACHED_RUNNER"
+        return 0
+    fi
+
+    VERSION=$(getRunnerVersion)
+    if [ -z "$VERSION" ]; then
+        return 0
+    fi
+
+    CACHED_RUNNER="/opt/cache/actions-runner/$VERSION"
+    if [ -d "$CACHED_RUNNER" ];then
+        echo "$CACHED_RUNNER"
+        return 0
+    fi
+    return 0
+}
+
+function downloadAndExtractRunner() {
+    sendStatus "downloading tools from {{ .DownloadURL }}"
+    if [ ! -z "{{ .TempDownloadToken }}" ]; then
+	TEMP_TOKEN="Authorization: Bearer {{ .TempDownloadToken }}"
+    fi
+    curl -L -H "${TEMP_TOKEN}" -o "/home/{{ .RunnerUsername }}/{{ .FileName }}" "{{ .DownloadURL }}" || fail "failed to download tools"
+    mkdir -p /home/runner/actions-runner || fail "failed to create actions-runner folder"
+    sendStatus "extracting runner"
+    tar xf "/home/{{ .RunnerUsername }}/{{ .FileName }}" -C /home/{{ .RunnerUsername }}/actions-runner/ || fail "failed to extract runner"
+    chown {{ .RunnerUsername }}:{{ .RunnerGroup }} -R /home/{{ .RunnerUsername }}/actions-runner/ || fail "failed to change owner"
+}
 
 TEMP_TOKEN=""
 GH_RUNNER_GROUP="{{.GitHubRunnerGroup}}"
@@ -72,22 +110,18 @@ if [ ! -z $GH_RUNNER_GROUP ];then
     RUNNER_GROUP_OPT="--runnergroup=$GH_RUNNER_GROUP"
 fi
 
-
-if [ ! -z "{{ .TempDownloadToken }}" ]; then
-	TEMP_TOKEN="Authorization: Bearer {{ .TempDownloadToken }}"
+CACHED_RUNNER=$(getCachedToolsPath)
+if [ -z "$CACHED_RUNNER" ];then
+    downloadAndExtractRunner
+    sendStatus "installing dependencies"
+    cd /home/{{ .RunnerUsername }}/actions-runner
+    sudo ./bin/installdependencies.sh || fail "failed to install dependencies"
+else
+    sudo cp -a "$CACHED_RUNNER"  "/home/{{ .RunnerUsername }}/actions-runner"
+    cd /home/{{ .RunnerUsername }}/actions-runner
+    chown {{ .RunnerUsername }}:{{ .RunnerGroup }} -R "/home/{{ .RunnerUsername }}/actions-runner" || fail "failed to change owner"
 fi
 
-curl -L -H "${TEMP_TOKEN}" -o "/home/{{ .RunnerUsername }}/{{ .FileName }}" "{{ .DownloadURL }}" || fail "failed to download tools"
-
-mkdir -p /home/runner/actions-runner || fail "failed to create actions-runner folder"
-
-sendStatus "extracting runner"
-tar xf "/home/{{ .RunnerUsername }}/{{ .FileName }}" -C /home/{{ .RunnerUsername }}/actions-runner/ || fail "failed to extract runner"
-chown {{ .RunnerUsername }}:{{ .RunnerGroup }} -R /home/{{ .RunnerUsername }}/actions-runner/ || fail "failed to change owner"
-
-sendStatus "installing dependencies"
-cd /home/{{ .RunnerUsername }}/actions-runner
-sudo ./bin/installdependencies.sh || fail "failed to install dependencies"
 
 sendStatus "configuring runner"
 sudo -u {{ .RunnerUsername }} -- ./config.sh --unattended --url "{{ .RepoURL }}" --token "$GITHUB_TOKEN" $RUNNER_GROUP_OPT --name "{{ .RunnerName }}" --labels "{{ .RunnerLabels }}" --ephemeral || fail "failed to configure runner"
