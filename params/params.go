@@ -25,13 +25,15 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
-type PoolType string
-type AddressType string
-type EventType string
-type EventLevel string
-type OSType string
-type OSArch string
-type ProviderType string
+type (
+	PoolType     string
+	AddressType  string
+	EventType    string
+	EventLevel   string
+	OSType       string
+	OSArch       string
+	ProviderType string
+)
 
 const (
 	// LXDProvider represents the LXD provider.
@@ -214,6 +216,13 @@ type BootstrapInstance struct {
 
 	// PoolID is the ID of the garm pool to which this runner belongs.
 	PoolID string `json:"pool_id"`
+
+	// UserDataOptions are the options for the user data generation.
+	UserDataOptions UserDataOptions `json:"user_data_options"`
+}
+
+type UserDataOptions struct {
+	DisableUpdatesOnBoot bool `json:"disable_updates_on_boot"`
 }
 
 type Tag struct {

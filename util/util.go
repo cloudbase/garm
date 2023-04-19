@@ -171,7 +171,7 @@ func GetLoggingWriter(cfg *config.Config) (io.Writer, error) {
 			Filename:   cfg.Default.LogFile,
 			MaxSize:    500, // megabytes
 			MaxBackups: 3,
-			MaxAge:     28,   //days
+			MaxAge:     28,   // days
 			Compress:   true, // disabled by default
 		}
 	}
@@ -266,6 +266,12 @@ func GetCloudConfig(bootstrapParams params.BootstrapInstance, tools github.Runne
 	switch bootstrapParams.OSType {
 	case params.Linux:
 		cloudCfg := cloudconfig.NewDefaultCloudInitConfig()
+
+		if bootstrapParams.UserDataOptions.DisableUpdatesOnBoot {
+			cloudCfg.PackageUpgrade = false
+			cloudCfg.Packages = []string{}
+		}
+
 		cloudCfg.AddSSHKey(bootstrapParams.SSHKeys...)
 		cloudCfg.AddFile(installScript, "/install_runner.sh", "root:root", "755")
 		cloudCfg.AddRunCmd("/install_runner.sh")
