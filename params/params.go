@@ -216,6 +216,13 @@ type BootstrapInstance struct {
 
 	// PoolID is the ID of the garm pool to which this runner belongs.
 	PoolID string `json:"pool_id"`
+
+	// UserDataOptions are the options for the user data generation.
+	UserDataOptions UserDataOptions `json:"user_data_options"`
+}
+
+type UserDataOptions struct {
+	DisableUpdatesOnBoot bool `json:"disable_updates_on_boot"`
 }
 
 type Tag struct {
