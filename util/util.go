@@ -171,7 +171,7 @@ func GetLoggingWriter(cfg *config.Config) (io.Writer, error) {
 			Filename:   cfg.Default.LogFile,
 			MaxSize:    500, // megabytes
 			MaxBackups: 3,
-			MaxAge:     28,   //days
+			MaxAge:     28,   // days
 			Compress:   true, // disabled by default
 		}
 	}

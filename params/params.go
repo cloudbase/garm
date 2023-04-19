@@ -25,13 +25,15 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
-type PoolType string
-type AddressType string
-type EventType string
-type EventLevel string
-type OSType string
-type OSArch string
-type ProviderType string
+type (
+	PoolType     string
+	AddressType  string
+	EventType    string
+	EventLevel   string
+	OSType       string
+	OSArch       string
+	ProviderType string
+)
 
 const (
 	// LXDProvider represents the LXD provider.
