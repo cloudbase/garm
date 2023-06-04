@@ -16,7 +16,6 @@ package lxd
 
 import (
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/cloudbase/garm/config"
@@ -65,83 +64,26 @@ func (i *image) getLocalImageByAlias(imageName string, imageType config.LXDImage
 	return image, nil
 }
 
-func (i *image) clientFromRemoteArgs(remote config.LXDImageRemote) (lxd.ImageServer, error) {
-	connectArgs := &lxd.ConnectionArgs{
-		InsecureSkipVerify: remote.InsecureSkipVerify,
+func (i *image) getInstanceSource(imageName string, imageType config.LXDImageType, arch string, cli lxd.InstanceServer) (api.InstanceSource, error) {
+	instanceSource := api.InstanceSource{
+		Type: "image",
 	}
-	d, err := lxd.ConnectSimpleStreams(remote.Address, connectArgs)
-	if err != nil {
-		return nil, errors.Wrapf(err, "connecting to image server %s", remote.Address)
-	}
-	return d, nil
-}
-
-func (i *image) copyImageFromRemote(remote config.LXDImageRemote, imageName string, imageType config.LXDImageType, arch string, cli lxd.InstanceServer) (*api.Image, error) {
-	imgCli, err := i.clientFromRemoteArgs(remote)
-	if err != nil {
-		return nil, errors.Wrap(err, "fetching image server client")
-	}
-	defer imgCli.Disconnect()
-
-	aliases, err := imgCli.GetImageAliasArchitectures(imageType.String(), imageName)
-	if err != nil {
-		return nil, errors.Wrapf(err, "resolving alias: %s", imageName)
-	}
-
-	alias, ok := aliases[arch]
-	if !ok {
-		return nil, fmt.Errorf("no image found for arch %s and image type %s with name %s", arch, imageType, imageName)
-	}
-
-	image, _, err := imgCli.GetImage(alias.Target)
-	if err != nil {
-		return nil, errors.Wrap(err, "fetching image details")
-	}
-
-	imgCopyArgs := &lxd.ImageCopyArgs{
-		AutoUpdate: true,
-	}
-
-	op, err := cli.CopyImage(imgCli, *image, imgCopyArgs)
-	if err != nil {
-		return nil, errors.Wrapf(err, "copying image %s from %s", imageName, remote.Address)
-	}
-
-	// And wait for it to finish
-	err = op.Wait()
-	if err != nil {
-		return nil, errors.Wrap(err, "waiting for image copy operation")
-	}
-
-	return image, nil
-}
-
-// EnsureImage will look for an image locally, then attempt to download it from a remote
-// server, if the name contains a remote. Allowed formats are:
-// remote_name:image_name
-// image_name
-func (i *image) EnsureImage(imageName string, imageType config.LXDImageType, arch string, cli lxd.InstanceServer) (*api.Image, error) {
 	if !strings.Contains(imageName, ":") {
 		// A remote was not specified, try to find an image using the imageName as
 		// an alias.
-		return i.getLocalImageByAlias(imageName, imageType, arch, cli)
-	}
-
-	remote, parsedName, err := i.parseImageName(imageName)
-	if err != nil {
-		return nil, errors.Wrap(err, "parsing image name")
-	}
-
-	if img, err := i.copyImageFromRemote(remote, parsedName, imageType, arch, cli); err == nil {
-		return img, nil
+		imageDetails, err := i.getLocalImageByAlias(imageName, imageType, arch, cli)
+		if err != nil {
+			return api.InstanceSource{}, errors.Wrap(err, "fetching image")
+		}
+		instanceSource.Fingerprint = imageDetails.Fingerprint
 	} else {
-		log.Printf("failed to fetch image of type %v with name %s and arch %s: %s", imageType, parsedName, arch, err)
+		remote, parsedName, err := i.parseImageName(imageName)
+		if err != nil {
+			return api.InstanceSource{}, errors.Wrap(err, "parsing image name")
+		}
+		instanceSource.Alias = parsedName
+		instanceSource.Server = remote.Address
+		instanceSource.Protocol = string(remote.Protocol)
 	}
-
-	log.Printf("attempting to find %s for arch %s locally", parsedName, arch)
-	img, err := i.getLocalImageByAlias(parsedName, imageType, arch, cli)
-	if err != nil {
-		return nil, errors.Wrap(err, "fetching image")
-	}
-	return img, nil
+	return instanceSource, nil
 }
