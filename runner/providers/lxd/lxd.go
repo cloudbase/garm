@@ -417,7 +417,7 @@ func (l *LXD) ListInstances(ctx context.Context, poolID string) ([]params.Instan
 	for _, instance := range instances {
 		if id, ok := instance.ExpandedConfig[controllerIDKeyName]; ok && id == l.controllerID {
 			if poolID != "" {
-				id := instance.ExpandedConfig[poolID]
+				id := instance.ExpandedConfig[poolIDKey]
 				if id != poolID {
 					// Pool ID was specified. Filter out instances belonging to other pools.
 					continue
