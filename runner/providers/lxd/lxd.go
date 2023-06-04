@@ -17,7 +17,6 @@ package lxd
 import (
 	"context"
 	"fmt"
-	"log"
 	"sync"
 
 	"github.com/cloudbase/garm/config"
@@ -170,21 +169,7 @@ func (l *LXD) getProfiles(flavor string) ([]string, error) {
 	return ret, nil
 }
 
-func (l *LXD) getTools(image *api.Image, tools []*github.RunnerApplicationDownload, assumedOSType params.OSType) (github.RunnerApplicationDownload, error) {
-	if image == nil {
-		return github.RunnerApplicationDownload{}, fmt.Errorf("nil image received")
-	}
-	osName, ok := image.ImagePut.Properties["os"]
-	if !ok {
-		return github.RunnerApplicationDownload{}, fmt.Errorf("missing OS info in image properties")
-	}
-
-	osType, err := util.OSToOSType(osName)
-	if err != nil {
-		log.Printf("failed to determine OS type from image, assuming %s", assumedOSType)
-		osType = assumedOSType
-	}
-
+func (l *LXD) getTools(tools []*github.RunnerApplicationDownload, osType params.OSType, architecture string) (github.RunnerApplicationDownload, error) {
 	// Validate image OS. Linux only for now.
 	switch osType {
 	case params.Linux:
@@ -203,16 +188,16 @@ func (l *LXD) getTools(image *api.Image, tools []*github.RunnerApplicationDownlo
 
 		// fmt.Println(*tool.Architecture, *tool.OS)
 		// fmt.Printf("image arch: %s --> osType: %s\n", image.Architecture, string(osType))
-		if *tool.Architecture == image.Architecture && *tool.OS == string(osType) {
+		if *tool.Architecture == architecture && *tool.OS == string(osType) {
 			return *tool, nil
 		}
 
-		arch, ok := lxdToGithubArchMap[image.Architecture]
+		arch, ok := lxdToGithubArchMap[architecture]
 		if ok && arch == *tool.Architecture && *tool.OS == string(osType) {
 			return *tool, nil
 		}
 	}
-	return github.RunnerApplicationDownload{}, fmt.Errorf("failed to find tools for OS %s and arch %s", osType, image.Architecture)
+	return github.RunnerApplicationDownload{}, fmt.Errorf("failed to find tools for OS %s and arch %s", osType, architecture)
 }
 
 // sadly, the security.secureboot flag is a string encoded boolean.
@@ -238,13 +223,12 @@ func (l *LXD) getCreateInstanceArgs(bootstrapParams params.BootstrapInstance) (a
 	}
 
 	instanceType := l.cfg.LXD.GetInstanceType()
-
-	image, err := l.imageManager.EnsureImage(bootstrapParams.Image, instanceType, arch, l.cli)
+	instanceSource, err := l.imageManager.getInstanceSource(bootstrapParams.Image, instanceType, arch, l.cli)
 	if err != nil {
-		return api.InstancesPost{}, errors.Wrap(err, "getting image details")
+		return api.InstancesPost{}, errors.Wrap(err, "getting instance source")
 	}
 
-	tools, err := l.getTools(image, bootstrapParams.Tools, bootstrapParams.OSType)
+	tools, err := l.getTools(bootstrapParams.Tools, bootstrapParams.OSType, arch)
 	if err != nil {
 		return api.InstancesPost{}, errors.Wrap(err, "getting tools")
 	}
@@ -268,17 +252,14 @@ func (l *LXD) getCreateInstanceArgs(bootstrapParams params.BootstrapInstance) (a
 
 	args := api.InstancesPost{
 		InstancePut: api.InstancePut{
-			Architecture: image.Architecture,
+			Architecture: arch,
 			Profiles:     profiles,
 			Description:  "Github runner provisioned by garm",
 			Config:       configMap,
 		},
-		Source: api.InstanceSource{
-			Type:        "image",
-			Fingerprint: image.Fingerprint,
-		},
-		Name: bootstrapParams.Name,
-		Type: api.InstanceType(instanceType),
+		Source: instanceSource,
+		Name:   bootstrapParams.Name,
+		Type:   api.InstanceType(instanceType),
 	}
 	return args, nil
 }
