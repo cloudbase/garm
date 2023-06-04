@@ -208,7 +208,7 @@ func (l *LXD) secureBootEnabled() string {
 	return "false"
 }
 
-func (l *LXD) getCreateInstanceArgs(bootstrapParams params.BootstrapInstance) (api.InstancesPost, error) {
+func (l *LXD) getCreateInstanceArgs(bootstrapParams params.BootstrapInstance, specs extraSpecs) (api.InstancesPost, error) {
 	if bootstrapParams.Name == "" {
 		return api.InstancesPost{}, runnerErrors.NewBadRequestError("missing name")
 	}
@@ -233,6 +233,7 @@ func (l *LXD) getCreateInstanceArgs(bootstrapParams params.BootstrapInstance) (a
 		return api.InstancesPost{}, errors.Wrap(err, "getting tools")
 	}
 
+	bootstrapParams.UserDataOptions.DisableUpdatesOnBoot = specs.DisableUpdates
 	cloudCfg, err := util.GetCloudConfig(bootstrapParams, tools, bootstrapParams.Name)
 	if err != nil {
 		return api.InstancesPost{}, errors.Wrap(err, "generating cloud-config")
@@ -310,7 +311,11 @@ func (l *LXD) launchInstance(createArgs api.InstancesPost) error {
 
 // CreateInstance creates a new compute instance in the provider.
 func (l *LXD) CreateInstance(ctx context.Context, bootstrapParams params.BootstrapInstance) (params.Instance, error) {
-	args, err := l.getCreateInstanceArgs(bootstrapParams)
+	extraSpecs, err := parseExtraSpecsFromBootstrapParams(bootstrapParams)
+	if err != nil {
+		return params.Instance{}, errors.Wrap(err, "parsing extra specs")
+	}
+	args, err := l.getCreateInstanceArgs(bootstrapParams, extraSpecs)
 	if err != nil {
 		return params.Instance{}, errors.Wrap(err, "fetching create args")
 	}
