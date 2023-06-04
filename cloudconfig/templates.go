@@ -130,8 +130,8 @@ sendStatus "installing runner service"
 ./svc.sh install {{ .RunnerUsername }} || fail "failed to install service"
 
 if [ -e "/sys/fs/selinux" ];then
-    sudo chcon -h user_u:object_r:bin_t /home/runner/
-    sudo chcon -R -h {{ .RunnerUsername }}:object_r:bin_t /home/runner/*
+    sudo chcon -h user_u:object_r:bin_t /home/runner/ || fail "failed to change selinux context"
+    sudo chcon -R -h {{ .RunnerUsername }}:object_r:bin_t /home/runner/* || fail "failed to change selinux context"
 fi
 
 sendStatus "starting service"
