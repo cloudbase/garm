@@ -1068,7 +1068,7 @@ func (r *basePoolManager) addPendingInstances() {
 		log.Printf("failed to fetch instances from store: %s", err)
 		return
 	}
-
+	g, _ := errgroup.WithContext(r.ctx)
 	for _, instance := range instances {
 		if instance.Status != providerCommon.InstancePendingCreate {
 			// not in pending_create status. Skip.
@@ -1082,7 +1082,8 @@ func (r *basePoolManager) addPendingInstances() {
 			// when the loop runs again and we end up with multiple instances.
 			continue
 		}
-		go func(instance params.Instance) {
+		instance := instance
+		g.Go(func() error {
 			log.Printf("creating instance %s in pool %s", instance.Name, instance.PoolID)
 			if err := r.addInstanceToProvider(instance); err != nil {
 				log.Printf("failed to add instance to provider: %s", err)
@@ -1092,7 +1093,11 @@ func (r *basePoolManager) addPendingInstances() {
 				}
 				log.Printf("failed to create instance in provider: %s", err)
 			}
-		}(instance)
+			return nil
+		})
+	}
+	if err := g.Wait(); err != nil {
+		log.Printf("failed to add pending instances: %s", err)
 	}
 }
 
