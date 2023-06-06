@@ -26,6 +26,7 @@ require (
 	github.com/teris-io/shortid v0.0.0-20220617161101-71ec9f2aa569
 	golang.org/x/crypto v0.7.0
 	golang.org/x/oauth2 v0.6.0
+	golang.org/x/sync v0.1.0
 	golang.org/x/sys v0.6.0
 	gopkg.in/DATA-DOG/go-sqlmock.v1 v1.3.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
