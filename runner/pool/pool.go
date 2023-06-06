@@ -1021,7 +1021,7 @@ func (r *basePoolManager) deletePendingInstances() {
 		log.Printf("failed to fetch instances from store: %s", err)
 		return
 	}
-
+	g, ctx := errgroup.WithContext(r.ctx)
 	for _, instance := range instances {
 		if instance.Status != providerCommon.InstancePendingDelete {
 			// not in pending_delete status. Skip.
@@ -1033,7 +1033,8 @@ func (r *basePoolManager) deletePendingInstances() {
 		if err := r.setInstanceStatus(instance.Name, providerCommon.InstanceDeleting, nil); err != nil {
 			log.Printf("failed to update runner %s status", instance.Name)
 		}
-		go func(instance params.Instance) (err error) {
+		instance := instance
+		g.Go(func() (err error) {
 			defer func(instance params.Instance) {
 				if err != nil {
 					// failed to remove from provider. Set the status back to pending_delete, which
@@ -1049,11 +1050,14 @@ func (r *basePoolManager) deletePendingInstances() {
 				return errors.Wrap(err, "removing instance from provider")
 			}
 
-			if deleteErr := r.store.DeleteInstance(r.ctx, instance.PoolID, instance.Name); deleteErr != nil {
+			if deleteErr := r.store.DeleteInstance(ctx, instance.PoolID, instance.Name); deleteErr != nil {
 				return errors.Wrap(deleteErr, "deleting instance from database")
 			}
 			return
-		}(instance) //nolint
+		})
+	}
+	if err := g.Wait(); err != nil {
+		log.Printf("failed to delete pending instances: %s", err)
 	}
 }
 
