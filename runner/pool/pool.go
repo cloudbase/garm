@@ -341,7 +341,7 @@ func (r *basePoolManager) cleanupOrphanedProviderRunners(runners []*github.Runne
 
 		if time.Since(instance.UpdatedAt).Minutes() < 5 {
 			// instance was updated recently. We give it a chance to register itself in github.
-			log.Printf("instance %s was updated recently, give it a chance to connect to github", instance.Name)
+			log.Printf("instance %s was updated recently, skipping check", instance.Name)
 			continue
 		}
 
@@ -442,7 +442,7 @@ func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner)
 
 		switch providerCommon.InstanceStatus(dbInstance.Status) {
 		case providerCommon.InstancePendingDelete, providerCommon.InstanceDeleting:
-			// already marked for deleting or is in the process of being deleted.
+			// already marked for deletion or is in the process of being deleted.
 			// Let consolidate take care of it.
 			continue
 		}
