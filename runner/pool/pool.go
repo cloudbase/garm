@@ -332,6 +332,19 @@ func (r *basePoolManager) cleanupOrphanedProviderRunners(runners []*github.Runne
 			continue
 		}
 
+		switch instance.RunnerStatus {
+		case providerCommon.RunnerPending, providerCommon.RunnerInstalling:
+			// runner is still installing. We give it a chance to finish.
+			log.Printf("runner %s is still installing, give it a chance to finish", instance.Name)
+			continue
+		}
+
+		if time.Since(instance.UpdatedAt).Minutes() < 5 {
+			// instance was updated recently. We give it a chance to register itself in github.
+			log.Printf("instance %s was updated recently, give it a chance to connect to github", instance.Name)
+			continue
+		}
+
 		if ok := runnerNames[instance.Name]; !ok {
 			// Set pending_delete on DB field. Allow consolidate() to remove it.
 			if err := r.setInstanceStatus(instance.Name, providerCommon.InstancePendingDelete, nil); err != nil {
@@ -482,7 +495,7 @@ func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner)
 
 			if providerInstance.Status == providerCommon.InstanceRunning {
 				// instance is running, but github reports runner as offline. Log the event.
-				// This scenario requires manual intervention.
+				// This scenario may require manual intervention.
 				// Perhaps it just came online and github did not yet change it's status?
 				log.Printf("instance %s is online but github reports runner as offline", dbInstance.Name)
 				return nil
