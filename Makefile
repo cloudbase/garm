@@ -37,7 +37,7 @@ fmt:
 	@$(GO) fmt $$(go list ./...)
 
 fmtcheck:
-	@gofmt -l -s $$(go list ./... | sed 's|github.com/cloudbase/garm/||g') | grep ".*\.go"; if [ "$$?" -eq 0 ]; then echo "gofmt check failed; please tun gofmt -w -s"; exit 1;fi
+	@gofmt -l -s $$(go list ./... | sed 's|github.com/cloudbase/garm/||g') | grep ".*\.go"; if [ "$$?" -eq 0 ]; then echo "gofmt check failed; please run gofmt -w -s"; exit 1;fi
 
 verify-vendor: ## verify if all the go.mod/go.sum files are up-to-date
 	$(eval TMPDIR := $(shell mktemp -d))
