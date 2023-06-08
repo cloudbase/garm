@@ -26,9 +26,9 @@ import (
 )
 
 type UserTestFixtures struct {
-	Users         []params.User
-	NewUserParams params.NewUserParams
-	AdminContext  context.Context
+	Users            []params.User
+	NewUserParams    params.NewUserParams
+	UpdateUserParams params.UpdateUserParams
 }
 
 type UserTestSuite struct {
@@ -65,6 +65,7 @@ func (s *UserTestSuite) SetupTest() {
 	}
 
 	// setup test fixtures
+	var enabled bool
 	fixtures := &UserTestFixtures{
 		Users: users,
 		NewUserParams: params.NewUserParams{
@@ -72,6 +73,11 @@ func (s *UserTestSuite) SetupTest() {
 			Username: "test-username",
 			FullName: "test-fullname",
 			Password: "test-password",
+		},
+		UpdateUserParams: params.UpdateUserParams{
+			FullName: "test-update-fullname",
+			Password: "test-update-password",
+			Enabled:  &enabled,
 		},
 	}
 	s.Fixtures = fixtures
@@ -120,6 +126,24 @@ func (s *UserTestSuite) TestCreateUserEmailAlreadyExist() {
 	s.Require().Equal(("email already exists"), err.Error())
 }
 
+func (s *UserTestSuite) TestHasAdminUserNoAdmin() {
+	hasAdmin := s.Store.HasAdminUser(context.Background())
+
+	// initially, we don't have any admin users in the store
+	s.Require().False(hasAdmin)
+}
+
+func (s *UserTestSuite) TestHasAdminUser() {
+	// create an admin user
+	s.Fixtures.NewUserParams.IsAdmin = true
+	_, err := s.Store.CreateUser(context.Background(), s.Fixtures.NewUserParams)
+	s.Require().Nil(err)
+
+	// check again if the store has any admin users
+	hasAdmin := s.Store.HasAdminUser(context.Background())
+	s.Require().True(hasAdmin)
+}
+
 func (s *UserTestSuite) TestGetUser() {
 	user, err := s.Store.GetUser(context.Background(), s.Fixtures.Users[0].Username)
 
@@ -149,6 +173,22 @@ func (s *UserTestSuite) TestGetUserByID() {
 
 func (s *UserTestSuite) TestGetUserByIDNotFound() {
 	_, err := s.Store.GetUserByID(context.Background(), "dummy-user-id")
+
+	s.Require().NotNil(err)
+	s.Require().Equal("fetching user: not found", err.Error())
+}
+
+func (s *UserTestSuite) TestUpdateUser() {
+	user, err := s.Store.UpdateUser(context.Background(), s.Fixtures.Users[0].Username, s.Fixtures.UpdateUserParams)
+
+	s.Require().Nil(err)
+	s.Require().Equal(s.Fixtures.UpdateUserParams.FullName, user.FullName)
+	s.Require().Equal(s.Fixtures.UpdateUserParams.Password, user.Password)
+	s.Require().Equal(*s.Fixtures.UpdateUserParams.Enabled, user.Enabled)
+}
+
+func (s *UserTestSuite) TestUpdateUserNotFound() {
+	_, err := s.Store.UpdateUser(context.Background(), "dummy-user", s.Fixtures.UpdateUserParams)
 
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching user: not found", err.Error())
