@@ -502,7 +502,7 @@ func formatOnePool(pool params.Pool) {
 
 	t.SetColumnConfigs([]table.ColumnConfig{
 		{Number: 1, AutoMerge: true},
-		{Number: 2, AutoMerge: true, WidthMax: 100},
+		{Number: 2, AutoMerge: false, WidthMax: 100},
 	})
 	fmt.Println(t.Render())
 }

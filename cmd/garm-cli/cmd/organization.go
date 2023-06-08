@@ -183,7 +183,7 @@ func formatOneOrganization(org params.Organization) {
 	}
 	t.SetColumnConfigs([]table.ColumnConfig{
 		{Number: 1, AutoMerge: true},
-		{Number: 2, AutoMerge: true},
+		{Number: 2, AutoMerge: false},
 	})
 
 	fmt.Println(t.Render())
