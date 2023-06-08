@@ -17,7 +17,9 @@ package lxd
 import (
 	"context"
 	"fmt"
+	"log"
 	"sync"
+	"time"
 
 	"github.com/cloudbase/garm/config"
 	runnerErrors "github.com/cloudbase/garm/errors"
@@ -358,6 +360,7 @@ func (l *LXD) DeleteInstance(ctx context.Context, instance string) error {
 
 	if err := l.setState(instance, "stop", true); err != nil {
 		if isNotFoundError(err) {
+			log.Printf("received not found error when stopping instance %s", instance)
 			return nil
 		}
 		// I am not proud of this, but the drivers.ErrInstanceIsStopped from LXD pulls in
@@ -368,22 +371,49 @@ func (l *LXD) DeleteInstance(ctx context.Context, instance string) error {
 		}
 	}
 
-	op, err := cli.DeleteInstance(instance)
-	if err != nil {
-		if isNotFoundError(err) {
-			return nil
+	opResponse := make(chan struct {
+		op  lxd.Operation
+		err error
+	})
+	var op lxd.Operation
+	go func() {
+		op, err := cli.DeleteInstance(instance)
+		opResponse <- struct {
+			op  lxd.Operation
+			err error
+		}{op: op, err: err}
+	}()
+
+	select {
+	case resp := <-opResponse:
+		if resp.err != nil {
+			if isNotFoundError(resp.err) {
+				log.Printf("received not found error when deleting instance %s", instance)
+				return nil
+			}
+			return errors.Wrap(resp.err, "removing instance")
 		}
-		return errors.Wrap(err, "removing instance")
+		op = resp.op
+	case <-time.After(time.Second * 60):
+		return errors.Wrapf(runnerErrors.ErrTimeout, "removing instance %s", instance)
 	}
 
-	err = op.Wait()
+	opTimeout, cancel := context.WithTimeout(context.Background(), time.Second*60)
+	defer cancel()
+	err = op.WaitContext(opTimeout)
 	if err != nil {
 		if isNotFoundError(err) {
+			log.Printf("received not found error when waiting for instance deletion %s", instance)
 			return nil
 		}
 		return errors.Wrap(err, "waiting for instance deletion")
 	}
 	return nil
+}
+
+type listResponse struct {
+	instances []api.InstanceFull
+	err       error
 }
 
 // ListInstances will list all instances for a provider.
@@ -393,9 +423,30 @@ func (l *LXD) ListInstances(ctx context.Context, poolID string) ([]params.Instan
 		return []params.Instance{}, errors.Wrap(err, "fetching client")
 	}
 
-	instances, err := cli.GetInstancesFull(api.InstanceTypeAny)
-	if err != nil {
-		return []params.Instance{}, errors.Wrap(err, "fetching instances")
+	result := make(chan listResponse, 1)
+
+	go func() {
+		// TODO(gabriel-samfira): if this blocks indefinitely, we will leak a goroutine.
+		// Convert the internal provider to an external one. Running the provider as an
+		// external process will allow us to not care if a goroutine leaks. Once a timeout
+		// is reached, the provider can just exit with an error. Something we can't do with
+		// internal providers.
+		instances, err := cli.GetInstancesFull(api.InstanceTypeAny)
+		result <- listResponse{
+			instances: instances,
+			err:       err,
+		}
+	}()
+
+	var instances []api.InstanceFull
+	select {
+	case res := <-result:
+		if res.err != nil {
+			return []params.Instance{}, errors.Wrap(res.err, "fetching instances")
+		}
+		instances = res.instances
+	case <-time.After(time.Second * 60):
+		return []params.Instance{}, errors.Wrap(runnerErrors.ErrTimeout, "fetching instances from provider")
 	}
 
 	ret := []params.Instance{}
@@ -449,7 +500,9 @@ func (l *LXD) setState(instance, state string, force bool) error {
 	if err != nil {
 		return errors.Wrapf(err, "setting state to %s", state)
 	}
-	err = op.Wait()
+	ctxTimeout, cancel := context.WithTimeout(context.Background(), time.Second*60)
+	defer cancel()
+	err = op.WaitContext(ctxTimeout)
 	if err != nil {
 		return errors.Wrapf(err, "waiting for instance to transition to state %s", state)
 	}
