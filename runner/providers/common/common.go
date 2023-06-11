@@ -35,12 +35,27 @@ const (
 	RunnerActive     RunnerStatus = "active"
 )
 
+// IsValidStatus checks if the given status is valid.
 func IsValidStatus(status InstanceStatus) bool {
 	switch status {
 	case InstanceRunning, InstanceError, InstancePendingCreate,
 		InstancePendingDelete, InstanceStatusUnknown, InstanceStopped,
 		InstanceCreating, InstanceDeleting:
 
+		return true
+	default:
+		return false
+	}
+}
+
+// IsProviderValidStatus checks if the given status is valid for the provider.
+// A provider should only return a status indicating that the instance is in a
+// lifecycle state that it can influence. The sole purpose of a provider is to
+// manage the lifecycle of an instance. Statuses that indicate an instance should
+// be created or removed, will be set by the controller.
+func IsValidProviderStatus(status InstanceStatus) bool {
+	switch status {
+	case InstanceRunning, InstanceError, InstanceStopped:
 		return true
 	default:
 		return false
