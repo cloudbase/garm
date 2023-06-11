@@ -222,7 +222,8 @@ type BootstrapInstance struct {
 }
 
 type UserDataOptions struct {
-	DisableUpdatesOnBoot bool `json:"disable_updates_on_boot"`
+	DisableUpdatesOnBoot bool     `json:"disable_updates_on_boot"`
+	ExtraPackages        []string `json:"extra_packages"`
 }
 
 type Tag struct {

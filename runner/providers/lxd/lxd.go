@@ -236,6 +236,7 @@ func (l *LXD) getCreateInstanceArgs(bootstrapParams params.BootstrapInstance, sp
 	}
 
 	bootstrapParams.UserDataOptions.DisableUpdatesOnBoot = specs.DisableUpdates
+	bootstrapParams.UserDataOptions.ExtraPackages = specs.ExtraPackages
 	cloudCfg, err := util.GetCloudConfig(bootstrapParams, tools, bootstrapParams.Name)
 	if err != nil {
 		return api.InstancesPost{}, errors.Wrap(err, "generating cloud-config")
