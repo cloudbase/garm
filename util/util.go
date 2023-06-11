@@ -271,6 +271,9 @@ func GetCloudConfig(bootstrapParams params.BootstrapInstance, tools github.Runne
 			cloudCfg.PackageUpgrade = false
 			cloudCfg.Packages = []string{}
 		}
+		for _, pkg := range bootstrapParams.UserDataOptions.ExtraPackages {
+			cloudCfg.AddPackage(pkg)
+		}
 
 		cloudCfg.AddSSHKey(bootstrapParams.SSHKeys...)
 		cloudCfg.AddFile(installScript, "/install_runner.sh", "root:root", "755")
