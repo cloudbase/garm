@@ -6,6 +6,7 @@ USER_ID=$(shell ((docker --version | grep -q podman) && echo "0" || id -u))
 USER_GROUP=$(shell ((docker --version | grep -q podman) && echo "0" || id -g))
 ROOTDIR=$(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 GOPATH ?= $(shell go env GOPATH)
+VERSION ?= $(shell git describe --tags --match='v[0-9]*' --dirty --always)
 GO ?= go
 
 
@@ -16,6 +17,13 @@ build-static:
 	@echo Building garm
 	docker build --tag $(IMAGE_TAG) .
 	docker run --rm -e USER_ID=$(USER_ID) -e USER_GROUP=$(USER_GROUP) -v $(PWD):/build/garm:z $(IMAGE_TAG) /build-static.sh
+	@echo Binaries are available in $(PWD)/bin
+
+build:
+	@echo Building garm ${VERSION}
+	$(shell mkdir -p ./bin)
+	@$(GO) build -ldflags "-s -w -X main.Version=${VERSION}" -tags osusergo,netgo,sqlite_omit_load_extension -o bin/garm ./cmd/garm
+	@$(GO) build -ldflags "-s -w -X github.com/cloudbase/garm/cmd/garm-cli/cmd.Version=${VERSION}" -tags osusergo,netgo,sqlite_omit_load_extension -o bin/garm-cli ./cmd/garm-cli
 	@echo Binaries are available in $(PWD)/bin
 
 install:
