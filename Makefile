@@ -10,7 +10,7 @@ VERSION ?= $(shell git describe --tags --match='v[0-9]*' --dirty --always)
 GO ?= go
 
 
-default: install
+default: build
 
 .PHONY : build-static test install-lint-deps lint go-test fmt fmtcheck verify-vendor verify
 build-static:
@@ -25,10 +25,6 @@ build:
 	@$(GO) build -ldflags "-s -w -X main.Version=${VERSION}" -tags osusergo,netgo,sqlite_omit_load_extension -o bin/garm ./cmd/garm
 	@$(GO) build -ldflags "-s -w -X github.com/cloudbase/garm/cmd/garm-cli/cmd.Version=${VERSION}" -tags osusergo,netgo,sqlite_omit_load_extension -o bin/garm-cli ./cmd/garm-cli
 	@echo Binaries are available in $(PWD)/bin
-
-install:
-	@$(GO) install -tags osusergo,netgo,sqlite_omit_load_extension ./...
-	@echo Binaries available in ${GOPATH}
 
 test: verify go-test
 
