@@ -63,41 +63,41 @@ function fail() {
 # This will echo the version number in the filename. Given a file name like: actions-runner-osx-x64-2.299.1.tar.gz
 # this will output: 2.299.1
 function getRunnerVersion() {
-    FILENAME="{{ .FileName }}"
-    [[ $FILENAME =~ ([0-9]+\.[0-9]+\.[0-9+]) ]]
-    echo $BASH_REMATCH
+	FILENAME="{{ .FileName }}"
+	[[ $FILENAME =~ ([0-9]+\.[0-9]+\.[0-9+]) ]]
+	echo $BASH_REMATCH
 }
 
 function getCachedToolsPath() {
-    CACHED_RUNNER="/opt/cache/actions-runner/latest"
-    if [ -d "$CACHED_RUNNER" ];then
-        echo "$CACHED_RUNNER"
-        return 0
-    fi
+	CACHED_RUNNER="/opt/cache/actions-runner/latest"
+	if [ -d "$CACHED_RUNNER" ];then
+		echo "$CACHED_RUNNER"
+		return 0
+	fi
 
-    VERSION=$(getRunnerVersion)
-    if [ -z "$VERSION" ]; then
-        return 0
-    fi
+	VERSION=$(getRunnerVersion)
+	if [ -z "$VERSION" ]; then
+		return 0
+	fi
 
-    CACHED_RUNNER="/opt/cache/actions-runner/$VERSION"
-    if [ -d "$CACHED_RUNNER" ];then
-        echo "$CACHED_RUNNER"
-        return 0
-    fi
-    return 0
+	CACHED_RUNNER="/opt/cache/actions-runner/$VERSION"
+	if [ -d "$CACHED_RUNNER" ];then
+		echo "$CACHED_RUNNER"
+		return 0
+	fi
+	return 0
 }
 
 function downloadAndExtractRunner() {
-    sendStatus "downloading tools from {{ .DownloadURL }}"
-    if [ ! -z "{{ .TempDownloadToken }}" ]; then
+	sendStatus "downloading tools from {{ .DownloadURL }}"
+	if [ ! -z "{{ .TempDownloadToken }}" ]; then
 	TEMP_TOKEN="Authorization: Bearer {{ .TempDownloadToken }}"
-    fi
-    curl -L -H "${TEMP_TOKEN}" -o "/home/{{ .RunnerUsername }}/{{ .FileName }}" "{{ .DownloadURL }}" || fail "failed to download tools"
-    mkdir -p /home/runner/actions-runner || fail "failed to create actions-runner folder"
-    sendStatus "extracting runner"
-    tar xf "/home/{{ .RunnerUsername }}/{{ .FileName }}" -C /home/{{ .RunnerUsername }}/actions-runner/ || fail "failed to extract runner"
-    chown {{ .RunnerUsername }}:{{ .RunnerGroup }} -R /home/{{ .RunnerUsername }}/actions-runner/ || fail "failed to change owner"
+	fi
+	curl -L -H "${TEMP_TOKEN}" -o "/home/{{ .RunnerUsername }}/{{ .FileName }}" "{{ .DownloadURL }}" || fail "failed to download tools"
+	mkdir -p /home/runner/actions-runner || fail "failed to create actions-runner folder"
+	sendStatus "extracting runner"
+	tar xf "/home/{{ .RunnerUsername }}/{{ .FileName }}" -C /home/{{ .RunnerUsername }}/actions-runner/ || fail "failed to extract runner"
+	chown {{ .RunnerUsername }}:{{ .RunnerGroup }} -R /home/{{ .RunnerUsername }}/actions-runner/ || fail "failed to change owner"
 }
 
 TEMP_TOKEN=""
@@ -107,19 +107,20 @@ GH_RUNNER_GROUP="{{.GitHubRunnerGroup}}"
 # if it holds a value, it will be part of the command.
 RUNNER_GROUP_OPT=""
 if [ ! -z $GH_RUNNER_GROUP ];then
-    RUNNER_GROUP_OPT="--runnergroup=$GH_RUNNER_GROUP"
+	RUNNER_GROUP_OPT="--runnergroup=$GH_RUNNER_GROUP"
 fi
 
 CACHED_RUNNER=$(getCachedToolsPath)
 if [ -z "$CACHED_RUNNER" ];then
-    downloadAndExtractRunner
-    sendStatus "installing dependencies"
-    cd /home/{{ .RunnerUsername }}/actions-runner
-    sudo ./bin/installdependencies.sh || fail "failed to install dependencies"
+	downloadAndExtractRunner
+	sendStatus "installing dependencies"
+	cd /home/{{ .RunnerUsername }}/actions-runner
+	sudo ./bin/installdependencies.sh || fail "failed to install dependencies"
 else
-    sudo cp -a "$CACHED_RUNNER"  "/home/{{ .RunnerUsername }}/actions-runner"
-    cd /home/{{ .RunnerUsername }}/actions-runner
-    chown {{ .RunnerUsername }}:{{ .RunnerGroup }} -R "/home/{{ .RunnerUsername }}/actions-runner" || fail "failed to change owner"
+	sendStatus "using cached runner found in $CACHED_RUNNER"
+	sudo cp -a "$CACHED_RUNNER"  "/home/{{ .RunnerUsername }}/actions-runner"
+	cd /home/{{ .RunnerUsername }}/actions-runner
+	chown {{ .RunnerUsername }}:{{ .RunnerGroup }} -R "/home/{{ .RunnerUsername }}/actions-runner" || fail "failed to change owner"
 fi
 
 
@@ -131,6 +132,7 @@ while true; do
 	sudo -u {{ .RunnerUsername }} -- ./config.sh --unattended --url "{{ .RepoURL }}" --token "$GITHUB_TOKEN" $RUNNER_GROUP_OPT --name "{{ .RunnerName }}" --labels "{{ .RunnerLabels }}" --ephemeral 2>$ERROUT
 	if [ $? -eq 0 ]; then
 		rm $ERROUT || true
+		sendStatus "runner successfully configured after $attempt attempt(s)"
 		break
 	fi
 	LAST_ERR=$(cat $ERROUT)
@@ -145,7 +147,7 @@ while true; do
 		fail "failed to configure runner: $LAST_ERR"
 	fi
 
-	sendStatus "failed to configure runner (attempt $attempt): $LAST_ERR"
+	sendStatus "failed to configure runner (attempt $attempt): $LAST_ERR (retrying in 5 seconds)"
 	attempt=$((attempt+1))
 	rm $ERROUT || true
 	sleep 5
@@ -156,8 +158,8 @@ sendStatus "installing runner service"
 ./svc.sh install {{ .RunnerUsername }} || fail "failed to install service"
 
 if [ -e "/sys/fs/selinux" ];then
-    sudo chcon -h user_u:object_r:bin_t /home/runner/ || fail "failed to change selinux context"
-    sudo chcon -R -h {{ .RunnerUsername }}:object_r:bin_t /home/runner/* || fail "failed to change selinux context"
+	sudo chcon -h user_u:object_r:bin_t /home/runner/ || fail "failed to change selinux context"
+	sudo chcon -R -h {{ .RunnerUsername }}:object_r:bin_t /home/runner/* || fail "failed to change selinux context"
 fi
 
 sendStatus "starting service"
@@ -182,105 +184,105 @@ Param(
 $ErrorActionPreference="Stop"
 
 function Invoke-FastWebRequest {
-    [CmdletBinding()]
-    Param(
-        [Parameter(Mandatory=$True,ValueFromPipeline=$true,Position=0)]
-        [System.Uri]$Uri,
-        [Parameter(Position=1)]
-        [string]$OutFile,
-        [Hashtable]$Headers=@{},
-        [switch]$SkipIntegrityCheck=$false
-    )
-    PROCESS
-    {
-        if(!([System.Management.Automation.PSTypeName]'System.Net.Http.HttpClient').Type)
-        {
-            $assembly = [System.Reflection.Assembly]::LoadWithPartialName("System.Net.Http")
-        }
+	[CmdletBinding()]
+	Param(
+		[Parameter(Mandatory=$True,ValueFromPipeline=$true,Position=0)]
+		[System.Uri]$Uri,
+		[Parameter(Position=1)]
+		[string]$OutFile,
+		[Hashtable]$Headers=@{},
+		[switch]$SkipIntegrityCheck=$false
+	)
+	PROCESS
+	{
+		if(!([System.Management.Automation.PSTypeName]'System.Net.Http.HttpClient').Type)
+		{
+			$assembly = [System.Reflection.Assembly]::LoadWithPartialName("System.Net.Http")
+		}
 
-        if(!$OutFile) {
-            $OutFile = $Uri.PathAndQuery.Substring($Uri.PathAndQuery.LastIndexOf("/") + 1)
-            if(!$OutFile) {
-                throw "The ""OutFile"" parameter needs to be specified"
-            }
-        }
+		if(!$OutFile) {
+			$OutFile = $Uri.PathAndQuery.Substring($Uri.PathAndQuery.LastIndexOf("/") + 1)
+			if(!$OutFile) {
+				throw "The ""OutFile"" parameter needs to be specified"
+			}
+		}
 
-        $fragment = $Uri.Fragment.Trim('#')
-        if ($fragment) {
-            $details = $fragment.Split("=")
-            $algorithm = $details[0]
-            $hash = $details[1]
-        }
+		$fragment = $Uri.Fragment.Trim('#')
+		if ($fragment) {
+			$details = $fragment.Split("=")
+			$algorithm = $details[0]
+			$hash = $details[1]
+		}
 
-        if (!$SkipIntegrityCheck -and $fragment -and (Test-Path $OutFile)) {
-            try {
-                return (Test-FileIntegrity -File $OutFile -Algorithm $algorithm -ExpectedHash $hash)
-            } catch {
-                Remove-Item $OutFile
-            }
-        }
+		if (!$SkipIntegrityCheck -and $fragment -and (Test-Path $OutFile)) {
+			try {
+				return (Test-FileIntegrity -File $OutFile -Algorithm $algorithm -ExpectedHash $hash)
+			} catch {
+				Remove-Item $OutFile
+			}
+		}
 
-        $client = new-object System.Net.Http.HttpClient
-        foreach ($k in $Headers.Keys){
-            $client.DefaultRequestHeaders.Add($k, $Headers[$k])
-        }
-        $task = $client.GetStreamAsync($Uri)
-        $response = $task.Result
-        if($task.IsFaulted) {
-            $msg = "Request for URL '{0}' is faulted. Task status: {1}." -f @($Uri, $task.Status)
-            if($task.Exception) {
-                $msg += "Exception details: {0}" -f @($task.Exception)
-            }
-            Throw $msg
-        }
-        $outStream = New-Object IO.FileStream $OutFile, Create, Write, None
+		$client = new-object System.Net.Http.HttpClient
+		foreach ($k in $Headers.Keys){
+			$client.DefaultRequestHeaders.Add($k, $Headers[$k])
+		}
+		$task = $client.GetStreamAsync($Uri)
+		$response = $task.Result
+		if($task.IsFaulted) {
+			$msg = "Request for URL '{0}' is faulted. Task status: {1}." -f @($Uri, $task.Status)
+			if($task.Exception) {
+				$msg += "Exception details: {0}" -f @($task.Exception)
+			}
+			Throw $msg
+		}
+		$outStream = New-Object IO.FileStream $OutFile, Create, Write, None
 
-        try {
-            $totRead = 0
-            $buffer = New-Object Byte[] 1MB
-            while (($read = $response.Read($buffer, 0, $buffer.Length)) -gt 0) {
-                $totRead += $read
-                $outStream.Write($buffer, 0, $read);
-            }
-        }
-        finally {
-            $outStream.Close()
-        }
-        if(!$SkipIntegrityCheck -and $fragment) {
-            Test-FileIntegrity -File $OutFile -Algorithm $algorithm -ExpectedHash $hash
-        }
-    }
+		try {
+			$totRead = 0
+			$buffer = New-Object Byte[] 1MB
+			while (($read = $response.Read($buffer, 0, $buffer.Length)) -gt 0) {
+				$totRead += $read
+				$outStream.Write($buffer, 0, $read);
+			}
+		}
+		finally {
+			$outStream.Close()
+		}
+		if(!$SkipIntegrityCheck -and $fragment) {
+			Test-FileIntegrity -File $OutFile -Algorithm $algorithm -ExpectedHash $hash
+		}
+	}
 }
 
 function Import-Certificate() {
-    [CmdletBinding()]
-    param (
-        [parameter(Mandatory=$true)]
-        [string]$CertificatePath,
-        [parameter(Mandatory=$true)]
-        [System.Security.Cryptography.X509Certificates.StoreLocation]$StoreLocation="LocalMachine",
-        [parameter(Mandatory=$true)]
-        [System.Security.Cryptography.X509Certificates.StoreName]$StoreName="TrustedPublisher"
-    )
-    PROCESS
-    {
-        $store = New-Object System.Security.Cryptography.X509Certificates.X509Store(
-            $StoreName, $StoreLocation)
-        $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
-        $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2(
-            $CertificatePath)
-        $store.Add($cert)
-    }
+	[CmdletBinding()]
+	param (
+		[parameter(Mandatory=$true)]
+		[string]$CertificatePath,
+		[parameter(Mandatory=$true)]
+		[System.Security.Cryptography.X509Certificates.StoreLocation]$StoreLocation="LocalMachine",
+		[parameter(Mandatory=$true)]
+		[System.Security.Cryptography.X509Certificates.StoreName]$StoreName="TrustedPublisher"
+	)
+	PROCESS
+	{
+		$store = New-Object System.Security.Cryptography.X509Certificates.X509Store(
+			$StoreName, $StoreLocation)
+		$store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
+		$cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2(
+			$CertificatePath)
+		$store.Add($cert)
+	}
 }
 
 function Invoke-APICall() {
 	[CmdletBinding()]
-    param (
-        [parameter(Mandatory=$true)]
-        [object]$Payload,
+	param (
+		[parameter(Mandatory=$true)]
+		[object]$Payload,
 		[parameter(Mandatory=$true)]
 		[string]$CallbackURL
-    )
+	)
 	PROCESS{
 		Invoke-WebRequest -UseBasicParsing -Method Post -Headers @{"Accept"="application/json"; "Authorization"="Bearer $Token"} -Uri $CallbackURL -Body (ConvertTo-Json $Payload) | Out-Null
 	}
@@ -288,12 +290,12 @@ function Invoke-APICall() {
 
 function Update-GarmStatus() {
 	[CmdletBinding()]
-    param (
-        [parameter(Mandatory=$true)]
-        [string]$Message,
+	param (
+		[parameter(Mandatory=$true)]
+		[string]$Message,
 		[parameter(Mandatory=$true)]
 		[string]$CallbackURL
-    )
+	)
 	PROCESS{
 		$body = @{
 			"status"="installing"
@@ -305,14 +307,14 @@ function Update-GarmStatus() {
 
 function Invoke-GarmSuccess() {
 	[CmdletBinding()]
-    param (
-        [parameter(Mandatory=$true)]
-        [string]$Message,
+	param (
 		[parameter(Mandatory=$true)]
-        [int64]$AgentID,
+		[string]$Message,
+		[parameter(Mandatory=$true)]
+		[int64]$AgentID,
 		[parameter(Mandatory=$true)]
 		[string]$CallbackURL
-    )
+	)
 	PROCESS{
 		$body = @{
 			"status"="idle"
@@ -325,12 +327,12 @@ function Invoke-GarmSuccess() {
 
 function Invoke-GarmFailure() {
 	[CmdletBinding()]
-    param (
-        [parameter(Mandatory=$true)]
-        [string]$Message,
+	param (
+		[parameter(Mandatory=$true)]
+		[string]$Message,
 		[parameter(Mandatory=$true)]
 		[string]$CallbackURL
-    )
+	)
 	PROCESS{
 		$body = @{
 			"status"="failed"
