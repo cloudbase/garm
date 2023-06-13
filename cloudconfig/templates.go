@@ -124,7 +124,33 @@ fi
 
 
 sendStatus "configuring runner"
-sudo -u {{ .RunnerUsername }} -- ./config.sh --unattended --url "{{ .RepoURL }}" --token "$GITHUB_TOKEN" $RUNNER_GROUP_OPT --name "{{ .RunnerName }}" --labels "{{ .RunnerLabels }}" --ephemeral || fail "failed to configure runner"
+set +e
+attempt=1
+while true; do
+	ERROUT=$(mktemp)
+	sudo -u {{ .RunnerUsername }} -- ./config.sh --unattended --url "{{ .RepoURL }}" --token "$GITHUB_TOKEN" $RUNNER_GROUP_OPT --name "{{ .RunnerName }}" --labels "{{ .RunnerLabels }}" --ephemeral 2>$ERROUT
+	if [ $? -eq 0 ]; then
+		rm $ERROUT || true
+		break
+	fi
+	LAST_ERR=$(cat $ERROUT)
+	echo "$LAST_ERR"
+
+	# if the runner is already configured, remove it and try again. In the past configuring a runner
+	# managed to register it but timed out later, resulting in an error.
+	sudo -u {{ .RunnerUsername }} -- ./config.sh remove --token "$GITHUB_TOKEN" || true
+
+	if [ $attempt -gt 5 ];then
+		rm $ERROUT || true
+		fail "failed to configure runner: $LAST_ERR"
+	fi
+
+	sendStatus "failed to configure runner (attempt $attempt): $LAST_ERR"
+	attempt=$((attempt+1))
+	rm $ERROUT || true
+	sleep 5
+done
+set -e
 
 sendStatus "installing runner service"
 ./svc.sh install {{ .RunnerUsername }} || fail "failed to install service"
