@@ -16,25 +16,40 @@ package sql
 
 import (
 	"context"
+	"flag"
 	"fmt"
+	"regexp"
 	"testing"
 
 	dbCommon "github.com/cloudbase/garm/database/common"
 	garmTesting "github.com/cloudbase/garm/internal/testing"
 	"github.com/cloudbase/garm/params"
 	"github.com/stretchr/testify/suite"
+	"gopkg.in/DATA-DOG/go-sqlmock.v1"
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 type UserTestFixtures struct {
 	Users            []params.User
 	NewUserParams    params.NewUserParams
 	UpdateUserParams params.UpdateUserParams
+	SQLMock          sqlmock.Sqlmock
 }
 
 type UserTestSuite struct {
 	suite.Suite
-	Store    dbCommon.Store
-	Fixtures *UserTestFixtures
+	Store          dbCommon.Store
+	StoreSQLMocked *sqlDatabase
+	Fixtures       *UserTestFixtures
+}
+
+func (s *UserTestSuite) assertSQLMockExpectations() {
+	err := s.Fixtures.SQLMock.ExpectationsWereMet()
+	if err != nil {
+		s.FailNow(fmt.Sprintf("failed to meet sqlmock expectations, got error: %v", err))
+	}
 }
 
 func (s *UserTestSuite) SetupTest() {
@@ -64,6 +79,29 @@ func (s *UserTestSuite) SetupTest() {
 		users = append(users, user)
 	}
 
+	// create store with mocked sql connection
+	sqlDB, sqlMock, err := sqlmock.New()
+	if err != nil {
+		s.FailNow(fmt.Sprintf("failed to run 'sqlmock.New()', got error: %v", err))
+	}
+	s.T().Cleanup(func() { sqlDB.Close() })
+	mysqlConfig := mysql.Config{
+		Conn:                      sqlDB,
+		SkipInitializeWithVersion: true,
+	}
+	gormConfig := &gorm.Config{}
+	if flag.Lookup("test.v").Value.String() == "false" {
+		gormConfig.Logger = logger.Default.LogMode(logger.Silent)
+	}
+	gormConn, err := gorm.Open(mysql.New(mysqlConfig), gormConfig)
+	if err != nil {
+		s.FailNow(fmt.Sprintf("fail to open gorm connection: %v", err))
+	}
+	s.StoreSQLMocked = &sqlDatabase{
+		conn: gormConn,
+		cfg:  garmTesting.GetTestSqliteDBConfig(s.T()),
+	}
+
 	// setup test fixtures
 	var enabled bool
 	fixtures := &UserTestFixtures{
@@ -79,6 +117,7 @@ func (s *UserTestSuite) SetupTest() {
 			Password: "test-update-password",
 			Enabled:  &enabled,
 		},
+		SQLMock: sqlMock,
 	}
 	s.Fixtures = fixtures
 }
@@ -124,6 +163,28 @@ func (s *UserTestSuite) TestCreateUserEmailAlreadyExist() {
 
 	s.Require().NotNil(err)
 	s.Require().Equal(("email already exists"), err.Error())
+}
+
+func (s *UserTestSuite) TestCreateUserDBCreateErr() {
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `users` WHERE username = ? AND `users`.`deleted_at` IS NULL ORDER BY `users`.`id` LIMIT 1")).
+		WithArgs(s.Fixtures.NewUserParams.Username).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}))
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `users` WHERE email = ? AND `users`.`deleted_at` IS NULL ORDER BY `users`.`id` LIMIT 1")).
+		WithArgs(s.Fixtures.NewUserParams.Email).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}))
+	s.Fixtures.SQLMock.ExpectBegin()
+	s.Fixtures.SQLMock.
+		ExpectExec("INSERT INTO `users`").
+		WillReturnError(fmt.Errorf("creating user mock error"))
+	s.Fixtures.SQLMock.ExpectRollback()
+
+	_, err := s.StoreSQLMocked.CreateUser(context.Background(), s.Fixtures.NewUserParams)
+
+	s.assertSQLMockExpectations()
+	s.Require().NotNil(err)
+	s.Require().Equal("creating user: creating user mock error", err.Error())
 }
 
 func (s *UserTestSuite) TestHasAdminUserNoAdmin() {
@@ -192,6 +253,24 @@ func (s *UserTestSuite) TestUpdateUserNotFound() {
 
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching user: not found", err.Error())
+}
+
+func (s *UserTestSuite) TestUpdateUserDBSaveErr() {
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `users` WHERE username = ? AND `users`.`deleted_at` IS NULL ORDER BY `users`.`id` LIMIT 1")).
+		WithArgs(s.Fixtures.Users[0].ID).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Users[0].ID))
+	s.Fixtures.SQLMock.ExpectBegin()
+	s.Fixtures.SQLMock.
+		ExpectExec(("UPDATE `users` SET")).
+		WillReturnError(fmt.Errorf("saving user mock error"))
+	s.Fixtures.SQLMock.ExpectRollback()
+
+	_, err := s.StoreSQLMocked.UpdateUser(context.Background(), s.Fixtures.Users[0].ID, s.Fixtures.UpdateUserParams)
+
+	s.assertSQLMockExpectations()
+	s.Require().NotNil(err)
+	s.Require().Equal("saving user: saving user mock error", err.Error())
 }
 
 func TestUserTestSuite(t *testing.T) {
