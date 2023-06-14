@@ -365,26 +365,44 @@ func (r *basePoolManager) reapTimedOutRunners(runners []*github.Runner) error {
 		return errors.Wrap(err, "fetching instances from db")
 	}
 
-	runnerNames := map[string]bool{}
+	runnersByName := map[string]*github.Runner{}
 	for _, run := range runners {
 		if !r.isManagedRunner(labelsFromRunner(run)) {
 			log.Printf("runner %s is not managed by a pool belonging to %s", *run.Name, r.helper.String())
 			continue
 		}
-		runnerNames[*run.Name] = true
+		runnersByName[*run.Name] = run
 	}
 
 	for _, instance := range dbInstances {
-		if ok := runnerNames[instance.Name]; !ok {
-			pool, err := r.store.GetPoolByID(r.ctx, instance.PoolID)
-			if err != nil {
-				return errors.Wrap(err, "fetching instance pool info")
-			}
-			if time.Since(instance.UpdatedAt).Minutes() < float64(pool.RunnerTimeout()) {
-				continue
-			}
-			log.Printf("reaping instance %s due to timeout", instance.Name)
-			if err := r.setInstanceStatus(instance.Name, providerCommon.InstancePendingDelete, nil); err != nil {
+		pool, err := r.store.GetPoolByID(r.ctx, instance.PoolID)
+		if err != nil {
+			return errors.Wrap(err, "fetching instance pool info")
+		}
+		if time.Since(instance.UpdatedAt).Minutes() < float64(pool.RunnerTimeout()) {
+			continue
+		}
+
+		// There are 2 cases (currently) where we consider a runner as timed out:
+		//   * The runner never joined github within the pool timeout
+		//   * The runner managed to join github, but the setup process failed later and the runner
+		//     never started on the instance.
+		//
+		// There are several steps in the user data that sets up the runner:
+		//   * Download and unarchive the runner from github (or used the cached version)
+		//   * Configure runner (connects to github). At this point the runner is seen as offline.
+		//   * Install the service
+		//   * Set SELinux context (if SELinux is enabled)
+		//   * Start the service (if successful, the runner will transition to "online")
+		//   * Get the runner ID
+		//
+		// If we fail getting the runner ID after it's started, garm will set the runner status to "failed",
+		// even though, technically the runner is online and fully functional. This is why we check here for
+		// both the runner status as reported by GitHub and the runner status as reported by the provider.
+		// If the runner is "offline" and marked as "failed", it should be safe to reap it.
+		if runner, ok := runnersByName[instance.Name]; !ok || (runner.GetStatus() == "offline" && instance.RunnerStatus == providerCommon.RunnerFailed) {
+			log.Printf("reaping timed-out/failed runner %s", instance.Name)
+			if err := r.ForceDeleteRunner(instance); err != nil {
 				log.Printf("failed to update runner %s status", instance.Name)
 				return errors.Wrap(err, "updating runner")
 			}
