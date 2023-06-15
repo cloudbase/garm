@@ -67,7 +67,7 @@ func (r *Runner) DeletePoolByID(ctx context.Context, poolID string) error {
 	}
 
 	if err := r.store.DeletePoolByID(ctx, poolID); err != nil {
-		return errors.Wrap(err, "fetching pool")
+		return errors.Wrap(err, "deleting pool")
 	}
 	return nil
 }
