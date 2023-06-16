@@ -10,6 +10,12 @@ The goal of ```garm``` is to be simple to set up, simple to configure and simple
 
 Garm supports creating pools on either GitHub itself or on your own deployment of [GitHub Enterprise Server](https://docs.github.com/en/enterprise-server@3.5/admin/overview/about-github-enterprise-server). For instructions on how to use ```garm``` with GHE, see the [credentials](/doc/github_credentials.md) section of the documentation.
 
+## Join us on slack
+
+Whether you're running into issues or just want to drop by and say "hi", feel free to [join us on slack](https://communityinviter.com/apps/garm-hq/garm).
+
+[![slack](https://img.shields.io/badge/slack-garm-brightgreen.svg?logo=slack)](https://communityinviter.com/apps/garm-hq/garm)
+
 ## Installing
 
 ## Build from source
