@@ -44,21 +44,21 @@ type external struct {
 	execPath     string
 }
 
-func (e *external) validateCreateResult(inst params.Instance) error {
+func (e *external) validateResult(inst params.Instance) error {
 	if inst.ProviderID == "" {
-		return garmErrors.NewProviderError("missing provider ID after create call")
+		return garmErrors.NewProviderError("missing provider ID")
 	}
 
 	if inst.Name == "" {
-		return garmErrors.NewProviderError("missing instance name after create call")
+		return garmErrors.NewProviderError("missing instance name")
 	}
 
 	if inst.OSName == "" || inst.OSArch == "" || inst.OSType == "" {
 		// we can still function without this info (I think)
-		log.Printf("WARNING: missing OS information after create call")
+		log.Printf("WARNING: missing OS information")
 	}
-	if !providerCommon.IsValidStatus(inst.Status) {
-		return garmErrors.NewProviderError("invalid status returned (%s) after create call", inst.Status)
+	if !providerCommon.IsValidProviderStatus(inst.Status) {
+		return garmErrors.NewProviderError("invalid status returned (%s)", inst.Status)
 	}
 
 	return nil
@@ -88,7 +88,7 @@ func (e *external) CreateInstance(ctx context.Context, bootstrapParams params.Bo
 		return params.Instance{}, garmErrors.NewProviderError("failed to decode response from binary: %s", err)
 	}
 
-	if err := e.validateCreateResult(param); err != nil {
+	if err := e.validateResult(param); err != nil {
 		return params.Instance{}, garmErrors.NewProviderError("failed to validate result: %s", err)
 	}
 
@@ -137,6 +137,11 @@ func (e *external) GetInstance(ctx context.Context, instance string) (params.Ins
 	if err := json.Unmarshal(out, &param); err != nil {
 		return params.Instance{}, garmErrors.NewProviderError("failed to decode response from binary: %s", err)
 	}
+
+	if err := e.validateResult(param); err != nil {
+		return params.Instance{}, garmErrors.NewProviderError("failed to validate result: %s", err)
+	}
+
 	return param, nil
 }
 
@@ -157,6 +162,12 @@ func (e *external) ListInstances(ctx context.Context, poolID string) ([]params.I
 	var param []params.Instance
 	if err := json.Unmarshal(out, &param); err != nil {
 		return []params.Instance{}, garmErrors.NewProviderError("failed to decode response from binary: %s", err)
+	}
+
+	for _, inst := range param {
+		if err := e.validateResult(inst); err != nil {
+			return []params.Instance{}, garmErrors.NewProviderError("failed to validate result: %s", err)
+		}
 	}
 	return param, nil
 }

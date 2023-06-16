@@ -22,7 +22,8 @@ import (
 )
 
 type extraSpecs struct {
-	DisableUpdates bool `json:"disable_updates"`
+	DisableUpdates bool     `json:"disable_updates"`
+	ExtraPackages  []string `json:"extra_packages"`
 }
 
 func parseExtraSpecsFromBootstrapParams(bootstrapParams params.BootstrapInstance) (extraSpecs, error) {

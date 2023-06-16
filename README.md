@@ -1,4 +1,4 @@
-# GitHub Actions Runners Manager (garm)
+# GitHub Actions Runner Manager (garm)
 
 [![Go Tests](https://github.com/cloudbase/garm/actions/workflows/go-tests.yml/badge.svg)](https://github.com/cloudbase/garm/actions/workflows/go-tests.yml)
 
@@ -9,6 +9,12 @@ Garm enables you to create and automatically maintain pools of [self-hosted GitH
 The goal of ```garm``` is to be simple to set up, simple to configure and simple to use. It is a single binary that can run on any GNU/Linux machine without any other requirements other than the providers it creates the runners in. It is intended to be easy to deploy in any environment and can create runners in any system you can write a provider for. There is no complicated setup process and no extremely complex concepts to understand. Once set up, it's meant to stay out of your way.
 
 Garm supports creating pools on either GitHub itself or on your own deployment of [GitHub Enterprise Server](https://docs.github.com/en/enterprise-server@3.5/admin/overview/about-github-enterprise-server). For instructions on how to use ```garm``` with GHE, see the [credentials](/doc/github_credentials.md) section of the documentation.
+
+## Join us on slack
+
+Whether you're running into issues or just want to drop by and say "hi", feel free to [join us on slack](https://communityinviter.com/apps/garm-hq/garm).
+
+[![slack](https://img.shields.io/badge/slack-garm-brightgreen.svg?logo=slack)](https://communityinviter.com/apps/garm-hq/garm)
 
 ## Installing
 
