@@ -1,4 +1,4 @@
-# GitHub Actions Runners Manager (garm)
+# GitHub Actions Runner Manager (garm)
 
 [![Go Tests](https://github.com/cloudbase/garm/actions/workflows/go-tests.yml/badge.svg)](https://github.com/cloudbase/garm/actions/workflows/go-tests.yml)
 
