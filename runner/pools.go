@@ -117,7 +117,7 @@ func (r *Runner) UpdatePoolByID(ctx context.Context, poolID string, param params
 	} else if pool.EnterpriseID != "" {
 		newPool, err = r.store.UpdateEnterprisePool(ctx, pool.EnterpriseID, poolID, param)
 	} else {
-		return params.Pool{}, fmt.Errorf("pool not bound to a repo, org or enterprise")
+		return params.Pool{}, fmt.Errorf("pool not found to a repo, org or enterprise")
 	}
 
 	if err != nil {
