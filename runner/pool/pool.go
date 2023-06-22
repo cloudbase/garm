@@ -527,10 +527,29 @@ func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner)
 			return nil
 		})
 	}
-	if err := g.Wait(); err != nil {
+	if err := r.waitForErrorGroupOrContextCancelled(g); err != nil {
 		return errors.Wrap(err, "removing orphaned github runners")
 	}
 	return nil
+}
+
+func (r *basePoolManager) waitForErrorGroupOrContextCancelled(g *errgroup.Group) error {
+	if g == nil {
+		return nil
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		waitErr := g.Wait()
+		done <- waitErr
+	}()
+
+	select {
+	case err := <-done:
+		return err
+	case <-r.ctx.Done():
+		return r.ctx.Err()
+	}
 }
 
 func (r *basePoolManager) fetchInstance(runnerName string) (params.Instance, error) {
@@ -819,15 +838,14 @@ func (r *basePoolManager) updateArgsFromProviderInstance(providerInstance params
 		ProviderFault: providerInstance.ProviderFault,
 	}
 }
-func (r *basePoolManager) scaleDownOnePool(pool params.Pool) {
+func (r *basePoolManager) scaleDownOnePool(ctx context.Context, pool params.Pool) error {
 	if !pool.Enabled {
-		return
+		return nil
 	}
 
 	existingInstances, err := r.store.ListPoolInstances(r.ctx, pool.ID)
 	if err != nil {
-		log.Printf("failed to ensure minimum idle workers for pool %s: %s", pool.ID, err)
-		return
+		return fmt.Errorf("failed to ensure minimum idle workers for pool %s: %w", pool.ID, err)
 	}
 
 	idleWorkers := []params.Instance{}
@@ -844,44 +862,53 @@ func (r *basePoolManager) scaleDownOnePool(pool params.Pool) {
 	}
 
 	if len(idleWorkers) == 0 {
-		return
+		return nil
 	}
 
 	surplus := float64(len(idleWorkers) - int(pool.MinIdleRunners))
 
 	if surplus <= 0 {
-		return
+		return nil
 	}
 
 	scaleDownFactor := 0.5 // could be configurable
 	numScaleDown := int(math.Ceil(surplus * scaleDownFactor))
 
 	if numScaleDown <= 0 || numScaleDown > len(idleWorkers) {
-		log.Printf("invalid number of instances to scale down: %v, check your scaleDownFactor: %v\n", numScaleDown, scaleDownFactor)
-		return
+		return fmt.Errorf("invalid number of instances to scale down: %v, check your scaleDownFactor: %v", numScaleDown, scaleDownFactor)
 	}
+
+	g, _ := errgroup.WithContext(ctx)
 
 	for _, instanceToDelete := range idleWorkers[:numScaleDown] {
-		log.Printf("scaling down idle worker %s from pool %s\n", instanceToDelete.Name, pool.ID)
-		if err := r.ForceDeleteRunner(instanceToDelete); err != nil {
-			log.Printf("failed to delete instance %s: %s", instanceToDelete.ID, err)
-		}
+		instanceToDelete := instanceToDelete
+		g.Go(func() error {
+			log.Printf("scaling down idle worker %s from pool %s\n", instanceToDelete.Name, pool.ID)
+			if err := r.ForceDeleteRunner(instanceToDelete); err != nil {
+				return fmt.Errorf("failed to delete instance %s: %w", instanceToDelete.ID, err)
+			}
+			return nil
+		})
 	}
+
+	if err := r.waitForErrorGroupOrContextCancelled(g); err != nil {
+		return fmt.Errorf("failed to scale down pool %s: %w", pool.ID, err)
+	}
+	return nil
 }
 
-func (r *basePoolManager) ensureIdleRunnersForOnePool(pool params.Pool) {
+func (r *basePoolManager) ensureIdleRunnersForOnePool(pool params.Pool) error {
 	if !pool.Enabled {
-		return
+		return nil
 	}
 	existingInstances, err := r.store.ListPoolInstances(r.ctx, pool.ID)
 	if err != nil {
-		log.Printf("failed to ensure minimum idle workers for pool %s: %s", pool.ID, err)
-		return
+		return fmt.Errorf("failed to ensure minimum idle workers for pool %s: %w", pool.ID, err)
 	}
 
 	if uint(len(existingInstances)) >= pool.MaxRunners {
 		log.Printf("max workers (%d) reached for pool %s, skipping idle worker creation", pool.MaxRunners, pool.ID)
-		return
+		return nil
 	}
 
 	idleOrPendingWorkers := []params.Instance{}
@@ -907,23 +934,23 @@ func (r *basePoolManager) ensureIdleRunnersForOnePool(pool params.Pool) {
 	for i := 0; i < required; i++ {
 		log.Printf("adding new idle worker to pool %s", pool.ID)
 		if err := r.AddRunner(r.ctx, pool.ID); err != nil {
-			log.Printf("failed to add new instance for pool %s: %s", pool.ID, err)
+			return fmt.Errorf("failed to add new instance for pool %s: %w", pool.ID, err)
 		}
 	}
+	return nil
 }
 
-func (r *basePoolManager) retryFailedInstancesForOnePool(pool params.Pool) {
+func (r *basePoolManager) retryFailedInstancesForOnePool(ctx context.Context, pool params.Pool) error {
 	if !pool.Enabled {
-		return
+		return nil
 	}
 
 	existingInstances, err := r.store.ListPoolInstances(r.ctx, pool.ID)
 	if err != nil {
-		log.Printf("retrying failed instances: failed to list instances for pool %s: %s", pool.ID, err)
-		return
+		return fmt.Errorf("failed to list instances for pool %s: %w", pool.ID, err)
 	}
 
-	g, _ := errgroup.WithContext(r.ctx)
+	g, errCtx := errgroup.WithContext(ctx)
 	for _, instance := range existingInstances {
 		if instance.Status != providerCommon.InstanceError {
 			continue
@@ -936,7 +963,7 @@ func (r *basePoolManager) retryFailedInstancesForOnePool(pool params.Pool) {
 			// NOTE(gabriel-samfira): this is done in parallel. If there are many failed instances
 			// this has the potential to create many API requests to the target provider.
 			// TODO(gabriel-samfira): implement request throttling.
-			if err := r.deleteInstanceFromProvider(instance); err != nil {
+			if err := r.deleteInstanceFromProvider(errCtx, instance); err != nil {
 				log.Printf("failed to delete instance %s from provider: %s", instance.Name, err)
 				// Bail here, otherwise we risk creating multiple failing instances, and losing track
 				// of them. If Create instance failed to return a proper provider ID, we rely on the
@@ -965,63 +992,74 @@ func (r *basePoolManager) retryFailedInstancesForOnePool(pool params.Pool) {
 			return nil
 		})
 	}
-	if err := g.Wait(); err != nil {
-		log.Printf("failed to retry failed instances for pool %s: %s", pool.ID, err)
+	if err := r.waitForErrorGroupOrContextCancelled(g); err != nil {
+		return fmt.Errorf("failed to retry failed instances for pool %s: %w", pool.ID, err)
 	}
+	return nil
 }
 
-func (r *basePoolManager) retryFailedInstances() {
+func (r *basePoolManager) retryFailedInstances() error {
 	pools, err := r.helper.ListPools()
 	if err != nil {
-		log.Printf("error listing pools: %s", err)
-		return
+		return fmt.Errorf("error listing pools: %w", err)
 	}
-	wg := sync.WaitGroup{}
-	wg.Add(len(pools))
+	g, ctx := errgroup.WithContext(r.ctx)
 	for _, pool := range pools {
-		go func(pool params.Pool) {
-			defer wg.Done()
-			r.retryFailedInstancesForOnePool(pool)
-		}(pool)
+		pool := pool
+		g.Go(func() error {
+			if err := r.retryFailedInstancesForOnePool(ctx, pool); err != nil {
+				return fmt.Errorf("retrying failed instances for pool %s: %w", pool.ID, err)
+			}
+			return nil
+		})
 	}
-	wg.Wait()
+
+	if err := r.waitForErrorGroupOrContextCancelled(g); err != nil {
+		return fmt.Errorf("retrying failed instances: %w", err)
+	}
+
+	return nil
 }
 
-func (r *basePoolManager) scaleDown() {
+func (r *basePoolManager) scaleDown() error {
 	pools, err := r.helper.ListPools()
 	if err != nil {
-		log.Printf("error listing pools: %s", err)
-		return
+		return fmt.Errorf("error listing pools: %w", err)
 	}
-	wg := sync.WaitGroup{}
-	wg.Add(len(pools))
+	g, ctx := errgroup.WithContext(r.ctx)
 	for _, pool := range pools {
-		go func(pool params.Pool) {
-			defer wg.Done()
-			r.scaleDownOnePool(pool)
-		}(pool)
+		pool := pool
+		g.Go(func() error {
+			return r.scaleDownOnePool(ctx, pool)
+		})
 	}
-	wg.Wait()
+	if err := r.waitForErrorGroupOrContextCancelled(g); err != nil {
+		return fmt.Errorf("failed to scale down: %w", err)
+	}
+	return nil
 }
 
-func (r *basePoolManager) ensureMinIdleRunners() {
+func (r *basePoolManager) ensureMinIdleRunners() error {
 	pools, err := r.helper.ListPools()
 	if err != nil {
-		log.Printf("error listing pools: %s", err)
-		return
+		return fmt.Errorf("error listing pools: %w", err)
 	}
-	wg := sync.WaitGroup{}
-	wg.Add(len(pools))
+
+	g, _ := errgroup.WithContext(r.ctx)
 	for _, pool := range pools {
-		go func(pool params.Pool) {
-			defer wg.Done()
-			r.ensureIdleRunnersForOnePool(pool)
-		}(pool)
+		pool := pool
+		g.Go(func() error {
+			return r.ensureIdleRunnersForOnePool(pool)
+		})
 	}
-	wg.Wait()
+
+	if err := r.waitForErrorGroupOrContextCancelled(g); err != nil {
+		return fmt.Errorf("failed to ensure minimum idle workers: %w", err)
+	}
+	return nil
 }
 
-func (r *basePoolManager) deleteInstanceFromProvider(instance params.Instance) error {
+func (r *basePoolManager) deleteInstanceFromProvider(ctx context.Context, instance params.Instance) error {
 	pool, err := r.helper.GetPoolByID(instance.PoolID)
 	if err != nil {
 		return errors.Wrap(err, "fetching pool")
@@ -1039,18 +1077,17 @@ func (r *basePoolManager) deleteInstanceFromProvider(instance params.Instance) e
 		identifier = instance.Name
 	}
 
-	if err := provider.DeleteInstance(r.ctx, identifier); err != nil {
+	if err := provider.DeleteInstance(ctx, identifier); err != nil {
 		return errors.Wrap(err, "removing instance")
 	}
 
 	return nil
 }
 
-func (r *basePoolManager) deletePendingInstances() {
+func (r *basePoolManager) deletePendingInstances() error {
 	instances, err := r.helper.FetchDbInstances()
 	if err != nil {
-		log.Printf("failed to fetch instances from store: %s", err)
-		return
+		return fmt.Errorf("failed to fetch instances from store: %w", err)
 	}
 	g, ctx := errgroup.WithContext(r.ctx)
 	for _, instance := range instances {
@@ -1063,7 +1100,9 @@ func (r *basePoolManager) deletePendingInstances() {
 		// the runner from the provider (which can take a long time).
 		if err := r.setInstanceStatus(instance.Name, providerCommon.InstanceDeleting, nil); err != nil {
 			log.Printf("failed to update runner %s status", instance.Name)
+			continue
 		}
+
 		instance := instance
 		g.Go(func() (err error) {
 			defer func(instance params.Instance) {
@@ -1076,28 +1115,29 @@ func (r *basePoolManager) deletePendingInstances() {
 				}
 			}(instance)
 
-			err = r.deleteInstanceFromProvider(instance)
+			err = r.deleteInstanceFromProvider(ctx, instance)
 			if err != nil {
-				return errors.Wrap(err, "removing instance from provider")
+				return fmt.Errorf("failed to remove instance from provider: %w", err)
 			}
 
 			if deleteErr := r.store.DeleteInstance(ctx, instance.PoolID, instance.Name); deleteErr != nil {
-				return errors.Wrap(deleteErr, "deleting instance from database")
+				return fmt.Errorf("failed to delete instance from database: %w", deleteErr)
 			}
-			return
+			return nil
 		})
 	}
-	if err := g.Wait(); err != nil {
-		log.Printf("failed to delete pending instances: %s", err)
+	if err := r.waitForErrorGroupOrContextCancelled(g); err != nil {
+		return fmt.Errorf("failed to delete pending instances: %w", err)
 	}
+
+	return nil
 }
 
-func (r *basePoolManager) addPendingInstances() {
+func (r *basePoolManager) addPendingInstances() error {
 	// TODO: filter instances by status.
 	instances, err := r.helper.FetchDbInstances()
 	if err != nil {
-		log.Printf("failed to fetch instances from store: %s", err)
-		return
+		return fmt.Errorf("failed to fetch instances from store: %w", err)
 	}
 	g, _ := errgroup.WithContext(r.ctx)
 	for _, instance := range instances {
@@ -1120,16 +1160,18 @@ func (r *basePoolManager) addPendingInstances() {
 				log.Printf("failed to add instance to provider: %s", err)
 				errAsBytes := []byte(err.Error())
 				if err := r.setInstanceStatus(instance.Name, providerCommon.InstanceError, errAsBytes); err != nil {
-					log.Printf("failed to update runner %s status", instance.Name)
+					return fmt.Errorf("failed to update runner %s status: %w", instance.Name, err)
 				}
-				log.Printf("failed to create instance in provider: %s", err)
+				return fmt.Errorf("failed to create instance in provider: %w", err)
 			}
 			return nil
 		})
 	}
-	if err := g.Wait(); err != nil {
-		log.Printf("failed to add pending instances: %s", err)
+	if err := r.waitForErrorGroupOrContextCancelled(g); err != nil {
+		return fmt.Errorf("failed to add pending instances: %w", err)
 	}
+
+	return nil
 }
 
 func (r *basePoolManager) consolidate() {
@@ -1137,29 +1179,16 @@ func (r *basePoolManager) consolidate() {
 	r.mux.Lock()
 	defer r.mux.Unlock()
 
-	wg := sync.WaitGroup{}
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		r.deletePendingInstances()
-	}()
-	go func() {
-		defer wg.Done()
-		r.addPendingInstances()
-	}()
-	wg.Wait()
+	g, _ := errgroup.WithContext(r.ctx)
 
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		r.ensureMinIdleRunners()
-	}()
+	g.Go(r.deletePendingInstances)
+	g.Go(r.addPendingInstances)
+	g.Go(r.ensureMinIdleRunners)
+	g.Go(r.retryFailedInstances)
 
-	go func() {
-		defer wg.Done()
-		r.retryFailedInstances()
-	}()
-	wg.Wait()
+	if err := r.waitForErrorGroupOrContextCancelled(g); err != nil {
+		log.Printf("failed to consolidate: %s", err)
+	}
 }
 
 func (r *basePoolManager) Wait() error {
