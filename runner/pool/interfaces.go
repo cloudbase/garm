@@ -17,7 +17,7 @@ package pool
 import (
 	"github.com/cloudbase/garm/params"
 
-	"github.com/google/go-github/v48/github"
+	"github.com/google/go-github/v53/github"
 )
 
 type poolHelper interface {

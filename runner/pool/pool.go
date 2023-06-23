@@ -32,7 +32,7 @@ import (
 	providerCommon "github.com/cloudbase/garm/runner/providers/common"
 	"github.com/cloudbase/garm/util"
 
-	"github.com/google/go-github/v48/github"
+	"github.com/google/go-github/v53/github"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 )
@@ -49,6 +49,34 @@ const (
 	maxCreateAttempts = 5
 )
 
+type keyMutex struct {
+	muxes sync.Map
+}
+
+func (k *keyMutex) TryLock(key string) bool {
+	mux, _ := k.muxes.LoadOrStore(key, &sync.Mutex{})
+	keyMux := mux.(*sync.Mutex)
+	return keyMux.TryLock()
+}
+
+func (k *keyMutex) Unlock(key string) {
+	mux, ok := k.muxes.Load(key)
+	if !ok {
+		return
+	}
+	keyMux := mux.(*sync.Mutex)
+	keyMux.Unlock()
+}
+
+func (k *keyMutex) Delete(key string) {
+	k.muxes.Delete(key)
+}
+
+func (k *keyMutex) UnlockAndDelete(key string) {
+	k.Unlock(key)
+	k.Delete(key)
+}
+
 type basePoolManager struct {
 	ctx          context.Context
 	controllerID string
@@ -58,7 +86,6 @@ type basePoolManager struct {
 	providers map[string]common.Provider
 	tools     []*github.RunnerApplicationDownload
 	quit      chan struct{}
-	done      chan struct{}
 
 	helper       poolHelper
 	credsDetails params.GithubCredentials
@@ -66,7 +93,9 @@ type basePoolManager struct {
 	managerIsRunning   bool
 	managerErrorReason string
 
-	mux sync.Mutex
+	mux    sync.Mutex
+	wg     *sync.WaitGroup
+	keyMux *keyMutex
 }
 
 func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) (err error) {
@@ -149,77 +178,28 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) (err error) 
 	return nil
 }
 
-func (r *basePoolManager) loop() {
-	scaleDownTimer := time.NewTicker(common.PoolScaleDownInterval)
-	consolidateTimer := time.NewTicker(common.PoolConsilitationInterval)
-	reapTimer := time.NewTicker(common.PoolReapTimeoutInterval)
-	toolUpdateTimer := time.NewTicker(common.PoolToolUpdateInterval)
-	defer func() {
-		log.Printf("%s loop exited", r.helper.String())
-		scaleDownTimer.Stop()
-		consolidateTimer.Stop()
-		reapTimer.Stop()
-		toolUpdateTimer.Stop()
-		close(r.done)
-	}()
-	log.Printf("starting loop for %s", r.helper.String())
+func (r *basePoolManager) startLoopForFunction(f func() error, interval time.Duration, name string) {
+	log.Printf("starting %s loop for %s", name, r.helper.String())
+	ticker := time.NewTicker(interval)
+	r.wg.Add(1)
 
-	// Consolidate runners on loop start. Provider runners must match runners
-	// in github and DB. When a Workflow job is received, we will first create/update
-	// an entity in the database, before sending the request to the provider to create/delete
-	// an instance. If a "queued" job is received, we create an entity in the db with
-	// a state of "pending_create". Once that instance is up and calls home, it is marked
-	// as "active". If a "completed" job is received from github, we mark the instance
-	// as "pending_delete". Once the provider deletes the instance, we mark it as "deleted"
-	// in the database.
-	// We also ensure we have runners created based on pool characteristics. This is where
-	// we spin up "MinWorkers" for each runner type.
+	defer func() {
+		log.Printf("%s loop exited for pool %s", name, r.helper.String())
+		ticker.Stop()
+		r.wg.Done()
+	}()
+
 	for {
 		switch r.managerIsRunning {
 		case true:
 			select {
-			case <-reapTimer.C:
-				runners, err := r.helper.GetGithubRunners()
-				if err != nil {
-					failureReason := fmt.Sprintf("error fetching github runners for %s: %s", r.helper.String(), err)
-					r.setPoolRunningState(false, failureReason)
-					log.Print(failureReason)
+			case <-ticker.C:
+				if err := f(); err != nil {
+					log.Printf("%s: %q", name, err)
 					if errors.Is(err, runnerErrors.ErrUnauthorized) {
-						break
-					}
-					continue
-				}
-				if err := r.reapTimedOutRunners(runners); err != nil {
-					log.Printf("failed to reap timed out runners: %q", err)
-				}
-
-				if err := r.runnerCleanup(); err != nil {
-					failureReason := fmt.Sprintf("failed to clean runners for %s: %q", r.helper.String(), err)
-					log.Print(failureReason)
-					if errors.Is(err, runnerErrors.ErrUnauthorized) {
-						r.setPoolRunningState(false, failureReason)
+						r.setPoolRunningState(false, err.Error())
 					}
 				}
-			case <-consolidateTimer.C:
-				// consolidate.
-				r.consolidate()
-			case <-scaleDownTimer.C:
-				r.scaleDown()
-			case <-toolUpdateTimer.C:
-				// Update tools cache.
-				tools, err := r.helper.FetchTools()
-				if err != nil {
-					failureReason := fmt.Sprintf("failed to update tools for repo %s: %s", r.helper.String(), err)
-					r.setPoolRunningState(false, failureReason)
-					log.Print(failureReason)
-					if errors.Is(err, runnerErrors.ErrUnauthorized) {
-						break
-					}
-					continue
-				}
-				r.mux.Lock()
-				r.tools = tools
-				r.mux.Unlock()
 			case <-r.ctx.Done():
 				// daemon is shutting down.
 				return
@@ -236,37 +216,52 @@ func (r *basePoolManager) loop() {
 				// this worker was stopped.
 				return
 			default:
-				log.Printf("attempting to start pool manager for %s", r.helper.String())
-				tools, err := r.helper.FetchTools()
-				var failureReason string
-				if err != nil {
-					failureReason = fmt.Sprintf("failed to fetch tools from github for %s: %q", r.helper.String(), err)
-					r.setPoolRunningState(false, failureReason)
-					log.Print(failureReason)
-					if errors.Is(err, runnerErrors.ErrUnauthorized) {
-						r.waitForTimeoutOrCanceled(common.UnauthorizedBackoffTimer)
-					} else {
-						r.waitForTimeoutOrCanceled(60 * time.Second)
-					}
-					continue
-				}
-				r.mux.Lock()
-				r.tools = tools
-				r.mux.Unlock()
-
-				if err := r.runnerCleanup(); err != nil {
-					failureReason = fmt.Sprintf("failed to clean runners for %s: %q", r.helper.String(), err)
-					log.Print(failureReason)
-					if errors.Is(err, runnerErrors.ErrUnauthorized) {
-						r.setPoolRunningState(false, failureReason)
-						r.waitForTimeoutOrCanceled(common.UnauthorizedBackoffTimer)
-					}
-					continue
-				}
-				r.setPoolRunningState(true, "")
+				r.waitForTimeoutOrCanceled(common.UnauthorizedBackoffTimer)
 			}
 		}
 	}
+}
+
+func (r *basePoolManager) updateTools() error {
+	// Update tools cache.
+	tools, err := r.helper.FetchTools()
+	if err != nil {
+		return fmt.Errorf("failed to update tools for repo %s: %w", r.helper.String(), err)
+	}
+	r.mux.Lock()
+	r.tools = tools
+	r.mux.Unlock()
+	return nil
+}
+
+func (r *basePoolManager) checkCanAuthenticateToGithub() error {
+	tools, err := r.helper.FetchTools()
+	if err != nil {
+		r.setPoolRunningState(false, err.Error())
+		if errors.Is(err, runnerErrors.ErrUnauthorized) {
+			r.waitForTimeoutOrCanceled(common.UnauthorizedBackoffTimer)
+		} else {
+			r.waitForTimeoutOrCanceled(60 * time.Second)
+		}
+		return fmt.Errorf("failed to update tools for repo %s: %w", r.helper.String(), err)
+	}
+	r.mux.Lock()
+	r.tools = tools
+	r.mux.Unlock()
+
+	err = r.runnerCleanup()
+	if err != nil {
+		if errors.Is(err, runnerErrors.ErrUnauthorized) {
+			r.setPoolRunningState(false, err.Error())
+			r.waitForTimeoutOrCanceled(common.UnauthorizedBackoffTimer)
+			return fmt.Errorf("failed to clean runners for %s: %w", r.helper.String(), err)
+		}
+	}
+	// We still set the pool as running, even if we failed to clean up runners.
+	// We only set the pool as not running if we fail to authenticate to github. This is done
+	// to avoid being rate limited by github when we have a bad token.
+	r.setPoolRunningState(true, "")
+	return err
 }
 
 func controllerIDFromLabels(labels []string) string {
@@ -323,6 +318,13 @@ func (r *basePoolManager) cleanupOrphanedProviderRunners(runners []*github.Runne
 	}
 
 	for _, instance := range dbInstances {
+		lockAcquired := r.keyMux.TryLock(instance.Name)
+		if !lockAcquired {
+			log.Printf("failed to acquire lock for instance %s", instance.Name)
+			continue
+		}
+		defer r.keyMux.Unlock(instance.Name)
+
 		switch providerCommon.InstanceStatus(instance.Status) {
 		case providerCommon.InstancePendingCreate,
 			providerCommon.InstancePendingDelete:
@@ -375,6 +377,13 @@ func (r *basePoolManager) reapTimedOutRunners(runners []*github.Runner) error {
 	}
 
 	for _, instance := range dbInstances {
+		lockAcquired := r.keyMux.TryLock(instance.Name)
+		if !lockAcquired {
+			log.Printf("failed to acquire lock for instance %s", instance.Name)
+			continue
+		}
+		defer r.keyMux.Unlock(instance.Name)
+
 		pool, err := r.store.GetPoolByID(r.ctx, instance.PoolID)
 		if err != nil {
 			return errors.Wrap(err, "fetching instance pool info")
@@ -486,6 +495,14 @@ func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner)
 			}
 			poolInstanceCache[pool.ID] = poolInstances
 		}
+
+		lockAcquired := r.keyMux.TryLock(dbInstance.Name)
+		if !lockAcquired {
+			log.Printf("failed to acquire lock for instance %s", dbInstance.Name)
+			continue
+		}
+		defer r.keyMux.Unlock(dbInstance.Name)
+
 		// See: https://golang.org/doc/faq#closures_and_goroutines
 		runner := runner
 		g.Go(func() error {
@@ -508,6 +525,7 @@ func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner)
 				if err := r.store.DeleteInstance(ctx, dbInstance.PoolID, dbInstance.Name); err != nil {
 					return errors.Wrap(err, "removing runner from database")
 				}
+				defer r.keyMux.UnlockAndDelete(dbInstance.Name)
 				return nil
 			}
 
@@ -527,10 +545,29 @@ func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner)
 			return nil
 		})
 	}
-	if err := g.Wait(); err != nil {
+	if err := r.waitForErrorGroupOrContextCancelled(g); err != nil {
 		return errors.Wrap(err, "removing orphaned github runners")
 	}
 	return nil
+}
+
+func (r *basePoolManager) waitForErrorGroupOrContextCancelled(g *errgroup.Group) error {
+	if g == nil {
+		return nil
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		waitErr := g.Wait()
+		done <- waitErr
+	}()
+
+	select {
+	case err := <-done:
+		return err
+	case <-r.ctx.Done():
+		return r.ctx.Err()
+	}
 }
 
 func (r *basePoolManager) fetchInstance(runnerName string) (params.Instance, error) {
@@ -778,6 +815,10 @@ func (r *basePoolManager) getRunnerDetailsFromJob(job params.WorkflowJob) (param
 
 	var err error
 	if job.WorkflowJob.RunnerName == "" {
+		if job.WorkflowJob.Conclusion == "skipped" || job.WorkflowJob.Conclusion == "canceled" {
+			// job was skipped or canceled before a runner was allocated. No point in continuing.
+			return params.RunnerInfo{}, fmt.Errorf("job %d was skipped or canceled before a runner was allocated: %w", job.WorkflowJob.ID, runnerErrors.ErrNotFound)
+		}
 		// Runner name was not set in WorkflowJob by github. We can still attempt to
 		// fetch the info we need, using the workflow run ID, from the API.
 		log.Printf("runner name not found in workflow job, attempting to fetch from API")
@@ -819,15 +860,14 @@ func (r *basePoolManager) updateArgsFromProviderInstance(providerInstance params
 		ProviderFault: providerInstance.ProviderFault,
 	}
 }
-func (r *basePoolManager) scaleDownOnePool(pool params.Pool) {
+func (r *basePoolManager) scaleDownOnePool(ctx context.Context, pool params.Pool) error {
 	if !pool.Enabled {
-		return
+		return nil
 	}
 
 	existingInstances, err := r.store.ListPoolInstances(r.ctx, pool.ID)
 	if err != nil {
-		log.Printf("failed to ensure minimum idle workers for pool %s: %s", pool.ID, err)
-		return
+		return fmt.Errorf("failed to ensure minimum idle workers for pool %s: %w", pool.ID, err)
 	}
 
 	idleWorkers := []params.Instance{}
@@ -844,44 +884,61 @@ func (r *basePoolManager) scaleDownOnePool(pool params.Pool) {
 	}
 
 	if len(idleWorkers) == 0 {
-		return
+		return nil
 	}
 
 	surplus := float64(len(idleWorkers) - int(pool.MinIdleRunners))
 
 	if surplus <= 0 {
-		return
+		return nil
 	}
 
 	scaleDownFactor := 0.5 // could be configurable
 	numScaleDown := int(math.Ceil(surplus * scaleDownFactor))
 
 	if numScaleDown <= 0 || numScaleDown > len(idleWorkers) {
-		log.Printf("invalid number of instances to scale down: %v, check your scaleDownFactor: %v\n", numScaleDown, scaleDownFactor)
-		return
+		return fmt.Errorf("invalid number of instances to scale down: %v, check your scaleDownFactor: %v", numScaleDown, scaleDownFactor)
 	}
+
+	g, _ := errgroup.WithContext(ctx)
 
 	for _, instanceToDelete := range idleWorkers[:numScaleDown] {
-		log.Printf("scaling down idle worker %s from pool %s\n", instanceToDelete.Name, pool.ID)
-		if err := r.ForceDeleteRunner(instanceToDelete); err != nil {
-			log.Printf("failed to delete instance %s: %s", instanceToDelete.ID, err)
+		instanceToDelete := instanceToDelete
+
+		lockAcquired := r.keyMux.TryLock(instanceToDelete.Name)
+		if !lockAcquired {
+			log.Printf("failed to acquire lock for instance %s", instanceToDelete.Name)
+			continue
 		}
+		defer r.keyMux.Unlock(instanceToDelete.Name)
+
+		g.Go(func() error {
+			log.Printf("scaling down idle worker %s from pool %s\n", instanceToDelete.Name, pool.ID)
+			if err := r.ForceDeleteRunner(instanceToDelete); err != nil {
+				return fmt.Errorf("failed to delete instance %s: %w", instanceToDelete.ID, err)
+			}
+			return nil
+		})
 	}
+
+	if err := r.waitForErrorGroupOrContextCancelled(g); err != nil {
+		return fmt.Errorf("failed to scale down pool %s: %w", pool.ID, err)
+	}
+	return nil
 }
 
-func (r *basePoolManager) ensureIdleRunnersForOnePool(pool params.Pool) {
+func (r *basePoolManager) ensureIdleRunnersForOnePool(pool params.Pool) error {
 	if !pool.Enabled {
-		return
+		return nil
 	}
 	existingInstances, err := r.store.ListPoolInstances(r.ctx, pool.ID)
 	if err != nil {
-		log.Printf("failed to ensure minimum idle workers for pool %s: %s", pool.ID, err)
-		return
+		return fmt.Errorf("failed to ensure minimum idle workers for pool %s: %w", pool.ID, err)
 	}
 
 	if uint(len(existingInstances)) >= pool.MaxRunners {
 		log.Printf("max workers (%d) reached for pool %s, skipping idle worker creation", pool.MaxRunners, pool.ID)
-		return
+		return nil
 	}
 
 	idleOrPendingWorkers := []params.Instance{}
@@ -907,23 +964,23 @@ func (r *basePoolManager) ensureIdleRunnersForOnePool(pool params.Pool) {
 	for i := 0; i < required; i++ {
 		log.Printf("adding new idle worker to pool %s", pool.ID)
 		if err := r.AddRunner(r.ctx, pool.ID); err != nil {
-			log.Printf("failed to add new instance for pool %s: %s", pool.ID, err)
+			return fmt.Errorf("failed to add new instance for pool %s: %w", pool.ID, err)
 		}
 	}
+	return nil
 }
 
-func (r *basePoolManager) retryFailedInstancesForOnePool(pool params.Pool) {
+func (r *basePoolManager) retryFailedInstancesForOnePool(ctx context.Context, pool params.Pool) error {
 	if !pool.Enabled {
-		return
+		return nil
 	}
 
 	existingInstances, err := r.store.ListPoolInstances(r.ctx, pool.ID)
 	if err != nil {
-		log.Printf("retrying failed instances: failed to list instances for pool %s: %s", pool.ID, err)
-		return
+		return fmt.Errorf("failed to list instances for pool %s: %w", pool.ID, err)
 	}
 
-	g, _ := errgroup.WithContext(r.ctx)
+	g, errCtx := errgroup.WithContext(ctx)
 	for _, instance := range existingInstances {
 		if instance.Status != providerCommon.InstanceError {
 			continue
@@ -931,12 +988,20 @@ func (r *basePoolManager) retryFailedInstancesForOnePool(pool params.Pool) {
 		if instance.CreateAttempt >= maxCreateAttempts {
 			continue
 		}
+
+		lockAcquired := r.keyMux.TryLock(instance.Name)
+		if !lockAcquired {
+			log.Printf("failed to acquire lock for instance %s", instance.Name)
+			continue
+		}
+
 		instance := instance
 		g.Go(func() error {
+			defer r.keyMux.Unlock(instance.Name)
 			// NOTE(gabriel-samfira): this is done in parallel. If there are many failed instances
 			// this has the potential to create many API requests to the target provider.
 			// TODO(gabriel-samfira): implement request throttling.
-			if err := r.deleteInstanceFromProvider(instance); err != nil {
+			if err := r.deleteInstanceFromProvider(errCtx, instance); err != nil {
 				log.Printf("failed to delete instance %s from provider: %s", instance.Name, err)
 				// Bail here, otherwise we risk creating multiple failing instances, and losing track
 				// of them. If Create instance failed to return a proper provider ID, we rely on the
@@ -965,63 +1030,74 @@ func (r *basePoolManager) retryFailedInstancesForOnePool(pool params.Pool) {
 			return nil
 		})
 	}
-	if err := g.Wait(); err != nil {
-		log.Printf("failed to retry failed instances for pool %s: %s", pool.ID, err)
+	if err := r.waitForErrorGroupOrContextCancelled(g); err != nil {
+		return fmt.Errorf("failed to retry failed instances for pool %s: %w", pool.ID, err)
 	}
+	return nil
 }
 
-func (r *basePoolManager) retryFailedInstances() {
+func (r *basePoolManager) retryFailedInstances() error {
 	pools, err := r.helper.ListPools()
 	if err != nil {
-		log.Printf("error listing pools: %s", err)
-		return
+		return fmt.Errorf("error listing pools: %w", err)
 	}
-	wg := sync.WaitGroup{}
-	wg.Add(len(pools))
+	g, ctx := errgroup.WithContext(r.ctx)
 	for _, pool := range pools {
-		go func(pool params.Pool) {
-			defer wg.Done()
-			r.retryFailedInstancesForOnePool(pool)
-		}(pool)
+		pool := pool
+		g.Go(func() error {
+			if err := r.retryFailedInstancesForOnePool(ctx, pool); err != nil {
+				return fmt.Errorf("retrying failed instances for pool %s: %w", pool.ID, err)
+			}
+			return nil
+		})
 	}
-	wg.Wait()
+
+	if err := r.waitForErrorGroupOrContextCancelled(g); err != nil {
+		return fmt.Errorf("retrying failed instances: %w", err)
+	}
+
+	return nil
 }
 
-func (r *basePoolManager) scaleDown() {
+func (r *basePoolManager) scaleDown() error {
 	pools, err := r.helper.ListPools()
 	if err != nil {
-		log.Printf("error listing pools: %s", err)
-		return
+		return fmt.Errorf("error listing pools: %w", err)
 	}
-	wg := sync.WaitGroup{}
-	wg.Add(len(pools))
+	g, ctx := errgroup.WithContext(r.ctx)
 	for _, pool := range pools {
-		go func(pool params.Pool) {
-			defer wg.Done()
-			r.scaleDownOnePool(pool)
-		}(pool)
+		pool := pool
+		g.Go(func() error {
+			return r.scaleDownOnePool(ctx, pool)
+		})
 	}
-	wg.Wait()
+	if err := r.waitForErrorGroupOrContextCancelled(g); err != nil {
+		return fmt.Errorf("failed to scale down: %w", err)
+	}
+	return nil
 }
 
-func (r *basePoolManager) ensureMinIdleRunners() {
+func (r *basePoolManager) ensureMinIdleRunners() error {
 	pools, err := r.helper.ListPools()
 	if err != nil {
-		log.Printf("error listing pools: %s", err)
-		return
+		return fmt.Errorf("error listing pools: %w", err)
 	}
-	wg := sync.WaitGroup{}
-	wg.Add(len(pools))
+
+	g, _ := errgroup.WithContext(r.ctx)
 	for _, pool := range pools {
-		go func(pool params.Pool) {
-			defer wg.Done()
-			r.ensureIdleRunnersForOnePool(pool)
-		}(pool)
+		pool := pool
+		g.Go(func() error {
+			return r.ensureIdleRunnersForOnePool(pool)
+		})
 	}
-	wg.Wait()
+
+	if err := r.waitForErrorGroupOrContextCancelled(g); err != nil {
+		return fmt.Errorf("failed to ensure minimum idle workers: %w", err)
+	}
+	return nil
 }
 
-func (r *basePoolManager) deleteInstanceFromProvider(instance params.Instance) error {
+func (r *basePoolManager) deleteInstanceFromProvider(ctx context.Context, instance params.Instance) error {
 	pool, err := r.helper.GetPoolByID(instance.PoolID)
 	if err != nil {
 		return errors.Wrap(err, "fetching pool")
@@ -1039,23 +1115,28 @@ func (r *basePoolManager) deleteInstanceFromProvider(instance params.Instance) e
 		identifier = instance.Name
 	}
 
-	if err := provider.DeleteInstance(r.ctx, identifier); err != nil {
+	if err := provider.DeleteInstance(ctx, identifier); err != nil {
 		return errors.Wrap(err, "removing instance")
 	}
 
 	return nil
 }
 
-func (r *basePoolManager) deletePendingInstances() {
+func (r *basePoolManager) deletePendingInstances() error {
 	instances, err := r.helper.FetchDbInstances()
 	if err != nil {
-		log.Printf("failed to fetch instances from store: %s", err)
-		return
+		return fmt.Errorf("failed to fetch instances from store: %w", err)
 	}
-	g, ctx := errgroup.WithContext(r.ctx)
+
 	for _, instance := range instances {
 		if instance.Status != providerCommon.InstancePendingDelete {
 			// not in pending_delete status. Skip.
+			continue
+		}
+
+		lockAcquired := r.keyMux.TryLock(instance.Name)
+		if !lockAcquired {
+			log.Printf("failed to acquire lock for instance %s", instance.Name)
 			continue
 		}
 
@@ -1063,9 +1144,12 @@ func (r *basePoolManager) deletePendingInstances() {
 		// the runner from the provider (which can take a long time).
 		if err := r.setInstanceStatus(instance.Name, providerCommon.InstanceDeleting, nil); err != nil {
 			log.Printf("failed to update runner %s status", instance.Name)
+			r.keyMux.Unlock(instance.Name)
+			continue
 		}
-		instance := instance
-		g.Go(func() (err error) {
+
+		go func(instance params.Instance) (err error) {
+			defer r.keyMux.Unlock(instance.Name)
 			defer func(instance params.Instance) {
 				if err != nil {
 					// failed to remove from provider. Set the status back to pending_delete, which
@@ -1076,102 +1160,99 @@ func (r *basePoolManager) deletePendingInstances() {
 				}
 			}(instance)
 
-			err = r.deleteInstanceFromProvider(instance)
+			err = r.deleteInstanceFromProvider(r.ctx, instance)
 			if err != nil {
-				return errors.Wrap(err, "removing instance from provider")
+				return fmt.Errorf("failed to remove instance from provider: %w", err)
 			}
 
-			if deleteErr := r.store.DeleteInstance(ctx, instance.PoolID, instance.Name); deleteErr != nil {
-				return errors.Wrap(deleteErr, "deleting instance from database")
+			if deleteErr := r.store.DeleteInstance(r.ctx, instance.PoolID, instance.Name); deleteErr != nil {
+				return fmt.Errorf("failed to delete instance from database: %w", deleteErr)
 			}
-			return
-		})
+			r.keyMux.UnlockAndDelete(instance.Name)
+			return nil
+		}(instance) //nolint
 	}
-	if err := g.Wait(); err != nil {
-		log.Printf("failed to delete pending instances: %s", err)
-	}
+
+	return nil
 }
 
-func (r *basePoolManager) addPendingInstances() {
+func (r *basePoolManager) addPendingInstances() error {
 	// TODO: filter instances by status.
 	instances, err := r.helper.FetchDbInstances()
 	if err != nil {
-		log.Printf("failed to fetch instances from store: %s", err)
-		return
+		return fmt.Errorf("failed to fetch instances from store: %w", err)
 	}
-	g, _ := errgroup.WithContext(r.ctx)
 	for _, instance := range instances {
 		if instance.Status != providerCommon.InstancePendingCreate {
 			// not in pending_create status. Skip.
 			continue
 		}
+
+		lockAcquired := r.keyMux.TryLock(instance.Name)
+		if !lockAcquired {
+			log.Printf("failed to acquire lock for instance %s", instance.Name)
+			continue
+		}
+
 		// Set the instance to "creating" before launching the goroutine. This will ensure that addPendingInstances()
 		// won't attempt to create the runner a second time.
 		if err := r.setInstanceStatus(instance.Name, providerCommon.InstanceCreating, nil); err != nil {
 			log.Printf("failed to update runner %s status: %s", instance.Name, err)
+			r.keyMux.Unlock(instance.Name)
 			// We failed to transition the instance to Creating. This means that garm will retry to create this instance
 			// when the loop runs again and we end up with multiple instances.
 			continue
 		}
-		instance := instance
-		g.Go(func() error {
+
+		go func(instance params.Instance) {
+			defer r.keyMux.Unlock(instance.Name)
 			log.Printf("creating instance %s in pool %s", instance.Name, instance.PoolID)
 			if err := r.addInstanceToProvider(instance); err != nil {
 				log.Printf("failed to add instance to provider: %s", err)
 				errAsBytes := []byte(err.Error())
 				if err := r.setInstanceStatus(instance.Name, providerCommon.InstanceError, errAsBytes); err != nil {
-					log.Printf("failed to update runner %s status", instance.Name)
+					log.Printf("failed to update runner %s status: %s", instance.Name, err)
 				}
 				log.Printf("failed to create instance in provider: %s", err)
 			}
-			return nil
-		})
+		}(instance)
 	}
-	if err := g.Wait(); err != nil {
-		log.Printf("failed to add pending instances: %s", err)
-	}
-}
 
-func (r *basePoolManager) consolidate() {
-	// TODO(gabriel-samfira): replace this with something more efficient.
-	r.mux.Lock()
-	defer r.mux.Unlock()
-
-	wg := sync.WaitGroup{}
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		r.deletePendingInstances()
-	}()
-	go func() {
-		defer wg.Done()
-		r.addPendingInstances()
-	}()
-	wg.Wait()
-
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		r.ensureMinIdleRunners()
-	}()
-
-	go func() {
-		defer wg.Done()
-		r.retryFailedInstances()
-	}()
-	wg.Wait()
+	return nil
 }
 
 func (r *basePoolManager) Wait() error {
+	done := make(chan struct{})
+	go func() {
+		r.wg.Wait()
+		close(done)
+	}()
 	select {
-	case <-r.done:
+	case <-done:
 	case <-time.After(60 * time.Second):
 		return errors.Wrap(runnerErrors.ErrTimeout, "waiting for pool to stop")
 	}
 	return nil
 }
 
-func (r *basePoolManager) runnerCleanup() error {
+func (r *basePoolManager) runnerCleanup() (err error) {
+	runners, err := r.helper.GetGithubRunners()
+	if err != nil {
+		return fmt.Errorf("failed to fetch github runners: %w", err)
+	}
+
+	if err := r.reapTimedOutRunners(runners); err != nil {
+		return fmt.Errorf("failed to reap timed out runners: %w", err)
+	}
+
+	if err := r.cleanupOrphanedRunners(); err != nil {
+		return fmt.Errorf("failed to cleanup orphaned runners: %w", err)
+	}
+
+	return nil
+}
+
+func (r *basePoolManager) cleanupOrphanedRunners() error {
 	runners, err := r.helper.GetGithubRunners()
 	if err != nil {
 		return errors.Wrap(err, "fetching github runners")
@@ -1183,11 +1264,21 @@ func (r *basePoolManager) runnerCleanup() error {
 	if err := r.cleanupOrphanedGithubRunners(runners); err != nil {
 		return errors.Wrap(err, "cleaning orphaned github runners")
 	}
+
 	return nil
 }
 
 func (r *basePoolManager) Start() error {
-	go r.loop()
+	r.checkCanAuthenticateToGithub() //nolint
+
+	go r.startLoopForFunction(r.runnerCleanup, common.PoolReapTimeoutInterval, "timeout_reaper")
+	go r.startLoopForFunction(r.scaleDown, common.PoolScaleDownInterval, "scale_down")
+	go r.startLoopForFunction(r.deletePendingInstances, common.PoolConsilitationInterval, "consolidate[delete_pending]")
+	go r.startLoopForFunction(r.addPendingInstances, common.PoolConsilitationInterval, "consolidate[add_pending]")
+	go r.startLoopForFunction(r.ensureMinIdleRunners, common.PoolConsilitationInterval, "consolidate[ensure_min_idle]")
+	go r.startLoopForFunction(r.retryFailedInstances, common.PoolConsilitationInterval, "consolidate[retry_failed]")
+	go r.startLoopForFunction(r.updateTools, common.PoolToolUpdateInterval, "update_tools")
+	go r.startLoopForFunction(r.checkCanAuthenticateToGithub, common.UnauthorizedBackoffTimer, "bad_auth_backoff")
 	return nil
 }
 

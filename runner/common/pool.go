@@ -33,7 +33,7 @@ const (
 	// after getting an unauthorized error from github. It is unlikely that a second
 	// request will not receive the same error, unless the config is changed with new
 	// credentials and garm is restarted.
-	UnauthorizedBackoffTimer = 3 * time.Hour
+	UnauthorizedBackoffTimer = 15 * time.Minute
 )
 
 //go:generate mockery --all

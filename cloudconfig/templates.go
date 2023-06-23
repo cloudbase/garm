@@ -36,11 +36,11 @@ if [ -z "$METADATA_URL" ];then
 	echo "no token is available and METADATA_URL is not set"
 	exit 1
 fi
-GITHUB_TOKEN=$(curl --retry 5 --retry-max-time 5 --fail -s -X GET -H 'Accept: application/json' -H "Authorization: Bearer ${BEARER_TOKEN}" "${METADATA_URL}/runner-registration-token/")
+GITHUB_TOKEN=$(curl --retry 5 --retry-delay 5 --retry-connrefused --fail -s -X GET -H 'Accept: application/json' -H "Authorization: Bearer ${BEARER_TOKEN}" "${METADATA_URL}/runner-registration-token/")
 
 function call() {
 	PAYLOAD="$1"
-	curl --retry 5 --retry-max-time 5 --retry-all-errors --fail -s -X POST -d "${PAYLOAD}" -H 'Accept: application/json' -H "Authorization: Bearer ${BEARER_TOKEN}" "${CALLBACK_URL}" || echo "failed to call home: exit code ($?)"
+	curl --retry 5 --retry-delay 5 --retry-connrefused --fail -s -X POST -d "${PAYLOAD}" -H 'Accept: application/json' -H "Authorization: Bearer ${BEARER_TOKEN}" "${CALLBACK_URL}" || echo "failed to call home: exit code ($?)"
 }
 
 function sendStatus() {
@@ -93,7 +93,7 @@ function downloadAndExtractRunner() {
 	if [ ! -z "{{ .TempDownloadToken }}" ]; then
 	TEMP_TOKEN="Authorization: Bearer {{ .TempDownloadToken }}"
 	fi
-	curl --retry 5 --retry-max-time 5 --retry-all-errors --fail -L -H "${TEMP_TOKEN}" -o "/home/{{ .RunnerUsername }}/{{ .FileName }}" "{{ .DownloadURL }}" || fail "failed to download tools"
+	curl --retry 5 --retry-delay 5 --retry-connrefused --fail -L -H "${TEMP_TOKEN}" -o "/home/{{ .RunnerUsername }}/{{ .FileName }}" "{{ .DownloadURL }}" || fail "failed to download tools"
 	mkdir -p /home/runner/actions-runner || fail "failed to create actions-runner folder"
 	sendStatus "extracting runner"
 	tar xf "/home/{{ .RunnerUsername }}/{{ .FileName }}" -C /home/{{ .RunnerUsername }}/actions-runner/ || fail "failed to extract runner"

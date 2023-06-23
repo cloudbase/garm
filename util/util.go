@@ -43,7 +43,7 @@ import (
 	"github.com/cloudbase/garm/runner/common"
 	"github.com/cloudbase/garm/util/appdefaults"
 
-	"github.com/google/go-github/v48/github"
+	"github.com/google/go-github/v53/github"
 	"github.com/google/uuid"
 	gorillaHandlers "github.com/gorilla/handlers"
 	"github.com/pkg/errors"
