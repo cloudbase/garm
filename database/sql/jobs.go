@@ -261,6 +261,28 @@ func (s *sqlDatabase) ListEntityJobsByStatus(ctx context.Context, entityType par
 	return ret, nil
 }
 
+func (s *sqlDatabase) ListAllJobs(ctx context.Context) ([]params.Job, error) {
+	var jobs []WorkflowJob
+	query := s.conn.Model(&WorkflowJob{})
+
+	if err := query.Find(&jobs); err.Error != nil {
+		if errors.Is(err.Error, gorm.ErrRecordNotFound) {
+			return []params.Job{}, nil
+		}
+		return nil, err.Error
+	}
+
+	ret := make([]params.Job, len(jobs))
+	for idx, job := range jobs {
+		jobParam, err := sqlWorkflowJobToParamsJob(job)
+		if err != nil {
+			return nil, errors.Wrap(err, "converting job")
+		}
+		ret[idx] = jobParam
+	}
+	return ret, nil
+}
+
 // GetJobByID gets a job by id.
 func (s *sqlDatabase) GetJobByID(ctx context.Context, jobID int64) (params.Job, error) {
 	var job WorkflowJob

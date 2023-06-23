@@ -125,3 +125,15 @@ func (r *Runner) UpdatePoolByID(ctx context.Context, poolID string, param params
 	}
 	return newPool, nil
 }
+
+func (r *Runner) ListAllJobs(ctx context.Context) ([]params.Job, error) {
+	if !auth.IsAdmin(ctx) {
+		return []params.Job{}, runnerErrors.ErrUnauthorized
+	}
+
+	jobs, err := r.store.ListAllJobs(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "fetching jobs")
+	}
+	return jobs, nil
+}

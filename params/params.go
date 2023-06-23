@@ -429,9 +429,9 @@ type Job struct {
 	// ID is the ID of the job.
 	ID int64 `json:"id"`
 	// RunID is the ID of the workflow run. A run may have multiple jobs.
-	RunID int64
+	RunID int64 `json:"run_id"`
 	// Action is the specific activity that triggered the event.
-	Action string `json:"run_id"`
+	Action string `json:"action"`
 	// Conclusion is the outcome of the job.
 	// Possible values: "success", "failure", "neutral", "cancelled", "skipped",
 	// "timed_out", "action_required"
