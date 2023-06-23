@@ -867,7 +867,9 @@ func (r *basePoolManager) updateArgsFromProviderInstance(providerInstance params
 	}
 }
 func (r *basePoolManager) scaleDownOnePool(ctx context.Context, pool params.Pool) error {
+	log.Printf("scaling down pool %s", pool.ID)
 	if !pool.Enabled {
+		log.Printf("pool %s is disabled, skipping scale down", pool.ID)
 		return nil
 	}
 
@@ -970,7 +972,7 @@ func (r *basePoolManager) ensureIdleRunnersForOnePool(pool params.Pool) error {
 
 	idleOrPendingWorkers := []params.Instance{}
 	for _, inst := range existingInstances {
-		if providerCommon.RunnerStatus(inst.RunnerStatus) != providerCommon.RunnerActive {
+		if inst.RunnerStatus != providerCommon.RunnerActive && inst.RunnerStatus != providerCommon.RunnerTerminated {
 			idleOrPendingWorkers = append(idleOrPendingWorkers, inst)
 		}
 	}
@@ -1405,7 +1407,7 @@ func (r *basePoolManager) consumeQueuedJobs() error {
 		return errors.Wrap(err, "listing queued jobs")
 	}
 
-	log.Printf("found %d queued jobs", len(queued))
+	log.Printf("found %d queued jobs for %s", len(queued), r.helper.String())
 	for _, job := range queued {
 		if job.LockedBy != uuid.Nil && job.LockedBy.String() != r.ID() {
 			// Job was handled by us or another entity.
@@ -1413,14 +1415,14 @@ func (r *basePoolManager) consumeQueuedJobs() error {
 			continue
 		}
 
-		if time.Since(job.CreatedAt) < time.Second*15 {
+		if time.Since(job.CreatedAt) < time.Second*30 {
 			// give the idle runners a chance to pick up the job.
-			log.Printf("job %d was created less than 15 seconds ago. Skipping", job.ID)
+			log.Printf("job %d was created less than 30 seconds ago. Skipping", job.ID)
 			continue
 		}
 
-		if time.Since(job.CreatedAt) >= time.Minute*5 {
-			// Job has been in queued state for 30 minutes or more. Check if it was consumed by another runner.
+		if time.Since(job.UpdatedAt) >= time.Minute*5 {
+			// Job has been in queued state for 5 minutes or more. Check if it was consumed by another runner.
 			workflow, ghResp, err := r.helper.GithubCLI().GetWorkflowJobByID(r.ctx, job.RepositoryOwner, job.RepositoryName, job.ID)
 			if err != nil {
 				if ghResp != nil {
@@ -1464,9 +1466,18 @@ func (r *basePoolManager) consumeQueuedJobs() error {
 			// Job is still queued in our db and in github. Unlock it and try again.
 			if err := r.store.UnlockJob(r.ctx, job.ID, r.ID()); err != nil {
 				// TODO: Implament a cache? Should we return here?
-				log.Printf("failed to unlock job: %q", err)
+				log.Printf("failed to unlock job %d: %q", job.ID, err)
 				continue
 			}
+		}
+
+		if job.LockedBy.String() == r.ID() {
+			// Job is locked by us. We must have already attepted to create a runner for it. Skip.
+			// TODO(gabriel-samfira): create an in-memory state of existing runners that we can easily
+			// check for existing pending or idle runners. If we can't find any, attempt to allocate another
+			// runner.
+			log.Printf("[Pool mgr ID %s] job %d is locked by us", r.ID(), job.ID)
+			continue
 		}
 
 		potentialPools, err := r.store.FindPoolsMatchingAllTags(r.ctx, r.helper.PoolType(), r.helper.ID(), job.Labels)
@@ -1498,6 +1509,7 @@ func (r *basePoolManager) consumeQueuedJobs() error {
 		if !runnerCreated {
 			log.Printf("could not create a runner for job %d; unlocking", job.ID)
 			if err := r.store.UnlockJob(r.ctx, job.ID, r.ID()); err != nil {
+				log.Printf("failed to unlock job: %d", job.ID)
 				return errors.Wrap(err, "unlocking job")
 			}
 		}
