@@ -636,10 +636,6 @@ func (r *Runner) DispatchWorkflowJob(hookTargetType, signature string, jobData [
 		return errors.Wrapf(runnerErrors.ErrBadRequest, "invalid job data: %s", err)
 	}
 
-	asJs, _ := json.MarshalIndent(job, "", "  ")
-	log.Printf("got workflow job: %s", string(asJs))
-	log.Printf("got workflow job for %s", string(jobData))
-
 	var poolManager common.PoolManager
 	var err error
 

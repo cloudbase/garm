@@ -27,6 +27,7 @@ func NewEnterprisePoolManager(ctx context.Context, cfg params.Enterprise, cfgInt
 	}
 
 	wg := &sync.WaitGroup{}
+	keyMuxes := &keyMutex{}
 
 	helper := &enterprise{
 		cfg:              cfg,
@@ -47,6 +48,7 @@ func NewEnterprisePoolManager(ctx context.Context, cfg params.Enterprise, cfgInt
 		helper:       helper,
 		credsDetails: cfgInternal.GithubCredentialsDetails,
 		wg:           wg,
+		keyMux:       keyMuxes,
 	}
 	return repo, nil
 }

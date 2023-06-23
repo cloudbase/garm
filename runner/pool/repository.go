@@ -41,6 +41,7 @@ func NewRepositoryPoolManager(ctx context.Context, cfg params.Repository, cfgInt
 	}
 
 	wg := &sync.WaitGroup{}
+	keyMuxes := &keyMutex{}
 
 	helper := &repository{
 		cfg:         cfg,
@@ -60,6 +61,7 @@ func NewRepositoryPoolManager(ctx context.Context, cfg params.Repository, cfgInt
 		helper:       helper,
 		credsDetails: cfgInternal.GithubCredentialsDetails,
 		wg:           wg,
+		keyMux:       keyMuxes,
 	}
 	return repo, nil
 }

@@ -41,6 +41,7 @@ func NewOrganizationPoolManager(ctx context.Context, cfg params.Organization, cf
 	}
 
 	wg := &sync.WaitGroup{}
+	keyMuxes := &keyMutex{}
 
 	helper := &organization{
 		cfg:         cfg,
@@ -60,6 +61,7 @@ func NewOrganizationPoolManager(ctx context.Context, cfg params.Organization, cf
 		helper:       helper,
 		credsDetails: cfgInternal.GithubCredentialsDetails,
 		wg:           wg,
+		keyMux:       keyMuxes,
 	}
 	return repo, nil
 }
