@@ -956,9 +956,10 @@ func (r *basePoolManager) addRunnerToPool(pool params.Pool) error {
 }
 
 func (r *basePoolManager) ensureIdleRunnersForOnePool(pool params.Pool) error {
-	if !pool.Enabled {
+	if !pool.Enabled || pool.MinIdleRunners == 0 {
 		return nil
 	}
+
 	existingInstances, err := r.store.ListPoolInstances(r.ctx, pool.ID)
 	if err != nil {
 		return fmt.Errorf("failed to ensure minimum idle workers for pool %s: %w", pool.ID, err)
@@ -1513,6 +1514,10 @@ func (r *basePoolManager) consumeQueuedJobs() error {
 				return errors.Wrap(err, "unlocking job")
 			}
 		}
+	}
+
+	if err := r.store.DeleteCompletedJobs(r.ctx); err != nil {
+		log.Printf("failed to delete completed jobs: %q", err)
 	}
 	return nil
 }
