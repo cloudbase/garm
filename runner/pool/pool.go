@@ -32,7 +32,7 @@ import (
 	providerCommon "github.com/cloudbase/garm/runner/providers/common"
 	"github.com/cloudbase/garm/util"
 
-	"github.com/google/go-github/v48/github"
+	"github.com/google/go-github/v53/github"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 )
@@ -58,7 +58,6 @@ type basePoolManager struct {
 	providers map[string]common.Provider
 	tools     []*github.RunnerApplicationDownload
 	quit      chan struct{}
-	done      chan struct{}
 
 	helper       poolHelper
 	credsDetails params.GithubCredentials
@@ -67,6 +66,8 @@ type basePoolManager struct {
 	managerErrorReason string
 
 	mux sync.Mutex
+
+	wg *sync.WaitGroup
 }
 
 func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) (err error) {
@@ -149,77 +150,28 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) (err error) 
 	return nil
 }
 
-func (r *basePoolManager) loop() {
-	scaleDownTimer := time.NewTicker(common.PoolScaleDownInterval)
-	consolidateTimer := time.NewTicker(common.PoolConsilitationInterval)
-	reapTimer := time.NewTicker(common.PoolReapTimeoutInterval)
-	toolUpdateTimer := time.NewTicker(common.PoolToolUpdateInterval)
-	defer func() {
-		log.Printf("%s loop exited", r.helper.String())
-		scaleDownTimer.Stop()
-		consolidateTimer.Stop()
-		reapTimer.Stop()
-		toolUpdateTimer.Stop()
-		close(r.done)
-	}()
-	log.Printf("starting loop for %s", r.helper.String())
+func (r *basePoolManager) startLoopForFunction(f func() error, interval time.Duration, name string) {
+	log.Printf("starting %s loop for %s", name, r.helper.String())
+	ticker := time.NewTicker(interval)
+	r.wg.Add(1)
 
-	// Consolidate runners on loop start. Provider runners must match runners
-	// in github and DB. When a Workflow job is received, we will first create/update
-	// an entity in the database, before sending the request to the provider to create/delete
-	// an instance. If a "queued" job is received, we create an entity in the db with
-	// a state of "pending_create". Once that instance is up and calls home, it is marked
-	// as "active". If a "completed" job is received from github, we mark the instance
-	// as "pending_delete". Once the provider deletes the instance, we mark it as "deleted"
-	// in the database.
-	// We also ensure we have runners created based on pool characteristics. This is where
-	// we spin up "MinWorkers" for each runner type.
+	defer func() {
+		log.Printf("%s loop exited for pool %s", name, r.helper.String())
+		ticker.Stop()
+		r.wg.Done()
+	}()
+
 	for {
 		switch r.managerIsRunning {
 		case true:
 			select {
-			case <-reapTimer.C:
-				runners, err := r.helper.GetGithubRunners()
-				if err != nil {
-					failureReason := fmt.Sprintf("error fetching github runners for %s: %s", r.helper.String(), err)
-					r.setPoolRunningState(false, failureReason)
-					log.Print(failureReason)
+			case <-ticker.C:
+				if err := f(); err != nil {
+					log.Printf("%s: %q", name, err)
 					if errors.Is(err, runnerErrors.ErrUnauthorized) {
-						break
-					}
-					continue
-				}
-				if err := r.reapTimedOutRunners(runners); err != nil {
-					log.Printf("failed to reap timed out runners: %q", err)
-				}
-
-				if err := r.runnerCleanup(); err != nil {
-					failureReason := fmt.Sprintf("failed to clean runners for %s: %q", r.helper.String(), err)
-					log.Print(failureReason)
-					if errors.Is(err, runnerErrors.ErrUnauthorized) {
-						r.setPoolRunningState(false, failureReason)
+						r.setPoolRunningState(false, err.Error())
 					}
 				}
-			case <-consolidateTimer.C:
-				// consolidate.
-				r.consolidate()
-			case <-scaleDownTimer.C:
-				r.scaleDown()
-			case <-toolUpdateTimer.C:
-				// Update tools cache.
-				tools, err := r.helper.FetchTools()
-				if err != nil {
-					failureReason := fmt.Sprintf("failed to update tools for repo %s: %s", r.helper.String(), err)
-					r.setPoolRunningState(false, failureReason)
-					log.Print(failureReason)
-					if errors.Is(err, runnerErrors.ErrUnauthorized) {
-						break
-					}
-					continue
-				}
-				r.mux.Lock()
-				r.tools = tools
-				r.mux.Unlock()
 			case <-r.ctx.Done():
 				// daemon is shutting down.
 				return
@@ -236,37 +188,52 @@ func (r *basePoolManager) loop() {
 				// this worker was stopped.
 				return
 			default:
-				log.Printf("attempting to start pool manager for %s", r.helper.String())
-				tools, err := r.helper.FetchTools()
-				var failureReason string
-				if err != nil {
-					failureReason = fmt.Sprintf("failed to fetch tools from github for %s: %q", r.helper.String(), err)
-					r.setPoolRunningState(false, failureReason)
-					log.Print(failureReason)
-					if errors.Is(err, runnerErrors.ErrUnauthorized) {
-						r.waitForTimeoutOrCanceled(common.UnauthorizedBackoffTimer)
-					} else {
-						r.waitForTimeoutOrCanceled(60 * time.Second)
-					}
-					continue
-				}
-				r.mux.Lock()
-				r.tools = tools
-				r.mux.Unlock()
-
-				if err := r.runnerCleanup(); err != nil {
-					failureReason = fmt.Sprintf("failed to clean runners for %s: %q", r.helper.String(), err)
-					log.Print(failureReason)
-					if errors.Is(err, runnerErrors.ErrUnauthorized) {
-						r.setPoolRunningState(false, failureReason)
-						r.waitForTimeoutOrCanceled(common.UnauthorizedBackoffTimer)
-					}
-					continue
-				}
-				r.setPoolRunningState(true, "")
+				r.waitForTimeoutOrCanceled(common.UnauthorizedBackoffTimer)
 			}
 		}
 	}
+}
+
+func (r *basePoolManager) updateTools() error {
+	// Update tools cache.
+	tools, err := r.helper.FetchTools()
+	if err != nil {
+		return fmt.Errorf("failed to update tools for repo %s: %w", r.helper.String(), err)
+	}
+	r.mux.Lock()
+	r.tools = tools
+	r.mux.Unlock()
+	return nil
+}
+
+func (r *basePoolManager) checkCanAuthenticateToGithub() error {
+	tools, err := r.helper.FetchTools()
+	if err != nil {
+		r.setPoolRunningState(false, err.Error())
+		if errors.Is(err, runnerErrors.ErrUnauthorized) {
+			r.waitForTimeoutOrCanceled(common.UnauthorizedBackoffTimer)
+		} else {
+			r.waitForTimeoutOrCanceled(60 * time.Second)
+		}
+		return fmt.Errorf("failed to update tools for repo %s: %w", r.helper.String(), err)
+	}
+	r.mux.Lock()
+	r.tools = tools
+	r.mux.Unlock()
+
+	err = r.runnerCleanup()
+	if err != nil {
+		if errors.Is(err, runnerErrors.ErrUnauthorized) {
+			r.setPoolRunningState(false, err.Error())
+			r.waitForTimeoutOrCanceled(common.UnauthorizedBackoffTimer)
+			return fmt.Errorf("failed to clean runners for %s: %w", r.helper.String(), err)
+		}
+	}
+	// We still set the pool as running, even if we failed to clean up runners.
+	// We only set the pool as not running if we fail to authenticate to github. This is done
+	// to avoid being rate limited by github when we have a bad token.
+	r.setPoolRunningState(true, "")
+	return err
 }
 
 func controllerIDFromLabels(labels []string) string {
@@ -797,6 +764,10 @@ func (r *basePoolManager) getRunnerDetailsFromJob(job params.WorkflowJob) (param
 
 	var err error
 	if job.WorkflowJob.RunnerName == "" {
+		if job.WorkflowJob.Conclusion == "skipped" || job.WorkflowJob.Conclusion == "canceled" {
+			// job was skipped or canceled before a runner was allocated. No point in continuing.
+			return params.RunnerInfo{}, fmt.Errorf("job %d was skipped or canceled before a runner was allocated: %w", job.WorkflowJob.ID, runnerErrors.ErrNotFound)
+		}
 		// Runner name was not set in WorkflowJob by github. We can still attempt to
 		// fetch the info we need, using the workflow run ID, from the API.
 		log.Printf("runner name not found in workflow job, attempting to fetch from API")
@@ -1174,33 +1145,38 @@ func (r *basePoolManager) addPendingInstances() error {
 	return nil
 }
 
-func (r *basePoolManager) consolidate() {
-	// TODO(gabriel-samfira): replace this with something more efficient.
-	r.mux.Lock()
-	defer r.mux.Unlock()
-
-	g, _ := errgroup.WithContext(r.ctx)
-
-	g.Go(r.deletePendingInstances)
-	g.Go(r.addPendingInstances)
-	g.Go(r.ensureMinIdleRunners)
-	g.Go(r.retryFailedInstances)
-
-	if err := r.waitForErrorGroupOrContextCancelled(g); err != nil {
-		log.Printf("failed to consolidate: %s", err)
-	}
-}
-
 func (r *basePoolManager) Wait() error {
+	done := make(chan struct{})
+	go func() {
+		r.wg.Wait()
+		close(done)
+	}()
 	select {
-	case <-r.done:
+	case <-done:
 	case <-time.After(60 * time.Second):
 		return errors.Wrap(runnerErrors.ErrTimeout, "waiting for pool to stop")
 	}
 	return nil
 }
 
-func (r *basePoolManager) runnerCleanup() error {
+func (r *basePoolManager) runnerCleanup() (err error) {
+	runners, err := r.helper.GetGithubRunners()
+	if err != nil {
+		return fmt.Errorf("failed to fetch github runners: %w", err)
+	}
+
+	if err := r.reapTimedOutRunners(runners); err != nil {
+		return fmt.Errorf("failed to reap timed out runners: %w", err)
+	}
+
+	if err := r.cleanupOrphanedRunners(); err != nil {
+		return fmt.Errorf("failed to cleanup orphaned runners: %w", err)
+	}
+
+	return nil
+}
+
+func (r *basePoolManager) cleanupOrphanedRunners() error {
 	runners, err := r.helper.GetGithubRunners()
 	if err != nil {
 		return errors.Wrap(err, "fetching github runners")
@@ -1212,11 +1188,22 @@ func (r *basePoolManager) runnerCleanup() error {
 	if err := r.cleanupOrphanedGithubRunners(runners); err != nil {
 		return errors.Wrap(err, "cleaning orphaned github runners")
 	}
+
 	return nil
 }
 
 func (r *basePoolManager) Start() error {
-	go r.loop()
+	r.checkCanAuthenticateToGithub()
+
+	go r.startLoopForFunction(r.runnerCleanup, common.PoolReapTimeoutInterval, "timeout_reaper")
+	go r.startLoopForFunction(r.scaleDown, common.PoolScaleDownInterval, "scale_down")
+	go r.startLoopForFunction(r.deletePendingInstances, common.PoolConsilitationInterval, "consolidate[delete_pending]")
+	go r.startLoopForFunction(r.addPendingInstances, common.PoolConsilitationInterval, "consolidate[add_pending]")
+	go r.startLoopForFunction(r.ensureMinIdleRunners, common.PoolConsilitationInterval, "consolidate[ensure_min_idle]")
+	go r.startLoopForFunction(r.retryFailedInstances, common.PoolConsilitationInterval, "consolidate[retry_failed]")
+	go r.startLoopForFunction(r.updateTools, common.PoolToolUpdateInterval, "update_tools")
+	go r.startLoopForFunction(r.checkCanAuthenticateToGithub, common.UnauthorizedBackoffTimer, "bad_auth_backoff")
+	// go r.loop()
 	return nil
 }
 

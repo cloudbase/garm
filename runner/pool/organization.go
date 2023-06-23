@@ -27,7 +27,7 @@ import (
 	"github.com/cloudbase/garm/runner/common"
 	"github.com/cloudbase/garm/util"
 
-	"github.com/google/go-github/v48/github"
+	"github.com/google/go-github/v53/github"
 	"github.com/pkg/errors"
 )
 
@@ -39,6 +39,8 @@ func NewOrganizationPoolManager(ctx context.Context, cfg params.Organization, cf
 	if err != nil {
 		return nil, errors.Wrap(err, "getting github client")
 	}
+
+	wg := &sync.WaitGroup{}
 
 	helper := &organization{
 		cfg:         cfg,
@@ -55,9 +57,9 @@ func NewOrganizationPoolManager(ctx context.Context, cfg params.Organization, cf
 		providers:    providers,
 		controllerID: cfgInternal.ControllerID,
 		quit:         make(chan struct{}),
-		done:         make(chan struct{}),
 		helper:       helper,
 		credsDetails: cfgInternal.GithubCredentialsDetails,
+		wg:           wg,
 	}
 	return repo, nil
 }

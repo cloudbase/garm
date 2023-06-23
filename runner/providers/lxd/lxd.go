@@ -27,7 +27,7 @@ import (
 	"github.com/cloudbase/garm/runner/common"
 	"github.com/cloudbase/garm/util"
 
-	"github.com/google/go-github/v48/github"
+	"github.com/google/go-github/v53/github"
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/pkg/errors"

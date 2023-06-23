@@ -21,7 +21,7 @@ import (
 	"github.com/cloudbase/garm/runner/providers/common"
 	"github.com/cloudbase/garm/util/appdefaults"
 
-	"github.com/google/go-github/v48/github"
+	"github.com/google/go-github/v53/github"
 	uuid "github.com/satori/go.uuid"
 )
 
