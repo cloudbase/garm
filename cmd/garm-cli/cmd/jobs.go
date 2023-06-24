@@ -54,15 +54,16 @@ var jobsListCmd = &cobra.Command{
 
 func formatJobs(jobs []params.Job) {
 	t := table.NewWriter()
-	header := table.Row{"ID", "Name", "Status", "Conclusion", "Runner Name", "Locked by"}
+	header := table.Row{"ID", "Name", "Status", "Conclusion", "Runner Name", "Repository", "Locked by"}
 	t.AppendHeader(header)
 
 	for _, job := range jobs {
 		lockedBy := ""
+		repo := fmt.Sprintf("%s/%s", job.RepositoryOwner, job.RepositoryName)
 		if job.LockedBy != uuid.Nil {
 			lockedBy = job.LockedBy.String()
 		}
-		t.AppendRow(table.Row{job.ID, job.Name, job.Status, job.Conclusion, job.RunnerName, lockedBy})
+		t.AppendRow(table.Row{job.ID, job.Name, job.Status, job.Conclusion, job.RunnerName, repo, lockedBy})
 		t.AppendSeparator()
 	}
 	fmt.Println(t.Render())

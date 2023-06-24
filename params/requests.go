@@ -136,6 +136,7 @@ type CreateInstanceParams struct {
 	// The runner group must be created by someone with access to the enterprise.
 	GitHubRunnerGroup string
 	CreateAttempt     int `json:"-"`
+	AditionalLabels   []string
 }
 
 type CreatePoolParams struct {

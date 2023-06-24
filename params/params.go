@@ -156,10 +156,11 @@ type Instance struct {
 	GitHubRunnerGroup string `json:"github-runner-group"`
 
 	// Do not serialize sensitive info.
-	CallbackURL   string `json:"-"`
-	MetadataURL   string `json:"-"`
-	CreateAttempt int    `json:"-"`
-	TokenFetched  bool   `json:"-"`
+	CallbackURL     string   `json:"-"`
+	MetadataURL     string   `json:"-"`
+	CreateAttempt   int      `json:"-"`
+	TokenFetched    bool     `json:"-"`
+	AditionalLabels []string `json:"-"`
 }
 
 func (i Instance) GetName() string {

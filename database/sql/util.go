@@ -32,6 +32,9 @@ func (s *sqlDatabase) sqlToParamsInstance(instance Instance) params.Instance {
 	if instance.ProviderID != nil {
 		id = *instance.ProviderID
 	}
+
+	var labels []string
+	_ = json.Unmarshal(instance.AditionalLabels, &labels)
 	ret := params.Instance{
 		ID:                instance.ID.String(),
 		ProviderID:        id,
@@ -51,6 +54,7 @@ func (s *sqlDatabase) sqlToParamsInstance(instance Instance) params.Instance {
 		UpdatedAt:         instance.UpdatedAt,
 		TokenFetched:      instance.TokenFetched,
 		GitHubRunnerGroup: instance.GitHubRunnerGroup,
+		AditionalLabels:   labels,
 	}
 
 	if len(instance.ProviderFault) > 0 {

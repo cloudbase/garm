@@ -119,6 +119,30 @@ func (s *sqlDatabase) LockJob(ctx context.Context, jobID int64, entityID string)
 	return nil
 }
 
+func (s *sqlDatabase) BreakLockJobIsQueued(ctx context.Context, jobID int64) error {
+	var workflowJob WorkflowJob
+	q := s.conn.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ? and status = ?", jobID, params.JobStatusQueued).First(&workflowJob)
+
+	if q.Error != nil {
+		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
+			return nil
+		}
+		return errors.Wrap(q.Error, "fetching job")
+	}
+
+	if workflowJob.LockedBy == uuid.Nil {
+		// Job is already unlocked.
+		return nil
+	}
+
+	workflowJob.LockedBy = uuid.Nil
+	if err := s.conn.Save(&workflowJob).Error; err != nil {
+		return errors.Wrap(err, "saving job")
+	}
+
+	return nil
+}
+
 func (s *sqlDatabase) UnlockJob(ctx context.Context, jobID int64, entityID string) error {
 	var workflowJob WorkflowJob
 	q := s.conn.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ?", jobID).First(&workflowJob)
@@ -140,7 +164,6 @@ func (s *sqlDatabase) UnlockJob(ctx context.Context, jobID int64, entityID strin
 	}
 
 	workflowJob.LockedBy = uuid.Nil
-
 	if err := s.conn.Save(&workflowJob).Error; err != nil {
 		return errors.Wrap(err, "saving job")
 	}

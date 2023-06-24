@@ -122,6 +122,7 @@ type JobsStore interface {
 	DeleteJob(ctx context.Context, jobID int64) error
 	UnlockJob(ctx context.Context, jobID int64, entityID string) error
 	LockJob(ctx context.Context, jobID int64, entityID string) error
+	BreakLockJobIsQueued(ctx context.Context, jobID int64) error
 
 	DeleteCompletedJobs(ctx context.Context) error
 }

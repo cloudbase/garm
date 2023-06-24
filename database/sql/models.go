@@ -153,6 +153,7 @@ type Instance struct {
 	CreateAttempt     int
 	TokenFetched      bool
 	GitHubRunnerGroup string
+	AditionalLabels   datatypes.JSON
 
 	PoolID uuid.UUID
 	Pool   Pool `gorm:"foreignKey:PoolID"`
