@@ -1459,6 +1459,8 @@ func (r *basePoolManager) consumeQueuedJobs() error {
 		return errors.Wrap(err, "listing queued jobs")
 	}
 
+	poolsCache := poolsForTags{}
+
 	log.Printf("found %d queued jobs for %s", len(queued), r.helper.String())
 	for _, job := range queued {
 		if job.LockedBy != uuid.Nil && job.LockedBy.String() != r.ID() {
@@ -1467,9 +1469,9 @@ func (r *basePoolManager) consumeQueuedJobs() error {
 			continue
 		}
 
-		if time.Since(job.UpdatedAt) < time.Second*10 {
+		if time.Since(job.UpdatedAt) < time.Second*20 {
 			// give the idle runners a chance to pick up the job.
-			log.Printf("job %d was updated less than 10 seconds ago. Skipping", job.ID)
+			log.Printf("job %d was updated less than 20 seconds ago. Skipping", job.ID)
 			continue
 		}
 
@@ -1532,14 +1534,18 @@ func (r *basePoolManager) consumeQueuedJobs() error {
 			continue
 		}
 
-		potentialPools, err := r.store.FindPoolsMatchingAllTags(r.ctx, r.helper.PoolType(), r.helper.ID(), job.Labels)
-		if err != nil {
-			log.Printf("[Pool mgr ID %s] error finding pools matching labels: %s", r.ID(), err)
-			continue
+		poolRR, ok := poolsCache.Get(job.Labels)
+		if !ok {
+			potentialPools, err := r.store.FindPoolsMatchingAllTags(r.ctx, r.helper.PoolType(), r.helper.ID(), job.Labels)
+			if err != nil {
+				log.Printf("[Pool mgr ID %s] error finding pools matching labels: %s", r.ID(), err)
+				continue
+			}
+			poolRR = poolsCache.Add(job.Labels, potentialPools)
 		}
 
-		if len(potentialPools) == 0 {
-			log.Printf("[Pool mgr ID %s] could not find pool with labels %s", r.ID(), strings.Join(job.Labels, ","))
+		if poolRR.Len() == 0 {
+			log.Printf("[Pool mgr ID %s] could not find pools with labels %s", r.ID(), strings.Join(job.Labels, ","))
 			continue
 		}
 
@@ -1552,16 +1558,23 @@ func (r *basePoolManager) consumeQueuedJobs() error {
 		jobLabels := []string{
 			fmt.Sprintf("%s%d", jobLabelPrefix, job.ID),
 		}
-		for _, pool := range potentialPools {
-			log.Printf("attempting to create a runner in pool %s for job %d", pool.ID, job.ID)
+		for {
+			pool, err := poolRR.Next()
+			if err != nil {
+				log.Printf("[PoolRR] could not find a pool to create a runner for job %d: %s", job.ID, err)
+				break
+			}
+
+			log.Printf("[PoolRR] attempting to create a runner in pool %s for job %d", pool.ID, job.ID)
 			if err := r.addRunnerToPool(pool, jobLabels); err != nil {
-				log.Printf("could not add runner to pool %s: %s", pool.ID, err)
+				log.Printf("[PoolRR] could not add runner to pool %s: %s", pool.ID, err)
 				continue
 			}
-			log.Printf("a new runner was added to pool %s as a response to queued job %d", pool.ID, job.ID)
+			log.Printf("[PoolRR] a new runner was added to pool %s as a response to queued job %d", pool.ID, job.ID)
 			runnerCreated = true
 			break
 		}
+
 		if !runnerCreated {
 			log.Printf("could not create a runner for job %d; unlocking", job.ID)
 			if err := r.store.UnlockJob(r.ctx, job.ID, r.ID()); err != nil {
