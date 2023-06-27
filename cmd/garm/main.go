@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/cloudbase/garm/apiserver/controllers"
@@ -37,6 +38,7 @@ import (
 	"github.com/cloudbase/garm/util"
 	"github.com/cloudbase/garm/util/appdefaults"
 	"github.com/cloudbase/garm/websocket"
+	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -81,6 +83,26 @@ func main() {
 	if err != nil {
 		log.Fatalf("fetching log writer: %+v", err)
 	}
+
+	// rotate log file on SIGHUP
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, syscall.SIGHUP)
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				// Daemon is exiting.
+				return
+			case <-ch:
+				// we got a SIGHUP. Rotate log file.
+				if logger, ok := logWriter.(*lumberjack.Logger); ok {
+					if err := logger.Rotate(); err != nil {
+						log.Printf("failed to rotate log file: %v", err)
+					}
+				}
+			}
+		}
+	}()
 
 	var writers []io.Writer = []io.Writer{
 		logWriter,
