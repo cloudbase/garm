@@ -122,6 +122,16 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 			return
 		}
 
+		potentialPools, err := r.store.FindPoolsMatchingAllTags(r.ctx, r.helper.PoolType(), r.helper.ID(), jobParams.Labels)
+		if err != nil {
+			log.Printf("failed to find pools matching tags: %s; not recording job", err)
+			return
+		}
+		if len(potentialPools) == 0 {
+			log.Printf("no pools matching tags: %s; not recording job", err)
+			return
+		}
+
 		if _, jobErr := r.store.CreateOrUpdateJob(r.ctx, jobParams); jobErr != nil {
 			log.Printf("failed to update job %d: %s", jobParams.ID, jobErr)
 		}
