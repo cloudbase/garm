@@ -277,7 +277,7 @@ func GetCloudConfig(bootstrapParams params.BootstrapInstance, tools github.Runne
 
 		cloudCfg.AddSSHKey(bootstrapParams.SSHKeys...)
 		cloudCfg.AddFile(installScript, "/install_runner.sh", "root:root", "755")
-		cloudCfg.AddRunCmd("/install_runner.sh")
+		cloudCfg.AddRunCmd(fmt.Sprintf("su -l -c /install_runner.sh %s", appdefaults.DefaultUser))
 		cloudCfg.AddRunCmd("rm -f /install_runner.sh")
 		if bootstrapParams.CACertBundle != nil && len(bootstrapParams.CACertBundle) > 0 {
 			if err := cloudCfg.AddCACert(bootstrapParams.CACertBundle); err != nil {
