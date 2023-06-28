@@ -10,7 +10,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 var _ common.JobsStore = &sqlDatabase{}
@@ -92,7 +91,7 @@ func (s *sqlDatabase) LockJob(ctx context.Context, jobID int64, entityID string)
 		return errors.Wrap(err, "parsing entity id")
 	}
 	var workflowJob WorkflowJob
-	q := s.conn.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ?", jobID).First(&workflowJob)
+	q := s.conn.Where("id = ?", jobID).First(&workflowJob)
 
 	if q.Error != nil {
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
@@ -121,7 +120,7 @@ func (s *sqlDatabase) LockJob(ctx context.Context, jobID int64, entityID string)
 
 func (s *sqlDatabase) BreakLockJobIsQueued(ctx context.Context, jobID int64) error {
 	var workflowJob WorkflowJob
-	q := s.conn.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ? and status = ?", jobID, params.JobStatusQueued).First(&workflowJob)
+	q := s.conn.Where("id = ? and status = ?", jobID, params.JobStatusQueued).First(&workflowJob)
 
 	if q.Error != nil {
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
@@ -145,7 +144,7 @@ func (s *sqlDatabase) BreakLockJobIsQueued(ctx context.Context, jobID int64) err
 
 func (s *sqlDatabase) UnlockJob(ctx context.Context, jobID int64, entityID string) error {
 	var workflowJob WorkflowJob
-	q := s.conn.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ?", jobID).First(&workflowJob)
+	q := s.conn.Where("id = ?", jobID).First(&workflowJob)
 
 	if q.Error != nil {
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
@@ -173,7 +172,7 @@ func (s *sqlDatabase) UnlockJob(ctx context.Context, jobID int64, entityID strin
 
 func (s *sqlDatabase) CreateOrUpdateJob(ctx context.Context, job params.Job) (params.Job, error) {
 	var workflowJob WorkflowJob
-	q := s.conn.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ?", job.ID).First(&workflowJob)
+	q := s.conn.Where("id = ?", job.ID).First(&workflowJob)
 
 	if q.Error != nil {
 		if !errors.Is(q.Error, gorm.ErrRecordNotFound) {
