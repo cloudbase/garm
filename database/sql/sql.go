@@ -45,11 +45,6 @@ func newDBConn(dbCfg config.Database) (conn *gorm.DB, err error) {
 		conn, err = gorm.Open(mysql.Open(connURI), gormConfig)
 	case config.SQLiteBackend:
 		conn, err = gorm.Open(sqlite.Open(connURI), gormConfig)
-		sqlDB, err := conn.DB()
-		if err != nil {
-			return nil, errors.Wrap(err, "getting DB")
-		}
-		sqlDB.SetMaxOpenConns(1)
 	}
 	if err != nil {
 		return nil, errors.Wrap(err, "connecting to database")

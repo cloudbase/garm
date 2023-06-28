@@ -31,7 +31,6 @@ import (
 
 	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/config"
-	"github.com/cloudbase/garm/database"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	runnerErrors "github.com/cloudbase/garm/errors"
 	"github.com/cloudbase/garm/params"
@@ -48,12 +47,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func NewRunner(ctx context.Context, cfg config.Config) (*Runner, error) {
-	db, err := database.NewDatabase(ctx, cfg.Database)
-	if err != nil {
-		return nil, errors.Wrap(err, "creating db connection")
-	}
-
+func NewRunner(ctx context.Context, cfg config.Config, db dbCommon.Store) (*Runner, error) {
 	ctrlId, err := db.ControllerInfo()
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching controller info")

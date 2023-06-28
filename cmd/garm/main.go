@@ -129,7 +129,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	runner, err := runner.NewRunner(ctx, *cfg)
+	runner, err := runner.NewRunner(ctx, *cfg, db)
 	if err != nil {
 		log.Fatalf("failed to create controller: %+v", err)
 	}
