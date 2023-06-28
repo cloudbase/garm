@@ -412,7 +412,7 @@ func TestGormParams(t *testing.T) {
 	dbType, uri, err := cfg.GormParams()
 	require.Nil(t, err)
 	require.Equal(t, SQLiteBackend, dbType)
-	require.Equal(t, filepath.Join(dir, "garm.db?_pragma=journal_mode(wal)"), uri)
+	require.Equal(t, filepath.Join(dir, "garm.db?_journal_mode=WAL"), uri)
 
 	cfg.DbBackend = MySQLBackend
 	cfg.MySQL = getMySQLDefaultConfig()
