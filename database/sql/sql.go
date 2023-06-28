@@ -203,6 +203,20 @@ func (s *sqlDatabase) migrateDB() error {
 		return errors.Wrap(err, "running cascade migration")
 	}
 
+	if s.conn.Migrator().HasTable(&Pool{}) {
+		if err := s.conn.Exec("update pools set repo_id=NULL where repo_id='00000000-0000-0000-0000-000000000000'").Error; err != nil {
+			return errors.Wrap(err, "updating pools")
+		}
+
+		if err := s.conn.Exec("update pools set org_id=NULL where org_id='00000000-0000-0000-0000-000000000000'").Error; err != nil {
+			return errors.Wrap(err, "updating pools")
+		}
+
+		if err := s.conn.Exec("update pools set enterprise_id=NULL where enterprise_id='00000000-0000-0000-0000-000000000000'").Error; err != nil {
+			return errors.Wrap(err, "updating pools")
+		}
+	}
+
 	if err := s.conn.AutoMigrate(
 		&Tag{},
 		&Pool{},
