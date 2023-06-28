@@ -148,7 +148,7 @@ func (s *sqlDatabase) CreateEnterprisePool(ctx context.Context, enterpriseID str
 		Flavor:                 param.Flavor,
 		OSType:                 param.OSType,
 		OSArch:                 param.OSArch,
-		EnterpriseID:           enterprise.ID,
+		EnterpriseID:           &enterprise.ID,
 		Enabled:                param.Enabled,
 		RunnerBootstrapTimeout: param.RunnerBootstrapTimeout,
 	}

@@ -21,7 +21,6 @@ import (
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/util"
 
-	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
@@ -152,19 +151,19 @@ func (s *sqlDatabase) sqlToCommonPool(pool Pool) params.Pool {
 		GitHubRunnerGroup:      pool.GitHubRunnerGroup,
 	}
 
-	if pool.RepoID != uuid.Nil {
+	if pool.RepoID != nil {
 		ret.RepoID = pool.RepoID.String()
 		if pool.Repository.Owner != "" && pool.Repository.Name != "" {
 			ret.RepoName = fmt.Sprintf("%s/%s", pool.Repository.Owner, pool.Repository.Name)
 		}
 	}
 
-	if pool.OrgID != uuid.Nil && pool.Organization.Name != "" {
+	if pool.OrgID != nil && pool.Organization.Name != "" {
 		ret.OrgID = pool.OrgID.String()
 		ret.OrgName = pool.Organization.Name
 	}
 
-	if pool.EnterpriseID != uuid.Nil && pool.Enterprise.Name != "" {
+	if pool.EnterpriseID != nil && pool.Enterprise.Name != "" {
 		ret.EnterpriseID = pool.EnterpriseID.String()
 		ret.EnterpriseName = pool.Enterprise.Name
 	}

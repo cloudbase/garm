@@ -65,7 +65,7 @@ type Pool struct {
 	Flavor                 string `gorm:"index:idx_pool_type"`
 	OSType                 params.OSType
 	OSArch                 params.OSArch
-	Tags                   []*Tag `gorm:"many2many:pool_tags;"`
+	Tags                   []*Tag `gorm:"many2many:pool_tags;constraint:OnDelete:CASCADE,OnUpdate:CASCADE;"`
 	Enabled                bool
 	// ExtraSpecs is an opaque json that gets sent to the provider
 	// as part of the bootstrap params for instances. It can contain
@@ -73,13 +73,13 @@ type Pool struct {
 	ExtraSpecs        datatypes.JSON
 	GitHubRunnerGroup string
 
-	RepoID     uuid.UUID  `gorm:"index"`
+	RepoID     *uuid.UUID `gorm:"index"`
 	Repository Repository `gorm:"foreignKey:RepoID"`
 
-	OrgID        uuid.UUID    `gorm:"index"`
+	OrgID        *uuid.UUID   `gorm:"index"`
 	Organization Organization `gorm:"foreignKey:OrgID"`
 
-	EnterpriseID uuid.UUID  `gorm:"index"`
+	EnterpriseID *uuid.UUID `gorm:"index"`
 	Enterprise   Enterprise `gorm:"foreignKey:EnterpriseID"`
 
 	Instances []Instance `gorm:"foreignKey:PoolID"`

@@ -165,7 +165,7 @@ func (s *sqlDatabase) CreateOrganizationPool(ctx context.Context, orgId string, 
 		Flavor:                 param.Flavor,
 		OSType:                 param.OSType,
 		OSArch:                 param.OSArch,
-		OrgID:                  org.ID,
+		OrgID:                  &org.ID,
 		Enabled:                param.Enabled,
 		RunnerBootstrapTimeout: param.RunnerBootstrapTimeout,
 	}
