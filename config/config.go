@@ -337,7 +337,7 @@ func (s *SQLite) Validate() error {
 }
 
 func (s *SQLite) ConnectionString() (string, error) {
-	return s.DBFile, nil
+	return fmt.Sprintf("%s?_pragma=journal_mode(wal)", s.DBFile), nil
 }
 
 // MySQL is the config entry for the mysql section
