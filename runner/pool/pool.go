@@ -1469,9 +1469,9 @@ func (r *basePoolManager) consumeQueuedJobs() error {
 			continue
 		}
 
-		if time.Since(job.UpdatedAt) < time.Second*20 {
+		if time.Since(job.UpdatedAt) < time.Second*30 {
 			// give the idle runners a chance to pick up the job.
-			log.Printf("[Pool mgr %s] job %d was updated less than 20 seconds ago. Skipping", r.helper.String(), job.ID)
+			log.Printf("[Pool mgr %s] job %d was updated less than 30 seconds ago. Skipping", r.helper.String(), job.ID)
 			continue
 		}
 
