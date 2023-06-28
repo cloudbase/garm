@@ -50,7 +50,7 @@ type Tag struct {
 	Base
 
 	Name  string  `gorm:"type:varchar(64);uniqueIndex"`
-	Pools []*Pool `gorm:"many2many:pool_tags;constraint:OnDelete:CASCADE"`
+	Pools []*Pool `gorm:"many2many:pool_tags;constraint:OnDelete:CASCADE,OnUpdate:CASCADE;"`
 }
 
 type Pool struct {
@@ -65,7 +65,7 @@ type Pool struct {
 	Flavor                 string `gorm:"index:idx_pool_type"`
 	OSType                 params.OSType
 	OSArch                 params.OSArch
-	Tags                   []*Tag `gorm:"many2many:pool_tags;constraint:OnDelete:CASCADE"`
+	Tags                   []*Tag `gorm:"many2many:pool_tags;constraint:OnDelete:CASCADE,OnUpdate:CASCADE;"`
 	Enabled                bool
 	// ExtraSpecs is an opaque json that gets sent to the provider
 	// as part of the bootstrap params for instances. It can contain
@@ -130,7 +130,7 @@ type InstanceStatusUpdate struct {
 	EventLevel params.EventLevel
 	Message    string `gorm:"type:text"`
 
-	InstanceID uuid.UUID `gorm:"index:instance_id"`
+	InstanceID uuid.UUID `gorm:"index:idx_instance_status_updates_instance_id"`
 	Instance   Instance  `gorm:"foreignKey:InstanceID"`
 }
 
@@ -144,7 +144,7 @@ type Instance struct {
 	OSArch            params.OSArch
 	OSName            string
 	OSVersion         string
-	Addresses         []Address `gorm:"foreignKey:InstanceID;constraint:OnDelete:CASCADE"`
+	Addresses         []Address `gorm:"foreignKey:InstanceID;constraint:OnDelete:CASCADE,OnUpdate:CASCADE;"`
 	Status            common.InstanceStatus
 	RunnerStatus      common.RunnerStatus
 	CallbackURL       string
@@ -158,7 +158,7 @@ type Instance struct {
 	PoolID uuid.UUID
 	Pool   Pool `gorm:"foreignKey:PoolID"`
 
-	StatusMessages []InstanceStatusUpdate `gorm:"foreignKey:InstanceID;constraint:OnDelete:CASCADE"`
+	StatusMessages []InstanceStatusUpdate `gorm:"foreignKey:InstanceID;constraint:OnDelete:CASCADE,OnUpdate:CASCADE;"`
 }
 
 type User struct {
