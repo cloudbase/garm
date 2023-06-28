@@ -120,6 +120,7 @@ type Default struct {
 	// LogFile is the location of the log file.
 	LogFile           string `toml:"log_file,omitempty" json:"log-file"`
 	EnableLogStreamer bool   `toml:"enable_log_streamer"`
+	DebugServer       bool   `toml:"debug_server" json:"debug-server"`
 }
 
 func (d *Default) Validate() error {
@@ -337,7 +338,7 @@ func (s *SQLite) Validate() error {
 }
 
 func (s *SQLite) ConnectionString() (string, error) {
-	return fmt.Sprintf("%s?_journal_mode=WAL", s.DBFile), nil
+	return fmt.Sprintf("%s?_journal_mode=WAL&_foreign_keys=ON", s.DBFile), nil
 }
 
 // MySQL is the config entry for the mysql section

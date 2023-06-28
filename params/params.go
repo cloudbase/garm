@@ -466,9 +466,9 @@ type Job struct {
 	// entity type, in response to one workflow event. Thus, we will get 3 webhooks
 	// with the same run_id and job id. Record all involved entities in the same job
 	// if we have them configured in garm.
-	RepoID       uuid.UUID `json:"repo_id,omitempty"`
-	OrgID        uuid.UUID `json:"org_id,omitempty"`
-	EnterpriseID uuid.UUID `json:"enterprise_id,omitempty"`
+	RepoID       *uuid.UUID `json:"repo_id,omitempty"`
+	OrgID        *uuid.UUID `json:"org_id,omitempty"`
+	EnterpriseID *uuid.UUID `json:"enterprise_id,omitempty"`
 
 	LockedBy uuid.UUID
 

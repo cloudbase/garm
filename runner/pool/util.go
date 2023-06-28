@@ -20,10 +20,6 @@ func (p *poolRoundRobin) Next() (params.Pool, error) {
 	if len(p.pools) == 0 {
 		return params.Pool{}, runnerErrors.ErrNoPoolsAvailable
 	}
-	if p.next >= uint32(len(p.pools)) {
-		p.Reset()
-		return params.Pool{}, runnerErrors.ErrNoPoolsAvailable
-	}
 
 	n := atomic.AddUint32(&p.next, 1)
 	return p.pools[(int(n)-1)%len(p.pools)], nil

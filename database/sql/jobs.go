@@ -22,6 +22,7 @@ func sqlWorkflowJobToParamsJob(job WorkflowJob) (params.Job, error) {
 			return params.Job{}, errors.Wrap(err, "unmarshaling labels")
 		}
 	}
+
 	return params.Job{
 		ID:              job.ID,
 		RunID:           job.RunID,
@@ -200,15 +201,15 @@ func (s *sqlDatabase) CreateOrUpdateJob(ctx context.Context, job params.Job) (pa
 			workflowJob.RunnerName = job.RunnerName
 		}
 
-		if job.RepoID != uuid.Nil {
+		if job.RepoID != nil {
 			workflowJob.RepoID = job.RepoID
 		}
 
-		if job.OrgID != uuid.Nil {
+		if job.OrgID != nil {
 			workflowJob.OrgID = job.OrgID
 		}
 
-		if job.EnterpriseID != uuid.Nil {
+		if job.EnterpriseID != nil {
 			workflowJob.EnterpriseID = job.EnterpriseID
 		}
 		if err := s.conn.Save(&workflowJob).Error; err != nil {

@@ -176,6 +176,11 @@ func main() {
 		router = routers.WithMetricsRouter(router, cfg.Metrics.DisableAuth, metricsMiddleware)
 	}
 
+	if cfg.Default.DebugServer {
+		log.Printf("setting up debug routes")
+		router = routers.WithDebugServer(router)
+	}
+
 	corsMw := mux.CORSMethodMiddleware(router)
 	router.Use(corsMw)
 

@@ -888,11 +888,11 @@ func (r *basePoolManager) paramsWorkflowJobToParamsJob(job params.WorkflowJob) (
 
 	switch r.helper.PoolType() {
 	case params.EnterprisePool:
-		jobParams.EnterpriseID = asUUID
+		jobParams.EnterpriseID = &asUUID
 	case params.RepositoryPool:
-		jobParams.RepoID = asUUID
+		jobParams.RepoID = &asUUID
 	case params.OrganizationPool:
-		jobParams.OrgID = asUUID
+		jobParams.OrgID = &asUUID
 	default:
 		return jobParams, errors.Errorf("unknown pool type: %s", r.helper.PoolType())
 	}
@@ -1558,7 +1558,7 @@ func (r *basePoolManager) consumeQueuedJobs() error {
 		jobLabels := []string{
 			fmt.Sprintf("%s%d", jobLabelPrefix, job.ID),
 		}
-		for {
+		for i := 0; i < poolRR.Len(); i++ {
 			pool, err := poolRR.Next()
 			if err != nil {
 				log.Printf("[PoolRR %s] could not find a pool to create a runner for job %d: %s", r.helper.String(), job.ID, err)

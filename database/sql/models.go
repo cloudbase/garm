@@ -130,8 +130,8 @@ type InstanceStatusUpdate struct {
 	EventLevel params.EventLevel
 	Message    string `gorm:"type:text"`
 
-	InstanceID uuid.UUID
-	Instance   Instance `gorm:"foreignKey:InstanceID"`
+	InstanceID uuid.UUID `gorm:"index:instance_id"`
+	Instance   Instance  `gorm:"foreignKey:InstanceID"`
 }
 
 type Instance struct {
@@ -144,7 +144,7 @@ type Instance struct {
 	OSArch            params.OSArch
 	OSName            string
 	OSVersion         string
-	Addresses         []Address `gorm:"foreignKey:InstanceID"`
+	Addresses         []Address `gorm:"foreignKey:InstanceID;constraint:OnDelete:CASCADE,OnUpdate:CASCADE;"`
 	Status            common.InstanceStatus
 	RunnerStatus      common.RunnerStatus
 	CallbackURL       string
@@ -158,7 +158,7 @@ type Instance struct {
 	PoolID uuid.UUID
 	Pool   Pool `gorm:"foreignKey:PoolID"`
 
-	StatusMessages []InstanceStatusUpdate `gorm:"foreignKey:InstanceID"`
+	StatusMessages []InstanceStatusUpdate `gorm:"foreignKey:InstanceID;constraint:OnDelete:CASCADE,OnUpdate:CASCADE;"`
 }
 
 type User struct {
@@ -218,13 +218,13 @@ type WorkflowJob struct {
 	// entity type, in response to one workflow event. Thus, we will get 3 webhooks
 	// with the same run_id and job id. Record all involved entities in the same job
 	// if we have them configured in garm.
-	RepoID     uuid.UUID  `gorm:"index"`
+	RepoID     *uuid.UUID `gorm:"index"`
 	Repository Repository `gorm:"foreignKey:RepoID"`
 
-	OrgID        uuid.UUID    `gorm:"index"`
+	OrgID        *uuid.UUID   `gorm:"index"`
 	Organization Organization `gorm:"foreignKey:OrgID"`
 
-	EnterpriseID uuid.UUID  `gorm:"index"`
+	EnterpriseID *uuid.UUID `gorm:"index"`
 	Enterprise   Enterprise `gorm:"foreignKey:EnterpriseID"`
 
 	LockedBy uuid.UUID
