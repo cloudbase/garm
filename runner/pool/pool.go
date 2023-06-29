@@ -122,14 +122,22 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 			return
 		}
 
-		potentialPools, err := r.store.FindPoolsMatchingAllTags(r.ctx, r.helper.PoolType(), r.helper.ID(), jobParams.Labels)
+		_, err := r.store.GetJobByID(r.ctx, jobParams.ID)
 		if err != nil {
-			log.Printf("[Pool mgr %s] failed to find pools matching tags %s: %s; not recording job", r.helper.String(), strings.Join(jobParams.Labels, ", "), err)
-			return
-		}
-		if len(potentialPools) == 0 {
-			log.Printf("[Pool mgr %s] no pools matching tags %s; not recording job", r.helper.String(), strings.Join(jobParams.Labels, ", "))
-			return
+			if !errors.Is(err, runnerErrors.ErrNotFound) {
+				log.Printf("[Pool mgr %s] failed to get job %d: %s", r.helper.String(), jobParams.ID, err)
+				return
+			}
+			// This job is new to us. Check if we have a pool that can handle it.
+			potentialPools, err := r.store.FindPoolsMatchingAllTags(r.ctx, r.helper.PoolType(), r.helper.ID(), jobParams.Labels)
+			if err != nil {
+				log.Printf("[Pool mgr %s] failed to find pools matching tags %s: %s; not recording job", r.helper.String(), strings.Join(jobParams.Labels, ", "), err)
+				return
+			}
+			if len(potentialPools) == 0 {
+				log.Printf("[Pool mgr %s] no pools matching tags %s; not recording job", r.helper.String(), strings.Join(jobParams.Labels, ", "))
+				return
+			}
 		}
 
 		if _, jobErr := r.store.CreateOrUpdateJob(r.ctx, jobParams); jobErr != nil {
