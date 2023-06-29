@@ -114,7 +114,7 @@ func (s *sqlDatabase) cascadeMigrationSQLite(model interface{}, name string, jus
 
 	var data string
 	var indexes []string
-	if err := s.conn.Raw(fmt.Sprintf("select sql from sqlite_master where tbl_name='%s' and name='%s'", name, name)).Scan(&data).Error; err != nil {
+	if err := s.conn.Raw(fmt.Sprintf("select sql from sqlite_master where type='table' and tbl_name='%s'", name)).Scan(&data).Error; err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return fmt.Errorf("failed to get table %s: %w", name, err)
 		}
