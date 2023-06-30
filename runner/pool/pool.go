@@ -285,7 +285,7 @@ func (r *basePoolManager) startLoopForFunction(f func() error, interval time.Dur
 				// this worker was stopped.
 				return
 			default:
-				r.waitForTimeoutOrCanceled(common.UnauthorizedBackoffTimer)
+				r.waitForTimeoutOrCanceled(common.BackoffTimer)
 			}
 		}
 	}
@@ -295,18 +295,16 @@ func (r *basePoolManager) updateTools() error {
 	// Update tools cache.
 	tools, err := r.helper.FetchTools()
 	if err != nil {
+		r.log("failed to update tools for repo %s: %s", r.helper.String(), err)
 		r.setPoolRunningState(false, err.Error())
-		if errors.Is(err, runnerErrors.ErrUnauthorized) {
-			r.waitForTimeoutOrCanceled(common.UnauthorizedBackoffTimer)
-		} else {
-			r.waitForTimeoutOrCanceled(60 * time.Second)
-		}
+		r.waitForTimeoutOrCanceled(common.BackoffTimer)
 		return fmt.Errorf("failed to update tools for repo %s: %w", r.helper.String(), err)
 	}
 	r.mux.Lock()
 	r.tools = tools
 	r.mux.Unlock()
 
+	r.log("successfully updated tools")
 	r.setPoolRunningState(true, "")
 	return err
 }

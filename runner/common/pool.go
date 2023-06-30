@@ -29,11 +29,9 @@ const (
 	// clouds for the instance to spin up, download the tools and join gh.
 	PoolToolUpdateInterval = 15 * time.Minute
 
-	// UnauthorizedBackoffTimer is the time we wait before making another request
-	// after getting an unauthorized error from github. It is unlikely that a second
-	// request will not receive the same error, unless the config is changed with new
-	// credentials and garm is restarted.
-	UnauthorizedBackoffTimer = 15 * time.Minute
+	// BackoffTimer is the time we wait before attempting to make another request
+	// to the github API.
+	BackoffTimer = 1 * time.Minute
 )
 
 //go:generate mockery --all
