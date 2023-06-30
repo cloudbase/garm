@@ -26,6 +26,20 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// swagger:route POST /repositories repositories Create
+//
+// Create repository with the parameters given.
+//
+//	Parameters:
+//	  + name: Body
+//	    description: Parameters used when creating the repository.
+//	    type: CreateRepoParams
+//	    in: body
+//	    required: true
+//
+//	Responses:
+//	  200: Repository
+//	  default: APIErrorResponse
 func (a *APIController) CreateRepoHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -48,6 +62,13 @@ func (a *APIController) CreateRepoHandler(w http.ResponseWriter, r *http.Request
 	}
 }
 
+// swagger:route GET /repositories repositories List
+//
+// List repositories.
+//
+//	Responses:
+//	  200: Repositories
+//	  default: APIErrorResponse
 func (a *APIController) ListReposHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -64,6 +85,20 @@ func (a *APIController) ListReposHandler(w http.ResponseWriter, r *http.Request)
 	}
 }
 
+// swagger:route GET /repositories/{repoID} repositories Get
+//
+// Get repository by ID.
+//
+//	Parameters:
+//	  + name: repoID
+//	    description: ID of the repository to fetch.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	Responses:
+//	  200: Repository
+//	  default: APIErrorResponse
 func (a *APIController) GetRepoByIDHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -93,6 +128,19 @@ func (a *APIController) GetRepoByIDHandler(w http.ResponseWriter, r *http.Reques
 	}
 }
 
+// swagger:route DELETE /repositories/{repoID} repositories Delete
+//
+// Delete repository by ID.
+//
+//	Parameters:
+//	  + name: repoID
+//	    description: ID of the repository to delete.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	Responses:
+//	  default: APIErrorResponse
 func (a *APIController) DeleteRepoHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 

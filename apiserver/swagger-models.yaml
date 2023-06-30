@@ -1,0 +1,33 @@
+# NOTE: The purpose of these definitions is to reuse the existing golang
+# types from GARM packages.
+definitions:
+  Repositories:
+    type: array
+    x-go-type:
+        type: Repositories
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+    items:
+        $ref: '#/definitions/Repository'
+  Repository:
+    type: object
+    x-go-type:
+        type: Repository
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+  CreateRepoParams:
+    type: object
+    x-go-type:
+        type: CreateRepoParams
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+  APIErrorResponse:
+    type: object
+    x-go-type:
+        type: APIErrorResponse
+        import:
+            package: github.com/cloudbase/garm/apiserver/params
+            alias: apiserver_params

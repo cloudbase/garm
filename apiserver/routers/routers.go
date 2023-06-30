@@ -12,7 +12,21 @@
 //    License for the specific language governing permissions and limitations
 //    under the License.
 
+// Package routers Garm API.
+//
+// The Garm API generated using go-swagger.
+//
+//	BasePath: /api/v1
+//	Version: 1.0.0
+//	License: Apache 2.0 https://www.apache.org/licenses/LICENSE-2.0
+//
+// swagger:meta
 package routers
+
+//go:generate swagger generate spec --input=../swagger-models.yaml --output=../swagger.yaml --include="routers|controllers"
+//go:generate swagger validate ../swagger.yaml
+//go:generate rm -rf ../../client
+//go:generate swagger generate client --target=../../ --spec=../swagger.yaml
 
 import (
 	"io"

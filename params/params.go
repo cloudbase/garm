@@ -315,6 +315,9 @@ func (r Repository) GetID() string {
 	return r.ID
 }
 
+// used by swagger client generated code
+type Repositories []Repository
+
 type Organization struct {
 	ID                string            `json:"id"`
 	Name              string            `json:"name"`
