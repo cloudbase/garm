@@ -137,7 +137,7 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) (err error) 
 			if errors.Is(err, runnerErrors.ErrNotFound) {
 				return nil
 			}
-			r.log("failed to update runner %s status", util.SanitizeLogEntry(runnerInfo.Name))
+			r.log("failed to update runner %s status: %s", util.SanitizeLogEntry(runnerInfo.Name), err)
 			return errors.Wrap(err, "updating runner")
 		}
 		r.log("marking instance %s as pending_delete", util.SanitizeLogEntry(runnerInfo.Name))
@@ -145,7 +145,7 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) (err error) 
 			if errors.Is(err, runnerErrors.ErrNotFound) {
 				return nil
 			}
-			r.log("failed to update runner %s status", util.SanitizeLogEntry(runnerInfo.Name))
+			r.log("failed to update runner %s status: %s", util.SanitizeLogEntry(runnerInfo.Name), err)
 			return errors.Wrap(err, "updating runner")
 		}
 	case "in_progress":
@@ -169,7 +169,7 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) (err error) 
 			if errors.Is(err, runnerErrors.ErrNotFound) {
 				return nil
 			}
-			r.log("failed to update runner %s status", util.SanitizeLogEntry(runnerInfo.Name))
+			r.log("failed to update runner %s status: %s", util.SanitizeLogEntry(runnerInfo.Name), err)
 			return errors.Wrap(err, "updating runner")
 		}
 	}
@@ -330,7 +330,7 @@ func (r *basePoolManager) cleanupOrphanedProviderRunners(runners []*github.Runne
 		if ok := runnerNames[instance.Name]; !ok {
 			// Set pending_delete on DB field. Allow consolidate() to remove it.
 			if err := r.setInstanceStatus(instance.Name, providerCommon.InstancePendingDelete, nil); err != nil {
-				r.log("failed to update runner %s status", instance.Name)
+				r.log("failed to update runner %s status: %s", instance.Name, err)
 				return errors.Wrap(err, "updating runner")
 			}
 		}
@@ -393,7 +393,7 @@ func (r *basePoolManager) reapTimedOutRunners(runners []*github.Runner) error {
 		if runner, ok := runnersByName[instance.Name]; !ok || (runner.GetStatus() == "offline" && instance.RunnerStatus == providerCommon.RunnerFailed) {
 			r.log("reaping timed-out/failed runner %s", instance.Name)
 			if err := r.ForceDeleteRunner(instance); err != nil {
-				r.log("failed to update runner %s status", instance.Name)
+				r.log("failed to update runner %s status: %s", instance.Name, err)
 				return errors.Wrap(err, "updating runner")
 			}
 		}
@@ -1011,7 +1011,7 @@ func (r *basePoolManager) retryFailedInstancesForOnePool(ctx context.Context, po
 			r.log("queueing previously failed instance %s for retry", instance.Name)
 			// Set instance to pending create and wait for retry.
 			if err := r.updateInstance(instance.Name, updateParams); err != nil {
-				r.log("failed to update runner %s status", instance.Name)
+				r.log("failed to update runner %s status: %s", instance.Name, err)
 			}
 			return nil
 		})
@@ -1148,7 +1148,7 @@ func (r *basePoolManager) deletePendingInstances() error {
 					// failed to remove from provider. Set the status back to pending_delete, which
 					// will retry the operation.
 					if err := r.setInstanceStatus(instance.Name, providerCommon.InstancePendingDelete, nil); err != nil {
-						r.log("failed to update runner %s status", instance.Name)
+						r.log("failed to update runner %s status: %s", instance.Name, err)
 					}
 				}
 			}(instance)
@@ -1332,7 +1332,7 @@ func (r *basePoolManager) ForceDeleteRunner(runner params.Instance) error {
 	r.log("setting instance status for: %v", runner.Name)
 
 	if err := r.setInstanceStatus(runner.Name, providerCommon.InstancePendingDelete, nil); err != nil {
-		r.log("failed to update runner %s status", runner.Name)
+		r.log("failed to update runner %s status: %s", runner.Name, err)
 		return errors.Wrap(err, "updating runner")
 	}
 	return nil
