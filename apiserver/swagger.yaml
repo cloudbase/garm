@@ -1,0 +1,116 @@
+basePath: /api/v1
+definitions:
+    APIErrorResponse:
+        type: object
+        x-go-type:
+            import:
+                alias: apiserver_params
+                package: github.com/cloudbase/garm/apiserver/params
+            type: APIErrorResponse
+    CreateRepoParams:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: CreateRepoParams
+    Repositories:
+        items:
+            $ref: '#/definitions/Repository'
+        type: array
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: Repositories
+    Repository:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: Repository
+info:
+    description: The Garm API generated using go-swagger.
+    license:
+        name: Apache 2.0
+        url: https://www.apache.org/licenses/LICENSE-2.0
+    title: Garm API.
+    version: 1.0.0
+paths:
+    /repositories:
+        get:
+            operationId: List
+            responses:
+                "200":
+                    description: Repositories
+                    schema:
+                        $ref: '#/definitions/Repositories'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List repositories.
+            tags:
+                - repositories
+        post:
+            operationId: Create
+            parameters:
+                - description: Parameters used when creating the repository.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/CreateRepoParams'
+                    description: Parameters used when creating the repository.
+                    type: object
+            responses:
+                "200":
+                    description: Repository
+                    schema:
+                        $ref: '#/definitions/Repository'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Create repository with the parameters given.
+            tags:
+                - repositories
+    /repositories/{repoID}:
+        delete:
+            operationId: Delete
+            parameters:
+                - description: ID of the repository to delete.
+                  in: path
+                  name: repoID
+                  required: true
+                  type: string
+            responses:
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Delete repository by ID.
+            tags:
+                - repositories
+        get:
+            operationId: Get
+            parameters:
+                - description: ID of the repository to fetch.
+                  in: path
+                  name: repoID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: Repository
+                    schema:
+                        $ref: '#/definitions/Repository'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get repository by ID.
+            tags:
+                - repositories
+swagger: "2.0"
