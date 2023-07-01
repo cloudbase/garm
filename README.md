@@ -120,7 +120,9 @@ Once you've configured your database, providers and github credentials, you'll n
 
 At this point, you should be done. Have a look at the [running garm document](/doc/running_garm.md) for usage instructions and available features.
 
-If you would like to use ```garm``` with a different IaaS than the ones already available, have a loot at the [writing an external provider](/doc/external_provider.md) page.
+If you would like to use ```garm``` with a different IaaS than the ones already available, have a look at the [writing an external provider](/doc/external_provider.md) page.
+
+If you like to optimize the startup time of new instance, take a look at the [performance considerations](/doc/performance_considerations.md) page.
 
 ## Security considerations
 
