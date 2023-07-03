@@ -743,10 +743,6 @@ func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error 
 	labels = append(labels, r.controllerLabel())
 	labels = append(labels, r.poolLabel(pool.ID))
 
-	if len(instance.AditionalLabels) > 0 {
-		labels = append(labels, instance.AditionalLabels...)
-	}
-
 	jwtValidity := pool.RunnerTimeout()
 
 	entity := r.helper.String()
