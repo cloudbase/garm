@@ -49,4 +49,6 @@ type PoolManagerController interface {
 	RepoPoolManager
 	OrgPoolManager
 	EnterprisePoolManager
+
+	GetInternalConfig(credsName string) (params.Internal, error)
 }

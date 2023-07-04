@@ -170,11 +170,15 @@ func (r *Runner) UpdateEnterprise(ctx context.Context, enterpriseID string, para
 	}
 
 	poolMgr, err := r.poolManagerCtrl.GetEnterprisePoolManager(enterprise)
-	if err != nil {
-		newState := params.UpdatePoolStateParams{
-			WebhookSecret: enterprise.WebhookSecret,
+	if err == nil {
+		internalCfg, err := r.poolManagerCtrl.GetInternalConfig(enterprise.CredentialsName)
+		if err != nil {
+			return params.Enterprise{}, errors.Wrap(err, "fetching internal config")
 		}
-		// stop the pool mgr
+		newState := params.UpdatePoolStateParams{
+			WebhookSecret:  enterprise.WebhookSecret,
+			InternalConfig: &internalCfg,
+		}
 		if err := poolMgr.RefreshState(newState); err != nil {
 			return params.Enterprise{}, errors.Wrap(err, "updating enterprise pool manager")
 		}

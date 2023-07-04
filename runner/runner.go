@@ -105,7 +105,7 @@ func (p *poolManagerCtrl) CreateRepoPoolManager(ctx context.Context, repo params
 	p.mux.Lock()
 	defer p.mux.Unlock()
 
-	cfgInternal, err := p.getInternalConfig(repo.CredentialsName)
+	cfgInternal, err := p.GetInternalConfig(repo.CredentialsName)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching internal config")
 	}
@@ -146,7 +146,7 @@ func (p *poolManagerCtrl) CreateOrgPoolManager(ctx context.Context, org params.O
 	p.mux.Lock()
 	defer p.mux.Unlock()
 
-	cfgInternal, err := p.getInternalConfig(org.CredentialsName)
+	cfgInternal, err := p.GetInternalConfig(org.CredentialsName)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching internal config")
 	}
@@ -187,7 +187,7 @@ func (p *poolManagerCtrl) CreateEnterprisePoolManager(ctx context.Context, enter
 	p.mux.Lock()
 	defer p.mux.Unlock()
 
-	cfgInternal, err := p.getInternalConfig(enterprise.CredentialsName)
+	cfgInternal, err := p.GetInternalConfig(enterprise.CredentialsName)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching internal config")
 	}
@@ -224,7 +224,7 @@ func (p *poolManagerCtrl) GetEnterprisePoolManagers() (map[string]common.PoolMan
 	return p.enterprises, nil
 }
 
-func (p *poolManagerCtrl) getInternalConfig(credsName string) (params.Internal, error) {
+func (p *poolManagerCtrl) GetInternalConfig(credsName string) (params.Internal, error) {
 	creds, ok := p.credentials[credsName]
 	if !ok {
 		return params.Internal{}, runnerErrors.NewBadRequestError("invalid credential name (%s)", credsName)

@@ -183,9 +183,14 @@ func (r *Runner) UpdateRepository(ctx context.Context, repoID string, param para
 	}
 
 	poolMgr, err := r.poolManagerCtrl.GetRepoPoolManager(repo)
-	if err != nil {
+	if err == nil {
+		internalCfg, err := r.poolManagerCtrl.GetInternalConfig(repo.CredentialsName)
+		if err != nil {
+			return params.Repository{}, errors.Wrap(err, "fetching internal config")
+		}
 		newState := params.UpdatePoolStateParams{
-			WebhookSecret: repo.WebhookSecret,
+			WebhookSecret:  repo.WebhookSecret,
+			InternalConfig: &internalCfg,
 		}
 		// stop the pool mgr
 		if err := poolMgr.RefreshState(newState); err != nil {

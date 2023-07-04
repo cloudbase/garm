@@ -113,6 +113,9 @@ func (r *repository) UpdateState(param params.UpdatePoolStateParams) error {
 	defer r.mux.Unlock()
 
 	r.cfg.WebhookSecret = param.WebhookSecret
+	if param.InternalConfig != nil {
+		r.cfgInternal = *param.InternalConfig
+	}
 
 	ghc, _, err := util.GithubClient(r.ctx, r.GetGithubToken(), r.cfgInternal.GithubCredentialsDetails)
 	if err != nil {
