@@ -38,7 +38,7 @@ func (b *Base) BeforeCreate(tx *gorm.DB) error {
 	if b.ID != emptyId {
 		return nil
 	}
-	newID, err := uuid.NewUUID()
+	newID, err := uuid.NewRandom()
 	if err != nil {
 		return errors.Wrap(err, "generating id")
 	}

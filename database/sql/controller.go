@@ -42,7 +42,7 @@ func (s *sqlDatabase) InitController() (params.ControllerInfo, error) {
 		return params.ControllerInfo{}, runnerErrors.NewConflictError("controller already initialized")
 	}
 
-	newID, err := uuid.NewUUID()
+	newID, err := uuid.NewRandom()
 	if err != nil {
 		return params.ControllerInfo{}, errors.Wrap(err, "generating UUID")
 	}
