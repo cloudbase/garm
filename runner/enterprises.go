@@ -183,11 +183,13 @@ func (r *Runner) UpdateEnterprise(ctx context.Context, enterpriseID string, para
 			return params.Enterprise{}, errors.Wrap(err, "updating enterprise pool manager")
 		}
 	} else {
-		if _, err := r.poolManagerCtrl.CreateEnterprisePoolManager(r.ctx, enterprise, r.providers, r.store); err != nil {
+		poolMgr, err = r.poolManagerCtrl.CreateEnterprisePoolManager(r.ctx, enterprise, r.providers, r.store)
+		if err != nil {
 			return params.Enterprise{}, errors.Wrap(err, "creating enterprise pool manager")
 		}
 	}
 
+	enterprise.PoolManagerStatus = poolMgr.Status()
 	return enterprise, nil
 }
 

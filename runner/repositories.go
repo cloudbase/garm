@@ -192,16 +192,17 @@ func (r *Runner) UpdateRepository(ctx context.Context, repoID string, param para
 			WebhookSecret:  repo.WebhookSecret,
 			InternalConfig: &internalCfg,
 		}
-		// stop the pool mgr
 		if err := poolMgr.RefreshState(newState); err != nil {
 			return params.Repository{}, errors.Wrap(err, "updating repo pool manager")
 		}
 	} else {
-		if _, err := r.poolManagerCtrl.CreateRepoPoolManager(r.ctx, repo, r.providers, r.store); err != nil {
+		poolMgr, err = r.poolManagerCtrl.CreateRepoPoolManager(r.ctx, repo, r.providers, r.store)
+		if err != nil {
 			return params.Repository{}, errors.Wrap(err, "creating repo pool manager")
 		}
 	}
 
+	repo.PoolManagerStatus = poolMgr.Status()
 	return repo, nil
 }
 

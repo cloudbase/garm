@@ -193,16 +193,17 @@ func (r *Runner) UpdateOrganization(ctx context.Context, orgID string, param par
 			WebhookSecret:  org.WebhookSecret,
 			InternalConfig: &internalCfg,
 		}
-		// stop the pool mgr
 		if err := poolMgr.RefreshState(newState); err != nil {
 			return params.Organization{}, errors.Wrap(err, "updating org pool manager")
 		}
 	} else {
-		if _, err := r.poolManagerCtrl.CreateOrgPoolManager(r.ctx, org, r.providers, r.store); err != nil {
+		poolMgr, err = r.poolManagerCtrl.CreateOrgPoolManager(r.ctx, org, r.providers, r.store)
+		if err != nil {
 			return params.Organization{}, errors.Wrap(err, "creating org pool manager")
 		}
 	}
 
+	org.PoolManagerStatus = poolMgr.Status()
 	return org, nil
 }
 
