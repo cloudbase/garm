@@ -90,6 +90,37 @@ var repoListCmd = &cobra.Command{
 	},
 }
 
+var repoUpdateCmd = &cobra.Command{
+	Use:          "update",
+	Short:        "Update repository",
+	Long:         `Update repository credentials or webhook secret.`,
+	SilenceUsage: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if needsInit {
+			return errNeedsInitError
+		}
+
+		if len(args) == 0 {
+			return fmt.Errorf("command requires a repo ID")
+		}
+
+		if len(args) > 1 {
+			return fmt.Errorf("too many arguments")
+		}
+
+		repoUpdateReq := params.UpdateRepositoryParams{
+			WebhookSecret:   repoWebhookSecret,
+			CredentialsName: repoCreds,
+		}
+		repo, err := cli.UpdateRepo(args[0], repoUpdateReq)
+		if err != nil {
+			return err
+		}
+		formatOneRepository(repo)
+		return nil
+	},
+}
+
 var repoShowCmd = &cobra.Command{
 	Use:          "show",
 	Short:        "Show details for one repository",
@@ -146,12 +177,15 @@ func init() {
 	repoAddCmd.MarkFlagRequired("credentials") //nolint
 	repoAddCmd.MarkFlagRequired("owner")       //nolint
 	repoAddCmd.MarkFlagRequired("name")        //nolint
+	repoUpdateCmd.Flags().StringVar(&repoWebhookSecret, "webhook-secret", "", "The webhook secret for this repository")
+	repoUpdateCmd.Flags().StringVar(&repoCreds, "credentials", "", "Credentials name. See credentials list.")
 
 	repositoryCmd.AddCommand(
 		repoListCmd,
 		repoAddCmd,
 		repoShowCmd,
 		repoDeleteCmd,
+		repoUpdateCmd,
 	)
 
 	rootCmd.AddCommand(repositoryCmd)
