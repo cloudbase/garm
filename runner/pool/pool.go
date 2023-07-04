@@ -1438,8 +1438,8 @@ func (r *basePoolManager) ForceDeleteRunner(runner params.Instance) error {
 	return nil
 }
 
-// consumeQueuedJobs qull pull all the known jobs from the database and attempt to create a new
-// runner in one of the pools it manages if it matches the requested labels.
+// consumeQueuedJobs will pull all the known jobs from the database and attempt to create a new
+// runner in one of the pools it manages, if it matches the requested labels.
 // This is a best effort attempt to consume queued jobs. We do not have any real way to know which
 // runner from which pool will pick up a job we react to here. For example, the same job may be received
 // by an enterprise manager, an org manager AND a repo manager. If an idle runner from another pool
@@ -1455,6 +1455,12 @@ func (r *basePoolManager) ForceDeleteRunner(runner params.Instance) error {
 // an enterprise may have thousands of repos and thousands of jobs in queued state. To fetch all jobs for an
 // enterprise, we'd have to list all repos, and for each repo list all jobs currently in queued state. This is
 // not desirable by any measure.
+//
+// One way to handle situations where garm comes up after a longer period of time, is to temporarily max out the
+// min-idle-runner setting on pools, or at least raise it above 0. The idle runners will start to consume jobs, and
+// as they do so, new idle runners will be spun up in their stead. New jobs will record in the DB as they come in,
+// so those will trigger the creation of a runner. The jobs we don't know about will be dealt with by the idle runners.
+// Once jobs are consumed, you can set min-idle-runners to 0 again.
 func (r *basePoolManager) consumeQueuedJobs() error {
 	queued, err := r.store.ListEntityJobsByStatus(r.ctx, r.helper.PoolType(), r.helper.ID(), params.JobStatusQueued)
 	if err != nil {
