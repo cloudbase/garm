@@ -86,6 +86,7 @@ type PoolStore interface {
 
 	PoolInstanceCount(ctx context.Context, poolID string) (int64, error)
 	GetPoolInstanceByName(ctx context.Context, poolID string, instanceName string) (params.Instance, error)
+	FindPoolsMatchingAllTags(ctx context.Context, entityType params.PoolType, entityID string, tags []string) ([]params.Pool, error)
 }
 
 type UserStore interface {
@@ -111,6 +112,21 @@ type InstanceStore interface {
 	ListInstanceEvents(ctx context.Context, instanceID string, eventType params.EventType, eventLevel params.EventLevel) ([]params.StatusMessage, error)
 }
 
+type JobsStore interface {
+	CreateOrUpdateJob(ctx context.Context, job params.Job) (params.Job, error)
+	ListEntityJobsByStatus(ctx context.Context, entityType params.PoolType, entityID string, status params.JobStatus) ([]params.Job, error)
+	ListJobsByStatus(ctx context.Context, status params.JobStatus) ([]params.Job, error)
+	ListAllJobs(ctx context.Context) ([]params.Job, error)
+
+	GetJobByID(ctx context.Context, jobID int64) (params.Job, error)
+	DeleteJob(ctx context.Context, jobID int64) error
+	UnlockJob(ctx context.Context, jobID int64, entityID string) error
+	LockJob(ctx context.Context, jobID int64, entityID string) error
+	BreakLockJobIsQueued(ctx context.Context, jobID int64) error
+
+	DeleteCompletedJobs(ctx context.Context) error
+}
+
 //go:generate mockery --name=Store
 type Store interface {
 	RepoStore
@@ -119,6 +135,7 @@ type Store interface {
 	PoolStore
 	UserStore
 	InstanceStore
+	JobsStore
 
 	ControllerInfo() (params.ControllerInfo, error)
 	InitController() (params.ControllerInfo, error)

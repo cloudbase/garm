@@ -306,3 +306,17 @@ func (a *APIController) ListProviders(w http.ResponseWriter, r *http.Request) {
 		log.Printf("failed to encode response: %q", err)
 	}
 }
+
+func (a *APIController) ListAllJobs(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	jobs, err := a.r.ListAllJobs(ctx)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(jobs); err != nil {
+		log.Printf("failed to encode response: %q", err)
+	}
+}

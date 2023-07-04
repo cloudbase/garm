@@ -22,8 +22,8 @@ import (
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/util"
 
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
-	uuid "github.com/satori/go.uuid"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
@@ -165,7 +165,7 @@ func (s *sqlDatabase) CreateOrganizationPool(ctx context.Context, orgId string, 
 		Flavor:                 param.Flavor,
 		OSType:                 param.OSType,
 		OSArch:                 param.OSArch,
-		OrgID:                  org.ID,
+		OrgID:                  &org.ID,
 		Enabled:                param.Enabled,
 		RunnerBootstrapTimeout: param.RunnerBootstrapTimeout,
 	}
@@ -212,7 +212,7 @@ func (s *sqlDatabase) CreateOrganizationPool(ctx context.Context, orgId string, 
 }
 
 func (s *sqlDatabase) ListOrgPools(ctx context.Context, orgID string) ([]params.Pool, error) {
-	pools, err := s.getOrgPools(ctx, orgID, "Tags")
+	pools, err := s.listEntityPools(ctx, params.OrganizationPool, orgID, "Tags", "Instances")
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching pools")
 	}
@@ -246,15 +246,15 @@ func (s *sqlDatabase) DeleteOrganizationPool(ctx context.Context, orgID, poolID 
 }
 
 func (s *sqlDatabase) FindOrganizationPoolByTags(ctx context.Context, orgID string, tags []string) (params.Pool, error) {
-	pool, err := s.findPoolByTags(orgID, "org_id", tags)
+	pool, err := s.findPoolByTags(orgID, params.OrganizationPool, tags)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}
-	return pool, nil
+	return pool[0], nil
 }
 
 func (s *sqlDatabase) ListOrgInstances(ctx context.Context, orgID string) ([]params.Instance, error) {
-	pools, err := s.getOrgPools(ctx, orgID, "Instances")
+	pools, err := s.listEntityPools(ctx, params.OrganizationPool, orgID, "Tags", "Instances")
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching org")
 	}
@@ -277,7 +277,7 @@ func (s *sqlDatabase) UpdateOrganizationPool(ctx context.Context, orgID, poolID 
 }
 
 func (s *sqlDatabase) getPoolByID(ctx context.Context, poolID string, preload ...string) (Pool, error) {
-	u, err := uuid.FromString(poolID)
+	u, err := uuid.Parse(poolID)
 	if err != nil {
 		return Pool{}, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
 	}
@@ -300,34 +300,8 @@ func (s *sqlDatabase) getPoolByID(ctx context.Context, poolID string, preload ..
 	return pool, nil
 }
 
-func (s *sqlDatabase) getOrgPools(ctx context.Context, orgID string, preload ...string) ([]Pool, error) {
-	_, err := s.getOrgByID(ctx, orgID)
-	if err != nil {
-		return nil, errors.Wrap(err, "fetching org")
-	}
-
-	q := s.conn
-	if len(preload) > 0 {
-		for _, item := range preload {
-			q = q.Preload(item)
-		}
-	}
-
-	var pools []Pool
-	err = q.Model(&Pool{}).
-		Where("org_id = ?", orgID).
-		Omit("extra_specs").
-		Find(&pools).Error
-
-	if err != nil {
-		return nil, errors.Wrap(err, "fetching pool")
-	}
-
-	return pools, nil
-}
-
 func (s *sqlDatabase) getOrgByID(ctx context.Context, id string, preload ...string) (Organization, error) {
-	u, err := uuid.FromString(id)
+	u, err := uuid.Parse(id)
 	if err != nil {
 		return Organization{}, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
 	}

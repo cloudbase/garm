@@ -183,6 +183,19 @@ func (c *Client) DeleteRunner(instanceName string) error {
 	return nil
 }
 
+func (c *Client) ListAllJobs() ([]params.Job, error) {
+	url := fmt.Sprintf("%s/api/v1/jobs", c.Config.BaseURL)
+
+	var response []params.Job
+	resp, err := c.client.R().
+		SetResult(&response).
+		Get(url)
+	if err != nil || resp.IsError() {
+		return response, c.handleError(err, resp)
+	}
+	return response, nil
+}
+
 func (c *Client) ListPoolInstances(poolID string) ([]params.Instance, error) {
 	url := fmt.Sprintf("%s/api/v1/pools/%s/instances", c.Config.BaseURL, poolID)
 

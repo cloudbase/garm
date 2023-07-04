@@ -77,6 +77,14 @@ type organization struct {
 	mux sync.Mutex
 }
 
+func (r *organization) GithubCLI() common.GithubClient {
+	return r.ghcli
+}
+
+func (o *organization) PoolType() params.PoolType {
+	return params.OrganizationPool
+}
+
 func (r *organization) GetRunnerInfoFromWorkflow(job params.WorkflowJob) (params.RunnerInfo, error) {
 	if err := r.ValidateOwner(job); err != nil {
 		return params.RunnerInfo{}, errors.Wrap(err, "validating owner")

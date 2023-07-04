@@ -7,8 +7,8 @@ import (
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/util"
 
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
-	uuid "github.com/satori/go.uuid"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
@@ -148,7 +148,7 @@ func (s *sqlDatabase) CreateEnterprisePool(ctx context.Context, enterpriseID str
 		Flavor:                 param.Flavor,
 		OSType:                 param.OSType,
 		OSArch:                 param.OSArch,
-		EnterpriseID:           enterprise.ID,
+		EnterpriseID:           &enterprise.ID,
 		Enabled:                param.Enabled,
 		RunnerBootstrapTimeout: param.RunnerBootstrapTimeout,
 	}
@@ -224,15 +224,15 @@ func (s *sqlDatabase) UpdateEnterprisePool(ctx context.Context, enterpriseID, po
 }
 
 func (s *sqlDatabase) FindEnterprisePoolByTags(ctx context.Context, enterpriseID string, tags []string) (params.Pool, error) {
-	pool, err := s.findPoolByTags(enterpriseID, "enterprise_id", tags)
+	pool, err := s.findPoolByTags(enterpriseID, params.EnterprisePool, tags)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}
-	return pool, nil
+	return pool[0], nil
 }
 
 func (s *sqlDatabase) ListEnterprisePools(ctx context.Context, enterpriseID string) ([]params.Pool, error) {
-	pools, err := s.getEnterprisePools(ctx, enterpriseID, "Tags", "Enterprise")
+	pools, err := s.listEntityPools(ctx, params.EnterprisePool, enterpriseID, "Tags", "Instances")
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching pools")
 	}
@@ -246,7 +246,7 @@ func (s *sqlDatabase) ListEnterprisePools(ctx context.Context, enterpriseID stri
 }
 
 func (s *sqlDatabase) ListEnterpriseInstances(ctx context.Context, enterpriseID string) ([]params.Instance, error) {
-	pools, err := s.getEnterprisePools(ctx, enterpriseID, "Instances")
+	pools, err := s.listEntityPools(ctx, params.EnterprisePool, enterpriseID, "Instances", "Tags")
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching enterprise")
 	}
@@ -274,7 +274,7 @@ func (s *sqlDatabase) getEnterprise(ctx context.Context, name string) (Enterpris
 }
 
 func (s *sqlDatabase) getEnterpriseByID(ctx context.Context, id string, preload ...string) (Enterprise, error) {
-	u, err := uuid.FromString(id)
+	u, err := uuid.Parse(id)
 	if err != nil {
 		return Enterprise{}, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
 	}
@@ -314,29 +314,4 @@ func (s *sqlDatabase) getEnterprisePoolByUniqueFields(ctx context.Context, enter
 	}
 
 	return pool[0], nil
-}
-
-func (s *sqlDatabase) getEnterprisePools(ctx context.Context, enterpriseID string, preload ...string) ([]Pool, error) {
-	_, err := s.getEnterpriseByID(ctx, enterpriseID)
-	if err != nil {
-		return nil, errors.Wrap(err, "fetching enterprise")
-	}
-
-	q := s.conn
-	if len(preload) > 0 {
-		for _, item := range preload {
-			q = q.Preload(item)
-		}
-	}
-
-	var pools []Pool
-	err = q.Model(&Pool{}).Where("enterprise_id = ?", enterpriseID).
-		Omit("extra_specs").
-		Find(&pools).Error
-
-	if err != nil {
-		return nil, errors.Wrap(err, "fetching pool")
-	}
-
-	return pools, nil
 }

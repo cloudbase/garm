@@ -198,11 +198,11 @@ func init() {
 
 func formatInstances(param []params.Instance) {
 	t := table.NewWriter()
-	header := table.Row{"Name", "Status", "Runner Status", "Pool ID"}
+	header := table.Row{"Nr", "Name", "Status", "Runner Status", "Pool ID"}
 	t.AppendHeader(header)
 
-	for _, inst := range param {
-		t.AppendRow(table.Row{inst.Name, inst.Status, inst.RunnerStatus, inst.PoolID})
+	for idx, inst := range param {
+		t.AppendRow(table.Row{idx + 1, inst.Name, inst.Status, inst.RunnerStatus, inst.PoolID})
 		t.AppendSeparator()
 	}
 	fmt.Println(t.Render())

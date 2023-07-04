@@ -16,6 +16,7 @@ package pool
 
 import (
 	"github.com/cloudbase/garm/params"
+	"github.com/cloudbase/garm/runner/common"
 
 	"github.com/google/go-github/v53/github"
 )
@@ -27,6 +28,8 @@ type poolHelper interface {
 	GetRunnerInfoFromWorkflow(job params.WorkflowJob) (params.RunnerInfo, error)
 	RemoveGithubRunner(runnerID int64) (*github.Response, error)
 	FetchTools() ([]*github.RunnerApplicationDownload, error)
+
+	GithubCLI() common.GithubClient
 
 	FetchDbInstances() ([]params.Instance, error)
 	ListPools() ([]params.Pool, error)
@@ -41,4 +44,5 @@ type poolHelper interface {
 	UpdateState(param params.UpdatePoolStateParams) error
 	WebhookSecret() string
 	ID() string
+	PoolType() params.PoolType
 }

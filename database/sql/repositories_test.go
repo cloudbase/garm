@@ -707,7 +707,7 @@ func (s *RepoTestSuite) TestListRepoPoolsInvalidRepoID() {
 	_, err := s.Store.ListRepoPools(context.Background(), "dummy-repo-id")
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching pools: fetching repo: parsing id: invalid request", err.Error())
+	s.Require().Equal("fetching pools: parsing id: invalid request", err.Error())
 }
 
 func (s *RepoTestSuite) TestGetRepositoryPool() {
@@ -820,7 +820,7 @@ func (s *RepoTestSuite) TestListRepoInstancesInvalidRepoID() {
 	_, err := s.Store.ListRepoInstances(context.Background(), "dummy-repo-id")
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching repo: fetching repo: parsing id: invalid request", err.Error())
+	s.Require().Equal("fetching repo: parsing id: invalid request", err.Error())
 }
 
 func (s *RepoTestSuite) TestUpdateRepositoryPool() {
@@ -846,5 +846,6 @@ func (s *RepoTestSuite) TestUpdateRepositoryPoolInvalidRepoID() {
 }
 
 func TestRepoTestSuite(t *testing.T) {
+	t.Parallel()
 	suite.Run(t, new(RepoTestSuite))
 }

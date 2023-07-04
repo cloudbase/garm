@@ -129,7 +129,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	runner, err := runner.NewRunner(ctx, *cfg)
+	runner, err := runner.NewRunner(ctx, *cfg, db)
 	if err != nil {
 		log.Fatalf("failed to create controller: %+v", err)
 	}
@@ -174,6 +174,11 @@ func main() {
 		}
 		log.Printf("setting up metric routes")
 		router = routers.WithMetricsRouter(router, cfg.Metrics.DisableAuth, metricsMiddleware)
+	}
+
+	if cfg.Default.DebugServer {
+		log.Printf("setting up debug routes")
+		router = routers.WithDebugServer(router)
 	}
 
 	corsMw := mux.CORSMethodMiddleware(router)
