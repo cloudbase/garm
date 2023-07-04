@@ -40,7 +40,7 @@ type EnterpriseTestFixtures struct {
 	CreateEnterpriseParams params.CreateEnterpriseParams
 	CreatePoolParams       params.CreatePoolParams
 	CreateInstanceParams   params.CreateInstanceParams
-	UpdateRepoParams       params.UpdateRepositoryParams
+	UpdateRepoParams       params.UpdateEntityParams
 	UpdatePoolParams       params.UpdatePoolParams
 	SQLMock                sqlmock.Sqlmock
 }
@@ -142,7 +142,7 @@ func (s *EnterpriseTestSuite) SetupTest() {
 			Name:   "test-instance-name",
 			OSType: "linux",
 		},
-		UpdateRepoParams: params.UpdateRepositoryParams{
+		UpdateRepoParams: params.UpdateEntityParams{
 			CredentialsName: "test-update-creds",
 			WebhookSecret:   "test-update-repo-webhook-secret",
 		},

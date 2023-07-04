@@ -103,7 +103,7 @@ func (s *sqlDatabase) DeleteOrganization(ctx context.Context, orgID string) erro
 	return nil
 }
 
-func (s *sqlDatabase) UpdateOrganization(ctx context.Context, orgID string, param params.UpdateRepositoryParams) (params.Organization, error) {
+func (s *sqlDatabase) UpdateOrganization(ctx context.Context, orgID string, param params.UpdateEntityParams) (params.Organization, error) {
 	org, err := s.getOrgByID(ctx, orgID)
 	if err != nil {
 		return params.Organization{}, errors.Wrap(err, "fetching org")

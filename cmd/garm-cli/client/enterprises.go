@@ -51,7 +51,7 @@ func (c *Client) CreateEnterprise(param params.CreateEnterpriseParams) (params.E
 	return response, nil
 }
 
-func (c *Client) UpdateEnterprise(enterpriseID string, param params.UpdateRepositoryParams) (params.Enterprise, error) {
+func (c *Client) UpdateEnterprise(enterpriseID string, param params.UpdateEntityParams) (params.Enterprise, error) {
 	url := fmt.Sprintf("%s/api/v1/enterprises/%s", c.Config.BaseURL, enterpriseID)
 
 	var response params.Enterprise

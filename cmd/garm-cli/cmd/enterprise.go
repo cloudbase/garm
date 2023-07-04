@@ -153,7 +153,7 @@ var enterpriseUpdateCmd = &cobra.Command{
 			return fmt.Errorf("too many arguments")
 		}
 
-		enterpriseUpdateReq := params.UpdateRepositoryParams{
+		enterpriseUpdateReq := params.UpdateEntityParams{
 			WebhookSecret:   repoWebhookSecret,
 			CredentialsName: repoCreds,
 		}

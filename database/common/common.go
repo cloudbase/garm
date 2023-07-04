@@ -26,7 +26,7 @@ type RepoStore interface {
 	GetRepositoryByID(ctx context.Context, repoID string) (params.Repository, error)
 	ListRepositories(ctx context.Context) ([]params.Repository, error)
 	DeleteRepository(ctx context.Context, repoID string) error
-	UpdateRepository(ctx context.Context, repoID string, param params.UpdateRepositoryParams) (params.Repository, error)
+	UpdateRepository(ctx context.Context, repoID string, param params.UpdateEntityParams) (params.Repository, error)
 
 	CreateRepositoryPool(ctx context.Context, repoId string, param params.CreatePoolParams) (params.Pool, error)
 
@@ -45,7 +45,7 @@ type OrgStore interface {
 	GetOrganizationByID(ctx context.Context, orgID string) (params.Organization, error)
 	ListOrganizations(ctx context.Context) ([]params.Organization, error)
 	DeleteOrganization(ctx context.Context, orgID string) error
-	UpdateOrganization(ctx context.Context, orgID string, param params.UpdateRepositoryParams) (params.Organization, error)
+	UpdateOrganization(ctx context.Context, orgID string, param params.UpdateEntityParams) (params.Organization, error)
 
 	CreateOrganizationPool(ctx context.Context, orgId string, param params.CreatePoolParams) (params.Pool, error)
 	GetOrganizationPool(ctx context.Context, orgID, poolID string) (params.Pool, error)
@@ -63,7 +63,7 @@ type EnterpriseStore interface {
 	GetEnterpriseByID(ctx context.Context, enterpriseID string) (params.Enterprise, error)
 	ListEnterprises(ctx context.Context) ([]params.Enterprise, error)
 	DeleteEnterprise(ctx context.Context, enterpriseID string) error
-	UpdateEnterprise(ctx context.Context, enterpriseID string, param params.UpdateRepositoryParams) (params.Enterprise, error)
+	UpdateEnterprise(ctx context.Context, enterpriseID string, param params.UpdateEntityParams) (params.Enterprise, error)
 
 	CreateEnterprisePool(ctx context.Context, enterpriseID string, param params.CreatePoolParams) (params.Pool, error)
 	GetEnterprisePool(ctx context.Context, enterpriseID, poolID string) (params.Pool, error)

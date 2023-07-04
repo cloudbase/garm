@@ -51,8 +51,8 @@ func (c *Client) CreateOrganization(param params.CreateOrgParams) (params.Organi
 	return response, nil
 }
 
-func (c *Client) UpdateOrganization(enterpriseID string, param params.UpdateRepositoryParams) (params.Organization, error) {
-	url := fmt.Sprintf("%s/api/v1/organizations/%s", c.Config.BaseURL, enterpriseID)
+func (c *Client) UpdateOrganization(orgID string, param params.UpdateEntityParams) (params.Organization, error) {
+	url := fmt.Sprintf("%s/api/v1/organizations/%s", c.Config.BaseURL, orgID)
 
 	var response params.Organization
 	body, err := json.Marshal(param)

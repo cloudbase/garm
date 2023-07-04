@@ -227,7 +227,7 @@ func (p PasswordLoginParams) Validate() error {
 	return nil
 }
 
-type UpdateRepositoryParams struct {
+type UpdateEntityParams struct {
 	CredentialsName string `json:"credentials_name"`
 	WebhookSecret   string `json:"webhook_secret"`
 }

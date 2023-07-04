@@ -147,7 +147,7 @@ func (c *Client) UpdateRepoPool(repoID, poolID string, param params.UpdatePoolPa
 	return response, nil
 }
 
-func (c *Client) UpdateRepo(repoID string, param params.UpdateRepositoryParams) (params.Repository, error) {
+func (c *Client) UpdateRepo(repoID string, param params.UpdateEntityParams) (params.Repository, error) {
 	url := fmt.Sprintf("%s/api/v1/repositories/%s", c.Config.BaseURL, repoID)
 
 	var response params.Repository

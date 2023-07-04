@@ -38,7 +38,7 @@ type RepoTestFixtures struct {
 	CreateRepoParams     params.CreateRepoParams
 	CreatePoolParams     params.CreatePoolParams
 	CreateInstanceParams params.CreateInstanceParams
-	UpdateRepoParams     params.UpdateRepositoryParams
+	UpdateRepoParams     params.UpdateEntityParams
 	UpdatePoolParams     params.UpdatePoolParams
 	SQLMock              sqlmock.Sqlmock
 }
@@ -153,7 +153,7 @@ func (s *RepoTestSuite) SetupTest() {
 			Name:   "test-instance",
 			OSType: "linux",
 		},
-		UpdateRepoParams: params.UpdateRepositoryParams{
+		UpdateRepoParams: params.UpdateEntityParams{
 			CredentialsName: "test-update-creds",
 			WebhookSecret:   "test-update-webhook-secret",
 		},

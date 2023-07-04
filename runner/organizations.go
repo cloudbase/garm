@@ -158,7 +158,7 @@ func (r *Runner) DeleteOrganization(ctx context.Context, orgID string) error {
 	return nil
 }
 
-func (r *Runner) UpdateOrganization(ctx context.Context, orgID string, param params.UpdateRepositoryParams) (params.Organization, error) {
+func (r *Runner) UpdateOrganization(ctx context.Context, orgID string, param params.UpdateEntityParams) (params.Organization, error) {
 	if !auth.IsAdmin(ctx) {
 		return params.Organization{}, runnerErrors.ErrUnauthorized
 	}
