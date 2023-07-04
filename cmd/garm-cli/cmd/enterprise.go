@@ -135,6 +135,37 @@ var enterpriseDeleteCmd = &cobra.Command{
 	},
 }
 
+var enterpriseUpdateCmd = &cobra.Command{
+	Use:          "update",
+	Short:        "Update enterprise",
+	Long:         `Update enterprise credentials or webhook secret.`,
+	SilenceUsage: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if needsInit {
+			return errNeedsInitError
+		}
+
+		if len(args) == 0 {
+			return fmt.Errorf("command requires a enterprise ID")
+		}
+
+		if len(args) > 1 {
+			return fmt.Errorf("too many arguments")
+		}
+
+		enterpriseUpdateReq := params.UpdateRepositoryParams{
+			WebhookSecret:   repoWebhookSecret,
+			CredentialsName: repoCreds,
+		}
+		enterprise, err := cli.UpdateEnterprise(args[0], enterpriseUpdateReq)
+		if err != nil {
+			return err
+		}
+		formatOneEnterprise(enterprise)
+		return nil
+	},
+}
+
 func init() {
 
 	enterpriseAddCmd.Flags().StringVar(&enterpriseName, "name", "", "The name of the enterprise")
@@ -142,12 +173,15 @@ func init() {
 	enterpriseAddCmd.Flags().StringVar(&enterpriseCreds, "credentials", "", "Credentials name. See credentials list.")
 	enterpriseAddCmd.MarkFlagRequired("credentials") //nolint
 	enterpriseAddCmd.MarkFlagRequired("name")        //nolint
+	enterpriseUpdateCmd.Flags().StringVar(&enterpriseWebhookSecret, "webhook-secret", "", "The webhook secret for this enterprise")
+	enterpriseUpdateCmd.Flags().StringVar(&enterpriseCreds, "credentials", "", "Credentials name. See credentials list.")
 
 	enterpriseCmd.AddCommand(
 		enterpriseListCmd,
 		enterpriseAddCmd,
 		enterpriseShowCmd,
 		enterpriseDeleteCmd,
+		enterpriseUpdateCmd,
 	)
 
 	rootCmd.AddCommand(enterpriseCmd)

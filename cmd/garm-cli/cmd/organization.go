@@ -68,6 +68,37 @@ var orgAddCmd = &cobra.Command{
 	},
 }
 
+var orgUpdateCmd = &cobra.Command{
+	Use:          "update",
+	Short:        "Update organization",
+	Long:         `Update organization credentials or webhook secret.`,
+	SilenceUsage: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if needsInit {
+			return errNeedsInitError
+		}
+
+		if len(args) == 0 {
+			return fmt.Errorf("command requires a organization ID")
+		}
+
+		if len(args) > 1 {
+			return fmt.Errorf("too many arguments")
+		}
+
+		orgUpdateReq := params.UpdateRepositoryParams{
+			WebhookSecret:   repoWebhookSecret,
+			CredentialsName: orgCreds,
+		}
+		org, err := cli.UpdateOrganization(args[0], orgUpdateReq)
+		if err != nil {
+			return err
+		}
+		formatOneOrganization(org)
+		return nil
+	},
+}
+
 var orgListCmd = &cobra.Command{
 	Use:          "list",
 	Aliases:      []string{"ls"},
@@ -142,12 +173,15 @@ func init() {
 	orgAddCmd.Flags().StringVar(&orgCreds, "credentials", "", "Credentials name. See credentials list.")
 	orgAddCmd.MarkFlagRequired("credentials") //nolint
 	orgAddCmd.MarkFlagRequired("name")        //nolint
+	orgUpdateCmd.Flags().StringVar(&orgWebhookSecret, "webhook-secret", "", "The webhook secret for this organization")
+	orgUpdateCmd.Flags().StringVar(&orgCreds, "credentials", "", "Credentials name. See credentials list.")
 
 	organizationCmd.AddCommand(
 		orgListCmd,
 		orgAddCmd,
 		orgShowCmd,
 		orgDeleteCmd,
+		orgUpdateCmd,
 	)
 
 	rootCmd.AddCommand(organizationCmd)
