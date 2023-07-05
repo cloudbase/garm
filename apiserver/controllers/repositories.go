@@ -184,7 +184,7 @@ func (a *APIController) UpdateRepoHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	var updatePayload runnerParams.UpdateRepositoryParams
+	var updatePayload runnerParams.UpdateEntityParams
 	if err := json.NewDecoder(r.Body).Decode(&updatePayload); err != nil {
 		handleError(w, gErrors.ErrBadRequest)
 		return

@@ -103,7 +103,7 @@ func (s *sqlDatabase) DeleteRepository(ctx context.Context, repoID string) error
 	return nil
 }
 
-func (s *sqlDatabase) UpdateRepository(ctx context.Context, repoID string, param params.UpdateRepositoryParams) (params.Repository, error) {
+func (s *sqlDatabase) UpdateRepository(ctx context.Context, repoID string, param params.UpdateEntityParams) (params.Repository, error) {
 	repo, err := s.getRepoByID(ctx, repoID)
 	if err != nil {
 		return params.Repository{}, errors.Wrap(err, "fetching repo")

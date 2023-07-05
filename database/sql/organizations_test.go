@@ -39,7 +39,7 @@ type OrgTestFixtures struct {
 	CreateOrgParams      params.CreateOrgParams
 	CreatePoolParams     params.CreatePoolParams
 	CreateInstanceParams params.CreateInstanceParams
-	UpdateRepoParams     params.UpdateRepositoryParams
+	UpdateRepoParams     params.UpdateEntityParams
 	UpdatePoolParams     params.UpdatePoolParams
 	SQLMock              sqlmock.Sqlmock
 }
@@ -141,7 +141,7 @@ func (s *OrgTestSuite) SetupTest() {
 			Name:   "test-instance-name",
 			OSType: "linux",
 		},
-		UpdateRepoParams: params.UpdateRepositoryParams{
+		UpdateRepoParams: params.UpdateEntityParams{
 			CredentialsName: "test-update-creds",
 			WebhookSecret:   "test-update-repo-webhook-secret",
 		},

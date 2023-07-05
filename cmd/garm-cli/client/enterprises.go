@@ -51,6 +51,24 @@ func (c *Client) CreateEnterprise(param params.CreateEnterpriseParams) (params.E
 	return response, nil
 }
 
+func (c *Client) UpdateEnterprise(enterpriseID string, param params.UpdateEntityParams) (params.Enterprise, error) {
+	url := fmt.Sprintf("%s/api/v1/enterprises/%s", c.Config.BaseURL, enterpriseID)
+
+	var response params.Enterprise
+	body, err := json.Marshal(param)
+	if err != nil {
+		return response, err
+	}
+	resp, err := c.client.R().
+		SetBody(body).
+		SetResult(&response).
+		Put(url)
+	if err := c.handleError(err, resp); err != nil {
+		return params.Enterprise{}, err
+	}
+	return response, nil
+}
+
 func (c *Client) GetEnterprise(enterpriseID string) (params.Enterprise, error) {
 	var response params.Enterprise
 	url := fmt.Sprintf("%s/api/v1/enterprises/%s", c.Config.BaseURL, enterpriseID)

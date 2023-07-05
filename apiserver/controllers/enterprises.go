@@ -136,7 +136,7 @@ func (a *APIController) UpdateEnterpriseHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	var updatePayload runnerParams.UpdateRepositoryParams
+	var updatePayload runnerParams.UpdateEntityParams
 	if err := json.NewDecoder(r.Body).Decode(&updatePayload); err != nil {
 		handleError(w, gErrors.ErrBadRequest)
 		return

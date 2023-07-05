@@ -157,7 +157,7 @@ func (r *Runner) DeleteRepository(ctx context.Context, repoID string) error {
 	return nil
 }
 
-func (r *Runner) UpdateRepository(ctx context.Context, repoID string, param params.UpdateRepositoryParams) (params.Repository, error) {
+func (r *Runner) UpdateRepository(ctx context.Context, repoID string, param params.UpdateEntityParams) (params.Repository, error) {
 	if !auth.IsAdmin(ctx) {
 		return params.Repository{}, runnerErrors.ErrUnauthorized
 	}

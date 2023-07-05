@@ -1165,21 +1165,21 @@ func (_m *Store) PoolInstanceCount(ctx context.Context, poolID string) (int64, e
 }
 
 // UpdateEnterprise provides a mock function with given fields: ctx, enterpriseID, param
-func (_m *Store) UpdateEnterprise(ctx context.Context, enterpriseID string, param params.UpdateRepositoryParams) (params.Enterprise, error) {
+func (_m *Store) UpdateEnterprise(ctx context.Context, enterpriseID string, param params.UpdateEntityParams) (params.Enterprise, error) {
 	ret := _m.Called(ctx, enterpriseID, param)
 
 	var r0 params.Enterprise
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, params.UpdateRepositoryParams) (params.Enterprise, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string, params.UpdateEntityParams) (params.Enterprise, error)); ok {
 		return rf(ctx, enterpriseID, param)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, params.UpdateRepositoryParams) params.Enterprise); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string, params.UpdateEntityParams) params.Enterprise); ok {
 		r0 = rf(ctx, enterpriseID, param)
 	} else {
 		r0 = ret.Get(0).(params.Enterprise)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string, params.UpdateRepositoryParams) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, string, params.UpdateEntityParams) error); ok {
 		r1 = rf(ctx, enterpriseID, param)
 	} else {
 		r1 = ret.Error(1)
@@ -1237,21 +1237,21 @@ func (_m *Store) UpdateInstance(ctx context.Context, instanceID string, param pa
 }
 
 // UpdateOrganization provides a mock function with given fields: ctx, orgID, param
-func (_m *Store) UpdateOrganization(ctx context.Context, orgID string, param params.UpdateRepositoryParams) (params.Organization, error) {
+func (_m *Store) UpdateOrganization(ctx context.Context, orgID string, param params.UpdateEntityParams) (params.Organization, error) {
 	ret := _m.Called(ctx, orgID, param)
 
 	var r0 params.Organization
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, params.UpdateRepositoryParams) (params.Organization, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string, params.UpdateEntityParams) (params.Organization, error)); ok {
 		return rf(ctx, orgID, param)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, params.UpdateRepositoryParams) params.Organization); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string, params.UpdateEntityParams) params.Organization); ok {
 		r0 = rf(ctx, orgID, param)
 	} else {
 		r0 = ret.Get(0).(params.Organization)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string, params.UpdateRepositoryParams) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, string, params.UpdateEntityParams) error); ok {
 		r1 = rf(ctx, orgID, param)
 	} else {
 		r1 = ret.Error(1)
@@ -1285,21 +1285,21 @@ func (_m *Store) UpdateOrganizationPool(ctx context.Context, orgID string, poolI
 }
 
 // UpdateRepository provides a mock function with given fields: ctx, repoID, param
-func (_m *Store) UpdateRepository(ctx context.Context, repoID string, param params.UpdateRepositoryParams) (params.Repository, error) {
+func (_m *Store) UpdateRepository(ctx context.Context, repoID string, param params.UpdateEntityParams) (params.Repository, error) {
 	ret := _m.Called(ctx, repoID, param)
 
 	var r0 params.Repository
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, params.UpdateRepositoryParams) (params.Repository, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string, params.UpdateEntityParams) (params.Repository, error)); ok {
 		return rf(ctx, repoID, param)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, params.UpdateRepositoryParams) params.Repository); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string, params.UpdateEntityParams) params.Repository); ok {
 		r0 = rf(ctx, repoID, param)
 	} else {
 		r0 = ret.Get(0).(params.Repository)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string, params.UpdateRepositoryParams) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, string, params.UpdateEntityParams) error); ok {
 		r1 = rf(ctx, repoID, param)
 	} else {
 		r1 = ret.Error(1)

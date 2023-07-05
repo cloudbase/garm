@@ -144,7 +144,7 @@ func (r *Runner) DeleteEnterprise(ctx context.Context, enterpriseID string) erro
 	return nil
 }
 
-func (r *Runner) UpdateEnterprise(ctx context.Context, enterpriseID string, param params.UpdateRepositoryParams) (params.Enterprise, error) {
+func (r *Runner) UpdateEnterprise(ctx context.Context, enterpriseID string, param params.UpdateEntityParams) (params.Enterprise, error) {
 	if !auth.IsAdmin(ctx) {
 		return params.Enterprise{}, runnerErrors.ErrUnauthorized
 	}

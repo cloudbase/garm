@@ -99,7 +99,7 @@ func (s *sqlDatabase) DeleteEnterprise(ctx context.Context, enterpriseID string)
 	return nil
 }
 
-func (s *sqlDatabase) UpdateEnterprise(ctx context.Context, enterpriseID string, param params.UpdateRepositoryParams) (params.Enterprise, error) {
+func (s *sqlDatabase) UpdateEnterprise(ctx context.Context, enterpriseID string, param params.UpdateEntityParams) (params.Enterprise, error) {
 	enterprise, err := s.getEnterpriseByID(ctx, enterpriseID)
 	if err != nil {
 		return params.Enterprise{}, errors.Wrap(err, "fetching enterprise")

@@ -43,7 +43,7 @@ type RepoTestFixtures struct {
 	CreateRepoParams      params.CreateRepoParams
 	CreatePoolParams      params.CreatePoolParams
 	CreateInstanceParams  params.CreateInstanceParams
-	UpdateRepoParams      params.UpdateRepositoryParams
+	UpdateRepoParams      params.UpdateEntityParams
 	UpdatePoolParams      params.UpdatePoolParams
 	UpdatePoolStateParams params.UpdatePoolStateParams
 	ErrMock               error
@@ -124,7 +124,7 @@ func (s *RepoTestSuite) SetupTest() {
 			Name:   "test-instance-name",
 			OSType: "linux",
 		},
-		UpdateRepoParams: params.UpdateRepositoryParams{
+		UpdateRepoParams: params.UpdateEntityParams{
 			CredentialsName: "test-creds",
 			WebhookSecret:   "test-update-repo-webhook-secret",
 		},
