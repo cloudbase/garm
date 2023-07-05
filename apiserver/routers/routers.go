@@ -20,6 +20,23 @@
 //	Version: 1.0.0
 //	License: Apache 2.0 https://www.apache.org/licenses/LICENSE-2.0
 //
+//	Consumes:
+//	- application/json
+//
+//	Produces:
+//	- application/json
+//
+//	Security:
+//	- Bearer:
+//
+//	SecurityDefinitions:
+//	  Bearer:
+//	    type: apiKey
+//	    name: Authorization
+//	    in: header
+//	    description: >-
+//	      The token with the `Bearer: ` prefix, e.g. "Bearer abcde12345".
+//
 // swagger:meta
 package routers
 
