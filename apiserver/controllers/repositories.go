@@ -26,7 +26,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// swagger:route POST /repositories repositories Create
+// swagger:route POST /repositories repositories CreateRepo
 //
 // Create repository with the parameters given.
 //
@@ -62,7 +62,7 @@ func (a *APIController) CreateRepoHandler(w http.ResponseWriter, r *http.Request
 	}
 }
 
-// swagger:route GET /repositories repositories List
+// swagger:route GET /repositories repositories ListRepos
 //
 // List repositories.
 //
@@ -85,7 +85,7 @@ func (a *APIController) ListReposHandler(w http.ResponseWriter, r *http.Request)
 	}
 }
 
-// swagger:route GET /repositories/{repoID} repositories Get
+// swagger:route GET /repositories/{repoID} repositories GetRepo
 //
 // Get repository by ID.
 //
@@ -128,7 +128,7 @@ func (a *APIController) GetRepoByIDHandler(w http.ResponseWriter, r *http.Reques
 	}
 }
 
-// swagger:route DELETE /repositories/{repoID} repositories Delete
+// swagger:route DELETE /repositories/{repoID} repositories DeleteRepo
 //
 // Delete repository by ID.
 //
@@ -168,6 +168,26 @@ func (a *APIController) DeleteRepoHandler(w http.ResponseWriter, r *http.Request
 
 }
 
+// swagger:route PUT /repositories/{repoID} repositories UpdateRepo
+//
+// Update repository with the parameters given.
+//
+//	Parameters:
+//	  + name: repoID
+//	    description: ID of the repository to update.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: Body
+//	    description: Parameters used when updating the repository.
+//	    type: UpdateEntityParams
+//	    in: body
+//	    required: true
+//
+//	Responses:
+//	  200: Repository
+//	  default: APIErrorResponse
 func (a *APIController) UpdateRepoHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -203,6 +223,26 @@ func (a *APIController) UpdateRepoHandler(w http.ResponseWriter, r *http.Request
 	}
 }
 
+// swagger:route POST /repositories/{repoID}/pools repositories pools CreateRepoPool
+//
+// Create repository pool with the parameters given.
+//
+//	Parameters:
+//	  + name: repoID
+//	    description: Repository ID.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: Body
+//	    description: Parameters used when creating the repository pool.
+//	    type: CreatePoolParams
+//	    in: body
+//	    required: true
+//
+//	Responses:
+//	  200: Pool
+//	  default: APIErrorResponse
 func (a *APIController) CreateRepoPoolHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -239,6 +279,20 @@ func (a *APIController) CreateRepoPoolHandler(w http.ResponseWriter, r *http.Req
 	}
 }
 
+// swagger:route GET /repositories/{repoID}/pools repositories pools ListRepoPools
+//
+// List repository pools.
+//
+//	Parameters:
+//	  + name: repoID
+//	    description: Repository ID.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	Responses:
+//	  200: Pools
+//	  default: APIErrorResponse
 func (a *APIController) ListRepoPoolsHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	vars := mux.Vars(r)
@@ -267,6 +321,26 @@ func (a *APIController) ListRepoPoolsHandler(w http.ResponseWriter, r *http.Requ
 	}
 }
 
+// swagger:route GET /repositories/{repoID}/pools/{poolID} repositories pools GetRepoPool
+//
+// Get repository pool by ID.
+//
+//	Parameters:
+//	  + name: repoID
+//	    description: Repository ID.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: poolID
+//	    description: Pool ID.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	Responses:
+//	  200: Pool
+//	  default: APIErrorResponse
 func (a *APIController) GetRepoPoolHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	vars := mux.Vars(r)
@@ -296,6 +370,25 @@ func (a *APIController) GetRepoPoolHandler(w http.ResponseWriter, r *http.Reques
 	}
 }
 
+// swagger:route DELETE /repositories/{repoID}/pools/{poolID} repositories pools DeleteRepoPool
+//
+// Delete repository pool by ID.
+//
+//	Parameters:
+//	  + name: repoID
+//	    description: Repository ID.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: poolID
+//	    description: ID of the repository pool to delete.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	Responses:
+//	  default: APIErrorResponse
 func (a *APIController) DeleteRepoPoolHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -324,6 +417,32 @@ func (a *APIController) DeleteRepoPoolHandler(w http.ResponseWriter, r *http.Req
 
 }
 
+// swagger:route PUT /repositories/{repoID}/pools/{poolID} repositories pools UpdateRepoPool
+//
+// Update repository pool with the parameters given.
+//
+//	Parameters:
+//	  + name: repoID
+//	    description: Repository ID.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: poolID
+//	    description: ID of the repository pool to update.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: Body
+//	    description: Parameters used when updating the repository pool.
+//	    type: UpdatePoolParams
+//	    in: body
+//	    required: true
+//
+//	Responses:
+//	  200: Pool
+//	  default: APIErrorResponse
 func (a *APIController) UpdateRepoPoolHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 

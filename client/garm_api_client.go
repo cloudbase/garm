@@ -10,6 +10,7 @@ import (
 	httptransport "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
 
+	"github.com/cloudbase/garm/client/instances"
 	"github.com/cloudbase/garm/client/repositories"
 )
 
@@ -55,6 +56,7 @@ func New(transport runtime.ClientTransport, formats strfmt.Registry) *GarmAPI {
 
 	cli := new(GarmAPI)
 	cli.Transport = transport
+	cli.Instances = instances.New(transport, formats)
 	cli.Repositories = repositories.New(transport, formats)
 	return cli
 }
@@ -100,6 +102,8 @@ func (cfg *TransportConfig) WithSchemes(schemes []string) *TransportConfig {
 
 // GarmAPI is a client for garm API
 type GarmAPI struct {
+	Instances instances.ClientService
+
 	Repositories repositories.ClientService
 
 	Transport runtime.ClientTransport
@@ -108,5 +112,6 @@ type GarmAPI struct {
 // SetTransport changes the transport on the client and all its subresources
 func (c *GarmAPI) SetTransport(transport runtime.ClientTransport) {
 	c.Transport = transport
+	c.Instances.SetTransport(transport)
 	c.Repositories.SetTransport(transport)
 }
