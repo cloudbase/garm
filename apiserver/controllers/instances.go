@@ -54,6 +54,20 @@ func (a *APIController) ListPoolInstancesHandler(w http.ResponseWriter, r *http.
 	}
 }
 
+// swagger:route GET /instances/{instanceName} instances GetInstance
+//
+// Get runner instance by name.
+//
+//	Parameters:
+//	  + name: instanceName
+//	    description: Runner instance name.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	Responses:
+//	  200: Instance
+//	  default: APIErrorResponse
 func (a *APIController) GetInstanceHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	vars := mux.Vars(r)
@@ -82,6 +96,19 @@ func (a *APIController) GetInstanceHandler(w http.ResponseWriter, r *http.Reques
 	}
 }
 
+// swagger:route DELETE /instances/{instanceName} instances DeleteInstance
+//
+// Delete runner instance by name.
+//
+//	Parameters:
+//	  + name: instanceName
+//	    description: Runner instance name.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	Responses:
+//	  default: APIErrorResponse
 func (a *APIController) DeleteInstanceHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	vars := mux.Vars(r)
@@ -107,6 +134,20 @@ func (a *APIController) DeleteInstanceHandler(w http.ResponseWriter, r *http.Req
 	w.WriteHeader(http.StatusOK)
 }
 
+// swagger:route GET /repositories/{repoID}/instances repositories instances ListRepoInstances
+//
+// List repository instances.
+//
+//	Parameters:
+//	  + name: repoID
+//	    description: Repository ID.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	Responses:
+//	  200: Instances
+//	  default: APIErrorResponse
 func (a *APIController) ListRepoInstancesHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	vars := mux.Vars(r)
@@ -191,6 +232,13 @@ func (a *APIController) ListEnterpriseInstancesHandler(w http.ResponseWriter, r 
 	}
 }
 
+// swagger:route GET /instances instances ListInstances
+//
+// Get all runners' instances.
+//
+//	Responses:
+//	  200: Instances
+//	  default: APIErrorResponse
 func (a *APIController) ListAllInstancesHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 

@@ -171,6 +171,9 @@ func (i Instance) GetID() string {
 	return i.ID
 }
 
+// used by swagger client generated code
+type Instances []Instance
+
 type BootstrapInstance struct {
 	Name  string                              `json:"name"`
 	Tools []*github.RunnerApplicationDownload `json:"tools"`
@@ -292,6 +295,9 @@ func (p *Pool) PoolType() PoolType {
 	}
 	return ""
 }
+
+// used by swagger client generated code
+type Pools []Pool
 
 type Internal struct {
 	OAuth2Token         string `json:"oauth2"`
