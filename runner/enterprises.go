@@ -169,24 +169,9 @@ func (r *Runner) UpdateEnterprise(ctx context.Context, enterpriseID string, para
 		return params.Enterprise{}, errors.Wrap(err, "updating enterprise")
 	}
 
-	poolMgr, err := r.poolManagerCtrl.GetEnterprisePoolManager(enterprise)
-	if err == nil {
-		internalCfg, err := r.poolManagerCtrl.GetInternalConfig(enterprise.CredentialsName)
-		if err != nil {
-			return params.Enterprise{}, errors.Wrap(err, "fetching internal config")
-		}
-		newState := params.UpdatePoolStateParams{
-			WebhookSecret:  enterprise.WebhookSecret,
-			InternalConfig: &internalCfg,
-		}
-		if err := poolMgr.RefreshState(newState); err != nil {
-			return params.Enterprise{}, errors.Wrap(err, "updating enterprise pool manager")
-		}
-	} else {
-		poolMgr, err = r.poolManagerCtrl.CreateEnterprisePoolManager(r.ctx, enterprise, r.providers, r.store)
-		if err != nil {
-			return params.Enterprise{}, errors.Wrap(err, "creating enterprise pool manager")
-		}
+	poolMgr, err := r.poolManagerCtrl.UpdateEnterprisePoolManager(r.ctx, enterprise)
+	if err != nil {
+		return params.Enterprise{}, fmt.Errorf("failed to update enterprise pool manager: %w", err)
 	}
 
 	enterprise.PoolManagerStatus = poolMgr.Status()

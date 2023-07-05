@@ -183,24 +183,9 @@ func (r *Runner) UpdateOrganization(ctx context.Context, orgID string, param par
 		return params.Organization{}, errors.Wrap(err, "updating org")
 	}
 
-	poolMgr, err := r.poolManagerCtrl.GetOrgPoolManager(org)
+	poolMgr, err := r.poolManagerCtrl.UpdateOrgPoolManager(r.ctx, org)
 	if err != nil {
-		internalCfg, err := r.poolManagerCtrl.GetInternalConfig(org.CredentialsName)
-		if err != nil {
-			return params.Organization{}, errors.Wrap(err, "fetching internal config")
-		}
-		newState := params.UpdatePoolStateParams{
-			WebhookSecret:  org.WebhookSecret,
-			InternalConfig: &internalCfg,
-		}
-		if err := poolMgr.RefreshState(newState); err != nil {
-			return params.Organization{}, errors.Wrap(err, "updating org pool manager")
-		}
-	} else {
-		poolMgr, err = r.poolManagerCtrl.CreateOrgPoolManager(r.ctx, org, r.providers, r.store)
-		if err != nil {
-			return params.Organization{}, errors.Wrap(err, "creating org pool manager")
-		}
+		return params.Organization{}, fmt.Errorf("updating org pool manager: %w", err)
 	}
 
 	org.PoolManagerStatus = poolMgr.Status()

@@ -182,24 +182,9 @@ func (r *Runner) UpdateRepository(ctx context.Context, repoID string, param para
 		return params.Repository{}, errors.Wrap(err, "updating repo")
 	}
 
-	poolMgr, err := r.poolManagerCtrl.GetRepoPoolManager(repo)
-	if err == nil {
-		internalCfg, err := r.poolManagerCtrl.GetInternalConfig(repo.CredentialsName)
-		if err != nil {
-			return params.Repository{}, errors.Wrap(err, "fetching internal config")
-		}
-		newState := params.UpdatePoolStateParams{
-			WebhookSecret:  repo.WebhookSecret,
-			InternalConfig: &internalCfg,
-		}
-		if err := poolMgr.RefreshState(newState); err != nil {
-			return params.Repository{}, errors.Wrap(err, "updating repo pool manager")
-		}
-	} else {
-		poolMgr, err = r.poolManagerCtrl.CreateRepoPoolManager(r.ctx, repo, r.providers, r.store)
-		if err != nil {
-			return params.Repository{}, errors.Wrap(err, "creating repo pool manager")
-		}
+	poolMgr, err := r.poolManagerCtrl.UpdateRepoPoolManager(r.ctx, repo)
+	if err != nil {
+		return params.Repository{}, fmt.Errorf("failed to update pool manager: %w", err)
 	}
 
 	repo.PoolManagerStatus = poolMgr.Status()

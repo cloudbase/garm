@@ -191,30 +191,6 @@ func (_m *PoolManagerController) GetEnterprisePoolManagers() (map[string]common.
 	return r0, r1
 }
 
-// GetInternalConfig provides a mock function with given fields: credsName
-func (_m *PoolManagerController) GetInternalConfig(credsName string) (params.Internal, error) {
-	ret := _m.Called(credsName)
-
-	var r0 params.Internal
-	var r1 error
-	if rf, ok := ret.Get(0).(func(string) (params.Internal, error)); ok {
-		return rf(credsName)
-	}
-	if rf, ok := ret.Get(0).(func(string) params.Internal); ok {
-		r0 = rf(credsName)
-	} else {
-		r0 = ret.Get(0).(params.Internal)
-	}
-
-	if rf, ok := ret.Get(1).(func(string) error); ok {
-		r1 = rf(credsName)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // GetOrgPoolManager provides a mock function with given fields: org
 func (_m *PoolManagerController) GetOrgPoolManager(org params.Organization) (common.PoolManager, error) {
 	ret := _m.Called(org)
@@ -312,6 +288,84 @@ func (_m *PoolManagerController) GetRepoPoolManagers() (map[string]common.PoolMa
 
 	if rf, ok := ret.Get(1).(func() error); ok {
 		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// UpdateEnterprisePoolManager provides a mock function with given fields: ctx, enterprise
+func (_m *PoolManagerController) UpdateEnterprisePoolManager(ctx context.Context, enterprise params.Enterprise) (common.PoolManager, error) {
+	ret := _m.Called(ctx, enterprise)
+
+	var r0 common.PoolManager
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, params.Enterprise) (common.PoolManager, error)); ok {
+		return rf(ctx, enterprise)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, params.Enterprise) common.PoolManager); ok {
+		r0 = rf(ctx, enterprise)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(common.PoolManager)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, params.Enterprise) error); ok {
+		r1 = rf(ctx, enterprise)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// UpdateOrgPoolManager provides a mock function with given fields: ctx, org
+func (_m *PoolManagerController) UpdateOrgPoolManager(ctx context.Context, org params.Organization) (common.PoolManager, error) {
+	ret := _m.Called(ctx, org)
+
+	var r0 common.PoolManager
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, params.Organization) (common.PoolManager, error)); ok {
+		return rf(ctx, org)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, params.Organization) common.PoolManager); ok {
+		r0 = rf(ctx, org)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(common.PoolManager)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, params.Organization) error); ok {
+		r1 = rf(ctx, org)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// UpdateRepoPoolManager provides a mock function with given fields: ctx, repo
+func (_m *PoolManagerController) UpdateRepoPoolManager(ctx context.Context, repo params.Repository) (common.PoolManager, error) {
+	ret := _m.Called(ctx, repo)
+
+	var r0 common.PoolManager
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, params.Repository) (common.PoolManager, error)); ok {
+		return rf(ctx, repo)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, params.Repository) common.PoolManager); ok {
+		r0 = rf(ctx, repo)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(common.PoolManager)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, params.Repository) error); ok {
+		r1 = rf(ctx, repo)
 	} else {
 		r1 = ret.Error(1)
 	}
