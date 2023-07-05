@@ -28,11 +28,11 @@ type ClientOption func(*runtime.ClientOperation)
 
 // ClientService is the interface for Client methods
 type ClientService interface {
-	DeleteInstance(params *DeleteInstanceParams, opts ...ClientOption) error
+	DeleteInstance(params *DeleteInstanceParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error
 
-	GetInstance(params *GetInstanceParams, opts ...ClientOption) (*GetInstanceOK, error)
+	GetInstance(params *GetInstanceParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetInstanceOK, error)
 
-	ListInstances(params *ListInstancesParams, opts ...ClientOption) (*ListInstancesOK, error)
+	ListInstances(params *ListInstancesParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListInstancesOK, error)
 
 	SetTransport(transport runtime.ClientTransport)
 }
@@ -40,7 +40,7 @@ type ClientService interface {
 /*
 DeleteInstance deletes runner instance by name
 */
-func (a *Client) DeleteInstance(params *DeleteInstanceParams, opts ...ClientOption) error {
+func (a *Client) DeleteInstance(params *DeleteInstanceParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewDeleteInstanceParams()
@@ -54,6 +54,7 @@ func (a *Client) DeleteInstance(params *DeleteInstanceParams, opts ...ClientOpti
 		Schemes:            []string{"http"},
 		Params:             params,
 		Reader:             &DeleteInstanceReader{formats: a.formats},
+		AuthInfo:           authInfo,
 		Context:            params.Context,
 		Client:             params.HTTPClient,
 	}
@@ -71,7 +72,7 @@ func (a *Client) DeleteInstance(params *DeleteInstanceParams, opts ...ClientOpti
 /*
 GetInstance gets runner instance by name
 */
-func (a *Client) GetInstance(params *GetInstanceParams, opts ...ClientOption) (*GetInstanceOK, error) {
+func (a *Client) GetInstance(params *GetInstanceParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetInstanceOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewGetInstanceParams()
@@ -85,6 +86,7 @@ func (a *Client) GetInstance(params *GetInstanceParams, opts ...ClientOption) (*
 		Schemes:            []string{"http"},
 		Params:             params,
 		Reader:             &GetInstanceReader{formats: a.formats},
+		AuthInfo:           authInfo,
 		Context:            params.Context,
 		Client:             params.HTTPClient,
 	}
@@ -108,7 +110,7 @@ func (a *Client) GetInstance(params *GetInstanceParams, opts ...ClientOption) (*
 /*
 ListInstances gets all runners instances
 */
-func (a *Client) ListInstances(params *ListInstancesParams, opts ...ClientOption) (*ListInstancesOK, error) {
+func (a *Client) ListInstances(params *ListInstancesParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListInstancesOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewListInstancesParams()
@@ -122,6 +124,7 @@ func (a *Client) ListInstances(params *ListInstancesParams, opts ...ClientOption
 		Schemes:            []string{"http"},
 		Params:             params,
 		Reader:             &ListInstancesReader{formats: a.formats},
+		AuthInfo:           authInfo,
 		Context:            params.Context,
 		Client:             params.HTTPClient,
 	}
