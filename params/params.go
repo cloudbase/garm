@@ -402,7 +402,8 @@ type Provider struct {
 }
 
 type UpdatePoolStateParams struct {
-	WebhookSecret string
+	WebhookSecret  string
+	InternalConfig *Internal
 }
 
 type PoolManagerStatus struct {
