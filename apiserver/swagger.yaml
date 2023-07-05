@@ -7,6 +7,13 @@ definitions:
                 alias: apiserver_params
                 package: github.com/cloudbase/garm/apiserver/params
             type: APIErrorResponse
+    CreatePoolParams:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: CreatePoolParams
     CreateRepoParams:
         type: object
         x-go-type:
@@ -14,6 +21,34 @@ definitions:
                 alias: garm_params
                 package: github.com/cloudbase/garm/params
             type: CreateRepoParams
+    Instance:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: Instance
+    Instances:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: Instances
+    Pool:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: Pool
+    Pools:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: Pools
     Repositories:
         items:
             $ref: '#/definitions/Repository'
@@ -30,6 +65,20 @@ definitions:
                 alias: garm_params
                 package: github.com/cloudbase/garm/params
             type: Repository
+    UpdateEntityParams:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: UpdateEntityParams
+    UpdatePoolParams:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: UpdatePoolParams
 info:
     description: The Garm API generated using go-swagger.
     license:
@@ -38,9 +87,61 @@ info:
     title: Garm API.
     version: 1.0.0
 paths:
+    /instances:
+        get:
+            operationId: ListInstances
+            responses:
+                "200":
+                    description: Instances
+                    schema:
+                        $ref: '#/definitions/Instances'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get all runners' instances.
+            tags:
+                - instances
+    /instances/{instanceName}:
+        delete:
+            operationId: DeleteInstance
+            parameters:
+                - description: Runner instance name.
+                  in: path
+                  name: instanceName
+                  required: true
+                  type: string
+            responses:
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Delete runner instance by name.
+            tags:
+                - instances
+        get:
+            operationId: GetInstance
+            parameters:
+                - description: Runner instance name.
+                  in: path
+                  name: instanceName
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: Instance
+                    schema:
+                        $ref: '#/definitions/Instance'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get runner instance by name.
+            tags:
+                - instances
     /repositories:
         get:
-            operationId: List
+            operationId: ListRepos
             responses:
                 "200":
                     description: Repositories
@@ -54,7 +155,7 @@ paths:
             tags:
                 - repositories
         post:
-            operationId: Create
+            operationId: CreateRepo
             parameters:
                 - description: Parameters used when creating the repository.
                   in: body
@@ -78,7 +179,7 @@ paths:
                 - repositories
     /repositories/{repoID}:
         delete:
-            operationId: Delete
+            operationId: DeleteRepo
             parameters:
                 - description: ID of the repository to delete.
                   in: path
@@ -94,7 +195,7 @@ paths:
             tags:
                 - repositories
         get:
-            operationId: Get
+            operationId: GetRepo
             parameters:
                 - description: ID of the repository to fetch.
                   in: path
@@ -113,4 +214,188 @@ paths:
             summary: Get repository by ID.
             tags:
                 - repositories
+        put:
+            operationId: UpdateRepo
+            parameters:
+                - description: ID of the repository to update.
+                  in: path
+                  name: repoID
+                  required: true
+                  type: string
+                - description: Parameters used when updating the repository.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/UpdateEntityParams'
+                    description: Parameters used when updating the repository.
+                    type: object
+            responses:
+                "200":
+                    description: Repository
+                    schema:
+                        $ref: '#/definitions/Repository'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Update repository with the parameters given.
+            tags:
+                - repositories
+    /repositories/{repoID}/instances:
+        get:
+            operationId: ListRepoInstances
+            parameters:
+                - description: Repository ID.
+                  in: path
+                  name: repoID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: Instances
+                    schema:
+                        $ref: '#/definitions/Instances'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List repository instances.
+            tags:
+                - repositories
+                - instances
+    /repositories/{repoID}/pools:
+        get:
+            operationId: ListRepoPools
+            parameters:
+                - description: Repository ID.
+                  in: path
+                  name: repoID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: Pools
+                    schema:
+                        $ref: '#/definitions/Pools'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List repository pools.
+            tags:
+                - repositories
+                - pools
+        post:
+            operationId: CreateRepoPool
+            parameters:
+                - description: Repository ID.
+                  in: path
+                  name: repoID
+                  required: true
+                  type: string
+                - description: Parameters used when creating the repository pool.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/CreatePoolParams'
+                    description: Parameters used when creating the repository pool.
+                    type: object
+            responses:
+                "200":
+                    description: Pool
+                    schema:
+                        $ref: '#/definitions/Pool'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Create repository pool with the parameters given.
+            tags:
+                - repositories
+                - pools
+    /repositories/{repoID}/pools/{poolID}:
+        delete:
+            operationId: DeleteRepoPool
+            parameters:
+                - description: Repository ID.
+                  in: path
+                  name: repoID
+                  required: true
+                  type: string
+                - description: ID of the repository pool to delete.
+                  in: path
+                  name: poolID
+                  required: true
+                  type: string
+            responses:
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Delete repository pool by ID.
+            tags:
+                - repositories
+                - pools
+        get:
+            operationId: GetRepoPool
+            parameters:
+                - description: Repository ID.
+                  in: path
+                  name: repoID
+                  required: true
+                  type: string
+                - description: Pool ID.
+                  in: path
+                  name: poolID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: Pool
+                    schema:
+                        $ref: '#/definitions/Pool'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get repository pool by ID.
+            tags:
+                - repositories
+                - pools
+        put:
+            operationId: UpdateRepoPool
+            parameters:
+                - description: Repository ID.
+                  in: path
+                  name: repoID
+                  required: true
+                  type: string
+                - description: ID of the repository pool to update.
+                  in: path
+                  name: poolID
+                  required: true
+                  type: string
+                - description: Parameters used when updating the repository pool.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/UpdatePoolParams'
+                    description: Parameters used when updating the repository pool.
+                    type: object
+            responses:
+                "200":
+                    description: Pool
+                    schema:
+                        $ref: '#/definitions/Pool'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Update repository pool with the parameters given.
+            tags:
+                - repositories
+                - pools
 swagger: "2.0"
