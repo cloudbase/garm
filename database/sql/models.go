@@ -74,7 +74,7 @@ type Pool struct {
 	GitHubRunnerGroup string
 
 	RepoID     *uuid.UUID `gorm:"index"`
-	Repository Repository `gorm:"foreignKey:RepoID"`
+	Repository Repository `gorm:"foreignKey:RepoID;"`
 
 	OrgID        *uuid.UUID   `gorm:"index"`
 	Organization Organization `gorm:"foreignKey:OrgID"`
@@ -92,7 +92,8 @@ type Repository struct {
 	Owner           string `gorm:"index:idx_owner_nocase,unique,collate:nocase"`
 	Name            string `gorm:"index:idx_owner_nocase,unique,collate:nocase"`
 	WebhookSecret   []byte
-	Pools           []Pool `gorm:"foreignKey:RepoID"`
+	Pools           []Pool        `gorm:"foreignKey:RepoID"`
+	Jobs            []WorkflowJob `gorm:"foreignKey:RepoID;constraint:OnDelete:SET NULL"`
 }
 
 type Organization struct {
@@ -101,7 +102,8 @@ type Organization struct {
 	CredentialsName string
 	Name            string `gorm:"index:idx_org_name_nocase,collate:nocase"`
 	WebhookSecret   []byte
-	Pools           []Pool `gorm:"foreignKey:OrgID"`
+	Pools           []Pool        `gorm:"foreignKey:OrgID"`
+	Jobs            []WorkflowJob `gorm:"foreignKey:OrgID;constraint:OnDelete:SET NULL"`
 }
 
 type Enterprise struct {
@@ -110,7 +112,8 @@ type Enterprise struct {
 	CredentialsName string
 	Name            string `gorm:"index:idx_ent_name_nocase,collate:nocase"`
 	WebhookSecret   []byte
-	Pools           []Pool `gorm:"foreignKey:EnterpriseID"`
+	Pools           []Pool        `gorm:"foreignKey:EnterpriseID"`
+	Jobs            []WorkflowJob `gorm:"foreignKey:EnterpriseID;constraint:OnDelete:SET NULL"`
 }
 
 type Address struct {
