@@ -126,7 +126,7 @@ func (s *sqlDatabase) cascadeMigrationSQLite(model interface{}, name string, jus
 		}
 	}
 
-	if strings.Contains(data, "ON DELETE CASCADE") {
+	if strings.Contains(data, "ON DELETE") {
 		return nil
 	}
 
@@ -176,6 +176,10 @@ func (s *sqlDatabase) cascadeMigration() error {
 		}
 
 		if err := s.cascadeMigrationSQLite(&Tag{}, "pool_tags", false); err != nil {
+			return fmt.Errorf("failed to migrate addresses: %w", err)
+		}
+
+		if err := s.cascadeMigrationSQLite(&WorkflowJob{}, "workflow_jobs", false); err != nil {
 			return fmt.Errorf("failed to migrate addresses: %w", err)
 		}
 	case config.MySQLBackend:
