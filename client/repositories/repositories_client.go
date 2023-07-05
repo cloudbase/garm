@@ -28,27 +28,27 @@ type ClientOption func(*runtime.ClientOperation)
 
 // ClientService is the interface for Client methods
 type ClientService interface {
-	CreateRepo(params *CreateRepoParams, opts ...ClientOption) (*CreateRepoOK, error)
+	CreateRepo(params *CreateRepoParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateRepoOK, error)
 
-	CreateRepoPool(params *CreateRepoPoolParams, opts ...ClientOption) (*CreateRepoPoolOK, error)
+	CreateRepoPool(params *CreateRepoPoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateRepoPoolOK, error)
 
-	DeleteRepo(params *DeleteRepoParams, opts ...ClientOption) error
+	DeleteRepo(params *DeleteRepoParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error
 
-	DeleteRepoPool(params *DeleteRepoPoolParams, opts ...ClientOption) error
+	DeleteRepoPool(params *DeleteRepoPoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error
 
-	GetRepo(params *GetRepoParams, opts ...ClientOption) (*GetRepoOK, error)
+	GetRepo(params *GetRepoParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetRepoOK, error)
 
-	GetRepoPool(params *GetRepoPoolParams, opts ...ClientOption) (*GetRepoPoolOK, error)
+	GetRepoPool(params *GetRepoPoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetRepoPoolOK, error)
 
-	ListRepoInstances(params *ListRepoInstancesParams, opts ...ClientOption) (*ListRepoInstancesOK, error)
+	ListRepoInstances(params *ListRepoInstancesParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListRepoInstancesOK, error)
 
-	ListRepoPools(params *ListRepoPoolsParams, opts ...ClientOption) (*ListRepoPoolsOK, error)
+	ListRepoPools(params *ListRepoPoolsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListRepoPoolsOK, error)
 
-	ListRepos(params *ListReposParams, opts ...ClientOption) (*ListReposOK, error)
+	ListRepos(params *ListReposParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListReposOK, error)
 
-	UpdateRepo(params *UpdateRepoParams, opts ...ClientOption) (*UpdateRepoOK, error)
+	UpdateRepo(params *UpdateRepoParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateRepoOK, error)
 
-	UpdateRepoPool(params *UpdateRepoPoolParams, opts ...ClientOption) (*UpdateRepoPoolOK, error)
+	UpdateRepoPool(params *UpdateRepoPoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateRepoPoolOK, error)
 
 	SetTransport(transport runtime.ClientTransport)
 }
@@ -56,7 +56,7 @@ type ClientService interface {
 /*
 CreateRepo creates repository with the parameters given
 */
-func (a *Client) CreateRepo(params *CreateRepoParams, opts ...ClientOption) (*CreateRepoOK, error) {
+func (a *Client) CreateRepo(params *CreateRepoParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateRepoOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewCreateRepoParams()
@@ -70,6 +70,7 @@ func (a *Client) CreateRepo(params *CreateRepoParams, opts ...ClientOption) (*Cr
 		Schemes:            []string{"http"},
 		Params:             params,
 		Reader:             &CreateRepoReader{formats: a.formats},
+		AuthInfo:           authInfo,
 		Context:            params.Context,
 		Client:             params.HTTPClient,
 	}
@@ -93,7 +94,7 @@ func (a *Client) CreateRepo(params *CreateRepoParams, opts ...ClientOption) (*Cr
 /*
 CreateRepoPool creates repository pool with the parameters given
 */
-func (a *Client) CreateRepoPool(params *CreateRepoPoolParams, opts ...ClientOption) (*CreateRepoPoolOK, error) {
+func (a *Client) CreateRepoPool(params *CreateRepoPoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateRepoPoolOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewCreateRepoPoolParams()
@@ -107,6 +108,7 @@ func (a *Client) CreateRepoPool(params *CreateRepoPoolParams, opts ...ClientOpti
 		Schemes:            []string{"http"},
 		Params:             params,
 		Reader:             &CreateRepoPoolReader{formats: a.formats},
+		AuthInfo:           authInfo,
 		Context:            params.Context,
 		Client:             params.HTTPClient,
 	}
@@ -130,7 +132,7 @@ func (a *Client) CreateRepoPool(params *CreateRepoPoolParams, opts ...ClientOpti
 /*
 DeleteRepo deletes repository by ID
 */
-func (a *Client) DeleteRepo(params *DeleteRepoParams, opts ...ClientOption) error {
+func (a *Client) DeleteRepo(params *DeleteRepoParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewDeleteRepoParams()
@@ -144,6 +146,7 @@ func (a *Client) DeleteRepo(params *DeleteRepoParams, opts ...ClientOption) erro
 		Schemes:            []string{"http"},
 		Params:             params,
 		Reader:             &DeleteRepoReader{formats: a.formats},
+		AuthInfo:           authInfo,
 		Context:            params.Context,
 		Client:             params.HTTPClient,
 	}
@@ -161,7 +164,7 @@ func (a *Client) DeleteRepo(params *DeleteRepoParams, opts ...ClientOption) erro
 /*
 DeleteRepoPool deletes repository pool by ID
 */
-func (a *Client) DeleteRepoPool(params *DeleteRepoPoolParams, opts ...ClientOption) error {
+func (a *Client) DeleteRepoPool(params *DeleteRepoPoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewDeleteRepoPoolParams()
@@ -175,6 +178,7 @@ func (a *Client) DeleteRepoPool(params *DeleteRepoPoolParams, opts ...ClientOpti
 		Schemes:            []string{"http"},
 		Params:             params,
 		Reader:             &DeleteRepoPoolReader{formats: a.formats},
+		AuthInfo:           authInfo,
 		Context:            params.Context,
 		Client:             params.HTTPClient,
 	}
@@ -192,7 +196,7 @@ func (a *Client) DeleteRepoPool(params *DeleteRepoPoolParams, opts ...ClientOpti
 /*
 GetRepo gets repository by ID
 */
-func (a *Client) GetRepo(params *GetRepoParams, opts ...ClientOption) (*GetRepoOK, error) {
+func (a *Client) GetRepo(params *GetRepoParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetRepoOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewGetRepoParams()
@@ -206,6 +210,7 @@ func (a *Client) GetRepo(params *GetRepoParams, opts ...ClientOption) (*GetRepoO
 		Schemes:            []string{"http"},
 		Params:             params,
 		Reader:             &GetRepoReader{formats: a.formats},
+		AuthInfo:           authInfo,
 		Context:            params.Context,
 		Client:             params.HTTPClient,
 	}
@@ -229,7 +234,7 @@ func (a *Client) GetRepo(params *GetRepoParams, opts ...ClientOption) (*GetRepoO
 /*
 GetRepoPool gets repository pool by ID
 */
-func (a *Client) GetRepoPool(params *GetRepoPoolParams, opts ...ClientOption) (*GetRepoPoolOK, error) {
+func (a *Client) GetRepoPool(params *GetRepoPoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetRepoPoolOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewGetRepoPoolParams()
@@ -243,6 +248,7 @@ func (a *Client) GetRepoPool(params *GetRepoPoolParams, opts ...ClientOption) (*
 		Schemes:            []string{"http"},
 		Params:             params,
 		Reader:             &GetRepoPoolReader{formats: a.formats},
+		AuthInfo:           authInfo,
 		Context:            params.Context,
 		Client:             params.HTTPClient,
 	}
@@ -266,7 +272,7 @@ func (a *Client) GetRepoPool(params *GetRepoPoolParams, opts ...ClientOption) (*
 /*
 ListRepoInstances lists repository instances
 */
-func (a *Client) ListRepoInstances(params *ListRepoInstancesParams, opts ...ClientOption) (*ListRepoInstancesOK, error) {
+func (a *Client) ListRepoInstances(params *ListRepoInstancesParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListRepoInstancesOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewListRepoInstancesParams()
@@ -280,6 +286,7 @@ func (a *Client) ListRepoInstances(params *ListRepoInstancesParams, opts ...Clie
 		Schemes:            []string{"http"},
 		Params:             params,
 		Reader:             &ListRepoInstancesReader{formats: a.formats},
+		AuthInfo:           authInfo,
 		Context:            params.Context,
 		Client:             params.HTTPClient,
 	}
@@ -303,7 +310,7 @@ func (a *Client) ListRepoInstances(params *ListRepoInstancesParams, opts ...Clie
 /*
 ListRepoPools lists repository pools
 */
-func (a *Client) ListRepoPools(params *ListRepoPoolsParams, opts ...ClientOption) (*ListRepoPoolsOK, error) {
+func (a *Client) ListRepoPools(params *ListRepoPoolsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListRepoPoolsOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewListRepoPoolsParams()
@@ -317,6 +324,7 @@ func (a *Client) ListRepoPools(params *ListRepoPoolsParams, opts ...ClientOption
 		Schemes:            []string{"http"},
 		Params:             params,
 		Reader:             &ListRepoPoolsReader{formats: a.formats},
+		AuthInfo:           authInfo,
 		Context:            params.Context,
 		Client:             params.HTTPClient,
 	}
@@ -340,7 +348,7 @@ func (a *Client) ListRepoPools(params *ListRepoPoolsParams, opts ...ClientOption
 /*
 ListRepos lists repositories
 */
-func (a *Client) ListRepos(params *ListReposParams, opts ...ClientOption) (*ListReposOK, error) {
+func (a *Client) ListRepos(params *ListReposParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListReposOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewListReposParams()
@@ -354,6 +362,7 @@ func (a *Client) ListRepos(params *ListReposParams, opts ...ClientOption) (*List
 		Schemes:            []string{"http"},
 		Params:             params,
 		Reader:             &ListReposReader{formats: a.formats},
+		AuthInfo:           authInfo,
 		Context:            params.Context,
 		Client:             params.HTTPClient,
 	}
@@ -377,7 +386,7 @@ func (a *Client) ListRepos(params *ListReposParams, opts ...ClientOption) (*List
 /*
 UpdateRepo updates repository with the parameters given
 */
-func (a *Client) UpdateRepo(params *UpdateRepoParams, opts ...ClientOption) (*UpdateRepoOK, error) {
+func (a *Client) UpdateRepo(params *UpdateRepoParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateRepoOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewUpdateRepoParams()
@@ -391,6 +400,7 @@ func (a *Client) UpdateRepo(params *UpdateRepoParams, opts ...ClientOption) (*Up
 		Schemes:            []string{"http"},
 		Params:             params,
 		Reader:             &UpdateRepoReader{formats: a.formats},
+		AuthInfo:           authInfo,
 		Context:            params.Context,
 		Client:             params.HTTPClient,
 	}
@@ -414,7 +424,7 @@ func (a *Client) UpdateRepo(params *UpdateRepoParams, opts ...ClientOption) (*Up
 /*
 UpdateRepoPool updates repository pool with the parameters given
 */
-func (a *Client) UpdateRepoPool(params *UpdateRepoPoolParams, opts ...ClientOption) (*UpdateRepoPoolOK, error) {
+func (a *Client) UpdateRepoPool(params *UpdateRepoPoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateRepoPoolOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
 		params = NewUpdateRepoPoolParams()
@@ -428,6 +438,7 @@ func (a *Client) UpdateRepoPool(params *UpdateRepoPoolParams, opts ...ClientOpti
 		Schemes:            []string{"http"},
 		Params:             params,
 		Reader:             &UpdateRepoPoolReader{formats: a.formats},
+		AuthInfo:           authInfo,
 		Context:            params.Context,
 		Client:             params.HTTPClient,
 	}
