@@ -1,12 +1,6 @@
 # Webhooks
 
-Garm is designed to auto-scale github runners based on a few simple rules:
-
-* A minimum idle runner count can be set for a pool. Garm will attempt to maintain that minimum of idle runners, ready to be used by your workflows.
-* A maximum number of runners for a pool. This is a hard limit of runners a pool will create, regardless of minimum idle runners.
-* When a runner is scheduled by github, ```garm``` will automatically spin up a new runner to replace it, obeying the maximum hard limit defined.
-
-To achieve this, ```garm``` relies on [GitHub Webhooks](https://docs.github.com/en/developers/webhooks-and-events/webhooks/about-webhooks). Webhooks allow ```garm``` to react to workflow events from your repository or organization.
+Garm is designed to auto-scale github runners. To achieve this, ```garm``` relies on [GitHub Webhooks](https://docs.github.com/en/developers/webhooks-and-events/webhooks/about-webhooks). Webhooks allow ```garm``` to react to workflow events from your repository, organization or enterprise.
 
 In your repository or organization, navigate to ```Settings --> Webhooks```. In the ```Payload URL``` field, enter the URL to the ```garm``` webhook endpoint. The ```garm``` API endpoint for webhooks is:
 
