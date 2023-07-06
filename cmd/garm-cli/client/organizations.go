@@ -51,6 +51,24 @@ func (c *Client) CreateOrganization(param params.CreateOrgParams) (params.Organi
 	return response, nil
 }
 
+func (c *Client) UpdateOrganization(orgID string, param params.UpdateEntityParams) (params.Organization, error) {
+	url := fmt.Sprintf("%s/api/v1/organizations/%s", c.Config.BaseURL, orgID)
+
+	var response params.Organization
+	body, err := json.Marshal(param)
+	if err != nil {
+		return response, err
+	}
+	resp, err := c.client.R().
+		SetBody(body).
+		SetResult(&response).
+		Put(url)
+	if err := c.handleError(err, resp); err != nil {
+		return params.Organization{}, err
+	}
+	return response, nil
+}
+
 func (c *Client) GetOrganization(orgID string) (params.Organization, error) {
 	var response params.Organization
 	url := fmt.Sprintf("%s/api/v1/organizations/%s", c.Config.BaseURL, orgID)

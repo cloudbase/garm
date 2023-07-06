@@ -157,7 +157,7 @@ func (r *Runner) DeleteRepository(ctx context.Context, repoID string) error {
 	return nil
 }
 
-func (r *Runner) UpdateRepository(ctx context.Context, repoID string, param params.UpdateRepositoryParams) (params.Repository, error) {
+func (r *Runner) UpdateRepository(ctx context.Context, repoID string, param params.UpdateEntityParams) (params.Repository, error) {
 	if !auth.IsAdmin(ctx) {
 		return params.Repository{}, runnerErrors.ErrUnauthorized
 	}
@@ -182,21 +182,12 @@ func (r *Runner) UpdateRepository(ctx context.Context, repoID string, param para
 		return params.Repository{}, errors.Wrap(err, "updating repo")
 	}
 
-	poolMgr, err := r.poolManagerCtrl.GetRepoPoolManager(repo)
+	poolMgr, err := r.poolManagerCtrl.UpdateRepoPoolManager(r.ctx, repo)
 	if err != nil {
-		newState := params.UpdatePoolStateParams{
-			WebhookSecret: repo.WebhookSecret,
-		}
-		// stop the pool mgr
-		if err := poolMgr.RefreshState(newState); err != nil {
-			return params.Repository{}, errors.Wrap(err, "updating repo pool manager")
-		}
-	} else {
-		if _, err := r.poolManagerCtrl.CreateRepoPoolManager(r.ctx, repo, r.providers, r.store); err != nil {
-			return params.Repository{}, errors.Wrap(err, "creating repo pool manager")
-		}
+		return params.Repository{}, fmt.Errorf("failed to update pool manager: %w", err)
 	}
 
+	repo.PoolManagerStatus = poolMgr.Status()
 	return repo, nil
 }
 

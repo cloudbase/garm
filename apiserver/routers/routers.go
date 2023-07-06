@@ -12,11 +12,44 @@
 //    License for the specific language governing permissions and limitations
 //    under the License.
 
+// Package routers Garm API.
+//
+// The Garm API generated using go-swagger.
+//
+//	BasePath: /api/v1
+//	Version: 1.0.0
+//	License: Apache 2.0 https://www.apache.org/licenses/LICENSE-2.0
+//
+//	Consumes:
+//	- application/json
+//
+//	Produces:
+//	- application/json
+//
+//	Security:
+//	- Bearer:
+//
+//	SecurityDefinitions:
+//	  Bearer:
+//	    type: apiKey
+//	    name: Authorization
+//	    in: header
+//	    description: >-
+//	      The token with the `Bearer: ` prefix, e.g. "Bearer abcde12345".
+//
+// swagger:meta
 package routers
 
+//go:generate go run github.com/go-swagger/go-swagger/cmd/swagger@v0.30.5 generate spec --input=../swagger-models.yaml --output=../swagger.yaml --include="routers|controllers"
+//go:generate go run github.com/go-swagger/go-swagger/cmd/swagger@v0.30.5 validate ../swagger.yaml
+//go:generate rm -rf ../../client
+//go:generate go run github.com/go-swagger/go-swagger/cmd/swagger@v0.30.5 generate client --target=../../ --spec=../swagger.yaml
+
 import (
+	_ "expvar" // Register the expvar handlers
 	"io"
 	"net/http"
+	_ "net/http/pprof" // Register the pprof handlers
 
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -37,6 +70,15 @@ func WithMetricsRouter(parentRouter *mux.Router, disableAuth bool, metricsMiddle
 	}
 	metricsRouter.Handle("/", promhttp.Handler()).Methods("GET", "OPTIONS")
 	metricsRouter.Handle("", promhttp.Handler()).Methods("GET", "OPTIONS")
+	return parentRouter
+}
+
+func WithDebugServer(parentRouter *mux.Router) *mux.Router {
+	if parentRouter == nil {
+		return nil
+	}
+
+	parentRouter.PathPrefix("/debug/pprof/").Handler(http.DefaultServeMux)
 	return parentRouter
 }
 
@@ -79,6 +121,13 @@ func NewAPIRouter(han *controllers.APIController, logWriter io.Writer, authMiddl
 	// Metrics Token
 	apiRouter.Handle("/metrics-token/", http.HandlerFunc(han.MetricsTokenHandler)).Methods("GET", "OPTIONS")
 	apiRouter.Handle("/metrics-token", http.HandlerFunc(han.MetricsTokenHandler)).Methods("GET", "OPTIONS")
+
+	//////////
+	// Jobs //
+	//////////
+	// List all jobs
+	apiRouter.Handle("/jobs/", http.HandlerFunc(han.ListAllJobs)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/jobs", http.HandlerFunc(han.ListAllJobs)).Methods("GET", "OPTIONS")
 
 	///////////
 	// Pools //

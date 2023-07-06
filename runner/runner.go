@@ -31,7 +31,6 @@ import (
 
 	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/config"
-	"github.com/cloudbase/garm/database"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	runnerErrors "github.com/cloudbase/garm/errors"
 	"github.com/cloudbase/garm/params"
@@ -40,19 +39,15 @@ import (
 	"github.com/cloudbase/garm/runner/providers"
 	providerCommon "github.com/cloudbase/garm/runner/providers/common"
 	"github.com/cloudbase/garm/util"
+	"golang.org/x/sync/errgroup"
 
+	"github.com/google/uuid"
 	"github.com/juju/clock"
 	"github.com/juju/retry"
 	"github.com/pkg/errors"
-	uuid "github.com/satori/go.uuid"
 )
 
-func NewRunner(ctx context.Context, cfg config.Config) (*Runner, error) {
-	db, err := database.NewDatabase(ctx, cfg.Database)
-	if err != nil {
-		return nil, errors.Wrap(err, "creating db connection")
-	}
-
+func NewRunner(ctx context.Context, cfg config.Config, db dbCommon.Store) (*Runner, error) {
 	ctrlId, err := db.ControllerInfo()
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching controller info")
@@ -122,6 +117,31 @@ func (p *poolManagerCtrl) CreateRepoPoolManager(ctx context.Context, repo params
 	return poolManager, nil
 }
 
+func (p *poolManagerCtrl) UpdateRepoPoolManager(ctx context.Context, repo params.Repository) (common.PoolManager, error) {
+	p.mux.Lock()
+	defer p.mux.Unlock()
+
+	poolMgr, ok := p.repositories[repo.ID]
+	if !ok {
+		return nil, errors.Wrapf(runnerErrors.ErrNotFound, "repository %s/%s pool manager not loaded", repo.Owner, repo.Name)
+	}
+
+	internalCfg, err := p.getInternalConfig(repo.CredentialsName)
+	if err != nil {
+		return nil, errors.Wrap(err, "fetching internal config")
+	}
+
+	newState := params.UpdatePoolStateParams{
+		WebhookSecret:  repo.WebhookSecret,
+		InternalConfig: &internalCfg,
+	}
+
+	if err := poolMgr.RefreshState(newState); err != nil {
+		return nil, errors.Wrap(err, "updating repo pool manager")
+	}
+	return poolMgr, nil
+}
+
 func (p *poolManagerCtrl) GetRepoPoolManager(repo params.Repository) (common.PoolManager, error) {
 	if repoPoolMgr, ok := p.repositories[repo.ID]; ok {
 		return repoPoolMgr, nil
@@ -163,6 +183,31 @@ func (p *poolManagerCtrl) CreateOrgPoolManager(ctx context.Context, org params.O
 	return poolManager, nil
 }
 
+func (p *poolManagerCtrl) UpdateOrgPoolManager(ctx context.Context, org params.Organization) (common.PoolManager, error) {
+	p.mux.Lock()
+	defer p.mux.Unlock()
+
+	poolMgr, ok := p.organizations[org.ID]
+	if !ok {
+		return nil, errors.Wrapf(runnerErrors.ErrNotFound, "org %s pool manager not loaded", org.Name)
+	}
+
+	internalCfg, err := p.getInternalConfig(org.CredentialsName)
+	if err != nil {
+		return nil, errors.Wrap(err, "fetching internal config")
+	}
+
+	newState := params.UpdatePoolStateParams{
+		WebhookSecret:  org.WebhookSecret,
+		InternalConfig: &internalCfg,
+	}
+
+	if err := poolMgr.RefreshState(newState); err != nil {
+		return nil, errors.Wrap(err, "updating repo pool manager")
+	}
+	return poolMgr, nil
+}
+
 func (p *poolManagerCtrl) GetOrgPoolManager(org params.Organization) (common.PoolManager, error) {
 	if orgPoolMgr, ok := p.organizations[org.ID]; ok {
 		return orgPoolMgr, nil
@@ -202,6 +247,31 @@ func (p *poolManagerCtrl) CreateEnterprisePoolManager(ctx context.Context, enter
 	}
 	p.enterprises[enterprise.ID] = poolManager
 	return poolManager, nil
+}
+
+func (p *poolManagerCtrl) UpdateEnterprisePoolManager(ctx context.Context, enterprise params.Enterprise) (common.PoolManager, error) {
+	p.mux.Lock()
+	defer p.mux.Unlock()
+
+	poolMgr, ok := p.enterprises[enterprise.ID]
+	if !ok {
+		return nil, errors.Wrapf(runnerErrors.ErrNotFound, "enterprise %s pool manager not loaded", enterprise.Name)
+	}
+
+	internalCfg, err := p.getInternalConfig(enterprise.CredentialsName)
+	if err != nil {
+		return nil, errors.Wrap(err, "fetching internal config")
+	}
+
+	newState := params.UpdatePoolStateParams{
+		WebhookSecret:  enterprise.WebhookSecret,
+		InternalConfig: &internalCfg,
+	}
+
+	if err := poolMgr.RefreshState(newState); err != nil {
+		return nil, errors.Wrap(err, "updating repo pool manager")
+	}
+	return poolMgr, nil
 }
 
 func (p *poolManagerCtrl) GetEnterprisePoolManager(enterprise params.Enterprise) (common.PoolManager, error) {
@@ -360,44 +430,37 @@ func (r *Runner) loadReposOrgsAndEnterprises() error {
 		return errors.Wrap(err, "fetching enterprises")
 	}
 
-	expectedReplies := len(repos) + len(orgs) + len(enterprises)
-	errChan := make(chan error, expectedReplies)
-
+	g, _ := errgroup.WithContext(r.ctx)
 	for _, repo := range repos {
-		go func(repo params.Repository) {
+		repo := repo
+		g.Go(func() error {
 			log.Printf("creating pool manager for repo %s/%s", repo.Owner, repo.Name)
 			_, err := r.poolManagerCtrl.CreateRepoPoolManager(r.ctx, repo, r.providers, r.store)
-			errChan <- err
-		}(repo)
+			return err
+		})
 	}
 
 	for _, org := range orgs {
-		go func(org params.Organization) {
+		org := org
+		g.Go(func() error {
 			log.Printf("creating pool manager for organization %s", org.Name)
 			_, err := r.poolManagerCtrl.CreateOrgPoolManager(r.ctx, org, r.providers, r.store)
-			errChan <- err
-		}(org)
+			return err
+		})
 	}
 
 	for _, enterprise := range enterprises {
-		go func(enterprise params.Enterprise) {
+		enterprise := enterprise
+		g.Go(func() error {
 			log.Printf("creating pool manager for enterprise %s", enterprise.Name)
 			_, err := r.poolManagerCtrl.CreateEnterprisePoolManager(r.ctx, enterprise, r.providers, r.store)
-			errChan <- err
-		}(enterprise)
+			return err
+		})
 	}
 
-	for i := 0; i < expectedReplies; i++ {
-		select {
-		case err := <-errChan:
-			if err != nil {
-				return errors.Wrap(err, "failed to load pool managers for repos and orgs")
-			}
-		case <-time.After(60 * time.Second):
-			return fmt.Errorf("timed out waiting for pool manager load")
-		}
+	if err := r.waitForErrorGroupOrTimeout(g); err != nil {
+		return fmt.Errorf("failed to create pool managers: %w", err)
 	}
-
 	return nil
 }
 
@@ -420,41 +483,50 @@ func (r *Runner) Start() error {
 		return errors.Wrap(err, "fetch enterprise pool managers")
 	}
 
-	expectedReplies := len(repositories) + len(organizations) + len(enterprises)
-	errChan := make(chan error, expectedReplies)
-
+	g, _ := errgroup.WithContext(r.ctx)
 	for _, repo := range repositories {
-		go func(repo common.PoolManager) {
-			err := repo.Start()
-			errChan <- err
-		}(repo)
+		repo := repo
+		g.Go(func() error {
+			return repo.Start()
+		})
 	}
 
 	for _, org := range organizations {
-		go func(org common.PoolManager) {
-			err := org.Start()
-			errChan <- err
-		}(org)
+		org := org
+		g.Go(func() error {
+			return org.Start()
+		})
 	}
 
 	for _, enterprise := range enterprises {
-		go func(org common.PoolManager) {
-			err := org.Start()
-			errChan <- err
-		}(enterprise)
+		enterprise := enterprise
+		g.Go(func() error {
+			return enterprise.Start()
+		})
 	}
 
-	for i := 0; i < expectedReplies; i++ {
-		select {
-		case err := <-errChan:
-			if err != nil {
-				return errors.Wrap(err, "starting pool manager")
-			}
-		case <-time.After(60 * time.Second):
-			return fmt.Errorf("timed out waiting for pool mamager start")
-		}
+	if err := r.waitForErrorGroupOrTimeout(g); err != nil {
+		return fmt.Errorf("failed to start pool managers: %w", err)
 	}
 	return nil
+}
+
+func (r *Runner) waitForErrorGroupOrTimeout(g *errgroup.Group) error {
+	if g == nil {
+		return nil
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		done <- g.Wait()
+	}()
+
+	select {
+	case err := <-done:
+		return err
+	case <-time.After(60 * time.Second):
+		return fmt.Errorf("timed out waiting for pool manager start")
+	}
 }
 
 func (r *Runner) Stop() error {
@@ -476,54 +548,43 @@ func (r *Runner) Stop() error {
 		return errors.Wrap(err, "fetch enterprise pool managers")
 	}
 
-	expectedReplies := len(repos) + len(orgs) + len(enterprises)
-	errChan := make(chan error, expectedReplies)
+	g, _ := errgroup.WithContext(r.ctx)
 
 	for _, repo := range repos {
-		go func(poolMgr common.PoolManager) {
+		poolMgr := repo
+		g.Go(func() error {
 			err := poolMgr.Stop()
 			if err != nil {
-				errChan <- err
-				return
+				return fmt.Errorf("failed to stop repo pool manager: %w", err)
 			}
-			err = poolMgr.Wait()
-			errChan <- err
-		}(repo)
+			return poolMgr.Wait()
+		})
 	}
 
 	for _, org := range orgs {
-		go func(poolMgr common.PoolManager) {
+		poolMgr := org
+		g.Go(func() error {
 			err := poolMgr.Stop()
 			if err != nil {
-				errChan <- err
-				return
+				return fmt.Errorf("failed to stop org pool manager: %w", err)
 			}
-			err = poolMgr.Wait()
-			errChan <- err
-		}(org)
+			return poolMgr.Wait()
+		})
 	}
 
 	for _, enterprise := range enterprises {
-		go func(poolMgr common.PoolManager) {
+		poolMgr := enterprise
+		g.Go(func() error {
 			err := poolMgr.Stop()
 			if err != nil {
-				errChan <- err
-				return
+				return fmt.Errorf("failed to stop enterprise pool manager: %w", err)
 			}
-			err = poolMgr.Wait()
-			errChan <- err
-		}(enterprise)
+			return poolMgr.Wait()
+		})
 	}
 
-	for i := 0; i < expectedReplies; i++ {
-		select {
-		case err := <-errChan:
-			if err != nil {
-				return errors.Wrap(err, "stopping pool manager")
-			}
-		case <-time.After(60 * time.Second):
-			return fmt.Errorf("timed out waiting for pool mamager stop")
-		}
+	if err := r.waitForErrorGroupOrTimeout(g); err != nil {
+		return fmt.Errorf("failed to stop pool managers: %w", err)
 	}
 	return nil
 }

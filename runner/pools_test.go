@@ -181,6 +181,16 @@ func (s *PoolTestSuite) TestDeletePoolByIDRunnersFailed() {
 	s.Require().Equal(runnerErrors.NewBadRequestError("pool has runners"), err)
 }
 
+func (s *PoolTestSuite) TestUpdatePoolByID() {
+	pool, err := s.Runner.UpdatePoolByID(s.Fixtures.AdminContext, s.Fixtures.Pools[0].ID, s.Fixtures.UpdatePoolParams)
+
+	s.Require().Nil(err)
+	s.Require().Equal(*s.Fixtures.UpdatePoolParams.MaxRunners, pool.MaxRunners)
+	s.Require().Equal(*s.Fixtures.UpdatePoolParams.MinIdleRunners, pool.MinIdleRunners)
+	s.Require().Equal(s.Fixtures.UpdatePoolParams.Image, pool.Image)
+	s.Require().Equal(s.Fixtures.UpdatePoolParams.Flavor, pool.Flavor)
+}
+
 func (s *PoolTestSuite) TestUpdatePoolByIDErrUnauthorized() {
 	_, err := s.Runner.UpdatePoolByID(context.Background(), "dummy-pool-id", s.Fixtures.UpdatePoolParams)
 

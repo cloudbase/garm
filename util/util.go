@@ -43,7 +43,7 @@ import (
 	"github.com/cloudbase/garm/runner/common"
 	"github.com/cloudbase/garm/util/appdefaults"
 
-	"github.com/google/go-github/v48/github"
+	"github.com/google/go-github/v53/github"
 	"github.com/google/uuid"
 	gorillaHandlers "github.com/gorilla/handlers"
 	"github.com/pkg/errors"
@@ -277,7 +277,7 @@ func GetCloudConfig(bootstrapParams params.BootstrapInstance, tools github.Runne
 
 		cloudCfg.AddSSHKey(bootstrapParams.SSHKeys...)
 		cloudCfg.AddFile(installScript, "/install_runner.sh", "root:root", "755")
-		cloudCfg.AddRunCmd("/install_runner.sh")
+		cloudCfg.AddRunCmd(fmt.Sprintf("su -l -c /install_runner.sh %s", appdefaults.DefaultUser))
 		cloudCfg.AddRunCmd("rm -f /install_runner.sh")
 		if bootstrapParams.CACertBundle != nil && len(bootstrapParams.CACertBundle) > 0 {
 			if err := cloudCfg.AddCACert(bootstrapParams.CACertBundle); err != nil {

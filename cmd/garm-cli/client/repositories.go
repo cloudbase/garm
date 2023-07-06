@@ -147,6 +147,24 @@ func (c *Client) UpdateRepoPool(repoID, poolID string, param params.UpdatePoolPa
 	return response, nil
 }
 
+func (c *Client) UpdateRepo(repoID string, param params.UpdateEntityParams) (params.Repository, error) {
+	url := fmt.Sprintf("%s/api/v1/repositories/%s", c.Config.BaseURL, repoID)
+
+	var response params.Repository
+	body, err := json.Marshal(param)
+	if err != nil {
+		return response, err
+	}
+	resp, err := c.client.R().
+		SetBody(body).
+		SetResult(&response).
+		Put(url)
+	if err := c.handleError(err, resp); err != nil {
+		return params.Repository{}, err
+	}
+	return response, nil
+}
+
 func (c *Client) ListRepoInstances(repoID string) ([]params.Instance, error) {
 	url := fmt.Sprintf("%s/api/v1/repositories/%s/instances", c.Config.BaseURL, repoID)
 

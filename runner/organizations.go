@@ -158,7 +158,7 @@ func (r *Runner) DeleteOrganization(ctx context.Context, orgID string) error {
 	return nil
 }
 
-func (r *Runner) UpdateOrganization(ctx context.Context, orgID string, param params.UpdateRepositoryParams) (params.Organization, error) {
+func (r *Runner) UpdateOrganization(ctx context.Context, orgID string, param params.UpdateEntityParams) (params.Organization, error) {
 	if !auth.IsAdmin(ctx) {
 		return params.Organization{}, runnerErrors.ErrUnauthorized
 	}
@@ -183,21 +183,12 @@ func (r *Runner) UpdateOrganization(ctx context.Context, orgID string, param par
 		return params.Organization{}, errors.Wrap(err, "updating org")
 	}
 
-	poolMgr, err := r.poolManagerCtrl.GetOrgPoolManager(org)
+	poolMgr, err := r.poolManagerCtrl.UpdateOrgPoolManager(r.ctx, org)
 	if err != nil {
-		newState := params.UpdatePoolStateParams{
-			WebhookSecret: org.WebhookSecret,
-		}
-		// stop the pool mgr
-		if err := poolMgr.RefreshState(newState); err != nil {
-			return params.Organization{}, errors.Wrap(err, "updating org pool manager")
-		}
-	} else {
-		if _, err := r.poolManagerCtrl.CreateOrgPoolManager(r.ctx, org, r.providers, r.store); err != nil {
-			return params.Organization{}, errors.Wrap(err, "creating org pool manager")
-		}
+		return params.Organization{}, fmt.Errorf("updating org pool manager: %w", err)
 	}
 
+	org.PoolManagerStatus = poolMgr.Status()
 	return org, nil
 }
 

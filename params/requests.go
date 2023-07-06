@@ -136,6 +136,7 @@ type CreateInstanceParams struct {
 	// The runner group must be created by someone with access to the enterprise.
 	GitHubRunnerGroup string
 	CreateAttempt     int `json:"-"`
+	AditionalLabels   []string
 }
 
 type CreatePoolParams struct {
@@ -226,7 +227,7 @@ func (p PasswordLoginParams) Validate() error {
 	return nil
 }
 
-type UpdateRepositoryParams struct {
+type UpdateEntityParams struct {
 	CredentialsName string `json:"credentials_name"`
 	WebhookSecret   string `json:"webhook_secret"`
 }

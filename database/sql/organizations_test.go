@@ -39,7 +39,7 @@ type OrgTestFixtures struct {
 	CreateOrgParams      params.CreateOrgParams
 	CreatePoolParams     params.CreatePoolParams
 	CreateInstanceParams params.CreateInstanceParams
-	UpdateRepoParams     params.UpdateRepositoryParams
+	UpdateRepoParams     params.UpdateEntityParams
 	UpdatePoolParams     params.UpdatePoolParams
 	SQLMock              sqlmock.Sqlmock
 }
@@ -141,7 +141,7 @@ func (s *OrgTestSuite) SetupTest() {
 			Name:   "test-instance-name",
 			OSType: "linux",
 		},
-		UpdateRepoParams: params.UpdateRepositoryParams{
+		UpdateRepoParams: params.UpdateEntityParams{
 			CredentialsName: "test-update-creds",
 			WebhookSecret:   "test-update-repo-webhook-secret",
 		},
@@ -670,7 +670,7 @@ func (s *OrgTestSuite) TestListOrgPoolsInvalidOrgID() {
 	_, err := s.Store.ListOrgPools(context.Background(), "dummy-org-id")
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching pools: fetching org: parsing id: invalid request", err.Error())
+	s.Require().Equal("fetching pools: parsing id: invalid request", err.Error())
 }
 
 func (s *OrgTestSuite) TestGetOrganizationPool() {
@@ -784,7 +784,7 @@ func (s *OrgTestSuite) TestListOrgInstancesInvalidOrgID() {
 	_, err := s.Store.ListOrgInstances(context.Background(), "dummy-org-id")
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching org: fetching org: parsing id: invalid request", err.Error())
+	s.Require().Equal("fetching org: parsing id: invalid request", err.Error())
 }
 
 func (s *OrgTestSuite) TestUpdateOrganizationPool() {
@@ -810,5 +810,6 @@ func (s *OrgTestSuite) TestUpdateOrganizationPoolInvalidOrgID() {
 }
 
 func TestOrgTestSuite(t *testing.T) {
+	t.Parallel()
 	suite.Run(t, new(OrgTestSuite))
 }

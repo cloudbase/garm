@@ -36,11 +36,11 @@ if [ -z "$METADATA_URL" ];then
 	echo "no token is available and METADATA_URL is not set"
 	exit 1
 fi
-GITHUB_TOKEN=$(curl --retry 5 --retry-max-time 5 --fail -s -X GET -H 'Accept: application/json' -H "Authorization: Bearer ${BEARER_TOKEN}" "${METADATA_URL}/runner-registration-token/")
+GITHUB_TOKEN=$(curl --retry 5 --retry-delay 5 --retry-connrefused --fail -s -X GET -H 'Accept: application/json' -H "Authorization: Bearer ${BEARER_TOKEN}" "${METADATA_URL}/runner-registration-token/")
 
 function call() {
 	PAYLOAD="$1"
-	curl --retry 5 --retry-max-time 5 --retry-all-errors --fail -s -X POST -d "${PAYLOAD}" -H 'Accept: application/json' -H "Authorization: Bearer ${BEARER_TOKEN}" "${CALLBACK_URL}" || echo "failed to call home: exit code ($?)"
+	curl --retry 5 --retry-delay 5 --retry-connrefused --fail -s -X POST -d "${PAYLOAD}" -H 'Accept: application/json' -H "Authorization: Bearer ${BEARER_TOKEN}" "${CALLBACK_URL}" || echo "failed to call home: exit code ($?)"
 }
 
 function sendStatus() {
@@ -93,11 +93,11 @@ function downloadAndExtractRunner() {
 	if [ ! -z "{{ .TempDownloadToken }}" ]; then
 	TEMP_TOKEN="Authorization: Bearer {{ .TempDownloadToken }}"
 	fi
-	curl --retry 5 --retry-max-time 5 --retry-all-errors --fail -L -H "${TEMP_TOKEN}" -o "/home/{{ .RunnerUsername }}/{{ .FileName }}" "{{ .DownloadURL }}" || fail "failed to download tools"
-	mkdir -p /home/runner/actions-runner || fail "failed to create actions-runner folder"
+	curl --retry 5 --retry-delay 5 --retry-connrefused --fail -L -H "${TEMP_TOKEN}" -o "/home/{{ .RunnerUsername }}/{{ .FileName }}" "{{ .DownloadURL }}" || fail "failed to download tools"
+	mkdir -p /home/{{ .RunnerUsername }}/actions-runner || fail "failed to create actions-runner folder"
 	sendStatus "extracting runner"
 	tar xf "/home/{{ .RunnerUsername }}/{{ .FileName }}" -C /home/{{ .RunnerUsername }}/actions-runner/ || fail "failed to extract runner"
-	chown {{ .RunnerUsername }}:{{ .RunnerGroup }} -R /home/{{ .RunnerUsername }}/actions-runner/ || fail "failed to change owner"
+	# chown {{ .RunnerUsername }}:{{ .RunnerGroup }} -R /home/{{ .RunnerUsername }}/actions-runner/ || fail "failed to change owner"
 }
 
 TEMP_TOKEN=""
@@ -119,8 +119,8 @@ if [ -z "$CACHED_RUNNER" ];then
 else
 	sendStatus "using cached runner found in $CACHED_RUNNER"
 	sudo cp -a "$CACHED_RUNNER"  "/home/{{ .RunnerUsername }}/actions-runner"
+	sudo chown {{ .RunnerUsername }}:{{ .RunnerGroup }} -R "/home/{{ .RunnerUsername }}/actions-runner" || fail "failed to change owner"
 	cd /home/{{ .RunnerUsername }}/actions-runner
-	chown {{ .RunnerUsername }}:{{ .RunnerGroup }} -R "/home/{{ .RunnerUsername }}/actions-runner" || fail "failed to change owner"
 fi
 
 
@@ -129,7 +129,7 @@ set +e
 attempt=1
 while true; do
 	ERROUT=$(mktemp)
-	sudo -u {{ .RunnerUsername }} -- ./config.sh --unattended --url "{{ .RepoURL }}" --token "$GITHUB_TOKEN" $RUNNER_GROUP_OPT --name "{{ .RunnerName }}" --labels "{{ .RunnerLabels }}" --ephemeral 2>$ERROUT
+	./config.sh --unattended --url "{{ .RepoURL }}" --token "$GITHUB_TOKEN" $RUNNER_GROUP_OPT --name "{{ .RunnerName }}" --labels "{{ .RunnerLabels }}" --ephemeral 2>$ERROUT
 	if [ $? -eq 0 ]; then
 		rm $ERROUT || true
 		sendStatus "runner successfully configured after $attempt attempt(s)"
@@ -140,7 +140,7 @@ while true; do
 
 	# if the runner is already configured, remove it and try again. In the past configuring a runner
 	# managed to register it but timed out later, resulting in an error.
-	sudo -u {{ .RunnerUsername }} -- ./config.sh remove --token "$GITHUB_TOKEN" || true
+	./config.sh remove --token "$GITHUB_TOKEN" || true
 
 	if [ $attempt -gt 5 ];then
 		rm $ERROUT || true
@@ -155,7 +155,7 @@ done
 set -e
 
 sendStatus "installing runner service"
-./svc.sh install {{ .RunnerUsername }} || fail "failed to install service"
+sudo ./svc.sh install {{ .RunnerUsername }} || fail "failed to install service"
 
 if [ -e "/sys/fs/selinux" ];then
 	sudo chcon -h user_u:object_r:bin_t /home/runner/ || fail "failed to change selinux context"
@@ -163,7 +163,7 @@ if [ -e "/sys/fs/selinux" ];then
 fi
 
 sendStatus "starting service"
-./svc.sh start || fail "failed to start service"
+sudo ./svc.sh start || fail "failed to start service"
 
 set +e
 AGENT_ID=$(grep "agentId" /home/{{ .RunnerUsername }}/actions-runner/.runner |  tr -d -c 0-9)

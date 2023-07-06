@@ -26,7 +26,7 @@ type RepoStore interface {
 	GetRepositoryByID(ctx context.Context, repoID string) (params.Repository, error)
 	ListRepositories(ctx context.Context) ([]params.Repository, error)
 	DeleteRepository(ctx context.Context, repoID string) error
-	UpdateRepository(ctx context.Context, repoID string, param params.UpdateRepositoryParams) (params.Repository, error)
+	UpdateRepository(ctx context.Context, repoID string, param params.UpdateEntityParams) (params.Repository, error)
 
 	CreateRepositoryPool(ctx context.Context, repoId string, param params.CreatePoolParams) (params.Pool, error)
 
@@ -45,7 +45,7 @@ type OrgStore interface {
 	GetOrganizationByID(ctx context.Context, orgID string) (params.Organization, error)
 	ListOrganizations(ctx context.Context) ([]params.Organization, error)
 	DeleteOrganization(ctx context.Context, orgID string) error
-	UpdateOrganization(ctx context.Context, orgID string, param params.UpdateRepositoryParams) (params.Organization, error)
+	UpdateOrganization(ctx context.Context, orgID string, param params.UpdateEntityParams) (params.Organization, error)
 
 	CreateOrganizationPool(ctx context.Context, orgId string, param params.CreatePoolParams) (params.Pool, error)
 	GetOrganizationPool(ctx context.Context, orgID, poolID string) (params.Pool, error)
@@ -63,7 +63,7 @@ type EnterpriseStore interface {
 	GetEnterpriseByID(ctx context.Context, enterpriseID string) (params.Enterprise, error)
 	ListEnterprises(ctx context.Context) ([]params.Enterprise, error)
 	DeleteEnterprise(ctx context.Context, enterpriseID string) error
-	UpdateEnterprise(ctx context.Context, enterpriseID string, param params.UpdateRepositoryParams) (params.Enterprise, error)
+	UpdateEnterprise(ctx context.Context, enterpriseID string, param params.UpdateEntityParams) (params.Enterprise, error)
 
 	CreateEnterprisePool(ctx context.Context, enterpriseID string, param params.CreatePoolParams) (params.Pool, error)
 	GetEnterprisePool(ctx context.Context, enterpriseID, poolID string) (params.Pool, error)
@@ -86,6 +86,7 @@ type PoolStore interface {
 
 	PoolInstanceCount(ctx context.Context, poolID string) (int64, error)
 	GetPoolInstanceByName(ctx context.Context, poolID string, instanceName string) (params.Instance, error)
+	FindPoolsMatchingAllTags(ctx context.Context, entityType params.PoolType, entityID string, tags []string) ([]params.Pool, error)
 }
 
 type UserStore interface {
@@ -111,6 +112,21 @@ type InstanceStore interface {
 	ListInstanceEvents(ctx context.Context, instanceID string, eventType params.EventType, eventLevel params.EventLevel) ([]params.StatusMessage, error)
 }
 
+type JobsStore interface {
+	CreateOrUpdateJob(ctx context.Context, job params.Job) (params.Job, error)
+	ListEntityJobsByStatus(ctx context.Context, entityType params.PoolType, entityID string, status params.JobStatus) ([]params.Job, error)
+	ListJobsByStatus(ctx context.Context, status params.JobStatus) ([]params.Job, error)
+	ListAllJobs(ctx context.Context) ([]params.Job, error)
+
+	GetJobByID(ctx context.Context, jobID int64) (params.Job, error)
+	DeleteJob(ctx context.Context, jobID int64) error
+	UnlockJob(ctx context.Context, jobID int64, entityID string) error
+	LockJob(ctx context.Context, jobID int64, entityID string) error
+	BreakLockJobIsQueued(ctx context.Context, jobID int64) error
+
+	DeleteCompletedJobs(ctx context.Context) error
+}
+
 //go:generate mockery --name=Store
 type Store interface {
 	RepoStore
@@ -119,6 +135,7 @@ type Store interface {
 	PoolStore
 	UserStore
 	InstanceStore
+	JobsStore
 
 	ControllerInfo() (params.ControllerInfo, error)
 	InitController() (params.ControllerInfo, error)

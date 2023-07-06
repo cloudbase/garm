@@ -186,5 +186,6 @@ func (s *PoolsTestSuite) TestDeletePoolByIDDBRemoveErr() {
 }
 
 func TestPoolsTestSuite(t *testing.T) {
+	t.Parallel()
 	suite.Run(t, new(PoolsTestSuite))
 }

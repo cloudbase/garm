@@ -20,8 +20,8 @@ import (
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/providers/common"
 
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
-	uuid "github.com/satori/go.uuid"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
@@ -38,7 +38,7 @@ func (b *Base) BeforeCreate(tx *gorm.DB) error {
 	if b.ID != emptyId {
 		return nil
 	}
-	newID, err := uuid.NewV4()
+	newID, err := uuid.NewRandom()
 	if err != nil {
 		return errors.Wrap(err, "generating id")
 	}
@@ -50,7 +50,7 @@ type Tag struct {
 	Base
 
 	Name  string  `gorm:"type:varchar(64);uniqueIndex"`
-	Pools []*Pool `gorm:"many2many:pool_tags;"`
+	Pools []*Pool `gorm:"many2many:pool_tags;constraint:OnDelete:CASCADE,OnUpdate:CASCADE;"`
 }
 
 type Pool struct {
@@ -65,7 +65,7 @@ type Pool struct {
 	Flavor                 string `gorm:"index:idx_pool_type"`
 	OSType                 params.OSType
 	OSArch                 params.OSArch
-	Tags                   []*Tag `gorm:"many2many:pool_tags;"`
+	Tags                   []*Tag `gorm:"many2many:pool_tags;constraint:OnDelete:CASCADE,OnUpdate:CASCADE;"`
 	Enabled                bool
 	// ExtraSpecs is an opaque json that gets sent to the provider
 	// as part of the bootstrap params for instances. It can contain
@@ -73,13 +73,13 @@ type Pool struct {
 	ExtraSpecs        datatypes.JSON
 	GitHubRunnerGroup string
 
-	RepoID     uuid.UUID  `gorm:"index"`
-	Repository Repository `gorm:"foreignKey:RepoID"`
+	RepoID     *uuid.UUID `gorm:"index"`
+	Repository Repository `gorm:"foreignKey:RepoID;"`
 
-	OrgID        uuid.UUID    `gorm:"index"`
+	OrgID        *uuid.UUID   `gorm:"index"`
 	Organization Organization `gorm:"foreignKey:OrgID"`
 
-	EnterpriseID uuid.UUID  `gorm:"index"`
+	EnterpriseID *uuid.UUID `gorm:"index"`
 	Enterprise   Enterprise `gorm:"foreignKey:EnterpriseID"`
 
 	Instances []Instance `gorm:"foreignKey:PoolID"`
@@ -92,7 +92,8 @@ type Repository struct {
 	Owner           string `gorm:"index:idx_owner_nocase,unique,collate:nocase"`
 	Name            string `gorm:"index:idx_owner_nocase,unique,collate:nocase"`
 	WebhookSecret   []byte
-	Pools           []Pool `gorm:"foreignKey:RepoID"`
+	Pools           []Pool        `gorm:"foreignKey:RepoID"`
+	Jobs            []WorkflowJob `gorm:"foreignKey:RepoID;constraint:OnDelete:SET NULL"`
 }
 
 type Organization struct {
@@ -101,7 +102,8 @@ type Organization struct {
 	CredentialsName string
 	Name            string `gorm:"index:idx_org_name_nocase,collate:nocase"`
 	WebhookSecret   []byte
-	Pools           []Pool `gorm:"foreignKey:OrgID"`
+	Pools           []Pool        `gorm:"foreignKey:OrgID"`
+	Jobs            []WorkflowJob `gorm:"foreignKey:OrgID;constraint:OnDelete:SET NULL"`
 }
 
 type Enterprise struct {
@@ -110,7 +112,8 @@ type Enterprise struct {
 	CredentialsName string
 	Name            string `gorm:"index:idx_ent_name_nocase,collate:nocase"`
 	WebhookSecret   []byte
-	Pools           []Pool `gorm:"foreignKey:EnterpriseID"`
+	Pools           []Pool        `gorm:"foreignKey:EnterpriseID"`
+	Jobs            []WorkflowJob `gorm:"foreignKey:EnterpriseID;constraint:OnDelete:SET NULL"`
 }
 
 type Address struct {
@@ -130,8 +133,8 @@ type InstanceStatusUpdate struct {
 	EventLevel params.EventLevel
 	Message    string `gorm:"type:text"`
 
-	InstanceID uuid.UUID
-	Instance   Instance `gorm:"foreignKey:InstanceID"`
+	InstanceID uuid.UUID `gorm:"index:idx_instance_status_updates_instance_id"`
+	Instance   Instance  `gorm:"foreignKey:InstanceID"`
 }
 
 type Instance struct {
@@ -144,7 +147,7 @@ type Instance struct {
 	OSArch            params.OSArch
 	OSName            string
 	OSVersion         string
-	Addresses         []Address `gorm:"foreignKey:InstanceID"`
+	Addresses         []Address `gorm:"foreignKey:InstanceID;constraint:OnDelete:CASCADE,OnUpdate:CASCADE;"`
 	Status            common.InstanceStatus
 	RunnerStatus      common.RunnerStatus
 	CallbackURL       string
@@ -153,11 +156,12 @@ type Instance struct {
 	CreateAttempt     int
 	TokenFetched      bool
 	GitHubRunnerGroup string
+	AditionalLabels   datatypes.JSON
 
 	PoolID uuid.UUID
 	Pool   Pool `gorm:"foreignKey:PoolID"`
 
-	StatusMessages []InstanceStatusUpdate `gorm:"foreignKey:InstanceID"`
+	StatusMessages []InstanceStatusUpdate `gorm:"foreignKey:InstanceID;constraint:OnDelete:CASCADE,OnUpdate:CASCADE;"`
 }
 
 type User struct {
@@ -175,4 +179,60 @@ type ControllerInfo struct {
 	Base
 
 	ControllerID uuid.UUID
+}
+
+type WorkflowJob struct {
+	// ID is the ID of the job.
+	ID int64 `gorm:"index"`
+	// RunID is the ID of the workflow run. A run may have multiple jobs.
+	RunID int64
+	// Action is the specific activity that triggered the event.
+	Action string `gorm:"type:varchar(254);index"`
+	// Conclusion is the outcome of the job.
+	// Possible values: "success", "failure", "neutral", "cancelled", "skipped",
+	// "timed_out", "action_required"
+	Conclusion string
+	// Status is the phase of the lifecycle that the job is currently in.
+	// "queued", "in_progress" and "completed".
+	Status string
+	// Name is the name if the job that was triggered.
+	Name string
+
+	StartedAt   time.Time
+	CompletedAt time.Time
+
+	GithubRunnerID  int64
+	RunnerName      string
+	RunnerGroupID   int64
+	RunnerGroupName string
+
+	// repository in which the job was triggered.
+	RepositoryName  string
+	RepositoryOwner string
+
+	Labels datatypes.JSON
+
+	// The entity that received the hook.
+	//
+	// Webhooks may be configured on the repo, the org and/or the enterprise.
+	// If we only configure a repo to use garm, we'll only ever receive a
+	// webhook from the repo. But if we configure the parent org of the repo and
+	// the parent enterprise of the org to use garm, a webhook will be sent for each
+	// entity type, in response to one workflow event. Thus, we will get 3 webhooks
+	// with the same run_id and job id. Record all involved entities in the same job
+	// if we have them configured in garm.
+	RepoID     *uuid.UUID `gorm:"index"`
+	Repository Repository `gorm:"foreignKey:RepoID"`
+
+	OrgID        *uuid.UUID   `gorm:"index"`
+	Organization Organization `gorm:"foreignKey:OrgID"`
+
+	EnterpriseID *uuid.UUID `gorm:"index"`
+	Enterprise   Enterprise `gorm:"foreignKey:EnterpriseID"`
+
+	LockedBy uuid.UUID
+
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	DeletedAt gorm.DeletedAt `gorm:"index"`
 }

@@ -117,11 +117,23 @@ func (r *Runner) UpdatePoolByID(ctx context.Context, poolID string, param params
 	} else if pool.EnterpriseID != "" {
 		newPool, err = r.store.UpdateEnterprisePool(ctx, pool.EnterpriseID, poolID, param)
 	} else {
-		return params.Pool{}, fmt.Errorf("pool not bound to a repo, org or enterprise")
+		return params.Pool{}, fmt.Errorf("pool not found to a repo, org or enterprise")
 	}
 
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "updating pool")
 	}
 	return newPool, nil
+}
+
+func (r *Runner) ListAllJobs(ctx context.Context) ([]params.Job, error) {
+	if !auth.IsAdmin(ctx) {
+		return []params.Job{}, runnerErrors.ErrUnauthorized
+	}
+
+	jobs, err := r.store.ListAllJobs(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "fetching jobs")
+	}
+	return jobs, nil
 }

@@ -40,7 +40,7 @@ type EnterpriseTestFixtures struct {
 	CreateEnterpriseParams params.CreateEnterpriseParams
 	CreatePoolParams       params.CreatePoolParams
 	CreateInstanceParams   params.CreateInstanceParams
-	UpdateRepoParams       params.UpdateRepositoryParams
+	UpdateRepoParams       params.UpdateEntityParams
 	UpdatePoolParams       params.UpdatePoolParams
 	SQLMock                sqlmock.Sqlmock
 }
@@ -142,7 +142,7 @@ func (s *EnterpriseTestSuite) SetupTest() {
 			Name:   "test-instance-name",
 			OSType: "linux",
 		},
-		UpdateRepoParams: params.UpdateRepositoryParams{
+		UpdateRepoParams: params.UpdateEntityParams{
 			CredentialsName: "test-update-creds",
 			WebhookSecret:   "test-update-repo-webhook-secret",
 		},
@@ -671,7 +671,7 @@ func (s *EnterpriseTestSuite) TestListEnterprisePoolsInvalidEnterpriseID() {
 	_, err := s.Store.ListEnterprisePools(context.Background(), "dummy-enterprise-id")
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching pools: fetching enterprise: parsing id: invalid request", err.Error())
+	s.Require().Equal("fetching pools: parsing id: invalid request", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestGetEnterprisePool() {
@@ -785,7 +785,7 @@ func (s *EnterpriseTestSuite) TestListEnterpriseInstancesInvalidEnterpriseID() {
 	_, err := s.Store.ListEnterpriseInstances(context.Background(), "dummy-enterprise-id")
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching enterprise: fetching enterprise: parsing id: invalid request", err.Error())
+	s.Require().Equal("fetching enterprise: parsing id: invalid request", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestUpdateEnterprisePool() {
@@ -811,5 +811,6 @@ func (s *EnterpriseTestSuite) TestUpdateEnterprisePoolInvalidEnterpriseID() {
 }
 
 func TestEnterpriseTestSuite(t *testing.T) {
+	t.Parallel()
 	suite.Run(t, new(EnterpriseTestSuite))
 }
