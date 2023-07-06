@@ -1,8 +1,8 @@
 # Logging
 
-By default, GARM is logging only on standard output.
+By default, GARM logs everything to standard output.
 
-If you would like GARM to use a logging file instead, you can use the `log_file` configuration option:
+You can optionally log to file by adding the following to your config file:
 
 ```toml
 [default]
@@ -12,6 +12,19 @@ log_file = "/tmp/runner-manager.log"
 
 ## Rotating log files
 
-If GARM uses a log file, by default it will rotate it when it reaches 500MB or 28 days, whichever comes first.
+GARM automatically rotates the log if it reaches 500 MB in size or 28 days, whichever comes first.
 
 However, if you want to manually rotate the log file, you can send a `SIGHUP` signal to the GARM process.
+
+You can add the following to your systemd unit file to enable `reload`:
+
+```ini
+[Service]
+ExecReload=/bin/kill -HUP $MAINPID
+```
+
+Then you can simply:
+
+```bash
+systemctl reload garm
+```

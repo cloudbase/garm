@@ -27,6 +27,9 @@ config_dir = "/etc/garm"
 # Enable streaming logs via web sockets. Use garm-cli debug-log.
 enable_log_streamer = false
 
+# Enable the golang debug server. See the documentation in the "doc" folder for more information.
+debug_server = false
+
 [metrics]
 # Toggle metrics. If set to false, the API endpoint for metrics collection will
 # be disabled.
