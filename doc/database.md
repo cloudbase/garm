@@ -1,6 +1,6 @@
 # Database configuration
 
-GARM currently supports SQLite3. The current implementation of GARM is single server, so it does not make much sense to enable anything else at the moment.
+GARM currently supports SQLite3. Support for other stores will be added in the future.
 
 ```toml
 [database]

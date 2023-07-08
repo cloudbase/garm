@@ -1,30 +1,35 @@
-# Webhooks
+# The default config section
 
-Garm is designed to auto-scale github runners. To achieve this, ```garm``` relies on [GitHub Webhooks](https://docs.github.com/en/developers/webhooks-and-events/webhooks/about-webhooks). Webhooks allow ```garm``` to react to workflow events from your repository, organization or enterprise.
+The `default` config section holds configuration options that don't need a category of their own, but are essential to the operation of the service. In this section we will detail each of the options available in the `default` section.
 
-In your repository or organization, navigate to ```Settings --> Webhooks```. In the ```Payload URL``` field, enter the URL to the ```garm``` webhook endpoint. The ```garm``` API endpoint for webhooks is:
+```toml
+[default]
+# This URL is used by instances to send back status messages as they install
+# the github actions runner. Status messages can be seen by querying the
+# runner status in garm.
+# Note: If you're using a reverse proxy in front of your garm installation,
+# this URL needs to point to the address of the reverse proxy. Using TLS is
+# highly encouraged.
+callback_url = "https://garm.example.com/api/v1/callbacks"
 
-  ```txt
-  POST /webhooks
-  ```
+# This URL is used by instances to retrieve information they need to set themselves
+# up. Access to this URL is granted using the same JWT token used to send back
+# status updates. Once the instance transitions to "installed" or "failed" state,
+# access to both the status and metadata endpoints is disabled.
+# Note: If you're using a reverse proxy in front of your garm installation,
+# this URL needs to point to the address of the reverse proxy. Using TLS is
+# highly encouraged.
+metadata_url = "https://garm.example.com/api/v1/metadata"
 
-If ```garm``` is running on a server under the domain ```garm.example.com```, then that field should be set to ```https://garm.example.com/webhooks```.
+# Uncomment this line if you'd like to log to a file instead of standard output.
+# log_file = "/tmp/runner-manager.log"
 
-In the webhook configuration page under ```Content type``` you will need to select ```application/json```, set the proper webhook URL and, really important, **make sure you configure a webhook secret**. Garm will authenticate the payloads to make sure they are coming from GitHub.
+# Enable streaming logs via web sockets. Use garm-cli debug-log.
+enable_log_streamer = false
 
-The webhook secret must be secure. Use something like this to generate one:
-
-  ```bash
-  gabriel@rossak:~$ function generate_secret () {
-      tr -dc 'a-zA-Z0-9!@#$%^&*()_+?><~\`;' < /dev/urandom | head -c 64;
-      echo ''
-  }
-
-  gabriel@rossak:~$ generate_secret
-  9Q<fVm5dtRhUIJ>*nsr*S54g0imK64(!2$Ns6C!~VsH(p)cFj+AMLug%LM!R%FOQ
-  ```
-
-Next, you can choose which events GitHub should send to ```garm``` via webhooks. Click on ```Let me select individual events``` and select ```Workflow jobs``` (should be at the bottom). You can send everything if you want, but any events ```garm``` doesn't care about will simply be ignored.
+# Enable the golang debug server. See the documentation in the "doc" folder for more information.
+debug_server = false
+```
 
 ## The callback_url option
 
@@ -37,13 +42,13 @@ Your runners will call back home with status updates as they install. Once they 
 Example of a runner sending status updates:
 
   ```bash
-  garm-cli runner show garm-f5227755-129d-4e2d-b306-377a8f3a5dfe
+  garm-cli runner show garm-DvxiVAlfHeE7
   +-----------------+--------------------------------------------------------------------------------------------------------------------------------------------------+
   | FIELD           | VALUE                                                                                                                                            |
   +-----------------+--------------------------------------------------------------------------------------------------------------------------------------------------+
   | ID              | 1afb407b-e9f7-4d75-a410-fc4a8c2dbe6c                                                                                                             |
-  | Provider ID     | garm-f5227755-129d-4e2d-b306-377a8f3a5dfe                                                                                                        |
-  | Name            | garm-f5227755-129d-4e2d-b306-377a8f3a5dfe                                                                                                        |
+  | Provider ID     | garm-DvxiVAlfHeE7                                                                                                        |
+  | Name            | garm-DvxiVAlfHeE7                                                                                                        |
   | OS Type         | linux                                                                                                                                            |
   | OS Architecture | amd64                                                                                                                                            |
   | OS Name         | ubuntu                                                                                                                                           |
@@ -86,3 +91,77 @@ This URL needs to be accessible only by the instances ```garm``` sets up. This U
   ```toml
   metadata_url = "https://garm.example.com/api/v1/metadata"
   ```
+
+## The debug_server option
+
+GARM can optionally enable the golang profiling server. You can then use the usual `go tool pprof` command to start profiling. This is useful if you suspect garm may be bottlenecking in any way. To enable the profiling server, add the following section to the garm config:
+
+```toml
+[default]
+
+debug_server = true
+```
+
+Then restarg garm. You can then use the following command to start profiling:
+
+```bash
+go tool pprof http://127.0.0.1:9997/debug/pprof/profile?seconds=120
+```
+
+Important note on profiling when behind a reverse proxy. The above command will hang for a fairly long time. Most reverse proxies will timeout after about 60 seconds. To avoid this, you should only profile on localhost by connecting directly to garm.
+
+It's also advisable to exclude the debug server URLs from your reverse proxy and only make them available locally.
+
+Now that the debug server is enabled, here is a blog post on how to profile golang applications: https://blog.golang.org/profiling-go-programs
+
+
+## The log_file option
+
+By default, GARM logs everything to standard output.
+
+You can optionally log to file by adding the following to your config file:
+
+```toml
+[default]
+# Use this if you'd like to log to a file instead of standard output.
+log_file = "/tmp/runner-manager.log"
+```
+
+### Rotating log files
+
+GARM automatically rotates the log if it reaches 500 MB in size or 28 days, whichever comes first.
+
+However, if you want to manually rotate the log file, you can send a `SIGHUP` signal to the GARM process.
+
+You can add the following to your systemd unit file to enable `reload`:
+
+```ini
+[Service]
+ExecReload=/bin/kill -HUP $MAINPID
+```
+
+Then you can simply:
+
+```bash
+systemctl reload garm
+```
+
+## The enable_log_streamer option
+
+This option allows you to stream garm logs directly to your terminal. Set this option to true, then you can use the following command to stream logs:
+
+```bash
+garm-cli debug-log
+```
+
+An important note on enabling this option when behind a reverse proxy. The log streamer uses websockets to stream logs to you. You will need to configure your reverse proxy to allow websocket connections. If you're using nginx, you will need to add the following to your nginx `server` config:
+
+```nginx
+location /api/v1/ws {
+    proxy_pass http://garm_backend;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "Upgrade";
+    proxy_set_header Host $host;
+}
+```

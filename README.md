@@ -23,16 +23,18 @@ Whether you're running into issues or just want to drop by and say "hi", feel fr
 You need to have Go installed, then run:
 
   ```bash
-  git clone https://github.com/cloudbase/garm
-  cd garm
-  go install ./...
+  go install github.com/cloudbase/garm/cmd/garm@latest
+  go install github.com/cloudbase/garm/cmd/garm-cli@latest
   ```
 
-You should now have both ```garm``` and ```garm-cli``` in your ```$GOPATH/bin``` folder.
+This will install the garm binaries in ```$GOPATH/bin``` folder. Move them somewhere in your ```$PATH``` to make them available system-wide.
 
 If you have docker/podman installed, you can also build statically linked binaries by running:
 
   ```bash
+  git clone https://github.com/cloudbase/garm
+  cd garm
+  git checkout release/v0.1
   make build-static
   ```
 
@@ -75,12 +77,6 @@ Copy the config template:
   sudo cp ./testdata/config.toml /etc/garm/
   ```
 
-Copy the external provider (optional):
-
-  ```bash
-  sudo cp -a ./contrib/providers.d /etc/garm/
-  ```
-
 Copy the systemd service file:
 
   ```bash
@@ -106,15 +102,26 @@ Customize the config in ```/etc/garm/config.toml```, and start the service:
   sudo systemctl start garm
   ```
 
+## Installing external providers
+
+External providers are binaries that GARM calls into to create runners in a particular IaaS. There are currently two external providers available:
+
+* [OpenStack](https://github.com/cloudbase/garm-provider-openstack)
+* [Azure](https://github.com/cloudbase/garm-provider-azure)
+
+Follow the instructions in the README of each provider to install them.
+
 ## Configuration
 
-The ```garm``` configuration is a simple ```toml```. A sample of the config file can be found in [the testdata folder](/testdata/config.toml).
+The ```garm``` configuration is a simple ```toml```. The sample config file in [the testdata folder](/testdata/config.toml) is fairly well commented and should be enough to get you started. The configuration file is split into several sections, each of which is documented in its own page. The sections are:
 
-There are 3 major sections of the config that require your attention:
-
-* [Github credentials section](/doc/github_credentials.md)
-* [Providers section](/doc/providers.md)
-* [The database section](/doc/database.md)
+* [The default section](/doc/config_default.md)
+* [Metrics](/doc/config_metrics.md)
+* [JWT authentication](/doc/config_jwt_auth.md)
+* [API server](/doc/config_api_server.md)
+* [Github credentials](/doc/github_credentials.md)
+* [Providers](/doc/providers.md)
+* [Database](/doc/database.md)
 
 Once you've configured your database, providers and github credentials, you'll need to configure your [webhooks and the callback_url](/doc/webhooks_and_callbacks.md).
 
@@ -123,12 +130,6 @@ At this point, you should be done. Have a look at the [running garm document](/d
 If you would like to use ```garm``` with a different IaaS than the ones already available, have a look at the [writing an external provider](/doc/external_provider.md) page.
 
 If you like to optimize the startup time of new instance, take a look at the [performance considerations](/doc/performance_considerations.md) page.
-
-## Security considerations
-
-Garm does not apply any ACLs of any kind to the instances it creates. That task remains in the responsibility of the user. [Here is a guide for creating ACLs in LXD](https://linuxcontainers.org/lxd/docs/master/howto/network_acls/). You can of course use ```iptables``` or ```nftables``` to create any rules you wish. I recommend you create a separate isolated lxd bridge for runners, and secure it using ACLs/iptables/nftables.
-
-You must make sure that the code that runs as part of the workflows is trusted, and if that cannot be done, you must make sure that any malicious code that will be pulled in by the actions and run as part of a workload, is as contained as possible. There is a nice article about [securing your workflow runs here](https://blog.gitguardian.com/github-actions-security-cheat-sheet/).
 
 ## Write your own provider
 
