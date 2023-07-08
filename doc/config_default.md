@@ -43,27 +43,29 @@ Example of a runner sending status updates:
 
   ```bash
   garm-cli runner show garm-DvxiVAlfHeE7
-  +-----------------+--------------------------------------------------------------------------------------------------------------------------------------------------+
-  | FIELD           | VALUE                                                                                                                                            |
-  +-----------------+--------------------------------------------------------------------------------------------------------------------------------------------------+
-  | ID              | 1afb407b-e9f7-4d75-a410-fc4a8c2dbe6c                                                                                                             |
-  | Provider ID     | garm-DvxiVAlfHeE7                                                                                                        |
-  | Name            | garm-DvxiVAlfHeE7                                                                                                        |
-  | OS Type         | linux                                                                                                                                            |
-  | OS Architecture | amd64                                                                                                                                            |
-  | OS Name         | ubuntu                                                                                                                                           |
-  | OS Version      | focal                                                                                                                                            |
-  | Status          | running                                                                                                                                          |
-  | Runner Status   | idle                                                                                                                                             |
-  | Pool ID         | 98f438b9-5549-4eaf-9bb7-1781533a455d                                                                                                             |
-  | Status Updates  | 2022-05-05T11:32:41: downloading tools from https://github.com/actions/runner/releases/download/v2.290.1/actions-runner-linux-x64-2.290.1.tar.gz |
-  |                 | 2022-05-05T11:32:43: extracting runner                                                                                                           |
-  |                 | 2022-05-05T11:32:47: installing dependencies                                                                                                     |
-  |                 | 2022-05-05T11:32:55: configuring runner                                                                                                          |
-  |                 | 2022-05-05T11:32:59: installing runner service                                                                                                   |
-  |                 | 2022-05-05T11:33:00: starting service                                                                                                            |
-  |                 | 2022-05-05T11:33:00: runner successfully installed                                                                                               |
-  +-----------------+--------------------------------------------------------------------------------------------------------------------------------------------------+
+  +-----------------+------------------------------------------------------------------------------------+
+  | FIELD           | VALUE                                                                              |
+  +-----------------+------------------------------------------------------------------------------------+
+  | ID              | 16b96ba2-d406-45b8-ab66-b70be6237b4e                                               |
+  | Provider ID     | garm-DvxiVAlfHeE7                                                                  |
+  | Name            | garm-DvxiVAlfHeE7                                                                  |
+  | OS Type         | linux                                                                              |
+  | OS Architecture | amd64                                                                              |
+  | OS Name         | ubuntu                                                                             |
+  | OS Version      | jammy                                                                              |
+  | Status          | running                                                                            |
+  | Runner Status   | idle                                                                               |
+  | Pool ID         | 8ec34c1f-b053-4a5d-80d6-40afdfb389f9                                               |
+  | Addresses       | 10.198.117.120                                                                     |
+  | Status Updates  | 2023-07-08T06:26:46: runner registration token was retrieved                       |
+  |                 | 2023-07-08T06:26:46: using cached runner found in /opt/cache/actions-runner/latest |
+  |                 | 2023-07-08T06:26:50: configuring runner                                            |
+  |                 | 2023-07-08T06:26:56: runner successfully configured after 1 attempt(s)             |
+  |                 | 2023-07-08T06:26:56: installing runner service                                     |
+  |                 | 2023-07-08T06:26:56: starting service                                              |
+  |                 | 2023-07-08T06:26:57: runner successfully installed                                 |
+  +-----------------+------------------------------------------------------------------------------------+
+
   ```
 
 This URL must be set and must be accessible by the instance. If you wish to restrict access to it, a reverse proxy can be configured to accept requests only from networks in which the runners ```garm``` manages will be spun up. This URL doesn't need to be globally accessible, it just needs to be accessible by the instances.
