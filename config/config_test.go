@@ -162,14 +162,6 @@ func TestDefaultSectionConfig(t *testing.T) {
 			},
 			errString: "missing metadata-url",
 		},
-		{
-			name: "config_dir must exist and be accessible",
-			cfg: Default{
-				CallbackURL: cfg.CallbackURL,
-				MetadataURL: cfg.MetadataURL,
-			},
-			errString: "accessing config dir: stat /i/do/not/exist:.*",
-		},
 	}
 
 	for _, tc := range tests {

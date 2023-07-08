@@ -73,7 +73,7 @@ This URL must be set and must be accessible by the instance. If you wish to rest
 For example, in a scenario where you expose the API endpoint directly, this setting could look like the following:
 
   ```toml
-  callback_url = "https://garm.example.com/api/v1/callbacks/status"
+  callback_url = "https://garm.example.com/api/v1/callbacks"
   ```
 
 Authentication is done using a short-lived JWT token, that gets generated for a particular instance that we are spinning up. That JWT token grants access to the instance to only update it's own status and to fetch metadata for itself. No other API endpoints will work with that JWT token. The validity of the token is equal to the pool bootstrap timeout value (default 20 minutes) plus the garm polling interval (5 minutes).
