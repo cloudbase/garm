@@ -4,7 +4,6 @@ GARM was designed to be extensible. Providers can be written either as built-in 
 
 GARM currently ships with one built-in provider for [LXD](https://linuxcontainers.org/lxd/introduction/) and the external provider interface which allows you to write your own provider in any language you want.
 
-
 - [LXD provider](#lxd-provider)
     - [LXD remotes](#lxd-remotes)
     - [LXD Security considerations](#lxd-security-considerations)
