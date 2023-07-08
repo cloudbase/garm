@@ -96,7 +96,7 @@ This URL needs to be accessible only by the instances ```garm``` sets up. This U
 
 ## The debug_server option
 
-GARM can optionally enable the golang profiling server. You can then use the usual `go tool pprof` command to start profiling. This is useful if you suspect garm may be bottlenecking in any way. To enable the profiling server, add the following section to the garm config:
+GARM can optionally enable the golang profiling server. This is useful if you suspect garm may be bottlenecking in any way. To enable the profiling server, add the following section to the garm config:
 
 ```toml
 [default]
@@ -104,7 +104,7 @@ GARM can optionally enable the golang profiling server. You can then use the usu
 debug_server = true
 ```
 
-Then restarg garm. You can then use the following command to start profiling:
+And restart garm. You can then use the following command to start profiling:
 
 ```bash
 go tool pprof http://127.0.0.1:9997/debug/pprof/profile?seconds=120
