@@ -35,10 +35,6 @@ const (
 )
 
 var (
-	// DefaultConfigDir is the default path on disk to the config dir. The config
-	// file will probably be in the same folder, but it is not mandatory.
-	DefaultConfigDir = "/etc/garm"
-
 	// DefaultUserGroups are the groups the default user will be part of.
 	DefaultUserGroups = []string{
 		"sudo", "adm", "cdrom", "dialout",

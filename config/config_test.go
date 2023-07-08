@@ -32,7 +32,6 @@ var (
 
 func getDefaultSectionConfig(configDir string) Default {
 	return Default{
-		ConfigDir:   configDir,
 		CallbackURL: "https://garm.example.com/",
 		MetadataURL: "https://garm.example.com/api/v1/metadata",
 		LogFile:     filepath.Join(configDir, "garm.log"),
@@ -152,7 +151,6 @@ func TestDefaultSectionConfig(t *testing.T) {
 			cfg: Default{
 				CallbackURL: "",
 				MetadataURL: cfg.MetadataURL,
-				ConfigDir:   cfg.ConfigDir,
 			},
 			errString: "missing callback_url",
 		},
@@ -161,25 +159,14 @@ func TestDefaultSectionConfig(t *testing.T) {
 			cfg: Default{
 				CallbackURL: cfg.CallbackURL,
 				MetadataURL: "",
-				ConfigDir:   cfg.ConfigDir,
 			},
 			errString: "missing metadata-url",
-		},
-		{
-			name: "ConfigDir cannot be empty",
-			cfg: Default{
-				CallbackURL: cfg.CallbackURL,
-				MetadataURL: cfg.MetadataURL,
-				ConfigDir:   "",
-			},
-			errString: "config_dir cannot be empty",
 		},
 		{
 			name: "config_dir must exist and be accessible",
 			cfg: Default{
 				CallbackURL: cfg.CallbackURL,
 				MetadataURL: cfg.MetadataURL,
-				ConfigDir:   "/i/do/not/exist",
 			},
 			errString: "accessing config dir: stat /i/do/not/exist:.*",
 		},
@@ -560,37 +547,11 @@ func TestNewConfig(t *testing.T) {
 	require.Nil(t, err)
 	require.NotNil(t, cfg)
 	require.Equal(t, "https://garm.example.com/", cfg.Default.CallbackURL)
-	require.Equal(t, "./testdata", cfg.Default.ConfigDir)
 	require.Equal(t, "0.0.0.0", cfg.APIServer.Bind)
 	require.Equal(t, 9998, cfg.APIServer.Port)
 	require.Equal(t, false, cfg.APIServer.UseTLS)
 	require.Equal(t, DBBackendType("mysql"), cfg.Database.DbBackend)
 	require.Equal(t, "bocyasicgatEtenOubwonIbsudNutDom", cfg.Database.Passphrase)
-	require.Equal(t, "test", cfg.Database.MySQL.Username)
-	require.Equal(t, "test", cfg.Database.MySQL.Password)
-	require.Equal(t, "127.0.0.1", cfg.Database.MySQL.Hostname)
-	require.Equal(t, "garm", cfg.Database.MySQL.DatabaseName)
-	require.Equal(t, "bocyasicgatEtenOubwonIbsudNutDom", cfg.JWTAuth.Secret)
-	require.Equal(t, timeToLive("48h"), cfg.JWTAuth.TimeToLive)
-}
-
-func TestNewConfigEmptyConfigDir(t *testing.T) {
-	dirPath, err := os.MkdirTemp("", "garm-config-test")
-	if err != nil {
-		t.Fatalf("failed to create temporary directory: %s", err)
-	}
-	defer os.RemoveAll(dirPath)
-	appdefaults.DefaultConfigDir = dirPath
-
-	cfg, err := NewConfig("testdata/test-empty-config-dir.toml")
-	require.Nil(t, err)
-	require.NotNil(t, cfg)
-	require.Equal(t, cfg.Default.ConfigDir, dirPath)
-	require.Equal(t, "https://garm.example.com/", cfg.Default.CallbackURL)
-	require.Equal(t, "0.0.0.0", cfg.APIServer.Bind)
-	require.Equal(t, 9998, cfg.APIServer.Port)
-	require.Equal(t, false, cfg.APIServer.UseTLS)
-	require.Equal(t, DBBackendType("mysql"), cfg.Database.DbBackend)
 	require.Equal(t, "test", cfg.Database.MySQL.Username)
 	require.Equal(t, "test", cfg.Database.MySQL.Password)
 	require.Equal(t, "127.0.0.1", cfg.Database.MySQL.Hostname)

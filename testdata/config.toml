@@ -17,10 +17,6 @@ callback_url = "https://garm.example.com/api/v1/callbacks/status"
 # highly encouraged.
 metadata_url = "https://garm.example.com/api/v1/metadata"
 
-# This folder is defined here for future use. Right now, we create a SSH
-# public/private key-pair.
-config_dir = "/etc/garm"
-
 # Uncomment this line if you'd like to log to a file instead of standard output.
 # log_file = "/tmp/runner-manager.log"
 
@@ -81,28 +77,15 @@ time_to_live = "8760h"
   debug = false
   # Database backend to use. Currently supported backends are:
   #   * sqlite3
-  #   * mysql
   backend = "sqlite3"
   # the passphrase option is a temporary measure by which we encrypt the webhook
   # secret that gets saved to the database, using AES256. In the future, secrets
   # will be saved to something like Barbican or Vault, eliminating the need for
   # this. This setting needs to be 32 characters in size.
   passphrase = "shreotsinWadquidAitNefayctowUrph"
-  [database.mysql]
-    # If MySQL is used, these are the credentials and connection information used
-    # to connect to the server instance.
-    # database username
-    username = ""
-    # Database password
-    password = ""
-    # hostname to connect to
-    hostname = ""
-    # database name
-    database = ""
   [database.sqlite3]
     # Path on disk to the sqlite3 database file.
     db_file = "/etc/garm/garm.db"
-
 
 # Currently, providers are defined statically in the config. This is due to the fact
 # that we have not yet added support for storing secrets in something like Barbican
