@@ -29,4 +29,6 @@ The config options are fairly straight forward.
     key = ""
 ```
 
-The GARM API server has the option to enable TLS, but I suggest you use a reverse proxy and enable TLS termination in that reverse proxy. There is an `nginx` sample in this repository.
+The GARM API server has the option to enable TLS, but I suggest you use a reverse proxy and enable TLS termination in that reverse proxy. There is an `nginx` sample in this repository with TLS termination enabled.
+
+You can of course enable TLS in both garm and the reverse proxy. The choice is yours.

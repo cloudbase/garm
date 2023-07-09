@@ -116,12 +116,12 @@ Follow the instructions in the README of each provider to install them.
 The ```garm``` configuration is a simple ```toml```. The sample config file in [the testdata folder](/testdata/config.toml) is fairly well commented and should be enough to get you started. The configuration file is split into several sections, each of which is documented in its own page. The sections are:
 
 * [The default section](/doc/config_default.md)
+* [Database](/doc/database.md)
+* [Github credentials](/doc/github_credentials.md)
+* [Providers](/doc/providers.md)
 * [Metrics](/doc/config_metrics.md)
 * [JWT authentication](/doc/config_jwt_auth.md)
 * [API server](/doc/config_api_server.md)
-* [Github credentials](/doc/github_credentials.md)
-* [Providers](/doc/providers.md)
-* [Database](/doc/database.md)
 
 Once you've configured your database, providers and github credentials, you'll need to configure your [webhooks and the callback_url](/doc/webhooks_and_callbacks.md).
 
@@ -129,7 +129,7 @@ At this point, you should be done. Have a look at the [running garm document](/d
 
 If you would like to use ```garm``` with a different IaaS than the ones already available, have a look at the [writing an external provider](/doc/external_provider.md) page.
 
-If you like to optimize the startup time of new instance, take a look at the [performance considerations](/doc/performance_considerations.md) page.
+If you would like to optimize the startup time of new instance, take a look at the [performance considerations](/doc/performance_considerations.md) page.
 
 ## Write your own provider
 
