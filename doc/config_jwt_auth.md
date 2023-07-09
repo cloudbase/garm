@@ -6,8 +6,7 @@ It is recommended that the secret be a long, randomly generated string. Changing
 
 ```toml
 [jwt_auth]
-# A JWT token secret used to sign tokens.
-# Obviously, this needs to be changed :).
+# A JWT token secret used to sign tokens. Obviously, this needs to be changed :).
 secret = ")9gk_4A6KrXz9D2u`0@MPea*sd6W`%@5MAWpWWJ3P3EqW~qB!!(Vd$FhNc*eU4vG"
 
 # Time to live for tokens. Both the instances and you will use JWT tokens to
