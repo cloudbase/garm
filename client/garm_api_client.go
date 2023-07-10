@@ -10,7 +10,13 @@ import (
 	httptransport "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
 
+	"github.com/cloudbase/garm/client/credentials"
+	"github.com/cloudbase/garm/client/first_run"
 	"github.com/cloudbase/garm/client/instances"
+	"github.com/cloudbase/garm/client/login"
+	"github.com/cloudbase/garm/client/organizations"
+	"github.com/cloudbase/garm/client/pools"
+	"github.com/cloudbase/garm/client/providers"
 	"github.com/cloudbase/garm/client/repositories"
 )
 
@@ -56,7 +62,13 @@ func New(transport runtime.ClientTransport, formats strfmt.Registry) *GarmAPI {
 
 	cli := new(GarmAPI)
 	cli.Transport = transport
+	cli.Credentials = credentials.New(transport, formats)
+	cli.FirstRun = first_run.New(transport, formats)
 	cli.Instances = instances.New(transport, formats)
+	cli.Login = login.New(transport, formats)
+	cli.Organizations = organizations.New(transport, formats)
+	cli.Pools = pools.New(transport, formats)
+	cli.Providers = providers.New(transport, formats)
 	cli.Repositories = repositories.New(transport, formats)
 	return cli
 }
@@ -102,7 +114,19 @@ func (cfg *TransportConfig) WithSchemes(schemes []string) *TransportConfig {
 
 // GarmAPI is a client for garm API
 type GarmAPI struct {
+	Credentials credentials.ClientService
+
+	FirstRun first_run.ClientService
+
 	Instances instances.ClientService
+
+	Login login.ClientService
+
+	Organizations organizations.ClientService
+
+	Pools pools.ClientService
+
+	Providers providers.ClientService
 
 	Repositories repositories.ClientService
 
@@ -112,6 +136,12 @@ type GarmAPI struct {
 // SetTransport changes the transport on the client and all its subresources
 func (c *GarmAPI) SetTransport(transport runtime.ClientTransport) {
 	c.Transport = transport
+	c.Credentials.SetTransport(transport)
+	c.FirstRun.SetTransport(transport)
 	c.Instances.SetTransport(transport)
+	c.Login.SetTransport(transport)
+	c.Organizations.SetTransport(transport)
+	c.Pools.SetTransport(transport)
+	c.Providers.SetTransport(transport)
 	c.Repositories.SetTransport(transport)
 }
