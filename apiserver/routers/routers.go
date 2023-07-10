@@ -219,7 +219,7 @@ func NewAPIRouter(han *controllers.APIController, logWriter io.Writer, authMiddl
 	apiRouter.Handle("/organizations/{orgID}/pools/", http.HandlerFunc(han.CreateOrgPoolHandler)).Methods("POST", "OPTIONS")
 	apiRouter.Handle("/organizations/{orgID}/pools", http.HandlerFunc(han.CreateOrgPoolHandler)).Methods("POST", "OPTIONS")
 
-	// Repo instances list
+	// Org instances list
 	apiRouter.Handle("/organizations/{orgID}/instances/", http.HandlerFunc(han.ListOrgInstancesHandler)).Methods("GET", "OPTIONS")
 	apiRouter.Handle("/organizations/{orgID}/instances", http.HandlerFunc(han.ListOrgInstancesHandler)).Methods("GET", "OPTIONS")
 
@@ -258,23 +258,23 @@ func NewAPIRouter(han *controllers.APIController, logWriter io.Writer, authMiddl
 	apiRouter.Handle("/enterprises/{enterpriseID}/pools/", http.HandlerFunc(han.CreateEnterprisePoolHandler)).Methods("POST", "OPTIONS")
 	apiRouter.Handle("/enterprises/{enterpriseID}/pools", http.HandlerFunc(han.CreateEnterprisePoolHandler)).Methods("POST", "OPTIONS")
 
-	// Repo instances list
+	// Enterprise instances list
 	apiRouter.Handle("/enterprises/{enterpriseID}/instances/", http.HandlerFunc(han.ListEnterpriseInstancesHandler)).Methods("GET", "OPTIONS")
 	apiRouter.Handle("/enterprises/{enterpriseID}/instances", http.HandlerFunc(han.ListEnterpriseInstancesHandler)).Methods("GET", "OPTIONS")
 
-	// Get org
+	// Get enterprise
 	apiRouter.Handle("/enterprises/{enterpriseID}/", http.HandlerFunc(han.GetEnterpriseByIDHandler)).Methods("GET", "OPTIONS")
 	apiRouter.Handle("/enterprises/{enterpriseID}", http.HandlerFunc(han.GetEnterpriseByIDHandler)).Methods("GET", "OPTIONS")
-	// Update org
+	// Update enterprise
 	apiRouter.Handle("/enterprises/{enterpriseID}/", http.HandlerFunc(han.UpdateEnterpriseHandler)).Methods("PUT", "OPTIONS")
 	apiRouter.Handle("/enterprises/{enterpriseID}", http.HandlerFunc(han.UpdateEnterpriseHandler)).Methods("PUT", "OPTIONS")
-	// Delete org
+	// Delete enterprise
 	apiRouter.Handle("/enterprises/{enterpriseID}/", http.HandlerFunc(han.DeleteEnterpriseHandler)).Methods("DELETE", "OPTIONS")
 	apiRouter.Handle("/enterprises/{enterpriseID}", http.HandlerFunc(han.DeleteEnterpriseHandler)).Methods("DELETE", "OPTIONS")
-	// List orgs
+	// List enterprises
 	apiRouter.Handle("/enterprises/", http.HandlerFunc(han.ListEnterprisesHandler)).Methods("GET", "OPTIONS")
 	apiRouter.Handle("/enterprises", http.HandlerFunc(han.ListEnterprisesHandler)).Methods("GET", "OPTIONS")
-	// Create org
+	// Create enterprise
 	apiRouter.Handle("/enterprises/", http.HandlerFunc(han.CreateEnterpriseHandler)).Methods("POST", "OPTIONS")
 	apiRouter.Handle("/enterprises", http.HandlerFunc(han.CreateEnterpriseHandler)).Methods("POST", "OPTIONS")
 
