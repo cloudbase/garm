@@ -350,6 +350,9 @@ func (o Organization) GetID() string {
 	return o.ID
 }
 
+// used by swagger client generated code
+type Organizations []Organization
+
 type Enterprise struct {
 	ID                string            `json:"id"`
 	Name              string            `json:"name"`
@@ -401,11 +404,17 @@ type GithubCredentials struct {
 	CABundle      []byte `json:"ca_bundle,omitempty"`
 }
 
+// used by swagger client generated code
+type Credentials []GithubCredentials
+
 type Provider struct {
 	Name         string       `json:"name"`
 	ProviderType ProviderType `json:"type"`
 	Description  string       `json:"description"`
 }
+
+// used by swagger client generated code
+type Providers []Provider
 
 type UpdatePoolStateParams struct {
 	WebhookSecret  string
