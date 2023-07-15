@@ -15,7 +15,7 @@ default: build
 .PHONY : build-static test install-lint-deps lint go-test fmt fmtcheck verify-vendor verify
 build-static:
 	@echo Building garm
-	docker build --tag $(IMAGE_TAG) .
+	docker build --tag $(IMAGE_TAG) -f Dockerfile.build-static .
 	docker run --rm -e USER_ID=$(USER_ID) -e USER_GROUP=$(USER_GROUP) -v $(PWD):/build/garm:z $(IMAGE_TAG) /build-static.sh
 	@echo Binaries are available in $(PWD)/bin
 
