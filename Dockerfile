@@ -24,5 +24,6 @@ FROM scratch
 COPY --from=builder /bin/garm /bin/garm
 COPY --from=builder /opt/garm/providers.d/garm-provider-openstack /opt/garm/providers.d/garm-provider-openstack
 COPY --from=builder /opt/garm/providers.d/garm-provider-azure /opt/garm/providers.d/garm-provider-azure
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
 ENTRYPOINT ["/bin/garm", "-config", "/etc/garm/config.toml"]
