@@ -38,7 +38,7 @@ While you can use `http` for your webhook, I highly recommend you set up a prope
 
 ![ssl](images/tls_config.png)
 
-If you're testing, you can disable SSL verification or just use `http`, but for production you should use `https` with a proper certificate and SSL verification set to `enabled`.
+If you're testing and want to use a self signed certificate, you can disable SSL verification or just use `http`, but for production you should use `https` with a proper certificate and SSL verification set to `enabled`.
 
 It's fairly trivial to set up a proper x509 certificate for your GARM server. You can use [Let's Encrypt](https://letsencrypt.org/) to get a free certificate.
 
