@@ -9,6 +9,13 @@ definitions:
                 alias: apiserver_params
                 package: github.com/cloudbase/garm/apiserver/params
             type: APIErrorResponse
+    CreateOrgParams:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: CreateOrgParams
     CreatePoolParams:
         type: object
         x-go-type:
@@ -23,6 +30,22 @@ definitions:
                 alias: garm_params
                 package: github.com/cloudbase/garm/params
             type: CreateRepoParams
+    Credentials:
+        items:
+            $ref: '#/definitions/GithubCredentials'
+        type: array
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: Credentials
+    GithubCredentials:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: GithubCredentials
     Instance:
         type: object
         x-go-type:
@@ -31,12 +54,51 @@ definitions:
                 package: github.com/cloudbase/garm/params
             type: Instance
     Instances:
-        type: object
+        items:
+            $ref: '#/definitions/Instance'
+        type: array
         x-go-type:
             import:
                 alias: garm_params
                 package: github.com/cloudbase/garm/params
             type: Instances
+    JWTResponse:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: JWTResponse
+    NewUserParams:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: NewUserParams
+    Organization:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: Organization
+    Organizations:
+        items:
+            $ref: '#/definitions/Organization'
+        type: array
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: Organizations
+    PasswordLoginParams:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: PasswordLoginParams
     Pool:
         type: object
         x-go-type:
@@ -45,12 +107,30 @@ definitions:
                 package: github.com/cloudbase/garm/params
             type: Pool
     Pools:
-        type: object
+        items:
+            $ref: '#/definitions/Pool'
+        type: array
         x-go-type:
             import:
                 alias: garm_params
                 package: github.com/cloudbase/garm/params
             type: Pools
+    Provider:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: Provider
+    Providers:
+        items:
+            $ref: '#/definitions/Provider'
+        type: array
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: Providers
     Repositories:
         items:
             $ref: '#/definitions/Repository'
@@ -81,6 +161,13 @@ definitions:
                 alias: garm_params
                 package: github.com/cloudbase/garm/params
             type: UpdatePoolParams
+    User:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: User
 info:
     description: The Garm API generated using go-swagger.
     license:
@@ -89,6 +176,69 @@ info:
     title: Garm API.
     version: 1.0.0
 paths:
+    /auth/login:
+        post:
+            operationId: Login
+            parameters:
+                - description: Login information.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/PasswordLoginParams'
+                    description: Login information.
+                    type: object
+            responses:
+                "200":
+                    description: JWTResponse
+                    schema:
+                        $ref: '#/definitions/JWTResponse'
+                "400":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Logs in a user and returns a JWT token.
+            tags:
+                - login
+    /credentials:
+        get:
+            operationId: ListCredentials
+            responses:
+                "200":
+                    description: Credentials
+                    schema:
+                        $ref: '#/definitions/Credentials'
+                "400":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List all credentials.
+            tags:
+                - credentials
+    /first-run:
+        post:
+            operationId: FirstRun
+            parameters:
+                - description: Create a new user.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/NewUserParams'
+                    description: Create a new user.
+                    type: object
+            responses:
+                "200":
+                    description: User
+                    schema:
+                        $ref: '#/definitions/User'
+                "400":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Initialize the first run of the controller.
+            tags:
+                - first-run
     /instances:
         get:
             operationId: ListInstances
@@ -141,6 +291,381 @@ paths:
             summary: Get runner instance by name.
             tags:
                 - instances
+    /organizations:
+        get:
+            operationId: ListOrgs
+            responses:
+                "200":
+                    description: Organizations
+                    schema:
+                        $ref: '#/definitions/Organizations'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List organizations.
+            tags:
+                - organizations
+        post:
+            operationId: CreateOrg
+            parameters:
+                - description: Parameters used when creating the organization.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/CreateOrgParams'
+                    description: Parameters used when creating the organization.
+                    type: object
+            responses:
+                "200":
+                    description: Organization
+                    schema:
+                        $ref: '#/definitions/Organization'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Create organization with the parameters given.
+            tags:
+                - organizations
+    /organizations/{orgID}:
+        delete:
+            operationId: DeleteOrg
+            parameters:
+                - description: ID of the organization to delete.
+                  in: path
+                  name: orgID
+                  required: true
+                  type: string
+            responses:
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Delete organization by ID.
+            tags:
+                - organizations
+        get:
+            operationId: GetOrg
+            parameters:
+                - description: ID of the organization to fetch.
+                  in: path
+                  name: orgID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: Organization
+                    schema:
+                        $ref: '#/definitions/Organization'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get organization by ID.
+            tags:
+                - organizations
+        put:
+            operationId: UpdateOrg
+            parameters:
+                - description: ID of the organization to update.
+                  in: path
+                  name: orgID
+                  required: true
+                  type: string
+                - description: Parameters used when updating the organization.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/UpdateEntityParams'
+                    description: Parameters used when updating the organization.
+                    type: object
+            responses:
+                "200":
+                    description: Organization
+                    schema:
+                        $ref: '#/definitions/Organization'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Update organization with the parameters given.
+            tags:
+                - organizations
+    /organizations/{orgID}/instances:
+        get:
+            operationId: ListOrgInstances
+            parameters:
+                - description: Organization ID.
+                  in: path
+                  name: orgID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: Instances
+                    schema:
+                        $ref: '#/definitions/Instances'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List organization instances.
+            tags:
+                - organizations
+                - instances
+    /organizations/{orgID}/pools:
+        get:
+            operationId: ListOrgPools
+            parameters:
+                - description: Organization ID.
+                  in: path
+                  name: orgID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: Pools
+                    schema:
+                        $ref: '#/definitions/Pools'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List organization pools.
+            tags:
+                - organizations
+                - pools
+        post:
+            operationId: CreateOrgPool
+            parameters:
+                - description: Organization ID.
+                  in: path
+                  name: orgID
+                  required: true
+                  type: string
+                - description: Parameters used when creating the organization pool.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/CreatePoolParams'
+                    description: Parameters used when creating the organization pool.
+                    type: object
+            responses:
+                "200":
+                    description: Pool
+                    schema:
+                        $ref: '#/definitions/Pool'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Create organization pool with the parameters given.
+            tags:
+                - organizations
+                - pools
+    /organizations/{orgID}/pools/{poolID}:
+        delete:
+            operationId: DeleteOrgPool
+            parameters:
+                - description: Organization ID.
+                  in: path
+                  name: orgID
+                  required: true
+                  type: string
+                - description: ID of the organization pool to delete.
+                  in: path
+                  name: poolID
+                  required: true
+                  type: string
+            responses:
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Delete organization pool by ID.
+            tags:
+                - organizations
+                - pools
+        get:
+            operationId: GetOrgPool
+            parameters:
+                - description: Organization ID.
+                  in: path
+                  name: orgID
+                  required: true
+                  type: string
+                - description: Pool ID.
+                  in: path
+                  name: poolID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: Pool
+                    schema:
+                        $ref: '#/definitions/Pool'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get organization pool by ID.
+            tags:
+                - organizations
+                - pools
+        put:
+            operationId: UpdateOrgPool
+            parameters:
+                - description: Organization ID.
+                  in: path
+                  name: orgID
+                  required: true
+                  type: string
+                - description: ID of the organization pool to update.
+                  in: path
+                  name: poolID
+                  required: true
+                  type: string
+                - description: Parameters used when updating the organization pool.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/UpdatePoolParams'
+                    description: Parameters used when updating the organization pool.
+                    type: object
+            responses:
+                "200":
+                    description: Pool
+                    schema:
+                        $ref: '#/definitions/Pool'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Update organization pool with the parameters given.
+            tags:
+                - organizations
+                - pools
+    /pools:
+        get:
+            operationId: ListPools
+            responses:
+                "200":
+                    description: Pools
+                    schema:
+                        $ref: '#/definitions/Pools'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List all pools.
+            tags:
+                - pools
+    /pools/{poolID}:
+        delete:
+            operationId: DeletePool
+            parameters:
+                - description: ID of the pool to delete.
+                  in: path
+                  name: poolID
+                  required: true
+                  type: string
+            responses:
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Delete pool by ID.
+            tags:
+                - pools
+        get:
+            operationId: GetPool
+            parameters:
+                - description: ID of the pool to fetch.
+                  in: path
+                  name: poolID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: Pool
+                    schema:
+                        $ref: '#/definitions/Pool'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get pool by ID.
+            tags:
+                - pools
+        put:
+            operationId: UpdatePool
+            parameters:
+                - description: ID of the pool to update.
+                  in: path
+                  name: poolID
+                  required: true
+                  type: string
+                - description: Parameters to update the pool with.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/UpdatePoolParams'
+                    description: Parameters to update the pool with.
+                    type: object
+            responses:
+                "200":
+                    description: Pool
+                    schema:
+                        $ref: '#/definitions/Pool'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Update pool by ID.
+            tags:
+                - pools
+    /pools/{poolID}/instances:
+        get:
+            operationId: ListPoolInstances
+            parameters:
+                - description: Runner pool ID.
+                  in: path
+                  name: poolID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: Instances
+                    schema:
+                        $ref: '#/definitions/Instances'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List runner instances in a pool.
+            tags:
+                - instances
+    /providers:
+        get:
+            operationId: ListProviders
+            responses:
+                "200":
+                    description: Providers
+                    schema:
+                        $ref: '#/definitions/Providers'
+                "400":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List all providers.
+            tags:
+                - providers
     /repositories:
         get:
             operationId: ListRepos

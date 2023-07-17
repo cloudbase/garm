@@ -26,6 +26,20 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// swagger:route POST /organizations organizations CreateOrg
+//
+// Create organization with the parameters given.
+//
+//	Parameters:
+//	  + name: Body
+//	    description: Parameters used when creating the organization.
+//	    type: CreateOrgParams
+//	    in: body
+//	    required: true
+//
+//	Responses:
+//	  200: Organization
+//	  default: APIErrorResponse
 func (a *APIController) CreateOrgHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -48,6 +62,13 @@ func (a *APIController) CreateOrgHandler(w http.ResponseWriter, r *http.Request)
 	}
 }
 
+// swagger:route GET /organizations organizations ListOrgs
+//
+// List organizations.
+//
+//	Responses:
+//	  200: Organizations
+//	  default: APIErrorResponse
 func (a *APIController) ListOrgsHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -64,6 +85,20 @@ func (a *APIController) ListOrgsHandler(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
+// swagger:route GET /organizations/{orgID} organizations GetOrg
+//
+// Get organization by ID.
+//
+//	Parameters:
+//	  + name: orgID
+//	    description: ID of the organization to fetch.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	Responses:
+//	  200: Organization
+//	  default: APIErrorResponse
 func (a *APIController) GetOrgByIDHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -93,6 +128,19 @@ func (a *APIController) GetOrgByIDHandler(w http.ResponseWriter, r *http.Request
 	}
 }
 
+// swagger:route DELETE /organizations/{orgID} organizations DeleteOrg
+//
+// Delete organization by ID.
+//
+//	Parameters:
+//	  + name: orgID
+//	    description: ID of the organization to delete.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	Responses:
+//	  default: APIErrorResponse
 func (a *APIController) DeleteOrgHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -120,6 +168,26 @@ func (a *APIController) DeleteOrgHandler(w http.ResponseWriter, r *http.Request)
 
 }
 
+// swagger:route PUT /organizations/{orgID} organizations UpdateOrg
+//
+// Update organization with the parameters given.
+//
+//	Parameters:
+//	  + name: orgID
+//	    description: ID of the organization to update.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: Body
+//	    description: Parameters used when updating the organization.
+//	    type: UpdateEntityParams
+//	    in: body
+//	    required: true
+//
+//	Responses:
+//	  200: Organization
+//	  default: APIErrorResponse
 func (a *APIController) UpdateOrgHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -155,6 +223,26 @@ func (a *APIController) UpdateOrgHandler(w http.ResponseWriter, r *http.Request)
 	}
 }
 
+// swagger:route POST /organizations/{orgID}/pools organizations pools CreateOrgPool
+//
+// Create organization pool with the parameters given.
+//
+//	Parameters:
+//	  + name: orgID
+//	    description: Organization ID.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: Body
+//	    description: Parameters used when creating the organization pool.
+//	    type: CreatePoolParams
+//	    in: body
+//	    required: true
+//
+//	Responses:
+//	  200: Pool
+//	  default: APIErrorResponse
 func (a *APIController) CreateOrgPoolHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -191,6 +279,20 @@ func (a *APIController) CreateOrgPoolHandler(w http.ResponseWriter, r *http.Requ
 	}
 }
 
+// swagger:route GET /organizations/{orgID}/pools organizations pools ListOrgPools
+//
+// List organization pools.
+//
+//	Parameters:
+//	  + name: orgID
+//	    description: Organization ID.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	Responses:
+//	  200: Pools
+//	  default: APIErrorResponse
 func (a *APIController) ListOrgPoolsHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	vars := mux.Vars(r)
@@ -219,6 +321,26 @@ func (a *APIController) ListOrgPoolsHandler(w http.ResponseWriter, r *http.Reque
 	}
 }
 
+// swagger:route GET /organizations/{orgID}/pools/{poolID} organizations pools GetOrgPool
+//
+// Get organization pool by ID.
+//
+//	Parameters:
+//	  + name: orgID
+//	    description: Organization ID.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: poolID
+//	    description: Pool ID.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	Responses:
+//	  200: Pool
+//	  default: APIErrorResponse
 func (a *APIController) GetOrgPoolHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	vars := mux.Vars(r)
@@ -248,6 +370,25 @@ func (a *APIController) GetOrgPoolHandler(w http.ResponseWriter, r *http.Request
 	}
 }
 
+// swagger:route DELETE /organizations/{orgID}/pools/{poolID} organizations pools DeleteOrgPool
+//
+// Delete organization pool by ID.
+//
+//	Parameters:
+//	  + name: orgID
+//	    description: Organization ID.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: poolID
+//	    description: ID of the organization pool to delete.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	Responses:
+//	  default: APIErrorResponse
 func (a *APIController) DeleteOrgPoolHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -276,6 +417,32 @@ func (a *APIController) DeleteOrgPoolHandler(w http.ResponseWriter, r *http.Requ
 
 }
 
+// swagger:route PUT /organizations/{orgID}/pools/{poolID} organizations pools UpdateOrgPool
+//
+// Update organization pool with the parameters given.
+//
+//	Parameters:
+//	  + name: orgID
+//	    description: Organization ID.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: poolID
+//	    description: ID of the organization pool to update.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: Body
+//	    description: Parameters used when updating the organization pool.
+//	    type: UpdatePoolParams
+//	    in: body
+//	    required: true
+//
+//	Responses:
+//	  200: Pool
+//	  default: APIErrorResponse
 func (a *APIController) UpdateOrgPoolHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
