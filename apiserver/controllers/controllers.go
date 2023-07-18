@@ -202,6 +202,13 @@ func (a *APIController) NotFoundHandler(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
+// swagger:route GET /metrics-token metrics-token MetricsToken
+//
+// Returns a JWT token that can be used to access the metrics endpoint.
+//
+//	Responses:
+//	  200: JWTResponse
+//	  401: APIErrorResponse
 func (a *APIController) MetricsTokenHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -350,6 +357,13 @@ func (a *APIController) ListProviders(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// swagger:route GET /jobs jobs ListJobs
+//
+// List all jobs.
+//
+//	Responses:
+//	  200: Jobs
+//	  400: APIErrorResponse
 func (a *APIController) ListAllJobs(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	jobs, err := a.r.ListAllJobs(ctx)
