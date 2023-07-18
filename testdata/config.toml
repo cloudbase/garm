@@ -121,7 +121,7 @@ time_to_live = "8760h"
     #   * virtual-machine (default)
     #   * container
     #
-    instance_type = "virtual-machine"
+    instance_type = "container"
     # enable/disable secure boot. If the image you select for the pool does not have a
     # signed bootloader, set this to false, otherwise your instances won't boot.
     secure_boot = false

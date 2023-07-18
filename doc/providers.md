@@ -19,14 +19,14 @@ Garm leverages the virtual machines feature of LXD to create the runners. Here i
 # that we have not yet added support for storing secrets in something like Barbican
 # or Vault. This will change in the future. However, for now, it's important to remember
 # that once you create a pool using one of the providers defined here, the name of that
-# provider must not be changes, or the pool will no longer work. Make sure you remove any
+# provider must not be changed, or the pool will no longer work. Make sure you remove any
 # pools before removing or changing a provider.
 [[provider]]
   # An arbitrary string describing this provider.
   name = "lxd_local"
   # Provider type. Garm is designed to allow creating providers which are used to spin
   # up compute resources, which in turn will run the github runner software.
-  # Currently, LXD is the only supported provider, but more will be written in the future.
+  # Currently, LXD is the only supprted provider, but more will be written in the future.
   provider_type = "lxd"
   # A short description of this provider. The name, description and provider types will
   # be included in the information returned by the API when listing available providers.
@@ -42,6 +42,14 @@ Garm leverages the virtual machines feature of LXD to create the runners. Here i
     # This option allows you to inject the "default" profile along with the profile selected
     # by the flavor.
     include_default_profile = false
+    # instance_type defines the type of instances this provider will create.
+    #
+    # Options are:
+    #
+    #   * virtual-machine (default)
+    #   * container
+    #
+    instance_type = "container"
     # enable/disable secure boot. If the image you select for the pool does not have a
     # signed bootloader, set this to false, otherwise your instances won't boot.
     secure_boot = false

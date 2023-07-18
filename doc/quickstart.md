@@ -80,7 +80,7 @@ In this sample config we:
 * set a JWT secret which is used to sign JWT tokens
 * set a time to live for the JWT tokens
 * enable the API server on port `80` and bind it to all interfaces
-* set the database backend to `sqlite3` and set a passphrase for the database
+* set the database backend to `sqlite3` and set a passphrase for sealing secrets (just webhook secrets for now)
 
 The callback URLs are really important and need to point back to garm. You will notice that the domain name used in these options, is the same one we defined at the beginning of this guide. If you won't use a domain name, replace `garm.example.com` with your IP address and port number.
 
@@ -128,7 +128,7 @@ The credentials section is [documented in a separate doc](./github_credentials.m
 # and descriptions are returned.
 [[github]]
   name = "gabriel"
-  description = "github token or user gabriel"
+  description = "github token for user gabriel"
   # This is a personal token with access to the repositories and organizations
   # you plan on adding to garm. The "workflow" option needs to be selected in order
   # to work with repositories, and the admin:org needs to be set if you plan on
@@ -287,8 +287,265 @@ ubuntu@garm:~# garm-cli profile list
 +----------------------+--------------------------+
 ```
 
+Every time you init a new GARM instance, a new profile will be created in your local `garm-cli` config. You can also log into an already initialized instance using:
+
+```bash
+garm-cli profile add --name="another_garm" --url https://garm2.example.com
+```
+
+Then you can switch between profiles using:
+
+```bash
+garm-cli profile switch another_garm
+```
+
 ## Define a repo
+
+We now have a working GARM installation, with github credentials and a provider added. It's time to add a repo.
+
+Before we add a repo, let's list credentials. We'll need their names when we'll add a new repo.
+
+```bash
+gabriel@rossak:~$ garm-cli credentials list
++---------+-------------------------------+--------------------+-------------------------+-----------------------------+
+| NAME    | DESCRIPTION                   | BASE URL           | API URL                 | UPLOAD URL                  |
++---------+-------------------------------+--------------------+-------------------------+-----------------------------+
+| gabriel | github token for user gabriel | https://github.com | https://api.github.com/ | https://uploads.github.com/ |
++---------+-------------------------------+--------------------+-------------------------+-----------------------------+
+```
+
+Even though you didn't explicitly set the URLs, GARM will default to the GitHub ones. You can override them if you want to use a GHES deployment.
+
+Now we can add a repo:
+
+```bash
+garm-cli repo add \
+  --credentials gabriel \
+  --owner gsamfira \
+  --name scripts \
+  --webhook-secret $SECRET
+```
+
+In this case, `$SECRET` holds the webhook secret you set previously when you defined the webhook in GitHub. This secret is mandatory as GARM will always validate the webhook payloads it receives.
+
+You should see something like this:
+
+```bash
+gabriel@rossak:~$ garm-cli repo add \
+>   --credentials gabriel \
+>   --owner gsamfira \
+>   --name scripts \
+>   --webhook-secret $SECRET
++----------------------+--------------------------------------+
+| FIELD                | VALUE                                |
++----------------------+--------------------------------------+
+| ID                   | f4900c7c-2ec0-41bd-9eab-d70fe9bd850d |
+| Owner                | gsamfira                             |
+| Name                 | scripts                              |
+| Credentials          | gabriel                              |
+| Pool manager running | false                                |
+| Failure reason       |                                      |
++----------------------+--------------------------------------+
+```
+
+We can now list the repos:
+
+```bash
+gabriel@rock:~$ garm-cli repo ls
++--------------------------------------+----------+---------+------------------+------------------+
+| ID                                   | OWNER    | NAME    | CREDENTIALS NAME | POOL MGR RUNNING |
++--------------------------------------+----------+---------+------------------+------------------+
+| f4900c7c-2ec0-41bd-9eab-d70fe9bd850d | gsamfira | scripts | gabriel          | true             |
++--------------------------------------+----------+---------+------------------+------------------+
+```
+
+Excelent! Make a note of the ID. We'll need it later when we create a pool.
 
 ## Create a pool
 
-This is the last step. 
+This is the last step. You're almost there!
+
+To create a pool we'll need the repo ID from the previous step (whhich we have) and a provider in which the pool will spin up new runners. We'll use the LXD provider we defined earlier, but we need its name:
+
+```bash
+gabriel@rossak:~$ garm-cli provider list
++-----------+------------------------+------+
+| NAME      | DESCRIPTION            | TYPE |
++-----------+------------------------+------+
+| lxd_local | Local LXD installation | lxd  |
++-----------+------------------------+------+
+```
+
+Now we can create a pool:
+
+```bash
+garm-cli pool add \
+  --repo f4900c7c-2ec0-41bd-9eab-d70fe9bd850d \
+  --enabled true \
+  --provider-name lxd_local \
+  --flavor default \
+  --image ubuntu:22.04 \
+  --max-runners 5 \
+  --min-idle-runners 0 \
+  --os-arch arm64 \
+  --os-type linux \
+  --tags ubuntu,generic
+```
+
+You should see something like this:
+
+```bash
+gabriel@rossak:~$ garm-cli pool add \
+>   --repo f4900c7c-2ec0-41bd-9eab-d70fe9bd850d \
+>   --enabled true \
+>   --provider-name lxd_local \
+>   --flavor default \
+>   --image ubuntu:22.04 \
+>   --max-runners 5 \
+>   --min-idle-runners 0 \
+>   --os-arch amd64 \
+>   --os-type linux \
+>   --tags ubuntu,generic
++--------------------------+--------------------------------------------+
+| FIELD                    | VALUE                                      |
++--------------------------+--------------------------------------------+
+| ID                       | 344e4a72-2035-4a18-a3d5-87bd3874b56c       |
+| Provider Name            | lxd_local                                  |
+| Image                    | ubuntu:22.04                               |
+| Flavor                   | default                                    |
+| OS Type                  | linux                                      |
+| OS Architecture          | amd64                                      |
+| Max Runners              | 5                                          |
+| Min Idle Runners         | 0                                          |
+| Runner Bootstrap Timeout | 20                                         |
+| Tags                     | self-hosted, amd64, Linux, ubuntu, generic |
+| Belongs to               | gsamfira/scripts                           |
+| Level                    | repo                                       |
+| Enabled                  | true                                       |
+| Runner Prefix            | garm                                       |
+| Extra specs              |                                            |
+| GitHub Runner Group      |                                            |
++--------------------------+--------------------------------------------+
+```
+
+If we list the pool we should see it:
+
+```bash
+gabriel@rock:~$ garm-cli pool ls -a
++--------------------------------------+--------------+---------+----------------------------------------+------------------+-------+---------+---------------+
+| ID                                   | IMAGE        | FLAVOR  | TAGS                                   | BELONGS TO       | LEVEL | ENABLED | RUNNER PREFIX |
++--------------------------------------+--------------+---------+----------------------------------------+------------------+-------+---------+---------------+
+| 344e4a72-2035-4a18-a3d5-87bd3874b56c | ubuntu:22.04 | default | self-hosted arm64 Linux ubuntu generic | gsamfira/scripts | repo  | true    | garm          |
++--------------------------------------+--------------+---------+----------------------------------------+------------------+-------+---------+---------------+
+```
+
+This pool is enabled, but the `min-idle-runners` option is set to 0. This means that it will not create any lingering runners. It will only create runners when a job is started. If your provider is slow to boot up new instances, you may want to set this to a value higher than 0.
+
+For the purposes of this guide, we'll increase it to 1 so we have a runner created.
+
+First, list current runners:
+
+```bash
+gabriel@rossak:~$ garm-cli runner ls -a
++----+------+--------+---------------+---------+
+| NR | NAME | STATUS | RUNNER STATUS | POOL ID |
++----+------+--------+---------------+---------+
++----+------+--------+---------------+---------+
+```
+
+No runners. Now, let's update the pool and set `min-idle-runners` to 1:
+
+```bash
+gabriel@rossak:~$ garm-cli pool update 344e4a72-2035-4a18-a3d5-87bd3874b56c --min-idle-runners=1
++--------------------------+--------------------------------------------+
+| FIELD                    | VALUE                                      |
++--------------------------+--------------------------------------------+
+| ID                       | 344e4a72-2035-4a18-a3d5-87bd3874b56c       |
+| Provider Name            | lxd_local                                  |
+| Image                    | ubuntu:22.04                               |
+| Flavor                   | default                                    |
+| OS Type                  | linux                                      |
+| OS Architecture          | amd64                                      |
+| Max Runners              | 5                                          |
+| Min Idle Runners         | 1                                          |
+| Runner Bootstrap Timeout | 20                                         |
+| Tags                     | self-hosted, amd64, Linux, ubuntu, generic |
+| Belongs to               | gsamfira/scripts                           |
+| Level                    | repo                                       |
+| Enabled                  | true                                       |
+| Runner Prefix            | garm                                       |
+| Extra specs              |                                            |
+| GitHub Runner Group      |                                            |
++--------------------------+--------------------------------------------+
+```
+
+Now if we list the runners:
+
+```bash
+gabriel@rossak:~$ garm-cli runner ls -a
++----+-------------------+----------------+---------------+--------------------------------------+
+| NR | NAME              | STATUS         | RUNNER STATUS | POOL ID                              |
++----+-------------------+----------------+---------------+--------------------------------------+
+|  1 | garm-tdtD6zpsXhj1 | pending_create | pending       | 344e4a72-2035-4a18-a3d5-87bd3874b56c |
++----+-------------------+----------------+---------------+--------------------------------------+
+```
+
+If we check our LXD, we should also see it there as well:
+
+```bash
+gabriel@rossak:~$ lxc list
++-------------------+---------+---------------------+------+-----------+-----------+
+|       NAME        |  STATE  |        IPV4         | IPV6 |   TYPE    | SNAPSHOTS |
++-------------------+---------+---------------------+------+-----------+-----------+
+| garm-tdtD6zpsXhj1 | RUNNING | 10.44.30.155 (eth0) |      | CONTAINER | 0         |
++-------------------+---------+---------------------+------+-----------+-----------+
+```
+
+If we wait for a bit and run:
+
+```bash
+gabriel@rossak:~$ garm-cli  runner show garm-tdtD6zpsXhj1
++-----------------+------------------------------------------------------------------------------------------------------+
+| FIELD           | VALUE                                                                                                |
++-----------------+------------------------------------------------------------------------------------------------------+
+| ID              | 7ac024c9-1854-4911-9859-d061059244a6                                                                 |
+| Provider ID     | garm-tdtD6zpsXhj1                                                                                    |
+| Name            | garm-tdtD6zpsXhj1                                                                                    |
+| OS Type         | linux                                                                                                |
+| OS Architecture | amd64                                                                                                |
+| OS Name         | ubuntu                                                                                               |
+| OS Version      | jammy                                                                                                |
+| Status          | running                                                                                              |
+| Runner Status   | idle                                                                                                 |
+| Pool ID         | 344e4a72-2035-4a18-a3d5-87bd3874b56c                                                                 |
+| Addresses       | 10.44.30.155                                                                                         |
+| Status Updates  | 2023-07-18T14:32:26: runner registration token was retrieved                                         |
+|                 | 2023-07-18T14:32:26: downloading tools from https://github.com/actions/runner/releases/download/v2.3 |
+|                 | 06.0/actions-runner-linux-arm64-2.306.0.tar.gz                                                       |
+|                 | 2023-07-18T14:32:30: extracting runner                                                               |
+|                 | 2023-07-18T14:32:36: installing dependencies                                                         |
+|                 | 2023-07-18T14:33:03: configuring runner                                                              |
+|                 | 2023-07-18T14:33:14: runner successfully configured after 1 attempt(s)                               |
+|                 | 2023-07-18T14:33:14: installing runner service                                                       |
+|                 | 2023-07-18T14:33:15: starting service                                                                |
+|                 | 2023-07-18T14:33:16: runner successfully installed                                                   |
++-----------------+------------------------------------------------------------------------------------------------------+
+```
+
+We can see the runner getting installed and phoning home with status updates. You should now see it in your GitHub repo under `Settings --> Actions --> Runners`.
+
+You can also target this runner using one or more of its labels. In this case, we can target it using `ubuntu` or `generic`.
+
+You can also view jobs sent to your garm instance using the `garm-cli job ls` command:
+
+```bash
+gabriel@rossak:~$ garm-cli job ls
++----+------+--------+------------+-------------+------------+------------------+-----------+
+| ID | NAME | STATUS | CONCLUSION | RUNNER NAME | REPOSITORY | REQUESTED LABELS | LOCKED BY |
++----+------+--------+------------+-------------+------------+------------------+-----------+
++----+------+--------+------------+-------------+------------+------------------+-----------+
+```
+
+There are no jobs sent yet to my GARM install, but once you start sending jobs, you'll see them here as well.
+
+That's it! You now have a working GARM installation. You can add more repos, orgs or enterprises and create more pools. You can also add more providers for different clouds and credentials with access to different GitHub resources.
