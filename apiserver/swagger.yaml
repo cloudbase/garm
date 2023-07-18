@@ -324,7 +324,7 @@ paths:
                 - jobs
     /metrics-token:
         get:
-            operationId: MetricsToken
+            operationId: GetMetricsToken
             responses:
                 "200":
                     description: JWTResponse
