@@ -74,8 +74,8 @@ func (amw *jwtMiddleware) claimsToContext(ctx context.Context, claims *JWTClaims
 }
 
 func invalidAuthResponse(w http.ResponseWriter) {
-	w.WriteHeader(http.StatusUnauthorized)
 	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(http.StatusUnauthorized)
 	if err := json.NewEncoder(w).Encode(
 		apiParams.APIErrorResponse{
 			Error: "Authentication failed",
