@@ -98,6 +98,7 @@ func NewAPIRouter(han *controllers.APIController, logWriter io.Writer, authMiddl
 	// FirstRunHandler
 	firstRunRouter := apiSubRouter.PathPrefix("/first-run").Subrouter()
 	firstRunRouter.Handle("/", http.HandlerFunc(han.FirstRunHandler)).Methods("POST", "OPTIONS")
+	firstRunRouter.Handle("", http.HandlerFunc(han.FirstRunHandler)).Methods("POST", "OPTIONS")
 
 	// Instance URLs
 	callbackRouter := apiSubRouter.PathPrefix("/callbacks").Subrouter()
