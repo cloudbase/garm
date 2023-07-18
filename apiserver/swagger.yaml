@@ -9,6 +9,13 @@ definitions:
                 alias: apiserver_params
                 package: github.com/cloudbase/garm/apiserver/params
             type: APIErrorResponse
+    CreateEnterpriseParams:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: CreateEnterpriseParams
     CreateOrgParams:
         type: object
         x-go-type:
@@ -39,6 +46,22 @@ definitions:
                 alias: garm_params
                 package: github.com/cloudbase/garm/params
             type: Credentials
+    Enterprise:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: Enterprise
+    Enterprises:
+        items:
+            $ref: '#/definitions/Enterprise'
+        type: array
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: Enterprises
     GithubCredentials:
         type: object
         x-go-type:
@@ -231,6 +254,265 @@ paths:
             summary: List all credentials.
             tags:
                 - credentials
+    /enterprises:
+        get:
+            operationId: ListEnterprises
+            responses:
+                "200":
+                    description: Enterprises
+                    schema:
+                        $ref: '#/definitions/Enterprises'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List all enterprises.
+            tags:
+                - enterprises
+        post:
+            operationId: CreateEnterprise
+            parameters:
+                - description: Parameters used to create the enterprise.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/CreateEnterpriseParams'
+                    description: Parameters used to create the enterprise.
+                    type: object
+            responses:
+                "200":
+                    description: Enterprise
+                    schema:
+                        $ref: '#/definitions/Enterprise'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Create enterprise with the given parameters.
+            tags:
+                - enterprises
+    /enterprises/{enterpriseID}:
+        delete:
+            operationId: DeleteEnterprise
+            parameters:
+                - description: ID of the enterprise to delete.
+                  in: path
+                  name: enterpriseID
+                  required: true
+                  type: string
+            responses:
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Delete enterprise by ID.
+            tags:
+                - enterprises
+        get:
+            operationId: GetEnterprise
+            parameters:
+                - description: The ID of the enterprise to fetch.
+                  in: path
+                  name: enterpriseID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: Enterprise
+                    schema:
+                        $ref: '#/definitions/Enterprise'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get enterprise by ID.
+            tags:
+                - enterprises
+        put:
+            operationId: UpdateEnterprise
+            parameters:
+                - description: The ID of the enterprise to update.
+                  in: path
+                  name: enterpriseID
+                  required: true
+                  type: string
+                - description: Parameters used to update the enterprise.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/UpdateEntityParams'
+                    description: Parameters used to update the enterprise.
+                    type: object
+            responses:
+                "200":
+                    description: Enterprise
+                    schema:
+                        $ref: '#/definitions/Enterprise'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Update an enterprise with the given parameters.
+            tags:
+                - enterprises
+    /enterprises/{enterpriseID}/instances:
+        get:
+            operationId: ListEnterpriseInstances
+            parameters:
+                - description: Enterprise ID.
+                  in: path
+                  name: enterpriseID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: Instances
+                    schema:
+                        $ref: '#/definitions/Instances'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List enterprise instances.
+            tags:
+                - enterprises
+                - instances
+    /enterprises/{enterpriseID}/pools:
+        get:
+            operationId: ListEnterprisePools
+            parameters:
+                - description: Enterprise ID.
+                  in: path
+                  name: enterpriseID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: Pools
+                    schema:
+                        $ref: '#/definitions/Pools'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List enterprise pools.
+            tags:
+                - enterprises
+                - pools
+        post:
+            operationId: CreateEnterprisePool
+            parameters:
+                - description: Enterprise ID.
+                  in: path
+                  name: enterpriseID
+                  required: true
+                  type: string
+                - description: Parameters used when creating the enterprise pool.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/CreatePoolParams'
+                    description: Parameters used when creating the enterprise pool.
+                    type: object
+            responses:
+                "200":
+                    description: Pool
+                    schema:
+                        $ref: '#/definitions/Pool'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Create enterprise pool with the parameters given.
+            tags:
+                - enterprises
+                - pools
+    /enterprises/{enterpriseID}/pools/{poolID}:
+        delete:
+            operationId: DeleteEnterprisePool
+            parameters:
+                - description: Enterprise ID.
+                  in: path
+                  name: enterpriseID
+                  required: true
+                  type: string
+                - description: ID of the enterprise pool to delete.
+                  in: path
+                  name: poolID
+                  required: true
+                  type: string
+            responses:
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Delete enterprise pool by ID.
+            tags:
+                - enterprises
+                - pools
+        get:
+            operationId: GetEnterprisePool
+            parameters:
+                - description: Enterprise ID.
+                  in: path
+                  name: enterpriseID
+                  required: true
+                  type: string
+                - description: Pool ID.
+                  in: path
+                  name: poolID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: Pool
+                    schema:
+                        $ref: '#/definitions/Pool'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get enterprise pool by ID.
+            tags:
+                - enterprises
+                - pools
+        put:
+            operationId: UpdateEnterprisePool
+            parameters:
+                - description: Enterprise ID.
+                  in: path
+                  name: enterpriseID
+                  required: true
+                  type: string
+                - description: ID of the enterprise pool to update.
+                  in: path
+                  name: poolID
+                  required: true
+                  type: string
+                - description: Parameters used when updating the enterprise pool.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/UpdatePoolParams'
+                    description: Parameters used when updating the enterprise pool.
+                    type: object
+            responses:
+                "200":
+                    description: Pool
+                    schema:
+                        $ref: '#/definitions/Pool'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Update enterprise pool with the parameters given.
+            tags:
+                - enterprises
+                - pools
     /first-run:
         post:
             operationId: FirstRun
