@@ -155,6 +155,29 @@ definitions:
         import:
             package: github.com/cloudbase/garm/params
             alias: garm_params
+  Enterprises:
+    type: array
+    x-go-type:
+        type: Enterprises
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+    items:
+        $ref: '#/definitions/Enterprise'
+  Enterprise:
+    type: object
+    x-go-type:
+        type: Enterprise
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+  CreateEnterpriseParams:
+    type: object
+    x-go-type:
+        type: CreateEnterpriseParams
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
   UpdateEntityParams:
     type: object
     x-go-type:

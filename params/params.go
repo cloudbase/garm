@@ -371,6 +371,9 @@ func (e Enterprise) GetID() string {
 	return e.ID
 }
 
+// used by swagger client generated code
+type Enterprises []Enterprise
+
 // Users holds information about a particular user
 type User struct {
 	ID        string    `json:"id"`
