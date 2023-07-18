@@ -1,4 +1,4 @@
-# Quickstart
+# Quick start
 
 Okay, I lied. It's not that quick. But it's not that long either. I promise.
 
@@ -36,7 +36,7 @@ All of our config files and data will be stored in `/etc/garm`. Let's create tha
 sudo mkdir -p /etc/garm
 ```
 
-Coincidentally, this is also where the docker container [looks for the config](../Dockerfile#L29) when it starts up. You can either use `Docker` or you can set up garm directly on your system. I'll show you both ways. In both cases, we need to first create the config folder and a proper config file. 
+Coincidentally, this is also where the docker container [looks for the config](../Dockerfile#L29) when it starts up. You can either use `Docker` or you can set up garm directly on your system. I'll show you both ways. In both cases, we need to first create the config folder and a proper config file.
 
 ## The config file
 
@@ -94,7 +94,7 @@ At this point, we have a valid config file, but we still need to add `provider` 
 
 ## The provider section
 
-This is where you have a decission to make. GARM has a number of providers you can leverage. At the time of this writing, we have support for:
+This is where you have a decision to make. GARM has a number of providers you can leverage. At the time of this writing, we have support for:
 
 * LXD
 * Azure
@@ -106,7 +106,7 @@ Both the LXD and the external provider configs are [documented in a separate doc
 
 The easiest provider to set up is probably the LXD provider. You don't need an account on an external cloud. You can just use your machine.
 
-You will need to have LXD installed and configured. There is an excelent [getting started guide](https://documentation.ubuntu.com/lxd/en/latest/getting_started/) for LXD. Follow the instructions there to install and configure LXD, then come back here.
+You will need to have LXD installed and configured. There is an excellent [getting started guide](https://documentation.ubuntu.com/lxd/en/latest/getting_started/) for LXD. Follow the instructions there to install and configure LXD, then come back here.
 
 Once you have LXD installed and configured, you can add the provider section to your config file. If you're connecting to the `local` LXD installation, the [config snippet for the LXD provider](./providers.md#lxd-provider) will work out of the box. We'll be connecting using the unix socket so no further configuration will be needed.
 
@@ -231,11 +231,11 @@ signal.NotifyContext(context.Background, [interrupt terminated])
 2023/07/17 22:21:33 Loading provider lxd_local
 2023/07/17 22:21:33 registering prometheus metrics collectors
 2023/07/17 22:21:33 setting up metric routes
-2023/07/17 22:21:35 ignoring unknown event 
+2023/07/17 22:21:35 ignoring unknown event
 172.17.0.1 - - [17/Jul/2023:22:21:35 +0000] "GET /webhooks HTTP/1.1" 200 0 "" "curl/7.81.0"
 ```
 
-Excelent! We have a working GARM installation. Now we need to set up the webhook in GitHub.
+Excellent! We have a working GARM installation. Now we need to set up the webhook in GitHub.
 
 ## Setting up the webhook
 
@@ -359,13 +359,13 @@ gabriel@rock:~$ garm-cli repo ls
 +--------------------------------------+----------+---------+------------------+------------------+
 ```
 
-Excelent! Make a note of the ID. We'll need it later when we create a pool.
+Excellent! Make a note of the ID. We'll need it later when we create a pool.
 
 ## Create a pool
 
 This is the last step. You're almost there!
 
-To create a pool we'll need the repo ID from the previous step (whhich we have) and a provider in which the pool will spin up new runners. We'll use the LXD provider we defined earlier, but we need its name:
+To create a pool we'll need the repo ID from the previous step (which we have) and a provider in which the pool will spin up new runners. We'll use the LXD provider we defined earlier, but we need its name:
 
 ```bash
 gabriel@rossak:~$ garm-cli provider list
