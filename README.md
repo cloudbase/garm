@@ -18,89 +18,7 @@ Whether you're running into issues or just want to drop by and say "hi", feel fr
 
 ## Installing
 
-## Build from source
-
-You need to have Go installed, then run:
-
-  ```bash
-  go install github.com/cloudbase/garm/cmd/garm@latest
-  go install github.com/cloudbase/garm/cmd/garm-cli@latest
-  ```
-
-This will install the garm binaries in ```$GOPATH/bin``` folder. Move them somewhere in your ```$PATH``` to make them available system-wide.
-
-If you have docker/podman installed, you can also build statically linked binaries by running:
-
-  ```bash
-  git clone https://github.com/cloudbase/garm
-  cd garm
-  git checkout release/v0.1
-  make build-static
-  ```
-
-The ```garm``` and ```garm-cli``` binaries will be built and copied to the ```bin/``` folder in your current working directory.
-
-## Install the service
-
-Add a new system user:
-
-  ```bash
-  useradd --shell /usr/bin/false \
-      --system \
-      --groups lxd \
-      --no-create-home garm
-  ```
-
-The ```lxd``` group is only needed if you have a local LXD install and want to connect to the unix socket to use it. If you're connecting to a remote LXD server over TCP, you can skip adding the ```garm``` user to the ```lxd``` group.
-
-Copy the binary to somewhere in the system ```$PATH```:
-
-  ```bash
-  sudo cp $(go env GOPATH)/bin/garm /usr/local/bin/garm
-  ```
-
-Or if you built garm using ```make```:
-
-  ```bash
-  sudo cp ./bin/garm /usr/local/bin/garm
-  ```
-
-Create the config folder:
-
-  ```bash
-  sudo mkdir -p /etc/garm
-  ```
-
-Copy the config template:
-
-  ```bash
-  sudo cp ./testdata/config.toml /etc/garm/
-  ```
-
-Copy the systemd service file:
-
-  ```bash
-  sudo cp ./contrib/garm.service /etc/systemd/system/
-  ```
-
-Change permissions on config folder:
-
-  ```bash
-  sudo chown -R garm:garm /etc/garm
-  sudo chmod 750 -R /etc/garm
-  ```
-
-Enable the service:
-
-  ```bash
-  sudo systemctl enable garm
-  ```
-
-Customize the config in ```/etc/garm/config.toml```, and start the service:
-
-  ```bash
-  sudo systemctl start garm
-  ```
+Check out the [quickstart](/doc/quickstart.md) document for instructions on how to install ```garm```. If you'd like to build from source, check out the [building from source](/doc/building_from_source.md) document.
 
 ## Installing external providers
 
@@ -122,12 +40,6 @@ The ```garm``` configuration is a simple ```toml```. The sample config file in [
 * [Metrics](/doc/config_metrics.md)
 * [JWT authentication](/doc/config_jwt_auth.md)
 * [API server](/doc/config_api_server.md)
-
-Once you've configured your database, providers and github credentials, you'll need to configure your [webhooks and the callback_url](/doc/webhooks_and_callbacks.md).
-
-At this point, you should be done. Have a look at the [running garm document](/doc/running_garm.md) for usage instructions and available features.
-
-If you would like to use ```garm``` with a different IaaS than the ones already available, have a look at the [writing an external provider](/doc/external_provider.md) page.
 
 If you would like to optimize the startup time of new instance, take a look at the [performance considerations](/doc/performance_considerations.md) page.
 
