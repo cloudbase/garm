@@ -491,3 +491,6 @@ type Job struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
+
+// used by swagger client generated code
+type Jobs []Job

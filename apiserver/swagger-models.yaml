@@ -29,6 +29,22 @@ definitions:
         import:
             package: github.com/cloudbase/garm/params
             alias: garm_params
+  Jobs:
+    type: array
+    x-go-type:
+        type: Jobs
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+    items:
+        $ref: '#/definitions/Job'
+  Job: 
+    type: object
+    x-go-type:
+        type: Job
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
   Credentials:
     type: array
     x-go-type:
