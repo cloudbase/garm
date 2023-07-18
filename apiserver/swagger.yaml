@@ -69,6 +69,22 @@ definitions:
                 alias: garm_params
                 package: github.com/cloudbase/garm/params
             type: JWTResponse
+    Job:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: Job
+    Jobs:
+        items:
+            $ref: '#/definitions/Job'
+        type: array
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: Jobs
     NewUserParams:
         type: object
         x-go-type:
@@ -291,6 +307,36 @@ paths:
             summary: Get runner instance by name.
             tags:
                 - instances
+    /jobs:
+        get:
+            operationId: ListJobs
+            responses:
+                "200":
+                    description: Jobs
+                    schema:
+                        $ref: '#/definitions/Jobs'
+                "400":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List all jobs.
+            tags:
+                - jobs
+    /metrics-token:
+        get:
+            operationId: MetricsToken
+            responses:
+                "200":
+                    description: JWTResponse
+                    schema:
+                        $ref: '#/definitions/JWTResponse'
+                "401":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Returns a JWT token that can be used to access the metrics endpoint.
+            tags:
+                - metrics-token
     /organizations:
         get:
             operationId: ListOrgs
