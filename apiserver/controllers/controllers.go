@@ -202,7 +202,7 @@ func (a *APIController) NotFoundHandler(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
-// swagger:route GET /metrics-token metrics-token MetricsToken
+// swagger:route GET /metrics-token metrics-token GetMetricsToken
 //
 // Returns a JWT token that can be used to access the metrics endpoint.
 //
