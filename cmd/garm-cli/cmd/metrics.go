@@ -17,6 +17,7 @@ package cmd
 import (
 	"fmt"
 
+	apiClientMetricToken "github.com/cloudbase/garm/client/metrics_token"
 	"github.com/spf13/cobra"
 )
 
@@ -39,11 +40,12 @@ var metricsTokenCreateCmd = &cobra.Command{
 			return errNeedsInitError
 		}
 
-		token, err := cli.CreateMetricsToken()
+		showMetricsTokenReq := apiClientMetricToken.NewGetMetricsTokenParams()
+		response, err := apiCli.MetricsToken.GetMetricsToken(showMetricsTokenReq, authToken)
 		if err != nil {
 			return err
 		}
-		fmt.Println(token)
+		fmt.Println(response.Payload.Token)
 
 		return nil
 	},

@@ -17,6 +17,7 @@ package cmd
 import (
 	"fmt"
 
+	apiClientEnterprises "github.com/cloudbase/garm/client/enterprises"
 	"github.com/cloudbase/garm/params"
 
 	"github.com/jedib0t/go-pretty/v6/table"
@@ -54,16 +55,17 @@ var enterpriseAddCmd = &cobra.Command{
 			return errNeedsInitError
 		}
 
-		newEnterpriseReq := params.CreateEnterpriseParams{
+		newEnterpriseReq := apiClientEnterprises.NewCreateEnterpriseParams()
+		newEnterpriseReq.Body = params.CreateEnterpriseParams{
 			Name:            enterpriseName,
 			WebhookSecret:   enterpriseWebhookSecret,
 			CredentialsName: enterpriseCreds,
 		}
-		enterprise, err := cli.CreateEnterprise(newEnterpriseReq)
+		response, err := apiCli.Enterprises.CreateEnterprise(newEnterpriseReq, authToken)
 		if err != nil {
 			return err
 		}
-		formatOneEnterprise(enterprise)
+		formatOneEnterprise(response.Payload)
 		return nil
 	},
 }
@@ -79,11 +81,12 @@ var enterpriseListCmd = &cobra.Command{
 			return errNeedsInitError
 		}
 
-		enterprises, err := cli.ListEnterprises()
+		listEnterprisesReq := apiClientEnterprises.NewListEnterprisesParams()
+		response, err := apiCli.Enterprises.ListEnterprises(listEnterprisesReq, authToken)
 		if err != nil {
 			return err
 		}
-		formatEnterprises(enterprises)
+		formatEnterprises(response.Payload)
 		return nil
 	},
 }
@@ -103,11 +106,13 @@ var enterpriseShowCmd = &cobra.Command{
 		if len(args) > 1 {
 			return fmt.Errorf("too many arguments")
 		}
-		enterprise, err := cli.GetEnterprise(args[0])
+		showEnterpriseReq := apiClientEnterprises.NewGetEnterpriseParams()
+		showEnterpriseReq.EnterpriseID = args[0]
+		response, err := apiCli.Enterprises.GetEnterprise(showEnterpriseReq, authToken)
 		if err != nil {
 			return err
 		}
-		formatOneEnterprise(enterprise)
+		formatOneEnterprise(response.Payload)
 		return nil
 	},
 }
@@ -128,7 +133,9 @@ var enterpriseDeleteCmd = &cobra.Command{
 		if len(args) > 1 {
 			return fmt.Errorf("too many arguments")
 		}
-		if err := cli.DeleteEnterprise(args[0]); err != nil {
+		deleteEnterpriseReq := apiClientEnterprises.NewDeleteEnterpriseParams()
+		deleteEnterpriseReq.EnterpriseID = args[0]
+		if err := apiCli.Enterprises.DeleteEnterprise(deleteEnterpriseReq, authToken); err != nil {
 			return err
 		}
 		return nil
@@ -152,16 +159,17 @@ var enterpriseUpdateCmd = &cobra.Command{
 		if len(args) > 1 {
 			return fmt.Errorf("too many arguments")
 		}
-
-		enterpriseUpdateReq := params.UpdateEntityParams{
+		updateEnterpriseReq := apiClientEnterprises.NewUpdateEnterpriseParams()
+		updateEnterpriseReq.Body = params.UpdateEntityParams{
 			WebhookSecret:   repoWebhookSecret,
 			CredentialsName: repoCreds,
 		}
-		enterprise, err := cli.UpdateEnterprise(args[0], enterpriseUpdateReq)
+		updateEnterpriseReq.EnterpriseID = args[0]
+		response, err := apiCli.Enterprises.UpdateEnterprise(updateEnterpriseReq, authToken)
 		if err != nil {
 			return err
 		}
-		formatOneEnterprise(enterprise)
+		formatOneEnterprise(response.Payload)
 		return nil
 	},
 }

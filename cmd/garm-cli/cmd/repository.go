@@ -17,6 +17,7 @@ package cmd
 import (
 	"fmt"
 
+	apiClientRepos "github.com/cloudbase/garm/client/repositories"
 	"github.com/cloudbase/garm/params"
 
 	"github.com/jedib0t/go-pretty/v6/table"
@@ -55,17 +56,18 @@ var repoAddCmd = &cobra.Command{
 			return errNeedsInitError
 		}
 
-		newRepoReq := params.CreateRepoParams{
+		newRepoReq := apiClientRepos.NewCreateRepoParams()
+		newRepoReq.Body = params.CreateRepoParams{
 			Owner:           repoOwner,
 			Name:            repoName,
 			WebhookSecret:   repoWebhookSecret,
 			CredentialsName: repoCreds,
 		}
-		repo, err := cli.CreateRepository(newRepoReq)
+		response, err := apiCli.Repositories.CreateRepo(newRepoReq, authToken)
 		if err != nil {
 			return err
 		}
-		formatOneRepository(repo)
+		formatOneRepository(response.Payload)
 		return nil
 	},
 }
@@ -81,11 +83,12 @@ var repoListCmd = &cobra.Command{
 			return errNeedsInitError
 		}
 
-		repos, err := cli.ListRepositories()
+		listReposReq := apiClientRepos.NewListReposParams()
+		response, err := apiCli.Repositories.ListRepos(listReposReq, authToken)
 		if err != nil {
 			return err
 		}
-		formatRepositories(repos)
+		formatRepositories(response.Payload)
 		return nil
 	},
 }
@@ -107,16 +110,18 @@ var repoUpdateCmd = &cobra.Command{
 		if len(args) > 1 {
 			return fmt.Errorf("too many arguments")
 		}
-
-		repoUpdateReq := params.UpdateEntityParams{
+		updateReposReq := apiClientRepos.NewUpdateRepoParams()
+		updateReposReq.Body = params.UpdateEntityParams{
 			WebhookSecret:   repoWebhookSecret,
 			CredentialsName: repoCreds,
 		}
-		repo, err := cli.UpdateRepo(args[0], repoUpdateReq)
+		updateReposReq.RepoID = args[0]
+
+		response, err := apiCli.Repositories.UpdateRepo(updateReposReq, authToken)
 		if err != nil {
 			return err
 		}
-		formatOneRepository(repo)
+		formatOneRepository(response.Payload)
 		return nil
 	},
 }
@@ -136,11 +141,13 @@ var repoShowCmd = &cobra.Command{
 		if len(args) > 1 {
 			return fmt.Errorf("too many arguments")
 		}
-		repo, err := cli.GetRepository(args[0])
+		showRepoReq := apiClientRepos.NewGetRepoParams()
+		showRepoReq.RepoID = args[0]
+		response, err := apiCli.Repositories.GetRepo(showRepoReq, authToken)
 		if err != nil {
 			return err
 		}
-		formatOneRepository(repo)
+		formatOneRepository(response.Payload)
 		return nil
 	},
 }
@@ -161,7 +168,9 @@ var repoDeleteCmd = &cobra.Command{
 		if len(args) > 1 {
 			return fmt.Errorf("too many arguments")
 		}
-		if err := cli.DeleteRepository(args[0]); err != nil {
+		deleteRepoReq := apiClientRepos.NewDeleteRepoParams()
+		deleteRepoReq.RepoID = args[0]
+		if err := apiCli.Repositories.DeleteRepo(deleteRepoReq, authToken); err != nil {
 			return err
 		}
 		return nil

@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"strings"
 
+	apiClientJobs "github.com/cloudbase/garm/client/jobs"
 	"github.com/cloudbase/garm/params"
 	"github.com/google/uuid"
 	"github.com/jedib0t/go-pretty/v6/table"
@@ -44,11 +45,12 @@ var jobsListCmd = &cobra.Command{
 			return errNeedsInitError
 		}
 
-		jobs, err := cli.ListAllJobs()
+		listJobsReq := apiClientJobs.NewListJobsParams()
+		response, err := apiCli.Jobs.ListJobs(listJobsReq, authToken)
 		if err != nil {
 			return err
 		}
-		formatJobs(jobs)
+		formatJobs(response.Payload)
 		return nil
 	},
 }
