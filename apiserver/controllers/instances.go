@@ -232,6 +232,20 @@ func (a *APIController) ListOrgInstancesHandler(w http.ResponseWriter, r *http.R
 	}
 }
 
+// swagger:route GET /enterprises/{enterpriseID}/instances enterprises instances ListEnterpriseInstances
+//
+// List enterprise instances.
+//
+//	Parameters:
+//	  + name: enterpriseID
+//	    description: Enterprise ID.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	Responses:
+//	  200: Instances
+//	  default: APIErrorResponse
 func (a *APIController) ListEnterpriseInstancesHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	vars := mux.Vars(r)

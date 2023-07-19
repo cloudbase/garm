@@ -11,6 +11,7 @@ import (
 	"github.com/go-openapi/strfmt"
 
 	"github.com/cloudbase/garm/client/credentials"
+	"github.com/cloudbase/garm/client/enterprises"
 	"github.com/cloudbase/garm/client/first_run"
 	"github.com/cloudbase/garm/client/instances"
 	"github.com/cloudbase/garm/client/jobs"
@@ -65,6 +66,7 @@ func New(transport runtime.ClientTransport, formats strfmt.Registry) *GarmAPI {
 	cli := new(GarmAPI)
 	cli.Transport = transport
 	cli.Credentials = credentials.New(transport, formats)
+	cli.Enterprises = enterprises.New(transport, formats)
 	cli.FirstRun = first_run.New(transport, formats)
 	cli.Instances = instances.New(transport, formats)
 	cli.Jobs = jobs.New(transport, formats)
@@ -120,6 +122,8 @@ func (cfg *TransportConfig) WithSchemes(schemes []string) *TransportConfig {
 type GarmAPI struct {
 	Credentials credentials.ClientService
 
+	Enterprises enterprises.ClientService
+
 	FirstRun first_run.ClientService
 
 	Instances instances.ClientService
@@ -145,6 +149,7 @@ type GarmAPI struct {
 func (c *GarmAPI) SetTransport(transport runtime.ClientTransport) {
 	c.Transport = transport
 	c.Credentials.SetTransport(transport)
+	c.Enterprises.SetTransport(transport)
 	c.FirstRun.SetTransport(transport)
 	c.Instances.SetTransport(transport)
 	c.Jobs.SetTransport(transport)
