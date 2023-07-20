@@ -279,7 +279,7 @@ Email: root@localhost
 The init command also created a local CLI profile for your new GARM server:
 
 ```bash
-ubuntu@garm:~# garm-cli profile list
+ubuntu@garm:~$ garm-cli profile list
 +----------------------+--------------------------+
 | NAME                 | BASE URL                 |
 +----------------------+--------------------------+
