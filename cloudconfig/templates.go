@@ -40,6 +40,10 @@ GITHUB_TOKEN=$(curl --retry 5 --retry-delay 5 --retry-connrefused --fail -s -X G
 
 function call() {
 	PAYLOAD="$1"
+	[[ $CALLBACK_URL =~ ^(.*)/status$ ]]
+	if [ -z "$BASH_REMATCH" ];then
+		CALLBACK_URL="${CALLBACK_URL}/status"
+	fi
 	curl --retry 5 --retry-delay 5 --retry-connrefused --fail -s -X POST -d "${PAYLOAD}" -H 'Accept: application/json' -H "Authorization: Bearer ${BEARER_TOKEN}" "${CALLBACK_URL}" || echo "failed to call home: exit code ($?)"
 }
 
@@ -350,6 +354,10 @@ $GHRunnerGroup = "{{.GitHubRunnerGroup}}"
 
 function Install-Runner() {
 	$CallbackURL="{{.CallbackURL}}"
+	if (!$CallbackURL.EndsWith("/status")) {
+		$CallbackURL = "$CallbackURL/status"
+	}
+
 	if ($Token.Length -eq 0) {
 		Throw "missing callback authentication token"
 	}

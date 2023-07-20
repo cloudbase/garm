@@ -47,9 +47,6 @@ func NewConfig(cfgFile string) (*Config, error) {
 	if _, err := toml.DecodeFile(cfgFile, &config); err != nil {
 		return nil, errors.Wrap(err, "decoding toml")
 	}
-	if config.Default.ConfigDir == "" {
-		config.Default.ConfigDir = appdefaults.DefaultConfigDir
-	}
 	if err := config.Validate(); err != nil {
 		return nil, errors.Wrap(err, "validating config")
 	}
@@ -108,10 +105,6 @@ func (c *Config) Validate() error {
 }
 
 type Default struct {
-	// ConfigDir is the folder where the runner may save any aditional files
-	// or configurations it may need. Things like auto-generated SSH keys that
-	// may be used to access the runner instances.
-	ConfigDir string `toml:"config_dir,omitempty" json:"config-dir,omitempty"`
 	// CallbackURL is the URL where the instances can send back status reports.
 	CallbackURL string `toml:"callback_url" json:"callback-url"`
 	// MetadataURL is the URL where instances can fetch information they may need
@@ -137,14 +130,6 @@ func (d *Default) Validate() error {
 	}
 	if _, err := url.Parse(d.MetadataURL); err != nil {
 		return errors.Wrap(err, "validating metadata_url")
-	}
-
-	if d.ConfigDir == "" {
-		return fmt.Errorf("config_dir cannot be empty")
-	}
-
-	if _, err := os.Stat(d.ConfigDir); err != nil {
-		return errors.Wrap(err, "accessing config dir")
 	}
 
 	return nil
