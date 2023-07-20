@@ -387,7 +387,7 @@ garm-cli pool add \
   --image ubuntu:22.04 \
   --max-runners 5 \
   --min-idle-runners 0 \
-  --os-arch arm64 \
+  --os-arch amd64 \
   --os-type linux \
   --tags ubuntu,generic
 ```
@@ -435,7 +435,7 @@ gabriel@rock:~$ garm-cli pool ls -a
 +--------------------------------------+--------------+---------+----------------------------------------+------------------+-------+---------+---------------+
 | ID                                   | IMAGE        | FLAVOR  | TAGS                                   | BELONGS TO       | LEVEL | ENABLED | RUNNER PREFIX |
 +--------------------------------------+--------------+---------+----------------------------------------+------------------+-------+---------+---------------+
-| 344e4a72-2035-4a18-a3d5-87bd3874b56c | ubuntu:22.04 | default | self-hosted arm64 Linux ubuntu generic | gsamfira/scripts | repo  | true    | garm          |
+| 344e4a72-2035-4a18-a3d5-87bd3874b56c | ubuntu:22.04 | default | self-hosted amd64 Linux ubuntu generic | gsamfira/scripts | repo  | true    | garm          |
 +--------------------------------------+--------------+---------+----------------------------------------+------------------+-------+---------+---------------+
 ```
 
@@ -521,7 +521,7 @@ gabriel@rossak:~$ garm-cli  runner show garm-tdtD6zpsXhj1
 | Addresses       | 10.44.30.155                                                                                         |
 | Status Updates  | 2023-07-18T14:32:26: runner registration token was retrieved                                         |
 |                 | 2023-07-18T14:32:26: downloading tools from https://github.com/actions/runner/releases/download/v2.3 |
-|                 | 06.0/actions-runner-linux-arm64-2.306.0.tar.gz                                                       |
+|                 | 06.0/actions-runner-linux-amd64-2.306.0.tar.gz                                                       |
 |                 | 2023-07-18T14:32:30: extracting runner                                                               |
 |                 | 2023-07-18T14:32:36: installing dependencies                                                         |
 |                 | 2023-07-18T14:33:03: configuring runner                                                              |
