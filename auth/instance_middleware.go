@@ -26,7 +26,6 @@ import (
 	runnerErrors "github.com/cloudbase/garm/errors"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
-	providerCommon "github.com/cloudbase/garm/runner/providers/common"
 
 	"github.com/golang-jwt/jwt"
 	"github.com/pkg/errors"
@@ -149,7 +148,7 @@ func (amw *instanceMiddleware) Middleware(next http.Handler) http.Handler {
 		}
 
 		runnerStatus := InstanceRunnerStatus(ctx)
-		if runnerStatus != providerCommon.RunnerInstalling && runnerStatus != providerCommon.RunnerPending {
+		if runnerStatus != params.RunnerInstalling && runnerStatus != params.RunnerPending {
 			// Instances that have finished installing can no longer authenticate to the API
 			invalidAuthResponse(w)
 			return

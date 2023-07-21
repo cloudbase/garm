@@ -36,12 +36,14 @@ import (
 	"unicode"
 	"unicode/utf16"
 
-	"github.com/cloudbase/garm/cloudconfig"
+	"github.com/cloudbase/garm-provider-common/cloudconfig"
 	"github.com/cloudbase/garm/config"
 	runnerErrors "github.com/cloudbase/garm/errors"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
-	"github.com/cloudbase/garm/util/appdefaults"
+
+	"github.com/cloudbase/garm-provider-common/defaults"
+	commonParams "github.com/cloudbase/garm-provider-common/params"
 
 	"github.com/google/go-github/v53/github"
 	"github.com/google/uuid"
@@ -59,24 +61,24 @@ const alphanumeric = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuv
 var rxEmail = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
 
 var (
-	OSToOSTypeMap map[string]params.OSType = map[string]params.OSType{
-		"almalinux":  params.Linux,
-		"alma":       params.Linux,
-		"alpine":     params.Linux,
-		"archlinux":  params.Linux,
-		"arch":       params.Linux,
-		"centos":     params.Linux,
-		"ubuntu":     params.Linux,
-		"rhel":       params.Linux,
-		"suse":       params.Linux,
-		"opensuse":   params.Linux,
-		"fedora":     params.Linux,
-		"debian":     params.Linux,
-		"flatcar":    params.Linux,
-		"gentoo":     params.Linux,
-		"rockylinux": params.Linux,
-		"rocky":      params.Linux,
-		"windows":    params.Windows,
+	OSToOSTypeMap map[string]commonParams.OSType = map[string]commonParams.OSType{
+		"almalinux":  commonParams.Linux,
+		"alma":       commonParams.Linux,
+		"alpine":     commonParams.Linux,
+		"archlinux":  commonParams.Linux,
+		"arch":       commonParams.Linux,
+		"centos":     commonParams.Linux,
+		"ubuntu":     commonParams.Linux,
+		"rhel":       commonParams.Linux,
+		"suse":       commonParams.Linux,
+		"opensuse":   commonParams.Linux,
+		"fedora":     commonParams.Linux,
+		"debian":     commonParams.Linux,
+		"flatcar":    commonParams.Linux,
+		"gentoo":     commonParams.Linux,
+		"rockylinux": commonParams.Linux,
+		"rocky":      commonParams.Linux,
+		"windows":    commonParams.Windows,
 	}
 
 	githubArchMapping map[string]string = map[string]string{
@@ -95,9 +97,9 @@ var (
 	}
 
 	//
-	githubOSTag = map[params.OSType]string{
-		params.Linux:   "Linux",
-		params.Windows: "Windows",
+	githubOSTag = map[commonParams.OSType]string{
+		commonParams.Linux:   "Linux",
+		commonParams.Windows: "Windows",
 	}
 )
 
@@ -128,7 +130,7 @@ func ResolveToGithubOSType(osType string) (string, error) {
 // ResolveToGithubTag returns the default OS tag that self hosted runners automatically
 // (and forcefully) adds to every runner that gets deployed. We need to keep track of those
 // tags internally as well.
-func ResolveToGithubTag(os params.OSType) (string, error) {
+func ResolveToGithubTag(os commonParams.OSType) (string, error) {
 	ghOS, ok := githubOSTag[os]
 	if !ok {
 		return "", runnerErrors.NewNotFoundError("os %s is unknown", os)
@@ -187,10 +189,10 @@ func ConvertFileToBase64(file string) (string, error) {
 	return base64.StdEncoding.EncodeToString(bytes), nil
 }
 
-func OSToOSType(os string) (params.OSType, error) {
+func OSToOSType(os string) (commonParams.OSType, error) {
 	osType, ok := OSToOSTypeMap[strings.ToLower(os)]
 	if !ok {
-		return params.Unknown, fmt.Errorf("no OS to OS type mapping for %s", os)
+		return commonParams.Unknown, fmt.Errorf("no OS to OS type mapping for %s", os)
 	}
 	return osType, nil
 }
@@ -244,8 +246,8 @@ func GetCloudConfig(bootstrapParams params.BootstrapInstance, tools github.Runne
 		DownloadURL:       *tools.DownloadURL,
 		TempDownloadToken: tempToken,
 		MetadataURL:       bootstrapParams.MetadataURL,
-		RunnerUsername:    appdefaults.DefaultUser,
-		RunnerGroup:       appdefaults.DefaultUser,
+		RunnerUsername:    defaults.DefaultUser,
+		RunnerGroup:       defaults.DefaultUser,
 		RepoURL:           bootstrapParams.RepoURL,
 		RunnerName:        runnerName,
 		RunnerLabels:      strings.Join(bootstrapParams.Labels, ","),
@@ -264,7 +266,7 @@ func GetCloudConfig(bootstrapParams params.BootstrapInstance, tools github.Runne
 
 	var asStr string
 	switch bootstrapParams.OSType {
-	case params.Linux:
+	case commonParams.Linux:
 		cloudCfg := cloudconfig.NewDefaultCloudInitConfig()
 
 		if bootstrapParams.UserDataOptions.DisableUpdatesOnBoot {
@@ -277,7 +279,7 @@ func GetCloudConfig(bootstrapParams params.BootstrapInstance, tools github.Runne
 
 		cloudCfg.AddSSHKey(bootstrapParams.SSHKeys...)
 		cloudCfg.AddFile(installScript, "/install_runner.sh", "root:root", "755")
-		cloudCfg.AddRunCmd(fmt.Sprintf("su -l -c /install_runner.sh %s", appdefaults.DefaultUser))
+		cloudCfg.AddRunCmd(fmt.Sprintf("su -l -c /install_runner.sh %s", defaults.DefaultUser))
 		cloudCfg.AddRunCmd("rm -f /install_runner.sh")
 		if bootstrapParams.CACertBundle != nil && len(bootstrapParams.CACertBundle) > 0 {
 			if err := cloudCfg.AddCACert(bootstrapParams.CACertBundle); err != nil {
@@ -289,7 +291,7 @@ func GetCloudConfig(bootstrapParams params.BootstrapInstance, tools github.Runne
 		if err != nil {
 			return "", errors.Wrap(err, "creating cloud config")
 		}
-	case params.Windows:
+	case commonParams.Windows:
 		asStr = string(installScript)
 	default:
 		return "", fmt.Errorf("unknown os type: %s", bootstrapParams.OSType)
@@ -298,19 +300,19 @@ func GetCloudConfig(bootstrapParams params.BootstrapInstance, tools github.Runne
 	return asStr, nil
 }
 
-func GetTools(osType params.OSType, osArch params.OSArch, tools []*github.RunnerApplicationDownload) (github.RunnerApplicationDownload, error) {
+func GetTools(osType commonParams.OSType, osArch commonParams.OSArch, tools []*github.RunnerApplicationDownload) (github.RunnerApplicationDownload, error) {
 	// Validate image OS. Linux only for now.
 	switch osType {
-	case params.Linux:
-	case params.Windows:
+	case commonParams.Linux:
+	case commonParams.Windows:
 	default:
 		return github.RunnerApplicationDownload{}, fmt.Errorf("unsupported OS type: %s", osType)
 	}
 
 	switch osArch {
-	case params.Amd64:
-	case params.Arm:
-	case params.Arm64:
+	case commonParams.Amd64:
+	case commonParams.Arm:
+	case commonParams.Arm64:
 	default:
 		return github.RunnerApplicationDownload{}, fmt.Errorf("unsupported OS arch: %s", osArch)
 	}

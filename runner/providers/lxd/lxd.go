@@ -31,6 +31,8 @@ import (
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/pkg/errors"
+
+	commonParams "github.com/cloudbase/garm-provider-common/params"
 )
 
 var _ common.Provider = &LXD{}
@@ -66,16 +68,16 @@ var (
 		"arm64":   "arm64",
 	}
 
-	configToLXDArchMap map[params.OSArch]string = map[params.OSArch]string{
-		params.Amd64: "x86_64",
-		params.Arm64: "aarch64",
-		params.Arm:   "armv7l",
+	configToLXDArchMap map[commonParams.OSArch]string = map[commonParams.OSArch]string{
+		commonParams.Amd64: "x86_64",
+		commonParams.Arm64: "aarch64",
+		commonParams.Arm:   "armv7l",
 	}
 
-	lxdToConfigArch map[string]params.OSArch = map[string]params.OSArch{
-		"x86_64":  params.Amd64,
-		"aarch64": params.Arm64,
-		"armv7l":  params.Arm,
+	lxdToConfigArch map[string]commonParams.OSArch = map[string]commonParams.OSArch{
+		"x86_64":  commonParams.Amd64,
+		"aarch64": commonParams.Arm64,
+		"armv7l":  commonParams.Arm,
 	}
 )
 
@@ -171,10 +173,10 @@ func (l *LXD) getProfiles(flavor string) ([]string, error) {
 	return ret, nil
 }
 
-func (l *LXD) getTools(tools []*github.RunnerApplicationDownload, osType params.OSType, architecture string) (github.RunnerApplicationDownload, error) {
+func (l *LXD) getTools(tools []*github.RunnerApplicationDownload, osType commonParams.OSType, architecture string) (github.RunnerApplicationDownload, error) {
 	// Validate image OS. Linux only for now.
 	switch osType {
-	case params.Linux:
+	case commonParams.Linux:
 	default:
 		return github.RunnerApplicationDownload{}, fmt.Errorf("this provider does not support OS type: %s", osType)
 	}

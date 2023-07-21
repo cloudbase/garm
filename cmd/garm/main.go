@@ -52,6 +52,11 @@ var (
 
 var Version string
 
+var signals = []os.Signal{
+	os.Interrupt,
+	syscall.SIGTERM,
+}
+
 func maybeInitController(db common.Store) error {
 	if _, err := db.ControllerInfo(); err == nil {
 		return nil

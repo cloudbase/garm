@@ -25,9 +25,10 @@ import (
 	"strings"
 	"time"
 
+	commonParams "github.com/cloudbase/garm-provider-common/params"
+
 	"github.com/cloudbase/garm/config"
 	"github.com/cloudbase/garm/params"
-	"github.com/cloudbase/garm/runner/providers/common"
 	"github.com/cloudbase/garm/util"
 
 	"github.com/juju/clock"
@@ -77,7 +78,7 @@ func lxdInstanceToAPIInstance(instance *api.InstanceFull) params.Instance {
 		if !ok {
 			log.Printf("failed to find OS type in fallback location")
 		}
-		osType = params.OSType(osTypeFromTag)
+		osType = commonParams.OSType(osTypeFromTag)
 	}
 
 	osRelease, ok := instance.ExpandedConfig["image.release"]
@@ -86,16 +87,16 @@ func lxdInstanceToAPIInstance(instance *api.InstanceFull) params.Instance {
 	}
 
 	state := instance.State
-	addresses := []params.Address{}
+	addresses := []commonParams.Address{}
 	if state.Network != nil {
 		for _, details := range state.Network {
 			for _, addr := range details.Addresses {
 				if addr.Scope != "global" {
 					continue
 				}
-				addresses = append(addresses, params.Address{
+				addresses = append(addresses, commonParams.Address{
 					Address: addr.Address,
-					Type:    params.PublicAddress,
+					Type:    commonParams.PublicAddress,
 				})
 			}
 		}
@@ -118,14 +119,14 @@ func lxdInstanceToAPIInstance(instance *api.InstanceFull) params.Instance {
 	}
 }
 
-func lxdStatusToProviderStatus(status string) common.InstanceStatus {
+func lxdStatusToProviderStatus(status string) commonParams.InstanceStatus {
 	switch status {
 	case "Running":
-		return common.InstanceRunning
+		return commonParams.InstanceRunning
 	case "Stopped":
-		return common.InstanceStopped
+		return commonParams.InstanceStopped
 	default:
-		return common.InstanceStatusUnknown
+		return commonParams.InstanceStatusUnknown
 	}
 }
 
@@ -186,9 +187,9 @@ func projectName(cfg config.LXD) string {
 	return DefaultProjectName
 }
 
-func resolveArchitecture(osArch params.OSArch) (string, error) {
+func resolveArchitecture(osArch commonParams.OSArch) (string, error) {
 	if string(osArch) == "" {
-		return configToLXDArchMap[params.Amd64], nil
+		return configToLXDArchMap[commonParams.Amd64], nil
 	}
 	arch, ok := configToLXDArchMap[osArch]
 	if !ok {

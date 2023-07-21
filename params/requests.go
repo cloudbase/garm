@@ -18,16 +18,17 @@ import (
 	"encoding/json"
 	"fmt"
 
+	commonParams "github.com/cloudbase/garm-provider-common/params"
+
 	"github.com/cloudbase/garm/errors"
-	"github.com/cloudbase/garm/runner/providers/common"
 )
 
 const DefaultRunnerPrefix = "garm"
 
 type InstanceRequest struct {
-	Name      string `json:"name"`
-	OSType    OSType `json:"os_type"`
-	OSVersion string `json:"os_version"`
+	Name      string              `json:"name"`
+	OSType    commonParams.OSType `json:"os_type"`
+	OSVersion string              `json:"os_version"`
 }
 
 type CreateRepoParams struct {
@@ -108,16 +109,16 @@ type NewUserParams struct {
 type UpdatePoolParams struct {
 	RunnerPrefix
 
-	Tags                   []string        `json:"tags,omitempty"`
-	Enabled                *bool           `json:"enabled,omitempty"`
-	MaxRunners             *uint           `json:"max_runners,omitempty"`
-	MinIdleRunners         *uint           `json:"min_idle_runners,omitempty"`
-	RunnerBootstrapTimeout *uint           `json:"runner_bootstrap_timeout,omitempty"`
-	Image                  string          `json:"image"`
-	Flavor                 string          `json:"flavor"`
-	OSType                 OSType          `json:"os_type"`
-	OSArch                 OSArch          `json:"os_arch"`
-	ExtraSpecs             json.RawMessage `json:"extra_specs,omitempty"`
+	Tags                   []string            `json:"tags,omitempty"`
+	Enabled                *bool               `json:"enabled,omitempty"`
+	MaxRunners             *uint               `json:"max_runners,omitempty"`
+	MinIdleRunners         *uint               `json:"min_idle_runners,omitempty"`
+	RunnerBootstrapTimeout *uint               `json:"runner_bootstrap_timeout,omitempty"`
+	Image                  string              `json:"image"`
+	Flavor                 string              `json:"flavor"`
+	OSType                 commonParams.OSType `json:"os_type"`
+	OSArch                 commonParams.OSArch `json:"os_arch"`
+	ExtraSpecs             json.RawMessage     `json:"extra_specs,omitempty"`
 	// GithubRunnerGroup is the github runner group in which the runners of this
 	// pool will be added to.
 	// The runner group must be created by someone with access to the enterprise.
@@ -126,10 +127,10 @@ type UpdatePoolParams struct {
 
 type CreateInstanceParams struct {
 	Name         string
-	OSType       OSType
-	OSArch       OSArch
-	Status       common.InstanceStatus
-	RunnerStatus common.RunnerStatus
+	OSType       commonParams.OSType
+	OSArch       commonParams.OSArch
+	Status       commonParams.InstanceStatus
+	RunnerStatus RunnerStatus
 	CallbackURL  string
 	MetadataURL  string
 	// GithubRunnerGroup is the github runner group to which the runner belongs.
@@ -142,17 +143,17 @@ type CreateInstanceParams struct {
 type CreatePoolParams struct {
 	RunnerPrefix
 
-	ProviderName           string          `json:"provider_name"`
-	MaxRunners             uint            `json:"max_runners"`
-	MinIdleRunners         uint            `json:"min_idle_runners"`
-	Image                  string          `json:"image"`
-	Flavor                 string          `json:"flavor"`
-	OSType                 OSType          `json:"os_type"`
-	OSArch                 OSArch          `json:"os_arch"`
-	Tags                   []string        `json:"tags"`
-	Enabled                bool            `json:"enabled"`
-	RunnerBootstrapTimeout uint            `json:"runner_bootstrap_timeout"`
-	ExtraSpecs             json.RawMessage `json:"extra_specs,omitempty"`
+	ProviderName           string              `json:"provider_name"`
+	MaxRunners             uint                `json:"max_runners"`
+	MinIdleRunners         uint                `json:"min_idle_runners"`
+	Image                  string              `json:"image"`
+	Flavor                 string              `json:"flavor"`
+	OSType                 commonParams.OSType `json:"os_type"`
+	OSArch                 commonParams.OSArch `json:"os_arch"`
+	Tags                   []string            `json:"tags"`
+	Enabled                bool                `json:"enabled"`
+	RunnerBootstrapTimeout uint                `json:"runner_bootstrap_timeout"`
+	ExtraSpecs             json.RawMessage     `json:"extra_specs,omitempty"`
 	// GithubRunnerGroup is the github runner group in which the runners of this
 	// pool will be added to.
 	// The runner group must be created by someone with access to the enterprise.
@@ -195,14 +196,14 @@ type UpdateInstanceParams struct {
 	OSVersion string `json:"os_version,omitempty"`
 	// Addresses is a list of IP addresses the provider reports
 	// for this instance.
-	Addresses []Address `json:"addresses,omitempty"`
+	Addresses []commonParams.Address `json:"addresses,omitempty"`
 	// Status is the status of the instance inside the provider (eg: running, stopped, etc)
-	Status        common.InstanceStatus `json:"status,omitempty"`
-	RunnerStatus  common.RunnerStatus   `json:"runner_status,omitempty"`
-	ProviderFault []byte                `json:"provider_fault,omitempty"`
-	AgentID       int64                 `json:"-"`
-	CreateAttempt int                   `json:"-"`
-	TokenFetched  *bool                 `json:"-"`
+	Status        commonParams.InstanceStatus `json:"status,omitempty"`
+	RunnerStatus  RunnerStatus                `json:"runner_status,omitempty"`
+	ProviderFault []byte                      `json:"provider_fault,omitempty"`
+	AgentID       int64                       `json:"-"`
+	CreateAttempt int                         `json:"-"`
+	TokenFetched  *bool                       `json:"-"`
 }
 
 type UpdateUserParams struct {
@@ -233,7 +234,7 @@ type UpdateEntityParams struct {
 }
 
 type InstanceUpdateMessage struct {
-	Status  common.RunnerStatus `json:"status"`
-	Message string              `json:"message"`
-	AgentID *int64              `json:"agent_id"`
+	Status  RunnerStatus `json:"status"`
+	Message string       `json:"message"`
+	AgentID *int64       `json:"agent_id"`
 }

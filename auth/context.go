@@ -18,7 +18,6 @@ import (
 	"context"
 
 	"github.com/cloudbase/garm/params"
-	"github.com/cloudbase/garm/runner/providers/common"
 )
 
 type contextFlags string
@@ -65,16 +64,16 @@ func InstanceTokenFetched(ctx context.Context) bool {
 	return elem.(bool)
 }
 
-func SetInstanceRunnerStatus(ctx context.Context, val common.RunnerStatus) context.Context {
+func SetInstanceRunnerStatus(ctx context.Context, val params.RunnerStatus) context.Context {
 	return context.WithValue(ctx, instanceRunnerStatus, val)
 }
 
-func InstanceRunnerStatus(ctx context.Context) common.RunnerStatus {
+func InstanceRunnerStatus(ctx context.Context) params.RunnerStatus {
 	elem := ctx.Value(instanceRunnerStatus)
 	if elem == nil {
-		return common.RunnerPending
+		return params.RunnerPending
 	}
-	return elem.(common.RunnerStatus)
+	return elem.(params.RunnerStatus)
 }
 
 func SetInstanceName(ctx context.Context, val string) context.Context {

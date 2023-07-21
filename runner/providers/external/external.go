@@ -7,12 +7,14 @@ import (
 	"log"
 	"os/exec"
 
+	"github.com/cloudbase/garm-provider-common/execution"
+
+	providerParams "github.com/cloudbase/garm-provider-common/params"
+
 	"github.com/cloudbase/garm/config"
 	garmErrors "github.com/cloudbase/garm/errors"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
-	providerCommon "github.com/cloudbase/garm/runner/providers/common"
-	"github.com/cloudbase/garm/runner/providers/external/execution"
 	garmExec "github.com/cloudbase/garm/util/exec"
 
 	"github.com/pkg/errors"
@@ -44,7 +46,7 @@ type external struct {
 	execPath     string
 }
 
-func (e *external) validateResult(inst params.Instance) error {
+func (e *external) validateResult(inst providerParams.ProviderInstance) error {
 	if inst.ProviderID == "" {
 		return garmErrors.NewProviderError("missing provider ID")
 	}
@@ -57,7 +59,7 @@ func (e *external) validateResult(inst params.Instance) error {
 		// we can still function without this info (I think)
 		log.Printf("WARNING: missing OS information")
 	}
-	if !providerCommon.IsValidProviderStatus(inst.Status) {
+	if !IsValidProviderStatus(inst.Status) {
 		return garmErrors.NewProviderError("invalid status returned (%s)", inst.Status)
 	}
 
@@ -83,7 +85,7 @@ func (e *external) CreateInstance(ctx context.Context, bootstrapParams params.Bo
 		return params.Instance{}, garmErrors.NewProviderError("provider binary %s returned error: %s", e.execPath, err)
 	}
 
-	var param params.Instance
+	var param providerParams.ProviderInstance
 	if err := json.Unmarshal(out, &param); err != nil {
 		return params.Instance{}, garmErrors.NewProviderError("failed to decode response from binary: %s", err)
 	}
@@ -94,7 +96,7 @@ func (e *external) CreateInstance(ctx context.Context, bootstrapParams params.Bo
 
 	retAsJs, _ := json.MarshalIndent(param, "", "  ")
 	log.Printf("provider returned: %s", string(retAsJs))
-	return param, nil
+	return providerInstanceToParamsInstance(param), nil
 }
 
 // Delete instance will delete the instance in a provider.
@@ -133,7 +135,7 @@ func (e *external) GetInstance(ctx context.Context, instance string) (params.Ins
 		return params.Instance{}, garmErrors.NewProviderError("provider binary %s returned error: %s", e.execPath, err)
 	}
 
-	var param params.Instance
+	var param providerParams.ProviderInstance
 	if err := json.Unmarshal(out, &param); err != nil {
 		return params.Instance{}, garmErrors.NewProviderError("failed to decode response from binary: %s", err)
 	}
@@ -142,7 +144,7 @@ func (e *external) GetInstance(ctx context.Context, instance string) (params.Ins
 		return params.Instance{}, garmErrors.NewProviderError("failed to validate result: %s", err)
 	}
 
-	return param, nil
+	return providerInstanceToParamsInstance(param), nil
 }
 
 // ListInstances will list all instances for a provider.
@@ -159,17 +161,19 @@ func (e *external) ListInstances(ctx context.Context, poolID string) ([]params.I
 		return []params.Instance{}, garmErrors.NewProviderError("provider binary %s returned error: %s", e.execPath, err)
 	}
 
-	var param []params.Instance
+	var param []providerParams.ProviderInstance
 	if err := json.Unmarshal(out, &param); err != nil {
 		return []params.Instance{}, garmErrors.NewProviderError("failed to decode response from binary: %s", err)
 	}
 
-	for _, inst := range param {
+	ret := make([]params.Instance, len(param))
+	for idx, inst := range param {
 		if err := e.validateResult(inst); err != nil {
 			return []params.Instance{}, garmErrors.NewProviderError("failed to validate result: %s", err)
 		}
+		ret[idx] = providerInstanceToParamsInstance(inst)
 	}
-	return param, nil
+	return ret, nil
 }
 
 // RemoveAllInstances will remove all instances created by this provider.

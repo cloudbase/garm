@@ -25,12 +25,13 @@ import (
 	"sync"
 	"time"
 
+	commonParams "github.com/cloudbase/garm-provider-common/params"
+
 	"github.com/cloudbase/garm/auth"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	runnerErrors "github.com/cloudbase/garm/errors"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
-	providerCommon "github.com/cloudbase/garm/runner/providers/common"
 	"github.com/cloudbase/garm/util"
 
 	"github.com/google/go-github/v53/github"
@@ -176,7 +177,7 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 		}
 
 		// update instance workload state.
-		if _, err := r.setInstanceRunnerStatus(jobParams.RunnerName, providerCommon.RunnerTerminated); err != nil {
+		if _, err := r.setInstanceRunnerStatus(jobParams.RunnerName, params.RunnerTerminated); err != nil {
 			if errors.Is(err, runnerErrors.ErrNotFound) {
 				return nil
 			}
@@ -184,7 +185,7 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 			return errors.Wrap(err, "updating runner")
 		}
 		r.log("marking instance %s as pending_delete", util.SanitizeLogEntry(jobParams.RunnerName))
-		if _, err := r.setInstanceStatus(jobParams.RunnerName, providerCommon.InstancePendingDelete, nil); err != nil {
+		if _, err := r.setInstanceStatus(jobParams.RunnerName, commonParams.InstancePendingDelete, nil); err != nil {
 			if errors.Is(err, runnerErrors.ErrNotFound) {
 				return nil
 			}
@@ -206,7 +207,7 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 		}
 
 		// update instance workload state.
-		instance, err := r.setInstanceRunnerStatus(jobParams.RunnerName, providerCommon.RunnerActive)
+		instance, err := r.setInstanceRunnerStatus(jobParams.RunnerName, params.RunnerActive)
 		if err != nil {
 			if errors.Is(err, runnerErrors.ErrNotFound) {
 				return nil
@@ -370,9 +371,9 @@ func (r *basePoolManager) cleanupOrphanedProviderRunners(runners []*github.Runne
 		}
 		defer r.keyMux.Unlock(instance.Name, false)
 
-		switch providerCommon.InstanceStatus(instance.Status) {
-		case providerCommon.InstancePendingCreate,
-			providerCommon.InstancePendingDelete:
+		switch commonParams.InstanceStatus(instance.Status) {
+		case commonParams.InstancePendingCreate,
+			commonParams.InstancePendingDelete:
 			// this instance is in the process of being created or is awaiting deletion.
 			// Instances in pending_create did not get a chance to register themselves in,
 			// github so we let them be for now.
@@ -380,7 +381,7 @@ func (r *basePoolManager) cleanupOrphanedProviderRunners(runners []*github.Runne
 		}
 
 		switch instance.RunnerStatus {
-		case providerCommon.RunnerPending, providerCommon.RunnerInstalling:
+		case params.RunnerPending, params.RunnerInstalling:
 			// runner is still installing. We give it a chance to finish.
 			r.log("runner %s is still installing, give it a chance to finish", instance.Name)
 			continue
@@ -394,7 +395,7 @@ func (r *basePoolManager) cleanupOrphanedProviderRunners(runners []*github.Runne
 
 		if ok := runnerNames[instance.Name]; !ok {
 			// Set pending_delete on DB field. Allow consolidate() to remove it.
-			if _, err := r.setInstanceStatus(instance.Name, providerCommon.InstancePendingDelete, nil); err != nil {
+			if _, err := r.setInstanceStatus(instance.Name, commonParams.InstancePendingDelete, nil); err != nil {
 				r.log("failed to update runner %s status: %s", instance.Name, err)
 				return errors.Wrap(err, "updating runner")
 			}
@@ -455,7 +456,7 @@ func (r *basePoolManager) reapTimedOutRunners(runners []*github.Runner) error {
 		// even though, technically the runner is online and fully functional. This is why we check here for
 		// both the runner status as reported by GitHub and the runner status as reported by the provider.
 		// If the runner is "offline" and marked as "failed", it should be safe to reap it.
-		if runner, ok := runnersByName[instance.Name]; !ok || (runner.GetStatus() == "offline" && instance.RunnerStatus == providerCommon.RunnerFailed) {
+		if runner, ok := runnersByName[instance.Name]; !ok || (runner.GetStatus() == "offline" && instance.RunnerStatus == params.RunnerFailed) {
 			r.log("reaping timed-out/failed runner %s", instance.Name)
 			if err := r.ForceDeleteRunner(instance); err != nil {
 				r.log("failed to update runner %s status: %s", instance.Name, err)
@@ -513,8 +514,8 @@ func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner)
 			continue
 		}
 
-		switch providerCommon.InstanceStatus(dbInstance.Status) {
-		case providerCommon.InstancePendingDelete, providerCommon.InstanceDeleting:
+		switch commonParams.InstanceStatus(dbInstance.Status) {
+		case commonParams.InstancePendingDelete, commonParams.InstanceDeleting:
 			// already marked for deletion or is in the process of being deleted.
 			// Let consolidate take care of it.
 			continue
@@ -578,7 +579,7 @@ func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner)
 				return nil
 			}
 
-			if providerInstance.Status == providerCommon.InstanceRunning {
+			if providerInstance.Status == commonParams.InstanceRunning {
 				// instance is running, but github reports runner as offline. Log the event.
 				// This scenario may require manual intervention.
 				// Perhaps it just came online and github did not yet change it's status?
@@ -633,7 +634,7 @@ func (r *basePoolManager) fetchInstance(runnerName string) (params.Instance, err
 	return runner, nil
 }
 
-func (r *basePoolManager) setInstanceRunnerStatus(runnerName string, status providerCommon.RunnerStatus) (params.Instance, error) {
+func (r *basePoolManager) setInstanceRunnerStatus(runnerName string, status params.RunnerStatus) (params.Instance, error) {
 	updateParams := params.UpdateInstanceParams{
 		RunnerStatus: status,
 	}
@@ -658,7 +659,7 @@ func (r *basePoolManager) updateInstance(runnerName string, update params.Update
 	return instance, nil
 }
 
-func (r *basePoolManager) setInstanceStatus(runnerName string, status providerCommon.InstanceStatus, providerFault []byte) (params.Instance, error) {
+func (r *basePoolManager) setInstanceStatus(runnerName string, status commonParams.InstanceStatus, providerFault []byte) (params.Instance, error) {
 	updateParams := params.UpdateInstanceParams{
 		Status:        status,
 		ProviderFault: providerFault,
@@ -681,8 +682,8 @@ func (r *basePoolManager) AddRunner(ctx context.Context, poolID string, aditiona
 
 	createParams := params.CreateInstanceParams{
 		Name:              name,
-		Status:            providerCommon.InstancePendingCreate,
-		RunnerStatus:      providerCommon.RunnerPending,
+		Status:            commonParams.InstancePendingCreate,
+		RunnerStatus:      params.RunnerPending,
 		OSArch:            pool.OSArch,
 		OSType:            pool.OSType,
 		CallbackURL:       r.helper.GetCallbackURL(),
@@ -787,7 +788,7 @@ func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error 
 		return errors.Wrap(err, "creating instance")
 	}
 
-	if providerInstance.Status == providerCommon.InstanceError {
+	if providerInstance.Status == commonParams.InstanceError {
 		instanceIDToDelete = instance.ProviderID
 		if instanceIDToDelete == "" {
 			instanceIDToDelete = instance.Name
@@ -939,7 +940,7 @@ func (r *basePoolManager) scaleDownOnePool(ctx context.Context, pool params.Pool
 		// consideration for scale-down. The 5 minute grace period prevents a situation where a
 		// "queued" workflow triggers the creation of a new idle runner, and this routine reaps
 		// an idle runner before they have a chance to pick up a job.
-		if inst.RunnerStatus == providerCommon.RunnerIdle && inst.Status == providerCommon.InstanceRunning && time.Since(inst.UpdatedAt).Minutes() > 2 {
+		if inst.RunnerStatus == params.RunnerIdle && inst.Status == commonParams.InstanceRunning && time.Since(inst.UpdatedAt).Minutes() > 2 {
 			idleWorkers = append(idleWorkers, inst)
 		}
 	}
@@ -1026,7 +1027,7 @@ func (r *basePoolManager) ensureIdleRunnersForOnePool(pool params.Pool) error {
 
 	idleOrPendingWorkers := []params.Instance{}
 	for _, inst := range existingInstances {
-		if inst.RunnerStatus != providerCommon.RunnerActive && inst.RunnerStatus != providerCommon.RunnerTerminated {
+		if inst.RunnerStatus != params.RunnerActive && inst.RunnerStatus != params.RunnerTerminated {
 			idleOrPendingWorkers = append(idleOrPendingWorkers, inst)
 		}
 	}
@@ -1066,7 +1067,7 @@ func (r *basePoolManager) retryFailedInstancesForOnePool(ctx context.Context, po
 
 	g, errCtx := errgroup.WithContext(ctx)
 	for _, instance := range existingInstances {
-		if instance.Status != providerCommon.InstanceError {
+		if instance.Status != commonParams.InstanceError {
 			continue
 		}
 		if instance.CreateAttempt >= maxCreateAttempts {
@@ -1105,7 +1106,7 @@ func (r *basePoolManager) retryFailedInstancesForOnePool(ctx context.Context, po
 			updateParams := params.UpdateInstanceParams{
 				CreateAttempt: instance.CreateAttempt + 1,
 				TokenFetched:  &tokenFetched,
-				Status:        providerCommon.InstancePendingCreate,
+				Status:        commonParams.InstancePendingCreate,
 			}
 			r.log("queueing previously failed instance %s for retry", instance.Name)
 			// Set instance to pending create and wait for retry.
@@ -1216,7 +1217,7 @@ func (r *basePoolManager) deletePendingInstances() error {
 
 	r.log("removing instances in pending_delete")
 	for _, instance := range instances {
-		if instance.Status != providerCommon.InstancePendingDelete {
+		if instance.Status != commonParams.InstancePendingDelete {
 			// not in pending_delete status. Skip.
 			continue
 		}
@@ -1230,7 +1231,7 @@ func (r *basePoolManager) deletePendingInstances() error {
 
 		// Set the status to deleting before launching the goroutine that removes
 		// the runner from the provider (which can take a long time).
-		if _, err := r.setInstanceStatus(instance.Name, providerCommon.InstanceDeleting, nil); err != nil {
+		if _, err := r.setInstanceStatus(instance.Name, commonParams.InstanceDeleting, nil); err != nil {
 			r.log("failed to update runner %s status: %q", instance.Name, err)
 			r.keyMux.Unlock(instance.Name, false)
 			continue
@@ -1246,7 +1247,7 @@ func (r *basePoolManager) deletePendingInstances() error {
 					r.log("failed to remove instance %s: %s", instance.Name, err)
 					// failed to remove from provider. Set the status back to pending_delete, which
 					// will retry the operation.
-					if _, err := r.setInstanceStatus(instance.Name, providerCommon.InstancePendingDelete, nil); err != nil {
+					if _, err := r.setInstanceStatus(instance.Name, commonParams.InstancePendingDelete, nil); err != nil {
 						r.log("failed to update runner %s status: %s", instance.Name, err)
 					}
 				}
@@ -1277,7 +1278,7 @@ func (r *basePoolManager) addPendingInstances() error {
 		return fmt.Errorf("failed to fetch instances from store: %w", err)
 	}
 	for _, instance := range instances {
-		if instance.Status != providerCommon.InstancePendingCreate {
+		if instance.Status != commonParams.InstancePendingCreate {
 			// not in pending_create status. Skip.
 			continue
 		}
@@ -1291,7 +1292,7 @@ func (r *basePoolManager) addPendingInstances() error {
 
 		// Set the instance to "creating" before launching the goroutine. This will ensure that addPendingInstances()
 		// won't attempt to create the runner a second time.
-		if _, err := r.setInstanceStatus(instance.Name, providerCommon.InstanceCreating, nil); err != nil {
+		if _, err := r.setInstanceStatus(instance.Name, commonParams.InstanceCreating, nil); err != nil {
 			r.log("failed to update runner %s status: %s", instance.Name, err)
 			r.keyMux.Unlock(instance.Name, false)
 			// We failed to transition the instance to Creating. This means that garm will retry to create this instance
@@ -1305,7 +1306,7 @@ func (r *basePoolManager) addPendingInstances() error {
 			if err := r.addInstanceToProvider(instance); err != nil {
 				r.log("failed to add instance to provider: %s", err)
 				errAsBytes := []byte(err.Error())
-				if _, err := r.setInstanceStatus(instance.Name, providerCommon.InstanceError, errAsBytes); err != nil {
+				if _, err := r.setInstanceStatus(instance.Name, commonParams.InstanceError, errAsBytes); err != nil {
 					r.log("failed to update runner %s status: %s", instance.Name, err)
 				}
 				r.log("failed to create instance in provider: %s", err)
@@ -1431,7 +1432,7 @@ func (r *basePoolManager) ForceDeleteRunner(runner params.Instance) error {
 	}
 	r.log("setting instance status for: %v", runner.Name)
 
-	if _, err := r.setInstanceStatus(runner.Name, providerCommon.InstancePendingDelete, nil); err != nil {
+	if _, err := r.setInstanceStatus(runner.Name, commonParams.InstancePendingDelete, nil); err != nil {
 		r.log("failed to update runner %s status: %s", runner.Name, err)
 		return errors.Wrap(err, "updating runner")
 	}

@@ -34,6 +34,12 @@ github.com/cespare/xxhash/v2
 # github.com/chzyer/readline v1.5.1
 ## explicit; go 1.15
 github.com/chzyer/readline
+# github.com/cloudbase/garm-provider-common v0.0.0-20230721124716-d56f689733ea
+## explicit; go 1.20
+github.com/cloudbase/garm-provider-common/cloudconfig
+github.com/cloudbase/garm-provider-common/defaults
+github.com/cloudbase/garm-provider-common/execution
+github.com/cloudbase/garm-provider-common/params
 # github.com/cloudflare/circl v1.3.3
 ## explicit; go 1.19
 github.com/cloudflare/circl/dh/x25519
@@ -133,6 +139,9 @@ github.com/golang-jwt/jwt
 ## explicit; go 1.9
 github.com/golang/protobuf/proto
 github.com/golang/protobuf/ptypes/timestamp
+# github.com/google/go-github/v48 v48.2.0
+## explicit; go 1.17
+github.com/google/go-github/v48/github
 # github.com/google/go-github/v53 v53.2.0
 ## explicit; go 1.17
 github.com/google/go-github/v53/github
@@ -219,7 +228,7 @@ github.com/mailru/easyjson/jwriter
 github.com/manifoldco/promptui
 github.com/manifoldco/promptui/list
 github.com/manifoldco/promptui/screenbuf
-# github.com/mattn/go-isatty v0.0.18
+# github.com/mattn/go-isatty v0.0.19
 ## explicit; go 1.15
 github.com/mattn/go-isatty
 # github.com/mattn/go-runewidth v0.0.14
@@ -359,6 +368,12 @@ golang.org/x/crypto/internal/alias
 golang.org/x/crypto/internal/poly1305
 golang.org/x/crypto/nacl/box
 golang.org/x/crypto/nacl/secretbox
+golang.org/x/crypto/openpgp
+golang.org/x/crypto/openpgp/armor
+golang.org/x/crypto/openpgp/elgamal
+golang.org/x/crypto/openpgp/errors
+golang.org/x/crypto/openpgp/packet
+golang.org/x/crypto/openpgp/s2k
 golang.org/x/crypto/salsa20/salsa
 golang.org/x/crypto/sha3
 golang.org/x/crypto/ssh
