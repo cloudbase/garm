@@ -17,7 +17,7 @@ package lxd
 import (
 	"encoding/json"
 
-	"github.com/cloudbase/garm/params"
+	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/pkg/errors"
 )
 
@@ -26,7 +26,7 @@ type extraSpecs struct {
 	ExtraPackages  []string `json:"extra_packages"`
 }
 
-func parseExtraSpecsFromBootstrapParams(bootstrapParams params.BootstrapInstance) (extraSpecs, error) {
+func parseExtraSpecsFromBootstrapParams(bootstrapParams commonParams.BootstrapInstance) (extraSpecs, error) {
 	specs := extraSpecs{}
 	if bootstrapParams.ExtraSpecs == nil {
 		return specs, nil

@@ -28,11 +28,11 @@ import (
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	"github.com/cloudbase/garm-provider-common/util"
 	"github.com/cloudbase/garm/auth"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
-	"github.com/cloudbase/garm/util"
 
 	"github.com/google/go-github/v53/github"
 	"github.com/google/uuid"
@@ -752,7 +752,7 @@ func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error 
 		return errors.Wrap(err, "fetching instance jwt token")
 	}
 
-	bootstrapArgs := params.BootstrapInstance{
+	bootstrapArgs := commonParams.BootstrapInstance{
 		Name:              instance.Name,
 		Tools:             r.tools,
 		RepoURL:           r.helper.GithubURL(),

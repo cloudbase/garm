@@ -4,8 +4,8 @@ import (
 	"context"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	"github.com/cloudbase/garm-provider-common/util"
 	"github.com/cloudbase/garm/params"
-	"github.com/cloudbase/garm/util"
 
 	"github.com/google/uuid"
 	"github.com/pkg/errors"

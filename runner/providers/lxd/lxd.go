@@ -22,10 +22,10 @@ import (
 	"time"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	"github.com/cloudbase/garm-provider-common/util"
 	"github.com/cloudbase/garm/config"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
-	"github.com/cloudbase/garm/util"
 
 	"github.com/google/go-github/v53/github"
 	lxd "github.com/lxc/lxd/client"
@@ -212,7 +212,7 @@ func (l *LXD) secureBootEnabled() string {
 	return "false"
 }
 
-func (l *LXD) getCreateInstanceArgs(bootstrapParams params.BootstrapInstance, specs extraSpecs) (api.InstancesPost, error) {
+func (l *LXD) getCreateInstanceArgs(bootstrapParams commonParams.BootstrapInstance, specs extraSpecs) (api.InstancesPost, error) {
 	if bootstrapParams.Name == "" {
 		return api.InstancesPost{}, runnerErrors.NewBadRequestError("missing name")
 	}
@@ -315,7 +315,7 @@ func (l *LXD) launchInstance(createArgs api.InstancesPost) error {
 }
 
 // CreateInstance creates a new compute instance in the provider.
-func (l *LXD) CreateInstance(ctx context.Context, bootstrapParams params.BootstrapInstance) (params.Instance, error) {
+func (l *LXD) CreateInstance(ctx context.Context, bootstrapParams commonParams.BootstrapInstance) (params.Instance, error) {
 	extraSpecs, err := parseExtraSpecsFromBootstrapParams(bootstrapParams)
 	if err != nil {
 		return params.Instance{}, errors.Wrap(err, "parsing extra specs")

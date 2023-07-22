@@ -41,6 +41,7 @@ github.com/cloudbase/garm-provider-common/defaults
 github.com/cloudbase/garm-provider-common/errors
 github.com/cloudbase/garm-provider-common/execution
 github.com/cloudbase/garm-provider-common/params
+github.com/cloudbase/garm-provider-common/util
 # github.com/cloudflare/circl v1.3.3
 ## explicit; go 1.19
 github.com/cloudflare/circl/dh/x25519

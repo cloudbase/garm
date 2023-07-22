@@ -17,13 +17,14 @@ package common
 import (
 	"context"
 
+	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm/params"
 )
 
 //go:generate mockery --all
 type Provider interface {
 	// CreateInstance creates a new compute instance in the provider.
-	CreateInstance(ctx context.Context, bootstrapParams params.BootstrapInstance) (params.Instance, error)
+	CreateInstance(ctx context.Context, bootstrapParams commonParams.BootstrapInstance) (params.Instance, error)
 	// Delete instance will delete the instance in a provider.
 	DeleteInstance(ctx context.Context, instance string) error
 	// GetInstance will return details about one instance.

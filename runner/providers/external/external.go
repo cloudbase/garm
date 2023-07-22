@@ -9,7 +9,7 @@ import (
 
 	"github.com/cloudbase/garm-provider-common/execution"
 
-	providerParams "github.com/cloudbase/garm-provider-common/params"
+	commonParams "github.com/cloudbase/garm-provider-common/params"
 
 	garmErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/config"
@@ -46,7 +46,7 @@ type external struct {
 	execPath     string
 }
 
-func (e *external) validateResult(inst providerParams.ProviderInstance) error {
+func (e *external) validateResult(inst commonParams.ProviderInstance) error {
 	if inst.ProviderID == "" {
 		return garmErrors.NewProviderError("missing provider ID")
 	}
@@ -67,7 +67,7 @@ func (e *external) validateResult(inst providerParams.ProviderInstance) error {
 }
 
 // CreateInstance creates a new compute instance in the provider.
-func (e *external) CreateInstance(ctx context.Context, bootstrapParams params.BootstrapInstance) (params.Instance, error) {
+func (e *external) CreateInstance(ctx context.Context, bootstrapParams commonParams.BootstrapInstance) (params.Instance, error) {
 	asEnv := []string{
 		fmt.Sprintf("GARM_COMMAND=%s", execution.CreateInstanceCommand),
 		fmt.Sprintf("GARM_CONTROLLER_ID=%s", e.controllerID),
@@ -85,7 +85,7 @@ func (e *external) CreateInstance(ctx context.Context, bootstrapParams params.Bo
 		return params.Instance{}, garmErrors.NewProviderError("provider binary %s returned error: %s", e.execPath, err)
 	}
 
-	var param providerParams.ProviderInstance
+	var param commonParams.ProviderInstance
 	if err := json.Unmarshal(out, &param); err != nil {
 		return params.Instance{}, garmErrors.NewProviderError("failed to decode response from binary: %s", err)
 	}
@@ -135,7 +135,7 @@ func (e *external) GetInstance(ctx context.Context, instance string) (params.Ins
 		return params.Instance{}, garmErrors.NewProviderError("provider binary %s returned error: %s", e.execPath, err)
 	}
 
-	var param providerParams.ProviderInstance
+	var param commonParams.ProviderInstance
 	if err := json.Unmarshal(out, &param); err != nil {
 		return params.Instance{}, garmErrors.NewProviderError("failed to decode response from binary: %s", err)
 	}
@@ -161,7 +161,7 @@ func (e *external) ListInstances(ctx context.Context, poolID string) ([]params.I
 		return []params.Instance{}, garmErrors.NewProviderError("provider binary %s returned error: %s", e.execPath, err)
 	}
 
-	var param []providerParams.ProviderInstance
+	var param []commonParams.ProviderInstance
 	if err := json.Unmarshal(out, &param); err != nil {
 		return []params.Instance{}, garmErrors.NewProviderError("failed to decode response from binary: %s", err)
 	}

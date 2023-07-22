@@ -27,9 +27,9 @@ import (
 
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 
+	"github.com/cloudbase/garm-provider-common/util"
 	"github.com/cloudbase/garm/config"
 	"github.com/cloudbase/garm/params"
-	"github.com/cloudbase/garm/util"
 
 	"github.com/juju/clock"
 	"github.com/juju/retry"

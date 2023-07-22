@@ -18,8 +18,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/cloudbase/garm-provider-common/util"
 	"github.com/cloudbase/garm/params"
-	"github.com/cloudbase/garm/util"
 
 	"github.com/pkg/errors"
 	"gorm.io/datatypes"

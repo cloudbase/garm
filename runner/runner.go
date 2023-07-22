@@ -32,6 +32,7 @@ import (
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	"github.com/cloudbase/garm-provider-common/util"
 	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/config"
 	dbCommon "github.com/cloudbase/garm/database/common"
@@ -39,7 +40,6 @@ import (
 	"github.com/cloudbase/garm/runner/common"
 	"github.com/cloudbase/garm/runner/pool"
 	"github.com/cloudbase/garm/runner/providers"
-	"github.com/cloudbase/garm/util"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/google/uuid"
