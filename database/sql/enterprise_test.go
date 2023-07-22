@@ -24,8 +24,8 @@ import (
 
 	"github.com/cloudbase/garm/params"
 
+	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	dbCommon "github.com/cloudbase/garm/database/common"
-	runnerErrors "github.com/cloudbase/garm/errors"
 	garmTesting "github.com/cloudbase/garm/internal/testing"
 
 	"github.com/stretchr/testify/suite"

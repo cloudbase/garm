@@ -20,7 +20,7 @@ import (
 
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 
-	"github.com/cloudbase/garm/errors"
+	"github.com/cloudbase/garm-provider-common/errors"
 )
 
 const DefaultRunnerPrefix = "garm"

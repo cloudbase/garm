@@ -37,8 +37,8 @@ import (
 	"unicode/utf16"
 
 	"github.com/cloudbase/garm-provider-common/cloudconfig"
+	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/config"
-	runnerErrors "github.com/cloudbase/garm/errors"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
 

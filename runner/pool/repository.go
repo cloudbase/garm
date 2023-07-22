@@ -21,8 +21,8 @@ import (
 	"strings"
 	"sync"
 
+	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	dbCommon "github.com/cloudbase/garm/database/common"
-	runnerErrors "github.com/cloudbase/garm/errors"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
 	"github.com/cloudbase/garm/util"

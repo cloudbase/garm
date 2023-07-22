@@ -3,7 +3,7 @@ package params
 import (
 	"encoding/json"
 
-	"github.com/google/go-github/v48/github"
+	"github.com/google/go-github/v53/github"
 )
 
 type (

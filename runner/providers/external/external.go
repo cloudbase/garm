@@ -11,8 +11,8 @@ import (
 
 	providerParams "github.com/cloudbase/garm-provider-common/params"
 
+	garmErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/config"
-	garmErrors "github.com/cloudbase/garm/errors"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
 	garmExec "github.com/cloudbase/garm/util/exec"

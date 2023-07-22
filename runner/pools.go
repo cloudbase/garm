@@ -18,8 +18,8 @@ import (
 	"context"
 	"fmt"
 
+	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/auth"
-	runnerErrors "github.com/cloudbase/garm/errors"
 	"github.com/cloudbase/garm/params"
 
 	"github.com/pkg/errors"

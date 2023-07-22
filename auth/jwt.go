@@ -22,10 +22,10 @@ import (
 	"net/http"
 	"strings"
 
+	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	apiParams "github.com/cloudbase/garm/apiserver/params"
 	"github.com/cloudbase/garm/config"
 	dbCommon "github.com/cloudbase/garm/database/common"
-	runnerErrors "github.com/cloudbase/garm/errors"
 
 	"github.com/golang-jwt/jwt"
 )

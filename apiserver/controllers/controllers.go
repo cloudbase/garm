@@ -21,9 +21,9 @@ import (
 	"net/http"
 	"strings"
 
+	gErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/apiserver/params"
 	"github.com/cloudbase/garm/auth"
-	gErrors "github.com/cloudbase/garm/errors"
 	"github.com/cloudbase/garm/metrics"
 	runnerParams "github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner"
