@@ -65,7 +65,7 @@ type UpdateEnterpriseParams struct {
 
 	/* Body.
 
-	   Parameters used to update the enterprise.
+	   Parameters used when updating the enterprise.
 	*/
 	Body garm_params.UpdateEntityParams
 
