@@ -67,7 +67,7 @@ func (e *external) validateResult(inst commonParams.ProviderInstance) error {
 }
 
 // CreateInstance creates a new compute instance in the provider.
-func (e *external) CreateInstance(ctx context.Context, bootstrapParams commonParams.BootstrapInstance) (params.Instance, error) {
+func (e *external) CreateInstance(ctx context.Context, bootstrapParams commonParams.BootstrapInstance) (commonParams.ProviderInstance, error) {
 	asEnv := []string{
 		fmt.Sprintf("GARM_COMMAND=%s", execution.CreateInstanceCommand),
 		fmt.Sprintf("GARM_CONTROLLER_ID=%s", e.controllerID),
@@ -77,21 +77,21 @@ func (e *external) CreateInstance(ctx context.Context, bootstrapParams commonPar
 
 	asJs, err := json.Marshal(bootstrapParams)
 	if err != nil {
-		return params.Instance{}, errors.Wrap(err, "serializing bootstrap params")
+		return commonParams.ProviderInstance{}, errors.Wrap(err, "serializing bootstrap params")
 	}
 
 	out, err := garmExec.Exec(ctx, e.execPath, asJs, asEnv)
 	if err != nil {
-		return params.Instance{}, garmErrors.NewProviderError("provider binary %s returned error: %s", e.execPath, err)
+		return commonParams.ProviderInstance{}, garmErrors.NewProviderError("provider binary %s returned error: %s", e.execPath, err)
 	}
 
 	var param commonParams.ProviderInstance
 	if err := json.Unmarshal(out, &param); err != nil {
-		return params.Instance{}, garmErrors.NewProviderError("failed to decode response from binary: %s", err)
+		return commonParams.ProviderInstance{}, garmErrors.NewProviderError("failed to decode response from binary: %s", err)
 	}
 
 	if err := e.validateResult(param); err != nil {
-		return params.Instance{}, garmErrors.NewProviderError("failed to validate result: %s", err)
+		return commonParams.ProviderInstance{}, garmErrors.NewProviderError("failed to validate result: %s", err)
 	}
 
 	retAsJs, _ := json.MarshalIndent(param, "", "  ")
@@ -120,7 +120,7 @@ func (e *external) DeleteInstance(ctx context.Context, instance string) error {
 }
 
 // GetInstance will return details about one instance.
-func (e *external) GetInstance(ctx context.Context, instance string) (params.Instance, error) {
+func (e *external) GetInstance(ctx context.Context, instance string) (commonParams.ProviderInstance, error) {
 	asEnv := []string{
 		fmt.Sprintf("GARM_COMMAND=%s", execution.GetInstanceCommand),
 		fmt.Sprintf("GARM_CONTROLLER_ID=%s", e.controllerID),
@@ -132,23 +132,23 @@ func (e *external) GetInstance(ctx context.Context, instance string) (params.Ins
 	// know when the error is ErrNotFound.
 	out, err := garmExec.Exec(ctx, e.execPath, nil, asEnv)
 	if err != nil {
-		return params.Instance{}, garmErrors.NewProviderError("provider binary %s returned error: %s", e.execPath, err)
+		return commonParams.ProviderInstance{}, garmErrors.NewProviderError("provider binary %s returned error: %s", e.execPath, err)
 	}
 
 	var param commonParams.ProviderInstance
 	if err := json.Unmarshal(out, &param); err != nil {
-		return params.Instance{}, garmErrors.NewProviderError("failed to decode response from binary: %s", err)
+		return commonParams.ProviderInstance{}, garmErrors.NewProviderError("failed to decode response from binary: %s", err)
 	}
 
 	if err := e.validateResult(param); err != nil {
-		return params.Instance{}, garmErrors.NewProviderError("failed to validate result: %s", err)
+		return commonParams.ProviderInstance{}, garmErrors.NewProviderError("failed to validate result: %s", err)
 	}
 
 	return providerInstanceToParamsInstance(param), nil
 }
 
 // ListInstances will list all instances for a provider.
-func (e *external) ListInstances(ctx context.Context, poolID string) ([]params.Instance, error) {
+func (e *external) ListInstances(ctx context.Context, poolID string) ([]commonParams.ProviderInstance, error) {
 	asEnv := []string{
 		fmt.Sprintf("GARM_COMMAND=%s", execution.ListInstancesCommand),
 		fmt.Sprintf("GARM_CONTROLLER_ID=%s", e.controllerID),
@@ -158,18 +158,18 @@ func (e *external) ListInstances(ctx context.Context, poolID string) ([]params.I
 
 	out, err := garmExec.Exec(ctx, e.execPath, nil, asEnv)
 	if err != nil {
-		return []params.Instance{}, garmErrors.NewProviderError("provider binary %s returned error: %s", e.execPath, err)
+		return []commonParams.ProviderInstance{}, garmErrors.NewProviderError("provider binary %s returned error: %s", e.execPath, err)
 	}
 
 	var param []commonParams.ProviderInstance
 	if err := json.Unmarshal(out, &param); err != nil {
-		return []params.Instance{}, garmErrors.NewProviderError("failed to decode response from binary: %s", err)
+		return []commonParams.ProviderInstance{}, garmErrors.NewProviderError("failed to decode response from binary: %s", err)
 	}
 
-	ret := make([]params.Instance, len(param))
+	ret := make([]commonParams.ProviderInstance, len(param))
 	for idx, inst := range param {
 		if err := e.validateResult(inst); err != nil {
-			return []params.Instance{}, garmErrors.NewProviderError("failed to validate result: %s", err)
+			return []commonParams.ProviderInstance{}, garmErrors.NewProviderError("failed to validate result: %s", err)
 		}
 		ret[idx] = providerInstanceToParamsInstance(inst)
 	}

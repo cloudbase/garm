@@ -141,4 +141,8 @@ type ProviderInstance struct {
 
 	// Status is the status of the instance inside the provider (eg: running, stopped, etc)
 	Status InstanceStatus `json:"status,omitempty"`
+
+	// ProviderFault holds any error messages captured from the IaaS provider that is
+	// responsible for managing the lifecycle of the runner.
+	ProviderFault []byte `json:"provider_fault,omitempty"`
 }

@@ -31,18 +31,18 @@ func (_m *Provider) AsParams() params.Provider {
 }
 
 // CreateInstance provides a mock function with given fields: ctx, bootstrapParams
-func (_m *Provider) CreateInstance(ctx context.Context, bootstrapParams garm_provider_commonparams.BootstrapInstance) (params.Instance, error) {
+func (_m *Provider) CreateInstance(ctx context.Context, bootstrapParams garm_provider_commonparams.BootstrapInstance) (garm_provider_commonparams.ProviderInstance, error) {
 	ret := _m.Called(ctx, bootstrapParams)
 
-	var r0 params.Instance
+	var r0 garm_provider_commonparams.ProviderInstance
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, garm_provider_commonparams.BootstrapInstance) (params.Instance, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, garm_provider_commonparams.BootstrapInstance) (garm_provider_commonparams.ProviderInstance, error)); ok {
 		return rf(ctx, bootstrapParams)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, garm_provider_commonparams.BootstrapInstance) params.Instance); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, garm_provider_commonparams.BootstrapInstance) garm_provider_commonparams.ProviderInstance); ok {
 		r0 = rf(ctx, bootstrapParams)
 	} else {
-		r0 = ret.Get(0).(params.Instance)
+		r0 = ret.Get(0).(garm_provider_commonparams.ProviderInstance)
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, garm_provider_commonparams.BootstrapInstance) error); ok {
@@ -69,18 +69,18 @@ func (_m *Provider) DeleteInstance(ctx context.Context, instance string) error {
 }
 
 // GetInstance provides a mock function with given fields: ctx, instance
-func (_m *Provider) GetInstance(ctx context.Context, instance string) (params.Instance, error) {
+func (_m *Provider) GetInstance(ctx context.Context, instance string) (garm_provider_commonparams.ProviderInstance, error) {
 	ret := _m.Called(ctx, instance)
 
-	var r0 params.Instance
+	var r0 garm_provider_commonparams.ProviderInstance
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) (params.Instance, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string) (garm_provider_commonparams.ProviderInstance, error)); ok {
 		return rf(ctx, instance)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) params.Instance); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string) garm_provider_commonparams.ProviderInstance); ok {
 		r0 = rf(ctx, instance)
 	} else {
-		r0 = ret.Get(0).(params.Instance)
+		r0 = ret.Get(0).(garm_provider_commonparams.ProviderInstance)
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
@@ -93,19 +93,19 @@ func (_m *Provider) GetInstance(ctx context.Context, instance string) (params.In
 }
 
 // ListInstances provides a mock function with given fields: ctx, poolID
-func (_m *Provider) ListInstances(ctx context.Context, poolID string) ([]params.Instance, error) {
+func (_m *Provider) ListInstances(ctx context.Context, poolID string) ([]garm_provider_commonparams.ProviderInstance, error) {
 	ret := _m.Called(ctx, poolID)
 
-	var r0 []params.Instance
+	var r0 []garm_provider_commonparams.ProviderInstance
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) ([]params.Instance, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string) ([]garm_provider_commonparams.ProviderInstance, error)); ok {
 		return rf(ctx, poolID)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) []params.Instance); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string) []garm_provider_commonparams.ProviderInstance); ok {
 		r0 = rf(ctx, poolID)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]params.Instance)
+			r0 = ret.Get(0).([]garm_provider_commonparams.ProviderInstance)
 		}
 	}
 

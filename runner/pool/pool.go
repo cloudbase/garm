@@ -467,13 +467,13 @@ func (r *basePoolManager) reapTimedOutRunners(runners []*github.Runner) error {
 	return nil
 }
 
-func instanceInList(instanceName string, instances []params.Instance) (params.Instance, bool) {
+func instanceInList(instanceName string, instances []commonParams.ProviderInstance) (commonParams.ProviderInstance, bool) {
 	for _, val := range instances {
 		if val.Name == instanceName {
 			return val, true
 		}
 	}
-	return params.Instance{}, false
+	return commonParams.ProviderInstance{}, false
 }
 
 // cleanupOrphanedGithubRunners will forcefully remove any github runners that appear
@@ -481,7 +481,7 @@ func instanceInList(instanceName string, instances []params.Instance) (params.In
 // This may happen if someone manually deletes the instance in the provider. We need to
 // first remove the instance from github, and then from our database.
 func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner) error {
-	poolInstanceCache := map[string][]params.Instance{}
+	poolInstanceCache := map[string][]commonParams.ProviderInstance{}
 	g, ctx := errgroup.WithContext(r.ctx)
 	for _, runner := range runners {
 		if !r.isManagedRunner(labelsFromRunner(runner)) {
@@ -532,7 +532,7 @@ func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner)
 			return fmt.Errorf("unknown provider %s for pool %s", pool.ProviderName, pool.ID)
 		}
 
-		var poolInstances []params.Instance
+		var poolInstances []commonParams.ProviderInstance
 		poolInstances, ok = poolInstanceCache[pool.ID]
 		if !ok {
 			r.log("updating instances cache for pool %s", pool.ID)
@@ -911,17 +911,17 @@ func (r *basePoolManager) controllerLabel() string {
 	return fmt.Sprintf("%s%s", controllerLabelPrefix, r.controllerID)
 }
 
-func (r *basePoolManager) updateArgsFromProviderInstance(providerInstance params.Instance) params.UpdateInstanceParams {
+func (r *basePoolManager) updateArgsFromProviderInstance(providerInstance commonParams.ProviderInstance) params.UpdateInstanceParams {
 	return params.UpdateInstanceParams{
 		ProviderID:    providerInstance.ProviderID,
 		OSName:        providerInstance.OSName,
 		OSVersion:     providerInstance.OSVersion,
 		Addresses:     providerInstance.Addresses,
 		Status:        providerInstance.Status,
-		RunnerStatus:  providerInstance.RunnerStatus,
 		ProviderFault: providerInstance.ProviderFault,
 	}
 }
+
 func (r *basePoolManager) scaleDownOnePool(ctx context.Context, pool params.Pool) error {
 	r.log("scaling down pool %s", pool.ID)
 	if !pool.Enabled {

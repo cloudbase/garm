@@ -29,7 +29,6 @@ import (
 
 	"github.com/cloudbase/garm-provider-common/util"
 	"github.com/cloudbase/garm/config"
-	"github.com/cloudbase/garm/params"
 
 	"github.com/juju/clock"
 	"github.com/juju/retry"
@@ -62,7 +61,7 @@ func isNotFoundError(err error) bool {
 	return false
 }
 
-func lxdInstanceToAPIInstance(instance *api.InstanceFull) params.Instance {
+func lxdInstanceToAPIInstance(instance *api.InstanceFull) commonParams.ProviderInstance {
 	lxdOS, ok := instance.ExpandedConfig["image.os"]
 	if !ok {
 		log.Printf("failed to find OS in instance config")
@@ -107,7 +106,7 @@ func lxdInstanceToAPIInstance(instance *api.InstanceFull) params.Instance {
 		log.Printf("failed to find OS architecture")
 	}
 
-	return params.Instance{
+	return commonParams.ProviderInstance{
 		OSArch:     instanceArch,
 		ProviderID: instance.Name,
 		Name:       instance.Name,
@@ -200,8 +199,8 @@ func resolveArchitecture(osArch commonParams.OSArch) (string, error) {
 
 // waitDeviceActive is a function capable of figuring out when a Equinix Metal
 // device is active
-func (l *LXD) waitInstanceHasIP(ctx context.Context, instanceName string) (params.Instance, error) {
-	var p params.Instance
+func (l *LXD) waitInstanceHasIP(ctx context.Context, instanceName string) (commonParams.ProviderInstance, error) {
+	var p commonParams.ProviderInstance
 	var errIPNotFound error = fmt.Errorf("ip not found")
 	err := retry.Call(retry.CallArgs{
 		Func: func() error {
@@ -228,7 +227,7 @@ func (l *LXD) waitInstanceHasIP(ctx context.Context, instanceName string) (param
 	})
 
 	if err != nil && err != errIPNotFound {
-		return params.Instance{}, err
+		return commonParams.ProviderInstance{}, err
 	}
 
 	return p, nil

@@ -2,7 +2,6 @@ package external
 
 import (
 	commonParams "github.com/cloudbase/garm-provider-common/params"
-	"github.com/cloudbase/garm/params"
 )
 
 // IsProviderValidStatus checks if the given status is valid for the provider.
@@ -21,8 +20,8 @@ func IsValidProviderStatus(status commonParams.InstanceStatus) bool {
 	}
 }
 
-func providerInstanceToParamsInstance(inst commonParams.ProviderInstance) params.Instance {
-	return params.Instance{
+func providerInstanceToParamsInstance(inst commonParams.ProviderInstance) commonParams.ProviderInstance {
+	return commonParams.ProviderInstance{
 		ProviderID: inst.ProviderID,
 		Name:       inst.Name,
 		OSName:     inst.OSName,
