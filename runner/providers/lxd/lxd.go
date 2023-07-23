@@ -22,7 +22,6 @@ import (
 	"time"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
-	"github.com/cloudbase/garm-provider-common/util"
 	"github.com/cloudbase/garm/config"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
@@ -32,6 +31,7 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	"github.com/pkg/errors"
 
+	"github.com/cloudbase/garm-provider-common/cloudconfig"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 )
 
@@ -239,7 +239,7 @@ func (l *LXD) getCreateInstanceArgs(bootstrapParams commonParams.BootstrapInstan
 
 	bootstrapParams.UserDataOptions.DisableUpdatesOnBoot = specs.DisableUpdates
 	bootstrapParams.UserDataOptions.ExtraPackages = specs.ExtraPackages
-	cloudCfg, err := util.GetCloudConfig(bootstrapParams, tools, bootstrapParams.Name)
+	cloudCfg, err := cloudconfig.GetCloudConfig(bootstrapParams, tools, bootstrapParams.Name)
 	if err != nil {
 		return api.InstancesPost{}, errors.Wrap(err, "generating cloud-config")
 	}

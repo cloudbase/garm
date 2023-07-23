@@ -33,10 +33,8 @@ import (
 	"unicode"
 	"unicode/utf16"
 
-	"github.com/cloudbase/garm-provider-common/cloudconfig"
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 
-	"github.com/cloudbase/garm-provider-common/defaults"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 
 	"github.com/google/go-github/v53/github"
@@ -188,79 +186,6 @@ func OSToOSType(os string) (commonParams.OSType, error) {
 		return commonParams.Unknown, fmt.Errorf("no OS to OS type mapping for %s", os)
 	}
 	return osType, nil
-}
-
-func GetCloudConfig(bootstrapParams commonParams.BootstrapInstance, tools github.RunnerApplicationDownload, runnerName string) (string, error) {
-	if tools.Filename == nil {
-		return "", fmt.Errorf("missing tools filename")
-	}
-
-	if tools.DownloadURL == nil {
-		return "", fmt.Errorf("missing tools download URL")
-	}
-
-	var tempToken string
-	if tools.TempDownloadToken != nil {
-		tempToken = *tools.TempDownloadToken
-	}
-
-	installRunnerParams := cloudconfig.InstallRunnerParams{
-		FileName:          *tools.Filename,
-		DownloadURL:       *tools.DownloadURL,
-		TempDownloadToken: tempToken,
-		MetadataURL:       bootstrapParams.MetadataURL,
-		RunnerUsername:    defaults.DefaultUser,
-		RunnerGroup:       defaults.DefaultUser,
-		RepoURL:           bootstrapParams.RepoURL,
-		RunnerName:        runnerName,
-		RunnerLabels:      strings.Join(bootstrapParams.Labels, ","),
-		CallbackURL:       bootstrapParams.CallbackURL,
-		CallbackToken:     bootstrapParams.InstanceToken,
-		GitHubRunnerGroup: bootstrapParams.GitHubRunnerGroup,
-	}
-	if bootstrapParams.CACertBundle != nil && len(bootstrapParams.CACertBundle) > 0 {
-		installRunnerParams.CABundle = string(bootstrapParams.CACertBundle)
-	}
-
-	installScript, err := cloudconfig.InstallRunnerScript(installRunnerParams, bootstrapParams.OSType)
-	if err != nil {
-		return "", errors.Wrap(err, "generating script")
-	}
-
-	var asStr string
-	switch bootstrapParams.OSType {
-	case commonParams.Linux:
-		cloudCfg := cloudconfig.NewDefaultCloudInitConfig()
-
-		if bootstrapParams.UserDataOptions.DisableUpdatesOnBoot {
-			cloudCfg.PackageUpgrade = false
-			cloudCfg.Packages = []string{}
-		}
-		for _, pkg := range bootstrapParams.UserDataOptions.ExtraPackages {
-			cloudCfg.AddPackage(pkg)
-		}
-
-		cloudCfg.AddSSHKey(bootstrapParams.SSHKeys...)
-		cloudCfg.AddFile(installScript, "/install_runner.sh", "root:root", "755")
-		cloudCfg.AddRunCmd(fmt.Sprintf("su -l -c /install_runner.sh %s", defaults.DefaultUser))
-		cloudCfg.AddRunCmd("rm -f /install_runner.sh")
-		if bootstrapParams.CACertBundle != nil && len(bootstrapParams.CACertBundle) > 0 {
-			if err := cloudCfg.AddCACert(bootstrapParams.CACertBundle); err != nil {
-				return "", errors.Wrap(err, "adding CA cert bundle")
-			}
-		}
-		var err error
-		asStr, err = cloudCfg.Serialize()
-		if err != nil {
-			return "", errors.Wrap(err, "creating cloud config")
-		}
-	case commonParams.Windows:
-		asStr = string(installScript)
-	default:
-		return "", fmt.Errorf("unknown os type: %s", bootstrapParams.OSType)
-	}
-
-	return asStr, nil
 }
 
 func GetTools(osType commonParams.OSType, osArch commonParams.OSArch, tools []*github.RunnerApplicationDownload) (github.RunnerApplicationDownload, error) {

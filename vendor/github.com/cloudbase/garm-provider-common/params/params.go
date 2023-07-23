@@ -45,6 +45,7 @@ const (
 type UserDataOptions struct {
 	DisableUpdatesOnBoot bool     `json:"disable_updates_on_boot"`
 	ExtraPackages        []string `json:"extra_packages"`
+	EnableBootDebug      bool     `json:"enable_boot_debug"`
 }
 
 type BootstrapInstance struct {

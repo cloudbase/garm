@@ -28,6 +28,10 @@ var CloudConfigTemplate = `#!/bin/bash
 set -e
 set -o pipefail
 
+{{- if .EnableBootDebug }}
+set -x
+{{- end }}
+
 CALLBACK_URL="{{ .CallbackURL }}"
 METADATA_URL="{{ .MetadataURL }}"
 BEARER_TOKEN="{{ .CallbackToken }}"
@@ -410,31 +414,59 @@ function Install-Runner() {
 Install-Runner
 `
 
+// InstallRunnerParams holds the parameters needed to render the runner install script.
 type InstallRunnerParams struct {
-	FileName          string
-	DownloadURL       string
-	RunnerUsername    string
-	RunnerGroup       string
-	RepoURL           string
-	MetadataURL       string
-	RunnerName        string
-	RunnerLabels      string
-	CallbackURL       string
-	CallbackToken     string
+	// FileName is the name of the file that will be downloaded from the download URL.
+	// This will be the runner archive downloaded from GitHub.
+	FileName string
+	// DownloadURL is the URL from which the runner archive will be downloaded.
+	DownloadURL string
+	// RunnerUsername is the username of the user that will run the runner service.
+	RunnerUsername string
+	// RunnerGroup is the group of the user that will run the runner service.
+	RunnerGroup string
+	// RepoURL is the URL or the github repo the github runner agent needs to configure itself.
+	RepoURL string
+	// MetadataURL is the URL where instances can fetch information needed to set themselves up.
+	// This URL is set in the GARM config file.
+	MetadataURL string
+	// RunnerName is the name of the runner. GARM will use this to register the runner with GitHub.
+	RunnerName string
+	// RunnerLabels is a comma separated list of labels that will be added to the runner.
+	RunnerLabels string
+	// CallbackURL is the URL where the instance can send a post, signaling progress or status.
+	// This URL is set in the GARM config file.
+	CallbackURL string
+	// CallbackToken is the token that needs to be set by the instance in the headers in order to call
+	// the CallbackURL.
+	CallbackToken string
+	// TempDownloadToken is the token that needs to be set by the instance in the headers in order to download
+	// the githun runner. This is usually needed when using garm against a GHES instance.
 	TempDownloadToken string
-	CABundle          string
+	// CABundle is a CA certificate bundle which will be sent to instances and which will tipically be installed
+	// as a system wide trusted root CA by either cloud-init or whatever mechanism the provider will use to set
+	// up the runner.
+	CABundle string
+	// GitHubRunnerGroup is the github runner group in which the newly installed runner should be added to.
 	GitHubRunnerGroup string
+	// EnableBootDebug will enable bash debug mode.
+	EnableBootDebug bool
+	// ExtraContext is a map of extra context that will be passed to the runner install template.
+	// This option is useful for situations in which you're supplying your own template and you need
+	// to pass in information that is not available in the default template.
+	ExtraContext map[string]string
 }
 
-func InstallRunnerScript(installParams InstallRunnerParams, osType params.OSType) ([]byte, error) {
-	var tpl string
-	switch osType {
-	case params.Linux:
-		tpl = CloudConfigTemplate
-	case params.Windows:
-		tpl = WindowsSetupScriptTemplate
-	default:
-		return nil, fmt.Errorf("unsupported os type: %s", osType)
+func InstallRunnerScript(installParams InstallRunnerParams, osType params.OSType, tpl string) ([]byte, error) {
+	if tpl == "" {
+		switch osType {
+		case params.Linux:
+			tpl = CloudConfigTemplate
+		case params.Windows:
+			tpl = WindowsSetupScriptTemplate
+		default:
+			return nil, fmt.Errorf("unsupported os type: %s", osType)
+		}
 	}
 
 	t, err := template.New("").Parse(tpl)
