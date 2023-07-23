@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 )
 
+// CloudConfigSpec is a struct that holds extra specs that can be used to customize user data.
 type CloudConfigSpec struct {
 	// RunnerInstallTemplate can be used to override the default runner install template.
 	// If used, the caller is responsible for the correctness of the template as well as the

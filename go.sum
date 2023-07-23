@@ -25,8 +25,8 @@ github.com/chzyer/test v0.0.0-20180213035817-a1ea475d72b1/go.mod h1:Q3SI9o4m/ZMn
 github.com/chzyer/test v1.0.0 h1:p3BQDXSxOhOG0P9z6/hGnII4LGiEPOYBhs8asl/fC04=
 github.com/chzyer/test v1.0.0/go.mod h1:2JlltgoNkt4TW/z9V/IzDdFaMTM2JPIi26O1pF38GC8=
 github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDkc90ppPyw=
-github.com/cloudbase/garm-provider-common v0.0.0-20230723154741-c0a12146e69e h1:a0vWKKqUKEGs4jiXw/RSZ72AkbyBwPscU49IeTMMSQY=
-github.com/cloudbase/garm-provider-common v0.0.0-20230723154741-c0a12146e69e/go.mod h1:RKzgL0MXkNeGfloQpE2swz/y4LWJr5+2Wd45bSXPB0k=
+github.com/cloudbase/garm-provider-common v0.0.0-20230723165408-5d5ccbe7637e h1:AHNNe59or9d67WF5muZrifFTIf3NGohzNCER1mjY8co=
+github.com/cloudbase/garm-provider-common v0.0.0-20230723165408-5d5ccbe7637e/go.mod h1:RKzgL0MXkNeGfloQpE2swz/y4LWJr5+2Wd45bSXPB0k=
 github.com/cloudflare/circl v1.1.0/go.mod h1:prBCrKB9DV4poKZY1l9zBXg2QJY7mvgRvtMxxK7fi4I=
 github.com/cloudflare/circl v1.3.3 h1:fE/Qz0QdIGqeWfnwq0RE0R7MI51s0M2E4Ga9kq5AEMs=
 github.com/cloudflare/circl v1.3.3/go.mod h1:5XYMA4rFBvNIrhs50XuiBJ15vF2pZn4nnUKZrLbUZFA=

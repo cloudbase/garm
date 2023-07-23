@@ -34,7 +34,7 @@ github.com/cespare/xxhash/v2
 # github.com/chzyer/readline v1.5.1
 ## explicit; go 1.15
 github.com/chzyer/readline
-# github.com/cloudbase/garm-provider-common v0.0.0-20230723154741-c0a12146e69e
+# github.com/cloudbase/garm-provider-common v0.0.0-20230723165408-5d5ccbe7637e
 ## explicit; go 1.20
 github.com/cloudbase/garm-provider-common/cloudconfig
 github.com/cloudbase/garm-provider-common/defaults
