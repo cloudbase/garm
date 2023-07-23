@@ -12,10 +12,10 @@ import (
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 
 	garmErrors "github.com/cloudbase/garm-provider-common/errors"
+	garmExec "github.com/cloudbase/garm-provider-common/util/exec"
 	"github.com/cloudbase/garm/config"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
-	garmExec "github.com/cloudbase/garm/util/exec"
 
 	"github.com/pkg/errors"
 )
