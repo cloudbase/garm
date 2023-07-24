@@ -384,7 +384,7 @@ func (a *Client) ListEnterprises(params *ListEnterprisesParams, authInfo runtime
 }
 
 /*
-UpdateEnterprise updates an enterprise with the given parameters
+UpdateEnterprise updates enterprise with the given parameters
 */
 func (a *Client) UpdateEnterprise(params *UpdateEnterpriseParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateEnterpriseOK, error) {
 	// TODO: Validate the params before sending

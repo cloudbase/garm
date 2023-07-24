@@ -19,8 +19,8 @@ import (
 	"log"
 	"net/http"
 
+	gErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/apiserver/params"
-	gErrors "github.com/cloudbase/garm/errors"
 	runnerParams "github.com/cloudbase/garm/params"
 
 	"github.com/gorilla/mux"

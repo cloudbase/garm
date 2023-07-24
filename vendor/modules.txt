@@ -34,6 +34,15 @@ github.com/cespare/xxhash/v2
 # github.com/chzyer/readline v1.5.1
 ## explicit; go 1.15
 github.com/chzyer/readline
+# github.com/cloudbase/garm-provider-common v0.0.0-20230724114054-7aa0a3dfbce0
+## explicit; go 1.20
+github.com/cloudbase/garm-provider-common/cloudconfig
+github.com/cloudbase/garm-provider-common/defaults
+github.com/cloudbase/garm-provider-common/errors
+github.com/cloudbase/garm-provider-common/execution
+github.com/cloudbase/garm-provider-common/params
+github.com/cloudbase/garm-provider-common/util
+github.com/cloudbase/garm-provider-common/util/exec
 # github.com/cloudflare/circl v1.3.3
 ## explicit; go 1.19
 github.com/cloudflare/circl/dh/x25519
@@ -219,7 +228,7 @@ github.com/mailru/easyjson/jwriter
 github.com/manifoldco/promptui
 github.com/manifoldco/promptui/list
 github.com/manifoldco/promptui/screenbuf
-# github.com/mattn/go-isatty v0.0.18
+# github.com/mattn/go-isatty v0.0.19
 ## explicit; go 1.15
 github.com/mattn/go-isatty
 # github.com/mattn/go-runewidth v0.0.14

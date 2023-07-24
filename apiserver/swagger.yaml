@@ -337,13 +337,13 @@ paths:
                   name: enterpriseID
                   required: true
                   type: string
-                - description: Parameters used to update the enterprise.
+                - description: Parameters used when updating the enterprise.
                   in: body
                   name: Body
                   required: true
                   schema:
                     $ref: '#/definitions/UpdateEntityParams'
-                    description: Parameters used to update the enterprise.
+                    description: Parameters used when updating the enterprise.
                     type: object
             responses:
                 "200":
@@ -354,7 +354,7 @@ paths:
                     description: APIErrorResponse
                     schema:
                         $ref: '#/definitions/APIErrorResponse'
-            summary: Update an enterprise with the given parameters.
+            summary: Update enterprise with the given parameters.
             tags:
                 - enterprises
     /enterprises/{enterpriseID}/instances:

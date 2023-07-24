@@ -29,16 +29,17 @@ import (
 	"sync"
 	"time"
 
+	commonParams "github.com/cloudbase/garm-provider-common/params"
+
+	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	"github.com/cloudbase/garm-provider-common/util"
 	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/config"
 	dbCommon "github.com/cloudbase/garm/database/common"
-	runnerErrors "github.com/cloudbase/garm/errors"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
 	"github.com/cloudbase/garm/runner/pool"
 	"github.com/cloudbase/garm/runner/providers"
-	providerCommon "github.com/cloudbase/garm/runner/providers/common"
-	"github.com/cloudbase/garm/util"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/google/uuid"
@@ -761,7 +762,7 @@ func (r *Runner) appendTagsToCreatePoolParams(param params.CreatePoolParams) (pa
 	return param, nil
 }
 
-func (r *Runner) processTags(osArch string, osType params.OSType, tags []string) ([]string, error) {
+func (r *Runner) processTags(osArch string, osType commonParams.OSType, tags []string) ([]string, error) {
 	// github automatically adds the "self-hosted" tag as well as the OS type (linux, windows, etc)
 	// and architecture (arm, x64, etc) to all self hosted runners. When a workflow job comes in, we try
 	// to find a pool based on the labels that are set in the workflow. If we don't explicitly define these
@@ -857,7 +858,7 @@ func (r *Runner) GetInstanceGithubRegistrationToken(ctx context.Context) (string
 	}
 
 	status := auth.InstanceRunnerStatus(ctx)
-	if status != providerCommon.RunnerPending && status != providerCommon.RunnerInstalling {
+	if status != params.RunnerPending && status != params.RunnerInstalling {
 		return "", runnerErrors.ErrUnauthorized
 	}
 
@@ -943,9 +944,9 @@ func (r *Runner) ForceDeleteRunner(ctx context.Context, instanceName string) err
 	}
 
 	switch instance.Status {
-	case providerCommon.InstanceRunning, providerCommon.InstanceError:
+	case commonParams.InstanceRunning, commonParams.InstanceError:
 	default:
-		return runnerErrors.NewBadRequestError("runner must be in %q or %q state", providerCommon.InstanceRunning, providerCommon.InstanceError)
+		return runnerErrors.NewBadRequestError("runner must be in %q or %q state", commonParams.InstanceRunning, commonParams.InstanceError)
 	}
 
 	poolMgr, err := r.getPoolManagerFromInstance(ctx, instance)

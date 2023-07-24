@@ -3,7 +3,7 @@ package execution
 import (
 	"context"
 
-	"github.com/cloudbase/garm/params"
+	"github.com/cloudbase/garm-provider-common/params"
 )
 
 // ExternalProvider defines an interface that external providers need to implement.
@@ -11,13 +11,13 @@ import (
 // decouple it, in case it may diverge from native providers.
 type ExternalProvider interface {
 	// CreateInstance creates a new compute instance in the provider.
-	CreateInstance(ctx context.Context, bootstrapParams params.BootstrapInstance) (params.Instance, error)
+	CreateInstance(ctx context.Context, bootstrapParams params.BootstrapInstance) (params.ProviderInstance, error)
 	// Delete instance will delete the instance in a provider.
 	DeleteInstance(ctx context.Context, instance string) error
 	// GetInstance will return details about one instance.
-	GetInstance(ctx context.Context, instance string) (params.Instance, error)
+	GetInstance(ctx context.Context, instance string) (params.ProviderInstance, error)
 	// ListInstances will list all instances for a provider.
-	ListInstances(ctx context.Context, poolID string) ([]params.Instance, error)
+	ListInstances(ctx context.Context, poolID string) ([]params.ProviderInstance, error)
 	// RemoveAllInstances will remove all instances created by this provider.
 	RemoveAllInstances(ctx context.Context) error
 	// Stop shuts down the instance.

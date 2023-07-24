@@ -22,10 +22,11 @@ import (
 	"sort"
 	"testing"
 
+	commonParams "github.com/cloudbase/garm-provider-common/params"
+
 	dbCommon "github.com/cloudbase/garm/database/common"
 	garmTesting "github.com/cloudbase/garm/internal/testing"
 	"github.com/cloudbase/garm/params"
-	"github.com/cloudbase/garm/runner/providers/common"
 
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 
@@ -109,8 +110,8 @@ func (s *InstancesTestSuite) SetupTest() {
 				OSType:       "linux",
 				OSArch:       "amd64",
 				CallbackURL:  "https://garm.example.com/",
-				Status:       common.InstanceRunning,
-				RunnerStatus: common.RunnerIdle,
+				Status:       commonParams.InstanceRunning,
+				RunnerStatus: params.RunnerIdle,
 			},
 		)
 		if err != nil {
@@ -156,18 +157,18 @@ func (s *InstancesTestSuite) SetupTest() {
 			ProviderID:    "update-provider-test",
 			OSName:        "ubuntu",
 			OSVersion:     "focal",
-			Status:        common.InstancePendingDelete,
-			RunnerStatus:  common.RunnerActive,
+			Status:        commonParams.InstancePendingDelete,
+			RunnerStatus:  params.RunnerActive,
 			AgentID:       4,
 			CreateAttempt: 3,
-			Addresses: []params.Address{
+			Addresses: []commonParams.Address{
 				{
 					Address: "12.10.12.10",
-					Type:    params.PublicAddress,
+					Type:    commonParams.PublicAddress,
 				},
 				{
 					Address: "10.1.1.2",
-					Type:    params.PrivateAddress,
+					Type:    commonParams.PrivateAddress,
 				},
 			},
 		},

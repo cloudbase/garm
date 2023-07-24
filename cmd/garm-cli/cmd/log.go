@@ -10,8 +10,8 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/cloudbase/garm-provider-common/util"
 	apiParams "github.com/cloudbase/garm/apiserver/params"
-	"github.com/cloudbase/garm/util"
 
 	"github.com/gorilla/websocket"
 	"github.com/spf13/cobra"

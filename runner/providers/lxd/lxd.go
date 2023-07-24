@@ -21,16 +21,18 @@ import (
 	"sync"
 	"time"
 
+	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/config"
-	runnerErrors "github.com/cloudbase/garm/errors"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
-	"github.com/cloudbase/garm/util"
 
 	"github.com/google/go-github/v53/github"
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/pkg/errors"
+
+	"github.com/cloudbase/garm-provider-common/cloudconfig"
+	commonParams "github.com/cloudbase/garm-provider-common/params"
 )
 
 var _ common.Provider = &LXD{}
@@ -66,16 +68,16 @@ var (
 		"arm64":   "arm64",
 	}
 
-	configToLXDArchMap map[params.OSArch]string = map[params.OSArch]string{
-		params.Amd64: "x86_64",
-		params.Arm64: "aarch64",
-		params.Arm:   "armv7l",
+	configToLXDArchMap map[commonParams.OSArch]string = map[commonParams.OSArch]string{
+		commonParams.Amd64: "x86_64",
+		commonParams.Arm64: "aarch64",
+		commonParams.Arm:   "armv7l",
 	}
 
-	lxdToConfigArch map[string]params.OSArch = map[string]params.OSArch{
-		"x86_64":  params.Amd64,
-		"aarch64": params.Arm64,
-		"armv7l":  params.Arm,
+	lxdToConfigArch map[string]commonParams.OSArch = map[string]commonParams.OSArch{
+		"x86_64":  commonParams.Amd64,
+		"aarch64": commonParams.Arm64,
+		"armv7l":  commonParams.Arm,
 	}
 )
 
@@ -171,10 +173,10 @@ func (l *LXD) getProfiles(flavor string) ([]string, error) {
 	return ret, nil
 }
 
-func (l *LXD) getTools(tools []*github.RunnerApplicationDownload, osType params.OSType, architecture string) (github.RunnerApplicationDownload, error) {
+func (l *LXD) getTools(tools []*github.RunnerApplicationDownload, osType commonParams.OSType, architecture string) (github.RunnerApplicationDownload, error) {
 	// Validate image OS. Linux only for now.
 	switch osType {
-	case params.Linux:
+	case commonParams.Linux:
 	default:
 		return github.RunnerApplicationDownload{}, fmt.Errorf("this provider does not support OS type: %s", osType)
 	}
@@ -210,7 +212,7 @@ func (l *LXD) secureBootEnabled() string {
 	return "false"
 }
 
-func (l *LXD) getCreateInstanceArgs(bootstrapParams params.BootstrapInstance, specs extraSpecs) (api.InstancesPost, error) {
+func (l *LXD) getCreateInstanceArgs(bootstrapParams commonParams.BootstrapInstance, specs extraSpecs) (api.InstancesPost, error) {
 	if bootstrapParams.Name == "" {
 		return api.InstancesPost{}, runnerErrors.NewBadRequestError("missing name")
 	}
@@ -237,7 +239,7 @@ func (l *LXD) getCreateInstanceArgs(bootstrapParams params.BootstrapInstance, sp
 
 	bootstrapParams.UserDataOptions.DisableUpdatesOnBoot = specs.DisableUpdates
 	bootstrapParams.UserDataOptions.ExtraPackages = specs.ExtraPackages
-	cloudCfg, err := util.GetCloudConfig(bootstrapParams, tools, bootstrapParams.Name)
+	cloudCfg, err := cloudconfig.GetCloudConfig(bootstrapParams, tools, bootstrapParams.Name)
 	if err != nil {
 		return api.InstancesPost{}, errors.Wrap(err, "generating cloud-config")
 	}
@@ -313,40 +315,40 @@ func (l *LXD) launchInstance(createArgs api.InstancesPost) error {
 }
 
 // CreateInstance creates a new compute instance in the provider.
-func (l *LXD) CreateInstance(ctx context.Context, bootstrapParams params.BootstrapInstance) (params.Instance, error) {
+func (l *LXD) CreateInstance(ctx context.Context, bootstrapParams commonParams.BootstrapInstance) (commonParams.ProviderInstance, error) {
 	extraSpecs, err := parseExtraSpecsFromBootstrapParams(bootstrapParams)
 	if err != nil {
-		return params.Instance{}, errors.Wrap(err, "parsing extra specs")
+		return commonParams.ProviderInstance{}, errors.Wrap(err, "parsing extra specs")
 	}
 	args, err := l.getCreateInstanceArgs(bootstrapParams, extraSpecs)
 	if err != nil {
-		return params.Instance{}, errors.Wrap(err, "fetching create args")
+		return commonParams.ProviderInstance{}, errors.Wrap(err, "fetching create args")
 	}
 
 	if err := l.launchInstance(args); err != nil {
-		return params.Instance{}, errors.Wrap(err, "creating instance")
+		return commonParams.ProviderInstance{}, errors.Wrap(err, "creating instance")
 	}
 
 	ret, err := l.waitInstanceHasIP(ctx, args.Name)
 	if err != nil {
-		return params.Instance{}, errors.Wrap(err, "fetching instance")
+		return commonParams.ProviderInstance{}, errors.Wrap(err, "fetching instance")
 	}
 
 	return ret, nil
 }
 
 // GetInstance will return details about one instance.
-func (l *LXD) GetInstance(ctx context.Context, instanceName string) (params.Instance, error) {
+func (l *LXD) GetInstance(ctx context.Context, instanceName string) (commonParams.ProviderInstance, error) {
 	cli, err := l.getCLI()
 	if err != nil {
-		return params.Instance{}, errors.Wrap(err, "fetching client")
+		return commonParams.ProviderInstance{}, errors.Wrap(err, "fetching client")
 	}
 	instance, _, err := cli.GetInstanceFull(instanceName)
 	if err != nil {
 		if isNotFoundError(err) {
-			return params.Instance{}, errors.Wrapf(runnerErrors.ErrNotFound, "fetching instance: %q", err)
+			return commonParams.ProviderInstance{}, errors.Wrapf(runnerErrors.ErrNotFound, "fetching instance: %q", err)
 		}
-		return params.Instance{}, errors.Wrap(err, "fetching instance")
+		return commonParams.ProviderInstance{}, errors.Wrap(err, "fetching instance")
 	}
 
 	return lxdInstanceToAPIInstance(instance), nil
@@ -418,10 +420,10 @@ type listResponse struct {
 }
 
 // ListInstances will list all instances for a provider.
-func (l *LXD) ListInstances(ctx context.Context, poolID string) ([]params.Instance, error) {
+func (l *LXD) ListInstances(ctx context.Context, poolID string) ([]commonParams.ProviderInstance, error) {
 	cli, err := l.getCLI()
 	if err != nil {
-		return []params.Instance{}, errors.Wrap(err, "fetching client")
+		return []commonParams.ProviderInstance{}, errors.Wrap(err, "fetching client")
 	}
 
 	result := make(chan listResponse, 1)
@@ -443,14 +445,14 @@ func (l *LXD) ListInstances(ctx context.Context, poolID string) ([]params.Instan
 	select {
 	case res := <-result:
 		if res.err != nil {
-			return []params.Instance{}, errors.Wrap(res.err, "fetching instances")
+			return []commonParams.ProviderInstance{}, errors.Wrap(res.err, "fetching instances")
 		}
 		instances = res.instances
 	case <-time.After(time.Second * 60):
-		return []params.Instance{}, errors.Wrap(runnerErrors.ErrTimeout, "fetching instances from provider")
+		return []commonParams.ProviderInstance{}, errors.Wrap(runnerErrors.ErrTimeout, "fetching instances from provider")
 	}
 
-	ret := []params.Instance{}
+	ret := []commonParams.ProviderInstance{}
 
 	for _, instance := range instances {
 		if id, ok := instance.ExpandedConfig[controllerIDKeyName]; ok && id == l.controllerID {

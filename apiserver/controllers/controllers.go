@@ -21,13 +21,13 @@ import (
 	"net/http"
 	"strings"
 
+	gErrors "github.com/cloudbase/garm-provider-common/errors"
+	"github.com/cloudbase/garm-provider-common/util"
 	"github.com/cloudbase/garm/apiserver/params"
 	"github.com/cloudbase/garm/auth"
-	gErrors "github.com/cloudbase/garm/errors"
 	"github.com/cloudbase/garm/metrics"
 	runnerParams "github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner"
-	"github.com/cloudbase/garm/util"
 	wsWriter "github.com/cloudbase/garm/websocket"
 
 	"github.com/gorilla/websocket"
