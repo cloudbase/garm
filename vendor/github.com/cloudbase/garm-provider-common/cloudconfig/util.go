@@ -3,6 +3,7 @@ package cloudconfig
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/cloudbase/garm-provider-common/defaults"
@@ -21,6 +22,9 @@ type CloudConfigSpec struct {
 	// runner install script. These will run as root and can be used to prep a generic image
 	// before we attempt to install the runner. The key of the map is the name of the script
 	// as it will be written to disk. The value is a byte array with the contents of the script.
+	//
+	// These scripts will be added and run in alphabetical order.
+	//
 	// On Linux, we will set the executable flag. On Windows, the name matters as Windows looks for an
 	// extension to determine if the file is an executable or not. In theory this can hold binaries,
 	// but in most cases this will most likely hold scripts. We do not currenly validate the payload,
@@ -30,6 +34,16 @@ type CloudConfigSpec struct {
 	PreInstallScripts map[string][]byte `json:"pre_install_scripts"`
 	// ExtraContext is a map of extra context that will be passed to the runner install template.
 	ExtraContext map[string]string `json:"extra_context"`
+}
+
+func sortMapKeys(m map[string][]byte) []string {
+	var keys []string
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	return keys
 }
 
 // GetSpecs returns the cloud config specific extra specs from the bootstrap params.
@@ -125,7 +139,9 @@ func GetCloudInitConfig(bootstrapParams commonParams.BootstrapInstance, installS
 	}
 
 	if len(extraSpecs.PreInstallScripts) > 0 {
-		for name, script := range extraSpecs.PreInstallScripts {
+		names := sortMapKeys(extraSpecs.PreInstallScripts)
+		for _, name := range names {
+			script := extraSpecs.PreInstallScripts[name]
 			cloudCfg.AddFile(script, fmt.Sprintf("/garm-pre-install/%s", name), "root:root", "755")
 			cloudCfg.AddRunCmd(fmt.Sprintf("/garm-pre-install/%s", name))
 		}
