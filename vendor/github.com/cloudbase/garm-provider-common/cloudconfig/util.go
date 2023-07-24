@@ -35,6 +35,10 @@ type CloudConfigSpec struct {
 // GetSpecs returns the cloud config specific extra specs from the bootstrap params.
 func GetSpecs(bootstrapParams commonParams.BootstrapInstance) (CloudConfigSpec, error) {
 	var extraSpecs CloudConfigSpec
+	if len(bootstrapParams.ExtraSpecs) == 0 {
+		return extraSpecs, nil
+	}
+
 	if err := json.Unmarshal(bootstrapParams.ExtraSpecs, &extraSpecs); err != nil {
 		return CloudConfigSpec{}, errors.Wrap(err, "unmarshaling extra specs")
 	}
