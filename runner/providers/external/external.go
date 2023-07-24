@@ -96,7 +96,7 @@ func (e *external) CreateInstance(ctx context.Context, bootstrapParams commonPar
 
 	retAsJs, _ := json.MarshalIndent(param, "", "  ")
 	log.Printf("provider returned: %s", string(retAsJs))
-	return providerInstanceToParamsInstance(param), nil
+	return param, nil
 }
 
 // Delete instance will delete the instance in a provider.
@@ -144,7 +144,7 @@ func (e *external) GetInstance(ctx context.Context, instance string) (commonPara
 		return commonParams.ProviderInstance{}, garmErrors.NewProviderError("failed to validate result: %s", err)
 	}
 
-	return providerInstanceToParamsInstance(param), nil
+	return param, nil
 }
 
 // ListInstances will list all instances for a provider.
@@ -171,7 +171,7 @@ func (e *external) ListInstances(ctx context.Context, poolID string) ([]commonPa
 		if err := e.validateResult(inst); err != nil {
 			return []commonParams.ProviderInstance{}, garmErrors.NewProviderError("failed to validate result: %s", err)
 		}
-		ret[idx] = providerInstanceToParamsInstance(inst)
+		ret[idx] = inst
 	}
 	return ret, nil
 }

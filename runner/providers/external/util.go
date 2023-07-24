@@ -19,14 +19,3 @@ func IsValidProviderStatus(status commonParams.InstanceStatus) bool {
 		return false
 	}
 }
-
-func providerInstanceToParamsInstance(inst commonParams.ProviderInstance) commonParams.ProviderInstance {
-	return commonParams.ProviderInstance{
-		ProviderID: inst.ProviderID,
-		Name:       inst.Name,
-		OSName:     inst.OSName,
-		OSArch:     inst.OSArch,
-		OSType:     inst.OSType,
-		Status:     inst.Status,
-	}
-}
