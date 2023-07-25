@@ -17,6 +17,7 @@ package cmd
 import (
 	"fmt"
 
+	apiClientOrgs "github.com/cloudbase/garm/client/organizations"
 	"github.com/cloudbase/garm/params"
 
 	"github.com/jedib0t/go-pretty/v6/table"
@@ -54,16 +55,17 @@ var orgAddCmd = &cobra.Command{
 			return errNeedsInitError
 		}
 
-		newOrgReq := params.CreateOrgParams{
+		newOrgReq := apiClientOrgs.NewCreateOrgParams()
+		newOrgReq.Body = params.CreateOrgParams{
 			Name:            orgName,
 			WebhookSecret:   orgWebhookSecret,
 			CredentialsName: orgCreds,
 		}
-		org, err := cli.CreateOrganization(newOrgReq)
+		response, err := apiCli.Organizations.CreateOrg(newOrgReq, authToken)
 		if err != nil {
 			return err
 		}
-		formatOneOrganization(org)
+		formatOneOrganization(response.Payload)
 		return nil
 	},
 }
@@ -85,16 +87,17 @@ var orgUpdateCmd = &cobra.Command{
 		if len(args) > 1 {
 			return fmt.Errorf("too many arguments")
 		}
-
-		orgUpdateReq := params.UpdateEntityParams{
+		updateOrgReq := apiClientOrgs.NewUpdateOrgParams()
+		updateOrgReq.Body = params.UpdateEntityParams{
 			WebhookSecret:   repoWebhookSecret,
 			CredentialsName: orgCreds,
 		}
-		org, err := cli.UpdateOrganization(args[0], orgUpdateReq)
+		updateOrgReq.OrgID = args[0]
+		response, err := apiCli.Organizations.UpdateOrg(updateOrgReq, authToken)
 		if err != nil {
 			return err
 		}
-		formatOneOrganization(org)
+		formatOneOrganization(response.Payload)
 		return nil
 	},
 }
@@ -110,11 +113,12 @@ var orgListCmd = &cobra.Command{
 			return errNeedsInitError
 		}
 
-		orgs, err := cli.ListOrganizations()
+		listOrgsReq := apiClientOrgs.NewListOrgsParams()
+		response, err := apiCli.Organizations.ListOrgs(listOrgsReq, authToken)
 		if err != nil {
 			return err
 		}
-		formatOrganizations(orgs)
+		formatOrganizations(response.Payload)
 		return nil
 	},
 }
@@ -134,11 +138,13 @@ var orgShowCmd = &cobra.Command{
 		if len(args) > 1 {
 			return fmt.Errorf("too many arguments")
 		}
-		org, err := cli.GetOrganization(args[0])
+		showOrgReq := apiClientOrgs.NewGetOrgParams()
+		showOrgReq.OrgID = args[0]
+		response, err := apiCli.Organizations.GetOrg(showOrgReq, authToken)
 		if err != nil {
 			return err
 		}
-		formatOneOrganization(org)
+		formatOneOrganization(response.Payload)
 		return nil
 	},
 }
@@ -159,7 +165,9 @@ var orgDeleteCmd = &cobra.Command{
 		if len(args) > 1 {
 			return fmt.Errorf("too many arguments")
 		}
-		if err := cli.DeleteOrganization(args[0]); err != nil {
+		deleteOrgReq := apiClientOrgs.NewDeleteOrgParams()
+		deleteOrgReq.OrgID = args[0]
+		if err := apiCli.Organizations.DeleteOrg(deleteOrgReq, authToken); err != nil {
 			return err
 		}
 		return nil

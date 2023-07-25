@@ -16,11 +16,14 @@ package cmd
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 
-	"github.com/cloudbase/garm/cmd/garm-cli/client"
+	apiClient "github.com/cloudbase/garm/client"
 	"github.com/cloudbase/garm/cmd/garm-cli/config"
+	"github.com/go-openapi/runtime"
 
+	openapiRuntimeClient "github.com/go-openapi/runtime/client"
 	"github.com/spf13/cobra"
 )
 
@@ -29,8 +32,8 @@ var Version string
 var (
 	cfg               *config.Config
 	mgr               config.Manager
-	cli               *client.Client
-	active            string
+	apiCli            *apiClient.GarmAPI
+	authToken         runtime.ClientAuthInfoWriter
 	needsInit         bool
 	debug             bool
 	errNeedsInitError = fmt.Errorf("please log into a garm installation first")
@@ -55,6 +58,28 @@ func Execute() {
 	}
 }
 
+func initApiClient(baseUrl, token string) {
+	baseUrlParsed, err := url.Parse(baseUrl)
+	if err != nil {
+		fmt.Printf("Failed to parse base url %s: %s", baseUrl, err)
+		os.Exit(1)
+	}
+	apiPath, err := url.JoinPath(baseUrlParsed.Path, apiClient.DefaultBasePath)
+	if err != nil {
+		fmt.Printf("Failed to join base url path %s with %s: %s", baseUrlParsed.Path, apiClient.DefaultBasePath, err)
+		os.Exit(1)
+	}
+	if debug {
+		os.Setenv("SWAGGER_DEBUG", "true")
+	}
+	transportCfg := apiClient.DefaultTransportConfig().
+		WithHost(baseUrlParsed.Host).
+		WithBasePath(apiPath).
+		WithSchemes([]string{baseUrlParsed.Scheme})
+	apiCli = apiClient.NewHTTPClientWithConfig(nil, transportCfg)
+	authToken = openapiRuntimeClient.BearerToken(token)
+}
+
 func initConfig() {
 	var err error
 	cfg, err = config.LoadConfig()
@@ -70,7 +95,6 @@ func initConfig() {
 		if err != nil {
 			mgr = cfg.Managers[0]
 		}
-		active = mgr.Name
 	}
-	cli = client.NewClient(active, mgr, debug)
+	initApiClient(mgr.BaseURL, mgr.Token)
 }

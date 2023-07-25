@@ -129,9 +129,6 @@ github.com/go-openapi/swag
 # github.com/go-openapi/validate v0.22.1
 ## explicit; go 1.14
 github.com/go-openapi/validate
-# github.com/go-resty/resty/v2 v2.7.0
-## explicit; go 1.11
-github.com/go-resty/resty/v2
 # github.com/go-sql-driver/mysql v1.7.0
 ## explicit; go 1.13
 github.com/go-sql-driver/mysql
