@@ -18,7 +18,8 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/cloudbase/garm/runner/providers/common"
+	commonParams "github.com/cloudbase/garm-provider-common/params"
+
 	"github.com/cloudbase/garm/util/appdefaults"
 
 	"github.com/google/go-github/v53/github"
@@ -27,13 +28,11 @@ import (
 
 type (
 	PoolType     string
-	AddressType  string
 	EventType    string
 	EventLevel   string
-	OSType       string
-	OSArch       string
 	ProviderType string
 	JobStatus    string
+	RunnerStatus string
 )
 
 const (
@@ -56,11 +55,6 @@ const (
 )
 
 const (
-	PublicAddress  AddressType = "public"
-	PrivateAddress AddressType = "private"
-)
-
-const (
 	StatusEvent     EventType = "status"
 	FetchTokenEvent EventType = "fetchToken"
 )
@@ -72,22 +66,13 @@ const (
 )
 
 const (
-	Windows OSType = "windows"
-	Linux   OSType = "linux"
-	Unknown OSType = "unknown"
+	RunnerIdle       RunnerStatus = "idle"
+	RunnerPending    RunnerStatus = "pending"
+	RunnerTerminated RunnerStatus = "terminated"
+	RunnerInstalling RunnerStatus = "installing"
+	RunnerFailed     RunnerStatus = "failed"
+	RunnerActive     RunnerStatus = "active"
 )
-
-const (
-	Amd64 OSArch = "amd64"
-	I386  OSArch = "i386"
-	Arm64 OSArch = "arm64"
-	Arm   OSArch = "arm"
-)
-
-type Address struct {
-	Address string      `json:"address"`
-	Type    AddressType `json:"type"`
-}
 
 type StatusMessage struct {
 	CreatedAt  time.Time  `json:"created_at"`
@@ -116,7 +101,7 @@ type Instance struct {
 
 	// OSType is the operating system type. For now, only Linux and
 	// Windows are supported.
-	OSType OSType `json:"os_type,omitempty"`
+	OSType commonParams.OSType `json:"os_type,omitempty"`
 
 	// OSName is the name of the OS. Eg: ubuntu, centos, etc.
 	OSName string `json:"os_name,omitempty"`
@@ -125,17 +110,17 @@ type Instance struct {
 	OSVersion string `json:"os_version,omitempty"`
 
 	// OSArch is the operating system architecture.
-	OSArch OSArch `json:"os_arch,omitempty"`
+	OSArch commonParams.OSArch `json:"os_arch,omitempty"`
 
 	// Addresses is a list of IP addresses the provider reports
 	// for this instance.
-	Addresses []Address `json:"addresses,omitempty"`
+	Addresses []commonParams.Address `json:"addresses,omitempty"`
 
 	// Status is the status of the instance inside the provider (eg: running, stopped, etc)
-	Status common.InstanceStatus `json:"status,omitempty"`
+	Status commonParams.InstanceStatus `json:"status,omitempty"`
 
 	// RunnerStatus is the github runner status as it appears on GitHub.
-	RunnerStatus common.RunnerStatus `json:"runner_status,omitempty"`
+	RunnerStatus RunnerStatus `json:"runner_status,omitempty"`
 
 	// PoolID is the ID of the garm pool to which a runner belongs.
 	PoolID string `json:"pool_id,omitempty"`
@@ -208,10 +193,10 @@ type BootstrapInstance struct {
 	CACertBundle []byte `json:"ca-cert-bundle"`
 
 	// OSArch is the target OS CPU architecture of the runner.
-	OSArch OSArch `json:"arch"`
+	OSArch commonParams.OSArch `json:"arch"`
 
 	// OSType is the target OS platform of the runner (windows, linux).
-	OSType OSType `json:"os_type"`
+	OSType commonParams.OSType `json:"os_type"`
 
 	// Flavor is the platform specific abstraction that defines what resources will be allocated
 	// to the runner (CPU, RAM, disk space, etc). This field is meaningful to the provider which
@@ -245,24 +230,24 @@ type Tag struct {
 type Pool struct {
 	RunnerPrefix
 
-	ID                     string     `json:"id"`
-	ProviderName           string     `json:"provider_name"`
-	MaxRunners             uint       `json:"max_runners"`
-	MinIdleRunners         uint       `json:"min_idle_runners"`
-	Image                  string     `json:"image"`
-	Flavor                 string     `json:"flavor"`
-	OSType                 OSType     `json:"os_type"`
-	OSArch                 OSArch     `json:"os_arch"`
-	Tags                   []Tag      `json:"tags"`
-	Enabled                bool       `json:"enabled"`
-	Instances              []Instance `json:"instances"`
-	RepoID                 string     `json:"repo_id,omitempty"`
-	RepoName               string     `json:"repo_name,omitempty"`
-	OrgID                  string     `json:"org_id,omitempty"`
-	OrgName                string     `json:"org_name,omitempty"`
-	EnterpriseID           string     `json:"enterprise_id,omitempty"`
-	EnterpriseName         string     `json:"enterprise_name,omitempty"`
-	RunnerBootstrapTimeout uint       `json:"runner_bootstrap_timeout"`
+	ID                     string              `json:"id"`
+	ProviderName           string              `json:"provider_name"`
+	MaxRunners             uint                `json:"max_runners"`
+	MinIdleRunners         uint                `json:"min_idle_runners"`
+	Image                  string              `json:"image"`
+	Flavor                 string              `json:"flavor"`
+	OSType                 commonParams.OSType `json:"os_type"`
+	OSArch                 commonParams.OSArch `json:"os_arch"`
+	Tags                   []Tag               `json:"tags"`
+	Enabled                bool                `json:"enabled"`
+	Instances              []Instance          `json:"instances"`
+	RepoID                 string              `json:"repo_id,omitempty"`
+	RepoName               string              `json:"repo_name,omitempty"`
+	OrgID                  string              `json:"org_id,omitempty"`
+	OrgName                string              `json:"org_name,omitempty"`
+	EnterpriseID           string              `json:"enterprise_id,omitempty"`
+	EnterpriseName         string              `json:"enterprise_name,omitempty"`
+	RunnerBootstrapTimeout uint                `json:"runner_bootstrap_timeout"`
 	// ExtraSpecs is an opaque raw json that gets sent to the provider
 	// as part of the bootstrap params for instances. It can contain
 	// any kind of data needed by providers. The contents of this field means
@@ -350,6 +335,9 @@ func (o Organization) GetID() string {
 	return o.ID
 }
 
+// used by swagger client generated code
+type Organizations []Organization
+
 type Enterprise struct {
 	ID                string            `json:"id"`
 	Name              string            `json:"name"`
@@ -367,6 +355,9 @@ func (e Enterprise) GetName() string {
 func (e Enterprise) GetID() string {
 	return e.ID
 }
+
+// used by swagger client generated code
+type Enterprises []Enterprise
 
 // Users holds information about a particular user
 type User struct {
@@ -401,11 +392,17 @@ type GithubCredentials struct {
 	CABundle      []byte `json:"ca_bundle,omitempty"`
 }
 
+// used by swagger client generated code
+type Credentials []GithubCredentials
+
 type Provider struct {
 	Name         string       `json:"name"`
 	ProviderType ProviderType `json:"type"`
 	Description  string       `json:"description"`
 }
+
+// used by swagger client generated code
+type Providers []Provider
 
 type UpdatePoolStateParams struct {
 	WebhookSecret  string
@@ -482,3 +479,6 @@ type Job struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
+
+// used by swagger client generated code
+type Jobs []Job

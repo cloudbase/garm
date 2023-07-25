@@ -17,6 +17,7 @@ package cmd
 import (
 	"fmt"
 
+	apiClientCreds "github.com/cloudbase/garm/client/credentials"
 	"github.com/cloudbase/garm/params"
 
 	"github.com/jedib0t/go-pretty/v6/table"
@@ -50,11 +51,12 @@ func init() {
 					return errNeedsInitError
 				}
 
-				creds, err := cli.ListCredentials()
+				listCredsReq := apiClientCreds.NewListCredentialsParams()
+				response, err := apiCli.Credentials.ListCredentials(listCredsReq, authToken)
 				if err != nil {
 					return err
 				}
-				formatGithubCredentials(creds)
+				formatGithubCredentials(response.Payload)
 				return nil
 			},
 		})

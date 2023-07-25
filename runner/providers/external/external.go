@@ -7,13 +7,15 @@ import (
 	"log"
 	"os/exec"
 
+	"github.com/cloudbase/garm-provider-common/execution"
+
+	commonParams "github.com/cloudbase/garm-provider-common/params"
+
+	garmErrors "github.com/cloudbase/garm-provider-common/errors"
+	garmExec "github.com/cloudbase/garm-provider-common/util/exec"
 	"github.com/cloudbase/garm/config"
-	garmErrors "github.com/cloudbase/garm/errors"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
-	providerCommon "github.com/cloudbase/garm/runner/providers/common"
-	"github.com/cloudbase/garm/runner/providers/external/execution"
-	garmExec "github.com/cloudbase/garm/util/exec"
 
 	"github.com/pkg/errors"
 )
@@ -44,7 +46,7 @@ type external struct {
 	execPath     string
 }
 
-func (e *external) validateResult(inst params.Instance) error {
+func (e *external) validateResult(inst commonParams.ProviderInstance) error {
 	if inst.ProviderID == "" {
 		return garmErrors.NewProviderError("missing provider ID")
 	}
@@ -57,7 +59,7 @@ func (e *external) validateResult(inst params.Instance) error {
 		// we can still function without this info (I think)
 		log.Printf("WARNING: missing OS information")
 	}
-	if !providerCommon.IsValidProviderStatus(inst.Status) {
+	if !IsValidProviderStatus(inst.Status) {
 		return garmErrors.NewProviderError("invalid status returned (%s)", inst.Status)
 	}
 
@@ -65,7 +67,7 @@ func (e *external) validateResult(inst params.Instance) error {
 }
 
 // CreateInstance creates a new compute instance in the provider.
-func (e *external) CreateInstance(ctx context.Context, bootstrapParams params.BootstrapInstance) (params.Instance, error) {
+func (e *external) CreateInstance(ctx context.Context, bootstrapParams commonParams.BootstrapInstance) (commonParams.ProviderInstance, error) {
 	asEnv := []string{
 		fmt.Sprintf("GARM_COMMAND=%s", execution.CreateInstanceCommand),
 		fmt.Sprintf("GARM_CONTROLLER_ID=%s", e.controllerID),
@@ -75,21 +77,21 @@ func (e *external) CreateInstance(ctx context.Context, bootstrapParams params.Bo
 
 	asJs, err := json.Marshal(bootstrapParams)
 	if err != nil {
-		return params.Instance{}, errors.Wrap(err, "serializing bootstrap params")
+		return commonParams.ProviderInstance{}, errors.Wrap(err, "serializing bootstrap params")
 	}
 
 	out, err := garmExec.Exec(ctx, e.execPath, asJs, asEnv)
 	if err != nil {
-		return params.Instance{}, garmErrors.NewProviderError("provider binary %s returned error: %s", e.execPath, err)
+		return commonParams.ProviderInstance{}, garmErrors.NewProviderError("provider binary %s returned error: %s", e.execPath, err)
 	}
 
-	var param params.Instance
+	var param commonParams.ProviderInstance
 	if err := json.Unmarshal(out, &param); err != nil {
-		return params.Instance{}, garmErrors.NewProviderError("failed to decode response from binary: %s", err)
+		return commonParams.ProviderInstance{}, garmErrors.NewProviderError("failed to decode response from binary: %s", err)
 	}
 
 	if err := e.validateResult(param); err != nil {
-		return params.Instance{}, garmErrors.NewProviderError("failed to validate result: %s", err)
+		return commonParams.ProviderInstance{}, garmErrors.NewProviderError("failed to validate result: %s", err)
 	}
 
 	retAsJs, _ := json.MarshalIndent(param, "", "  ")
@@ -118,7 +120,7 @@ func (e *external) DeleteInstance(ctx context.Context, instance string) error {
 }
 
 // GetInstance will return details about one instance.
-func (e *external) GetInstance(ctx context.Context, instance string) (params.Instance, error) {
+func (e *external) GetInstance(ctx context.Context, instance string) (commonParams.ProviderInstance, error) {
 	asEnv := []string{
 		fmt.Sprintf("GARM_COMMAND=%s", execution.GetInstanceCommand),
 		fmt.Sprintf("GARM_CONTROLLER_ID=%s", e.controllerID),
@@ -130,23 +132,23 @@ func (e *external) GetInstance(ctx context.Context, instance string) (params.Ins
 	// know when the error is ErrNotFound.
 	out, err := garmExec.Exec(ctx, e.execPath, nil, asEnv)
 	if err != nil {
-		return params.Instance{}, garmErrors.NewProviderError("provider binary %s returned error: %s", e.execPath, err)
+		return commonParams.ProviderInstance{}, garmErrors.NewProviderError("provider binary %s returned error: %s", e.execPath, err)
 	}
 
-	var param params.Instance
+	var param commonParams.ProviderInstance
 	if err := json.Unmarshal(out, &param); err != nil {
-		return params.Instance{}, garmErrors.NewProviderError("failed to decode response from binary: %s", err)
+		return commonParams.ProviderInstance{}, garmErrors.NewProviderError("failed to decode response from binary: %s", err)
 	}
 
 	if err := e.validateResult(param); err != nil {
-		return params.Instance{}, garmErrors.NewProviderError("failed to validate result: %s", err)
+		return commonParams.ProviderInstance{}, garmErrors.NewProviderError("failed to validate result: %s", err)
 	}
 
 	return param, nil
 }
 
 // ListInstances will list all instances for a provider.
-func (e *external) ListInstances(ctx context.Context, poolID string) ([]params.Instance, error) {
+func (e *external) ListInstances(ctx context.Context, poolID string) ([]commonParams.ProviderInstance, error) {
 	asEnv := []string{
 		fmt.Sprintf("GARM_COMMAND=%s", execution.ListInstancesCommand),
 		fmt.Sprintf("GARM_CONTROLLER_ID=%s", e.controllerID),
@@ -156,20 +158,22 @@ func (e *external) ListInstances(ctx context.Context, poolID string) ([]params.I
 
 	out, err := garmExec.Exec(ctx, e.execPath, nil, asEnv)
 	if err != nil {
-		return []params.Instance{}, garmErrors.NewProviderError("provider binary %s returned error: %s", e.execPath, err)
+		return []commonParams.ProviderInstance{}, garmErrors.NewProviderError("provider binary %s returned error: %s", e.execPath, err)
 	}
 
-	var param []params.Instance
+	var param []commonParams.ProviderInstance
 	if err := json.Unmarshal(out, &param); err != nil {
-		return []params.Instance{}, garmErrors.NewProviderError("failed to decode response from binary: %s", err)
+		return []commonParams.ProviderInstance{}, garmErrors.NewProviderError("failed to decode response from binary: %s", err)
 	}
 
-	for _, inst := range param {
+	ret := make([]commonParams.ProviderInstance, len(param))
+	for idx, inst := range param {
 		if err := e.validateResult(inst); err != nil {
-			return []params.Instance{}, garmErrors.NewProviderError("failed to validate result: %s", err)
+			return []commonParams.ProviderInstance{}, garmErrors.NewProviderError("failed to validate result: %s", err)
 		}
+		ret[idx] = inst
 	}
-	return param, nil
+	return ret, nil
 }
 
 // RemoveAllInstances will remove all instances created by this provider.

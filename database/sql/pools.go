@@ -18,7 +18,7 @@ import (
 	"context"
 	"fmt"
 
-	runnerErrors "github.com/cloudbase/garm/errors"
+	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/params"
 
 	"github.com/google/uuid"

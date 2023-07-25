@@ -19,11 +19,6 @@ const (
 	// configuration file.
 	DefaultConfigFilePath = "/etc/garm/config.toml"
 
-	// DefaultUser is the default username that should exist on the instances.
-	DefaultUser = "runner"
-	// DefaultUserShell is the shell for the default user.
-	DefaultUserShell = "/bin/bash"
-
 	// DefaultPoolQueueSize is the default size for a pool queue.
 	DefaultPoolQueueSize = 10
 
@@ -32,17 +27,4 @@ const (
 
 	// uploadBaseURL is the default URL for guthub uploads.
 	GithubDefaultUploadBaseURL = "https://uploads.github.com/"
-)
-
-var (
-	// DefaultConfigDir is the default path on disk to the config dir. The config
-	// file will probably be in the same folder, but it is not mandatory.
-	DefaultConfigDir = "/etc/garm"
-
-	// DefaultUserGroups are the groups the default user will be part of.
-	DefaultUserGroups = []string{
-		"sudo", "adm", "cdrom", "dialout",
-		"dip", "video", "plugdev", "netdev",
-		"docker", "lxd",
-	}
 )

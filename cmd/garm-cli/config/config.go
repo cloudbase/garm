@@ -23,7 +23,7 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/pkg/errors"
 
-	runnerErrors "github.com/cloudbase/garm/errors"
+	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 )
 
 const (

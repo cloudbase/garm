@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 
+	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/database/common"
-	runnerErrors "github.com/cloudbase/garm/errors"
 	"github.com/cloudbase/garm/params"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"

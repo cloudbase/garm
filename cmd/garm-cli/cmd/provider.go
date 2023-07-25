@@ -17,6 +17,7 @@ package cmd
 import (
 	"fmt"
 
+	apiClientProviders "github.com/cloudbase/garm/client/providers"
 	"github.com/cloudbase/garm/params"
 
 	"github.com/jedib0t/go-pretty/v6/table"
@@ -49,11 +50,12 @@ func init() {
 					return errNeedsInitError
 				}
 
-				providers, err := cli.ListProviders()
+				listProvidersReq := apiClientProviders.NewListProvidersParams()
+				response, err := apiCli.Providers.ListProviders(listProvidersReq, authToken)
 				if err != nil {
 					return err
 				}
-				formatProviders(providers)
+				formatProviders(response.Payload)
 				return nil
 			},
 		})

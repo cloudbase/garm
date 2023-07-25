@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"strings"
 
+	apiClientLogin "github.com/cloudbase/garm/client/login"
 	"github.com/cloudbase/garm/cmd/garm-cli/common"
 	"github.com/cloudbase/garm/cmd/garm-cli/config"
 	"github.com/cloudbase/garm/params"
@@ -143,12 +144,15 @@ var profileAddCmd = &cobra.Command{
 		}
 
 		url := strings.TrimSuffix(loginURL, "/")
-		loginParams := params.PasswordLoginParams{
+
+		initApiClient(url, "")
+
+		newLoginParamsReq := apiClientLogin.NewLoginParams()
+		newLoginParamsReq.Body = params.PasswordLoginParams{
 			Username: loginUserName,
 			Password: loginPassword,
 		}
-
-		resp, err := cli.Login(url, loginParams)
+		resp, err := apiCli.Login.Login(newLoginParamsReq, authToken)
 		if err != nil {
 			return err
 		}
@@ -156,7 +160,7 @@ var profileAddCmd = &cobra.Command{
 		cfg.Managers = append(cfg.Managers, config.Manager{
 			Name:    loginProfileName,
 			BaseURL: url,
-			Token:   resp,
+			Token:   resp.Payload.Token,
 		})
 		cfg.ActiveManager = loginProfileName
 
@@ -190,16 +194,17 @@ installation, by performing a login.
 			return err
 		}
 
-		loginParams := params.PasswordLoginParams{
+		newLoginParamsReq := apiClientLogin.NewLoginParams()
+		newLoginParamsReq.Body = params.PasswordLoginParams{
 			Username: loginUserName,
 			Password: loginPassword,
 		}
 
-		resp, err := cli.Login(mgr.BaseURL, loginParams)
+		resp, err := apiCli.Login.Login(newLoginParamsReq, authToken)
 		if err != nil {
 			return err
 		}
-		if err := cfg.SetManagerToken(mgr.Name, resp); err != nil {
+		if err := cfg.SetManagerToken(mgr.Name, resp.Payload.Token); err != nil {
 			return fmt.Errorf("error saving new token: %s", err)
 		}
 

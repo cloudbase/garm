@@ -1,13 +1,91 @@
 # NOTE: The purpose of these definitions is to reuse the existing golang
 # types from GARM packages.
 definitions:
-  Instances:
+  User:
     type: object
+    x-go-type:
+        type: User
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+  NewUserParams:
+    type: object
+    x-go-type:
+        type: NewUserParams
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+  PasswordLoginParams:
+    type: object
+    x-go-type:
+        type: PasswordLoginParams
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+  JWTResponse:
+    type: object
+    x-go-type:
+        type: JWTResponse
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+  Jobs:
+    type: array
+    x-go-type:
+        type: Jobs
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+    items:
+        $ref: '#/definitions/Job'
+  Job: 
+    type: object
+    x-go-type:
+        type: Job
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+  Credentials:
+    type: array
+    x-go-type:
+        type: Credentials
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+    items:
+        $ref: '#/definitions/GithubCredentials'
+  GithubCredentials:
+    type: object
+    x-go-type:
+        type: GithubCredentials
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+  Providers:
+    type: array
+    x-go-type:
+        type: Providers
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+    items:
+        $ref: '#/definitions/Provider'
+  Provider:
+    type: object
+    x-go-type:
+        type: Provider
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+  Instances:
+    type: array
     x-go-type:
         type: Instances
         import:
             package: github.com/cloudbase/garm/params
             alias: garm_params
+    items:
+        $ref: '#/definitions/Instance'
   Instance:
     type: object
     x-go-type:
@@ -16,12 +94,14 @@ definitions:
             package: github.com/cloudbase/garm/params
             alias: garm_params
   Pools:
-    type: object
+    type: array
     x-go-type:
         type: Pools
         import:
             package: github.com/cloudbase/garm/params
             alias: garm_params
+    items:
+        $ref: '#/definitions/Pool'
   Pool:
     type: object
     x-go-type:
@@ -49,6 +129,52 @@ definitions:
     type: object
     x-go-type:
         type: CreateRepoParams
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+  Organizations:
+    type: array
+    x-go-type:
+        type: Organizations
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+    items:
+        $ref: '#/definitions/Organization'
+  Organization:
+    type: object
+    x-go-type:
+        type: Organization
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+  CreateOrgParams:
+    type: object
+    x-go-type:
+        type: CreateOrgParams
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+  Enterprises:
+    type: array
+    x-go-type:
+        type: Enterprises
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+    items:
+        $ref: '#/definitions/Enterprise'
+  Enterprise:
+    type: object
+    x-go-type:
+        type: Enterprise
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+  CreateEnterpriseParams:
+    type: object
+    x-go-type:
+        type: CreateEnterpriseParams
         import:
             package: github.com/cloudbase/garm/params
             alias: garm_params

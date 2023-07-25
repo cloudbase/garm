@@ -17,8 +17,8 @@ package sql
 import (
 	"time"
 
+	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm/params"
-	"github.com/cloudbase/garm/runner/providers/common"
 
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
@@ -63,8 +63,8 @@ type Pool struct {
 	RunnerBootstrapTimeout uint
 	Image                  string `gorm:"index:idx_pool_type"`
 	Flavor                 string `gorm:"index:idx_pool_type"`
-	OSType                 params.OSType
-	OSArch                 params.OSArch
+	OSType                 commonParams.OSType
+	OSArch                 commonParams.OSArch
 	Tags                   []*Tag `gorm:"many2many:pool_tags;constraint:OnDelete:CASCADE,OnUpdate:CASCADE;"`
 	Enabled                bool
 	// ExtraSpecs is an opaque json that gets sent to the provider
@@ -143,13 +143,13 @@ type Instance struct {
 	ProviderID        *string `gorm:"uniqueIndex"`
 	Name              string  `gorm:"uniqueIndex"`
 	AgentID           int64
-	OSType            params.OSType
-	OSArch            params.OSArch
+	OSType            commonParams.OSType
+	OSArch            commonParams.OSArch
 	OSName            string
 	OSVersion         string
 	Addresses         []Address `gorm:"foreignKey:InstanceID;constraint:OnDelete:CASCADE,OnUpdate:CASCADE;"`
-	Status            common.InstanceStatus
-	RunnerStatus      common.RunnerStatus
+	Status            commonParams.InstanceStatus
+	RunnerStatus      params.RunnerStatus
 	CallbackURL       string
 	MetadataURL       string
 	ProviderFault     []byte `gorm:"type:longblob"`

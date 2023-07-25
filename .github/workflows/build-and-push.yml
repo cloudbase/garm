@@ -1,0 +1,49 @@
+name: "Build GARM images"
+on:
+  workflow_dispatch:
+    inputs:
+      push_to_project:
+        description: "Project to build images for"
+        required: true
+        default: "ghcr.io/cloudbase"
+      ref:
+        description: "Ref to build"
+        required: true
+        default: "main"
+
+permissions:
+  contents: read
+
+jobs:
+    images:
+      permissions:
+        packages: write
+      name: "Build GARM images"
+      runs-on: ubuntu-22.04
+      steps:
+        - name: "Checkout"
+          uses: actions/checkout@v3
+          with:
+            path: src/github.com/cloudbase/garm
+            fetch-depth: 0
+
+        - name: Set up Docker Buildx
+          uses: docker/setup-buildx-action@v2
+
+        - name: Login to GitHub Container Registry
+          uses: docker/login-action@v2
+          with:
+            registry: ghcr.io
+            username: ${{ github.actor }}
+            password: ${{ secrets.GITHUB_TOKEN }}
+
+        - name: Build and push
+          run: |
+            cd src/github.com/cloudbase/garm
+            VERSION=$(git describe --tags --match='v[0-9]*' --always ${{ github.event.inputs.ref }})
+            docker buildx build \
+              --provenance=false \
+              --platform linux/amd64,linux/arm64 \
+              --build-arg="GARM_REF=${{ github.event.inputs.ref }}" \
+              -t ${{ github.event.inputs.push_to_project }}/garm:"${VERSION}" \
+              --push .

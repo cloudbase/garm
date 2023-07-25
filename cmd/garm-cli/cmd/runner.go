@@ -20,6 +20,10 @@ import (
 
 	"github.com/cloudbase/garm/params"
 
+	apiClientEnterprises "github.com/cloudbase/garm/client/enterprises"
+	apiClientInstances "github.com/cloudbase/garm/client/instances"
+	apiClientOrgs "github.com/cloudbase/garm/client/organizations"
+	apiClientRepos "github.com/cloudbase/garm/client/repositories"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/spf13/cobra"
 )
@@ -88,16 +92,35 @@ Example:
 
 				return fmt.Errorf("specifying a pool ID and any of [all org repo enterprise] are mutually exclusive")
 			}
-			instances, err = cli.ListPoolInstances(args[0])
+			var response *apiClientInstances.ListPoolInstancesOK
+			listPoolInstancesReq := apiClientInstances.NewListPoolInstancesParams()
+			listPoolInstancesReq.PoolID = args[0]
+			response, err = apiCli.Instances.ListPoolInstances(listPoolInstancesReq, authToken)
+			instances = response.Payload
 		case 0:
 			if cmd.Flags().Changed("repo") {
-				instances, err = cli.ListRepoInstances(runnerRepository)
+				var response *apiClientRepos.ListRepoInstancesOK
+				listRepoInstancesReq := apiClientRepos.NewListRepoInstancesParams()
+				listRepoInstancesReq.RepoID = runnerRepository
+				response, err = apiCli.Repositories.ListRepoInstances(listRepoInstancesReq, authToken)
+				instances = response.Payload
 			} else if cmd.Flags().Changed("org") {
-				instances, err = cli.ListOrgInstances(runnerOrganization)
+				var response *apiClientOrgs.ListOrgInstancesOK
+				listOrgInstancesReq := apiClientOrgs.NewListOrgInstancesParams()
+				listOrgInstancesReq.OrgID = runnerOrganization
+				response, err = apiCli.Organizations.ListOrgInstances(listOrgInstancesReq, authToken)
+				instances = response.Payload
 			} else if cmd.Flags().Changed("enterprise") {
-				instances, err = cli.ListEnterpriseInstances(runnerEnterprise)
+				var response *apiClientEnterprises.ListEnterpriseInstancesOK
+				listEnterpriseInstancesReq := apiClientEnterprises.NewListEnterpriseInstancesParams()
+				listEnterpriseInstancesReq.EnterpriseID = runnerEnterprise
+				response, err = apiCli.Enterprises.ListEnterpriseInstances(listEnterpriseInstancesReq, authToken)
+				instances = response.Payload
 			} else if cmd.Flags().Changed("all") {
-				instances, err = cli.ListAllInstances()
+				var response *apiClientInstances.ListInstancesOK
+				listInstancesReq := apiClientInstances.NewListInstancesParams()
+				response, err = apiCli.Instances.ListInstances(listInstancesReq, authToken)
+				instances = response.Payload
 			} else {
 				cmd.Help() //nolint
 				os.Exit(0)
@@ -133,11 +156,13 @@ var runnerShowCmd = &cobra.Command{
 			return fmt.Errorf("too many arguments")
 		}
 
-		instance, err := cli.GetInstanceByName(args[0])
+		showInstanceReq := apiClientInstances.NewGetInstanceParams()
+		showInstanceReq.InstanceName = args[0]
+		response, err := apiCli.Instances.GetInstance(showInstanceReq, authToken)
 		if err != nil {
 			return err
 		}
-		formatSingleInstance(instance)
+		formatSingleInstance(response.Payload)
 		return nil
 	},
 }
@@ -170,7 +195,9 @@ to either cancel the workflow or wait for it to finish.
 			return fmt.Errorf("use --force-remove-runner=true to remove a runner")
 		}
 
-		if err := cli.DeleteRunner(args[0]); err != nil {
+		deleteInstanceReq := apiClientInstances.NewDeleteInstanceParams()
+		deleteInstanceReq.InstanceName = args[0]
+		if err := apiCli.Instances.DeleteInstance(deleteInstanceReq, authToken); err != nil {
 			return err
 		}
 		return nil

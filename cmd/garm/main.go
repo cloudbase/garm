@@ -27,6 +27,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/cloudbase/garm-provider-common/util"
 	"github.com/cloudbase/garm/apiserver/controllers"
 	"github.com/cloudbase/garm/apiserver/routers"
 	"github.com/cloudbase/garm/auth"
@@ -35,7 +36,6 @@ import (
 	"github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/metrics"
 	"github.com/cloudbase/garm/runner"
-	"github.com/cloudbase/garm/util"
 	"github.com/cloudbase/garm/util/appdefaults"
 	"github.com/cloudbase/garm/websocket"
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
@@ -51,6 +51,11 @@ var (
 )
 
 var Version string
+
+var signals = []os.Signal{
+	os.Interrupt,
+	syscall.SIGTERM,
+}
 
 func maybeInitController(db common.Store) error {
 	if _, err := db.ControllerInfo(); err == nil {
@@ -79,7 +84,7 @@ func main() {
 		log.Fatalf("Fetching config: %+v", err)
 	}
 
-	logWriter, err := util.GetLoggingWriter(cfg)
+	logWriter, err := util.GetLoggingWriter(cfg.Default.LogFile)
 	if err != nil {
 		log.Fatalf("fetching log writer: %+v", err)
 	}

@@ -2,7 +2,7 @@
 
 Performance is often important when running GitHub action runners with garm. This document shows some ways to improve the creation time of a GitHub action runner.
 
-## garm specific performance considerations
+## GARM specific performance considerations
 
 ### Bundle the GitHub action runner
 

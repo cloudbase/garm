@@ -22,6 +22,8 @@ import (
 	"github.com/cloudbase/garm/cmd/garm-cli/config"
 	"github.com/cloudbase/garm/params"
 
+	apiClientFirstRun "github.com/cloudbase/garm/client/first_run"
+	apiClientLogin "github.com/cloudbase/garm/client/login"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -54,7 +56,8 @@ garm-cli init --name=dev --url=https://runner.example.com --username=admin --pas
 			return err
 		}
 
-		newUser := params.NewUserParams{
+		newUserReq := apiClientFirstRun.NewFirstRunParams()
+		newUserReq.Body = params.NewUserParams{
 			Username: loginUserName,
 			Password: loginPassword,
 			FullName: loginFullName,
@@ -62,17 +65,21 @@ garm-cli init --name=dev --url=https://runner.example.com --username=admin --pas
 		}
 
 		url := strings.TrimSuffix(loginURL, "/")
-		response, err := cli.InitManager(url, newUser)
+
+		initApiClient(url, "")
+
+		response, err := apiCli.FirstRun.FirstRun(newUserReq, authToken)
 		if err != nil {
 			return errors.Wrap(err, "initializing manager")
 		}
 
-		loginParams := params.PasswordLoginParams{
+		newLoginParamsReq := apiClientLogin.NewLoginParams()
+		newLoginParamsReq.Body = params.PasswordLoginParams{
 			Username: loginUserName,
 			Password: loginPassword,
 		}
 
-		token, err := cli.Login(url, loginParams)
+		token, err := apiCli.Login.Login(newLoginParamsReq, authToken)
 		if err != nil {
 			return errors.Wrap(err, "authenticating")
 		}
@@ -80,7 +87,7 @@ garm-cli init --name=dev --url=https://runner.example.com --username=admin --pas
 		cfg.Managers = append(cfg.Managers, config.Manager{
 			Name:    loginProfileName,
 			BaseURL: url,
-			Token:   token,
+			Token:   token.Payload.Token,
 		})
 
 		cfg.ActiveManager = loginProfileName
@@ -89,7 +96,7 @@ garm-cli init --name=dev --url=https://runner.example.com --username=admin --pas
 			return errors.Wrap(err, "saving config")
 		}
 
-		renderUserTable(response)
+		renderUserTable(response.Payload)
 		return nil
 	},
 }

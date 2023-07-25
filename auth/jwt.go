@@ -22,10 +22,10 @@ import (
 	"net/http"
 	"strings"
 
+	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	apiParams "github.com/cloudbase/garm/apiserver/params"
 	"github.com/cloudbase/garm/config"
 	dbCommon "github.com/cloudbase/garm/database/common"
-	runnerErrors "github.com/cloudbase/garm/errors"
 
 	"github.com/golang-jwt/jwt"
 )
@@ -74,8 +74,8 @@ func (amw *jwtMiddleware) claimsToContext(ctx context.Context, claims *JWTClaims
 }
 
 func invalidAuthResponse(w http.ResponseWriter) {
-	w.WriteHeader(http.StatusUnauthorized)
 	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(http.StatusUnauthorized)
 	if err := json.NewEncoder(w).Encode(
 		apiParams.APIErrorResponse{
 			Error: "Authentication failed",

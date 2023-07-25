@@ -18,12 +18,14 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/cloudbase/garm-provider-common/util"
 	"github.com/cloudbase/garm/params"
-	"github.com/cloudbase/garm/util"
 
 	"github.com/pkg/errors"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
+
+	commonParams "github.com/cloudbase/garm-provider-common/params"
 )
 
 func (s *sqlDatabase) sqlToParamsInstance(instance Instance) params.Instance {
@@ -75,10 +77,10 @@ func (s *sqlDatabase) sqlToParamsInstance(instance Instance) params.Instance {
 	return ret
 }
 
-func (s *sqlDatabase) sqlAddressToParamsAddress(addr Address) params.Address {
-	return params.Address{
+func (s *sqlDatabase) sqlAddressToParamsAddress(addr Address) commonParams.Address {
+	return commonParams.Address{
 		Address: addr.Address,
-		Type:    params.AddressType(addr.Type),
+		Type:    commonParams.AddressType(addr.Type),
 	}
 }
 

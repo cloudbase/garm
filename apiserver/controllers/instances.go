@@ -19,13 +19,27 @@ import (
 	"log"
 	"net/http"
 
+	gErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/apiserver/params"
-	gErrors "github.com/cloudbase/garm/errors"
 	runnerParams "github.com/cloudbase/garm/params"
 
 	"github.com/gorilla/mux"
 )
 
+// swagger:route GET /pools/{poolID}/instances instances ListPoolInstances
+//
+// List runner instances in a pool.
+//
+//	Parameters:
+//	  + name: poolID
+//	    description: Runner pool ID.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	Responses:
+//	  200: Instances
+//	  default: APIErrorResponse
 func (a *APIController) ListPoolInstancesHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	vars := mux.Vars(r)
@@ -176,6 +190,20 @@ func (a *APIController) ListRepoInstancesHandler(w http.ResponseWriter, r *http.
 	}
 }
 
+// swagger:route GET /organizations/{orgID}/instances organizations instances ListOrgInstances
+//
+// List organization instances.
+//
+//	Parameters:
+//	  + name: orgID
+//	    description: Organization ID.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	Responses:
+//	  200: Instances
+//	  default: APIErrorResponse
 func (a *APIController) ListOrgInstancesHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	vars := mux.Vars(r)
@@ -204,6 +232,20 @@ func (a *APIController) ListOrgInstancesHandler(w http.ResponseWriter, r *http.R
 	}
 }
 
+// swagger:route GET /enterprises/{enterpriseID}/instances enterprises instances ListEnterpriseInstances
+//
+// List enterprise instances.
+//
+//	Parameters:
+//	  + name: enterpriseID
+//	    description: Enterprise ID.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	Responses:
+//	  200: Instances
+//	  default: APIErrorResponse
 func (a *APIController) ListEnterpriseInstancesHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	vars := mux.Vars(r)

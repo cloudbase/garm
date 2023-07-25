@@ -19,13 +19,20 @@ import (
 	"log"
 	"net/http"
 
+	gErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/apiserver/params"
-	gErrors "github.com/cloudbase/garm/errors"
 	runnerParams "github.com/cloudbase/garm/params"
 
 	"github.com/gorilla/mux"
 )
 
+// swagger:route GET /pools pools ListPools
+//
+// List all pools.
+//
+//	Responses:
+//	  200: Pools
+//	  default: APIErrorResponse
 func (a *APIController) ListAllPoolsHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -43,6 +50,20 @@ func (a *APIController) ListAllPoolsHandler(w http.ResponseWriter, r *http.Reque
 	}
 }
 
+// swagger:route GET /pools/{poolID} pools GetPool
+//
+// Get pool by ID.
+//
+//	Parameters:
+//	  + name: poolID
+//	    description: ID of the pool to fetch.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	Responses:
+//	  200: Pool
+//	  default: APIErrorResponse
 func (a *APIController) GetPoolByIDHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -74,6 +95,19 @@ func (a *APIController) GetPoolByIDHandler(w http.ResponseWriter, r *http.Reques
 	}
 }
 
+// swagger:route DELETE /pools/{poolID} pools DeletePool
+//
+// Delete pool by ID.
+//
+//	Parameters:
+//	  + name: poolID
+//	    description: ID of the pool to delete.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	Responses:
+//	  default: APIErrorResponse
 func (a *APIController) DeletePoolByIDHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -100,6 +134,26 @@ func (a *APIController) DeletePoolByIDHandler(w http.ResponseWriter, r *http.Req
 	w.WriteHeader(http.StatusOK)
 }
 
+// swagger:route PUT /pools/{poolID} pools UpdatePool
+//
+// Update pool by ID.
+//
+//	Parameters:
+//	  + name: poolID
+//	    description: ID of the pool to update.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: Body
+//	    description: Parameters to update the pool with.
+//	    type: UpdatePoolParams
+//	    in: body
+//	    required: true
+//
+//	Responses:
+//	  200: Pool
+//	  default: APIErrorResponse
 func (a *APIController) UpdatePoolByIDHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 

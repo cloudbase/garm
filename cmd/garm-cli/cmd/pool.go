@@ -20,11 +20,18 @@ import (
 	"os"
 	"strings"
 
+	apiClientEnterprises "github.com/cloudbase/garm/client/enterprises"
+	apiClientOrgs "github.com/cloudbase/garm/client/organizations"
+	apiClientPools "github.com/cloudbase/garm/client/pools"
+	apiClientRepos "github.com/cloudbase/garm/client/repositories"
+
 	"github.com/cloudbase/garm/params"
 
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+
+	commonParams "github.com/cloudbase/garm-provider-common/params"
 )
 
 var (
@@ -94,13 +101,28 @@ Example:
 		switch len(args) {
 		case 0:
 			if cmd.Flags().Changed("repo") {
-				pools, err = cli.ListRepoPools(poolRepository)
+				var response *apiClientRepos.ListRepoPoolsOK
+				listRepoPoolsReq := apiClientRepos.NewListRepoPoolsParams()
+				listRepoPoolsReq.RepoID = poolRepository
+				response, err = apiCli.Repositories.ListRepoPools(listRepoPoolsReq, authToken)
+				pools = response.Payload
 			} else if cmd.Flags().Changed("org") {
-				pools, err = cli.ListOrgPools(poolOrganization)
+				var response *apiClientOrgs.ListOrgPoolsOK
+				listOrgPoolsReq := apiClientOrgs.NewListOrgPoolsParams()
+				listOrgPoolsReq.OrgID = poolOrganization
+				response, err = apiCli.Organizations.ListOrgPools(listOrgPoolsReq, authToken)
+				pools = response.Payload
 			} else if cmd.Flags().Changed("enterprise") {
-				pools, err = cli.ListEnterprisePools(poolEnterprise)
+				var response *apiClientEnterprises.ListEnterprisePoolsOK
+				listEnterprisePoolsReq := apiClientEnterprises.NewListEnterprisePoolsParams()
+				listEnterprisePoolsReq.EnterpriseID = poolEnterprise
+				response, err = apiCli.Enterprises.ListEnterprisePools(listEnterprisePoolsReq, authToken)
+				pools = response.Payload
 			} else if cmd.Flags().Changed("all") {
-				pools, err = cli.ListAllPools()
+				var response *apiClientPools.ListPoolsOK
+				listPoolsReq := apiClientPools.NewListPoolsParams()
+				response, err = apiCli.Pools.ListPools(listPoolsReq, authToken)
+				pools = response.Payload
 			} else {
 				cmd.Help() //nolint
 				os.Exit(0)
@@ -136,11 +158,13 @@ var poolShowCmd = &cobra.Command{
 			return fmt.Errorf("too many arguments")
 		}
 
-		pool, err := cli.GetPoolByID(args[0])
+		getPoolReq := apiClientPools.NewGetPoolParams()
+		getPoolReq.PoolID = args[0]
+		response, err := apiCli.Pools.GetPool(getPoolReq, authToken)
 		if err != nil {
 			return err
 		}
-		formatOnePool(pool)
+		formatOnePool(response.Payload)
 		return nil
 	},
 }
@@ -164,7 +188,9 @@ var poolDeleteCmd = &cobra.Command{
 			return fmt.Errorf("too many arguments")
 		}
 
-		if err := cli.DeletePoolByID(args[0]); err != nil {
+		deletePoolReq := apiClientPools.NewDeletePoolParams()
+		deletePoolReq.PoolID = args[0]
+		if err := apiCli.Pools.DeletePool(deletePoolReq, authToken); err != nil {
 			return err
 		}
 		return nil
@@ -192,8 +218,8 @@ var poolAddCmd = &cobra.Command{
 			MinIdleRunners:         poolMinIdleRunners,
 			Image:                  poolImage,
 			Flavor:                 poolFlavor,
-			OSType:                 params.OSType(poolOSType),
-			OSArch:                 params.OSArch(poolOSArch),
+			OSType:                 commonParams.OSType(poolOSType),
+			OSArch:                 commonParams.OSArch(poolOSArch),
 			Tags:                   tags,
 			Enabled:                poolEnabled,
 			RunnerBootstrapTimeout: poolRunnerBootstrapTimeout,
@@ -224,11 +250,26 @@ var poolAddCmd = &cobra.Command{
 		var err error
 
 		if cmd.Flags().Changed("repo") {
-			pool, err = cli.CreateRepoPool(poolRepository, newPoolParams)
+			var response *apiClientRepos.CreateRepoPoolOK
+			newRepoPoolReq := apiClientRepos.NewCreateRepoPoolParams()
+			newRepoPoolReq.RepoID = poolRepository
+			newRepoPoolReq.Body = newPoolParams
+			response, err = apiCli.Repositories.CreateRepoPool(newRepoPoolReq, authToken)
+			pool = response.Payload
 		} else if cmd.Flags().Changed("org") {
-			pool, err = cli.CreateOrgPool(poolOrganization, newPoolParams)
+			var response *apiClientOrgs.CreateOrgPoolOK
+			newOrgPoolReq := apiClientOrgs.NewCreateOrgPoolParams()
+			newOrgPoolReq.OrgID = poolOrganization
+			newOrgPoolReq.Body = newPoolParams
+			response, err = apiCli.Organizations.CreateOrgPool(newOrgPoolReq, authToken)
+			pool = response.Payload
 		} else if cmd.Flags().Changed("enterprise") {
-			pool, err = cli.CreateEnterprisePool(poolEnterprise, newPoolParams)
+			var response *apiClientEnterprises.CreateEnterprisePoolOK
+			newEnterprisePoolReq := apiClientEnterprises.NewCreateEnterprisePoolParams()
+			newEnterprisePoolReq.EnterpriseID = poolEnterprise
+			newEnterprisePoolReq.Body = newPoolParams
+			response, err = apiCli.Enterprises.CreateEnterprisePool(newEnterprisePoolReq, authToken)
+			pool = response.Payload
 		} else {
 			cmd.Help() //nolint
 			os.Exit(0)
@@ -265,6 +306,7 @@ explicitly remove them using the runner delete command.
 			return fmt.Errorf("too many arguments")
 		}
 
+		updatePoolReq := apiClientPools.NewUpdatePoolParams()
 		poolUpdateParams := params.UpdatePoolParams{}
 
 		if cmd.Flags().Changed("image") {
@@ -280,11 +322,11 @@ explicitly remove them using the runner delete command.
 		}
 
 		if cmd.Flags().Changed("os-type") {
-			poolUpdateParams.OSType = params.OSType(poolOSType)
+			poolUpdateParams.OSType = commonParams.OSType(poolOSType)
 		}
 
 		if cmd.Flags().Changed("os-arch") {
-			poolUpdateParams.OSArch = params.OSArch(poolOSArch)
+			poolUpdateParams.OSArch = commonParams.OSArch(poolOSArch)
 		}
 
 		if cmd.Flags().Changed("max-runners") {
@@ -329,12 +371,14 @@ explicitly remove them using the runner delete command.
 			poolUpdateParams.ExtraSpecs = data
 		}
 
-		pool, err := cli.UpdatePoolByID(args[0], poolUpdateParams)
+		updatePoolReq.PoolID = args[0]
+		updatePoolReq.Body = poolUpdateParams
+		response, err := apiCli.Pools.UpdatePool(updatePoolReq, authToken)
 		if err != nil {
 			return err
 		}
 
-		formatOnePool(pool)
+		formatOnePool(response.Payload)
 		return nil
 	},
 }

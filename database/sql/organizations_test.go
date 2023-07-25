@@ -22,8 +22,8 @@ import (
 	"sort"
 	"testing"
 
+	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	dbCommon "github.com/cloudbase/garm/database/common"
-	runnerErrors "github.com/cloudbase/garm/errors"
 	garmTesting "github.com/cloudbase/garm/internal/testing"
 	"github.com/cloudbase/garm/params"
 

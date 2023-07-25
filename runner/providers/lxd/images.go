@@ -18,8 +18,8 @@ import (
 	"fmt"
 	"strings"
 
+	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/config"
-	runnerErrors "github.com/cloudbase/garm/errors"
 
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/shared/api"

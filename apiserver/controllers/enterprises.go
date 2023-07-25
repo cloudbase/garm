@@ -19,13 +19,27 @@ import (
 	"log"
 	"net/http"
 
+	gErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/apiserver/params"
-	gErrors "github.com/cloudbase/garm/errors"
 	runnerParams "github.com/cloudbase/garm/params"
 
 	"github.com/gorilla/mux"
 )
 
+// swagger:route POST /enterprises enterprises CreateEnterprise
+//
+// Create enterprise with the given parameters.
+//
+//	Parameters:
+//	  + name: Body
+//	    description: Parameters used to create the enterprise.
+//	    type: CreateEnterpriseParams
+//	    in: body
+//	    required: true
+//
+//	Responses:
+//	  200: Enterprise
+//	  default: APIErrorResponse
 func (a *APIController) CreateEnterpriseHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -48,6 +62,13 @@ func (a *APIController) CreateEnterpriseHandler(w http.ResponseWriter, r *http.R
 	}
 }
 
+// swagger:route GET /enterprises enterprises ListEnterprises
+//
+// List all enterprises.
+//
+//	Responses:
+//	  200: Enterprises
+//	  default: APIErrorResponse
 func (a *APIController) ListEnterprisesHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -64,6 +85,20 @@ func (a *APIController) ListEnterprisesHandler(w http.ResponseWriter, r *http.Re
 	}
 }
 
+// swagger:route GET /enterprises/{enterpriseID} enterprises GetEnterprise
+//
+// Get enterprise by ID.
+//
+//	Parameters:
+//	  + name: enterpriseID
+//	    description: The ID of the enterprise to fetch.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	Responses:
+//	  200: Enterprise
+//	  default: APIErrorResponse
 func (a *APIController) GetEnterpriseByIDHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -93,6 +128,19 @@ func (a *APIController) GetEnterpriseByIDHandler(w http.ResponseWriter, r *http.
 	}
 }
 
+// swagger:route DELETE /enterprises/{enterpriseID} enterprises DeleteEnterprise
+//
+// Delete enterprise by ID.
+//
+//	Parameters:
+//	  + name: enterpriseID
+//	    description: ID of the enterprise to delete.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	Responses:
+//	  default: APIErrorResponse
 func (a *APIController) DeleteEnterpriseHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -120,6 +168,25 @@ func (a *APIController) DeleteEnterpriseHandler(w http.ResponseWriter, r *http.R
 
 }
 
+// swagger:route PUT /enterprises/{enterpriseID} enterprises UpdateEnterprise
+//
+// Update enterprise with the given parameters.
+//
+//	Parameters:
+//	  + name: enterpriseID
+//	    description: The ID of the enterprise to update.
+//	    type: string
+//	    in: path
+//	    required: true
+//	  + name: Body
+//	    description: Parameters used when updating the enterprise.
+//	    type: UpdateEntityParams
+//	    in: body
+//	    required: true
+//
+//	Responses:
+//	  200: Enterprise
+//	  default: APIErrorResponse
 func (a *APIController) UpdateEnterpriseHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -155,6 +222,26 @@ func (a *APIController) UpdateEnterpriseHandler(w http.ResponseWriter, r *http.R
 	}
 }
 
+// swagger:route POST /enterprises/{enterpriseID}/pools enterprises pools CreateEnterprisePool
+//
+// Create enterprise pool with the parameters given.
+//
+//	Parameters:
+//	  + name: enterpriseID
+//	    description: Enterprise ID.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: Body
+//	    description: Parameters used when creating the enterprise pool.
+//	    type: CreatePoolParams
+//	    in: body
+//	    required: true
+//
+//	Responses:
+//	  200: Pool
+//	  default: APIErrorResponse
 func (a *APIController) CreateEnterprisePoolHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -191,6 +278,20 @@ func (a *APIController) CreateEnterprisePoolHandler(w http.ResponseWriter, r *ht
 	}
 }
 
+// swagger:route GET /enterprises/{enterpriseID}/pools enterprises pools ListEnterprisePools
+//
+// List enterprise pools.
+//
+//	Parameters:
+//	  + name: enterpriseID
+//	    description: Enterprise ID.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	Responses:
+//	  200: Pools
+//	  default: APIErrorResponse
 func (a *APIController) ListEnterprisePoolsHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	vars := mux.Vars(r)
@@ -220,6 +321,26 @@ func (a *APIController) ListEnterprisePoolsHandler(w http.ResponseWriter, r *htt
 
 }
 
+// swagger:route GET /enterprises/{enterpriseID}/pools/{poolID} enterprises pools GetEnterprisePool
+//
+// Get enterprise pool by ID.
+//
+//	Parameters:
+//	  + name: enterpriseID
+//	    description: Enterprise ID.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: poolID
+//	    description: Pool ID.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	Responses:
+//	  200: Pool
+//	  default: APIErrorResponse
 func (a *APIController) GetEnterprisePoolHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	vars := mux.Vars(r)
@@ -249,6 +370,25 @@ func (a *APIController) GetEnterprisePoolHandler(w http.ResponseWriter, r *http.
 	}
 }
 
+// swagger:route DELETE /enterprises/{enterpriseID}/pools/{poolID} enterprises pools DeleteEnterprisePool
+//
+// Delete enterprise pool by ID.
+//
+//	Parameters:
+//	  + name: enterpriseID
+//	    description: Enterprise ID.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: poolID
+//	    description: ID of the enterprise pool to delete.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	Responses:
+//	  default: APIErrorResponse
 func (a *APIController) DeleteEnterprisePoolHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -277,6 +417,32 @@ func (a *APIController) DeleteEnterprisePoolHandler(w http.ResponseWriter, r *ht
 
 }
 
+// swagger:route PUT /enterprises/{enterpriseID}/pools/{poolID} enterprises pools UpdateEnterprisePool
+//
+// Update enterprise pool with the parameters given.
+//
+//	Parameters:
+//	  + name: enterpriseID
+//	    description: Enterprise ID.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: poolID
+//	    description: ID of the enterprise pool to update.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: Body
+//	    description: Parameters used when updating the enterprise pool.
+//	    type: UpdatePoolParams
+//	    in: body
+//	    required: true
+//
+//	Responses:
+//	  200: Pool
+//	  default: APIErrorResponse
 func (a *APIController) UpdateEnterprisePoolHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 

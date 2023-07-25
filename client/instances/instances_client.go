@@ -34,6 +34,8 @@ type ClientService interface {
 
 	ListInstances(params *ListInstancesParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListInstancesOK, error)
 
+	ListPoolInstances(params *ListPoolInstancesParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListPoolInstancesOK, error)
+
 	SetTransport(transport runtime.ClientTransport)
 }
 
@@ -142,6 +144,44 @@ func (a *Client) ListInstances(params *ListInstancesParams, authInfo runtime.Cli
 	}
 	// unexpected success response
 	unexpectedSuccess := result.(*ListInstancesDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+ListPoolInstances lists runner instances in a pool
+*/
+func (a *Client) ListPoolInstances(params *ListPoolInstancesParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListPoolInstancesOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewListPoolInstancesParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "ListPoolInstances",
+		Method:             "GET",
+		PathPattern:        "/pools/{poolID}/instances",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &ListPoolInstancesReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*ListPoolInstancesOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*ListPoolInstancesDefault)
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 

@@ -21,13 +21,13 @@ import (
 	"net/http"
 	"strings"
 
+	gErrors "github.com/cloudbase/garm-provider-common/errors"
+	"github.com/cloudbase/garm-provider-common/util"
 	"github.com/cloudbase/garm/apiserver/params"
 	"github.com/cloudbase/garm/auth"
-	gErrors "github.com/cloudbase/garm/errors"
 	"github.com/cloudbase/garm/metrics"
 	runnerParams "github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner"
-	"github.com/cloudbase/garm/util"
 	wsWriter "github.com/cloudbase/garm/websocket"
 
 	"github.com/gorilla/websocket"
@@ -202,6 +202,13 @@ func (a *APIController) NotFoundHandler(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
+// swagger:route GET /metrics-token metrics-token GetMetricsToken
+//
+// Returns a JWT token that can be used to access the metrics endpoint.
+//
+//	Responses:
+//	  200: JWTResponse
+//	  401: APIErrorResponse
 func (a *APIController) MetricsTokenHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -222,6 +229,21 @@ func (a *APIController) MetricsTokenHandler(w http.ResponseWriter, r *http.Reque
 	}
 }
 
+// swagger:route POST /auth/login login Login
+//
+// Logs in a user and returns a JWT token.
+//
+//	Parameters:
+//	  + name: Body
+//	    description: Login information.
+//	    type: PasswordLoginParams
+//	    in: body
+//	    required: true
+//
+//	Responses:
+//	  200: JWTResponse
+//	  400: APIErrorResponse
+//
 // LoginHandler returns a jwt token
 func (a *APIController) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	var loginInfo runnerParams.PasswordLoginParams
@@ -253,6 +275,20 @@ func (a *APIController) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// swagger:route POST /first-run first-run FirstRun
+//
+// Initialize the first run of the controller.
+//
+//	Parameters:
+//	  + name: Body
+//	    description: Create a new user.
+//	    type: NewUserParams
+//	    in: body
+//	    required: true
+//
+//	Responses:
+//	  200: User
+//	  400: APIErrorResponse
 func (a *APIController) FirstRunHandler(w http.ResponseWriter, r *http.Request) {
 	if a.auth.IsInitialized() {
 		err := gErrors.NewConflictError("already initialized")
@@ -279,6 +315,13 @@ func (a *APIController) FirstRunHandler(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
+// swagger:route GET /credentials credentials ListCredentials
+//
+// List all credentials.
+//
+//	Responses:
+//	  200: Credentials
+//	  400: APIErrorResponse
 func (a *APIController) ListCredentials(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	creds, err := a.r.ListCredentials(ctx)
@@ -293,6 +336,13 @@ func (a *APIController) ListCredentials(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
+// swagger:route GET /providers providers ListProviders
+//
+// List all providers.
+//
+//	Responses:
+//	  200: Providers
+//	  400: APIErrorResponse
 func (a *APIController) ListProviders(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	providers, err := a.r.ListProviders(ctx)
@@ -307,6 +357,13 @@ func (a *APIController) ListProviders(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// swagger:route GET /jobs jobs ListJobs
+//
+// List all jobs.
+//
+//	Responses:
+//	  200: Jobs
+//	  400: APIErrorResponse
 func (a *APIController) ListAllJobs(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	jobs, err := a.r.ListAllJobs(ctx)
