@@ -1,0 +1,51 @@
+name: Integration Tests
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  integration-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Golang
+        uses: actions/setup-go@v3
+        with:
+          go-version-file: go.mod
+
+      - name: Setup LXD
+        uses: canonical/setup-lxd@v0.1.1
+
+      - name: Build GARM
+        run: make build
+
+      - name: Setup GARM
+        run: sudo --preserve-env ./test/integration/scripts/setup-garm.sh
+        env:
+          GH_OAUTH_TOKEN: ${{ secrets.GH_OAUTH_TOKEN }}
+          CREDENTIALS_NAME: test-garm-creds
+
+      - name: Run integration tests
+        run: go run ./test/integration/e2e.go
+        env:
+          GARM_BASE_URL: http://127.0.0.1:9997
+          GARM_USERNAME: admin
+          GARM_PASSWORD: ${{ secrets.GARM_ADMIN_PASSWORD }}
+          GARM_FULLNAME: Local GARM Admin
+          GARM_EMAIL: admin@example.com
+          GARM_NAME: local_garm
+          CREDENTIALS_NAME: test-garm-creds
+          REPO_WEBHOOK_SECRET: ${{ secrets.REPO_WEBHOOK_SECRET }}
+          ORG_WEBHOOK_SECRET: ${{ secrets.ORG_WEBHOOK_SECRET }}
+
+      - name: Show GARM logs
+        if: always()
+        run: |
+          sudo systemctl status garm
+          sudo journalctl -u garm --no-pager
