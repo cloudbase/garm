@@ -174,7 +174,7 @@ Here is a sample of that:
       }
     ],
     "repo_url": "https://github.com/gabriel-samfira/scripts",
-    "callback-url": "https://garm.example.com/api/v1/callbacks/status",
+    "callback-url": "https://garm.example.com/api/v1/callbacks",
     "metadata-url": "https://garm.example.com/api/v1/metadata",
     "instance-token": "super secret JWT token",
     "extra_specs": {

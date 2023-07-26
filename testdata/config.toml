@@ -6,7 +6,7 @@
 # Note: If you're using a reverse proxy in front of your garm installation,
 # this URL needs to point to the address of the reverse proxy. Using TLS is
 # highly encouraged.
-callback_url = "https://garm.example.com/api/v1/callbacks/status"
+callback_url = "https://garm.example.com/api/v1/callbacks"
 
 # This URL is used by instances to retrieve information they need to set themselves
 # up. Access to this URL is granted using the same JWT token used to send back
