@@ -4,7 +4,7 @@ set -o errexit
 DIR="$(dirname $0)"
 BINARIES_DIR="$PWD/bin"
 CONTRIB_DIR="$PWD/contrib"
-CONFIG_DIR="$PWD/config"
+CONFIG_DIR="$PWD/test/integration/config"
 
 if [[ ! -f $BINARIES_DIR/garm ]] || [[ ! -f $BINARIES_DIR/garm-cli ]]; then
     echo "ERROR: Please build GARM binaries first"

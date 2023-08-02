@@ -42,12 +42,11 @@ jobs:
       
       - name: Set up ngrok
         id: ngrok
-        uses: gabriel-samfira/ngrok-tunnel-action@v1.0
+        uses: gabriel-samfira/ngrok-tunnel-action@867169320326b49398c565de3b3f0ee75fb1599a
         with:
           ngrok_authtoken: ${{ secrets.NGROK_AUTH_TOKEN }}
           port: 9997
           tunnel_type: http
-          
 
       - name: Run integration tests
         run: go run ./test/integration/e2e.go
