@@ -26,23 +26,46 @@ jobs:
         run: make build
 
       - name: Setup GARM
-        run: sudo --preserve-env ./test/integration/scripts/setup-garm.sh
+        run: ./test/integration/scripts/setup-garm.sh
         env:
           GH_OAUTH_TOKEN: ${{ secrets.GH_OAUTH_TOKEN }}
           CREDENTIALS_NAME: test-garm-creds
 
+      - name: Generate secrets
+        run: |
+          function randomStringGenerator() {
+            tr -dc "a-zA-Z0-9@#$%^&*()_+?><~\`;'" </dev/urandom | head -c 64 ; echo '';
+          }
+
+          GARM_PASSWORD=$(randomStringGenerator)
+          REPO_WEBHOOK_SECRET=$(randomStringGenerator)
+          ORG_WEBHOOK_SECRET=$(randomStringGenerator)
+
+          echo "::add-mask::$GARM_PASSWORD" 
+          echo "::add-mask::$REPO_WEBHOOK_SECRET" 
+          echo "::add-mask::$ORG_WEBHOOK_SECRET" 
+
+          echo "GARM_PASSWORD=$GARM_PASSWORD" >> $GITHUB_ENV
+          echo "REPO_WEBHOOK_SECRET=$REPO_WEBHOOK_SECRET" >> $GITHUB_ENV
+          echo "ORG_WEBHOOK_SECRET=$ORG_WEBHOOK_SECRET" >> $GITHUB_ENV
+      
+      - name: Set up ngrok
+        id: ngrok
+        uses: gabriel-samfira/ngrok-tunnel-action@v1.1
+        with:
+          ngrok_authtoken: ${{ secrets.NGROK_AUTH_TOKEN }}
+          port: 9997
+          tunnel_type: http
+
       - name: Run integration tests
         run: go run ./test/integration/e2e.go
         env:
-          GARM_BASE_URL: http://127.0.0.1:9997
+          GARM_BASE_URL: ${{ steps.ngrok.outputs.tunnel-url }}
           GARM_USERNAME: admin
-          GARM_PASSWORD: ${{ secrets.GARM_ADMIN_PASSWORD }}
           GARM_FULLNAME: Local GARM Admin
           GARM_EMAIL: admin@example.com
           GARM_NAME: local_garm
           CREDENTIALS_NAME: test-garm-creds
-          REPO_WEBHOOK_SECRET: ${{ secrets.REPO_WEBHOOK_SECRET }}
-          ORG_WEBHOOK_SECRET: ${{ secrets.ORG_WEBHOOK_SECRET }}
 
       - name: Show GARM logs
         if: always()

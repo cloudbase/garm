@@ -1,15 +1,10 @@
 #!/usr/bin/env bash
 set -o errexit
 
-if [[ $EUID -ne 0 ]]; then
-    echo "ERROR: Please run $0 script as root"
-    exit 1
-fi
-
 DIR="$(dirname $0)"
-BINARIES_DIR="$DIR/../../../bin"
-CONTRIB_DIR="$DIR/../../../contrib"
-CONFIG_DIR="$DIR/../config"
+BINARIES_DIR="$PWD/bin"
+CONTRIB_DIR="$PWD/contrib"
+CONFIG_DIR="$PWD/test/integration/config"
 
 if [[ ! -f $BINARIES_DIR/garm ]] || [[ ! -f $BINARIES_DIR/garm-cli ]]; then
     echo "ERROR: Please build GARM binaries first"
@@ -47,17 +42,17 @@ export JWT_AUTH_SECRET="$(generate_secret)"
 export DB_PASSPHRASE="$(generate_secret)"
 
 # Group "adm" is the LXD daemon group as set by the "canonical/setup-lxd" GitHub action.
-useradd --shell /usr/bin/false --system --groups adm --no-create-home garm
+sudo useradd --shell /usr/bin/false --system --groups adm --no-create-home garm
 
-mkdir -p /etc/garm
-cat $CONFIG_DIR/config.toml | envsubst > /etc/garm/config.toml
-chown -R garm:garm /etc/garm
+sudo mkdir -p /etc/garm
+cat $CONFIG_DIR/config.toml | envsubst | sudo tee /etc/garm/config.toml
+sudo chown -R garm:garm /etc/garm
 
-mv $BINARIES_DIR/* /usr/local/bin/
-cp $CONTRIB_DIR/garm.service /etc/systemd/system/garm.service
+sudo mv $BINARIES_DIR/* /usr/local/bin/
+sudo cp $CONTRIB_DIR/garm.service /etc/systemd/system/garm.service
 
-systemctl daemon-reload
-systemctl start garm
+sudo systemctl daemon-reload
+sudo systemctl start garm
 
 wait_open_port 127.0.0.1 9997
 
