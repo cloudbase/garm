@@ -61,6 +61,8 @@ jobs:
           GARM_FULLNAME: Local GARM Admin
           GARM_EMAIL: admin@example.com
           GARM_NAME: local_garm
+          ORG_NAME: gsamfira
+          REPO_NAME: garm-testing
           CREDENTIALS_NAME: test-garm-creds
 
       - name: Show GARM logs

@@ -26,11 +26,6 @@ import (
 	openapiRuntimeClient "github.com/go-openapi/runtime/client"
 )
 
-const (
-	orgName  = "gsamfira"
-	repoName = "scripts"
-)
-
 var (
 	cli       *client.GarmAPI
 	cfg       config.Config
@@ -41,11 +36,13 @@ var (
 	repoID            string
 	repoPoolID        string
 	repoInstanceName  string
+	repoName          = os.Getenv("REPO_NAME")
 	repoWebhookSecret = os.Getenv("REPO_WEBHOOK_SECRET")
 
 	orgID            string
 	orgPoolID        string
 	orgInstanceName  string
+	orgName          = os.Getenv("ORG_NAME")
 	orgWebhookSecret = os.Getenv("ORG_WEBHOOK_SECRET")
 
 	username = os.Getenv("GARM_USERNAME")
