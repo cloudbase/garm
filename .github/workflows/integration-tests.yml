@@ -36,13 +36,22 @@ jobs:
           function randomStringGenerator() {
             tr -dc "a-zA-Z0-9@#$%^&*()_+?><~\`;'" </dev/urandom | head -c 64 ; echo '';
           }
-          echo "GARM_PASSWORD=$(randomStringGenerator)" >> $GITHUB_ENV
-          echo "REPO_WEBHOOK_SECRET=$(randomStringGenerator)" >> $GITHUB_ENV
-          echo "ORG_WEBHOOK_SECRET=$(randomStringGenerator)" >> $GITHUB_ENV
+
+          GARM_PASSWORD=$(randomStringGenerator)
+          REPO_WEBHOOK_SECRET=$(randomStringGenerator)
+          ORG_WEBHOOK_SECRET=$(randomStringGenerator)
+
+          echo "::add-mask::$GARM_PASSWORD" 
+          echo "::add-mask::$REPO_WEBHOOK_SECRET" 
+          echo "::add-mask::$ORG_WEBHOOK_SECRET" 
+
+          echo "GARM_PASSWORD=$GARM_PASSWORD" >> $GITHUB_ENV
+          echo "REPO_WEBHOOK_SECRET=$REPO_WEBHOOK_SECRET" >> $GITHUB_ENV
+          echo "ORG_WEBHOOK_SECRET=$ORG_WEBHOOK_SECRET" >> $GITHUB_ENV
       
       - name: Set up ngrok
         id: ngrok
-        uses: gabriel-samfira/ngrok-tunnel-action@867169320326b49398c565de3b3f0ee75fb1599a
+        uses: gabriel-samfira/ngrok-tunnel-action@v1.1
         with:
           ngrok_authtoken: ${{ secrets.NGROK_AUTH_TOKEN }}
           port: 9997
