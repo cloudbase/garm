@@ -53,8 +53,12 @@ jobs:
           port: 9997
           tunnel_type: http
 
+      - name: Create logs directory
+        if: always()
+        run: sudo mkdir -p /artifacts-logs && sudo chmod 777 /artifacts-logs
+
       - name: Run integration tests
-        run: go run ./test/integration/e2e.go
+        run: go run ./test/integration/e2e.go 2>&1 | tee /artifacts-logs/e2e.log 
         env:
           GARM_BASE_URL: ${{ steps.ngrok.outputs.tunnel-url }}
           GARM_USERNAME: admin
@@ -69,4 +73,11 @@ jobs:
         if: always()
         run: |
           sudo systemctl status garm
-          sudo journalctl -u garm --no-pager
+          sudo journalctl -u garm --no-pager 2>&1 | tee /artifacts-logs/garm.log
+
+      - name: Upload GARM and e2e logs
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: garm-logs
+          path: /artifacts-logs
