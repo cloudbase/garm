@@ -640,12 +640,13 @@ func WaitRepoPoolNoInstances() {
 
 func WaitRepoInstance(timeout time.Duration) {
 	var timeWaited time.Duration = 0
+	var instance params.Instance
 
 	for timeWaited < timeout {
 		instances, err := listRepoInstances(cli, authToken, repoID)
 		handleError(err)
 		if len(instances) > 0 {
-			instance := instances[0]
+			instance = instances[0]
 			log.Printf("instance %s status: %s", instance.Name, instance.Status)
 			if instance.Status == commonParams.InstanceRunning && instance.RunnerStatus == params.RunnerIdle {
 				repoInstanceName = instance.Name
@@ -656,6 +657,10 @@ func WaitRepoInstance(timeout time.Duration) {
 		time.Sleep(5 * time.Second)
 		timeWaited += 5
 	}
+	instanceDetails, err := getInstance(cli, authToken, instance.Name)
+	handleError(err)
+	printResponse(instanceDetails)
+
 	log.Fatalf("Failed to wait for repo instance to be ready")
 }
 
@@ -801,12 +806,13 @@ func WaitOrgPoolNoInstances() {
 
 func WaitOrgInstance(timeout time.Duration) {
 	var timeWaited time.Duration = 0
+	var instance params.Instance
 
 	for timeWaited < timeout {
 		instances, err := listOrgInstances(cli, authToken, orgID)
 		handleError(err)
 		if len(instances) > 0 {
-			instance := instances[0]
+			instance = instances[0]
 			log.Printf("instance %s status: %s", instance.Name, instance.Status)
 			if instance.Status == commonParams.InstanceRunning && instance.RunnerStatus == params.RunnerIdle {
 				orgInstanceName = instance.Name
@@ -817,6 +823,10 @@ func WaitOrgInstance(timeout time.Duration) {
 		time.Sleep(5 * time.Second)
 		timeWaited += 5
 	}
+	instanceDetails, err := getInstance(cli, authToken, instance.Name)
+	handleError(err)
+	printResponse(instanceDetails)
+
 	log.Fatalf("Failed to wait for org instance to be ready")
 }
 
