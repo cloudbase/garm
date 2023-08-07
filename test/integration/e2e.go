@@ -657,6 +657,10 @@ func WaitRepoInstance(timeout time.Duration) {
 		time.Sleep(5 * time.Second)
 		timeWaited += 5
 	}
+	repo, err := getRepo(cli, authToken, repoID)
+	handleError(err)
+	printResponse(repo)
+
 	instanceDetails, err := getInstance(cli, authToken, instance.Name)
 	handleError(err)
 	printResponse(instanceDetails)
@@ -823,6 +827,10 @@ func WaitOrgInstance(timeout time.Duration) {
 		time.Sleep(5 * time.Second)
 		timeWaited += 5
 	}
+	org, err := getOrg(cli, authToken, orgID)
+	handleError(err)
+	printResponse(org)
+
 	instanceDetails, err := getInstance(cli, authToken, instance.Name)
 	handleError(err)
 	printResponse(instanceDetails)
