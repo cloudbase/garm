@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -24,6 +25,8 @@ import (
 	"github.com/cloudbase/garm/params"
 	"github.com/go-openapi/runtime"
 	openapiRuntimeClient "github.com/go-openapi/runtime/client"
+	"github.com/google/go-github/v53/github"
+	"golang.org/x/oauth2"
 )
 
 var (
@@ -51,6 +54,7 @@ var (
 	email    = os.Getenv("GARM_EMAIL")
 	name     = os.Getenv("GARM_NAME")
 	baseURL  = os.Getenv("GARM_BASE_URL")
+	ghtoken  = os.Getenv("GH_TOKEN")
 
 	poolID string
 )
@@ -60,8 +64,15 @@ var (
 // ///////////////////
 func handleError(err error) {
 	if err != nil {
-		log.Fatalf("error encountered: %v", err)
+		panic(fmt.Sprintf("error encountered: %s", err))
 	}
+}
+
+func getGithubClient() *github.Client {
+	ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: ghtoken})
+	tc := oauth2.NewClient(context.Background(), ts)
+
+	return github.NewClient(tc)
 }
 
 func printResponse(resp interface{}) {
@@ -481,6 +492,75 @@ func FirstRun() {
 	printResponse(user)
 }
 
+// ///////////
+// Cleanup //
+// ///////////
+func GracefulCleanup() {
+	DisableRepoPool()
+	DisableOrgPool()
+
+	DeleteInstance(repoInstanceName)
+	DeleteInstance(orgInstanceName)
+
+	WaitRepoPoolNoInstances()
+	WaitOrgPoolNoInstances()
+
+	DeleteRepoPool()
+	DeleteOrgPool()
+	DeletePool()
+
+	DeleteRepo()
+	DeleteOrg()
+}
+
+func GhOrgRunnersCleanup() {
+	if orgPoolID == "" {
+		log.Println(">>> No organization pool ID provided, skipping organization runners cleanup")
+		return
+	}
+
+	log.Println(">>> Org Github runners cleanup")
+	client := getGithubClient()
+	ghOrgRunners, _, err := client.Actions.ListOrganizationRunners(context.Background(), orgName, nil)
+	handleError(err)
+
+	// Remove organization runners
+	poolLabel := fmt.Sprintf("runner-pool-id:%s", orgPoolID)
+	for _, orgRunner := range ghOrgRunners.Runners {
+		for _, label := range orgRunner.Labels {
+			if label.GetName() == poolLabel {
+				log.Printf(">>> Removing organization runner %s", orgRunner.GetName())
+				_, err := client.Actions.RemoveOrganizationRunner(context.Background(), orgName, orgRunner.GetID())
+				handleError(err)
+			}
+		}
+	}
+}
+
+func GhRepoRunnersCleanup() {
+	if repoPoolID == "" {
+		log.Println(">>> No repository pool ID provided, skipping repository runners cleanup")
+		return
+	}
+
+	log.Println(">>> Repo Github runners cleanup")
+	client := getGithubClient()
+	ghRepoRunners, _, err := client.Actions.ListRunners(context.Background(), orgName, repoName, nil)
+	handleError(err)
+
+	// Remove repository runners
+	poolLabel := fmt.Sprintf("runner-pool-id:%s", repoPoolID)
+	for _, repoRunner := range ghRepoRunners.Runners {
+		for _, label := range repoRunner.Labels {
+			if label.GetName() == poolLabel {
+				log.Printf(">>> Removing repository runner %s", repoRunner.GetName())
+				_, err := client.Actions.RemoveRunner(context.Background(), orgName, repoName, repoRunner.GetID())
+				handleError(err)
+			}
+		}
+	}
+}
+
 // ////////////////////////////
 // Credentials and Providers //
 // ////////////////////////////
@@ -620,6 +700,15 @@ func UpdateRepoPool() {
 }
 
 func DisableRepoPool() {
+	if repoID == "" {
+		log.Println(">>> No repo ID provided, skipping disable repo pool")
+		return
+	}
+	if repoPoolID == "" {
+		log.Println(">>> No repo pool ID provided, skipping disable repo pool")
+		return
+	}
+
 	enabled := false
 	_, err := updateRepoPool(cli, authToken, repoID, repoPoolID, params.UpdatePoolParams{Enabled: &enabled})
 	handleError(err)
@@ -627,6 +716,15 @@ func DisableRepoPool() {
 }
 
 func WaitRepoPoolNoInstances() {
+	if repoID == "" {
+		log.Println(">>> No repo ID provided, skipping repo pool wait no instances")
+		return
+	}
+	if repoPoolID == "" {
+		log.Println(">>> No repo pool ID provided, skipping repo pool wait no instances")
+		return
+	}
+
 	for {
 		log.Println(">>> Wait until repo pool has no instances")
 		pool, err := getRepoPool(cli, authToken, repoID, repoPoolID)
@@ -665,7 +763,7 @@ func WaitRepoInstance(timeout time.Duration) {
 	handleError(err)
 	printResponse(instanceDetails)
 
-	log.Fatalf("Failed to wait for repo instance to be ready")
+	panic("Failed to wait for repo instance to be ready")
 }
 
 func ListRepoInstances() {
@@ -676,6 +774,11 @@ func ListRepoInstances() {
 }
 
 func DeleteRepo() {
+	if repoID == "" {
+		log.Println(">>> No repo ID provided, skipping delete repo")
+		return
+	}
+
 	log.Println(">>> Delete repo")
 	err := deleteRepo(cli, authToken, repoID)
 	handleError(err)
@@ -683,6 +786,15 @@ func DeleteRepo() {
 }
 
 func DeleteRepoPool() {
+	if repoID == "" {
+		log.Println(">>> No repo ID provided, skipping delete repo pool")
+		return
+	}
+	if repoPoolID == "" {
+		log.Println(">>> No repo pool ID provided, skipping delete repo pool")
+		return
+	}
+
 	log.Println(">>> Delete repo pool")
 	err := deleteRepoPool(cli, authToken, repoID, repoPoolID)
 	handleError(err)
@@ -790,6 +902,15 @@ func UpdateOrgPool() {
 }
 
 func DisableOrgPool() {
+	if orgID == "" {
+		log.Println(">>> No org ID provided, skipping disable org pool")
+		return
+	}
+	if orgPoolID == "" {
+		log.Println(">>> No org pool ID provided, skipping disable org pool")
+		return
+	}
+
 	enabled := false
 	_, err := updateOrgPool(cli, authToken, orgID, orgPoolID, params.UpdatePoolParams{Enabled: &enabled})
 	handleError(err)
@@ -797,6 +918,15 @@ func DisableOrgPool() {
 }
 
 func WaitOrgPoolNoInstances() {
+	if orgID == "" {
+		log.Println(">>> No org ID provided, skipping wait for org pool no instances")
+		return
+	}
+	if orgPoolID == "" {
+		log.Println(">>> No org pool ID provided, skipping wait for org pool no instances")
+		return
+	}
+
 	for {
 		log.Println(">>> Wait until org pool has no instances")
 		pool, err := getOrgPool(cli, authToken, orgID, orgPoolID)
@@ -835,7 +965,7 @@ func WaitOrgInstance(timeout time.Duration) {
 	handleError(err)
 	printResponse(instanceDetails)
 
-	log.Fatalf("Failed to wait for org instance to be ready")
+	panic("Failed to wait for org instance to be ready")
 }
 
 func ListOrgInstances() {
@@ -846,6 +976,11 @@ func ListOrgInstances() {
 }
 
 func DeleteOrg() {
+	if orgID == "" {
+		log.Println(">>> No org ID provided, skipping delete org")
+		return
+	}
+
 	log.Println(">>> Delete org")
 	err := deleteOrg(cli, authToken, orgID)
 	handleError(err)
@@ -853,6 +988,15 @@ func DeleteOrg() {
 }
 
 func DeleteOrgPool() {
+	if orgID == "" {
+		log.Println(">>> No org ID provided, skipping delete org pool")
+		return
+	}
+	if orgPoolID == "" {
+		log.Println(">>> No org pool ID provided, skipping delete org pool")
+		return
+	}
+
 	log.Println(">>> Delete org pool")
 	err := deleteOrgPool(cli, authToken, orgID, orgPoolID)
 	handleError(err)
@@ -877,6 +1021,11 @@ func GetInstance() {
 }
 
 func DeleteInstance(name string) {
+	if name == "" {
+		log.Println(">>> No instance name provided, skipping delete instance")
+		return
+	}
+
 	err := deleteInstance(cli, authToken, name)
 	for {
 		log.Printf(">>> Wait until instance %s is deleted", name)
@@ -954,6 +1103,11 @@ func GetPool() {
 }
 
 func DeletePool() {
+	if poolID == "" {
+		log.Println(">>> No pool ID provided, skipping delete pool")
+		return
+	}
+
 	log.Println(">>> Delete pool")
 	err := deletePool(cli, authToken, poolID)
 	handleError(err)
@@ -968,6 +1122,13 @@ func ListPoolInstances() {
 }
 
 func main() {
+	/////////////
+	// Cleanup //
+	/////////////
+	defer GhOrgRunnersCleanup()
+	defer GhRepoRunnersCleanup()
+	defer GracefulCleanup()
+
 	//////////////////
 	// initialize cli /
 	//////////////////
@@ -1049,23 +1210,4 @@ func main() {
 	UpdatePool()
 	GetPool()
 	ListPoolInstances()
-
-	/////////////
-	// Cleanup //
-	/////////////
-	DisableRepoPool()
-	DisableOrgPool()
-
-	DeleteInstance(repoInstanceName)
-	DeleteInstance(orgInstanceName)
-
-	WaitRepoPoolNoInstances()
-	WaitOrgPoolNoInstances()
-
-	DeleteRepoPool()
-	DeleteOrgPool()
-	DeletePool()
-
-	DeleteRepo()
-	DeleteOrg()
 }
