@@ -381,6 +381,8 @@ type JWTResponse struct {
 type ControllerInfo struct {
 	ControllerID uuid.UUID `json:"controller_id"`
 	Hostname     string    `json:"hostname"`
+	MetadataURL  string    `json:"metadata_url"`
+	CallbackURL  string    `json:"callback_url"`
 }
 
 type GithubCredentials struct {

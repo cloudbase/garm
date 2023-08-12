@@ -379,6 +379,8 @@ func (r *Runner) GetControllerInfo(ctx context.Context) (params.ControllerInfo, 
 	return params.ControllerInfo{
 		ControllerID: r.controllerID,
 		Hostname:     hostname,
+		MetadataURL:  r.config.Default.MetadataURL,
+		CallbackURL:  r.config.Default.CallbackURL,
 	}, nil
 }
 
