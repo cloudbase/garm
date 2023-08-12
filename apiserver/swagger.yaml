@@ -9,6 +9,13 @@ definitions:
                 alias: apiserver_params
                 package: github.com/cloudbase/garm/apiserver/params
             type: APIErrorResponse
+    ControllerInfo:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: ControllerInfo
     CreateEnterpriseParams:
         type: object
         x-go-type:
@@ -239,6 +246,21 @@ paths:
             summary: Logs in a user and returns a JWT token.
             tags:
                 - login
+    /controller-info:
+        get:
+            operationId: ControllerInfo
+            responses:
+                "200":
+                    description: ControllerInfo
+                    schema:
+                        $ref: '#/definitions/ControllerInfo'
+                "409":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get controller info.
+            tags:
+                - controllerInfo
     /credentials:
         get:
             operationId: ListCredentials

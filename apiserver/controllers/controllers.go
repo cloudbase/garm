@@ -377,3 +377,24 @@ func (a *APIController) ListAllJobs(w http.ResponseWriter, r *http.Request) {
 		log.Printf("failed to encode response: %q", err)
 	}
 }
+
+// swagger:route GET /controller-info controllerInfo ControllerInfo
+//
+// Get controller info.
+//
+//	Responses:
+//	  200: ControllerInfo
+//	  409: APIErrorResponse
+func (a *APIController) ControllerInfoHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	info, err := a.r.GetControllerInfo(ctx)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(info); err != nil {
+		log.Printf("failed to encode response: %q", err)
+	}
+}

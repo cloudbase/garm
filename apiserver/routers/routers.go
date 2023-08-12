@@ -285,6 +285,10 @@ func NewAPIRouter(han *controllers.APIController, logWriter io.Writer, authMiddl
 	apiRouter.Handle("/providers/", http.HandlerFunc(han.ListProviders)).Methods("GET", "OPTIONS")
 	apiRouter.Handle("/providers", http.HandlerFunc(han.ListProviders)).Methods("GET", "OPTIONS")
 
+	// Controller info
+	apiRouter.Handle("/controller-info/", http.HandlerFunc(han.ControllerInfoHandler)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/controller-info", http.HandlerFunc(han.ControllerInfoHandler)).Methods("GET", "OPTIONS")
+
 	// Websocket log writer
 	apiRouter.Handle("/{ws:ws\\/?}", http.HandlerFunc(han.WSHandler)).Methods("GET")
 	return router
