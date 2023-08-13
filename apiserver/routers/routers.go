@@ -89,8 +89,9 @@ func NewAPIRouter(han *controllers.APIController, logWriter io.Writer, authMiddl
 
 	// Handles github webhooks
 	webhookRouter := router.PathPrefix("/webhooks").Subrouter()
-	webhookRouter.PathPrefix("/").Handler(http.HandlerFunc(han.CatchAll))
-	webhookRouter.PathPrefix("").Handler(http.HandlerFunc(han.CatchAll))
+	webhookRouter.Handle("/", http.HandlerFunc(han.WebhookHandler))
+	webhookRouter.Handle("", http.HandlerFunc(han.WebhookHandler))
+	webhookRouter.Handle("/{controllerID:controllerID\\/?}", http.HandlerFunc(han.WebhookHandler))
 
 	// Handles API calls
 	apiSubRouter := router.PathPrefix("/api/v1").Subrouter()
@@ -118,6 +119,7 @@ func NewAPIRouter(han *controllers.APIController, logWriter io.Writer, authMiddl
 	apiRouter := apiSubRouter.PathPrefix("").Subrouter()
 	apiRouter.Use(initMiddleware.Middleware)
 	apiRouter.Use(authMiddleware.Middleware)
+	apiRouter.Use(auth.AdminRequiredMiddleware)
 
 	// Metrics Token
 	apiRouter.Handle("/metrics-token/", http.HandlerFunc(han.MetricsTokenHandler)).Methods("GET", "OPTIONS")

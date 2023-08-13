@@ -110,6 +110,9 @@ type Default struct {
 	// MetadataURL is the URL where instances can fetch information they may need
 	// to set themselves up.
 	MetadataURL string `toml:"metadata_url" json:"metadata-url"`
+	// WebhookURL is the URL that will be installed as a webhook target in github.
+	WebhookURL string `toml:"webhook_url" json:"webhook-url"`
+
 	// LogFile is the location of the log file.
 	LogFile           string `toml:"log_file,omitempty" json:"log-file"`
 	EnableLogStreamer bool   `toml:"enable_log_streamer"`
@@ -128,6 +131,7 @@ func (d *Default) Validate() error {
 	if d.MetadataURL == "" {
 		return fmt.Errorf("missing metadata-url")
 	}
+
 	if _, err := url.Parse(d.MetadataURL); err != nil {
 		return errors.Wrap(err, "validating metadata_url")
 	}

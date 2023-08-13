@@ -16,6 +16,7 @@ package params
 
 import (
 	"encoding/json"
+	"math/big"
 	"time"
 
 	commonParams "github.com/cloudbase/garm-provider-common/params"
@@ -383,6 +384,16 @@ type ControllerInfo struct {
 	Hostname     string    `json:"hostname"`
 	MetadataURL  string    `json:"metadata_url"`
 	CallbackURL  string    `json:"callback_url"`
+}
+
+func (c ControllerInfo) ShortControllerID() string {
+	var i big.Int
+	i.SetBytes(c.ControllerID[:])
+	id := i.Text(62)
+	if id == "0" {
+		return ""
+	}
+	return id
 }
 
 type GithubCredentials struct {
