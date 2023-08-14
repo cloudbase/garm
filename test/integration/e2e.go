@@ -502,8 +502,8 @@ func GracefulCleanup() {
 	DeleteInstance(repoInstanceName)
 	DeleteInstance(orgInstanceName)
 
-	WaitRepoPoolNoInstances()
-	WaitOrgPoolNoInstances()
+	WaitRepoPoolNoInstances(1 * time.Minute)
+	WaitOrgPoolNoInstances(1 * time.Minute)
 
 	DeleteRepoPool()
 	DeleteOrgPool()
@@ -715,7 +715,7 @@ func DisableRepoPool() {
 	log.Printf("repo pool %s disabled", repoPoolID)
 }
 
-func WaitRepoPoolNoInstances() {
+func WaitRepoPoolNoInstances(timeout time.Duration) {
 	if repoID == "" {
 		log.Println(">>> No repo ID provided, skipping repo pool wait no instances")
 		return
@@ -725,15 +725,26 @@ func WaitRepoPoolNoInstances() {
 		return
 	}
 
-	for {
+	var timeWaited time.Duration = 0
+	var pool *params.Pool
+	var err error
+
+	for timeWaited < timeout {
 		log.Println(">>> Wait until repo pool has no instances")
-		pool, err := getRepoPool(cli, authToken, repoID, repoPoolID)
+		pool, err = getRepoPool(cli, authToken, repoID, repoPoolID)
 		handleError(err)
 		if len(pool.Instances) == 0 {
 			break
 		}
 		time.Sleep(5 * time.Second)
+		timeWaited += 5 * time.Second
 	}
+	printResponse(pool)
+	for _, instance := range pool.Instances {
+		printResponse(instance)
+	}
+
+	panic(fmt.Sprintf("Failed to wait for repo pool %s to have no instances", repoPoolID))
 }
 
 func WaitRepoInstance(timeout time.Duration) {
@@ -753,7 +764,7 @@ func WaitRepoInstance(timeout time.Duration) {
 			}
 		}
 		time.Sleep(5 * time.Second)
-		timeWaited += 5
+		timeWaited += 5 * time.Second
 	}
 	repo, err := getRepo(cli, authToken, repoID)
 	handleError(err)
@@ -917,7 +928,7 @@ func DisableOrgPool() {
 	log.Printf("org pool %s disabled", orgPoolID)
 }
 
-func WaitOrgPoolNoInstances() {
+func WaitOrgPoolNoInstances(timeout time.Duration) {
 	if orgID == "" {
 		log.Println(">>> No org ID provided, skipping wait for org pool no instances")
 		return
@@ -927,15 +938,26 @@ func WaitOrgPoolNoInstances() {
 		return
 	}
 
-	for {
+	var timeWaited time.Duration = 0
+	var pool *params.Pool
+	var err error
+
+	for timeWaited < timeout {
 		log.Println(">>> Wait until org pool has no instances")
-		pool, err := getOrgPool(cli, authToken, orgID, orgPoolID)
+		pool, err = getOrgPool(cli, authToken, orgID, orgPoolID)
 		handleError(err)
 		if len(pool.Instances) == 0 {
 			break
 		}
 		time.Sleep(5 * time.Second)
+		timeWaited += 5 * time.Second
 	}
+	printResponse(pool)
+	for _, instance := range pool.Instances {
+		printResponse(instance)
+	}
+
+	panic(fmt.Sprintf("Failed to wait for org pool %s to have no instances", orgPoolID))
 }
 
 func WaitOrgInstance(timeout time.Duration) {
@@ -955,7 +977,7 @@ func WaitOrgInstance(timeout time.Duration) {
 			}
 		}
 		time.Sleep(5 * time.Second)
-		timeWaited += 5
+		timeWaited += 5 * time.Second
 	}
 	org, err := getOrg(cli, authToken, orgID)
 	handleError(err)
@@ -1193,10 +1215,10 @@ func main() {
 	///////////////
 	// instances //
 	///////////////
-	WaitRepoInstance(180)
+	WaitRepoInstance(2 * time.Minute)
 	ListRepoInstances()
 
-	WaitOrgInstance(180)
+	WaitOrgInstance(2 * time.Minute)
 	ListOrgInstances()
 
 	ListInstances()
