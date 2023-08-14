@@ -71,7 +71,7 @@ time_to_live = "8760h"
     db_file = "/etc/garm/garm.db"
 ```
 
-This is a minimal config, with no providers or credentials defined. In this example we have the [default](./config_default.md), [metrics](./config_metrics.md), [jwt_auth](./config_jwt_auth.md), [apiserver](./config_api_server.md) and [database](./config_database.md) sections. Each are documented separately. Feel free to read through the available docs if, for example you need to enable TLS without using an nginx reverse proxy or if you want to enable the debug server, the log streamer or a log file.
+This is a minimal config, with no providers or credentials defined. In this example we have the [default](./config_default.md), [metrics](./config_metrics.md), [jwt_auth](./config_jwt_auth.md), [apiserver](./config_api_server.md) and [database](./database.md) sections. Each are documented separately. Feel free to read through the available docs if, for example you need to enable TLS without using an nginx reverse proxy or if you want to enable the debug server, the log streamer or a log file.
 
 In this sample config we:
 
