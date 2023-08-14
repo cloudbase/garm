@@ -734,7 +734,7 @@ func WaitRepoPoolNoInstances(timeout time.Duration) {
 		pool, err = getRepoPool(cli, authToken, repoID, repoPoolID)
 		handleError(err)
 		if len(pool.Instances) == 0 {
-			break
+			return
 		}
 		time.Sleep(5 * time.Second)
 		timeWaited += 5 * time.Second
@@ -947,7 +947,7 @@ func WaitOrgPoolNoInstances(timeout time.Duration) {
 		pool, err = getOrgPool(cli, authToken, orgID, orgPoolID)
 		handleError(err)
 		if len(pool.Instances) == 0 {
-			break
+			return
 		}
 		time.Sleep(5 * time.Second)
 		timeWaited += 5 * time.Second
