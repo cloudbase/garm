@@ -57,6 +57,12 @@ func NewOrganizationPoolManager(ctx context.Context, cfg params.Organization, cf
 		store:        store,
 		providers:    providers,
 		controllerID: cfgInternal.ControllerID,
+		urls: urls{
+			webhookURL:           cfgInternal.BaseWebhookURL,
+			callbackURL:          cfgInternal.InstanceCallbackURL,
+			metadataURL:          cfgInternal.InstanceMetadataURL,
+			controllerWebhookURL: cfgInternal.ControllerWebhookURL,
+		},
 		quit:         make(chan struct{}),
 		helper:       helper,
 		credsDetails: cfgInternal.GithubCredentialsDetails,
@@ -210,14 +216,6 @@ func (r *organization) WebhookSecret() string {
 	return r.cfg.WebhookSecret
 }
 
-func (r *organization) GetCallbackURL() string {
-	return r.cfgInternal.InstanceCallbackURL
-}
-
-func (r *organization) GetMetadataURL() string {
-	return r.cfgInternal.InstanceMetadataURL
-}
-
 func (r *organization) FindPoolByTags(labels []string) (params.Pool, error) {
 	pool, err := r.store.FindOrganizationPoolByTags(r.ctx, r.id, labels)
 	if err != nil {
@@ -243,4 +241,60 @@ func (r *organization) ValidateOwner(job params.WorkflowJob) error {
 
 func (r *organization) ID() string {
 	return r.id
+}
+
+func (r *organization) listHooks(ctx context.Context) ([]*github.Hook, error) {
+	opts := github.ListOptions{
+		PerPage: 100,
+	}
+	var allHooks []*github.Hook
+	for {
+		hooks, ghResp, err := r.ghcli.ListOrgHooks(ctx, r.cfg.Name, &opts)
+		if err != nil {
+			return nil, errors.Wrap(err, "fetching hooks")
+		}
+		allHooks = append(allHooks, hooks...)
+		if ghResp.NextPage == 0 {
+			break
+		}
+		opts.Page = ghResp.NextPage
+	}
+	return allHooks, nil
+}
+
+func (r *organization) InstallHook(ctx context.Context, req *github.Hook) error {
+	allHooks, err := r.listHooks(ctx)
+	if err != nil {
+		return errors.Wrap(err, "listing hooks")
+	}
+
+	for _, hook := range allHooks {
+		if hook.Config["url"] == req.Config["url"] {
+			return fmt.Errorf("hook already installed: %w", runnerErrors.ErrBadRequest)
+		}
+	}
+
+	_, _, err = r.ghcli.CreateOrgHook(ctx, r.cfg.Name, req)
+	if err != nil {
+		return errors.Wrap(err, "creating organization hook")
+	}
+	return nil
+}
+
+func (r *organization) UninstallHook(ctx context.Context, url string) error {
+	allHooks, err := r.listHooks(ctx)
+	if err != nil {
+		return errors.Wrap(err, "listing hooks")
+	}
+
+	for _, hook := range allHooks {
+		if hook.Config["url"] == url {
+			_, err = r.ghcli.DeleteOrgHook(ctx, r.cfg.Name, hook.GetID())
+			if err != nil {
+				return errors.Wrap(err, "deleting hook")
+			}
+			return nil
+		}
+	}
+	return nil
 }

@@ -17,6 +17,8 @@ callback_url = "https://garm.example.com/api/v1/callbacks"
 # highly encouraged.
 metadata_url = "https://garm.example.com/api/v1/metadata"
 
+webhook_url = "https://garm.example.com/webhooks"
+
 # Uncomment this line if you'd like to log to a file instead of standard output.
 # log_file = "/tmp/runner-manager.log"
 

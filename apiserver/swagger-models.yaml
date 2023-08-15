@@ -15,6 +15,13 @@ definitions:
         import:
             package: github.com/cloudbase/garm/params
             alias: garm_params
+  InstallWebhookParams:
+    type: object
+    x-go-type:
+        type: InstallWebhookParams
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
   NewUserParams:
     type: object
     x-go-type:

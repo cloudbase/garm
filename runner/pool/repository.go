@@ -211,14 +211,6 @@ func (r *repository) WebhookSecret() string {
 	return r.cfg.WebhookSecret
 }
 
-func (r *repository) GetCallbackURL() string {
-	return r.cfgInternal.InstanceCallbackURL
-}
-
-func (r *repository) GetMetadataURL() string {
-	return r.cfgInternal.InstanceMetadataURL
-}
-
 func (r *repository) FindPoolByTags(labels []string) (params.Pool, error) {
 	pool, err := r.store.FindRepositoryPoolByTags(r.ctx, r.id, labels)
 	if err != nil {
@@ -244,4 +236,60 @@ func (r *repository) ValidateOwner(job params.WorkflowJob) error {
 
 func (r *repository) ID() string {
 	return r.id
+}
+
+func (r *repository) listHooks(ctx context.Context) ([]*github.Hook, error) {
+	opts := github.ListOptions{
+		PerPage: 100,
+	}
+	var allHooks []*github.Hook
+	for {
+		hooks, ghResp, err := r.ghcli.ListRepoHooks(ctx, r.cfg.Owner, r.cfg.Name, &opts)
+		if err != nil {
+			return nil, errors.Wrap(err, "fetching hooks")
+		}
+		allHooks = append(allHooks, hooks...)
+		if ghResp.NextPage == 0 {
+			break
+		}
+		opts.Page = ghResp.NextPage
+	}
+	return allHooks, nil
+}
+
+func (r *repository) InstallHook(ctx context.Context, req *github.Hook) error {
+	allHooks, err := r.listHooks(ctx)
+	if err != nil {
+		return errors.Wrap(err, "listing hooks")
+	}
+
+	for _, hook := range allHooks {
+		if hook.Config["url"] == req.Config["url"] {
+			return fmt.Errorf("hook already installed: %w", runnerErrors.ErrBadRequest)
+		}
+	}
+
+	_, _, err = r.ghcli.CreateRepoHook(ctx, r.cfg.Owner, r.cfg.Name, req)
+	if err != nil {
+		return errors.Wrap(err, "creating repository hook")
+	}
+	return nil
+}
+
+func (r *repository) UninstallHook(ctx context.Context, url string) error {
+	allHooks, err := r.listHooks(ctx)
+	if err != nil {
+		return errors.Wrap(err, "listing hooks")
+	}
+
+	for _, hook := range allHooks {
+		if hook.Config["url"] == url {
+			_, err = r.ghcli.DeleteRepoHook(ctx, r.cfg.Owner, r.cfg.Name, *hook.ID)
+			if err != nil {
+				return errors.Wrap(err, "deleting hook")
+			}
+			return nil
+		}
+	}
+	return nil
 }

@@ -76,6 +76,13 @@ definitions:
                 alias: garm_params
                 package: github.com/cloudbase/garm/params
             type: GithubCredentials
+    InstallWebhookParams:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: InstallWebhookParams
     Instance:
         type: object
         x-go-type:
@@ -900,6 +907,53 @@ paths:
             tags:
                 - organizations
                 - pools
+    /organizations/{orgID}/webhook:
+        delete:
+            operationId: UninstallOrgWebhook
+            parameters:
+                - description: Organization ID.
+                  in: path
+                  name: orgID
+                  required: true
+                  type: string
+            responses:
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Uninstall organization webhook.
+            tags:
+                - organizations
+                - hooks
+        post:
+            description: |-
+                Install the GARM webhook for an organization. The secret configured on the organization will
+                be used to validate the requests.
+            operationId: InstallOrgWebhook
+            parameters:
+                - description: Organization ID.
+                  in: path
+                  name: orgID
+                  required: true
+                  type: string
+                - description: Parameters used when creating the organization webhook.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/InstallWebhookParams'
+                    description: Parameters used when creating the organization webhook.
+                    type: object
+            responses:
+                "200":
+                    $ref: '#/responses/%7B%7D'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            tags:
+                - organizations
+                - hooks
     /pools:
         get:
             operationId: ListPools
@@ -1275,6 +1329,53 @@ paths:
             tags:
                 - repositories
                 - pools
+    /repositories/{repoID}/webhook:
+        delete:
+            operationId: UninstallRepoWebhook
+            parameters:
+                - description: Repository ID.
+                  in: path
+                  name: repoID
+                  required: true
+                  type: string
+            responses:
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Uninstall organization webhook.
+            tags:
+                - repositories
+                - hooks
+        post:
+            description: |-
+                Install the GARM webhook for an organization. The secret configured on the organization will
+                be used to validate the requests.
+            operationId: InstallRepoWebhook
+            parameters:
+                - description: Repository ID.
+                  in: path
+                  name: repoID
+                  required: true
+                  type: string
+                - description: Parameters used when creating the repository webhook.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/InstallWebhookParams'
+                    description: Parameters used when creating the repository webhook.
+                    type: object
+            responses:
+                "200":
+                    $ref: '#/responses/%7B%7D'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            tags:
+                - repositories
+                - hooks
 produces:
     - application/json
 security:

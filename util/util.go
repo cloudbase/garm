@@ -29,6 +29,44 @@ import (
 	"golang.org/x/oauth2"
 )
 
+type githubClient struct {
+	*github.ActionsService
+	org  *github.OrganizationsService
+	repo *github.RepositoriesService
+}
+
+func (g *githubClient) ListOrgHooks(ctx context.Context, org string, opts *github.ListOptions) ([]*github.Hook, *github.Response, error) {
+	return g.org.ListHooks(ctx, org, opts)
+}
+
+func (g *githubClient) GetOrgHook(ctx context.Context, org string, id int64) (*github.Hook, *github.Response, error) {
+	return g.org.GetHook(ctx, org, id)
+}
+
+func (g *githubClient) CreateOrgHook(ctx context.Context, org string, hook *github.Hook) (*github.Hook, *github.Response, error) {
+	return g.org.CreateHook(ctx, org, hook)
+}
+
+func (g *githubClient) DeleteOrgHook(ctx context.Context, org string, id int64) (*github.Response, error) {
+	return g.org.DeleteHook(ctx, org, id)
+}
+
+func (g *githubClient) ListRepoHooks(ctx context.Context, owner, repo string, opts *github.ListOptions) ([]*github.Hook, *github.Response, error) {
+	return g.repo.ListHooks(ctx, owner, repo, opts)
+}
+
+func (g *githubClient) GetRepoHook(ctx context.Context, owner, repo string, id int64) (*github.Hook, *github.Response, error) {
+	return g.repo.GetHook(ctx, owner, repo, id)
+}
+
+func (g *githubClient) CreateRepoHook(ctx context.Context, owner, repo string, hook *github.Hook) (*github.Hook, *github.Response, error) {
+	return g.repo.CreateHook(ctx, owner, repo, hook)
+}
+
+func (g *githubClient) DeleteRepoHook(ctx context.Context, owner, repo string, id int64) (*github.Response, error) {
+	return g.repo.DeleteHook(ctx, owner, repo, id)
+}
+
 func GithubClient(ctx context.Context, token string, credsDetails params.GithubCredentials) (common.GithubClient, common.GithubEnterpriseClient, error) {
 	var roots *x509.CertPool
 	if credsDetails.CABundle != nil && len(credsDetails.CABundle) > 0 {
@@ -56,5 +94,10 @@ func GithubClient(ctx context.Context, token string, credsDetails params.GithubC
 		return nil, nil, errors.Wrap(err, "fetching github client")
 	}
 
-	return ghClient.Actions, ghClient.Enterprise, nil
+	cli := &githubClient{
+		ActionsService: ghClient.Actions,
+		org:            ghClient.Organizations,
+		repo:           ghClient.Repositories,
+	}
+	return cli, ghClient.Enterprise, nil
 }

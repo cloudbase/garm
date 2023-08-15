@@ -17,6 +17,7 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/cloudbase/garm-provider-common/util"
 	apiClientRepos "github.com/cloudbase/garm/client/repositories"
 	"github.com/cloudbase/garm/params"
 
@@ -25,10 +26,11 @@ import (
 )
 
 var (
-	repoOwner         string
-	repoName          string
-	repoWebhookSecret string
-	repoCreds         string
+	repoOwner           string
+	repoName            string
+	repoWebhookSecret   string
+	repoCreds           string
+	randomWebhookSecret bool
 )
 
 // repositoryCmd represents the repository command
@@ -54,6 +56,14 @@ var repoAddCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
+		}
+
+		if randomWebhookSecret {
+			secret, err := util.GetRandomString(32)
+			if err != nil {
+				return err
+			}
+			repoWebhookSecret = secret
 		}
 
 		newRepoReq := apiClientRepos.NewCreateRepoParams()
@@ -183,10 +193,13 @@ func init() {
 	repoAddCmd.Flags().StringVar(&repoName, "name", "", "The name of the repository")
 	repoAddCmd.Flags().StringVar(&repoWebhookSecret, "webhook-secret", "", "The webhook secret for this repository")
 	repoAddCmd.Flags().StringVar(&repoCreds, "credentials", "", "Credentials name. See credentials list.")
+	repoAddCmd.Flags().BoolVar(&randomWebhookSecret, "random-webhook-secret", false, "Generate a random webhook secret for this repository.")
+	repoAddCmd.MarkFlagsMutuallyExclusive("webhook-secret", "random-webhook-secret")
+
 	repoAddCmd.MarkFlagRequired("credentials") //nolint
 	repoAddCmd.MarkFlagRequired("owner")       //nolint
 	repoAddCmd.MarkFlagRequired("name")        //nolint
-	repoUpdateCmd.Flags().StringVar(&repoWebhookSecret, "webhook-secret", "", "The webhook secret for this repository")
+	repoUpdateCmd.Flags().StringVar(&repoWebhookSecret, "webhook-secret", "", "The webhook secret for this repository. If you update this secret, you will have to manually update the secret in GitHub as well.")
 	repoUpdateCmd.Flags().StringVar(&repoCreds, "credentials", "", "Credentials name. See credentials list.")
 
 	repositoryCmd.AddCommand(

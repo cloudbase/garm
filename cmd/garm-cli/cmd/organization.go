@@ -17,6 +17,7 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/cloudbase/garm-provider-common/util"
 	apiClientOrgs "github.com/cloudbase/garm/client/organizations"
 	"github.com/cloudbase/garm/params"
 
@@ -25,9 +26,10 @@ import (
 )
 
 var (
-	orgName          string
-	orgWebhookSecret string
-	orgCreds         string
+	orgName                string
+	orgWebhookSecret       string
+	orgCreds               string
+	orgRandomWebhookSecret bool
 )
 
 // organizationCmd represents the organization command
@@ -53,6 +55,14 @@ var orgAddCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
+		}
+
+		if orgRandomWebhookSecret {
+			secret, err := util.GetRandomString(32)
+			if err != nil {
+				return err
+			}
+			orgWebhookSecret = secret
 		}
 
 		newOrgReq := apiClientOrgs.NewCreateOrgParams()
@@ -179,6 +189,9 @@ func init() {
 	orgAddCmd.Flags().StringVar(&orgName, "name", "", "The name of the organization")
 	orgAddCmd.Flags().StringVar(&orgWebhookSecret, "webhook-secret", "", "The webhook secret for this organization")
 	orgAddCmd.Flags().StringVar(&orgCreds, "credentials", "", "Credentials name. See credentials list.")
+	orgAddCmd.Flags().BoolVar(&orgRandomWebhookSecret, "random-webhook-secret", false, "Generate a random webhook secret for this organization.")
+	orgAddCmd.MarkFlagsMutuallyExclusive("webhook-secret", "random-webhook-secret")
+
 	orgAddCmd.MarkFlagRequired("credentials") //nolint
 	orgAddCmd.MarkFlagRequired("name")        //nolint
 	orgUpdateCmd.Flags().StringVar(&orgWebhookSecret, "webhook-secret", "", "The webhook secret for this organization")

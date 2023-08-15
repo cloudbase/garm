@@ -6,11 +6,28 @@ import (
 	"github.com/google/go-github/v53/github"
 )
 
+type OrganizationHooks interface {
+	ListOrgHooks(ctx context.Context, org string, opts *github.ListOptions) ([]*github.Hook, *github.Response, error)
+	GetOrgHook(ctx context.Context, org string, id int64) (*github.Hook, *github.Response, error)
+	CreateOrgHook(ctx context.Context, org string, hook *github.Hook) (*github.Hook, *github.Response, error)
+	DeleteOrgHook(ctx context.Context, org string, id int64) (*github.Response, error)
+}
+
+type RepositoryHooks interface {
+	ListRepoHooks(ctx context.Context, owner, repo string, opts *github.ListOptions) ([]*github.Hook, *github.Response, error)
+	GetRepoHook(ctx context.Context, owner, repo string, id int64) (*github.Hook, *github.Response, error)
+	CreateRepoHook(ctx context.Context, owner, repo string, hook *github.Hook) (*github.Hook, *github.Response, error)
+	DeleteRepoHook(ctx context.Context, owner, repo string, id int64) (*github.Response, error)
+}
+
 // GithubClient that describes the minimum list of functions we need to interact with github.
 // Allows for easier testing.
 //
 //go:generate mockery --all
 type GithubClient interface {
+	OrganizationHooks
+	RepositoryHooks
+
 	// GetWorkflowJobByID gets details about a single workflow job.
 	GetWorkflowJobByID(ctx context.Context, owner, repo string, jobID int64) (*github.WorkflowJob, *github.Response, error)
 	// ListRunners lists all runners within a repository.

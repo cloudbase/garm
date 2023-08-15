@@ -339,3 +339,45 @@ func (r *Runner) findOrgPoolManager(name string) (common.PoolManager, error) {
 	}
 	return poolManager, nil
 }
+
+func (r *Runner) InstallOrgWebhook(ctx context.Context, orgID string, param params.InstallWebhookParams) error {
+	if !auth.IsAdmin(ctx) {
+		return runnerErrors.ErrUnauthorized
+	}
+
+	org, err := r.store.GetOrganizationByID(ctx, orgID)
+	if err != nil {
+		return errors.Wrap(err, "fetching org")
+	}
+
+	poolMgr, err := r.poolManagerCtrl.GetOrgPoolManager(org)
+	if err != nil {
+		return errors.Wrap(err, "fetching pool manager for org")
+	}
+
+	if err := poolMgr.InstallWebhook(ctx, param); err != nil {
+		return errors.Wrap(err, "installing webhook")
+	}
+	return nil
+}
+
+func (r *Runner) UninstallOrgWebhook(ctx context.Context, orgID string) error {
+	if !auth.IsAdmin(ctx) {
+		return runnerErrors.ErrUnauthorized
+	}
+
+	org, err := r.store.GetOrganizationByID(ctx, orgID)
+	if err != nil {
+		return errors.Wrap(err, "fetching org")
+	}
+
+	poolMgr, err := r.poolManagerCtrl.GetOrgPoolManager(org)
+	if err != nil {
+		return errors.Wrap(err, "fetching pool manager for org")
+	}
+
+	if err := poolMgr.UninstallWebhook(ctx); err != nil {
+		return errors.Wrap(err, "uninstalling webhook")
+	}
+	return nil
+}

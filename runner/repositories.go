@@ -349,3 +349,45 @@ func (r *Runner) findRepoPoolManager(owner, name string) (common.PoolManager, er
 	}
 	return poolManager, nil
 }
+
+func (r *Runner) InstallRepoWebhook(ctx context.Context, repoID string, param params.InstallWebhookParams) error {
+	if !auth.IsAdmin(ctx) {
+		return runnerErrors.ErrUnauthorized
+	}
+
+	repo, err := r.store.GetRepositoryByID(ctx, repoID)
+	if err != nil {
+		return errors.Wrap(err, "fetching repo")
+	}
+
+	poolManager, err := r.poolManagerCtrl.GetRepoPoolManager(repo)
+	if err != nil {
+		return errors.Wrap(err, "fetching pool manager for repo")
+	}
+
+	if err := poolManager.InstallWebhook(ctx, param); err != nil {
+		return errors.Wrap(err, "installing webhook")
+	}
+	return nil
+}
+
+func (r *Runner) UninstallRepoWebhook(ctx context.Context, repoID string) error {
+	if !auth.IsAdmin(ctx) {
+		return runnerErrors.ErrUnauthorized
+	}
+
+	repo, err := r.store.GetRepositoryByID(ctx, repoID)
+	if err != nil {
+		return errors.Wrap(err, "fetching repo")
+	}
+
+	poolManager, err := r.poolManagerCtrl.GetRepoPoolManager(repo)
+	if err != nil {
+		return errors.Wrap(err, "fetching pool manager for repo")
+	}
+
+	if err := poolManager.UninstallWebhook(ctx); err != nil {
+		return errors.Wrap(err, "uninstalling webhook")
+	}
+	return nil
+}

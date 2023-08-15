@@ -203,6 +203,13 @@ func NewAPIRouter(han *controllers.APIController, logWriter io.Writer, authMiddl
 	apiRouter.Handle("/repositories/", http.HandlerFunc(han.CreateRepoHandler)).Methods("POST", "OPTIONS")
 	apiRouter.Handle("/repositories", http.HandlerFunc(han.CreateRepoHandler)).Methods("POST", "OPTIONS")
 
+	// Install Webhook
+	apiRouter.Handle("/repositories/{repoID}/webhook/", http.HandlerFunc(han.InstallRepoWebhookHandler)).Methods("POST", "OPTIONS")
+	apiRouter.Handle("/repositories/{repoID}/webhook", http.HandlerFunc(han.InstallRepoWebhookHandler)).Methods("POST", "OPTIONS")
+	// Uninstall Webhook
+	apiRouter.Handle("/repositories/{repoID}/webhook/", http.HandlerFunc(han.UninstallRepoWebhookHandler)).Methods("DELETE", "OPTIONS")
+	apiRouter.Handle("/repositories/{repoID}/webhook", http.HandlerFunc(han.UninstallRepoWebhookHandler)).Methods("DELETE", "OPTIONS")
+
 	/////////////////////////////
 	// Organizations and pools //
 	/////////////////////////////
@@ -241,6 +248,13 @@ func NewAPIRouter(han *controllers.APIController, logWriter io.Writer, authMiddl
 	// Create org
 	apiRouter.Handle("/organizations/", http.HandlerFunc(han.CreateOrgHandler)).Methods("POST", "OPTIONS")
 	apiRouter.Handle("/organizations", http.HandlerFunc(han.CreateOrgHandler)).Methods("POST", "OPTIONS")
+
+	// Install Webhook
+	apiRouter.Handle("/organizations/{orgID}/webhook/", http.HandlerFunc(han.InstallOrgWebhookHandler)).Methods("POST", "OPTIONS")
+	apiRouter.Handle("/organizations/{orgID}/webhook", http.HandlerFunc(han.InstallOrgWebhookHandler)).Methods("POST", "OPTIONS")
+	// Uninstall Webhook
+	apiRouter.Handle("/organizations/{orgID}/webhook/", http.HandlerFunc(han.UninstallOrgWebhookHandler)).Methods("DELETE", "OPTIONS")
+	apiRouter.Handle("/organizations/{orgID}/webhook", http.HandlerFunc(han.UninstallOrgWebhookHandler)).Methods("DELETE", "OPTIONS")
 
 	/////////////////////////////
 	//  Enterprises and pools  //

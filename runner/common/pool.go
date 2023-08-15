@@ -15,6 +15,7 @@
 package common
 
 import (
+	"context"
 	"time"
 
 	"github.com/cloudbase/garm/params"
@@ -43,7 +44,8 @@ type PoolManager interface {
 	HandleWorkflowJob(job params.WorkflowJob) error
 	RefreshState(param params.UpdatePoolStateParams) error
 	ForceDeleteRunner(runner params.Instance) error
-	// AddPool(ctx context.Context, pool params.Pool) error
+	InstallWebhook(ctx context.Context, param params.InstallWebhookParams) error
+	UninstallWebhook(ctx context.Context) error
 
 	// PoolManager lifecycle functions. Start/stop pool.
 	Start() error

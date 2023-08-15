@@ -14,6 +14,41 @@ type GithubClient struct {
 	mock.Mock
 }
 
+// CreateOrgHook provides a mock function with given fields: ctx, org, hook
+func (_m *GithubClient) CreateOrgHook(ctx context.Context, org string, hook *github.Hook) (*github.Hook, *github.Response, error) {
+	ret := _m.Called(ctx, org, hook)
+
+	var r0 *github.Hook
+	var r1 *github.Response
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, *github.Hook) (*github.Hook, *github.Response, error)); ok {
+		return rf(ctx, org, hook)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, *github.Hook) *github.Hook); ok {
+		r0 = rf(ctx, org, hook)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*github.Hook)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, *github.Hook) *github.Response); ok {
+		r1 = rf(ctx, org, hook)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(*github.Response)
+		}
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, string, *github.Hook) error); ok {
+		r2 = rf(ctx, org, hook)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
 // CreateOrganizationRegistrationToken provides a mock function with given fields: ctx, owner
 func (_m *GithubClient) CreateOrganizationRegistrationToken(ctx context.Context, owner string) (*github.RegistrationToken, *github.Response, error) {
 	ret := _m.Called(ctx, owner)
@@ -84,6 +119,163 @@ func (_m *GithubClient) CreateRegistrationToken(ctx context.Context, owner strin
 	return r0, r1, r2
 }
 
+// CreateRepoHook provides a mock function with given fields: ctx, owner, repo, hook
+func (_m *GithubClient) CreateRepoHook(ctx context.Context, owner string, repo string, hook *github.Hook) (*github.Hook, *github.Response, error) {
+	ret := _m.Called(ctx, owner, repo, hook)
+
+	var r0 *github.Hook
+	var r1 *github.Response
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, *github.Hook) (*github.Hook, *github.Response, error)); ok {
+		return rf(ctx, owner, repo, hook)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, *github.Hook) *github.Hook); ok {
+		r0 = rf(ctx, owner, repo, hook)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*github.Hook)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, *github.Hook) *github.Response); ok {
+		r1 = rf(ctx, owner, repo, hook)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(*github.Response)
+		}
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, string, string, *github.Hook) error); ok {
+		r2 = rf(ctx, owner, repo, hook)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// DeleteOrgHook provides a mock function with given fields: ctx, org, id
+func (_m *GithubClient) DeleteOrgHook(ctx context.Context, org string, id int64) (*github.Response, error) {
+	ret := _m.Called(ctx, org, id)
+
+	var r0 *github.Response
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) (*github.Response, error)); ok {
+		return rf(ctx, org, id)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) *github.Response); ok {
+		r0 = rf(ctx, org, id)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*github.Response)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, int64) error); ok {
+		r1 = rf(ctx, org, id)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// DeleteRepoHook provides a mock function with given fields: ctx, owner, repo, id
+func (_m *GithubClient) DeleteRepoHook(ctx context.Context, owner string, repo string, id int64) (*github.Response, error) {
+	ret := _m.Called(ctx, owner, repo, id)
+
+	var r0 *github.Response
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, int64) (*github.Response, error)); ok {
+		return rf(ctx, owner, repo, id)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, int64) *github.Response); ok {
+		r0 = rf(ctx, owner, repo, id)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*github.Response)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, int64) error); ok {
+		r1 = rf(ctx, owner, repo, id)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetOrgHook provides a mock function with given fields: ctx, org, id
+func (_m *GithubClient) GetOrgHook(ctx context.Context, org string, id int64) (*github.Hook, *github.Response, error) {
+	ret := _m.Called(ctx, org, id)
+
+	var r0 *github.Hook
+	var r1 *github.Response
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) (*github.Hook, *github.Response, error)); ok {
+		return rf(ctx, org, id)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) *github.Hook); ok {
+		r0 = rf(ctx, org, id)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*github.Hook)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, int64) *github.Response); ok {
+		r1 = rf(ctx, org, id)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(*github.Response)
+		}
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, string, int64) error); ok {
+		r2 = rf(ctx, org, id)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// GetRepoHook provides a mock function with given fields: ctx, owner, repo, id
+func (_m *GithubClient) GetRepoHook(ctx context.Context, owner string, repo string, id int64) (*github.Hook, *github.Response, error) {
+	ret := _m.Called(ctx, owner, repo, id)
+
+	var r0 *github.Hook
+	var r1 *github.Response
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, int64) (*github.Hook, *github.Response, error)); ok {
+		return rf(ctx, owner, repo, id)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, int64) *github.Hook); ok {
+		r0 = rf(ctx, owner, repo, id)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*github.Hook)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, int64) *github.Response); ok {
+		r1 = rf(ctx, owner, repo, id)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(*github.Response)
+		}
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, string, string, int64) error); ok {
+		r2 = rf(ctx, owner, repo, id)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
 // GetWorkflowJobByID provides a mock function with given fields: ctx, owner, repo, jobID
 func (_m *GithubClient) GetWorkflowJobByID(ctx context.Context, owner string, repo string, jobID int64) (*github.WorkflowJob, *github.Response, error) {
 	ret := _m.Called(ctx, owner, repo, jobID)
@@ -112,6 +304,41 @@ func (_m *GithubClient) GetWorkflowJobByID(ctx context.Context, owner string, re
 
 	if rf, ok := ret.Get(2).(func(context.Context, string, string, int64) error); ok {
 		r2 = rf(ctx, owner, repo, jobID)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// ListOrgHooks provides a mock function with given fields: ctx, org, opts
+func (_m *GithubClient) ListOrgHooks(ctx context.Context, org string, opts *github.ListOptions) ([]*github.Hook, *github.Response, error) {
+	ret := _m.Called(ctx, org, opts)
+
+	var r0 []*github.Hook
+	var r1 *github.Response
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, *github.ListOptions) ([]*github.Hook, *github.Response, error)); ok {
+		return rf(ctx, org, opts)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, *github.ListOptions) []*github.Hook); ok {
+		r0 = rf(ctx, org, opts)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*github.Hook)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, *github.ListOptions) *github.Response); ok {
+		r1 = rf(ctx, org, opts)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(*github.Response)
+		}
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, string, *github.ListOptions) error); ok {
+		r2 = rf(ctx, org, opts)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -182,6 +409,41 @@ func (_m *GithubClient) ListOrganizationRunners(ctx context.Context, owner strin
 
 	if rf, ok := ret.Get(2).(func(context.Context, string, *github.ListOptions) error); ok {
 		r2 = rf(ctx, owner, opts)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// ListRepoHooks provides a mock function with given fields: ctx, owner, repo, opts
+func (_m *GithubClient) ListRepoHooks(ctx context.Context, owner string, repo string, opts *github.ListOptions) ([]*github.Hook, *github.Response, error) {
+	ret := _m.Called(ctx, owner, repo, opts)
+
+	var r0 []*github.Hook
+	var r1 *github.Response
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, *github.ListOptions) ([]*github.Hook, *github.Response, error)); ok {
+		return rf(ctx, owner, repo, opts)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, *github.ListOptions) []*github.Hook); ok {
+		r0 = rf(ctx, owner, repo, opts)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*github.Hook)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, *github.ListOptions) *github.Response); ok {
+		r1 = rf(ctx, owner, repo, opts)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(*github.Response)
+		}
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, string, string, *github.ListOptions) error); ok {
+		r2 = rf(ctx, owner, repo, opts)
 	} else {
 		r2 = ret.Error(2)
 	}

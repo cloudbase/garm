@@ -85,6 +85,12 @@ func (k *keyMutex) Delete(key string) {
 	k.muxes.Delete(key)
 }
 
+type urls struct {
+	callbackURL          string
+	metadataURL          string
+	webhookURL           string
+	controllerWebhookURL string
+}
 type basePoolManager struct {
 	ctx          context.Context
 	controllerID string
@@ -100,6 +106,8 @@ type basePoolManager struct {
 
 	managerIsRunning   bool
 	managerErrorReason string
+
+	urls urls
 
 	mux    sync.Mutex
 	wg     *sync.WaitGroup
@@ -686,8 +694,8 @@ func (r *basePoolManager) AddRunner(ctx context.Context, poolID string, aditiona
 		RunnerStatus:      params.RunnerPending,
 		OSArch:            pool.OSArch,
 		OSType:            pool.OSType,
-		CallbackURL:       r.helper.GetCallbackURL(),
-		MetadataURL:       r.helper.GetMetadataURL(),
+		CallbackURL:       r.urls.callbackURL,
+		MetadataURL:       r.urls.metadataURL,
 		CreateAttempt:     1,
 		GitHubRunnerGroup: pool.GitHubRunnerGroup,
 		AditionalLabels:   aditionalLabels,
@@ -1597,4 +1605,37 @@ func (r *basePoolManager) consumeQueuedJobs() error {
 		r.log("failed to delete completed jobs: %q", err)
 	}
 	return nil
+}
+
+func (r *basePoolManager) InstallWebhook(ctx context.Context, param params.InstallWebhookParams) error {
+	if r.urls.controllerWebhookURL == "" {
+		return errors.Wrap(runnerErrors.ErrUnprocessable, "controller webhook url is empty")
+	}
+
+	insecureSSL := "0"
+	if param.InsecureSSL {
+		insecureSSL = "1"
+	}
+	req := &github.Hook{
+		Active: github.Bool(true),
+		Config: map[string]interface{}{
+			"url":          r.urls.controllerWebhookURL,
+			"content_type": "json",
+			"insecure_ssl": insecureSSL,
+			"secret":       r.WebhookSecret(),
+		},
+		Events: []string{
+			"workflow_job",
+		},
+	}
+
+	return r.helper.InstallHook(ctx, req)
+}
+
+func (r *basePoolManager) UninstallWebhook(ctx context.Context) error {
+	if r.urls.controllerWebhookURL == "" {
+		return errors.Wrap(runnerErrors.ErrUnprocessable, "controller webhook url is empty")
+	}
+
+	return r.helper.UninstallHook(ctx, r.urls.controllerWebhookURL)
 }

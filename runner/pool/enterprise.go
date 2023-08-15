@@ -197,14 +197,6 @@ func (r *enterprise) WebhookSecret() string {
 	return r.cfg.WebhookSecret
 }
 
-func (r *enterprise) GetCallbackURL() string {
-	return r.cfgInternal.InstanceCallbackURL
-}
-
-func (r *enterprise) GetMetadataURL() string {
-	return r.cfgInternal.InstanceMetadataURL
-}
-
 func (r *enterprise) FindPoolByTags(labels []string) (params.Pool, error) {
 	pool, err := r.store.FindEnterprisePoolByTags(r.ctx, r.id, labels)
 	if err != nil {
@@ -230,4 +222,12 @@ func (r *enterprise) ValidateOwner(job params.WorkflowJob) error {
 
 func (r *enterprise) ID() string {
 	return r.id
+}
+
+func (r *enterprise) InstallHook(ctx context.Context, req *github.Hook) error {
+	return fmt.Errorf("not implemented")
+}
+
+func (r *enterprise) UninstallHook(ctx context.Context, url string) error {
+	return fmt.Errorf("not implemented")
 }

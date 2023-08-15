@@ -48,7 +48,7 @@ func NewAPIController(r *runner.Runner, authenticator *auth.Authenticator, hub *
 			ReadBufferSize:  1024,
 			WriteBufferSize: 16384,
 		},
-		controllerID: controllerInfo.ShortControllerID(),
+		controllerID: controllerInfo.ControllerID.String(),
 	}, nil
 }
 
