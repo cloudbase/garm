@@ -273,7 +273,7 @@ func (r *organization) InstallHook(ctx context.Context, req *github.Hook) error 
 
 	for _, hook := range allHooks {
 		if hook.Config["url"] == req.Config["url"] {
-			return fmt.Errorf("hook already installed: %w", runnerErrors.ErrBadRequest)
+			return runnerErrors.NewBadRequestError("hook already installed")
 		}
 	}
 
