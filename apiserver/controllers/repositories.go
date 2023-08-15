@@ -499,7 +499,7 @@ func (a *APIController) UpdateRepoPoolHandler(w http.ResponseWriter, r *http.Req
 //	    required: true
 //
 //	Responses:
-//	  200: {}
+//	  200:
 //	  default: APIErrorResponse
 func (a *APIController) InstallRepoWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()

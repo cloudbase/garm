@@ -91,7 +91,8 @@ func NewAPIRouter(han *controllers.APIController, logWriter io.Writer, authMiddl
 	webhookRouter := router.PathPrefix("/webhooks").Subrouter()
 	webhookRouter.Handle("/", http.HandlerFunc(han.WebhookHandler))
 	webhookRouter.Handle("", http.HandlerFunc(han.WebhookHandler))
-	webhookRouter.Handle("/{controllerID:controllerID\\/?}", http.HandlerFunc(han.WebhookHandler))
+	webhookRouter.Handle("/{controllerID}/", http.HandlerFunc(han.WebhookHandler))
+	webhookRouter.Handle("/{controllerID}", http.HandlerFunc(han.WebhookHandler))
 
 	// Handles API calls
 	apiSubRouter := router.PathPrefix("/api/v1").Subrouter()

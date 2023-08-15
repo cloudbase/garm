@@ -499,7 +499,7 @@ func (a *APIController) UpdateOrgPoolHandler(w http.ResponseWriter, r *http.Requ
 //	    required: true
 //
 //	Responses:
-//	  200: {}
+//	  200:
 //	  default: APIErrorResponse
 func (a *APIController) InstallOrgWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()

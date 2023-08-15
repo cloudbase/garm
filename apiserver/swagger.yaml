@@ -946,7 +946,7 @@ paths:
                     type: object
             responses:
                 "200":
-                    $ref: '#/responses/%7B%7D'
+                    description: ""
                 default:
                     description: APIErrorResponse
                     schema:
@@ -1368,7 +1368,7 @@ paths:
                     type: object
             responses:
                 "200":
-                    $ref: '#/responses/%7B%7D'
+                    description: ""
                 default:
                     description: APIErrorResponse
                     schema:

@@ -57,6 +57,12 @@ func NewRepositoryPoolManager(ctx context.Context, cfg params.Repository, cfgInt
 		store:        store,
 		providers:    providers,
 		controllerID: cfgInternal.ControllerID,
+		urls: urls{
+			webhookURL:           cfgInternal.BaseWebhookURL,
+			callbackURL:          cfgInternal.InstanceCallbackURL,
+			metadataURL:          cfgInternal.InstanceMetadataURL,
+			controllerWebhookURL: cfgInternal.ControllerWebhookURL,
+		},
 		quit:         make(chan struct{}),
 		helper:       helper,
 		credsDetails: cfgInternal.GithubCredentialsDetails,
@@ -246,6 +252,9 @@ func (r *repository) listHooks(ctx context.Context) ([]*github.Hook, error) {
 	for {
 		hooks, ghResp, err := r.ghcli.ListRepoHooks(ctx, r.cfg.Owner, r.cfg.Name, &opts)
 		if err != nil {
+			if ghResp != nil && ghResp.StatusCode == http.StatusNotFound {
+				return nil, errors.Wrap(runnerErrors.ErrNotFound, "fetching hooks")
+			}
 			return nil, errors.Wrap(err, "fetching hooks")
 		}
 		allHooks = append(allHooks, hooks...)
