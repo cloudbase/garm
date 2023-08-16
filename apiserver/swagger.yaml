@@ -76,6 +76,13 @@ definitions:
                 alias: garm_params
                 package: github.com/cloudbase/garm/params
             type: GithubCredentials
+    HookInfo:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: HookInfo
     InstallWebhookParams:
         type: object
         x-go-type:
@@ -925,6 +932,27 @@ paths:
             tags:
                 - organizations
                 - hooks
+        get:
+            operationId: GetOrgWebhookInfo
+            parameters:
+                - description: Organization ID.
+                  in: path
+                  name: orgID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: HookInfo
+                    schema:
+                        $ref: '#/definitions/HookInfo'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get information about the GARM installed webhook on an organization.
+            tags:
+                - organizations
+                - hooks
         post:
             description: |-
                 Install the GARM webhook for an organization. The secret configured on the organization will
@@ -946,7 +974,9 @@ paths:
                     type: object
             responses:
                 "200":
-                    description: ""
+                    description: HookInfo
+                    schema:
+                        $ref: '#/definitions/HookInfo'
                 default:
                     description: APIErrorResponse
                     schema:
@@ -1347,6 +1377,27 @@ paths:
             tags:
                 - repositories
                 - hooks
+        get:
+            operationId: GetRepoWebhookInfo
+            parameters:
+                - description: Repository ID.
+                  in: path
+                  name: repoID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: HookInfo
+                    schema:
+                        $ref: '#/definitions/HookInfo'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get information about the GARM installed webhook on a repository.
+            tags:
+                - repositories
+                - hooks
         post:
             description: |-
                 Install the GARM webhook for an organization. The secret configured on the organization will
@@ -1368,7 +1419,9 @@ paths:
                     type: object
             responses:
                 "200":
-                    description: ""
+                    description: HookInfo
+                    schema:
+                        $ref: '#/definitions/HookInfo'
                 default:
                     description: APIErrorResponse
                     schema:

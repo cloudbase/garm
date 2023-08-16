@@ -350,25 +350,26 @@ func (r *Runner) findRepoPoolManager(owner, name string) (common.PoolManager, er
 	return poolManager, nil
 }
 
-func (r *Runner) InstallRepoWebhook(ctx context.Context, repoID string, param params.InstallWebhookParams) error {
+func (r *Runner) InstallRepoWebhook(ctx context.Context, repoID string, param params.InstallWebhookParams) (params.HookInfo, error) {
 	if !auth.IsAdmin(ctx) {
-		return runnerErrors.ErrUnauthorized
+		return params.HookInfo{}, runnerErrors.ErrUnauthorized
 	}
 
 	repo, err := r.store.GetRepositoryByID(ctx, repoID)
 	if err != nil {
-		return errors.Wrap(err, "fetching repo")
+		return params.HookInfo{}, errors.Wrap(err, "fetching repo")
 	}
 
 	poolManager, err := r.poolManagerCtrl.GetRepoPoolManager(repo)
 	if err != nil {
-		return errors.Wrap(err, "fetching pool manager for repo")
+		return params.HookInfo{}, errors.Wrap(err, "fetching pool manager for repo")
 	}
 
-	if err := poolManager.InstallWebhook(ctx, param); err != nil {
-		return errors.Wrap(err, "installing webhook")
+	info, err := poolManager.InstallWebhook(ctx, param)
+	if err != nil {
+		return params.HookInfo{}, errors.Wrap(err, "installing webhook")
 	}
-	return nil
+	return info, nil
 }
 
 func (r *Runner) UninstallRepoWebhook(ctx context.Context, repoID string) error {
@@ -390,4 +391,26 @@ func (r *Runner) UninstallRepoWebhook(ctx context.Context, repoID string) error 
 		return errors.Wrap(err, "uninstalling webhook")
 	}
 	return nil
+}
+
+func (r *Runner) GetRepoWebhookInfo(ctx context.Context, repoID string) (params.HookInfo, error) {
+	if !auth.IsAdmin(ctx) {
+		return params.HookInfo{}, runnerErrors.ErrUnauthorized
+	}
+
+	repo, err := r.store.GetRepositoryByID(ctx, repoID)
+	if err != nil {
+		return params.HookInfo{}, errors.Wrap(err, "fetching repo")
+	}
+
+	poolManager, err := r.poolManagerCtrl.GetRepoPoolManager(repo)
+	if err != nil {
+		return params.HookInfo{}, errors.Wrap(err, "fetching pool manager for repo")
+	}
+
+	info, err := poolManager.GetWebhookInfo(ctx)
+	if err != nil {
+		return params.HookInfo{}, errors.Wrap(err, "getting webhook info")
+	}
+	return info, nil
 }

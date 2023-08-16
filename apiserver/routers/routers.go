@@ -210,6 +210,9 @@ func NewAPIRouter(han *controllers.APIController, logWriter io.Writer, authMiddl
 	// Uninstall Webhook
 	apiRouter.Handle("/repositories/{repoID}/webhook/", http.HandlerFunc(han.UninstallRepoWebhookHandler)).Methods("DELETE", "OPTIONS")
 	apiRouter.Handle("/repositories/{repoID}/webhook", http.HandlerFunc(han.UninstallRepoWebhookHandler)).Methods("DELETE", "OPTIONS")
+	// Get webhook info
+	apiRouter.Handle("/repositories/{repoID}/webhook/", http.HandlerFunc(han.GetRepoWebhookInfoHandler)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/repositories/{repoID}/webhook", http.HandlerFunc(han.GetRepoWebhookInfoHandler)).Methods("GET", "OPTIONS")
 
 	/////////////////////////////
 	// Organizations and pools //
@@ -256,6 +259,9 @@ func NewAPIRouter(han *controllers.APIController, logWriter io.Writer, authMiddl
 	// Uninstall Webhook
 	apiRouter.Handle("/organizations/{orgID}/webhook/", http.HandlerFunc(han.UninstallOrgWebhookHandler)).Methods("DELETE", "OPTIONS")
 	apiRouter.Handle("/organizations/{orgID}/webhook", http.HandlerFunc(han.UninstallOrgWebhookHandler)).Methods("DELETE", "OPTIONS")
+	// Get webhook info
+	apiRouter.Handle("/organizations/{orgID}/webhook/", http.HandlerFunc(han.GetOrgWebhookInfoHandler)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/organizations/{orgID}/webhook", http.HandlerFunc(han.GetOrgWebhookInfoHandler)).Methods("GET", "OPTIONS")
 
 	/////////////////////////////
 	//  Enterprises and pools  //

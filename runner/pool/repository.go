@@ -266,23 +266,22 @@ func (r *repository) listHooks(ctx context.Context) ([]*github.Hook, error) {
 	return allHooks, nil
 }
 
-func (r *repository) InstallHook(ctx context.Context, req *github.Hook) error {
+func (r *repository) InstallHook(ctx context.Context, req *github.Hook) (params.HookInfo, error) {
 	allHooks, err := r.listHooks(ctx)
 	if err != nil {
-		return errors.Wrap(err, "listing hooks")
+		return params.HookInfo{}, errors.Wrap(err, "listing hooks")
 	}
 
-	for _, hook := range allHooks {
-		if hook.Config["url"] == req.Config["url"] {
-			return runnerErrors.NewBadRequestError("hook already installed")
-		}
+	if err := validateHookRequest(r.cfgInternal.ControllerID, r.cfgInternal.BaseWebhookURL, allHooks, req); err != nil {
+		return params.HookInfo{}, errors.Wrap(err, "validating hook request")
 	}
 
-	_, _, err = r.ghcli.CreateRepoHook(ctx, r.cfg.Owner, r.cfg.Name, req)
+	hook, _, err := r.ghcli.CreateRepoHook(ctx, r.cfg.Owner, r.cfg.Name, req)
 	if err != nil {
-		return errors.Wrap(err, "creating repository hook")
+		return params.HookInfo{}, errors.Wrap(err, "creating repository hook")
 	}
-	return nil
+
+	return hookToParamsHookInfo(hook), nil
 }
 
 func (r *repository) UninstallHook(ctx context.Context, url string) error {
@@ -301,4 +300,19 @@ func (r *repository) UninstallHook(ctx context.Context, url string) error {
 		}
 	}
 	return nil
+}
+
+func (r *repository) GetHookInfo(ctx context.Context) (params.HookInfo, error) {
+	allHooks, err := r.listHooks(ctx)
+	if err != nil {
+		return params.HookInfo{}, errors.Wrap(err, "listing hooks")
+	}
+
+	for _, hook := range allHooks {
+		hookInfo := hookToParamsHookInfo(hook)
+		if strings.EqualFold(hookInfo.URL, r.cfgInternal.ControllerWebhookURL) {
+			return hookInfo, nil
+		}
+	}
+	return params.HookInfo{}, runnerErrors.NewNotFoundError("hook not found")
 }

@@ -77,10 +77,39 @@ var repoWebhookInstallCmd = &cobra.Command{
 		installWebhookReq.Body.InsecureSSL = insecureRepoWebhook
 		installWebhookReq.Body.WebhookEndpointType = params.WebhookEndpointDirect
 
-		_, err := apiCli.Repositories.InstallRepoWebhook(installWebhookReq, authToken)
+		response, err := apiCli.Repositories.InstallRepoWebhook(installWebhookReq, authToken)
 		if err != nil {
 			return err
 		}
+		formatOneHookInfo(response.Payload)
+		return nil
+	},
+}
+
+var repoHookInfoShowCmd = &cobra.Command{
+	Use:          "show",
+	Short:        "Show webhook info",
+	Long:         `Show webhook info for a repository.`,
+	SilenceUsage: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if needsInit {
+			return errNeedsInitError
+		}
+		if len(args) == 0 {
+			return fmt.Errorf("requires a repository ID")
+		}
+		if len(args) > 1 {
+			return fmt.Errorf("too many arguments")
+		}
+
+		showWebhookInfoReq := apiClientRepos.NewGetRepoWebhookInfoParams()
+		showWebhookInfoReq.RepoID = args[0]
+
+		response, err := apiCli.Repositories.GetRepoWebhookInfo(showWebhookInfoReq, authToken)
+		if err != nil {
+			return err
+		}
+		formatOneHookInfo(response.Payload)
 		return nil
 	},
 }
@@ -271,6 +300,7 @@ func init() {
 	repoWebhookCmd.AddCommand(
 		repoWebhookInstallCmd,
 		repoWebhookUninstallCmd,
+		repoHookInfoShowCmd,
 	)
 
 	repositoryCmd.AddCommand(

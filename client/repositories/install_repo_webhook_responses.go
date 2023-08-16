@@ -13,6 +13,7 @@ import (
 	"github.com/go-openapi/strfmt"
 
 	apiserver_params "github.com/cloudbase/garm/apiserver/params"
+	garm_params "github.com/cloudbase/garm/params"
 )
 
 // InstallRepoWebhookReader is a Reader for the InstallRepoWebhook structure.
@@ -49,9 +50,10 @@ func NewInstallRepoWebhookOK() *InstallRepoWebhookOK {
 /*
 InstallRepoWebhookOK describes a response with status code 200, with default header values.
 
-InstallRepoWebhookOK install repo webhook o k
+HookInfo
 */
 type InstallRepoWebhookOK struct {
+	Payload garm_params.HookInfo
 }
 
 // IsSuccess returns true when this install repo webhook o k response has a 2xx status code
@@ -85,14 +87,23 @@ func (o *InstallRepoWebhookOK) Code() int {
 }
 
 func (o *InstallRepoWebhookOK) Error() string {
-	return fmt.Sprintf("[POST /repositories/{repoID}/webhook][%d] installRepoWebhookOK ", 200)
+	return fmt.Sprintf("[POST /repositories/{repoID}/webhook][%d] installRepoWebhookOK  %+v", 200, o.Payload)
 }
 
 func (o *InstallRepoWebhookOK) String() string {
-	return fmt.Sprintf("[POST /repositories/{repoID}/webhook][%d] installRepoWebhookOK ", 200)
+	return fmt.Sprintf("[POST /repositories/{repoID}/webhook][%d] installRepoWebhookOK  %+v", 200, o.Payload)
+}
+
+func (o *InstallRepoWebhookOK) GetPayload() garm_params.HookInfo {
+	return o.Payload
 }
 
 func (o *InstallRepoWebhookOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
+
+	// response payload
+	if err := consumer.Consume(response.Body(), &o.Payload); err != nil && err != io.EOF {
+		return err
+	}
 
 	return nil
 }

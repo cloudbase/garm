@@ -40,6 +40,8 @@ type ClientService interface {
 
 	GetRepoPool(params *GetRepoPoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetRepoPoolOK, error)
 
+	GetRepoWebhookInfo(params *GetRepoWebhookInfoParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetRepoWebhookInfoOK, error)
+
 	InstallRepoWebhook(params *InstallRepoWebhookParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*InstallRepoWebhookOK, error)
 
 	ListRepoInstances(params *ListRepoInstancesParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListRepoInstancesOK, error)
@@ -270,6 +272,44 @@ func (a *Client) GetRepoPool(params *GetRepoPoolParams, authInfo runtime.ClientA
 	}
 	// unexpected success response
 	unexpectedSuccess := result.(*GetRepoPoolDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+GetRepoWebhookInfo gets information about the g a r m installed webhook on a repository
+*/
+func (a *Client) GetRepoWebhookInfo(params *GetRepoWebhookInfoParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetRepoWebhookInfoOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewGetRepoWebhookInfoParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "GetRepoWebhookInfo",
+		Method:             "GET",
+		PathPattern:        "/repositories/{repoID}/webhook",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &GetRepoWebhookInfoReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*GetRepoWebhookInfoOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*GetRepoWebhookInfoDefault)
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 

@@ -1607,9 +1607,9 @@ func (r *basePoolManager) consumeQueuedJobs() error {
 	return nil
 }
 
-func (r *basePoolManager) InstallWebhook(ctx context.Context, param params.InstallWebhookParams) error {
+func (r *basePoolManager) InstallWebhook(ctx context.Context, param params.InstallWebhookParams) (params.HookInfo, error) {
 	if r.urls.controllerWebhookURL == "" {
-		return errors.Wrap(runnerErrors.ErrBadRequest, "controller webhook url is empty")
+		return params.HookInfo{}, errors.Wrap(runnerErrors.ErrBadRequest, "controller webhook url is empty")
 	}
 
 	insecureSSL := "0"
@@ -1638,4 +1638,8 @@ func (r *basePoolManager) UninstallWebhook(ctx context.Context) error {
 	}
 
 	return r.helper.UninstallHook(ctx, r.urls.controllerWebhookURL)
+}
+
+func (r *basePoolManager) GetWebhookInfo(ctx context.Context) (params.HookInfo, error) {
+	return r.helper.GetHookInfo(ctx)
 }

@@ -8,6 +8,13 @@ definitions:
         import:
             package: github.com/cloudbase/garm/params
             alias: garm_params
+  HookInfo:
+    type: object
+    x-go-type:
+        type: HookInfo
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
   ControllerInfo:
     type: object
     x-go-type:

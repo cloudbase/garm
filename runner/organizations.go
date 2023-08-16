@@ -340,25 +340,26 @@ func (r *Runner) findOrgPoolManager(name string) (common.PoolManager, error) {
 	return poolManager, nil
 }
 
-func (r *Runner) InstallOrgWebhook(ctx context.Context, orgID string, param params.InstallWebhookParams) error {
+func (r *Runner) InstallOrgWebhook(ctx context.Context, orgID string, param params.InstallWebhookParams) (params.HookInfo, error) {
 	if !auth.IsAdmin(ctx) {
-		return runnerErrors.ErrUnauthorized
+		return params.HookInfo{}, runnerErrors.ErrUnauthorized
 	}
 
 	org, err := r.store.GetOrganizationByID(ctx, orgID)
 	if err != nil {
-		return errors.Wrap(err, "fetching org")
+		return params.HookInfo{}, errors.Wrap(err, "fetching org")
 	}
 
 	poolMgr, err := r.poolManagerCtrl.GetOrgPoolManager(org)
 	if err != nil {
-		return errors.Wrap(err, "fetching pool manager for org")
+		return params.HookInfo{}, errors.Wrap(err, "fetching pool manager for org")
 	}
 
-	if err := poolMgr.InstallWebhook(ctx, param); err != nil {
-		return errors.Wrap(err, "installing webhook")
+	info, err := poolMgr.InstallWebhook(ctx, param)
+	if err != nil {
+		return params.HookInfo{}, errors.Wrap(err, "installing webhook")
 	}
-	return nil
+	return info, nil
 }
 
 func (r *Runner) UninstallOrgWebhook(ctx context.Context, orgID string) error {
@@ -380,4 +381,26 @@ func (r *Runner) UninstallOrgWebhook(ctx context.Context, orgID string) error {
 		return errors.Wrap(err, "uninstalling webhook")
 	}
 	return nil
+}
+
+func (r *Runner) GetOrgWebhookInfo(ctx context.Context, orgID string) (params.HookInfo, error) {
+	if !auth.IsAdmin(ctx) {
+		return params.HookInfo{}, runnerErrors.ErrUnauthorized
+	}
+
+	org, err := r.store.GetOrganizationByID(ctx, orgID)
+	if err != nil {
+		return params.HookInfo{}, errors.Wrap(err, "fetching org")
+	}
+
+	poolMgr, err := r.poolManagerCtrl.GetOrgPoolManager(org)
+	if err != nil {
+		return params.HookInfo{}, errors.Wrap(err, "fetching pool manager for org")
+	}
+
+	info, err := poolMgr.GetWebhookInfo(ctx)
+	if err != nil {
+		return params.HookInfo{}, errors.Wrap(err, "fetching webhook info")
+	}
+	return info, nil
 }

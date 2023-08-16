@@ -499,7 +499,7 @@ func (a *APIController) UpdateRepoPoolHandler(w http.ResponseWriter, r *http.Req
 //	    required: true
 //
 //	Responses:
-//	  200:
+//	  200: HookInfo
 //	  default: APIErrorResponse
 func (a *APIController) InstallRepoWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -524,14 +524,17 @@ func (a *APIController) InstallRepoWebhookHandler(w http.ResponseWriter, r *http
 		return
 	}
 
-	if err := a.r.InstallRepoWebhook(ctx, repoID, hookParam); err != nil {
+	info, err := a.r.InstallRepoWebhook(ctx, repoID, hookParam)
+	if err != nil {
 		log.Printf("installing webhook: %s", err)
 		handleError(w, err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(info); err != nil {
+		log.Printf("failed to encode response: %q", err)
+	}
 }
 
 // swagger:route DELETE /repositories/{repoID}/webhook repositories hooks UninstallRepoWebhook
@@ -571,4 +574,47 @@ func (a *APIController) UninstallRepoWebhookHandler(w http.ResponseWriter, r *ht
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
+}
+
+// swagger:route GET /repositories/{repoID}/webhook repositories hooks GetRepoWebhookInfo
+//
+// Get information about the GARM installed webhook on a repository.
+//
+//	Parameters:
+//	  + name: repoID
+//	    description: Repository ID.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	Responses:
+//	  200: HookInfo
+//	  default: APIErrorResponse
+func (a *APIController) GetRepoWebhookInfoHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	vars := mux.Vars(r)
+	repoID, orgOk := vars["repoID"]
+	if !orgOk {
+		w.WriteHeader(http.StatusBadRequest)
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
+			Error:   "Bad Request",
+			Details: "No repository ID specified",
+		}); err != nil {
+			log.Printf("failed to encode response: %q", err)
+		}
+		return
+	}
+
+	info, err := a.r.GetRepoWebhookInfo(ctx, repoID)
+	if err != nil {
+		log.Printf("getting webhook info: %s", err)
+		handleError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(info); err != nil {
+		log.Printf("failed to encode response: %q", err)
+	}
 }

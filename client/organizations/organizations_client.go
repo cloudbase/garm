@@ -40,6 +40,8 @@ type ClientService interface {
 
 	GetOrgPool(params *GetOrgPoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetOrgPoolOK, error)
 
+	GetOrgWebhookInfo(params *GetOrgWebhookInfoParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetOrgWebhookInfoOK, error)
+
 	InstallOrgWebhook(params *InstallOrgWebhookParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*InstallOrgWebhookOK, error)
 
 	ListOrgInstances(params *ListOrgInstancesParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListOrgInstancesOK, error)
@@ -270,6 +272,44 @@ func (a *Client) GetOrgPool(params *GetOrgPoolParams, authInfo runtime.ClientAut
 	}
 	// unexpected success response
 	unexpectedSuccess := result.(*GetOrgPoolDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+GetOrgWebhookInfo gets information about the g a r m installed webhook on an organization
+*/
+func (a *Client) GetOrgWebhookInfo(params *GetOrgWebhookInfoParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetOrgWebhookInfoOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewGetOrgWebhookInfoParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "GetOrgWebhookInfo",
+		Method:             "GET",
+		PathPattern:        "/organizations/{orgID}/webhook",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &GetOrgWebhookInfoReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*GetOrgWebhookInfoOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*GetOrgWebhookInfoDefault)
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 

@@ -44,7 +44,9 @@ type PoolManager interface {
 	HandleWorkflowJob(job params.WorkflowJob) error
 	RefreshState(param params.UpdatePoolStateParams) error
 	ForceDeleteRunner(runner params.Instance) error
-	InstallWebhook(ctx context.Context, param params.InstallWebhookParams) error
+
+	InstallWebhook(ctx context.Context, param params.InstallWebhookParams) (params.HookInfo, error)
+	GetWebhookInfo(ctx context.Context) (params.HookInfo, error)
 	UninstallWebhook(ctx context.Context) error
 
 	// PoolManager lifecycle functions. Start/stop pool.

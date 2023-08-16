@@ -76,10 +76,39 @@ var orgWebhookInstallCmd = &cobra.Command{
 		installWebhookReq.Body.InsecureSSL = insecureOrgWebhook
 		installWebhookReq.Body.WebhookEndpointType = params.WebhookEndpointDirect
 
-		_, err := apiCli.Organizations.InstallOrgWebhook(installWebhookReq, authToken)
+		response, err := apiCli.Organizations.InstallOrgWebhook(installWebhookReq, authToken)
 		if err != nil {
 			return err
 		}
+		formatOneHookInfo(response.Payload)
+		return nil
+	},
+}
+
+var orgHookInfoShowCmd = &cobra.Command{
+	Use:          "show",
+	Short:        "Show webhook info",
+	Long:         `Show webhook info for an organization.`,
+	SilenceUsage: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if needsInit {
+			return errNeedsInitError
+		}
+		if len(args) == 0 {
+			return fmt.Errorf("requires an organization ID")
+		}
+		if len(args) > 1 {
+			return fmt.Errorf("too many arguments")
+		}
+
+		showWebhookInfoReq := apiClientOrgs.NewGetOrgWebhookInfoParams()
+		showWebhookInfoReq.OrgID = args[0]
+
+		response, err := apiCli.Organizations.GetOrgWebhookInfo(showWebhookInfoReq, authToken)
+		if err != nil {
+			return err
+		}
+		formatOneHookInfo(response.Payload)
 		return nil
 	},
 }
@@ -266,6 +295,7 @@ func init() {
 	orgWebhookCmd.AddCommand(
 		orgWebhookInstallCmd,
 		orgWebhookUninstallCmd,
+		orgHookInfoShowCmd,
 	)
 
 	organizationCmd.AddCommand(

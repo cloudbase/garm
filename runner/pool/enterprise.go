@@ -224,10 +224,14 @@ func (r *enterprise) ID() string {
 	return r.id
 }
 
-func (r *enterprise) InstallHook(ctx context.Context, req *github.Hook) error {
-	return fmt.Errorf("not implemented")
+func (r *enterprise) InstallHook(ctx context.Context, req *github.Hook) (params.HookInfo, error) {
+	return params.HookInfo{}, fmt.Errorf("not implemented")
 }
 
 func (r *enterprise) UninstallHook(ctx context.Context, url string) error {
 	return fmt.Errorf("not implemented")
+}
+
+func (r *enterprise) GetHookInfo(ctx context.Context) (params.HookInfo, error) {
+	return params.HookInfo{}, fmt.Errorf("not implemented")
 }

@@ -505,3 +505,11 @@ type InstallWebhookParams struct {
 	WebhookEndpointType WebhookEndpointType `json:"webhook_endpoint_type"`
 	InsecureSSL         bool                `json:"insecure_ssl"`
 }
+
+type HookInfo struct {
+	ID          int64    `json:"id"`
+	URL         string   `json:"url"`
+	Events      []string `json:"events"`
+	Active      bool     `json:"active"`
+	InsecureSSL bool     `json:"insecure_ssl"`
+}
