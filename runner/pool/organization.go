@@ -252,7 +252,7 @@ func (r *organization) listHooks(ctx context.Context) ([]*github.Hook, error) {
 		hooks, ghResp, err := r.ghcli.ListOrgHooks(ctx, r.cfg.Name, &opts)
 		if err != nil {
 			if ghResp != nil && ghResp.StatusCode == http.StatusNotFound {
-				return nil, errors.Wrap(runnerErrors.ErrNotFound, "fetching hooks")
+				return nil, runnerErrors.NewBadRequestError("organization not found or your PAT does not have access to manage webhooks")
 			}
 			return nil, errors.Wrap(err, "fetching hooks")
 		}
