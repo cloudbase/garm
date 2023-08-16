@@ -17,6 +17,7 @@ package pool
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"sync"
@@ -278,6 +279,10 @@ func (r *organization) InstallHook(ctx context.Context, req *github.Hook) (param
 	hook, _, err := r.ghcli.CreateOrgHook(ctx, r.cfg.Name, req)
 	if err != nil {
 		return params.HookInfo{}, errors.Wrap(err, "creating organization hook")
+	}
+
+	if _, err := r.ghcli.PingOrgHook(ctx, r.cfg.Name, hook.GetID()); err != nil {
+		log.Printf("failed to ping hook %d: %v", *hook.ID, err)
 	}
 
 	return hookToParamsHookInfo(hook), nil

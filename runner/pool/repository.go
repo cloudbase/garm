@@ -17,6 +17,7 @@ package pool
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"sync"
@@ -281,6 +282,10 @@ func (r *repository) InstallHook(ctx context.Context, req *github.Hook) (params.
 		return params.HookInfo{}, errors.Wrap(err, "creating repository hook")
 	}
 
+	if _, err := r.ghcli.PingRepoHook(ctx, r.cfg.Owner, r.cfg.Name, hook.GetID()); err != nil {
+		log.Printf("failed to ping hook %d: %v", hook.GetID(), err)
+	}
+
 	return hookToParamsHookInfo(hook), nil
 }
 
@@ -292,7 +297,7 @@ func (r *repository) UninstallHook(ctx context.Context, url string) error {
 
 	for _, hook := range allHooks {
 		if hook.Config["url"] == url {
-			_, err = r.ghcli.DeleteRepoHook(ctx, r.cfg.Owner, r.cfg.Name, *hook.ID)
+			_, err = r.ghcli.DeleteRepoHook(ctx, r.cfg.Owner, r.cfg.Name, hook.GetID())
 			if err != nil {
 				return errors.Wrap(err, "deleting hook")
 			}
