@@ -112,6 +112,8 @@ type Default struct {
 	MetadataURL string `toml:"metadata_url" json:"metadata-url"`
 	// WebhookURL is the URL that will be installed as a webhook target in github.
 	WebhookURL string `toml:"webhook_url" json:"webhook-url"`
+	// EnableWebhookManagement enables the webhook management API.
+	EnableWebhookManagement bool `toml:"enable_webhook_management" json:"enable-webhook-management"`
 
 	// LogFile is the location of the log file.
 	LogFile           string `toml:"log_file,omitempty" json:"log-file"`

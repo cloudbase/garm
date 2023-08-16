@@ -61,7 +61,7 @@ type APIController struct {
 }
 
 func handleError(w http.ResponseWriter, err error) {
-	w.Header().Add("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/json")
 	origErr := errors.Cause(err)
 	apiErr := params.APIErrorResponse{
 		Details: origErr.Error(),
@@ -214,8 +214,9 @@ func (a *APIController) NotFoundHandler(w http.ResponseWriter, r *http.Request) 
 		Details: "Resource not found",
 		Error:   "Not found",
 	}
-	w.WriteHeader(http.StatusNotFound)
+
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusNotFound)
 	if err := json.NewEncoder(w).Encode(apiErr); err != nil {
 		log.Printf("failet to write response: %q", err)
 	}

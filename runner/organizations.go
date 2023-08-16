@@ -148,7 +148,7 @@ func (r *Runner) DeleteOrganization(ctx context.Context, orgID string, keepWebho
 		return runnerErrors.NewBadRequestError("org has pools defined (%s)", strings.Join(poolIds, ", "))
 	}
 
-	if !keepWebhook {
+	if !keepWebhook && r.config.Default.EnableWebhookManagement {
 		poolMgr, err := r.poolManagerCtrl.GetOrgPoolManager(org)
 		if err != nil {
 			return errors.Wrap(err, "fetching pool manager")

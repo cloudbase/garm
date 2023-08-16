@@ -147,7 +147,7 @@ func (r *Runner) DeleteRepository(ctx context.Context, repoID string, keepWebhoo
 		return runnerErrors.NewBadRequestError("repo has pools defined (%s)", strings.Join(poolIds, ", "))
 	}
 
-	if !keepWebhook {
+	if !keepWebhook && r.config.Default.EnableWebhookManagement {
 		poolMgr, err := r.poolManagerCtrl.GetRepoPoolManager(repo)
 		if err != nil {
 			return errors.Wrap(err, "fetching pool manager")

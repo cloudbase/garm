@@ -17,7 +17,20 @@ callback_url = "https://garm.example.com/api/v1/callbacks"
 # highly encouraged.
 metadata_url = "https://garm.example.com/api/v1/metadata"
 
+# This is the base URL where GARM will listen for webhook events from github. This
+# URL can be directly configured in github to send events to.
+# If GARM is allowed to manage webhooks, this URL will be used as a base to optionally
+# create webhooks for repositories and organizations. To avoid clashes, the unique
+# controller ID that gets generated when GARM is first installed, will be added as a suffix
+# to this URL.
+#
+# For example, assuming that your GARM controller ID is "18225ce4-e3bd-43f0-9c85-7d7858bcc5b2"
+# the webhook URL will be "https://garm.example.com/webhooks/18225ce4-e3bd-43f0-9c85-7d7858bcc5b2"
 webhook_url = "https://garm.example.com/webhooks"
+
+# This option enables GARM to manage webhooks for repositories and organizations. Set this
+# to false to disable the API routes that manage webhooks.
+enable_webhook_management = true
 
 # Uncomment this line if you'd like to log to a file instead of standard output.
 # log_file = "/tmp/runner-manager.log"

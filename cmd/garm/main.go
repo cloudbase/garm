@@ -170,7 +170,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	router := routers.NewAPIRouter(controller, multiWriter, jwtMiddleware, initMiddleware, instanceMiddleware)
+	router := routers.NewAPIRouter(controller, multiWriter, jwtMiddleware, initMiddleware, instanceMiddleware, cfg.Default.EnableWebhookManagement)
 
 	if cfg.Metrics.Enable {
 		log.Printf("registering prometheus metrics collectors")
