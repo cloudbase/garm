@@ -33,6 +33,7 @@ var (
 	randomWebhookSecret bool
 	insecureRepoWebhook bool
 	keepRepoWebhook     bool
+	installRepoWebhook  bool
 )
 
 // repositoryCmd represents the repository command
@@ -172,7 +173,25 @@ var repoAddCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		formatOneRepository(response.Payload)
+
+		if installRepoWebhook {
+			installWebhookReq := apiClientRepos.NewInstallRepoWebhookParams()
+			installWebhookReq.RepoID = response.Payload.ID
+			installWebhookReq.Body.WebhookEndpointType = params.WebhookEndpointDirect
+
+			_, err := apiCli.Repositories.InstallRepoWebhook(installWebhookReq, authToken)
+			if err != nil {
+				return err
+			}
+		}
+
+		getRepoReq := apiClientRepos.NewGetRepoParams()
+		getRepoReq.RepoID = response.Payload.ID
+		repo, err := apiCli.Repositories.GetRepo(getRepoReq, authToken)
+		if err != nil {
+			return err
+		}
+		formatOneRepository(repo.Payload)
 		return nil
 	},
 }
@@ -290,6 +309,7 @@ func init() {
 	repoAddCmd.Flags().StringVar(&repoWebhookSecret, "webhook-secret", "", "The webhook secret for this repository")
 	repoAddCmd.Flags().StringVar(&repoCreds, "credentials", "", "Credentials name. See credentials list.")
 	repoAddCmd.Flags().BoolVar(&randomWebhookSecret, "random-webhook-secret", false, "Generate a random webhook secret for this repository.")
+	repoAddCmd.Flags().BoolVar(&installRepoWebhook, "install-webhook", false, "Install the webhook as part of the add operation.")
 	repoAddCmd.MarkFlagsMutuallyExclusive("webhook-secret", "random-webhook-secret")
 	repoAddCmd.MarkFlagsOneRequired("webhook-secret", "random-webhook-secret")
 

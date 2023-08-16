@@ -32,6 +32,7 @@ var (
 	orgRandomWebhookSecret bool
 	insecureOrgWebhook     bool
 	keepOrgWebhook         bool
+	installOrgWebhook      bool
 )
 
 // organizationCmd represents the organization command
@@ -170,7 +171,25 @@ var orgAddCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		formatOneOrganization(response.Payload)
+
+		if installOrgWebhook {
+			installWebhookReq := apiClientOrgs.NewInstallOrgWebhookParams()
+			installWebhookReq.OrgID = response.Payload.ID
+			installWebhookReq.Body.WebhookEndpointType = params.WebhookEndpointDirect
+
+			_, err = apiCli.Organizations.InstallOrgWebhook(installWebhookReq, authToken)
+			if err != nil {
+				return err
+			}
+		}
+
+		getOrgRequest := apiClientOrgs.NewGetOrgParams()
+		getOrgRequest.OrgID = response.Payload.ID
+		org, err := apiCli.Organizations.GetOrg(getOrgRequest, authToken)
+		if err != nil {
+			return err
+		}
+		formatOneOrganization(org.Payload)
 		return nil
 	},
 }
@@ -286,6 +305,7 @@ func init() {
 	orgAddCmd.Flags().StringVar(&orgWebhookSecret, "webhook-secret", "", "The webhook secret for this organization")
 	orgAddCmd.Flags().StringVar(&orgCreds, "credentials", "", "Credentials name. See credentials list.")
 	orgAddCmd.Flags().BoolVar(&orgRandomWebhookSecret, "random-webhook-secret", false, "Generate a random webhook secret for this organization.")
+	orgAddCmd.Flags().BoolVar(&installOrgWebhook, "install-webhook", false, "Install the webhook as part of the add operation.")
 	orgAddCmd.MarkFlagsMutuallyExclusive("webhook-secret", "random-webhook-secret")
 	orgAddCmd.MarkFlagsOneRequired("webhook-secret", "random-webhook-secret")
 
