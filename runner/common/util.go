@@ -11,6 +11,7 @@ type OrganizationHooks interface {
 	GetOrgHook(ctx context.Context, org string, id int64) (*github.Hook, *github.Response, error)
 	CreateOrgHook(ctx context.Context, org string, hook *github.Hook) (*github.Hook, *github.Response, error)
 	DeleteOrgHook(ctx context.Context, org string, id int64) (*github.Response, error)
+	PingOrgHook(ctx context.Context, org string, id int64) (*github.Response, error)
 }
 
 type RepositoryHooks interface {
@@ -18,6 +19,7 @@ type RepositoryHooks interface {
 	GetRepoHook(ctx context.Context, owner, repo string, id int64) (*github.Hook, *github.Response, error)
 	CreateRepoHook(ctx context.Context, owner, repo string, hook *github.Hook) (*github.Hook, *github.Response, error)
 	DeleteRepoHook(ctx context.Context, owner, repo string, id int64) (*github.Response, error)
+	PingRepoHook(ctx context.Context, owner, repo string, id int64) (*github.Response, error)
 }
 
 // GithubClient that describes the minimum list of functions we need to interact with github.

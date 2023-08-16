@@ -51,6 +51,10 @@ func (g *githubClient) DeleteOrgHook(ctx context.Context, org string, id int64) 
 	return g.org.DeleteHook(ctx, org, id)
 }
 
+func (g *githubClient) PingOrgHook(ctx context.Context, org string, id int64) (*github.Response, error) {
+	return g.org.PingHook(ctx, org, id)
+}
+
 func (g *githubClient) ListRepoHooks(ctx context.Context, owner, repo string, opts *github.ListOptions) ([]*github.Hook, *github.Response, error) {
 	return g.repo.ListHooks(ctx, owner, repo, opts)
 }
@@ -65,6 +69,10 @@ func (g *githubClient) CreateRepoHook(ctx context.Context, owner, repo string, h
 
 func (g *githubClient) DeleteRepoHook(ctx context.Context, owner, repo string, id int64) (*github.Response, error) {
 	return g.repo.DeleteHook(ctx, owner, repo, id)
+}
+
+func (g *githubClient) PingRepoHook(ctx context.Context, owner, repo string, id int64) (*github.Response, error) {
+	return g.repo.PingHook(ctx, owner, repo, id)
 }
 
 func GithubClient(ctx context.Context, token string, credsDetails params.GithubCredentials) (common.GithubClient, common.GithubEnterpriseClient, error) {
