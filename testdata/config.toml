@@ -30,6 +30,9 @@ webhook_url = "https://garm.example.com/webhooks"
 
 # This option enables GARM to manage webhooks for repositories and organizations. Set this
 # to false to disable the API routes that manage webhooks.
+#
+# When managing webhooks, the PAT you're using must have the necessary access to create/list/delete
+# webhooks for repositories or organizations.
 enable_webhook_management = true
 
 # Uncomment this line if you'd like to log to a file instead of standard output.
