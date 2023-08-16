@@ -289,6 +289,7 @@ func init() {
 	repoAddCmd.Flags().StringVar(&repoCreds, "credentials", "", "Credentials name. See credentials list.")
 	repoAddCmd.Flags().BoolVar(&randomWebhookSecret, "random-webhook-secret", false, "Generate a random webhook secret for this repository.")
 	repoAddCmd.MarkFlagsMutuallyExclusive("webhook-secret", "random-webhook-secret")
+	repoAddCmd.MarkFlagsOneRequired("webhook-secret", "random-webhook-secret")
 
 	repoAddCmd.MarkFlagRequired("credentials") //nolint
 	repoAddCmd.MarkFlagRequired("owner")       //nolint

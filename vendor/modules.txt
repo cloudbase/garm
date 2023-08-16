@@ -307,7 +307,7 @@ github.com/rogpeppe/fastuuid
 github.com/sirupsen/logrus
 github.com/sirupsen/logrus/hooks/syslog
 github.com/sirupsen/logrus/hooks/writer
-# github.com/spf13/cobra v1.6.1
+# github.com/spf13/cobra v1.7.1-0.20230723113155-fd865a44e3c4
 ## explicit; go 1.15
 github.com/spf13/cobra
 # github.com/spf13/pflag v1.0.5

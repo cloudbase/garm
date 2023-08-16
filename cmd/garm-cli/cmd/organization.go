@@ -285,6 +285,7 @@ func init() {
 	orgAddCmd.Flags().StringVar(&orgCreds, "credentials", "", "Credentials name. See credentials list.")
 	orgAddCmd.Flags().BoolVar(&orgRandomWebhookSecret, "random-webhook-secret", false, "Generate a random webhook secret for this organization.")
 	orgAddCmd.MarkFlagsMutuallyExclusive("webhook-secret", "random-webhook-secret")
+	orgAddCmd.MarkFlagsOneRequired("webhook-secret", "random-webhook-secret")
 
 	orgAddCmd.MarkFlagRequired("credentials") //nolint
 	orgAddCmd.MarkFlagRequired("name")        //nolint

@@ -148,6 +148,16 @@ func (r *Runner) DeleteOrganization(ctx context.Context, orgID string) error {
 		return runnerErrors.NewBadRequestError("org has pools defined (%s)", strings.Join(poolIds, ", "))
 	}
 
+	poolMgr, err := r.poolManagerCtrl.GetOrgPoolManager(org)
+	if err != nil {
+		return errors.Wrap(err, "fetching pool manager")
+	}
+
+	if err := poolMgr.UninstallWebhook(ctx); err != nil {
+		// TODO(gabriel-samfira): Should we error out here?
+		log.Printf("failed to uninstall webhook: %s", err)
+	}
+
 	if err := r.poolManagerCtrl.DeleteOrgPoolManager(org); err != nil {
 		return errors.Wrap(err, "deleting org pool manager")
 	}
