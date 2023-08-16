@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strconv"
 
 	gErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/apiserver/params"
@@ -139,6 +140,12 @@ func (a *APIController) GetOrgByIDHandler(w http.ResponseWriter, r *http.Request
 //	    in: path
 //	    required: true
 //
+//	  + name: keepWebhook
+//	    description: If true and a webhook is installed for this organization, it will not be removed.
+//	    type: boolean
+//	    in: query
+//	    required: false
+//
 //	Responses:
 //	  default: APIErrorResponse
 func (a *APIController) DeleteOrgHandler(w http.ResponseWriter, r *http.Request) {
@@ -157,7 +164,9 @@ func (a *APIController) DeleteOrgHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if err := a.r.DeleteOrganization(ctx, orgID, false); err != nil {
+	keepWebhook, _ := strconv.ParseBool(r.URL.Query().Get("keepWebhook"))
+
+	if err := a.r.DeleteOrganization(ctx, orgID, keepWebhook); err != nil {
 		log.Printf("removing org: %+v", err)
 		handleError(w, err)
 		return

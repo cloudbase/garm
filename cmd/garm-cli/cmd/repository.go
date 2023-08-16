@@ -32,6 +32,7 @@ var (
 	repoCreds           string
 	randomWebhookSecret bool
 	insecureRepoWebhook bool
+	keepRepoWebhook     bool
 )
 
 // repositoryCmd represents the repository command
@@ -274,6 +275,7 @@ var repoDeleteCmd = &cobra.Command{
 		}
 		deleteRepoReq := apiClientRepos.NewDeleteRepoParams()
 		deleteRepoReq.RepoID = args[0]
+		deleteRepoReq.KeepWebhook = &keepRepoWebhook
 		if err := apiCli.Repositories.DeleteRepo(deleteRepoReq, authToken); err != nil {
 			return err
 		}
@@ -294,10 +296,14 @@ func init() {
 	repoAddCmd.MarkFlagRequired("credentials") //nolint
 	repoAddCmd.MarkFlagRequired("owner")       //nolint
 	repoAddCmd.MarkFlagRequired("name")        //nolint
+
+	repoDeleteCmd.Flags().BoolVar(&keepRepoWebhook, "keep-webhook", false, "Do not delete any existing webhook when removing the repo from GARM.")
+
 	repoUpdateCmd.Flags().StringVar(&repoWebhookSecret, "webhook-secret", "", "The webhook secret for this repository. If you update this secret, you will have to manually update the secret in GitHub as well.")
 	repoUpdateCmd.Flags().StringVar(&repoCreds, "credentials", "", "Credentials name. See credentials list.")
 
 	repoWebhookInstallCmd.Flags().BoolVar(&insecureRepoWebhook, "insecure", false, "Ignore self signed certificate errors.")
+
 	repoWebhookCmd.AddCommand(
 		repoWebhookInstallCmd,
 		repoWebhookUninstallCmd,

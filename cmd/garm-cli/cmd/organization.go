@@ -31,6 +31,7 @@ var (
 	orgCreds               string
 	orgRandomWebhookSecret bool
 	insecureOrgWebhook     bool
+	keepOrgWebhook         bool
 )
 
 // organizationCmd represents the organization command
@@ -271,6 +272,7 @@ var orgDeleteCmd = &cobra.Command{
 		}
 		deleteOrgReq := apiClientOrgs.NewDeleteOrgParams()
 		deleteOrgReq.OrgID = args[0]
+		deleteOrgReq.KeepWebhook = &keepOrgWebhook
 		if err := apiCli.Organizations.DeleteOrg(deleteOrgReq, authToken); err != nil {
 			return err
 		}
@@ -289,6 +291,9 @@ func init() {
 
 	orgAddCmd.MarkFlagRequired("credentials") //nolint
 	orgAddCmd.MarkFlagRequired("name")        //nolint
+
+	orgDeleteCmd.Flags().BoolVar(&keepOrgWebhook, "keep-webhook", false, "Do not delete any existing webhook when removing the organization from GARM.")
+
 	orgUpdateCmd.Flags().StringVar(&orgWebhookSecret, "webhook-secret", "", "The webhook secret for this organization")
 	orgUpdateCmd.Flags().StringVar(&orgCreds, "credentials", "", "Credentials name. See credentials list.")
 

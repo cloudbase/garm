@@ -14,6 +14,7 @@ import (
 	"github.com/go-openapi/runtime"
 	cr "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
+	"github.com/go-openapi/swag"
 )
 
 // NewDeleteRepoParams creates a new DeleteRepoParams object,
@@ -60,6 +61,12 @@ DeleteRepoParams contains all the parameters to send to the API endpoint
 	Typically these are written to a http.Request.
 */
 type DeleteRepoParams struct {
+
+	/* KeepWebhook.
+
+	   If true and a webhook is installed for this repo, it will not be removed.
+	*/
+	KeepWebhook *bool
 
 	/* RepoID.
 
@@ -120,6 +127,17 @@ func (o *DeleteRepoParams) SetHTTPClient(client *http.Client) {
 	o.HTTPClient = client
 }
 
+// WithKeepWebhook adds the keepWebhook to the delete repo params
+func (o *DeleteRepoParams) WithKeepWebhook(keepWebhook *bool) *DeleteRepoParams {
+	o.SetKeepWebhook(keepWebhook)
+	return o
+}
+
+// SetKeepWebhook adds the keepWebhook to the delete repo params
+func (o *DeleteRepoParams) SetKeepWebhook(keepWebhook *bool) {
+	o.KeepWebhook = keepWebhook
+}
+
 // WithRepoID adds the repoID to the delete repo params
 func (o *DeleteRepoParams) WithRepoID(repoID string) *DeleteRepoParams {
 	o.SetRepoID(repoID)
@@ -138,6 +156,23 @@ func (o *DeleteRepoParams) WriteToRequest(r runtime.ClientRequest, reg strfmt.Re
 		return err
 	}
 	var res []error
+
+	if o.KeepWebhook != nil {
+
+		// query param keepWebhook
+		var qrKeepWebhook bool
+
+		if o.KeepWebhook != nil {
+			qrKeepWebhook = *o.KeepWebhook
+		}
+		qKeepWebhook := swag.FormatBool(qrKeepWebhook)
+		if qKeepWebhook != "" {
+
+			if err := r.SetQueryParam("keepWebhook", qKeepWebhook); err != nil {
+				return err
+			}
+		}
+	}
 
 	// path param repoID
 	if err := r.SetPathParam("repoID", o.RepoID); err != nil {

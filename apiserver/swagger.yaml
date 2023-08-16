@@ -702,6 +702,10 @@ paths:
                   name: orgID
                   required: true
                   type: string
+                - description: If true and a webhook is installed for this organization, it will not be removed.
+                  in: query
+                  name: keepWebhook
+                  type: boolean
             responses:
                 default:
                     description: APIErrorResponse
@@ -1147,6 +1151,10 @@ paths:
                   name: repoID
                   required: true
                   type: string
+                - description: If true and a webhook is installed for this repo, it will not be removed.
+                  in: query
+                  name: keepWebhook
+                  type: boolean
             responses:
                 default:
                     description: APIErrorResponse

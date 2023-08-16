@@ -14,6 +14,7 @@ import (
 	"github.com/go-openapi/runtime"
 	cr "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
+	"github.com/go-openapi/swag"
 )
 
 // NewDeleteOrgParams creates a new DeleteOrgParams object,
@@ -60,6 +61,12 @@ DeleteOrgParams contains all the parameters to send to the API endpoint
 	Typically these are written to a http.Request.
 */
 type DeleteOrgParams struct {
+
+	/* KeepWebhook.
+
+	   If true and a webhook is installed for this organization, it will not be removed.
+	*/
+	KeepWebhook *bool
 
 	/* OrgID.
 
@@ -120,6 +127,17 @@ func (o *DeleteOrgParams) SetHTTPClient(client *http.Client) {
 	o.HTTPClient = client
 }
 
+// WithKeepWebhook adds the keepWebhook to the delete org params
+func (o *DeleteOrgParams) WithKeepWebhook(keepWebhook *bool) *DeleteOrgParams {
+	o.SetKeepWebhook(keepWebhook)
+	return o
+}
+
+// SetKeepWebhook adds the keepWebhook to the delete org params
+func (o *DeleteOrgParams) SetKeepWebhook(keepWebhook *bool) {
+	o.KeepWebhook = keepWebhook
+}
+
 // WithOrgID adds the orgID to the delete org params
 func (o *DeleteOrgParams) WithOrgID(orgID string) *DeleteOrgParams {
 	o.SetOrgID(orgID)
@@ -138,6 +156,23 @@ func (o *DeleteOrgParams) WriteToRequest(r runtime.ClientRequest, reg strfmt.Reg
 		return err
 	}
 	var res []error
+
+	if o.KeepWebhook != nil {
+
+		// query param keepWebhook
+		var qrKeepWebhook bool
+
+		if o.KeepWebhook != nil {
+			qrKeepWebhook = *o.KeepWebhook
+		}
+		qKeepWebhook := swag.FormatBool(qrKeepWebhook)
+		if qKeepWebhook != "" {
+
+			if err := r.SetQueryParam("keepWebhook", qKeepWebhook); err != nil {
+				return err
+			}
+		}
+	}
 
 	// path param orgID
 	if err := r.SetPathParam("orgID", o.OrgID); err != nil {
