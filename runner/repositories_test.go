@@ -257,7 +257,7 @@ func (s *RepoTestSuite) TestGetRepositoryByIDErrUnauthorized() {
 func (s *RepoTestSuite) TestDeleteRepository() {
 	s.Fixtures.PoolMgrCtrlMock.On("DeleteRepoPoolManager", mock.AnythingOfType("params.Repository")).Return(nil)
 
-	err := s.Runner.DeleteRepository(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID)
+	err := s.Runner.DeleteRepository(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID, true)
 
 	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
 	s.Require().Nil(err)
@@ -267,7 +267,7 @@ func (s *RepoTestSuite) TestDeleteRepository() {
 }
 
 func (s *RepoTestSuite) TestDeleteRepositoryErrUnauthorized() {
-	err := s.Runner.DeleteRepository(context.Background(), "dummy-repo-id")
+	err := s.Runner.DeleteRepository(context.Background(), "dummy-repo-id", true)
 
 	s.Require().Equal(runnerErrors.ErrUnauthorized, err)
 }
@@ -278,7 +278,7 @@ func (s *RepoTestSuite) TestDeleteRepositoryPoolDefinedFailed() {
 		s.FailNow(fmt.Sprintf("cannot create store repositories pool: %v", err))
 	}
 
-	err = s.Runner.DeleteRepository(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID)
+	err = s.Runner.DeleteRepository(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID, true)
 
 	s.Require().Equal(runnerErrors.NewBadRequestError("repo has pools defined (%s)", pool.ID), err)
 }
@@ -286,7 +286,7 @@ func (s *RepoTestSuite) TestDeleteRepositoryPoolDefinedFailed() {
 func (s *RepoTestSuite) TestDeleteRepositoryPoolMgrFailed() {
 	s.Fixtures.PoolMgrCtrlMock.On("DeleteRepoPoolManager", mock.AnythingOfType("params.Repository")).Return(s.Fixtures.ErrMock)
 
-	err := s.Runner.DeleteRepository(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID)
+	err := s.Runner.DeleteRepository(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID, true)
 
 	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
 	s.Require().Equal(fmt.Sprintf("deleting repo pool manager: %s", s.Fixtures.ErrMock.Error()), err.Error())

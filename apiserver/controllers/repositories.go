@@ -157,7 +157,7 @@ func (a *APIController) DeleteRepoHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if err := a.r.DeleteRepository(ctx, repoID); err != nil {
+	if err := a.r.DeleteRepository(ctx, repoID, false); err != nil {
 		log.Printf("fetching repo: %s", err)
 		handleError(w, err)
 		return

@@ -123,7 +123,7 @@ func (r *Runner) GetRepositoryByID(ctx context.Context, repoID string) (params.R
 	return repo, nil
 }
 
-func (r *Runner) DeleteRepository(ctx context.Context, repoID string) error {
+func (r *Runner) DeleteRepository(ctx context.Context, repoID string, keepWebhook bool) error {
 	if !auth.IsAdmin(ctx) {
 		return runnerErrors.ErrUnauthorized
 	}
@@ -147,14 +147,16 @@ func (r *Runner) DeleteRepository(ctx context.Context, repoID string) error {
 		return runnerErrors.NewBadRequestError("repo has pools defined (%s)", strings.Join(poolIds, ", "))
 	}
 
-	poolMgr, err := r.poolManagerCtrl.GetRepoPoolManager(repo)
-	if err != nil {
-		return errors.Wrap(err, "fetching pool manager")
-	}
+	if !keepWebhook {
+		poolMgr, err := r.poolManagerCtrl.GetRepoPoolManager(repo)
+		if err != nil {
+			return errors.Wrap(err, "fetching pool manager")
+		}
 
-	if err := poolMgr.UninstallWebhook(ctx); err != nil {
-		// TODO(gabriel-samfira): Should we error out here?
-		log.Printf("failed to uninstall webhook: %s", err)
+		if err := poolMgr.UninstallWebhook(ctx); err != nil {
+			// TODO(gabriel-samfira): Should we error out here?
+			log.Printf("failed to uninstall webhook: %s", err)
+		}
 	}
 
 	if err := r.poolManagerCtrl.DeleteRepoPoolManager(repo); err != nil {

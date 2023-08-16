@@ -157,7 +157,7 @@ func (a *APIController) DeleteOrgHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if err := a.r.DeleteOrganization(ctx, orgID); err != nil {
+	if err := a.r.DeleteOrganization(ctx, orgID, false); err != nil {
 		log.Printf("removing org: %+v", err)
 		handleError(w, err)
 		return
