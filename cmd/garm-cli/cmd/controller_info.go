@@ -67,7 +67,7 @@ func formatInfo(info params.ControllerInfo) error {
 	t.AppendRow(table.Row{"Hostname", info.Hostname})
 	t.AppendRow(table.Row{"Metadata URL", info.MetadataURL})
 	t.AppendRow(table.Row{"Callback URL", info.CallbackURL})
-	t.AppendRow(table.Row{"Webhook URL Base", info.WebhookURL})
+	t.AppendRow(table.Row{"Webhook Base URL", info.WebhookURL})
 	t.AppendRow(table.Row{"Controller Webhook URL", info.ControllerWebhookURL})
 	fmt.Println(t.Render())
 
