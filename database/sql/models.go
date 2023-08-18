@@ -155,6 +155,7 @@ type Instance struct {
 	ProviderFault     []byte `gorm:"type:longblob"`
 	CreateAttempt     int
 	TokenFetched      bool
+	JitConfiguration  []byte `gorm:"type:longblob"`
 	GitHubRunnerGroup string
 	AditionalLabels   datatypes.JSON
 

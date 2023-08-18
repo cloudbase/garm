@@ -138,6 +138,7 @@ type CreateInstanceParams struct {
 	GitHubRunnerGroup string
 	CreateAttempt     int `json:"-"`
 	AditionalLabels   []string
+	JitConfiguration  map[string]string
 }
 
 type CreatePoolParams struct {

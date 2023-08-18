@@ -17,8 +17,10 @@ package sql
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	"github.com/cloudbase/garm-provider-common/util"
 	"github.com/cloudbase/garm/params"
 
 	"github.com/google/uuid"
@@ -42,6 +44,19 @@ func (s *sqlDatabase) CreateInstance(ctx context.Context, poolID string, param p
 		}
 	}
 
+	var secret []byte
+	if len(param.JitConfiguration) > 0 {
+		jitConfig, err := json.Marshal(param.JitConfiguration)
+		if err != nil {
+			return params.Instance{}, errors.Wrap(err, "marshalling jit config")
+		}
+
+		secret, err = util.Seal(jitConfig, []byte(s.cfg.Passphrase))
+		if err != nil {
+			return params.Instance{}, fmt.Errorf("failed to encrypt jitconfig: %w", err)
+		}
+	}
+
 	newInstance := Instance{
 		Pool:              pool,
 		Name:              param.Name,
@@ -52,6 +67,7 @@ func (s *sqlDatabase) CreateInstance(ctx context.Context, poolID string, param p
 		CallbackURL:       param.CallbackURL,
 		MetadataURL:       param.MetadataURL,
 		GitHubRunnerGroup: param.GitHubRunnerGroup,
+		JitConfiguration:  secret,
 		AditionalLabels:   labels,
 	}
 	q := s.conn.Create(&newInstance)
