@@ -13,11 +13,11 @@ RUN git clone https://github.com/cloudbase/garm-provider-openstack /build/garm-p
 
 RUN cd /build/garm && go build -o /bin/garm \
     -tags osusergo,netgo,sqlite_omit_load_extension \
-    -ldflags "-linkmode external -extldflags '-static' -s -w -X main.Version=$(git describe --tags --match='v[0-9]*' --dirty --always)" \
+    -ldflags "-extldflags '-static' -s -w -X main.Version=$(git describe --tags --match='v[0-9]*' --dirty --always)" \
     /build/garm/cmd/garm
 RUN mkdir -p /opt/garm/providers.d
-RUN cd /build/garm-provider-azure && go build -ldflags="-linkmode external -extldflags '-static' -s -w" -o /opt/garm/providers.d/garm-provider-azure .
-RUN cd /build/garm-provider-openstack && go build -ldflags="-linkmode external -extldflags '-static' -s -w" -o /opt/garm/providers.d/garm-provider-openstack .
+RUN cd /build/garm-provider-azure && go build -ldflags="-extldflags '-static' -s -w" -o /opt/garm/providers.d/garm-provider-azure .
+RUN cd /build/garm-provider-openstack && go build -ldflags="-extldflags '-static' -s -w" -o /opt/garm/providers.d/garm-provider-openstack .
 
 FROM scratch
 

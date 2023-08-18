@@ -7,17 +7,26 @@ USER_GROUP=$(shell ((docker --version | grep -q podman) && echo "0" || id -g))
 ROOTDIR=$(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 GOPATH ?= $(shell go env GOPATH)
 VERSION ?= $(shell git describe --tags --match='v[0-9]*' --dirty --always)
+GARM_REF ?= $(shell git rev-parse --abbrev-ref HEAD)
 GO ?= go
 
 
 default: build
 
-.PHONY : build-static test install-lint-deps lint go-test fmt fmtcheck verify-vendor verify
+.PHONY : build-static test install-lint-deps lint go-test fmt fmtcheck verify-vendor verify create-release-files release
 build-static:
 	@echo Building garm
 	docker build --tag $(IMAGE_TAG) -f Dockerfile.build-static .
-	docker run --rm -e USER_ID=$(USER_ID) -e USER_GROUP=$(USER_GROUP) -v $(PWD):/build/garm:z $(IMAGE_TAG) /build-static.sh
-	@echo Binaries are available in $(PWD)/bin
+	docker run --rm -e USER_ID=$(USER_ID) -e GARM_REF=$(GARM_REF) -e USER_GROUP=$(USER_GROUP) -v $(PWD)/build:/build/output:z $(IMAGE_TAG) /build-static.sh
+	@echo Binaries are available in $(PWD)/build
+
+create-release-files:
+	./scripts/make-release.sh
+
+release: build-static create-release-files
+
+clean:
+	@rm -rf ./bin ./build ./release
 
 build:
 	@echo Building garm ${VERSION}
