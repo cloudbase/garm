@@ -43,12 +43,8 @@ func (s *sqlDatabase) sqlToParamsInstance(instance Instance) (params.Instance, e
 
 	var jitConfig map[string]string
 	if len(instance.JitConfiguration) > 0 {
-		decrypted, err := util.Unseal(instance.JitConfiguration, []byte(s.cfg.Passphrase))
-		if err != nil {
-			return params.Instance{}, errors.Wrap(err, "decrypting jit config")
-		}
-		if err := json.Unmarshal(decrypted, &jitConfig); err != nil {
-			return params.Instance{}, errors.Wrap(err, "unmarshalling jit config")
+		if err := s.unsealAndUnmarshal(instance.JitConfiguration, &jitConfig); err != nil {
+			return params.Instance{}, errors.Wrap(err, "unmarshalling jit configuration")
 		}
 	}
 	ret := params.Instance{
