@@ -32,7 +32,7 @@ func (s *sqlDatabase) CreateRepository(ctx context.Context, owner, name, credent
 	if webhookSecret == "" {
 		return params.Repository{}, errors.New("creating repo: missing secret")
 	}
-	secret, err := util.Aes256EncodeString(webhookSecret, s.cfg.Passphrase)
+	secret, err := util.Seal([]byte(webhookSecret), []byte(s.cfg.Passphrase))
 	if err != nil {
 		return params.Repository{}, fmt.Errorf("failed to encrypt string")
 	}
@@ -114,7 +114,7 @@ func (s *sqlDatabase) UpdateRepository(ctx context.Context, repoID string, param
 	}
 
 	if param.WebhookSecret != "" {
-		secret, err := util.Aes256EncodeString(param.WebhookSecret, s.cfg.Passphrase)
+		secret, err := util.Seal([]byte(param.WebhookSecret), []byte(s.cfg.Passphrase))
 		if err != nil {
 			return params.Repository{}, fmt.Errorf("saving repo: failed to encrypt string: %w", err)
 		}

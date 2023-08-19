@@ -17,7 +17,7 @@ func (s *sqlDatabase) CreateEnterprise(ctx context.Context, name, credentialsNam
 	if webhookSecret == "" {
 		return params.Enterprise{}, errors.New("creating enterprise: missing secret")
 	}
-	secret, err := util.Aes256EncodeString(webhookSecret, s.cfg.Passphrase)
+	secret, err := util.Seal([]byte(webhookSecret), []byte(s.cfg.Passphrase))
 	if err != nil {
 		return params.Enterprise{}, errors.Wrap(err, "encoding secret")
 	}
@@ -110,7 +110,7 @@ func (s *sqlDatabase) UpdateEnterprise(ctx context.Context, enterpriseID string,
 	}
 
 	if param.WebhookSecret != "" {
-		secret, err := util.Aes256EncodeString(param.WebhookSecret, s.cfg.Passphrase)
+		secret, err := util.Seal([]byte(param.WebhookSecret), []byte(s.cfg.Passphrase))
 		if err != nil {
 			return params.Enterprise{}, errors.Wrap(err, "encoding secret")
 		}

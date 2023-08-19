@@ -32,7 +32,7 @@ func (s *sqlDatabase) CreateOrganization(ctx context.Context, name, credentialsN
 	if webhookSecret == "" {
 		return params.Organization{}, errors.New("creating org: missing secret")
 	}
-	secret, err := util.Aes256EncodeString(webhookSecret, s.cfg.Passphrase)
+	secret, err := util.Seal([]byte(webhookSecret), []byte(s.cfg.Passphrase))
 	if err != nil {
 		return params.Organization{}, fmt.Errorf("failed to encrypt string")
 	}
@@ -114,7 +114,7 @@ func (s *sqlDatabase) UpdateOrganization(ctx context.Context, orgID string, para
 	}
 
 	if param.WebhookSecret != "" {
-		secret, err := util.Aes256EncodeString(param.WebhookSecret, s.cfg.Passphrase)
+		secret, err := util.Seal([]byte(param.WebhookSecret), []byte(s.cfg.Passphrase))
 		if err != nil {
 			return params.Organization{}, fmt.Errorf("saving org: failed to encrypt string: %w", err)
 		}

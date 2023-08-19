@@ -93,7 +93,7 @@ func (s *sqlDatabase) sqlToCommonOrganization(org Organization) (params.Organiza
 	if len(org.WebhookSecret) == 0 {
 		return params.Organization{}, errors.New("missing secret")
 	}
-	secret, err := util.Aes256DecodeString(org.WebhookSecret, s.cfg.Passphrase)
+	secret, err := util.Unseal(org.WebhookSecret, []byte(s.cfg.Passphrase))
 	if err != nil {
 		return params.Organization{}, errors.Wrap(err, "decrypting secret")
 	}
@@ -103,7 +103,7 @@ func (s *sqlDatabase) sqlToCommonOrganization(org Organization) (params.Organiza
 		Name:            org.Name,
 		CredentialsName: org.CredentialsName,
 		Pools:           make([]params.Pool, len(org.Pools)),
-		WebhookSecret:   secret,
+		WebhookSecret:   string(secret),
 	}
 
 	for idx, pool := range org.Pools {
@@ -120,7 +120,7 @@ func (s *sqlDatabase) sqlToCommonEnterprise(enterprise Enterprise) (params.Enter
 	if len(enterprise.WebhookSecret) == 0 {
 		return params.Enterprise{}, errors.New("missing secret")
 	}
-	secret, err := util.Aes256DecodeString(enterprise.WebhookSecret, s.cfg.Passphrase)
+	secret, err := util.Unseal(enterprise.WebhookSecret, []byte(s.cfg.Passphrase))
 	if err != nil {
 		return params.Enterprise{}, errors.Wrap(err, "decrypting secret")
 	}
@@ -130,7 +130,7 @@ func (s *sqlDatabase) sqlToCommonEnterprise(enterprise Enterprise) (params.Enter
 		Name:            enterprise.Name,
 		CredentialsName: enterprise.CredentialsName,
 		Pools:           make([]params.Pool, len(enterprise.Pools)),
-		WebhookSecret:   secret,
+		WebhookSecret:   string(secret),
 	}
 
 	for idx, pool := range enterprise.Pools {
@@ -207,7 +207,7 @@ func (s *sqlDatabase) sqlToCommonRepository(repo Repository) (params.Repository,
 	if len(repo.WebhookSecret) == 0 {
 		return params.Repository{}, errors.New("missing secret")
 	}
-	secret, err := util.Aes256DecodeString(repo.WebhookSecret, s.cfg.Passphrase)
+	secret, err := util.Unseal(repo.WebhookSecret, []byte(s.cfg.Passphrase))
 	if err != nil {
 		return params.Repository{}, errors.Wrap(err, "decrypting secret")
 	}
@@ -218,7 +218,7 @@ func (s *sqlDatabase) sqlToCommonRepository(repo Repository) (params.Repository,
 		Owner:           repo.Owner,
 		CredentialsName: repo.CredentialsName,
 		Pools:           make([]params.Pool, len(repo.Pools)),
-		WebhookSecret:   secret,
+		WebhookSecret:   string(secret),
 	}
 
 	for idx, pool := range repo.Pools {
