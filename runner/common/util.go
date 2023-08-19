@@ -41,6 +41,8 @@ type GithubClient interface {
 	RemoveRunner(ctx context.Context, owner, repo string, runnerID int64) (*github.Response, error)
 	// CreateRegistrationToken creates a runner registration token for one repository.
 	CreateRegistrationToken(ctx context.Context, owner, repo string) (*github.RegistrationToken, *github.Response, error)
+	// GenerateRepoJITConfig generates a just-in-time configuration for a repository.
+	GenerateRepoJITConfig(ctx context.Context, owner, repo string, request *github.GenerateJITConfigRequest) (*github.JITRunnerConfig, *github.Response, error)
 
 	// ListOrganizationRunners lists all runners within an organization.
 	ListOrganizationRunners(ctx context.Context, owner string, opts *github.ListOptions) (*github.Runners, *github.Response, error)
@@ -51,6 +53,8 @@ type GithubClient interface {
 	RemoveOrganizationRunner(ctx context.Context, owner string, runnerID int64) (*github.Response, error)
 	// CreateOrganizationRegistrationToken creates a runner registration token for an organization.
 	CreateOrganizationRegistrationToken(ctx context.Context, owner string) (*github.RegistrationToken, *github.Response, error)
+	// GenerateOrgJITConfig generate a just-in-time configuration for an organization.
+	GenerateOrgJITConfig(ctx context.Context, owner string, request *github.GenerateJITConfigRequest) (*github.JITRunnerConfig, *github.Response, error)
 }
 
 type GithubEnterpriseClient interface {

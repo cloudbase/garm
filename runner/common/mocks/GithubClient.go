@@ -206,6 +206,76 @@ func (_m *GithubClient) DeleteRepoHook(ctx context.Context, owner string, repo s
 	return r0, r1
 }
 
+// GenerateOrgJITConfig provides a mock function with given fields: ctx, owner, request
+func (_m *GithubClient) GenerateOrgJITConfig(ctx context.Context, owner string, request *github.GenerateJITConfigRequest) (*github.JITRunnerConfig, *github.Response, error) {
+	ret := _m.Called(ctx, owner, request)
+
+	var r0 *github.JITRunnerConfig
+	var r1 *github.Response
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, *github.GenerateJITConfigRequest) (*github.JITRunnerConfig, *github.Response, error)); ok {
+		return rf(ctx, owner, request)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, *github.GenerateJITConfigRequest) *github.JITRunnerConfig); ok {
+		r0 = rf(ctx, owner, request)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*github.JITRunnerConfig)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, *github.GenerateJITConfigRequest) *github.Response); ok {
+		r1 = rf(ctx, owner, request)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(*github.Response)
+		}
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, string, *github.GenerateJITConfigRequest) error); ok {
+		r2 = rf(ctx, owner, request)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// GenerateRepoJITConfig provides a mock function with given fields: ctx, owner, repo, request
+func (_m *GithubClient) GenerateRepoJITConfig(ctx context.Context, owner string, repo string, request *github.GenerateJITConfigRequest) (*github.JITRunnerConfig, *github.Response, error) {
+	ret := _m.Called(ctx, owner, repo, request)
+
+	var r0 *github.JITRunnerConfig
+	var r1 *github.Response
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, *github.GenerateJITConfigRequest) (*github.JITRunnerConfig, *github.Response, error)); ok {
+		return rf(ctx, owner, repo, request)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, *github.GenerateJITConfigRequest) *github.JITRunnerConfig); ok {
+		r0 = rf(ctx, owner, repo, request)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*github.JITRunnerConfig)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, *github.GenerateJITConfigRequest) *github.Response); ok {
+		r1 = rf(ctx, owner, repo, request)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(*github.Response)
+		}
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, string, string, *github.GenerateJITConfigRequest) error); ok {
+		r2 = rf(ctx, owner, repo, request)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
 // GetOrgHook provides a mock function with given fields: ctx, org, id
 func (_m *GithubClient) GetOrgHook(ctx context.Context, org string, id int64) (*github.Hook, *github.Response, error) {
 	ret := _m.Called(ctx, org, id)
