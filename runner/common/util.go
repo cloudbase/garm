@@ -67,4 +67,6 @@ type GithubEnterpriseClient interface {
 	// ListRunnerApplicationDownloads returns a list of github runner application downloads for the
 	// various supported operating systems and architectures.
 	ListRunnerApplicationDownloads(ctx context.Context, enterprise string) ([]*github.RunnerApplicationDownload, *github.Response, error)
+
+	GenerateEnterpriseJITConfig(ctx context.Context, enterprise string, request *github.GenerateJITConfigRequest) (*github.JITRunnerConfig, *github.Response, error)
 }

@@ -859,15 +859,11 @@ func (r *Runner) AddInstanceStatusMessage(ctx context.Context, param params.Inst
 }
 
 func (r *Runner) GetInstanceGithubRegistrationToken(ctx context.Context) (string, error) {
-	instanceName := auth.InstanceName(ctx)
-	if instanceName == "" {
-		return "", runnerErrors.ErrUnauthorized
-	}
-
-	// Check if this instance already fetched a registration token. We only allow an instance to
-	// fetch one token. If the instance fails to bootstrap after a token is fetched, we reset the
-	// token fetched field when re-queueing the instance.
-	if auth.InstanceTokenFetched(ctx) {
+	// Check if this instance already fetched a registration token or if it was configured using
+	// the new Just In Time runner feature. If we're still using the old way of configuring a runner,
+	// we only allow an instance to fetch one token. If the instance fails to bootstrap after a token
+	// is fetched, we reset the token fetched field when re-queueing the instance.
+	if auth.InstanceTokenFetched(ctx) || auth.InstanceHasJITConfig(ctx) {
 		return "", runnerErrors.ErrUnauthorized
 	}
 
@@ -876,9 +872,10 @@ func (r *Runner) GetInstanceGithubRegistrationToken(ctx context.Context) (string
 		return "", runnerErrors.ErrUnauthorized
 	}
 
-	instance, err := r.store.GetInstanceByName(ctx, instanceName)
+	instance, err := auth.InstanceParams(ctx)
 	if err != nil {
-		return "", errors.Wrap(err, "fetching instance")
+		log.Printf("failed to get instance params: %s", err)
+		return "", runnerErrors.ErrUnauthorized
 	}
 
 	poolMgr, err := r.getPoolManagerFromInstance(ctx, instance)

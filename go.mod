@@ -36,6 +36,8 @@ require (
 	gorm.io/gorm v1.24.6
 )
 
+replace github.com/google/go-github/v54 => github.com/gabriel-samfira/go-github/v54 v54.0.0-20230820134006-4b55d56a9b7f
+
 require (
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
