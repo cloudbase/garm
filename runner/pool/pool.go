@@ -527,6 +527,16 @@ func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner)
 			// already marked for deletion or is in the process of being deleted.
 			// Let consolidate take care of it.
 			continue
+		case commonParams.InstancePendingCreate, commonParams.InstanceCreating:
+			// instance is still being created. We give it a chance to finish.
+			r.log("instance %s is still being created, give it a chance to finish", dbInstance.Name)
+			continue
+		case commonParams.InstanceRunning:
+			if time.Since(dbInstance.UpdatedAt).Minutes() < 5 {
+				// instance was updated recently. We give it a chance to register itself in github.
+				r.log("instance %s was updated recently, skipping check", dbInstance.Name)
+				continue
+			}
 		}
 
 		pool, err := r.helper.GetPoolByID(dbInstance.PoolID)
