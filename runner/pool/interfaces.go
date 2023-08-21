@@ -37,6 +37,8 @@ type poolHelper interface {
 
 	GithubCLI() common.GithubClient
 
+	GetJITConfig(ctx context.Context, instance params.Instance, pool params.Pool, labels []string) (map[string]string, *github.Runner, error)
+
 	FetchDbInstances() ([]params.Instance, error)
 	ListPools() ([]params.Pool, error)
 	GithubURL() string

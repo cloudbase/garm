@@ -16,6 +16,8 @@ package pool
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -84,6 +86,52 @@ type repository struct {
 	store       dbCommon.Store
 
 	mux sync.Mutex
+}
+
+func (r *repository) GetJITConfig(ctx context.Context, instance params.Instance, pool params.Pool, labels []string) (jitConfigMap map[string]string, runner *github.Runner, err error) {
+	if instance.AgentID != 0 {
+		return nil, nil, fmt.Errorf("instance already has an agent ID: %w", runnerErrors.ErrBadRequest)
+	}
+
+	if instance.JitConfiguration != nil {
+		return nil, nil, fmt.Errorf("instance already has a JIT configuration: %w", runnerErrors.ErrBadRequest)
+	}
+
+	req := github.GenerateJITConfigRequest{
+		Name: instance.Name,
+		// At the repository level we only have the default runner group.
+		RunnerGroupID: 1,
+		Labels:        labels,
+		// TODO(gabriel-samfira): Should we make this configurable?
+		WorkFolder: github.String("_work"),
+	}
+	jitConfig, resp, err := r.ghcli.GenerateRepoJITConfig(ctx, r.cfg.Owner, r.cfg.Name, &req)
+	if err != nil {
+		if resp != nil && resp.StatusCode == http.StatusUnauthorized {
+			return nil, nil, fmt.Errorf("failed to get JIT config: %w", err)
+		}
+		return nil, nil, fmt.Errorf("failed to get JIT config: %w", err)
+	}
+	runner = jitConfig.Runner
+
+	defer func() {
+		if err != nil && runner != nil {
+			_, innerErr := r.ghcli.RemoveRunner(r.ctx, r.cfg.Owner, r.cfg.Name, runner.GetID())
+			log.Printf("failed to remove runner: %v", innerErr)
+		}
+	}()
+
+	decoded, err := base64.StdEncoding.DecodeString(*jitConfig.EncodedJITConfig)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to decode JIT config: %w", err)
+	}
+
+	var ret map[string]string
+	if err := json.Unmarshal(decoded, &ret); err != nil {
+		return nil, nil, fmt.Errorf("failed to unmarshal JIT config: %w", err)
+	}
+
+	return ret, jitConfig.Runner, nil
 }
 
 func (r *repository) GithubCLI() common.GithubClient {

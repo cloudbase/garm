@@ -692,7 +692,7 @@ func (r *basePoolManager) setInstanceStatus(runnerName string, status commonPara
 	return instance, nil
 }
 
-func (r *basePoolManager) AddRunner(ctx context.Context, poolID string, aditionalLabels []string) error {
+func (r *basePoolManager) AddRunner(ctx context.Context, poolID string, aditionalLabels []string) (err error) {
 	pool, err := r.helper.GetPoolByID(poolID)
 	if err != nil {
 		return errors.Wrap(err, "fetching pool")
@@ -713,14 +713,43 @@ func (r *basePoolManager) AddRunner(ctx context.Context, poolID string, aditiona
 		AditionalLabels:   aditionalLabels,
 	}
 
-	_, err = r.store.CreateInstance(r.ctx, poolID, createParams)
+	instance, err := r.store.CreateInstance(r.ctx, poolID, createParams)
 	if err != nil {
 		return errors.Wrap(err, "creating instance")
 	}
 
-	// labels := r.getLabelsForInstance(pool)
+	defer func() {
+		if err != nil && instance.ID != "" {
+			if err := r.ForceDeleteRunner(instance); err != nil {
+				r.log("failed to cleanup instance: %s", instance.Name)
+			}
+		}
+	}()
 
-	// // Attempt to create JIT config
+	labels := r.getLabelsForInstance(pool)
+	// Attempt to create JIT config
+	jitConfig, runner, err := r.helper.GetJITConfig(ctx, instance, pool, labels)
+	if err == nil {
+		updateParams := params.UpdateInstanceParams{
+			AgentID: runner.GetID(),
+			// We're using a JIT config. Setting the TokenFetched will disable the registration token
+			// metadata endpoint.
+			TokenFetched:     github.Bool(true),
+			JitConfiguration: jitConfig,
+		}
+		instance, err = r.updateInstance(instance.Name, updateParams)
+		if err != nil {
+			// The agent ID is not recorded in the instance, so the deferred ForceDeleteRunner() will not
+			// attempt to clean it up. We need to do it here.
+			_, runnerCleanupErr := r.helper.RemoveGithubRunner(runner.GetID())
+			if err != nil {
+				log.Printf("failed to remove runner %d: %s", runner.GetID(), runnerCleanupErr)
+			}
+			return errors.Wrap(err, "updating instance")
+		}
+	} else {
+		r.log("failed to get JIT config, falling back to registration token: %s", err)
+	}
 
 	return nil
 }
@@ -771,6 +800,8 @@ func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error 
 		return fmt.Errorf("unknown provider %s for pool %s", pool.ProviderName, pool.ID)
 	}
 
+	// We still need the labels here for situations where we don't have a JIT config generated.
+	// This can happen if GARM is used against an instance of GHES older than version 3.10.
 	labels := r.getLabelsForInstance(pool)
 	jwtValidity := pool.RunnerTimeout()
 
@@ -796,6 +827,7 @@ func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error 
 		PoolID:            instance.PoolID,
 		CACertBundle:      r.credsDetails.CABundle,
 		GitHubRunnerGroup: instance.GitHubRunnerGroup,
+		// JitConfigEnabled:  len(instance.JitConfiguration) > 0,
 	}
 
 	var instanceIDToDelete string
