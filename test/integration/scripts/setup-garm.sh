@@ -13,6 +13,7 @@ fi
 
 if [[ -z $GH_OAUTH_TOKEN ]]; then echo "ERROR: The env variable GH_OAUTH_TOKEN is not set"; exit 1; fi
 if [[ -z $CREDENTIALS_NAME ]]; then echo "ERROR: The env variable CREDENTIALS_NAME is not set"; exit 1; fi
+if [[ -z $GARM_BASE_URL ]]; then echo "ERROR: The env variable GARM_BASE_URL is not set"; exit 1; fi
 
 # Generate a random 32-char secret for JWT_AUTH_SECRET and DB_PASSPHRASE.
 function generate_secret() {
@@ -34,9 +35,6 @@ function wait_open_port() {
     done
     echo "Port $PORT at address $ADDRESS is open"
 }
-
-# Use the LXD bridge IP address as the GARM metadata address.
-export GARM_METADATA_IP=$(lxc network ls -f json 2>/dev/null | jq -r '.[] | select(.name=="lxdbr0") | .config."ipv4.address"' | cut -d '/' -f1)
 
 export JWT_AUTH_SECRET="$(generate_secret)"
 export DB_PASSPHRASE="$(generate_secret)"

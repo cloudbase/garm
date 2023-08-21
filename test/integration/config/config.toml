@@ -1,6 +1,8 @@
 [default]
-callback_url = "http://${GARM_METADATA_IP}:9997/api/v1/callbacks/status"
-metadata_url = "http://${GARM_METADATA_IP}:9997/api/v1/metadata"
+callback_url = "${GARM_BASE_URL}/api/v1/callbacks/status"
+metadata_url = "${GARM_BASE_URL}/api/v1/metadata"
+webhook_url = "${GARM_BASE_URL}/webhooks"
+enable_webhook_management = true
 
 [metrics]
 enable = true

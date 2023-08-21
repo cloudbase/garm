@@ -11,6 +11,7 @@ import (
 
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 	client "github.com/cloudbase/garm/client"
+	clientControllerInfo "github.com/cloudbase/garm/client/controller_info"
 	clientCredentials "github.com/cloudbase/garm/client/credentials"
 	clientFirstRun "github.com/cloudbase/garm/client/first_run"
 	clientInstances "github.com/cloudbase/garm/client/instances"
@@ -34,7 +35,8 @@ var (
 	cfg       config.Config
 	authToken runtime.ClientAuthInfoWriter
 
-	credentialsName = os.Getenv("CREDENTIALS_NAME")
+	credentialsName  = os.Getenv("CREDENTIALS_NAME")
+	workflowFileName = os.Getenv("WORKFLOW_FILE_NAME")
 
 	repoID            string
 	repoPoolID        string
@@ -127,6 +129,19 @@ func listProviders(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWr
 	return listProvidersResponse.Payload, nil
 }
 
+// ////////////////////////
+// // Controller info ////
+// ////////////////////////
+func getControllerInfo(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter) (params.ControllerInfo, error) {
+	controllerInfoResponse, err := apiCli.ControllerInfo.ControllerInfo(
+		clientControllerInfo.NewControllerInfoParams(),
+		apiAuthToken)
+	if err != nil {
+		return params.ControllerInfo{}, err
+	}
+	return controllerInfoResponse.Payload, nil
+}
+
 // ////////
 // Jobs //
 // ////////
@@ -138,6 +153,162 @@ func listJobs(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter)
 		return nil, err
 	}
 	return listJobsResponse.Payload, nil
+}
+
+func waitLabelledJob(label string, timeout time.Duration) *params.Job {
+	var timeWaited time.Duration = 0
+	var jobs params.Jobs
+	var err error
+
+	log.Printf(">>> Waiting for job with label %s", label)
+	for timeWaited < timeout {
+		jobs, err = listJobs(cli, authToken)
+		handleError(err)
+		for _, job := range jobs {
+			for _, jobLabel := range job.Labels {
+				if jobLabel == label {
+					return &job
+				}
+			}
+		}
+		time.Sleep(5 * time.Second)
+		timeWaited += 5 * time.Second
+	}
+	printResponse(jobs)
+	panic(fmt.Sprintf("Failed to wait job with label %s", label))
+}
+
+func waitJobStatus(id int64, status params.JobStatus, timeout time.Duration) *params.Job {
+	var timeWaited time.Duration = 0
+	var job *params.Job
+
+	log.Printf(">>> Waiting for job %d to reach status %s", id, status)
+	for timeWaited < timeout {
+		jobs, err := listJobs(cli, authToken)
+		handleError(err)
+
+		job = nil
+		for _, j := range jobs {
+			if j.ID == id {
+				job = &j
+				break
+			}
+		}
+
+		if job == nil {
+			if status == params.JobStatusCompleted {
+				// The job is not found in the list. We can safely assume
+				// that it is completed
+				return job
+			}
+			// if the job is not found, and expected status is not "completed",
+			// we need to error out.
+			panic(fmt.Sprintf("Job %d not found, expected to be found in status %s", id, status))
+		} else if job.Status == string(status) {
+			return job
+		}
+		time.Sleep(5 * time.Second)
+		timeWaited += 5 * time.Second
+	}
+	printResponse(job)
+	panic(fmt.Sprintf("timeout waiting for job %d to reach status %s", id, status))
+}
+
+func waitInstanceStatus(name string, status commonParams.InstanceStatus, runnerStatus params.RunnerStatus, timeout time.Duration) *params.Instance {
+	var timeWaited time.Duration = 0
+	var instance *params.Instance
+
+	log.Printf(">>> Waiting for instance %s status to reach status %s and runner status %s", name, status, runnerStatus)
+	for timeWaited < timeout {
+		instance, err := getInstance(cli, authToken, name)
+		handleError(err)
+		log.Printf(">>> Instance %s status: %s", name, instance.Status)
+		if instance.Status == status && instance.RunnerStatus == runnerStatus {
+			return instance
+		}
+		time.Sleep(5 * time.Second)
+		timeWaited += 5 * time.Second
+	}
+	printResponse(instance)
+	panic(fmt.Sprintf("timeout waiting for instance %s status to reach status %s and runner status %s", name, status, runnerStatus))
+}
+
+func waitInstanceToBeRemoved(name string, timeout time.Duration) {
+	var timeWaited time.Duration = 0
+	var instance *params.Instance
+
+	log.Printf(">>> Waiting for instance %s to be removed", name)
+	for timeWaited < timeout {
+		instances, err := listInstances(cli, authToken)
+		handleError(err)
+
+		instance = nil
+		for _, i := range instances {
+			if i.Name == name {
+				instance = &i
+				break
+			}
+		}
+		if instance == nil {
+			// The instance is not found in the list. We can safely assume
+			// that it is removed
+			return
+		}
+
+		time.Sleep(5 * time.Second)
+		timeWaited += 5 * time.Second
+	}
+	printResponse(instance)
+	panic(fmt.Sprintf("Instance %s was not removed within the timeout", name))
+}
+
+func waitPoolRunningIdleInstances(poolID string, timeout time.Duration) {
+	var timeWaited time.Duration = 0
+	var instances params.Instances
+	var err error
+
+	pool, err := getPool(cli, authToken, poolID)
+	handleError(err)
+
+	log.Printf(">>> Waiting for pool %s to have all instances as idle running", poolID)
+	for timeWaited < timeout {
+		instances, err = listInstances(cli, authToken)
+		handleError(err)
+
+		poolInstances := make(params.Instances, 0)
+		runningIdleCount := 0
+
+		for _, instance := range instances {
+			if instance.PoolID == poolID {
+				poolInstances = append(poolInstances, instance)
+			}
+			if instance.Status == commonParams.InstanceRunning && instance.RunnerStatus == params.RunnerIdle {
+				runningIdleCount++
+			}
+		}
+		log.Printf(">>> Pool instances")
+		printResponse(poolInstances)
+		log.Printf(">>> Running idle count: %d", runningIdleCount)
+		log.Printf(">>> Pool min idle runners: %d", pool.MinIdleRunners)
+		log.Printf(">>> Pool ID: %s", pool.ID)
+		if runningIdleCount == int(pool.MinIdleRunners) && runningIdleCount == len(poolInstances) {
+			instance := poolInstances[0]
+			// update global variables with instance names
+			if pool.RepoID != "" {
+				// repo pool
+				repoInstanceName = instance.Name
+			}
+			if pool.OrgID != "" {
+				// org pool
+				orgInstanceName = instance.Name
+			}
+			return
+		}
+		time.Sleep(5 * time.Second)
+		timeWaited += 5 * time.Second
+	}
+	printResponse(instances)
+	panic(fmt.Sprintf("timeout waiting for pool %s to have all idle instances running", poolID))
 }
 
 // //////////////////
@@ -194,6 +365,26 @@ func getRepo(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, 
 		return nil, err
 	}
 	return &getRepoResponse.Payload, nil
+}
+
+func installRepoWebhook(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, repoID string, webhookParams params.InstallWebhookParams) (*params.HookInfo, error) {
+	installRepoWebhookResponse, err := apiCli.Repositories.InstallRepoWebhook(
+		clientRepositories.NewInstallRepoWebhookParams().WithRepoID(repoID).WithBody(webhookParams),
+		apiAuthToken)
+	if err != nil {
+		return nil, err
+	}
+	return &installRepoWebhookResponse.Payload, nil
+}
+
+func getRepoWebhook(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, repoID string) (*params.HookInfo, error) {
+	getRepoWebhookResponse, err := apiCli.Repositories.GetRepoWebhookInfo(
+		clientRepositories.NewGetRepoWebhookInfoParams().WithRepoID(repoID),
+		apiAuthToken)
+	if err != nil {
+		return nil, err
+	}
+	return &getRepoWebhookResponse.Payload, nil
 }
 
 func createRepoPool(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, repoID string, poolParams params.CreatePoolParams) (*params.Pool, error) {
@@ -299,6 +490,26 @@ func getOrg(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, o
 		return nil, err
 	}
 	return &getOrgResponse.Payload, nil
+}
+
+func installOrgWebhook(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, orgID string, webhookParams params.InstallWebhookParams) (*params.HookInfo, error) {
+	installOrgWebhookResponse, err := apiCli.Organizations.InstallOrgWebhook(
+		clientOrganizations.NewInstallOrgWebhookParams().WithOrgID(orgID).WithBody(webhookParams),
+		apiAuthToken)
+	if err != nil {
+		return nil, err
+	}
+	return &installOrgWebhookResponse.Payload, nil
+}
+
+func getOrgWebhook(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, orgID string) (*params.HookInfo, error) {
+	getOrgWebhookResponse, err := apiCli.Organizations.GetOrgWebhookInfo(
+		clientOrganizations.NewGetOrgWebhookInfoParams().WithOrgID(orgID),
+		apiAuthToken)
+	if err != nil {
+		return nil, err
+	}
+	return &getOrgWebhookResponse.Payload, nil
 }
 
 func createOrgPool(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, orgID string, poolParams params.CreatePoolParams) (*params.Pool, error) {
@@ -502,8 +713,8 @@ func GracefulCleanup() {
 	DeleteInstance(repoInstanceName)
 	DeleteInstance(orgInstanceName)
 
-	WaitRepoPoolNoInstances(1 * time.Minute)
-	WaitOrgPoolNoInstances(1 * time.Minute)
+	WaitRepoPoolNoInstances(6 * time.Minute)
+	WaitOrgPoolNoInstances(6 * time.Minute)
 
 	DeleteRepoPool()
 	DeleteOrgPool()
@@ -578,14 +789,14 @@ func ListProviders() {
 	printResponse(providers)
 }
 
-// ////////
-// Jobs //
-// ////////
-func ListJobs() {
-	log.Println(">>> List jobs")
-	jobs, err := listJobs(cli, authToken)
+// ////////////////////////
+// // Controller info ////
+// ////////////////////////
+func GetControllerInfo() {
+	log.Println(">>> Get controller info")
+	controllerInfo, err := getControllerInfo(cli, authToken)
 	handleError(err)
-	printResponse(jobs)
+	printResponse(controllerInfo)
 }
 
 // //////////////////
@@ -663,7 +874,7 @@ func CreateRepoPool() {
 		OSType:         commonParams.Linux,
 		OSArch:         commonParams.Amd64,
 		ProviderName:   "lxd_local",
-		Tags:           []string{"ubuntu", "simple-runner"},
+		Tags:           []string{"repo-runner"},
 		Enabled:        true,
 	}
 	repo, err := createRepoPool(cli, authToken, repoID, poolParams)
@@ -697,6 +908,23 @@ func UpdateRepoPool() {
 	pool, err := updateRepoPool(cli, authToken, repoID, repoPoolID, poolParams)
 	handleError(err)
 	printResponse(pool)
+}
+
+func InstallRepoWebhook() {
+	log.Println(">>> Install repo webhook")
+	webhookParams := params.InstallWebhookParams{
+		WebhookEndpointType: params.WebhookEndpointDirect,
+	}
+	webhookInfo, err := installRepoWebhook(cli, authToken, repoID, webhookParams)
+	handleError(err)
+	printResponse(webhookInfo)
+}
+
+func GetRepoWebhook() {
+	log.Println(">>> Get repo webhook")
+	webhookInfo, err := getRepoWebhook(cli, authToken, repoID)
+	handleError(err)
+	printResponse(webhookInfo)
 }
 
 func DisableRepoPool() {
@@ -859,6 +1087,23 @@ func GetOrg() {
 	printResponse(org)
 }
 
+func InstallOrgWebhook() {
+	log.Println(">>> Install org webhook")
+	webhookParams := params.InstallWebhookParams{
+		WebhookEndpointType: params.WebhookEndpointDirect,
+	}
+	webhookInfo, err := installOrgWebhook(cli, authToken, orgID, webhookParams)
+	handleError(err)
+	printResponse(webhookInfo)
+}
+
+func GetOrgWebhook() {
+	log.Println(">>> Get org webhook")
+	webhookInfo, err := getOrgWebhook(cli, authToken, orgID)
+	handleError(err)
+	printResponse(webhookInfo)
+}
+
 func CreateOrgPool() {
 	pools, err := listOrgPools(cli, authToken, orgID)
 	handleError(err)
@@ -876,7 +1121,7 @@ func CreateOrgPool() {
 		OSType:         commonParams.Linux,
 		OSArch:         commonParams.Amd64,
 		ProviderName:   "lxd_local",
-		Tags:           []string{"ubuntu", "simple-runner"},
+		Tags:           []string{"org-runner"},
 		Enabled:        true,
 	}
 	org, err := createOrgPool(cli, authToken, orgID, poolParams)
@@ -910,6 +1155,47 @@ func UpdateOrgPool() {
 	pool, err := updateOrgPool(cli, authToken, orgID, orgPoolID, poolParams)
 	handleError(err)
 	printResponse(pool)
+}
+
+// ///////
+// Jobs //
+// ///////
+func TriggerWorkflow(labelName string) {
+	log.Printf(">>> Trigger workflow with label %s", labelName)
+	client := getGithubClient()
+
+	eventReq := github.CreateWorkflowDispatchEventRequest{
+		Ref: "main",
+		Inputs: map[string]interface{}{
+			"sleep_time":   "50",
+			"runner_label": labelName,
+		},
+	}
+	_, err := client.Actions.CreateWorkflowDispatchEventByFileName(context.Background(), orgName, repoName, workflowFileName, eventReq)
+	handleError(err)
+}
+
+func ValidateJobLifecycle(label string) {
+	log.Printf(">>> Validate GARM job lifecycle with label %s", label)
+
+	// wait for job list to be updated
+	job := waitLabelledJob(label, 4*time.Minute)
+
+	// check expected job status
+	job = waitJobStatus(job.ID, params.JobStatusQueued, 4*time.Minute)
+	job = waitJobStatus(job.ID, params.JobStatusInProgress, 4*time.Minute)
+
+	// check expected instance status
+	instance := waitInstanceStatus(job.RunnerName, commonParams.InstanceRunning, params.RunnerActive, 5*time.Minute)
+
+	// wait for job to be completed
+	waitJobStatus(job.ID, params.JobStatusCompleted, 4*time.Minute)
+
+	// wait for instance to be removed
+	waitInstanceToBeRemoved(instance.Name, 5*time.Minute)
+
+	// wait for GARM to rebuild the pool running idle instances
+	waitPoolRunningIdleInstances(instance.PoolID, 6*time.Minute)
 }
 
 func DisableOrgPool() {
@@ -1050,7 +1336,7 @@ func DeleteInstance(name string) {
 
 	err := deleteInstance(cli, authToken, name)
 	for {
-		log.Printf(">>> Wait until instance %s is deleted", name)
+		log.Printf(">>> Waiting for instance %s to be deleted", name)
 		instances, err := listInstances(cli, authToken)
 		handleError(err)
 		for _, instance := range instances {
@@ -1176,10 +1462,10 @@ func main() {
 	ListCredentials()
 	ListProviders()
 
-	//////////
-	// jobs //
-	//////////
-	ListJobs()
+	// ///////////////////
+	// controller info //
+	// ///////////////////
+	GetControllerInfo()
 
 	////////////////////
 	/// metrics token //
@@ -1194,6 +1480,12 @@ func main() {
 	UpdateRepo()
 	GetRepo()
 
+	//////////////////
+	// webhooks //////
+	//////////////////
+	InstallRepoWebhook()
+	GetRepoWebhook()
+
 	CreateRepoPool()
 	ListRepoPools()
 	GetRepoPool()
@@ -1207,6 +1499,12 @@ func main() {
 	UpdateOrg()
 	GetOrg()
 
+	//////////////////
+	// webhooks //////
+	//////////////////
+	InstallOrgWebhook()
+	GetOrgWebhook()
+
 	CreateOrgPool()
 	ListOrgPools()
 	GetOrgPool()
@@ -1215,14 +1513,23 @@ func main() {
 	///////////////
 	// instances //
 	///////////////
-	WaitRepoInstance(2 * time.Minute)
+	WaitRepoInstance(6 * time.Minute)
 	ListRepoInstances()
 
-	WaitOrgInstance(2 * time.Minute)
+	WaitOrgInstance(6 * time.Minute)
 	ListOrgInstances()
 
 	ListInstances()
 	GetInstance()
+
+	/////////
+	// jobs //
+	/////////
+	TriggerWorkflow("org-runner")
+	ValidateJobLifecycle("org-runner")
+
+	TriggerWorkflow("repo-runner")
+	ValidateJobLifecycle("repo-runner")
 
 	///////////////
 	// pools //
