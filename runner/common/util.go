@@ -55,6 +55,8 @@ type GithubClient interface {
 	CreateOrganizationRegistrationToken(ctx context.Context, owner string) (*github.RegistrationToken, *github.Response, error)
 	// GenerateOrgJITConfig generate a just-in-time configuration for an organization.
 	GenerateOrgJITConfig(ctx context.Context, owner string, request *github.GenerateJITConfigRequest) (*github.JITRunnerConfig, *github.Response, error)
+	// ListOrganizationRunnerGroups lists all runner groups within an organization.
+	ListOrganizationRunnerGroups(ctx context.Context, org string, opts *github.ListOrgRunnerGroupOptions) (*github.RunnerGroups, *github.Response, error)
 }
 
 type GithubEnterpriseClient interface {
@@ -67,6 +69,8 @@ type GithubEnterpriseClient interface {
 	// ListRunnerApplicationDownloads returns a list of github runner application downloads for the
 	// various supported operating systems and architectures.
 	ListRunnerApplicationDownloads(ctx context.Context, enterprise string) ([]*github.RunnerApplicationDownload, *github.Response, error)
-
+	// GenerateEnterpriseJITConfig generate a just-in-time configuration for an enterprise.
 	GenerateEnterpriseJITConfig(ctx context.Context, enterprise string, request *github.GenerateJITConfigRequest) (*github.JITRunnerConfig, *github.Response, error)
+	// ListRunnerGroups lists all self-hosted runner groups configured in an enterprise.
+	ListRunnerGroups(ctx context.Context, enterprise string, opts *github.ListEnterpriseRunnerGroupOptions) (*github.EnterpriseRunnerGroups, *github.Response, error)
 }

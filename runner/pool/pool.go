@@ -532,6 +532,8 @@ func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner)
 			r.log("instance %s is still being created, give it a chance to finish", dbInstance.Name)
 			continue
 		case commonParams.InstanceRunning:
+			// this check is not strictly needed, but can help avoid unnecessary strain on the provider.
+			// At worst, we will have a runner that is offline in github for 5 minutes before we reap it.
 			if time.Since(dbInstance.UpdatedAt).Minutes() < 5 {
 				// instance was updated recently. We give it a chance to register itself in github.
 				r.log("instance %s was updated recently, skipping check", dbInstance.Name)
@@ -716,6 +718,10 @@ func (r *basePoolManager) AddRunner(ctx context.Context, poolID string, aditiona
 		return errors.Wrap(err, "creating instance")
 	}
 
+	// labels := r.getLabelsForInstance(pool)
+
+	// // Attempt to create JIT config
+
 	return nil
 }
 
@@ -744,6 +750,16 @@ func (r *basePoolManager) setPoolRunningState(isRunning bool, failureReason stri
 	r.mux.Unlock()
 }
 
+func (r *basePoolManager) getLabelsForInstance(pool params.Pool) []string {
+	labels := []string{}
+	for _, tag := range pool.Tags {
+		labels = append(labels, tag.Name)
+	}
+	labels = append(labels, r.controllerLabel())
+	labels = append(labels, r.poolLabel(pool.ID))
+	return labels
+}
+
 func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error {
 	pool, err := r.helper.GetPoolByID(instance.PoolID)
 	if err != nil {
@@ -755,13 +771,7 @@ func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error 
 		return fmt.Errorf("unknown provider %s for pool %s", pool.ProviderName, pool.ID)
 	}
 
-	labels := []string{}
-	for _, tag := range pool.Tags {
-		labels = append(labels, tag.Name)
-	}
-	labels = append(labels, r.controllerLabel())
-	labels = append(labels, r.poolLabel(pool.ID))
-
+	labels := r.getLabelsForInstance(pool)
 	jwtValidity := pool.RunnerTimeout()
 
 	entity := r.helper.String()
