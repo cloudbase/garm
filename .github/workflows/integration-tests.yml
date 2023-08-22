@@ -31,7 +31,7 @@ jobs:
       - name: Generate secrets
         run: |
           function randomStringGenerator() {
-            tr -dc "a-zA-Z0-9@#$%^&*()_+?><~\`;'" </dev/urandom | head -c 64 ; echo '';
+            tr -dc "a-zA-Z0-9@#%^&*()_+?><~;" </dev/urandom | head -c 64 ; echo '';
           }
 
           GARM_PASSWORD=$(randomStringGenerator)
