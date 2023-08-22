@@ -121,10 +121,10 @@ func NewAPIRouter(han *controllers.APIController, logWriter io.Writer, authMiddl
 	metadataRouter.Handle("/credentials/{fileName}/", http.HandlerFunc(han.JITCredentialsFileHandler)).Methods("GET", "OPTIONS")
 	metadataRouter.Handle("/credentials/{fileName}", http.HandlerFunc(han.JITCredentialsFileHandler)).Methods("GET", "OPTIONS")
 	// Systemd files
-	metadataRouter.Handle("/systemd/service-name/", http.HandlerFunc(han.SystemdServiceNameHandler)).Methods("GET", "OPTIONS")
-	metadataRouter.Handle("/systemd/service-name/", http.HandlerFunc(han.SystemdServiceNameHandler)).Methods("GET", "OPTIONS")
-	metadataRouter.Handle("/systemd/runner-service/", http.HandlerFunc(han.SystemdUnitFileHandler)).Methods("GET", "OPTIONS")
-	metadataRouter.Handle("/systemd/runner-service", http.HandlerFunc(han.SystemdUnitFileHandler)).Methods("GET", "OPTIONS")
+	metadataRouter.Handle("/system/service-name/", http.HandlerFunc(han.SystemdServiceNameHandler)).Methods("GET", "OPTIONS")
+	metadataRouter.Handle("/system/service-name", http.HandlerFunc(han.SystemdServiceNameHandler)).Methods("GET", "OPTIONS")
+	metadataRouter.Handle("/systemd/unit-file/", http.HandlerFunc(han.SystemdUnitFileHandler)).Methods("GET", "OPTIONS")
+	metadataRouter.Handle("/systemd/unit-file", http.HandlerFunc(han.SystemdUnitFileHandler)).Methods("GET", "OPTIONS")
 	metadataRouter.Handle("/system/cert-bundle/", http.HandlerFunc(han.RootCertificateBundleHandler)).Methods("GET", "OPTIONS")
 	metadataRouter.Handle("/system/cert-bundle", http.HandlerFunc(han.RootCertificateBundleHandler)).Methods("GET", "OPTIONS")
 

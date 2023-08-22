@@ -53,11 +53,13 @@ func validateInstanceState(ctx context.Context) (params.Instance, error) {
 func (r *Runner) GetRunnerServiceName(ctx context.Context) (string, error) {
 	instance, err := validateInstanceState(ctx)
 	if err != nil {
+		log.Printf("failed to get instance params: %s", err)
 		return "", runnerErrors.ErrUnauthorized
 	}
 
 	pool, err := r.store.GetPoolByID(r.ctx, instance.PoolID)
 	if err != nil {
+		log.Printf("failed to get pool: %s", err)
 		return "", errors.Wrap(err, "fetching pool")
 	}
 
@@ -113,7 +115,7 @@ func (r *Runner) GetJITConfigFile(ctx context.Context, file string) ([]byte, err
 	jitConfig := instance.JitConfiguration
 	contents, ok := jitConfig[file]
 	if !ok {
-		return nil, fmt.Errorf("file not found: %w", runnerErrors.ErrNotFound)
+		return nil, errors.Wrap(runnerErrors.ErrNotFound, "retrieving file")
 	}
 
 	decoded, err := base64.StdEncoding.DecodeString(contents)

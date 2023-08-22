@@ -55,14 +55,17 @@ func (a *APIController) JITCredentialsFileHandler(w http.ResponseWriter, r *http
 		return
 	}
 
-	data, err := a.r.GetJITConfigFile(ctx, fileName)
+	dotFileName := fmt.Sprintf(".%s", fileName)
+
+	data, err := a.r.GetJITConfigFile(ctx, dotFileName)
 	if err != nil {
+		log.Printf("getting JIT config file: %s", err)
 		handleError(w, err)
 		return
 	}
 
 	// Note the leading dot in the filename
-	name := fmt.Sprintf("attachment; filename=.%s", fileName)
+	name := fmt.Sprintf("attachment; filename=%s", dotFileName)
 	w.Header().Set("Content-Disposition", name)
 	w.Header().Set("Content-Type", "octet-stream")
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(data)))
