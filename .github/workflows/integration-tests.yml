@@ -2,7 +2,7 @@ name: Integration Tests
 on:
   workflow_dispatch: {}
   schedule:
-    - cron: "0 0 * * *" 
+    - cron: "0 0 * * *"
 
 jobs:
   integration-tests:
@@ -31,21 +31,21 @@ jobs:
       - name: Generate secrets
         run: |
           function randomStringGenerator() {
-            tr -dc "a-zA-Z0-9@#$%^&*()_+?><~\`;'" </dev/urandom | head -c 64 ; echo '';
+            tr -dc "a-zA-Z0-9@#%^&*()_+?><~;" </dev/urandom 2>/dev/null | head -c 64 ; echo '';
           }
 
           GARM_PASSWORD=$(randomStringGenerator)
           REPO_WEBHOOK_SECRET=$(randomStringGenerator)
           ORG_WEBHOOK_SECRET=$(randomStringGenerator)
 
-          echo "::add-mask::$GARM_PASSWORD" 
-          echo "::add-mask::$REPO_WEBHOOK_SECRET" 
-          echo "::add-mask::$ORG_WEBHOOK_SECRET" 
+          echo "::add-mask::$GARM_PASSWORD"
+          echo "::add-mask::$REPO_WEBHOOK_SECRET"
+          echo "::add-mask::$ORG_WEBHOOK_SECRET"
 
           echo "GARM_PASSWORD=$GARM_PASSWORD" >> $GITHUB_ENV
           echo "REPO_WEBHOOK_SECRET=$REPO_WEBHOOK_SECRET" >> $GITHUB_ENV
           echo "ORG_WEBHOOK_SECRET=$ORG_WEBHOOK_SECRET" >> $GITHUB_ENV
-      
+
       - name: Set up ngrok
         id: ngrok
         uses: gabriel-samfira/ngrok-tunnel-action@v1.1
@@ -62,7 +62,7 @@ jobs:
         run: |
           set -o pipefail
           set -o errexit
-          go run ./test/integration/e2e.go 2>&1 | tee /artifacts-logs/e2e.log 
+          go run ./test/integration/e2e.go 2>&1 | tee /artifacts-logs/e2e.log
         env:
           GARM_BASE_URL: ${{ steps.ngrok.outputs.tunnel-url }}
           GARM_USERNAME: admin
