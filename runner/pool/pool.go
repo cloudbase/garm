@@ -800,9 +800,6 @@ func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error 
 		return fmt.Errorf("unknown provider %s for pool %s", pool.ProviderName, pool.ID)
 	}
 
-	// We still need the labels here for situations where we don't have a JIT config generated.
-	// This can happen if GARM is used against an instance of GHES older than version 3.10.
-	labels := r.getLabelsForInstance(pool)
 	jwtValidity := pool.RunnerTimeout()
 
 	entity := r.helper.String()
@@ -810,6 +807,8 @@ func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error 
 	if err != nil {
 		return errors.Wrap(err, "fetching instance jwt token")
 	}
+
+	hasJITConfig := len(instance.JitConfiguration) > 0
 
 	bootstrapArgs := commonParams.BootstrapInstance{
 		Name:              instance.Name,
@@ -823,11 +822,17 @@ func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error 
 		Flavor:            pool.Flavor,
 		Image:             pool.Image,
 		ExtraSpecs:        pool.ExtraSpecs,
-		Labels:            labels,
 		PoolID:            instance.PoolID,
 		CACertBundle:      r.credsDetails.CABundle,
 		GitHubRunnerGroup: instance.GitHubRunnerGroup,
-		// JitConfigEnabled:  len(instance.JitConfiguration) > 0,
+		JitConfigEnabled:  hasJITConfig,
+	}
+
+	if !hasJITConfig {
+		// We still need the labels here for situations where we don't have a JIT config generated.
+		// This can happen if GARM is used against an instance of GHES older than version 3.10.
+		// The labels field should be ignored by providers if JIT config is enabled.
+		bootstrapArgs.Labels = r.getLabelsForInstance(pool)
 	}
 
 	var instanceIDToDelete string
@@ -1162,11 +1167,12 @@ func (r *basePoolManager) retryFailedInstancesForOnePool(ctx context.Context, po
 			// TODO(gabriel-samfira): Incrementing CreateAttempt should be done within a transaction.
 			// It's fairly safe to do here (for now), as there should be no other code path that updates
 			// an instance in this state.
-			var tokenFetched bool = false
+			var tokenFetched bool = len(instance.JitConfiguration) > 0
 			updateParams := params.UpdateInstanceParams{
 				CreateAttempt: instance.CreateAttempt + 1,
 				TokenFetched:  &tokenFetched,
 				Status:        commonParams.InstancePendingCreate,
+				RunnerStatus:  params.RunnerPending,
 			}
 			r.log("queueing previously failed instance %s for retry", instance.Name)
 			// Set instance to pending create and wait for retry.

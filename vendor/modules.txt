@@ -14,7 +14,7 @@ github.com/cespare/xxhash/v2
 # github.com/chzyer/readline v1.5.1
 ## explicit; go 1.15
 github.com/chzyer/readline
-# github.com/cloudbase/garm-provider-common v0.0.0-20230924074517-dd3e26769a05
+# github.com/cloudbase/garm-provider-common v0.0.0-20230924074517-dd3e26769a05 => /home/ubuntu/garm-provider-common
 ## explicit; go 1.20
 github.com/cloudbase/garm-provider-common/cloudconfig
 github.com/cloudbase/garm-provider-common/defaults
@@ -439,4 +439,5 @@ gorm.io/gorm/logger
 gorm.io/gorm/migrator
 gorm.io/gorm/schema
 gorm.io/gorm/utils
+# github.com/cloudbase/garm-provider-common => /home/ubuntu/garm-provider-common
 # github.com/google/go-github/v54 => github.com/gabriel-samfira/go-github/v54 v54.0.0-20230821112832-bbb536ee5a3a

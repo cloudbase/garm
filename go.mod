@@ -36,7 +36,10 @@ require (
 	gorm.io/gorm v1.24.6
 )
 
-replace github.com/google/go-github/v54 => github.com/gabriel-samfira/go-github/v54 v54.0.0-20230821112832-bbb536ee5a3a
+replace (
+	github.com/cloudbase/garm-provider-common => /home/ubuntu/garm-provider-common
+	github.com/google/go-github/v54 => github.com/gabriel-samfira/go-github/v54 v54.0.0-20230821112832-bbb536ee5a3a
+)
 
 require (
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
