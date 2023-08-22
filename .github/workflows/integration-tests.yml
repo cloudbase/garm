@@ -39,13 +39,11 @@ jobs:
 
       - name: Generate secrets
         run: |
-          function randomStringGenerator() {
-            tr -dc "a-zA-Z0-9@#%^&*()_+?><~;" </dev/urandom 2>/dev/null | head -c 64 ; echo '';
-          }
+          sudo apt-get -qq update && sudo apt-get -qq install -y apg
 
-          GARM_PASSWORD=$(randomStringGenerator)
-          REPO_WEBHOOK_SECRET=$(randomStringGenerator)
-          ORG_WEBHOOK_SECRET=$(randomStringGenerator)
+          GARM_PASSWORD=$(apg -n1 -m32)
+          REPO_WEBHOOK_SECRET=$(apg -n1 -m32)
+          ORG_WEBHOOK_SECRET=$(apg -n1 -m32)
 
           echo "::add-mask::$GARM_PASSWORD"
           echo "::add-mask::$REPO_WEBHOOK_SECRET"
