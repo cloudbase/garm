@@ -17,6 +17,7 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/cloudbase/garm-provider-common/util"
 	apiClientRepos "github.com/cloudbase/garm/client/repositories"
 	"github.com/cloudbase/garm/params"
 
@@ -25,10 +26,14 @@ import (
 )
 
 var (
-	repoOwner         string
-	repoName          string
-	repoWebhookSecret string
-	repoCreds         string
+	repoOwner           string
+	repoName            string
+	repoWebhookSecret   string
+	repoCreds           string
+	randomWebhookSecret bool
+	insecureRepoWebhook bool
+	keepRepoWebhook     bool
+	installRepoWebhook  bool
 )
 
 // repositoryCmd represents the repository command
@@ -45,6 +50,99 @@ repository for which the garm maintains pools of self hosted runners.`,
 	Run: nil,
 }
 
+var repoWebhookCmd = &cobra.Command{
+	Use:          "webhook",
+	Short:        "Manage repository webhooks",
+	Long:         `Manage repository webhooks.`,
+	SilenceUsage: true,
+	Run:          nil,
+}
+
+var repoWebhookInstallCmd = &cobra.Command{
+	Use:          "install",
+	Short:        "Install webhook",
+	Long:         `Install webhook for a repository.`,
+	SilenceUsage: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if needsInit {
+			return errNeedsInitError
+		}
+		if len(args) == 0 {
+			return fmt.Errorf("requires a repository ID")
+		}
+		if len(args) > 1 {
+			return fmt.Errorf("too many arguments")
+		}
+
+		installWebhookReq := apiClientRepos.NewInstallRepoWebhookParams()
+		installWebhookReq.RepoID = args[0]
+		installWebhookReq.Body.InsecureSSL = insecureRepoWebhook
+		installWebhookReq.Body.WebhookEndpointType = params.WebhookEndpointDirect
+
+		response, err := apiCli.Repositories.InstallRepoWebhook(installWebhookReq, authToken)
+		if err != nil {
+			return err
+		}
+		formatOneHookInfo(response.Payload)
+		return nil
+	},
+}
+
+var repoHookInfoShowCmd = &cobra.Command{
+	Use:          "show",
+	Short:        "Show webhook info",
+	Long:         `Show webhook info for a repository.`,
+	SilenceUsage: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if needsInit {
+			return errNeedsInitError
+		}
+		if len(args) == 0 {
+			return fmt.Errorf("requires a repository ID")
+		}
+		if len(args) > 1 {
+			return fmt.Errorf("too many arguments")
+		}
+
+		showWebhookInfoReq := apiClientRepos.NewGetRepoWebhookInfoParams()
+		showWebhookInfoReq.RepoID = args[0]
+
+		response, err := apiCli.Repositories.GetRepoWebhookInfo(showWebhookInfoReq, authToken)
+		if err != nil {
+			return err
+		}
+		formatOneHookInfo(response.Payload)
+		return nil
+	},
+}
+
+var repoWebhookUninstallCmd = &cobra.Command{
+	Use:          "uninstall",
+	Short:        "Uninstall webhook",
+	Long:         `Uninstall webhook for a repository.`,
+	SilenceUsage: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if needsInit {
+			return errNeedsInitError
+		}
+		if len(args) == 0 {
+			return fmt.Errorf("requires a repository ID")
+		}
+		if len(args) > 1 {
+			return fmt.Errorf("too many arguments")
+		}
+
+		uninstallWebhookReq := apiClientRepos.NewUninstallRepoWebhookParams()
+		uninstallWebhookReq.RepoID = args[0]
+
+		err := apiCli.Repositories.UninstallRepoWebhook(uninstallWebhookReq, authToken)
+		if err != nil {
+			return err
+		}
+		return nil
+	},
+}
+
 var repoAddCmd = &cobra.Command{
 	Use:          "add",
 	Aliases:      []string{"create"},
@@ -54,6 +152,14 @@ var repoAddCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
+		}
+
+		if randomWebhookSecret {
+			secret, err := util.GetRandomString(32)
+			if err != nil {
+				return err
+			}
+			repoWebhookSecret = secret
 		}
 
 		newRepoReq := apiClientRepos.NewCreateRepoParams()
@@ -67,7 +173,25 @@ var repoAddCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		formatOneRepository(response.Payload)
+
+		if installRepoWebhook {
+			installWebhookReq := apiClientRepos.NewInstallRepoWebhookParams()
+			installWebhookReq.RepoID = response.Payload.ID
+			installWebhookReq.Body.WebhookEndpointType = params.WebhookEndpointDirect
+
+			_, err := apiCli.Repositories.InstallRepoWebhook(installWebhookReq, authToken)
+			if err != nil {
+				return err
+			}
+		}
+
+		getRepoReq := apiClientRepos.NewGetRepoParams()
+		getRepoReq.RepoID = response.Payload.ID
+		repo, err := apiCli.Repositories.GetRepo(getRepoReq, authToken)
+		if err != nil {
+			return err
+		}
+		formatOneRepository(repo.Payload)
 		return nil
 	},
 }
@@ -170,6 +294,7 @@ var repoDeleteCmd = &cobra.Command{
 		}
 		deleteRepoReq := apiClientRepos.NewDeleteRepoParams()
 		deleteRepoReq.RepoID = args[0]
+		deleteRepoReq.KeepWebhook = &keepRepoWebhook
 		if err := apiCli.Repositories.DeleteRepo(deleteRepoReq, authToken); err != nil {
 			return err
 		}
@@ -183,11 +308,27 @@ func init() {
 	repoAddCmd.Flags().StringVar(&repoName, "name", "", "The name of the repository")
 	repoAddCmd.Flags().StringVar(&repoWebhookSecret, "webhook-secret", "", "The webhook secret for this repository")
 	repoAddCmd.Flags().StringVar(&repoCreds, "credentials", "", "Credentials name. See credentials list.")
+	repoAddCmd.Flags().BoolVar(&randomWebhookSecret, "random-webhook-secret", false, "Generate a random webhook secret for this repository.")
+	repoAddCmd.Flags().BoolVar(&installRepoWebhook, "install-webhook", false, "Install the webhook as part of the add operation.")
+	repoAddCmd.MarkFlagsMutuallyExclusive("webhook-secret", "random-webhook-secret")
+	repoAddCmd.MarkFlagsOneRequired("webhook-secret", "random-webhook-secret")
+
 	repoAddCmd.MarkFlagRequired("credentials") //nolint
 	repoAddCmd.MarkFlagRequired("owner")       //nolint
 	repoAddCmd.MarkFlagRequired("name")        //nolint
-	repoUpdateCmd.Flags().StringVar(&repoWebhookSecret, "webhook-secret", "", "The webhook secret for this repository")
+
+	repoDeleteCmd.Flags().BoolVar(&keepRepoWebhook, "keep-webhook", false, "Do not delete any existing webhook when removing the repo from GARM.")
+
+	repoUpdateCmd.Flags().StringVar(&repoWebhookSecret, "webhook-secret", "", "The webhook secret for this repository. If you update this secret, you will have to manually update the secret in GitHub as well.")
 	repoUpdateCmd.Flags().StringVar(&repoCreds, "credentials", "", "Credentials name. See credentials list.")
+
+	repoWebhookInstallCmd.Flags().BoolVar(&insecureRepoWebhook, "insecure", false, "Ignore self signed certificate errors.")
+
+	repoWebhookCmd.AddCommand(
+		repoWebhookInstallCmd,
+		repoWebhookUninstallCmd,
+		repoHookInfoShowCmd,
+	)
 
 	repositoryCmd.AddCommand(
 		repoListCmd,
@@ -195,6 +336,7 @@ func init() {
 		repoShowCmd,
 		repoDeleteCmd,
 		repoUpdateCmd,
+		repoWebhookCmd,
 	)
 
 	rootCmd.AddCommand(repositoryCmd)

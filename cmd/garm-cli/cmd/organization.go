@@ -17,6 +17,7 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/cloudbase/garm-provider-common/util"
 	apiClientOrgs "github.com/cloudbase/garm/client/organizations"
 	"github.com/cloudbase/garm/params"
 
@@ -25,9 +26,13 @@ import (
 )
 
 var (
-	orgName          string
-	orgWebhookSecret string
-	orgCreds         string
+	orgName                string
+	orgWebhookSecret       string
+	orgCreds               string
+	orgRandomWebhookSecret bool
+	insecureOrgWebhook     bool
+	keepOrgWebhook         bool
+	installOrgWebhook      bool
 )
 
 // organizationCmd represents the organization command
@@ -44,6 +49,99 @@ organization for which garm maintains pools of self hosted runners.`,
 	Run: nil,
 }
 
+var orgWebhookCmd = &cobra.Command{
+	Use:          "webhook",
+	Short:        "Manage organization webhooks",
+	Long:         `Manage organization webhooks.`,
+	SilenceUsage: true,
+	Run:          nil,
+}
+
+var orgWebhookInstallCmd = &cobra.Command{
+	Use:          "install",
+	Short:        "Install webhook",
+	Long:         `Install webhook for an organization.`,
+	SilenceUsage: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if needsInit {
+			return errNeedsInitError
+		}
+		if len(args) == 0 {
+			return fmt.Errorf("requires an organization ID")
+		}
+		if len(args) > 1 {
+			return fmt.Errorf("too many arguments")
+		}
+
+		installWebhookReq := apiClientOrgs.NewInstallOrgWebhookParams()
+		installWebhookReq.OrgID = args[0]
+		installWebhookReq.Body.InsecureSSL = insecureOrgWebhook
+		installWebhookReq.Body.WebhookEndpointType = params.WebhookEndpointDirect
+
+		response, err := apiCli.Organizations.InstallOrgWebhook(installWebhookReq, authToken)
+		if err != nil {
+			return err
+		}
+		formatOneHookInfo(response.Payload)
+		return nil
+	},
+}
+
+var orgHookInfoShowCmd = &cobra.Command{
+	Use:          "show",
+	Short:        "Show webhook info",
+	Long:         `Show webhook info for an organization.`,
+	SilenceUsage: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if needsInit {
+			return errNeedsInitError
+		}
+		if len(args) == 0 {
+			return fmt.Errorf("requires an organization ID")
+		}
+		if len(args) > 1 {
+			return fmt.Errorf("too many arguments")
+		}
+
+		showWebhookInfoReq := apiClientOrgs.NewGetOrgWebhookInfoParams()
+		showWebhookInfoReq.OrgID = args[0]
+
+		response, err := apiCli.Organizations.GetOrgWebhookInfo(showWebhookInfoReq, authToken)
+		if err != nil {
+			return err
+		}
+		formatOneHookInfo(response.Payload)
+		return nil
+	},
+}
+
+var orgWebhookUninstallCmd = &cobra.Command{
+	Use:          "uninstall",
+	Short:        "Uninstall webhook",
+	Long:         `Uninstall webhook for an organization.`,
+	SilenceUsage: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if needsInit {
+			return errNeedsInitError
+		}
+		if len(args) == 0 {
+			return fmt.Errorf("requires an organization ID")
+		}
+		if len(args) > 1 {
+			return fmt.Errorf("too many arguments")
+		}
+
+		uninstallWebhookReq := apiClientOrgs.NewUninstallOrgWebhookParams()
+		uninstallWebhookReq.OrgID = args[0]
+
+		err := apiCli.Organizations.UninstallOrgWebhook(uninstallWebhookReq, authToken)
+		if err != nil {
+			return err
+		}
+		return nil
+	},
+}
+
 var orgAddCmd = &cobra.Command{
 	Use:          "add",
 	Aliases:      []string{"create"},
@@ -53,6 +151,14 @@ var orgAddCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
+		}
+
+		if orgRandomWebhookSecret {
+			secret, err := util.GetRandomString(32)
+			if err != nil {
+				return err
+			}
+			orgWebhookSecret = secret
 		}
 
 		newOrgReq := apiClientOrgs.NewCreateOrgParams()
@@ -65,7 +171,25 @@ var orgAddCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		formatOneOrganization(response.Payload)
+
+		if installOrgWebhook {
+			installWebhookReq := apiClientOrgs.NewInstallOrgWebhookParams()
+			installWebhookReq.OrgID = response.Payload.ID
+			installWebhookReq.Body.WebhookEndpointType = params.WebhookEndpointDirect
+
+			_, err = apiCli.Organizations.InstallOrgWebhook(installWebhookReq, authToken)
+			if err != nil {
+				return err
+			}
+		}
+
+		getOrgRequest := apiClientOrgs.NewGetOrgParams()
+		getOrgRequest.OrgID = response.Payload.ID
+		org, err := apiCli.Organizations.GetOrg(getOrgRequest, authToken)
+		if err != nil {
+			return err
+		}
+		formatOneOrganization(org.Payload)
 		return nil
 	},
 }
@@ -89,7 +213,7 @@ var orgUpdateCmd = &cobra.Command{
 		}
 		updateOrgReq := apiClientOrgs.NewUpdateOrgParams()
 		updateOrgReq.Body = params.UpdateEntityParams{
-			WebhookSecret:   repoWebhookSecret,
+			WebhookSecret:   orgWebhookSecret,
 			CredentialsName: orgCreds,
 		}
 		updateOrgReq.OrgID = args[0]
@@ -167,6 +291,7 @@ var orgDeleteCmd = &cobra.Command{
 		}
 		deleteOrgReq := apiClientOrgs.NewDeleteOrgParams()
 		deleteOrgReq.OrgID = args[0]
+		deleteOrgReq.KeepWebhook = &keepOrgWebhook
 		if err := apiCli.Organizations.DeleteOrg(deleteOrgReq, authToken); err != nil {
 			return err
 		}
@@ -179,10 +304,25 @@ func init() {
 	orgAddCmd.Flags().StringVar(&orgName, "name", "", "The name of the organization")
 	orgAddCmd.Flags().StringVar(&orgWebhookSecret, "webhook-secret", "", "The webhook secret for this organization")
 	orgAddCmd.Flags().StringVar(&orgCreds, "credentials", "", "Credentials name. See credentials list.")
+	orgAddCmd.Flags().BoolVar(&orgRandomWebhookSecret, "random-webhook-secret", false, "Generate a random webhook secret for this organization.")
+	orgAddCmd.Flags().BoolVar(&installOrgWebhook, "install-webhook", false, "Install the webhook as part of the add operation.")
+	orgAddCmd.MarkFlagsMutuallyExclusive("webhook-secret", "random-webhook-secret")
+	orgAddCmd.MarkFlagsOneRequired("webhook-secret", "random-webhook-secret")
+
 	orgAddCmd.MarkFlagRequired("credentials") //nolint
 	orgAddCmd.MarkFlagRequired("name")        //nolint
+
+	orgDeleteCmd.Flags().BoolVar(&keepOrgWebhook, "keep-webhook", false, "Do not delete any existing webhook when removing the organization from GARM.")
+
 	orgUpdateCmd.Flags().StringVar(&orgWebhookSecret, "webhook-secret", "", "The webhook secret for this organization")
 	orgUpdateCmd.Flags().StringVar(&orgCreds, "credentials", "", "Credentials name. See credentials list.")
+
+	orgWebhookInstallCmd.Flags().BoolVar(&insecureOrgWebhook, "insecure", false, "Ignore self signed certificate errors.")
+	orgWebhookCmd.AddCommand(
+		orgWebhookInstallCmd,
+		orgWebhookUninstallCmd,
+		orgHookInfoShowCmd,
+	)
 
 	organizationCmd.AddCommand(
 		orgListCmd,
@@ -190,6 +330,7 @@ func init() {
 		orgShowCmd,
 		orgDeleteCmd,
 		orgUpdateCmd,
+		orgWebhookCmd,
 	)
 
 	rootCmd.AddCommand(organizationCmd)

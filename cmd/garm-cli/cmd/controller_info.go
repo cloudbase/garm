@@ -46,22 +46,32 @@ var infoShowCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		formatInfo(response.Payload)
-		return nil
+		return formatInfo(response.Payload)
 	},
 }
 
-func formatInfo(info params.ControllerInfo) {
+func formatInfo(info params.ControllerInfo) error {
 	t := table.NewWriter()
-
 	header := table.Row{"Field", "Value"}
+
+	if info.WebhookURL == "" {
+		info.WebhookURL = "N/A"
+	}
+
+	if info.ControllerWebhookURL == "" {
+		info.ControllerWebhookURL = "N/A"
+	}
 
 	t.AppendHeader(header)
 	t.AppendRow(table.Row{"Controller ID", info.ControllerID})
 	t.AppendRow(table.Row{"Hostname", info.Hostname})
 	t.AppendRow(table.Row{"Metadata URL", info.MetadataURL})
 	t.AppendRow(table.Row{"Callback URL", info.CallbackURL})
+	t.AppendRow(table.Row{"Webhook Base URL", info.WebhookURL})
+	t.AppendRow(table.Row{"Controller Webhook URL", info.ControllerWebhookURL})
 	fmt.Println(t.Render())
+
+	return nil
 }
 
 func init() {

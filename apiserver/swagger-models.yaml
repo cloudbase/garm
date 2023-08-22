@@ -8,10 +8,24 @@ definitions:
         import:
             package: github.com/cloudbase/garm/params
             alias: garm_params
+  HookInfo:
+    type: object
+    x-go-type:
+        type: HookInfo
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
   ControllerInfo:
     type: object
     x-go-type:
         type: ControllerInfo
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+  InstallWebhookParams:
+    type: object
+    x-go-type:
+        type: InstallWebhookParams
         import:
             package: github.com/cloudbase/garm/params
             alias: garm_params

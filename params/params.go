@@ -27,12 +27,13 @@ import (
 )
 
 type (
-	PoolType     string
-	EventType    string
-	EventLevel   string
-	ProviderType string
-	JobStatus    string
-	RunnerStatus string
+	PoolType            string
+	EventType           string
+	EventLevel          string
+	ProviderType        string
+	JobStatus           string
+	RunnerStatus        string
+	WebhookEndpointType string
 )
 
 const (
@@ -40,6 +41,16 @@ const (
 	LXDProvider ProviderType = "lxd"
 	// ExternalProvider represents an external provider.
 	ExternalProvider ProviderType = "external"
+)
+
+const (
+	// WebhookEndpointDirect instructs garm that it should attempt to create a webhook
+	// in the target entity, using the callback URL defined in the config as a target.
+	WebhookEndpointDirect WebhookEndpointType = "direct"
+	// WebhookEndpointTunnel instructs garm that it should attempt to create a webhook
+	// in the target entity, using the tunnel URL as a base for the webhook URL.
+	// This is defined for future use.
+	WebhookEndpointTunnel WebhookEndpointType = "tunnel"
 )
 
 const (
@@ -285,11 +296,14 @@ func (p *Pool) PoolType() PoolType {
 type Pools []Pool
 
 type Internal struct {
-	OAuth2Token         string `json:"oauth2"`
-	ControllerID        string `json:"controller_id"`
-	InstanceCallbackURL string `json:"instance_callback_url"`
-	InstanceMetadataURL string `json:"instance_metadata_url"`
-	JWTSecret           string `json:"jwt_secret"`
+	OAuth2Token          string `json:"oauth2"`
+	ControllerID         string `json:"controller_id"`
+	InstanceCallbackURL  string `json:"instance_callback_url"`
+	InstanceMetadataURL  string `json:"instance_metadata_url"`
+	BaseWebhookURL       string `json:"base_webhook_url"`
+	ControllerWebhookURL string `json:"controller_webhook_url"`
+
+	JWTSecret string `json:"jwt_secret"`
 	// GithubCredentialsDetails contains all info about the credentials, except the
 	// token, which is added above.
 	GithubCredentialsDetails GithubCredentials `json:"gh_creds_details"`
@@ -379,10 +393,12 @@ type JWTResponse struct {
 }
 
 type ControllerInfo struct {
-	ControllerID uuid.UUID `json:"controller_id"`
-	Hostname     string    `json:"hostname"`
-	MetadataURL  string    `json:"metadata_url"`
-	CallbackURL  string    `json:"callback_url"`
+	ControllerID         uuid.UUID `json:"controller_id"`
+	Hostname             string    `json:"hostname"`
+	MetadataURL          string    `json:"metadata_url"`
+	CallbackURL          string    `json:"callback_url"`
+	WebhookURL           string    `json:"webhook_url"`
+	ControllerWebhookURL string    `json:"controller_webhook_url"`
 }
 
 type GithubCredentials struct {
@@ -484,3 +500,16 @@ type Job struct {
 
 // used by swagger client generated code
 type Jobs []Job
+
+type InstallWebhookParams struct {
+	WebhookEndpointType WebhookEndpointType `json:"webhook_endpoint_type"`
+	InsecureSSL         bool                `json:"insecure_ssl"`
+}
+
+type HookInfo struct {
+	ID          int64    `json:"id"`
+	URL         string   `json:"url"`
+	Events      []string `json:"events"`
+	Active      bool     `json:"active"`
+	InsecureSSL bool     `json:"insecure_ssl"`
+}

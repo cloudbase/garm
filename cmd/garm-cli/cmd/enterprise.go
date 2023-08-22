@@ -17,6 +17,7 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/cloudbase/garm-provider-common/util"
 	apiClientEnterprises "github.com/cloudbase/garm/client/enterprises"
 	"github.com/cloudbase/garm/params"
 
@@ -25,9 +26,10 @@ import (
 )
 
 var (
-	enterpriseName          string
-	enterpriseWebhookSecret string
-	enterpriseCreds         string
+	enterpriseName                string
+	enterpriseWebhookSecret       string
+	enterpriseCreds               string
+	enterpriseRandomWebhookSecret bool
 )
 
 // enterpriseCmd represents the enterprise command
@@ -53,6 +55,14 @@ var enterpriseAddCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
+		}
+
+		if enterpriseRandomWebhookSecret {
+			secret, err := util.GetRandomString(32)
+			if err != nil {
+				return err
+			}
+			enterpriseWebhookSecret = secret
 		}
 
 		newEnterpriseReq := apiClientEnterprises.NewCreateEnterpriseParams()
@@ -179,6 +189,9 @@ func init() {
 	enterpriseAddCmd.Flags().StringVar(&enterpriseName, "name", "", "The name of the enterprise")
 	enterpriseAddCmd.Flags().StringVar(&enterpriseWebhookSecret, "webhook-secret", "", "The webhook secret for this enterprise")
 	enterpriseAddCmd.Flags().StringVar(&enterpriseCreds, "credentials", "", "Credentials name. See credentials list.")
+	enterpriseAddCmd.Flags().BoolVar(&enterpriseRandomWebhookSecret, "random-webhook-secret", false, "Generate a random webhook secret for this organization.")
+	enterpriseAddCmd.MarkFlagsMutuallyExclusive("webhook-secret", "random-webhook-secret")
+
 	enterpriseAddCmd.MarkFlagRequired("credentials") //nolint
 	enterpriseAddCmd.MarkFlagRequired("name")        //nolint
 	enterpriseUpdateCmd.Flags().StringVar(&enterpriseWebhookSecret, "webhook-secret", "", "The webhook secret for this enterprise")

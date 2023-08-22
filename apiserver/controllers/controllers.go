@@ -30,11 +30,16 @@ import (
 	"github.com/cloudbase/garm/runner"
 	wsWriter "github.com/cloudbase/garm/websocket"
 
+	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 )
 
 func NewAPIController(r *runner.Runner, authenticator *auth.Authenticator, hub *wsWriter.Hub) (*APIController, error) {
+	controllerInfo, err := r.GetControllerInfo(auth.GetAdminContext())
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get controller info")
+	}
 	return &APIController{
 		r:    r,
 		auth: authenticator,
@@ -43,18 +48,20 @@ func NewAPIController(r *runner.Runner, authenticator *auth.Authenticator, hub *
 			ReadBufferSize:  1024,
 			WriteBufferSize: 16384,
 		},
+		controllerID: controllerInfo.ControllerID.String(),
 	}, nil
 }
 
 type APIController struct {
-	r        *runner.Runner
-	auth     *auth.Authenticator
-	hub      *wsWriter.Hub
-	upgrader websocket.Upgrader
+	r            *runner.Runner
+	auth         *auth.Authenticator
+	hub          *wsWriter.Hub
+	upgrader     websocket.Upgrader
+	controllerID string
 }
 
 func handleError(w http.ResponseWriter, err error) {
-	w.Header().Add("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/json")
 	origErr := errors.Cause(err)
 	apiErr := params.APIErrorResponse{
 		Details: origErr.Error(),
@@ -138,7 +145,19 @@ func (a *APIController) handleWorkflowJobEvent(w http.ResponseWriter, r *http.Re
 	labelValues = a.webhookMetricLabelValues("true", "")
 }
 
-func (a *APIController) CatchAll(w http.ResponseWriter, r *http.Request) {
+func (a *APIController) WebhookHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	controllerID, ok := vars["controllerID"]
+	// If the webhook URL includes a controller ID, we validate that it's meant for us. We still
+	// support bare webhook URLs, which are tipically configured manually by the user.
+	// The controllerID suffixed webhook URL is useful when configuring the webhook for an entity
+	// via garm. We cannot tag a webhook URL on github, so there is no way to determine ownership.
+	// Using a controllerID suffix is a simple way to denote ownership.
+	if ok && controllerID != a.controllerID {
+		log.Printf("ignoring webhook meant for controller %s", util.SanitizeLogEntry(controllerID))
+		return
+	}
+
 	headers := r.Header.Clone()
 
 	event := runnerParams.Event(headers.Get("X-Github-Event"))
@@ -195,8 +214,9 @@ func (a *APIController) NotFoundHandler(w http.ResponseWriter, r *http.Request) 
 		Details: "Resource not found",
 		Error:   "Not found",
 	}
-	w.WriteHeader(http.StatusNotFound)
+
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusNotFound)
 	if err := json.NewEncoder(w).Encode(apiErr); err != nil {
 		log.Printf("failet to write response: %q", err)
 	}

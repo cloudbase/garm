@@ -21,7 +21,9 @@ import (
 
 	apiClient "github.com/cloudbase/garm/client"
 	"github.com/cloudbase/garm/cmd/garm-cli/config"
+	"github.com/cloudbase/garm/params"
 	"github.com/go-openapi/runtime"
+	"github.com/jedib0t/go-pretty/v6/table"
 
 	openapiRuntimeClient "github.com/go-openapi/runtime/client"
 	"github.com/spf13/cobra"
@@ -97,4 +99,18 @@ func initConfig() {
 		}
 	}
 	initApiClient(mgr.BaseURL, mgr.Token)
+}
+
+func formatOneHookInfo(hook params.HookInfo) {
+	t := table.NewWriter()
+	header := table.Row{"Field", "Value"}
+	t.AppendHeader(header)
+	t.AppendRows([]table.Row{
+		{"ID", hook.ID},
+		{"URL", hook.URL},
+		{"Events", hook.Events},
+		{"Active", hook.Active},
+		{"Insecure SSL", hook.InsecureSSL},
+	})
+	fmt.Println(t.Render())
 }

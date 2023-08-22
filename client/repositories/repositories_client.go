@@ -40,11 +40,17 @@ type ClientService interface {
 
 	GetRepoPool(params *GetRepoPoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetRepoPoolOK, error)
 
+	GetRepoWebhookInfo(params *GetRepoWebhookInfoParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetRepoWebhookInfoOK, error)
+
+	InstallRepoWebhook(params *InstallRepoWebhookParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*InstallRepoWebhookOK, error)
+
 	ListRepoInstances(params *ListRepoInstancesParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListRepoInstancesOK, error)
 
 	ListRepoPools(params *ListRepoPoolsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListRepoPoolsOK, error)
 
 	ListRepos(params *ListReposParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListReposOK, error)
+
+	UninstallRepoWebhook(params *UninstallRepoWebhookParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error
 
 	UpdateRepo(params *UpdateRepoParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateRepoOK, error)
 
@@ -270,6 +276,84 @@ func (a *Client) GetRepoPool(params *GetRepoPoolParams, authInfo runtime.ClientA
 }
 
 /*
+GetRepoWebhookInfo gets information about the g a r m installed webhook on a repository
+*/
+func (a *Client) GetRepoWebhookInfo(params *GetRepoWebhookInfoParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetRepoWebhookInfoOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewGetRepoWebhookInfoParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "GetRepoWebhookInfo",
+		Method:             "GET",
+		PathPattern:        "/repositories/{repoID}/webhook",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &GetRepoWebhookInfoReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*GetRepoWebhookInfoOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*GetRepoWebhookInfoDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+	InstallRepoWebhook Install the GARM webhook for an organization. The secret configured on the organization will
+
+be used to validate the requests.
+*/
+func (a *Client) InstallRepoWebhook(params *InstallRepoWebhookParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*InstallRepoWebhookOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewInstallRepoWebhookParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "InstallRepoWebhook",
+		Method:             "POST",
+		PathPattern:        "/repositories/{repoID}/webhook",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &InstallRepoWebhookReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*InstallRepoWebhookOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*InstallRepoWebhookDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
 ListRepoInstances lists repository instances
 */
 func (a *Client) ListRepoInstances(params *ListRepoInstancesParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListRepoInstancesOK, error) {
@@ -381,6 +465,38 @@ func (a *Client) ListRepos(params *ListReposParams, authInfo runtime.ClientAuthI
 	// unexpected success response
 	unexpectedSuccess := result.(*ListReposDefault)
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+UninstallRepoWebhook uninstalls organization webhook
+*/
+func (a *Client) UninstallRepoWebhook(params *UninstallRepoWebhookParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewUninstallRepoWebhookParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "UninstallRepoWebhook",
+		Method:             "DELETE",
+		PathPattern:        "/repositories/{repoID}/webhook",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &UninstallRepoWebhookReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	_, err := a.transport.Submit(op)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 /*

@@ -311,12 +311,18 @@ func (p *poolManagerCtrl) getInternalConfig(credsName string) (params.Internal, 
 		return params.Internal{}, fmt.Errorf("fetching CA bundle for creds: %w", err)
 	}
 
+	var controllerWebhookURL string
+	if p.config.Default.WebhookURL != "" {
+		controllerWebhookURL = fmt.Sprintf("%s/%s", p.config.Default.WebhookURL, p.controllerID)
+	}
 	return params.Internal{
-		OAuth2Token:         creds.OAuth2Token,
-		ControllerID:        p.controllerID,
-		InstanceCallbackURL: p.config.Default.CallbackURL,
-		InstanceMetadataURL: p.config.Default.MetadataURL,
-		JWTSecret:           p.config.JWTAuth.Secret,
+		OAuth2Token:          creds.OAuth2Token,
+		ControllerID:         p.controllerID,
+		InstanceCallbackURL:  p.config.Default.CallbackURL,
+		InstanceMetadataURL:  p.config.Default.MetadataURL,
+		BaseWebhookURL:       p.config.Default.WebhookURL,
+		ControllerWebhookURL: controllerWebhookURL,
+		JWTSecret:            p.config.JWTAuth.Secret,
 		GithubCredentialsDetails: params.GithubCredentials{
 			Name:          creds.Name,
 			Description:   creds.Description,
@@ -376,11 +382,17 @@ func (r *Runner) GetControllerInfo(ctx context.Context) (params.ControllerInfo, 
 		return params.ControllerInfo{}, errors.Wrap(err, "fetching hostname")
 	}
 	r.controllerInfo.Hostname = hostname
+	var controllerWebhook string
+	if r.controllerID != uuid.Nil && r.config.Default.WebhookURL != "" {
+		controllerWebhook = fmt.Sprintf("%s/%s", r.config.Default.WebhookURL, r.controllerID.String())
+	}
 	return params.ControllerInfo{
-		ControllerID: r.controllerID,
-		Hostname:     hostname,
-		MetadataURL:  r.config.Default.MetadataURL,
-		CallbackURL:  r.config.Default.CallbackURL,
+		ControllerID:         r.controllerID,
+		Hostname:             hostname,
+		MetadataURL:          r.config.Default.MetadataURL,
+		CallbackURL:          r.config.Default.CallbackURL,
+		WebhookURL:           r.config.Default.WebhookURL,
+		ControllerWebhookURL: controllerWebhook,
 	}, nil
 }
 
