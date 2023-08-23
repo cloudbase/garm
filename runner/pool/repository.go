@@ -121,7 +121,7 @@ func (r *repository) GetJITConfig(ctx context.Context, instance params.Instance,
 		}
 	}()
 
-	decoded, err := base64.StdEncoding.DecodeString(*jitConfig.EncodedJITConfig)
+	decoded, err := base64.StdEncoding.DecodeString(jitConfig.GetEncodedJITConfig())
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to decode JIT config: %w", err)
 	}
@@ -131,7 +131,7 @@ func (r *repository) GetJITConfig(ctx context.Context, instance params.Instance,
 		return nil, nil, fmt.Errorf("failed to unmarshal JIT config: %w", err)
 	}
 
-	return ret, jitConfig.Runner, nil
+	return ret, runner, nil
 }
 
 func (r *repository) GithubCLI() common.GithubClient {

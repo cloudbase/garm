@@ -103,7 +103,7 @@ func (r *organization) findRunnerGroupByName(ctx context.Context, name string) (
 			return nil, errors.Wrap(err, "fetching runners")
 		}
 		for _, runnerGroup := range runnerGroups.RunnerGroups {
-			if runnerGroup.Name != nil && *runnerGroup.Name == name {
+			if runnerGroup.GetName() == name {
 				return runnerGroup, nil
 			}
 		}
@@ -131,7 +131,7 @@ func (r *organization) GetJITConfig(ctx context.Context, instance params.Instanc
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to find runner group: %w", err)
 		}
-		rg = *runnerGroup.ID
+		rg = runnerGroup.GetID()
 	}
 
 	req := github.GenerateJITConfigRequest{
@@ -149,7 +149,7 @@ func (r *organization) GetJITConfig(ctx context.Context, instance params.Instanc
 		return nil, nil, fmt.Errorf("failed to get JIT config: %w", err)
 	}
 
-	runner = jitConfig.Runner
+	runner = jitConfig.GetRunner()
 	defer func() {
 		if err != nil && runner != nil {
 			_, innerErr := r.ghcli.RemoveOrganizationRunner(r.ctx, r.cfg.Name, runner.GetID())
@@ -157,7 +157,7 @@ func (r *organization) GetJITConfig(ctx context.Context, instance params.Instanc
 		}
 	}()
 
-	decoded, err := base64.StdEncoding.DecodeString(*jitConfig.EncodedJITConfig)
+	decoded, err := base64.StdEncoding.DecodeString(jitConfig.GetEncodedJITConfig())
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to decode JIT config: %w", err)
 	}
@@ -167,7 +167,7 @@ func (r *organization) GetJITConfig(ctx context.Context, instance params.Instanc
 		return nil, nil, fmt.Errorf("failed to unmarshal JIT config: %w", err)
 	}
 
-	return ret, jitConfig.Runner, nil
+	return ret, runner, nil
 }
 
 func (r *organization) GithubCLI() common.GithubClient {
