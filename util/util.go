@@ -86,7 +86,7 @@ func GithubClient(ctx context.Context, token string, credsDetails params.GithubC
 	}
 	httpTransport := &http.Transport{
 		TLSClientConfig: &tls.Config{
-			ClientCAs: roots,
+			RootCAs: roots,
 		},
 	}
 	httpClient := &http.Client{Transport: httpTransport}
