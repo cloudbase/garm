@@ -47,6 +47,10 @@ list all instances.`,
 	Run: nil,
 }
 
+type instancesPayloadGetter interface {
+	GetPayload() params.Instances
+}
+
 var runnerListCmd = &cobra.Command{
 	Use:     "list",
 	Aliases: []string{"ls"},
@@ -80,7 +84,7 @@ Example:
 			return errNeedsInitError
 		}
 
-		var instances []params.Instance
+		var response instancesPayloadGetter
 		var err error
 
 		switch len(args) {
@@ -92,35 +96,25 @@ Example:
 
 				return fmt.Errorf("specifying a pool ID and any of [all org repo enterprise] are mutually exclusive")
 			}
-			var response *apiClientInstances.ListPoolInstancesOK
 			listPoolInstancesReq := apiClientInstances.NewListPoolInstancesParams()
 			listPoolInstancesReq.PoolID = args[0]
 			response, err = apiCli.Instances.ListPoolInstances(listPoolInstancesReq, authToken)
-			instances = response.Payload
 		case 0:
 			if cmd.Flags().Changed("repo") {
-				var response *apiClientRepos.ListRepoInstancesOK
 				listRepoInstancesReq := apiClientRepos.NewListRepoInstancesParams()
 				listRepoInstancesReq.RepoID = runnerRepository
 				response, err = apiCli.Repositories.ListRepoInstances(listRepoInstancesReq, authToken)
-				instances = response.Payload
 			} else if cmd.Flags().Changed("org") {
-				var response *apiClientOrgs.ListOrgInstancesOK
 				listOrgInstancesReq := apiClientOrgs.NewListOrgInstancesParams()
 				listOrgInstancesReq.OrgID = runnerOrganization
 				response, err = apiCli.Organizations.ListOrgInstances(listOrgInstancesReq, authToken)
-				instances = response.Payload
 			} else if cmd.Flags().Changed("enterprise") {
-				var response *apiClientEnterprises.ListEnterpriseInstancesOK
 				listEnterpriseInstancesReq := apiClientEnterprises.NewListEnterpriseInstancesParams()
 				listEnterpriseInstancesReq.EnterpriseID = runnerEnterprise
 				response, err = apiCli.Enterprises.ListEnterpriseInstances(listEnterpriseInstancesReq, authToken)
-				instances = response.Payload
 			} else if cmd.Flags().Changed("all") {
-				var response *apiClientInstances.ListInstancesOK
 				listInstancesReq := apiClientInstances.NewListInstancesParams()
 				response, err = apiCli.Instances.ListInstances(listInstancesReq, authToken)
-				instances = response.Payload
 			} else {
 				cmd.Help() //nolint
 				os.Exit(0)
@@ -133,6 +127,8 @@ Example:
 		if err != nil {
 			return err
 		}
+
+		instances := response.GetPayload()
 		formatInstances(instances)
 		return nil
 	},
