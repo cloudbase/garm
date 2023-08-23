@@ -55,6 +55,10 @@ var (
 	poolGitHubRunnerGroup      string
 )
 
+type poolPayloadGetter interface {
+	GetPayload() params.Pools
+}
+
 // runnerCmd represents the runner command
 var poolCmd = &cobra.Command{
 	Use:          "pool",
@@ -95,34 +99,26 @@ Example:
 			return errNeedsInitError
 		}
 
-		var pools []params.Pool
+		var response poolPayloadGetter
 		var err error
 
 		switch len(args) {
 		case 0:
 			if cmd.Flags().Changed("repo") {
-				var response *apiClientRepos.ListRepoPoolsOK
 				listRepoPoolsReq := apiClientRepos.NewListRepoPoolsParams()
 				listRepoPoolsReq.RepoID = poolRepository
 				response, err = apiCli.Repositories.ListRepoPools(listRepoPoolsReq, authToken)
-				pools = response.Payload
 			} else if cmd.Flags().Changed("org") {
-				var response *apiClientOrgs.ListOrgPoolsOK
 				listOrgPoolsReq := apiClientOrgs.NewListOrgPoolsParams()
 				listOrgPoolsReq.OrgID = poolOrganization
 				response, err = apiCli.Organizations.ListOrgPools(listOrgPoolsReq, authToken)
-				pools = response.Payload
 			} else if cmd.Flags().Changed("enterprise") {
-				var response *apiClientEnterprises.ListEnterprisePoolsOK
 				listEnterprisePoolsReq := apiClientEnterprises.NewListEnterprisePoolsParams()
 				listEnterprisePoolsReq.EnterpriseID = poolEnterprise
 				response, err = apiCli.Enterprises.ListEnterprisePools(listEnterprisePoolsReq, authToken)
-				pools = response.Payload
 			} else if cmd.Flags().Changed("all") {
-				var response *apiClientPools.ListPoolsOK
 				listPoolsReq := apiClientPools.NewListPoolsParams()
 				response, err = apiCli.Pools.ListPools(listPoolsReq, authToken)
-				pools = response.Payload
 			} else {
 				cmd.Help() //nolint
 				os.Exit(0)
@@ -135,7 +131,7 @@ Example:
 		if err != nil {
 			return err
 		}
-		formatPools(pools)
+		formatPools(response.GetPayload())
 		return nil
 	},
 }
