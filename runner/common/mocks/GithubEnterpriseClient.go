@@ -49,6 +49,41 @@ func (_m *GithubEnterpriseClient) CreateRegistrationToken(ctx context.Context, e
 	return r0, r1, r2
 }
 
+// GenerateEnterpriseJITConfig provides a mock function with given fields: ctx, enterprise, request
+func (_m *GithubEnterpriseClient) GenerateEnterpriseJITConfig(ctx context.Context, enterprise string, request *github.GenerateJITConfigRequest) (*github.JITRunnerConfig, *github.Response, error) {
+	ret := _m.Called(ctx, enterprise, request)
+
+	var r0 *github.JITRunnerConfig
+	var r1 *github.Response
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, *github.GenerateJITConfigRequest) (*github.JITRunnerConfig, *github.Response, error)); ok {
+		return rf(ctx, enterprise, request)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, *github.GenerateJITConfigRequest) *github.JITRunnerConfig); ok {
+		r0 = rf(ctx, enterprise, request)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*github.JITRunnerConfig)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, *github.GenerateJITConfigRequest) *github.Response); ok {
+		r1 = rf(ctx, enterprise, request)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(*github.Response)
+		}
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, string, *github.GenerateJITConfigRequest) error); ok {
+		r2 = rf(ctx, enterprise, request)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
 // ListRunnerApplicationDownloads provides a mock function with given fields: ctx, enterprise
 func (_m *GithubEnterpriseClient) ListRunnerApplicationDownloads(ctx context.Context, enterprise string) ([]*github.RunnerApplicationDownload, *github.Response, error) {
 	ret := _m.Called(ctx, enterprise)
@@ -77,6 +112,41 @@ func (_m *GithubEnterpriseClient) ListRunnerApplicationDownloads(ctx context.Con
 
 	if rf, ok := ret.Get(2).(func(context.Context, string) error); ok {
 		r2 = rf(ctx, enterprise)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// ListRunnerGroups provides a mock function with given fields: ctx, enterprise, opts
+func (_m *GithubEnterpriseClient) ListRunnerGroups(ctx context.Context, enterprise string, opts *github.ListEnterpriseRunnerGroupOptions) (*github.EnterpriseRunnerGroups, *github.Response, error) {
+	ret := _m.Called(ctx, enterprise, opts)
+
+	var r0 *github.EnterpriseRunnerGroups
+	var r1 *github.Response
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, *github.ListEnterpriseRunnerGroupOptions) (*github.EnterpriseRunnerGroups, *github.Response, error)); ok {
+		return rf(ctx, enterprise, opts)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, *github.ListEnterpriseRunnerGroupOptions) *github.EnterpriseRunnerGroups); ok {
+		r0 = rf(ctx, enterprise, opts)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*github.EnterpriseRunnerGroups)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, *github.ListEnterpriseRunnerGroupOptions) *github.Response); ok {
+		r1 = rf(ctx, enterprise, opts)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(*github.Response)
+		}
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, string, *github.ListEnterpriseRunnerGroupOptions) error); ok {
+		r2 = rf(ctx, enterprise, opts)
 	} else {
 		r2 = ret.Error(2)
 	}

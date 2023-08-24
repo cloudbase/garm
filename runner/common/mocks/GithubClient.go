@@ -451,6 +451,41 @@ func (_m *GithubClient) ListOrganizationRunnerApplicationDownloads(ctx context.C
 	return r0, r1, r2
 }
 
+// ListOrganizationRunnerGroups provides a mock function with given fields: ctx, org, opts
+func (_m *GithubClient) ListOrganizationRunnerGroups(ctx context.Context, org string, opts *github.ListOrgRunnerGroupOptions) (*github.RunnerGroups, *github.Response, error) {
+	ret := _m.Called(ctx, org, opts)
+
+	var r0 *github.RunnerGroups
+	var r1 *github.Response
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, *github.ListOrgRunnerGroupOptions) (*github.RunnerGroups, *github.Response, error)); ok {
+		return rf(ctx, org, opts)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, *github.ListOrgRunnerGroupOptions) *github.RunnerGroups); ok {
+		r0 = rf(ctx, org, opts)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*github.RunnerGroups)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, *github.ListOrgRunnerGroupOptions) *github.Response); ok {
+		r1 = rf(ctx, org, opts)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(*github.Response)
+		}
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, string, *github.ListOrgRunnerGroupOptions) error); ok {
+		r2 = rf(ctx, org, opts)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
 // ListOrganizationRunners provides a mock function with given fields: ctx, owner, opts
 func (_m *GithubClient) ListOrganizationRunners(ctx context.Context, owner string, opts *github.ListOptions) (*github.Runners, *github.Response, error) {
 	ret := _m.Called(ctx, owner, opts)
