@@ -61,13 +61,9 @@ jobs:
         run: |
           set -o pipefail
           set -o errexit
-          go run ./test/integration/e2e.go 2>&1 | tee /artifacts-logs/e2e.log
+          go run ./test/integration/main.go 2>&1 | tee /artifacts-logs/e2e.log
         env:
           GARM_BASE_URL: ${{ steps.ngrok.outputs.tunnel-url }}
-          GARM_USERNAME: admin
-          GARM_FULLNAME: Local GARM Admin
-          GARM_EMAIL: admin@example.com
-          GARM_NAME: local_garm
           ORG_NAME: gsamfira
           REPO_NAME: garm-testing
           CREDENTIALS_NAME: test-garm-creds
@@ -86,3 +82,18 @@ jobs:
         with:
           name: garm-logs
           path: /artifacts-logs
+
+      - name: Cleanup orphan GARM resources via GitHub API
+        if: always()
+        run: |
+          set -o pipefail
+          set -o errexit
+
+          sudo systemctl stop garm
+
+          go run ./test/integration/gh_cleanup/main.go
+        env:
+          GARM_BASE_URL: ${{ steps.ngrok.outputs.tunnel-url }}
+          ORG_NAME: gsamfira
+          REPO_NAME: garm-testing
+          GH_TOKEN: ${{ secrets.GH_OAUTH_TOKEN }}
