@@ -88,9 +88,11 @@ func waitPoolRunningIdleInstances(poolID string, timeout time.Duration) error {
 		poolInstances = make(params.Instances, 0)
 		runningIdleCount := 0
 		for _, instance := range instances {
-			if instance.PoolID == poolID {
-				poolInstances = append(poolInstances, instance)
+			if instance.PoolID != poolID {
+				continue
 			}
+			// current instance belongs to the pool we are waiting for
+			poolInstances = append(poolInstances, instance)
 			if instance.Status == commonParams.InstanceRunning && instance.RunnerStatus == params.RunnerIdle {
 				runningIdleCount++
 			}

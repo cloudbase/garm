@@ -102,9 +102,8 @@ func WaitOrgRunningIdleInstances(orgID string, timeout time.Duration) {
 }
 
 func dumpOrgInstancesDetails(orgID string) error {
-	log.Printf("Dumping org %s instances details", orgID)
-
 	// print org details
+	log.Printf("Dumping org %s details", orgID)
 	org, err := getOrg(cli, authToken, orgID)
 	if err != nil {
 		return err
@@ -114,6 +113,7 @@ func dumpOrgInstancesDetails(orgID string) error {
 	}
 
 	// print org instances details
+	log.Printf("Dumping org %s instances details", orgID)
 	instances, err := listOrgInstances(cli, authToken, orgID)
 	if err != nil {
 		return err
