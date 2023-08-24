@@ -103,9 +103,8 @@ func WaitRepoRunningIdleInstances(repoID string, timeout time.Duration) {
 }
 
 func dumpRepoInstancesDetails(repoID string) error {
-	log.Printf("Dumping repo %s instances details", repoID)
-
 	// print repo details
+	log.Printf("Dumping repo %s details", repoID)
 	repo, err := getRepo(cli, authToken, repoID)
 	if err != nil {
 		return err
@@ -115,6 +114,7 @@ func dumpRepoInstancesDetails(repoID string) error {
 	}
 
 	// print repo instances details
+	log.Printf("Dumping repo %s instances details", repoID)
 	instances, err := listRepoInstances(cli, authToken, repoID)
 	if err != nil {
 		return err
