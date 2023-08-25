@@ -168,6 +168,7 @@ func (s *sqlDatabase) CreateOrganizationPool(ctx context.Context, orgId string, 
 		OrgID:                  &org.ID,
 		Enabled:                param.Enabled,
 		RunnerBootstrapTimeout: param.RunnerBootstrapTimeout,
+		GitHubRunnerGroup:      param.GitHubRunnerGroup,
 	}
 
 	if len(param.ExtraSpecs) > 0 {

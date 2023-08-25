@@ -151,6 +151,7 @@ func (s *sqlDatabase) CreateEnterprisePool(ctx context.Context, enterpriseID str
 		EnterpriseID:           &enterprise.ID,
 		Enabled:                param.Enabled,
 		RunnerBootstrapTimeout: param.RunnerBootstrapTimeout,
+		GitHubRunnerGroup:      param.GitHubRunnerGroup,
 	}
 
 	if len(param.ExtraSpecs) > 0 {
