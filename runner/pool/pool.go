@@ -1374,7 +1374,7 @@ func (r *basePoolManager) cleanupOrphanedRunners() error {
 }
 
 func (r *basePoolManager) Start() error {
-	r.updateTools() //nolint
+	go r.updateTools() //nolint
 
 	go r.startLoopForFunction(r.runnerCleanup, common.PoolReapTimeoutInterval, "timeout_reaper", false)
 	go r.startLoopForFunction(r.scaleDown, common.PoolScaleDownInterval, "scale_down", false)
