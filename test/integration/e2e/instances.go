@@ -69,9 +69,6 @@ func waitInstanceToBeRemoved(name string, timeout time.Duration) error {
 
 func waitPoolRunningIdleInstances(poolID string, timeout time.Duration) error {
 	var timeWaited time.Duration = 0
-	var instances params.Instances
-	var poolInstances params.Instances
-	var err error
 
 	pool, err := getPool(cli, authToken, poolID)
 	if err != nil {
@@ -80,19 +77,13 @@ func waitPoolRunningIdleInstances(poolID string, timeout time.Duration) error {
 
 	log.Printf("Waiting for pool %s to have all instances as idle running", poolID)
 	for timeWaited < timeout {
-		instances, err = listInstances(cli, authToken)
+		poolInstances, err := listPoolInstances(cli, authToken, poolID)
 		if err != nil {
 			return err
 		}
 
-		poolInstances = make(params.Instances, 0)
 		runningIdleCount := 0
-		for _, instance := range instances {
-			if instance.PoolID != poolID {
-				continue
-			}
-			// current instance belongs to the pool we are waiting for
-			poolInstances = append(poolInstances, instance)
+		for _, instance := range poolInstances {
 			if instance.Status == commonParams.InstanceRunning && instance.RunnerStatus == params.RunnerIdle {
 				runningIdleCount++
 			}
