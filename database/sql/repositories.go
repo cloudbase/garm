@@ -168,6 +168,7 @@ func (s *sqlDatabase) CreateRepositoryPool(ctx context.Context, repoId string, p
 		RepoID:                 &repo.ID,
 		Enabled:                param.Enabled,
 		RunnerBootstrapTimeout: param.RunnerBootstrapTimeout,
+		GitHubRunnerGroup:      param.GitHubRunnerGroup,
 	}
 
 	if len(param.ExtraSpecs) > 0 {
