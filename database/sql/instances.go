@@ -82,6 +82,7 @@ func (s *sqlDatabase) CreateInstance(ctx context.Context, poolID string, param p
 		GitHubRunnerGroup: param.GitHubRunnerGroup,
 		JitConfiguration:  secret,
 		AditionalLabels:   labels,
+		AgentID:           param.AgentID,
 	}
 	q := s.conn.Create(&newInstance)
 	if q.Error != nil {

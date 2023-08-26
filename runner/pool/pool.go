@@ -388,11 +388,18 @@ func (r *basePoolManager) cleanupOrphanedProviderRunners(runners []*github.Runne
 			continue
 		}
 
+		pool, err := r.store.GetPoolByID(r.ctx, instance.PoolID)
+		if err != nil {
+			return errors.Wrap(err, "fetching instance pool info")
+		}
+
 		switch instance.RunnerStatus {
 		case params.RunnerPending, params.RunnerInstalling:
-			// runner is still installing. We give it a chance to finish.
-			r.log("runner %s is still installing, give it a chance to finish", instance.Name)
-			continue
+			if time.Since(instance.UpdatedAt).Minutes() < float64(pool.RunnerTimeout()) {
+				// runner is still installing. We give it a chance to finish.
+				r.log("runner %s is still installing, give it a chance to finish", instance.Name)
+				continue
+			}
 		}
 
 		if time.Since(instance.UpdatedAt).Minutes() < 5 {
@@ -451,20 +458,7 @@ func (r *basePoolManager) reapTimedOutRunners(runners []*github.Runner) error {
 		//   * The runner never joined github within the pool timeout
 		//   * The runner managed to join github, but the setup process failed later and the runner
 		//     never started on the instance.
-		//
-		// There are several steps in the user data that sets up the runner:
-		//   * Download and unarchive the runner from github (or used the cached version)
-		//   * Configure runner (connects to github). At this point the runner is seen as offline.
-		//   * Install the service
-		//   * Set SELinux context (if SELinux is enabled)
-		//   * Start the service (if successful, the runner will transition to "online")
-		//   * Get the runner ID
-		//
-		// If we fail getting the runner ID after it's started, garm will set the runner status to "failed",
-		// even though, technically the runner is online and fully functional. This is why we check here for
-		// both the runner status as reported by GitHub and the runner status as reported by the provider.
-		// If the runner is "offline" and marked as "failed", it should be safe to reap it.
-		if runner, ok := runnersByName[instance.Name]; !ok || (runner.GetStatus() == "offline" && instance.RunnerStatus == params.RunnerFailed) {
+		if runner, ok := runnersByName[instance.Name]; !ok || runner.GetStatus() == "offline" {
 			r.log("reaping timed-out/failed runner %s", instance.Name)
 			if err := r.ForceDeleteRunner(instance); err != nil {
 				r.log("failed to update runner %s status: %s", instance.Name, err)
@@ -699,6 +693,12 @@ func (r *basePoolManager) AddRunner(ctx context.Context, poolID string, aditiona
 	}
 
 	name := fmt.Sprintf("%s-%s", pool.GetRunnerPrefix(), util.NewID())
+	labels := r.getLabelsForInstance(pool)
+	// Attempt to create JIT config
+	jitConfig, runner, err := r.helper.GetJITConfig(ctx, name, pool, labels)
+	if err != nil {
+		r.log("failed to get JIT config, falling back to registration token: %s", err)
+	}
 
 	createParams := params.CreateInstanceParams{
 		Name:              name,
@@ -711,6 +711,11 @@ func (r *basePoolManager) AddRunner(ctx context.Context, poolID string, aditiona
 		CreateAttempt:     1,
 		GitHubRunnerGroup: pool.GitHubRunnerGroup,
 		AditionalLabels:   aditionalLabels,
+		JitConfiguration:  jitConfig,
+	}
+
+	if runner != nil {
+		createParams.AgentID = runner.GetID()
 	}
 
 	instance, err := r.store.CreateInstance(r.ctx, poolID, createParams)
@@ -719,37 +724,21 @@ func (r *basePoolManager) AddRunner(ctx context.Context, poolID string, aditiona
 	}
 
 	defer func() {
-		if err != nil && instance.ID != "" {
-			if err := r.ForceDeleteRunner(instance); err != nil {
-				r.log("failed to cleanup instance: %s", instance.Name)
+		if err != nil {
+			if instance.ID != "" {
+				if err := r.ForceDeleteRunner(instance); err != nil {
+					r.log("failed to cleanup instance: %s", instance.Name)
+				}
+			}
+
+			if runner != nil {
+				_, runnerCleanupErr := r.helper.RemoveGithubRunner(runner.GetID())
+				if err != nil {
+					r.log("failed to remove runner %d: %s", runner.GetID(), runnerCleanupErr)
+				}
 			}
 		}
 	}()
-
-	labels := r.getLabelsForInstance(pool)
-	// Attempt to create JIT config
-	jitConfig, runner, err := r.helper.GetJITConfig(ctx, instance, pool, labels)
-	if err == nil {
-		updateParams := params.UpdateInstanceParams{
-			AgentID: runner.GetID(),
-			// We're using a JIT config. Setting the TokenFetched will disable the registration token
-			// metadata endpoint.
-			TokenFetched:     github.Bool(true),
-			JitConfiguration: jitConfig,
-		}
-		instance, err = r.updateInstance(instance.Name, updateParams)
-		if err != nil {
-			// The agent ID is not recorded in the instance, so the deferred ForceDeleteRunner() will not
-			// attempt to clean it up. We need to do it here.
-			_, runnerCleanupErr := r.helper.RemoveGithubRunner(runner.GetID())
-			if err != nil {
-				log.Printf("failed to remove runner %d: %s", runner.GetID(), runnerCleanupErr)
-			}
-			return errors.Wrap(err, "updating instance")
-		}
-	} else {
-		r.log("failed to get JIT config, falling back to registration token: %s", err)
-	}
 
 	return nil
 }

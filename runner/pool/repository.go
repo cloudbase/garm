@@ -88,17 +88,9 @@ type repository struct {
 	mux sync.Mutex
 }
 
-func (r *repository) GetJITConfig(ctx context.Context, instance params.Instance, pool params.Pool, labels []string) (jitConfigMap map[string]string, runner *github.Runner, err error) {
-	if instance.AgentID != 0 {
-		return nil, nil, fmt.Errorf("instance already has an agent ID: %w", runnerErrors.ErrBadRequest)
-	}
-
-	if instance.JitConfiguration != nil {
-		return nil, nil, fmt.Errorf("instance already has a JIT configuration: %w", runnerErrors.ErrBadRequest)
-	}
-
+func (r *repository) GetJITConfig(ctx context.Context, instance string, pool params.Pool, labels []string) (jitConfigMap map[string]string, runner *github.Runner, err error) {
 	req := github.GenerateJITConfigRequest{
-		Name: instance.Name,
+		Name: instance,
 		// At the repository level we only have the default runner group.
 		RunnerGroupID: 1,
 		Labels:        labels,

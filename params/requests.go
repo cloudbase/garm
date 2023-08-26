@@ -136,7 +136,8 @@ type CreateInstanceParams struct {
 	// GithubRunnerGroup is the github runner group to which the runner belongs.
 	// The runner group must be created by someone with access to the enterprise.
 	GitHubRunnerGroup string
-	CreateAttempt     int `json:"-"`
+	CreateAttempt     int   `json:"-"`
+	AgentID           int64 `json:"-"`
 	AditionalLabels   []string
 	JitConfiguration  map[string]string
 }

@@ -104,15 +104,7 @@ func (r *enterprise) findRunnerGroupByName(ctx context.Context, name string) (*g
 	return nil, errors.Wrap(runnerErrors.ErrNotFound, "runner group not found")
 }
 
-func (r *enterprise) GetJITConfig(ctx context.Context, instance params.Instance, pool params.Pool, labels []string) (jitConfigMap map[string]string, runner *github.Runner, err error) {
-	if instance.AgentID != 0 {
-		return nil, nil, fmt.Errorf("instance already has an agent ID: %w", runnerErrors.ErrBadRequest)
-	}
-
-	if instance.JitConfiguration != nil {
-		return nil, nil, fmt.Errorf("instance already has a JIT configuration: %w", runnerErrors.ErrBadRequest)
-	}
-
+func (r *enterprise) GetJITConfig(ctx context.Context, instance string, pool params.Pool, labels []string) (jitConfigMap map[string]string, runner *github.Runner, err error) {
 	var rg int64 = 1
 	if pool.GitHubRunnerGroup != "" {
 		runnerGroup, err := r.findRunnerGroupByName(ctx, pool.GitHubRunnerGroup)
@@ -123,7 +115,7 @@ func (r *enterprise) GetJITConfig(ctx context.Context, instance params.Instance,
 	}
 
 	req := github.GenerateJITConfigRequest{
-		Name:          instance.Name,
+		Name:          instance,
 		RunnerGroupID: rg,
 		Labels:        labels,
 		// TODO(gabriel-samfira): Should we make this configurable?
