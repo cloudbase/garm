@@ -521,6 +521,58 @@ func (_m *GithubClient) ListRunners(ctx context.Context, owner string, repo stri
 	return r0, r1, r2
 }
 
+// PingOrgHook provides a mock function with given fields: ctx, org, id
+func (_m *GithubClient) PingOrgHook(ctx context.Context, org string, id int64) (*github.Response, error) {
+	ret := _m.Called(ctx, org, id)
+
+	var r0 *github.Response
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) (*github.Response, error)); ok {
+		return rf(ctx, org, id)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) *github.Response); ok {
+		r0 = rf(ctx, org, id)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*github.Response)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, int64) error); ok {
+		r1 = rf(ctx, org, id)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// PingRepoHook provides a mock function with given fields: ctx, owner, repo, id
+func (_m *GithubClient) PingRepoHook(ctx context.Context, owner string, repo string, id int64) (*github.Response, error) {
+	ret := _m.Called(ctx, owner, repo, id)
+
+	var r0 *github.Response
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, int64) (*github.Response, error)); ok {
+		return rf(ctx, owner, repo, id)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, int64) *github.Response); ok {
+		r0 = rf(ctx, owner, repo, id)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*github.Response)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, int64) error); ok {
+		r1 = rf(ctx, owner, repo, id)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // RemoveOrganizationRunner provides a mock function with given fields: ctx, owner, runnerID
 func (_m *GithubClient) RemoveOrganizationRunner(ctx context.Context, owner string, runnerID int64) (*github.Response, error) {
 	ret := _m.Called(ctx, owner, runnerID)

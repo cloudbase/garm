@@ -145,6 +145,32 @@ func (_m *RepositoryHooks) ListRepoHooks(ctx context.Context, owner string, repo
 	return r0, r1, r2
 }
 
+// PingRepoHook provides a mock function with given fields: ctx, owner, repo, id
+func (_m *RepositoryHooks) PingRepoHook(ctx context.Context, owner string, repo string, id int64) (*github.Response, error) {
+	ret := _m.Called(ctx, owner, repo, id)
+
+	var r0 *github.Response
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, int64) (*github.Response, error)); ok {
+		return rf(ctx, owner, repo, id)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, int64) *github.Response); ok {
+		r0 = rf(ctx, owner, repo, id)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*github.Response)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, int64) error); ok {
+		r1 = rf(ctx, owner, repo, id)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // NewRepositoryHooks creates a new instance of RepositoryHooks. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewRepositoryHooks(t interface {

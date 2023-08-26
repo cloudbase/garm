@@ -145,6 +145,32 @@ func (_m *OrganizationHooks) ListOrgHooks(ctx context.Context, org string, opts 
 	return r0, r1, r2
 }
 
+// PingOrgHook provides a mock function with given fields: ctx, org, id
+func (_m *OrganizationHooks) PingOrgHook(ctx context.Context, org string, id int64) (*github.Response, error) {
+	ret := _m.Called(ctx, org, id)
+
+	var r0 *github.Response
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) (*github.Response, error)); ok {
+		return rf(ctx, org, id)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, int64) *github.Response); ok {
+		r0 = rf(ctx, org, id)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*github.Response)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, int64) error); ok {
+		r1 = rf(ctx, org, id)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // NewOrganizationHooks creates a new instance of OrganizationHooks. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewOrganizationHooks(t interface {
