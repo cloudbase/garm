@@ -162,6 +162,8 @@ type Instance struct {
 	Pool   Pool `gorm:"foreignKey:PoolID"`
 
 	StatusMessages []InstanceStatusUpdate `gorm:"foreignKey:InstanceID;constraint:OnDelete:CASCADE,OnUpdate:CASCADE;"`
+
+	Job *WorkflowJob `gorm:"foreignKey:InstanceID;constraint:OnDelete:CASCADE,OnUpdate:CASCADE;"`
 }
 
 type User struct {
@@ -201,8 +203,11 @@ type WorkflowJob struct {
 	StartedAt   time.Time
 	CompletedAt time.Time
 
-	GithubRunnerID  int64
-	RunnerName      string
+	GithubRunnerID int64
+
+	InstanceID *uuid.UUID `gorm:"index:idx_instance_job"`
+	Instance   Instance   `gorm:"foreignKey:InstanceID"`
+
 	RunnerGroupID   int64
 	RunnerGroupName string
 
