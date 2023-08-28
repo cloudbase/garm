@@ -108,10 +108,18 @@ func NewAPIRouter(han *controllers.APIController, logWriter io.Writer, authMiddl
 	callbackRouter.Handle("/status", http.HandlerFunc(han.InstanceStatusMessageHandler)).Methods("POST", "OPTIONS")
 	callbackRouter.Use(instanceMiddleware.Middleware)
 
+	///////////////////
+	// Metadata URLs //
+	///////////////////
 	metadataRouter := apiSubRouter.PathPrefix("/metadata").Subrouter()
+	metadataRouter.Use(instanceMiddleware.Middleware)
+
+	// Registration token
 	metadataRouter.Handle("/runner-registration-token/", http.HandlerFunc(han.InstanceGithubRegistrationTokenHandler)).Methods("GET", "OPTIONS")
 	metadataRouter.Handle("/runner-registration-token", http.HandlerFunc(han.InstanceGithubRegistrationTokenHandler)).Methods("GET", "OPTIONS")
-	metadataRouter.Use(instanceMiddleware.Middleware)
+	metadataRouter.Handle("/system/cert-bundle/", http.HandlerFunc(han.RootCertificateBundleHandler)).Methods("GET", "OPTIONS")
+	metadataRouter.Handle("/system/cert-bundle", http.HandlerFunc(han.RootCertificateBundleHandler)).Methods("GET", "OPTIONS")
+
 	// Login
 	authRouter := apiSubRouter.PathPrefix("/auth").Subrouter()
 	authRouter.Handle("/{login:login\\/?}", http.HandlerFunc(han.LoginHandler)).Methods("POST", "OPTIONS")

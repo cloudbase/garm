@@ -49,6 +49,8 @@ type PoolManager interface {
 	GetWebhookInfo(ctx context.Context) (params.HookInfo, error)
 	UninstallWebhook(ctx context.Context) error
 
+	RootCABundle() (params.CertificateBundle, error)
+
 	// PoolManager lifecycle functions. Start/stop pool.
 	Start() error
 	Stop() error

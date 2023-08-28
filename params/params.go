@@ -15,7 +15,11 @@
 package params
 
 import (
+	"bytes"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
+	"fmt"
 	"time"
 
 	commonParams "github.com/cloudbase/garm-provider-common/params"
@@ -410,6 +414,36 @@ type GithubCredentials struct {
 	CABundle      []byte `json:"ca_bundle,omitempty"`
 }
 
+func (g GithubCredentials) RootCertificateBundle() (CertificateBundle, error) {
+	if len(g.CABundle) == 0 {
+		return CertificateBundle{}, nil
+	}
+
+	ret := map[string][]byte{}
+
+	var block *pem.Block
+	var rest []byte = g.CABundle
+	for {
+		block, rest = pem.Decode(rest)
+		if block == nil {
+			break
+		}
+		pub, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			return CertificateBundle{}, err
+		}
+		out := &bytes.Buffer{}
+		if err := pem.Encode(out, &pem.Block{Type: "CERTIFICATE", Bytes: block.Bytes}); err != nil {
+			return CertificateBundle{}, err
+		}
+		ret[fmt.Sprintf("%d", pub.SerialNumber)] = out.Bytes()
+	}
+
+	return CertificateBundle{
+		RootCertificates: ret,
+	}, nil
+}
+
 // used by swagger client generated code
 type Credentials []GithubCredentials
 
@@ -512,4 +546,8 @@ type HookInfo struct {
 	Events      []string `json:"events"`
 	Active      bool     `json:"active"`
 	InsecureSSL bool     `json:"insecure_ssl"`
+}
+
+type CertificateBundle struct {
+	RootCertificates map[string][]byte `json:"root_certificates"`
 }

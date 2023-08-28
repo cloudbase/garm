@@ -316,19 +316,3 @@ func (a *APIController) InstanceStatusMessageHandler(w http.ResponseWriter, r *h
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 }
-
-func (a *APIController) InstanceGithubRegistrationTokenHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	token, err := a.r.GetInstanceGithubRegistrationToken(ctx)
-	if err != nil {
-		handleError(w, err)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	if _, err := w.Write([]byte(token)); err != nil {
-		log.Printf("failed to encode response: %q", err)
-	}
-}
