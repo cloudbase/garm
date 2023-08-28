@@ -142,6 +142,30 @@ func (_m *PoolManager) RefreshState(param params.UpdatePoolStateParams) error {
 	return r0
 }
 
+// RootCABundle provides a mock function with given fields:
+func (_m *PoolManager) RootCABundle() (params.CertificateBundle, error) {
+	ret := _m.Called()
+
+	var r0 params.CertificateBundle
+	var r1 error
+	if rf, ok := ret.Get(0).(func() (params.CertificateBundle, error)); ok {
+		return rf()
+	}
+	if rf, ok := ret.Get(0).(func() params.CertificateBundle); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(params.CertificateBundle)
+	}
+
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // Start provides a mock function with given fields:
 func (_m *PoolManager) Start() error {
 	ret := _m.Called()

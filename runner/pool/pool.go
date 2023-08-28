@@ -1643,3 +1643,7 @@ func (r *basePoolManager) UninstallWebhook(ctx context.Context) error {
 func (r *basePoolManager) GetWebhookInfo(ctx context.Context) (params.HookInfo, error) {
 	return r.helper.GetHookInfo(ctx)
 }
+
+func (r *basePoolManager) RootCABundle() (params.CertificateBundle, error) {
+	return r.credsDetails.RootCertificateBundle()
+}
