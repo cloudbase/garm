@@ -192,7 +192,7 @@ func (s *sqlDatabase) CreateEnterprisePool(ctx context.Context, enterpriseID str
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}
 
-	return s.sqlToCommonPool(pool), nil
+	return s.sqlToCommonPool(pool)
 }
 
 func (s *sqlDatabase) GetEnterprisePool(ctx context.Context, enterpriseID, poolID string) (params.Pool, error) {
@@ -200,7 +200,7 @@ func (s *sqlDatabase) GetEnterprisePool(ctx context.Context, enterpriseID, poolI
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}
-	return s.sqlToCommonPool(pool), nil
+	return s.sqlToCommonPool(pool)
 }
 
 func (s *sqlDatabase) DeleteEnterprisePool(ctx context.Context, enterpriseID, poolID string) error {
@@ -240,7 +240,10 @@ func (s *sqlDatabase) ListEnterprisePools(ctx context.Context, enterpriseID stri
 
 	ret := make([]params.Pool, len(pools))
 	for idx, pool := range pools {
-		ret[idx] = s.sqlToCommonPool(pool)
+		ret[idx], err = s.sqlToCommonPool(pool)
+		if err != nil {
+			return nil, errors.Wrap(err, "fetching pools")
+		}
 	}
 
 	return ret, nil
@@ -254,7 +257,11 @@ func (s *sqlDatabase) ListEnterpriseInstances(ctx context.Context, enterpriseID 
 	ret := []params.Instance{}
 	for _, pool := range pools {
 		for _, instance := range pool.Instances {
-			ret = append(ret, s.sqlToParamsInstance(instance))
+			paramsInstance, err := s.sqlToParamsInstance(instance)
+			if err != nil {
+				return nil, errors.Wrap(err, "fetching instance")
+			}
+			ret = append(ret, paramsInstance)
 		}
 	}
 	return ret, nil

@@ -59,7 +59,7 @@ func (s *sqlDatabase) CreateInstance(ctx context.Context, poolID string, param p
 		return params.Instance{}, errors.Wrap(q.Error, "creating instance")
 	}
 
-	return s.sqlToParamsInstance(newInstance), nil
+	return s.sqlToParamsInstance(newInstance)
 }
 
 func (s *sqlDatabase) getInstanceByID(ctx context.Context, instanceID string) (Instance, error) {
@@ -128,7 +128,7 @@ func (s *sqlDatabase) GetPoolInstanceByName(ctx context.Context, poolID string, 
 		return params.Instance{}, errors.Wrap(err, "fetching instance")
 	}
 
-	return s.sqlToParamsInstance(instance), nil
+	return s.sqlToParamsInstance(instance)
 }
 
 func (s *sqlDatabase) GetInstanceByName(ctx context.Context, instanceName string) (params.Instance, error) {
@@ -137,7 +137,7 @@ func (s *sqlDatabase) GetInstanceByName(ctx context.Context, instanceName string
 		return params.Instance{}, errors.Wrap(err, "fetching instance")
 	}
 
-	return s.sqlToParamsInstance(instance), nil
+	return s.sqlToParamsInstance(instance)
 }
 
 func (s *sqlDatabase) DeleteInstance(ctx context.Context, poolID string, instanceName string) error {
@@ -255,7 +255,7 @@ func (s *sqlDatabase) UpdateInstance(ctx context.Context, instanceID string, par
 		}
 	}
 
-	return s.sqlToParamsInstance(instance), nil
+	return s.sqlToParamsInstance(instance)
 }
 
 func (s *sqlDatabase) ListPoolInstances(ctx context.Context, poolID string) ([]params.Instance, error) {
@@ -273,7 +273,10 @@ func (s *sqlDatabase) ListPoolInstances(ctx context.Context, poolID string) ([]p
 
 	ret := make([]params.Instance, len(instances))
 	for idx, inst := range instances {
-		ret[idx] = s.sqlToParamsInstance(inst)
+		ret[idx], err = s.sqlToParamsInstance(inst)
+		if err != nil {
+			return nil, errors.Wrap(err, "converting instance")
+		}
 	}
 	return ret, nil
 }
@@ -286,8 +289,12 @@ func (s *sqlDatabase) ListAllInstances(ctx context.Context) ([]params.Instance, 
 		return nil, errors.Wrap(q.Error, "fetching instances")
 	}
 	ret := make([]params.Instance, len(instances))
+	var err error
 	for idx, instance := range instances {
-		ret[idx] = s.sqlToParamsInstance(instance)
+		ret[idx], err = s.sqlToParamsInstance(instance)
+		if err != nil {
+			return nil, errors.Wrap(err, "converting instance")
+		}
 	}
 	return ret, nil
 }

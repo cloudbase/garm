@@ -17,8 +17,6 @@ package util
 import (
 	"bytes"
 	"compress/gzip"
-	"crypto/aes"
-	"crypto/cipher"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/binary"
@@ -37,7 +35,7 @@ import (
 
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 
-	"github.com/google/go-github/v53/github"
+	"github.com/google/go-github/v54/github"
 	"github.com/google/uuid"
 	gorillaHandlers "github.com/gorilla/handlers"
 	"github.com/pkg/errors"
@@ -242,59 +240,6 @@ func GetRandomString(n int) (string, error) {
 	}
 
 	return string(data), nil
-}
-
-func Aes256EncodeString(target string, passphrase string) ([]byte, error) {
-	if len(passphrase) != 32 {
-		return nil, fmt.Errorf("invalid passphrase length (expected length 32 characters)")
-	}
-
-	toEncrypt := []byte(target)
-	block, err := aes.NewCipher([]byte(passphrase))
-	if err != nil {
-		return nil, errors.Wrap(err, "creating cipher")
-	}
-
-	aesgcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return nil, errors.Wrap(err, "creating new aead")
-	}
-
-	nonce := make([]byte, aesgcm.NonceSize())
-	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
-		return nil, errors.Wrap(err, "creating nonce")
-	}
-
-	ciphertext := aesgcm.Seal(nonce, nonce, toEncrypt, nil)
-	return ciphertext, nil
-}
-
-func Aes256DecodeString(target []byte, passphrase string) (string, error) {
-	if len(passphrase) != 32 {
-		return "", fmt.Errorf("invalid passphrase length (expected length 32 characters)")
-	}
-
-	block, err := aes.NewCipher([]byte(passphrase))
-	if err != nil {
-		return "", errors.Wrap(err, "creating cipher")
-	}
-
-	aesgcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return "", errors.Wrap(err, "creating new aead")
-	}
-
-	nonceSize := aesgcm.NonceSize()
-	if len(target) < nonceSize {
-		return "", fmt.Errorf("failed to decrypt text")
-	}
-
-	nonce, ciphertext := target[:nonceSize], target[nonceSize:]
-	plaintext, err := aesgcm.Open(nil, nonce, ciphertext, nil)
-	if err != nil {
-		return "", fmt.Errorf("failed to decrypt text")
-	}
-	return string(plaintext), nil
 }
 
 // PaswsordToBcrypt returns a bcrypt hash of the specified password using the default cost
