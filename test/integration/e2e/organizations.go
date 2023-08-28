@@ -49,6 +49,13 @@ func InstallOrgWebhook(id string) *params.HookInfo {
 	return webhookInfo
 }
 
+func UninstallOrgWebhook(id string) {
+	log.Printf("Uninstall org %s webhook", id)
+	if err := uninstallOrgWebhook(cli, authToken, id); err != nil {
+		panic(err)
+	}
+}
+
 func CreateOrgPool(orgID string, poolParams params.CreatePoolParams) *params.Pool {
 	log.Printf("Create org %s pool", orgID)
 	pool, err := createOrgPool(cli, authToken, orgID, poolParams)

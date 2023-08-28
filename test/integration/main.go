@@ -87,12 +87,12 @@ func main() {
 	//////////////////
 	repo := e2e.CreateRepo(orgName, repoName, credentialsName, repoWebhookSecret)
 	repo = e2e.UpdateRepo(repo.ID, fmt.Sprintf("%s-clone", credentialsName))
-	e2e.InstallRepoWebhook(repo.ID)
-	// TODO:
-	// * Check that the webhook is properly installed in GitHub.
-	// * Uninstall webhook
-	// * Check that webhook is properly removed from GitHub.
-	// * Install webhook again.
+	hookRepoInfo := e2e.InstallRepoWebhook(repo.ID)
+	e2e.ValidateRepoWebhookInstalled(ghToken, hookRepoInfo.URL, orgName, repoName)
+	e2e.UninstallRepoWebhook(repo.ID)
+	e2e.ValidateRepoWebhookUninstalled(ghToken, hookRepoInfo.URL, orgName, repoName)
+	_ = e2e.InstallRepoWebhook(repo.ID)
+	e2e.ValidateRepoWebhookInstalled(ghToken, hookRepoInfo.URL, orgName, repoName)
 
 	repoPool := e2e.CreateRepoPool(repo.ID, repoPoolParams)
 	repoPool = e2e.GetRepoPool(repo.ID, repoPool.ID)
@@ -106,12 +106,12 @@ func main() {
 	///////////////////
 	org := e2e.CreateOrg(orgName, credentialsName, orgWebhookSecret)
 	org = e2e.UpdateOrg(org.ID, fmt.Sprintf("%s-clone", credentialsName))
-	e2e.InstallOrgWebhook(org.ID)
-	// TODO:
-	// * Check that the webhook is properly installed in GitHub.
-	// * Uninstall webhook
-	// * Check that webhook is properly removed from GitHub.
-	// * Install webhook again.
+	orgHookInfo := e2e.InstallOrgWebhook(org.ID)
+	e2e.ValidateOrgWebhookInstalled(ghToken, orgHookInfo.URL, orgName)
+	e2e.UninstallOrgWebhook(org.ID)
+	e2e.ValidateOrgWebhookUninstalled(ghToken, orgHookInfo.URL, orgName)
+	_ = e2e.InstallOrgWebhook(org.ID)
+	e2e.ValidateOrgWebhookInstalled(ghToken, orgHookInfo.URL, orgName)
 
 	orgPool := e2e.CreateOrgPool(org.ID, orgPoolParams)
 	orgPool = e2e.GetOrgPool(org.ID, orgPool.ID)
