@@ -28,14 +28,19 @@ import (
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 )
 
-func (s *sqlDatabase) sqlToParamsInstance(instance Instance) params.Instance {
+func (s *sqlDatabase) sqlToParamsInstance(instance Instance) (params.Instance, error) {
 	var id string
 	if instance.ProviderID != nil {
 		id = *instance.ProviderID
 	}
 
 	var labels []string
-	_ = json.Unmarshal(instance.AditionalLabels, &labels)
+	if len(instance.AditionalLabels) > 0 {
+		if err := json.Unmarshal(instance.AditionalLabels, &labels); err != nil {
+			return params.Instance{}, errors.Wrap(err, "unmarshalling labels")
+		}
+	}
+
 	ret := params.Instance{
 		ID:                instance.ID.String(),
 		ProviderID:        id,
@@ -74,7 +79,7 @@ func (s *sqlDatabase) sqlToParamsInstance(instance Instance) params.Instance {
 			EventLevel: msg.EventLevel,
 		})
 	}
-	return ret
+	return ret, nil
 }
 
 func (s *sqlDatabase) sqlAddressToParamsAddress(addr Address) commonParams.Address {
@@ -88,7 +93,7 @@ func (s *sqlDatabase) sqlToCommonOrganization(org Organization) (params.Organiza
 	if len(org.WebhookSecret) == 0 {
 		return params.Organization{}, errors.New("missing secret")
 	}
-	secret, err := util.Aes256DecodeString(org.WebhookSecret, s.cfg.Passphrase)
+	secret, err := util.Unseal(org.WebhookSecret, []byte(s.cfg.Passphrase))
 	if err != nil {
 		return params.Organization{}, errors.Wrap(err, "decrypting secret")
 	}
@@ -98,11 +103,14 @@ func (s *sqlDatabase) sqlToCommonOrganization(org Organization) (params.Organiza
 		Name:            org.Name,
 		CredentialsName: org.CredentialsName,
 		Pools:           make([]params.Pool, len(org.Pools)),
-		WebhookSecret:   secret,
+		WebhookSecret:   string(secret),
 	}
 
 	for idx, pool := range org.Pools {
-		ret.Pools[idx] = s.sqlToCommonPool(pool)
+		ret.Pools[idx], err = s.sqlToCommonPool(pool)
+		if err != nil {
+			return params.Organization{}, errors.Wrap(err, "converting pool")
+		}
 	}
 
 	return ret, nil
@@ -112,7 +120,7 @@ func (s *sqlDatabase) sqlToCommonEnterprise(enterprise Enterprise) (params.Enter
 	if len(enterprise.WebhookSecret) == 0 {
 		return params.Enterprise{}, errors.New("missing secret")
 	}
-	secret, err := util.Aes256DecodeString(enterprise.WebhookSecret, s.cfg.Passphrase)
+	secret, err := util.Unseal(enterprise.WebhookSecret, []byte(s.cfg.Passphrase))
 	if err != nil {
 		return params.Enterprise{}, errors.Wrap(err, "decrypting secret")
 	}
@@ -122,17 +130,20 @@ func (s *sqlDatabase) sqlToCommonEnterprise(enterprise Enterprise) (params.Enter
 		Name:            enterprise.Name,
 		CredentialsName: enterprise.CredentialsName,
 		Pools:           make([]params.Pool, len(enterprise.Pools)),
-		WebhookSecret:   secret,
+		WebhookSecret:   string(secret),
 	}
 
 	for idx, pool := range enterprise.Pools {
-		ret.Pools[idx] = s.sqlToCommonPool(pool)
+		ret.Pools[idx], err = s.sqlToCommonPool(pool)
+		if err != nil {
+			return params.Enterprise{}, errors.Wrap(err, "converting pool")
+		}
 	}
 
 	return ret, nil
 }
 
-func (s *sqlDatabase) sqlToCommonPool(pool Pool) params.Pool {
+func (s *sqlDatabase) sqlToCommonPool(pool Pool) (params.Pool, error) {
 	ret := params.Pool{
 		ID:             pool.ID.String(),
 		ProviderName:   pool.ProviderName,
@@ -174,11 +185,15 @@ func (s *sqlDatabase) sqlToCommonPool(pool Pool) params.Pool {
 		ret.Tags[idx] = s.sqlToCommonTags(*val)
 	}
 
+	var err error
 	for idx, inst := range pool.Instances {
-		ret.Instances[idx] = s.sqlToParamsInstance(inst)
+		ret.Instances[idx], err = s.sqlToParamsInstance(inst)
+		if err != nil {
+			return params.Pool{}, errors.Wrap(err, "converting instance")
+		}
 	}
 
-	return ret
+	return ret, nil
 }
 
 func (s *sqlDatabase) sqlToCommonTags(tag Tag) params.Tag {
@@ -192,7 +207,7 @@ func (s *sqlDatabase) sqlToCommonRepository(repo Repository) (params.Repository,
 	if len(repo.WebhookSecret) == 0 {
 		return params.Repository{}, errors.New("missing secret")
 	}
-	secret, err := util.Aes256DecodeString(repo.WebhookSecret, s.cfg.Passphrase)
+	secret, err := util.Unseal(repo.WebhookSecret, []byte(s.cfg.Passphrase))
 	if err != nil {
 		return params.Repository{}, errors.Wrap(err, "decrypting secret")
 	}
@@ -203,11 +218,14 @@ func (s *sqlDatabase) sqlToCommonRepository(repo Repository) (params.Repository,
 		Owner:           repo.Owner,
 		CredentialsName: repo.CredentialsName,
 		Pools:           make([]params.Pool, len(repo.Pools)),
-		WebhookSecret:   secret,
+		WebhookSecret:   string(secret),
 	}
 
 	for idx, pool := range repo.Pools {
-		ret.Pools[idx] = s.sqlToCommonPool(pool)
+		ret.Pools[idx], err = s.sqlToCommonPool(pool)
+		if err != nil {
+			return params.Repository{}, errors.Wrap(err, "converting pool")
+		}
 	}
 
 	return ret, nil
@@ -311,5 +329,5 @@ func (s *sqlDatabase) updatePool(pool Pool, param params.UpdatePoolParams) (para
 		}
 	}
 
-	return s.sqlToCommonPool(pool), nil
+	return s.sqlToCommonPool(pool)
 }

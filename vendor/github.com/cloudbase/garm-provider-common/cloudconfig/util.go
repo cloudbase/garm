@@ -8,7 +8,7 @@ import (
 
 	"github.com/cloudbase/garm-provider-common/defaults"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
-	"github.com/google/go-github/v53/github"
+	"github.com/google/go-github/v54/github"
 	"github.com/pkg/errors"
 )
 
@@ -105,6 +105,7 @@ func GetRunnerInstallScript(bootstrapParams commonParams.BootstrapInstance, tool
 		GitHubRunnerGroup: bootstrapParams.GitHubRunnerGroup,
 		ExtraContext:      extraSpecs.ExtraContext,
 		EnableBootDebug:   bootstrapParams.UserDataOptions.EnableBootDebug,
+		UseJITConfig:      bootstrapParams.JitConfigEnabled,
 	}
 
 	if bootstrapParams.CACertBundle != nil && len(bootstrapParams.CACertBundle) > 0 {

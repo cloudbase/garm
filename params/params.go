@@ -22,7 +22,7 @@ import (
 
 	"github.com/cloudbase/garm/util/appdefaults"
 
-	"github.com/google/go-github/v53/github"
+	"github.com/google/go-github/v54/github"
 	"github.com/google/uuid"
 )
 

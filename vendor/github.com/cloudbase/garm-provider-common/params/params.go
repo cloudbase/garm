@@ -3,7 +3,7 @@ package params
 import (
 	"encoding/json"
 
-	"github.com/google/go-github/v53/github"
+	"github.com/google/go-github/v54/github"
 )
 
 type (
@@ -104,6 +104,12 @@ type BootstrapInstance struct {
 
 	// UserDataOptions are the options for the user data generation.
 	UserDataOptions UserDataOptions `json:"user_data_options"`
+
+	// JitConfigEnabled is a flag that indicates if the runner should be configured to use
+	// just-in-time configuration. If set to true, providers must attempt to fetch the JIT configuration
+	// from the metadata service instead of the runner registration token. The runner registration token
+	// is not available if the runner is configured to use JIT.
+	JitConfigEnabled bool `json:"jit_config_enabled"`
 }
 
 type Address struct {

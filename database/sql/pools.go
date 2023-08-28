@@ -41,8 +41,12 @@ func (s *sqlDatabase) ListAllPools(ctx context.Context) ([]params.Pool, error) {
 	}
 
 	ret := make([]params.Pool, len(pools))
+	var err error
 	for idx, val := range pools {
-		ret[idx] = s.sqlToCommonPool(val)
+		ret[idx], err = s.sqlToCommonPool(val)
+		if err != nil {
+			return nil, errors.Wrap(err, "converting pool")
+		}
 	}
 	return ret, nil
 }
@@ -52,7 +56,7 @@ func (s *sqlDatabase) GetPoolByID(ctx context.Context, poolID string) (params.Po
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool by ID")
 	}
-	return s.sqlToCommonPool(pool), nil
+	return s.sqlToCommonPool(pool)
 }
 
 func (s *sqlDatabase) DeletePoolByID(ctx context.Context, poolID string) error {
@@ -197,7 +201,10 @@ func (s *sqlDatabase) findPoolByTags(id string, poolType params.PoolType, tags [
 
 	ret := make([]params.Pool, len(pools))
 	for idx, val := range pools {
-		ret[idx] = s.sqlToCommonPool(val)
+		ret[idx], err = s.sqlToCommonPool(val)
+		if err != nil {
+			return nil, errors.Wrap(err, "converting pool")
+		}
 	}
 
 	return ret, nil

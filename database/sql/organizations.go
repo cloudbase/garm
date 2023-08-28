@@ -32,7 +32,7 @@ func (s *sqlDatabase) CreateOrganization(ctx context.Context, name, credentialsN
 	if webhookSecret == "" {
 		return params.Organization{}, errors.New("creating org: missing secret")
 	}
-	secret, err := util.Aes256EncodeString(webhookSecret, s.cfg.Passphrase)
+	secret, err := util.Seal([]byte(webhookSecret), []byte(s.cfg.Passphrase))
 	if err != nil {
 		return params.Organization{}, fmt.Errorf("failed to encrypt string")
 	}
@@ -114,7 +114,7 @@ func (s *sqlDatabase) UpdateOrganization(ctx context.Context, orgID string, para
 	}
 
 	if param.WebhookSecret != "" {
-		secret, err := util.Aes256EncodeString(param.WebhookSecret, s.cfg.Passphrase)
+		secret, err := util.Seal([]byte(param.WebhookSecret), []byte(s.cfg.Passphrase))
 		if err != nil {
 			return params.Organization{}, fmt.Errorf("saving org: failed to encrypt string: %w", err)
 		}
@@ -209,7 +209,7 @@ func (s *sqlDatabase) CreateOrganizationPool(ctx context.Context, orgId string, 
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}
 
-	return s.sqlToCommonPool(pool), nil
+	return s.sqlToCommonPool(pool)
 }
 
 func (s *sqlDatabase) ListOrgPools(ctx context.Context, orgID string) ([]params.Pool, error) {
@@ -220,7 +220,10 @@ func (s *sqlDatabase) ListOrgPools(ctx context.Context, orgID string) ([]params.
 
 	ret := make([]params.Pool, len(pools))
 	for idx, pool := range pools {
-		ret[idx] = s.sqlToCommonPool(pool)
+		ret[idx], err = s.sqlToCommonPool(pool)
+		if err != nil {
+			return nil, errors.Wrap(err, "fetching pool")
+		}
 	}
 
 	return ret, nil
@@ -231,7 +234,7 @@ func (s *sqlDatabase) GetOrganizationPool(ctx context.Context, orgID, poolID str
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}
-	return s.sqlToCommonPool(pool), nil
+	return s.sqlToCommonPool(pool)
 }
 
 func (s *sqlDatabase) DeleteOrganizationPool(ctx context.Context, orgID, poolID string) error {
@@ -262,7 +265,11 @@ func (s *sqlDatabase) ListOrgInstances(ctx context.Context, orgID string) ([]par
 	ret := []params.Instance{}
 	for _, pool := range pools {
 		for _, instance := range pool.Instances {
-			ret = append(ret, s.sqlToParamsInstance(instance))
+			paramsInstance, err := s.sqlToParamsInstance(instance)
+			if err != nil {
+				return nil, errors.Wrap(err, "fetching instance")
+			}
+			ret = append(ret, paramsInstance)
 		}
 	}
 	return ret, nil
