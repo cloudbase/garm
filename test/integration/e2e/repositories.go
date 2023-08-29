@@ -50,6 +50,13 @@ func InstallRepoWebhook(id string) *params.HookInfo {
 	return webhookInfo
 }
 
+func UninstallRepoWebhook(id string) {
+	log.Printf("Uninstall repo %s webhook", id)
+	if err := uninstallRepoWebhook(cli, authToken, id); err != nil {
+		panic(err)
+	}
+}
+
 func CreateRepoPool(repoID string, poolParams params.CreatePoolParams) *params.Pool {
 	log.Printf("Create repo %s pool", repoID)
 	pool, err := createRepoPool(cli, authToken, repoID, poolParams)

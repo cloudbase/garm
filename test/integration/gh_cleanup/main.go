@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 
@@ -25,9 +26,9 @@ func main() {
 
 	baseURL, baseUrlFound := os.LookupEnv("GARM_BASE_URL")
 	if ctrlIdFound && baseUrlFound {
-		log.Printf("TODO: Cleanup org & repo webhooks staring with: %s/webhooks/%s", baseURL, controllerID)
-		// TODO: Cleanup org webhooks that start with "{baseURL}/webhooks/{controllerID}"
-		// TODO: Cleanup repo webhooks that start with "{baseURL}/webhooks/{controllerID}"
+		webhookURL := fmt.Sprintf("%s/webhooks/%s", baseURL, controllerID)
+		_ = e2e.GhOrgWebhookCleanup(ghToken, webhookURL, orgName)
+		_ = e2e.GhRepoWebhookCleanup(ghToken, webhookURL, orgName, repoName)
 	} else {
 		log.Println("Env variables GARM_CONTROLLER_ID & GARM_BASE_URL are not set, skipping webhooks cleanup")
 	}

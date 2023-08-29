@@ -165,6 +165,12 @@ func getRepoWebhook(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoW
 	return &getRepoWebhookResponse.Payload, nil
 }
 
+func uninstallRepoWebhook(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, repoID string) error {
+	return apiCli.Repositories.UninstallRepoWebhook(
+		clientRepositories.NewUninstallRepoWebhookParams().WithRepoID(repoID),
+		apiAuthToken)
+}
+
 func createRepoPool(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, repoID string, poolParams params.CreatePoolParams) (*params.Pool, error) {
 	createRepoPoolResponse, err := apiCli.Repositories.CreateRepoPool(
 		clientRepositories.NewCreateRepoPoolParams().WithRepoID(repoID).WithBody(poolParams),
@@ -288,6 +294,12 @@ func getOrgWebhook(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWr
 		return nil, err
 	}
 	return &getOrgWebhookResponse.Payload, nil
+}
+
+func uninstallOrgWebhook(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, orgID string) error {
+	return apiCli.Organizations.UninstallOrgWebhook(
+		clientOrganizations.NewUninstallOrgWebhookParams().WithOrgID(orgID),
+		apiAuthToken)
 }
 
 func createOrgPool(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, orgID string, poolParams params.CreatePoolParams) (*params.Pool, error) {
