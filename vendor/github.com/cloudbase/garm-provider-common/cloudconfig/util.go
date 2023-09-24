@@ -8,7 +8,7 @@ import (
 
 	"github.com/cloudbase/garm-provider-common/defaults"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
-	"github.com/google/go-github/v54/github"
+	"github.com/google/go-github/v55/github"
 	"github.com/pkg/errors"
 )
 
