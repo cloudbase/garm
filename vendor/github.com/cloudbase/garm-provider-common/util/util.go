@@ -35,7 +35,7 @@ import (
 
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 
-	"github.com/google/go-github/v54/github"
+	"github.com/google/go-github/v55/github"
 	"github.com/google/uuid"
 	gorillaHandlers "github.com/gorilla/handlers"
 	"github.com/pkg/errors"

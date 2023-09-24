@@ -24,7 +24,7 @@ import (
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
 
-	"github.com/google/go-github/v54/github"
+	"github.com/google/go-github/v55/github"
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
 )
@@ -97,7 +97,7 @@ func GithubClient(ctx context.Context, token string, credsDetails params.GithubC
 	)
 	tc := oauth2.NewClient(ctx, ts)
 
-	ghClient, err := github.NewEnterpriseClient(credsDetails.APIBaseURL, credsDetails.UploadBaseURL, tc)
+	ghClient, err := github.NewClient(tc).WithEnterpriseURLs(credsDetails.APIBaseURL, credsDetails.UploadBaseURL)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "fetching github client")
 	}
