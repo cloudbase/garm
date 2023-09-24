@@ -41,6 +41,12 @@ func (s *sqlDatabase) sqlToParamsInstance(instance Instance) (params.Instance, e
 		}
 	}
 
+	var jitConfig map[string]string
+	if len(instance.JitConfiguration) > 0 {
+		if err := s.unsealAndUnmarshal(instance.JitConfiguration, &jitConfig); err != nil {
+			return params.Instance{}, errors.Wrap(err, "unmarshalling jit configuration")
+		}
+	}
 	ret := params.Instance{
 		ID:                instance.ID.String(),
 		ProviderID:        id,
@@ -59,6 +65,7 @@ func (s *sqlDatabase) sqlToParamsInstance(instance Instance) (params.Instance, e
 		CreateAttempt:     instance.CreateAttempt,
 		UpdatedAt:         instance.UpdatedAt,
 		TokenFetched:      instance.TokenFetched,
+		JitConfiguration:  jitConfig,
 		GitHubRunnerGroup: instance.GitHubRunnerGroup,
 		AditionalLabels:   labels,
 	}

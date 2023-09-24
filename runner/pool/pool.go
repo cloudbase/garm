@@ -388,11 +388,18 @@ func (r *basePoolManager) cleanupOrphanedProviderRunners(runners []*github.Runne
 			continue
 		}
 
+		pool, err := r.store.GetPoolByID(r.ctx, instance.PoolID)
+		if err != nil {
+			return errors.Wrap(err, "fetching instance pool info")
+		}
+
 		switch instance.RunnerStatus {
 		case params.RunnerPending, params.RunnerInstalling:
-			// runner is still installing. We give it a chance to finish.
-			r.log("runner %s is still installing, give it a chance to finish", instance.Name)
-			continue
+			if time.Since(instance.UpdatedAt).Minutes() < float64(pool.RunnerTimeout()) {
+				// runner is still installing. We give it a chance to finish.
+				r.log("runner %s is still installing, give it a chance to finish", instance.Name)
+				continue
+			}
 		}
 
 		if time.Since(instance.UpdatedAt).Minutes() < 5 {
@@ -451,20 +458,7 @@ func (r *basePoolManager) reapTimedOutRunners(runners []*github.Runner) error {
 		//   * The runner never joined github within the pool timeout
 		//   * The runner managed to join github, but the setup process failed later and the runner
 		//     never started on the instance.
-		//
-		// There are several steps in the user data that sets up the runner:
-		//   * Download and unarchive the runner from github (or used the cached version)
-		//   * Configure runner (connects to github). At this point the runner is seen as offline.
-		//   * Install the service
-		//   * Set SELinux context (if SELinux is enabled)
-		//   * Start the service (if successful, the runner will transition to "online")
-		//   * Get the runner ID
-		//
-		// If we fail getting the runner ID after it's started, garm will set the runner status to "failed",
-		// even though, technically the runner is online and fully functional. This is why we check here for
-		// both the runner status as reported by GitHub and the runner status as reported by the provider.
-		// If the runner is "offline" and marked as "failed", it should be safe to reap it.
-		if runner, ok := runnersByName[instance.Name]; !ok || (runner.GetStatus() == "offline" && instance.RunnerStatus == params.RunnerFailed) {
+		if runner, ok := runnersByName[instance.Name]; !ok || runner.GetStatus() == "offline" {
 			r.log("reaping timed-out/failed runner %s", instance.Name)
 			if err := r.ForceDeleteRunner(instance); err != nil {
 				r.log("failed to update runner %s status: %s", instance.Name, err)
@@ -527,6 +521,18 @@ func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner)
 			// already marked for deletion or is in the process of being deleted.
 			// Let consolidate take care of it.
 			continue
+		case commonParams.InstancePendingCreate, commonParams.InstanceCreating:
+			// instance is still being created. We give it a chance to finish.
+			r.log("instance %s is still being created, give it a chance to finish", dbInstance.Name)
+			continue
+		case commonParams.InstanceRunning:
+			// this check is not strictly needed, but can help avoid unnecessary strain on the provider.
+			// At worst, we will have a runner that is offline in github for 5 minutes before we reap it.
+			if time.Since(dbInstance.UpdatedAt).Minutes() < 5 {
+				// instance was updated recently. We give it a chance to register itself in github.
+				r.log("instance %s was updated recently, skipping check", dbInstance.Name)
+				continue
+			}
 		}
 
 		pool, err := r.helper.GetPoolByID(dbInstance.PoolID)
@@ -680,13 +686,19 @@ func (r *basePoolManager) setInstanceStatus(runnerName string, status commonPara
 	return instance, nil
 }
 
-func (r *basePoolManager) AddRunner(ctx context.Context, poolID string, aditionalLabels []string) error {
+func (r *basePoolManager) AddRunner(ctx context.Context, poolID string, aditionalLabels []string) (err error) {
 	pool, err := r.helper.GetPoolByID(poolID)
 	if err != nil {
 		return errors.Wrap(err, "fetching pool")
 	}
 
 	name := fmt.Sprintf("%s-%s", pool.GetRunnerPrefix(), util.NewID())
+	labels := r.getLabelsForInstance(pool)
+	// Attempt to create JIT config
+	jitConfig, runner, err := r.helper.GetJITConfig(ctx, name, pool, labels)
+	if err != nil {
+		r.log("failed to get JIT config, falling back to registration token: %s", err)
+	}
 
 	createParams := params.CreateInstanceParams{
 		Name:              name,
@@ -699,12 +711,34 @@ func (r *basePoolManager) AddRunner(ctx context.Context, poolID string, aditiona
 		CreateAttempt:     1,
 		GitHubRunnerGroup: pool.GitHubRunnerGroup,
 		AditionalLabels:   aditionalLabels,
+		JitConfiguration:  jitConfig,
 	}
 
-	_, err = r.store.CreateInstance(r.ctx, poolID, createParams)
+	if runner != nil {
+		createParams.AgentID = runner.GetID()
+	}
+
+	instance, err := r.store.CreateInstance(r.ctx, poolID, createParams)
 	if err != nil {
 		return errors.Wrap(err, "creating instance")
 	}
+
+	defer func() {
+		if err != nil {
+			if instance.ID != "" {
+				if err := r.ForceDeleteRunner(instance); err != nil {
+					r.log("failed to cleanup instance: %s", instance.Name)
+				}
+			}
+
+			if runner != nil {
+				_, runnerCleanupErr := r.helper.RemoveGithubRunner(runner.GetID())
+				if err != nil {
+					r.log("failed to remove runner %d: %s", runner.GetID(), runnerCleanupErr)
+				}
+			}
+		}
+	}()
 
 	return nil
 }
@@ -734,6 +768,16 @@ func (r *basePoolManager) setPoolRunningState(isRunning bool, failureReason stri
 	r.mux.Unlock()
 }
 
+func (r *basePoolManager) getLabelsForInstance(pool params.Pool) []string {
+	labels := []string{}
+	for _, tag := range pool.Tags {
+		labels = append(labels, tag.Name)
+	}
+	labels = append(labels, r.controllerLabel())
+	labels = append(labels, r.poolLabel(pool.ID))
+	return labels
+}
+
 func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error {
 	pool, err := r.helper.GetPoolByID(instance.PoolID)
 	if err != nil {
@@ -745,13 +789,6 @@ func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error 
 		return fmt.Errorf("unknown provider %s for pool %s", pool.ProviderName, pool.ID)
 	}
 
-	labels := []string{}
-	for _, tag := range pool.Tags {
-		labels = append(labels, tag.Name)
-	}
-	labels = append(labels, r.controllerLabel())
-	labels = append(labels, r.poolLabel(pool.ID))
-
 	jwtValidity := pool.RunnerTimeout()
 
 	entity := r.helper.String()
@@ -759,6 +796,8 @@ func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error 
 	if err != nil {
 		return errors.Wrap(err, "fetching instance jwt token")
 	}
+
+	hasJITConfig := len(instance.JitConfiguration) > 0
 
 	bootstrapArgs := commonParams.BootstrapInstance{
 		Name:              instance.Name,
@@ -772,10 +811,17 @@ func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error 
 		Flavor:            pool.Flavor,
 		Image:             pool.Image,
 		ExtraSpecs:        pool.ExtraSpecs,
-		Labels:            labels,
 		PoolID:            instance.PoolID,
 		CACertBundle:      r.credsDetails.CABundle,
 		GitHubRunnerGroup: instance.GitHubRunnerGroup,
+		JitConfigEnabled:  hasJITConfig,
+	}
+
+	if !hasJITConfig {
+		// We still need the labels here for situations where we don't have a JIT config generated.
+		// This can happen if GARM is used against an instance of GHES older than version 3.10.
+		// The labels field should be ignored by providers if JIT config is enabled.
+		bootstrapArgs.Labels = r.getLabelsForInstance(pool)
 	}
 
 	var instanceIDToDelete string
@@ -1110,11 +1156,12 @@ func (r *basePoolManager) retryFailedInstancesForOnePool(ctx context.Context, po
 			// TODO(gabriel-samfira): Incrementing CreateAttempt should be done within a transaction.
 			// It's fairly safe to do here (for now), as there should be no other code path that updates
 			// an instance in this state.
-			var tokenFetched bool = false
+			var tokenFetched bool = len(instance.JitConfiguration) > 0
 			updateParams := params.UpdateInstanceParams{
 				CreateAttempt: instance.CreateAttempt + 1,
 				TokenFetched:  &tokenFetched,
 				Status:        commonParams.InstancePendingCreate,
+				RunnerStatus:  params.RunnerPending,
 			}
 			r.log("queueing previously failed instance %s for retry", instance.Name)
 			// Set instance to pending create and wait for retry.

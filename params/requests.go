@@ -136,8 +136,10 @@ type CreateInstanceParams struct {
 	// GithubRunnerGroup is the github runner group to which the runner belongs.
 	// The runner group must be created by someone with access to the enterprise.
 	GitHubRunnerGroup string
-	CreateAttempt     int `json:"-"`
+	CreateAttempt     int   `json:"-"`
+	AgentID           int64 `json:"-"`
 	AditionalLabels   []string
+	JitConfiguration  map[string]string
 }
 
 type CreatePoolParams struct {
@@ -198,12 +200,13 @@ type UpdateInstanceParams struct {
 	// for this instance.
 	Addresses []commonParams.Address `json:"addresses,omitempty"`
 	// Status is the status of the instance inside the provider (eg: running, stopped, etc)
-	Status        commonParams.InstanceStatus `json:"status,omitempty"`
-	RunnerStatus  RunnerStatus                `json:"runner_status,omitempty"`
-	ProviderFault []byte                      `json:"provider_fault,omitempty"`
-	AgentID       int64                       `json:"-"`
-	CreateAttempt int                         `json:"-"`
-	TokenFetched  *bool                       `json:"-"`
+	Status           commonParams.InstanceStatus `json:"status,omitempty"`
+	RunnerStatus     RunnerStatus                `json:"runner_status,omitempty"`
+	ProviderFault    []byte                      `json:"provider_fault,omitempty"`
+	AgentID          int64                       `json:"-"`
+	CreateAttempt    int                         `json:"-"`
+	TokenFetched     *bool                       `json:"-"`
+	JitConfiguration map[string]string           `json:"-"`
 }
 
 type UpdateUserParams struct {

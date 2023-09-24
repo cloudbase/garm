@@ -16,6 +16,8 @@ package pool
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -82,6 +84,82 @@ type organization struct {
 	store       dbCommon.Store
 
 	mux sync.Mutex
+}
+
+func (r *organization) findRunnerGroupByName(ctx context.Context, name string) (*github.RunnerGroup, error) {
+	// TODO(gabriel-samfira): implement caching
+	opts := github.ListOrgRunnerGroupOptions{
+		ListOptions: github.ListOptions{
+			PerPage: 100,
+		},
+	}
+
+	for {
+		runnerGroups, ghResp, err := r.ghcli.ListOrganizationRunnerGroups(r.ctx, r.cfg.Name, &opts)
+		if err != nil {
+			if ghResp != nil && ghResp.StatusCode == http.StatusUnauthorized {
+				return nil, errors.Wrap(runnerErrors.ErrUnauthorized, "fetching runners")
+			}
+			return nil, errors.Wrap(err, "fetching runners")
+		}
+		for _, runnerGroup := range runnerGroups.RunnerGroups {
+			if runnerGroup.GetName() == name {
+				return runnerGroup, nil
+			}
+		}
+		if ghResp.NextPage == 0 {
+			break
+		}
+		opts.Page = ghResp.NextPage
+	}
+
+	return nil, errors.Wrap(runnerErrors.ErrNotFound, "runner group not found")
+}
+
+func (r *organization) GetJITConfig(ctx context.Context, instance string, pool params.Pool, labels []string) (jitConfigMap map[string]string, runner *github.Runner, err error) {
+	var rg int64 = 1
+	if pool.GitHubRunnerGroup != "" {
+		runnerGroup, err := r.findRunnerGroupByName(ctx, pool.GitHubRunnerGroup)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to find runner group: %w", err)
+		}
+		rg = runnerGroup.GetID()
+	}
+
+	req := github.GenerateJITConfigRequest{
+		Name:          instance,
+		RunnerGroupID: rg,
+		Labels:        labels,
+		// TODO(gabriel-samfira): Should we make this configurable?
+		WorkFolder: github.String("_work"),
+	}
+	jitConfig, resp, err := r.ghcli.GenerateOrgJITConfig(ctx, r.cfg.Name, &req)
+	if err != nil {
+		if resp != nil && resp.StatusCode == http.StatusUnauthorized {
+			return nil, nil, fmt.Errorf("failed to get JIT config: %w", err)
+		}
+		return nil, nil, fmt.Errorf("failed to get JIT config: %w", err)
+	}
+
+	runner = jitConfig.GetRunner()
+	defer func() {
+		if err != nil && runner != nil {
+			_, innerErr := r.ghcli.RemoveOrganizationRunner(r.ctx, r.cfg.Name, runner.GetID())
+			log.Printf("failed to remove runner: %v", innerErr)
+		}
+	}()
+
+	decoded, err := base64.StdEncoding.DecodeString(jitConfig.GetEncodedJITConfig())
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to decode JIT config: %w", err)
+	}
+
+	var ret map[string]string
+	if err := json.Unmarshal(decoded, &ret); err != nil {
+		return nil, nil, fmt.Errorf("failed to unmarshal JIT config: %w", err)
+	}
+
+	return ret, runner, nil
 }
 
 func (r *organization) GithubCLI() common.GithubClient {

@@ -39,6 +39,7 @@ const (
 	instanceEntityKey    contextFlags = "entity"
 	instanceRunnerStatus contextFlags = "status"
 	instanceTokenFetched contextFlags = "tokenFetched"
+	instanceHasJITConfig contextFlags = "hasJITConfig"
 	instanceParams       contextFlags = "instanceParams"
 )
 
@@ -60,6 +61,18 @@ func SetInstanceTokenFetched(ctx context.Context, fetched bool) context.Context 
 
 func InstanceTokenFetched(ctx context.Context) bool {
 	elem := ctx.Value(instanceTokenFetched)
+	if elem == nil {
+		return false
+	}
+	return elem.(bool)
+}
+
+func SetInstanceHasJITConfig(ctx context.Context, cfg map[string]string) context.Context {
+	return context.WithValue(ctx, instanceHasJITConfig, len(cfg) > 0)
+}
+
+func InstanceHasJITConfig(ctx context.Context) bool {
+	elem := ctx.Value(instanceHasJITConfig)
 	if elem == nil {
 		return false
 	}
@@ -149,6 +162,7 @@ func PopulateInstanceContext(ctx context.Context, instance params.Instance) cont
 	ctx = SetInstancePoolID(ctx, instance.PoolID)
 	ctx = SetInstanceRunnerStatus(ctx, instance.RunnerStatus)
 	ctx = SetInstanceTokenFetched(ctx, instance.TokenFetched)
+	ctx = SetInstanceHasJITConfig(ctx, instance.JitConfiguration)
 	ctx = SetInstanceParams(ctx, instance)
 	return ctx
 }

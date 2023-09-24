@@ -2,7 +2,10 @@ package pool
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"sync"
@@ -44,6 +47,12 @@ func NewEnterprisePoolManager(ctx context.Context, cfg params.Enterprise, cfgInt
 		store:        store,
 		providers:    providers,
 		controllerID: cfgInternal.ControllerID,
+		urls: urls{
+			webhookURL:           cfgInternal.BaseWebhookURL,
+			callbackURL:          cfgInternal.InstanceCallbackURL,
+			metadataURL:          cfgInternal.InstanceMetadataURL,
+			controllerWebhookURL: cfgInternal.ControllerWebhookURL,
+		},
 		quit:         make(chan struct{}),
 		helper:       helper,
 		credsDetails: cfgInternal.GithubCredentialsDetails,
@@ -63,6 +72,82 @@ type enterprise struct {
 	store            dbCommon.Store
 
 	mux sync.Mutex
+}
+
+func (r *enterprise) findRunnerGroupByName(ctx context.Context, name string) (*github.EnterpriseRunnerGroup, error) {
+	// TODO(gabriel-samfira): implement caching
+	opts := github.ListEnterpriseRunnerGroupOptions{
+		ListOptions: github.ListOptions{
+			PerPage: 100,
+		},
+	}
+
+	for {
+		runnerGroups, ghResp, err := r.ghcEnterpriseCli.ListRunnerGroups(r.ctx, r.cfg.Name, &opts)
+		if err != nil {
+			if ghResp != nil && ghResp.StatusCode == http.StatusUnauthorized {
+				return nil, errors.Wrap(runnerErrors.ErrUnauthorized, "fetching runners")
+			}
+			return nil, errors.Wrap(err, "fetching runners")
+		}
+		for _, runnerGroup := range runnerGroups.RunnerGroups {
+			if runnerGroup.Name != nil && *runnerGroup.Name == name {
+				return runnerGroup, nil
+			}
+		}
+		if ghResp.NextPage == 0 {
+			break
+		}
+		opts.Page = ghResp.NextPage
+	}
+
+	return nil, errors.Wrap(runnerErrors.ErrNotFound, "runner group not found")
+}
+
+func (r *enterprise) GetJITConfig(ctx context.Context, instance string, pool params.Pool, labels []string) (jitConfigMap map[string]string, runner *github.Runner, err error) {
+	var rg int64 = 1
+	if pool.GitHubRunnerGroup != "" {
+		runnerGroup, err := r.findRunnerGroupByName(ctx, pool.GitHubRunnerGroup)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to find runner group: %w", err)
+		}
+		rg = *runnerGroup.ID
+	}
+
+	req := github.GenerateJITConfigRequest{
+		Name:          instance,
+		RunnerGroupID: rg,
+		Labels:        labels,
+		// TODO(gabriel-samfira): Should we make this configurable?
+		WorkFolder: github.String("_work"),
+	}
+	jitConfig, resp, err := r.ghcEnterpriseCli.GenerateEnterpriseJITConfig(ctx, r.cfg.Name, &req)
+	if err != nil {
+		if resp != nil && resp.StatusCode == http.StatusUnauthorized {
+			return nil, nil, fmt.Errorf("failed to get JIT config: %w", err)
+		}
+		return nil, nil, fmt.Errorf("failed to get JIT config: %w", err)
+	}
+
+	runner = jitConfig.Runner
+	defer func() {
+		if err != nil && runner != nil {
+			_, innerErr := r.ghcEnterpriseCli.RemoveRunner(r.ctx, r.cfg.Name, runner.GetID())
+			log.Printf("failed to remove runner: %v", innerErr)
+		}
+	}()
+
+	decoded, err := base64.StdEncoding.DecodeString(*jitConfig.EncodedJITConfig)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to decode JIT config: %w", err)
+	}
+
+	var ret map[string]string
+	if err := json.Unmarshal(decoded, &ret); err != nil {
+		return nil, nil, fmt.Errorf("failed to unmarshal JIT config: %w", err)
+	}
+
+	return ret, jitConfig.Runner, nil
 }
 
 func (r *enterprise) GithubCLI() common.GithubClient {
