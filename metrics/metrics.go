@@ -11,6 +11,15 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+const metricsNamespace = "garm_"
+const metricsRunnerSubsystem = "runner_"
+const metricsPoolSubsystem = "pool_"
+const metricsProviderSubsystem = "provider_"
+const metricsOrganizationSubsystem = "organization_"
+const metricsRepositorySubsystem = "repository_"
+const metricsEnterpriseSubsystem = "enterprise_"
+const metricsWebhookSubsystem = "webhook_"
+
 var webhooksReceived *prometheus.CounterVec = nil
 
 // RecordWebhookWithLabels will increment a webhook metric identified by specific
@@ -48,7 +57,7 @@ func RegisterCollectors(runner *runner.Runner) error {
 	// at this point the webhook is not yet authenticated and
 	// we don't know if it's meant for us or not
 	webhooksReceived = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "garm_webhooks_received",
+		Name: metricsNamespace + metricsWebhookSubsystem + "received",
 		Help: "The total number of webhooks received",
 	}, []string{"valid", "reason", "hostname", "controller_id"})
 
@@ -59,6 +68,31 @@ func RegisterCollectors(runner *runner.Runner) error {
 	return nil
 }
 
+type GarmCollector struct {
+	healthMetric   *prometheus.Desc
+	instanceMetric *prometheus.Desc
+
+	// pool metrics
+	poolInfo             *prometheus.Desc
+	poolStatus           *prometheus.Desc
+	poolMaxRunners       *prometheus.Desc
+	poolMinIdleRunners   *prometheus.Desc
+	poolBootstrapTimeout *prometheus.Desc
+
+	// provider metrics
+	providerInfo *prometheus.Desc
+
+	organizationInfo              *prometheus.Desc
+	organizationPoolManagerStatus *prometheus.Desc
+	repositoryInfo                *prometheus.Desc
+	repositoryPoolManagerStatus   *prometheus.Desc
+	enterpriseInfo                *prometheus.Desc
+	enterprisePoolManagerStatus   *prometheus.Desc
+
+	runner               *runner.Runner
+	cachedControllerInfo params.ControllerInfo
+}
+
 func NewGarmCollector(r *runner.Runner) (*GarmCollector, error) {
 	controllerInfo, err := r.GetControllerInfo(auth.GetAdminContext())
 	if err != nil {
@@ -67,29 +101,92 @@ func NewGarmCollector(r *runner.Runner) (*GarmCollector, error) {
 	return &GarmCollector{
 		runner: r,
 		instanceMetric: prometheus.NewDesc(
-			"garm_runner_status",
+			metricsNamespace+metricsRunnerSubsystem+"status",
 			"Status of the runner",
-			[]string{"name", "status", "runner_status", "pool_owner", "pool_type", "pool_id", "hostname", "controller_id"}, nil,
+			[]string{"name", "status", "runner_status", "pool_owner", "pool_type", "pool_id", "hostname", "controller_id", "provider"}, nil,
 		),
 		healthMetric: prometheus.NewDesc(
-			"garm_health",
+			metricsNamespace+"health",
 			"Health of the runner",
 			[]string{"hostname", "controller_id"}, nil,
 		),
+		poolInfo: prometheus.NewDesc(
+			metricsNamespace+metricsPoolSubsystem+"info",
+			"Information of the pool",
+			[]string{"id", "image", "flavor", "prefix", "os_type", "os_arch", "tags", "provider", "pool_owner", "pool_type"}, nil,
+		),
+		poolStatus: prometheus.NewDesc(
+			metricsNamespace+metricsPoolSubsystem+"status",
+			"Status of the pool",
+			[]string{"id", "enabled"}, nil,
+		),
+		poolMaxRunners: prometheus.NewDesc(
+			metricsNamespace+metricsPoolSubsystem+"max_runners",
+			"Max runners of the pool",
+			[]string{"id"}, nil,
+		),
+		poolMinIdleRunners: prometheus.NewDesc(
+			metricsNamespace+metricsPoolSubsystem+"min_idle_runners",
+			"Min idle runners of the pool",
+			[]string{"id"}, nil,
+		),
+		poolBootstrapTimeout: prometheus.NewDesc(
+			metricsNamespace+metricsPoolSubsystem+"bootstrap_timeout",
+			"Bootstrap timeout of the pool",
+			[]string{"id"}, nil,
+		),
+		providerInfo: prometheus.NewDesc(
+			metricsNamespace+metricsProviderSubsystem+"info",
+			"Info of the provider",
+			[]string{"name", "type", "description"}, nil,
+		),
+		organizationInfo: prometheus.NewDesc(
+			metricsNamespace+metricsOrganizationSubsystem+"info",
+			"Info of the organization",
+			[]string{"name", "id"}, nil,
+		),
+		organizationPoolManagerStatus: prometheus.NewDesc(
+			metricsNamespace+metricsOrganizationSubsystem+"pool_manager_status",
+			"Status of the organization pool manager",
+			[]string{"name", "id", "running"}, nil,
+		),
+		repositoryInfo: prometheus.NewDesc(
+			metricsNamespace+metricsRepositorySubsystem+"info",
+			"Info of the organization",
+			[]string{"name", "owner", "id"}, nil,
+		),
+		repositoryPoolManagerStatus: prometheus.NewDesc(
+			metricsNamespace+metricsRepositorySubsystem+"pool_manager_status",
+			"Status of the repository pool manager",
+			[]string{"name", "id", "running"}, nil,
+		),
+		enterpriseInfo: prometheus.NewDesc(
+			metricsNamespace+metricsEnterpriseSubsystem+"info",
+			"Info of the organization",
+			[]string{"name", "id"}, nil,
+		),
+		enterprisePoolManagerStatus: prometheus.NewDesc(
+			metricsNamespace+metricsEnterpriseSubsystem+"pool_manager_status",
+			"Status of the enterprise pool manager",
+			[]string{"name", "id", "running"}, nil,
+		),
+
 		cachedControllerInfo: controllerInfo,
 	}, nil
-}
-
-type GarmCollector struct {
-	healthMetric         *prometheus.Desc
-	instanceMetric       *prometheus.Desc
-	runner               *runner.Runner
-	cachedControllerInfo params.ControllerInfo
 }
 
 func (c *GarmCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.instanceMetric
 	ch <- c.healthMetric
+	ch <- c.poolInfo
+	ch <- c.poolStatus
+	ch <- c.poolMaxRunners
+	ch <- c.poolMinIdleRunners
+	ch <- c.providerInfo
+	ch <- c.organizationInfo
+	ch <- c.organizationPoolManagerStatus
+	ch <- c.enterpriseInfo
+	ch <- c.enterprisePoolManagerStatus
 }
 
 func (c *GarmCollector) Collect(ch chan<- prometheus.Metric) {
@@ -98,87 +195,12 @@ func (c *GarmCollector) Collect(ch chan<- prometheus.Metric) {
 		log.Printf("failed to get controller info: %s", err)
 		return
 	}
+
 	c.CollectInstanceMetric(ch, controllerInfo.Hostname, controllerInfo.ControllerID.String())
 	c.CollectHealthMetric(ch, controllerInfo.Hostname, controllerInfo.ControllerID.String())
-}
-
-func (c *GarmCollector) CollectHealthMetric(ch chan<- prometheus.Metric, hostname string, controllerID string) {
-	m, err := prometheus.NewConstMetric(
-		c.healthMetric,
-		prometheus.GaugeValue,
-		1,
-		hostname,
-		controllerID,
-	)
-	if err != nil {
-		log.Printf("error on creating health metric: %s", err)
-		return
-	}
-	ch <- m
-}
-
-// CollectInstanceMetric collects the metrics for the runner instances
-// reflecting the statuses and the pool they belong to.
-func (c *GarmCollector) CollectInstanceMetric(ch chan<- prometheus.Metric, hostname string, controllerID string) {
-	ctx := auth.GetAdminContext()
-
-	instances, err := c.runner.ListAllInstances(ctx)
-	if err != nil {
-		log.Printf("cannot collect metrics, listing instances: %s", err)
-		return
-	}
-
-	pools, err := c.runner.ListAllPools(ctx)
-	if err != nil {
-		log.Printf("listing pools: %s", err)
-		// continue anyway
-	}
-
-	type poolInfo struct {
-		Name string
-		Type string
-	}
-
-	poolNames := make(map[string]poolInfo)
-	for _, pool := range pools {
-		if pool.EnterpriseName != "" {
-			poolNames[pool.ID] = poolInfo{
-				Name: pool.EnterpriseName,
-				Type: string(pool.PoolType()),
-			}
-		} else if pool.OrgName != "" {
-			poolNames[pool.ID] = poolInfo{
-				Name: pool.OrgName,
-				Type: string(pool.PoolType()),
-			}
-		} else {
-			poolNames[pool.ID] = poolInfo{
-				Name: pool.RepoName,
-				Type: string(pool.PoolType()),
-			}
-		}
-	}
-
-	for _, instance := range instances {
-
-		m, err := prometheus.NewConstMetric(
-			c.instanceMetric,
-			prometheus.GaugeValue,
-			1,
-			instance.Name,
-			string(instance.Status),
-			string(instance.RunnerStatus),
-			poolNames[instance.PoolID].Name,
-			poolNames[instance.PoolID].Type,
-			instance.PoolID,
-			hostname,
-			controllerID,
-		)
-
-		if err != nil {
-			log.Printf("cannot collect metrics, creating metric: %s", err)
-			continue
-		}
-		ch <- m
-	}
+	c.CollectPoolMetric(ch, controllerInfo.Hostname, controllerInfo.ControllerID.String())
+	c.CollectProviderMetric(ch, controllerInfo.Hostname, controllerInfo.ControllerID.String())
+	c.CollectOrganizationMetric(ch, controllerInfo.Hostname, controllerInfo.ControllerID.String())
+	c.CollectRepositoryMetric(ch, controllerInfo.Hostname, controllerInfo.ControllerID.String())
+	c.CollectEnterpriseMetric(ch, controllerInfo.Hostname, controllerInfo.ControllerID.String())
 }
