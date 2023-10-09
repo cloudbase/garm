@@ -32,10 +32,8 @@ import (
 	"unicode/utf16"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	"github.com/cloudbase/garm-provider-common/params"
 
-	commonParams "github.com/cloudbase/garm-provider-common/params"
-
-	"github.com/google/go-github/v55/github"
 	"github.com/google/uuid"
 	gorillaHandlers "github.com/gorilla/handlers"
 	"github.com/pkg/errors"
@@ -50,24 +48,24 @@ const alphanumeric = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuv
 var rxEmail = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
 
 var (
-	OSToOSTypeMap map[string]commonParams.OSType = map[string]commonParams.OSType{
-		"almalinux":  commonParams.Linux,
-		"alma":       commonParams.Linux,
-		"alpine":     commonParams.Linux,
-		"archlinux":  commonParams.Linux,
-		"arch":       commonParams.Linux,
-		"centos":     commonParams.Linux,
-		"ubuntu":     commonParams.Linux,
-		"rhel":       commonParams.Linux,
-		"suse":       commonParams.Linux,
-		"opensuse":   commonParams.Linux,
-		"fedora":     commonParams.Linux,
-		"debian":     commonParams.Linux,
-		"flatcar":    commonParams.Linux,
-		"gentoo":     commonParams.Linux,
-		"rockylinux": commonParams.Linux,
-		"rocky":      commonParams.Linux,
-		"windows":    commonParams.Windows,
+	OSToOSTypeMap map[string]params.OSType = map[string]params.OSType{
+		"almalinux":  params.Linux,
+		"alma":       params.Linux,
+		"alpine":     params.Linux,
+		"archlinux":  params.Linux,
+		"arch":       params.Linux,
+		"centos":     params.Linux,
+		"ubuntu":     params.Linux,
+		"rhel":       params.Linux,
+		"suse":       params.Linux,
+		"opensuse":   params.Linux,
+		"fedora":     params.Linux,
+		"debian":     params.Linux,
+		"flatcar":    params.Linux,
+		"gentoo":     params.Linux,
+		"rockylinux": params.Linux,
+		"rocky":      params.Linux,
+		"windows":    params.Windows,
 	}
 
 	githubArchMapping map[string]string = map[string]string{
@@ -86,9 +84,9 @@ var (
 	}
 
 	//
-	githubOSTag = map[commonParams.OSType]string{
-		commonParams.Linux:   "Linux",
-		commonParams.Windows: "Windows",
+	githubOSTag = map[params.OSType]string{
+		params.Linux:   "Linux",
+		params.Windows: "Windows",
 	}
 )
 
@@ -119,7 +117,7 @@ func ResolveToGithubOSType(osType string) (string, error) {
 // ResolveToGithubTag returns the default OS tag that self hosted runners automatically
 // (and forcefully) adds to every runner that gets deployed. We need to keep track of those
 // tags internally as well.
-func ResolveToGithubTag(os commonParams.OSType) (string, error) {
+func ResolveToGithubTag(os params.OSType) (string, error) {
 	ghOS, ok := githubOSTag[os]
 	if !ok {
 		return "", runnerErrors.NewNotFoundError("os %s is unknown", os)
@@ -178,37 +176,34 @@ func ConvertFileToBase64(file string) (string, error) {
 	return base64.StdEncoding.EncodeToString(bytes), nil
 }
 
-func OSToOSType(os string) (commonParams.OSType, error) {
+func OSToOSType(os string) (params.OSType, error) {
 	osType, ok := OSToOSTypeMap[strings.ToLower(os)]
 	if !ok {
-		return commonParams.Unknown, fmt.Errorf("no OS to OS type mapping for %s", os)
+		return params.Unknown, fmt.Errorf("no OS to OS type mapping for %s", os)
 	}
 	return osType, nil
 }
 
-func GetTools(osType commonParams.OSType, osArch commonParams.OSArch, tools []*github.RunnerApplicationDownload) (github.RunnerApplicationDownload, error) {
+func GetTools(osType params.OSType, osArch params.OSArch, tools []params.RunnerApplicationDownload) (params.RunnerApplicationDownload, error) {
 	// Validate image OS. Linux only for now.
 	switch osType {
-	case commonParams.Linux:
-	case commonParams.Windows:
+	case params.Linux:
+	case params.Windows:
 	default:
-		return github.RunnerApplicationDownload{}, fmt.Errorf("unsupported OS type: %s", osType)
+		return params.RunnerApplicationDownload{}, fmt.Errorf("unsupported OS type: %s", osType)
 	}
 
 	switch osArch {
-	case commonParams.Amd64:
-	case commonParams.Arm:
-	case commonParams.Arm64:
+	case params.Amd64:
+	case params.Arm:
+	case params.Arm64:
 	default:
-		return github.RunnerApplicationDownload{}, fmt.Errorf("unsupported OS arch: %s", osArch)
+		return params.RunnerApplicationDownload{}, fmt.Errorf("unsupported OS arch: %s", osArch)
 	}
 
 	// Find tools for OS/Arch.
 	for _, tool := range tools {
-		if tool == nil {
-			continue
-		}
-		if tool.OS == nil || tool.Architecture == nil {
+		if tool.GetOS() == "" || tool.GetArchitecture() == "" {
 			continue
 		}
 
@@ -221,11 +216,11 @@ func GetTools(osType commonParams.OSType, osArch commonParams.OSArch, tools []*g
 		if err != nil {
 			continue
 		}
-		if *tool.Architecture == ghArch && *tool.OS == ghOS {
-			return *tool, nil
+		if tool.GetArchitecture() == ghArch && tool.GetOS() == ghOS {
+			return tool, nil
 		}
 	}
-	return github.RunnerApplicationDownload{}, fmt.Errorf("failed to find tools for OS %s and arch %s", osType, osArch)
+	return params.RunnerApplicationDownload{}, fmt.Errorf("failed to find tools for OS %s and arch %s", osType, osArch)
 }
 
 // GetRandomString returns a secure random string

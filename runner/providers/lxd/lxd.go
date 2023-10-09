@@ -26,7 +26,6 @@ import (
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
 
-	"github.com/google/go-github/v55/github"
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/shared/api"
 	"github.com/pkg/errors"
@@ -173,35 +172,32 @@ func (l *LXD) getProfiles(flavor string) ([]string, error) {
 	return ret, nil
 }
 
-func (l *LXD) getTools(tools []*github.RunnerApplicationDownload, osType commonParams.OSType, architecture string) (github.RunnerApplicationDownload, error) {
+func (l *LXD) getTools(tools []commonParams.RunnerApplicationDownload, osType commonParams.OSType, architecture string) (commonParams.RunnerApplicationDownload, error) {
 	// Validate image OS. Linux only for now.
 	switch osType {
 	case commonParams.Linux:
 	default:
-		return github.RunnerApplicationDownload{}, fmt.Errorf("this provider does not support OS type: %s", osType)
+		return commonParams.RunnerApplicationDownload{}, fmt.Errorf("this provider does not support OS type: %s", osType)
 	}
 
 	// Find tools for OS/Arch.
 	for _, tool := range tools {
-		if tool == nil {
-			continue
-		}
-		if tool.OS == nil || tool.Architecture == nil {
+		if tool.GetOS() == "" || tool.GetArchitecture() == "" {
 			continue
 		}
 
 		// fmt.Println(*tool.Architecture, *tool.OS)
 		// fmt.Printf("image arch: %s --> osType: %s\n", image.Architecture, string(osType))
-		if *tool.Architecture == architecture && *tool.OS == string(osType) {
-			return *tool, nil
+		if tool.GetArchitecture() == architecture && tool.GetOS() == string(osType) {
+			return tool, nil
 		}
 
 		arch, ok := lxdToGithubArchMap[architecture]
-		if ok && arch == *tool.Architecture && *tool.OS == string(osType) {
-			return *tool, nil
+		if ok && arch == tool.GetArchitecture() && tool.GetOS() == string(osType) {
+			return tool, nil
 		}
 	}
-	return github.RunnerApplicationDownload{}, fmt.Errorf("failed to find tools for OS %s and arch %s", osType, architecture)
+	return commonParams.RunnerApplicationDownload{}, fmt.Errorf("failed to find tools for OS %s and arch %s", osType, architecture)
 }
 
 // sadly, the security.secureboot flag is a string encoded boolean.

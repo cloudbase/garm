@@ -17,6 +17,7 @@ package pool
 import (
 	"context"
 
+	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
 
@@ -29,7 +30,7 @@ type poolHelper interface {
 	GetGithubRegistrationToken() (string, error)
 	GetRunnerInfoFromWorkflow(job params.WorkflowJob) (params.RunnerInfo, error)
 	RemoveGithubRunner(runnerID int64) (*github.Response, error)
-	FetchTools() ([]*github.RunnerApplicationDownload, error)
+	FetchTools() ([]commonParams.RunnerApplicationDownload, error)
 
 	InstallHook(ctx context.Context, req *github.Hook) (params.HookInfo, error)
 	UninstallHook(ctx context.Context, url string) error

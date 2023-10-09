@@ -1,3 +1,17 @@
+// Copyright 2023 Cloudbase Solutions SRL
+//
+//    Licensed under the Apache License, Version 2.0 (the "License"); you may
+//    not use this file except in compliance with the License. You may obtain
+//    a copy of the License at
+//
+//         http://www.apache.org/licenses/LICENSE-2.0
+//
+//    Unless required by applicable law or agreed to in writing, software
+//    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+//    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+//    License for the specific language governing permissions and limitations
+//    under the License.
+
 package cloudconfig
 
 import (
@@ -7,8 +21,7 @@ import (
 	"strings"
 
 	"github.com/cloudbase/garm-provider-common/defaults"
-	commonParams "github.com/cloudbase/garm-provider-common/params"
-	"github.com/google/go-github/v55/github"
+	"github.com/cloudbase/garm-provider-common/params"
 	"github.com/pkg/errors"
 )
 
@@ -47,7 +60,7 @@ func sortMapKeys(m map[string][]byte) []string {
 }
 
 // GetSpecs returns the cloud config specific extra specs from the bootstrap params.
-func GetSpecs(bootstrapParams commonParams.BootstrapInstance) (CloudConfigSpec, error) {
+func GetSpecs(bootstrapParams params.BootstrapInstance) (CloudConfigSpec, error) {
 	var extraSpecs CloudConfigSpec
 	if len(bootstrapParams.ExtraSpecs) == 0 {
 		return extraSpecs, nil
@@ -71,28 +84,24 @@ func GetSpecs(bootstrapParams commonParams.BootstrapInstance) (CloudConfigSpec, 
 // GetRunnerInstallScript returns the runner install script for the given bootstrap params.
 // This function will return either the default script for the given OS type or will use the supplied template
 // if one is provided.
-func GetRunnerInstallScript(bootstrapParams commonParams.BootstrapInstance, tools github.RunnerApplicationDownload, runnerName string) ([]byte, error) {
-	if tools.Filename == nil {
+func GetRunnerInstallScript(bootstrapParams params.BootstrapInstance, tools params.RunnerApplicationDownload, runnerName string) ([]byte, error) {
+	if tools.GetFilename() == "" {
 		return nil, fmt.Errorf("missing tools filename")
 	}
 
-	if tools.DownloadURL == nil {
+	if tools.GetDownloadURL() == "" {
 		return nil, fmt.Errorf("missing tools download URL")
 	}
 
-	var tempToken string
-	if tools.TempDownloadToken != nil {
-		tempToken = *tools.TempDownloadToken
-	}
-
+	tempToken := tools.GetTempDownloadToken()
 	extraSpecs, err := GetSpecs(bootstrapParams)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting specs")
 	}
 
 	installRunnerParams := InstallRunnerParams{
-		FileName:          *tools.Filename,
-		DownloadURL:       *tools.DownloadURL,
+		FileName:          tools.GetFilename(),
+		DownloadURL:       tools.GetDownloadURL(),
 		TempDownloadToken: tempToken,
 		MetadataURL:       bootstrapParams.MetadataURL,
 		RunnerUsername:    defaults.DefaultUser,
@@ -123,7 +132,7 @@ func GetRunnerInstallScript(bootstrapParams commonParams.BootstrapInstance, tool
 // GetCloudInitConfig returns the cloud-init specific userdata config. This config can be used on most clouds
 // for most Linux machines. The install runner script must be generated separately either by GetRunnerInstallScript()
 // or some other means.
-func GetCloudInitConfig(bootstrapParams commonParams.BootstrapInstance, installScript []byte) (string, error) {
+func GetCloudInitConfig(bootstrapParams params.BootstrapInstance, installScript []byte) (string, error) {
 	extraSpecs, err := GetSpecs(bootstrapParams)
 	if err != nil {
 		return "", errors.Wrap(err, "getting specs")
@@ -174,7 +183,7 @@ func GetCloudInitConfig(bootstrapParams commonParams.BootstrapInstance, installS
 // Windows initialization scripts are run by creating a separate CustomScriptExtension resource for each individual script.
 // On other clouds it may be different. This function aims to be generic, which is why it only supports the PreInstallScripts
 // via cloud-init.
-func GetCloudConfig(bootstrapParams commonParams.BootstrapInstance, tools github.RunnerApplicationDownload, runnerName string) (string, error) {
+func GetCloudConfig(bootstrapParams params.BootstrapInstance, tools params.RunnerApplicationDownload, runnerName string) (string, error) {
 	installScript, err := GetRunnerInstallScript(bootstrapParams, tools, runnerName)
 	if err != nil {
 		return "", errors.Wrap(err, "generating script")
@@ -182,13 +191,13 @@ func GetCloudConfig(bootstrapParams commonParams.BootstrapInstance, tools github
 
 	var asStr string
 	switch bootstrapParams.OSType {
-	case commonParams.Linux:
+	case params.Linux:
 		cloudCfg, err := GetCloudInitConfig(bootstrapParams, installScript)
 		if err != nil {
 			return "", errors.Wrap(err, "getting cloud init config")
 		}
 		return cloudCfg, nil
-	case commonParams.Windows:
+	case params.Windows:
 		asStr = string(installScript)
 	default:
 		return "", fmt.Errorf("unknown os type: %s", bootstrapParams.OSType)
