@@ -98,7 +98,7 @@ type basePoolManager struct {
 	store dbCommon.Store
 
 	providers map[string]common.Provider
-	tools     []*github.RunnerApplicationDownload
+	tools     []commonParams.RunnerApplicationDownload
 	quit      chan struct{}
 
 	helper       poolHelper

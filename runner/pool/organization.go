@@ -25,6 +25,7 @@ import (
 	"sync"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	commonParams "github.com/cloudbase/garm-provider-common/params"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
@@ -236,7 +237,7 @@ func (r *organization) GetGithubRunners() ([]*github.Runner, error) {
 	return allRunners, nil
 }
 
-func (r *organization) FetchTools() ([]*github.RunnerApplicationDownload, error) {
+func (r *organization) FetchTools() ([]commonParams.RunnerApplicationDownload, error) {
 	r.mux.Lock()
 	defer r.mux.Unlock()
 	tools, ghResp, err := r.ghcli.ListOrganizationRunnerApplicationDownloads(r.ctx, r.cfg.Name)
@@ -247,7 +248,15 @@ func (r *organization) FetchTools() ([]*github.RunnerApplicationDownload, error)
 		return nil, errors.Wrap(err, "fetching runner tools")
 	}
 
-	return tools, nil
+	ret := []commonParams.RunnerApplicationDownload{}
+	for _, tool := range tools {
+		if tool == nil {
+			continue
+		}
+		ret = append(ret, commonParams.RunnerApplicationDownload(*tool))
+	}
+
+	return ret, nil
 }
 
 func (r *organization) FetchDbInstances() ([]params.Instance, error) {
