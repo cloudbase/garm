@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strconv"
 
 	gErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/apiserver/params"
@@ -121,6 +122,12 @@ func (a *APIController) GetInstanceHandler(w http.ResponseWriter, r *http.Reques
 //	    in: path
 //	    required: true
 //
+//	  + name: forceRemove
+//	    description: If true GARM will ignore any provider error when removing the runner and will continue to remove the runner from github and the GARM database.
+//	    type: boolean
+//	    in: query
+//	    required: false
+//
 //	Responses:
 //	  default: APIErrorResponse
 func (a *APIController) DeleteInstanceHandler(w http.ResponseWriter, r *http.Request) {
@@ -138,7 +145,8 @@ func (a *APIController) DeleteInstanceHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	if err := a.r.ForceDeleteRunner(ctx, instanceName); err != nil {
+	forceRemove, _ := strconv.ParseBool(r.URL.Query().Get("forceRemove"))
+	if err := a.r.DeleteRunner(ctx, instanceName, forceRemove); err != nil {
 		log.Printf("removing runner: %s", err)
 		handleError(w, err)
 		return

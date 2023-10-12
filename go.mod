@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/BurntSushi/toml v1.2.1
-	github.com/cloudbase/garm-provider-common v0.1.0
+	github.com/cloudbase/garm-provider-common v0.1.1-0.20231012061429-49001794e700
 	github.com/go-openapi/errors v0.20.4
 	github.com/go-openapi/runtime v0.26.0
 	github.com/go-openapi/strfmt v0.21.7

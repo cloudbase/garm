@@ -381,7 +381,7 @@ func (r *basePoolManager) cleanupOrphanedProviderRunners(runners []*github.Runne
 
 		switch commonParams.InstanceStatus(instance.Status) {
 		case commonParams.InstancePendingCreate,
-			commonParams.InstancePendingDelete:
+			commonParams.InstancePendingDelete, commonParams.InstancePendingForceDelete:
 			// this instance is in the process of being created or is awaiting deletion.
 			// Instances in pending_create did not get a chance to register themselves in,
 			// github so we let them be for now.
@@ -454,13 +454,14 @@ func (r *basePoolManager) reapTimedOutRunners(runners []*github.Runner) error {
 			continue
 		}
 
-		// There are 2 cases (currently) where we consider a runner as timed out:
+		// There are 3 cases (currently) where we consider a runner as timed out:
 		//   * The runner never joined github within the pool timeout
 		//   * The runner managed to join github, but the setup process failed later and the runner
 		//     never started on the instance.
+		//   * A JIT config was created, but the runner never joined github.
 		if runner, ok := runnersByName[instance.Name]; !ok || runner.GetStatus() == "offline" {
 			r.log("reaping timed-out/failed runner %s", instance.Name)
-			if err := r.ForceDeleteRunner(instance); err != nil {
+			if err := r.DeleteRunner(instance, false); err != nil {
 				r.log("failed to update runner %s status: %s", instance.Name, err)
 				return errors.Wrap(err, "updating runner")
 			}
@@ -726,7 +727,7 @@ func (r *basePoolManager) AddRunner(ctx context.Context, poolID string, aditiona
 	defer func() {
 		if err != nil {
 			if instance.ID != "" {
-				if err := r.ForceDeleteRunner(instance); err != nil {
+				if err := r.DeleteRunner(instance, false); err != nil {
 					r.log("failed to cleanup instance: %s", instance.Name)
 				}
 			}
@@ -1030,7 +1031,7 @@ func (r *basePoolManager) scaleDownOnePool(ctx context.Context, pool params.Pool
 
 		g.Go(func() error {
 			r.log("scaling down idle worker %s from pool %s\n", instanceToDelete.Name, pool.ID)
-			if err := r.ForceDeleteRunner(instanceToDelete); err != nil {
+			if err := r.DeleteRunner(instanceToDelete, false); err != nil {
 				return fmt.Errorf("failed to delete instance %s: %w", instanceToDelete.ID, err)
 			}
 			return nil
@@ -1272,7 +1273,7 @@ func (r *basePoolManager) deletePendingInstances() error {
 
 	r.log("removing instances in pending_delete")
 	for _, instance := range instances {
-		if instance.Status != commonParams.InstancePendingDelete {
+		if instance.Status != commonParams.InstancePendingDelete && instance.Status != commonParams.InstancePendingForceDelete {
 			// not in pending_delete status. Skip.
 			continue
 		}
@@ -1284,6 +1285,7 @@ func (r *basePoolManager) deletePendingInstances() error {
 			continue
 		}
 
+		currentStatus := instance.Status
 		// Set the status to deleting before launching the goroutine that removes
 		// the runner from the provider (which can take a long time).
 		if _, err := r.setInstanceStatus(instance.Name, commonParams.InstanceDeleting, nil); err != nil {
@@ -1300,9 +1302,9 @@ func (r *basePoolManager) deletePendingInstances() error {
 			defer func(instance params.Instance) {
 				if err != nil {
 					r.log("failed to remove instance %s: %s", instance.Name, err)
-					// failed to remove from provider. Set the status back to pending_delete, which
-					// will retry the operation.
-					if _, err := r.setInstanceStatus(instance.Name, commonParams.InstancePendingDelete, nil); err != nil {
+					// failed to remove from provider. Set status to previous value, which will retry
+					// the operation.
+					if _, err := r.setInstanceStatus(instance.Name, currentStatus, nil); err != nil {
 						r.log("failed to update runner %s status: %s", instance.Name, err)
 					}
 				}
@@ -1311,7 +1313,10 @@ func (r *basePoolManager) deletePendingInstances() error {
 			r.log("removing instance %s from provider", instance.Name)
 			err = r.deleteInstanceFromProvider(r.ctx, instance)
 			if err != nil {
-				return fmt.Errorf("failed to remove instance from provider: %w", err)
+				if currentStatus != commonParams.InstancePendingForceDelete {
+					return fmt.Errorf("failed to remove instance from provider: %w", err)
+				}
+				log.Printf("failed to remove instance %s from provider (continuing anyway): %s", instance.Name, err)
 			}
 			r.log("removing instance %s from database", instance.Name)
 			if deleteErr := r.store.DeleteInstance(r.ctx, instance.PoolID, instance.Name); deleteErr != nil {
@@ -1397,18 +1402,14 @@ func (r *basePoolManager) runnerCleanup() (err error) {
 		return fmt.Errorf("failed to reap timed out runners: %w", err)
 	}
 
-	if err := r.cleanupOrphanedRunners(); err != nil {
+	if err := r.cleanupOrphanedRunners(runners); err != nil {
 		return fmt.Errorf("failed to cleanup orphaned runners: %w", err)
 	}
 
 	return nil
 }
 
-func (r *basePoolManager) cleanupOrphanedRunners() error {
-	runners, err := r.helper.GetGithubRunners()
-	if err != nil {
-		return errors.Wrap(err, "fetching github runners")
-	}
+func (r *basePoolManager) cleanupOrphanedRunners(runners []*github.Runner) error {
 	if err := r.cleanupOrphanedProviderRunners(runners); err != nil {
 		return errors.Wrap(err, "cleaning orphaned instances")
 	}
@@ -1421,16 +1422,24 @@ func (r *basePoolManager) cleanupOrphanedRunners() error {
 }
 
 func (r *basePoolManager) Start() error {
-	go r.updateTools() //nolint
+	initialToolUpdate := make(chan struct{}, 1)
+	go func() {
+		r.updateTools() //nolint
+		initialToolUpdate <- struct{}{}
+	}()
 
-	go r.startLoopForFunction(r.runnerCleanup, common.PoolReapTimeoutInterval, "timeout_reaper", false)
-	go r.startLoopForFunction(r.scaleDown, common.PoolScaleDownInterval, "scale_down", false)
-	go r.startLoopForFunction(r.deletePendingInstances, common.PoolConsilitationInterval, "consolidate[delete_pending]", false)
-	go r.startLoopForFunction(r.addPendingInstances, common.PoolConsilitationInterval, "consolidate[add_pending]", false)
-	go r.startLoopForFunction(r.ensureMinIdleRunners, common.PoolConsilitationInterval, "consolidate[ensure_min_idle]", false)
-	go r.startLoopForFunction(r.retryFailedInstances, common.PoolConsilitationInterval, "consolidate[retry_failed]", false)
-	go r.startLoopForFunction(r.updateTools, common.PoolToolUpdateInterval, "update_tools", true)
-	go r.startLoopForFunction(r.consumeQueuedJobs, common.PoolConsilitationInterval, "job_queue_consumer", false)
+	go func() {
+		<-initialToolUpdate
+		defer close(initialToolUpdate)
+		go r.startLoopForFunction(r.runnerCleanup, common.PoolReapTimeoutInterval, "timeout_reaper", false)
+		go r.startLoopForFunction(r.scaleDown, common.PoolScaleDownInterval, "scale_down", false)
+		go r.startLoopForFunction(r.deletePendingInstances, common.PoolConsilitationInterval, "consolidate[delete_pending]", false)
+		go r.startLoopForFunction(r.addPendingInstances, common.PoolConsilitationInterval, "consolidate[add_pending]", false)
+		go r.startLoopForFunction(r.ensureMinIdleRunners, common.PoolConsilitationInterval, "consolidate[ensure_min_idle]", false)
+		go r.startLoopForFunction(r.retryFailedInstances, common.PoolConsilitationInterval, "consolidate[retry_failed]", false)
+		go r.startLoopForFunction(r.updateTools, common.PoolToolUpdateInterval, "update_tools", true)
+		go r.startLoopForFunction(r.consumeQueuedJobs, common.PoolConsilitationInterval, "job_queue_consumer", false)
+	}()
 	return nil
 }
 
@@ -1455,7 +1464,16 @@ func (r *basePoolManager) ID() string {
 	return r.helper.ID()
 }
 
+// ForceDeleteRunner will delete a runner from a pool.
+//
+// Deprecated: Use DeleteRunner instead.
 func (r *basePoolManager) ForceDeleteRunner(runner params.Instance) error {
+	return r.DeleteRunner(runner, true)
+}
+
+// Delete runner will delete a runner from a pool. If forceRemove is set to true, any error received from
+// the IaaS provider will be ignored and deletion will continue.
+func (r *basePoolManager) DeleteRunner(runner params.Instance, forceRemove bool) error {
 	if !r.managerIsRunning {
 		return runnerErrors.NewConflictError("pool manager is not running for %s", r.helper.String())
 	}
@@ -1485,9 +1503,14 @@ func (r *basePoolManager) ForceDeleteRunner(runner params.Instance) error {
 			}
 		}
 	}
-	r.log("setting instance status for: %v", runner.Name)
 
-	if _, err := r.setInstanceStatus(runner.Name, commonParams.InstancePendingDelete, nil); err != nil {
+	instanceStatus := commonParams.InstancePendingDelete
+	if forceRemove {
+		instanceStatus = commonParams.InstancePendingForceDelete
+	}
+
+	r.log("setting instance status for %v to %v", runner.Name, instanceStatus)
+	if _, err := r.setInstanceStatus(runner.Name, instanceStatus, nil); err != nil {
 		r.log("failed to update runner %s status: %s", runner.Name, err)
 		return errors.Wrap(err, "updating runner")
 	}

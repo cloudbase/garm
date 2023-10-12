@@ -597,6 +597,10 @@ paths:
                   name: instanceName
                   required: true
                   type: string
+                - description: If true GARM will ignore any provider error when removing the runner and will continue to remove the runner from github and the GARM database.
+                  in: query
+                  name: forceRemove
+                  type: boolean
             responses:
                 default:
                     description: APIErrorResponse
