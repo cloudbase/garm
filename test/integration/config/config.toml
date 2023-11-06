@@ -50,6 +50,14 @@ description = "Local LXD installation"
         protocol = "simplestreams"
         skip_verify = false
 
+[[provider]]
+name = "test_external"
+description = "external test provider"
+provider_type = "external"
+  [provider.external]
+  config_file = "/etc/garm/test-provider/config"
+  provider_executable = "/etc/garm/test-provider/garm-external-provider"
+
 [[github]]
 name = "${CREDENTIALS_NAME}"
 description = "GARM GitHub OAuth token"

@@ -1,0 +1,56 @@
+#!/bin/bash
+
+set -e
+set -o pipefail
+
+if [ ! -t 0 ]
+then
+    INPUT=$(cat -)
+fi
+
+if [ -z "$GARM_PROVIDER_CONFIG_FILE" ]
+then
+    echo "no config file specified in env"
+    exit 1
+fi
+
+source "$GARM_PROVIDER_CONFIG_FILE"
+
+function CreateInstance() {
+    if [ -z "$INPUT" ]; then
+        echo "expected build params in stdin"
+        exit 1
+    fi
+
+    jq -rnc '{"provider_id": "test-provider-id", "name": "test-instance-name", "os_type": "linux", "os_name": "ubuntu", "os_version": "20.04", "os_arch": "x86_64", "status": "running"}'
+}
+
+case "$GARM_COMMAND" in
+    "CreateInstance")
+        CreateInstance
+        ;;
+    "DeleteInstance")
+        echo "RemoveAllInstances not implemented"
+        exit 1
+        ;;
+    "GetInstance")
+        echo "Get instance with id: ${GARM_INSTANCE_ID}"
+        ;;
+    "ListInstances")
+        echo "List instances with pool id: ${GARM_POOL_ID}"
+        ;;
+    "StartInstance")
+        echo "Start instance: ${GARM_INSTANCE_NAME} with id: ${GARM_INSTANCE_ID}"
+        ;;
+    "StopInstance")
+        echo "Stop instance: ${GARM_INSTANCE_NAME} with id: ${GARM_INSTANCE_ID}"
+        ;;
+    "RemoveAllInstances")
+        echo "RemoveAllInstances not implemented"
+        exit 1
+        ;;
+    *)
+        echo "Invalid GARM provider command: \"$GARM_COMMAND\""
+        exit 1
+        ;;
+esac
