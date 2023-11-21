@@ -5,6 +5,7 @@ DIR="$(dirname $0)"
 BINARIES_DIR="$PWD/bin"
 CONTRIB_DIR="$PWD/contrib"
 CONFIG_DIR="$PWD/test/integration/config"
+CONFIG_DIR_PROV="$PWD/test/integration/provider"
 
 if [[ ! -f $BINARIES_DIR/garm ]] || [[ ! -f $BINARIES_DIR/garm-cli ]]; then
     echo "ERROR: Please build GARM binaries first"
@@ -45,6 +46,10 @@ sudo useradd --shell /usr/bin/false --system --groups adm --no-create-home garm
 sudo mkdir -p /etc/garm
 cat $CONFIG_DIR/config.toml | envsubst | sudo tee /etc/garm/config.toml
 sudo chown -R garm:garm /etc/garm
+
+sudo mkdir /etc/garm/test-provider
+sudo touch $CONFIG_DIR_PROV/config
+sudo cp $CONFIG_DIR_PROV/* /etc/garm/test-provider  
 
 sudo mv $BINARIES_DIR/* /usr/local/bin/
 sudo cp $CONTRIB_DIR/garm.service /etc/systemd/system/garm.service

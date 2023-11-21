@@ -4,6 +4,7 @@ import (
 	"log"
 	"time"
 
+	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm/params"
 )
 
@@ -95,13 +96,22 @@ func DeleteRepoPool(repoID, repoPoolID string) {
 	}
 }
 
+func DisableRepoPool(repoID, repoPoolID string) {
+	log.Printf("Disable repo %s pool %s", repoID, repoPoolID)
+	enabled := false
+	poolParams := params.UpdatePoolParams{Enabled: &enabled}
+	if _, err := updateRepoPool(cli, authToken, repoID, repoPoolID, poolParams); err != nil {
+		panic(err)
+	}
+}
+
 func WaitRepoRunningIdleInstances(repoID string, timeout time.Duration) {
 	repoPools, err := listRepoPools(cli, authToken, repoID)
 	if err != nil {
 		panic(err)
 	}
 	for _, pool := range repoPools {
-		err := waitPoolRunningIdleInstances(pool.ID, timeout)
+		err := WaitPoolInstances(pool.ID, commonParams.InstanceRunning, params.RunnerIdle, timeout)
 		if err != nil {
 			_ = dumpRepoInstancesDetails(repoID)
 			panic(err)
