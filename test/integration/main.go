@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"time"
 
@@ -117,13 +118,22 @@ func main() {
 	/////////////////////////////
 	repoPool2 := e2e.CreateRepoPool(repo.ID, repoPoolParams2)
 	_ = e2e.UpdateRepoPool(repo.ID, repoPool2.ID, repoPoolParams2.MaxRunners, 1)
-	e2e.WaitPoolInstances(repoPool2.ID, commonParams.InstanceRunning, params.RunnerPending, 1*time.Minute)
+	err := e2e.WaitPoolInstances(repoPool2.ID, commonParams.InstanceRunning, params.RunnerPending, 1*time.Minute)
+	if err != nil {
+		log.Printf("Failed to wait for instance to be running: %v", err)
+	}
 	repoPool2 = e2e.GetRepoPool(repo.ID, repoPool2.ID)
 	e2e.DisableRepoPool(repo.ID, repoPool2.ID)
 	e2e.DeleteInstance(repoPool2.Instances[0].Name, false)
-	e2e.WaitPoolInstances(repoPool2.ID, commonParams.InstancePendingDelete, params.RunnerPending, 1*time.Minute)
+	err = e2e.WaitPoolInstances(repoPool2.ID, commonParams.InstancePendingDelete, params.RunnerPending, 1*time.Minute)
+	if err != nil {
+		log.Printf("Failed to wait for instance to be running: %v", err)
+	}
 	e2e.DeleteInstance(repoPool2.Instances[0].Name, true) // delete instance with forceRemove
-	e2e.WaitInstanceToBeRemoved(repoPool2.Instances[0].Name, 1*time.Minute)
+	err = e2e.WaitInstanceToBeRemoved(repoPool2.Instances[0].Name, 1*time.Minute)
+	if err != nil {
+		log.Printf("Failed to wait for instance to be removed: %v", err)
+	}
 	e2e.DeleteRepoPool(repo.ID, repoPool2.ID)
 
 	///////////////////
