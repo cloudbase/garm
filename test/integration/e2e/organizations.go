@@ -4,6 +4,7 @@ import (
 	"log"
 	"time"
 
+	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm/params"
 )
 
@@ -100,7 +101,7 @@ func WaitOrgRunningIdleInstances(orgID string, timeout time.Duration) {
 		panic(err)
 	}
 	for _, pool := range orgPools {
-		err := waitPoolRunningIdleInstances(pool.ID, timeout)
+		err := WaitPoolInstances(pool.ID, commonParams.InstanceRunning, params.RunnerIdle, timeout)
 		if err != nil {
 			_ = dumpOrgInstancesDetails(orgID)
 			panic(err)

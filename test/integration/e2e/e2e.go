@@ -72,7 +72,7 @@ func GracefulCleanup() {
 			panic(err)
 		}
 		for _, instance := range poolInstances {
-			if err := deleteInstance(cli, authToken, instance.Name); err != nil {
+			if err := deleteInstance(cli, authToken, instance.Name, false); err != nil {
 				panic(err)
 			}
 			log.Printf("Instance %s deletion initiated", instance.Name)

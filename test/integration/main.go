@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"time"
 
@@ -32,6 +33,17 @@ var (
 		OSArch:         commonParams.Amd64,
 		ProviderName:   "lxd_local",
 		Tags:           []string{"repo-runner"},
+		Enabled:        true,
+	}
+	repoPoolParams2 = params.CreatePoolParams{
+		MaxRunners:     2,
+		MinIdleRunners: 0,
+		Flavor:         "default",
+		Image:          "ubuntu:22.04",
+		OSType:         commonParams.Linux,
+		OSArch:         commonParams.Amd64,
+		ProviderName:   "test_external",
+		Tags:           []string{"repo-runner-2"},
 		Enabled:        true,
 	}
 
@@ -100,6 +112,29 @@ func main() {
 
 	repoPool = e2e.CreateRepoPool(repo.ID, repoPoolParams)
 	_ = e2e.UpdateRepoPool(repo.ID, repoPool.ID, repoPoolParams.MaxRunners, 1)
+
+	/////////////////////////////
+	// Test external provider ///
+	/////////////////////////////
+	repoPool2 := e2e.CreateRepoPool(repo.ID, repoPoolParams2)
+	_ = e2e.UpdateRepoPool(repo.ID, repoPool2.ID, repoPoolParams2.MaxRunners, 1)
+	err := e2e.WaitPoolInstances(repoPool2.ID, commonParams.InstanceRunning, params.RunnerPending, 1*time.Minute)
+	if err != nil {
+		log.Printf("Failed to wait for instance to be running: %v", err)
+	}
+	repoPool2 = e2e.GetRepoPool(repo.ID, repoPool2.ID)
+	e2e.DisableRepoPool(repo.ID, repoPool2.ID)
+	e2e.DeleteInstance(repoPool2.Instances[0].Name, false)
+	err = e2e.WaitPoolInstances(repoPool2.ID, commonParams.InstancePendingDelete, params.RunnerPending, 1*time.Minute)
+	if err != nil {
+		log.Printf("Failed to wait for instance to be running: %v", err)
+	}
+	e2e.DeleteInstance(repoPool2.Instances[0].Name, true) // delete instance with forceRemove
+	err = e2e.WaitInstanceToBeRemoved(repoPool2.Instances[0].Name, 1*time.Minute)
+	if err != nil {
+		log.Printf("Failed to wait for instance to be removed: %v", err)
+	}
+	e2e.DeleteRepoPool(repo.ID, repoPool2.ID)
 
 	///////////////////
 	// organizations //

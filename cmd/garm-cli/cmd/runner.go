@@ -187,12 +187,9 @@ to either cancel the workflow or wait for it to finish.
 			return fmt.Errorf("requires a runner name")
 		}
 
-		if !forceRemove {
-			return fmt.Errorf("use --force-remove-runner=true to remove a runner")
-		}
-
 		deleteInstanceReq := apiClientInstances.NewDeleteInstanceParams()
 		deleteInstanceReq.InstanceName = args[0]
+		deleteInstanceReq.ForceRemove = &forceRemove
 		if err := apiCli.Instances.DeleteInstance(deleteInstanceReq, authToken); err != nil {
 			return err
 		}
@@ -207,7 +204,7 @@ func init() {
 	runnerListCmd.Flags().BoolVarP(&runnerAll, "all", "a", false, "List all runners, regardless of org or repo.")
 	runnerListCmd.MarkFlagsMutuallyExclusive("repo", "org", "enterprise", "all")
 
-	runnerDeleteCmd.Flags().BoolVarP(&forceRemove, "force-remove-runner", "f", false, "Confirm you want to delete a runner")
+	runnerDeleteCmd.Flags().BoolVarP(&forceRemove, "force-remove-runner", "f", false, "Forcefully remove a runner. If set to true, GARM will ignore provider errors when removing the runner.")
 	runnerDeleteCmd.MarkFlagsMutuallyExclusive("force-remove-runner")
 
 	runnerCmd.AddCommand(

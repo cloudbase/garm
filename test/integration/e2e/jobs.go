@@ -41,13 +41,13 @@ func ValidateJobLifecycle(label string) {
 	}
 
 	// wait for instance to be removed
-	err = waitInstanceToBeRemoved(instance.Name, 5*time.Minute)
+	err = WaitInstanceToBeRemoved(instance.Name, 5*time.Minute)
 	if err != nil {
 		panic(err)
 	}
 
 	// wait for GARM to rebuild the pool running idle instances
-	err = waitPoolRunningIdleInstances(instance.PoolID, 6*time.Minute)
+	err = WaitPoolInstances(instance.PoolID, commonParams.InstanceRunning, params.RunnerIdle, 5*time.Minute)
 	if err != nil {
 		panic(err)
 	}

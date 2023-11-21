@@ -33,7 +33,14 @@ func waitInstanceStatus(name string, status commonParams.InstanceStatus, runnerS
 	return nil, fmt.Errorf("timeout waiting for instance %s status to reach status %s and runner status %s", name, status, runnerStatus)
 }
 
-func waitInstanceToBeRemoved(name string, timeout time.Duration) error {
+func DeleteInstance(name string, forceRemove bool) {
+	if err := deleteInstance(cli, authToken, name, forceRemove); err != nil {
+		panic(err)
+	}
+	log.Printf("Instance %s deletion initiated", name)
+}
+
+func WaitInstanceToBeRemoved(name string, timeout time.Duration) error {
 	var timeWaited time.Duration = 0
 	var instance *params.Instance
 
@@ -67,7 +74,7 @@ func waitInstanceToBeRemoved(name string, timeout time.Duration) error {
 	return fmt.Errorf("instance %s was not removed within the timeout", name)
 }
 
-func waitPoolRunningIdleInstances(poolID string, timeout time.Duration) error {
+func WaitPoolInstances(poolID string, status commonParams.InstanceStatus, runnerStatus params.RunnerStatus, timeout time.Duration) error {
 	var timeWaited time.Duration = 0
 
 	pool, err := getPool(cli, authToken, poolID)
@@ -75,22 +82,22 @@ func waitPoolRunningIdleInstances(poolID string, timeout time.Duration) error {
 		return err
 	}
 
-	log.Printf("Waiting for pool %s to have all instances as idle running", poolID)
+	log.Printf("Waiting for pool %s instances to reach status: %s and runner status: %s", poolID, status, runnerStatus)
 	for timeWaited < timeout {
 		poolInstances, err := listPoolInstances(cli, authToken, poolID)
 		if err != nil {
 			return err
 		}
 
-		runningIdleCount := 0
+		instancesCount := 0
 		for _, instance := range poolInstances {
-			if instance.Status == commonParams.InstanceRunning && instance.RunnerStatus == params.RunnerIdle {
-				runningIdleCount++
+			if instance.Status == status && instance.RunnerStatus == runnerStatus {
+				instancesCount++
 			}
 		}
 
-		log.Printf("Pool min idle runners: %d, pool instances: %d, current pool running idle instances: %d", pool.MinIdleRunners, len(poolInstances), runningIdleCount)
-		if runningIdleCount == int(pool.MinIdleRunners) && runningIdleCount == len(poolInstances) {
+		log.Printf("Pool %s instance reached status: %s and runner status: %s: %d/%d", poolID, status, runnerStatus, instancesCount, len(poolInstances))
+		if instancesCount == int(pool.MinIdleRunners) && instancesCount == len(poolInstances) {
 			return nil
 		}
 		time.Sleep(5 * time.Second)
@@ -99,5 +106,5 @@ func waitPoolRunningIdleInstances(poolID string, timeout time.Duration) error {
 
 	_ = dumpPoolInstancesDetails(pool.ID)
 
-	return fmt.Errorf("timeout waiting for pool %s to have all idle instances running", poolID)
+	return fmt.Errorf("timeout waiting for pool %s instances to reach status: %s and runner status: %s", poolID, status, runnerStatus)
 }

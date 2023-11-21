@@ -39,14 +39,15 @@ const (
 )
 
 const (
-	InstanceRunning       InstanceStatus = "running"
-	InstanceStopped       InstanceStatus = "stopped"
-	InstanceError         InstanceStatus = "error"
-	InstancePendingDelete InstanceStatus = "pending_delete"
-	InstanceDeleting      InstanceStatus = "deleting"
-	InstancePendingCreate InstanceStatus = "pending_create"
-	InstanceCreating      InstanceStatus = "creating"
-	InstanceStatusUnknown InstanceStatus = "unknown"
+	InstanceRunning            InstanceStatus = "running"
+	InstanceStopped            InstanceStatus = "stopped"
+	InstanceError              InstanceStatus = "error"
+	InstancePendingDelete      InstanceStatus = "pending_delete"
+	InstancePendingForceDelete InstanceStatus = "pending_force_delete"
+	InstanceDeleting           InstanceStatus = "deleting"
+	InstancePendingCreate      InstanceStatus = "pending_create"
+	InstanceCreating           InstanceStatus = "creating"
+	InstanceStatusUnknown      InstanceStatus = "unknown"
 )
 
 const (
