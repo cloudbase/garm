@@ -39,6 +39,9 @@ const (
 	MySQLBackend DBBackendType = "mysql"
 	// SQLiteBackend represents the SQLite3 DB backend
 	SQLiteBackend DBBackendType = "sqlite3"
+	// EnvironmentVariablePrefix is the prefix for all environment variables
+	// that can not be used to get overwritten via the external provider
+	EnvironmentVariablePrefix = "GARM"
 )
 
 // NewConfig returns a new Config
