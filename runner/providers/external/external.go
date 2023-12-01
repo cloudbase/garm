@@ -31,19 +31,24 @@ func NewProvider(ctx context.Context, cfg *config.Provider, controllerID string)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching executable path")
 	}
+
+	envVars := cfg.External.GetEnvironmentVariables()
+
 	return &external{
-		ctx:          ctx,
-		controllerID: controllerID,
-		cfg:          cfg,
-		execPath:     execPath,
+		ctx:                  ctx,
+		controllerID:         controllerID,
+		cfg:                  cfg,
+		execPath:             execPath,
+		environmentVariables: envVars,
 	}, nil
 }
 
 type external struct {
-	ctx          context.Context
-	controllerID string
-	cfg          *config.Provider
-	execPath     string
+	ctx                  context.Context
+	controllerID         string
+	cfg                  *config.Provider
+	execPath             string
+	environmentVariables []string
 }
 
 func (e *external) validateResult(inst commonParams.ProviderInstance) error {
@@ -74,6 +79,7 @@ func (e *external) CreateInstance(ctx context.Context, bootstrapParams commonPar
 		fmt.Sprintf("GARM_POOL_ID=%s", bootstrapParams.PoolID),
 		fmt.Sprintf("GARM_PROVIDER_CONFIG_FILE=%s", e.cfg.External.ConfigFile),
 	}
+	asEnv = append(asEnv, e.environmentVariables...)
 
 	asJs, err := json.Marshal(bootstrapParams)
 	if err != nil {
@@ -107,6 +113,7 @@ func (e *external) DeleteInstance(ctx context.Context, instance string) error {
 		fmt.Sprintf("GARM_INSTANCE_ID=%s", instance),
 		fmt.Sprintf("GARM_PROVIDER_CONFIG_FILE=%s", e.cfg.External.ConfigFile),
 	}
+	asEnv = append(asEnv, e.environmentVariables...)
 
 	_, err := garmExec.Exec(ctx, e.execPath, nil, asEnv)
 	if err != nil {
@@ -127,6 +134,7 @@ func (e *external) GetInstance(ctx context.Context, instance string) (commonPara
 		fmt.Sprintf("GARM_INSTANCE_ID=%s", instance),
 		fmt.Sprintf("GARM_PROVIDER_CONFIG_FILE=%s", e.cfg.External.ConfigFile),
 	}
+	asEnv = append(asEnv, e.environmentVariables...)
 
 	// TODO(gabriel-samfira): handle error types. Of particular insterest is to
 	// know when the error is ErrNotFound.
@@ -155,6 +163,7 @@ func (e *external) ListInstances(ctx context.Context, poolID string) ([]commonPa
 		fmt.Sprintf("GARM_POOL_ID=%s", poolID),
 		fmt.Sprintf("GARM_PROVIDER_CONFIG_FILE=%s", e.cfg.External.ConfigFile),
 	}
+	asEnv = append(asEnv, e.environmentVariables...)
 
 	out, err := garmExec.Exec(ctx, e.execPath, nil, asEnv)
 	if err != nil {
@@ -183,6 +192,8 @@ func (e *external) RemoveAllInstances(ctx context.Context) error {
 		fmt.Sprintf("GARM_CONTROLLER_ID=%s", e.controllerID),
 		fmt.Sprintf("GARM_PROVIDER_CONFIG_FILE=%s", e.cfg.External.ConfigFile),
 	}
+	asEnv = append(asEnv, e.environmentVariables...)
+
 	_, err := garmExec.Exec(ctx, e.execPath, nil, asEnv)
 	if err != nil {
 		return garmErrors.NewProviderError("provider binary %s returned error: %s", e.execPath, err)
@@ -198,6 +209,8 @@ func (e *external) Stop(ctx context.Context, instance string, force bool) error 
 		fmt.Sprintf("GARM_INSTANCE_ID=%s", instance),
 		fmt.Sprintf("GARM_PROVIDER_CONFIG_FILE=%s", e.cfg.External.ConfigFile),
 	}
+	asEnv = append(asEnv, e.environmentVariables...)
+
 	_, err := garmExec.Exec(ctx, e.execPath, nil, asEnv)
 	if err != nil {
 		return garmErrors.NewProviderError("provider binary %s returned error: %s", e.execPath, err)
@@ -213,6 +226,8 @@ func (e *external) Start(ctx context.Context, instance string) error {
 		fmt.Sprintf("GARM_INSTANCE_ID=%s", instance),
 		fmt.Sprintf("GARM_PROVIDER_CONFIG_FILE=%s", e.cfg.External.ConfigFile),
 	}
+	asEnv = append(asEnv, e.environmentVariables...)
+
 	_, err := garmExec.Exec(ctx, e.execPath, nil, asEnv)
 	if err != nil {
 		return garmErrors.NewProviderError("provider binary %s returned error: %s", e.execPath, err)

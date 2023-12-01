@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -120,4 +121,102 @@ func TestProviderExecutableIsExecutable(t *testing.T) {
 	err = cfg.Validate()
 	require.NotNil(t, err)
 	require.EqualError(t, err, fmt.Sprintf("external provider binary %s is not executable", execPath))
+}
+
+func TestExternalEnvironmentVariables(t *testing.T) {
+	cfg := getDefaultExternalConfig(t)
+
+	tests := []struct {
+		name                         string
+		cfg                          External
+		expectedEnvironmentVariables []string
+		environmentVariables         map[string]string
+	}{
+		{
+			name:                         "Provider with no additional environment variables",
+			cfg:                          cfg,
+			expectedEnvironmentVariables: []string{},
+			environmentVariables: map[string]string{
+				"PATH":                 "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+				"PROVIDER_LOG_LEVEL":   "debug",
+				"PROVIDER_TIMEOUT":     "30",
+				"PROVIDER_RETRY_COUNT": "3",
+				"INFRA_REGION":         "us-east-1",
+			},
+		},
+		{
+			name: "Provider with additional environment variables",
+			cfg: External{
+				ConfigFile:  "",
+				ProviderDir: "../test",
+				EnvironmentVariables: []string{
+					"PROVIDER_",
+					"INFRA_REGION",
+				},
+			},
+			environmentVariables: map[string]string{
+				"PATH":                 "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+				"PROVIDER_LOG_LEVEL":   "debug",
+				"PROVIDER_TIMEOUT":     "30",
+				"PROVIDER_RETRY_COUNT": "3",
+				"INFRA_REGION":         "us-east-1",
+				"GARM_POOL_ID":         "f3b21376-e189-43ae-a1bd-7a3ffee57a58",
+			},
+			expectedEnvironmentVariables: []string{
+				"PROVIDER_LOG_LEVEL=debug",
+				"PROVIDER_TIMEOUT=30",
+				"PROVIDER_RETRY_COUNT=3",
+				"INFRA_REGION=us-east-1",
+			},
+		},
+		{
+			name: "GARM variables are getting ignored",
+			cfg: External{
+				ConfigFile:  "",
+				ProviderDir: "../test",
+				EnvironmentVariables: []string{
+					"PROVIDER_",
+					"INFRA_REGION",
+					"GARM_SERVER",
+				},
+			},
+			environmentVariables: map[string]string{
+				"PATH":                 "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+				"PROVIDER_LOG_LEVEL":   "debug",
+				"PROVIDER_TIMEOUT":     "30",
+				"PROVIDER_RETRY_COUNT": "3",
+				"INFRA_REGION":         "us-east-1",
+				"GARM_POOL_ID":         "f3b21376-e189-43ae-a1bd-7a3ffee57a58",
+				"GARM_SERVER_SHUTDOWN": "true",
+				"GARM_SERVER_INSECURE": "true",
+			},
+			expectedEnvironmentVariables: []string{
+				"PROVIDER_LOG_LEVEL=debug",
+				"PROVIDER_TIMEOUT=30",
+				"PROVIDER_RETRY_COUNT=3",
+				"INFRA_REGION=us-east-1",
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// set environment variables
+			for k, v := range tc.environmentVariables {
+				err := os.Setenv(k, v)
+				if err != nil {
+					t.Fatalf("failed to set environment variable: %s", err)
+				}
+			}
+
+			envVars := tc.cfg.GetEnvironmentVariables()
+
+			// sort slices to make them comparable
+			slices.Sort(envVars)
+			slices.Sort(tc.expectedEnvironmentVariables)
+
+			// compare slices
+			require.Equal(t, tc.expectedEnvironmentVariables, envVars)
+		})
+	}
 }

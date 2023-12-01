@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/cloudbase/garm-provider-common/util/exec"
 
@@ -42,6 +43,25 @@ type External struct {
 	// the provider. If specified, it will take precedence over the "garm-external-provider"
 	// executable in the ProviderDir.
 	ProviderExecutable string `toml:"provider_executable" json:"provider-executable"`
+	// EnvironmentVariables is a list of environment variable names that will be
+	// passed to the external binary together with their values.
+	EnvironmentVariables []string `toml:"environment_variables" json:"environment-variables"`
+}
+
+func (e *External) GetEnvironmentVariables() []string {
+	envVars := []string{}
+
+	for _, configuredEnvVars := range e.EnvironmentVariables {
+		// discover environment variables
+		for _, k := range os.Environ() {
+			variable := strings.SplitN(k, "=", 2)
+			if strings.HasPrefix(variable[0], configuredEnvVars) &&
+				!strings.HasPrefix(variable[0], EnvironmentVariablePrefix) {
+				envVars = append(envVars, k)
+			}
+		}
+	}
+	return envVars
 }
 
 func (e *External) ExecutablePath() (string, error) {
