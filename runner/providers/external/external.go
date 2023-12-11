@@ -242,3 +242,13 @@ func (e *external) AsParams() params.Provider {
 		ProviderType: e.cfg.ProviderType,
 	}
 }
+
+// DisableJITConfig tells us if the provider explicitly disables JIT configuration and
+// forces runner registration tokens to be used. This may happen if a provider has not yet
+// been updated to support JIT configuration.
+func (e *external) DisableJITConfig() bool {
+	if e.cfg == nil {
+		return false
+	}
+	return e.cfg.DisableJITConfig
+}

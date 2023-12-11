@@ -219,8 +219,12 @@ type Provider struct {
 	Name         string              `toml:"name" json:"name"`
 	ProviderType params.ProviderType `toml:"provider_type" json:"provider-type"`
 	Description  string              `toml:"description" json:"description"`
-	LXD          LXD                 `toml:"lxd" json:"lxd"`
-	External     External            `toml:"external" json:"external"`
+	// DisableJITConfig explicitly disables JIT configuration and forces runner registration
+	// tokens to be used. This may happen if a provider has not yet been updated to support
+	// JIT configuration.
+	DisableJITConfig bool     `toml:"disable_jit_config" json:"disable-jit-config"`
+	LXD              LXD      `toml:"lxd" json:"lxd"`
+	External         External `toml:"external" json:"external"`
 }
 
 func (p *Provider) Validate() error {

@@ -37,6 +37,10 @@ type Provider interface {
 	Stop(ctx context.Context, instance string, force bool) error
 	// Start boots up an instance.
 	Start(ctx context.Context, instance string) error
+	// DisableJITConfig tells us if the provider explicitly disables JIT configuration and
+	// forces runner registration tokens to be used. This may happen if a provider has not yet
+	// been updated to support JIT configuration.
+	DisableJITConfig() bool
 
 	AsParams() params.Provider
 }
