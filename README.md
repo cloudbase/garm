@@ -26,6 +26,7 @@ External providers are binaries that GARM calls into to create runners in a part
 
 * [OpenStack](https://github.com/cloudbase/garm-provider-openstack)
 * [Azure](https://github.com/cloudbase/garm-provider-azure)
+* [Kubernetes](https://github.com/mercedes-benz/garm-provider-k8s) - Thanks to the amazing folks at @mercedes-benz for sharing their awesome provider!
 
 Follow the instructions in the README of each provider to install them. 
 
