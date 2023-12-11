@@ -693,12 +693,23 @@ func (r *basePoolManager) AddRunner(ctx context.Context, poolID string, aditiona
 		return errors.Wrap(err, "fetching pool")
 	}
 
+	provider, ok := r.providers[pool.ProviderName]
+	if !ok {
+		return fmt.Errorf("unknown provider %s for pool %s", pool.ProviderName, pool.ID)
+	}
+
 	name := fmt.Sprintf("%s-%s", pool.GetRunnerPrefix(), util.NewID())
 	labels := r.getLabelsForInstance(pool)
-	// Attempt to create JIT config
-	jitConfig, runner, err := r.helper.GetJITConfig(ctx, name, pool, labels)
-	if err != nil {
-		r.log("failed to get JIT config, falling back to registration token: %s", err)
+
+	jitConfig := make(map[string]string)
+	var runner *github.Runner
+
+	if !provider.DisableJITConfig() {
+		// Attempt to create JIT config
+		jitConfig, runner, err = r.helper.GetJITConfig(ctx, name, pool, labels)
+		if err != nil {
+			r.log("failed to get JIT config, falling back to registration token: %s", err)
+		}
 	}
 
 	createParams := params.CreateInstanceParams{

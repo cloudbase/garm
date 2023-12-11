@@ -518,3 +518,13 @@ func (l *LXD) Stop(ctx context.Context, instance string, force bool) error {
 func (l *LXD) Start(ctx context.Context, instance string) error {
 	return l.setState(instance, "start", false)
 }
+
+// DisableJITConfig tells us if the provider explicitly disables JIT configuration and
+// forces runner registration tokens to be used. This may happen if a provider has not yet
+// been updated to support JIT configuration.
+func (l *LXD) DisableJITConfig() bool {
+	if l.cfg == nil {
+		return false
+	}
+	return l.cfg.DisableJITConfig
+}
