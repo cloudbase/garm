@@ -297,6 +297,20 @@ func (p *Pool) PoolType() PoolType {
 	return ""
 }
 
+func (p *Pool) HasRequiredLabels(set []string) bool {
+	asMap := make(map[string]struct{}, len(p.Tags))
+	for _, t := range p.Tags {
+		asMap[t.Name] = struct{}{}
+	}
+
+	for _, l := range set {
+		if _, ok := asMap[l]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
 // used by swagger client generated code
 type Pools []Pool
 
