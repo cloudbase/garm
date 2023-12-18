@@ -30,17 +30,17 @@ Thanks to the efforts of the amazing folks at @mercedes-benz, GARM can now be in
 
 ## Supported providers
 
-GARM has a built-in LXD provider that you can use out of the box to spin up runners on any machine that runs either a stand-alone LXD instance, or an LXD cluster. The quick start guide mentioned above will get you up and running with the LXD provider.
-
-GARM also supports external providers for a variety of other targets.
+GARM uses providers to create runners in a particular IaaS. The providers are external executables that GARM calls into to create runners. Before you can create runners, you'll need to install at least one provider.
 
 ## Installing external providers
 
-External providers are binaries that GARM calls into to create runners in a particular IaaS. There are currently two external providers available:
+External providers are binaries that GARM calls into to create runners in a particular IaaS. There are several external providers available:
 
 * [OpenStack](https://github.com/cloudbase/garm-provider-openstack)
 * [Azure](https://github.com/cloudbase/garm-provider-azure)
 * [Kubernetes](https://github.com/mercedes-benz/garm-provider-k8s) - Thanks to the amazing folks at @mercedes-benz for sharing their awesome provider!
+* [LXD](https://github.com/cloudbase/garm-provider-lxd)
+* [Incus](https://github.com/cloudbase/garm-provider-incus)
 
 Follow the instructions in the README of each provider to install them. 
 
@@ -62,10 +62,4 @@ If you would like to optimize the startup time of new instance, take a look at t
 
 ## Write your own provider
 
-The providers are interfaces between ```GARM``` and a particular IaaS in which we spin up GitHub Runners. These providers can be either **native** or **external**. The **native** providers are written in ```Go```, and must implement [the interface defined here](https://github.com/cloudbase/garm/blob/main/runner/common/provider.go#L22-L39). **External** providers can be written in any language, as they are in the form of an external executable that ```GARM``` calls into.
-
-There is currently one **native** provider for [LXD](https://linuxcontainers.org/lxd/) and several **external** providers linked above.
-
-If you want to write your own provider, you can choose to write a native one, or implement an **external** one. I encourage you to opt for an **external** provider, as those are the easiest to write and you don't need to merge it in GARM itself to be able to use. Faster to write, faster to iterate. The LXD provider may at some point be split from GARM into it's own external project, at which point we will remove the native provider interface and only support external providers.
-
-Please see the [Writing an external provider](/doc/external_provider.md) document for details. Also, feel free to inspect the two available sample external providers in this repository.
+The providers are interfaces between ```GARM``` and a particular IaaS in which we spin up GitHub Runners. **External** providers can be written in any language, as they are in the form of an external executable that ```GARM``` calls into. Please see the [Writing an external provider](/doc/external_provider.md) document for details. Also, feel free to inspect the two available sample external providers in this repository.
