@@ -34,7 +34,7 @@ import (
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
 
-	"github.com/google/go-github/v55/github"
+	"github.com/google/go-github/v57/github"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"

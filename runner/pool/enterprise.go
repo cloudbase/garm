@@ -17,7 +17,7 @@ import (
 	"github.com/cloudbase/garm/runner/common"
 	"github.com/cloudbase/garm/util"
 
-	"github.com/google/go-github/v55/github"
+	"github.com/google/go-github/v57/github"
 	"github.com/pkg/errors"
 )
 

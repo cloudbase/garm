@@ -89,9 +89,9 @@ github.com/golang-jwt/jwt/v5
 # github.com/golang/protobuf v1.5.3
 ## explicit; go 1.9
 github.com/golang/protobuf/proto
-# github.com/google/go-github/v55 v55.0.1-0.20230921135834-aa3fcbe7aabc
+# github.com/google/go-github/v57 v57.0.0
 ## explicit; go 1.17
-github.com/google/go-github/v55/github
+github.com/google/go-github/v57/github
 # github.com/google/go-querystring v1.1.0
 ## explicit; go 1.10
 github.com/google/go-querystring/query
