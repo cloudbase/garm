@@ -10,6 +10,9 @@ ADD . /build/garm
 RUN cd /build/garm && git checkout ${GARM_REF}
 RUN git clone https://github.com/cloudbase/garm-provider-azure /build/garm-provider-azure
 RUN git clone https://github.com/cloudbase/garm-provider-openstack /build/garm-provider-openstack
+RUN git clone https://github.com/cloudbase/garm-provider-lxd /build/garm-provider-lxd
+RUN git clone https://github.com/cloudbase/garm-provider-incus /build/garm-provider-incus
+RUN git clone https://github.com/mercedes-benz/garm-provider-k8s /build/garm-provider-k8s
 
 RUN cd /build/garm && go build -o /bin/garm \
     -tags osusergo,netgo,sqlite_omit_load_extension \
@@ -18,11 +21,17 @@ RUN cd /build/garm && go build -o /bin/garm \
 RUN mkdir -p /opt/garm/providers.d
 RUN cd /build/garm-provider-azure && go build -ldflags="-extldflags '-static' -s -w" -o /opt/garm/providers.d/garm-provider-azure .
 RUN cd /build/garm-provider-openstack && go build -ldflags="-extldflags '-static' -s -w" -o /opt/garm/providers.d/garm-provider-openstack .
+RUN cd /build/garm-provider-lxd && go build -ldflags="-extldflags '-static' -s -w" -o /opt/garm/providers.d/garm-provider-lxd .
+RUN cd /build/garm-provider-incus && go build -ldflags="-extldflags '-static' -s -w" -o /opt/garm/providers.d/garm-provider-incus .
+RUN cd /build/garm-provider-k8s && go build -ldflags="-extldflags '-static' -s -w" -o /opt/garm/providers.d/garm-provider-k8s .
 
 FROM scratch
 
 COPY --from=builder /bin/garm /bin/garm
 COPY --from=builder /opt/garm/providers.d/garm-provider-openstack /opt/garm/providers.d/garm-provider-openstack
+COPY --from=builder /opt/garm/providers.d/garm-provider-lxd /opt/garm/providers.d/garm-provider-lxd
+COPY --from=builder /opt/garm/providers.d/garm-provider-incus /opt/garm/providers.d/garm-provider-incus
+COPY --from=builder /opt/garm/providers.d/garm-provider-k8s /opt/garm/providers.d/garm-provider-k8s
 COPY --from=builder /opt/garm/providers.d/garm-provider-azure /opt/garm/providers.d/garm-provider-azure
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
