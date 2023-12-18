@@ -9,7 +9,7 @@ require (
 	github.com/go-openapi/runtime v0.26.2
 	github.com/go-openapi/strfmt v0.21.10
 	github.com/go-openapi/swag v0.22.5
-	github.com/golang-jwt/jwt v3.2.2+incompatible
+	github.com/golang-jwt/jwt/v5 v5.2.0
 	github.com/google/go-github/v55 v55.0.1-0.20230921135834-aa3fcbe7aabc
 	github.com/google/uuid v1.5.0
 	github.com/gorilla/handlers v1.5.2

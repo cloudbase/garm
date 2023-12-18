@@ -27,7 +27,7 @@ import (
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
 
-	"github.com/golang-jwt/jwt"
+	jwt "github.com/golang-jwt/jwt/v5"
 	"github.com/pkg/errors"
 )
 
@@ -40,17 +40,20 @@ type InstanceJWTClaims struct {
 	Scope params.PoolType `json:"scope"`
 	// Entity is the repo or org name
 	Entity string `json:"entity"`
-	jwt.StandardClaims
+	jwt.RegisteredClaims
 }
 
 func NewInstanceJWTToken(instance params.Instance, secret, entity string, poolType params.PoolType, ttlMinutes uint) (string, error) {
 	// Token expiration is equal to the bootstrap timeout set on the pool plus the polling
 	// interval garm uses to check for timed out runners. Runners that have not sent their info
 	// by the end of this interval are most likely failed and will be reaped by garm anyway.
-	expireToken := time.Now().Add(time.Duration(ttlMinutes)*time.Minute + common.PoolReapTimeoutInterval).Unix()
+	expireToken := time.Now().Add(time.Duration(ttlMinutes)*time.Minute + common.PoolReapTimeoutInterval)
+	expires := &jwt.NumericDate{
+		Time: expireToken,
+	}
 	claims := InstanceJWTClaims{
-		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: expireToken,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: expires,
 			Issuer:    "garm",
 		},
 		ID:     instance.ID,
