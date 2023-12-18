@@ -60,7 +60,7 @@ var tableRegexp = regexp.MustCompile(`(?i)(?:.+? AS (\w+)\s*(?:$|,)|^\w+\s+(\w+)
 // Table specify the table you would like to run db operations
 //
 //	// Get a user
-//	db.Table("users").take(&result)
+//	db.Table("users").Take(&result)
 func (db *DB) Table(name string, args ...interface{}) (tx *DB) {
 	tx = db.getInstance()
 	if strings.Contains(name, " ") || strings.Contains(name, "`") || len(args) > 0 {
@@ -363,6 +363,36 @@ func (db *DB) Offset(offset int) (tx *DB) {
 func (db *DB) Scopes(funcs ...func(*DB) *DB) (tx *DB) {
 	tx = db.getInstance()
 	tx.Statement.scopes = append(tx.Statement.scopes, funcs...)
+	return tx
+}
+
+func (db *DB) executeScopes() (tx *DB) {
+	tx = db.getInstance()
+	scopes := db.Statement.scopes
+	if len(scopes) == 0 {
+		return tx
+	}
+	tx.Statement.scopes = nil
+
+	conditions := make([]clause.Interface, 0, 4)
+	if cs, ok := tx.Statement.Clauses["WHERE"]; ok && cs.Expression != nil {
+		conditions = append(conditions, cs.Expression.(clause.Interface))
+		cs.Expression = nil
+		tx.Statement.Clauses["WHERE"] = cs
+	}
+
+	for _, scope := range scopes {
+		tx = scope(tx)
+		if cs, ok := tx.Statement.Clauses["WHERE"]; ok && cs.Expression != nil {
+			conditions = append(conditions, cs.Expression.(clause.Interface))
+			cs.Expression = nil
+			tx.Statement.Clauses["WHERE"] = cs
+		}
+	}
+
+	for _, condition := range conditions {
+		tx.Statement.AddClause(condition)
+	}
 	return tx
 }
 
