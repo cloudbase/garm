@@ -43,18 +43,18 @@ export DB_PASSPHRASE="$(generate_secret)"
 
 # Group "adm" is the LXD daemon group as set by the "canonical/setup-lxd" GitHub action.
 sudo useradd --shell /usr/bin/false --system --groups adm --no-create-home garm
+sudo mkdir -p /etc/garm
+sudo mkdir -p $PROVIDER_BIN_DIR
 
 export LXD_PROVIDER_EXECUTABLE="$PROVIDER_BIN_DIR/garm-provider-lxd"
 export LXD_PROVIDER_CONFIG="/etc/garm/garm-provider-lxd.toml"
 sudo cp $CONFIG_DIR/garm-provider-lxd.toml $LXD_PROVIDER_CONFIG
 
-sudo mkdir -p $PROVIDER_BIN_DIR
 git clone https://github.com/cloudbase/garm-provider-lxd ~/garm-provider-lxd
 pushd ~/garm-provider-lxd
 go build -o $LXD_PROVIDER_EXECUTABLE
 popd
 
-sudo mkdir -p /etc/garm
 cat $CONFIG_DIR/config.toml | envsubst | sudo tee /etc/garm/config.toml
 sudo chown -R garm:garm /etc/garm
 
