@@ -23,7 +23,7 @@ RUN cd /build/garm-provider-azure && go build -ldflags="-extldflags '-static' -s
 RUN cd /build/garm-provider-openstack && go build -ldflags="-extldflags '-static' -s -w" -o /opt/garm/providers.d/garm-provider-openstack .
 RUN cd /build/garm-provider-lxd && go build -ldflags="-extldflags '-static' -s -w" -o /opt/garm/providers.d/garm-provider-lxd .
 RUN cd /build/garm-provider-incus && go build -ldflags="-extldflags '-static' -s -w" -o /opt/garm/providers.d/garm-provider-incus .
-RUN cd /build/garm-provider-k8s && go build -ldflags="-extldflags '-static' -s -w" -o /opt/garm/providers.d/garm-provider-k8s .
+RUN cd /build/garm-provider-k8s/cmd/garm-provider-k8s && go build -ldflags="-extldflags '-static' -s -w" -o /opt/garm/providers.d/garm-provider-k8s .
 
 FROM scratch
 
