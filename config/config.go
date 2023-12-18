@@ -223,7 +223,6 @@ type Provider struct {
 	// tokens to be used. This may happen if a provider has not yet been updated to support
 	// JIT configuration.
 	DisableJITConfig bool     `toml:"disable_jit_config" json:"disable-jit-config"`
-	LXD              LXD      `toml:"lxd" json:"lxd"`
 	External         External `toml:"external" json:"external"`
 }
 
@@ -233,10 +232,6 @@ func (p *Provider) Validate() error {
 	}
 
 	switch p.ProviderType {
-	case params.LXDProvider:
-		if err := p.LXD.Validate(); err != nil {
-			return errors.Wrap(err, "validating LXD provider info")
-		}
 	case params.ExternalProvider:
 		if err := p.External.Validate(); err != nil {
 			return errors.Wrap(err, "validating external provider info")

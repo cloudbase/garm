@@ -6,6 +6,9 @@ BINARIES_DIR="$PWD/bin"
 CONTRIB_DIR="$PWD/contrib"
 CONFIG_DIR="$PWD/test/integration/config"
 CONFIG_DIR_PROV="$PWD/test/integration/provider"
+PROVIDER_BIN_DIR="/opt/garm/providers.d/lxd"
+LXD_PROVIDER_EXECUTABLE="$PROVIDER_BIN_DIR/garm-provider-lxd"
+LXD_PROVIDER_CONFIG="$CONFIG_DIR/garm-provider-lxd.toml"
 
 if [[ ! -f $BINARIES_DIR/garm ]] || [[ ! -f $BINARIES_DIR/garm-cli ]]; then
     echo "ERROR: Please build GARM binaries first"
@@ -42,6 +45,12 @@ export DB_PASSPHRASE="$(generate_secret)"
 
 # Group "adm" is the LXD daemon group as set by the "canonical/setup-lxd" GitHub action.
 sudo useradd --shell /usr/bin/false --system --groups adm --no-create-home garm
+
+sudo mkdir -p $PROVIDER_BIN_DIR
+git clone https://github.com/cloudbase/garm-provider-lxd ~/garm-provider-lxd
+pushd ~/garm-provider-lxd
+go build -o $PROVIDER_BIN_DIR/garm-provider-lxd
+popd
 
 sudo mkdir -p /etc/garm
 cat $CONFIG_DIR/config.toml | envsubst | sudo tee /etc/garm/config.toml
