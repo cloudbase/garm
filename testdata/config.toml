@@ -6,7 +6,7 @@
 # Note: If you're using a reverse proxy in front of your garm installation,
 # this URL needs to point to the address of the reverse proxy. Using TLS is
 # highly encouraged.
-callback_url = "https://garm.example.com/api/v1/callbacks/status"
+callback_url = "https://garm.example.com/api/v1/callbacks"
 
 # This URL is used by instances to retrieve information they need to set themselves
 # up. Access to this URL is granted using the same JWT token used to send back
@@ -16,6 +16,24 @@ callback_url = "https://garm.example.com/api/v1/callbacks/status"
 # this URL needs to point to the address of the reverse proxy. Using TLS is
 # highly encouraged.
 metadata_url = "https://garm.example.com/api/v1/metadata"
+
+# This is the base URL where GARM will listen for webhook events from github. This
+# URL can be directly configured in github to send events to.
+# If GARM is allowed to manage webhooks, this URL will be used as a base to optionally
+# create webhooks for repositories and organizations. To avoid clashes, the unique
+# controller ID that gets generated when GARM is first installed, will be added as a suffix
+# to this URL.
+#
+# For example, assuming that your GARM controller ID is "18225ce4-e3bd-43f0-9c85-7d7858bcc5b2"
+# the webhook URL will be "https://garm.example.com/webhooks/18225ce4-e3bd-43f0-9c85-7d7858bcc5b2"
+webhook_url = "https://garm.example.com/webhooks"
+
+# This option enables GARM to manage webhooks for repositories and organizations. Set this
+# to false to disable the API routes that manage webhooks.
+#
+# When managing webhooks, the PAT you're using must have the necessary access to create/list/delete
+# webhooks for repositories or organizations.
+enable_webhook_management = true
 
 # Uncomment this line if you'd like to log to a file instead of standard output.
 # log_file = "/tmp/runner-manager.log"
@@ -94,15 +112,21 @@ time_to_live = "8760h"
 # provider must not be changed, or the pool will no longer work. Make sure you remove any
 # pools before removing or changing a provider.
 [[provider]]
-  # An arbitrary string describing this provider.
-  name = "lxd_local"
-  # Provider type. Garm is designed to allow creating providers which are used to spin
-  # up compute resources, which in turn will run the github runner software.
-  # Currently, LXD is the only supprted provider, but more will be written in the future.
-  provider_type = "lxd"
-  # A short description of this provider. The name, description and provider types will
-  # be included in the information returned by the API when listing available providers.
-  description = "Local LXD installation"
+# An arbitrary string describing this provider.
+name = "lxd_local"
+# Provider type. Garm is designed to allow creating providers which are used to spin
+# up compute resources, which in turn will run the github runner software.
+# Currently, LXD is the only supprted provider, but more will be written in the future.
+provider_type = "lxd"
+# A short description of this provider. The name, description and provider types will
+# be included in the information returned by the API when listing available providers.
+description = "Local LXD installation"
+# DisableJITConfig explicitly disables JIT configuration and forces runner registration
+# tokens to be used. This may happen if a provider has not yet been updated to support
+# JIT configuration.
+#
+# Set this to true if your provider does not support JIT configuration.
+disable_jit_config = false
   [provider.lxd]
     # the path to the unix socket that LXD is listening on. This works if garm and LXD
     # are on the same system, and this option takes precedence over the "url" option,
@@ -173,6 +197,12 @@ time_to_live = "8760h"
 name = "openstack_external"
 description = "external openstack provider"
 provider_type = "external"
+# DisableJITConfig explicitly disables JIT configuration and forces runner registration
+# tokens to be used. This may happen if a provider has not yet been updated to support
+# JIT configuration.
+#
+# Set this to true if your provider does not support JIT configuration.
+disable_jit_config = false
   [provider.external]
   # config file passed to the executable via GARM_PROVIDER_CONFIG_FILE environment variable
   config_file = "/etc/garm/providers.d/openstack/keystonerc"
@@ -185,6 +215,12 @@ provider_type = "external"
 name = "azure_external"
 description = "external azure provider"
 provider_type = "external"
+# DisableJITConfig explicitly disables JIT configuration and forces runner registration
+# tokens to be used. This may happen if a provider has not yet been updated to support
+# JIT configuration.
+#
+# Set this to true if your provider does not support JIT configuration.
+disable_jit_config = false
   [provider.external]
   # config file passed to the executable via GARM_PROVIDER_CONFIG_FILE environment variable
   config_file = "/etc/garm/providers.d/azure/config.sh"

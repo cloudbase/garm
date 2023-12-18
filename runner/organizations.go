@@ -124,7 +124,7 @@ func (r *Runner) GetOrganizationByID(ctx context.Context, orgID string) (params.
 	return org, nil
 }
 
-func (r *Runner) DeleteOrganization(ctx context.Context, orgID string) error {
+func (r *Runner) DeleteOrganization(ctx context.Context, orgID string, keepWebhook bool) error {
 	if !auth.IsAdmin(ctx) {
 		return runnerErrors.ErrUnauthorized
 	}
@@ -146,6 +146,18 @@ func (r *Runner) DeleteOrganization(ctx context.Context, orgID string) error {
 		}
 
 		return runnerErrors.NewBadRequestError("org has pools defined (%s)", strings.Join(poolIds, ", "))
+	}
+
+	if !keepWebhook && r.config.Default.EnableWebhookManagement {
+		poolMgr, err := r.poolManagerCtrl.GetOrgPoolManager(org)
+		if err != nil {
+			return errors.Wrap(err, "fetching pool manager")
+		}
+
+		if err := poolMgr.UninstallWebhook(ctx); err != nil {
+			// TODO(gabriel-samfira): Should we error out here?
+			log.Printf("failed to uninstall webhook: %s", err)
+		}
 	}
 
 	if err := r.poolManagerCtrl.DeleteOrgPoolManager(org); err != nil {
@@ -338,4 +350,69 @@ func (r *Runner) findOrgPoolManager(name string) (common.PoolManager, error) {
 		return nil, errors.Wrap(err, "fetching pool manager for org")
 	}
 	return poolManager, nil
+}
+
+func (r *Runner) InstallOrgWebhook(ctx context.Context, orgID string, param params.InstallWebhookParams) (params.HookInfo, error) {
+	if !auth.IsAdmin(ctx) {
+		return params.HookInfo{}, runnerErrors.ErrUnauthorized
+	}
+
+	org, err := r.store.GetOrganizationByID(ctx, orgID)
+	if err != nil {
+		return params.HookInfo{}, errors.Wrap(err, "fetching org")
+	}
+
+	poolMgr, err := r.poolManagerCtrl.GetOrgPoolManager(org)
+	if err != nil {
+		return params.HookInfo{}, errors.Wrap(err, "fetching pool manager for org")
+	}
+
+	info, err := poolMgr.InstallWebhook(ctx, param)
+	if err != nil {
+		return params.HookInfo{}, errors.Wrap(err, "installing webhook")
+	}
+	return info, nil
+}
+
+func (r *Runner) UninstallOrgWebhook(ctx context.Context, orgID string) error {
+	if !auth.IsAdmin(ctx) {
+		return runnerErrors.ErrUnauthorized
+	}
+
+	org, err := r.store.GetOrganizationByID(ctx, orgID)
+	if err != nil {
+		return errors.Wrap(err, "fetching org")
+	}
+
+	poolMgr, err := r.poolManagerCtrl.GetOrgPoolManager(org)
+	if err != nil {
+		return errors.Wrap(err, "fetching pool manager for org")
+	}
+
+	if err := poolMgr.UninstallWebhook(ctx); err != nil {
+		return errors.Wrap(err, "uninstalling webhook")
+	}
+	return nil
+}
+
+func (r *Runner) GetOrgWebhookInfo(ctx context.Context, orgID string) (params.HookInfo, error) {
+	if !auth.IsAdmin(ctx) {
+		return params.HookInfo{}, runnerErrors.ErrUnauthorized
+	}
+
+	org, err := r.store.GetOrganizationByID(ctx, orgID)
+	if err != nil {
+		return params.HookInfo{}, errors.Wrap(err, "fetching org")
+	}
+
+	poolMgr, err := r.poolManagerCtrl.GetOrgPoolManager(org)
+	if err != nil {
+		return params.HookInfo{}, errors.Wrap(err, "fetching pool manager for org")
+	}
+
+	info, err := poolMgr.GetWebhookInfo(ctx)
+	if err != nil {
+		return params.HookInfo{}, errors.Wrap(err, "fetching webhook info")
+	}
+	return info, nil
 }

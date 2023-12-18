@@ -32,7 +32,7 @@ func (s *sqlDatabase) CreateRepository(ctx context.Context, owner, name, credent
 	if webhookSecret == "" {
 		return params.Repository{}, errors.New("creating repo: missing secret")
 	}
-	secret, err := util.Aes256EncodeString(webhookSecret, s.cfg.Passphrase)
+	secret, err := util.Seal([]byte(webhookSecret), []byte(s.cfg.Passphrase))
 	if err != nil {
 		return params.Repository{}, fmt.Errorf("failed to encrypt string")
 	}
@@ -114,7 +114,7 @@ func (s *sqlDatabase) UpdateRepository(ctx context.Context, repoID string, param
 	}
 
 	if param.WebhookSecret != "" {
-		secret, err := util.Aes256EncodeString(param.WebhookSecret, s.cfg.Passphrase)
+		secret, err := util.Seal([]byte(param.WebhookSecret), []byte(s.cfg.Passphrase))
 		if err != nil {
 			return params.Repository{}, fmt.Errorf("saving repo: failed to encrypt string: %w", err)
 		}
@@ -168,6 +168,7 @@ func (s *sqlDatabase) CreateRepositoryPool(ctx context.Context, repoId string, p
 		RepoID:                 &repo.ID,
 		Enabled:                param.Enabled,
 		RunnerBootstrapTimeout: param.RunnerBootstrapTimeout,
+		GitHubRunnerGroup:      param.GitHubRunnerGroup,
 	}
 
 	if len(param.ExtraSpecs) > 0 {
@@ -208,7 +209,7 @@ func (s *sqlDatabase) CreateRepositoryPool(ctx context.Context, repoId string, p
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}
 
-	return s.sqlToCommonPool(pool), nil
+	return s.sqlToCommonPool(pool)
 }
 
 func (s *sqlDatabase) ListRepoPools(ctx context.Context, repoID string) ([]params.Pool, error) {
@@ -219,7 +220,10 @@ func (s *sqlDatabase) ListRepoPools(ctx context.Context, repoID string) ([]param
 
 	ret := make([]params.Pool, len(pools))
 	for idx, pool := range pools {
-		ret[idx] = s.sqlToCommonPool(pool)
+		ret[idx], err = s.sqlToCommonPool(pool)
+		if err != nil {
+			return nil, errors.Wrap(err, "fetching pool")
+		}
 	}
 
 	return ret, nil
@@ -230,7 +234,7 @@ func (s *sqlDatabase) GetRepositoryPool(ctx context.Context, repoID, poolID stri
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}
-	return s.sqlToCommonPool(pool), nil
+	return s.sqlToCommonPool(pool)
 }
 
 func (s *sqlDatabase) DeleteRepositoryPool(ctx context.Context, repoID, poolID string) error {
@@ -262,7 +266,11 @@ func (s *sqlDatabase) ListRepoInstances(ctx context.Context, repoID string) ([]p
 	ret := []params.Instance{}
 	for _, pool := range pools {
 		for _, instance := range pool.Instances {
-			ret = append(ret, s.sqlToParamsInstance(instance))
+			paramsInstance, err := s.sqlToParamsInstance(instance)
+			if err != nil {
+				return nil, errors.Wrap(err, "fetching instance")
+			}
+			ret = append(ret, paramsInstance)
 		}
 	}
 	return ret, nil

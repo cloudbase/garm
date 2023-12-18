@@ -1,0 +1,50 @@
+[default]
+callback_url = "${GARM_BASE_URL}/api/v1/callbacks/status"
+metadata_url = "${GARM_BASE_URL}/api/v1/metadata"
+webhook_url = "${GARM_BASE_URL}/webhooks"
+enable_webhook_management = true
+
+[metrics]
+enable = true
+disable_auth = false
+
+[jwt_auth]
+secret = "${JWT_AUTH_SECRET}"
+time_to_live = "8760h"
+
+[apiserver]
+bind = "0.0.0.0"
+port = 9997
+use_tls = false
+
+[database]
+backend = "sqlite3"
+passphrase = "${DB_PASSPHRASE}"
+[database.sqlite3]
+  db_file = "/etc/garm/garm.db"
+
+[[provider]]
+name = "lxd_local"
+provider_type = "external"
+description = "Local LXD installation"
+  [provider.external]
+    provider_executable = "${LXD_PROVIDER_EXECUTABLE}"
+    config_file = "${LXD_PROVIDER_CONFIG}"
+
+[[provider]]
+name = "test_external"
+description = "external test provider"
+provider_type = "external"
+  [provider.external]
+  config_file = "/etc/garm/test-provider/config"
+  provider_executable = "/etc/garm/test-provider/garm-external-provider"
+
+[[github]]
+name = "${CREDENTIALS_NAME}"
+description = "GARM GitHub OAuth token"
+oauth2_token = "${GH_OAUTH_TOKEN}"
+
+[[github]]
+name = "${CREDENTIALS_NAME}-clone"
+description = "GARM GitHub OAuth token - clone"
+oauth2_token = "${GH_OAUTH_TOKEN}"

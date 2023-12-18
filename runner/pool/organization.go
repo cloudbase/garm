@@ -16,18 +16,22 @@ package pool
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"sync"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	commonParams "github.com/cloudbase/garm-provider-common/params"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
 	"github.com/cloudbase/garm/util"
 
-	"github.com/google/go-github/v53/github"
+	"github.com/google/go-github/v57/github"
 	"github.com/pkg/errors"
 )
 
@@ -57,6 +61,12 @@ func NewOrganizationPoolManager(ctx context.Context, cfg params.Organization, cf
 		store:        store,
 		providers:    providers,
 		controllerID: cfgInternal.ControllerID,
+		urls: urls{
+			webhookURL:           cfgInternal.BaseWebhookURL,
+			callbackURL:          cfgInternal.InstanceCallbackURL,
+			metadataURL:          cfgInternal.InstanceMetadataURL,
+			controllerWebhookURL: cfgInternal.ControllerWebhookURL,
+		},
 		quit:         make(chan struct{}),
 		helper:       helper,
 		credsDetails: cfgInternal.GithubCredentialsDetails,
@@ -75,6 +85,82 @@ type organization struct {
 	store       dbCommon.Store
 
 	mux sync.Mutex
+}
+
+func (r *organization) findRunnerGroupByName(ctx context.Context, name string) (*github.RunnerGroup, error) {
+	// TODO(gabriel-samfira): implement caching
+	opts := github.ListOrgRunnerGroupOptions{
+		ListOptions: github.ListOptions{
+			PerPage: 100,
+		},
+	}
+
+	for {
+		runnerGroups, ghResp, err := r.ghcli.ListOrganizationRunnerGroups(r.ctx, r.cfg.Name, &opts)
+		if err != nil {
+			if ghResp != nil && ghResp.StatusCode == http.StatusUnauthorized {
+				return nil, errors.Wrap(runnerErrors.ErrUnauthorized, "fetching runners")
+			}
+			return nil, errors.Wrap(err, "fetching runners")
+		}
+		for _, runnerGroup := range runnerGroups.RunnerGroups {
+			if runnerGroup.GetName() == name {
+				return runnerGroup, nil
+			}
+		}
+		if ghResp.NextPage == 0 {
+			break
+		}
+		opts.Page = ghResp.NextPage
+	}
+
+	return nil, errors.Wrap(runnerErrors.ErrNotFound, "runner group not found")
+}
+
+func (r *organization) GetJITConfig(ctx context.Context, instance string, pool params.Pool, labels []string) (jitConfigMap map[string]string, runner *github.Runner, err error) {
+	var rg int64 = 1
+	if pool.GitHubRunnerGroup != "" {
+		runnerGroup, err := r.findRunnerGroupByName(ctx, pool.GitHubRunnerGroup)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to find runner group: %w", err)
+		}
+		rg = runnerGroup.GetID()
+	}
+
+	req := github.GenerateJITConfigRequest{
+		Name:          instance,
+		RunnerGroupID: rg,
+		Labels:        labels,
+		// TODO(gabriel-samfira): Should we make this configurable?
+		WorkFolder: github.String("_work"),
+	}
+	jitConfig, resp, err := r.ghcli.GenerateOrgJITConfig(ctx, r.cfg.Name, &req)
+	if err != nil {
+		if resp != nil && resp.StatusCode == http.StatusUnauthorized {
+			return nil, nil, fmt.Errorf("failed to get JIT config: %w", err)
+		}
+		return nil, nil, fmt.Errorf("failed to get JIT config: %w", err)
+	}
+
+	runner = jitConfig.GetRunner()
+	defer func() {
+		if err != nil && runner != nil {
+			_, innerErr := r.ghcli.RemoveOrganizationRunner(r.ctx, r.cfg.Name, runner.GetID())
+			log.Printf("failed to remove runner: %v", innerErr)
+		}
+	}()
+
+	decoded, err := base64.StdEncoding.DecodeString(jitConfig.GetEncodedJITConfig())
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to decode JIT config: %w", err)
+	}
+
+	var ret map[string]string
+	if err := json.Unmarshal(decoded, &ret); err != nil {
+		return nil, nil, fmt.Errorf("failed to unmarshal JIT config: %w", err)
+	}
+
+	return ret, runner, nil
 }
 
 func (r *organization) GithubCLI() common.GithubClient {
@@ -151,7 +237,7 @@ func (r *organization) GetGithubRunners() ([]*github.Runner, error) {
 	return allRunners, nil
 }
 
-func (r *organization) FetchTools() ([]*github.RunnerApplicationDownload, error) {
+func (r *organization) FetchTools() ([]commonParams.RunnerApplicationDownload, error) {
 	r.mux.Lock()
 	defer r.mux.Unlock()
 	tools, ghResp, err := r.ghcli.ListOrganizationRunnerApplicationDownloads(r.ctx, r.cfg.Name)
@@ -162,7 +248,15 @@ func (r *organization) FetchTools() ([]*github.RunnerApplicationDownload, error)
 		return nil, errors.Wrap(err, "fetching runner tools")
 	}
 
-	return tools, nil
+	ret := []commonParams.RunnerApplicationDownload{}
+	for _, tool := range tools {
+		if tool == nil {
+			continue
+		}
+		ret = append(ret, commonParams.RunnerApplicationDownload(*tool))
+	}
+
+	return ret, nil
 }
 
 func (r *organization) FetchDbInstances() ([]params.Instance, error) {
@@ -210,14 +304,6 @@ func (r *organization) WebhookSecret() string {
 	return r.cfg.WebhookSecret
 }
 
-func (r *organization) GetCallbackURL() string {
-	return r.cfgInternal.InstanceCallbackURL
-}
-
-func (r *organization) GetMetadataURL() string {
-	return r.cfgInternal.InstanceMetadataURL
-}
-
 func (r *organization) FindPoolByTags(labels []string) (params.Pool, error) {
 	pool, err := r.store.FindOrganizationPoolByTags(r.ctx, r.id, labels)
 	if err != nil {
@@ -243,4 +329,82 @@ func (r *organization) ValidateOwner(job params.WorkflowJob) error {
 
 func (r *organization) ID() string {
 	return r.id
+}
+
+func (r *organization) listHooks(ctx context.Context) ([]*github.Hook, error) {
+	opts := github.ListOptions{
+		PerPage: 100,
+	}
+	var allHooks []*github.Hook
+	for {
+		hooks, ghResp, err := r.ghcli.ListOrgHooks(ctx, r.cfg.Name, &opts)
+		if err != nil {
+			if ghResp != nil && ghResp.StatusCode == http.StatusNotFound {
+				return nil, runnerErrors.NewBadRequestError("organization not found or your PAT does not have access to manage webhooks")
+			}
+			return nil, errors.Wrap(err, "fetching hooks")
+		}
+		allHooks = append(allHooks, hooks...)
+		if ghResp.NextPage == 0 {
+			break
+		}
+		opts.Page = ghResp.NextPage
+	}
+	return allHooks, nil
+}
+
+func (r *organization) InstallHook(ctx context.Context, req *github.Hook) (params.HookInfo, error) {
+	allHooks, err := r.listHooks(ctx)
+	if err != nil {
+		return params.HookInfo{}, errors.Wrap(err, "listing hooks")
+	}
+
+	if err := validateHookRequest(r.cfgInternal.ControllerID, r.cfgInternal.BaseWebhookURL, allHooks, req); err != nil {
+		return params.HookInfo{}, errors.Wrap(err, "validating hook request")
+	}
+
+	hook, _, err := r.ghcli.CreateOrgHook(ctx, r.cfg.Name, req)
+	if err != nil {
+		return params.HookInfo{}, errors.Wrap(err, "creating organization hook")
+	}
+
+	if _, err := r.ghcli.PingOrgHook(ctx, r.cfg.Name, hook.GetID()); err != nil {
+		log.Printf("failed to ping hook %d: %v", *hook.ID, err)
+	}
+
+	return hookToParamsHookInfo(hook), nil
+}
+
+func (r *organization) UninstallHook(ctx context.Context, url string) error {
+	allHooks, err := r.listHooks(ctx)
+	if err != nil {
+		return errors.Wrap(err, "listing hooks")
+	}
+
+	for _, hook := range allHooks {
+		if hook.Config["url"] == url {
+			_, err = r.ghcli.DeleteOrgHook(ctx, r.cfg.Name, hook.GetID())
+			if err != nil {
+				return errors.Wrap(err, "deleting hook")
+			}
+			return nil
+		}
+	}
+	return nil
+}
+
+func (r *organization) GetHookInfo(ctx context.Context) (params.HookInfo, error) {
+	allHooks, err := r.listHooks(ctx)
+	if err != nil {
+		return params.HookInfo{}, errors.Wrap(err, "listing hooks")
+	}
+
+	for _, hook := range allHooks {
+		hookInfo := hookToParamsHookInfo(hook)
+		if strings.EqualFold(hookInfo.URL, r.cfgInternal.ControllerWebhookURL) {
+			return hookInfo, nil
+		}
+	}
+
+	return params.HookInfo{}, runnerErrors.NewNotFoundError("hook not found")
 }

@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strconv"
 
 	gErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/apiserver/params"
@@ -43,21 +44,21 @@ import (
 func (a *APIController) CreateOrgHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	var repoData runnerParams.CreateOrgParams
-	if err := json.NewDecoder(r.Body).Decode(&repoData); err != nil {
+	var orgData runnerParams.CreateOrgParams
+	if err := json.NewDecoder(r.Body).Decode(&orgData); err != nil {
 		handleError(w, gErrors.ErrBadRequest)
 		return
 	}
 
-	repo, err := a.r.CreateOrganization(ctx, repoData)
+	org, err := a.r.CreateOrganization(ctx, orgData)
 	if err != nil {
-		log.Printf("error creating repository: %+v", err)
+		log.Printf("error creating organization: %+v", err)
 		handleError(w, err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(repo); err != nil {
+	if err := json.NewEncoder(w).Encode(org); err != nil {
 		log.Printf("failed to encode response: %q", err)
 	}
 }
@@ -139,6 +140,12 @@ func (a *APIController) GetOrgByIDHandler(w http.ResponseWriter, r *http.Request
 //	    in: path
 //	    required: true
 //
+//	  + name: keepWebhook
+//	    description: If true and a webhook is installed for this organization, it will not be removed.
+//	    type: boolean
+//	    in: query
+//	    required: false
+//
 //	Responses:
 //	  default: APIErrorResponse
 func (a *APIController) DeleteOrgHandler(w http.ResponseWriter, r *http.Request) {
@@ -157,7 +164,9 @@ func (a *APIController) DeleteOrgHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if err := a.r.DeleteOrganization(ctx, orgID); err != nil {
+	keepWebhook, _ := strconv.ParseBool(r.URL.Query().Get("keepWebhook"))
+
+	if err := a.r.DeleteOrganization(ctx, orgID, keepWebhook); err != nil {
 		log.Printf("removing org: %+v", err)
 		handleError(w, err)
 		return
@@ -344,9 +353,9 @@ func (a *APIController) ListOrgPoolsHandler(w http.ResponseWriter, r *http.Reque
 func (a *APIController) GetOrgPoolHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	vars := mux.Vars(r)
-	orgID, repoOk := vars["orgID"]
+	orgID, orgOk := vars["orgID"]
 	poolID, poolOk := vars["poolID"]
-	if !repoOk || !poolOk {
+	if !orgOk || !poolOk {
 		w.WriteHeader(http.StatusBadRequest)
 		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
 			Error:   "Bad Request",
@@ -476,6 +485,145 @@ func (a *APIController) UpdateOrgPoolHandler(w http.ResponseWriter, r *http.Requ
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(pool); err != nil {
+		log.Printf("failed to encode response: %q", err)
+	}
+}
+
+// swagger:route POST /organizations/{orgID}/webhook organizations hooks InstallOrgWebhook
+//
+// Install the GARM webhook for an organization. The secret configured on the organization will
+// be used to validate the requests.
+//
+//	Parameters:
+//	  + name: orgID
+//	    description: Organization ID.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: Body
+//	    description: Parameters used when creating the organization webhook.
+//	    type: InstallWebhookParams
+//	    in: body
+//	    required: true
+//
+//	Responses:
+//	  200: HookInfo
+//	  default: APIErrorResponse
+func (a *APIController) InstallOrgWebhookHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	vars := mux.Vars(r)
+	orgID, orgOk := vars["orgID"]
+	if !orgOk {
+		w.WriteHeader(http.StatusBadRequest)
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
+			Error:   "Bad Request",
+			Details: "No org ID specified",
+		}); err != nil {
+			log.Printf("failed to encode response: %q", err)
+		}
+		return
+	}
+
+	var hookParam runnerParams.InstallWebhookParams
+	if err := json.NewDecoder(r.Body).Decode(&hookParam); err != nil {
+		log.Printf("failed to decode: %s", err)
+		handleError(w, gErrors.ErrBadRequest)
+		return
+	}
+
+	info, err := a.r.InstallOrgWebhook(ctx, orgID, hookParam)
+	if err != nil {
+		log.Printf("installing webhook: %s", err)
+		handleError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(info); err != nil {
+		log.Printf("failed to encode response: %q", err)
+	}
+}
+
+// swagger:route DELETE /organizations/{orgID}/webhook organizations hooks UninstallOrgWebhook
+//
+// Uninstall organization webhook.
+//
+//	Parameters:
+//	  + name: orgID
+//	    description: Organization ID.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	Responses:
+//	  default: APIErrorResponse
+func (a *APIController) UninstallOrgWebhookHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	vars := mux.Vars(r)
+	orgID, orgOk := vars["orgID"]
+	if !orgOk {
+		w.WriteHeader(http.StatusBadRequest)
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
+			Error:   "Bad Request",
+			Details: "No org ID specified",
+		}); err != nil {
+			log.Printf("failed to encode response: %q", err)
+		}
+		return
+	}
+
+	if err := a.r.UninstallOrgWebhook(ctx, orgID); err != nil {
+		log.Printf("removing webhook: %s", err)
+		handleError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+}
+
+// swagger:route GET /organizations/{orgID}/webhook organizations hooks GetOrgWebhookInfo
+//
+// Get information about the GARM installed webhook on an organization.
+//
+//	Parameters:
+//	  + name: orgID
+//	    description: Organization ID.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	Responses:
+//	  200: HookInfo
+//	  default: APIErrorResponse
+func (a *APIController) GetOrgWebhookInfoHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	vars := mux.Vars(r)
+	orgID, orgOk := vars["orgID"]
+	if !orgOk {
+		w.WriteHeader(http.StatusBadRequest)
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
+			Error:   "Bad Request",
+			Details: "No org ID specified",
+		}); err != nil {
+			log.Printf("failed to encode response: %q", err)
+		}
+		return
+	}
+
+	info, err := a.r.GetOrgWebhookInfo(ctx, orgID)
+	if err != nil {
+		log.Printf("getting webhook info: %s", err)
+		handleError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(info); err != nil {
 		log.Printf("failed to encode response: %q", err)
 	}
 }

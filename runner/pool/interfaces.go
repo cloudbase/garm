@@ -15,10 +15,13 @@
 package pool
 
 import (
+	"context"
+
+	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
 
-	"github.com/google/go-github/v53/github"
+	"github.com/google/go-github/v57/github"
 )
 
 type poolHelper interface {
@@ -27,17 +30,21 @@ type poolHelper interface {
 	GetGithubRegistrationToken() (string, error)
 	GetRunnerInfoFromWorkflow(job params.WorkflowJob) (params.RunnerInfo, error)
 	RemoveGithubRunner(runnerID int64) (*github.Response, error)
-	FetchTools() ([]*github.RunnerApplicationDownload, error)
+	FetchTools() ([]commonParams.RunnerApplicationDownload, error)
+
+	InstallHook(ctx context.Context, req *github.Hook) (params.HookInfo, error)
+	UninstallHook(ctx context.Context, url string) error
+	GetHookInfo(ctx context.Context) (params.HookInfo, error)
 
 	GithubCLI() common.GithubClient
+
+	GetJITConfig(ctx context.Context, instanceName string, pool params.Pool, labels []string) (map[string]string, *github.Runner, error)
 
 	FetchDbInstances() ([]params.Instance, error)
 	ListPools() ([]params.Pool, error)
 	GithubURL() string
 	JwtToken() string
 	String() string
-	GetCallbackURL() string
-	GetMetadataURL() string
 	FindPoolByTags(labels []string) (params.Pool, error)
 	GetPoolByID(poolID string) (params.Pool, error)
 	ValidateOwner(job params.WorkflowJob) error

@@ -9,6 +9,13 @@ definitions:
                 alias: apiserver_params
                 package: github.com/cloudbase/garm/apiserver/params
             type: APIErrorResponse
+    ControllerInfo:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: ControllerInfo
     CreateEnterpriseParams:
         type: object
         x-go-type:
@@ -69,6 +76,20 @@ definitions:
                 alias: garm_params
                 package: github.com/cloudbase/garm/params
             type: GithubCredentials
+    HookInfo:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: HookInfo
+    InstallWebhookParams:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: InstallWebhookParams
     Instance:
         type: object
         x-go-type:
@@ -239,6 +260,21 @@ paths:
             summary: Logs in a user and returns a JWT token.
             tags:
                 - login
+    /controller-info:
+        get:
+            operationId: ControllerInfo
+            responses:
+                "200":
+                    description: ControllerInfo
+                    schema:
+                        $ref: '#/definitions/ControllerInfo'
+                "409":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get controller info.
+            tags:
+                - controllerInfo
     /credentials:
         get:
             operationId: ListCredentials
@@ -561,6 +597,10 @@ paths:
                   name: instanceName
                   required: true
                   type: string
+                - description: If true GARM will ignore any provider error when removing the runner and will continue to remove the runner from github and the GARM database.
+                  in: query
+                  name: forceRemove
+                  type: boolean
             responses:
                 default:
                     description: APIErrorResponse
@@ -666,6 +706,10 @@ paths:
                   name: orgID
                   required: true
                   type: string
+                - description: If true and a webhook is installed for this organization, it will not be removed.
+                  in: query
+                  name: keepWebhook
+                  type: boolean
             responses:
                 default:
                     description: APIErrorResponse
@@ -878,6 +922,76 @@ paths:
             tags:
                 - organizations
                 - pools
+    /organizations/{orgID}/webhook:
+        delete:
+            operationId: UninstallOrgWebhook
+            parameters:
+                - description: Organization ID.
+                  in: path
+                  name: orgID
+                  required: true
+                  type: string
+            responses:
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Uninstall organization webhook.
+            tags:
+                - organizations
+                - hooks
+        get:
+            operationId: GetOrgWebhookInfo
+            parameters:
+                - description: Organization ID.
+                  in: path
+                  name: orgID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: HookInfo
+                    schema:
+                        $ref: '#/definitions/HookInfo'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get information about the GARM installed webhook on an organization.
+            tags:
+                - organizations
+                - hooks
+        post:
+            description: |-
+                Install the GARM webhook for an organization. The secret configured on the organization will
+                be used to validate the requests.
+            operationId: InstallOrgWebhook
+            parameters:
+                - description: Organization ID.
+                  in: path
+                  name: orgID
+                  required: true
+                  type: string
+                - description: Parameters used when creating the organization webhook.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/InstallWebhookParams'
+                    description: Parameters used when creating the organization webhook.
+                    type: object
+            responses:
+                "200":
+                    description: HookInfo
+                    schema:
+                        $ref: '#/definitions/HookInfo'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            tags:
+                - organizations
+                - hooks
     /pools:
         get:
             operationId: ListPools
@@ -1041,6 +1155,10 @@ paths:
                   name: repoID
                   required: true
                   type: string
+                - description: If true and a webhook is installed for this repo, it will not be removed.
+                  in: query
+                  name: keepWebhook
+                  type: boolean
             responses:
                 default:
                     description: APIErrorResponse
@@ -1253,6 +1371,76 @@ paths:
             tags:
                 - repositories
                 - pools
+    /repositories/{repoID}/webhook:
+        delete:
+            operationId: UninstallRepoWebhook
+            parameters:
+                - description: Repository ID.
+                  in: path
+                  name: repoID
+                  required: true
+                  type: string
+            responses:
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Uninstall organization webhook.
+            tags:
+                - repositories
+                - hooks
+        get:
+            operationId: GetRepoWebhookInfo
+            parameters:
+                - description: Repository ID.
+                  in: path
+                  name: repoID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: HookInfo
+                    schema:
+                        $ref: '#/definitions/HookInfo'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get information about the GARM installed webhook on a repository.
+            tags:
+                - repositories
+                - hooks
+        post:
+            description: |-
+                Install the GARM webhook for an organization. The secret configured on the organization will
+                be used to validate the requests.
+            operationId: InstallRepoWebhook
+            parameters:
+                - description: Repository ID.
+                  in: path
+                  name: repoID
+                  required: true
+                  type: string
+                - description: Parameters used when creating the repository webhook.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/InstallWebhookParams'
+                    description: Parameters used when creating the repository webhook.
+                    type: object
+            responses:
+                "200":
+                    description: HookInfo
+                    schema:
+                        $ref: '#/definitions/HookInfo'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            tags:
+                - repositories
+                - hooks
 produces:
     - application/json
 security:

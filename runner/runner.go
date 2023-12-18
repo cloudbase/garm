@@ -311,12 +311,18 @@ func (p *poolManagerCtrl) getInternalConfig(credsName string) (params.Internal, 
 		return params.Internal{}, fmt.Errorf("fetching CA bundle for creds: %w", err)
 	}
 
+	var controllerWebhookURL string
+	if p.config.Default.WebhookURL != "" {
+		controllerWebhookURL = fmt.Sprintf("%s/%s", p.config.Default.WebhookURL, p.controllerID)
+	}
 	return params.Internal{
-		OAuth2Token:         creds.OAuth2Token,
-		ControllerID:        p.controllerID,
-		InstanceCallbackURL: p.config.Default.CallbackURL,
-		InstanceMetadataURL: p.config.Default.MetadataURL,
-		JWTSecret:           p.config.JWTAuth.Secret,
+		OAuth2Token:          creds.OAuth2Token,
+		ControllerID:         p.controllerID,
+		InstanceCallbackURL:  p.config.Default.CallbackURL,
+		InstanceMetadataURL:  p.config.Default.MetadataURL,
+		BaseWebhookURL:       p.config.Default.WebhookURL,
+		ControllerWebhookURL: controllerWebhookURL,
+		JWTSecret:            p.config.JWTAuth.Secret,
 		GithubCredentialsDetails: params.GithubCredentials{
 			Name:          creds.Name,
 			Description:   creds.Description,
@@ -376,9 +382,17 @@ func (r *Runner) GetControllerInfo(ctx context.Context) (params.ControllerInfo, 
 		return params.ControllerInfo{}, errors.Wrap(err, "fetching hostname")
 	}
 	r.controllerInfo.Hostname = hostname
+	var controllerWebhook string
+	if r.controllerID != uuid.Nil && r.config.Default.WebhookURL != "" {
+		controllerWebhook = fmt.Sprintf("%s/%s", r.config.Default.WebhookURL, r.controllerID.String())
+	}
 	return params.ControllerInfo{
-		ControllerID: r.controllerID,
-		Hostname:     hostname,
+		ControllerID:         r.controllerID,
+		Hostname:             hostname,
+		MetadataURL:          r.config.Default.MetadataURL,
+		CallbackURL:          r.config.Default.CallbackURL,
+		WebhookURL:           r.config.Default.WebhookURL,
+		ControllerWebhookURL: controllerWebhook,
 	}, nil
 }
 
@@ -844,55 +858,6 @@ func (r *Runner) AddInstanceStatusMessage(ctx context.Context, param params.Inst
 	return nil
 }
 
-func (r *Runner) GetInstanceGithubRegistrationToken(ctx context.Context) (string, error) {
-	instanceName := auth.InstanceName(ctx)
-	if instanceName == "" {
-		return "", runnerErrors.ErrUnauthorized
-	}
-
-	// Check if this instance already fetched a registration token. We only allow an instance to
-	// fetch one token. If the instance fails to bootstrap after a token is fetched, we reset the
-	// token fetched field when re-queueing the instance.
-	if auth.InstanceTokenFetched(ctx) {
-		return "", runnerErrors.ErrUnauthorized
-	}
-
-	status := auth.InstanceRunnerStatus(ctx)
-	if status != params.RunnerPending && status != params.RunnerInstalling {
-		return "", runnerErrors.ErrUnauthorized
-	}
-
-	instance, err := r.store.GetInstanceByName(ctx, instanceName)
-	if err != nil {
-		return "", errors.Wrap(err, "fetching instance")
-	}
-
-	poolMgr, err := r.getPoolManagerFromInstance(ctx, instance)
-	if err != nil {
-		return "", errors.Wrap(err, "fetching pool manager for instance")
-	}
-
-	token, err := poolMgr.GithubRunnerRegistrationToken()
-	if err != nil {
-		return "", errors.Wrap(err, "fetching runner token")
-	}
-
-	tokenFetched := true
-	updateParams := params.UpdateInstanceParams{
-		TokenFetched: &tokenFetched,
-	}
-
-	if _, err := r.store.UpdateInstance(r.ctx, instance.ID, updateParams); err != nil {
-		return "", errors.Wrap(err, "setting token_fetched for instance")
-	}
-
-	if err := r.store.AddInstanceEvent(ctx, instance.ID, params.FetchTokenEvent, params.EventInfo, "runner registration token was retrieved"); err != nil {
-		return "", errors.Wrap(err, "recording event")
-	}
-
-	return token, nil
-}
-
 func (r *Runner) getPoolManagerFromInstance(ctx context.Context, instance params.Instance) (common.PoolManager, error) {
 	pool, err := r.store.GetPoolByID(ctx, instance.PoolID)
 	if err != nil {
@@ -933,7 +898,17 @@ func (r *Runner) getPoolManagerFromInstance(ctx context.Context, instance params
 	return poolMgr, nil
 }
 
+// ForceDeleteRunner will attempt to remove a runner from a pool.
+//
+// Deprecated: FunctionName is deprecated. Use DeleteRunner instead.
 func (r *Runner) ForceDeleteRunner(ctx context.Context, instanceName string) error {
+	return r.DeleteRunner(ctx, instanceName, true)
+}
+
+// DeleteRunner removes a runner from a pool. If forceDelete is true, GARM will ignore any provider errors
+// that may occur, and attempt to remove the runner from GitHub and then the database, regardless of provider
+// errors.
+func (r *Runner) DeleteRunner(ctx context.Context, instanceName string, forceDelete bool) error {
 	if !auth.IsAdmin(ctx) {
 		return runnerErrors.ErrUnauthorized
 	}
@@ -944,7 +919,8 @@ func (r *Runner) ForceDeleteRunner(ctx context.Context, instanceName string) err
 	}
 
 	switch instance.Status {
-	case commonParams.InstanceRunning, commonParams.InstanceError:
+	case commonParams.InstanceRunning, commonParams.InstanceError,
+		commonParams.InstancePendingForceDelete, commonParams.InstancePendingDelete:
 	default:
 		return runnerErrors.NewBadRequestError("runner must be in %q or %q state", commonParams.InstanceRunning, commonParams.InstanceError)
 	}
@@ -954,7 +930,7 @@ func (r *Runner) ForceDeleteRunner(ctx context.Context, instanceName string) err
 		return errors.Wrap(err, "fetching pool manager for instance")
 	}
 
-	if err := poolMgr.ForceDeleteRunner(instance); err != nil {
+	if err := poolMgr.DeleteRunner(instance, forceDelete); err != nil {
 		return errors.Wrap(err, "removing runner")
 	}
 	return nil

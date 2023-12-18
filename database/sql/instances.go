@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	"github.com/cloudbase/garm-provider-common/util"
 	"github.com/cloudbase/garm/params"
 
 	"github.com/google/uuid"
@@ -27,6 +28,25 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
+
+func (s *sqlDatabase) marshalAndSeal(data interface{}) ([]byte, error) {
+	enc, err := json.Marshal(data)
+	if err != nil {
+		return nil, errors.Wrap(err, "marshalling data")
+	}
+	return util.Seal(enc, []byte(s.cfg.Passphrase))
+}
+
+func (s *sqlDatabase) unsealAndUnmarshal(data []byte, target interface{}) error {
+	decrypted, err := util.Unseal(data, []byte(s.cfg.Passphrase))
+	if err != nil {
+		return errors.Wrap(err, "decrypting data")
+	}
+	if err := json.Unmarshal(decrypted, target); err != nil {
+		return errors.Wrap(err, "unmarshalling data")
+	}
+	return nil
+}
 
 func (s *sqlDatabase) CreateInstance(ctx context.Context, poolID string, param params.CreateInstanceParams) (params.Instance, error) {
 	pool, err := s.getPoolByID(ctx, poolID)
@@ -42,6 +62,14 @@ func (s *sqlDatabase) CreateInstance(ctx context.Context, poolID string, param p
 		}
 	}
 
+	var secret []byte
+	if len(param.JitConfiguration) > 0 {
+		secret, err = s.marshalAndSeal(param.JitConfiguration)
+		if err != nil {
+			return params.Instance{}, errors.Wrap(err, "marshalling jit config")
+		}
+	}
+
 	newInstance := Instance{
 		Pool:              pool,
 		Name:              param.Name,
@@ -52,14 +80,16 @@ func (s *sqlDatabase) CreateInstance(ctx context.Context, poolID string, param p
 		CallbackURL:       param.CallbackURL,
 		MetadataURL:       param.MetadataURL,
 		GitHubRunnerGroup: param.GitHubRunnerGroup,
+		JitConfiguration:  secret,
 		AditionalLabels:   labels,
+		AgentID:           param.AgentID,
 	}
 	q := s.conn.Create(&newInstance)
 	if q.Error != nil {
 		return params.Instance{}, errors.Wrap(q.Error, "creating instance")
 	}
 
-	return s.sqlToParamsInstance(newInstance), nil
+	return s.sqlToParamsInstance(newInstance)
 }
 
 func (s *sqlDatabase) getInstanceByID(ctx context.Context, instanceID string) (Instance, error) {
@@ -128,7 +158,7 @@ func (s *sqlDatabase) GetPoolInstanceByName(ctx context.Context, poolID string, 
 		return params.Instance{}, errors.Wrap(err, "fetching instance")
 	}
 
-	return s.sqlToParamsInstance(instance), nil
+	return s.sqlToParamsInstance(instance)
 }
 
 func (s *sqlDatabase) GetInstanceByName(ctx context.Context, instanceName string) (params.Instance, error) {
@@ -137,7 +167,7 @@ func (s *sqlDatabase) GetInstanceByName(ctx context.Context, instanceName string
 		return params.Instance{}, errors.Wrap(err, "fetching instance")
 	}
 
-	return s.sqlToParamsInstance(instance), nil
+	return s.sqlToParamsInstance(instance)
 }
 
 func (s *sqlDatabase) DeleteInstance(ctx context.Context, poolID string, instanceName string) error {
@@ -235,6 +265,14 @@ func (s *sqlDatabase) UpdateInstance(ctx context.Context, instanceID string, par
 		instance.TokenFetched = *param.TokenFetched
 	}
 
+	if param.JitConfiguration != nil {
+		secret, err := s.marshalAndSeal(param.JitConfiguration)
+		if err != nil {
+			return params.Instance{}, errors.Wrap(err, "marshalling jit config")
+		}
+		instance.JitConfiguration = secret
+	}
+
 	instance.ProviderFault = param.ProviderFault
 
 	q := s.conn.Save(&instance)
@@ -255,7 +293,7 @@ func (s *sqlDatabase) UpdateInstance(ctx context.Context, instanceID string, par
 		}
 	}
 
-	return s.sqlToParamsInstance(instance), nil
+	return s.sqlToParamsInstance(instance)
 }
 
 func (s *sqlDatabase) ListPoolInstances(ctx context.Context, poolID string) ([]params.Instance, error) {
@@ -273,7 +311,10 @@ func (s *sqlDatabase) ListPoolInstances(ctx context.Context, poolID string) ([]p
 
 	ret := make([]params.Instance, len(instances))
 	for idx, inst := range instances {
-		ret[idx] = s.sqlToParamsInstance(inst)
+		ret[idx], err = s.sqlToParamsInstance(inst)
+		if err != nil {
+			return nil, errors.Wrap(err, "converting instance")
+		}
 	}
 	return ret, nil
 }
@@ -286,8 +327,12 @@ func (s *sqlDatabase) ListAllInstances(ctx context.Context) ([]params.Instance, 
 		return nil, errors.Wrap(q.Error, "fetching instances")
 	}
 	ret := make([]params.Instance, len(instances))
+	var err error
 	for idx, instance := range instances {
-		ret[idx] = s.sqlToParamsInstance(instance)
+		ret[idx], err = s.sqlToParamsInstance(instance)
+		if err != nil {
+			return nil, errors.Wrap(err, "converting instance")
+		}
 	}
 	return ret, nil
 }

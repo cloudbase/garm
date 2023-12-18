@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strconv"
 
 	gErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/apiserver/params"
@@ -139,6 +140,12 @@ func (a *APIController) GetRepoByIDHandler(w http.ResponseWriter, r *http.Reques
 //	    in: path
 //	    required: true
 //
+//	  + name: keepWebhook
+//	    description: If true and a webhook is installed for this repo, it will not be removed.
+//	    type: boolean
+//	    in: query
+//	    required: false
+//
 //	Responses:
 //	  default: APIErrorResponse
 func (a *APIController) DeleteRepoHandler(w http.ResponseWriter, r *http.Request) {
@@ -157,7 +164,8 @@ func (a *APIController) DeleteRepoHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if err := a.r.DeleteRepository(ctx, repoID); err != nil {
+	keepWebhook, _ := strconv.ParseBool(r.URL.Query().Get("keepWebhook"))
+	if err := a.r.DeleteRepository(ctx, repoID, keepWebhook); err != nil {
 		log.Printf("fetching repo: %s", err)
 		handleError(w, err)
 		return
@@ -476,6 +484,145 @@ func (a *APIController) UpdateRepoPoolHandler(w http.ResponseWriter, r *http.Req
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(pool); err != nil {
+		log.Printf("failed to encode response: %q", err)
+	}
+}
+
+// swagger:route POST /repositories/{repoID}/webhook repositories hooks InstallRepoWebhook
+//
+// Install the GARM webhook for an organization. The secret configured on the organization will
+// be used to validate the requests.
+//
+//	Parameters:
+//	  + name: repoID
+//	    description: Repository ID.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: Body
+//	    description: Parameters used when creating the repository webhook.
+//	    type: InstallWebhookParams
+//	    in: body
+//	    required: true
+//
+//	Responses:
+//	  200: HookInfo
+//	  default: APIErrorResponse
+func (a *APIController) InstallRepoWebhookHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	vars := mux.Vars(r)
+	repoID, orgOk := vars["repoID"]
+	if !orgOk {
+		w.WriteHeader(http.StatusBadRequest)
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
+			Error:   "Bad Request",
+			Details: "No repository ID specified",
+		}); err != nil {
+			log.Printf("failed to encode response: %q", err)
+		}
+		return
+	}
+
+	var hookParam runnerParams.InstallWebhookParams
+	if err := json.NewDecoder(r.Body).Decode(&hookParam); err != nil {
+		log.Printf("failed to decode: %s", err)
+		handleError(w, gErrors.ErrBadRequest)
+		return
+	}
+
+	info, err := a.r.InstallRepoWebhook(ctx, repoID, hookParam)
+	if err != nil {
+		log.Printf("installing webhook: %s", err)
+		handleError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(info); err != nil {
+		log.Printf("failed to encode response: %q", err)
+	}
+}
+
+// swagger:route DELETE /repositories/{repoID}/webhook repositories hooks UninstallRepoWebhook
+//
+// Uninstall organization webhook.
+//
+//	Parameters:
+//	  + name: repoID
+//	    description: Repository ID.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	Responses:
+//	  default: APIErrorResponse
+func (a *APIController) UninstallRepoWebhookHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	vars := mux.Vars(r)
+	repoID, orgOk := vars["repoID"]
+	if !orgOk {
+		w.WriteHeader(http.StatusBadRequest)
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
+			Error:   "Bad Request",
+			Details: "No repository ID specified",
+		}); err != nil {
+			log.Printf("failed to encode response: %q", err)
+		}
+		return
+	}
+
+	if err := a.r.UninstallRepoWebhook(ctx, repoID); err != nil {
+		log.Printf("removing webhook: %s", err)
+		handleError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+}
+
+// swagger:route GET /repositories/{repoID}/webhook repositories hooks GetRepoWebhookInfo
+//
+// Get information about the GARM installed webhook on a repository.
+//
+//	Parameters:
+//	  + name: repoID
+//	    description: Repository ID.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	Responses:
+//	  200: HookInfo
+//	  default: APIErrorResponse
+func (a *APIController) GetRepoWebhookInfoHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	vars := mux.Vars(r)
+	repoID, orgOk := vars["repoID"]
+	if !orgOk {
+		w.WriteHeader(http.StatusBadRequest)
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
+			Error:   "Bad Request",
+			Details: "No repository ID specified",
+		}); err != nil {
+			log.Printf("failed to encode response: %q", err)
+		}
+		return
+	}
+
+	info, err := a.r.GetRepoWebhookInfo(ctx, repoID)
+	if err != nil {
+		log.Printf("getting webhook info: %s", err)
+		handleError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(info); err != nil {
 		log.Printf("failed to encode response: %q", err)
 	}
 }

@@ -12,4 +12,6 @@ RUN wget http://musl.cc/aarch64-linux-musl-cross.tgz -O /tmp/aarch64-linux-musl-
 ADD ./scripts/build-static.sh /build-static.sh
 RUN chmod +x /build-static.sh
 
+ADD . /build/garm
+
 CMD ["/bin/sh"]

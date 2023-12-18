@@ -22,7 +22,6 @@ import (
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
 	"github.com/cloudbase/garm/runner/providers/external"
-	"github.com/cloudbase/garm/runner/providers/lxd"
 
 	"github.com/pkg/errors"
 )
@@ -34,13 +33,6 @@ func LoadProvidersFromConfig(ctx context.Context, cfg config.Config, controllerI
 	for _, providerCfg := range cfg.Providers {
 		log.Printf("Loading provider %s", providerCfg.Name)
 		switch providerCfg.ProviderType {
-		case params.LXDProvider:
-			conf := providerCfg
-			provider, err := lxd.NewProvider(ctx, &conf, controllerID)
-			if err != nil {
-				return nil, errors.Wrap(err, "creating provider")
-			}
-			providers[providerCfg.Name] = provider
 		case params.ExternalProvider:
 			conf := providerCfg
 			provider, err := external.NewProvider(ctx, &conf, controllerID)
@@ -48,6 +40,8 @@ func LoadProvidersFromConfig(ctx context.Context, cfg config.Config, controllerI
 				return nil, errors.Wrap(err, "creating provider")
 			}
 			providers[providerCfg.Name] = provider
+		default:
+			return nil, errors.Errorf("unknown provider type %s", providerCfg.ProviderType)
 		}
 	}
 	return providers, nil

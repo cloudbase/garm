@@ -14,6 +14,7 @@ import (
 	"github.com/go-openapi/runtime"
 	cr "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
+	"github.com/go-openapi/swag"
 )
 
 // NewDeleteInstanceParams creates a new DeleteInstanceParams object,
@@ -60,6 +61,12 @@ DeleteInstanceParams contains all the parameters to send to the API endpoint
 	Typically these are written to a http.Request.
 */
 type DeleteInstanceParams struct {
+
+	/* ForceRemove.
+
+	   If true GARM will ignore any provider error when removing the runner and will continue to remove the runner from github and the GARM database.
+	*/
+	ForceRemove *bool
 
 	/* InstanceName.
 
@@ -120,6 +127,17 @@ func (o *DeleteInstanceParams) SetHTTPClient(client *http.Client) {
 	o.HTTPClient = client
 }
 
+// WithForceRemove adds the forceRemove to the delete instance params
+func (o *DeleteInstanceParams) WithForceRemove(forceRemove *bool) *DeleteInstanceParams {
+	o.SetForceRemove(forceRemove)
+	return o
+}
+
+// SetForceRemove adds the forceRemove to the delete instance params
+func (o *DeleteInstanceParams) SetForceRemove(forceRemove *bool) {
+	o.ForceRemove = forceRemove
+}
+
 // WithInstanceName adds the instanceName to the delete instance params
 func (o *DeleteInstanceParams) WithInstanceName(instanceName string) *DeleteInstanceParams {
 	o.SetInstanceName(instanceName)
@@ -138,6 +156,23 @@ func (o *DeleteInstanceParams) WriteToRequest(r runtime.ClientRequest, reg strfm
 		return err
 	}
 	var res []error
+
+	if o.ForceRemove != nil {
+
+		// query param forceRemove
+		var qrForceRemove bool
+
+		if o.ForceRemove != nil {
+			qrForceRemove = *o.ForceRemove
+		}
+		qForceRemove := swag.FormatBool(qrForceRemove)
+		if qForceRemove != "" {
+
+			if err := r.SetQueryParam("forceRemove", qForceRemove); err != nil {
+				return err
+			}
+		}
+	}
 
 	// path param instanceName
 	if err := r.SetPathParam("instanceName", o.InstanceName); err != nil {

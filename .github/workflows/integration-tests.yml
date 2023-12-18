@@ -1,0 +1,99 @@
+name: Integration Tests
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: "0 0 * * *"
+
+jobs:
+  integration-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Golang
+        uses: actions/setup-go@v3
+        with:
+          go-version-file: go.mod
+
+      - name: Setup LXD
+        uses: canonical/setup-lxd@v0.1.1
+
+      - name: Build GARM
+        run: make build
+
+      - name: Set up ngrok
+        id: ngrok
+        uses: gabriel-samfira/ngrok-tunnel-action@v1.1
+        with:
+          ngrok_authtoken: ${{ secrets.NGROK_AUTH_TOKEN }}
+          port: 9997
+          tunnel_type: http
+
+      - name: Setup GARM
+        run: ./test/integration/scripts/setup-garm.sh
+        env:
+          GH_OAUTH_TOKEN: ${{ secrets.GH_OAUTH_TOKEN }}
+          CREDENTIALS_NAME: test-garm-creds
+          GARM_BASE_URL: ${{ steps.ngrok.outputs.tunnel-url }}
+
+      - name: Generate secrets
+        run: |
+          sudo apt-get -qq update && sudo apt-get -qq install -y apg
+
+          GARM_PASSWORD=$(apg -n1 -m32)
+          REPO_WEBHOOK_SECRET=$(apg -n1 -m32)
+          ORG_WEBHOOK_SECRET=$(apg -n1 -m32)
+
+          echo "::add-mask::$GARM_PASSWORD"
+          echo "::add-mask::$REPO_WEBHOOK_SECRET"
+          echo "::add-mask::$ORG_WEBHOOK_SECRET"
+
+          echo "GARM_PASSWORD=$GARM_PASSWORD" >> $GITHUB_ENV
+          echo "REPO_WEBHOOK_SECRET=$REPO_WEBHOOK_SECRET" >> $GITHUB_ENV
+          echo "ORG_WEBHOOK_SECRET=$ORG_WEBHOOK_SECRET" >> $GITHUB_ENV
+
+      - name: Create logs directory
+        if: always()
+        run: sudo mkdir -p /artifacts-logs && sudo chmod 777 /artifacts-logs
+
+      - name: Run integration tests
+        run: |
+          set -o pipefail
+          set -o errexit
+          go run ./test/integration/main.go 2>&1 | tee /artifacts-logs/e2e.log
+        env:
+          GARM_BASE_URL: ${{ steps.ngrok.outputs.tunnel-url }}
+          ORG_NAME: gsamfira
+          REPO_NAME: garm-testing
+          CREDENTIALS_NAME: test-garm-creds
+          WORKFLOW_FILE_NAME: test.yml
+          GH_TOKEN: ${{ secrets.GH_OAUTH_TOKEN }}
+
+      - name: Show GARM logs
+        if: always()
+        run: |
+          sudo systemctl status garm
+          sudo journalctl -u garm --no-pager 2>&1 | tee /artifacts-logs/garm.log
+
+      - name: Upload GARM and e2e logs
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: garm-logs
+          path: /artifacts-logs
+
+      - name: Cleanup orphan GARM resources via GitHub API
+        if: always()
+        run: |
+          set -o pipefail
+          set -o errexit
+
+          sudo systemctl stop garm
+
+          go run ./test/integration/gh_cleanup/main.go
+        env:
+          GARM_BASE_URL: ${{ steps.ngrok.outputs.tunnel-url }}
+          ORG_NAME: gsamfira
+          REPO_NAME: garm-testing
+          GH_TOKEN: ${{ secrets.GH_OAUTH_TOKEN }}

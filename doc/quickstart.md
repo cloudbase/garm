@@ -46,7 +46,7 @@ Open `/etc/garm/config.toml` in your favorite editor and paste the following:
 
 ```toml
 [default]
-callback_url = "https://garm.example.com/api/v1/callbacks/status"
+callback_url = "https://garm.example.com/api/v1/callbacks"
 metadata_url = "https://garm.example.com/api/v1/metadata"
 
 [metrics]
@@ -71,7 +71,7 @@ time_to_live = "8760h"
     db_file = "/etc/garm/garm.db"
 ```
 
-This is a minimal config, with no providers or credentials defined. In this example we have the [default](./config_default.md), [metrics](./config_metrics.md), [jwt_auth](./config_jwt_auth.md), [apiserver](./config_api_server.md) and [database](./config_database.md) sections. Each are documented separately. Feel free to read through the available docs if, for example you need to enable TLS without using an nginx reverse proxy or if you want to enable the debug server, the log streamer or a log file.
+This is a minimal config, with no providers or credentials defined. In this example we have the [default](./config_default.md), [metrics](./config_metrics.md), [jwt_auth](./config_jwt_auth.md), [apiserver](./config_api_server.md) and [database](./database.md) sections. Each are documented separately. Feel free to read through the available docs if, for example you need to enable TLS without using an nginx reverse proxy or if you want to enable the debug server, the log streamer or a log file.
 
 In this sample config we:
 
@@ -96,23 +96,31 @@ At this point, we have a valid config file, but we still need to add `provider` 
 
 This is where you have a decision to make. GARM has a number of providers you can leverage. At the time of this writing, we have support for:
 
-* LXD
-* Azure
-* OpenStack
+* [OpenStack](https://github.com/cloudbase/garm-provider-openstack)
+* [Azure](https://github.com/cloudbase/garm-provider-azure)
+* [Kubernetes](https://github.com/mercedes-benz/garm-provider-k8s) - Thanks to the amazing folks at @mercedes-benz for sharing their awesome provider!
+* [LXD](https://github.com/cloudbase/garm-provider-lxd)
+* [Incus](https://github.com/cloudbase/garm-provider-incus)
 
-The LXD provider is built into GARM itself and has no external requirements. The [Azure](https://github.com/cloudbase/garm-provider-azure) and [OpenStack](https://github.com/cloudbase/garm-provider-openstack) ones are `external` providers in the form of an executable that GARM calls into.
+All currently available providers are `external`.
 
-Both the LXD and the external provider configs are [documented in a separate doc](./providers.md).
-
-The easiest provider to set up is probably the LXD provider. You don't need an account on an external cloud. You can just use your machine.
+The easiest provider to set up is probably the LXD or Incus provider. Incus is a fork of LXD so the functionality is identical (for now). For the purpose of this document, we'll continue with LXD. You don't need an account on an external cloud. You can just use your machine.
 
 You will need to have LXD installed and configured. There is an excellent [getting started guide](https://documentation.ubuntu.com/lxd/en/latest/getting_started/) for LXD. Follow the instructions there to install and configure LXD, then come back here.
 
-Once you have LXD installed and configured, you can add the provider section to your config file. If you're connecting to the `local` LXD installation, the [config snippet for the LXD provider](./providers.md#lxd-provider) will work out of the box. We'll be connecting using the unix socket so no further configuration will be needed.
+Once you have LXD installed and configured, you can add the provider section to your config file. If you're connecting to the `local` LXD installation, the [config snippet for the LXD provider](https://github.com/cloudbase/garm-provider-lxd/blob/main/testdata/garm-provider-lxd.toml) will work out of the box. We'll be connecting using the unix socket so no further configuration will be needed.
 
-Go ahead and copy and paste that entire snippet in your GARM config file (`/etc/garm/config.toml`).
+Go ahead and create a new config somwhere where GARM can access it and paste that entire snippet. For the purposes of this doc, we'll assume you created a new file called `/etc/garm/garm-provider-lxd.toml`. Now we need to define the external provider config in `/etc/garm/config.toml`:
 
-You can also use an external provider instead of LXD. You will need to define the provider section in your config file and point it to the executable and the provider config file. The [config snippet for the external provider](./providers.md#external-provider) gives you an example of how that can be done. Configuring the external provider is outside the scope of this guide. You will need to consult the documentation for the external provider you want to use.
+```toml
+[[provider]]
+  name = "lxd_local"
+  provider_type = "external"
+  description = "Local LXD installation"
+  [provider.external]
+    provider_executable = "/opt/garm/providers.d/garm-provider-lxd"
+    config_file = "/etc/garm/garm-provider-lxd.toml"
+```
 
 ## The credentials section
 
@@ -154,7 +162,7 @@ docker run -d \
   -p 80:80 \
   -v /etc/garm:/etc/garm:rw \
   -v /var/snap/lxd/common/lxd/unix.socket:/var/snap/lxd/common/lxd/unix.socket:rw \
-  ghcr.io/cloudbase/garm:v0.1.2
+  ghcr.io/cloudbase/garm:v0.1.4
 ```
 
 You will notice we also mounted the LXD unix socket from the host inside the container where the config you pasted expects to find it. If you plan to use an external provider that does not need to connect to LXD over a unix socket, feel free to remove that mount.
@@ -187,13 +195,25 @@ Adding the `garm` user to the LXD group will allow it to connect to the LXD unix
 Next, download the latest release from the [releases page](https://github.com/cloudbase/garm/releases).
 
 ```bash
-wget -q -O - https://github.com/cloudbase/garm/releases/download/v0.1.2/garm-linux-amd64.tgz |  tar xzf - -C /usr/local/bin/
+wget -q -O - https://github.com/cloudbase/garm/releases/download/v0.1.4/garm-linux-amd64.tgz |  tar xzf - -C /usr/local/bin/
 ```
 
 We'll be running under an unprivileged user. If we want to be able to listen on any port under `1024`, we'll have to set some capabilities on the binary:
 
 ```bash
 setcap cap_net_bind_service=+ep /usr/local/bin/garm
+```
+
+Create a folder for the external providers:
+
+```bash
+sudo mkdir -p /opt/garm/providers.d
+```
+
+Download the LXD provider binary:
+
+```bash
+wget -q -O - https://github.com/cloudbase/garm-provider-lxd/releases/download/v0.1.0/garm-linux-amd64.tgz |  sudo tar xzf - -C /opt/garm/providers.d/
 ```
 
 Change the permissions on the config dir:
@@ -206,7 +226,7 @@ Copy the sample `systemd` service file:
 
 ```bash
 wget -O /etc/systemd/system/garm.service \
-  https://raw.githubusercontent.com/cloudbase/garm/v0.1.2/contrib/garm.service
+  https://raw.githubusercontent.com/cloudbase/garm/v0.1.3/contrib/garm.service
 ```
 
 Reload the `systemd` daemon and start the service:
@@ -256,7 +276,7 @@ Before we can start using GARM, we need initialize it. This will create the `adm
 To initialize GARM, we'll use the `garm-cli` tool. You can download the latest release from the [releases page](https://github.com/cloudbase/garm/releases):
 
 ```bash
-wget -q -O - https://github.com/cloudbase/garm/releases/download/v0.1.2/garm-cli-linux-amd64.tgz |  tar xzf - -C /usr/local/bin/
+wget -q -O - https://github.com/cloudbase/garm/releases/download/v0.1.3/garm-cli-linux-amd64.tgz |  tar xzf - -C /usr/local/bin/
 ```
 
 Now we can initialize GARM:

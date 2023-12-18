@@ -254,7 +254,7 @@ func (s *OrgTestSuite) TestGetOrganizationByIDErrUnauthorized() {
 func (s *OrgTestSuite) TestDeleteOrganization() {
 	s.Fixtures.PoolMgrCtrlMock.On("DeleteOrgPoolManager", mock.AnythingOfType("params.Organization")).Return(nil)
 
-	err := s.Runner.DeleteOrganization(s.Fixtures.AdminContext, s.Fixtures.StoreOrgs["test-org-3"].ID)
+	err := s.Runner.DeleteOrganization(s.Fixtures.AdminContext, s.Fixtures.StoreOrgs["test-org-3"].ID, true)
 
 	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
 	s.Require().Nil(err)
@@ -264,7 +264,7 @@ func (s *OrgTestSuite) TestDeleteOrganization() {
 }
 
 func (s *OrgTestSuite) TestDeleteOrganizationErrUnauthorized() {
-	err := s.Runner.DeleteOrganization(context.Background(), "dummy-org-id")
+	err := s.Runner.DeleteOrganization(context.Background(), "dummy-org-id", true)
 
 	s.Require().Equal(runnerErrors.ErrUnauthorized, err)
 }
@@ -275,7 +275,7 @@ func (s *OrgTestSuite) TestDeleteOrganizationPoolDefinedFailed() {
 		s.FailNow(fmt.Sprintf("cannot create store organizations pool: %v", err))
 	}
 
-	err = s.Runner.DeleteOrganization(s.Fixtures.AdminContext, s.Fixtures.StoreOrgs["test-org-1"].ID)
+	err = s.Runner.DeleteOrganization(s.Fixtures.AdminContext, s.Fixtures.StoreOrgs["test-org-1"].ID, true)
 
 	s.Require().Equal(runnerErrors.NewBadRequestError("org has pools defined (%s)", pool.ID), err)
 }
@@ -283,7 +283,7 @@ func (s *OrgTestSuite) TestDeleteOrganizationPoolDefinedFailed() {
 func (s *OrgTestSuite) TestDeleteOrganizationPoolMgrFailed() {
 	s.Fixtures.PoolMgrCtrlMock.On("DeleteOrgPoolManager", mock.AnythingOfType("params.Organization")).Return(s.Fixtures.ErrMock)
 
-	err := s.Runner.DeleteOrganization(s.Fixtures.AdminContext, s.Fixtures.StoreOrgs["test-org-1"].ID)
+	err := s.Runner.DeleteOrganization(s.Fixtures.AdminContext, s.Fixtures.StoreOrgs["test-org-1"].ID, true)
 
 	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
 	s.Require().Equal(fmt.Sprintf("deleting org pool manager: %s", s.Fixtures.ErrMock.Error()), err.Error())

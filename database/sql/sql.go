@@ -221,6 +221,19 @@ func (s *sqlDatabase) migrateDB() error {
 		}
 	}
 
+	if s.conn.Migrator().HasTable(&WorkflowJob{}) {
+		if s.conn.Migrator().HasColumn(&WorkflowJob{}, "runner_name") {
+			// Remove jobs that are not in "queued" status. We really only care about queued jobs. Once they transition
+			// to something else, we don't really consume them anyway.
+			if err := s.conn.Exec("delete from workflow_jobs where status is not 'queued'").Error; err != nil {
+				return errors.Wrap(err, "updating workflow_jobs")
+			}
+			if err := s.conn.Migrator().DropColumn(&WorkflowJob{}, "runner_name"); err != nil {
+				return errors.Wrap(err, "updating workflow_jobs")
+			}
+		}
+	}
+
 	if err := s.conn.AutoMigrate(
 		&Tag{},
 		&Pool{},

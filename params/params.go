@@ -15,24 +15,29 @@
 package params
 
 import (
+	"bytes"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
+	"fmt"
 	"time"
 
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 
 	"github.com/cloudbase/garm/util/appdefaults"
 
-	"github.com/google/go-github/v53/github"
+	"github.com/google/go-github/v57/github"
 	"github.com/google/uuid"
 )
 
 type (
-	PoolType     string
-	EventType    string
-	EventLevel   string
-	ProviderType string
-	JobStatus    string
-	RunnerStatus string
+	PoolType            string
+	EventType           string
+	EventLevel          string
+	ProviderType        string
+	JobStatus           string
+	RunnerStatus        string
+	WebhookEndpointType string
 )
 
 const (
@@ -40,6 +45,16 @@ const (
 	LXDProvider ProviderType = "lxd"
 	// ExternalProvider represents an external provider.
 	ExternalProvider ProviderType = "external"
+)
+
+const (
+	// WebhookEndpointDirect instructs garm that it should attempt to create a webhook
+	// in the target entity, using the callback URL defined in the config as a target.
+	WebhookEndpointDirect WebhookEndpointType = "direct"
+	// WebhookEndpointTunnel instructs garm that it should attempt to create a webhook
+	// in the target entity, using the tunnel URL as a base for the webhook URL.
+	// This is defined for future use.
+	WebhookEndpointTunnel WebhookEndpointType = "tunnel"
 )
 
 const (
@@ -141,11 +156,12 @@ type Instance struct {
 	GitHubRunnerGroup string `json:"github-runner-group"`
 
 	// Do not serialize sensitive info.
-	CallbackURL     string   `json:"-"`
-	MetadataURL     string   `json:"-"`
-	CreateAttempt   int      `json:"-"`
-	TokenFetched    bool     `json:"-"`
-	AditionalLabels []string `json:"-"`
+	CallbackURL      string            `json:"-"`
+	MetadataURL      string            `json:"-"`
+	CreateAttempt    int               `json:"-"`
+	TokenFetched     bool              `json:"-"`
+	AditionalLabels  []string          `json:"-"`
+	JitConfiguration map[string]string `json:"-"`
 }
 
 func (i Instance) GetName() string {
@@ -281,15 +297,32 @@ func (p *Pool) PoolType() PoolType {
 	return ""
 }
 
+func (p *Pool) HasRequiredLabels(set []string) bool {
+	asMap := make(map[string]struct{}, len(p.Tags))
+	for _, t := range p.Tags {
+		asMap[t.Name] = struct{}{}
+	}
+
+	for _, l := range set {
+		if _, ok := asMap[l]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
 // used by swagger client generated code
 type Pools []Pool
 
 type Internal struct {
-	OAuth2Token         string `json:"oauth2"`
-	ControllerID        string `json:"controller_id"`
-	InstanceCallbackURL string `json:"instance_callback_url"`
-	InstanceMetadataURL string `json:"instance_metadata_url"`
-	JWTSecret           string `json:"jwt_secret"`
+	OAuth2Token          string `json:"oauth2"`
+	ControllerID         string `json:"controller_id"`
+	InstanceCallbackURL  string `json:"instance_callback_url"`
+	InstanceMetadataURL  string `json:"instance_metadata_url"`
+	BaseWebhookURL       string `json:"base_webhook_url"`
+	ControllerWebhookURL string `json:"controller_webhook_url"`
+
+	JWTSecret string `json:"jwt_secret"`
 	// GithubCredentialsDetails contains all info about the credentials, except the
 	// token, which is added above.
 	GithubCredentialsDetails GithubCredentials `json:"gh_creds_details"`
@@ -379,8 +412,12 @@ type JWTResponse struct {
 }
 
 type ControllerInfo struct {
-	ControllerID uuid.UUID `json:"controller_id"`
-	Hostname     string    `json:"hostname"`
+	ControllerID         uuid.UUID `json:"controller_id"`
+	Hostname             string    `json:"hostname"`
+	MetadataURL          string    `json:"metadata_url"`
+	CallbackURL          string    `json:"callback_url"`
+	WebhookURL           string    `json:"webhook_url"`
+	ControllerWebhookURL string    `json:"controller_webhook_url"`
 }
 
 type GithubCredentials struct {
@@ -390,6 +427,36 @@ type GithubCredentials struct {
 	APIBaseURL    string `json:"api_base_url"`
 	UploadBaseURL string `json:"upload_base_url"`
 	CABundle      []byte `json:"ca_bundle,omitempty"`
+}
+
+func (g GithubCredentials) RootCertificateBundle() (CertificateBundle, error) {
+	if len(g.CABundle) == 0 {
+		return CertificateBundle{}, nil
+	}
+
+	ret := map[string][]byte{}
+
+	var block *pem.Block
+	var rest []byte = g.CABundle
+	for {
+		block, rest = pem.Decode(rest)
+		if block == nil {
+			break
+		}
+		pub, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			return CertificateBundle{}, err
+		}
+		out := &bytes.Buffer{}
+		if err := pem.Encode(out, &pem.Block{Type: "CERTIFICATE", Bytes: block.Bytes}); err != nil {
+			return CertificateBundle{}, err
+		}
+		ret[fmt.Sprintf("%d", pub.SerialNumber)] = out.Bytes()
+	}
+
+	return CertificateBundle{
+		RootCertificates: ret,
+	}, nil
 }
 
 // used by swagger client generated code
@@ -482,3 +549,20 @@ type Job struct {
 
 // used by swagger client generated code
 type Jobs []Job
+
+type InstallWebhookParams struct {
+	WebhookEndpointType WebhookEndpointType `json:"webhook_endpoint_type"`
+	InsecureSSL         bool                `json:"insecure_ssl"`
+}
+
+type HookInfo struct {
+	ID          int64    `json:"id"`
+	URL         string   `json:"url"`
+	Events      []string `json:"events"`
+	Active      bool     `json:"active"`
+	InsecureSSL bool     `json:"insecure_ssl"`
+}
+
+type CertificateBundle struct {
+	RootCertificates map[string][]byte `json:"root_certificates"`
+}

@@ -17,6 +17,7 @@ package auth
 import (
 	"context"
 
+	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/params"
 )
 
@@ -38,6 +39,8 @@ const (
 	instanceEntityKey    contextFlags = "entity"
 	instanceRunnerStatus contextFlags = "status"
 	instanceTokenFetched contextFlags = "tokenFetched"
+	instanceHasJITConfig contextFlags = "hasJITConfig"
+	instanceParams       contextFlags = "instanceParams"
 )
 
 func SetInstanceID(ctx context.Context, id string) context.Context {
@@ -62,6 +65,35 @@ func InstanceTokenFetched(ctx context.Context) bool {
 		return false
 	}
 	return elem.(bool)
+}
+
+func SetInstanceHasJITConfig(ctx context.Context, cfg map[string]string) context.Context {
+	return context.WithValue(ctx, instanceHasJITConfig, len(cfg) > 0)
+}
+
+func InstanceHasJITConfig(ctx context.Context) bool {
+	elem := ctx.Value(instanceHasJITConfig)
+	if elem == nil {
+		return false
+	}
+	return elem.(bool)
+}
+
+func SetInstanceParams(ctx context.Context, instance params.Instance) context.Context {
+	return context.WithValue(ctx, instanceParams, instance)
+}
+
+func InstanceParams(ctx context.Context) (params.Instance, error) {
+	elem := ctx.Value(instanceParams)
+	if elem == nil {
+		return params.Instance{}, runnerErrors.ErrNotFound
+	}
+
+	instanceParams, ok := elem.(params.Instance)
+	if !ok {
+		return params.Instance{}, runnerErrors.ErrNotFound
+	}
+	return instanceParams, nil
 }
 
 func SetInstanceRunnerStatus(ctx context.Context, val params.RunnerStatus) context.Context {
@@ -130,6 +162,8 @@ func PopulateInstanceContext(ctx context.Context, instance params.Instance) cont
 	ctx = SetInstancePoolID(ctx, instance.PoolID)
 	ctx = SetInstanceRunnerStatus(ctx, instance.RunnerStatus)
 	ctx = SetInstanceTokenFetched(ctx, instance.TokenFetched)
+	ctx = SetInstanceHasJITConfig(ctx, instance.JitConfiguration)
+	ctx = SetInstanceParams(ctx, instance)
 	return ctx
 }
 

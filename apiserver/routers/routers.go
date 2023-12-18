@@ -82,15 +82,17 @@ func WithDebugServer(parentRouter *mux.Router) *mux.Router {
 	return parentRouter
 }
 
-func NewAPIRouter(han *controllers.APIController, logWriter io.Writer, authMiddleware, initMiddleware, instanceMiddleware auth.Middleware) *mux.Router {
+func NewAPIRouter(han *controllers.APIController, logWriter io.Writer, authMiddleware, initMiddleware, instanceMiddleware auth.Middleware, manageWebhooks bool) *mux.Router {
 	router := mux.NewRouter()
 	logMiddleware := util.NewLoggingMiddleware(logWriter)
 	router.Use(logMiddleware)
 
 	// Handles github webhooks
 	webhookRouter := router.PathPrefix("/webhooks").Subrouter()
-	webhookRouter.PathPrefix("/").Handler(http.HandlerFunc(han.CatchAll))
-	webhookRouter.PathPrefix("").Handler(http.HandlerFunc(han.CatchAll))
+	webhookRouter.Handle("/", http.HandlerFunc(han.WebhookHandler))
+	webhookRouter.Handle("", http.HandlerFunc(han.WebhookHandler))
+	webhookRouter.Handle("/{controllerID}/", http.HandlerFunc(han.WebhookHandler))
+	webhookRouter.Handle("/{controllerID}", http.HandlerFunc(han.WebhookHandler))
 
 	// Handles API calls
 	apiSubRouter := router.PathPrefix("/api/v1").Subrouter()
@@ -106,10 +108,26 @@ func NewAPIRouter(han *controllers.APIController, logWriter io.Writer, authMiddl
 	callbackRouter.Handle("/status", http.HandlerFunc(han.InstanceStatusMessageHandler)).Methods("POST", "OPTIONS")
 	callbackRouter.Use(instanceMiddleware.Middleware)
 
+	///////////////////
+	// Metadata URLs //
+	///////////////////
 	metadataRouter := apiSubRouter.PathPrefix("/metadata").Subrouter()
+	metadataRouter.Use(instanceMiddleware.Middleware)
+
+	// Registration token
 	metadataRouter.Handle("/runner-registration-token/", http.HandlerFunc(han.InstanceGithubRegistrationTokenHandler)).Methods("GET", "OPTIONS")
 	metadataRouter.Handle("/runner-registration-token", http.HandlerFunc(han.InstanceGithubRegistrationTokenHandler)).Methods("GET", "OPTIONS")
-	metadataRouter.Use(instanceMiddleware.Middleware)
+	// JIT credential files
+	metadataRouter.Handle("/credentials/{fileName}/", http.HandlerFunc(han.JITCredentialsFileHandler)).Methods("GET", "OPTIONS")
+	metadataRouter.Handle("/credentials/{fileName}", http.HandlerFunc(han.JITCredentialsFileHandler)).Methods("GET", "OPTIONS")
+	// Systemd files
+	metadataRouter.Handle("/system/service-name/", http.HandlerFunc(han.SystemdServiceNameHandler)).Methods("GET", "OPTIONS")
+	metadataRouter.Handle("/system/service-name", http.HandlerFunc(han.SystemdServiceNameHandler)).Methods("GET", "OPTIONS")
+	metadataRouter.Handle("/systemd/unit-file/", http.HandlerFunc(han.SystemdUnitFileHandler)).Methods("GET", "OPTIONS")
+	metadataRouter.Handle("/systemd/unit-file", http.HandlerFunc(han.SystemdUnitFileHandler)).Methods("GET", "OPTIONS")
+	metadataRouter.Handle("/system/cert-bundle/", http.HandlerFunc(han.RootCertificateBundleHandler)).Methods("GET", "OPTIONS")
+	metadataRouter.Handle("/system/cert-bundle", http.HandlerFunc(han.RootCertificateBundleHandler)).Methods("GET", "OPTIONS")
+
 	// Login
 	authRouter := apiSubRouter.PathPrefix("/auth").Subrouter()
 	authRouter.Handle("/{login:login\\/?}", http.HandlerFunc(han.LoginHandler)).Methods("POST", "OPTIONS")
@@ -118,6 +136,7 @@ func NewAPIRouter(han *controllers.APIController, logWriter io.Writer, authMiddl
 	apiRouter := apiSubRouter.PathPrefix("").Subrouter()
 	apiRouter.Use(initMiddleware.Middleware)
 	apiRouter.Use(authMiddleware.Middleware)
+	apiRouter.Use(auth.AdminRequiredMiddleware)
 
 	// Metrics Token
 	apiRouter.Handle("/metrics-token/", http.HandlerFunc(han.MetricsTokenHandler)).Methods("GET", "OPTIONS")
@@ -201,6 +220,17 @@ func NewAPIRouter(han *controllers.APIController, logWriter io.Writer, authMiddl
 	apiRouter.Handle("/repositories/", http.HandlerFunc(han.CreateRepoHandler)).Methods("POST", "OPTIONS")
 	apiRouter.Handle("/repositories", http.HandlerFunc(han.CreateRepoHandler)).Methods("POST", "OPTIONS")
 
+	if manageWebhooks {
+		// Install Webhook
+		apiRouter.Handle("/repositories/{repoID}/webhook/", http.HandlerFunc(han.InstallRepoWebhookHandler)).Methods("POST", "OPTIONS")
+		apiRouter.Handle("/repositories/{repoID}/webhook", http.HandlerFunc(han.InstallRepoWebhookHandler)).Methods("POST", "OPTIONS")
+		// Uninstall Webhook
+		apiRouter.Handle("/repositories/{repoID}/webhook/", http.HandlerFunc(han.UninstallRepoWebhookHandler)).Methods("DELETE", "OPTIONS")
+		apiRouter.Handle("/repositories/{repoID}/webhook", http.HandlerFunc(han.UninstallRepoWebhookHandler)).Methods("DELETE", "OPTIONS")
+		// Get webhook info
+		apiRouter.Handle("/repositories/{repoID}/webhook/", http.HandlerFunc(han.GetRepoWebhookInfoHandler)).Methods("GET", "OPTIONS")
+		apiRouter.Handle("/repositories/{repoID}/webhook", http.HandlerFunc(han.GetRepoWebhookInfoHandler)).Methods("GET", "OPTIONS")
+	}
 	/////////////////////////////
 	// Organizations and pools //
 	/////////////////////////////
@@ -240,6 +270,17 @@ func NewAPIRouter(han *controllers.APIController, logWriter io.Writer, authMiddl
 	apiRouter.Handle("/organizations/", http.HandlerFunc(han.CreateOrgHandler)).Methods("POST", "OPTIONS")
 	apiRouter.Handle("/organizations", http.HandlerFunc(han.CreateOrgHandler)).Methods("POST", "OPTIONS")
 
+	if manageWebhooks {
+		// Install Webhook
+		apiRouter.Handle("/organizations/{orgID}/webhook/", http.HandlerFunc(han.InstallOrgWebhookHandler)).Methods("POST", "OPTIONS")
+		apiRouter.Handle("/organizations/{orgID}/webhook", http.HandlerFunc(han.InstallOrgWebhookHandler)).Methods("POST", "OPTIONS")
+		// Uninstall Webhook
+		apiRouter.Handle("/organizations/{orgID}/webhook/", http.HandlerFunc(han.UninstallOrgWebhookHandler)).Methods("DELETE", "OPTIONS")
+		apiRouter.Handle("/organizations/{orgID}/webhook", http.HandlerFunc(han.UninstallOrgWebhookHandler)).Methods("DELETE", "OPTIONS")
+		// Get webhook info
+		apiRouter.Handle("/organizations/{orgID}/webhook/", http.HandlerFunc(han.GetOrgWebhookInfoHandler)).Methods("GET", "OPTIONS")
+		apiRouter.Handle("/organizations/{orgID}/webhook", http.HandlerFunc(han.GetOrgWebhookInfoHandler)).Methods("GET", "OPTIONS")
+	}
 	/////////////////////////////
 	//  Enterprises and pools  //
 	/////////////////////////////
@@ -285,7 +326,14 @@ func NewAPIRouter(han *controllers.APIController, logWriter io.Writer, authMiddl
 	apiRouter.Handle("/providers/", http.HandlerFunc(han.ListProviders)).Methods("GET", "OPTIONS")
 	apiRouter.Handle("/providers", http.HandlerFunc(han.ListProviders)).Methods("GET", "OPTIONS")
 
+	// Controller info
+	apiRouter.Handle("/controller-info/", http.HandlerFunc(han.ControllerInfoHandler)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/controller-info", http.HandlerFunc(han.ControllerInfoHandler)).Methods("GET", "OPTIONS")
+
 	// Websocket log writer
 	apiRouter.Handle("/{ws:ws\\/?}", http.HandlerFunc(han.WSHandler)).Methods("GET")
+
+	// NotFound handler
+	apiRouter.PathPrefix("/").HandlerFunc(han.NotFoundHandler).Methods("GET", "POST", "PUT", "DELETE", "OPTIONS")
 	return router
 }

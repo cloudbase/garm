@@ -27,7 +27,7 @@ import (
 	"github.com/cloudbase/garm/config"
 	dbCommon "github.com/cloudbase/garm/database/common"
 
-	"github.com/golang-jwt/jwt"
+	jwt "github.com/golang-jwt/jwt/v5"
 )
 
 // JWTClaims holds JWT claims
@@ -37,7 +37,7 @@ type JWTClaims struct {
 	FullName    string `json:"full_name"`
 	IsAdmin     bool   `json:"is_admin"`
 	ReadMetrics bool   `json:"read_metrics"`
-	jwt.StandardClaims
+	jwt.RegisteredClaims
 }
 
 // jwtMiddleware is the authentication middleware

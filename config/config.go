@@ -39,6 +39,9 @@ const (
 	MySQLBackend DBBackendType = "mysql"
 	// SQLiteBackend represents the SQLite3 DB backend
 	SQLiteBackend DBBackendType = "sqlite3"
+	// EnvironmentVariablePrefix is the prefix for all environment variables
+	// that can not be used to get overwritten via the external provider
+	EnvironmentVariablePrefix = "GARM"
 )
 
 // NewConfig returns a new Config
@@ -110,6 +113,11 @@ type Default struct {
 	// MetadataURL is the URL where instances can fetch information they may need
 	// to set themselves up.
 	MetadataURL string `toml:"metadata_url" json:"metadata-url"`
+	// WebhookURL is the URL that will be installed as a webhook target in github.
+	WebhookURL string `toml:"webhook_url" json:"webhook-url"`
+	// EnableWebhookManagement enables the webhook management API.
+	EnableWebhookManagement bool `toml:"enable_webhook_management" json:"enable-webhook-management"`
+
 	// LogFile is the location of the log file.
 	LogFile           string `toml:"log_file,omitempty" json:"log-file"`
 	EnableLogStreamer bool   `toml:"enable_log_streamer"`
@@ -128,6 +136,7 @@ func (d *Default) Validate() error {
 	if d.MetadataURL == "" {
 		return fmt.Errorf("missing metadata-url")
 	}
+
 	if _, err := url.Parse(d.MetadataURL); err != nil {
 		return errors.Wrap(err, "validating metadata_url")
 	}
@@ -210,8 +219,11 @@ type Provider struct {
 	Name         string              `toml:"name" json:"name"`
 	ProviderType params.ProviderType `toml:"provider_type" json:"provider-type"`
 	Description  string              `toml:"description" json:"description"`
-	LXD          LXD                 `toml:"lxd" json:"lxd"`
-	External     External            `toml:"external" json:"external"`
+	// DisableJITConfig explicitly disables JIT configuration and forces runner registration
+	// tokens to be used. This may happen if a provider has not yet been updated to support
+	// JIT configuration.
+	DisableJITConfig bool     `toml:"disable_jit_config" json:"disable-jit-config"`
+	External         External `toml:"external" json:"external"`
 }
 
 func (p *Provider) Validate() error {
@@ -220,10 +232,6 @@ func (p *Provider) Validate() error {
 	}
 
 	switch p.ProviderType {
-	case params.LXDProvider:
-		if err := p.LXD.Validate(); err != nil {
-			return errors.Wrap(err, "validating LXD provider info")
-		}
 	case params.ExternalProvider:
 		if err := p.External.Validate(); err != nil {
 			return errors.Wrap(err, "validating external provider info")

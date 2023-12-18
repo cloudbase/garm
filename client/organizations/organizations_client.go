@@ -40,11 +40,17 @@ type ClientService interface {
 
 	GetOrgPool(params *GetOrgPoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetOrgPoolOK, error)
 
+	GetOrgWebhookInfo(params *GetOrgWebhookInfoParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetOrgWebhookInfoOK, error)
+
+	InstallOrgWebhook(params *InstallOrgWebhookParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*InstallOrgWebhookOK, error)
+
 	ListOrgInstances(params *ListOrgInstancesParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListOrgInstancesOK, error)
 
 	ListOrgPools(params *ListOrgPoolsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListOrgPoolsOK, error)
 
 	ListOrgs(params *ListOrgsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListOrgsOK, error)
+
+	UninstallOrgWebhook(params *UninstallOrgWebhookParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error
 
 	UpdateOrg(params *UpdateOrgParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateOrgOK, error)
 
@@ -270,6 +276,84 @@ func (a *Client) GetOrgPool(params *GetOrgPoolParams, authInfo runtime.ClientAut
 }
 
 /*
+GetOrgWebhookInfo gets information about the g a r m installed webhook on an organization
+*/
+func (a *Client) GetOrgWebhookInfo(params *GetOrgWebhookInfoParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetOrgWebhookInfoOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewGetOrgWebhookInfoParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "GetOrgWebhookInfo",
+		Method:             "GET",
+		PathPattern:        "/organizations/{orgID}/webhook",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &GetOrgWebhookInfoReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*GetOrgWebhookInfoOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*GetOrgWebhookInfoDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+	InstallOrgWebhook Install the GARM webhook for an organization. The secret configured on the organization will
+
+be used to validate the requests.
+*/
+func (a *Client) InstallOrgWebhook(params *InstallOrgWebhookParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*InstallOrgWebhookOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewInstallOrgWebhookParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "InstallOrgWebhook",
+		Method:             "POST",
+		PathPattern:        "/organizations/{orgID}/webhook",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &InstallOrgWebhookReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*InstallOrgWebhookOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*InstallOrgWebhookDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
 ListOrgInstances lists organization instances
 */
 func (a *Client) ListOrgInstances(params *ListOrgInstancesParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListOrgInstancesOK, error) {
@@ -381,6 +465,38 @@ func (a *Client) ListOrgs(params *ListOrgsParams, authInfo runtime.ClientAuthInf
 	// unexpected success response
 	unexpectedSuccess := result.(*ListOrgsDefault)
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+UninstallOrgWebhook uninstalls organization webhook
+*/
+func (a *Client) UninstallOrgWebhook(params *UninstallOrgWebhookParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewUninstallOrgWebhookParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "UninstallOrgWebhook",
+		Method:             "DELETE",
+		PathPattern:        "/organizations/{orgID}/webhook",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &UninstallOrgWebhookReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	_, err := a.transport.Submit(op)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 /*

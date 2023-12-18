@@ -1,9 +1,21 @@
+// Copyright 2023 Cloudbase Solutions SRL
+//
+//    Licensed under the Apache License, Version 2.0 (the "License"); you may
+//    not use this file except in compliance with the License. You may obtain
+//    a copy of the License at
+//
+//         http://www.apache.org/licenses/LICENSE-2.0
+//
+//    Unless required by applicable law or agreed to in writing, software
+//    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+//    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+//    License for the specific language governing permissions and limitations
+//    under the License.
+
 package params
 
 import (
 	"encoding/json"
-
-	"github.com/google/go-github/v53/github"
 )
 
 type (
@@ -27,14 +39,15 @@ const (
 )
 
 const (
-	InstanceRunning       InstanceStatus = "running"
-	InstanceStopped       InstanceStatus = "stopped"
-	InstanceError         InstanceStatus = "error"
-	InstancePendingDelete InstanceStatus = "pending_delete"
-	InstanceDeleting      InstanceStatus = "deleting"
-	InstancePendingCreate InstanceStatus = "pending_create"
-	InstanceCreating      InstanceStatus = "creating"
-	InstanceStatusUnknown InstanceStatus = "unknown"
+	InstanceRunning            InstanceStatus = "running"
+	InstanceStopped            InstanceStatus = "stopped"
+	InstanceError              InstanceStatus = "error"
+	InstancePendingDelete      InstanceStatus = "pending_delete"
+	InstancePendingForceDelete InstanceStatus = "pending_force_delete"
+	InstanceDeleting           InstanceStatus = "deleting"
+	InstancePendingCreate      InstanceStatus = "pending_create"
+	InstanceCreating           InstanceStatus = "creating"
+	InstanceStatusUnknown      InstanceStatus = "unknown"
 )
 
 const (
@@ -49,8 +62,8 @@ type UserDataOptions struct {
 }
 
 type BootstrapInstance struct {
-	Name  string                              `json:"name"`
-	Tools []*github.RunnerApplicationDownload `json:"tools"`
+	Name  string                      `json:"name"`
+	Tools []RunnerApplicationDownload `json:"tools"`
 	// RepoURL is the URL the github runner agent needs to configure itself.
 	RepoURL string `json:"repo_url"`
 	// CallbackUrl is the URL where the instance can send a post, signaling
@@ -104,6 +117,12 @@ type BootstrapInstance struct {
 
 	// UserDataOptions are the options for the user data generation.
 	UserDataOptions UserDataOptions `json:"user_data_options"`
+
+	// JitConfigEnabled is a flag that indicates if the runner should be configured to use
+	// just-in-time configuration. If set to true, providers must attempt to fetch the JIT configuration
+	// from the metadata service instead of the runner registration token. The runner registration token
+	// is not available if the runner is configured to use JIT.
+	JitConfigEnabled bool `json:"jit_config_enabled"`
 }
 
 type Address struct {

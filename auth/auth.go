@@ -24,7 +24,7 @@ import (
 	"github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/params"
 
-	"github.com/golang-jwt/jwt"
+	jwt "github.com/golang-jwt/jwt/v5"
 	"github.com/nbutton23/zxcvbn-go"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/bcrypt"
@@ -51,10 +51,13 @@ func (a *Authenticator) GetJWTToken(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", errors.Wrap(err, "generating random string")
 	}
-	expireToken := time.Now().Add(a.cfg.TimeToLive.Duration()).Unix()
+	expireToken := time.Now().Add(a.cfg.TimeToLive.Duration())
+	expires := &jwt.NumericDate{
+		Time: expireToken,
+	}
 	claims := JWTClaims{
-		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: expireToken,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: expires,
 			// TODO: make this configurable
 			Issuer: "garm",
 		},
@@ -87,10 +90,13 @@ func (a *Authenticator) GetJWTMetricsToken(ctx context.Context) (string, error) 
 	// TODO: currently this is the same TTL as the normal Token
 	// maybe we should make this configurable
 	// it's usually pretty nasty if the monitoring fails because the token expired
-	expireToken := time.Now().Add(a.cfg.TimeToLive.Duration()).Unix()
+	expireToken := time.Now().Add(a.cfg.TimeToLive.Duration())
+	expires := &jwt.NumericDate{
+		Time: expireToken,
+	}
 	claims := JWTClaims{
-		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: expireToken,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: expires,
 			// TODO: make this configurable
 			Issuer: "garm",
 		},
