@@ -1,0 +1,21 @@
+unix_socket_path = "/var/snap/lxd/common/lxd/unix.socket"
+include_default_profile = false
+instance_type = "container"
+secure_boot = false
+project_name = "default"
+[image_remotes]
+  [image_remotes.ubuntu]
+    addr = "https://cloud-images.ubuntu.com/releases"
+    public = true
+    protocol = "simplestreams"
+    skip_verify = false
+  [image_remotes.ubuntu_daily]
+    addr = "https://cloud-images.ubuntu.com/daily"
+    public = true
+    protocol = "simplestreams"
+    skip_verify = false
+  [image_remotes.images]
+    addr = "https://images.linuxcontainers.org"
+    public = true
+    protocol = "simplestreams"
+    skip_verify = false

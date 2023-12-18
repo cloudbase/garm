@@ -20,7 +20,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/util/appdefaults"
 	"github.com/stretchr/testify/require"
 )
@@ -76,15 +75,7 @@ func getDefaultDatabaseConfig(dir string) Database {
 }
 
 func getDefaultProvidersConfig() []Provider {
-	lxdConfig := getDefaultLXDConfig()
-	return []Provider{
-		{
-			Name:         "test_lxd",
-			ProviderType: params.LXDProvider,
-			Description:  "test LXD provider",
-			LXD:          lxdConfig,
-		},
-	}
+	return []Provider{}
 }
 
 func getDefaultGithubConfig() []Github {
