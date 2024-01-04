@@ -239,5 +239,5 @@ type UpdateEntityParams struct {
 type InstanceUpdateMessage struct {
 	Status  RunnerStatus `json:"status"`
 	Message string       `json:"message"`
-	AgentID *int64       `json:"agent_id"`
+	AgentID *int64       `json:"agent_id,omitempty"`
 }
