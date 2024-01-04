@@ -324,3 +324,23 @@ func (a *APIController) InstanceStatusMessageHandler(w http.ResponseWriter, r *h
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 }
+
+func (a *APIController) InstanceSystemInfoHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var updateMessage runnerParams.UpdateSystemInfoParams
+	if err := json.NewDecoder(r.Body).Decode(&updateMessage); err != nil {
+		log.Printf("failed to decode: %s", err)
+		handleError(w, gErrors.ErrBadRequest)
+		return
+	}
+
+	if err := a.r.UpdateSystemInfo(ctx, updateMessage); err != nil {
+		log.Printf("error saving status message: %s", err)
+		handleError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+}

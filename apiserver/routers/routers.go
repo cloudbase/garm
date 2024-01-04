@@ -106,6 +106,8 @@ func NewAPIRouter(han *controllers.APIController, logWriter io.Writer, authMiddl
 	callbackRouter := apiSubRouter.PathPrefix("/callbacks").Subrouter()
 	callbackRouter.Handle("/status/", http.HandlerFunc(han.InstanceStatusMessageHandler)).Methods("POST", "OPTIONS")
 	callbackRouter.Handle("/status", http.HandlerFunc(han.InstanceStatusMessageHandler)).Methods("POST", "OPTIONS")
+	callbackRouter.Handle("/system-info/", http.HandlerFunc(han.InstanceSystemInfoHandler)).Methods("POST", "OPTIONS")
+	callbackRouter.Handle("/system-info", http.HandlerFunc(han.InstanceSystemInfoHandler)).Methods("POST", "OPTIONS")
 	callbackRouter.Use(instanceMiddleware.Middleware)
 
 	///////////////////

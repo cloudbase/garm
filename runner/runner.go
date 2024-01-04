@@ -852,7 +852,35 @@ func (r *Runner) AddInstanceStatusMessage(ctx context.Context, param params.Inst
 	}
 
 	if _, err := r.store.UpdateInstance(r.ctx, instanceID, updateParams); err != nil {
-		return errors.Wrap(err, "updating runner state")
+		return errors.Wrap(err, "updating runner agent ID")
+	}
+
+	return nil
+}
+
+func (r *Runner) UpdateSystemInfo(ctx context.Context, param params.UpdateSystemInfoParams) error {
+	instanceID := auth.InstanceID(ctx)
+	if instanceID == "" {
+		log.Printf("missing instance ID")
+		return runnerErrors.ErrUnauthorized
+	}
+
+	if param.OSName == "" && param.OSVersion == "" && param.AgentID == nil {
+		// Nothing to update
+		return nil
+	}
+
+	updateParams := params.UpdateInstanceParams{
+		OSName:    param.OSName,
+		OSVersion: param.OSVersion,
+	}
+
+	if param.AgentID != nil {
+		updateParams.AgentID = *param.AgentID
+	}
+
+	if _, err := r.store.UpdateInstance(r.ctx, instanceID, updateParams); err != nil {
+		return errors.Wrap(err, "updating runner system info")
 	}
 
 	return nil
