@@ -1,7 +1,7 @@
 package metrics
 
 import (
-	"log"
+	"log/slog"
 
 	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/params"
@@ -192,7 +192,7 @@ func (c *GarmCollector) Describe(ch chan<- *prometheus.Desc) {
 func (c *GarmCollector) Collect(ch chan<- prometheus.Metric) {
 	controllerInfo, err := c.runner.GetControllerInfo(auth.GetAdminContext())
 	if err != nil {
-		log.Printf("failed to get controller info: %s", err)
+		slog.With(slog.Any("error", err)).Error("failed to get controller info")
 		return
 	}
 

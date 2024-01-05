@@ -6,7 +6,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"html/template"
-	"log"
+	"log/slog"
 	"strings"
 
 	"github.com/cloudbase/garm-provider-common/defaults"
@@ -44,7 +44,6 @@ func validateInstanceState(ctx context.Context) (params.Instance, error) {
 
 	instance, err := auth.InstanceParams(ctx)
 	if err != nil {
-		log.Printf("failed to get instance params: %s", err)
 		return params.Instance{}, runnerErrors.ErrUnauthorized
 	}
 	return instance, nil
@@ -53,13 +52,16 @@ func validateInstanceState(ctx context.Context) (params.Instance, error) {
 func (r *Runner) GetRunnerServiceName(ctx context.Context) (string, error) {
 	instance, err := validateInstanceState(ctx)
 	if err != nil {
-		log.Printf("failed to get instance params: %s", err)
+		slog.With(slog.Any("error", err)).ErrorContext(
+			ctx, "failed to get instance params")
 		return "", runnerErrors.ErrUnauthorized
 	}
 
 	pool, err := r.store.GetPoolByID(r.ctx, instance.PoolID)
 	if err != nil {
-		log.Printf("failed to get pool: %s", err)
+		slog.With(slog.Any("error", err)).ErrorContext(
+			ctx, "failed to get pool",
+			"pool_id", instance.PoolID)
 		return "", errors.Wrap(err, "fetching pool")
 	}
 
@@ -109,7 +111,8 @@ func (r *Runner) GenerateSystemdUnitFile(ctx context.Context, runAsUser string) 
 func (r *Runner) GetJITConfigFile(ctx context.Context, file string) ([]byte, error) {
 	instance, err := validateInstanceState(ctx)
 	if err != nil {
-		log.Printf("failed to get instance params: %s", err)
+		slog.With(slog.Any("error", err)).ErrorContext(
+			ctx, "failed to get instance params")
 		return nil, runnerErrors.ErrUnauthorized
 	}
 	jitConfig := instance.JitConfiguration
@@ -142,7 +145,8 @@ func (r *Runner) GetInstanceGithubRegistrationToken(ctx context.Context) (string
 
 	instance, err := auth.InstanceParams(ctx)
 	if err != nil {
-		log.Printf("failed to get instance params: %s", err)
+		slog.With(slog.Any("error", err)).ErrorContext(
+			ctx, "failed to get instance params")
 		return "", runnerErrors.ErrUnauthorized
 	}
 
@@ -175,7 +179,8 @@ func (r *Runner) GetInstanceGithubRegistrationToken(ctx context.Context) (string
 func (r *Runner) GetRootCertificateBundle(ctx context.Context) (params.CertificateBundle, error) {
 	instance, err := auth.InstanceParams(ctx)
 	if err != nil {
-		log.Printf("failed to get instance params: %s", err)
+		slog.With(slog.Any("error", err)).ErrorContext(
+			ctx, "failed to get instance params")
 		return params.CertificateBundle{}, runnerErrors.ErrUnauthorized
 	}
 
@@ -186,7 +191,10 @@ func (r *Runner) GetRootCertificateBundle(ctx context.Context) (params.Certifica
 
 	bundle, err := poolMgr.RootCABundle()
 	if err != nil {
-		log.Printf("failed to get root CA bundle: %s", err)
+		slog.With(slog.Any("error", err)).ErrorContext(
+			ctx, "failed to get root CA bundle",
+			"instance", instance.Name,
+			"pool_manager", poolMgr.ID())
 		// The root CA bundle is invalid. Return an empty bundle to the runner and log the event.
 		return params.CertificateBundle{
 			RootCertificates: make(map[string][]byte),

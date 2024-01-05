@@ -2,7 +2,7 @@ package e2e
 
 import (
 	"encoding/json"
-	"log"
+	"log/slog"
 )
 
 func printJsonResponse(resp interface{}) error {
@@ -10,6 +10,6 @@ func printJsonResponse(resp interface{}) error {
 	if err != nil {
 		return err
 	}
-	log.Println(string(b))
+	slog.Info(string(b))
 	return nil
 }

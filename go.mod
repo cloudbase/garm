@@ -5,6 +5,7 @@ go 1.21
 require (
 	github.com/BurntSushi/toml v1.3.2
 	github.com/cloudbase/garm-provider-common v0.1.1
+	github.com/felixge/httpsnoop v1.0.4
 	github.com/go-openapi/errors v0.21.0
 	github.com/go-openapi/runtime v0.26.2
 	github.com/go-openapi/strfmt v0.21.10
@@ -41,7 +42,6 @@ require (
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/chzyer/readline v1.5.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/go-logr/logr v1.3.0 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-openapi/analysis v0.21.5 // indirect

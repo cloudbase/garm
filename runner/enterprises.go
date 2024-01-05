@@ -3,7 +3,7 @@ package runner
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"strings"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
@@ -47,7 +47,9 @@ func (r *Runner) CreateEnterprise(ctx context.Context, param params.CreateEnterp
 	defer func() {
 		if err != nil {
 			if deleteErr := r.store.DeleteEnterprise(ctx, enterprise.ID); deleteErr != nil {
-				log.Printf("failed to delete enterprise: %s", deleteErr)
+				slog.With(slog.Any("error", deleteErr)).ErrorContext(
+					ctx, "failed to delete enterprise",
+					"enterprise_id", enterprise.ID)
 			}
 		}
 	}()
@@ -59,7 +61,9 @@ func (r *Runner) CreateEnterprise(ctx context.Context, param params.CreateEnterp
 	}
 	if err := poolMgr.Start(); err != nil {
 		if deleteErr := r.poolManagerCtrl.DeleteEnterprisePoolManager(enterprise); deleteErr != nil {
-			log.Printf("failed to cleanup pool manager for enterprise %s", enterprise.ID)
+			slog.With(slog.Any("error", deleteErr)).ErrorContext(
+				ctx, "failed to cleanup pool manager for enterprise",
+				"enterprise_id", enterprise.ID)
 		}
 		return params.Enterprise{}, errors.Wrap(err, "starting enterprise pool manager")
 	}

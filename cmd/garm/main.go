@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -69,21 +70,7 @@ func maybeInitController(db common.Store) error {
 	return nil
 }
 
-func main() {
-	flag.Parse()
-	if *version {
-		fmt.Println(Version)
-		return
-	}
-	ctx, stop := signal.NotifyContext(context.Background(), signals...)
-	defer stop()
-	fmt.Println(ctx)
-
-	cfg, err := config.NewConfig(*conf)
-	if err != nil {
-		log.Fatalf("Fetching config: %+v", err)
-	}
-
+func setupLogging(ctx context.Context, cfg *config.Config, hub *websocket.Hub) {
 	logWriter, err := util.GetLoggingWriter(cfg.Default.LogFile)
 	if err != nil {
 		log.Fatalf("fetching log writer: %+v", err)
@@ -102,7 +89,7 @@ func main() {
 				// we got a SIGHUP. Rotate log file.
 				if logger, ok := logWriter.(*lumberjack.Logger); ok {
 					if err := logger.Rotate(); err != nil {
-						log.Printf("failed to rotate log file: %v", err)
+						slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to rotate log file")
 					}
 				}
 			}
@@ -112,18 +99,71 @@ func main() {
 	var writers []io.Writer = []io.Writer{
 		logWriter,
 	}
+
+	if hub != nil {
+		writers = append(writers, hub)
+	}
+
+	wr := io.MultiWriter(writers...)
+	// TODO: delete this once we migrate to slog
+	log.SetOutput(wr)
+
+	logCfg := cfg.GetLoggingConfig()
+	var logLevel slog.Level
+	switch logCfg.LogLevel {
+	case config.LevelDebug:
+		logLevel = slog.LevelDebug
+	case config.LevelInfo:
+		logLevel = slog.LevelInfo
+	case config.LevelWarn:
+		logLevel = slog.LevelWarn
+	case config.LevelError:
+		logLevel = slog.LevelError
+	default:
+		logLevel = slog.LevelInfo
+	}
+
+	// logger options
+	opts := slog.HandlerOptions{
+		AddSource: logCfg.LogSource,
+		Level:     logLevel,
+	}
+
+	var han slog.Handler
+	switch logCfg.LogFormat {
+	case config.FormatJSON:
+		han = slog.NewJSONHandler(wr, &opts)
+	default:
+		han = slog.NewTextHandler(wr, &opts)
+	}
+	slog.SetDefault(slog.New(han))
+
+}
+
+func main() {
+	flag.Parse()
+	if *version {
+		fmt.Println(Version)
+		return
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), signals...)
+	defer stop()
+
+	cfg, err := config.NewConfig(*conf)
+	if err != nil {
+		log.Fatalf("Fetching config: %+v", err)
+	}
+
 	var hub *websocket.Hub
-	if cfg.Default.EnableLogStreamer {
+	if cfg.Default.EnableLogStreamer != nil && *cfg.Default.EnableLogStreamer {
 		hub = websocket.NewHub(ctx)
 		if err := hub.Start(); err != nil {
 			log.Fatal(err)
 		}
 		defer hub.Stop() //nolint
-		writers = append(writers, hub)
 	}
 
-	multiWriter := io.MultiWriter(writers...)
-	log.SetOutput(multiWriter)
+	setupLogging(ctx, cfg, hub)
 
 	db, err := database.NewDatabase(ctx, cfg.Database)
 	if err != nil {
@@ -170,19 +210,19 @@ func main() {
 		log.Fatal(err)
 	}
 
-	router := routers.NewAPIRouter(controller, multiWriter, jwtMiddleware, initMiddleware, instanceMiddleware, cfg.Default.EnableWebhookManagement)
+	router := routers.NewAPIRouter(controller, jwtMiddleware, initMiddleware, instanceMiddleware, cfg.Default.EnableWebhookManagement)
 
 	if cfg.Metrics.Enable {
-		log.Printf("registering prometheus metrics collectors")
+		slog.InfoContext(ctx, "registering prometheus metrics collectors")
 		if err := metrics.RegisterCollectors(runner); err != nil {
 			log.Fatal(err)
 		}
-		log.Printf("setting up metric routes")
+		slog.InfoContext(ctx, "setting up metric routes")
 		router = routers.WithMetricsRouter(router, cfg.Metrics.DisableAuth, metricsMiddleware)
 	}
 
 	if cfg.Default.DebugServer {
-		log.Printf("setting up debug routes")
+		slog.InfoContext(ctx, "setting up debug routes")
 		router = routers.WithDebugServer(router)
 	}
 
@@ -207,11 +247,11 @@ func main() {
 	go func() {
 		if cfg.APIServer.UseTLS {
 			if err := srv.ServeTLS(listener, cfg.APIServer.TLSConfig.CRT, cfg.APIServer.TLSConfig.Key); err != nil {
-				log.Printf("Listening: %+v", err)
+				slog.With(slog.Any("error", err)).ErrorContext(ctx, "Listening")
 			}
 		} else {
 			if err := srv.Serve(listener); err != http.ErrServerClosed {
-				log.Printf("Listening: %+v", err)
+				slog.With(slog.Any("error", err)).ErrorContext(ctx, "Listening")
 			}
 		}
 	}()
@@ -220,12 +260,12 @@ func main() {
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer shutdownCancel()
 	if err := srv.Shutdown(shutdownCtx); err != nil {
-		log.Printf("graceful api server shutdown failed: %+v", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "graceful api server shutdown failed")
 	}
 
-	log.Printf("waiting for runner to stop")
+	slog.With(slog.Any("error", err)).ErrorContext(ctx, "waiting for runner to stop")
 	if err := runner.Wait(); err != nil {
-		log.Printf("failed to shutdown workers: %+v", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to shutdown workers")
 		os.Exit(1)
 	}
 }

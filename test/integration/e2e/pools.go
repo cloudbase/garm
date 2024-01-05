@@ -2,7 +2,7 @@ package e2e
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"time"
 
 	"github.com/cloudbase/garm/params"
@@ -13,13 +13,13 @@ func waitPoolNoInstances(id string, timeout time.Duration) error {
 	var pool *params.Pool
 	var err error
 
-	log.Printf("Wait until pool %s has no instances", id)
+	slog.Info("Wait until pool has no instances", "pool_id", id)
 	for timeWaited < timeout {
 		pool, err = getPool(cli, authToken, id)
 		if err != nil {
 			return err
 		}
-		log.Printf("Current pool instances: %d", len(pool.Instances))
+		slog.Info("Current pool instances", "instance_count", len(pool.Instances))
 		if len(pool.Instances) == 0 {
 			return nil
 		}
@@ -45,7 +45,7 @@ func dumpPoolInstancesDetails(poolID string) error {
 		if err != nil {
 			return err
 		}
-		log.Printf("Instance %s details:", instance.Name)
+		slog.Info("Instance details", "instance_name", instance.Name)
 		if err := printJsonResponse(instanceDetails); err != nil {
 			return err
 		}

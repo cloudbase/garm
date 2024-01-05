@@ -19,7 +19,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 	"sync"
@@ -110,7 +110,11 @@ func (r *repository) GetJITConfig(ctx context.Context, instance string, pool par
 	defer func() {
 		if err != nil && runner != nil {
 			_, innerErr := r.ghcli.RemoveRunner(r.ctx, r.cfg.Owner, r.cfg.Name, runner.GetID())
-			log.Printf("failed to remove runner: %v", innerErr)
+			slog.With(slog.Any("error", innerErr)).ErrorContext(
+				ctx, "failed to remove runner",
+				"runner_id", runner.GetID(),
+				"repo", r.cfg.Name,
+				"owner", r.cfg.Owner)
 		}
 	}()
 
@@ -332,7 +336,11 @@ func (r *repository) InstallHook(ctx context.Context, req *github.Hook) (params.
 	}
 
 	if _, err := r.ghcli.PingRepoHook(ctx, r.cfg.Owner, r.cfg.Name, hook.GetID()); err != nil {
-		log.Printf("failed to ping hook %d: %v", hook.GetID(), err)
+		slog.With(slog.Any("error", err)).ErrorContext(
+			ctx, "failed to ping hook",
+			"hook_id", hook.GetID(),
+			"repo", r.cfg.Name,
+			"owner", r.cfg.Owner)
 	}
 
 	return hookToParamsHookInfo(hook), nil

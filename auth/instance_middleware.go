@@ -111,13 +111,13 @@ func (amw *instanceMiddleware) Middleware(next http.Handler) http.Handler {
 		ctx := r.Context()
 		authorizationHeader := r.Header.Get("authorization")
 		if authorizationHeader == "" {
-			invalidAuthResponse(w)
+			invalidAuthResponse(ctx, w)
 			return
 		}
 
 		bearerToken := strings.Split(authorizationHeader, " ")
 		if len(bearerToken) != 2 {
-			invalidAuthResponse(w)
+			invalidAuthResponse(ctx, w)
 			return
 		}
 
@@ -130,30 +130,30 @@ func (amw *instanceMiddleware) Middleware(next http.Handler) http.Handler {
 		})
 
 		if err != nil {
-			invalidAuthResponse(w)
+			invalidAuthResponse(ctx, w)
 			return
 		}
 
 		if !token.Valid {
-			invalidAuthResponse(w)
+			invalidAuthResponse(ctx, w)
 			return
 		}
 
 		ctx, err = amw.claimsToContext(ctx, claims)
 		if err != nil {
-			invalidAuthResponse(w)
+			invalidAuthResponse(ctx, w)
 			return
 		}
 
 		if InstanceID(ctx) == "" {
-			invalidAuthResponse(w)
+			invalidAuthResponse(ctx, w)
 			return
 		}
 
 		runnerStatus := InstanceRunnerStatus(ctx)
 		if runnerStatus != params.RunnerInstalling && runnerStatus != params.RunnerPending {
 			// Instances that have finished installing can no longer authenticate to the API
-			invalidAuthResponse(w)
+			invalidAuthResponse(ctx, w)
 			return
 		}
 

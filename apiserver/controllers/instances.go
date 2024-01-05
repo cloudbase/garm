@@ -16,7 +16,7 @@ package controllers
 
 import (
 	"encoding/json"
-	"log"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -51,21 +51,21 @@ func (a *APIController) ListPoolInstancesHandler(w http.ResponseWriter, r *http.
 			Error:   "Bad Request",
 			Details: "No pool ID specified",
 		}); err != nil {
-			log.Printf("failed to encode response: %q", err)
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 		}
 		return
 	}
 
 	instances, err := a.r.ListPoolInstances(ctx, poolID)
 	if err != nil {
-		log.Printf("listing pool instances: %s", err)
-		handleError(w, err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "listing pool instances")
+		handleError(ctx, w, err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(instances); err != nil {
-		log.Printf("failed to encode response: %q", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }
 
@@ -93,21 +93,21 @@ func (a *APIController) GetInstanceHandler(w http.ResponseWriter, r *http.Reques
 			Error:   "Bad Request",
 			Details: "No runner name specified",
 		}); err != nil {
-			log.Printf("failed to encode response: %q", err)
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 		}
 		return
 	}
 
 	instance, err := a.r.GetInstance(ctx, instanceName)
 	if err != nil {
-		log.Printf("listing instances: %s", err)
-		handleError(w, err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "listing instances")
+		handleError(ctx, w, err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(instance); err != nil {
-		log.Printf("failed to encode response: %q", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }
 
@@ -140,15 +140,15 @@ func (a *APIController) DeleteInstanceHandler(w http.ResponseWriter, r *http.Req
 			Error:   "Bad Request",
 			Details: "No instance name specified",
 		}); err != nil {
-			log.Printf("failed to encode response: %q", err)
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 		}
 		return
 	}
 
 	forceRemove, _ := strconv.ParseBool(r.URL.Query().Get("forceRemove"))
 	if err := a.r.DeleteRunner(ctx, instanceName, forceRemove); err != nil {
-		log.Printf("removing runner: %s", err)
-		handleError(w, err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "removing runner")
+		handleError(ctx, w, err)
 		return
 	}
 
@@ -180,21 +180,21 @@ func (a *APIController) ListRepoInstancesHandler(w http.ResponseWriter, r *http.
 			Error:   "Bad Request",
 			Details: "No repo ID specified",
 		}); err != nil {
-			log.Printf("failed to encode response: %q", err)
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 		}
 		return
 	}
 
 	instances, err := a.r.ListRepoInstances(ctx, repoID)
 	if err != nil {
-		log.Printf("listing pools: %s", err)
-		handleError(w, err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "listing pools")
+		handleError(ctx, w, err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(instances); err != nil {
-		log.Printf("failed to encode response: %q", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }
 
@@ -222,21 +222,21 @@ func (a *APIController) ListOrgInstancesHandler(w http.ResponseWriter, r *http.R
 			Error:   "Bad Request",
 			Details: "No org ID specified",
 		}); err != nil {
-			log.Printf("failed to encode response: %q", err)
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 		}
 		return
 	}
 
 	instances, err := a.r.ListOrgInstances(ctx, orgID)
 	if err != nil {
-		log.Printf("listing instances: %s", err)
-		handleError(w, err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "listing instances")
+		handleError(ctx, w, err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(instances); err != nil {
-		log.Printf("failed to encode response: %q", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }
 
@@ -264,21 +264,21 @@ func (a *APIController) ListEnterpriseInstancesHandler(w http.ResponseWriter, r 
 			Error:   "Bad Request",
 			Details: "No enterprise ID specified",
 		}); err != nil {
-			log.Printf("failed to encode response: %q", err)
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 		}
 		return
 	}
 
 	instances, err := a.r.ListEnterpriseInstances(ctx, enterpriseID)
 	if err != nil {
-		log.Printf("listing instances: %s", err)
-		handleError(w, err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "listing instances")
+		handleError(ctx, w, err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(instances); err != nil {
-		log.Printf("failed to encode response: %q", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }
 
@@ -294,14 +294,14 @@ func (a *APIController) ListAllInstancesHandler(w http.ResponseWriter, r *http.R
 
 	instances, err := a.r.ListAllInstances(ctx)
 	if err != nil {
-		log.Printf("listing instances: %s", err)
-		handleError(w, err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "listing instances")
+		handleError(ctx, w, err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(instances); err != nil {
-		log.Printf("failed to encode response: %q", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }
 
@@ -310,14 +310,14 @@ func (a *APIController) InstanceStatusMessageHandler(w http.ResponseWriter, r *h
 
 	var updateMessage runnerParams.InstanceUpdateMessage
 	if err := json.NewDecoder(r.Body).Decode(&updateMessage); err != nil {
-		log.Printf("failed to decode: %s", err)
-		handleError(w, gErrors.ErrBadRequest)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to decode")
+		handleError(ctx, w, gErrors.ErrBadRequest)
 		return
 	}
 
 	if err := a.r.AddInstanceStatusMessage(ctx, updateMessage); err != nil {
-		log.Printf("error saving status message: %s", err)
-		handleError(w, err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error saving status message")
+		handleError(ctx, w, err)
 		return
 	}
 
@@ -330,14 +330,14 @@ func (a *APIController) InstanceSystemInfoHandler(w http.ResponseWriter, r *http
 
 	var updateMessage runnerParams.UpdateSystemInfoParams
 	if err := json.NewDecoder(r.Body).Decode(&updateMessage); err != nil {
-		log.Printf("failed to decode: %s", err)
-		handleError(w, gErrors.ErrBadRequest)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to decode")
+		handleError(ctx, w, gErrors.ErrBadRequest)
 		return
 	}
 
 	if err := a.r.UpdateSystemInfo(ctx, updateMessage); err != nil {
-		log.Printf("error saving status message: %s", err)
-		handleError(w, err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error saving status message")
+		handleError(ctx, w, err)
 		return
 	}
 

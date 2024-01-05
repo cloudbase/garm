@@ -16,7 +16,7 @@ package auth
 
 import (
 	"encoding/json"
-	"log"
+	"log/slog"
 	"net/http"
 
 	"github.com/cloudbase/garm/apiserver/params"
@@ -37,16 +37,17 @@ type initRequired struct {
 // Middleware implements the middleware interface
 func (i *initRequired) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
 		ctrlInfo, err := i.store.ControllerInfo()
 		if err != nil || ctrlInfo.ControllerID.String() == "" {
 			w.Header().Add("Content-Type", "application/json")
 			w.WriteHeader(http.StatusConflict)
 			if err := json.NewEncoder(w).Encode(params.InitializationRequired); err != nil {
-				log.Printf("failed to encode response: %s", err)
+				slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 			}
 			return
 		}
-		ctx := r.Context()
+
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

@@ -5,7 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 	"sync"
@@ -134,7 +134,9 @@ func (r *enterprise) GetJITConfig(ctx context.Context, instance string, pool par
 	defer func() {
 		if err != nil && runner != nil {
 			_, innerErr := r.ghcEnterpriseCli.RemoveRunner(r.ctx, r.cfg.Name, runner.GetID())
-			log.Printf("failed to remove runner: %v", innerErr)
+			slog.With(slog.Any("error", innerErr)).ErrorContext(
+				ctx, "failed to remove runner",
+				"runner_id", runner.GetID(), "organization", r.cfg.Name)
 		}
 	}()
 

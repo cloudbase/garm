@@ -16,7 +16,7 @@ package controllers
 
 import (
 	"encoding/json"
-	"log"
+	"log/slog"
 	"net/http"
 
 	gErrors "github.com/cloudbase/garm-provider-common/errors"
@@ -39,14 +39,14 @@ func (a *APIController) ListAllPoolsHandler(w http.ResponseWriter, r *http.Reque
 	pools, err := a.r.ListAllPools(ctx)
 
 	if err != nil {
-		log.Printf("listing pools: %s", err)
-		handleError(w, err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "listing pools")
+		handleError(ctx, w, err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(pools); err != nil {
-		log.Printf("failed to encode response: %q", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }
 
@@ -75,15 +75,15 @@ func (a *APIController) GetPoolByIDHandler(w http.ResponseWriter, r *http.Reques
 			Error:   "Bad Request",
 			Details: "No pool ID specified",
 		}); err != nil {
-			log.Printf("failed to encode response: %q", err)
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 		}
 		return
 	}
 
 	pool, err := a.r.GetPoolByID(ctx, poolID)
 	if err != nil {
-		log.Printf("fetching pool: %s", err)
-		handleError(w, err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "fetching pool")
+		handleError(ctx, w, err)
 		return
 	}
 
@@ -91,7 +91,7 @@ func (a *APIController) GetPoolByIDHandler(w http.ResponseWriter, r *http.Reques
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(pool); err != nil {
-		log.Printf("failed to encode response: %q", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }
 
@@ -119,14 +119,14 @@ func (a *APIController) DeletePoolByIDHandler(w http.ResponseWriter, r *http.Req
 			Error:   "Bad Request",
 			Details: "No pool ID specified",
 		}); err != nil {
-			log.Printf("failed to encode response: %q", err)
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 		}
 		return
 	}
 
 	if err := a.r.DeletePoolByID(ctx, poolID); err != nil {
-		log.Printf("removing pool: %s", err)
-		handleError(w, err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "removing pool")
+		handleError(ctx, w, err)
 		return
 	}
 
@@ -165,27 +165,27 @@ func (a *APIController) UpdatePoolByIDHandler(w http.ResponseWriter, r *http.Req
 			Error:   "Bad Request",
 			Details: "No pool ID specified",
 		}); err != nil {
-			log.Printf("failed to encode response: %q", err)
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 		}
 		return
 	}
 
 	var poolData runnerParams.UpdatePoolParams
 	if err := json.NewDecoder(r.Body).Decode(&poolData); err != nil {
-		log.Printf("failed to decode: %s", err)
-		handleError(w, gErrors.ErrBadRequest)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to decode")
+		handleError(ctx, w, gErrors.ErrBadRequest)
 		return
 	}
 
 	pool, err := a.r.UpdatePoolByID(ctx, poolID, poolData)
 	if err != nil {
-		log.Printf("fetching pool: %s", err)
-		handleError(w, err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "fetching pool")
+		handleError(ctx, w, err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(pool); err != nil {
-		log.Printf("failed to encode response: %q", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }

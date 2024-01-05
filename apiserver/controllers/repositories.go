@@ -16,7 +16,7 @@ package controllers
 
 import (
 	"encoding/json"
-	"log"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -46,20 +46,20 @@ func (a *APIController) CreateRepoHandler(w http.ResponseWriter, r *http.Request
 
 	var repoData runnerParams.CreateRepoParams
 	if err := json.NewDecoder(r.Body).Decode(&repoData); err != nil {
-		handleError(w, gErrors.ErrBadRequest)
+		handleError(ctx, w, gErrors.ErrBadRequest)
 		return
 	}
 
 	repo, err := a.r.CreateRepository(ctx, repoData)
 	if err != nil {
-		log.Printf("error creating repository: %s", err)
-		handleError(w, err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error creating repository")
+		handleError(ctx, w, err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(repo); err != nil {
-		log.Printf("failed to encode response: %q", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }
 
@@ -75,14 +75,14 @@ func (a *APIController) ListReposHandler(w http.ResponseWriter, r *http.Request)
 
 	repos, err := a.r.ListRepositories(ctx)
 	if err != nil {
-		log.Printf("listing repos: %s", err)
-		handleError(w, err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "listing repositories")
+		handleError(ctx, w, err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(repos); err != nil {
-		log.Printf("failed to encode response: %q", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }
 
@@ -111,21 +111,21 @@ func (a *APIController) GetRepoByIDHandler(w http.ResponseWriter, r *http.Reques
 			Error:   "Bad Request",
 			Details: "No repo ID specified",
 		}); err != nil {
-			log.Printf("failed to encode response: %q", err)
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 		}
 		return
 	}
 
 	repo, err := a.r.GetRepositoryByID(ctx, repoID)
 	if err != nil {
-		log.Printf("fetching repo: %s", err)
-		handleError(w, err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "fetching repository")
+		handleError(ctx, w, err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(repo); err != nil {
-		log.Printf("failed to encode response: %q", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }
 
@@ -159,15 +159,15 @@ func (a *APIController) DeleteRepoHandler(w http.ResponseWriter, r *http.Request
 			Error:   "Bad Request",
 			Details: "No repo ID specified",
 		}); err != nil {
-			log.Printf("failed to encode response: %q", err)
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 		}
 		return
 	}
 
 	keepWebhook, _ := strconv.ParseBool(r.URL.Query().Get("keepWebhook"))
 	if err := a.r.DeleteRepository(ctx, repoID, keepWebhook); err != nil {
-		log.Printf("fetching repo: %s", err)
-		handleError(w, err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "fetching repository")
+		handleError(ctx, w, err)
 		return
 	}
 
@@ -207,27 +207,27 @@ func (a *APIController) UpdateRepoHandler(w http.ResponseWriter, r *http.Request
 			Error:   "Bad Request",
 			Details: "No repo ID specified",
 		}); err != nil {
-			log.Printf("failed to encode response: %q", err)
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 		}
 		return
 	}
 
 	var updatePayload runnerParams.UpdateEntityParams
 	if err := json.NewDecoder(r.Body).Decode(&updatePayload); err != nil {
-		handleError(w, gErrors.ErrBadRequest)
+		handleError(ctx, w, gErrors.ErrBadRequest)
 		return
 	}
 
 	repo, err := a.r.UpdateRepository(ctx, repoID, updatePayload)
 	if err != nil {
-		log.Printf("error updating repository: %s", err)
-		handleError(w, err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error updating repository")
+		handleError(ctx, w, err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(repo); err != nil {
-		log.Printf("failed to encode response: %q", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }
 
@@ -262,28 +262,28 @@ func (a *APIController) CreateRepoPoolHandler(w http.ResponseWriter, r *http.Req
 			Error:   "Bad Request",
 			Details: "No repo ID specified",
 		}); err != nil {
-			log.Printf("failed to encode response: %q", err)
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 		}
 		return
 	}
 
 	var poolData runnerParams.CreatePoolParams
 	if err := json.NewDecoder(r.Body).Decode(&poolData); err != nil {
-		log.Printf("failed to decode: %s", err)
-		handleError(w, gErrors.ErrBadRequest)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to decode")
+		handleError(ctx, w, gErrors.ErrBadRequest)
 		return
 	}
 
 	pool, err := a.r.CreateRepoPool(ctx, repoID, poolData)
 	if err != nil {
-		log.Printf("error creating repository pool: %s", err)
-		handleError(w, err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error creating repository pool")
+		handleError(ctx, w, err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(pool); err != nil {
-		log.Printf("failed to encode response: %q", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }
 
@@ -311,21 +311,21 @@ func (a *APIController) ListRepoPoolsHandler(w http.ResponseWriter, r *http.Requ
 			Error:   "Bad Request",
 			Details: "No repo ID specified",
 		}); err != nil {
-			log.Printf("failed to encode response: %q", err)
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 		}
 		return
 	}
 
 	pools, err := a.r.ListRepoPools(ctx, repoID)
 	if err != nil {
-		log.Printf("listing pools: %s", err)
-		handleError(w, err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "listing pools")
+		handleError(ctx, w, err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(pools); err != nil {
-		log.Printf("failed to encode response: %q", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }
 
@@ -360,21 +360,21 @@ func (a *APIController) GetRepoPoolHandler(w http.ResponseWriter, r *http.Reques
 			Error:   "Bad Request",
 			Details: "No repo or pool ID specified",
 		}); err != nil {
-			log.Printf("failed to encode response: %q", err)
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 		}
 		return
 	}
 
 	pool, err := a.r.GetRepoPoolByID(ctx, repoID, poolID)
 	if err != nil {
-		log.Printf("listing pools: %s", err)
-		handleError(w, err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "listing pools")
+		handleError(ctx, w, err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(pool); err != nil {
-		log.Printf("failed to encode response: %q", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }
 
@@ -409,14 +409,14 @@ func (a *APIController) DeleteRepoPoolHandler(w http.ResponseWriter, r *http.Req
 			Error:   "Bad Request",
 			Details: "No repo or pool ID specified",
 		}); err != nil {
-			log.Printf("failed to encode response: %q", err)
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 		}
 		return
 	}
 
 	if err := a.r.DeleteRepoPool(ctx, repoID, poolID); err != nil {
-		log.Printf("removing pool: %s", err)
-		handleError(w, err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "removing pool")
+		handleError(ctx, w, err)
 		return
 	}
 
@@ -463,28 +463,28 @@ func (a *APIController) UpdateRepoPoolHandler(w http.ResponseWriter, r *http.Req
 			Error:   "Bad Request",
 			Details: "No repo or pool ID specified",
 		}); err != nil {
-			log.Printf("failed to encode response: %q", err)
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 		}
 		return
 	}
 
 	var poolData runnerParams.UpdatePoolParams
 	if err := json.NewDecoder(r.Body).Decode(&poolData); err != nil {
-		log.Printf("failed to decode: %s", err)
-		handleError(w, gErrors.ErrBadRequest)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to decode")
+		handleError(ctx, w, gErrors.ErrBadRequest)
 		return
 	}
 
 	pool, err := a.r.UpdateRepoPool(ctx, repoID, poolID, poolData)
 	if err != nil {
-		log.Printf("error creating repository pool: %s", err)
-		handleError(w, err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error creating repository pool")
+		handleError(ctx, w, err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(pool); err != nil {
-		log.Printf("failed to encode response: %q", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }
 
@@ -520,28 +520,28 @@ func (a *APIController) InstallRepoWebhookHandler(w http.ResponseWriter, r *http
 			Error:   "Bad Request",
 			Details: "No repository ID specified",
 		}); err != nil {
-			log.Printf("failed to encode response: %q", err)
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 		}
 		return
 	}
 
 	var hookParam runnerParams.InstallWebhookParams
 	if err := json.NewDecoder(r.Body).Decode(&hookParam); err != nil {
-		log.Printf("failed to decode: %s", err)
-		handleError(w, gErrors.ErrBadRequest)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to decode")
+		handleError(ctx, w, gErrors.ErrBadRequest)
 		return
 	}
 
 	info, err := a.r.InstallRepoWebhook(ctx, repoID, hookParam)
 	if err != nil {
-		log.Printf("installing webhook: %s", err)
-		handleError(w, err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "installing webhook")
+		handleError(ctx, w, err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(info); err != nil {
-		log.Printf("failed to encode response: %q", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }
 
@@ -569,14 +569,14 @@ func (a *APIController) UninstallRepoWebhookHandler(w http.ResponseWriter, r *ht
 			Error:   "Bad Request",
 			Details: "No repository ID specified",
 		}); err != nil {
-			log.Printf("failed to encode response: %q", err)
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 		}
 		return
 	}
 
 	if err := a.r.UninstallRepoWebhook(ctx, repoID); err != nil {
-		log.Printf("removing webhook: %s", err)
-		handleError(w, err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "removing webhook")
+		handleError(ctx, w, err)
 		return
 	}
 
@@ -609,20 +609,20 @@ func (a *APIController) GetRepoWebhookInfoHandler(w http.ResponseWriter, r *http
 			Error:   "Bad Request",
 			Details: "No repository ID specified",
 		}); err != nil {
-			log.Printf("failed to encode response: %q", err)
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 		}
 		return
 	}
 
 	info, err := a.r.GetRepoWebhookInfo(ctx, repoID)
 	if err != nil {
-		log.Printf("getting webhook info: %s", err)
-		handleError(w, err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "getting webhook info")
+		handleError(ctx, w, err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(info); err != nil {
-		log.Printf("failed to encode response: %q", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }

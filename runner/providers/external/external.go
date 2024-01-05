@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"os/exec"
 
 	"github.com/cloudbase/garm-provider-common/execution"
@@ -51,7 +51,7 @@ type external struct {
 	environmentVariables []string
 }
 
-func (e *external) validateResult(inst commonParams.ProviderInstance) error {
+func (e *external) validateResult(ctx context.Context, inst commonParams.ProviderInstance) error {
 	if inst.ProviderID == "" {
 		return garmErrors.NewProviderError("missing provider ID")
 	}
@@ -62,7 +62,9 @@ func (e *external) validateResult(inst commonParams.ProviderInstance) error {
 
 	if inst.OSName == "" || inst.OSArch == "" || inst.OSType == "" {
 		// we can still function without this info (I think)
-		log.Printf("WARNING: missing OS information")
+		slog.WarnContext(
+			ctx, "missing OS information",
+			"instance", inst.Name)
 	}
 	if !IsValidProviderStatus(inst.Status) {
 		return garmErrors.NewProviderError("invalid status returned (%s)", inst.Status)
@@ -96,12 +98,14 @@ func (e *external) CreateInstance(ctx context.Context, bootstrapParams commonPar
 		return commonParams.ProviderInstance{}, garmErrors.NewProviderError("failed to decode response from binary: %s", err)
 	}
 
-	if err := e.validateResult(param); err != nil {
+	if err := e.validateResult(ctx, param); err != nil {
 		return commonParams.ProviderInstance{}, garmErrors.NewProviderError("failed to validate result: %s", err)
 	}
 
 	retAsJs, _ := json.MarshalIndent(param, "", "  ")
-	log.Printf("provider returned: %s", string(retAsJs))
+	slog.DebugContext(
+		ctx, "provider returned",
+		"output", string(retAsJs))
 	return param, nil
 }
 
@@ -148,7 +152,7 @@ func (e *external) GetInstance(ctx context.Context, instance string) (commonPara
 		return commonParams.ProviderInstance{}, garmErrors.NewProviderError("failed to decode response from binary: %s", err)
 	}
 
-	if err := e.validateResult(param); err != nil {
+	if err := e.validateResult(ctx, param); err != nil {
 		return commonParams.ProviderInstance{}, garmErrors.NewProviderError("failed to validate result: %s", err)
 	}
 
@@ -177,7 +181,7 @@ func (e *external) ListInstances(ctx context.Context, poolID string) ([]commonPa
 
 	ret := make([]commonParams.ProviderInstance, len(param))
 	for idx, inst := range param {
-		if err := e.validateResult(inst); err != nil {
+		if err := e.validateResult(ctx, inst); err != nil {
 			return []commonParams.ProviderInstance{}, garmErrors.NewProviderError("failed to validate result: %s", err)
 		}
 		ret[idx] = inst
