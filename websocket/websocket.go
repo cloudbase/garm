@@ -3,6 +3,7 @@ package websocket
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 )
 
@@ -33,6 +34,8 @@ type Hub struct {
 
 	// Unregister requests from clients.
 	unregister chan *Client
+
+	mux sync.Mutex
 }
 
 func (h *Hub) run() {
@@ -46,27 +49,46 @@ func (h *Hub) run() {
 			return
 		case client := <-h.register:
 			if client != nil {
+				h.mux.Lock()
 				h.clients[client.id] = client
+				h.mux.Unlock()
 			}
 		case client := <-h.unregister:
 			if client != nil {
+				h.mux.Lock()
 				if _, ok := h.clients[client.id]; ok {
-					delete(h.clients, client.id)
+					client.conn.Close()
 					close(client.send)
+					delete(h.clients, client.id)
 				}
+				h.mux.Unlock()
 			}
 		case message := <-h.broadcast:
+			staleClients := []string{}
 			for id, client := range h.clients {
 				if client == nil {
+					staleClients = append(staleClients, id)
 					continue
 				}
 
 				select {
 				case client.send <- message:
 				case <-time.After(5 * time.Second):
-					close(client.send)
-					delete(h.clients, id)
+					staleClients = append(staleClients, id)
 				}
+			}
+			if len(staleClients) > 0 {
+				h.mux.Lock()
+				for _, id := range staleClients {
+					if client, ok := h.clients[id]; ok {
+						if client != nil {
+							client.conn.Close()
+							close(client.send)
+						}
+						delete(h.clients, id)
+					}
+				}
+				h.mux.Unlock()
 			}
 		}
 	}
@@ -78,13 +100,15 @@ func (h *Hub) Register(client *Client) error {
 }
 
 func (h *Hub) Write(msg []byte) (int, error) {
+	tmp := make([]byte, len(msg))
+	copy(tmp, msg)
+
 	select {
 	case <-time.After(5 * time.Second):
 		return 0, fmt.Errorf("timed out sending message to client")
-	case h.broadcast <- msg:
-
+	case h.broadcast <- tmp:
 	}
-	return len(msg), nil
+	return len(tmp), nil
 }
 
 func (h *Hub) Start() error {
