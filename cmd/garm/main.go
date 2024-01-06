@@ -72,7 +72,8 @@ func maybeInitController(db common.Store) error {
 }
 
 func setupLogging(ctx context.Context, cfg *config.Config, hub *websocket.Hub) {
-	logWriter, err := util.GetLoggingWriter(cfg.Default.LogFile)
+	logCfg := cfg.GetLoggingConfig()
+	logWriter, err := util.GetLoggingWriter(logCfg.LogFile)
 	if err != nil {
 		log.Fatalf("fetching log writer: %+v", err)
 	}
@@ -107,7 +108,6 @@ func setupLogging(ctx context.Context, cfg *config.Config, hub *websocket.Hub) {
 
 	wr := io.MultiWriter(writers...)
 
-	logCfg := cfg.GetLoggingConfig()
 	var logLevel slog.Level
 	switch logCfg.LogLevel {
 	case config.LevelDebug:
