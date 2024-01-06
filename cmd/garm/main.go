@@ -37,6 +37,7 @@ import (
 	"github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/metrics"
 	"github.com/cloudbase/garm/runner"
+	garmUtil "github.com/cloudbase/garm/util"
 	"github.com/cloudbase/garm/util/appdefaults"
 	"github.com/cloudbase/garm/websocket"
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
@@ -105,8 +106,6 @@ func setupLogging(ctx context.Context, cfg *config.Config, hub *websocket.Hub) {
 	}
 
 	wr := io.MultiWriter(writers...)
-	// TODO: delete this once we migrate to slog
-	log.SetOutput(wr)
 
 	logCfg := cfg.GetLoggingConfig()
 	var logLevel slog.Level
@@ -136,7 +135,11 @@ func setupLogging(ctx context.Context, cfg *config.Config, hub *websocket.Hub) {
 	default:
 		han = slog.NewTextHandler(wr, &opts)
 	}
-	slog.SetDefault(slog.New(han))
+
+	wrapped := garmUtil.ContextHandler{
+		Handler: han,
+	}
+	slog.SetDefault(slog.New(wrapped))
 
 }
 
