@@ -35,17 +35,19 @@ type Hub struct {
 	// Unregister requests from clients.
 	unregister chan *Client
 
-	mux sync.Mutex
+	mux  sync.Mutex
+	once sync.Once
 }
 
 func (h *Hub) run() {
+	defer func() {
+		close(h.closed)
+	}()
 	for {
 		select {
 		case <-h.quit:
-			close(h.closed)
 			return
 		case <-h.ctx.Done():
-			close(h.closed)
 			return
 		case client := <-h.register:
 			if client != nil {
@@ -116,8 +118,15 @@ func (h *Hub) Start() error {
 	return nil
 }
 
+func (h *Hub) Close() error {
+	h.once.Do(func() {
+		close(h.quit)
+	})
+	return nil
+}
+
 func (h *Hub) Stop() error {
-	close(h.quit)
+	h.Close()
 	select {
 	case <-h.closed:
 		return nil
