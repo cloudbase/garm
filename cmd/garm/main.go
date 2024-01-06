@@ -71,8 +71,7 @@ func maybeInitController(db common.Store) error {
 	return nil
 }
 
-func setupLogging(ctx context.Context, cfg *config.Config, hub *websocket.Hub) {
-	logCfg := cfg.GetLoggingConfig()
+func setupLogging(ctx context.Context, logCfg config.Logging, hub *websocket.Hub) {
 	logWriter, err := util.GetLoggingWriter(logCfg.LogFile)
 	if err != nil {
 		log.Fatalf("fetching log writer: %+v", err)
@@ -157,16 +156,16 @@ func main() {
 		log.Fatalf("Fetching config: %+v", err)
 	}
 
+	logCfg := cfg.GetLoggingConfig()
 	var hub *websocket.Hub
-	if cfg.Default.EnableLogStreamer != nil && *cfg.Default.EnableLogStreamer {
+	if logCfg.EnableLogStreamer != nil && *logCfg.EnableLogStreamer {
 		hub = websocket.NewHub(ctx)
 		if err := hub.Start(); err != nil {
 			log.Fatal(err)
 		}
 		defer hub.Stop() //nolint
 	}
-
-	setupLogging(ctx, cfg, hub)
+	setupLogging(ctx, logCfg, hub)
 
 	db, err := database.NewDatabase(ctx, cfg.Database)
 	if err != nil {

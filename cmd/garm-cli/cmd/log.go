@@ -63,7 +63,7 @@ var logCmd = &cobra.Command{
 					slog.With(slog.Any("error", err)).Error("reading log message")
 					return
 				}
-				fmt.Print(util.SanitizeLogEntry(string(message)))
+				fmt.Println(util.SanitizeLogEntry(string(message)))
 			}
 		}()
 
