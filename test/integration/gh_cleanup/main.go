@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 
 	"github.com/cloudbase/garm/test/integration/e2e"
@@ -21,7 +21,7 @@ func main() {
 		_ = e2e.GhOrgRunnersCleanup(ghToken, orgName, controllerID)
 		_ = e2e.GhRepoRunnersCleanup(ghToken, orgName, repoName, controllerID)
 	} else {
-		log.Println("Env variable GARM_CONTROLLER_ID is not set, skipping GitHub runners cleanup")
+		slog.Warn("Env variable GARM_CONTROLLER_ID is not set, skipping GitHub runners cleanup")
 	}
 
 	baseURL, baseUrlFound := os.LookupEnv("GARM_BASE_URL")
@@ -30,6 +30,6 @@ func main() {
 		_ = e2e.GhOrgWebhookCleanup(ghToken, webhookURL, orgName)
 		_ = e2e.GhRepoWebhookCleanup(ghToken, webhookURL, orgName, repoName)
 	} else {
-		log.Println("Env variables GARM_CONTROLLER_ID & GARM_BASE_URL are not set, skipping webhooks cleanup")
+		slog.Warn("Env variables GARM_CONTROLLER_ID & GARM_BASE_URL are not set, skipping webhooks cleanup")
 	}
 }

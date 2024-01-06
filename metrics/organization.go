@@ -1,7 +1,7 @@
 package metrics
 
 import (
-	"log"
+	"log/slog"
 	"strconv"
 
 	"github.com/cloudbase/garm/auth"
@@ -14,7 +14,7 @@ func (c *GarmCollector) CollectOrganizationMetric(ch chan<- prometheus.Metric, h
 
 	organizations, err := c.runner.ListOrganizations(ctx)
 	if err != nil {
-		log.Printf("listing providers: %s", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "listing providers")
 		return
 	}
 
@@ -28,7 +28,7 @@ func (c *GarmCollector) CollectOrganizationMetric(ch chan<- prometheus.Metric, h
 			organization.ID,   // label: id
 		)
 		if err != nil {
-			log.Printf("cannot collect organizationInfo metric: %s", err)
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "cannot collect organizationInfo metric")
 			continue
 		}
 		ch <- organizationInfo
@@ -42,7 +42,7 @@ func (c *GarmCollector) CollectOrganizationMetric(ch chan<- prometheus.Metric, h
 			strconv.FormatBool(organization.PoolManagerStatus.IsRunning), // label: running
 		)
 		if err != nil {
-			log.Printf("cannot collect organizationPoolManagerStatus metric: %s", err)
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "cannot collect organizationPoolManagerStatus metric")
 			continue
 		}
 		ch <- organizationPoolManagerStatus

@@ -1,7 +1,7 @@
 package e2e
 
 import (
-	"log"
+	"log/slog"
 	"time"
 
 	commonParams "github.com/cloudbase/garm-provider-common/params"
@@ -9,7 +9,7 @@ import (
 )
 
 func CreateRepo(orgName, repoName, credentialsName, repoWebhookSecret string) *params.Repository {
-	log.Printf("Create repository %s/%s", orgName, repoName)
+	slog.Info("Create repository", "owner_name", orgName, "repo_name", repoName)
 	createParams := params.CreateRepoParams{
 		Owner:           orgName,
 		Name:            repoName,
@@ -24,7 +24,7 @@ func CreateRepo(orgName, repoName, credentialsName, repoWebhookSecret string) *p
 }
 
 func UpdateRepo(id, credentialsName string) *params.Repository {
-	log.Printf("Update repo %s", id)
+	slog.Info("Update repo", "repo_id", id)
 	updateParams := params.UpdateEntityParams{
 		CredentialsName: credentialsName,
 	}
@@ -36,7 +36,7 @@ func UpdateRepo(id, credentialsName string) *params.Repository {
 }
 
 func InstallRepoWebhook(id string) *params.HookInfo {
-	log.Printf("Install repo %s webhook", id)
+	slog.Info("Install repo webhook", "repo_id", id)
 	webhookParams := params.InstallWebhookParams{
 		WebhookEndpointType: params.WebhookEndpointDirect,
 	}
@@ -52,14 +52,14 @@ func InstallRepoWebhook(id string) *params.HookInfo {
 }
 
 func UninstallRepoWebhook(id string) {
-	log.Printf("Uninstall repo %s webhook", id)
+	slog.Info("Uninstall repo webhook", "repo_id", id)
 	if err := uninstallRepoWebhook(cli, authToken, id); err != nil {
 		panic(err)
 	}
 }
 
 func CreateRepoPool(repoID string, poolParams params.CreatePoolParams) *params.Pool {
-	log.Printf("Create repo %s pool", repoID)
+	slog.Info("Create repo pool", "repo_id", repoID)
 	pool, err := createRepoPool(cli, authToken, repoID, poolParams)
 	if err != nil {
 		panic(err)
@@ -68,7 +68,7 @@ func CreateRepoPool(repoID string, poolParams params.CreatePoolParams) *params.P
 }
 
 func GetRepoPool(repoID, repoPoolID string) *params.Pool {
-	log.Printf("Get repo %s pool %s", repoID, repoPoolID)
+	slog.Info("Get repo pool", "repo_id", repoID, "pool_id", repoPoolID)
 	pool, err := getRepoPool(cli, authToken, repoID, repoPoolID)
 	if err != nil {
 		panic(err)
@@ -77,7 +77,7 @@ func GetRepoPool(repoID, repoPoolID string) *params.Pool {
 }
 
 func UpdateRepoPool(repoID, repoPoolID string, maxRunners, minIdleRunners uint) *params.Pool {
-	log.Printf("Update repo %s pool %s", repoID, repoPoolID)
+	slog.Info("Update repo pool", "repo_id", repoID, "pool_id", repoPoolID)
 	poolParams := params.UpdatePoolParams{
 		MinIdleRunners: &minIdleRunners,
 		MaxRunners:     &maxRunners,
@@ -90,14 +90,14 @@ func UpdateRepoPool(repoID, repoPoolID string, maxRunners, minIdleRunners uint) 
 }
 
 func DeleteRepoPool(repoID, repoPoolID string) {
-	log.Printf("Delete repo %s pool %s", repoID, repoPoolID)
+	slog.Info("Delete repo pool", "repo_id", repoID, "pool_id", repoPoolID)
 	if err := deleteRepoPool(cli, authToken, repoID, repoPoolID); err != nil {
 		panic(err)
 	}
 }
 
 func DisableRepoPool(repoID, repoPoolID string) {
-	log.Printf("Disable repo %s pool %s", repoID, repoPoolID)
+	slog.Info("Disable repo pool", "repo_id", repoID, "pool_id", repoPoolID)
 	enabled := false
 	poolParams := params.UpdatePoolParams{Enabled: &enabled}
 	if _, err := updateRepoPool(cli, authToken, repoID, repoPoolID, poolParams); err != nil {
@@ -121,7 +121,7 @@ func WaitRepoRunningIdleInstances(repoID string, timeout time.Duration) {
 
 func dumpRepoInstancesDetails(repoID string) error {
 	// print repo details
-	log.Printf("Dumping repo %s details", repoID)
+	slog.Info("Dumping repo details", "repo_id", repoID)
 	repo, err := getRepo(cli, authToken, repoID)
 	if err != nil {
 		return err
@@ -131,7 +131,7 @@ func dumpRepoInstancesDetails(repoID string) error {
 	}
 
 	// print repo instances details
-	log.Printf("Dumping repo %s instances details", repoID)
+	slog.Info("Dumping repo instances details", "repo_id", repoID)
 	instances, err := listRepoInstances(cli, authToken, repoID)
 	if err != nil {
 		return err
@@ -141,7 +141,7 @@ func dumpRepoInstancesDetails(repoID string) error {
 		if err != nil {
 			return err
 		}
-		log.Printf("Instance %s info:", instance.Name)
+		slog.Info("Instance info", "instance_name", instance.Name)
 		if err := printJsonResponse(instance); err != nil {
 			return err
 		}

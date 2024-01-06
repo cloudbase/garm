@@ -35,14 +35,35 @@ webhook_url = "https://garm.example.com/webhooks"
 # webhooks for repositories or organizations.
 enable_webhook_management = true
 
+# DEPRECATED: Use the [logging] section to set this option.
 # Uncomment this line if you'd like to log to a file instead of standard output.
 # log_file = "/tmp/runner-manager.log"
 
+# DEPRECATED: Use the [logging] section to set this option.
 # Enable streaming logs via web sockets. Use garm-cli debug-log.
 enable_log_streamer = false
 
 # Enable the golang debug server. See the documentation in the "doc" folder for more information.
 debug_server = false
+
+
+[logging]
+# Uncomment this line if you'd like to log to a file instead of standard output.
+# log_file = "/tmp/runner-manager.log"
+
+# enable_log_streamer enables streaming the logs over websockets
+enable_log_streamer = true
+# log_format is the output format of the logs. GARM uses structured logging and can
+# output as "text" or "json"
+log_format = "text"
+# log_level is the logging level GARM will output. Available log levels are:
+#  * debug
+#  * info
+#  * warn
+#  * error
+log_level = "debug"
+# log_source will output information about the function that generated the log line.
+log_source = false
 
 [metrics]
 # Toggle metrics. If set to false, the API endpoint for metrics collection will

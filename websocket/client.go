@@ -1,7 +1,7 @@
 package websocket
 
 import (
-	"log"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -56,7 +56,7 @@ func (c *Client) clientReader() {
 	}()
 	c.conn.SetReadLimit(maxMessageSize)
 	if err := c.conn.SetReadDeadline(time.Now().Add(pongWait)); err != nil {
-		log.Printf("failed to set read deadline: %s", err)
+		slog.With(slog.Any("error", err)).Error("failed to set read deadline")
 	}
 	c.conn.SetPongHandler(func(string) error {
 		if err := c.conn.SetReadDeadline(time.Now().Add(pongWait)); err != nil {
@@ -86,23 +86,23 @@ func (c *Client) clientWriter() {
 		select {
 		case message, ok := <-c.send:
 			if err := c.conn.SetWriteDeadline(time.Now().Add(writeWait)); err != nil {
-				log.Printf("failed to set write deadline: %s", err)
+				slog.With(slog.Any("error", err)).Error("failed to set write deadline")
 			}
 			if !ok {
 				// The hub closed the channel.
 				if err := c.conn.WriteMessage(websocket.CloseMessage, []byte{}); err != nil {
-					log.Printf("failed to write message: %s", err)
+					slog.With(slog.Any("error", err)).Error("failed to write message")
 				}
 				return
 			}
 
 			if err := c.conn.WriteMessage(websocket.TextMessage, message); err != nil {
-				log.Printf("error sending message: %v", err)
+				slog.With(slog.Any("error", err)).Error("error sending message")
 				return
 			}
 		case <-ticker.C:
 			if err := c.conn.SetWriteDeadline(time.Now().Add(writeWait)); err != nil {
-				log.Printf("failed to set write deadline: %s", err)
+				slog.With(slog.Any("error", err)).Error("failed to set write deadline")
 			}
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return

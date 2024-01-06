@@ -1,7 +1,7 @@
 package metrics
 
 import (
-	"log"
+	"log/slog"
 	"strconv"
 
 	"github.com/cloudbase/garm/auth"
@@ -14,7 +14,7 @@ func (c *GarmCollector) CollectRepositoryMetric(ch chan<- prometheus.Metric, hos
 
 	repositories, err := c.runner.ListRepositories(ctx)
 	if err != nil {
-		log.Printf("listing providers: %s", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "listing providers")
 		return
 	}
 
@@ -29,7 +29,7 @@ func (c *GarmCollector) CollectRepositoryMetric(ch chan<- prometheus.Metric, hos
 			repository.ID,    // label: id
 		)
 		if err != nil {
-			log.Printf("cannot collect repositoryInfo metric: %s", err)
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "cannot collect repositoryInfo metric")
 			continue
 		}
 		ch <- repositoryInfo
@@ -43,7 +43,7 @@ func (c *GarmCollector) CollectRepositoryMetric(ch chan<- prometheus.Metric, hos
 			strconv.FormatBool(repository.PoolManagerStatus.IsRunning), // label: running
 		)
 		if err != nil {
-			log.Printf("cannot collect repositoryPoolManagerStatus metric: %s", err)
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "cannot collect repositoryPoolManagerStatus metric")
 			continue
 		}
 		ch <- repositoryPoolManagerStatus

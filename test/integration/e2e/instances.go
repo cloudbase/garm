@@ -2,7 +2,7 @@ package e2e
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"time"
 
 	commonParams "github.com/cloudbase/garm-provider-common/params"
@@ -13,13 +13,13 @@ func waitInstanceStatus(name string, status commonParams.InstanceStatus, runnerS
 	var timeWaited time.Duration = 0
 	var instance *params.Instance
 
-	log.Printf("Waiting for instance %s status to reach status %s and runner status %s", name, status, runnerStatus)
+	slog.Info("Waiting for instance to reach desired status", "instance", name, "desired_status", status, "desired_runner_status", runnerStatus)
 	for timeWaited < timeout {
 		instance, err := getInstance(cli, authToken, name)
 		if err != nil {
 			return nil, err
 		}
-		log.Printf("Instance %s status %s and runner status %s", name, instance.Status, instance.RunnerStatus)
+		slog.Info("Instance status", "instance_name", name, "status", instance.Status, "runner_status", instance.RunnerStatus)
 		if instance.Status == status && instance.RunnerStatus == runnerStatus {
 			return instance, nil
 		}
@@ -37,14 +37,14 @@ func DeleteInstance(name string, forceRemove bool) {
 	if err := deleteInstance(cli, authToken, name, forceRemove); err != nil {
 		panic(err)
 	}
-	log.Printf("Instance %s deletion initiated", name)
+	slog.Info("Instance deletion initiated", "instance_name", name)
 }
 
 func WaitInstanceToBeRemoved(name string, timeout time.Duration) error {
 	var timeWaited time.Duration = 0
 	var instance *params.Instance
 
-	log.Printf("Waiting for instance %s to be removed", name)
+	slog.Info("Waiting for instance to be removed", "instance_name", name)
 	for timeWaited < timeout {
 		instances, err := listInstances(cli, authToken)
 		if err != nil {
@@ -82,7 +82,7 @@ func WaitPoolInstances(poolID string, status commonParams.InstanceStatus, runner
 		return err
 	}
 
-	log.Printf("Waiting for pool %s instances to reach status: %s and runner status: %s", poolID, status, runnerStatus)
+	slog.Info("Waiting for pool instances to reach desired status", "pool_id", poolID, "desired_status", status, "desired_runner_status", runnerStatus)
 	for timeWaited < timeout {
 		poolInstances, err := listPoolInstances(cli, authToken, poolID)
 		if err != nil {
@@ -96,7 +96,13 @@ func WaitPoolInstances(poolID string, status commonParams.InstanceStatus, runner
 			}
 		}
 
-		log.Printf("Pool %s instance reached status: %s and runner status: %s: %d/%d", poolID, status, runnerStatus, instancesCount, len(poolInstances))
+		slog.Info(
+			"Pool instance reached status",
+			"pool_id", poolID,
+			"status", status,
+			"runner_status", runnerStatus,
+			"desired_instance_count", instancesCount,
+			"pool_instance_count", len(poolInstances))
 		if instancesCount == int(pool.MinIdleRunners) && instancesCount == len(poolInstances) {
 			return nil
 		}

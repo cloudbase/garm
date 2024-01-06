@@ -5,7 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 	"sync"
@@ -25,6 +25,7 @@ import (
 var _ poolHelper = &enterprise{}
 
 func NewEnterprisePoolManager(ctx context.Context, cfg params.Enterprise, cfgInternal params.Internal, providers map[string]common.Provider, store dbCommon.Store) (common.PoolManager, error) {
+	ctx = util.WithContext(ctx, slog.Any("pool_mgr", cfg.Name), slog.Any("pool_type", params.EnterprisePool))
 	ghc, ghEnterpriseClient, err := util.GithubClient(ctx, cfgInternal.OAuth2Token, cfgInternal.GithubCredentialsDetails)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting github client")
@@ -134,7 +135,9 @@ func (r *enterprise) GetJITConfig(ctx context.Context, instance string, pool par
 	defer func() {
 		if err != nil && runner != nil {
 			_, innerErr := r.ghcEnterpriseCli.RemoveRunner(r.ctx, r.cfg.Name, runner.GetID())
-			log.Printf("failed to remove runner: %v", innerErr)
+			slog.With(slog.Any("error", innerErr)).ErrorContext(
+				ctx, "failed to remove runner",
+				"runner_id", runner.GetID(), "organization", r.cfg.Name)
 		}
 	}()
 

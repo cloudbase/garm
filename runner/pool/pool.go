@@ -17,7 +17,7 @@ package pool
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"math"
 	"net/http"
 	"strconv"
@@ -134,23 +134,30 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 		_, err := r.store.GetJobByID(r.ctx, jobParams.ID)
 		if err != nil {
 			if !errors.Is(err, runnerErrors.ErrNotFound) {
-				r.log("failed to get job %d: %s", jobParams.ID, err)
+				slog.With(slog.Any("error", err)).ErrorContext(
+					r.ctx, "failed to get job",
+					"job_id", jobParams.ID)
 				return
 			}
 			// This job is new to us. Check if we have a pool that can handle it.
 			potentialPools, err := r.store.FindPoolsMatchingAllTags(r.ctx, r.helper.PoolType(), r.helper.ID(), jobParams.Labels)
 			if err != nil {
-				r.log("failed to find pools matching tags %s: %s; not recording job", strings.Join(jobParams.Labels, ", "), err)
+				slog.With(slog.Any("error", err)).ErrorContext(
+					r.ctx, "failed to find pools matching tags; not recording job",
+					"requested_tags", strings.Join(jobParams.Labels, ", "))
 				return
 			}
 			if len(potentialPools) == 0 {
-				r.log("no pools matching tags %s; not recording job", strings.Join(jobParams.Labels, ", "))
+				slog.WarnContext(
+					r.ctx, "no pools matching tags; not recording job",
+					"requested_tags", strings.Join(jobParams.Labels, ", "))
 				return
 			}
 		}
 
 		if _, jobErr := r.store.CreateOrUpdateJob(r.ctx, jobParams); jobErr != nil {
-			r.log("failed to update job %d: %s", jobParams.ID, jobErr)
+			slog.With(slog.Any("error", jobErr)).ErrorContext(
+				r.ctx, "failed to update job", "job_id", jobParams.ID)
 		}
 
 		if triggeredBy != 0 && jobParams.ID != triggeredBy {
@@ -159,7 +166,9 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 			// still queued and we don't remove the lock, it will linger until the lock timeout is reached.
 			// That may take a long time, so we break the lock here and allow it to be scheduled again.
 			if err := r.store.BreakLockJobIsQueued(r.ctx, triggeredBy); err != nil {
-				r.log("failed to break lock for job %d: %s", triggeredBy, err)
+				slog.With(slog.Any("error", err)).ErrorContext(
+					r.ctx, "failed to break lock for job",
+					"job_id", triggeredBy)
 			}
 		}
 	}()
@@ -189,15 +198,21 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 			if errors.Is(err, runnerErrors.ErrNotFound) {
 				return nil
 			}
-			r.log("failed to update runner %s status: %s", util.SanitizeLogEntry(jobParams.RunnerName), err)
+			slog.With(slog.Any("error", err)).ErrorContext(
+				r.ctx, "failed to update runner status",
+				"runner_name", util.SanitizeLogEntry(jobParams.RunnerName))
 			return errors.Wrap(err, "updating runner")
 		}
-		r.log("marking instance %s as pending_delete", util.SanitizeLogEntry(jobParams.RunnerName))
+		slog.DebugContext(
+			r.ctx, "marking instance as pending_delete",
+			"runner_name", util.SanitizeLogEntry(jobParams.RunnerName))
 		if _, err := r.setInstanceStatus(jobParams.RunnerName, commonParams.InstancePendingDelete, nil); err != nil {
 			if errors.Is(err, runnerErrors.ErrNotFound) {
 				return nil
 			}
-			r.log("failed to update runner %s status: %s", util.SanitizeLogEntry(jobParams.RunnerName), err)
+			slog.With(slog.Any("error", err)).ErrorContext(
+				r.ctx, "failed to update runner status",
+				"runner_name", util.SanitizeLogEntry(jobParams.RunnerName))
 			return errors.Wrap(err, "updating runner")
 		}
 	case "in_progress":
@@ -220,7 +235,9 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 			if errors.Is(err, runnerErrors.ErrNotFound) {
 				return nil
 			}
-			r.log("failed to update runner %s status: %s", util.SanitizeLogEntry(jobParams.RunnerName), err)
+			slog.With(slog.Any("error", err)).ErrorContext(
+				r.ctx, "failed to update runner status",
+				"runner_name", util.SanitizeLogEntry(jobParams.RunnerName))
 			return errors.Wrap(err, "updating runner")
 		}
 		// Set triggeredBy here so we break the lock on any potential queued job.
@@ -233,7 +250,9 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 			return errors.Wrap(err, "getting pool")
 		}
 		if err := r.ensureIdleRunnersForOnePool(pool); err != nil {
-			r.log("error ensuring idle runners for pool %s: %s", pool.ID, err)
+			slog.With(slog.Any("error", err)).ErrorContext(
+				r.ctx, "error ensuring idle runners for pool",
+				"pool_id", pool.ID)
 		}
 	}
 	return nil
@@ -253,12 +272,16 @@ func jobIdFromLabels(labels []string) int64 {
 }
 
 func (r *basePoolManager) startLoopForFunction(f func() error, interval time.Duration, name string, alwaysRun bool) {
-	r.log("starting %s loop for %s", name, r.helper.String())
+	slog.InfoContext(
+		r.ctx, "starting loop for entity",
+		"loop_name", name)
 	ticker := time.NewTicker(interval)
 	r.wg.Add(1)
 
 	defer func() {
-		r.log("%s loop exited for pool %s", name, r.helper.String())
+		slog.InfoContext(
+			r.ctx, "pool loop exited",
+			"loop_name", name)
 		ticker.Stop()
 		r.wg.Done()
 	}()
@@ -273,7 +296,9 @@ func (r *basePoolManager) startLoopForFunction(f func() error, interval time.Dur
 			select {
 			case <-ticker.C:
 				if err := f(); err != nil {
-					r.log("error in loop %s: %q", name, err)
+					slog.With(slog.Any("error", err)).ErrorContext(
+						r.ctx, "error in loop",
+						"loop_name", name)
 					if errors.Is(err, runnerErrors.ErrUnauthorized) {
 						r.setPoolRunningState(false, err.Error())
 					}
@@ -304,7 +329,8 @@ func (r *basePoolManager) updateTools() error {
 	// Update tools cache.
 	tools, err := r.helper.FetchTools()
 	if err != nil {
-		r.log("failed to update tools for repo %s: %s", r.helper.String(), err)
+		slog.With(slog.Any("error", err)).ErrorContext(
+			r.ctx, "failed to update tools for repo")
 		r.setPoolRunningState(false, err.Error())
 		r.waitForTimeoutOrCanceled(common.BackoffTimer)
 		return fmt.Errorf("failed to update tools for repo %s: %w", r.helper.String(), err)
@@ -313,7 +339,7 @@ func (r *basePoolManager) updateTools() error {
 	r.tools = tools
 	r.mux.Unlock()
 
-	r.log("successfully updated tools")
+	slog.DebugContext(r.ctx, "successfully updated tools")
 	r.setPoolRunningState(true, "")
 	return err
 }
@@ -365,7 +391,9 @@ func (r *basePoolManager) cleanupOrphanedProviderRunners(runners []*github.Runne
 	runnerNames := map[string]bool{}
 	for _, run := range runners {
 		if !r.isManagedRunner(labelsFromRunner(run)) {
-			r.log("runner %s is not managed by a pool belonging to %s", *run.Name, r.helper.String())
+			slog.DebugContext(
+				r.ctx, "runner is not managed by a pool we manage",
+				"runner_name", run.GetName())
 			continue
 		}
 		runnerNames[*run.Name] = true
@@ -374,7 +402,9 @@ func (r *basePoolManager) cleanupOrphanedProviderRunners(runners []*github.Runne
 	for _, instance := range dbInstances {
 		lockAcquired := r.keyMux.TryLock(instance.Name)
 		if !lockAcquired {
-			r.log("failed to acquire lock for instance %s", instance.Name)
+			slog.DebugContext(
+				r.ctx, "failed to acquire lock for instance",
+				"runner_name", instance.Name)
 			continue
 		}
 		defer r.keyMux.Unlock(instance.Name, false)
@@ -397,21 +427,27 @@ func (r *basePoolManager) cleanupOrphanedProviderRunners(runners []*github.Runne
 		case params.RunnerPending, params.RunnerInstalling:
 			if time.Since(instance.UpdatedAt).Minutes() < float64(pool.RunnerTimeout()) {
 				// runner is still installing. We give it a chance to finish.
-				r.log("runner %s is still installing, give it a chance to finish", instance.Name)
+				slog.DebugContext(
+					r.ctx, "runner is still installing, give it a chance to finish",
+					"runner_name", instance.Name)
 				continue
 			}
 		}
 
 		if time.Since(instance.UpdatedAt).Minutes() < 5 {
 			// instance was updated recently. We give it a chance to register itself in github.
-			r.log("instance %s was updated recently, skipping check", instance.Name)
+			slog.DebugContext(
+				r.ctx, "instance was updated recently, skipping check",
+				"runner_name", instance.Name)
 			continue
 		}
 
 		if ok := runnerNames[instance.Name]; !ok {
 			// Set pending_delete on DB field. Allow consolidate() to remove it.
 			if _, err := r.setInstanceStatus(instance.Name, commonParams.InstancePendingDelete, nil); err != nil {
-				r.log("failed to update runner %s status: %s", instance.Name, err)
+				slog.With(slog.Any("error", err)).ErrorContext(
+					r.ctx, "failed to update runner",
+					"runner_name", instance.Name)
 				return errors.Wrap(err, "updating runner")
 			}
 		}
@@ -431,17 +467,23 @@ func (r *basePoolManager) reapTimedOutRunners(runners []*github.Runner) error {
 	runnersByName := map[string]*github.Runner{}
 	for _, run := range runners {
 		if !r.isManagedRunner(labelsFromRunner(run)) {
-			r.log("runner %s is not managed by a pool belonging to %s", *run.Name, r.helper.String())
+			slog.DebugContext(
+				r.ctx, "runner is not managed by a pool we manage",
+				"runner_name", run.GetName())
 			continue
 		}
 		runnersByName[*run.Name] = run
 	}
 
 	for _, instance := range dbInstances {
-		r.log("attempting to lock instance %s", instance.Name)
+		slog.DebugContext(
+			r.ctx, "attempting to lock instance",
+			"runner_name", instance.Name)
 		lockAcquired := r.keyMux.TryLock(instance.Name)
 		if !lockAcquired {
-			r.log("failed to acquire lock for instance %s", instance.Name)
+			slog.DebugContext(
+				r.ctx, "failed to acquire lock for instance",
+				"runner_name", instance.Name)
 			continue
 		}
 		defer r.keyMux.Unlock(instance.Name, false)
@@ -460,9 +502,13 @@ func (r *basePoolManager) reapTimedOutRunners(runners []*github.Runner) error {
 		//     never started on the instance.
 		//   * A JIT config was created, but the runner never joined github.
 		if runner, ok := runnersByName[instance.Name]; !ok || runner.GetStatus() == "offline" {
-			r.log("reaping timed-out/failed runner %s", instance.Name)
+			slog.InfoContext(
+				r.ctx, "reaping timed-out/failed runner",
+				"runner_name", instance.Name)
 			if err := r.DeleteRunner(instance, false); err != nil {
-				r.log("failed to update runner %s status: %s", instance.Name, err)
+				slog.With(slog.Any("error", err)).ErrorContext(
+					r.ctx, "failed to update runner status",
+					"runner_name", instance.Name)
 				return errors.Wrap(err, "updating runner")
 			}
 		}
@@ -488,7 +534,9 @@ func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner)
 	g, ctx := errgroup.WithContext(r.ctx)
 	for _, runner := range runners {
 		if !r.isManagedRunner(labelsFromRunner(runner)) {
-			r.log("runner %s is not managed by a pool belonging to %s", *runner.Name, r.helper.String())
+			slog.DebugContext(
+				r.ctx, "runner is not managed by a pool we manage",
+				"runner_name", runner.GetName())
 			continue
 		}
 
@@ -505,7 +553,9 @@ func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner)
 			}
 			// We no longer have a DB entry for this instance, and the runner appears offline in github.
 			// Previous forceful removal may have failed?
-			r.log("Runner %s has no database entry in garm, removing from github", *runner.Name)
+			slog.InfoContext(
+				r.ctx, "Runner has no database entry in garm, removing from github",
+				"runner_name", runner.GetName())
 			resp, err := r.helper.RemoveGithubRunner(*runner.ID)
 			if err != nil {
 				// Removed in the meantime?
@@ -524,14 +574,18 @@ func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner)
 			continue
 		case commonParams.InstancePendingCreate, commonParams.InstanceCreating:
 			// instance is still being created. We give it a chance to finish.
-			r.log("instance %s is still being created, give it a chance to finish", dbInstance.Name)
+			slog.DebugContext(
+				r.ctx, "instance is still being created, give it a chance to finish",
+				"runner_name", dbInstance.Name)
 			continue
 		case commonParams.InstanceRunning:
 			// this check is not strictly needed, but can help avoid unnecessary strain on the provider.
 			// At worst, we will have a runner that is offline in github for 5 minutes before we reap it.
 			if time.Since(dbInstance.UpdatedAt).Minutes() < 5 {
 				// instance was updated recently. We give it a chance to register itself in github.
-				r.log("instance %s was updated recently, skipping check", dbInstance.Name)
+				slog.DebugContext(
+					r.ctx, "instance was updated recently, skipping check",
+					"runner_name", dbInstance.Name)
 				continue
 			}
 		}
@@ -550,7 +604,9 @@ func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner)
 		var poolInstances []commonParams.ProviderInstance
 		poolInstances, ok = poolInstanceCache[pool.ID]
 		if !ok {
-			r.log("updating instances cache for pool %s", pool.ID)
+			slog.DebugContext(
+				r.ctx, "updating instances cache for pool",
+				"pool_id", pool.ID)
 			poolInstances, err = provider.ListInstances(r.ctx, pool.ID)
 			if err != nil {
 				return errors.Wrapf(err, "fetching instances for pool %s", pool.ID)
@@ -560,7 +616,9 @@ func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner)
 
 		lockAcquired := r.keyMux.TryLock(dbInstance.Name)
 		if !lockAcquired {
-			r.log("failed to acquire lock for instance %s", dbInstance.Name)
+			slog.DebugContext(
+				r.ctx, "failed to acquire lock for instance",
+				"runner_name", dbInstance.Name)
 			continue
 		}
 
@@ -575,18 +633,24 @@ func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner)
 			if !ok {
 				// The runner instance is no longer on the provider, and it appears offline in github.
 				// It should be safe to force remove it.
-				r.log("Runner instance for %s is no longer on the provider, removing from github", dbInstance.Name)
+				slog.InfoContext(
+					r.ctx, "Runner instance is no longer on the provider, removing from github",
+					"runner_name", dbInstance.Name)
 				resp, err := r.helper.RemoveGithubRunner(*runner.ID)
 				if err != nil {
 					// Removed in the meantime?
 					if resp != nil && resp.StatusCode == http.StatusNotFound {
-						r.log("runner dissapeared from github")
+						slog.DebugContext(
+							r.ctx, "runner dissapeared from github",
+							"runner_name", dbInstance.Name)
 					} else {
 						return errors.Wrap(err, "removing runner from github")
 					}
 				}
 				// Remove the database entry for the runner.
-				r.log("Removing %s from database", dbInstance.Name)
+				slog.InfoContext(
+					r.ctx, "Removing from database",
+					"runner_name", dbInstance.Name)
 				if err := r.store.DeleteInstance(ctx, dbInstance.PoolID, dbInstance.Name); err != nil {
 					return errors.Wrap(err, "removing runner from database")
 				}
@@ -598,10 +662,14 @@ func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner)
 				// instance is running, but github reports runner as offline. Log the event.
 				// This scenario may require manual intervention.
 				// Perhaps it just came online and github did not yet change it's status?
-				r.log("instance %s is online but github reports runner as offline", dbInstance.Name)
+				slog.WarnContext(
+					r.ctx, "instance is online but github reports runner as offline",
+					"runner_name", dbInstance.Name)
 				return nil
 			} else {
-				r.log("instance %s was found in stopped state; starting", dbInstance.Name)
+				slog.InfoContext(
+					r.ctx, "instance was found in stopped state; starting",
+					"runner_name", dbInstance.Name)
 				//start the instance
 				if err := provider.Start(r.ctx, dbInstance.ProviderID); err != nil {
 					return errors.Wrapf(err, "starting instance %s", dbInstance.ProviderID)
@@ -708,7 +776,8 @@ func (r *basePoolManager) AddRunner(ctx context.Context, poolID string, aditiona
 		// Attempt to create JIT config
 		jitConfig, runner, err = r.helper.GetJITConfig(ctx, name, pool, labels)
 		if err != nil {
-			r.log("failed to get JIT config, falling back to registration token: %s", err)
+			slog.With(slog.Any("error", err)).ErrorContext(
+				ctx, "failed to get JIT config, falling back to registration token")
 		}
 	}
 
@@ -739,14 +808,18 @@ func (r *basePoolManager) AddRunner(ctx context.Context, poolID string, aditiona
 		if err != nil {
 			if instance.ID != "" {
 				if err := r.DeleteRunner(instance, false); err != nil {
-					r.log("failed to cleanup instance: %s", instance.Name)
+					slog.With(slog.Any("error", err)).ErrorContext(
+						ctx, "failed to cleanup instance",
+						"runner_name", instance.Name)
 				}
 			}
 
 			if runner != nil {
 				_, runnerCleanupErr := r.helper.RemoveGithubRunner(runner.GetID())
 				if err != nil {
-					r.log("failed to remove runner %d: %s", runner.GetID(), runnerCleanupErr)
+					slog.With(slog.Any("error", runnerCleanupErr)).ErrorContext(
+						ctx, "failed to remove runner",
+						"gh_runner_id", runner.GetID())
 				}
 			}
 		}
@@ -765,7 +838,8 @@ func (r *basePoolManager) Status() params.PoolManagerStatus {
 }
 
 func (r *basePoolManager) waitForTimeoutOrCanceled(timeout time.Duration) {
-	r.log("sleeping for %.2f minutes", timeout.Minutes())
+	slog.DebugContext(
+		r.ctx, fmt.Sprintf("sleeping for %.2f minutes", timeout.Minutes()))
 	select {
 	case <-time.After(timeout):
 	case <-r.ctx.Done():
@@ -842,7 +916,9 @@ func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error 
 		if instanceIDToDelete != "" {
 			if err := provider.DeleteInstance(r.ctx, instanceIDToDelete); err != nil {
 				if !errors.Is(err, runnerErrors.ErrNotFound) {
-					r.log("failed to cleanup instance: %s", instanceIDToDelete)
+					slog.With(slog.Any("error", err)).ErrorContext(
+						r.ctx, "failed to cleanup instance",
+						"provider_id", instanceIDToDelete)
 				}
 			}
 		}
@@ -882,23 +958,23 @@ func (r *basePoolManager) getRunnerDetailsFromJob(job params.WorkflowJob) (param
 		}
 		// Runner name was not set in WorkflowJob by github. We can still attempt to
 		// fetch the info we need, using the workflow run ID, from the API.
-		r.log("runner name not found in workflow job, attempting to fetch from API")
+		slog.InfoContext(
+			r.ctx, "runner name not found in workflow job, attempting to fetch from API",
+			"job_id", job.WorkflowJob.ID)
 		runnerInfo, err = r.helper.GetRunnerInfoFromWorkflow(job)
 		if err != nil {
 			return params.RunnerInfo{}, errors.Wrap(err, "fetching runner name from API")
 		}
 	}
 
-	runnerDetails, err := r.store.GetInstanceByName(context.Background(), runnerInfo.Name)
+	_, err = r.store.GetInstanceByName(context.Background(), runnerInfo.Name)
 	if err != nil {
-		r.log("could not find runner details for %s", util.SanitizeLogEntry(runnerInfo.Name))
+		slog.With(slog.Any("error", err)).ErrorContext(
+			r.ctx, "could not find runner details",
+			"runner_name", util.SanitizeLogEntry(runnerInfo.Name))
 		return params.RunnerInfo{}, errors.Wrap(err, "fetching runner details")
 	}
 
-	if _, err := r.helper.GetPoolByID(runnerDetails.PoolID); err != nil {
-		r.log("runner %s (pool ID: %s) does not belong to any pool we manage: %s", runnerDetails.Name, runnerDetails.PoolID, err)
-		return params.RunnerInfo{}, errors.Wrap(err, "fetching pool for instance")
-	}
 	return runnerInfo, nil
 }
 
@@ -989,9 +1065,13 @@ func (r *basePoolManager) updateArgsFromProviderInstance(providerInstance common
 }
 
 func (r *basePoolManager) scaleDownOnePool(ctx context.Context, pool params.Pool) error {
-	r.log("scaling down pool %s", pool.ID)
+	slog.DebugContext(
+		ctx, "scaling down pool",
+		"pool_id", pool.ID)
 	if !pool.Enabled {
-		r.log("pool %s is disabled, skipping scale down", pool.ID)
+		slog.DebugContext(
+			ctx, "pool is disabled, skipping scale down",
+			"pool_id", pool.ID)
 		return nil
 	}
 
@@ -1035,13 +1115,18 @@ func (r *basePoolManager) scaleDownOnePool(ctx context.Context, pool params.Pool
 
 		lockAcquired := r.keyMux.TryLock(instanceToDelete.Name)
 		if !lockAcquired {
-			r.log("failed to acquire lock for instance %s", instanceToDelete.Name)
+			slog.With(slog.Any("error", err)).ErrorContext(
+				ctx, "failed to acquire lock for instance",
+				"provider_id", instanceToDelete.Name)
 			continue
 		}
 		defer r.keyMux.Unlock(instanceToDelete.Name, false)
 
 		g.Go(func() error {
-			r.log("scaling down idle worker %s from pool %s\n", instanceToDelete.Name, pool.ID)
+			slog.InfoContext(
+				ctx, "scaling down idle worker from pool %s",
+				"runner_name", instanceToDelete.Name,
+				"pool_id", pool.ID)
 			if err := r.DeleteRunner(instanceToDelete, false); err != nil {
 				return fmt.Errorf("failed to delete instance %s: %w", instanceToDelete.ID, err)
 			}
@@ -1065,7 +1150,9 @@ func (r *basePoolManager) scaleDownOnePool(ctx context.Context, pool params.Pool
 		for _, job := range queued {
 			if time.Since(job.CreatedAt).Minutes() > 10 && pool.HasRequiredLabels(job.Labels) {
 				if err := r.store.DeleteJob(ctx, job.ID); err != nil && !errors.Is(err, runnerErrors.ErrNotFound) {
-					r.log("failed to delete job %d: %s", job.ID, err)
+					slog.With(slog.Any("error", err)).ErrorContext(
+						ctx, "failed to delete job",
+						"job_id", job.ID)
 				}
 			}
 		}
@@ -1109,7 +1196,10 @@ func (r *basePoolManager) ensureIdleRunnersForOnePool(pool params.Pool) error {
 	}
 
 	if uint(len(existingInstances)) >= pool.MaxRunners {
-		r.log("max workers (%d) reached for pool %s, skipping idle worker creation", pool.MaxRunners, pool.ID)
+		slog.DebugContext(
+			r.ctx, "max workers reached for pool, skipping idle worker creation",
+			"max_runners", pool.MaxRunners,
+			"pool_id", pool.ID)
 		return nil
 	}
 
@@ -1134,7 +1224,9 @@ func (r *basePoolManager) ensureIdleRunnersForOnePool(pool params.Pool) error {
 	}
 
 	for i := 0; i < required; i++ {
-		r.log("adding new idle worker to pool %s", pool.ID)
+		slog.InfoContext(
+			r.ctx, "adding new idle worker to pool",
+			"pool_id", pool.ID)
 		if err := r.AddRunner(r.ctx, pool.ID, nil); err != nil {
 			return fmt.Errorf("failed to add new instance for pool %s: %w", pool.ID, err)
 		}
@@ -1146,7 +1238,9 @@ func (r *basePoolManager) retryFailedInstancesForOnePool(ctx context.Context, po
 	if !pool.Enabled {
 		return nil
 	}
-	r.log("running retry failed instances for pool %s", pool.ID)
+	slog.DebugContext(
+		ctx, "running retry failed instances for pool",
+		"pool_id", pool.ID)
 
 	existingInstances, err := r.store.ListPoolInstances(r.ctx, pool.ID)
 	if err != nil {
@@ -1162,10 +1256,14 @@ func (r *basePoolManager) retryFailedInstancesForOnePool(ctx context.Context, po
 			continue
 		}
 
-		r.log("attempting to retry failed instance %s", instance.Name)
+		slog.DebugContext(
+			ctx, "attempting to retry failed instance",
+			"runner_name", instance.Name)
 		lockAcquired := r.keyMux.TryLock(instance.Name)
 		if !lockAcquired {
-			r.log("failed to acquire lock for instance %s", instance.Name)
+			slog.DebugContext(
+				ctx, "failed to acquire lock for instance",
+				"runner_name", instance.Name)
 			continue
 		}
 
@@ -1176,7 +1274,9 @@ func (r *basePoolManager) retryFailedInstancesForOnePool(ctx context.Context, po
 			// this has the potential to create many API requests to the target provider.
 			// TODO(gabriel-samfira): implement request throttling.
 			if err := r.deleteInstanceFromProvider(errCtx, instance); err != nil {
-				r.log("failed to delete instance %s from provider: %s", instance.Name, err)
+				slog.With(slog.Any("error", err)).ErrorContext(
+					ctx, "failed to delete instance from provider",
+					"runner_name", instance.Name)
 				// Bail here, otherwise we risk creating multiple failing instances, and losing track
 				// of them. If Create instance failed to return a proper provider ID, we rely on the
 				// name to delete the instance. If we don't bail here, and end up with multiple
@@ -1197,10 +1297,14 @@ func (r *basePoolManager) retryFailedInstancesForOnePool(ctx context.Context, po
 				Status:        commonParams.InstancePendingCreate,
 				RunnerStatus:  params.RunnerPending,
 			}
-			r.log("queueing previously failed instance %s for retry", instance.Name)
+			slog.DebugContext(
+				ctx, "queueing previously failed instance for retry",
+				"runner_name", instance.Name)
 			// Set instance to pending create and wait for retry.
 			if _, err := r.updateInstance(instance.Name, updateParams); err != nil {
-				r.log("failed to update runner %s status: %s", instance.Name, err)
+				slog.With(slog.Any("error", err)).ErrorContext(
+					ctx, "failed to update runner status",
+					"runner_name", instance.Name)
 			}
 			return nil
 		})
@@ -1243,7 +1347,9 @@ func (r *basePoolManager) scaleDown() error {
 	for _, pool := range pools {
 		pool := pool
 		g.Go(func() error {
-			r.log("running scale down for pool %s", pool.ID)
+			slog.DebugContext(
+				ctx, "running scale down for pool",
+				"pool_id", pool.ID)
 			return r.scaleDownOnePool(ctx, pool)
 		})
 	}
@@ -1304,17 +1410,23 @@ func (r *basePoolManager) deletePendingInstances() error {
 		return fmt.Errorf("failed to fetch instances from store: %w", err)
 	}
 
-	r.log("removing instances in pending_delete")
+	slog.DebugContext(
+		r.ctx, "removing instances in pending_delete")
 	for _, instance := range instances {
 		if instance.Status != commonParams.InstancePendingDelete && instance.Status != commonParams.InstancePendingForceDelete {
 			// not in pending_delete status. Skip.
 			continue
 		}
 
-		r.log("removing instance %s in pool %s", instance.Name, instance.PoolID)
+		slog.InfoContext(
+			r.ctx, "removing instance from pool",
+			"runner_name", instance.Name,
+			"pool_id", instance.PoolID)
 		lockAcquired := r.keyMux.TryLock(instance.Name)
 		if !lockAcquired {
-			r.log("failed to acquire lock for instance %s", instance.Name)
+			slog.InfoContext(
+				r.ctx, "failed to acquire lock for instance",
+				"runner_name", instance.Name)
 			continue
 		}
 
@@ -1322,7 +1434,9 @@ func (r *basePoolManager) deletePendingInstances() error {
 		// Set the status to deleting before launching the goroutine that removes
 		// the runner from the provider (which can take a long time).
 		if _, err := r.setInstanceStatus(instance.Name, commonParams.InstanceDeleting, nil); err != nil {
-			r.log("failed to update runner %s status: %q", instance.Name, err)
+			slog.With(slog.Any("error", err)).ErrorContext(
+				r.ctx, "failed to update runner status",
+				"runner_name", instance.Name)
 			r.keyMux.Unlock(instance.Name, false)
 			continue
 		}
@@ -1334,29 +1448,41 @@ func (r *basePoolManager) deletePendingInstances() error {
 			}()
 			defer func(instance params.Instance) {
 				if err != nil {
-					r.log("failed to remove instance %s: %s", instance.Name, err)
+					slog.With(slog.Any("error", err)).ErrorContext(
+						r.ctx, "failed to remove instance",
+						"runner_name", instance.Name)
 					// failed to remove from provider. Set status to previous value, which will retry
 					// the operation.
 					if _, err := r.setInstanceStatus(instance.Name, currentStatus, nil); err != nil {
-						r.log("failed to update runner %s status: %s", instance.Name, err)
+						slog.With(slog.Any("error", err)).ErrorContext(
+							r.ctx, "failed to update runner status",
+							"runner_name", instance.Name)
 					}
 				}
 			}(instance)
 
-			r.log("removing instance %s from provider", instance.Name)
+			slog.DebugContext(
+				r.ctx, "removing instance from provider",
+				"runner_name", instance.Name)
 			err = r.deleteInstanceFromProvider(r.ctx, instance)
 			if err != nil {
 				if currentStatus != commonParams.InstancePendingForceDelete {
 					return fmt.Errorf("failed to remove instance from provider: %w", err)
 				}
-				log.Printf("failed to remove instance %s from provider (continuing anyway): %s", instance.Name, err)
+				slog.With(slog.Any("error", err)).ErrorContext(
+					r.ctx, "failed to remove instance from provider (continuing anyway)",
+					"instance", instance.Name)
 			}
-			r.log("removing instance %s from database", instance.Name)
+			slog.InfoContext(
+				r.ctx, "removing instance from database",
+				"runner_name", instance.Name)
 			if deleteErr := r.store.DeleteInstance(r.ctx, instance.PoolID, instance.Name); deleteErr != nil {
 				return fmt.Errorf("failed to delete instance from database: %w", deleteErr)
 			}
 			deleteMux = true
-			r.log("instance %s was successfully removed", instance.Name)
+			slog.InfoContext(
+				r.ctx, "instance was successfully removed",
+				"runner_name", instance.Name)
 			return nil
 		}(instance) //nolint
 	}
@@ -1376,17 +1502,24 @@ func (r *basePoolManager) addPendingInstances() error {
 			continue
 		}
 
-		r.log("attempting to acquire lock for instance %s (create)", instance.Name)
+		slog.DebugContext(
+			r.ctx, "attempting to acquire lock for instance",
+			"runner_name", instance.Name,
+			"action", "create_pending")
 		lockAcquired := r.keyMux.TryLock(instance.Name)
 		if !lockAcquired {
-			r.log("failed to acquire lock for instance %s", instance.Name)
+			slog.DebugContext(
+				r.ctx, "failed to acquire lock for instance",
+				"runner_name", instance.Name)
 			continue
 		}
 
 		// Set the instance to "creating" before launching the goroutine. This will ensure that addPendingInstances()
 		// won't attempt to create the runner a second time.
 		if _, err := r.setInstanceStatus(instance.Name, commonParams.InstanceCreating, nil); err != nil {
-			r.log("failed to update runner %s status: %s", instance.Name, err)
+			slog.With(slog.Any("error", err)).ErrorContext(
+				r.ctx, "failed to update runner status",
+				"runner_name", instance.Name)
 			r.keyMux.Unlock(instance.Name, false)
 			// We failed to transition the instance to Creating. This means that garm will retry to create this instance
 			// when the loop runs again and we end up with multiple instances.
@@ -1395,14 +1528,21 @@ func (r *basePoolManager) addPendingInstances() error {
 
 		go func(instance params.Instance) {
 			defer r.keyMux.Unlock(instance.Name, false)
-			r.log("creating instance %s in pool %s", instance.Name, instance.PoolID)
+			slog.InfoContext(
+				r.ctx, "creating instance in pool",
+				"runner_name", instance.Name,
+				"pool_id", instance.PoolID)
 			if err := r.addInstanceToProvider(instance); err != nil {
-				r.log("failed to add instance to provider: %s", err)
+				slog.With(slog.Any("error", err)).ErrorContext(
+					r.ctx, "failed to add instance to provider")
 				errAsBytes := []byte(err.Error())
-				if _, err := r.setInstanceStatus(instance.Name, commonParams.InstanceError, errAsBytes); err != nil {
-					r.log("failed to update runner %s status: %s", instance.Name, err)
+				if _, statusErr := r.setInstanceStatus(instance.Name, commonParams.InstanceError, errAsBytes); statusErr != nil {
+					slog.With(slog.Any("error", statusErr)).ErrorContext(
+						r.ctx, "failed to update runner status",
+						"runner_name", instance.Name)
 				}
-				r.log("failed to create instance in provider: %s", err)
+				slog.With(slog.Any("error", err)).ErrorContext(
+					r.ctx, "failed to create instance in provider")
 			}
 		}(instance)
 	}
@@ -1425,7 +1565,8 @@ func (r *basePoolManager) Wait() error {
 }
 
 func (r *basePoolManager) runnerCleanup() (err error) {
-	r.log("running runner cleanup")
+	slog.DebugContext(
+		r.ctx, "running runner cleanup")
 	runners, err := r.helper.GetGithubRunners()
 	if err != nil {
 		return fmt.Errorf("failed to fetch github runners: %w", err)
@@ -1519,12 +1660,14 @@ func (r *basePoolManager) DeleteRunner(runner params.Instance, forceRemove bool)
 					return errors.Wrapf(runnerErrors.ErrBadRequest, "removing runner: %q", err)
 				case http.StatusNotFound:
 					// Runner may have been deleted by a finished job, or manually by the user.
-					r.log("runner with agent id %d was not found in github", runner.AgentID)
+					slog.DebugContext(
+						r.ctx, "runner was not found in github",
+						"agent_id", runner.AgentID)
 				case http.StatusUnauthorized:
 					// Mark the pool as offline from this point forward
-					failureReason := fmt.Sprintf("failed to remove runner: %q", err)
-					r.setPoolRunningState(false, failureReason)
-					log.Print(failureReason)
+					r.setPoolRunningState(false, fmt.Sprintf("failed to remove runner: %q", err))
+					slog.With(slog.Any("error", err)).ErrorContext(
+						r.ctx, "failed to remove runner")
 					// evaluate the next switch case.
 					fallthrough
 				default:
@@ -1542,9 +1685,14 @@ func (r *basePoolManager) DeleteRunner(runner params.Instance, forceRemove bool)
 		instanceStatus = commonParams.InstancePendingForceDelete
 	}
 
-	r.log("setting instance status for %v to %v", runner.Name, instanceStatus)
+	slog.InfoContext(
+		r.ctx, "setting instance status",
+		"runner_name", runner.Name,
+		"status", instanceStatus)
 	if _, err := r.setInstanceStatus(runner.Name, instanceStatus, nil); err != nil {
-		r.log("failed to update runner %s status: %s", runner.Name, err)
+		slog.With(slog.Any("error", err)).ErrorContext(
+			r.ctx, "failed to update runner",
+			"runner_name", runner.Name)
 		return errors.Wrap(err, "updating runner")
 	}
 	return nil
@@ -1581,17 +1729,24 @@ func (r *basePoolManager) consumeQueuedJobs() error {
 
 	poolsCache := poolsForTags{}
 
-	r.log("found %d queued jobs for %s", len(queued), r.helper.String())
+	slog.DebugContext(
+		r.ctx, "found queued jobs",
+		"job_count", len(queued))
 	for _, job := range queued {
 		if job.LockedBy != uuid.Nil && job.LockedBy.String() != r.ID() {
 			// Job was handled by us or another entity.
-			r.log("job %d is locked by %s", job.ID, job.LockedBy.String())
+			slog.DebugContext(
+				r.ctx, "job is locked",
+				"job_id", job.ID,
+				"locking_entity", job.LockedBy.String())
 			continue
 		}
 
 		if time.Since(job.UpdatedAt) < time.Second*30 {
 			// give the idle runners a chance to pick up the job.
-			r.log("job %d was updated less than 30 seconds ago. Skipping", job.ID)
+			slog.DebugContext(
+				r.ctx, "job was updated less than 30 seconds ago. Skipping",
+				"job_id", job.ID)
 			continue
 		}
 
@@ -1601,7 +1756,9 @@ func (r *basePoolManager) consumeQueuedJobs() error {
 			// the runner.
 			if err := r.store.UnlockJob(r.ctx, job.ID, r.ID()); err != nil {
 				// TODO: Implament a cache? Should we return here?
-				r.log("failed to unlock job %d: %q", job.ID, err)
+				slog.With(slog.Any("error", err)).ErrorContext(
+					r.ctx, "failed to unlock job",
+					"job_id", job.ID)
 				continue
 			}
 		}
@@ -1611,7 +1768,9 @@ func (r *basePoolManager) consumeQueuedJobs() error {
 			// TODO(gabriel-samfira): create an in-memory state of existing runners that we can easily
 			// check for existing pending or idle runners. If we can't find any, attempt to allocate another
 			// runner.
-			r.log("job %d is locked by us", job.ID)
+			slog.DebugContext(
+				r.ctx, "job is locked by us",
+				"job_id", job.ID)
 			continue
 		}
 
@@ -1619,20 +1778,23 @@ func (r *basePoolManager) consumeQueuedJobs() error {
 		if !ok {
 			potentialPools, err := r.store.FindPoolsMatchingAllTags(r.ctx, r.helper.PoolType(), r.helper.ID(), job.Labels)
 			if err != nil {
-				r.log("error finding pools matching labels: %s", err)
+				slog.With(slog.Any("error", err)).ErrorContext(
+					r.ctx, "error finding pools matching labels")
 				continue
 			}
 			poolRR = poolsCache.Add(job.Labels, potentialPools)
 		}
 
 		if poolRR.Len() == 0 {
-			r.log("could not find pools with labels %s", strings.Join(job.Labels, ","))
+			slog.DebugContext(r.ctx, "could not find pools with labels", "requested_labels", strings.Join(job.Labels, ","))
 			continue
 		}
 
 		runnerCreated := false
 		if err := r.store.LockJob(r.ctx, job.ID, r.ID()); err != nil {
-			r.log("could not lock job %d: %s", job.ID, err)
+			slog.With(slog.Any("error", err)).ErrorContext(
+				r.ctx, "could not lock job",
+				"job_id", job.ID)
 			continue
 		}
 
@@ -1642,31 +1804,45 @@ func (r *basePoolManager) consumeQueuedJobs() error {
 		for i := 0; i < poolRR.Len(); i++ {
 			pool, err := poolRR.Next()
 			if err != nil {
-				r.log("could not find a pool to create a runner for job %d: %s", job.ID, err)
+				slog.With(slog.Any("error", err)).ErrorContext(
+					r.ctx, "could not find a pool to create a runner for job",
+					"job_id", job.ID)
 				break
 			}
 
-			r.log("attempting to create a runner in pool %s for job %d", pool.ID, job.ID)
+			slog.InfoContext(
+				r.ctx, "attempting to create a runner in pool",
+				"pool_id", pool.ID,
+				"job_id", job.ID)
 			if err := r.addRunnerToPool(pool, jobLabels); err != nil {
-				r.log("[PoolRR] could not add runner to pool %s: %s", pool.ID, err)
+				slog.With(slog.Any("error", err)).ErrorContext(
+					r.ctx, "could not add runner to pool",
+					"pool_id", pool.ID)
 				continue
 			}
-			r.log("a new runner was added to pool %s as a response to queued job %d", pool.ID, job.ID)
+			slog.DebugContext(r.ctx, "a new runner was added as a response to queued job",
+				"pool_id", pool.ID,
+				"job_id", job.ID)
 			runnerCreated = true
 			break
 		}
 
 		if !runnerCreated {
-			r.log("could not create a runner for job %d; unlocking", job.ID)
+			slog.WarnContext(
+				r.ctx, "could not create a runner for job; unlocking",
+				"job_id", job.ID)
 			if err := r.store.UnlockJob(r.ctx, job.ID, r.ID()); err != nil {
-				r.log("failed to unlock job: %d", job.ID)
+				slog.With(slog.Any("error", err)).ErrorContext(
+					r.ctx, "failed to unlock job",
+					"job_id", job.ID)
 				return errors.Wrap(err, "unlocking job")
 			}
 		}
 	}
 
 	if err := r.store.DeleteCompletedJobs(r.ctx); err != nil {
-		r.log("failed to delete completed jobs: %q", err)
+		slog.With(slog.Any("error", err)).ErrorContext(
+			r.ctx, "failed to delete completed jobs")
 	}
 	return nil
 }

@@ -17,7 +17,7 @@ package runner
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"strings"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
@@ -60,7 +60,9 @@ func (r *Runner) CreateOrganization(ctx context.Context, param params.CreateOrgP
 	defer func() {
 		if err != nil {
 			if deleteErr := r.store.DeleteOrganization(ctx, org.ID); deleteErr != nil {
-				log.Printf("failed to delete org: %s", deleteErr)
+				slog.With(slog.Any("error", deleteErr)).ErrorContext(
+					ctx, "failed to delete org",
+					"org_id", org.ID)
 			}
 		}
 	}()
@@ -71,7 +73,9 @@ func (r *Runner) CreateOrganization(ctx context.Context, param params.CreateOrgP
 	}
 	if err := poolMgr.Start(); err != nil {
 		if deleteErr := r.poolManagerCtrl.DeleteOrgPoolManager(org); deleteErr != nil {
-			log.Printf("failed to cleanup pool manager for org %s", org.ID)
+			slog.With(slog.Any("error", deleteErr)).ErrorContext(
+				ctx, "failed to cleanup pool manager for org",
+				"org_id", org.ID)
 		}
 		return params.Organization{}, errors.Wrap(err, "starting org pool manager")
 	}
@@ -156,7 +160,9 @@ func (r *Runner) DeleteOrganization(ctx context.Context, orgID string, keepWebho
 
 		if err := poolMgr.UninstallWebhook(ctx); err != nil {
 			// TODO(gabriel-samfira): Should we error out here?
-			log.Printf("failed to uninstall webhook: %s", err)
+			slog.With(slog.Any("error", err)).ErrorContext(
+				ctx, "failed to uninstall webhook",
+				"org_id", org.ID)
 		}
 	}
 

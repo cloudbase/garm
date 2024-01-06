@@ -27,13 +27,13 @@ func (m *MetricsMiddleware) Middleware(next http.Handler) http.Handler {
 		ctx := r.Context()
 		authorizationHeader := r.Header.Get("authorization")
 		if authorizationHeader == "" {
-			invalidAuthResponse(w)
+			invalidAuthResponse(ctx, w)
 			return
 		}
 
 		bearerToken := strings.Split(authorizationHeader, " ")
 		if len(bearerToken) != 2 {
-			invalidAuthResponse(w)
+			invalidAuthResponse(ctx, w)
 			return
 		}
 
@@ -46,18 +46,18 @@ func (m *MetricsMiddleware) Middleware(next http.Handler) http.Handler {
 		})
 
 		if err != nil {
-			invalidAuthResponse(w)
+			invalidAuthResponse(ctx, w)
 			return
 		}
 
 		if !token.Valid {
-			invalidAuthResponse(w)
+			invalidAuthResponse(ctx, w)
 			return
 		}
 
 		// we fully trust the claims
 		if !claims.ReadMetrics {
-			invalidAuthResponse(w)
+			invalidAuthResponse(ctx, w)
 			return
 		}
 

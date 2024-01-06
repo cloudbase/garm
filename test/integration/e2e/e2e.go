@@ -2,7 +2,7 @@ package e2e
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"time"
 
@@ -10,7 +10,7 @@ import (
 )
 
 func ListCredentials() params.Credentials {
-	log.Println("List credentials")
+	slog.Info("List credentials")
 	credentials, err := listCredentials(cli, authToken)
 	if err != nil {
 		panic(err)
@@ -19,7 +19,7 @@ func ListCredentials() params.Credentials {
 }
 
 func ListProviders() params.Providers {
-	log.Println("List providers")
+	slog.Info("List providers")
 	providers, err := listProviders(cli, authToken)
 	if err != nil {
 		panic(err)
@@ -28,7 +28,7 @@ func ListProviders() params.Providers {
 }
 
 func GetMetricsToken() {
-	log.Println("Get metrics token")
+	slog.Info("Get metrics token")
 	_, err := getMetricsToken(cli, authToken)
 	if err != nil {
 		panic(err)
@@ -36,7 +36,7 @@ func GetMetricsToken() {
 }
 
 func GetControllerInfo() *params.ControllerInfo {
-	log.Println("Get controller info")
+	slog.Info("Get controller info")
 	controllerInfo, err := getControllerInfo(cli, authToken)
 	if err != nil {
 		panic(err)
@@ -62,7 +62,7 @@ func GracefulCleanup() {
 		if _, err := updatePool(cli, authToken, pool.ID, poolParams); err != nil {
 			panic(err)
 		}
-		log.Printf("Pool %s disabled", pool.ID)
+		slog.Info("Pool disabled", "pool_id", pool.ID)
 	}
 
 	// delete all the instances
@@ -75,7 +75,7 @@ func GracefulCleanup() {
 			if err := deleteInstance(cli, authToken, instance.Name, false); err != nil {
 				panic(err)
 			}
-			log.Printf("Instance %s deletion initiated", instance.Name)
+			slog.Info("Instance deletion initiated", "instance", instance.Name)
 		}
 	}
 
@@ -91,7 +91,7 @@ func GracefulCleanup() {
 		if err := deletePool(cli, authToken, pool.ID); err != nil {
 			panic(err)
 		}
-		log.Printf("Pool %s deleted", pool.ID)
+		slog.Info("Pool deleted", "pool_id", pool.ID)
 	}
 
 	// delete all the repositories
@@ -103,7 +103,7 @@ func GracefulCleanup() {
 		if err := deleteRepo(cli, authToken, repo.ID); err != nil {
 			panic(err)
 		}
-		log.Printf("Repo %s deleted", repo.ID)
+		slog.Info("Repo deleted", "repo_id", repo.ID)
 	}
 
 	// delete all the organizations
@@ -115,14 +115,14 @@ func GracefulCleanup() {
 		if err := deleteOrg(cli, authToken, org.ID); err != nil {
 			panic(err)
 		}
-		log.Printf("Org %s deleted", org.ID)
+		slog.Info("Org deleted", "org_id", org.ID)
 	}
 }
 
 func appendCtrlInfoToGitHubEnv(controllerInfo *params.ControllerInfo) error {
 	envFile, found := os.LookupEnv("GITHUB_ENV")
 	if !found {
-		log.Printf("GITHUB_ENV not set, skipping appending controller info")
+		slog.Info("GITHUB_ENV not set, skipping appending controller info")
 		return nil
 	}
 	file, err := os.OpenFile(envFile, os.O_WRONLY|os.O_APPEND, os.ModeAppend)

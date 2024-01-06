@@ -1,7 +1,7 @@
 package metrics
 
 import (
-	"log"
+	"log/slog"
 	"strconv"
 	"strings"
 
@@ -15,7 +15,7 @@ func (c *GarmCollector) CollectPoolMetric(ch chan<- prometheus.Metric, hostname 
 
 	pools, err := c.runner.ListAllPools(ctx)
 	if err != nil {
-		log.Printf("listing pools: %s", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "listing pools")
 		return
 	}
 
@@ -64,7 +64,7 @@ func (c *GarmCollector) CollectPoolMetric(ch chan<- prometheus.Metric, hostname 
 			poolNames[pool.ID].Type,     // label: pool_type
 		)
 		if err != nil {
-			log.Printf("cannot collect poolInfo metric: %s", err)
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "cannot collect poolInfo metric")
 			continue
 		}
 		ch <- poolInfo
@@ -77,7 +77,7 @@ func (c *GarmCollector) CollectPoolMetric(ch chan<- prometheus.Metric, hostname 
 			strconv.FormatBool(pool.Enabled), // label: enabled
 		)
 		if err != nil {
-			log.Printf("cannot collect poolStatus metric: %s", err)
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "cannot collect poolStatus metric")
 			continue
 		}
 		ch <- poolStatus
@@ -89,7 +89,7 @@ func (c *GarmCollector) CollectPoolMetric(ch chan<- prometheus.Metric, hostname 
 			pool.ID, // label: id
 		)
 		if err != nil {
-			log.Printf("cannot collect poolMaxRunners metric: %s", err)
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "cannot collect poolMaxRunners metric")
 			continue
 		}
 		ch <- poolMaxRunners
@@ -101,7 +101,7 @@ func (c *GarmCollector) CollectPoolMetric(ch chan<- prometheus.Metric, hostname 
 			pool.ID, // label: id
 		)
 		if err != nil {
-			log.Printf("cannot collect poolMinIdleRunners metric: %s", err)
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "cannot collect poolMinIdleRunners metric")
 			continue
 		}
 		ch <- poolMinIdleRunners
@@ -113,7 +113,7 @@ func (c *GarmCollector) CollectPoolMetric(ch chan<- prometheus.Metric, hostname 
 			pool.ID, // label: id
 		)
 		if err != nil {
-			log.Printf("cannot collect poolBootstrapTimeout metric: %s", err)
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "cannot collect poolBootstrapTimeout metric")
 			continue
 		}
 		ch <- poolBootstrapTimeout

@@ -17,7 +17,7 @@ package controllers
 import (
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 
 	"github.com/cloudbase/garm/apiserver/params"
@@ -29,14 +29,14 @@ func (a *APIController) InstanceGithubRegistrationTokenHandler(w http.ResponseWr
 
 	token, err := a.r.GetInstanceGithubRegistrationToken(ctx)
 	if err != nil {
-		handleError(w, err)
+		handleError(ctx, w, err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	if _, err := w.Write([]byte(token)); err != nil {
-		log.Printf("failed to encode response: %q", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }
 
@@ -50,7 +50,7 @@ func (a *APIController) JITCredentialsFileHandler(w http.ResponseWriter, r *http
 			Error:   "Not Found",
 			Details: "Not Found",
 		}); err != nil {
-			log.Printf("failed to encode response: %q", err)
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 		}
 		return
 	}
@@ -59,8 +59,8 @@ func (a *APIController) JITCredentialsFileHandler(w http.ResponseWriter, r *http
 
 	data, err := a.r.GetJITConfigFile(ctx, dotFileName)
 	if err != nil {
-		log.Printf("getting JIT config file: %s", err)
-		handleError(w, err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "getting JIT config file")
+		handleError(ctx, w, err)
 		return
 	}
 
@@ -71,7 +71,7 @@ func (a *APIController) JITCredentialsFileHandler(w http.ResponseWriter, r *http
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(data)))
 	w.WriteHeader(http.StatusOK)
 	if _, err := w.Write(data); err != nil {
-		log.Printf("failed to encode response: %q", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }
 
@@ -80,14 +80,14 @@ func (a *APIController) SystemdServiceNameHandler(w http.ResponseWriter, r *http
 
 	serviceName, err := a.r.GetRunnerServiceName(ctx)
 	if err != nil {
-		handleError(w, err)
+		handleError(ctx, w, err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusOK)
 	if _, err := w.Write([]byte(serviceName)); err != nil {
-		log.Printf("failed to encode response: %q", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }
 
@@ -97,14 +97,14 @@ func (a *APIController) SystemdUnitFileHandler(w http.ResponseWriter, r *http.Re
 
 	data, err := a.r.GenerateSystemdUnitFile(ctx, runAsUser)
 	if err != nil {
-		handleError(w, err)
+		handleError(ctx, w, err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusOK)
 	if _, err := w.Write(data); err != nil {
-		log.Printf("failed to encode response: %q", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }
 
@@ -113,12 +113,12 @@ func (a *APIController) RootCertificateBundleHandler(w http.ResponseWriter, r *h
 
 	bundle, err := a.r.GetRootCertificateBundle(ctx)
 	if err != nil {
-		handleError(w, err)
+		handleError(ctx, w, err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(bundle); err != nil {
-		log.Printf("failed to encode response: %q", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }

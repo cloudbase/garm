@@ -3,7 +3,7 @@ package sql
 import (
 	"context"
 	"encoding/json"
-	"log"
+	"log/slog"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/database/common"
@@ -53,7 +53,7 @@ func sqlWorkflowJobToParamsJob(job WorkflowJob) (params.Job, error) {
 	return jobParam, nil
 }
 
-func (s *sqlDatabase) paramsJobToWorkflowJob(job params.Job) (WorkflowJob, error) {
+func (s *sqlDatabase) paramsJobToWorkflowJob(ctx context.Context, job params.Job) (WorkflowJob, error) {
 	asJson, err := json.Marshal(job.Labels)
 	if err != nil {
 		return WorkflowJob{}, errors.Wrap(err, "marshaling labels")
@@ -83,7 +83,7 @@ func (s *sqlDatabase) paramsJobToWorkflowJob(job params.Job) (WorkflowJob, error
 	if job.RunnerName != "" {
 		instance, err := s.getInstanceByName(s.ctx, job.RunnerName)
 		if err != nil {
-			log.Printf("failed to get instance by name: %v", err)
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to get instance by name")
 		} else {
 			workflofJob.InstanceID = &instance.ID
 		}
@@ -218,7 +218,7 @@ func (s *sqlDatabase) CreateOrUpdateJob(ctx context.Context, job params.Job) (pa
 			if err == nil {
 				workflowJob.InstanceID = &instance.ID
 			} else {
-				log.Printf("failed to get instance by name: %v", err)
+				slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to get instance by name")
 			}
 		}
 
@@ -237,7 +237,7 @@ func (s *sqlDatabase) CreateOrUpdateJob(ctx context.Context, job params.Job) (pa
 			return params.Job{}, errors.Wrap(err, "saving job")
 		}
 	} else {
-		workflowJob, err := s.paramsJobToWorkflowJob(job)
+		workflowJob, err := s.paramsJobToWorkflowJob(ctx, job)
 		if err != nil {
 			return params.Job{}, errors.Wrap(err, "converting job")
 		}

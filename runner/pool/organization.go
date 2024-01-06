@@ -19,7 +19,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 	"sync"
@@ -39,6 +39,7 @@ import (
 var _ poolHelper = &organization{}
 
 func NewOrganizationPoolManager(ctx context.Context, cfg params.Organization, cfgInternal params.Internal, providers map[string]common.Provider, store dbCommon.Store) (common.PoolManager, error) {
+	ctx = util.WithContext(ctx, slog.Any("pool_mgr", cfg.Name), slog.Any("pool_type", params.OrganizationPool))
 	ghc, _, err := util.GithubClient(ctx, cfgInternal.OAuth2Token, cfgInternal.GithubCredentialsDetails)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting github client")
@@ -146,7 +147,9 @@ func (r *organization) GetJITConfig(ctx context.Context, instance string, pool p
 	defer func() {
 		if err != nil && runner != nil {
 			_, innerErr := r.ghcli.RemoveOrganizationRunner(r.ctx, r.cfg.Name, runner.GetID())
-			log.Printf("failed to remove runner: %v", innerErr)
+			slog.With(slog.Any("error", innerErr)).ErrorContext(
+				ctx, "failed to remove runner",
+				"runner_id", runner.GetID(), "organization", r.cfg.Name)
 		}
 	}()
 
@@ -369,7 +372,7 @@ func (r *organization) InstallHook(ctx context.Context, req *github.Hook) (param
 	}
 
 	if _, err := r.ghcli.PingOrgHook(ctx, r.cfg.Name, hook.GetID()); err != nil {
-		log.Printf("failed to ping hook %d: %v", *hook.ID, err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to ping hook", "hook_id", hook.GetID())
 	}
 
 	return hookToParamsHookInfo(hook), nil
