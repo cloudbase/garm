@@ -27,9 +27,9 @@ const (
 	PoolReapTimeoutInterval   = 5 * time.Minute
 	// Temporary tools download token is valid for 1 hour by default.
 	// There is no point in making an API call to get available tools, for every runner
-	// we spin up. We cache the tools for one minute. This should save us a lot of API calls
+	// we spin up. We cache the tools for 5 minutes. This should save us a lot of API calls
 	// in cases where we have a lot of runners spin up at the same time.
-	PoolToolUpdateInterval = 1 * time.Minute
+	PoolToolUpdateInterval = 5 * time.Minute
 
 	// BackoffTimer is the time we wait before attempting to make another request
 	// to the github API.

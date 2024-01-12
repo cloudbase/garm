@@ -60,12 +60,6 @@ func (e *external) validateResult(ctx context.Context, inst commonParams.Provide
 		return garmErrors.NewProviderError("missing instance name")
 	}
 
-	if inst.OSName == "" || inst.OSArch == "" || inst.OSType == "" {
-		// we can still function without this info (I think)
-		slog.WarnContext(
-			ctx, "missing OS information",
-			"instance", inst.Name)
-	}
 	if !IsValidProviderStatus(inst.Status) {
 		return garmErrors.NewProviderError("invalid status returned (%s)", inst.Status)
 	}
