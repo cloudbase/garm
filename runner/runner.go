@@ -960,7 +960,13 @@ func (r *Runner) DeleteRunner(ctx context.Context, instanceName string, forceDel
 	case commonParams.InstanceRunning, commonParams.InstanceError,
 		commonParams.InstancePendingForceDelete, commonParams.InstancePendingDelete:
 	default:
-		return runnerErrors.NewBadRequestError("runner must be in %q or %q state", commonParams.InstanceRunning, commonParams.InstanceError)
+		validStates := []string{
+			string(commonParams.InstanceRunning),
+			string(commonParams.InstanceError),
+			string(commonParams.InstancePendingForceDelete),
+			string(commonParams.InstancePendingDelete),
+		}
+		return runnerErrors.NewBadRequestError("runner must be in one of the following states: %q", strings.Join(validStates, ", "))
 	}
 
 	poolMgr, err := r.getPoolManagerFromInstance(ctx, instance)

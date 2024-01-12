@@ -127,17 +127,14 @@ func (h *Hub) Close() error {
 
 func (h *Hub) Stop() error {
 	h.Close()
+	return h.Wait()
+}
+
+func (h *Hub) Wait() error {
 	select {
 	case <-h.closed:
-		return nil
 	case <-time.After(60 * time.Second):
 		return fmt.Errorf("timed out waiting for hub stop")
 	}
-}
-
-func (h *Hub) Wait() {
-	select {
-	case <-h.closed:
-	case <-time.After(60 * time.Second):
-	}
+	return nil
 }
