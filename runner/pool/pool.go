@@ -1249,6 +1249,8 @@ func (r *basePoolManager) retryFailedInstancesForOnePool(ctx context.Context, po
 
 	g, errCtx := errgroup.WithContext(ctx)
 	for _, instance := range existingInstances {
+		instance := instance
+
 		if instance.Status != commonParams.InstanceError {
 			continue
 		}
@@ -1267,9 +1269,11 @@ func (r *basePoolManager) retryFailedInstancesForOnePool(ctx context.Context, po
 			continue
 		}
 
-		instance := instance
 		g.Go(func() error {
 			defer r.keyMux.Unlock(instance.Name, false)
+			slog.DebugContext(
+				ctx, "attempting to clean up any previous instance",
+				"runner_name", instance.Name)
 			// NOTE(gabriel-samfira): this is done in parallel. If there are many failed instances
 			// this has the potential to create many API requests to the target provider.
 			// TODO(gabriel-samfira): implement request throttling.
@@ -1286,7 +1290,9 @@ func (r *basePoolManager) retryFailedInstancesForOnePool(ctx context.Context, po
 				// which we would rather avoid.
 				return err
 			}
-
+			slog.DebugContext(
+				ctx, "cleanup of previously failed instance complete",
+				"runner_name", instance.Name)
 			// TODO(gabriel-samfira): Incrementing CreateAttempt should be done within a transaction.
 			// It's fairly safe to do here (for now), as there should be no other code path that updates
 			// an instance in this state.
@@ -1396,6 +1402,11 @@ func (r *basePoolManager) deleteInstanceFromProvider(ctx context.Context, instan
 		// try with name
 		identifier = instance.Name
 	}
+
+	slog.DebugContext(
+		ctx, "calling delete instance on provider",
+		"runner_name", instance.Name,
+		"provider_id", identifier)
 
 	if err := provider.DeleteInstance(ctx, identifier); err != nil {
 		return errors.Wrap(err, "removing instance")
@@ -1534,7 +1545,8 @@ func (r *basePoolManager) addPendingInstances() error {
 				"pool_id", instance.PoolID)
 			if err := r.addInstanceToProvider(instance); err != nil {
 				slog.With(slog.Any("error", err)).ErrorContext(
-					r.ctx, "failed to add instance to provider")
+					r.ctx, "failed to add instance to provider",
+					"runner_name", instance.Name)
 				errAsBytes := []byte(err.Error())
 				if _, statusErr := r.setInstanceStatus(instance.Name, commonParams.InstanceError, errAsBytes); statusErr != nil {
 					slog.With(slog.Any("error", statusErr)).ErrorContext(
@@ -1542,7 +1554,8 @@ func (r *basePoolManager) addPendingInstances() error {
 						"runner_name", instance.Name)
 				}
 				slog.With(slog.Any("error", err)).ErrorContext(
-					r.ctx, "failed to create instance in provider")
+					r.ctx, "failed to create instance in provider",
+					"runner_name", instance.Name)
 			}
 		}(instance)
 	}
