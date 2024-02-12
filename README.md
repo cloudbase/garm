@@ -41,6 +41,16 @@ The ```GARM``` configuration is a simple ```toml```. The sample config file in [
 * [JWT authentication](/doc/config_jwt_auth.md)
 * [API server](/doc/config_api_server.md)
 
+## Using GARM
+
+GARM is designed with simplicity in mind. At least we try to keep it as simple as possible. We're aware that adding a new tool in your workflow can be painful, especially when you already have to deal with so many. The cognitive load for OPS has reached a level where it feels overwhelming at times to even wrap your head around a new tool. As such, we believe that tools should be simple, should take no more than a few hours to understand and set up and if you absolutely need to interact with the tool, it should be as intuitive as possible.
+
+We've written a short introduction into some of the commands that GARM has and some of the concepts involved in setting up GARM, managing runners and how GitHub does some of the things it does.
+
+[You can find it here](/doc/using_garm.md).
+
+Please, feel free to [open an issue](https://github.com/cloudbase/garm/issues/new) if you find the documentation lacking and would like more info. Sometimes we forget the challanges that new users face as we're so close to the code and how it works. Any feedback is welcome and we're always looking to improve the documentation. 
+
 ## Supported providers
 
 GARM uses providers to create runners in a particular IaaS. The providers are external executables that GARM calls into to create runners. Before you can create runners, you'll need to install at least one provider.

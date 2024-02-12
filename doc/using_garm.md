@@ -156,7 +156,7 @@ ubuntu@garm:~$ garm-cli repository webhook install be3a0673-56af-4395-9ebf-4521f
 | FIELD        | VALUE                                                                      |
 +--------------+----------------------------------------------------------------------------+
 | ID           | 460258767                                                                  |
-| URL          | https://webhooks.samfira.com/webhooks/a4dd5f41-8e1e-42a7-af53-c0ba5ff6b0b3 |
+| URL          | https://garm.example.com/webhooks/a4dd5f41-8e1e-42a7-af53-c0ba5ff6b0b3     |
 | Events       | [workflow_job]                                                             |
 | Active       | true                                                                       |
 | Insecure SSL | false                                                                      |
