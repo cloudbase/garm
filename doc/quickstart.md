@@ -103,6 +103,7 @@ This is where you have a decision to make. GARM has a number of providers you ca
 * [Incus](https://github.com/cloudbase/garm-provider-incus)
 * [Equinix Metal](https://github.com/cloudbase/garm-provider-equinix)
 * [Amazon EC2](https://github.com/cloudbase/garm-provider-aws)
+* [Google Cloud Platform (GCP)](https://github.com/cloudbase/garm-provider-gcp)
 
 All currently available providers are `external`.
 

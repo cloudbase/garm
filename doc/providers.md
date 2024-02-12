@@ -52,6 +52,7 @@ For non testing purposes, there are two external providers currently available:
 * [Incus](https://github.com/cloudbase/garm-provider-incus)
 * [Equinix Metal](https://github.com/cloudbase/garm-provider-equinix)
 * [Amazon EC2](https://github.com/cloudbase/garm-provider-aws)
+* [Google Cloud Platform (GCP)](https://github.com/cloudbase/garm-provider-gcp)
 
 Details on how to install and configure them are available in their respective repositories.
 
