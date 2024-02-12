@@ -502,3 +502,28 @@ In some cases, providers may error out when creating or deleting a runner. This 
 garm-cli runner remove --force garm-BFrp51VoVBCO
 ```
 
+Awesome! We've covered all the major parts of using GARM. This is all you need to have your workflows run on your self-hosted runners. Of course, each provider may have its own particularities, config options, extra specs and caveats (all of which should be documented in the provider README), but once added to the GARM config, creating a pool should be the same.
+
+## The debug-log command
+
+GARM outputs logs to standard out, log files and optionally to a websocket for easy debugging. This is just a convenience feature that allows you to stream logs to your terminal without having to log into the server. It's disabled by default, but if you enable it, you'll be able to run:
+
+```bash
+ubuntu@garm:~$ garm-cli debug-log 
+time=2024-02-12T08:36:18.584Z level=INFO msg=access_log method=GET uri=/api/v1/ws user_agent=Go-http-client/1.1 ip=127.0.0.1:47260 code=200 bytes=0 request_time=447.445µs
+time=2024-02-12T08:36:31.251Z level=INFO msg=access_log method=GET uri=/api/v1/instances user_agent=Go-http-client/1.1 ip=127.0.0.1:58460 code=200 bytes=1410 request_time=656.184µs
+```
+
+This will bring a real-time log to your terminal. While this feature should be fairly secure, I encourage you to only expose it within networks you know are secure. This can be done by configuring a reverse proxy in front of GARM that only allows connections to the websocket endpoint from certain locations.
+
+## Listing recorded jobs
+
+GARM will record any job that comes in and for which we have a pool configured. If we don't have a pool for a particular job, then that job is ignored. There is no point in recording jobs that we can't do anything about. It would just bloat the database for no reason.
+
+To view existing jobs, run the following command:
+
+```bash
+garm-cli job list
+```
+
+If you've just set up GARM and have not yet created a pool or triggered a job, this will be empty. If you've configured everything and still don't receive jobs, you'll need to make sure that your URLs (discussed at the begining of this article), are correct. GitHub needs to be able to reach the webhook URL that our GARM instance listens on.
