@@ -87,9 +87,9 @@ Example:
 	garm-cli pool list --org=5493e51f-3170-4ce3-9f05-3fe690fc6ec6
 
 	List pools from one enterprise:
-	garm-cli pool list --org=a8ee4c66-e762-4cbe-a35d-175dba2c9e62
+	garm-cli pool list --enterprise=a8ee4c66-e762-4cbe-a35d-175dba2c9e62
 
-	List all pools from all repos and orgs:
+	List all pools from all repos, orgs and enterprises:
 	garm-cli pool list --all
 
 `,
@@ -285,7 +285,7 @@ var poolUpdateCmd = &cobra.Command{
 	Long: `Updates pool characteristics.
 
 This command updates the pool characteristics. Runners already created prior to updating
-the pool, will not be recreated. IF they no longer suit your needs, you will need to
+the pool, will not be recreated. If they no longer suit your needs, you will need to
 explicitly remove them using the runner delete command.
 	`,
 	SilenceUsage: true,
