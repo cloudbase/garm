@@ -47,14 +47,14 @@ package routers
 
 import (
 	_ "expvar" // Register the expvar handlers
-	"io"
+	"log/slog"
 	"net/http"
 	_ "net/http/pprof" // Register the pprof handlers
 
+	"github.com/felixge/httpsnoop"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	"github.com/cloudbase/garm-provider-common/util"
 	"github.com/cloudbase/garm/apiserver/controllers"
 	"github.com/cloudbase/garm/auth"
 )
@@ -82,10 +82,28 @@ func WithDebugServer(parentRouter *mux.Router) *mux.Router {
 	return parentRouter
 }
 
-func NewAPIRouter(han *controllers.APIController, logWriter io.Writer, authMiddleware, initMiddleware, instanceMiddleware auth.Middleware, manageWebhooks bool) *mux.Router {
+func requestLogger(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// gathers metrics from the upstream handlers
+		metrics := httpsnoop.CaptureMetrics(h, w, r)
+
+		//prints log and metrics
+		slog.Info(
+			"access_log",
+			slog.String("method", r.Method),
+			slog.String("uri", r.URL.RequestURI()),
+			slog.String("user_agent", r.Header.Get("User-Agent")),
+			slog.String("ip", r.RemoteAddr),
+			slog.Int("code", metrics.Code),
+			slog.Int64("bytes", metrics.Written),
+			slog.Duration("request_time", metrics.Duration),
+		)
+	})
+}
+
+func NewAPIRouter(han *controllers.APIController, authMiddleware, initMiddleware, instanceMiddleware auth.Middleware, manageWebhooks bool) *mux.Router {
 	router := mux.NewRouter()
-	logMiddleware := util.NewLoggingMiddleware(logWriter)
-	router.Use(logMiddleware)
+	router.Use(requestLogger)
 
 	// Handles github webhooks
 	webhookRouter := router.PathPrefix("/webhooks").Subrouter()
@@ -106,6 +124,8 @@ func NewAPIRouter(han *controllers.APIController, logWriter io.Writer, authMiddl
 	callbackRouter := apiSubRouter.PathPrefix("/callbacks").Subrouter()
 	callbackRouter.Handle("/status/", http.HandlerFunc(han.InstanceStatusMessageHandler)).Methods("POST", "OPTIONS")
 	callbackRouter.Handle("/status", http.HandlerFunc(han.InstanceStatusMessageHandler)).Methods("POST", "OPTIONS")
+	callbackRouter.Handle("/system-info/", http.HandlerFunc(han.InstanceSystemInfoHandler)).Methods("POST", "OPTIONS")
+	callbackRouter.Handle("/system-info", http.HandlerFunc(han.InstanceSystemInfoHandler)).Methods("POST", "OPTIONS")
 	callbackRouter.Use(instanceMiddleware.Middleware)
 
 	///////////////////

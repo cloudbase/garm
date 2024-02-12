@@ -1,7 +1,7 @@
 package e2e
 
 import (
-	"log"
+	"log/slog"
 	"net/url"
 
 	"github.com/cloudbase/garm/client"
@@ -32,7 +32,7 @@ func InitClient(baseURL string) {
 }
 
 func FirstRun(adminUsername, adminPassword, adminFullName, adminEmail string) *params.User {
-	log.Println("First run")
+	slog.Info("First run")
 	newUser := params.NewUserParams{
 		Username: adminUsername,
 		Password: adminPassword,
@@ -47,7 +47,7 @@ func FirstRun(adminUsername, adminPassword, adminFullName, adminEmail string) *p
 }
 
 func Login(username, password string) {
-	log.Println("Login")
+	slog.Info("Login")
 	loginParams := params.PasswordLoginParams{
 		Username: username,
 		Password: password,

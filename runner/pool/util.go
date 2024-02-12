@@ -1,7 +1,6 @@
 package pool
 
 import (
-	"log"
 	"sort"
 	"strings"
 	"sync"
@@ -56,12 +55,4 @@ func (p *poolsForTags) Add(tags []string, pools []params.Pool) *poolRoundRobin {
 	poolRR := &poolRoundRobin{pools: pools}
 	v, _ := p.pools.LoadOrStore(key, poolRR)
 	return v.(*poolRoundRobin)
-}
-
-func (r *basePoolManager) log(msg string, args ...interface{}) {
-	msgArgs := []interface{}{
-		r.helper.String(),
-	}
-	msgArgs = append(msgArgs, args...)
-	log.Printf("[Pool mgr %s] "+msg, msgArgs...)
 }

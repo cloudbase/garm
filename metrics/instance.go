@@ -1,7 +1,7 @@
 package metrics
 
 import (
-	"log"
+	"log/slog"
 
 	"github.com/cloudbase/garm/auth"
 	"github.com/prometheus/client_golang/prometheus"
@@ -14,13 +14,13 @@ func (c *GarmCollector) CollectInstanceMetric(ch chan<- prometheus.Metric, hostn
 
 	instances, err := c.runner.ListAllInstances(ctx)
 	if err != nil {
-		log.Printf("cannot collect metrics, listing instances: %s", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "cannot collect metrics, listing instances")
 		return
 	}
 
 	pools, err := c.runner.ListAllPools(ctx)
 	if err != nil {
-		log.Printf("listing pools: %s", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "listing pools")
 		return
 	}
 
@@ -71,7 +71,7 @@ func (c *GarmCollector) CollectInstanceMetric(ch chan<- prometheus.Metric, hostn
 		)
 
 		if err != nil {
-			log.Printf("cannot collect runner metric: %s", err)
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "cannot collect runner metric")
 			continue
 		}
 		ch <- m

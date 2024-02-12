@@ -17,16 +17,18 @@ package auth
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
 
-	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/config"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
 
+	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	commonParams "github.com/cloudbase/garm-provider-common/params"
 	jwt "github.com/golang-jwt/jwt/v5"
 	"github.com/pkg/errors"
 )
@@ -39,7 +41,8 @@ type InstanceJWTClaims struct {
 	// Scope is either repository or organization
 	Scope params.PoolType `json:"scope"`
 	// Entity is the repo or org name
-	Entity string `json:"entity"`
+	Entity        string `json:"entity"`
+	CreateAttempt int    `json:"create_attempt"`
 	jwt.RegisteredClaims
 }
 
@@ -56,11 +59,12 @@ func NewInstanceJWTToken(instance params.Instance, secret, entity string, poolTy
 			ExpiresAt: expires,
 			Issuer:    "garm",
 		},
-		ID:     instance.ID,
-		Name:   instance.Name,
-		PoolID: instance.PoolID,
-		Scope:  poolType,
-		Entity: entity,
+		ID:            instance.ID,
+		Name:          instance.Name,
+		PoolID:        instance.PoolID,
+		Scope:         poolType,
+		Entity:        entity,
+		CreateAttempt: instance.CreateAttempt,
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString([]byte(secret))
@@ -111,13 +115,13 @@ func (amw *instanceMiddleware) Middleware(next http.Handler) http.Handler {
 		ctx := r.Context()
 		authorizationHeader := r.Header.Get("authorization")
 		if authorizationHeader == "" {
-			invalidAuthResponse(w)
+			invalidAuthResponse(ctx, w)
 			return
 		}
 
 		bearerToken := strings.Split(authorizationHeader, " ")
 		if len(bearerToken) != 2 {
-			invalidAuthResponse(w)
+			invalidAuthResponse(ctx, w)
 			return
 		}
 
@@ -130,30 +134,60 @@ func (amw *instanceMiddleware) Middleware(next http.Handler) http.Handler {
 		})
 
 		if err != nil {
-			invalidAuthResponse(w)
+			invalidAuthResponse(ctx, w)
 			return
 		}
 
 		if !token.Valid {
-			invalidAuthResponse(w)
+			invalidAuthResponse(ctx, w)
 			return
 		}
 
 		ctx, err = amw.claimsToContext(ctx, claims)
 		if err != nil {
-			invalidAuthResponse(w)
+			invalidAuthResponse(ctx, w)
 			return
 		}
 
 		if InstanceID(ctx) == "" {
-			invalidAuthResponse(w)
+			invalidAuthResponse(ctx, w)
 			return
 		}
 
 		runnerStatus := InstanceRunnerStatus(ctx)
 		if runnerStatus != params.RunnerInstalling && runnerStatus != params.RunnerPending {
 			// Instances that have finished installing can no longer authenticate to the API
-			invalidAuthResponse(w)
+			invalidAuthResponse(ctx, w)
+			return
+		}
+
+		instanceParams, err := InstanceParams(ctx)
+		if err != nil {
+			slog.InfoContext(
+				ctx, "could not find instance params",
+				"runner_name", InstanceName(ctx))
+			invalidAuthResponse(ctx, w)
+			return
+		}
+
+		// Token was generated for a previous attempt at creating this instance.
+		if claims.CreateAttempt != instanceParams.CreateAttempt {
+			slog.InfoContext(
+				ctx, "invalid token create attempt",
+				"runner_name", InstanceName(ctx),
+				"token_create_attempt", claims.CreateAttempt,
+				"instance_create_attempt", instanceParams.CreateAttempt)
+			invalidAuthResponse(ctx, w)
+			return
+		}
+
+		// Only allow instances that are in the creating or running state to authenticate.
+		if instanceParams.Status != commonParams.InstanceCreating && instanceParams.Status != commonParams.InstanceRunning {
+			slog.InfoContext(
+				ctx, "invalid instance status",
+				"runner_name", InstanceName(ctx),
+				"status", instanceParams.Status)
+			invalidAuthResponse(ctx, w)
 			return
 		}
 

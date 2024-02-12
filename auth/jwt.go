@@ -18,7 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -73,14 +73,14 @@ func (amw *jwtMiddleware) claimsToContext(ctx context.Context, claims *JWTClaims
 	return ctx, nil
 }
 
-func invalidAuthResponse(w http.ResponseWriter) {
+func invalidAuthResponse(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusUnauthorized)
 	if err := json.NewEncoder(w).Encode(
 		apiParams.APIErrorResponse{
 			Error: "Authentication failed",
 		}); err != nil {
-		log.Printf("failed to encode response: %s", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }
 
@@ -91,13 +91,13 @@ func (amw *jwtMiddleware) Middleware(next http.Handler) http.Handler {
 		ctx := r.Context()
 		authorizationHeader := r.Header.Get("authorization")
 		if authorizationHeader == "" {
-			invalidAuthResponse(w)
+			invalidAuthResponse(ctx, w)
 			return
 		}
 
 		bearerToken := strings.Split(authorizationHeader, " ")
 		if len(bearerToken) != 2 {
-			invalidAuthResponse(w)
+			invalidAuthResponse(ctx, w)
 			return
 		}
 
@@ -110,22 +110,22 @@ func (amw *jwtMiddleware) Middleware(next http.Handler) http.Handler {
 		})
 
 		if err != nil {
-			invalidAuthResponse(w)
+			invalidAuthResponse(ctx, w)
 			return
 		}
 
 		if !token.Valid {
-			invalidAuthResponse(w)
+			invalidAuthResponse(ctx, w)
 			return
 		}
 
 		ctx, err = amw.claimsToContext(ctx, claims)
 		if err != nil {
-			invalidAuthResponse(w)
+			invalidAuthResponse(ctx, w)
 			return
 		}
 		if !IsEnabled(ctx) {
-			invalidAuthResponse(w)
+			invalidAuthResponse(ctx, w)
 			return
 		}
 

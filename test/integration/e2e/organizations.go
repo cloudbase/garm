@@ -1,7 +1,7 @@
 package e2e
 
 import (
-	"log"
+	"log/slog"
 	"time"
 
 	commonParams "github.com/cloudbase/garm-provider-common/params"
@@ -9,7 +9,7 @@ import (
 )
 
 func CreateOrg(orgName, credentialsName, orgWebhookSecret string) *params.Organization {
-	log.Printf("Create org %s", orgName)
+	slog.Info("Create org", "org_name", orgName)
 	orgParams := params.CreateOrgParams{
 		Name:            orgName,
 		CredentialsName: credentialsName,
@@ -23,7 +23,7 @@ func CreateOrg(orgName, credentialsName, orgWebhookSecret string) *params.Organi
 }
 
 func UpdateOrg(id, credentialsName string) *params.Organization {
-	log.Printf("Update org %s", id)
+	slog.Info("Update org", "org_id", id)
 	updateParams := params.UpdateEntityParams{
 		CredentialsName: credentialsName,
 	}
@@ -35,7 +35,7 @@ func UpdateOrg(id, credentialsName string) *params.Organization {
 }
 
 func InstallOrgWebhook(id string) *params.HookInfo {
-	log.Printf("Install org %s webhook", id)
+	slog.Info("Install org webhook", "org_id", id)
 	webhookParams := params.InstallWebhookParams{
 		WebhookEndpointType: params.WebhookEndpointDirect,
 	}
@@ -51,14 +51,14 @@ func InstallOrgWebhook(id string) *params.HookInfo {
 }
 
 func UninstallOrgWebhook(id string) {
-	log.Printf("Uninstall org %s webhook", id)
+	slog.Info("Uninstall org webhook", "org_id", id)
 	if err := uninstallOrgWebhook(cli, authToken, id); err != nil {
 		panic(err)
 	}
 }
 
 func CreateOrgPool(orgID string, poolParams params.CreatePoolParams) *params.Pool {
-	log.Printf("Create org %s pool", orgID)
+	slog.Info("Create org pool", "org_id", orgID)
 	pool, err := createOrgPool(cli, authToken, orgID, poolParams)
 	if err != nil {
 		panic(err)
@@ -67,7 +67,7 @@ func CreateOrgPool(orgID string, poolParams params.CreatePoolParams) *params.Poo
 }
 
 func GetOrgPool(orgID, orgPoolID string) *params.Pool {
-	log.Printf("Get org %s pool %s", orgID, orgPoolID)
+	slog.Info("Get org pool", "org_id", orgID, "pool_id", orgPoolID)
 	pool, err := getOrgPool(cli, authToken, orgID, orgPoolID)
 	if err != nil {
 		panic(err)
@@ -76,7 +76,7 @@ func GetOrgPool(orgID, orgPoolID string) *params.Pool {
 }
 
 func UpdateOrgPool(orgID, orgPoolID string, maxRunners, minIdleRunners uint) *params.Pool {
-	log.Printf("Update org %s pool %s", orgID, orgPoolID)
+	slog.Info("Update org pool", "org_id", orgID, "pool_id", orgPoolID)
 	poolParams := params.UpdatePoolParams{
 		MinIdleRunners: &minIdleRunners,
 		MaxRunners:     &maxRunners,
@@ -89,7 +89,7 @@ func UpdateOrgPool(orgID, orgPoolID string, maxRunners, minIdleRunners uint) *pa
 }
 
 func DeleteOrgPool(orgID, orgPoolID string) {
-	log.Printf("Delete org %s pool %s", orgID, orgPoolID)
+	slog.Info("Delete org pool", "org_id", orgID, "pool_id", orgPoolID)
 	if err := deleteOrgPool(cli, authToken, orgID, orgPoolID); err != nil {
 		panic(err)
 	}
@@ -111,7 +111,7 @@ func WaitOrgRunningIdleInstances(orgID string, timeout time.Duration) {
 
 func dumpOrgInstancesDetails(orgID string) error {
 	// print org details
-	log.Printf("Dumping org %s details", orgID)
+	slog.Info("Dumping org details", "org_id", orgID)
 	org, err := getOrg(cli, authToken, orgID)
 	if err != nil {
 		return err
@@ -121,7 +121,7 @@ func dumpOrgInstancesDetails(orgID string) error {
 	}
 
 	// print org instances details
-	log.Printf("Dumping org %s instances details", orgID)
+	slog.Info("Dumping org instances details", "org_id", orgID)
 	instances, err := listOrgInstances(cli, authToken, orgID)
 	if err != nil {
 		return err
@@ -131,7 +131,7 @@ func dumpOrgInstancesDetails(orgID string) error {
 		if err != nil {
 			return err
 		}
-		log.Printf("Instance %s info:", instance.Name)
+		slog.Info("Instance info", "instance_name", instance.Name)
 		if err := printJsonResponse(instance); err != nil {
 			return err
 		}

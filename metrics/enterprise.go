@@ -1,7 +1,7 @@
 package metrics
 
 import (
-	"log"
+	"log/slog"
 	"strconv"
 
 	"github.com/cloudbase/garm/auth"
@@ -14,7 +14,7 @@ func (c *GarmCollector) CollectEnterpriseMetric(ch chan<- prometheus.Metric, hos
 
 	enterprises, err := c.runner.ListEnterprises(ctx)
 	if err != nil {
-		log.Printf("listing providers: %s", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "listing providers")
 		return
 	}
 
@@ -28,7 +28,7 @@ func (c *GarmCollector) CollectEnterpriseMetric(ch chan<- prometheus.Metric, hos
 			enterprise.ID,   // label: id
 		)
 		if err != nil {
-			log.Printf("cannot collect enterpriseInfo metric: %s", err)
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "cannot collect enterpriseInfo metric")
 			continue
 		}
 		ch <- enterpriseInfo
@@ -42,7 +42,7 @@ func (c *GarmCollector) CollectEnterpriseMetric(ch chan<- prometheus.Metric, hos
 			strconv.FormatBool(enterprise.PoolManagerStatus.IsRunning), // label: running
 		)
 		if err != nil {
-			log.Printf("cannot collect enterprisePoolManagerStatus metric: %s", err)
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "cannot collect enterprisePoolManagerStatus metric")
 			continue
 		}
 		ch <- enterprisePoolManagerStatus

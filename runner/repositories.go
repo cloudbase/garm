@@ -17,7 +17,7 @@ package runner
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"strings"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
@@ -60,7 +60,9 @@ func (r *Runner) CreateRepository(ctx context.Context, param params.CreateRepoPa
 	defer func() {
 		if err != nil {
 			if deleteErr := r.store.DeleteRepository(ctx, repo.ID); deleteErr != nil {
-				log.Printf("failed to delete repository: %s", deleteErr)
+				slog.With(slog.Any("error", deleteErr)).ErrorContext(
+					ctx, "failed to delete repository",
+					"repository_id", repo.ID)
 			}
 		}
 	}()
@@ -71,7 +73,9 @@ func (r *Runner) CreateRepository(ctx context.Context, param params.CreateRepoPa
 	}
 	if err := poolMgr.Start(); err != nil {
 		if deleteErr := r.poolManagerCtrl.DeleteRepoPoolManager(repo); deleteErr != nil {
-			log.Printf("failed to cleanup pool manager for repo %s", repo.ID)
+			slog.With(slog.Any("error", deleteErr)).ErrorContext(
+				ctx, "failed to cleanup pool manager for repo",
+				"repository_id", repo.ID)
 		}
 		return params.Repository{}, errors.Wrap(err, "starting repo pool manager")
 	}
@@ -155,7 +159,9 @@ func (r *Runner) DeleteRepository(ctx context.Context, repoID string, keepWebhoo
 
 		if err := poolMgr.UninstallWebhook(ctx); err != nil {
 			// TODO(gabriel-samfira): Should we error out here?
-			log.Printf("failed to uninstall webhook: %s", err)
+			slog.With(slog.Any("error", err)).ErrorContext(
+				ctx, "failed to uninstall webhook",
+				"pool_manager_id", poolMgr.ID())
 		}
 	}
 

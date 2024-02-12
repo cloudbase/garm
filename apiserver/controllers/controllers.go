@@ -15,9 +15,10 @@
 package controllers
 
 import (
+	"context"
 	"encoding/json"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -60,7 +61,7 @@ type APIController struct {
 	controllerID string
 }
 
-func handleError(w http.ResponseWriter, err error) {
+func handleError(ctx context.Context, w http.ResponseWriter, err error) {
 	w.Header().Set("Content-Type", "application/json")
 	origErr := errors.Cause(err)
 	apiErr := params.APIErrorResponse{
@@ -90,14 +91,14 @@ func handleError(w http.ResponseWriter, err error) {
 	}
 
 	if err := json.NewEncoder(w).Encode(apiErr); err != nil {
-		log.Printf("failed to encode response: %q", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }
 
-func (a *APIController) webhookMetricLabelValues(valid, reason string) []string {
+func (a *APIController) webhookMetricLabelValues(ctx context.Context, valid, reason string) []string {
 	controllerInfo, err := a.r.GetControllerInfo(auth.GetAdminContext())
 	if err != nil {
-		log.Printf("failed to get controller info: %s", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to get controller info")
 		// If labels are empty, not attempt will be made to record webhook.
 		return []string{}
 	}
@@ -107,11 +108,11 @@ func (a *APIController) webhookMetricLabelValues(valid, reason string) []string 
 	}
 }
 
-func (a *APIController) handleWorkflowJobEvent(w http.ResponseWriter, r *http.Request) {
+func (a *APIController) handleWorkflowJobEvent(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		handleError(w, gErrors.NewBadRequestError("invalid post body: %s", err))
+		handleError(ctx, w, gErrors.NewBadRequestError("invalid post body: %s", err))
 		return
 	}
 
@@ -124,28 +125,30 @@ func (a *APIController) handleWorkflowJobEvent(w http.ResponseWriter, r *http.Re
 			return
 		}
 		if err := metrics.RecordWebhookWithLabels(labelValues...); err != nil {
-			log.Printf("failed to record metric: %s", err)
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to record metric")
 		}
 	}()
 
 	if err := a.r.DispatchWorkflowJob(hookType, signature, body); err != nil {
 		if errors.Is(err, gErrors.ErrNotFound) {
-			labelValues = a.webhookMetricLabelValues("false", "owner_unknown")
-			log.Printf("got not found error from DispatchWorkflowJob. webhook not meant for us?: %q", err)
+			labelValues = a.webhookMetricLabelValues(ctx, "false", "owner_unknown")
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "got not found error from DispatchWorkflowJob. webhook not meant for us?")
 			return
 		} else if strings.Contains(err.Error(), "signature") { // TODO: check error type
-			labelValues = a.webhookMetricLabelValues("false", "signature_invalid")
+			labelValues = a.webhookMetricLabelValues(ctx, "false", "signature_invalid")
 		} else {
-			labelValues = a.webhookMetricLabelValues("false", "unknown")
+			labelValues = a.webhookMetricLabelValues(ctx, "false", "unknown")
 		}
 
-		handleError(w, err)
+		handleError(ctx, w, err)
 		return
 	}
-	labelValues = a.webhookMetricLabelValues("true", "")
+	labelValues = a.webhookMetricLabelValues(ctx, "true", "")
 }
 
 func (a *APIController) WebhookHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	vars := mux.Vars(r)
 	controllerID, ok := vars["controllerID"]
 	// If the webhook URL includes a controller ID, we validate that it's meant for us. We still
@@ -154,7 +157,7 @@ func (a *APIController) WebhookHandler(w http.ResponseWriter, r *http.Request) {
 	// via garm. We cannot tag a webhook URL on github, so there is no way to determine ownership.
 	// Using a controllerID suffix is a simple way to denote ownership.
 	if ok && controllerID != a.controllerID {
-		log.Printf("ignoring webhook meant for controller %s", util.SanitizeLogEntry(controllerID))
+		slog.InfoContext(ctx, "ignoring webhook meant for foreign controller", "req_controller_id", controllerID)
 		return
 	}
 
@@ -163,10 +166,9 @@ func (a *APIController) WebhookHandler(w http.ResponseWriter, r *http.Request) {
 	event := runnerParams.Event(headers.Get("X-Github-Event"))
 	switch event {
 	case runnerParams.WorkflowJobEvent:
-		a.handleWorkflowJobEvent(w, r)
+		a.handleWorkflowJobEvent(ctx, w, r)
 	default:
-		log.Printf("ignoring unknown event %s", util.SanitizeLogEntry(string(event)))
-		return
+		slog.InfoContext(ctx, "ignoring unknown event", "gh_event", util.SanitizeLogEntry(string(event)))
 	}
 }
 
@@ -175,19 +177,19 @@ func (a *APIController) WSHandler(writer http.ResponseWriter, req *http.Request)
 	if !auth.IsAdmin(ctx) {
 		writer.WriteHeader(http.StatusForbidden)
 		if _, err := writer.Write([]byte("you need admin level access to view logs")); err != nil {
-			log.Printf("failed to encode response: %q", err)
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 		}
 		return
 	}
 
 	if a.hub == nil {
-		handleError(writer, gErrors.NewBadRequestError("log streamer is disabled"))
+		handleError(ctx, writer, gErrors.NewBadRequestError("log streamer is disabled"))
 		return
 	}
 
 	conn, err := a.upgrader.Upgrade(writer, req, nil)
 	if err != nil {
-		log.Printf("error upgrading to websockets: %v", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error upgrading to websockets")
 		return
 	}
 
@@ -198,11 +200,11 @@ func (a *APIController) WSHandler(writer http.ResponseWriter, req *http.Request)
 	// the client once the token expires.
 	client, err := wsWriter.NewClient(conn, a.hub)
 	if err != nil {
-		log.Printf("failed to create new client: %v", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to create new client")
 		return
 	}
 	if err := a.hub.Register(client); err != nil {
-		log.Printf("failed to register new client: %v", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to register new client")
 		return
 	}
 	client.Go()
@@ -210,6 +212,7 @@ func (a *APIController) WSHandler(writer http.ResponseWriter, req *http.Request)
 
 // NotFoundHandler is returned when an invalid URL is acccessed
 func (a *APIController) NotFoundHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	apiErr := params.APIErrorResponse{
 		Details: "Resource not found",
 		Error:   "Not found",
@@ -218,7 +221,7 @@ func (a *APIController) NotFoundHandler(w http.ResponseWriter, r *http.Request) 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusNotFound)
 	if err := json.NewEncoder(w).Encode(apiErr); err != nil {
-		log.Printf("failet to write response: %q", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failet to write response")
 	}
 }
 
@@ -233,19 +236,19 @@ func (a *APIController) MetricsTokenHandler(w http.ResponseWriter, r *http.Reque
 	ctx := r.Context()
 
 	if !auth.IsAdmin(ctx) {
-		handleError(w, gErrors.ErrUnauthorized)
+		handleError(ctx, w, gErrors.ErrUnauthorized)
 		return
 	}
 
 	token, err := a.auth.GetJWTMetricsToken(ctx)
 	if err != nil {
-		handleError(w, err)
+		handleError(ctx, w, err)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	err = json.NewEncoder(w).Encode(runnerParams.JWTResponse{Token: token})
 	if err != nil {
-		log.Printf("failed to encode response: %q", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }
 
@@ -266,32 +269,32 @@ func (a *APIController) MetricsTokenHandler(w http.ResponseWriter, r *http.Reque
 //
 // LoginHandler returns a jwt token
 func (a *APIController) LoginHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	var loginInfo runnerParams.PasswordLoginParams
 	if err := json.NewDecoder(r.Body).Decode(&loginInfo); err != nil {
-		handleError(w, gErrors.ErrBadRequest)
+		handleError(ctx, w, gErrors.ErrBadRequest)
 		return
 	}
 
 	if err := loginInfo.Validate(); err != nil {
-		handleError(w, err)
+		handleError(ctx, w, err)
 		return
 	}
 
-	ctx := r.Context()
 	ctx, err := a.auth.AuthenticateUser(ctx, loginInfo)
 	if err != nil {
-		handleError(w, err)
+		handleError(ctx, w, err)
 		return
 	}
 
 	tokenString, err := a.auth.GetJWTToken(ctx)
 	if err != nil {
-		handleError(w, err)
+		handleError(ctx, w, err)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(runnerParams.JWTResponse{Token: tokenString}); err != nil {
-		log.Printf("failed to encode response: %q", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }
 
@@ -310,28 +313,27 @@ func (a *APIController) LoginHandler(w http.ResponseWriter, r *http.Request) {
 //	  200: User
 //	  400: APIErrorResponse
 func (a *APIController) FirstRunHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	if a.auth.IsInitialized() {
 		err := gErrors.NewConflictError("already initialized")
-		handleError(w, err)
+		handleError(ctx, w, err)
 		return
 	}
 
-	ctx := r.Context()
-
 	var newUserParams runnerParams.NewUserParams
 	if err := json.NewDecoder(r.Body).Decode(&newUserParams); err != nil {
-		handleError(w, gErrors.ErrBadRequest)
+		handleError(ctx, w, gErrors.ErrBadRequest)
 		return
 	}
 
 	newUser, err := a.auth.InitController(ctx, newUserParams)
 	if err != nil {
-		handleError(w, err)
+		handleError(ctx, w, err)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(newUser); err != nil {
-		log.Printf("failed to encode response: %q", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }
 
@@ -346,13 +348,13 @@ func (a *APIController) ListCredentials(w http.ResponseWriter, r *http.Request) 
 	ctx := r.Context()
 	creds, err := a.r.ListCredentials(ctx)
 	if err != nil {
-		handleError(w, err)
+		handleError(ctx, w, err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(creds); err != nil {
-		log.Printf("failed to encode response: %q", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }
 
@@ -367,13 +369,13 @@ func (a *APIController) ListProviders(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	providers, err := a.r.ListProviders(ctx)
 	if err != nil {
-		handleError(w, err)
+		handleError(ctx, w, err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(providers); err != nil {
-		log.Printf("failed to encode response: %q", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }
 
@@ -388,13 +390,13 @@ func (a *APIController) ListAllJobs(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	jobs, err := a.r.ListAllJobs(ctx)
 	if err != nil {
-		handleError(w, err)
+		handleError(ctx, w, err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(jobs); err != nil {
-		log.Printf("failed to encode response: %q", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }
 
@@ -409,12 +411,12 @@ func (a *APIController) ControllerInfoHandler(w http.ResponseWriter, r *http.Req
 	ctx := r.Context()
 	info, err := a.r.GetControllerInfo(ctx)
 	if err != nil {
-		handleError(w, err)
+		handleError(ctx, w, err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(info); err != nil {
-		log.Printf("failed to encode response: %q", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }

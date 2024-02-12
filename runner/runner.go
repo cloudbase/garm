@@ -23,7 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"hash"
-	"log"
+	"log/slog"
 	"os"
 	"strings"
 	"sync"
@@ -449,7 +449,9 @@ func (r *Runner) loadReposOrgsAndEnterprises() error {
 	for _, repo := range repos {
 		repo := repo
 		g.Go(func() error {
-			log.Printf("creating pool manager for repo %s/%s", repo.Owner, repo.Name)
+			slog.InfoContext(
+				r.ctx, "creating pool manager for repo",
+				"repo_owner", repo.Owner, "repo_name", repo.Name)
 			_, err := r.poolManagerCtrl.CreateRepoPoolManager(r.ctx, repo, r.providers, r.store)
 			return err
 		})
@@ -458,7 +460,7 @@ func (r *Runner) loadReposOrgsAndEnterprises() error {
 	for _, org := range orgs {
 		org := org
 		g.Go(func() error {
-			log.Printf("creating pool manager for organization %s", org.Name)
+			slog.InfoContext(r.ctx, "creating pool manager for organization", "org_name", org.Name)
 			_, err := r.poolManagerCtrl.CreateOrgPoolManager(r.ctx, org, r.providers, r.store)
 			return err
 		})
@@ -467,7 +469,7 @@ func (r *Runner) loadReposOrgsAndEnterprises() error {
 	for _, enterprise := range enterprises {
 		enterprise := enterprise
 		g.Go(func() error {
-			log.Printf("creating pool manager for enterprise %s", enterprise.Name)
+			slog.InfoContext(r.ctx, "creating pool manager for enterprise", "enterprise_name", enterprise.Name)
 			_, err := r.poolManagerCtrl.CreateEnterprisePoolManager(r.ctx, enterprise, r.providers, r.store)
 			return err
 		})
@@ -630,7 +632,7 @@ func (r *Runner) Wait() error {
 		go func(id string, poolMgr common.PoolManager) {
 			defer wg.Done()
 			if err := poolMgr.Wait(); err != nil {
-				log.Printf("timed out waiting for pool manager %s to exit", id)
+				slog.With(slog.Any("error", err)).ErrorContext(r.ctx, "timed out waiting for pool manager to exit", "pool_id", id, "pool_mgr_id", poolMgr.ID())
 			}
 		}(poolId, repo)
 	}
@@ -640,7 +642,7 @@ func (r *Runner) Wait() error {
 		go func(id string, poolMgr common.PoolManager) {
 			defer wg.Done()
 			if err := poolMgr.Wait(); err != nil {
-				log.Printf("timed out waiting for pool manager %s to exit", id)
+				slog.With(slog.Any("error", err)).ErrorContext(r.ctx, "timed out waiting for pool manager to exit", "pool_id", id)
 			}
 		}(poolId, org)
 	}
@@ -650,7 +652,7 @@ func (r *Runner) Wait() error {
 		go func(id string, poolMgr common.PoolManager) {
 			defer wg.Done()
 			if err := poolMgr.Wait(); err != nil {
-				log.Printf("timed out waiting for pool manager %s to exit", id)
+				slog.With(slog.Any("error", err)).ErrorContext(r.ctx, "timed out waiting for pool manager to exit", "pool_id", id)
 			}
 		}(poolId, enterprise)
 	}
@@ -717,12 +719,20 @@ func (r *Runner) DispatchWorkflowJob(hookTargetType, signature string, jobData [
 
 	switch HookTargetType(hookTargetType) {
 	case RepoHook:
-		log.Printf("got hook for repo %s/%s", util.SanitizeLogEntry(job.Repository.Owner.Login), util.SanitizeLogEntry(job.Repository.Name))
+		slog.DebugContext(
+			r.ctx, "got hook for repo",
+			"repo_owner", util.SanitizeLogEntry(job.Repository.Owner.Login),
+			"repo_name", util.SanitizeLogEntry(job.Repository.Name))
 		poolManager, err = r.findRepoPoolManager(job.Repository.Owner.Login, job.Repository.Name)
 	case OrganizationHook:
-		log.Printf("got hook for org %s", util.SanitizeLogEntry(job.Organization.Login))
+		slog.DebugContext(
+			r.ctx, "got hook for organization",
+			"organization", util.SanitizeLogEntry(job.Organization.Login))
 		poolManager, err = r.findOrgPoolManager(job.Organization.Login)
 	case EnterpriseHook:
+		slog.DebugContext(
+			r.ctx, "got hook for enterprise",
+			"enterprise", util.SanitizeLogEntry(job.Enterprise.Slug))
 		poolManager, err = r.findEnterprisePoolManager(job.Enterprise.Slug)
 	default:
 		return runnerErrors.NewBadRequestError("cannot handle hook target type %s", hookTargetType)
@@ -852,7 +862,35 @@ func (r *Runner) AddInstanceStatusMessage(ctx context.Context, param params.Inst
 	}
 
 	if _, err := r.store.UpdateInstance(r.ctx, instanceID, updateParams); err != nil {
-		return errors.Wrap(err, "updating runner state")
+		return errors.Wrap(err, "updating runner agent ID")
+	}
+
+	return nil
+}
+
+func (r *Runner) UpdateSystemInfo(ctx context.Context, param params.UpdateSystemInfoParams) error {
+	instanceID := auth.InstanceID(ctx)
+	if instanceID == "" {
+		slog.ErrorContext(ctx, "missing instance ID")
+		return runnerErrors.ErrUnauthorized
+	}
+
+	if param.OSName == "" && param.OSVersion == "" && param.AgentID == nil {
+		// Nothing to update
+		return nil
+	}
+
+	updateParams := params.UpdateInstanceParams{
+		OSName:    param.OSName,
+		OSVersion: param.OSVersion,
+	}
+
+	if param.AgentID != nil {
+		updateParams.AgentID = *param.AgentID
+	}
+
+	if _, err := r.store.UpdateInstance(r.ctx, instanceID, updateParams); err != nil {
+		return errors.Wrap(err, "updating runner system info")
 	}
 
 	return nil
@@ -922,7 +960,13 @@ func (r *Runner) DeleteRunner(ctx context.Context, instanceName string, forceDel
 	case commonParams.InstanceRunning, commonParams.InstanceError,
 		commonParams.InstancePendingForceDelete, commonParams.InstancePendingDelete:
 	default:
-		return runnerErrors.NewBadRequestError("runner must be in %q or %q state", commonParams.InstanceRunning, commonParams.InstanceError)
+		validStates := []string{
+			string(commonParams.InstanceRunning),
+			string(commonParams.InstanceError),
+			string(commonParams.InstancePendingForceDelete),
+			string(commonParams.InstancePendingDelete),
+		}
+		return runnerErrors.NewBadRequestError("runner must be in one of the following states: %q", strings.Join(validStates, ", "))
 	}
 
 	poolMgr, err := r.getPoolManagerFromInstance(ctx, instance)

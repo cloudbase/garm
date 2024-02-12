@@ -3,14 +3,14 @@ package e2e
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 
 	"github.com/google/go-github/v57/github"
 	"golang.org/x/oauth2"
 )
 
 func TriggerWorkflow(ghToken, orgName, repoName, workflowFileName, labelName string) {
-	log.Printf("Trigger workflow with label %s", labelName)
+	slog.Info("Trigger workflow", "label", labelName)
 
 	client := getGithubClient(ghToken)
 	eventReq := github.CreateWorkflowDispatchEventRequest{
@@ -26,7 +26,7 @@ func TriggerWorkflow(ghToken, orgName, repoName, workflowFileName, labelName str
 }
 
 func GhOrgRunnersCleanup(ghToken, orgName, controllerID string) error {
-	log.Printf("Cleanup Github runners, labelled with controller ID %s, from org %s", controllerID, orgName)
+	slog.Info("Cleanup Github runners", "controller_id", controllerID, "org_name", orgName)
 
 	client := getGithubClient(ghToken)
 	ghOrgRunners, _, err := client.Actions.ListOrganizationRunners(context.Background(), orgName, nil)
@@ -42,10 +42,10 @@ func GhOrgRunnersCleanup(ghToken, orgName, controllerID string) error {
 				if _, err := client.Actions.RemoveOrganizationRunner(context.Background(), orgName, orgRunner.GetID()); err != nil {
 					// We don't fail if we can't remove a single runner. This
 					// is a best effort to try and remove all the orphan runners.
-					log.Printf("Failed to remove organization runner %s: %v", orgRunner.GetName(), err)
+					slog.With(slog.Any("error", err)).Info("Failed to remove organization runner", "org_runner", orgRunner.GetName())
 					break
 				}
-				log.Printf("Removed organization runner %s", orgRunner.GetName())
+				slog.Info("Removed organization runner", "org_runner", orgRunner.GetName())
 				break
 			}
 		}
@@ -55,7 +55,7 @@ func GhOrgRunnersCleanup(ghToken, orgName, controllerID string) error {
 }
 
 func GhRepoRunnersCleanup(ghToken, orgName, repoName, controllerID string) error {
-	log.Printf("Cleanup Github runners, labelled with controller ID %s, from repo %s/%s", controllerID, orgName, repoName)
+	slog.Info("Cleanup Github runners", "controller_id", controllerID, "org_name", orgName, "repo_name", repoName)
 
 	client := getGithubClient(ghToken)
 	ghRepoRunners, _, err := client.Actions.ListRunners(context.Background(), orgName, repoName, nil)
@@ -71,10 +71,10 @@ func GhRepoRunnersCleanup(ghToken, orgName, repoName, controllerID string) error
 				if _, err := client.Actions.RemoveRunner(context.Background(), orgName, repoName, repoRunner.GetID()); err != nil {
 					// We don't fail if we can't remove a single runner. This
 					// is a best effort to try and remove all the orphan runners.
-					log.Printf("Failed to remove repository runner %s: %v", repoRunner.GetName(), err)
+					slog.With(slog.Any("error", err)).Error("Failed to remove repository runner", "runner_name", repoRunner.GetName())
 					break
 				}
-				log.Printf("Removed repository runner %s", repoRunner.GetName())
+				slog.Info("Removed repository runner", "runner_name", repoRunner.GetName())
 				break
 			}
 		}
@@ -124,7 +124,7 @@ func ValidateRepoWebhookUninstalled(ghToken, url, orgName, repoName string) {
 }
 
 func GhOrgWebhookCleanup(ghToken, webhookURL, orgName string) error {
-	log.Printf("Cleanup Github webhook with url %s for org %s", webhookURL, orgName)
+	slog.Info("Cleanup Github webhook", "webhook_url", webhookURL, "org_name", orgName)
 	hook, err := getGhOrgWebhook(webhookURL, ghToken, orgName)
 	if err != nil {
 		return err
@@ -136,14 +136,14 @@ func GhOrgWebhookCleanup(ghToken, webhookURL, orgName string) error {
 		if _, err := client.Organizations.DeleteHook(context.Background(), orgName, hook.GetID()); err != nil {
 			return err
 		}
-		log.Printf("Github webhook with url %s for org %s was removed", webhookURL, orgName)
+		slog.Info("Github webhook removed", "webhook_url", webhookURL, "org_name", orgName)
 	}
 
 	return nil
 }
 
 func GhRepoWebhookCleanup(ghToken, webhookURL, orgName, repoName string) error {
-	log.Printf("Cleanup Github webhook with url %s for repo %s/%s", webhookURL, orgName, repoName)
+	slog.Info("Cleanup Github webhook", "webhook_url", webhookURL, "org_name", orgName, "repo_name", repoName)
 
 	hook, err := getGhRepoWebhook(webhookURL, ghToken, orgName, repoName)
 	if err != nil {
@@ -156,7 +156,7 @@ func GhRepoWebhookCleanup(ghToken, webhookURL, orgName, repoName string) error {
 		if _, err := client.Repositories.DeleteHook(context.Background(), orgName, repoName, hook.GetID()); err != nil {
 			return err
 		}
-		log.Printf("Github webhook with url %s for repo %s/%s was removed", webhookURL, orgName, repoName)
+		slog.Info("Github webhook with", "webhook_url", webhookURL, "org_name", orgName, "repo_name", repoName)
 	}
 
 	return nil

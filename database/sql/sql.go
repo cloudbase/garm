@@ -17,7 +17,7 @@ package sql
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -151,7 +151,7 @@ func (s *sqlDatabase) cascadeMigrationSQLite(model interface{}, name string, jus
 	if model != nil {
 		if err := s.conn.Migrator().AutoMigrate(model); err != nil {
 			if err := s.conn.Exec(fmt.Sprintf(restoreNameTemplate, name, name, name)).Error; err != nil {
-				log.Printf("failed to restore table %s: %s", name, err)
+				slog.With(slog.Any("error", err)).Error("failed to restore table", "table", name)
 			}
 			return fmt.Errorf("failed to create table %s: %w", name, err)
 		}
@@ -193,13 +193,13 @@ func (s *sqlDatabase) cascadeMigration() error {
 func (s *sqlDatabase) migrateDB() error {
 	if s.conn.Migrator().HasIndex(&Organization{}, "idx_organizations_name") {
 		if err := s.conn.Migrator().DropIndex(&Organization{}, "idx_organizations_name"); err != nil {
-			log.Printf("failed to drop index idx_organizations_name: %s", err)
+			slog.With(slog.Any("error", err)).Error("failed to drop index idx_organizations_name")
 		}
 	}
 
 	if s.conn.Migrator().HasIndex(&Repository{}, "idx_owner") {
 		if err := s.conn.Migrator().DropIndex(&Repository{}, "idx_owner"); err != nil {
-			log.Printf("failed to drop index idx_owner: %s", err)
+			slog.With(slog.Any("error", err)).Error("failed to drop index idx_owner")
 		}
 	}
 

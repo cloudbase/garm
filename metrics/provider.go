@@ -1,7 +1,7 @@
 package metrics
 
 import (
-	"log"
+	"log/slog"
 
 	"github.com/cloudbase/garm/auth"
 	"github.com/prometheus/client_golang/prometheus"
@@ -13,7 +13,7 @@ func (c *GarmCollector) CollectProviderMetric(ch chan<- prometheus.Metric, hostn
 
 	providers, err := c.runner.ListProviders(ctx)
 	if err != nil {
-		log.Printf("listing providers: %s", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "listing providers")
 		return
 	}
 
@@ -28,7 +28,7 @@ func (c *GarmCollector) CollectProviderMetric(ch chan<- prometheus.Metric, hostn
 			provider.Description,          // label: description
 		)
 		if err != nil {
-			log.Printf("cannot collect providerInfo metric: %s", err)
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "cannot collect providerInfo metric")
 			continue
 		}
 		ch <- providerInfo

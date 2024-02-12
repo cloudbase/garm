@@ -566,3 +566,9 @@ type HookInfo struct {
 type CertificateBundle struct {
 	RootCertificates map[string][]byte `json:"root_certificates"`
 }
+
+type UpdateSystemInfoParams struct {
+	OSName    string `json:"os_name,omitempty"`
+	OSVersion string `json:"os_version,omitempty"`
+	AgentID   *int64 `json:"agent_id,omitempty"`
+}

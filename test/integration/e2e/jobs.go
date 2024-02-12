@@ -2,7 +2,7 @@ package e2e
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"time"
 
 	commonParams "github.com/cloudbase/garm-provider-common/params"
@@ -10,7 +10,7 @@ import (
 )
 
 func ValidateJobLifecycle(label string) {
-	log.Printf("Validate GARM job lifecycle with label %s", label)
+	slog.Info("Validate GARM job lifecycle", "label", label)
 
 	// wait for job list to be updated
 	job, err := waitLabelledJob(label, 4*time.Minute)
@@ -58,7 +58,7 @@ func waitLabelledJob(label string, timeout time.Duration) (*params.Job, error) {
 	var jobs params.Jobs
 	var err error
 
-	log.Printf("Waiting for job with label %s", label)
+	slog.Info("Waiting for job", "label", label)
 	for timeWaited < timeout {
 		jobs, err = listJobs(cli, authToken)
 		if err != nil {
@@ -85,7 +85,7 @@ func waitJobStatus(id int64, status params.JobStatus, timeout time.Duration) (*p
 	var timeWaited time.Duration = 0
 	var job *params.Job
 
-	log.Printf("Waiting for job %d to reach status %s", id, status)
+	slog.Info("Waiting for job to reach status", "job_id", id, "status", status)
 	for timeWaited < timeout {
 		jobs, err := listJobs(cli, authToken)
 		if err != nil {

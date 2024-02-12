@@ -18,7 +18,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"log"
+	"log/slog"
 	"net"
 	"net/url"
 	"os"
@@ -33,6 +33,8 @@ import (
 )
 
 type DBBackendType string
+type LogLevel string
+type LogFormat string
 
 const (
 	// MySQLBackend represents the MySQL DB backend
@@ -42,6 +44,24 @@ const (
 	// EnvironmentVariablePrefix is the prefix for all environment variables
 	// that can not be used to get overwritten via the external provider
 	EnvironmentVariablePrefix = "GARM"
+)
+
+const (
+	// LevelDebug is the debug log level
+	LevelDebug LogLevel = "debug"
+	// LevelInfo is the info log level
+	LevelInfo LogLevel = "info"
+	// LevelWarn is the warn log level
+	LevelWarn LogLevel = "warn"
+	// LevelError is the error log level
+	LevelError LogLevel = "error"
+)
+
+const (
+	// FormatText is the text log format
+	FormatText LogFormat = "text"
+	// FormatJSON is the json log format
+	FormatJSON LogFormat = "json"
 )
 
 // NewConfig returns a new Config
@@ -64,6 +84,7 @@ type Config struct {
 	Providers []Provider `toml:"provider,omitempty" json:"provider,omitempty"`
 	Github    []Github   `toml:"github,omitempty"`
 	JWTAuth   JWTAuth    `toml:"jwt_auth" json:"jwt-auth"`
+	Logging   Logging    `toml:"logging" json:"logging"`
 }
 
 // Validate validates the config
@@ -89,6 +110,10 @@ func (c *Config) Validate() error {
 		return errors.Wrap(err, "validating jwt config")
 	}
 
+	if err := c.Logging.Validate(); err != nil {
+		return errors.Wrap(err, "validating logging config")
+	}
+
 	providerNames := map[string]int{}
 
 	for _, provider := range c.Providers {
@@ -107,6 +132,52 @@ func (c *Config) Validate() error {
 	return nil
 }
 
+func (c *Config) GetLoggingConfig() Logging {
+	logging := c.Logging
+	if logging.LogFormat == "" {
+		logging.LogFormat = FormatText
+	}
+
+	if logging.LogLevel == "" {
+		logging.LogLevel = LevelInfo
+	}
+
+	// maintain backwards compatibility
+	if logging.LogFile == "" && c.Default.LogFile != "" {
+		logging.LogFile = c.Default.LogFile
+	}
+	if logging.EnableLogStreamer == nil && c.Default.EnableLogStreamer != nil {
+		logging.EnableLogStreamer = c.Default.EnableLogStreamer
+	}
+
+	return logging
+}
+
+type Logging struct {
+	// LogFile is the location of the log file.
+	LogFile string `toml:"log_file,omitempty" json:"log-file"`
+	// EnableLogStreamer enables the log streamer over websockets.
+	EnableLogStreamer *bool `toml:"enable_log_streamer,omitempty" json:"enable-log-streamer,omitempty"`
+	// LogLevel is the log level.
+	LogLevel LogLevel `toml:"log_level" json:"log-format"`
+	// LogFormat is the log format.
+	LogFormat LogFormat `toml:"log_format" json:"log-level"`
+	// LogSource enables the log source.
+	LogSource bool `toml:"log_source" json:"log-source"`
+}
+
+func (l *Logging) Validate() error {
+	if l.LogLevel != LevelDebug && l.LogLevel != LevelInfo && l.LogLevel != LevelWarn && l.LogLevel != LevelError && l.LogLevel != "" {
+		return fmt.Errorf("invalid log level: %s", l.LogLevel)
+	}
+
+	if l.LogFormat != FormatText && l.LogFormat != FormatJSON && l.LogFormat != "" {
+		return fmt.Errorf("invalid log format: %s", l.LogFormat)
+	}
+
+	return nil
+}
+
 type Default struct {
 	// CallbackURL is the URL where the instances can send back status reports.
 	CallbackURL string `toml:"callback_url" json:"callback-url"`
@@ -120,7 +191,7 @@ type Default struct {
 
 	// LogFile is the location of the log file.
 	LogFile           string `toml:"log_file,omitempty" json:"log-file"`
-	EnableLogStreamer bool   `toml:"enable_log_streamer"`
+	EnableLogStreamer *bool  `toml:"enable_log_streamer,omitempty" json:"enable-log-streamer,omitempty"`
 	DebugServer       bool   `toml:"debug_server" json:"debug-server"`
 }
 
@@ -438,7 +509,7 @@ func (d *timeToLive) ParseDuration() (time.Duration, error) {
 func (d *timeToLive) Duration() time.Duration {
 	duration, err := d.ParseDuration()
 	if err != nil {
-		log.Printf("failed to parse duration: %s", err)
+		slog.With(slog.Any("error", err)).Error("failed to parse duration")
 		return appdefaults.DefaultJWTTTL
 	}
 	// TODO(gabriel-samfira): should we have a minimum TTL?

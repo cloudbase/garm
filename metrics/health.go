@@ -1,7 +1,7 @@
 package metrics
 
 import (
-	"log"
+	"log/slog"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -15,7 +15,7 @@ func (c *GarmCollector) CollectHealthMetric(ch chan<- prometheus.Metric, hostnam
 		controllerID,
 	)
 	if err != nil {
-		log.Printf("error on creating health metric: %s", err)
+		slog.With(slog.Any("error", err)).Error("error on creating health metric")
 		return
 	}
 	ch <- m

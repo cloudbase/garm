@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -36,7 +37,7 @@ var logCmd = &cobra.Command{
 			wsScheme = "wss"
 		}
 		u := url.URL{Scheme: wsScheme, Host: parsedURL.Host, Path: "/api/v1/ws"}
-		log.Printf("connecting to %s", u.String())
+		slog.Debug("connecting", "url", u.String())
 
 		header := http.Header{}
 		header.Add("Authorization", fmt.Sprintf("Bearer %s", mgr.Token))
@@ -59,10 +60,10 @@ var logCmd = &cobra.Command{
 			for {
 				_, message, err := c.ReadMessage()
 				if err != nil {
-					log.Printf("read: %q", err)
+					slog.With(slog.Any("error", err)).Error("reading log message")
 					return
 				}
-				log.Print(util.SanitizeLogEntry(string(message)))
+				fmt.Println(util.SanitizeLogEntry(string(message)))
 			}
 		}()
 

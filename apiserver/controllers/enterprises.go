@@ -16,7 +16,7 @@ package controllers
 
 import (
 	"encoding/json"
-	"log"
+	"log/slog"
 	"net/http"
 
 	gErrors "github.com/cloudbase/garm-provider-common/errors"
@@ -45,20 +45,20 @@ func (a *APIController) CreateEnterpriseHandler(w http.ResponseWriter, r *http.R
 
 	var enterpriseData runnerParams.CreateEnterpriseParams
 	if err := json.NewDecoder(r.Body).Decode(&enterpriseData); err != nil {
-		handleError(w, gErrors.ErrBadRequest)
+		handleError(ctx, w, gErrors.ErrBadRequest)
 		return
 	}
 
 	enterprise, err := a.r.CreateEnterprise(ctx, enterpriseData)
 	if err != nil {
-		log.Printf("error creating enterprise: %+v", err)
-		handleError(w, err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error creating enterprise")
+		handleError(ctx, w, err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(enterprise); err != nil {
-		log.Printf("failed to encode response: %q", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }
 
@@ -74,14 +74,14 @@ func (a *APIController) ListEnterprisesHandler(w http.ResponseWriter, r *http.Re
 
 	enterprise, err := a.r.ListEnterprises(ctx)
 	if err != nil {
-		log.Printf("listing enterprise: %s", err)
-		handleError(w, err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "listing enterprise")
+		handleError(ctx, w, err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(enterprise); err != nil {
-		log.Printf("failed to encode response: %q", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }
 
@@ -110,21 +110,21 @@ func (a *APIController) GetEnterpriseByIDHandler(w http.ResponseWriter, r *http.
 			Error:   "Bad Request",
 			Details: "No enterprise ID specified",
 		}); err != nil {
-			log.Printf("failed to encode response: %q", err)
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 		}
 		return
 	}
 
 	enterprise, err := a.r.GetEnterpriseByID(ctx, enterpriseID)
 	if err != nil {
-		log.Printf("fetching enterprise: %s", err)
-		handleError(w, err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "fetching enterprise")
+		handleError(ctx, w, err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(enterprise); err != nil {
-		log.Printf("failed to encode response: %q", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }
 
@@ -152,14 +152,14 @@ func (a *APIController) DeleteEnterpriseHandler(w http.ResponseWriter, r *http.R
 			Error:   "Bad Request",
 			Details: "No enterprise ID specified",
 		}); err != nil {
-			log.Printf("failed to encode response: %q", err)
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 		}
 		return
 	}
 
 	if err := a.r.DeleteEnterprise(ctx, enterpriseID); err != nil {
-		log.Printf("removing enterprise: %+v", err)
-		handleError(w, err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "removing enterprise")
+		handleError(ctx, w, err)
 		return
 	}
 
@@ -198,27 +198,27 @@ func (a *APIController) UpdateEnterpriseHandler(w http.ResponseWriter, r *http.R
 			Error:   "Bad Request",
 			Details: "No enterprise ID specified",
 		}); err != nil {
-			log.Printf("failed to encode response: %q", err)
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 		}
 		return
 	}
 
 	var updatePayload runnerParams.UpdateEntityParams
 	if err := json.NewDecoder(r.Body).Decode(&updatePayload); err != nil {
-		handleError(w, gErrors.ErrBadRequest)
+		handleError(ctx, w, gErrors.ErrBadRequest)
 		return
 	}
 
 	enterprise, err := a.r.UpdateEnterprise(ctx, enterpriseID, updatePayload)
 	if err != nil {
-		log.Printf("error updating enterprise: %s", err)
-		handleError(w, err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error updating enterprise: %s")
+		handleError(ctx, w, err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(enterprise); err != nil {
-		log.Printf("failed to encode response: %q", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }
 
@@ -253,28 +253,28 @@ func (a *APIController) CreateEnterprisePoolHandler(w http.ResponseWriter, r *ht
 			Error:   "Bad Request",
 			Details: "No enterprise ID specified",
 		}); err != nil {
-			log.Printf("failed to encode response: %q", err)
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 		}
 		return
 	}
 
 	var poolData runnerParams.CreatePoolParams
 	if err := json.NewDecoder(r.Body).Decode(&poolData); err != nil {
-		log.Printf("failed to decode: %s", err)
-		handleError(w, gErrors.ErrBadRequest)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to decode")
+		handleError(ctx, w, gErrors.ErrBadRequest)
 		return
 	}
 
 	pool, err := a.r.CreateEnterprisePool(ctx, enterpriseID, poolData)
 	if err != nil {
-		log.Printf("error creating enterprise pool: %s", err)
-		handleError(w, err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error creating enterprise pool")
+		handleError(ctx, w, err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(pool); err != nil {
-		log.Printf("failed to encode response: %q", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }
 
@@ -302,21 +302,21 @@ func (a *APIController) ListEnterprisePoolsHandler(w http.ResponseWriter, r *htt
 			Error:   "Bad Request",
 			Details: "No enterprise ID specified",
 		}); err != nil {
-			log.Printf("failed to encode response: %q", err)
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 		}
 		return
 	}
 
 	pools, err := a.r.ListEnterprisePools(ctx, enterpriseID)
 	if err != nil {
-		log.Printf("listing pools: %s", err)
-		handleError(w, err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "listing pools")
+		handleError(ctx, w, err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(pools); err != nil {
-		log.Printf("failed to encode response: %q", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 
 }
@@ -352,21 +352,21 @@ func (a *APIController) GetEnterprisePoolHandler(w http.ResponseWriter, r *http.
 			Error:   "Bad Request",
 			Details: "No enterprise or pool ID specified",
 		}); err != nil {
-			log.Printf("failed to encode response: %q", err)
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 		}
 		return
 	}
 
 	pool, err := a.r.GetEnterprisePoolByID(ctx, enterpriseID, poolID)
 	if err != nil {
-		log.Printf("listing pools: %s", err)
-		handleError(w, err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "listing pools")
+		handleError(ctx, w, err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(pool); err != nil {
-		log.Printf("failed to encode response: %q", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }
 
@@ -401,14 +401,14 @@ func (a *APIController) DeleteEnterprisePoolHandler(w http.ResponseWriter, r *ht
 			Error:   "Bad Request",
 			Details: "No enterprise or pool ID specified",
 		}); err != nil {
-			log.Printf("failed to encode response: %q", err)
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 		}
 		return
 	}
 
 	if err := a.r.DeleteEnterprisePool(ctx, enterpriseID, poolID); err != nil {
-		log.Printf("removing pool: %s", err)
-		handleError(w, err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "removing pool")
+		handleError(ctx, w, err)
 		return
 	}
 
@@ -455,27 +455,27 @@ func (a *APIController) UpdateEnterprisePoolHandler(w http.ResponseWriter, r *ht
 			Error:   "Bad Request",
 			Details: "No enterprise or pool ID specified",
 		}); err != nil {
-			log.Printf("failed to encode response: %q", err)
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 		}
 		return
 	}
 
 	var poolData runnerParams.UpdatePoolParams
 	if err := json.NewDecoder(r.Body).Decode(&poolData); err != nil {
-		log.Printf("failed to decode: %s", err)
-		handleError(w, gErrors.ErrBadRequest)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to decode")
+		handleError(ctx, w, gErrors.ErrBadRequest)
 		return
 	}
 
 	pool, err := a.r.UpdateEnterprisePool(ctx, enterpriseID, poolID, poolData)
 	if err != nil {
-		log.Printf("error creating enterprise pool: %s", err)
-		handleError(w, err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error creating enterprise pool")
+		handleError(ctx, w, err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(pool); err != nil {
-		log.Printf("failed to encode response: %q", err)
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }

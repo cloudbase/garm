@@ -16,7 +16,7 @@ package providers
 
 import (
 	"context"
-	"log"
+	"log/slog"
 
 	"github.com/cloudbase/garm/config"
 	"github.com/cloudbase/garm/params"
@@ -31,7 +31,9 @@ import (
 func LoadProvidersFromConfig(ctx context.Context, cfg config.Config, controllerID string) (map[string]common.Provider, error) {
 	providers := make(map[string]common.Provider, len(cfg.Providers))
 	for _, providerCfg := range cfg.Providers {
-		log.Printf("Loading provider %s", providerCfg.Name)
+		slog.InfoContext(
+			ctx, "Loading provider",
+			"provider", providerCfg.Name)
 		switch providerCfg.ProviderType {
 		case params.ExternalProvider:
 			conf := providerCfg
