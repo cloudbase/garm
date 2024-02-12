@@ -24,6 +24,10 @@ Whether you're running into issues or just want to drop by and say "hi", feel fr
 
 Check out the [quickstart](/doc/quickstart.md) document for instructions on how to install ```GARM```. If you'd like to build from source, check out the [building from source](/doc/building_from_source.md) document.
 
+### On Kubernetes
+
+Thanks to the efforts of the amazing folks at @mercedes-benz, GARM can now be integrated into k8s via their operator. Check out the [GARM operator](https://github.com/mercedes-benz/garm-operator/) for more details.
+
 ## Configuration
 
 The ```GARM``` configuration is a simple ```toml```. The sample config file in [the testdata folder](/testdata/config.toml) is fairly well commented and should be enough to get you started. The configuration file is split into several sections, each of which is documented in its own page. The sections are:
@@ -37,15 +41,11 @@ The ```GARM``` configuration is a simple ```toml```. The sample config file in [
 * [JWT authentication](/doc/config_jwt_auth.md)
 * [API server](/doc/config_api_server.md)
 
-### On Kubernetes
-
-Thanks to the efforts of the amazing folks at @mercedes-benz, GARM can now be integrated into k8s via their operator. Check out the [GARM operator](https://github.com/mercedes-benz/garm-operator/) for more details.
-
 ## Supported providers
 
 GARM uses providers to create runners in a particular IaaS. The providers are external executables that GARM calls into to create runners. Before you can create runners, you'll need to install at least one provider.
 
-## Installing external providers
+### Installing external providers
 
 External providers are binaries that GARM calls into to create runners in a particular IaaS. There are several external providers available:
 
