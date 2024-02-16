@@ -19,17 +19,17 @@ RUN git clone https://github.com/cloudbase/garm-provider-equinix /build/garm-pro
 
 RUN cd /build/garm && go build -o /bin/garm \
     -tags osusergo,netgo,sqlite_omit_load_extension \
-    -ldflags "-extldflags '-static' -s -w -X main.Version=$(git describe --tags --match='v[0-9]*' --dirty --always)" \
+    -ldflags "-linkmode external -extldflags '-static' -s -w -X main.Version=$(git describe --tags --match='v[0-9]*' --dirty --always)" \
     /build/garm/cmd/garm && upx /bin/garm
 RUN mkdir -p /opt/garm/providers.d
-RUN cd /build/garm-provider-azure && go build -ldflags="-extldflags '-static' -s -w" -o /opt/garm/providers.d/garm-provider-azure . && upx /opt/garm/providers.d/garm-provider-azure
-RUN cd /build/garm-provider-openstack && go build -ldflags="-extldflags '-static' -s -w" -o /opt/garm/providers.d/garm-provider-openstack . && upx /opt/garm/providers.d/garm-provider-openstack
-RUN cd /build/garm-provider-lxd && go build -ldflags="-extldflags '-static' -s -w" -o /opt/garm/providers.d/garm-provider-lxd . && upx /opt/garm/providers.d/garm-provider-lxd
-RUN cd /build/garm-provider-incus && go build -ldflags="-extldflags '-static' -s -w" -o /opt/garm/providers.d/garm-provider-incus . && upx /opt/garm/providers.d/garm-provider-incus
-RUN cd /build/garm-provider-k8s/cmd/garm-provider-k8s && go build -ldflags="-extldflags '-static' -s -w" -o /opt/garm/providers.d/garm-provider-k8s . && upx /opt/garm/providers.d/garm-provider-k8s
-RUN cd /build/garm-provider-aws && go build -ldflags="-extldflags '-static' -s -w" -o /opt/garm/providers.d/garm-provider-aws . && upx /opt/garm/providers.d/garm-provider-aws
-RUN cd /build/garm-provider-gcp && go build -ldflags="-extldflags '-static' -s -w" -o /opt/garm/providers.d/garm-provider-gcp . && upx /opt/garm/providers.d/garm-provider-gcp
-RUN cd /build/garm-provider-equinix && go build -ldflags="-extldflags '-static' -s -w" -o /opt/garm/providers.d/garm-provider-equinix . && upx /opt/garm/providers.d/garm-provider-equinix
+RUN cd /build/garm-provider-azure && go build -ldflags="-linkmode external -extldflags '-static' -s -w" -o /opt/garm/providers.d/garm-provider-azure . && upx /opt/garm/providers.d/garm-provider-azure
+RUN cd /build/garm-provider-openstack && go build -ldflags="-linkmode external -extldflags '-static' -s -w" -o /opt/garm/providers.d/garm-provider-openstack . && upx /opt/garm/providers.d/garm-provider-openstack
+RUN cd /build/garm-provider-lxd && go build -ldflags="-linkmode external -extldflags '-static' -s -w" -o /opt/garm/providers.d/garm-provider-lxd . && upx /opt/garm/providers.d/garm-provider-lxd
+RUN cd /build/garm-provider-incus && go build -ldflags="-linkmode external -extldflags '-static' -s -w" -o /opt/garm/providers.d/garm-provider-incus . && upx /opt/garm/providers.d/garm-provider-incus
+RUN cd /build/garm-provider-k8s/cmd/garm-provider-k8s && go build -ldflags="-linkmode external -extldflags '-static' -s -w" -o /opt/garm/providers.d/garm-provider-k8s . && upx /opt/garm/providers.d/garm-provider-k8s
+RUN cd /build/garm-provider-aws && go build -ldflags="-linkmode external -extldflags '-static' -s -w" -o /opt/garm/providers.d/garm-provider-aws . && upx /opt/garm/providers.d/garm-provider-aws
+RUN cd /build/garm-provider-gcp && go build -ldflags="-linkmode external -extldflags '-static' -s -w" -o /opt/garm/providers.d/garm-provider-gcp . && upx /opt/garm/providers.d/garm-provider-gcp
+RUN cd /build/garm-provider-equinix && go build -ldflags="-linkmode external -extldflags '-static' -s -w" -o /opt/garm/providers.d/garm-provider-equinix . && upx /opt/garm/providers.d/garm-provider-equinix
 
 FROM scratch
 
