@@ -35,8 +35,8 @@ import (
 	"github.com/cloudbase/garm/config"
 	"github.com/cloudbase/garm/database"
 	"github.com/cloudbase/garm/database/common"
-	"github.com/cloudbase/garm/metrics"
 	"github.com/cloudbase/garm/runner"
+	runnerMetrics "github.com/cloudbase/garm/runner/metrics"
 	garmUtil "github.com/cloudbase/garm/util"
 	"github.com/cloudbase/garm/util/appdefaults"
 	"github.com/cloudbase/garm/websocket"
@@ -214,13 +214,13 @@ func main() {
 
 	router := routers.NewAPIRouter(controller, jwtMiddleware, initMiddleware, instanceMiddleware, cfg.Default.EnableWebhookManagement)
 
+	// start the metrics collector
 	if cfg.Metrics.Enable {
-		slog.InfoContext(ctx, "registering prometheus metrics collectors")
-		if err := metrics.RegisterCollectors(runner); err != nil {
-			log.Fatal(err)
-		}
 		slog.InfoContext(ctx, "setting up metric routes")
 		router = routers.WithMetricsRouter(router, cfg.Metrics.DisableAuth, metricsMiddleware)
+
+		slog.InfoContext(ctx, "start metrics collection")
+		runnerMetrics.CollectObjectMetric(runner, time.NewTicker(cfg.Metrics.Period))
 	}
 
 	if cfg.Default.DebugServer {

@@ -456,8 +456,9 @@ func (t *TLSConfig) Validate() error {
 }
 
 type Metrics struct {
-	DisableAuth bool `toml:"disable_auth" json:"disable-auth"`
-	Enable      bool `toml:"enable" json:"enable"`
+	DisableAuth bool          `toml:"disable_auth" json:"disable-auth"`
+	Enable      bool          `toml:"enable" json:"enable"`
+	Period      time.Duration `toml:"period" json:"period"`
 }
 
 // APIServer holds configuration for the API server
