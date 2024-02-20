@@ -37,7 +37,7 @@ import (
 )
 
 func NewAPIController(r *runner.Runner, authenticator *auth.Authenticator, hub *wsWriter.Hub) (*APIController, error) {
-	controllerInfo, err := r.GetControllerInfo(auth.GetAdminContext())
+	controllerInfo, err := r.GetControllerInfo(auth.GetAdminContext(context.Background()))
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get controller info")
 	}
@@ -95,19 +95,6 @@ func handleError(ctx context.Context, w http.ResponseWriter, err error) {
 	}
 }
 
-func (a *APIController) webhookMetricLabelValues(ctx context.Context, valid, reason string) []string {
-	controllerInfo, err := a.r.GetControllerInfo(auth.GetAdminContext())
-	if err != nil {
-		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to get controller info")
-		// If labels are empty, not attempt will be made to record webhook.
-		return []string{}
-	}
-	return []string{
-		valid, reason,
-		controllerInfo.Hostname, controllerInfo.ControllerID.String(),
-	}
-}
-
 func (a *APIController) handleWorkflowJobEvent(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	body, err := io.ReadAll(r.Body)
@@ -119,31 +106,33 @@ func (a *APIController) handleWorkflowJobEvent(ctx context.Context, w http.Respo
 	signature := r.Header.Get("X-Hub-Signature-256")
 	hookType := r.Header.Get("X-Github-Hook-Installation-Target-Type")
 
-	var labelValues []string
-	defer func() {
-		if len(labelValues) == 0 {
-			return
-		}
-		if err := metrics.RecordWebhookWithLabels(labelValues...); err != nil {
-			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to record metric")
-		}
-	}()
-
 	if err := a.r.DispatchWorkflowJob(hookType, signature, body); err != nil {
 		if errors.Is(err, gErrors.ErrNotFound) {
-			labelValues = a.webhookMetricLabelValues(ctx, "false", "owner_unknown")
+			metrics.WebhooksReceived.WithLabelValues(
+				"false",         // label: valid
+				"owner_unknown", // label: reason
+			).Inc()
 			slog.With(slog.Any("error", err)).ErrorContext(ctx, "got not found error from DispatchWorkflowJob. webhook not meant for us?")
 			return
 		} else if strings.Contains(err.Error(), "signature") { // TODO: check error type
-			labelValues = a.webhookMetricLabelValues(ctx, "false", "signature_invalid")
+			metrics.WebhooksReceived.WithLabelValues(
+				"false",             // label: valid
+				"signature_invalid", // label: reason
+			).Inc()
 		} else {
-			labelValues = a.webhookMetricLabelValues(ctx, "false", "unknown")
+			metrics.WebhooksReceived.WithLabelValues(
+				"false",   // label: valid
+				"unknown", // label: reason
+			).Inc()
 		}
 
 		handleError(ctx, w, err)
 		return
 	}
-	labelValues = a.webhookMetricLabelValues(ctx, "true", "")
+	metrics.WebhooksReceived.WithLabelValues(
+		"true", // label: valid
+		"",     // label: reason
+	).Inc()
 }
 
 func (a *APIController) WebhookHandler(w http.ResponseWriter, r *http.Request) {

@@ -59,7 +59,7 @@ type RepoTestSuite struct {
 }
 
 func (s *RepoTestSuite) SetupTest() {
-	adminCtx := auth.GetAdminContext()
+	adminCtx := auth.GetAdminContext(context.Background())
 
 	// create testing sqlite database
 	dbCfg := garmTesting.GetTestSqliteDBConfig(s.T())
@@ -90,7 +90,7 @@ func (s *RepoTestSuite) SetupTest() {
 	var minIdleRunners uint = 20
 	providerMock := runnerCommonMocks.NewProvider(s.T())
 	fixtures := &RepoTestFixtures{
-		AdminContext: auth.GetAdminContext(),
+		AdminContext: auth.GetAdminContext(context.Background()),
 		Store:        db,
 		StoreRepos:   repos,
 		Providers: map[string]common.Provider{

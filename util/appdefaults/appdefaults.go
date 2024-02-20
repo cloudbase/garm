@@ -27,4 +27,7 @@ const (
 
 	// uploadBaseURL is the default URL for guthub uploads.
 	GithubDefaultUploadBaseURL = "https://uploads.github.com/"
+
+	// metrics data update interval
+	DefaultMetricsUpdateInterval = 60 * time.Second
 )

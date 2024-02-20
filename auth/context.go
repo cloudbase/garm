@@ -238,8 +238,10 @@ func UserID(ctx context.Context) string {
 
 // GetAdminContext will return an admin context. This can be used internally
 // when fetching users.
-func GetAdminContext() context.Context {
-	ctx := context.Background()
+func GetAdminContext(ctx context.Context) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	ctx = SetUserID(ctx, "")
 	ctx = SetAdmin(ctx, true)
 	ctx = SetIsEnabled(ctx, true)

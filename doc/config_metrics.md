@@ -4,10 +4,10 @@ This is one of the features in GARM that I really love having. For one thing, it
 
 ## Common metrics
 
-| Metric name              | Type    | Labels                                                            | Description                                                                                          |
-|--------------------------|---------|-------------------------------------------------------------------|------------------------------------------------------------------------------------------------------|
-| `garm_health`            | Gauge   | `controller_id`=&lt;controller id&gt; <br>`name`=&lt;hostname&gt; | This is a gauge that is set to 1 if GARM is healthy and 0 if it is not. This is useful for alerting. |
-| `garm_webhooks_received` | Counter | `controller_id`=&lt;controller id&gt; <br>`name`=&lt;hostname&gt; | This is a counter that increments every time GARM receives a webhook from GitHub.                    |
+| Metric name              | Type    | Labels                                                                                                                                                                                                                                              | Description                                                                                          |
+|--------------------------|---------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------|
+| `garm_health`            | Gauge   | `controller_id`=&lt;controller id&gt; <br>`callback_url`=&lt;callback url&gt; <br>`controller_webhook_url`=&lt;controller webhook url&gt; <br>`metadata_url`=&lt;metadata url&gt; <br>`webhook_url`=&lt;webhook url&gt; <br>`name`=&lt;hostname&gt; | This is a gauge that is set to 1 if GARM is healthy and 0 if it is not. This is useful for alerting. |
+| `garm_webhooks_received` | Counter | `valid`=&lt;valid request&gt; <br>`reason`=&lt;reason for invalid requests&gt;                                                                                                                                                                      | This is a counter that increments every time GARM receives a webhook from GitHub.                    |
 
 ## Enterprise metrics
 
@@ -48,9 +48,9 @@ This is one of the features in GARM that I really love having. For one thing, it
 
 ## Runner metrics
 
-| Metric name          | Type  | Labels                                                                                                                                                                                                                                                                                                                                                                                                                                      | Description                                                               |
-|----------------------|-------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------|
-| `garm_runner_status` | Gauge | `controller_id`=&lt;controller id&gt; <br>`hostname`=&lt;hostname&gt; <br>`name`=&lt;runner name&gt; <br>`pool_owner`=&lt;owner name&gt; <br>`pool_type`=&lt;repository\|organization\|enterprise&gt; <br>`provider`=&lt;provider name&gt; <br>`runner_status`=&lt;running\|stopped\|error\|pending_delete\|deleting\|pending_create\|creating\|unknown&gt; <br>`status`=&lt;idle\|pending\|terminated\|installing\|failed\|active&gt; <br> | This is a gauge value that gives us details about the runners garm spawns |
+| Metric name          | Type  | Labels                                                                                                                                                                                                                                                                                                                                                            | Description                                                               |
+|----------------------|-------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------|
+| `garm_runner_status` | Gauge | `name`=&lt;runner name&gt; <br>`pool_owner`=&lt;owner name&gt; <br>`pool_type`=&lt;repository\|organization\|enterprise&gt; <br>`provider`=&lt;provider name&gt; <br>`runner_status`=&lt;running\|stopped\|error\|pending_delete\|deleting\|pending_create\|creating\|unknown&gt; <br>`status`=&lt;idle\|pending\|terminated\|installing\|failed\|active&gt; <br> | This is a gauge value that gives us details about the runners garm spawns |
 
 More metrics will be added in the future.
 
@@ -60,15 +60,27 @@ Metrics are disabled by default. To enable them, add the following to your confi
 
 ```toml
 [metrics]
-# Toggle metrics. If set to false, the API endpoint for metrics collection will
-# be disabled.
-enable = true
+
 # Toggle to disable authentication (not recommended) on the metrics endpoint.
 # If you do disable authentication, I encourage you to put a reverse proxy in front
 # of garm and limit which systems can access that particular endpoint. Ideally, you
 # would enable some kind of authentication using the reverse proxy, if the built-in auth
 # is not sufficient for your needs.
-disable_auth = false
+#
+# Default: false
+disable_auth = true
+
+# Toggle metrics. If set to false, the API endpoint for metrics collection will
+# be disabled.
+#
+# Default: false
+enable = true
+
+# period is the time interval when the /metrics endpoint will update internal metrics about
+# controller specific objects (e.g. runners, pools, etc.)
+#
+# Default: "60s"
+period = "30s"
 ```
 
 You can choose to disable authentication if you wish, however it's not terribly difficult to set up, so I generally advise against disabling it.
