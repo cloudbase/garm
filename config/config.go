@@ -456,9 +456,39 @@ func (t *TLSConfig) Validate() error {
 }
 
 type Metrics struct {
-	DisableAuth bool          `toml:"disable_auth" json:"disable-auth"`
-	Enable      bool          `toml:"enable" json:"enable"`
-	Period      time.Duration `toml:"period" json:"period"`
+	// DisableAuth defines if the API endpoint will be protected by
+	// JWT authentication
+	DisableAuth bool `toml:"disable_auth" json:"disable-auth"`
+	// Enable define if the API endpoint for metrics collection will
+	// be enabled
+	Enable bool `toml:"enable" json:"enable"`
+	// Period defines the internal period at which internal metrics are getting updated
+	// and propagated to the /metrics endpoint
+	Period time.Duration `toml:"period" json:"period"`
+}
+
+// ParseDuration parses the configured duration and returns a time.Duration of 0
+// if the duration is invalid.
+func (m *Metrics) ParseDuration() (time.Duration, error) {
+	duration, err := time.ParseDuration(fmt.Sprint(m.Period))
+	if err != nil {
+		return 0, err
+	}
+	return duration, nil
+}
+
+// Duration returns the configured duration or the default duration if no value
+// is configured or the configured value is invalid.
+func (m *Metrics) Duration() time.Duration {
+	duration, err := m.ParseDuration()
+	if err != nil {
+		slog.With(slog.Any("error", err)).Error(fmt.Sprintf("defined duration %s is invalid", m.Period))
+	}
+	if duration == 0 {
+		slog.Debug(fmt.Sprintf("using default duration %s for metrics update interval", appdefaults.DefaultMetricsUpdateInterval))
+		return appdefaults.DefaultMetricsUpdateInterval
+	}
+	return duration
 }
 
 // APIServer holds configuration for the API server

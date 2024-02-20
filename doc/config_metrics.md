@@ -60,15 +60,27 @@ Metrics are disabled by default. To enable them, add the following to your confi
 
 ```toml
 [metrics]
-# Toggle metrics. If set to false, the API endpoint for metrics collection will
-# be disabled.
-enable = true
+
 # Toggle to disable authentication (not recommended) on the metrics endpoint.
 # If you do disable authentication, I encourage you to put a reverse proxy in front
 # of garm and limit which systems can access that particular endpoint. Ideally, you
 # would enable some kind of authentication using the reverse proxy, if the built-in auth
 # is not sufficient for your needs.
-disable_auth = false
+#
+# Default: false
+disable_auth = true
+
+# Toggle metrics. If set to false, the API endpoint for metrics collection will
+# be disabled.
+#
+# Default: false
+enable = true
+
+# period is the time interval when the /metrics endpoint will update internal metrics about
+# controller specific objects (e.g. runners, pools, etc.)
+#
+# Default: "60s"
+period = "30s"
 ```
 
 You can choose to disable authentication if you wish, however it's not terribly difficult to set up, so I generally advise against disabling it.

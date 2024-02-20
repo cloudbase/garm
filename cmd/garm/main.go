@@ -220,7 +220,7 @@ func main() {
 		router = routers.WithMetricsRouter(router, cfg.Metrics.DisableAuth, metricsMiddleware)
 
 		slog.InfoContext(ctx, "start metrics collection")
-		runnerMetrics.CollectObjectMetric(ctx, runner, time.NewTicker(cfg.Metrics.Period))
+		runnerMetrics.CollectObjectMetric(ctx, runner, time.NewTicker(cfg.Metrics.Duration()))
 	}
 
 	if cfg.Default.DebugServer {
