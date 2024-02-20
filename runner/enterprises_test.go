@@ -60,7 +60,7 @@ type EnterpriseTestSuite struct {
 }
 
 func (s *EnterpriseTestSuite) SetupTest() {
-	adminCtx := auth.GetAdminContext(nil)
+	adminCtx := auth.GetAdminContext(context.TODO())
 
 	// create testing sqlite database
 	dbCfg := garmTesting.GetTestSqliteDBConfig(s.T())
