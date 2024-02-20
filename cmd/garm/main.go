@@ -226,7 +226,7 @@ func main() {
 		}
 
 		slog.InfoContext(ctx, "start metrics collection")
-		runnerMetrics.CollectObjectMetric(ctx, runner, time.NewTicker(cfg.Metrics.Duration()))
+		runnerMetrics.CollectObjectMetric(ctx, runner, cfg.Metrics.Duration())
 	}
 
 	if cfg.Default.DebugServer {
