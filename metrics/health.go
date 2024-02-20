@@ -9,5 +9,5 @@ var (
 		Namespace: metricsNamespace,
 		Name:      "health",
 		Help:      "Health of the garm",
-	}, []string{"hostname", "controller_id", "metadata_url", "callback_url", "webhook_url", "controller_webhook_url"})
+	}, []string{"metadata_url", "callback_url", "webhook_url", "controller_webhook_url", "controller_id"})
 )

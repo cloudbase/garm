@@ -10,10 +10,6 @@ var (
 		Subsystem: metricsPoolSubsystem,
 		Name:      "info",
 		Help:      "Info of the pool",
-		// ConstLabels: prometheus.Labels{
-		// 	"controller_id": metricControllerValue,
-		// 	"hostname": 	metricHostnameValue,
-		// },
 	}, []string{"id", "image", "flavor", "prefix", "os_type", "os_arch", "tags", "provider", "pool_owner", "pool_type"})
 
 	PoolStatus = prometheus.NewGaugeVec(prometheus.GaugeOpts{

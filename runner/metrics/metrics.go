@@ -57,16 +57,16 @@ func CollectObjectMetric(ctx context.Context, r *runner.Runner, ticker *time.Tic
 					slog.With(slog.Any("error", err)).ErrorContext(ctx, "cannot collect pool metrics")
 				}
 
+				slog.DebugContext(ctx, "collecting instance metrics")
+				err = CollectInstanceMetric(ctx, r)
+				if err != nil {
+					slog.With(slog.Any("error", err)).ErrorContext(ctx, "cannot collect instance metrics")
+				}
+
 				slog.DebugContext(ctx, "collecting health metrics")
 				err = CollectHealthMetric(ctx, r, controllerInfo)
 				if err != nil {
 					slog.With(slog.Any("error", err)).ErrorContext(ctx, "cannot collect health metrics")
-				}
-
-				slog.DebugContext(ctx, "collecting instance metrics")
-				err = CollectInstanceMetric(ctx, r, controllerInfo)
-				if err != nil {
-					slog.With(slog.Any("error", err)).ErrorContext(ctx, "cannot collect instance metrics")
 				}
 			}
 		}

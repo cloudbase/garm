@@ -13,29 +13,41 @@ const metricsRepositorySubsystem = "repository"
 const metricsEnterpriseSubsystem = "enterprise"
 const metricsWebhookSubsystem = "webhook"
 
-func init() {
-	// runner metrics
-	prometheus.MustRegister(InstanceStatus)
-	// organization metrics
-	prometheus.MustRegister(OrganizationInfo)
-	prometheus.MustRegister(OrganizationPoolManagerStatus)
-	// enterprise metrics
-	prometheus.MustRegister(EnterpriseInfo)
-	prometheus.MustRegister(EnterprisePoolManagerStatus)
-	// repository metrics
-	prometheus.MustRegister(RepositoryInfo)
-	prometheus.MustRegister(RepositoryPoolManagerStatus)
-	// provider metrics
-	prometheus.MustRegister(ProviderInfo)
-	// pool metrics
-	prometheus.MustRegister(PoolInfo)
-	prometheus.MustRegister(PoolStatus)
-	prometheus.MustRegister(PoolMaxRunners)
-	prometheus.MustRegister(PoolMinIdleRunners)
-	prometheus.MustRegister(PoolBootstrapTimeout)
-	// health metrics
-	prometheus.MustRegister(GarmHealth)
-	// webhook metrics
-	prometheus.MustRegister(WebhooksReceived)
+// RegisterMetrics registers all the metrics
+func RegisterMetrics() error {
 
+	var collectors []prometheus.Collector
+	collectors = append(collectors,
+		// runner metrics
+		InstanceStatus,
+		// organization metrics
+		OrganizationInfo,
+		OrganizationPoolManagerStatus,
+		// enterprise metrics
+		EnterpriseInfo,
+		EnterprisePoolManagerStatus,
+		// repository metrics
+		RepositoryInfo,
+		RepositoryPoolManagerStatus,
+		// provider metrics
+		ProviderInfo,
+		// pool metrics
+		PoolInfo,
+		PoolStatus,
+		PoolMaxRunners,
+		PoolMinIdleRunners,
+		PoolBootstrapTimeout,
+		// health metrics
+		GarmHealth,
+		// webhook metrics
+		WebhooksReceived,
+	)
+
+	for _, c := range collectors {
+		if err := prometheus.Register(c); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

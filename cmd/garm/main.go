@@ -35,6 +35,7 @@ import (
 	"github.com/cloudbase/garm/config"
 	"github.com/cloudbase/garm/database"
 	"github.com/cloudbase/garm/database/common"
+	"github.com/cloudbase/garm/metrics"
 	"github.com/cloudbase/garm/runner"
 	runnerMetrics "github.com/cloudbase/garm/runner/metrics"
 	garmUtil "github.com/cloudbase/garm/util"
@@ -218,6 +219,11 @@ func main() {
 	if cfg.Metrics.Enable {
 		slog.InfoContext(ctx, "setting up metric routes")
 		router = routers.WithMetricsRouter(router, cfg.Metrics.DisableAuth, metricsMiddleware)
+
+		slog.InfoContext(ctx, "register metrics")
+		if err := metrics.RegisterMetrics(); err != nil {
+			log.Fatal(err)
+		}
 
 		slog.InfoContext(ctx, "start metrics collection")
 		runnerMetrics.CollectObjectMetric(ctx, runner, time.NewTicker(cfg.Metrics.Duration()))

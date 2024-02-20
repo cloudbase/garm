@@ -10,5 +10,5 @@ var (
 		Subsystem: metricsRunnerSubsystem,
 		Name:      "status",
 		Help:      "Status of the instance",
-	}, []string{"name", "status", "runner_status", "pool_owner", "pool_type", "pool_id", "hostname", "controller_id", "provider"})
+	}, []string{"name", "status", "runner_status", "pool_owner", "pool_type", "pool_id", "provider"})
 )

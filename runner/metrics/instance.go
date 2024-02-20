@@ -4,13 +4,12 @@ import (
 	"context"
 
 	"github.com/cloudbase/garm/metrics"
-	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner"
 )
 
 // CollectInstanceMetric collects the metrics for the runner instances
 // reflecting the statuses and the pool they belong to.
-func CollectInstanceMetric(ctx context.Context, r *runner.Runner, controllerInfo params.ControllerInfo) error {
+func CollectInstanceMetric(ctx context.Context, r *runner.Runner) error {
 
 	// reset metrics
 	metrics.InstanceStatus.Reset()
@@ -63,10 +62,7 @@ func CollectInstanceMetric(ctx context.Context, r *runner.Runner, controllerInfo
 			poolNames[instance.PoolID].Name,         // label: pool_owner
 			poolNames[instance.PoolID].Type,         // label: pool_type
 			instance.PoolID,                         // label: pool_id
-			controllerInfo.Hostname,                 // label: hostname
-			controllerInfo.ControllerID.String(),    // label: controller_id
 			poolNames[instance.PoolID].ProviderName, // label: provider
-
 		).Set(1)
 	}
 	return nil

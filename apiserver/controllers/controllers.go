@@ -106,35 +106,23 @@ func (a *APIController) handleWorkflowJobEvent(ctx context.Context, w http.Respo
 	signature := r.Header.Get("X-Hub-Signature-256")
 	hookType := r.Header.Get("X-Github-Hook-Installation-Target-Type")
 
-	controllerInfo, err := a.r.GetControllerInfo(ctx)
-	if err != nil {
-		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to get controller info")
-		return
-	}
-
 	if err := a.r.DispatchWorkflowJob(hookType, signature, body); err != nil {
 		if errors.Is(err, gErrors.ErrNotFound) {
 			metrics.WebhooksReceived.WithLabelValues(
-				"false",                              // label: valid
-				"owner_unknown",                      // label: reason
-				controllerInfo.Hostname,              // label: hostname
-				controllerInfo.ControllerID.String(), // label: controller_id
+				"false",         // label: valid
+				"owner_unknown", // label: reason
 			).Inc()
 			slog.With(slog.Any("error", err)).ErrorContext(ctx, "got not found error from DispatchWorkflowJob. webhook not meant for us?")
 			return
 		} else if strings.Contains(err.Error(), "signature") { // TODO: check error type
 			metrics.WebhooksReceived.WithLabelValues(
-				"false",                              // label: valid
-				"signature_invalid",                  // label: reason
-				controllerInfo.Hostname,              // label: hostname
-				controllerInfo.ControllerID.String(), // label: controller_id
+				"false",             // label: valid
+				"signature_invalid", // label: reason
 			).Inc()
 		} else {
 			metrics.WebhooksReceived.WithLabelValues(
-				"false",                              // label: valid
-				"unknown",                            // label: reason
-				controllerInfo.Hostname,              // label: hostname
-				controllerInfo.ControllerID.String(), // label: controller_id
+				"false",   // label: valid
+				"unknown", // label: reason
 			).Inc()
 		}
 
@@ -142,10 +130,8 @@ func (a *APIController) handleWorkflowJobEvent(ctx context.Context, w http.Respo
 		return
 	}
 	metrics.WebhooksReceived.WithLabelValues(
-		"true",                               // label: valid
-		"",                                   // label: reason
-		controllerInfo.Hostname,              // label: hostname
-		controllerInfo.ControllerID.String(), // label: controller_id
+		"true", // label: valid
+		"",     // label: reason
 	).Inc()
 }
 

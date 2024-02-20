@@ -8,5 +8,5 @@ var (
 		Subsystem: metricsWebhookSubsystem,
 		Name:      "received",
 		Help:      "The total number of webhooks received",
-	}, []string{"valid", "reason", "hostname", "controller_id"})
+	}, []string{"valid", "reason"})
 )
