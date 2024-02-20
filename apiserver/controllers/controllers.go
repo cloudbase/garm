@@ -37,7 +37,7 @@ import (
 )
 
 func NewAPIController(r *runner.Runner, authenticator *auth.Authenticator, hub *wsWriter.Hub) (*APIController, error) {
-	controllerInfo, err := r.GetControllerInfo(auth.GetAdminContext())
+	controllerInfo, err := r.GetControllerInfo(auth.GetAdminContext(nil))
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get controller info")
 	}

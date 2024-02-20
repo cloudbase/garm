@@ -47,7 +47,7 @@ type PoolTestSuite struct {
 }
 
 func (s *PoolTestSuite) SetupTest() {
-	adminCtx := auth.GetAdminContext()
+	adminCtx := auth.GetAdminContext(nil)
 
 	// create testing sqlite database
 	dbCfg := garmTesting.GetTestSqliteDBConfig(s.T())
