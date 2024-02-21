@@ -15,14 +15,14 @@ var (
 	InstanceOperationCount = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: metricsNamespace,
 		Subsystem: metricsRunnerSubsystem,
-		Name:      "operation_total",
+		Name:      "operations_total",
 		Help:      "Total number of instance operation attempts",
 	}, []string{"operation", "provider"})
 
 	InstanceOperationFailedCount = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: metricsNamespace,
 		Subsystem: metricsRunnerSubsystem,
-		Name:      "operation_failed_total",
+		Name:      "errors_total",
 		Help:      "Total number of failed instance operation attempts",
 	}, []string{"operation", "provider"})
 )

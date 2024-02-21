@@ -6,14 +6,14 @@ var (
 	GithubOperationCount = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: metricsNamespace,
 		Subsystem: metricsGithubSubsystem,
-		Name:      "operation_total",
+		Name:      "operations_total",
 		Help:      "Total number of github operation attempts",
 	}, []string{"operation", "scope"})
 
 	GithubOperationFailedCount = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: metricsNamespace,
 		Subsystem: metricsGithubSubsystem,
-		Name:      "operation_failed_total",
+		Name:      "errors_total",
 		Help:      "Total number of failed github operation attempts",
 	}, []string{"operation", "scope"})
 )
