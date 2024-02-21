@@ -12,12 +12,16 @@ const metricsOrganizationSubsystem = "organization"
 const metricsRepositorySubsystem = "repository"
 const metricsEnterpriseSubsystem = "enterprise"
 const metricsWebhookSubsystem = "webhook"
+const metricsGithubSubsystem = "github"
 
 // RegisterMetrics registers all the metrics
 func RegisterMetrics() error {
 
 	var collectors []prometheus.Collector
 	collectors = append(collectors,
+
+		// metrics created during the periodically update of the metrics
+		//
 		// runner metrics
 		InstanceStatus,
 		// organization metrics
@@ -39,6 +43,14 @@ func RegisterMetrics() error {
 		PoolBootstrapTimeout,
 		// health metrics
 		GarmHealth,
+
+		// metrics used within normal garm operations
+		// e.g. count instance creations, count github api calls, ...
+		//
+		// runner instances
+		InstanceOperationCount,
+		InstanceOperationFailedCount,
+
 		// webhook metrics
 		WebhooksReceived,
 	)
