@@ -50,7 +50,9 @@ func RegisterMetrics() error {
 		// runner instances
 		InstanceOperationCount,
 		InstanceOperationFailedCount,
-
+		// github
+		GithubOperationCount,
+		GithubOperationFailedCount,
 		// webhook metrics
 		WebhooksReceived,
 	)

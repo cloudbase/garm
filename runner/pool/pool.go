@@ -57,6 +57,10 @@ const (
 	// before we give up.
 	// TODO: make this configurable(?)
 	maxCreateAttempts = 5
+
+	metricsLabelEnterpriseScope   = "Enterprise"
+	metricsLabelRepositoryScope   = "Repository"
+	metricsLabelOrganizationScope = "Organization"
 )
 
 type keyMutex struct {
