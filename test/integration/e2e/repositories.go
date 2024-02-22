@@ -126,7 +126,7 @@ func dumpRepoInstancesDetails(repoID string) error {
 	if err != nil {
 		return err
 	}
-	if err := printJsonResponse(repo); err != nil {
+	if err := printJSONResponse(repo); err != nil {
 		return err
 	}
 
@@ -142,7 +142,7 @@ func dumpRepoInstancesDetails(repoID string) error {
 			return err
 		}
 		slog.Info("Instance info", "instance_name", instance.Name)
-		if err := printJsonResponse(instance); err != nil {
+		if err := printJSONResponse(instance); err != nil {
 			return err
 		}
 	}

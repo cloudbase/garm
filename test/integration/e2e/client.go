@@ -17,18 +17,18 @@ var (
 )
 
 func InitClient(baseURL string) {
-	garmUrl, err := url.Parse(baseURL)
+	garmURL, err := url.Parse(baseURL)
 	if err != nil {
 		panic(err)
 	}
-	apiPath, err := url.JoinPath(garmUrl.Path, client.DefaultBasePath)
+	apiPath, err := url.JoinPath(garmURL.Path, client.DefaultBasePath)
 	if err != nil {
 		panic(err)
 	}
 	transportCfg := client.DefaultTransportConfig().
-		WithHost(garmUrl.Host).
+		WithHost(garmURL.Host).
 		WithBasePath(apiPath).
-		WithSchemes([]string{garmUrl.Scheme})
+		WithSchemes([]string{garmURL.Scheme})
 	cli = client.NewHTTPClientWithConfig(nil, transportCfg)
 }
 

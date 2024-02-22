@@ -75,7 +75,7 @@ func waitLabelledJob(label string, timeout time.Duration) (*params.Job, error) {
 		timeWaited += 5 * time.Second
 	}
 
-	if err := printJsonResponse(jobs); err != nil {
+	if err := printJSONResponse(jobs); err != nil {
 		return nil, err
 	}
 	return nil, fmt.Errorf("failed to wait job with label %s", label)
@@ -116,7 +116,7 @@ func waitJobStatus(id int64, status params.JobStatus, timeout time.Duration) (*p
 		timeWaited += 5 * time.Second
 	}
 
-	if err := printJsonResponse(*job); err != nil {
+	if err := printJSONResponse(*job); err != nil {
 		return nil, err
 	}
 	return nil, fmt.Errorf("timeout waiting for job %d to reach status %s", id, status)

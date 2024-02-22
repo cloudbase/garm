@@ -244,7 +244,7 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 			return errors.Wrap(err, "updating runner")
 		}
 		// Set triggeredBy here so we break the lock on any potential queued job.
-		triggeredBy = jobIdFromLabels(instance.AditionalLabels)
+		triggeredBy = jobIDFromLabels(instance.AditionalLabels)
 
 		// A runner has picked up the job, and is now running it. It may need to be replaced if the pool has
 		// a minimum number of idle runners configured.
@@ -261,14 +261,14 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 	return nil
 }
 
-func jobIdFromLabels(labels []string) int64 {
+func jobIDFromLabels(labels []string) int64 {
 	for _, lbl := range labels {
 		if strings.HasPrefix(lbl, jobLabelPrefix) {
-			jobId, err := strconv.ParseInt(lbl[len(jobLabelPrefix):], 10, 64)
+			jobID, err := strconv.ParseInt(lbl[len(jobLabelPrefix):], 10, 64)
 			if err != nil {
 				return 0
 			}
-			return jobId
+			return jobID
 		}
 	}
 	return 0

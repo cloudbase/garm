@@ -27,7 +27,7 @@ func waitInstanceStatus(name string, status commonParams.InstanceStatus, runnerS
 		timeWaited += 5 * time.Second
 	}
 
-	if err := printJsonResponse(*instance); err != nil {
+	if err := printJSONResponse(*instance); err != nil {
 		return nil, err
 	}
 	return nil, fmt.Errorf("timeout waiting for instance %s status to reach status %s and runner status %s", name, status, runnerStatus)
@@ -68,7 +68,7 @@ func WaitInstanceToBeRemoved(name string, timeout time.Duration) error {
 		timeWaited += 5 * time.Second
 	}
 
-	if err := printJsonResponse(*instance); err != nil {
+	if err := printJSONResponse(*instance); err != nil {
 		return err
 	}
 	return fmt.Errorf("instance %s was not removed within the timeout", name)

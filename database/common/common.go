@@ -28,7 +28,7 @@ type RepoStore interface {
 	DeleteRepository(ctx context.Context, repoID string) error
 	UpdateRepository(ctx context.Context, repoID string, param params.UpdateEntityParams) (params.Repository, error)
 
-	CreateRepositoryPool(ctx context.Context, repoId string, param params.CreatePoolParams) (params.Pool, error)
+	CreateRepositoryPool(ctx context.Context, repoID string, param params.CreatePoolParams) (params.Pool, error)
 
 	GetRepositoryPool(ctx context.Context, repoID, poolID string) (params.Pool, error)
 	DeleteRepositoryPool(ctx context.Context, repoID, poolID string) error
@@ -47,7 +47,7 @@ type OrgStore interface {
 	DeleteOrganization(ctx context.Context, orgID string) error
 	UpdateOrganization(ctx context.Context, orgID string, param params.UpdateEntityParams) (params.Organization, error)
 
-	CreateOrganizationPool(ctx context.Context, orgId string, param params.CreatePoolParams) (params.Pool, error)
+	CreateOrganizationPool(ctx context.Context, orgID string, param params.CreatePoolParams) (params.Pool, error)
 	GetOrganizationPool(ctx context.Context, orgID, poolID string) (params.Pool, error)
 	DeleteOrganizationPool(ctx context.Context, orgID, poolID string) error
 	UpdateOrganizationPool(ctx context.Context, orgID, poolID string, param params.UpdatePoolParams) (params.Pool, error)
