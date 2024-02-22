@@ -28,6 +28,7 @@ import (
 	"github.com/cloudbase/garm/config"
 )
 
+//nolint:golangci-lint,gosec
 var encryptionPassphrase = "bocyasicgatEtenOubwonIbsudNutDom"
 
 func GetTestSqliteDBConfig(t *testing.T) config.Database {
