@@ -29,9 +29,16 @@ import (
 	"sync"
 	"time"
 
-	commonParams "github.com/cloudbase/garm-provider-common/params"
+	"github.com/google/uuid"
+	"github.com/juju/clock"
+	"github.com/juju/retry"
+	"github.com/pkg/errors"
+	"golang.org/x/sync/errgroup"
+
+	"golang.org/x/sync/errgroup"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm-provider-common/util"
 	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/config"
@@ -40,12 +47,6 @@ import (
 	"github.com/cloudbase/garm/runner/common"
 	"github.com/cloudbase/garm/runner/pool"
 	"github.com/cloudbase/garm/runner/providers"
-	"golang.org/x/sync/errgroup"
-
-	"github.com/google/uuid"
-	"github.com/juju/clock"
-	"github.com/juju/retry"
-	"github.com/pkg/errors"
 )
 
 func NewRunner(ctx context.Context, cfg config.Config, db dbCommon.Store) (*Runner, error) {

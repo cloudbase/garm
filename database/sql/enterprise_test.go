@@ -22,17 +22,16 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/cloudbase/garm/params"
-
-	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
-	dbCommon "github.com/cloudbase/garm/database/common"
-	garmTesting "github.com/cloudbase/garm/internal/testing"
-
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
+
+	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	dbCommon "github.com/cloudbase/garm/database/common"
+	garmTesting "github.com/cloudbase/garm/internal/testing"
+	"github.com/cloudbase/garm/params"
 )
 
 type EnterpriseTestFixtures struct {

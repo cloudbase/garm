@@ -18,15 +18,15 @@ import (
 	"context"
 	"encoding/json"
 
-	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
-	"github.com/cloudbase/garm-provider-common/util"
-	"github.com/cloudbase/garm/params"
-
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+
+	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	"github.com/cloudbase/garm-provider-common/util"
+	"github.com/cloudbase/garm/params"
 )
 
 func (s *sqlDatabase) marshalAndSeal(data interface{}) ([]byte, error) {
@@ -92,7 +92,7 @@ func (s *sqlDatabase) CreateInstance(ctx context.Context, poolID string, param p
 	return s.sqlToParamsInstance(newInstance)
 }
 
-func (s *sqlDatabase) getInstanceByID(ctx context.Context, instanceID string) (Instance, error) {
+func (s *sqlDatabase) getInstanceByID(_ context.Context, instanceID string) (Instance, error) {
 	u, err := uuid.Parse(instanceID)
 	if err != nil {
 		return Instance{}, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
@@ -128,7 +128,7 @@ func (s *sqlDatabase) getPoolInstanceByName(ctx context.Context, poolID string, 
 	return instance, nil
 }
 
-func (s *sqlDatabase) getInstanceByName(ctx context.Context, instanceName string, preload ...string) (Instance, error) {
+func (s *sqlDatabase) getInstanceByName(_ context.Context, instanceName string, preload ...string) (Instance, error) {
 	var instance Instance
 
 	q := s.conn
@@ -184,7 +184,7 @@ func (s *sqlDatabase) DeleteInstance(ctx context.Context, poolID string, instanc
 	return nil
 }
 
-func (s *sqlDatabase) ListInstanceEvents(ctx context.Context, instanceID string, eventType params.EventType, eventLevel params.EventLevel) ([]params.StatusMessage, error) {
+func (s *sqlDatabase) ListInstanceEvents(_ context.Context, instanceID string, eventType params.EventType, eventLevel params.EventLevel) ([]params.StatusMessage, error) {
 	var events []InstanceStatusUpdate
 	query := s.conn.Model(&InstanceStatusUpdate{}).Where("instance_id = ?", instanceID)
 	if eventLevel != "" {
@@ -296,7 +296,7 @@ func (s *sqlDatabase) UpdateInstance(ctx context.Context, instanceID string, par
 	return s.sqlToParamsInstance(instance)
 }
 
-func (s *sqlDatabase) ListPoolInstances(ctx context.Context, poolID string) ([]params.Instance, error) {
+func (s *sqlDatabase) ListPoolInstances(_ context.Context, poolID string) ([]params.Instance, error) {
 	u, err := uuid.Parse(poolID)
 	if err != nil {
 		return nil, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
@@ -319,7 +319,7 @@ func (s *sqlDatabase) ListPoolInstances(ctx context.Context, poolID string) ([]p
 	return ret, nil
 }
 
-func (s *sqlDatabase) ListAllInstances(ctx context.Context) ([]params.Instance, error) {
+func (s *sqlDatabase) ListAllInstances(_ context.Context) ([]params.Instance, error) {
 	var instances []Instance
 
 	q := s.conn.Model(&Instance{}).Find(&instances)

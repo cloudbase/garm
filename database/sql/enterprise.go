@@ -3,17 +3,17 @@ package sql
 import (
 	"context"
 
-	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
-	"github.com/cloudbase/garm-provider-common/util"
-	"github.com/cloudbase/garm/params"
-
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
+
+	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	"github.com/cloudbase/garm-provider-common/util"
+	"github.com/cloudbase/garm/params"
 )
 
-func (s *sqlDatabase) CreateEnterprise(ctx context.Context, name, credentialsName, webhookSecret string) (params.Enterprise, error) {
+func (s *sqlDatabase) CreateEnterprise(_ context.Context, name, credentialsName, webhookSecret string) (params.Enterprise, error) {
 	if webhookSecret == "" {
 		return params.Enterprise{}, errors.New("creating enterprise: missing secret")
 	}
@@ -66,7 +66,7 @@ func (s *sqlDatabase) GetEnterpriseByID(ctx context.Context, enterpriseID string
 	return param, nil
 }
 
-func (s *sqlDatabase) ListEnterprises(ctx context.Context) ([]params.Enterprise, error) {
+func (s *sqlDatabase) ListEnterprises(_ context.Context) ([]params.Enterprise, error) {
 	var enterprises []Enterprise
 	q := s.conn.Find(&enterprises)
 	if q.Error != nil {
@@ -224,7 +224,7 @@ func (s *sqlDatabase) UpdateEnterprisePool(ctx context.Context, enterpriseID, po
 	return s.updatePool(pool, param)
 }
 
-func (s *sqlDatabase) FindEnterprisePoolByTags(ctx context.Context, enterpriseID string, tags []string) (params.Pool, error) {
+func (s *sqlDatabase) FindEnterprisePoolByTags(_ context.Context, enterpriseID string, tags []string) (params.Pool, error) {
 	pool, err := s.findPoolByTags(enterpriseID, params.EnterprisePool, tags)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
@@ -267,7 +267,7 @@ func (s *sqlDatabase) ListEnterpriseInstances(ctx context.Context, enterpriseID 
 	return ret, nil
 }
 
-func (s *sqlDatabase) getEnterprise(ctx context.Context, name string) (Enterprise, error) {
+func (s *sqlDatabase) getEnterprise(_ context.Context, name string) (Enterprise, error) {
 	var enterprise Enterprise
 
 	q := s.conn.Where("name = ? COLLATE NOCASE", name)
@@ -281,7 +281,7 @@ func (s *sqlDatabase) getEnterprise(ctx context.Context, name string) (Enterpris
 	return enterprise, nil
 }
 
-func (s *sqlDatabase) getEnterpriseByID(ctx context.Context, id string, preload ...string) (Enterprise, error) {
+func (s *sqlDatabase) getEnterpriseByID(_ context.Context, id string, preload ...string) (Enterprise, error) {
 	u, err := uuid.Parse(id)
 	if err != nil {
 		return Enterprise{}, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")

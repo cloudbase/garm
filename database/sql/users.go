@@ -18,12 +18,12 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/pkg/errors"
+	"gorm.io/gorm"
+
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm-provider-common/util"
 	"github.com/cloudbase/garm/params"
-
-	"github.com/pkg/errors"
-	"gorm.io/gorm"
 )
 
 func (s *sqlDatabase) getUserByUsernameOrEmail(user string) (User, error) {
@@ -56,7 +56,7 @@ func (s *sqlDatabase) getUserByID(userID string) (User, error) {
 	return dbUser, nil
 }
 
-func (s *sqlDatabase) CreateUser(ctx context.Context, user params.NewUserParams) (params.User, error) {
+func (s *sqlDatabase) CreateUser(_ context.Context, user params.NewUserParams) (params.User, error) {
 	if user.Username == "" || user.Email == "" {
 		return params.User{}, runnerErrors.NewBadRequestError("missing username or email")
 	}
@@ -83,13 +83,13 @@ func (s *sqlDatabase) CreateUser(ctx context.Context, user params.NewUserParams)
 	return s.sqlToParamsUser(newUser), nil
 }
 
-func (s *sqlDatabase) HasAdminUser(ctx context.Context) bool {
+func (s *sqlDatabase) HasAdminUser(_ context.Context) bool {
 	var user User
 	q := s.conn.Model(&User{}).Where("is_admin = ?", true).First(&user)
 	return q.Error == nil
 }
 
-func (s *sqlDatabase) GetUser(ctx context.Context, user string) (params.User, error) {
+func (s *sqlDatabase) GetUser(_ context.Context, user string) (params.User, error) {
 	dbUser, err := s.getUserByUsernameOrEmail(user)
 	if err != nil {
 		return params.User{}, errors.Wrap(err, "fetching user")
@@ -97,7 +97,7 @@ func (s *sqlDatabase) GetUser(ctx context.Context, user string) (params.User, er
 	return s.sqlToParamsUser(dbUser), nil
 }
 
-func (s *sqlDatabase) GetUserByID(ctx context.Context, userID string) (params.User, error) {
+func (s *sqlDatabase) GetUserByID(_ context.Context, userID string) (params.User, error) {
 	dbUser, err := s.getUserByID(userID)
 	if err != nil {
 		return params.User{}, errors.Wrap(err, "fetching user")
@@ -105,7 +105,7 @@ func (s *sqlDatabase) GetUserByID(ctx context.Context, userID string) (params.Us
 	return s.sqlToParamsUser(dbUser), nil
 }
 
-func (s *sqlDatabase) UpdateUser(ctx context.Context, user string, param params.UpdateUserParams) (params.User, error) {
+func (s *sqlDatabase) UpdateUser(_ context.Context, user string, param params.UpdateUserParams) (params.User, error) {
 	dbUser, err := s.getUserByUsernameOrEmail(user)
 	if err != nil {
 		return params.User{}, errors.Wrap(err, "fetching user")

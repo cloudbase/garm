@@ -18,17 +18,17 @@ import (
 	"context"
 	"fmt"
 
-	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
-	"github.com/cloudbase/garm-provider-common/util"
-	"github.com/cloudbase/garm/params"
-
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
+
+	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	"github.com/cloudbase/garm-provider-common/util"
+	"github.com/cloudbase/garm/params"
 )
 
-func (s *sqlDatabase) CreateOrganization(ctx context.Context, name, credentialsName, webhookSecret string) (params.Organization, error) {
+func (s *sqlDatabase) CreateOrganization(_ context.Context, name, credentialsName, webhookSecret string) (params.Organization, error) {
 	if webhookSecret == "" {
 		return params.Organization{}, errors.New("creating org: missing secret")
 	}
@@ -70,7 +70,7 @@ func (s *sqlDatabase) GetOrganization(ctx context.Context, name string) (params.
 	return param, nil
 }
 
-func (s *sqlDatabase) ListOrganizations(ctx context.Context) ([]params.Organization, error) {
+func (s *sqlDatabase) ListOrganizations(_ context.Context) ([]params.Organization, error) {
 	var orgs []Organization
 	q := s.conn.Find(&orgs)
 	if q.Error != nil {
@@ -146,12 +146,12 @@ func (s *sqlDatabase) GetOrganizationByID(ctx context.Context, orgID string) (pa
 	return param, nil
 }
 
-func (s *sqlDatabase) CreateOrganizationPool(ctx context.Context, orgId string, param params.CreatePoolParams) (params.Pool, error) {
+func (s *sqlDatabase) CreateOrganizationPool(ctx context.Context, orgID string, param params.CreatePoolParams) (params.Pool, error) {
 	if len(param.Tags) == 0 {
 		return params.Pool{}, runnerErrors.NewBadRequestError("no tags specified")
 	}
 
-	org, err := s.getOrgByID(ctx, orgId)
+	org, err := s.getOrgByID(ctx, orgID)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching org")
 	}
@@ -175,7 +175,7 @@ func (s *sqlDatabase) CreateOrganizationPool(ctx context.Context, orgId string, 
 		newPool.ExtraSpecs = datatypes.JSON(param.ExtraSpecs)
 	}
 
-	_, err = s.getOrgPoolByUniqueFields(ctx, orgId, newPool.ProviderName, newPool.Image, newPool.Flavor)
+	_, err = s.getOrgPoolByUniqueFields(ctx, orgID, newPool.ProviderName, newPool.Image, newPool.Flavor)
 	if err != nil {
 		if !errors.Is(err, runnerErrors.ErrNotFound) {
 			return params.Pool{}, errors.Wrap(err, "creating pool")
@@ -249,7 +249,7 @@ func (s *sqlDatabase) DeleteOrganizationPool(ctx context.Context, orgID, poolID 
 	return nil
 }
 
-func (s *sqlDatabase) FindOrganizationPoolByTags(ctx context.Context, orgID string, tags []string) (params.Pool, error) {
+func (s *sqlDatabase) FindOrganizationPoolByTags(_ context.Context, orgID string, tags []string) (params.Pool, error) {
 	pool, err := s.findPoolByTags(orgID, params.OrganizationPool, tags)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
@@ -284,7 +284,7 @@ func (s *sqlDatabase) UpdateOrganizationPool(ctx context.Context, orgID, poolID 
 	return s.updatePool(pool, param)
 }
 
-func (s *sqlDatabase) getPoolByID(ctx context.Context, poolID string, preload ...string) (Pool, error) {
+func (s *sqlDatabase) getPoolByID(_ context.Context, poolID string, preload ...string) (Pool, error) {
 	u, err := uuid.Parse(poolID)
 	if err != nil {
 		return Pool{}, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
@@ -308,7 +308,7 @@ func (s *sqlDatabase) getPoolByID(ctx context.Context, poolID string, preload ..
 	return pool, nil
 }
 
-func (s *sqlDatabase) getOrgByID(ctx context.Context, id string, preload ...string) (Organization, error) {
+func (s *sqlDatabase) getOrgByID(_ context.Context, id string, preload ...string) (Organization, error) {
 	u, err := uuid.Parse(id)
 	if err != nil {
 		return Organization{}, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
@@ -332,7 +332,7 @@ func (s *sqlDatabase) getOrgByID(ctx context.Context, id string, preload ...stri
 	return org, nil
 }
 
-func (s *sqlDatabase) getOrg(ctx context.Context, name string) (Organization, error) {
+func (s *sqlDatabase) getOrg(_ context.Context, name string) (Organization, error) {
 	var org Organization
 
 	q := s.conn.Where("name = ? COLLATE NOCASE", name)

@@ -18,17 +18,17 @@ import (
 	"context"
 	"fmt"
 
-	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
-	"github.com/cloudbase/garm-provider-common/util"
-	"github.com/cloudbase/garm/params"
-
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
+
+	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	"github.com/cloudbase/garm-provider-common/util"
+	"github.com/cloudbase/garm/params"
 )
 
-func (s *sqlDatabase) CreateRepository(ctx context.Context, owner, name, credentialsName, webhookSecret string) (params.Repository, error) {
+func (s *sqlDatabase) CreateRepository(_ context.Context, owner, name, credentialsName, webhookSecret string) (params.Repository, error) {
 	if webhookSecret == "" {
 		return params.Repository{}, errors.New("creating repo: missing secret")
 	}
@@ -70,7 +70,7 @@ func (s *sqlDatabase) GetRepository(ctx context.Context, owner, name string) (pa
 	return param, nil
 }
 
-func (s *sqlDatabase) ListRepositories(ctx context.Context) ([]params.Repository, error) {
+func (s *sqlDatabase) ListRepositories(_ context.Context) ([]params.Repository, error) {
 	var repos []Repository
 	q := s.conn.Find(&repos)
 	if q.Error != nil {
@@ -146,12 +146,12 @@ func (s *sqlDatabase) GetRepositoryByID(ctx context.Context, repoID string) (par
 	return param, nil
 }
 
-func (s *sqlDatabase) CreateRepositoryPool(ctx context.Context, repoId string, param params.CreatePoolParams) (params.Pool, error) {
+func (s *sqlDatabase) CreateRepositoryPool(ctx context.Context, repoID string, param params.CreatePoolParams) (params.Pool, error) {
 	if len(param.Tags) == 0 {
 		return params.Pool{}, runnerErrors.NewBadRequestError("no tags specified")
 	}
 
-	repo, err := s.getRepoByID(ctx, repoId)
+	repo, err := s.getRepoByID(ctx, repoID)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching repo")
 	}
@@ -175,7 +175,7 @@ func (s *sqlDatabase) CreateRepositoryPool(ctx context.Context, repoId string, p
 		newPool.ExtraSpecs = datatypes.JSON(param.ExtraSpecs)
 	}
 
-	_, err = s.getRepoPoolByUniqueFields(ctx, repoId, newPool.ProviderName, newPool.Image, newPool.Flavor)
+	_, err = s.getRepoPoolByUniqueFields(ctx, repoID, newPool.ProviderName, newPool.Image, newPool.Flavor)
 	if err != nil {
 		if !errors.Is(err, runnerErrors.ErrNotFound) {
 			return params.Pool{}, errors.Wrap(err, "creating pool")
@@ -249,7 +249,7 @@ func (s *sqlDatabase) DeleteRepositoryPool(ctx context.Context, repoID, poolID s
 	return nil
 }
 
-func (s *sqlDatabase) FindRepositoryPoolByTags(ctx context.Context, repoID string, tags []string) (params.Pool, error) {
+func (s *sqlDatabase) FindRepositoryPoolByTags(_ context.Context, repoID string, tags []string) (params.Pool, error) {
 	pool, err := s.findPoolByTags(repoID, params.RepositoryPool, tags)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
@@ -285,7 +285,7 @@ func (s *sqlDatabase) UpdateRepositoryPool(ctx context.Context, repoID, poolID s
 	return s.updatePool(pool, param)
 }
 
-func (s *sqlDatabase) getRepo(ctx context.Context, owner, name string) (Repository, error) {
+func (s *sqlDatabase) getRepo(_ context.Context, owner, name string) (Repository, error) {
 	var repo Repository
 
 	q := s.conn.Where("name = ? COLLATE NOCASE and owner = ? COLLATE NOCASE", name, owner).
@@ -321,7 +321,7 @@ func (s *sqlDatabase) getRepoPoolByUniqueFields(ctx context.Context, repoID stri
 	return pool[0], nil
 }
 
-func (s *sqlDatabase) getRepoByID(ctx context.Context, id string, preload ...string) (Repository, error) {
+func (s *sqlDatabase) getRepoByID(_ context.Context, id string, preload ...string) (Repository, error) {
 	u, err := uuid.Parse(id)
 	if err != nil {
 		return Repository{}, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")

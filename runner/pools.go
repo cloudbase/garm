@@ -18,11 +18,11 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/pkg/errors"
+
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/params"
-
-	"github.com/pkg/errors"
 )
 
 func (r *Runner) ListAllPools(ctx context.Context) ([]params.Pool, error) {

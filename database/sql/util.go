@@ -18,14 +18,13 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/cloudbase/garm-provider-common/util"
-	"github.com/cloudbase/garm/params"
-
 	"github.com/pkg/errors"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 
 	commonParams "github.com/cloudbase/garm-provider-common/params"
+	"github.com/cloudbase/garm-provider-common/util"
+	"github.com/cloudbase/garm/params"
 )
 
 func (s *sqlDatabase) sqlToParamsInstance(instance Instance) (params.Instance, error) {
