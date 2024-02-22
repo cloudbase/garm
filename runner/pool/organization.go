@@ -27,6 +27,7 @@ import (
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 	dbCommon "github.com/cloudbase/garm/database/common"
+	"github.com/cloudbase/garm/metrics"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
 	"github.com/cloudbase/garm/util"
@@ -97,8 +98,16 @@ func (r *organization) findRunnerGroupByName(ctx context.Context, name string) (
 	}
 
 	for {
+		metrics.GithubOperationCount.WithLabelValues(
+			"ListOrganizationRunnerGroups", // label: operation
+			metricsLabelOrganizationScope,  // label: scope
+		).Inc()
 		runnerGroups, ghResp, err := r.ghcli.ListOrganizationRunnerGroups(r.ctx, r.cfg.Name, &opts)
 		if err != nil {
+			metrics.GithubOperationFailedCount.WithLabelValues(
+				"ListOrganizationRunnerGroups", // label: operation
+				metricsLabelOrganizationScope,  // label: scope
+			).Inc()
 			if ghResp != nil && ghResp.StatusCode == http.StatusUnauthorized {
 				return nil, errors.Wrap(runnerErrors.ErrUnauthorized, "fetching runners")
 			}
@@ -135,8 +144,16 @@ func (r *organization) GetJITConfig(ctx context.Context, instance string, pool p
 		// TODO(gabriel-samfira): Should we make this configurable?
 		WorkFolder: github.String("_work"),
 	}
+	metrics.GithubOperationCount.WithLabelValues(
+		"GenerateOrgJITConfig",        // label: operation
+		metricsLabelOrganizationScope, // label: scope
+	).Inc()
 	jitConfig, resp, err := r.ghcli.GenerateOrgJITConfig(ctx, r.cfg.Name, &req)
 	if err != nil {
+		metrics.GithubOperationFailedCount.WithLabelValues(
+			"GenerateOrgJITConfig",        // label: operation
+			metricsLabelOrganizationScope, // label: scope
+		).Inc()
 		if resp != nil && resp.StatusCode == http.StatusUnauthorized {
 			return nil, nil, fmt.Errorf("failed to get JIT config: %w", err)
 		}
@@ -146,7 +163,17 @@ func (r *organization) GetJITConfig(ctx context.Context, instance string, pool p
 	runner = jitConfig.GetRunner()
 	defer func() {
 		if err != nil && runner != nil {
+			metrics.GithubOperationCount.WithLabelValues(
+				"RemoveOrganizationRunner",    // label: operation
+				metricsLabelOrganizationScope, // label: scope
+			).Inc()
 			_, innerErr := r.ghcli.RemoveOrganizationRunner(r.ctx, r.cfg.Name, runner.GetID())
+			if innerErr != nil {
+				metrics.GithubOperationFailedCount.WithLabelValues(
+					"RemoveOrganizationRunner",    // label: operation
+					metricsLabelOrganizationScope, // label: scope
+				).Inc()
+			}
 			slog.With(slog.Any("error", innerErr)).ErrorContext(
 				ctx, "failed to remove runner",
 				"runner_id", runner.GetID(), "organization", r.cfg.Name)
@@ -178,8 +205,16 @@ func (r *organization) GetRunnerInfoFromWorkflow(job params.WorkflowJob) (params
 	if err := r.ValidateOwner(job); err != nil {
 		return params.RunnerInfo{}, errors.Wrap(err, "validating owner")
 	}
+	metrics.GithubOperationCount.WithLabelValues(
+		"GetWorkflowJobByID",          // label: operation
+		metricsLabelOrganizationScope, // label: scope
+	).Inc()
 	workflow, ghResp, err := r.ghcli.GetWorkflowJobByID(r.ctx, job.Organization.Login, job.Repository.Name, job.WorkflowJob.ID)
 	if err != nil {
+		metrics.GithubOperationFailedCount.WithLabelValues(
+			"GetWorkflowJobByID",          // label: operation
+			metricsLabelOrganizationScope, // label: scope
+		).Inc()
 		if ghResp != nil && ghResp.StatusCode == http.StatusUnauthorized {
 			return params.RunnerInfo{}, errors.Wrap(runnerErrors.ErrUnauthorized, "fetching workflow info")
 		}
@@ -223,8 +258,16 @@ func (r *organization) GetGithubRunners() ([]*github.Runner, error) {
 
 	var allRunners []*github.Runner
 	for {
+		metrics.GithubOperationCount.WithLabelValues(
+			"ListOrganizationRunners",     // label: operation
+			metricsLabelOrganizationScope, // label: scope
+		).Inc()
 		runners, ghResp, err := r.ghcli.ListOrganizationRunners(r.ctx, r.cfg.Name, &opts)
 		if err != nil {
+			metrics.GithubOperationFailedCount.WithLabelValues(
+				"ListOrganizationRunners",     // label: operation
+				metricsLabelOrganizationScope, // label: scope
+			).Inc()
 			if ghResp != nil && ghResp.StatusCode == http.StatusUnauthorized {
 				return nil, errors.Wrap(runnerErrors.ErrUnauthorized, "fetching runners")
 			}
@@ -243,8 +286,16 @@ func (r *organization) GetGithubRunners() ([]*github.Runner, error) {
 func (r *organization) FetchTools() ([]commonParams.RunnerApplicationDownload, error) {
 	r.mux.Lock()
 	defer r.mux.Unlock()
+	metrics.GithubOperationCount.WithLabelValues(
+		"ListOrganizationRunnerApplicationDownloads", // label: operation
+		metricsLabelOrganizationScope,                // label: scope
+	).Inc()
 	tools, ghResp, err := r.ghcli.ListOrganizationRunnerApplicationDownloads(r.ctx, r.cfg.Name)
 	if err != nil {
+		metrics.GithubOperationFailedCount.WithLabelValues(
+			"ListOrganizationRunnerApplicationDownloads", // label: operation
+			metricsLabelOrganizationScope,                // label: scope
+		).Inc()
 		if ghResp != nil && ghResp.StatusCode == http.StatusUnauthorized {
 			return nil, errors.Wrap(runnerErrors.ErrUnauthorized, "fetching tools")
 		}
@@ -267,7 +318,21 @@ func (r *organization) FetchDbInstances() ([]params.Instance, error) {
 }
 
 func (r *organization) RemoveGithubRunner(runnerID int64) (*github.Response, error) {
-	return r.ghcli.RemoveOrganizationRunner(r.ctx, r.cfg.Name, runnerID)
+	metrics.GithubOperationCount.WithLabelValues(
+		"RemoveRunner",                // label: operation
+		metricsLabelOrganizationScope, // label: scope
+	).Inc()
+
+	ghResp, err := r.ghcli.RemoveOrganizationRunner(r.ctx, r.cfg.Name, runnerID)
+	if err != nil {
+		metrics.GithubOperationFailedCount.WithLabelValues(
+			"RemoveRunner",                // label: operation
+			metricsLabelOrganizationScope, // label: scope
+		).Inc()
+		return nil, err
+	}
+
+	return ghResp, nil
 }
 
 func (r *organization) ListPools() ([]params.Pool, error) {
@@ -287,9 +352,17 @@ func (r *organization) JwtToken() string {
 }
 
 func (r *organization) GetGithubRegistrationToken() (string, error) {
+	metrics.GithubOperationCount.WithLabelValues(
+		"CreateOrganizationRegistrationToken", // label: operation
+		metricsLabelOrganizationScope,         // label: scope
+	).Inc()
 	tk, ghResp, err := r.ghcli.CreateOrganizationRegistrationToken(r.ctx, r.cfg.Name)
 
 	if err != nil {
+		metrics.GithubOperationFailedCount.WithLabelValues(
+			"CreateOrganizationRegistrationToken", // label: operation
+			metricsLabelOrganizationScope,         // label: scope
+		).Inc()
 		if ghResp != nil && ghResp.StatusCode == http.StatusUnauthorized {
 			return "", errors.Wrap(runnerErrors.ErrUnauthorized, "fetching token")
 		}
@@ -340,8 +413,16 @@ func (r *organization) listHooks(ctx context.Context) ([]*github.Hook, error) {
 	}
 	var allHooks []*github.Hook
 	for {
+		metrics.GithubOperationCount.WithLabelValues(
+			"ListOrgHooks",                // label: operation
+			metricsLabelOrganizationScope, // label: scope
+		).Inc()
 		hooks, ghResp, err := r.ghcli.ListOrgHooks(ctx, r.cfg.Name, &opts)
 		if err != nil {
+			metrics.GithubOperationFailedCount.WithLabelValues(
+				"ListOrgHooks",                // label: operation
+				metricsLabelOrganizationScope, // label: scope
+			).Inc()
 			if ghResp != nil && ghResp.StatusCode == http.StatusNotFound {
 				return nil, runnerErrors.NewBadRequestError("organization not found or your PAT does not have access to manage webhooks")
 			}
@@ -366,12 +447,30 @@ func (r *organization) InstallHook(ctx context.Context, req *github.Hook) (param
 		return params.HookInfo{}, errors.Wrap(err, "validating hook request")
 	}
 
+	metrics.GithubOperationCount.WithLabelValues(
+		"CreateOrgHook",               // label: operation
+		metricsLabelOrganizationScope, // label: scope
+	).Inc()
+
 	hook, _, err := r.ghcli.CreateOrgHook(ctx, r.cfg.Name, req)
 	if err != nil {
+		metrics.GithubOperationFailedCount.WithLabelValues(
+			"CreateOrgHook",               // label: operation
+			metricsLabelOrganizationScope, // label: scope
+		).Inc()
 		return params.HookInfo{}, errors.Wrap(err, "creating organization hook")
 	}
 
+	metrics.GithubOperationCount.WithLabelValues(
+		"PingOrgHook",                 // label: operation
+		metricsLabelOrganizationScope, // label: scope
+	).Inc()
+
 	if _, err := r.ghcli.PingOrgHook(ctx, r.cfg.Name, hook.GetID()); err != nil {
+		metrics.GithubOperationFailedCount.WithLabelValues(
+			"PingOrgHook",                 // label: operation
+			metricsLabelOrganizationScope, // label: scope
+		).Inc()
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to ping hook", "hook_id", hook.GetID())
 	}
 
@@ -386,8 +485,16 @@ func (r *organization) UninstallHook(ctx context.Context, url string) error {
 
 	for _, hook := range allHooks {
 		if hook.Config["url"] == url {
+			metrics.GithubOperationCount.WithLabelValues(
+				"DeleteOrgHook",               // label: operation
+				metricsLabelOrganizationScope, // label: scope
+			).Inc()
 			_, err = r.ghcli.DeleteOrgHook(ctx, r.cfg.Name, hook.GetID())
 			if err != nil {
+				metrics.GithubOperationFailedCount.WithLabelValues(
+					"DeleteOrgHook",               // label: operation
+					metricsLabelOrganizationScope, // label: scope
+				).Inc()
 				return errors.Wrap(err, "deleting hook")
 			}
 			return nil
