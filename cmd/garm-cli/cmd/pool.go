@@ -20,18 +20,16 @@ import (
 	"os"
 	"strings"
 
-	apiClientEnterprises "github.com/cloudbase/garm/client/enterprises"
-	apiClientOrgs "github.com/cloudbase/garm/client/organizations"
-	apiClientPools "github.com/cloudbase/garm/client/pools"
-	apiClientRepos "github.com/cloudbase/garm/client/repositories"
-
-	"github.com/cloudbase/garm/params"
-
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	commonParams "github.com/cloudbase/garm-provider-common/params"
+	apiClientEnterprises "github.com/cloudbase/garm/client/enterprises"
+	apiClientOrgs "github.com/cloudbase/garm/client/organizations"
+	apiClientPools "github.com/cloudbase/garm/client/pools"
+	apiClientRepos "github.com/cloudbase/garm/client/repositories"
+	"github.com/cloudbase/garm/params"
 )
 
 var (

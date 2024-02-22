@@ -24,6 +24,9 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/google/go-github/v57/github"
+	"github.com/pkg/errors"
+
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 	dbCommon "github.com/cloudbase/garm/database/common"
@@ -31,9 +34,6 @@ import (
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
 	"github.com/cloudbase/garm/util"
-
-	"github.com/google/go-github/v57/github"
-	"github.com/pkg/errors"
 )
 
 // test that we implement PoolManager
@@ -314,7 +314,6 @@ func (r *repository) GetGithubRegistrationToken() (string, error) {
 		metricsLabelRepositoryScope, // label: scope
 	).Inc()
 	tk, ghResp, err := r.ghcli.CreateRegistrationToken(r.ctx, r.cfg.Owner, r.cfg.Name)
-
 	if err != nil {
 		metrics.GithubOperationFailedCount.WithLabelValues(
 			"CreateRegistrationToken",   // label: operation

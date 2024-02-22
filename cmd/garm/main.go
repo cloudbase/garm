@@ -28,6 +28,11 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/gorilla/handlers"
+	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
+	lumberjack "gopkg.in/natefinch/lumberjack.v2"
+
 	"github.com/cloudbase/garm-provider-common/util"
 	"github.com/cloudbase/garm/apiserver/controllers"
 	"github.com/cloudbase/garm/apiserver/routers"
@@ -41,11 +46,6 @@ import (
 	garmUtil "github.com/cloudbase/garm/util"
 	"github.com/cloudbase/garm/util/appdefaults"
 	"github.com/cloudbase/garm/websocket"
-	lumberjack "gopkg.in/natefinch/lumberjack.v2"
-
-	"github.com/gorilla/handlers"
-	"github.com/gorilla/mux"
-	"github.com/pkg/errors"
 )
 
 var (
@@ -140,7 +140,6 @@ func setupLogging(ctx context.Context, logCfg config.Logging, hub *websocket.Hub
 		Handler: han,
 	}
 	slog.SetDefault(slog.New(wrapped))
-
 }
 
 func main() {

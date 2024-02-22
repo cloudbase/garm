@@ -18,15 +18,15 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cloudbase/garm/cmd/garm-cli/common"
-	"github.com/cloudbase/garm/cmd/garm-cli/config"
-	"github.com/cloudbase/garm/params"
-
-	apiClientFirstRun "github.com/cloudbase/garm/client/first_run"
-	apiClientLogin "github.com/cloudbase/garm/client/login"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+
+	apiClientFirstRun "github.com/cloudbase/garm/client/first_run"
+	apiClientLogin "github.com/cloudbase/garm/client/login"
+	"github.com/cloudbase/garm/cmd/garm-cli/common"
+	"github.com/cloudbase/garm/cmd/garm-cli/config"
+	"github.com/cloudbase/garm/params"
 )
 
 // initCmd represents the init command

@@ -18,11 +18,12 @@ import (
 	"fmt"
 	"strings"
 
-	apiClientJobs "github.com/cloudbase/garm/client/jobs"
-	"github.com/cloudbase/garm/params"
 	"github.com/google/uuid"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/spf13/cobra"
+
+	apiClientJobs "github.com/cloudbase/garm/client/jobs"
+	"github.com/cloudbase/garm/params"
 )
 
 // runnerCmd represents the runner command

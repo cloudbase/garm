@@ -17,10 +17,11 @@ package cmd
 import (
 	"fmt"
 
-	apiClientControllerInfo "github.com/cloudbase/garm/client/controller_info"
-	"github.com/cloudbase/garm/params"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/spf13/cobra"
+
+	apiClientControllerInfo "github.com/cloudbase/garm/client/controller_info"
+	"github.com/cloudbase/garm/params"
 )
 
 var infoCmd = &cobra.Command{

@@ -17,11 +17,11 @@ package cmd
 import (
 	"fmt"
 
-	apiClientCreds "github.com/cloudbase/garm/client/credentials"
-	"github.com/cloudbase/garm/params"
-
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/spf13/cobra"
+
+	apiClientCreds "github.com/cloudbase/garm/client/credentials"
+	"github.com/cloudbase/garm/params"
 )
 
 // credentialsCmd represents the credentials command

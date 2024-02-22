@@ -18,12 +18,12 @@ import (
 	"context"
 	"log/slog"
 
+	"github.com/pkg/errors"
+
 	"github.com/cloudbase/garm/config"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
 	"github.com/cloudbase/garm/runner/providers/external"
-
-	"github.com/pkg/errors"
 )
 
 // LoadProvidersFromConfig loads all providers from the config and populates

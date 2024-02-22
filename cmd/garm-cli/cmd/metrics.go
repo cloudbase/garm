@@ -17,8 +17,9 @@ package cmd
 import (
 	"fmt"
 
-	apiClientMetricToken "github.com/cloudbase/garm/client/metrics_token"
 	"github.com/spf13/cobra"
+
+	apiClientMetricToken "github.com/cloudbase/garm/client/metrics_token"
 )
 
 // orgPoolCmd represents the pool command

@@ -4,10 +4,11 @@ import (
 	"log/slog"
 	"net/url"
 
-	"github.com/cloudbase/garm/client"
-	"github.com/cloudbase/garm/params"
 	"github.com/go-openapi/runtime"
 	openapiRuntimeClient "github.com/go-openapi/runtime/client"
+
+	"github.com/cloudbase/garm/client"
+	"github.com/cloudbase/garm/params"
 )
 
 var (

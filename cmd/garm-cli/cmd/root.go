@@ -19,14 +19,17 @@ import (
 	"net/url"
 	"os"
 
-	apiClient "github.com/cloudbase/garm/client"
-	"github.com/cloudbase/garm/cmd/garm-cli/config"
-	"github.com/cloudbase/garm/params"
 	"github.com/go-openapi/runtime"
 	"github.com/jedib0t/go-pretty/v6/table"
 
+
 	openapiRuntimeClient "github.com/go-openapi/runtime/client"
+	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/spf13/cobra"
+
+	apiClient "github.com/cloudbase/garm/client"
+	"github.com/cloudbase/garm/cmd/garm-cli/config"
+	"github.com/cloudbase/garm/params"
 )
 
 var Version string

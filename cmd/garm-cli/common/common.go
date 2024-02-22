@@ -39,7 +39,6 @@ func PromptPassword(label string) (string, error) {
 		Mask:     '*',
 	}
 	result, err := prompt.Run()
-
 	if err != nil {
 		return "", err
 	}
@@ -59,7 +58,6 @@ func PromptString(label string) (string, error) {
 		Validate: validate,
 	}
 	result, err := prompt.Run()
-
 	if err != nil {
 		return "", err
 	}

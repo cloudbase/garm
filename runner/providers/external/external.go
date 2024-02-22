@@ -7,18 +7,16 @@ import (
 	"log/slog"
 	"os/exec"
 
-	"github.com/cloudbase/garm-provider-common/execution"
-
-	commonParams "github.com/cloudbase/garm-provider-common/params"
+	"github.com/pkg/errors"
 
 	garmErrors "github.com/cloudbase/garm-provider-common/errors"
+	"github.com/cloudbase/garm-provider-common/execution"
+	commonParams "github.com/cloudbase/garm-provider-common/params"
 	garmExec "github.com/cloudbase/garm-provider-common/util/exec"
 	"github.com/cloudbase/garm/config"
 	"github.com/cloudbase/garm/metrics"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
-
-	"github.com/pkg/errors"
 )
 
 var _ common.Provider = (*external)(nil)

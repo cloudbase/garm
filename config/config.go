@@ -26,15 +26,18 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
-	"github.com/cloudbase/garm/params"
-	"github.com/cloudbase/garm/util/appdefaults"
 	zxcvbn "github.com/nbutton23/zxcvbn-go"
 	"github.com/pkg/errors"
+
+	"github.com/cloudbase/garm/params"
+	"github.com/cloudbase/garm/util/appdefaults"
 )
 
-type DBBackendType string
-type LogLevel string
-type LogFormat string
+type (
+	DBBackendType string
+	LogLevel      string
+	LogFormat     string
+)
 
 const (
 	// MySQLBackend represents the MySQL DB backend

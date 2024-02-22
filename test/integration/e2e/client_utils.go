@@ -1,6 +1,8 @@
 package e2e
 
 import (
+	"github.com/go-openapi/runtime"
+
 	"github.com/cloudbase/garm/client"
 	clientControllerInfo "github.com/cloudbase/garm/client/controller_info"
 	clientCredentials "github.com/cloudbase/garm/client/credentials"
@@ -14,7 +16,6 @@ import (
 	clientProviders "github.com/cloudbase/garm/client/providers"
 	clientRepositories "github.com/cloudbase/garm/client/repositories"
 	"github.com/cloudbase/garm/params"
-	"github.com/go-openapi/runtime"
 )
 
 // ///////////

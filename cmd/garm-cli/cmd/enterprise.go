@@ -17,11 +17,11 @@ package cmd
 import (
 	"fmt"
 
-	apiClientEnterprises "github.com/cloudbase/garm/client/enterprises"
-	"github.com/cloudbase/garm/params"
-
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/spf13/cobra"
+
+	apiClientEnterprises "github.com/cloudbase/garm/client/enterprises"
+	"github.com/cloudbase/garm/params"
 )
 
 var (

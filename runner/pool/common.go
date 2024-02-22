@@ -4,10 +4,11 @@ import (
 	"net/url"
 	"strings"
 
-	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
-	"github.com/cloudbase/garm/params"
 	"github.com/google/go-github/v57/github"
 	"github.com/pkg/errors"
+
+	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	"github.com/cloudbase/garm/params"
 )
 
 func validateHookRequest(controllerID, baseURL string, allHooks []*github.Hook, req *github.Hook) error {

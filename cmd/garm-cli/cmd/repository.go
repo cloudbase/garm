@@ -17,12 +17,12 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/spf13/cobra"
+
 	"github.com/cloudbase/garm-provider-common/util"
 	apiClientRepos "github.com/cloudbase/garm/client/repositories"
 	"github.com/cloudbase/garm/params"
-
-	"github.com/jedib0t/go-pretty/v6/table"
-	"github.com/spf13/cobra"
 )
 
 var (

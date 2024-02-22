@@ -25,19 +25,18 @@ import (
 	"sync"
 	"time"
 
-	commonParams "github.com/cloudbase/garm-provider-common/params"
+	"github.com/google/go-github/v57/github"
+	"github.com/google/uuid"
+	"github.com/pkg/errors"
+	"golang.org/x/sync/errgroup"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm-provider-common/util"
 	"github.com/cloudbase/garm/auth"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
-
-	"github.com/google/go-github/v57/github"
-	"github.com/google/uuid"
-	"github.com/pkg/errors"
-	"golang.org/x/sync/errgroup"
 )
 
 var (
@@ -674,7 +673,7 @@ func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner)
 				slog.InfoContext(
 					r.ctx, "instance was found in stopped state; starting",
 					"runner_name", dbInstance.Name)
-				//start the instance
+
 				if err := provider.Start(r.ctx, dbInstance.ProviderID); err != nil {
 					return errors.Wrapf(err, "starting instance %s", dbInstance.ProviderID)
 				}
@@ -1196,7 +1195,6 @@ func (r *basePoolManager) ensureIdleRunnersForOnePool(pool params.Pool) error {
 	existingInstances, err := r.store.ListPoolInstances(r.ctx, pool.ID)
 	if err != nil {
 		return fmt.Errorf("failed to ensure minimum idle workers for pool %s: %w", pool.ID, err)
-
 	}
 
 	if uint(len(existingInstances)) >= pool.MaxRunners {

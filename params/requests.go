@@ -18,9 +18,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	commonParams "github.com/cloudbase/garm-provider-common/params"
-
 	"github.com/cloudbase/garm-provider-common/errors"
+	commonParams "github.com/cloudbase/garm-provider-common/params"
 )
 
 const DefaultRunnerPrefix = "garm"

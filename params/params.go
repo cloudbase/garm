@@ -22,12 +22,11 @@ import (
 	"fmt"
 	"time"
 
-	commonParams "github.com/cloudbase/garm-provider-common/params"
-
-	"github.com/cloudbase/garm/util/appdefaults"
-
 	"github.com/google/go-github/v57/github"
 	"github.com/google/uuid"
+
+	commonParams "github.com/cloudbase/garm-provider-common/params"
+	"github.com/cloudbase/garm/util/appdefaults"
 )
 
 type (

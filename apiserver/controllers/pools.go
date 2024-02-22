@@ -19,11 +19,11 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/gorilla/mux"
+
 	gErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/apiserver/params"
 	runnerParams "github.com/cloudbase/garm/params"
-
-	"github.com/gorilla/mux"
 )
 
 // swagger:route GET /pools pools ListPools
@@ -37,7 +37,6 @@ func (a *APIController) ListAllPoolsHandler(w http.ResponseWriter, r *http.Reque
 	ctx := r.Context()
 
 	pools, err := a.r.ListAllPools(ctx)
-
 	if err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "listing pools")
 		handleError(ctx, w, err)

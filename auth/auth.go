@@ -18,16 +18,16 @@ import (
 	"context"
 	"time"
 
+	jwt "github.com/golang-jwt/jwt/v5"
+	"github.com/nbutton23/zxcvbn-go"
+	"github.com/pkg/errors"
+	"golang.org/x/crypto/bcrypt"
+
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm-provider-common/util"
 	"github.com/cloudbase/garm/config"
 	"github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/params"
-
-	jwt "github.com/golang-jwt/jwt/v5"
-	"github.com/nbutton23/zxcvbn-go"
-	"github.com/pkg/errors"
-	"golang.org/x/crypto/bcrypt"
 )
 
 func NewAuthenticator(cfg config.JWTAuth, store common.Store) *Authenticator {

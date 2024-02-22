@@ -17,11 +17,11 @@ package cmd
 import (
 	"fmt"
 
-	apiClientProviders "github.com/cloudbase/garm/client/providers"
-	"github.com/cloudbase/garm/params"
-
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/spf13/cobra"
+
+	apiClientProviders "github.com/cloudbase/garm/client/providers"
+	"github.com/cloudbase/garm/params"
 )
 
 // providerCmd represents the provider command

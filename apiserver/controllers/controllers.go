@@ -22,6 +22,10 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/gorilla/mux"
+	"github.com/gorilla/websocket"
+	"github.com/pkg/errors"
+
 	gErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm-provider-common/util"
 	"github.com/cloudbase/garm/apiserver/params"
@@ -30,10 +34,6 @@ import (
 	runnerParams "github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner"
 	wsWriter "github.com/cloudbase/garm/websocket"
-
-	"github.com/gorilla/mux"
-	"github.com/gorilla/websocket"
-	"github.com/pkg/errors"
 )
 
 func NewAPIController(r *runner.Runner, authenticator *auth.Authenticator, hub *wsWriter.Hub) (*APIController, error) {

@@ -20,11 +20,11 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/gorilla/mux"
+
 	gErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/apiserver/params"
 	runnerParams "github.com/cloudbase/garm/params"
-
-	"github.com/gorilla/mux"
 )
 
 // swagger:route POST /organizations organizations CreateOrg
@@ -174,7 +174,6 @@ func (a *APIController) DeleteOrgHandler(w http.ResponseWriter, r *http.Request)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-
 }
 
 // swagger:route PUT /organizations/{orgID} organizations UpdateOrg
@@ -423,7 +422,6 @@ func (a *APIController) DeleteOrgPoolHandler(w http.ResponseWriter, r *http.Requ
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-
 }
 
 // swagger:route PUT /organizations/{orgID}/pools/{poolID} organizations pools UpdateOrgPool

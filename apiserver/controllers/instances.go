@@ -20,11 +20,11 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/gorilla/mux"
+
 	gErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/apiserver/params"
 	runnerParams "github.com/cloudbase/garm/params"
-
-	"github.com/gorilla/mux"
 )
 
 // swagger:route GET /pools/{poolID}/instances instances ListPoolInstances

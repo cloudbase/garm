@@ -22,15 +22,15 @@ import (
 	"strings"
 	"time"
 
+	jwt "github.com/golang-jwt/jwt/v5"
+	"github.com/pkg/errors"
+
+	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm/config"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
-
-	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
-	commonParams "github.com/cloudbase/garm-provider-common/params"
-	jwt "github.com/golang-jwt/jwt/v5"
-	"github.com/pkg/errors"
 )
 
 // InstanceJWTClaims holds JWT claims
@@ -132,7 +132,6 @@ func (amw *instanceMiddleware) Middleware(next http.Handler) http.Handler {
 			}
 			return []byte(amw.cfg.Secret), nil
 		})
-
 		if err != nil {
 			invalidAuthResponse(ctx, w)
 			return

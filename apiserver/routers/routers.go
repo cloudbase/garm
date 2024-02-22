@@ -87,7 +87,7 @@ func requestLogger(h http.Handler) http.Handler {
 		// gathers metrics from the upstream handlers
 		metrics := httpsnoop.CaptureMetrics(h, w, r)
 
-		//prints log and metrics
+
 		slog.Info(
 			"access_log",
 			slog.String("method", r.Method),

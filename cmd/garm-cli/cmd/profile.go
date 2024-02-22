@@ -18,13 +18,13 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/spf13/cobra"
+
 	apiClientLogin "github.com/cloudbase/garm/client/login"
 	"github.com/cloudbase/garm/cmd/garm-cli/common"
 	"github.com/cloudbase/garm/cmd/garm-cli/config"
 	"github.com/cloudbase/garm/params"
-
-	"github.com/jedib0t/go-pretty/v6/table"
-	"github.com/spf13/cobra"
 )
 
 var (
