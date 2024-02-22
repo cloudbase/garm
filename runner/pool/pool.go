@@ -1224,7 +1224,7 @@ func (r *basePoolManager) ensureIdleRunnersForOnePool(pool params.Pool) error {
 		if uint(projectedInstanceCount) > pool.MaxRunners {
 			// ensure we don't go above max workers
 			delta := projectedInstanceCount - int(pool.MaxRunners)
-			required = required - delta
+			required -= delta
 		}
 	}
 
