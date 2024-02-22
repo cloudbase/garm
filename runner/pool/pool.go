@@ -669,14 +669,14 @@ func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner)
 					r.ctx, "instance is online but github reports runner as offline",
 					"runner_name", dbInstance.Name)
 				return nil
-			} else {
-				slog.InfoContext(
-					r.ctx, "instance was found in stopped state; starting",
-					"runner_name", dbInstance.Name)
+			}
 
-				if err := provider.Start(r.ctx, dbInstance.ProviderID); err != nil {
-					return errors.Wrapf(err, "starting instance %s", dbInstance.ProviderID)
-				}
+			slog.InfoContext(
+				r.ctx, "instance was found in stopped state; starting",
+				"runner_name", dbInstance.Name)
+
+			if err := provider.Start(r.ctx, dbInstance.ProviderID); err != nil {
+				return errors.Wrapf(err, "starting instance %s", dbInstance.ProviderID)
 			}
 			return nil
 		})
