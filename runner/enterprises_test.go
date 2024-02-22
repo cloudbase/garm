@@ -184,7 +184,7 @@ func (s *EnterpriseTestSuite) TestCreateEnterpriseEmptyParams() {
 }
 
 func (s *EnterpriseTestSuite) TestCreateEnterpriseMissingCredentials() {
-	s.Fixtures.CreateEnterpriseParams.CredentialsName = "not-existent-creds-name"
+	s.Fixtures.CreateEnterpriseParams.CredentialsName = notExistingCredentialsName
 
 	_, err := s.Runner.CreateEnterprise(s.Fixtures.AdminContext, s.Fixtures.CreateEnterpriseParams)
 
@@ -309,7 +309,7 @@ func (s *EnterpriseTestSuite) TestUpdateEnterpriseErrUnauthorized() {
 }
 
 func (s *EnterpriseTestSuite) TestUpdateEnterpriseInvalidCreds() {
-	s.Fixtures.UpdateRepoParams.CredentialsName = "invalid-creds-name"
+	s.Fixtures.UpdateRepoParams.CredentialsName = invalidCredentialsName
 
 	_, err := s.Runner.UpdateEnterprise(s.Fixtures.AdminContext, s.Fixtures.StoreEnterprises["test-enterprise-1"].ID, s.Fixtures.UpdateRepoParams)
 
@@ -371,7 +371,7 @@ func (s *EnterpriseTestSuite) TestCreateEnterprisePoolErrNotFound() {
 }
 
 func (s *EnterpriseTestSuite) TestCreateEnterprisePoolFetchPoolParamsFailed() {
-	s.Fixtures.CreatePoolParams.ProviderName = "not-existent-provider-name"
+	s.Fixtures.CreatePoolParams.ProviderName = notExistingProviderName
 
 	s.Fixtures.PoolMgrCtrlMock.On("GetEnterprisePoolManager", mock.AnythingOfType("params.Enterprise")).Return(s.Fixtures.PoolMgrMock, nil)
 

@@ -185,7 +185,7 @@ func (s *RepoTestSuite) TestCreateRepositoryEmptyParams() {
 }
 
 func (s *RepoTestSuite) TestCreateRepositoryMissingCredentials() {
-	s.Fixtures.CreateRepoParams.CredentialsName = "not-existent-creds-name"
+	s.Fixtures.CreateRepoParams.CredentialsName = notExistingCredentialsName
 
 	_, err := s.Runner.CreateRepository(s.Fixtures.AdminContext, s.Fixtures.CreateRepoParams)
 
@@ -312,7 +312,7 @@ func (s *RepoTestSuite) TestUpdateRepositoryErrUnauthorized() {
 }
 
 func (s *RepoTestSuite) TestUpdateRepositoryInvalidCreds() {
-	s.Fixtures.UpdateRepoParams.CredentialsName = "invalid-creds-name"
+	s.Fixtures.UpdateRepoParams.CredentialsName = invalidCredentialsName
 
 	_, err := s.Runner.UpdateRepository(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID, s.Fixtures.UpdateRepoParams)
 
@@ -374,7 +374,7 @@ func (s *RepoTestSuite) TestCreateRepoPoolErrNotFound() {
 }
 
 func (s *RepoTestSuite) TestCreateRepoPoolFetchPoolParamsFailed() {
-	s.Fixtures.CreatePoolParams.ProviderName = "not-existent-provider-name"
+	s.Fixtures.CreatePoolParams.ProviderName = notExistingProviderName
 
 	s.Fixtures.PoolMgrCtrlMock.On("GetRepoPoolManager", mock.AnythingOfType("params.Repository")).Return(s.Fixtures.PoolMgrMock, nil)
 
