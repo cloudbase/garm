@@ -77,6 +77,7 @@ type EnterpriseStore interface {
 
 type PoolStore interface {
 	// Probably a bad idea without some king of filter or at least pagination
+	// nolint:golangci-lint,godox
 	// TODO: add filter/pagination
 	ListAllPools(ctx context.Context) ([]params.Pool, error)
 	GetPoolByID(ctx context.Context, poolID string) (params.Pool, error)
@@ -104,6 +105,8 @@ type InstanceStore interface {
 	UpdateInstance(ctx context.Context, instanceID string, param params.UpdateInstanceParams) (params.Instance, error)
 
 	// Probably a bad idea without some king of filter or at least pagination
+	//
+	// nolint:golangci-lint,godox
 	// TODO: add filter/pagination
 	ListAllInstances(ctx context.Context) ([]params.Instance, error)
 

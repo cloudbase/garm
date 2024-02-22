@@ -78,6 +78,7 @@ type enterprise struct {
 }
 
 func (e *enterprise) findRunnerGroupByName(name string) (*github.EnterpriseRunnerGroup, error) {
+	// nolint:golangci-lint,godox
 	// TODO(gabriel-samfira): implement caching
 	opts := github.ListEnterpriseRunnerGroupOptions{
 		ListOptions: github.ListOptions{
@@ -129,6 +130,7 @@ func (e *enterprise) GetJITConfig(ctx context.Context, instance string, pool par
 		Name:          instance,
 		RunnerGroupID: rg,
 		Labels:        labels,
+		// nolint:golangci-lint,godox
 		// TODO(gabriel-samfira): Should we make this configurable?
 		WorkFolder: github.String("_work"),
 	}

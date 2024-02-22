@@ -99,6 +99,7 @@ func (r *repository) GetJITConfig(ctx context.Context, instance string, pool par
 		// At the repository level we only have the default runner group.
 		RunnerGroupID: 1,
 		Labels:        labels,
+		// nolint:golangci-lint,godox
 		// TODO(gabriel-samfira): Should we make this configurable?
 		WorkFolder: github.String("_work"),
 	}

@@ -114,7 +114,7 @@ func (a *APIController) handleWorkflowJobEvent(ctx context.Context, w http.Respo
 			).Inc()
 			slog.With(slog.Any("error", err)).ErrorContext(ctx, "got not found error from DispatchWorkflowJob. webhook not meant for us?")
 			return
-		} else if strings.Contains(err.Error(), "signature") { // TODO: check error type
+		} else if strings.Contains(err.Error(), "signature") { // nolint:golangci-lint,godox TODO: check error type
 			metrics.WebhooksReceived.WithLabelValues(
 				"false",             // label: valid
 				"signature_invalid", // label: reason
@@ -182,6 +182,7 @@ func (a *APIController) WSHandler(writer http.ResponseWriter, req *http.Request)
 		return
 	}
 
+	// nolint:golangci-lint,godox
 	// TODO (gsamfira): Handle ExpiresAt. Right now, if a client uses
 	// a valid token to authenticate, and keeps the websocket connection
 	// open, it will allow that client to stream logs via websockets

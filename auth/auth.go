@@ -58,6 +58,7 @@ func (a *Authenticator) GetJWTToken(ctx context.Context) (string, error) {
 	claims := JWTClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: expires,
+			// nolint:golangci-lint,godox
 			// TODO: make this configurable
 			Issuer: "garm",
 		},
@@ -86,6 +87,7 @@ func (a *Authenticator) GetJWTMetricsToken(ctx context.Context) (string, error) 
 	if err != nil {
 		return "", errors.Wrap(err, "generating random string")
 	}
+	// nolint:golangci-lint,godox
 	// TODO: currently this is the same TTL as the normal Token
 	// maybe we should make this configurable
 	// it's usually pretty nasty if the monitoring fails because the token expired
@@ -96,6 +98,7 @@ func (a *Authenticator) GetJWTMetricsToken(ctx context.Context) (string, error) 
 	claims := JWTClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: expires,
+			// nolint:golangci-lint,godox
 			// TODO: make this configurable
 			Issuer: "garm",
 		},

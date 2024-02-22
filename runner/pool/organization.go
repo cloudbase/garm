@@ -90,6 +90,7 @@ type organization struct {
 }
 
 func (o *organization) findRunnerGroupByName(name string) (*github.RunnerGroup, error) {
+	// nolint:golangci-lint,godox
 	// TODO(gabriel-samfira): implement caching
 	opts := github.ListOrgRunnerGroupOptions{
 		ListOptions: github.ListOptions{
@@ -141,6 +142,7 @@ func (o *organization) GetJITConfig(ctx context.Context, instance string, pool p
 		Name:          instance,
 		RunnerGroupID: rg,
 		Labels:        labels,
+		// nolint:golangci-lint,godox
 		// TODO(gabriel-samfira): Should we make this configurable?
 		WorkFolder: github.String("_work"),
 	}

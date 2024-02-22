@@ -157,6 +157,7 @@ func (e *external) GetInstance(ctx context.Context, instance string) (commonPara
 	}
 	asEnv = append(asEnv, e.environmentVariables...)
 
+	// nolint:golangci-lint,godox
 	// TODO(gabriel-samfira): handle error types. Of particular interest is to
 	// know when the error is ErrNotFound.
 	metrics.InstanceOperationCount.WithLabelValues(

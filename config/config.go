@@ -546,6 +546,7 @@ func (d *timeToLive) Duration() time.Duration {
 		slog.With(slog.Any("error", err)).Error("failed to parse duration")
 		return appdefaults.DefaultJWTTTL
 	}
+	// nolint:golangci-lint,godox
 	// TODO(gabriel-samfira): should we have a minimum TTL?
 	if duration < appdefaults.DefaultJWTTTL {
 		return appdefaults.DefaultJWTTTL
