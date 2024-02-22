@@ -84,6 +84,8 @@ func GithubClient(ctx context.Context, token string, credsDetails params.GithubC
 			return nil, nil, fmt.Errorf("failed to parse CA cert")
 		}
 	}
+	// nolint:golangci-lint,gosec,godox
+	// TODO: set TLS MinVersion
 	httpTransport := &http.Transport{
 		TLSClientConfig: &tls.Config{
 			RootCAs: roots,

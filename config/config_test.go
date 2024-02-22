@@ -26,6 +26,7 @@ import (
 )
 
 var (
+	// nolint: golangci-lint,gosec
 	EncryptionPassphrase     = "bocyasicgatEtenOubwonIbsudNutDom"
 	WeakEncryptionPassphrase = "1234567890abcdefghijklmnopqrstuv"
 )

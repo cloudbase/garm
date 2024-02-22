@@ -49,6 +49,8 @@ import (
 	_ "expvar" // Register the expvar handlers
 	"log/slog"
 	"net/http"
+
+	// nolint:golangci-lint,gosec
 	_ "net/http/pprof" // Register the pprof handlers
 
 	"github.com/felixge/httpsnoop"
@@ -86,7 +88,6 @@ func requestLogger(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// gathers metrics from the upstream handlers
 		metrics := httpsnoop.CaptureMetrics(h, w, r)
-
 
 		slog.Info(
 			"access_log",
