@@ -29,6 +29,7 @@ build-static: ## Build garm statically
 clean: ## Clean up build artifacts
 	@rm -rf ./bin ./build ./release
 
+.PHONY: build
 build: ## Build garm
 	@echo Building garm ${VERSION}
 	$(shell mkdir -p ./bin)
