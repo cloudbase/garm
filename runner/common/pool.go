@@ -61,7 +61,7 @@ type PoolManager interface {
 	ForceDeleteRunner(runner params.Instance) error
 
 	// DeleteRunner will attempt to remove a runner from the pool. If forceRemove is true, any error
-	// received from the provider will be ignored and we will procede to remove the runner from the database.
+	// received from the provider will be ignored and we will proceed to remove the runner from the database.
 	// An error received while attempting to remove from GitHub (other than 404) will still stop the deletion
 	// process. This can happen if the runner is already processing a job. At which point, you can simply cancel
 	// the job in github. Doing so will prompt GARM to reap the runner automatically.

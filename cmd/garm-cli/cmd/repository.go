@@ -200,7 +200,7 @@ var repoListCmd = &cobra.Command{
 	Use:          "list",
 	Aliases:      []string{"ls"},
 	Short:        "List repositories",
-	Long:         `List all configured respositories that are currently managed.`,
+	Long:         `List all configured repositories that are currently managed.`,
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if needsInit {

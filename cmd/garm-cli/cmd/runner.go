@@ -199,8 +199,8 @@ to either cancel the workflow or wait for it to finish.
 
 func init() {
 	runnerListCmd.Flags().StringVarP(&runnerRepository, "repo", "r", "", "List all runners from all pools within this repository.")
-	runnerListCmd.Flags().StringVarP(&runnerOrganization, "org", "o", "", "List all runners from all pools withing this organization.")
-	runnerListCmd.Flags().StringVarP(&runnerEnterprise, "enterprise", "e", "", "List all runners from all pools withing this enterprise.")
+	runnerListCmd.Flags().StringVarP(&runnerOrganization, "org", "o", "", "List all runners from all pools within this organization.")
+	runnerListCmd.Flags().StringVarP(&runnerEnterprise, "enterprise", "e", "", "List all runners from all pools within this enterprise.")
 	runnerListCmd.Flags().BoolVarP(&runnerAll, "all", "a", false, "List all runners, regardless of org or repo.")
 	runnerListCmd.MarkFlagsMutuallyExclusive("repo", "org", "enterprise", "all")
 

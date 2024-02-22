@@ -381,8 +381,8 @@ explicitly remove them using the runner delete command.
 
 func init() {
 	poolListCmd.Flags().StringVarP(&poolRepository, "repo", "r", "", "List all pools within this repository.")
-	poolListCmd.Flags().StringVarP(&poolOrganization, "org", "o", "", "List all pools withing this organization.")
-	poolListCmd.Flags().StringVarP(&poolEnterprise, "enterprise", "e", "", "List all pools withing this enterprise.")
+	poolListCmd.Flags().StringVarP(&poolOrganization, "org", "o", "", "List all pools within this organization.")
+	poolListCmd.Flags().StringVarP(&poolEnterprise, "enterprise", "e", "", "List all pools within this enterprise.")
 	poolListCmd.Flags().BoolVarP(&poolAll, "all", "a", false, "List all pools, regardless of org or repo.")
 	poolListCmd.MarkFlagsMutuallyExclusive("repo", "org", "all", "enterprise")
 
@@ -421,8 +421,8 @@ func init() {
 	poolAddCmd.MarkFlagRequired("tags")          //nolint
 
 	poolAddCmd.Flags().StringVarP(&poolRepository, "repo", "r", "", "Add the new pool within this repository.")
-	poolAddCmd.Flags().StringVarP(&poolOrganization, "org", "o", "", "Add the new pool withing this organization.")
-	poolAddCmd.Flags().StringVarP(&poolEnterprise, "enterprise", "e", "", "Add the new pool withing this enterprise.")
+	poolAddCmd.Flags().StringVarP(&poolOrganization, "org", "o", "", "Add the new pool within this organization.")
+	poolAddCmd.Flags().StringVarP(&poolEnterprise, "enterprise", "e", "", "Add the new pool within this enterprise.")
 	poolAddCmd.MarkFlagsMutuallyExclusive("repo", "org", "enterprise")
 	poolAddCmd.MarkFlagsMutuallyExclusive("extra-specs-file", "extra-specs")
 

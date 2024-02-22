@@ -645,7 +645,7 @@ func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner)
 					// Removed in the meantime?
 					if resp != nil && resp.StatusCode == http.StatusNotFound {
 						slog.DebugContext(
-							r.ctx, "runner dissapeared from github",
+							r.ctx, "runner disappeared from github",
 							"runner_name", dbInstance.Name)
 					} else {
 						return errors.Wrap(err, "removing runner from github")
