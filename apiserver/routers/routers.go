@@ -49,8 +49,7 @@ import (
 	_ "expvar" // Register the expvar handlers
 	"log/slog"
 	"net/http"
-	// nolint:golangci-lint,gosec
-	_ "net/http/pprof" // Register the pprof handlers
+	_ "net/http/pprof" //nolint:golangci-lint,gosec // Register the pprof handlers
 
 	"github.com/felixge/httpsnoop"
 	"github.com/gorilla/mux"
