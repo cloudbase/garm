@@ -30,10 +30,8 @@ jobs:
         with:
           go-version: 'stable'
       - uses: actions/checkout@v3
-      - uses: golangci/golangci-lint-action@v3
-        with:
-          skip-cache: true
-          args: --timeout=8m --build-tags testing
+      - name: make lint
+        run: make golangci-lint && GOLANGCI_LINT_EXTRA_ARGS="--timeout=1m --build-tags testing" make lint
       - name: Verify go vendor, go modules and gofmt
         run: |
           sudo apt-get install -y jq
