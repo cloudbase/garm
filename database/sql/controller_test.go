@@ -21,7 +21,7 @@ import (
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	dbCommon "github.com/cloudbase/garm/database/common"
-	garmTesting "github.com/cloudbase/garm/internal/testing"
+	garmTesting "github.com/cloudbase/garm/internal/testing" //nolint:typecheck
 
 	"github.com/stretchr/testify/suite"
 )

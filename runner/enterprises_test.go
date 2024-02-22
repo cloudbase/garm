@@ -24,7 +24,7 @@ import (
 	"github.com/cloudbase/garm/config"
 	"github.com/cloudbase/garm/database"
 	dbCommon "github.com/cloudbase/garm/database/common"
-	garmTesting "github.com/cloudbase/garm/internal/testing"
+	garmTesting "github.com/cloudbase/garm/internal/testing" //nolint:typecheck
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
 	runnerCommonMocks "github.com/cloudbase/garm/runner/common/mocks"
