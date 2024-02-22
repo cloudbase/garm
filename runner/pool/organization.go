@@ -89,7 +89,7 @@ type organization struct {
 	mux sync.Mutex
 }
 
-func (r *organization) findRunnerGroupByName(name string) (*github.RunnerGroup, error) {
+func (o *organization) findRunnerGroupByName(name string) (*github.RunnerGroup, error) {
 	// TODO(gabriel-samfira): implement caching
 	opts := github.ListOrgRunnerGroupOptions{
 		ListOptions: github.ListOptions{
@@ -102,7 +102,7 @@ func (r *organization) findRunnerGroupByName(name string) (*github.RunnerGroup, 
 			"ListOrganizationRunnerGroups", // label: operation
 			metricsLabelOrganizationScope,  // label: scope
 		).Inc()
-		runnerGroups, ghResp, err := r.ghcli.ListOrganizationRunnerGroups(r.ctx, r.cfg.Name, &opts)
+		runnerGroups, ghResp, err := o.ghcli.ListOrganizationRunnerGroups(o.ctx, o.cfg.Name, &opts)
 		if err != nil {
 			metrics.GithubOperationFailedCount.WithLabelValues(
 				"ListOrganizationRunnerGroups", // label: operation
@@ -127,10 +127,10 @@ func (r *organization) findRunnerGroupByName(name string) (*github.RunnerGroup, 
 	return nil, errors.Wrap(runnerErrors.ErrNotFound, "runner group not found")
 }
 
-func (r *organization) GetJITConfig(ctx context.Context, instance string, pool params.Pool, labels []string) (jitConfigMap map[string]string, runner *github.Runner, err error) {
+func (o *organization) GetJITConfig(ctx context.Context, instance string, pool params.Pool, labels []string) (jitConfigMap map[string]string, runner *github.Runner, err error) {
 	var rg int64 = 1
 	if pool.GitHubRunnerGroup != "" {
-		runnerGroup, err := r.findRunnerGroupByName(pool.GitHubRunnerGroup)
+		runnerGroup, err := o.findRunnerGroupByName(pool.GitHubRunnerGroup)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to find runner group: %w", err)
 		}
@@ -148,7 +148,7 @@ func (r *organization) GetJITConfig(ctx context.Context, instance string, pool p
 		"GenerateOrgJITConfig",        // label: operation
 		metricsLabelOrganizationScope, // label: scope
 	).Inc()
-	jitConfig, resp, err := r.ghcli.GenerateOrgJITConfig(ctx, r.cfg.Name, &req)
+	jitConfig, resp, err := o.ghcli.GenerateOrgJITConfig(ctx, o.cfg.Name, &req)
 	if err != nil {
 		metrics.GithubOperationFailedCount.WithLabelValues(
 			"GenerateOrgJITConfig",        // label: operation
@@ -167,7 +167,7 @@ func (r *organization) GetJITConfig(ctx context.Context, instance string, pool p
 				"RemoveOrganizationRunner",    // label: operation
 				metricsLabelOrganizationScope, // label: scope
 			).Inc()
-			_, innerErr := r.ghcli.RemoveOrganizationRunner(r.ctx, r.cfg.Name, runner.GetID())
+			_, innerErr := o.ghcli.RemoveOrganizationRunner(o.ctx, o.cfg.Name, runner.GetID())
 			if innerErr != nil {
 				metrics.GithubOperationFailedCount.WithLabelValues(
 					"RemoveOrganizationRunner",    // label: operation
@@ -176,7 +176,7 @@ func (r *organization) GetJITConfig(ctx context.Context, instance string, pool p
 			}
 			slog.With(slog.Any("error", innerErr)).ErrorContext(
 				ctx, "failed to remove runner",
-				"runner_id", runner.GetID(), "organization", r.cfg.Name)
+				"runner_id", runner.GetID(), "organization", o.cfg.Name)
 		}
 	}()
 
@@ -193,23 +193,23 @@ func (r *organization) GetJITConfig(ctx context.Context, instance string, pool p
 	return ret, runner, nil
 }
 
-func (r *organization) GithubCLI() common.GithubClient {
-	return r.ghcli
+func (o *organization) GithubCLI() common.GithubClient {
+	return o.ghcli
 }
 
 func (o *organization) PoolType() params.PoolType {
 	return params.OrganizationPool
 }
 
-func (r *organization) GetRunnerInfoFromWorkflow(job params.WorkflowJob) (params.RunnerInfo, error) {
-	if err := r.ValidateOwner(job); err != nil {
+func (o *organization) GetRunnerInfoFromWorkflow(job params.WorkflowJob) (params.RunnerInfo, error) {
+	if err := o.ValidateOwner(job); err != nil {
 		return params.RunnerInfo{}, errors.Wrap(err, "validating owner")
 	}
 	metrics.GithubOperationCount.WithLabelValues(
 		"GetWorkflowJobByID",          // label: operation
 		metricsLabelOrganizationScope, // label: scope
 	).Inc()
-	workflow, ghResp, err := r.ghcli.GetWorkflowJobByID(r.ctx, job.Organization.Login, job.Repository.Name, job.WorkflowJob.ID)
+	workflow, ghResp, err := o.ghcli.GetWorkflowJobByID(o.ctx, job.Organization.Login, job.Repository.Name, job.WorkflowJob.ID)
 	if err != nil {
 		metrics.GithubOperationFailedCount.WithLabelValues(
 			"GetWorkflowJobByID",          // label: operation
@@ -230,28 +230,28 @@ func (r *organization) GetRunnerInfoFromWorkflow(job params.WorkflowJob) (params
 	return params.RunnerInfo{}, fmt.Errorf("failed to find runner name from workflow")
 }
 
-func (r *organization) UpdateState(param params.UpdatePoolStateParams) error {
-	r.mux.Lock()
-	defer r.mux.Unlock()
+func (o *organization) UpdateState(param params.UpdatePoolStateParams) error {
+	o.mux.Lock()
+	defer o.mux.Unlock()
 
-	r.cfg.WebhookSecret = param.WebhookSecret
+	o.cfg.WebhookSecret = param.WebhookSecret
 	if param.InternalConfig != nil {
-		r.cfgInternal = *param.InternalConfig
+		o.cfgInternal = *param.InternalConfig
 	}
 
-	ghc, _, err := util.GithubClient(r.ctx, r.GetGithubToken(), r.cfgInternal.GithubCredentialsDetails)
+	ghc, _, err := util.GithubClient(o.ctx, o.GetGithubToken(), o.cfgInternal.GithubCredentialsDetails)
 	if err != nil {
 		return errors.Wrap(err, "getting github client")
 	}
-	r.ghcli = ghc
+	o.ghcli = ghc
 	return nil
 }
 
-func (r *organization) GetGithubToken() string {
-	return r.cfgInternal.OAuth2Token
+func (o *organization) GetGithubToken() string {
+	return o.cfgInternal.OAuth2Token
 }
 
-func (r *organization) GetGithubRunners() ([]*github.Runner, error) {
+func (o *organization) GetGithubRunners() ([]*github.Runner, error) {
 	opts := github.ListOptions{
 		PerPage: 100,
 	}
@@ -262,7 +262,7 @@ func (r *organization) GetGithubRunners() ([]*github.Runner, error) {
 			"ListOrganizationRunners",     // label: operation
 			metricsLabelOrganizationScope, // label: scope
 		).Inc()
-		runners, ghResp, err := r.ghcli.ListOrganizationRunners(r.ctx, r.cfg.Name, &opts)
+		runners, ghResp, err := o.ghcli.ListOrganizationRunners(o.ctx, o.cfg.Name, &opts)
 		if err != nil {
 			metrics.GithubOperationFailedCount.WithLabelValues(
 				"ListOrganizationRunners",     // label: operation
@@ -283,14 +283,14 @@ func (r *organization) GetGithubRunners() ([]*github.Runner, error) {
 	return allRunners, nil
 }
 
-func (r *organization) FetchTools() ([]commonParams.RunnerApplicationDownload, error) {
-	r.mux.Lock()
-	defer r.mux.Unlock()
+func (o *organization) FetchTools() ([]commonParams.RunnerApplicationDownload, error) {
+	o.mux.Lock()
+	defer o.mux.Unlock()
 	metrics.GithubOperationCount.WithLabelValues(
 		"ListOrganizationRunnerApplicationDownloads", // label: operation
 		metricsLabelOrganizationScope,                // label: scope
 	).Inc()
-	tools, ghResp, err := r.ghcli.ListOrganizationRunnerApplicationDownloads(r.ctx, r.cfg.Name)
+	tools, ghResp, err := o.ghcli.ListOrganizationRunnerApplicationDownloads(o.ctx, o.cfg.Name)
 	if err != nil {
 		metrics.GithubOperationFailedCount.WithLabelValues(
 			"ListOrganizationRunnerApplicationDownloads", // label: operation
@@ -313,17 +313,17 @@ func (r *organization) FetchTools() ([]commonParams.RunnerApplicationDownload, e
 	return ret, nil
 }
 
-func (r *organization) FetchDbInstances() ([]params.Instance, error) {
-	return r.store.ListOrgInstances(r.ctx, r.id)
+func (o *organization) FetchDbInstances() ([]params.Instance, error) {
+	return o.store.ListOrgInstances(o.ctx, o.id)
 }
 
-func (r *organization) RemoveGithubRunner(runnerID int64) (*github.Response, error) {
+func (o *organization) RemoveGithubRunner(runnerID int64) (*github.Response, error) {
 	metrics.GithubOperationCount.WithLabelValues(
 		"RemoveRunner",                // label: operation
 		metricsLabelOrganizationScope, // label: scope
 	).Inc()
 
-	ghResp, err := r.ghcli.RemoveOrganizationRunner(r.ctx, r.cfg.Name, runnerID)
+	ghResp, err := o.ghcli.RemoveOrganizationRunner(o.ctx, o.cfg.Name, runnerID)
 	if err != nil {
 		metrics.GithubOperationFailedCount.WithLabelValues(
 			"RemoveRunner",                // label: operation
@@ -335,28 +335,28 @@ func (r *organization) RemoveGithubRunner(runnerID int64) (*github.Response, err
 	return ghResp, nil
 }
 
-func (r *organization) ListPools() ([]params.Pool, error) {
-	pools, err := r.store.ListOrgPools(r.ctx, r.id)
+func (o *organization) ListPools() ([]params.Pool, error) {
+	pools, err := o.store.ListOrgPools(o.ctx, o.id)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching pools")
 	}
 	return pools, nil
 }
 
-func (r *organization) GithubURL() string {
-	return fmt.Sprintf("%s/%s", r.cfgInternal.GithubCredentialsDetails.BaseURL, r.cfg.Name)
+func (o *organization) GithubURL() string {
+	return fmt.Sprintf("%s/%s", o.cfgInternal.GithubCredentialsDetails.BaseURL, o.cfg.Name)
 }
 
-func (r *organization) JwtToken() string {
-	return r.cfgInternal.JWTSecret
+func (o *organization) JwtToken() string {
+	return o.cfgInternal.JWTSecret
 }
 
-func (r *organization) GetGithubRegistrationToken() (string, error) {
+func (o *organization) GetGithubRegistrationToken() (string, error) {
 	metrics.GithubOperationCount.WithLabelValues(
 		"CreateOrganizationRegistrationToken", // label: operation
 		metricsLabelOrganizationScope,         // label: scope
 	).Inc()
-	tk, ghResp, err := r.ghcli.CreateOrganizationRegistrationToken(r.ctx, r.cfg.Name)
+	tk, ghResp, err := o.ghcli.CreateOrganizationRegistrationToken(o.ctx, o.cfg.Name)
 	if err != nil {
 		metrics.GithubOperationFailedCount.WithLabelValues(
 			"CreateOrganizationRegistrationToken", // label: operation
@@ -371,42 +371,42 @@ func (r *organization) GetGithubRegistrationToken() (string, error) {
 	return *tk.Token, nil
 }
 
-func (r *organization) String() string {
-	return r.cfg.Name
+func (o *organization) String() string {
+	return o.cfg.Name
 }
 
-func (r *organization) WebhookSecret() string {
-	return r.cfg.WebhookSecret
+func (o *organization) WebhookSecret() string {
+	return o.cfg.WebhookSecret
 }
 
-func (r *organization) FindPoolByTags(labels []string) (params.Pool, error) {
-	pool, err := r.store.FindOrganizationPoolByTags(r.ctx, r.id, labels)
+func (o *organization) FindPoolByTags(labels []string) (params.Pool, error) {
+	pool, err := o.store.FindOrganizationPoolByTags(o.ctx, o.id, labels)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching suitable pool")
 	}
 	return pool, nil
 }
 
-func (r *organization) GetPoolByID(poolID string) (params.Pool, error) {
-	pool, err := r.store.GetOrganizationPool(r.ctx, r.id, poolID)
+func (o *organization) GetPoolByID(poolID string) (params.Pool, error) {
+	pool, err := o.store.GetOrganizationPool(o.ctx, o.id, poolID)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}
 	return pool, nil
 }
 
-func (r *organization) ValidateOwner(job params.WorkflowJob) error {
-	if !strings.EqualFold(job.Organization.Login, r.cfg.Name) {
+func (o *organization) ValidateOwner(job params.WorkflowJob) error {
+	if !strings.EqualFold(job.Organization.Login, o.cfg.Name) {
 		return runnerErrors.NewBadRequestError("job not meant for this pool manager")
 	}
 	return nil
 }
 
-func (r *organization) ID() string {
-	return r.id
+func (o *organization) ID() string {
+	return o.id
 }
 
-func (r *organization) listHooks(ctx context.Context) ([]*github.Hook, error) {
+func (o *organization) listHooks(ctx context.Context) ([]*github.Hook, error) {
 	opts := github.ListOptions{
 		PerPage: 100,
 	}
@@ -416,7 +416,7 @@ func (r *organization) listHooks(ctx context.Context) ([]*github.Hook, error) {
 			"ListOrgHooks",                // label: operation
 			metricsLabelOrganizationScope, // label: scope
 		).Inc()
-		hooks, ghResp, err := r.ghcli.ListOrgHooks(ctx, r.cfg.Name, &opts)
+		hooks, ghResp, err := o.ghcli.ListOrgHooks(ctx, o.cfg.Name, &opts)
 		if err != nil {
 			metrics.GithubOperationFailedCount.WithLabelValues(
 				"ListOrgHooks",                // label: operation
@@ -436,13 +436,13 @@ func (r *organization) listHooks(ctx context.Context) ([]*github.Hook, error) {
 	return allHooks, nil
 }
 
-func (r *organization) InstallHook(ctx context.Context, req *github.Hook) (params.HookInfo, error) {
-	allHooks, err := r.listHooks(ctx)
+func (o *organization) InstallHook(ctx context.Context, req *github.Hook) (params.HookInfo, error) {
+	allHooks, err := o.listHooks(ctx)
 	if err != nil {
 		return params.HookInfo{}, errors.Wrap(err, "listing hooks")
 	}
 
-	if err := validateHookRequest(r.cfgInternal.ControllerID, r.cfgInternal.BaseWebhookURL, allHooks, req); err != nil {
+	if err := validateHookRequest(o.cfgInternal.ControllerID, o.cfgInternal.BaseWebhookURL, allHooks, req); err != nil {
 		return params.HookInfo{}, errors.Wrap(err, "validating hook request")
 	}
 
@@ -451,7 +451,7 @@ func (r *organization) InstallHook(ctx context.Context, req *github.Hook) (param
 		metricsLabelOrganizationScope, // label: scope
 	).Inc()
 
-	hook, _, err := r.ghcli.CreateOrgHook(ctx, r.cfg.Name, req)
+	hook, _, err := o.ghcli.CreateOrgHook(ctx, o.cfg.Name, req)
 	if err != nil {
 		metrics.GithubOperationFailedCount.WithLabelValues(
 			"CreateOrgHook",               // label: operation
@@ -465,7 +465,7 @@ func (r *organization) InstallHook(ctx context.Context, req *github.Hook) (param
 		metricsLabelOrganizationScope, // label: scope
 	).Inc()
 
-	if _, err := r.ghcli.PingOrgHook(ctx, r.cfg.Name, hook.GetID()); err != nil {
+	if _, err := o.ghcli.PingOrgHook(ctx, o.cfg.Name, hook.GetID()); err != nil {
 		metrics.GithubOperationFailedCount.WithLabelValues(
 			"PingOrgHook",                 // label: operation
 			metricsLabelOrganizationScope, // label: scope
@@ -476,8 +476,8 @@ func (r *organization) InstallHook(ctx context.Context, req *github.Hook) (param
 	return hookToParamsHookInfo(hook), nil
 }
 
-func (r *organization) UninstallHook(ctx context.Context, url string) error {
-	allHooks, err := r.listHooks(ctx)
+func (o *organization) UninstallHook(ctx context.Context, url string) error {
+	allHooks, err := o.listHooks(ctx)
 	if err != nil {
 		return errors.Wrap(err, "listing hooks")
 	}
@@ -488,7 +488,7 @@ func (r *organization) UninstallHook(ctx context.Context, url string) error {
 				"DeleteOrgHook",               // label: operation
 				metricsLabelOrganizationScope, // label: scope
 			).Inc()
-			_, err = r.ghcli.DeleteOrgHook(ctx, r.cfg.Name, hook.GetID())
+			_, err = o.ghcli.DeleteOrgHook(ctx, o.cfg.Name, hook.GetID())
 			if err != nil {
 				metrics.GithubOperationFailedCount.WithLabelValues(
 					"DeleteOrgHook",               // label: operation
@@ -502,15 +502,15 @@ func (r *organization) UninstallHook(ctx context.Context, url string) error {
 	return nil
 }
 
-func (r *organization) GetHookInfo(ctx context.Context) (params.HookInfo, error) {
-	allHooks, err := r.listHooks(ctx)
+func (o *organization) GetHookInfo(ctx context.Context) (params.HookInfo, error) {
+	allHooks, err := o.listHooks(ctx)
 	if err != nil {
 		return params.HookInfo{}, errors.Wrap(err, "listing hooks")
 	}
 
 	for _, hook := range allHooks {
 		hookInfo := hookToParamsHookInfo(hook)
-		if strings.EqualFold(hookInfo.URL, r.cfgInternal.ControllerWebhookURL) {
+		if strings.EqualFold(hookInfo.URL, o.cfgInternal.ControllerWebhookURL) {
 			return hookInfo, nil
 		}
 	}
