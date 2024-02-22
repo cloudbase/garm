@@ -8,7 +8,6 @@ import (
 )
 
 func CollectProviderMetric(ctx context.Context, r *runner.Runner) error {
-
 	// reset metrics
 	metrics.ProviderInfo.Reset()
 

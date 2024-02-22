@@ -11,7 +11,6 @@ import (
 
 // CollectPoolMetric collects the metrics for the pool objects
 func CollectPoolMetric(ctx context.Context, r *runner.Runner) error {
-
 	// reset metrics
 	metrics.PoolInfo.Reset()
 	metrics.PoolStatus.Reset()

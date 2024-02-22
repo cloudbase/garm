@@ -78,7 +78,6 @@ func (a *Authenticator) GetJWTToken(ctx context.Context) (string, error) {
 // GetJWTMetricsToken returns a JWT token that can be used to read metrics.
 // This token is not tied to a user, no user is stored in the db.
 func (a *Authenticator) GetJWTMetricsToken(ctx context.Context) (string, error) {
-
 	if !IsAdmin(ctx) {
 		return "", runnerErrors.ErrUnauthorized
 	}

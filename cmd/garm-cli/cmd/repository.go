@@ -303,7 +303,6 @@ var repoDeleteCmd = &cobra.Command{
 }
 
 func init() {
-
 	repoAddCmd.Flags().StringVar(&repoOwner, "owner", "", "The owner of this repository")
 	repoAddCmd.Flags().StringVar(&repoName, "name", "", "The name of the repository")
 	repoAddCmd.Flags().StringVar(&repoWebhookSecret, "webhook-secret", "", "The webhook secret for this repository")

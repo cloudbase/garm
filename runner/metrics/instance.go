@@ -10,7 +10,6 @@ import (
 // CollectInstanceMetric collects the metrics for the runner instances
 // reflecting the statuses and the pool they belong to.
 func CollectInstanceMetric(ctx context.Context, r *runner.Runner) error {
-
 	// reset metrics
 	metrics.InstanceStatus.Reset()
 
@@ -54,7 +53,6 @@ func CollectInstanceMetric(ctx context.Context, r *runner.Runner) error {
 	}
 
 	for _, instance := range instances {
-
 		metrics.InstanceStatus.WithLabelValues(
 			instance.Name,                           // label: name
 			string(instance.Status),                 // label: status

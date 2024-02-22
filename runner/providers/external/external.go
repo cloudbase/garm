@@ -145,7 +145,6 @@ func (e *external) DeleteInstance(ctx context.Context, instance string) error {
 			).Inc()
 			return garmErrors.NewProviderError("provider binary %s returned error: %s", e.execPath, err)
 		}
-
 	}
 	return nil
 }
