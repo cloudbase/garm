@@ -31,23 +31,21 @@ func CollectInstanceMetric(ctx context.Context, r *runner.Runner) error {
 
 	poolNames := make(map[string]poolInfo)
 	for _, pool := range pools {
-		if pool.EnterpriseName != "" {
+		switch {
+		case pool.OrgName != "":
 			poolNames[pool.ID] = poolInfo{
-				Name:         pool.EnterpriseName,
-				Type:         string(pool.PoolType()),
-				ProviderName: pool.ProviderName,
+				Name: pool.OrgName,
+				Type: string(pool.PoolType()),
 			}
-		} else if pool.OrgName != "" {
+		case pool.EnterpriseName != "":
 			poolNames[pool.ID] = poolInfo{
-				Name:         pool.OrgName,
-				Type:         string(pool.PoolType()),
-				ProviderName: pool.ProviderName,
+				Name: pool.EnterpriseName,
+				Type: string(pool.PoolType()),
 			}
-		} else {
+		default:
 			poolNames[pool.ID] = poolInfo{
-				Name:         pool.RepoName,
-				Type:         string(pool.PoolType()),
-				ProviderName: pool.ProviderName,
+				Name: pool.RepoName,
+				Type: string(pool.PoolType()),
 			}
 		}
 	}

@@ -30,17 +30,18 @@ func CollectPoolMetric(ctx context.Context, r *runner.Runner) error {
 
 	poolNames := make(map[string]poolInfo)
 	for _, pool := range pools {
-		if pool.EnterpriseName != "" {
-			poolNames[pool.ID] = poolInfo{
-				Name: pool.EnterpriseName,
-				Type: string(pool.PoolType()),
-			}
-		} else if pool.OrgName != "" {
+		switch {
+		case pool.OrgName != "":
 			poolNames[pool.ID] = poolInfo{
 				Name: pool.OrgName,
 				Type: string(pool.PoolType()),
 			}
-		} else {
+		case pool.EnterpriseName != "":
+			poolNames[pool.ID] = poolInfo{
+				Name: pool.EnterpriseName,
+				Type: string(pool.PoolType()),
+			}
+		default:
 			poolNames[pool.ID] = poolInfo{
 				Name: pool.RepoName,
 				Type: string(pool.PoolType()),

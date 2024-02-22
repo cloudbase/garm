@@ -107,19 +107,21 @@ func (a *APIController) handleWorkflowJobEvent(ctx context.Context, w http.Respo
 	hookType := r.Header.Get("X-Github-Hook-Installation-Target-Type")
 
 	if err := a.r.DispatchWorkflowJob(hookType, signature, body); err != nil {
-		if errors.Is(err, gErrors.ErrNotFound) {
+		switch {
+		case errors.Is(err, gErrors.ErrNotFound):
 			metrics.WebhooksReceived.WithLabelValues(
 				"false",         // label: valid
 				"owner_unknown", // label: reason
 			).Inc()
 			slog.With(slog.Any("error", err)).ErrorContext(ctx, "got not found error from DispatchWorkflowJob. webhook not meant for us?")
 			return
-		} else if strings.Contains(err.Error(), "signature") { // nolint:golangci-lint,godox TODO: check error type
+		case strings.Contains(err.Error(), "signature"):
+			// nolint:golangci-lint,godox TODO: check error type
 			metrics.WebhooksReceived.WithLabelValues(
 				"false",             // label: valid
 				"signature_invalid", // label: reason
 			).Inc()
-		} else {
+		default:
 			metrics.WebhooksReceived.WithLabelValues(
 				"false",   // label: valid
 				"unknown", // label: reason
