@@ -50,7 +50,7 @@ type external struct {
 	environmentVariables []string
 }
 
-func (e *external) validateResult(ctx context.Context, inst commonParams.ProviderInstance) error {
+func (e *external) validateResult(inst commonParams.ProviderInstance) error {
 	if inst.ProviderID == "" {
 		return garmErrors.NewProviderError("missing provider ID")
 	}
@@ -104,7 +104,7 @@ func (e *external) CreateInstance(ctx context.Context, bootstrapParams commonPar
 		return commonParams.ProviderInstance{}, garmErrors.NewProviderError("failed to decode response from binary: %s", err)
 	}
 
-	if err := e.validateResult(ctx, param); err != nil {
+	if err := e.validateResult(param); err != nil {
 		metrics.InstanceOperationFailedCount.WithLabelValues(
 			"CreateInstance", // label: operation
 			e.cfg.Name,       // label: provider
@@ -181,7 +181,7 @@ func (e *external) GetInstance(ctx context.Context, instance string) (commonPara
 		return commonParams.ProviderInstance{}, garmErrors.NewProviderError("failed to decode response from binary: %s", err)
 	}
 
-	if err := e.validateResult(ctx, param); err != nil {
+	if err := e.validateResult(param); err != nil {
 		metrics.InstanceOperationFailedCount.WithLabelValues(
 			"GetInstance", // label: operation
 			e.cfg.Name,    // label: provider
@@ -227,7 +227,7 @@ func (e *external) ListInstances(ctx context.Context, poolID string) ([]commonPa
 
 	ret := make([]commonParams.ProviderInstance, len(param))
 	for idx, inst := range param {
-		if err := e.validateResult(ctx, inst); err != nil {
+		if err := e.validateResult(inst); err != nil {
 			metrics.InstanceOperationFailedCount.WithLabelValues(
 				"ListInstances", // label: operation
 				e.cfg.Name,      // label: provider
@@ -265,7 +265,7 @@ func (e *external) RemoveAllInstances(ctx context.Context) error {
 }
 
 // Stop shuts down the instance.
-func (e *external) Stop(ctx context.Context, instance string, force bool) error {
+func (e *external) Stop(ctx context.Context, instance string) error {
 	asEnv := []string{
 		fmt.Sprintf("GARM_COMMAND=%s", execution.StopInstanceCommand),
 		fmt.Sprintf("GARM_CONTROLLER_ID=%s", e.controllerID),

@@ -77,7 +77,7 @@ type enterprise struct {
 	mux sync.Mutex
 }
 
-func (r *enterprise) findRunnerGroupByName(ctx context.Context, name string) (*github.EnterpriseRunnerGroup, error) {
+func (r *enterprise) findRunnerGroupByName(name string) (*github.EnterpriseRunnerGroup, error) {
 	// TODO(gabriel-samfira): implement caching
 	opts := github.ListEnterpriseRunnerGroupOptions{
 		ListOptions: github.ListOptions{
@@ -118,7 +118,7 @@ func (r *enterprise) findRunnerGroupByName(ctx context.Context, name string) (*g
 func (r *enterprise) GetJITConfig(ctx context.Context, instance string, pool params.Pool, labels []string) (jitConfigMap map[string]string, runner *github.Runner, err error) {
 	var rg int64 = 1
 	if pool.GitHubRunnerGroup != "" {
-		runnerGroup, err := r.findRunnerGroupByName(ctx, pool.GitHubRunnerGroup)
+		runnerGroup, err := r.findRunnerGroupByName(pool.GitHubRunnerGroup)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to find runner group: %w", err)
 		}
@@ -392,14 +392,14 @@ func (r *enterprise) ID() string {
 	return r.id
 }
 
-func (r *enterprise) InstallHook(ctx context.Context, req *github.Hook) (params.HookInfo, error) {
+func (r *enterprise) InstallHook(_ context.Context, _ *github.Hook) (params.HookInfo, error) {
 	return params.HookInfo{}, fmt.Errorf("not implemented")
 }
 
-func (r *enterprise) UninstallHook(ctx context.Context, url string) error {
+func (r *enterprise) UninstallHook(_ context.Context, _ string) error {
 	return fmt.Errorf("not implemented")
 }
 
-func (r *enterprise) GetHookInfo(ctx context.Context) (params.HookInfo, error) {
+func (r *enterprise) GetHookInfo(_ context.Context) (params.HookInfo, error) {
 	return params.HookInfo{}, fmt.Errorf("not implemented")
 }

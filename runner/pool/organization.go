@@ -89,7 +89,7 @@ type organization struct {
 	mux sync.Mutex
 }
 
-func (r *organization) findRunnerGroupByName(ctx context.Context, name string) (*github.RunnerGroup, error) {
+func (r *organization) findRunnerGroupByName(name string) (*github.RunnerGroup, error) {
 	// TODO(gabriel-samfira): implement caching
 	opts := github.ListOrgRunnerGroupOptions{
 		ListOptions: github.ListOptions{
@@ -130,7 +130,7 @@ func (r *organization) findRunnerGroupByName(ctx context.Context, name string) (
 func (r *organization) GetJITConfig(ctx context.Context, instance string, pool params.Pool, labels []string) (jitConfigMap map[string]string, runner *github.Runner, err error) {
 	var rg int64 = 1
 	if pool.GitHubRunnerGroup != "" {
-		runnerGroup, err := r.findRunnerGroupByName(ctx, pool.GitHubRunnerGroup)
+		runnerGroup, err := r.findRunnerGroupByName(pool.GitHubRunnerGroup)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to find runner group: %w", err)
 		}

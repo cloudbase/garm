@@ -91,6 +91,8 @@ type repository struct {
 	mux sync.Mutex
 }
 
+// nolint:golint,revive
+// pool is used in enterprise and organzation
 func (r *repository) GetJITConfig(ctx context.Context, instance string, pool params.Pool, labels []string) (jitConfigMap map[string]string, runner *github.Runner, err error) {
 	req := github.GenerateJITConfigRequest{
 		Name: instance,

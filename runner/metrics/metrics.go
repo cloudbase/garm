@@ -82,7 +82,7 @@ func collectMetrics(ctx context.Context, r *runner.Runner, controllerInfo params
 	}
 
 	slog.DebugContext(ctx, "collecting health metrics")
-	err = CollectHealthMetric(ctx, r, controllerInfo)
+	err = CollectHealthMetric(controllerInfo)
 	if err != nil {
 		return err
 	}
