@@ -198,8 +198,8 @@ func (s *sqlDatabase) CreateRepositoryPool(ctx context.Context, repoID string, p
 		return params.Pool{}, errors.Wrap(q.Error, "adding pool")
 	}
 
-	for _, tt := range tags {
-		if err := s.conn.Model(&newPool).Association("Tags").Append(&tt); err != nil {
+	for i := range tags {
+		if err := s.conn.Model(&newPool).Association("Tags").Append(&tags[i]); err != nil {
 			return params.Pool{}, errors.Wrap(err, "saving tag")
 		}
 	}
