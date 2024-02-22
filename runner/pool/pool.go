@@ -412,7 +412,7 @@ func (r *basePoolManager) cleanupOrphanedProviderRunners(runners []*github.Runne
 		}
 		defer r.keyMux.Unlock(instance.Name, false)
 
-		switch commonParams.InstanceStatus(instance.Status) {
+		switch instance.Status {
 		case commonParams.InstancePendingCreate,
 			commonParams.InstancePendingDelete, commonParams.InstancePendingForceDelete:
 			// this instance is in the process of being created or is awaiting deletion.
@@ -570,7 +570,7 @@ func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner)
 			continue
 		}
 
-		switch commonParams.InstanceStatus(dbInstance.Status) {
+		switch dbInstance.Status {
 		case commonParams.InstancePendingDelete, commonParams.InstanceDeleting:
 			// already marked for deletion or is in the process of being deleted.
 			// Let consolidate take care of it.
