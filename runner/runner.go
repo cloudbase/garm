@@ -17,7 +17,7 @@ package runner
 import (
 	"context"
 	"crypto/hmac"
-	"crypto/sha1"
+	"crypto/sha1" //nolint:golangci-lint,gosec // sha1 is used for github webhooks
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
