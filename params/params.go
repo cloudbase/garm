@@ -286,11 +286,12 @@ func (p *Pool) RunnerTimeout() uint {
 }
 
 func (p *Pool) PoolType() PoolType {
-	if p.RepoID != "" {
+	switch {
+	case p.RepoID != "":
 		return RepositoryPool
-	} else if p.OrgID != "" {
+	case p.OrgID != "":
 		return OrganizationPool
-	} else if p.EnterpriseID != "" {
+	case p.EnterpriseID != "":
 		return EnterprisePool
 	}
 	return ""
