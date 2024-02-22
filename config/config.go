@@ -123,7 +123,7 @@ func (c *Config) Validate() error {
 		if err := provider.Validate(); err != nil {
 			return errors.Wrap(err, "validating provider")
 		}
-		providerNames[provider.Name] += 1
+		providerNames[provider.Name]++
 	}
 
 	for name, count := range providerNames {
