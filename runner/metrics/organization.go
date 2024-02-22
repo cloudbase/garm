@@ -10,7 +10,6 @@ import (
 
 // CollectOrganizationMetric collects the metrics for the organization objects
 func CollectOrganizationMetric(ctx context.Context, r *runner.Runner) error {
-
 	// reset metrics
 	metrics.OrganizationInfo.Reset()
 	metrics.OrganizationPoolManagerStatus.Reset()

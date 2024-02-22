@@ -25,19 +25,18 @@ import (
 	"sync"
 	"time"
 
-	commonParams "github.com/cloudbase/garm-provider-common/params"
+	"github.com/google/go-github/v57/github"
+	"github.com/google/uuid"
+	"github.com/pkg/errors"
+	"golang.org/x/sync/errgroup"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm-provider-common/util"
 	"github.com/cloudbase/garm/auth"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
-
-	"github.com/google/go-github/v57/github"
-	"github.com/google/uuid"
-	"github.com/pkg/errors"
-	"golang.org/x/sync/errgroup"
 )
 
 var (
@@ -55,6 +54,8 @@ var (
 const (
 	// maxCreateAttempts is the number of times we will attempt to create an instance
 	// before we give up.
+	//
+	// nolint:golangci-lint,godox
 	// TODO: make this configurable(?)
 	maxCreateAttempts = 5
 
@@ -245,7 +246,7 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 			return errors.Wrap(err, "updating runner")
 		}
 		// Set triggeredBy here so we break the lock on any potential queued job.
-		triggeredBy = jobIdFromLabels(instance.AditionalLabels)
+		triggeredBy = jobIDFromLabels(instance.AditionalLabels)
 
 		// A runner has picked up the job, and is now running it. It may need to be replaced if the pool has
 		// a minimum number of idle runners configured.
@@ -262,14 +263,14 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 	return nil
 }
 
-func jobIdFromLabels(labels []string) int64 {
+func jobIDFromLabels(labels []string) int64 {
 	for _, lbl := range labels {
 		if strings.HasPrefix(lbl, jobLabelPrefix) {
-			jobId, err := strconv.ParseInt(lbl[len(jobLabelPrefix):], 10, 64)
+			jobID, err := strconv.ParseInt(lbl[len(jobLabelPrefix):], 10, 64)
 			if err != nil {
 				return 0
 			}
-			return jobId
+			return jobID
 		}
 	}
 	return 0
@@ -413,7 +414,7 @@ func (r *basePoolManager) cleanupOrphanedProviderRunners(runners []*github.Runne
 		}
 		defer r.keyMux.Unlock(instance.Name, false)
 
-		switch commonParams.InstanceStatus(instance.Status) {
+		switch instance.Status {
 		case commonParams.InstancePendingCreate,
 			commonParams.InstancePendingDelete, commonParams.InstancePendingForceDelete:
 			// this instance is in the process of being created or is awaiting deletion.
@@ -571,7 +572,7 @@ func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner)
 			continue
 		}
 
-		switch commonParams.InstanceStatus(dbInstance.Status) {
+		switch dbInstance.Status {
 		case commonParams.InstancePendingDelete, commonParams.InstanceDeleting:
 			// already marked for deletion or is in the process of being deleted.
 			// Let consolidate take care of it.
@@ -645,7 +646,7 @@ func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner)
 					// Removed in the meantime?
 					if resp != nil && resp.StatusCode == http.StatusNotFound {
 						slog.DebugContext(
-							r.ctx, "runner dissapeared from github",
+							r.ctx, "runner disappeared from github",
 							"runner_name", dbInstance.Name)
 					} else {
 						return errors.Wrap(err, "removing runner from github")
@@ -670,14 +671,14 @@ func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner)
 					r.ctx, "instance is online but github reports runner as offline",
 					"runner_name", dbInstance.Name)
 				return nil
-			} else {
-				slog.InfoContext(
-					r.ctx, "instance was found in stopped state; starting",
-					"runner_name", dbInstance.Name)
-				//start the instance
-				if err := provider.Start(r.ctx, dbInstance.ProviderID); err != nil {
-					return errors.Wrapf(err, "starting instance %s", dbInstance.ProviderID)
-				}
+			}
+
+			slog.InfoContext(
+				r.ctx, "instance was found in stopped state; starting",
+				"runner_name", dbInstance.Name)
+
+			if err := provider.Start(r.ctx, dbInstance.ProviderID); err != nil {
+				return errors.Wrapf(err, "starting instance %s", dbInstance.ProviderID)
 			}
 			return nil
 		})
@@ -1144,6 +1145,7 @@ func (r *basePoolManager) scaleDownOnePool(ctx context.Context, pool params.Pool
 		// up by a runner, they are most likely stale and can be removed. For now, we can simply
 		// remove jobs older than 10 minutes.
 		//
+		// nolint:golangci-lint,godox
 		// TODO: should probably allow aditional filters to list functions. Would help to filter by date
 		// instead of returning a bunch of results and filtering manually.
 		queued, err := r.store.ListEntityJobsByStatus(r.ctx, r.helper.PoolType(), r.helper.ID(), params.JobStatusQueued)
@@ -1196,7 +1198,6 @@ func (r *basePoolManager) ensureIdleRunnersForOnePool(pool params.Pool) error {
 	existingInstances, err := r.store.ListPoolInstances(r.ctx, pool.ID)
 	if err != nil {
 		return fmt.Errorf("failed to ensure minimum idle workers for pool %s: %w", pool.ID, err)
-
 	}
 
 	if uint(len(existingInstances)) >= pool.MaxRunners {
@@ -1223,7 +1224,7 @@ func (r *basePoolManager) ensureIdleRunnersForOnePool(pool params.Pool) error {
 		if uint(projectedInstanceCount) > pool.MaxRunners {
 			// ensure we don't go above max workers
 			delta := projectedInstanceCount - int(pool.MaxRunners)
-			required = required - delta
+			required -= delta
 		}
 	}
 
@@ -1278,6 +1279,7 @@ func (r *basePoolManager) retryFailedInstancesForOnePool(ctx context.Context, po
 			slog.DebugContext(
 				ctx, "attempting to clean up any previous instance",
 				"runner_name", instance.Name)
+			// nolint:golangci-lint,godox
 			// NOTE(gabriel-samfira): this is done in parallel. If there are many failed instances
 			// this has the potential to create many API requests to the target provider.
 			// TODO(gabriel-samfira): implement request throttling.
@@ -1297,6 +1299,7 @@ func (r *basePoolManager) retryFailedInstancesForOnePool(ctx context.Context, po
 			slog.DebugContext(
 				ctx, "cleanup of previously failed instance complete",
 				"runner_name", instance.Name)
+			// nolint:golangci-lint,godox
 			// TODO(gabriel-samfira): Incrementing CreateAttempt should be done within a transaction.
 			// It's fairly safe to do here (for now), as there should be no other code path that updates
 			// an instance in this state.
@@ -1506,6 +1509,7 @@ func (r *basePoolManager) deletePendingInstances() error {
 }
 
 func (r *basePoolManager) addPendingInstances() error {
+	// nolint:golangci-lint,godox
 	// TODO: filter instances by status.
 	instances, err := r.helper.FetchDbInstances()
 	if err != nil {
@@ -1772,6 +1776,7 @@ func (r *basePoolManager) consumeQueuedJobs() error {
 			// was spawned. Unlock it and try again. A different job may have picked up
 			// the runner.
 			if err := r.store.UnlockJob(r.ctx, job.ID, r.ID()); err != nil {
+				// nolint:golangci-lint,godox
 				// TODO: Implament a cache? Should we return here?
 				slog.With(slog.Any("error", err)).ErrorContext(
 					r.ctx, "failed to unlock job",
@@ -1781,6 +1786,7 @@ func (r *basePoolManager) consumeQueuedJobs() error {
 		}
 
 		if job.LockedBy.String() == r.ID() {
+			// nolint:golangci-lint,godox
 			// Job is locked by us. We must have already attepted to create a runner for it. Skip.
 			// TODO(gabriel-samfira): create an in-memory state of existing runners that we can easily
 			// check for existing pending or idle runners. If we can't find any, attempt to allocate another

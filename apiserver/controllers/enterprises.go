@@ -19,11 +19,11 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/gorilla/mux"
+
 	gErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/apiserver/params"
 	runnerParams "github.com/cloudbase/garm/params"
-
-	"github.com/gorilla/mux"
 )
 
 // swagger:route POST /enterprises enterprises CreateEnterprise
@@ -165,7 +165,6 @@ func (a *APIController) DeleteEnterpriseHandler(w http.ResponseWriter, r *http.R
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-
 }
 
 // swagger:route PUT /enterprises/{enterpriseID} enterprises UpdateEnterprise
@@ -318,7 +317,6 @@ func (a *APIController) ListEnterprisePoolsHandler(w http.ResponseWriter, r *htt
 	if err := json.NewEncoder(w).Encode(pools); err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
-
 }
 
 // swagger:route GET /enterprises/{enterpriseID}/pools/{poolID} enterprises pools GetEnterprisePool
@@ -414,7 +412,6 @@ func (a *APIController) DeleteEnterprisePoolHandler(w http.ResponseWriter, r *ht
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-
 }
 
 // swagger:route PUT /enterprises/{enterpriseID}/pools/{poolID} enterprises pools UpdateEnterprisePool

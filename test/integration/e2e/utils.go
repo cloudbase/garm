@@ -5,7 +5,7 @@ import (
 	"log/slog"
 )
 
-func printJsonResponse(resp interface{}) error {
+func printJSONResponse(resp interface{}) error {
 	b, err := json.MarshalIndent(resp, "", "  ")
 	if err != nil {
 		return err

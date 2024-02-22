@@ -9,11 +9,12 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	"github.com/cloudbase/garm-provider-common/defaults"
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/params"
-	"github.com/pkg/errors"
 )
 
 var systemdUnitTemplate = `[Unit]
@@ -73,7 +74,7 @@ func (r *Runner) GetRunnerServiceName(ctx context.Context) (string, error) {
 	case params.OrganizationPool:
 		serviceName = fmt.Sprintf(tpl, pool.OrgName, instance.Name)
 	case params.RepositoryPool:
-		serviceName = fmt.Sprintf(tpl, strings.Replace(pool.RepoName, "/", "-", -1), instance.Name)
+		serviceName = fmt.Sprintf(tpl, strings.ReplaceAll(pool.RepoName, "/", "-"), instance.Name)
 	}
 	return serviceName, nil
 }

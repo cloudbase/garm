@@ -10,7 +10,6 @@ import (
 // CollectInstanceMetric collects the metrics for the runner instances
 // reflecting the statuses and the pool they belong to.
 func CollectInstanceMetric(ctx context.Context, r *runner.Runner) error {
-
 	// reset metrics
 	metrics.InstanceStatus.Reset()
 
@@ -32,29 +31,26 @@ func CollectInstanceMetric(ctx context.Context, r *runner.Runner) error {
 
 	poolNames := make(map[string]poolInfo)
 	for _, pool := range pools {
-		if pool.EnterpriseName != "" {
+		switch {
+		case pool.OrgName != "":
 			poolNames[pool.ID] = poolInfo{
-				Name:         pool.EnterpriseName,
-				Type:         string(pool.PoolType()),
-				ProviderName: pool.ProviderName,
+				Name: pool.OrgName,
+				Type: string(pool.PoolType()),
 			}
-		} else if pool.OrgName != "" {
+		case pool.EnterpriseName != "":
 			poolNames[pool.ID] = poolInfo{
-				Name:         pool.OrgName,
-				Type:         string(pool.PoolType()),
-				ProviderName: pool.ProviderName,
+				Name: pool.EnterpriseName,
+				Type: string(pool.PoolType()),
 			}
-		} else {
+		default:
 			poolNames[pool.ID] = poolInfo{
-				Name:         pool.RepoName,
-				Type:         string(pool.PoolType()),
-				ProviderName: pool.ProviderName,
+				Name: pool.RepoName,
+				Type: string(pool.PoolType()),
 			}
 		}
 	}
 
 	for _, instance := range instances {
-
 		metrics.InstanceStatus.WithLabelValues(
 			instance.Name,                           // label: name
 			string(instance.Status),                 // label: status

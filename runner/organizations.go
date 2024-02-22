@@ -20,13 +20,13 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
 	"github.com/cloudbase/garm/util/appdefaults"
-
-	"github.com/pkg/errors"
 )
 
 func (r *Runner) CreateOrganization(ctx context.Context, param params.CreateOrgParams) (org params.Organization, err error) {
@@ -144,12 +144,12 @@ func (r *Runner) DeleteOrganization(ctx context.Context, orgID string, keepWebho
 	}
 
 	if len(pools) > 0 {
-		poolIds := []string{}
+		poolIDs := []string{}
 		for _, pool := range pools {
-			poolIds = append(poolIds, pool.ID)
+			poolIDs = append(poolIDs, pool.ID)
 		}
 
-		return runnerErrors.NewBadRequestError("org has pools defined (%s)", strings.Join(poolIds, ", "))
+		return runnerErrors.NewBadRequestError("org has pools defined (%s)", strings.Join(poolIDs, ", "))
 	}
 
 	if !keepWebhook && r.config.Default.EnableWebhookManagement {
@@ -159,6 +159,7 @@ func (r *Runner) DeleteOrganization(ctx context.Context, orgID string, keepWebho
 		}
 
 		if err := poolMgr.UninstallWebhook(ctx); err != nil {
+			// nolint:golangci-lint,godox
 			// TODO(gabriel-samfira): Should we error out here?
 			slog.With(slog.Any("error", err)).ErrorContext(
 				ctx, "failed to uninstall webhook",
@@ -261,6 +262,7 @@ func (r *Runner) DeleteOrgPool(ctx context.Context, orgID, poolID string) error 
 		return runnerErrors.ErrUnauthorized
 	}
 
+	// nolint:golangci-lint,godox
 	// TODO: dedup instance count verification
 	pool, err := r.store.GetOrganizationPool(ctx, orgID, poolID)
 	if err != nil {
@@ -272,6 +274,7 @@ func (r *Runner) DeleteOrgPool(ctx context.Context, orgID, poolID string) error 
 		return errors.Wrap(err, "fetching instances")
 	}
 
+	// nolint:golangci-lint,godox
 	// TODO: implement a count function
 	if len(instances) > 0 {
 		runnerIDs := []string{}

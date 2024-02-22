@@ -5,13 +5,14 @@ import (
 	"encoding/json"
 	"log/slog"
 
-	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
-	"github.com/cloudbase/garm/database/common"
-	"github.com/cloudbase/garm/params"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+
+	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	"github.com/cloudbase/garm/database/common"
+	"github.com/cloudbase/garm/params"
 )
 
 var _ common.JobsStore = &sqlDatabase{}
@@ -54,7 +55,7 @@ func sqlWorkflowJobToParamsJob(job WorkflowJob) (params.Job, error) {
 }
 
 func (s *sqlDatabase) paramsJobToWorkflowJob(ctx context.Context, job params.Job) (WorkflowJob, error) {
-	asJson, err := json.Marshal(job.Labels)
+	asJSON, err := json.Marshal(job.Labels)
 	if err != nil {
 		return WorkflowJob{}, errors.Wrap(err, "marshaling labels")
 	}
@@ -76,7 +77,7 @@ func (s *sqlDatabase) paramsJobToWorkflowJob(ctx context.Context, job params.Job
 		RepoID:          job.RepoID,
 		OrgID:           job.OrgID,
 		EnterpriseID:    job.EnterpriseID,
-		Labels:          asJson,
+		Labels:          asJSON,
 		LockedBy:        job.LockedBy,
 	}
 
@@ -92,7 +93,7 @@ func (s *sqlDatabase) paramsJobToWorkflowJob(ctx context.Context, job params.Job
 	return workflofJob, nil
 }
 
-func (s *sqlDatabase) DeleteJob(ctx context.Context, jobID int64) error {
+func (s *sqlDatabase) DeleteJob(_ context.Context, jobID int64) error {
 	q := s.conn.Delete(&WorkflowJob{}, jobID)
 	if q.Error != nil {
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
@@ -103,7 +104,7 @@ func (s *sqlDatabase) DeleteJob(ctx context.Context, jobID int64) error {
 	return nil
 }
 
-func (s *sqlDatabase) LockJob(ctx context.Context, jobID int64, entityID string) error {
+func (s *sqlDatabase) LockJob(_ context.Context, jobID int64, entityID string) error {
 	entityUUID, err := uuid.Parse(entityID)
 	if err != nil {
 		return errors.Wrap(err, "parsing entity id")
@@ -136,7 +137,7 @@ func (s *sqlDatabase) LockJob(ctx context.Context, jobID int64, entityID string)
 	return nil
 }
 
-func (s *sqlDatabase) BreakLockJobIsQueued(ctx context.Context, jobID int64) error {
+func (s *sqlDatabase) BreakLockJobIsQueued(_ context.Context, jobID int64) error {
 	var workflowJob WorkflowJob
 	q := s.conn.Clauses(clause.Locking{Strength: "UPDATE"}).Preload("Instance").Where("id = ? and status = ?", jobID, params.JobStatusQueued).First(&workflowJob)
 
@@ -160,7 +161,7 @@ func (s *sqlDatabase) BreakLockJobIsQueued(ctx context.Context, jobID int64) err
 	return nil
 }
 
-func (s *sqlDatabase) UnlockJob(ctx context.Context, jobID int64, entityID string) error {
+func (s *sqlDatabase) UnlockJob(_ context.Context, jobID int64, entityID string) error {
 	var workflowJob WorkflowJob
 	q := s.conn.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ?", jobID).First(&workflowJob)
 
@@ -250,7 +251,7 @@ func (s *sqlDatabase) CreateOrUpdateJob(ctx context.Context, job params.Job) (pa
 }
 
 // ListJobsByStatus lists all jobs for a given status.
-func (s *sqlDatabase) ListJobsByStatus(ctx context.Context, status params.JobStatus) ([]params.Job, error) {
+func (s *sqlDatabase) ListJobsByStatus(_ context.Context, status params.JobStatus) ([]params.Job, error) {
 	var jobs []WorkflowJob
 	query := s.conn.Model(&WorkflowJob{}).Preload("Instance").Where("status = ?", status)
 
@@ -270,7 +271,7 @@ func (s *sqlDatabase) ListJobsByStatus(ctx context.Context, status params.JobSta
 }
 
 // ListEntityJobsByStatus lists all jobs for a given entity type and id.
-func (s *sqlDatabase) ListEntityJobsByStatus(ctx context.Context, entityType params.PoolType, entityID string, status params.JobStatus) ([]params.Job, error) {
+func (s *sqlDatabase) ListEntityJobsByStatus(_ context.Context, entityType params.PoolType, entityID string, status params.JobStatus) ([]params.Job, error) {
 	u, err := uuid.Parse(entityID)
 	if err != nil {
 		return nil, err
@@ -306,7 +307,7 @@ func (s *sqlDatabase) ListEntityJobsByStatus(ctx context.Context, entityType par
 	return ret, nil
 }
 
-func (s *sqlDatabase) ListAllJobs(ctx context.Context) ([]params.Job, error) {
+func (s *sqlDatabase) ListAllJobs(_ context.Context) ([]params.Job, error) {
 	var jobs []WorkflowJob
 	query := s.conn.Model(&WorkflowJob{})
 
@@ -329,7 +330,7 @@ func (s *sqlDatabase) ListAllJobs(ctx context.Context) ([]params.Job, error) {
 }
 
 // GetJobByID gets a job by id.
-func (s *sqlDatabase) GetJobByID(ctx context.Context, jobID int64) (params.Job, error) {
+func (s *sqlDatabase) GetJobByID(_ context.Context, jobID int64) (params.Job, error) {
 	var job WorkflowJob
 	query := s.conn.Model(&WorkflowJob{}).Preload("Instance").Where("id = ?", jobID)
 
@@ -344,7 +345,7 @@ func (s *sqlDatabase) GetJobByID(ctx context.Context, jobID int64) (params.Job, 
 }
 
 // DeleteCompletedJobs deletes all completed jobs.
-func (s *sqlDatabase) DeleteCompletedJobs(ctx context.Context) error {
+func (s *sqlDatabase) DeleteCompletedJobs(_ context.Context) error {
 	query := s.conn.Model(&WorkflowJob{}).Where("status = ?", params.JobStatusCompleted)
 
 	if err := query.Unscoped().Delete(&WorkflowJob{}); err.Error != nil {

@@ -21,12 +21,12 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/cloudbase/garm/params"
-	"github.com/cloudbase/garm/runner/common"
-
 	"github.com/google/go-github/v57/github"
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
+
+	"github.com/cloudbase/garm/params"
+	"github.com/cloudbase/garm/runner/common"
 )
 
 type githubClient struct {
@@ -84,6 +84,8 @@ func GithubClient(ctx context.Context, token string, credsDetails params.GithubC
 			return nil, nil, fmt.Errorf("failed to parse CA cert")
 		}
 	}
+	// nolint:golangci-lint,gosec,godox
+	// TODO: set TLS MinVersion
 	httpTransport := &http.Transport{
 		TLSClientConfig: &tls.Config{
 			RootCAs: roots,

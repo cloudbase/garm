@@ -12,7 +12,6 @@ import (
 
 func getHomeDir() (string, error) {
 	home, err := os.UserHomeDir()
-
 	if err != nil {
 		return "", errors.Wrap(err, "fetching home dir")
 	}

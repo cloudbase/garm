@@ -17,11 +17,11 @@ package cmd
 import (
 	"fmt"
 
-	apiClientEnterprises "github.com/cloudbase/garm/client/enterprises"
-	"github.com/cloudbase/garm/params"
-
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/spf13/cobra"
+
+	apiClientEnterprises "github.com/cloudbase/garm/client/enterprises"
+	"github.com/cloudbase/garm/params"
 )
 
 var (
@@ -50,7 +50,7 @@ var enterpriseAddCmd = &cobra.Command{
 	Short:        "Add enterprise",
 	Long:         `Add a new enterprise to the manager.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, _ []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -76,7 +76,7 @@ var enterpriseListCmd = &cobra.Command{
 	Short:        "List enterprises",
 	Long:         `List all configured enterprises that are currently managed.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, _ []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -96,7 +96,7 @@ var enterpriseShowCmd = &cobra.Command{
 	Short:        "Show details for one enterprise",
 	Long:         `Displays detailed information about a single enterprise.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -123,7 +123,7 @@ var enterpriseDeleteCmd = &cobra.Command{
 	Short:        "Removes one enterprise",
 	Long:         `Delete one enterprise from the manager.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -147,7 +147,7 @@ var enterpriseUpdateCmd = &cobra.Command{
 	Short:        "Update enterprise",
 	Long:         `Update enterprise credentials or webhook secret.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -175,7 +175,6 @@ var enterpriseUpdateCmd = &cobra.Command{
 }
 
 func init() {
-
 	enterpriseAddCmd.Flags().StringVar(&enterpriseName, "name", "", "The name of the enterprise")
 	enterpriseAddCmd.Flags().StringVar(&enterpriseWebhookSecret, "webhook-secret", "", "The webhook secret for this enterprise")
 	enterpriseAddCmd.Flags().StringVar(&enterpriseCreds, "credentials", "", "Credentials name. See credentials list.")

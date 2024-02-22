@@ -18,11 +18,11 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/pkg/errors"
+
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/params"
-
-	"github.com/pkg/errors"
 )
 
 func (r *Runner) ListAllPools(ctx context.Context) ([]params.Pool, error) {
@@ -110,13 +110,14 @@ func (r *Runner) UpdatePoolByID(ctx context.Context, poolID string, param params
 
 	var newPool params.Pool
 
-	if pool.RepoID != "" {
+	switch {
+	case pool.RepoID != "":
 		newPool, err = r.store.UpdateRepositoryPool(ctx, pool.RepoID, poolID, param)
-	} else if pool.OrgID != "" {
+	case pool.OrgID != "":
 		newPool, err = r.store.UpdateOrganizationPool(ctx, pool.OrgID, poolID, param)
-	} else if pool.EnterpriseID != "" {
+	case pool.EnterpriseID != "":
 		newPool, err = r.store.UpdateEnterprisePool(ctx, pool.EnterpriseID, poolID, param)
-	} else {
+	default:
 		return params.Pool{}, fmt.Errorf("pool not found to a repo, org or enterprise")
 	}
 

@@ -44,7 +44,7 @@ func GetControllerInfo() *params.ControllerInfo {
 	if err := appendCtrlInfoToGitHubEnv(&controllerInfo); err != nil {
 		panic(err)
 	}
-	if err := printJsonResponse(controllerInfo); err != nil {
+	if err := printJSONResponse(controllerInfo); err != nil {
 		panic(err)
 	}
 	return &controllerInfo

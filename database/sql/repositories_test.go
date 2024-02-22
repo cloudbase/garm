@@ -22,15 +22,15 @@ import (
 	"sort"
 	"testing"
 
-	dbCommon "github.com/cloudbase/garm/database/common"
-	garmTesting "github.com/cloudbase/garm/internal/testing"
-	"github.com/cloudbase/garm/params"
-
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
+
+	dbCommon "github.com/cloudbase/garm/database/common"
+	garmTesting "github.com/cloudbase/garm/internal/testing"
+	"github.com/cloudbase/garm/params"
 )
 
 type RepoTestFixtures struct {
@@ -115,7 +115,7 @@ func (s *RepoTestSuite) SetupTest() {
 		SkipInitializeWithVersion: true,
 	}
 	gormConfig := &gorm.Config{}
-	if flag.Lookup("test.v").Value.String() == "false" {
+	if flag.Lookup("test.v").Value.String() == falseString {
 		gormConfig.Logger = logger.Default.LogMode(logger.Silent)
 	}
 	gormConn, err := gorm.Open(mysql.New(mysqlConfig), gormConfig)
@@ -197,7 +197,7 @@ func (s *RepoTestSuite) TestCreateRepositoryInvalidDBPassphrase() {
 		s.FailNow(fmt.Sprintf("failed to create db connection: %s", err))
 	}
 	// make sure we use a 'sqlDatabase' struct with a wrong 'cfg.Passphrase'
-	cfg.Passphrase = "wrong-passphrase" // it must have a size different than 32
+	cfg.Passphrase = wrongPassphrase // it must have a size different than 32
 	sqlDB := &sqlDatabase{
 		conn: conn,
 		cfg:  cfg,
@@ -296,7 +296,7 @@ func (s *RepoTestSuite) TestListRepositoriesDBFetchErr() {
 }
 
 func (s *RepoTestSuite) TestListRepositoriesDBDecryptingErr() {
-	s.StoreSQLMocked.cfg.Passphrase = "wrong-passphrase"
+	s.StoreSQLMocked.cfg.Passphrase = wrongPassphrase
 
 	s.Fixtures.SQLMock.
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `repositories` WHERE `repositories`.`deleted_at` IS NULL")).
@@ -360,7 +360,7 @@ func (s *RepoTestSuite) TestUpdateRepositoryInvalidRepoID() {
 }
 
 func (s *RepoTestSuite) TestUpdateRepositoryDBEncryptErr() {
-	s.StoreSQLMocked.cfg.Passphrase = "wrong-passphrase"
+	s.StoreSQLMocked.cfg.Passphrase = wrongPassphrase
 
 	s.Fixtures.SQLMock.
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `repositories` WHERE id = ? AND `repositories`.`deleted_at` IS NULL ORDER BY `repositories`.`id` LIMIT 1")).
@@ -392,8 +392,8 @@ func (s *RepoTestSuite) TestUpdateRepositoryDBSaveErr() {
 }
 
 func (s *RepoTestSuite) TestUpdateRepositoryDBDecryptingErr() {
-	s.StoreSQLMocked.cfg.Passphrase = "wrong-passphrase"
-	s.Fixtures.UpdateRepoParams.WebhookSecret = "webhook-secret"
+	s.StoreSQLMocked.cfg.Passphrase = wrongPassphrase
+	s.Fixtures.UpdateRepoParams.WebhookSecret = webhookSecret
 
 	s.Fixtures.SQLMock.
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `repositories` WHERE id = ? AND `repositories`.`deleted_at` IS NULL ORDER BY `repositories`.`id` LIMIT 1")).

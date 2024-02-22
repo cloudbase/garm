@@ -18,14 +18,14 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/cloudbase/garm/params"
+	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/spf13/cobra"
 
 	apiClientEnterprises "github.com/cloudbase/garm/client/enterprises"
 	apiClientInstances "github.com/cloudbase/garm/client/instances"
 	apiClientOrgs "github.com/cloudbase/garm/client/organizations"
 	apiClientRepos "github.com/cloudbase/garm/client/repositories"
-	"github.com/jedib0t/go-pretty/v6/table"
-	"github.com/spf13/cobra"
+	"github.com/cloudbase/garm/params"
 )
 
 var (
@@ -139,7 +139,7 @@ var runnerShowCmd = &cobra.Command{
 	Short:        "Show details for a runner",
 	Long:         `Displays a detailed view of a single runner.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -178,7 +178,7 @@ NOTE: An active runner cannot be removed from Github. You will have
 to either cancel the workflow or wait for it to finish.
 `,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -199,8 +199,8 @@ to either cancel the workflow or wait for it to finish.
 
 func init() {
 	runnerListCmd.Flags().StringVarP(&runnerRepository, "repo", "r", "", "List all runners from all pools within this repository.")
-	runnerListCmd.Flags().StringVarP(&runnerOrganization, "org", "o", "", "List all runners from all pools withing this organization.")
-	runnerListCmd.Flags().StringVarP(&runnerEnterprise, "enterprise", "e", "", "List all runners from all pools withing this enterprise.")
+	runnerListCmd.Flags().StringVarP(&runnerOrganization, "org", "o", "", "List all runners from all pools within this organization.")
+	runnerListCmd.Flags().StringVarP(&runnerEnterprise, "enterprise", "e", "", "List all runners from all pools within this enterprise.")
 	runnerListCmd.Flags().BoolVarP(&runnerAll, "all", "a", false, "List all runners, regardless of org or repo.")
 	runnerListCmd.MarkFlagsMutuallyExclusive("repo", "org", "enterprise", "all")
 

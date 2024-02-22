@@ -22,18 +22,18 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/gorilla/mux"
+	"github.com/gorilla/websocket"
+	"github.com/pkg/errors"
+
 	gErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm-provider-common/util"
 	"github.com/cloudbase/garm/apiserver/params"
 	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/metrics"
 	runnerParams "github.com/cloudbase/garm/params"
-	"github.com/cloudbase/garm/runner"
+	"github.com/cloudbase/garm/runner" //nolint:typecheck
 	wsWriter "github.com/cloudbase/garm/websocket"
-
-	"github.com/gorilla/mux"
-	"github.com/gorilla/websocket"
-	"github.com/pkg/errors"
 )
 
 func NewAPIController(r *runner.Runner, authenticator *auth.Authenticator, hub *wsWriter.Hub) (*APIController, error) {
@@ -107,19 +107,21 @@ func (a *APIController) handleWorkflowJobEvent(ctx context.Context, w http.Respo
 	hookType := r.Header.Get("X-Github-Hook-Installation-Target-Type")
 
 	if err := a.r.DispatchWorkflowJob(hookType, signature, body); err != nil {
-		if errors.Is(err, gErrors.ErrNotFound) {
+		switch {
+		case errors.Is(err, gErrors.ErrNotFound):
 			metrics.WebhooksReceived.WithLabelValues(
 				"false",         // label: valid
 				"owner_unknown", // label: reason
 			).Inc()
 			slog.With(slog.Any("error", err)).ErrorContext(ctx, "got not found error from DispatchWorkflowJob. webhook not meant for us?")
 			return
-		} else if strings.Contains(err.Error(), "signature") { // TODO: check error type
+		case strings.Contains(err.Error(), "signature"):
+			// nolint:golangci-lint,godox TODO: check error type
 			metrics.WebhooksReceived.WithLabelValues(
 				"false",             // label: valid
 				"signature_invalid", // label: reason
 			).Inc()
-		} else {
+		default:
 			metrics.WebhooksReceived.WithLabelValues(
 				"false",   // label: valid
 				"unknown", // label: reason
@@ -182,6 +184,7 @@ func (a *APIController) WSHandler(writer http.ResponseWriter, req *http.Request)
 		return
 	}
 
+	// nolint:golangci-lint,godox
 	// TODO (gsamfira): Handle ExpiresAt. Right now, if a client uses
 	// a valid token to authenticate, and keeps the websocket connection
 	// open, it will allow that client to stream logs via websockets

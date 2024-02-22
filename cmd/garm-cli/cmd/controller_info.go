@@ -17,10 +17,11 @@ package cmd
 import (
 	"fmt"
 
-	apiClientControllerInfo "github.com/cloudbase/garm/client/controller_info"
-	"github.com/cloudbase/garm/params"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/spf13/cobra"
+
+	apiClientControllerInfo "github.com/cloudbase/garm/client/controller_info"
+	"github.com/cloudbase/garm/params"
 )
 
 var infoCmd = &cobra.Command{
@@ -36,7 +37,7 @@ var infoShowCmd = &cobra.Command{
 	Short:        "Show information",
 	Long:         `Show information about the current controller.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, _ []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}

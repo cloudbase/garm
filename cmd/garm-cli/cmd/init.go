@@ -18,15 +18,15 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cloudbase/garm/cmd/garm-cli/common"
-	"github.com/cloudbase/garm/cmd/garm-cli/config"
-	"github.com/cloudbase/garm/params"
-
-	apiClientFirstRun "github.com/cloudbase/garm/client/first_run"
-	apiClientLogin "github.com/cloudbase/garm/client/login"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+
+	apiClientFirstRun "github.com/cloudbase/garm/client/first_run"
+	apiClientLogin "github.com/cloudbase/garm/client/login"
+	"github.com/cloudbase/garm/cmd/garm-cli/common"
+	"github.com/cloudbase/garm/cmd/garm-cli/config"
+	"github.com/cloudbase/garm/params"
 )
 
 // initCmd represents the init command
@@ -45,7 +45,7 @@ Example usage:
 
 garm-cli init --name=dev --url=https://runner.example.com --username=admin --password=superSecretPassword
 `,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, _ []string) error {
 		if cfg != nil {
 			if cfg.HasManager(loginProfileName) {
 				return fmt.Errorf("a manager with name %s already exists in your local config", loginProfileName)
@@ -66,7 +66,7 @@ garm-cli init --name=dev --url=https://runner.example.com --username=admin --pas
 
 		url := strings.TrimSuffix(loginURL, "/")
 
-		initApiClient(url, "")
+		initAPIClient(url, "")
 
 		response, err := apiCli.FirstRun.FirstRun(newUserReq, authToken)
 		if err != nil {

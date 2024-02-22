@@ -9,7 +9,7 @@ import (
 )
 
 func waitPoolNoInstances(id string, timeout time.Duration) error {
-	var timeWaited time.Duration = 0
+	var timeWaited time.Duration // default is 0
 	var pool *params.Pool
 	var err error
 
@@ -37,7 +37,7 @@ func dumpPoolInstancesDetails(poolID string) error {
 	if err != nil {
 		return err
 	}
-	if err := printJsonResponse(pool); err != nil {
+	if err := printJSONResponse(pool); err != nil {
 		return err
 	}
 	for _, instance := range pool.Instances {
@@ -46,7 +46,7 @@ func dumpPoolInstancesDetails(poolID string) error {
 			return err
 		}
 		slog.Info("Instance details", "instance_name", instance.Name)
-		if err := printJsonResponse(instanceDetails); err != nil {
+		if err := printJSONResponse(instanceDetails); err != nil {
 			return err
 		}
 	}

@@ -17,11 +17,11 @@ package pool
 import (
 	"context"
 
+	"github.com/google/go-github/v57/github"
+
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
-
-	"github.com/google/go-github/v57/github"
 )
 
 type poolHelper interface {

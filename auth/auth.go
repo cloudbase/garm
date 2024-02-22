@@ -18,16 +18,16 @@ import (
 	"context"
 	"time"
 
+	jwt "github.com/golang-jwt/jwt/v5"
+	"github.com/nbutton23/zxcvbn-go"
+	"github.com/pkg/errors"
+	"golang.org/x/crypto/bcrypt"
+
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm-provider-common/util"
 	"github.com/cloudbase/garm/config"
 	"github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/params"
-
-	jwt "github.com/golang-jwt/jwt/v5"
-	"github.com/nbutton23/zxcvbn-go"
-	"github.com/pkg/errors"
-	"golang.org/x/crypto/bcrypt"
 )
 
 func NewAuthenticator(cfg config.JWTAuth, store common.Store) *Authenticator {
@@ -58,6 +58,7 @@ func (a *Authenticator) GetJWTToken(ctx context.Context) (string, error) {
 	claims := JWTClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: expires,
+			// nolint:golangci-lint,godox
 			// TODO: make this configurable
 			Issuer: "garm",
 		},
@@ -78,7 +79,6 @@ func (a *Authenticator) GetJWTToken(ctx context.Context) (string, error) {
 // GetJWTMetricsToken returns a JWT token that can be used to read metrics.
 // This token is not tied to a user, no user is stored in the db.
 func (a *Authenticator) GetJWTMetricsToken(ctx context.Context) (string, error) {
-
 	if !IsAdmin(ctx) {
 		return "", runnerErrors.ErrUnauthorized
 	}
@@ -87,6 +87,7 @@ func (a *Authenticator) GetJWTMetricsToken(ctx context.Context) (string, error) 
 	if err != nil {
 		return "", errors.Wrap(err, "generating random string")
 	}
+	// nolint:golangci-lint,godox
 	// TODO: currently this is the same TTL as the normal Token
 	// maybe we should make this configurable
 	// it's usually pretty nasty if the monitoring fails because the token expired
@@ -97,6 +98,7 @@ func (a *Authenticator) GetJWTMetricsToken(ctx context.Context) (string, error) 
 	claims := JWTClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: expires,
+			// nolint:golangci-lint,godox
 			// TODO: make this configurable
 			Issuer: "garm",
 		},

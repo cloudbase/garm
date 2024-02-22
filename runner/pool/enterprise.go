@@ -10,6 +10,9 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/google/go-github/v57/github"
+	"github.com/pkg/errors"
+
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 	dbCommon "github.com/cloudbase/garm/database/common"
@@ -17,9 +20,6 @@ import (
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
 	"github.com/cloudbase/garm/util"
-
-	"github.com/google/go-github/v57/github"
-	"github.com/pkg/errors"
 )
 
 // test that we implement PoolManager
@@ -77,7 +77,8 @@ type enterprise struct {
 	mux sync.Mutex
 }
 
-func (r *enterprise) findRunnerGroupByName(ctx context.Context, name string) (*github.EnterpriseRunnerGroup, error) {
+func (e *enterprise) findRunnerGroupByName(name string) (*github.EnterpriseRunnerGroup, error) {
+	// nolint:golangci-lint,godox
 	// TODO(gabriel-samfira): implement caching
 	opts := github.ListEnterpriseRunnerGroupOptions{
 		ListOptions: github.ListOptions{
@@ -90,7 +91,7 @@ func (r *enterprise) findRunnerGroupByName(ctx context.Context, name string) (*g
 			"ListOrganizationRunnerGroups", // label: operation
 			metricsLabelEnterpriseScope,    // label: scope
 		).Inc()
-		runnerGroups, ghResp, err := r.ghcEnterpriseCli.ListRunnerGroups(r.ctx, r.cfg.Name, &opts)
+		runnerGroups, ghResp, err := e.ghcEnterpriseCli.ListRunnerGroups(e.ctx, e.cfg.Name, &opts)
 		if err != nil {
 			metrics.GithubOperationFailedCount.WithLabelValues(
 				"ListOrganizationRunnerGroups", // label: operation
@@ -115,10 +116,10 @@ func (r *enterprise) findRunnerGroupByName(ctx context.Context, name string) (*g
 	return nil, errors.Wrap(runnerErrors.ErrNotFound, "runner group not found")
 }
 
-func (r *enterprise) GetJITConfig(ctx context.Context, instance string, pool params.Pool, labels []string) (jitConfigMap map[string]string, runner *github.Runner, err error) {
+func (e *enterprise) GetJITConfig(ctx context.Context, instance string, pool params.Pool, labels []string) (jitConfigMap map[string]string, runner *github.Runner, err error) {
 	var rg int64 = 1
 	if pool.GitHubRunnerGroup != "" {
-		runnerGroup, err := r.findRunnerGroupByName(ctx, pool.GitHubRunnerGroup)
+		runnerGroup, err := e.findRunnerGroupByName(pool.GitHubRunnerGroup)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to find runner group: %w", err)
 		}
@@ -129,6 +130,7 @@ func (r *enterprise) GetJITConfig(ctx context.Context, instance string, pool par
 		Name:          instance,
 		RunnerGroupID: rg,
 		Labels:        labels,
+		// nolint:golangci-lint,godox
 		// TODO(gabriel-samfira): Should we make this configurable?
 		WorkFolder: github.String("_work"),
 	}
@@ -136,7 +138,7 @@ func (r *enterprise) GetJITConfig(ctx context.Context, instance string, pool par
 		"GenerateEnterpriseJITConfig", // label: operation
 		metricsLabelEnterpriseScope,   // label: scope
 	).Inc()
-	jitConfig, resp, err := r.ghcEnterpriseCli.GenerateEnterpriseJITConfig(ctx, r.cfg.Name, &req)
+	jitConfig, resp, err := e.ghcEnterpriseCli.GenerateEnterpriseJITConfig(ctx, e.cfg.Name, &req)
 	if err != nil {
 		metrics.GithubOperationFailedCount.WithLabelValues(
 			"GenerateEnterpriseJITConfig", // label: operation
@@ -155,7 +157,7 @@ func (r *enterprise) GetJITConfig(ctx context.Context, instance string, pool par
 				"RemoveRunner",              // label: operation
 				metricsLabelEnterpriseScope, // label: scope
 			).Inc()
-			_, innerErr := r.ghcEnterpriseCli.RemoveRunner(r.ctx, r.cfg.Name, runner.GetID())
+			_, innerErr := e.ghcEnterpriseCli.RemoveRunner(e.ctx, e.cfg.Name, runner.GetID())
 			if innerErr != nil {
 				metrics.GithubOperationFailedCount.WithLabelValues(
 					"RemoveRunner",              // label: operation
@@ -164,7 +166,7 @@ func (r *enterprise) GetJITConfig(ctx context.Context, instance string, pool par
 			}
 			slog.With(slog.Any("error", innerErr)).ErrorContext(
 				ctx, "failed to remove runner",
-				"runner_id", runner.GetID(), "organization", r.cfg.Name)
+				"runner_id", runner.GetID(), "organization", e.cfg.Name)
 		}
 	}()
 
@@ -181,23 +183,23 @@ func (r *enterprise) GetJITConfig(ctx context.Context, instance string, pool par
 	return ret, jitConfig.Runner, nil
 }
 
-func (r *enterprise) GithubCLI() common.GithubClient {
-	return r.ghcli
+func (e *enterprise) GithubCLI() common.GithubClient {
+	return e.ghcli
 }
 
 func (e *enterprise) PoolType() params.PoolType {
 	return params.EnterprisePool
 }
 
-func (r *enterprise) GetRunnerInfoFromWorkflow(job params.WorkflowJob) (params.RunnerInfo, error) {
-	if err := r.ValidateOwner(job); err != nil {
+func (e *enterprise) GetRunnerInfoFromWorkflow(job params.WorkflowJob) (params.RunnerInfo, error) {
+	if err := e.ValidateOwner(job); err != nil {
 		return params.RunnerInfo{}, errors.Wrap(err, "validating owner")
 	}
 	metrics.GithubOperationCount.WithLabelValues(
 		"GetWorkflowJobByID",        // label: operation
 		metricsLabelEnterpriseScope, // label: scope
 	).Inc()
-	workflow, ghResp, err := r.ghcli.GetWorkflowJobByID(r.ctx, job.Repository.Owner.Login, job.Repository.Name, job.WorkflowJob.ID)
+	workflow, ghResp, err := e.ghcli.GetWorkflowJobByID(e.ctx, job.Repository.Owner.Login, job.Repository.Name, job.WorkflowJob.ID)
 	if err != nil {
 		metrics.GithubOperationFailedCount.WithLabelValues(
 			"GetWorkflowJobByID",        // label: operation
@@ -218,29 +220,29 @@ func (r *enterprise) GetRunnerInfoFromWorkflow(job params.WorkflowJob) (params.R
 	return params.RunnerInfo{}, fmt.Errorf("failed to find runner name from workflow")
 }
 
-func (r *enterprise) UpdateState(param params.UpdatePoolStateParams) error {
-	r.mux.Lock()
-	defer r.mux.Unlock()
+func (e *enterprise) UpdateState(param params.UpdatePoolStateParams) error {
+	e.mux.Lock()
+	defer e.mux.Unlock()
 
-	r.cfg.WebhookSecret = param.WebhookSecret
+	e.cfg.WebhookSecret = param.WebhookSecret
 	if param.InternalConfig != nil {
-		r.cfgInternal = *param.InternalConfig
+		e.cfgInternal = *param.InternalConfig
 	}
 
-	ghc, ghcEnterprise, err := util.GithubClient(r.ctx, r.GetGithubToken(), r.cfgInternal.GithubCredentialsDetails)
+	ghc, ghcEnterprise, err := util.GithubClient(e.ctx, e.GetGithubToken(), e.cfgInternal.GithubCredentialsDetails)
 	if err != nil {
 		return errors.Wrap(err, "getting github client")
 	}
-	r.ghcli = ghc
-	r.ghcEnterpriseCli = ghcEnterprise
+	e.ghcli = ghc
+	e.ghcEnterpriseCli = ghcEnterprise
 	return nil
 }
 
-func (r *enterprise) GetGithubToken() string {
-	return r.cfgInternal.OAuth2Token
+func (e *enterprise) GetGithubToken() string {
+	return e.cfgInternal.OAuth2Token
 }
 
-func (r *enterprise) GetGithubRunners() ([]*github.Runner, error) {
+func (e *enterprise) GetGithubRunners() ([]*github.Runner, error) {
 	opts := github.ListOptions{
 		PerPage: 100,
 	}
@@ -251,7 +253,7 @@ func (r *enterprise) GetGithubRunners() ([]*github.Runner, error) {
 			"ListRunners",               // label: operation
 			metricsLabelEnterpriseScope, // label: scope
 		).Inc()
-		runners, ghResp, err := r.ghcEnterpriseCli.ListRunners(r.ctx, r.cfg.Name, &opts)
+		runners, ghResp, err := e.ghcEnterpriseCli.ListRunners(e.ctx, e.cfg.Name, &opts)
 		if err != nil {
 			metrics.GithubOperationFailedCount.WithLabelValues(
 				"ListRunners",               // label: operation
@@ -271,14 +273,14 @@ func (r *enterprise) GetGithubRunners() ([]*github.Runner, error) {
 	return allRunners, nil
 }
 
-func (r *enterprise) FetchTools() ([]commonParams.RunnerApplicationDownload, error) {
-	r.mux.Lock()
-	defer r.mux.Unlock()
+func (e *enterprise) FetchTools() ([]commonParams.RunnerApplicationDownload, error) {
+	e.mux.Lock()
+	defer e.mux.Unlock()
 	metrics.GithubOperationCount.WithLabelValues(
 		"ListRunnerApplicationDownloads", // label: operation
 		metricsLabelEnterpriseScope,      // label: scope
 	).Inc()
-	tools, ghResp, err := r.ghcEnterpriseCli.ListRunnerApplicationDownloads(r.ctx, r.cfg.Name)
+	tools, ghResp, err := e.ghcEnterpriseCli.ListRunnerApplicationDownloads(e.ctx, e.cfg.Name)
 	if err != nil {
 		metrics.GithubOperationFailedCount.WithLabelValues(
 			"ListRunnerApplicationDownloads", // label: operation
@@ -301,16 +303,16 @@ func (r *enterprise) FetchTools() ([]commonParams.RunnerApplicationDownload, err
 	return ret, nil
 }
 
-func (r *enterprise) FetchDbInstances() ([]params.Instance, error) {
-	return r.store.ListEnterpriseInstances(r.ctx, r.id)
+func (e *enterprise) FetchDbInstances() ([]params.Instance, error) {
+	return e.store.ListEnterpriseInstances(e.ctx, e.id)
 }
 
-func (r *enterprise) RemoveGithubRunner(runnerID int64) (*github.Response, error) {
+func (e *enterprise) RemoveGithubRunner(runnerID int64) (*github.Response, error) {
 	metrics.GithubOperationCount.WithLabelValues(
 		"RemoveRunner",              // label: operation
 		metricsLabelEnterpriseScope, // label: scope
 	).Inc()
-	ghResp, err := r.ghcEnterpriseCli.RemoveRunner(r.ctx, r.cfg.Name, runnerID)
+	ghResp, err := e.ghcEnterpriseCli.RemoveRunner(e.ctx, e.cfg.Name, runnerID)
 	if err != nil {
 		metrics.GithubOperationFailedCount.WithLabelValues(
 			"RemoveRunner",              // label: operation
@@ -321,30 +323,29 @@ func (r *enterprise) RemoveGithubRunner(runnerID int64) (*github.Response, error
 	return ghResp, nil
 }
 
-func (r *enterprise) ListPools() ([]params.Pool, error) {
-	pools, err := r.store.ListEnterprisePools(r.ctx, r.id)
+func (e *enterprise) ListPools() ([]params.Pool, error) {
+	pools, err := e.store.ListEnterprisePools(e.ctx, e.id)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching pools")
 	}
 	return pools, nil
 }
 
-func (r *enterprise) GithubURL() string {
-	return fmt.Sprintf("%s/enterprises/%s", r.cfgInternal.GithubCredentialsDetails.BaseURL, r.cfg.Name)
+func (e *enterprise) GithubURL() string {
+	return fmt.Sprintf("%s/enterprises/%s", e.cfgInternal.GithubCredentialsDetails.BaseURL, e.cfg.Name)
 }
 
-func (r *enterprise) JwtToken() string {
-	return r.cfgInternal.JWTSecret
+func (e *enterprise) JwtToken() string {
+	return e.cfgInternal.JWTSecret
 }
 
-func (r *enterprise) GetGithubRegistrationToken() (string, error) {
+func (e *enterprise) GetGithubRegistrationToken() (string, error) {
 	metrics.GithubOperationCount.WithLabelValues(
 		"CreateRegistrationToken",   // label: operation
 		metricsLabelEnterpriseScope, // label: scope
 	).Inc()
 
-	tk, ghResp, err := r.ghcEnterpriseCli.CreateRegistrationToken(r.ctx, r.cfg.Name)
-
+	tk, ghResp, err := e.ghcEnterpriseCli.CreateRegistrationToken(e.ctx, e.cfg.Name)
 	if err != nil {
 		metrics.GithubOperationFailedCount.WithLabelValues(
 			"CreateRegistrationToken",   // label: operation
@@ -358,49 +359,49 @@ func (r *enterprise) GetGithubRegistrationToken() (string, error) {
 	return *tk.Token, nil
 }
 
-func (r *enterprise) String() string {
-	return r.cfg.Name
+func (e *enterprise) String() string {
+	return e.cfg.Name
 }
 
-func (r *enterprise) WebhookSecret() string {
-	return r.cfg.WebhookSecret
+func (e *enterprise) WebhookSecret() string {
+	return e.cfg.WebhookSecret
 }
 
-func (r *enterprise) FindPoolByTags(labels []string) (params.Pool, error) {
-	pool, err := r.store.FindEnterprisePoolByTags(r.ctx, r.id, labels)
+func (e *enterprise) FindPoolByTags(labels []string) (params.Pool, error) {
+	pool, err := e.store.FindEnterprisePoolByTags(e.ctx, e.id, labels)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching suitable pool")
 	}
 	return pool, nil
 }
 
-func (r *enterprise) GetPoolByID(poolID string) (params.Pool, error) {
-	pool, err := r.store.GetEnterprisePool(r.ctx, r.id, poolID)
+func (e *enterprise) GetPoolByID(poolID string) (params.Pool, error) {
+	pool, err := e.store.GetEnterprisePool(e.ctx, e.id, poolID)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}
 	return pool, nil
 }
 
-func (r *enterprise) ValidateOwner(job params.WorkflowJob) error {
-	if !strings.EqualFold(job.Enterprise.Slug, r.cfg.Name) {
+func (e *enterprise) ValidateOwner(job params.WorkflowJob) error {
+	if !strings.EqualFold(job.Enterprise.Slug, e.cfg.Name) {
 		return runnerErrors.NewBadRequestError("job not meant for this pool manager")
 	}
 	return nil
 }
 
-func (r *enterprise) ID() string {
-	return r.id
+func (e *enterprise) ID() string {
+	return e.id
 }
 
-func (r *enterprise) InstallHook(ctx context.Context, req *github.Hook) (params.HookInfo, error) {
+func (e *enterprise) InstallHook(_ context.Context, _ *github.Hook) (params.HookInfo, error) {
 	return params.HookInfo{}, fmt.Errorf("not implemented")
 }
 
-func (r *enterprise) UninstallHook(ctx context.Context, url string) error {
+func (e *enterprise) UninstallHook(_ context.Context, _ string) error {
 	return fmt.Errorf("not implemented")
 }
 
-func (r *enterprise) GetHookInfo(ctx context.Context) (params.HookInfo, error) {
+func (e *enterprise) GetHookInfo(_ context.Context) (params.HookInfo, error) {
 	return params.HookInfo{}, fmt.Errorf("not implemented")
 }

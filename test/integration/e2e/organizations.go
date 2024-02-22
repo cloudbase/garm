@@ -116,7 +116,7 @@ func dumpOrgInstancesDetails(orgID string) error {
 	if err != nil {
 		return err
 	}
-	if err := printJsonResponse(org); err != nil {
+	if err := printJSONResponse(org); err != nil {
 		return err
 	}
 
@@ -132,7 +132,7 @@ func dumpOrgInstancesDetails(orgID string) error {
 			return err
 		}
 		slog.Info("Instance info", "instance_name", instance.Name)
-		if err := printJsonResponse(instance); err != nil {
+		if err := printJSONResponse(instance); err != nil {
 			return err
 		}
 	}

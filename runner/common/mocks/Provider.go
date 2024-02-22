@@ -161,12 +161,12 @@ func (_m *Provider) Start(ctx context.Context, instance string) error {
 }
 
 // Stop provides a mock function with given fields: ctx, instance, force
-func (_m *Provider) Stop(ctx context.Context, instance string, force bool) error {
-	ret := _m.Called(ctx, instance, force)
+func (_m *Provider) Stop(ctx context.Context, instance string) error {
+	ret := _m.Called(ctx, instance)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, bool) error); ok {
-		r0 = rf(ctx, instance, force)
+	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = rf(ctx, instance)
 	} else {
 		r0 = ret.Error(0)
 	}

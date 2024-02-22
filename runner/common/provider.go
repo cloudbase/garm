@@ -34,7 +34,7 @@ type Provider interface {
 	// RemoveAllInstances will remove all instances created by this provider.
 	RemoveAllInstances(ctx context.Context) error
 	// Stop shuts down the instance.
-	Stop(ctx context.Context, instance string, force bool) error
+	Stop(ctx context.Context, instance string) error
 	// Start boots up an instance.
 	Start(ctx context.Context, instance string) error
 	// DisableJITConfig tells us if the provider explicitly disables JIT configuration and

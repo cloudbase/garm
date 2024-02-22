@@ -4,10 +4,11 @@ import (
 	"log/slog"
 	"net/url"
 
-	"github.com/cloudbase/garm/client"
-	"github.com/cloudbase/garm/params"
 	"github.com/go-openapi/runtime"
 	openapiRuntimeClient "github.com/go-openapi/runtime/client"
+
+	"github.com/cloudbase/garm/client"
+	"github.com/cloudbase/garm/params"
 )
 
 var (
@@ -16,18 +17,18 @@ var (
 )
 
 func InitClient(baseURL string) {
-	garmUrl, err := url.Parse(baseURL)
+	garmURL, err := url.Parse(baseURL)
 	if err != nil {
 		panic(err)
 	}
-	apiPath, err := url.JoinPath(garmUrl.Path, client.DefaultBasePath)
+	apiPath, err := url.JoinPath(garmURL.Path, client.DefaultBasePath)
 	if err != nil {
 		panic(err)
 	}
 	transportCfg := client.DefaultTransportConfig().
-		WithHost(garmUrl.Host).
+		WithHost(garmURL.Host).
 		WithBasePath(apiPath).
-		WithSchemes([]string{garmUrl.Scheme})
+		WithSchemes([]string{garmURL.Scheme})
 	cli = client.NewHTTPClientWithConfig(nil, transportCfg)
 }
 

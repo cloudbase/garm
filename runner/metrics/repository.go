@@ -9,7 +9,6 @@ import (
 )
 
 func CollectRepositoryMetric(ctx context.Context, r *runner.Runner) error {
-
 	// reset metrics
 	metrics.EnterpriseInfo.Reset()
 	metrics.EnterprisePoolManagerStatus.Reset()

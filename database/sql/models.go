@@ -17,13 +17,13 @@ package sql
 import (
 	"time"
 
-	commonParams "github.com/cloudbase/garm-provider-common/params"
-	"github.com/cloudbase/garm/params"
-
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
+
+	commonParams "github.com/cloudbase/garm-provider-common/params"
+	"github.com/cloudbase/garm/params"
 )
 
 type Base struct {
@@ -33,9 +33,9 @@ type Base struct {
 	DeletedAt gorm.DeletedAt `gorm:"index"`
 }
 
-func (b *Base) BeforeCreate(tx *gorm.DB) error {
-	emptyId := uuid.UUID{}
-	if b.ID != emptyId {
+func (b *Base) BeforeCreate(_ *gorm.DB) error {
+	emptyID := uuid.UUID{}
+	if b.ID != emptyID {
 		return nil
 	}
 	newID, err := uuid.NewRandom()

@@ -19,14 +19,14 @@ import (
 	"net/url"
 	"os"
 
+	"github.com/go-openapi/runtime"
+	openapiRuntimeClient "github.com/go-openapi/runtime/client"
+	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/spf13/cobra"
+
 	apiClient "github.com/cloudbase/garm/client"
 	"github.com/cloudbase/garm/cmd/garm-cli/config"
 	"github.com/cloudbase/garm/params"
-	"github.com/go-openapi/runtime"
-	"github.com/jedib0t/go-pretty/v6/table"
-
-	openapiRuntimeClient "github.com/go-openapi/runtime/client"
-	"github.com/spf13/cobra"
 )
 
 var Version string
@@ -60,24 +60,24 @@ func Execute() {
 	}
 }
 
-func initApiClient(baseUrl, token string) {
-	baseUrlParsed, err := url.Parse(baseUrl)
+func initAPIClient(baseURL, token string) {
+	baseURLParsed, err := url.Parse(baseURL)
 	if err != nil {
-		fmt.Printf("Failed to parse base url %s: %s", baseUrl, err)
+		fmt.Printf("Failed to parse base url %s: %s", baseURL, err)
 		os.Exit(1)
 	}
-	apiPath, err := url.JoinPath(baseUrlParsed.Path, apiClient.DefaultBasePath)
+	apiPath, err := url.JoinPath(baseURLParsed.Path, apiClient.DefaultBasePath)
 	if err != nil {
-		fmt.Printf("Failed to join base url path %s with %s: %s", baseUrlParsed.Path, apiClient.DefaultBasePath, err)
+		fmt.Printf("Failed to join base url path %s with %s: %s", baseURLParsed.Path, apiClient.DefaultBasePath, err)
 		os.Exit(1)
 	}
 	if debug {
 		os.Setenv("SWAGGER_DEBUG", "true")
 	}
 	transportCfg := apiClient.DefaultTransportConfig().
-		WithHost(baseUrlParsed.Host).
+		WithHost(baseURLParsed.Host).
 		WithBasePath(apiPath).
-		WithSchemes([]string{baseUrlParsed.Scheme})
+		WithSchemes([]string{baseURLParsed.Scheme})
 	apiCli = apiClient.NewHTTPClientWithConfig(nil, transportCfg)
 	authToken = openapiRuntimeClient.BearerToken(token)
 }
@@ -98,7 +98,7 @@ func initConfig() {
 			mgr = cfg.Managers[0]
 		}
 	}
-	initApiClient(mgr.BaseURL, mgr.Token)
+	initAPIClient(mgr.BaseURL, mgr.Token)
 }
 
 func formatOneHookInfo(hook params.HookInfo) {

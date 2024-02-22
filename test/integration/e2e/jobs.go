@@ -54,7 +54,7 @@ func ValidateJobLifecycle(label string) {
 }
 
 func waitLabelledJob(label string, timeout time.Duration) (*params.Job, error) {
-	var timeWaited time.Duration = 0
+	var timeWaited time.Duration // default is 0
 	var jobs params.Jobs
 	var err error
 
@@ -75,14 +75,14 @@ func waitLabelledJob(label string, timeout time.Duration) (*params.Job, error) {
 		timeWaited += 5 * time.Second
 	}
 
-	if err := printJsonResponse(jobs); err != nil {
+	if err := printJSONResponse(jobs); err != nil {
 		return nil, err
 	}
 	return nil, fmt.Errorf("failed to wait job with label %s", label)
 }
 
 func waitJobStatus(id int64, status params.JobStatus, timeout time.Duration) (*params.Job, error) {
-	var timeWaited time.Duration = 0
+	var timeWaited time.Duration // default is 0
 	var job *params.Job
 
 	slog.Info("Waiting for job to reach status", "job_id", id, "status", status)
@@ -93,9 +93,9 @@ func waitJobStatus(id int64, status params.JobStatus, timeout time.Duration) (*p
 		}
 
 		job = nil
-		for _, j := range jobs {
-			if j.ID == id {
-				job = &j
+		for k, v := range jobs {
+			if v.ID == id {
+				job = &jobs[k]
 				break
 			}
 		}
@@ -116,7 +116,7 @@ func waitJobStatus(id int64, status params.JobStatus, timeout time.Duration) (*p
 		timeWaited += 5 * time.Second
 	}
 
-	if err := printJsonResponse(*job); err != nil {
+	if err := printJSONResponse(*job); err != nil {
 		return nil, err
 	}
 	return nil, fmt.Errorf("timeout waiting for job %d to reach status %s", id, status)

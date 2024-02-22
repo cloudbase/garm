@@ -17,12 +17,12 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/spf13/cobra"
+
 	"github.com/cloudbase/garm-provider-common/util"
 	apiClientRepos "github.com/cloudbase/garm/client/repositories"
 	"github.com/cloudbase/garm/params"
-
-	"github.com/jedib0t/go-pretty/v6/table"
-	"github.com/spf13/cobra"
 )
 
 var (
@@ -63,7 +63,7 @@ var repoWebhookInstallCmd = &cobra.Command{
 	Short:        "Install webhook",
 	Long:         `Install webhook for a repository.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -93,7 +93,7 @@ var repoHookInfoShowCmd = &cobra.Command{
 	Short:        "Show webhook info",
 	Long:         `Show webhook info for a repository.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -121,7 +121,7 @@ var repoWebhookUninstallCmd = &cobra.Command{
 	Short:        "Uninstall webhook",
 	Long:         `Uninstall webhook for a repository.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -149,7 +149,7 @@ var repoAddCmd = &cobra.Command{
 	Short:        "Add repository",
 	Long:         `Add a new repository to the manager.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, _ []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -200,9 +200,9 @@ var repoListCmd = &cobra.Command{
 	Use:          "list",
 	Aliases:      []string{"ls"},
 	Short:        "List repositories",
-	Long:         `List all configured respositories that are currently managed.`,
+	Long:         `List all configured repositories that are currently managed.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, _ []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -222,7 +222,7 @@ var repoUpdateCmd = &cobra.Command{
 	Short:        "Update repository",
 	Long:         `Update repository credentials or webhook secret.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -255,7 +255,7 @@ var repoShowCmd = &cobra.Command{
 	Short:        "Show details for one repository",
 	Long:         `Displays detailed information about a single repository.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -282,7 +282,7 @@ var repoDeleteCmd = &cobra.Command{
 	Short:        "Removes one repository",
 	Long:         `Delete one repository from the manager.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -303,7 +303,6 @@ var repoDeleteCmd = &cobra.Command{
 }
 
 func init() {
-
 	repoAddCmd.Flags().StringVar(&repoOwner, "owner", "", "The owner of this repository")
 	repoAddCmd.Flags().StringVar(&repoName, "name", "", "The name of the repository")
 	repoAddCmd.Flags().StringVar(&repoWebhookSecret, "webhook-secret", "", "The webhook secret for this repository")

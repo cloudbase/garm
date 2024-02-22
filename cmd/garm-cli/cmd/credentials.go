@@ -17,11 +17,11 @@ package cmd
 import (
 	"fmt"
 
-	apiClientCreds "github.com/cloudbase/garm/client/credentials"
-	"github.com/cloudbase/garm/params"
-
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/spf13/cobra"
+
+	apiClientCreds "github.com/cloudbase/garm/client/credentials"
+	"github.com/cloudbase/garm/params"
 )
 
 // credentialsCmd represents the credentials command
@@ -34,7 +34,7 @@ config file.
 
 Currently, github personal tokens are configured statically in the config file
 of the garm service. This command lists the names of those credentials,
-which in turn can be used to define pools of runners withing repositories.`,
+which in turn can be used to define pools of runners within repositories.`,
 	Run: nil,
 }
 
@@ -44,9 +44,9 @@ func init() {
 			Use:          "list",
 			Aliases:      []string{"ls"},
 			Short:        "List configured github credentials",
-			Long:         `List the names of the github personal access tokens availabe to the garm.`,
+			Long:         `List the names of the github personal access tokens available to the garm.`,
 			SilenceUsage: true,
-			RunE: func(cmd *cobra.Command, args []string) error {
+			RunE: func(_ *cobra.Command, _ []string) error {
 				if needsInit {
 					return errNeedsInitError
 				}

@@ -23,14 +23,13 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/cloudbase/garm/config"
-
 	"github.com/stretchr/testify/require"
+
+	"github.com/cloudbase/garm/config"
 )
 
-var (
-	encryptionPassphrase = "bocyasicgatEtenOubwonIbsudNutDom"
-)
+//nolint:golangci-lint,gosec
+var encryptionPassphrase = "bocyasicgatEtenOubwonIbsudNutDom"
 
 func GetTestSqliteDBConfig(t *testing.T) config.Database {
 	dir, err := os.MkdirTemp("", "garm-config-test")

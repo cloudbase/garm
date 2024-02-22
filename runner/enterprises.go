@@ -6,13 +6,13 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
 	"github.com/cloudbase/garm/util/appdefaults"
-
-	"github.com/pkg/errors"
 )
 
 func (r *Runner) CreateEnterprise(ctx context.Context, param params.CreateEnterpriseParams) (enterprise params.Enterprise, err error) {
@@ -130,12 +130,12 @@ func (r *Runner) DeleteEnterprise(ctx context.Context, enterpriseID string) erro
 	}
 
 	if len(pools) > 0 {
-		poolIds := []string{}
+		poolIDs := []string{}
 		for _, pool := range pools {
-			poolIds = append(poolIds, pool.ID)
+			poolIDs = append(poolIDs, pool.ID)
 		}
 
-		return runnerErrors.NewBadRequestError("enterprise has pools defined (%s)", strings.Join(poolIds, ", "))
+		return runnerErrors.NewBadRequestError("enterprise has pools defined (%s)", strings.Join(poolIDs, ", "))
 	}
 
 	if err := r.poolManagerCtrl.DeleteEnterprisePoolManager(enterprise); err != nil {
@@ -233,6 +233,7 @@ func (r *Runner) DeleteEnterprisePool(ctx context.Context, enterpriseID, poolID 
 		return runnerErrors.ErrUnauthorized
 	}
 
+	// nolint:golangci-lint,godox
 	// TODO: dedup instance count verification
 	pool, err := r.store.GetEnterprisePool(ctx, enterpriseID, poolID)
 	if err != nil {
@@ -244,6 +245,7 @@ func (r *Runner) DeleteEnterprisePool(ctx context.Context, enterpriseID, poolID 
 		return errors.Wrap(err, "fetching instances")
 	}
 
+	// nolint:golangci-lint,godox
 	// TODO: implement a count function
 	if len(instances) > 0 {
 		runnerIDs := []string{}

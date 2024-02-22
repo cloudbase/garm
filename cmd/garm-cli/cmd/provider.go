@@ -17,11 +17,11 @@ package cmd
 import (
 	"fmt"
 
-	apiClientProviders "github.com/cloudbase/garm/client/providers"
-	"github.com/cloudbase/garm/params"
-
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/spf13/cobra"
+
+	apiClientProviders "github.com/cloudbase/garm/client/providers"
+	"github.com/cloudbase/garm/params"
 )
 
 // providerCmd represents the provider command
@@ -45,7 +45,7 @@ func init() {
 			Short:        "List all configured providers",
 			Long:         `List all cloud providers configured with the service.`,
 			SilenceUsage: true,
-			RunE: func(cmd *cobra.Command, args []string) error {
+			RunE: func(_ *cobra.Command, _ []string) error {
 				if needsInit {
 					return errNeedsInitError
 				}

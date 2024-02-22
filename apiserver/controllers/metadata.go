@@ -20,8 +20,9 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/cloudbase/garm/apiserver/params"
 	"github.com/gorilla/mux"
+
+	"github.com/cloudbase/garm/apiserver/params"
 )
 
 func (a *APIController) InstanceGithubRegistrationTokenHandler(w http.ResponseWriter, r *http.Request) {

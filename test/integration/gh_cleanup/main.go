@@ -16,16 +16,16 @@ var (
 )
 
 func main() {
-	controllerID, ctrlIdFound := os.LookupEnv("GARM_CONTROLLER_ID")
-	if ctrlIdFound {
+	controllerID, ctrlIDFound := os.LookupEnv("GARM_CONTROLLER_ID")
+	if ctrlIDFound {
 		_ = e2e.GhOrgRunnersCleanup(ghToken, orgName, controllerID)
 		_ = e2e.GhRepoRunnersCleanup(ghToken, orgName, repoName, controllerID)
 	} else {
 		slog.Warn("Env variable GARM_CONTROLLER_ID is not set, skipping GitHub runners cleanup")
 	}
 
-	baseURL, baseUrlFound := os.LookupEnv("GARM_BASE_URL")
-	if ctrlIdFound && baseUrlFound {
+	baseURL, baseURLFound := os.LookupEnv("GARM_BASE_URL")
+	if ctrlIDFound && baseURLFound {
 		webhookURL := fmt.Sprintf("%s/webhooks/%s", baseURL, controllerID)
 		_ = e2e.GhOrgWebhookCleanup(ghToken, webhookURL, orgName)
 		_ = e2e.GhRepoWebhookCleanup(ghToken, webhookURL, orgName, repoName)

@@ -4,15 +4,17 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-const metricsNamespace = "garm"
-const metricsRunnerSubsystem = "runner"
-const metricsPoolSubsystem = "pool"
-const metricsProviderSubsystem = "provider"
-const metricsOrganizationSubsystem = "organization"
-const metricsRepositorySubsystem = "repository"
-const metricsEnterpriseSubsystem = "enterprise"
-const metricsWebhookSubsystem = "webhook"
-const metricsGithubSubsystem = "github"
+const (
+	metricsNamespace             = "garm"
+	metricsRunnerSubsystem       = "runner"
+	metricsPoolSubsystem         = "pool"
+	metricsProviderSubsystem     = "provider"
+	metricsOrganizationSubsystem = "organization"
+	metricsRepositorySubsystem   = "repository"
+	metricsEnterpriseSubsystem   = "enterprise"
+	metricsWebhookSubsystem      = "webhook"
+	metricsGithubSubsystem       = "github"
+)
 
 // RegisterMetrics registers all the metrics
 func RegisterMetrics() error {

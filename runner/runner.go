@@ -17,7 +17,7 @@ package runner
 import (
 	"context"
 	"crypto/hmac"
-	"crypto/sha1"
+	"crypto/sha1" //nolint:golangci-lint,gosec // sha1 is used for github webhooks
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -29,9 +29,14 @@ import (
 	"sync"
 	"time"
 
-	commonParams "github.com/cloudbase/garm-provider-common/params"
+	"github.com/google/uuid"
+	"github.com/juju/clock"
+	"github.com/juju/retry"
+	"github.com/pkg/errors"
+	"golang.org/x/sync/errgroup"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm-provider-common/util"
 	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/config"
@@ -40,21 +45,15 @@ import (
 	"github.com/cloudbase/garm/runner/common"
 	"github.com/cloudbase/garm/runner/pool"
 	"github.com/cloudbase/garm/runner/providers"
-	"golang.org/x/sync/errgroup"
-
-	"github.com/google/uuid"
-	"github.com/juju/clock"
-	"github.com/juju/retry"
-	"github.com/pkg/errors"
 )
 
 func NewRunner(ctx context.Context, cfg config.Config, db dbCommon.Store) (*Runner, error) {
-	ctrlId, err := db.ControllerInfo()
+	ctrlID, err := db.ControllerInfo()
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching controller info")
 	}
 
-	providers, err := providers.LoadProvidersFromConfig(ctx, cfg, ctrlId.ControllerID.String())
+	providers, err := providers.LoadProvidersFromConfig(ctx, cfg, ctrlID.ControllerID.String())
 	if err != nil {
 		return nil, errors.Wrap(err, "loading providers")
 	}
@@ -66,7 +65,7 @@ func NewRunner(ctx context.Context, cfg config.Config, db dbCommon.Store) (*Runn
 	}
 
 	poolManagerCtrl := &poolManagerCtrl{
-		controllerID:  ctrlId.ControllerID.String(),
+		controllerID:  ctrlID.ControllerID.String(),
 		config:        cfg,
 		credentials:   creds,
 		repositories:  map[string]common.PoolManager{},
@@ -80,7 +79,7 @@ func NewRunner(ctx context.Context, cfg config.Config, db dbCommon.Store) (*Runn
 		poolManagerCtrl: poolManagerCtrl,
 		providers:       providers,
 		credentials:     creds,
-		controllerID:    ctrlId.ControllerID,
+		controllerID:    ctrlID.ControllerID,
 	}
 
 	if err := runner.loadReposOrgsAndEnterprises(); err != nil {
@@ -118,7 +117,7 @@ func (p *poolManagerCtrl) CreateRepoPoolManager(ctx context.Context, repo params
 	return poolManager, nil
 }
 
-func (p *poolManagerCtrl) UpdateRepoPoolManager(ctx context.Context, repo params.Repository) (common.PoolManager, error) {
+func (p *poolManagerCtrl) UpdateRepoPoolManager(_ context.Context, repo params.Repository) (common.PoolManager, error) {
 	p.mux.Lock()
 	defer p.mux.Unlock()
 
@@ -184,7 +183,7 @@ func (p *poolManagerCtrl) CreateOrgPoolManager(ctx context.Context, org params.O
 	return poolManager, nil
 }
 
-func (p *poolManagerCtrl) UpdateOrgPoolManager(ctx context.Context, org params.Organization) (common.PoolManager, error) {
+func (p *poolManagerCtrl) UpdateOrgPoolManager(_ context.Context, org params.Organization) (common.PoolManager, error) {
 	p.mux.Lock()
 	defer p.mux.Unlock()
 
@@ -250,7 +249,7 @@ func (p *poolManagerCtrl) CreateEnterprisePoolManager(ctx context.Context, enter
 	return poolManager, nil
 }
 
-func (p *poolManagerCtrl) UpdateEnterprisePoolManager(ctx context.Context, enterprise params.Enterprise) (common.PoolManager, error) {
+func (p *poolManagerCtrl) UpdateEnterprisePoolManager(_ context.Context, enterprise params.Enterprise) (common.PoolManager, error) {
 	p.mux.Lock()
 	defer p.mux.Unlock()
 
@@ -627,34 +626,34 @@ func (r *Runner) Wait() error {
 		return errors.Wrap(err, "fetch enterprise pool managers")
 	}
 
-	for poolId, repo := range repos {
+	for poolID, repo := range repos {
 		wg.Add(1)
 		go func(id string, poolMgr common.PoolManager) {
 			defer wg.Done()
 			if err := poolMgr.Wait(); err != nil {
 				slog.With(slog.Any("error", err)).ErrorContext(r.ctx, "timed out waiting for pool manager to exit", "pool_id", id, "pool_mgr_id", poolMgr.ID())
 			}
-		}(poolId, repo)
+		}(poolID, repo)
 	}
 
-	for poolId, org := range orgs {
+	for poolID, org := range orgs {
 		wg.Add(1)
 		go func(id string, poolMgr common.PoolManager) {
 			defer wg.Done()
 			if err := poolMgr.Wait(); err != nil {
 				slog.With(slog.Any("error", err)).ErrorContext(r.ctx, "timed out waiting for pool manager to exit", "pool_id", id)
 			}
-		}(poolId, org)
+		}(poolID, org)
 	}
 
-	for poolId, enterprise := range enterprises {
+	for poolID, enterprise := range enterprises {
 		wg.Add(1)
 		go func(id string, poolMgr common.PoolManager) {
 			defer wg.Done()
 			if err := poolMgr.Wait(); err != nil {
 				slog.With(slog.Any("error", err)).ErrorContext(r.ctx, "timed out waiting for pool manager to exit", "pool_id", id)
 			}
-		}(poolId, enterprise)
+		}(poolID, enterprise)
 	}
 
 	wg.Wait()
@@ -904,7 +903,8 @@ func (r *Runner) getPoolManagerFromInstance(ctx context.Context, instance params
 
 	var poolMgr common.PoolManager
 
-	if pool.RepoID != "" {
+	switch {
+	case pool.RepoID != "":
 		repo, err := r.store.GetRepositoryByID(ctx, pool.RepoID)
 		if err != nil {
 			return nil, errors.Wrap(err, "fetching repo")
@@ -913,7 +913,7 @@ func (r *Runner) getPoolManagerFromInstance(ctx context.Context, instance params
 		if err != nil {
 			return nil, errors.Wrapf(err, "fetching pool manager for repo %s", pool.RepoName)
 		}
-	} else if pool.OrgID != "" {
+	case pool.OrgID != "":
 		org, err := r.store.GetOrganizationByID(ctx, pool.OrgID)
 		if err != nil {
 			return nil, errors.Wrap(err, "fetching org")
@@ -922,7 +922,7 @@ func (r *Runner) getPoolManagerFromInstance(ctx context.Context, instance params
 		if err != nil {
 			return nil, errors.Wrapf(err, "fetching pool manager for org %s", pool.OrgName)
 		}
-	} else if pool.EnterpriseID != "" {
+	case pool.EnterpriseID != "":
 		enterprise, err := r.store.GetEnterpriseByID(ctx, pool.EnterpriseID)
 		if err != nil {
 			return nil, errors.Wrap(err, "fetching enterprise")

@@ -22,12 +22,11 @@ import (
 	"fmt"
 	"time"
 
-	commonParams "github.com/cloudbase/garm-provider-common/params"
-
-	"github.com/cloudbase/garm/util/appdefaults"
-
 	"github.com/google/go-github/v57/github"
 	"github.com/google/uuid"
+
+	commonParams "github.com/cloudbase/garm-provider-common/params"
+	"github.com/cloudbase/garm/util/appdefaults"
 )
 
 type (
@@ -287,11 +286,12 @@ func (p *Pool) RunnerTimeout() uint {
 }
 
 func (p *Pool) PoolType() PoolType {
-	if p.RepoID != "" {
+	switch {
+	case p.RepoID != "":
 		return RepositoryPool
-	} else if p.OrgID != "" {
+	case p.OrgID != "":
 		return OrganizationPool
-	} else if p.EnterpriseID != "" {
+	case p.EnterpriseID != "":
 		return EnterprisePool
 	}
 	return ""
@@ -437,7 +437,7 @@ func (g GithubCredentials) RootCertificateBundle() (CertificateBundle, error) {
 	ret := map[string][]byte{}
 
 	var block *pem.Block
-	var rest []byte = g.CABundle
+	rest := g.CABundle
 	for {
 		block, rest = pem.Decode(rest)
 		if block == nil {

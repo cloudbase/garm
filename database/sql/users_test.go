@@ -21,14 +21,15 @@ import (
 	"regexp"
 	"testing"
 
-	dbCommon "github.com/cloudbase/garm/database/common"
-	garmTesting "github.com/cloudbase/garm/internal/testing"
-	"github.com/cloudbase/garm/params"
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
+
+	dbCommon "github.com/cloudbase/garm/database/common"
+	garmTesting "github.com/cloudbase/garm/internal/testing"
+	"github.com/cloudbase/garm/params"
 )
 
 type UserTestFixtures struct {
@@ -90,7 +91,7 @@ func (s *UserTestSuite) SetupTest() {
 		SkipInitializeWithVersion: true,
 	}
 	gormConfig := &gorm.Config{}
-	if flag.Lookup("test.v").Value.String() == "false" {
+	if flag.Lookup("test.v").Value.String() == falseString {
 		gormConfig.Logger = logger.Default.LogMode(logger.Silent)
 	}
 	gormConn, err := gorm.Open(mysql.New(mysqlConfig), gormConfig)

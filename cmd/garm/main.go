@@ -28,6 +28,11 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/gorilla/handlers"
+	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
+	lumberjack "gopkg.in/natefinch/lumberjack.v2"
+
 	"github.com/cloudbase/garm-provider-common/util"
 	"github.com/cloudbase/garm/apiserver/controllers"
 	"github.com/cloudbase/garm/apiserver/routers"
@@ -36,16 +41,11 @@ import (
 	"github.com/cloudbase/garm/database"
 	"github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/metrics"
-	"github.com/cloudbase/garm/runner"
+	"github.com/cloudbase/garm/runner" //nolint:typecheck
 	runnerMetrics "github.com/cloudbase/garm/runner/metrics"
 	garmUtil "github.com/cloudbase/garm/util"
 	"github.com/cloudbase/garm/util/appdefaults"
 	"github.com/cloudbase/garm/websocket"
-	lumberjack "gopkg.in/natefinch/lumberjack.v2"
-
-	"github.com/gorilla/handlers"
-	"github.com/gorilla/mux"
-	"github.com/pkg/errors"
 )
 
 var (
@@ -98,7 +98,7 @@ func setupLogging(ctx context.Context, logCfg config.Logging, hub *websocket.Hub
 		}
 	}()
 
-	var writers []io.Writer = []io.Writer{
+	writers := []io.Writer{
 		logWriter,
 	}
 
@@ -140,7 +140,6 @@ func setupLogging(ctx context.Context, logCfg config.Logging, hub *websocket.Hub
 		Handler: han,
 	}
 	slog.SetDefault(slog.New(wrapped))
-
 }
 
 func main() {
@@ -154,7 +153,7 @@ func main() {
 
 	cfg, err := config.NewConfig(*conf)
 	if err != nil {
-		log.Fatalf("Fetching config: %+v", err)
+		log.Fatalf("Fetching config: %+v", err) //nolint:gocritic
 	}
 
 	logCfg := cfg.GetLoggingConfig()
@@ -241,6 +240,8 @@ func main() {
 	methodsOk := handlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "OPTIONS", "DELETE"})
 	headersOk := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"})
 
+	// nolint:golangci-lint,gosec
+	// G112: Potential Slowloris Attack because ReadHeaderTimeout is not configured in the http.Server
 	srv := &http.Server{
 		Addr: cfg.APIServer.BindAddress(),
 		// Pass our instance of gorilla/mux in.

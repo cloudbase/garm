@@ -19,6 +19,9 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/suite"
+
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/config"
@@ -29,9 +32,6 @@ import (
 	"github.com/cloudbase/garm/runner/common"
 	runnerCommonMocks "github.com/cloudbase/garm/runner/common/mocks"
 	runnerMocks "github.com/cloudbase/garm/runner/mocks"
-
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/suite"
 )
 
 type OrgTestFixtures struct {
@@ -184,7 +184,7 @@ func (s *OrgTestSuite) TestCreateOrganizationEmptyParams() {
 }
 
 func (s *OrgTestSuite) TestCreateOrganizationMissingCredentials() {
-	s.Fixtures.CreateOrgParams.CredentialsName = "not-existent-creds-name"
+	s.Fixtures.CreateOrgParams.CredentialsName = notExistingCredentialsName
 
 	_, err := s.Runner.CreateOrganization(s.Fixtures.AdminContext, s.Fixtures.CreateOrgParams)
 
@@ -309,7 +309,7 @@ func (s *OrgTestSuite) TestUpdateOrganizationErrUnauthorized() {
 }
 
 func (s *OrgTestSuite) TestUpdateOrganizationInvalidCreds() {
-	s.Fixtures.UpdateRepoParams.CredentialsName = "invalid-creds-name"
+	s.Fixtures.UpdateRepoParams.CredentialsName = invalidCredentialsName
 
 	_, err := s.Runner.UpdateOrganization(s.Fixtures.AdminContext, s.Fixtures.StoreOrgs["test-org-1"].ID, s.Fixtures.UpdateRepoParams)
 
@@ -371,7 +371,7 @@ func (s *OrgTestSuite) TestCreateOrgPoolErrNotFound() {
 }
 
 func (s *OrgTestSuite) TestCreateOrgPoolFetchPoolParamsFailed() {
-	s.Fixtures.CreatePoolParams.ProviderName = "not-existent-provider-name"
+	s.Fixtures.CreatePoolParams.ProviderName = notExistingProviderName
 
 	s.Fixtures.PoolMgrCtrlMock.On("GetOrgPoolManager", mock.AnythingOfType("params.Organization")).Return(s.Fixtures.PoolMgrMock, nil)
 

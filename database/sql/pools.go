@@ -18,15 +18,21 @@ import (
 	"context"
 	"fmt"
 
-	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
-	"github.com/cloudbase/garm/params"
-
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"gorm.io/gorm"
+
+	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	"github.com/cloudbase/garm/params"
 )
 
-func (s *sqlDatabase) ListAllPools(ctx context.Context) ([]params.Pool, error) {
+const (
+	entityTypeEnterpriseName = "enterprise_id"
+	entityTypeOrgName        = "org_id"
+	entityTypeRepoName       = "repo_id"
+)
+
+func (s *sqlDatabase) ListAllPools(_ context.Context) ([]params.Pool, error) {
 	var pools []Pool
 
 	q := s.conn.Model(&Pool{}).
@@ -72,7 +78,7 @@ func (s *sqlDatabase) DeletePoolByID(ctx context.Context, poolID string) error {
 	return nil
 }
 
-func (s *sqlDatabase) getEntityPool(ctx context.Context, entityType params.PoolType, entityID, poolID string, preload ...string) (Pool, error) {
+func (s *sqlDatabase) getEntityPool(_ context.Context, entityType params.PoolType, entityID, poolID string, preload ...string) (Pool, error) {
 	if entityID == "" {
 		return Pool{}, errors.Wrap(runnerErrors.ErrBadRequest, "missing entity id")
 	}
@@ -92,11 +98,11 @@ func (s *sqlDatabase) getEntityPool(ctx context.Context, entityType params.PoolT
 	var fieldName string
 	switch entityType {
 	case params.RepositoryPool:
-		fieldName = "repo_id"
+		fieldName = entityTypeRepoName
 	case params.OrganizationPool:
-		fieldName = "org_id"
+		fieldName = entityTypeOrgName
 	case params.EnterprisePool:
-		fieldName = "enterprise_id"
+		fieldName = entityTypeEnterpriseName
 	default:
 		return Pool{}, fmt.Errorf("invalid entityType: %v", entityType)
 	}
@@ -106,7 +112,6 @@ func (s *sqlDatabase) getEntityPool(ctx context.Context, entityType params.PoolT
 	err = q.Model(&Pool{}).
 		Where(condition, u, entityID).
 		First(&pool).Error
-
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return Pool{}, errors.Wrap(runnerErrors.ErrNotFound, "finding pool")
@@ -117,7 +122,7 @@ func (s *sqlDatabase) getEntityPool(ctx context.Context, entityType params.PoolT
 	return pool, nil
 }
 
-func (s *sqlDatabase) listEntityPools(ctx context.Context, entityType params.PoolType, entityID string, preload ...string) ([]Pool, error) {
+func (s *sqlDatabase) listEntityPools(_ context.Context, entityType params.PoolType, entityID string, preload ...string) ([]Pool, error) {
 	if _, err := uuid.Parse(entityID); err != nil {
 		return nil, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
 	}
@@ -132,11 +137,11 @@ func (s *sqlDatabase) listEntityPools(ctx context.Context, entityType params.Poo
 	var fieldName string
 	switch entityType {
 	case params.RepositoryPool:
-		fieldName = "repo_id"
+		fieldName = entityTypeRepoName
 	case params.OrganizationPool:
-		fieldName = "org_id"
+		fieldName = entityTypeOrgName
 	case params.EnterprisePool:
-		fieldName = "enterprise_id"
+		fieldName = entityTypeEnterpriseName
 	default:
 		return nil, fmt.Errorf("invalid entityType: %v", entityType)
 	}
@@ -147,7 +152,6 @@ func (s *sqlDatabase) listEntityPools(ctx context.Context, entityType params.Poo
 		Where(condition, entityID).
 		Omit("extra_specs").
 		Find(&pools).Error
-
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return []Pool{}, nil
@@ -170,11 +174,11 @@ func (s *sqlDatabase) findPoolByTags(id string, poolType params.PoolType, tags [
 	var fieldName string
 	switch poolType {
 	case params.RepositoryPool:
-		fieldName = "repo_id"
+		fieldName = entityTypeRepoName
 	case params.OrganizationPool:
-		fieldName = "org_id"
+		fieldName = entityTypeOrgName
 	case params.EnterprisePool:
-		fieldName = "enterprise_id"
+		fieldName = entityTypeEnterpriseName
 	default:
 		return nil, fmt.Errorf("invalid poolType: %v", poolType)
 	}
@@ -210,7 +214,7 @@ func (s *sqlDatabase) findPoolByTags(id string, poolType params.PoolType, tags [
 	return ret, nil
 }
 
-func (s *sqlDatabase) FindPoolsMatchingAllTags(ctx context.Context, entityType params.PoolType, entityID string, tags []string) ([]params.Pool, error) {
+func (s *sqlDatabase) FindPoolsMatchingAllTags(_ context.Context, entityType params.PoolType, entityID string, tags []string) ([]params.Pool, error) {
 	if len(tags) == 0 {
 		return nil, runnerErrors.NewBadRequestError("missing tags")
 	}

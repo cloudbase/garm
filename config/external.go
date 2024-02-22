@@ -20,9 +20,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/cloudbase/garm-provider-common/util/exec"
-
 	"github.com/pkg/errors"
+
+	"github.com/cloudbase/garm-provider-common/util/exec"
 )
 
 // External represents the config for an external provider.

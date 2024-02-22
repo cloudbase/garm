@@ -31,7 +31,8 @@ func getDefaultExternalConfig(t *testing.T) External {
 	}
 	t.Cleanup(func() { os.RemoveAll(dir) })
 
-	err = os.WriteFile(filepath.Join(dir, "garm-external-provider"), []byte{}, 0755)
+	// nolint:golangci-lint,gosec
+	err = os.WriteFile(filepath.Join(dir, "garm-external-provider"), []byte{}, 0o755)
 	if err != nil {
 		t.Fatalf("failed to write file: %s", err)
 	}

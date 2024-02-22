@@ -20,11 +20,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cloudbase/garm/util/appdefaults"
 	"github.com/stretchr/testify/require"
+
+	"github.com/cloudbase/garm/util/appdefaults"
 )
 
 var (
+	// nolint: golangci-lint,gosec
 	EncryptionPassphrase     = "bocyasicgatEtenOubwonIbsudNutDom"
 	WeakEncryptionPassphrase = "1234567890abcdefghijklmnopqrstuv"
 )
@@ -392,7 +394,6 @@ func TestGormParams(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, MySQLBackend, dbType)
 	require.Equal(t, "test:test@tcp(127.0.0.1)/garm?charset=utf8&parseTime=True&loc=Local&timeout=5s", uri)
-
 }
 
 func TestSQLiteConfig(t *testing.T) {

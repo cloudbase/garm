@@ -5,12 +5,11 @@ import (
 	"strconv"
 
 	"github.com/cloudbase/garm/metrics"
-	"github.com/cloudbase/garm/runner"
+	"github.com/cloudbase/garm/runner" //nolint:typecheck
 )
 
 // CollectOrganizationMetric collects the metrics for the enterprise objects
 func CollectEnterpriseMetric(ctx context.Context, r *runner.Runner) error {
-
 	// reset metrics
 	metrics.EnterpriseInfo.Reset()
 	metrics.EnterprisePoolManagerStatus.Reset()

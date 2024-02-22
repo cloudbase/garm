@@ -26,15 +26,18 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
-	"github.com/cloudbase/garm/params"
-	"github.com/cloudbase/garm/util/appdefaults"
 	zxcvbn "github.com/nbutton23/zxcvbn-go"
 	"github.com/pkg/errors"
+
+	"github.com/cloudbase/garm/params"
+	"github.com/cloudbase/garm/util/appdefaults"
 )
 
-type DBBackendType string
-type LogLevel string
-type LogFormat string
+type (
+	DBBackendType string
+	LogLevel      string
+	LogFormat     string
+)
 
 const (
 	// MySQLBackend represents the MySQL DB backend
@@ -120,7 +123,7 @@ func (c *Config) Validate() error {
 		if err := provider.Validate(); err != nil {
 			return errors.Wrap(err, "validating provider")
 		}
-		providerNames[provider.Name] += 1
+		providerNames[provider.Name]++
 	}
 
 	for name, count := range providerNames {
@@ -543,6 +546,7 @@ func (d *timeToLive) Duration() time.Duration {
 		slog.With(slog.Any("error", err)).Error("failed to parse duration")
 		return appdefaults.DefaultJWTTTL
 	}
+	// nolint:golangci-lint,godox
 	// TODO(gabriel-samfira): should we have a minimum TTL?
 	if duration < appdefaults.DefaultJWTTTL {
 		return appdefaults.DefaultJWTTTL

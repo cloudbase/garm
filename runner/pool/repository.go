@@ -24,6 +24,9 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/google/go-github/v57/github"
+	"github.com/pkg/errors"
+
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 	dbCommon "github.com/cloudbase/garm/database/common"
@@ -31,9 +34,6 @@ import (
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
 	"github.com/cloudbase/garm/util"
-
-	"github.com/google/go-github/v57/github"
-	"github.com/pkg/errors"
 )
 
 // test that we implement PoolManager
@@ -91,12 +91,15 @@ type repository struct {
 	mux sync.Mutex
 }
 
+// nolint:golint,revive
+// pool is used in enterprise and organzation
 func (r *repository) GetJITConfig(ctx context.Context, instance string, pool params.Pool, labels []string) (jitConfigMap map[string]string, runner *github.Runner, err error) {
 	req := github.GenerateJITConfigRequest{
 		Name: instance,
 		// At the repository level we only have the default runner group.
 		RunnerGroupID: 1,
 		Labels:        labels,
+		// nolint:golangci-lint,godox
 		// TODO(gabriel-samfira): Should we make this configurable?
 		WorkFolder: github.String("_work"),
 	}
@@ -314,7 +317,6 @@ func (r *repository) GetGithubRegistrationToken() (string, error) {
 		metricsLabelRepositoryScope, // label: scope
 	).Inc()
 	tk, ghResp, err := r.ghcli.CreateRegistrationToken(r.ctx, r.cfg.Owner, r.cfg.Name)
-
 	if err != nil {
 		metrics.GithubOperationFailedCount.WithLabelValues(
 			"CreateRegistrationToken",   // label: operation

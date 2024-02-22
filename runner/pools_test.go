@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/stretchr/testify/suite"
+
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/config"
@@ -27,7 +29,6 @@ import (
 	garmTesting "github.com/cloudbase/garm/internal/testing"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
-	"github.com/stretchr/testify/suite"
 )
 
 type PoolTestFixtures struct {
@@ -207,7 +208,7 @@ func (s *PoolTestSuite) TestTestUpdatePoolByIDInvalidPoolID() {
 
 func (s *PoolTestSuite) TestTestUpdatePoolByIDRunnerBootstrapTimeoutFailed() {
 	// this is already created in `SetupTest()`
-	var RunnerBootstrapTimeout uint = 0
+	var RunnerBootstrapTimeout uint // default is 0
 	s.Fixtures.UpdatePoolParams.RunnerBootstrapTimeout = &RunnerBootstrapTimeout
 
 	_, err := s.Runner.UpdatePoolByID(s.Fixtures.AdminContext, s.Fixtures.Pools[0].ID, s.Fixtures.UpdatePoolParams)

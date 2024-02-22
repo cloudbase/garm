@@ -22,15 +22,15 @@ import (
 	"strings"
 	"time"
 
+	jwt "github.com/golang-jwt/jwt/v5"
+	"github.com/pkg/errors"
+
+	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm/config"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
-
-	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
-	commonParams "github.com/cloudbase/garm-provider-common/params"
-	jwt "github.com/golang-jwt/jwt/v5"
-	"github.com/pkg/errors"
 )
 
 // InstanceJWTClaims holds JWT claims
@@ -111,6 +111,7 @@ func (amw *instanceMiddleware) claimsToContext(ctx context.Context, claims *Inst
 // Middleware implements the middleware interface
 func (amw *instanceMiddleware) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// nolint:golangci-lint,godox
 		// TODO: Log error details when authentication fails
 		ctx := r.Context()
 		authorizationHeader := r.Header.Get("authorization")
@@ -132,7 +133,6 @@ func (amw *instanceMiddleware) Middleware(next http.Handler) http.Handler {
 			}
 			return []byte(amw.cfg.Secret), nil
 		})
-
 		if err != nil {
 			invalidAuthResponse(ctx, w)
 			return

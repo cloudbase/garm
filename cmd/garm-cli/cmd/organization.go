@@ -17,12 +17,12 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/spf13/cobra"
+
 	"github.com/cloudbase/garm-provider-common/util"
 	apiClientOrgs "github.com/cloudbase/garm/client/organizations"
 	"github.com/cloudbase/garm/params"
-
-	"github.com/jedib0t/go-pretty/v6/table"
-	"github.com/spf13/cobra"
 )
 
 var (
@@ -62,7 +62,7 @@ var orgWebhookInstallCmd = &cobra.Command{
 	Short:        "Install webhook",
 	Long:         `Install webhook for an organization.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -92,7 +92,7 @@ var orgHookInfoShowCmd = &cobra.Command{
 	Short:        "Show webhook info",
 	Long:         `Show webhook info for an organization.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -120,7 +120,7 @@ var orgWebhookUninstallCmd = &cobra.Command{
 	Short:        "Uninstall webhook",
 	Long:         `Uninstall webhook for an organization.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -148,7 +148,7 @@ var orgAddCmd = &cobra.Command{
 	Short:        "Add organization",
 	Long:         `Add a new organization to the manager.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, _ []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -199,7 +199,7 @@ var orgUpdateCmd = &cobra.Command{
 	Short:        "Update organization",
 	Long:         `Update organization credentials or webhook secret.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -232,7 +232,7 @@ var orgListCmd = &cobra.Command{
 	Short:        "List organizations",
 	Long:         `List all configured organizations that are currently managed.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, _ []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -252,7 +252,7 @@ var orgShowCmd = &cobra.Command{
 	Short:        "Show details for one organization",
 	Long:         `Displays detailed information about a single organization.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -279,7 +279,7 @@ var orgDeleteCmd = &cobra.Command{
 	Short:        "Removes one organization",
 	Long:         `Delete one organization from the manager.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -300,7 +300,6 @@ var orgDeleteCmd = &cobra.Command{
 }
 
 func init() {
-
 	orgAddCmd.Flags().StringVar(&orgName, "name", "", "The name of the organization")
 	orgAddCmd.Flags().StringVar(&orgWebhookSecret, "webhook-secret", "", "The webhook secret for this organization")
 	orgAddCmd.Flags().StringVar(&orgCreds, "credentials", "", "Credentials name. See credentials list.")

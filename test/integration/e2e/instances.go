@@ -10,7 +10,7 @@ import (
 )
 
 func waitInstanceStatus(name string, status commonParams.InstanceStatus, runnerStatus params.RunnerStatus, timeout time.Duration) (*params.Instance, error) {
-	var timeWaited time.Duration = 0
+	var timeWaited time.Duration // default is 0
 	var instance *params.Instance
 
 	slog.Info("Waiting for instance to reach desired status", "instance", name, "desired_status", status, "desired_runner_status", runnerStatus)
@@ -27,7 +27,7 @@ func waitInstanceStatus(name string, status commonParams.InstanceStatus, runnerS
 		timeWaited += 5 * time.Second
 	}
 
-	if err := printJsonResponse(*instance); err != nil {
+	if err := printJSONResponse(*instance); err != nil {
 		return nil, err
 	}
 	return nil, fmt.Errorf("timeout waiting for instance %s status to reach status %s and runner status %s", name, status, runnerStatus)
@@ -41,7 +41,7 @@ func DeleteInstance(name string, forceRemove bool) {
 }
 
 func WaitInstanceToBeRemoved(name string, timeout time.Duration) error {
-	var timeWaited time.Duration = 0
+	var timeWaited time.Duration // default is 0
 	var instance *params.Instance
 
 	slog.Info("Waiting for instance to be removed", "instance_name", name)
@@ -52,9 +52,9 @@ func WaitInstanceToBeRemoved(name string, timeout time.Duration) error {
 		}
 
 		instance = nil
-		for _, i := range instances {
-			if i.Name == name {
-				instance = &i
+		for k, v := range instances {
+			if v.Name == name {
+				instance = &instances[k]
 				break
 			}
 		}
@@ -68,14 +68,14 @@ func WaitInstanceToBeRemoved(name string, timeout time.Duration) error {
 		timeWaited += 5 * time.Second
 	}
 
-	if err := printJsonResponse(*instance); err != nil {
+	if err := printJSONResponse(*instance); err != nil {
 		return err
 	}
 	return fmt.Errorf("instance %s was not removed within the timeout", name)
 }
 
 func WaitPoolInstances(poolID string, status commonParams.InstanceStatus, runnerStatus params.RunnerStatus, timeout time.Duration) error {
-	var timeWaited time.Duration = 0
+	var timeWaited time.Duration // default is 0
 
 	pool, err := getPool(cli, authToken, poolID)
 	if err != nil {
@@ -103,7 +103,7 @@ func WaitPoolInstances(poolID string, status commonParams.InstanceStatus, runner
 			"runner_status", runnerStatus,
 			"desired_instance_count", instancesCount,
 			"pool_instance_count", len(poolInstances))
-		if instancesCount == int(pool.MinIdleRunners) && instancesCount == len(poolInstances) {
+		if int(pool.MinIdleRunners) == len(poolInstances) {
 			return nil
 		}
 		time.Sleep(5 * time.Second)
