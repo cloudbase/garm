@@ -153,7 +153,7 @@ func main() {
 
 	cfg, err := config.NewConfig(*conf)
 	if err != nil {
-		log.Fatalf("Fetching config: %+v", err)
+		log.Fatalf("Fetching config: %+v", err) //nolint:gocritic
 	}
 
 	logCfg := cfg.GetLoggingConfig()

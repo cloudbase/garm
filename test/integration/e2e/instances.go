@@ -103,7 +103,7 @@ func WaitPoolInstances(poolID string, status commonParams.InstanceStatus, runner
 			"runner_status", runnerStatus,
 			"desired_instance_count", instancesCount,
 			"pool_instance_count", len(poolInstances))
-		if instancesCount == int(pool.MinIdleRunners) && instancesCount == len(poolInstances) {
+		if int(pool.MinIdleRunners) == len(poolInstances) {
 			return nil
 		}
 		time.Sleep(5 * time.Second)
