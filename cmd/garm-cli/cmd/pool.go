@@ -532,7 +532,7 @@ func formatOnePool(pool params.Pool) {
 	t.AppendRow(table.Row{"Enabled", pool.Enabled})
 	t.AppendRow(table.Row{"Runner Prefix", pool.GetRunnerPrefix()})
 	t.AppendRow(table.Row{"Extra specs", string(pool.ExtraSpecs)})
-	t.AppendRow(table.Row{"GitHub Runner Group", string(pool.GitHubRunnerGroup)})
+	t.AppendRow(table.Row{"GitHub Runner Group", pool.GitHubRunnerGroup})
 
 	if len(pool.Instances) > 0 {
 		for _, instance := range pool.Instances {
