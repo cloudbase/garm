@@ -52,9 +52,9 @@ func WaitInstanceToBeRemoved(name string, timeout time.Duration) error {
 		}
 
 		instance = nil
-		for _, i := range instances {
-			if i.Name == name {
-				instance = &i
+		for k, v := range instances {
+			if v.Name == name {
+				instance = &instances[k]
 				break
 			}
 		}

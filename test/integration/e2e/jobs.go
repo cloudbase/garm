@@ -93,9 +93,9 @@ func waitJobStatus(id int64, status params.JobStatus, timeout time.Duration) (*p
 		}
 
 		job = nil
-		for _, j := range jobs {
-			if j.ID == id {
-				job = &j
+		for k, v := range jobs {
+			if v.ID == id {
+				job = &jobs[k]
 				break
 			}
 		}
