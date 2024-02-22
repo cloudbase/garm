@@ -208,7 +208,7 @@ func (s *PoolTestSuite) TestTestUpdatePoolByIDInvalidPoolID() {
 
 func (s *PoolTestSuite) TestTestUpdatePoolByIDRunnerBootstrapTimeoutFailed() {
 	// this is already created in `SetupTest()`
-	var RunnerBootstrapTimeout uint = 0
+	var RunnerBootstrapTimeout uint // default is 0
 	s.Fixtures.UpdatePoolParams.RunnerBootstrapTimeout = &RunnerBootstrapTimeout
 
 	_, err := s.Runner.UpdatePoolByID(s.Fixtures.AdminContext, s.Fixtures.Pools[0].ID, s.Fixtures.UpdatePoolParams)

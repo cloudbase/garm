@@ -117,7 +117,7 @@ func (p *poolManagerCtrl) CreateRepoPoolManager(ctx context.Context, repo params
 	return poolManager, nil
 }
 
-func (p *poolManagerCtrl) UpdateRepoPoolManager(ctx context.Context, repo params.Repository) (common.PoolManager, error) {
+func (p *poolManagerCtrl) UpdateRepoPoolManager(_ context.Context, repo params.Repository) (common.PoolManager, error) {
 	p.mux.Lock()
 	defer p.mux.Unlock()
 
@@ -183,7 +183,7 @@ func (p *poolManagerCtrl) CreateOrgPoolManager(ctx context.Context, org params.O
 	return poolManager, nil
 }
 
-func (p *poolManagerCtrl) UpdateOrgPoolManager(ctx context.Context, org params.Organization) (common.PoolManager, error) {
+func (p *poolManagerCtrl) UpdateOrgPoolManager(_ context.Context, org params.Organization) (common.PoolManager, error) {
 	p.mux.Lock()
 	defer p.mux.Unlock()
 
@@ -249,7 +249,7 @@ func (p *poolManagerCtrl) CreateEnterprisePoolManager(ctx context.Context, enter
 	return poolManager, nil
 }
 
-func (p *poolManagerCtrl) UpdateEnterprisePoolManager(ctx context.Context, enterprise params.Enterprise) (common.PoolManager, error) {
+func (p *poolManagerCtrl) UpdateEnterprisePoolManager(_ context.Context, enterprise params.Enterprise) (common.PoolManager, error) {
 	p.mux.Lock()
 	defer p.mux.Unlock()
 
@@ -903,7 +903,8 @@ func (r *Runner) getPoolManagerFromInstance(ctx context.Context, instance params
 
 	var poolMgr common.PoolManager
 
-	if pool.RepoID != "" {
+	switch {
+	case pool.RepoID != "":
 		repo, err := r.store.GetRepositoryByID(ctx, pool.RepoID)
 		if err != nil {
 			return nil, errors.Wrap(err, "fetching repo")
@@ -912,7 +913,7 @@ func (r *Runner) getPoolManagerFromInstance(ctx context.Context, instance params
 		if err != nil {
 			return nil, errors.Wrapf(err, "fetching pool manager for repo %s", pool.RepoName)
 		}
-	} else if pool.OrgID != "" {
+	case pool.OrgID != "":
 		org, err := r.store.GetOrganizationByID(ctx, pool.OrgID)
 		if err != nil {
 			return nil, errors.Wrap(err, "fetching org")
@@ -921,7 +922,7 @@ func (r *Runner) getPoolManagerFromInstance(ctx context.Context, instance params
 		if err != nil {
 			return nil, errors.Wrapf(err, "fetching pool manager for org %s", pool.OrgName)
 		}
-	} else if pool.EnterpriseID != "" {
+	case pool.EnterpriseID != "":
 		enterprise, err := r.store.GetEnterpriseByID(ctx, pool.EnterpriseID)
 		if err != nil {
 			return nil, errors.Wrap(err, "fetching enterprise")

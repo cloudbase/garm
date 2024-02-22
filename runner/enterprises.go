@@ -233,6 +233,7 @@ func (r *Runner) DeleteEnterprisePool(ctx context.Context, enterpriseID, poolID 
 		return runnerErrors.ErrUnauthorized
 	}
 
+	// nolint:golangci-lint,godox
 	// TODO: dedup instance count verification
 	pool, err := r.store.GetEnterprisePool(ctx, enterpriseID, poolID)
 	if err != nil {
@@ -244,6 +245,7 @@ func (r *Runner) DeleteEnterprisePool(ctx context.Context, enterpriseID, poolID 
 		return errors.Wrap(err, "fetching instances")
 	}
 
+	// nolint:golangci-lint,godox
 	// TODO: implement a count function
 	if len(instances) > 0 {
 		runnerIDs := []string{}

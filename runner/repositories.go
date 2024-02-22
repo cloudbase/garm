@@ -158,6 +158,7 @@ func (r *Runner) DeleteRepository(ctx context.Context, repoID string, keepWebhoo
 		}
 
 		if err := poolMgr.UninstallWebhook(ctx); err != nil {
+			// nolint:golangci-lint,godox
 			// TODO(gabriel-samfira): Should we error out here?
 			slog.With(slog.Any("error", err)).ErrorContext(
 				ctx, "failed to uninstall webhook",
@@ -270,6 +271,7 @@ func (r *Runner) DeleteRepoPool(ctx context.Context, repoID, poolID string) erro
 		return errors.Wrap(err, "fetching instances")
 	}
 
+	// nolint:golangci-lint,godox
 	// TODO: implement a count function
 	if len(instances) > 0 {
 		runnerIDs := []string{}
