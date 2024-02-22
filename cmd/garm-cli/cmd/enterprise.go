@@ -50,7 +50,7 @@ var enterpriseAddCmd = &cobra.Command{
 	Short:        "Add enterprise",
 	Long:         `Add a new enterprise to the manager.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, _ []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -76,7 +76,7 @@ var enterpriseListCmd = &cobra.Command{
 	Short:        "List enterprises",
 	Long:         `List all configured enterprises that are currently managed.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, _ []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -96,7 +96,7 @@ var enterpriseShowCmd = &cobra.Command{
 	Short:        "Show details for one enterprise",
 	Long:         `Displays detailed information about a single enterprise.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -123,7 +123,7 @@ var enterpriseDeleteCmd = &cobra.Command{
 	Short:        "Removes one enterprise",
 	Long:         `Delete one enterprise from the manager.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -147,7 +147,7 @@ var enterpriseUpdateCmd = &cobra.Command{
 	Short:        "Update enterprise",
 	Long:         `Update enterprise credentials or webhook secret.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}

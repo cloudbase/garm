@@ -55,7 +55,7 @@ This command will list all currently defined profiles in the local configuration
 file of the garm client.
 `,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, _ []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -76,7 +76,7 @@ var profileDeleteCmd = &cobra.Command{
 	Short:        "Delete profile",
 	Long:         `Delete a profile from the local CLI configuration.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -101,7 +101,7 @@ var poolSwitchCmd = &cobra.Command{
 	Short:        "Switch to a different profile",
 	Long:         `Switch the CLI to a different profile.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -132,7 +132,7 @@ var profileAddCmd = &cobra.Command{
 	Short:        "Add profile",
 	Long:         `Create a profile for a new garm installation.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, _ []string) error {
 		if cfg != nil {
 			if cfg.HasManager(loginProfileName) {
 				return fmt.Errorf("a manager with name %s already exists in your local config", loginProfileName)
@@ -180,7 +180,7 @@ This command will refresh the bearer token associated with an already defined ga
 installation, by performing a login.
 	`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, _ []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}

@@ -46,7 +46,7 @@ func init() {
 			Short:        "List configured github credentials",
 			Long:         `List the names of the github personal access tokens available to the garm.`,
 			SilenceUsage: true,
-			RunE: func(cmd *cobra.Command, args []string) error {
+			RunE: func(_ *cobra.Command, _ []string) error {
 				if needsInit {
 					return errNeedsInitError
 				}

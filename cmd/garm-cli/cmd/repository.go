@@ -63,7 +63,7 @@ var repoWebhookInstallCmd = &cobra.Command{
 	Short:        "Install webhook",
 	Long:         `Install webhook for a repository.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -93,7 +93,7 @@ var repoHookInfoShowCmd = &cobra.Command{
 	Short:        "Show webhook info",
 	Long:         `Show webhook info for a repository.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -121,7 +121,7 @@ var repoWebhookUninstallCmd = &cobra.Command{
 	Short:        "Uninstall webhook",
 	Long:         `Uninstall webhook for a repository.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -149,7 +149,7 @@ var repoAddCmd = &cobra.Command{
 	Short:        "Add repository",
 	Long:         `Add a new repository to the manager.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, _ []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -202,7 +202,7 @@ var repoListCmd = &cobra.Command{
 	Short:        "List repositories",
 	Long:         `List all configured repositories that are currently managed.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, _ []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -222,7 +222,7 @@ var repoUpdateCmd = &cobra.Command{
 	Short:        "Update repository",
 	Long:         `Update repository credentials or webhook secret.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -255,7 +255,7 @@ var repoShowCmd = &cobra.Command{
 	Short:        "Show details for one repository",
 	Long:         `Displays detailed information about a single repository.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -282,7 +282,7 @@ var repoDeleteCmd = &cobra.Command{
 	Short:        "Removes one repository",
 	Long:         `Delete one repository from the manager.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}

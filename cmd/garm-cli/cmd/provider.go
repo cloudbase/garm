@@ -45,7 +45,7 @@ func init() {
 			Short:        "List all configured providers",
 			Long:         `List all cloud providers configured with the service.`,
 			SilenceUsage: true,
-			RunE: func(cmd *cobra.Command, args []string) error {
+			RunE: func(_ *cobra.Command, _ []string) error {
 				if needsInit {
 					return errNeedsInitError
 				}

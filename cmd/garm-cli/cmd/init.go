@@ -45,7 +45,7 @@ Example usage:
 
 garm-cli init --name=dev --url=https://runner.example.com --username=admin --password=superSecretPassword
 `,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, _ []string) error {
 		if cfg != nil {
 			if cfg.HasManager(loginProfileName) {
 				return fmt.Errorf("a manager with name %s already exists in your local config", loginProfileName)

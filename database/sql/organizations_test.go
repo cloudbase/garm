@@ -104,7 +104,7 @@ func (s *OrgTestSuite) SetupTest() {
 		SkipInitializeWithVersion: true,
 	}
 	gormConfig := &gorm.Config{}
-	if flag.Lookup("test.v").Value.String() == "false" {
+	if flag.Lookup("test.v").Value.String() == falseString {
 		gormConfig.Logger = logger.Default.LogMode(logger.Silent)
 	}
 	gormConn, err := gorm.Open(mysql.New(mysqlConfig), gormConfig)
@@ -182,7 +182,7 @@ func (s *OrgTestSuite) TestCreateOrganizationInvalidDBPassphrase() {
 		s.FailNow(fmt.Sprintf("failed to create db connection: %s", err))
 	}
 	// make sure we use a 'sqlDatabase' struct with a wrong 'cfg.Passphrase'
-	cfg.Passphrase = "wrong-passphrase" // it must have a size different than 32
+	cfg.Passphrase = wrongPassphrase // it must have a size different than 32
 	sqlDB := &sqlDatabase{
 		conn: conn,
 		cfg:  cfg,
@@ -321,7 +321,7 @@ func (s *OrgTestSuite) TestUpdateOrganizationInvalidOrgID() {
 }
 
 func (s *OrgTestSuite) TestUpdateOrganizationDBEncryptErr() {
-	s.StoreSQLMocked.cfg.Passphrase = "wrong-passphrase"
+	s.StoreSQLMocked.cfg.Passphrase = wrongPassphrase
 
 	s.Fixtures.SQLMock.
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT 1")).
@@ -354,8 +354,8 @@ func (s *OrgTestSuite) TestUpdateOrganizationDBSaveErr() {
 }
 
 func (s *OrgTestSuite) TestUpdateOrganizationDBDecryptingErr() {
-	s.StoreSQLMocked.cfg.Passphrase = "wrong-passphrase"
-	s.Fixtures.UpdateRepoParams.WebhookSecret = "webhook-secret"
+	s.StoreSQLMocked.cfg.Passphrase = wrongPassphrase
+	s.Fixtures.UpdateRepoParams.WebhookSecret = webhookSecret
 
 	s.Fixtures.SQLMock.
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT 1")).

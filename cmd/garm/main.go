@@ -41,7 +41,7 @@ import (
 	"github.com/cloudbase/garm/database"
 	"github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/metrics"
-	"github.com/cloudbase/garm/runner"
+	"github.com/cloudbase/garm/runner" //nolint:typecheck
 	runnerMetrics "github.com/cloudbase/garm/runner/metrics"
 	garmUtil "github.com/cloudbase/garm/util"
 	"github.com/cloudbase/garm/util/appdefaults"

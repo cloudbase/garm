@@ -37,7 +37,7 @@ var infoShowCmd = &cobra.Command{
 	Short:        "Show information",
 	Long:         `Show information about the current controller.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, _ []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}

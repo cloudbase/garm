@@ -23,7 +23,7 @@ var logCmd = &cobra.Command{
 	SilenceUsage: true,
 	Short:        "Stream garm log",
 	Long:         `Stream all garm logging to the terminal.`,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, _ []string) error {
 		interrupt := make(chan os.Signal, 1)
 		signal.Notify(interrupt, os.Interrupt)
 

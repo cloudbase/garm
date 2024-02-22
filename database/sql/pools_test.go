@@ -99,7 +99,7 @@ func (s *PoolsTestSuite) SetupTest() {
 		SkipInitializeWithVersion: true,
 	}
 	gormConfig := &gorm.Config{}
-	if flag.Lookup("test.v").Value.String() == "false" {
+	if flag.Lookup("test.v").Value.String() == falseString {
 		gormConfig.Logger = logger.Default.LogMode(logger.Silent)
 	}
 	gormConn, err := gorm.Open(mysql.New(mysqlConfig), gormConfig)

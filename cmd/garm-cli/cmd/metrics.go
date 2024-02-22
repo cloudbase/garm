@@ -36,7 +36,7 @@ var metricsTokenCreateCmd = &cobra.Command{
 	Short:        "Create a metrics token",
 	Long:         `Create a metrics token.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, _ []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}

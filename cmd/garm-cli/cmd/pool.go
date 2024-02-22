@@ -139,7 +139,7 @@ var poolShowCmd = &cobra.Command{
 	Short:        "Show details for a runner",
 	Long:         `Displays a detailed view of a single runner.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -169,7 +169,7 @@ var poolDeleteCmd = &cobra.Command{
 	Short:        "Delete pool by ID",
 	Long:         `Delete one pool by referencing it's ID, regardless of repo or org.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -197,7 +197,7 @@ var poolAddCmd = &cobra.Command{
 	Short:        "Add pool",
 	Long:         `Add a new pool to a repository or organization.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}

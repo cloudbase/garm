@@ -26,6 +26,12 @@ import (
 	"github.com/cloudbase/garm/params"
 )
 
+const (
+	entityTypeEnterpriseName = "enterprise_id"
+	entityTypeOrgName        = "org_id"
+	entityTypeRepoName       = "repo_id"
+)
+
 func (s *sqlDatabase) ListAllPools(_ context.Context) ([]params.Pool, error) {
 	var pools []Pool
 
@@ -92,11 +98,11 @@ func (s *sqlDatabase) getEntityPool(_ context.Context, entityType params.PoolTyp
 	var fieldName string
 	switch entityType {
 	case params.RepositoryPool:
-		fieldName = "repo_id"
+		fieldName = entityTypeRepoName
 	case params.OrganizationPool:
-		fieldName = "org_id"
+		fieldName = entityTypeOrgName
 	case params.EnterprisePool:
-		fieldName = "enterprise_id"
+		fieldName = entityTypeEnterpriseName
 	default:
 		return Pool{}, fmt.Errorf("invalid entityType: %v", entityType)
 	}
@@ -106,7 +112,6 @@ func (s *sqlDatabase) getEntityPool(_ context.Context, entityType params.PoolTyp
 	err = q.Model(&Pool{}).
 		Where(condition, u, entityID).
 		First(&pool).Error
-
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return Pool{}, errors.Wrap(runnerErrors.ErrNotFound, "finding pool")
@@ -132,11 +137,11 @@ func (s *sqlDatabase) listEntityPools(_ context.Context, entityType params.PoolT
 	var fieldName string
 	switch entityType {
 	case params.RepositoryPool:
-		fieldName = "repo_id"
+		fieldName = entityTypeRepoName
 	case params.OrganizationPool:
-		fieldName = "org_id"
+		fieldName = entityTypeOrgName
 	case params.EnterprisePool:
-		fieldName = "enterprise_id"
+		fieldName = entityTypeEnterpriseName
 	default:
 		return nil, fmt.Errorf("invalid entityType: %v", entityType)
 	}
@@ -169,11 +174,11 @@ func (s *sqlDatabase) findPoolByTags(id string, poolType params.PoolType, tags [
 	var fieldName string
 	switch poolType {
 	case params.RepositoryPool:
-		fieldName = "repo_id"
+		fieldName = entityTypeRepoName
 	case params.OrganizationPool:
-		fieldName = "org_id"
+		fieldName = entityTypeOrgName
 	case params.EnterprisePool:
-		fieldName = "enterprise_id"
+		fieldName = entityTypeEnterpriseName
 	default:
 		return nil, fmt.Errorf("invalid poolType: %v", poolType)
 	}

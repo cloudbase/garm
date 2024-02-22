@@ -32,7 +32,7 @@ import (
 	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/metrics"
 	runnerParams "github.com/cloudbase/garm/params"
-	"github.com/cloudbase/garm/runner"
+	"github.com/cloudbase/garm/runner" //nolint:typecheck
 	wsWriter "github.com/cloudbase/garm/websocket"
 )
 

@@ -41,7 +41,7 @@ var jobsListCmd = &cobra.Command{
 	Short:        "List jobs",
 	Long:         `List all jobs currently recorded in the system.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, _ []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}

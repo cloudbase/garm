@@ -139,7 +139,7 @@ var runnerShowCmd = &cobra.Command{
 	Short:        "Show details for a runner",
 	Long:         `Displays a detailed view of a single runner.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -178,7 +178,7 @@ NOTE: An active runner cannot be removed from Github. You will have
 to either cancel the workflow or wait for it to finish.
 `,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}

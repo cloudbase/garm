@@ -25,7 +25,7 @@ var versionCmd = &cobra.Command{
 	Use:          "version",
 	SilenceUsage: true,
 	Short:        "Print version and exit",
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: func(_ *cobra.Command, _ []string) {
 		fmt.Println(Version)
 	},
 }
