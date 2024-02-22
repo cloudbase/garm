@@ -35,8 +35,6 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 
-	"golang.org/x/sync/errgroup"
-
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm-provider-common/util"
@@ -50,12 +48,12 @@ import (
 )
 
 func NewRunner(ctx context.Context, cfg config.Config, db dbCommon.Store) (*Runner, error) {
-	ctrlId, err := db.ControllerInfo()
+	ctrlID, err := db.ControllerInfo()
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching controller info")
 	}
 
-	providers, err := providers.LoadProvidersFromConfig(ctx, cfg, ctrlId.ControllerID.String())
+	providers, err := providers.LoadProvidersFromConfig(ctx, cfg, ctrlID.ControllerID.String())
 	if err != nil {
 		return nil, errors.Wrap(err, "loading providers")
 	}
@@ -67,7 +65,7 @@ func NewRunner(ctx context.Context, cfg config.Config, db dbCommon.Store) (*Runn
 	}
 
 	poolManagerCtrl := &poolManagerCtrl{
-		controllerID:  ctrlId.ControllerID.String(),
+		controllerID:  ctrlID.ControllerID.String(),
 		config:        cfg,
 		credentials:   creds,
 		repositories:  map[string]common.PoolManager{},
@@ -81,7 +79,7 @@ func NewRunner(ctx context.Context, cfg config.Config, db dbCommon.Store) (*Runn
 		poolManagerCtrl: poolManagerCtrl,
 		providers:       providers,
 		credentials:     creds,
-		controllerID:    ctrlId.ControllerID,
+		controllerID:    ctrlID.ControllerID,
 	}
 
 	if err := runner.loadReposOrgsAndEnterprises(); err != nil {
@@ -628,34 +626,34 @@ func (r *Runner) Wait() error {
 		return errors.Wrap(err, "fetch enterprise pool managers")
 	}
 
-	for poolId, repo := range repos {
+	for poolID, repo := range repos {
 		wg.Add(1)
 		go func(id string, poolMgr common.PoolManager) {
 			defer wg.Done()
 			if err := poolMgr.Wait(); err != nil {
 				slog.With(slog.Any("error", err)).ErrorContext(r.ctx, "timed out waiting for pool manager to exit", "pool_id", id, "pool_mgr_id", poolMgr.ID())
 			}
-		}(poolId, repo)
+		}(poolID, repo)
 	}
 
-	for poolId, org := range orgs {
+	for poolID, org := range orgs {
 		wg.Add(1)
 		go func(id string, poolMgr common.PoolManager) {
 			defer wg.Done()
 			if err := poolMgr.Wait(); err != nil {
 				slog.With(slog.Any("error", err)).ErrorContext(r.ctx, "timed out waiting for pool manager to exit", "pool_id", id)
 			}
-		}(poolId, org)
+		}(poolID, org)
 	}
 
-	for poolId, enterprise := range enterprises {
+	for poolID, enterprise := range enterprises {
 		wg.Add(1)
 		go func(id string, poolMgr common.PoolManager) {
 			defer wg.Done()
 			if err := poolMgr.Wait(); err != nil {
 				slog.With(slog.Any("error", err)).ErrorContext(r.ctx, "timed out waiting for pool manager to exit", "pool_id", id)
 			}
-		}(poolId, enterprise)
+		}(poolID, enterprise)
 	}
 
 	wg.Wait()

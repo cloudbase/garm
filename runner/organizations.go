@@ -144,12 +144,12 @@ func (r *Runner) DeleteOrganization(ctx context.Context, orgID string, keepWebho
 	}
 
 	if len(pools) > 0 {
-		poolIds := []string{}
+		poolIDs := []string{}
 		for _, pool := range pools {
-			poolIds = append(poolIds, pool.ID)
+			poolIDs = append(poolIDs, pool.ID)
 		}
 
-		return runnerErrors.NewBadRequestError("org has pools defined (%s)", strings.Join(poolIds, ", "))
+		return runnerErrors.NewBadRequestError("org has pools defined (%s)", strings.Join(poolIDs, ", "))
 	}
 
 	if !keepWebhook && r.config.Default.EnableWebhookManagement {

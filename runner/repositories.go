@@ -143,12 +143,12 @@ func (r *Runner) DeleteRepository(ctx context.Context, repoID string, keepWebhoo
 	}
 
 	if len(pools) > 0 {
-		poolIds := []string{}
+		poolIDs := []string{}
 		for _, pool := range pools {
-			poolIds = append(poolIds, pool.ID)
+			poolIDs = append(poolIDs, pool.ID)
 		}
 
-		return runnerErrors.NewBadRequestError("repo has pools defined (%s)", strings.Join(poolIds, ", "))
+		return runnerErrors.NewBadRequestError("repo has pools defined (%s)", strings.Join(poolIDs, ", "))
 	}
 
 	if !keepWebhook && r.config.Default.EnableWebhookManagement {
