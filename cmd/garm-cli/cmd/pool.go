@@ -473,13 +473,14 @@ func formatPools(pools []params.Pool) {
 		var belongsTo string
 		var level string
 
-		if pool.RepoID != "" && pool.RepoName != "" {
+		switch {
+		case pool.RepoID != "" && pool.RepoName != "":
 			belongsTo = pool.RepoName
 			level = "repo"
-		} else if pool.OrgID != "" && pool.OrgName != "" {
+		case pool.OrgID != "" && pool.OrgName != "":
 			belongsTo = pool.OrgName
 			level = "org"
-		} else if pool.EnterpriseID != "" && pool.EnterpriseName != "" {
+		case pool.EnterpriseID != "" && pool.EnterpriseName != "":
 			belongsTo = pool.EnterpriseName
 			level = "enterprise"
 		}
@@ -503,13 +504,14 @@ func formatOnePool(pool params.Pool) {
 	var belongsTo string
 	var level string
 
-	if pool.RepoID != "" && pool.RepoName != "" {
+	switch {
+	case pool.RepoID != "" && pool.RepoName != "":
 		belongsTo = pool.RepoName
 		level = "repo"
-	} else if pool.OrgID != "" && pool.OrgName != "" {
+	case pool.OrgID != "" && pool.OrgName != "":
 		belongsTo = pool.OrgName
 		level = "org"
-	} else if pool.EnterpriseID != "" && pool.EnterpriseName != "" {
+	case pool.EnterpriseID != "" && pool.EnterpriseName != "":
 		belongsTo = pool.EnterpriseName
 		level = "enterprise"
 	}
