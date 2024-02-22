@@ -145,7 +145,7 @@ var profileAddCmd = &cobra.Command{
 
 		url := strings.TrimSuffix(loginURL, "/")
 
-		initApiClient(url, "")
+		initAPIClient(url, "")
 
 		newLoginParamsReq := apiClientLogin.NewLoginParams()
 		newLoginParamsReq.Body = params.PasswordLoginParams{

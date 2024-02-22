@@ -66,7 +66,7 @@ garm-cli init --name=dev --url=https://runner.example.com --username=admin --pas
 
 		url := strings.TrimSuffix(loginURL, "/")
 
-		initApiClient(url, "")
+		initAPIClient(url, "")
 
 		response, err := apiCli.FirstRun.FirstRun(newUserReq, authToken)
 		if err != nil {

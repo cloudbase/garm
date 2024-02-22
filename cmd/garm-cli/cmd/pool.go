@@ -451,13 +451,13 @@ func asRawMessage(data []byte) (json.RawMessage, error) {
 		return nil, errors.Wrap(err, "decoding extra specs")
 	}
 
-	var asRawJson json.RawMessage
+	var asRawJSON json.RawMessage
 	var err error
-	asRawJson, err = json.Marshal(unmarshaled)
+	asRawJSON, err = json.Marshal(unmarshaled)
 	if err != nil {
 		return nil, errors.Wrap(err, "marshaling json")
 	}
-	return asRawJson, nil
+	return asRawJSON, nil
 }
 
 func formatPools(pools []params.Pool) {
