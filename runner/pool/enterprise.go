@@ -306,7 +306,19 @@ func (r *enterprise) FetchDbInstances() ([]params.Instance, error) {
 }
 
 func (r *enterprise) RemoveGithubRunner(runnerID int64) (*github.Response, error) {
-	return r.ghcEnterpriseCli.RemoveRunner(r.ctx, r.cfg.Name, runnerID)
+	metrics.GithubOperationCount.WithLabelValues(
+		"RemoveRunner",              // label: operation
+		metricsLabelEnterpriseScope, // label: scope
+	).Inc()
+	ghResp, err := r.ghcEnterpriseCli.RemoveRunner(r.ctx, r.cfg.Name, runnerID)
+	if err != nil {
+		metrics.GithubOperationFailedCount.WithLabelValues(
+			"RemoveRunner",              // label: operation
+			metricsLabelEnterpriseScope, // label: scope
+		).Inc()
+		return nil, err
+	}
+	return ghResp, nil
 }
 
 func (r *enterprise) ListPools() ([]params.Pool, error) {

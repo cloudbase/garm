@@ -352,9 +352,17 @@ func (r *organization) JwtToken() string {
 }
 
 func (r *organization) GetGithubRegistrationToken() (string, error) {
+	metrics.GithubOperationCount.WithLabelValues(
+		"CreateOrganizationRegistrationToken", // label: operation
+		metricsLabelOrganizationScope,         // label: scope
+	).Inc()
 	tk, ghResp, err := r.ghcli.CreateOrganizationRegistrationToken(r.ctx, r.cfg.Name)
 
 	if err != nil {
+		metrics.GithubOperationFailedCount.WithLabelValues(
+			"CreateOrganizationRegistrationToken", // label: operation
+			metricsLabelOrganizationScope,         // label: scope
+		).Inc()
 		if ghResp != nil && ghResp.StatusCode == http.StatusUnauthorized {
 			return "", errors.Wrap(runnerErrors.ErrUnauthorized, "fetching token")
 		}

@@ -100,8 +100,16 @@ func (r *repository) GetJITConfig(ctx context.Context, instance string, pool par
 		// TODO(gabriel-samfira): Should we make this configurable?
 		WorkFolder: github.String("_work"),
 	}
+	metrics.GithubOperationCount.WithLabelValues(
+		"GenerateRepoJITConfig",     // label: operation
+		metricsLabelRepositoryScope, // label: scope
+	).Inc()
 	jitConfig, resp, err := r.ghcli.GenerateRepoJITConfig(ctx, r.cfg.Owner, r.cfg.Name, &req)
 	if err != nil {
+		metrics.GithubOperationFailedCount.WithLabelValues(
+			"GenerateRepoJITConfig",     // label: operation
+			metricsLabelRepositoryScope, // label: scope
+		).Inc()
 		if resp != nil && resp.StatusCode == http.StatusUnauthorized {
 			return nil, nil, fmt.Errorf("failed to get JIT config: %w", err)
 		}
@@ -395,8 +403,17 @@ func (r *repository) InstallHook(ctx context.Context, req *github.Hook) (params.
 		return params.HookInfo{}, errors.Wrap(err, "validating hook request")
 	}
 
+	metrics.GithubOperationCount.WithLabelValues(
+		"CreateRepoHook",            // label: operation
+		metricsLabelRepositoryScope, // label: scope
+	).Inc()
+
 	hook, _, err := r.ghcli.CreateRepoHook(ctx, r.cfg.Owner, r.cfg.Name, req)
 	if err != nil {
+		metrics.GithubOperationFailedCount.WithLabelValues(
+			"CreateRepoHook",            // label: operation
+			metricsLabelRepositoryScope, // label: scope
+		).Inc()
 		return params.HookInfo{}, errors.Wrap(err, "creating repository hook")
 	}
 

@@ -16,7 +16,6 @@ const metricsGithubSubsystem = "github"
 
 // RegisterMetrics registers all the metrics
 func RegisterMetrics() error {
-
 	var collectors []prometheus.Collector
 	collectors = append(collectors,
 
