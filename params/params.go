@@ -436,7 +436,7 @@ func (g GithubCredentials) RootCertificateBundle() (CertificateBundle, error) {
 	ret := map[string][]byte{}
 
 	var block *pem.Block
-	var rest []byte = g.CABundle
+	var rest = g.CABundle
 	for {
 		block, rest = pem.Decode(rest)
 		if block == nil {

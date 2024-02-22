@@ -54,7 +54,7 @@ func ValidateJobLifecycle(label string) {
 }
 
 func waitLabelledJob(label string, timeout time.Duration) (*params.Job, error) {
-	var timeWaited time.Duration = 0
+	var timeWaited time.Duration // default is 0
 	var jobs params.Jobs
 	var err error
 
@@ -82,7 +82,7 @@ func waitLabelledJob(label string, timeout time.Duration) (*params.Job, error) {
 }
 
 func waitJobStatus(id int64, status params.JobStatus, timeout time.Duration) (*params.Job, error) {
-	var timeWaited time.Duration = 0
+	var timeWaited time.Duration // default is 0
 	var job *params.Job
 
 	slog.Info("Waiting for job to reach status", "job_id", id, "status", status)

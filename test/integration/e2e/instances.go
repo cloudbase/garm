@@ -10,7 +10,7 @@ import (
 )
 
 func waitInstanceStatus(name string, status commonParams.InstanceStatus, runnerStatus params.RunnerStatus, timeout time.Duration) (*params.Instance, error) {
-	var timeWaited time.Duration = 0
+	var timeWaited time.Duration // default is 0
 	var instance *params.Instance
 
 	slog.Info("Waiting for instance to reach desired status", "instance", name, "desired_status", status, "desired_runner_status", runnerStatus)
@@ -41,7 +41,7 @@ func DeleteInstance(name string, forceRemove bool) {
 }
 
 func WaitInstanceToBeRemoved(name string, timeout time.Duration) error {
-	var timeWaited time.Duration = 0
+	var timeWaited time.Duration // default is 0
 	var instance *params.Instance
 
 	slog.Info("Waiting for instance to be removed", "instance_name", name)
@@ -75,7 +75,7 @@ func WaitInstanceToBeRemoved(name string, timeout time.Duration) error {
 }
 
 func WaitPoolInstances(poolID string, status commonParams.InstanceStatus, runnerStatus params.RunnerStatus, timeout time.Duration) error {
-	var timeWaited time.Duration = 0
+	var timeWaited time.Duration // default is 0
 
 	pool, err := getPool(cli, authToken, poolID)
 	if err != nil {

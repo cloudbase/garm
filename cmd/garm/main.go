@@ -98,7 +98,7 @@ func setupLogging(ctx context.Context, logCfg config.Logging, hub *websocket.Hub
 		}
 	}()
 
-	var writers []io.Writer = []io.Writer{
+	var writers = []io.Writer{
 		logWriter,
 	}
 

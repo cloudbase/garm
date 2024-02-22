@@ -9,7 +9,7 @@ import (
 )
 
 func waitPoolNoInstances(id string, timeout time.Duration) error {
-	var timeWaited time.Duration = 0
+	var timeWaited time.Duration // default is 0
 	var pool *params.Pool
 	var err error
 
