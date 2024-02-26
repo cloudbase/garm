@@ -47,4 +47,4 @@ oauth2_token = "${GH_TOKEN}"
 [[github]]
 name = "${CREDENTIALS_NAME}-clone"
 description = "GARM GitHub OAuth token - clone"
-oauth2_token = "${GH_OAUTH_TOKEN}"
+oauth2_token = "${GH_TOKEN}"

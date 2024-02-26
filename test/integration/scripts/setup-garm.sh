@@ -4,23 +4,29 @@ set -o errexit
 DIR="$(dirname $0)"
 BINARIES_DIR="$PWD/bin"
 CONTRIB_DIR="$PWD/contrib"
-CONFIG_DIR="$PWD/test/integration/config"
-CONFIG_DIR_PROV="$PWD/test/integration/provider"
-GARM_CONFIG_DIR=${GARM_CONFIG_DIR:-$(mktemp -d)}
-PROVIDER_BIN_DIR="$GARM_CONFIG_DIR/providers.d/lxd"
-IS_GH_WORKFLOW=${IS_GH_WORKFLOW:-"true"}
+export CONFIG_DIR="$PWD/test/integration/config"
+export CONFIG_DIR_PROV="$PWD/test/integration/provider"
+export GARM_CONFIG_DIR=${GARM_CONFIG_DIR:-$(mktemp -d)}
+export PROVIDER_BIN_DIR="$GARM_CONFIG_DIR/providers.d/lxd"
+export IS_GH_WORKFLOW=${IS_GH_WORKFLOW:-"true"}
 export LXD_PROVIDER_LOCATION=${LXD_PROVIDER_LOCATION:-""}
-export RUN_USER=${RUN_USER:-$(whoami)}
+export RUN_USER=${RUN_USER:-$USER}
 export GARM_PORT=${GARM_PORT:-"9997"}
 export GARM_SERVICE_NAME=${GARM_SERVICE_NAME:-"garm"}
 export GARM_CONFIG_FILE=${GARM_CONFIG_FILE:-"${GARM_CONFIG_DIR}/config.toml"}
+
+if [ -f "$GITHUB_ENV" ];then
+    echo "export GARM_CONFIG_DIR=${GARM_CONFIG_DIR}" >> $GITHUB_ENV
+    echo "export GARM_SERVICE_NAME=${GARM_SERVICE_NAME}" >> $GITHUB_ENV
+fi
 
 if [[ ! -f $BINARIES_DIR/garm ]] || [[ ! -f $BINARIES_DIR/garm-cli ]]; then
     echo "ERROR: Please build GARM binaries first"
     exit 1
 fi
 
-if [[ -z $GH_OAUTH_TOKEN ]]; then echo "ERROR: The env variable GH_OAUTH_TOKEN is not set"; exit 1; fi
+
+if [[ -z $GH_TOKEN ]]; then echo "ERROR: The env variable GH_TOKEN is not set"; exit 1; fi
 if [[ -z $CREDENTIALS_NAME ]]; then echo "ERROR: The env variable CREDENTIALS_NAME is not set"; exit 1; fi
 if [[ -z $GARM_BASE_URL ]]; then echo "ERROR: The env variable GARM_BASE_URL is not set"; exit 1; fi
 

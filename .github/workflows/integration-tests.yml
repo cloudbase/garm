@@ -22,9 +22,6 @@ jobs:
       - name: Install dependencies
         run: sudo apt-get -qq update && sudo apt-get -qq install -y apg coreutils make
 
-      - name: Build GARM
-        run: make build
-
       - name: Set up ngrok
         id: ngrok
         uses: gabriel-samfira/ngrok-tunnel-action@v1.1
@@ -68,7 +65,7 @@ jobs:
         if: always()
         run: |
           sudo systemctl status garm@runner || true
-          sudo journalctl --no-pager 2>&1 | tee /artifacts-logs/system.log
+          sudo journalctl --no-pager 2>&1 > /artifacts-logs/system.log
 
       - name: Upload GARM and e2e logs
         if: always()
@@ -83,9 +80,8 @@ jobs:
           set -o pipefail
           set -o errexit
 
-          sudo systemctl stop garm
-
-          go run ./test/integration/gh_cleanup/main.go
+          sudo systemctl stop garm@runner || true
+          go run ./test/integration/gh_cleanup/main.go || true
         env:
           GARM_BASE_URL: ${{ steps.ngrok.outputs.tunnel-url }}
           ORG_NAME: gsamfira
