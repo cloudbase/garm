@@ -1,5 +1,9 @@
-SHELL := bash
+SHELL := /bin/bash
+export SHELLOPTS:=$(if $(SHELLOPTS),$(SHELLOPTS):)pipefail:errexit
 
+.ONESHELL:
+
+GEN_PASSWORD=$(shell (/bin/bash -c 'tr -dc "a-zA-Z0-9" </dev/urandom | head -c 32 ; echo '';'))
 IMAGE_TAG = garm-build
 
 USER_ID=$(shell ((docker --version | grep -q podman) && echo "0" || id -u))
@@ -9,6 +13,12 @@ GOPATH ?= $(shell go env GOPATH)
 VERSION ?= $(shell git describe --tags --match='v[0-9]*' --dirty --always)
 GARM_REF ?= $(shell git rev-parse --abbrev-ref HEAD)
 GO ?= go
+export GARM_PASSWORD ?= ${GEN_PASSWORD}
+export REPO_WEBHOOK_SECRET = ${GEN_PASSWORD}
+export ORG_WEBHOOK_SECRET = ${GEN_PASSWORD}
+export CREDENTIALS_NAME ?= test-garm-creds
+export WORKFLOW_FILE_NAME ?= test.yml
+export GARM_ADMIN_USERNAME ?= admin
 
 .PHONY: help
 help: ## Display this help.
@@ -62,6 +72,18 @@ verify-vendor: ## verify if all the go.mod/go.sum files are up-to-date
 	@rm -rf ${TMPDIR}
 
 verify: verify-vendor lint fmtcheck ## Run all verify-* targets
+
+integration: build ## Run integration tests
+	function cleanup {
+		if [ -e "$$GITHUB_ENV" ];then
+			source $$GITHUB_ENV
+		fi
+		./test/integration/scripts/taredown_garm.sh
+		$(GO) run ./test/integration/gh_cleanup/main.go
+	}
+	trap cleanup EXIT
+	@./test/integration/scripts/setup-garm.sh
+	@$(GO) run ./test/integration/main.go
 
 ##@ Development
 

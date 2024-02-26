@@ -1,5 +1,5 @@
 [default]
-callback_url = "${GARM_BASE_URL}/api/v1/callbacks/status"
+callback_url = "${GARM_BASE_URL}/api/v1/callbacks"
 metadata_url = "${GARM_BASE_URL}/api/v1/metadata"
 webhook_url = "${GARM_BASE_URL}/webhooks"
 enable_webhook_management = true
@@ -14,14 +14,14 @@ time_to_live = "8760h"
 
 [apiserver]
 bind = "0.0.0.0"
-port = 9997
+port = ${GARM_PORT}
 use_tls = false
 
 [database]
 backend = "sqlite3"
 passphrase = "${DB_PASSPHRASE}"
 [database.sqlite3]
-  db_file = "/etc/garm/garm.db"
+  db_file = "${GARM_CONFIG_DIR}/garm.db"
 
 [[provider]]
 name = "lxd_local"
@@ -36,8 +36,8 @@ name = "test_external"
 description = "external test provider"
 provider_type = "external"
   [provider.external]
-  config_file = "/etc/garm/test-provider/config"
-  provider_executable = "/etc/garm/test-provider/garm-external-provider"
+  config_file = "${GARM_CONFIG_DIR}/test-provider/config"
+  provider_executable = "${GARM_CONFIG_DIR}/test-provider/garm-external-provider"
 
 [[github]]
 name = "${CREDENTIALS_NAME}"

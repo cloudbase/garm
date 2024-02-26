@@ -51,6 +51,7 @@ func GetControllerInfo() *params.ControllerInfo {
 }
 
 func GracefulCleanup() {
+	slog.Info("Graceful cleanup")
 	// disable all the pools
 	pools, err := listPools(cli, authToken)
 	if err != nil {
@@ -62,7 +63,7 @@ func GracefulCleanup() {
 		if _, err := updatePool(cli, authToken, pool.ID, poolParams); err != nil {
 			panic(err)
 		}
-		slog.Info("Pool disabled", "pool_id", pool.ID)
+		slog.Info("Pool disabled", "pool_id", pool.ID, "stage", "graceful_cleanup")
 	}
 
 	// delete all the instances
@@ -75,7 +76,7 @@ func GracefulCleanup() {
 			if err := deleteInstance(cli, authToken, instance.Name, false); err != nil {
 				panic(err)
 			}
-			slog.Info("Instance deletion initiated", "instance", instance.Name)
+			slog.Info("Instance deletion initiated", "instance", instance.Name, "stage", "graceful_cleanup")
 		}
 	}
 
@@ -91,7 +92,7 @@ func GracefulCleanup() {
 		if err := deletePool(cli, authToken, pool.ID); err != nil {
 			panic(err)
 		}
-		slog.Info("Pool deleted", "pool_id", pool.ID)
+		slog.Info("Pool deleted", "pool_id", pool.ID, "stage", "graceful_cleanup")
 	}
 
 	// delete all the repositories
@@ -103,7 +104,7 @@ func GracefulCleanup() {
 		if err := deleteRepo(cli, authToken, repo.ID); err != nil {
 			panic(err)
 		}
-		slog.Info("Repo deleted", "repo_id", repo.ID)
+		slog.Info("Repo deleted", "repo_id", repo.ID, "stage", "graceful_cleanup")
 	}
 
 	// delete all the organizations
@@ -115,7 +116,7 @@ func GracefulCleanup() {
 		if err := deleteOrg(cli, authToken, org.ID); err != nil {
 			panic(err)
 		}
-		slog.Info("Org deleted", "org_id", org.ID)
+		slog.Info("Org deleted", "org_id", org.ID, "stage", "graceful_cleanup")
 	}
 }
 
@@ -125,12 +126,12 @@ func appendCtrlInfoToGitHubEnv(controllerInfo *params.ControllerInfo) error {
 		slog.Info("GITHUB_ENV not set, skipping appending controller info")
 		return nil
 	}
-	file, err := os.OpenFile(envFile, os.O_WRONLY|os.O_APPEND, os.ModeAppend)
+	file, err := os.OpenFile(envFile, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0o644)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
-	if _, err := file.WriteString(fmt.Sprintf("GARM_CONTROLLER_ID=%s\n", controllerInfo.ControllerID)); err != nil {
+	if _, err := file.WriteString(fmt.Sprintf("export GARM_CONTROLLER_ID=%s\n", controllerInfo.ControllerID)); err != nil {
 		return err
 	}
 	return nil

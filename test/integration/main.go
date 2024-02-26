@@ -11,15 +11,13 @@ import (
 	"github.com/cloudbase/garm/test/integration/e2e"
 )
 
-const (
-	adminUsername = "admin"
+var (
+	adminPassword = os.Getenv("GARM_PASSWORD")
+	adminUsername = os.Getenv("GARM_ADMIN_USERNAME")
 	adminFullName = "GARM Admin"
 	adminEmail    = "admin@example.com"
-)
 
-var (
 	baseURL         = os.Getenv("GARM_BASE_URL")
-	adminPassword   = os.Getenv("GARM_PASSWORD")
 	credentialsName = os.Getenv("CREDENTIALS_NAME")
 
 	repoName          = os.Getenv("REPO_NAME")
@@ -116,11 +114,13 @@ func main() {
 	/////////////////////////////
 	// Test external provider ///
 	/////////////////////////////
+	slog.Info("Testing external provider")
 	repoPool2 := e2e.CreateRepoPool(repo.ID, repoPoolParams2)
-	_ = e2e.UpdateRepoPool(repo.ID, repoPool2.ID, repoPoolParams2.MaxRunners, 1)
+	newParams := e2e.UpdateRepoPool(repo.ID, repoPool2.ID, repoPoolParams2.MaxRunners, 1)
+	slog.Info("Updated repo pool", "new_params", newParams)
 	err := e2e.WaitPoolInstances(repoPool2.ID, commonParams.InstanceRunning, params.RunnerPending, 1*time.Minute)
 	if err != nil {
-		slog.With(slog.Any("error", err)).Error("Failed to wait for instance to be running")
+		slog.With(slog.Any("error", err)).Error("Failed to wait for instance to be running", "pool_id", repoPool2.ID, "provider_name", repoPoolParams2.ProviderName)
 	}
 	repoPool2 = e2e.GetRepoPool(repo.ID, repoPool2.ID)
 	e2e.DisableRepoPool(repo.ID, repoPool2.ID)
