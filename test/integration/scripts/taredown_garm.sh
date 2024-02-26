@@ -15,8 +15,10 @@ if [ -z $GARM_SERVICE_NAME ]; then
 fi
 
 if [ -f "$HOME/.local/share/systemd/user/${GARM_SERVICE_NAME}.service" ];then
-    systemctl --user stop $GARM_SERVICE_NAME.service
-    rm $HOME/.local/share/systemd/user/${GARM_SERVICE_NAME}.service
+    sudo systemctl stop $GARM_SERVICE_NAME@${RUN_USER}
+    sudo systemctl disable $GARM_SERVICE_NAME@${RUN_USER}
+    sudo rm /lib/systemd/system/${GARM_SERVICE_NAME}@.service
+    sudo systemctl daemon-reload
 fi
 
 if [ -d "$GARM_CONFIG_DIR" ] && [ -f "$GARM_CONFIG_DIR/config.toml" ] && [ -f "$GARM_CONFIG_DIR/garm-provider-lxd.toml" ];then

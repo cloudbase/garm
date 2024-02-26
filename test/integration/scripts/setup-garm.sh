@@ -89,11 +89,12 @@ sudo cp $CONFIG_DIR_PROV/* ${GARM_CONFIG_DIR}/test-provider
 
 sudo mv $BINARIES_DIR/* /usr/local/bin/
 mkdir -p $HOME/.local/share/systemd/user/
-cat $CONFIG_DIR/garm.service| envsubst | tee $HOME/.local/share/systemd/user/${GARM_SERVICE_NAME}.service > /dev/null
+cat $CONFIG_DIR/garm.service| envsubst | sudo tee /lib/systemd/system/${GARM_SERVICE_NAME}@.service > /dev/null
 sudo chown -R $RUN_USER:$RUN_USER ${GARM_CONFIG_DIR}
 
-systemctl --user daemon-reload
-systemctl --user restart ${GARM_SERVICE_NAME}
+sudo systemctl daemon-reload
+sudo systemctl enable ${GARM_SERVICE_NAME}@${RUN_USER}
+sudo systemctl restart ${GARM_SERVICE_NAME}@${RUN_USER}
 wait_open_port 127.0.0.1 ${GARM_PORT}
 
 echo "GARM is up and running"
