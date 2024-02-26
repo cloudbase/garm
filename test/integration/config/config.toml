@@ -42,7 +42,7 @@ provider_type = "external"
 [[github]]
 name = "${CREDENTIALS_NAME}"
 description = "GARM GitHub OAuth token"
-oauth2_token = "${GH_OAUTH_TOKEN}"
+oauth2_token = "${GH_TOKEN}"
 
 [[github]]
 name = "${CREDENTIALS_NAME}-clone"
