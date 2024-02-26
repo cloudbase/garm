@@ -3,7 +3,7 @@ export SHELLOPTS:=$(if $(SHELLOPTS),$(SHELLOPTS):)pipefail:errexit
 
 .ONESHELL:
 
-GEN_PASSWORD=$(shell (/bin/bash -c 'tr -dc "a-zA-Z0-9" </dev/urandom | head -c 32 ; echo '';'))
+GEN_PASSWORD=$(shell (apg -n1 -m32))
 IMAGE_TAG = garm-build
 
 USER_ID=$(shell ((docker --version | grep -q podman) && echo "0" || id -u))
@@ -19,7 +19,6 @@ export ORG_WEBHOOK_SECRET = ${GEN_PASSWORD}
 export CREDENTIALS_NAME ?= test-garm-creds
 export WORKFLOW_FILE_NAME ?= test.yml
 export GARM_ADMIN_USERNAME ?= admin
-export RUN_USER ?= $(shell whoami)
 
 .PHONY: help
 help: ## Display this help.
