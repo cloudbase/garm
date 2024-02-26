@@ -19,6 +19,7 @@ export ORG_WEBHOOK_SECRET = ${GEN_PASSWORD}
 export CREDENTIALS_NAME ?= test-garm-creds
 export WORKFLOW_FILE_NAME ?= test.yml
 export GARM_ADMIN_USERNAME ?= admin
+export RUN_USER ?= $(shell whoami)
 
 .PHONY: help
 help: ## Display this help.

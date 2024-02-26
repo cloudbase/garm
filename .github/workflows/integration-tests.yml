@@ -19,6 +19,9 @@ jobs:
       - name: Setup LXD
         uses: canonical/setup-lxd@v0.1.1
 
+      - name: Install dependencies
+        run: sudo apt-get -qq update && sudo apt-get -qq install -y apg coreutils make
+
       - name: Build GARM
         run: make build
 
@@ -39,8 +42,6 @@ jobs:
 
       - name: Generate secrets
         run: |
-          sudo apt-get -qq update && sudo apt-get -qq install -y apg
-
           GARM_PASSWORD=$(apg -n1 -m32)
           REPO_WEBHOOK_SECRET=$(apg -n1 -m32)
           ORG_WEBHOOK_SECRET=$(apg -n1 -m32)
