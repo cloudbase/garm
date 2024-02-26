@@ -34,7 +34,9 @@ func waitInstanceStatus(name string, status commonParams.InstanceStatus, runnerS
 }
 
 func DeleteInstance(name string, forceRemove bool) {
+	slog.Info("Delete instance", "instance_name", name, "force_remove", forceRemove)
 	if err := deleteInstance(cli, authToken, name, forceRemove); err != nil {
+		slog.Error("Failed to delete instance", "instance_name", name, "error", err)
 		panic(err)
 	}
 	slog.Info("Instance deletion initiated", "instance_name", name)
@@ -103,7 +105,7 @@ func WaitPoolInstances(poolID string, status commonParams.InstanceStatus, runner
 			"runner_status", runnerStatus,
 			"desired_instance_count", instancesCount,
 			"pool_instance_count", len(poolInstances))
-		if int(pool.MinIdleRunners) == len(poolInstances) {
+		if int(pool.MinIdleRunners) == instancesCount {
 			return nil
 		}
 		time.Sleep(5 * time.Second)

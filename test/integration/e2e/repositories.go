@@ -42,6 +42,7 @@ func InstallRepoWebhook(id string) *params.HookInfo {
 	}
 	_, err := installRepoWebhook(cli, authToken, id, webhookParams)
 	if err != nil {
+		slog.Error("Failed to install repo webhook", "error", err)
 		panic(err)
 	}
 	webhookInfo, err := getRepoWebhook(cli, authToken, id)
@@ -59,9 +60,10 @@ func UninstallRepoWebhook(id string) {
 }
 
 func CreateRepoPool(repoID string, poolParams params.CreatePoolParams) *params.Pool {
-	slog.Info("Create repo pool", "repo_id", repoID)
+	slog.Info("Create repo pool", "repo_id", repoID, "pool_params", poolParams)
 	pool, err := createRepoPool(cli, authToken, repoID, poolParams)
 	if err != nil {
+		slog.Error("Failed to create repo pool", "error", err)
 		panic(err)
 	}
 	return pool
