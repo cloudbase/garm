@@ -1619,12 +1619,21 @@ func (r *basePoolManager) cleanupOrphanedRunners(runners []*github.Runner) error
 func (r *basePoolManager) Start() error {
 	initialToolUpdate := make(chan struct{}, 1)
 	go func() {
-		r.updateTools() //nolint
+		slog.Info("running initial tool update")
+		if err := r.updateTools(); err != nil {
+			slog.With(slog.Any("error", err)).Error("failed to update tools")
+		}
 		initialToolUpdate <- struct{}{}
 	}()
 
 	go func() {
-		<-initialToolUpdate
+		select {
+		case <-r.quit:
+			return
+		case <-r.ctx.Done():
+			return
+		case <-initialToolUpdate:
+		}
 		defer close(initialToolUpdate)
 		go r.startLoopForFunction(r.runnerCleanup, common.PoolReapTimeoutInterval, "timeout_reaper", false)
 		go r.startLoopForFunction(r.scaleDown, common.PoolScaleDownInterval, "scale_down", false)

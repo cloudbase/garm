@@ -258,11 +258,27 @@ disable_jit_config = false
 [[github]]
   name = "gabriel"
   description = "github token or user gabriel"
-  # This is a personal token with access to the repositories and organizations
-  # you plan on adding to garm. The "workflow" option needs to be selected in order
-  # to work with repositories, and the admin:org needs to be set if you plan on
-  # adding an organization.
-  oauth2_token = "super secret token"
+  # This is the type of authentication to use. It can be "pat" or "app"
+  auth_type = "pat"
+  [github.pat]
+     # This is a personal token with access to the repositories and organizations
+    # you plan on adding to garm. The "workflow" option needs to be selected in order
+    # to work with repositories, and the admin:org needs to be set if you plan on
+    # adding an organization.
+    oauth2_token = "super secret token"
+  [github.app]
+    # This is the app_id of the GitHub App that you want to use to authenticate
+    # with the GitHub API.
+    # This needs to be changed
+    app_id = 1
+    # This is the private key path of the GitHub App that you want to use to authenticate
+    # with the GitHub API.
+    # This needs to be changed
+    private_key_path = "/etc/garm/yourAppName.2024-03-01.private-key.pem"
+    # This is the installation_id of the GitHub App that you want to use to authenticate
+    # with the GitHub API.
+    # This needs to be changed
+    installation_id = 99
   # base_url (optional) is the URL at which your GitHub Enterprise Server can be accessed.
   # If these credentials are for github.com, leave this setting blank
   base_url = "https://ghe.example.com"
@@ -276,5 +292,5 @@ disable_jit_config = false
   # ca_cert_bundle (optional) is the CA certificate bundle in PEM format that will be used by the github
   # client to talk to the API. This bundle will also be sent to all runners as bootstrap params.
   # Use this option if you're using a self signed certificate.
-  # Leave this blank if you're using github.com or if your certificare is signed by a valid CA.
+  # Leave this blank if you're using github.com or if your certificate is signed by a valid CA.
   ca_cert_bundle = "/etc/garm/ghe.crt"

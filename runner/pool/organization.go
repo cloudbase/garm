@@ -41,7 +41,7 @@ var _ poolHelper = &organization{}
 
 func NewOrganizationPoolManager(ctx context.Context, cfg params.Organization, cfgInternal params.Internal, providers map[string]common.Provider, store dbCommon.Store) (common.PoolManager, error) {
 	ctx = util.WithContext(ctx, slog.Any("pool_mgr", cfg.Name), slog.Any("pool_type", params.OrganizationPool))
-	ghc, _, err := util.GithubClient(ctx, cfgInternal.OAuth2Token, cfgInternal.GithubCredentialsDetails)
+	ghc, _, err := util.GithubClient(ctx, cfgInternal.GithubCredentialsDetails)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting github client")
 	}
@@ -241,16 +241,12 @@ func (o *organization) UpdateState(param params.UpdatePoolStateParams) error {
 		o.cfgInternal = *param.InternalConfig
 	}
 
-	ghc, _, err := util.GithubClient(o.ctx, o.GetGithubToken(), o.cfgInternal.GithubCredentialsDetails)
+	ghc, _, err := util.GithubClient(o.ctx, o.cfgInternal.GithubCredentialsDetails)
 	if err != nil {
 		return errors.Wrap(err, "getting github client")
 	}
 	o.ghcli = ghc
 	return nil
-}
-
-func (o *organization) GetGithubToken() string {
-	return o.cfgInternal.OAuth2Token
 }
 
 func (o *organization) GetGithubRunners() ([]*github.Runner, error) {
