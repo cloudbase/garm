@@ -412,6 +412,7 @@ func (r *Runner) ListCredentials(ctx context.Context) ([]params.GithubCredential
 			BaseURL:       val.BaseEndpoint(),
 			APIBaseURL:    val.APIEndpoint(),
 			UploadBaseURL: val.UploadEndpoint(),
+			AuthType:      params.GithubAuthType(val.AuthType),
 		})
 	}
 	return ret, nil
