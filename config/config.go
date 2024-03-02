@@ -304,12 +304,12 @@ func (g *Github) CACertBundle() ([]byte, error) {
 		return nil, nil
 	}
 	if _, err := os.Stat(g.CACertBundlePath); err != nil {
-		return nil, errors.Wrap(err, "accessing CA bundle")
+		return nil, fmt.Errorf("error accessing ca_cert_bundle: %w", err)
 	}
 
 	contents, err := os.ReadFile(g.CACertBundlePath)
 	if err != nil {
-		return nil, errors.Wrap(err, "reading CA bundle")
+		return nil, fmt.Errorf("reading ca_cert_bundle: %w", err)
 	}
 
 	roots := x509.NewCertPool()
@@ -338,6 +338,31 @@ func (g *Github) BaseEndpoint() string {
 }
 
 func (g *Github) Validate() error {
+	if g.Name == "" {
+		return fmt.Errorf("missing credentials name")
+	}
+	if g.Description == "" {
+		return fmt.Errorf("missing credentials description")
+	}
+
+	if g.APIBaseURL != "" {
+		if _, err := url.ParseRequestURI(g.APIBaseURL); err != nil {
+			return fmt.Errorf("invalid api_base_url: %w", err)
+		}
+	}
+
+	if g.UploadBaseURL != "" {
+		if _, err := url.ParseRequestURI(g.UploadBaseURL); err != nil {
+			return fmt.Errorf("invalid upload_base_url: %w", err)
+		}
+	}
+
+	if g.BaseURL != "" {
+		if _, err := url.ParseRequestURI(g.BaseURL); err != nil {
+			return fmt.Errorf("invalid base_url: %w", err)
+		}
+	}
+
 	switch g.AuthType {
 	case GithubAuthTypeApp:
 		if err := g.App.Validate(); err != nil {
