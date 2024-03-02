@@ -153,7 +153,7 @@ func TestDefaultSectionConfig(t *testing.T) {
 				CallbackURL: cfg.CallbackURL,
 				MetadataURL: "",
 			},
-			errString: "missing metadata-url",
+			errString: "missing metadata_url",
 		},
 	}
 
@@ -231,7 +231,7 @@ func TestValidateAPIServerConfig(t *testing.T) {
 				TLSConfig: TLSConfig{},
 				UseTLS:    true,
 			},
-			errString: "TLS validation failed:*",
+			errString: "invalid tls config: missing crt or key",
 		},
 		{
 			name: "Skip TLS config validation if UseTLS is false",
@@ -434,7 +434,7 @@ func TestSQLiteConfig(t *testing.T) {
 			cfg: SQLite{
 				DBFile: "/i/dont/exist/test.db",
 			},
-			errString: "accessing db_file parent dir:.*no such file or directory",
+			errString: "parent directory of db_file does not exist: stat.*",
 		},
 	}
 
@@ -489,7 +489,7 @@ func TestJWTAuthConfig(t *testing.T) {
 				Secret:     cfg.Secret,
 				TimeToLive: "bogus",
 			},
-			errString: "parsing duration: time: invalid duration*",
+			errString: "invalid time_to_live: time: invalid duration*",
 		},
 	}
 

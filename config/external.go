@@ -20,8 +20,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/pkg/errors"
-
 	"github.com/cloudbase/garm-provider-common/util/exec"
 )
 
@@ -88,10 +86,10 @@ func (e *External) Validate() error {
 
 	execPath, err := e.ExecutablePath()
 	if err != nil {
-		return errors.Wrap(err, "fetching executable path")
+		return fmt.Errorf("failed to get executable path: %w", err)
 	}
 	if _, err := os.Stat(execPath); err != nil {
-		return errors.Wrap(err, "checking provider executable")
+		return fmt.Errorf("failed to access external provider binary %s", execPath)
 	}
 	if !exec.IsExecutable(execPath) {
 		return fmt.Errorf("external provider binary %s is not executable", execPath)

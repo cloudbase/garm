@@ -106,35 +106,35 @@ type Config struct {
 // Validate validates the config
 func (c *Config) Validate() error {
 	if err := c.APIServer.Validate(); err != nil {
-		return errors.Wrap(err, "validating APIServer config")
+		return fmt.Errorf("error validating apiserver config: %w", err)
 	}
 	if err := c.Database.Validate(); err != nil {
-		return errors.Wrap(err, "validating database config")
+		return fmt.Errorf("error validating database config: %w", err)
 	}
 
 	if err := c.Default.Validate(); err != nil {
-		return errors.Wrap(err, "validating default section")
+		return fmt.Errorf("error validating default config: %w", err)
 	}
 
 	for _, gh := range c.Github {
 		if err := gh.Validate(); err != nil {
-			return errors.Wrap(err, "validating github config")
+			return fmt.Errorf("error validating github config: %w", err)
 		}
 	}
 
 	if err := c.JWTAuth.Validate(); err != nil {
-		return errors.Wrap(err, "validating jwt config")
+		return fmt.Errorf("error validating jwt_auth config: %w", err)
 	}
 
 	if err := c.Logging.Validate(); err != nil {
-		return errors.Wrap(err, "validating logging config")
+		return fmt.Errorf("error validating logging config: %w", err)
 	}
 
 	providerNames := map[string]int{}
 
 	for _, provider := range c.Providers {
 		if err := provider.Validate(); err != nil {
-			return errors.Wrap(err, "validating provider")
+			return fmt.Errorf("error validating provider %s: %w", provider.Name, err)
 		}
 		providerNames[provider.Name]++
 	}
@@ -217,15 +217,15 @@ func (d *Default) Validate() error {
 	}
 	_, err := url.Parse(d.CallbackURL)
 	if err != nil {
-		return errors.Wrap(err, "validating callback_url")
+		return fmt.Errorf("invalid callback_url: %w", err)
 	}
 
 	if d.MetadataURL == "" {
-		return fmt.Errorf("missing metadata-url")
+		return fmt.Errorf("missing metadata_url")
 	}
 
 	if _, err := url.Parse(d.MetadataURL); err != nil {
-		return errors.Wrap(err, "validating metadata_url")
+		return fmt.Errorf("invalid metadata_url: %w", err)
 	}
 
 	return nil
@@ -253,7 +253,7 @@ func (a *GithubApp) Validate() error {
 	}
 
 	if _, err := os.Stat(a.PrivateKeyPath); err != nil {
-		return errors.Wrap(err, "accessing private_key_path")
+		return fmt.Errorf("error accessing private_key_path: %w", err)
 	}
 	// Read the private key as bytes
 	keyBytes, err := os.ReadFile(a.PrivateKeyPath)
@@ -341,7 +341,7 @@ func (g *Github) Validate() error {
 	switch g.AuthType {
 	case GithubAuthTypeApp:
 		if err := g.App.Validate(); err != nil {
-			return errors.Wrap(err, "validating github app config")
+			return fmt.Errorf("invalid github app config: %w", err)
 		}
 	default:
 		if g.OAuth2Token == "" && g.PAT.OAuth2Token == "" {
@@ -427,7 +427,7 @@ func (p *Provider) Validate() error {
 	switch p.ProviderType {
 	case params.ExternalProvider:
 		if err := p.External.Validate(); err != nil {
-			return errors.Wrap(err, "validating external provider info")
+			return fmt.Errorf("invalid external provider config: %w", err)
 		}
 	default:
 		return fmt.Errorf("unknown provider type: %s", p.ProviderType)
@@ -490,11 +490,11 @@ func (d *Database) Validate() error {
 	switch d.DbBackend {
 	case MySQLBackend:
 		if err := d.MySQL.Validate(); err != nil {
-			return errors.Wrap(err, "validating mysql config")
+			return fmt.Errorf("validating mysql config: %w", err)
 		}
 	case SQLiteBackend:
 		if err := d.SQLite.Validate(); err != nil {
-			return errors.Wrap(err, "validating sqlite3 config")
+			return fmt.Errorf("validating sqlite3 config: %w", err)
 		}
 	default:
 		return fmt.Errorf("invalid database backend: %s", d.DbBackend)
@@ -518,7 +518,7 @@ func (s *SQLite) Validate() error {
 
 	parent := filepath.Dir(s.DBFile)
 	if _, err := os.Stat(parent); err != nil {
-		return errors.Wrapf(err, "accessing db_file parent dir: %s", parent)
+		return fmt.Errorf("parent directory of db_file does not exist: %w", err)
 	}
 	return nil
 }
@@ -632,7 +632,7 @@ func (a *APIServer) BindAddress() string {
 func (a *APIServer) Validate() error {
 	if a.UseTLS {
 		if err := a.TLSConfig.Validate(); err != nil {
-			return errors.Wrap(err, "TLS validation failed")
+			return fmt.Errorf("invalid tls config: %w", err)
 		}
 	}
 	if a.Port > 65535 || a.Port < 1 {
@@ -677,7 +677,7 @@ func (d *timeToLive) Duration() time.Duration {
 func (d *timeToLive) UnmarshalText(text []byte) error {
 	_, err := time.ParseDuration(string(text))
 	if err != nil {
-		return errors.Wrap(err, "parsing time_to_live")
+		return fmt.Errorf("invalid duration: %w", err)
 	}
 
 	*d = timeToLive(text)
@@ -693,7 +693,7 @@ type JWTAuth struct {
 // Validate validates the JWTAuth config
 func (j *JWTAuth) Validate() error {
 	if _, err := j.TimeToLive.ParseDuration(); err != nil {
-		return errors.Wrap(err, "parsing duration")
+		return fmt.Errorf("invalid time_to_live: %w", err)
 	}
 
 	if j.Secret == "" {
