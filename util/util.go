@@ -16,14 +16,9 @@ package util
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
-	"fmt"
-	"net/http"
 
 	"github.com/google/go-github/v57/github"
 	"github.com/pkg/errors"
-	"golang.org/x/oauth2"
 
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
@@ -75,31 +70,11 @@ func (g *githubClient) PingRepoHook(ctx context.Context, owner, repo string, id 
 	return g.repo.PingHook(ctx, owner, repo, id)
 }
 
-func GithubClient(ctx context.Context, token string, credsDetails params.GithubCredentials) (common.GithubClient, common.GithubEnterpriseClient, error) {
-	var roots *x509.CertPool
-	if credsDetails.CABundle != nil && len(credsDetails.CABundle) > 0 {
-		roots = x509.NewCertPool()
-		ok := roots.AppendCertsFromPEM(credsDetails.CABundle)
-		if !ok {
-			return nil, nil, fmt.Errorf("failed to parse CA cert")
-		}
+func GithubClient(_ context.Context, credsDetails params.GithubCredentials) (common.GithubClient, common.GithubEnterpriseClient, error) {
+	if credsDetails.HTTPClient == nil {
+		return nil, nil, errors.New("http client is nil")
 	}
-	// nolint:golangci-lint,gosec,godox
-	// TODO: set TLS MinVersion
-	httpTransport := &http.Transport{
-		TLSClientConfig: &tls.Config{
-			RootCAs: roots,
-		},
-	}
-	httpClient := &http.Client{Transport: httpTransport}
-	ctx = context.WithValue(ctx, oauth2.HTTPClient, httpClient)
-
-	ts := oauth2.StaticTokenSource(
-		&oauth2.Token{AccessToken: token},
-	)
-	tc := oauth2.NewClient(ctx, ts)
-
-	ghClient, err := github.NewClient(tc).WithEnterpriseURLs(credsDetails.APIBaseURL, credsDetails.UploadBaseURL)
+	ghClient, err := github.NewClient(credsDetails.HTTPClient).WithEnterpriseURLs(credsDetails.APIBaseURL, credsDetails.UploadBaseURL)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "fetching github client")
 	}

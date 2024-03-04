@@ -24,7 +24,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libbtrfs-dev build-essential
+          sudo apt-get install -y libbtrfs-dev build-essential apg jq
 
       - uses: actions/setup-go@v3
         with:

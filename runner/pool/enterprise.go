@@ -27,7 +27,7 @@ var _ poolHelper = &enterprise{}
 
 func NewEnterprisePoolManager(ctx context.Context, cfg params.Enterprise, cfgInternal params.Internal, providers map[string]common.Provider, store dbCommon.Store) (common.PoolManager, error) {
 	ctx = util.WithContext(ctx, slog.Any("pool_mgr", cfg.Name), slog.Any("pool_type", params.EnterprisePool))
-	ghc, ghEnterpriseClient, err := util.GithubClient(ctx, cfgInternal.OAuth2Token, cfgInternal.GithubCredentialsDetails)
+	ghc, ghEnterpriseClient, err := util.GithubClient(ctx, cfgInternal.GithubCredentialsDetails)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting github client")
 	}
@@ -229,17 +229,13 @@ func (e *enterprise) UpdateState(param params.UpdatePoolStateParams) error {
 		e.cfgInternal = *param.InternalConfig
 	}
 
-	ghc, ghcEnterprise, err := util.GithubClient(e.ctx, e.GetGithubToken(), e.cfgInternal.GithubCredentialsDetails)
+	ghc, ghcEnterprise, err := util.GithubClient(e.ctx, e.cfgInternal.GithubCredentialsDetails)
 	if err != nil {
 		return errors.Wrap(err, "getting github client")
 	}
 	e.ghcli = ghc
 	e.ghcEnterpriseCli = ghcEnterprise
 	return nil
-}
-
-func (e *enterprise) GetGithubToken() string {
-	return e.cfgInternal.OAuth2Token
 }
 
 func (e *enterprise) GetGithubRunners() ([]*github.Runner, error) {

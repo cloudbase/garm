@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/google/go-github/v57/github"
@@ -37,6 +38,7 @@ type (
 	JobStatus           string
 	RunnerStatus        string
 	WebhookEndpointType string
+	GithubAuthType      string
 )
 
 const (
@@ -86,6 +88,13 @@ const (
 	RunnerInstalling RunnerStatus = "installing"
 	RunnerFailed     RunnerStatus = "failed"
 	RunnerActive     RunnerStatus = "active"
+)
+
+const (
+	// GithubAuthTypePAT is the OAuth token based authentication
+	GithubAuthTypePAT GithubAuthType = "pat"
+	// GithubAuthTypeApp is the GitHub App based authentication
+	GithubAuthTypeApp GithubAuthType = "app"
 )
 
 type StatusMessage struct {
@@ -315,7 +324,6 @@ func (p *Pool) HasRequiredLabels(set []string) bool {
 type Pools []Pool
 
 type Internal struct {
-	OAuth2Token          string `json:"oauth2"`
 	ControllerID         string `json:"controller_id"`
 	InstanceCallbackURL  string `json:"instance_callback_url"`
 	InstanceMetadataURL  string `json:"instance_metadata_url"`
@@ -421,12 +429,14 @@ type ControllerInfo struct {
 }
 
 type GithubCredentials struct {
-	Name          string `json:"name,omitempty"`
-	Description   string `json:"description,omitempty"`
-	BaseURL       string `json:"base_url"`
-	APIBaseURL    string `json:"api_base_url"`
-	UploadBaseURL string `json:"upload_base_url"`
-	CABundle      []byte `json:"ca_bundle,omitempty"`
+	Name          string         `json:"name,omitempty"`
+	Description   string         `json:"description,omitempty"`
+	APIBaseURL    string         `json:"api_base_url"`
+	UploadBaseURL string         `json:"upload_base_url"`
+	BaseURL       string         `json:"base_url"`
+	CABundle      []byte         `json:"ca_bundle,omitempty"`
+	AuthType      GithubAuthType `toml:"auth_type" json:"auth-type"`
+	HTTPClient    *http.Client   `json:"-"`
 }
 
 func (g GithubCredentials) RootCertificateBundle() (CertificateBundle, error) {

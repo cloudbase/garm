@@ -41,7 +41,7 @@ var _ poolHelper = &repository{}
 
 func NewRepositoryPoolManager(ctx context.Context, cfg params.Repository, cfgInternal params.Internal, providers map[string]common.Provider, store dbCommon.Store) (common.PoolManager, error) {
 	ctx = util.WithContext(ctx, slog.Any("pool_mgr", fmt.Sprintf("%s/%s", cfg.Owner, cfg.Name)), slog.Any("pool_type", params.RepositoryPool))
-	ghc, _, err := util.GithubClient(ctx, cfgInternal.OAuth2Token, cfgInternal.GithubCredentialsDetails)
+	ghc, _, err := util.GithubClient(ctx, cfgInternal.GithubCredentialsDetails)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting github client")
 	}
@@ -200,16 +200,12 @@ func (r *repository) UpdateState(param params.UpdatePoolStateParams) error {
 		r.cfgInternal = *param.InternalConfig
 	}
 
-	ghc, _, err := util.GithubClient(r.ctx, r.GetGithubToken(), r.cfgInternal.GithubCredentialsDetails)
+	ghc, _, err := util.GithubClient(r.ctx, r.cfgInternal.GithubCredentialsDetails)
 	if err != nil {
 		return errors.Wrap(err, "getting github client")
 	}
 	r.ghcli = ghc
 	return nil
-}
-
-func (r *repository) GetGithubToken() string {
-	return r.cfgInternal.OAuth2Token
 }
 
 func (r *repository) GetGithubRunners() ([]*github.Runner, error) {
