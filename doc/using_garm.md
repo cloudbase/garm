@@ -4,8 +4,30 @@ This document will walk you through the various commands and options available i
 
 While using the GARM cli, you will most likely spend most of your time listing pools and runners, but we will cover most of the available commands and options. Some of them we'll skip (like the `init` or `profile` subcommands), as they've been covered in the [quickstart](/doc/quickstart.md) document.
 
-## Table of contents
+<!-- TOC -->
 
+- [Using GARM](#using-garm)
+    - [Listing controller info](#listing-controller-info)
+    - [Listing configured providers](#listing-configured-providers)
+    - [Listing github credentials](#listing-github-credentials)
+    - [Adding a new repository](#adding-a-new-repository)
+        - [Managing repository webhooks](#managing-repository-webhooks)
+    - [Listing repositories](#listing-repositories)
+    - [Removing a repository](#removing-a-repository)
+    - [Adding a new organization](#adding-a-new-organization)
+    - [Adding an enterprise](#adding-an-enterprise)
+    - [Creating a runner pool](#creating-a-runner-pool)
+    - [Listing pools](#listing-pools)
+    - [Showing pool info](#showing-pool-info)
+    - [Deleting a pool](#deleting-a-pool)
+    - [Update a pool](#update-a-pool)
+    - [Listing runners](#listing-runners)
+    - [Showing runner info](#showing-runner-info)
+    - [Deleting a runner](#deleting-a-runner)
+    - [The debug-log command](#the-debug-log-command)
+    - [Listing recorded jobs](#listing-recorded-jobs)
+
+<!-- /TOC -->
 
 ## Listing controller info
 
