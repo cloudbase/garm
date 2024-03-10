@@ -29,11 +29,12 @@ import (
 )
 
 var (
-	runnerRepository   string
-	runnerOrganization string
-	runnerEnterprise   string
-	runnerAll          bool
-	forceRemove        bool
+	runnerRepository     string
+	runnerOrganization   string
+	runnerEnterprise     string
+	runnerAll            bool
+	forceRemove          bool
+	bypassGHUnauthorized bool
 )
 
 // runnerCmd represents the runner command
@@ -190,6 +191,7 @@ to either cancel the workflow or wait for it to finish.
 		deleteInstanceReq := apiClientInstances.NewDeleteInstanceParams()
 		deleteInstanceReq.InstanceName = args[0]
 		deleteInstanceReq.ForceRemove = &forceRemove
+		deleteInstanceReq.BypassGHUnauthorized = &bypassGHUnauthorized
 		if err := apiCli.Instances.DeleteInstance(deleteInstanceReq, authToken); err != nil {
 			return err
 		}
@@ -205,6 +207,7 @@ func init() {
 	runnerListCmd.MarkFlagsMutuallyExclusive("repo", "org", "enterprise", "all")
 
 	runnerDeleteCmd.Flags().BoolVarP(&forceRemove, "force-remove-runner", "f", false, "Forcefully remove a runner. If set to true, GARM will ignore provider errors when removing the runner.")
+	runnerDeleteCmd.Flags().BoolVarP(&bypassGHUnauthorized, "bypass-github-unauthorized", "b", false, "Ignore Unauthorized errors from GitHub and proceed with removing runner from provider and DB. This is useful when credentials are no longer valid and you want to remove your runners. Warning, this has the potential to leave orphaned runners in GitHub. You will need to update your credentials to properly consolidate.")
 	runnerDeleteCmd.MarkFlagsMutuallyExclusive("force-remove-runner")
 
 	runnerCmd.AddCommand(

@@ -337,7 +337,6 @@ func (r *basePoolManager) updateTools() error {
 		slog.With(slog.Any("error", err)).ErrorContext(
 			r.ctx, "failed to update tools for repo")
 		r.setPoolRunningState(false, err.Error())
-		r.waitForTimeoutOrCanceled(common.BackoffTimer)
 		return fmt.Errorf("failed to update tools for repo %s: %w", r.helper.String(), err)
 	}
 	r.mux.Lock()
@@ -510,7 +509,7 @@ func (r *basePoolManager) reapTimedOutRunners(runners []*github.Runner) error {
 			slog.InfoContext(
 				r.ctx, "reaping timed-out/failed runner",
 				"runner_name", instance.Name)
-			if err := r.DeleteRunner(instance, false); err != nil {
+			if err := r.DeleteRunner(instance, false, false); err != nil {
 				slog.With(slog.Any("error", err)).ErrorContext(
 					r.ctx, "failed to update runner status",
 					"runner_name", instance.Name)
@@ -812,7 +811,7 @@ func (r *basePoolManager) AddRunner(ctx context.Context, poolID string, aditiona
 	defer func() {
 		if err != nil {
 			if instance.ID != "" {
-				if err := r.DeleteRunner(instance, false); err != nil {
+				if err := r.DeleteRunner(instance, false, false); err != nil {
 					slog.With(slog.Any("error", err)).ErrorContext(
 						ctx, "failed to cleanup instance",
 						"runner_name", instance.Name)
@@ -1132,7 +1131,7 @@ func (r *basePoolManager) scaleDownOnePool(ctx context.Context, pool params.Pool
 				ctx, "scaling down idle worker from pool %s",
 				"runner_name", instanceToDelete.Name,
 				"pool_id", pool.ID)
-			if err := r.DeleteRunner(instanceToDelete, false); err != nil {
+			if err := r.DeleteRunner(instanceToDelete, false, false); err != nil {
 				return fmt.Errorf("failed to delete instance %s: %w", instanceToDelete.ID, err)
 			}
 			return nil
@@ -1637,7 +1636,8 @@ func (r *basePoolManager) Start() error {
 		defer close(initialToolUpdate)
 		go r.startLoopForFunction(r.runnerCleanup, common.PoolReapTimeoutInterval, "timeout_reaper", false)
 		go r.startLoopForFunction(r.scaleDown, common.PoolScaleDownInterval, "scale_down", false)
-		go r.startLoopForFunction(r.deletePendingInstances, common.PoolConsilitationInterval, "consolidate[delete_pending]", false)
+		// always run the delete pending instances routine. This way we can still remove existing runners, even if the pool is not running.
+		go r.startLoopForFunction(r.deletePendingInstances, common.PoolConsilitationInterval, "consolidate[delete_pending]", true)
 		go r.startLoopForFunction(r.addPendingInstances, common.PoolConsilitationInterval, "consolidate[add_pending]", false)
 		go r.startLoopForFunction(r.ensureMinIdleRunners, common.PoolConsilitationInterval, "consolidate[ensure_min_idle]", false)
 		go r.startLoopForFunction(r.retryFailedInstances, common.PoolConsilitationInterval, "consolidate[retry_failed]", false)
@@ -1668,17 +1668,10 @@ func (r *basePoolManager) ID() string {
 	return r.helper.ID()
 }
 
-// ForceDeleteRunner will delete a runner from a pool.
-//
-// Deprecated: Use DeleteRunner instead.
-func (r *basePoolManager) ForceDeleteRunner(runner params.Instance) error {
-	return r.DeleteRunner(runner, true)
-}
-
 // Delete runner will delete a runner from a pool. If forceRemove is set to true, any error received from
 // the IaaS provider will be ignored and deletion will continue.
-func (r *basePoolManager) DeleteRunner(runner params.Instance, forceRemove bool) error {
-	if !r.managerIsRunning {
+func (r *basePoolManager) DeleteRunner(runner params.Instance, forceRemove, bypassGHUnauthorizedError bool) error {
+	if !r.managerIsRunning && !bypassGHUnauthorizedError {
 		return runnerErrors.NewConflictError("pool manager is not running for %s", r.helper.String())
 	}
 	if runner.AgentID != 0 {
@@ -1694,18 +1687,32 @@ func (r *basePoolManager) DeleteRunner(runner params.Instance, forceRemove bool)
 						r.ctx, "runner was not found in github",
 						"agent_id", runner.AgentID)
 				case http.StatusUnauthorized:
+					slog.With(slog.Any("error", err)).ErrorContext(r.ctx, "failed to remove runner from github")
 					// Mark the pool as offline from this point forward
 					r.setPoolRunningState(false, fmt.Sprintf("failed to remove runner: %q", err))
 					slog.With(slog.Any("error", err)).ErrorContext(
 						r.ctx, "failed to remove runner")
+					if bypassGHUnauthorizedError {
+						slog.Info("bypass github unauthorized error is set, marking runner for deletion")
+						break
+					}
 					// evaluate the next switch case.
 					fallthrough
 				default:
 					return errors.Wrap(err, "removing runner")
 				}
 			} else {
-				// We got a nil response. Assume we are in error.
-				return errors.Wrap(err, "removing runner")
+				errResp := &github.ErrorResponse{}
+				if errors.As(err, &errResp) {
+					if errResp.Response != nil && errResp.Response.StatusCode == http.StatusUnauthorized && bypassGHUnauthorizedError {
+						slog.Info("bypass github unauthorized error is set, marking runner for deletion")
+					} else {
+						return errors.Wrap(err, "removing runner")
+					}
+				} else {
+					// We got a nil response. Assume we are in error.
+					return errors.Wrap(err, "removing runner")
+				}
 			}
 		}
 	}

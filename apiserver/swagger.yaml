@@ -601,6 +601,10 @@ paths:
                   in: query
                   name: forceRemove
                   type: boolean
+                - description: If true GARM will ignore unauthorized errors returned by GitHub when removing a runner. This is useful if you want to clean up runners and your credentials have expired.
+                  in: query
+                  name: bypassGHUnauthorized
+                  type: boolean
             responses:
                 default:
                     description: APIErrorResponse

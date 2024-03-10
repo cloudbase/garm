@@ -941,17 +941,10 @@ func (r *Runner) getPoolManagerFromInstance(ctx context.Context, instance params
 	return poolMgr, nil
 }
 
-// ForceDeleteRunner will attempt to remove a runner from a pool.
-//
-// Deprecated: FunctionName is deprecated. Use DeleteRunner instead.
-func (r *Runner) ForceDeleteRunner(ctx context.Context, instanceName string) error {
-	return r.DeleteRunner(ctx, instanceName, true)
-}
-
 // DeleteRunner removes a runner from a pool. If forceDelete is true, GARM will ignore any provider errors
 // that may occur, and attempt to remove the runner from GitHub and then the database, regardless of provider
 // errors.
-func (r *Runner) DeleteRunner(ctx context.Context, instanceName string, forceDelete bool) error {
+func (r *Runner) DeleteRunner(ctx context.Context, instanceName string, forceDelete, bypassGithubUnauthorized bool) error {
 	if !auth.IsAdmin(ctx) {
 		return runnerErrors.ErrUnauthorized
 	}
@@ -979,7 +972,7 @@ func (r *Runner) DeleteRunner(ctx context.Context, instanceName string, forceDel
 		return errors.Wrap(err, "fetching pool manager for instance")
 	}
 
-	if err := poolMgr.DeleteRunner(instance, forceDelete); err != nil {
+	if err := poolMgr.DeleteRunner(instance, forceDelete, bypassGithubUnauthorized); err != nil {
 		return errors.Wrap(err, "removing runner")
 	}
 	return nil
