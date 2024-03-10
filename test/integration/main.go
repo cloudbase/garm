@@ -124,12 +124,12 @@ func main() {
 	}
 	repoPool2 = e2e.GetRepoPool(repo.ID, repoPool2.ID)
 	e2e.DisableRepoPool(repo.ID, repoPool2.ID)
-	e2e.DeleteInstance(repoPool2.Instances[0].Name, false)
+	e2e.DeleteInstance(repoPool2.Instances[0].Name, false, false)
 	err = e2e.WaitPoolInstances(repoPool2.ID, commonParams.InstancePendingDelete, params.RunnerPending, 1*time.Minute)
 	if err != nil {
 		slog.With(slog.Any("error", err)).Error("Failed to wait for instance to be running")
 	}
-	e2e.DeleteInstance(repoPool2.Instances[0].Name, true) // delete instance with forceRemove
+	e2e.DeleteInstance(repoPool2.Instances[0].Name, true, false) // delete instance with forceRemove
 	err = e2e.WaitInstanceToBeRemoved(repoPool2.Instances[0].Name, 1*time.Minute)
 	if err != nil {
 		slog.With(slog.Any("error", err)).Error("Failed to wait for instance to be removed")

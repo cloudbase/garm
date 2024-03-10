@@ -33,9 +33,9 @@ func waitInstanceStatus(name string, status commonParams.InstanceStatus, runnerS
 	return nil, fmt.Errorf("timeout waiting for instance %s status to reach status %s and runner status %s", name, status, runnerStatus)
 }
 
-func DeleteInstance(name string, forceRemove bool) {
+func DeleteInstance(name string, forceRemove, bypassGHUnauthorized bool) {
 	slog.Info("Delete instance", "instance_name", name, "force_remove", forceRemove)
-	if err := deleteInstance(cli, authToken, name, forceRemove); err != nil {
+	if err := deleteInstance(cli, authToken, name, forceRemove, bypassGHUnauthorized); err != nil {
 		slog.Error("Failed to delete instance", "instance_name", name, "error", err)
 		panic(err)
 	}

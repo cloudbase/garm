@@ -388,9 +388,9 @@ func getInstance(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWrit
 	return &getInstancesResponse.Payload, nil
 }
 
-func deleteInstance(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, instanceID string, forceRemove bool) error {
+func deleteInstance(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, instanceID string, forceRemove, bypassGHUnauthorized bool) error {
 	return apiCli.Instances.DeleteInstance(
-		clientInstances.NewDeleteInstanceParams().WithInstanceName(instanceID).WithForceRemove(&forceRemove),
+		clientInstances.NewDeleteInstanceParams().WithInstanceName(instanceID).WithForceRemove(&forceRemove).WithBypassGHUnauthorized(&bypassGHUnauthorized),
 		apiAuthToken)
 }
 
