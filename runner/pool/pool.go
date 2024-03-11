@@ -1128,7 +1128,7 @@ func (r *basePoolManager) scaleDownOnePool(ctx context.Context, pool params.Pool
 
 		g.Go(func() error {
 			slog.InfoContext(
-				ctx, "scaling down idle worker from pool %s",
+				ctx, "scaling down idle worker from pool",
 				"runner_name", instanceToDelete.Name,
 				"pool_id", pool.ID)
 			if err := r.DeleteRunner(instanceToDelete, false, false); err != nil {

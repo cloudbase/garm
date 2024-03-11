@@ -21,7 +21,7 @@ func CollectObjectMetric(ctx context.Context, r *runner.Runner, duration time.Du
 
 	// we do not want to wait until the first ticker happens
 	// for that we start an initial collection immediately
-	slog.InfoContext(ctx, "collecting metrics")
+	slog.DebugContext(ctx, "collecting metrics")
 	if err := collectMetrics(ctx, r, controllerInfo); err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "cannot collect metrics")
 	}
@@ -34,7 +34,7 @@ func CollectObjectMetric(ctx context.Context, r *runner.Runner, duration time.Du
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				slog.InfoContext(ctx, "collecting metrics")
+				slog.DebugContext(ctx, "collecting metrics")
 
 				if err := collectMetrics(ctx, r, controllerInfo); err != nil {
 					slog.With(slog.Any("error", err)).ErrorContext(ctx, "cannot collect metrics")

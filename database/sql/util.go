@@ -69,6 +69,14 @@ func (s *sqlDatabase) sqlToParamsInstance(instance Instance) (params.Instance, e
 		AditionalLabels:   labels,
 	}
 
+	if instance.Job != nil {
+		paramJob, err := sqlWorkflowJobToParamsJob(*instance.Job)
+		if err != nil {
+			return params.Instance{}, errors.Wrap(err, "converting job")
+		}
+		ret.Job = &paramJob
+	}
+
 	if len(instance.ProviderFault) > 0 {
 		ret.ProviderFault = instance.ProviderFault
 	}

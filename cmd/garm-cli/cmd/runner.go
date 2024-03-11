@@ -35,6 +35,7 @@ var (
 	runnerAll            bool
 	forceRemove          bool
 	bypassGHUnauthorized bool
+	long                 bool
 )
 
 // runnerCmd represents the runner command
@@ -130,7 +131,7 @@ Example:
 		}
 
 		instances := response.GetPayload()
-		formatInstances(instances)
+		formatInstances(instances, long)
 		return nil
 	},
 }
@@ -204,6 +205,7 @@ func init() {
 	runnerListCmd.Flags().StringVarP(&runnerOrganization, "org", "o", "", "List all runners from all pools within this organization.")
 	runnerListCmd.Flags().StringVarP(&runnerEnterprise, "enterprise", "e", "", "List all runners from all pools within this enterprise.")
 	runnerListCmd.Flags().BoolVarP(&runnerAll, "all", "a", false, "List all runners, regardless of org or repo.")
+	runnerListCmd.Flags().BoolVarP(&long, "long", "l", false, "Include information about tasks.")
 	runnerListCmd.MarkFlagsMutuallyExclusive("repo", "org", "enterprise", "all")
 
 	runnerDeleteCmd.Flags().BoolVarP(&forceRemove, "force-remove-runner", "f", false, "Forcefully remove a runner. If set to true, GARM will ignore provider errors when removing the runner.")
@@ -219,13 +221,21 @@ func init() {
 	rootCmd.AddCommand(runnerCmd)
 }
 
-func formatInstances(param []params.Instance) {
+func formatInstances(param []params.Instance, detailed bool) {
 	t := table.NewWriter()
 	header := table.Row{"Nr", "Name", "Status", "Runner Status", "Pool ID"}
+	if detailed {
+		header = append(header, "Job Name", "Started At", "Run ID", "Repository")
+	}
 	t.AppendHeader(header)
 
 	for idx, inst := range param {
-		t.AppendRow(table.Row{idx + 1, inst.Name, inst.Status, inst.RunnerStatus, inst.PoolID})
+		row := table.Row{idx + 1, inst.Name, inst.Status, inst.RunnerStatus, inst.PoolID}
+		if detailed && inst.Job != nil {
+			repo := fmt.Sprintf("%s/%s", inst.Job.RepositoryOwner, inst.Job.RepositoryName)
+			row = append(row, inst.Job.Name, inst.Job.StartedAt, inst.Job.RunID, repo)
+		}
+		t.AppendRow(row)
 		t.AppendSeparator()
 	}
 	fmt.Println(t.Render())

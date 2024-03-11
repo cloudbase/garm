@@ -258,7 +258,7 @@ func (s *sqlDatabase) FindRepositoryPoolByTags(_ context.Context, repoID string,
 }
 
 func (s *sqlDatabase) ListRepoInstances(ctx context.Context, repoID string) ([]params.Instance, error) {
-	pools, err := s.listEntityPools(ctx, params.RepositoryPool, repoID, "Tags", "Instances")
+	pools, err := s.listEntityPools(ctx, params.RepositoryPool, repoID, "Tags", "Instances", "Instances.Job")
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching repo")
 	}
