@@ -258,7 +258,7 @@ func (s *sqlDatabase) FindOrganizationPoolByTags(_ context.Context, orgID string
 }
 
 func (s *sqlDatabase) ListOrgInstances(ctx context.Context, orgID string) ([]params.Instance, error) {
-	pools, err := s.listEntityPools(ctx, params.OrganizationPool, orgID, "Tags", "Instances")
+	pools, err := s.listEntityPools(ctx, params.OrganizationPool, orgID, "Tags", "Instances", "Instances.Job")
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching org")
 	}

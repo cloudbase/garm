@@ -163,6 +163,9 @@ type Instance struct {
 	// The runner group must be created by someone with access to the enterprise.
 	GitHubRunnerGroup string `json:"github-runner-group"`
 
+	// Job is the current job that is being serviced by this runner.
+	Job *Job `json:"job,omitempty"`
+
 	// Do not serialize sensitive info.
 	CallbackURL      string            `json:"-"`
 	MetadataURL      string            `json:"-"`
