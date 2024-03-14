@@ -219,7 +219,7 @@ func (s *sqlDatabase) CreateOrganizationPool(ctx context.Context, orgID string, 
 }
 
 func (s *sqlDatabase) ListOrgPools(ctx context.Context, orgID string) ([]params.Pool, error) {
-	pools, err := s.listEntityPools(ctx, params.OrganizationPool, orgID, "Tags", "Instances")
+	pools, err := s.listEntityPools(ctx, params.OrganizationPool, orgID, "Tags", "Instances", "Organization")
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching pools")
 	}

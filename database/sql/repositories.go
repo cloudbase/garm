@@ -219,7 +219,7 @@ func (s *sqlDatabase) CreateRepositoryPool(ctx context.Context, repoID string, p
 }
 
 func (s *sqlDatabase) ListRepoPools(ctx context.Context, repoID string) ([]params.Pool, error) {
-	pools, err := s.listEntityPools(ctx, params.RepositoryPool, repoID, "Tags", "Instances")
+	pools, err := s.listEntityPools(ctx, params.RepositoryPool, repoID, "Tags", "Instances", "Repository")
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching pools")
 	}
