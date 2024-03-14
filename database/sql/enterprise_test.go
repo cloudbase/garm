@@ -85,6 +85,7 @@ func (s *EnterpriseTestSuite) SetupTest() {
 			fmt.Sprintf("test-enterprise-%d", i),
 			fmt.Sprintf("test-creds-%d", i),
 			fmt.Sprintf("test-webhook-secret-%d", i),
+			params.PoolBalancerTypeRoundRobin,
 		)
 		if err != nil {
 			s.FailNow(fmt.Sprintf("failed to create database object (test-enterprise-%d)", i))
@@ -162,7 +163,8 @@ func (s *EnterpriseTestSuite) TestCreateEnterprise() {
 		context.Background(),
 		s.Fixtures.CreateEnterpriseParams.Name,
 		s.Fixtures.CreateEnterpriseParams.CredentialsName,
-		s.Fixtures.CreateEnterpriseParams.WebhookSecret)
+		s.Fixtures.CreateEnterpriseParams.WebhookSecret,
+		params.PoolBalancerTypeRoundRobin)
 
 	// assertions
 	s.Require().Nil(err)
@@ -192,7 +194,8 @@ func (s *EnterpriseTestSuite) TestCreateEnterpriseInvalidDBPassphrase() {
 		context.Background(),
 		s.Fixtures.CreateEnterpriseParams.Name,
 		s.Fixtures.CreateEnterpriseParams.CredentialsName,
-		s.Fixtures.CreateEnterpriseParams.WebhookSecret)
+		s.Fixtures.CreateEnterpriseParams.WebhookSecret,
+		params.PoolBalancerTypeRoundRobin)
 
 	s.Require().NotNil(err)
 	s.Require().Equal("encoding secret: invalid passphrase length (expected length 32 characters)", err.Error())
@@ -209,7 +212,8 @@ func (s *EnterpriseTestSuite) TestCreateEnterpriseDBCreateErr() {
 		context.Background(),
 		s.Fixtures.CreateEnterpriseParams.Name,
 		s.Fixtures.CreateEnterpriseParams.CredentialsName,
-		s.Fixtures.CreateEnterpriseParams.WebhookSecret)
+		s.Fixtures.CreateEnterpriseParams.WebhookSecret,
+		params.PoolBalancerTypeRoundRobin)
 
 	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)

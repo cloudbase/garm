@@ -20,6 +20,10 @@ func (r *Runner) CreateEnterprise(ctx context.Context, param params.CreateEnterp
 		return enterprise, runnerErrors.ErrUnauthorized
 	}
 
+	if param.PoolBalancerType == "" {
+		param.PoolBalancerType = params.PoolBalancerTypeRoundRobin
+	}
+
 	err = param.Validate()
 	if err != nil {
 		return params.Enterprise{}, errors.Wrap(err, "validating params")
@@ -39,7 +43,7 @@ func (r *Runner) CreateEnterprise(ctx context.Context, param params.CreateEnterp
 		return params.Enterprise{}, runnerErrors.NewConflictError("enterprise %s already exists", param.Name)
 	}
 
-	enterprise, err = r.store.CreateEnterprise(ctx, param.Name, creds.Name, param.WebhookSecret)
+	enterprise, err = r.store.CreateEnterprise(ctx, param.Name, creds.Name, param.WebhookSecret, param.PoolBalancerType)
 	if err != nil {
 		return params.Enterprise{}, errors.Wrap(err, "creating enterprise")
 	}
@@ -166,6 +170,12 @@ func (r *Runner) UpdateEnterprise(ctx context.Context, enterpriseID string, para
 		if _, ok := r.credentials[param.CredentialsName]; !ok {
 			return params.Enterprise{}, runnerErrors.NewBadRequestError("invalid credentials (%s) for enterprise %s", param.CredentialsName, enterprise.Name)
 		}
+	}
+
+	switch param.PoolBalancerType {
+	case params.PoolBalancerTypeRoundRobin, params.PoolBalancerTypeStack, param.PoolBalancerType:
+	default:
+		return params.Enterprise{}, runnerErrors.NewBadRequestError("invalid pool balancer type: %s", param.PoolBalancerType)
 	}
 
 	enterprise, err = r.store.UpdateEnterprise(ctx, enterpriseID, param)

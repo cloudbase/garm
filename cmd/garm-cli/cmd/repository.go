@@ -164,10 +164,11 @@ var repoAddCmd = &cobra.Command{
 
 		newRepoReq := apiClientRepos.NewCreateRepoParams()
 		newRepoReq.Body = params.CreateRepoParams{
-			Owner:           repoOwner,
-			Name:            repoName,
-			WebhookSecret:   repoWebhookSecret,
-			CredentialsName: repoCreds,
+			Owner:            repoOwner,
+			Name:             repoName,
+			WebhookSecret:    repoWebhookSecret,
+			CredentialsName:  repoCreds,
+			PoolBalancerType: params.PoolBalancerType(poolBalancerType),
 		}
 		response, err := apiCli.Repositories.CreateRepo(newRepoReq, authToken)
 		if err != nil {
@@ -236,8 +237,9 @@ var repoUpdateCmd = &cobra.Command{
 		}
 		updateReposReq := apiClientRepos.NewUpdateRepoParams()
 		updateReposReq.Body = params.UpdateEntityParams{
-			WebhookSecret:   repoWebhookSecret,
-			CredentialsName: repoCreds,
+			WebhookSecret:    repoWebhookSecret,
+			CredentialsName:  repoCreds,
+			PoolBalancerType: params.PoolBalancerType(poolBalancerType),
 		}
 		updateReposReq.RepoID = args[0]
 
@@ -304,6 +306,7 @@ var repoDeleteCmd = &cobra.Command{
 
 func init() {
 	repoAddCmd.Flags().StringVar(&repoOwner, "owner", "", "The owner of this repository")
+	repoAddCmd.Flags().StringVar(&poolBalancerType, "pool-balancer-type", string(params.PoolBalancerTypeRoundRobin), "The balancing strategy to use when creating runners in pools matching requested labels.")
 	repoAddCmd.Flags().StringVar(&repoName, "name", "", "The name of the repository")
 	repoAddCmd.Flags().StringVar(&repoWebhookSecret, "webhook-secret", "", "The webhook secret for this repository")
 	repoAddCmd.Flags().StringVar(&repoCreds, "credentials", "", "Credentials name. See credentials list.")
@@ -320,6 +323,7 @@ func init() {
 
 	repoUpdateCmd.Flags().StringVar(&repoWebhookSecret, "webhook-secret", "", "The webhook secret for this repository. If you update this secret, you will have to manually update the secret in GitHub as well.")
 	repoUpdateCmd.Flags().StringVar(&repoCreds, "credentials", "", "Credentials name. See credentials list.")
+	repoUpdateCmd.Flags().StringVar(&poolBalancerType, "pool-balancer-type", "", "The balancing strategy to use when creating runners in pools matching requested labels.")
 
 	repoWebhookInstallCmd.Flags().BoolVar(&insecureRepoWebhook, "insecure", false, "Ignore self signed certificate errors.")
 
@@ -343,10 +347,10 @@ func init() {
 
 func formatRepositories(repos []params.Repository) {
 	t := table.NewWriter()
-	header := table.Row{"ID", "Owner", "Name", "Credentials name", "Pool mgr running"}
+	header := table.Row{"ID", "Owner", "Name", "Credentials name", "Pool Balancer Type", "Pool mgr running"}
 	t.AppendHeader(header)
 	for _, val := range repos {
-		t.AppendRow(table.Row{val.ID, val.Owner, val.Name, val.CredentialsName, val.PoolManagerStatus.IsRunning})
+		t.AppendRow(table.Row{val.ID, val.Owner, val.Name, val.CredentialsName, val.GetBalancerType(), val.PoolManagerStatus.IsRunning})
 		t.AppendSeparator()
 	}
 	fmt.Println(t.Render())
@@ -360,6 +364,7 @@ func formatOneRepository(repo params.Repository) {
 	t.AppendRow(table.Row{"ID", repo.ID})
 	t.AppendRow(table.Row{"Owner", repo.Owner})
 	t.AppendRow(table.Row{"Name", repo.Name})
+	t.AppendRow(table.Row{"Pool balancer type", repo.GetBalancerType()})
 	t.AppendRow(table.Row{"Credentials", repo.CredentialsName})
 	t.AppendRow(table.Row{"Pool manager running", repo.PoolManagerStatus.IsRunning})
 	if !repo.PoolManagerStatus.IsRunning {

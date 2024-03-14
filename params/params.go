@@ -39,6 +39,19 @@ type (
 	RunnerStatus        string
 	WebhookEndpointType string
 	GithubAuthType      string
+	PoolBalancerType    string
+)
+
+const (
+	// PoolBalancerTypeRoundRobin will try to cycle through the pools of an entity
+	// in a round robin fashion. For example, if a repository has multiple pools that
+	// match a certain set of labels, and the entity is configured to use round robin
+	// balancer, the pool manager will attempt to create instances in each pool in turn
+	// for each job that needs to be serviced. So job1 in pool1, job2 in pool2 and so on.
+	PoolBalancerTypeRoundRobin PoolBalancerType = "roundrobin"
+	// PoolBalancerTypeStack will try to create instances in the first pool that matches
+	// the required labels. If the pool is full, it will move on to the next pool and so on.
+	PoolBalancerTypeStack PoolBalancerType = "stack"
 )
 
 const (
@@ -284,6 +297,11 @@ type Pool struct {
 	// GithubRunnerGroup is the github runner group in which the runners will be added.
 	// The runner group must be created by someone with access to the enterprise.
 	GitHubRunnerGroup string `json:"github-runner-group"`
+
+	// Priority is the priority of the pool. The higher the number, the higher the priority.
+	// When fetching matching pools for a set of tags, the result will be sorted in descending
+	// order of priority.
+	Priority uint `json:"priority"`
 }
 
 func (p Pool) GetID() string {
@@ -337,6 +355,7 @@ type Internal struct {
 	// GithubCredentialsDetails contains all info about the credentials, except the
 	// token, which is added above.
 	GithubCredentialsDetails GithubCredentials `json:"gh_creds_details"`
+	PoolBalancerType         PoolBalancerType  `json:"pool_balancing_type"`
 }
 
 type Repository struct {
@@ -346,6 +365,7 @@ type Repository struct {
 	Pools             []Pool            `json:"pool,omitempty"`
 	CredentialsName   string            `json:"credentials_name"`
 	PoolManagerStatus PoolManagerStatus `json:"pool_manager_status,omitempty"`
+	PoolBalancerType  PoolBalancerType  `json:"pool_balancing_type"`
 	// Do not serialize sensitive info.
 	WebhookSecret string `json:"-"`
 }
@@ -358,6 +378,13 @@ func (r Repository) GetID() string {
 	return r.ID
 }
 
+func (r Repository) GetBalancerType() PoolBalancerType {
+	if r.PoolBalancerType == "" {
+		return PoolBalancerTypeRoundRobin
+	}
+	return r.PoolBalancerType
+}
+
 // used by swagger client generated code
 type Repositories []Repository
 
@@ -367,6 +394,7 @@ type Organization struct {
 	Pools             []Pool            `json:"pool,omitempty"`
 	CredentialsName   string            `json:"credentials_name"`
 	PoolManagerStatus PoolManagerStatus `json:"pool_manager_status,omitempty"`
+	PoolBalancerType  PoolBalancerType  `json:"pool_balancing_type"`
 	// Do not serialize sensitive info.
 	WebhookSecret string `json:"-"`
 }
@@ -379,6 +407,13 @@ func (o Organization) GetID() string {
 	return o.ID
 }
 
+func (o Organization) GetBalancerType() PoolBalancerType {
+	if o.PoolBalancerType == "" {
+		return PoolBalancerTypeRoundRobin
+	}
+	return o.PoolBalancerType
+}
+
 // used by swagger client generated code
 type Organizations []Organization
 
@@ -388,6 +423,7 @@ type Enterprise struct {
 	Pools             []Pool            `json:"pool,omitempty"`
 	CredentialsName   string            `json:"credentials_name"`
 	PoolManagerStatus PoolManagerStatus `json:"pool_manager_status,omitempty"`
+	PoolBalancerType  PoolBalancerType  `json:"pool_balancing_type"`
 	// Do not serialize sensitive info.
 	WebhookSecret string `json:"-"`
 }
@@ -398,6 +434,13 @@ func (e Enterprise) GetName() string {
 
 func (e Enterprise) GetID() string {
 	return e.ID
+}
+
+func (e Enterprise) GetBalancerType() PoolBalancerType {
+	if e.PoolBalancerType == "" {
+		return PoolBalancerTypeRoundRobin
+	}
+	return e.PoolBalancerType
 }
 
 // used by swagger client generated code

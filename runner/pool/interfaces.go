@@ -51,4 +51,5 @@ type poolHelper interface {
 	WebhookSecret() string
 	ID() string
 	PoolType() params.PoolType
+	PoolBalancerType() params.PoolBalancerType
 }

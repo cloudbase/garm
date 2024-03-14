@@ -38,6 +38,7 @@ var (
 	authToken         runtime.ClientAuthInfoWriter
 	needsInit         bool
 	debug             bool
+	poolBalancerType  string
 	errNeedsInitError = fmt.Errorf("please log into a garm installation first")
 )
 

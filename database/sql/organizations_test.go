@@ -85,6 +85,7 @@ func (s *OrgTestSuite) SetupTest() {
 			fmt.Sprintf("test-org-%d", i),
 			fmt.Sprintf("test-creds-%d", i),
 			fmt.Sprintf("test-webhook-secret-%d", i),
+			params.PoolBalancerTypeRoundRobin,
 		)
 		if err != nil {
 			s.FailNow(fmt.Sprintf("failed to create database object (test-org-%d)", i))
@@ -162,7 +163,8 @@ func (s *OrgTestSuite) TestCreateOrganization() {
 		context.Background(),
 		s.Fixtures.CreateOrgParams.Name,
 		s.Fixtures.CreateOrgParams.CredentialsName,
-		s.Fixtures.CreateOrgParams.WebhookSecret)
+		s.Fixtures.CreateOrgParams.WebhookSecret,
+		params.PoolBalancerTypeRoundRobin)
 
 	// assertions
 	s.Require().Nil(err)
@@ -192,7 +194,8 @@ func (s *OrgTestSuite) TestCreateOrganizationInvalidDBPassphrase() {
 		context.Background(),
 		s.Fixtures.CreateOrgParams.Name,
 		s.Fixtures.CreateOrgParams.CredentialsName,
-		s.Fixtures.CreateOrgParams.WebhookSecret)
+		s.Fixtures.CreateOrgParams.WebhookSecret,
+		params.PoolBalancerTypeRoundRobin)
 
 	s.Require().NotNil(err)
 	s.Require().Equal("failed to encrypt string", err.Error())
@@ -209,7 +212,8 @@ func (s *OrgTestSuite) TestCreateOrganizationDBCreateErr() {
 		context.Background(),
 		s.Fixtures.CreateOrgParams.Name,
 		s.Fixtures.CreateOrgParams.CredentialsName,
-		s.Fixtures.CreateOrgParams.WebhookSecret)
+		s.Fixtures.CreateOrgParams.WebhookSecret,
+		params.PoolBalancerTypeRoundRobin)
 
 	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)

@@ -77,6 +77,13 @@ type enterprise struct {
 	mux sync.Mutex
 }
 
+func (e *enterprise) PoolBalancerType() params.PoolBalancerType {
+	if e.cfgInternal.PoolBalancerType == "" {
+		return params.PoolBalancerTypeRoundRobin
+	}
+	return e.cfgInternal.PoolBalancerType
+}
+
 func (e *enterprise) findRunnerGroupByName(name string) (*github.EnterpriseRunnerGroup, error) {
 	// nolint:golangci-lint,godox
 	// TODO(gabriel-samfira): implement caching

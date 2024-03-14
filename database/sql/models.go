@@ -83,37 +83,41 @@ type Pool struct {
 	Enterprise   Enterprise `gorm:"foreignKey:EnterpriseID"`
 
 	Instances []Instance `gorm:"foreignKey:PoolID"`
+	Priority  uint       `gorm:"index:idx_pool_priority"`
 }
 
 type Repository struct {
 	Base
 
-	CredentialsName string
-	Owner           string `gorm:"index:idx_owner_nocase,unique,collate:nocase"`
-	Name            string `gorm:"index:idx_owner_nocase,unique,collate:nocase"`
-	WebhookSecret   []byte
-	Pools           []Pool        `gorm:"foreignKey:RepoID"`
-	Jobs            []WorkflowJob `gorm:"foreignKey:RepoID;constraint:OnDelete:SET NULL"`
+	CredentialsName  string
+	Owner            string `gorm:"index:idx_owner_nocase,unique,collate:nocase"`
+	Name             string `gorm:"index:idx_owner_nocase,unique,collate:nocase"`
+	WebhookSecret    []byte
+	Pools            []Pool                  `gorm:"foreignKey:RepoID"`
+	Jobs             []WorkflowJob           `gorm:"foreignKey:RepoID;constraint:OnDelete:SET NULL"`
+	PoolBalancerType params.PoolBalancerType `gorm:"type:varchar(64)"`
 }
 
 type Organization struct {
 	Base
 
-	CredentialsName string
-	Name            string `gorm:"index:idx_org_name_nocase,collate:nocase"`
-	WebhookSecret   []byte
-	Pools           []Pool        `gorm:"foreignKey:OrgID"`
-	Jobs            []WorkflowJob `gorm:"foreignKey:OrgID;constraint:OnDelete:SET NULL"`
+	CredentialsName  string
+	Name             string `gorm:"index:idx_org_name_nocase,collate:nocase"`
+	WebhookSecret    []byte
+	Pools            []Pool                  `gorm:"foreignKey:OrgID"`
+	Jobs             []WorkflowJob           `gorm:"foreignKey:OrgID;constraint:OnDelete:SET NULL"`
+	PoolBalancerType params.PoolBalancerType `gorm:"type:varchar(64)"`
 }
 
 type Enterprise struct {
 	Base
 
-	CredentialsName string
-	Name            string `gorm:"index:idx_ent_name_nocase,collate:nocase"`
-	WebhookSecret   []byte
-	Pools           []Pool        `gorm:"foreignKey:EnterpriseID"`
-	Jobs            []WorkflowJob `gorm:"foreignKey:EnterpriseID;constraint:OnDelete:SET NULL"`
+	CredentialsName  string
+	Name             string `gorm:"index:idx_ent_name_nocase,collate:nocase"`
+	WebhookSecret    []byte
+	Pools            []Pool                  `gorm:"foreignKey:EnterpriseID"`
+	Jobs             []WorkflowJob           `gorm:"foreignKey:EnterpriseID;constraint:OnDelete:SET NULL"`
+	PoolBalancerType params.PoolBalancerType `gorm:"type:varchar(64)"`
 }
 
 type Address struct {

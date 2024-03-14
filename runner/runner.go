@@ -105,7 +105,7 @@ func (p *poolManagerCtrl) CreateRepoPoolManager(ctx context.Context, repo params
 	p.mux.Lock()
 	defer p.mux.Unlock()
 
-	cfgInternal, err := p.getInternalConfig(ctx, repo.CredentialsName)
+	cfgInternal, err := p.getInternalConfig(ctx, repo.CredentialsName, repo.GetBalancerType())
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching internal config")
 	}
@@ -126,7 +126,7 @@ func (p *poolManagerCtrl) UpdateRepoPoolManager(ctx context.Context, repo params
 		return nil, errors.Wrapf(runnerErrors.ErrNotFound, "repository %s/%s pool manager not loaded", repo.Owner, repo.Name)
 	}
 
-	internalCfg, err := p.getInternalConfig(ctx, repo.CredentialsName)
+	internalCfg, err := p.getInternalConfig(ctx, repo.CredentialsName, repo.GetBalancerType())
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching internal config")
 	}
@@ -171,7 +171,7 @@ func (p *poolManagerCtrl) CreateOrgPoolManager(ctx context.Context, org params.O
 	p.mux.Lock()
 	defer p.mux.Unlock()
 
-	cfgInternal, err := p.getInternalConfig(ctx, org.CredentialsName)
+	cfgInternal, err := p.getInternalConfig(ctx, org.CredentialsName, org.GetBalancerType())
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching internal config")
 	}
@@ -192,7 +192,7 @@ func (p *poolManagerCtrl) UpdateOrgPoolManager(ctx context.Context, org params.O
 		return nil, errors.Wrapf(runnerErrors.ErrNotFound, "org %s pool manager not loaded", org.Name)
 	}
 
-	internalCfg, err := p.getInternalConfig(ctx, org.CredentialsName)
+	internalCfg, err := p.getInternalConfig(ctx, org.CredentialsName, org.GetBalancerType())
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching internal config")
 	}
@@ -237,7 +237,7 @@ func (p *poolManagerCtrl) CreateEnterprisePoolManager(ctx context.Context, enter
 	p.mux.Lock()
 	defer p.mux.Unlock()
 
-	cfgInternal, err := p.getInternalConfig(ctx, enterprise.CredentialsName)
+	cfgInternal, err := p.getInternalConfig(ctx, enterprise.CredentialsName, enterprise.GetBalancerType())
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching internal config")
 	}
@@ -258,7 +258,7 @@ func (p *poolManagerCtrl) UpdateEnterprisePoolManager(ctx context.Context, enter
 		return nil, errors.Wrapf(runnerErrors.ErrNotFound, "enterprise %s pool manager not loaded", enterprise.Name)
 	}
 
-	internalCfg, err := p.getInternalConfig(ctx, enterprise.CredentialsName)
+	internalCfg, err := p.getInternalConfig(ctx, enterprise.CredentialsName, enterprise.GetBalancerType())
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching internal config")
 	}
@@ -299,7 +299,7 @@ func (p *poolManagerCtrl) GetEnterprisePoolManagers() (map[string]common.PoolMan
 	return p.enterprises, nil
 }
 
-func (p *poolManagerCtrl) getInternalConfig(ctx context.Context, credsName string) (params.Internal, error) {
+func (p *poolManagerCtrl) getInternalConfig(ctx context.Context, credsName string, poolBalancerType params.PoolBalancerType) (params.Internal, error) {
 	creds, ok := p.credentials[credsName]
 	if !ok {
 		return params.Internal{}, runnerErrors.NewBadRequestError("invalid credential name (%s)", credsName)
@@ -325,6 +325,7 @@ func (p *poolManagerCtrl) getInternalConfig(ctx context.Context, credsName strin
 		BaseWebhookURL:       p.config.Default.WebhookURL,
 		ControllerWebhookURL: controllerWebhookURL,
 		JWTSecret:            p.config.JWTAuth.Secret,
+		PoolBalancerType:     poolBalancerType,
 		GithubCredentialsDetails: params.GithubCredentials{
 			Name:          creds.Name,
 			Description:   creds.Description,

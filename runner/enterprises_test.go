@@ -78,6 +78,7 @@ func (s *EnterpriseTestSuite) SetupTest() {
 			name,
 			fmt.Sprintf("test-creds-%v", i),
 			fmt.Sprintf("test-webhook-secret-%v", i),
+			params.PoolBalancerTypeRoundRobin,
 		)
 		if err != nil {
 			s.FailNow(fmt.Sprintf("failed to create database object (test-enterprise-%v)", i))

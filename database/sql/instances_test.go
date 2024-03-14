@@ -77,7 +77,7 @@ func (s *InstancesTestSuite) SetupTest() {
 	s.Store = db
 
 	// create an organization for testing purposes
-	org, err := s.Store.CreateOrganization(context.Background(), "test-org", "test-creds", "test-webhookSecret")
+	org, err := s.Store.CreateOrganization(context.Background(), "test-org", "test-creds", "test-webhookSecret", params.PoolBalancerTypeRoundRobin)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to create org: %s", err))
 	}

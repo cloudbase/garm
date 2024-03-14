@@ -96,6 +96,7 @@ func (s *RepoTestSuite) SetupTest() {
 			fmt.Sprintf("test-repo-%d", i),
 			fmt.Sprintf("test-creds-%d", i),
 			fmt.Sprintf("test-webhook-secret-%d", i),
+			params.PoolBalancerTypeRoundRobin,
 		)
 		if err != nil {
 			s.FailNow(fmt.Sprintf("failed to create database object (test-repo-%d): %v", i, err))
@@ -176,6 +177,7 @@ func (s *RepoTestSuite) TestCreateRepository() {
 		s.Fixtures.CreateRepoParams.Name,
 		s.Fixtures.CreateRepoParams.CredentialsName,
 		s.Fixtures.CreateRepoParams.WebhookSecret,
+		params.PoolBalancerTypeRoundRobin,
 	)
 
 	// assertions
@@ -209,6 +211,7 @@ func (s *RepoTestSuite) TestCreateRepositoryInvalidDBPassphrase() {
 		s.Fixtures.CreateRepoParams.Name,
 		s.Fixtures.CreateRepoParams.CredentialsName,
 		s.Fixtures.CreateRepoParams.WebhookSecret,
+		params.PoolBalancerTypeRoundRobin,
 	)
 
 	s.Require().NotNil(err)
@@ -228,6 +231,7 @@ func (s *RepoTestSuite) TestCreateRepositoryInvalidDBCreateErr() {
 		s.Fixtures.CreateRepoParams.Name,
 		s.Fixtures.CreateRepoParams.CredentialsName,
 		s.Fixtures.CreateRepoParams.WebhookSecret,
+		params.PoolBalancerTypeRoundRobin,
 	)
 
 	s.assertSQLMockExpectations()

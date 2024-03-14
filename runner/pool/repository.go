@@ -91,6 +91,13 @@ type repository struct {
 	mux sync.Mutex
 }
 
+func (r *repository) PoolBalancerType() params.PoolBalancerType {
+	if r.cfgInternal.PoolBalancerType == "" {
+		return params.PoolBalancerTypeRoundRobin
+	}
+	return r.cfgInternal.PoolBalancerType
+}
+
 // nolint:golint,revive
 // pool is used in enterprise and organzation
 func (r *repository) GetJITConfig(ctx context.Context, instance string, pool params.Pool, labels []string) (jitConfigMap map[string]string, runner *github.Runner, err error) {
