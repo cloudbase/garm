@@ -34,10 +34,6 @@ func (r *Runner) CreateOrganization(ctx context.Context, param params.CreateOrgP
 		return org, runnerErrors.ErrUnauthorized
 	}
 
-	if param.PoolBalancerType == "" {
-		param.PoolBalancerType = params.PoolBalancerTypeRoundRobin
-	}
-
 	if err := param.Validate(); err != nil {
 		return params.Organization{}, errors.Wrap(err, "validating params")
 	}

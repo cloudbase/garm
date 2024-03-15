@@ -61,7 +61,7 @@ func (p *poolsForTags) Get(tags []string) (poolCacheStore, bool) {
 	return poolCache, true
 }
 
-func (p *poolsForTags) Add(tags []string, pools []params.Pool) *poolRoundRobin {
+func (p *poolsForTags) Add(tags []string, pools []params.Pool) poolCacheStore {
 	sort.Slice(pools, func(i, j int) bool {
 		return pools[i].Priority > pools[j].Priority
 	})

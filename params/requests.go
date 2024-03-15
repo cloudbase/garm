@@ -55,7 +55,7 @@ func (c *CreateRepoParams) Validate() error {
 	}
 
 	switch c.PoolBalancerType {
-	case PoolBalancerTypeRoundRobin, PoolBalancerTypePack:
+	case PoolBalancerTypeRoundRobin, PoolBalancerTypePack, PoolBalancerTypeNone:
 	default:
 		return errors.NewBadRequestError("invalid pool balancer type")
 	}
@@ -83,7 +83,7 @@ func (c *CreateOrgParams) Validate() error {
 	}
 
 	switch c.PoolBalancerType {
-	case PoolBalancerTypeRoundRobin, PoolBalancerTypePack:
+	case PoolBalancerTypeRoundRobin, PoolBalancerTypePack, PoolBalancerTypeNone:
 	default:
 		return errors.NewBadRequestError("invalid pool balancer type")
 	}
@@ -109,7 +109,7 @@ func (c *CreateEnterpriseParams) Validate() error {
 	}
 
 	switch c.PoolBalancerType {
-	case PoolBalancerTypeRoundRobin, PoolBalancerTypePack:
+	case PoolBalancerTypeRoundRobin, PoolBalancerTypePack, PoolBalancerTypeNone:
 	default:
 		return errors.NewBadRequestError("invalid pool balancer type")
 	}

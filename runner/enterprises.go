@@ -20,10 +20,6 @@ func (r *Runner) CreateEnterprise(ctx context.Context, param params.CreateEnterp
 		return enterprise, runnerErrors.ErrUnauthorized
 	}
 
-	if param.PoolBalancerType == "" {
-		param.PoolBalancerType = params.PoolBalancerTypeRoundRobin
-	}
-
 	err = param.Validate()
 	if err != nil {
 		return params.Enterprise{}, errors.Wrap(err, "validating params")

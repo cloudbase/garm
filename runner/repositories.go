@@ -34,10 +34,6 @@ func (r *Runner) CreateRepository(ctx context.Context, param params.CreateRepoPa
 		return repo, runnerErrors.ErrUnauthorized
 	}
 
-	if param.PoolBalancerType == "" {
-		param.PoolBalancerType = params.PoolBalancerTypeRoundRobin
-	}
-
 	if err := param.Validate(); err != nil {
 		return params.Repository{}, errors.Wrap(err, "validating params")
 	}
