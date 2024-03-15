@@ -1768,8 +1768,6 @@ func (r *basePoolManager) consumeQueuedJobs() error {
 		poolCacheType: r.helper.PoolBalancerType(),
 	}
 
-	slog.InfoContext(r.ctx, "using pool cache type", "cache_type", poolsCache.poolCacheType)
-
 	slog.DebugContext(
 		r.ctx, "found queued jobs",
 		"job_count", len(queued))
