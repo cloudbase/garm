@@ -170,6 +170,20 @@ func (s *OrgTestSuite) TestCreateOrganization() {
 	s.Require().Nil(err)
 	s.Require().Equal(s.Fixtures.CreateOrgParams.Name, org.Name)
 	s.Require().Equal(s.Fixtures.Credentials[s.Fixtures.CreateOrgParams.CredentialsName].Name, org.CredentialsName)
+	s.Require().Equal(params.PoolBalancerTypeRoundRobin, org.PoolBalancerType)
+}
+
+func (s *OrgTestSuite) TestCreateOrganizationPoolBalancerTypePack() {
+	s.Fixtures.CreateOrgParams.PoolBalancerType = params.PoolBalancerTypePack
+	s.Fixtures.PoolMgrMock.On("Start").Return(nil)
+	s.Fixtures.PoolMgrCtrlMock.On("CreateOrgPoolManager", s.Fixtures.AdminContext, mock.AnythingOfType("params.Organization"), s.Fixtures.Providers, s.Fixtures.Store).Return(s.Fixtures.PoolMgrMock, nil)
+
+	org, err := s.Runner.CreateOrganization(s.Fixtures.AdminContext, s.Fixtures.CreateOrgParams)
+
+	s.Fixtures.PoolMgrMock.AssertExpectations(s.T())
+	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
+	s.Require().Nil(err)
+	s.Require().Equal(params.PoolBalancerTypePack, org.PoolBalancerType)
 }
 
 func (s *OrgTestSuite) TestCreateOrganizationErrUnauthorized() {
@@ -301,6 +315,21 @@ func (s *OrgTestSuite) TestUpdateOrganization() {
 	s.Require().Nil(err)
 	s.Require().Equal(s.Fixtures.UpdateRepoParams.CredentialsName, org.CredentialsName)
 	s.Require().Equal(s.Fixtures.UpdateRepoParams.WebhookSecret, org.WebhookSecret)
+}
+
+func (s *OrgTestSuite) TestUpdateRepositoryBalancingType() {
+	s.Fixtures.UpdateRepoParams.PoolBalancerType = params.PoolBalancerTypePack
+	s.Fixtures.PoolMgrCtrlMock.On("UpdateOrgPoolManager", s.Fixtures.AdminContext, mock.AnythingOfType("params.Organization")).Return(s.Fixtures.PoolMgrMock, nil)
+	s.Fixtures.PoolMgrMock.On("Status").Return(params.PoolManagerStatus{IsRunning: true}, nil)
+
+	param := s.Fixtures.UpdateRepoParams
+	param.PoolBalancerType = params.PoolBalancerTypePack
+	org, err := s.Runner.UpdateOrganization(s.Fixtures.AdminContext, s.Fixtures.StoreOrgs["test-org-1"].ID, param)
+
+	s.Fixtures.PoolMgrMock.AssertExpectations(s.T())
+	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
+	s.Require().Nil(err)
+	s.Require().Equal(params.PoolBalancerTypePack, org.PoolBalancerType)
 }
 
 func (s *OrgTestSuite) TestUpdateOrganizationErrUnauthorized() {

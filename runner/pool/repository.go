@@ -161,10 +161,6 @@ func (r *repository) GetJITConfig(ctx context.Context, instance string, pool par
 	return ret, runner, nil
 }
 
-func (r *repository) GithubCLI() common.GithubClient {
-	return r.ghcli
-}
-
 func (r *repository) PoolType() params.PoolType {
 	return params.RepositoryPool
 }
@@ -339,14 +335,6 @@ func (r *repository) String() string {
 
 func (r *repository) WebhookSecret() string {
 	return r.cfg.WebhookSecret
-}
-
-func (r *repository) FindPoolByTags(labels []string) (params.Pool, error) {
-	pool, err := r.store.FindRepositoryPoolByTags(r.ctx, r.id, labels)
-	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "fetching suitable pool")
-	}
-	return pool, nil
 }
 
 func (r *repository) GetPoolByID(poolID string) (params.Pool, error) {

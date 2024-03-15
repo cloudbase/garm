@@ -1653,7 +1653,15 @@ func (r *basePoolManager) Stop() error {
 }
 
 func (r *basePoolManager) RefreshState(param params.UpdatePoolStateParams) error {
-	return r.helper.UpdateState(param)
+	if err := r.helper.UpdateState(param); err != nil {
+		return fmt.Errorf("failed to update pool state: %w", err)
+	}
+	// Update the tools as soon as state is updated. This should revive a stopped pool manager
+	// or stop one if the supplied credentials are not okay.
+	if err := r.updateTools(); err != nil {
+		return fmt.Errorf("failed to update tools: %w", err)
+	}
+	return nil
 }
 
 func (r *basePoolManager) WebhookSecret() string {

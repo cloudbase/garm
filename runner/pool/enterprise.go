@@ -190,10 +190,6 @@ func (e *enterprise) GetJITConfig(ctx context.Context, instance string, pool par
 	return ret, jitConfig.Runner, nil
 }
 
-func (e *enterprise) GithubCLI() common.GithubClient {
-	return e.ghcli
-}
-
 func (e *enterprise) PoolType() params.PoolType {
 	return params.EnterprisePool
 }
@@ -368,14 +364,6 @@ func (e *enterprise) String() string {
 
 func (e *enterprise) WebhookSecret() string {
 	return e.cfg.WebhookSecret
-}
-
-func (e *enterprise) FindPoolByTags(labels []string) (params.Pool, error) {
-	pool, err := e.store.FindEnterprisePoolByTags(e.ctx, e.id, labels)
-	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "fetching suitable pool")
-	}
-	return pool, nil
 }
 
 func (e *enterprise) GetPoolByID(poolID string) (params.Pool, error) {
