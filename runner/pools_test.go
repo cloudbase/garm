@@ -58,7 +58,7 @@ func (s *PoolTestSuite) SetupTest() {
 	}
 
 	// create an organization for testing purposes
-	org, err := db.CreateOrganization(context.Background(), "test-org", "test-creds", "test-webhookSecret")
+	org, err := db.CreateOrganization(context.Background(), "test-org", "test-creds", "test-webhookSecret", params.PoolBalancerTypeRoundRobin)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to create org: %s", err))
 	}

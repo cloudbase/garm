@@ -28,7 +28,7 @@ import (
 	"github.com/cloudbase/garm/params"
 )
 
-func (s *sqlDatabase) CreateRepository(_ context.Context, owner, name, credentialsName, webhookSecret string) (params.Repository, error) {
+func (s *sqlDatabase) CreateRepository(_ context.Context, owner, name, credentialsName, webhookSecret string, poolBalancerType params.PoolBalancerType) (params.Repository, error) {
 	if webhookSecret == "" {
 		return params.Repository{}, errors.New("creating repo: missing secret")
 	}
@@ -37,10 +37,11 @@ func (s *sqlDatabase) CreateRepository(_ context.Context, owner, name, credentia
 		return params.Repository{}, fmt.Errorf("failed to encrypt string")
 	}
 	newRepo := Repository{
-		Name:            name,
-		Owner:           owner,
-		WebhookSecret:   secret,
-		CredentialsName: credentialsName,
+		Name:             name,
+		Owner:            owner,
+		WebhookSecret:    secret,
+		CredentialsName:  credentialsName,
+		PoolBalancerType: poolBalancerType,
 	}
 
 	q := s.conn.Create(&newRepo)
@@ -121,6 +122,10 @@ func (s *sqlDatabase) UpdateRepository(ctx context.Context, repoID string, param
 		repo.WebhookSecret = secret
 	}
 
+	if param.PoolBalancerType != "" {
+		repo.PoolBalancerType = param.PoolBalancerType
+	}
+
 	q := s.conn.Save(&repo)
 	if q.Error != nil {
 		return params.Repository{}, errors.Wrap(q.Error, "saving repo")
@@ -169,6 +174,7 @@ func (s *sqlDatabase) CreateRepositoryPool(ctx context.Context, repoID string, p
 		Enabled:                param.Enabled,
 		RunnerBootstrapTimeout: param.RunnerBootstrapTimeout,
 		GitHubRunnerGroup:      param.GitHubRunnerGroup,
+		Priority:               param.Priority,
 	}
 
 	if len(param.ExtraSpecs) > 0 {
@@ -213,7 +219,7 @@ func (s *sqlDatabase) CreateRepositoryPool(ctx context.Context, repoID string, p
 }
 
 func (s *sqlDatabase) ListRepoPools(ctx context.Context, repoID string) ([]params.Pool, error) {
-	pools, err := s.listEntityPools(ctx, params.RepositoryPool, repoID, "Tags", "Instances")
+	pools, err := s.listEntityPools(ctx, params.RepositoryPool, repoID, "Tags", "Instances", "Repository")
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching pools")
 	}

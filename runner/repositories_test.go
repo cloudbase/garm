@@ -78,6 +78,7 @@ func (s *RepoTestSuite) SetupTest() {
 			name,
 			fmt.Sprintf("test-creds-%v", i),
 			fmt.Sprintf("test-webhook-secret-%v", i),
+			params.PoolBalancerTypeRoundRobin,
 		)
 		if err != nil {
 			s.FailNow(fmt.Sprintf("failed to create database object (test-repo-%v)", i))
@@ -170,6 +171,27 @@ func (s *RepoTestSuite) TestCreateRepository() {
 	s.Require().Equal(s.Fixtures.CreateRepoParams.Owner, repo.Owner)
 	s.Require().Equal(s.Fixtures.CreateRepoParams.Name, repo.Name)
 	s.Require().Equal(s.Fixtures.Credentials[s.Fixtures.CreateRepoParams.CredentialsName].Name, repo.CredentialsName)
+	s.Require().Equal(params.PoolBalancerTypeRoundRobin, repo.PoolBalancerType)
+}
+
+func (s *RepoTestSuite) TestCreareRepositoryPoolBalancerTypePack() {
+	// setup mocks expectations
+	s.Fixtures.PoolMgrMock.On("Start").Return(nil)
+	s.Fixtures.PoolMgrCtrlMock.On("CreateRepoPoolManager", s.Fixtures.AdminContext, mock.AnythingOfType("params.Repository"), s.Fixtures.Providers, s.Fixtures.Store).Return(s.Fixtures.PoolMgrMock, nil)
+
+	// call tested function
+	param := s.Fixtures.CreateRepoParams
+	param.PoolBalancerType = params.PoolBalancerTypePack
+	repo, err := s.Runner.CreateRepository(s.Fixtures.AdminContext, param)
+
+	// assertions
+	s.Fixtures.PoolMgrMock.AssertExpectations(s.T())
+	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
+	s.Require().Nil(err)
+	s.Require().Equal(param.Owner, repo.Owner)
+	s.Require().Equal(param.Name, repo.Name)
+	s.Require().Equal(s.Fixtures.Credentials[s.Fixtures.CreateRepoParams.CredentialsName].Name, repo.CredentialsName)
+	s.Require().Equal(params.PoolBalancerTypePack, repo.PoolBalancerType)
 }
 
 func (s *RepoTestSuite) TestCreateRepositoryErrUnauthorized() {
@@ -303,11 +325,27 @@ func (s *RepoTestSuite) TestUpdateRepository() {
 	s.Require().Nil(err)
 	s.Require().Equal(s.Fixtures.UpdateRepoParams.CredentialsName, repo.CredentialsName)
 	s.Require().Equal(s.Fixtures.UpdateRepoParams.WebhookSecret, repo.WebhookSecret)
+	s.Require().Equal(params.PoolBalancerTypeRoundRobin, repo.PoolBalancerType)
+}
+
+func (s *RepoTestSuite) TestUpdateRepositoryBalancingType() {
+	s.Fixtures.PoolMgrCtrlMock.On("UpdateRepoPoolManager", s.Fixtures.AdminContext, mock.AnythingOfType("params.Repository")).Return(s.Fixtures.PoolMgrMock, nil)
+	s.Fixtures.PoolMgrMock.On("Status").Return(params.PoolManagerStatus{IsRunning: true}, nil)
+
+	updateRepoParams := s.Fixtures.UpdateRepoParams
+	updateRepoParams.PoolBalancerType = params.PoolBalancerTypePack
+	repo, err := s.Runner.UpdateRepository(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID, updateRepoParams)
+
+	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
+	s.Fixtures.PoolMgrMock.AssertExpectations(s.T())
+	s.Require().Nil(err)
+	s.Require().Equal(updateRepoParams.CredentialsName, repo.CredentialsName)
+	s.Require().Equal(updateRepoParams.WebhookSecret, repo.WebhookSecret)
+	s.Require().Equal(params.PoolBalancerTypePack, repo.PoolBalancerType)
 }
 
 func (s *RepoTestSuite) TestUpdateRepositoryErrUnauthorized() {
 	_, err := s.Runner.UpdateRepository(context.Background(), "dummy-repo-id", s.Fixtures.UpdateRepoParams)
-
 	s.Require().Equal(runnerErrors.ErrUnauthorized, err)
 }
 

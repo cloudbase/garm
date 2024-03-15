@@ -52,7 +52,7 @@ func (r *Runner) CreateOrganization(ctx context.Context, param params.CreateOrgP
 		return params.Organization{}, runnerErrors.NewConflictError("organization %s already exists", param.Name)
 	}
 
-	org, err = r.store.CreateOrganization(ctx, param.Name, creds.Name, param.WebhookSecret)
+	org, err = r.store.CreateOrganization(ctx, param.Name, creds.Name, param.WebhookSecret, param.PoolBalancerType)
 	if err != nil {
 		return params.Organization{}, errors.Wrap(err, "creating organization")
 	}
@@ -195,6 +195,12 @@ func (r *Runner) UpdateOrganization(ctx context.Context, orgID string, param par
 		if _, ok := r.credentials[param.CredentialsName]; !ok {
 			return params.Organization{}, runnerErrors.NewBadRequestError("invalid credentials (%s) for org %s", param.CredentialsName, org.Name)
 		}
+	}
+
+	switch param.PoolBalancerType {
+	case params.PoolBalancerTypeRoundRobin, params.PoolBalancerTypePack, params.PoolBalancerTypeNone:
+	default:
+		return params.Organization{}, runnerErrors.NewBadRequestError("invalid pool balancer type: %s", param.PoolBalancerType)
 	}
 
 	org, err = r.store.UpdateOrganization(ctx, orgID, param)

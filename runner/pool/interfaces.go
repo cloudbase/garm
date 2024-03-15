@@ -21,7 +21,6 @@ import (
 
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm/params"
-	"github.com/cloudbase/garm/runner/common"
 )
 
 type poolHelper interface {
@@ -35,8 +34,6 @@ type poolHelper interface {
 	UninstallHook(ctx context.Context, url string) error
 	GetHookInfo(ctx context.Context) (params.HookInfo, error)
 
-	GithubCLI() common.GithubClient
-
 	GetJITConfig(ctx context.Context, instanceName string, pool params.Pool, labels []string) (map[string]string, *github.Runner, error)
 
 	FetchDbInstances() ([]params.Instance, error)
@@ -44,11 +41,11 @@ type poolHelper interface {
 	GithubURL() string
 	JwtToken() string
 	String() string
-	FindPoolByTags(labels []string) (params.Pool, error)
 	GetPoolByID(poolID string) (params.Pool, error)
 	ValidateOwner(job params.WorkflowJob) error
 	UpdateState(param params.UpdatePoolStateParams) error
 	WebhookSecret() string
 	ID() string
 	PoolType() params.PoolType
+	PoolBalancerType() params.PoolBalancerType
 }

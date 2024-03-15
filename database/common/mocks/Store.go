@@ -78,9 +78,9 @@ func (_m *Store) ControllerInfo() (params.ControllerInfo, error) {
 	return r0, r1
 }
 
-// CreateEnterprise provides a mock function with given fields: ctx, name, credentialsName, webhookSecret
-func (_m *Store) CreateEnterprise(ctx context.Context, name string, credentialsName string, webhookSecret string) (params.Enterprise, error) {
-	ret := _m.Called(ctx, name, credentialsName, webhookSecret)
+// CreateEnterprise provides a mock function with given fields: ctx, name, credentialsName, webhookSecret, poolBalancerType
+func (_m *Store) CreateEnterprise(ctx context.Context, name string, credentialsName string, webhookSecret string, poolBalancerType params.PoolBalancerType) (params.Enterprise, error) {
+	ret := _m.Called(ctx, name, credentialsName, webhookSecret, poolBalancerType)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateEnterprise")
@@ -88,17 +88,17 @@ func (_m *Store) CreateEnterprise(ctx context.Context, name string, credentialsN
 
 	var r0 params.Enterprise
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) (params.Enterprise, error)); ok {
-		return rf(ctx, name, credentialsName, webhookSecret)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, params.PoolBalancerType) (params.Enterprise, error)); ok {
+		return rf(ctx, name, credentialsName, webhookSecret, poolBalancerType)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) params.Enterprise); ok {
-		r0 = rf(ctx, name, credentialsName, webhookSecret)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, params.PoolBalancerType) params.Enterprise); ok {
+		r0 = rf(ctx, name, credentialsName, webhookSecret, poolBalancerType)
 	} else {
 		r0 = ret.Get(0).(params.Enterprise)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string, string, string) error); ok {
-		r1 = rf(ctx, name, credentialsName, webhookSecret)
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, string, params.PoolBalancerType) error); ok {
+		r1 = rf(ctx, name, credentialsName, webhookSecret, poolBalancerType)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -190,9 +190,9 @@ func (_m *Store) CreateOrUpdateJob(ctx context.Context, job params.Job) (params.
 	return r0, r1
 }
 
-// CreateOrganization provides a mock function with given fields: ctx, name, credentialsName, webhookSecret
-func (_m *Store) CreateOrganization(ctx context.Context, name string, credentialsName string, webhookSecret string) (params.Organization, error) {
-	ret := _m.Called(ctx, name, credentialsName, webhookSecret)
+// CreateOrganization provides a mock function with given fields: ctx, name, credentialsName, webhookSecret, poolBalancerType
+func (_m *Store) CreateOrganization(ctx context.Context, name string, credentialsName string, webhookSecret string, poolBalancerType params.PoolBalancerType) (params.Organization, error) {
+	ret := _m.Called(ctx, name, credentialsName, webhookSecret, poolBalancerType)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateOrganization")
@@ -200,17 +200,17 @@ func (_m *Store) CreateOrganization(ctx context.Context, name string, credential
 
 	var r0 params.Organization
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) (params.Organization, error)); ok {
-		return rf(ctx, name, credentialsName, webhookSecret)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, params.PoolBalancerType) (params.Organization, error)); ok {
+		return rf(ctx, name, credentialsName, webhookSecret, poolBalancerType)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) params.Organization); ok {
-		r0 = rf(ctx, name, credentialsName, webhookSecret)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, params.PoolBalancerType) params.Organization); ok {
+		r0 = rf(ctx, name, credentialsName, webhookSecret, poolBalancerType)
 	} else {
 		r0 = ret.Get(0).(params.Organization)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string, string, string) error); ok {
-		r1 = rf(ctx, name, credentialsName, webhookSecret)
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, string, params.PoolBalancerType) error); ok {
+		r1 = rf(ctx, name, credentialsName, webhookSecret, poolBalancerType)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -246,9 +246,9 @@ func (_m *Store) CreateOrganizationPool(ctx context.Context, orgID string, param
 	return r0, r1
 }
 
-// CreateRepository provides a mock function with given fields: ctx, owner, name, credentialsName, webhookSecret
-func (_m *Store) CreateRepository(ctx context.Context, owner string, name string, credentialsName string, webhookSecret string) (params.Repository, error) {
-	ret := _m.Called(ctx, owner, name, credentialsName, webhookSecret)
+// CreateRepository provides a mock function with given fields: ctx, owner, name, credentialsName, webhookSecret, poolBalancerType
+func (_m *Store) CreateRepository(ctx context.Context, owner string, name string, credentialsName string, webhookSecret string, poolBalancerType params.PoolBalancerType) (params.Repository, error) {
+	ret := _m.Called(ctx, owner, name, credentialsName, webhookSecret, poolBalancerType)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateRepository")
@@ -256,17 +256,17 @@ func (_m *Store) CreateRepository(ctx context.Context, owner string, name string
 
 	var r0 params.Repository
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, string) (params.Repository, error)); ok {
-		return rf(ctx, owner, name, credentialsName, webhookSecret)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, string, params.PoolBalancerType) (params.Repository, error)); ok {
+		return rf(ctx, owner, name, credentialsName, webhookSecret, poolBalancerType)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, string) params.Repository); ok {
-		r0 = rf(ctx, owner, name, credentialsName, webhookSecret)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, string, params.PoolBalancerType) params.Repository); ok {
+		r0 = rf(ctx, owner, name, credentialsName, webhookSecret, poolBalancerType)
 	} else {
 		r0 = ret.Get(0).(params.Repository)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string, string, string, string) error); ok {
-		r1 = rf(ctx, owner, name, credentialsName, webhookSecret)
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, string, string, params.PoolBalancerType) error); ok {
+		r1 = rf(ctx, owner, name, credentialsName, webhookSecret, poolBalancerType)
 	} else {
 		r1 = ret.Error(1)
 	}

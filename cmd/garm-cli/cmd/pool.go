@@ -51,6 +51,7 @@ var (
 	poolExtraSpecs             string
 	poolAll                    bool
 	poolGitHubRunnerGroup      string
+	priority                   uint
 )
 
 type poolPayloadGetter interface {
@@ -218,6 +219,7 @@ var poolAddCmd = &cobra.Command{
 			Enabled:                poolEnabled,
 			RunnerBootstrapTimeout: poolRunnerBootstrapTimeout,
 			GitHubRunnerGroup:      poolGitHubRunnerGroup,
+			Priority:               priority,
 		}
 
 		if cmd.Flags().Changed("extra-specs") {
@@ -326,6 +328,9 @@ explicitly remove them using the runner delete command.
 		if cmd.Flags().Changed("max-runners") {
 			poolUpdateParams.MaxRunners = &poolMaxRunners
 		}
+		if cmd.Flags().Changed("priority") {
+			poolUpdateParams.Priority = &priority
+		}
 
 		if cmd.Flags().Changed("min-idle-runners") {
 			poolUpdateParams.MinIdleRunners = &poolMinIdleRunners
@@ -385,6 +390,7 @@ func init() {
 	poolListCmd.MarkFlagsMutuallyExclusive("repo", "org", "all", "enterprise")
 
 	poolUpdateCmd.Flags().StringVar(&poolImage, "image", "", "The provider-specific image name to use for runners in this pool.")
+	poolUpdateCmd.Flags().UintVar(&priority, "priority", 0, "When multiple pools match the same labels, priority dictates the order by which they are returned, in descending order.")
 	poolUpdateCmd.Flags().StringVar(&poolFlavor, "flavor", "", "The flavor to use for this runner.")
 	poolUpdateCmd.Flags().StringVar(&poolTags, "tags", "", "A comma separated list of tags to assign to this runner.")
 	poolUpdateCmd.Flags().StringVar(&poolOSType, "os-type", "linux", "Operating system type (windows, linux, etc).")
@@ -400,6 +406,7 @@ func init() {
 	poolUpdateCmd.MarkFlagsMutuallyExclusive("extra-specs-file", "extra-specs")
 
 	poolAddCmd.Flags().StringVar(&poolProvider, "provider-name", "", "The name of the provider where runners will be created.")
+	poolAddCmd.Flags().UintVar(&priority, "priority", 0, "When multiple pools match the same labels, priority dictates the order by which they are returned, in descending order.")
 	poolAddCmd.Flags().StringVar(&poolImage, "image", "", "The provider-specific image name to use for runners in this pool.")
 	poolAddCmd.Flags().StringVar(&poolFlavor, "flavor", "", "The flavor to use for this runner.")
 	poolAddCmd.Flags().StringVar(&poolRunnerPrefix, "runner-prefix", "", "The name prefix to use for runners in this pool.")
@@ -462,7 +469,7 @@ func asRawMessage(data []byte) (json.RawMessage, error) {
 
 func formatPools(pools []params.Pool) {
 	t := table.NewWriter()
-	header := table.Row{"ID", "Image", "Flavor", "Tags", "Belongs to", "Level", "Enabled", "Runner Prefix"}
+	header := table.Row{"ID", "Image", "Flavor", "Tags", "Belongs to", "Level", "Enabled", "Runner Prefix", "Priority"}
 	t.AppendHeader(header)
 
 	for _, pool := range pools {
@@ -484,7 +491,7 @@ func formatPools(pools []params.Pool) {
 			belongsTo = pool.EnterpriseName
 			level = "enterprise"
 		}
-		t.AppendRow(table.Row{pool.ID, pool.Image, pool.Flavor, strings.Join(tags, " "), belongsTo, level, pool.Enabled, pool.GetRunnerPrefix()})
+		t.AppendRow(table.Row{pool.ID, pool.Image, pool.Flavor, strings.Join(tags, " "), belongsTo, level, pool.Enabled, pool.GetRunnerPrefix(), pool.Priority})
 		t.AppendSeparator()
 	}
 	fmt.Println(t.Render())
@@ -519,6 +526,7 @@ func formatOnePool(pool params.Pool) {
 	t.AppendHeader(header)
 	t.AppendRow(table.Row{"ID", pool.ID})
 	t.AppendRow(table.Row{"Provider Name", pool.ProviderName})
+	t.AppendRow(table.Row{"Priority", pool.Priority})
 	t.AppendRow(table.Row{"Image", pool.Image})
 	t.AppendRow(table.Row{"Flavor", pool.Flavor})
 	t.AppendRow(table.Row{"OS Type", pool.OSType})

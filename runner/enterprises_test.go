@@ -78,6 +78,7 @@ func (s *EnterpriseTestSuite) SetupTest() {
 			name,
 			fmt.Sprintf("test-creds-%v", i),
 			fmt.Sprintf("test-webhook-secret-%v", i),
+			params.PoolBalancerTypeRoundRobin,
 		)
 		if err != nil {
 			s.FailNow(fmt.Sprintf("failed to create database object (test-enterprise-%v)", i))
@@ -169,6 +170,7 @@ func (s *EnterpriseTestSuite) TestCreateEnterprise() {
 	s.Require().Nil(err)
 	s.Require().Equal(s.Fixtures.CreateEnterpriseParams.Name, enterprise.Name)
 	s.Require().Equal(s.Fixtures.Credentials[s.Fixtures.CreateEnterpriseParams.CredentialsName].Name, enterprise.CredentialsName)
+	s.Require().Equal(params.PoolBalancerTypeRoundRobin, enterprise.PoolBalancerType)
 }
 
 func (s *EnterpriseTestSuite) TestCreateEnterpriseErrUnauthorized() {
@@ -293,13 +295,16 @@ func (s *EnterpriseTestSuite) TestUpdateEnterprise() {
 	s.Fixtures.PoolMgrCtrlMock.On("UpdateEnterprisePoolManager", s.Fixtures.AdminContext, mock.AnythingOfType("params.Enterprise")).Return(s.Fixtures.PoolMgrMock, nil)
 	s.Fixtures.PoolMgrMock.On("Status").Return(params.PoolManagerStatus{IsRunning: true}, nil)
 
-	org, err := s.Runner.UpdateEnterprise(s.Fixtures.AdminContext, s.Fixtures.StoreEnterprises["test-enterprise-1"].ID, s.Fixtures.UpdateRepoParams)
+	param := s.Fixtures.UpdateRepoParams
+	param.PoolBalancerType = params.PoolBalancerTypePack
+	org, err := s.Runner.UpdateEnterprise(s.Fixtures.AdminContext, s.Fixtures.StoreEnterprises["test-enterprise-1"].ID, param)
 
 	s.Fixtures.PoolMgrMock.AssertExpectations(s.T())
 	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
 	s.Require().Nil(err)
 	s.Require().Equal(s.Fixtures.UpdateRepoParams.CredentialsName, org.CredentialsName)
 	s.Require().Equal(s.Fixtures.UpdateRepoParams.WebhookSecret, org.WebhookSecret)
+	s.Require().Equal(params.PoolBalancerTypePack, org.PoolBalancerType)
 }
 
 func (s *EnterpriseTestSuite) TestUpdateEnterpriseErrUnauthorized() {

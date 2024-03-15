@@ -28,7 +28,7 @@ import (
 	"github.com/cloudbase/garm/params"
 )
 
-func (s *sqlDatabase) CreateOrganization(_ context.Context, name, credentialsName, webhookSecret string) (params.Organization, error) {
+func (s *sqlDatabase) CreateOrganization(_ context.Context, name, credentialsName, webhookSecret string, poolBalancerType params.PoolBalancerType) (params.Organization, error) {
 	if webhookSecret == "" {
 		return params.Organization{}, errors.New("creating org: missing secret")
 	}
@@ -37,9 +37,10 @@ func (s *sqlDatabase) CreateOrganization(_ context.Context, name, credentialsNam
 		return params.Organization{}, fmt.Errorf("failed to encrypt string")
 	}
 	newOrg := Organization{
-		Name:            name,
-		WebhookSecret:   secret,
-		CredentialsName: credentialsName,
+		Name:             name,
+		WebhookSecret:    secret,
+		CredentialsName:  credentialsName,
+		PoolBalancerType: poolBalancerType,
 	}
 
 	q := s.conn.Create(&newOrg)
@@ -121,6 +122,10 @@ func (s *sqlDatabase) UpdateOrganization(ctx context.Context, orgID string, para
 		org.WebhookSecret = secret
 	}
 
+	if param.PoolBalancerType != "" {
+		org.PoolBalancerType = param.PoolBalancerType
+	}
+
 	q := s.conn.Save(&org)
 	if q.Error != nil {
 		return params.Organization{}, errors.Wrap(q.Error, "saving org")
@@ -169,6 +174,7 @@ func (s *sqlDatabase) CreateOrganizationPool(ctx context.Context, orgID string, 
 		Enabled:                param.Enabled,
 		RunnerBootstrapTimeout: param.RunnerBootstrapTimeout,
 		GitHubRunnerGroup:      param.GitHubRunnerGroup,
+		Priority:               param.Priority,
 	}
 
 	if len(param.ExtraSpecs) > 0 {
@@ -213,7 +219,7 @@ func (s *sqlDatabase) CreateOrganizationPool(ctx context.Context, orgID string, 
 }
 
 func (s *sqlDatabase) ListOrgPools(ctx context.Context, orgID string) ([]params.Pool, error) {
-	pools, err := s.listEntityPools(ctx, params.OrganizationPool, orgID, "Tags", "Instances")
+	pools, err := s.listEntityPools(ctx, params.OrganizationPool, orgID, "Tags", "Instances", "Organization")
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching pools")
 	}

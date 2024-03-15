@@ -52,7 +52,7 @@ func (r *Runner) CreateRepository(ctx context.Context, param params.CreateRepoPa
 		return params.Repository{}, runnerErrors.NewConflictError("repository %s/%s already exists", param.Owner, param.Name)
 	}
 
-	repo, err = r.store.CreateRepository(ctx, param.Owner, param.Name, creds.Name, param.WebhookSecret)
+	repo, err = r.store.CreateRepository(ctx, param.Owner, param.Name, creds.Name, param.WebhookSecret, param.PoolBalancerType)
 	if err != nil {
 		return params.Repository{}, errors.Wrap(err, "creating repository")
 	}
@@ -194,6 +194,12 @@ func (r *Runner) UpdateRepository(ctx context.Context, repoID string, param para
 		if _, ok := r.credentials[param.CredentialsName]; !ok {
 			return params.Repository{}, runnerErrors.NewBadRequestError("invalid credentials (%s) for repo %s/%s", param.CredentialsName, repo.Owner, repo.Name)
 		}
+	}
+
+	switch param.PoolBalancerType {
+	case params.PoolBalancerTypeRoundRobin, params.PoolBalancerTypePack, params.PoolBalancerTypeNone:
+	default:
+		return params.Repository{}, runnerErrors.NewBadRequestError("invalid pool balancer type: %s", param.PoolBalancerType)
 	}
 
 	repo, err = r.store.UpdateRepository(ctx, repoID, param)

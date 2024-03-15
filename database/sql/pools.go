@@ -190,7 +190,9 @@ func (s *sqlDatabase) findPoolByTags(id string, poolType params.PoolType, tags [
 		Group("pools.id").
 		Preload("Tags").
 		Having("count(1) = ?", len(tags)).
-		Where(where, tags, u).Find(&pools)
+		Where(where, tags, u).
+		Order("priority desc").
+		Find(&pools)
 
 	if q.Error != nil {
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {

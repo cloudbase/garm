@@ -31,10 +31,11 @@ type InstanceRequest struct {
 }
 
 type CreateRepoParams struct {
-	Owner           string `json:"owner"`
-	Name            string `json:"name"`
-	CredentialsName string `json:"credentials_name"`
-	WebhookSecret   string `json:"webhook_secret"`
+	Owner            string           `json:"owner"`
+	Name             string           `json:"name"`
+	CredentialsName  string           `json:"credentials_name"`
+	WebhookSecret    string           `json:"webhook_secret"`
+	PoolBalancerType PoolBalancerType `json:"pool_balancer_type"`
 }
 
 func (c *CreateRepoParams) Validate() error {
@@ -52,13 +53,21 @@ func (c *CreateRepoParams) Validate() error {
 	if c.WebhookSecret == "" {
 		return errors.NewMissingSecretError("missing secret")
 	}
+
+	switch c.PoolBalancerType {
+	case PoolBalancerTypeRoundRobin, PoolBalancerTypePack, PoolBalancerTypeNone:
+	default:
+		return errors.NewBadRequestError("invalid pool balancer type")
+	}
+
 	return nil
 }
 
 type CreateOrgParams struct {
-	Name            string `json:"name"`
-	CredentialsName string `json:"credentials_name"`
-	WebhookSecret   string `json:"webhook_secret"`
+	Name             string           `json:"name"`
+	CredentialsName  string           `json:"credentials_name"`
+	WebhookSecret    string           `json:"webhook_secret"`
+	PoolBalancerType PoolBalancerType `json:"pool_balancer_type"`
 }
 
 func (c *CreateOrgParams) Validate() error {
@@ -72,13 +81,20 @@ func (c *CreateOrgParams) Validate() error {
 	if c.WebhookSecret == "" {
 		return errors.NewMissingSecretError("missing secret")
 	}
+
+	switch c.PoolBalancerType {
+	case PoolBalancerTypeRoundRobin, PoolBalancerTypePack, PoolBalancerTypeNone:
+	default:
+		return errors.NewBadRequestError("invalid pool balancer type")
+	}
 	return nil
 }
 
 type CreateEnterpriseParams struct {
-	Name            string `json:"name"`
-	CredentialsName string `json:"credentials_name"`
-	WebhookSecret   string `json:"webhook_secret"`
+	Name             string           `json:"name"`
+	CredentialsName  string           `json:"credentials_name"`
+	WebhookSecret    string           `json:"webhook_secret"`
+	PoolBalancerType PoolBalancerType `json:"pool_balancer_type"`
 }
 
 func (c *CreateEnterpriseParams) Validate() error {
@@ -90,6 +106,12 @@ func (c *CreateEnterpriseParams) Validate() error {
 	}
 	if c.WebhookSecret == "" {
 		return errors.NewMissingSecretError("missing secret")
+	}
+
+	switch c.PoolBalancerType {
+	case PoolBalancerTypeRoundRobin, PoolBalancerTypePack, PoolBalancerTypeNone:
+	default:
+		return errors.NewBadRequestError("invalid pool balancer type")
 	}
 	return nil
 }
@@ -122,6 +144,7 @@ type UpdatePoolParams struct {
 	// pool will be added to.
 	// The runner group must be created by someone with access to the enterprise.
 	GitHubRunnerGroup *string `json:"github-runner-group,omitempty"`
+	Priority          *uint   `json:"priority,omitempty"`
 }
 
 type CreateInstanceParams struct {
@@ -159,6 +182,7 @@ type CreatePoolParams struct {
 	// pool will be added to.
 	// The runner group must be created by someone with access to the enterprise.
 	GitHubRunnerGroup string `json:"github-runner-group"`
+	Priority          uint   `json:"priority"`
 }
 
 func (p *CreatePoolParams) Validate() error {
@@ -231,8 +255,9 @@ func (p PasswordLoginParams) Validate() error {
 }
 
 type UpdateEntityParams struct {
-	CredentialsName string `json:"credentials_name"`
-	WebhookSecret   string `json:"webhook_secret"`
+	CredentialsName  string           `json:"credentials_name"`
+	WebhookSecret    string           `json:"webhook_secret"`
+	PoolBalancerType PoolBalancerType `json:"pool_balancer_type"`
 }
 
 type InstanceUpdateMessage struct {

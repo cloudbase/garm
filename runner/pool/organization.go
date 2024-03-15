@@ -89,6 +89,13 @@ type organization struct {
 	mux sync.Mutex
 }
 
+func (o *organization) PoolBalancerType() params.PoolBalancerType {
+	if o.cfgInternal.PoolBalancerType == "" {
+		return params.PoolBalancerTypeRoundRobin
+	}
+	return o.cfgInternal.PoolBalancerType
+}
+
 func (o *organization) findRunnerGroupByName(name string) (*github.RunnerGroup, error) {
 	// nolint:golangci-lint,godox
 	// TODO(gabriel-samfira): implement caching
@@ -193,10 +200,6 @@ func (o *organization) GetJITConfig(ctx context.Context, instance string, pool p
 	}
 
 	return ret, runner, nil
-}
-
-func (o *organization) GithubCLI() common.GithubClient {
-	return o.ghcli
 }
 
 func (o *organization) PoolType() params.PoolType {
@@ -375,14 +378,6 @@ func (o *organization) String() string {
 
 func (o *organization) WebhookSecret() string {
 	return o.cfg.WebhookSecret
-}
-
-func (o *organization) FindPoolByTags(labels []string) (params.Pool, error) {
-	pool, err := o.store.FindOrganizationPoolByTags(o.ctx, o.id, labels)
-	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "fetching suitable pool")
-	}
-	return pool, nil
 }
 
 func (o *organization) GetPoolByID(poolID string) (params.Pool, error) {

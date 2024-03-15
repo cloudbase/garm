@@ -113,11 +113,16 @@ func (s *sqlDatabase) sqlToCommonOrganization(org Organization) (params.Organiza
 	}
 
 	ret := params.Organization{
-		ID:              org.ID.String(),
-		Name:            org.Name,
-		CredentialsName: org.CredentialsName,
-		Pools:           make([]params.Pool, len(org.Pools)),
-		WebhookSecret:   string(secret),
+		ID:               org.ID.String(),
+		Name:             org.Name,
+		CredentialsName:  org.CredentialsName,
+		Pools:            make([]params.Pool, len(org.Pools)),
+		WebhookSecret:    string(secret),
+		PoolBalancerType: org.PoolBalancerType,
+	}
+
+	if ret.PoolBalancerType == "" {
+		ret.PoolBalancerType = params.PoolBalancerTypeRoundRobin
 	}
 
 	for idx, pool := range org.Pools {
@@ -140,11 +145,16 @@ func (s *sqlDatabase) sqlToCommonEnterprise(enterprise Enterprise) (params.Enter
 	}
 
 	ret := params.Enterprise{
-		ID:              enterprise.ID.String(),
-		Name:            enterprise.Name,
-		CredentialsName: enterprise.CredentialsName,
-		Pools:           make([]params.Pool, len(enterprise.Pools)),
-		WebhookSecret:   string(secret),
+		ID:               enterprise.ID.String(),
+		Name:             enterprise.Name,
+		CredentialsName:  enterprise.CredentialsName,
+		Pools:            make([]params.Pool, len(enterprise.Pools)),
+		WebhookSecret:    string(secret),
+		PoolBalancerType: enterprise.PoolBalancerType,
+	}
+
+	if ret.PoolBalancerType == "" {
+		ret.PoolBalancerType = params.PoolBalancerTypeRoundRobin
 	}
 
 	for idx, pool := range enterprise.Pools {
@@ -176,6 +186,7 @@ func (s *sqlDatabase) sqlToCommonPool(pool Pool) (params.Pool, error) {
 		RunnerBootstrapTimeout: pool.RunnerBootstrapTimeout,
 		ExtraSpecs:             json.RawMessage(pool.ExtraSpecs),
 		GitHubRunnerGroup:      pool.GitHubRunnerGroup,
+		Priority:               pool.Priority,
 	}
 
 	if pool.RepoID != nil {
@@ -227,12 +238,17 @@ func (s *sqlDatabase) sqlToCommonRepository(repo Repository) (params.Repository,
 	}
 
 	ret := params.Repository{
-		ID:              repo.ID.String(),
-		Name:            repo.Name,
-		Owner:           repo.Owner,
-		CredentialsName: repo.CredentialsName,
-		Pools:           make([]params.Pool, len(repo.Pools)),
-		WebhookSecret:   string(secret),
+		ID:               repo.ID.String(),
+		Name:             repo.Name,
+		Owner:            repo.Owner,
+		CredentialsName:  repo.CredentialsName,
+		Pools:            make([]params.Pool, len(repo.Pools)),
+		WebhookSecret:    string(secret),
+		PoolBalancerType: repo.PoolBalancerType,
+	}
+
+	if ret.PoolBalancerType == "" {
+		ret.PoolBalancerType = params.PoolBalancerTypeRoundRobin
 	}
 
 	for idx, pool := range repo.Pools {
@@ -322,6 +338,10 @@ func (s *sqlDatabase) updatePool(pool Pool, param params.UpdatePoolParams) (para
 
 	if param.GitHubRunnerGroup != nil {
 		pool.GitHubRunnerGroup = *param.GitHubRunnerGroup
+	}
+
+	if param.Priority != nil {
+		pool.Priority = *param.Priority
 	}
 
 	if q := s.conn.Save(&pool); q.Error != nil {

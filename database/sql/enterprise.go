@@ -13,7 +13,7 @@ import (
 	"github.com/cloudbase/garm/params"
 )
 
-func (s *sqlDatabase) CreateEnterprise(_ context.Context, name, credentialsName, webhookSecret string) (params.Enterprise, error) {
+func (s *sqlDatabase) CreateEnterprise(_ context.Context, name, credentialsName, webhookSecret string, poolBalancerType params.PoolBalancerType) (params.Enterprise, error) {
 	if webhookSecret == "" {
 		return params.Enterprise{}, errors.New("creating enterprise: missing secret")
 	}
@@ -22,9 +22,10 @@ func (s *sqlDatabase) CreateEnterprise(_ context.Context, name, credentialsName,
 		return params.Enterprise{}, errors.Wrap(err, "encoding secret")
 	}
 	newEnterprise := Enterprise{
-		Name:            name,
-		WebhookSecret:   secret,
-		CredentialsName: credentialsName,
+		Name:             name,
+		WebhookSecret:    secret,
+		CredentialsName:  credentialsName,
+		PoolBalancerType: poolBalancerType,
 	}
 
 	q := s.conn.Create(&newEnterprise)
@@ -117,6 +118,10 @@ func (s *sqlDatabase) UpdateEnterprise(ctx context.Context, enterpriseID string,
 		enterprise.WebhookSecret = secret
 	}
 
+	if param.PoolBalancerType != "" {
+		enterprise.PoolBalancerType = param.PoolBalancerType
+	}
+
 	q := s.conn.Save(&enterprise)
 	if q.Error != nil {
 		return params.Enterprise{}, errors.Wrap(q.Error, "saving enterprise")
@@ -152,6 +157,7 @@ func (s *sqlDatabase) CreateEnterprisePool(ctx context.Context, enterpriseID str
 		Enabled:                param.Enabled,
 		RunnerBootstrapTimeout: param.RunnerBootstrapTimeout,
 		GitHubRunnerGroup:      param.GitHubRunnerGroup,
+		Priority:               param.Priority,
 	}
 
 	if len(param.ExtraSpecs) > 0 {
@@ -233,7 +239,7 @@ func (s *sqlDatabase) FindEnterprisePoolByTags(_ context.Context, enterpriseID s
 }
 
 func (s *sqlDatabase) ListEnterprisePools(ctx context.Context, enterpriseID string) ([]params.Pool, error) {
-	pools, err := s.listEntityPools(ctx, params.EnterprisePool, enterpriseID, "Tags", "Instances", "Instances.Job")
+	pools, err := s.listEntityPools(ctx, params.EnterprisePool, enterpriseID, "Tags", "Instances", "Enterprise")
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching pools")
 	}
