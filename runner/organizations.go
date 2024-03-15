@@ -202,7 +202,7 @@ func (r *Runner) UpdateOrganization(ctx context.Context, orgID string, param par
 	}
 
 	switch param.PoolBalancerType {
-	case params.PoolBalancerTypeRoundRobin, params.PoolBalancerTypeStack, param.PoolBalancerType:
+	case params.PoolBalancerTypeRoundRobin, params.PoolBalancerTypePack, params.PoolBalancerTypeNone:
 	default:
 		return params.Organization{}, runnerErrors.NewBadRequestError("invalid pool balancer type: %s", param.PoolBalancerType)
 	}

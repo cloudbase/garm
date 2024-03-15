@@ -52,7 +52,7 @@ func (p *poolsForTags) Get(tags []string) (poolCacheStore, bool) {
 		return nil, false
 	}
 	poolCache := v.(*poolRoundRobin)
-	if p.poolCacheType == params.PoolBalancerTypeStack {
+	if p.poolCacheType == params.PoolBalancerTypePack {
 		// When we service a list of jobs, we want to try each pool in turn
 		// for each job. Pools are sorted by priority so we always start from the
 		// highest priority pool and move on to the next if the first one is full.

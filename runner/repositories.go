@@ -201,7 +201,7 @@ func (r *Runner) UpdateRepository(ctx context.Context, repoID string, param para
 	}
 
 	switch param.PoolBalancerType {
-	case params.PoolBalancerTypeRoundRobin, params.PoolBalancerTypeStack, param.PoolBalancerType:
+	case params.PoolBalancerTypeRoundRobin, params.PoolBalancerTypePack, params.PoolBalancerTypeNone:
 	default:
 		return params.Repository{}, runnerErrors.NewBadRequestError("invalid pool balancer type: %s", param.PoolBalancerType)
 	}

@@ -49,9 +49,12 @@ const (
 	// balancer, the pool manager will attempt to create instances in each pool in turn
 	// for each job that needs to be serviced. So job1 in pool1, job2 in pool2 and so on.
 	PoolBalancerTypeRoundRobin PoolBalancerType = "roundrobin"
-	// PoolBalancerTypeStack will try to create instances in the first pool that matches
+	// PoolBalancerTypePack will try to create instances in the first pool that matches
 	// the required labels. If the pool is full, it will move on to the next pool and so on.
-	PoolBalancerTypeStack PoolBalancerType = "stack"
+	PoolBalancerTypePack PoolBalancerType = "pack"
+	// PoolBalancerTypeNone denotes to the default behavior of the pool manager, which is
+	// to use the round robin balancer.
+	PoolBalancerTypeNone PoolBalancerType = ""
 )
 
 const (
