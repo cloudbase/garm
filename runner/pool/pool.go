@@ -883,7 +883,7 @@ func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error 
 	jwtValidity := pool.RunnerTimeout()
 
 	entity := r.entity.String()
-	jwtToken, err := auth.NewInstanceJWTToken(instance, r.JwtToken(), entity, pool.PoolType(), jwtValidity)
+	jwtToken, err := auth.NewInstanceJWTToken(instance, r.cfgInternal.JWTSecret, entity, pool.PoolType(), jwtValidity)
 	if err != nil {
 		return errors.Wrap(err, "fetching instance jwt token")
 	}
@@ -1983,22 +1983,6 @@ func (r *basePoolManager) InstallWebhook(ctx context.Context, param params.Insta
 	return r.InstallHook(ctx, req)
 }
 
-func (r *basePoolManager) GetHookInfo(ctx context.Context) (params.HookInfo, error) {
-	allHooks, err := r.listHooks(ctx)
-	if err != nil {
-		return params.HookInfo{}, errors.Wrap(err, "listing hooks")
-	}
-
-	for _, hook := range allHooks {
-		hookInfo := hookToParamsHookInfo(hook)
-		if strings.EqualFold(hookInfo.URL, r.urls.webhookURL) {
-			return hookInfo, nil
-		}
-	}
-
-	return params.HookInfo{}, runnerErrors.NewNotFoundError("hook not found")
-}
-
 func (r *basePoolManager) ValidateOwner(job params.WorkflowJob) error {
 	switch r.entity.EntityType {
 	case params.GithubEntityTypeRepository:
@@ -2118,10 +2102,6 @@ func (r *basePoolManager) PoolBalancerType() params.PoolBalancerType {
 	return r.cfgInternal.PoolBalancerType
 }
 
-func (r *basePoolManager) JwtToken() string {
-	return r.cfgInternal.JWTSecret
-}
-
 func (r *basePoolManager) GithubURL() string {
 	switch r.entity.EntityType {
 	case params.GithubEntityTypeRepository:
@@ -2143,7 +2123,19 @@ func (r *basePoolManager) UninstallWebhook(ctx context.Context) error {
 }
 
 func (r *basePoolManager) GetWebhookInfo(ctx context.Context) (params.HookInfo, error) {
-	return r.GetHookInfo(ctx)
+	allHooks, err := r.listHooks(ctx)
+	if err != nil {
+		return params.HookInfo{}, errors.Wrap(err, "listing hooks")
+	}
+
+	for _, hook := range allHooks {
+		hookInfo := hookToParamsHookInfo(hook)
+		if strings.EqualFold(hookInfo.URL, r.urls.webhookURL) {
+			return hookInfo, nil
+		}
+	}
+
+	return params.HookInfo{}, runnerErrors.NewNotFoundError("hook not found")
 }
 
 func (r *basePoolManager) RootCABundle() (params.CertificateBundle, error) {
