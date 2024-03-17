@@ -46,6 +46,5 @@ type poolHelper interface {
 	UpdateState(param params.UpdatePoolStateParams) error
 	WebhookSecret() string
 	ID() string
-	PoolType() params.PoolType
 	PoolBalancerType() params.PoolBalancerType
 }

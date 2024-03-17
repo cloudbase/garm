@@ -25,13 +25,15 @@ import (
 
 	"github.com/google/go-github/v57/github"
 	"github.com/google/uuid"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm/util/appdefaults"
 )
 
 type (
-	PoolType            string
+	GithubEntityType    string
 	EventType           string
 	EventLevel          string
 	ProviderType        string
@@ -81,9 +83,15 @@ const (
 )
 
 const (
-	RepositoryPool   PoolType = "repository"
-	OrganizationPool PoolType = "organization"
-	EnterprisePool   PoolType = "enterprise"
+	GithubEntityTypeRepository   GithubEntityType = "repository"
+	GithubEntityTypeOrganization GithubEntityType = "organization"
+	GithubEntityTypeEnterprise   GithubEntityType = "enterprise"
+)
+
+const (
+	MetricsLabelEnterpriseScope   = "Enterprise"
+	MetricsLabelRepositoryScope   = "Repository"
+	MetricsLabelOrganizationScope = "Organization"
 )
 
 const (
@@ -112,6 +120,10 @@ const (
 	// GithubAuthTypeApp is the GitHub App based authentication
 	GithubAuthTypeApp GithubAuthType = "app"
 )
+
+func (e GithubEntityType) String() string {
+	return string(e)
+}
 
 type StatusMessage struct {
 	CreatedAt  time.Time  `json:"created_at"`
@@ -318,14 +330,14 @@ func (p *Pool) RunnerTimeout() uint {
 	return p.RunnerBootstrapTimeout
 }
 
-func (p *Pool) PoolType() PoolType {
+func (p *Pool) PoolType() GithubEntityType {
 	switch {
 	case p.RepoID != "":
-		return RepositoryPool
+		return GithubEntityTypeRepository
 	case p.OrgID != "":
-		return OrganizationPool
+		return GithubEntityTypeOrganization
 	case p.EnterpriseID != "":
-		return EnterprisePool
+		return GithubEntityTypeEnterprise
 	}
 	return ""
 }
@@ -630,4 +642,14 @@ type UpdateSystemInfoParams struct {
 	OSName    string `json:"os_name,omitempty"`
 	OSVersion string `json:"os_version,omitempty"`
 	AgentID   *int64 `json:"agent_id,omitempty"`
+}
+
+type GithubEntity struct {
+	Owner      string           `json:"owner"`
+	Name       string           `json:"name"`
+	EntityType GithubEntityType `json:"entity_type"`
+}
+
+func (g GithubEntity) LabelScope() string {
+	return cases.Title(language.English, cases.NoLower).String(g.EntityType.String())
 }

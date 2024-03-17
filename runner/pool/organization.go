@@ -40,7 +40,7 @@ import (
 var _ poolHelper = &organization{}
 
 func NewOrganizationPoolManager(ctx context.Context, cfg params.Organization, cfgInternal params.Internal, providers map[string]common.Provider, store dbCommon.Store) (common.PoolManager, error) {
-	ctx = util.WithContext(ctx, slog.Any("pool_mgr", cfg.Name), slog.Any("pool_type", params.OrganizationPool))
+	ctx = util.WithContext(ctx, slog.Any("pool_mgr", cfg.Name), slog.Any("pool_type", params.GithubEntityTypeOrganization))
 	ghc, _, err := util.GithubClient(ctx, cfgInternal.GithubCredentialsDetails)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting github client")
@@ -59,7 +59,11 @@ func NewOrganizationPoolManager(ctx context.Context, cfg params.Organization, cf
 	}
 
 	repo := &basePoolManager{
-		ctx:          ctx,
+		ctx: ctx,
+		entity: params.GithubEntity{
+			Name:       cfg.Name,
+			EntityType: params.GithubEntityTypeOrganization,
+		},
 		store:        store,
 		providers:    providers,
 		controllerID: cfgInternal.ControllerID,
@@ -107,14 +111,14 @@ func (o *organization) findRunnerGroupByName(name string) (*github.RunnerGroup, 
 
 	for {
 		metrics.GithubOperationCount.WithLabelValues(
-			"ListOrganizationRunnerGroups", // label: operation
-			metricsLabelOrganizationScope,  // label: scope
+			"ListOrganizationRunnerGroups",       // label: operation
+			params.MetricsLabelOrganizationScope, // label: scope
 		).Inc()
 		runnerGroups, ghResp, err := o.ghcli.ListOrganizationRunnerGroups(o.ctx, o.cfg.Name, &opts)
 		if err != nil {
 			metrics.GithubOperationFailedCount.WithLabelValues(
-				"ListOrganizationRunnerGroups", // label: operation
-				metricsLabelOrganizationScope,  // label: scope
+				"ListOrganizationRunnerGroups",       // label: operation
+				params.MetricsLabelOrganizationScope, // label: scope
 			).Inc()
 			if ghResp != nil && ghResp.StatusCode == http.StatusUnauthorized {
 				return nil, errors.Wrap(runnerErrors.ErrUnauthorized, "fetching runners")
@@ -154,14 +158,14 @@ func (o *organization) GetJITConfig(ctx context.Context, instance string, pool p
 		WorkFolder: github.String("_work"),
 	}
 	metrics.GithubOperationCount.WithLabelValues(
-		"GenerateOrgJITConfig",        // label: operation
-		metricsLabelOrganizationScope, // label: scope
+		"GenerateOrgJITConfig",               // label: operation
+		params.MetricsLabelOrganizationScope, // label: scope
 	).Inc()
 	jitConfig, resp, err := o.ghcli.GenerateOrgJITConfig(ctx, o.cfg.Name, &req)
 	if err != nil {
 		metrics.GithubOperationFailedCount.WithLabelValues(
-			"GenerateOrgJITConfig",        // label: operation
-			metricsLabelOrganizationScope, // label: scope
+			"GenerateOrgJITConfig",               // label: operation
+			params.MetricsLabelOrganizationScope, // label: scope
 		).Inc()
 		if resp != nil && resp.StatusCode == http.StatusUnauthorized {
 			return nil, nil, fmt.Errorf("failed to get JIT config: %w", err)
@@ -173,14 +177,14 @@ func (o *organization) GetJITConfig(ctx context.Context, instance string, pool p
 	defer func() {
 		if err != nil && runner != nil {
 			metrics.GithubOperationCount.WithLabelValues(
-				"RemoveOrganizationRunner",    // label: operation
-				metricsLabelOrganizationScope, // label: scope
+				"RemoveOrganizationRunner",           // label: operation
+				params.MetricsLabelOrganizationScope, // label: scope
 			).Inc()
 			_, innerErr := o.ghcli.RemoveOrganizationRunner(o.ctx, o.cfg.Name, runner.GetID())
 			if innerErr != nil {
 				metrics.GithubOperationFailedCount.WithLabelValues(
-					"RemoveOrganizationRunner",    // label: operation
-					metricsLabelOrganizationScope, // label: scope
+					"RemoveOrganizationRunner",           // label: operation
+					params.MetricsLabelOrganizationScope, // label: scope
 				).Inc()
 			}
 			slog.With(slog.Any("error", innerErr)).ErrorContext(
@@ -202,23 +206,19 @@ func (o *organization) GetJITConfig(ctx context.Context, instance string, pool p
 	return ret, runner, nil
 }
 
-func (o *organization) PoolType() params.PoolType {
-	return params.OrganizationPool
-}
-
 func (o *organization) GetRunnerInfoFromWorkflow(job params.WorkflowJob) (params.RunnerInfo, error) {
 	if err := o.ValidateOwner(job); err != nil {
 		return params.RunnerInfo{}, errors.Wrap(err, "validating owner")
 	}
 	metrics.GithubOperationCount.WithLabelValues(
-		"GetWorkflowJobByID",          // label: operation
-		metricsLabelOrganizationScope, // label: scope
+		"GetWorkflowJobByID",                 // label: operation
+		params.MetricsLabelOrganizationScope, // label: scope
 	).Inc()
 	workflow, ghResp, err := o.ghcli.GetWorkflowJobByID(o.ctx, job.Organization.Login, job.Repository.Name, job.WorkflowJob.ID)
 	if err != nil {
 		metrics.GithubOperationFailedCount.WithLabelValues(
-			"GetWorkflowJobByID",          // label: operation
-			metricsLabelOrganizationScope, // label: scope
+			"GetWorkflowJobByID",                 // label: operation
+			params.MetricsLabelOrganizationScope, // label: scope
 		).Inc()
 		if ghResp != nil && ghResp.StatusCode == http.StatusUnauthorized {
 			return params.RunnerInfo{}, errors.Wrap(runnerErrors.ErrUnauthorized, "fetching workflow info")
@@ -260,14 +260,14 @@ func (o *organization) GetGithubRunners() ([]*github.Runner, error) {
 	var allRunners []*github.Runner
 	for {
 		metrics.GithubOperationCount.WithLabelValues(
-			"ListOrganizationRunners",     // label: operation
-			metricsLabelOrganizationScope, // label: scope
+			"ListOrganizationRunners",            // label: operation
+			params.MetricsLabelOrganizationScope, // label: scope
 		).Inc()
 		runners, ghResp, err := o.ghcli.ListOrganizationRunners(o.ctx, o.cfg.Name, &opts)
 		if err != nil {
 			metrics.GithubOperationFailedCount.WithLabelValues(
-				"ListOrganizationRunners",     // label: operation
-				metricsLabelOrganizationScope, // label: scope
+				"ListOrganizationRunners",            // label: operation
+				params.MetricsLabelOrganizationScope, // label: scope
 			).Inc()
 			if ghResp != nil && ghResp.StatusCode == http.StatusUnauthorized {
 				return nil, errors.Wrap(runnerErrors.ErrUnauthorized, "fetching runners")
@@ -289,13 +289,13 @@ func (o *organization) FetchTools() ([]commonParams.RunnerApplicationDownload, e
 	defer o.mux.Unlock()
 	metrics.GithubOperationCount.WithLabelValues(
 		"ListOrganizationRunnerApplicationDownloads", // label: operation
-		metricsLabelOrganizationScope,                // label: scope
+		params.MetricsLabelOrganizationScope,         // label: scope
 	).Inc()
 	tools, ghResp, err := o.ghcli.ListOrganizationRunnerApplicationDownloads(o.ctx, o.cfg.Name)
 	if err != nil {
 		metrics.GithubOperationFailedCount.WithLabelValues(
 			"ListOrganizationRunnerApplicationDownloads", // label: operation
-			metricsLabelOrganizationScope,                // label: scope
+			params.MetricsLabelOrganizationScope,         // label: scope
 		).Inc()
 		if ghResp != nil && ghResp.StatusCode == http.StatusUnauthorized {
 			return nil, errors.Wrap(runnerErrors.ErrUnauthorized, "fetching tools")
@@ -320,15 +320,15 @@ func (o *organization) FetchDbInstances() ([]params.Instance, error) {
 
 func (o *organization) RemoveGithubRunner(runnerID int64) (*github.Response, error) {
 	metrics.GithubOperationCount.WithLabelValues(
-		"RemoveRunner",                // label: operation
-		metricsLabelOrganizationScope, // label: scope
+		"RemoveRunner",                       // label: operation
+		params.MetricsLabelOrganizationScope, // label: scope
 	).Inc()
 
 	ghResp, err := o.ghcli.RemoveOrganizationRunner(o.ctx, o.cfg.Name, runnerID)
 	if err != nil {
 		metrics.GithubOperationFailedCount.WithLabelValues(
-			"RemoveRunner",                // label: operation
-			metricsLabelOrganizationScope, // label: scope
+			"RemoveRunner",                       // label: operation
+			params.MetricsLabelOrganizationScope, // label: scope
 		).Inc()
 		return nil, err
 	}
@@ -355,13 +355,13 @@ func (o *organization) JwtToken() string {
 func (o *organization) GetGithubRegistrationToken() (string, error) {
 	metrics.GithubOperationCount.WithLabelValues(
 		"CreateOrganizationRegistrationToken", // label: operation
-		metricsLabelOrganizationScope,         // label: scope
+		params.MetricsLabelOrganizationScope,  // label: scope
 	).Inc()
 	tk, ghResp, err := o.ghcli.CreateOrganizationRegistrationToken(o.ctx, o.cfg.Name)
 	if err != nil {
 		metrics.GithubOperationFailedCount.WithLabelValues(
 			"CreateOrganizationRegistrationToken", // label: operation
-			metricsLabelOrganizationScope,         // label: scope
+			params.MetricsLabelOrganizationScope,  // label: scope
 		).Inc()
 		if ghResp != nil && ghResp.StatusCode == http.StatusUnauthorized {
 			return "", errors.Wrap(runnerErrors.ErrUnauthorized, "fetching token")
@@ -406,14 +406,14 @@ func (o *organization) listHooks(ctx context.Context) ([]*github.Hook, error) {
 	var allHooks []*github.Hook
 	for {
 		metrics.GithubOperationCount.WithLabelValues(
-			"ListOrgHooks",                // label: operation
-			metricsLabelOrganizationScope, // label: scope
+			"ListOrgHooks",                       // label: operation
+			params.MetricsLabelOrganizationScope, // label: scope
 		).Inc()
 		hooks, ghResp, err := o.ghcli.ListOrgHooks(ctx, o.cfg.Name, &opts)
 		if err != nil {
 			metrics.GithubOperationFailedCount.WithLabelValues(
-				"ListOrgHooks",                // label: operation
-				metricsLabelOrganizationScope, // label: scope
+				"ListOrgHooks",                       // label: operation
+				params.MetricsLabelOrganizationScope, // label: scope
 			).Inc()
 			if ghResp != nil && ghResp.StatusCode == http.StatusNotFound {
 				return nil, runnerErrors.NewBadRequestError("organization not found or your PAT does not have access to manage webhooks")
@@ -440,28 +440,28 @@ func (o *organization) InstallHook(ctx context.Context, req *github.Hook) (param
 	}
 
 	metrics.GithubOperationCount.WithLabelValues(
-		"CreateOrgHook",               // label: operation
-		metricsLabelOrganizationScope, // label: scope
+		"CreateOrgHook",                      // label: operation
+		params.MetricsLabelOrganizationScope, // label: scope
 	).Inc()
 
 	hook, _, err := o.ghcli.CreateOrgHook(ctx, o.cfg.Name, req)
 	if err != nil {
 		metrics.GithubOperationFailedCount.WithLabelValues(
-			"CreateOrgHook",               // label: operation
-			metricsLabelOrganizationScope, // label: scope
+			"CreateOrgHook",                      // label: operation
+			params.MetricsLabelOrganizationScope, // label: scope
 		).Inc()
 		return params.HookInfo{}, errors.Wrap(err, "creating organization hook")
 	}
 
 	metrics.GithubOperationCount.WithLabelValues(
-		"PingOrgHook",                 // label: operation
-		metricsLabelOrganizationScope, // label: scope
+		"PingOrgHook",                        // label: operation
+		params.MetricsLabelOrganizationScope, // label: scope
 	).Inc()
 
 	if _, err := o.ghcli.PingOrgHook(ctx, o.cfg.Name, hook.GetID()); err != nil {
 		metrics.GithubOperationFailedCount.WithLabelValues(
-			"PingOrgHook",                 // label: operation
-			metricsLabelOrganizationScope, // label: scope
+			"PingOrgHook",                        // label: operation
+			params.MetricsLabelOrganizationScope, // label: scope
 		).Inc()
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to ping hook", "hook_id", hook.GetID())
 	}
@@ -478,14 +478,14 @@ func (o *organization) UninstallHook(ctx context.Context, url string) error {
 	for _, hook := range allHooks {
 		if hook.Config["url"] == url {
 			metrics.GithubOperationCount.WithLabelValues(
-				"DeleteOrgHook",               // label: operation
-				metricsLabelOrganizationScope, // label: scope
+				"DeleteOrgHook",                      // label: operation
+				params.MetricsLabelOrganizationScope, // label: scope
 			).Inc()
 			_, err = o.ghcli.DeleteOrgHook(ctx, o.cfg.Name, hook.GetID())
 			if err != nil {
 				metrics.GithubOperationFailedCount.WithLabelValues(
-					"DeleteOrgHook",               // label: operation
-					metricsLabelOrganizationScope, // label: scope
+					"DeleteOrgHook",                      // label: operation
+					params.MetricsLabelOrganizationScope, // label: scope
 				).Inc()
 				return errors.Wrap(err, "deleting hook")
 			}

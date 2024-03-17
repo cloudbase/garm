@@ -26,7 +26,7 @@ import (
 var _ poolHelper = &enterprise{}
 
 func NewEnterprisePoolManager(ctx context.Context, cfg params.Enterprise, cfgInternal params.Internal, providers map[string]common.Provider, store dbCommon.Store) (common.PoolManager, error) {
-	ctx = util.WithContext(ctx, slog.Any("pool_mgr", cfg.Name), slog.Any("pool_type", params.EnterprisePool))
+	ctx = util.WithContext(ctx, slog.Any("pool_mgr", cfg.Name), slog.Any("pool_type", params.GithubEntityTypeEnterprise))
 	ghc, ghEnterpriseClient, err := util.GithubClient(ctx, cfgInternal.GithubCredentialsDetails)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting github client")
@@ -46,7 +46,11 @@ func NewEnterprisePoolManager(ctx context.Context, cfg params.Enterprise, cfgInt
 	}
 
 	repo := &basePoolManager{
-		ctx:          ctx,
+		ctx: ctx,
+		entity: params.GithubEntity{
+			Name:       cfg.Name,
+			EntityType: params.GithubEntityTypeEnterprise,
+		},
 		store:        store,
 		providers:    providers,
 		controllerID: cfgInternal.ControllerID,
@@ -95,14 +99,14 @@ func (e *enterprise) findRunnerGroupByName(name string) (*github.EnterpriseRunne
 
 	for {
 		metrics.GithubOperationCount.WithLabelValues(
-			"ListOrganizationRunnerGroups", // label: operation
-			metricsLabelEnterpriseScope,    // label: scope
+			"ListOrganizationRunnerGroups",     // label: operation
+			params.MetricsLabelEnterpriseScope, // label: scope
 		).Inc()
 		runnerGroups, ghResp, err := e.ghcEnterpriseCli.ListRunnerGroups(e.ctx, e.cfg.Name, &opts)
 		if err != nil {
 			metrics.GithubOperationFailedCount.WithLabelValues(
-				"ListOrganizationRunnerGroups", // label: operation
-				metricsLabelEnterpriseScope,    // label: scope
+				"ListOrganizationRunnerGroups",     // label: operation
+				params.MetricsLabelEnterpriseScope, // label: scope
 			).Inc()
 			if ghResp != nil && ghResp.StatusCode == http.StatusUnauthorized {
 				return nil, errors.Wrap(runnerErrors.ErrUnauthorized, "fetching runners")
@@ -142,14 +146,14 @@ func (e *enterprise) GetJITConfig(ctx context.Context, instance string, pool par
 		WorkFolder: github.String("_work"),
 	}
 	metrics.GithubOperationCount.WithLabelValues(
-		"GenerateEnterpriseJITConfig", // label: operation
-		metricsLabelEnterpriseScope,   // label: scope
+		"GenerateEnterpriseJITConfig",      // label: operation
+		params.MetricsLabelEnterpriseScope, // label: scope
 	).Inc()
 	jitConfig, resp, err := e.ghcEnterpriseCli.GenerateEnterpriseJITConfig(ctx, e.cfg.Name, &req)
 	if err != nil {
 		metrics.GithubOperationFailedCount.WithLabelValues(
-			"GenerateEnterpriseJITConfig", // label: operation
-			metricsLabelEnterpriseScope,   // label: scope
+			"GenerateEnterpriseJITConfig",      // label: operation
+			params.MetricsLabelEnterpriseScope, // label: scope
 		).Inc()
 		if resp != nil && resp.StatusCode == http.StatusUnauthorized {
 			return nil, nil, fmt.Errorf("failed to get JIT config: %w", err)
@@ -161,14 +165,14 @@ func (e *enterprise) GetJITConfig(ctx context.Context, instance string, pool par
 	defer func() {
 		if err != nil && runner != nil {
 			metrics.GithubOperationCount.WithLabelValues(
-				"RemoveRunner",              // label: operation
-				metricsLabelEnterpriseScope, // label: scope
+				"RemoveRunner",                     // label: operation
+				params.MetricsLabelEnterpriseScope, // label: scope
 			).Inc()
 			_, innerErr := e.ghcEnterpriseCli.RemoveRunner(e.ctx, e.cfg.Name, runner.GetID())
 			if innerErr != nil {
 				metrics.GithubOperationFailedCount.WithLabelValues(
-					"RemoveRunner",              // label: operation
-					metricsLabelEnterpriseScope, // label: scope
+					"RemoveRunner",                     // label: operation
+					params.MetricsLabelEnterpriseScope, // label: scope
 				).Inc()
 			}
 			slog.With(slog.Any("error", innerErr)).ErrorContext(
@@ -190,23 +194,19 @@ func (e *enterprise) GetJITConfig(ctx context.Context, instance string, pool par
 	return ret, jitConfig.Runner, nil
 }
 
-func (e *enterprise) PoolType() params.PoolType {
-	return params.EnterprisePool
-}
-
 func (e *enterprise) GetRunnerInfoFromWorkflow(job params.WorkflowJob) (params.RunnerInfo, error) {
 	if err := e.ValidateOwner(job); err != nil {
 		return params.RunnerInfo{}, errors.Wrap(err, "validating owner")
 	}
 	metrics.GithubOperationCount.WithLabelValues(
-		"GetWorkflowJobByID",        // label: operation
-		metricsLabelEnterpriseScope, // label: scope
+		"GetWorkflowJobByID",               // label: operation
+		params.MetricsLabelEnterpriseScope, // label: scope
 	).Inc()
 	workflow, ghResp, err := e.ghcli.GetWorkflowJobByID(e.ctx, job.Repository.Owner.Login, job.Repository.Name, job.WorkflowJob.ID)
 	if err != nil {
 		metrics.GithubOperationFailedCount.WithLabelValues(
-			"GetWorkflowJobByID",        // label: operation
-			metricsLabelEnterpriseScope, // label: scope
+			"GetWorkflowJobByID",               // label: operation
+			params.MetricsLabelEnterpriseScope, // label: scope
 		).Inc()
 		if ghResp != nil && ghResp.StatusCode == http.StatusUnauthorized {
 			return params.RunnerInfo{}, errors.Wrap(runnerErrors.ErrUnauthorized, "fetching workflow info")
@@ -249,14 +249,14 @@ func (e *enterprise) GetGithubRunners() ([]*github.Runner, error) {
 	var allRunners []*github.Runner
 	for {
 		metrics.GithubOperationCount.WithLabelValues(
-			"ListRunners",               // label: operation
-			metricsLabelEnterpriseScope, // label: scope
+			"ListRunners",                      // label: operation
+			params.MetricsLabelEnterpriseScope, // label: scope
 		).Inc()
 		runners, ghResp, err := e.ghcEnterpriseCli.ListRunners(e.ctx, e.cfg.Name, &opts)
 		if err != nil {
 			metrics.GithubOperationFailedCount.WithLabelValues(
-				"ListRunners",               // label: operation
-				metricsLabelEnterpriseScope, // label: scope
+				"ListRunners",                      // label: operation
+				params.MetricsLabelEnterpriseScope, // label: scope
 			).Inc()
 			if ghResp != nil && ghResp.StatusCode == http.StatusUnauthorized {
 				return nil, errors.Wrap(runnerErrors.ErrUnauthorized, "fetching runners")
@@ -276,14 +276,14 @@ func (e *enterprise) FetchTools() ([]commonParams.RunnerApplicationDownload, err
 	e.mux.Lock()
 	defer e.mux.Unlock()
 	metrics.GithubOperationCount.WithLabelValues(
-		"ListRunnerApplicationDownloads", // label: operation
-		metricsLabelEnterpriseScope,      // label: scope
+		"ListRunnerApplicationDownloads",   // label: operation
+		params.MetricsLabelEnterpriseScope, // label: scope
 	).Inc()
 	tools, ghResp, err := e.ghcEnterpriseCli.ListRunnerApplicationDownloads(e.ctx, e.cfg.Name)
 	if err != nil {
 		metrics.GithubOperationFailedCount.WithLabelValues(
-			"ListRunnerApplicationDownloads", // label: operation
-			metricsLabelEnterpriseScope,      // label: scope
+			"ListRunnerApplicationDownloads",   // label: operation
+			params.MetricsLabelEnterpriseScope, // label: scope
 		).Inc()
 		if ghResp != nil && ghResp.StatusCode == http.StatusUnauthorized {
 			return nil, errors.Wrap(runnerErrors.ErrUnauthorized, "fetching runners")
@@ -308,14 +308,14 @@ func (e *enterprise) FetchDbInstances() ([]params.Instance, error) {
 
 func (e *enterprise) RemoveGithubRunner(runnerID int64) (*github.Response, error) {
 	metrics.GithubOperationCount.WithLabelValues(
-		"RemoveRunner",              // label: operation
-		metricsLabelEnterpriseScope, // label: scope
+		"RemoveRunner",                     // label: operation
+		params.MetricsLabelEnterpriseScope, // label: scope
 	).Inc()
 	ghResp, err := e.ghcEnterpriseCli.RemoveRunner(e.ctx, e.cfg.Name, runnerID)
 	if err != nil {
 		metrics.GithubOperationFailedCount.WithLabelValues(
-			"RemoveRunner",              // label: operation
-			metricsLabelEnterpriseScope, // label: scope
+			"RemoveRunner",                     // label: operation
+			params.MetricsLabelEnterpriseScope, // label: scope
 		).Inc()
 		return nil, err
 	}
@@ -340,15 +340,15 @@ func (e *enterprise) JwtToken() string {
 
 func (e *enterprise) GetGithubRegistrationToken() (string, error) {
 	metrics.GithubOperationCount.WithLabelValues(
-		"CreateRegistrationToken",   // label: operation
-		metricsLabelEnterpriseScope, // label: scope
+		"CreateRegistrationToken",          // label: operation
+		params.MetricsLabelEnterpriseScope, // label: scope
 	).Inc()
 
 	tk, ghResp, err := e.ghcEnterpriseCli.CreateRegistrationToken(e.ctx, e.cfg.Name)
 	if err != nil {
 		metrics.GithubOperationFailedCount.WithLabelValues(
-			"CreateRegistrationToken",   // label: operation
-			metricsLabelEnterpriseScope, // label: scope
+			"CreateRegistrationToken",          // label: operation
+			params.MetricsLabelEnterpriseScope, // label: scope
 		).Inc()
 		if ghResp != nil && ghResp.StatusCode == http.StatusUnauthorized {
 			return "", errors.Wrap(runnerErrors.ErrUnauthorized, "fetching registration token")

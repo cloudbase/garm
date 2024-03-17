@@ -567,7 +567,7 @@ func (_m *Store) FindOrganizationPoolByTags(ctx context.Context, orgID string, t
 }
 
 // FindPoolsMatchingAllTags provides a mock function with given fields: ctx, entityType, entityID, tags
-func (_m *Store) FindPoolsMatchingAllTags(ctx context.Context, entityType params.PoolType, entityID string, tags []string) ([]params.Pool, error) {
+func (_m *Store) FindPoolsMatchingAllTags(ctx context.Context, entityType params.GithubEntityType, entityID string, tags []string) ([]params.Pool, error) {
 	ret := _m.Called(ctx, entityType, entityID, tags)
 
 	if len(ret) == 0 {
@@ -576,10 +576,10 @@ func (_m *Store) FindPoolsMatchingAllTags(ctx context.Context, entityType params
 
 	var r0 []params.Pool
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, params.PoolType, string, []string) ([]params.Pool, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, params.GithubEntityType, string, []string) ([]params.Pool, error)); ok {
 		return rf(ctx, entityType, entityID, tags)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, params.PoolType, string, []string) []params.Pool); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, params.GithubEntityType, string, []string) []params.Pool); ok {
 		r0 = rf(ctx, entityType, entityID, tags)
 	} else {
 		if ret.Get(0) != nil {
@@ -587,7 +587,7 @@ func (_m *Store) FindPoolsMatchingAllTags(ctx context.Context, entityType params
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, params.PoolType, string, []string) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, params.GithubEntityType, string, []string) error); ok {
 		r1 = rf(ctx, entityType, entityID, tags)
 	} else {
 		r1 = ret.Error(1)
@@ -1271,7 +1271,7 @@ func (_m *Store) ListEnterprises(ctx context.Context) ([]params.Enterprise, erro
 }
 
 // ListEntityJobsByStatus provides a mock function with given fields: ctx, entityType, entityID, status
-func (_m *Store) ListEntityJobsByStatus(ctx context.Context, entityType params.PoolType, entityID string, status params.JobStatus) ([]params.Job, error) {
+func (_m *Store) ListEntityJobsByStatus(ctx context.Context, entityType params.GithubEntityType, entityID string, status params.JobStatus) ([]params.Job, error) {
 	ret := _m.Called(ctx, entityType, entityID, status)
 
 	if len(ret) == 0 {
@@ -1280,10 +1280,10 @@ func (_m *Store) ListEntityJobsByStatus(ctx context.Context, entityType params.P
 
 	var r0 []params.Job
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, params.PoolType, string, params.JobStatus) ([]params.Job, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, params.GithubEntityType, string, params.JobStatus) ([]params.Job, error)); ok {
 		return rf(ctx, entityType, entityID, status)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, params.PoolType, string, params.JobStatus) []params.Job); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, params.GithubEntityType, string, params.JobStatus) []params.Job); ok {
 		r0 = rf(ctx, entityType, entityID, status)
 	} else {
 		if ret.Get(0) != nil {
@@ -1291,7 +1291,7 @@ func (_m *Store) ListEntityJobsByStatus(ctx context.Context, entityType params.P
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, params.PoolType, string, params.JobStatus) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, params.GithubEntityType, string, params.JobStatus) error); ok {
 		r1 = rf(ctx, entityType, entityID, status)
 	} else {
 		r1 = ret.Error(1)

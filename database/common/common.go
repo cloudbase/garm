@@ -87,7 +87,7 @@ type PoolStore interface {
 
 	PoolInstanceCount(ctx context.Context, poolID string) (int64, error)
 	GetPoolInstanceByName(ctx context.Context, poolID string, instanceName string) (params.Instance, error)
-	FindPoolsMatchingAllTags(ctx context.Context, entityType params.PoolType, entityID string, tags []string) ([]params.Pool, error)
+	FindPoolsMatchingAllTags(ctx context.Context, entityType params.GithubEntityType, entityID string, tags []string) ([]params.Pool, error)
 }
 
 type UserStore interface {
@@ -117,7 +117,7 @@ type InstanceStore interface {
 
 type JobsStore interface {
 	CreateOrUpdateJob(ctx context.Context, job params.Job) (params.Job, error)
-	ListEntityJobsByStatus(ctx context.Context, entityType params.PoolType, entityID string, status params.JobStatus) ([]params.Job, error)
+	ListEntityJobsByStatus(ctx context.Context, entityType params.GithubEntityType, entityID string, status params.JobStatus) ([]params.Job, error)
 	ListJobsByStatus(ctx context.Context, status params.JobStatus) ([]params.Job, error)
 	ListAllJobs(ctx context.Context) ([]params.Job, error)
 

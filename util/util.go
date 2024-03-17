@@ -26,9 +26,16 @@ import (
 
 type githubClient struct {
 	*github.ActionsService
-	org  *github.OrganizationsService
-	repo *github.RepositoriesService
+	org        *github.OrganizationsService
+	repo       *github.RepositoriesService
+	enterprise *github.EnterpriseService
 }
+
+const (
+	metricsLabelEnterpriseScope   = "Enterprise"
+	metricsLabelRepositoryScope   = "Repository"
+	metricsLabelOrganizationScope = "Organization"
+)
 
 func (g *githubClient) ListOrgHooks(ctx context.Context, org string, opts *github.ListOptions) ([]*github.Hook, *github.Response, error) {
 	return g.org.ListHooks(ctx, org, opts)
@@ -70,6 +77,24 @@ func (g *githubClient) PingRepoHook(ctx context.Context, owner, repo string, id 
 	return g.repo.PingHook(ctx, owner, repo, id)
 }
 
+func (g *githubClient) ListEntityRunners(ctx context.Context, entity params.GithubEntity, opts *github.ListOptions) (*github.Runners, *github.Response, error) {
+	var runners *github.Runners
+	var response *github.Response
+	var err error
+	switch entity.EntityType {
+	case params.GithubEntityTypeRepository:
+		runners, response, err = g.ListRunners(ctx, entity.Owner, entity.Name, opts)
+	case params.GithubEntityTypeOrganization:
+		runners, response, err = g.ListOrganizationRunners(ctx, entity.Owner, opts)
+	case params.GithubEntityTypeEnterprise:
+		runners, response, err = g.enterprise.ListRunners(ctx, entity.Owner, opts)
+	default:
+		return nil, nil, errors.New("invalid entity type")
+	}
+
+	return runners, response, err
+}
+
 func GithubClient(_ context.Context, credsDetails params.GithubCredentials) (common.GithubClient, common.GithubEnterpriseClient, error) {
 	if credsDetails.HTTPClient == nil {
 		return nil, nil, errors.New("http client is nil")
@@ -83,6 +108,7 @@ func GithubClient(_ context.Context, credsDetails params.GithubCredentials) (com
 		ActionsService: ghClient.Actions,
 		org:            ghClient.Organizations,
 		repo:           ghClient.Repositories,
+		enterprise:     ghClient.Enterprise,
 	}
 	return cli, ghClient.Enterprise, nil
 }

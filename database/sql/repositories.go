@@ -219,7 +219,7 @@ func (s *sqlDatabase) CreateRepositoryPool(ctx context.Context, repoID string, p
 }
 
 func (s *sqlDatabase) ListRepoPools(ctx context.Context, repoID string) ([]params.Pool, error) {
-	pools, err := s.listEntityPools(ctx, params.RepositoryPool, repoID, "Tags", "Instances", "Repository")
+	pools, err := s.listEntityPools(ctx, params.GithubEntityTypeRepository, repoID, "Tags", "Instances", "Repository")
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching pools")
 	}
@@ -236,7 +236,7 @@ func (s *sqlDatabase) ListRepoPools(ctx context.Context, repoID string) ([]param
 }
 
 func (s *sqlDatabase) GetRepositoryPool(ctx context.Context, repoID, poolID string) (params.Pool, error) {
-	pool, err := s.getEntityPool(ctx, params.RepositoryPool, repoID, poolID, "Tags", "Instances")
+	pool, err := s.getEntityPool(ctx, params.GithubEntityTypeRepository, repoID, poolID, "Tags", "Instances")
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}
@@ -244,7 +244,7 @@ func (s *sqlDatabase) GetRepositoryPool(ctx context.Context, repoID, poolID stri
 }
 
 func (s *sqlDatabase) DeleteRepositoryPool(ctx context.Context, repoID, poolID string) error {
-	pool, err := s.getEntityPool(ctx, params.RepositoryPool, repoID, poolID)
+	pool, err := s.getEntityPool(ctx, params.GithubEntityTypeRepository, repoID, poolID)
 	if err != nil {
 		return errors.Wrap(err, "looking up repo pool")
 	}
@@ -256,7 +256,7 @@ func (s *sqlDatabase) DeleteRepositoryPool(ctx context.Context, repoID, poolID s
 }
 
 func (s *sqlDatabase) FindRepositoryPoolByTags(_ context.Context, repoID string, tags []string) (params.Pool, error) {
-	pool, err := s.findPoolByTags(repoID, params.RepositoryPool, tags)
+	pool, err := s.findPoolByTags(repoID, params.GithubEntityTypeRepository, tags)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}
@@ -264,7 +264,7 @@ func (s *sqlDatabase) FindRepositoryPoolByTags(_ context.Context, repoID string,
 }
 
 func (s *sqlDatabase) ListRepoInstances(ctx context.Context, repoID string) ([]params.Instance, error) {
-	pools, err := s.listEntityPools(ctx, params.RepositoryPool, repoID, "Tags", "Instances", "Instances.Job")
+	pools, err := s.listEntityPools(ctx, params.GithubEntityTypeRepository, repoID, "Tags", "Instances", "Instances.Job")
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching repo")
 	}
@@ -283,7 +283,7 @@ func (s *sqlDatabase) ListRepoInstances(ctx context.Context, repoID string) ([]p
 }
 
 func (s *sqlDatabase) UpdateRepositoryPool(ctx context.Context, repoID, poolID string, param params.UpdatePoolParams) (params.Pool, error) {
-	pool, err := s.getEntityPool(ctx, params.RepositoryPool, repoID, poolID, "Tags", "Instances", "Enterprise", "Organization", "Repository")
+	pool, err := s.getEntityPool(ctx, params.GithubEntityTypeRepository, repoID, poolID, "Tags", "Instances", "Enterprise", "Organization", "Repository")
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}

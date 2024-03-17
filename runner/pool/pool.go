@@ -58,10 +58,6 @@ const (
 	// nolint:golangci-lint,godox
 	// TODO: make this configurable(?)
 	maxCreateAttempts = 5
-
-	metricsLabelEnterpriseScope   = "Enterprise"
-	metricsLabelRepositoryScope   = "Repository"
-	metricsLabelOrganizationScope = "Organization"
 )
 
 type keyMutex struct {
@@ -99,6 +95,7 @@ type urls struct {
 type basePoolManager struct {
 	ctx          context.Context
 	controllerID string
+	entity       params.GithubEntity
 
 	store dbCommon.Store
 
@@ -145,7 +142,7 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 				return
 			}
 			// This job is new to us. Check if we have a pool that can handle it.
-			potentialPools, err := r.store.FindPoolsMatchingAllTags(r.ctx, r.helper.PoolType(), r.helper.ID(), jobParams.Labels)
+			potentialPools, err := r.store.FindPoolsMatchingAllTags(r.ctx, r.entity.EntityType, r.helper.ID(), jobParams.Labels)
 			if err != nil {
 				slog.With(slog.Any("error", err)).ErrorContext(
 					r.ctx, "failed to find pools matching tags; not recording job",
@@ -1035,15 +1032,15 @@ func (r *basePoolManager) paramsWorkflowJobToParamsJob(job params.WorkflowJob) (
 
 	jobParams.RunnerName = runnerName
 
-	switch r.helper.PoolType() {
-	case params.EnterprisePool:
+	switch r.entity.EntityType {
+	case params.GithubEntityTypeEnterprise:
 		jobParams.EnterpriseID = &asUUID
-	case params.RepositoryPool:
+	case params.GithubEntityTypeRepository:
 		jobParams.RepoID = &asUUID
-	case params.OrganizationPool:
+	case params.GithubEntityTypeOrganization:
 		jobParams.OrgID = &asUUID
 	default:
-		return jobParams, errors.Errorf("unknown pool type: %s", r.helper.PoolType())
+		return jobParams, errors.Errorf("unknown pool type: %s", r.entity.EntityType)
 	}
 
 	return jobParams, nil
@@ -1147,7 +1144,7 @@ func (r *basePoolManager) scaleDownOnePool(ctx context.Context, pool params.Pool
 		// nolint:golangci-lint,godox
 		// TODO: should probably allow aditional filters to list functions. Would help to filter by date
 		// instead of returning a bunch of results and filtering manually.
-		queued, err := r.store.ListEntityJobsByStatus(r.ctx, r.helper.PoolType(), r.helper.ID(), params.JobStatusQueued)
+		queued, err := r.store.ListEntityJobsByStatus(r.ctx, r.entity.EntityType, r.helper.ID(), params.JobStatusQueued)
 		if err != nil && !errors.Is(err, runnerErrors.ErrNotFound) {
 			return errors.Wrap(err, "listing queued jobs")
 		}
@@ -1767,7 +1764,7 @@ func (r *basePoolManager) DeleteRunner(runner params.Instance, forceRemove, bypa
 // so those will trigger the creation of a runner. The jobs we don't know about will be dealt with by the idle runners.
 // Once jobs are consumed, you can set min-idle-runners to 0 again.
 func (r *basePoolManager) consumeQueuedJobs() error {
-	queued, err := r.store.ListEntityJobsByStatus(r.ctx, r.helper.PoolType(), r.helper.ID(), params.JobStatusQueued)
+	queued, err := r.store.ListEntityJobsByStatus(r.ctx, r.entity.EntityType, r.helper.ID(), params.JobStatusQueued)
 	if err != nil {
 		return errors.Wrap(err, "listing queued jobs")
 	}
@@ -1825,7 +1822,7 @@ func (r *basePoolManager) consumeQueuedJobs() error {
 
 		poolRR, ok := poolsCache.Get(job.Labels)
 		if !ok {
-			potentialPools, err := r.store.FindPoolsMatchingAllTags(r.ctx, r.helper.PoolType(), r.helper.ID(), job.Labels)
+			potentialPools, err := r.store.FindPoolsMatchingAllTags(r.ctx, r.entity.EntityType, r.helper.ID(), job.Labels)
 			if err != nil {
 				slog.With(slog.Any("error", err)).ErrorContext(
 					r.ctx, "error finding pools matching labels")

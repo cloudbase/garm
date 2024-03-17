@@ -40,7 +40,7 @@ import (
 var _ poolHelper = &repository{}
 
 func NewRepositoryPoolManager(ctx context.Context, cfg params.Repository, cfgInternal params.Internal, providers map[string]common.Provider, store dbCommon.Store) (common.PoolManager, error) {
-	ctx = util.WithContext(ctx, slog.Any("pool_mgr", fmt.Sprintf("%s/%s", cfg.Owner, cfg.Name)), slog.Any("pool_type", params.RepositoryPool))
+	ctx = util.WithContext(ctx, slog.Any("pool_mgr", fmt.Sprintf("%s/%s", cfg.Owner, cfg.Name)), slog.Any("pool_type", params.GithubEntityTypeRepository))
 	ghc, _, err := util.GithubClient(ctx, cfgInternal.GithubCredentialsDetails)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting github client")
@@ -59,7 +59,12 @@ func NewRepositoryPoolManager(ctx context.Context, cfg params.Repository, cfgInt
 	}
 
 	repo := &basePoolManager{
-		ctx:          ctx,
+		ctx: ctx,
+		entity: params.GithubEntity{
+			Name:       cfg.Name,
+			Owner:      cfg.Owner,
+			EntityType: params.GithubEntityTypeRepository,
+		},
 		store:        store,
 		providers:    providers,
 		controllerID: cfgInternal.ControllerID,
@@ -111,14 +116,14 @@ func (r *repository) GetJITConfig(ctx context.Context, instance string, pool par
 		WorkFolder: github.String("_work"),
 	}
 	metrics.GithubOperationCount.WithLabelValues(
-		"GenerateRepoJITConfig",     // label: operation
-		metricsLabelRepositoryScope, // label: scope
+		"GenerateRepoJITConfig",            // label: operation
+		params.MetricsLabelRepositoryScope, // label: scope
 	).Inc()
 	jitConfig, resp, err := r.ghcli.GenerateRepoJITConfig(ctx, r.cfg.Owner, r.cfg.Name, &req)
 	if err != nil {
 		metrics.GithubOperationFailedCount.WithLabelValues(
-			"GenerateRepoJITConfig",     // label: operation
-			metricsLabelRepositoryScope, // label: scope
+			"GenerateRepoJITConfig",            // label: operation
+			params.MetricsLabelRepositoryScope, // label: scope
 		).Inc()
 		if resp != nil && resp.StatusCode == http.StatusUnauthorized {
 			return nil, nil, fmt.Errorf("failed to get JIT config: %w", err)
@@ -130,14 +135,14 @@ func (r *repository) GetJITConfig(ctx context.Context, instance string, pool par
 	defer func() {
 		if err != nil && runner != nil {
 			metrics.GithubOperationCount.WithLabelValues(
-				"RemoveRunner",              // label: operation
-				metricsLabelRepositoryScope, // label: scope
+				"RemoveRunner",                     // label: operation
+				params.MetricsLabelRepositoryScope, // label: scope
 			).Inc()
 			_, innerErr := r.ghcli.RemoveRunner(r.ctx, r.cfg.Owner, r.cfg.Name, runner.GetID())
 			if innerErr != nil {
 				metrics.GithubOperationFailedCount.WithLabelValues(
-					"RemoveRunner",              // label: operation
-					metricsLabelRepositoryScope, // label: scope
+					"RemoveRunner",                     // label: operation
+					params.MetricsLabelRepositoryScope, // label: scope
 				).Inc()
 			}
 			slog.With(slog.Any("error", innerErr)).ErrorContext(
@@ -161,23 +166,19 @@ func (r *repository) GetJITConfig(ctx context.Context, instance string, pool par
 	return ret, runner, nil
 }
 
-func (r *repository) PoolType() params.PoolType {
-	return params.RepositoryPool
-}
-
 func (r *repository) GetRunnerInfoFromWorkflow(job params.WorkflowJob) (params.RunnerInfo, error) {
 	if err := r.ValidateOwner(job); err != nil {
 		return params.RunnerInfo{}, errors.Wrap(err, "validating owner")
 	}
 	metrics.GithubOperationCount.WithLabelValues(
-		"GetWorkflowJobByID",        // label: operation
-		metricsLabelRepositoryScope, // label: scope
+		"GetWorkflowJobByID",               // label: operation
+		params.MetricsLabelRepositoryScope, // label: scope
 	).Inc()
 	workflow, ghResp, err := r.ghcli.GetWorkflowJobByID(r.ctx, job.Repository.Owner.Login, job.Repository.Name, job.WorkflowJob.ID)
 	if err != nil {
 		metrics.GithubOperationFailedCount.WithLabelValues(
-			"GetWorkflowJobByID",        // label: operation
-			metricsLabelRepositoryScope, // label: scope
+			"GetWorkflowJobByID",               // label: operation
+			params.MetricsLabelRepositoryScope, // label: scope
 		).Inc()
 		if ghResp != nil && ghResp.StatusCode == http.StatusUnauthorized {
 			return params.RunnerInfo{}, errors.Wrap(runnerErrors.ErrUnauthorized, "fetching workflow info")
@@ -219,14 +220,14 @@ func (r *repository) GetGithubRunners() ([]*github.Runner, error) {
 	var allRunners []*github.Runner
 	for {
 		metrics.GithubOperationCount.WithLabelValues(
-			"ListRunners",               // label: operation
-			metricsLabelRepositoryScope, // label: scope
+			"ListRunners",                      // label: operation
+			params.MetricsLabelRepositoryScope, // label: scope
 		).Inc()
 		runners, ghResp, err := r.ghcli.ListRunners(r.ctx, r.cfg.Owner, r.cfg.Name, &opts)
 		if err != nil {
 			metrics.GithubOperationFailedCount.WithLabelValues(
-				"ListRunners",               // label: operation
-				metricsLabelRepositoryScope, // label: scope
+				"ListRunners",                      // label: operation
+				params.MetricsLabelRepositoryScope, // label: scope
 			).Inc()
 			if ghResp != nil && ghResp.StatusCode == http.StatusUnauthorized {
 				return nil, errors.Wrap(runnerErrors.ErrUnauthorized, "fetching runners")
@@ -247,14 +248,14 @@ func (r *repository) FetchTools() ([]commonParams.RunnerApplicationDownload, err
 	r.mux.Lock()
 	defer r.mux.Unlock()
 	metrics.GithubOperationCount.WithLabelValues(
-		"ListRunnerApplicationDownloads", // label: operation
-		metricsLabelRepositoryScope,      // label: scope
+		"ListRunnerApplicationDownloads",   // label: operation
+		params.MetricsLabelRepositoryScope, // label: scope
 	).Inc()
 	tools, ghResp, err := r.ghcli.ListRunnerApplicationDownloads(r.ctx, r.cfg.Owner, r.cfg.Name)
 	if err != nil {
 		metrics.GithubOperationFailedCount.WithLabelValues(
-			"ListRunnerApplicationDownloads", // label: operation
-			metricsLabelRepositoryScope,      // label: scope
+			"ListRunnerApplicationDownloads",   // label: operation
+			params.MetricsLabelRepositoryScope, // label: scope
 		).Inc()
 		if ghResp != nil && ghResp.StatusCode == http.StatusUnauthorized {
 			return nil, errors.Wrap(runnerErrors.ErrUnauthorized, "fetching tools")
@@ -279,14 +280,14 @@ func (r *repository) FetchDbInstances() ([]params.Instance, error) {
 
 func (r *repository) RemoveGithubRunner(runnerID int64) (*github.Response, error) {
 	metrics.GithubOperationCount.WithLabelValues(
-		"RemoveRunner",              // label: operation
-		metricsLabelRepositoryScope, // label: scope
+		"RemoveRunner",                     // label: operation
+		params.MetricsLabelRepositoryScope, // label: scope
 	).Inc()
 	ghResp, err := r.ghcli.RemoveRunner(r.ctx, r.cfg.Owner, r.cfg.Name, runnerID)
 	if err != nil {
 		metrics.GithubOperationFailedCount.WithLabelValues(
-			"RemoveRunner",              // label: operation
-			metricsLabelRepositoryScope, // label: scope
+			"RemoveRunner",                     // label: operation
+			params.MetricsLabelRepositoryScope, // label: scope
 		).Inc()
 		return nil, err
 	}
@@ -312,14 +313,14 @@ func (r *repository) JwtToken() string {
 
 func (r *repository) GetGithubRegistrationToken() (string, error) {
 	metrics.GithubOperationCount.WithLabelValues(
-		"CreateRegistrationToken",   // label: operation
-		metricsLabelRepositoryScope, // label: scope
+		"CreateRegistrationToken",          // label: operation
+		params.MetricsLabelRepositoryScope, // label: scope
 	).Inc()
 	tk, ghResp, err := r.ghcli.CreateRegistrationToken(r.ctx, r.cfg.Owner, r.cfg.Name)
 	if err != nil {
 		metrics.GithubOperationFailedCount.WithLabelValues(
-			"CreateRegistrationToken",   // label: operation
-			metricsLabelRepositoryScope, // label: scope
+			"CreateRegistrationToken",          // label: operation
+			params.MetricsLabelRepositoryScope, // label: scope
 		).Inc()
 		if ghResp != nil && ghResp.StatusCode == http.StatusUnauthorized {
 			return "", errors.Wrap(runnerErrors.ErrUnauthorized, "fetching token")
@@ -363,14 +364,14 @@ func (r *repository) listHooks(ctx context.Context) ([]*github.Hook, error) {
 	var allHooks []*github.Hook
 	for {
 		metrics.GithubOperationCount.WithLabelValues(
-			"ListRepoHooks",             // label: operation
-			metricsLabelRepositoryScope, // label: scope
+			"ListRepoHooks",                    // label: operation
+			params.MetricsLabelRepositoryScope, // label: scope
 		).Inc()
 		hooks, ghResp, err := r.ghcli.ListRepoHooks(ctx, r.cfg.Owner, r.cfg.Name, &opts)
 		if err != nil {
-			metrics.GithubOperationCount.WithLabelValues(
-				"ListRepoHooks",             // label: operation
-				metricsLabelRepositoryScope, // label: scope
+			metrics.GithubOperationFailedCount.WithLabelValues(
+				"ListRepoHooks",                    // label: operation
+				params.MetricsLabelRepositoryScope, // label: scope
 			).Inc()
 			if ghResp != nil && ghResp.StatusCode == http.StatusNotFound {
 				return nil, runnerErrors.NewBadRequestError("repository not found or your PAT does not have access to manage webhooks")
@@ -397,28 +398,28 @@ func (r *repository) InstallHook(ctx context.Context, req *github.Hook) (params.
 	}
 
 	metrics.GithubOperationCount.WithLabelValues(
-		"CreateRepoHook",            // label: operation
-		metricsLabelRepositoryScope, // label: scope
+		"CreateRepoHook",                   // label: operation
+		params.MetricsLabelRepositoryScope, // label: scope
 	).Inc()
 
 	hook, _, err := r.ghcli.CreateRepoHook(ctx, r.cfg.Owner, r.cfg.Name, req)
 	if err != nil {
 		metrics.GithubOperationFailedCount.WithLabelValues(
-			"CreateRepoHook",            // label: operation
-			metricsLabelRepositoryScope, // label: scope
+			"CreateRepoHook",                   // label: operation
+			params.MetricsLabelRepositoryScope, // label: scope
 		).Inc()
 		return params.HookInfo{}, errors.Wrap(err, "creating repository hook")
 	}
 
 	metrics.GithubOperationCount.WithLabelValues(
-		"PingRepoHook",              // label: operation
-		metricsLabelRepositoryScope, // label: scope
+		"PingRepoHook",                     // label: operation
+		params.MetricsLabelRepositoryScope, // label: scope
 	).Inc()
 
 	if _, err := r.ghcli.PingRepoHook(ctx, r.cfg.Owner, r.cfg.Name, hook.GetID()); err != nil {
 		metrics.GithubOperationFailedCount.WithLabelValues(
-			"PingRepoHook",              // label: operation
-			metricsLabelRepositoryScope, // label: scope
+			"PingRepoHook",                     // label: operation
+			params.MetricsLabelRepositoryScope, // label: scope
 		).Inc()
 		slog.With(slog.Any("error", err)).ErrorContext(
 			ctx, "failed to ping hook",
@@ -439,14 +440,14 @@ func (r *repository) UninstallHook(ctx context.Context, url string) error {
 	for _, hook := range allHooks {
 		if hook.Config["url"] == url {
 			metrics.GithubOperationCount.WithLabelValues(
-				"DeleteRepoHook",            // label: operation
-				metricsLabelRepositoryScope, // label: scope
+				"DeleteRepoHook",                   // label: operation
+				params.MetricsLabelRepositoryScope, // label: scope
 			).Inc()
 			_, err = r.ghcli.DeleteRepoHook(ctx, r.cfg.Owner, r.cfg.Name, hook.GetID())
 			if err != nil {
 				metrics.GithubOperationFailedCount.WithLabelValues(
-					"DeleteRepoHook",            // label: operation
-					metricsLabelRepositoryScope, // label: scope
+					"DeleteRepoHook",                   // label: operation
+					params.MetricsLabelRepositoryScope, // label: scope
 				).Inc()
 				return errors.Wrap(err, "deleting hook")
 			}
