@@ -35,8 +35,10 @@ import (
 	"github.com/cloudbase/garm-provider-common/util"
 	"github.com/cloudbase/garm/auth"
 	dbCommon "github.com/cloudbase/garm/database/common"
+	"github.com/cloudbase/garm/metrics"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
+	garmUtil "github.com/cloudbase/garm/util"
 )
 
 var (
@@ -96,6 +98,8 @@ type basePoolManager struct {
 	ctx          context.Context
 	controllerID string
 	entity       params.GithubEntity
+	ghcli        common.GithubClient
+	cfgInternal  params.Internal
 
 	store dbCommon.Store
 
@@ -117,7 +121,7 @@ type basePoolManager struct {
 }
 
 func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
-	if err := r.helper.ValidateOwner(job); err != nil {
+	if err := r.ValidateOwner(job); err != nil {
 		return errors.Wrap(err, "validating owner")
 	}
 
@@ -142,7 +146,7 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 				return
 			}
 			// This job is new to us. Check if we have a pool that can handle it.
-			potentialPools, err := r.store.FindPoolsMatchingAllTags(r.ctx, r.entity.EntityType, r.helper.ID(), jobParams.Labels)
+			potentialPools, err := r.store.FindPoolsMatchingAllTags(r.ctx, r.entity.EntityType, r.entity.ID, jobParams.Labels)
 			if err != nil {
 				slog.With(slog.Any("error", err)).ErrorContext(
 					r.ctx, "failed to find pools matching tags; not recording job",
@@ -247,7 +251,7 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 
 		// A runner has picked up the job, and is now running it. It may need to be replaced if the pool has
 		// a minimum number of idle runners configured.
-		pool, err := r.store.GetPoolByID(r.ctx, instance.PoolID)
+		pool, err := r.helper.GetPoolByID(instance.PoolID)
 		if err != nil {
 			return errors.Wrap(err, "getting pool")
 		}
@@ -329,12 +333,12 @@ func (r *basePoolManager) startLoopForFunction(f func() error, interval time.Dur
 
 func (r *basePoolManager) updateTools() error {
 	// Update tools cache.
-	tools, err := r.helper.FetchTools()
+	tools, err := r.FetchTools()
 	if err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(
 			r.ctx, "failed to update tools for repo")
 		r.setPoolRunningState(false, err.Error())
-		return fmt.Errorf("failed to update tools for repo %s: %w", r.helper.String(), err)
+		return fmt.Errorf("failed to update tools for repo %s: %w", r.entity.String(), err)
 	}
 	r.mux.Lock()
 	r.tools = tools
@@ -419,7 +423,7 @@ func (r *basePoolManager) cleanupOrphanedProviderRunners(runners []*github.Runne
 			continue
 		}
 
-		pool, err := r.store.GetPoolByID(r.ctx, instance.PoolID)
+		pool, err := r.helper.GetPoolByID(instance.PoolID)
 		if err != nil {
 			return errors.Wrap(err, "fetching instance pool info")
 		}
@@ -489,7 +493,7 @@ func (r *basePoolManager) reapTimedOutRunners(runners []*github.Runner) error {
 		}
 		defer r.keyMux.Unlock(instance.Name, false)
 
-		pool, err := r.store.GetPoolByID(r.ctx, instance.PoolID)
+		pool, err := r.helper.GetPoolByID(instance.PoolID)
 		if err != nil {
 			return errors.Wrap(err, "fetching instance pool info")
 		}
@@ -557,7 +561,7 @@ func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner)
 			slog.InfoContext(
 				r.ctx, "Runner has no database entry in garm, removing from github",
 				"runner_name", runner.GetName())
-			resp, err := r.helper.RemoveGithubRunner(*runner.ID)
+			resp, err := r.RemoveGithubRunner(*runner.ID)
 			if err != nil {
 				// Removed in the meantime?
 				if resp != nil && resp.StatusCode == http.StatusNotFound {
@@ -637,7 +641,7 @@ func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner)
 				slog.InfoContext(
 					r.ctx, "Runner instance is no longer on the provider, removing from github",
 					"runner_name", dbInstance.Name)
-				resp, err := r.helper.RemoveGithubRunner(*runner.ID)
+				resp, err := r.RemoveGithubRunner(*runner.ID)
 				if err != nil {
 					// Removed in the meantime?
 					if resp != nil && resp.StatusCode == http.StatusNotFound {
@@ -775,7 +779,7 @@ func (r *basePoolManager) AddRunner(ctx context.Context, poolID string, aditiona
 
 	if !provider.DisableJITConfig() {
 		// Attempt to create JIT config
-		jitConfig, runner, err = r.helper.GetJITConfig(ctx, name, pool, labels)
+		jitConfig, runner, err = r.ghcli.GetEntityJITConfig(ctx, name, pool, labels)
 		if err != nil {
 			slog.With(slog.Any("error", err)).ErrorContext(
 				ctx, "failed to get JIT config, falling back to registration token")
@@ -816,7 +820,7 @@ func (r *basePoolManager) AddRunner(ctx context.Context, poolID string, aditiona
 			}
 
 			if runner != nil {
-				_, runnerCleanupErr := r.helper.RemoveGithubRunner(runner.GetID())
+				_, runnerCleanupErr := r.RemoveGithubRunner(runner.GetID())
 				if err != nil {
 					slog.With(slog.Any("error", runnerCleanupErr)).ErrorContext(
 						ctx, "failed to remove runner",
@@ -878,8 +882,8 @@ func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error 
 
 	jwtValidity := pool.RunnerTimeout()
 
-	entity := r.helper.String()
-	jwtToken, err := auth.NewInstanceJWTToken(instance, r.helper.JwtToken(), entity, pool.PoolType(), jwtValidity)
+	entity := r.entity.String()
+	jwtToken, err := auth.NewInstanceJWTToken(instance, r.JwtToken(), entity, pool.PoolType(), jwtValidity)
 	if err != nil {
 		return errors.Wrap(err, "fetching instance jwt token")
 	}
@@ -889,7 +893,7 @@ func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error 
 	bootstrapArgs := commonParams.BootstrapInstance{
 		Name:              instance.Name,
 		Tools:             r.tools,
-		RepoURL:           r.helper.GithubURL(),
+		RepoURL:           r.GithubURL(),
 		MetadataURL:       instance.MetadataURL,
 		CallbackURL:       instance.CallbackURL,
 		InstanceToken:     jwtToken,
@@ -962,7 +966,7 @@ func (r *basePoolManager) getRunnerDetailsFromJob(job params.WorkflowJob) (param
 		slog.InfoContext(
 			r.ctx, "runner name not found in workflow job, attempting to fetch from API",
 			"job_id", job.WorkflowJob.ID)
-		runnerInfo, err = r.helper.GetRunnerInfoFromWorkflow(job)
+		runnerInfo, err = r.GetRunnerInfoFromWorkflow(job)
 		if err != nil {
 			return params.RunnerInfo{}, errors.Wrap(err, "fetching runner name from API")
 		}
@@ -1144,7 +1148,7 @@ func (r *basePoolManager) scaleDownOnePool(ctx context.Context, pool params.Pool
 		// nolint:golangci-lint,godox
 		// TODO: should probably allow aditional filters to list functions. Would help to filter by date
 		// instead of returning a bunch of results and filtering manually.
-		queued, err := r.store.ListEntityJobsByStatus(r.ctx, r.entity.EntityType, r.helper.ID(), params.JobStatusQueued)
+		queued, err := r.store.ListEntityJobsByStatus(r.ctx, r.entity.EntityType, r.entity.ID, params.JobStatusQueued)
 		if err != nil && !errors.Is(err, runnerErrors.ErrNotFound) {
 			return errors.Wrap(err, "listing queued jobs")
 		}
@@ -1584,7 +1588,7 @@ func (r *basePoolManager) Wait() error {
 func (r *basePoolManager) runnerCleanup() (err error) {
 	slog.DebugContext(
 		r.ctx, "running runner cleanup")
-	runners, err := r.helper.GetGithubRunners()
+	runners, err := r.GetGithubRunners()
 	if err != nil {
 		return fmt.Errorf("failed to fetch github runners: %w", err)
 	}
@@ -1650,9 +1654,27 @@ func (r *basePoolManager) Stop() error {
 }
 
 func (r *basePoolManager) RefreshState(param params.UpdatePoolStateParams) error {
-	if err := r.helper.UpdateState(param); err != nil {
-		return fmt.Errorf("failed to update pool state: %w", err)
+	r.mux.Lock()
+
+	r.entity.WebhookSecret = param.WebhookSecret
+	if param.InternalConfig != nil {
+		r.cfgInternal = *param.InternalConfig
 	}
+
+	r.urls = urls{
+		webhookURL:           r.cfgInternal.BaseWebhookURL,
+		callbackURL:          r.cfgInternal.InstanceCallbackURL,
+		metadataURL:          r.cfgInternal.InstanceMetadataURL,
+		controllerWebhookURL: r.cfgInternal.ControllerWebhookURL,
+	}
+
+	ghc, err := garmUtil.GithubClient(r.ctx, r.entity, r.cfgInternal.GithubCredentialsDetails)
+	if err != nil {
+		return errors.Wrap(err, "getting github client")
+	}
+	r.ghcli = ghc
+	r.mux.Unlock()
+
 	// Update the tools as soon as state is updated. This should revive a stopped pool manager
 	// or stop one if the supplied credentials are not okay.
 	if err := r.updateTools(); err != nil {
@@ -1662,25 +1684,25 @@ func (r *basePoolManager) RefreshState(param params.UpdatePoolStateParams) error
 }
 
 func (r *basePoolManager) WebhookSecret() string {
-	return r.helper.WebhookSecret()
+	return r.entity.WebhookSecret
 }
 
 func (r *basePoolManager) GithubRunnerRegistrationToken() (string, error) {
-	return r.helper.GetGithubRegistrationToken()
+	return r.GetGithubRegistrationToken()
 }
 
 func (r *basePoolManager) ID() string {
-	return r.helper.ID()
+	return r.entity.ID
 }
 
 // Delete runner will delete a runner from a pool. If forceRemove is set to true, any error received from
 // the IaaS provider will be ignored and deletion will continue.
 func (r *basePoolManager) DeleteRunner(runner params.Instance, forceRemove, bypassGHUnauthorizedError bool) error {
 	if !r.managerIsRunning && !bypassGHUnauthorizedError {
-		return runnerErrors.NewConflictError("pool manager is not running for %s", r.helper.String())
+		return runnerErrors.NewConflictError("pool manager is not running for %s", r.entity.String())
 	}
 	if runner.AgentID != 0 {
-		resp, err := r.helper.RemoveGithubRunner(runner.AgentID)
+		resp, err := r.RemoveGithubRunner(runner.AgentID)
 		if err != nil {
 			if resp != nil {
 				switch resp.StatusCode {
@@ -1764,13 +1786,13 @@ func (r *basePoolManager) DeleteRunner(runner params.Instance, forceRemove, bypa
 // so those will trigger the creation of a runner. The jobs we don't know about will be dealt with by the idle runners.
 // Once jobs are consumed, you can set min-idle-runners to 0 again.
 func (r *basePoolManager) consumeQueuedJobs() error {
-	queued, err := r.store.ListEntityJobsByStatus(r.ctx, r.entity.EntityType, r.helper.ID(), params.JobStatusQueued)
+	queued, err := r.store.ListEntityJobsByStatus(r.ctx, r.entity.EntityType, r.entity.ID, params.JobStatusQueued)
 	if err != nil {
 		return errors.Wrap(err, "listing queued jobs")
 	}
 
 	poolsCache := poolsForTags{
-		poolCacheType: r.helper.PoolBalancerType(),
+		poolCacheType: r.PoolBalancerType(),
 	}
 
 	slog.DebugContext(
@@ -1822,7 +1844,7 @@ func (r *basePoolManager) consumeQueuedJobs() error {
 
 		poolRR, ok := poolsCache.Get(job.Labels)
 		if !ok {
-			potentialPools, err := r.store.FindPoolsMatchingAllTags(r.ctx, r.entity.EntityType, r.helper.ID(), job.Labels)
+			potentialPools, err := r.store.FindPoolsMatchingAllTags(r.ctx, r.entity.EntityType, r.entity.ID, job.Labels)
 			if err != nil {
 				slog.With(slog.Any("error", err)).ErrorContext(
 					r.ctx, "error finding pools matching labels")
@@ -1893,6 +1915,49 @@ func (r *basePoolManager) consumeQueuedJobs() error {
 	return nil
 }
 
+func (r *basePoolManager) UninstallHook(ctx context.Context, url string) error {
+	allHooks, err := r.listHooks(ctx)
+	if err != nil {
+		return errors.Wrap(err, "listing hooks")
+	}
+
+	for _, hook := range allHooks {
+		if hook.Config["url"] == url {
+			_, err = r.ghcli.DeleteEntityHook(ctx, hook.GetID())
+			if err != nil {
+				return fmt.Errorf("deleting hook: %w", err)
+			}
+			return nil
+		}
+	}
+	return nil
+}
+
+func (r *basePoolManager) InstallHook(ctx context.Context, req *github.Hook) (params.HookInfo, error) {
+	allHooks, err := r.listHooks(ctx)
+	if err != nil {
+		return params.HookInfo{}, errors.Wrap(err, "listing hooks")
+	}
+
+	if err := validateHookRequest(r.cfgInternal.ControllerID, r.cfgInternal.BaseWebhookURL, allHooks, req); err != nil {
+		return params.HookInfo{}, errors.Wrap(err, "validating hook request")
+	}
+
+	hook, err := r.ghcli.CreateEntityHook(ctx, req)
+	if err != nil {
+		return params.HookInfo{}, errors.Wrap(err, "creating entity hook")
+	}
+
+	if _, err := r.ghcli.PingEntityHook(ctx, hook.GetID()); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(
+			ctx, "failed to ping hook",
+			"hook_id", hook.GetID(),
+			"entity", r.entity)
+	}
+
+	return hookToParamsHookInfo(hook), nil
+}
+
 func (r *basePoolManager) InstallWebhook(ctx context.Context, param params.InstallWebhookParams) (params.HookInfo, error) {
 	if r.urls.controllerWebhookURL == "" {
 		return params.HookInfo{}, errors.Wrap(runnerErrors.ErrBadRequest, "controller webhook url is empty")
@@ -1915,7 +1980,158 @@ func (r *basePoolManager) InstallWebhook(ctx context.Context, param params.Insta
 		},
 	}
 
-	return r.helper.InstallHook(ctx, req)
+	return r.InstallHook(ctx, req)
+}
+
+func (r *basePoolManager) GetHookInfo(ctx context.Context) (params.HookInfo, error) {
+	allHooks, err := r.listHooks(ctx)
+	if err != nil {
+		return params.HookInfo{}, errors.Wrap(err, "listing hooks")
+	}
+
+	for _, hook := range allHooks {
+		hookInfo := hookToParamsHookInfo(hook)
+		if strings.EqualFold(hookInfo.URL, r.urls.webhookURL) {
+			return hookInfo, nil
+		}
+	}
+
+	return params.HookInfo{}, runnerErrors.NewNotFoundError("hook not found")
+}
+
+func (r *basePoolManager) ValidateOwner(job params.WorkflowJob) error {
+	switch r.entity.EntityType {
+	case params.GithubEntityTypeRepository:
+		if !strings.EqualFold(job.Repository.Name, r.entity.Name) || !strings.EqualFold(job.Repository.Owner.Login, r.entity.Owner) {
+			return runnerErrors.NewBadRequestError("job not meant for this pool manager")
+		}
+	case params.GithubEntityTypeOrganization:
+		if !strings.EqualFold(job.Organization.Login, r.entity.Owner) {
+			return runnerErrors.NewBadRequestError("job not meant for this pool manager")
+		}
+	case params.GithubEntityTypeEnterprise:
+		if !strings.EqualFold(job.Enterprise.Slug, r.entity.Owner) {
+			return runnerErrors.NewBadRequestError("job not meant for this pool manager")
+		}
+	default:
+		return runnerErrors.NewBadRequestError("unknown entity type")
+	}
+
+	return nil
+}
+
+func (r *basePoolManager) GetRunnerInfoFromWorkflow(job params.WorkflowJob) (params.RunnerInfo, error) {
+	if err := r.ValidateOwner(job); err != nil {
+		return params.RunnerInfo{}, errors.Wrap(err, "validating owner")
+	}
+	metrics.GithubOperationCount.WithLabelValues(
+		"GetWorkflowJobByID",  // label: operation
+		r.entity.LabelScope(), // label: scope
+	).Inc()
+	workflow, ghResp, err := r.ghcli.GetWorkflowJobByID(r.ctx, job.Repository.Owner.Login, job.Repository.Name, job.WorkflowJob.ID)
+	if err != nil {
+		metrics.GithubOperationFailedCount.WithLabelValues(
+			"GetWorkflowJobByID",  // label: operation
+			r.entity.LabelScope(), // label: scope
+		).Inc()
+		if ghResp != nil && ghResp.StatusCode == http.StatusUnauthorized {
+			return params.RunnerInfo{}, errors.Wrap(runnerErrors.ErrUnauthorized, "fetching workflow info")
+		}
+		return params.RunnerInfo{}, errors.Wrap(err, "fetching workflow info")
+	}
+
+	if workflow.RunnerName != nil {
+		return params.RunnerInfo{
+			Name:   *workflow.RunnerName,
+			Labels: workflow.Labels,
+		}, nil
+	}
+	return params.RunnerInfo{}, fmt.Errorf("failed to find runner name from workflow")
+}
+
+func (r *basePoolManager) GetGithubRegistrationToken() (string, error) {
+	tk, ghResp, err := r.ghcli.CreateEntityRegistrationToken(r.ctx)
+	if err != nil {
+		if ghResp != nil && ghResp.StatusCode == http.StatusUnauthorized {
+			return "", errors.Wrap(runnerErrors.ErrUnauthorized, "fetching token")
+		}
+		return "", errors.Wrap(err, "creating runner token")
+	}
+	return *tk.Token, nil
+}
+
+func (r *basePoolManager) RemoveGithubRunner(runnerID int64) (*github.Response, error) {
+	ghResp, err := r.ghcli.RemoveEntityRunner(r.ctx, runnerID)
+	if err != nil {
+		return nil, fmt.Errorf("removing runner: %w", err)
+	}
+	return ghResp, nil
+}
+
+func (r *basePoolManager) FetchTools() ([]commonParams.RunnerApplicationDownload, error) {
+	tools, ghResp, err := r.ghcli.ListEntityRunnerApplicationDownloads(r.ctx)
+	if err != nil {
+		if ghResp != nil && ghResp.StatusCode == http.StatusUnauthorized {
+			return nil, errors.Wrap(runnerErrors.ErrUnauthorized, "fetching tools")
+		}
+		return nil, errors.Wrap(err, "fetching runner tools")
+	}
+
+	ret := []commonParams.RunnerApplicationDownload{}
+	for _, tool := range tools {
+		if tool == nil {
+			continue
+		}
+		ret = append(ret, commonParams.RunnerApplicationDownload(*tool))
+	}
+	return ret, nil
+}
+
+func (r *basePoolManager) GetGithubRunners() ([]*github.Runner, error) {
+	opts := github.ListOptions{
+		PerPage: 100,
+	}
+	var allRunners []*github.Runner
+
+	for {
+		runners, ghResp, err := r.ghcli.ListEntityRunners(r.ctx, &opts)
+		if err != nil {
+			if ghResp != nil && ghResp.StatusCode == http.StatusUnauthorized {
+				return nil, errors.Wrap(runnerErrors.ErrUnauthorized, "fetching runners")
+			}
+			return nil, errors.Wrap(err, "fetching runners")
+		}
+		allRunners = append(allRunners, runners.Runners...)
+		if ghResp.NextPage == 0 {
+			break
+		}
+		opts.Page = ghResp.NextPage
+	}
+
+	return allRunners, nil
+}
+
+func (r *basePoolManager) PoolBalancerType() params.PoolBalancerType {
+	if r.cfgInternal.PoolBalancerType == "" {
+		return params.PoolBalancerTypeRoundRobin
+	}
+	return r.cfgInternal.PoolBalancerType
+}
+
+func (r *basePoolManager) JwtToken() string {
+	return r.cfgInternal.JWTSecret
+}
+
+func (r *basePoolManager) GithubURL() string {
+	switch r.entity.EntityType {
+	case params.GithubEntityTypeRepository:
+		return fmt.Sprintf("%s/%s/%s", r.cfgInternal.GithubCredentialsDetails.BaseURL, r.entity.Owner, r.entity.Name)
+	case params.GithubEntityTypeOrganization:
+		return fmt.Sprintf("%s/%s", r.cfgInternal.GithubCredentialsDetails.BaseURL, r.entity.Owner)
+	case params.GithubEntityTypeEnterprise:
+		return fmt.Sprintf("%s/enterprises/%s", r.cfgInternal.GithubCredentialsDetails.BaseURL, r.entity.Owner)
+	}
+	return ""
 }
 
 func (r *basePoolManager) UninstallWebhook(ctx context.Context) error {
@@ -1923,11 +2139,11 @@ func (r *basePoolManager) UninstallWebhook(ctx context.Context) error {
 		return errors.Wrap(runnerErrors.ErrBadRequest, "controller webhook url is empty")
 	}
 
-	return r.helper.UninstallHook(ctx, r.urls.controllerWebhookURL)
+	return r.UninstallHook(ctx, r.urls.controllerWebhookURL)
 }
 
 func (r *basePoolManager) GetWebhookInfo(ctx context.Context) (params.HookInfo, error) {
-	return r.helper.GetHookInfo(ctx)
+	return r.GetHookInfo(ctx)
 }
 
 func (r *basePoolManager) RootCABundle() (params.CertificateBundle, error) {

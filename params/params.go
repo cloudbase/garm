@@ -647,9 +647,24 @@ type UpdateSystemInfoParams struct {
 type GithubEntity struct {
 	Owner      string           `json:"owner"`
 	Name       string           `json:"name"`
+	ID         string           `json:"id"`
 	EntityType GithubEntityType `json:"entity_type"`
+
+	WebhookSecret string `json:"-"`
 }
 
 func (g GithubEntity) LabelScope() string {
 	return cases.Title(language.English, cases.NoLower).String(g.EntityType.String())
+}
+
+func (g GithubEntity) String() string {
+	switch g.EntityType {
+	case GithubEntityTypeRepository:
+		return fmt.Sprintf("%s/%s", g.Owner, g.Name)
+	case GithubEntityTypeOrganization:
+		return g.Owner
+	case GithubEntityTypeEnterprise:
+		return g.Owner
+	}
+	return ""
 }
