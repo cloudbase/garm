@@ -667,9 +667,7 @@ func (g GithubEntity) String() string {
 	switch g.EntityType {
 	case GithubEntityTypeRepository:
 		return fmt.Sprintf("%s/%s", g.Owner, g.Name)
-	case GithubEntityTypeOrganization:
-		return g.Owner
-	case GithubEntityTypeEnterprise:
+	case GithubEntityTypeOrganization, GithubEntityTypeEnterprise:
 		return g.Owner
 	}
 	return ""
