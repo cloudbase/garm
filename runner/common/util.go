@@ -3,8 +3,9 @@ package common
 import (
 	"context"
 
-	"github.com/cloudbase/garm/params"
 	"github.com/google/go-github/v57/github"
+
+	"github.com/cloudbase/garm/params"
 )
 
 type GithubEntityOperations interface {

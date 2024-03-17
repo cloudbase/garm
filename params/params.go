@@ -25,8 +25,6 @@ import (
 
 	"github.com/google/go-github/v57/github"
 	"github.com/google/uuid"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm/util/appdefaults"
@@ -654,7 +652,15 @@ type GithubEntity struct {
 }
 
 func (g GithubEntity) LabelScope() string {
-	return cases.Title(language.English, cases.NoLower).String(g.EntityType.String())
+	switch g.EntityType {
+	case GithubEntityTypeRepository:
+		return MetricsLabelRepositoryScope
+	case GithubEntityTypeOrganization:
+		return MetricsLabelOrganizationScope
+	case GithubEntityTypeEnterprise:
+		return MetricsLabelEnterpriseScope
+	}
+	return ""
 }
 
 func (g GithubEntity) String() string {

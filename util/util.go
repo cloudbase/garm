@@ -22,10 +22,10 @@ import (
 	"log/slog"
 	"net/http"
 
-	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/google/go-github/v57/github"
 	"github.com/pkg/errors"
 
+	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/metrics"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
