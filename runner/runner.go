@@ -109,7 +109,14 @@ func (p *poolManagerCtrl) CreateRepoPoolManager(ctx context.Context, repo params
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching internal config")
 	}
-	poolManager, err := pool.NewRepositoryPoolManager(ctx, repo, cfgInternal, providers, store)
+	entity := params.GithubEntity{
+		Owner:         repo.Owner,
+		Name:          repo.Name,
+		ID:            repo.ID,
+		WebhookSecret: repo.WebhookSecret,
+		EntityType:    params.GithubEntityTypeRepository,
+	}
+	poolManager, err := pool.NewEntityPoolManager(ctx, entity, cfgInternal, providers, store)
 	if err != nil {
 		return nil, errors.Wrap(err, "creating repo pool manager")
 	}
@@ -175,7 +182,13 @@ func (p *poolManagerCtrl) CreateOrgPoolManager(ctx context.Context, org params.O
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching internal config")
 	}
-	poolManager, err := pool.NewOrganizationPoolManager(ctx, org, cfgInternal, providers, store)
+	entity := params.GithubEntity{
+		Owner:         org.Name,
+		ID:            org.ID,
+		WebhookSecret: org.WebhookSecret,
+		EntityType:    params.GithubEntityTypeOrganization,
+	}
+	poolManager, err := pool.NewEntityPoolManager(ctx, entity, cfgInternal, providers, store)
 	if err != nil {
 		return nil, errors.Wrap(err, "creating org pool manager")
 	}
@@ -241,7 +254,14 @@ func (p *poolManagerCtrl) CreateEnterprisePoolManager(ctx context.Context, enter
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching internal config")
 	}
-	poolManager, err := pool.NewEnterprisePoolManager(ctx, enterprise, cfgInternal, providers, store)
+
+	entity := params.GithubEntity{
+		Owner:         enterprise.Name,
+		ID:            enterprise.ID,
+		WebhookSecret: enterprise.WebhookSecret,
+		EntityType:    params.GithubEntityTypeEnterprise,
+	}
+	poolManager, err := pool.NewEntityPoolManager(ctx, entity, cfgInternal, providers, store)
 	if err != nil {
 		return nil, errors.Wrap(err, "creating enterprise pool manager")
 	}
