@@ -67,6 +67,7 @@ External providers are binaries that GARM calls into to create runners in a part
 * [Equinix Metal](https://github.com/cloudbase/garm-provider-equinix)
 * [Amazon EC2](https://github.com/cloudbase/garm-provider-aws)
 * [Google Cloud Platform (GCP)](https://github.com/cloudbase/garm-provider-gcp)
+* [Oracle Cloud Infrastructure (OCI)](https://github.com/cloudbase/garm-provider-oci)
 
 Follow the instructions in the README of each provider to install them. 
 
