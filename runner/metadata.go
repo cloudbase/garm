@@ -69,11 +69,11 @@ func (r *Runner) GetRunnerServiceName(ctx context.Context) (string, error) {
 	tpl := "actions.runner.%s.%s"
 	var serviceName string
 	switch pool.PoolType() {
-	case params.EnterprisePool:
+	case params.GithubEntityTypeEnterprise:
 		serviceName = fmt.Sprintf(tpl, pool.EnterpriseName, instance.Name)
-	case params.OrganizationPool:
+	case params.GithubEntityTypeOrganization:
 		serviceName = fmt.Sprintf(tpl, pool.OrgName, instance.Name)
-	case params.RepositoryPool:
+	case params.GithubEntityTypeRepository:
 		serviceName = fmt.Sprintf(tpl, strings.ReplaceAll(pool.RepoName, "/", "-"), instance.Name)
 	}
 	return serviceName, nil

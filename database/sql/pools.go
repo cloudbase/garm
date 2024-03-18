@@ -78,7 +78,7 @@ func (s *sqlDatabase) DeletePoolByID(ctx context.Context, poolID string) error {
 	return nil
 }
 
-func (s *sqlDatabase) getEntityPool(_ context.Context, entityType params.PoolType, entityID, poolID string, preload ...string) (Pool, error) {
+func (s *sqlDatabase) getEntityPool(_ context.Context, entityType params.GithubEntityType, entityID, poolID string, preload ...string) (Pool, error) {
 	if entityID == "" {
 		return Pool{}, errors.Wrap(runnerErrors.ErrBadRequest, "missing entity id")
 	}
@@ -97,11 +97,11 @@ func (s *sqlDatabase) getEntityPool(_ context.Context, entityType params.PoolTyp
 
 	var fieldName string
 	switch entityType {
-	case params.RepositoryPool:
+	case params.GithubEntityTypeRepository:
 		fieldName = entityTypeRepoName
-	case params.OrganizationPool:
+	case params.GithubEntityTypeOrganization:
 		fieldName = entityTypeOrgName
-	case params.EnterprisePool:
+	case params.GithubEntityTypeEnterprise:
 		fieldName = entityTypeEnterpriseName
 	default:
 		return Pool{}, fmt.Errorf("invalid entityType: %v", entityType)
@@ -122,7 +122,7 @@ func (s *sqlDatabase) getEntityPool(_ context.Context, entityType params.PoolTyp
 	return pool, nil
 }
 
-func (s *sqlDatabase) listEntityPools(_ context.Context, entityType params.PoolType, entityID string, preload ...string) ([]Pool, error) {
+func (s *sqlDatabase) listEntityPools(_ context.Context, entityType params.GithubEntityType, entityID string, preload ...string) ([]Pool, error) {
 	if _, err := uuid.Parse(entityID); err != nil {
 		return nil, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
 	}
@@ -136,11 +136,11 @@ func (s *sqlDatabase) listEntityPools(_ context.Context, entityType params.PoolT
 
 	var fieldName string
 	switch entityType {
-	case params.RepositoryPool:
+	case params.GithubEntityTypeRepository:
 		fieldName = entityTypeRepoName
-	case params.OrganizationPool:
+	case params.GithubEntityTypeOrganization:
 		fieldName = entityTypeOrgName
-	case params.EnterprisePool:
+	case params.GithubEntityTypeEnterprise:
 		fieldName = entityTypeEnterpriseName
 	default:
 		return nil, fmt.Errorf("invalid entityType: %v", entityType)
@@ -162,7 +162,7 @@ func (s *sqlDatabase) listEntityPools(_ context.Context, entityType params.PoolT
 	return pools, nil
 }
 
-func (s *sqlDatabase) findPoolByTags(id string, poolType params.PoolType, tags []string) ([]params.Pool, error) {
+func (s *sqlDatabase) findPoolByTags(id string, poolType params.GithubEntityType, tags []string) ([]params.Pool, error) {
 	if len(tags) == 0 {
 		return nil, runnerErrors.NewBadRequestError("missing tags")
 	}
@@ -173,11 +173,11 @@ func (s *sqlDatabase) findPoolByTags(id string, poolType params.PoolType, tags [
 
 	var fieldName string
 	switch poolType {
-	case params.RepositoryPool:
+	case params.GithubEntityTypeRepository:
 		fieldName = entityTypeRepoName
-	case params.OrganizationPool:
+	case params.GithubEntityTypeOrganization:
 		fieldName = entityTypeOrgName
-	case params.EnterprisePool:
+	case params.GithubEntityTypeEnterprise:
 		fieldName = entityTypeEnterpriseName
 	default:
 		return nil, fmt.Errorf("invalid poolType: %v", poolType)
@@ -216,7 +216,7 @@ func (s *sqlDatabase) findPoolByTags(id string, poolType params.PoolType, tags [
 	return ret, nil
 }
 
-func (s *sqlDatabase) FindPoolsMatchingAllTags(_ context.Context, entityType params.PoolType, entityID string, tags []string) ([]params.Pool, error) {
+func (s *sqlDatabase) FindPoolsMatchingAllTags(_ context.Context, entityType params.GithubEntityType, entityID string, tags []string) ([]params.Pool, error) {
 	if len(tags) == 0 {
 		return nil, runnerErrors.NewBadRequestError("missing tags")
 	}

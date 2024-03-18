@@ -4,22 +4,21 @@ import (
 	"context"
 
 	"github.com/google/go-github/v57/github"
+
+	"github.com/cloudbase/garm/params"
 )
 
-type OrganizationHooks interface {
-	ListOrgHooks(ctx context.Context, org string, opts *github.ListOptions) ([]*github.Hook, *github.Response, error)
-	GetOrgHook(ctx context.Context, org string, id int64) (*github.Hook, *github.Response, error)
-	CreateOrgHook(ctx context.Context, org string, hook *github.Hook) (*github.Hook, *github.Response, error)
-	DeleteOrgHook(ctx context.Context, org string, id int64) (*github.Response, error)
-	PingOrgHook(ctx context.Context, org string, id int64) (*github.Response, error)
-}
-
-type RepositoryHooks interface {
-	ListRepoHooks(ctx context.Context, owner, repo string, opts *github.ListOptions) ([]*github.Hook, *github.Response, error)
-	GetRepoHook(ctx context.Context, owner, repo string, id int64) (*github.Hook, *github.Response, error)
-	CreateRepoHook(ctx context.Context, owner, repo string, hook *github.Hook) (*github.Hook, *github.Response, error)
-	DeleteRepoHook(ctx context.Context, owner, repo string, id int64) (*github.Response, error)
-	PingRepoHook(ctx context.Context, owner, repo string, id int64) (*github.Response, error)
+type GithubEntityOperations interface {
+	ListEntityHooks(ctx context.Context, opts *github.ListOptions) (ret []*github.Hook, response *github.Response, err error)
+	GetEntityHook(ctx context.Context, id int64) (ret *github.Hook, err error)
+	CreateEntityHook(ctx context.Context, hook *github.Hook) (ret *github.Hook, err error)
+	DeleteEntityHook(ctx context.Context, id int64) (ret *github.Response, err error)
+	PingEntityHook(ctx context.Context, id int64) (ret *github.Response, err error)
+	ListEntityRunners(ctx context.Context, opts *github.ListOptions) (*github.Runners, *github.Response, error)
+	ListEntityRunnerApplicationDownloads(ctx context.Context) ([]*github.RunnerApplicationDownload, *github.Response, error)
+	RemoveEntityRunner(ctx context.Context, runnerID int64) (*github.Response, error)
+	CreateEntityRegistrationToken(ctx context.Context) (*github.RegistrationToken, *github.Response, error)
+	GetEntityJITConfig(ctx context.Context, instance string, pool params.Pool, labels []string) (jitConfigMap map[string]string, runner *github.Runner, err error)
 }
 
 // GithubClient that describes the minimum list of functions we need to interact with github.
@@ -27,50 +26,8 @@ type RepositoryHooks interface {
 //
 //go:generate mockery --all
 type GithubClient interface {
-	OrganizationHooks
-	RepositoryHooks
+	GithubEntityOperations
 
 	// GetWorkflowJobByID gets details about a single workflow job.
 	GetWorkflowJobByID(ctx context.Context, owner, repo string, jobID int64) (*github.WorkflowJob, *github.Response, error)
-	// ListRunners lists all runners within a repository.
-	ListRunners(ctx context.Context, owner, repo string, opts *github.ListOptions) (*github.Runners, *github.Response, error)
-	// ListRunnerApplicationDownloads returns a list of github runner application downloads for the
-	// various supported operating systems and architectures.
-	ListRunnerApplicationDownloads(ctx context.Context, owner, repo string) ([]*github.RunnerApplicationDownload, *github.Response, error)
-	// RemoveRunner removes one runner from a repository.
-	RemoveRunner(ctx context.Context, owner, repo string, runnerID int64) (*github.Response, error)
-	// CreateRegistrationToken creates a runner registration token for one repository.
-	CreateRegistrationToken(ctx context.Context, owner, repo string) (*github.RegistrationToken, *github.Response, error)
-	// GenerateRepoJITConfig generates a just-in-time configuration for a repository.
-	GenerateRepoJITConfig(ctx context.Context, owner, repo string, request *github.GenerateJITConfigRequest) (*github.JITRunnerConfig, *github.Response, error)
-
-	// ListOrganizationRunners lists all runners within an organization.
-	ListOrganizationRunners(ctx context.Context, owner string, opts *github.ListOptions) (*github.Runners, *github.Response, error)
-	// ListOrganizationRunnerApplicationDownloads returns a list of github runner application downloads for the
-	// various supported operating systems and architectures.
-	ListOrganizationRunnerApplicationDownloads(ctx context.Context, owner string) ([]*github.RunnerApplicationDownload, *github.Response, error)
-	// RemoveOrganizationRunner removes one github runner from an organization.
-	RemoveOrganizationRunner(ctx context.Context, owner string, runnerID int64) (*github.Response, error)
-	// CreateOrganizationRegistrationToken creates a runner registration token for an organization.
-	CreateOrganizationRegistrationToken(ctx context.Context, owner string) (*github.RegistrationToken, *github.Response, error)
-	// GenerateOrgJITConfig generate a just-in-time configuration for an organization.
-	GenerateOrgJITConfig(ctx context.Context, owner string, request *github.GenerateJITConfigRequest) (*github.JITRunnerConfig, *github.Response, error)
-	// ListOrganizationRunnerGroups lists all runner groups within an organization.
-	ListOrganizationRunnerGroups(ctx context.Context, org string, opts *github.ListOrgRunnerGroupOptions) (*github.RunnerGroups, *github.Response, error)
-}
-
-type GithubEnterpriseClient interface {
-	// ListRunners lists all runners within a repository.
-	ListRunners(ctx context.Context, enterprise string, opts *github.ListOptions) (*github.Runners, *github.Response, error)
-	// RemoveRunner removes one runner from an enterprise.
-	RemoveRunner(ctx context.Context, enterprise string, runnerID int64) (*github.Response, error)
-	// CreateRegistrationToken creates a runner registration token for an enterprise.
-	CreateRegistrationToken(ctx context.Context, enterprise string) (*github.RegistrationToken, *github.Response, error)
-	// ListRunnerApplicationDownloads returns a list of github runner application downloads for the
-	// various supported operating systems and architectures.
-	ListRunnerApplicationDownloads(ctx context.Context, enterprise string) ([]*github.RunnerApplicationDownload, *github.Response, error)
-	// GenerateEnterpriseJITConfig generate a just-in-time configuration for an enterprise.
-	GenerateEnterpriseJITConfig(ctx context.Context, enterprise string, request *github.GenerateJITConfigRequest) (*github.JITRunnerConfig, *github.Response, error)
-	// ListRunnerGroups lists all self-hosted runner groups configured in an enterprise.
-	ListRunnerGroups(ctx context.Context, enterprise string, opts *github.ListEnterpriseRunnerGroupOptions) (*github.EnterpriseRunnerGroups, *github.Response, error)
 }

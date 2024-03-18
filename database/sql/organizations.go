@@ -219,7 +219,7 @@ func (s *sqlDatabase) CreateOrganizationPool(ctx context.Context, orgID string, 
 }
 
 func (s *sqlDatabase) ListOrgPools(ctx context.Context, orgID string) ([]params.Pool, error) {
-	pools, err := s.listEntityPools(ctx, params.OrganizationPool, orgID, "Tags", "Instances", "Organization")
+	pools, err := s.listEntityPools(ctx, params.GithubEntityTypeOrganization, orgID, "Tags", "Instances", "Organization")
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching pools")
 	}
@@ -236,7 +236,7 @@ func (s *sqlDatabase) ListOrgPools(ctx context.Context, orgID string) ([]params.
 }
 
 func (s *sqlDatabase) GetOrganizationPool(ctx context.Context, orgID, poolID string) (params.Pool, error) {
-	pool, err := s.getEntityPool(ctx, params.OrganizationPool, orgID, poolID, "Tags", "Instances")
+	pool, err := s.getEntityPool(ctx, params.GithubEntityTypeOrganization, orgID, poolID, "Tags", "Instances")
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}
@@ -244,7 +244,7 @@ func (s *sqlDatabase) GetOrganizationPool(ctx context.Context, orgID, poolID str
 }
 
 func (s *sqlDatabase) DeleteOrganizationPool(ctx context.Context, orgID, poolID string) error {
-	pool, err := s.getEntityPool(ctx, params.OrganizationPool, orgID, poolID)
+	pool, err := s.getEntityPool(ctx, params.GithubEntityTypeOrganization, orgID, poolID)
 	if err != nil {
 		return errors.Wrap(err, "looking up org pool")
 	}
@@ -256,7 +256,7 @@ func (s *sqlDatabase) DeleteOrganizationPool(ctx context.Context, orgID, poolID 
 }
 
 func (s *sqlDatabase) FindOrganizationPoolByTags(_ context.Context, orgID string, tags []string) (params.Pool, error) {
-	pool, err := s.findPoolByTags(orgID, params.OrganizationPool, tags)
+	pool, err := s.findPoolByTags(orgID, params.GithubEntityTypeOrganization, tags)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}
@@ -264,7 +264,7 @@ func (s *sqlDatabase) FindOrganizationPoolByTags(_ context.Context, orgID string
 }
 
 func (s *sqlDatabase) ListOrgInstances(ctx context.Context, orgID string) ([]params.Instance, error) {
-	pools, err := s.listEntityPools(ctx, params.OrganizationPool, orgID, "Tags", "Instances", "Instances.Job")
+	pools, err := s.listEntityPools(ctx, params.GithubEntityTypeOrganization, orgID, "Tags", "Instances", "Instances.Job")
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching org")
 	}
@@ -282,7 +282,7 @@ func (s *sqlDatabase) ListOrgInstances(ctx context.Context, orgID string) ([]par
 }
 
 func (s *sqlDatabase) UpdateOrganizationPool(ctx context.Context, orgID, poolID string, param params.UpdatePoolParams) (params.Pool, error) {
-	pool, err := s.getEntityPool(ctx, params.OrganizationPool, orgID, poolID, "Tags", "Instances", "Enterprise", "Organization", "Repository")
+	pool, err := s.getEntityPool(ctx, params.GithubEntityTypeOrganization, orgID, poolID, "Tags", "Instances", "Enterprise", "Organization", "Repository")
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}
