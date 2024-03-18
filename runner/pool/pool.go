@@ -1959,15 +1959,35 @@ func (r *basePoolManager) UninstallHook(ctx context.Context, url string) error {
 		return errors.Wrap(err, "listing hooks")
 	}
 
+	var controllerHookID int64
+	var baseHook string
+	trimmedBase := strings.TrimRight(r.urls.webhookURL, "/")
+	trimmedController := strings.TrimRight(r.urls.controllerWebhookURL, "/")
+
 	for _, hook := range allHooks {
-		if hook.Config["url"] == url {
-			_, err = r.ghcli.DeleteEntityHook(ctx, hook.GetID())
-			if err != nil {
-				return fmt.Errorf("deleting hook: %w", err)
-			}
-			return nil
+		hookInfo := hookToParamsHookInfo(hook)
+		info := strings.TrimRight(hookInfo.URL, "/")
+		if strings.EqualFold(info, trimmedController) {
+			controllerHookID = hook.GetID()
+		}
+
+		if strings.EqualFold(info, trimmedBase) {
+			baseHook = hookInfo.URL
 		}
 	}
+
+	if controllerHookID != 0 {
+		_, err = r.ghcli.DeleteEntityHook(ctx, controllerHookID)
+		if err != nil {
+			return fmt.Errorf("deleting hook: %w", err)
+		}
+		return nil
+	}
+
+	if baseHook != "" {
+		return runnerErrors.NewBadRequestError("base hook found (%s) and must be deleted manually", baseHook)
+	}
+
 	return nil
 }
 
@@ -2203,12 +2223,32 @@ func (r *basePoolManager) GetWebhookInfo(ctx context.Context) (params.HookInfo, 
 	if err != nil {
 		return params.HookInfo{}, errors.Wrap(err, "listing hooks")
 	}
+	trimmedBase := strings.TrimRight(r.urls.webhookURL, "/")
+	trimmedController := strings.TrimRight(r.urls.controllerWebhookURL, "/")
+
+	var controllerHookInfo *params.HookInfo
+	var baseHookInfo *params.HookInfo
 
 	for _, hook := range allHooks {
 		hookInfo := hookToParamsHookInfo(hook)
-		if strings.EqualFold(hookInfo.URL, r.urls.controllerWebhookURL) || strings.EqualFold(hookInfo.URL, r.urls.webhookURL) {
-			return hookInfo, nil
+		info := strings.TrimRight(hookInfo.URL, "/")
+		if strings.EqualFold(info, trimmedController) {
+			controllerHookInfo = &hookInfo
+			break
 		}
+		if strings.EqualFold(info, trimmedBase) {
+			baseHookInfo = &hookInfo
+		}
+	}
+
+	// Return the controller hook info if available.
+	if controllerHookInfo != nil {
+		return *controllerHookInfo, nil
+	}
+
+	// Fall back to base hook info if defined.
+	if baseHookInfo != nil {
+		return *baseHookInfo, nil
 	}
 
 	return params.HookInfo{}, runnerErrors.NewNotFoundError("hook not found")
