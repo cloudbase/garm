@@ -1953,7 +1953,11 @@ func (r *basePoolManager) consumeQueuedJobs() error {
 	return nil
 }
 
-func (r *basePoolManager) UninstallHook(ctx context.Context, url string) error {
+func (r *basePoolManager) UninstallWebhook(ctx context.Context) error {
+	if r.urls.controllerWebhookURL == "" {
+		return errors.Wrap(runnerErrors.ErrBadRequest, "controller webhook url is empty")
+	}
+
 	allHooks, err := r.listHooks(ctx)
 	if err != nil {
 		return errors.Wrap(err, "listing hooks")
@@ -2208,14 +2212,6 @@ func (r *basePoolManager) GetPoolByID(poolID string) (params.Pool, error) {
 	default:
 		return params.Pool{}, fmt.Errorf("unknown entity type: %s", r.entity.EntityType)
 	}
-}
-
-func (r *basePoolManager) UninstallWebhook(ctx context.Context) error {
-	if r.urls.controllerWebhookURL == "" {
-		return errors.Wrap(runnerErrors.ErrBadRequest, "controller webhook url is empty")
-	}
-
-	return r.UninstallHook(ctx, r.urls.controllerWebhookURL)
 }
 
 func (r *basePoolManager) GetWebhookInfo(ctx context.Context) (params.HookInfo, error) {
