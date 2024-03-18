@@ -2206,7 +2206,7 @@ func (r *basePoolManager) GetWebhookInfo(ctx context.Context) (params.HookInfo, 
 
 	for _, hook := range allHooks {
 		hookInfo := hookToParamsHookInfo(hook)
-		if strings.EqualFold(hookInfo.URL, r.urls.webhookURL) {
+		if strings.EqualFold(hookInfo.URL, r.urls.controllerWebhookURL) || strings.EqualFold(hookInfo.URL, r.urls.webhookURL) {
 			return hookInfo, nil
 		}
 	}
