@@ -102,6 +102,10 @@ func NewEntityPoolManager(ctx context.Context, entity params.GithubEntity, cfgIn
 		return nil, errors.Wrap(err, "getting github client")
 	}
 
+	if entity.WebhookSecret == "" {
+		return nil, errors.New("webhook secret is empty")
+	}
+
 	wg := &sync.WaitGroup{}
 	keyMuxes := &keyMutex{}
 
@@ -1689,16 +1693,17 @@ func (r *basePoolManager) Stop() error {
 func (r *basePoolManager) RefreshState(param params.UpdatePoolStateParams) error {
 	r.mux.Lock()
 
-	r.entity.WebhookSecret = param.WebhookSecret
+	if param.WebhookSecret != "" {
+		r.entity.WebhookSecret = param.WebhookSecret
+	}
 	if param.InternalConfig != nil {
 		r.cfgInternal = *param.InternalConfig
-	}
-
-	r.urls = urls{
-		webhookURL:           r.cfgInternal.BaseWebhookURL,
-		callbackURL:          r.cfgInternal.InstanceCallbackURL,
-		metadataURL:          r.cfgInternal.InstanceMetadataURL,
-		controllerWebhookURL: r.cfgInternal.ControllerWebhookURL,
+		r.urls = urls{
+			webhookURL:           r.cfgInternal.BaseWebhookURL,
+			callbackURL:          r.cfgInternal.InstanceCallbackURL,
+			metadataURL:          r.cfgInternal.InstanceMetadataURL,
+			controllerWebhookURL: r.cfgInternal.ControllerWebhookURL,
+		}
 	}
 
 	ghc, err := garmUtil.GithubClient(r.ctx, r.entity, r.cfgInternal.GithubCredentialsDetails)
