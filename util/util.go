@@ -320,7 +320,7 @@ func (g *githubClient) getOrganizationRunnerGroupIDByName(ctx context.Context, e
 		}
 		opts.Page = ghResp.NextPage
 	}
-	return 0, runnerErrors.NewNotFoundError("runner group not found")
+	return 0, runnerErrors.NewNotFoundError("runner group %s not found", rgName)
 }
 
 func (g *githubClient) getEnterpriseRunnerGroupIDByName(ctx context.Context, entity params.GithubEntity, rgName string) (int64, error) {
@@ -360,19 +360,21 @@ func (g *githubClient) getEnterpriseRunnerGroupIDByName(ctx context.Context, ent
 }
 
 func (g *githubClient) GetEntityJITConfig(ctx context.Context, instance string, pool params.Pool, labels []string) (jitConfigMap map[string]string, runner *github.Runner, err error) {
-	var rgID int64
+	// If no runner group is set, use the default runner group ID. This is also the default for
+	// repository level runners.
+	var rgID int64 = 1
 
-	switch g.entity.EntityType {
-	case params.GithubEntityTypeRepository:
-		rgID = 1
-	case params.GithubEntityTypeOrganization:
-		rgID, err = g.getOrganizationRunnerGroupIDByName(ctx, g.entity, pool.GitHubRunnerGroup)
-	case params.GithubEntityTypeEnterprise:
-		rgID, err = g.getEnterpriseRunnerGroupIDByName(ctx, g.entity, pool.GitHubRunnerGroup)
-	}
+	if pool.GitHubRunnerGroup != "" {
+		switch g.entity.EntityType {
+		case params.GithubEntityTypeOrganization:
+			rgID, err = g.getOrganizationRunnerGroupIDByName(ctx, g.entity, pool.GitHubRunnerGroup)
+		case params.GithubEntityTypeEnterprise:
+			rgID, err = g.getEnterpriseRunnerGroupIDByName(ctx, g.entity, pool.GitHubRunnerGroup)
+		}
 
-	if err != nil {
-		return nil, nil, fmt.Errorf("getting runner group ID: %w", err)
+		if err != nil {
+			return nil, nil, fmt.Errorf("getting runner group ID: %w", err)
+		}
 	}
 
 	req := github.GenerateJITConfigRequest{
