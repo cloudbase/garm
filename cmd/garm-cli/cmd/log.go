@@ -46,10 +46,16 @@ var logCmd = &cobra.Command{
 		if err != nil {
 			var resp apiParams.APIErrorResponse
 			var msg string
-			if err := json.NewDecoder(response.Body).Decode(&resp); err == nil {
-				msg = resp.Details
+			var status string
+			if response != nil {
+				if response.Body != nil {
+					if err := json.NewDecoder(response.Body).Decode(&resp); err == nil {
+						msg = resp.Details
+					}
+				}
+				status = response.Status
 			}
-			log.Fatalf("failed to stream logs: %s (%s)", msg, response.Status)
+			log.Fatalf("failed to stream logs: %q %s (%s)", err, msg, status)
 		}
 		defer c.Close()
 
