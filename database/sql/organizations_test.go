@@ -405,7 +405,11 @@ func (s *OrgTestSuite) TestGetOrganizationByIDDBDecryptingErr() {
 }
 
 func (s *OrgTestSuite) TestCreateOrganizationPool() {
-	pool, err := s.Store.CreateOrganizationPool(context.Background(), s.Fixtures.Orgs[0].ID, s.Fixtures.CreatePoolParams)
+	entity := params.GithubEntity{
+		ID:         s.Fixtures.Orgs[0].ID,
+		EntityType: params.GithubEntityTypeOrganization,
+	}
+	pool, err := s.Store.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
 
 	s.Require().Nil(err)
 
@@ -422,18 +426,25 @@ func (s *OrgTestSuite) TestCreateOrganizationPool() {
 
 func (s *OrgTestSuite) TestCreateOrganizationPoolMissingTags() {
 	s.Fixtures.CreatePoolParams.Tags = []string{}
-
-	_, err := s.Store.CreateOrganizationPool(context.Background(), s.Fixtures.Orgs[0].ID, s.Fixtures.CreatePoolParams)
+	entity := params.GithubEntity{
+		ID:         s.Fixtures.Orgs[0].ID,
+		EntityType: params.GithubEntityTypeOrganization,
+	}
+	_, err := s.Store.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
 
 	s.Require().NotNil(err)
 	s.Require().Equal("no tags specified", err.Error())
 }
 
 func (s *OrgTestSuite) TestCreateOrganizationPoolInvalidOrgID() {
-	_, err := s.Store.CreateOrganizationPool(context.Background(), "dummy-org-id", s.Fixtures.CreatePoolParams)
+	entity := params.GithubEntity{
+		ID:         "dummy-org-id",
+		EntityType: params.GithubEntityTypeOrganization,
+	}
+	_, err := s.Store.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching org: parsing id: invalid request", err.Error())
+	s.Require().Equal("parsing id: invalid request", err.Error())
 }
 
 func (s *OrgTestSuite) TestCreateOrganizationPoolDBCreateErr() {
@@ -655,9 +666,13 @@ func (s *OrgTestSuite) TestCreateOrganizationPoolDBFetchPoolErr() {
 
 func (s *OrgTestSuite) TestListOrgPools() {
 	orgPools := []params.Pool{}
+	entity := params.GithubEntity{
+		ID:         s.Fixtures.Orgs[0].ID,
+		EntityType: params.GithubEntityTypeOrganization,
+	}
 	for i := 1; i <= 2; i++ {
 		s.Fixtures.CreatePoolParams.Flavor = fmt.Sprintf("test-flavor-%v", i)
-		pool, err := s.Store.CreateOrganizationPool(context.Background(), s.Fixtures.Orgs[0].ID, s.Fixtures.CreatePoolParams)
+		pool, err := s.Store.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
 		if err != nil {
 			s.FailNow(fmt.Sprintf("cannot create org pool: %v", err))
 		}
@@ -678,46 +693,66 @@ func (s *OrgTestSuite) TestListOrgPoolsInvalidOrgID() {
 }
 
 func (s *OrgTestSuite) TestGetOrganizationPool() {
-	pool, err := s.Store.CreateOrganizationPool(context.Background(), s.Fixtures.Orgs[0].ID, s.Fixtures.CreatePoolParams)
+	entity := params.GithubEntity{
+		ID:         s.Fixtures.Orgs[0].ID,
+		EntityType: params.GithubEntityTypeOrganization,
+	}
+	pool, err := s.Store.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create org pool: %v", err))
 	}
 
-	orgPool, err := s.Store.GetOrganizationPool(context.Background(), s.Fixtures.Orgs[0].ID, pool.ID)
+	orgPool, err := s.Store.GetEntityPool(context.Background(), entity, pool.ID)
 
 	s.Require().Nil(err)
 	s.Require().Equal(orgPool.ID, pool.ID)
 }
 
 func (s *OrgTestSuite) TestGetOrganizationPoolInvalidOrgID() {
-	_, err := s.Store.GetOrganizationPool(context.Background(), "dummy-org-id", "dummy-pool-id")
+	entity := params.GithubEntity{
+		ID:         "dummy-org-id",
+		EntityType: params.GithubEntityTypeOrganization,
+	}
+	_, err := s.Store.GetEntityPool(context.Background(), entity, "dummy-pool-id")
 
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching pool: parsing id: invalid request", err.Error())
 }
 
 func (s *OrgTestSuite) TestDeleteOrganizationPool() {
-	pool, err := s.Store.CreateOrganizationPool(context.Background(), s.Fixtures.Orgs[0].ID, s.Fixtures.CreatePoolParams)
+	entity := params.GithubEntity{
+		ID:         s.Fixtures.Orgs[0].ID,
+		EntityType: params.GithubEntityTypeOrganization,
+	}
+	pool, err := s.Store.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create org pool: %v", err))
 	}
 
-	err = s.Store.DeleteOrganizationPool(context.Background(), s.Fixtures.Orgs[0].ID, pool.ID)
+	err = s.Store.DeleteEntityPool(context.Background(), entity, pool.ID)
 
 	s.Require().Nil(err)
-	_, err = s.Store.GetOrganizationPool(context.Background(), s.Fixtures.Orgs[0].ID, pool.ID)
+	_, err = s.Store.GetEntityPool(context.Background(), entity, pool.ID)
 	s.Require().Equal("fetching pool: finding pool: not found", err.Error())
 }
 
 func (s *OrgTestSuite) TestDeleteOrganizationPoolInvalidOrgID() {
-	err := s.Store.DeleteOrganizationPool(context.Background(), "dummy-org-id", "dummy-pool-id")
+	entity := params.GithubEntity{
+		ID:         "dummy-org-id",
+		EntityType: params.GithubEntityTypeOrganization,
+	}
+	err := s.Store.DeleteEntityPool(context.Background(), entity, "dummy-pool-id")
 
 	s.Require().NotNil(err)
-	s.Require().Equal("looking up org pool: parsing id: invalid request", err.Error())
+	s.Require().Equal("parsing id: invalid request", err.Error())
 }
 
 func (s *OrgTestSuite) TestDeleteOrganizationPoolDBDeleteErr() {
-	pool, err := s.Store.CreateOrganizationPool(context.Background(), s.Fixtures.Orgs[0].ID, s.Fixtures.CreatePoolParams)
+	entity := params.GithubEntity{
+		ID:         s.Fixtures.Orgs[0].ID,
+		EntityType: params.GithubEntityTypeOrganization,
+	}
+	pool, err := s.Store.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create org pool: %v", err))
 	}
@@ -741,7 +776,11 @@ func (s *OrgTestSuite) TestDeleteOrganizationPoolDBDeleteErr() {
 }
 
 func (s *OrgTestSuite) TestListOrgInstances() {
-	pool, err := s.Store.CreateOrganizationPool(context.Background(), s.Fixtures.Orgs[0].ID, s.Fixtures.CreatePoolParams)
+	entity := params.GithubEntity{
+		ID:         s.Fixtures.Orgs[0].ID,
+		EntityType: params.GithubEntityTypeOrganization,
+	}
+	pool, err := s.Store.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create org pool: %v", err))
 	}
@@ -769,7 +808,11 @@ func (s *OrgTestSuite) TestListOrgInstancesInvalidOrgID() {
 }
 
 func (s *OrgTestSuite) TestUpdateOrganizationPool() {
-	pool, err := s.Store.CreateOrganizationPool(context.Background(), s.Fixtures.Orgs[0].ID, s.Fixtures.CreatePoolParams)
+	entity := params.GithubEntity{
+		ID:         s.Fixtures.Orgs[0].ID,
+		EntityType: params.GithubEntityTypeOrganization,
+	}
+	pool, err := s.Store.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create org pool: %v", err))
 	}

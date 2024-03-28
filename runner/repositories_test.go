@@ -295,7 +295,11 @@ func (s *RepoTestSuite) TestDeleteRepositoryErrUnauthorized() {
 }
 
 func (s *RepoTestSuite) TestDeleteRepositoryPoolDefinedFailed() {
-	pool, err := s.Fixtures.Store.CreateRepositoryPool(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID, s.Fixtures.CreatePoolParams)
+	entity := params.GithubEntity{
+		ID:         s.Fixtures.StoreRepos["test-repo-1"].ID,
+		EntityType: params.GithubEntityTypeRepository,
+	}
+	pool, err := s.Fixtures.Store.CreateEntityPool(s.Fixtures.AdminContext, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create store repositories pool: %v", err))
 	}
@@ -376,8 +380,6 @@ func (s *RepoTestSuite) TestUpdateRepositoryCreateRepoPoolMgrFailed() {
 }
 
 func (s *RepoTestSuite) TestCreateRepoPool() {
-	s.Fixtures.PoolMgrCtrlMock.On("GetRepoPoolManager", mock.AnythingOfType("params.Repository")).Return(s.Fixtures.PoolMgrMock, nil)
-
 	pool, err := s.Runner.CreateRepoPool(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID, s.Fixtures.CreatePoolParams)
 
 	s.Fixtures.PoolMgrMock.AssertExpectations(s.T())
@@ -401,30 +403,21 @@ func (s *RepoTestSuite) TestCreateRepoPoolErrUnauthorized() {
 	s.Require().Equal(runnerErrors.ErrUnauthorized, err)
 }
 
-func (s *RepoTestSuite) TestCreateRepoPoolErrNotFound() {
-	s.Fixtures.PoolMgrCtrlMock.On("GetRepoPoolManager", mock.AnythingOfType("params.Repository")).Return(s.Fixtures.PoolMgrMock, s.Fixtures.ErrMock)
-
-	_, err := s.Runner.CreateRepoPool(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID, s.Fixtures.CreatePoolParams)
-
-	s.Fixtures.PoolMgrMock.AssertExpectations(s.T())
-	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
-	s.Require().Equal(runnerErrors.ErrNotFound, err)
-}
-
 func (s *RepoTestSuite) TestCreateRepoPoolFetchPoolParamsFailed() {
 	s.Fixtures.CreatePoolParams.ProviderName = notExistingProviderName
-
-	s.Fixtures.PoolMgrCtrlMock.On("GetRepoPoolManager", mock.AnythingOfType("params.Repository")).Return(s.Fixtures.PoolMgrMock, nil)
-
 	_, err := s.Runner.CreateRepoPool(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID, s.Fixtures.CreatePoolParams)
 
 	s.Fixtures.PoolMgrMock.AssertExpectations(s.T())
 	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
-	s.Require().Regexp("fetching pool params: no such provider", err.Error())
+	s.Require().Regexp("failed to append tags to create pool params: no such provider not-existent-provider-name", err.Error())
 }
 
 func (s *RepoTestSuite) TestGetRepoPoolByID() {
-	repoPool, err := s.Fixtures.Store.CreateRepositoryPool(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID, s.Fixtures.CreatePoolParams)
+	entity := params.GithubEntity{
+		ID:         s.Fixtures.StoreRepos["test-repo-1"].ID,
+		EntityType: params.GithubEntityTypeRepository,
+	}
+	repoPool, err := s.Fixtures.Store.CreateEntityPool(s.Fixtures.AdminContext, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create repo pool: %s", err))
 	}
@@ -442,7 +435,11 @@ func (s *RepoTestSuite) TestGetRepoPoolByIDErrUnauthorized() {
 }
 
 func (s *RepoTestSuite) TestDeleteRepoPool() {
-	pool, err := s.Fixtures.Store.CreateRepositoryPool(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID, s.Fixtures.CreatePoolParams)
+	entity := params.GithubEntity{
+		ID:         s.Fixtures.StoreRepos["test-repo-1"].ID,
+		EntityType: params.GithubEntityTypeRepository,
+	}
+	pool, err := s.Fixtures.Store.CreateEntityPool(s.Fixtures.AdminContext, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create repo pool: %s", err))
 	}
@@ -451,7 +448,7 @@ func (s *RepoTestSuite) TestDeleteRepoPool() {
 
 	s.Require().Nil(err)
 
-	_, err = s.Fixtures.Store.GetRepositoryPool(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID, pool.ID)
+	_, err = s.Fixtures.Store.GetEntityPool(s.Fixtures.AdminContext, entity, pool.ID)
 	s.Require().Equal("fetching pool: finding pool: not found", err.Error())
 }
 
@@ -462,7 +459,11 @@ func (s *RepoTestSuite) TestDeleteRepoPoolErrUnauthorized() {
 }
 
 func (s *RepoTestSuite) TestDeleteRepoPoolRunnersFailed() {
-	pool, err := s.Fixtures.Store.CreateRepositoryPool(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID, s.Fixtures.CreatePoolParams)
+	entity := params.GithubEntity{
+		ID:         s.Fixtures.StoreRepos["test-repo-1"].ID,
+		EntityType: params.GithubEntityTypeRepository,
+	}
+	pool, err := s.Fixtures.Store.CreateEntityPool(s.Fixtures.AdminContext, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create repo pool: %s", err))
 	}
@@ -477,10 +478,14 @@ func (s *RepoTestSuite) TestDeleteRepoPoolRunnersFailed() {
 }
 
 func (s *RepoTestSuite) TestListRepoPools() {
+	entity := params.GithubEntity{
+		ID:         s.Fixtures.StoreRepos["test-repo-1"].ID,
+		EntityType: params.GithubEntityTypeRepository,
+	}
 	repoPools := []params.Pool{}
 	for i := 1; i <= 2; i++ {
 		s.Fixtures.CreatePoolParams.Image = fmt.Sprintf("test-repo-%v", i)
-		pool, err := s.Fixtures.Store.CreateRepositoryPool(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID, s.Fixtures.CreatePoolParams)
+		pool, err := s.Fixtures.Store.CreateEntityPool(s.Fixtures.AdminContext, entity, s.Fixtures.CreatePoolParams)
 		if err != nil {
 			s.FailNow(fmt.Sprintf("cannot create repo pool: %v", err))
 		}
@@ -500,7 +505,11 @@ func (s *RepoTestSuite) TestListRepoPoolsErrUnauthorized() {
 }
 
 func (s *RepoTestSuite) TestListPoolInstances() {
-	pool, err := s.Fixtures.Store.CreateRepositoryPool(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID, s.Fixtures.CreatePoolParams)
+	entity := params.GithubEntity{
+		ID:         s.Fixtures.StoreRepos["test-repo-1"].ID,
+		EntityType: params.GithubEntityTypeRepository,
+	}
+	pool, err := s.Fixtures.Store.CreateEntityPool(s.Fixtures.AdminContext, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create repo pool: %v", err))
 	}
@@ -527,7 +536,11 @@ func (s *RepoTestSuite) TestListPoolInstancesErrUnauthorized() {
 }
 
 func (s *RepoTestSuite) TestUpdateRepoPool() {
-	repoPool, err := s.Fixtures.Store.CreateRepositoryPool(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID, s.Fixtures.CreatePoolParams)
+	entity := params.GithubEntity{
+		ID:         s.Fixtures.StoreRepos["test-repo-1"].ID,
+		EntityType: params.GithubEntityTypeRepository,
+	}
+	repoPool, err := s.Fixtures.Store.CreateEntityPool(s.Fixtures.AdminContext, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create store repositories pool: %v", err))
 	}
@@ -546,7 +559,11 @@ func (s *RepoTestSuite) TestUpdateRepoPoolErrUnauthorized() {
 }
 
 func (s *RepoTestSuite) TestUpdateRepoPoolMinIdleGreaterThanMax() {
-	pool, err := s.Fixtures.Store.CreateRepositoryPool(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID, s.Fixtures.CreatePoolParams)
+	entity := params.GithubEntity{
+		ID:         s.Fixtures.StoreRepos["test-repo-1"].ID,
+		EntityType: params.GithubEntityTypeRepository,
+	}
+	pool, err := s.Fixtures.Store.CreateEntityPool(s.Fixtures.AdminContext, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create repo pool: %s", err))
 	}
@@ -561,7 +578,11 @@ func (s *RepoTestSuite) TestUpdateRepoPoolMinIdleGreaterThanMax() {
 }
 
 func (s *RepoTestSuite) TestListRepoInstances() {
-	pool, err := s.Fixtures.Store.CreateRepositoryPool(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID, s.Fixtures.CreatePoolParams)
+	entity := params.GithubEntity{
+		ID:         s.Fixtures.StoreRepos["test-repo-1"].ID,
+		EntityType: params.GithubEntityTypeRepository,
+	}
+	pool, err := s.Fixtures.Store.CreateEntityPool(s.Fixtures.AdminContext, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create repo pool: %v", err))
 	}

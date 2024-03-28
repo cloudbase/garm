@@ -297,7 +297,7 @@ func (s *sqlDatabase) getOrCreateTag(tx *gorm.DB, tagName string) (Tag, error) {
 	return newTag, nil
 }
 
-func (s *sqlDatabase) updatePool(pool Pool, param params.UpdatePoolParams) (params.Pool, error) {
+func (s *sqlDatabase) updatePool(tx *gorm.DB, pool Pool, param params.UpdatePoolParams) (params.Pool, error) {
 	if param.Enabled != nil && pool.Enabled != *param.Enabled {
 		pool.Enabled = *param.Enabled
 	}
@@ -346,21 +346,21 @@ func (s *sqlDatabase) updatePool(pool Pool, param params.UpdatePoolParams) (para
 		pool.Priority = *param.Priority
 	}
 
-	if q := s.conn.Save(&pool); q.Error != nil {
+	if q := tx.Save(&pool); q.Error != nil {
 		return params.Pool{}, errors.Wrap(q.Error, "saving database entry")
 	}
 
 	tags := []Tag{}
 	if param.Tags != nil && len(param.Tags) > 0 {
 		for _, val := range param.Tags {
-			t, err := s.getOrCreateTag(s.conn, val)
+			t, err := s.getOrCreateTag(tx, val)
 			if err != nil {
 				return params.Pool{}, errors.Wrap(err, "fetching tag")
 			}
 			tags = append(tags, t)
 		}
 
-		if err := s.conn.Model(&pool).Association("Tags").Replace(&tags); err != nil {
+		if err := tx.Model(&pool).Association("Tags").Replace(&tags); err != nil {
 			return params.Pool{}, errors.Wrap(err, "replacing tags")
 		}
 	}
@@ -390,4 +390,31 @@ func (s *sqlDatabase) getPoolByID(tx *gorm.DB, poolID string, preload ...string)
 		return Pool{}, errors.Wrap(q.Error, "fetching org from database")
 	}
 	return pool, nil
+}
+
+func (s *sqlDatabase) hasGithubEntity(tx *gorm.DB, entityType params.GithubEntityType, entityID string) (bool, error) {
+	u, err := uuid.Parse(entityID)
+	if err != nil {
+		return false, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
+	}
+	var q *gorm.DB
+	switch entityType {
+	case params.GithubEntityTypeRepository:
+		q = tx.Model(&Repository{}).Where("id = ?", u)
+	case params.GithubEntityTypeOrganization:
+		q = tx.Model(&Organization{}).Where("id = ?", u)
+	case params.GithubEntityTypeEnterprise:
+		q = tx.Model(&Enterprise{}).Where("id = ?", u)
+	default:
+		return false, errors.Wrap(runnerErrors.ErrBadRequest, "invalid entity type")
+	}
+
+	var entity interface{}
+	if err := q.First(entity).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, errors.Wrap(runnerErrors.ErrNotFound, "entity not found")
+		}
+		return false, errors.Wrap(err, "fetching entity from database")
+	}
+	return true, nil
 }

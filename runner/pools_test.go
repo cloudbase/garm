@@ -64,11 +64,15 @@ func (s *PoolTestSuite) SetupTest() {
 	}
 
 	// create some pool objects in the database, for testing purposes
+	entity := params.GithubEntity{
+		ID:         org.ID,
+		EntityType: params.GithubEntityTypeOrganization,
+	}
 	orgPools := []params.Pool{}
 	for i := 1; i <= 3; i++ {
-		pool, err := db.CreateOrganizationPool(
+		pool, err := db.CreateEntityPool(
 			context.Background(),
-			org.ID,
+			entity,
 			params.CreatePoolParams{
 				ProviderName:           "test-provider",
 				MaxRunners:             4,

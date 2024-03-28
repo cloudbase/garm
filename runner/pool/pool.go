@@ -2198,16 +2198,7 @@ func (r *basePoolManager) ListPools() ([]params.Pool, error) {
 }
 
 func (r *basePoolManager) GetPoolByID(poolID string) (params.Pool, error) {
-	switch r.entity.EntityType {
-	case params.GithubEntityTypeRepository:
-		return r.store.GetRepositoryPool(r.ctx, r.entity.ID, poolID)
-	case params.GithubEntityTypeOrganization:
-		return r.store.GetOrganizationPool(r.ctx, r.entity.ID, poolID)
-	case params.GithubEntityTypeEnterprise:
-		return r.store.GetEnterprisePool(r.ctx, r.entity.ID, poolID)
-	default:
-		return params.Pool{}, fmt.Errorf("unknown entity type: %s", r.entity.EntityType)
-	}
+	return r.store.GetEntityPool(r.ctx, r.entity, poolID)
 }
 
 func (r *basePoolManager) GetWebhookInfo(ctx context.Context) (params.HookInfo, error) {

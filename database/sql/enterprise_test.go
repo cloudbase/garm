@@ -405,7 +405,11 @@ func (s *EnterpriseTestSuite) TestGetEnterpriseByIDDBDecryptingErr() {
 }
 
 func (s *EnterpriseTestSuite) TestCreateEnterprisePool() {
-	pool, err := s.Store.CreateEnterprisePool(context.Background(), s.Fixtures.Enterprises[0].ID, s.Fixtures.CreatePoolParams)
+	entity := params.GithubEntity{
+		ID:         s.Fixtures.Enterprises[0].ID,
+		EntityType: params.GithubEntityTypeEnterprise,
+	}
+	pool, err := s.Store.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
 
 	s.Require().Nil(err)
 
@@ -422,18 +426,25 @@ func (s *EnterpriseTestSuite) TestCreateEnterprisePool() {
 
 func (s *EnterpriseTestSuite) TestCreateEnterprisePoolMissingTags() {
 	s.Fixtures.CreatePoolParams.Tags = []string{}
-
-	_, err := s.Store.CreateEnterprisePool(context.Background(), s.Fixtures.Enterprises[0].ID, s.Fixtures.CreatePoolParams)
+	entity := params.GithubEntity{
+		ID:         s.Fixtures.Enterprises[0].ID,
+		EntityType: params.GithubEntityTypeEnterprise,
+	}
+	_, err := s.Store.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
 
 	s.Require().NotNil(err)
 	s.Require().Equal("no tags specified", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestCreateEnterprisePoolInvalidEnterpriseID() {
-	_, err := s.Store.CreateEnterprisePool(context.Background(), "dummy-enterprise-id", s.Fixtures.CreatePoolParams)
+	entity := params.GithubEntity{
+		ID:         "dummy-enterprise-id",
+		EntityType: params.GithubEntityTypeEnterprise,
+	}
+	_, err := s.Store.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching enterprise: parsing id: invalid request", err.Error())
+	s.Require().Equal("parsing id: invalid request", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestCreateEnterprisePoolDBCreateErr() {
@@ -655,9 +666,13 @@ func (s *EnterpriseTestSuite) TestCreateEnterprisePoolDBFetchPoolErr() {
 
 func (s *EnterpriseTestSuite) TestListEnterprisePools() {
 	enterprisePools := []params.Pool{}
+	entity := params.GithubEntity{
+		ID:         s.Fixtures.Enterprises[0].ID,
+		EntityType: params.GithubEntityTypeEnterprise,
+	}
 	for i := 1; i <= 2; i++ {
 		s.Fixtures.CreatePoolParams.Flavor = fmt.Sprintf("test-flavor-%v", i)
-		pool, err := s.Store.CreateEnterprisePool(context.Background(), s.Fixtures.Enterprises[0].ID, s.Fixtures.CreatePoolParams)
+		pool, err := s.Store.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
 		if err != nil {
 			s.FailNow(fmt.Sprintf("cannot create enterprise pool: %v", err))
 		}
@@ -678,46 +693,66 @@ func (s *EnterpriseTestSuite) TestListEnterprisePoolsInvalidEnterpriseID() {
 }
 
 func (s *EnterpriseTestSuite) TestGetEnterprisePool() {
-	pool, err := s.Store.CreateEnterprisePool(context.Background(), s.Fixtures.Enterprises[0].ID, s.Fixtures.CreatePoolParams)
+	entity := params.GithubEntity{
+		ID:         s.Fixtures.Enterprises[0].ID,
+		EntityType: params.GithubEntityTypeEnterprise,
+	}
+	pool, err := s.Store.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create enterprise pool: %v", err))
 	}
 
-	enterprisePool, err := s.Store.GetEnterprisePool(context.Background(), s.Fixtures.Enterprises[0].ID, pool.ID)
+	enterprisePool, err := s.Store.GetEntityPool(context.Background(), entity, pool.ID)
 
 	s.Require().Nil(err)
 	s.Require().Equal(enterprisePool.ID, pool.ID)
 }
 
 func (s *EnterpriseTestSuite) TestGetEnterprisePoolInvalidEnterpriseID() {
-	_, err := s.Store.GetEnterprisePool(context.Background(), "dummy-enterprise-id", "dummy-pool-id")
+	entity := params.GithubEntity{
+		ID:         "dummy-enterprise-id",
+		EntityType: params.GithubEntityTypeEnterprise,
+	}
+	_, err := s.Store.GetEntityPool(context.Background(), entity, "dummy-pool-id")
 
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching pool: parsing id: invalid request", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestDeleteEnterprisePool() {
-	pool, err := s.Store.CreateEnterprisePool(context.Background(), s.Fixtures.Enterprises[0].ID, s.Fixtures.CreatePoolParams)
+	entity := params.GithubEntity{
+		ID:         s.Fixtures.Enterprises[0].ID,
+		EntityType: params.GithubEntityTypeEnterprise,
+	}
+	pool, err := s.Store.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create enterprise pool: %v", err))
 	}
 
-	err = s.Store.DeleteEnterprisePool(context.Background(), s.Fixtures.Enterprises[0].ID, pool.ID)
+	err = s.Store.DeleteEntityPool(context.Background(), entity, pool.ID)
 
 	s.Require().Nil(err)
-	_, err = s.Store.GetEnterprisePool(context.Background(), s.Fixtures.Enterprises[0].ID, pool.ID)
+	_, err = s.Store.GetEntityPool(context.Background(), entity, pool.ID)
 	s.Require().Equal("fetching pool: finding pool: not found", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestDeleteEnterprisePoolInvalidEnterpriseID() {
-	err := s.Store.DeleteEnterprisePool(context.Background(), "dummy-enterprise-id", "dummy-pool-id")
+	entity := params.GithubEntity{
+		ID:         "dummy-enterprise-id",
+		EntityType: params.GithubEntityTypeEnterprise,
+	}
+	err := s.Store.DeleteEntityPool(context.Background(), entity, "dummy-pool-id")
 
 	s.Require().NotNil(err)
-	s.Require().Equal("looking up enterprise pool: parsing id: invalid request", err.Error())
+	s.Require().Equal("parsing id: invalid request", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestDeleteEnterprisePoolDBDeleteErr() {
-	pool, err := s.Store.CreateEnterprisePool(context.Background(), s.Fixtures.Enterprises[0].ID, s.Fixtures.CreatePoolParams)
+	entity := params.GithubEntity{
+		ID:         s.Fixtures.Enterprises[0].ID,
+		EntityType: params.GithubEntityTypeEnterprise,
+	}
+	pool, err := s.Store.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create enterprise pool: %v", err))
 	}
@@ -741,7 +776,11 @@ func (s *EnterpriseTestSuite) TestDeleteEnterprisePoolDBDeleteErr() {
 }
 
 func (s *EnterpriseTestSuite) TestListEnterpriseInstances() {
-	pool, err := s.Store.CreateEnterprisePool(context.Background(), s.Fixtures.Enterprises[0].ID, s.Fixtures.CreatePoolParams)
+	entity := params.GithubEntity{
+		ID:         s.Fixtures.Enterprises[0].ID,
+		EntityType: params.GithubEntityTypeEnterprise,
+	}
+	pool, err := s.Store.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create enterprise pool: %v", err))
 	}
@@ -769,7 +808,11 @@ func (s *EnterpriseTestSuite) TestListEnterpriseInstancesInvalidEnterpriseID() {
 }
 
 func (s *EnterpriseTestSuite) TestUpdateEnterprisePool() {
-	pool, err := s.Store.CreateEnterprisePool(context.Background(), s.Fixtures.Enterprises[0].ID, s.Fixtures.CreatePoolParams)
+	entity := params.GithubEntity{
+		ID:         s.Fixtures.Enterprises[0].ID,
+		EntityType: params.GithubEntityTypeEnterprise,
+	}
+	pool, err := s.Store.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create enterprise pool: %v", err))
 	}

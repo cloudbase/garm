@@ -58,7 +58,7 @@ func (s *sqlDatabase) ListAllPools(_ context.Context) ([]params.Pool, error) {
 	return ret, nil
 }
 
-func (s *sqlDatabase) GetPoolByID(ctx context.Context, poolID string) (params.Pool, error) {
+func (s *sqlDatabase) GetPoolByID(_ context.Context, poolID string) (params.Pool, error) {
 	pool, err := s.getPoolByID(s.conn, poolID, "Tags", "Instances", "Enterprise", "Organization", "Repository")
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool by ID")
@@ -66,7 +66,7 @@ func (s *sqlDatabase) GetPoolByID(ctx context.Context, poolID string) (params.Po
 	return s.sqlToCommonPool(pool)
 }
 
-func (s *sqlDatabase) DeletePoolByID(ctx context.Context, poolID string) error {
+func (s *sqlDatabase) DeletePoolByID(_ context.Context, poolID string) error {
 	pool, err := s.getPoolByID(s.conn, poolID)
 	if err != nil {
 		return errors.Wrap(err, "fetching pool by ID")
@@ -79,7 +79,7 @@ func (s *sqlDatabase) DeletePoolByID(ctx context.Context, poolID string) error {
 	return nil
 }
 
-func (s *sqlDatabase) getEntityPool(_ context.Context, entityType params.GithubEntityType, entityID, poolID string, preload ...string) (Pool, error) {
+func (s *sqlDatabase) getEntityPool(tx *gorm.DB, entityType params.GithubEntityType, entityID, poolID string, preload ...string) (Pool, error) {
 	if entityID == "" {
 		return Pool{}, errors.Wrap(runnerErrors.ErrBadRequest, "missing entity id")
 	}
@@ -89,7 +89,7 @@ func (s *sqlDatabase) getEntityPool(_ context.Context, entityType params.GithubE
 		return Pool{}, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
 	}
 
-	q := s.conn
+	q := tx
 	if len(preload) > 0 {
 		for _, item := range preload {
 			q = q.Preload(item)
@@ -233,7 +233,7 @@ func (s *sqlDatabase) FindPoolsMatchingAllTags(_ context.Context, entityType par
 	return pools, nil
 }
 
-func (s *sqlDatabase) CreateEntityPool(ctx context.Context, entity params.GithubEntity, param params.CreatePoolParams) (params.Pool, error) {
+func (s *sqlDatabase) CreateEntityPool(_ context.Context, entity params.GithubEntity, param params.CreatePoolParams) (params.Pool, error) {
 	if len(param.Tags) == 0 {
 		return params.Pool{}, runnerErrors.NewBadRequestError("no tags specified")
 	}
@@ -258,7 +258,7 @@ func (s *sqlDatabase) CreateEntityPool(ctx context.Context, entity params.Github
 
 	entityID, err := uuid.Parse(entity.ID)
 	if err != nil {
-		return params.Pool{}, fmt.Errorf("parsing entity ID: %w", err)
+		return params.Pool{}, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
 	}
 
 	switch entity.EntityType {
@@ -270,9 +270,14 @@ func (s *sqlDatabase) CreateEntityPool(ctx context.Context, entity params.Github
 		newPool.EnterpriseID = &entityID
 	}
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
+		ok, err := s.hasGithubEntity(tx, entity.EntityType, entity.ID)
+		if err != nil || !ok {
+			return errors.Wrap(err, "checking entity existence")
+		}
+
 		if _, err := s.getEntityPoolByUniqueFields(tx, entity, newPool.ProviderName, newPool.Image, newPool.Flavor); err != nil {
 			if !errors.Is(err, runnerErrors.ErrNotFound) {
-				return fmt.Errorf("checking for existing pool: %w", err)
+				return errors.Wrap(err, "checking pool existence")
 			}
 		} else {
 			return runnerErrors.NewConflictError("pool with the same image and flavor already exists on this provider")
@@ -282,25 +287,25 @@ func (s *sqlDatabase) CreateEntityPool(ctx context.Context, entity params.Github
 		for _, val := range param.Tags {
 			t, err := s.getOrCreateTag(tx, val)
 			if err != nil {
-				return fmt.Errorf("creating tag: %w", err)
+				return errors.Wrap(err, "creating tag")
 			}
 			tags = append(tags, t)
 		}
 
 		q := tx.Create(&newPool)
 		if q.Error != nil {
-			return fmt.Errorf("creating pool: %w", q.Error)
+			return errors.Wrap(q.Error, "creating pool")
 		}
 
 		for i := range tags {
 			if err := tx.Model(&newPool).Association("Tags").Append(&tags[i]); err != nil {
-				return fmt.Errorf("associating tags: %w", err)
+				return errors.Wrap(err, "associating tags")
 			}
 		}
 		return nil
 	})
 	if err != nil {
-		return params.Pool{}, fmt.Errorf("creating pool: %w", err)
+		return params.Pool{}, errors.Wrap(err, "creating pool")
 	}
 
 	pool, err := s.getPoolByID(s.conn, newPool.ID.String(), "Tags", "Instances", "Enterprise", "Organization", "Repository")
@@ -311,22 +316,53 @@ func (s *sqlDatabase) CreateEntityPool(ctx context.Context, entity params.Github
 	return s.sqlToCommonPool(pool)
 }
 
-func (s *sqlDatabase) GetEntityPool(ctx context.Context, entity params.GithubEntity, poolID string) (params.Pool, error) {
-	return params.Pool{}, nil
+func (s *sqlDatabase) GetEntityPool(_ context.Context, entity params.GithubEntity, poolID string) (params.Pool, error) {
+	pool, err := s.getEntityPool(s.conn, entity.EntityType, entity.ID, poolID, "Tags", "Instances")
+	if err != nil {
+		return params.Pool{}, fmt.Errorf("fetching pool: %w", err)
+	}
+	return s.sqlToCommonPool(pool)
 }
 
-func (s *sqlDatabase) DeleteEntityPool(ctx context.Context, entity params.GithubEntity, poolID string) error {
+func (s *sqlDatabase) DeleteEntityPool(_ context.Context, entity params.GithubEntity, poolID string) error {
+	entityID, err := uuid.Parse(entity.ID)
+	if err != nil {
+		return errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
+	}
+
+	poolUUID, err := uuid.Parse(poolID)
+	if err != nil {
+		return errors.Wrap(runnerErrors.ErrBadRequest, "parsing pool id")
+	}
+	var fieldName string
+	switch entity.EntityType {
+	case params.GithubEntityTypeRepository:
+		fieldName = entityTypeRepoName
+	case params.GithubEntityTypeOrganization:
+		fieldName = entityTypeOrgName
+	case params.GithubEntityTypeEnterprise:
+		fieldName = entityTypeEnterpriseName
+	default:
+		return fmt.Errorf("invalid entityType: %v", entity.EntityType)
+	}
+	condition := fmt.Sprintf("id = ? and %s = ?", fieldName)
+	if err := s.conn.Unscoped().Where(condition, poolUUID, entityID).Delete(&Pool{}).Error; err != nil {
+		return errors.Wrap(err, "removing pool")
+	}
 	return nil
 }
 
-func (s *sqlDatabase) UpdateEntityPool(ctx context.Context, entity params.GithubEntity, poolID string, param params.UpdatePoolParams) (params.Pool, error) {
+func (s *sqlDatabase) UpdateEntityPool(_ context.Context, entity params.GithubEntity, poolID string, param params.UpdatePoolParams) (params.Pool, error) {
+	fmt.Printf("UpdateEntityPool: %v %v %v\n", entity, poolID, param)
 	return params.Pool{}, nil
 }
 
-func (s *sqlDatabase) ListEntityPools(ctx context.Context, entity params.GithubEntity) ([]params.Pool, error) {
+func (s *sqlDatabase) ListEntityPools(_ context.Context, entity params.GithubEntity) ([]params.Pool, error) {
+	fmt.Println(entity)
 	return nil, nil
 }
 
-func (s *sqlDatabase) ListEntityInstances(ctx context.Context, entity params.GithubEntity) ([]params.Instance, error) {
+func (s *sqlDatabase) ListEntityInstances(_ context.Context, entity params.GithubEntity) ([]params.Instance, error) {
+	fmt.Println(entity)
 	return nil, nil
 }

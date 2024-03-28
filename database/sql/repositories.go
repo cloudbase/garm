@@ -235,16 +235,16 @@ func (s *sqlDatabase) ListRepoPools(ctx context.Context, repoID string) ([]param
 	return ret, nil
 }
 
-func (s *sqlDatabase) GetRepositoryPool(ctx context.Context, repoID, poolID string) (params.Pool, error) {
-	pool, err := s.getEntityPool(ctx, params.GithubEntityTypeRepository, repoID, poolID, "Tags", "Instances")
+func (s *sqlDatabase) GetRepositoryPool(_ context.Context, repoID, poolID string) (params.Pool, error) {
+	pool, err := s.getEntityPool(s.conn, params.GithubEntityTypeRepository, repoID, poolID, "Tags", "Instances")
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}
 	return s.sqlToCommonPool(pool)
 }
 
-func (s *sqlDatabase) DeleteRepositoryPool(ctx context.Context, repoID, poolID string) error {
-	pool, err := s.getEntityPool(ctx, params.GithubEntityTypeRepository, repoID, poolID)
+func (s *sqlDatabase) DeleteRepositoryPool(_ context.Context, repoID, poolID string) error {
+	pool, err := s.getEntityPool(s.conn, params.GithubEntityTypeRepository, repoID, poolID)
 	if err != nil {
 		return errors.Wrap(err, "looking up repo pool")
 	}
@@ -274,13 +274,13 @@ func (s *sqlDatabase) ListRepoInstances(ctx context.Context, repoID string) ([]p
 	return ret, nil
 }
 
-func (s *sqlDatabase) UpdateRepositoryPool(ctx context.Context, repoID, poolID string, param params.UpdatePoolParams) (params.Pool, error) {
-	pool, err := s.getEntityPool(ctx, params.GithubEntityTypeRepository, repoID, poolID, "Tags", "Instances", "Enterprise", "Organization", "Repository")
+func (s *sqlDatabase) UpdateRepositoryPool(_ context.Context, repoID, poolID string, param params.UpdatePoolParams) (params.Pool, error) {
+	pool, err := s.getEntityPool(s.conn, params.GithubEntityTypeRepository, repoID, poolID, "Tags", "Instances", "Enterprise", "Organization", "Repository")
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}
 
-	return s.updatePool(pool, param)
+	return s.updatePool(s.conn, pool, param)
 }
 
 func (s *sqlDatabase) getRepo(_ context.Context, owner, name string) (Repository, error) {

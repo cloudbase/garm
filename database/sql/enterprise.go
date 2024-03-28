@@ -201,16 +201,16 @@ func (s *sqlDatabase) CreateEnterprisePool(ctx context.Context, enterpriseID str
 	return s.sqlToCommonPool(pool)
 }
 
-func (s *sqlDatabase) GetEnterprisePool(ctx context.Context, enterpriseID, poolID string) (params.Pool, error) {
-	pool, err := s.getEntityPool(ctx, params.GithubEntityTypeEnterprise, enterpriseID, poolID, "Tags", "Instances")
+func (s *sqlDatabase) GetEnterprisePool(_ context.Context, enterpriseID, poolID string) (params.Pool, error) {
+	pool, err := s.getEntityPool(s.conn, params.GithubEntityTypeEnterprise, enterpriseID, poolID, "Tags", "Instances")
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}
 	return s.sqlToCommonPool(pool)
 }
 
-func (s *sqlDatabase) DeleteEnterprisePool(ctx context.Context, enterpriseID, poolID string) error {
-	pool, err := s.getEntityPool(ctx, params.GithubEntityTypeEnterprise, enterpriseID, poolID)
+func (s *sqlDatabase) DeleteEnterprisePool(_ context.Context, enterpriseID, poolID string) error {
+	pool, err := s.getEntityPool(s.conn, params.GithubEntityTypeEnterprise, enterpriseID, poolID)
 	if err != nil {
 		return errors.Wrap(err, "looking up enterprise pool")
 	}
@@ -221,13 +221,13 @@ func (s *sqlDatabase) DeleteEnterprisePool(ctx context.Context, enterpriseID, po
 	return nil
 }
 
-func (s *sqlDatabase) UpdateEnterprisePool(ctx context.Context, enterpriseID, poolID string, param params.UpdatePoolParams) (params.Pool, error) {
-	pool, err := s.getEntityPool(ctx, params.GithubEntityTypeEnterprise, enterpriseID, poolID, "Tags", "Instances", "Enterprise", "Organization", "Repository")
+func (s *sqlDatabase) UpdateEnterprisePool(_ context.Context, enterpriseID, poolID string, param params.UpdatePoolParams) (params.Pool, error) {
+	pool, err := s.getEntityPool(s.conn, params.GithubEntityTypeEnterprise, enterpriseID, poolID, "Tags", "Instances", "Enterprise", "Organization", "Repository")
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}
 
-	return s.updatePool(pool, param)
+	return s.updatePool(s.conn, pool, param)
 }
 
 func (s *sqlDatabase) ListEnterprisePools(ctx context.Context, enterpriseID string) ([]params.Pool, error) {

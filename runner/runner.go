@@ -785,7 +785,8 @@ func (r *Runner) DispatchWorkflowJob(hookTargetType, signature string, jobData [
 
 func (r *Runner) appendTagsToCreatePoolParams(param params.CreatePoolParams) (params.CreatePoolParams, error) {
 	if err := param.Validate(); err != nil {
-		return params.CreatePoolParams{}, errors.Wrapf(runnerErrors.ErrBadRequest, "validating params: %s", err)
+		return params.CreatePoolParams{}, fmt.Errorf("failed to validate params (%q): %w", err, runnerErrors.ErrBadRequest)
+		// errors.Wrapf(runnerErrors.ErrBadRequest, "validating params: %s", err)
 	}
 
 	if !IsSupportedOSType(param.OSType) {
@@ -803,7 +804,7 @@ func (r *Runner) appendTagsToCreatePoolParams(param params.CreatePoolParams) (pa
 
 	newTags, err := r.processTags(string(param.OSArch), param.OSType, param.Tags)
 	if err != nil {
-		return params.CreatePoolParams{}, errors.Wrap(err, "processing tags")
+		return params.CreatePoolParams{}, fmt.Errorf("failed to process tags: %w", err)
 	}
 
 	param.Tags = newTags

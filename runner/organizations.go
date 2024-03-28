@@ -222,11 +222,6 @@ func (r *Runner) CreateOrgPool(ctx context.Context, orgID string, param params.C
 		return params.Pool{}, runnerErrors.ErrUnauthorized
 	}
 
-	_, err := r.store.GetOrganizationByID(ctx, orgID)
-	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "fetching org")
-	}
-
 	createPoolParams, err := r.appendTagsToCreatePoolParams(param)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool params")
@@ -254,10 +249,16 @@ func (r *Runner) GetOrgPoolByID(ctx context.Context, orgID, poolID string) (para
 		return params.Pool{}, runnerErrors.ErrUnauthorized
 	}
 
-	pool, err := r.store.GetOrganizationPool(ctx, orgID, poolID)
+	entity := params.GithubEntity{
+		ID:         orgID,
+		EntityType: params.GithubEntityTypeOrganization,
+	}
+
+	pool, err := r.store.GetEntityPool(ctx, entity, poolID)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}
+
 	return pool, nil
 }
 
@@ -266,29 +267,30 @@ func (r *Runner) DeleteOrgPool(ctx context.Context, orgID, poolID string) error 
 		return runnerErrors.ErrUnauthorized
 	}
 
-	// nolint:golangci-lint,godox
-	// TODO: dedup instance count verification
-	pool, err := r.store.GetOrganizationPool(ctx, orgID, poolID)
-	if err != nil {
-		return errors.Wrap(err, "fetching pool")
+	entity := params.GithubEntity{
+		ID:         orgID,
+		EntityType: params.GithubEntityTypeOrganization,
 	}
 
-	instances, err := r.store.ListPoolInstances(ctx, pool.ID)
+	pool, err := r.store.GetEntityPool(ctx, entity, poolID)
 	if err != nil {
-		return errors.Wrap(err, "fetching instances")
+		if !errors.Is(err, runnerErrors.ErrNotFound) {
+			return errors.Wrap(err, "fetching pool")
+		}
+		return nil
 	}
 
 	// nolint:golangci-lint,godox
 	// TODO: implement a count function
-	if len(instances) > 0 {
+	if len(pool.Instances) > 0 {
 		runnerIDs := []string{}
-		for _, run := range instances {
+		for _, run := range pool.Instances {
 			runnerIDs = append(runnerIDs, run.ID)
 		}
 		return runnerErrors.NewBadRequestError("pool has runners: %s", strings.Join(runnerIDs, ", "))
 	}
 
-	if err := r.store.DeleteOrganizationPool(ctx, orgID, poolID); err != nil {
+	if err := r.store.DeleteEntityPool(ctx, entity, poolID); err != nil {
 		return errors.Wrap(err, "deleting pool")
 	}
 	return nil
@@ -311,7 +313,12 @@ func (r *Runner) UpdateOrgPool(ctx context.Context, orgID, poolID string, param 
 		return params.Pool{}, runnerErrors.ErrUnauthorized
 	}
 
-	pool, err := r.store.GetOrganizationPool(ctx, orgID, poolID)
+	entity := params.GithubEntity{
+		ID:         orgID,
+		EntityType: params.GithubEntityTypeOrganization,
+	}
+
+	pool, err := r.store.GetEntityPool(ctx, entity, poolID)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}

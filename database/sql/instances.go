@@ -48,7 +48,7 @@ func (s *sqlDatabase) unsealAndUnmarshal(data []byte, target interface{}) error 
 	return nil
 }
 
-func (s *sqlDatabase) CreateInstance(ctx context.Context, poolID string, param params.CreateInstanceParams) (params.Instance, error) {
+func (s *sqlDatabase) CreateInstance(_ context.Context, poolID string, param params.CreateInstanceParams) (params.Instance, error) {
 	pool, err := s.getPoolByID(s.conn, poolID)
 	if err != nil {
 		return params.Instance{}, errors.Wrap(err, "fetching pool")
@@ -152,7 +152,7 @@ func (s *sqlDatabase) getInstanceByName(_ context.Context, instanceName string, 
 	return instance, nil
 }
 
-func (s *sqlDatabase) GetPoolInstanceByName(ctx context.Context, poolID string, instanceName string) (params.Instance, error) {
+func (s *sqlDatabase) GetPoolInstanceByName(_ context.Context, poolID string, instanceName string) (params.Instance, error) {
 	instance, err := s.getPoolInstanceByName(poolID, instanceName)
 	if err != nil {
 		return params.Instance{}, errors.Wrap(err, "fetching instance")
@@ -170,7 +170,7 @@ func (s *sqlDatabase) GetInstanceByName(ctx context.Context, instanceName string
 	return s.sqlToParamsInstance(instance)
 }
 
-func (s *sqlDatabase) DeleteInstance(ctx context.Context, poolID string, instanceName string) error {
+func (s *sqlDatabase) DeleteInstance(_ context.Context, poolID string, instanceName string) error {
 	instance, err := s.getPoolInstanceByName(poolID, instanceName)
 	if err != nil {
 		return errors.Wrap(err, "deleting instance")
@@ -337,7 +337,7 @@ func (s *sqlDatabase) ListAllInstances(_ context.Context) ([]params.Instance, er
 	return ret, nil
 }
 
-func (s *sqlDatabase) PoolInstanceCount(ctx context.Context, poolID string) (int64, error) {
+func (s *sqlDatabase) PoolInstanceCount(_ context.Context, poolID string) (int64, error) {
 	pool, err := s.getPoolByID(s.conn, poolID)
 	if err != nil {
 		return 0, errors.Wrap(err, "fetching pool")

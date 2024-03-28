@@ -92,7 +92,11 @@ func (s *InstancesTestSuite) SetupTest() {
 		OSType:         "linux",
 		Tags:           []string{"self-hosted", "amd64", "linux"},
 	}
-	pool, err := s.Store.CreateOrganizationPool(context.Background(), org.ID, createPoolParams)
+	entity := params.GithubEntity{
+		ID:         org.ID,
+		EntityType: params.GithubEntityTypeOrganization,
+	}
+	pool, err := s.Store.CreateEntityPool(context.Background(), entity, createPoolParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to create org pool: %s", err))
 	}

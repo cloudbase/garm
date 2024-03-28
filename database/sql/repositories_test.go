@@ -443,7 +443,11 @@ func (s *RepoTestSuite) TestGetRepositoryByIDDBDecryptingErr() {
 }
 
 func (s *RepoTestSuite) TestCreateRepositoryPool() {
-	pool, err := s.Store.CreateRepositoryPool(context.Background(), s.Fixtures.Repos[0].ID, s.Fixtures.CreatePoolParams)
+	entity := params.GithubEntity{
+		ID:         s.Fixtures.Repos[0].ID,
+		EntityType: params.GithubEntityTypeRepository,
+	}
+	pool, err := s.Store.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
 
 	s.Require().Nil(err)
 	repo, err := s.Store.GetRepositoryByID(context.Background(), s.Fixtures.Repos[0].ID)
@@ -459,18 +463,25 @@ func (s *RepoTestSuite) TestCreateRepositoryPool() {
 
 func (s *RepoTestSuite) TestCreateRepositoryPoolMissingTags() {
 	s.Fixtures.CreatePoolParams.Tags = []string{}
-
-	_, err := s.Store.CreateRepositoryPool(context.Background(), s.Fixtures.Repos[0].ID, s.Fixtures.CreatePoolParams)
+	entity := params.GithubEntity{
+		ID:         s.Fixtures.Repos[0].ID,
+		EntityType: params.GithubEntityTypeRepository,
+	}
+	_, err := s.Store.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
 
 	s.Require().NotNil(err)
 	s.Require().Equal("no tags specified", err.Error())
 }
 
 func (s *RepoTestSuite) TestCreateRepositoryPoolInvalidRepoID() {
-	_, err := s.Store.CreateRepositoryPool(context.Background(), "dummy-repo-id", s.Fixtures.CreatePoolParams)
+	entity := params.GithubEntity{
+		ID:         "dummy-repo-id",
+		EntityType: params.GithubEntityTypeRepository,
+	}
+	_, err := s.Store.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching repo: parsing id: invalid request", err.Error())
+	s.Require().Equal("parsing id: invalid request", err.Error())
 }
 
 func (s *RepoTestSuite) TestCreateRepositoryPoolDBCreateErr() {
@@ -691,10 +702,14 @@ func (s *RepoTestSuite) TestCreateRepositoryPoolDBFetchPoolErr() {
 }
 
 func (s *RepoTestSuite) TestListRepoPools() {
+	entity := params.GithubEntity{
+		ID:         s.Fixtures.Repos[0].ID,
+		EntityType: params.GithubEntityTypeRepository,
+	}
 	repoPools := []params.Pool{}
 	for i := 1; i <= 2; i++ {
 		s.Fixtures.CreatePoolParams.Flavor = fmt.Sprintf("test-flavor-%d", i)
-		pool, err := s.Store.CreateRepositoryPool(context.Background(), s.Fixtures.Repos[0].ID, s.Fixtures.CreatePoolParams)
+		pool, err := s.Store.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
 		if err != nil {
 			s.FailNow(fmt.Sprintf("cannot create repo pool: %v", err))
 		}
@@ -715,46 +730,66 @@ func (s *RepoTestSuite) TestListRepoPoolsInvalidRepoID() {
 }
 
 func (s *RepoTestSuite) TestGetRepositoryPool() {
-	pool, err := s.Store.CreateRepositoryPool(context.Background(), s.Fixtures.Repos[0].ID, s.Fixtures.CreatePoolParams)
+	entity := params.GithubEntity{
+		ID:         s.Fixtures.Repos[0].ID,
+		EntityType: params.GithubEntityTypeRepository,
+	}
+	pool, err := s.Store.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create repo pool: %v", err))
 	}
 
-	repoPool, err := s.Store.GetRepositoryPool(context.Background(), s.Fixtures.Repos[0].ID, pool.ID)
+	repoPool, err := s.Store.GetEntityPool(context.Background(), entity, pool.ID)
 
 	s.Require().Nil(err)
 	s.Require().Equal(repoPool.ID, pool.ID)
 }
 
 func (s *RepoTestSuite) TestGetRepositoryPoolInvalidRepoID() {
-	_, err := s.Store.GetRepositoryPool(context.Background(), "dummy-repo-id", "dummy-pool-id")
+	entity := params.GithubEntity{
+		ID:         "dummy-repo-id",
+		EntityType: params.GithubEntityTypeRepository,
+	}
+	_, err := s.Store.GetEntityPool(context.Background(), entity, "dummy-pool-id")
 
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching pool: parsing id: invalid request", err.Error())
 }
 
 func (s *RepoTestSuite) TestDeleteRepositoryPool() {
-	pool, err := s.Store.CreateRepositoryPool(context.Background(), s.Fixtures.Repos[0].ID, s.Fixtures.CreatePoolParams)
+	entity := params.GithubEntity{
+		ID:         s.Fixtures.Repos[0].ID,
+		EntityType: params.GithubEntityTypeRepository,
+	}
+	pool, err := s.Store.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create repo pool: %v", err))
 	}
 
-	err = s.Store.DeleteRepositoryPool(context.Background(), s.Fixtures.Repos[0].ID, pool.ID)
+	err = s.Store.DeleteEntityPool(context.Background(), entity, pool.ID)
 
 	s.Require().Nil(err)
-	_, err = s.Store.GetOrganizationPool(context.Background(), s.Fixtures.Repos[0].ID, pool.ID)
+	_, err = s.Store.GetEntityPool(context.Background(), entity, pool.ID)
 	s.Require().Equal("fetching pool: finding pool: not found", err.Error())
 }
 
 func (s *RepoTestSuite) TestDeleteRepositoryPoolInvalidRepoID() {
-	err := s.Store.DeleteRepositoryPool(context.Background(), "dummy-repo-id", "dummy-pool-id")
+	entity := params.GithubEntity{
+		ID:         "dummy-repo-id",
+		EntityType: params.GithubEntityTypeRepository,
+	}
+	err := s.Store.DeleteEntityPool(context.Background(), entity, "dummy-pool-id")
 
 	s.Require().NotNil(err)
-	s.Require().Equal("looking up repo pool: parsing id: invalid request", err.Error())
+	s.Require().Equal("parsing id: invalid request", err.Error())
 }
 
 func (s *RepoTestSuite) TestDeleteRepositoryPoolDBDeleteErr() {
-	pool, err := s.Store.CreateRepositoryPool(context.Background(), s.Fixtures.Repos[0].ID, s.Fixtures.CreatePoolParams)
+	entity := params.GithubEntity{
+		ID:         s.Fixtures.Repos[0].ID,
+		EntityType: params.GithubEntityTypeRepository,
+	}
+	pool, err := s.Store.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create repo pool: %v", err))
 	}
@@ -778,7 +813,11 @@ func (s *RepoTestSuite) TestDeleteRepositoryPoolDBDeleteErr() {
 }
 
 func (s *RepoTestSuite) TestListRepoInstances() {
-	pool, err := s.Store.CreateRepositoryPool(context.Background(), s.Fixtures.Repos[0].ID, s.Fixtures.CreatePoolParams)
+	entity := params.GithubEntity{
+		ID:         s.Fixtures.Repos[0].ID,
+		EntityType: params.GithubEntityTypeRepository,
+	}
+	pool, err := s.Store.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create repo pool: %v", err))
 	}
@@ -806,7 +845,11 @@ func (s *RepoTestSuite) TestListRepoInstancesInvalidRepoID() {
 }
 
 func (s *RepoTestSuite) TestUpdateRepositoryPool() {
-	repoPool, err := s.Store.CreateRepositoryPool(context.Background(), s.Fixtures.Repos[0].ID, s.Fixtures.CreatePoolParams)
+	entity := params.GithubEntity{
+		ID:         s.Fixtures.Repos[0].ID,
+		EntityType: params.GithubEntityTypeRepository,
+	}
+	repoPool, err := s.Store.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create repo pool: %v", err))
 	}

@@ -235,16 +235,16 @@ func (s *sqlDatabase) ListOrgPools(ctx context.Context, orgID string) ([]params.
 	return ret, nil
 }
 
-func (s *sqlDatabase) GetOrganizationPool(ctx context.Context, orgID, poolID string) (params.Pool, error) {
-	pool, err := s.getEntityPool(ctx, params.GithubEntityTypeOrganization, orgID, poolID, "Tags", "Instances")
+func (s *sqlDatabase) GetOrganizationPool(_ context.Context, orgID, poolID string) (params.Pool, error) {
+	pool, err := s.getEntityPool(s.conn, params.GithubEntityTypeOrganization, orgID, poolID, "Tags", "Instances")
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}
 	return s.sqlToCommonPool(pool)
 }
 
-func (s *sqlDatabase) DeleteOrganizationPool(ctx context.Context, orgID, poolID string) error {
-	pool, err := s.getEntityPool(ctx, params.GithubEntityTypeOrganization, orgID, poolID)
+func (s *sqlDatabase) DeleteOrganizationPool(_ context.Context, orgID, poolID string) error {
+	pool, err := s.getEntityPool(s.conn, params.GithubEntityTypeOrganization, orgID, poolID)
 	if err != nil {
 		return errors.Wrap(err, "looking up org pool")
 	}
@@ -273,13 +273,13 @@ func (s *sqlDatabase) ListOrgInstances(ctx context.Context, orgID string) ([]par
 	return ret, nil
 }
 
-func (s *sqlDatabase) UpdateOrganizationPool(ctx context.Context, orgID, poolID string, param params.UpdatePoolParams) (params.Pool, error) {
-	pool, err := s.getEntityPool(ctx, params.GithubEntityTypeOrganization, orgID, poolID, "Tags", "Instances", "Enterprise", "Organization", "Repository")
+func (s *sqlDatabase) UpdateOrganizationPool(_ context.Context, orgID, poolID string, param params.UpdatePoolParams) (params.Pool, error) {
+	pool, err := s.getEntityPool(s.conn, params.GithubEntityTypeOrganization, orgID, poolID, "Tags", "Instances", "Enterprise", "Organization", "Repository")
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}
 
-	return s.updatePool(pool, param)
+	return s.updatePool(s.conn, pool, param)
 }
 
 func (s *sqlDatabase) getOrgByID(_ context.Context, id string, preload ...string) (Organization, error) {

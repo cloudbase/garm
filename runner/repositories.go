@@ -221,14 +221,9 @@ func (r *Runner) CreateRepoPool(ctx context.Context, repoID string, param params
 		return params.Pool{}, runnerErrors.ErrUnauthorized
 	}
 
-	_, err := r.store.GetRepositoryByID(ctx, repoID)
-	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "fetching repo")
-	}
-
 	createPoolParams, err := r.appendTagsToCreatePoolParams(param)
 	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "fetching pool params")
+		return params.Pool{}, fmt.Errorf("failed to append tags to create pool params: %w", err)
 	}
 
 	if createPoolParams.RunnerBootstrapTimeout == 0 {
@@ -242,7 +237,7 @@ func (r *Runner) CreateRepoPool(ctx context.Context, repoID string, param params
 
 	pool, err := r.store.CreateEntityPool(ctx, entity, createPoolParams)
 	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "creating pool")
+		return params.Pool{}, fmt.Errorf("failed to create pool: %w", err)
 	}
 
 	return pool, nil
@@ -253,10 +248,16 @@ func (r *Runner) GetRepoPoolByID(ctx context.Context, repoID, poolID string) (pa
 		return params.Pool{}, runnerErrors.ErrUnauthorized
 	}
 
-	pool, err := r.store.GetRepositoryPool(ctx, repoID, poolID)
+	entity := params.GithubEntity{
+		ID:         repoID,
+		EntityType: params.GithubEntityTypeRepository,
+	}
+
+	pool, err := r.store.GetEntityPool(ctx, entity, poolID)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}
+
 	return pool, nil
 }
 
@@ -265,27 +266,26 @@ func (r *Runner) DeleteRepoPool(ctx context.Context, repoID, poolID string) erro
 		return runnerErrors.ErrUnauthorized
 	}
 
-	pool, err := r.store.GetRepositoryPool(ctx, repoID, poolID)
+	entity := params.GithubEntity{
+		ID:         repoID,
+		EntityType: params.GithubEntityTypeRepository,
+	}
+	pool, err := r.store.GetEntityPool(ctx, entity, poolID)
 	if err != nil {
 		return errors.Wrap(err, "fetching pool")
 	}
 
-	instances, err := r.store.ListPoolInstances(ctx, pool.ID)
-	if err != nil {
-		return errors.Wrap(err, "fetching instances")
-	}
-
 	// nolint:golangci-lint,godox
 	// TODO: implement a count function
-	if len(instances) > 0 {
+	if len(pool.Instances) > 0 {
 		runnerIDs := []string{}
-		for _, run := range instances {
+		for _, run := range pool.Instances {
 			runnerIDs = append(runnerIDs, run.ID)
 		}
 		return runnerErrors.NewBadRequestError("pool has runners: %s", strings.Join(runnerIDs, ", "))
 	}
 
-	if err := r.store.DeleteRepositoryPool(ctx, repoID, poolID); err != nil {
+	if err := r.store.DeleteEntityPool(ctx, entity, poolID); err != nil {
 		return errors.Wrap(err, "deleting pool")
 	}
 	return nil
@@ -320,7 +320,11 @@ func (r *Runner) UpdateRepoPool(ctx context.Context, repoID, poolID string, para
 		return params.Pool{}, runnerErrors.ErrUnauthorized
 	}
 
-	pool, err := r.store.GetRepositoryPool(ctx, repoID, poolID)
+	entity := params.GithubEntity{
+		ID:         repoID,
+		EntityType: params.GithubEntityTypeRepository,
+	}
+	pool, err := r.store.GetEntityPool(ctx, entity, poolID)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}
