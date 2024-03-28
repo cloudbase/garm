@@ -54,7 +54,7 @@ var (
 	priority                   uint
 )
 
-type poolPayloadGetter interface {
+type poolsPayloadGetter interface {
 	GetPayload() params.Pools
 }
 
@@ -98,7 +98,7 @@ Example:
 			return errNeedsInitError
 		}
 
-		var response poolPayloadGetter
+		var response poolsPayloadGetter
 		var err error
 
 		switch len(args) {
@@ -192,6 +192,10 @@ var poolDeleteCmd = &cobra.Command{
 	},
 }
 
+type poolPayloadGetter interface {
+	GetPayload() params.Pool
+}
+
 var poolAddCmd = &cobra.Command{
 	Use:          "add",
 	Aliases:      []string{"create"},
@@ -242,30 +246,23 @@ var poolAddCmd = &cobra.Command{
 			return err
 		}
 
-		var pool params.Pool
 		var err error
-
+		var response poolPayloadGetter
 		if cmd.Flags().Changed("repo") {
-			var response *apiClientRepos.CreateRepoPoolOK
 			newRepoPoolReq := apiClientRepos.NewCreateRepoPoolParams()
 			newRepoPoolReq.RepoID = poolRepository
 			newRepoPoolReq.Body = newPoolParams
 			response, err = apiCli.Repositories.CreateRepoPool(newRepoPoolReq, authToken)
-			pool = response.Payload
 		} else if cmd.Flags().Changed("org") {
-			var response *apiClientOrgs.CreateOrgPoolOK
 			newOrgPoolReq := apiClientOrgs.NewCreateOrgPoolParams()
 			newOrgPoolReq.OrgID = poolOrganization
 			newOrgPoolReq.Body = newPoolParams
 			response, err = apiCli.Organizations.CreateOrgPool(newOrgPoolReq, authToken)
-			pool = response.Payload
 		} else if cmd.Flags().Changed("enterprise") {
-			var response *apiClientEnterprises.CreateEnterprisePoolOK
 			newEnterprisePoolReq := apiClientEnterprises.NewCreateEnterprisePoolParams()
 			newEnterprisePoolReq.EnterpriseID = poolEnterprise
 			newEnterprisePoolReq.Body = newPoolParams
 			response, err = apiCli.Enterprises.CreateEnterprisePool(newEnterprisePoolReq, authToken)
-			pool = response.Payload
 		} else {
 			cmd.Help() //nolint
 			os.Exit(0)
@@ -274,7 +271,8 @@ var poolAddCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		formatOnePool(pool)
+
+		formatOnePool(response.GetPayload())
 		return nil
 	},
 }
