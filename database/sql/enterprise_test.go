@@ -740,29 +740,6 @@ func (s *EnterpriseTestSuite) TestDeleteEnterprisePoolDBDeleteErr() {
 	s.Require().Equal("deleting pool: mocked deleting pool error", err.Error())
 }
 
-func (s *EnterpriseTestSuite) TestFindEnterprisePoolByTags() {
-	enterprisePool, err := s.Store.CreateEnterprisePool(context.Background(), s.Fixtures.Enterprises[0].ID, s.Fixtures.CreatePoolParams)
-	if err != nil {
-		s.FailNow(fmt.Sprintf("cannot create enterprise pool: %v", err))
-	}
-
-	pool, err := s.Store.FindEnterprisePoolByTags(context.Background(), s.Fixtures.Enterprises[0].ID, s.Fixtures.CreatePoolParams.Tags)
-
-	s.Require().Nil(err)
-	s.Require().Equal(enterprisePool.ID, pool.ID)
-	s.Require().Equal(enterprisePool.Image, pool.Image)
-	s.Require().Equal(enterprisePool.Flavor, pool.Flavor)
-}
-
-func (s *EnterpriseTestSuite) TestFindEnterprisePoolByTagsMissingTags() {
-	tags := []string{}
-
-	_, err := s.Store.FindEnterprisePoolByTags(context.Background(), s.Fixtures.Enterprises[0].ID, tags)
-
-	s.Require().NotNil(err)
-	s.Require().Equal("fetching pool: missing tags", err.Error())
-}
-
 func (s *EnterpriseTestSuite) TestListEnterpriseInstances() {
 	pool, err := s.Store.CreateEnterprisePool(context.Background(), s.Fixtures.Enterprises[0].ID, s.Fixtures.CreatePoolParams)
 	if err != nil {

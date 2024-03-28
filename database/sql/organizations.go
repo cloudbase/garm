@@ -192,7 +192,7 @@ func (s *sqlDatabase) CreateOrganizationPool(ctx context.Context, orgID string, 
 
 	tags := []Tag{}
 	for _, val := range param.Tags {
-		t, err := s.getOrCreateTag(val)
+		t, err := s.getOrCreateTag(s.conn, val)
 		if err != nil {
 			return params.Pool{}, errors.Wrap(err, "fetching tag")
 		}
@@ -210,7 +210,7 @@ func (s *sqlDatabase) CreateOrganizationPool(ctx context.Context, orgID string, 
 		}
 	}
 
-	pool, err := s.getPoolByID(ctx, newPool.ID.String(), "Tags", "Instances", "Enterprise", "Organization", "Repository")
+	pool, err := s.getPoolByID(s.conn, newPool.ID.String(), "Tags", "Instances", "Enterprise", "Organization", "Repository")
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}
@@ -255,14 +255,6 @@ func (s *sqlDatabase) DeleteOrganizationPool(ctx context.Context, orgID, poolID 
 	return nil
 }
 
-func (s *sqlDatabase) FindOrganizationPoolByTags(_ context.Context, orgID string, tags []string) (params.Pool, error) {
-	pool, err := s.findPoolByTags(orgID, params.GithubEntityTypeOrganization, tags)
-	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "fetching pool")
-	}
-	return pool[0], nil
-}
-
 func (s *sqlDatabase) ListOrgInstances(ctx context.Context, orgID string) ([]params.Instance, error) {
 	pools, err := s.listEntityPools(ctx, params.GithubEntityTypeOrganization, orgID, "Tags", "Instances", "Instances.Job")
 	if err != nil {
@@ -288,30 +280,6 @@ func (s *sqlDatabase) UpdateOrganizationPool(ctx context.Context, orgID, poolID 
 	}
 
 	return s.updatePool(pool, param)
-}
-
-func (s *sqlDatabase) getPoolByID(_ context.Context, poolID string, preload ...string) (Pool, error) {
-	u, err := uuid.Parse(poolID)
-	if err != nil {
-		return Pool{}, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
-	}
-	var pool Pool
-	q := s.conn.Model(&Pool{})
-	if len(preload) > 0 {
-		for _, item := range preload {
-			q = q.Preload(item)
-		}
-	}
-
-	q = q.Where("id = ?", u).First(&pool)
-
-	if q.Error != nil {
-		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
-			return Pool{}, runnerErrors.ErrNotFound
-		}
-		return Pool{}, errors.Wrap(q.Error, "fetching org from database")
-	}
-	return pool, nil
 }
 
 func (s *sqlDatabase) getOrgByID(_ context.Context, id string, preload ...string) (Organization, error) {

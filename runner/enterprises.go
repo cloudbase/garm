@@ -193,16 +193,9 @@ func (r *Runner) CreateEnterprisePool(ctx context.Context, enterpriseID string, 
 		return params.Pool{}, runnerErrors.ErrUnauthorized
 	}
 
-	r.mux.Lock()
-	defer r.mux.Unlock()
-
-	enterprise, err := r.store.GetEnterpriseByID(ctx, enterpriseID)
+	_, err := r.store.GetEnterpriseByID(ctx, enterpriseID)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching enterprise")
-	}
-
-	if _, err := r.poolManagerCtrl.GetEnterprisePoolManager(enterprise); err != nil {
-		return params.Pool{}, runnerErrors.ErrNotFound
 	}
 
 	createPoolParams, err := r.appendTagsToCreatePoolParams(param)
@@ -214,7 +207,12 @@ func (r *Runner) CreateEnterprisePool(ctx context.Context, enterpriseID string, 
 		param.RunnerBootstrapTimeout = appdefaults.DefaultRunnerBootstrapTimeout
 	}
 
-	pool, err := r.store.CreateEnterprisePool(ctx, enterpriseID, createPoolParams)
+	entity := params.GithubEntity{
+		ID:         enterpriseID,
+		EntityType: params.GithubEntityTypeEnterprise,
+	}
+
+	pool, err := r.store.CreateEntityPool(ctx, entity, createPoolParams)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "creating pool")
 	}

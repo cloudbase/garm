@@ -510,62 +510,6 @@ func (_m *Store) DeleteRepositoryPool(ctx context.Context, repoID string, poolID
 	return r0
 }
 
-// FindEnterprisePoolByTags provides a mock function with given fields: ctx, enterpriseID, tags
-func (_m *Store) FindEnterprisePoolByTags(ctx context.Context, enterpriseID string, tags []string) (params.Pool, error) {
-	ret := _m.Called(ctx, enterpriseID, tags)
-
-	if len(ret) == 0 {
-		panic("no return value specified for FindEnterprisePoolByTags")
-	}
-
-	var r0 params.Pool
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, []string) (params.Pool, error)); ok {
-		return rf(ctx, enterpriseID, tags)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, []string) params.Pool); ok {
-		r0 = rf(ctx, enterpriseID, tags)
-	} else {
-		r0 = ret.Get(0).(params.Pool)
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, string, []string) error); ok {
-		r1 = rf(ctx, enterpriseID, tags)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// FindOrganizationPoolByTags provides a mock function with given fields: ctx, orgID, tags
-func (_m *Store) FindOrganizationPoolByTags(ctx context.Context, orgID string, tags []string) (params.Pool, error) {
-	ret := _m.Called(ctx, orgID, tags)
-
-	if len(ret) == 0 {
-		panic("no return value specified for FindOrganizationPoolByTags")
-	}
-
-	var r0 params.Pool
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, []string) (params.Pool, error)); ok {
-		return rf(ctx, orgID, tags)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, []string) params.Pool); ok {
-		r0 = rf(ctx, orgID, tags)
-	} else {
-		r0 = ret.Get(0).(params.Pool)
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, string, []string) error); ok {
-		r1 = rf(ctx, orgID, tags)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // FindPoolsMatchingAllTags provides a mock function with given fields: ctx, entityType, entityID, tags
 func (_m *Store) FindPoolsMatchingAllTags(ctx context.Context, entityType params.GithubEntityType, entityID string, tags []string) ([]params.Pool, error) {
 	ret := _m.Called(ctx, entityType, entityID, tags)
@@ -589,34 +533,6 @@ func (_m *Store) FindPoolsMatchingAllTags(ctx context.Context, entityType params
 
 	if rf, ok := ret.Get(1).(func(context.Context, params.GithubEntityType, string, []string) error); ok {
 		r1 = rf(ctx, entityType, entityID, tags)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// FindRepositoryPoolByTags provides a mock function with given fields: ctx, repoID, tags
-func (_m *Store) FindRepositoryPoolByTags(ctx context.Context, repoID string, tags []string) (params.Pool, error) {
-	ret := _m.Called(ctx, repoID, tags)
-
-	if len(ret) == 0 {
-		panic("no return value specified for FindRepositoryPoolByTags")
-	}
-
-	var r0 params.Pool
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, []string) (params.Pool, error)); ok {
-		return rf(ctx, repoID, tags)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, []string) params.Pool); ok {
-		r0 = rf(ctx, repoID, tags)
-	} else {
-		r0 = ret.Get(0).(params.Pool)
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, string, []string) error); ok {
-		r1 = rf(ctx, repoID, tags)
 	} else {
 		r1 = ret.Error(1)
 	}

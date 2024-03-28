@@ -221,16 +221,9 @@ func (r *Runner) CreateRepoPool(ctx context.Context, repoID string, param params
 		return params.Pool{}, runnerErrors.ErrUnauthorized
 	}
 
-	r.mux.Lock()
-	defer r.mux.Unlock()
-
-	repo, err := r.store.GetRepositoryByID(ctx, repoID)
+	_, err := r.store.GetRepositoryByID(ctx, repoID)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching repo")
-	}
-
-	if _, err := r.poolManagerCtrl.GetRepoPoolManager(repo); err != nil {
-		return params.Pool{}, runnerErrors.ErrNotFound
 	}
 
 	createPoolParams, err := r.appendTagsToCreatePoolParams(param)
@@ -242,7 +235,12 @@ func (r *Runner) CreateRepoPool(ctx context.Context, repoID string, param params
 		createPoolParams.RunnerBootstrapTimeout = appdefaults.DefaultRunnerBootstrapTimeout
 	}
 
-	pool, err := r.store.CreateRepositoryPool(ctx, repoID, createPoolParams)
+	entity := params.GithubEntity{
+		ID:         repoID,
+		EntityType: params.GithubEntityTypeRepository,
+	}
+
+	pool, err := r.store.CreateEntityPool(ctx, entity, createPoolParams)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "creating pool")
 	}

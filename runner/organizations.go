@@ -222,16 +222,9 @@ func (r *Runner) CreateOrgPool(ctx context.Context, orgID string, param params.C
 		return params.Pool{}, runnerErrors.ErrUnauthorized
 	}
 
-	r.mux.Lock()
-	defer r.mux.Unlock()
-
-	org, err := r.store.GetOrganizationByID(ctx, orgID)
+	_, err := r.store.GetOrganizationByID(ctx, orgID)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching org")
-	}
-
-	if _, err := r.poolManagerCtrl.GetOrgPoolManager(org); err != nil {
-		return params.Pool{}, runnerErrors.ErrNotFound
 	}
 
 	createPoolParams, err := r.appendTagsToCreatePoolParams(param)
@@ -243,7 +236,12 @@ func (r *Runner) CreateOrgPool(ctx context.Context, orgID string, param params.C
 		param.RunnerBootstrapTimeout = appdefaults.DefaultRunnerBootstrapTimeout
 	}
 
-	pool, err := r.store.CreateOrganizationPool(ctx, orgID, createPoolParams)
+	entity := params.GithubEntity{
+		ID:         orgID,
+		EntityType: params.GithubEntityTypeOrganization,
+	}
+
+	pool, err := r.store.CreateEntityPool(ctx, entity, createPoolParams)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "creating pool")
 	}

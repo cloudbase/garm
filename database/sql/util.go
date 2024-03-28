@@ -18,10 +18,12 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 
+	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm-provider-common/util"
 	"github.com/cloudbase/garm/params"
@@ -275,9 +277,9 @@ func (s *sqlDatabase) sqlToParamsUser(user User) params.User {
 	}
 }
 
-func (s *sqlDatabase) getOrCreateTag(tagName string) (Tag, error) {
+func (s *sqlDatabase) getOrCreateTag(tx *gorm.DB, tagName string) (Tag, error) {
 	var tag Tag
-	q := s.conn.Where("name = ?", tagName).First(&tag)
+	q := tx.Where("name = ?", tagName).First(&tag)
 	if q.Error == nil {
 		return tag, nil
 	}
@@ -288,7 +290,7 @@ func (s *sqlDatabase) getOrCreateTag(tagName string) (Tag, error) {
 		Name: tagName,
 	}
 
-	q = s.conn.Create(&newTag)
+	q = tx.Create(&newTag)
 	if q.Error != nil {
 		return Tag{}, errors.Wrap(q.Error, "creating tag")
 	}
@@ -351,7 +353,7 @@ func (s *sqlDatabase) updatePool(pool Pool, param params.UpdatePoolParams) (para
 	tags := []Tag{}
 	if param.Tags != nil && len(param.Tags) > 0 {
 		for _, val := range param.Tags {
-			t, err := s.getOrCreateTag(val)
+			t, err := s.getOrCreateTag(s.conn, val)
 			if err != nil {
 				return params.Pool{}, errors.Wrap(err, "fetching tag")
 			}
@@ -364,4 +366,28 @@ func (s *sqlDatabase) updatePool(pool Pool, param params.UpdatePoolParams) (para
 	}
 
 	return s.sqlToCommonPool(pool)
+}
+
+func (s *sqlDatabase) getPoolByID(tx *gorm.DB, poolID string, preload ...string) (Pool, error) {
+	u, err := uuid.Parse(poolID)
+	if err != nil {
+		return Pool{}, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
+	}
+	var pool Pool
+	q := tx.Model(&Pool{})
+	if len(preload) > 0 {
+		for _, item := range preload {
+			q = q.Preload(item)
+		}
+	}
+
+	q = q.Where("id = ?", u).First(&pool)
+
+	if q.Error != nil {
+		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
+			return Pool{}, runnerErrors.ErrNotFound
+		}
+		return Pool{}, errors.Wrap(q.Error, "fetching org from database")
+	}
+	return pool, nil
 }

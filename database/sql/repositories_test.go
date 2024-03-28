@@ -777,28 +777,6 @@ func (s *RepoTestSuite) TestDeleteRepositoryPoolDBDeleteErr() {
 	s.Require().Equal("deleting pool: mocked deleting pool error", err.Error())
 }
 
-func (s *RepoTestSuite) TestFindRepositoryPoolByTags() {
-	repoPool, err := s.Store.CreateRepositoryPool(context.Background(), s.Fixtures.Repos[0].ID, s.Fixtures.CreatePoolParams)
-	if err != nil {
-		s.FailNow(fmt.Sprintf("cannot create repo pool: %v", err))
-	}
-
-	pool, err := s.Store.FindRepositoryPoolByTags(context.Background(), s.Fixtures.Repos[0].ID, s.Fixtures.CreatePoolParams.Tags)
-	s.Require().Nil(err)
-	s.Require().Equal(repoPool.ID, pool.ID)
-	s.Require().Equal(repoPool.Image, pool.Image)
-	s.Require().Equal(repoPool.Flavor, pool.Flavor)
-}
-
-func (s *RepoTestSuite) TestFindRepositoryPoolByTagsMissingTags() {
-	tags := []string{}
-
-	_, err := s.Store.FindRepositoryPoolByTags(context.Background(), s.Fixtures.Repos[0].ID, tags)
-
-	s.Require().NotNil(err)
-	s.Require().Equal("fetching pool: missing tags", err.Error())
-}
-
 func (s *RepoTestSuite) TestListRepoInstances() {
 	pool, err := s.Store.CreateRepositoryPool(context.Background(), s.Fixtures.Repos[0].ID, s.Fixtures.CreatePoolParams)
 	if err != nil {

@@ -1725,10 +1725,6 @@ func (r *basePoolManager) WebhookSecret() string {
 	return r.entity.WebhookSecret
 }
 
-func (r *basePoolManager) GithubRunnerRegistrationToken() (string, error) {
-	return r.GetGithubRegistrationToken()
-}
-
 func (r *basePoolManager) ID() string {
 	return r.entity.ID
 }
@@ -2095,7 +2091,7 @@ func (r *basePoolManager) GetRunnerInfoFromWorkflow(job params.WorkflowJob) (par
 	return params.RunnerInfo{}, fmt.Errorf("failed to find runner name from workflow")
 }
 
-func (r *basePoolManager) GetGithubRegistrationToken() (string, error) {
+func (r *basePoolManager) GithubRunnerRegistrationToken() (string, error) {
 	tk, ghResp, err := r.ghcli.CreateEntityRegistrationToken(r.ctx)
 	if err != nil {
 		if ghResp != nil && ghResp.StatusCode == http.StatusUnauthorized {

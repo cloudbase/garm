@@ -192,7 +192,7 @@ func (s *sqlDatabase) CreateRepositoryPool(ctx context.Context, repoID string, p
 
 	tags := []Tag{}
 	for _, val := range param.Tags {
-		t, err := s.getOrCreateTag(val)
+		t, err := s.getOrCreateTag(s.conn, val)
 		if err != nil {
 			return params.Pool{}, errors.Wrap(err, "fetching tag")
 		}
@@ -210,7 +210,7 @@ func (s *sqlDatabase) CreateRepositoryPool(ctx context.Context, repoID string, p
 		}
 	}
 
-	pool, err := s.getPoolByID(ctx, newPool.ID.String(), "Tags", "Instances", "Enterprise", "Organization", "Repository")
+	pool, err := s.getPoolByID(s.conn, newPool.ID.String(), "Tags", "Instances", "Enterprise", "Organization", "Repository")
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}
@@ -253,14 +253,6 @@ func (s *sqlDatabase) DeleteRepositoryPool(ctx context.Context, repoID, poolID s
 		return errors.Wrap(q.Error, "deleting pool")
 	}
 	return nil
-}
-
-func (s *sqlDatabase) FindRepositoryPoolByTags(_ context.Context, repoID string, tags []string) (params.Pool, error) {
-	pool, err := s.findPoolByTags(repoID, params.GithubEntityTypeRepository, tags)
-	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "fetching pool")
-	}
-	return pool[0], nil
 }
 
 func (s *sqlDatabase) ListRepoInstances(ctx context.Context, repoID string) ([]params.Instance, error) {
@@ -306,6 +298,31 @@ func (s *sqlDatabase) getRepo(_ context.Context, owner, name string) (Repository
 		return Repository{}, errors.Wrap(q.Error, "fetching repository from database")
 	}
 	return repo, nil
+}
+
+func (s *sqlDatabase) getEntityPoolByUniqueFields(tx *gorm.DB, entity params.GithubEntity, provider, image, flavor string) (pool Pool, err error) {
+	var entityField string
+	switch entity.EntityType {
+	case params.GithubEntityTypeRepository:
+		entityField = entityTypeRepoName
+	case params.GithubEntityTypeOrganization:
+		entityField = entityTypeOrgName
+	case params.GithubEntityTypeEnterprise:
+		entityField = entityTypeEnterpriseName
+	}
+	entityID, err := uuid.Parse(entity.ID)
+	if err != nil {
+		return pool, fmt.Errorf("parsing entity ID: %w", err)
+	}
+	poolQueryString := fmt.Sprintf("provider_name = ? and image = ? and flavor = ? and %s = ?", entityField)
+	err = tx.Where(poolQueryString, provider, image, flavor, entityID).First(&pool).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return pool, runnerErrors.ErrNotFound
+		}
+		return
+	}
+	return Pool{}, nil
 }
 
 func (s *sqlDatabase) getRepoPoolByUniqueFields(ctx context.Context, repoID string, provider, image, flavor string) (Pool, error) {

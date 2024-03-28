@@ -49,7 +49,7 @@ func (s *sqlDatabase) unsealAndUnmarshal(data []byte, target interface{}) error 
 }
 
 func (s *sqlDatabase) CreateInstance(ctx context.Context, poolID string, param params.CreateInstanceParams) (params.Instance, error) {
-	pool, err := s.getPoolByID(ctx, poolID)
+	pool, err := s.getPoolByID(s.conn, poolID)
 	if err != nil {
 		return params.Instance{}, errors.Wrap(err, "fetching pool")
 	}
@@ -108,8 +108,8 @@ func (s *sqlDatabase) getInstanceByID(_ context.Context, instanceID string) (Ins
 	return instance, nil
 }
 
-func (s *sqlDatabase) getPoolInstanceByName(ctx context.Context, poolID string, instanceName string) (Instance, error) {
-	pool, err := s.getPoolByID(ctx, poolID)
+func (s *sqlDatabase) getPoolInstanceByName(poolID string, instanceName string) (Instance, error) {
+	pool, err := s.getPoolByID(s.conn, poolID)
 	if err != nil {
 		return Instance{}, errors.Wrap(err, "fetching pool")
 	}
@@ -153,7 +153,7 @@ func (s *sqlDatabase) getInstanceByName(_ context.Context, instanceName string, 
 }
 
 func (s *sqlDatabase) GetPoolInstanceByName(ctx context.Context, poolID string, instanceName string) (params.Instance, error) {
-	instance, err := s.getPoolInstanceByName(ctx, poolID, instanceName)
+	instance, err := s.getPoolInstanceByName(poolID, instanceName)
 	if err != nil {
 		return params.Instance{}, errors.Wrap(err, "fetching instance")
 	}
@@ -171,7 +171,7 @@ func (s *sqlDatabase) GetInstanceByName(ctx context.Context, instanceName string
 }
 
 func (s *sqlDatabase) DeleteInstance(ctx context.Context, poolID string, instanceName string) error {
-	instance, err := s.getPoolInstanceByName(ctx, poolID, instanceName)
+	instance, err := s.getPoolInstanceByName(poolID, instanceName)
 	if err != nil {
 		return errors.Wrap(err, "deleting instance")
 	}
@@ -338,7 +338,7 @@ func (s *sqlDatabase) ListAllInstances(_ context.Context) ([]params.Instance, er
 }
 
 func (s *sqlDatabase) PoolInstanceCount(ctx context.Context, poolID string) (int64, error) {
-	pool, err := s.getPoolByID(ctx, poolID)
+	pool, err := s.getPoolByID(s.conn, poolID)
 	if err != nil {
 		return 0, errors.Wrap(err, "fetching pool")
 	}

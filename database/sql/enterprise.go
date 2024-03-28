@@ -175,7 +175,7 @@ func (s *sqlDatabase) CreateEnterprisePool(ctx context.Context, enterpriseID str
 
 	tags := []Tag{}
 	for _, val := range param.Tags {
-		t, err := s.getOrCreateTag(val)
+		t, err := s.getOrCreateTag(s.conn, val)
 		if err != nil {
 			return params.Pool{}, errors.Wrap(err, "fetching tag")
 		}
@@ -193,7 +193,7 @@ func (s *sqlDatabase) CreateEnterprisePool(ctx context.Context, enterpriseID str
 		}
 	}
 
-	pool, err := s.getPoolByID(ctx, newPool.ID.String(), "Tags", "Instances", "Enterprise", "Organization", "Repository")
+	pool, err := s.getPoolByID(s.conn, newPool.ID.String(), "Tags", "Instances", "Enterprise", "Organization", "Repository")
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}
@@ -228,14 +228,6 @@ func (s *sqlDatabase) UpdateEnterprisePool(ctx context.Context, enterpriseID, po
 	}
 
 	return s.updatePool(pool, param)
-}
-
-func (s *sqlDatabase) FindEnterprisePoolByTags(_ context.Context, enterpriseID string, tags []string) (params.Pool, error) {
-	pool, err := s.findPoolByTags(enterpriseID, params.GithubEntityTypeEnterprise, tags)
-	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "fetching pool")
-	}
-	return pool[0], nil
 }
 
 func (s *sqlDatabase) ListEnterprisePools(ctx context.Context, enterpriseID string) ([]params.Pool, error) {

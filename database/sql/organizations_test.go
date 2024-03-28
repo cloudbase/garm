@@ -740,29 +740,6 @@ func (s *OrgTestSuite) TestDeleteOrganizationPoolDBDeleteErr() {
 	s.Require().Equal("deleting pool: mocked deleting pool error", err.Error())
 }
 
-func (s *OrgTestSuite) TestFindOrganizationPoolByTags() {
-	orgPool, err := s.Store.CreateOrganizationPool(context.Background(), s.Fixtures.Orgs[0].ID, s.Fixtures.CreatePoolParams)
-	if err != nil {
-		s.FailNow(fmt.Sprintf("cannot create org pool: %v", err))
-	}
-
-	pool, err := s.Store.FindOrganizationPoolByTags(context.Background(), s.Fixtures.Orgs[0].ID, s.Fixtures.CreatePoolParams.Tags)
-
-	s.Require().Nil(err)
-	s.Require().Equal(orgPool.ID, pool.ID)
-	s.Require().Equal(orgPool.Image, pool.Image)
-	s.Require().Equal(orgPool.Flavor, pool.Flavor)
-}
-
-func (s *OrgTestSuite) TestFindOrganizationPoolByTagsMissingTags() {
-	tags := []string{}
-
-	_, err := s.Store.FindOrganizationPoolByTags(context.Background(), s.Fixtures.Orgs[0].ID, tags)
-
-	s.Require().NotNil(err)
-	s.Require().Equal("fetching pool: missing tags", err.Error())
-}
-
 func (s *OrgTestSuite) TestListOrgInstances() {
 	pool, err := s.Store.CreateOrganizationPool(context.Background(), s.Fixtures.Orgs[0].ID, s.Fixtures.CreatePoolParams)
 	if err != nil {
