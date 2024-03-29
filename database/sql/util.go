@@ -290,9 +290,8 @@ func (s *sqlDatabase) getOrCreateTag(tx *gorm.DB, tagName string) (Tag, error) {
 		Name: tagName,
 	}
 
-	q = tx.Create(&newTag)
-	if q.Error != nil {
-		return Tag{}, errors.Wrap(q.Error, "creating tag")
+	if err := tx.Create(&newTag).Error; err != nil {
+		return Tag{}, errors.Wrap(err, "creating tag")
 	}
 	return newTag, nil
 }
@@ -392,10 +391,10 @@ func (s *sqlDatabase) getPoolByID(tx *gorm.DB, poolID string, preload ...string)
 	return pool, nil
 }
 
-func (s *sqlDatabase) hasGithubEntity(tx *gorm.DB, entityType params.GithubEntityType, entityID string) (bool, error) {
+func (s *sqlDatabase) hasGithubEntity(tx *gorm.DB, entityType params.GithubEntityType, entityID string) error {
 	u, err := uuid.Parse(entityID)
 	if err != nil {
-		return false, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
+		return errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
 	}
 	var q *gorm.DB
 	switch entityType {
@@ -406,15 +405,15 @@ func (s *sqlDatabase) hasGithubEntity(tx *gorm.DB, entityType params.GithubEntit
 	case params.GithubEntityTypeEnterprise:
 		q = tx.Model(&Enterprise{}).Where("id = ?", u)
 	default:
-		return false, errors.Wrap(runnerErrors.ErrBadRequest, "invalid entity type")
+		return errors.Wrap(runnerErrors.ErrBadRequest, "invalid entity type")
 	}
 
 	var entity interface{}
 	if err := q.First(entity).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return false, errors.Wrap(runnerErrors.ErrNotFound, "entity not found")
+			return errors.Wrap(runnerErrors.ErrNotFound, "entity not found")
 		}
-		return false, errors.Wrap(err, "fetching entity from database")
+		return errors.Wrap(err, "fetching entity from database")
 	}
-	return true, nil
+	return nil
 }

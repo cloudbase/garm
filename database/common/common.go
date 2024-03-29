@@ -27,14 +27,6 @@ type RepoStore interface {
 	ListRepositories(ctx context.Context) ([]params.Repository, error)
 	DeleteRepository(ctx context.Context, repoID string) error
 	UpdateRepository(ctx context.Context, repoID string, param params.UpdateEntityParams) (params.Repository, error)
-
-	// CreateRepositoryPool(ctx context.Context, repoID string, param params.CreatePoolParams) (params.Pool, error)
-	// GetRepositoryPool(ctx context.Context, repoID, poolID string) (params.Pool, error)
-	// DeleteRepositoryPool(ctx context.Context, repoID, poolID string) error
-	UpdateRepositoryPool(ctx context.Context, repoID, poolID string, param params.UpdatePoolParams) (params.Pool, error)
-
-	ListRepoPools(ctx context.Context, repoID string) ([]params.Pool, error)
-	ListRepoInstances(ctx context.Context, repoID string) ([]params.Instance, error)
 }
 
 type OrgStore interface {
@@ -44,14 +36,6 @@ type OrgStore interface {
 	ListOrganizations(ctx context.Context) ([]params.Organization, error)
 	DeleteOrganization(ctx context.Context, orgID string) error
 	UpdateOrganization(ctx context.Context, orgID string, param params.UpdateEntityParams) (params.Organization, error)
-
-	// CreateOrganizationPool(ctx context.Context, orgID string, param params.CreatePoolParams) (params.Pool, error)
-	// GetOrganizationPool(ctx context.Context, orgID, poolID string) (params.Pool, error)
-	// DeleteOrganizationPool(ctx context.Context, orgID, poolID string) error
-	UpdateOrganizationPool(ctx context.Context, orgID, poolID string, param params.UpdatePoolParams) (params.Pool, error)
-
-	ListOrgPools(ctx context.Context, orgID string) ([]params.Pool, error)
-	ListOrgInstances(ctx context.Context, orgID string) ([]params.Instance, error)
 }
 
 type EnterpriseStore interface {
@@ -61,14 +45,6 @@ type EnterpriseStore interface {
 	ListEnterprises(ctx context.Context) ([]params.Enterprise, error)
 	DeleteEnterprise(ctx context.Context, enterpriseID string) error
 	UpdateEnterprise(ctx context.Context, enterpriseID string, param params.UpdateEntityParams) (params.Enterprise, error)
-
-	// CreateEnterprisePool(ctx context.Context, enterpriseID string, param params.CreatePoolParams) (params.Pool, error)
-	// GetEnterprisePool(ctx context.Context, enterpriseID, poolID string) (params.Pool, error)
-	// DeleteEnterprisePool(ctx context.Context, enterpriseID, poolID string) error
-	UpdateEnterprisePool(ctx context.Context, enterpriseID, poolID string, param params.UpdatePoolParams) (params.Pool, error)
-
-	ListEnterprisePools(ctx context.Context, enterpriseID string) ([]params.Pool, error)
-	ListEnterpriseInstances(ctx context.Context, enterpriseID string) ([]params.Instance, error)
 }
 
 type PoolStore interface {

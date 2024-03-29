@@ -66,10 +66,8 @@ func (s *PoolsTestSuite) SetupTest() {
 		s.FailNow(fmt.Sprintf("failed to create org: %s", err))
 	}
 
-	entity := params.GithubEntity{
-		ID:         org.ID,
-		EntityType: params.GithubEntityTypeOrganization,
-	}
+	entity, err := org.GetEntity()
+	s.Require().Nil(err)
 	// create some pool objects in the database, for testing purposes
 	orgPools := []params.Pool{}
 	for i := 1; i <= 3; i++ {

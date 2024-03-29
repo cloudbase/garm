@@ -317,6 +317,27 @@ type Pool struct {
 	Priority uint `json:"priority"`
 }
 
+func (p Pool) GithubEntity() (GithubEntity, error) {
+	switch p.PoolType() {
+	case GithubEntityTypeRepository:
+		return GithubEntity{
+			ID:         p.RepoID,
+			EntityType: GithubEntityTypeRepository,
+		}, nil
+	case GithubEntityTypeOrganization:
+		return GithubEntity{
+			ID:         p.OrgID,
+			EntityType: GithubEntityTypeOrganization,
+		}, nil
+	case GithubEntityTypeEnterprise:
+		return GithubEntity{
+			ID:         p.EnterpriseID,
+			EntityType: GithubEntityTypeEnterprise,
+		}, nil
+	}
+	return GithubEntity{}, fmt.Errorf("pool has no associated entity")
+}
+
 func (p Pool) GetID() string {
 	return p.ID
 }
@@ -383,6 +404,18 @@ type Repository struct {
 	WebhookSecret string `json:"-"`
 }
 
+func (r Repository) GetEntity() (GithubEntity, error) {
+	if r.ID == "" {
+		return GithubEntity{}, fmt.Errorf("repository has no ID")
+	}
+	return GithubEntity{
+		ID:         r.ID,
+		EntityType: GithubEntityTypeRepository,
+		Owner:      r.Owner,
+		Name:       r.Name,
+	}, nil
+}
+
 func (r Repository) GetName() string {
 	return r.Name
 }
@@ -412,6 +445,18 @@ type Organization struct {
 	WebhookSecret string `json:"-"`
 }
 
+func (o Organization) GetEntity() (GithubEntity, error) {
+	if o.ID == "" {
+		return GithubEntity{}, fmt.Errorf("organization has no ID")
+	}
+	return GithubEntity{
+		ID:            o.ID,
+		EntityType:    GithubEntityTypeOrganization,
+		Owner:         o.Name,
+		WebhookSecret: o.WebhookSecret,
+	}, nil
+}
+
 func (o Organization) GetName() string {
 	return o.Name
 }
@@ -439,6 +484,18 @@ type Enterprise struct {
 	PoolBalancerType  PoolBalancerType  `json:"pool_balancing_type"`
 	// Do not serialize sensitive info.
 	WebhookSecret string `json:"-"`
+}
+
+func (e Enterprise) GetEntity() (GithubEntity, error) {
+	if e.ID == "" {
+		return GithubEntity{}, fmt.Errorf("enterprise has no ID")
+	}
+	return GithubEntity{
+		ID:            e.ID,
+		EntityType:    GithubEntityTypeEnterprise,
+		Owner:         e.Name,
+		WebhookSecret: e.WebhookSecret,
+	}, nil
 }
 
 func (e Enterprise) GetName() string {

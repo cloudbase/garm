@@ -124,7 +124,12 @@ func (r *Runner) DeleteEnterprise(ctx context.Context, enterpriseID string) erro
 		return errors.Wrap(err, "fetching enterprise")
 	}
 
-	pools, err := r.store.ListEnterprisePools(ctx, enterpriseID)
+	entity, err := enterprise.GetEntity()
+	if err != nil {
+		return errors.Wrap(err, "getting entity")
+	}
+
+	pools, err := r.store.ListEntityPools(ctx, entity)
 	if err != nil {
 		return errors.Wrap(err, "fetching enterprise pools")
 	}
@@ -266,7 +271,11 @@ func (r *Runner) ListEnterprisePools(ctx context.Context, enterpriseID string) (
 		return []params.Pool{}, runnerErrors.ErrUnauthorized
 	}
 
-	pools, err := r.store.ListEnterprisePools(ctx, enterpriseID)
+	entity := params.GithubEntity{
+		ID:         enterpriseID,
+		EntityType: params.GithubEntityTypeEnterprise,
+	}
+	pools, err := r.store.ListEntityPools(ctx, entity)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching pools")
 	}
@@ -301,7 +310,7 @@ func (r *Runner) UpdateEnterprisePool(ctx context.Context, enterpriseID, poolID 
 		return params.Pool{}, runnerErrors.NewBadRequestError("min_idle_runners cannot be larger than max_runners")
 	}
 
-	newPool, err := r.store.UpdateEnterprisePool(ctx, enterpriseID, poolID, param)
+	newPool, err := r.store.UpdateEntityPool(ctx, entity, poolID, param)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "updating pool")
 	}
@@ -312,8 +321,11 @@ func (r *Runner) ListEnterpriseInstances(ctx context.Context, enterpriseID strin
 	if !auth.IsAdmin(ctx) {
 		return nil, runnerErrors.ErrUnauthorized
 	}
-
-	instances, err := r.store.ListEnterpriseInstances(ctx, enterpriseID)
+	entity := params.GithubEntity{
+		ID:         enterpriseID,
+		EntityType: params.GithubEntityTypeEnterprise,
+	}
+	instances, err := r.store.ListEntityInstances(ctx, entity)
 	if err != nil {
 		return []params.Instance{}, errors.Wrap(err, "fetching instances")
 	}

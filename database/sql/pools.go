@@ -89,23 +89,28 @@ func (s *sqlDatabase) getEntityPool(tx *gorm.DB, entityType params.GithubEntityT
 		return Pool{}, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
 	}
 
+	var fieldName string
+	var entityField string
+	switch entityType {
+	case params.GithubEntityTypeRepository:
+		fieldName = entityTypeRepoName
+		entityField = "Repository"
+	case params.GithubEntityTypeOrganization:
+		fieldName = entityTypeOrgName
+		entityField = "Organization"
+	case params.GithubEntityTypeEnterprise:
+		fieldName = entityTypeEnterpriseName
+		entityField = "Enterprise"
+	default:
+		return Pool{}, fmt.Errorf("invalid entityType: %v", entityType)
+	}
+
 	q := tx
+	q = q.Preload(entityField)
 	if len(preload) > 0 {
 		for _, item := range preload {
 			q = q.Preload(item)
 		}
-	}
-
-	var fieldName string
-	switch entityType {
-	case params.GithubEntityTypeRepository:
-		fieldName = entityTypeRepoName
-	case params.GithubEntityTypeOrganization:
-		fieldName = entityTypeOrgName
-	case params.GithubEntityTypeEnterprise:
-		fieldName = entityTypeEnterpriseName
-	default:
-		return Pool{}, fmt.Errorf("invalid entityType: %v", entityType)
 	}
 
 	var pool Pool
@@ -123,28 +128,37 @@ func (s *sqlDatabase) getEntityPool(tx *gorm.DB, entityType params.GithubEntityT
 	return pool, nil
 }
 
-func (s *sqlDatabase) listEntityPools(_ context.Context, entityType params.GithubEntityType, entityID string, preload ...string) ([]Pool, error) {
+func (s *sqlDatabase) listEntityPools(tx *gorm.DB, entityType params.GithubEntityType, entityID string, preload ...string) ([]Pool, error) {
 	if _, err := uuid.Parse(entityID); err != nil {
 		return nil, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
 	}
 
-	q := s.conn
-	if len(preload) > 0 {
-		for _, item := range preload {
-			q = q.Preload(item)
-		}
+	if err := s.hasGithubEntity(tx, entityType, entityID); err != nil {
+		return nil, errors.Wrap(err, "checking entity existence")
 	}
 
+	var preloadEntity string
 	var fieldName string
 	switch entityType {
 	case params.GithubEntityTypeRepository:
 		fieldName = entityTypeRepoName
+		preloadEntity = "Repository"
 	case params.GithubEntityTypeOrganization:
 		fieldName = entityTypeOrgName
+		preloadEntity = "Organization"
 	case params.GithubEntityTypeEnterprise:
 		fieldName = entityTypeEnterpriseName
+		preloadEntity = "Enterprise"
 	default:
 		return nil, fmt.Errorf("invalid entityType: %v", entityType)
+	}
+
+	q := tx
+	q = q.Preload(preloadEntity)
+	if len(preload) > 0 {
+		for _, item := range preload {
+			q = q.Preload(item)
+		}
 	}
 
 	var pools []Pool
@@ -270,8 +284,7 @@ func (s *sqlDatabase) CreateEntityPool(_ context.Context, entity params.GithubEn
 		newPool.EnterpriseID = &entityID
 	}
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
-		ok, err := s.hasGithubEntity(tx, entity.EntityType, entity.ID)
-		if err != nil || !ok {
+		if err := s.hasGithubEntity(tx, entity.EntityType, entity.ID); err != nil {
 			return errors.Wrap(err, "checking entity existence")
 		}
 
@@ -305,7 +318,7 @@ func (s *sqlDatabase) CreateEntityPool(_ context.Context, entity params.GithubEn
 		return nil
 	})
 	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "creating pool")
+		return params.Pool{}, err
 	}
 
 	pool, err := s.getPoolByID(s.conn, newPool.ID.String(), "Tags", "Instances", "Enterprise", "Organization", "Repository")
@@ -353,16 +366,56 @@ func (s *sqlDatabase) DeleteEntityPool(_ context.Context, entity params.GithubEn
 }
 
 func (s *sqlDatabase) UpdateEntityPool(_ context.Context, entity params.GithubEntity, poolID string, param params.UpdatePoolParams) (params.Pool, error) {
-	fmt.Printf("UpdateEntityPool: %v %v %v\n", entity, poolID, param)
-	return params.Pool{}, nil
+	var updatedPool params.Pool
+	err := s.conn.Transaction(func(tx *gorm.DB) error {
+		pool, err := s.getEntityPool(tx, entity.EntityType, entity.ID, poolID, "Tags", "Instances")
+		if err != nil {
+			return errors.Wrap(err, "fetching pool")
+		}
+
+		updatedPool, err = s.updatePool(tx, pool, param)
+		if err != nil {
+			return errors.Wrap(err, "updating pool")
+		}
+		return nil
+	})
+	if err != nil {
+		return params.Pool{}, err
+	}
+	return updatedPool, nil
 }
 
 func (s *sqlDatabase) ListEntityPools(_ context.Context, entity params.GithubEntity) ([]params.Pool, error) {
-	fmt.Println(entity)
-	return nil, nil
+	pools, err := s.listEntityPools(s.conn, entity.EntityType, entity.ID, "Tags")
+	if err != nil {
+		return nil, errors.Wrap(err, "fetching pools")
+	}
+
+	ret := make([]params.Pool, len(pools))
+	for idx, pool := range pools {
+		ret[idx], err = s.sqlToCommonPool(pool)
+		if err != nil {
+			return nil, errors.Wrap(err, "fetching pool")
+		}
+	}
+
+	return ret, nil
 }
 
 func (s *sqlDatabase) ListEntityInstances(_ context.Context, entity params.GithubEntity) ([]params.Instance, error) {
-	fmt.Println(entity)
-	return nil, nil
+	pools, err := s.listEntityPools(s.conn, entity.EntityType, entity.ID, "Instances", "Instances.Job")
+	if err != nil {
+		return nil, errors.Wrap(err, "fetching entity")
+	}
+	ret := []params.Instance{}
+	for _, pool := range pools {
+		for _, instance := range pool.Instances {
+			paramsInstance, err := s.sqlToParamsInstance(instance)
+			if err != nil {
+				return nil, errors.Wrap(err, "fetching instance")
+			}
+			ret = append(ret, paramsInstance)
+		}
+	}
+	return ret, nil
 }

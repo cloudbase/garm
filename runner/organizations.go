@@ -138,7 +138,12 @@ func (r *Runner) DeleteOrganization(ctx context.Context, orgID string, keepWebho
 		return errors.Wrap(err, "fetching org")
 	}
 
-	pools, err := r.store.ListOrgPools(ctx, orgID)
+	entity, err := org.GetEntity()
+	if err != nil {
+		return errors.Wrap(err, "getting entity")
+	}
+
+	pools, err := r.store.ListEntityPools(ctx, entity)
 	if err != nil {
 		return errors.Wrap(err, "fetching org pools")
 	}
@@ -300,8 +305,11 @@ func (r *Runner) ListOrgPools(ctx context.Context, orgID string) ([]params.Pool,
 	if !auth.IsAdmin(ctx) {
 		return []params.Pool{}, runnerErrors.ErrUnauthorized
 	}
-
-	pools, err := r.store.ListOrgPools(ctx, orgID)
+	entity := params.GithubEntity{
+		ID:         orgID,
+		EntityType: params.GithubEntityTypeOrganization,
+	}
+	pools, err := r.store.ListEntityPools(ctx, entity)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching pools")
 	}
@@ -337,7 +345,7 @@ func (r *Runner) UpdateOrgPool(ctx context.Context, orgID, poolID string, param 
 		return params.Pool{}, runnerErrors.NewBadRequestError("min_idle_runners cannot be larger than max_runners")
 	}
 
-	newPool, err := r.store.UpdateOrganizationPool(ctx, orgID, poolID, param)
+	newPool, err := r.store.UpdateEntityPool(ctx, entity, poolID, param)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "updating pool")
 	}
@@ -349,7 +357,12 @@ func (r *Runner) ListOrgInstances(ctx context.Context, orgID string) ([]params.I
 		return nil, runnerErrors.ErrUnauthorized
 	}
 
-	instances, err := r.store.ListOrgInstances(ctx, orgID)
+	entity := params.GithubEntity{
+		ID:         orgID,
+		EntityType: params.GithubEntityTypeOrganization,
+	}
+
+	instances, err := r.store.ListEntityInstances(ctx, entity)
 	if err != nil {
 		return []params.Instance{}, errors.Wrap(err, "fetching instances")
 	}
