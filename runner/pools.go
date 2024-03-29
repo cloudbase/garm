@@ -16,7 +16,6 @@ package runner
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/pkg/errors"
 
@@ -108,19 +107,12 @@ func (r *Runner) UpdatePoolByID(ctx context.Context, poolID string, param params
 		param.Tags = newTags
 	}
 
-	var newPool params.Pool
-
-	switch {
-	case pool.RepoID != "":
-		newPool, err = r.store.UpdateRepositoryPool(ctx, pool.RepoID, poolID, param)
-	case pool.OrgID != "":
-		newPool, err = r.store.UpdateOrganizationPool(ctx, pool.OrgID, poolID, param)
-	case pool.EnterpriseID != "":
-		newPool, err = r.store.UpdateEnterprisePool(ctx, pool.EnterpriseID, poolID, param)
-	default:
-		return params.Pool{}, fmt.Errorf("pool not found to a repo, org or enterprise")
+	entity, err := pool.GithubEntity()
+	if err != nil {
+		return params.Pool{}, errors.Wrap(err, "getting entity")
 	}
 
+	newPool, err := r.store.UpdateEntityPool(ctx, entity, poolID, param)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "updating pool")
 	}

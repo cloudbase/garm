@@ -272,7 +272,11 @@ func (s *EnterpriseTestSuite) TestDeleteEnterpriseErrUnauthorized() {
 }
 
 func (s *EnterpriseTestSuite) TestDeleteEnterprisePoolDefinedFailed() {
-	pool, err := s.Fixtures.Store.CreateEnterprisePool(s.Fixtures.AdminContext, s.Fixtures.StoreEnterprises["test-enterprise-1"].ID, s.Fixtures.CreatePoolParams)
+	entity := params.GithubEntity{
+		ID:         s.Fixtures.StoreEnterprises["test-enterprise-1"].ID,
+		EntityType: params.GithubEntityTypeEnterprise,
+	}
+	pool, err := s.Fixtures.Store.CreateEntityPool(s.Fixtures.AdminContext, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create store enterprises pool: %v", err))
 	}
@@ -340,8 +344,6 @@ func (s *EnterpriseTestSuite) TestUpdateEnterpriseCreateEnterprisePoolMgrFailed(
 }
 
 func (s *EnterpriseTestSuite) TestCreateEnterprisePool() {
-	s.Fixtures.PoolMgrCtrlMock.On("GetEnterprisePoolManager", mock.AnythingOfType("params.Enterprise")).Return(s.Fixtures.PoolMgrMock, nil)
-
 	pool, err := s.Runner.CreateEnterprisePool(s.Fixtures.AdminContext, s.Fixtures.StoreEnterprises["test-enterprise-1"].ID, s.Fixtures.CreatePoolParams)
 
 	s.Fixtures.PoolMgrMock.AssertExpectations(s.T())
@@ -365,30 +367,21 @@ func (s *EnterpriseTestSuite) TestCreateEnterprisePoolErrUnauthorized() {
 	s.Require().Equal(runnerErrors.ErrUnauthorized, err)
 }
 
-func (s *EnterpriseTestSuite) TestCreateEnterprisePoolErrNotFound() {
-	s.Fixtures.PoolMgrCtrlMock.On("GetEnterprisePoolManager", mock.AnythingOfType("params.Enterprise")).Return(s.Fixtures.PoolMgrMock, runnerErrors.ErrNotFound)
-
-	_, err := s.Runner.CreateEnterprisePool(s.Fixtures.AdminContext, s.Fixtures.StoreEnterprises["test-enterprise-1"].ID, s.Fixtures.CreatePoolParams)
-
-	s.Fixtures.PoolMgrMock.AssertExpectations(s.T())
-	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
-	s.Require().Equal(runnerErrors.ErrNotFound, err)
-}
-
 func (s *EnterpriseTestSuite) TestCreateEnterprisePoolFetchPoolParamsFailed() {
 	s.Fixtures.CreatePoolParams.ProviderName = notExistingProviderName
-
-	s.Fixtures.PoolMgrCtrlMock.On("GetEnterprisePoolManager", mock.AnythingOfType("params.Enterprise")).Return(s.Fixtures.PoolMgrMock, nil)
-
 	_, err := s.Runner.CreateEnterprisePool(s.Fixtures.AdminContext, s.Fixtures.StoreEnterprises["test-enterprise-1"].ID, s.Fixtures.CreatePoolParams)
 
 	s.Fixtures.PoolMgrMock.AssertExpectations(s.T())
 	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
-	s.Require().Regexp("fetching pool params: no such provider", err.Error())
+	s.Require().Regexp("failed to append tags to create pool params: no such provider not-existent-provider-name", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestGetEnterprisePoolByID() {
-	enterprisePool, err := s.Fixtures.Store.CreateEnterprisePool(s.Fixtures.AdminContext, s.Fixtures.StoreEnterprises["test-enterprise-1"].ID, s.Fixtures.CreatePoolParams)
+	entity := params.GithubEntity{
+		ID:         s.Fixtures.StoreEnterprises["test-enterprise-1"].ID,
+		EntityType: params.GithubEntityTypeEnterprise,
+	}
+	enterprisePool, err := s.Fixtures.Store.CreateEntityPool(s.Fixtures.AdminContext, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create enterprise pool: %s", err))
 	}
@@ -406,7 +399,11 @@ func (s *EnterpriseTestSuite) TestGetEnterprisePoolByIDErrUnauthorized() {
 }
 
 func (s *EnterpriseTestSuite) TestDeleteEnterprisePool() {
-	pool, err := s.Fixtures.Store.CreateEnterprisePool(s.Fixtures.AdminContext, s.Fixtures.StoreEnterprises["test-enterprise-1"].ID, s.Fixtures.CreatePoolParams)
+	entity := params.GithubEntity{
+		ID:         s.Fixtures.StoreEnterprises["test-enterprise-1"].ID,
+		EntityType: params.GithubEntityTypeEnterprise,
+	}
+	pool, err := s.Fixtures.Store.CreateEntityPool(s.Fixtures.AdminContext, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create enterprise pool: %s", err))
 	}
@@ -415,7 +412,7 @@ func (s *EnterpriseTestSuite) TestDeleteEnterprisePool() {
 
 	s.Require().Nil(err)
 
-	_, err = s.Fixtures.Store.GetEnterprisePool(s.Fixtures.AdminContext, s.Fixtures.StoreEnterprises["test-enterprise-1"].ID, pool.ID)
+	_, err = s.Fixtures.Store.GetEntityPool(s.Fixtures.AdminContext, entity, pool.ID)
 	s.Require().Equal("fetching pool: finding pool: not found", err.Error())
 }
 
@@ -426,7 +423,11 @@ func (s *EnterpriseTestSuite) TestDeleteEnterprisePoolErrUnauthorized() {
 }
 
 func (s *EnterpriseTestSuite) TestDeleteEnterprisePoolRunnersFailed() {
-	pool, err := s.Fixtures.Store.CreateEnterprisePool(s.Fixtures.AdminContext, s.Fixtures.StoreEnterprises["test-enterprise-1"].ID, s.Fixtures.CreatePoolParams)
+	entity := params.GithubEntity{
+		ID:         s.Fixtures.StoreEnterprises["test-enterprise-1"].ID,
+		EntityType: params.GithubEntityTypeEnterprise,
+	}
+	pool, err := s.Fixtures.Store.CreateEntityPool(s.Fixtures.AdminContext, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create enterprise pool: %v", err))
 	}
@@ -441,10 +442,14 @@ func (s *EnterpriseTestSuite) TestDeleteEnterprisePoolRunnersFailed() {
 }
 
 func (s *EnterpriseTestSuite) TestListEnterprisePools() {
+	entity := params.GithubEntity{
+		ID:         s.Fixtures.StoreEnterprises["test-enterprise-1"].ID,
+		EntityType: params.GithubEntityTypeEnterprise,
+	}
 	enterprisePools := []params.Pool{}
 	for i := 1; i <= 2; i++ {
 		s.Fixtures.CreatePoolParams.Image = fmt.Sprintf("test-enterprise-%v", i)
-		pool, err := s.Fixtures.Store.CreateEnterprisePool(s.Fixtures.AdminContext, s.Fixtures.StoreEnterprises["test-enterprise-1"].ID, s.Fixtures.CreatePoolParams)
+		pool, err := s.Fixtures.Store.CreateEntityPool(s.Fixtures.AdminContext, entity, s.Fixtures.CreatePoolParams)
 		if err != nil {
 			s.FailNow(fmt.Sprintf("cannot create org pool: %v", err))
 		}
@@ -464,7 +469,11 @@ func (s *EnterpriseTestSuite) TestListOrgPoolsErrUnauthorized() {
 }
 
 func (s *EnterpriseTestSuite) TestUpdateEnterprisePool() {
-	enterprisePool, err := s.Fixtures.Store.CreateEnterprisePool(s.Fixtures.AdminContext, s.Fixtures.StoreEnterprises["test-enterprise-1"].ID, s.Fixtures.CreatePoolParams)
+	entity := params.GithubEntity{
+		ID:         s.Fixtures.StoreEnterprises["test-enterprise-1"].ID,
+		EntityType: params.GithubEntityTypeEnterprise,
+	}
+	enterprisePool, err := s.Fixtures.Store.CreateEntityPool(s.Fixtures.AdminContext, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create enterprise pool: %s", err))
 	}
@@ -483,7 +492,11 @@ func (s *EnterpriseTestSuite) TestUpdateEnterprisePoolErrUnauthorized() {
 }
 
 func (s *EnterpriseTestSuite) TestUpdateEnterprisePoolMinIdleGreaterThanMax() {
-	pool, err := s.Fixtures.Store.CreateEnterprisePool(s.Fixtures.AdminContext, s.Fixtures.StoreEnterprises["test-enterprise-1"].ID, s.Fixtures.CreatePoolParams)
+	entity := params.GithubEntity{
+		ID:         s.Fixtures.StoreEnterprises["test-enterprise-1"].ID,
+		EntityType: params.GithubEntityTypeEnterprise,
+	}
+	pool, err := s.Fixtures.Store.CreateEntityPool(s.Fixtures.AdminContext, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create enterprise pool: %s", err))
 	}
@@ -498,7 +511,11 @@ func (s *EnterpriseTestSuite) TestUpdateEnterprisePoolMinIdleGreaterThanMax() {
 }
 
 func (s *EnterpriseTestSuite) TestListEnterpriseInstances() {
-	pool, err := s.Fixtures.Store.CreateEnterprisePool(s.Fixtures.AdminContext, s.Fixtures.StoreEnterprises["test-enterprise-1"].ID, s.Fixtures.CreatePoolParams)
+	entity := params.GithubEntity{
+		ID:         s.Fixtures.StoreEnterprises["test-enterprise-1"].ID,
+		EntityType: params.GithubEntityTypeEnterprise,
+	}
+	pool, err := s.Fixtures.Store.CreateEntityPool(s.Fixtures.AdminContext, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create enterprise pool: %v", err))
 	}

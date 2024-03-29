@@ -1725,10 +1725,6 @@ func (r *basePoolManager) WebhookSecret() string {
 	return r.entity.WebhookSecret
 }
 
-func (r *basePoolManager) GithubRunnerRegistrationToken() (string, error) {
-	return r.GetGithubRegistrationToken()
-}
-
 func (r *basePoolManager) ID() string {
 	return r.entity.ID
 }
@@ -2095,7 +2091,7 @@ func (r *basePoolManager) GetRunnerInfoFromWorkflow(job params.WorkflowJob) (par
 	return params.RunnerInfo{}, fmt.Errorf("failed to find runner name from workflow")
 }
 
-func (r *basePoolManager) GetGithubRegistrationToken() (string, error) {
+func (r *basePoolManager) GithubRunnerRegistrationToken() (string, error) {
 	tk, ghResp, err := r.ghcli.CreateEntityRegistrationToken(r.ctx)
 	if err != nil {
 		if ghResp != nil && ghResp.StatusCode == http.StatusUnauthorized {
@@ -2177,41 +2173,15 @@ func (r *basePoolManager) GithubURL() string {
 }
 
 func (r *basePoolManager) FetchDbInstances() ([]params.Instance, error) {
-	switch r.entity.EntityType {
-	case params.GithubEntityTypeRepository:
-		return r.store.ListRepoInstances(r.ctx, r.entity.ID)
-	case params.GithubEntityTypeOrganization:
-		return r.store.ListOrgInstances(r.ctx, r.entity.ID)
-	case params.GithubEntityTypeEnterprise:
-		return r.store.ListEnterpriseInstances(r.ctx, r.entity.ID)
-	}
-	return nil, fmt.Errorf("unknown entity type: %s", r.entity.EntityType)
+	return r.store.ListEntityInstances(r.ctx, r.entity)
 }
 
 func (r *basePoolManager) ListPools() ([]params.Pool, error) {
-	switch r.entity.EntityType {
-	case params.GithubEntityTypeRepository:
-		return r.store.ListRepoPools(r.ctx, r.entity.ID)
-	case params.GithubEntityTypeOrganization:
-		return r.store.ListOrgPools(r.ctx, r.entity.ID)
-	case params.GithubEntityTypeEnterprise:
-		return r.store.ListEnterprisePools(r.ctx, r.entity.ID)
-	default:
-		return nil, fmt.Errorf("unknown entity type: %s", r.entity.EntityType)
-	}
+	return r.store.ListEntityPools(r.ctx, r.entity)
 }
 
 func (r *basePoolManager) GetPoolByID(poolID string) (params.Pool, error) {
-	switch r.entity.EntityType {
-	case params.GithubEntityTypeRepository:
-		return r.store.GetRepositoryPool(r.ctx, r.entity.ID, poolID)
-	case params.GithubEntityTypeOrganization:
-		return r.store.GetOrganizationPool(r.ctx, r.entity.ID, poolID)
-	case params.GithubEntityTypeEnterprise:
-		return r.store.GetEnterprisePool(r.ctx, r.entity.ID, poolID)
-	default:
-		return params.Pool{}, fmt.Errorf("unknown entity type: %s", r.entity.EntityType)
-	}
+	return r.store.GetEntityPool(r.ctx, r.entity, poolID)
 }
 
 func (r *basePoolManager) GetWebhookInfo(ctx context.Context) (params.HookInfo, error) {

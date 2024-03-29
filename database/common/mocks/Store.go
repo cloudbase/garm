@@ -106,27 +106,27 @@ func (_m *Store) CreateEnterprise(ctx context.Context, name string, credentialsN
 	return r0, r1
 }
 
-// CreateEnterprisePool provides a mock function with given fields: ctx, enterpriseID, param
-func (_m *Store) CreateEnterprisePool(ctx context.Context, enterpriseID string, param params.CreatePoolParams) (params.Pool, error) {
-	ret := _m.Called(ctx, enterpriseID, param)
+// CreateEntityPool provides a mock function with given fields: ctx, entity, param
+func (_m *Store) CreateEntityPool(ctx context.Context, entity params.GithubEntity, param params.CreatePoolParams) (params.Pool, error) {
+	ret := _m.Called(ctx, entity, param)
 
 	if len(ret) == 0 {
-		panic("no return value specified for CreateEnterprisePool")
+		panic("no return value specified for CreateEntityPool")
 	}
 
 	var r0 params.Pool
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, params.CreatePoolParams) (params.Pool, error)); ok {
-		return rf(ctx, enterpriseID, param)
+	if rf, ok := ret.Get(0).(func(context.Context, params.GithubEntity, params.CreatePoolParams) (params.Pool, error)); ok {
+		return rf(ctx, entity, param)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, params.CreatePoolParams) params.Pool); ok {
-		r0 = rf(ctx, enterpriseID, param)
+	if rf, ok := ret.Get(0).(func(context.Context, params.GithubEntity, params.CreatePoolParams) params.Pool); ok {
+		r0 = rf(ctx, entity, param)
 	} else {
 		r0 = ret.Get(0).(params.Pool)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string, params.CreatePoolParams) error); ok {
-		r1 = rf(ctx, enterpriseID, param)
+	if rf, ok := ret.Get(1).(func(context.Context, params.GithubEntity, params.CreatePoolParams) error); ok {
+		r1 = rf(ctx, entity, param)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -218,34 +218,6 @@ func (_m *Store) CreateOrganization(ctx context.Context, name string, credential
 	return r0, r1
 }
 
-// CreateOrganizationPool provides a mock function with given fields: ctx, orgID, param
-func (_m *Store) CreateOrganizationPool(ctx context.Context, orgID string, param params.CreatePoolParams) (params.Pool, error) {
-	ret := _m.Called(ctx, orgID, param)
-
-	if len(ret) == 0 {
-		panic("no return value specified for CreateOrganizationPool")
-	}
-
-	var r0 params.Pool
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, params.CreatePoolParams) (params.Pool, error)); ok {
-		return rf(ctx, orgID, param)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, params.CreatePoolParams) params.Pool); ok {
-		r0 = rf(ctx, orgID, param)
-	} else {
-		r0 = ret.Get(0).(params.Pool)
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, string, params.CreatePoolParams) error); ok {
-		r1 = rf(ctx, orgID, param)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // CreateRepository provides a mock function with given fields: ctx, owner, name, credentialsName, webhookSecret, poolBalancerType
 func (_m *Store) CreateRepository(ctx context.Context, owner string, name string, credentialsName string, webhookSecret string, poolBalancerType params.PoolBalancerType) (params.Repository, error) {
 	ret := _m.Called(ctx, owner, name, credentialsName, webhookSecret, poolBalancerType)
@@ -267,34 +239,6 @@ func (_m *Store) CreateRepository(ctx context.Context, owner string, name string
 
 	if rf, ok := ret.Get(1).(func(context.Context, string, string, string, string, params.PoolBalancerType) error); ok {
 		r1 = rf(ctx, owner, name, credentialsName, webhookSecret, poolBalancerType)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// CreateRepositoryPool provides a mock function with given fields: ctx, repoID, param
-func (_m *Store) CreateRepositoryPool(ctx context.Context, repoID string, param params.CreatePoolParams) (params.Pool, error) {
-	ret := _m.Called(ctx, repoID, param)
-
-	if len(ret) == 0 {
-		panic("no return value specified for CreateRepositoryPool")
-	}
-
-	var r0 params.Pool
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, params.CreatePoolParams) (params.Pool, error)); ok {
-		return rf(ctx, repoID, param)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, params.CreatePoolParams) params.Pool); ok {
-		r0 = rf(ctx, repoID, param)
-	} else {
-		r0 = ret.Get(0).(params.Pool)
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, string, params.CreatePoolParams) error); ok {
-		r1 = rf(ctx, repoID, param)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -366,17 +310,17 @@ func (_m *Store) DeleteEnterprise(ctx context.Context, enterpriseID string) erro
 	return r0
 }
 
-// DeleteEnterprisePool provides a mock function with given fields: ctx, enterpriseID, poolID
-func (_m *Store) DeleteEnterprisePool(ctx context.Context, enterpriseID string, poolID string) error {
-	ret := _m.Called(ctx, enterpriseID, poolID)
+// DeleteEntityPool provides a mock function with given fields: ctx, entity, poolID
+func (_m *Store) DeleteEntityPool(ctx context.Context, entity params.GithubEntity, poolID string) error {
+	ret := _m.Called(ctx, entity, poolID)
 
 	if len(ret) == 0 {
-		panic("no return value specified for DeleteEnterprisePool")
+		panic("no return value specified for DeleteEntityPool")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
-		r0 = rf(ctx, enterpriseID, poolID)
+	if rf, ok := ret.Get(0).(func(context.Context, params.GithubEntity, string) error); ok {
+		r0 = rf(ctx, entity, poolID)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -438,24 +382,6 @@ func (_m *Store) DeleteOrganization(ctx context.Context, orgID string) error {
 	return r0
 }
 
-// DeleteOrganizationPool provides a mock function with given fields: ctx, orgID, poolID
-func (_m *Store) DeleteOrganizationPool(ctx context.Context, orgID string, poolID string) error {
-	ret := _m.Called(ctx, orgID, poolID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for DeleteOrganizationPool")
-	}
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
-		r0 = rf(ctx, orgID, poolID)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
 // DeletePoolByID provides a mock function with given fields: ctx, poolID
 func (_m *Store) DeletePoolByID(ctx context.Context, poolID string) error {
 	ret := _m.Called(ctx, poolID)
@@ -492,80 +418,6 @@ func (_m *Store) DeleteRepository(ctx context.Context, repoID string) error {
 	return r0
 }
 
-// DeleteRepositoryPool provides a mock function with given fields: ctx, repoID, poolID
-func (_m *Store) DeleteRepositoryPool(ctx context.Context, repoID string, poolID string) error {
-	ret := _m.Called(ctx, repoID, poolID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for DeleteRepositoryPool")
-	}
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
-		r0 = rf(ctx, repoID, poolID)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// FindEnterprisePoolByTags provides a mock function with given fields: ctx, enterpriseID, tags
-func (_m *Store) FindEnterprisePoolByTags(ctx context.Context, enterpriseID string, tags []string) (params.Pool, error) {
-	ret := _m.Called(ctx, enterpriseID, tags)
-
-	if len(ret) == 0 {
-		panic("no return value specified for FindEnterprisePoolByTags")
-	}
-
-	var r0 params.Pool
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, []string) (params.Pool, error)); ok {
-		return rf(ctx, enterpriseID, tags)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, []string) params.Pool); ok {
-		r0 = rf(ctx, enterpriseID, tags)
-	} else {
-		r0 = ret.Get(0).(params.Pool)
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, string, []string) error); ok {
-		r1 = rf(ctx, enterpriseID, tags)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// FindOrganizationPoolByTags provides a mock function with given fields: ctx, orgID, tags
-func (_m *Store) FindOrganizationPoolByTags(ctx context.Context, orgID string, tags []string) (params.Pool, error) {
-	ret := _m.Called(ctx, orgID, tags)
-
-	if len(ret) == 0 {
-		panic("no return value specified for FindOrganizationPoolByTags")
-	}
-
-	var r0 params.Pool
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, []string) (params.Pool, error)); ok {
-		return rf(ctx, orgID, tags)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, []string) params.Pool); ok {
-		r0 = rf(ctx, orgID, tags)
-	} else {
-		r0 = ret.Get(0).(params.Pool)
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, string, []string) error); ok {
-		r1 = rf(ctx, orgID, tags)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // FindPoolsMatchingAllTags provides a mock function with given fields: ctx, entityType, entityID, tags
 func (_m *Store) FindPoolsMatchingAllTags(ctx context.Context, entityType params.GithubEntityType, entityID string, tags []string) ([]params.Pool, error) {
 	ret := _m.Called(ctx, entityType, entityID, tags)
@@ -589,34 +441,6 @@ func (_m *Store) FindPoolsMatchingAllTags(ctx context.Context, entityType params
 
 	if rf, ok := ret.Get(1).(func(context.Context, params.GithubEntityType, string, []string) error); ok {
 		r1 = rf(ctx, entityType, entityID, tags)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// FindRepositoryPoolByTags provides a mock function with given fields: ctx, repoID, tags
-func (_m *Store) FindRepositoryPoolByTags(ctx context.Context, repoID string, tags []string) (params.Pool, error) {
-	ret := _m.Called(ctx, repoID, tags)
-
-	if len(ret) == 0 {
-		panic("no return value specified for FindRepositoryPoolByTags")
-	}
-
-	var r0 params.Pool
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, []string) (params.Pool, error)); ok {
-		return rf(ctx, repoID, tags)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, []string) params.Pool); ok {
-		r0 = rf(ctx, repoID, tags)
-	} else {
-		r0 = ret.Get(0).(params.Pool)
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, string, []string) error); ok {
-		r1 = rf(ctx, repoID, tags)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -680,27 +504,27 @@ func (_m *Store) GetEnterpriseByID(ctx context.Context, enterpriseID string) (pa
 	return r0, r1
 }
 
-// GetEnterprisePool provides a mock function with given fields: ctx, enterpriseID, poolID
-func (_m *Store) GetEnterprisePool(ctx context.Context, enterpriseID string, poolID string) (params.Pool, error) {
-	ret := _m.Called(ctx, enterpriseID, poolID)
+// GetEntityPool provides a mock function with given fields: ctx, entity, poolID
+func (_m *Store) GetEntityPool(ctx context.Context, entity params.GithubEntity, poolID string) (params.Pool, error) {
+	ret := _m.Called(ctx, entity, poolID)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetEnterprisePool")
+		panic("no return value specified for GetEntityPool")
 	}
 
 	var r0 params.Pool
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) (params.Pool, error)); ok {
-		return rf(ctx, enterpriseID, poolID)
+	if rf, ok := ret.Get(0).(func(context.Context, params.GithubEntity, string) (params.Pool, error)); ok {
+		return rf(ctx, entity, poolID)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) params.Pool); ok {
-		r0 = rf(ctx, enterpriseID, poolID)
+	if rf, ok := ret.Get(0).(func(context.Context, params.GithubEntity, string) params.Pool); ok {
+		r0 = rf(ctx, entity, poolID)
 	} else {
 		r0 = ret.Get(0).(params.Pool)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
-		r1 = rf(ctx, enterpriseID, poolID)
+	if rf, ok := ret.Get(1).(func(context.Context, params.GithubEntity, string) error); ok {
+		r1 = rf(ctx, entity, poolID)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -820,34 +644,6 @@ func (_m *Store) GetOrganizationByID(ctx context.Context, orgID string) (params.
 	return r0, r1
 }
 
-// GetOrganizationPool provides a mock function with given fields: ctx, orgID, poolID
-func (_m *Store) GetOrganizationPool(ctx context.Context, orgID string, poolID string) (params.Pool, error) {
-	ret := _m.Called(ctx, orgID, poolID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetOrganizationPool")
-	}
-
-	var r0 params.Pool
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) (params.Pool, error)); ok {
-		return rf(ctx, orgID, poolID)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) params.Pool); ok {
-		r0 = rf(ctx, orgID, poolID)
-	} else {
-		r0 = ret.Get(0).(params.Pool)
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
-		r1 = rf(ctx, orgID, poolID)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // GetPoolByID provides a mock function with given fields: ctx, poolID
 func (_m *Store) GetPoolByID(ctx context.Context, poolID string) (params.Pool, error) {
 	ret := _m.Called(ctx, poolID)
@@ -953,34 +749,6 @@ func (_m *Store) GetRepositoryByID(ctx context.Context, repoID string) (params.R
 
 	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
 		r1 = rf(ctx, repoID)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// GetRepositoryPool provides a mock function with given fields: ctx, repoID, poolID
-func (_m *Store) GetRepositoryPool(ctx context.Context, repoID string, poolID string) (params.Pool, error) {
-	ret := _m.Called(ctx, repoID, poolID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetRepositoryPool")
-	}
-
-	var r0 params.Pool
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) (params.Pool, error)); ok {
-		return rf(ctx, repoID, poolID)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) params.Pool); ok {
-		r0 = rf(ctx, repoID, poolID)
-	} else {
-		r0 = ret.Get(0).(params.Pool)
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
-		r1 = rf(ctx, repoID, poolID)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1180,66 +948,6 @@ func (_m *Store) ListAllPools(ctx context.Context) ([]params.Pool, error) {
 	return r0, r1
 }
 
-// ListEnterpriseInstances provides a mock function with given fields: ctx, enterpriseID
-func (_m *Store) ListEnterpriseInstances(ctx context.Context, enterpriseID string) ([]params.Instance, error) {
-	ret := _m.Called(ctx, enterpriseID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for ListEnterpriseInstances")
-	}
-
-	var r0 []params.Instance
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) ([]params.Instance, error)); ok {
-		return rf(ctx, enterpriseID)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) []params.Instance); ok {
-		r0 = rf(ctx, enterpriseID)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]params.Instance)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, enterpriseID)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// ListEnterprisePools provides a mock function with given fields: ctx, enterpriseID
-func (_m *Store) ListEnterprisePools(ctx context.Context, enterpriseID string) ([]params.Pool, error) {
-	ret := _m.Called(ctx, enterpriseID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for ListEnterprisePools")
-	}
-
-	var r0 []params.Pool
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) ([]params.Pool, error)); ok {
-		return rf(ctx, enterpriseID)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) []params.Pool); ok {
-		r0 = rf(ctx, enterpriseID)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]params.Pool)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, enterpriseID)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // ListEnterprises provides a mock function with given fields: ctx
 func (_m *Store) ListEnterprises(ctx context.Context) ([]params.Enterprise, error) {
 	ret := _m.Called(ctx)
@@ -1270,6 +978,36 @@ func (_m *Store) ListEnterprises(ctx context.Context) ([]params.Enterprise, erro
 	return r0, r1
 }
 
+// ListEntityInstances provides a mock function with given fields: ctx, entity
+func (_m *Store) ListEntityInstances(ctx context.Context, entity params.GithubEntity) ([]params.Instance, error) {
+	ret := _m.Called(ctx, entity)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListEntityInstances")
+	}
+
+	var r0 []params.Instance
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, params.GithubEntity) ([]params.Instance, error)); ok {
+		return rf(ctx, entity)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, params.GithubEntity) []params.Instance); ok {
+		r0 = rf(ctx, entity)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]params.Instance)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, params.GithubEntity) error); ok {
+		r1 = rf(ctx, entity)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // ListEntityJobsByStatus provides a mock function with given fields: ctx, entityType, entityID, status
 func (_m *Store) ListEntityJobsByStatus(ctx context.Context, entityType params.GithubEntityType, entityID string, status params.JobStatus) ([]params.Job, error) {
 	ret := _m.Called(ctx, entityType, entityID, status)
@@ -1293,6 +1031,36 @@ func (_m *Store) ListEntityJobsByStatus(ctx context.Context, entityType params.G
 
 	if rf, ok := ret.Get(1).(func(context.Context, params.GithubEntityType, string, params.JobStatus) error); ok {
 		r1 = rf(ctx, entityType, entityID, status)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ListEntityPools provides a mock function with given fields: ctx, entity
+func (_m *Store) ListEntityPools(ctx context.Context, entity params.GithubEntity) ([]params.Pool, error) {
+	ret := _m.Called(ctx, entity)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListEntityPools")
+	}
+
+	var r0 []params.Pool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, params.GithubEntity) ([]params.Pool, error)); ok {
+		return rf(ctx, entity)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, params.GithubEntity) []params.Pool); ok {
+		r0 = rf(ctx, entity)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]params.Pool)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, params.GithubEntity) error); ok {
+		r1 = rf(ctx, entity)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1360,66 +1128,6 @@ func (_m *Store) ListJobsByStatus(ctx context.Context, status params.JobStatus) 
 	return r0, r1
 }
 
-// ListOrgInstances provides a mock function with given fields: ctx, orgID
-func (_m *Store) ListOrgInstances(ctx context.Context, orgID string) ([]params.Instance, error) {
-	ret := _m.Called(ctx, orgID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for ListOrgInstances")
-	}
-
-	var r0 []params.Instance
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) ([]params.Instance, error)); ok {
-		return rf(ctx, orgID)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) []params.Instance); ok {
-		r0 = rf(ctx, orgID)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]params.Instance)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, orgID)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// ListOrgPools provides a mock function with given fields: ctx, orgID
-func (_m *Store) ListOrgPools(ctx context.Context, orgID string) ([]params.Pool, error) {
-	ret := _m.Called(ctx, orgID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for ListOrgPools")
-	}
-
-	var r0 []params.Pool
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) ([]params.Pool, error)); ok {
-		return rf(ctx, orgID)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) []params.Pool); ok {
-		r0 = rf(ctx, orgID)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]params.Pool)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, orgID)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // ListOrganizations provides a mock function with given fields: ctx
 func (_m *Store) ListOrganizations(ctx context.Context) ([]params.Organization, error) {
 	ret := _m.Called(ctx)
@@ -1473,66 +1181,6 @@ func (_m *Store) ListPoolInstances(ctx context.Context, poolID string) ([]params
 
 	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
 		r1 = rf(ctx, poolID)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// ListRepoInstances provides a mock function with given fields: ctx, repoID
-func (_m *Store) ListRepoInstances(ctx context.Context, repoID string) ([]params.Instance, error) {
-	ret := _m.Called(ctx, repoID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for ListRepoInstances")
-	}
-
-	var r0 []params.Instance
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) ([]params.Instance, error)); ok {
-		return rf(ctx, repoID)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) []params.Instance); ok {
-		r0 = rf(ctx, repoID)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]params.Instance)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, repoID)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// ListRepoPools provides a mock function with given fields: ctx, repoID
-func (_m *Store) ListRepoPools(ctx context.Context, repoID string) ([]params.Pool, error) {
-	ret := _m.Called(ctx, repoID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for ListRepoPools")
-	}
-
-	var r0 []params.Pool
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) ([]params.Pool, error)); ok {
-		return rf(ctx, repoID)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) []params.Pool); ok {
-		r0 = rf(ctx, repoID)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]params.Pool)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, repoID)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1662,27 +1310,27 @@ func (_m *Store) UpdateEnterprise(ctx context.Context, enterpriseID string, para
 	return r0, r1
 }
 
-// UpdateEnterprisePool provides a mock function with given fields: ctx, enterpriseID, poolID, param
-func (_m *Store) UpdateEnterprisePool(ctx context.Context, enterpriseID string, poolID string, param params.UpdatePoolParams) (params.Pool, error) {
-	ret := _m.Called(ctx, enterpriseID, poolID, param)
+// UpdateEntityPool provides a mock function with given fields: ctx, entity, poolID, param
+func (_m *Store) UpdateEntityPool(ctx context.Context, entity params.GithubEntity, poolID string, param params.UpdatePoolParams) (params.Pool, error) {
+	ret := _m.Called(ctx, entity, poolID, param)
 
 	if len(ret) == 0 {
-		panic("no return value specified for UpdateEnterprisePool")
+		panic("no return value specified for UpdateEntityPool")
 	}
 
 	var r0 params.Pool
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, params.UpdatePoolParams) (params.Pool, error)); ok {
-		return rf(ctx, enterpriseID, poolID, param)
+	if rf, ok := ret.Get(0).(func(context.Context, params.GithubEntity, string, params.UpdatePoolParams) (params.Pool, error)); ok {
+		return rf(ctx, entity, poolID, param)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, params.UpdatePoolParams) params.Pool); ok {
-		r0 = rf(ctx, enterpriseID, poolID, param)
+	if rf, ok := ret.Get(0).(func(context.Context, params.GithubEntity, string, params.UpdatePoolParams) params.Pool); ok {
+		r0 = rf(ctx, entity, poolID, param)
 	} else {
 		r0 = ret.Get(0).(params.Pool)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string, string, params.UpdatePoolParams) error); ok {
-		r1 = rf(ctx, enterpriseID, poolID, param)
+	if rf, ok := ret.Get(1).(func(context.Context, params.GithubEntity, string, params.UpdatePoolParams) error); ok {
+		r1 = rf(ctx, entity, poolID, param)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1746,34 +1394,6 @@ func (_m *Store) UpdateOrganization(ctx context.Context, orgID string, param par
 	return r0, r1
 }
 
-// UpdateOrganizationPool provides a mock function with given fields: ctx, orgID, poolID, param
-func (_m *Store) UpdateOrganizationPool(ctx context.Context, orgID string, poolID string, param params.UpdatePoolParams) (params.Pool, error) {
-	ret := _m.Called(ctx, orgID, poolID, param)
-
-	if len(ret) == 0 {
-		panic("no return value specified for UpdateOrganizationPool")
-	}
-
-	var r0 params.Pool
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, params.UpdatePoolParams) (params.Pool, error)); ok {
-		return rf(ctx, orgID, poolID, param)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, params.UpdatePoolParams) params.Pool); ok {
-		r0 = rf(ctx, orgID, poolID, param)
-	} else {
-		r0 = ret.Get(0).(params.Pool)
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, string, string, params.UpdatePoolParams) error); ok {
-		r1 = rf(ctx, orgID, poolID, param)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // UpdateRepository provides a mock function with given fields: ctx, repoID, param
 func (_m *Store) UpdateRepository(ctx context.Context, repoID string, param params.UpdateEntityParams) (params.Repository, error) {
 	ret := _m.Called(ctx, repoID, param)
@@ -1795,34 +1415,6 @@ func (_m *Store) UpdateRepository(ctx context.Context, repoID string, param para
 
 	if rf, ok := ret.Get(1).(func(context.Context, string, params.UpdateEntityParams) error); ok {
 		r1 = rf(ctx, repoID, param)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// UpdateRepositoryPool provides a mock function with given fields: ctx, repoID, poolID, param
-func (_m *Store) UpdateRepositoryPool(ctx context.Context, repoID string, poolID string, param params.UpdatePoolParams) (params.Pool, error) {
-	ret := _m.Called(ctx, repoID, poolID, param)
-
-	if len(ret) == 0 {
-		panic("no return value specified for UpdateRepositoryPool")
-	}
-
-	var r0 params.Pool
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, params.UpdatePoolParams) (params.Pool, error)); ok {
-		return rf(ctx, repoID, poolID, param)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, params.UpdatePoolParams) params.Pool); ok {
-		r0 = rf(ctx, repoID, poolID, param)
-	} else {
-		r0 = ret.Get(0).(params.Pool)
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, string, string, params.UpdatePoolParams) error); ok {
-		r1 = rf(ctx, repoID, poolID, param)
 	} else {
 		r1 = ret.Error(1)
 	}
