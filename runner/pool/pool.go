@@ -745,20 +745,6 @@ func (r *basePoolManager) waitForErrorGroupOrContextCancelled(g *errgroup.Group)
 	}
 }
 
-func (r *basePoolManager) fetchInstance(runnerName string) (params.Instance, error) {
-	runner, err := r.store.GetInstanceByName(r.ctx, runnerName)
-	if err != nil {
-		return params.Instance{}, errors.Wrap(err, "fetching instance")
-	}
-
-	_, err = r.GetPoolByID(runner.PoolID)
-	if err != nil {
-		return params.Instance{}, errors.Wrap(err, "fetching pool")
-	}
-
-	return runner, nil
-}
-
 func (r *basePoolManager) setInstanceRunnerStatus(runnerName string, status params.RunnerStatus) (params.Instance, error) {
 	updateParams := params.UpdateInstanceParams{
 		RunnerStatus: status,
@@ -772,12 +758,7 @@ func (r *basePoolManager) setInstanceRunnerStatus(runnerName string, status para
 }
 
 func (r *basePoolManager) updateInstance(runnerName string, update params.UpdateInstanceParams) (params.Instance, error) {
-	runner, err := r.fetchInstance(runnerName)
-	if err != nil {
-		return params.Instance{}, errors.Wrap(err, "fetching instance")
-	}
-
-	instance, err := r.store.UpdateInstance(r.ctx, runner.ID, update)
+	instance, err := r.store.UpdateInstance(r.ctx, runnerName, update)
 	if err != nil {
 		return params.Instance{}, errors.Wrap(err, "updating runner state")
 	}
@@ -980,7 +961,7 @@ func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error 
 	}
 
 	updateInstanceArgs := r.updateArgsFromProviderInstance(providerInstance)
-	if _, err := r.store.UpdateInstance(r.ctx, instance.ID, updateInstanceArgs); err != nil {
+	if _, err := r.store.UpdateInstance(r.ctx, instance.Name, updateInstanceArgs); err != nil {
 		return errors.Wrap(err, "updating instance")
 	}
 	return nil

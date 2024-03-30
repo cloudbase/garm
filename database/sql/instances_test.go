@@ -357,7 +357,7 @@ func (s *InstancesTestSuite) TestAddInstanceEvent() {
 	storeInstance := s.Fixtures.Instances[0]
 	statusMsg := "test-status-message"
 
-	err := s.Store.AddInstanceEvent(context.Background(), storeInstance.ID, params.StatusEvent, params.EventInfo, statusMsg)
+	err := s.Store.AddInstanceEvent(context.Background(), storeInstance.Name, params.StatusEvent, params.EventInfo, statusMsg)
 
 	s.Require().Nil(err)
 	instance, err := s.Store.GetInstanceByName(context.Background(), storeInstance.Name)
@@ -368,19 +368,13 @@ func (s *InstancesTestSuite) TestAddInstanceEvent() {
 	s.Require().Equal(statusMsg, instance.StatusMessages[0].Message)
 }
 
-func (s *InstancesTestSuite) TestAddInstanceEventInvalidPoolID() {
-	err := s.Store.AddInstanceEvent(context.Background(), "dummy-id", params.StatusEvent, params.EventInfo, "dummy-message")
-
-	s.Require().Equal("updating instance: parsing id: invalid request", err.Error())
-}
-
 func (s *InstancesTestSuite) TestAddInstanceEventDBUpdateErr() {
 	instance := s.Fixtures.Instances[0]
 	statusMsg := "test-status-message"
 
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `instances` WHERE id = ? AND `instances`.`deleted_at` IS NULL ORDER BY `instances`.`id` LIMIT 1")).
-		WithArgs(instance.ID).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `instances` WHERE name = ? AND `instances`.`deleted_at` IS NULL ORDER BY `instances`.`id` LIMIT 1")).
+		WithArgs(instance.Name).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(instance.ID))
 	s.Fixtures.SQLMock.
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `addresses` WHERE `addresses`.`instance_id` = ? AND `addresses`.`deleted_at` IS NULL")).
@@ -404,15 +398,15 @@ func (s *InstancesTestSuite) TestAddInstanceEventDBUpdateErr() {
 		WillReturnError(fmt.Errorf("mocked add status message error"))
 	s.Fixtures.SQLMock.ExpectRollback()
 
-	err := s.StoreSQLMocked.AddInstanceEvent(context.Background(), instance.ID, params.StatusEvent, params.EventInfo, statusMsg)
+	err := s.StoreSQLMocked.AddInstanceEvent(context.Background(), instance.Name, params.StatusEvent, params.EventInfo, statusMsg)
 
-	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
 	s.Require().Equal("adding status message: mocked add status message error", err.Error())
+	s.assertSQLMockExpectations()
 }
 
 func (s *InstancesTestSuite) TestUpdateInstance() {
-	instance, err := s.Store.UpdateInstance(context.Background(), s.Fixtures.Instances[0].ID, s.Fixtures.UpdateInstanceParams)
+	instance, err := s.Store.UpdateInstance(context.Background(), s.Fixtures.Instances[0].Name, s.Fixtures.UpdateInstanceParams)
 
 	s.Require().Nil(err)
 	s.Require().Equal(s.Fixtures.UpdateInstanceParams.ProviderID, instance.ProviderID)
@@ -424,18 +418,12 @@ func (s *InstancesTestSuite) TestUpdateInstance() {
 	s.Require().Equal(s.Fixtures.UpdateInstanceParams.CreateAttempt, instance.CreateAttempt)
 }
 
-func (s *InstancesTestSuite) TestUpdateInstanceInvalidPoolID() {
-	_, err := s.Store.UpdateInstance(context.Background(), "dummy-id", params.UpdateInstanceParams{})
-
-	s.Require().Equal("updating instance: parsing id: invalid request", err.Error())
-}
-
 func (s *InstancesTestSuite) TestUpdateInstanceDBUpdateInstanceErr() {
 	instance := s.Fixtures.Instances[0]
 
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `instances` WHERE id = ? AND `instances`.`deleted_at` IS NULL ORDER BY `instances`.`id` LIMIT 1")).
-		WithArgs(instance.ID).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `instances` WHERE name = ? AND `instances`.`deleted_at` IS NULL ORDER BY `instances`.`id` LIMIT 1")).
+		WithArgs(instance.Name).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(instance.ID))
 	s.Fixtures.SQLMock.
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `addresses` WHERE `addresses`.`instance_id` = ? AND `addresses`.`deleted_at` IS NULL")).
@@ -455,19 +443,19 @@ func (s *InstancesTestSuite) TestUpdateInstanceDBUpdateInstanceErr() {
 		WillReturnError(fmt.Errorf("mocked update instance error"))
 	s.Fixtures.SQLMock.ExpectRollback()
 
-	_, err := s.StoreSQLMocked.UpdateInstance(context.Background(), instance.ID, s.Fixtures.UpdateInstanceParams)
+	_, err := s.StoreSQLMocked.UpdateInstance(context.Background(), instance.Name, s.Fixtures.UpdateInstanceParams)
 
-	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
 	s.Require().Equal("updating instance: mocked update instance error", err.Error())
+	s.assertSQLMockExpectations()
 }
 
 func (s *InstancesTestSuite) TestUpdateInstanceDBUpdateAddressErr() {
 	instance := s.Fixtures.Instances[0]
 
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `instances` WHERE id = ? AND `instances`.`deleted_at` IS NULL ORDER BY `instances`.`id` LIMIT 1")).
-		WithArgs(instance.ID).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `instances` WHERE name = ? AND `instances`.`deleted_at` IS NULL ORDER BY `instances`.`id` LIMIT 1")).
+		WithArgs(instance.Name).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(instance.ID))
 	s.Fixtures.SQLMock.
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `addresses` WHERE `addresses`.`instance_id` = ? AND `addresses`.`deleted_at` IS NULL")).
@@ -501,11 +489,11 @@ func (s *InstancesTestSuite) TestUpdateInstanceDBUpdateAddressErr() {
 		WillReturnError(fmt.Errorf("update addresses mock error"))
 	s.Fixtures.SQLMock.ExpectRollback()
 
-	_, err := s.StoreSQLMocked.UpdateInstance(context.Background(), instance.ID, s.Fixtures.UpdateInstanceParams)
+	_, err := s.StoreSQLMocked.UpdateInstance(context.Background(), instance.Name, s.Fixtures.UpdateInstanceParams)
 
-	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
 	s.Require().Equal("updating addresses: update addresses mock error", err.Error())
+	s.assertSQLMockExpectations()
 }
 
 func (s *InstancesTestSuite) TestListPoolInstances() {

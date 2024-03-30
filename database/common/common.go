@@ -74,7 +74,7 @@ type UserStore interface {
 type InstanceStore interface {
 	CreateInstance(ctx context.Context, poolID string, param params.CreateInstanceParams) (params.Instance, error)
 	DeleteInstance(ctx context.Context, poolID string, instanceName string) error
-	UpdateInstance(ctx context.Context, instanceID string, param params.UpdateInstanceParams) (params.Instance, error)
+	UpdateInstance(ctx context.Context, instanceName string, param params.UpdateInstanceParams) (params.Instance, error)
 
 	// Probably a bad idea without some king of filter or at least pagination
 	//
@@ -83,8 +83,7 @@ type InstanceStore interface {
 	ListAllInstances(ctx context.Context) ([]params.Instance, error)
 
 	GetInstanceByName(ctx context.Context, instanceName string) (params.Instance, error)
-	AddInstanceEvent(ctx context.Context, instanceID string, event params.EventType, eventLevel params.EventLevel, eventMessage string) error
-	ListInstanceEvents(ctx context.Context, instanceID string, eventType params.EventType, eventLevel params.EventLevel) ([]params.StatusMessage, error)
+	AddInstanceEvent(ctx context.Context, instanceName string, event params.EventType, eventLevel params.EventLevel, eventMessage string) error
 }
 
 type JobsStore interface {

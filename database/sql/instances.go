@@ -92,22 +92,6 @@ func (s *sqlDatabase) CreateInstance(_ context.Context, poolID string, param par
 	return s.sqlToParamsInstance(newInstance)
 }
 
-func (s *sqlDatabase) getInstanceByID(_ context.Context, instanceID string) (Instance, error) {
-	u, err := uuid.Parse(instanceID)
-	if err != nil {
-		return Instance{}, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
-	}
-	var instance Instance
-	q := s.conn.Model(&Instance{}).
-		Preload(clause.Associations).
-		Where("id = ?", u).
-		First(&instance)
-	if q.Error != nil {
-		return Instance{}, errors.Wrap(q.Error, "fetching instance")
-	}
-	return instance, nil
-}
-
 func (s *sqlDatabase) getPoolInstanceByName(poolID string, instanceName string) (Instance, error) {
 	pool, err := s.getPoolByID(s.conn, poolID)
 	if err != nil {
@@ -184,34 +168,8 @@ func (s *sqlDatabase) DeleteInstance(_ context.Context, poolID string, instanceN
 	return nil
 }
 
-func (s *sqlDatabase) ListInstanceEvents(_ context.Context, instanceID string, eventType params.EventType, eventLevel params.EventLevel) ([]params.StatusMessage, error) {
-	var events []InstanceStatusUpdate
-	query := s.conn.Model(&InstanceStatusUpdate{}).Where("instance_id = ?", instanceID)
-	if eventLevel != "" {
-		query = query.Where("event_level = ?", eventLevel)
-	}
-
-	if eventType != "" {
-		query = query.Where("event_type = ?", eventType)
-	}
-
-	if result := query.Find(&events); result.Error != nil {
-		return nil, errors.Wrap(result.Error, "fetching events")
-	}
-
-	eventParams := make([]params.StatusMessage, len(events))
-	for idx, val := range events {
-		eventParams[idx] = params.StatusMessage{
-			Message:    val.Message,
-			EventType:  val.EventType,
-			EventLevel: val.EventLevel,
-		}
-	}
-	return eventParams, nil
-}
-
-func (s *sqlDatabase) AddInstanceEvent(ctx context.Context, instanceID string, event params.EventType, eventLevel params.EventLevel, statusMessage string) error {
-	instance, err := s.getInstanceByID(ctx, instanceID)
+func (s *sqlDatabase) AddInstanceEvent(ctx context.Context, instanceName string, event params.EventType, eventLevel params.EventLevel, statusMessage string) error {
+	instance, err := s.getInstanceByName(ctx, instanceName)
 	if err != nil {
 		return errors.Wrap(err, "updating instance")
 	}
@@ -228,8 +186,8 @@ func (s *sqlDatabase) AddInstanceEvent(ctx context.Context, instanceID string, e
 	return nil
 }
 
-func (s *sqlDatabase) UpdateInstance(ctx context.Context, instanceID string, param params.UpdateInstanceParams) (params.Instance, error) {
-	instance, err := s.getInstanceByID(ctx, instanceID)
+func (s *sqlDatabase) UpdateInstance(ctx context.Context, instanceName string, param params.UpdateInstanceParams) (params.Instance, error) {
+	instance, err := s.getInstanceByName(ctx, instanceName)
 	if err != nil {
 		return params.Instance{}, errors.Wrap(err, "updating instance")
 	}
