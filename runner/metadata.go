@@ -166,11 +166,11 @@ func (r *Runner) GetInstanceGithubRegistrationToken(ctx context.Context) (string
 		TokenFetched: &tokenFetched,
 	}
 
-	if _, err := r.store.UpdateInstance(r.ctx, instance.ID, updateParams); err != nil {
+	if _, err := r.store.UpdateInstance(r.ctx, instance.Name, updateParams); err != nil {
 		return "", errors.Wrap(err, "setting token_fetched for instance")
 	}
 
-	if err := r.store.AddInstanceEvent(ctx, instance.ID, params.FetchTokenEvent, params.EventInfo, "runner registration token was retrieved"); err != nil {
+	if err := r.store.AddInstanceEvent(ctx, instance.Name, params.FetchTokenEvent, params.EventInfo, "runner registration token was retrieved"); err != nil {
 		return "", errors.Wrap(err, "recording event")
 	}
 

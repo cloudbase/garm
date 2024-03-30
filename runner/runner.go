@@ -870,12 +870,12 @@ func (r *Runner) ListAllInstances(ctx context.Context) ([]params.Instance, error
 }
 
 func (r *Runner) AddInstanceStatusMessage(ctx context.Context, param params.InstanceUpdateMessage) error {
-	instanceID := auth.InstanceID(ctx)
-	if instanceID == "" {
+	instanceName := auth.InstanceName(ctx)
+	if instanceName == "" {
 		return runnerErrors.ErrUnauthorized
 	}
 
-	if err := r.store.AddInstanceEvent(ctx, instanceID, params.StatusEvent, params.EventInfo, param.Message); err != nil {
+	if err := r.store.AddInstanceEvent(ctx, instanceName, params.StatusEvent, params.EventInfo, param.Message); err != nil {
 		return errors.Wrap(err, "adding status update")
 	}
 
@@ -887,7 +887,7 @@ func (r *Runner) AddInstanceStatusMessage(ctx context.Context, param params.Inst
 		updateParams.AgentID = *param.AgentID
 	}
 
-	if _, err := r.store.UpdateInstance(r.ctx, instanceID, updateParams); err != nil {
+	if _, err := r.store.UpdateInstance(r.ctx, instanceName, updateParams); err != nil {
 		return errors.Wrap(err, "updating runner agent ID")
 	}
 
@@ -895,9 +895,9 @@ func (r *Runner) AddInstanceStatusMessage(ctx context.Context, param params.Inst
 }
 
 func (r *Runner) UpdateSystemInfo(ctx context.Context, param params.UpdateSystemInfoParams) error {
-	instanceID := auth.InstanceID(ctx)
-	if instanceID == "" {
-		slog.ErrorContext(ctx, "missing instance ID")
+	instanceName := auth.InstanceName(ctx)
+	if instanceName == "" {
+		slog.ErrorContext(ctx, "missing instance name")
 		return runnerErrors.ErrUnauthorized
 	}
 
@@ -915,7 +915,7 @@ func (r *Runner) UpdateSystemInfo(ctx context.Context, param params.UpdateSystem
 		updateParams.AgentID = *param.AgentID
 	}
 
-	if _, err := r.store.UpdateInstance(r.ctx, instanceID, updateParams); err != nil {
+	if _, err := r.store.UpdateInstance(r.ctx, instanceName, updateParams); err != nil {
 		return errors.Wrap(err, "updating runner system info")
 	}
 

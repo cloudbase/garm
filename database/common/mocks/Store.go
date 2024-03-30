@@ -14,9 +14,9 @@ type Store struct {
 	mock.Mock
 }
 
-// AddInstanceEvent provides a mock function with given fields: ctx, instanceID, event, eventLevel, eventMessage
-func (_m *Store) AddInstanceEvent(ctx context.Context, instanceID string, event params.EventType, eventLevel params.EventLevel, eventMessage string) error {
-	ret := _m.Called(ctx, instanceID, event, eventLevel, eventMessage)
+// AddInstanceEvent provides a mock function with given fields: ctx, instanceName, event, eventLevel, eventMessage
+func (_m *Store) AddInstanceEvent(ctx context.Context, instanceName string, event params.EventType, eventLevel params.EventLevel, eventMessage string) error {
+	ret := _m.Called(ctx, instanceName, event, eventLevel, eventMessage)
 
 	if len(ret) == 0 {
 		panic("no return value specified for AddInstanceEvent")
@@ -24,7 +24,7 @@ func (_m *Store) AddInstanceEvent(ctx context.Context, instanceID string, event 
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, string, params.EventType, params.EventLevel, string) error); ok {
-		r0 = rf(ctx, instanceID, event, eventLevel, eventMessage)
+		r0 = rf(ctx, instanceName, event, eventLevel, eventMessage)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1068,36 +1068,6 @@ func (_m *Store) ListEntityPools(ctx context.Context, entity params.GithubEntity
 	return r0, r1
 }
 
-// ListInstanceEvents provides a mock function with given fields: ctx, instanceID, eventType, eventLevel
-func (_m *Store) ListInstanceEvents(ctx context.Context, instanceID string, eventType params.EventType, eventLevel params.EventLevel) ([]params.StatusMessage, error) {
-	ret := _m.Called(ctx, instanceID, eventType, eventLevel)
-
-	if len(ret) == 0 {
-		panic("no return value specified for ListInstanceEvents")
-	}
-
-	var r0 []params.StatusMessage
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, params.EventType, params.EventLevel) ([]params.StatusMessage, error)); ok {
-		return rf(ctx, instanceID, eventType, eventLevel)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, params.EventType, params.EventLevel) []params.StatusMessage); ok {
-		r0 = rf(ctx, instanceID, eventType, eventLevel)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]params.StatusMessage)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, string, params.EventType, params.EventLevel) error); ok {
-		r1 = rf(ctx, instanceID, eventType, eventLevel)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // ListJobsByStatus provides a mock function with given fields: ctx, status
 func (_m *Store) ListJobsByStatus(ctx context.Context, status params.JobStatus) ([]params.Job, error) {
 	ret := _m.Called(ctx, status)
@@ -1338,9 +1308,9 @@ func (_m *Store) UpdateEntityPool(ctx context.Context, entity params.GithubEntit
 	return r0, r1
 }
 
-// UpdateInstance provides a mock function with given fields: ctx, instanceID, param
-func (_m *Store) UpdateInstance(ctx context.Context, instanceID string, param params.UpdateInstanceParams) (params.Instance, error) {
-	ret := _m.Called(ctx, instanceID, param)
+// UpdateInstance provides a mock function with given fields: ctx, instanceName, param
+func (_m *Store) UpdateInstance(ctx context.Context, instanceName string, param params.UpdateInstanceParams) (params.Instance, error) {
+	ret := _m.Called(ctx, instanceName, param)
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateInstance")
@@ -1349,16 +1319,16 @@ func (_m *Store) UpdateInstance(ctx context.Context, instanceID string, param pa
 	var r0 params.Instance
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, string, params.UpdateInstanceParams) (params.Instance, error)); ok {
-		return rf(ctx, instanceID, param)
+		return rf(ctx, instanceName, param)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, string, params.UpdateInstanceParams) params.Instance); ok {
-		r0 = rf(ctx, instanceID, param)
+		r0 = rf(ctx, instanceName, param)
 	} else {
 		r0 = ret.Get(0).(params.Instance)
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, string, params.UpdateInstanceParams) error); ok {
-		r1 = rf(ctx, instanceID, param)
+		r1 = rf(ctx, instanceName, param)
 	} else {
 		r1 = ret.Error(1)
 	}
