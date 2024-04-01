@@ -6,7 +6,10 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/google/go-github/v57/github"
+
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm/params"
 )
 
@@ -72,4 +75,44 @@ func (p *poolsForTags) Add(tags []string, pools []params.Pool) poolCacheStore {
 	poolRR := &poolRoundRobin{pools: pools}
 	v, _ := p.pools.LoadOrStore(key, poolRR)
 	return v.(*poolRoundRobin)
+}
+
+func instanceInList(instanceName string, instances []commonParams.ProviderInstance) (commonParams.ProviderInstance, bool) {
+	for _, val := range instances {
+		if val.Name == instanceName {
+			return val, true
+		}
+	}
+	return commonParams.ProviderInstance{}, false
+}
+
+func controllerIDFromLabels(labels []string) string {
+	for _, lbl := range labels {
+		if strings.HasPrefix(lbl, controllerLabelPrefix) {
+			return lbl[len(controllerLabelPrefix):]
+		}
+	}
+	return ""
+}
+
+func labelsFromRunner(runner *github.Runner) []string {
+	if runner == nil || runner.Labels == nil {
+		return []string{}
+	}
+
+	var labels []string
+	for _, val := range runner.Labels {
+		if val == nil {
+			continue
+		}
+		labels = append(labels, val.GetName())
+	}
+	return labels
+}
+
+// isManagedRunner returns true if labels indicate the runner belongs to a pool
+// this manager is responsible for.
+func isManagedRunner(labels []string, controllerID string) bool {
+	runnerControllerID := controllerIDFromLabels(labels)
+	return runnerControllerID == controllerID
 }
