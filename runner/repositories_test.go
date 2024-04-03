@@ -26,6 +26,7 @@ import (
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/database"
 	dbCommon "github.com/cloudbase/garm/database/common"
+	"github.com/cloudbase/garm/database/watcher"
 	garmTesting "github.com/cloudbase/garm/internal/testing"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
@@ -49,6 +50,10 @@ type RepoTestFixtures struct {
 	ProviderMock          *runnerCommonMocks.Provider
 	PoolMgrMock           *runnerCommonMocks.PoolManager
 	PoolMgrCtrlMock       *runnerMocks.PoolManagerController
+}
+
+func init() {
+	watcher.SetWatcher(&garmTesting.MockWatcher{})
 }
 
 type RepoTestSuite struct {

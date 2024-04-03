@@ -24,6 +24,7 @@ import (
 	"gorm.io/gorm"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	"github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/params"
 )
 
@@ -66,11 +67,17 @@ func (s *sqlDatabase) GetPoolByID(_ context.Context, poolID string) (params.Pool
 	return s.sqlToCommonPool(pool)
 }
 
-func (s *sqlDatabase) DeletePoolByID(_ context.Context, poolID string) error {
+func (s *sqlDatabase) DeletePoolByID(_ context.Context, poolID string) (err error) {
 	pool, err := s.getPoolByID(s.conn, poolID)
 	if err != nil {
 		return errors.Wrap(err, "fetching pool by ID")
 	}
+
+	defer func() {
+		if err == nil {
+			s.sendNotify(common.PoolEntityType, common.DeleteOperation, pool)
+		}
+	}()
 
 	if q := s.conn.Unscoped().Delete(&pool); q.Error != nil {
 		return errors.Wrap(q.Error, "removing pool")
@@ -247,10 +254,16 @@ func (s *sqlDatabase) FindPoolsMatchingAllTags(_ context.Context, entityType par
 	return pools, nil
 }
 
-func (s *sqlDatabase) CreateEntityPool(_ context.Context, entity params.GithubEntity, param params.CreatePoolParams) (params.Pool, error) {
+func (s *sqlDatabase) CreateEntityPool(_ context.Context, entity params.GithubEntity, param params.CreatePoolParams) (pool params.Pool, err error) {
 	if len(param.Tags) == 0 {
 		return params.Pool{}, runnerErrors.NewBadRequestError("no tags specified")
 	}
+
+	defer func() {
+		if err == nil {
+			s.sendNotify(common.PoolEntityType, common.CreateOperation, pool)
+		}
+	}()
 
 	newPool := Pool{
 		ProviderName:           param.ProviderName,
@@ -313,12 +326,12 @@ func (s *sqlDatabase) CreateEntityPool(_ context.Context, entity params.GithubEn
 		return params.Pool{}, err
 	}
 
-	pool, err := s.getPoolByID(s.conn, newPool.ID.String(), "Tags", "Instances", "Enterprise", "Organization", "Repository")
+	dbPool, err := s.getPoolByID(s.conn, newPool.ID.String(), "Tags", "Instances", "Enterprise", "Organization", "Repository")
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}
 
-	return s.sqlToCommonPool(pool)
+	return s.sqlToCommonPool(dbPool)
 }
 
 func (s *sqlDatabase) GetEntityPool(_ context.Context, entity params.GithubEntity, poolID string) (params.Pool, error) {
@@ -329,11 +342,20 @@ func (s *sqlDatabase) GetEntityPool(_ context.Context, entity params.GithubEntit
 	return s.sqlToCommonPool(pool)
 }
 
-func (s *sqlDatabase) DeleteEntityPool(_ context.Context, entity params.GithubEntity, poolID string) error {
+func (s *sqlDatabase) DeleteEntityPool(_ context.Context, entity params.GithubEntity, poolID string) (err error) {
 	entityID, err := uuid.Parse(entity.ID)
 	if err != nil {
 		return errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
 	}
+
+	defer func() {
+		if err == nil {
+			pool := params.Pool{
+				ID: poolID,
+			}
+			s.sendNotify(common.PoolEntityType, common.DeleteOperation, pool)
+		}
+	}()
 
 	poolUUID, err := uuid.Parse(poolID)
 	if err != nil {
@@ -374,6 +396,7 @@ func (s *sqlDatabase) UpdateEntityPool(_ context.Context, entity params.GithubEn
 	if err != nil {
 		return params.Pool{}, err
 	}
+	s.sendNotify(common.PoolEntityType, common.UpdateOperation, updatedPool)
 	return updatedPool, nil
 }
 
