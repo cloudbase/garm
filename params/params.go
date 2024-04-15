@@ -16,6 +16,8 @@ package params
 
 import (
 	"bytes"
+	"context"
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
@@ -23,8 +25,10 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/bradleyfalzon/ghinstallation/v2"
 	"github.com/google/go-github/v57/github"
 	"github.com/google/uuid"
+	"golang.org/x/oauth2"
 
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm/util/appdefaults"
@@ -398,6 +402,7 @@ type Repository struct {
 	Name              string            `json:"name"`
 	Pools             []Pool            `json:"pool,omitempty"`
 	CredentialsName   string            `json:"credentials_name"`
+	Credentials       GithubCredentials `json:"credentials"`
 	PoolManagerStatus PoolManagerStatus `json:"pool_manager_status,omitempty"`
 	PoolBalancerType  PoolBalancerType  `json:"pool_balancing_type"`
 	// Do not serialize sensitive info.
@@ -439,6 +444,7 @@ type Organization struct {
 	Name              string            `json:"name"`
 	Pools             []Pool            `json:"pool,omitempty"`
 	CredentialsName   string            `json:"credentials_name"`
+	Credentials       GithubCredentials `json:"credentials"`
 	PoolManagerStatus PoolManagerStatus `json:"pool_manager_status,omitempty"`
 	PoolBalancerType  PoolBalancerType  `json:"pool_balancing_type"`
 	// Do not serialize sensitive info.
@@ -480,6 +486,7 @@ type Enterprise struct {
 	Name              string            `json:"name"`
 	Pools             []Pool            `json:"pool,omitempty"`
 	CredentialsName   string            `json:"credentials_name"`
+	Credentials       GithubCredentials `json:"credentials"`
 	PoolManagerStatus PoolManagerStatus `json:"pool_manager_status,omitempty"`
 	PoolBalancerType  PoolBalancerType  `json:"pool_balancing_type"`
 	// Do not serialize sensitive info.
@@ -545,6 +552,7 @@ type ControllerInfo struct {
 }
 
 type GithubCredentials struct {
+	ID            uint           `json:"id"`
 	Name          string         `json:"name,omitempty"`
 	Description   string         `json:"description,omitempty"`
 	APIBaseURL    string         `json:"api_base_url"`
@@ -552,7 +560,68 @@ type GithubCredentials struct {
 	BaseURL       string         `json:"base_url"`
 	CABundle      []byte         `json:"ca_bundle,omitempty"`
 	AuthType      GithubAuthType `toml:"auth_type" json:"auth-type"`
-	HTTPClient    *http.Client   `json:"-"`
+
+	Repositories  []Repository   `json:"repositories,omitempty"`
+	Organizations []Organization `json:"organizations,omitempty"`
+	Enterprises   []Enterprise   `json:"enterprises,omitempty"`
+	Endpoint      string         `json:"endpoint"`
+
+	CredentialsPayload []byte       `json:"-"`
+	HTTPClient         *http.Client `json:"-"`
+}
+
+func (g GithubCredentials) GetHTTPClient(ctx context.Context) (*http.Client, error) {
+	var roots *x509.CertPool
+	if g.CABundle != nil {
+		roots = x509.NewCertPool()
+		ok := roots.AppendCertsFromPEM(g.CABundle)
+		if !ok {
+			return nil, fmt.Errorf("failed to parse CA cert")
+		}
+	}
+	// nolint:golangci-lint,gosec,godox
+	// TODO: set TLS MinVersion
+	httpTransport := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			RootCAs: roots,
+		},
+	}
+
+	var tc *http.Client
+	switch g.AuthType {
+	case GithubAuthTypeApp:
+		var app GithubApp
+		if err := json.Unmarshal(g.CredentialsPayload, &app); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal github app credentials: %w", err)
+		}
+		if app.AppID == 0 || app.InstallationID == 0 || len(app.PrivateKeyBytes) == 0 {
+			return nil, fmt.Errorf("github app credentials are missing required fields")
+		}
+		itr, err := ghinstallation.New(httpTransport, app.AppID, app.InstallationID, app.PrivateKeyBytes)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create github app installation transport: %w", err)
+		}
+
+		tc = &http.Client{Transport: itr}
+	default:
+		var pat GithubPAT
+		if err := json.Unmarshal(g.CredentialsPayload, &pat); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal github app credentials: %w", err)
+		}
+		httpClient := &http.Client{Transport: httpTransport}
+		ctx = context.WithValue(ctx, oauth2.HTTPClient, httpClient)
+
+		if pat.OAuth2Token == "" {
+			return nil, fmt.Errorf("github credentials are missing the OAuth2 token")
+		}
+
+		ts := oauth2.StaticTokenSource(
+			&oauth2.Token{AccessToken: pat.OAuth2Token},
+		)
+		tc = oauth2.NewClient(ctx, ts)
+	}
+
+	return tc, nil
 }
 
 func (g GithubCredentials) RootCertificateBundle() (CertificateBundle, error) {
@@ -700,10 +769,11 @@ type UpdateSystemInfoParams struct {
 }
 
 type GithubEntity struct {
-	Owner      string           `json:"owner"`
-	Name       string           `json:"name"`
-	ID         string           `json:"id"`
-	EntityType GithubEntityType `json:"entity_type"`
+	Owner       string            `json:"owner"`
+	Name        string            `json:"name"`
+	ID          string            `json:"id"`
+	EntityType  GithubEntityType  `json:"entity_type"`
+	Credentials GithubCredentials `json:"credentials"`
 
 	WebhookSecret string `json:"-"`
 }
@@ -728,4 +798,15 @@ func (g GithubEntity) String() string {
 		return g.Owner
 	}
 	return ""
+}
+
+type GithubEndpoint struct {
+	Name          string `json:"name"`
+	Description   string `json:"description"`
+	APIBaseURL    string `json:"api_base_url"`
+	UploadBaseURL string `json:"upload_base_url"`
+	BaseURL       string `json:"base_url"`
+	CACertBundle  []byte `json:"ca_cert_bundle"`
+
+	Credentials []GithubCredentials `json:"credentials"`
 }

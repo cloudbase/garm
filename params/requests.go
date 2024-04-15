@@ -15,7 +15,9 @@
 package params
 
 import (
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 
 	"github.com/cloudbase/garm-provider-common/errors"
@@ -264,4 +266,69 @@ type InstanceUpdateMessage struct {
 	Status  RunnerStatus `json:"status"`
 	Message string       `json:"message"`
 	AgentID *int64       `json:"agent_id,omitempty"`
+}
+
+type CreateGithubEndpointParams struct {
+	Name          string `json:"name"`
+	Description   string `json:"description"`
+	APIBaseURL    string `json:"api_base_url"`
+	UploadBaseURL string `json:"upload_base_url"`
+	BaseURL       string `json:"base_url"`
+	CACertBundle  []byte `json:"ca_cert_bundle"`
+}
+
+type UpdateGithubEndpointParams struct {
+	Description   *string `json:"description"`
+	APIBaseURL    *string `json:"api_base_url"`
+	UploadBaseURL *string `json:"upload_base_url"`
+	BaseURL       *string `json:"base_url"`
+	CACertBundle  []byte  `json:"ca_cert_bundle"`
+}
+
+type GithubPAT struct {
+	OAuth2Token string `json:"oauth2_token"`
+}
+
+type GithubApp struct {
+	AppID           int64  `json:"app_id"`
+	InstallationID  int64  `json:"installation_id"`
+	PrivateKeyBytes []byte `json:"private_key_bytes"`
+}
+
+func (g GithubApp) Validate() error {
+	if g.AppID == 0 {
+		return errors.NewBadRequestError("missing app_id")
+	}
+
+	if g.InstallationID == 0 {
+		return errors.NewBadRequestError("missing installation_id")
+	}
+
+	if len(g.PrivateKeyBytes) == 0 {
+		return errors.NewBadRequestError("missing private_key_bytes")
+	}
+
+	block, _ := pem.Decode(g.PrivateKeyBytes)
+	// Parse the private key as PCKS1
+	_, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+	if err != nil {
+		return fmt.Errorf("parsing private_key_path: %w", err)
+	}
+
+	return nil
+}
+
+type CreateGithubCredentialsParams struct {
+	Name        string         `json:"name"`
+	Description string         `json:"description"`
+	AuthType    GithubAuthType `json:"auth_type"`
+	PAT         GithubPAT      `json:"pat,omitempty"`
+	App         GithubApp      `json:"app,omitempty"`
+}
+
+type UpdateGithubCredentialsParams struct {
+	Name        *string    `json:"name,omitempty"`
+	Description *string    `json:"description,omitempty"`
+	PAT         *GithubPAT `json:"pat,omitempty"`
+	App         *GithubApp `json:"app,omitempty"`
 }

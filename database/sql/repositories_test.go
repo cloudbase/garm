@@ -188,7 +188,7 @@ func (s *RepoTestSuite) TestCreateRepository() {
 	}
 	s.Require().Equal(storeRepo.Owner, repo.Owner)
 	s.Require().Equal(storeRepo.Name, repo.Name)
-	s.Require().Equal(storeRepo.CredentialsName, repo.CredentialsName)
+	s.Require().Equal(storeRepo.Credentials.Name, repo.Credentials.Name)
 	s.Require().Equal(storeRepo.WebhookSecret, repo.WebhookSecret)
 }
 
@@ -352,7 +352,7 @@ func (s *RepoTestSuite) TestUpdateRepository() {
 	repo, err := s.Store.UpdateRepository(context.Background(), s.Fixtures.Repos[0].ID, s.Fixtures.UpdateRepoParams)
 
 	s.Require().Nil(err)
-	s.Require().Equal(s.Fixtures.UpdateRepoParams.CredentialsName, repo.CredentialsName)
+	s.Require().Equal(s.Fixtures.UpdateRepoParams.CredentialsName, repo.Credentials.Name)
 	s.Require().Equal(s.Fixtures.UpdateRepoParams.WebhookSecret, repo.WebhookSecret)
 }
 

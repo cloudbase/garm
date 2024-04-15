@@ -134,6 +134,62 @@ func (_m *Store) CreateEntityPool(ctx context.Context, entity params.GithubEntit
 	return r0, r1
 }
 
+// CreateGithubCredentials provides a mock function with given fields: ctx, endpointName, param
+func (_m *Store) CreateGithubCredentials(ctx context.Context, endpointName string, param params.CreateGithubCredentialsParams) (params.GithubCredentials, error) {
+	ret := _m.Called(ctx, endpointName, param)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateGithubCredentials")
+	}
+
+	var r0 params.GithubCredentials
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, params.CreateGithubCredentialsParams) (params.GithubCredentials, error)); ok {
+		return rf(ctx, endpointName, param)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, params.CreateGithubCredentialsParams) params.GithubCredentials); ok {
+		r0 = rf(ctx, endpointName, param)
+	} else {
+		r0 = ret.Get(0).(params.GithubCredentials)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, params.CreateGithubCredentialsParams) error); ok {
+		r1 = rf(ctx, endpointName, param)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// CreateGithubEndpoint provides a mock function with given fields: ctx, param
+func (_m *Store) CreateGithubEndpoint(ctx context.Context, param params.CreateGithubEndpointParams) (params.GithubEndpoint, error) {
+	ret := _m.Called(ctx, param)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateGithubEndpoint")
+	}
+
+	var r0 params.GithubEndpoint
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, params.CreateGithubEndpointParams) (params.GithubEndpoint, error)); ok {
+		return rf(ctx, param)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, params.CreateGithubEndpointParams) params.GithubEndpoint); ok {
+		r0 = rf(ctx, param)
+	} else {
+		r0 = ret.Get(0).(params.GithubEndpoint)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, params.CreateGithubEndpointParams) error); ok {
+		r1 = rf(ctx, param)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // CreateInstance provides a mock function with given fields: ctx, poolID, param
 func (_m *Store) CreateInstance(ctx context.Context, poolID string, param params.CreateInstanceParams) (params.Instance, error) {
 	ret := _m.Called(ctx, poolID, param)
@@ -328,6 +384,42 @@ func (_m *Store) DeleteEntityPool(ctx context.Context, entity params.GithubEntit
 	return r0
 }
 
+// DeleteGithubCredentials provides a mock function with given fields: ctx, id
+func (_m *Store) DeleteGithubCredentials(ctx context.Context, id uint) error {
+	ret := _m.Called(ctx, id)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteGithubCredentials")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint) error); ok {
+		r0 = rf(ctx, id)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// DeleteGithubEndpoint provides a mock function with given fields: ctx, name
+func (_m *Store) DeleteGithubEndpoint(ctx context.Context, name string) error {
+	ret := _m.Called(ctx, name)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteGithubEndpoint")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = rf(ctx, name)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // DeleteInstance provides a mock function with given fields: ctx, poolID, instanceName
 func (_m *Store) DeleteInstance(ctx context.Context, poolID string, instanceName string) error {
 	ret := _m.Called(ctx, poolID, instanceName)
@@ -448,6 +540,34 @@ func (_m *Store) FindPoolsMatchingAllTags(ctx context.Context, entityType params
 	return r0, r1
 }
 
+// GetAdminUser provides a mock function with given fields: ctx
+func (_m *Store) GetAdminUser(ctx context.Context) (params.User, error) {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAdminUser")
+	}
+
+	var r0 params.User
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) (params.User, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) params.User); ok {
+		r0 = rf(ctx)
+	} else {
+		r0 = ret.Get(0).(params.User)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetEnterprise provides a mock function with given fields: ctx, name
 func (_m *Store) GetEnterprise(ctx context.Context, name string) (params.Enterprise, error) {
 	ret := _m.Called(ctx, name)
@@ -525,6 +645,90 @@ func (_m *Store) GetEntityPool(ctx context.Context, entity params.GithubEntity, 
 
 	if rf, ok := ret.Get(1).(func(context.Context, params.GithubEntity, string) error); ok {
 		r1 = rf(ctx, entity, poolID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetGithubCredentials provides a mock function with given fields: ctx, id, detailed
+func (_m *Store) GetGithubCredentials(ctx context.Context, id uint, detailed bool) (params.GithubCredentials, error) {
+	ret := _m.Called(ctx, id, detailed)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetGithubCredentials")
+	}
+
+	var r0 params.GithubCredentials
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint, bool) (params.GithubCredentials, error)); ok {
+		return rf(ctx, id, detailed)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uint, bool) params.GithubCredentials); ok {
+		r0 = rf(ctx, id, detailed)
+	} else {
+		r0 = ret.Get(0).(params.GithubCredentials)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uint, bool) error); ok {
+		r1 = rf(ctx, id, detailed)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetGithubCredentialsByName provides a mock function with given fields: ctx, name, detailed
+func (_m *Store) GetGithubCredentialsByName(ctx context.Context, name string, detailed bool) (params.GithubCredentials, error) {
+	ret := _m.Called(ctx, name, detailed)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetGithubCredentialsByName")
+	}
+
+	var r0 params.GithubCredentials
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, bool) (params.GithubCredentials, error)); ok {
+		return rf(ctx, name, detailed)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, bool) params.GithubCredentials); ok {
+		r0 = rf(ctx, name, detailed)
+	} else {
+		r0 = ret.Get(0).(params.GithubCredentials)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, bool) error); ok {
+		r1 = rf(ctx, name, detailed)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetGithubEndpoint provides a mock function with given fields: ctx, name
+func (_m *Store) GetGithubEndpoint(ctx context.Context, name string) (params.GithubEndpoint, error) {
+	ret := _m.Called(ctx, name)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetGithubEndpoint")
+	}
+
+	var r0 params.GithubEndpoint
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (params.GithubEndpoint, error)); ok {
+		return rf(ctx, name)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) params.GithubEndpoint); ok {
+		r0 = rf(ctx, name)
+	} else {
+		r0 = ret.Get(0).(params.GithubEndpoint)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, name)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1068,6 +1272,66 @@ func (_m *Store) ListEntityPools(ctx context.Context, entity params.GithubEntity
 	return r0, r1
 }
 
+// ListGithubCredentials provides a mock function with given fields: ctx
+func (_m *Store) ListGithubCredentials(ctx context.Context) ([]params.GithubCredentials, error) {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListGithubCredentials")
+	}
+
+	var r0 []params.GithubCredentials
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) ([]params.GithubCredentials, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) []params.GithubCredentials); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]params.GithubCredentials)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ListGithubEndpoints provides a mock function with given fields: ctx
+func (_m *Store) ListGithubEndpoints(ctx context.Context) ([]params.GithubEndpoint, error) {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListGithubEndpoints")
+	}
+
+	var r0 []params.GithubEndpoint
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) ([]params.GithubEndpoint, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) []params.GithubEndpoint); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]params.GithubEndpoint)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // ListJobsByStatus provides a mock function with given fields: ctx, status
 func (_m *Store) ListJobsByStatus(ctx context.Context, status params.JobStatus) ([]params.Job, error) {
 	ret := _m.Called(ctx, status)
@@ -1301,6 +1565,62 @@ func (_m *Store) UpdateEntityPool(ctx context.Context, entity params.GithubEntit
 
 	if rf, ok := ret.Get(1).(func(context.Context, params.GithubEntity, string, params.UpdatePoolParams) error); ok {
 		r1 = rf(ctx, entity, poolID, param)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// UpdateGithubCredentials provides a mock function with given fields: ctx, id, param
+func (_m *Store) UpdateGithubCredentials(ctx context.Context, id uint, param params.UpdateGithubCredentialsParams) (params.GithubCredentials, error) {
+	ret := _m.Called(ctx, id, param)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateGithubCredentials")
+	}
+
+	var r0 params.GithubCredentials
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint, params.UpdateGithubCredentialsParams) (params.GithubCredentials, error)); ok {
+		return rf(ctx, id, param)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uint, params.UpdateGithubCredentialsParams) params.GithubCredentials); ok {
+		r0 = rf(ctx, id, param)
+	} else {
+		r0 = ret.Get(0).(params.GithubCredentials)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uint, params.UpdateGithubCredentialsParams) error); ok {
+		r1 = rf(ctx, id, param)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// UpdateGithubEndpoint provides a mock function with given fields: ctx, name, param
+func (_m *Store) UpdateGithubEndpoint(ctx context.Context, name string, param params.UpdateGithubEndpointParams) (params.GithubEndpoint, error) {
+	ret := _m.Called(ctx, name, param)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateGithubEndpoint")
+	}
+
+	var r0 params.GithubEndpoint
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, params.UpdateGithubEndpointParams) (params.GithubEndpoint, error)); ok {
+		return rf(ctx, name, param)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, params.UpdateGithubEndpointParams) params.GithubEndpoint); ok {
+		r0 = rf(ctx, name, param)
+	} else {
+		r0 = ret.Get(0).(params.GithubEndpoint)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, params.UpdateGithubEndpointParams) error); ok {
+		r1 = rf(ctx, name, param)
 	} else {
 		r1 = ret.Error(1)
 	}

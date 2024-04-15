@@ -114,10 +114,16 @@ func (s *sqlDatabase) sqlToCommonOrganization(org Organization) (params.Organiza
 		return params.Organization{}, errors.Wrap(err, "decrypting secret")
 	}
 
+	creds, err := s.sqlToCommonGithubCredentials(org.Credentials)
+	if err != nil {
+		return params.Organization{}, errors.Wrap(err, "converting credentials")
+	}
+
 	ret := params.Organization{
 		ID:               org.ID.String(),
 		Name:             org.Name,
-		CredentialsName:  org.CredentialsName,
+		CredentialsName:  creds.Name,
+		Credentials:      creds,
 		Pools:            make([]params.Pool, len(org.Pools)),
 		WebhookSecret:    string(secret),
 		PoolBalancerType: org.PoolBalancerType,
@@ -146,10 +152,15 @@ func (s *sqlDatabase) sqlToCommonEnterprise(enterprise Enterprise) (params.Enter
 		return params.Enterprise{}, errors.Wrap(err, "decrypting secret")
 	}
 
+	creds, err := s.sqlToCommonGithubCredentials(enterprise.Credentials)
+	if err != nil {
+		return params.Enterprise{}, errors.Wrap(err, "converting credentials")
+	}
 	ret := params.Enterprise{
 		ID:               enterprise.ID.String(),
 		Name:             enterprise.Name,
-		CredentialsName:  enterprise.CredentialsName,
+		CredentialsName:  creds.Name,
+		Credentials:      creds,
 		Pools:            make([]params.Pool, len(enterprise.Pools)),
 		WebhookSecret:    string(secret),
 		PoolBalancerType: enterprise.PoolBalancerType,
@@ -239,11 +250,16 @@ func (s *sqlDatabase) sqlToCommonRepository(repo Repository) (params.Repository,
 		return params.Repository{}, errors.Wrap(err, "decrypting secret")
 	}
 
+	creds, err := s.sqlToCommonGithubCredentials(repo.Credentials)
+	if err != nil {
+		return params.Repository{}, errors.Wrap(err, "converting credentials")
+	}
 	ret := params.Repository{
 		ID:               repo.ID.String(),
 		Name:             repo.Name,
 		Owner:            repo.Owner,
-		CredentialsName:  repo.CredentialsName,
+		CredentialsName:  creds.Name,
+		Credentials:      creds,
 		Pools:            make([]params.Pool, len(repo.Pools)),
 		WebhookSecret:    string(secret),
 		PoolBalancerType: repo.PoolBalancerType,

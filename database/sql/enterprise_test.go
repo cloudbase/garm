@@ -173,7 +173,7 @@ func (s *EnterpriseTestSuite) TestCreateEnterprise() {
 		s.FailNow(fmt.Sprintf("failed to get enterprise by id: %v", err))
 	}
 	s.Require().Equal(storeEnterprise.Name, enterprise.Name)
-	s.Require().Equal(storeEnterprise.CredentialsName, enterprise.CredentialsName)
+	s.Require().Equal(storeEnterprise.Credentials.Name, enterprise.Credentials.Name)
 	s.Require().Equal(storeEnterprise.WebhookSecret, enterprise.WebhookSecret)
 }
 
@@ -313,7 +313,7 @@ func (s *EnterpriseTestSuite) TestUpdateEnterprise() {
 	enterprise, err := s.Store.UpdateEnterprise(context.Background(), s.Fixtures.Enterprises[0].ID, s.Fixtures.UpdateRepoParams)
 
 	s.Require().Nil(err)
-	s.Require().Equal(s.Fixtures.UpdateRepoParams.CredentialsName, enterprise.CredentialsName)
+	s.Require().Equal(s.Fixtures.UpdateRepoParams.CredentialsName, enterprise.Credentials.Name)
 	s.Require().Equal(s.Fixtures.UpdateRepoParams.WebhookSecret, enterprise.WebhookSecret)
 }
 

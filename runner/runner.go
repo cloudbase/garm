@@ -67,7 +67,6 @@ func NewRunner(ctx context.Context, cfg config.Config, db dbCommon.Store) (*Runn
 	poolManagerCtrl := &poolManagerCtrl{
 		controllerID:  ctrlID.ControllerID.String(),
 		config:        cfg,
-		credentials:   creds,
 		repositories:  map[string]common.PoolManager{},
 		organizations: map[string]common.PoolManager{},
 		enterprises:   map[string]common.PoolManager{},
@@ -94,7 +93,6 @@ type poolManagerCtrl struct {
 
 	controllerID string
 	config       config.Config
-	credentials  map[string]config.Github
 
 	repositories  map[string]common.PoolManager
 	organizations map[string]common.PoolManager
@@ -105,7 +103,7 @@ func (p *poolManagerCtrl) CreateRepoPoolManager(ctx context.Context, repo params
 	p.mux.Lock()
 	defer p.mux.Unlock()
 
-	cfgInternal, err := p.getInternalConfig(ctx, repo.CredentialsName, repo.GetBalancerType())
+	cfgInternal, err := p.getInternalConfig(ctx, repo.Credentials, repo.GetBalancerType())
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching internal config")
 	}
@@ -133,7 +131,7 @@ func (p *poolManagerCtrl) UpdateRepoPoolManager(ctx context.Context, repo params
 		return nil, errors.Wrapf(runnerErrors.ErrNotFound, "repository %s/%s pool manager not loaded", repo.Owner, repo.Name)
 	}
 
-	internalCfg, err := p.getInternalConfig(ctx, repo.CredentialsName, repo.GetBalancerType())
+	internalCfg, err := p.getInternalConfig(ctx, repo.Credentials, repo.GetBalancerType())
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching internal config")
 	}
@@ -178,7 +176,7 @@ func (p *poolManagerCtrl) CreateOrgPoolManager(ctx context.Context, org params.O
 	p.mux.Lock()
 	defer p.mux.Unlock()
 
-	cfgInternal, err := p.getInternalConfig(ctx, org.CredentialsName, org.GetBalancerType())
+	cfgInternal, err := p.getInternalConfig(ctx, org.Credentials, org.GetBalancerType())
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching internal config")
 	}
@@ -205,7 +203,7 @@ func (p *poolManagerCtrl) UpdateOrgPoolManager(ctx context.Context, org params.O
 		return nil, errors.Wrapf(runnerErrors.ErrNotFound, "org %s pool manager not loaded", org.Name)
 	}
 
-	internalCfg, err := p.getInternalConfig(ctx, org.CredentialsName, org.GetBalancerType())
+	internalCfg, err := p.getInternalConfig(ctx, org.Credentials, org.GetBalancerType())
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching internal config")
 	}
@@ -250,7 +248,7 @@ func (p *poolManagerCtrl) CreateEnterprisePoolManager(ctx context.Context, enter
 	p.mux.Lock()
 	defer p.mux.Unlock()
 
-	cfgInternal, err := p.getInternalConfig(ctx, enterprise.CredentialsName, enterprise.GetBalancerType())
+	cfgInternal, err := p.getInternalConfig(ctx, enterprise.Credentials, enterprise.GetBalancerType())
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching internal config")
 	}
@@ -278,7 +276,7 @@ func (p *poolManagerCtrl) UpdateEnterprisePoolManager(ctx context.Context, enter
 		return nil, errors.Wrapf(runnerErrors.ErrNotFound, "enterprise %s pool manager not loaded", enterprise.Name)
 	}
 
-	internalCfg, err := p.getInternalConfig(ctx, enterprise.CredentialsName, enterprise.GetBalancerType())
+	internalCfg, err := p.getInternalConfig(ctx, enterprise.Credentials, enterprise.GetBalancerType())
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching internal config")
 	}
@@ -319,22 +317,12 @@ func (p *poolManagerCtrl) GetEnterprisePoolManagers() (map[string]common.PoolMan
 	return p.enterprises, nil
 }
 
-func (p *poolManagerCtrl) getInternalConfig(ctx context.Context, credsName string, poolBalancerType params.PoolBalancerType) (params.Internal, error) {
-	creds, ok := p.credentials[credsName]
-	if !ok {
-		return params.Internal{}, runnerErrors.NewBadRequestError("invalid credential name (%s)", credsName)
-	}
-
-	caBundle, err := creds.CACertBundle()
-	if err != nil {
-		return params.Internal{}, fmt.Errorf("fetching CA bundle for creds: %w", err)
-	}
-
+func (p *poolManagerCtrl) getInternalConfig(ctx context.Context, creds params.GithubCredentials, poolBalancerType params.PoolBalancerType) (params.Internal, error) {
 	var controllerWebhookURL string
 	if p.config.Default.WebhookURL != "" {
 		controllerWebhookURL = fmt.Sprintf("%s/%s", p.config.Default.WebhookURL, p.controllerID)
 	}
-	httpClient, err := creds.HTTPClient(ctx)
+	httpClient, err := creds.GetHTTPClient(ctx)
 	if err != nil {
 		return params.Internal{}, fmt.Errorf("fetching http client for creds: %w", err)
 	}
@@ -349,10 +337,10 @@ func (p *poolManagerCtrl) getInternalConfig(ctx context.Context, credsName strin
 		GithubCredentialsDetails: params.GithubCredentials{
 			Name:          creds.Name,
 			Description:   creds.Description,
-			BaseURL:       creds.BaseEndpoint(),
-			APIBaseURL:    creds.APIEndpoint(),
-			UploadBaseURL: creds.UploadEndpoint(),
-			CABundle:      caBundle,
+			BaseURL:       creds.BaseURL,
+			APIBaseURL:    creds.APIBaseURL,
+			UploadBaseURL: creds.UploadBaseURL,
+			CABundle:      creds.CABundle,
 			HTTPClient:    httpClient,
 		},
 	}, nil

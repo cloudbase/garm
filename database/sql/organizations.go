@@ -72,7 +72,7 @@ func (s *sqlDatabase) GetOrganization(ctx context.Context, name string) (params.
 
 func (s *sqlDatabase) ListOrganizations(_ context.Context) ([]params.Organization, error) {
 	var orgs []Organization
-	q := s.conn.Find(&orgs)
+	q := s.conn.Preload("Credentials").Find(&orgs)
 	if q.Error != nil {
 		return []params.Organization{}, errors.Wrap(q.Error, "fetching org from database")
 	}
@@ -104,7 +104,7 @@ func (s *sqlDatabase) DeleteOrganization(ctx context.Context, orgID string) erro
 }
 
 func (s *sqlDatabase) UpdateOrganization(ctx context.Context, orgID string, param params.UpdateEntityParams) (params.Organization, error) {
-	org, err := s.getOrgByID(ctx, orgID)
+	org, err := s.getOrgByID(ctx, orgID, "Credentials", "Endpoint")
 	if err != nil {
 		return params.Organization{}, errors.Wrap(err, "fetching org")
 	}
@@ -138,7 +138,7 @@ func (s *sqlDatabase) UpdateOrganization(ctx context.Context, orgID string, para
 }
 
 func (s *sqlDatabase) GetOrganizationByID(ctx context.Context, orgID string) (params.Organization, error) {
-	org, err := s.getOrgByID(ctx, orgID, "Pools")
+	org, err := s.getOrgByID(ctx, orgID, "Pools", "Credentials", "Endpoint")
 	if err != nil {
 		return params.Organization{}, errors.Wrap(err, "fetching org")
 	}
@@ -177,8 +177,10 @@ func (s *sqlDatabase) getOrgByID(_ context.Context, id string, preload ...string
 func (s *sqlDatabase) getOrg(_ context.Context, name string) (Organization, error) {
 	var org Organization
 
-	q := s.conn.Where("name = ? COLLATE NOCASE", name)
-	q = q.First(&org)
+	q := s.conn.Where("name = ? COLLATE NOCASE", name).
+		Preload("Credentials").
+		Preload("Endpoint").
+		First(&org)
 	if q.Error != nil {
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
 			return Organization{}, runnerErrors.ErrNotFound

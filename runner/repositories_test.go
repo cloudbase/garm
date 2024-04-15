@@ -81,7 +81,7 @@ func (s *RepoTestSuite) SetupTest() {
 			params.PoolBalancerTypeRoundRobin,
 		)
 		if err != nil {
-			s.FailNow(fmt.Sprintf("failed to create database object (test-repo-%v)", i))
+			s.FailNow(fmt.Sprintf("failed to create database object (test-repo-%v): %q", i, err))
 		}
 		repos[name] = repo
 	}
@@ -170,7 +170,7 @@ func (s *RepoTestSuite) TestCreateRepository() {
 	s.Require().Nil(err)
 	s.Require().Equal(s.Fixtures.CreateRepoParams.Owner, repo.Owner)
 	s.Require().Equal(s.Fixtures.CreateRepoParams.Name, repo.Name)
-	s.Require().Equal(s.Fixtures.Credentials[s.Fixtures.CreateRepoParams.CredentialsName].Name, repo.CredentialsName)
+	s.Require().Equal(s.Fixtures.Credentials[s.Fixtures.CreateRepoParams.CredentialsName].Name, repo.Credentials.Name)
 	s.Require().Equal(params.PoolBalancerTypeRoundRobin, repo.PoolBalancerType)
 }
 
@@ -190,7 +190,7 @@ func (s *RepoTestSuite) TestCreareRepositoryPoolBalancerTypePack() {
 	s.Require().Nil(err)
 	s.Require().Equal(param.Owner, repo.Owner)
 	s.Require().Equal(param.Name, repo.Name)
-	s.Require().Equal(s.Fixtures.Credentials[s.Fixtures.CreateRepoParams.CredentialsName].Name, repo.CredentialsName)
+	s.Require().Equal(s.Fixtures.Credentials[s.Fixtures.CreateRepoParams.CredentialsName].Name, repo.Credentials.Name)
 	s.Require().Equal(params.PoolBalancerTypePack, repo.PoolBalancerType)
 }
 
@@ -327,7 +327,7 @@ func (s *RepoTestSuite) TestUpdateRepository() {
 	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
 	s.Fixtures.PoolMgrMock.AssertExpectations(s.T())
 	s.Require().Nil(err)
-	s.Require().Equal(s.Fixtures.UpdateRepoParams.CredentialsName, repo.CredentialsName)
+	s.Require().Equal(s.Fixtures.UpdateRepoParams.CredentialsName, repo.Credentials.Name)
 	s.Require().Equal(s.Fixtures.UpdateRepoParams.WebhookSecret, repo.WebhookSecret)
 	s.Require().Equal(params.PoolBalancerTypeRoundRobin, repo.PoolBalancerType)
 }
@@ -343,7 +343,7 @@ func (s *RepoTestSuite) TestUpdateRepositoryBalancingType() {
 	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
 	s.Fixtures.PoolMgrMock.AssertExpectations(s.T())
 	s.Require().Nil(err)
-	s.Require().Equal(updateRepoParams.CredentialsName, repo.CredentialsName)
+	s.Require().Equal(updateRepoParams.CredentialsName, repo.Credentials.Name)
 	s.Require().Equal(updateRepoParams.WebhookSecret, repo.WebhookSecret)
 	s.Require().Equal(params.PoolBalancerTypePack, repo.PoolBalancerType)
 }

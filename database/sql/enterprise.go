@@ -54,7 +54,7 @@ func (s *sqlDatabase) GetEnterprise(ctx context.Context, name string) (params.En
 }
 
 func (s *sqlDatabase) GetEnterpriseByID(ctx context.Context, enterpriseID string) (params.Enterprise, error) {
-	enterprise, err := s.getEnterpriseByID(ctx, enterpriseID, "Pools")
+	enterprise, err := s.getEnterpriseByID(ctx, enterpriseID, "Pools", "Credentials", "Endpoint")
 	if err != nil {
 		return params.Enterprise{}, errors.Wrap(err, "fetching enterprise")
 	}
@@ -68,7 +68,7 @@ func (s *sqlDatabase) GetEnterpriseByID(ctx context.Context, enterpriseID string
 
 func (s *sqlDatabase) ListEnterprises(_ context.Context) ([]params.Enterprise, error) {
 	var enterprises []Enterprise
-	q := s.conn.Find(&enterprises)
+	q := s.conn.Preload("Credentials").Find(&enterprises)
 	if q.Error != nil {
 		return []params.Enterprise{}, errors.Wrap(q.Error, "fetching enterprises")
 	}
@@ -100,7 +100,7 @@ func (s *sqlDatabase) DeleteEnterprise(ctx context.Context, enterpriseID string)
 }
 
 func (s *sqlDatabase) UpdateEnterprise(ctx context.Context, enterpriseID string, param params.UpdateEntityParams) (params.Enterprise, error) {
-	enterprise, err := s.getEnterpriseByID(ctx, enterpriseID)
+	enterprise, err := s.getEnterpriseByID(ctx, enterpriseID, "Credentials", "Endpoint")
 	if err != nil {
 		return params.Enterprise{}, errors.Wrap(err, "fetching enterprise")
 	}
@@ -136,8 +136,10 @@ func (s *sqlDatabase) UpdateEnterprise(ctx context.Context, enterpriseID string,
 func (s *sqlDatabase) getEnterprise(_ context.Context, name string) (Enterprise, error) {
 	var enterprise Enterprise
 
-	q := s.conn.Where("name = ? COLLATE NOCASE", name)
-	q = q.First(&enterprise)
+	q := s.conn.Where("name = ? COLLATE NOCASE", name).
+		Preload("Credentials").
+		Preload("Endpoint").
+		First(&enterprise)
 	if q.Error != nil {
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
 			return Enterprise{}, runnerErrors.ErrNotFound

@@ -27,7 +27,7 @@ import (
 	"github.com/cloudbase/garm/params"
 )
 
-func (s *sqlDatabase) CreateRepository(_ context.Context, owner, name, credentialsName, webhookSecret string, poolBalancerType params.PoolBalancerType) (params.Repository, error) {
+func (s *sqlDatabase) CreateRepository(ctx context.Context, owner, name, credentialsName, webhookSecret string, poolBalancerType params.PoolBalancerType) (params.Repository, error) {
 	if webhookSecret == "" {
 		return params.Repository{}, errors.New("creating repo: missing secret")
 	}
@@ -35,17 +35,29 @@ func (s *sqlDatabase) CreateRepository(_ context.Context, owner, name, credentia
 	if err != nil {
 		return params.Repository{}, fmt.Errorf("failed to encrypt string")
 	}
-	newRepo := Repository{
-		Name:             name,
-		Owner:            owner,
-		WebhookSecret:    secret,
-		CredentialsName:  credentialsName,
-		PoolBalancerType: poolBalancerType,
-	}
 
-	q := s.conn.Create(&newRepo)
-	if q.Error != nil {
-		return params.Repository{}, errors.Wrap(q.Error, "creating repository")
+	var newRepo Repository
+	err = s.conn.Transaction(func(tx *gorm.DB) error {
+		creds, err := s.getGithubCredentialsByName(ctx, tx, credentialsName, false)
+		if err != nil {
+			return errors.Wrap(err, "creating repository")
+		}
+
+		newRepo.Name = name
+		newRepo.Owner = owner
+		newRepo.WebhookSecret = secret
+		newRepo.CredentialsID = &creds.ID
+		newRepo.PoolBalancerType = poolBalancerType
+
+		q := tx.Create(&newRepo)
+		if q.Error != nil {
+			return errors.Wrap(q.Error, "creating repository")
+		}
+
+		return nil
+	})
+	if err != nil {
+		return params.Repository{}, errors.Wrap(err, "creating repository")
 	}
 
 	param, err := s.sqlToCommonRepository(newRepo)
@@ -72,7 +84,7 @@ func (s *sqlDatabase) GetRepository(ctx context.Context, owner, name string) (pa
 
 func (s *sqlDatabase) ListRepositories(_ context.Context) ([]params.Repository, error) {
 	var repos []Repository
-	q := s.conn.Find(&repos)
+	q := s.conn.Preload("Credentials").Find(&repos)
 	if q.Error != nil {
 		return []params.Repository{}, errors.Wrap(q.Error, "fetching user from database")
 	}
@@ -104,7 +116,7 @@ func (s *sqlDatabase) DeleteRepository(ctx context.Context, repoID string) error
 }
 
 func (s *sqlDatabase) UpdateRepository(ctx context.Context, repoID string, param params.UpdateEntityParams) (params.Repository, error) {
-	repo, err := s.getRepoByID(ctx, repoID)
+	repo, err := s.getRepoByID(ctx, repoID, "Credentials", "Endpoint")
 	if err != nil {
 		return params.Repository{}, errors.Wrap(err, "fetching repo")
 	}
@@ -138,7 +150,7 @@ func (s *sqlDatabase) UpdateRepository(ctx context.Context, repoID string, param
 }
 
 func (s *sqlDatabase) GetRepositoryByID(ctx context.Context, repoID string) (params.Repository, error) {
-	repo, err := s.getRepoByID(ctx, repoID, "Pools")
+	repo, err := s.getRepoByID(ctx, repoID, "Pools", "Credentials", "Endpoint")
 	if err != nil {
 		return params.Repository{}, errors.Wrap(err, "fetching repo")
 	}
@@ -154,6 +166,8 @@ func (s *sqlDatabase) getRepo(_ context.Context, owner, name string) (Repository
 	var repo Repository
 
 	q := s.conn.Where("name = ? COLLATE NOCASE and owner = ? COLLATE NOCASE", name, owner).
+		Preload("Credentials").
+		Preload("Endpoint").
 		First(&repo)
 
 	q = q.First(&repo)

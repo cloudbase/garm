@@ -167,6 +167,9 @@ func main() {
 	}
 	setupLogging(ctx, logCfg, hub)
 
+	// Migrate credentials to the new format. This field will be read
+	// by the DB migration logic.
+	cfg.Database.MigrateCredentials = cfg.Github
 	db, err := database.NewDatabase(ctx, cfg.Database)
 	if err != nil {
 		log.Fatal(err)

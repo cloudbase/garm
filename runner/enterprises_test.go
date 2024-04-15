@@ -169,7 +169,7 @@ func (s *EnterpriseTestSuite) TestCreateEnterprise() {
 	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
 	s.Require().Nil(err)
 	s.Require().Equal(s.Fixtures.CreateEnterpriseParams.Name, enterprise.Name)
-	s.Require().Equal(s.Fixtures.Credentials[s.Fixtures.CreateEnterpriseParams.CredentialsName].Name, enterprise.CredentialsName)
+	s.Require().Equal(s.Fixtures.Credentials[s.Fixtures.CreateEnterpriseParams.CredentialsName].Name, enterprise.Credentials.Name)
 	s.Require().Equal(params.PoolBalancerTypeRoundRobin, enterprise.PoolBalancerType)
 }
 
@@ -306,7 +306,7 @@ func (s *EnterpriseTestSuite) TestUpdateEnterprise() {
 	s.Fixtures.PoolMgrMock.AssertExpectations(s.T())
 	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
 	s.Require().Nil(err)
-	s.Require().Equal(s.Fixtures.UpdateRepoParams.CredentialsName, org.CredentialsName)
+	s.Require().Equal(s.Fixtures.UpdateRepoParams.CredentialsName, org.Credentials.Name)
 	s.Require().Equal(s.Fixtures.UpdateRepoParams.WebhookSecret, org.WebhookSecret)
 	s.Require().Equal(params.PoolBalancerTypePack, org.PoolBalancerType)
 }

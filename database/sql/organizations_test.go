@@ -173,7 +173,7 @@ func (s *OrgTestSuite) TestCreateOrganization() {
 		s.FailNow(fmt.Sprintf("failed to get organization by id: %v", err))
 	}
 	s.Require().Equal(storeOrg.Name, org.Name)
-	s.Require().Equal(storeOrg.CredentialsName, org.CredentialsName)
+	s.Require().Equal(storeOrg.Credentials.Name, org.Credentials.Name)
 	s.Require().Equal(storeOrg.WebhookSecret, org.WebhookSecret)
 }
 
@@ -313,7 +313,7 @@ func (s *OrgTestSuite) TestUpdateOrganization() {
 	org, err := s.Store.UpdateOrganization(context.Background(), s.Fixtures.Orgs[0].ID, s.Fixtures.UpdateRepoParams)
 
 	s.Require().Nil(err)
-	s.Require().Equal(s.Fixtures.UpdateRepoParams.CredentialsName, org.CredentialsName)
+	s.Require().Equal(s.Fixtures.UpdateRepoParams.CredentialsName, org.Credentials.Name)
 	s.Require().Equal(s.Fixtures.UpdateRepoParams.WebhookSecret, org.WebhookSecret)
 }
 

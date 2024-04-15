@@ -204,7 +204,7 @@ func formatEnterprises(enterprises []params.Enterprise) {
 	header := table.Row{"ID", "Name", "Credentials name", "Pool Balancer Type", "Pool mgr running"}
 	t.AppendHeader(header)
 	for _, val := range enterprises {
-		t.AppendRow(table.Row{val.ID, val.Name, val.CredentialsName, val.GetBalancerType(), val.PoolManagerStatus.IsRunning})
+		t.AppendRow(table.Row{val.ID, val.Name, val.Credentials.Name, val.GetBalancerType(), val.PoolManagerStatus.IsRunning})
 		t.AppendSeparator()
 	}
 	fmt.Println(t.Render())
@@ -218,7 +218,7 @@ func formatOneEnterprise(enterprise params.Enterprise) {
 	t.AppendRow(table.Row{"ID", enterprise.ID})
 	t.AppendRow(table.Row{"Name", enterprise.Name})
 	t.AppendRow(table.Row{"Pool balancer type", enterprise.GetBalancerType()})
-	t.AppendRow(table.Row{"Credentials", enterprise.CredentialsName})
+	t.AppendRow(table.Row{"Credentials", enterprise.Credentials.Name})
 	t.AppendRow(table.Row{"Pool manager running", enterprise.PoolManagerStatus.IsRunning})
 	if !enterprise.PoolManagerStatus.IsRunning {
 		t.AppendRow(table.Row{"Failure reason", enterprise.PoolManagerStatus.FailureReason})

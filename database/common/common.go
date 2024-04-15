@@ -20,6 +20,23 @@ import (
 	"github.com/cloudbase/garm/params"
 )
 
+type GithubEndpointStore interface {
+	CreateGithubEndpoint(ctx context.Context, param params.CreateGithubEndpointParams) (params.GithubEndpoint, error)
+	GetGithubEndpoint(ctx context.Context, name string) (params.GithubEndpoint, error)
+	ListGithubEndpoints(ctx context.Context) ([]params.GithubEndpoint, error)
+	UpdateGithubEndpoint(ctx context.Context, name string, param params.UpdateGithubEndpointParams) (params.GithubEndpoint, error)
+	DeleteGithubEndpoint(ctx context.Context, name string) error
+}
+
+type GithubCredentialsStore interface {
+	CreateGithubCredentials(ctx context.Context, endpointName string, param params.CreateGithubCredentialsParams) (params.GithubCredentials, error)
+	GetGithubCredentials(ctx context.Context, id uint, detailed bool) (params.GithubCredentials, error)
+	GetGithubCredentialsByName(ctx context.Context, name string, detailed bool) (params.GithubCredentials, error)
+	ListGithubCredentials(ctx context.Context) ([]params.GithubCredentials, error)
+	UpdateGithubCredentials(ctx context.Context, id uint, param params.UpdateGithubCredentialsParams) (params.GithubCredentials, error)
+	DeleteGithubCredentials(ctx context.Context, id uint) error
+}
+
 type RepoStore interface {
 	CreateRepository(ctx context.Context, owner, name, credentialsName, webhookSecret string, poolBalancerType params.PoolBalancerType) (params.Repository, error)
 	GetRepository(ctx context.Context, owner, name string) (params.Repository, error)
@@ -65,6 +82,7 @@ type PoolStore interface {
 type UserStore interface {
 	GetUser(ctx context.Context, user string) (params.User, error)
 	GetUserByID(ctx context.Context, userID string) (params.User, error)
+	GetAdminUser(ctx context.Context) (params.User, error)
 
 	CreateUser(ctx context.Context, user params.NewUserParams) (params.User, error)
 	UpdateUser(ctx context.Context, user string, param params.UpdateUserParams) (params.User, error)
@@ -121,6 +139,8 @@ type Store interface {
 	InstanceStore
 	JobsStore
 	EntityPools
+	GithubEndpointStore
+	GithubCredentialsStore
 
 	ControllerInfo() (params.ControllerInfo, error)
 	InitController() (params.ControllerInfo, error)
