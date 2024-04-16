@@ -14,6 +14,9 @@ import (
 )
 
 func (s *sqlDatabase) sqlToCommonGithubCredentials(creds GithubCredentials) (params.GithubCredentials, error) {
+	if len(creds.Payload) == 0 {
+		return params.GithubCredentials{}, errors.New("empty credentials payload")
+	}
 	data, err := util.Unseal(creds.Payload, []byte(s.cfg.Passphrase))
 	if err != nil {
 		return params.GithubCredentials{}, errors.Wrap(err, "unsealing credentials")
@@ -33,7 +36,7 @@ func (s *sqlDatabase) sqlToCommonGithubCredentials(creds GithubCredentials) (par
 	}
 
 	for _, repo := range creds.Repositories {
-		commonRepo, err := s.sqlToCommonRepository(repo)
+		commonRepo, err := s.sqlToCommonRepository(repo, false)
 		if err != nil {
 			return params.GithubCredentials{}, errors.Wrap(err, "converting github repository")
 		}
@@ -41,7 +44,7 @@ func (s *sqlDatabase) sqlToCommonGithubCredentials(creds GithubCredentials) (par
 	}
 
 	for _, org := range creds.Organizations {
-		commonOrg, err := s.sqlToCommonOrganization(org)
+		commonOrg, err := s.sqlToCommonOrganization(org, false)
 		if err != nil {
 			return params.GithubCredentials{}, errors.Wrap(err, "converting github organization")
 		}
@@ -49,9 +52,9 @@ func (s *sqlDatabase) sqlToCommonGithubCredentials(creds GithubCredentials) (par
 	}
 
 	for _, ent := range creds.Enterprises {
-		commonEnt, err := s.sqlToCommonEnterprise(ent)
+		commonEnt, err := s.sqlToCommonEnterprise(ent, false)
 		if err != nil {
-			return params.GithubCredentials{}, errors.Wrap(err, "converting github enterprise")
+			return params.GithubCredentials{}, errors.Wrapf(err, "converting github enterprise: %s", ent.Name)
 		}
 		commonCreds.Enterprises = append(commonCreds.Enterprises, commonEnt)
 	}
@@ -73,12 +76,12 @@ func (s *sqlDatabase) sqlToCommonGithubEndpoint(ep GithubEndpoint) (params.Githu
 func getUIDFromContext(ctx context.Context) (uuid.UUID, error) {
 	userID := auth.UserID(ctx)
 	if userID == "" {
-		return uuid.Nil, errors.Wrap(runnerErrors.ErrUnauthorized, "creating github endpoint")
+		return uuid.Nil, errors.Wrap(runnerErrors.ErrUnauthorized, "getting UID from context")
 	}
 
 	asUUID, err := uuid.Parse(userID)
 	if err != nil {
-		return uuid.Nil, errors.Wrap(runnerErrors.ErrUnauthorized, "creating github endpoint")
+		return uuid.Nil, errors.Wrap(runnerErrors.ErrUnauthorized, "parsing UID from context")
 	}
 	return asUUID, nil
 }

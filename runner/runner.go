@@ -77,7 +77,6 @@ func NewRunner(ctx context.Context, cfg config.Config, db dbCommon.Store) (*Runn
 		store:           db,
 		poolManagerCtrl: poolManagerCtrl,
 		providers:       providers,
-		credentials:     creds,
 		controllerID:    ctrlID.ControllerID,
 	}
 
@@ -355,8 +354,7 @@ type Runner struct {
 
 	poolManagerCtrl PoolManagerController
 
-	providers   map[string]common.Provider
-	credentials map[string]config.Github
+	providers map[string]common.Provider
 
 	controllerInfo params.ControllerInfo
 	controllerID   uuid.UUID

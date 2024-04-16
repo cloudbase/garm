@@ -27,13 +27,13 @@ import (
 	"github.com/cloudbase/garm/params"
 )
 
-func (s *sqlDatabase) CreateOrganization(_ context.Context, name, credentialsName, webhookSecret string, poolBalancerType params.PoolBalancerType) (params.Organization, error) {
+func (s *sqlDatabase) CreateOrganization(ctx context.Context, name, credentialsName, webhookSecret string, poolBalancerType params.PoolBalancerType) (params.Organization, error) {
 	if webhookSecret == "" {
 		return params.Organization{}, errors.New("creating org: missing secret")
 	}
 	secret, err := util.Seal([]byte(webhookSecret), []byte(s.cfg.Passphrase))
 	if err != nil {
-		return params.Organization{}, fmt.Errorf("failed to encrypt string")
+		return params.Organization{}, errors.Wrap(err, "encoding secret")
 	}
 	newOrg := Organization{
 		Name:             name,
@@ -42,12 +42,27 @@ func (s *sqlDatabase) CreateOrganization(_ context.Context, name, credentialsNam
 		PoolBalancerType: poolBalancerType,
 	}
 
-	q := s.conn.Create(&newOrg)
-	if q.Error != nil {
-		return params.Organization{}, errors.Wrap(q.Error, "creating org")
+	err = s.conn.Transaction(func(tx *gorm.DB) error {
+		creds, err := s.getGithubCredentialsByName(ctx, tx, credentialsName, false)
+		if err != nil {
+			return errors.Wrap(err, "creating org")
+		}
+		newOrg.CredentialsID = &creds.ID
+
+		q := tx.Create(&newOrg)
+		if q.Error != nil {
+			return errors.Wrap(q.Error, "creating org")
+		}
+
+		newOrg.Credentials = creds
+
+		return nil
+	})
+	if err != nil {
+		return params.Organization{}, errors.Wrap(err, "creating org")
 	}
 
-	param, err := s.sqlToCommonOrganization(newOrg)
+	param, err := s.sqlToCommonOrganization(newOrg, true)
 	if err != nil {
 		return params.Organization{}, errors.Wrap(err, "creating org")
 	}
@@ -62,7 +77,7 @@ func (s *sqlDatabase) GetOrganization(ctx context.Context, name string) (params.
 		return params.Organization{}, errors.Wrap(err, "fetching org")
 	}
 
-	param, err := s.sqlToCommonOrganization(org)
+	param, err := s.sqlToCommonOrganization(org, true)
 	if err != nil {
 		return params.Organization{}, errors.Wrap(err, "fetching org")
 	}
@@ -80,7 +95,7 @@ func (s *sqlDatabase) ListOrganizations(_ context.Context) ([]params.Organizatio
 	ret := make([]params.Organization, len(orgs))
 	for idx, val := range orgs {
 		var err error
-		ret[idx], err = s.sqlToCommonOrganization(val)
+		ret[idx], err = s.sqlToCommonOrganization(val, true)
 		if err != nil {
 			return nil, errors.Wrap(err, "fetching org")
 		}
@@ -90,7 +105,7 @@ func (s *sqlDatabase) ListOrganizations(_ context.Context) ([]params.Organizatio
 }
 
 func (s *sqlDatabase) DeleteOrganization(ctx context.Context, orgID string) error {
-	org, err := s.getOrgByID(ctx, orgID)
+	org, err := s.getOrgByID(ctx, s.conn, orgID)
 	if err != nil {
 		return errors.Wrap(err, "fetching org")
 	}
@@ -104,33 +119,52 @@ func (s *sqlDatabase) DeleteOrganization(ctx context.Context, orgID string) erro
 }
 
 func (s *sqlDatabase) UpdateOrganization(ctx context.Context, orgID string, param params.UpdateEntityParams) (params.Organization, error) {
-	org, err := s.getOrgByID(ctx, orgID, "Credentials", "Endpoint")
-	if err != nil {
-		return params.Organization{}, errors.Wrap(err, "fetching org")
-	}
-
-	if param.CredentialsName != "" {
-		org.CredentialsName = param.CredentialsName
-	}
-
-	if param.WebhookSecret != "" {
-		secret, err := util.Seal([]byte(param.WebhookSecret), []byte(s.cfg.Passphrase))
+	var org Organization
+	var creds GithubCredentials
+	err := s.conn.Transaction(func(tx *gorm.DB) error {
+		var err error
+		org, err = s.getOrgByID(ctx, tx, orgID, "Credentials", "Endpoint")
 		if err != nil {
-			return params.Organization{}, fmt.Errorf("saving org: failed to encrypt string: %w", err)
+			return errors.Wrap(err, "fetching org")
 		}
-		org.WebhookSecret = secret
+
+		if param.CredentialsName != "" {
+			org.CredentialsName = param.CredentialsName
+			creds, err = s.getGithubCredentialsByName(ctx, tx, param.CredentialsName, false)
+			if err != nil {
+				return errors.Wrap(err, "fetching credentials")
+			}
+			org.CredentialsID = &creds.ID
+		}
+
+		if param.WebhookSecret != "" {
+			secret, err := util.Seal([]byte(param.WebhookSecret), []byte(s.cfg.Passphrase))
+			if err != nil {
+				return fmt.Errorf("saving org: failed to encrypt string: %w", err)
+			}
+			org.WebhookSecret = secret
+		}
+
+		if param.PoolBalancerType != "" {
+			org.PoolBalancerType = param.PoolBalancerType
+		}
+
+		q := tx.Save(&org)
+		if q.Error != nil {
+			return errors.Wrap(q.Error, "saving org")
+		}
+
+		if creds.ID != 0 {
+			org.Credentials = creds
+		}
+
+		return nil
+	})
+	if err != nil {
+		return params.Organization{}, errors.Wrap(err, "saving org")
 	}
 
-	if param.PoolBalancerType != "" {
-		org.PoolBalancerType = param.PoolBalancerType
-	}
-
-	q := s.conn.Save(&org)
-	if q.Error != nil {
-		return params.Organization{}, errors.Wrap(q.Error, "saving org")
-	}
-
-	newParams, err := s.sqlToCommonOrganization(org)
+	newParams, err := s.sqlToCommonOrganization(org, true)
 	if err != nil {
 		return params.Organization{}, errors.Wrap(err, "saving org")
 	}
@@ -138,26 +172,26 @@ func (s *sqlDatabase) UpdateOrganization(ctx context.Context, orgID string, para
 }
 
 func (s *sqlDatabase) GetOrganizationByID(ctx context.Context, orgID string) (params.Organization, error) {
-	org, err := s.getOrgByID(ctx, orgID, "Pools", "Credentials", "Endpoint")
+	org, err := s.getOrgByID(ctx, s.conn, orgID, "Pools", "Credentials", "Endpoint")
 	if err != nil {
 		return params.Organization{}, errors.Wrap(err, "fetching org")
 	}
 
-	param, err := s.sqlToCommonOrganization(org)
+	param, err := s.sqlToCommonOrganization(org, true)
 	if err != nil {
-		return params.Organization{}, errors.Wrap(err, "fetching enterprise")
+		return params.Organization{}, errors.Wrap(err, "fetching org")
 	}
 	return param, nil
 }
 
-func (s *sqlDatabase) getOrgByID(_ context.Context, id string, preload ...string) (Organization, error) {
+func (s *sqlDatabase) getOrgByID(_ context.Context, db *gorm.DB, id string, preload ...string) (Organization, error) {
 	u, err := uuid.Parse(id)
 	if err != nil {
 		return Organization{}, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
 	}
 	var org Organization
 
-	q := s.conn
+	q := db
 	if len(preload) > 0 {
 		for _, field := range preload {
 			q = q.Preload(field)

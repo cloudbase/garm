@@ -48,6 +48,7 @@ type InstancesTestSuite struct {
 	Store          dbCommon.Store
 	StoreSQLMocked *sqlDatabase
 	Fixtures       *InstancesTestFixtures
+	adminCtx       context.Context
 }
 
 func (s *InstancesTestSuite) equalInstancesByName(expected, actual []params.Instance) {
@@ -76,8 +77,14 @@ func (s *InstancesTestSuite) SetupTest() {
 	}
 	s.Store = db
 
+	adminCtx := garmTesting.ImpersonateAdminContext(context.Background(), db, s.T())
+	s.adminCtx = adminCtx
+
+	githubEndpoint := garmTesting.CreateDefaultGithubEndpoint(adminCtx, db, s.T())
+	creds := garmTesting.CreateTestGithubCredentials(adminCtx, "new-creds", db, s.T(), githubEndpoint)
+
 	// create an organization for testing purposes
-	org, err := s.Store.CreateOrganization(context.Background(), "test-org", "test-creds", "test-webhookSecret", params.PoolBalancerTypeRoundRobin)
+	org, err := s.Store.CreateOrganization(s.adminCtx, "test-org", creds.Name, "test-webhookSecret", params.PoolBalancerTypeRoundRobin)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to create org: %s", err))
 	}
@@ -94,7 +101,7 @@ func (s *InstancesTestSuite) SetupTest() {
 	}
 	entity, err := org.GetEntity()
 	s.Require().Nil(err)
-	pool, err := s.Store.CreateEntityPool(context.Background(), entity, createPoolParams)
+	pool, err := s.Store.CreateEntityPool(s.adminCtx, entity, createPoolParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to create org pool: %s", err))
 	}
@@ -103,7 +110,7 @@ func (s *InstancesTestSuite) SetupTest() {
 	instances := []params.Instance{}
 	for i := 1; i <= 3; i++ {
 		instance, err := db.CreateInstance(
-			context.Background(),
+			s.adminCtx,
 			pool.ID,
 			params.CreateInstanceParams{
 				Name:         fmt.Sprintf("test-instance-%d", i),
@@ -179,11 +186,11 @@ func (s *InstancesTestSuite) SetupTest() {
 
 func (s *InstancesTestSuite) TestCreateInstance() {
 	// call tested function
-	instance, err := s.Store.CreateInstance(context.Background(), s.Fixtures.Pool.ID, s.Fixtures.CreateInstanceParams)
+	instance, err := s.Store.CreateInstance(s.adminCtx, s.Fixtures.Pool.ID, s.Fixtures.CreateInstanceParams)
 
 	// assertions
 	s.Require().Nil(err)
-	storeInstance, err := s.Store.GetInstanceByName(context.Background(), s.Fixtures.CreateInstanceParams.Name)
+	storeInstance, err := s.Store.GetInstanceByName(s.adminCtx, s.Fixtures.CreateInstanceParams.Name)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to get instance: %v", err))
 	}
@@ -195,7 +202,7 @@ func (s *InstancesTestSuite) TestCreateInstance() {
 }
 
 func (s *InstancesTestSuite) TestCreateInstanceInvalidPoolID() {
-	_, err := s.Store.CreateInstance(context.Background(), "dummy-pool-id", params.CreateInstanceParams{})
+	_, err := s.Store.CreateInstance(s.adminCtx, "dummy-pool-id", params.CreateInstanceParams{})
 
 	s.Require().Equal("fetching pool: parsing id: invalid request", err.Error())
 }
@@ -216,7 +223,7 @@ func (s *InstancesTestSuite) TestCreateInstanceDBCreateErr() {
 		WillReturnError(fmt.Errorf("mocked insert instance error"))
 	s.Fixtures.SQLMock.ExpectRollback()
 
-	_, err := s.StoreSQLMocked.CreateInstance(context.Background(), pool.ID, s.Fixtures.CreateInstanceParams)
+	_, err := s.StoreSQLMocked.CreateInstance(s.adminCtx, pool.ID, s.Fixtures.CreateInstanceParams)
 
 	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
@@ -226,7 +233,7 @@ func (s *InstancesTestSuite) TestCreateInstanceDBCreateErr() {
 func (s *InstancesTestSuite) TestGetPoolInstanceByName() {
 	storeInstance := s.Fixtures.Instances[0] // this is already created in `SetupTest()`
 
-	instance, err := s.Store.GetPoolInstanceByName(context.Background(), s.Fixtures.Pool.ID, storeInstance.Name)
+	instance, err := s.Store.GetPoolInstanceByName(s.adminCtx, s.Fixtures.Pool.ID, storeInstance.Name)
 
 	s.Require().Nil(err)
 	s.Require().Equal(storeInstance.Name, instance.Name)
@@ -237,7 +244,7 @@ func (s *InstancesTestSuite) TestGetPoolInstanceByName() {
 }
 
 func (s *InstancesTestSuite) TestGetPoolInstanceByNameNotFound() {
-	_, err := s.Store.GetPoolInstanceByName(context.Background(), s.Fixtures.Pool.ID, "not-existent-instance-name")
+	_, err := s.Store.GetPoolInstanceByName(s.adminCtx, s.Fixtures.Pool.ID, "not-existent-instance-name")
 
 	s.Require().Equal("fetching instance: fetching pool instance by name: not found", err.Error())
 }
@@ -245,7 +252,7 @@ func (s *InstancesTestSuite) TestGetPoolInstanceByNameNotFound() {
 func (s *InstancesTestSuite) TestGetInstanceByName() {
 	storeInstance := s.Fixtures.Instances[1]
 
-	instance, err := s.Store.GetInstanceByName(context.Background(), storeInstance.Name)
+	instance, err := s.Store.GetInstanceByName(s.adminCtx, storeInstance.Name)
 
 	s.Require().Nil(err)
 	s.Require().Equal(storeInstance.Name, instance.Name)
@@ -256,7 +263,7 @@ func (s *InstancesTestSuite) TestGetInstanceByName() {
 }
 
 func (s *InstancesTestSuite) TestGetInstanceByNameFetchInstanceFailed() {
-	_, err := s.Store.GetInstanceByName(context.Background(), "not-existent-instance-name")
+	_, err := s.Store.GetInstanceByName(s.adminCtx, "not-existent-instance-name")
 
 	s.Require().Equal("fetching instance: fetching instance by name: not found", err.Error())
 }
@@ -264,16 +271,16 @@ func (s *InstancesTestSuite) TestGetInstanceByNameFetchInstanceFailed() {
 func (s *InstancesTestSuite) TestDeleteInstance() {
 	storeInstance := s.Fixtures.Instances[0]
 
-	err := s.Store.DeleteInstance(context.Background(), s.Fixtures.Pool.ID, storeInstance.Name)
+	err := s.Store.DeleteInstance(s.adminCtx, s.Fixtures.Pool.ID, storeInstance.Name)
 
 	s.Require().Nil(err)
 
-	_, err = s.Store.GetPoolInstanceByName(context.Background(), s.Fixtures.Pool.ID, storeInstance.Name)
+	_, err = s.Store.GetPoolInstanceByName(s.adminCtx, s.Fixtures.Pool.ID, storeInstance.Name)
 	s.Require().Equal("fetching instance: fetching pool instance by name: not found", err.Error())
 }
 
 func (s *InstancesTestSuite) TestDeleteInstanceInvalidPoolID() {
-	err := s.Store.DeleteInstance(context.Background(), "dummy-pool-id", "dummy-instance-name")
+	err := s.Store.DeleteInstance(s.adminCtx, "dummy-pool-id", "dummy-instance-name")
 
 	s.Require().Equal("deleting instance: fetching pool: parsing id: invalid request", err.Error())
 }
@@ -309,7 +316,7 @@ func (s *InstancesTestSuite) TestDeleteInstanceDBRecordNotFoundErr() {
 		WillReturnError(gorm.ErrRecordNotFound)
 	s.Fixtures.SQLMock.ExpectRollback()
 
-	err := s.StoreSQLMocked.DeleteInstance(context.Background(), pool.ID, instance.Name)
+	err := s.StoreSQLMocked.DeleteInstance(s.adminCtx, pool.ID, instance.Name)
 
 	s.assertSQLMockExpectations()
 	s.Require().Nil(err)
@@ -346,7 +353,7 @@ func (s *InstancesTestSuite) TestDeleteInstanceDBDeleteErr() {
 		WillReturnError(fmt.Errorf("mocked delete instance error"))
 	s.Fixtures.SQLMock.ExpectRollback()
 
-	err := s.StoreSQLMocked.DeleteInstance(context.Background(), pool.ID, instance.Name)
+	err := s.StoreSQLMocked.DeleteInstance(s.adminCtx, pool.ID, instance.Name)
 
 	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
@@ -357,10 +364,10 @@ func (s *InstancesTestSuite) TestAddInstanceEvent() {
 	storeInstance := s.Fixtures.Instances[0]
 	statusMsg := "test-status-message"
 
-	err := s.Store.AddInstanceEvent(context.Background(), storeInstance.Name, params.StatusEvent, params.EventInfo, statusMsg)
+	err := s.Store.AddInstanceEvent(s.adminCtx, storeInstance.Name, params.StatusEvent, params.EventInfo, statusMsg)
 
 	s.Require().Nil(err)
-	instance, err := s.Store.GetInstanceByName(context.Background(), storeInstance.Name)
+	instance, err := s.Store.GetInstanceByName(s.adminCtx, storeInstance.Name)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to get db instance: %s", err))
 	}
@@ -398,7 +405,7 @@ func (s *InstancesTestSuite) TestAddInstanceEventDBUpdateErr() {
 		WillReturnError(fmt.Errorf("mocked add status message error"))
 	s.Fixtures.SQLMock.ExpectRollback()
 
-	err := s.StoreSQLMocked.AddInstanceEvent(context.Background(), instance.Name, params.StatusEvent, params.EventInfo, statusMsg)
+	err := s.StoreSQLMocked.AddInstanceEvent(s.adminCtx, instance.Name, params.StatusEvent, params.EventInfo, statusMsg)
 
 	s.Require().NotNil(err)
 	s.Require().Equal("adding status message: mocked add status message error", err.Error())
@@ -406,7 +413,7 @@ func (s *InstancesTestSuite) TestAddInstanceEventDBUpdateErr() {
 }
 
 func (s *InstancesTestSuite) TestUpdateInstance() {
-	instance, err := s.Store.UpdateInstance(context.Background(), s.Fixtures.Instances[0].Name, s.Fixtures.UpdateInstanceParams)
+	instance, err := s.Store.UpdateInstance(s.adminCtx, s.Fixtures.Instances[0].Name, s.Fixtures.UpdateInstanceParams)
 
 	s.Require().Nil(err)
 	s.Require().Equal(s.Fixtures.UpdateInstanceParams.ProviderID, instance.ProviderID)
@@ -443,7 +450,7 @@ func (s *InstancesTestSuite) TestUpdateInstanceDBUpdateInstanceErr() {
 		WillReturnError(fmt.Errorf("mocked update instance error"))
 	s.Fixtures.SQLMock.ExpectRollback()
 
-	_, err := s.StoreSQLMocked.UpdateInstance(context.Background(), instance.Name, s.Fixtures.UpdateInstanceParams)
+	_, err := s.StoreSQLMocked.UpdateInstance(s.adminCtx, instance.Name, s.Fixtures.UpdateInstanceParams)
 
 	s.Require().NotNil(err)
 	s.Require().Equal("updating instance: mocked update instance error", err.Error())
@@ -489,7 +496,7 @@ func (s *InstancesTestSuite) TestUpdateInstanceDBUpdateAddressErr() {
 		WillReturnError(fmt.Errorf("update addresses mock error"))
 	s.Fixtures.SQLMock.ExpectRollback()
 
-	_, err := s.StoreSQLMocked.UpdateInstance(context.Background(), instance.Name, s.Fixtures.UpdateInstanceParams)
+	_, err := s.StoreSQLMocked.UpdateInstance(s.adminCtx, instance.Name, s.Fixtures.UpdateInstanceParams)
 
 	s.Require().NotNil(err)
 	s.Require().Equal("updating addresses: update addresses mock error", err.Error())
@@ -497,20 +504,20 @@ func (s *InstancesTestSuite) TestUpdateInstanceDBUpdateAddressErr() {
 }
 
 func (s *InstancesTestSuite) TestListPoolInstances() {
-	instances, err := s.Store.ListPoolInstances(context.Background(), s.Fixtures.Pool.ID)
+	instances, err := s.Store.ListPoolInstances(s.adminCtx, s.Fixtures.Pool.ID)
 
 	s.Require().Nil(err)
 	s.equalInstancesByName(s.Fixtures.Instances, instances)
 }
 
 func (s *InstancesTestSuite) TestListPoolInstancesInvalidPoolID() {
-	_, err := s.Store.ListPoolInstances(context.Background(), "dummy-pool-id")
+	_, err := s.Store.ListPoolInstances(s.adminCtx, "dummy-pool-id")
 
 	s.Require().Equal("parsing id: invalid request", err.Error())
 }
 
 func (s *InstancesTestSuite) TestListAllInstances() {
-	instances, err := s.Store.ListAllInstances(context.Background())
+	instances, err := s.Store.ListAllInstances(s.adminCtx)
 
 	s.Require().Nil(err)
 	s.equalInstancesByName(s.Fixtures.Instances, instances)
@@ -521,7 +528,7 @@ func (s *InstancesTestSuite) TestListAllInstancesDBFetchErr() {
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `instances` WHERE `instances`.`deleted_at` IS NULL")).
 		WillReturnError(fmt.Errorf("fetch instances mock error"))
 
-	_, err := s.StoreSQLMocked.ListAllInstances(context.Background())
+	_, err := s.StoreSQLMocked.ListAllInstances(s.adminCtx)
 
 	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
@@ -529,14 +536,14 @@ func (s *InstancesTestSuite) TestListAllInstancesDBFetchErr() {
 }
 
 func (s *InstancesTestSuite) TestPoolInstanceCount() {
-	instancesCount, err := s.Store.PoolInstanceCount(context.Background(), s.Fixtures.Pool.ID)
+	instancesCount, err := s.Store.PoolInstanceCount(s.adminCtx, s.Fixtures.Pool.ID)
 
 	s.Require().Nil(err)
 	s.Require().Equal(int64(len(s.Fixtures.Instances)), instancesCount)
 }
 
 func (s *InstancesTestSuite) TestPoolInstanceCountInvalidPoolID() {
-	_, err := s.Store.PoolInstanceCount(context.Background(), "dummy-pool-id")
+	_, err := s.Store.PoolInstanceCount(s.adminCtx, "dummy-pool-id")
 
 	s.Require().Equal("fetching pool: parsing id: invalid request", err.Error())
 }
@@ -553,7 +560,7 @@ func (s *InstancesTestSuite) TestPoolInstanceCountDBCountErr() {
 		WithArgs(pool.ID).
 		WillReturnError(fmt.Errorf("count mock error"))
 
-	_, err := s.StoreSQLMocked.PoolInstanceCount(context.Background(), pool.ID)
+	_, err := s.StoreSQLMocked.PoolInstanceCount(s.adminCtx, pool.ID)
 
 	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)

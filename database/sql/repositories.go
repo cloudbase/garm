@@ -36,31 +36,32 @@ func (s *sqlDatabase) CreateRepository(ctx context.Context, owner, name, credent
 		return params.Repository{}, fmt.Errorf("failed to encrypt string")
 	}
 
-	var newRepo Repository
+	newRepo := Repository{
+		Name:             name,
+		Owner:            owner,
+		WebhookSecret:    secret,
+		PoolBalancerType: poolBalancerType,
+	}
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
 		creds, err := s.getGithubCredentialsByName(ctx, tx, credentialsName, false)
 		if err != nil {
 			return errors.Wrap(err, "creating repository")
 		}
-
-		newRepo.Name = name
-		newRepo.Owner = owner
-		newRepo.WebhookSecret = secret
 		newRepo.CredentialsID = &creds.ID
-		newRepo.PoolBalancerType = poolBalancerType
 
 		q := tx.Create(&newRepo)
 		if q.Error != nil {
 			return errors.Wrap(q.Error, "creating repository")
 		}
 
+		newRepo.Credentials = creds
 		return nil
 	})
 	if err != nil {
 		return params.Repository{}, errors.Wrap(err, "creating repository")
 	}
 
-	param, err := s.sqlToCommonRepository(newRepo)
+	param, err := s.sqlToCommonRepository(newRepo, true)
 	if err != nil {
 		return params.Repository{}, errors.Wrap(err, "creating repository")
 	}
@@ -74,7 +75,7 @@ func (s *sqlDatabase) GetRepository(ctx context.Context, owner, name string) (pa
 		return params.Repository{}, errors.Wrap(err, "fetching repo")
 	}
 
-	param, err := s.sqlToCommonRepository(repo)
+	param, err := s.sqlToCommonRepository(repo, true)
 	if err != nil {
 		return params.Repository{}, errors.Wrap(err, "fetching repo")
 	}
@@ -92,7 +93,7 @@ func (s *sqlDatabase) ListRepositories(_ context.Context) ([]params.Repository, 
 	ret := make([]params.Repository, len(repos))
 	for idx, val := range repos {
 		var err error
-		ret[idx], err = s.sqlToCommonRepository(val)
+		ret[idx], err = s.sqlToCommonRepository(val, true)
 		if err != nil {
 			return nil, errors.Wrap(err, "fetching repositories")
 		}
@@ -102,7 +103,7 @@ func (s *sqlDatabase) ListRepositories(_ context.Context) ([]params.Repository, 
 }
 
 func (s *sqlDatabase) DeleteRepository(ctx context.Context, repoID string) error {
-	repo, err := s.getRepoByID(ctx, repoID)
+	repo, err := s.getRepoByID(ctx, s.conn, repoID)
 	if err != nil {
 		return errors.Wrap(err, "fetching repo")
 	}
@@ -116,33 +117,51 @@ func (s *sqlDatabase) DeleteRepository(ctx context.Context, repoID string) error
 }
 
 func (s *sqlDatabase) UpdateRepository(ctx context.Context, repoID string, param params.UpdateEntityParams) (params.Repository, error) {
-	repo, err := s.getRepoByID(ctx, repoID, "Credentials", "Endpoint")
-	if err != nil {
-		return params.Repository{}, errors.Wrap(err, "fetching repo")
-	}
-
-	if param.CredentialsName != "" {
-		repo.CredentialsName = param.CredentialsName
-	}
-
-	if param.WebhookSecret != "" {
-		secret, err := util.Seal([]byte(param.WebhookSecret), []byte(s.cfg.Passphrase))
+	var repo Repository
+	var creds GithubCredentials
+	err := s.conn.Transaction(func(tx *gorm.DB) error {
+		var err error
+		repo, err = s.getRepoByID(ctx, tx, repoID, "Credentials", "Endpoint")
 		if err != nil {
-			return params.Repository{}, fmt.Errorf("saving repo: failed to encrypt string: %w", err)
+			return errors.Wrap(err, "fetching repo")
 		}
-		repo.WebhookSecret = secret
+
+		if param.CredentialsName != "" {
+			repo.CredentialsName = param.CredentialsName
+			creds, err = s.getGithubCredentialsByName(ctx, tx, param.CredentialsName, false)
+			if err != nil {
+				return errors.Wrap(err, "fetching credentials")
+			}
+			repo.CredentialsID = &creds.ID
+		}
+
+		if param.WebhookSecret != "" {
+			secret, err := util.Seal([]byte(param.WebhookSecret), []byte(s.cfg.Passphrase))
+			if err != nil {
+				return fmt.Errorf("saving repo: failed to encrypt string: %w", err)
+			}
+			repo.WebhookSecret = secret
+		}
+
+		if param.PoolBalancerType != "" {
+			repo.PoolBalancerType = param.PoolBalancerType
+		}
+
+		q := tx.Save(&repo)
+		if q.Error != nil {
+			return errors.Wrap(q.Error, "saving repo")
+		}
+
+		if creds.ID != 0 {
+			repo.Credentials = creds
+		}
+		return nil
+	})
+	if err != nil {
+		return params.Repository{}, errors.Wrap(err, "saving repo")
 	}
 
-	if param.PoolBalancerType != "" {
-		repo.PoolBalancerType = param.PoolBalancerType
-	}
-
-	q := s.conn.Save(&repo)
-	if q.Error != nil {
-		return params.Repository{}, errors.Wrap(q.Error, "saving repo")
-	}
-
-	newParams, err := s.sqlToCommonRepository(repo)
+	newParams, err := s.sqlToCommonRepository(repo, true)
 	if err != nil {
 		return params.Repository{}, errors.Wrap(err, "saving repo")
 	}
@@ -150,12 +169,12 @@ func (s *sqlDatabase) UpdateRepository(ctx context.Context, repoID string, param
 }
 
 func (s *sqlDatabase) GetRepositoryByID(ctx context.Context, repoID string) (params.Repository, error) {
-	repo, err := s.getRepoByID(ctx, repoID, "Pools", "Credentials", "Endpoint")
+	repo, err := s.getRepoByID(ctx, s.conn, repoID, "Pools", "Credentials", "Endpoint")
 	if err != nil {
 		return params.Repository{}, errors.Wrap(err, "fetching repo")
 	}
 
-	param, err := s.sqlToCommonRepository(repo)
+	param, err := s.sqlToCommonRepository(repo, true)
 	if err != nil {
 		return params.Repository{}, errors.Wrap(err, "fetching repo")
 	}
@@ -206,14 +225,14 @@ func (s *sqlDatabase) getEntityPoolByUniqueFields(tx *gorm.DB, entity params.Git
 	return Pool{}, nil
 }
 
-func (s *sqlDatabase) getRepoByID(_ context.Context, id string, preload ...string) (Repository, error) {
+func (s *sqlDatabase) getRepoByID(_ context.Context, tx *gorm.DB, id string, preload ...string) (Repository, error) {
 	u, err := uuid.Parse(id)
 	if err != nil {
 		return Repository{}, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
 	}
 	var repo Repository
 
-	q := s.conn
+	q := tx
 	if len(preload) > 0 {
 		for _, field := range preload {
 			q = q.Preload(field)

@@ -25,8 +25,8 @@ func (r *Runner) CreateEnterprise(ctx context.Context, param params.CreateEnterp
 		return params.Enterprise{}, errors.Wrap(err, "validating params")
 	}
 
-	creds, ok := r.credentials[param.CredentialsName]
-	if !ok {
+	creds, err := r.store.GetGithubCredentialsByName(ctx, param.CredentialsName, true)
+	if err != nil {
 		return params.Enterprise{}, runnerErrors.NewBadRequestError("credentials %s not defined", param.CredentialsName)
 	}
 
@@ -161,25 +161,13 @@ func (r *Runner) UpdateEnterprise(ctx context.Context, enterpriseID string, para
 	r.mux.Lock()
 	defer r.mux.Unlock()
 
-	enterprise, err := r.store.GetEnterpriseByID(ctx, enterpriseID)
-	if err != nil {
-		return params.Enterprise{}, errors.Wrap(err, "fetching enterprise")
-	}
-
-	if param.CredentialsName != "" {
-		// Check that credentials are set before saving to db
-		if _, ok := r.credentials[param.CredentialsName]; !ok {
-			return params.Enterprise{}, runnerErrors.NewBadRequestError("invalid credentials (%s) for enterprise %s", param.CredentialsName, enterprise.Name)
-		}
-	}
-
 	switch param.PoolBalancerType {
 	case params.PoolBalancerTypeRoundRobin, params.PoolBalancerTypePack, params.PoolBalancerTypeNone:
 	default:
 		return params.Enterprise{}, runnerErrors.NewBadRequestError("invalid pool balancer type: %s", param.PoolBalancerType)
 	}
 
-	enterprise, err = r.store.UpdateEnterprise(ctx, enterpriseID, param)
+	enterprise, err := r.store.UpdateEnterprise(ctx, enterpriseID, param)
 	if err != nil {
 		return params.Enterprise{}, errors.Wrap(err, "updating enterprise")
 	}

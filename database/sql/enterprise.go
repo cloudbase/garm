@@ -1,3 +1,17 @@
+// Copyright 2024 Cloudbase Solutions SRL
+//
+//	Licensed under the Apache License, Version 2.0 (the "License"); you may
+//	not use this file except in compliance with the License. You may obtain
+//	a copy of the License at
+//
+//	     http://www.apache.org/licenses/LICENSE-2.0
+//
+//	Unless required by applicable law or agreed to in writing, software
+//	distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+//	WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+//	License for the specific language governing permissions and limitations
+//	under the License.
+
 package sql
 
 import (
@@ -12,7 +26,7 @@ import (
 	"github.com/cloudbase/garm/params"
 )
 
-func (s *sqlDatabase) CreateEnterprise(_ context.Context, name, credentialsName, webhookSecret string, poolBalancerType params.PoolBalancerType) (params.Enterprise, error) {
+func (s *sqlDatabase) CreateEnterprise(ctx context.Context, name, credentialsName, webhookSecret string, poolBalancerType params.PoolBalancerType) (params.Enterprise, error) {
 	if webhookSecret == "" {
 		return params.Enterprise{}, errors.New("creating enterprise: missing secret")
 	}
@@ -26,13 +40,27 @@ func (s *sqlDatabase) CreateEnterprise(_ context.Context, name, credentialsName,
 		CredentialsName:  credentialsName,
 		PoolBalancerType: poolBalancerType,
 	}
+	err = s.conn.Transaction(func(tx *gorm.DB) error {
+		creds, err := s.getGithubCredentialsByName(ctx, tx, credentialsName, false)
+		if err != nil {
+			return errors.Wrap(err, "creating enterprise")
+		}
+		newEnterprise.CredentialsID = &creds.ID
 
-	q := s.conn.Create(&newEnterprise)
-	if q.Error != nil {
-		return params.Enterprise{}, errors.Wrap(q.Error, "creating enterprise")
+		q := tx.Create(&newEnterprise)
+		if q.Error != nil {
+			return errors.Wrap(q.Error, "creating enterprise")
+		}
+
+		newEnterprise.Credentials = creds
+
+		return nil
+	})
+	if err != nil {
+		return params.Enterprise{}, errors.Wrap(err, "creating enterprise")
 	}
 
-	param, err := s.sqlToCommonEnterprise(newEnterprise)
+	param, err := s.sqlToCommonEnterprise(newEnterprise, true)
 	if err != nil {
 		return params.Enterprise{}, errors.Wrap(err, "creating enterprise")
 	}
@@ -46,7 +74,7 @@ func (s *sqlDatabase) GetEnterprise(ctx context.Context, name string) (params.En
 		return params.Enterprise{}, errors.Wrap(err, "fetching enterprise")
 	}
 
-	param, err := s.sqlToCommonEnterprise(enterprise)
+	param, err := s.sqlToCommonEnterprise(enterprise, true)
 	if err != nil {
 		return params.Enterprise{}, errors.Wrap(err, "fetching enterprise")
 	}
@@ -54,12 +82,12 @@ func (s *sqlDatabase) GetEnterprise(ctx context.Context, name string) (params.En
 }
 
 func (s *sqlDatabase) GetEnterpriseByID(ctx context.Context, enterpriseID string) (params.Enterprise, error) {
-	enterprise, err := s.getEnterpriseByID(ctx, enterpriseID, "Pools", "Credentials", "Endpoint")
+	enterprise, err := s.getEnterpriseByID(ctx, s.conn, enterpriseID, "Pools", "Credentials", "Endpoint")
 	if err != nil {
 		return params.Enterprise{}, errors.Wrap(err, "fetching enterprise")
 	}
 
-	param, err := s.sqlToCommonEnterprise(enterprise)
+	param, err := s.sqlToCommonEnterprise(enterprise, true)
 	if err != nil {
 		return params.Enterprise{}, errors.Wrap(err, "fetching enterprise")
 	}
@@ -76,7 +104,7 @@ func (s *sqlDatabase) ListEnterprises(_ context.Context) ([]params.Enterprise, e
 	ret := make([]params.Enterprise, len(enterprises))
 	for idx, val := range enterprises {
 		var err error
-		ret[idx], err = s.sqlToCommonEnterprise(val)
+		ret[idx], err = s.sqlToCommonEnterprise(val, true)
 		if err != nil {
 			return nil, errors.Wrap(err, "fetching enterprises")
 		}
@@ -86,7 +114,7 @@ func (s *sqlDatabase) ListEnterprises(_ context.Context) ([]params.Enterprise, e
 }
 
 func (s *sqlDatabase) DeleteEnterprise(ctx context.Context, enterpriseID string) error {
-	enterprise, err := s.getEnterpriseByID(ctx, enterpriseID)
+	enterprise, err := s.getEnterpriseByID(ctx, s.conn, enterpriseID)
 	if err != nil {
 		return errors.Wrap(err, "fetching enterprise")
 	}
@@ -100,33 +128,50 @@ func (s *sqlDatabase) DeleteEnterprise(ctx context.Context, enterpriseID string)
 }
 
 func (s *sqlDatabase) UpdateEnterprise(ctx context.Context, enterpriseID string, param params.UpdateEntityParams) (params.Enterprise, error) {
-	enterprise, err := s.getEnterpriseByID(ctx, enterpriseID, "Credentials", "Endpoint")
-	if err != nil {
-		return params.Enterprise{}, errors.Wrap(err, "fetching enterprise")
-	}
-
-	if param.CredentialsName != "" {
-		enterprise.CredentialsName = param.CredentialsName
-	}
-
-	if param.WebhookSecret != "" {
-		secret, err := util.Seal([]byte(param.WebhookSecret), []byte(s.cfg.Passphrase))
+	var enterprise Enterprise
+	var creds GithubCredentials
+	err := s.conn.Transaction(func(tx *gorm.DB) error {
+		var err error
+		enterprise, err = s.getEnterpriseByID(ctx, tx, enterpriseID, "Credentials", "Endpoint")
 		if err != nil {
-			return params.Enterprise{}, errors.Wrap(err, "encoding secret")
+			return errors.Wrap(err, "fetching enterprise")
 		}
-		enterprise.WebhookSecret = secret
+
+		if param.CredentialsName != "" {
+			creds, err = s.getGithubCredentialsByName(ctx, tx, param.CredentialsName, false)
+			if err != nil {
+				return errors.Wrap(err, "fetching credentials")
+			}
+			enterprise.CredentialsID = &creds.ID
+		}
+		if param.WebhookSecret != "" {
+			secret, err := util.Seal([]byte(param.WebhookSecret), []byte(s.cfg.Passphrase))
+			if err != nil {
+				return errors.Wrap(err, "encoding secret")
+			}
+			enterprise.WebhookSecret = secret
+		}
+
+		if param.PoolBalancerType != "" {
+			enterprise.PoolBalancerType = param.PoolBalancerType
+		}
+
+		q := tx.Save(&enterprise)
+		if q.Error != nil {
+			return errors.Wrap(q.Error, "saving enterprise")
+		}
+
+		if creds.ID != 0 {
+			enterprise.Credentials = creds
+		}
+
+		return nil
+	})
+	if err != nil {
+		return params.Enterprise{}, errors.Wrap(err, "updating enterprise")
 	}
 
-	if param.PoolBalancerType != "" {
-		enterprise.PoolBalancerType = param.PoolBalancerType
-	}
-
-	q := s.conn.Save(&enterprise)
-	if q.Error != nil {
-		return params.Enterprise{}, errors.Wrap(q.Error, "saving enterprise")
-	}
-
-	newParams, err := s.sqlToCommonEnterprise(enterprise)
+	newParams, err := s.sqlToCommonEnterprise(enterprise, true)
 	if err != nil {
 		return params.Enterprise{}, errors.Wrap(err, "updating enterprise")
 	}
@@ -149,14 +194,14 @@ func (s *sqlDatabase) getEnterprise(_ context.Context, name string) (Enterprise,
 	return enterprise, nil
 }
 
-func (s *sqlDatabase) getEnterpriseByID(_ context.Context, id string, preload ...string) (Enterprise, error) {
+func (s *sqlDatabase) getEnterpriseByID(_ context.Context, tx *gorm.DB, id string, preload ...string) (Enterprise, error) {
 	u, err := uuid.Parse(id)
 	if err != nil {
 		return Enterprise{}, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
 	}
 	var enterprise Enterprise
 
-	q := s.conn
+	q := tx
 	if len(preload) > 0 {
 		for _, field := range preload {
 			q = q.Preload(field)

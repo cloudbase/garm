@@ -105,7 +105,7 @@ func (s *sqlDatabase) sqlAddressToParamsAddress(addr Address) commonParams.Addre
 	}
 }
 
-func (s *sqlDatabase) sqlToCommonOrganization(org Organization) (params.Organization, error) {
+func (s *sqlDatabase) sqlToCommonOrganization(org Organization, detailed bool) (params.Organization, error) {
 	if len(org.WebhookSecret) == 0 {
 		return params.Organization{}, errors.New("missing secret")
 	}
@@ -114,19 +114,20 @@ func (s *sqlDatabase) sqlToCommonOrganization(org Organization) (params.Organiza
 		return params.Organization{}, errors.Wrap(err, "decrypting secret")
 	}
 
-	creds, err := s.sqlToCommonGithubCredentials(org.Credentials)
-	if err != nil {
-		return params.Organization{}, errors.Wrap(err, "converting credentials")
-	}
-
 	ret := params.Organization{
 		ID:               org.ID.String(),
 		Name:             org.Name,
-		CredentialsName:  creds.Name,
-		Credentials:      creds,
+		CredentialsName:  org.Credentials.Name,
 		Pools:            make([]params.Pool, len(org.Pools)),
 		WebhookSecret:    string(secret),
 		PoolBalancerType: org.PoolBalancerType,
+	}
+	if detailed {
+		creds, err := s.sqlToCommonGithubCredentials(org.Credentials)
+		if err != nil {
+			return params.Organization{}, errors.Wrap(err, "converting credentials")
+		}
+		ret.Credentials = creds
 	}
 
 	if ret.PoolBalancerType == "" {
@@ -143,7 +144,7 @@ func (s *sqlDatabase) sqlToCommonOrganization(org Organization) (params.Organiza
 	return ret, nil
 }
 
-func (s *sqlDatabase) sqlToCommonEnterprise(enterprise Enterprise) (params.Enterprise, error) {
+func (s *sqlDatabase) sqlToCommonEnterprise(enterprise Enterprise, detailed bool) (params.Enterprise, error) {
 	if len(enterprise.WebhookSecret) == 0 {
 		return params.Enterprise{}, errors.New("missing secret")
 	}
@@ -152,18 +153,21 @@ func (s *sqlDatabase) sqlToCommonEnterprise(enterprise Enterprise) (params.Enter
 		return params.Enterprise{}, errors.Wrap(err, "decrypting secret")
 	}
 
-	creds, err := s.sqlToCommonGithubCredentials(enterprise.Credentials)
-	if err != nil {
-		return params.Enterprise{}, errors.Wrap(err, "converting credentials")
-	}
 	ret := params.Enterprise{
 		ID:               enterprise.ID.String(),
 		Name:             enterprise.Name,
-		CredentialsName:  creds.Name,
-		Credentials:      creds,
+		CredentialsName:  enterprise.Credentials.Name,
 		Pools:            make([]params.Pool, len(enterprise.Pools)),
 		WebhookSecret:    string(secret),
 		PoolBalancerType: enterprise.PoolBalancerType,
+	}
+
+	if detailed {
+		creds, err := s.sqlToCommonGithubCredentials(enterprise.Credentials)
+		if err != nil {
+			return params.Enterprise{}, errors.Wrap(err, "converting credentials")
+		}
+		ret.Credentials = creds
 	}
 
 	if ret.PoolBalancerType == "" {
@@ -241,7 +245,7 @@ func (s *sqlDatabase) sqlToCommonTags(tag Tag) params.Tag {
 	}
 }
 
-func (s *sqlDatabase) sqlToCommonRepository(repo Repository) (params.Repository, error) {
+func (s *sqlDatabase) sqlToCommonRepository(repo Repository, detailed bool) (params.Repository, error) {
 	if len(repo.WebhookSecret) == 0 {
 		return params.Repository{}, errors.New("missing secret")
 	}
@@ -250,19 +254,22 @@ func (s *sqlDatabase) sqlToCommonRepository(repo Repository) (params.Repository,
 		return params.Repository{}, errors.Wrap(err, "decrypting secret")
 	}
 
-	creds, err := s.sqlToCommonGithubCredentials(repo.Credentials)
-	if err != nil {
-		return params.Repository{}, errors.Wrap(err, "converting credentials")
-	}
 	ret := params.Repository{
 		ID:               repo.ID.String(),
 		Name:             repo.Name,
 		Owner:            repo.Owner,
-		CredentialsName:  creds.Name,
-		Credentials:      creds,
+		CredentialsName:  repo.Credentials.Name,
 		Pools:            make([]params.Pool, len(repo.Pools)),
 		WebhookSecret:    string(secret),
 		PoolBalancerType: repo.PoolBalancerType,
+	}
+
+	if detailed {
+		creds, err := s.sqlToCommonGithubCredentials(repo.Credentials)
+		if err != nil {
+			return params.Repository{}, errors.Wrap(err, "converting credentials")
+		}
+		ret.Credentials = creds
 	}
 
 	if ret.PoolBalancerType == "" {

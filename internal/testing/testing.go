@@ -18,18 +18,78 @@
 package testing
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"sort"
 	"testing"
 
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 
+	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/config"
+	"github.com/cloudbase/garm/database/common"
+	"github.com/cloudbase/garm/params"
+	"github.com/cloudbase/garm/util/appdefaults"
 )
 
 //nolint:golangci-lint,gosec
 var encryptionPassphrase = "bocyasicgatEtenOubwonIbsudNutDom"
+
+func ImpersonateAdminContext(ctx context.Context, db common.Store, s *testing.T) context.Context {
+	adminUser, err := db.GetAdminUser(ctx)
+	if err != nil {
+		if !errors.Is(err, runnerErrors.ErrNotFound) {
+			s.Fatalf("failed to get admin user: %v", err)
+		}
+		newUserParams := params.NewUserParams{
+			Email:    "admin@localhost",
+			Username: "admin",
+			Password: "superSecretAdminPassword@123",
+			IsAdmin:  true,
+			Enabled:  true,
+		}
+		adminUser, err = db.CreateUser(ctx, newUserParams)
+		if err != nil {
+			s.Fatalf("failed to create admin user: %v", err)
+		}
+	}
+	ctx = auth.PopulateContext(ctx, adminUser)
+	return ctx
+}
+
+func CreateDefaultGithubEndpoint(ctx context.Context, db common.Store, s *testing.T) params.GithubEndpoint {
+	endpointParams := params.CreateGithubEndpointParams{
+		Name:          "github.com",
+		Description:   "github endpoint",
+		APIBaseURL:    appdefaults.GithubDefaultBaseURL,
+		UploadBaseURL: appdefaults.GithubDefaultUploadBaseURL,
+		BaseURL:       appdefaults.DefaultGithubURL,
+	}
+	endpoint, err := db.CreateGithubEndpoint(ctx, endpointParams)
+	if err != nil {
+		s.Fatalf("failed to create database object (github.com): %v", err)
+	}
+	return endpoint
+}
+
+func CreateTestGithubCredentials(ctx context.Context, credsName string, db common.Store, s *testing.T, endpoint params.GithubEndpoint) params.GithubCredentials {
+	newCredsParams := params.CreateGithubCredentialsParams{
+		Name:        credsName,
+		Description: "Test creds",
+		AuthType:    params.GithubAuthTypePAT,
+		PAT: params.GithubPAT{
+			OAuth2Token: "test-token",
+		},
+	}
+	newCreds, err := db.CreateGithubCredentials(ctx, endpoint.Name, newCredsParams)
+	if err != nil {
+		s.Fatalf("failed to create database object (new-creds): %v", err)
+	}
+	return newCreds
+}
 
 func GetTestSqliteDBConfig(t *testing.T) config.Database {
 	dir, err := os.MkdirTemp("", "garm-config-test")
