@@ -299,6 +299,13 @@ type Github struct {
 	App              GithubApp      `toml:"app" json:"app"`
 }
 
+func (g *Github) GetAuthType() GithubAuthType {
+	if g.AuthType == "" {
+		return GithubAuthTypePAT
+	}
+	return g.AuthType
+}
+
 func (g *Github) APIEndpoint() string {
 	if g.APIBaseURL != "" {
 		return g.APIBaseURL

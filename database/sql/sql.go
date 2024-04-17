@@ -297,7 +297,7 @@ func (s *sqlDatabase) migrateCredentialsToDB() (err error) {
 		credParams := params.CreateGithubCredentialsParams{
 			Name:        cred.Name,
 			Description: cred.Description,
-			AuthType:    params.GithubAuthType(cred.AuthType),
+			AuthType:    params.GithubAuthType(cred.GetAuthType()),
 		}
 		switch credParams.AuthType {
 		case params.GithubAuthTypeApp:
@@ -315,11 +315,15 @@ func (s *sqlDatabase) migrateCredentialsToDB() (err error) {
 				return errors.Wrap(err, "validating app credentials")
 			}
 		case params.GithubAuthTypePAT:
-			if cred.PAT.OAuth2Token == "" {
+			token := cred.PAT.OAuth2Token
+			if token == "" {
+				token = cred.OAuth2Token
+			}
+			if token == "" {
 				return errors.New("missing OAuth2 token")
 			}
 			credParams.PAT = params.GithubPAT{
-				OAuth2Token: cred.PAT.OAuth2Token,
+				OAuth2Token: token,
 			}
 		}
 
