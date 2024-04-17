@@ -85,7 +85,7 @@ func (s *sqlDatabase) GetRepository(ctx context.Context, owner, name string) (pa
 
 func (s *sqlDatabase) ListRepositories(_ context.Context) ([]params.Repository, error) {
 	var repos []Repository
-	q := s.conn.Preload("Credentials").Find(&repos)
+	q := s.conn.Preload("Credentials").Preload("Credentials.Endpoint").Find(&repos)
 	if q.Error != nil {
 		return []params.Repository{}, errors.Wrap(q.Error, "fetching user from database")
 	}
@@ -186,6 +186,7 @@ func (s *sqlDatabase) getRepo(_ context.Context, owner, name string) (Repository
 
 	q := s.conn.Where("name = ? COLLATE NOCASE and owner = ? COLLATE NOCASE", name, owner).
 		Preload("Credentials").
+		Preload("Credentials.Endpoint").
 		Preload("Endpoint").
 		First(&repo)
 

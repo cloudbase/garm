@@ -566,8 +566,7 @@ type GithubCredentials struct {
 	Enterprises   []Enterprise   `json:"enterprises,omitempty"`
 	Endpoint      string         `json:"endpoint"`
 
-	CredentialsPayload []byte       `json:"-"`
-	HTTPClient         *http.Client `json:"-"`
+	CredentialsPayload []byte `json:"-"`
 }
 
 func (g GithubCredentials) GetHTTPClient(ctx context.Context) (*http.Client, error) {
@@ -579,11 +578,11 @@ func (g GithubCredentials) GetHTTPClient(ctx context.Context) (*http.Client, err
 			return nil, fmt.Errorf("failed to parse CA cert")
 		}
 	}
-	// nolint:golangci-lint,gosec,godox
-	// TODO: set TLS MinVersion
+
 	httpTransport := &http.Transport{
 		TLSClientConfig: &tls.Config{
-			RootCAs: roots,
+			RootCAs:    roots,
+			MinVersion: tls.VersionTLS12,
 		},
 	}
 

@@ -316,32 +316,21 @@ func (p *poolManagerCtrl) GetEnterprisePoolManagers() (map[string]common.PoolMan
 	return p.enterprises, nil
 }
 
-func (p *poolManagerCtrl) getInternalConfig(ctx context.Context, creds params.GithubCredentials, poolBalancerType params.PoolBalancerType) (params.Internal, error) {
+func (p *poolManagerCtrl) getInternalConfig(_ context.Context, creds params.GithubCredentials, poolBalancerType params.PoolBalancerType) (params.Internal, error) {
 	var controllerWebhookURL string
 	if p.config.Default.WebhookURL != "" {
 		controllerWebhookURL = fmt.Sprintf("%s/%s", p.config.Default.WebhookURL, p.controllerID)
 	}
-	httpClient, err := creds.GetHTTPClient(ctx)
-	if err != nil {
-		return params.Internal{}, fmt.Errorf("fetching http client for creds: %w", err)
-	}
+
 	return params.Internal{
-		ControllerID:         p.controllerID,
-		InstanceCallbackURL:  p.config.Default.CallbackURL,
-		InstanceMetadataURL:  p.config.Default.MetadataURL,
-		BaseWebhookURL:       p.config.Default.WebhookURL,
-		ControllerWebhookURL: controllerWebhookURL,
-		JWTSecret:            p.config.JWTAuth.Secret,
-		PoolBalancerType:     poolBalancerType,
-		GithubCredentialsDetails: params.GithubCredentials{
-			Name:          creds.Name,
-			Description:   creds.Description,
-			BaseURL:       creds.BaseURL,
-			APIBaseURL:    creds.APIBaseURL,
-			UploadBaseURL: creds.UploadBaseURL,
-			CABundle:      creds.CABundle,
-			HTTPClient:    httpClient,
-		},
+		ControllerID:             p.controllerID,
+		InstanceCallbackURL:      p.config.Default.CallbackURL,
+		InstanceMetadataURL:      p.config.Default.MetadataURL,
+		BaseWebhookURL:           p.config.Default.WebhookURL,
+		ControllerWebhookURL:     controllerWebhookURL,
+		JWTSecret:                p.config.JWTAuth.Secret,
+		PoolBalancerType:         poolBalancerType,
+		GithubCredentialsDetails: creds,
 	}, nil
 }
 

@@ -96,7 +96,7 @@ func (s *sqlDatabase) GetEnterpriseByID(ctx context.Context, enterpriseID string
 
 func (s *sqlDatabase) ListEnterprises(_ context.Context) ([]params.Enterprise, error) {
 	var enterprises []Enterprise
-	q := s.conn.Preload("Credentials").Find(&enterprises)
+	q := s.conn.Preload("Credentials").Preload("Credentials.Endpoint").Find(&enterprises)
 	if q.Error != nil {
 		return []params.Enterprise{}, errors.Wrap(q.Error, "fetching enterprises")
 	}
@@ -183,6 +183,7 @@ func (s *sqlDatabase) getEnterprise(_ context.Context, name string) (Enterprise,
 
 	q := s.conn.Where("name = ? COLLATE NOCASE", name).
 		Preload("Credentials").
+		Preload("Credentials.Endpoint").
 		Preload("Endpoint").
 		First(&enterprise)
 	if q.Error != nil {

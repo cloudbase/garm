@@ -87,7 +87,7 @@ func (s *sqlDatabase) GetOrganization(ctx context.Context, name string) (params.
 
 func (s *sqlDatabase) ListOrganizations(_ context.Context) ([]params.Organization, error) {
 	var orgs []Organization
-	q := s.conn.Preload("Credentials").Find(&orgs)
+	q := s.conn.Preload("Credentials").Preload("Credentials.Endpoint").Find(&orgs)
 	if q.Error != nil {
 		return []params.Organization{}, errors.Wrap(q.Error, "fetching org from database")
 	}
@@ -213,6 +213,7 @@ func (s *sqlDatabase) getOrg(_ context.Context, name string) (Organization, erro
 
 	q := s.conn.Where("name = ? COLLATE NOCASE", name).
 		Preload("Credentials").
+		Preload("Credentials.Endpoint").
 		Preload("Endpoint").
 		First(&org)
 	if q.Error != nil {
