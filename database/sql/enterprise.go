@@ -102,7 +102,11 @@ func (s *sqlDatabase) GetEnterpriseByID(ctx context.Context, enterpriseID string
 
 func (s *sqlDatabase) ListEnterprises(_ context.Context) ([]params.Enterprise, error) {
 	var enterprises []Enterprise
-	q := s.conn.Preload("Credentials").Preload("Credentials.Endpoint").Find(&enterprises)
+	q := s.conn.
+		Preload("Credentials").
+		Preload("Credentials.Endpoint").
+		Preload("Endpoint").
+		Find(&enterprises)
 	if q.Error != nil {
 		return []params.Enterprise{}, errors.Wrap(q.Error, "fetching enterprises")
 	}

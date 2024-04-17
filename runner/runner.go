@@ -399,19 +399,13 @@ func (r *Runner) ListCredentials(ctx context.Context) ([]params.GithubCredential
 	if !auth.IsAdmin(ctx) {
 		return nil, runnerErrors.ErrUnauthorized
 	}
-	ret := []params.GithubCredentials{}
 
-	for _, val := range r.config.Github {
-		ret = append(ret, params.GithubCredentials{
-			Name:          val.Name,
-			Description:   val.Description,
-			BaseURL:       val.BaseEndpoint(),
-			APIBaseURL:    val.APIEndpoint(),
-			UploadBaseURL: val.UploadEndpoint(),
-			AuthType:      params.GithubAuthType(val.AuthType),
-		})
+	creds, err := r.store.ListGithubCredentials(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "fetching github credentials")
 	}
-	return ret, nil
+
+	return creds, nil
 }
 
 func (r *Runner) ListProviders(ctx context.Context) ([]params.Provider, error) {

@@ -93,7 +93,11 @@ func (s *sqlDatabase) GetOrganization(ctx context.Context, name string) (params.
 
 func (s *sqlDatabase) ListOrganizations(_ context.Context) ([]params.Organization, error) {
 	var orgs []Organization
-	q := s.conn.Preload("Credentials").Preload("Credentials.Endpoint").Find(&orgs)
+	q := s.conn.
+		Preload("Credentials").
+		Preload("Credentials.Endpoint").
+		Preload("Endpoint").
+		Find(&orgs)
 	if q.Error != nil {
 		return []params.Organization{}, errors.Wrap(q.Error, "fetching org from database")
 	}
