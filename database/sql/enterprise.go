@@ -45,7 +45,12 @@ func (s *sqlDatabase) CreateEnterprise(ctx context.Context, name, credentialsNam
 		if err != nil {
 			return errors.Wrap(err, "creating enterprise")
 		}
+		if creds.EndpointName == nil {
+			return errors.Wrap(runnerErrors.ErrUnprocessable, "credentials have no endpoint")
+		}
 		newEnterprise.CredentialsID = &creds.ID
+		newEnterprise.CredentialsName = creds.Name
+		newEnterprise.EndpointName = creds.EndpointName
 
 		q := tx.Create(&newEnterprise)
 		if q.Error != nil {
@@ -53,6 +58,7 @@ func (s *sqlDatabase) CreateEnterprise(ctx context.Context, name, credentialsNam
 		}
 
 		newEnterprise.Credentials = creds
+		newEnterprise.Endpoint = creds.Endpoint
 
 		return nil
 	})
@@ -132,15 +138,26 @@ func (s *sqlDatabase) UpdateEnterprise(ctx context.Context, enterpriseID string,
 	var creds GithubCredentials
 	err := s.conn.Transaction(func(tx *gorm.DB) error {
 		var err error
-		enterprise, err = s.getEnterpriseByID(ctx, tx, enterpriseID, "Credentials", "Endpoint")
+		enterprise, err = s.getEnterpriseByID(ctx, tx, enterpriseID)
 		if err != nil {
 			return errors.Wrap(err, "fetching enterprise")
+		}
+
+		if enterprise.EndpointName == nil {
+			return errors.Wrap(runnerErrors.ErrUnprocessable, "enterprise has no endpoint")
 		}
 
 		if param.CredentialsName != "" {
 			creds, err = s.getGithubCredentialsByName(ctx, tx, param.CredentialsName, false)
 			if err != nil {
 				return errors.Wrap(err, "fetching credentials")
+			}
+			if creds.EndpointName == nil {
+				return errors.Wrap(runnerErrors.ErrUnprocessable, "credentials have no endpoint")
+			}
+
+			if *creds.EndpointName != *enterprise.EndpointName {
+				return errors.Wrap(runnerErrors.ErrBadRequest, "endpoint mismatch")
 			}
 			enterprise.CredentialsID = &creds.ID
 		}
@@ -171,6 +188,10 @@ func (s *sqlDatabase) UpdateEnterprise(ctx context.Context, enterpriseID string,
 		return params.Enterprise{}, errors.Wrap(err, "updating enterprise")
 	}
 
+	enterprise, err = s.getEnterpriseByID(ctx, s.conn, enterpriseID, "Endpoint", "Credentials")
+	if err != nil {
+		return params.Enterprise{}, errors.Wrap(err, "updating enterprise")
+	}
 	newParams, err := s.sqlToCommonEnterprise(enterprise, true)
 	if err != nil {
 		return params.Enterprise{}, errors.Wrap(err, "updating enterprise")

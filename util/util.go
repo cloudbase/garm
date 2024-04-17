@@ -59,7 +59,7 @@ func (g *githubClient) ListEntityHooks(ctx context.Context, opts *github.ListOpt
 	case params.GithubEntityTypeOrganization:
 		ret, response, err = g.org.ListHooks(ctx, g.entity.Owner, opts)
 	default:
-		return nil, nil, errors.New("invalid entity type")
+		return nil, nil, fmt.Errorf("invalid entity type: %s", g.entity.EntityType)
 	}
 	return ret, response, err
 }

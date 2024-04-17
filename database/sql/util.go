@@ -114,6 +114,10 @@ func (s *sqlDatabase) sqlToCommonOrganization(org Organization, detailed bool) (
 		return params.Organization{}, errors.Wrap(err, "decrypting secret")
 	}
 
+	endpoint, err := s.sqlToCommonGithubEndpoint(org.Endpoint)
+	if err != nil {
+		return params.Organization{}, errors.Wrap(err, "converting endpoint")
+	}
 	ret := params.Organization{
 		ID:               org.ID.String(),
 		Name:             org.Name,
@@ -121,6 +125,7 @@ func (s *sqlDatabase) sqlToCommonOrganization(org Organization, detailed bool) (
 		Pools:            make([]params.Pool, len(org.Pools)),
 		WebhookSecret:    string(secret),
 		PoolBalancerType: org.PoolBalancerType,
+		Endpoint:         endpoint,
 	}
 	if detailed {
 		creds, err := s.sqlToCommonGithubCredentials(org.Credentials)
@@ -153,6 +158,10 @@ func (s *sqlDatabase) sqlToCommonEnterprise(enterprise Enterprise, detailed bool
 		return params.Enterprise{}, errors.Wrap(err, "decrypting secret")
 	}
 
+	endpoint, err := s.sqlToCommonGithubEndpoint(enterprise.Endpoint)
+	if err != nil {
+		return params.Enterprise{}, errors.Wrap(err, "converting endpoint")
+	}
 	ret := params.Enterprise{
 		ID:               enterprise.ID.String(),
 		Name:             enterprise.Name,
@@ -160,6 +169,7 @@ func (s *sqlDatabase) sqlToCommonEnterprise(enterprise Enterprise, detailed bool
 		Pools:            make([]params.Pool, len(enterprise.Pools)),
 		WebhookSecret:    string(secret),
 		PoolBalancerType: enterprise.PoolBalancerType,
+		Endpoint:         endpoint,
 	}
 
 	if detailed {
@@ -253,7 +263,10 @@ func (s *sqlDatabase) sqlToCommonRepository(repo Repository, detailed bool) (par
 	if err != nil {
 		return params.Repository{}, errors.Wrap(err, "decrypting secret")
 	}
-
+	endpoint, err := s.sqlToCommonGithubEndpoint(repo.Endpoint)
+	if err != nil {
+		return params.Repository{}, errors.Wrap(err, "converting endpoint")
+	}
 	ret := params.Repository{
 		ID:               repo.ID.String(),
 		Name:             repo.Name,
@@ -262,6 +275,7 @@ func (s *sqlDatabase) sqlToCommonRepository(repo Repository, detailed bool) (par
 		Pools:            make([]params.Pool, len(repo.Pools)),
 		WebhookSecret:    string(secret),
 		PoolBalancerType: repo.PoolBalancerType,
+		Endpoint:         endpoint,
 	}
 
 	if detailed {

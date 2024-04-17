@@ -47,7 +47,12 @@ func (s *sqlDatabase) CreateOrganization(ctx context.Context, name, credentialsN
 		if err != nil {
 			return errors.Wrap(err, "creating org")
 		}
+		if creds.EndpointName == nil {
+			return errors.Wrap(runnerErrors.ErrUnprocessable, "credentials have no endpoint")
+		}
 		newOrg.CredentialsID = &creds.ID
+		newOrg.CredentialsName = creds.Name
+		newOrg.EndpointName = creds.EndpointName
 
 		q := tx.Create(&newOrg)
 		if q.Error != nil {
@@ -55,6 +60,7 @@ func (s *sqlDatabase) CreateOrganization(ctx context.Context, name, credentialsN
 		}
 
 		newOrg.Credentials = creds
+		newOrg.Endpoint = creds.Endpoint
 
 		return nil
 	})
@@ -123,9 +129,12 @@ func (s *sqlDatabase) UpdateOrganization(ctx context.Context, orgID string, para
 	var creds GithubCredentials
 	err := s.conn.Transaction(func(tx *gorm.DB) error {
 		var err error
-		org, err = s.getOrgByID(ctx, tx, orgID, "Credentials", "Endpoint")
+		org, err = s.getOrgByID(ctx, tx, orgID)
 		if err != nil {
 			return errors.Wrap(err, "fetching org")
+		}
+		if org.EndpointName == nil {
+			return errors.Wrap(runnerErrors.ErrUnprocessable, "org has no endpoint")
 		}
 
 		if param.CredentialsName != "" {
@@ -133,6 +142,13 @@ func (s *sqlDatabase) UpdateOrganization(ctx context.Context, orgID string, para
 			creds, err = s.getGithubCredentialsByName(ctx, tx, param.CredentialsName, false)
 			if err != nil {
 				return errors.Wrap(err, "fetching credentials")
+			}
+			if creds.EndpointName == nil {
+				return errors.Wrap(runnerErrors.ErrUnprocessable, "credentials have no endpoint")
+			}
+
+			if *creds.EndpointName != *org.EndpointName {
+				return errors.Wrap(runnerErrors.ErrBadRequest, "endpoint mismatch")
 			}
 			org.CredentialsID = &creds.ID
 		}
@@ -164,6 +180,10 @@ func (s *sqlDatabase) UpdateOrganization(ctx context.Context, orgID string, para
 		return params.Organization{}, errors.Wrap(err, "saving org")
 	}
 
+	org, err = s.getOrgByID(ctx, s.conn, orgID, "Endpoint", "Credentials")
+	if err != nil {
+		return params.Organization{}, errors.Wrap(err, "updating enterprise")
+	}
 	newParams, err := s.sqlToCommonOrganization(org, true)
 	if err != nil {
 		return params.Organization{}, errors.Wrap(err, "saving org")

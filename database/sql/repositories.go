@@ -47,7 +47,12 @@ func (s *sqlDatabase) CreateRepository(ctx context.Context, owner, name, credent
 		if err != nil {
 			return errors.Wrap(err, "creating repository")
 		}
+		if creds.EndpointName == nil {
+			return errors.Wrap(runnerErrors.ErrUnprocessable, "credentials have no endpoint")
+		}
 		newRepo.CredentialsID = &creds.ID
+		newRepo.CredentialsName = creds.Name
+		newRepo.EndpointName = creds.EndpointName
 
 		q := tx.Create(&newRepo)
 		if q.Error != nil {
@@ -55,6 +60,8 @@ func (s *sqlDatabase) CreateRepository(ctx context.Context, owner, name, credent
 		}
 
 		newRepo.Credentials = creds
+		newRepo.Endpoint = creds.Endpoint
+
 		return nil
 	})
 	if err != nil {
@@ -121,9 +128,12 @@ func (s *sqlDatabase) UpdateRepository(ctx context.Context, repoID string, param
 	var creds GithubCredentials
 	err := s.conn.Transaction(func(tx *gorm.DB) error {
 		var err error
-		repo, err = s.getRepoByID(ctx, tx, repoID, "Credentials", "Endpoint")
+		repo, err = s.getRepoByID(ctx, tx, repoID)
 		if err != nil {
 			return errors.Wrap(err, "fetching repo")
+		}
+		if repo.EndpointName == nil {
+			return errors.Wrap(runnerErrors.ErrUnprocessable, "repository has no endpoint")
 		}
 
 		if param.CredentialsName != "" {
@@ -131,6 +141,13 @@ func (s *sqlDatabase) UpdateRepository(ctx context.Context, repoID string, param
 			creds, err = s.getGithubCredentialsByName(ctx, tx, param.CredentialsName, false)
 			if err != nil {
 				return errors.Wrap(err, "fetching credentials")
+			}
+			if creds.EndpointName == nil {
+				return errors.Wrap(runnerErrors.ErrUnprocessable, "credentials have no endpoint")
+			}
+
+			if *creds.EndpointName != *repo.EndpointName {
+				return errors.Wrap(runnerErrors.ErrBadRequest, "endpoint mismatch")
 			}
 			repo.CredentialsID = &creds.ID
 		}
@@ -161,6 +178,10 @@ func (s *sqlDatabase) UpdateRepository(ctx context.Context, repoID string, param
 		return params.Repository{}, errors.Wrap(err, "saving repo")
 	}
 
+	repo, err = s.getRepoByID(ctx, s.conn, repoID, "Endpoint", "Credentials")
+	if err != nil {
+		return params.Repository{}, errors.Wrap(err, "updating enterprise")
+	}
 	newParams, err := s.sqlToCommonRepository(repo, true)
 	if err != nil {
 		return params.Repository{}, errors.Wrap(err, "saving repo")

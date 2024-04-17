@@ -405,6 +405,7 @@ type Repository struct {
 	Credentials       GithubCredentials `json:"credentials"`
 	PoolManagerStatus PoolManagerStatus `json:"pool_manager_status,omitempty"`
 	PoolBalancerType  PoolBalancerType  `json:"pool_balancing_type"`
+	Endpoint          GithubEndpoint    `json:"endpoint"`
 	// Do not serialize sensitive info.
 	WebhookSecret string `json:"-"`
 }
@@ -447,6 +448,7 @@ type Organization struct {
 	Credentials       GithubCredentials `json:"credentials"`
 	PoolManagerStatus PoolManagerStatus `json:"pool_manager_status,omitempty"`
 	PoolBalancerType  PoolBalancerType  `json:"pool_balancing_type"`
+	Endpoint          GithubEndpoint    `json:"endpoint"`
 	// Do not serialize sensitive info.
 	WebhookSecret string `json:"-"`
 }
@@ -489,6 +491,7 @@ type Enterprise struct {
 	Credentials       GithubCredentials `json:"credentials"`
 	PoolManagerStatus PoolManagerStatus `json:"pool_manager_status,omitempty"`
 	PoolBalancerType  PoolBalancerType  `json:"pool_balancing_type"`
+	Endpoint          GithubEndpoint    `json:"endpoint"`
 	// Do not serialize sensitive info.
 	WebhookSecret string `json:"-"`
 }
