@@ -218,11 +218,11 @@ func (s *EnterpriseTestSuite) TestCreateEnterpriseDBCreateErr() {
 	s.Fixtures.SQLMock.
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_credentials` WHERE name = ? AND `github_credentials`.`deleted_at` IS NULL ORDER BY `github_credentials`.`id` LIMIT 1")).
 		WithArgs(s.Fixtures.Enterprises[0].CredentialsName).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "endpoint_name"}).AddRow(s.testCreds.ID, s.testCreds.Endpoint))
+		WillReturnRows(sqlmock.NewRows([]string{"id", "endpoint_name"}).AddRow(s.testCreds.ID, s.testCreds.Endpoint.Name))
 	s.Fixtures.SQLMock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_endpoints` WHERE `github_endpoints`.`name` = ? AND `github_endpoints`.`deleted_at` IS NULL")).
-		WithArgs(s.testCreds.Endpoint).
+		WithArgs(s.testCreds.Endpoint.Name).
 		WillReturnRows(sqlmock.NewRows([]string{"name"}).
-			AddRow(s.testCreds.Endpoint))
+			AddRow(s.testCreds.Endpoint.Name))
 	s.Fixtures.SQLMock.
 		ExpectExec(regexp.QuoteMeta("INSERT INTO `enterprises`")).
 		WillReturnError(fmt.Errorf("creating enterprise mock error"))
@@ -356,11 +356,11 @@ func (s *EnterpriseTestSuite) TestUpdateEnterpriseDBEncryptErr() {
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_credentials` WHERE name = ? AND `github_credentials`.`deleted_at` IS NULL ORDER BY `github_credentials`.`id` LIMIT ?")).
 		WithArgs(s.secondaryTestCreds.Name, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "endpoint_name"}).
-			AddRow(s.secondaryTestCreds.ID, s.secondaryTestCreds.Endpoint))
+			AddRow(s.secondaryTestCreds.ID, s.secondaryTestCreds.Endpoint.Name))
 	s.Fixtures.SQLMock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_endpoints` WHERE `github_endpoints`.`name` = ? AND `github_endpoints`.`deleted_at` IS NULL")).
-		WithArgs(s.testCreds.Endpoint).
+		WithArgs(s.testCreds.Endpoint.Name).
 		WillReturnRows(sqlmock.NewRows([]string{"name"}).
-			AddRow(s.secondaryTestCreds.Endpoint))
+			AddRow(s.secondaryTestCreds.Endpoint.Name))
 	s.Fixtures.SQLMock.ExpectRollback()
 
 	_, err := s.StoreSQLMocked.UpdateEnterprise(s.adminCtx, s.Fixtures.Enterprises[0].ID, s.Fixtures.UpdateRepoParams)
@@ -381,11 +381,11 @@ func (s *EnterpriseTestSuite) TestUpdateEnterpriseDBSaveErr() {
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_credentials` WHERE name = ? AND `github_credentials`.`deleted_at` IS NULL ORDER BY `github_credentials`.`id` LIMIT ?")).
 		WithArgs(s.secondaryTestCreds.Name, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "endpoint_name"}).
-			AddRow(s.secondaryTestCreds.ID, s.secondaryTestCreds.Endpoint))
+			AddRow(s.secondaryTestCreds.ID, s.secondaryTestCreds.Endpoint.Name))
 	s.Fixtures.SQLMock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_endpoints` WHERE `github_endpoints`.`name` = ? AND `github_endpoints`.`deleted_at` IS NULL")).
-		WithArgs(s.testCreds.Endpoint).
+		WithArgs(s.testCreds.Endpoint.Name).
 		WillReturnRows(sqlmock.NewRows([]string{"name"}).
-			AddRow(s.secondaryTestCreds.Endpoint))
+			AddRow(s.secondaryTestCreds.Endpoint.Name))
 	s.Fixtures.SQLMock.
 		ExpectExec(("UPDATE `enterprises` SET")).
 		WillReturnError(fmt.Errorf("saving enterprise mock error"))
@@ -412,11 +412,11 @@ func (s *EnterpriseTestSuite) TestUpdateEnterpriseDBDecryptingErr() {
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_credentials` WHERE name = ? AND `github_credentials`.`deleted_at` IS NULL ORDER BY `github_credentials`.`id` LIMIT ?")).
 		WithArgs(s.secondaryTestCreds.Name, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "endpoint_name"}).
-			AddRow(s.secondaryTestCreds.ID, s.secondaryTestCreds.Endpoint))
+			AddRow(s.secondaryTestCreds.ID, s.secondaryTestCreds.Endpoint.Name))
 	s.Fixtures.SQLMock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_endpoints` WHERE `github_endpoints`.`name` = ? AND `github_endpoints`.`deleted_at` IS NULL")).
-		WithArgs(s.testCreds.Endpoint).
+		WithArgs(s.testCreds.Endpoint.Name).
 		WillReturnRows(sqlmock.NewRows([]string{"name"}).
-			AddRow(s.secondaryTestCreds.Endpoint))
+			AddRow(s.secondaryTestCreds.Endpoint.Name))
 	s.Fixtures.SQLMock.ExpectRollback()
 
 	_, err := s.StoreSQLMocked.UpdateEnterprise(s.adminCtx, s.Fixtures.Enterprises[0].ID, s.Fixtures.UpdateRepoParams)

@@ -36,6 +36,11 @@ func (s *sqlDatabase) sqlToCommonGithubCredentials(creds GithubCredentials) (par
 		return params.GithubCredentials{}, errors.Wrap(err, "unsealing credentials")
 	}
 
+	ep, err := s.sqlToCommonGithubEndpoint(creds.Endpoint)
+	if err != nil {
+		return params.GithubCredentials{}, errors.Wrap(err, "converting github endpoint")
+	}
+
 	commonCreds := params.GithubCredentials{
 		ID:                 creds.ID,
 		Name:               creds.Name,
@@ -45,7 +50,7 @@ func (s *sqlDatabase) sqlToCommonGithubCredentials(creds GithubCredentials) (par
 		UploadBaseURL:      creds.Endpoint.UploadBaseURL,
 		CABundle:           creds.Endpoint.CACertBundle,
 		AuthType:           creds.AuthType,
-		Endpoint:           creds.Endpoint.Name,
+		Endpoint:           ep,
 		CredentialsPayload: data,
 	}
 
@@ -216,8 +221,29 @@ func (s *sqlDatabase) DeleteGithubEndpoint(_ context.Context, name string) error
 			}
 		}
 
-		if credsCount > 0 {
-			return errors.New("cannot delete endpoint with credentials")
+		var repoCnt int64
+		if err := tx.Model(&Repository{}).Where("endpoint_name = ?", endpoint.Name).Count(&repoCnt).Error; err != nil {
+			if !errors.Is(err, gorm.ErrRecordNotFound) {
+				return errors.Wrap(err, "fetching github repositories")
+			}
+		}
+
+		var orgCnt int64
+		if err := tx.Model(&Organization{}).Where("endpoint_name = ?", endpoint.Name).Count(&orgCnt).Error; err != nil {
+			if !errors.Is(err, gorm.ErrRecordNotFound) {
+				return errors.Wrap(err, "fetching github organizations")
+			}
+		}
+
+		var entCnt int64
+		if err := tx.Model(&Enterprise{}).Where("endpoint_name = ?", endpoint.Name).Count(&entCnt).Error; err != nil {
+			if !errors.Is(err, gorm.ErrRecordNotFound) {
+				return errors.Wrap(err, "fetching github enterprises")
+			}
+		}
+
+		if credsCount > 0 || repoCnt > 0 || orgCnt > 0 || entCnt > 0 {
+			return errors.New("cannot delete endpoint with associated entities")
 		}
 
 		if err := tx.Unscoped().Delete(&endpoint).Error; err != nil {

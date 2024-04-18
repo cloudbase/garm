@@ -19,12 +19,17 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"net/url"
 
 	"github.com/cloudbase/garm-provider-common/errors"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 )
 
-const DefaultRunnerPrefix = "garm"
+const (
+	DefaultRunnerPrefix string = "garm"
+	httpsScheme         string = "https"
+	httpScheme          string = "http"
+)
 
 type InstanceRequest struct {
 	Name      string              `json:"name"`
@@ -269,20 +274,128 @@ type InstanceUpdateMessage struct {
 }
 
 type CreateGithubEndpointParams struct {
-	Name          string `json:"name"`
-	Description   string `json:"description"`
-	APIBaseURL    string `json:"api_base_url"`
-	UploadBaseURL string `json:"upload_base_url"`
-	BaseURL       string `json:"base_url"`
-	CACertBundle  []byte `json:"ca_cert_bundle"`
+	Name          string `json:"name,omitempty"`
+	Description   string `json:"description,omitempty"`
+	APIBaseURL    string `json:"api_base_url,omitempty"`
+	UploadBaseURL string `json:"upload_base_url,omitempty"`
+	BaseURL       string `json:"base_url,omitempty"`
+	CACertBundle  []byte `json:"ca_cert_bundle,omitempty"`
+}
+
+func (c CreateGithubEndpointParams) Validate() error {
+	if c.APIBaseURL == "" {
+		return errors.NewBadRequestError("missing api_base_url")
+	}
+
+	url, err := url.Parse(c.APIBaseURL)
+	if err != nil || url.Scheme == "" || url.Host == "" {
+		return errors.NewBadRequestError("invalid api_base_url")
+	}
+	switch url.Scheme {
+	case httpsScheme, httpScheme:
+	default:
+		return errors.NewBadRequestError("invalid api_base_url")
+	}
+
+	if c.UploadBaseURL == "" {
+		return errors.NewBadRequestError("missing upload_base_url")
+	}
+
+	url, err = url.Parse(c.UploadBaseURL)
+	if err != nil || url.Scheme == "" || url.Host == "" {
+		return errors.NewBadRequestError("invalid upload_base_url")
+	}
+
+	switch url.Scheme {
+	case httpsScheme, httpScheme:
+	default:
+		return errors.NewBadRequestError("invalid api_base_url")
+	}
+
+	if c.BaseURL == "" {
+		return errors.NewBadRequestError("missing base_url")
+	}
+
+	url, err = url.Parse(c.BaseURL)
+	if err != nil || url.Scheme == "" || url.Host == "" {
+		return errors.NewBadRequestError("invalid base_url")
+	}
+
+	switch url.Scheme {
+	case httpsScheme, httpScheme:
+	default:
+		return errors.NewBadRequestError("invalid api_base_url")
+	}
+
+	if c.CACertBundle != nil {
+		block, _ := pem.Decode(c.CACertBundle)
+		if block == nil {
+			return errors.NewBadRequestError("invalid ca_cert_bundle")
+		}
+		if _, err := x509.ParseCertificates(block.Bytes); err != nil {
+			return errors.NewBadRequestError("invalid ca_cert_bundle")
+		}
+	}
+
+	return nil
 }
 
 type UpdateGithubEndpointParams struct {
-	Description   *string `json:"description"`
-	APIBaseURL    *string `json:"api_base_url"`
-	UploadBaseURL *string `json:"upload_base_url"`
-	BaseURL       *string `json:"base_url"`
-	CACertBundle  []byte  `json:"ca_cert_bundle"`
+	Description   *string `json:"description,omitempty"`
+	APIBaseURL    *string `json:"api_base_url,omitempty"`
+	UploadBaseURL *string `json:"upload_base_url,omitempty"`
+	BaseURL       *string `json:"base_url,omitempty"`
+	CACertBundle  []byte  `json:"ca_cert_bundle,omitempty"`
+}
+
+func (u UpdateGithubEndpointParams) Validate() error {
+	if u.APIBaseURL != nil {
+		url, err := url.Parse(*u.APIBaseURL)
+		if err != nil || url.Scheme == "" || url.Host == "" {
+			return errors.NewBadRequestError("invalid api_base_url")
+		}
+		switch url.Scheme {
+		case httpsScheme, httpScheme:
+		default:
+			return errors.NewBadRequestError("invalid api_base_url")
+		}
+	}
+
+	if u.UploadBaseURL != nil {
+		url, err := url.Parse(*u.UploadBaseURL)
+		if err != nil || url.Scheme == "" || url.Host == "" {
+			return errors.NewBadRequestError("invalid upload_base_url")
+		}
+		switch url.Scheme {
+		case httpsScheme, httpScheme:
+		default:
+			return errors.NewBadRequestError("invalid api_base_url")
+		}
+	}
+
+	if u.BaseURL != nil {
+		url, err := url.Parse(*u.BaseURL)
+		if err != nil || url.Scheme == "" || url.Host == "" {
+			return errors.NewBadRequestError("invalid base_url")
+		}
+		switch url.Scheme {
+		case httpsScheme, httpScheme:
+		default:
+			return errors.NewBadRequestError("invalid api_base_url")
+		}
+	}
+
+	if u.CACertBundle != nil {
+		block, _ := pem.Decode(u.CACertBundle)
+		if block == nil {
+			return errors.NewBadRequestError("invalid ca_cert_bundle")
+		}
+		if _, err := x509.ParseCertificates(block.Bytes); err != nil {
+			return errors.NewBadRequestError("invalid ca_cert_bundle")
+		}
+	}
+
+	return nil
 }
 
 type GithubPAT struct {

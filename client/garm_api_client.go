@@ -12,6 +12,7 @@ import (
 
 	"github.com/cloudbase/garm/client/controller_info"
 	"github.com/cloudbase/garm/client/credentials"
+	"github.com/cloudbase/garm/client/endpoints"
 	"github.com/cloudbase/garm/client/enterprises"
 	"github.com/cloudbase/garm/client/first_run"
 	"github.com/cloudbase/garm/client/instances"
@@ -68,6 +69,7 @@ func New(transport runtime.ClientTransport, formats strfmt.Registry) *GarmAPI {
 	cli.Transport = transport
 	cli.ControllerInfo = controller_info.New(transport, formats)
 	cli.Credentials = credentials.New(transport, formats)
+	cli.Endpoints = endpoints.New(transport, formats)
 	cli.Enterprises = enterprises.New(transport, formats)
 	cli.FirstRun = first_run.New(transport, formats)
 	cli.Instances = instances.New(transport, formats)
@@ -126,6 +128,8 @@ type GarmAPI struct {
 
 	Credentials credentials.ClientService
 
+	Endpoints endpoints.ClientService
+
 	Enterprises enterprises.ClientService
 
 	FirstRun first_run.ClientService
@@ -154,6 +158,7 @@ func (c *GarmAPI) SetTransport(transport runtime.ClientTransport) {
 	c.Transport = transport
 	c.ControllerInfo.SetTransport(transport)
 	c.Credentials.SetTransport(transport)
+	c.Endpoints.SetTransport(transport)
 	c.Enterprises.SetTransport(transport)
 	c.FirstRun.SetTransport(transport)
 	c.Instances.SetTransport(transport)

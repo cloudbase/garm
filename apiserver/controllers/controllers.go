@@ -102,7 +102,10 @@ func (a *APIController) handleWorkflowJobEvent(ctx context.Context, w http.Respo
 		handleError(ctx, w, gErrors.NewBadRequestError("invalid post body: %s", err))
 		return
 	}
-
+	slog.Info("received webhook", "body", string(body))
+	for k, v := range r.Header {
+		slog.InfoContext(ctx, "header", "key", k, "value", v)
+	}
 	signature := r.Header.Get("X-Hub-Signature-256")
 	hookType := r.Header.Get("X-Github-Hook-Installation-Target-Type")
 
@@ -325,27 +328,6 @@ func (a *APIController) FirstRunHandler(w http.ResponseWriter, r *http.Request) 
 	}
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(newUser); err != nil {
-		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
-	}
-}
-
-// swagger:route GET /credentials credentials ListCredentials
-//
-// List all credentials.
-//
-//	Responses:
-//	  200: Credentials
-//	  400: APIErrorResponse
-func (a *APIController) ListCredentials(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	creds, err := a.r.ListCredentials(ctx)
-	if err != nil {
-		handleError(ctx, w, err)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(creds); err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }

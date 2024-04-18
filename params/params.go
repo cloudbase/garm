@@ -567,7 +567,7 @@ type GithubCredentials struct {
 	Repositories  []Repository   `json:"repositories,omitempty"`
 	Organizations []Organization `json:"organizations,omitempty"`
 	Enterprises   []Enterprise   `json:"enterprises,omitempty"`
-	Endpoint      string         `json:"endpoint"`
+	Endpoint      GithubEndpoint `json:"endpoint"`
 
 	CredentialsPayload []byte `json:"-"`
 }
@@ -802,13 +802,16 @@ func (g GithubEntity) String() string {
 	return ""
 }
 
+// used by swagger client generated code
+type GithubEndpoints []GithubEndpoint
+
 type GithubEndpoint struct {
 	Name          string `json:"name"`
 	Description   string `json:"description"`
 	APIBaseURL    string `json:"api_base_url"`
 	UploadBaseURL string `json:"upload_base_url"`
 	BaseURL       string `json:"base_url"`
-	CACertBundle  []byte `json:"ca_cert_bundle"`
+	CACertBundle  []byte `json:"ca_cert_bundle,omitempty"`
 
-	Credentials []GithubCredentials `json:"credentials"`
+	Credentials []GithubCredentials `json:"credentials,omitempty"`
 }
