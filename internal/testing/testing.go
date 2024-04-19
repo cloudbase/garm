@@ -68,11 +68,21 @@ func CreateDefaultGithubEndpoint(ctx context.Context, db common.Store, s *testin
 		UploadBaseURL: appdefaults.GithubDefaultUploadBaseURL,
 		BaseURL:       appdefaults.DefaultGithubURL,
 	}
-	endpoint, err := db.CreateGithubEndpoint(ctx, endpointParams)
+
+	ep, err := db.GetGithubEndpoint(ctx, endpointParams.Name)
 	if err != nil {
-		s.Fatalf("failed to create database object (github.com): %v", err)
+		if !errors.Is(err, runnerErrors.ErrNotFound) {
+			s.Fatalf("failed to get database object (github.com): %v", err)
+		}
+		ep, err = db.CreateGithubEndpoint(ctx, endpointParams)
+		if err != nil {
+			if !errors.Is(err, runnerErrors.ErrDuplicateEntity) {
+				s.Fatalf("failed to create database object (github.com): %v", err)
+			}
+		}
 	}
-	return endpoint
+
+	return ep
 }
 
 func CreateTestGithubCredentials(ctx context.Context, credsName string, db common.Store, s *testing.T, endpoint params.GithubEndpoint) params.GithubCredentials {

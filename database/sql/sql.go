@@ -195,6 +195,25 @@ func (s *sqlDatabase) cascadeMigration() error {
 	return nil
 }
 
+func (s *sqlDatabase) ensureGithubEndpoint() error {
+	// Create the default Github endpoint.
+	createEndpointParams := params.CreateGithubEndpointParams{
+		Name:          "github.com",
+		Description:   "The github.com endpoint",
+		APIBaseURL:    appdefaults.GithubDefaultBaseURL,
+		BaseURL:       appdefaults.DefaultGithubURL,
+		UploadBaseURL: appdefaults.GithubDefaultUploadBaseURL,
+	}
+
+	if _, err := s.CreateGithubEndpoint(context.Background(), createEndpointParams); err != nil {
+		if !errors.Is(err, runnerErrors.ErrDuplicateEntity) {
+			return errors.Wrap(err, "creating default github endpoint")
+		}
+	}
+
+	return nil
+}
+
 func (s *sqlDatabase) migrateCredentialsToDB() (err error) {
 	s.conn.Exec("PRAGMA foreign_keys = OFF")
 	defer s.conn.Exec("PRAGMA foreign_keys = ON")
@@ -239,21 +258,6 @@ func (s *sqlDatabase) migrateCredentialsToDB() (err error) {
 			s.conn.Migrator().DropTable(&GithubCredentials{})
 		}
 	}()
-
-	// Create the default Github endpoint.
-	createEndpointParams := params.CreateGithubEndpointParams{
-		Name:          "github.com",
-		Description:   "The github.com endpoint",
-		APIBaseURL:    appdefaults.GithubDefaultBaseURL,
-		BaseURL:       appdefaults.DefaultGithubURL,
-		UploadBaseURL: appdefaults.GithubDefaultUploadBaseURL,
-	}
-
-	if _, err := s.CreateGithubEndpoint(adminCtx, createEndpointParams); err != nil {
-		if !errors.Is(err, runnerErrors.ErrDuplicateEntity) {
-			return errors.Wrap(err, "creating default github endpoint")
-		}
-	}
 
 	// Nothing to migrate.
 	if len(s.cfg.MigrateCredentials) == 0 {
@@ -415,6 +419,10 @@ func (s *sqlDatabase) migrateDB() error {
 		return errors.Wrap(err, "running auto migrate")
 	}
 	s.conn.Exec("PRAGMA foreign_keys = ON")
+
+	if err := s.ensureGithubEndpoint(); err != nil {
+		return errors.Wrap(err, "ensuring github endpoint")
+	}
 
 	if needsCredentialMigration {
 		if err := s.migrateCredentialsToDB(); err != nil {
