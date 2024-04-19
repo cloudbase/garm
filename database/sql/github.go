@@ -214,6 +214,10 @@ func (s *sqlDatabase) DeleteGithubEndpoint(_ context.Context, name string) error
 			return errors.Wrap(err, "fetching github endpoint")
 		}
 
+		if endpoint.Name == "github.com" {
+			return errors.New("cannot delete default github endpoint")
+		}
+
 		var credsCount int64
 		if err := tx.Model(&GithubCredentials{}).Where("endpoint_name = ?", endpoint.Name).Count(&credsCount).Error; err != nil {
 			if !errors.Is(err, gorm.ErrRecordNotFound) {
