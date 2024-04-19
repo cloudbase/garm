@@ -80,11 +80,12 @@ func CreateTestGithubCredentials(ctx context.Context, credsName string, db commo
 		Name:        credsName,
 		Description: "Test creds",
 		AuthType:    params.GithubAuthTypePAT,
+		Endpoint:    endpoint.Name,
 		PAT: params.GithubPAT{
 			OAuth2Token: "test-token",
 		},
 	}
-	newCreds, err := db.CreateGithubCredentials(ctx, endpoint.Name, newCredsParams)
+	newCreds, err := db.CreateGithubCredentials(ctx, newCredsParams)
 	if err != nil {
 		s.Fatalf("failed to create database object (new-creds): %v", err)
 	}

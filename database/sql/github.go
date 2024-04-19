@@ -257,15 +257,18 @@ func (s *sqlDatabase) DeleteGithubEndpoint(_ context.Context, name string) error
 	return nil
 }
 
-func (s *sqlDatabase) CreateGithubCredentials(ctx context.Context, endpointName string, param params.CreateGithubCredentialsParams) (params.GithubCredentials, error) {
+func (s *sqlDatabase) CreateGithubCredentials(ctx context.Context, param params.CreateGithubCredentialsParams) (params.GithubCredentials, error) {
 	userID, err := getUIDFromContext(ctx)
 	if err != nil {
 		return params.GithubCredentials{}, errors.Wrap(err, "creating github credentials")
 	}
+	if param.Endpoint == "" {
+		return params.GithubCredentials{}, errors.New("endpoint name is required")
+	}
 	var creds GithubCredentials
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
 		var endpoint GithubEndpoint
-		if err := tx.Where("name = ?", endpointName).First(&endpoint).Error; err != nil {
+		if err := tx.Where("name = ?", param.Endpoint).First(&endpoint).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return errors.Wrap(runnerErrors.ErrNotFound, "github endpoint not found")
 			}

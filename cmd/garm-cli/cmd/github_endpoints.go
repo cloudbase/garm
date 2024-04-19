@@ -199,11 +199,13 @@ func init() {
 	githubEndpointUpdateCmd.Flags().StringVar(&endpointAPIBaseURL, "api-base-url", "", "API Base URL of the GitHub endpoint")
 	githubEndpointUpdateCmd.Flags().StringVar(&endpointCACertPath, "ca-cert-path", "", "CA Cert Path of the GitHub endpoint")
 
-	githubEndpointCmd.AddCommand(githubEndpointListCmd)
-	githubEndpointCmd.AddCommand(githubEndpointShowCmd)
-	githubEndpointCmd.AddCommand(githubEndpointCreateCmd)
-	githubEndpointCmd.AddCommand(githubEndpointDeleteCmd)
-	githubEndpointCmd.AddCommand(githubEndpointUpdateCmd)
+	githubEndpointCmd.AddCommand(
+		githubEndpointListCmd,
+		githubEndpointShowCmd,
+		githubEndpointCreateCmd,
+		githubEndpointDeleteCmd,
+		githubEndpointUpdateCmd,
+	)
 
 	githubCmd.AddCommand(githubEndpointCmd)
 }

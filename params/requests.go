@@ -21,7 +21,9 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/cloudbase/garm-provider-common/errors"
+	"github.com/pkg/errors"
+
+	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 )
 
@@ -47,24 +49,24 @@ type CreateRepoParams struct {
 
 func (c *CreateRepoParams) Validate() error {
 	if c.Owner == "" {
-		return errors.NewBadRequestError("missing owner")
+		return runnerErrors.NewBadRequestError("missing owner")
 	}
 
 	if c.Name == "" {
-		return errors.NewBadRequestError("missing repo name")
+		return runnerErrors.NewBadRequestError("missing repo name")
 	}
 
 	if c.CredentialsName == "" {
-		return errors.NewBadRequestError("missing credentials name")
+		return runnerErrors.NewBadRequestError("missing credentials name")
 	}
 	if c.WebhookSecret == "" {
-		return errors.NewMissingSecretError("missing secret")
+		return runnerErrors.NewMissingSecretError("missing secret")
 	}
 
 	switch c.PoolBalancerType {
 	case PoolBalancerTypeRoundRobin, PoolBalancerTypePack, PoolBalancerTypeNone:
 	default:
-		return errors.NewBadRequestError("invalid pool balancer type")
+		return runnerErrors.NewBadRequestError("invalid pool balancer type")
 	}
 
 	return nil
@@ -79,20 +81,20 @@ type CreateOrgParams struct {
 
 func (c *CreateOrgParams) Validate() error {
 	if c.Name == "" {
-		return errors.NewBadRequestError("missing org name")
+		return runnerErrors.NewBadRequestError("missing org name")
 	}
 
 	if c.CredentialsName == "" {
-		return errors.NewBadRequestError("missing credentials name")
+		return runnerErrors.NewBadRequestError("missing credentials name")
 	}
 	if c.WebhookSecret == "" {
-		return errors.NewMissingSecretError("missing secret")
+		return runnerErrors.NewMissingSecretError("missing secret")
 	}
 
 	switch c.PoolBalancerType {
 	case PoolBalancerTypeRoundRobin, PoolBalancerTypePack, PoolBalancerTypeNone:
 	default:
-		return errors.NewBadRequestError("invalid pool balancer type")
+		return runnerErrors.NewBadRequestError("invalid pool balancer type")
 	}
 	return nil
 }
@@ -106,19 +108,19 @@ type CreateEnterpriseParams struct {
 
 func (c *CreateEnterpriseParams) Validate() error {
 	if c.Name == "" {
-		return errors.NewBadRequestError("missing enterprise name")
+		return runnerErrors.NewBadRequestError("missing enterprise name")
 	}
 	if c.CredentialsName == "" {
-		return errors.NewBadRequestError("missing credentials name")
+		return runnerErrors.NewBadRequestError("missing credentials name")
 	}
 	if c.WebhookSecret == "" {
-		return errors.NewMissingSecretError("missing secret")
+		return runnerErrors.NewMissingSecretError("missing secret")
 	}
 
 	switch c.PoolBalancerType {
 	case PoolBalancerTypeRoundRobin, PoolBalancerTypePack, PoolBalancerTypeNone:
 	default:
-		return errors.NewBadRequestError("invalid pool balancer type")
+		return runnerErrors.NewBadRequestError("invalid pool balancer type")
 	}
 	return nil
 }
@@ -256,7 +258,7 @@ type PasswordLoginParams struct {
 // Validate checks if the username and password are set
 func (p PasswordLoginParams) Validate() error {
 	if p.Username == "" || p.Password == "" {
-		return errors.ErrUnauthorized
+		return runnerErrors.ErrUnauthorized
 	}
 	return nil
 }
@@ -284,56 +286,56 @@ type CreateGithubEndpointParams struct {
 
 func (c CreateGithubEndpointParams) Validate() error {
 	if c.APIBaseURL == "" {
-		return errors.NewBadRequestError("missing api_base_url")
+		return runnerErrors.NewBadRequestError("missing api_base_url")
 	}
 
 	url, err := url.Parse(c.APIBaseURL)
 	if err != nil || url.Scheme == "" || url.Host == "" {
-		return errors.NewBadRequestError("invalid api_base_url")
+		return runnerErrors.NewBadRequestError("invalid api_base_url")
 	}
 	switch url.Scheme {
 	case httpsScheme, httpScheme:
 	default:
-		return errors.NewBadRequestError("invalid api_base_url")
+		return runnerErrors.NewBadRequestError("invalid api_base_url")
 	}
 
 	if c.UploadBaseURL == "" {
-		return errors.NewBadRequestError("missing upload_base_url")
+		return runnerErrors.NewBadRequestError("missing upload_base_url")
 	}
 
 	url, err = url.Parse(c.UploadBaseURL)
 	if err != nil || url.Scheme == "" || url.Host == "" {
-		return errors.NewBadRequestError("invalid upload_base_url")
+		return runnerErrors.NewBadRequestError("invalid upload_base_url")
 	}
 
 	switch url.Scheme {
 	case httpsScheme, httpScheme:
 	default:
-		return errors.NewBadRequestError("invalid api_base_url")
+		return runnerErrors.NewBadRequestError("invalid api_base_url")
 	}
 
 	if c.BaseURL == "" {
-		return errors.NewBadRequestError("missing base_url")
+		return runnerErrors.NewBadRequestError("missing base_url")
 	}
 
 	url, err = url.Parse(c.BaseURL)
 	if err != nil || url.Scheme == "" || url.Host == "" {
-		return errors.NewBadRequestError("invalid base_url")
+		return runnerErrors.NewBadRequestError("invalid base_url")
 	}
 
 	switch url.Scheme {
 	case httpsScheme, httpScheme:
 	default:
-		return errors.NewBadRequestError("invalid api_base_url")
+		return runnerErrors.NewBadRequestError("invalid api_base_url")
 	}
 
 	if c.CACertBundle != nil {
 		block, _ := pem.Decode(c.CACertBundle)
 		if block == nil {
-			return errors.NewBadRequestError("invalid ca_cert_bundle")
+			return runnerErrors.NewBadRequestError("invalid ca_cert_bundle")
 		}
 		if _, err := x509.ParseCertificates(block.Bytes); err != nil {
-			return errors.NewBadRequestError("invalid ca_cert_bundle")
+			return runnerErrors.NewBadRequestError("invalid ca_cert_bundle")
 		}
 	}
 
@@ -352,46 +354,46 @@ func (u UpdateGithubEndpointParams) Validate() error {
 	if u.APIBaseURL != nil {
 		url, err := url.Parse(*u.APIBaseURL)
 		if err != nil || url.Scheme == "" || url.Host == "" {
-			return errors.NewBadRequestError("invalid api_base_url")
+			return runnerErrors.NewBadRequestError("invalid api_base_url")
 		}
 		switch url.Scheme {
 		case httpsScheme, httpScheme:
 		default:
-			return errors.NewBadRequestError("invalid api_base_url")
+			return runnerErrors.NewBadRequestError("invalid api_base_url")
 		}
 	}
 
 	if u.UploadBaseURL != nil {
 		url, err := url.Parse(*u.UploadBaseURL)
 		if err != nil || url.Scheme == "" || url.Host == "" {
-			return errors.NewBadRequestError("invalid upload_base_url")
+			return runnerErrors.NewBadRequestError("invalid upload_base_url")
 		}
 		switch url.Scheme {
 		case httpsScheme, httpScheme:
 		default:
-			return errors.NewBadRequestError("invalid api_base_url")
+			return runnerErrors.NewBadRequestError("invalid api_base_url")
 		}
 	}
 
 	if u.BaseURL != nil {
 		url, err := url.Parse(*u.BaseURL)
 		if err != nil || url.Scheme == "" || url.Host == "" {
-			return errors.NewBadRequestError("invalid base_url")
+			return runnerErrors.NewBadRequestError("invalid base_url")
 		}
 		switch url.Scheme {
 		case httpsScheme, httpScheme:
 		default:
-			return errors.NewBadRequestError("invalid api_base_url")
+			return runnerErrors.NewBadRequestError("invalid api_base_url")
 		}
 	}
 
 	if u.CACertBundle != nil {
 		block, _ := pem.Decode(u.CACertBundle)
 		if block == nil {
-			return errors.NewBadRequestError("invalid ca_cert_bundle")
+			return runnerErrors.NewBadRequestError("invalid ca_cert_bundle")
 		}
 		if _, err := x509.ParseCertificates(block.Bytes); err != nil {
-			return errors.NewBadRequestError("invalid ca_cert_bundle")
+			return runnerErrors.NewBadRequestError("invalid ca_cert_bundle")
 		}
 	}
 
@@ -410,15 +412,15 @@ type GithubApp struct {
 
 func (g GithubApp) Validate() error {
 	if g.AppID == 0 {
-		return errors.NewBadRequestError("missing app_id")
+		return runnerErrors.NewBadRequestError("missing app_id")
 	}
 
 	if g.InstallationID == 0 {
-		return errors.NewBadRequestError("missing installation_id")
+		return runnerErrors.NewBadRequestError("missing installation_id")
 	}
 
 	if len(g.PrivateKeyBytes) == 0 {
-		return errors.NewBadRequestError("missing private_key_bytes")
+		return runnerErrors.NewBadRequestError("missing private_key_bytes")
 	}
 
 	block, _ := pem.Decode(g.PrivateKeyBytes)
@@ -434,9 +436,40 @@ func (g GithubApp) Validate() error {
 type CreateGithubCredentialsParams struct {
 	Name        string         `json:"name"`
 	Description string         `json:"description"`
+	Endpoint    string         `json:"endpoint"`
 	AuthType    GithubAuthType `json:"auth_type"`
 	PAT         GithubPAT      `json:"pat,omitempty"`
 	App         GithubApp      `json:"app,omitempty"`
+}
+
+func (c CreateGithubCredentialsParams) Validate() error {
+	if c.Name == "" {
+		return runnerErrors.NewBadRequestError("missing name")
+	}
+
+	if c.Endpoint == "" {
+		return runnerErrors.NewBadRequestError("missing endpoint")
+	}
+
+	switch c.AuthType {
+	case GithubAuthTypePAT, GithubAuthTypeApp:
+	default:
+		return runnerErrors.NewBadRequestError("invalid auth_type")
+	}
+
+	if c.AuthType == GithubAuthTypePAT {
+		if c.PAT.OAuth2Token == "" {
+			return runnerErrors.NewBadRequestError("missing oauth2_token")
+		}
+	}
+
+	if c.AuthType == GithubAuthTypeApp {
+		if err := c.App.Validate(); err != nil {
+			return errors.Wrap(err, "invalid app")
+		}
+	}
+
+	return nil
 }
 
 type UpdateGithubCredentialsParams struct {
@@ -444,4 +477,24 @@ type UpdateGithubCredentialsParams struct {
 	Description *string    `json:"description,omitempty"`
 	PAT         *GithubPAT `json:"pat,omitempty"`
 	App         *GithubApp `json:"app,omitempty"`
+}
+
+func (u UpdateGithubCredentialsParams) Validate() error {
+	if u.PAT != nil && u.App != nil {
+		return runnerErrors.NewBadRequestError("cannot update both PAT and App")
+	}
+
+	if u.PAT != nil {
+		if u.PAT.OAuth2Token == "" {
+			return runnerErrors.NewBadRequestError("missing oauth2_token")
+		}
+	}
+
+	if u.App != nil {
+		if err := u.App.Validate(); err != nil {
+			return errors.Wrap(err, "invalid app")
+		}
+	}
+
+	return nil
 }

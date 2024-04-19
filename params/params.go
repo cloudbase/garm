@@ -437,6 +437,10 @@ func (r Repository) GetBalancerType() PoolBalancerType {
 	return r.PoolBalancerType
 }
 
+func (r Repository) String() string {
+	return fmt.Sprintf("%s/%s", r.Owner, r.Name)
+}
+
 // used by swagger client generated code
 type Repositories []Repository
 

@@ -29,7 +29,7 @@ type GithubEndpointStore interface {
 }
 
 type GithubCredentialsStore interface {
-	CreateGithubCredentials(ctx context.Context, endpointName string, param params.CreateGithubCredentialsParams) (params.GithubCredentials, error)
+	CreateGithubCredentials(ctx context.Context, param params.CreateGithubCredentialsParams) (params.GithubCredentials, error)
 	GetGithubCredentials(ctx context.Context, id uint, detailed bool) (params.GithubCredentials, error)
 	GetGithubCredentialsByName(ctx context.Context, name string, detailed bool) (params.GithubCredentials, error)
 	ListGithubCredentials(ctx context.Context) ([]params.GithubCredentials, error)

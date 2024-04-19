@@ -297,6 +297,7 @@ func (s *sqlDatabase) migrateCredentialsToDB() (err error) {
 		credParams := params.CreateGithubCredentialsParams{
 			Name:        cred.Name,
 			Description: cred.Description,
+			Endpoint:    endpoint.Name,
 			AuthType:    params.GithubAuthType(cred.GetAuthType()),
 		}
 		switch credParams.AuthType {
@@ -327,7 +328,7 @@ func (s *sqlDatabase) migrateCredentialsToDB() (err error) {
 			}
 		}
 
-		creds, err := s.CreateGithubCredentials(adminCtx, endpoint.Name, credParams)
+		creds, err := s.CreateGithubCredentials(adminCtx, credParams)
 		if err != nil {
 			return errors.Wrap(err, "creating github credentials")
 		}

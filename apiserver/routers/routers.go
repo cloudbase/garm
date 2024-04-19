@@ -339,10 +339,6 @@ func NewAPIRouter(han *controllers.APIController, authMiddleware, initMiddleware
 	apiRouter.Handle("/enterprises/", http.HandlerFunc(han.CreateEnterpriseHandler)).Methods("POST", "OPTIONS")
 	apiRouter.Handle("/enterprises", http.HandlerFunc(han.CreateEnterpriseHandler)).Methods("POST", "OPTIONS")
 
-	// Credentials
-	apiRouter.Handle("/credentials/", http.HandlerFunc(han.ListCredentials)).Methods("GET", "OPTIONS")
-	apiRouter.Handle("/credentials", http.HandlerFunc(han.ListCredentials)).Methods("GET", "OPTIONS")
-
 	// Providers
 	apiRouter.Handle("/providers/", http.HandlerFunc(han.ListProviders)).Methods("GET", "OPTIONS")
 	apiRouter.Handle("/providers", http.HandlerFunc(han.ListProviders)).Methods("GET", "OPTIONS")
@@ -369,6 +365,28 @@ func NewAPIRouter(han *controllers.APIController, authMiddleware, initMiddleware
 	// Update Github Endpoint
 	apiRouter.Handle("/github/endpoints/{name}/", http.HandlerFunc(han.UpdateGithubEndpoint)).Methods("PUT", "OPTIONS")
 	apiRouter.Handle("/github/endpoints/{name}", http.HandlerFunc(han.UpdateGithubEndpoint)).Methods("PUT", "OPTIONS")
+
+	////////////////////////
+	// Github credentials //
+	////////////////////////
+	// Legacy credentials path
+	apiRouter.Handle("/credentials/", http.HandlerFunc(han.ListCredentials)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/credentials", http.HandlerFunc(han.ListCredentials)).Methods("GET", "OPTIONS")
+	// List Github Credentials
+	apiRouter.Handle("/github/credentials/", http.HandlerFunc(han.ListCredentials)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/github/credentials", http.HandlerFunc(han.ListCredentials)).Methods("GET", "OPTIONS")
+	// Create Github Credentials
+	apiRouter.Handle("/github/credentials/", http.HandlerFunc(han.CreateGithubCredential)).Methods("POST", "OPTIONS")
+	apiRouter.Handle("/github/credentials", http.HandlerFunc(han.CreateGithubCredential)).Methods("POST", "OPTIONS")
+	// Get Github Credential
+	apiRouter.Handle("/github/credentials/{id}/", http.HandlerFunc(han.GetGithubCredential)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/github/credentials/{id}", http.HandlerFunc(han.GetGithubCredential)).Methods("GET", "OPTIONS")
+	// Delete Github Credential
+	apiRouter.Handle("/github/credentials/{id}/", http.HandlerFunc(han.DeleteGithubCredential)).Methods("DELETE", "OPTIONS")
+	apiRouter.Handle("/github/credentials/{id}", http.HandlerFunc(han.DeleteGithubCredential)).Methods("DELETE", "OPTIONS")
+	// Update Github Credential
+	apiRouter.Handle("/github/credentials/{id}/", http.HandlerFunc(han.UpdateGithubCredential)).Methods("PUT", "OPTIONS")
+	apiRouter.Handle("/github/credentials/{id}", http.HandlerFunc(han.UpdateGithubCredential)).Methods("PUT", "OPTIONS")
 
 	// Websocket log writer
 	apiRouter.Handle("/{ws:ws\\/?}", http.HandlerFunc(han.WSHandler)).Methods("GET")

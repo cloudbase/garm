@@ -395,19 +395,6 @@ func (r *Runner) GetControllerInfo(ctx context.Context) (params.ControllerInfo, 
 	}, nil
 }
 
-func (r *Runner) ListCredentials(ctx context.Context) ([]params.GithubCredentials, error) {
-	if !auth.IsAdmin(ctx) {
-		return nil, runnerErrors.ErrUnauthorized
-	}
-
-	creds, err := r.store.ListGithubCredentials(ctx)
-	if err != nil {
-		return nil, errors.Wrap(err, "fetching github credentials")
-	}
-
-	return creds, nil
-}
-
 func (r *Runner) ListProviders(ctx context.Context) ([]params.Provider, error) {
 	if !auth.IsAdmin(ctx) {
 		return nil, runnerErrors.ErrUnauthorized

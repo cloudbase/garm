@@ -264,3 +264,17 @@ definitions:
         import:
             package: github.com/cloudbase/garm/params
             alias: garm_params
+  CreateGithubCredentialsParams:
+    type: object
+    x-go-type:
+        type: CreateGithubCredentialsParams
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+  UpdateGithubCredentialsParams:
+    type: object
+    x-go-type:
+        type: UpdateGithubCredentialsParams
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
