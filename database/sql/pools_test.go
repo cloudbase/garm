@@ -171,8 +171,8 @@ func (s *PoolsTestSuite) TestDeletePoolByIDInvalidPoolID() {
 
 func (s *PoolsTestSuite) TestDeletePoolByIDDBRemoveErr() {
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE id = ? AND `pools`.`deleted_at` IS NULL ORDER BY `pools`.`id` LIMIT 1	")).
-		WithArgs(s.Fixtures.Pools[0].ID).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE id = ? AND `pools`.`deleted_at` IS NULL ORDER BY `pools`.`id` LIMIT ?")).
+		WithArgs(s.Fixtures.Pools[0].ID, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Pools[0].ID))
 	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.

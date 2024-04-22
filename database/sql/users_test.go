@@ -168,12 +168,12 @@ func (s *UserTestSuite) TestCreateUserEmailAlreadyExist() {
 
 func (s *UserTestSuite) TestCreateUserDBCreateErr() {
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `users` WHERE username = ? AND `users`.`deleted_at` IS NULL ORDER BY `users`.`id` LIMIT 1")).
-		WithArgs(s.Fixtures.NewUserParams.Username).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `users` WHERE username = ? AND `users`.`deleted_at` IS NULL ORDER BY `users`.`id` LIMIT ?")).
+		WithArgs(s.Fixtures.NewUserParams.Username, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}))
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `users` WHERE email = ? AND `users`.`deleted_at` IS NULL ORDER BY `users`.`id` LIMIT 1")).
-		WithArgs(s.Fixtures.NewUserParams.Email).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `users` WHERE email = ? AND `users`.`deleted_at` IS NULL ORDER BY `users`.`id` LIMIT ?")).
+		WithArgs(s.Fixtures.NewUserParams.Email, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}))
 	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
@@ -258,8 +258,8 @@ func (s *UserTestSuite) TestUpdateUserNotFound() {
 
 func (s *UserTestSuite) TestUpdateUserDBSaveErr() {
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `users` WHERE username = ? AND `users`.`deleted_at` IS NULL ORDER BY `users`.`id` LIMIT 1")).
-		WithArgs(s.Fixtures.Users[0].ID).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `users` WHERE username = ? AND `users`.`deleted_at` IS NULL ORDER BY `users`.`id` LIMIT ?")).
+		WithArgs(s.Fixtures.Users[0].ID, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Users[0].ID))
 	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.

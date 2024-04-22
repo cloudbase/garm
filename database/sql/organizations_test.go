@@ -244,8 +244,8 @@ func (s *OrgTestSuite) TestGetOrganizationNotFound() {
 
 func (s *OrgTestSuite) TestGetOrganizationDBDecryptingErr() {
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE name = ? COLLATE NOCASE AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT 1")).
-		WithArgs(s.Fixtures.Orgs[0].Name).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE name = ? COLLATE NOCASE AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT ?")).
+		WithArgs(s.Fixtures.Orgs[0].Name, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"name"}).AddRow(s.Fixtures.Orgs[0].Name))
 
 	_, err := s.StoreSQLMocked.GetOrganization(context.Background(), s.Fixtures.Orgs[0].Name)
@@ -292,8 +292,8 @@ func (s *OrgTestSuite) TestDeleteOrganizationInvalidOrgID() {
 
 func (s *OrgTestSuite) TestDeleteOrganizationDBDeleteErr() {
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT 1")).
-		WithArgs(s.Fixtures.Orgs[0].ID).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT ?")).
+		WithArgs(s.Fixtures.Orgs[0].ID, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Orgs[0].ID))
 	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
@@ -328,8 +328,8 @@ func (s *OrgTestSuite) TestUpdateOrganizationDBEncryptErr() {
 	s.StoreSQLMocked.cfg.Passphrase = wrongPassphrase
 
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT 1")).
-		WithArgs(s.Fixtures.Orgs[0].ID).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT ?")).
+		WithArgs(s.Fixtures.Orgs[0].ID, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Orgs[0].ID))
 
 	_, err := s.StoreSQLMocked.UpdateOrganization(context.Background(), s.Fixtures.Orgs[0].ID, s.Fixtures.UpdateRepoParams)
@@ -341,8 +341,8 @@ func (s *OrgTestSuite) TestUpdateOrganizationDBEncryptErr() {
 
 func (s *OrgTestSuite) TestUpdateOrganizationDBSaveErr() {
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT 1")).
-		WithArgs(s.Fixtures.Orgs[0].ID).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT ?")).
+		WithArgs(s.Fixtures.Orgs[0].ID, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Orgs[0].ID))
 	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
@@ -362,8 +362,8 @@ func (s *OrgTestSuite) TestUpdateOrganizationDBDecryptingErr() {
 	s.Fixtures.UpdateRepoParams.WebhookSecret = webhookSecret
 
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT 1")).
-		WithArgs(s.Fixtures.Orgs[0].ID).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT ?")).
+		WithArgs(s.Fixtures.Orgs[0].ID, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Orgs[0].ID))
 
 	_, err := s.StoreSQLMocked.UpdateOrganization(context.Background(), s.Fixtures.Orgs[0].ID, s.Fixtures.UpdateRepoParams)
@@ -389,8 +389,8 @@ func (s *OrgTestSuite) TestGetOrganizationByIDInvalidOrgID() {
 
 func (s *OrgTestSuite) TestGetOrganizationByIDDBDecryptingErr() {
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT 1")).
-		WithArgs(s.Fixtures.Orgs[0].ID).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT ?")).
+		WithArgs(s.Fixtures.Orgs[0].ID, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Orgs[0].ID))
 	s.Fixtures.SQLMock.
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE `pools`.`org_id` = ? AND `pools`.`deleted_at` IS NULL")).
@@ -446,11 +446,11 @@ func (s *OrgTestSuite) TestCreateOrganizationPoolInvalidOrgID() {
 func (s *OrgTestSuite) TestCreateOrganizationPoolDBCreateErr() {
 	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT 1")).
-		WithArgs(s.Fixtures.Orgs[0].ID).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT ?")).
+		WithArgs(s.Fixtures.Orgs[0].ID, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Orgs[0].ID))
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE (provider_name = ? and image = ? and flavor = ? and org_id = ?) AND `pools`.`deleted_at` IS NULL ORDER BY `pools`.`id` LIMIT 1")).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE (provider_name = ? and image = ? and flavor = ? and org_id = ?) AND `pools`.`deleted_at` IS NULL ORDER BY `pools`.`id` LIMIT ?")).
 		WillReturnError(fmt.Errorf("mocked creating pool error"))
 
 	entity, err := s.Fixtures.Orgs[0].GetEntity()
@@ -465,16 +465,16 @@ func (s *OrgTestSuite) TestCreateOrganizationPoolDBCreateErr() {
 func (s *OrgTestSuite) TestCreateOrganizationDBPoolAlreadyExistErr() {
 	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT 1")).
-		WithArgs(s.Fixtures.Orgs[0].ID).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT ?")).
+		WithArgs(s.Fixtures.Orgs[0].ID, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Orgs[0].ID))
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE (provider_name = ? and image = ? and flavor = ? and org_id = ?) AND `pools`.`deleted_at` IS NULL ORDER BY `pools`.`id` LIMIT 1")).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE (provider_name = ? and image = ? and flavor = ? and org_id = ?) AND `pools`.`deleted_at` IS NULL ORDER BY `pools`.`id` LIMIT ?")).
 		WithArgs(
 			s.Fixtures.CreatePoolParams.ProviderName,
 			s.Fixtures.CreatePoolParams.Image,
 			s.Fixtures.CreatePoolParams.Flavor,
-			s.Fixtures.Orgs[0].ID).
+			s.Fixtures.Orgs[0].ID, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"org_id", "provider_name", "image", "flavor"}).
 			AddRow(
 				s.Fixtures.Orgs[0].ID,
@@ -494,19 +494,19 @@ func (s *OrgTestSuite) TestCreateOrganizationDBPoolAlreadyExistErr() {
 func (s *OrgTestSuite) TestCreateOrganizationPoolDBFetchTagErr() {
 	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT 1")).
-		WithArgs(s.Fixtures.Orgs[0].ID).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT ?")).
+		WithArgs(s.Fixtures.Orgs[0].ID, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Orgs[0].ID))
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE (provider_name = ? and image = ? and flavor = ? and org_id = ?) AND `pools`.`deleted_at` IS NULL ORDER BY `pools`.`id` LIMIT 1")).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE (provider_name = ? and image = ? and flavor = ? and org_id = ?) AND `pools`.`deleted_at` IS NULL ORDER BY `pools`.`id` LIMIT ?")).
 		WithArgs(
 			s.Fixtures.CreatePoolParams.ProviderName,
 			s.Fixtures.CreatePoolParams.Image,
 			s.Fixtures.CreatePoolParams.Flavor,
-			s.Fixtures.Orgs[0].ID).
+			s.Fixtures.Orgs[0].ID, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"org_id"}))
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `tags` WHERE name = ? AND `tags`.`deleted_at` IS NULL ORDER BY `tags`.`id` LIMIT 1")).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `tags` WHERE name = ? AND `tags`.`deleted_at` IS NULL ORDER BY `tags`.`id` LIMIT ?")).
 		WillReturnError(fmt.Errorf("mocked fetching tag error"))
 
 	entity, err := s.Fixtures.Orgs[0].GetEntity()
@@ -523,19 +523,19 @@ func (s *OrgTestSuite) TestCreateOrganizationPoolDBAddingPoolErr() {
 
 	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT 1")).
-		WithArgs(s.Fixtures.Orgs[0].ID).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT ?")).
+		WithArgs(s.Fixtures.Orgs[0].ID, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Orgs[0].ID))
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE (provider_name = ? and image = ? and flavor = ? and org_id = ?) AND `pools`.`deleted_at` IS NULL ORDER BY `pools`.`id` LIMIT 1")).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE (provider_name = ? and image = ? and flavor = ? and org_id = ?) AND `pools`.`deleted_at` IS NULL ORDER BY `pools`.`id` LIMIT ?")).
 		WithArgs(
 			s.Fixtures.CreatePoolParams.ProviderName,
 			s.Fixtures.CreatePoolParams.Image,
 			s.Fixtures.CreatePoolParams.Flavor,
-			s.Fixtures.Orgs[0].ID).
+			s.Fixtures.Orgs[0].ID, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"org_id"}))
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `tags` WHERE name = ? AND `tags`.`deleted_at` IS NULL ORDER BY `tags`.`id` LIMIT 1")).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `tags` WHERE name = ? AND `tags`.`deleted_at` IS NULL ORDER BY `tags`.`id` LIMIT ?")).
 		WillReturnRows(sqlmock.NewRows([]string{"linux"}))
 	s.Fixtures.SQLMock.
 		ExpectExec(regexp.QuoteMeta("INSERT INTO `tags`")).
@@ -559,19 +559,19 @@ func (s *OrgTestSuite) TestCreateOrganizationPoolDBSaveTagErr() {
 
 	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT 1")).
-		WithArgs(s.Fixtures.Orgs[0].ID).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT ?")).
+		WithArgs(s.Fixtures.Orgs[0].ID, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Orgs[0].ID))
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE (provider_name = ? and image = ? and flavor = ? and org_id = ?) AND `pools`.`deleted_at` IS NULL ORDER BY `pools`.`id` LIMIT 1")).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE (provider_name = ? and image = ? and flavor = ? and org_id = ?) AND `pools`.`deleted_at` IS NULL ORDER BY `pools`.`id` LIMIT ?")).
 		WithArgs(
 			s.Fixtures.CreatePoolParams.ProviderName,
 			s.Fixtures.CreatePoolParams.Image,
 			s.Fixtures.CreatePoolParams.Flavor,
-			s.Fixtures.Orgs[0].ID).
+			s.Fixtures.Orgs[0].ID, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"org_id"}))
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `tags` WHERE name = ? AND `tags`.`deleted_at` IS NULL ORDER BY `tags`.`id` LIMIT 1")).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `tags` WHERE name = ? AND `tags`.`deleted_at` IS NULL ORDER BY `tags`.`id` LIMIT ?")).
 		WillReturnRows(sqlmock.NewRows([]string{"linux"}))
 	s.Fixtures.SQLMock.
 		ExpectExec(regexp.QuoteMeta("INSERT INTO `tags`")).
@@ -598,19 +598,19 @@ func (s *OrgTestSuite) TestCreateOrganizationPoolDBFetchPoolErr() {
 
 	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT 1")).
-		WithArgs(s.Fixtures.Orgs[0].ID).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT ?")).
+		WithArgs(s.Fixtures.Orgs[0].ID, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Orgs[0].ID))
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE (provider_name = ? and image = ? and flavor = ? and org_id = ?) AND `pools`.`deleted_at` IS NULL ORDER BY `pools`.`id` LIMIT 1")).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE (provider_name = ? and image = ? and flavor = ? and org_id = ?) AND `pools`.`deleted_at` IS NULL ORDER BY `pools`.`id` LIMIT ?")).
 		WithArgs(
 			s.Fixtures.CreatePoolParams.ProviderName,
 			s.Fixtures.CreatePoolParams.Image,
 			s.Fixtures.CreatePoolParams.Flavor,
-			s.Fixtures.Orgs[0].ID).
+			s.Fixtures.Orgs[0].ID, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"org_id"}))
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `tags` WHERE name = ? AND `tags`.`deleted_at` IS NULL ORDER BY `tags`.`id` LIMIT 1")).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `tags` WHERE name = ? AND `tags`.`deleted_at` IS NULL ORDER BY `tags`.`id` LIMIT ?")).
 		WillReturnRows(sqlmock.NewRows([]string{"linux"}))
 	s.Fixtures.SQLMock.
 		ExpectExec(regexp.QuoteMeta("INSERT INTO `tags`")).
@@ -629,7 +629,7 @@ func (s *OrgTestSuite) TestCreateOrganizationPoolDBFetchPoolErr() {
 		WillReturnResult(sqlmock.NewResult(1, 1))
 	s.Fixtures.SQLMock.ExpectCommit()
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE id = ? AND `pools`.`deleted_at` IS NULL ORDER BY `pools`.`id` LIMIT 1")).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE id = ? AND `pools`.`deleted_at` IS NULL ORDER BY `pools`.`id` LIMIT ?")).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}))
 
 	entity, err := s.Fixtures.Orgs[0].GetEntity()
