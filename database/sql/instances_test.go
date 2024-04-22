@@ -204,8 +204,8 @@ func (s *InstancesTestSuite) TestCreateInstanceDBCreateErr() {
 	pool := s.Fixtures.Pool
 
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE id = ? AND `pools`.`deleted_at` IS NULL ORDER BY `pools`.`id` LIMIT 1")).
-		WithArgs(pool.ID).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE id = ? AND `pools`.`deleted_at` IS NULL ORDER BY `pools`.`id` LIMIT ?")).
+		WithArgs(pool.ID, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(pool.ID))
 	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
@@ -283,12 +283,12 @@ func (s *InstancesTestSuite) TestDeleteInstanceDBRecordNotFoundErr() {
 	instance := s.Fixtures.Instances[0]
 
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE id = ? AND `pools`.`deleted_at` IS NULL ORDER BY `pools`.`id` LIMIT 1")).
-		WithArgs(pool.ID).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE id = ? AND `pools`.`deleted_at` IS NULL ORDER BY `pools`.`id` LIMIT ?")).
+		WithArgs(pool.ID, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(pool.ID))
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `instances` WHERE (name = ? and pool_id = ?) AND `instances`.`deleted_at` IS NULL ORDER BY `instances`.`id` LIMIT 1")).
-		WithArgs(instance.Name, pool.ID).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `instances` WHERE (name = ? and pool_id = ?) AND `instances`.`deleted_at` IS NULL ORDER BY `instances`.`id` LIMIT ?")).
+		WithArgs(instance.Name, pool.ID, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(instance.ID))
 	s.Fixtures.SQLMock.
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `addresses` WHERE `addresses`.`instance_id` = ? AND `addresses`.`deleted_at` IS NULL")).
@@ -320,12 +320,12 @@ func (s *InstancesTestSuite) TestDeleteInstanceDBDeleteErr() {
 	instance := s.Fixtures.Instances[0]
 
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE id = ? AND `pools`.`deleted_at` IS NULL ORDER BY `pools`.`id` LIMIT 1")).
-		WithArgs(pool.ID).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE id = ? AND `pools`.`deleted_at` IS NULL ORDER BY `pools`.`id` LIMIT ?")).
+		WithArgs(pool.ID, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(pool.ID))
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `instances` WHERE (name = ? and pool_id = ?) AND `instances`.`deleted_at` IS NULL ORDER BY `instances`.`id` LIMIT 1")).
-		WithArgs(instance.Name, pool.ID).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `instances` WHERE (name = ? and pool_id = ?) AND `instances`.`deleted_at` IS NULL ORDER BY `instances`.`id` LIMIT ?")).
+		WithArgs(instance.Name, pool.ID, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(instance.ID))
 	s.Fixtures.SQLMock.
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `addresses` WHERE `addresses`.`instance_id` = ? AND `addresses`.`deleted_at` IS NULL")).
@@ -373,8 +373,8 @@ func (s *InstancesTestSuite) TestAddInstanceEventDBUpdateErr() {
 	statusMsg := "test-status-message"
 
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `instances` WHERE name = ? AND `instances`.`deleted_at` IS NULL ORDER BY `instances`.`id` LIMIT 1")).
-		WithArgs(instance.Name).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `instances` WHERE name = ? AND `instances`.`deleted_at` IS NULL ORDER BY `instances`.`id` LIMIT ?")).
+		WithArgs(instance.Name, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(instance.ID))
 	s.Fixtures.SQLMock.
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `addresses` WHERE `addresses`.`instance_id` = ? AND `addresses`.`deleted_at` IS NULL")).
@@ -422,8 +422,8 @@ func (s *InstancesTestSuite) TestUpdateInstanceDBUpdateInstanceErr() {
 	instance := s.Fixtures.Instances[0]
 
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `instances` WHERE name = ? AND `instances`.`deleted_at` IS NULL ORDER BY `instances`.`id` LIMIT 1")).
-		WithArgs(instance.Name).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `instances` WHERE name = ? AND `instances`.`deleted_at` IS NULL ORDER BY `instances`.`id` LIMIT ?")).
+		WithArgs(instance.Name, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(instance.ID))
 	s.Fixtures.SQLMock.
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `addresses` WHERE `addresses`.`instance_id` = ? AND `addresses`.`deleted_at` IS NULL")).
@@ -454,8 +454,8 @@ func (s *InstancesTestSuite) TestUpdateInstanceDBUpdateAddressErr() {
 	instance := s.Fixtures.Instances[0]
 
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `instances` WHERE name = ? AND `instances`.`deleted_at` IS NULL ORDER BY `instances`.`id` LIMIT 1")).
-		WithArgs(instance.Name).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `instances` WHERE name = ? AND `instances`.`deleted_at` IS NULL ORDER BY `instances`.`id` LIMIT ?")).
+		WithArgs(instance.Name, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(instance.ID))
 	s.Fixtures.SQLMock.
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `addresses` WHERE `addresses`.`instance_id` = ? AND `addresses`.`deleted_at` IS NULL")).
@@ -545,8 +545,8 @@ func (s *InstancesTestSuite) TestPoolInstanceCountDBCountErr() {
 	pool := s.Fixtures.Pool
 
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE id = ? AND `pools`.`deleted_at` IS NULL ORDER BY `pools`.`id` LIMIT 1")).
-		WithArgs(pool.ID).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE id = ? AND `pools`.`deleted_at` IS NULL ORDER BY `pools`.`id` LIMIT ?")).
+		WithArgs(pool.ID, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(pool.ID))
 	s.Fixtures.SQLMock.
 		ExpectQuery(regexp.QuoteMeta("SELECT count(*) FROM `instances` WHERE pool_id = ? AND `instances`.`deleted_at` IS NULL")).
