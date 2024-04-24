@@ -1,6 +1,8 @@
 package e2e
 
 import (
+	"fmt"
+
 	"github.com/cloudbase/garm/params"
 )
 
@@ -14,5 +16,8 @@ func EnsureTestCredentials(name string, oauthToken string, endpointName string) 
 			OAuth2Token: oauthToken,
 		},
 	}
+	CreateGithubCredentials(createCredsParams)
+
+	createCredsParams.Name = fmt.Sprintf("%s-clone", name)
 	CreateGithubCredentials(createCredsParams)
 }
