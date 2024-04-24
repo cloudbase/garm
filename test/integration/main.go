@@ -76,6 +76,11 @@ func main() {
 	e2e.FirstRun(adminUsername, adminPassword, adminFullName, adminEmail)
 	e2e.Login(adminUsername, adminPassword)
 
+	// Ensure that the default "github.com" endpoint is automatically created.
+	e2e.MustDefaultGithubEndpoint()
+	// Create test credentials
+	e2e.EnsureTestCredentials(credentialsName, ghToken, "github.com")
+
 	// //////////////////
 	// controller info //
 	// //////////////////

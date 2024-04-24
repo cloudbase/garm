@@ -6,6 +6,7 @@ import (
 	"github.com/cloudbase/garm/client"
 	clientControllerInfo "github.com/cloudbase/garm/client/controller_info"
 	clientCredentials "github.com/cloudbase/garm/client/credentials"
+	clientEndpoints "github.com/cloudbase/garm/client/endpoints"
 	clientFirstRun "github.com/cloudbase/garm/client/first_run"
 	clientInstances "github.com/cloudbase/garm/client/instances"
 	clientJobs "github.com/cloudbase/garm/client/jobs"
@@ -18,9 +19,7 @@ import (
 	"github.com/cloudbase/garm/params"
 )
 
-// ///////////
-// Garm Init /
-// ///////////
+// firstRun will initialize a new garm installation.
 func firstRun(apiCli *client.GarmAPI, newUser params.NewUserParams) (params.User, error) {
 	firstRunResponse, err := apiCli.FirstRun.FirstRun(
 		clientFirstRun.NewFirstRunParams().WithBody(newUser),
@@ -41,9 +40,7 @@ func login(apiCli *client.GarmAPI, params params.PasswordLoginParams) (string, e
 	return loginResponse.Payload.Token, nil
 }
 
-// ////////////////////////////
-// Credentials and Providers //
-// ////////////////////////////
+// listCredentials lists all the credentials configured in GARM.
 func listCredentials(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter) (params.Credentials, error) {
 	listCredentialsResponse, err := apiCli.Credentials.ListCredentials(
 		clientCredentials.NewListCredentialsParams(),
@@ -54,6 +51,69 @@ func listCredentials(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfo
 	return listCredentialsResponse.Payload, nil
 }
 
+func createGithubCredentials(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, credentialsParams params.CreateGithubCredentialsParams) (*params.GithubCredentials, error) {
+	createCredentialsResponse, err := apiCli.Credentials.CreateCredentials(
+		clientCredentials.NewCreateCredentialsParams().WithBody(credentialsParams),
+		apiAuthToken)
+	if err != nil {
+		return nil, err
+	}
+	return &createCredentialsResponse.Payload, nil
+}
+
+func deleteGithubCredentials(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, credentialsID int64) error {
+	return apiCli.Credentials.DeleteCredentials(
+		clientCredentials.NewDeleteCredentialsParams().WithID(credentialsID),
+		apiAuthToken)
+}
+
+func getGithubCredential(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, credentialsID int64) (*params.GithubCredentials, error) {
+	getCredentialsResponse, err := apiCli.Credentials.GetCredentials(
+		clientCredentials.NewGetCredentialsParams().WithID(credentialsID),
+		apiAuthToken)
+	if err != nil {
+		return nil, err
+	}
+	return &getCredentialsResponse.Payload, nil
+}
+
+func createGithubEndpoint(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, endpointParams params.CreateGithubEndpointParams) (*params.GithubEndpoint, error) {
+	createEndpointResponse, err := apiCli.Endpoints.CreateGithubEndpoint(
+		clientEndpoints.NewCreateGithubEndpointParams().WithBody(endpointParams),
+		apiAuthToken)
+	if err != nil {
+		return nil, err
+	}
+	return &createEndpointResponse.Payload, nil
+}
+
+func listGithubEndpoints(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter) (params.GithubEndpoints, error) {
+	listEndpointsResponse, err := apiCli.Endpoints.ListGithubEndpoints(
+		clientEndpoints.NewListGithubEndpointsParams(),
+		apiAuthToken)
+	if err != nil {
+		return nil, err
+	}
+	return listEndpointsResponse.Payload, nil
+}
+
+func getGithubEndpoint(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, endpointName string) (*params.GithubEndpoint, error) {
+	getEndpointResponse, err := apiCli.Endpoints.GetGithubEndpoint(
+		clientEndpoints.NewGetGithubEndpointParams().WithName(endpointName),
+		apiAuthToken)
+	if err != nil {
+		return nil, err
+	}
+	return &getEndpointResponse.Payload, nil
+}
+
+func deleteGithubEndpoint(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, endpointName string) error {
+	return apiCli.Endpoints.DeleteGithubEndpoint(
+		clientEndpoints.NewDeleteGithubEndpointParams().WithName(endpointName),
+		apiAuthToken)
+}
+
+// listProviders lists all the providers configured in GARM.
 func listProviders(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter) (params.Providers, error) {
 	listProvidersResponse, err := apiCli.Providers.ListProviders(
 		clientProviders.NewListProvidersParams(),
@@ -64,9 +124,7 @@ func listProviders(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWr
 	return listProvidersResponse.Payload, nil
 }
 
-// ////////////////////////
-// // Controller info ////
-// ////////////////////////
+// getControllerInfo returns information about the GARM controller.
 func getControllerInfo(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter) (params.ControllerInfo, error) {
 	controllerInfoResponse, err := apiCli.ControllerInfo.ControllerInfo(
 		clientControllerInfo.NewControllerInfoParams(),
@@ -77,9 +135,7 @@ func getControllerInfo(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthIn
 	return controllerInfoResponse.Payload, nil
 }
 
-// ////////
-// Jobs //
-// ////////
+// listJobs lists all the jobs configured in GARM.
 func listJobs(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter) (params.Jobs, error) {
 	listJobsResponse, err := apiCli.Jobs.ListJobs(
 		clientJobs.NewListJobsParams(),
@@ -90,9 +146,7 @@ func listJobs(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter)
 	return listJobsResponse.Payload, nil
 }
 
-// //////////////////
-// / Metrics Token //
-// //////////////////
+// getMetricsToken returns the metrics token.
 func getMetricsToken(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter) (string, error) {
 	getMetricsTokenResponse, err := apiCli.MetricsToken.GetMetricsToken(
 		clientMetricsToken.NewGetMetricsTokenParams(),

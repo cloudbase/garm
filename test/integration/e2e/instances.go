@@ -12,10 +12,11 @@ import (
 func waitInstanceStatus(name string, status commonParams.InstanceStatus, runnerStatus params.RunnerStatus, timeout time.Duration) (*params.Instance, error) {
 	var timeWaited time.Duration // default is 0
 	var instance *params.Instance
+	var err error
 
 	slog.Info("Waiting for instance to reach desired status", "instance", name, "desired_status", status, "desired_runner_status", runnerStatus)
 	for timeWaited < timeout {
-		instance, err := getInstance(cli, authToken, name)
+		instance, err = getInstance(cli, authToken, name)
 		if err != nil {
 			return nil, err
 		}

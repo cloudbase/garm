@@ -18,6 +18,65 @@ func ListCredentials() params.Credentials {
 	return credentials
 }
 
+func CreateGithubCredentials(credentialsParams params.CreateGithubCredentialsParams) *params.GithubCredentials {
+	slog.Info("Create GitHub credentials")
+	credentials, err := createGithubCredentials(cli, authToken, credentialsParams)
+	if err != nil {
+		panic(err)
+	}
+	return credentials
+}
+
+func GetGithubCredential(id int64) *params.GithubCredentials {
+	slog.Info("Get GitHub credential")
+	credentials, err := getGithubCredential(cli, authToken, id)
+	if err != nil {
+		panic(err)
+	}
+	return credentials
+}
+
+func DeleteGithubCredential(id int64) {
+	slog.Info("Delete GitHub credential")
+	if err := deleteGithubCredentials(cli, authToken, id); err != nil {
+		panic(err)
+	}
+}
+
+func CreateGithubEndpoint(endpointParams params.CreateGithubEndpointParams) *params.GithubEndpoint {
+	slog.Info("Create GitHub endpoint")
+	endpoint, err := createGithubEndpoint(cli, authToken, endpointParams)
+	if err != nil {
+		panic(err)
+	}
+	return endpoint
+}
+
+func ListGithubEndpoints() params.GithubEndpoints {
+	slog.Info("List GitHub endpoints")
+	endpoints, err := listGithubEndpoints(cli, authToken)
+	if err != nil {
+		panic(err)
+	}
+	return endpoints
+}
+
+func GetGithubEndpoint(name string) *params.GithubEndpoint {
+	slog.Info("Get GitHub endpoint")
+	endpoint, err := getGithubEndpoint(cli, authToken, name)
+	if err != nil {
+		panic(err)
+	}
+	return endpoint
+}
+
+func DeleteGithubEndpoint(name string) {
+	slog.Info("Delete GitHub endpoint")
+	if err := deleteGithubEndpoint(cli, authToken, name); err != nil {
+		panic(err)
+	}
+}
+
 func ListProviders() params.Providers {
 	slog.Info("List providers")
 	providers, err := listProviders(cli, authToken)
