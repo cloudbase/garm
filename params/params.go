@@ -397,11 +397,15 @@ type Internal struct {
 }
 
 type Repository struct {
-	ID                string            `json:"id"`
-	Owner             string            `json:"owner"`
-	Name              string            `json:"name"`
-	Pools             []Pool            `json:"pool,omitempty"`
-	CredentialsName   string            `json:"credentials_name"`
+	ID    string `json:"id"`
+	Owner string `json:"owner"`
+	Name  string `json:"name"`
+	Pools []Pool `json:"pool,omitempty"`
+	// CredentialName is the name of the credentials associated with the enterprise.
+	// This field is now deprecated. Use CredentialsID instead. This field will be
+	// removed in v0.2.0.
+	CredentialsName   string            `json:"credentials_name,omitempty"`
+	CredentialsID     uint              `json:"credentials_id"`
 	Credentials       GithubCredentials `json:"credentials"`
 	PoolManagerStatus PoolManagerStatus `json:"pool_manager_status,omitempty"`
 	PoolBalancerType  PoolBalancerType  `json:"pool_balancing_type"`
@@ -445,11 +449,15 @@ func (r Repository) String() string {
 type Repositories []Repository
 
 type Organization struct {
-	ID                string            `json:"id"`
-	Name              string            `json:"name"`
-	Pools             []Pool            `json:"pool,omitempty"`
-	CredentialsName   string            `json:"credentials_name"`
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Pools []Pool `json:"pool,omitempty"`
+	// CredentialName is the name of the credentials associated with the enterprise.
+	// This field is now deprecated. Use CredentialsID instead. This field will be
+	// removed in v0.2.0.
+	CredentialsName   string            `json:"credentials_name,omitempty"`
 	Credentials       GithubCredentials `json:"credentials"`
+	CredentialsID     uint              `json:"credentials_id"`
 	PoolManagerStatus PoolManagerStatus `json:"pool_manager_status,omitempty"`
 	PoolBalancerType  PoolBalancerType  `json:"pool_balancing_type"`
 	Endpoint          GithubEndpoint    `json:"endpoint"`
@@ -488,11 +496,15 @@ func (o Organization) GetBalancerType() PoolBalancerType {
 type Organizations []Organization
 
 type Enterprise struct {
-	ID                string            `json:"id"`
-	Name              string            `json:"name"`
-	Pools             []Pool            `json:"pool,omitempty"`
-	CredentialsName   string            `json:"credentials_name"`
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Pools []Pool `json:"pool,omitempty"`
+	// CredentialName is the name of the credentials associated with the enterprise.
+	// This field is now deprecated. Use CredentialsID instead. This field will be
+	// removed in v0.2.0.
+	CredentialsName   string            `json:"credentials_name,omitempty"`
 	Credentials       GithubCredentials `json:"credentials"`
+	CredentialsID     uint              `json:"credentials_id"`
 	PoolManagerStatus PoolManagerStatus `json:"pool_manager_status,omitempty"`
 	PoolBalancerType  PoolBalancerType  `json:"pool_balancing_type"`
 	Endpoint          GithubEndpoint    `json:"endpoint"`

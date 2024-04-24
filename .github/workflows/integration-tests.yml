@@ -54,7 +54,7 @@ jobs:
         run: |
           set -o pipefail
           set -o errexit
-          make integration 2>&1 | tee /artifacts-logs/e2e.log
+          make integration 2>&1
         env:
           GARM_BASE_URL: ${{ steps.ngrok.outputs.tunnel-url }}
           ORG_NAME: gsamfira
@@ -68,6 +68,7 @@ jobs:
         run: |
           sudo systemctl status garm@runner || true
           sudo journalctl --no-pager 2>&1 > /artifacts-logs/system.log
+          sudo journalctl -u garm@runner --no-pager 2>&1 > /artifacts-logs/garm.log
 
       - name: Upload GARM and e2e logs
         if: always()

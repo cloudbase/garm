@@ -67,6 +67,8 @@ func (r *Runner) CreateRepository(ctx context.Context, param params.CreateRepoPa
 		}
 	}()
 
+	// Use the admin context in the pool manager. Any access control is already done above when
+	// updating the store.
 	poolMgr, err := r.poolManagerCtrl.CreateRepoPoolManager(r.ctx, repo, r.providers, r.store)
 	if err != nil {
 		return params.Repository{}, errors.Wrap(err, "creating repo pool manager")
@@ -200,6 +202,8 @@ func (r *Runner) UpdateRepository(ctx context.Context, repoID string, param para
 		return params.Repository{}, errors.Wrap(err, "updating repo")
 	}
 
+	// Use the admin context in the pool manager. Any access control is already done above when
+	// updating the store.
 	poolMgr, err := r.poolManagerCtrl.UpdateRepoPoolManager(r.ctx, repo)
 	if err != nil {
 		return params.Repository{}, fmt.Errorf("failed to update pool manager: %w", err)

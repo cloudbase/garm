@@ -151,6 +151,8 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), signals...)
 	defer stop()
 
+	ctx = auth.GetAdminContext(ctx)
+
 	cfg, err := config.NewConfig(*conf)
 	if err != nil {
 		log.Fatalf("Fetching config: %+v", err) //nolint:gocritic

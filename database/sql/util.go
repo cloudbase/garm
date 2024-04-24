@@ -127,6 +127,11 @@ func (s *sqlDatabase) sqlToCommonOrganization(org Organization, detailed bool) (
 		PoolBalancerType: org.PoolBalancerType,
 		Endpoint:         endpoint,
 	}
+
+	if org.CredentialsID != nil {
+		ret.CredentialsID = *org.CredentialsID
+	}
+
 	if detailed {
 		creds, err := s.sqlToCommonGithubCredentials(org.Credentials)
 		if err != nil {
@@ -170,6 +175,10 @@ func (s *sqlDatabase) sqlToCommonEnterprise(enterprise Enterprise, detailed bool
 		WebhookSecret:    string(secret),
 		PoolBalancerType: enterprise.PoolBalancerType,
 		Endpoint:         endpoint,
+	}
+
+	if enterprise.CredentialsID != nil {
+		ret.CredentialsID = *enterprise.CredentialsID
 	}
 
 	if detailed {
@@ -276,6 +285,10 @@ func (s *sqlDatabase) sqlToCommonRepository(repo Repository, detailed bool) (par
 		WebhookSecret:    string(secret),
 		PoolBalancerType: repo.PoolBalancerType,
 		Endpoint:         endpoint,
+	}
+
+	if repo.CredentialsID != nil {
+		ret.CredentialsID = *repo.CredentialsID
 	}
 
 	if detailed {

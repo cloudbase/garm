@@ -67,6 +67,8 @@ func (r *Runner) CreateOrganization(ctx context.Context, param params.CreateOrgP
 		}
 	}()
 
+	// Use the admin context in the pool manager. Any access control is already done above when
+	// updating the store.
 	poolMgr, err := r.poolManagerCtrl.CreateOrgPoolManager(r.ctx, org, r.providers, r.store)
 	if err != nil {
 		return params.Organization{}, errors.Wrap(err, "creating org pool manager")
@@ -201,6 +203,8 @@ func (r *Runner) UpdateOrganization(ctx context.Context, orgID string, param par
 		return params.Organization{}, errors.Wrap(err, "updating org")
 	}
 
+	// Use the admin context in the pool manager. Any access control is already done above when
+	// updating the store.
 	poolMgr, err := r.poolManagerCtrl.UpdateOrgPoolManager(r.ctx, org)
 	if err != nil {
 		return params.Organization{}, fmt.Errorf("updating org pool manager: %w", err)

@@ -67,6 +67,7 @@ func NewRunner(ctx context.Context, cfg config.Config, db dbCommon.Store) (*Runn
 	poolManagerCtrl := &poolManagerCtrl{
 		controllerID:  ctrlID.ControllerID.String(),
 		config:        cfg,
+		store:         db,
 		repositories:  map[string]common.PoolManager{},
 		organizations: map[string]common.PoolManager{},
 		enterprises:   map[string]common.PoolManager{},
@@ -92,6 +93,7 @@ type poolManagerCtrl struct {
 
 	controllerID string
 	config       config.Config
+	store        dbCommon.Store
 
 	repositories  map[string]common.PoolManager
 	organizations map[string]common.PoolManager
@@ -102,7 +104,12 @@ func (p *poolManagerCtrl) CreateRepoPoolManager(ctx context.Context, repo params
 	p.mux.Lock()
 	defer p.mux.Unlock()
 
-	cfgInternal, err := p.getInternalConfig(ctx, repo.Credentials, repo.GetBalancerType())
+	creds, err := p.store.GetGithubCredentials(ctx, repo.CredentialsID, true)
+	if err != nil {
+		return nil, errors.Wrap(err, "fetching credentials")
+	}
+
+	cfgInternal, err := p.getInternalConfig(ctx, creds, repo.GetBalancerType())
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching internal config")
 	}
@@ -130,7 +137,12 @@ func (p *poolManagerCtrl) UpdateRepoPoolManager(ctx context.Context, repo params
 		return nil, errors.Wrapf(runnerErrors.ErrNotFound, "repository %s/%s pool manager not loaded", repo.Owner, repo.Name)
 	}
 
-	internalCfg, err := p.getInternalConfig(ctx, repo.Credentials, repo.GetBalancerType())
+	creds, err := p.store.GetGithubCredentials(ctx, repo.CredentialsID, true)
+	if err != nil {
+		return nil, errors.Wrap(err, "fetching credentials")
+	}
+
+	internalCfg, err := p.getInternalConfig(ctx, creds, repo.GetBalancerType())
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching internal config")
 	}
@@ -175,7 +187,11 @@ func (p *poolManagerCtrl) CreateOrgPoolManager(ctx context.Context, org params.O
 	p.mux.Lock()
 	defer p.mux.Unlock()
 
-	cfgInternal, err := p.getInternalConfig(ctx, org.Credentials, org.GetBalancerType())
+	creds, err := p.store.GetGithubCredentials(ctx, org.CredentialsID, true)
+	if err != nil {
+		return nil, errors.Wrap(err, "fetching credentials")
+	}
+	cfgInternal, err := p.getInternalConfig(ctx, creds, org.GetBalancerType())
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching internal config")
 	}
@@ -202,7 +218,11 @@ func (p *poolManagerCtrl) UpdateOrgPoolManager(ctx context.Context, org params.O
 		return nil, errors.Wrapf(runnerErrors.ErrNotFound, "org %s pool manager not loaded", org.Name)
 	}
 
-	internalCfg, err := p.getInternalConfig(ctx, org.Credentials, org.GetBalancerType())
+	creds, err := p.store.GetGithubCredentials(ctx, org.CredentialsID, true)
+	if err != nil {
+		return nil, errors.Wrap(err, "fetching credentials")
+	}
+	internalCfg, err := p.getInternalConfig(ctx, creds, org.GetBalancerType())
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching internal config")
 	}
@@ -247,7 +267,11 @@ func (p *poolManagerCtrl) CreateEnterprisePoolManager(ctx context.Context, enter
 	p.mux.Lock()
 	defer p.mux.Unlock()
 
-	cfgInternal, err := p.getInternalConfig(ctx, enterprise.Credentials, enterprise.GetBalancerType())
+	creds, err := p.store.GetGithubCredentials(ctx, enterprise.CredentialsID, true)
+	if err != nil {
+		return nil, errors.Wrap(err, "fetching credentials")
+	}
+	cfgInternal, err := p.getInternalConfig(ctx, creds, enterprise.GetBalancerType())
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching internal config")
 	}
@@ -275,7 +299,11 @@ func (p *poolManagerCtrl) UpdateEnterprisePoolManager(ctx context.Context, enter
 		return nil, errors.Wrapf(runnerErrors.ErrNotFound, "enterprise %s pool manager not loaded", enterprise.Name)
 	}
 
-	internalCfg, err := p.getInternalConfig(ctx, enterprise.Credentials, enterprise.GetBalancerType())
+	creds, err := p.store.GetGithubCredentials(ctx, enterprise.CredentialsID, true)
+	if err != nil {
+		return nil, errors.Wrap(err, "fetching credentials")
+	}
+	internalCfg, err := p.getInternalConfig(ctx, creds, enterprise.GetBalancerType())
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching internal config")
 	}

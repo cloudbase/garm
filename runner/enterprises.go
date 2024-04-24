@@ -54,6 +54,8 @@ func (r *Runner) CreateEnterprise(ctx context.Context, param params.CreateEnterp
 		}
 	}()
 
+	// Use the admin context in the pool manager. Any access control is already done above when
+	// updating the store.
 	var poolMgr common.PoolManager
 	poolMgr, err = r.poolManagerCtrl.CreateEnterprisePoolManager(r.ctx, enterprise, r.providers, r.store)
 	if err != nil {
@@ -172,6 +174,8 @@ func (r *Runner) UpdateEnterprise(ctx context.Context, enterpriseID string, para
 		return params.Enterprise{}, errors.Wrap(err, "updating enterprise")
 	}
 
+	// Use the admin context in the pool manager. Any access control is already done above when
+	// updating the store.
 	poolMgr, err := r.poolManagerCtrl.UpdateEnterprisePoolManager(r.ctx, enterprise)
 	if err != nil {
 		return params.Enterprise{}, fmt.Errorf("failed to update enterprise pool manager: %w", err)
