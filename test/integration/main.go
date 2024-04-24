@@ -81,6 +81,9 @@ func main() {
 	// Create test credentials
 	e2e.EnsureTestCredentials(credentialsName, ghToken, "github.com")
 
+	// Test endpoint operations
+	e2e.TestGithubEndpointOperations()
+
 	// //////////////////
 	// controller info //
 	// //////////////////

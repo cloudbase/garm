@@ -45,6 +45,7 @@ jobs:
           echo "GARM_PASSWORD=$GARM_PASSWORD" >> $GITHUB_ENV
           echo "REPO_WEBHOOK_SECRET=$REPO_WEBHOOK_SECRET" >> $GITHUB_ENV
           echo "ORG_WEBHOOK_SECRET=$ORG_WEBHOOK_SECRET" >> $GITHUB_ENV
+          echo "GARM_CHECKOUT_DIR=$GITHUB_WORKSPACE" >> $GITHUB_ENV
 
       - name: Create logs directory
         if: always()
