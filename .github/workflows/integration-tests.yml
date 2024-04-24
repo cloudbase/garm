@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup Golang
         uses: actions/setup-go@v3
@@ -20,7 +20,9 @@ jobs:
         uses: canonical/setup-lxd@v0.1.1
 
       - name: Install dependencies
-        run: sudo apt-get -qq update && sudo apt-get -qq install -y apg coreutils make
+        run: |
+          sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list
+          sudo apt-get -qq update && sudo apt-get -qq install -y apg coreutils make
 
       - name: Set up ngrok
         id: ngrok
