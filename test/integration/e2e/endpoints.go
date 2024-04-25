@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"log/slog"
 	"os"
 	"path/filepath"
 
@@ -44,15 +45,23 @@ func checkEndpointParamsAreEqual(a, b params.GithubEndpoint) {
 	}
 }
 
-func TestGithubEndpointOperations() {
+func getTestFileContents(relPath string) []byte {
 	baseDir := os.Getenv("GARM_CHECKOUT_DIR")
 	if baseDir == "" {
 		panic("GARM_CHECKOUT_DIR not set")
 	}
-	caBundle, err := os.ReadFile(filepath.Join(baseDir, "testdata/certs/srv-pub.pem"))
+	contents, err := os.ReadFile(filepath.Join(baseDir, "testdata", relPath))
 	if err != nil {
 		panic(err)
 	}
+	return contents
+}
+
+func TestGithubEndpointOperations() {
+	MustDefaultGithubEndpoint()
+
+	caBundle := getTestFileContents("certs/srv-pub.pem")
+
 	endpointParams := params.CreateGithubEndpointParams{
 		Name:          "test-endpoint",
 		Description:   "Test endpoint",
@@ -107,8 +116,64 @@ func TestGithubEndpointOperations() {
 	}
 
 	DeleteGithubEndpoint(endpoint.Name)
+}
 
+func TestGithubEndpointMustFailToDeleteDefaultGithubEndpoint() {
 	if err := deleteGithubEndpoint(cli, authToken, "github.com"); err == nil {
 		panic("expected error when attempting to delete the default github.com endpoint")
+	}
+}
+
+func TestGithubEndpointFailsOnInvalidCABundle() {
+	slog.Info("Testing endpoint creation with invalid CA cert bundle")
+	badCABundle := getTestFileContents("certs/srv-key.pem")
+
+	endpointParams := params.CreateGithubEndpointParams{
+		Name:          "dummy",
+		Description:   "Dummy endpoint",
+		BaseURL:       "https://ghes.example.com",
+		APIBaseURL:    "https://api.ghes.example.com/",
+		UploadBaseURL: "https://uploads.ghes.example.com/",
+		CACertBundle:  badCABundle,
+	}
+
+	if _, err := createGithubEndpoint(cli, authToken, endpointParams); err == nil {
+		panic("expected error when creating endpoint with invalid CA cert bundle")
+	}
+}
+
+func TestGithubEndpointDeletionFailsWhenCredentialsExist() {
+	slog.Info("Testing endpoint deletion when credentials exist")
+	endpointParams := params.CreateGithubEndpointParams{
+		Name:          "dummy",
+		Description:   "Dummy endpoint",
+		BaseURL:       "https://ghes.example.com",
+		APIBaseURL:    "https://api.ghes.example.com/",
+		UploadBaseURL: "https://uploads.ghes.example.com/",
+	}
+
+	endpoint := CreateGithubEndpoint(endpointParams)
+	creds := createDummyCredentials("test-creds", endpoint.Name)
+
+	if err := deleteGithubEndpoint(cli, authToken, endpoint.Name); err == nil {
+		panic("expected error when deleting endpoint with credentials")
+	}
+
+	DeleteGithubCredential(int64(creds.ID))
+	DeleteGithubEndpoint(endpoint.Name)
+}
+
+func TestGithubEndpointFailsOnDuplicateName() {
+	slog.Info("Testing endpoint creation with duplicate name")
+	endpointParams := params.CreateGithubEndpointParams{
+		Name:          "github.com",
+		Description:   "Dummy endpoint",
+		BaseURL:       "https://ghes.example.com",
+		APIBaseURL:    "https://api.ghes.example.com/",
+		UploadBaseURL: "https://uploads.ghes.example.com/",
+	}
+
+	if _, err := createGithubEndpoint(cli, authToken, endpointParams); err == nil {
+		panic("expected error when creating endpoint with duplicate name")
 	}
 }

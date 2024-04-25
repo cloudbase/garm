@@ -21,3 +21,16 @@ func EnsureTestCredentials(name string, oauthToken string, endpointName string) 
 	createCredsParams.Name = fmt.Sprintf("%s-clone", name)
 	CreateGithubCredentials(createCredsParams)
 }
+
+func createDummyCredentials(name, endpointName string) *params.GithubCredentials {
+	createCredsParams := params.CreateGithubCredentialsParams{
+		Name:        name,
+		Endpoint:    endpointName,
+		Description: "GARM test credentials",
+		AuthType:    params.GithubAuthTypePAT,
+		PAT: params.GithubPAT{
+			OAuth2Token: "dummy",
+		},
+	}
+	return CreateGithubCredentials(createCredsParams)
+}
