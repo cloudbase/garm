@@ -279,8 +279,8 @@ func (s *sqlDatabase) CreateGithubCredentials(ctx context.Context, param params.
 			return errors.Wrap(err, "fetching github endpoint")
 		}
 
-		if err := tx.Where("name = ?", param.Name).First(&creds).Error; err == nil {
-			return errors.New("github credentials already exists")
+		if err := tx.Where("name = ? and user_id = ?", param.Name, userID).First(&creds).Error; err == nil {
+			return errors.Wrap(runnerErrors.ErrDuplicateEntity, "github credentials already exists")
 		}
 
 		var data []byte
@@ -449,7 +449,7 @@ func (s *sqlDatabase) UpdateGithubCredentials(ctx context.Context, id uint, para
 			}
 
 			if param.App != nil {
-				return errors.New("cannot update app credentials for PAT")
+				return errors.Wrap(runnerErrors.ErrBadRequest, "cannot update app credentials for PAT")
 			}
 		case params.GithubAuthTypeApp:
 			if param.App != nil {
@@ -457,7 +457,7 @@ func (s *sqlDatabase) UpdateGithubCredentials(ctx context.Context, id uint, para
 			}
 
 			if param.PAT != nil {
-				return errors.New("cannot update PAT credentials for app")
+				return errors.Wrap(runnerErrors.ErrBadRequest, "cannot update PAT credentials for app")
 			}
 		}
 

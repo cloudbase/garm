@@ -77,6 +77,15 @@ func DeleteGithubEndpoint(name string) {
 	}
 }
 
+func UpdateGithubEndpoint(name string, updateParams params.UpdateGithubEndpointParams) *params.GithubEndpoint {
+	slog.Info("Update GitHub endpoint")
+	updated, err := updateGithubEndpoint(cli, authToken, name, updateParams)
+	if err != nil {
+		panic(err)
+	}
+	return updated
+}
+
 func ListProviders() params.Providers {
 	slog.Info("List providers")
 	providers, err := listProviders(cli, authToken)

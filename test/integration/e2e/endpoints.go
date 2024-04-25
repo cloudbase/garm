@@ -177,3 +177,64 @@ func TestGithubEndpointFailsOnDuplicateName() {
 		panic("expected error when creating endpoint with duplicate name")
 	}
 }
+
+func TestGithubEndpointUpdateEndpoint() {
+	slog.Info("Testing endpoint update")
+	endpoint := createDummyEndpoint("dummy")
+	defer DeleteGithubEndpoint(endpoint.Name)
+
+	newDescription := "Updated description"
+	newBaseURL := "https://ghes2.example.com"
+	newAPIBaseURL := "https://api.ghes2.example.com/"
+	newUploadBaseURL := "https://uploads.ghes2.example.com/"
+	newCABundle := getTestFileContents("certs/srv-pub.pem")
+
+	updateParams := params.UpdateGithubEndpointParams{
+		Description:   &newDescription,
+		BaseURL:       &newBaseURL,
+		APIBaseURL:    &newAPIBaseURL,
+		UploadBaseURL: &newUploadBaseURL,
+		CACertBundle:  newCABundle,
+	}
+
+	updated, err := updateGithubEndpoint(cli, authToken, endpoint.Name, updateParams)
+	if err != nil {
+		panic(err)
+	}
+
+	if updated.Name != endpoint.Name {
+		panic("Endpoint name mismatch")
+	}
+
+	if updated.Description != newDescription {
+		panic("Endpoint description mismatch")
+	}
+
+	if updated.BaseURL != newBaseURL {
+		panic("Endpoint base URL mismatch")
+	}
+
+	if updated.APIBaseURL != newAPIBaseURL {
+		panic("Endpoint API base URL mismatch")
+	}
+
+	if updated.UploadBaseURL != newUploadBaseURL {
+		panic("Endpoint upload base URL mismatch")
+	}
+
+	if string(updated.CACertBundle) != string(newCABundle) {
+		panic("Endpoint CA cert bundle mismatch")
+	}
+}
+
+func createDummyEndpoint(name string) *params.GithubEndpoint {
+	endpointParams := params.CreateGithubEndpointParams{
+		Name:          name,
+		Description:   "Dummy endpoint",
+		BaseURL:       "https://ghes.example.com",
+		APIBaseURL:    "https://api.ghes.example.com/",
+		UploadBaseURL: "https://uploads.ghes.example.com/",
+	}
+
+	return CreateGithubEndpoint(endpointParams)
+}

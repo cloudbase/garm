@@ -77,6 +77,16 @@ func getGithubCredential(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuth
 	return &getCredentialsResponse.Payload, nil
 }
 
+func updateGithubCredentials(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, credentialsID int64, credentialsParams params.UpdateGithubCredentialsParams) (*params.GithubCredentials, error) {
+	updateCredentialsResponse, err := apiCli.Credentials.UpdateCredentials(
+		clientCredentials.NewUpdateCredentialsParams().WithID(credentialsID).WithBody(credentialsParams),
+		apiAuthToken)
+	if err != nil {
+		return nil, err
+	}
+	return &updateCredentialsResponse.Payload, nil
+}
+
 func createGithubEndpoint(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, endpointParams params.CreateGithubEndpointParams) (*params.GithubEndpoint, error) {
 	createEndpointResponse, err := apiCli.Endpoints.CreateGithubEndpoint(
 		clientEndpoints.NewCreateGithubEndpointParams().WithBody(endpointParams),
@@ -111,6 +121,16 @@ func deleteGithubEndpoint(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAut
 	return apiCli.Endpoints.DeleteGithubEndpoint(
 		clientEndpoints.NewDeleteGithubEndpointParams().WithName(endpointName),
 		apiAuthToken)
+}
+
+func updateGithubEndpoint(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, endpointName string, endpointParams params.UpdateGithubEndpointParams) (*params.GithubEndpoint, error) {
+	updateEndpointResponse, err := apiCli.Endpoints.UpdateGithubEndpoint(
+		clientEndpoints.NewUpdateGithubEndpointParams().WithName(endpointName).WithBody(endpointParams),
+		apiAuthToken)
+	if err != nil {
+		return nil, err
+	}
+	return &updateEndpointResponse.Payload, nil
 }
 
 // listProviders lists all the providers configured in GARM.

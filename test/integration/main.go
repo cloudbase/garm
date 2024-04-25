@@ -85,6 +85,15 @@ func main() {
 
 	// Create test credentials
 	e2e.EnsureTestCredentials(credentialsName, ghToken, "github.com")
+	e2e.TestGithubCredentialsErrorOnDuplicateCredentialsName()
+	e2e.TestGithubCredentialsFailsToDeleteWhenInUse()
+	e2e.TestGithubCredentialsFailsOnInvalidAuthType()
+	e2e.TestGithubCredentialsFailsWhenAuthTypeParamsAreIncorrect()
+	e2e.TestGithubCredentialsFailsWhenAuthTypeParamsAreMissing()
+	e2e.TestGithubCredentialsUpdateFailsWhenBothPATAndAppAreSupplied()
+	e2e.TestGithubCredentialsFailWhenAppKeyIsInvalid()
+	e2e.TestGithubCredentialsFailWhenEndpointDoesntExist()
+	e2e.TestGithubCredentialsFailsOnDuplicateName()
 
 	// //////////////////
 	// controller info //
