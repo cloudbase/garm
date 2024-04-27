@@ -424,6 +424,9 @@ func (g GithubApp) Validate() error {
 	}
 
 	block, _ := pem.Decode(g.PrivateKeyBytes)
+	if block == nil {
+		return runnerErrors.NewBadRequestError("invalid private_key_bytes")
+	}
 	// Parse the private key as PCKS1
 	_, err := x509.ParsePKCS1PrivateKey(block.Bytes)
 	if err != nil {
