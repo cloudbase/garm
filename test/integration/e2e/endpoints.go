@@ -8,6 +8,11 @@ import (
 	"github.com/cloudbase/garm/params"
 )
 
+const (
+	defaultEndpointName  string = "github.com"
+	dummyCredentialsName string = "dummy"
+)
+
 func MustDefaultGithubEndpoint() {
 	ep := GetGithubEndpoint("github.com")
 	if ep == nil {
@@ -58,6 +63,7 @@ func getTestFileContents(relPath string) []byte {
 }
 
 func TestGithubEndpointOperations() {
+	slog.Info("Testing endpoint operations")
 	MustDefaultGithubEndpoint()
 
 	caBundle := getTestFileContents("certs/srv-pub.pem")
@@ -119,6 +125,7 @@ func TestGithubEndpointOperations() {
 }
 
 func TestGithubEndpointMustFailToDeleteDefaultGithubEndpoint() {
+	slog.Info("Testing error when deleting default github.com endpoint")
 	if err := deleteGithubEndpoint(cli, authToken, "github.com"); err == nil {
 		panic("expected error when attempting to delete the default github.com endpoint")
 	}

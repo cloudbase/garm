@@ -28,6 +28,6 @@ func expectAPIStatusCode(err error, expectedCode int) {
 		log.Fatalf("expected API error, got %v (%T)", err, err)
 	}
 	if !apiErr.IsCode(expectedCode) {
-		log.Fatalf("expected status code %d", expectedCode)
+		log.Fatalf("expected status code %d: %v", expectedCode, err)
 	}
 }

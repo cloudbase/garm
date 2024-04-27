@@ -2,11 +2,13 @@ package e2e
 
 import (
 	"fmt"
+	"log/slog"
 
 	"github.com/cloudbase/garm/params"
 )
 
 func EnsureTestCredentials(name string, oauthToken string, endpointName string) {
+	slog.Info("Ensuring test credentials exist")
 	createCredsParams := params.CreateGithubCredentialsParams{
 		Name:        name,
 		Endpoint:    endpointName,
@@ -36,14 +38,13 @@ func createDummyCredentials(name, endpointName string) *params.GithubCredentials
 }
 
 func TestGithubCredentialsErrorOnDuplicateCredentialsName() {
-	name := "dummy"
-	endpointName := "github.com"
-	creds := createDummyCredentials(name, endpointName)
+	slog.Info("Testing error on duplicate credentials name")
+	creds := createDummyCredentials(dummyCredentialsName, defaultEndpointName)
 	defer DeleteGithubCredential(int64(creds.ID))
 
 	createCredsParams := params.CreateGithubCredentialsParams{
-		Name:        name,
-		Endpoint:    endpointName,
+		Name:        dummyCredentialsName,
+		Endpoint:    defaultEndpointName,
 		Description: "GARM test credentials",
 		AuthType:    params.GithubAuthTypePAT,
 		PAT: params.GithubPAT{
@@ -56,9 +57,8 @@ func TestGithubCredentialsErrorOnDuplicateCredentialsName() {
 }
 
 func TestGithubCredentialsFailsToDeleteWhenInUse() {
-	name := "dummy"
-	endpointName := "github.com"
-	creds := createDummyCredentials(name, endpointName)
+	slog.Info("Testing error when deleting credentials in use")
+	creds := createDummyCredentials(dummyCredentialsName, defaultEndpointName)
 
 	repo := CreateRepo("dummy-owner", "dummy-repo", creds.Name, "superSecret@123BlaBla")
 	defer func() {
@@ -72,12 +72,10 @@ func TestGithubCredentialsFailsToDeleteWhenInUse() {
 }
 
 func TestGithubCredentialsFailsOnInvalidAuthType() {
-	name := "dummy"
-	endpointName := "github.com"
-
+	slog.Info("Testing error on invalid auth type")
 	createCredsParams := params.CreateGithubCredentialsParams{
-		Name:        name,
-		Endpoint:    endpointName,
+		Name:        dummyCredentialsName,
+		Endpoint:    defaultEndpointName,
 		Description: "GARM test credentials",
 		AuthType:    params.GithubAuthType("invalid"),
 		PAT: params.GithubPAT{
@@ -92,12 +90,10 @@ func TestGithubCredentialsFailsOnInvalidAuthType() {
 }
 
 func TestGithubCredentialsFailsWhenAuthTypeParamsAreIncorrect() {
-	name := "dummy"
-	endpointName := "github.com"
-
+	slog.Info("Testing error when auth type params are incorrect")
 	createCredsParams := params.CreateGithubCredentialsParams{
-		Name:        name,
-		Endpoint:    endpointName,
+		Name:        dummyCredentialsName,
+		Endpoint:    defaultEndpointName,
 		Description: "GARM test credentials",
 		AuthType:    params.GithubAuthTypePAT,
 		App: params.GithubApp{
@@ -114,12 +110,10 @@ func TestGithubCredentialsFailsWhenAuthTypeParamsAreIncorrect() {
 }
 
 func TestGithubCredentialsFailsWhenAuthTypeParamsAreMissing() {
-	name := "dummy"
-	endpointName := "github.com"
-
+	slog.Info("Testing error when auth type params are missing")
 	createCredsParams := params.CreateGithubCredentialsParams{
-		Name:        name,
-		Endpoint:    endpointName,
+		Name:        dummyCredentialsName,
+		Endpoint:    defaultEndpointName,
 		Description: "GARM test credentials",
 		AuthType:    params.GithubAuthTypeApp,
 	}
@@ -131,9 +125,8 @@ func TestGithubCredentialsFailsWhenAuthTypeParamsAreMissing() {
 }
 
 func TestGithubCredentialsUpdateFailsWhenBothPATAndAppAreSupplied() {
-	name := "dummy"
-	endpointName := "github.com"
-	creds := createDummyCredentials(name, endpointName)
+	slog.Info("Testing error when both PAT and App are supplied")
+	creds := createDummyCredentials(dummyCredentialsName, defaultEndpointName)
 	defer DeleteGithubCredential(int64(creds.ID))
 
 	updateCredsParams := params.UpdateGithubCredentialsParams{
@@ -154,12 +147,10 @@ func TestGithubCredentialsUpdateFailsWhenBothPATAndAppAreSupplied() {
 }
 
 func TestGithubCredentialsFailWhenAppKeyIsInvalid() {
-	name := "dummy"
-	endpointName := "github.com"
-
+	slog.Info("Testing error when app key is invalid")
 	createCredsParams := params.CreateGithubCredentialsParams{
-		Name:        name,
-		Endpoint:    endpointName,
+		Name:        dummyCredentialsName,
+		Endpoint:    defaultEndpointName,
 		Description: "GARM test credentials",
 		AuthType:    params.GithubAuthTypeApp,
 		App: params.GithubApp{
@@ -176,12 +167,10 @@ func TestGithubCredentialsFailWhenAppKeyIsInvalid() {
 }
 
 func TestGithubCredentialsFailWhenEndpointDoesntExist() {
-	name := "dummy"
-	endpointName := "nonexistent"
-
+	slog.Info("Testing error when endpoint doesn't exist")
 	createCredsParams := params.CreateGithubCredentialsParams{
-		Name:        name,
-		Endpoint:    endpointName,
+		Name:        dummyCredentialsName,
+		Endpoint:    defaultEndpointName,
 		Description: "GARM test credentials",
 		AuthType:    params.GithubAuthTypePAT,
 		PAT: params.GithubPAT{
@@ -196,14 +185,13 @@ func TestGithubCredentialsFailWhenEndpointDoesntExist() {
 }
 
 func TestGithubCredentialsFailsOnDuplicateName() {
-	name := "dummy"
-	endpointName := "github.com"
-	creds := createDummyCredentials(name, endpointName)
+	slog.Info("Testing error on duplicate credentials name")
+	creds := createDummyCredentials(dummyCredentialsName, defaultEndpointName)
 	defer DeleteGithubCredential(int64(creds.ID))
 
 	createCredsParams := params.CreateGithubCredentialsParams{
-		Name:        name,
-		Endpoint:    endpointName,
+		Name:        dummyCredentialsName,
+		Endpoint:    defaultEndpointName,
 		Description: "GARM test credentials",
 		AuthType:    params.GithubAuthTypePAT,
 		PAT: params.GithubPAT{
