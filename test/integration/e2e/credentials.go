@@ -170,7 +170,7 @@ func TestGithubCredentialsFailWhenEndpointDoesntExist() {
 	slog.Info("Testing error when endpoint doesn't exist")
 	createCredsParams := params.CreateGithubCredentialsParams{
 		Name:        dummyCredentialsName,
-		Endpoint:    defaultEndpointName,
+		Endpoint:    "iDontExist.example.com",
 		Description: "GARM test credentials",
 		AuthType:    params.GithubAuthTypePAT,
 		PAT: params.GithubPAT{

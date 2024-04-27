@@ -585,6 +585,7 @@ type GithubCredentials struct {
 	Enterprises   []Enterprise   `json:"enterprises,omitempty"`
 	Endpoint      GithubEndpoint `json:"endpoint"`
 
+	// Do not serialize sensitive info.
 	CredentialsPayload []byte `json:"-"`
 }
 

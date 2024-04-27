@@ -15,6 +15,8 @@
 package cmd
 
 import (
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"os"
 	"strconv"
@@ -41,7 +43,7 @@ var (
 var credentialsCmd = &cobra.Command{
 	Use:     "credentials",
 	Aliases: []string{"creds"},
-	Short:   "List configured credentials",
+	Short:   "List configured credentials. This is an alias for the github credentials command.",
 	Long: `List all available github credentials.
 
 This command is an alias for the garm-cli github credentials command.`,
@@ -258,20 +260,20 @@ func init() {
 }
 
 func parsePrivateKeyFromPath(path string) ([]byte, error) {
-	// if _, err := os.Stat(path); err != nil {
-	// 	return nil, fmt.Errorf("private key file not found: %s", credentialsPrivateKeyPath)
-	// }
+	if _, err := os.Stat(path); err != nil {
+		return nil, fmt.Errorf("private key file not found: %s", credentialsPrivateKeyPath)
+	}
 	keyContents, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read private key file: %w", err)
 	}
-	// pemBlock, _ := pem.Decode(keyContents)
-	// if pemBlock == nil {
-	// 	return nil, fmt.Errorf("failed to decode PEM block")
-	// }
-	// if _, err := x509.ParsePKCS1PrivateKey(pemBlock.Bytes); err != nil {
-	// 	return nil, fmt.Errorf("failed to parse private key: %w", err)
-	// }
+	pemBlock, _ := pem.Decode(keyContents)
+	if pemBlock == nil {
+		return nil, fmt.Errorf("failed to decode PEM block")
+	}
+	if _, err := x509.ParsePKCS1PrivateKey(pemBlock.Bytes); err != nil {
+		return nil, fmt.Errorf("failed to parse private key: %w", err)
+	}
 	return keyContents, nil
 }
 
