@@ -196,7 +196,7 @@ func (s *sqlDatabase) GetGithubEndpoint(_ context.Context, name string) (params.
 	err := s.conn.Where("name = ?", name).First(&endpoint).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return params.GithubEndpoint{}, errors.Wrap(err, "github endpoint not found")
+			return params.GithubEndpoint{}, errors.Wrap(runnerErrors.ErrNotFound, "github endpoint not found")
 		}
 		return params.GithubEndpoint{}, errors.Wrap(err, "fetching github endpoint")
 	}
@@ -215,7 +215,7 @@ func (s *sqlDatabase) DeleteGithubEndpoint(_ context.Context, name string) error
 		}
 
 		if endpoint.Name == "github.com" {
-			return errors.New("cannot delete default github endpoint")
+			return errors.Wrap(runnerErrors.ErrBadRequest, "cannot delete default github endpoint")
 		}
 
 		var credsCount int64
@@ -267,7 +267,7 @@ func (s *sqlDatabase) CreateGithubCredentials(ctx context.Context, param params.
 		return params.GithubCredentials{}, errors.Wrap(err, "creating github credentials")
 	}
 	if param.Endpoint == "" {
-		return params.GithubCredentials{}, errors.New("endpoint name is required")
+		return params.GithubCredentials{}, errors.Wrap(runnerErrors.ErrBadRequest, "endpoint name is required")
 	}
 	var creds GithubCredentials
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
@@ -290,6 +290,8 @@ func (s *sqlDatabase) CreateGithubCredentials(ctx context.Context, param params.
 			data, err = s.marshalAndSeal(param.PAT)
 		case params.GithubAuthTypeApp:
 			data, err = s.marshalAndSeal(param.App)
+		default:
+			return errors.Wrap(runnerErrors.ErrBadRequest, "invalid auth type")
 		}
 		if err != nil {
 			return errors.Wrap(err, "marshaling and sealing credentials")
