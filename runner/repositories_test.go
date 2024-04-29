@@ -24,7 +24,6 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
-	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/database"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	garmTesting "github.com/cloudbase/garm/internal/testing"
@@ -98,7 +97,7 @@ func (s *RepoTestSuite) SetupTest() {
 	var minIdleRunners uint = 20
 	providerMock := runnerCommonMocks.NewProvider(s.T())
 	fixtures := &RepoTestFixtures{
-		AdminContext: auth.GetAdminContext(context.Background()),
+		AdminContext: adminCtx,
 		Store:        db,
 		StoreRepos:   repos,
 		Providers: map[string]common.Provider{

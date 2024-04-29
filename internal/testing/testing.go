@@ -19,6 +19,7 @@ package testing
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -58,6 +59,30 @@ func ImpersonateAdminContext(ctx context.Context, db common.Store, s *testing.T)
 	}
 	ctx = auth.PopulateContext(ctx, adminUser)
 	return ctx
+}
+
+func CreateGARMTestUser(ctx context.Context, username string, db common.Store, s *testing.T) params.User {
+	newUserParams := params.NewUserParams{
+		Email:    fmt.Sprintf("%s@localhost", username),
+		Username: username,
+		Password: "superSecretPassword@123",
+		IsAdmin:  false,
+		Enabled:  true,
+	}
+
+	user, err := db.CreateUser(ctx, newUserParams)
+	if err != nil {
+		if errors.Is(err, runnerErrors.ErrDuplicateEntity) {
+			user, err = db.GetUser(ctx, newUserParams.Username)
+			if err != nil {
+				s.Fatalf("failed to get user by email: %v", err)
+			}
+			return user
+		}
+		s.Fatalf("failed to create user: %v", err)
+	}
+
+	return user
 }
 
 func CreateDefaultGithubEndpoint(ctx context.Context, db common.Store, s *testing.T) params.GithubEndpoint {

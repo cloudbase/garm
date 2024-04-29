@@ -331,15 +331,13 @@ func (s *sqlDatabase) getGithubCredentialsByName(ctx context.Context, tx *gorm.D
 			Preload("Enterprises")
 	}
 
-	if !auth.IsAdmin(ctx) {
-		userID, err := getUIDFromContext(ctx)
-		if err != nil {
-			return GithubCredentials{}, errors.Wrap(err, "fetching github credentials")
-		}
-		q = q.Where("user_id = ?", userID)
+	userID, err := getUIDFromContext(ctx)
+	if err != nil {
+		return GithubCredentials{}, errors.Wrap(err, "fetching github credentials")
 	}
+	q = q.Where("user_id = ?", userID)
 
-	err := q.Where("name = ?", name).First(&creds).Error
+	err = q.Where("name = ?", name).First(&creds).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return GithubCredentials{}, errors.Wrap(runnerErrors.ErrNotFound, "github credentials not found")
@@ -461,6 +459,10 @@ func (s *sqlDatabase) UpdateGithubCredentials(ctx context.Context, id uint, para
 			if param.PAT != nil {
 				return errors.Wrap(runnerErrors.ErrBadRequest, "cannot update PAT credentials for app")
 			}
+		default:
+			// This should never happen, unless there was a bug in the DB migration code,
+			// or the DB was manually modified.
+			return errors.Wrap(runnerErrors.ErrBadRequest, "invalid auth type")
 		}
 
 		if err != nil {
@@ -504,13 +506,13 @@ func (s *sqlDatabase) DeleteGithubCredentials(ctx context.Context, id uint) erro
 			return errors.Wrap(err, "fetching github credentials")
 		}
 		if len(creds.Repositories) > 0 {
-			return errors.New("cannot delete credentials with repositories")
+			return errors.Wrap(runnerErrors.ErrBadRequest, "cannot delete credentials with repositories")
 		}
 		if len(creds.Organizations) > 0 {
-			return errors.New("cannot delete credentials with organizations")
+			return errors.Wrap(runnerErrors.ErrBadRequest, "cannot delete credentials with organizations")
 		}
 		if len(creds.Enterprises) > 0 {
-			return errors.New("cannot delete credentials with enterprises")
+			return errors.Wrap(runnerErrors.ErrBadRequest, "cannot delete credentials with enterprises")
 		}
 
 		if err := tx.Unscoped().Delete(&creds).Error; err != nil {

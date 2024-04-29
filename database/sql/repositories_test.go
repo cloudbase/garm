@@ -28,6 +28,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
+	"github.com/cloudbase/garm/auth"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	garmTesting "github.com/cloudbase/garm/internal/testing"
 	"github.com/cloudbase/garm/params"
@@ -49,7 +50,9 @@ type RepoTestSuite struct {
 	StoreSQLMocked *sqlDatabase
 	Fixtures       *RepoTestFixtures
 
-	adminCtx           context.Context
+	adminCtx    context.Context
+	adminUserID string
+
 	testCreds          params.GithubCredentials
 	secondaryTestCreds params.GithubCredentials
 	githubEndpoint     params.GithubEndpoint
@@ -94,6 +97,8 @@ func (s *RepoTestSuite) SetupTest() {
 
 	adminCtx := garmTesting.ImpersonateAdminContext(context.Background(), db, s.T())
 	s.adminCtx = adminCtx
+	s.adminUserID = auth.UserID(adminCtx)
+	s.Require().NotEmpty(s.adminUserID)
 
 	s.githubEndpoint = garmTesting.CreateDefaultGithubEndpoint(adminCtx, db, s.T())
 	s.testCreds = garmTesting.CreateTestGithubCredentials(adminCtx, "new-creds", db, s.T(), s.githubEndpoint)
@@ -233,8 +238,8 @@ func (s *RepoTestSuite) TestCreateRepositoryInvalidDBPassphrase() {
 func (s *RepoTestSuite) TestCreateRepositoryInvalidDBCreateErr() {
 	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_credentials` WHERE name = ? AND `github_credentials`.`deleted_at` IS NULL ORDER BY `github_credentials`.`id` LIMIT ?")).
-		WithArgs(s.Fixtures.Repos[0].CredentialsName, 1).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_credentials` WHERE user_id = ? AND name = ? AND `github_credentials`.`deleted_at` IS NULL ORDER BY `github_credentials`.`id` LIMIT ?")).
+		WithArgs(s.adminUserID, s.Fixtures.Repos[0].CredentialsName, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "endpoint_name"}).
 			AddRow(s.testCreds.ID, s.githubEndpoint.Name))
 	s.Fixtures.SQLMock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_endpoints` WHERE `github_endpoints`.`name` = ? AND `github_endpoints`.`deleted_at` IS NULL")).
@@ -393,8 +398,8 @@ func (s *RepoTestSuite) TestUpdateRepositoryDBEncryptErr() {
 		WillReturnRows(sqlmock.NewRows([]string{"id", "endpoint_name"}).
 			AddRow(s.Fixtures.Repos[0].ID, s.githubEndpoint.Name))
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_credentials` WHERE name = ? AND `github_credentials`.`deleted_at` IS NULL ORDER BY `github_credentials`.`id` LIMIT ?")).
-		WithArgs(s.secondaryTestCreds.Name, 1).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_credentials` WHERE user_id = ? AND name = ? AND `github_credentials`.`deleted_at` IS NULL ORDER BY `github_credentials`.`id` LIMIT ?")).
+		WithArgs(s.adminUserID, s.secondaryTestCreds.Name, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "endpoint_name"}).
 			AddRow(s.secondaryTestCreds.ID, s.secondaryTestCreds.Endpoint.Name))
 	s.Fixtures.SQLMock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_endpoints` WHERE `github_endpoints`.`name` = ? AND `github_endpoints`.`deleted_at` IS NULL")).
@@ -418,8 +423,8 @@ func (s *RepoTestSuite) TestUpdateRepositoryDBSaveErr() {
 		WillReturnRows(sqlmock.NewRows([]string{"id", "endpoint_name"}).
 			AddRow(s.Fixtures.Repos[0].ID, s.githubEndpoint.Name))
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_credentials` WHERE name = ? AND `github_credentials`.`deleted_at` IS NULL ORDER BY `github_credentials`.`id` LIMIT ?")).
-		WithArgs(s.secondaryTestCreds.Name, 1).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_credentials` WHERE user_id = ? AND name = ? AND `github_credentials`.`deleted_at` IS NULL ORDER BY `github_credentials`.`id` LIMIT ?")).
+		WithArgs(s.adminUserID, s.secondaryTestCreds.Name, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "endpoint_name"}).
 			AddRow(s.secondaryTestCreds.ID, s.secondaryTestCreds.Endpoint.Name))
 	s.Fixtures.SQLMock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_endpoints` WHERE `github_endpoints`.`name` = ? AND `github_endpoints`.`deleted_at` IS NULL")).
@@ -448,8 +453,8 @@ func (s *RepoTestSuite) TestUpdateRepositoryDBDecryptingErr() {
 		WillReturnRows(sqlmock.NewRows([]string{"id", "endpoint_name"}).
 			AddRow(s.Fixtures.Repos[0].ID, s.githubEndpoint.Name))
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_credentials` WHERE name = ? AND `github_credentials`.`deleted_at` IS NULL ORDER BY `github_credentials`.`id` LIMIT ?")).
-		WithArgs(s.secondaryTestCreds.Name, 1).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_credentials` WHERE user_id = ? AND name = ? AND `github_credentials`.`deleted_at` IS NULL ORDER BY `github_credentials`.`id` LIMIT ?")).
+		WithArgs(s.adminUserID, s.secondaryTestCreds.Name, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "endpoint_name"}).
 			AddRow(s.secondaryTestCreds.ID, s.secondaryTestCreds.Endpoint.Name))
 	s.Fixtures.SQLMock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_endpoints` WHERE `github_endpoints`.`name` = ? AND `github_endpoints`.`deleted_at` IS NULL")).
