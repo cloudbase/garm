@@ -1,8 +1,32 @@
-# Configuring github credentials
+# Configuring github endpoints and credentials
 
-The ```github``` config section holds credentials and API endpoint information for accessing the GitHub APIs. Credentials are tied to the instance of GitHub you're using. Whether you're using [github.com](https://github.com) or your own deployment of GitHub Enterprise server, this section is how ```garm``` knows where it should create the runners.
+Starting with version `v0.1.5`, GARM saves github endpoints and github credentials in the database.
 
-Tying the API endpoint info to the credentials allows us to use the same ```garm``` installation with both [github.com](https://github.com) and private deployments. All you have to do is to add the needed endpoint info (see bellow).
+<!-- TOC -->
+
+- [Configuring github endpoints and credentials](#configuring-github-endpoints-and-credentials)
+    - [Listing GitHub endpoints](#listing-github-endpoints)
+    - [Adding GitHub credentials](#adding-github-credentials)
+    - [Listing GitHub credentials](#listing-github-credentials)
+    - [Deleting GitHub credentials](#deleting-github-credentials)
+
+<!-- /TOC -->
+## Listing GitHub endpoints
+
+To list the available GitHub endpoints, you can use the following command:
+
+```bash
+ubuntu@garm:~/garm$ garm-cli github endpoint list
++------------+--------------------------+-------------------------------+
+| NAME       | BASE URL                 | DESCRIPTION                   |
++------------+--------------------------+-------------------------------+
+| github.com | https://github.com       | The github.com endpoint       |
++------------+--------------------------+-------------------------------+
+| example    | https://ghes.example.com | Just an example ghes endpoint |
++------------+--------------------------+-------------------------------+
+```
+
+## Adding GitHub credentials
 
 GARM has the option to use both [Personal Access Tokens (PAT)](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token) or a [GitHub App](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/registering-a-github-app).
 
@@ -28,55 +52,44 @@ If you plan to use github apps, you'll need to select the following permissions:
 
 **Note** :warning:: Github Apps are not available at the enterprise level.
 
-The resulting credentials (app or PAT) must be configured in the ```[[github]]``` section of the config. Sample as follows:
+To add a new GitHub credential, you can use the following command:
 
-```toml
-# This is a list of credentials that you can define as part of the repository
-# or organization definitions. They are not saved inside the database, as there
-# is no Vault integration (yet). This will change in the future.
-# Credentials defined here can be listed using the API. Obviously, only the name
-# and descriptions are returned.
-[[github]]
-  name = "gabriel"
-  description = "github token or user gabriel"
-  # This is the type of authentication to use. It can be "pat" or "app"
-  auth_type = "pat"
-  [github.pat]
-     # This is a personal token with access to the repositories and organizations
-    # you plan on adding to garm. The "workflow" option needs to be selected in order
-    # to work with repositories, and the admin:org needs to be set if you plan on
-    # adding an organization.
-    oauth2_token = "super secret token"
-  [github.app]
-    # This is the app_id of the GitHub App that you want to use to authenticate
-    # with the GitHub API.
-    # This needs to be changed
-    app_id = 1
-    # This is the private key path of the GitHub App that you want to use to authenticate
-    # with the GitHub API.
-    # This needs to be changed
-    private_key_path = "/etc/garm/yourAppName.2024-03-01.private-key.pem"
-    # This is the installation_id of the GitHub App that you want to use to authenticate
-    # with the GitHub API.
-    # This needs to be changed
-    installation_id = 99
-  # base_url (optional) is the URL at which your GitHub Enterprise Server can be accessed.
-  # If these credentials are for github.com, leave this setting blank
-  base_url = "https://ghe.example.com"
-  # api_base_url (optional) is the base URL where the GitHub Enterprise Server API can be accessed.
-  # Leave this blank if these credentials are for github.com.
-  api_base_url = "https://ghe.example.com"
-  # upload_base_url (optional) is the base URL where the GitHub Enterprise Server upload API can be accessed.
-  # Leave this blank if these credentials are for github.com, or if you don't have a separate URL
-  # for the upload API.
-  upload_base_url = "https://api.ghe.example.com"
-  # ca_cert_bundle (optional) is the CA certificate bundle in PEM format that will be used by the github
-  # client to talk to the API. This bundle will also be sent to all runners as bootstrap params.
-  # Use this option if you're using a self signed certificate.
-  # Leave this blank if you're using github.com or if your certificate is signed by a valid CA.
-  ca_cert_bundle = "/etc/garm/ghe.crt"
+```bash
+garm-cli github credentials add \
+  --name gabriel \
+  --description "GitHub PAT for user gabriel" \
+  --auth-type pat \
+  --pat-oauth-token gh_theRestOfThePAT \
+  --endpoint github.com
 ```
 
-The double parenthesis means that this is an array. You can specify the ```[[github]]``` section multiple times, with different tokens from different users, or with different access levels. You will then be able to list the available credentials using the API, and reference these credentials when adding repositories or organizations.
+To add a new GitHub App credential, you can use the following command:
 
-The API will only ever return the name and description to the API consumer.
+```bash
+garm-cli github credentials add \
+  --name gabriel_app \
+  --description "Github App with access to repos" \
+  --endpoint github.com \
+  --auth-type app \
+  --app-id 1 \
+  --app-installation-id 99 \
+  --private-key-path $HOME/yourAppName.2024-03-01.private-key.pem
+```
+
+All sensitive data is encrypted at rest. The API will not return any sensitive info.
+
+## Listing GitHub credentials
+
+To list the available GitHub credentials, you can use the following command:
+
+```bash
+garm-cli github credentials list
+```
+
+## Deleting GitHub credentials
+
+To delete a GitHub credential, you can use the following command:
+
+```bash
+garm-cli github credentials delete <CREDENTIAL_ID>
+```

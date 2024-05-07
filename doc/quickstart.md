@@ -25,6 +25,8 @@ For a `classic` PAT, GARM needs the following permissions to function properly (
 * ```repo``` - for access to a private repository
 * ```admin:org``` - if you plan on using this with an organization to which you have access
 * ```manage_runners:enterprise``` - if you plan to use garm at the enterprise level
+* ```admin:repo_hook``` - if you want to allow GARM to install webhooks on repositories
+* ```admin:org_hook``` - if you want to allow GARM to install webhooks on organizations
 
 This doc will be updated at a future date with the exact permissions needed in case you want to use a fine grained PAT.
 
@@ -48,6 +50,7 @@ Open `/etc/garm/config.toml` in your favorite editor and paste the following:
 [default]
 callback_url = "https://garm.example.com/api/v1/callbacks"
 metadata_url = "https://garm.example.com/api/v1/metadata"
+# This is important for webhook management.
 webhook_url = "https://garm.example.com/webhooks"
 enable_webhook_management = true
 
@@ -84,7 +87,7 @@ time_to_live = "8760h"
     db_file = "/etc/garm/garm.db"
 ```
 
-This is a minimal config, with no providers or credentials defined. In this example we have the [default](./config_default.md), [logging](./config_logging.md), [metrics](./config_metrics.md), [jwt_auth](./config_jwt_auth.md), [apiserver](./config_api_server.md) and [database](./database.md) sections. Each are documented separately. Feel free to read through the available docs if, for example you need to enable TLS without using an nginx reverse proxy or if you want to enable the debug server, the log streamer or a log file.
+This is a minimal config, with no providers defined. In this example we have the [default](./config_default.md), [logging](./config_logging.md), [metrics](./config_metrics.md), [jwt_auth](./config_jwt_auth.md), [apiserver](./config_api_server.md) and [database](./database.md) sections. Each are documented separately. Feel free to read through the available docs if, for example you need to enable TLS without using an nginx reverse proxy or if you want to enable the debug server, the log streamer or a log file.
 
 In this sample config we:
 
@@ -102,11 +105,10 @@ We need to tell garm by which addresses it can be reached. There are many ways b
 
 The information in these two options is used by the instances we spin up to phone home their status and to fetch the needed metadata to finish setting themselves up. For now, the metadata URL is only used to fetch the runner registration token.
 
-The webhook URL is used by GARM itself to know how to set up the webhooks in GitHub. Each controller will have a unique ID and GARM will use the value in `webhook_url` as a base. It will append the controller ID to it and set up the webhook in GitHub. This way we won't overlap with other controllers that may use the same base URL.
-
+The webhook URL is used by GARM itself to know how to set up the webhooks in GitHub. Each controller will have a unique ID and GARM will use the value in `webhook_url` as a base. It will appen
 We won't go too much into detail about each of the options here. Have a look at the different config sections and their respective docs for more information.
 
-At this point, we have a valid config file, but we still need to add `provider` and `credentials` sections.
+At this point, we have a valid config file, but we still need to add the `provider` section.
 
 ## The provider section
 
@@ -126,9 +128,7 @@ All currently available providers are `external`.
 
 The easiest provider to set up is probably the LXD or Incus provider. Incus is a fork of LXD so the functionality is identical (for now). For the purpose of this document, we'll continue with LXD. You don't need an account on an external cloud. You can just use your machine.
 
-You will need to have LXD installed and configured. There is an excellent [getting started guide](https://documentation.ubuntu.com/lxd/en/latest/getting_started/) for LXD. Follow the instructions there to install and configure LXD, then come back here.
-
-Once you have LXD installed and configured, you can add the provider section to your config file. If you're connecting to the `local` LXD installation, the [config snippet for the LXD provider](https://github.com/cloudbase/garm-provider-lxd/blob/main/testdata/garm-provider-lxd.toml) will work out of the box. We'll be connecting using the unix socket so no further configuration will be needed.
+You will need to have LXD installed and configured. There is an excellent [getting started guide](https://documentation.ubuntu.com/lxd/en/latest/getting_started/) for LXD. Follow the  unix socket so no further configuration will be needed.
 
 Go ahead and create a new config somwhere where GARM can access it and paste that entire snippet. For the purposes of this doc, we'll assume you created a new file called `/etc/garm/garm-provider-lxd.toml`. Now we need to define the external provider config in `/etc/garm/config.toml`:
 
@@ -141,32 +141,6 @@ Go ahead and create a new config somwhere where GARM can access it and paste tha
     provider_executable = "/opt/garm/providers.d/garm-provider-lxd"
     config_file = "/etc/garm/garm-provider-lxd.toml"
 ```
-
-## The credentials section
-
-The credentials section is where we define out GitHub credentials. GARM is capable of using either GitHub proper or [GitHub Enterprise Server](https://docs.github.com/en/enterprise-server@3.6/get-started/onboarding/getting-started-with-github-enterprise-server). The credentials section allows you to override the default GitHub API endpoint and point it to your own deployment of GHES.
-
-The credentials section is [documented in a separate doc](./github_credentials.md), but we will include a small snippet here for clarity.
-wget -q -O - https://github.com/cloudbase/garm/releases/download/v0.1.4/garm-linux-amd64.tgz |  tar xzf - -C /usr/local/bin/
-```toml
-# This is a list of credentials that you can define as part of the repository
-# or organization definitions. They are not saved inside the database, as there
-# is no Vault integration (yet). This will change in the future.
-# Credentials defined here can be listed using the API. Obviously, only the name
-# and descriptions are returned.
-[[github]]
-  name = "gabriel"
-  description = "github token for user gabriel"
-  # This is a personal token with access to the repositories and organizations
-  # you plan on adding to garm. The "workflow" option needs to be selected in order
-  # to work with repositories, and the admin:org needs to be set if you plan on
-  # adding an organization.
-  oauth2_token = "super secret token"
-```
-
-The `oauth2_token` option will hold the PAT we created earlier. You can add multiple credentials to the config file. Each will be referenced by name when we define the repo/org/enterprise.
-
-Alright, we're almost there. We have a config file with a provider and a credentials section. We now have to start the service and create a webhook in GitHub pointing at our `webhook` endpoint.
 
 ## Starting the service
 
@@ -281,15 +255,11 @@ Excellent! We have a working GARM installation. Now we need to set up the webhoo
 
 ## Setting up the webhook
 
-Before we create a pool, we need to set up the webhook in GitHub. This is a fairly simple process.
+There are two options when it comes to setting up the webhook in GitHub. You can manually set up the webhook in the GitHub UI, and then use the resulting secret when creating the entity (repo, org, enterprise), or you can let GARM do it automatically if the app or PAT you're using has the [required privileges](./github_credentials.md).
 
-Head over to the [webhooks doc](./webhooks.md) and follow the instructions there. Come back here when you're done.
+If you want to manually set up the webhooks, have a look at the [webhooks doc](./webhooks.md) for more information.
 
-After you've finished setting up the webhook, there are just a few more things to do:
-
-* Initialize GARM
-* Add a repo/org/enterprise
-* Create a pool
+In this guide, I'll show you how to do it automatically when adding a new repo, assuming you have the required privileges. Note, you'll still have to manually set up webhooks if you want to use GARM at the enterprise level. Automatic webhook management is only available for repos and orgs.
 
 ## Initializing GARM
 
@@ -298,7 +268,7 @@ Before we can start using GARM, we need initialize it. This will create the `adm
 To initialize GARM, we'll use the `garm-cli` tool. You can download the latest release from the [releases page](https://github.com/cloudbase/garm/releases):
 
 ```bash
-wget -q -O - https://github.com/cloudbase/garm/releases/download/v0.1.3/garm-cli-linux-amd64.tgz |  tar xzf - -C /usr/local/bin/
+wget -q -O - https://github.com/cloudbase/garm/releases/download/v0.1.4/garm-cli-linux-amd64.tgz |  tar xzf - -C /usr/local/bin/
 ```
 
 Now we can initialize GARM:
@@ -332,7 +302,9 @@ ubuntu@garm:~$ garm-cli profile list
 Every time you init a new GARM instance, a new profile will be created in your local `garm-cli` config. You can also log into an already initialized instance using:
 
 ```bash
-garm-cli profile add --name="another_garm" --url https://garm2.example.com
+garm-cli profile add \
+  --name="another_garm" \
+  --url https://garm2.example.com
 ```
 
 Then you can switch between profiles using:
@@ -341,6 +313,69 @@ Then you can switch between profiles using:
 garm-cli profile switch another_garm
 ```
 
+## Creating a gitHub endpoint (Optional)
+
+This section is only of interest if you're using a GitHub Enterprise Server (GHES) deployment. If you're using [github.com](https://github.com), you can skip this section.
+
+Let's list existing endpoints:
+
+```bash
+gabriel@rossak:~$ garm-cli github endpoint list
++------------+--------------------+-------------------------+
+| NAME       | BASE URL           | DESCRIPTION             |
++------------+--------------------+-------------------------+
+| github.com | https://github.com | The github.com endpoint |
++------------+--------------------+-------------------------+
+```
+
+By default, GARM creates a default `github.com` endpoint. This endpoint cannot be updated or deleted. If you want to add a new endpoint, you can do so using the `github endpoint create` command:
+
+```bash
+garm-cli github endpoint create \
+    --name example \
+    --description "Just an example ghes endpoint" \
+    --base-url https://ghes.example.com \
+    --upload-url https://upload.ghes.example.com \
+    --api-base-url https://api.ghes.example.com \
+    --ca-cert-path $HOME/ca-cert.pem
+```
+
+In this exampe, we add a new github endpoint called `example`. The `ca-cert-path` is optional and is used to verify the server's certificate. If you don't provide a path, GARM will use the system's default CA certificates.
+
+## Adding credentials
+
+Before we can add a new entity, we need github credentials to interact with that entity (manipulate runners, create webhooks, etc). Credentials are tied to a specific github endpoint. In this section we'll be adding credentials that are valid for either [github.com](https://github.com) or your own GHES server (if you added one in the previous section).
+
+When creating a new entity (repo, org, enterprise) using the credentials you define here, GARM will automatically associate that entity with the gitHub endpoint the credentials use.
+
+If you want to swap the credentials for an entity, the new credentials will need to be associated with the same endpoint as the old credentials.
+
+Let's add some credentials:
+
+```bash
+garm-cli github credentials add \
+  --name gabriel \
+  --description "GitHub PAT for user gabriel" \
+  --auth-type pat \
+  --pat-oauth-token gh_theRestOfThePAT \
+  --endpoint github.com
+```
+
+You can also add a GitHub App as credentials. The process is similar, but you'll need to provide the `app_id`, `private_key_path` and `installation_id`:
+
+```bash
+garm-cli github credentials add \
+  --name gabriel_app \
+  --description "Github App with access to repos" \
+  --endpoint github.com \
+  --auth-type app \
+  --app-id 1 \
+  --app-installation-id 99 \
+  --private-key-path $HOME/yourAppName.2024-03-01.private-key.pem
+```
+
+All sensitive info is encrypted at rest. Also, the API will not return sensitive data.
+
 ## Define a repo
 
 We now have a working GARM installation, with github credentials and a provider added. It's time to add a repo.
@@ -348,45 +383,51 @@ We now have a working GARM installation, with github credentials and a provider 
 Before we add a repo, let's list credentials. We'll need their names when we'll add a new repo.
 
 ```bash
-gabriel@rossak:~$ garm-cli credentials list
-+---------+-------------------------------+--------------------+-------------------------+-----------------------------+
-| NAME    | DESCRIPTION                   | BASE URL           | API URL                 | UPLOAD URL                  |
-+---------+-------------------------------+--------------------+-------------------------+-----------------------------+
-| gabriel | github token for user gabriel | https://github.com | https://api.github.com/ | https://uploads.github.com/ |
-+---------+-------------------------------+--------------------+-------------------------+-----------------------------+
+ubuntu@garm:~$ garm-cli github credentials list
++----+-------------+------------------------------------+--------------------+-------------------------+-----------------------------+------+
+| ID | NAME        | DESCRIPTION                        | BASE URL           | API URL                 | UPLOAD URL                  | TYPE |
++----+-------------+------------------------------------+--------------------+-------------------------+-----------------------------+------+
+|  1 | gabriel     | GitHub PAT for user gabriel        | https://github.com | https://api.github.com/ | https://uploads.github.com/ | pat  |
++----+-------------+------------------------------------+--------------------+-------------------------+-----------------------------+------+
+|  2 | gabriel_app | Github App with access to repos    | https://github.com | https://api.github.com/ | https://uploads.github.com/ | app  |
++----+-------------+------------------------------------+--------------------+-------------------------+-----------------------------+------+
 ```
-
-Even though you didn't explicitly set the URLs, GARM will default to the GitHub ones. You can override them if you want to use a GHES deployment.
 
 Now we can add a repo:
 
 ```bash
 garm-cli repo add \
-  --credentials gabriel \
   --owner gsamfira \
   --name scripts \
-  --webhook-secret $SECRET
+  --credentials gabriel \
+  --random-webhook-secret \
+  --install-webhook \
+  --pool-balancer-type roundrobin
 ```
 
-In this case, `$SECRET` holds the webhook secret you set previously when you defined the webhook in GitHub. This secret is mandatory as GARM will always validate the webhook payloads it receives.
+This will add a new repo called `scripts` under the `gsamfira` org. We also tell GARM to generate a random secret and install a webhook using that random secret. If you want to use a specific secret, you can use the `--webhook-secret` option, but in that case, you'll have to manually set up the webhook in GitHub.
+
+The `--pool-balancer-type` option is used to set the pool balancer type. That dictates how GARM will choose in which pool it should create a new runner when consuming recorded queued jobs. If `roundrobin` (default) is used, GARM will cycle through all pools and create a runner in the first pool that has available resources. If `pack` is used, GARM will try to fill up a pool before moving to the next one. The order of the pools is determined by the pool priority. We'll see more about pools in the next section.
 
 You should see something like this:
 
 ```bash
 gabriel@rossak:~$ garm-cli repo add \
->   --credentials gabriel \
->   --owner gsamfira \
->   --name scripts \
->   --webhook-secret $SECRET
+  --name scripts \
+  --credentials gabriel_org \
+  --install-webhook \
+  --random-webhook-secret \
+  --owner gsamfira \
+  --pool-balancer-type roundrobin
 +----------------------+--------------------------------------+
 | FIELD                | VALUE                                |
 +----------------------+--------------------------------------+
-| ID                   | f4900c7c-2ec0-41bd-9eab-d70fe9bd850d |
+| ID                   | 0c91d9fd-2417-45d4-883c-05daeeaa8272 |
 | Owner                | gsamfira                             |
 | Name                 | scripts                              |
-| Credentials          | gabriel                              |
-| Pool manager running | false                                |
-| Failure reason       |                                      |
+| Pool balancer type   | roundrobin                           |
+| Credentials          | gabriel_app                          |
+| Pool manager running | true                                 |
 +----------------------+--------------------------------------+
 ```
 
@@ -394,11 +435,11 @@ We can now list the repos:
 
 ```bash
 gabriel@rock:~$ garm-cli repo ls
-+--------------------------------------+----------+---------+------------------+------------------+
-| ID                                   | OWNER    | NAME    | CREDENTIALS NAME | POOL MGR RUNNING |
-+--------------------------------------+----------+---------+------------------+------------------+
-| f4900c7c-2ec0-41bd-9eab-d70fe9bd850d | gsamfira | scripts | gabriel          | true             |
-+--------------------------------------+----------+---------+------------------+------------------+
++--------------------------------------+----------+--------------+------------------+--------------------+------------------+
+| ID                                   | OWNER    | NAME         | CREDENTIALS NAME | POOL BALANCER TYPE | POOL MGR RUNNING |
++--------------------------------------+----------+--------------+------------------+--------------------+------------------+
+| 0c91d9fd-2417-45d4-883c-05daeeaa8272 | gsamfira | scripts      | gabriel          | pack               | true             |
++--------------------------------------+----------+--------------+------------------+--------------------+------------------+
 ```
 
 Excellent! Make a note of the ID. We'll need it later when we create a pool.
@@ -411,18 +452,18 @@ To create a pool we'll need the repo ID from the previous step (which we have) a
 
 ```bash
 gabriel@rossak:~$ garm-cli provider list
-+-----------+------------------------+------+
-| NAME      | DESCRIPTION            | TYPE |
-+-----------+------------------------+------+
-| lxd_local | Local LXD installation | lxd  |
-+-----------+------------------------+------+
++-----------+------------------------+-----------+
+| NAME      | DESCRIPTION            | TYPE      |
++-----------+------------------------+-----------+
+| lxd_local | Local LXD installation | external  |
++-----------+------------------------+-----------+
 ```
 
 Now we can create a pool:
 
 ```bash
 garm-cli pool add \
-  --repo f4900c7c-2ec0-41bd-9eab-d70fe9bd850d \
+  --repo 0c91d9fd-2417-45d4-883c-05daeeaa8272 \
   --enabled true \
   --provider-name lxd_local \
   --flavor default \
@@ -438,7 +479,7 @@ You should see something like this:
 
 ```bash
 gabriel@rossak:~$ garm-cli pool add \
->   --repo f4900c7c-2ec0-41bd-9eab-d70fe9bd850d \
+>   --repo 0c91d9fd-2417-45d4-883c-05daeeaa8272 \
 >   --enabled true \
 >   --provider-name lxd_local \
 >   --flavor default \
@@ -453,6 +494,7 @@ gabriel@rossak:~$ garm-cli pool add \
 +--------------------------+--------------------------------------------+
 | ID                       | 344e4a72-2035-4a18-a3d5-87bd3874b56c       |
 | Provider Name            | lxd_local                                  |
+| Priority                 | 0                                          |
 | Image                    | ubuntu:22.04                               |
 | Flavor                   | default                                    |
 | OS Type                  | linux                                      |
@@ -474,11 +516,11 @@ If we list the pool we should see it:
 
 ```bash
 gabriel@rock:~$ garm-cli pool ls -a
-+--------------------------------------+--------------+---------+----------------------------------------+------------------+-------+---------+---------------+
-| ID                                   | IMAGE        | FLAVOR  | TAGS                                   | BELONGS TO       | LEVEL | ENABLED | RUNNER PREFIX |
-+--------------------------------------+--------------+---------+----------------------------------------+------------------+-------+---------+---------------+
-| 344e4a72-2035-4a18-a3d5-87bd3874b56c | ubuntu:22.04 | default | self-hosted amd64 Linux ubuntu generic | gsamfira/scripts | repo  | true    | garm          |
-+--------------------------------------+--------------+---------+----------------------------------------+------------------+-------+---------+---------------+
++--------------------------------------+---------------------------+--------------+-----------------------------------------+------------------+-------+---------+---------------+----------+
+| ID                                   | IMAGE                     | FLAVOR       | TAGS                                    | BELONGS TO       | LEVEL | ENABLED | RUNNER PREFIX | PRIORITY |
++--------------------------------------+---------------------------+--------------+-----------------------------------------+------------------+-------+---------+---------------+----------+
+| 344e4a72-2035-4a18-a3d5-87bd3874b56c | ubuntu:22.04              | default      | self-hosted amd64 Linux ubuntu generic  | gsamfira/scripts | repo  | true    |  garm         |        0 |
++--------------------------------------+---------------------------+--------------+-----------------------------------------+------------------+-------+---------+---------------+----------+
 ```
 
 This pool is enabled, but the `min-idle-runners` option is set to 0. This means that it will not create any lingering runners. It will only create runners when a job is started. If your provider is slow to boot up new instances, you may want to set this to a value higher than 0.
@@ -504,6 +546,7 @@ gabriel@rossak:~$ garm-cli pool update 344e4a72-2035-4a18-a3d5-87bd3874b56c --mi
 +--------------------------+--------------------------------------------+
 | ID                       | 344e4a72-2035-4a18-a3d5-87bd3874b56c       |
 | Provider Name            | lxd_local                                  |
+| Priority                 | 0                                          |
 | Image                    | ubuntu:22.04                               |
 | Flavor                   | default                                    |
 | OS Type                  | linux                                      |
