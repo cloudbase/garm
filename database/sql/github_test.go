@@ -30,7 +30,6 @@ import (
 )
 
 const (
-	defaultGithubEndpoint   string = "github.com"
 	testUploadBaseURL       string = "https://uploads.example.com"
 	testBaseURL             string = "https://example.com"
 	testAPIBaseURL          string = "https://api.example.com"

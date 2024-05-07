@@ -27,6 +27,10 @@ import (
 	"github.com/cloudbase/garm/params"
 )
 
+const (
+	defaultGithubEndpoint string = "github.com"
+)
+
 func (s *sqlDatabase) sqlToCommonGithubCredentials(creds GithubCredentials) (params.GithubCredentials, error) {
 	if len(creds.Payload) == 0 {
 		return params.GithubCredentials{}, errors.New("empty credentials payload")
@@ -150,6 +154,9 @@ func (s *sqlDatabase) ListGithubEndpoints(_ context.Context) ([]params.GithubEnd
 }
 
 func (s *sqlDatabase) UpdateGithubEndpoint(_ context.Context, name string, param params.UpdateGithubEndpointParams) (params.GithubEndpoint, error) {
+	if name == defaultGithubEndpoint {
+		return params.GithubEndpoint{}, errors.Wrap(runnerErrors.ErrBadRequest, "cannot update default github endpoint")
+	}
 	var endpoint GithubEndpoint
 	err := s.conn.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("name = ?", name).First(&endpoint).Error; err != nil {
@@ -205,6 +212,9 @@ func (s *sqlDatabase) GetGithubEndpoint(_ context.Context, name string) (params.
 }
 
 func (s *sqlDatabase) DeleteGithubEndpoint(_ context.Context, name string) error {
+	if name == defaultGithubEndpoint {
+		return errors.Wrap(runnerErrors.ErrBadRequest, "cannot delete default github endpoint")
+	}
 	err := s.conn.Transaction(func(tx *gorm.DB) error {
 		var endpoint GithubEndpoint
 		if err := tx.Where("name = ?", name).First(&endpoint).Error; err != nil {
@@ -212,10 +222,6 @@ func (s *sqlDatabase) DeleteGithubEndpoint(_ context.Context, name string) error
 				return nil
 			}
 			return errors.Wrap(err, "fetching github endpoint")
-		}
-
-		if endpoint.Name == "github.com" {
-			return errors.Wrap(runnerErrors.ErrBadRequest, "cannot delete default github endpoint")
 		}
 
 		var credsCount int64

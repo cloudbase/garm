@@ -48,6 +48,19 @@ Open `/etc/garm/config.toml` in your favorite editor and paste the following:
 [default]
 callback_url = "https://garm.example.com/api/v1/callbacks"
 metadata_url = "https://garm.example.com/api/v1/metadata"
+webhook_url = "https://garm.example.com/webhooks"
+enable_webhook_management = true
+
+[logging]
+# If using nginx, you'll need to configure connection upgrade headers
+# for the /api/v1/ws location. See the sample config in the testdata
+# folder.
+enable_log_streamer = true
+# Set this to "json" if you want to consume these logs in something like
+# Loki or ELK.
+log_format = "text"
+log_level = "info"
+log_source = false
 
 [metrics]
 enable = true
@@ -71,11 +84,12 @@ time_to_live = "8760h"
     db_file = "/etc/garm/garm.db"
 ```
 
-This is a minimal config, with no providers or credentials defined. In this example we have the [default](./config_default.md), [metrics](./config_metrics.md), [jwt_auth](./config_jwt_auth.md), [apiserver](./config_api_server.md) and [database](./database.md) sections. Each are documented separately. Feel free to read through the available docs if, for example you need to enable TLS without using an nginx reverse proxy or if you want to enable the debug server, the log streamer or a log file.
+This is a minimal config, with no providers or credentials defined. In this example we have the [default](./config_default.md), [logging](./config_logging.md), [metrics](./config_metrics.md), [jwt_auth](./config_jwt_auth.md), [apiserver](./config_api_server.md) and [database](./database.md) sections. Each are documented separately. Feel free to read through the available docs if, for example you need to enable TLS without using an nginx reverse proxy or if you want to enable the debug server, the log streamer or a log file.
 
 In this sample config we:
 
-* define the callback and the metadata URLs
+* define the callback, webhooks and the metadata URLs
+* set up logging prefrences
 * enable metrics with authentication
 * set a JWT secret which is used to sign JWT tokens
 * set a time to live for the JWT tokens
@@ -87,6 +101,8 @@ The callback URLs are really important and need to point back to garm. You will 
 We need to tell garm by which addresses it can be reached. There are many ways by which GARMs API endpoints can be exposed, and there is no sane way in which GARM itself can determine if it's behind a reverse proxy or not. The metadata URL may be served by a reverse proxy with a completely different domain name than the callback URL. Both domains pointing to the same installation of GARM in the end.
 
 The information in these two options is used by the instances we spin up to phone home their status and to fetch the needed metadata to finish setting themselves up. For now, the metadata URL is only used to fetch the runner registration token.
+
+The webhook URL is used by GARM itself to know how to set up the webhooks in GitHub. Each controller will have a unique ID and GARM will use the value in `webhook_url` as a base. It will append the controller ID to it and set up the webhook in GitHub. This way we won't overlap with other controllers that may use the same base URL.
 
 We won't go too much into detail about each of the options here. Have a look at the different config sections and their respective docs for more information.
 
@@ -131,7 +147,7 @@ Go ahead and create a new config somwhere where GARM can access it and paste tha
 The credentials section is where we define out GitHub credentials. GARM is capable of using either GitHub proper or [GitHub Enterprise Server](https://docs.github.com/en/enterprise-server@3.6/get-started/onboarding/getting-started-with-github-enterprise-server). The credentials section allows you to override the default GitHub API endpoint and point it to your own deployment of GHES.
 
 The credentials section is [documented in a separate doc](./github_credentials.md), but we will include a small snippet here for clarity.
-
+wget -q -O - https://github.com/cloudbase/garm/releases/download/v0.1.4/garm-linux-amd64.tgz |  tar xzf - -C /usr/local/bin/
 ```toml
 # This is a list of credentials that you can define as part of the repository
 # or organization definitions. They are not saved inside the database, as there
@@ -194,7 +210,7 @@ useradd --shell /usr/bin/false \
       --no-create-home garm
 ```
 
-Adding the `garm` user to the LXD group will allow it to connect to the LXD unix socket. We'll need that considering the config we crafted above.
+Adding the `garm` user to the LXD group will allow it to connect to the LXD unix socket. We'll need that considering the config we crafted above. The recommendation is to use TCP connections to connect to a remote LXD installation. The local setup of an LXD provider is just for demonstration purposes/testing.
 
 Next, download the latest release from the [releases page](https://github.com/cloudbase/garm/releases).
 
@@ -217,7 +233,9 @@ sudo mkdir -p /opt/garm/providers.d
 Download the LXD provider binary:
 
 ```bash
-wget -q -O - https://github.com/cloudbase/garm-provider-lxd/releases/download/v0.1.0/garm-linux-amd64.tgz |  sudo tar xzf - -C /opt/garm/providers.d/
+git clone https://github.com/cloudbase/garm-provider-lxd
+cd garm-provider-lxd
+go build -o /opt/garm/providers.d/garm-provider-lxd
 ```
 
 Change the permissions on the config dir:
@@ -230,7 +248,7 @@ Copy the sample `systemd` service file:
 
 ```bash
 wget -O /etc/systemd/system/garm.service \
-  https://raw.githubusercontent.com/cloudbase/garm/v0.1.3/contrib/garm.service
+  https://raw.githubusercontent.com/cloudbase/garm/v0.1.4/contrib/garm.service
 ```
 
 Reload the `systemd` daemon and start the service:
