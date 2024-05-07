@@ -337,15 +337,15 @@ func (s *sqlDatabase) migrateCredentialsToDB() (err error) {
 			return errors.Wrap(err, "creating github credentials")
 		}
 
-		if err := s.conn.Exec("update repositories set credentials_id = ?,endpoint_name = ? where credentials_name = ?", creds.ID, creds.Endpoint, creds.Name).Error; err != nil {
+		if err := s.conn.Exec("update repositories set credentials_id = ?,endpoint_name = ? where credentials_name = ?", creds.ID, creds.Endpoint.Name, creds.Name).Error; err != nil {
 			return errors.Wrap(err, "updating repositories")
 		}
 
-		if err := s.conn.Exec("update organizations set credentials_id = ?,endpoint_name = ? where credentials_name = ?", creds.ID, creds.Endpoint, creds.Name).Error; err != nil {
+		if err := s.conn.Exec("update organizations set credentials_id = ?,endpoint_name = ? where credentials_name = ?", creds.ID, creds.Endpoint.Name, creds.Name).Error; err != nil {
 			return errors.Wrap(err, "updating organizations")
 		}
 
-		if err := s.conn.Exec("update enterprises set credentials_id = ?,endpoint_name = ? where credentials_name = ?", creds.ID, creds.Endpoint, creds.Name).Error; err != nil {
+		if err := s.conn.Exec("update enterprises set credentials_id = ?,endpoint_name = ? where credentials_name = ?", creds.ID, creds.Endpoint.Name, creds.Name).Error; err != nil {
 			return errors.Wrap(err, "updating enterprises")
 		}
 	}
