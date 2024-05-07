@@ -15,7 +15,9 @@
 package sql
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"testing"
@@ -24,6 +26,7 @@ import (
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/auth"
+	"github.com/cloudbase/garm/config"
 	"github.com/cloudbase/garm/database/common"
 	garmTesting "github.com/cloudbase/garm/internal/testing"
 	"github.com/cloudbase/garm/params"
@@ -737,4 +740,141 @@ func (s *GithubTestSuite) TestAdminUserCanUpdateAnyGithubCredentials() {
 func TestGithubTestSuite(t *testing.T) {
 	t.Parallel()
 	suite.Run(t, new(GithubTestSuite))
+}
+
+func TestCredentialsAndEndpointMigration(t *testing.T) {
+	cfg := garmTesting.GetTestSqliteDBConfig(t)
+
+	// Copy the sample DB
+	data, err := os.ReadFile("../../testdata/db/v0.1.4/garm.db")
+	if err != nil {
+		t.Fatalf("failed to read test data: %s", err)
+	}
+
+	if cfg.SQLite.DBFile == "" {
+		t.Fatalf("DB file not set")
+	}
+	if err := os.WriteFile(cfg.SQLite.DBFile, data, 0o600); err != nil {
+		t.Fatalf("failed to write test data: %s", err)
+	}
+
+	// define some credentials
+	credentials := []config.Github{
+		{
+			Name:        "test-creds",
+			Description: "test creds",
+			AuthType:    config.GithubAuthTypePAT,
+			PAT: config.GithubPAT{
+				OAuth2Token: "test",
+			},
+		},
+		{
+			Name:          "ghes-test",
+			Description:   "ghes creds",
+			APIBaseURL:    testAPIBaseURL,
+			UploadBaseURL: testUploadBaseURL,
+			BaseURL:       testBaseURL,
+			AuthType:      config.GithubAuthTypeApp,
+			App: config.GithubApp{
+				AppID:          1,
+				InstallationID: 99,
+				PrivateKeyPath: "../../testdata/certs/srv-key.pem",
+			},
+		},
+	}
+	// Set the config credentials in the cfg. This is what happens in the main function.
+	// of GARM as well.
+	cfg.MigrateCredentials = credentials
+
+	db, err := NewSQLDatabase(context.Background(), cfg)
+	if err != nil {
+		t.Fatalf("failed to create db connection: %s", err)
+	}
+
+	// We expect that 2 endpoints will exist in the migrated DB and 2 credentials.
+	ctx := garmTesting.ImpersonateAdminContext(context.Background(), db, t)
+
+	endpoints, err := db.ListGithubEndpoints(ctx)
+	if err != nil {
+		t.Fatalf("failed to list endpoints: %s", err)
+	}
+	if len(endpoints) != 2 {
+		t.Fatalf("expected 2 endpoints, got %d", len(endpoints))
+	}
+	if endpoints[0].Name != defaultGithubEndpoint {
+		t.Fatalf("expected default endpoint to exist, got %s", endpoints[0].Name)
+	}
+	if endpoints[1].Name != "example.com" {
+		t.Fatalf("expected example.com endpoint to exist, got %s", endpoints[1].Name)
+	}
+	if endpoints[1].UploadBaseURL != testUploadBaseURL {
+		t.Fatalf("expected upload base URL to be %s, got %s", testUploadBaseURL, endpoints[1].UploadBaseURL)
+	}
+	if endpoints[1].BaseURL != testBaseURL {
+		t.Fatalf("expected base URL to be %s, got %s", testBaseURL, endpoints[1].BaseURL)
+	}
+	if endpoints[1].APIBaseURL != testAPIBaseURL {
+		t.Fatalf("expected API base URL to be %s, got %s", testAPIBaseURL, endpoints[1].APIBaseURL)
+	}
+
+	creds, err := db.ListGithubCredentials(ctx)
+	if err != nil {
+		t.Fatalf("failed to list credentials: %s", err)
+	}
+	if len(creds) != 2 {
+		t.Fatalf("expected 2 credentials, got %d", len(creds))
+	}
+	if creds[0].Name != "test-creds" {
+		t.Fatalf("expected test-creds to exist, got %s", creds[0].Name)
+	}
+	if creds[1].Name != "ghes-test" {
+		t.Fatalf("expected ghes-test to exist, got %s", creds[1].Name)
+	}
+	if creds[0].Endpoint.Name != defaultGithubEndpoint {
+		t.Fatalf("expected test-creds to be associated with default endpoint, got %s", creds[0].Endpoint.Name)
+	}
+	if creds[1].Endpoint.Name != "example.com" {
+		t.Fatalf("expected ghes-test to be associated with example.com endpoint, got %s", creds[1].Endpoint.Name)
+	}
+
+	if creds[0].AuthType != params.GithubAuthTypePAT {
+		t.Fatalf("expected test-creds to have PAT auth type, got %s", creds[0].AuthType)
+	}
+	if creds[1].AuthType != params.GithubAuthTypeApp {
+		t.Fatalf("expected ghes-test to have App auth type, got %s", creds[1].AuthType)
+	}
+	if len(creds[0].CredentialsPayload) == 0 {
+		t.Fatalf("expected test-creds to have credentials payload, got empty")
+	}
+
+	var pat params.GithubPAT
+	if err := json.Unmarshal(creds[0].CredentialsPayload, &pat); err != nil {
+		t.Fatalf("failed to unmarshal test-creds credentials payload: %s", err)
+	}
+	if pat.OAuth2Token != "test" {
+		t.Fatalf("expected test-creds to have PAT token test, got %s", pat.OAuth2Token)
+	}
+
+	var app params.GithubApp
+	if err := json.Unmarshal(creds[1].CredentialsPayload, &app); err != nil {
+		t.Fatalf("failed to unmarshal ghes-test credentials payload: %s", err)
+	}
+	if app.AppID != 1 {
+		t.Fatalf("expected ghes-test to have app ID 1, got %d", app.AppID)
+	}
+	if app.InstallationID != 99 {
+		t.Fatalf("expected ghes-test to have installation ID 99, got %d", app.InstallationID)
+	}
+	if app.PrivateKeyBytes == nil {
+		t.Fatalf("expected ghes-test to have private key bytes, got nil")
+	}
+
+	certBundle, err := credentials[1].App.PrivateKeyBytes()
+	if err != nil {
+		t.Fatalf("failed to read CA cert bundle: %s", err)
+	}
+
+	if !bytes.Equal(app.PrivateKeyBytes, certBundle) {
+		t.Fatalf("expected ghes-test private key to be equal to the CA cert bundle")
+	}
 }
