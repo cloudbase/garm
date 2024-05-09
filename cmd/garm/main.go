@@ -151,6 +151,8 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), signals...)
 	defer stop()
 
+	ctx = auth.GetAdminContext(ctx)
+
 	cfg, err := config.NewConfig(*conf)
 	if err != nil {
 		log.Fatalf("Fetching config: %+v", err) //nolint:gocritic
@@ -167,6 +169,9 @@ func main() {
 	}
 	setupLogging(ctx, logCfg, hub)
 
+	// Migrate credentials to the new format. This field will be read
+	// by the DB migration logic.
+	cfg.Database.MigrateCredentials = cfg.Github
 	db, err := database.NewDatabase(ctx, cfg.Database)
 	if err != nil {
 		log.Fatal(err)

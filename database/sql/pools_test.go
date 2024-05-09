@@ -43,6 +43,7 @@ type PoolsTestSuite struct {
 	Store          dbCommon.Store
 	StoreSQLMocked *sqlDatabase
 	Fixtures       *PoolsTestFixtures
+	adminCtx       context.Context
 }
 
 func (s *PoolsTestSuite) assertSQLMockExpectations() {
@@ -60,8 +61,14 @@ func (s *PoolsTestSuite) SetupTest() {
 	}
 	s.Store = db
 
+	adminCtx := garmTesting.ImpersonateAdminContext(context.Background(), db, s.T())
+	s.adminCtx = adminCtx
+
+	githubEndpoint := garmTesting.CreateDefaultGithubEndpoint(adminCtx, db, s.T())
+	creds := garmTesting.CreateTestGithubCredentials(adminCtx, "new-creds", db, s.T(), githubEndpoint)
+
 	// create an organization for testing purposes
-	org, err := s.Store.CreateOrganization(context.Background(), "test-org", "test-creds", "test-webhookSecret", params.PoolBalancerTypeRoundRobin)
+	org, err := s.Store.CreateOrganization(s.adminCtx, "test-org", creds.Name, "test-webhookSecret", params.PoolBalancerTypeRoundRobin)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to create org: %s", err))
 	}
@@ -72,7 +79,7 @@ func (s *PoolsTestSuite) SetupTest() {
 	orgPools := []params.Pool{}
 	for i := 1; i <= 3; i++ {
 		pool, err := db.CreateEntityPool(
-			context.Background(),
+			s.adminCtx,
 			entity,
 			params.CreatePoolParams{
 				ProviderName:   "test-provider",
@@ -122,7 +129,7 @@ func (s *PoolsTestSuite) SetupTest() {
 }
 
 func (s *PoolsTestSuite) TestListAllPools() {
-	pools, err := s.Store.ListAllPools(context.Background())
+	pools, err := s.Store.ListAllPools(s.adminCtx)
 
 	s.Require().Nil(err)
 	garmTesting.EqualDBEntityID(s.T(), s.Fixtures.Pools, pools)
@@ -133,7 +140,7 @@ func (s *PoolsTestSuite) TestListAllPoolsDBFetchErr() {
 		ExpectQuery(regexp.QuoteMeta("SELECT `pools`.`id`,`pools`.`created_at`,`pools`.`updated_at`,`pools`.`deleted_at`,`pools`.`provider_name`,`pools`.`runner_prefix`,`pools`.`max_runners`,`pools`.`min_idle_runners`,`pools`.`runner_bootstrap_timeout`,`pools`.`image`,`pools`.`flavor`,`pools`.`os_type`,`pools`.`os_arch`,`pools`.`enabled`,`pools`.`git_hub_runner_group`,`pools`.`repo_id`,`pools`.`org_id`,`pools`.`enterprise_id`,`pools`.`priority` FROM `pools` WHERE `pools`.`deleted_at` IS NULL")).
 		WillReturnError(fmt.Errorf("mocked fetching all pools error"))
 
-	_, err := s.StoreSQLMocked.ListAllPools(context.Background())
+	_, err := s.StoreSQLMocked.ListAllPools(s.adminCtx)
 
 	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
@@ -141,29 +148,29 @@ func (s *PoolsTestSuite) TestListAllPoolsDBFetchErr() {
 }
 
 func (s *PoolsTestSuite) TestGetPoolByID() {
-	pool, err := s.Store.GetPoolByID(context.Background(), s.Fixtures.Pools[0].ID)
+	pool, err := s.Store.GetPoolByID(s.adminCtx, s.Fixtures.Pools[0].ID)
 
 	s.Require().Nil(err)
 	s.Require().Equal(s.Fixtures.Pools[0].ID, pool.ID)
 }
 
 func (s *PoolsTestSuite) TestGetPoolByIDInvalidPoolID() {
-	_, err := s.Store.GetPoolByID(context.Background(), "dummy-pool-id")
+	_, err := s.Store.GetPoolByID(s.adminCtx, "dummy-pool-id")
 
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching pool by ID: parsing id: invalid request", err.Error())
 }
 
 func (s *PoolsTestSuite) TestDeletePoolByID() {
-	err := s.Store.DeletePoolByID(context.Background(), s.Fixtures.Pools[0].ID)
+	err := s.Store.DeletePoolByID(s.adminCtx, s.Fixtures.Pools[0].ID)
 
 	s.Require().Nil(err)
-	_, err = s.Store.GetPoolByID(context.Background(), s.Fixtures.Pools[0].ID)
+	_, err = s.Store.GetPoolByID(s.adminCtx, s.Fixtures.Pools[0].ID)
 	s.Require().Equal("fetching pool by ID: not found", err.Error())
 }
 
 func (s *PoolsTestSuite) TestDeletePoolByIDInvalidPoolID() {
-	err := s.Store.DeletePoolByID(context.Background(), "dummy-pool-id")
+	err := s.Store.DeletePoolByID(s.adminCtx, "dummy-pool-id")
 
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching pool by ID: parsing id: invalid request", err.Error())
@@ -180,7 +187,7 @@ func (s *PoolsTestSuite) TestDeletePoolByIDDBRemoveErr() {
 		WillReturnError(fmt.Errorf("mocked removing pool error"))
 	s.Fixtures.SQLMock.ExpectRollback()
 
-	err := s.StoreSQLMocked.DeletePoolByID(context.Background(), s.Fixtures.Pools[0].ID)
+	err := s.StoreSQLMocked.DeletePoolByID(s.adminCtx, s.Fixtures.Pools[0].ID)
 
 	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)

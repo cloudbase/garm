@@ -105,7 +105,7 @@ func (s *sqlDatabase) sqlAddressToParamsAddress(addr Address) commonParams.Addre
 	}
 }
 
-func (s *sqlDatabase) sqlToCommonOrganization(org Organization) (params.Organization, error) {
+func (s *sqlDatabase) sqlToCommonOrganization(org Organization, detailed bool) (params.Organization, error) {
 	if len(org.WebhookSecret) == 0 {
 		return params.Organization{}, errors.New("missing secret")
 	}
@@ -114,13 +114,30 @@ func (s *sqlDatabase) sqlToCommonOrganization(org Organization) (params.Organiza
 		return params.Organization{}, errors.Wrap(err, "decrypting secret")
 	}
 
+	endpoint, err := s.sqlToCommonGithubEndpoint(org.Endpoint)
+	if err != nil {
+		return params.Organization{}, errors.Wrap(err, "converting endpoint")
+	}
 	ret := params.Organization{
 		ID:               org.ID.String(),
 		Name:             org.Name,
-		CredentialsName:  org.CredentialsName,
+		CredentialsName:  org.Credentials.Name,
 		Pools:            make([]params.Pool, len(org.Pools)),
 		WebhookSecret:    string(secret),
 		PoolBalancerType: org.PoolBalancerType,
+		Endpoint:         endpoint,
+	}
+
+	if org.CredentialsID != nil {
+		ret.CredentialsID = *org.CredentialsID
+	}
+
+	if detailed {
+		creds, err := s.sqlToCommonGithubCredentials(org.Credentials)
+		if err != nil {
+			return params.Organization{}, errors.Wrap(err, "converting credentials")
+		}
+		ret.Credentials = creds
 	}
 
 	if ret.PoolBalancerType == "" {
@@ -137,7 +154,7 @@ func (s *sqlDatabase) sqlToCommonOrganization(org Organization) (params.Organiza
 	return ret, nil
 }
 
-func (s *sqlDatabase) sqlToCommonEnterprise(enterprise Enterprise) (params.Enterprise, error) {
+func (s *sqlDatabase) sqlToCommonEnterprise(enterprise Enterprise, detailed bool) (params.Enterprise, error) {
 	if len(enterprise.WebhookSecret) == 0 {
 		return params.Enterprise{}, errors.New("missing secret")
 	}
@@ -146,13 +163,30 @@ func (s *sqlDatabase) sqlToCommonEnterprise(enterprise Enterprise) (params.Enter
 		return params.Enterprise{}, errors.Wrap(err, "decrypting secret")
 	}
 
+	endpoint, err := s.sqlToCommonGithubEndpoint(enterprise.Endpoint)
+	if err != nil {
+		return params.Enterprise{}, errors.Wrap(err, "converting endpoint")
+	}
 	ret := params.Enterprise{
 		ID:               enterprise.ID.String(),
 		Name:             enterprise.Name,
-		CredentialsName:  enterprise.CredentialsName,
+		CredentialsName:  enterprise.Credentials.Name,
 		Pools:            make([]params.Pool, len(enterprise.Pools)),
 		WebhookSecret:    string(secret),
 		PoolBalancerType: enterprise.PoolBalancerType,
+		Endpoint:         endpoint,
+	}
+
+	if enterprise.CredentialsID != nil {
+		ret.CredentialsID = *enterprise.CredentialsID
+	}
+
+	if detailed {
+		creds, err := s.sqlToCommonGithubCredentials(enterprise.Credentials)
+		if err != nil {
+			return params.Enterprise{}, errors.Wrap(err, "converting credentials")
+		}
+		ret.Credentials = creds
 	}
 
 	if ret.PoolBalancerType == "" {
@@ -230,7 +264,7 @@ func (s *sqlDatabase) sqlToCommonTags(tag Tag) params.Tag {
 	}
 }
 
-func (s *sqlDatabase) sqlToCommonRepository(repo Repository) (params.Repository, error) {
+func (s *sqlDatabase) sqlToCommonRepository(repo Repository, detailed bool) (params.Repository, error) {
 	if len(repo.WebhookSecret) == 0 {
 		return params.Repository{}, errors.New("missing secret")
 	}
@@ -238,15 +272,31 @@ func (s *sqlDatabase) sqlToCommonRepository(repo Repository) (params.Repository,
 	if err != nil {
 		return params.Repository{}, errors.Wrap(err, "decrypting secret")
 	}
-
+	endpoint, err := s.sqlToCommonGithubEndpoint(repo.Endpoint)
+	if err != nil {
+		return params.Repository{}, errors.Wrap(err, "converting endpoint")
+	}
 	ret := params.Repository{
 		ID:               repo.ID.String(),
 		Name:             repo.Name,
 		Owner:            repo.Owner,
-		CredentialsName:  repo.CredentialsName,
+		CredentialsName:  repo.Credentials.Name,
 		Pools:            make([]params.Pool, len(repo.Pools)),
 		WebhookSecret:    string(secret),
 		PoolBalancerType: repo.PoolBalancerType,
+		Endpoint:         endpoint,
+	}
+
+	if repo.CredentialsID != nil {
+		ret.CredentialsID = *repo.CredentialsID
+	}
+
+	if detailed {
+		creds, err := s.sqlToCommonGithubCredentials(repo.Credentials)
+		if err != nil {
+			return params.Repository{}, errors.Wrap(err, "converting credentials")
+		}
+		ret.Credentials = creds
 	}
 
 	if ret.PoolBalancerType == "" {

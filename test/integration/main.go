@@ -76,6 +76,25 @@ func main() {
 	e2e.FirstRun(adminUsername, adminPassword, adminFullName, adminEmail)
 	e2e.Login(adminUsername, adminPassword)
 
+	// Test endpoint operations
+	e2e.TestGithubEndpointOperations()
+	e2e.TestGithubEndpointFailsOnInvalidCABundle()
+	e2e.TestGithubEndpointDeletionFailsWhenCredentialsExist()
+	e2e.TestGithubEndpointFailsOnDuplicateName()
+	e2e.TestGithubEndpointMustFailToDeleteDefaultGithubEndpoint()
+
+	// Create test credentials
+	e2e.EnsureTestCredentials(credentialsName, ghToken, "github.com")
+	e2e.TestGithubCredentialsErrorOnDuplicateCredentialsName()
+	e2e.TestGithubCredentialsFailsToDeleteWhenInUse()
+	e2e.TestGithubCredentialsFailsOnInvalidAuthType()
+	e2e.TestGithubCredentialsFailsWhenAuthTypeParamsAreIncorrect()
+	e2e.TestGithubCredentialsFailsWhenAuthTypeParamsAreMissing()
+	e2e.TestGithubCredentialsUpdateFailsWhenBothPATAndAppAreSupplied()
+	e2e.TestGithubCredentialsFailWhenAppKeyIsInvalid()
+	e2e.TestGithubCredentialsFailWhenEndpointDoesntExist()
+	e2e.TestGithubCredentialsFailsOnDuplicateName()
+
 	// //////////////////
 	// controller info //
 	// //////////////////

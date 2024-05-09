@@ -23,6 +23,27 @@ definitions:
                 alias: garm_params
                 package: github.com/cloudbase/garm/params
             type: CreateEnterpriseParams
+    CreateGithubCredentialsParams:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: CreateGithubCredentialsParams
+    CreateGithubEndpointParams:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: CreateGithubEndpointParams
+    CreateInstanceParams:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: CreateInstanceParams
     CreateOrgParams:
         type: object
         x-go-type:
@@ -76,6 +97,22 @@ definitions:
                 alias: garm_params
                 package: github.com/cloudbase/garm/params
             type: GithubCredentials
+    GithubEndpoint:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: GithubEndpoint
+    GithubEndpoints:
+        items:
+            $ref: '#/definitions/GithubEndpoint'
+        type: array
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: GithubEndpoints
     HookInfo:
         type: object
         x-go-type:
@@ -214,6 +251,20 @@ definitions:
                 alias: garm_params
                 package: github.com/cloudbase/garm/params
             type: UpdateEntityParams
+    UpdateGithubCredentialsParams:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: UpdateGithubCredentialsParams
+    UpdateGithubEndpointParams:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: UpdateGithubEndpointParams
     UpdatePoolParams:
         type: object
         x-go-type:
@@ -275,21 +326,6 @@ paths:
             summary: Get controller info.
             tags:
                 - controllerInfo
-    /credentials:
-        get:
-            operationId: ListCredentials
-            responses:
-                "200":
-                    description: Credentials
-                    schema:
-                        $ref: '#/definitions/Credentials'
-                "400":
-                    description: APIErrorResponse
-                    schema:
-                        $ref: '#/definitions/APIErrorResponse'
-            summary: List all credentials.
-            tags:
-                - credentials
     /enterprises:
         get:
             operationId: ListEnterprises
@@ -573,6 +609,212 @@ paths:
             summary: Initialize the first run of the controller.
             tags:
                 - first-run
+    /github/credentials:
+        get:
+            operationId: ListCredentials
+            responses:
+                "200":
+                    description: Credentials
+                    schema:
+                        $ref: '#/definitions/Credentials'
+                "400":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List all credentials.
+            tags:
+                - credentials
+        post:
+            operationId: CreateCredentials
+            parameters:
+                - description: Parameters used when creating a GitHub credential.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/CreateGithubCredentialsParams'
+                    description: Parameters used when creating a GitHub credential.
+                    type: object
+            responses:
+                "200":
+                    description: GithubCredentials
+                    schema:
+                        $ref: '#/definitions/GithubCredentials'
+                "400":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Create a GitHub credential.
+            tags:
+                - credentials
+    /github/credentials/{id}:
+        delete:
+            operationId: DeleteCredentials
+            parameters:
+                - description: ID of the GitHub credential.
+                  in: path
+                  name: id
+                  required: true
+                  type: integer
+            responses:
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Delete a GitHub credential.
+            tags:
+                - credentials
+        get:
+            operationId: GetCredentials
+            parameters:
+                - description: ID of the GitHub credential.
+                  in: path
+                  name: id
+                  required: true
+                  type: integer
+            responses:
+                "200":
+                    description: GithubCredentials
+                    schema:
+                        $ref: '#/definitions/GithubCredentials'
+                "400":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get a GitHub credential.
+            tags:
+                - credentials
+        put:
+            operationId: UpdateCredentials
+            parameters:
+                - description: ID of the GitHub credential.
+                  in: path
+                  name: id
+                  required: true
+                  type: integer
+                - description: Parameters used when updating a GitHub credential.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/UpdateGithubCredentialsParams'
+                    description: Parameters used when updating a GitHub credential.
+                    type: object
+            responses:
+                "200":
+                    description: GithubCredentials
+                    schema:
+                        $ref: '#/definitions/GithubCredentials'
+                "400":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Update a GitHub credential.
+            tags:
+                - credentials
+    /github/endpoints:
+        get:
+            operationId: ListGithubEndpoints
+            responses:
+                "200":
+                    description: GithubEndpoints
+                    schema:
+                        $ref: '#/definitions/GithubEndpoints'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List all GitHub Endpoints.
+            tags:
+                - endpoints
+        post:
+            operationId: CreateGithubEndpoint
+            parameters:
+                - description: Parameters used when creating a GitHub endpoint.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/CreateGithubEndpointParams'
+                    description: Parameters used when creating a GitHub endpoint.
+                    type: object
+            responses:
+                "200":
+                    description: GithubEndpoint
+                    schema:
+                        $ref: '#/definitions/GithubEndpoint'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Create a GitHub Endpoint.
+            tags:
+                - endpoints
+    /github/endpoints/{name}:
+        delete:
+            operationId: DeleteGithubEndpoint
+            parameters:
+                - description: The name of the GitHub endpoint.
+                  in: path
+                  name: name
+                  required: true
+                  type: string
+            responses:
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Delete a GitHub Endpoint.
+            tags:
+                - endpoints
+        get:
+            operationId: GetGithubEndpoint
+            parameters:
+                - description: The name of the GitHub endpoint.
+                  in: path
+                  name: name
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: GithubEndpoint
+                    schema:
+                        $ref: '#/definitions/GithubEndpoint'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get a GitHub Endpoint.
+            tags:
+                - endpoints
+        put:
+            operationId: UpdateGithubEndpoint
+            parameters:
+                - description: The name of the GitHub endpoint.
+                  in: path
+                  name: name
+                  required: true
+                  type: string
+                - description: Parameters used when updating a GitHub endpoint.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/UpdateGithubEndpointParams'
+                    description: Parameters used when updating a GitHub endpoint.
+                    type: object
+            responses:
+                "200":
+                    description: GithubEndpoint
+                    schema:
+                        $ref: '#/definitions/GithubEndpoint'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Update a GitHub Endpoint.
+            tags:
+                - endpoints
     /instances:
         get:
             operationId: ListInstances

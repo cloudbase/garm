@@ -3,7 +3,7 @@ export SHELLOPTS:=$(if $(SHELLOPTS),$(SHELLOPTS):)pipefail:errexit
 
 .ONESHELL:
 
-GEN_PASSWORD=$(shell (apg -n1 -m32))
+GEN_PASSWORD=$(shell (/usr/bin/apg -n1 -m32))
 IMAGE_TAG = garm-build
 
 USER_ID=$(shell ((docker --version | grep -q podman) && echo "0" || id -u))

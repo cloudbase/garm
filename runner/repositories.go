@@ -38,8 +38,8 @@ func (r *Runner) CreateRepository(ctx context.Context, param params.CreateRepoPa
 		return params.Repository{}, errors.Wrap(err, "validating params")
 	}
 
-	creds, ok := r.credentials[param.CredentialsName]
-	if !ok {
+	creds, err := r.store.GetGithubCredentialsByName(ctx, param.CredentialsName, true)
+	if err != nil {
 		return params.Repository{}, runnerErrors.NewBadRequestError("credentials %s not defined", param.CredentialsName)
 	}
 
@@ -67,6 +67,8 @@ func (r *Runner) CreateRepository(ctx context.Context, param params.CreateRepoPa
 		}
 	}()
 
+	// Use the admin context in the pool manager. Any access control is already done above when
+	// updating the store.
 	poolMgr, err := r.poolManagerCtrl.CreateRepoPoolManager(r.ctx, repo, r.providers, r.store)
 	if err != nil {
 		return params.Repository{}, errors.Wrap(err, "creating repo pool manager")
@@ -189,29 +191,19 @@ func (r *Runner) UpdateRepository(ctx context.Context, repoID string, param para
 	r.mux.Lock()
 	defer r.mux.Unlock()
 
-	repo, err := r.store.GetRepositoryByID(ctx, repoID)
-	if err != nil {
-		return params.Repository{}, errors.Wrap(err, "fetching repo")
-	}
-
-	if param.CredentialsName != "" {
-		// Check that credentials are set before saving to db
-		if _, ok := r.credentials[param.CredentialsName]; !ok {
-			return params.Repository{}, runnerErrors.NewBadRequestError("invalid credentials (%s) for repo %s/%s", param.CredentialsName, repo.Owner, repo.Name)
-		}
-	}
-
 	switch param.PoolBalancerType {
 	case params.PoolBalancerTypeRoundRobin, params.PoolBalancerTypePack, params.PoolBalancerTypeNone:
 	default:
 		return params.Repository{}, runnerErrors.NewBadRequestError("invalid pool balancer type: %s", param.PoolBalancerType)
 	}
 
-	repo, err = r.store.UpdateRepository(ctx, repoID, param)
+	repo, err := r.store.UpdateRepository(ctx, repoID, param)
 	if err != nil {
 		return params.Repository{}, errors.Wrap(err, "updating repo")
 	}
 
+	// Use the admin context in the pool manager. Any access control is already done above when
+	// updating the store.
 	poolMgr, err := r.poolManagerCtrl.UpdateRepoPoolManager(r.ctx, repo)
 	if err != nil {
 		return params.Repository{}, fmt.Errorf("failed to update pool manager: %w", err)

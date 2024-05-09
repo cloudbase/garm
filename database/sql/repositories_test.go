@@ -28,6 +28,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
+	"github.com/cloudbase/garm/auth"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	garmTesting "github.com/cloudbase/garm/internal/testing"
 	"github.com/cloudbase/garm/params"
@@ -48,6 +49,13 @@ type RepoTestSuite struct {
 	Store          dbCommon.Store
 	StoreSQLMocked *sqlDatabase
 	Fixtures       *RepoTestFixtures
+
+	adminCtx    context.Context
+	adminUserID string
+
+	testCreds          params.GithubCredentials
+	secondaryTestCreds params.GithubCredentials
+	githubEndpoint     params.GithubEndpoint
 }
 
 func (s *RepoTestSuite) equalReposByName(expected, actual []params.Repository) {
@@ -87,14 +95,23 @@ func (s *RepoTestSuite) SetupTest() {
 	}
 	s.Store = db
 
+	adminCtx := garmTesting.ImpersonateAdminContext(context.Background(), db, s.T())
+	s.adminCtx = adminCtx
+	s.adminUserID = auth.UserID(adminCtx)
+	s.Require().NotEmpty(s.adminUserID)
+
+	s.githubEndpoint = garmTesting.CreateDefaultGithubEndpoint(adminCtx, db, s.T())
+	s.testCreds = garmTesting.CreateTestGithubCredentials(adminCtx, "new-creds", db, s.T(), s.githubEndpoint)
+	s.secondaryTestCreds = garmTesting.CreateTestGithubCredentials(adminCtx, "secondary-creds", db, s.T(), s.githubEndpoint)
+
 	// create some repository objects in the database, for testing purposes
 	repos := []params.Repository{}
 	for i := 1; i <= 3; i++ {
 		repo, err := db.CreateRepository(
-			context.Background(),
+			adminCtx,
 			fmt.Sprintf("test-owner-%d", i),
 			fmt.Sprintf("test-repo-%d", i),
-			fmt.Sprintf("test-creds-%d", i),
+			s.testCreds.Name,
 			fmt.Sprintf("test-webhook-secret-%d", i),
 			params.PoolBalancerTypeRoundRobin,
 		)
@@ -136,7 +153,7 @@ func (s *RepoTestSuite) SetupTest() {
 		CreateRepoParams: params.CreateRepoParams{
 			Owner:           "test-owner-repo",
 			Name:            "test-repo",
-			CredentialsName: "test-creds-repo",
+			CredentialsName: s.testCreds.Name,
 			WebhookSecret:   "test-webhook-secret",
 		},
 		CreatePoolParams: params.CreatePoolParams{
@@ -155,7 +172,7 @@ func (s *RepoTestSuite) SetupTest() {
 			OSType: "linux",
 		},
 		UpdateRepoParams: params.UpdateEntityParams{
-			CredentialsName: "test-update-creds",
+			CredentialsName: s.secondaryTestCreds.Name,
 			WebhookSecret:   "test-update-webhook-secret",
 		},
 		UpdatePoolParams: params.UpdatePoolParams{
@@ -172,7 +189,7 @@ func (s *RepoTestSuite) SetupTest() {
 func (s *RepoTestSuite) TestCreateRepository() {
 	// call tested function
 	repo, err := s.Store.CreateRepository(
-		context.Background(),
+		s.adminCtx,
 		s.Fixtures.CreateRepoParams.Owner,
 		s.Fixtures.CreateRepoParams.Name,
 		s.Fixtures.CreateRepoParams.CredentialsName,
@@ -182,13 +199,13 @@ func (s *RepoTestSuite) TestCreateRepository() {
 
 	// assertions
 	s.Require().Nil(err)
-	storeRepo, err := s.Store.GetRepositoryByID(context.Background(), repo.ID)
+	storeRepo, err := s.Store.GetRepositoryByID(s.adminCtx, repo.ID)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to get repository by id: %v", err))
 	}
 	s.Require().Equal(storeRepo.Owner, repo.Owner)
 	s.Require().Equal(storeRepo.Name, repo.Name)
-	s.Require().Equal(storeRepo.CredentialsName, repo.CredentialsName)
+	s.Require().Equal(storeRepo.Credentials.Name, repo.Credentials.Name)
 	s.Require().Equal(storeRepo.WebhookSecret, repo.WebhookSecret)
 }
 
@@ -206,7 +223,7 @@ func (s *RepoTestSuite) TestCreateRepositoryInvalidDBPassphrase() {
 	}
 
 	_, err = sqlDB.CreateRepository(
-		context.Background(),
+		s.adminCtx,
 		s.Fixtures.CreateRepoParams.Owner,
 		s.Fixtures.CreateRepoParams.Name,
 		s.Fixtures.CreateRepoParams.CredentialsName,
@@ -221,12 +238,21 @@ func (s *RepoTestSuite) TestCreateRepositoryInvalidDBPassphrase() {
 func (s *RepoTestSuite) TestCreateRepositoryInvalidDBCreateErr() {
 	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_credentials` WHERE user_id = ? AND name = ? AND `github_credentials`.`deleted_at` IS NULL ORDER BY `github_credentials`.`id` LIMIT ?")).
+		WithArgs(s.adminUserID, s.Fixtures.Repos[0].CredentialsName, 1).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "endpoint_name"}).
+			AddRow(s.testCreds.ID, s.githubEndpoint.Name))
+	s.Fixtures.SQLMock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_endpoints` WHERE `github_endpoints`.`name` = ? AND `github_endpoints`.`deleted_at` IS NULL")).
+		WithArgs(s.testCreds.Endpoint.Name).
+		WillReturnRows(sqlmock.NewRows([]string{"name"}).
+			AddRow(s.githubEndpoint.Name))
+	s.Fixtures.SQLMock.
 		ExpectExec(regexp.QuoteMeta("INSERT INTO `repositories`")).
 		WillReturnError(fmt.Errorf("creating repo mock error"))
 	s.Fixtures.SQLMock.ExpectRollback()
 
 	_, err := s.StoreSQLMocked.CreateRepository(
-		context.Background(),
+		s.adminCtx,
 		s.Fixtures.CreateRepoParams.Owner,
 		s.Fixtures.CreateRepoParams.Name,
 		s.Fixtures.CreateRepoParams.CredentialsName,
@@ -234,13 +260,13 @@ func (s *RepoTestSuite) TestCreateRepositoryInvalidDBCreateErr() {
 		params.PoolBalancerTypeRoundRobin,
 	)
 
-	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
-	s.Require().Equal("creating repository: creating repo mock error", err.Error())
+	s.Require().Equal("creating repository: creating repository: creating repo mock error", err.Error())
+	s.assertSQLMockExpectations()
 }
 
 func (s *RepoTestSuite) TestGetRepository() {
-	repo, err := s.Store.GetRepository(context.Background(), s.Fixtures.Repos[0].Owner, s.Fixtures.Repos[0].Name)
+	repo, err := s.Store.GetRepository(s.adminCtx, s.Fixtures.Repos[0].Owner, s.Fixtures.Repos[0].Name)
 
 	s.Require().Nil(err)
 	s.Require().Equal(s.Fixtures.Repos[0].Owner, repo.Owner)
@@ -249,7 +275,7 @@ func (s *RepoTestSuite) TestGetRepository() {
 }
 
 func (s *RepoTestSuite) TestGetRepositoryCaseInsensitive() {
-	repo, err := s.Store.GetRepository(context.Background(), "TeSt-oWnEr-1", "TeSt-rEpO-1")
+	repo, err := s.Store.GetRepository(s.adminCtx, "TeSt-oWnEr-1", "TeSt-rEpO-1")
 
 	s.Require().Nil(err)
 	s.Require().Equal("test-owner-1", repo.Owner)
@@ -257,7 +283,7 @@ func (s *RepoTestSuite) TestGetRepositoryCaseInsensitive() {
 }
 
 func (s *RepoTestSuite) TestGetRepositoryNotFound() {
-	_, err := s.Store.GetRepository(context.Background(), "dummy-owner", "dummy-name")
+	_, err := s.Store.GetRepository(s.adminCtx, "dummy-owner", "dummy-name")
 
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching repo: not found", err.Error())
@@ -273,15 +299,15 @@ func (s *RepoTestSuite) TestGetRepositoryDBDecryptingErr() {
 		WithArgs(s.Fixtures.Repos[0].Name, s.Fixtures.Repos[0].Owner, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"name", "owner"}).AddRow(s.Fixtures.Repos[0].Name, s.Fixtures.Repos[0].Owner))
 
-	_, err := s.StoreSQLMocked.GetRepository(context.Background(), s.Fixtures.Repos[0].Owner, s.Fixtures.Repos[0].Name)
+	_, err := s.StoreSQLMocked.GetRepository(s.adminCtx, s.Fixtures.Repos[0].Owner, s.Fixtures.Repos[0].Name)
 
-	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching repo: missing secret", err.Error())
+	s.assertSQLMockExpectations()
 }
 
 func (s *RepoTestSuite) TestListRepositories() {
-	repos, err := s.Store.ListRepositories((context.Background()))
+	repos, err := s.Store.ListRepositories(s.adminCtx)
 
 	s.Require().Nil(err)
 	s.equalReposByName(s.Fixtures.Repos, repos)
@@ -292,11 +318,11 @@ func (s *RepoTestSuite) TestListRepositoriesDBFetchErr() {
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `repositories` WHERE `repositories`.`deleted_at` IS NULL")).
 		WillReturnError(fmt.Errorf("fetching user from database mock error"))
 
-	_, err := s.StoreSQLMocked.ListRepositories(context.Background())
+	_, err := s.StoreSQLMocked.ListRepositories(s.adminCtx)
 
-	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching user from database: fetching user from database mock error", err.Error())
+	s.assertSQLMockExpectations()
 }
 
 func (s *RepoTestSuite) TestListRepositoriesDBDecryptingErr() {
@@ -306,24 +332,24 @@ func (s *RepoTestSuite) TestListRepositoriesDBDecryptingErr() {
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `repositories` WHERE `repositories`.`deleted_at` IS NULL")).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "webhook_secret"}).AddRow(s.Fixtures.Repos[0].ID, s.Fixtures.Repos[0].WebhookSecret))
 
-	_, err := s.StoreSQLMocked.ListRepositories(context.Background())
+	_, err := s.StoreSQLMocked.ListRepositories(s.adminCtx)
 
-	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching repositories: decrypting secret: invalid passphrase length (expected length 32 characters)", err.Error())
+	s.assertSQLMockExpectations()
 }
 
 func (s *RepoTestSuite) TestDeleteRepository() {
-	err := s.Store.DeleteRepository(context.Background(), s.Fixtures.Repos[0].ID)
+	err := s.Store.DeleteRepository(s.adminCtx, s.Fixtures.Repos[0].ID)
 
 	s.Require().Nil(err)
-	_, err = s.Store.GetRepositoryByID(context.Background(), s.Fixtures.Repos[0].ID)
+	_, err = s.Store.GetRepositoryByID(s.adminCtx, s.Fixtures.Repos[0].ID)
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching repo: not found", err.Error())
 }
 
 func (s *RepoTestSuite) TestDeleteRepositoryInvalidRepoID() {
-	err := s.Store.DeleteRepository(context.Background(), "dummy-repo-id")
+	err := s.Store.DeleteRepository(s.adminCtx, "dummy-repo-id")
 
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching repo: parsing id: invalid request", err.Error())
@@ -341,85 +367,118 @@ func (s *RepoTestSuite) TestDeleteRepositoryDBRemoveErr() {
 		WillReturnError(fmt.Errorf("mocked deleting repo error"))
 	s.Fixtures.SQLMock.ExpectRollback()
 
-	err := s.StoreSQLMocked.DeleteRepository(context.Background(), s.Fixtures.Repos[0].ID)
+	err := s.StoreSQLMocked.DeleteRepository(s.adminCtx, s.Fixtures.Repos[0].ID)
 
-	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
 	s.Require().Equal("deleting repo: mocked deleting repo error", err.Error())
+	s.assertSQLMockExpectations()
 }
 
 func (s *RepoTestSuite) TestUpdateRepository() {
-	repo, err := s.Store.UpdateRepository(context.Background(), s.Fixtures.Repos[0].ID, s.Fixtures.UpdateRepoParams)
+	repo, err := s.Store.UpdateRepository(s.adminCtx, s.Fixtures.Repos[0].ID, s.Fixtures.UpdateRepoParams)
 
 	s.Require().Nil(err)
-	s.Require().Equal(s.Fixtures.UpdateRepoParams.CredentialsName, repo.CredentialsName)
+	s.Require().Equal(s.Fixtures.UpdateRepoParams.CredentialsName, repo.Credentials.Name)
 	s.Require().Equal(s.Fixtures.UpdateRepoParams.WebhookSecret, repo.WebhookSecret)
 }
 
 func (s *RepoTestSuite) TestUpdateRepositoryInvalidRepoID() {
-	_, err := s.Store.UpdateRepository(context.Background(), "dummy-repo-id", s.Fixtures.UpdateRepoParams)
+	_, err := s.Store.UpdateRepository(s.adminCtx, "dummy-repo-id", s.Fixtures.UpdateRepoParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching repo: parsing id: invalid request", err.Error())
+	s.Require().Equal("saving repo: fetching repo: parsing id: invalid request", err.Error())
 }
 
 func (s *RepoTestSuite) TestUpdateRepositoryDBEncryptErr() {
 	s.StoreSQLMocked.cfg.Passphrase = wrongPassphrase
-
+	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `repositories` WHERE id = ? AND `repositories`.`deleted_at` IS NULL ORDER BY `repositories`.`id` LIMIT ?")).
 		WithArgs(s.Fixtures.Repos[0].ID, 1).
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Repos[0].ID))
-	_, err := s.StoreSQLMocked.UpdateRepository(context.Background(), s.Fixtures.Repos[0].ID, s.Fixtures.UpdateRepoParams)
+		WillReturnRows(sqlmock.NewRows([]string{"id", "endpoint_name"}).
+			AddRow(s.Fixtures.Repos[0].ID, s.githubEndpoint.Name))
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_credentials` WHERE user_id = ? AND name = ? AND `github_credentials`.`deleted_at` IS NULL ORDER BY `github_credentials`.`id` LIMIT ?")).
+		WithArgs(s.adminUserID, s.secondaryTestCreds.Name, 1).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "endpoint_name"}).
+			AddRow(s.secondaryTestCreds.ID, s.secondaryTestCreds.Endpoint.Name))
+	s.Fixtures.SQLMock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_endpoints` WHERE `github_endpoints`.`name` = ? AND `github_endpoints`.`deleted_at` IS NULL")).
+		WithArgs(s.testCreds.Endpoint.Name).
+		WillReturnRows(sqlmock.NewRows([]string{"name"}).
+			AddRow(s.secondaryTestCreds.Endpoint.Name))
+	s.Fixtures.SQLMock.ExpectRollback()
 
-	s.assertSQLMockExpectations()
+	_, err := s.StoreSQLMocked.UpdateRepository(s.adminCtx, s.Fixtures.Repos[0].ID, s.Fixtures.UpdateRepoParams)
+
 	s.Require().NotNil(err)
-	s.Require().Equal("saving repo: failed to encrypt string: invalid passphrase length (expected length 32 characters)", err.Error())
+	s.Require().Equal("saving repo: saving repo: failed to encrypt string: invalid passphrase length (expected length 32 characters)", err.Error())
+	s.assertSQLMockExpectations()
 }
 
 func (s *RepoTestSuite) TestUpdateRepositoryDBSaveErr() {
+	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `repositories` WHERE id = ? AND `repositories`.`deleted_at` IS NULL ORDER BY `repositories`.`id` LIMIT ?")).
 		WithArgs(s.Fixtures.Repos[0].ID, 1).
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Repos[0].ID))
-	s.Fixtures.SQLMock.ExpectBegin()
+		WillReturnRows(sqlmock.NewRows([]string{"id", "endpoint_name"}).
+			AddRow(s.Fixtures.Repos[0].ID, s.githubEndpoint.Name))
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_credentials` WHERE user_id = ? AND name = ? AND `github_credentials`.`deleted_at` IS NULL ORDER BY `github_credentials`.`id` LIMIT ?")).
+		WithArgs(s.adminUserID, s.secondaryTestCreds.Name, 1).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "endpoint_name"}).
+			AddRow(s.secondaryTestCreds.ID, s.secondaryTestCreds.Endpoint.Name))
+	s.Fixtures.SQLMock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_endpoints` WHERE `github_endpoints`.`name` = ? AND `github_endpoints`.`deleted_at` IS NULL")).
+		WithArgs(s.testCreds.Endpoint.Name).
+		WillReturnRows(sqlmock.NewRows([]string{"name"}).
+			AddRow(s.secondaryTestCreds.Endpoint.Name))
 	s.Fixtures.SQLMock.
 		ExpectExec(("UPDATE `repositories` SET")).
 		WillReturnError(fmt.Errorf("saving repo mock error"))
 	s.Fixtures.SQLMock.ExpectRollback()
 
-	_, err := s.StoreSQLMocked.UpdateRepository(context.Background(), s.Fixtures.Repos[0].ID, s.Fixtures.UpdateRepoParams)
+	_, err := s.StoreSQLMocked.UpdateRepository(s.adminCtx, s.Fixtures.Repos[0].ID, s.Fixtures.UpdateRepoParams)
 
-	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
-	s.Require().Equal("saving repo: saving repo mock error", err.Error())
+	s.Require().Equal("saving repo: saving repo: saving repo mock error", err.Error())
+	s.assertSQLMockExpectations()
 }
 
 func (s *RepoTestSuite) TestUpdateRepositoryDBDecryptingErr() {
 	s.StoreSQLMocked.cfg.Passphrase = wrongPassphrase
 	s.Fixtures.UpdateRepoParams.WebhookSecret = webhookSecret
-
+	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `repositories` WHERE id = ? AND `repositories`.`deleted_at` IS NULL ORDER BY `repositories`.`id` LIMIT ?")).
 		WithArgs(s.Fixtures.Repos[0].ID, 1).
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Repos[0].ID))
+		WillReturnRows(sqlmock.NewRows([]string{"id", "endpoint_name"}).
+			AddRow(s.Fixtures.Repos[0].ID, s.githubEndpoint.Name))
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_credentials` WHERE user_id = ? AND name = ? AND `github_credentials`.`deleted_at` IS NULL ORDER BY `github_credentials`.`id` LIMIT ?")).
+		WithArgs(s.adminUserID, s.secondaryTestCreds.Name, 1).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "endpoint_name"}).
+			AddRow(s.secondaryTestCreds.ID, s.secondaryTestCreds.Endpoint.Name))
+	s.Fixtures.SQLMock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_endpoints` WHERE `github_endpoints`.`name` = ? AND `github_endpoints`.`deleted_at` IS NULL")).
+		WithArgs(s.testCreds.Endpoint.Name).
+		WillReturnRows(sqlmock.NewRows([]string{"name"}).
+			AddRow(s.secondaryTestCreds.Endpoint.Name))
+	s.Fixtures.SQLMock.ExpectRollback()
 
-	_, err := s.StoreSQLMocked.UpdateRepository(context.Background(), s.Fixtures.Repos[0].ID, s.Fixtures.UpdateRepoParams)
+	_, err := s.StoreSQLMocked.UpdateRepository(s.adminCtx, s.Fixtures.Repos[0].ID, s.Fixtures.UpdateRepoParams)
 
-	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
-	s.Require().Equal("saving repo: failed to encrypt string: invalid passphrase length (expected length 32 characters)", err.Error())
+	s.Require().Equal("saving repo: saving repo: failed to encrypt string: invalid passphrase length (expected length 32 characters)", err.Error())
+	s.assertSQLMockExpectations()
 }
 
 func (s *RepoTestSuite) TestGetRepositoryByID() {
-	repo, err := s.Store.GetRepositoryByID(context.Background(), s.Fixtures.Repos[0].ID)
+	repo, err := s.Store.GetRepositoryByID(s.adminCtx, s.Fixtures.Repos[0].ID)
 
 	s.Require().Nil(err)
 	s.Require().Equal(s.Fixtures.Repos[0].ID, repo.ID)
 }
 
 func (s *RepoTestSuite) TestGetRepositoryByIDInvalidRepoID() {
-	_, err := s.Store.GetRepositoryByID(context.Background(), "dummy-repo-id")
+	_, err := s.Store.GetRepositoryByID(s.adminCtx, "dummy-repo-id")
 
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching repo: parsing id: invalid request", err.Error())
@@ -435,20 +494,20 @@ func (s *RepoTestSuite) TestGetRepositoryByIDDBDecryptingErr() {
 		WithArgs(s.Fixtures.Repos[0].ID).
 		WillReturnRows(sqlmock.NewRows([]string{"repo_id"}).AddRow(s.Fixtures.Repos[0].ID))
 
-	_, err := s.StoreSQLMocked.GetRepositoryByID(context.Background(), s.Fixtures.Repos[0].ID)
+	_, err := s.StoreSQLMocked.GetRepositoryByID(s.adminCtx, s.Fixtures.Repos[0].ID)
 
-	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching repo: missing secret", err.Error())
+	s.assertSQLMockExpectations()
 }
 
 func (s *RepoTestSuite) TestCreateRepositoryPool() {
 	entity, err := s.Fixtures.Repos[0].GetEntity()
 	s.Require().Nil(err)
-	pool, err := s.Store.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
+	pool, err := s.Store.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 
 	s.Require().Nil(err)
-	repo, err := s.Store.GetRepositoryByID(context.Background(), s.Fixtures.Repos[0].ID)
+	repo, err := s.Store.GetRepositoryByID(s.adminCtx, s.Fixtures.Repos[0].ID)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot get repo by ID: %v", err))
 	}
@@ -463,7 +522,7 @@ func (s *RepoTestSuite) TestCreateRepositoryPoolMissingTags() {
 	s.Fixtures.CreatePoolParams.Tags = []string{}
 	entity, err := s.Fixtures.Repos[0].GetEntity()
 	s.Require().Nil(err)
-	_, err = s.Store.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
+	_, err = s.Store.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 
 	s.Require().NotNil(err)
 	s.Require().Equal("no tags specified", err.Error())
@@ -474,7 +533,7 @@ func (s *RepoTestSuite) TestCreateRepositoryPoolInvalidRepoID() {
 		ID:         "dummy-repo-id",
 		EntityType: params.GithubEntityTypeRepository,
 	}
-	_, err := s.Store.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
+	_, err := s.Store.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 
 	s.Require().NotNil(err)
 	s.Require().Equal("parsing id: invalid request", err.Error())
@@ -492,7 +551,7 @@ func (s *RepoTestSuite) TestCreateRepositoryPoolDBCreateErr() {
 
 	entity, err := s.Fixtures.Repos[0].GetEntity()
 	s.Require().Nil(err)
-	_, err = s.StoreSQLMocked.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
+	_, err = s.StoreSQLMocked.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 
 	s.Require().NotNil(err)
 	s.Require().Equal("checking pool existence: mocked creating pool error", err.Error())
@@ -522,7 +581,7 @@ func (s *RepoTestSuite) TestCreateRepositoryPoolDBPoolAlreadyExistErr() {
 	entity, err := s.Fixtures.Repos[0].GetEntity()
 	s.Require().Nil(err)
 
-	_, err = s.StoreSQLMocked.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
+	_, err = s.StoreSQLMocked.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 
 	s.Require().NotNil(err)
 	s.Require().Equal("pool with the same image and flavor already exists on this provider", err.Error())
@@ -550,7 +609,7 @@ func (s *RepoTestSuite) TestCreateRepositoryPoolDBFetchTagErr() {
 	entity, err := s.Fixtures.Repos[0].GetEntity()
 	s.Require().Nil(err)
 
-	_, err = s.StoreSQLMocked.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
+	_, err = s.StoreSQLMocked.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 
 	s.Require().NotNil(err)
 	s.Require().Equal("creating tag: fetching tag from database: mocked fetching tag error", err.Error())
@@ -587,7 +646,7 @@ func (s *RepoTestSuite) TestCreateRepositoryPoolDBAddingPoolErr() {
 	entity, err := s.Fixtures.Repos[0].GetEntity()
 	s.Require().Nil(err)
 
-	_, err = s.StoreSQLMocked.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
+	_, err = s.StoreSQLMocked.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 
 	s.Require().NotNil(err)
 	s.Require().Equal("creating pool: mocked adding pool error", err.Error())
@@ -627,7 +686,7 @@ func (s *RepoTestSuite) TestCreateRepositoryPoolDBSaveTagErr() {
 	entity, err := s.Fixtures.Repos[0].GetEntity()
 	s.Require().Nil(err)
 
-	_, err = s.StoreSQLMocked.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
+	_, err = s.StoreSQLMocked.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 	s.Require().NotNil(err)
 	s.Require().Equal("associating tags: mocked saving tag error", err.Error())
 	s.assertSQLMockExpectations()
@@ -675,7 +734,7 @@ func (s *RepoTestSuite) TestCreateRepositoryPoolDBFetchPoolErr() {
 	entity, err := s.Fixtures.Repos[0].GetEntity()
 	s.Require().Nil(err)
 
-	_, err = s.StoreSQLMocked.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
+	_, err = s.StoreSQLMocked.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching pool: not found", err.Error())
@@ -688,14 +747,14 @@ func (s *RepoTestSuite) TestListRepoPools() {
 	repoPools := []params.Pool{}
 	for i := 1; i <= 2; i++ {
 		s.Fixtures.CreatePoolParams.Flavor = fmt.Sprintf("test-flavor-%d", i)
-		pool, err := s.Store.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
+		pool, err := s.Store.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 		if err != nil {
 			s.FailNow(fmt.Sprintf("cannot create repo pool: %v", err))
 		}
 		repoPools = append(repoPools, pool)
 	}
 
-	pools, err := s.Store.ListEntityPools(context.Background(), entity)
+	pools, err := s.Store.ListEntityPools(s.adminCtx, entity)
 
 	s.Require().Nil(err)
 	garmTesting.EqualDBEntityID(s.T(), repoPools, pools)
@@ -706,7 +765,7 @@ func (s *RepoTestSuite) TestListRepoPoolsInvalidRepoID() {
 		ID:         "dummy-repo-id",
 		EntityType: params.GithubEntityTypeRepository,
 	}
-	_, err := s.Store.ListEntityPools(context.Background(), entity)
+	_, err := s.Store.ListEntityPools(s.adminCtx, entity)
 
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching pools: parsing id: invalid request", err.Error())
@@ -715,12 +774,12 @@ func (s *RepoTestSuite) TestListRepoPoolsInvalidRepoID() {
 func (s *RepoTestSuite) TestGetRepositoryPool() {
 	entity, err := s.Fixtures.Repos[0].GetEntity()
 	s.Require().Nil(err)
-	pool, err := s.Store.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
+	pool, err := s.Store.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create repo pool: %v", err))
 	}
 
-	repoPool, err := s.Store.GetEntityPool(context.Background(), entity, pool.ID)
+	repoPool, err := s.Store.GetEntityPool(s.adminCtx, entity, pool.ID)
 
 	s.Require().Nil(err)
 	s.Require().Equal(repoPool.ID, pool.ID)
@@ -731,7 +790,7 @@ func (s *RepoTestSuite) TestGetRepositoryPoolInvalidRepoID() {
 		ID:         "dummy-repo-id",
 		EntityType: params.GithubEntityTypeRepository,
 	}
-	_, err := s.Store.GetEntityPool(context.Background(), entity, "dummy-pool-id")
+	_, err := s.Store.GetEntityPool(s.adminCtx, entity, "dummy-pool-id")
 
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching pool: parsing id: invalid request", err.Error())
@@ -740,15 +799,15 @@ func (s *RepoTestSuite) TestGetRepositoryPoolInvalidRepoID() {
 func (s *RepoTestSuite) TestDeleteRepositoryPool() {
 	entity, err := s.Fixtures.Repos[0].GetEntity()
 	s.Require().Nil(err)
-	pool, err := s.Store.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
+	pool, err := s.Store.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create repo pool: %v", err))
 	}
 
-	err = s.Store.DeleteEntityPool(context.Background(), entity, pool.ID)
+	err = s.Store.DeleteEntityPool(s.adminCtx, entity, pool.ID)
 
 	s.Require().Nil(err)
-	_, err = s.Store.GetEntityPool(context.Background(), entity, pool.ID)
+	_, err = s.Store.GetEntityPool(s.adminCtx, entity, pool.ID)
 	s.Require().Equal("fetching pool: finding pool: not found", err.Error())
 }
 
@@ -757,7 +816,7 @@ func (s *RepoTestSuite) TestDeleteRepositoryPoolInvalidRepoID() {
 		ID:         "dummy-repo-id",
 		EntityType: params.GithubEntityTypeRepository,
 	}
-	err := s.Store.DeleteEntityPool(context.Background(), entity, "dummy-pool-id")
+	err := s.Store.DeleteEntityPool(s.adminCtx, entity, "dummy-pool-id")
 
 	s.Require().NotNil(err)
 	s.Require().Equal("parsing id: invalid request", err.Error())
@@ -767,7 +826,7 @@ func (s *RepoTestSuite) TestDeleteRepositoryPoolDBDeleteErr() {
 	entity, err := s.Fixtures.Repos[0].GetEntity()
 	s.Require().Nil(err)
 
-	pool, err := s.Store.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
+	pool, err := s.Store.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create repo pool: %v", err))
 	}
@@ -779,7 +838,7 @@ func (s *RepoTestSuite) TestDeleteRepositoryPoolDBDeleteErr() {
 		WillReturnError(fmt.Errorf("mocked deleting pool error"))
 	s.Fixtures.SQLMock.ExpectRollback()
 
-	err = s.StoreSQLMocked.DeleteEntityPool(context.Background(), entity, pool.ID)
+	err = s.StoreSQLMocked.DeleteEntityPool(s.adminCtx, entity, pool.ID)
 	s.Require().NotNil(err)
 	s.Require().Equal("removing pool: mocked deleting pool error", err.Error())
 	s.assertSQLMockExpectations()
@@ -788,21 +847,21 @@ func (s *RepoTestSuite) TestDeleteRepositoryPoolDBDeleteErr() {
 func (s *RepoTestSuite) TestListRepoInstances() {
 	entity, err := s.Fixtures.Repos[0].GetEntity()
 	s.Require().Nil(err)
-	pool, err := s.Store.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
+	pool, err := s.Store.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create repo pool: %v", err))
 	}
 	poolInstances := []params.Instance{}
 	for i := 1; i <= 3; i++ {
 		s.Fixtures.CreateInstanceParams.Name = fmt.Sprintf("test-repo-%d", i)
-		instance, err := s.Store.CreateInstance(context.Background(), pool.ID, s.Fixtures.CreateInstanceParams)
+		instance, err := s.Store.CreateInstance(s.adminCtx, pool.ID, s.Fixtures.CreateInstanceParams)
 		if err != nil {
 			s.FailNow(fmt.Sprintf("cannot create instance: %s", err))
 		}
 		poolInstances = append(poolInstances, instance)
 	}
 
-	instances, err := s.Store.ListEntityInstances(context.Background(), entity)
+	instances, err := s.Store.ListEntityInstances(s.adminCtx, entity)
 
 	s.Require().Nil(err)
 	s.equalInstancesByID(poolInstances, instances)
@@ -813,7 +872,7 @@ func (s *RepoTestSuite) TestListRepoInstancesInvalidRepoID() {
 		ID:         "dummy-repo-id",
 		EntityType: params.GithubEntityTypeRepository,
 	}
-	_, err := s.Store.ListEntityInstances(context.Background(), entity)
+	_, err := s.Store.ListEntityInstances(s.adminCtx, entity)
 
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching entity: parsing id: invalid request", err.Error())
@@ -822,12 +881,12 @@ func (s *RepoTestSuite) TestListRepoInstancesInvalidRepoID() {
 func (s *RepoTestSuite) TestUpdateRepositoryPool() {
 	entity, err := s.Fixtures.Repos[0].GetEntity()
 	s.Require().Nil(err)
-	repoPool, err := s.Store.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
+	repoPool, err := s.Store.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create repo pool: %v", err))
 	}
 
-	pool, err := s.Store.UpdateEntityPool(context.Background(), entity, repoPool.ID, s.Fixtures.UpdatePoolParams)
+	pool, err := s.Store.UpdateEntityPool(s.adminCtx, entity, repoPool.ID, s.Fixtures.UpdatePoolParams)
 
 	s.Require().Nil(err)
 	s.Require().Equal(*s.Fixtures.UpdatePoolParams.MaxRunners, pool.MaxRunners)
@@ -841,7 +900,7 @@ func (s *RepoTestSuite) TestUpdateRepositoryPoolInvalidRepoID() {
 		ID:         "dummy-repo-id",
 		EntityType: params.GithubEntityTypeRepository,
 	}
-	_, err := s.Store.UpdateEntityPool(context.Background(), entity, "dummy-repo-id", s.Fixtures.UpdatePoolParams)
+	_, err := s.Store.UpdateEntityPool(s.adminCtx, entity, "dummy-repo-id", s.Fixtures.UpdatePoolParams)
 
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching pool: parsing id: invalid request", err.Error())

@@ -67,6 +67,10 @@ func (s *sqlDatabase) CreateUser(_ context.Context, user params.NewUserParams) (
 		return params.User{}, runnerErrors.NewConflictError("email already exists")
 	}
 
+	if s.HasAdminUser(context.Background()) && user.IsAdmin {
+		return params.User{}, runnerErrors.NewBadRequestError("admin user already exists")
+	}
+
 	newUser := User{
 		Username: user.Username,
 		Password: user.Password,
@@ -128,4 +132,17 @@ func (s *sqlDatabase) UpdateUser(_ context.Context, user string, param params.Up
 	}
 
 	return s.sqlToParamsUser(dbUser), nil
+}
+
+// GetAdminUser returns the system admin user. This is only for internal use.
+func (s *sqlDatabase) GetAdminUser(_ context.Context) (params.User, error) {
+	var user User
+	q := s.conn.Model(&User{}).Where("is_admin = ?", true).First(&user)
+	if q.Error != nil {
+		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
+			return params.User{}, runnerErrors.ErrNotFound
+		}
+		return params.User{}, errors.Wrap(q.Error, "fetching admin user")
+	}
+	return s.sqlToParamsUser(user), nil
 }

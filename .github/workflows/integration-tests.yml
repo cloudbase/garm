@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup Golang
         uses: actions/setup-go@v3
@@ -20,7 +20,9 @@ jobs:
         uses: canonical/setup-lxd@v0.1.1
 
       - name: Install dependencies
-        run: sudo apt-get -qq update && sudo apt-get -qq install -y apg coreutils make
+        run: |
+          sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list
+          sudo apt-get -qq update && sudo apt-get -qq install -y apg coreutils make
 
       - name: Set up ngrok
         id: ngrok
@@ -43,6 +45,7 @@ jobs:
           echo "GARM_PASSWORD=$GARM_PASSWORD" >> $GITHUB_ENV
           echo "REPO_WEBHOOK_SECRET=$REPO_WEBHOOK_SECRET" >> $GITHUB_ENV
           echo "ORG_WEBHOOK_SECRET=$ORG_WEBHOOK_SECRET" >> $GITHUB_ENV
+          echo "GARM_CHECKOUT_DIR=$GITHUB_WORKSPACE" >> $GITHUB_ENV
 
       - name: Create logs directory
         if: always()
@@ -52,7 +55,7 @@ jobs:
         run: |
           set -o pipefail
           set -o errexit
-          make integration 2>&1 | tee /artifacts-logs/e2e.log
+          make integration 2>&1
         env:
           GARM_BASE_URL: ${{ steps.ngrok.outputs.tunnel-url }}
           ORG_NAME: gsamfira
@@ -66,6 +69,7 @@ jobs:
         run: |
           sudo systemctl status garm@runner || true
           sudo journalctl --no-pager 2>&1 > /artifacts-logs/system.log
+          sudo journalctl -u garm@runner --no-pager 2>&1 > /artifacts-logs/garm.log
 
       - name: Upload GARM and e2e logs
         if: always()

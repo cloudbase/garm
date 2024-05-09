@@ -29,6 +29,7 @@ import (
 	"gorm.io/gorm/logger"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	"github.com/cloudbase/garm/auth"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	garmTesting "github.com/cloudbase/garm/internal/testing"
 	"github.com/cloudbase/garm/params"
@@ -49,6 +50,13 @@ type OrgTestSuite struct {
 	Store          dbCommon.Store
 	StoreSQLMocked *sqlDatabase
 	Fixtures       *OrgTestFixtures
+
+	adminCtx    context.Context
+	adminUserID string
+
+	testCreds          params.GithubCredentials
+	secondaryTestCreds params.GithubCredentials
+	githubEndpoint     params.GithubEndpoint
 }
 
 func (s *OrgTestSuite) equalInstancesByName(expected, actual []params.Instance) {
@@ -71,24 +79,34 @@ func (s *OrgTestSuite) assertSQLMockExpectations() {
 
 func (s *OrgTestSuite) SetupTest() {
 	// create testing sqlite database
-	db, err := NewSQLDatabase(context.Background(), garmTesting.GetTestSqliteDBConfig(s.T()))
+	dbConfig := garmTesting.GetTestSqliteDBConfig(s.T())
+	db, err := NewSQLDatabase(context.Background(), dbConfig)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to create db connection: %s", err))
 	}
 	s.Store = db
 
+	adminCtx := garmTesting.ImpersonateAdminContext(context.Background(), db, s.T())
+	s.adminCtx = adminCtx
+	s.adminUserID = auth.UserID(adminCtx)
+	s.Require().NotEmpty(s.adminUserID)
+
+	s.githubEndpoint = garmTesting.CreateDefaultGithubEndpoint(adminCtx, db, s.T())
+	s.testCreds = garmTesting.CreateTestGithubCredentials(adminCtx, "new-creds", db, s.T(), s.githubEndpoint)
+	s.secondaryTestCreds = garmTesting.CreateTestGithubCredentials(adminCtx, "secondary-creds", db, s.T(), s.githubEndpoint)
+
 	// create some organization objects in the database, for testing purposes
 	orgs := []params.Organization{}
 	for i := 1; i <= 3; i++ {
 		org, err := db.CreateOrganization(
-			context.Background(),
+			s.adminCtx,
 			fmt.Sprintf("test-org-%d", i),
-			fmt.Sprintf("test-creds-%d", i),
+			s.testCreds.Name,
 			fmt.Sprintf("test-webhook-secret-%d", i),
 			params.PoolBalancerTypeRoundRobin,
 		)
 		if err != nil {
-			s.FailNow(fmt.Sprintf("failed to create database object (test-org-%d)", i))
+			s.FailNow(fmt.Sprintf("failed to create database object (test-org-%d): %q", i, err))
 		}
 
 		orgs = append(orgs, org)
@@ -114,7 +132,7 @@ func (s *OrgTestSuite) SetupTest() {
 	}
 	s.StoreSQLMocked = &sqlDatabase{
 		conn: gormConn,
-		cfg:  garmTesting.GetTestSqliteDBConfig(s.T()),
+		cfg:  dbConfig,
 	}
 
 	// setup test fixtures
@@ -123,8 +141,8 @@ func (s *OrgTestSuite) SetupTest() {
 	fixtures := &OrgTestFixtures{
 		Orgs: orgs,
 		CreateOrgParams: params.CreateOrgParams{
-			Name:            "new-test-org",
-			CredentialsName: "new-creds",
+			Name:            s.testCreds.Name,
+			CredentialsName: s.testCreds.Name,
 			WebhookSecret:   "new-webhook-secret",
 		},
 		CreatePoolParams: params.CreatePoolParams{
@@ -143,7 +161,7 @@ func (s *OrgTestSuite) SetupTest() {
 			OSType: "linux",
 		},
 		UpdateRepoParams: params.UpdateEntityParams{
-			CredentialsName: "test-update-creds",
+			CredentialsName: s.secondaryTestCreds.Name,
 			WebhookSecret:   "test-update-repo-webhook-secret",
 		},
 		UpdatePoolParams: params.UpdatePoolParams{
@@ -160,7 +178,7 @@ func (s *OrgTestSuite) SetupTest() {
 func (s *OrgTestSuite) TestCreateOrganization() {
 	// call tested function
 	org, err := s.Store.CreateOrganization(
-		context.Background(),
+		s.adminCtx,
 		s.Fixtures.CreateOrgParams.Name,
 		s.Fixtures.CreateOrgParams.CredentialsName,
 		s.Fixtures.CreateOrgParams.WebhookSecret,
@@ -168,12 +186,12 @@ func (s *OrgTestSuite) TestCreateOrganization() {
 
 	// assertions
 	s.Require().Nil(err)
-	storeOrg, err := s.Store.GetOrganizationByID(context.Background(), org.ID)
+	storeOrg, err := s.Store.GetOrganizationByID(s.adminCtx, org.ID)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to get organization by id: %v", err))
 	}
 	s.Require().Equal(storeOrg.Name, org.Name)
-	s.Require().Equal(storeOrg.CredentialsName, org.CredentialsName)
+	s.Require().Equal(storeOrg.Credentials.Name, org.Credentials.Name)
 	s.Require().Equal(storeOrg.WebhookSecret, org.WebhookSecret)
 }
 
@@ -191,37 +209,46 @@ func (s *OrgTestSuite) TestCreateOrganizationInvalidDBPassphrase() {
 	}
 
 	_, err = sqlDB.CreateOrganization(
-		context.Background(),
+		s.adminCtx,
 		s.Fixtures.CreateOrgParams.Name,
 		s.Fixtures.CreateOrgParams.CredentialsName,
 		s.Fixtures.CreateOrgParams.WebhookSecret,
 		params.PoolBalancerTypeRoundRobin)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("failed to encrypt string", err.Error())
+	s.Require().Equal("encoding secret: invalid passphrase length (expected length 32 characters)", err.Error())
 }
 
 func (s *OrgTestSuite) TestCreateOrganizationDBCreateErr() {
 	s.Fixtures.SQLMock.ExpectBegin()
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_credentials` WHERE user_id = ? AND name = ? AND `github_credentials`.`deleted_at` IS NULL ORDER BY `github_credentials`.`id` LIMIT ?")).
+		WithArgs(s.adminUserID, s.Fixtures.Orgs[0].CredentialsName, 1).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "endpoint_name"}).
+			AddRow(s.testCreds.ID, s.githubEndpoint.Name))
+	s.Fixtures.SQLMock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_endpoints` WHERE `github_endpoints`.`name` = ? AND `github_endpoints`.`deleted_at` IS NULL")).
+		WithArgs(s.testCreds.Endpoint.Name).
+		WillReturnRows(sqlmock.NewRows([]string{"name"}).
+			AddRow(s.githubEndpoint.Name))
 	s.Fixtures.SQLMock.
 		ExpectExec(regexp.QuoteMeta("INSERT INTO `organizations`")).
 		WillReturnError(fmt.Errorf("creating org mock error"))
 	s.Fixtures.SQLMock.ExpectRollback()
 
 	_, err := s.StoreSQLMocked.CreateOrganization(
-		context.Background(),
+		s.adminCtx,
 		s.Fixtures.CreateOrgParams.Name,
 		s.Fixtures.CreateOrgParams.CredentialsName,
 		s.Fixtures.CreateOrgParams.WebhookSecret,
 		params.PoolBalancerTypeRoundRobin)
 
-	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
-	s.Require().Equal("creating org: creating org mock error", err.Error())
+	s.Require().Equal("creating org: creating org: creating org mock error", err.Error())
+	s.assertSQLMockExpectations()
 }
 
 func (s *OrgTestSuite) TestGetOrganization() {
-	org, err := s.Store.GetOrganization(context.Background(), s.Fixtures.Orgs[0].Name)
+	org, err := s.Store.GetOrganization(s.adminCtx, s.Fixtures.Orgs[0].Name)
 
 	s.Require().Nil(err)
 	s.Require().Equal(s.Fixtures.Orgs[0].Name, org.Name)
@@ -229,14 +256,14 @@ func (s *OrgTestSuite) TestGetOrganization() {
 }
 
 func (s *OrgTestSuite) TestGetOrganizationCaseInsensitive() {
-	org, err := s.Store.GetOrganization(context.Background(), "TeSt-oRg-1")
+	org, err := s.Store.GetOrganization(s.adminCtx, "TeSt-oRg-1")
 
 	s.Require().Nil(err)
 	s.Require().Equal("test-org-1", org.Name)
 }
 
 func (s *OrgTestSuite) TestGetOrganizationNotFound() {
-	_, err := s.Store.GetOrganization(context.Background(), "dummy-name")
+	_, err := s.Store.GetOrganization(s.adminCtx, "dummy-name")
 
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching org: not found", err.Error())
@@ -248,7 +275,7 @@ func (s *OrgTestSuite) TestGetOrganizationDBDecryptingErr() {
 		WithArgs(s.Fixtures.Orgs[0].Name, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"name"}).AddRow(s.Fixtures.Orgs[0].Name))
 
-	_, err := s.StoreSQLMocked.GetOrganization(context.Background(), s.Fixtures.Orgs[0].Name)
+	_, err := s.StoreSQLMocked.GetOrganization(s.adminCtx, s.Fixtures.Orgs[0].Name)
 
 	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
@@ -256,7 +283,7 @@ func (s *OrgTestSuite) TestGetOrganizationDBDecryptingErr() {
 }
 
 func (s *OrgTestSuite) TestListOrganizations() {
-	orgs, err := s.Store.ListOrganizations(context.Background())
+	orgs, err := s.Store.ListOrganizations(s.adminCtx)
 
 	s.Require().Nil(err)
 	garmTesting.EqualDBEntityByName(s.T(), s.Fixtures.Orgs, orgs)
@@ -267,7 +294,7 @@ func (s *OrgTestSuite) TestListOrganizationsDBFetchErr() {
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE `organizations`.`deleted_at` IS NULL")).
 		WillReturnError(fmt.Errorf("fetching user from database mock error"))
 
-	_, err := s.StoreSQLMocked.ListOrganizations(context.Background())
+	_, err := s.StoreSQLMocked.ListOrganizations(s.adminCtx)
 
 	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
@@ -275,16 +302,16 @@ func (s *OrgTestSuite) TestListOrganizationsDBFetchErr() {
 }
 
 func (s *OrgTestSuite) TestDeleteOrganization() {
-	err := s.Store.DeleteOrganization(context.Background(), s.Fixtures.Orgs[0].ID)
+	err := s.Store.DeleteOrganization(s.adminCtx, s.Fixtures.Orgs[0].ID)
 
 	s.Require().Nil(err)
-	_, err = s.Store.GetOrganizationByID(context.Background(), s.Fixtures.Orgs[0].ID)
+	_, err = s.Store.GetOrganizationByID(s.adminCtx, s.Fixtures.Orgs[0].ID)
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching org: not found", err.Error())
 }
 
 func (s *OrgTestSuite) TestDeleteOrganizationInvalidOrgID() {
-	err := s.Store.DeleteOrganization(context.Background(), "dummy-org-id")
+	err := s.Store.DeleteOrganization(s.adminCtx, "dummy-org-id")
 
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching org: parsing id: invalid request", err.Error())
@@ -302,7 +329,7 @@ func (s *OrgTestSuite) TestDeleteOrganizationDBDeleteErr() {
 		WillReturnError(fmt.Errorf("mocked delete org error"))
 	s.Fixtures.SQLMock.ExpectRollback()
 
-	err := s.StoreSQLMocked.DeleteOrganization(context.Background(), s.Fixtures.Orgs[0].ID)
+	err := s.StoreSQLMocked.DeleteOrganization(s.adminCtx, s.Fixtures.Orgs[0].ID)
 
 	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
@@ -310,78 +337,111 @@ func (s *OrgTestSuite) TestDeleteOrganizationDBDeleteErr() {
 }
 
 func (s *OrgTestSuite) TestUpdateOrganization() {
-	org, err := s.Store.UpdateOrganization(context.Background(), s.Fixtures.Orgs[0].ID, s.Fixtures.UpdateRepoParams)
+	org, err := s.Store.UpdateOrganization(s.adminCtx, s.Fixtures.Orgs[0].ID, s.Fixtures.UpdateRepoParams)
 
 	s.Require().Nil(err)
-	s.Require().Equal(s.Fixtures.UpdateRepoParams.CredentialsName, org.CredentialsName)
+	s.Require().Equal(s.Fixtures.UpdateRepoParams.CredentialsName, org.Credentials.Name)
 	s.Require().Equal(s.Fixtures.UpdateRepoParams.WebhookSecret, org.WebhookSecret)
 }
 
 func (s *OrgTestSuite) TestUpdateOrganizationInvalidOrgID() {
-	_, err := s.Store.UpdateOrganization(context.Background(), "dummy-org-id", s.Fixtures.UpdateRepoParams)
+	_, err := s.Store.UpdateOrganization(s.adminCtx, "dummy-org-id", s.Fixtures.UpdateRepoParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching org: parsing id: invalid request", err.Error())
+	s.Require().Equal("saving org: fetching org: parsing id: invalid request", err.Error())
 }
 
 func (s *OrgTestSuite) TestUpdateOrganizationDBEncryptErr() {
 	s.StoreSQLMocked.cfg.Passphrase = wrongPassphrase
-
+	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT ?")).
 		WithArgs(s.Fixtures.Orgs[0].ID, 1).
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Orgs[0].ID))
+		WillReturnRows(sqlmock.NewRows([]string{"id", "endpoint_name"}).
+			AddRow(s.Fixtures.Orgs[0].ID, s.Fixtures.Orgs[0].Endpoint.Name))
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_credentials` WHERE user_id = ? AND name = ? AND `github_credentials`.`deleted_at` IS NULL ORDER BY `github_credentials`.`id` LIMIT ?")).
+		WithArgs(s.adminUserID, s.secondaryTestCreds.Name, 1).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "endpoint_name"}).
+			AddRow(s.secondaryTestCreds.ID, s.secondaryTestCreds.Endpoint.Name))
+	s.Fixtures.SQLMock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_endpoints` WHERE `github_endpoints`.`name` = ? AND `github_endpoints`.`deleted_at` IS NULL")).
+		WithArgs(s.testCreds.Endpoint.Name).
+		WillReturnRows(sqlmock.NewRows([]string{"name"}).
+			AddRow(s.secondaryTestCreds.Endpoint.Name))
+	s.Fixtures.SQLMock.ExpectRollback()
 
-	_, err := s.StoreSQLMocked.UpdateOrganization(context.Background(), s.Fixtures.Orgs[0].ID, s.Fixtures.UpdateRepoParams)
+	_, err := s.StoreSQLMocked.UpdateOrganization(s.adminCtx, s.Fixtures.Orgs[0].ID, s.Fixtures.UpdateRepoParams)
 
-	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
-	s.Require().Equal("saving org: failed to encrypt string: invalid passphrase length (expected length 32 characters)", err.Error())
+	s.Require().Equal("saving org: saving org: failed to encrypt string: invalid passphrase length (expected length 32 characters)", err.Error())
+	s.assertSQLMockExpectations()
 }
 
 func (s *OrgTestSuite) TestUpdateOrganizationDBSaveErr() {
+	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT ?")).
 		WithArgs(s.Fixtures.Orgs[0].ID, 1).
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Orgs[0].ID))
-	s.Fixtures.SQLMock.ExpectBegin()
+		WillReturnRows(sqlmock.NewRows([]string{"id", "endpoint_name"}).
+			AddRow(s.Fixtures.Orgs[0].ID, s.Fixtures.Orgs[0].Endpoint.Name))
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_credentials` WHERE user_id = ? AND name = ? AND `github_credentials`.`deleted_at` IS NULL ORDER BY `github_credentials`.`id` LIMIT ?")).
+		WithArgs(s.adminUserID, s.secondaryTestCreds.Name, 1).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "endpoint_name"}).
+			AddRow(s.secondaryTestCreds.ID, s.secondaryTestCreds.Endpoint.Name))
+	s.Fixtures.SQLMock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_endpoints` WHERE `github_endpoints`.`name` = ? AND `github_endpoints`.`deleted_at` IS NULL")).
+		WithArgs(s.testCreds.Endpoint.Name).
+		WillReturnRows(sqlmock.NewRows([]string{"name"}).
+			AddRow(s.secondaryTestCreds.Endpoint.Name))
 	s.Fixtures.SQLMock.
 		ExpectExec(("UPDATE `organizations` SET")).
 		WillReturnError(fmt.Errorf("saving org mock error"))
 	s.Fixtures.SQLMock.ExpectRollback()
 
-	_, err := s.StoreSQLMocked.UpdateOrganization(context.Background(), s.Fixtures.Orgs[0].ID, s.Fixtures.UpdateRepoParams)
+	_, err := s.StoreSQLMocked.UpdateOrganization(s.adminCtx, s.Fixtures.Orgs[0].ID, s.Fixtures.UpdateRepoParams)
 
-	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
-	s.Require().Equal("saving org: saving org mock error", err.Error())
+	s.Require().Equal("saving org: saving org: saving org mock error", err.Error())
+	s.assertSQLMockExpectations()
 }
 
 func (s *OrgTestSuite) TestUpdateOrganizationDBDecryptingErr() {
 	s.StoreSQLMocked.cfg.Passphrase = wrongPassphrase
 	s.Fixtures.UpdateRepoParams.WebhookSecret = webhookSecret
 
+	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT ?")).
 		WithArgs(s.Fixtures.Orgs[0].ID, 1).
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Orgs[0].ID))
+		WillReturnRows(sqlmock.NewRows([]string{"id", "endpoint_name"}).
+			AddRow(s.Fixtures.Orgs[0].ID, s.Fixtures.Orgs[0].Endpoint.Name))
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_credentials` WHERE user_id = ? AND name = ? AND `github_credentials`.`deleted_at` IS NULL ORDER BY `github_credentials`.`id` LIMIT ?")).
+		WithArgs(s.adminUserID, s.secondaryTestCreds.Name, 1).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "endpoint_name"}).
+			AddRow(s.secondaryTestCreds.ID, s.secondaryTestCreds.Endpoint.Name))
+	s.Fixtures.SQLMock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_endpoints` WHERE `github_endpoints`.`name` = ? AND `github_endpoints`.`deleted_at` IS NULL")).
+		WithArgs(s.testCreds.Endpoint.Name).
+		WillReturnRows(sqlmock.NewRows([]string{"name"}).
+			AddRow(s.secondaryTestCreds.Endpoint.Name))
+	s.Fixtures.SQLMock.ExpectRollback()
 
-	_, err := s.StoreSQLMocked.UpdateOrganization(context.Background(), s.Fixtures.Orgs[0].ID, s.Fixtures.UpdateRepoParams)
+	_, err := s.StoreSQLMocked.UpdateOrganization(s.adminCtx, s.Fixtures.Orgs[0].ID, s.Fixtures.UpdateRepoParams)
 
-	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
-	s.Require().Equal("saving org: failed to encrypt string: invalid passphrase length (expected length 32 characters)", err.Error())
+	s.Require().Equal("saving org: saving org: failed to encrypt string: invalid passphrase length (expected length 32 characters)", err.Error())
+	s.assertSQLMockExpectations()
 }
 
 func (s *OrgTestSuite) TestGetOrganizationByID() {
-	org, err := s.Store.GetOrganizationByID(context.Background(), s.Fixtures.Orgs[0].ID)
+	org, err := s.Store.GetOrganizationByID(s.adminCtx, s.Fixtures.Orgs[0].ID)
 
 	s.Require().Nil(err)
 	s.Require().Equal(s.Fixtures.Orgs[0].ID, org.ID)
 }
 
 func (s *OrgTestSuite) TestGetOrganizationByIDInvalidOrgID() {
-	_, err := s.Store.GetOrganizationByID(context.Background(), "dummy-org-id")
+	_, err := s.Store.GetOrganizationByID(s.adminCtx, "dummy-org-id")
 
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching org: parsing id: invalid request", err.Error())
@@ -397,21 +457,21 @@ func (s *OrgTestSuite) TestGetOrganizationByIDDBDecryptingErr() {
 		WithArgs(s.Fixtures.Orgs[0].ID).
 		WillReturnRows(sqlmock.NewRows([]string{"org_id"}).AddRow(s.Fixtures.Orgs[0].ID))
 
-	_, err := s.StoreSQLMocked.GetOrganizationByID(context.Background(), s.Fixtures.Orgs[0].ID)
+	_, err := s.StoreSQLMocked.GetOrganizationByID(s.adminCtx, s.Fixtures.Orgs[0].ID)
 
 	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching enterprise: missing secret", err.Error())
+	s.Require().Equal("fetching org: missing secret", err.Error())
 }
 
 func (s *OrgTestSuite) TestCreateOrganizationPool() {
 	entity, err := s.Fixtures.Orgs[0].GetEntity()
 	s.Require().Nil(err)
-	pool, err := s.Store.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
+	pool, err := s.Store.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 
 	s.Require().Nil(err)
 
-	org, err := s.Store.GetOrganizationByID(context.Background(), s.Fixtures.Orgs[0].ID)
+	org, err := s.Store.GetOrganizationByID(s.adminCtx, s.Fixtures.Orgs[0].ID)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot get org by ID: %v", err))
 	}
@@ -426,7 +486,7 @@ func (s *OrgTestSuite) TestCreateOrganizationPoolMissingTags() {
 	s.Fixtures.CreatePoolParams.Tags = []string{}
 	entity, err := s.Fixtures.Orgs[0].GetEntity()
 	s.Require().Nil(err)
-	_, err = s.Store.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
+	_, err = s.Store.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 
 	s.Require().NotNil(err)
 	s.Require().Equal("no tags specified", err.Error())
@@ -437,7 +497,7 @@ func (s *OrgTestSuite) TestCreateOrganizationPoolInvalidOrgID() {
 		ID:         "dummy-org-id",
 		EntityType: params.GithubEntityTypeOrganization,
 	}
-	_, err := s.Store.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
+	_, err := s.Store.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 
 	s.Require().NotNil(err)
 	s.Require().Equal("parsing id: invalid request", err.Error())
@@ -455,7 +515,7 @@ func (s *OrgTestSuite) TestCreateOrganizationPoolDBCreateErr() {
 
 	entity, err := s.Fixtures.Orgs[0].GetEntity()
 	s.Require().Nil(err)
-	_, err = s.StoreSQLMocked.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
+	_, err = s.StoreSQLMocked.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 
 	s.Require().NotNil(err)
 	s.Require().Equal("checking pool existence: mocked creating pool error", err.Error())
@@ -484,7 +544,7 @@ func (s *OrgTestSuite) TestCreateOrganizationDBPoolAlreadyExistErr() {
 
 	entity, err := s.Fixtures.Orgs[0].GetEntity()
 	s.Require().Nil(err)
-	_, err = s.StoreSQLMocked.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
+	_, err = s.StoreSQLMocked.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 
 	s.Require().NotNil(err)
 	s.Require().Equal(runnerErrors.NewConflictError("pool with the same image and flavor already exists on this provider"), err)
@@ -511,7 +571,7 @@ func (s *OrgTestSuite) TestCreateOrganizationPoolDBFetchTagErr() {
 
 	entity, err := s.Fixtures.Orgs[0].GetEntity()
 	s.Require().Nil(err)
-	_, err = s.StoreSQLMocked.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
+	_, err = s.StoreSQLMocked.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 
 	s.Require().NotNil(err)
 	s.Require().Equal("creating tag: fetching tag from database: mocked fetching tag error", err.Error())
@@ -547,7 +607,7 @@ func (s *OrgTestSuite) TestCreateOrganizationPoolDBAddingPoolErr() {
 
 	entity, err := s.Fixtures.Orgs[0].GetEntity()
 	s.Require().Nil(err)
-	_, err = s.StoreSQLMocked.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
+	_, err = s.StoreSQLMocked.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 
 	s.Require().NotNil(err)
 	s.Require().Equal("creating pool: mocked adding pool error", err.Error())
@@ -586,7 +646,7 @@ func (s *OrgTestSuite) TestCreateOrganizationPoolDBSaveTagErr() {
 
 	entity, err := s.Fixtures.Orgs[0].GetEntity()
 	s.Require().Nil(err)
-	_, err = s.StoreSQLMocked.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
+	_, err = s.StoreSQLMocked.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 
 	s.Require().NotNil(err)
 	s.Require().Equal("associating tags: mocked saving tag error", err.Error())
@@ -635,7 +695,7 @@ func (s *OrgTestSuite) TestCreateOrganizationPoolDBFetchPoolErr() {
 	entity, err := s.Fixtures.Orgs[0].GetEntity()
 	s.Require().Nil(err)
 
-	_, err = s.StoreSQLMocked.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
+	_, err = s.StoreSQLMocked.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching pool: not found", err.Error())
@@ -648,13 +708,13 @@ func (s *OrgTestSuite) TestListOrgPools() {
 	s.Require().Nil(err)
 	for i := 1; i <= 2; i++ {
 		s.Fixtures.CreatePoolParams.Flavor = fmt.Sprintf("test-flavor-%v", i)
-		pool, err := s.Store.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
+		pool, err := s.Store.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 		if err != nil {
 			s.FailNow(fmt.Sprintf("cannot create org pool: %v", err))
 		}
 		orgPools = append(orgPools, pool)
 	}
-	pools, err := s.Store.ListEntityPools(context.Background(), entity)
+	pools, err := s.Store.ListEntityPools(s.adminCtx, entity)
 
 	s.Require().Nil(err)
 	garmTesting.EqualDBEntityID(s.T(), orgPools, pools)
@@ -665,7 +725,7 @@ func (s *OrgTestSuite) TestListOrgPoolsInvalidOrgID() {
 		ID:         "dummy-org-id",
 		EntityType: params.GithubEntityTypeOrganization,
 	}
-	_, err := s.Store.ListEntityPools(context.Background(), entity)
+	_, err := s.Store.ListEntityPools(s.adminCtx, entity)
 
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching pools: parsing id: invalid request", err.Error())
@@ -674,12 +734,12 @@ func (s *OrgTestSuite) TestListOrgPoolsInvalidOrgID() {
 func (s *OrgTestSuite) TestGetOrganizationPool() {
 	entity, err := s.Fixtures.Orgs[0].GetEntity()
 	s.Require().Nil(err)
-	pool, err := s.Store.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
+	pool, err := s.Store.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create org pool: %v", err))
 	}
 
-	orgPool, err := s.Store.GetEntityPool(context.Background(), entity, pool.ID)
+	orgPool, err := s.Store.GetEntityPool(s.adminCtx, entity, pool.ID)
 
 	s.Require().Nil(err)
 	s.Require().Equal(orgPool.ID, pool.ID)
@@ -690,7 +750,7 @@ func (s *OrgTestSuite) TestGetOrganizationPoolInvalidOrgID() {
 		ID:         "dummy-org-id",
 		EntityType: params.GithubEntityTypeOrganization,
 	}
-	_, err := s.Store.GetEntityPool(context.Background(), entity, "dummy-pool-id")
+	_, err := s.Store.GetEntityPool(s.adminCtx, entity, "dummy-pool-id")
 
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching pool: parsing id: invalid request", err.Error())
@@ -699,15 +759,15 @@ func (s *OrgTestSuite) TestGetOrganizationPoolInvalidOrgID() {
 func (s *OrgTestSuite) TestDeleteOrganizationPool() {
 	entity, err := s.Fixtures.Orgs[0].GetEntity()
 	s.Require().Nil(err)
-	pool, err := s.Store.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
+	pool, err := s.Store.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create org pool: %v", err))
 	}
 
-	err = s.Store.DeleteEntityPool(context.Background(), entity, pool.ID)
+	err = s.Store.DeleteEntityPool(s.adminCtx, entity, pool.ID)
 
 	s.Require().Nil(err)
-	_, err = s.Store.GetEntityPool(context.Background(), entity, pool.ID)
+	_, err = s.Store.GetEntityPool(s.adminCtx, entity, pool.ID)
 	s.Require().Equal("fetching pool: finding pool: not found", err.Error())
 }
 
@@ -716,7 +776,7 @@ func (s *OrgTestSuite) TestDeleteOrganizationPoolInvalidOrgID() {
 		ID:         "dummy-org-id",
 		EntityType: params.GithubEntityTypeOrganization,
 	}
-	err := s.Store.DeleteEntityPool(context.Background(), entity, "dummy-pool-id")
+	err := s.Store.DeleteEntityPool(s.adminCtx, entity, "dummy-pool-id")
 
 	s.Require().NotNil(err)
 	s.Require().Equal("parsing id: invalid request", err.Error())
@@ -726,7 +786,7 @@ func (s *OrgTestSuite) TestDeleteOrganizationPoolDBDeleteErr() {
 	entity, err := s.Fixtures.Orgs[0].GetEntity()
 	s.Require().Nil(err)
 
-	pool, err := s.Store.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
+	pool, err := s.Store.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create org pool: %v", err))
 	}
@@ -738,7 +798,7 @@ func (s *OrgTestSuite) TestDeleteOrganizationPoolDBDeleteErr() {
 		WillReturnError(fmt.Errorf("mocked deleting pool error"))
 	s.Fixtures.SQLMock.ExpectRollback()
 
-	err = s.StoreSQLMocked.DeleteEntityPool(context.Background(), entity, pool.ID)
+	err = s.StoreSQLMocked.DeleteEntityPool(s.adminCtx, entity, pool.ID)
 
 	s.Require().NotNil(err)
 	s.Require().Equal("removing pool: mocked deleting pool error", err.Error())
@@ -748,21 +808,21 @@ func (s *OrgTestSuite) TestDeleteOrganizationPoolDBDeleteErr() {
 func (s *OrgTestSuite) TestListOrgInstances() {
 	entity, err := s.Fixtures.Orgs[0].GetEntity()
 	s.Require().Nil(err)
-	pool, err := s.Store.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
+	pool, err := s.Store.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create org pool: %v", err))
 	}
 	poolInstances := []params.Instance{}
 	for i := 1; i <= 3; i++ {
 		s.Fixtures.CreateInstanceParams.Name = fmt.Sprintf("test-org-%v", i)
-		instance, err := s.Store.CreateInstance(context.Background(), pool.ID, s.Fixtures.CreateInstanceParams)
+		instance, err := s.Store.CreateInstance(s.adminCtx, pool.ID, s.Fixtures.CreateInstanceParams)
 		if err != nil {
 			s.FailNow(fmt.Sprintf("cannot create instance: %s", err))
 		}
 		poolInstances = append(poolInstances, instance)
 	}
 
-	instances, err := s.Store.ListEntityInstances(context.Background(), entity)
+	instances, err := s.Store.ListEntityInstances(s.adminCtx, entity)
 
 	s.Require().Nil(err)
 	s.equalInstancesByName(poolInstances, instances)
@@ -773,7 +833,7 @@ func (s *OrgTestSuite) TestListOrgInstancesInvalidOrgID() {
 		ID:         "dummy-org-id",
 		EntityType: params.GithubEntityTypeOrganization,
 	}
-	_, err := s.Store.ListEntityInstances(context.Background(), entity)
+	_, err := s.Store.ListEntityInstances(s.adminCtx, entity)
 
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching entity: parsing id: invalid request", err.Error())
@@ -782,12 +842,12 @@ func (s *OrgTestSuite) TestListOrgInstancesInvalidOrgID() {
 func (s *OrgTestSuite) TestUpdateOrganizationPool() {
 	entity, err := s.Fixtures.Orgs[0].GetEntity()
 	s.Require().Nil(err)
-	pool, err := s.Store.CreateEntityPool(context.Background(), entity, s.Fixtures.CreatePoolParams)
+	pool, err := s.Store.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create org pool: %v", err))
 	}
 
-	pool, err = s.Store.UpdateEntityPool(context.Background(), entity, pool.ID, s.Fixtures.UpdatePoolParams)
+	pool, err = s.Store.UpdateEntityPool(s.adminCtx, entity, pool.ID, s.Fixtures.UpdatePoolParams)
 
 	s.Require().Nil(err)
 	s.Require().Equal(*s.Fixtures.UpdatePoolParams.MaxRunners, pool.MaxRunners)
@@ -801,7 +861,7 @@ func (s *OrgTestSuite) TestUpdateOrganizationPoolInvalidOrgID() {
 		ID:         "dummy-org-id",
 		EntityType: params.GithubEntityTypeOrganization,
 	}
-	_, err := s.Store.UpdateEntityPool(context.Background(), entity, "dummy-pool-id", s.Fixtures.UpdatePoolParams)
+	_, err := s.Store.UpdateEntityPool(s.adminCtx, entity, "dummy-pool-id", s.Fixtures.UpdatePoolParams)
 
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching pool: parsing id: invalid request", err.Error())

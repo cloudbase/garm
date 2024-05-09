@@ -45,6 +45,11 @@ type PoolTestSuite struct {
 	suite.Suite
 	Fixtures *PoolTestFixtures
 	Runner   *Runner
+
+	adminCtx           context.Context
+	testCreds          params.GithubCredentials
+	secondaryTestCreds params.GithubCredentials
+	githubEndpoint     params.GithubEndpoint
 }
 
 func (s *PoolTestSuite) SetupTest() {
@@ -57,8 +62,14 @@ func (s *PoolTestSuite) SetupTest() {
 		s.FailNow(fmt.Sprintf("failed to create db connection: %s", err))
 	}
 
+	s.adminCtx = garmTesting.ImpersonateAdminContext(adminCtx, db, s.T())
+
+	s.githubEndpoint = garmTesting.CreateDefaultGithubEndpoint(s.adminCtx, db, s.T())
+	s.testCreds = garmTesting.CreateTestGithubCredentials(s.adminCtx, "new-creds", db, s.T(), s.githubEndpoint)
+	s.secondaryTestCreds = garmTesting.CreateTestGithubCredentials(s.adminCtx, "secondary-creds", db, s.T(), s.githubEndpoint)
+
 	// create an organization for testing purposes
-	org, err := db.CreateOrganization(context.Background(), "test-org", "test-creds", "test-webhookSecret", params.PoolBalancerTypeRoundRobin)
+	org, err := db.CreateOrganization(s.adminCtx, "test-org", s.testCreds.Name, "test-webhookSecret", params.PoolBalancerTypeRoundRobin)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to create org: %s", err))
 	}
@@ -71,7 +82,7 @@ func (s *PoolTestSuite) SetupTest() {
 	orgPools := []params.Pool{}
 	for i := 1; i <= 3; i++ {
 		pool, err := db.CreateEntityPool(
-			context.Background(),
+			adminCtx,
 			entity,
 			params.CreatePoolParams{
 				ProviderName:           "test-provider",
@@ -112,10 +123,9 @@ func (s *PoolTestSuite) SetupTest() {
 
 	// setup test runner
 	runner := &Runner{
-		providers:   fixtures.Providers,
-		credentials: fixtures.Credentials,
-		store:       fixtures.Store,
-		ctx:         fixtures.AdminContext,
+		providers: fixtures.Providers,
+		store:     fixtures.Store,
+		ctx:       fixtures.AdminContext,
 	}
 	s.Runner = runner
 }

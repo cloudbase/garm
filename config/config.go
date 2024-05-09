@@ -241,6 +241,14 @@ type GithubApp struct {
 	InstallationID int64  `toml:"installation_id" json:"installation-id"`
 }
 
+func (a *GithubApp) PrivateKeyBytes() ([]byte, error) {
+	keyBytes, err := os.ReadFile(a.PrivateKeyPath)
+	if err != nil {
+		return nil, fmt.Errorf("reading private_key_path: %w", err)
+	}
+	return keyBytes, nil
+}
+
 func (a *GithubApp) Validate() error {
 	if a.AppID == 0 {
 		return fmt.Errorf("missing app_id")
@@ -289,6 +297,13 @@ type Github struct {
 	AuthType         GithubAuthType `toml:"auth_type" json:"auth-type"`
 	PAT              GithubPAT      `toml:"pat" json:"pat"`
 	App              GithubApp      `toml:"app" json:"app"`
+}
+
+func (g *Github) GetAuthType() GithubAuthType {
+	if g.AuthType == "" {
+		return GithubAuthTypePAT
+	}
+	return g.AuthType
 }
 
 func (g *Github) APIEndpoint() string {
@@ -472,6 +487,11 @@ type Database struct {
 	// Don't lose or change this. It will invalidate all encrypted data
 	// in the DB. This field must be set and must be exactly 32 characters.
 	Passphrase string `toml:"passphrase"`
+
+	// MigrateCredentials is a list of github credentials that need to be migrated
+	// from the config file to the database. This field will be removed once GARM
+	// reaches version 0.2.x. It's only meant to be used for the migration process.
+	MigrateCredentials []Github `toml:"-"`
 }
 
 // GormParams returns the database type and connection URI

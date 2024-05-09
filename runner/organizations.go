@@ -38,8 +38,8 @@ func (r *Runner) CreateOrganization(ctx context.Context, param params.CreateOrgP
 		return params.Organization{}, errors.Wrap(err, "validating params")
 	}
 
-	creds, ok := r.credentials[param.CredentialsName]
-	if !ok {
+	creds, err := r.store.GetGithubCredentialsByName(ctx, param.CredentialsName, true)
+	if err != nil {
 		return params.Organization{}, runnerErrors.NewBadRequestError("credentials %s not defined", param.CredentialsName)
 	}
 
@@ -67,6 +67,8 @@ func (r *Runner) CreateOrganization(ctx context.Context, param params.CreateOrgP
 		}
 	}()
 
+	// Use the admin context in the pool manager. Any access control is already done above when
+	// updating the store.
 	poolMgr, err := r.poolManagerCtrl.CreateOrgPoolManager(r.ctx, org, r.providers, r.store)
 	if err != nil {
 		return params.Organization{}, errors.Wrap(err, "creating org pool manager")
@@ -190,29 +192,19 @@ func (r *Runner) UpdateOrganization(ctx context.Context, orgID string, param par
 	r.mux.Lock()
 	defer r.mux.Unlock()
 
-	org, err := r.store.GetOrganizationByID(ctx, orgID)
-	if err != nil {
-		return params.Organization{}, errors.Wrap(err, "fetching org")
-	}
-
-	if param.CredentialsName != "" {
-		// Check that credentials are set before saving to db
-		if _, ok := r.credentials[param.CredentialsName]; !ok {
-			return params.Organization{}, runnerErrors.NewBadRequestError("invalid credentials (%s) for org %s", param.CredentialsName, org.Name)
-		}
-	}
-
 	switch param.PoolBalancerType {
 	case params.PoolBalancerTypeRoundRobin, params.PoolBalancerTypePack, params.PoolBalancerTypeNone:
 	default:
 		return params.Organization{}, runnerErrors.NewBadRequestError("invalid pool balancer type: %s", param.PoolBalancerType)
 	}
 
-	org, err = r.store.UpdateOrganization(ctx, orgID, param)
+	org, err := r.store.UpdateOrganization(ctx, orgID, param)
 	if err != nil {
 		return params.Organization{}, errors.Wrap(err, "updating org")
 	}
 
+	// Use the admin context in the pool manager. Any access control is already done above when
+	// updating the store.
 	poolMgr, err := r.poolManagerCtrl.UpdateOrgPoolManager(r.ctx, org)
 	if err != nil {
 		return params.Organization{}, fmt.Errorf("updating org pool manager: %w", err)

@@ -59,7 +59,7 @@ func (g *githubClient) ListEntityHooks(ctx context.Context, opts *github.ListOpt
 	case params.GithubEntityTypeOrganization:
 		ret, response, err = g.org.ListHooks(ctx, g.entity.Owner, opts)
 	default:
-		return nil, nil, errors.New("invalid entity type")
+		return nil, nil, fmt.Errorf("invalid entity type: %s", g.entity.EntityType)
 	}
 	return ret, response, err
 }
@@ -435,11 +435,13 @@ func (g *githubClient) GetEntityJITConfig(ctx context.Context, instance string, 
 	return jitConfig, ret.Runner, nil
 }
 
-func GithubClient(_ context.Context, entity params.GithubEntity, credsDetails params.GithubCredentials) (common.GithubClient, error) {
-	if credsDetails.HTTPClient == nil {
-		return nil, errors.New("http client is nil")
+func GithubClient(ctx context.Context, entity params.GithubEntity, credsDetails params.GithubCredentials) (common.GithubClient, error) {
+	httpClient, err := credsDetails.GetHTTPClient(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "fetching http client")
 	}
-	ghClient, err := github.NewClient(credsDetails.HTTPClient).WithEnterpriseURLs(credsDetails.APIBaseURL, credsDetails.UploadBaseURL)
+
+	ghClient, err := github.NewClient(httpClient).WithEnterpriseURLs(credsDetails.APIBaseURL, credsDetails.UploadBaseURL)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching github client")
 	}

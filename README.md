@@ -35,7 +35,6 @@ The ```GARM``` configuration is a simple ```toml```. The sample config file in [
 * [The default section](/doc/config_default.md)
 * [Logging](/doc/config_logging.md)
 * [Database](/doc/database.md)
-* [Github credentials](/doc/github_credentials.md)
 * [Providers](/doc/providers.md)
 * [Metrics](/doc/config_metrics.md)
 * [JWT authentication](/doc/config_jwt_auth.md)

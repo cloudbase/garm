@@ -19,12 +19,11 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
-	"github.com/cloudbase/garm/auth"
-	"github.com/cloudbase/garm/config"
 	"github.com/cloudbase/garm/database"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	garmTesting "github.com/cloudbase/garm/internal/testing" //nolint:typecheck
@@ -40,7 +39,7 @@ type EnterpriseTestFixtures struct {
 	Store                  dbCommon.Store
 	StoreEnterprises       map[string]params.Enterprise
 	Providers              map[string]common.Provider
-	Credentials            map[string]config.Github
+	Credentials            map[string]params.GithubCredentials
 	CreateEnterpriseParams params.CreateEnterpriseParams
 	CreatePoolParams       params.CreatePoolParams
 	CreateInstanceParams   params.CreateInstanceParams
@@ -57,17 +56,24 @@ type EnterpriseTestSuite struct {
 	suite.Suite
 	Fixtures *EnterpriseTestFixtures
 	Runner   *Runner
+
+	testCreds          params.GithubCredentials
+	secondaryTestCreds params.GithubCredentials
+	githubEndpoint     params.GithubEndpoint
 }
 
 func (s *EnterpriseTestSuite) SetupTest() {
-	adminCtx := auth.GetAdminContext(context.Background())
-
 	// create testing sqlite database
 	dbCfg := garmTesting.GetTestSqliteDBConfig(s.T())
-	db, err := database.NewDatabase(adminCtx, dbCfg)
+	db, err := database.NewDatabase(context.Background(), dbCfg)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to create db connection: %s", err))
 	}
+
+	adminCtx := garmTesting.ImpersonateAdminContext(context.Background(), db, s.T())
+	s.githubEndpoint = garmTesting.CreateDefaultGithubEndpoint(adminCtx, db, s.T())
+	s.testCreds = garmTesting.CreateTestGithubCredentials(adminCtx, "new-creds", db, s.T(), s.githubEndpoint)
+	s.secondaryTestCreds = garmTesting.CreateTestGithubCredentials(adminCtx, "secondary-creds", db, s.T(), s.githubEndpoint)
 
 	// create some organization objects in the database, for testing purposes
 	enterprises := map[string]params.Enterprise{}
@@ -76,12 +82,12 @@ func (s *EnterpriseTestSuite) SetupTest() {
 		enterprise, err := db.CreateEnterprise(
 			adminCtx,
 			name,
-			fmt.Sprintf("test-creds-%v", i),
+			s.testCreds.Name,
 			fmt.Sprintf("test-webhook-secret-%v", i),
 			params.PoolBalancerTypeRoundRobin,
 		)
 		if err != nil {
-			s.FailNow(fmt.Sprintf("failed to create database object (test-enterprise-%v)", i))
+			s.FailNow(fmt.Sprintf("failed to create database object (test-enterprise-%v): %+v", i, err))
 		}
 		enterprises[name] = enterprise
 	}
@@ -98,16 +104,13 @@ func (s *EnterpriseTestSuite) SetupTest() {
 		Providers: map[string]common.Provider{
 			"test-provider": providerMock,
 		},
-		Credentials: map[string]config.Github{
-			"test-creds": {
-				Name:        "test-creds-name",
-				Description: "test-creds-description",
-				OAuth2Token: "test-creds-oauth2-token",
-			},
+		Credentials: map[string]params.GithubCredentials{
+			s.testCreds.Name:          s.testCreds,
+			s.secondaryTestCreds.Name: s.secondaryTestCreds,
 		},
 		CreateEnterpriseParams: params.CreateEnterpriseParams{
 			Name:            "test-enterprise-create",
-			CredentialsName: "test-creds",
+			CredentialsName: s.testCreds.Name,
 			WebhookSecret:   "test-create-enterprise-webhook-secret",
 		},
 		CreatePoolParams: params.CreatePoolParams{
@@ -126,7 +129,7 @@ func (s *EnterpriseTestSuite) SetupTest() {
 			OSType: "linux",
 		},
 		UpdateRepoParams: params.UpdateEntityParams{
-			CredentialsName: "test-creds",
+			CredentialsName: s.testCreds.Name,
 			WebhookSecret:   "test-update-repo-webhook-secret",
 		},
 		UpdatePoolParams: params.UpdatePoolParams{
@@ -148,7 +151,6 @@ func (s *EnterpriseTestSuite) SetupTest() {
 	// setup test runner
 	runner := &Runner{
 		providers:       fixtures.Providers,
-		credentials:     fixtures.Credentials,
 		ctx:             fixtures.AdminContext,
 		store:           fixtures.Store,
 		poolManagerCtrl: fixtures.PoolMgrCtrlMock,
@@ -164,13 +166,13 @@ func (s *EnterpriseTestSuite) TestCreateEnterprise() {
 	// call tested function
 	enterprise, err := s.Runner.CreateEnterprise(s.Fixtures.AdminContext, s.Fixtures.CreateEnterpriseParams)
 
+	s.Require().Nil(err)
+	s.Require().Equal(s.Fixtures.CreateEnterpriseParams.Name, enterprise.Name)
+	s.Require().Equal(s.Fixtures.Credentials[s.Fixtures.CreateEnterpriseParams.CredentialsName].Name, enterprise.Credentials.Name)
+	s.Require().Equal(params.PoolBalancerTypeRoundRobin, enterprise.PoolBalancerType)
 	// assertions
 	s.Fixtures.PoolMgrMock.AssertExpectations(s.T())
 	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
-	s.Require().Nil(err)
-	s.Require().Equal(s.Fixtures.CreateEnterpriseParams.Name, enterprise.Name)
-	s.Require().Equal(s.Fixtures.Credentials[s.Fixtures.CreateEnterpriseParams.CredentialsName].Name, enterprise.CredentialsName)
-	s.Require().Equal(params.PoolBalancerTypeRoundRobin, enterprise.PoolBalancerType)
 }
 
 func (s *EnterpriseTestSuite) TestCreateEnterpriseErrUnauthorized() {
@@ -306,7 +308,7 @@ func (s *EnterpriseTestSuite) TestUpdateEnterprise() {
 	s.Fixtures.PoolMgrMock.AssertExpectations(s.T())
 	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
 	s.Require().Nil(err)
-	s.Require().Equal(s.Fixtures.UpdateRepoParams.CredentialsName, org.CredentialsName)
+	s.Require().Equal(s.Fixtures.UpdateRepoParams.CredentialsName, org.Credentials.Name)
 	s.Require().Equal(s.Fixtures.UpdateRepoParams.WebhookSecret, org.WebhookSecret)
 	s.Require().Equal(params.PoolBalancerTypePack, org.PoolBalancerType)
 }
@@ -322,7 +324,9 @@ func (s *EnterpriseTestSuite) TestUpdateEnterpriseInvalidCreds() {
 
 	_, err := s.Runner.UpdateEnterprise(s.Fixtures.AdminContext, s.Fixtures.StoreEnterprises["test-enterprise-1"].ID, s.Fixtures.UpdateRepoParams)
 
-	s.Require().Equal(runnerErrors.NewBadRequestError("invalid credentials (%s) for enterprise %s", s.Fixtures.UpdateRepoParams.CredentialsName, s.Fixtures.StoreEnterprises["test-enterprise-1"].Name), err)
+	if !errors.Is(err, runnerErrors.ErrNotFound) {
+		s.FailNow(fmt.Sprintf("expected error: %v", runnerErrors.ErrNotFound))
+	}
 }
 
 func (s *EnterpriseTestSuite) TestUpdateEnterprisePoolMgrFailed() {

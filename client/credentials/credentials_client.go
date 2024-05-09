@@ -30,9 +30,127 @@ type ClientOption func(*runtime.ClientOperation)
 
 // ClientService is the interface for Client methods
 type ClientService interface {
+	CreateCredentials(params *CreateCredentialsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateCredentialsOK, error)
+
+	DeleteCredentials(params *DeleteCredentialsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error
+
+	GetCredentials(params *GetCredentialsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetCredentialsOK, error)
+
 	ListCredentials(params *ListCredentialsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListCredentialsOK, error)
 
+	UpdateCredentials(params *UpdateCredentialsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateCredentialsOK, error)
+
 	SetTransport(transport runtime.ClientTransport)
+}
+
+/*
+CreateCredentials creates a git hub credential
+*/
+func (a *Client) CreateCredentials(params *CreateCredentialsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateCredentialsOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewCreateCredentialsParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "CreateCredentials",
+		Method:             "POST",
+		PathPattern:        "/github/credentials",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &CreateCredentialsReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*CreateCredentialsOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
+	msg := fmt.Sprintf("unexpected success response for CreateCredentials: API contract not enforced by server. Client expected to get an error, but got: %T", result)
+	panic(msg)
+}
+
+/*
+DeleteCredentials deletes a git hub credential
+*/
+func (a *Client) DeleteCredentials(params *DeleteCredentialsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewDeleteCredentialsParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "DeleteCredentials",
+		Method:             "DELETE",
+		PathPattern:        "/github/credentials/{id}",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &DeleteCredentialsReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	_, err := a.transport.Submit(op)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+/*
+GetCredentials gets a git hub credential
+*/
+func (a *Client) GetCredentials(params *GetCredentialsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetCredentialsOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewGetCredentialsParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "GetCredentials",
+		Method:             "GET",
+		PathPattern:        "/github/credentials/{id}",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &GetCredentialsReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*GetCredentialsOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
+	msg := fmt.Sprintf("unexpected success response for GetCredentials: API contract not enforced by server. Client expected to get an error, but got: %T", result)
+	panic(msg)
 }
 
 /*
@@ -46,7 +164,7 @@ func (a *Client) ListCredentials(params *ListCredentialsParams, authInfo runtime
 	op := &runtime.ClientOperation{
 		ID:                 "ListCredentials",
 		Method:             "GET",
-		PathPattern:        "/credentials",
+		PathPattern:        "/github/credentials",
 		ProducesMediaTypes: []string{"application/json"},
 		ConsumesMediaTypes: []string{"application/json"},
 		Schemes:            []string{"http"},
@@ -71,6 +189,45 @@ func (a *Client) ListCredentials(params *ListCredentialsParams, authInfo runtime
 	// unexpected success response
 	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
 	msg := fmt.Sprintf("unexpected success response for ListCredentials: API contract not enforced by server. Client expected to get an error, but got: %T", result)
+	panic(msg)
+}
+
+/*
+UpdateCredentials updates a git hub credential
+*/
+func (a *Client) UpdateCredentials(params *UpdateCredentialsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateCredentialsOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewUpdateCredentialsParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "UpdateCredentials",
+		Method:             "PUT",
+		PathPattern:        "/github/credentials/{id}",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &UpdateCredentialsReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*UpdateCredentialsOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
+	msg := fmt.Sprintf("unexpected success response for UpdateCredentials: API contract not enforced by server. Client expected to get an error, but got: %T", result)
 	panic(msg)
 }
 

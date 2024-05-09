@@ -19,12 +19,11 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
-	"github.com/cloudbase/garm/auth"
-	"github.com/cloudbase/garm/config"
 	"github.com/cloudbase/garm/database"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	garmTesting "github.com/cloudbase/garm/internal/testing"
@@ -39,7 +38,7 @@ type RepoTestFixtures struct {
 	Store                 dbCommon.Store
 	StoreRepos            map[string]params.Repository
 	Providers             map[string]common.Provider
-	Credentials           map[string]config.Github
+	Credentials           map[string]params.GithubCredentials
 	CreateRepoParams      params.CreateRepoParams
 	CreatePoolParams      params.CreatePoolParams
 	CreateInstanceParams  params.CreateInstanceParams
@@ -56,17 +55,24 @@ type RepoTestSuite struct {
 	suite.Suite
 	Fixtures *RepoTestFixtures
 	Runner   *Runner
+
+	testCreds          params.GithubCredentials
+	secondaryTestCreds params.GithubCredentials
+	githubEndpoint     params.GithubEndpoint
 }
 
 func (s *RepoTestSuite) SetupTest() {
-	adminCtx := auth.GetAdminContext(context.Background())
-
 	// create testing sqlite database
 	dbCfg := garmTesting.GetTestSqliteDBConfig(s.T())
-	db, err := database.NewDatabase(adminCtx, dbCfg)
+	db, err := database.NewDatabase(context.Background(), dbCfg)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to create db connection: %s", err))
 	}
+
+	adminCtx := garmTesting.ImpersonateAdminContext(context.Background(), db, s.T())
+	s.githubEndpoint = garmTesting.CreateDefaultGithubEndpoint(adminCtx, db, s.T())
+	s.testCreds = garmTesting.CreateTestGithubCredentials(adminCtx, "new-creds", db, s.T(), s.githubEndpoint)
+	s.secondaryTestCreds = garmTesting.CreateTestGithubCredentials(adminCtx, "secondary-creds", db, s.T(), s.githubEndpoint)
 
 	// create some repository objects in the database, for testing purposes
 	repos := map[string]params.Repository{}
@@ -76,12 +82,12 @@ func (s *RepoTestSuite) SetupTest() {
 			adminCtx,
 			fmt.Sprintf("test-owner-%v", i),
 			name,
-			fmt.Sprintf("test-creds-%v", i),
+			s.testCreds.Name,
 			fmt.Sprintf("test-webhook-secret-%v", i),
 			params.PoolBalancerTypeRoundRobin,
 		)
 		if err != nil {
-			s.FailNow(fmt.Sprintf("failed to create database object (test-repo-%v)", i))
+			s.FailNow(fmt.Sprintf("failed to create database object (test-repo-%v): %q", i, err))
 		}
 		repos[name] = repo
 	}
@@ -91,23 +97,20 @@ func (s *RepoTestSuite) SetupTest() {
 	var minIdleRunners uint = 20
 	providerMock := runnerCommonMocks.NewProvider(s.T())
 	fixtures := &RepoTestFixtures{
-		AdminContext: auth.GetAdminContext(context.Background()),
+		AdminContext: adminCtx,
 		Store:        db,
 		StoreRepos:   repos,
 		Providers: map[string]common.Provider{
 			"test-provider": providerMock,
 		},
-		Credentials: map[string]config.Github{
-			"test-creds": {
-				Name:        "test-creds-name",
-				Description: "test-creds-description",
-				OAuth2Token: "test-creds-oauth2-token",
-			},
+		Credentials: map[string]params.GithubCredentials{
+			s.testCreds.Name:          s.testCreds,
+			s.secondaryTestCreds.Name: s.secondaryTestCreds,
 		},
 		CreateRepoParams: params.CreateRepoParams{
 			Owner:           "test-owner-create",
 			Name:            "test-repo-create",
-			CredentialsName: "test-creds",
+			CredentialsName: s.testCreds.Name,
 			WebhookSecret:   "test-create-repo-webhook-secret",
 		},
 		CreatePoolParams: params.CreatePoolParams{
@@ -126,7 +129,7 @@ func (s *RepoTestSuite) SetupTest() {
 			OSType: "linux",
 		},
 		UpdateRepoParams: params.UpdateEntityParams{
-			CredentialsName: "test-creds",
+			CredentialsName: s.testCreds.Name,
 			WebhookSecret:   "test-update-repo-webhook-secret",
 		},
 		UpdatePoolParams: params.UpdatePoolParams{
@@ -148,7 +151,6 @@ func (s *RepoTestSuite) SetupTest() {
 	// setup test runner
 	runner := &Runner{
 		providers:       fixtures.Providers,
-		credentials:     fixtures.Credentials,
 		ctx:             fixtures.AdminContext,
 		store:           fixtures.Store,
 		poolManagerCtrl: fixtures.PoolMgrCtrlMock,
@@ -167,10 +169,11 @@ func (s *RepoTestSuite) TestCreateRepository() {
 	// assertions
 	s.Fixtures.PoolMgrMock.AssertExpectations(s.T())
 	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
+
 	s.Require().Nil(err)
 	s.Require().Equal(s.Fixtures.CreateRepoParams.Owner, repo.Owner)
 	s.Require().Equal(s.Fixtures.CreateRepoParams.Name, repo.Name)
-	s.Require().Equal(s.Fixtures.Credentials[s.Fixtures.CreateRepoParams.CredentialsName].Name, repo.CredentialsName)
+	s.Require().Equal(s.Fixtures.Credentials[s.Fixtures.CreateRepoParams.CredentialsName].Name, repo.Credentials.Name)
 	s.Require().Equal(params.PoolBalancerTypeRoundRobin, repo.PoolBalancerType)
 }
 
@@ -190,7 +193,7 @@ func (s *RepoTestSuite) TestCreareRepositoryPoolBalancerTypePack() {
 	s.Require().Nil(err)
 	s.Require().Equal(param.Owner, repo.Owner)
 	s.Require().Equal(param.Name, repo.Name)
-	s.Require().Equal(s.Fixtures.Credentials[s.Fixtures.CreateRepoParams.CredentialsName].Name, repo.CredentialsName)
+	s.Require().Equal(s.Fixtures.Credentials[s.Fixtures.CreateRepoParams.CredentialsName].Name, repo.Credentials.Name)
 	s.Require().Equal(params.PoolBalancerTypePack, repo.PoolBalancerType)
 }
 
@@ -327,7 +330,7 @@ func (s *RepoTestSuite) TestUpdateRepository() {
 	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
 	s.Fixtures.PoolMgrMock.AssertExpectations(s.T())
 	s.Require().Nil(err)
-	s.Require().Equal(s.Fixtures.UpdateRepoParams.CredentialsName, repo.CredentialsName)
+	s.Require().Equal(s.Fixtures.UpdateRepoParams.CredentialsName, repo.Credentials.Name)
 	s.Require().Equal(s.Fixtures.UpdateRepoParams.WebhookSecret, repo.WebhookSecret)
 	s.Require().Equal(params.PoolBalancerTypeRoundRobin, repo.PoolBalancerType)
 }
@@ -343,7 +346,7 @@ func (s *RepoTestSuite) TestUpdateRepositoryBalancingType() {
 	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
 	s.Fixtures.PoolMgrMock.AssertExpectations(s.T())
 	s.Require().Nil(err)
-	s.Require().Equal(updateRepoParams.CredentialsName, repo.CredentialsName)
+	s.Require().Equal(updateRepoParams.CredentialsName, repo.Credentials.Name)
 	s.Require().Equal(updateRepoParams.WebhookSecret, repo.WebhookSecret)
 	s.Require().Equal(params.PoolBalancerTypePack, repo.PoolBalancerType)
 }
@@ -358,7 +361,9 @@ func (s *RepoTestSuite) TestUpdateRepositoryInvalidCreds() {
 
 	_, err := s.Runner.UpdateRepository(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID, s.Fixtures.UpdateRepoParams)
 
-	s.Require().Equal(runnerErrors.NewBadRequestError("invalid credentials (%s) for repo %s/%s", s.Fixtures.UpdateRepoParams.CredentialsName, s.Fixtures.StoreRepos["test-repo-1"].Owner, s.Fixtures.StoreRepos["test-repo-1"].Name), err)
+	if !errors.Is(err, runnerErrors.ErrNotFound) {
+		s.FailNow(fmt.Sprintf("expected error: %v", runnerErrors.ErrNotFound))
+	}
 }
 
 func (s *RepoTestSuite) TestUpdateRepositoryPoolMgrFailed() {
