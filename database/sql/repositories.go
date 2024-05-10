@@ -226,31 +226,6 @@ func (s *sqlDatabase) getRepo(_ context.Context, owner, name string) (Repository
 	return repo, nil
 }
 
-func (s *sqlDatabase) getEntityPoolByUniqueFields(tx *gorm.DB, entity params.GithubEntity, provider, image, flavor string) (pool Pool, err error) {
-	var entityField string
-	switch entity.EntityType {
-	case params.GithubEntityTypeRepository:
-		entityField = entityTypeRepoName
-	case params.GithubEntityTypeOrganization:
-		entityField = entityTypeOrgName
-	case params.GithubEntityTypeEnterprise:
-		entityField = entityTypeEnterpriseName
-	}
-	entityID, err := uuid.Parse(entity.ID)
-	if err != nil {
-		return pool, fmt.Errorf("parsing entity ID: %w", err)
-	}
-	poolQueryString := fmt.Sprintf("provider_name = ? and image = ? and flavor = ? and %s = ?", entityField)
-	err = tx.Where(poolQueryString, provider, image, flavor, entityID).First(&pool).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return pool, runnerErrors.ErrNotFound
-		}
-		return
-	}
-	return Pool{}, nil
-}
-
 func (s *sqlDatabase) getRepoByID(_ context.Context, tx *gorm.DB, id string, preload ...string) (Repository, error) {
 	u, err := uuid.Parse(id)
 	if err != nil {
