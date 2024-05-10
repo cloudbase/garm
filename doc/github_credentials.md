@@ -5,12 +5,28 @@ Starting with version `v0.1.5`, GARM saves github endpoints and github credentia
 <!-- TOC -->
 
 - [Configuring github endpoints and credentials](#configuring-github-endpoints-and-credentials)
+    - [Create GitHub endpoint](#create-github-endpoint)
     - [Listing GitHub endpoints](#listing-github-endpoints)
     - [Adding GitHub credentials](#adding-github-credentials)
     - [Listing GitHub credentials](#listing-github-credentials)
     - [Deleting GitHub credentials](#deleting-github-credentials)
 
 <!-- /TOC -->
+
+## Create GitHub endpoint
+
+To create a new GitHub endpoint, you can use the following command:
+
+```bash
+garm-cli github endpoint create \
+    --name example \
+    --description "Just an example ghes endpoint" \
+    --base-url https://ghes.example.com \
+    --upload-url https://upload.ghes.example.com \
+    --api-base-url https://api.ghes.example.com \
+    --ca-cert-path $HOME/ca-cert.pem
+```
+
 ## Listing GitHub endpoints
 
 To list the available GitHub endpoints, you can use the following command:
