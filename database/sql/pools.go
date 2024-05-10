@@ -288,14 +288,6 @@ func (s *sqlDatabase) CreateEntityPool(_ context.Context, entity params.GithubEn
 			return errors.Wrap(err, "checking entity existence")
 		}
 
-		if _, err := s.getEntityPoolByUniqueFields(tx, entity, newPool.ProviderName, newPool.Image, newPool.Flavor); err != nil {
-			if !errors.Is(err, runnerErrors.ErrNotFound) {
-				return errors.Wrap(err, "checking pool existence")
-			}
-		} else {
-			return runnerErrors.NewConflictError("pool with the same image and flavor already exists on this provider")
-		}
-
 		tags := []Tag{}
 		for _, val := range param.Tags {
 			t, err := s.getOrCreateTag(tx, val)

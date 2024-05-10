@@ -28,7 +28,6 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
-	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/auth"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	garmTesting "github.com/cloudbase/garm/internal/testing"
@@ -501,68 +500,12 @@ func (s *EnterpriseTestSuite) TestCreateEnterprisePoolInvalidEnterpriseID() {
 	s.Require().Equal("parsing id: invalid request", err.Error())
 }
 
-func (s *EnterpriseTestSuite) TestCreateEnterprisePoolDBCreateErr() {
-	s.Fixtures.SQLMock.ExpectBegin()
-	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `enterprises` WHERE id = ? AND `enterprises`.`deleted_at` IS NULL ORDER BY `enterprises`.`id` LIMIT ?")).
-		WithArgs(s.Fixtures.Enterprises[0].ID, 1).
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Enterprises[0].ID))
-	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE (provider_name = ? and image = ? and flavor = ? and enterprise_id = ?) AND `pools`.`deleted_at` IS NULL ORDER BY `pools`.`id` LIMIT ?")).
-		WillReturnError(fmt.Errorf("mocked creating pool error"))
-
-	entity, err := s.Fixtures.Enterprises[0].GetEntity()
-	s.Require().Nil(err)
-	_, err = s.StoreSQLMocked.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
-
-	s.Require().NotNil(err)
-	s.Require().Equal("checking pool existence: mocked creating pool error", err.Error())
-	s.assertSQLMockExpectations()
-}
-
-func (s *EnterpriseTestSuite) TestCreateEnterpriseDBPoolAlreadyExistErr() {
-	s.Fixtures.SQLMock.ExpectBegin()
-	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `enterprises` WHERE id = ? AND `enterprises`.`deleted_at` IS NULL ORDER BY `enterprises`.`id` LIMIT ?")).
-		WithArgs(s.Fixtures.Enterprises[0].ID, 1).
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Enterprises[0].ID))
-	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE (provider_name = ? and image = ? and flavor = ? and enterprise_id = ?) AND `pools`.`deleted_at` IS NULL ORDER BY `pools`.`id` LIMIT ?")).
-		WithArgs(
-			s.Fixtures.CreatePoolParams.ProviderName,
-			s.Fixtures.CreatePoolParams.Image,
-			s.Fixtures.CreatePoolParams.Flavor,
-			s.Fixtures.Enterprises[0].ID, 1).
-		WillReturnRows(sqlmock.NewRows([]string{"enterprise_id", "provider_name", "image", "flavor"}).
-			AddRow(
-				s.Fixtures.Enterprises[0].ID,
-				s.Fixtures.CreatePoolParams.ProviderName,
-				s.Fixtures.CreatePoolParams.Image,
-				s.Fixtures.CreatePoolParams.Flavor))
-
-	entity, err := s.Fixtures.Enterprises[0].GetEntity()
-	s.Require().Nil(err)
-	_, err = s.StoreSQLMocked.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
-
-	s.Require().NotNil(err)
-	s.Require().Equal(runnerErrors.NewConflictError("pool with the same image and flavor already exists on this provider"), err)
-	s.assertSQLMockExpectations()
-}
-
 func (s *EnterpriseTestSuite) TestCreateEnterprisePoolDBFetchTagErr() {
 	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `enterprises` WHERE id = ? AND `enterprises`.`deleted_at` IS NULL ORDER BY `enterprises`.`id` LIMIT ?")).
 		WithArgs(s.Fixtures.Enterprises[0].ID, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Enterprises[0].ID))
-	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE (provider_name = ? and image = ? and flavor = ? and enterprise_id = ?) AND `pools`.`deleted_at` IS NULL ORDER BY `pools`.`id` LIMIT ?")).
-		WithArgs(
-			s.Fixtures.CreatePoolParams.ProviderName,
-			s.Fixtures.CreatePoolParams.Image,
-			s.Fixtures.CreatePoolParams.Flavor,
-			s.Fixtures.Enterprises[0].ID, 1).
-		WillReturnRows(sqlmock.NewRows([]string{"enterprise_id"}))
 	s.Fixtures.SQLMock.
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `tags` WHERE name = ? AND `tags`.`deleted_at` IS NULL ORDER BY `tags`.`id` LIMIT ?")).
 		WillReturnError(fmt.Errorf("mocked fetching tag error"))
@@ -583,14 +526,6 @@ func (s *EnterpriseTestSuite) TestCreateEnterprisePoolDBAddingPoolErr() {
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `enterprises` WHERE id = ? AND `enterprises`.`deleted_at` IS NULL ORDER BY `enterprises`.`id` LIMIT ?")).
 		WithArgs(s.Fixtures.Enterprises[0].ID, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Enterprises[0].ID))
-	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE (provider_name = ? and image = ? and flavor = ? and enterprise_id = ?) AND `pools`.`deleted_at` IS NULL ORDER BY `pools`.`id` LIMIT ?")).
-		WithArgs(
-			s.Fixtures.CreatePoolParams.ProviderName,
-			s.Fixtures.CreatePoolParams.Image,
-			s.Fixtures.CreatePoolParams.Flavor,
-			s.Fixtures.Enterprises[0].ID, 1).
-		WillReturnRows(sqlmock.NewRows([]string{"enterprise_id"}))
 	s.Fixtures.SQLMock.
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `tags` WHERE name = ? AND `tags`.`deleted_at` IS NULL ORDER BY `tags`.`id` LIMIT ?")).
 		WillReturnRows(sqlmock.NewRows([]string{"linux"}))
@@ -619,14 +554,6 @@ func (s *EnterpriseTestSuite) TestCreateEnterprisePoolDBSaveTagErr() {
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `enterprises` WHERE id = ? AND `enterprises`.`deleted_at` IS NULL ORDER BY `enterprises`.`id` LIMIT ?")).
 		WithArgs(s.Fixtures.Enterprises[0].ID, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Enterprises[0].ID))
-	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE (provider_name = ? and image = ? and flavor = ? and enterprise_id = ?) AND `pools`.`deleted_at` IS NULL ORDER BY `pools`.`id` LIMIT ?")).
-		WithArgs(
-			s.Fixtures.CreatePoolParams.ProviderName,
-			s.Fixtures.CreatePoolParams.Image,
-			s.Fixtures.CreatePoolParams.Flavor,
-			s.Fixtures.Enterprises[0].ID, 1).
-		WillReturnRows(sqlmock.NewRows([]string{"enterprise_id"}))
 	s.Fixtures.SQLMock.
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `tags` WHERE name = ? AND `tags`.`deleted_at` IS NULL ORDER BY `tags`.`id` LIMIT ?")).
 		WillReturnRows(sqlmock.NewRows([]string{"linux"}))
@@ -658,14 +585,6 @@ func (s *EnterpriseTestSuite) TestCreateEnterprisePoolDBFetchPoolErr() {
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `enterprises` WHERE id = ? AND `enterprises`.`deleted_at` IS NULL ORDER BY `enterprises`.`id` LIMIT ?")).
 		WithArgs(s.Fixtures.Enterprises[0].ID, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Enterprises[0].ID))
-	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE (provider_name = ? and image = ? and flavor = ? and enterprise_id = ?) AND `pools`.`deleted_at` IS NULL ORDER BY `pools`.`id` LIMIT ?")).
-		WithArgs(
-			s.Fixtures.CreatePoolParams.ProviderName,
-			s.Fixtures.CreatePoolParams.Image,
-			s.Fixtures.CreatePoolParams.Flavor,
-			s.Fixtures.Enterprises[0].ID, 1).
-		WillReturnRows(sqlmock.NewRows([]string{"enterprise_id"}))
 	s.Fixtures.SQLMock.
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `tags` WHERE name = ? AND `tags`.`deleted_at` IS NULL ORDER BY `tags`.`id` LIMIT ?")).
 		WillReturnRows(sqlmock.NewRows([]string{"linux"}))
