@@ -1,5 +1,24 @@
 # Quick start
 
+<!-- TOC -->
+
+- [Quick start](#quick-start)
+    - [The GitHub PAT Personal Access Token](#the-github-pat-personal-access-token)
+    - [Create the config folder](#create-the-config-folder)
+    - [The config file](#the-config-file)
+    - [The provider section](#the-provider-section)
+    - [Starting the service](#starting-the-service)
+        - [Using Docker](#using-docker)
+        - [Setting up GARM as a system service](#setting-up-garm-as-a-system-service)
+    - [Setting up the webhook](#setting-up-the-webhook)
+    - [Initializing GARM](#initializing-garm)
+    - [Creating a gitHub endpoint Optional](#creating-a-github-endpoint-optional)
+    - [Adding credentials](#adding-credentials)
+    - [Define a repo](#define-a-repo)
+    - [Create a pool](#create-a-pool)
+
+<!-- /TOC -->
+
 Okay, I lied. It's not that quick. But it's not that long either. I promise.
 
 In this guide I'm going to take you through the entire process of setting up garm from scratch. This will include editing the config file (which will probably take the longest amount of time), fetching a proper [PAT](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token) (personal access token) from GitHub, setting up the webhooks endpoint, defining your repo/org/enterprise and finally setting up a runner pool.
