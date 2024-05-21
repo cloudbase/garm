@@ -296,7 +296,7 @@ garm-cli pool add \
 | Max Runners              | 5                                      |
 | Min Idle Runners         | 1                                      |
 | Runner Bootstrap Timeout | 20                                     |
-| Tags                     | self-hosted, x64, Linux, ubuntu, incus |
+| Tags                     | ubuntu, incus                          |
 | Belongs to               | gabriel-samfira/garm                   |
 | Level                    | repo                                   |
 | Enabled                  | false                                  |
@@ -328,11 +328,11 @@ To list pools created for a repository you can run:
 
 ```bash
 ubuntu@garm:~$ garm-cli pool list --repo=be3a0673-56af-4395-9ebf-4521fea67567
-+--------------------------------------+---------------------------+---------+------------------------------------+------------+-------+---------+---------------+
-| ID                                   | IMAGE                     | FLAVOR  | TAGS                               | BELONGS TO | LEVEL | ENABLED | RUNNER PREFIX |
-+--------------------------------------+---------------------------+---------+------------------------------------+------------+-------+---------+---------------+
-| 9daa34aa-a08a-4f29-a782-f54950d8521a | images:ubuntu/22.04/cloud | default | self-hosted x64 Linux ubuntu incus |            |       | false   | garm          |
-+--------------------------------------+---------------------------+---------+------------------------------------+------------+-------+---------+---------------+
++--------------------------------------+---------------------------+---------+--------------+------------+-------+---------+---------------+
+| ID                                   | IMAGE                     | FLAVOR  | TAGS         | BELONGS TO | LEVEL | ENABLED | RUNNER PREFIX |
++--------------------------------------+---------------------------+---------+--------------+------------+-------+---------+---------------+
+| 9daa34aa-a08a-4f29-a782-f54950d8521a | images:ubuntu/22.04/cloud | default | ubuntu incus |            |       | false   | garm          |
++--------------------------------------+---------------------------+---------+--------------+------------+-------+---------+---------------+
 ```
 
 If you want to list pools for an organization or enterprise, you can use the `--org` or `--enterprise` options respectively.
@@ -355,7 +355,7 @@ ubuntu@garm:~$ garm-cli pool show 9daa34aa-a08a-4f29-a782-f54950d8521a
 | Max Runners              | 5                                      |
 | Min Idle Runners         | 1                                      |
 | Runner Bootstrap Timeout | 20                                     |
-| Tags                     | self-hosted, x64, Linux, ubuntu, incus |
+| Tags                     | ubuntu, incus                          |
 | Belongs to               | gabriel-samfira/garm                   |
 | Level                    | repo                                   |
 | Enabled                  | false                                  |
@@ -385,7 +385,7 @@ ubuntu@garm:~$ garm-cli pool update 9daa34aa-a08a-4f29-a782-f54950d8521a --enabl
 | Max Runners              | 5                                      |
 | Min Idle Runners         | 1                                      |
 | Runner Bootstrap Timeout | 20                                     |
-| Tags                     | self-hosted, x64, Linux, ubuntu, incus |
+| Tags                     | ubuntu, incus                          |
 | Belongs to               | gabriel-samfira/garm                   |
 | Level                    | repo                                   |
 | Enabled                  | false                                  |
@@ -419,7 +419,7 @@ ubuntu@garm:~$ garm-cli pool update 9daa34aa-a08a-4f29-a782-f54950d8521a --enabl
 | Max Runners              | 5                                      |
 | Min Idle Runners         | 1                                      |
 | Runner Bootstrap Timeout | 20                                     |
-| Tags                     | self-hosted, x64, Linux, ubuntu, incus |
+| Tags                     | ubuntu, incus                          |
 | Belongs to               | gabriel-samfira/garm                   |
 | Level                    | repo                                   |
 | Enabled                  | true                                   |

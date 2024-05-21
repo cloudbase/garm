@@ -521,7 +521,7 @@ gabriel@rossak:~$ garm-cli pool add \
 | Max Runners              | 5                                          |
 | Min Idle Runners         | 0                                          |
 | Runner Bootstrap Timeout | 20                                         |
-| Tags                     | self-hosted, amd64, Linux, ubuntu, generic |
+| Tags                     | ubuntu, generic                            |
 | Belongs to               | gsamfira/scripts                           |
 | Level                    | repo                                       |
 | Enabled                  | true                                       |
@@ -535,11 +535,11 @@ If we list the pool we should see it:
 
 ```bash
 gabriel@rock:~$ garm-cli pool ls -a
-+--------------------------------------+---------------------------+--------------+-----------------------------------------+------------------+-------+---------+---------------+----------+
-| ID                                   | IMAGE                     | FLAVOR       | TAGS                                    | BELONGS TO       | LEVEL | ENABLED | RUNNER PREFIX | PRIORITY |
-+--------------------------------------+---------------------------+--------------+-----------------------------------------+------------------+-------+---------+---------------+----------+
-| 344e4a72-2035-4a18-a3d5-87bd3874b56c | ubuntu:22.04              | default      | self-hosted amd64 Linux ubuntu generic  | gsamfira/scripts | repo  | true    |  garm         |        0 |
-+--------------------------------------+---------------------------+--------------+-----------------------------------------+------------------+-------+---------+---------------+----------+
++--------------------------------------+---------------------------+--------------+-----------------+------------------+-------+---------+---------------+----------+
+| ID                                   | IMAGE                     | FLAVOR       | TAGS            | BELONGS TO       | LEVEL | ENABLED | RUNNER PREFIX | PRIORITY |
++--------------------------------------+---------------------------+--------------+-----------------+------------------+-------+---------+---------------+----------+
+| 344e4a72-2035-4a18-a3d5-87bd3874b56c | ubuntu:22.04              | default      | ubuntu generic  | gsamfira/scripts | repo  | true    |  garm         |        0 |
++--------------------------------------+---------------------------+--------------+-----------------+------------------+-------+---------+---------------+----------+
 ```
 
 This pool is enabled, but the `min-idle-runners` option is set to 0. This means that it will not create any lingering runners. It will only create runners when a job is started. If your provider is slow to boot up new instances, you may want to set this to a value higher than 0.
@@ -573,7 +573,7 @@ gabriel@rossak:~$ garm-cli pool update 344e4a72-2035-4a18-a3d5-87bd3874b56c --mi
 | Max Runners              | 5                                          |
 | Min Idle Runners         | 1                                          |
 | Runner Bootstrap Timeout | 20                                         |
-| Tags                     | self-hosted, amd64, Linux, ubuntu, generic |
+| Tags                     | ubuntu, generic                            |
 | Belongs to               | gsamfira/scripts                           |
 | Level                    | repo                                       |
 | Enabled                  | true                                       |
