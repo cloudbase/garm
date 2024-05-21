@@ -786,47 +786,7 @@ func (r *Runner) appendTagsToCreatePoolParams(param params.CreatePoolParams) (pa
 		return params.CreatePoolParams{}, runnerErrors.NewBadRequestError("no such provider %s", param.ProviderName)
 	}
 
-	newTags, err := r.processTags(string(param.OSArch), param.OSType, param.Tags)
-	if err != nil {
-		return params.CreatePoolParams{}, fmt.Errorf("failed to process tags: %w", err)
-	}
-
-	param.Tags = newTags
-
 	return param, nil
-}
-
-func (r *Runner) processTags(osArch string, osType commonParams.OSType, tags []string) ([]string, error) {
-	// github automatically adds the "self-hosted" tag as well as the OS type (linux, windows, etc)
-	// and architecture (arm, x64, etc) to all self hosted runners. When a workflow job comes in, we try
-	// to find a pool based on the labels that are set in the workflow. If we don't explicitly define these
-	// default tags for each pool, and the user targets these labels, we won't be able to match any pools.
-	// The downside is that all pools with the same OS and arch will have these default labels. Users should
-	// set distinct and unique labels on each pool, and explicitly target those labels, or risk assigning
-	// the job to the wrong worker type.
-	ghArch, err := util.ResolveToGithubArch(osArch)
-	if err != nil {
-		return nil, errors.Wrap(err, "invalid arch")
-	}
-
-	ghOSType, err := util.ResolveToGithubTag(osType)
-	if err != nil {
-		return nil, errors.Wrap(err, "invalid os type")
-	}
-
-	labels := []string{
-		"self-hosted",
-		ghArch,
-		ghOSType,
-	}
-
-	for _, val := range tags {
-		if val != "self-hosted" && val != ghArch && val != ghOSType {
-			labels = append(labels, val)
-		}
-	}
-
-	return labels, nil
 }
 
 func (r *Runner) GetInstance(ctx context.Context, instanceName string) (params.Instance, error) {

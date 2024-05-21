@@ -165,7 +165,7 @@ func (s *RepoTestSuite) SetupTest() {
 			Flavor:         "test-flavor",
 			OSType:         "windows",
 			OSArch:         "amd64",
-			Tags:           []string{"self-hosted", "arm64", "windows"},
+			Tags:           []string{"arm64-windows-runner"},
 		},
 		CreateInstanceParams: params.CreateInstanceParams{
 			Name:   "test-instance",

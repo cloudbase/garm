@@ -122,7 +122,7 @@ func (s *OrgTestSuite) SetupTest() {
 			Flavor:                 "test",
 			OSType:                 "linux",
 			OSArch:                 "arm64",
-			Tags:                   []string{"self-hosted", "arm64", "linux"},
+			Tags:                   []string{"arm64-linux-runner"},
 			RunnerBootstrapTimeout: 0,
 		},
 		CreateInstanceParams: params.CreateInstanceParams{
