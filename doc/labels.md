@@ -10,6 +10,6 @@ These are:
 [ 'self-hosted', '$OS_TYPE', '$OS_ARCH' ]
 ```
 
-With Version **TBD** of `garm-provider-common`, the runner script will register themselves with a new command line flag, called `--no-default-labels`. If this flag is set, the runner will not append any default label.
+With Version `v0.1.2` of `garm-provider-common`, the runner script will register themselves with a new command line flag, called `--no-default-labels`. If this flag is set, the runner will not append any default label.
 
 As all labels can be defined in the pool specification, it's still possible to add the default labels manually.
