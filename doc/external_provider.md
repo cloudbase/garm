@@ -188,9 +188,6 @@ Here is a sample of that:
     "image": "8ed8a690-69b6-49eb-982f-dcb466895e2d",
     "labels": [
       "ubuntu",
-      "self-hosted",
-      "x64",
-      "linux",
       "openstack",
       "runner-controller-id:f9286791-1589-4f39-a106-5b68c2a18af4",
       "runner-pool-id:9dcf590a-1192-4a9c-b3e4-e0902974c2c0"

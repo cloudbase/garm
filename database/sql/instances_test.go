@@ -97,7 +97,7 @@ func (s *InstancesTestSuite) SetupTest() {
 		Image:          "test-image",
 		Flavor:         "test-flavor",
 		OSType:         "linux",
-		Tags:           []string{"self-hosted", "amd64", "linux"},
+		Tags:           []string{"amd64", "linux"},
 	}
 	entity, err := org.GetEntity()
 	s.Require().Nil(err)

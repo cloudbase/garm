@@ -121,7 +121,7 @@ func (s *RepoTestSuite) SetupTest() {
 			Flavor:                 "test",
 			OSType:                 "linux",
 			OSArch:                 "arm64",
-			Tags:                   []string{"self-hosted", "arm64", "linux"},
+			Tags:                   []string{"arm64-linux-runner"},
 			RunnerBootstrapTimeout: 0,
 		},
 		CreateInstanceParams: params.CreateInstanceParams{
@@ -177,7 +177,7 @@ func (s *RepoTestSuite) TestCreateRepository() {
 	s.Require().Equal(params.PoolBalancerTypeRoundRobin, repo.PoolBalancerType)
 }
 
-func (s *RepoTestSuite) TestCreareRepositoryPoolBalancerTypePack() {
+func (s *RepoTestSuite) TestCreateRepositoryPoolBalancerTypePack() {
 	// setup mocks expectations
 	s.Fixtures.PoolMgrMock.On("Start").Return(nil)
 	s.Fixtures.PoolMgrCtrlMock.On("CreateRepoPoolManager", s.Fixtures.AdminContext, mock.AnythingOfType("params.Repository"), s.Fixtures.Providers, s.Fixtures.Store).Return(s.Fixtures.PoolMgrMock, nil)

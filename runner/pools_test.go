@@ -91,7 +91,7 @@ func (s *PoolTestSuite) SetupTest() {
 				Image:                  fmt.Sprintf("test-image-%d", i),
 				Flavor:                 "test-flavor",
 				OSType:                 "linux",
-				Tags:                   []string{"self-hosted", "amd64", "linux"},
+				Tags:                   []string{"amd64-linux-runner"},
 				RunnerBootstrapTimeout: 0,
 			},
 		)
@@ -113,6 +113,9 @@ func (s *PoolTestSuite) SetupTest() {
 			MinIdleRunners: &minIdleRunners,
 			Image:          "test-images-updated",
 			Flavor:         "test-flavor-updated",
+			Tags: []string{
+				"amd64-linux-runner",
+			},
 		},
 		CreateInstanceParams: params.CreateInstanceParams{
 			Name:   "test-instance-name",
