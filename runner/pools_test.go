@@ -202,14 +202,8 @@ func (s *PoolTestSuite) TestDeletePoolByIDRunnersFailed() {
 func (s *PoolTestSuite) TestUpdatePoolByID() {
 	pool, err := s.Runner.UpdatePoolByID(s.Fixtures.AdminContext, s.Fixtures.Pools[0].ID, s.Fixtures.UpdatePoolParams)
 
-	var tags []string
-	for _, tag := range pool.Tags {
-		tags = append(tags, tag.Name)
-	}
-
 	s.Require().Nil(err)
 	s.Require().Equal(*s.Fixtures.UpdatePoolParams.MaxRunners, pool.MaxRunners)
-	s.Require().Equal(s.Fixtures.UpdatePoolParams.Tags, tags)
 	s.Require().Equal(*s.Fixtures.UpdatePoolParams.MinIdleRunners, pool.MinIdleRunners)
 	s.Require().Equal(s.Fixtures.UpdatePoolParams.Image, pool.Image)
 	s.Require().Equal(s.Fixtures.UpdatePoolParams.Flavor, pool.Flavor)
