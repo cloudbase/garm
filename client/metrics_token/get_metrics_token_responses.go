@@ -6,6 +6,7 @@ package metrics_token
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -86,11 +87,13 @@ func (o *GetMetricsTokenOK) Code() int {
 }
 
 func (o *GetMetricsTokenOK) Error() string {
-	return fmt.Sprintf("[GET /metrics-token][%d] getMetricsTokenOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /metrics-token][%d] getMetricsTokenOK %s", 200, payload)
 }
 
 func (o *GetMetricsTokenOK) String() string {
-	return fmt.Sprintf("[GET /metrics-token][%d] getMetricsTokenOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /metrics-token][%d] getMetricsTokenOK %s", 200, payload)
 }
 
 func (o *GetMetricsTokenOK) GetPayload() garm_params.JWTResponse {
@@ -152,11 +155,13 @@ func (o *GetMetricsTokenUnauthorized) Code() int {
 }
 
 func (o *GetMetricsTokenUnauthorized) Error() string {
-	return fmt.Sprintf("[GET /metrics-token][%d] getMetricsTokenUnauthorized  %+v", 401, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /metrics-token][%d] getMetricsTokenUnauthorized %s", 401, payload)
 }
 
 func (o *GetMetricsTokenUnauthorized) String() string {
-	return fmt.Sprintf("[GET /metrics-token][%d] getMetricsTokenUnauthorized  %+v", 401, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /metrics-token][%d] getMetricsTokenUnauthorized %s", 401, payload)
 }
 
 func (o *GetMetricsTokenUnauthorized) GetPayload() apiserver_params.APIErrorResponse {

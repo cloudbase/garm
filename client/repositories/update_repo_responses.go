@@ -6,6 +6,7 @@ package repositories
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -87,11 +88,13 @@ func (o *UpdateRepoOK) Code() int {
 }
 
 func (o *UpdateRepoOK) Error() string {
-	return fmt.Sprintf("[PUT /repositories/{repoID}][%d] updateRepoOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /repositories/{repoID}][%d] updateRepoOK %s", 200, payload)
 }
 
 func (o *UpdateRepoOK) String() string {
-	return fmt.Sprintf("[PUT /repositories/{repoID}][%d] updateRepoOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /repositories/{repoID}][%d] updateRepoOK %s", 200, payload)
 }
 
 func (o *UpdateRepoOK) GetPayload() garm_params.Repository {
@@ -157,11 +160,13 @@ func (o *UpdateRepoDefault) Code() int {
 }
 
 func (o *UpdateRepoDefault) Error() string {
-	return fmt.Sprintf("[PUT /repositories/{repoID}][%d] UpdateRepo default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /repositories/{repoID}][%d] UpdateRepo default %s", o._statusCode, payload)
 }
 
 func (o *UpdateRepoDefault) String() string {
-	return fmt.Sprintf("[PUT /repositories/{repoID}][%d] UpdateRepo default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /repositories/{repoID}][%d] UpdateRepo default %s", o._statusCode, payload)
 }
 
 func (o *UpdateRepoDefault) GetPayload() apiserver_params.APIErrorResponse {

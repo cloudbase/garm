@@ -6,6 +6,7 @@ package endpoints
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -87,11 +88,13 @@ func (o *UpdateGithubEndpointOK) Code() int {
 }
 
 func (o *UpdateGithubEndpointOK) Error() string {
-	return fmt.Sprintf("[PUT /github/endpoints/{name}][%d] updateGithubEndpointOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /github/endpoints/{name}][%d] updateGithubEndpointOK %s", 200, payload)
 }
 
 func (o *UpdateGithubEndpointOK) String() string {
-	return fmt.Sprintf("[PUT /github/endpoints/{name}][%d] updateGithubEndpointOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /github/endpoints/{name}][%d] updateGithubEndpointOK %s", 200, payload)
 }
 
 func (o *UpdateGithubEndpointOK) GetPayload() garm_params.GithubEndpoint {
@@ -157,11 +160,13 @@ func (o *UpdateGithubEndpointDefault) Code() int {
 }
 
 func (o *UpdateGithubEndpointDefault) Error() string {
-	return fmt.Sprintf("[PUT /github/endpoints/{name}][%d] UpdateGithubEndpoint default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /github/endpoints/{name}][%d] UpdateGithubEndpoint default %s", o._statusCode, payload)
 }
 
 func (o *UpdateGithubEndpointDefault) String() string {
-	return fmt.Sprintf("[PUT /github/endpoints/{name}][%d] UpdateGithubEndpoint default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /github/endpoints/{name}][%d] UpdateGithubEndpoint default %s", o._statusCode, payload)
 }
 
 func (o *UpdateGithubEndpointDefault) GetPayload() apiserver_params.APIErrorResponse {

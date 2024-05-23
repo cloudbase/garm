@@ -6,6 +6,7 @@ package repositories
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -87,11 +88,13 @@ func (o *InstallRepoWebhookOK) Code() int {
 }
 
 func (o *InstallRepoWebhookOK) Error() string {
-	return fmt.Sprintf("[POST /repositories/{repoID}/webhook][%d] installRepoWebhookOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /repositories/{repoID}/webhook][%d] installRepoWebhookOK %s", 200, payload)
 }
 
 func (o *InstallRepoWebhookOK) String() string {
-	return fmt.Sprintf("[POST /repositories/{repoID}/webhook][%d] installRepoWebhookOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /repositories/{repoID}/webhook][%d] installRepoWebhookOK %s", 200, payload)
 }
 
 func (o *InstallRepoWebhookOK) GetPayload() garm_params.HookInfo {
@@ -157,11 +160,13 @@ func (o *InstallRepoWebhookDefault) Code() int {
 }
 
 func (o *InstallRepoWebhookDefault) Error() string {
-	return fmt.Sprintf("[POST /repositories/{repoID}/webhook][%d] InstallRepoWebhook default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /repositories/{repoID}/webhook][%d] InstallRepoWebhook default %s", o._statusCode, payload)
 }
 
 func (o *InstallRepoWebhookDefault) String() string {
-	return fmt.Sprintf("[POST /repositories/{repoID}/webhook][%d] InstallRepoWebhook default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /repositories/{repoID}/webhook][%d] InstallRepoWebhook default %s", o._statusCode, payload)
 }
 
 func (o *InstallRepoWebhookDefault) GetPayload() apiserver_params.APIErrorResponse {

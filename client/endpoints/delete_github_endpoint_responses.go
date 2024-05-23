@@ -6,6 +6,7 @@ package endpoints
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -81,11 +82,13 @@ func (o *DeleteGithubEndpointDefault) Code() int {
 }
 
 func (o *DeleteGithubEndpointDefault) Error() string {
-	return fmt.Sprintf("[DELETE /github/endpoints/{name}][%d] DeleteGithubEndpoint default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /github/endpoints/{name}][%d] DeleteGithubEndpoint default %s", o._statusCode, payload)
 }
 
 func (o *DeleteGithubEndpointDefault) String() string {
-	return fmt.Sprintf("[DELETE /github/endpoints/{name}][%d] DeleteGithubEndpoint default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /github/endpoints/{name}][%d] DeleteGithubEndpoint default %s", o._statusCode, payload)
 }
 
 func (o *DeleteGithubEndpointDefault) GetPayload() apiserver_params.APIErrorResponse {

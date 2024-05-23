@@ -6,6 +6,7 @@ package instances
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -87,11 +88,13 @@ func (o *ListPoolInstancesOK) Code() int {
 }
 
 func (o *ListPoolInstancesOK) Error() string {
-	return fmt.Sprintf("[GET /pools/{poolID}/instances][%d] listPoolInstancesOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /pools/{poolID}/instances][%d] listPoolInstancesOK %s", 200, payload)
 }
 
 func (o *ListPoolInstancesOK) String() string {
-	return fmt.Sprintf("[GET /pools/{poolID}/instances][%d] listPoolInstancesOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /pools/{poolID}/instances][%d] listPoolInstancesOK %s", 200, payload)
 }
 
 func (o *ListPoolInstancesOK) GetPayload() garm_params.Instances {
@@ -157,11 +160,13 @@ func (o *ListPoolInstancesDefault) Code() int {
 }
 
 func (o *ListPoolInstancesDefault) Error() string {
-	return fmt.Sprintf("[GET /pools/{poolID}/instances][%d] ListPoolInstances default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /pools/{poolID}/instances][%d] ListPoolInstances default %s", o._statusCode, payload)
 }
 
 func (o *ListPoolInstancesDefault) String() string {
-	return fmt.Sprintf("[GET /pools/{poolID}/instances][%d] ListPoolInstances default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /pools/{poolID}/instances][%d] ListPoolInstances default %s", o._statusCode, payload)
 }
 
 func (o *ListPoolInstancesDefault) GetPayload() apiserver_params.APIErrorResponse {

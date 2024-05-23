@@ -6,6 +6,7 @@ package repositories
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -81,11 +82,13 @@ func (o *DeleteRepoDefault) Code() int {
 }
 
 func (o *DeleteRepoDefault) Error() string {
-	return fmt.Sprintf("[DELETE /repositories/{repoID}][%d] DeleteRepo default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /repositories/{repoID}][%d] DeleteRepo default %s", o._statusCode, payload)
 }
 
 func (o *DeleteRepoDefault) String() string {
-	return fmt.Sprintf("[DELETE /repositories/{repoID}][%d] DeleteRepo default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /repositories/{repoID}][%d] DeleteRepo default %s", o._statusCode, payload)
 }
 
 func (o *DeleteRepoDefault) GetPayload() apiserver_params.APIErrorResponse {

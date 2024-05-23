@@ -6,6 +6,7 @@ package organizations
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -87,11 +88,13 @@ func (o *UpdateOrgPoolOK) Code() int {
 }
 
 func (o *UpdateOrgPoolOK) Error() string {
-	return fmt.Sprintf("[PUT /organizations/{orgID}/pools/{poolID}][%d] updateOrgPoolOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /organizations/{orgID}/pools/{poolID}][%d] updateOrgPoolOK %s", 200, payload)
 }
 
 func (o *UpdateOrgPoolOK) String() string {
-	return fmt.Sprintf("[PUT /organizations/{orgID}/pools/{poolID}][%d] updateOrgPoolOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /organizations/{orgID}/pools/{poolID}][%d] updateOrgPoolOK %s", 200, payload)
 }
 
 func (o *UpdateOrgPoolOK) GetPayload() garm_params.Pool {
@@ -157,11 +160,13 @@ func (o *UpdateOrgPoolDefault) Code() int {
 }
 
 func (o *UpdateOrgPoolDefault) Error() string {
-	return fmt.Sprintf("[PUT /organizations/{orgID}/pools/{poolID}][%d] UpdateOrgPool default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /organizations/{orgID}/pools/{poolID}][%d] UpdateOrgPool default %s", o._statusCode, payload)
 }
 
 func (o *UpdateOrgPoolDefault) String() string {
-	return fmt.Sprintf("[PUT /organizations/{orgID}/pools/{poolID}][%d] UpdateOrgPool default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /organizations/{orgID}/pools/{poolID}][%d] UpdateOrgPool default %s", o._statusCode, payload)
 }
 
 func (o *UpdateOrgPoolDefault) GetPayload() apiserver_params.APIErrorResponse {

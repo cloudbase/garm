@@ -6,6 +6,7 @@ package login
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -86,11 +87,13 @@ func (o *LoginOK) Code() int {
 }
 
 func (o *LoginOK) Error() string {
-	return fmt.Sprintf("[POST /auth/login][%d] loginOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /auth/login][%d] loginOK %s", 200, payload)
 }
 
 func (o *LoginOK) String() string {
-	return fmt.Sprintf("[POST /auth/login][%d] loginOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /auth/login][%d] loginOK %s", 200, payload)
 }
 
 func (o *LoginOK) GetPayload() garm_params.JWTResponse {
@@ -152,11 +155,13 @@ func (o *LoginBadRequest) Code() int {
 }
 
 func (o *LoginBadRequest) Error() string {
-	return fmt.Sprintf("[POST /auth/login][%d] loginBadRequest  %+v", 400, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /auth/login][%d] loginBadRequest %s", 400, payload)
 }
 
 func (o *LoginBadRequest) String() string {
-	return fmt.Sprintf("[POST /auth/login][%d] loginBadRequest  %+v", 400, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /auth/login][%d] loginBadRequest %s", 400, payload)
 }
 
 func (o *LoginBadRequest) GetPayload() apiserver_params.APIErrorResponse {
