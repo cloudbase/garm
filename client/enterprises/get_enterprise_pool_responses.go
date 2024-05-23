@@ -6,6 +6,7 @@ package enterprises
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -87,11 +88,13 @@ func (o *GetEnterprisePoolOK) Code() int {
 }
 
 func (o *GetEnterprisePoolOK) Error() string {
-	return fmt.Sprintf("[GET /enterprises/{enterpriseID}/pools/{poolID}][%d] getEnterprisePoolOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /enterprises/{enterpriseID}/pools/{poolID}][%d] getEnterprisePoolOK %s", 200, payload)
 }
 
 func (o *GetEnterprisePoolOK) String() string {
-	return fmt.Sprintf("[GET /enterprises/{enterpriseID}/pools/{poolID}][%d] getEnterprisePoolOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /enterprises/{enterpriseID}/pools/{poolID}][%d] getEnterprisePoolOK %s", 200, payload)
 }
 
 func (o *GetEnterprisePoolOK) GetPayload() garm_params.Pool {
@@ -157,11 +160,13 @@ func (o *GetEnterprisePoolDefault) Code() int {
 }
 
 func (o *GetEnterprisePoolDefault) Error() string {
-	return fmt.Sprintf("[GET /enterprises/{enterpriseID}/pools/{poolID}][%d] GetEnterprisePool default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /enterprises/{enterpriseID}/pools/{poolID}][%d] GetEnterprisePool default %s", o._statusCode, payload)
 }
 
 func (o *GetEnterprisePoolDefault) String() string {
-	return fmt.Sprintf("[GET /enterprises/{enterpriseID}/pools/{poolID}][%d] GetEnterprisePool default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /enterprises/{enterpriseID}/pools/{poolID}][%d] GetEnterprisePool default %s", o._statusCode, payload)
 }
 
 func (o *GetEnterprisePoolDefault) GetPayload() apiserver_params.APIErrorResponse {

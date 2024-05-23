@@ -40,10 +40,10 @@
 // swagger:meta
 package routers
 
-//go:generate go run github.com/go-swagger/go-swagger/cmd/swagger@v0.30.5 generate spec --input=../swagger-models.yaml --output=../swagger.yaml --include="routers|controllers"
-//go:generate go run github.com/go-swagger/go-swagger/cmd/swagger@v0.30.5 validate ../swagger.yaml
+//go:generate go run github.com/go-swagger/go-swagger/cmd/swagger@v0.31.0 generate spec --input=../swagger-models.yaml --output=../swagger.yaml --include="routers|controllers"
+//go:generate go run github.com/go-swagger/go-swagger/cmd/swagger@v0.31.0 validate ../swagger.yaml
 //go:generate rm -rf ../../client
-//go:generate go run github.com/go-swagger/go-swagger/cmd/swagger@v0.30.5 generate client --target=../../ --spec=../swagger.yaml
+//go:generate go run github.com/go-swagger/go-swagger/cmd/swagger@v0.31.0 generate client --target=../../ --spec=../swagger.yaml
 
 import (
 	_ "expvar" // Register the expvar handlers

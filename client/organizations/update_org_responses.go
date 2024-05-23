@@ -6,6 +6,7 @@ package organizations
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -87,11 +88,13 @@ func (o *UpdateOrgOK) Code() int {
 }
 
 func (o *UpdateOrgOK) Error() string {
-	return fmt.Sprintf("[PUT /organizations/{orgID}][%d] updateOrgOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /organizations/{orgID}][%d] updateOrgOK %s", 200, payload)
 }
 
 func (o *UpdateOrgOK) String() string {
-	return fmt.Sprintf("[PUT /organizations/{orgID}][%d] updateOrgOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /organizations/{orgID}][%d] updateOrgOK %s", 200, payload)
 }
 
 func (o *UpdateOrgOK) GetPayload() garm_params.Organization {
@@ -157,11 +160,13 @@ func (o *UpdateOrgDefault) Code() int {
 }
 
 func (o *UpdateOrgDefault) Error() string {
-	return fmt.Sprintf("[PUT /organizations/{orgID}][%d] UpdateOrg default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /organizations/{orgID}][%d] UpdateOrg default %s", o._statusCode, payload)
 }
 
 func (o *UpdateOrgDefault) String() string {
-	return fmt.Sprintf("[PUT /organizations/{orgID}][%d] UpdateOrg default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /organizations/{orgID}][%d] UpdateOrg default %s", o._statusCode, payload)
 }
 
 func (o *UpdateOrgDefault) GetPayload() apiserver_params.APIErrorResponse {

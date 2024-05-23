@@ -6,6 +6,7 @@ package providers
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -86,11 +87,13 @@ func (o *ListProvidersOK) Code() int {
 }
 
 func (o *ListProvidersOK) Error() string {
-	return fmt.Sprintf("[GET /providers][%d] listProvidersOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /providers][%d] listProvidersOK %s", 200, payload)
 }
 
 func (o *ListProvidersOK) String() string {
-	return fmt.Sprintf("[GET /providers][%d] listProvidersOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /providers][%d] listProvidersOK %s", 200, payload)
 }
 
 func (o *ListProvidersOK) GetPayload() garm_params.Providers {
@@ -152,11 +155,13 @@ func (o *ListProvidersBadRequest) Code() int {
 }
 
 func (o *ListProvidersBadRequest) Error() string {
-	return fmt.Sprintf("[GET /providers][%d] listProvidersBadRequest  %+v", 400, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /providers][%d] listProvidersBadRequest %s", 400, payload)
 }
 
 func (o *ListProvidersBadRequest) String() string {
-	return fmt.Sprintf("[GET /providers][%d] listProvidersBadRequest  %+v", 400, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /providers][%d] listProvidersBadRequest %s", 400, payload)
 }
 
 func (o *ListProvidersBadRequest) GetPayload() apiserver_params.APIErrorResponse {

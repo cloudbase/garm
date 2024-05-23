@@ -6,6 +6,7 @@ package organizations
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -87,11 +88,13 @@ func (o *GetOrgOK) Code() int {
 }
 
 func (o *GetOrgOK) Error() string {
-	return fmt.Sprintf("[GET /organizations/{orgID}][%d] getOrgOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /organizations/{orgID}][%d] getOrgOK %s", 200, payload)
 }
 
 func (o *GetOrgOK) String() string {
-	return fmt.Sprintf("[GET /organizations/{orgID}][%d] getOrgOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /organizations/{orgID}][%d] getOrgOK %s", 200, payload)
 }
 
 func (o *GetOrgOK) GetPayload() garm_params.Organization {
@@ -157,11 +160,13 @@ func (o *GetOrgDefault) Code() int {
 }
 
 func (o *GetOrgDefault) Error() string {
-	return fmt.Sprintf("[GET /organizations/{orgID}][%d] GetOrg default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /organizations/{orgID}][%d] GetOrg default %s", o._statusCode, payload)
 }
 
 func (o *GetOrgDefault) String() string {
-	return fmt.Sprintf("[GET /organizations/{orgID}][%d] GetOrg default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /organizations/{orgID}][%d] GetOrg default %s", o._statusCode, payload)
 }
 
 func (o *GetOrgDefault) GetPayload() apiserver_params.APIErrorResponse {

@@ -6,6 +6,7 @@ package repositories
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -87,11 +88,13 @@ func (o *CreateRepoOK) Code() int {
 }
 
 func (o *CreateRepoOK) Error() string {
-	return fmt.Sprintf("[POST /repositories][%d] createRepoOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /repositories][%d] createRepoOK %s", 200, payload)
 }
 
 func (o *CreateRepoOK) String() string {
-	return fmt.Sprintf("[POST /repositories][%d] createRepoOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /repositories][%d] createRepoOK %s", 200, payload)
 }
 
 func (o *CreateRepoOK) GetPayload() garm_params.Repository {
@@ -157,11 +160,13 @@ func (o *CreateRepoDefault) Code() int {
 }
 
 func (o *CreateRepoDefault) Error() string {
-	return fmt.Sprintf("[POST /repositories][%d] CreateRepo default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /repositories][%d] CreateRepo default %s", o._statusCode, payload)
 }
 
 func (o *CreateRepoDefault) String() string {
-	return fmt.Sprintf("[POST /repositories][%d] CreateRepo default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /repositories][%d] CreateRepo default %s", o._statusCode, payload)
 }
 
 func (o *CreateRepoDefault) GetPayload() apiserver_params.APIErrorResponse {

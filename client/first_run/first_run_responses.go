@@ -6,6 +6,7 @@ package first_run
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -86,11 +87,13 @@ func (o *FirstRunOK) Code() int {
 }
 
 func (o *FirstRunOK) Error() string {
-	return fmt.Sprintf("[POST /first-run][%d] firstRunOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /first-run][%d] firstRunOK %s", 200, payload)
 }
 
 func (o *FirstRunOK) String() string {
-	return fmt.Sprintf("[POST /first-run][%d] firstRunOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /first-run][%d] firstRunOK %s", 200, payload)
 }
 
 func (o *FirstRunOK) GetPayload() garm_params.User {
@@ -152,11 +155,13 @@ func (o *FirstRunBadRequest) Code() int {
 }
 
 func (o *FirstRunBadRequest) Error() string {
-	return fmt.Sprintf("[POST /first-run][%d] firstRunBadRequest  %+v", 400, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /first-run][%d] firstRunBadRequest %s", 400, payload)
 }
 
 func (o *FirstRunBadRequest) String() string {
-	return fmt.Sprintf("[POST /first-run][%d] firstRunBadRequest  %+v", 400, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /first-run][%d] firstRunBadRequest %s", 400, payload)
 }
 
 func (o *FirstRunBadRequest) GetPayload() apiserver_params.APIErrorResponse {

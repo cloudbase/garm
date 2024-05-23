@@ -6,6 +6,7 @@ package credentials
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -86,11 +87,13 @@ func (o *UpdateCredentialsOK) Code() int {
 }
 
 func (o *UpdateCredentialsOK) Error() string {
-	return fmt.Sprintf("[PUT /github/credentials/{id}][%d] updateCredentialsOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /github/credentials/{id}][%d] updateCredentialsOK %s", 200, payload)
 }
 
 func (o *UpdateCredentialsOK) String() string {
-	return fmt.Sprintf("[PUT /github/credentials/{id}][%d] updateCredentialsOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /github/credentials/{id}][%d] updateCredentialsOK %s", 200, payload)
 }
 
 func (o *UpdateCredentialsOK) GetPayload() garm_params.GithubCredentials {
@@ -152,11 +155,13 @@ func (o *UpdateCredentialsBadRequest) Code() int {
 }
 
 func (o *UpdateCredentialsBadRequest) Error() string {
-	return fmt.Sprintf("[PUT /github/credentials/{id}][%d] updateCredentialsBadRequest  %+v", 400, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /github/credentials/{id}][%d] updateCredentialsBadRequest %s", 400, payload)
 }
 
 func (o *UpdateCredentialsBadRequest) String() string {
-	return fmt.Sprintf("[PUT /github/credentials/{id}][%d] updateCredentialsBadRequest  %+v", 400, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[PUT /github/credentials/{id}][%d] updateCredentialsBadRequest %s", 400, payload)
 }
 
 func (o *UpdateCredentialsBadRequest) GetPayload() apiserver_params.APIErrorResponse {

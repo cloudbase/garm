@@ -6,6 +6,7 @@ package endpoints
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -87,11 +88,13 @@ func (o *CreateGithubEndpointOK) Code() int {
 }
 
 func (o *CreateGithubEndpointOK) Error() string {
-	return fmt.Sprintf("[POST /github/endpoints][%d] createGithubEndpointOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /github/endpoints][%d] createGithubEndpointOK %s", 200, payload)
 }
 
 func (o *CreateGithubEndpointOK) String() string {
-	return fmt.Sprintf("[POST /github/endpoints][%d] createGithubEndpointOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /github/endpoints][%d] createGithubEndpointOK %s", 200, payload)
 }
 
 func (o *CreateGithubEndpointOK) GetPayload() garm_params.GithubEndpoint {
@@ -157,11 +160,13 @@ func (o *CreateGithubEndpointDefault) Code() int {
 }
 
 func (o *CreateGithubEndpointDefault) Error() string {
-	return fmt.Sprintf("[POST /github/endpoints][%d] CreateGithubEndpoint default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /github/endpoints][%d] CreateGithubEndpoint default %s", o._statusCode, payload)
 }
 
 func (o *CreateGithubEndpointDefault) String() string {
-	return fmt.Sprintf("[POST /github/endpoints][%d] CreateGithubEndpoint default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[POST /github/endpoints][%d] CreateGithubEndpoint default %s", o._statusCode, payload)
 }
 
 func (o *CreateGithubEndpointDefault) GetPayload() apiserver_params.APIErrorResponse {

@@ -6,6 +6,7 @@ package instances
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -81,11 +82,13 @@ func (o *DeleteInstanceDefault) Code() int {
 }
 
 func (o *DeleteInstanceDefault) Error() string {
-	return fmt.Sprintf("[DELETE /instances/{instanceName}][%d] DeleteInstance default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /instances/{instanceName}][%d] DeleteInstance default %s", o._statusCode, payload)
 }
 
 func (o *DeleteInstanceDefault) String() string {
-	return fmt.Sprintf("[DELETE /instances/{instanceName}][%d] DeleteInstance default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /instances/{instanceName}][%d] DeleteInstance default %s", o._statusCode, payload)
 }
 
 func (o *DeleteInstanceDefault) GetPayload() apiserver_params.APIErrorResponse {

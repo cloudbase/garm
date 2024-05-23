@@ -6,6 +6,7 @@ package organizations
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -81,11 +82,13 @@ func (o *UninstallOrgWebhookDefault) Code() int {
 }
 
 func (o *UninstallOrgWebhookDefault) Error() string {
-	return fmt.Sprintf("[DELETE /organizations/{orgID}/webhook][%d] UninstallOrgWebhook default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /organizations/{orgID}/webhook][%d] UninstallOrgWebhook default %s", o._statusCode, payload)
 }
 
 func (o *UninstallOrgWebhookDefault) String() string {
-	return fmt.Sprintf("[DELETE /organizations/{orgID}/webhook][%d] UninstallOrgWebhook default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /organizations/{orgID}/webhook][%d] UninstallOrgWebhook default %s", o._statusCode, payload)
 }
 
 func (o *UninstallOrgWebhookDefault) GetPayload() apiserver_params.APIErrorResponse {

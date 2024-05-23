@@ -6,6 +6,7 @@ package credentials
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -81,11 +82,13 @@ func (o *DeleteCredentialsDefault) Code() int {
 }
 
 func (o *DeleteCredentialsDefault) Error() string {
-	return fmt.Sprintf("[DELETE /github/credentials/{id}][%d] DeleteCredentials default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /github/credentials/{id}][%d] DeleteCredentials default %s", o._statusCode, payload)
 }
 
 func (o *DeleteCredentialsDefault) String() string {
-	return fmt.Sprintf("[DELETE /github/credentials/{id}][%d] DeleteCredentials default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /github/credentials/{id}][%d] DeleteCredentials default %s", o._statusCode, payload)
 }
 
 func (o *DeleteCredentialsDefault) GetPayload() apiserver_params.APIErrorResponse {
