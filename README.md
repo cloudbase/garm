@@ -12,6 +12,8 @@ GARM supports creating pools on either GitHub itself or on your own deployment o
 
 Through the use of providers, `GARM` can create runners in a variety of environments using the same `GARM` instance. Want to create pools of runners in your OpenStack cloud, your Azure cloud and your Kubernetes cluster? No problem! Just install the appropriate providers, configure them in `GARM` and you're good to go. Create zero-runner pools for instances with high costs (large VMs, GPU enabled instances, etc) and have them spin up on demand, or create large pools of k8s backed runners that can be used for your CI/CD pipelines at a moment's notice. You can mix them up and create pools in any combination of providers or resource allocations you want.
 
+:warning: **Important note**: The README and documentation in the `main` branch are relevant to the not yet released code that is present in `main`. Following the documentation from the `main` branch for a stable release of GARM, may lead to errors. To view the documentation for the latest stable release, please switch to the appropriate tag. For information about setting up `v0.1.4`, please refer to the [v0.1.4 tag](https://github.com/cloudbase/garm/tree/v0.1.4)  
+
 ## Join us on slack
 
 Whether you're running into issues or just want to drop by and say "hi", feel free to [join us on slack](https://communityinviter.com/apps/garm-hq/garm).
