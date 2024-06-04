@@ -139,6 +139,23 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 	var jobParams params.Job
 	var err error
 	var triggeredBy int64
+
+	// especially on an enterprise level we get a lot of webhooks that are not meant for us.
+	// if there is no pool that matches the labels, we should ignore the job and return earlier.
+	potentialPools, err := r.store.FindPoolsMatchingAllTags(r.ctx, r.entity.EntityType, r.entity.ID, jobParams.Labels)
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(
+			r.ctx, "failed to find pools matching tags; not recording job",
+			"requested_tags", strings.Join(jobParams.Labels, ", "))
+		return errors.Wrap(err, "getting pools matching tags")
+	}
+	if len(potentialPools) == 0 {
+		slog.WarnContext(
+			r.ctx, "no pools matching tags; not recording job",
+			"requested_tags", strings.Join(jobParams.Labels, ", "))
+		return errors.New("no pools matching tags")
+	}
+
 	defer func() {
 		// we're updating the job in the database, regardless of whether it was successful or not.
 		// or if it was meant for this pool or not. Github will send the same job data to all hierarchies
@@ -154,20 +171,6 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 				slog.With(slog.Any("error", err)).ErrorContext(
 					r.ctx, "failed to get job",
 					"job_id", jobParams.ID)
-				return
-			}
-			// This job is new to us. Check if we have a pool that can handle it.
-			potentialPools, err := r.store.FindPoolsMatchingAllTags(r.ctx, r.entity.EntityType, r.entity.ID, jobParams.Labels)
-			if err != nil {
-				slog.With(slog.Any("error", err)).ErrorContext(
-					r.ctx, "failed to find pools matching tags; not recording job",
-					"requested_tags", strings.Join(jobParams.Labels, ", "))
-				return
-			}
-			if len(potentialPools) == 0 {
-				slog.WarnContext(
-					r.ctx, "no pools matching tags; not recording job",
-					"requested_tags", strings.Join(jobParams.Labels, ", "))
 				return
 			}
 		}

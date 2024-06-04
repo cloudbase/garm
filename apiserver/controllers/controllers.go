@@ -121,6 +121,11 @@ func (a *APIController) handleWorkflowJobEvent(ctx context.Context, w http.Respo
 				"false",             // label: valid
 				"signature_invalid", // label: reason
 			).Inc()
+		case strings.Contains(err.Error(), "no pools matching tags"):
+			metrics.WebhooksReceived.WithLabelValues(
+				"false",           // label: valid
+				"not_responsible", // label: reason
+			).Inc()
 		default:
 			metrics.WebhooksReceived.WithLabelValues(
 				"false",   // label: valid
