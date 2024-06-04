@@ -213,6 +213,20 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 			return errors.Wrap(err, "converting job to params")
 		}
 
+		// Runner name was not set in WorkflowJob by github. We can still attempt to fetch the info we need,
+		// using the workflow run ID, from the API.
+		if job.WorkflowJob.RunnerName == "" {
+			// We may still get no runner name. In situations such as jobs being cancelled before a runner had the chance
+			// to pick up the job, the runner name is not available from the API.
+			if job.WorkflowJob.Conclusion != "skipped" && job.WorkflowJob.Conclusion != "canceled" {
+				runnerInfo, err := r.getRunnerDetailsFromJob(job)
+				if err != nil && !errors.Is(err, runnerErrors.ErrNotFound) {
+					return errors.Wrap(err, "fetching runner details")
+				}
+				jobParams.RunnerName = runnerInfo.Name
+			}
+		}
+
 		// update instance workload state.
 		if _, err := r.setInstanceRunnerStatus(jobParams.RunnerName, params.RunnerTerminated); err != nil {
 			if errors.Is(err, runnerErrors.ErrNotFound) {
@@ -247,6 +261,20 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 				return nil
 			}
 			return errors.Wrap(err, "converting job to params")
+		}
+
+		// Runner name was not set in WorkflowJob by github. We can still attempt to fetch the info we need,
+		// using the workflow run ID, from the API.
+		if job.WorkflowJob.RunnerName == "" {
+			// We may still get no runner name. In situations such as jobs being cancelled before a runner had the chance
+			// to pick up the job, the runner name is not available from the API.
+			if job.WorkflowJob.Conclusion != "skipped" && job.WorkflowJob.Conclusion != "canceled" {
+				runnerInfo, err := r.getRunnerDetailsFromJob(job)
+				if err != nil && !errors.Is(err, runnerErrors.ErrNotFound) {
+					return errors.Wrap(err, "fetching runner details")
+				}
+				jobParams.RunnerName = runnerInfo.Name
+			}
 		}
 
 		// update instance workload state.
@@ -957,6 +985,7 @@ func (r *basePoolManager) paramsWorkflowJobToParamsJob(job params.WorkflowJob) (
 		StartedAt:       job.WorkflowJob.StartedAt,
 		CompletedAt:     job.WorkflowJob.CompletedAt,
 		Name:            job.WorkflowJob.Name,
+		RunnerName:      job.WorkflowJob.RunnerName,
 		GithubRunnerID:  job.WorkflowJob.RunnerID,
 		RunnerGroupID:   job.WorkflowJob.RunnerGroupID,
 		RunnerGroupName: job.WorkflowJob.RunnerGroupName,
@@ -964,23 +993,6 @@ func (r *basePoolManager) paramsWorkflowJobToParamsJob(job params.WorkflowJob) (
 		RepositoryOwner: job.Repository.Owner.Login,
 		Labels:          job.WorkflowJob.Labels,
 	}
-
-	runnerName := job.WorkflowJob.RunnerName
-	if job.Action != "queued" && runnerName == "" {
-		if job.WorkflowJob.Conclusion != "skipped" && job.WorkflowJob.Conclusion != "canceled" {
-			// Runner name was not set in WorkflowJob by github. We can still attempt to fetch the info we need,
-			// using the workflow run ID, from the API.
-			// We may still get no runner name. In situations such as jobs being cancelled before a runner had the chance
-			// to pick up the job, the runner name is not available from the API.
-			runnerInfo, err := r.getRunnerDetailsFromJob(job)
-			if err != nil && !errors.Is(err, runnerErrors.ErrNotFound) {
-				return jobParams, errors.Wrap(err, "fetching runner details")
-			}
-			runnerName = runnerInfo.Name
-		}
-	}
-
-	jobParams.RunnerName = runnerName
 
 	switch r.entity.EntityType {
 	case params.GithubEntityTypeEnterprise:
