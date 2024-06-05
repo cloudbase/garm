@@ -501,3 +501,34 @@ func (u UpdateGithubCredentialsParams) Validate() error {
 
 	return nil
 }
+
+type UpdateControllerParams struct {
+	MetadataURL *string `json:"metadata_url,omitempty"`
+	CallbackURL *string `json:"callback_url,omitempty"`
+	WebhookURL  *string `json:"webhook_url,omitempty"`
+}
+
+func (u UpdateControllerParams) Validate() error {
+	if u.MetadataURL != nil {
+		u, err := url.Parse(*u.MetadataURL)
+		if err != nil || u.Scheme == "" || u.Host == "" {
+			return runnerErrors.NewBadRequestError("invalid metadata_url")
+		}
+	}
+
+	if u.CallbackURL != nil {
+		u, err := url.Parse(*u.CallbackURL)
+		if err != nil || u.Scheme == "" || u.Host == "" {
+			return runnerErrors.NewBadRequestError("invalid callback_url")
+		}
+	}
+
+	if u.WebhookURL != nil {
+		u, err := url.Parse(*u.WebhookURL)
+		if err != nil || u.Scheme == "" || u.Host == "" {
+			return runnerErrors.NewBadRequestError("invalid webhook_url")
+		}
+	}
+
+	return nil
+}

@@ -41,6 +41,7 @@ import (
 	"github.com/cloudbase/garm/database"
 	"github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/metrics"
+	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner" //nolint:typecheck
 	runnerMetrics "github.com/cloudbase/garm/runner/metrics"
 	garmUtil "github.com/cloudbase/garm/util"
@@ -142,6 +143,38 @@ func setupLogging(ctx context.Context, logCfg config.Logging, hub *websocket.Hub
 	slog.SetDefault(slog.New(wrapped))
 }
 
+func maybeUpdateURLsFromConfig(cfg config.Config, store common.Store) error {
+	info, err := store.ControllerInfo()
+	if err != nil {
+		return errors.Wrap(err, "fetching controller info")
+	}
+
+	var updateParams params.UpdateControllerParams
+
+	if info.MetadataURL == "" && cfg.Default.MetadataURL != "" {
+		updateParams.MetadataURL = &cfg.Default.MetadataURL
+	}
+
+	if info.CallbackURL == "" && cfg.Default.CallbackURL != "" {
+		updateParams.CallbackURL = &cfg.Default.CallbackURL
+	}
+
+	if info.WebhookURL == "" && cfg.Default.WebhookURL != "" {
+		updateParams.WebhookURL = &cfg.Default.WebhookURL
+	}
+
+	if updateParams.MetadataURL == nil && updateParams.CallbackURL == nil && updateParams.WebhookURL == nil {
+		// nothing to update
+		return nil
+	}
+
+	_, err = store.UpdateController(updateParams)
+	if err != nil {
+		return errors.Wrap(err, "updating controller info")
+	}
+	return nil
+}
+
 func main() {
 	flag.Parse()
 	if *version {
@@ -181,6 +214,10 @@ func main() {
 		log.Fatal(err)
 	}
 
+	if err := maybeUpdateURLsFromConfig(*cfg, db); err != nil {
+		log.Fatal(err)
+	}
+
 	runner, err := runner.NewRunner(ctx, *cfg, db)
 	if err != nil {
 		log.Fatalf("failed to create controller: %+v", err)
@@ -212,12 +249,17 @@ func main() {
 		log.Fatal(err)
 	}
 
+	urlsRequiredMiddleware, err := auth.NewUrlsRequiredMiddleware(db)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	metricsMiddleware, err := auth.NewMetricsMiddleware(cfg.JWTAuth)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	router := routers.NewAPIRouter(controller, jwtMiddleware, initMiddleware, instanceMiddleware, cfg.Default.EnableWebhookManagement)
+	router := routers.NewAPIRouter(controller, jwtMiddleware, initMiddleware, urlsRequiredMiddleware, instanceMiddleware, cfg.Default.EnableWebhookManagement)
 
 	// start the metrics collector
 	if cfg.Metrics.Enable {

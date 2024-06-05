@@ -129,6 +129,12 @@ type EntityPools interface {
 	ListEntityInstances(ctx context.Context, entity params.GithubEntity) ([]params.Instance, error)
 }
 
+type ControllerStore interface {
+	ControllerInfo() (params.ControllerInfo, error)
+	InitController() (params.ControllerInfo, error)
+	UpdateController(info params.UpdateControllerParams) (params.ControllerInfo, error)
+}
+
 //go:generate mockery --name=Store
 type Store interface {
 	RepoStore
@@ -141,7 +147,5 @@ type Store interface {
 	EntityPools
 	GithubEndpointStore
 	GithubCredentialsStore
-
-	ControllerInfo() (params.ControllerInfo, error)
-	InitController() (params.ControllerInfo, error)
+	ControllerStore
 }

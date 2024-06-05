@@ -1516,6 +1516,34 @@ func (_m *Store) UnlockJob(ctx context.Context, jobID int64, entityID string) er
 	return r0
 }
 
+// UpdateController provides a mock function with given fields: info
+func (_m *Store) UpdateController(info params.UpdateControllerParams) (params.ControllerInfo, error) {
+	ret := _m.Called(info)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateController")
+	}
+
+	var r0 params.ControllerInfo
+	var r1 error
+	if rf, ok := ret.Get(0).(func(params.UpdateControllerParams) (params.ControllerInfo, error)); ok {
+		return rf(info)
+	}
+	if rf, ok := ret.Get(0).(func(params.UpdateControllerParams) params.ControllerInfo); ok {
+		r0 = rf(info)
+	} else {
+		r0 = ret.Get(0).(params.ControllerInfo)
+	}
+
+	if rf, ok := ret.Get(1).(func(params.UpdateControllerParams) error); ok {
+		r1 = rf(info)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // UpdateEnterprise provides a mock function with given fields: ctx, enterpriseID, param
 func (_m *Store) UpdateEnterprise(ctx context.Context, enterpriseID string, param params.UpdateEntityParams) (params.Enterprise, error) {
 	ret := _m.Called(ctx, enterpriseID, param)

@@ -100,7 +100,7 @@ func requestLogger(h http.Handler) http.Handler {
 	})
 }
 
-func NewAPIRouter(han *controllers.APIController, authMiddleware, initMiddleware, instanceMiddleware auth.Middleware, manageWebhooks bool) *mux.Router {
+func NewAPIRouter(han *controllers.APIController, authMiddleware, initMiddleware, urlsRequiredMiddleware, instanceMiddleware auth.Middleware, manageWebhooks bool) *mux.Router {
 	router := mux.NewRouter()
 	router.Use(requestLogger)
 
@@ -152,10 +152,37 @@ func NewAPIRouter(han *controllers.APIController, authMiddleware, initMiddleware
 	authRouter.Handle("/{login:login\\/?}", http.HandlerFunc(han.LoginHandler)).Methods("POST", "OPTIONS")
 	authRouter.Use(initMiddleware.Middleware)
 
+	//////////////////////////
+	// Controller endpoints //
+	//////////////////////////
+	controllerRouter := apiSubRouter.PathPrefix("/controller").Subrouter()
+	// The controller endpoints allow us to get information about the controller and update the URL endpoints.
+	// This endpoint must not be guarded by the urlsRequiredMiddleware as that would prevent the user from
+	// updating the URLs.
+	controllerRouter.Use(initMiddleware.Middleware)
+	controllerRouter.Use(authMiddleware.Middleware)
+	controllerRouter.Use(auth.AdminRequiredMiddleware)
+	// Get controller info
+	controllerRouter.Handle("/", http.HandlerFunc(han.ControllerInfoHandler)).Methods("GET", "OPTIONS")
+	controllerRouter.Handle("", http.HandlerFunc(han.ControllerInfoHandler)).Methods("GET", "OPTIONS")
+	// Update controller
+	controllerRouter.Handle("/", http.HandlerFunc(han.UpdateControllerHandler)).Methods("PUT", "OPTIONS")
+	controllerRouter.Handle("", http.HandlerFunc(han.UpdateControllerHandler)).Methods("PUT", "OPTIONS")
+
+	////////////////////////////////////
+	// API router for everything else //
+	////////////////////////////////////
 	apiRouter := apiSubRouter.PathPrefix("").Subrouter()
 	apiRouter.Use(initMiddleware.Middleware)
+	// all endpoints except the controller endpoint should return an error
+	// if the required metadata, callback and webhook URLs are not set.
+	apiRouter.Use(urlsRequiredMiddleware.Middleware)
 	apiRouter.Use(authMiddleware.Middleware)
 	apiRouter.Use(auth.AdminRequiredMiddleware)
+
+	// Legacy controller path
+	apiRouter.Handle("/controller-info/", http.HandlerFunc(han.ControllerInfoHandler)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/controller-info", http.HandlerFunc(han.ControllerInfoHandler)).Methods("GET", "OPTIONS")
 
 	// Metrics Token
 	apiRouter.Handle("/metrics-token/", http.HandlerFunc(han.MetricsTokenHandler)).Methods("GET", "OPTIONS")
@@ -342,10 +369,6 @@ func NewAPIRouter(han *controllers.APIController, authMiddleware, initMiddleware
 	// Providers
 	apiRouter.Handle("/providers/", http.HandlerFunc(han.ListProviders)).Methods("GET", "OPTIONS")
 	apiRouter.Handle("/providers", http.HandlerFunc(han.ListProviders)).Methods("GET", "OPTIONS")
-
-	// Controller info
-	apiRouter.Handle("/controller-info/", http.HandlerFunc(han.ControllerInfoHandler)).Methods("GET", "OPTIONS")
-	apiRouter.Handle("/controller-info", http.HandlerFunc(han.ControllerInfoHandler)).Methods("GET", "OPTIONS")
 
 	//////////////////////
 	// Github Endpoints //
