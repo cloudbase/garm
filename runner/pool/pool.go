@@ -209,6 +209,13 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 			return errors.Wrap(err, "converting job to params")
 		}
 
+		// If job was not assigned to a runner, we can ignore it.
+		if jobParams.RunnerName == "" {
+			slog.InfoContext(
+				r.ctx, "job never got assigned to a runner, ignoring")
+			return nil
+		}
+
 		// update instance workload state.
 		if _, err := r.setInstanceRunnerStatus(jobParams.RunnerName, params.RunnerTerminated); err != nil {
 			if errors.Is(err, runnerErrors.ErrNotFound) {
