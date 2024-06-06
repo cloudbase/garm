@@ -121,7 +121,7 @@ garm-cli init --name=dev --url=https://runner.example.com --username=admin --pas
 
 func ensureDefaultEndpoints(loginURL string) (err error) {
 	if metadataURL == "" {
-		metadataURL, err = url.JoinPath(loginURL, "api/v1/callbacks")
+		metadataURL, err = url.JoinPath(loginURL, "api/v1/metadata")
 		if err != nil {
 			return err
 		}
@@ -160,10 +160,16 @@ func promptUnsetInitVariables() error {
 	}
 
 	if loginPassword == "" {
-		loginPassword, err = common.PromptPassword("Password")
+		passwd, err := common.PromptPassword("Password", "")
 		if err != nil {
 			return err
 		}
+
+		_, err = common.PromptPassword("Confirm password", passwd)
+		if err != nil {
+			return err
+		}
+		loginPassword = passwd
 	}
 
 	return nil

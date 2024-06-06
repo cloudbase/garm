@@ -212,22 +212,24 @@ type Default struct {
 }
 
 func (d *Default) Validate() error {
-	if d.CallbackURL == "" {
-		return fmt.Errorf("missing callback_url")
-	}
-	_, err := url.Parse(d.CallbackURL)
-	if err != nil {
-		return fmt.Errorf("invalid callback_url: %w", err)
-	}
-
-	if d.MetadataURL == "" {
-		return fmt.Errorf("missing metadata_url")
+	if d.CallbackURL != "" {
+		_, err := url.ParseRequestURI(d.CallbackURL)
+		if err != nil {
+			return fmt.Errorf("invalid callback_url: %w", err)
+		}
 	}
 
-	if _, err := url.Parse(d.MetadataURL); err != nil {
-		return fmt.Errorf("invalid metadata_url: %w", err)
+	if d.MetadataURL != "" {
+		if _, err := url.ParseRequestURI(d.MetadataURL); err != nil {
+			return fmt.Errorf("invalid metadata_url: %w", err)
+		}
 	}
 
+	if d.WebhookURL != "" {
+		if _, err := url.ParseRequestURI(d.WebhookURL); err != nil {
+			return fmt.Errorf("invalid webhook_url: %w", err)
+		}
+	}
 	return nil
 }
 

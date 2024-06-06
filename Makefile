@@ -33,6 +33,7 @@ default: build
 build-static: ## Build garm statically
 	@echo Building garm
 	docker build --tag $(IMAGE_TAG) -f Dockerfile.build-static .
+	mkdir -p build
 	docker run --rm -e USER_ID=$(USER_ID) -e GARM_REF=$(GARM_REF) -e USER_GROUP=$(USER_GROUP) -v $(PWD)/build:/build/output:z $(IMAGE_TAG) /build-static.sh
 	@echo Binaries are available in $(PWD)/build
 

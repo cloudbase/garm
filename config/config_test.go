@@ -143,20 +143,20 @@ func TestDefaultSectionConfig(t *testing.T) {
 			errString: "",
 		},
 		{
-			name: "CallbackURL cannot be empty",
+			name: "CallbackURL must be valid if set",
 			cfg: Default{
-				CallbackURL: "",
+				CallbackURL: "bogus_url",
 				MetadataURL: cfg.MetadataURL,
 			},
-			errString: "missing callback_url",
+			errString: "invalid callback_url",
 		},
 		{
-			name: "MetadataURL cannot be empty",
+			name: "MetadataURL must be valid if set",
 			cfg: Default{
 				CallbackURL: cfg.CallbackURL,
-				MetadataURL: "",
+				MetadataURL: "bogus_url",
 			},
-			errString: "missing metadata_url",
+			errString: "invalid metadata_url",
 		},
 	}
 

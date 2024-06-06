@@ -3,48 +3,20 @@
 <!-- TOC -->
 
 - [Quick start](#quick-start)
-    - [The GitHub PAT Personal Access Token](#the-github-pat-personal-access-token)
     - [Create the config folder](#create-the-config-folder)
     - [The config file](#the-config-file)
     - [The provider section](#the-provider-section)
     - [Starting the service](#starting-the-service)
         - [Using Docker](#using-docker)
         - [Setting up GARM as a system service](#setting-up-garm-as-a-system-service)
-    - [Setting up the webhook](#setting-up-the-webhook)
     - [Initializing GARM](#initializing-garm)
-    - [Creating a gitHub endpoint Optional](#creating-a-github-endpoint-optional)
+    - [Setting up the webhook](#setting-up-the-webhook)
+    - [Creating a GitHub endpoint Optional](#creating-a-github-endpoint-optional)
     - [Adding credentials](#adding-credentials)
     - [Define a repo](#define-a-repo)
     - [Create a pool](#create-a-pool)
 
 <!-- /TOC -->
-
-Okay, I lied. It's not that quick. But it's not that long either. I promise.
-
-In this guide I'm going to take you through the entire process of setting up garm from scratch. This will include editing the config file (which will probably take the longest amount of time), fetching a proper [PAT](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token) (personal access token) from GitHub, setting up the webhooks endpoint, defining your repo/org/enterprise and finally setting up a runner pool.
-
-For the sake of this guide, we'll assume you have access to the following setup:
-
-* A linux machine (ARM64 or AMD64)
-* Optionally, docker/podman installed on that machine
-* A public IP address or port forwarding set up on your router for port `80` or `443`. You can forward any ports, we just need to remember to use the same ports when we define the webhook in github, and the two URLs in the config file (more on that later). For the sake of this guide, I will assume you have port `80` or `443` forwarded to your machine.
-* An `A` record pointing to your public IP address (optional, but recommended). Alternatively, you can use the IP address directly. I will use `garm.example.com` in this guide. If you'll be using an IP address, just replace `garm.example.com` with your IP address throughout this guide.
-* All config files and data will be stored in `/etc/garm`.
-* A [Personal Access Token (PAT)](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token)
-
-Why the need to expose GARM to the internet? Well, GARM uses webhooks sent by GitHub to automatically scale runners. Whenever a new job starts, a webhook is generated letting GARM know that there is a need for a runner. GARM then spins up a new runner instance and registers it with GitHub. When the job is done, the runner instance is automatically removed. This workflow is enabled by webhooks.
-
-## The GitHub PAT (Personal Access Token)
-
-Let's start by fetching a PAT so we get that out of the way. You can use the [GitHub docs](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token) to create a PAT.
-
-For a `classic` PAT, GARM needs the following permissions to function properly (depending on the hierarchy level you want to manage):
-
-* ```public_repo``` - for access to a repository
-* ```repo``` - for access to a private repository
-* ```admin:org``` - if you plan on using this with an organization to which you have access
-* ```manage_runners:enterprise``` - if you plan to use garm at the enterprise level
-* ```admin:repo_hook``` - if you want to allow GARM to install webhooks on repositories
 * ```admin:org_hook``` - if you want to allow GARM to install webhooks on organizations
 
 This doc will be updated at a future date with the exact permissions needed in case you want to use a fine grained PAT.
@@ -67,10 +39,6 @@ Open `/etc/garm/config.toml` in your favorite editor and paste the following:
 
 ```toml
 [default]
-callback_url = "https://garm.example.com/api/v1/callbacks"
-metadata_url = "https://garm.example.com/api/v1/metadata"
-# This is important for webhook management.
-webhook_url = "https://garm.example.com/webhooks"
 enable_webhook_management = true
 
 [logging]
@@ -110,22 +78,12 @@ This is a minimal config, with no providers defined. In this example we have the
 
 In this sample config we:
 
-* define the callback, webhooks and the metadata URLs
 * set up logging prefrences
 * enable metrics with authentication
 * set a JWT secret which is used to sign JWT tokens
 * set a time to live for the JWT tokens
 * enable the API server on port `80` and bind it to all interfaces
 * set the database backend to `sqlite3` and set a passphrase for sealing secrets (just webhook secrets for now)
-
-The callback URLs are really important and need to point back to garm. You will notice that the domain name used in these options, is the same one we defined at the beginning of this guide. If you won't use a domain name, replace `garm.example.com` with your IP address and port number.
-
-We need to tell garm by which addresses it can be reached. There are many ways by which GARMs API endpoints can be exposed, and there is no sane way in which GARM itself can determine if it's behind a reverse proxy or not. The metadata URL may be served by a reverse proxy with a completely different domain name than the callback URL. Both domains pointing to the same installation of GARM in the end.
-
-The information in these two options is used by the instances we spin up to phone home their status and to fetch the needed metadata to finish setting themselves up. For now, the metadata URL is only used to fetch the runner registration token.
-
-The webhook URL is used by GARM itself to know how to set up the webhooks in GitHub. Each controller will have a unique ID and GARM will use the value in `webhook_url` as a base. It will appen
-We won't go too much into detail about each of the options here. Have a look at the different config sections and their respective docs for more information.
 
 At this point, we have a valid config file, but we still need to add the `provider` section.
 
@@ -147,9 +105,13 @@ All currently available providers are `external`.
 
 The easiest provider to set up is probably the LXD or Incus provider. Incus is a fork of LXD so the functionality is identical (for now). For the purpose of this document, we'll continue with LXD. You don't need an account on an external cloud. You can just use your machine.
 
-You will need to have LXD installed and configured. There is an excellent [getting started guide](https://documentation.ubuntu.com/lxd/en/latest/getting_started/) for LXD. Follow the  unix socket so no further configuration will be needed.
+You will need to have LXD installed and configured. There is an excellent [getting started guide](https://documentation.ubuntu.com/lxd/en/latest/getting_started/) for LXD. Follow the instructions there to install and configure LXD, then come back here.
 
-Go ahead and create a new config somwhere where GARM can access it and paste that entire snippet. For the purposes of this doc, we'll assume you created a new file called `/etc/garm/garm-provider-lxd.toml`. Now we need to define the external provider config in `/etc/garm/config.toml`:
+Once you have LXD installed and configured, you can add the provider section to your config file. If you're connecting to the `local` LXD installation, the [config snippet for the LXD provider](https://github.com/cloudbase/garm-provider-lxd/blob/4ee4e6fc579da4a292f40e0f7deca1e396e223d0/testdata/garm-provider-lxd.toml) will work out of the box. We'll be connecting using the unix socket so no further configuration will be needed.
+
+Go ahead and create a new config somwhere where GARM can access it and paste that entire snippet. For the purposes of this doc, we'll assume you created a new file called `/etc/garm/garm-provider-lxd.toml`. That config file will be used by the provider itself. Remember, the providers are external executables that are called by GARM. They may have their own configs.
+
+We now need to define the provider in the GARM config file and tell GARM how it can find both the provider binary and the provider specific config file. To do that, open the GARM config file `/etc/garm/config.toml` in your favorite editor and paste the following config snippet at the end:
 
 ```toml
 [[provider]]
@@ -160,6 +122,8 @@ Go ahead and create a new config somwhere where GARM can access it and paste tha
     provider_executable = "/opt/garm/providers.d/garm-provider-lxd"
     config_file = "/etc/garm/garm-provider-lxd.toml"
 ```
+
+This config snippet assumes that the LXD provider executable is available, or is going to be available in `/opt/garm/providers.d/garm-provider-lxd`. If you're using the container image, the executable is already there. If you're installing GARM as a systemd service, don't worry, instructions on how to get the LXD provider executable are coming up.
 
 ## Starting the service
 
@@ -260,25 +224,15 @@ ubuntu@garm:~$ sudo journalctl -u garm
 Check that you can make a request to the API:
 
 ```bash
-ubuntu@garm:~$ curl http://garm.example.com/webhooks
 ubuntu@garm:~$ docker logs garm
 signal.NotifyContext(context.Background, [interrupt terminated])
 2023/07/17 22:21:33 Loading provider lxd_local
 2023/07/17 22:21:33 registering prometheus metrics collectors
 2023/07/17 22:21:33 setting up metric routes
 2023/07/17 22:21:35 ignoring unknown event
-172.17.0.1 - - [17/Jul/2023:22:21:35 +0000] "GET /webhooks HTTP/1.1" 200 0 "" "curl/7.81.0"
 ```
 
-Excellent! We have a working GARM installation. Now we need to set up the webhook in GitHub.
-
-## Setting up the webhook
-
-There are two options when it comes to setting up the webhook in GitHub. You can manually set up the webhook in the GitHub UI, and then use the resulting secret when creating the entity (repo, org, enterprise), or you can let GARM do it automatically if the app or PAT you're using has the [required privileges](./github_credentials.md).
-
-If you want to manually set up the webhooks, have a look at the [webhooks doc](./webhooks.md) for more information.
-
-In this guide, I'll show you how to do it automatically when adding a new repo, assuming you have the required privileges. Note, you'll still have to manually set up webhooks if you want to use GARM at the enterprise level. Automatic webhook management is only available for repos and orgs.
+Excellent! We have a working GARM installation. Now we need to initialize the controller and set up the webhook in GitHub.
 
 ## Initializing GARM
 
@@ -293,29 +247,42 @@ wget -q -O - https://github.com/cloudbase/garm/releases/download/v0.1.4/garm-cli
 Now we can initialize GARM:
 
 ```bash
-ubuntu@garm:~$ garm-cli init --name="local_garm" --url https://garm.example.com
+ubuntu@garm:~$ garm-cli init --name="local_garm" --url http://garm.example.com
 Username: admin
-Email: root@localhost
-✔ Password: *************
+Email: admin@garm.example.com
+✔ Password: ************█
+✔ Confirm password: ************█
+Congrats! Your controller is now initialized.
+
+Following are the details of the admin user and details about the controller.
+
+Admin user information:
+
 +----------+--------------------------------------+
 | FIELD    | VALUE                                |
 +----------+--------------------------------------+
-| ID       | ef4ab6fd-1252-4d5a-ba5a-8e8bd01610ae |
+| ID       | 6b0d8f67-4306-4702-80b6-eb0e2e4ee695 |
 | Username | admin                                |
-| Email    | root@localhost                       |
+| Email    | admin@garm.example.com               |
 | Enabled  | true                                 |
 +----------+--------------------------------------+
-```
 
-The init command also created a local CLI profile for your new GARM server:
+Controller information:
 
-```bash
-ubuntu@garm:~$ garm-cli profile list
-+----------------------+--------------------------+
-| NAME                 | BASE URL                 |
-+----------------------+--------------------------+
-| local_garm (current) | https://garm.example.com |
-+----------------------+--------------------------+
++------------------------+-----------------------------------------------------------------------+
+| FIELD                  | VALUE                                                                 |
++------------------------+-----------------------------------------------------------------------+
+| Controller ID          | 0c54fd66-b78b-450a-b41a-65af2fd0f71b                                  |
+| Metadata URL           | http://garm.example.com/api/v1/metadata                               |
+| Callback URL           | http://garm.example.com/api/v1/callbacks                              |
+| Webhook Base URL       | http://garm.example.com/webhooks                                      |
+| Controller Webhook URL | http://garm.example.com/webhooks/0c54fd66-b78b-450a-b41a-65af2fd0f71b |
++------------------------+-----------------------------------------------------------------------+
+
+Make sure that the URLs in the table above are reachable by the relevant parties.
+
+The metadata and callback URLs *must* be accessible by the runners that GARM spins up.
+The base webhook and the controller webhook URLs must be accessible by GitHub or GHES. 
 ```
 
 Every time you init a new GARM instance, a new profile will be created in your local `garm-cli` config. You can also log into an already initialized instance using:
@@ -332,7 +299,15 @@ Then you can switch between profiles using:
 garm-cli profile switch another_garm
 ```
 
-## Creating a gitHub endpoint (Optional)
+## Setting up the webhook
+
+There are two options when it comes to setting up the webhook in GitHub. You can manually set up the webhook in the GitHub UI, and then use the resulting secret when creating the entity (repo, org, enterprise), or you can let GARM do it automatically if the app or PAT you're using has the [required privileges](./github_credentials.md).
+
+If you want to manually set up the webhooks, have a look at the [webhooks doc](./webhooks.md) for more information.
+
+In this guide, I'll show you how to do it automatically when adding a new repo, assuming you have the required privileges. Note, you'll still have to manually set up webhooks if you want to use GARM at the enterprise level. Automatic webhook management is only available for repos and orgs.
+
+## Creating a GitHub endpoint (Optional)
 
 This section is only of interest if you're using a GitHub Enterprise Server (GHES) deployment. If you're using [github.com](https://github.com), you can skip this section.
 
