@@ -207,6 +207,10 @@ type ControllerInfo struct {
 	Base
 
 	ControllerID uuid.UUID
+
+	CallbackURL    string
+	MetadataURL    string
+	WebhookBaseURL string
 }
 
 type WorkflowJob struct {

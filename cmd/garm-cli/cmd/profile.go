@@ -264,7 +264,7 @@ func promptUnsetLoginVariables() error {
 	}
 
 	if loginPassword == "" {
-		loginPassword, err = common.PromptPassword("Password")
+		loginPassword, err = common.PromptPassword("Password", "")
 		if err != nil {
 			return err
 		}

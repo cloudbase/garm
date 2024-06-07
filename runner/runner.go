@@ -29,7 +29,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/juju/clock"
 	"github.com/juju/retry"
 	"github.com/pkg/errors"
@@ -65,7 +64,6 @@ func NewRunner(ctx context.Context, cfg config.Config, db dbCommon.Store) (*Runn
 	}
 
 	poolManagerCtrl := &poolManagerCtrl{
-		controllerID:  ctrlID.ControllerID.String(),
 		config:        cfg,
 		store:         db,
 		repositories:  map[string]common.PoolManager{},
@@ -78,7 +76,6 @@ func NewRunner(ctx context.Context, cfg config.Config, db dbCommon.Store) (*Runn
 		store:           db,
 		poolManagerCtrl: poolManagerCtrl,
 		providers:       providers,
-		controllerID:    ctrlID.ControllerID,
 	}
 
 	if err := runner.loadReposOrgsAndEnterprises(); err != nil {
@@ -91,9 +88,8 @@ func NewRunner(ctx context.Context, cfg config.Config, db dbCommon.Store) (*Runn
 type poolManagerCtrl struct {
 	mux sync.Mutex
 
-	controllerID string
-	config       config.Config
-	store        dbCommon.Store
+	config config.Config
+	store  dbCommon.Store
 
 	repositories  map[string]common.PoolManager
 	organizations map[string]common.PoolManager
@@ -345,17 +341,17 @@ func (p *poolManagerCtrl) GetEnterprisePoolManagers() (map[string]common.PoolMan
 }
 
 func (p *poolManagerCtrl) getInternalConfig(_ context.Context, creds params.GithubCredentials, poolBalancerType params.PoolBalancerType) (params.Internal, error) {
-	var controllerWebhookURL string
-	if p.config.Default.WebhookURL != "" {
-		controllerWebhookURL = fmt.Sprintf("%s/%s", p.config.Default.WebhookURL, p.controllerID)
+	controllerInfo, err := p.store.ControllerInfo()
+	if err != nil {
+		return params.Internal{}, errors.Wrap(err, "fetching controller info")
 	}
 
 	return params.Internal{
-		ControllerID:             p.controllerID,
-		InstanceCallbackURL:      p.config.Default.CallbackURL,
-		InstanceMetadataURL:      p.config.Default.MetadataURL,
-		BaseWebhookURL:           p.config.Default.WebhookURL,
-		ControllerWebhookURL:     controllerWebhookURL,
+		ControllerID:             controllerInfo.ControllerID.String(),
+		InstanceCallbackURL:      controllerInfo.CallbackURL,
+		InstanceMetadataURL:      controllerInfo.MetadataURL,
+		BaseWebhookURL:           controllerInfo.WebhookURL,
+		ControllerWebhookURL:     controllerInfo.ControllerWebhookURL,
 		JWTSecret:                p.config.JWTAuth.Secret,
 		PoolBalancerType:         poolBalancerType,
 		GithubCredentialsDetails: creds,
@@ -372,9 +368,23 @@ type Runner struct {
 	poolManagerCtrl PoolManagerController
 
 	providers map[string]common.Provider
+}
 
-	controllerInfo params.ControllerInfo
-	controllerID   uuid.UUID
+// UpdateController will update the controller settings.
+func (r *Runner) UpdateController(ctx context.Context, param params.UpdateControllerParams) (params.ControllerInfo, error) {
+	if !auth.IsAdmin(ctx) {
+		return params.ControllerInfo{}, runnerErrors.ErrUnauthorized
+	}
+
+	if err := param.Validate(); err != nil {
+		return params.ControllerInfo{}, errors.Wrap(err, "validating controller update params")
+	}
+
+	info, err := r.store.UpdateController(param)
+	if err != nil {
+		return params.ControllerInfo{}, errors.Wrap(err, "updating controller info")
+	}
+	return info, nil
 }
 
 // GetControllerInfo returns the controller id and the hostname.
@@ -408,19 +418,18 @@ func (r *Runner) GetControllerInfo(ctx context.Context) (params.ControllerInfo, 
 	if err != nil {
 		return params.ControllerInfo{}, errors.Wrap(err, "fetching hostname")
 	}
-	r.controllerInfo.Hostname = hostname
-	var controllerWebhook string
-	if r.controllerID != uuid.Nil && r.config.Default.WebhookURL != "" {
-		controllerWebhook = fmt.Sprintf("%s/%s", r.config.Default.WebhookURL, r.controllerID.String())
+
+	info, err := r.store.ControllerInfo()
+	if err != nil {
+		return params.ControllerInfo{}, errors.Wrap(err, "fetching controller info")
 	}
-	return params.ControllerInfo{
-		ControllerID:         r.controllerID,
-		Hostname:             hostname,
-		MetadataURL:          r.config.Default.MetadataURL,
-		CallbackURL:          r.config.Default.CallbackURL,
-		WebhookURL:           r.config.Default.WebhookURL,
-		ControllerWebhookURL: controllerWebhook,
-	}, nil
+
+	// This is temporary. Right now, GARM is a single-instance deployment. When we add the
+	// ability to scale out, the hostname field will be moved form here to a dedicated node
+	// object. As a single controller will be made up of multiple nodes, we will need to model
+	// that aspect of GARM.
+	info.Hostname = hostname
+	return info, nil
 }
 
 func (r *Runner) ListProviders(ctx context.Context) ([]params.Provider, error) {

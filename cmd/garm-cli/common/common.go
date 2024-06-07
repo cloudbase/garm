@@ -16,12 +16,13 @@ package common
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/manifoldco/promptui"
 	"github.com/nbutton23/zxcvbn-go"
 )
 
-func PromptPassword(label string) (string, error) {
+func PromptPassword(label string, compareTo string) (string, error) {
 	if label == "" {
 		label = "Password"
 	}
@@ -29,6 +30,9 @@ func PromptPassword(label string) (string, error) {
 		passwordStenght := zxcvbn.PasswordStrength(input, nil)
 		if passwordStenght.Score < 4 {
 			return errors.New("password is too weak")
+		}
+		if compareTo != "" && compareTo != input {
+			return errors.New("passwords do not match")
 		}
 		return nil
 	}
@@ -45,7 +49,7 @@ func PromptPassword(label string) (string, error) {
 	return result, nil
 }
 
-func PromptString(label string) (string, error) {
+func PromptString(label string, a ...interface{}) (string, error) {
 	validate := func(input string) error {
 		if len(input) == 0 {
 			return errors.New("empty input not allowed")
@@ -54,7 +58,7 @@ func PromptString(label string) (string, error) {
 	}
 
 	prompt := promptui.Prompt{
-		Label:    label,
+		Label:    fmt.Sprintf(label, a...),
 		Validate: validate,
 	}
 	result, err := prompt.Run()

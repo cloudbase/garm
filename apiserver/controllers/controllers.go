@@ -391,3 +391,42 @@ func (a *APIController) ControllerInfoHandler(w http.ResponseWriter, r *http.Req
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }
+
+// swagger:route PUT /controller controller UpdateController
+//
+// Update controller.
+//
+//	Parameters:
+//	  + name: Body
+//	    description: Parameters used when updating the controller.
+//	    type: UpdateControllerParams
+//	    in: body
+//	    required: true
+//
+//	Responses:
+//	  200: ControllerInfo
+//	  400: APIErrorResponse
+func (a *APIController) UpdateControllerHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	var updateParams runnerParams.UpdateControllerParams
+	if err := json.NewDecoder(r.Body).Decode(&updateParams); err != nil {
+		handleError(ctx, w, gErrors.ErrBadRequest)
+		return
+	}
+
+	if err := updateParams.Validate(); err != nil {
+		handleError(ctx, w, err)
+		return
+	}
+
+	info, err := a.r.UpdateController(ctx, updateParams)
+	if err != nil {
+		handleError(ctx, w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(info); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
+	}
+}

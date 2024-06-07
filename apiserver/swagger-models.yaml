@@ -278,3 +278,10 @@ definitions:
         import:
             package: github.com/cloudbase/garm/params
             alias: garm_params
+  UpdateControllerParams:
+    type: object
+    x-go-type:
+        type: UpdateControllerParams
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params

@@ -244,6 +244,13 @@ definitions:
                 alias: garm_params
                 package: github.com/cloudbase/garm/params
             type: Repository
+    UpdateControllerParams:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: UpdateControllerParams
     UpdateEntityParams:
         type: object
         x-go-type:
@@ -311,6 +318,30 @@ paths:
             summary: Logs in a user and returns a JWT token.
             tags:
                 - login
+    /controller:
+        put:
+            operationId: UpdateController
+            parameters:
+                - description: Parameters used when updating the controller.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/UpdateControllerParams'
+                    description: Parameters used when updating the controller.
+                    type: object
+            responses:
+                "200":
+                    description: ControllerInfo
+                    schema:
+                        $ref: '#/definitions/ControllerInfo'
+                "400":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Update controller.
+            tags:
+                - controller
     /controller-info:
         get:
             operationId: ControllerInfo

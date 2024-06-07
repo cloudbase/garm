@@ -36,4 +36,9 @@ var (
 		Error:   "init_required",
 		Details: "Missing superuser",
 	}
+	// URLsRequired is returned if the controller does not have the required URLs
+	URLsRequired = APIErrorResponse{
+		Error:   "urls_required",
+		Details: "Missing required URLs. Make sure you update the metadata, callback and webhook URLs",
+	}
 )

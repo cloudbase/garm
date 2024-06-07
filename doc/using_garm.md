@@ -7,34 +7,55 @@ While using the GARM cli, you will most likely spend most of your time listing p
 <!-- TOC -->
 
 - [Using GARM](#using-garm)
-    - [Listing controller info](#listing-controller-info)
-    - [Listing configured providers](#listing-configured-providers)
-    - [Listing github credentials](#listing-github-credentials)
-    - [Adding a new repository](#adding-a-new-repository)
-        - [Managing repository webhooks](#managing-repository-webhooks)
-    - [Listing repositories](#listing-repositories)
-    - [Removing a repository](#removing-a-repository)
-    - [Adding a new organization](#adding-a-new-organization)
-    - [Adding an enterprise](#adding-an-enterprise)
-    - [Creating a runner pool](#creating-a-runner-pool)
-    - [Listing pools](#listing-pools)
-    - [Showing pool info](#showing-pool-info)
-    - [Deleting a pool](#deleting-a-pool)
-    - [Update a pool](#update-a-pool)
-    - [Listing runners](#listing-runners)
-    - [Showing runner info](#showing-runner-info)
-    - [Deleting a runner](#deleting-a-runner)
+    - [Controller operations](#controller-operations)
+        - [Listing controller info](#listing-controller-info)
+        - [Updating controller settings](#updating-controller-settings)
+    - [Providers](#providers)
+        - [Listing configured providers](#listing-configured-providers)
+    - [Github Endpoints](#github-endpoints)
+        - [Creating a GitHub Endpoint](#creating-a-github-endpoint)
+        - [Listing GitHub Endpoints](#listing-github-endpoints)
+        - [Getting information about an endpoint](#getting-information-about-an-endpoint)
+        - [Deleting a GitHub Endpoint](#deleting-a-github-endpoint)
+    - [GitHub credentials](#github-credentials)
+        - [Adding GitHub credentials](#adding-github-credentials)
+        - [Listing GitHub credentials](#listing-github-credentials)
+        - [Getting detailed information about credentials](#getting-detailed-information-about-credentials)
+        - [Deleting GitHub credentials](#deleting-github-credentials)
+    - [Repositories](#repositories)
+        - [Adding a new repository](#adding-a-new-repository)
+        - [Listing repositories](#listing-repositories)
+        - [Removing a repository](#removing-a-repository)
+    - [Organizations](#organizations)
+        - [Adding a new organization](#adding-a-new-organization)
+    - [Enterprises](#enterprises)
+        - [Adding an enterprise](#adding-an-enterprise)
+    - [Managing webhooks](#managing-webhooks)
+    - [Pools](#pools)
+        - [Creating a runner pool](#creating-a-runner-pool)
+        - [Listing pools](#listing-pools)
+        - [Showing pool info](#showing-pool-info)
+        - [Deleting a pool](#deleting-a-pool)
+        - [Update a pool](#update-a-pool)
+    - [Runners](#runners)
+        - [Listing runners](#listing-runners)
+        - [Showing runner info](#showing-runner-info)
+        - [Deleting a runner](#deleting-a-runner)
     - [The debug-log command](#the-debug-log-command)
     - [Listing recorded jobs](#listing-recorded-jobs)
 
 <!-- /TOC -->
 
-## Listing controller info
+## Controller operations
+
+The `controller` is essentially GARM itself. Every deployment of GARM will have its own controller ID which will be used to tag runners in github. The controller is responsible for managing runners, webhooks, repositories, organizations and enterprises. There are a few settings at the controller level which you can tweak and we will cover them below.
+
+### Listing controller info
 
 You can list the controller info by running the following command:
 
 ```bash
-garm-cli controller-info show
+garm-cli controller show
 +------------------------+----------------------------------------------------------------------------+
 | FIELD                  | VALUE                                                                      |
 +------------------------+----------------------------------------------------------------------------+
@@ -51,16 +72,45 @@ There are several things of interest in this output.
 
 * `Controller ID` - This is the unique identifier of the controller. Each GARM installation, on first run will automatically generate a unique controller ID. This is important for several reasons. For one, it allows us to run several GARM controllers on the same repos/orgs/enterprises, without accidentally clasing with each other. Each runner started by a GARM controller, will be tagged with this controller ID in order to easily identify runners that we manage.
 * `Hostname` - This is the hostname of the machine where GARM is running. This is purely informative.
-* `Metadata URL` - This URL is configured by the user in the GARM config file, and is the URL that is presented to the runners via userdata when they get set up. Runners will connect to this URL and retrieve information they might need to set themselves up. GARM cannot automatically determine this URL, as it is dependent on the user's network setup. GARM may be hidden behind a load balancer or a reverse proxy, in which case, the URL by which the GARM controller can be accessed may be different than the IP addresses that are locally visible to GARM.
-* `Callback URL` - This URL is configured by the user in the GARM config file, and is the URL that is presented to the runners via userdata when they get set up. Runners will connect to this URL and send status updates and system information (OS version, OS name, github runner agent ID, etc) to the controller.
-* `Webhook Base URL` - This is the base URL for webhooks. It is configured by the user in the GARM config file. This URL can be called into by GitHub itself when hooks get triggered by a workflow. GARM needs to know when a new job is started in order to schedule the createion of a new runner. Job webhooks sent to this URL will be recorded by GARM and acter upon. While you can configure this URL directly in your GitHub repo settings, it is advised to use the `Controller Webhook URL` instead, as it is unique to each controller, and allows you to potentially install multiple GARM controller inside the same repo.
-* `Controller Webhook URL` - This is the URL that GitHub will call into when a webhook is triggered. This URL is unique to each GARM controller and is the preferred URL to use in order to receive webhooks from GitHub. It serves the same purpose as the `Webhook Base URL`, but is unique to each controller, allowing you to potentially install multiple GARM controllers inside the same repo.
+* `Metadata URL` - This URL is configured by the user, and is the URL that is presented to the runners via userdata when they get set up. Runners will connect to this URL and retrieve information they might need to set themselves up. GARM cannot automatically determine this URL, as it is dependent on the user's network setup. GARM may be hidden behind a load balancer or a reverse proxy, in which case, the URL by which the GARM controller can be accessed may be different than the IP addresses that are locally visible to GARM. Runners must be able to connect to this URL.
+* `Callback URL` - This URL is configured by the user, and is the URL that is presented to the runners via userdata when they get set up. Runners will connect to this URL and send status updates and system information (OS version, OS name, github runner agent ID, etc) to the controller. Runners must be able to connect to this URL.
+* `Webhook Base URL` - This is the base URL for webhooks. It is configured by the user in the GARM config file. This URL can be called into by GitHub itself when hooks get triggered by a workflow. GARM needs to know when a new job is started in order to schedule the createion of a new runner. Job webhooks sent to this URL will be recorded by GARM and acter upon. While you can configure this URL directly in your GitHub repo settings, it is advised to use the `Controller Webhook URL` instead, as it is unique to each controller, and allows you to potentially install multiple GARM controller inside the same repo. Github must be able to connect to this URL.
+* `Controller Webhook URL` - This is the URL that GitHub will call into when a webhook is triggered. This URL is unique to each GARM controller and is the preferred URL to use in order to receive webhooks from GitHub. It serves the same purpose as the `Webhook Base URL`, but is unique to each controller, allowing you to potentially install multiple GARM controllers inside the same repo. Github must be able to connect to this URL.
 
 We will see the `Controller Webhook URL` later when we set up the GitHub repo to send webhooks to GARM.
 
-## Listing configured providers
+### Updating controller settings
+
+Like we've mentioned before, there are 3 URLs that are very important for normal operations:
+
+* `metadata_url` - Must be reachable by runners
+* `callback_url` - Must be reachable by runners
+* `webhook_url` - Must be reachable by GitHub
+
+These URLs depend heavily on how GARM was set up and what the network topology of the user is set up. GARM may be behind a NAT or reverse proxy. There may be different hostnames/URL paths set up for each of the above, etc. The short of it is that we cannot determine these URLs reliably and we must ask the user to tell GARM what they are.
+
+We can assume that the URL that the user logs in at to manage garm is the same URL that the rest of the URLs are present at, but that is just an assumption. By default, when you initialize GARM for the first time, we make this assumption to make things easy. It's also safe to assume that most users will do this anyway, but in case you don't, you will need to update the URLs in the controller and tell GARM what they are.
+
+In the previous section we saw that most URLs were set to `https://garm.example.com`. The URL path was the same as the routes that GARM sets up. For example, the `metadata_url` has `/api/v1/metadata`. The `callback_url` has `/api/v1/callbacks` and the `webhook_url` has `/webhooks`. This is the default setup and is what most users will use.
+
+If you need to update these URLs, you can use the following command:
+
+```bash
+garm-cli controller update \
+    --metadata-url https://garm.example.com/api/v1/metadata \
+    --callback-url https://garm.example.com/api/v1/callbacks \
+    --webhook-url https://garm.example.com/webhooks
+```
+
+The `Controller Webhook URL` you saw in the previous section is automatically calculated by GARM and is essentially the `webhook_url` with the controller ID appended to it. This URL is unique to each controller and is the preferred URL to use in order to receive webhooks from GitHub.
+
+After updating the URLs, make sure that they are properly routed to the appropriate API endpoint in GARM **and** that they are accessible by the interested parties (runners or github).
+
+## Providers
 
 GARM uses providers to create runners. These providers are external executables that GARM calls into to create runners in a particular IaaS.
+
+### Listing configured providers
 
 Once configured (see [provider configuration](/doc/providers.md)), you can list the configured providers by running the following command:
 
@@ -87,28 +137,188 @@ ubuntu@garm:~$ garm-cli provider list
 
 Each of these providers can be used to set up a runner pool for a repository, organization or enterprise.
 
-## Listing github credentials
+## Github Endpoints
 
-GARM needs access to your GitHub repositories, organizations or enterprise in order to manage runners. This is done via a [GitHub personal access token](/doc/github_credentials.md). You can configure multiple tokens with access to various repositories, organizations or enterprises, either on GitHub or on GitHub Enterprise Server.
+GARM can be used to manage runners for repos, orgs and enterprises hosted on `github.com` or on a GitHub Enterprise Server.
 
-The credentials sections allow you to override the API URL, Upload URL and base URLs, unlocking the ability to use GARM with GitHub Enterprise Server.
+Endpoints are the way that GARM identifies where the credentials and entities you create, are located and where the API endpoints for the GitHub API can be reached, along with a possible CA certificate that validates the connection. There is a default endpoint for `github.com`, so you don't need to add it. But if you're using GHES, you'll need to add an endpoint for it.
+
+### Creating a GitHub Endpoint
+
+To create a GitHub endpoint, you can run the following command:
+
+```bash
+garm-cli github endpoint create \
+    --base-url https://ghes.example.com \
+    --api-base-url https://api.ghes.example.com \
+    --upload-url https://upload.ghes.example.com \
+    --ca-cert-path $HOME/ca-cert.pem \
+    --name example \
+    --description "Just an example ghes endpoint"
++----------------+------------------------------------------------------------------+
+| FIELD          | VALUE                                                            |
++----------------+------------------------------------------------------------------+
+| Name           | example                                                          |
+| Base URL       | https://ghes.example.com                                         |
+| Upload URL     | https://upload.ghes.example.com                                  |
+| API Base URL   | https://api.ghes.example.com                                     |
+| CA Cert Bundle | -----BEGIN CERTIFICATE-----                                      |
+|                | MIICBzCCAY6gAwIBAgIQX7fEm3dxkTeSc+E1uTFuczAKBggqhkjOPQQDAzA2MRkw |
+|                | FwYDVQQKExBHQVJNIGludGVybmFsIENBMRkwFwYDVQQDExBHQVJNIGludGVybmFs |
+|                | IENBMB4XDTIzMDIyNTE4MzE0NloXDTMzMDIyMjE4MzE0NlowNjEZMBcGA1UEChMQ |
+|                | R0FSTSBpbnRlcm5hbCBDQTEZMBcGA1UEAxMQR0FSTSBpbnRlcm5hbCBDQTB2MBAG |
+|                | ByqGSM49AgEGBSuBBAAiA2IABKat241Jzvkl+ksDuPq5jFf9wb5/l54NbGYYfcrs |
+|                | 4d9/sNXtPP1y8pM61hs+hCltN9UEwtxqr48q5G7Oc3IjH/dddzJTDC2bLcpwysrC |
+|                | NYLGtSfNj+o/8AQMwwclAY7t4KNhMF8wDgYDVR0PAQH/BAQDAgIEMB0GA1UdJQQW |
+|                | MBQGCCsGAQUFBwMCBggrBgEFBQcDATAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQW |
+|                | BBSY+cSG07sIU2UC+fOniODKUGqiUTAKBggqhkjOPQQDAwNnADBkAjBcFz3cZ7vO |
+|                | IFVzqn9eqXMmZDGp58HGneHhFhJsJtQE4BkxGQmgZJ2OgTGXDqjXG3wCMGMQRALt |
+|                | JxwlI1PJJj7M0g48viS4NjT4kq2t/UFIbTy78aarFynUfykpL9FD9NOmiQ==     |
+|                | -----END CERTIFICATE-----                                        |
+|                |                                                                  |
++----------------+------------------------------------------------------------------+
+```
+
+The name of the endpoint needs to be unique within GARM.
+
+### Listing GitHub Endpoints
+
+To list existing GitHub endpoints, run the following command:
+
+```bash
+garm-cli github endpoint list 
++------------+--------------------------+-------------------------------+
+| NAME       | BASE URL                 | DESCRIPTION                   |
++------------+--------------------------+-------------------------------+
+| github.com | https://github.com       | The github.com endpoint       |
++------------+--------------------------+-------------------------------+
+| example    | https://ghes.example.com | Just an example ghes endpoint |
++------------+--------------------------+-------------------------------+
+```
+
+### Getting information about an endpoint
+
+To get information about a specific endpoint, you can run the following command:
+
+```bash
+garm-cli github endpoint show github.com
++--------------+-----------------------------+
+| FIELD        | VALUE                       |
++--------------+-----------------------------+
+| Name         | github.com                  |
+| Base URL     | https://github.com          |
+| Upload URL   | https://uploads.github.com/ |
+| API Base URL | https://api.github.com/     |
++--------------+-----------------------------+
+```
+
+### Deleting a GitHub Endpoint
+
+You can delete an endpoint unless one of the following conditions is met:
+
+* The endpoint is the default endpoint for `github.com`
+* The endpoint is in use by a repository, organization or enterprise
+* There are credentials defined against the endpoint you are trying to remove
+
+To delete an endpoint, you can run the following command:
+
+```bash
+garm-cli github endpoint delete example
+```
+
+## GitHub credentials
+
+GARM needs access to your GitHub repositories, organizations or enterprise in order to manage runners. This is done via a [GitHub personal access token or via a GitHub App](/doc/github_credentials.md). You can configure multiple tokens or apps with access to various repositories, organizations or enterprises, either on GitHub or on GitHub Enterprise Server.
+
+### Adding GitHub credentials
+
+There are two types of credentials:
+
+* PAT - Personal Access Token
+* App - GitHub App
+
+To add each of these types of credentials requires slightly different command line arguments (obviously). I'm going to give you an example of both.
+
+To add a PAT, you can run the following command:
+
+```bash
+garm-cli github credentials add \
+    --name deleteme \
+    --description "just a test" \
+    --auth-type pat \
+    --pat-oauth-token gh_yourTokenGoesHere \
+    --endpoint github.com
+```
+
+To add a GitHub App (only available for repos and orgs), you can run the following command:
+
+```bash
+garm-cli github credentials add \
+    --name deleteme-app \
+    --description "just a test" \
+    --endpoint github.com \
+    --auth-type app \
+    --app-id 1 \
+    --app-installation-id 99 \
+    --private-key-path /etc/garm/yiourGarmAppKey.2024-12-12.private-key.pem
+```
+
+Notice that in both cases we specified the github endpoint for which these credentials are valid. 
+
+### Listing GitHub credentials
 
 To list existing credentials, run the following command:
 
 ```bash
-ubuntu@garm:~$ garm-cli credentials list 
-+-------------+------------------------------------+--------------------+-------------------------+-----------------------------+
-| NAME        | DESCRIPTION                        | BASE URL           | API URL                 | UPLOAD URL                  |
-+-------------+------------------------------------+--------------------+-------------------------+-----------------------------+
-| gabriel     | github token or user gabriel       | https://github.com | https://api.github.com/ | https://uploads.github.com/ |
-+-------------+------------------------------------+--------------------+-------------------------+-----------------------------+
-| gabriel_org | github token with org level access | https://github.com | https://api.github.com/ | https://uploads.github.com/ |
-+-------------+------------------------------------+--------------------+-------------------------+-----------------------------+
+ubuntu@garm:~$ garm-cli github credentials ls
++----+-------------+------------------------------------+--------------------+-------------------------+-----------------------------+------+
+| ID | NAME        | DESCRIPTION                        | BASE URL           | API URL                 | UPLOAD URL                  | TYPE |
++----+-------------+------------------------------------+--------------------+-------------------------+-----------------------------+------+
+|  1 | gabriel     | github token or user gabriel       | https://github.com | https://api.github.com/ | https://uploads.github.com/ | pat  |
++----+-------------+------------------------------------+--------------------+-------------------------+-----------------------------+------+
+|  2 | gabriel_org | github token with org level access | https://github.com | https://api.github.com/ | https://uploads.github.com/ | app  |
++----+-------------+------------------------------------+--------------------+-------------------------+-----------------------------+------+
 ```
 
-These credentials are configured in the GARM config file. You can add, remove or modify them as needed. When using GitHub, you don't need to explicitly set the API URL, Upload URL or base URL, as they are automatically set to the GitHub defaults. When using GitHub Enterprise Server, you will need to set these URLs explicitly. See the [github credentials](/doc/github_credentials.md) section for more details.
+For more information about credentials, see the [github credentials](/doc/github_credentials.md) section for more details.
 
-## Adding a new repository
+### Getting detailed information about credentials
+
+To get detailed information about one specific credential, you can run the following command:
+
+```bash
+garm-cli github credentials show 2
++---------------+------------------------------------+
+| FIELD         | VALUE                              |
++---------------+------------------------------------+
+| ID            | 2                                  |
+| Name          | gabriel_org                        |
+| Description   | github token with org level access |
+| Base URL      | https://github.com                 |
+| API URL       | https://api.github.com/            |
+| Upload URL    | https://uploads.github.com/        |
+| Type          | app                                |
+| Endpoint      | github.com                         |
+|               |                                    |
+| Repositories  | gsamfira/garm-testing              |
+|               |                                    |
+| Organizations | gsamfira                           |
++---------------+------------------------------------+
+```
+
+### Deleting GitHub credentials
+
+To delete a credential, you can run the following command:
+
+```bash
+garm-cli github credentials delete 2
+```
+
+Note, you may not delete credentials that are currently associated with a repository, organization or enterprise. You will need to first replace the credentials on the entity, and then you can delete the credentials.
+
+## Repositories
+
+### Adding a new repository
 
 To add a new repository we need to use credentials that has access to the repository. We've listed credentials above, so let's add our first repository:
 
@@ -118,13 +328,15 @@ ubuntu@garm:~$ garm-cli repository add \
     --owner gabriel-samfira \
     --credentials gabriel \
     --install-webhook \
+    --pool-balancer-type roundrobin \
     --random-webhook-secret
 +----------------------+--------------------------------------+
 | FIELD                | VALUE                                |
 +----------------------+--------------------------------------+
-| ID                   | be3a0673-56af-4395-9ebf-4521fea67567 |
+| ID                   | 0c91d9fd-2417-45d4-883c-05daeeaa8272 |
 | Owner                | gabriel-samfira                      |
 | Name                 | garm                                 |
+| Pool balancer type   | roundrobin                           |
 | Credentials          | gabriel                              |
 | Pool manager running | true                                 |
 +----------------------+--------------------------------------+
@@ -136,9 +348,93 @@ As part of the above command, we used the credentials called `gabriel` to authen
 
 The other interesting bit about the above command is that we automatically added the `webhook` to the repository and generated a secure random secret to authenticate the webhooks that come in from GitHub for this new repo. Any webhook claiming to be for the `gabriel-samfira/garm` repo, will be validated against the secret that was generated.
 
-### Managing repository webhooks
+Another important aspect to remember is that once the entity (in this case a repository) is created, the credentials associated with the repo at creation time, dictates the GitHub endpoint in which this repository exists.
 
-The `webhook` URL that was used, will correspond to the `Controller Webhook URL` that we saw earlier when we listed the controller info. Let's list it and see what it looks like:
+When updating credentials for this entity, the new credentials **must** be associated with the same endpoint as the old ones. An error is returned if the repo is associated with `github.com` but the new credentials you're trying to set are associated with a GHES endpoint.
+
+### Listing repositories
+
+To list existing repositories, run the following command:
+
+```bash
+ubuntu@garm:~$ garm-cli repository list
++--------------------------------------+-----------------+--------------+------------------+--------------------+------------------+
+| ID                                   | OWNER           | NAME         | CREDENTIALS NAME | POOL BALANCER TYPE | POOL MGR RUNNING |
++--------------------------------------+-----------------+--------------+------------------+--------------------+------------------+
+| be3a0673-56af-4395-9ebf-4521fea67567 | gabriel-samfira | garm         | gabriel          | roundrobin         | true             |
++--------------------------------------+-----------------+--------------+------------------+--------------------+------------------+
+```
+
+This will list all the repositories that GARM is currently managing.
+
+### Removing a repository
+
+To remove a repository, you can use the following command:
+
+```bash
+garm-cli repository delete be3a0673-56af-4395-9ebf-4521fea67567
+```
+
+This will remove the repository from GARM, and if a webhook was installed, will also clean up the webhook from the repository.
+
+Note: GARM will not remove a webhook that points to the `Base Webhook URL`. It will only remove webhooks that are namespaced to the running controller.
+
+## Organizations
+
+### Adding a new organization
+
+Adding a new organization is similar to adding a new repository. You need to use credentials that have access to the organization, and you can add the organization to GARM using the following command:
+
+```bash
+ubuntu@garm:~$ garm-cli organization add \
+    --credentials gabriel_org \
+    --name gsamfira \
+    --install-webhook \
+    --random-webhook-secret
++----------------------+--------------------------------------+
+| FIELD                | VALUE                                |
++----------------------+--------------------------------------+
+| ID                   | b50f648d-708f-48ed-8a14-cf58887af9cf |
+| Name                 | gsamfira                             |
+| Credentials          | gabriel_org                          |
+| Pool manager running | true                                 |
++----------------------+--------------------------------------+
+```
+
+This will add the organization `gsamfira` to GARM, and install a webhook for it. The webhook will be validated against the secret that was generated. The only difference between adding an organization and adding a repository is that you use the `organization` subcommand instead of the `repository` subcommand, and the `--name` option represents the `name` of the organization.
+
+Managing webhooks for organizations is similar to managing webhooks for repositories. You can list, show, install and uninstall webhooks for organizations using the `garm-cli organization webhook` subcommand. We won't go into details here, as it's similar to managing webhooks for repositories.
+
+All the other operations that exist on repositories, like listing, removing, etc, also exist for organizations and enterprises. Have a look at the help for the `garm-cli organization` subcommand for more details.
+
+## Enterprises
+
+### Adding an enterprise
+
+Enterprises are a bit special. Currently we don't support managing webhooks for enterprises, mainly because the level of access that would be required to do so seems a bit too much to enable in GARM itself. And considering that you'll probably ever only have one enterprise with multiple organizations and repositories, the effort/risk to benefit ratio makes this feature not worth implementing at the moment.
+
+To add an enterprise to GARM, you can use the following command:
+
+```bash
+garm-cli enterprise add \
+    --credentials gabriel_enterprise \
+    --name samfira \
+    --webhook-secret SuperSecretWebhookTokenPleaseReplaceMe
+```
+
+The `name` of the enterprise is the ["slug" of the enterprise](https://docs.github.com/en/enterprise-cloud@latest/admin/managing-your-enterprise-account/creating-an-enterprise-account). 
+
+You will then have to manually add the `Controller Webhook URL` to the enterprise in the GitHub UI.
+
+All the other operations that exist on repositories, like listing, removing, etc, also exist for organizations and enterprises. Have a look at the help for the `garm-cli enterprise` subcommand for more details.
+
+At that point the enterprise will be added to GARM and you can start managing runners for it.
+
+## Managing webhooks
+
+Webhook management is available for repositories and organizations. I'm going to show you how to manage webhooks for a repository, but the same commands apply for organizations. See `--help` for more details.
+
+When we added the repository in the previous section, we specified the `--install-webhook` and the `--random-webhook-secret` options. These two options automatically added a webhook to the repository and generated a random secret for it. The `webhook` URL that was used, will correspond to the `Controller Webhook URL` that we saw earlier when we listed the controller info. Let's list it and see what it looks like:
 
 ```bash
 ubuntu@garm:~$ garm-cli repository webhook show be3a0673-56af-4395-9ebf-4521fea67567
@@ -155,7 +451,9 @@ ubuntu@garm:~$ garm-cli repository webhook show be3a0673-56af-4395-9ebf-4521fea6
 
 We can see that it's active, and the events to which it subscribed.
 
-The `--install-webhook` and `--random-webhook-secret` options are convenience options that allow you to quickly add a new repository to GARM and have it ready to receive webhooks from GitHub. If you don't want to install the webhook, you can add the repository without it, and then install it later using the `garm-cli repository webhook install` command (which we'll show in a second) or manually add it in the GitHub UI.
+The `--install-webhook` and `--random-webhook-secret` options are convenience options that allow you to quickly add a new repository to GARM and have it ready to receive webhooks from GitHub. As long as you configured the URLs correctly (see previous sections for details), you should see a green checkmark in the GitHub settings page, under `Webhooks`.
+
+If you don't want to install the webhook, you can add the repository without it, and then install it later using the `garm-cli repository webhook install` command (which we'll show in a second) or manually add it in the GitHub UI.
 
 To uninstall a webhook from a repository, you can use the following command:
 
@@ -185,85 +483,13 @@ ubuntu@garm:~$ garm-cli repository webhook install be3a0673-56af-4395-9ebf-4521f
 +--------------+----------------------------------------------------------------------------+
 ```
 
-To allow GARM to manage webhooks, the PAT you're using must have the `admin:repo_hook` and `admin:org_hook` scopes. Webhook management is not available for enterprises. For enterprises you will have to add the webhook manually.
+To allow GARM to manage webhooks, the PAT or app you're using must have the `admin:repo_hook` and `admin:org_hook` scopes (or equivalent). Webhook management is not available for enterprises. For enterprises you will have to add the webhook manually.
 
 To manually add a webhook, see the [webhooks](/doc/webhooks.md) section.
 
-## Listing repositories
+## Pools
 
-To list existing repositories, run the following command:
-
-```bash
-ubuntu@garm:~$ garm-cli repository list
-+--------------------------------------+-----------------+---------+------------------+------------------+
-| ID                                   | OWNER           | NAME    | CREDENTIALS NAME | POOL MGR RUNNING |
-+--------------------------------------+-----------------+---------+------------------+------------------+
-| be3a0673-56af-4395-9ebf-4521fea67567 | gabriel-samfira | garm    | gabriel          | true             |
-+--------------------------------------+-----------------+---------+------------------+------------------+
-```
-
-This will list all the repositories that GARM is currently managing.
-
-## Removing a repository
-
-To remove a repository, you can use the following command:
-
-```bash
-garm-cli repository delete be3a0673-56af-4395-9ebf-4521fea67567
-```
-
-This will remove the repository from GARM, and if a webhook was installed, will also clean up the webhook from the repository.
-
-Note: GARM will not remove a webhook that points to the `Base Webhook URL`. It will only remove webhooks that are namespaced to the running controller.
-
-## Adding a new organization
-
-Adding a new organization is similar to adding a new repository. You need to use credentials that have access to the organization, and you can add the organization to GARM using the following command:
-
-```bash
-ubuntu@garm:~$ garm-cli organization add \
-    --credentials gabriel_org \
-    --name gsamfira \
-    --install-webhook \
-    --random-webhook-secret
-+----------------------+--------------------------------------+
-| FIELD                | VALUE                                |
-+----------------------+--------------------------------------+
-| ID                   | b50f648d-708f-48ed-8a14-cf58887af9cf |
-| Name                 | gsamfira                             |
-| Credentials          | gabriel_org                          |
-| Pool manager running | true                                 |
-+----------------------+--------------------------------------+
-```
-
-This will add the organization `gsamfira` to GARM, and install a webhook for it. The webhook will be validated against the secret that was generated. The only difference between adding an organization and adding a repository is that you use the `organization` subcommand instead of the `repository` subcommand, and the `--name` option represents the `name` of the organization.
-
-Managing webhooks for organizations is similar to managing webhooks for repositories. You can list, show, install and uninstall webhooks for organizations using the `garm-cli organization webhook` subcommand. We won't go into details here, as it's similar to managing webhooks for repositories.
-
-All the other operations that exist on repositories, like listing, removing, etc, also exist for organizations and enterprises. Have a look at the help for the `garm-cli organization` subcommand for more details.
-
-## Adding an enterprise
-
-Enterprises are a bit special. Currently we don't support managing webhooks for enterprises, mainly because the level of access that would be required to do so seems a bit too much to enable in GARM itself. And considering that you'll probably ever only have one enterprise with multiple organizations and repositories, the effort/risk to benefit ratio makes this feature not worth implementing at the moment.
-
-To add an enterprise to GARM, you can use the following command:
-
-```bash
-garm-cli enterprise add \
-    --credentials gabriel_enterprise \
-    --name samfira \
-    --webhook-secret SuperSecretWebhookTokenPleaseReplaceMe
-```
-
-The `name` of the enterprise is the ["slug" of the enterprise](https://docs.github.com/en/enterprise-cloud@latest/admin/managing-your-enterprise-account/creating-an-enterprise-account). 
-
-You will then have to manually add the `Controller Webhook URL` to the enterprise in the GitHub UI.
-
-All the other operations that exist on repositories, like listing, removing, etc, also exist for organizations and enterprises. Have a look at the help for the `garm-cli enterprise` subcommand for more details.
-
-At that point the enterprise will be added to GARM and you can start managing runners for it.
-
-## Creating a runner pool
+### Creating a runner pool
 
 Now that we have a repository, organization or enterprise added to GARM, we can create a runner pool for it. A runner pool is a collection of runners of the same type, that are managed by GARM and are used to run workflows for the repository, organization or enterprise.
 
@@ -322,7 +548,7 @@ ubuntu@garm:~$ garm-cli runner list 9daa34aa-a08a-4f29-a782-f54950d8521a
 +----+------+--------+---------------+---------+
 ```
 
-## Listing pools
+### Listing pools
 
 To list pools created for a repository you can run:
 
@@ -337,7 +563,20 @@ ubuntu@garm:~$ garm-cli pool list --repo=be3a0673-56af-4395-9ebf-4521fea67567
 
 If you want to list pools for an organization or enterprise, you can use the `--org` or `--enterprise` options respectively.
 
-## Showing pool info
+You can also list **all** pools from all configureg github entities by using the `--all` option.
+
+```bash
+ubuntu@garm:~/garm$ garm-cli pool list --all
++--------------------------------------+---------------------------+--------------+-----------------------------------------+------------------+-------+---------+---------------+----------+
+| ID                                   | IMAGE                     | FLAVOR       | TAGS                                    | BELONGS TO       | LEVEL | ENABLED | RUNNER PREFIX | PRIORITY |
++--------------------------------------+---------------------------+--------------+-----------------------------------------+------------------+-------+---------+---------------+----------+
+| 8935f6a6-f20f-4220-8fa9-9075e7bd7741 | windows_2022              | c3.small.x86 | self-hosted x64 Windows windows equinix | gsamfira/scripts | repo  | false   | garm          |        0 |
++--------------------------------------+---------------------------+--------------+-----------------------------------------+------------------+-------+---------+---------------+----------+
+| 9233b3f5-2ccf-4689-8f86-a8a0d656dbeb | runner-upstream:latest    | small        | self-hosted x64 Linux k8s org           | gsamfira         | org   | false   | garm          |        0 |
++--------------------------------------+---------------------------+--------------+-----------------------------------------+------------------+-------+---------+---------------+----------+
+```
+
+### Showing pool info
 
 You can get detailed information about a pool by running the following command:
 
@@ -365,7 +604,7 @@ ubuntu@garm:~$ garm-cli pool show 9daa34aa-a08a-4f29-a782-f54950d8521a
 +--------------------------+----------------------------------------+
 ```
 
-## Deleting a pool
+### Deleting a pool
 
 In order to delete a pool, you must first make sure there are no runners in the pool. To ensure this, we can first disable the pool, to make sure no new runners are created, remove the runners or allow them to be user, then we can delete the pool.
 
@@ -401,7 +640,7 @@ If there are no runners in the pool, you can then remove it:
 ubuntu@garm:~$ garm-cli pool delete 9daa34aa-a08a-4f29-a782-f54950d8521a
 ```
 
-## Update a pool
+### Update a pool
 
 You can update a pool by using the `garm-cli pool update` command. Nearly every aspect of a pool can be updated after it has been created. To demonstrate the command, we can enable the pool we created earlier:
 
@@ -429,6 +668,8 @@ ubuntu@garm:~$ garm-cli pool update 9daa34aa-a08a-4f29-a782-f54950d8521a --enabl
 +--------------------------+----------------------------------------+
 ```
 
+See `garm-cli pool update --help` for a list of settings that can be changed.
+
 Now that the pool is enabled, GARM will start creating runners for it. We can list the runners in the pool to see if any have been created:
 
 ```bash
@@ -453,7 +694,9 @@ root@incus:~# incus list
 
 Awesome! This runner will be able to pick up bobs that match the labels we've set on the pool.
 
-## Listing runners
+## Runners
+
+### Listing runners
 
 You can list runners for a pool, for a repository, organization or enterprise, or for all of them. To list all runners, you can run:
 
@@ -474,7 +717,7 @@ ubuntu@garm:~$ garm-cli runner list --all
 
 Have a look at the help command for the flags available to the `list` subcommand.
 
-## Showing runner info
+### Showing runner info
 
 You can get detailed information about a runner by running the following command:
 
@@ -508,7 +751,7 @@ ubuntu@garm:~$ garm-cli runner show garm-BFrp51VoVBCO
 +-----------------+------------------------------------------------------------------------------------------------------+
 ```
 
-## Deleting a runner
+### Deleting a runner
 
 You can delete a runner by running the following command:
 
