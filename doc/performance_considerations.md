@@ -6,7 +6,7 @@ Performance is often important when running GitHub action runners with garm. Thi
 
 ### Bundle the GitHub action runner
 
-When a new instance is created by garm, it usually downloads the latest available GitHub action runner binary, installs the requirements and starts it afterwards. This can be a time consuming task that quickly adds up when alot of instances are created by garm throughout the day. Therefore it is recommended to include the GitHub action runner binary inside of the used image.
+When a new instance is created by garm, it usually downloads the latest available GitHub action runner binary, installs the requirements and starts it afterwards. This can be a time consuming task that quickly adds up when a lot of instances are created by garm throughout the day. Therefore it is recommended to include the GitHub action runner binary inside of the used image.
 
 There are two ways to do that:
 

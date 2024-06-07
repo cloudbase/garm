@@ -50,7 +50,7 @@ We've written a short introduction into some of the commands that GARM has and s
 
 [You can find it here](/doc/using_garm.md).
 
-Please, feel free to [open an issue](https://github.com/cloudbase/garm/issues/new) if you find the documentation lacking and would like more info. Sometimes we forget the challanges that new users face as we're so close to the code and how it works. Any feedback is welcome and we're always looking to improve the documentation. 
+Please, feel free to [open an issue](https://github.com/cloudbase/garm/issues/new) if you find the documentation lacking and would like more info. Sometimes we forget the challenges that new users face as we're so close to the code and how it works. Any feedback is welcome and we're always looking to improve the documentation.
 
 ## Supported providers
 

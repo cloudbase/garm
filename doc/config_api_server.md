@@ -14,7 +14,7 @@ The config options are fairly straight forward.
   # you must have a valid apiserver.tls section.
   use_tls = false
   # Set a list of allowed origins
-  # By default, if this option is ommited or empty, we will check
+  # By default, if this option is omitted or empty, we will check
   # only that the origin is the same as the originating server.
   # A literal of "*" will allow any origin
   cors_origins = ["*"]

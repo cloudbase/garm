@@ -213,7 +213,7 @@ You will have to parse the bootstrap params, verify that the requested image exi
 
 Refer to the OpenStack or Azure providers available in the [providers.d](../contrib/providers.d/) folder. Of particular interest are the [cloudconfig folders](../contrib/providers.d/openstack/cloudconfig/), where the instance user data templates are stored. These templates are used to generate the needed automation for the instances to download the github runner agent, send back status updates (including the final github runner agent ID), and download the github runner registration token from garm.
 
-Examples of external providers written in Go can be found at the followinf locations:
+Examples of external providers written in Go can be found at the following locations:
 
 * <https://github.com/cloudbase/garm-provider-azure>
 * <https://github.com/cloudbase/garm-provider-openstack>
