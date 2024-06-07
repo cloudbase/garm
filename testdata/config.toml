@@ -1,33 +1,5 @@
 
 [default]
-# This URL is used by instances to send back status messages as they install
-# the github actions runner. Status messages can be seen by querying the
-# runner status in garm.
-# Note: If you're using a reverse proxy in front of your garm installation,
-# this URL needs to point to the address of the reverse proxy. Using TLS is
-# highly encouraged.
-callback_url = "https://garm.example.com/api/v1/callbacks"
-
-# This URL is used by instances to retrieve information they need to set themselves
-# up. Access to this URL is granted using the same JWT token used to send back
-# status updates. Once the instance transitions to "installed" or "failed" state,
-# access to both the status and metadata endpoints is disabled.
-# Note: If you're using a reverse proxy in front of your garm installation,
-# this URL needs to point to the address of the reverse proxy. Using TLS is
-# highly encouraged.
-metadata_url = "https://garm.example.com/api/v1/metadata"
-
-# This is the base URL where GARM will listen for webhook events from github. This
-# URL can be directly configured in github to send events to.
-# If GARM is allowed to manage webhooks, this URL will be used as a base to optionally
-# create webhooks for repositories and organizations. To avoid clashes, the unique
-# controller ID that gets generated when GARM is first installed, will be added as a suffix
-# to this URL.
-#
-# For example, assuming that your GARM controller ID is "18225ce4-e3bd-43f0-9c85-7d7858bcc5b2"
-# the webhook URL will be "https://garm.example.com/webhooks/18225ce4-e3bd-43f0-9c85-7d7858bcc5b2"
-webhook_url = "https://garm.example.com/webhooks"
-
 # This option enables GARM to manage webhooks for repositories and organizations. Set this
 # to false to disable the API routes that manage webhooks.
 #

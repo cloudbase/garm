@@ -4,23 +4,6 @@ The `default` config section holds configuration options that don't need a categ
 
 ```toml
 [default]
-# This URL is used by instances to send back status messages as they install
-# the github actions runner. Status messages can be seen by querying the
-# runner status in garm.
-# Note: If you're using a reverse proxy in front of your garm installation,
-# this URL needs to point to the address of the reverse proxy. Using TLS is
-# highly encouraged.
-callback_url = "https://garm.example.com/api/v1/callbacks"
-
-# This URL is used by instances to retrieve information they need to set themselves
-# up. Access to this URL is granted using the same JWT token used to send back
-# status updates. Once the instance transitions to "installed" or "failed" state,
-# access to both the status and metadata endpoints is disabled.
-# Note: If you're using a reverse proxy in front of your garm installation,
-# this URL needs to point to the address of the reverse proxy. Using TLS is
-# highly encouraged.
-metadata_url = "https://garm.example.com/api/v1/metadata"
-
 # Uncomment this line if you'd like to log to a file instead of standard output.
 # log_file = "/tmp/runner-manager.log"
 
