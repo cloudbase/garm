@@ -79,7 +79,7 @@ This URL needs to be accessible only by the instances ```garm``` sets up. This U
 
 ## The debug_server option
 
-GARM can optionally enable the golang profiling server. This is useful if you suspect garm may be bottlenecking in any way. To enable the profiling server, add the following section to the garm config:
+GARM can optionally enable the golang profiling server. This is useful if you suspect garm may be have a bottleneck in any way. To enable the profiling server, add the following section to the garm config:
 
 ```toml
 [default]

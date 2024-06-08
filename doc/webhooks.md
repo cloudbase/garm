@@ -34,7 +34,7 @@ Make a note of that secret, as you'll need it later when you define the repo/org
 
 ![webhook](images/input_url.png)
 
-While you can use `http` for your webhook, I highly recommend you set up a proper x509 certificate for your GARM server and use `https` instead. If you choose `https`, GitHub will present you with an aditional option to configure the SSL certificate verification. 
+While you can use `http` for your webhook, I highly recommend you set up a proper x509 certificate for your GARM server and use `https` instead. If you choose `https`, GitHub will present you with an additional option to configure the SSL certificate verification.
 
 ![ssl](images/tls_config.png)
 
