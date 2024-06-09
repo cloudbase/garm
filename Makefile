@@ -59,7 +59,7 @@ release: build-static create-release-files ## Create a release
 ##@ Lint / Verify
 .PHONY: lint
 lint: golangci-lint $(GOLANGCI_LINT) ## Run linting.
-	$(GOLANGCI_LINT) run -v --build-tags testing $(GOLANGCI_LINT_EXTRA_ARGS)
+	$(GOLANGCI_LINT) run -v --build-tags=testing,integration $(GOLANGCI_LINT_EXTRA_ARGS)
 
 .PHONY: lint-fix
 lint-fix: golangci-lint $(GOLANGCI_LINT) ## Lint the codebase and run auto-fixers if supported by the linte
@@ -84,7 +84,7 @@ integration: build ## Run integration tests
 	}
 	trap cleanup EXIT
 	@./test/integration/scripts/setup-garm.sh
-	@$(GO) run ./test/integration/main.go
+	@$(GO) test -v ./test/integration/. -timeout=30m -tags=integration
 
 ##@ Development
 

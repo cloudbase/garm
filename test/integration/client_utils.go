@@ -1,4 +1,4 @@
-package e2e
+package integration
 
 import (
 	"github.com/go-openapi/runtime"
@@ -65,16 +65,6 @@ func deleteGithubCredentials(apiCli *client.GarmAPI, apiAuthToken runtime.Client
 	return apiCli.Credentials.DeleteCredentials(
 		clientCredentials.NewDeleteCredentialsParams().WithID(credentialsID),
 		apiAuthToken)
-}
-
-func getGithubCredential(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, credentialsID int64) (*params.GithubCredentials, error) {
-	getCredentialsResponse, err := apiCli.Credentials.GetCredentials(
-		clientCredentials.NewGetCredentialsParams().WithID(credentialsID),
-		apiAuthToken)
-	if err != nil {
-		return nil, err
-	}
-	return &getCredentialsResponse.Payload, nil
 }
 
 func updateGithubCredentials(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, credentialsID int64, credentialsParams params.UpdateGithubCredentialsParams) (*params.GithubCredentials, error) {
@@ -499,16 +489,6 @@ func updatePool(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWrite
 		return nil, err
 	}
 	return &updatePoolResponse.Payload, nil
-}
-
-func listPoolInstances(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, poolID string) (params.Instances, error) {
-	listPoolInstancesResponse, err := apiCli.Instances.ListPoolInstances(
-		clientInstances.NewListPoolInstancesParams().WithPoolID(poolID),
-		apiAuthToken)
-	if err != nil {
-		return nil, err
-	}
-	return listPoolInstancesResponse.Payload, nil
 }
 
 func deletePool(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, poolID string) error {

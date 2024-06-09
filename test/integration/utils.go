@@ -1,8 +1,8 @@
-package e2e
+package integration
 
 import (
 	"encoding/json"
-	"log"
+	"fmt"
 	"log/slog"
 )
 
@@ -19,15 +19,17 @@ type apiCodeGetter interface {
 	IsCode(code int) bool
 }
 
-func expectAPIStatusCode(err error, expectedCode int) {
+func expectAPIStatusCode(err error, expectedCode int) error {
 	if err == nil {
-		panic("expected error")
+		return fmt.Errorf("expected error, got nil")
 	}
 	apiErr, ok := err.(apiCodeGetter)
 	if !ok {
-		log.Fatalf("expected API error, got %v (%T)", err, err)
+		return fmt.Errorf("expected API error, got %v (%T)", err, err)
 	}
 	if !apiErr.IsCode(expectedCode) {
-		log.Fatalf("expected status code %d: %v", expectedCode, err)
+		return fmt.Errorf("expected status code %d: %v", expectedCode, err)
 	}
+
+	return nil
 }
