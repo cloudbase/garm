@@ -379,9 +379,13 @@ func (s *sqlDatabase) DeleteEntityPool(_ context.Context, entity params.GithubEn
 	return nil
 }
 
-func (s *sqlDatabase) UpdateEntityPool(_ context.Context, entity params.GithubEntity, poolID string, param params.UpdatePoolParams) (params.Pool, error) {
-	var updatedPool params.Pool
-	err := s.conn.Transaction(func(tx *gorm.DB) error {
+func (s *sqlDatabase) UpdateEntityPool(_ context.Context, entity params.GithubEntity, poolID string, param params.UpdatePoolParams) (updatedPool params.Pool, err error) {
+	defer func() {
+		if err == nil {
+			s.sendNotify(common.PoolEntityType, common.UpdateOperation, updatedPool)
+		}
+	}()
+	err = s.conn.Transaction(func(tx *gorm.DB) error {
 		pool, err := s.getEntityPool(tx, entity.EntityType, entity.ID, poolID, "Tags", "Instances")
 		if err != nil {
 			return errors.Wrap(err, "fetching pool")
@@ -396,7 +400,6 @@ func (s *sqlDatabase) UpdateEntityPool(_ context.Context, entity params.GithubEn
 	if err != nil {
 		return params.Pool{}, err
 	}
-	s.sendNotify(common.PoolEntityType, common.UpdateOperation, updatedPool)
 	return updatedPool, nil
 }
 

@@ -15,7 +15,7 @@ const (
 	InstanceEntityType          DatabaseEntityType = "instance"
 	JobEntityType               DatabaseEntityType = "job"
 	ControllerEntityType        DatabaseEntityType = "controller"
-	GithubCredentialsEntityType DatabaseEntityType = "github_credentials"
+	GithubCredentialsEntityType DatabaseEntityType = "github_credentials" // #nosec G101
 	GithubEndpointEntityType    DatabaseEntityType = "github_endpoint"
 )
 
