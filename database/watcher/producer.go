@@ -1,7 +1,9 @@
 package watcher
 
 import (
+	"context"
 	"sync"
+	"time"
 
 	"github.com/cloudbase/garm/database/common"
 )
@@ -13,6 +15,7 @@ type producer struct {
 
 	messages chan common.ChangePayload
 	quit     chan struct{}
+	ctx      context.Context
 }
 
 func (w *producer) Notify(payload common.ChangePayload) error {
@@ -24,9 +27,13 @@ func (w *producer) Notify(payload common.ChangePayload) error {
 	}
 
 	select {
-	case w.messages <- payload:
-	default:
+	case <-w.quit:
+		return common.ErrProducerClosed
+	case <-w.ctx.Done():
+		return common.ErrProducerClosed
+	case <-time.After(1 * time.Second):
 		return common.ErrProducerTimeoutErr
+	case w.messages <- payload:
 	}
 	return nil
 }

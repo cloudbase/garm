@@ -1,6 +1,7 @@
 package watcher
 
 import (
+	"context"
 	"log/slog"
 	"sync"
 	"time"
@@ -16,6 +17,7 @@ type consumer struct {
 	mux    sync.Mutex
 	closed bool
 	quit   chan struct{}
+	ctx    context.Context
 }
 
 func (w *consumer) SetFilters(filters ...common.PayloadFilterFunc) {
@@ -54,10 +56,10 @@ func (w *consumer) Send(payload common.ChangePayload) {
 	}
 
 	if len(w.filters) > 0 {
-		shouldSend := false
+		shouldSend := true
 		for _, filter := range w.filters {
-			if filter(payload) {
-				shouldSend = true
+			if !filter(payload) {
+				shouldSend = false
 				break
 			}
 		}
@@ -67,9 +69,14 @@ func (w *consumer) Send(payload common.ChangePayload) {
 		}
 	}
 
-	slog.Info("Sending payload to consumer", "consumer", w.id)
+	slog.DebugContext(w.ctx, "sending payload")
 	select {
-	case w.messages <- payload:
+	case <-w.quit:
+		slog.DebugContext(w.ctx, "consumer is closed")
+	case <-w.ctx.Done():
+		slog.DebugContext(w.ctx, "consumer is closed")
 	case <-time.After(1 * time.Second):
+		slog.DebugContext(w.ctx, "timeout trying to send payload", "payload", payload)
+	case w.messages <- payload:
 	}
 }

@@ -69,7 +69,7 @@ func NewSQLDatabase(ctx context.Context, cfg config.Database) (common.Store, err
 	if err != nil {
 		return nil, errors.Wrap(err, "creating DB connection")
 	}
-	producer, err := watcher.RegisterProducer("sql")
+	producer, err := watcher.RegisterProducer(ctx, "sql")
 	if err != nil {
 		return nil, errors.Wrap(err, "registering producer")
 	}

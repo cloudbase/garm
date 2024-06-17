@@ -3,16 +3,23 @@
 
 package testing
 
-import "github.com/cloudbase/garm/database/common"
+import (
+	"context"
+
+	"github.com/cloudbase/garm/database/common"
+)
 
 type MockWatcher struct{}
 
-func (w *MockWatcher) RegisterProducer(_ string) (common.Producer, error) {
+func (w *MockWatcher) RegisterProducer(_ context.Context, _ string) (common.Producer, error) {
 	return &MockProducer{}, nil
 }
 
-func (w *MockWatcher) RegisterConsumer(_ string, _ ...common.PayloadFilterFunc) (common.Consumer, error) {
+func (w *MockWatcher) RegisterConsumer(_ context.Context, _ string, _ ...common.PayloadFilterFunc) (common.Consumer, error) {
 	return &MockConsumer{}, nil
+}
+
+func (w *MockWatcher) Close() {
 }
 
 type MockProducer struct{}

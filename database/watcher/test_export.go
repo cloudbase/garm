@@ -10,3 +10,8 @@ import "github.com/cloudbase/garm/database/common"
 func SetWatcher(w common.Watcher) {
 	databaseWatcher = w
 }
+
+// GetWatcher returns the current watcher.
+func GetWatcher() common.Watcher {
+	return databaseWatcher
+}

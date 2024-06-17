@@ -1,5 +1,7 @@
 package common
 
+import "context"
+
 type (
 	DatabaseEntityType string
 	OperationType      string
@@ -45,6 +47,7 @@ type Producer interface {
 }
 
 type Watcher interface {
-	RegisterProducer(ID string) (Producer, error)
-	RegisterConsumer(ID string, filters ...PayloadFilterFunc) (Consumer, error)
+	RegisterProducer(ctx context.Context, ID string) (Producer, error)
+	RegisterConsumer(ctx context.Context, ID string, filters ...PayloadFilterFunc) (Consumer, error)
+	Close()
 }
