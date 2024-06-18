@@ -5,6 +5,8 @@ import (
 	"log/slog"
 	"sync"
 
+	"github.com/pkg/errors"
+
 	"github.com/cloudbase/garm/database/common"
 	garmUtil "github.com/cloudbase/garm/util"
 )
@@ -58,7 +60,7 @@ func (w *watcher) RegisterProducer(ctx context.Context, id string) (common.Produ
 	defer w.mux.Unlock()
 
 	if _, ok := w.producers[id]; ok {
-		return nil, common.ErrProducerAlreadyRegistered
+		return nil, errors.Wrapf(common.ErrProducerAlreadyRegistered, "producer_id: %s", id)
 	}
 	p := &producer{
 		id:       id,
@@ -87,15 +89,25 @@ func (w *watcher) serviceProducer(prod *producer) {
 		case <-w.ctx.Done():
 			slog.InfoContext(w.ctx, "shutting down watcher")
 			return
+		case <-prod.quit:
+			slog.InfoContext(w.ctx, "closing producer")
+			return
+		case <-prod.ctx.Done():
+			slog.InfoContext(w.ctx, "closing producer")
+			return
 		case payload := <-prod.messages:
+			w.mux.Lock()
 			for _, c := range w.consumers {
 				go c.Send(payload)
 			}
+			w.mux.Unlock()
 		}
 	}
 }
 
 func (w *watcher) RegisterConsumer(ctx context.Context, id string, filters ...common.PayloadFilterFunc) (common.Consumer, error) {
+	w.mux.Lock()
+	defer w.mux.Unlock()
 	if _, ok := w.consumers[id]; ok {
 		return nil, common.ErrConsumerAlreadyRegistered
 	}
@@ -122,6 +134,8 @@ func (w *watcher) serviceConsumer(consumer *consumer) {
 	for {
 		select {
 		case <-consumer.quit:
+			return
+		case <-consumer.ctx.Done():
 			return
 		case <-w.quit:
 			return

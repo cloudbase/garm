@@ -4,14 +4,16 @@ package watcher_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/suite"
 
 	"github.com/cloudbase/garm/database"
 	"github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/database/watcher"
 	garmTesting "github.com/cloudbase/garm/internal/testing"
-	"github.com/stretchr/testify/suite"
 )
 
 type WatcherTestSuite struct {
@@ -23,7 +25,7 @@ type WatcherTestSuite struct {
 func (s *WatcherTestSuite) SetupTest() {
 	ctx := context.TODO()
 	watcher.InitWatcher(ctx)
-
+	fmt.Printf("creating store: %v\n", s.store)
 	store, err := database.NewDatabase(ctx, garmTesting.GetTestSqliteDBConfig(s.T()))
 	if err != nil {
 		s.T().Fatalf("failed to create db connection: %s", err)
@@ -39,23 +41,23 @@ func (s *WatcherTestSuite) TearDownTest() {
 	}
 }
 
-func (s *WatcherTestSuite) TestRegisterConsumer() {
+func (s *WatcherTestSuite) TestRegisterConsumerTwiceWillError() {
 	consumer, err := watcher.RegisterConsumer(s.ctx, "test")
 	s.Require().NoError(err)
 	s.Require().NotNil(consumer)
 
 	consumer, err = watcher.RegisterConsumer(s.ctx, "test")
-	s.Require().Error(err)
+	s.Require().ErrorIs(err, common.ErrConsumerAlreadyRegistered)
 	s.Require().Nil(consumer)
 }
 
-func (s *WatcherTestSuite) TestRegisterProducer() {
+func (s *WatcherTestSuite) TestRegisterProducerTwiceWillError() {
 	producer, err := watcher.RegisterProducer(s.ctx, "test")
 	s.Require().NoError(err)
 	s.Require().NotNil(producer)
 
 	producer, err = watcher.RegisterProducer(s.ctx, "test")
-	s.Require().Error(err)
+	s.Require().ErrorIs(err, common.ErrProducerAlreadyRegistered)
 	s.Require().Nil(producer)
 }
 
@@ -93,7 +95,10 @@ func (s *WatcherTestSuite) TestProducerAndConsumer() {
 	s.Require().NoError(err)
 	s.Require().NotNil(producer)
 
-	consumer, err := watcher.RegisterConsumer(s.ctx, "test-consumer")
+	consumer, err := watcher.RegisterConsumer(
+		s.ctx, "test-consumer",
+		watcher.WithEntityTypeFilter(common.ControllerEntityType),
+		watcher.WithOperationTypeFilter(common.UpdateOperation))
 	s.Require().NoError(err)
 	s.Require().NotNil(consumer)
 
@@ -114,9 +119,10 @@ func (s *WatcherTestSuite) TestConsumetWithFilter() {
 	s.Require().NoError(err)
 	s.Require().NotNil(producer)
 
-	consumer, err := watcher.RegisterConsumer(s.ctx, "test-consumer", func(payload common.ChangePayload) bool {
-		return payload.Operation == common.UpdateOperation
-	})
+	consumer, err := watcher.RegisterConsumer(
+		s.ctx, "test-consumer",
+		watcher.WithEntityTypeFilter(common.ControllerEntityType),
+		watcher.WithOperationTypeFilter(common.UpdateOperation))
 	s.Require().NoError(err)
 	s.Require().NotNil(consumer)
 
@@ -148,12 +154,27 @@ func (s *WatcherTestSuite) TestConsumetWithFilter() {
 		s.T().Fatal("unexpected payload received")
 	case <-time.After(1 * time.Second):
 	}
-
 }
 
 func TestWatcherTestSuite(t *testing.T) {
+	// Watcher tests
 	watcherSuite := &WatcherTestSuite{
 		ctx: context.TODO(),
 	}
 	suite.Run(t, watcherSuite)
+
+	// These tests run store changes and make sure that the store properly
+	// triggers watcher notifications.
+	ctx := context.TODO()
+	watcher.InitWatcher(ctx)
+
+	store, err := database.NewDatabase(ctx, garmTesting.GetTestSqliteDBConfig(t))
+	if err != nil {
+		t.Fatalf("failed to create db connection: %s", err)
+	}
+	watcherStoreSuite := &WatcherStoreTestSuite{
+		ctx:   context.TODO(),
+		store: store,
+	}
+	suite.Run(t, watcherStoreSuite)
 }
