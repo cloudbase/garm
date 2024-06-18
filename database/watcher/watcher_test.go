@@ -163,17 +163,17 @@ func TestWatcherTestSuite(t *testing.T) {
 	}
 	suite.Run(t, watcherSuite)
 
-	// These tests run store changes and make sure that the store properly
-	// triggers watcher notifications.
-	ctx := context.TODO()
+	ctx := context.Background()
 	watcher.InitWatcher(ctx)
 
 	store, err := database.NewDatabase(ctx, garmTesting.GetTestSqliteDBConfig(t))
 	if err != nil {
 		t.Fatalf("failed to create db connection: %s", err)
 	}
+
+	adminCtx := garmTesting.ImpersonateAdminContext(ctx, store, t)
 	watcherStoreSuite := &WatcherStoreTestSuite{
-		ctx:   context.TODO(),
+		ctx:   adminCtx,
 		store: store,
 	}
 	suite.Run(t, watcherStoreSuite)

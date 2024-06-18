@@ -17,6 +17,7 @@ package sql
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
@@ -121,7 +122,7 @@ func (s *sqlDatabase) ListRepositories(_ context.Context) ([]params.Repository, 
 }
 
 func (s *sqlDatabase) DeleteRepository(ctx context.Context, repoID string) (err error) {
-	repo, err := s.getRepoByID(ctx, s.conn, repoID)
+	repo, err := s.getRepoByID(ctx, s.conn, repoID, "Endpoint", "Credentials")
 	if err != nil {
 		return errors.Wrap(err, "fetching repo")
 	}
@@ -131,6 +132,8 @@ func (s *sqlDatabase) DeleteRepository(ctx context.Context, repoID string) (err 
 			asParam, innerErr := s.sqlToCommonRepository(repo, true)
 			if innerErr == nil {
 				s.sendNotify(common.RepositoryEntityType, common.DeleteOperation, asParam)
+			} else {
+				slog.With(slog.Any("error", innerErr)).ErrorContext(ctx, "error sending delete notification", "repo", repoID)
 			}
 		}
 	}(repo)
