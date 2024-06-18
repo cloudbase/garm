@@ -19,6 +19,37 @@ type WatcherStoreTestSuite struct {
 	ctx   context.Context
 }
 
+func (s *WatcherStoreTestSuite) TestControllerWatcher() {
+	consumer, err := watcher.RegisterConsumer(
+		s.ctx, "controller-test",
+		watcher.WithEntityTypeFilter(common.ControllerEntityType),
+		watcher.WithOperationTypeFilter(common.UpdateOperation),
+	)
+	s.Require().NoError(err)
+	s.Require().NotNil(consumer)
+	s.T().Cleanup(func() { consumer.Close() })
+
+	metadataURL := "http://metadata.example.com"
+	updateParams := params.UpdateControllerParams{
+		MetadataURL: &metadataURL,
+	}
+
+	controller, err := s.store.UpdateController(updateParams)
+	s.Require().NoError(err)
+	s.Require().Equal(metadataURL, controller.MetadataURL)
+
+	select {
+	case event := <-consumer.Watch():
+		s.Require().Equal(common.ChangePayload{
+			EntityType: common.ControllerEntityType,
+			Operation:  common.UpdateOperation,
+			Payload:    controller,
+		}, event)
+	case <-time.After(1 * time.Second):
+		s.T().Fatal("expected payload not received")
+	}
+}
+
 func (s *WatcherStoreTestSuite) TestEnterpriseWatcher() {
 	consumer, err := watcher.RegisterConsumer(
 		s.ctx, "enterprise-test",

@@ -17,6 +17,7 @@ package sql
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
@@ -73,11 +74,16 @@ func (s *sqlDatabase) DeletePoolByID(_ context.Context, poolID string) (err erro
 		return errors.Wrap(err, "fetching pool by ID")
 	}
 
-	defer func() {
+	defer func(pool Pool) {
 		if err == nil {
-			s.sendNotify(common.PoolEntityType, common.DeleteOperation, pool)
+			asParams, innerErr := s.sqlToCommonPool(pool)
+			if innerErr == nil {
+				s.sendNotify(common.PoolEntityType, common.DeleteOperation, asParams)
+			} else {
+				slog.With(slog.Any("error", innerErr)).ErrorContext(s.ctx, "error sending delete notification", "pool", poolID)
+			}
 		}
-	}()
+	}(pool)
 
 	if q := s.conn.Unscoped().Delete(&pool); q.Error != nil {
 		return errors.Wrap(q.Error, "removing pool")

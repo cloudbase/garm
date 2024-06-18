@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/cloudbase/garm/database"
@@ -156,6 +157,18 @@ func (s *WatcherTestSuite) TestConsumetWithFilter() {
 	}
 }
 
+func maybeInitController(db common.Store) error {
+	if _, err := db.ControllerInfo(); err == nil {
+		return nil
+	}
+
+	if _, err := db.InitController(); err != nil {
+		return errors.Wrap(err, "initializing controller")
+	}
+
+	return nil
+}
+
 func TestWatcherTestSuite(t *testing.T) {
 	// Watcher tests
 	watcherSuite := &WatcherTestSuite{
@@ -169,6 +182,11 @@ func TestWatcherTestSuite(t *testing.T) {
 	store, err := database.NewDatabase(ctx, garmTesting.GetTestSqliteDBConfig(t))
 	if err != nil {
 		t.Fatalf("failed to create db connection: %s", err)
+	}
+
+	err = maybeInitController(store)
+	if err != nil {
+		t.Fatalf("failed to init controller: %s", err)
 	}
 
 	adminCtx := garmTesting.ImpersonateAdminContext(ctx, store, t)
