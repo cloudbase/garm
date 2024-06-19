@@ -17,6 +17,7 @@ package sql
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
@@ -153,13 +154,15 @@ func (s *sqlDatabase) DeleteInstance(_ context.Context, poolID string, instanceN
 			if instance.ProviderID != nil {
 				providerID = *instance.ProviderID
 			}
-			s.sendNotify(common.InstanceEntityType, common.DeleteOperation, params.Instance{
+			if notifyErr := s.sendNotify(common.InstanceEntityType, common.DeleteOperation, params.Instance{
 				ID:         instance.ID.String(),
 				Name:       instance.Name,
 				ProviderID: providerID,
 				AgentID:    instance.AgentID,
 				PoolID:     instance.PoolID.String(),
-			})
+			}); notifyErr != nil {
+				slog.With(slog.Any("error", notifyErr)).Error("failed to send notify")
+			}
 		}
 	}()
 

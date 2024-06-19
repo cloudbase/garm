@@ -491,7 +491,6 @@ func (s *WatcherStoreTestSuite) TestGithubCredentialsWatcher() {
 	ghCred, err := s.store.CreateGithubCredentials(s.ctx, ghCredParams)
 	s.Require().NoError(err)
 	s.Require().NotEmpty(ghCred.ID)
-	s.T().Cleanup(func() { s.store.DeleteGithubCredentials(s.ctx, ghCred.ID) })
 
 	select {
 	case event := <-consumer.Watch():

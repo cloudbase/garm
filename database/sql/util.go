@@ -488,11 +488,18 @@ func (s *sqlDatabase) unsealAndUnmarshal(data []byte, target interface{}) error 
 	return nil
 }
 
-func (s *sqlDatabase) sendNotify(entityType dbCommon.DatabaseEntityType, op dbCommon.OperationType, payload interface{}) {
+func (s *sqlDatabase) sendNotify(entityType dbCommon.DatabaseEntityType, op dbCommon.OperationType, payload interface{}) error {
+	if s.producer == nil {
+		// no producer was registered. Not sending notifications.
+		return nil
+	}
+	if payload == nil {
+		return errors.New("missing payload")
+	}
 	message := dbCommon.ChangePayload{
 		Operation:  op,
 		Payload:    payload,
 		EntityType: entityType,
 	}
-	s.producer.Notify(message)
+	return s.producer.Notify(message)
 }
