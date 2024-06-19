@@ -25,14 +25,21 @@ import (
 	"gorm.io/gorm/clause"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	"github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/params"
 )
 
-func (s *sqlDatabase) CreateInstance(_ context.Context, poolID string, param params.CreateInstanceParams) (params.Instance, error) {
+func (s *sqlDatabase) CreateInstance(_ context.Context, poolID string, param params.CreateInstanceParams) (instance params.Instance, err error) {
 	pool, err := s.getPoolByID(s.conn, poolID)
 	if err != nil {
 		return params.Instance{}, errors.Wrap(err, "fetching pool")
 	}
+
+	defer func() {
+		if err == nil {
+			s.sendNotify(common.InstanceEntityType, common.CreateOperation, instance)
+		}
+	}()
 
 	var labels datatypes.JSON
 	if len(param.AditionalLabels) > 0 {
@@ -134,11 +141,28 @@ func (s *sqlDatabase) GetInstanceByName(ctx context.Context, instanceName string
 	return s.sqlToParamsInstance(instance)
 }
 
-func (s *sqlDatabase) DeleteInstance(_ context.Context, poolID string, instanceName string) error {
+func (s *sqlDatabase) DeleteInstance(_ context.Context, poolID string, instanceName string) (err error) {
 	instance, err := s.getPoolInstanceByName(poolID, instanceName)
 	if err != nil {
 		return errors.Wrap(err, "deleting instance")
 	}
+
+	defer func() {
+		if err == nil {
+			var providerID string
+			if instance.ProviderID != nil {
+				providerID = *instance.ProviderID
+			}
+			s.sendNotify(common.InstanceEntityType, common.DeleteOperation, params.Instance{
+				ID:         instance.ID.String(),
+				Name:       instance.Name,
+				ProviderID: providerID,
+				AgentID:    instance.AgentID,
+				PoolID:     instance.PoolID.String(),
+			})
+		}
+	}()
+
 	if q := s.conn.Unscoped().Delete(&instance); q.Error != nil {
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
 			return nil
@@ -230,8 +254,12 @@ func (s *sqlDatabase) UpdateInstance(ctx context.Context, instanceName string, p
 			return params.Instance{}, errors.Wrap(err, "updating addresses")
 		}
 	}
-
-	return s.sqlToParamsInstance(instance)
+	inst, err := s.sqlToParamsInstance(instance)
+	if err != nil {
+		return params.Instance{}, errors.Wrap(err, "converting instance")
+	}
+	s.sendNotify(common.InstanceEntityType, common.UpdateOperation, inst)
+	return inst, nil
 }
 
 func (s *sqlDatabase) ListPoolInstances(_ context.Context, poolID string) ([]params.Instance, error) {

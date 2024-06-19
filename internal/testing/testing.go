@@ -122,7 +122,7 @@ func CreateTestGithubCredentials(ctx context.Context, credsName string, db commo
 	}
 	newCreds, err := db.CreateGithubCredentials(ctx, newCredsParams)
 	if err != nil {
-		s.Fatalf("failed to create database object (new-creds): %v", err)
+		s.Fatalf("failed to create database object (%s): %v", credsName, err)
 	}
 	return newCreds
 }

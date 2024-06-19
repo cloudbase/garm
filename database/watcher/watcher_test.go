@@ -4,7 +4,6 @@ package watcher_test
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -26,7 +25,6 @@ type WatcherTestSuite struct {
 func (s *WatcherTestSuite) SetupTest() {
 	ctx := context.TODO()
 	watcher.InitWatcher(ctx)
-	fmt.Printf("creating store: %v\n", s.store)
 	store, err := database.NewDatabase(ctx, garmTesting.GetTestSqliteDBConfig(s.T()))
 	if err != nil {
 		s.T().Fatalf("failed to create db connection: %s", err)

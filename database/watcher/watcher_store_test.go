@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
+	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/database/watcher"
 	garmTesting "github.com/cloudbase/garm/internal/testing"
@@ -17,6 +18,221 @@ type WatcherStoreTestSuite struct {
 
 	store common.Store
 	ctx   context.Context
+}
+
+func (s *WatcherStoreTestSuite) TestInstanceWatcher() {
+	consumer, err := watcher.RegisterConsumer(
+		s.ctx, "instance-test",
+		watcher.WithEntityTypeFilter(common.InstanceEntityType),
+		watcher.WithAny(
+			watcher.WithOperationTypeFilter(common.CreateOperation),
+			watcher.WithOperationTypeFilter(common.UpdateOperation),
+			watcher.WithOperationTypeFilter(common.DeleteOperation)),
+	)
+	s.Require().NoError(err)
+	s.Require().NotNil(consumer)
+	s.T().Cleanup(func() { consumer.Close() })
+
+	ep := garmTesting.CreateDefaultGithubEndpoint(s.ctx, s.store, s.T())
+	creds := garmTesting.CreateTestGithubCredentials(s.ctx, "test-creds", s.store, s.T(), ep)
+	s.T().Cleanup(func() { s.store.DeleteGithubCredentials(s.ctx, creds.ID) })
+
+	repo, err := s.store.CreateRepository(s.ctx, "test-owner", "test-repo", creds.Name, "test-secret", params.PoolBalancerTypeRoundRobin)
+	s.Require().NoError(err)
+	s.Require().NotEmpty(repo.ID)
+	s.T().Cleanup(func() { s.store.DeleteRepository(s.ctx, repo.ID) })
+
+	entity, err := repo.GetEntity()
+	s.Require().NoError(err)
+
+	createPoolParams := params.CreatePoolParams{
+		ProviderName: "test-provider",
+		Image:        "test-image",
+		Flavor:       "test-flavor",
+		OSType:       commonParams.Linux,
+		OSArch:       commonParams.Amd64,
+		Tags:         []string{"test-tag"},
+	}
+
+	pool, err := s.store.CreateEntityPool(s.ctx, entity, createPoolParams)
+	s.Require().NoError(err)
+	s.Require().NotEmpty(pool.ID)
+	s.T().Cleanup(func() { s.store.DeleteEntityPool(s.ctx, entity, pool.ID) })
+
+	createInstanceParams := params.CreateInstanceParams{
+		Name:   "test-instance",
+		OSType: commonParams.Linux,
+		OSArch: commonParams.Amd64,
+		Status: commonParams.InstanceCreating,
+	}
+	instance, err := s.store.CreateInstance(s.ctx, pool.ID, createInstanceParams)
+	s.Require().NoError(err)
+	s.Require().NotEmpty(instance.ID)
+
+	select {
+	case event := <-consumer.Watch():
+		s.Require().Equal(common.ChangePayload{
+			EntityType: common.InstanceEntityType,
+			Operation:  common.CreateOperation,
+			Payload:    instance,
+		}, event)
+	case <-time.After(1 * time.Second):
+		s.T().Fatal("expected payload not received")
+	}
+
+	updateParams := params.UpdateInstanceParams{
+		RunnerStatus: params.RunnerActive,
+	}
+
+	updatedInstance, err := s.store.UpdateInstance(s.ctx, instance.Name, updateParams)
+	s.Require().NoError(err)
+
+	select {
+	case event := <-consumer.Watch():
+		s.Require().Equal(common.ChangePayload{
+			EntityType: common.InstanceEntityType,
+			Operation:  common.UpdateOperation,
+			Payload:    updatedInstance,
+		}, event)
+	case <-time.After(1 * time.Second):
+		s.T().Fatal("expected payload not received")
+	}
+
+	err = s.store.DeleteInstance(s.ctx, pool.ID, updatedInstance.Name)
+	s.Require().NoError(err)
+
+	select {
+	case event := <-consumer.Watch():
+		s.Require().Equal(common.ChangePayload{
+			EntityType: common.InstanceEntityType,
+			Operation:  common.DeleteOperation,
+			Payload: params.Instance{
+				ID:         updatedInstance.ID,
+				Name:       updatedInstance.Name,
+				ProviderID: updatedInstance.ProviderID,
+				AgentID:    updatedInstance.AgentID,
+				PoolID:     updatedInstance.PoolID,
+			},
+		}, event)
+	case <-time.After(1 * time.Second):
+		s.T().Fatal("expected payload not received")
+	}
+}
+
+func (s *WatcherStoreTestSuite) TestPoolWatcher() {
+	consumer, err := watcher.RegisterConsumer(
+		s.ctx, "pool-test",
+		watcher.WithEntityTypeFilter(common.PoolEntityType),
+		watcher.WithAny(
+			watcher.WithOperationTypeFilter(common.CreateOperation),
+			watcher.WithOperationTypeFilter(common.UpdateOperation),
+			watcher.WithOperationTypeFilter(common.DeleteOperation)),
+	)
+	s.Require().NoError(err)
+	s.Require().NotNil(consumer)
+	s.T().Cleanup(func() { consumer.Close() })
+
+	ep := garmTesting.CreateDefaultGithubEndpoint(s.ctx, s.store, s.T())
+	creds := garmTesting.CreateTestGithubCredentials(s.ctx, "test-creds", s.store, s.T(), ep)
+	s.T().Cleanup(func() {
+		if err := s.store.DeleteGithubCredentials(s.ctx, creds.ID); err != nil {
+			s.T().Logf("failed to delete Github credentials: %v", err)
+		}
+	})
+
+	repo, err := s.store.CreateRepository(s.ctx, "test-owner", "test-repo", creds.Name, "test-secret", params.PoolBalancerTypeRoundRobin)
+	s.Require().NoError(err)
+	s.Require().NotEmpty(repo.ID)
+	s.T().Cleanup(func() { s.store.DeleteRepository(s.ctx, repo.ID) })
+
+	entity, err := repo.GetEntity()
+	s.Require().NoError(err)
+
+	createPoolParams := params.CreatePoolParams{
+		ProviderName: "test-provider",
+		Image:        "test-image",
+		Flavor:       "test-flavor",
+		OSType:       commonParams.Linux,
+		OSArch:       commonParams.Amd64,
+		Tags:         []string{"test-tag"},
+	}
+	pool, err := s.store.CreateEntityPool(s.ctx, entity, createPoolParams)
+	s.Require().NoError(err)
+	s.Require().NotEmpty(pool.ID)
+
+	select {
+	case event := <-consumer.Watch():
+		s.Require().Equal(common.ChangePayload{
+			EntityType: common.PoolEntityType,
+			Operation:  common.CreateOperation,
+			Payload:    pool,
+		}, event)
+	case <-time.After(1 * time.Second):
+		s.T().Fatal("expected payload not received")
+	}
+
+	updateParams := params.UpdatePoolParams{
+		Tags: []string{"updated-tag"},
+	}
+
+	updatedPool, err := s.store.UpdateEntityPool(s.ctx, entity, pool.ID, updateParams)
+	s.Require().NoError(err)
+
+	select {
+	case event := <-consumer.Watch():
+		s.Require().Equal(common.ChangePayload{
+			EntityType: common.PoolEntityType,
+			Operation:  common.UpdateOperation,
+			Payload:    updatedPool,
+		}, event)
+	case <-time.After(1 * time.Second):
+		s.T().Fatal("expected payload not received")
+	}
+
+	err = s.store.DeleteEntityPool(s.ctx, entity, pool.ID)
+	s.Require().NoError(err)
+
+	select {
+	case event := <-consumer.Watch():
+		s.Require().Equal(common.ChangePayload{
+			EntityType: common.PoolEntityType,
+			Operation:  common.DeleteOperation,
+			Payload:    params.Pool{ID: pool.ID},
+		}, event)
+	case <-time.After(1 * time.Second):
+		s.T().Fatal("expected payload not received")
+	}
+
+	// Also test DeletePoolByID
+	pool, err = s.store.CreateEntityPool(s.ctx, entity, createPoolParams)
+	s.Require().NoError(err)
+	s.Require().NotEmpty(pool.ID)
+
+	// Consume the create event
+	select {
+	case event := <-consumer.Watch():
+		s.Require().Equal(common.ChangePayload{
+			EntityType: common.PoolEntityType,
+			Operation:  common.CreateOperation,
+			Payload:    pool,
+		}, event)
+	case <-time.After(1 * time.Second):
+		s.T().Fatal("expected payload not received")
+	}
+
+	err = s.store.DeletePoolByID(s.ctx, pool.ID)
+	s.Require().NoError(err)
+
+	select {
+	case event := <-consumer.Watch():
+		s.Require().Equal(common.ChangePayload{
+			EntityType: common.PoolEntityType,
+			Operation:  common.DeleteOperation,
+			Payload:    params.Pool{ID: pool.ID},
+		}, event)
+	case <-time.After(1 * time.Second):
+		s.T().Fatal("expected payload not received")
+	}
 }
 
 func (s *WatcherStoreTestSuite) TestControllerWatcher() {
@@ -275,6 +491,7 @@ func (s *WatcherStoreTestSuite) TestGithubCredentialsWatcher() {
 	ghCred, err := s.store.CreateGithubCredentials(s.ctx, ghCredParams)
 	s.Require().NoError(err)
 	s.Require().NotEmpty(ghCred.ID)
+	s.T().Cleanup(func() { s.store.DeleteGithubCredentials(s.ctx, ghCred.ID) })
 
 	select {
 	case event := <-consumer.Watch():
