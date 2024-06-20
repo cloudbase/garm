@@ -419,10 +419,13 @@ func (r Repository) GetEntity() (GithubEntity, error) {
 		return GithubEntity{}, fmt.Errorf("repository has no ID")
 	}
 	return GithubEntity{
-		ID:         r.ID,
-		EntityType: GithubEntityTypeRepository,
-		Owner:      r.Owner,
-		Name:       r.Name,
+		ID:               r.ID,
+		EntityType:       GithubEntityTypeRepository,
+		Owner:            r.Owner,
+		Name:             r.Name,
+		PoolBalancerType: r.PoolBalancerType,
+		Credentials:      r.Credentials,
+		WebhookSecret:    r.WebhookSecret,
 	}, nil
 }
 
@@ -470,10 +473,12 @@ func (o Organization) GetEntity() (GithubEntity, error) {
 		return GithubEntity{}, fmt.Errorf("organization has no ID")
 	}
 	return GithubEntity{
-		ID:            o.ID,
-		EntityType:    GithubEntityTypeOrganization,
-		Owner:         o.Name,
-		WebhookSecret: o.WebhookSecret,
+		ID:               o.ID,
+		EntityType:       GithubEntityTypeOrganization,
+		Owner:            o.Name,
+		WebhookSecret:    o.WebhookSecret,
+		PoolBalancerType: o.PoolBalancerType,
+		Credentials:      o.Credentials,
 	}, nil
 }
 
@@ -517,10 +522,12 @@ func (e Enterprise) GetEntity() (GithubEntity, error) {
 		return GithubEntity{}, fmt.Errorf("enterprise has no ID")
 	}
 	return GithubEntity{
-		ID:            e.ID,
-		EntityType:    GithubEntityTypeEnterprise,
-		Owner:         e.Name,
-		WebhookSecret: e.WebhookSecret,
+		ID:               e.ID,
+		EntityType:       GithubEntityTypeEnterprise,
+		Owner:            e.Name,
+		WebhookSecret:    e.WebhookSecret,
+		PoolBalancerType: e.PoolBalancerType,
+		Credentials:      e.Credentials,
 	}, nil
 }
 
@@ -685,11 +692,6 @@ type Provider struct {
 // used by swagger client generated code
 type Providers []Provider
 
-type UpdatePoolStateParams struct {
-	WebhookSecret  string
-	InternalConfig *Internal
-}
-
 type PoolManagerStatus struct {
 	IsRunning     bool   `json:"running"`
 	FailureReason string `json:"failure_reason,omitempty"`
@@ -788,13 +790,21 @@ type UpdateSystemInfoParams struct {
 }
 
 type GithubEntity struct {
-	Owner       string            `json:"owner"`
-	Name        string            `json:"name"`
-	ID          string            `json:"id"`
-	EntityType  GithubEntityType  `json:"entity_type"`
-	Credentials GithubCredentials `json:"credentials"`
+	Owner            string            `json:"owner"`
+	Name             string            `json:"name"`
+	ID               string            `json:"id"`
+	EntityType       GithubEntityType  `json:"entity_type"`
+	Credentials      GithubCredentials `json:"credentials"`
+	PoolBalancerType PoolBalancerType  `json:"pool_balancing_type"`
 
 	WebhookSecret string `json:"-"`
+}
+
+func (g GithubEntity) GetPoolBalancerType() PoolBalancerType {
+	if g.PoolBalancerType == "" {
+		return PoolBalancerTypeRoundRobin
+	}
+	return g.PoolBalancerType
 }
 
 func (g GithubEntity) LabelScope() string {

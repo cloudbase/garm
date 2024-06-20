@@ -46,7 +46,20 @@ type InstanceJWTClaims struct {
 	jwt.RegisteredClaims
 }
 
-func NewInstanceJWTToken(instance params.Instance, secret, entity string, poolType params.GithubEntityType, ttlMinutes uint) (string, error) {
+func NewInstanceTokenGetter(jwtSecret string) (InstanceTokenGetter, error) {
+	if jwtSecret == "" {
+		return nil, fmt.Errorf("jwt secret is required")
+	}
+	return &instanceToken{
+		jwtSecret: jwtSecret,
+	}, nil
+}
+
+type instanceToken struct {
+	jwtSecret string
+}
+
+func (i *instanceToken) NewInstanceJWTToken(instance params.Instance, entity string, poolType params.GithubEntityType, ttlMinutes uint) (string, error) {
 	// Token expiration is equal to the bootstrap timeout set on the pool plus the polling
 	// interval garm uses to check for timed out runners. Runners that have not sent their info
 	// by the end of this interval are most likely failed and will be reaped by garm anyway.
@@ -67,7 +80,7 @@ func NewInstanceJWTToken(instance params.Instance, secret, entity string, poolTy
 		CreateAttempt: instance.CreateAttempt,
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString([]byte(secret))
+	tokenString, err := token.SignedString([]byte(i.jwtSecret))
 	if err != nil {
 		return "", errors.Wrap(err, "signing token")
 	}

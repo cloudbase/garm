@@ -122,7 +122,7 @@ func (s *sqlDatabase) ListRepositories(_ context.Context) ([]params.Repository, 
 }
 
 func (s *sqlDatabase) DeleteRepository(ctx context.Context, repoID string) (err error) {
-	repo, err := s.getRepoByID(ctx, s.conn, repoID, "Endpoint", "Credentials")
+	repo, err := s.getRepoByID(ctx, s.conn, repoID, "Endpoint", "Credentials", "Credentials.Endpoint")
 	if err != nil {
 		return errors.Wrap(err, "fetching repo")
 	}
@@ -197,16 +197,13 @@ func (s *sqlDatabase) UpdateRepository(ctx context.Context, repoID string, param
 			return errors.Wrap(q.Error, "saving repo")
 		}
 
-		if creds.ID != 0 {
-			repo.Credentials = creds
-		}
 		return nil
 	})
 	if err != nil {
 		return params.Repository{}, errors.Wrap(err, "saving repo")
 	}
 
-	repo, err = s.getRepoByID(ctx, s.conn, repoID, "Endpoint", "Credentials")
+	repo, err = s.getRepoByID(ctx, s.conn, repoID, "Endpoint", "Credentials", "Credentials.Endpoint")
 	if err != nil {
 		return params.Repository{}, errors.Wrap(err, "updating enterprise")
 	}

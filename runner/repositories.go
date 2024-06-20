@@ -197,16 +197,15 @@ func (r *Runner) UpdateRepository(ctx context.Context, repoID string, param para
 		return params.Repository{}, runnerErrors.NewBadRequestError("invalid pool balancer type: %s", param.PoolBalancerType)
 	}
 
+	slog.InfoContext(ctx, "updating repository", "repo_id", repoID, "param", param)
 	repo, err := r.store.UpdateRepository(ctx, repoID, param)
 	if err != nil {
 		return params.Repository{}, errors.Wrap(err, "updating repo")
 	}
 
-	// Use the admin context in the pool manager. Any access control is already done above when
-	// updating the store.
-	poolMgr, err := r.poolManagerCtrl.UpdateRepoPoolManager(r.ctx, repo)
+	poolMgr, err := r.poolManagerCtrl.GetRepoPoolManager(repo)
 	if err != nil {
-		return params.Repository{}, fmt.Errorf("failed to update pool manager: %w", err)
+		return params.Repository{}, fmt.Errorf("failed to get pool manager: %w", err)
 	}
 
 	repo.PoolManagerStatus = poolMgr.Status()

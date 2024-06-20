@@ -203,11 +203,9 @@ func (r *Runner) UpdateOrganization(ctx context.Context, orgID string, param par
 		return params.Organization{}, errors.Wrap(err, "updating org")
 	}
 
-	// Use the admin context in the pool manager. Any access control is already done above when
-	// updating the store.
-	poolMgr, err := r.poolManagerCtrl.UpdateOrgPoolManager(r.ctx, org)
+	poolMgr, err := r.poolManagerCtrl.GetOrgPoolManager(org)
 	if err != nil {
-		return params.Organization{}, fmt.Errorf("updating org pool manager: %w", err)
+		return params.Organization{}, fmt.Errorf("failed to get org pool manager: %w", err)
 	}
 
 	org.PoolManagerStatus = poolMgr.Status()

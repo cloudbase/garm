@@ -303,6 +303,10 @@ func parseCredentialsAddParams() (ret params.CreateGithubCredentialsParams, err 
 func parseCredentialsUpdateParams() (params.UpdateGithubCredentialsParams, error) {
 	var updateParams params.UpdateGithubCredentialsParams
 
+	if credentialsAppInstallationID != 0 || credentialsAppID != 0 || credentialsPrivateKeyPath != "" {
+		updateParams.App = &params.GithubApp{}
+	}
+
 	if credentialsName != "" {
 		updateParams.Name = &credentialsName
 	}
@@ -312,6 +316,9 @@ func parseCredentialsUpdateParams() (params.UpdateGithubCredentialsParams, error
 	}
 
 	if credentialsOAuthToken != "" {
+		if updateParams.PAT == nil {
+			updateParams.PAT = &params.GithubPAT{}
+		}
 		updateParams.PAT.OAuth2Token = credentialsOAuthToken
 	}
 

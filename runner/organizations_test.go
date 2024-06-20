@@ -34,22 +34,21 @@ import (
 )
 
 type OrgTestFixtures struct {
-	AdminContext          context.Context
-	DBFile                string
-	Store                 dbCommon.Store
-	StoreOrgs             map[string]params.Organization
-	Providers             map[string]common.Provider
-	Credentials           map[string]params.GithubCredentials
-	CreateOrgParams       params.CreateOrgParams
-	CreatePoolParams      params.CreatePoolParams
-	CreateInstanceParams  params.CreateInstanceParams
-	UpdateRepoParams      params.UpdateEntityParams
-	UpdatePoolParams      params.UpdatePoolParams
-	UpdatePoolStateParams params.UpdatePoolStateParams
-	ErrMock               error
-	ProviderMock          *runnerCommonMocks.Provider
-	PoolMgrMock           *runnerCommonMocks.PoolManager
-	PoolMgrCtrlMock       *runnerMocks.PoolManagerController
+	AdminContext         context.Context
+	DBFile               string
+	Store                dbCommon.Store
+	StoreOrgs            map[string]params.Organization
+	Providers            map[string]common.Provider
+	Credentials          map[string]params.GithubCredentials
+	CreateOrgParams      params.CreateOrgParams
+	CreatePoolParams     params.CreatePoolParams
+	CreateInstanceParams params.CreateInstanceParams
+	UpdateRepoParams     params.UpdateEntityParams
+	UpdatePoolParams     params.UpdatePoolParams
+	ErrMock              error
+	ProviderMock         *runnerCommonMocks.Provider
+	PoolMgrMock          *runnerCommonMocks.PoolManager
+	PoolMgrCtrlMock      *runnerMocks.PoolManagerController
 }
 
 type OrgTestSuite struct {
@@ -138,9 +137,6 @@ func (s *OrgTestSuite) SetupTest() {
 			MinIdleRunners: &minIdleRunners,
 			Image:          "test-images-updated",
 			Flavor:         "test-flavor-updated",
-		},
-		UpdatePoolStateParams: params.UpdatePoolStateParams{
-			WebhookSecret: "test-update-repo-webhook-secret",
 		},
 		ErrMock:         fmt.Errorf("mock error"),
 		ProviderMock:    providerMock,
@@ -312,7 +308,7 @@ func (s *OrgTestSuite) TestDeleteOrganizationPoolMgrFailed() {
 }
 
 func (s *OrgTestSuite) TestUpdateOrganization() {
-	s.Fixtures.PoolMgrCtrlMock.On("UpdateOrgPoolManager", s.Fixtures.AdminContext, mock.AnythingOfType("params.Organization")).Return(s.Fixtures.PoolMgrMock, nil)
+	s.Fixtures.PoolMgrCtrlMock.On("GetOrgPoolManager", mock.AnythingOfType("params.Organization")).Return(s.Fixtures.PoolMgrMock, nil)
 	s.Fixtures.PoolMgrMock.On("Status").Return(params.PoolManagerStatus{IsRunning: true}, nil)
 
 	org, err := s.Runner.UpdateOrganization(s.Fixtures.AdminContext, s.Fixtures.StoreOrgs["test-org-1"].ID, s.Fixtures.UpdateRepoParams)
@@ -326,7 +322,7 @@ func (s *OrgTestSuite) TestUpdateOrganization() {
 
 func (s *OrgTestSuite) TestUpdateRepositoryBalancingType() {
 	s.Fixtures.UpdateRepoParams.PoolBalancerType = params.PoolBalancerTypePack
-	s.Fixtures.PoolMgrCtrlMock.On("UpdateOrgPoolManager", s.Fixtures.AdminContext, mock.AnythingOfType("params.Organization")).Return(s.Fixtures.PoolMgrMock, nil)
+	s.Fixtures.PoolMgrCtrlMock.On("GetOrgPoolManager", mock.AnythingOfType("params.Organization")).Return(s.Fixtures.PoolMgrMock, nil)
 	s.Fixtures.PoolMgrMock.On("Status").Return(params.PoolManagerStatus{IsRunning: true}, nil)
 
 	param := s.Fixtures.UpdateRepoParams
@@ -355,21 +351,21 @@ func (s *OrgTestSuite) TestUpdateOrganizationInvalidCreds() {
 }
 
 func (s *OrgTestSuite) TestUpdateOrganizationPoolMgrFailed() {
-	s.Fixtures.PoolMgrCtrlMock.On("UpdateOrgPoolManager", s.Fixtures.AdminContext, mock.AnythingOfType("params.Organization")).Return(s.Fixtures.PoolMgrMock, s.Fixtures.ErrMock)
+	s.Fixtures.PoolMgrCtrlMock.On("GetOrgPoolManager", mock.AnythingOfType("params.Organization")).Return(s.Fixtures.PoolMgrMock, s.Fixtures.ErrMock)
 
 	_, err := s.Runner.UpdateOrganization(s.Fixtures.AdminContext, s.Fixtures.StoreOrgs["test-org-1"].ID, s.Fixtures.UpdateRepoParams)
 
 	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
-	s.Require().Equal(fmt.Sprintf("updating org pool manager: %s", s.Fixtures.ErrMock.Error()), err.Error())
+	s.Require().Equal(fmt.Sprintf("failed to get org pool manager: %s", s.Fixtures.ErrMock.Error()), err.Error())
 }
 
 func (s *OrgTestSuite) TestUpdateOrganizationCreateOrgPoolMgrFailed() {
-	s.Fixtures.PoolMgrCtrlMock.On("UpdateOrgPoolManager", s.Fixtures.AdminContext, mock.AnythingOfType("params.Organization")).Return(s.Fixtures.PoolMgrMock, s.Fixtures.ErrMock)
+	s.Fixtures.PoolMgrCtrlMock.On("GetOrgPoolManager", mock.AnythingOfType("params.Organization")).Return(s.Fixtures.PoolMgrMock, s.Fixtures.ErrMock)
 
 	_, err := s.Runner.UpdateOrganization(s.Fixtures.AdminContext, s.Fixtures.StoreOrgs["test-org-1"].ID, s.Fixtures.UpdateRepoParams)
 
 	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
-	s.Require().Equal(fmt.Sprintf("updating org pool manager: %s", s.Fixtures.ErrMock.Error()), err.Error())
+	s.Require().Equal(fmt.Sprintf("failed to get org pool manager: %s", s.Fixtures.ErrMock.Error()), err.Error())
 }
 
 func (s *OrgTestSuite) TestCreateOrgPool() {

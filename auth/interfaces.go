@@ -14,9 +14,17 @@
 
 package auth
 
-import "net/http"
+import (
+	"net/http"
+
+	"github.com/cloudbase/garm/params"
+)
 
 // Middleware defines an authentication middleware
 type Middleware interface {
 	Middleware(next http.Handler) http.Handler
+}
+
+type InstanceTokenGetter interface {
+	NewInstanceJWTToken(instance params.Instance, entity string, poolType params.GithubEntityType, ttlMinutes uint) (string, error)
 }
