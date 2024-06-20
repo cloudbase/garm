@@ -158,7 +158,7 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 			// This job is new to us. Check if we have a pool that can handle it.
 			potentialPools, err := r.store.FindPoolsMatchingAllTags(r.ctx, r.entity.EntityType, r.entity.ID, jobParams.Labels)
 			if err != nil {
-				slog.With(slog.Any("error", err)).ErrorContext(
+				slog.With(slog.Any("error", err)).WarnContext(
 					r.ctx, "failed to find pools matching tags; not recording job",
 					"requested_tags", strings.Join(jobParams.Labels, ", "))
 				return
