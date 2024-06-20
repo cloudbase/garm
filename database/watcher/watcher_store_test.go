@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/suite"
 
 	commonParams "github.com/cloudbase/garm-provider-common/params"
@@ -18,6 +19,121 @@ type WatcherStoreTestSuite struct {
 
 	store common.Store
 	ctx   context.Context
+}
+
+func (s *WatcherStoreTestSuite) TestJobWatcher() {
+	consumer, err := watcher.RegisterConsumer(
+		s.ctx, "job-test",
+		watcher.WithEntityTypeFilter(common.JobEntityType),
+		watcher.WithAny(
+			watcher.WithOperationTypeFilter(common.CreateOperation),
+			watcher.WithOperationTypeFilter(common.UpdateOperation),
+			watcher.WithOperationTypeFilter(common.DeleteOperation)),
+	)
+	s.Require().NoError(err)
+	s.Require().NotNil(consumer)
+	s.T().Cleanup(func() { consumer.Close() })
+
+	jobParams := params.Job{
+		ID:         1,
+		RunID:      2,
+		Action:     "test-action",
+		Conclusion: "started",
+		Status:     "in_progress",
+		Name:       "test-job",
+	}
+
+	job, err := s.store.CreateOrUpdateJob(s.ctx, jobParams)
+	s.Require().NoError(err)
+
+	select {
+	case event := <-consumer.Watch():
+		s.Require().Equal(common.ChangePayload{
+			EntityType: common.JobEntityType,
+			Operation:  common.CreateOperation,
+			Payload:    job,
+		}, event)
+	case <-time.After(1 * time.Second):
+		s.T().Fatal("expected payload not received")
+	}
+
+	jobParams.Conclusion = "success"
+	updatedJob, err := s.store.CreateOrUpdateJob(s.ctx, jobParams)
+	s.Require().NoError(err)
+
+	select {
+	case event := <-consumer.Watch():
+		s.Require().Equal(common.ChangePayload{
+			EntityType: common.JobEntityType,
+			Operation:  common.UpdateOperation,
+			Payload:    updatedJob,
+		}, event)
+	case <-time.After(1 * time.Second):
+		s.T().Fatal("expected payload not received")
+	}
+
+	entityID, err := uuid.NewUUID()
+	s.Require().NoError(err)
+
+	err = s.store.LockJob(s.ctx, updatedJob.ID, entityID.String())
+	s.Require().NoError(err)
+
+	select {
+	case event := <-consumer.Watch():
+		s.Require().Equal(event.Operation, common.UpdateOperation)
+		s.Require().Equal(event.EntityType, common.JobEntityType)
+
+		job, ok := event.Payload.(params.Job)
+		s.Require().True(ok)
+		s.Require().Equal(job.ID, updatedJob.ID)
+		s.Require().Equal(job.LockedBy, entityID)
+	case <-time.After(1 * time.Second):
+		s.T().Fatal("expected payload not received")
+	}
+
+	err = s.store.UnlockJob(s.ctx, updatedJob.ID, entityID.String())
+	s.Require().NoError(err)
+
+	select {
+	case event := <-consumer.Watch():
+		s.Require().Equal(event.Operation, common.UpdateOperation)
+		s.Require().Equal(event.EntityType, common.JobEntityType)
+
+		job, ok := event.Payload.(params.Job)
+		s.Require().True(ok)
+		s.Require().Equal(job.ID, updatedJob.ID)
+		s.Require().Equal(job.LockedBy, uuid.Nil)
+	case <-time.After(1 * time.Second):
+		s.T().Fatal("expected payload not received")
+	}
+
+	jobParams.Status = "queued"
+	jobParams.LockedBy = entityID
+
+	updatedJob, err = s.store.CreateOrUpdateJob(s.ctx, jobParams)
+	s.Require().NoError(err)
+	select {
+	case <-consumer.Watch():
+		// throw away event.
+	case <-time.After(1 * time.Second):
+		s.T().Fatal("unexpected payload received")
+	}
+
+	err = s.store.BreakLockJobIsQueued(s.ctx, updatedJob.ID)
+	s.Require().NoError(err)
+
+	select {
+	case event := <-consumer.Watch():
+		s.Require().Equal(event.Operation, common.UpdateOperation)
+		s.Require().Equal(event.EntityType, common.JobEntityType)
+
+		job, ok := event.Payload.(params.Job)
+		s.Require().True(ok)
+		s.Require().Equal(job.ID, updatedJob.ID)
+		s.Require().Equal(job.LockedBy, uuid.Nil)
+	case <-time.After(1 * time.Second):
+		s.T().Fatal("expected payload not received")
+	}
 }
 
 func (s *WatcherStoreTestSuite) TestInstanceWatcher() {
