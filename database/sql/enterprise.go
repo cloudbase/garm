@@ -16,6 +16,7 @@ package sql
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
@@ -23,10 +24,11 @@ import (
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm-provider-common/util"
+	"github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/params"
 )
 
-func (s *sqlDatabase) CreateEnterprise(ctx context.Context, name, credentialsName, webhookSecret string, poolBalancerType params.PoolBalancerType) (params.Enterprise, error) {
+func (s *sqlDatabase) CreateEnterprise(ctx context.Context, name, credentialsName, webhookSecret string, poolBalancerType params.PoolBalancerType) (paramEnt params.Enterprise, err error) {
 	if webhookSecret == "" {
 		return params.Enterprise{}, errors.New("creating enterprise: missing secret")
 	}
@@ -34,6 +36,12 @@ func (s *sqlDatabase) CreateEnterprise(ctx context.Context, name, credentialsNam
 	if err != nil {
 		return params.Enterprise{}, errors.Wrap(err, "encoding secret")
 	}
+
+	defer func() {
+		if err == nil {
+			s.sendNotify(common.EnterpriseEntityType, common.CreateOperation, paramEnt)
+		}
+	}()
 	newEnterprise := Enterprise{
 		Name:             name,
 		WebhookSecret:    secret,
@@ -66,12 +74,12 @@ func (s *sqlDatabase) CreateEnterprise(ctx context.Context, name, credentialsNam
 		return params.Enterprise{}, errors.Wrap(err, "creating enterprise")
 	}
 
-	param, err := s.sqlToCommonEnterprise(newEnterprise, true)
+	paramEnt, err = s.sqlToCommonEnterprise(newEnterprise, true)
 	if err != nil {
 		return params.Enterprise{}, errors.Wrap(err, "creating enterprise")
 	}
 
-	return param, nil
+	return paramEnt, nil
 }
 
 func (s *sqlDatabase) GetEnterprise(ctx context.Context, name string) (params.Enterprise, error) {
@@ -124,10 +132,21 @@ func (s *sqlDatabase) ListEnterprises(_ context.Context) ([]params.Enterprise, e
 }
 
 func (s *sqlDatabase) DeleteEnterprise(ctx context.Context, enterpriseID string) error {
-	enterprise, err := s.getEnterpriseByID(ctx, s.conn, enterpriseID)
+	enterprise, err := s.getEnterpriseByID(ctx, s.conn, enterpriseID, "Endpoint", "Credentials")
 	if err != nil {
 		return errors.Wrap(err, "fetching enterprise")
 	}
+
+	defer func(ent Enterprise) {
+		if err == nil {
+			asParams, innerErr := s.sqlToCommonEnterprise(ent, true)
+			if innerErr == nil {
+				s.sendNotify(common.EnterpriseEntityType, common.DeleteOperation, asParams)
+			} else {
+				slog.With(slog.Any("error", innerErr)).ErrorContext(ctx, "error sending delete notification", "enterprise", enterpriseID)
+			}
+		}
+	}(enterprise)
 
 	q := s.conn.Unscoped().Delete(&enterprise)
 	if q.Error != nil && !errors.Is(q.Error, gorm.ErrRecordNotFound) {
@@ -137,10 +156,15 @@ func (s *sqlDatabase) DeleteEnterprise(ctx context.Context, enterpriseID string)
 	return nil
 }
 
-func (s *sqlDatabase) UpdateEnterprise(ctx context.Context, enterpriseID string, param params.UpdateEntityParams) (params.Enterprise, error) {
+func (s *sqlDatabase) UpdateEnterprise(ctx context.Context, enterpriseID string, param params.UpdateEntityParams) (newParams params.Enterprise, err error) {
+	defer func() {
+		if err == nil {
+			s.sendNotify(common.EnterpriseEntityType, common.UpdateOperation, newParams)
+		}
+	}()
 	var enterprise Enterprise
 	var creds GithubCredentials
-	err := s.conn.Transaction(func(tx *gorm.DB) error {
+	err = s.conn.Transaction(func(tx *gorm.DB) error {
 		var err error
 		enterprise, err = s.getEnterpriseByID(ctx, tx, enterpriseID)
 		if err != nil {
@@ -196,7 +220,7 @@ func (s *sqlDatabase) UpdateEnterprise(ctx context.Context, enterpriseID string,
 	if err != nil {
 		return params.Enterprise{}, errors.Wrap(err, "updating enterprise")
 	}
-	newParams, err := s.sqlToCommonEnterprise(enterprise, true)
+	newParams, err = s.sqlToCommonEnterprise(enterprise, true)
 	if err != nil {
 		return params.Enterprise{}, errors.Wrap(err, "updating enterprise")
 	}

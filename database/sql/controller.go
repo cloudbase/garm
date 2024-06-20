@@ -22,6 +22,7 @@ import (
 	"gorm.io/gorm"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	"github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/params"
 )
 
@@ -82,38 +83,49 @@ func (s *sqlDatabase) InitController() (params.ControllerInfo, error) {
 	}, nil
 }
 
-func (s *sqlDatabase) UpdateController(info params.UpdateControllerParams) (params.ControllerInfo, error) {
-	var dbInfo ControllerInfo
-	q := s.conn.Model(&ControllerInfo{}).First(&dbInfo)
-	if q.Error != nil {
-		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
-			return params.ControllerInfo{}, errors.Wrap(runnerErrors.ErrNotFound, "fetching controller info")
+func (s *sqlDatabase) UpdateController(info params.UpdateControllerParams) (paramInfo params.ControllerInfo, err error) {
+	defer func() {
+		if err == nil {
+			s.sendNotify(common.ControllerEntityType, common.UpdateOperation, paramInfo)
 		}
-		return params.ControllerInfo{}, errors.Wrap(q.Error, "fetching controller info")
+	}()
+	var dbInfo ControllerInfo
+	err = s.conn.Transaction(func(tx *gorm.DB) error {
+		q := tx.Model(&ControllerInfo{}).First(&dbInfo)
+		if q.Error != nil {
+			if errors.Is(q.Error, gorm.ErrRecordNotFound) {
+				return errors.Wrap(runnerErrors.ErrNotFound, "fetching controller info")
+			}
+			return errors.Wrap(q.Error, "fetching controller info")
+		}
+
+		if err := info.Validate(); err != nil {
+			return errors.Wrap(err, "validating controller info")
+		}
+
+		if info.MetadataURL != nil {
+			dbInfo.MetadataURL = *info.MetadataURL
+		}
+
+		if info.CallbackURL != nil {
+			dbInfo.CallbackURL = *info.CallbackURL
+		}
+
+		if info.WebhookURL != nil {
+			dbInfo.WebhookBaseURL = *info.WebhookURL
+		}
+
+		q = tx.Save(&dbInfo)
+		if q.Error != nil {
+			return errors.Wrap(q.Error, "saving controller info")
+		}
+		return nil
+	})
+	if err != nil {
+		return params.ControllerInfo{}, errors.Wrap(err, "updating controller info")
 	}
 
-	if err := info.Validate(); err != nil {
-		return params.ControllerInfo{}, errors.Wrap(err, "validating controller info")
-	}
-
-	if info.MetadataURL != nil {
-		dbInfo.MetadataURL = *info.MetadataURL
-	}
-
-	if info.CallbackURL != nil {
-		dbInfo.CallbackURL = *info.CallbackURL
-	}
-
-	if info.WebhookURL != nil {
-		dbInfo.WebhookBaseURL = *info.WebhookURL
-	}
-
-	q = s.conn.Save(&dbInfo)
-	if q.Error != nil {
-		return params.ControllerInfo{}, errors.Wrap(q.Error, "saving controller info")
-	}
-
-	paramInfo, err := dbControllerToCommonController(dbInfo)
+	paramInfo, err = dbControllerToCommonController(dbInfo)
 	if err != nil {
 		return params.ControllerInfo{}, errors.Wrap(err, "converting controller info")
 	}

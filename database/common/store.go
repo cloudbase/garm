@@ -119,7 +119,7 @@ type JobsStore interface {
 	DeleteCompletedJobs(ctx context.Context) error
 }
 
-type EntityPools interface {
+type EntityPoolStore interface {
 	CreateEntityPool(ctx context.Context, entity params.GithubEntity, param params.CreatePoolParams) (params.Pool, error)
 	GetEntityPool(ctx context.Context, entity params.GithubEntity, poolID string) (params.Pool, error)
 	DeleteEntityPool(ctx context.Context, entity params.GithubEntity, poolID string) error
@@ -144,8 +144,11 @@ type Store interface {
 	UserStore
 	InstanceStore
 	JobsStore
-	EntityPools
 	GithubEndpointStore
 	GithubCredentialsStore
 	ControllerStore
+	EntityPoolStore
+
+	ControllerInfo() (params.ControllerInfo, error)
+	InitController() (params.ControllerInfo, error)
 }

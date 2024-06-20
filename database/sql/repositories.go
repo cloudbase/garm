@@ -17,6 +17,7 @@ package sql
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
@@ -24,10 +25,17 @@ import (
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm-provider-common/util"
+	"github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/params"
 )
 
-func (s *sqlDatabase) CreateRepository(ctx context.Context, owner, name, credentialsName, webhookSecret string, poolBalancerType params.PoolBalancerType) (params.Repository, error) {
+func (s *sqlDatabase) CreateRepository(ctx context.Context, owner, name, credentialsName, webhookSecret string, poolBalancerType params.PoolBalancerType) (param params.Repository, err error) {
+	defer func() {
+		if err == nil {
+			s.sendNotify(common.RepositoryEntityType, common.CreateOperation, param)
+		}
+	}()
+
 	if webhookSecret == "" {
 		return params.Repository{}, errors.New("creating repo: missing secret")
 	}
@@ -68,7 +76,7 @@ func (s *sqlDatabase) CreateRepository(ctx context.Context, owner, name, credent
 		return params.Repository{}, errors.Wrap(err, "creating repository")
 	}
 
-	param, err := s.sqlToCommonRepository(newRepo, true)
+	param, err = s.sqlToCommonRepository(newRepo, true)
 	if err != nil {
 		return params.Repository{}, errors.Wrap(err, "creating repository")
 	}
@@ -113,11 +121,22 @@ func (s *sqlDatabase) ListRepositories(_ context.Context) ([]params.Repository, 
 	return ret, nil
 }
 
-func (s *sqlDatabase) DeleteRepository(ctx context.Context, repoID string) error {
-	repo, err := s.getRepoByID(ctx, s.conn, repoID)
+func (s *sqlDatabase) DeleteRepository(ctx context.Context, repoID string) (err error) {
+	repo, err := s.getRepoByID(ctx, s.conn, repoID, "Endpoint", "Credentials")
 	if err != nil {
 		return errors.Wrap(err, "fetching repo")
 	}
+
+	defer func(repo Repository) {
+		if err == nil {
+			asParam, innerErr := s.sqlToCommonRepository(repo, true)
+			if innerErr == nil {
+				s.sendNotify(common.RepositoryEntityType, common.DeleteOperation, asParam)
+			} else {
+				slog.With(slog.Any("error", innerErr)).ErrorContext(ctx, "error sending delete notification", "repo", repoID)
+			}
+		}
+	}(repo)
 
 	q := s.conn.Unscoped().Delete(&repo)
 	if q.Error != nil && !errors.Is(q.Error, gorm.ErrRecordNotFound) {
@@ -127,10 +146,15 @@ func (s *sqlDatabase) DeleteRepository(ctx context.Context, repoID string) error
 	return nil
 }
 
-func (s *sqlDatabase) UpdateRepository(ctx context.Context, repoID string, param params.UpdateEntityParams) (params.Repository, error) {
+func (s *sqlDatabase) UpdateRepository(ctx context.Context, repoID string, param params.UpdateEntityParams) (newParams params.Repository, err error) {
+	defer func() {
+		if err == nil {
+			s.sendNotify(common.RepositoryEntityType, common.UpdateOperation, newParams)
+		}
+	}()
 	var repo Repository
 	var creds GithubCredentials
-	err := s.conn.Transaction(func(tx *gorm.DB) error {
+	err = s.conn.Transaction(func(tx *gorm.DB) error {
 		var err error
 		repo, err = s.getRepoByID(ctx, tx, repoID)
 		if err != nil {
@@ -186,7 +210,8 @@ func (s *sqlDatabase) UpdateRepository(ctx context.Context, repoID string, param
 	if err != nil {
 		return params.Repository{}, errors.Wrap(err, "updating enterprise")
 	}
-	newParams, err := s.sqlToCommonRepository(repo, true)
+
+	newParams, err = s.sqlToCommonRepository(repo, true)
 	if err != nil {
 		return params.Repository{}, errors.Wrap(err, "saving repo")
 	}

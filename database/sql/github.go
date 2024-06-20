@@ -24,6 +24,7 @@ import (
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm-provider-common/util"
 	"github.com/cloudbase/garm/auth"
+	"github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/params"
 )
 
@@ -109,9 +110,14 @@ func getUIDFromContext(ctx context.Context) (uuid.UUID, error) {
 	return asUUID, nil
 }
 
-func (s *sqlDatabase) CreateGithubEndpoint(_ context.Context, param params.CreateGithubEndpointParams) (params.GithubEndpoint, error) {
+func (s *sqlDatabase) CreateGithubEndpoint(_ context.Context, param params.CreateGithubEndpointParams) (ghEndpoint params.GithubEndpoint, err error) {
+	defer func() {
+		if err == nil {
+			s.sendNotify(common.GithubEndpointEntityType, common.CreateOperation, ghEndpoint)
+		}
+	}()
 	var endpoint GithubEndpoint
-	err := s.conn.Transaction(func(tx *gorm.DB) error {
+	err = s.conn.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("name = ?", param.Name).First(&endpoint).Error; err == nil {
 			return errors.Wrap(runnerErrors.ErrDuplicateEntity, "github endpoint already exists")
 		}
@@ -132,7 +138,11 @@ func (s *sqlDatabase) CreateGithubEndpoint(_ context.Context, param params.Creat
 	if err != nil {
 		return params.GithubEndpoint{}, errors.Wrap(err, "creating github endpoint")
 	}
-	return s.sqlToCommonGithubEndpoint(endpoint)
+	ghEndpoint, err = s.sqlToCommonGithubEndpoint(endpoint)
+	if err != nil {
+		return params.GithubEndpoint{}, errors.Wrap(err, "converting github endpoint")
+	}
+	return ghEndpoint, nil
 }
 
 func (s *sqlDatabase) ListGithubEndpoints(_ context.Context) ([]params.GithubEndpoint, error) {
@@ -153,12 +163,18 @@ func (s *sqlDatabase) ListGithubEndpoints(_ context.Context) ([]params.GithubEnd
 	return ret, nil
 }
 
-func (s *sqlDatabase) UpdateGithubEndpoint(_ context.Context, name string, param params.UpdateGithubEndpointParams) (params.GithubEndpoint, error) {
+func (s *sqlDatabase) UpdateGithubEndpoint(_ context.Context, name string, param params.UpdateGithubEndpointParams) (ghEndpoint params.GithubEndpoint, err error) {
 	if name == defaultGithubEndpoint {
 		return params.GithubEndpoint{}, errors.Wrap(runnerErrors.ErrBadRequest, "cannot update default github endpoint")
 	}
+
+	defer func() {
+		if err == nil {
+			s.sendNotify(common.GithubEndpointEntityType, common.UpdateOperation, ghEndpoint)
+		}
+	}()
 	var endpoint GithubEndpoint
-	err := s.conn.Transaction(func(tx *gorm.DB) error {
+	err = s.conn.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("name = ?", name).First(&endpoint).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return errors.Wrap(runnerErrors.ErrNotFound, "github endpoint not found")
@@ -194,7 +210,11 @@ func (s *sqlDatabase) UpdateGithubEndpoint(_ context.Context, name string, param
 	if err != nil {
 		return params.GithubEndpoint{}, errors.Wrap(err, "updating github endpoint")
 	}
-	return s.sqlToCommonGithubEndpoint(endpoint)
+	ghEndpoint, err = s.sqlToCommonGithubEndpoint(endpoint)
+	if err != nil {
+		return params.GithubEndpoint{}, errors.Wrap(err, "converting github endpoint")
+	}
+	return ghEndpoint, nil
 }
 
 func (s *sqlDatabase) GetGithubEndpoint(_ context.Context, name string) (params.GithubEndpoint, error) {
@@ -211,11 +231,17 @@ func (s *sqlDatabase) GetGithubEndpoint(_ context.Context, name string) (params.
 	return s.sqlToCommonGithubEndpoint(endpoint)
 }
 
-func (s *sqlDatabase) DeleteGithubEndpoint(_ context.Context, name string) error {
+func (s *sqlDatabase) DeleteGithubEndpoint(_ context.Context, name string) (err error) {
 	if name == defaultGithubEndpoint {
 		return errors.Wrap(runnerErrors.ErrBadRequest, "cannot delete default github endpoint")
 	}
-	err := s.conn.Transaction(func(tx *gorm.DB) error {
+
+	defer func() {
+		if err == nil {
+			s.sendNotify(common.GithubEndpointEntityType, common.DeleteOperation, params.GithubEndpoint{Name: name})
+		}
+	}()
+	err = s.conn.Transaction(func(tx *gorm.DB) error {
 		var endpoint GithubEndpoint
 		if err := tx.Where("name = ?", name).First(&endpoint).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -267,7 +293,7 @@ func (s *sqlDatabase) DeleteGithubEndpoint(_ context.Context, name string) error
 	return nil
 }
 
-func (s *sqlDatabase) CreateGithubCredentials(ctx context.Context, param params.CreateGithubCredentialsParams) (params.GithubCredentials, error) {
+func (s *sqlDatabase) CreateGithubCredentials(ctx context.Context, param params.CreateGithubCredentialsParams) (ghCreds params.GithubCredentials, err error) {
 	userID, err := getUIDFromContext(ctx)
 	if err != nil {
 		return params.GithubCredentials{}, errors.Wrap(err, "creating github credentials")
@@ -275,6 +301,12 @@ func (s *sqlDatabase) CreateGithubCredentials(ctx context.Context, param params.
 	if param.Endpoint == "" {
 		return params.GithubCredentials{}, errors.Wrap(runnerErrors.ErrBadRequest, "endpoint name is required")
 	}
+
+	defer func() {
+		if err == nil {
+			s.sendNotify(common.GithubCredentialsEntityType, common.CreateOperation, ghCreds)
+		}
+	}()
 	var creds GithubCredentials
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
 		var endpoint GithubEndpoint
@@ -323,7 +355,11 @@ func (s *sqlDatabase) CreateGithubCredentials(ctx context.Context, param params.
 	if err != nil {
 		return params.GithubCredentials{}, errors.Wrap(err, "creating github credentials")
 	}
-	return s.sqlToCommonGithubCredentials(creds)
+	ghCreds, err = s.sqlToCommonGithubCredentials(creds)
+	if err != nil {
+		return params.GithubCredentials{}, errors.Wrap(err, "converting github credentials")
+	}
+	return ghCreds, nil
 }
 
 func (s *sqlDatabase) getGithubCredentialsByName(ctx context.Context, tx *gorm.DB, name string, detailed bool) (GithubCredentials, error) {
@@ -420,9 +456,14 @@ func (s *sqlDatabase) ListGithubCredentials(ctx context.Context) ([]params.Githu
 	return ret, nil
 }
 
-func (s *sqlDatabase) UpdateGithubCredentials(ctx context.Context, id uint, param params.UpdateGithubCredentialsParams) (params.GithubCredentials, error) {
+func (s *sqlDatabase) UpdateGithubCredentials(ctx context.Context, id uint, param params.UpdateGithubCredentialsParams) (ghCreds params.GithubCredentials, err error) {
+	defer func() {
+		if err == nil {
+			s.sendNotify(common.GithubCredentialsEntityType, common.UpdateOperation, ghCreds)
+		}
+	}()
 	var creds GithubCredentials
-	err := s.conn.Transaction(func(tx *gorm.DB) error {
+	err = s.conn.Transaction(func(tx *gorm.DB) error {
 		q := tx.Preload("Endpoint")
 		if !auth.IsAdmin(ctx) {
 			userID, err := getUIDFromContext(ctx)
@@ -486,11 +527,22 @@ func (s *sqlDatabase) UpdateGithubCredentials(ctx context.Context, id uint, para
 	if err != nil {
 		return params.GithubCredentials{}, errors.Wrap(err, "updating github credentials")
 	}
-	return s.sqlToCommonGithubCredentials(creds)
+
+	ghCreds, err = s.sqlToCommonGithubCredentials(creds)
+	if err != nil {
+		return params.GithubCredentials{}, errors.Wrap(err, "converting github credentials")
+	}
+	return ghCreds, nil
 }
 
-func (s *sqlDatabase) DeleteGithubCredentials(ctx context.Context, id uint) error {
-	err := s.conn.Transaction(func(tx *gorm.DB) error {
+func (s *sqlDatabase) DeleteGithubCredentials(ctx context.Context, id uint) (err error) {
+	var name string
+	defer func() {
+		if err == nil {
+			s.sendNotify(common.GithubCredentialsEntityType, common.DeleteOperation, params.GithubCredentials{ID: id, Name: name})
+		}
+	}()
+	err = s.conn.Transaction(func(tx *gorm.DB) error {
 		q := tx.Where("id = ?", id).
 			Preload("Repositories").
 			Preload("Organizations").
@@ -511,6 +563,8 @@ func (s *sqlDatabase) DeleteGithubCredentials(ctx context.Context, id uint) erro
 			}
 			return errors.Wrap(err, "fetching github credentials")
 		}
+		name = creds.Name
+
 		if len(creds.Repositories) > 0 {
 			return errors.Wrap(runnerErrors.ErrBadRequest, "cannot delete credentials with repositories")
 		}

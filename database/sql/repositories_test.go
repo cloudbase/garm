@@ -30,6 +30,7 @@ import (
 
 	"github.com/cloudbase/garm/auth"
 	dbCommon "github.com/cloudbase/garm/database/common"
+	"github.com/cloudbase/garm/database/watcher"
 	garmTesting "github.com/cloudbase/garm/internal/testing"
 	"github.com/cloudbase/garm/params"
 )
@@ -827,5 +828,11 @@ func (s *RepoTestSuite) TestUpdateRepositoryPoolInvalidRepoID() {
 
 func TestRepoTestSuite(t *testing.T) {
 	t.Parallel()
+
+	watcher.SetWatcher(&garmTesting.MockWatcher{})
 	suite.Run(t, new(RepoTestSuite))
+}
+
+func init() {
+	watcher.SetWatcher(&garmTesting.MockWatcher{})
 }

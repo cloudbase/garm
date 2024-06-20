@@ -31,6 +31,7 @@ import (
 	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/config"
 	"github.com/cloudbase/garm/database/common"
+	"github.com/cloudbase/garm/database/watcher"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/util/appdefaults"
 )
@@ -68,10 +69,15 @@ func NewSQLDatabase(ctx context.Context, cfg config.Database) (common.Store, err
 	if err != nil {
 		return nil, errors.Wrap(err, "creating DB connection")
 	}
+	producer, err := watcher.RegisterProducer(ctx, "sql")
+	if err != nil {
+		return nil, errors.Wrap(err, "registering producer")
+	}
 	db := &sqlDatabase{
-		conn: conn,
-		ctx:  ctx,
-		cfg:  cfg,
+		conn:     conn,
+		ctx:      ctx,
+		cfg:      cfg,
+		producer: producer,
 	}
 
 	if err := db.migrateDB(); err != nil {
@@ -81,9 +87,10 @@ func NewSQLDatabase(ctx context.Context, cfg config.Database) (common.Store, err
 }
 
 type sqlDatabase struct {
-	conn *gorm.DB
-	ctx  context.Context
-	cfg  config.Database
+	conn     *gorm.DB
+	ctx      context.Context
+	cfg      config.Database
+	producer common.Producer
 }
 
 var renameTemplate = `
