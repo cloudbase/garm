@@ -45,6 +45,10 @@ type RepoTestFixtures struct {
 	SQLMock              sqlmock.Sqlmock
 }
 
+func init() {
+	watcher.SetWatcher(&garmTesting.MockWatcher{})
+}
+
 type RepoTestSuite struct {
 	suite.Suite
 	Store          dbCommon.Store
@@ -829,10 +833,5 @@ func (s *RepoTestSuite) TestUpdateRepositoryPoolInvalidRepoID() {
 func TestRepoTestSuite(t *testing.T) {
 	t.Parallel()
 
-	watcher.SetWatcher(&garmTesting.MockWatcher{})
 	suite.Run(t, new(RepoTestSuite))
-}
-
-func init() {
-	watcher.SetWatcher(&garmTesting.MockWatcher{})
 }
