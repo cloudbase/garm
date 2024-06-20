@@ -33,6 +33,7 @@ func (s *WatcherStoreTestSuite) TestJobWatcher() {
 	s.Require().NoError(err)
 	s.Require().NotNil(consumer)
 	s.T().Cleanup(func() { consumer.Close() })
+	consumeEvents(consumer)
 
 	jobParams := params.Job{
 		ID:         1,
@@ -112,12 +113,8 @@ func (s *WatcherStoreTestSuite) TestJobWatcher() {
 
 	updatedJob, err = s.store.CreateOrUpdateJob(s.ctx, jobParams)
 	s.Require().NoError(err)
-	select {
-	case <-consumer.Watch():
-		// throw away event.
-	case <-time.After(1 * time.Second):
-		s.T().Fatal("unexpected payload received")
-	}
+	// We don't care about the update event here.
+	consumeEvents(consumer)
 
 	err = s.store.BreakLockJobIsQueued(s.ctx, updatedJob.ID)
 	s.Require().NoError(err)
@@ -130,7 +127,7 @@ func (s *WatcherStoreTestSuite) TestJobWatcher() {
 		job, ok := event.Payload.(params.Job)
 		s.Require().True(ok)
 		s.Require().Equal(job.ID, updatedJob.ID)
-		s.Require().Equal(job.LockedBy, uuid.Nil)
+		s.Require().Equal(uuid.Nil, job.LockedBy)
 	case <-time.After(1 * time.Second):
 		s.T().Fatal("expected payload not received")
 	}
@@ -148,6 +145,7 @@ func (s *WatcherStoreTestSuite) TestInstanceWatcher() {
 	s.Require().NoError(err)
 	s.Require().NotNil(consumer)
 	s.T().Cleanup(func() { consumer.Close() })
+	consumeEvents(consumer)
 
 	ep := garmTesting.CreateDefaultGithubEndpoint(s.ctx, s.store, s.T())
 	creds := garmTesting.CreateTestGithubCredentials(s.ctx, "test-creds", s.store, s.T(), ep)
@@ -247,6 +245,7 @@ func (s *WatcherStoreTestSuite) TestPoolWatcher() {
 	s.Require().NoError(err)
 	s.Require().NotNil(consumer)
 	s.T().Cleanup(func() { consumer.Close() })
+	consumeEvents(consumer)
 
 	ep := garmTesting.CreateDefaultGithubEndpoint(s.ctx, s.store, s.T())
 	creds := garmTesting.CreateTestGithubCredentials(s.ctx, "test-creds", s.store, s.T(), ep)
@@ -360,6 +359,7 @@ func (s *WatcherStoreTestSuite) TestControllerWatcher() {
 	s.Require().NoError(err)
 	s.Require().NotNil(consumer)
 	s.T().Cleanup(func() { consumer.Close() })
+	consumeEvents(consumer)
 
 	metadataURL := "http://metadata.example.com"
 	updateParams := params.UpdateControllerParams{
@@ -394,6 +394,7 @@ func (s *WatcherStoreTestSuite) TestEnterpriseWatcher() {
 	s.Require().NoError(err)
 	s.Require().NotNil(consumer)
 	s.T().Cleanup(func() { consumer.Close() })
+	consumeEvents(consumer)
 
 	ep := garmTesting.CreateDefaultGithubEndpoint(s.ctx, s.store, s.T())
 	creds := garmTesting.CreateTestGithubCredentials(s.ctx, "test-creds", s.store, s.T(), ep)
@@ -460,6 +461,7 @@ func (s *WatcherStoreTestSuite) TestOrgWatcher() {
 	s.Require().NoError(err)
 	s.Require().NotNil(consumer)
 	s.T().Cleanup(func() { consumer.Close() })
+	consumeEvents(consumer)
 
 	ep := garmTesting.CreateDefaultGithubEndpoint(s.ctx, s.store, s.T())
 	creds := garmTesting.CreateTestGithubCredentials(s.ctx, "test-creds", s.store, s.T(), ep)
@@ -526,6 +528,7 @@ func (s *WatcherStoreTestSuite) TestRepoWatcher() {
 	s.Require().NoError(err)
 	s.Require().NotNil(consumer)
 	s.T().Cleanup(func() { consumer.Close() })
+	consumeEvents(consumer)
 
 	ep := garmTesting.CreateDefaultGithubEndpoint(s.ctx, s.store, s.T())
 	creds := garmTesting.CreateTestGithubCredentials(s.ctx, "test-creds", s.store, s.T(), ep)
@@ -593,6 +596,7 @@ func (s *WatcherStoreTestSuite) TestGithubCredentialsWatcher() {
 	s.Require().NoError(err)
 	s.Require().NotNil(consumer)
 	s.T().Cleanup(func() { consumer.Close() })
+	consumeEvents(consumer)
 
 	ghCredParams := params.CreateGithubCredentialsParams{
 		Name:        "test-creds",
@@ -667,6 +671,7 @@ func (s *WatcherStoreTestSuite) TestGithubEndpointWatcher() {
 	s.Require().NoError(err)
 	s.Require().NotNil(consumer)
 	s.T().Cleanup(func() { consumer.Close() })
+	consumeEvents(consumer)
 
 	ghEpParams := params.CreateGithubEndpointParams{
 		Name:          "test",
@@ -724,5 +729,17 @@ func (s *WatcherStoreTestSuite) TestGithubEndpointWatcher() {
 		}, event)
 	case <-time.After(1 * time.Second):
 		s.T().Fatal("expected payload not received")
+	}
+}
+
+func consumeEvents(consumer common.Consumer) {
+consume:
+	for {
+		select {
+		case <-consumer.Watch():
+			// throw away event.
+		case <-time.After(100 * time.Millisecond):
+			break consume
+		}
 	}
 }
