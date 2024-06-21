@@ -132,7 +132,7 @@ func (s *sqlDatabase) ListEnterprises(_ context.Context) ([]params.Enterprise, e
 }
 
 func (s *sqlDatabase) DeleteEnterprise(ctx context.Context, enterpriseID string) error {
-	enterprise, err := s.getEnterpriseByID(ctx, s.conn, enterpriseID, "Endpoint", "Credentials")
+	enterprise, err := s.getEnterpriseByID(ctx, s.conn, enterpriseID, "Endpoint", "Credentials", "Credentials.Endpoint")
 	if err != nil {
 		return errors.Wrap(err, "fetching enterprise")
 	}
@@ -206,17 +206,13 @@ func (s *sqlDatabase) UpdateEnterprise(ctx context.Context, enterpriseID string,
 			return errors.Wrap(q.Error, "saving enterprise")
 		}
 
-		if creds.ID != 0 {
-			enterprise.Credentials = creds
-		}
-
 		return nil
 	})
 	if err != nil {
 		return params.Enterprise{}, errors.Wrap(err, "updating enterprise")
 	}
 
-	enterprise, err = s.getEnterpriseByID(ctx, s.conn, enterpriseID, "Endpoint", "Credentials")
+	enterprise, err = s.getEnterpriseByID(ctx, s.conn, enterpriseID, "Endpoint", "Credentials", "Credentials.Endpoint")
 	if err != nil {
 		return params.Enterprise{}, errors.Wrap(err, "updating enterprise")
 	}

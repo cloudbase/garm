@@ -123,7 +123,7 @@ func (s *sqlDatabase) ListOrganizations(_ context.Context) ([]params.Organizatio
 }
 
 func (s *sqlDatabase) DeleteOrganization(ctx context.Context, orgID string) (err error) {
-	org, err := s.getOrgByID(ctx, s.conn, orgID, "Endpoint", "Credentials")
+	org, err := s.getOrgByID(ctx, s.conn, orgID, "Endpoint", "Credentials", "Credentials.Endpoint")
 	if err != nil {
 		return errors.Wrap(err, "fetching org")
 	}
@@ -198,17 +198,13 @@ func (s *sqlDatabase) UpdateOrganization(ctx context.Context, orgID string, para
 			return errors.Wrap(q.Error, "saving org")
 		}
 
-		if creds.ID != 0 {
-			org.Credentials = creds
-		}
-
 		return nil
 	})
 	if err != nil {
 		return params.Organization{}, errors.Wrap(err, "saving org")
 	}
 
-	org, err = s.getOrgByID(ctx, s.conn, orgID, "Endpoint", "Credentials")
+	org, err = s.getOrgByID(ctx, s.conn, orgID, "Endpoint", "Credentials", "Credentials.Endpoint")
 	if err != nil {
 		return params.Organization{}, errors.Wrap(err, "updating enterprise")
 	}

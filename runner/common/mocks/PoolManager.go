@@ -152,24 +152,6 @@ func (_m *PoolManager) InstallWebhook(ctx context.Context, param params.InstallW
 	return r0, r1
 }
 
-// RefreshState provides a mock function with given fields: param
-func (_m *PoolManager) RefreshState(param params.UpdatePoolStateParams) error {
-	ret := _m.Called(param)
-
-	if len(ret) == 0 {
-		panic("no return value specified for RefreshState")
-	}
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(params.UpdatePoolStateParams) error); ok {
-		r0 = rf(param)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
 // RootCABundle provides a mock function with given fields:
 func (_m *PoolManager) RootCABundle() (params.CertificateBundle, error) {
 	ret := _m.Called()

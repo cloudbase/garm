@@ -100,58 +100,21 @@ func (p *poolManagerCtrl) CreateRepoPoolManager(ctx context.Context, repo params
 	p.mux.Lock()
 	defer p.mux.Unlock()
 
-	creds, err := p.store.GetGithubCredentials(ctx, repo.CredentialsID, true)
+	entity, err := repo.GetEntity()
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching credentials")
+		return nil, errors.Wrap(err, "getting entity")
 	}
 
-	cfgInternal, err := p.getInternalConfig(ctx, creds, repo.GetBalancerType())
+	instanceTokenGetter, err := auth.NewInstanceTokenGetter(p.config.JWTAuth.Secret)
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching internal config")
+		return nil, errors.Wrap(err, "creating instance token getter")
 	}
-	entity := params.GithubEntity{
-		Owner:         repo.Owner,
-		Name:          repo.Name,
-		ID:            repo.ID,
-		WebhookSecret: repo.WebhookSecret,
-		EntityType:    params.GithubEntityTypeRepository,
-	}
-	poolManager, err := pool.NewEntityPoolManager(ctx, entity, cfgInternal, providers, store)
+	poolManager, err := pool.NewEntityPoolManager(ctx, entity, instanceTokenGetter, providers, store)
 	if err != nil {
 		return nil, errors.Wrap(err, "creating repo pool manager")
 	}
 	p.repositories[repo.ID] = poolManager
 	return poolManager, nil
-}
-
-func (p *poolManagerCtrl) UpdateRepoPoolManager(ctx context.Context, repo params.Repository) (common.PoolManager, error) {
-	p.mux.Lock()
-	defer p.mux.Unlock()
-
-	poolMgr, ok := p.repositories[repo.ID]
-	if !ok {
-		return nil, errors.Wrapf(runnerErrors.ErrNotFound, "repository %s/%s pool manager not loaded", repo.Owner, repo.Name)
-	}
-
-	creds, err := p.store.GetGithubCredentials(ctx, repo.CredentialsID, true)
-	if err != nil {
-		return nil, errors.Wrap(err, "fetching credentials")
-	}
-
-	internalCfg, err := p.getInternalConfig(ctx, creds, repo.GetBalancerType())
-	if err != nil {
-		return nil, errors.Wrap(err, "fetching internal config")
-	}
-
-	newState := params.UpdatePoolStateParams{
-		WebhookSecret:  repo.WebhookSecret,
-		InternalConfig: &internalCfg,
-	}
-
-	if err := poolMgr.RefreshState(newState); err != nil {
-		return nil, errors.Wrap(err, "updating repo pool manager")
-	}
-	return poolMgr, nil
 }
 
 func (p *poolManagerCtrl) GetRepoPoolManager(repo params.Repository) (common.PoolManager, error) {
@@ -183,55 +146,21 @@ func (p *poolManagerCtrl) CreateOrgPoolManager(ctx context.Context, org params.O
 	p.mux.Lock()
 	defer p.mux.Unlock()
 
-	creds, err := p.store.GetGithubCredentials(ctx, org.CredentialsID, true)
+	entity, err := org.GetEntity()
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching credentials")
+		return nil, errors.Wrap(err, "getting entity")
 	}
-	cfgInternal, err := p.getInternalConfig(ctx, creds, org.GetBalancerType())
+
+	instanceTokenGetter, err := auth.NewInstanceTokenGetter(p.config.JWTAuth.Secret)
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching internal config")
+		return nil, errors.Wrap(err, "creating instance token getter")
 	}
-	entity := params.GithubEntity{
-		Owner:         org.Name,
-		ID:            org.ID,
-		WebhookSecret: org.WebhookSecret,
-		EntityType:    params.GithubEntityTypeOrganization,
-	}
-	poolManager, err := pool.NewEntityPoolManager(ctx, entity, cfgInternal, providers, store)
+	poolManager, err := pool.NewEntityPoolManager(ctx, entity, instanceTokenGetter, providers, store)
 	if err != nil {
 		return nil, errors.Wrap(err, "creating org pool manager")
 	}
 	p.organizations[org.ID] = poolManager
 	return poolManager, nil
-}
-
-func (p *poolManagerCtrl) UpdateOrgPoolManager(ctx context.Context, org params.Organization) (common.PoolManager, error) {
-	p.mux.Lock()
-	defer p.mux.Unlock()
-
-	poolMgr, ok := p.organizations[org.ID]
-	if !ok {
-		return nil, errors.Wrapf(runnerErrors.ErrNotFound, "org %s pool manager not loaded", org.Name)
-	}
-
-	creds, err := p.store.GetGithubCredentials(ctx, org.CredentialsID, true)
-	if err != nil {
-		return nil, errors.Wrap(err, "fetching credentials")
-	}
-	internalCfg, err := p.getInternalConfig(ctx, creds, org.GetBalancerType())
-	if err != nil {
-		return nil, errors.Wrap(err, "fetching internal config")
-	}
-
-	newState := params.UpdatePoolStateParams{
-		WebhookSecret:  org.WebhookSecret,
-		InternalConfig: &internalCfg,
-	}
-
-	if err := poolMgr.RefreshState(newState); err != nil {
-		return nil, errors.Wrap(err, "updating repo pool manager")
-	}
-	return poolMgr, nil
 }
 
 func (p *poolManagerCtrl) GetOrgPoolManager(org params.Organization) (common.PoolManager, error) {
@@ -263,56 +192,21 @@ func (p *poolManagerCtrl) CreateEnterprisePoolManager(ctx context.Context, enter
 	p.mux.Lock()
 	defer p.mux.Unlock()
 
-	creds, err := p.store.GetGithubCredentials(ctx, enterprise.CredentialsID, true)
+	entity, err := enterprise.GetEntity()
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching credentials")
-	}
-	cfgInternal, err := p.getInternalConfig(ctx, creds, enterprise.GetBalancerType())
-	if err != nil {
-		return nil, errors.Wrap(err, "fetching internal config")
+		return nil, errors.Wrap(err, "getting entity")
 	}
 
-	entity := params.GithubEntity{
-		Owner:         enterprise.Name,
-		ID:            enterprise.ID,
-		WebhookSecret: enterprise.WebhookSecret,
-		EntityType:    params.GithubEntityTypeEnterprise,
+	instanceTokenGetter, err := auth.NewInstanceTokenGetter(p.config.JWTAuth.Secret)
+	if err != nil {
+		return nil, errors.Wrap(err, "creating instance token getter")
 	}
-	poolManager, err := pool.NewEntityPoolManager(ctx, entity, cfgInternal, providers, store)
+	poolManager, err := pool.NewEntityPoolManager(ctx, entity, instanceTokenGetter, providers, store)
 	if err != nil {
 		return nil, errors.Wrap(err, "creating enterprise pool manager")
 	}
 	p.enterprises[enterprise.ID] = poolManager
 	return poolManager, nil
-}
-
-func (p *poolManagerCtrl) UpdateEnterprisePoolManager(ctx context.Context, enterprise params.Enterprise) (common.PoolManager, error) {
-	p.mux.Lock()
-	defer p.mux.Unlock()
-
-	poolMgr, ok := p.enterprises[enterprise.ID]
-	if !ok {
-		return nil, errors.Wrapf(runnerErrors.ErrNotFound, "enterprise %s pool manager not loaded", enterprise.Name)
-	}
-
-	creds, err := p.store.GetGithubCredentials(ctx, enterprise.CredentialsID, true)
-	if err != nil {
-		return nil, errors.Wrap(err, "fetching credentials")
-	}
-	internalCfg, err := p.getInternalConfig(ctx, creds, enterprise.GetBalancerType())
-	if err != nil {
-		return nil, errors.Wrap(err, "fetching internal config")
-	}
-
-	newState := params.UpdatePoolStateParams{
-		WebhookSecret:  enterprise.WebhookSecret,
-		InternalConfig: &internalCfg,
-	}
-
-	if err := poolMgr.RefreshState(newState); err != nil {
-		return nil, errors.Wrap(err, "updating repo pool manager")
-	}
-	return poolMgr, nil
 }
 
 func (p *poolManagerCtrl) GetEnterprisePoolManager(enterprise params.Enterprise) (common.PoolManager, error) {
@@ -338,24 +232,6 @@ func (p *poolManagerCtrl) DeleteEnterprisePoolManager(enterprise params.Enterpri
 
 func (p *poolManagerCtrl) GetEnterprisePoolManagers() (map[string]common.PoolManager, error) {
 	return p.enterprises, nil
-}
-
-func (p *poolManagerCtrl) getInternalConfig(_ context.Context, creds params.GithubCredentials, poolBalancerType params.PoolBalancerType) (params.Internal, error) {
-	controllerInfo, err := p.store.ControllerInfo()
-	if err != nil {
-		return params.Internal{}, errors.Wrap(err, "fetching controller info")
-	}
-
-	return params.Internal{
-		ControllerID:             controllerInfo.ControllerID.String(),
-		InstanceCallbackURL:      controllerInfo.CallbackURL,
-		InstanceMetadataURL:      controllerInfo.MetadataURL,
-		BaseWebhookURL:           controllerInfo.WebhookURL,
-		ControllerWebhookURL:     controllerInfo.ControllerWebhookURL,
-		JWTSecret:                p.config.JWTAuth.Secret,
-		PoolBalancerType:         poolBalancerType,
-		GithubCredentialsDetails: creds,
-	}, nil
 }
 
 type Runner struct {

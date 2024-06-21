@@ -32,6 +32,18 @@ func WithAny(filters ...dbCommon.PayloadFilterFunc) dbCommon.PayloadFilterFunc {
 	}
 }
 
+// WithAll returns a filter function that returns true if all of the provided filters return true.
+func WithAll(filters ...dbCommon.PayloadFilterFunc) dbCommon.PayloadFilterFunc {
+	return func(payload dbCommon.ChangePayload) bool {
+		for _, filter := range filters {
+			if !filter(payload) {
+				return false
+			}
+		}
+		return true
+	}
+}
+
 // WithEntityTypeFilter returns a filter function that filters payloads by entity type.
 // The filter function returns true if the payload's entity type matches the provided entity type.
 func WithEntityTypeFilter(entityType dbCommon.DatabaseEntityType) dbCommon.PayloadFilterFunc {
@@ -137,5 +149,19 @@ func WithEntityJobFilter(ghEntity params.GithubEntity) dbCommon.PayloadFilterFun
 		default:
 			return false
 		}
+	}
+}
+
+// WithGithubCredentialsFilter returns a filter function that filters payloads by Github credentials.
+func WithGithubCredentialsFilter(creds params.GithubCredentials) dbCommon.PayloadFilterFunc {
+	return func(payload dbCommon.ChangePayload) bool {
+		if payload.EntityType != dbCommon.GithubCredentialsEntityType {
+			return false
+		}
+		credsPayload, ok := payload.Payload.(params.GithubCredentials)
+		if !ok {
+			return false
+		}
+		return credsPayload.ID == creds.ID
 	}
 }

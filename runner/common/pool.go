@@ -53,8 +53,6 @@ type PoolManager interface {
 	// a repo, org or enterprise, we determine the destination of that webhook, retrieve the pool manager
 	// for it and call this function with the WorkflowJob as a parameter.
 	HandleWorkflowJob(job params.WorkflowJob) error
-	// RefreshState allows us to update webhook secrets and configuration for a pool manager.
-	RefreshState(param params.UpdatePoolStateParams) error
 
 	// DeleteRunner will attempt to remove a runner from the pool. If forceRemove is true, any error
 	// received from the provider will be ignored and we will proceed to remove the runner from the database.
