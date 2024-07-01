@@ -1673,10 +1673,10 @@ func (r *basePoolManager) consumeQueuedJobs() error {
 			continue
 		}
 
-		if time.Since(job.UpdatedAt) < time.Second*30 {
+		if time.Since(job.UpdatedAt) < time.Second*time.Duration(r.controllerInfo.MinimumJobAgeBackoff) {
 			// give the idle runners a chance to pick up the job.
 			slog.DebugContext(
-				r.ctx, "job was updated less than 30 seconds ago. Skipping",
+				r.ctx, "job backoff not reached", "backoff_interval", r.controllerInfo.MinimumJobAgeBackoff,
 				"job_id", job.ID)
 			continue
 		}

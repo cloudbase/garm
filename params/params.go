@@ -382,20 +382,6 @@ func (p *Pool) HasRequiredLabels(set []string) bool {
 // used by swagger client generated code
 type Pools []Pool
 
-type Internal struct {
-	ControllerID         string `json:"controller_id"`
-	InstanceCallbackURL  string `json:"instance_callback_url"`
-	InstanceMetadataURL  string `json:"instance_metadata_url"`
-	BaseWebhookURL       string `json:"base_webhook_url"`
-	ControllerWebhookURL string `json:"controller_webhook_url"`
-
-	JWTSecret string `json:"jwt_secret"`
-	// GithubCredentialsDetails contains all info about the credentials, except the
-	// token, which is added above.
-	GithubCredentialsDetails GithubCredentials `json:"gh_creds_details"`
-	PoolBalancerType         PoolBalancerType  `json:"pool_balancing_type"`
-}
-
 type Repository struct {
 	ID    string `json:"id"`
 	Owner string `json:"owner"`
@@ -569,12 +555,45 @@ type JWTResponse struct {
 }
 
 type ControllerInfo struct {
-	ControllerID         uuid.UUID `json:"controller_id"`
-	Hostname             string    `json:"hostname"`
-	MetadataURL          string    `json:"metadata_url"`
-	CallbackURL          string    `json:"callback_url"`
-	WebhookURL           string    `json:"webhook_url"`
-	ControllerWebhookURL string    `json:"controller_webhook_url"`
+	// ControllerID is the unique ID of this controller. This ID gets generated
+	// automatically on controller init.
+	ControllerID uuid.UUID `json:"controller_id"`
+	// Hostname is the hostname of the machine that runs this controller. In the
+	// future, this field will be migrated to a separate table that will keep track
+	// of each the controller nodes that are part of a cluster. This will happen when
+	// we implement controller scale-out capability.
+	Hostname string `json:"hostname"`
+	// MetadataURL is the public metadata URL of the GARM instance. This URL is used
+	// by instances to fetch information they need to set themselves up. The URL itself
+	// may be made available to runners via a reverse proxy or a load balancer. That
+	// means that the user is responsible for telling GARM what the public URL is, by
+	// setting this field.
+	MetadataURL string `json:"metadata_url"`
+	// CallbackURL is the URL where instances can send updates back to the controller.
+	// This URL is used by instances to send status updates back to the controller. The
+	// URL itself may be made available to instances via a reverse proxy or a load balancer.
+	// That means that the user is responsible for telling GARM what the public URL is, by
+	// setting this field.
+	CallbackURL string `json:"callback_url"`
+	// WebhookURL is the base URL where the controller will receive webhooks from github.
+	// When webhook management is used, this URL is used as a base to which the controller
+	// UUID is appended and which will receive the webhooks.
+	// The URL itself may be made available to instances via a reverse proxy or a load balancer.
+	// That means that the user is responsible for telling GARM what the public URL is, by
+	// setting this field.
+	WebhookURL string `json:"webhook_url"`
+	// ControllerWebhookURL is the controller specific URL where webhooks will be received.
+	// This field holds the WebhookURL defined above to which we append the ControllerID.
+	// Functionally it is the same as WebhookURL, but it allows us to safely manage webhooks
+	// from GARM without accidentally removing webhooks from other services or GARM controllers.
+	ControllerWebhookURL string `json:"controller_webhook_url"`
+	// MinimumJobAgeBackoff is the minimum time in seconds that a job must be in queued state
+	// before GARM will attempt to allocate a runner for it. When set to a non zero value,
+	// GARM will ignore the job until the job's age is greater than this value. When using
+	// the min_idle_runners feature of a pool, this gives enough time for potential idle
+	// runners to pick up the job before GARM attempts to allocate a new runner, thus avoiding
+	// the need to potentially scale down runners later.
+	MinimumJobAgeBackoff uint `json:"minimum_job_age_backoff"`
 }
 
 type GithubCredentials struct {

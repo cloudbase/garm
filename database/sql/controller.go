@@ -38,6 +38,7 @@ func dbControllerToCommonController(dbInfo ControllerInfo) (params.ControllerInf
 		WebhookURL:           dbInfo.WebhookBaseURL,
 		ControllerWebhookURL: url,
 		CallbackURL:          dbInfo.CallbackURL,
+		MinimumJobAgeBackoff: dbInfo.MinimumJobAgeBackoff,
 	}, nil
 }
 
@@ -70,7 +71,8 @@ func (s *sqlDatabase) InitController() (params.ControllerInfo, error) {
 	}
 
 	newInfo := ControllerInfo{
-		ControllerID: newID,
+		ControllerID:         newID,
+		MinimumJobAgeBackoff: 30,
 	}
 
 	q := s.conn.Save(&newInfo)
@@ -113,6 +115,10 @@ func (s *sqlDatabase) UpdateController(info params.UpdateControllerParams) (para
 
 		if info.WebhookURL != nil {
 			dbInfo.WebhookBaseURL = *info.WebhookURL
+		}
+
+		if info.MinimumJobAgeBackoff != nil {
+			dbInfo.MinimumJobAgeBackoff = *info.MinimumJobAgeBackoff
 		}
 
 		q = tx.Save(&dbInfo)

@@ -503,9 +503,10 @@ func (u UpdateGithubCredentialsParams) Validate() error {
 }
 
 type UpdateControllerParams struct {
-	MetadataURL *string `json:"metadata_url,omitempty"`
-	CallbackURL *string `json:"callback_url,omitempty"`
-	WebhookURL  *string `json:"webhook_url,omitempty"`
+	MetadataURL          *string `json:"metadata_url,omitempty"`
+	CallbackURL          *string `json:"callback_url,omitempty"`
+	WebhookURL           *string `json:"webhook_url,omitempty"`
+	MinimumJobAgeBackoff *uint   `json:"minimum_job_age_backoff,omitempty"`
 }
 
 func (u UpdateControllerParams) Validate() error {
