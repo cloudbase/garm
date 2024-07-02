@@ -407,6 +407,12 @@ func (s *sqlDatabase) migrateDB() error {
 	if !s.conn.Migrator().HasTable(&GithubCredentials{}) || !s.conn.Migrator().HasTable(&GithubEndpoint{}) {
 		needsCredentialMigration = true
 	}
+
+	var hasMinAgeField bool
+	if s.conn.Migrator().HasTable(&ControllerInfo{}) && s.conn.Migrator().HasColumn(&ControllerInfo{}, "minimum_job_age_backoff") {
+		hasMinAgeField = true
+	}
+
 	s.conn.Exec("PRAGMA foreign_keys = OFF")
 	if err := s.conn.AutoMigrate(
 		&User{},
@@ -426,6 +432,20 @@ func (s *sqlDatabase) migrateDB() error {
 		return errors.Wrap(err, "running auto migrate")
 	}
 	s.conn.Exec("PRAGMA foreign_keys = ON")
+
+	if !hasMinAgeField {
+		var controller ControllerInfo
+		if err := s.conn.First(&controller).Error; err != nil {
+			if !errors.Is(err, gorm.ErrRecordNotFound) {
+				return errors.Wrap(err, "updating controller info")
+			}
+		} else {
+			controller.MinimumJobAgeBackoff = 30
+			if err := s.conn.Save(&controller).Error; err != nil {
+				return errors.Wrap(err, "updating controller info")
+			}
+		}
+	}
 
 	if err := s.ensureGithubEndpoint(); err != nil {
 		return errors.Wrap(err, "ensuring github endpoint")

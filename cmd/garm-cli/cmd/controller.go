@@ -113,9 +113,13 @@ up the GARM controller URLs as:
 			params.WebhookURL = &webhookURL
 		}
 
-		if params.WebhookURL == nil && params.MetadataURL == nil && params.CallbackURL == nil {
+		if cmd.Flags().Changed("minimum-job-age-backoff") {
+			params.MinimumJobAgeBackoff = &minimumJobAgeBackoff
+		}
+
+		if params.WebhookURL == nil && params.MetadataURL == nil && params.CallbackURL == nil && params.MinimumJobAgeBackoff == nil {
 			cmd.Help()
-			return fmt.Errorf("at least one of metadata-url, callback-url or webhook-url must be provided")
+			return fmt.Errorf("at least one of minimum-job-age-backoff, metadata-url, callback-url or webhook-url must be provided")
 		}
 
 		updateUrlsReq := apiClientController.NewUpdateControllerParams()
@@ -151,6 +155,7 @@ func renderControllerInfoTable(info params.ControllerInfo) string {
 	t.AppendRow(table.Row{"Callback URL", info.CallbackURL})
 	t.AppendRow(table.Row{"Webhook Base URL", info.WebhookURL})
 	t.AppendRow(table.Row{"Controller Webhook URL", info.ControllerWebhookURL})
+	t.AppendRow(table.Row{"Minimum Job Age Backoff", info.MinimumJobAgeBackoff})
 	return t.Render()
 }
 
@@ -163,6 +168,7 @@ func init() {
 	controllerUpdateCmd.Flags().StringVarP(&metadataURL, "metadata-url", "m", "", "The metadata URL for the controller (ie. https://garm.example.com/api/v1/metadata)")
 	controllerUpdateCmd.Flags().StringVarP(&callbackURL, "callback-url", "c", "", "The callback URL for the controller (ie. https://garm.example.com/api/v1/callbacks)")
 	controllerUpdateCmd.Flags().StringVarP(&webhookURL, "webhook-url", "w", "", "The webhook URL for the controller (ie. https://garm.example.com/webhooks)")
+	controllerUpdateCmd.Flags().UintVarP(&minimumJobAgeBackoff, "minimum-job-age-backoff", "b", 0, "The minimum job age backoff for the controller")
 
 	controllerCmd.AddCommand(
 		controllerShowCmd,

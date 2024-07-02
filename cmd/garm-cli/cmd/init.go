@@ -33,9 +33,10 @@ import (
 )
 
 var (
-	callbackURL string
-	metadataURL string
-	webhookURL  string
+	callbackURL          string
+	metadataURL          string
+	webhookURL           string
+	minimumJobAgeBackoff uint
 )
 
 // initCmd represents the init command
