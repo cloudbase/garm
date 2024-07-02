@@ -55,6 +55,7 @@ func (a *Authenticator) GetJWTToken(ctx context.Context) (string, error) {
 	expires := &jwt.NumericDate{
 		Time: expireToken,
 	}
+	generation := PasswordGeneration(ctx)
 	claims := JWTClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: expires,
@@ -62,10 +63,11 @@ func (a *Authenticator) GetJWTToken(ctx context.Context) (string, error) {
 			// TODO: make this configurable
 			Issuer: "garm",
 		},
-		UserID:   UserID(ctx),
-		TokenID:  tokenID,
-		IsAdmin:  IsAdmin(ctx),
-		FullName: FullName(ctx),
+		UserID:     UserID(ctx),
+		TokenID:    tokenID,
+		IsAdmin:    IsAdmin(ctx),
+		FullName:   FullName(ctx),
+		Generation: generation,
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString([]byte(a.cfg.Secret))
@@ -182,5 +184,5 @@ func (a *Authenticator) AuthenticateUser(ctx context.Context, info params.Passwo
 		return ctx, runnerErrors.ErrUnauthorized
 	}
 
-	return PopulateContext(ctx, user), nil
+	return PopulateContext(ctx, user, nil), nil
 }

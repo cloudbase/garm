@@ -183,14 +183,9 @@ func (a *APIController) WSHandler(writer http.ResponseWriter, req *http.Request)
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error upgrading to websockets")
 		return
 	}
+	defer conn.Close()
 
-	// nolint:golangci-lint,godox
-	// TODO (gsamfira): Handle ExpiresAt. Right now, if a client uses
-	// a valid token to authenticate, and keeps the websocket connection
-	// open, it will allow that client to stream logs via websockets
-	// until the connection is broken. We need to forcefully disconnect
-	// the client once the token expires.
-	client, err := wsWriter.NewClient(conn, a.hub)
+	client, err := wsWriter.NewClient(ctx, conn)
 	if err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to create new client")
 		return
@@ -199,7 +194,14 @@ func (a *APIController) WSHandler(writer http.ResponseWriter, req *http.Request)
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to register new client")
 		return
 	}
-	client.Go()
+	defer a.hub.Unregister(client)
+
+	if err := client.Start(); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to start client")
+		return
+	}
+	<-client.Done()
+	slog.Info("client disconnected", "client_id", client.ID())
 }
 
 // NotFoundHandler is returned when an invalid URL is acccessed

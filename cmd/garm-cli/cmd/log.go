@@ -16,6 +16,7 @@ import (
 
 	"github.com/cloudbase/garm-provider-common/util"
 	apiParams "github.com/cloudbase/garm/apiserver/params"
+	garmWs "github.com/cloudbase/garm/websocket"
 )
 
 var logCmd = &cobra.Command{
@@ -66,7 +67,9 @@ var logCmd = &cobra.Command{
 			for {
 				_, message, err := c.ReadMessage()
 				if err != nil {
-					slog.With(slog.Any("error", err)).Error("reading log message")
+					if garmWs.IsErrorOfInterest(err) {
+						slog.With(slog.Any("error", err)).Error("reading log message")
+					}
 					return
 				}
 				fmt.Println(util.SanitizeLogEntry(string(message)))

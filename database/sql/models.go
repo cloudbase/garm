@@ -195,12 +195,13 @@ type Instance struct {
 type User struct {
 	Base
 
-	Username string `gorm:"uniqueIndex;varchar(64)"`
-	FullName string `gorm:"type:varchar(254)"`
-	Email    string `gorm:"type:varchar(254);unique;index:idx_email"`
-	Password string `gorm:"type:varchar(60)"`
-	IsAdmin  bool
-	Enabled  bool
+	Username   string `gorm:"uniqueIndex;varchar(64)"`
+	FullName   string `gorm:"type:varchar(254)"`
+	Email      string `gorm:"type:varchar(254);unique;index:idx_email"`
+	Password   string `gorm:"type:varchar(60)"`
+	Generation uint
+	IsAdmin    bool
+	Enabled    bool
 }
 
 type ControllerInfo struct {

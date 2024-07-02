@@ -3,19 +3,18 @@ package websocket
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 )
 
 func NewHub(ctx context.Context) *Hub {
 	return &Hub{
-		clients:    map[string]*Client{},
-		broadcast:  make(chan []byte, 100),
-		register:   make(chan *Client, 100),
-		unregister: make(chan *Client, 100),
-		ctx:        ctx,
-		closed:     make(chan struct{}),
-		quit:       make(chan struct{}),
+		clients:   map[string]*Client{},
+		broadcast: make(chan []byte, 100),
+		ctx:       ctx,
+		closed:    make(chan struct{}),
+		quit:      make(chan struct{}),
 	}
 }
 
@@ -28,12 +27,6 @@ type Hub struct {
 
 	// Inbound messages from the clients.
 	broadcast chan []byte
-
-	// Register requests from the clients.
-	register chan *Client
-
-	// Unregister requests from clients.
-	unregister chan *Client
 
 	mux  sync.Mutex
 	once sync.Once
@@ -49,22 +42,6 @@ func (h *Hub) run() {
 			return
 		case <-h.ctx.Done():
 			return
-		case client := <-h.register:
-			if client != nil {
-				h.mux.Lock()
-				h.clients[client.id] = client
-				h.mux.Unlock()
-			}
-		case client := <-h.unregister:
-			if client != nil {
-				h.mux.Lock()
-				if _, ok := h.clients[client.id]; ok {
-					client.conn.Close()
-					close(client.send)
-					delete(h.clients, client.id)
-				}
-				h.mux.Unlock()
-			}
 		case message := <-h.broadcast:
 			staleClients := []string{}
 			for id, client := range h.clients {
@@ -73,9 +50,7 @@ func (h *Hub) run() {
 					continue
 				}
 
-				select {
-				case client.send <- message:
-				case <-time.After(5 * time.Second):
+				if _, err := client.Write(message); err != nil {
 					staleClients = append(staleClients, id)
 				}
 			}
@@ -97,7 +72,35 @@ func (h *Hub) run() {
 }
 
 func (h *Hub) Register(client *Client) error {
-	h.register <- client
+	if client == nil {
+		return nil
+	}
+	h.mux.Lock()
+	defer h.mux.Unlock()
+	cli, ok := h.clients[client.ID()]
+	if ok {
+		if cli != nil {
+			return fmt.Errorf("client already registered")
+		}
+	}
+	slog.DebugContext(h.ctx, "registering client", "client_id", client.ID())
+	h.clients[client.id] = client
+	return nil
+}
+
+func (h *Hub) Unregister(client *Client) error {
+	if client == nil {
+		return nil
+	}
+	h.mux.Lock()
+	defer h.mux.Unlock()
+	cli, ok := h.clients[client.ID()]
+	if ok {
+		cli.Stop()
+		slog.DebugContext(h.ctx, "unregistering client", "client_id", cli.ID())
+		delete(h.clients, cli.ID())
+		slog.DebugContext(h.ctx, "current client count", "count", len(h.clients))
+	}
 	return nil
 }
 

@@ -104,10 +104,19 @@ func WithEntityFilter(entity params.GithubEntity) dbCommon.PayloadFilterFunc {
 		var ok bool
 		switch payload.EntityType {
 		case dbCommon.RepositoryEntityType:
+			if entity.EntityType != params.GithubEntityTypeRepository {
+				return false
+			}
 			ent, ok = payload.Payload.(params.Repository)
 		case dbCommon.OrganizationEntityType:
+			if entity.EntityType != params.GithubEntityTypeOrganization {
+				return false
+			}
 			ent, ok = payload.Payload.(params.Organization)
 		case dbCommon.EnterpriseEntityType:
+			if entity.EntityType != params.GithubEntityTypeEnterprise {
+				return false
+			}
 			ent, ok = payload.Payload.(params.Enterprise)
 		default:
 			return false
@@ -163,5 +172,19 @@ func WithGithubCredentialsFilter(creds params.GithubCredentials) dbCommon.Payloa
 			return false
 		}
 		return credsPayload.ID == creds.ID
+	}
+}
+
+// WithUserIDFilter returns a filter function that filters payloads by user ID.
+func WithUserIDFilter(userID string) dbCommon.PayloadFilterFunc {
+	return func(payload dbCommon.ChangePayload) bool {
+		if payload.EntityType != dbCommon.UserEntityType {
+			return false
+		}
+		userPayload, ok := payload.Payload.(params.User)
+		if !ok {
+			return false
+		}
+		return userPayload.ID == userID
 	}
 }
