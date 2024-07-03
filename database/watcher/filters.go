@@ -188,3 +188,25 @@ func WithUserIDFilter(userID string) dbCommon.PayloadFilterFunc {
 		return userPayload.ID == userID
 	}
 }
+
+// WithNone returns a filter function that always returns false.
+func WithNone() dbCommon.PayloadFilterFunc {
+	return func(_ dbCommon.ChangePayload) bool {
+		return false
+	}
+}
+
+// WithEverything returns a filter function that always returns true.
+func WithEverything() dbCommon.PayloadFilterFunc {
+	return func(_ dbCommon.ChangePayload) bool {
+		return true
+	}
+}
+
+// WithExcludeEntityTypeFilter returns a filter function that filters payloads by excluding
+// the provided entity type.
+func WithExcludeEntityTypeFilter(entityType dbCommon.DatabaseEntityType) dbCommon.PayloadFilterFunc {
+	return func(payload dbCommon.ChangePayload) bool {
+		return payload.EntityType != entityType
+	}
+}

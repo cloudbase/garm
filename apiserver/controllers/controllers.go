@@ -28,6 +28,7 @@ import (
 
 	gErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm-provider-common/util"
+	"github.com/cloudbase/garm/apiserver/events"
 	"github.com/cloudbase/garm/apiserver/params"
 	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/metrics"
@@ -161,6 +162,43 @@ func (a *APIController) WebhookHandler(w http.ResponseWriter, r *http.Request) {
 	default:
 		slog.InfoContext(ctx, "ignoring unknown event", "gh_event", util.SanitizeLogEntry(string(event)))
 	}
+}
+
+func (a *APIController) EventsHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	if !auth.IsAdmin(ctx) {
+		w.WriteHeader(http.StatusForbidden)
+		if _, err := w.Write([]byte("events are available to admin users")); err != nil {
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
+		}
+		return
+	}
+
+	conn, err := a.upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error upgrading to websockets")
+		return
+	}
+	defer conn.Close()
+
+	wsClient, err := wsWriter.NewClient(ctx, conn)
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to create new client")
+		return
+	}
+	defer wsClient.Stop()
+
+	eventHandler, err := events.NewHandler(ctx, wsClient)
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to create new event handler")
+		return
+	}
+
+	if err := eventHandler.Start(); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to start event handler")
+		return
+	}
+	<-eventHandler.Done()
 }
 
 func (a *APIController) WSHandler(writer http.ResponseWriter, req *http.Request) {

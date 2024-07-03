@@ -1,11 +1,8 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"log/slog"
-	"net/http"
-	"net/url"
 	"os"
 	"os/signal"
 	"time"
@@ -14,67 +11,19 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/cloudbase/garm-provider-common/util"
-	apiParams "github.com/cloudbase/garm/apiserver/params"
 	garmWs "github.com/cloudbase/garm/websocket"
 )
 
-var eventsFilters string
-
-const (
-	// Time allowed to write a message to the peer.
-	writeWait = 10 * time.Second
-
-	// Time allowed to read the next pong message from the peer.
-	pongWait = 30 * time.Second
-
-	// Send pings to peer with this period. Must be less than pongWait.
-	pingPeriod = (pongWait * 9) / 10
-)
-
-func getWebsocketConnection(pth string) (*websocket.Conn, error) {
-	parsedURL, err := url.Parse(mgr.BaseURL)
-	if err != nil {
-		return nil, err
-	}
-
-	wsScheme := "ws"
-	if parsedURL.Scheme == "https" {
-		wsScheme = "wss"
-	}
-	u := url.URL{Scheme: wsScheme, Host: parsedURL.Host, Path: pth}
-	slog.Debug("connecting", "url", u.String())
-
-	header := http.Header{}
-	header.Add("Authorization", fmt.Sprintf("Bearer %s", mgr.Token))
-
-	c, response, err := websocket.DefaultDialer.Dial(u.String(), header)
-	if err != nil {
-		var resp apiParams.APIErrorResponse
-		var msg string
-		var status string
-		if response != nil {
-			if response.Body != nil {
-				if err := json.NewDecoder(response.Body).Decode(&resp); err == nil {
-					msg = resp.Details
-				}
-			}
-			status = response.Status
-		}
-		return nil, fmt.Errorf("failed to stream logs: %q %s (%s)", err, msg, status)
-	}
-	return c, nil
-}
-
-var logCmd = &cobra.Command{
-	Use:          "debug-log",
+var eventsCmd = &cobra.Command{
+	Use:          "debug-events",
 	SilenceUsage: true,
-	Short:        "Stream garm log",
-	Long:         `Stream all garm logging to the terminal.`,
+	Short:        "Stream garm events",
+	Long:         `Stream all garm events to the terminal.`,
 	RunE: func(_ *cobra.Command, _ []string) error {
 		interrupt := make(chan os.Signal, 1)
 		signal.Notify(interrupt, os.Interrupt)
 
-		conn, err := getWebsocketConnection("/api/v1/ws")
+		conn, err := getWebsocketConnection("/api/v1/events")
 		if err != nil {
 			return err
 		}
@@ -90,7 +39,7 @@ var logCmd = &cobra.Command{
 				_, message, err := conn.ReadMessage()
 				if err != nil {
 					if garmWs.IsErrorOfInterest(err) {
-						slog.With(slog.Any("error", err)).Error("reading log message")
+						slog.With(slog.Any("error", err)).Error("reading event message")
 					}
 					return
 				}
@@ -98,12 +47,21 @@ var logCmd = &cobra.Command{
 			}
 		}()
 
+		if eventsFilters != "" {
+			conn.SetWriteDeadline(time.Now().Add(writeWait))
+			err = conn.WriteMessage(websocket.TextMessage, []byte(eventsFilters))
+			if err != nil {
+				return err
+			}
+		}
+
 		ticker := time.NewTicker(pingPeriod)
 		defer ticker.Stop()
 
 		for {
 			select {
 			case <-done:
+				slog.Info("done")
 				return nil
 			case <-ticker.C:
 				conn.SetWriteDeadline(time.Now().Add(writeWait))
@@ -119,9 +77,12 @@ var logCmd = &cobra.Command{
 				if err != nil {
 					return err
 				}
+				slog.Info("waiting for server to close connection")
 				select {
 				case <-done:
+					slog.Info("done")
 				case <-time.After(time.Second):
+					slog.Info("timeout")
 				}
 				return nil
 			}
@@ -130,5 +91,6 @@ var logCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(logCmd)
+	eventsCmd.Flags().StringVarP(&eventsFilters, "filters", "m", "", "Json with event filters you want to apply")
+	rootCmd.AddCommand(eventsCmd)
 }

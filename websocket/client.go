@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net"
 	"sync"
 	"time"
 
@@ -66,9 +67,10 @@ type Client struct {
 	id   string
 	conn *websocket.Conn
 	// Buffered channel of outbound messages.
-	send chan []byte
-	mux  sync.Mutex
-	ctx  context.Context
+	send     chan []byte
+	mux      sync.Mutex
+	writeMux sync.Mutex
+	ctx      context.Context
 
 	userID             string
 	passwordGeneration uint
@@ -93,6 +95,7 @@ func (c *Client) Stop() {
 	}
 
 	c.running = false
+	c.writeMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 	c.conn.Close()
 	close(c.send)
 	close(c.done)
@@ -176,6 +179,18 @@ func (c *Client) clientReader() {
 	}
 }
 
+func (c *Client) writeMessage(messageType int, message []byte) error {
+	c.writeMux.Lock()
+	defer c.writeMux.Unlock()
+	if err := c.conn.SetWriteDeadline(time.Now().Add(writeWait)); err != nil {
+		return fmt.Errorf("failed to set write deadline: %w", err)
+	}
+	if err := c.conn.WriteMessage(messageType, message); err != nil {
+		return fmt.Errorf("failed to write message: %w", err)
+	}
+	return nil
+}
+
 // clientWriter
 func (c *Client) clientWriter() {
 	ticker := time.NewTicker(pingPeriod)
@@ -191,12 +206,9 @@ func (c *Client) clientWriter() {
 	for {
 		select {
 		case message, ok := <-c.send:
-			if err := c.conn.SetWriteDeadline(time.Now().Add(writeWait)); err != nil {
-				slog.With(slog.Any("error", err)).Error("failed to set write deadline")
-			}
 			if !ok {
 				// The hub closed the channel.
-				if err := c.conn.WriteMessage(websocket.CloseMessage, []byte{}); err != nil {
+				if err := c.writeMessage(websocket.CloseMessage, []byte{}); err != nil {
 					if IsErrorOfInterest(err) {
 						slog.With(slog.Any("error", err)).Error("failed to write message")
 					}
@@ -204,17 +216,14 @@ func (c *Client) clientWriter() {
 				return
 			}
 
-			if err := c.conn.WriteMessage(websocket.TextMessage, message); err != nil {
+			if err := c.writeMessage(websocket.TextMessage, message); err != nil {
 				if IsErrorOfInterest(err) {
 					slog.With(slog.Any("error", err)).Error("error sending message")
 				}
 				return
 			}
 		case <-ticker.C:
-			if err := c.conn.SetWriteDeadline(time.Now().Add(writeWait)); err != nil {
-				slog.With(slog.Any("error", err)).Error("failed to set write deadline")
-			}
-			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+			if err := c.writeMessage(websocket.PingMessage, nil); err != nil {
 				if IsErrorOfInterest(err) {
 					slog.With(slog.Any("error", err)).Error("failed to write ping message")
 				}
@@ -245,26 +254,34 @@ func (c *Client) runWatcher() {
 				slog.InfoContext(c.ctx, "watcher closed")
 				return
 			}
-			go func(event common.ChangePayload) {
-				if event.EntityType != common.UserEntityType {
-					return
-				}
+			if event.EntityType != common.UserEntityType {
+				continue
+			}
 
-				user, ok := event.Payload.(params.User)
-				if !ok {
-					slog.ErrorContext(c.ctx, "failed to cast payload to user")
-					return
-				}
+			user, ok := event.Payload.(params.User)
+			if !ok {
+				slog.ErrorContext(c.ctx, "failed to cast payload to user")
+				continue
+			}
 
-				if user.ID != c.userID {
-					return
-				}
+			if user.ID != c.userID {
+				continue
+			}
 
-				if user.Generation != c.passwordGeneration {
-					slog.InfoContext(c.ctx, "password generation mismatch; closing connection")
-					c.Stop()
-				}
-			}(event)
+			if event.Operation == common.DeleteOperation {
+				slog.InfoContext(c.ctx, "user deleted; closing connection")
+				c.Stop()
+			}
+
+			if !user.Enabled {
+				slog.InfoContext(c.ctx, "user disabled; closing connection")
+				c.Stop()
+			}
+
+			if user.Generation != c.passwordGeneration {
+				slog.InfoContext(c.ctx, "password generation mismatch; closing connection")
+				c.Stop()
+			}
 		}
 	}
 }
@@ -279,6 +296,10 @@ func IsErrorOfInterest(err error) bool {
 	}
 
 	if errors.Is(err, websocket.ErrBadHandshake) {
+		return false
+	}
+
+	if errors.Is(err, net.ErrClosed) {
 		return false
 	}
 

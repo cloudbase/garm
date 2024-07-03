@@ -131,6 +131,7 @@ func (w *watcher) serviceConsumer(consumer *consumer) {
 		slog.InfoContext(w.ctx, "removing consumer from watcher", "consumer_id", consumer.id)
 		delete(w.consumers, consumer.id)
 	}()
+	slog.InfoContext(w.ctx, "starting consumer", "consumer_id", consumer.id)
 	for {
 		select {
 		case <-consumer.quit:
