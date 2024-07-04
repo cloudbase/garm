@@ -198,6 +198,11 @@ func (c *Client) clientWriter() {
 		c.Stop()
 		ticker.Stop()
 	}()
+	// Set up expiration timer.
+	// NOTE: if a token is created without an expiration date
+	// this will be set to nil, which will close the loop bellow
+	// and terminate the connection immediately.
+	// We can't have a token without an expiration date.
 	var authExpires time.Time
 	expires := auth.Expires(c.ctx)
 	if expires != nil {
