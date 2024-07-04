@@ -54,6 +54,10 @@ func (s *WatcherStoreTestSuite) TestJobWatcher() {
 			Operation:  common.CreateOperation,
 			Payload:    job,
 		}, event)
+		asJob, ok := event.Payload.(params.Job)
+		s.Require().True(ok)
+		s.Require().Equal(job.ID, int64(1))
+		s.Require().Equal(asJob.ID, int64(1))
 	case <-time.After(1 * time.Second):
 		s.T().Fatal("expected payload not received")
 	}
@@ -190,6 +194,10 @@ func (s *WatcherStoreTestSuite) TestInstanceWatcher() {
 			Operation:  common.CreateOperation,
 			Payload:    instance,
 		}, event)
+		asInstance, ok := event.Payload.(params.Instance)
+		s.Require().True(ok)
+		s.Require().Equal(instance.Name, "test-instance")
+		s.Require().Equal(asInstance.Name, "test-instance")
 	case <-time.After(1 * time.Second):
 		s.T().Fatal("expected payload not received")
 	}
@@ -282,6 +290,10 @@ func (s *WatcherStoreTestSuite) TestPoolWatcher() {
 			Operation:  common.CreateOperation,
 			Payload:    pool,
 		}, event)
+		asPool, ok := event.Payload.(params.Pool)
+		s.Require().True(ok)
+		s.Require().Equal(pool.Image, "test-image")
+		s.Require().Equal(asPool.Image, "test-image")
 	case <-time.After(1 * time.Second):
 		s.T().Fatal("expected payload not received")
 	}
