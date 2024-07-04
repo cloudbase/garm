@@ -113,8 +113,11 @@ func (w *Reader) Start() error {
 
 func (w *Reader) printWebsocketToConsole() {
 	defer w.Stop()
+	w.writeMux.Lock()
+	w.conn.SetReadLimit(maxMessageSize)
 	w.conn.SetReadDeadline(time.Now().Add(pongWait))
 	w.conn.SetPongHandler(func(string) error { w.conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
+	w.writeMux.Unlock()
 	for {
 		_, message, err := w.conn.ReadMessage()
 		if err != nil {
