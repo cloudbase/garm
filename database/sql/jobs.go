@@ -216,6 +216,7 @@ func (s *sqlDatabase) UnlockJob(_ context.Context, jobID int64, entityID string)
 
 func (s *sqlDatabase) CreateOrUpdateJob(ctx context.Context, job params.Job) (params.Job, error) {
 	var workflowJob WorkflowJob
+	var err error
 	q := s.conn.Clauses(clause.Locking{Strength: "UPDATE"}).Preload("Instance").Where("id = ?", job.ID).First(&workflowJob)
 
 	if q.Error != nil {
@@ -267,7 +268,7 @@ func (s *sqlDatabase) CreateOrUpdateJob(ctx context.Context, job params.Job) (pa
 	} else {
 		operation = common.CreateOperation
 
-		workflowJob, err := s.paramsJobToWorkflowJob(ctx, job)
+		workflowJob, err = s.paramsJobToWorkflowJob(ctx, job)
 		if err != nil {
 			return params.Job{}, errors.Wrap(err, "converting job")
 		}
