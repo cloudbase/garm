@@ -3,6 +3,7 @@ package events
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -163,8 +164,14 @@ func (e *EventHandler) HandleClientMessages(message []byte) error {
 		return nil
 	}
 
-	if len(opt.Filters) == 0 && !opt.SendEverything {
-		slog.DebugContext(e.ctx, "no filters provided; ignoring")
+	if err := opt.Validate(); err != nil {
+		if errors.Is(err, common.ErrNoFiltersProvided) {
+			slog.DebugContext(e.ctx, "no filters provided; ignoring")
+			return nil
+		}
+		slog.ErrorContext(e.ctx, "invalid filter", "error", err)
+		e.client.Write([]byte("invalid filter"))
+		e.Stop()
 		return nil
 	}
 
