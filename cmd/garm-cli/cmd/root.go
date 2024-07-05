@@ -29,8 +29,6 @@ import (
 	"github.com/cloudbase/garm/params"
 )
 
-var Version string
-
 var (
 	cfg               *config.Config
 	mgr               config.Manager

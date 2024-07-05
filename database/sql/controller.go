@@ -24,6 +24,7 @@ import (
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/params"
+	"github.com/cloudbase/garm/util/appdefaults"
 )
 
 func dbControllerToCommonController(dbInfo ControllerInfo) (params.ControllerInfo, error) {
@@ -39,6 +40,7 @@ func dbControllerToCommonController(dbInfo ControllerInfo) (params.ControllerInf
 		ControllerWebhookURL: url,
 		CallbackURL:          dbInfo.CallbackURL,
 		MinimumJobAgeBackoff: dbInfo.MinimumJobAgeBackoff,
+		Version:              appdefaults.GetVersion(),
 	}, nil
 }
 
