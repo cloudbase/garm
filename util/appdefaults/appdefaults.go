@@ -31,3 +31,12 @@ const (
 	// metrics data update interval
 	DefaultMetricsUpdateInterval = 60 * time.Second
 )
+
+var Version string
+
+func GetVersion() string {
+	if Version == "" {
+		Version = "v0.0.0-unknown"
+	}
+	return Version
+}

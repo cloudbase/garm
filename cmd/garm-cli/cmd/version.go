@@ -18,6 +18,9 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+
+	apiClientControllerInfo "github.com/cloudbase/garm/client/controller_info"
+	"github.com/cloudbase/garm/util/appdefaults"
 )
 
 // runnerCmd represents the runner command
@@ -26,7 +29,18 @@ var versionCmd = &cobra.Command{
 	SilenceUsage: true,
 	Short:        "Print version and exit",
 	Run: func(_ *cobra.Command, _ []string) {
-		fmt.Println(Version)
+		serverVersion := "v0.0.0-unknown"
+
+		if !needsInit {
+			showInfo := apiClientControllerInfo.NewControllerInfoParams()
+			response, err := apiCli.ControllerInfo.ControllerInfo(showInfo, authToken)
+			if err == nil {
+				serverVersion = response.Payload.Version
+			}
+		}
+
+		fmt.Printf("garm-cli: %s\n", appdefaults.GetVersion())
+		fmt.Printf("garm server: %s\n", serverVersion)
 	},
 }
 

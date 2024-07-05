@@ -594,6 +594,8 @@ type ControllerInfo struct {
 	// runners to pick up the job before GARM attempts to allocate a new runner, thus avoiding
 	// the need to potentially scale down runners later.
 	MinimumJobAgeBackoff uint `json:"minimum_job_age_backoff"`
+	// Version is the version of the GARM controller.
+	Version string `json:"version"`
 }
 
 type GithubCredentials struct {

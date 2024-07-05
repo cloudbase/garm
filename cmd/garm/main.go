@@ -55,8 +55,6 @@ var (
 	version = flag.Bool("version", false, "prints version")
 )
 
-var Version string
-
 var signals = []os.Signal{
 	os.Interrupt,
 	syscall.SIGTERM,
@@ -179,7 +177,7 @@ func maybeUpdateURLsFromConfig(cfg config.Config, store common.Store) error {
 func main() {
 	flag.Parse()
 	if *version {
-		fmt.Println(Version)
+		fmt.Println(appdefaults.GetVersion())
 		return
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), signals...)

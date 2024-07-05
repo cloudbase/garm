@@ -145,7 +145,10 @@ func renderControllerInfoTable(info params.ControllerInfo) string {
 	if info.ControllerWebhookURL == "" {
 		info.ControllerWebhookURL = "N/A"
 	}
-
+	serverVersion := "v0.0.0-unknown"
+	if info.Version != "" {
+		serverVersion = info.Version
+	}
 	t.AppendHeader(header)
 	t.AppendRow(table.Row{"Controller ID", info.ControllerID})
 	if info.Hostname != "" {
@@ -156,6 +159,7 @@ func renderControllerInfoTable(info params.ControllerInfo) string {
 	t.AppendRow(table.Row{"Webhook Base URL", info.WebhookURL})
 	t.AppendRow(table.Row{"Controller Webhook URL", info.ControllerWebhookURL})
 	t.AppendRow(table.Row{"Minimum Job Age Backoff", info.MinimumJobAgeBackoff})
+	t.AppendRow(table.Row{"Version", serverVersion})
 	return t.Render()
 }
 
