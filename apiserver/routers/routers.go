@@ -413,6 +413,7 @@ func NewAPIRouter(han *controllers.APIController, authMiddleware, initMiddleware
 
 	// Websocket log writer
 	apiRouter.Handle("/{ws:ws\\/?}", http.HandlerFunc(han.WSHandler)).Methods("GET")
+	apiRouter.Handle("/{events:events\\/?}", http.HandlerFunc(han.EventsHandler)).Methods("GET")
 
 	// NotFound handler
 	apiRouter.PathPrefix("/").HandlerFunc(han.NotFoundHandler).Methods("GET", "POST", "PUT", "DELETE", "OPTIONS")

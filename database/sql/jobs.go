@@ -142,11 +142,10 @@ func (s *sqlDatabase) LockJob(_ context.Context, jobID int64, entityID string) e
 	}
 
 	asParams, err := sqlWorkflowJobToParamsJob(workflowJob)
-	if err == nil {
-		s.sendNotify(common.JobEntityType, common.UpdateOperation, asParams)
-	} else {
-		slog.With(slog.Any("error", err)).Error("failed to convert job to params")
+	if err != nil {
+		return errors.Wrap(err, "converting job")
 	}
+	s.sendNotify(common.JobEntityType, common.UpdateOperation, asParams)
 
 	return nil
 }
@@ -172,11 +171,10 @@ func (s *sqlDatabase) BreakLockJobIsQueued(_ context.Context, jobID int64) (err 
 		return errors.Wrap(err, "saving job")
 	}
 	asParams, err := sqlWorkflowJobToParamsJob(workflowJob)
-	if err == nil {
-		s.sendNotify(common.JobEntityType, common.UpdateOperation, asParams)
-	} else {
-		slog.With(slog.Any("error", err)).Error("failed to convert job to params")
+	if err != nil {
+		return errors.Wrap(err, "converting job")
 	}
+	s.sendNotify(common.JobEntityType, common.UpdateOperation, asParams)
 	return nil
 }
 
@@ -206,16 +204,16 @@ func (s *sqlDatabase) UnlockJob(_ context.Context, jobID int64, entityID string)
 	}
 
 	asParams, err := sqlWorkflowJobToParamsJob(workflowJob)
-	if err == nil {
-		s.sendNotify(common.JobEntityType, common.UpdateOperation, asParams)
-	} else {
-		slog.With(slog.Any("error", err)).Error("failed to convert job to params")
+	if err != nil {
+		return errors.Wrap(err, "converting job")
 	}
+	s.sendNotify(common.JobEntityType, common.UpdateOperation, asParams)
 	return nil
 }
 
 func (s *sqlDatabase) CreateOrUpdateJob(ctx context.Context, job params.Job) (params.Job, error) {
 	var workflowJob WorkflowJob
+	var err error
 	q := s.conn.Clauses(clause.Locking{Strength: "UPDATE"}).Preload("Instance").Where("id = ?", job.ID).First(&workflowJob)
 
 	if q.Error != nil {
@@ -267,7 +265,7 @@ func (s *sqlDatabase) CreateOrUpdateJob(ctx context.Context, job params.Job) (pa
 	} else {
 		operation = common.CreateOperation
 
-		workflowJob, err := s.paramsJobToWorkflowJob(ctx, job)
+		workflowJob, err = s.paramsJobToWorkflowJob(ctx, job)
 		if err != nil {
 			return params.Job{}, errors.Wrap(err, "converting job")
 		}

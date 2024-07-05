@@ -316,15 +316,16 @@ func (s *sqlDatabase) sqlToCommonRepository(repo Repository, detailed bool) (par
 
 func (s *sqlDatabase) sqlToParamsUser(user User) params.User {
 	return params.User{
-		ID:        user.ID.String(),
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
-		Email:     user.Email,
-		Username:  user.Username,
-		FullName:  user.FullName,
-		Password:  user.Password,
-		Enabled:   user.Enabled,
-		IsAdmin:   user.IsAdmin,
+		ID:         user.ID.String(),
+		CreatedAt:  user.CreatedAt,
+		UpdatedAt:  user.UpdatedAt,
+		Email:      user.Email,
+		Username:   user.Username,
+		FullName:   user.FullName,
+		Password:   user.Password,
+		Enabled:    user.Enabled,
+		IsAdmin:    user.IsAdmin,
+		Generation: user.Generation,
 	}
 }
 

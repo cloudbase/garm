@@ -793,8 +793,10 @@ func (r *basePoolManager) Status() params.PoolManagerStatus {
 func (r *basePoolManager) waitForTimeoutOrCancelled(timeout time.Duration) {
 	slog.DebugContext(
 		r.ctx, fmt.Sprintf("sleeping for %.2f minutes", timeout.Minutes()))
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
 	select {
-	case <-time.After(timeout):
+	case <-timer.C:
 	case <-r.ctx.Done():
 	case <-r.quit:
 	}
@@ -1471,13 +1473,15 @@ func (r *basePoolManager) addPendingInstances() error {
 
 func (r *basePoolManager) Wait() error {
 	done := make(chan struct{})
+	timer := time.NewTimer(60 * time.Second)
 	go func() {
 		r.wg.Wait()
+		timer.Stop()
 		close(done)
 	}()
 	select {
 	case <-done:
-	case <-time.After(60 * time.Second):
+	case <-timer.C:
 		return errors.Wrap(runnerErrors.ErrTimeout, "waiting for pool to stop")
 	}
 	return nil

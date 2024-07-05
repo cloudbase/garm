@@ -145,7 +145,7 @@ func (s *UserTestSuite) TestCreateUserMissingUsernameEmail() {
 	_, err := s.Store.CreateUser(context.Background(), s.Fixtures.NewUserParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal(("missing username or email"), err.Error())
+	s.Require().Equal(("missing username, password or email"), err.Error())
 }
 
 func (s *UserTestSuite) TestCreateUserUsernameAlreadyExist() {
@@ -154,7 +154,7 @@ func (s *UserTestSuite) TestCreateUserUsernameAlreadyExist() {
 	_, err := s.Store.CreateUser(context.Background(), s.Fixtures.NewUserParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal(("username already exists"), err.Error())
+	s.Require().Equal(("creating user: username already exists"), err.Error())
 }
 
 func (s *UserTestSuite) TestCreateUserEmailAlreadyExist() {
@@ -163,10 +163,11 @@ func (s *UserTestSuite) TestCreateUserEmailAlreadyExist() {
 	_, err := s.Store.CreateUser(context.Background(), s.Fixtures.NewUserParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal(("email already exists"), err.Error())
+	s.Require().Equal(("creating user: email already exists"), err.Error())
 }
 
 func (s *UserTestSuite) TestCreateUserDBCreateErr() {
+	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `users` WHERE username = ? AND `users`.`deleted_at` IS NULL ORDER BY `users`.`id` LIMIT ?")).
 		WithArgs(s.Fixtures.NewUserParams.Username, 1).
@@ -175,7 +176,6 @@ func (s *UserTestSuite) TestCreateUserDBCreateErr() {
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `users` WHERE email = ? AND `users`.`deleted_at` IS NULL ORDER BY `users`.`id` LIMIT ?")).
 		WithArgs(s.Fixtures.NewUserParams.Email, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}))
-	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
 		ExpectExec("INSERT INTO `users`").
 		WillReturnError(fmt.Errorf("creating user mock error"))
@@ -183,9 +183,9 @@ func (s *UserTestSuite) TestCreateUserDBCreateErr() {
 
 	_, err := s.StoreSQLMocked.CreateUser(context.Background(), s.Fixtures.NewUserParams)
 
-	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
-	s.Require().Equal("creating user: creating user mock error", err.Error())
+	s.Require().Equal("creating user: creating user: creating user mock error", err.Error())
+	s.assertSQLMockExpectations()
 }
 
 func (s *UserTestSuite) TestHasAdminUserNoAdmin() {
@@ -253,15 +253,15 @@ func (s *UserTestSuite) TestUpdateUserNotFound() {
 	_, err := s.Store.UpdateUser(context.Background(), "dummy-user", s.Fixtures.UpdateUserParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching user: not found", err.Error())
+	s.Require().Equal("updating user: fetching user: not found", err.Error())
 }
 
 func (s *UserTestSuite) TestUpdateUserDBSaveErr() {
+	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `users` WHERE username = ? AND `users`.`deleted_at` IS NULL ORDER BY `users`.`id` LIMIT ?")).
 		WithArgs(s.Fixtures.Users[0].ID, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Users[0].ID))
-	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
 		ExpectExec(("UPDATE `users` SET")).
 		WillReturnError(fmt.Errorf("saving user mock error"))
@@ -271,7 +271,7 @@ func (s *UserTestSuite) TestUpdateUserDBSaveErr() {
 
 	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
-	s.Require().Equal("saving user: saving user mock error", err.Error())
+	s.Require().Equal("updating user: saving user: saving user mock error", err.Error())
 }
 
 func TestUserTestSuite(t *testing.T) {

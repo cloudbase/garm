@@ -57,7 +57,7 @@ func ImpersonateAdminContext(ctx context.Context, db common.Store, s *testing.T)
 			s.Fatalf("failed to create admin user: %v", err)
 		}
 	}
-	ctx = auth.PopulateContext(ctx, adminUser)
+	ctx = auth.PopulateContext(ctx, adminUser, nil)
 	return ctx
 }
 

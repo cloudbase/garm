@@ -239,7 +239,7 @@ func (s *sqlDatabase) migrateCredentialsToDB() (err error) {
 	// user. GARM is not yet multi-user, so it's safe to assume we only have this
 	// one user.
 	adminCtx := context.Background()
-	adminCtx = auth.PopulateContext(adminCtx, adminUser)
+	adminCtx = auth.PopulateContext(adminCtx, adminUser, nil)
 
 	slog.Info("migrating credentials to DB")
 	slog.Info("creating github endpoints table")

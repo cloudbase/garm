@@ -543,9 +543,11 @@ type User struct {
 	Email     string    `json:"email"`
 	Username  string    `json:"username"`
 	FullName  string    `json:"full_name"`
-	Password  string    `json:"-"`
 	Enabled   bool      `json:"enabled"`
 	IsAdmin   bool      `json:"is_admin"`
+	// Do not serialize sensitive info.
+	Password   string `json:"-"`
+	Generation uint   `json:"-"`
 }
 
 // JWTResponse holds the JWT token returned as a result of a

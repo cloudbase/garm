@@ -320,7 +320,7 @@ func main() {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "graceful api server shutdown failed")
 	}
 
-	slog.With(slog.Any("error", err)).ErrorContext(ctx, "waiting for runner to stop")
+	slog.With(slog.Any("error", err)).InfoContext(ctx, "waiting for runner to stop")
 	if err := runner.Wait(); err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to shutdown workers")
 		os.Exit(1)

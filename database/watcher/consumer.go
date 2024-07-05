@@ -69,13 +69,15 @@ func (w *consumer) Send(payload common.ChangePayload) {
 		}
 	}
 
+	timer := time.NewTimer(1 * time.Second)
+	defer timer.Stop()
 	slog.DebugContext(w.ctx, "sending payload")
 	select {
 	case <-w.quit:
 		slog.DebugContext(w.ctx, "consumer is closed")
 	case <-w.ctx.Done():
 		slog.DebugContext(w.ctx, "consumer is closed")
-	case <-time.After(1 * time.Second):
+	case <-timer.C:
 		slog.DebugContext(w.ctx, "timeout trying to send payload", "payload", payload)
 	case w.messages <- payload:
 	}

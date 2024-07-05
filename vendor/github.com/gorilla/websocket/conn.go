@@ -10,7 +10,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
-	"log"
 	"net"
 	"strconv"
 	"strings"
@@ -193,13 +192,6 @@ func newMaskKey() [4]byte {
 	return k
 }
 
-func hideTempErr(err error) error {
-	if e, ok := err.(net.Error); ok {
-		err = &netError{msg: e.Error(), timeout: e.Timeout()}
-	}
-	return err
-}
-
 func isControl(frameType int) bool {
 	return frameType == CloseMessage || frameType == PingMessage || frameType == PongMessage
 }
@@ -365,7 +357,6 @@ func (c *Conn) RemoteAddr() net.Addr {
 // Write methods
 
 func (c *Conn) writeFatal(err error) error {
-	err = hideTempErr(err)
 	c.writeErrMu.Lock()
 	if c.writeErr == nil {
 		c.writeErr = err
@@ -379,9 +370,7 @@ func (c *Conn) read(n int) ([]byte, error) {
 	if err == io.EOF {
 		err = errUnexpectedEOF
 	}
-	if _, err := c.br.Discard(len(p)); err != nil {
-		return p, err
-	}
+	c.br.Discard(len(p))
 	return p, err
 }
 
@@ -396,9 +385,7 @@ func (c *Conn) write(frameType int, deadline time.Time, buf0, buf1 []byte) error
 		return err
 	}
 
-	if err := c.conn.SetWriteDeadline(deadline); err != nil {
-		return c.writeFatal(err)
-	}
+	c.conn.SetWriteDeadline(deadline)
 	if len(buf1) == 0 {
 		_, err = c.conn.Write(buf0)
 	} else {
@@ -408,7 +395,7 @@ func (c *Conn) write(frameType int, deadline time.Time, buf0, buf1 []byte) error
 		return c.writeFatal(err)
 	}
 	if frameType == CloseMessage {
-		_ = c.writeFatal(ErrCloseSent)
+		c.writeFatal(ErrCloseSent)
 	}
 	return nil
 }
@@ -449,7 +436,7 @@ func (c *Conn) WriteControl(messageType int, data []byte, deadline time.Time) er
 
 	d := 1000 * time.Hour
 	if !deadline.IsZero() {
-		d = time.Until(deadline)
+		d = deadline.Sub(time.Now())
 		if d < 0 {
 			return errWriteTimeout
 		}
@@ -471,15 +458,13 @@ func (c *Conn) WriteControl(messageType int, data []byte, deadline time.Time) er
 		return err
 	}
 
-	if err := c.conn.SetWriteDeadline(deadline); err != nil {
-		return c.writeFatal(err)
-	}
+	c.conn.SetWriteDeadline(deadline)
 	_, err = c.conn.Write(buf)
 	if err != nil {
 		return c.writeFatal(err)
 	}
 	if messageType == CloseMessage {
-		_ = c.writeFatal(ErrCloseSent)
+		c.writeFatal(ErrCloseSent)
 	}
 	return err
 }
@@ -490,9 +475,7 @@ func (c *Conn) beginMessage(mw *messageWriter, messageType int) error {
 	// probably better to return an error in this situation, but we cannot
 	// change this without breaking existing applications.
 	if c.writer != nil {
-		if err := c.writer.Close(); err != nil {
-			log.Printf("websocket: discarding writer close error: %v", err)
-		}
+		c.writer.Close()
 		c.writer = nil
 	}
 
@@ -645,7 +628,7 @@ func (w *messageWriter) flushFrame(final bool, extra []byte) error {
 	}
 
 	if final {
-		_ = w.endMessage(errWriteClosed)
+		w.endMessage(errWriteClosed)
 		return nil
 	}
 
@@ -832,9 +815,7 @@ func (c *Conn) advanceFrame() (int, error) {
 	rsv2 := p[0]&rsv2Bit != 0
 	rsv3 := p[0]&rsv3Bit != 0
 	mask := p[1]&maskBit != 0
-	if err := c.setReadRemaining(int64(p[1] & 0x7f)); err != nil {
-		return noFrame, err
-	}
+	c.setReadRemaining(int64(p[1] & 0x7f))
 
 	c.readDecompress = false
 	if rsv1 {
@@ -939,9 +920,7 @@ func (c *Conn) advanceFrame() (int, error) {
 		}
 
 		if c.readLimit > 0 && c.readLength > c.readLimit {
-			if err := c.WriteControl(CloseMessage, FormatCloseMessage(CloseMessageTooBig, ""), time.Now().Add(writeWait)); err != nil {
-				return noFrame, err
-			}
+			c.WriteControl(CloseMessage, FormatCloseMessage(CloseMessageTooBig, ""), time.Now().Add(writeWait))
 			return noFrame, ErrReadLimit
 		}
 
@@ -953,9 +932,7 @@ func (c *Conn) advanceFrame() (int, error) {
 	var payload []byte
 	if c.readRemaining > 0 {
 		payload, err = c.read(int(c.readRemaining))
-		if err := c.setReadRemaining(0); err != nil {
-			return noFrame, err
-		}
+		c.setReadRemaining(0)
 		if err != nil {
 			return noFrame, err
 		}
@@ -1002,9 +979,7 @@ func (c *Conn) handleProtocolError(message string) error {
 	if len(data) > maxControlFramePayloadSize {
 		data = data[:maxControlFramePayloadSize]
 	}
-	if err := c.WriteControl(CloseMessage, data, time.Now().Add(writeWait)); err != nil {
-		return err
-	}
+	c.WriteControl(CloseMessage, data, time.Now().Add(writeWait))
 	return errors.New("websocket: " + message)
 }
 
@@ -1021,9 +996,7 @@ func (c *Conn) handleProtocolError(message string) error {
 func (c *Conn) NextReader() (messageType int, r io.Reader, err error) {
 	// Close previous reader, only relevant for decompression.
 	if c.reader != nil {
-		if err := c.reader.Close(); err != nil {
-			log.Printf("websocket: discarding reader close error: %v", err)
-		}
+		c.reader.Close()
 		c.reader = nil
 	}
 
@@ -1033,7 +1006,7 @@ func (c *Conn) NextReader() (messageType int, r io.Reader, err error) {
 	for c.readErr == nil {
 		frameType, err := c.advanceFrame()
 		if err != nil {
-			c.readErr = hideTempErr(err)
+			c.readErr = err
 			break
 		}
 
@@ -1073,15 +1046,13 @@ func (r *messageReader) Read(b []byte) (int, error) {
 				b = b[:c.readRemaining]
 			}
 			n, err := c.br.Read(b)
-			c.readErr = hideTempErr(err)
+			c.readErr = err
 			if c.isServer {
 				c.readMaskPos = maskBytes(c.readMaskKey, c.readMaskPos, b[:n])
 			}
 			rem := c.readRemaining
 			rem -= int64(n)
-			if err := c.setReadRemaining(rem); err != nil {
-				return 0, err
-			}
+			c.setReadRemaining(rem)
 			if c.readRemaining > 0 && c.readErr == io.EOF {
 				c.readErr = errUnexpectedEOF
 			}
@@ -1096,7 +1067,7 @@ func (r *messageReader) Read(b []byte) (int, error) {
 		frameType, err := c.advanceFrame()
 		switch {
 		case err != nil:
-			c.readErr = hideTempErr(err)
+			c.readErr = err
 		case frameType == TextMessage || frameType == BinaryMessage:
 			c.readErr = errors.New("websocket: internal error, unexpected text or binary in Reader")
 		}
@@ -1163,9 +1134,7 @@ func (c *Conn) SetCloseHandler(h func(code int, text string) error) {
 	if h == nil {
 		h = func(code int, text string) error {
 			message := FormatCloseMessage(code, "")
-			if err := c.WriteControl(CloseMessage, message, time.Now().Add(writeWait)); err != nil {
-				return err
-			}
+			c.WriteControl(CloseMessage, message, time.Now().Add(writeWait))
 			return nil
 		}
 	}
@@ -1187,13 +1156,9 @@ func (c *Conn) PingHandler() func(appData string) error {
 func (c *Conn) SetPingHandler(h func(appData string) error) {
 	if h == nil {
 		h = func(message string) error {
-			err := c.WriteControl(PongMessage, []byte(message), time.Now().Add(writeWait))
-			if err == ErrCloseSent {
-				return nil
-			} else if _, ok := err.(net.Error); ok {
-				return nil
-			}
-			return err
+			// Make a best effort to send the pong mesage.
+			_ = c.WriteControl(PongMessage, []byte(message), time.Now().Add(writeWait))
+			return nil
 		}
 	}
 	c.handlePing = h

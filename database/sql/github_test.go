@@ -284,7 +284,7 @@ func (s *GithubTestSuite) TestCreateCredentials() {
 func (s *GithubTestSuite) TestCreateCredentialsFailsOnDuplicateCredentials() {
 	ctx := garmTesting.ImpersonateAdminContext(context.Background(), s.db, s.T())
 	testUser := garmTesting.CreateGARMTestUser(ctx, "testuser", s.db, s.T())
-	testUserCtx := auth.PopulateContext(context.Background(), testUser)
+	testUserCtx := auth.PopulateContext(context.Background(), testUser, nil)
 
 	credParams := params.CreateGithubCredentialsParams{
 		Name:        testCredsName,
@@ -313,8 +313,8 @@ func (s *GithubTestSuite) TestNormalUsersCanOnlySeeTheirOwnCredentialsAdminCanSe
 	ctx := garmTesting.ImpersonateAdminContext(context.Background(), s.db, s.T())
 	testUser := garmTesting.CreateGARMTestUser(ctx, "testuser1", s.db, s.T())
 	testUser2 := garmTesting.CreateGARMTestUser(ctx, "testuser2", s.db, s.T())
-	testUserCtx := auth.PopulateContext(context.Background(), testUser)
-	testUser2Ctx := auth.PopulateContext(context.Background(), testUser2)
+	testUserCtx := auth.PopulateContext(context.Background(), testUser, nil)
+	testUser2Ctx := auth.PopulateContext(context.Background(), testUser2, nil)
 
 	credParams := params.CreateGithubCredentialsParams{
 		Name:        testCredsName,
@@ -370,7 +370,7 @@ func (s *GithubTestSuite) TestGetGithubCredentialsFailsWhenCredentialsDontExist(
 func (s *GithubTestSuite) TestGetGithubCredentialsByNameReturnsOnlyCurrentUserCredentials() {
 	ctx := garmTesting.ImpersonateAdminContext(context.Background(), s.db, s.T())
 	testUser := garmTesting.CreateGARMTestUser(ctx, "test-user1", s.db, s.T())
-	testUserCtx := auth.PopulateContext(context.Background(), testUser)
+	testUserCtx := auth.PopulateContext(context.Background(), testUser, nil)
 
 	credParams := params.CreateGithubCredentialsParams{
 		Name:        testCredsName,
@@ -472,7 +472,7 @@ func (s *GithubTestSuite) TestDeleteGithubCredentials() {
 func (s *GithubTestSuite) TestDeleteGithubCredentialsByNonAdminUser() {
 	ctx := garmTesting.ImpersonateAdminContext(context.Background(), s.db, s.T())
 	testUser := garmTesting.CreateGARMTestUser(ctx, "test-user4", s.db, s.T())
-	testUserCtx := auth.PopulateContext(context.Background(), testUser)
+	testUserCtx := auth.PopulateContext(context.Background(), testUser, nil)
 
 	credParams := params.CreateGithubCredentialsParams{
 		Name:        testCredsName,
@@ -682,7 +682,7 @@ func (s *GithubTestSuite) TestUpdateCredentialsFailsForNonExistingCredentials() 
 func (s *GithubTestSuite) TestUpdateCredentialsFailsIfCredentialsAreOwnedByNonAdminUser() {
 	ctx := garmTesting.ImpersonateAdminContext(context.Background(), s.db, s.T())
 	testUser := garmTesting.CreateGARMTestUser(ctx, "test-user5", s.db, s.T())
-	testUserCtx := auth.PopulateContext(context.Background(), testUser)
+	testUserCtx := auth.PopulateContext(context.Background(), testUser, nil)
 
 	credParams := params.CreateGithubCredentialsParams{
 		Name:        testCredsName,
@@ -711,7 +711,7 @@ func (s *GithubTestSuite) TestUpdateCredentialsFailsIfCredentialsAreOwnedByNonAd
 func (s *GithubTestSuite) TestAdminUserCanUpdateAnyGithubCredentials() {
 	ctx := garmTesting.ImpersonateAdminContext(context.Background(), s.db, s.T())
 	testUser := garmTesting.CreateGARMTestUser(ctx, "test-user5", s.db, s.T())
-	testUserCtx := auth.PopulateContext(context.Background(), testUser)
+	testUserCtx := auth.PopulateContext(context.Background(), testUser, nil)
 
 	credParams := params.CreateGithubCredentialsParams{
 		Name:        testCredsName,

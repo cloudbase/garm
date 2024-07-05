@@ -28,6 +28,7 @@ import (
 
 	gErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm-provider-common/util"
+	"github.com/cloudbase/garm/apiserver/events"
 	"github.com/cloudbase/garm/apiserver/params"
 	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/metrics"
@@ -163,6 +164,43 @@ func (a *APIController) WebhookHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (a *APIController) EventsHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	if !auth.IsAdmin(ctx) {
+		w.WriteHeader(http.StatusForbidden)
+		if _, err := w.Write([]byte("events are available to admin users")); err != nil {
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
+		}
+		return
+	}
+
+	conn, err := a.upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error upgrading to websockets")
+		return
+	}
+	defer conn.Close()
+
+	wsClient, err := wsWriter.NewClient(ctx, conn)
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to create new client")
+		return
+	}
+	defer wsClient.Stop()
+
+	eventHandler, err := events.NewHandler(ctx, wsClient)
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to create new event handler")
+		return
+	}
+
+	if err := eventHandler.Start(); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to start event handler")
+		return
+	}
+	<-eventHandler.Done()
+}
+
 func (a *APIController) WSHandler(writer http.ResponseWriter, req *http.Request) {
 	ctx := req.Context()
 	if !auth.IsAdmin(ctx) {
@@ -183,14 +221,9 @@ func (a *APIController) WSHandler(writer http.ResponseWriter, req *http.Request)
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error upgrading to websockets")
 		return
 	}
+	defer conn.Close()
 
-	// nolint:golangci-lint,godox
-	// TODO (gsamfira): Handle ExpiresAt. Right now, if a client uses
-	// a valid token to authenticate, and keeps the websocket connection
-	// open, it will allow that client to stream logs via websockets
-	// until the connection is broken. We need to forcefully disconnect
-	// the client once the token expires.
-	client, err := wsWriter.NewClient(conn, a.hub)
+	client, err := wsWriter.NewClient(ctx, conn)
 	if err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to create new client")
 		return
@@ -199,7 +232,14 @@ func (a *APIController) WSHandler(writer http.ResponseWriter, req *http.Request)
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to register new client")
 		return
 	}
-	client.Go()
+	defer a.hub.Unregister(client)
+
+	if err := client.Start(); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to start client")
+		return
+	}
+	<-client.Done()
+	slog.Info("client disconnected", "client_id", client.ID())
 }
 
 // NotFoundHandler is returned when an invalid URL is acccessed
