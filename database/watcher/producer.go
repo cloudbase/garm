@@ -26,12 +26,14 @@ func (w *producer) Notify(payload common.ChangePayload) error {
 		return common.ErrProducerClosed
 	}
 
+	timer := time.NewTimer(1 * time.Second)
+	defer timer.Stop()
 	select {
 	case <-w.quit:
 		return common.ErrProducerClosed
 	case <-w.ctx.Done():
 		return common.ErrProducerClosed
-	case <-time.After(1 * time.Second):
+	case <-timer.C:
 		return common.ErrProducerTimeoutErr
 	case w.messages <- payload:
 	}

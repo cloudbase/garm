@@ -107,9 +107,10 @@ func (h *Hub) Unregister(client *Client) error {
 func (h *Hub) Write(msg []byte) (int, error) {
 	tmp := make([]byte, len(msg))
 	copy(tmp, msg)
-
+	timer := time.NewTimer(5 * time.Second)
+	defer timer.Stop()
 	select {
-	case <-time.After(5 * time.Second):
+	case <-timer.C:
 		return 0, fmt.Errorf("timed out sending message to client")
 	case h.broadcast <- tmp:
 	}
@@ -134,9 +135,11 @@ func (h *Hub) Stop() error {
 }
 
 func (h *Hub) Wait() error {
+	timer := time.NewTimer(60 * time.Second)
+	defer timer.Stop()
 	select {
 	case <-h.closed:
-	case <-time.After(60 * time.Second):
+	case <-timer.C:
 		return fmt.Errorf("timed out waiting for hub stop")
 	}
 	return nil

@@ -134,9 +134,11 @@ func (c *Client) Write(msg []byte) (int, error) {
 
 	tmp := make([]byte, len(msg))
 	copy(tmp, msg)
+	timer := time.NewTimer(5 * time.Second)
+	defer timer.Stop()
 
 	select {
-	case <-time.After(5 * time.Second):
+	case <-timer.C:
 		return 0, fmt.Errorf("timed out sending message to client")
 	case c.send <- tmp:
 	}
@@ -193,11 +195,6 @@ func (c *Client) writeMessage(messageType int, message []byte) error {
 
 // clientWriter
 func (c *Client) clientWriter() {
-	ticker := time.NewTicker(pingPeriod)
-	defer func() {
-		c.Stop()
-		ticker.Stop()
-	}()
 	// Set up expiration timer.
 	// NOTE: if a token is created without an expiration date
 	// this will be set to nil, which will close the loop bellow
@@ -208,6 +205,13 @@ func (c *Client) clientWriter() {
 	if expires != nil {
 		authExpires = *expires
 	}
+	authTimer := time.NewTimer(time.Until(authExpires))
+	ticker := time.NewTicker(pingPeriod)
+	defer func() {
+		c.Stop()
+		ticker.Stop()
+		authTimer.Stop()
+	}()
 	for {
 		select {
 		case message, ok := <-c.send:
@@ -236,7 +240,7 @@ func (c *Client) clientWriter() {
 			}
 		case <-c.ctx.Done():
 			return
-		case <-time.After(time.Until(authExpires)):
+		case <-authTimer.C:
 			// Auth has expired
 			slog.DebugContext(c.ctx, "auth expired, closing connection")
 			return

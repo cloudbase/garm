@@ -431,11 +431,12 @@ func (r *Runner) waitForErrorGroupOrTimeout(g *errgroup.Group) error {
 	go func() {
 		done <- g.Wait()
 	}()
-
+	timer := time.NewTimer(60 * time.Second)
+	defer timer.Stop()
 	select {
 	case err := <-done:
 		return err
-	case <-time.After(60 * time.Second):
+	case <-timer.C:
 		return fmt.Errorf("timed out waiting for pool manager start")
 	}
 }
