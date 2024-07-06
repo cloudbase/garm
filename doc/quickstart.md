@@ -17,7 +17,6 @@
     - [Create a pool](#create-a-pool)
 
 <!-- /TOC -->
-* ```admin:org_hook``` - if you want to allow GARM to install webhooks on organizations
 
 This doc will be updated at a future date with the exact permissions needed in case you want to use a fine grained PAT.
 
