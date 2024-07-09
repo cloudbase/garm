@@ -29,6 +29,10 @@ import (
 // whatever programming language you wish, while still remaining compatible
 // with garm.
 type External struct {
+	// InterfaceVersion is the version of the interface that the external
+	// provider implements. This is used to ensure compatibility between
+	// the external provider and garm.
+	InterfaceVersion string `toml:"interface_version" json:"interface-version"`
 	// ConfigFile is the path on disk to a file which will be passed to
 	// the external binary as an environment variable: GARM_PROVIDER_CONFIG
 	// You can use this file for any configuration you need to do for the
