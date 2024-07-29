@@ -569,7 +569,7 @@ func (s *OrgTestSuite) TestListOrgInstancesErrUnauthorized() {
 func (s *OrgTestSuite) TestFindOrgPoolManager() {
 	s.Fixtures.PoolMgrCtrlMock.On("GetOrgPoolManager", mock.AnythingOfType("params.Organization")).Return(s.Fixtures.PoolMgrMock, nil)
 
-	poolManager, err := s.Runner.findOrgPoolManager(s.Fixtures.StoreOrgs["test-org-1"].Name)
+	poolManager, err := s.Runner.findOrgPoolManager(s.Fixtures.StoreOrgs["test-org-1"].Name, s.Fixtures.StoreOrgs["test-org-1"].Endpoint.Name)
 
 	s.Fixtures.PoolMgrMock.AssertExpectations(s.T())
 	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
@@ -580,7 +580,7 @@ func (s *OrgTestSuite) TestFindOrgPoolManager() {
 func (s *OrgTestSuite) TestFindOrgPoolManagerFetchPoolMgrFailed() {
 	s.Fixtures.PoolMgrCtrlMock.On("GetOrgPoolManager", mock.AnythingOfType("params.Organization")).Return(s.Fixtures.PoolMgrMock, s.Fixtures.ErrMock)
 
-	_, err := s.Runner.findOrgPoolManager(s.Fixtures.StoreOrgs["test-org-1"].Name)
+	_, err := s.Runner.findOrgPoolManager(s.Fixtures.StoreOrgs["test-org-1"].Name, s.Fixtures.StoreOrgs["test-org-1"].Endpoint.Name)
 
 	s.Fixtures.PoolMgrMock.AssertExpectations(s.T())
 	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())

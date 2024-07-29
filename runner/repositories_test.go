@@ -617,7 +617,7 @@ func (s *RepoTestSuite) TestListRepoInstancesErrUnauthorized() {
 func (s *RepoTestSuite) TestFindRepoPoolManager() {
 	s.Fixtures.PoolMgrCtrlMock.On("GetRepoPoolManager", mock.AnythingOfType("params.Repository")).Return(s.Fixtures.PoolMgrMock, nil)
 
-	poolManager, err := s.Runner.findRepoPoolManager(s.Fixtures.StoreRepos["test-repo-1"].Owner, s.Fixtures.StoreRepos["test-repo-1"].Name)
+	poolManager, err := s.Runner.findRepoPoolManager(s.Fixtures.StoreRepos["test-repo-1"].Owner, s.Fixtures.StoreRepos["test-repo-1"].Name, s.Fixtures.StoreRepos["test-repo-1"].Endpoint.Name)
 
 	s.Fixtures.PoolMgrMock.AssertExpectations(s.T())
 	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
@@ -628,7 +628,7 @@ func (s *RepoTestSuite) TestFindRepoPoolManager() {
 func (s *RepoTestSuite) TestFindRepoPoolManagerFetchPoolMgrFailed() {
 	s.Fixtures.PoolMgrCtrlMock.On("GetRepoPoolManager", mock.AnythingOfType("params.Repository")).Return(s.Fixtures.PoolMgrMock, s.Fixtures.ErrMock)
 
-	_, err := s.Runner.findRepoPoolManager(s.Fixtures.StoreRepos["test-repo-1"].Owner, s.Fixtures.StoreRepos["test-repo-1"].Name)
+	_, err := s.Runner.findRepoPoolManager(s.Fixtures.StoreRepos["test-repo-1"].Owner, s.Fixtures.StoreRepos["test-repo-1"].Name, s.Fixtures.StoreRepos["test-repo-1"].Endpoint.Name)
 
 	s.Fixtures.PoolMgrMock.AssertExpectations(s.T())
 	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())

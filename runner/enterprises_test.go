@@ -544,7 +544,7 @@ func (s *EnterpriseTestSuite) TestListEnterpriseInstancesErrUnauthorized() {
 func (s *EnterpriseTestSuite) TestFindEnterprisePoolManager() {
 	s.Fixtures.PoolMgrCtrlMock.On("GetEnterprisePoolManager", mock.AnythingOfType("params.Enterprise")).Return(s.Fixtures.PoolMgrMock, nil)
 
-	poolManager, err := s.Runner.findEnterprisePoolManager(s.Fixtures.StoreEnterprises["test-enterprise-1"].Name)
+	poolManager, err := s.Runner.findEnterprisePoolManager(s.Fixtures.StoreEnterprises["test-enterprise-1"].Name, s.Fixtures.StoreEnterprises["test-enterprise-1"].Endpoint.Name)
 
 	s.Fixtures.PoolMgrMock.AssertExpectations(s.T())
 	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
@@ -555,7 +555,7 @@ func (s *EnterpriseTestSuite) TestFindEnterprisePoolManager() {
 func (s *EnterpriseTestSuite) TestFindEnterprisePoolManagerFetchPoolMgrFailed() {
 	s.Fixtures.PoolMgrCtrlMock.On("GetEnterprisePoolManager", mock.AnythingOfType("params.Enterprise")).Return(s.Fixtures.PoolMgrMock, s.Fixtures.ErrMock)
 
-	_, err := s.Runner.findEnterprisePoolManager(s.Fixtures.StoreEnterprises["test-enterprise-1"].Name)
+	_, err := s.Runner.findEnterprisePoolManager(s.Fixtures.StoreEnterprises["test-enterprise-1"].Name, s.Fixtures.StoreEnterprises["test-enterprise-1"].Endpoint.Name)
 
 	s.Fixtures.PoolMgrMock.AssertExpectations(s.T())
 	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())

@@ -43,7 +43,7 @@ func (r *Runner) CreateOrganization(ctx context.Context, param params.CreateOrgP
 		return params.Organization{}, runnerErrors.NewBadRequestError("credentials %s not defined", param.CredentialsName)
 	}
 
-	_, err = r.store.GetOrganization(ctx, param.Name)
+	_, err = r.store.GetOrganization(ctx, param.Name, creds.Endpoint.Name)
 	if err != nil {
 		if !errors.Is(err, runnerErrors.ErrNotFound) {
 			return params.Organization{}, errors.Wrap(err, "fetching org")
@@ -359,11 +359,11 @@ func (r *Runner) ListOrgInstances(ctx context.Context, orgID string) ([]params.I
 	return instances, nil
 }
 
-func (r *Runner) findOrgPoolManager(name string) (common.PoolManager, error) {
+func (r *Runner) findOrgPoolManager(name, endpointName string) (common.PoolManager, error) {
 	r.mux.Lock()
 	defer r.mux.Unlock()
 
-	org, err := r.store.GetOrganization(r.ctx, name)
+	org, err := r.store.GetOrganization(r.ctx, name, endpointName)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching org")
 	}

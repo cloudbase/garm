@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"hash"
 	"log/slog"
+	"net/url"
 	"os"
 	"strings"
 	"sync"
@@ -599,6 +600,31 @@ func (r *Runner) validateHookBody(signature, secret string, body []byte) error {
 	return nil
 }
 
+func (r *Runner) findEndpointForJob(job params.WorkflowJob) (params.GithubEndpoint, error) {
+	uri, err := url.ParseRequestURI(job.WorkflowJob.HTMLURL)
+	if err != nil {
+		return params.GithubEndpoint{}, errors.Wrap(err, "parsing job URL")
+	}
+	baseURI := fmt.Sprintf("%s://%s", uri.Scheme, uri.Host)
+
+	// Note(gabriel-samfira): Endpoints should be cached. We don't expect to have a large number
+	// of endpoints. In most cases there will be just one (github.com). In cases where there is
+	// a GHES involved, those users will have just one extra endpoint or 2 (if they also have a
+	// test env). But there should be a relatively small number, regardless. So we don't really care
+	// that much about the performance of this function.
+	endpoints, err := r.store.ListGithubEndpoints(r.ctx)
+	if err != nil {
+		return params.GithubEndpoint{}, errors.Wrap(err, "fetching github endpoints")
+	}
+	for _, ep := range endpoints {
+		if ep.BaseURL == baseURI {
+			return ep, nil
+		}
+	}
+
+	return params.GithubEndpoint{}, runnerErrors.NewNotFoundError("no endpoint found for job")
+}
+
 func (r *Runner) DispatchWorkflowJob(hookTargetType, signature string, jobData []byte) error {
 	if len(jobData) == 0 {
 		return runnerErrors.NewBadRequestError("missing job data")
@@ -609,8 +635,12 @@ func (r *Runner) DispatchWorkflowJob(hookTargetType, signature string, jobData [
 		return errors.Wrapf(runnerErrors.ErrBadRequest, "invalid job data: %s", err)
 	}
 
+	endpoint, err := r.findEndpointForJob(job)
+	if err != nil {
+		return errors.Wrap(err, "finding endpoint for job")
+	}
+
 	var poolManager common.PoolManager
-	var err error
 
 	switch HookTargetType(hookTargetType) {
 	case RepoHook:
@@ -618,17 +648,17 @@ func (r *Runner) DispatchWorkflowJob(hookTargetType, signature string, jobData [
 			r.ctx, "got hook for repo",
 			"repo_owner", util.SanitizeLogEntry(job.Repository.Owner.Login),
 			"repo_name", util.SanitizeLogEntry(job.Repository.Name))
-		poolManager, err = r.findRepoPoolManager(job.Repository.Owner.Login, job.Repository.Name)
+		poolManager, err = r.findRepoPoolManager(job.Repository.Owner.Login, job.Repository.Name, endpoint.Name)
 	case OrganizationHook:
 		slog.DebugContext(
 			r.ctx, "got hook for organization",
 			"organization", util.SanitizeLogEntry(job.Organization.Login))
-		poolManager, err = r.findOrgPoolManager(job.Organization.Login)
+		poolManager, err = r.findOrgPoolManager(job.Organization.Login, endpoint.Name)
 	case EnterpriseHook:
 		slog.DebugContext(
 			r.ctx, "got hook for enterprise",
 			"enterprise", util.SanitizeLogEntry(job.Enterprise.Slug))
-		poolManager, err = r.findEnterprisePoolManager(job.Enterprise.Slug)
+		poolManager, err = r.findEnterprisePoolManager(job.Enterprise.Slug, endpoint.Name)
 	default:
 		return runnerErrors.NewBadRequestError("cannot handle hook target type %s", hookTargetType)
 	}
@@ -766,7 +796,7 @@ func (r *Runner) getPoolManagerFromInstance(ctx context.Context, instance params
 		if err != nil {
 			return nil, errors.Wrap(err, "fetching repo")
 		}
-		poolMgr, err = r.findRepoPoolManager(repo.Owner, repo.Name)
+		poolMgr, err = r.findRepoPoolManager(repo.Owner, repo.Name, repo.Endpoint.Name)
 		if err != nil {
 			return nil, errors.Wrapf(err, "fetching pool manager for repo %s", pool.RepoName)
 		}
@@ -775,7 +805,7 @@ func (r *Runner) getPoolManagerFromInstance(ctx context.Context, instance params
 		if err != nil {
 			return nil, errors.Wrap(err, "fetching org")
 		}
-		poolMgr, err = r.findOrgPoolManager(org.Name)
+		poolMgr, err = r.findOrgPoolManager(org.Name, org.Endpoint.Name)
 		if err != nil {
 			return nil, errors.Wrapf(err, "fetching pool manager for org %s", pool.OrgName)
 		}
@@ -784,7 +814,7 @@ func (r *Runner) getPoolManagerFromInstance(ctx context.Context, instance params
 		if err != nil {
 			return nil, errors.Wrap(err, "fetching enterprise")
 		}
-		poolMgr, err = r.findEnterprisePoolManager(enterprise.Name)
+		poolMgr, err = r.findEnterprisePoolManager(enterprise.Name, enterprise.Endpoint.Name)
 		if err != nil {
 			return nil, errors.Wrapf(err, "fetching pool manager for enterprise %s", pool.EnterpriseName)
 		}

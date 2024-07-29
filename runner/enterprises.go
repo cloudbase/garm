@@ -30,7 +30,7 @@ func (r *Runner) CreateEnterprise(ctx context.Context, param params.CreateEnterp
 		return params.Enterprise{}, runnerErrors.NewBadRequestError("credentials %s not defined", param.CredentialsName)
 	}
 
-	_, err = r.store.GetEnterprise(ctx, param.Name)
+	_, err = r.store.GetEnterprise(ctx, param.Name, creds.Endpoint.Name)
 	if err != nil {
 		if !errors.Is(err, runnerErrors.ErrNotFound) {
 			return params.Enterprise{}, errors.Wrap(err, "fetching enterprise")
@@ -322,11 +322,11 @@ func (r *Runner) ListEnterpriseInstances(ctx context.Context, enterpriseID strin
 	return instances, nil
 }
 
-func (r *Runner) findEnterprisePoolManager(name string) (common.PoolManager, error) {
+func (r *Runner) findEnterprisePoolManager(name, endpointName string) (common.PoolManager, error) {
 	r.mux.Lock()
 	defer r.mux.Unlock()
 
-	enterprise, err := r.store.GetEnterprise(r.ctx, name)
+	enterprise, err := r.store.GetEnterprise(r.ctx, name, endpointName)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching enterprise")
 	}

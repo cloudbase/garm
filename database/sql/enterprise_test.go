@@ -245,7 +245,7 @@ func (s *EnterpriseTestSuite) TestCreateEnterpriseDBCreateErr() {
 }
 
 func (s *EnterpriseTestSuite) TestGetEnterprise() {
-	enterprise, err := s.Store.GetEnterprise(s.adminCtx, s.Fixtures.Enterprises[0].Name)
+	enterprise, err := s.Store.GetEnterprise(s.adminCtx, s.Fixtures.Enterprises[0].Name, s.Fixtures.Enterprises[0].Endpoint.Name)
 
 	s.Require().Nil(err)
 	s.Require().Equal(s.Fixtures.Enterprises[0].Name, enterprise.Name)
@@ -253,14 +253,14 @@ func (s *EnterpriseTestSuite) TestGetEnterprise() {
 }
 
 func (s *EnterpriseTestSuite) TestGetEnterpriseCaseInsensitive() {
-	enterprise, err := s.Store.GetEnterprise(s.adminCtx, "TeSt-eNtErPriSe-1")
+	enterprise, err := s.Store.GetEnterprise(s.adminCtx, "TeSt-eNtErPriSe-1", "github.com")
 
 	s.Require().Nil(err)
 	s.Require().Equal("test-enterprise-1", enterprise.Name)
 }
 
 func (s *EnterpriseTestSuite) TestGetEnterpriseNotFound() {
-	_, err := s.Store.GetEnterprise(s.adminCtx, "dummy-name")
+	_, err := s.Store.GetEnterprise(s.adminCtx, "dummy-name", "github.com")
 
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching enterprise: not found", err.Error())
@@ -268,15 +268,15 @@ func (s *EnterpriseTestSuite) TestGetEnterpriseNotFound() {
 
 func (s *EnterpriseTestSuite) TestGetEnterpriseDBDecryptingErr() {
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `enterprises` WHERE name = ? COLLATE NOCASE AND `enterprises`.`deleted_at` IS NULL ORDER BY `enterprises`.`id` LIMIT ?")).
-		WithArgs(s.Fixtures.Enterprises[0].Name, 1).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `enterprises` WHERE (name = ? COLLATE NOCASE and endpoint_name = ? COLLATE NOCASE) AND `enterprises`.`deleted_at` IS NULL ORDER BY `enterprises`.`id` LIMIT ?")).
+		WithArgs(s.Fixtures.Enterprises[0].Name, s.Fixtures.Enterprises[0].Endpoint.Name, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"name"}).AddRow(s.Fixtures.Enterprises[0].Name))
 
-	_, err := s.StoreSQLMocked.GetEnterprise(s.adminCtx, s.Fixtures.Enterprises[0].Name)
+	_, err := s.StoreSQLMocked.GetEnterprise(s.adminCtx, s.Fixtures.Enterprises[0].Name, s.Fixtures.Enterprises[0].Endpoint.Name)
 
-	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching enterprise: missing secret", err.Error())
+	s.assertSQLMockExpectations()
 }
 
 func (s *EnterpriseTestSuite) TestListEnterprises() {
