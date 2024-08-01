@@ -341,10 +341,10 @@ func init() {
 
 func formatOrganizations(orgs []params.Organization) {
 	t := table.NewWriter()
-	header := table.Row{"ID", "Name", "Credentials name", "Pool Balancer Type", "Pool mgr running"}
+	header := table.Row{"ID", "Name", "Endpoint", "Credentials name", "Pool Balancer Type", "Pool mgr running"}
 	t.AppendHeader(header)
 	for _, val := range orgs {
-		t.AppendRow(table.Row{val.ID, val.Name, val.CredentialsName, val.GetBalancerType(), val.PoolManagerStatus.IsRunning})
+		t.AppendRow(table.Row{val.ID, val.Name, val.Endpoint.Name, val.CredentialsName, val.GetBalancerType(), val.PoolManagerStatus.IsRunning})
 		t.AppendSeparator()
 	}
 	fmt.Println(t.Render())
@@ -357,6 +357,7 @@ func formatOneOrganization(org params.Organization) {
 	t.AppendHeader(header)
 	t.AppendRow(table.Row{"ID", org.ID})
 	t.AppendRow(table.Row{"Name", org.Name})
+	t.AppendRow(table.Row{"Endpoint", org.Endpoint.Name})
 	t.AppendRow(table.Row{"Pool balancer type", org.GetBalancerType()})
 	t.AppendRow(table.Row{"Credentials", org.CredentialsName})
 	t.AppendRow(table.Row{"Pool manager running", org.PoolManagerStatus.IsRunning})

@@ -271,7 +271,7 @@ func (s *RepoTestSuite) TestCreateRepositoryInvalidDBCreateErr() {
 }
 
 func (s *RepoTestSuite) TestGetRepository() {
-	repo, err := s.Store.GetRepository(s.adminCtx, s.Fixtures.Repos[0].Owner, s.Fixtures.Repos[0].Name)
+	repo, err := s.Store.GetRepository(s.adminCtx, s.Fixtures.Repos[0].Owner, s.Fixtures.Repos[0].Name, s.Fixtures.Repos[0].Endpoint.Name)
 
 	s.Require().Nil(err)
 	s.Require().Equal(s.Fixtures.Repos[0].Owner, repo.Owner)
@@ -280,7 +280,7 @@ func (s *RepoTestSuite) TestGetRepository() {
 }
 
 func (s *RepoTestSuite) TestGetRepositoryCaseInsensitive() {
-	repo, err := s.Store.GetRepository(s.adminCtx, "TeSt-oWnEr-1", "TeSt-rEpO-1")
+	repo, err := s.Store.GetRepository(s.adminCtx, "TeSt-oWnEr-1", "TeSt-rEpO-1", "github.com")
 
 	s.Require().Nil(err)
 	s.Require().Equal("test-owner-1", repo.Owner)
@@ -288,7 +288,7 @@ func (s *RepoTestSuite) TestGetRepositoryCaseInsensitive() {
 }
 
 func (s *RepoTestSuite) TestGetRepositoryNotFound() {
-	_, err := s.Store.GetRepository(s.adminCtx, "dummy-owner", "dummy-name")
+	_, err := s.Store.GetRepository(s.adminCtx, "dummy-owner", "dummy-name", "github.com")
 
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching repo: not found", err.Error())
@@ -296,15 +296,15 @@ func (s *RepoTestSuite) TestGetRepositoryNotFound() {
 
 func (s *RepoTestSuite) TestGetRepositoryDBDecryptingErr() {
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `repositories` WHERE (name = ? COLLATE NOCASE and owner = ? COLLATE NOCASE) AND `repositories`.`deleted_at` IS NULL ORDER BY `repositories`.`id` LIMIT ?")).
-		WithArgs(s.Fixtures.Repos[0].Name, s.Fixtures.Repos[0].Owner, 1).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `repositories` WHERE (name = ? COLLATE NOCASE and owner = ? COLLATE NOCASE and endpoint_name = ? COLLATE NOCASE) AND `repositories`.`deleted_at` IS NULL ORDER BY `repositories`.`id` LIMIT ?")).
+		WithArgs(s.Fixtures.Repos[0].Name, s.Fixtures.Repos[0].Owner, s.Fixtures.Repos[0].Endpoint.Name, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"name", "owner"}).AddRow(s.Fixtures.Repos[0].Name, s.Fixtures.Repos[0].Owner))
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `repositories` WHERE (name = ? COLLATE NOCASE and owner = ? COLLATE NOCASE) AND `repositories`.`deleted_at` IS NULL ORDER BY `repositories`.`id`,`repositories`.`id` LIMIT ?")).
-		WithArgs(s.Fixtures.Repos[0].Name, s.Fixtures.Repos[0].Owner, 1).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `repositories` WHERE (name = ? COLLATE NOCASE and owner = ? COLLATE NOCASE and endpoint_name = ? COLLATE NOCASE) AND `repositories`.`deleted_at` IS NULL ORDER BY `repositories`.`id`,`repositories`.`id` LIMIT ?")).
+		WithArgs(s.Fixtures.Repos[0].Name, s.Fixtures.Repos[0].Owner, s.Fixtures.Repos[0].Endpoint.Name, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"name", "owner"}).AddRow(s.Fixtures.Repos[0].Name, s.Fixtures.Repos[0].Owner))
 
-	_, err := s.StoreSQLMocked.GetRepository(s.adminCtx, s.Fixtures.Repos[0].Owner, s.Fixtures.Repos[0].Name)
+	_, err := s.StoreSQLMocked.GetRepository(s.adminCtx, s.Fixtures.Repos[0].Owner, s.Fixtures.Repos[0].Name, s.Fixtures.Repos[0].Endpoint.Name)
 
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching repo: missing secret", err.Error())

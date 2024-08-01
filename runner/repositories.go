@@ -43,7 +43,7 @@ func (r *Runner) CreateRepository(ctx context.Context, param params.CreateRepoPa
 		return params.Repository{}, runnerErrors.NewBadRequestError("credentials %s not defined", param.CredentialsName)
 	}
 
-	_, err = r.store.GetRepository(ctx, param.Owner, param.Name)
+	_, err = r.store.GetRepository(ctx, param.Owner, param.Name, creds.Endpoint.Name)
 	if err != nil {
 		if !errors.Is(err, runnerErrors.ErrNotFound) {
 			return params.Repository{}, errors.Wrap(err, "fetching repo")
@@ -364,11 +364,11 @@ func (r *Runner) ListRepoInstances(ctx context.Context, repoID string) ([]params
 	return instances, nil
 }
 
-func (r *Runner) findRepoPoolManager(owner, name string) (common.PoolManager, error) {
+func (r *Runner) findRepoPoolManager(owner, name, endpointName string) (common.PoolManager, error) {
 	r.mux.Lock()
 	defer r.mux.Unlock()
 
-	repo, err := r.store.GetRepository(r.ctx, owner, name)
+	repo, err := r.store.GetRepository(r.ctx, owner, name, endpointName)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching repo")
 	}

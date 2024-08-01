@@ -39,7 +39,7 @@ type GithubCredentialsStore interface {
 
 type RepoStore interface {
 	CreateRepository(ctx context.Context, owner, name, credentialsName, webhookSecret string, poolBalancerType params.PoolBalancerType) (params.Repository, error)
-	GetRepository(ctx context.Context, owner, name string) (params.Repository, error)
+	GetRepository(ctx context.Context, owner, name, endpointName string) (params.Repository, error)
 	GetRepositoryByID(ctx context.Context, repoID string) (params.Repository, error)
 	ListRepositories(ctx context.Context) ([]params.Repository, error)
 	DeleteRepository(ctx context.Context, repoID string) error
@@ -48,7 +48,7 @@ type RepoStore interface {
 
 type OrgStore interface {
 	CreateOrganization(ctx context.Context, name, credentialsName, webhookSecret string, poolBalancerType params.PoolBalancerType) (params.Organization, error)
-	GetOrganization(ctx context.Context, name string) (params.Organization, error)
+	GetOrganization(ctx context.Context, name, endpointName string) (params.Organization, error)
 	GetOrganizationByID(ctx context.Context, orgID string) (params.Organization, error)
 	ListOrganizations(ctx context.Context) ([]params.Organization, error)
 	DeleteOrganization(ctx context.Context, orgID string) error
@@ -57,7 +57,7 @@ type OrgStore interface {
 
 type EnterpriseStore interface {
 	CreateEnterprise(ctx context.Context, name, credentialsName, webhookSecret string, poolBalancerType params.PoolBalancerType) (params.Enterprise, error)
-	GetEnterprise(ctx context.Context, name string) (params.Enterprise, error)
+	GetEnterprise(ctx context.Context, name, endpointName string) (params.Enterprise, error)
 	GetEnterpriseByID(ctx context.Context, enterpriseID string) (params.Enterprise, error)
 	ListEnterprises(ctx context.Context) ([]params.Enterprise, error)
 	DeleteEnterprise(ctx context.Context, enterpriseID string) error

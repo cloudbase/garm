@@ -347,10 +347,10 @@ func init() {
 
 func formatRepositories(repos []params.Repository) {
 	t := table.NewWriter()
-	header := table.Row{"ID", "Owner", "Name", "Credentials name", "Pool Balancer Type", "Pool mgr running"}
+	header := table.Row{"ID", "Owner", "Name", "Endpoint", "Credentials name", "Pool Balancer Type", "Pool mgr running"}
 	t.AppendHeader(header)
 	for _, val := range repos {
-		t.AppendRow(table.Row{val.ID, val.Owner, val.Name, val.CredentialsName, val.GetBalancerType(), val.PoolManagerStatus.IsRunning})
+		t.AppendRow(table.Row{val.ID, val.Owner, val.Name, val.Endpoint.Name, val.CredentialsName, val.GetBalancerType(), val.PoolManagerStatus.IsRunning})
 		t.AppendSeparator()
 	}
 	fmt.Println(t.Render())
@@ -364,6 +364,7 @@ func formatOneRepository(repo params.Repository) {
 	t.AppendRow(table.Row{"ID", repo.ID})
 	t.AppendRow(table.Row{"Owner", repo.Owner})
 	t.AppendRow(table.Row{"Name", repo.Name})
+	t.AppendRow(table.Row{"Endpoint", repo.Endpoint.Name})
 	t.AppendRow(table.Row{"Pool balancer type", repo.GetBalancerType()})
 	t.AppendRow(table.Row{"Credentials", repo.CredentialsName})
 	t.AppendRow(table.Row{"Pool manager running", repo.PoolManagerStatus.IsRunning})

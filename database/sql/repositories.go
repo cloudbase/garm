@@ -84,8 +84,8 @@ func (s *sqlDatabase) CreateRepository(ctx context.Context, owner, name, credent
 	return param, nil
 }
 
-func (s *sqlDatabase) GetRepository(ctx context.Context, owner, name string) (params.Repository, error) {
-	repo, err := s.getRepo(ctx, owner, name)
+func (s *sqlDatabase) GetRepository(ctx context.Context, owner, name, endpointName string) (params.Repository, error) {
+	repo, err := s.getRepo(ctx, owner, name, endpointName)
 	if err != nil {
 		return params.Repository{}, errors.Wrap(err, "fetching repo")
 	}
@@ -228,10 +228,10 @@ func (s *sqlDatabase) GetRepositoryByID(ctx context.Context, repoID string) (par
 	return param, nil
 }
 
-func (s *sqlDatabase) getRepo(_ context.Context, owner, name string) (Repository, error) {
+func (s *sqlDatabase) getRepo(_ context.Context, owner, name, endpointName string) (Repository, error) {
 	var repo Repository
 
-	q := s.conn.Where("name = ? COLLATE NOCASE and owner = ? COLLATE NOCASE", name, owner).
+	q := s.conn.Where("name = ? COLLATE NOCASE and owner = ? COLLATE NOCASE and endpoint_name = ? COLLATE NOCASE", name, owner, endpointName).
 		Preload("Credentials").
 		Preload("Credentials.Endpoint").
 		Preload("Endpoint").

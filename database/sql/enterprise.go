@@ -82,8 +82,8 @@ func (s *sqlDatabase) CreateEnterprise(ctx context.Context, name, credentialsNam
 	return paramEnt, nil
 }
 
-func (s *sqlDatabase) GetEnterprise(ctx context.Context, name string) (params.Enterprise, error) {
-	enterprise, err := s.getEnterprise(ctx, name)
+func (s *sqlDatabase) GetEnterprise(ctx context.Context, name, endpointName string) (params.Enterprise, error) {
+	enterprise, err := s.getEnterprise(ctx, name, endpointName)
 	if err != nil {
 		return params.Enterprise{}, errors.Wrap(err, "fetching enterprise")
 	}
@@ -223,10 +223,10 @@ func (s *sqlDatabase) UpdateEnterprise(ctx context.Context, enterpriseID string,
 	return newParams, nil
 }
 
-func (s *sqlDatabase) getEnterprise(_ context.Context, name string) (Enterprise, error) {
+func (s *sqlDatabase) getEnterprise(_ context.Context, name, endpointName string) (Enterprise, error) {
 	var enterprise Enterprise
 
-	q := s.conn.Where("name = ? COLLATE NOCASE", name).
+	q := s.conn.Where("name = ? COLLATE NOCASE and endpoint_name = ? COLLATE NOCASE", name, endpointName).
 		Preload("Credentials").
 		Preload("Credentials.Endpoint").
 		Preload("Endpoint").

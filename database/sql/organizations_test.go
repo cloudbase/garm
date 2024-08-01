@@ -247,7 +247,7 @@ func (s *OrgTestSuite) TestCreateOrganizationDBCreateErr() {
 }
 
 func (s *OrgTestSuite) TestGetOrganization() {
-	org, err := s.Store.GetOrganization(s.adminCtx, s.Fixtures.Orgs[0].Name)
+	org, err := s.Store.GetOrganization(s.adminCtx, s.Fixtures.Orgs[0].Name, s.Fixtures.Orgs[0].Endpoint.Name)
 
 	s.Require().Nil(err)
 	s.Require().Equal(s.Fixtures.Orgs[0].Name, org.Name)
@@ -255,14 +255,14 @@ func (s *OrgTestSuite) TestGetOrganization() {
 }
 
 func (s *OrgTestSuite) TestGetOrganizationCaseInsensitive() {
-	org, err := s.Store.GetOrganization(s.adminCtx, "TeSt-oRg-1")
+	org, err := s.Store.GetOrganization(s.adminCtx, "TeSt-oRg-1", "github.com")
 
 	s.Require().Nil(err)
 	s.Require().Equal("test-org-1", org.Name)
 }
 
 func (s *OrgTestSuite) TestGetOrganizationNotFound() {
-	_, err := s.Store.GetOrganization(s.adminCtx, "dummy-name")
+	_, err := s.Store.GetOrganization(s.adminCtx, "dummy-name", "github.com")
 
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching org: not found", err.Error())
@@ -270,15 +270,15 @@ func (s *OrgTestSuite) TestGetOrganizationNotFound() {
 
 func (s *OrgTestSuite) TestGetOrganizationDBDecryptingErr() {
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE name = ? COLLATE NOCASE AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT ?")).
-		WithArgs(s.Fixtures.Orgs[0].Name, 1).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE (name = ? COLLATE NOCASE and endpoint_name = ? COLLATE NOCASE) AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT ?")).
+		WithArgs(s.Fixtures.Orgs[0].Name, s.Fixtures.Orgs[0].Endpoint.Name, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"name"}).AddRow(s.Fixtures.Orgs[0].Name))
 
-	_, err := s.StoreSQLMocked.GetOrganization(s.adminCtx, s.Fixtures.Orgs[0].Name)
+	_, err := s.StoreSQLMocked.GetOrganization(s.adminCtx, s.Fixtures.Orgs[0].Name, s.Fixtures.Orgs[0].Endpoint.Name)
 
-	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching org: missing secret", err.Error())
+	s.assertSQLMockExpectations()
 }
 
 func (s *OrgTestSuite) TestListOrganizations() {

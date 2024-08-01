@@ -38,8 +38,24 @@ func (r *basePoolManager) getClientOrStub() runnerCommon.GithubClient {
 	return ghc
 }
 
-func (r *basePoolManager) handleEntityUpdate(entity params.GithubEntity) {
-	slog.DebugContext(r.ctx, "received entity update", "entity", entity.ID)
+func (r *basePoolManager) handleEntityUpdate(entity params.GithubEntity, operation common.OperationType) {
+	slog.DebugContext(r.ctx, "received entity operation", "entity", entity.ID, "operation", operation)
+	if r.entity.ID != entity.ID {
+		slog.WarnContext(r.ctx, "entity ID mismatch; stale event? refusing to update", "entity", entity.ID)
+		return
+	}
+
+	if operation == common.DeleteOperation {
+		slog.InfoContext(r.ctx, "entity deleted; closing db consumer", "entity", entity.ID)
+		r.consumer.Close()
+		return
+	}
+
+	if operation != common.UpdateOperation {
+		slog.DebugContext(r.ctx, "operation not update; ignoring", "entity", entity.ID, "operation", operation)
+		return
+	}
+
 	credentialsUpdate := r.entity.Credentials.ID != entity.Credentials.ID
 	defer func() {
 		slog.DebugContext(r.ctx, "deferred tools update", "credentials_update", credentialsUpdate)
@@ -133,11 +149,12 @@ func (r *basePoolManager) handleWatcherEvent(event common.ChangePayload) {
 			slog.ErrorContext(r.ctx, "failed to get entity", "error", err)
 			return
 		}
-		r.handleEntityUpdate(entityInfo)
+		r.handleEntityUpdate(entityInfo, event.Operation)
 	}
 }
 
 func (r *basePoolManager) runWatcher() {
+	defer r.consumer.Close()
 	for {
 		select {
 		case <-r.quit:

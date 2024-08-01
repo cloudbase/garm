@@ -78,7 +78,8 @@ func NewEntityPoolManager(ctx context.Context, entity params.GithubEntity, insta
 		return nil, errors.Wrap(err, "getting controller info")
 	}
 
-	consumerID := fmt.Sprintf("pool-manager-%s", entity.String())
+	consumerID := fmt.Sprintf("pool-manager-%s-%s", entity.String(), entity.Credentials.Endpoint.Name)
+	slog.InfoContext(ctx, "registering consumer", "consumer_id", consumerID)
 	consumer, err := watcher.RegisterConsumer(
 		ctx, consumerID,
 		composeWatcherFilters(entity),

@@ -119,7 +119,7 @@ type Organization struct {
 	Jobs             []WorkflowJob           `gorm:"foreignKey:OrgID;constraint:OnDelete:SET NULL"`
 	PoolBalancerType params.PoolBalancerType `gorm:"type:varchar(64)"`
 
-	EndpointName *string        `gorm:"index"`
+	EndpointName *string        `gorm:"index:idx_org_name_nocase,collate:nocase"`
 	Endpoint     GithubEndpoint `gorm:"foreignKey:EndpointName;constraint:OnDelete:SET NULL"`
 }
 
@@ -137,7 +137,7 @@ type Enterprise struct {
 	Jobs             []WorkflowJob           `gorm:"foreignKey:EnterpriseID;constraint:OnDelete:SET NULL"`
 	PoolBalancerType params.PoolBalancerType `gorm:"type:varchar(64)"`
 
-	EndpointName *string        `gorm:"index"`
+	EndpointName *string        `gorm:"index:idx_ent_name_nocase,collate:nocase"`
 	Endpoint     GithubEndpoint `gorm:"foreignKey:EndpointName;constraint:OnDelete:SET NULL"`
 }
 

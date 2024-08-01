@@ -85,8 +85,8 @@ func (s *sqlDatabase) CreateOrganization(ctx context.Context, name, credentialsN
 	return org, nil
 }
 
-func (s *sqlDatabase) GetOrganization(ctx context.Context, name string) (params.Organization, error) {
-	org, err := s.getOrg(ctx, name)
+func (s *sqlDatabase) GetOrganization(ctx context.Context, name, endpointName string) (params.Organization, error) {
+	org, err := s.getOrg(ctx, name, endpointName)
 	if err != nil {
 		return params.Organization{}, errors.Wrap(err, "fetching org")
 	}
@@ -252,10 +252,10 @@ func (s *sqlDatabase) getOrgByID(_ context.Context, db *gorm.DB, id string, prel
 	return org, nil
 }
 
-func (s *sqlDatabase) getOrg(_ context.Context, name string) (Organization, error) {
+func (s *sqlDatabase) getOrg(_ context.Context, name, endpointName string) (Organization, error) {
 	var org Organization
 
-	q := s.conn.Where("name = ? COLLATE NOCASE", name).
+	q := s.conn.Where("name = ? COLLATE NOCASE and endpoint_name = ? COLLATE NOCASE", name, endpointName).
 		Preload("Credentials").
 		Preload("Credentials.Endpoint").
 		Preload("Endpoint").
