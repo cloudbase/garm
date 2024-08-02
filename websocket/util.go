@@ -12,11 +12,12 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"github.com/cloudbase/garm-provider-common/util"
 	apiParams "github.com/cloudbase/garm/apiserver/params"
 )
 
-func NewReader(ctx context.Context, baseURL, pth, token string) (*Reader, error) {
+type MessageHandler func(msgType int, msg []byte) error
+
+func NewReader(ctx context.Context, baseURL, pth, token string, handler MessageHandler) (*Reader, error) {
 	parsedURL, err := url.Parse(baseURL)
 	if err != nil {
 		return nil, err
@@ -31,10 +32,11 @@ func NewReader(ctx context.Context, baseURL, pth, token string) (*Reader, error)
 	header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
 
 	return &Reader{
-		ctx:    ctx,
-		url:    u,
-		header: header,
-		done:   make(chan struct{}),
+		ctx:     ctx,
+		url:     u,
+		header:  header,
+		handler: handler,
+		done:    make(chan struct{}),
 	}, nil
 }
 
@@ -45,6 +47,8 @@ type Reader struct {
 
 	done    chan struct{}
 	running bool
+
+	handler MessageHandler
 
 	conn     *websocket.Conn
 	mux      sync.Mutex
@@ -107,11 +111,11 @@ func (w *Reader) Start() error {
 	w.conn = c
 	w.running = true
 	go w.loop()
-	go w.printWebsocketToConsole()
+	go w.handlerReader()
 	return nil
 }
 
-func (w *Reader) printWebsocketToConsole() {
+func (w *Reader) handlerReader() {
 	defer w.Stop()
 	w.writeMux.Lock()
 	w.conn.SetReadLimit(maxMessageSize)
@@ -119,14 +123,18 @@ func (w *Reader) printWebsocketToConsole() {
 	w.conn.SetPongHandler(func(string) error { w.conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
 	w.writeMux.Unlock()
 	for {
-		_, message, err := w.conn.ReadMessage()
+		msgType, message, err := w.conn.ReadMessage()
 		if err != nil {
 			if IsErrorOfInterest(err) {
 				slog.With(slog.Any("error", err)).Error("reading log message")
 			}
 			return
 		}
-		fmt.Println(util.SanitizeLogEntry(string(message)))
+		if w.handler != nil {
+			if err := w.handler(msgType, message); err != nil {
+				slog.With(slog.Any("error", err)).Error("handling log message")
+			}
+		}
 	}
 }
 

@@ -20,6 +20,8 @@ import (
 
 	"github.com/manifoldco/promptui"
 	"github.com/nbutton23/zxcvbn-go"
+
+	"github.com/cloudbase/garm-provider-common/util"
 )
 
 func PromptPassword(label string, compareTo string) (string, error) {
@@ -66,4 +68,9 @@ func PromptString(label string, a ...interface{}) (string, error) {
 		return "", err
 	}
 	return result, nil
+}
+
+func PrintWebsocketMessage(_ int, msg []byte) error {
+	fmt.Println(util.SanitizeLogEntry(string(msg)))
+	return nil
 }
