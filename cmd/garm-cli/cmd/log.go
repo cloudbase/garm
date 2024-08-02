@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/cloudbase/garm/cmd/garm-cli/common"
 	garmWs "github.com/cloudbase/garm/websocket"
 )
 
@@ -20,7 +21,7 @@ var logCmd = &cobra.Command{
 		ctx, stop := signal.NotifyContext(context.Background(), signals...)
 		defer stop()
 
-		reader, err := garmWs.NewReader(ctx, mgr.BaseURL, "/api/v1/ws", mgr.Token)
+		reader, err := garmWs.NewReader(ctx, mgr.BaseURL, "/api/v1/ws", mgr.Token, common.PrintWebsocketMessage)
 		if err != nil {
 			return err
 		}
