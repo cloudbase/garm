@@ -411,9 +411,18 @@ func NewAPIRouter(han *controllers.APIController, authMiddleware, initMiddleware
 	apiRouter.Handle("/github/credentials/{id}/", http.HandlerFunc(han.UpdateGithubCredential)).Methods("PUT", "OPTIONS")
 	apiRouter.Handle("/github/credentials/{id}", http.HandlerFunc(han.UpdateGithubCredential)).Methods("PUT", "OPTIONS")
 
-	// Websocket log writer
-	apiRouter.Handle("/{ws:ws\\/?}", http.HandlerFunc(han.WSHandler)).Methods("GET")
-	apiRouter.Handle("/{events:events\\/?}", http.HandlerFunc(han.EventsHandler)).Methods("GET")
+	/////////////////////////
+	// Websocket endpoints //
+	/////////////////////////
+	// Legacy log websocket path
+	apiRouter.Handle("/ws/", http.HandlerFunc(han.WSHandler)).Methods("GET")
+	apiRouter.Handle("/ws", http.HandlerFunc(han.WSHandler)).Methods("GET")
+	// Log websocket endpoint
+	apiRouter.Handle("/ws/logs/", http.HandlerFunc(han.WSHandler)).Methods("GET")
+	apiRouter.Handle("/ws/logs", http.HandlerFunc(han.WSHandler)).Methods("GET")
+	// DB watcher websocket endpoint
+	apiRouter.Handle("/ws/events/", http.HandlerFunc(han.EventsHandler)).Methods("GET")
+	apiRouter.Handle("/ws/events", http.HandlerFunc(han.EventsHandler)).Methods("GET")
 
 	// NotFound handler
 	apiRouter.PathPrefix("/").HandlerFunc(han.NotFoundHandler).Methods("GET", "POST", "PUT", "DELETE", "OPTIONS")
