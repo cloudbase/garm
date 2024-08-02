@@ -27,7 +27,7 @@ var eventsCmd = &cobra.Command{
 		ctx, stop := signal.NotifyContext(context.Background(), signals...)
 		defer stop()
 
-		reader, err := garmWs.NewReader(ctx, mgr.BaseURL, "/api/v1/events", mgr.Token, common.PrintWebsocketMessage)
+		reader, err := garmWs.NewReader(ctx, mgr.BaseURL, "/api/v1/ws/events", mgr.Token, common.PrintWebsocketMessage)
 		if err != nil {
 			return err
 		}
