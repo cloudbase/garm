@@ -11,12 +11,32 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-
-	apiParams "github.com/cloudbase/garm/apiserver/params"
 )
 
+const (
+	// Time allowed to write a message to the peer.
+	writeWait = 10 * time.Second
+
+	// Time allowed to read the next pong message from the peer.
+	pongWait = 60 * time.Second
+
+	// Send pings to peer with this period. Must be less than pongWait.
+	pingPeriod = (pongWait * 9) / 10
+
+	// Maximum message size allowed from peer.
+	maxMessageSize = 16384 // 16 KB
+)
+
+// MessageHandler is a function that processes a message received from a websocket connection.
 type MessageHandler func(msgType int, msg []byte) error
 
+type APIErrorResponse struct {
+	Error   string `json:"error"`
+	Details string `json:"details"`
+}
+
+// NewReader creates a new websocket reader. The reader will pass on any message it receives to the
+// handler function. The handler function should return an error if it fails to process the message.
 func NewReader(ctx context.Context, baseURL, pth, token string, handler MessageHandler) (*Reader, error) {
 	parsedURL, err := url.Parse(baseURL)
 	if err != nil {
@@ -95,7 +115,7 @@ func (w *Reader) Start() error {
 
 	c, response, err := websocket.DefaultDialer.Dial(w.url.String(), w.header)
 	if err != nil {
-		var resp apiParams.APIErrorResponse
+		var resp APIErrorResponse
 		var msg string
 		var status string
 		if response != nil {
@@ -126,6 +146,8 @@ func (w *Reader) handlerReader() {
 		msgType, message, err := w.conn.ReadMessage()
 		if err != nil {
 			if IsErrorOfInterest(err) {
+				// TODO(gabriel-samfira): we should allow for an error channel that can be used to signal
+				// the caller that the connection has been closed.
 				slog.With(slog.Any("error", err)).Error("reading log message")
 			}
 			return

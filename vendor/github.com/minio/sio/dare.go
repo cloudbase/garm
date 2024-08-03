@@ -31,7 +31,7 @@ func (h headerV10) SetVersion()                  { h[0] = Version10 }
 func (h headerV10) SetCipher(suite byte)         { h[1] = suite }
 func (h headerV10) SetLen(length int)            { binary.LittleEndian.PutUint16(h[2:], uint16(length-1)) }
 func (h headerV10) SetSequenceNumber(num uint32) { binary.LittleEndian.PutUint32(h[4:], num) }
-func (h headerV10) SetRand(randVal []byte)       { copy(h[8:headerSize], randVal[:]) }
+func (h headerV10) SetRand(randVal []byte)       { copy(h[8:headerSize], randVal) }
 func (h headerV10) Nonce() []byte                { return h[4:headerSize] }
 func (h headerV10) AddData() []byte              { return h[:4] }
 
@@ -256,7 +256,7 @@ func (ad *authDecV20) Open(dst, src []byte) error {
 		ad.finalized = true
 		refNonce[0] |= 0x80 // set final flag
 	}
-	if subtle.ConstantTimeCompare(header.Nonce(), refNonce[:]) != 1 {
+	if subtle.ConstantTimeCompare(header.Nonce(), refNonce) != 1 {
 		return errNonceMismatch
 	}
 
