@@ -24,19 +24,19 @@ import (
 //go:generate mockery --all
 type Provider interface {
 	// CreateInstance creates a new compute instance in the provider.
-	CreateInstance(ctx context.Context, bootstrapParams commonParams.BootstrapInstance) (commonParams.ProviderInstance, error)
+	CreateInstance(ctx context.Context, bootstrapParams commonParams.BootstrapInstance, createInstanceParams CreateInstanceParams) (commonParams.ProviderInstance, error)
 	// Delete instance will delete the instance in a provider.
-	DeleteInstance(ctx context.Context, instance string) error
+	DeleteInstance(ctx context.Context, instance string, deleteInstanceParams DeleteInstanceParams) error
 	// GetInstance will return details about one instance.
-	GetInstance(ctx context.Context, instance string) (commonParams.ProviderInstance, error)
+	GetInstance(ctx context.Context, instance string, getInstanceParams GetInstanceParams) (commonParams.ProviderInstance, error)
 	// ListInstances will list all instances for a provider.
-	ListInstances(ctx context.Context, poolID string) ([]commonParams.ProviderInstance, error)
+	ListInstances(ctx context.Context, poolID string, listInstancesParams ListInstancesParams) ([]commonParams.ProviderInstance, error)
 	// RemoveAllInstances will remove all instances created by this provider.
-	RemoveAllInstances(ctx context.Context) error
+	RemoveAllInstances(ctx context.Context, removeAllInstancesParams RemoveAllInstancesParams) error
 	// Stop shuts down the instance.
-	Stop(ctx context.Context, instance string) error
+	Stop(ctx context.Context, instance string, stopParams StopParams) error
 	// Start boots up an instance.
-	Start(ctx context.Context, instance string) error
+	Start(ctx context.Context, instance string, startParams StartParams) error
 	// DisableJITConfig tells us if the provider explicitly disables JIT configuration and
 	// forces runner registration tokens to be used. This may happen if a provider has not yet
 	// been updated to support JIT configuration.

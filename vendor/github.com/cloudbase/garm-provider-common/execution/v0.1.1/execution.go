@@ -55,6 +55,8 @@ func GetEnvironment() (Environment, error) {
 		PoolID:             os.Getenv("GARM_POOL_ID"),
 		ProviderConfigFile: os.Getenv("GARM_PROVIDER_CONFIG_FILE"),
 		InstanceID:         os.Getenv("GARM_INSTANCE_ID"),
+		InterfaceVersion:   os.Getenv("GARM_INTERFACE_VERSION"),
+		ExtraSpecs:         os.Getenv("GARM_POOL_EXTRASPECS"),
 	}
 
 	// If this is a CreateInstance command, we need to get the bootstrap params
@@ -77,6 +79,10 @@ func GetEnvironment() (Environment, error) {
 		if err := json.Unmarshal(data.Bytes(), &bootstrapParams); err != nil {
 			return Environment{}, fmt.Errorf("failed to decode instance params: %w", err)
 		}
+		if bootstrapParams.ExtraSpecs == nil {
+			// Initialize ExtraSpecs as an empty JSON object
+			bootstrapParams.ExtraSpecs = json.RawMessage([]byte("{}"))
+		}
 		env.BootstrapParams = bootstrapParams
 	}
 
@@ -93,6 +99,8 @@ type Environment struct {
 	PoolID             string
 	ProviderConfigFile string
 	InstanceID         string
+	InterfaceVersion   string
+	ExtraSpecs         string
 	BootstrapParams    params.BootstrapInstance
 }
 
@@ -129,10 +137,14 @@ func (e Environment) Validate() error {
 		if e.InstanceID == "" {
 			return fmt.Errorf("missing instance ID")
 		}
+		if e.PoolID == "" {
+			return fmt.Errorf("missing pool ID")
+		}
 	case ListInstancesCommand:
 		if e.PoolID == "" {
 			return fmt.Errorf("missing pool ID")
 		}
+
 	case RemoveAllInstancesCommand:
 		if e.ControllerID == "" {
 			return fmt.Errorf("missing controller ID")
