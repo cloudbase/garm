@@ -6,8 +6,8 @@ import (
 
 	"github.com/spf13/cobra"
 
+	garmWs "github.com/cloudbase/garm-provider-common/util/websocket"
 	"github.com/cloudbase/garm/cmd/garm-cli/common"
-	garmWs "github.com/cloudbase/garm/websocket"
 )
 
 var eventsFilters string

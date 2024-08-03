@@ -5,19 +5,26 @@ linters-settings:
   misspell:
     locale: US
 
+  staticcheck:
+    checks: ['all', '-SA6002']
+    
 linters:
   disable-all: true
   enable:
-    - typecheck
+    - durationcheck
+    - gocritic
+    - gofumpt
     - goimports
-    - misspell
+    - gomodguard
     - govet
     - ineffassign
-    - gosimple
-    - unused
-    - prealloc
-    - unconvert
+    - misspell
     - revive
+    - staticcheck
+    - tenv
+    - typecheck
+    - unconvert
+    - unused
 
 issues:
   exclude-use-default: false
@@ -25,5 +32,3 @@ issues:
       - should have a package comment
       - error strings should not be capitalized or end with punctuation or a newline
       - don't use ALL_CAPS in Go names
-service:
-  golangci-lint-version: 1.33.0 # use the fixed version to not introduce new linters unexpectedly

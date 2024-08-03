@@ -568,9 +568,9 @@ func (_m *Store) GetAdminUser(ctx context.Context) (params.User, error) {
 	return r0, r1
 }
 
-// GetEnterprise provides a mock function with given fields: ctx, name
-func (_m *Store) GetEnterprise(ctx context.Context, name string) (params.Enterprise, error) {
-	ret := _m.Called(ctx, name)
+// GetEnterprise provides a mock function with given fields: ctx, name, endpointName
+func (_m *Store) GetEnterprise(ctx context.Context, name string, endpointName string) (params.Enterprise, error) {
+	ret := _m.Called(ctx, name, endpointName)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetEnterprise")
@@ -578,17 +578,17 @@ func (_m *Store) GetEnterprise(ctx context.Context, name string) (params.Enterpr
 
 	var r0 params.Enterprise
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) (params.Enterprise, error)); ok {
-		return rf(ctx, name)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) (params.Enterprise, error)); ok {
+		return rf(ctx, name, endpointName)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) params.Enterprise); ok {
-		r0 = rf(ctx, name)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) params.Enterprise); ok {
+		r0 = rf(ctx, name, endpointName)
 	} else {
 		r0 = ret.Get(0).(params.Enterprise)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, name)
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, name, endpointName)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -792,9 +792,9 @@ func (_m *Store) GetJobByID(ctx context.Context, jobID int64) (params.Job, error
 	return r0, r1
 }
 
-// GetOrganization provides a mock function with given fields: ctx, name
-func (_m *Store) GetOrganization(ctx context.Context, name string) (params.Organization, error) {
-	ret := _m.Called(ctx, name)
+// GetOrganization provides a mock function with given fields: ctx, name, endpointName
+func (_m *Store) GetOrganization(ctx context.Context, name string, endpointName string) (params.Organization, error) {
+	ret := _m.Called(ctx, name, endpointName)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetOrganization")
@@ -802,17 +802,17 @@ func (_m *Store) GetOrganization(ctx context.Context, name string) (params.Organ
 
 	var r0 params.Organization
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) (params.Organization, error)); ok {
-		return rf(ctx, name)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) (params.Organization, error)); ok {
+		return rf(ctx, name, endpointName)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) params.Organization); ok {
-		r0 = rf(ctx, name)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) params.Organization); ok {
+		r0 = rf(ctx, name, endpointName)
 	} else {
 		r0 = ret.Get(0).(params.Organization)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, name)
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, name, endpointName)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -904,9 +904,9 @@ func (_m *Store) GetPoolInstanceByName(ctx context.Context, poolID string, insta
 	return r0, r1
 }
 
-// GetRepository provides a mock function with given fields: ctx, owner, name
-func (_m *Store) GetRepository(ctx context.Context, owner string, name string) (params.Repository, error) {
-	ret := _m.Called(ctx, owner, name)
+// GetRepository provides a mock function with given fields: ctx, owner, name, endpointName
+func (_m *Store) GetRepository(ctx context.Context, owner string, name string, endpointName string) (params.Repository, error) {
+	ret := _m.Called(ctx, owner, name, endpointName)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetRepository")
@@ -914,17 +914,17 @@ func (_m *Store) GetRepository(ctx context.Context, owner string, name string) (
 
 	var r0 params.Repository
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) (params.Repository, error)); ok {
-		return rf(ctx, owner, name)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) (params.Repository, error)); ok {
+		return rf(ctx, owner, name, endpointName)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) params.Repository); ok {
-		r0 = rf(ctx, owner, name)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, string) params.Repository); ok {
+		r0 = rf(ctx, owner, name, endpointName)
 	} else {
 		r0 = ret.Get(0).(params.Repository)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
-		r1 = rf(ctx, owner, name)
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, string) error); ok {
+		r1 = rf(ctx, owner, name, endpointName)
 	} else {
 		r1 = ret.Error(1)
 	}

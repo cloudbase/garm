@@ -77,6 +77,10 @@ func GetEnvironment() (Environment, error) {
 		if err := json.Unmarshal(data.Bytes(), &bootstrapParams); err != nil {
 			return Environment{}, fmt.Errorf("failed to decode instance params: %w", err)
 		}
+		if bootstrapParams.ExtraSpecs == nil {
+			// Initialize ExtraSpecs as an empty JSON object
+			bootstrapParams.ExtraSpecs = json.RawMessage([]byte("{}"))
+		}
 		env.BootstrapParams = bootstrapParams
 	}
 
