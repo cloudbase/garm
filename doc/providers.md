@@ -1,15 +1,13 @@
 # Provider configuration
 
-GARM was designed to be extensible. Providers can be written as external executables. External providers are executables that implement the needed interface to create/delete/list compute systems that are used by ```GARM``` to create runners.
+GARM was designed to be extensible. Providers can be written as external executables which implement the needed interface to create/delete/list compute systems that are used by ```GARM``` to create runners.
 
-- [External provider](#external-provider)
+- [Providers](#providers)
     - [Available external providers](#available-external-providers)
 
-## External provider
+## Providers
 
-The external provider is a special kind of provider. It delegates the functionality needed to create the runners to external executables. These executables can be either binaries or scripts. As long as they adhere to the needed interface, they can be used to create runners in any target IaaS. This is identical to what ```containerd``` does with ```CNIs```.
-
-There are currently two sample external providers available in the [contrib folder of this repository](../contrib/providers.d/). The providers are written in ```bash``` and are meant as examples of how a provider could be written in ```bash```. Production ready providers would need more error checking and idempotency, but they serve as an example of what can be done. As it stands, they are functional.
+GARM delegates the functionality needed to create the runners to external executables. These executables can be either binaries or scripts. As long as they adhere to the needed interface, they can be used to create runners in any target IaaS. You might find this behavior familiar if you've ever had to deal with installing `CNIs` in `containerd`. The principle is the same.
 
 The configuration for an external provider is quite simple:
 
@@ -28,16 +26,22 @@ provider_type = "external"
   # anything (bash, a binary, python, etc). See documentation in this repo on how to write an
   # external provider.
   provider_executable = "/etc/garm/providers.d/openstack/garm-external-provider"
+  # This option will pass all environment variables that start with AWS_ to the provider.
+  # To pass in individual variables, you can add the entire name to the list.
+  environment_variables = ["AWS_"]
 ```
 
-The external provider has two options:
+The external provider has three options:
 
-* ```provider_executable```
-* ```config_file```
+* `provider_executable`
+* `config_file`
+* `environment_variables`
 
 The ```provider_executable``` option is the absolute path to an executable that implements the provider logic. GARM will delegate all provider operations to this executable. This executable can be anything (bash, python, perl, go, etc). See [Writing an external provider](./external_provider.md) for more details.
 
 The ```config_file``` option is a path on disk to an arbitrary file, that is passed to the external executable via the environment variable ```GARM_PROVIDER_CONFIG_FILE```. This file is only relevant to the external provider. GARM itself does not read it. In the case of the sample OpenStack provider, this file contains access information for an OpenStack cloud (what you would typically find in a ```keystonerc``` file) as well as some provider specific options like whether or not to boot from volume and which tenant network to use. You can check out the [sample config file](../contrib/providers.d/openstack/keystonerc) in this repository.
+
+The `environment_variables` option is a list of environment variables that will be passed to the external provider. By default GARM will pass a clean env to providers, consisting only of variables that the [provider interface](./external_provider.md) expects. However, in some situations, provider may need access to certain environment variables set in the env of GARM itself. This might be needed to enable access to IAM roles (ec2) or managed identity (azure). This option takes a list of environment variables or prefixes of environment variables that will be passed to the provider. For example, if you want to pass all environment variables that start with `AWS_` to the provider, you can set this option to `["AWS_"]`. 
 
 If you want to implement an external provider, you can use this file for anything you need to pass into the binary when ```GARM``` calls it to execute a particular operation.
 

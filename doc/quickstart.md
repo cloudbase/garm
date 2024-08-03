@@ -18,8 +18,6 @@
 
 <!-- /TOC -->
 
-This doc will be updated at a future date with the exact permissions needed in case you want to use a fine grained PAT.
-
 ## Create the config folder
 
 All of our config files and data will be stored in `/etc/garm`. Let's create that folder:
@@ -28,7 +26,7 @@ All of our config files and data will be stored in `/etc/garm`. Let's create tha
 sudo mkdir -p /etc/garm
 ```
 
-Coincidentally, this is also where the docker container [looks for the config](../Dockerfile#L29) when it starts up. You can either use `Docker` or you can set up garm directly on your system. I'll show you both ways. In both cases, we need to first create the config folder and a proper config file.
+Coincidentally, this is also where the docker container [looks for the config](../Dockerfile#L29) when it starts up. You can either use `Docker` or you can set up garm directly on your system. We'll walk you through both options. In both cases, we need to first create the config folder and a proper config file.
 
 ## The config file
 
@@ -100,15 +98,13 @@ This is where you have a decision to make. GARM has a number of providers you ca
 * [Google Cloud Platform (GCP)](https://github.com/cloudbase/garm-provider-gcp)
 * [Oracle Cloud Infrastructure (OCI)](https://github.com/cloudbase/garm-provider-oci)
 
-All currently available providers are `external`.
-
 The easiest provider to set up is probably the LXD or Incus provider. Incus is a fork of LXD so the functionality is identical (for now). For the purpose of this document, we'll continue with LXD. You don't need an account on an external cloud. You can just use your machine.
 
 You will need to have LXD installed and configured. There is an excellent [getting started guide](https://documentation.ubuntu.com/lxd/en/latest/getting_started/) for LXD. Follow the instructions there to install and configure LXD, then come back here.
 
 Once you have LXD installed and configured, you can add the provider section to your config file. If you're connecting to the `local` LXD installation, the [config snippet for the LXD provider](https://github.com/cloudbase/garm-provider-lxd/blob/4ee4e6fc579da4a292f40e0f7deca1e396e223d0/testdata/garm-provider-lxd.toml) will work out of the box. We'll be connecting using the unix socket so no further configuration will be needed.
 
-Go ahead and create a new config somwhere where GARM can access it and paste that entire snippet. For the purposes of this doc, we'll assume you created a new file called `/etc/garm/garm-provider-lxd.toml`. That config file will be used by the provider itself. Remember, the providers are external executables that are called by GARM. They may have their own configs.
+Go ahead and create a new config in a location where GARM can access it and paste that entire snippet. For the purposes of this doc, we'll assume you created a new file called `/etc/garm/garm-provider-lxd.toml`. That config file will be used by the provider itself. Remember, the providers are external executables that are called by GARM. They have their own configs which are relevant only to those executables, not GARM itself.
 
 We now need to define the provider in the GARM config file and tell GARM how it can find both the provider binary and the provider specific config file. To do that, open the GARM config file `/etc/garm/config.toml` in your favorite editor and paste the following config snippet at the end:
 
@@ -171,7 +167,7 @@ Adding the `garm` user to the LXD group will allow it to connect to the LXD unix
 Next, download the latest release from the [releases page](https://github.com/cloudbase/garm/releases).
 
 ```bash
-wget -q -O - https://github.com/cloudbase/garm/releases/download/v0.1.4/garm-linux-amd64.tgz |  tar xzf - -C /usr/local/bin/
+wget -q -O - https://github.com/cloudbase/garm/releases/download/v0.1.5/garm-linux-amd64.tgz |  tar xzf - -C /usr/local/bin/
 ```
 
 We'll be running under an unprivileged user. If we want to be able to listen on any port under `1024`, we'll have to set some capabilities on the binary:
@@ -204,7 +200,7 @@ Copy the sample `systemd` service file:
 
 ```bash
 wget -O /etc/systemd/system/garm.service \
-  https://raw.githubusercontent.com/cloudbase/garm/v0.1.4/contrib/garm.service
+  https://raw.githubusercontent.com/cloudbase/garm/v0.1.5/contrib/garm.service
 ```
 
 Reload the `systemd` daemon and start the service:
@@ -228,19 +224,18 @@ signal.NotifyContext(context.Background, [interrupt terminated])
 2023/07/17 22:21:33 Loading provider lxd_local
 2023/07/17 22:21:33 registering prometheus metrics collectors
 2023/07/17 22:21:33 setting up metric routes
-2023/07/17 22:21:35 ignoring unknown event
 ```
 
 Excellent! We have a working GARM installation. Now we need to initialize the controller and set up the webhook in GitHub.
 
 ## Initializing GARM
 
-Before we can start using GARM, we need initialize it. This will create the `admin` user and generate a unique controller ID that will identify this GARM installation. This process allows us to use multiple GARM installations with the same GitHub account. GARM will use the controller ID to identify the runners it creates. This way we won't run the risk of accidentally removing runners we don't manage.
+Before we can start using GARM, we need initialize it. This will create the `admin` user and generate a unique controller ID that will identify this GARM installation. This process allows us to use multiple GARM installations with the same GitHub account, if we want or need to. GARM will use the controller ID to identify the runners it creates. This way we won't run the risk of accidentally removing runners we don't manage.
 
 To initialize GARM, we'll use the `garm-cli` tool. You can download the latest release from the [releases page](https://github.com/cloudbase/garm/releases):
 
 ```bash
-wget -q -O - https://github.com/cloudbase/garm/releases/download/v0.1.4/garm-cli-linux-amd64.tgz |  tar xzf - -C /usr/local/bin/
+wget -q -O - https://github.com/cloudbase/garm/releases/download/v0.1.5/garm-cli-linux-amd64.tgz |  tar xzf - -C /usr/local/bin/
 ```
 
 Now we can initialize GARM:
@@ -339,7 +334,7 @@ In this exampe, we add a new github endpoint called `example`. The `ca-cert-path
 
 Before we can add a new entity, we need github credentials to interact with that entity (manipulate runners, create webhooks, etc). Credentials are tied to a specific github endpoint. In this section we'll be adding credentials that are valid for either [github.com](https://github.com) or your own GHES server (if you added one in the previous section).
 
-When creating a new entity (repo, org, enterprise) using the credentials you define here, GARM will automatically associate that entity with the gitHub endpoint the credentials use.
+When creating a new entity (repo, org, enterprise) using the credentials you define here, GARM will automatically associate that entity with the gitHub endpoint that the credentials use.
 
 If you want to swap the credentials for an entity, the new credentials will need to be associated with the same endpoint as the old credentials.
 
@@ -431,7 +426,7 @@ gabriel@rock:~$ garm-cli repo ls
 +--------------------------------------+----------+--------------+------------------+--------------------+------------------+
 | ID                                   | OWNER    | NAME         | CREDENTIALS NAME | POOL BALANCER TYPE | POOL MGR RUNNING |
 +--------------------------------------+----------+--------------+------------------+--------------------+------------------+
-| 0c91d9fd-2417-45d4-883c-05daeeaa8272 | gsamfira | scripts      | gabriel          | pack               | true             |
+| 0c91d9fd-2417-45d4-883c-05daeeaa8272 | gsamfira | scripts      | gabriel          | roundrobin         | true             |
 +--------------------------------------+----------+--------------+------------------+--------------------+------------------+
 ```
 
@@ -516,7 +511,7 @@ gabriel@rock:~$ garm-cli pool ls -a
 +--------------------------------------+---------------------------+--------------+-----------------+------------------+-------+---------+---------------+----------+
 ```
 
-This pool is enabled, but the `min-idle-runners` option is set to 0. This means that it will not create any lingering runners. It will only create runners when a job is started. If your provider is slow to boot up new instances, you may want to set this to a value higher than 0.
+This pool is enabled, but the `min-idle-runners` option is set to 0. This means that it will not create any idle runners. It will only create runners when a job is started and a webhook is sent to our GARM server. Optionally, you can set `min-idle-runners` to a value greater than 0, but keep in mind that depending on the provider you use, this may incur cost.
 
 For the purposes of this guide, we'll increase it to 1 so we have a runner created.
 
@@ -582,7 +577,7 @@ gabriel@rossak:~$ lxc list
 If we wait for a bit and run:
 
 ```bash
-gabriel@rossak:~$ garm-cli  runner show garm-tdtD6zpsXhj1
+gabriel@rossak:~$ garm-cli runner show garm-tdtD6zpsXhj1
 +-----------------+------------------------------------------------------------------------------------------------------+
 | FIELD           | VALUE                                                                                                |
 +-----------------+------------------------------------------------------------------------------------------------------+

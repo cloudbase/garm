@@ -47,7 +47,7 @@ ubuntu@garm:~/garm$ garm-cli github endpoint list
 GARM has the option to use both [Personal Access Tokens (PAT)](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token) or a [GitHub App](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/registering-a-github-app).
 
 
-If you'll use a PAT, you'll have to grant access for the following scopes:
+If you'll use a PAT (classic), you'll have to grant access for the following scopes:
 
 * ```public_repo``` - for access to a repository
 * ```repo``` - for access to a private repository
@@ -55,6 +55,16 @@ If you'll use a PAT, you'll have to grant access for the following scopes:
 * ```manage_runners:enterprise``` - if you plan to use garm at the enterprise level
 * ```admin:repo_hook``` - if you want to allow GARM to install webhooks on repositories (optional)
 * ```admin:org_hook``` - if you want to allow GARM to install webhooks on organizations (optional)
+
+Fine grained PATs are also supported as long as you grant the required privileges:
+
+* **Repository permissions**:
+  * `Administration: Read & write` - needed to generate JIT config/registration token, remove runners, etc.
+  * `Metadata: Read-only` - automatically enabled by above
+  * `Webhooks: Read & write` - needed to install webhooks on repositories
+* **Organization permissions**:
+  * `Self-hosted runners: Read & write` - needed to manage runners in an organization
+  * `Webhooks: Read & write` - needed to install webhooks on organizations
 
 If you plan to use github apps, you'll need to select the following permissions:
 

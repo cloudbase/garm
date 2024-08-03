@@ -56,16 +56,18 @@ You can list the controller info by running the following command:
 
 ```bash
 garm-cli controller show
-+------------------------+----------------------------------------------------------------------------+
-| FIELD                  | VALUE                                                                      |
-+------------------------+----------------------------------------------------------------------------+
-| Controller ID          | a4dd5f41-8e1e-42a7-af53-c0ba5ff6b0b3                                       |
-| Hostname               | garm                                                                       |
-| Metadata URL           | https://garm.example.com/api/v1/metadata                                   |
-| Callback URL           | https://garm.example.com/api/v1/callbacks                                  |
-| Webhook Base URL       | https://garm.example.com/webhooks                                          |
-| Controller Webhook URL | https://garm.example.com/webhooks/a4dd5f41-8e1e-42a7-af53-c0ba5ff6b0b3     |
-+------------------------+----------------------------------------------------------------------------+
++-------------------------+----------------------------------------------------------------------------+
+| FIELD                   | VALUE                                                                      |
++-------------------------+----------------------------------------------------------------------------+
+| Controller ID           | a4dd5f41-8e1e-42a7-af53-c0ba5ff6b0b3                                       |
+| Hostname                | garm                                                                       |
+| Metadata URL            | https://garm.example.com/api/v1/metadata                                   |
+| Callback URL            | https://garm.example.com/api/v1/callbacks                                  |
+| Webhook Base URL        | https://garm.example.com/webhooks                                          |
+| Controller Webhook URL  | https://garm.example.com/webhooks/a4dd5f41-8e1e-42a7-af53-c0ba5ff6b0b3     |
+| Minimum Job Age Backoff | 30                                                                         |
+| Version                 | v0.1.5                                                                     |
++-------------------------+----------------------------------------------------------------------------+
 ```
 
 There are several things of interest in this output.
@@ -76,6 +78,8 @@ There are several things of interest in this output.
 * `Callback URL` - This URL is configured by the user, and is the URL that is presented to the runners via userdata when they get set up. Runners will connect to this URL and send status updates and system information (OS version, OS name, github runner agent ID, etc) to the controller. Runners must be able to connect to this URL.
 * `Webhook Base URL` - This is the base URL for webhooks. It is configured by the user in the GARM config file. This URL can be called into by GitHub itself when hooks get triggered by a workflow. GARM needs to know when a new job is started in order to schedule the creation of a new runner. Job webhooks sent to this URL will be recorded by GARM and acted upon. While you can configure this URL directly in your GitHub repo settings, it is advised to use the `Controller Webhook URL` instead, as it is unique to each controller, and allows you to potentially install multiple GARM controller inside the same repo. Github must be able to connect to this URL.
 * `Controller Webhook URL` - This is the URL that GitHub will call into when a webhook is triggered. This URL is unique to each GARM controller and is the preferred URL to use in order to receive webhooks from GitHub. It serves the same purpose as the `Webhook Base URL`, but is unique to each controller, allowing you to potentially install multiple GARM controllers inside the same repo. Github must be able to connect to this URL.
+* `Minimum Job Age Backoff` - This is the job age in seconds, after which GARM will consider spinning up a new runner to handle it. By default GARM waits for 30 seconds after receiving a new job, before it spins up a runner. This delay is there to allow any existing idle runners (managed by GARM or not) to pick up the job, before reacting to it. This way we avoid being too eager and spin up a runner for a job that would have been picked up by an existing runner anyway. You can set this to 0 if you want GARM to react immediately.
+* `Version` - This is the version of GARM that is running.
 
 We will see the `Controller Webhook URL` later when we set up the GitHub repo to send webhooks to GARM.
 
@@ -141,7 +145,7 @@ Each of these providers can be used to set up a runner pool for a repository, or
 
 GARM can be used to manage runners for repos, orgs and enterprises hosted on `github.com` or on a GitHub Enterprise Server.
 
-Endpoints are the way that GARM identifies where the credentials and entities you create, are located and where the API endpoints for the GitHub API can be reached, along with a possible CA certificate that validates the connection. There is a default endpoint for `github.com`, so you don't need to add it. But if you're using GHES, you'll need to add an endpoint for it.
+Endpoints are the way that GARM identifies where the credentials and entities you create are located and where the API endpoints for the GitHub API can be reached, along with a possible CA certificate that validates the connection. There is a default endpoint for `github.com`, so you don't need to add it. But if you're using GHES, you'll need to add an endpoint for it.
 
 ### Creating a GitHub Endpoint
 
@@ -214,7 +218,7 @@ garm-cli github endpoint show github.com
 
 ### Deleting a GitHub Endpoint
 
-You can delete an endpoint unless one of the following conditions is met:
+You can delete an endpoint unless any of the following conditions are met:
 
 * The endpoint is the default endpoint for `github.com`
 * The endpoint is in use by a repository, organization or enterprise
