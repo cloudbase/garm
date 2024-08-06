@@ -28,9 +28,9 @@ const (
 )
 
 type ChangePayload struct {
-	EntityType DatabaseEntityType
-	Operation  OperationType
-	Payload    interface{}
+	EntityType DatabaseEntityType `json:"entity-type"`
+	Operation  OperationType      `json:"operation"`
+	Payload    interface{}        `json:"payload"`
 }
 
 type Consumer interface {

@@ -6,7 +6,7 @@ import (
 
 type Filter struct {
 	Operations []common.OperationType    `json:"operations"`
-	EntityType common.DatabaseEntityType `json:"entity_type"`
+	EntityType common.DatabaseEntityType `json:"entity-type"`
 }
 
 func (f Filter) Validate() error {
@@ -30,7 +30,7 @@ func (f Filter) Validate() error {
 }
 
 type Options struct {
-	SendEverything bool     `json:"send_everything"`
+	SendEverything bool     `json:"send-everything"`
 	Filters        []Filter `json:"filters"`
 }
 
