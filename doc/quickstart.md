@@ -622,3 +622,5 @@ gabriel@rossak:~$ garm-cli job ls
 There are no jobs sent yet to my GARM install, but once you start sending jobs, you'll see them here as well.
 
 That's it! You now have a working GARM installation. You can add more repos, orgs or enterprises and create more pools. You can also add more providers for different clouds and credentials with access to different GitHub resources.
+
+Check out the [Using GARM](/doc/using_garm.md) guide for more details on how to use GARM.

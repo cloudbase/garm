@@ -3,7 +3,6 @@
 This document will walk you through the various commands and options available in GARM. It is assumed that you have already installed GARM and have it running. If you haven't, please check out the [quickstart](/doc/quickstart.md) document for instructions on how to install GARM.
 
 While using the GARM cli, you will most likely spend most of your time listing pools and runners, but we will cover most of the available commands and options. Some of them we'll skip (like the `init` or `profile` subcommands), as they've been covered in the [quickstart](/doc/quickstart.md) document.
-
 <!-- TOC -->
 
 - [Using GARM](#using-garm)
@@ -42,6 +41,7 @@ While using the GARM cli, you will most likely spend most of your time listing p
         - [Showing runner info](#showing-runner-info)
         - [Deleting a runner](#deleting-a-runner)
     - [The debug-log command](#the-debug-log-command)
+    - [The debug-events command](#the-debug-events-command)
     - [Listing recorded jobs](#listing-recorded-jobs)
 
 <!-- /TOC -->
@@ -497,11 +497,11 @@ To manually add a webhook, see the [webhooks](/doc/webhooks.md) section.
 
 Now that we have a repository, organization or enterprise added to GARM, we can create a runner pool for it. A runner pool is a collection of runners of the same type, that are managed by GARM and are used to run workflows for the repository, organization or enterprise.
 
-You can create multiple pools of runners for the same entity (repository, organization or enterprise), and you can create pools of runners of different types. For example, you can have a pool of runners that are created on AWS, and another pool of runners that are created on Azure, k8s, LXD, etc. For repositories or organizations with complex needs, you can set up a number of pools that cover a wide range of needs, based on cost, capability (GPUs, FPGAs, etc) or sheer raw computing power. You don't have to pick just one and managing all of them is done using the exact same commands, as we'll show below.
+You can create multiple pools of runners for the same entity (repository, organization or enterprise), and you can create multiple pools of runners, each pool defining different runner types. For example, you can have a pool of runners that are created on AWS, and another pool of runners that are created on Azure, k8s, LXD, etc. For repositories or organizations with complex needs, you can set up a number of pools that cover a wide range of needs, based on cost, capability (GPUs, FPGAs, etc) or sheer raw computing power. You don't have to pick just one and managing all of them is done using the exact same commands, as we'll show below.
 
-Before we create a pool, we have to decide on which provider we want to use. We've listed the providers above, so let's pick one and create a pool of runners for our repository. For the purpose of this example, we'll use the `incus` provider. We'll show you how to create a pool using this provider, but keep in mind that adding another pool using a different provider is done using the exact same commands. The only difference will be in the `--image`, `--flavor` and `--extra-specs` options that you'll use when creating the pool.
+Before we create a pool, we have to decide which provider we want to use. We've listed the providers above, so let's pick one and create a pool of runners for our repository. For the purpose of this example, we'll use the `incus` provider. We'll show you how to create a pool using this provider, but keep in mind that adding another pool using a different provider is done using the exact same commands. The only difference will be in the `--image`, `--flavor` and `--extra-specs` options that you'll use when creating the pool.
 
-Out of those three options, only the `--image` and `--flavor` are mandatory. The `--extra-specs` option is optional and is used to pass additional information to the provider when creating the pool. The `--extra-specs` option is provider specific, and you'll have to consult the provider documentation to see what options are available.
+Out of those three options, only the `--image` and `--flavor` are mandatory. The `--extra-specs` flag is optional and is used to pass additional information to the provider when creating the pool. The `--extra-specs` option is provider specific, and you'll have to consult the provider documentation to see what options are available.
 
 But I digress. Let's create a pool of runners using the `incus` provider, for the `gabriel-samfira/garm` repository we created above:
 
@@ -536,7 +536,7 @@ garm-cli pool add \
 +--------------------------+----------------------------------------+
 ```
 
-Let's unpack the command a bit and explain what happened above. We added a new pool of runners to GARM, that belongs to the `gabriel-samfira/garm` repository. We used the `incus` provider to create the pool, and we specified the `--image` and `--flavor` options to tell the provider what kind of runners we want to create. On Incus and LXD, the flavor maps to a `profile` and the image maps to an incus or LXD image, as you would normally use when spinning up a new container or VM using the `incus launch` command.
+Let's unpack the command and explain what happened above. We added a new pool of runners to GARM, that belongs to the `gabriel-samfira/garm` repository. We used the `incus` provider to create the pool, and we specified the `--image` and `--flavor` options to tell the provider what kind of runners we want to create. On Incus and LXD, the flavor maps to a `profile`. The profile can specify the resources allocated to a container or VM (RAM, CPUs, disk space, etc). The image maps to an incus or LXD image, as you would normally use when spinning up a new container or VM using the `incus launch` command.
 
 We also specified the `--min-idle-runners` option to tell GARM to always keep at least 1 runner idle in the pool. This is useful for repositories that have a lot of workflows that run often, and we want to make sure that we always have a runner ready to pick up a job.
 
@@ -696,7 +696,7 @@ root@incus:~# incus list
 +-------------------+---------+----------------------+-----------------------------------------------+-----------+-----------+
 ```
 
-Awesome! This runner will be able to pick up bobs that match the labels we've set on the pool.
+Awesome! This runner will be able to pick up jobs that match the labels we've set on the pool.
 
 ## Runners
 
@@ -784,6 +784,24 @@ time=2024-02-12T08:36:31.251Z level=INFO msg=access_log method=GET uri=/api/v1/i
 ```
 
 This will bring a real-time log to your terminal. While this feature should be fairly secure, I encourage you to only expose it within networks you know are secure. This can be done by configuring a reverse proxy in front of GARM that only allows connections to the websocket endpoint from certain locations.
+
+## The debug-events command
+
+Starting with GARM v0.1.5 a new command has been added to the CLI that consumes database events recorded by GARM. Whenever something is updated in the database, a new event is generated. These events are generated by the database watcher and are also exported via a websocket endpoint. This websocket endpoint is meant to be consumed by applications that wish to integrate GARM and want to avoid having to poll the API.
+
+This command is not meant to be used to integrate GARM events, it is mearly a debug tool that allows you to see what events are being generated by GARM. To use it, you can run:
+
+```bash
+garm-cli debug-events --filters='{"send_everything": true}
+```
+
+This command will send all events to your CLI as they happen. You can also filter by entity or operation like so:
+
+```bash
+garm-cli debug-events --filters='{"filters": [{"entity_type": "instance", "operations": ["create", "delete"]}, {"entity_type": "pool"}, {"entity_type": "controller"}]}'
+```
+
+The payloads that get sent to your terminal are described in the [events](/doc/events.md) section, but the short description is that you get the operation type (create, update, delete), the entity type (instance, pool, repo, etc) and the json payload as you normaly would when you fetch them through the API. Sensitive info like tokens or passwords are never returned.
 
 ## Listing recorded jobs
 
