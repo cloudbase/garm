@@ -211,35 +211,35 @@ func printToConsoleHandler(_ int, msg []byte) error {
 }
 
 func main() {
-    // Set up the context to listen for signals.
+	// Set up the context to listen for signals.
 	ctx, stop := signal.NotifyContext(context.Background(), signals...)
 	defer stop()
 
-    // This is the JWT token you got from the curl command above.
+	// This is the JWT token you got from the curl command above.
 	token := "superSecretJWTToken"
-    // The base URL of your GARM server
+	// The base URL of your GARM server
 	baseURL := "https://garm.example.com"
-    // This is the path to the events endpoint
+	// This is the path to the events endpoint
 	pth := "/api/v1/ws/events"
 
-    // Instantiate the websocket reader
+	// Instantiate the websocket reader
 	reader, err := garmWs.NewReader(ctx, baseURL, pth, token, printToConsoleHandler)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-    // Start the loop.
+	// Start the loop.
 	if err := reader.Start(); err != nil {
 		fmt.Println(err)
 		return
 	}
 
-    // Set the filter to receive all events. You can use a more fine grained filter if you wish.
+	// Set the filter to receive all events. You can use a more fine grained filter if you wish.
 	reader.WriteMessage(websocket.TextMessage, []byte(`{"send-everything":true}`))
 
 	fmt.Println("Listening for events. Press Ctrl+C to stop.")
-    // Wait for the context to be done.
+	// Wait for the context to be done.
 	<-ctx.Done()
 }
 ```
