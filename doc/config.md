@@ -94,9 +94,9 @@ For example, in a scenario where you expose the API endpoint directly, this sett
   callback_url = "https://garm.example.com/api/v1/callbacks"
   ```
 
-Authentication is done using a short-lived JWT token, that gets generated for a particular instance that we are spinning up. That JWT token grants access to the instance to only update it's own status and to fetch metadata for itself. No other API endpoints will work with that JWT token. The validity of the token is equal to the pool bootstrap timeout value (default 20 minutes) plus the garm polling interval (5 minutes).
+Authentication is done using a short-lived JWT token, that gets generated for a particular instance that we are spinning up. That JWT token grants access to the instance to only update its own status and to fetch metadata for itself. No other API endpoints will work with that JWT token. The validity of the token is equal to the pool bootstrap timeout value (default 20 minutes) plus the garm polling interval (5 minutes).
 
-There is a sample ```nginx``` config [in the testdata folder](/testdata/nginx-server.conf). Feel free to customize it whichever way you see fit.
+There is a sample ```nginx``` config [in the testdata folder](/testdata/nginx-server.conf). Feel free to customize it in any way you see fit.
 
 ### The metadata_url option
 
@@ -128,7 +128,7 @@ And restart garm. You can then use the following command to start profiling:
 go tool pprof http://127.0.0.1:9997/debug/pprof/profile?seconds=120
 ```
 
-Important note on profiling when behind a reverse proxy. The above command will hang for a fairly long time. Most reverse proxies will timeout after about 60 seconds. To avoid this, you should only profile on localhost by connecting directly to garm.
+> **IMPORTANT NOTE on profiling when behind a reverse proxy**: The above command will hang for a fairly long time. Most reverse proxies will timeout after about 60 seconds. To avoid this, you should only profile on localhost by connecting directly to garm.
 
 It's also advisable to exclude the debug server URLs from your reverse proxy and only make them available locally.
 
@@ -289,7 +289,7 @@ If you want to implement an external provider, you can use this file for anythin
 
 #### Available external providers
 
-For non testing purposes, there are two external providers currently available:
+For non-testing purposes, these are the external providers currently available:
 
 * [OpenStack](https://github.com/cloudbase/garm-provider-openstack)
 * [Azure](https://github.com/cloudbase/garm-provider-azure)
