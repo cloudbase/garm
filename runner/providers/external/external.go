@@ -7,17 +7,16 @@ import (
 	"log/slog"
 	"os/exec"
 
-	"github.com/cloudbase/garm-provider-common/execution"
-
-	commonParams "github.com/cloudbase/garm-provider-common/params"
+	"github.com/pkg/errors"
 
 	garmErrors "github.com/cloudbase/garm-provider-common/errors"
+	"github.com/cloudbase/garm-provider-common/execution"
+	commonParams "github.com/cloudbase/garm-provider-common/params"
 	garmExec "github.com/cloudbase/garm-provider-common/util/exec"
 	"github.com/cloudbase/garm/config"
+	"github.com/cloudbase/garm/metrics"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
-
-	"github.com/pkg/errors"
 )
 
 var _ common.Provider = (*external)(nil)
@@ -51,7 +50,7 @@ type external struct {
 	environmentVariables []string
 }
 
-func (e *external) validateResult(ctx context.Context, inst commonParams.ProviderInstance) error {
+func (e *external) validateResult(inst commonParams.ProviderInstance) error {
 	if inst.ProviderID == "" {
 		return garmErrors.NewProviderError("missing provider ID")
 	}
@@ -82,17 +81,34 @@ func (e *external) CreateInstance(ctx context.Context, bootstrapParams commonPar
 		return commonParams.ProviderInstance{}, errors.Wrap(err, "serializing bootstrap params")
 	}
 
+	metrics.InstanceOperationCount.WithLabelValues(
+		"CreateInstance", // label: operation
+		e.cfg.Name,       // label: provider
+	).Inc()
+
 	out, err := garmExec.Exec(ctx, e.execPath, asJs, asEnv)
 	if err != nil {
+		metrics.InstanceOperationFailedCount.WithLabelValues(
+			"CreateInstance", // label: operation
+			e.cfg.Name,       // label: provider
+		).Inc()
 		return commonParams.ProviderInstance{}, garmErrors.NewProviderError("provider binary %s returned error: %s", e.execPath, err)
 	}
 
 	var param commonParams.ProviderInstance
 	if err := json.Unmarshal(out, &param); err != nil {
+		metrics.InstanceOperationFailedCount.WithLabelValues(
+			"CreateInstance", // label: operation
+			e.cfg.Name,       // label: provider
+		).Inc()
 		return commonParams.ProviderInstance{}, garmErrors.NewProviderError("failed to decode response from binary: %s", err)
 	}
 
-	if err := e.validateResult(ctx, param); err != nil {
+	if err := e.validateResult(param); err != nil {
+		metrics.InstanceOperationFailedCount.WithLabelValues(
+			"CreateInstance", // label: operation
+			e.cfg.Name,       // label: provider
+		).Inc()
 		return commonParams.ProviderInstance{}, garmErrors.NewProviderError("failed to validate result: %s", err)
 	}
 
@@ -113,13 +129,20 @@ func (e *external) DeleteInstance(ctx context.Context, instance string) error {
 	}
 	asEnv = append(asEnv, e.environmentVariables...)
 
+	metrics.InstanceOperationCount.WithLabelValues(
+		"DeleteInstance", // label: operation
+		e.cfg.Name,       // label: provider
+	).Inc()
 	_, err := garmExec.Exec(ctx, e.execPath, nil, asEnv)
 	if err != nil {
 		var exitErr *exec.ExitError
 		if !errors.As(err, &exitErr) || exitErr.ExitCode() != execution.ExitCodeNotFound {
+			metrics.InstanceOperationFailedCount.WithLabelValues(
+				"DeleteInstance", // label: operation
+				e.cfg.Name,       // label: provider
+			).Inc()
 			return garmErrors.NewProviderError("provider binary %s returned error: %s", e.execPath, err)
 		}
-
 	}
 	return nil
 }
@@ -134,19 +157,36 @@ func (e *external) GetInstance(ctx context.Context, instance string) (commonPara
 	}
 	asEnv = append(asEnv, e.environmentVariables...)
 
-	// TODO(gabriel-samfira): handle error types. Of particular insterest is to
+	// nolint:golangci-lint,godox
+	// TODO(gabriel-samfira): handle error types. Of particular interest is to
 	// know when the error is ErrNotFound.
+	metrics.InstanceOperationCount.WithLabelValues(
+		"GetInstance", // label: operation
+		e.cfg.Name,    // label: provider
+	).Inc()
 	out, err := garmExec.Exec(ctx, e.execPath, nil, asEnv)
 	if err != nil {
+		metrics.InstanceOperationFailedCount.WithLabelValues(
+			"GetInstance", // label: operation
+			e.cfg.Name,    // label: provider
+		).Inc()
 		return commonParams.ProviderInstance{}, garmErrors.NewProviderError("provider binary %s returned error: %s", e.execPath, err)
 	}
 
 	var param commonParams.ProviderInstance
 	if err := json.Unmarshal(out, &param); err != nil {
+		metrics.InstanceOperationFailedCount.WithLabelValues(
+			"GetInstance", // label: operation
+			e.cfg.Name,    // label: provider
+		).Inc()
 		return commonParams.ProviderInstance{}, garmErrors.NewProviderError("failed to decode response from binary: %s", err)
 	}
 
-	if err := e.validateResult(ctx, param); err != nil {
+	if err := e.validateResult(param); err != nil {
+		metrics.InstanceOperationFailedCount.WithLabelValues(
+			"GetInstance", // label: operation
+			e.cfg.Name,    // label: provider
+		).Inc()
 		return commonParams.ProviderInstance{}, garmErrors.NewProviderError("failed to validate result: %s", err)
 	}
 
@@ -163,19 +203,36 @@ func (e *external) ListInstances(ctx context.Context, poolID string) ([]commonPa
 	}
 	asEnv = append(asEnv, e.environmentVariables...)
 
+	metrics.InstanceOperationCount.WithLabelValues(
+		"ListInstances", // label: operation
+		e.cfg.Name,      // label: provider
+	).Inc()
+
 	out, err := garmExec.Exec(ctx, e.execPath, nil, asEnv)
 	if err != nil {
+		metrics.InstanceOperationFailedCount.WithLabelValues(
+			"ListInstances", // label: operation
+			e.cfg.Name,      // label: provider
+		).Inc()
 		return []commonParams.ProviderInstance{}, garmErrors.NewProviderError("provider binary %s returned error: %s", e.execPath, err)
 	}
 
 	var param []commonParams.ProviderInstance
 	if err := json.Unmarshal(out, &param); err != nil {
+		metrics.InstanceOperationFailedCount.WithLabelValues(
+			"ListInstances", // label: operation
+			e.cfg.Name,      // label: provider
+		).Inc()
 		return []commonParams.ProviderInstance{}, garmErrors.NewProviderError("failed to decode response from binary: %s", err)
 	}
 
 	ret := make([]commonParams.ProviderInstance, len(param))
 	for idx, inst := range param {
-		if err := e.validateResult(ctx, inst); err != nil {
+		if err := e.validateResult(inst); err != nil {
+			metrics.InstanceOperationFailedCount.WithLabelValues(
+				"ListInstances", // label: operation
+				e.cfg.Name,      // label: provider
+			).Inc()
 			return []commonParams.ProviderInstance{}, garmErrors.NewProviderError("failed to validate result: %s", err)
 		}
 		ret[idx] = inst
@@ -192,15 +249,24 @@ func (e *external) RemoveAllInstances(ctx context.Context) error {
 	}
 	asEnv = append(asEnv, e.environmentVariables...)
 
+	metrics.InstanceOperationCount.WithLabelValues(
+		"RemoveAllInstances", // label: operation
+		e.cfg.Name,           // label: provider
+	).Inc()
+
 	_, err := garmExec.Exec(ctx, e.execPath, nil, asEnv)
 	if err != nil {
+		metrics.InstanceOperationFailedCount.WithLabelValues(
+			"RemoveAllInstances", // label: operation
+			e.cfg.Name,           // label: provider
+		).Inc()
 		return garmErrors.NewProviderError("provider binary %s returned error: %s", e.execPath, err)
 	}
 	return nil
 }
 
 // Stop shuts down the instance.
-func (e *external) Stop(ctx context.Context, instance string, force bool) error {
+func (e *external) Stop(ctx context.Context, instance string) error {
 	asEnv := []string{
 		fmt.Sprintf("GARM_COMMAND=%s", execution.StopInstanceCommand),
 		fmt.Sprintf("GARM_CONTROLLER_ID=%s", e.controllerID),
@@ -209,8 +275,16 @@ func (e *external) Stop(ctx context.Context, instance string, force bool) error 
 	}
 	asEnv = append(asEnv, e.environmentVariables...)
 
+	metrics.InstanceOperationCount.WithLabelValues(
+		"Stop",     // label: operation
+		e.cfg.Name, // label: provider
+	).Inc()
 	_, err := garmExec.Exec(ctx, e.execPath, nil, asEnv)
 	if err != nil {
+		metrics.InstanceOperationFailedCount.WithLabelValues(
+			"Stop",     // label: operation
+			e.cfg.Name, // label: provider
+		).Inc()
 		return garmErrors.NewProviderError("provider binary %s returned error: %s", e.execPath, err)
 	}
 	return nil
@@ -226,8 +300,17 @@ func (e *external) Start(ctx context.Context, instance string) error {
 	}
 	asEnv = append(asEnv, e.environmentVariables...)
 
+	metrics.InstanceOperationCount.WithLabelValues(
+		"Start",    // label: operation
+		e.cfg.Name, // label: provider
+	).Inc()
+
 	_, err := garmExec.Exec(ctx, e.execPath, nil, asEnv)
 	if err != nil {
+		metrics.InstanceOperationFailedCount.WithLabelValues(
+			"Start",    // label: operation
+			e.cfg.Name, // label: provider
+		).Inc()
 		return garmErrors.NewProviderError("provider binary %s returned error: %s", e.execPath, err)
 	}
 	return nil

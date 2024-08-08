@@ -16,28 +16,49 @@ package params
 
 import (
 	"bytes"
+	"context"
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"net/http"
 	"time"
 
-	commonParams "github.com/cloudbase/garm-provider-common/params"
-
-	"github.com/cloudbase/garm/util/appdefaults"
-
+	"github.com/bradleyfalzon/ghinstallation/v2"
 	"github.com/google/go-github/v57/github"
 	"github.com/google/uuid"
+	"golang.org/x/oauth2"
+
+	commonParams "github.com/cloudbase/garm-provider-common/params"
+	"github.com/cloudbase/garm/util/appdefaults"
 )
 
 type (
-	PoolType            string
+	GithubEntityType    string
 	EventType           string
 	EventLevel          string
 	ProviderType        string
 	JobStatus           string
 	RunnerStatus        string
 	WebhookEndpointType string
+	GithubAuthType      string
+	PoolBalancerType    string
+)
+
+const (
+	// PoolBalancerTypeRoundRobin will try to cycle through the pools of an entity
+	// in a round robin fashion. For example, if a repository has multiple pools that
+	// match a certain set of labels, and the entity is configured to use round robin
+	// balancer, the pool manager will attempt to create instances in each pool in turn
+	// for each job that needs to be serviced. So job1 in pool1, job2 in pool2 and so on.
+	PoolBalancerTypeRoundRobin PoolBalancerType = "roundrobin"
+	// PoolBalancerTypePack will try to create instances in the first pool that matches
+	// the required labels. If the pool is full, it will move on to the next pool and so on.
+	PoolBalancerTypePack PoolBalancerType = "pack"
+	// PoolBalancerTypeNone denotes to the default behavior of the pool manager, which is
+	// to use the round robin balancer.
+	PoolBalancerTypeNone PoolBalancerType = ""
 )
 
 const (
@@ -64,9 +85,15 @@ const (
 )
 
 const (
-	RepositoryPool   PoolType = "repository"
-	OrganizationPool PoolType = "organization"
-	EnterprisePool   PoolType = "enterprise"
+	GithubEntityTypeRepository   GithubEntityType = "repository"
+	GithubEntityTypeOrganization GithubEntityType = "organization"
+	GithubEntityTypeEnterprise   GithubEntityType = "enterprise"
+)
+
+const (
+	MetricsLabelEnterpriseScope   = "Enterprise"
+	MetricsLabelRepositoryScope   = "Repository"
+	MetricsLabelOrganizationScope = "Organization"
 )
 
 const (
@@ -88,6 +115,17 @@ const (
 	RunnerFailed     RunnerStatus = "failed"
 	RunnerActive     RunnerStatus = "active"
 )
+
+const (
+	// GithubAuthTypePAT is the OAuth token based authentication
+	GithubAuthTypePAT GithubAuthType = "pat"
+	// GithubAuthTypeApp is the GitHub App based authentication
+	GithubAuthTypeApp GithubAuthType = "app"
+)
+
+func (e GithubEntityType) String() string {
+	return string(e)
+}
 
 type StatusMessage struct {
 	CreatedAt  time.Time  `json:"created_at"`
@@ -154,6 +192,9 @@ type Instance struct {
 	// GithubRunnerGroup is the github runner group to which the runner belongs.
 	// The runner group must be created by someone with access to the enterprise.
 	GitHubRunnerGroup string `json:"github-runner-group"`
+
+	// Job is the current job that is being serviced by this runner.
+	Job *Job `json:"job,omitempty"`
 
 	// Do not serialize sensitive info.
 	CallbackURL      string            `json:"-"`
@@ -273,6 +314,32 @@ type Pool struct {
 	// GithubRunnerGroup is the github runner group in which the runners will be added.
 	// The runner group must be created by someone with access to the enterprise.
 	GitHubRunnerGroup string `json:"github-runner-group"`
+
+	// Priority is the priority of the pool. The higher the number, the higher the priority.
+	// When fetching matching pools for a set of tags, the result will be sorted in descending
+	// order of priority.
+	Priority uint `json:"priority"`
+}
+
+func (p Pool) GithubEntity() (GithubEntity, error) {
+	switch p.PoolType() {
+	case GithubEntityTypeRepository:
+		return GithubEntity{
+			ID:         p.RepoID,
+			EntityType: GithubEntityTypeRepository,
+		}, nil
+	case GithubEntityTypeOrganization:
+		return GithubEntity{
+			ID:         p.OrgID,
+			EntityType: GithubEntityTypeOrganization,
+		}, nil
+	case GithubEntityTypeEnterprise:
+		return GithubEntity{
+			ID:         p.EnterpriseID,
+			EntityType: GithubEntityTypeEnterprise,
+		}, nil
+	}
+	return GithubEntity{}, fmt.Errorf("pool has no associated entity")
 }
 
 func (p Pool) GetID() string {
@@ -286,13 +353,14 @@ func (p *Pool) RunnerTimeout() uint {
 	return p.RunnerBootstrapTimeout
 }
 
-func (p *Pool) PoolType() PoolType {
-	if p.RepoID != "" {
-		return RepositoryPool
-	} else if p.OrgID != "" {
-		return OrganizationPool
-	} else if p.EnterpriseID != "" {
-		return EnterprisePool
+func (p *Pool) PoolType() GithubEntityType {
+	switch {
+	case p.RepoID != "":
+		return GithubEntityTypeRepository
+	case p.OrgID != "":
+		return GithubEntityTypeOrganization
+	case p.EnterpriseID != "":
+		return GithubEntityTypeEnterprise
 	}
 	return ""
 }
@@ -314,29 +382,37 @@ func (p *Pool) HasRequiredLabels(set []string) bool {
 // used by swagger client generated code
 type Pools []Pool
 
-type Internal struct {
-	OAuth2Token          string `json:"oauth2"`
-	ControllerID         string `json:"controller_id"`
-	InstanceCallbackURL  string `json:"instance_callback_url"`
-	InstanceMetadataURL  string `json:"instance_metadata_url"`
-	BaseWebhookURL       string `json:"base_webhook_url"`
-	ControllerWebhookURL string `json:"controller_webhook_url"`
-
-	JWTSecret string `json:"jwt_secret"`
-	// GithubCredentialsDetails contains all info about the credentials, except the
-	// token, which is added above.
-	GithubCredentialsDetails GithubCredentials `json:"gh_creds_details"`
-}
-
 type Repository struct {
-	ID                string            `json:"id"`
-	Owner             string            `json:"owner"`
-	Name              string            `json:"name"`
-	Pools             []Pool            `json:"pool,omitempty"`
-	CredentialsName   string            `json:"credentials_name"`
+	ID    string `json:"id"`
+	Owner string `json:"owner"`
+	Name  string `json:"name"`
+	Pools []Pool `json:"pool,omitempty"`
+	// CredentialName is the name of the credentials associated with the enterprise.
+	// This field is now deprecated. Use CredentialsID instead. This field will be
+	// removed in v0.2.0.
+	CredentialsName   string            `json:"credentials_name,omitempty"`
+	CredentialsID     uint              `json:"credentials_id"`
+	Credentials       GithubCredentials `json:"credentials"`
 	PoolManagerStatus PoolManagerStatus `json:"pool_manager_status,omitempty"`
+	PoolBalancerType  PoolBalancerType  `json:"pool_balancing_type"`
+	Endpoint          GithubEndpoint    `json:"endpoint"`
 	// Do not serialize sensitive info.
 	WebhookSecret string `json:"-"`
+}
+
+func (r Repository) GetEntity() (GithubEntity, error) {
+	if r.ID == "" {
+		return GithubEntity{}, fmt.Errorf("repository has no ID")
+	}
+	return GithubEntity{
+		ID:               r.ID,
+		EntityType:       GithubEntityTypeRepository,
+		Owner:            r.Owner,
+		Name:             r.Name,
+		PoolBalancerType: r.PoolBalancerType,
+		Credentials:      r.Credentials,
+		WebhookSecret:    r.WebhookSecret,
+	}, nil
 }
 
 func (r Repository) GetName() string {
@@ -347,17 +423,49 @@ func (r Repository) GetID() string {
 	return r.ID
 }
 
+func (r Repository) GetBalancerType() PoolBalancerType {
+	if r.PoolBalancerType == "" {
+		return PoolBalancerTypeRoundRobin
+	}
+	return r.PoolBalancerType
+}
+
+func (r Repository) String() string {
+	return fmt.Sprintf("%s/%s", r.Owner, r.Name)
+}
+
 // used by swagger client generated code
 type Repositories []Repository
 
 type Organization struct {
-	ID                string            `json:"id"`
-	Name              string            `json:"name"`
-	Pools             []Pool            `json:"pool,omitempty"`
-	CredentialsName   string            `json:"credentials_name"`
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Pools []Pool `json:"pool,omitempty"`
+	// CredentialName is the name of the credentials associated with the enterprise.
+	// This field is now deprecated. Use CredentialsID instead. This field will be
+	// removed in v0.2.0.
+	CredentialsName   string            `json:"credentials_name,omitempty"`
+	Credentials       GithubCredentials `json:"credentials"`
+	CredentialsID     uint              `json:"credentials_id"`
 	PoolManagerStatus PoolManagerStatus `json:"pool_manager_status,omitempty"`
+	PoolBalancerType  PoolBalancerType  `json:"pool_balancing_type"`
+	Endpoint          GithubEndpoint    `json:"endpoint"`
 	// Do not serialize sensitive info.
 	WebhookSecret string `json:"-"`
+}
+
+func (o Organization) GetEntity() (GithubEntity, error) {
+	if o.ID == "" {
+		return GithubEntity{}, fmt.Errorf("organization has no ID")
+	}
+	return GithubEntity{
+		ID:               o.ID,
+		EntityType:       GithubEntityTypeOrganization,
+		Owner:            o.Name,
+		WebhookSecret:    o.WebhookSecret,
+		PoolBalancerType: o.PoolBalancerType,
+		Credentials:      o.Credentials,
+	}, nil
 }
 
 func (o Organization) GetName() string {
@@ -368,17 +476,45 @@ func (o Organization) GetID() string {
 	return o.ID
 }
 
+func (o Organization) GetBalancerType() PoolBalancerType {
+	if o.PoolBalancerType == "" {
+		return PoolBalancerTypeRoundRobin
+	}
+	return o.PoolBalancerType
+}
+
 // used by swagger client generated code
 type Organizations []Organization
 
 type Enterprise struct {
-	ID                string            `json:"id"`
-	Name              string            `json:"name"`
-	Pools             []Pool            `json:"pool,omitempty"`
-	CredentialsName   string            `json:"credentials_name"`
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Pools []Pool `json:"pool,omitempty"`
+	// CredentialName is the name of the credentials associated with the enterprise.
+	// This field is now deprecated. Use CredentialsID instead. This field will be
+	// removed in v0.2.0.
+	CredentialsName   string            `json:"credentials_name,omitempty"`
+	Credentials       GithubCredentials `json:"credentials"`
+	CredentialsID     uint              `json:"credentials_id"`
 	PoolManagerStatus PoolManagerStatus `json:"pool_manager_status,omitempty"`
+	PoolBalancerType  PoolBalancerType  `json:"pool_balancing_type"`
+	Endpoint          GithubEndpoint    `json:"endpoint"`
 	// Do not serialize sensitive info.
 	WebhookSecret string `json:"-"`
+}
+
+func (e Enterprise) GetEntity() (GithubEntity, error) {
+	if e.ID == "" {
+		return GithubEntity{}, fmt.Errorf("enterprise has no ID")
+	}
+	return GithubEntity{
+		ID:               e.ID,
+		EntityType:       GithubEntityTypeEnterprise,
+		Owner:            e.Name,
+		WebhookSecret:    e.WebhookSecret,
+		PoolBalancerType: e.PoolBalancerType,
+		Credentials:      e.Credentials,
+	}, nil
 }
 
 func (e Enterprise) GetName() string {
@@ -387,6 +523,13 @@ func (e Enterprise) GetName() string {
 
 func (e Enterprise) GetID() string {
 	return e.ID
+}
+
+func (e Enterprise) GetBalancerType() PoolBalancerType {
+	if e.PoolBalancerType == "" {
+		return PoolBalancerTypeRoundRobin
+	}
+	return e.PoolBalancerType
 }
 
 // used by swagger client generated code
@@ -400,9 +543,11 @@ type User struct {
 	Email     string    `json:"email"`
 	Username  string    `json:"username"`
 	FullName  string    `json:"full_name"`
-	Password  string    `json:"-"`
 	Enabled   bool      `json:"enabled"`
 	IsAdmin   bool      `json:"is_admin"`
+	// Do not serialize sensitive info.
+	Password   string `json:"-"`
+	Generation uint   `json:"-"`
 }
 
 // JWTResponse holds the JWT token returned as a result of a
@@ -412,21 +557,120 @@ type JWTResponse struct {
 }
 
 type ControllerInfo struct {
-	ControllerID         uuid.UUID `json:"controller_id"`
-	Hostname             string    `json:"hostname"`
-	MetadataURL          string    `json:"metadata_url"`
-	CallbackURL          string    `json:"callback_url"`
-	WebhookURL           string    `json:"webhook_url"`
-	ControllerWebhookURL string    `json:"controller_webhook_url"`
+	// ControllerID is the unique ID of this controller. This ID gets generated
+	// automatically on controller init.
+	ControllerID uuid.UUID `json:"controller_id"`
+	// Hostname is the hostname of the machine that runs this controller. In the
+	// future, this field will be migrated to a separate table that will keep track
+	// of each the controller nodes that are part of a cluster. This will happen when
+	// we implement controller scale-out capability.
+	Hostname string `json:"hostname"`
+	// MetadataURL is the public metadata URL of the GARM instance. This URL is used
+	// by instances to fetch information they need to set themselves up. The URL itself
+	// may be made available to runners via a reverse proxy or a load balancer. That
+	// means that the user is responsible for telling GARM what the public URL is, by
+	// setting this field.
+	MetadataURL string `json:"metadata_url"`
+	// CallbackURL is the URL where instances can send updates back to the controller.
+	// This URL is used by instances to send status updates back to the controller. The
+	// URL itself may be made available to instances via a reverse proxy or a load balancer.
+	// That means that the user is responsible for telling GARM what the public URL is, by
+	// setting this field.
+	CallbackURL string `json:"callback_url"`
+	// WebhookURL is the base URL where the controller will receive webhooks from github.
+	// When webhook management is used, this URL is used as a base to which the controller
+	// UUID is appended and which will receive the webhooks.
+	// The URL itself may be made available to instances via a reverse proxy or a load balancer.
+	// That means that the user is responsible for telling GARM what the public URL is, by
+	// setting this field.
+	WebhookURL string `json:"webhook_url"`
+	// ControllerWebhookURL is the controller specific URL where webhooks will be received.
+	// This field holds the WebhookURL defined above to which we append the ControllerID.
+	// Functionally it is the same as WebhookURL, but it allows us to safely manage webhooks
+	// from GARM without accidentally removing webhooks from other services or GARM controllers.
+	ControllerWebhookURL string `json:"controller_webhook_url"`
+	// MinimumJobAgeBackoff is the minimum time in seconds that a job must be in queued state
+	// before GARM will attempt to allocate a runner for it. When set to a non zero value,
+	// GARM will ignore the job until the job's age is greater than this value. When using
+	// the min_idle_runners feature of a pool, this gives enough time for potential idle
+	// runners to pick up the job before GARM attempts to allocate a new runner, thus avoiding
+	// the need to potentially scale down runners later.
+	MinimumJobAgeBackoff uint `json:"minimum_job_age_backoff"`
+	// Version is the version of the GARM controller.
+	Version string `json:"version"`
 }
 
 type GithubCredentials struct {
-	Name          string `json:"name,omitempty"`
-	Description   string `json:"description,omitempty"`
-	BaseURL       string `json:"base_url"`
-	APIBaseURL    string `json:"api_base_url"`
-	UploadBaseURL string `json:"upload_base_url"`
-	CABundle      []byte `json:"ca_bundle,omitempty"`
+	ID            uint           `json:"id"`
+	Name          string         `json:"name,omitempty"`
+	Description   string         `json:"description,omitempty"`
+	APIBaseURL    string         `json:"api_base_url"`
+	UploadBaseURL string         `json:"upload_base_url"`
+	BaseURL       string         `json:"base_url"`
+	CABundle      []byte         `json:"ca_bundle,omitempty"`
+	AuthType      GithubAuthType `toml:"auth_type" json:"auth-type"`
+
+	Repositories  []Repository   `json:"repositories,omitempty"`
+	Organizations []Organization `json:"organizations,omitempty"`
+	Enterprises   []Enterprise   `json:"enterprises,omitempty"`
+	Endpoint      GithubEndpoint `json:"endpoint"`
+
+	// Do not serialize sensitive info.
+	CredentialsPayload []byte `json:"-"`
+}
+
+func (g GithubCredentials) GetHTTPClient(ctx context.Context) (*http.Client, error) {
+	var roots *x509.CertPool
+	if g.CABundle != nil {
+		roots = x509.NewCertPool()
+		ok := roots.AppendCertsFromPEM(g.CABundle)
+		if !ok {
+			return nil, fmt.Errorf("failed to parse CA cert")
+		}
+	}
+
+	httpTransport := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			RootCAs:    roots,
+			MinVersion: tls.VersionTLS12,
+		},
+	}
+
+	var tc *http.Client
+	switch g.AuthType {
+	case GithubAuthTypeApp:
+		var app GithubApp
+		if err := json.Unmarshal(g.CredentialsPayload, &app); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal github app credentials: %w", err)
+		}
+		if app.AppID == 0 || app.InstallationID == 0 || len(app.PrivateKeyBytes) == 0 {
+			return nil, fmt.Errorf("github app credentials are missing required fields")
+		}
+		itr, err := ghinstallation.New(httpTransport, app.AppID, app.InstallationID, app.PrivateKeyBytes)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create github app installation transport: %w", err)
+		}
+
+		tc = &http.Client{Transport: itr}
+	default:
+		var pat GithubPAT
+		if err := json.Unmarshal(g.CredentialsPayload, &pat); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal github app credentials: %w", err)
+		}
+		httpClient := &http.Client{Transport: httpTransport}
+		ctx = context.WithValue(ctx, oauth2.HTTPClient, httpClient)
+
+		if pat.OAuth2Token == "" {
+			return nil, fmt.Errorf("github credentials are missing the OAuth2 token")
+		}
+
+		ts := oauth2.StaticTokenSource(
+			&oauth2.Token{AccessToken: pat.OAuth2Token},
+		)
+		tc = oauth2.NewClient(ctx, ts)
+	}
+
+	return tc, nil
 }
 
 func (g GithubCredentials) RootCertificateBundle() (CertificateBundle, error) {
@@ -437,7 +681,7 @@ func (g GithubCredentials) RootCertificateBundle() (CertificateBundle, error) {
 	ret := map[string][]byte{}
 
 	var block *pem.Block
-	var rest []byte = g.CABundle
+	rest := g.CABundle
 	for {
 		block, rest = pem.Decode(rest)
 		if block == nil {
@@ -470,11 +714,6 @@ type Provider struct {
 
 // used by swagger client generated code
 type Providers []Provider
-
-type UpdatePoolStateParams struct {
-	WebhookSecret  string
-	InternalConfig *Internal
-}
 
 type PoolManagerStatus struct {
 	IsRunning     bool   `json:"running"`
@@ -571,4 +810,58 @@ type UpdateSystemInfoParams struct {
 	OSName    string `json:"os_name,omitempty"`
 	OSVersion string `json:"os_version,omitempty"`
 	AgentID   *int64 `json:"agent_id,omitempty"`
+}
+
+type GithubEntity struct {
+	Owner            string            `json:"owner"`
+	Name             string            `json:"name"`
+	ID               string            `json:"id"`
+	EntityType       GithubEntityType  `json:"entity_type"`
+	Credentials      GithubCredentials `json:"credentials"`
+	PoolBalancerType PoolBalancerType  `json:"pool_balancing_type"`
+
+	WebhookSecret string `json:"-"`
+}
+
+func (g GithubEntity) GetPoolBalancerType() PoolBalancerType {
+	if g.PoolBalancerType == "" {
+		return PoolBalancerTypeRoundRobin
+	}
+	return g.PoolBalancerType
+}
+
+func (g GithubEntity) LabelScope() string {
+	switch g.EntityType {
+	case GithubEntityTypeRepository:
+		return MetricsLabelRepositoryScope
+	case GithubEntityTypeOrganization:
+		return MetricsLabelOrganizationScope
+	case GithubEntityTypeEnterprise:
+		return MetricsLabelEnterpriseScope
+	}
+	return ""
+}
+
+func (g GithubEntity) String() string {
+	switch g.EntityType {
+	case GithubEntityTypeRepository:
+		return fmt.Sprintf("%s/%s", g.Owner, g.Name)
+	case GithubEntityTypeOrganization, GithubEntityTypeEnterprise:
+		return g.Owner
+	}
+	return ""
+}
+
+// used by swagger client generated code
+type GithubEndpoints []GithubEndpoint
+
+type GithubEndpoint struct {
+	Name          string `json:"name"`
+	Description   string `json:"description"`
+	APIBaseURL    string `json:"api_base_url"`
+	UploadBaseURL string `json:"upload_base_url"`
+	BaseURL       string `json:"base_url"`
+	CACertBundle  []byte `json:"ca_cert_bundle,omitempty"`
+
+	Credentials []GithubCredentials `json:"credentials,omitempty"`
 }

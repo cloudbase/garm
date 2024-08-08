@@ -22,22 +22,23 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/gorilla/mux"
+	"github.com/gorilla/websocket"
+	"github.com/pkg/errors"
+
 	gErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm-provider-common/util"
+	"github.com/cloudbase/garm/apiserver/events"
 	"github.com/cloudbase/garm/apiserver/params"
 	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/metrics"
 	runnerParams "github.com/cloudbase/garm/params"
-	"github.com/cloudbase/garm/runner"
+	"github.com/cloudbase/garm/runner" //nolint:typecheck
 	wsWriter "github.com/cloudbase/garm/websocket"
-
-	"github.com/gorilla/mux"
-	"github.com/gorilla/websocket"
-	"github.com/pkg/errors"
 )
 
 func NewAPIController(r *runner.Runner, authenticator *auth.Authenticator, hub *wsWriter.Hub) (*APIController, error) {
-	controllerInfo, err := r.GetControllerInfo(auth.GetAdminContext())
+	controllerInfo, err := r.GetControllerInfo(auth.GetAdminContext(context.Background()))
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get controller info")
 	}
@@ -95,19 +96,6 @@ func handleError(ctx context.Context, w http.ResponseWriter, err error) {
 	}
 }
 
-func (a *APIController) webhookMetricLabelValues(ctx context.Context, valid, reason string) []string {
-	controllerInfo, err := a.r.GetControllerInfo(auth.GetAdminContext())
-	if err != nil {
-		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to get controller info")
-		// If labels are empty, not attempt will be made to record webhook.
-		return []string{}
-	}
-	return []string{
-		valid, reason,
-		controllerInfo.Hostname, controllerInfo.ControllerID.String(),
-	}
-}
-
 func (a *APIController) handleWorkflowJobEvent(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	body, err := io.ReadAll(r.Body)
@@ -119,31 +107,35 @@ func (a *APIController) handleWorkflowJobEvent(ctx context.Context, w http.Respo
 	signature := r.Header.Get("X-Hub-Signature-256")
 	hookType := r.Header.Get("X-Github-Hook-Installation-Target-Type")
 
-	var labelValues []string
-	defer func() {
-		if len(labelValues) == 0 {
-			return
-		}
-		if err := metrics.RecordWebhookWithLabels(labelValues...); err != nil {
-			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to record metric")
-		}
-	}()
-
 	if err := a.r.DispatchWorkflowJob(hookType, signature, body); err != nil {
-		if errors.Is(err, gErrors.ErrNotFound) {
-			labelValues = a.webhookMetricLabelValues(ctx, "false", "owner_unknown")
+		switch {
+		case errors.Is(err, gErrors.ErrNotFound):
+			metrics.WebhooksReceived.WithLabelValues(
+				"false",         // label: valid
+				"owner_unknown", // label: reason
+			).Inc()
 			slog.With(slog.Any("error", err)).ErrorContext(ctx, "got not found error from DispatchWorkflowJob. webhook not meant for us?")
 			return
-		} else if strings.Contains(err.Error(), "signature") { // TODO: check error type
-			labelValues = a.webhookMetricLabelValues(ctx, "false", "signature_invalid")
-		} else {
-			labelValues = a.webhookMetricLabelValues(ctx, "false", "unknown")
+		case strings.Contains(err.Error(), "signature"):
+			// nolint:golangci-lint,godox TODO: check error type
+			metrics.WebhooksReceived.WithLabelValues(
+				"false",             // label: valid
+				"signature_invalid", // label: reason
+			).Inc()
+		default:
+			metrics.WebhooksReceived.WithLabelValues(
+				"false",   // label: valid
+				"unknown", // label: reason
+			).Inc()
 		}
 
 		handleError(ctx, w, err)
 		return
 	}
-	labelValues = a.webhookMetricLabelValues(ctx, "true", "")
+	metrics.WebhooksReceived.WithLabelValues(
+		"true", // label: valid
+		"",     // label: reason
+	).Inc()
 }
 
 func (a *APIController) WebhookHandler(w http.ResponseWriter, r *http.Request) {
@@ -172,6 +164,43 @@ func (a *APIController) WebhookHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (a *APIController) EventsHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	if !auth.IsAdmin(ctx) {
+		w.WriteHeader(http.StatusForbidden)
+		if _, err := w.Write([]byte("events are available to admin users")); err != nil {
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
+		}
+		return
+	}
+
+	conn, err := a.upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error upgrading to websockets")
+		return
+	}
+	defer conn.Close()
+
+	wsClient, err := wsWriter.NewClient(ctx, conn)
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to create new client")
+		return
+	}
+	defer wsClient.Stop()
+
+	eventHandler, err := events.NewHandler(ctx, wsClient)
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to create new event handler")
+		return
+	}
+
+	if err := eventHandler.Start(); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to start event handler")
+		return
+	}
+	<-eventHandler.Done()
+}
+
 func (a *APIController) WSHandler(writer http.ResponseWriter, req *http.Request) {
 	ctx := req.Context()
 	if !auth.IsAdmin(ctx) {
@@ -192,13 +221,9 @@ func (a *APIController) WSHandler(writer http.ResponseWriter, req *http.Request)
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error upgrading to websockets")
 		return
 	}
+	defer conn.Close()
 
-	// TODO (gsamfira): Handle ExpiresAt. Right now, if a client uses
-	// a valid token to authenticate, and keeps the websocket connection
-	// open, it will allow that client to stream logs via websockets
-	// until the connection is broken. We need to forcefully disconnect
-	// the client once the token expires.
-	client, err := wsWriter.NewClient(conn, a.hub)
+	client, err := wsWriter.NewClient(ctx, conn)
 	if err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to create new client")
 		return
@@ -207,7 +232,14 @@ func (a *APIController) WSHandler(writer http.ResponseWriter, req *http.Request)
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to register new client")
 		return
 	}
-	client.Go()
+	defer a.hub.Unregister(client)
+
+	if err := client.Start(); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to start client")
+		return
+	}
+	<-client.Done()
+	slog.Info("client disconnected", "client_id", client.ID())
 }
 
 // NotFoundHandler is returned when an invalid URL is acccessed
@@ -337,27 +369,6 @@ func (a *APIController) FirstRunHandler(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
-// swagger:route GET /credentials credentials ListCredentials
-//
-// List all credentials.
-//
-//	Responses:
-//	  200: Credentials
-//	  400: APIErrorResponse
-func (a *APIController) ListCredentials(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	creds, err := a.r.ListCredentials(ctx)
-	if err != nil {
-		handleError(ctx, w, err)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(creds); err != nil {
-		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
-	}
-}
-
 // swagger:route GET /providers providers ListProviders
 //
 // List all providers.
@@ -410,6 +421,45 @@ func (a *APIController) ListAllJobs(w http.ResponseWriter, r *http.Request) {
 func (a *APIController) ControllerInfoHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	info, err := a.r.GetControllerInfo(ctx)
+	if err != nil {
+		handleError(ctx, w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(info); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
+	}
+}
+
+// swagger:route PUT /controller controller UpdateController
+//
+// Update controller.
+//
+//	Parameters:
+//	  + name: Body
+//	    description: Parameters used when updating the controller.
+//	    type: UpdateControllerParams
+//	    in: body
+//	    required: true
+//
+//	Responses:
+//	  200: ControllerInfo
+//	  400: APIErrorResponse
+func (a *APIController) UpdateControllerHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	var updateParams runnerParams.UpdateControllerParams
+	if err := json.NewDecoder(r.Body).Decode(&updateParams); err != nil {
+		handleError(ctx, w, gErrors.ErrBadRequest)
+		return
+	}
+
+	if err := updateParams.Validate(); err != nil {
+		handleError(ctx, w, err)
+		return
+	}
+
+	info, err := a.r.UpdateController(ctx, updateParams)
 	if err != nil {
 		handleError(ctx, w, err)
 		return

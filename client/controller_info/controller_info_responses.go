@@ -6,6 +6,7 @@ package controller_info
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -86,11 +87,13 @@ func (o *ControllerInfoOK) Code() int {
 }
 
 func (o *ControllerInfoOK) Error() string {
-	return fmt.Sprintf("[GET /controller-info][%d] controllerInfoOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /controller-info][%d] controllerInfoOK %s", 200, payload)
 }
 
 func (o *ControllerInfoOK) String() string {
-	return fmt.Sprintf("[GET /controller-info][%d] controllerInfoOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /controller-info][%d] controllerInfoOK %s", 200, payload)
 }
 
 func (o *ControllerInfoOK) GetPayload() garm_params.ControllerInfo {
@@ -152,11 +155,13 @@ func (o *ControllerInfoConflict) Code() int {
 }
 
 func (o *ControllerInfoConflict) Error() string {
-	return fmt.Sprintf("[GET /controller-info][%d] controllerInfoConflict  %+v", 409, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /controller-info][%d] controllerInfoConflict %s", 409, payload)
 }
 
 func (o *ControllerInfoConflict) String() string {
-	return fmt.Sprintf("[GET /controller-info][%d] controllerInfoConflict  %+v", 409, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /controller-info][%d] controllerInfoConflict %s", 409, payload)
 }
 
 func (o *ControllerInfoConflict) GetPayload() apiserver_params.APIErrorResponse {

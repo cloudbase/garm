@@ -62,6 +62,12 @@ DeleteInstanceParams contains all the parameters to send to the API endpoint
 */
 type DeleteInstanceParams struct {
 
+	/* BypassGHUnauthorized.
+
+	   If true GARM will ignore unauthorized errors returned by GitHub when removing a runner. This is useful if you want to clean up runners and your credentials have expired.
+	*/
+	BypassGHUnauthorized *bool
+
 	/* ForceRemove.
 
 	   If true GARM will ignore any provider error when removing the runner and will continue to remove the runner from github and the GARM database.
@@ -127,6 +133,17 @@ func (o *DeleteInstanceParams) SetHTTPClient(client *http.Client) {
 	o.HTTPClient = client
 }
 
+// WithBypassGHUnauthorized adds the bypassGHUnauthorized to the delete instance params
+func (o *DeleteInstanceParams) WithBypassGHUnauthorized(bypassGHUnauthorized *bool) *DeleteInstanceParams {
+	o.SetBypassGHUnauthorized(bypassGHUnauthorized)
+	return o
+}
+
+// SetBypassGHUnauthorized adds the bypassGHUnauthorized to the delete instance params
+func (o *DeleteInstanceParams) SetBypassGHUnauthorized(bypassGHUnauthorized *bool) {
+	o.BypassGHUnauthorized = bypassGHUnauthorized
+}
+
 // WithForceRemove adds the forceRemove to the delete instance params
 func (o *DeleteInstanceParams) WithForceRemove(forceRemove *bool) *DeleteInstanceParams {
 	o.SetForceRemove(forceRemove)
@@ -156,6 +173,23 @@ func (o *DeleteInstanceParams) WriteToRequest(r runtime.ClientRequest, reg strfm
 		return err
 	}
 	var res []error
+
+	if o.BypassGHUnauthorized != nil {
+
+		// query param bypassGHUnauthorized
+		var qrBypassGHUnauthorized bool
+
+		if o.BypassGHUnauthorized != nil {
+			qrBypassGHUnauthorized = *o.BypassGHUnauthorized
+		}
+		qBypassGHUnauthorized := swag.FormatBool(qrBypassGHUnauthorized)
+		if qBypassGHUnauthorized != "" {
+
+			if err := r.SetQueryParam("bypassGHUnauthorized", qBypassGHUnauthorized); err != nil {
+				return err
+			}
+		}
+	}
 
 	if o.ForceRemove != nil {
 

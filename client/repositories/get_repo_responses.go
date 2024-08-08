@@ -6,6 +6,7 @@ package repositories
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -87,11 +88,13 @@ func (o *GetRepoOK) Code() int {
 }
 
 func (o *GetRepoOK) Error() string {
-	return fmt.Sprintf("[GET /repositories/{repoID}][%d] getRepoOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /repositories/{repoID}][%d] getRepoOK %s", 200, payload)
 }
 
 func (o *GetRepoOK) String() string {
-	return fmt.Sprintf("[GET /repositories/{repoID}][%d] getRepoOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /repositories/{repoID}][%d] getRepoOK %s", 200, payload)
 }
 
 func (o *GetRepoOK) GetPayload() garm_params.Repository {
@@ -157,11 +160,13 @@ func (o *GetRepoDefault) Code() int {
 }
 
 func (o *GetRepoDefault) Error() string {
-	return fmt.Sprintf("[GET /repositories/{repoID}][%d] GetRepo default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /repositories/{repoID}][%d] GetRepo default %s", o._statusCode, payload)
 }
 
 func (o *GetRepoDefault) String() string {
-	return fmt.Sprintf("[GET /repositories/{repoID}][%d] GetRepo default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /repositories/{repoID}][%d] GetRepo default %s", o._statusCode, payload)
 }
 
 func (o *GetRepoDefault) GetPayload() apiserver_params.APIErrorResponse {

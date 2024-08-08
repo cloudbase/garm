@@ -1,22 +1,11 @@
 package metrics
 
 import (
-	"log/slog"
-
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-func (c *GarmCollector) CollectHealthMetric(ch chan<- prometheus.Metric, hostname string, controllerID string) {
-	m, err := prometheus.NewConstMetric(
-		c.healthMetric,
-		prometheus.GaugeValue,
-		1,
-		hostname,
-		controllerID,
-	)
-	if err != nil {
-		slog.With(slog.Any("error", err)).Error("error on creating health metric")
-		return
-	}
-	ch <- m
-}
+var GarmHealth = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+	Namespace: metricsNamespace,
+	Name:      "health",
+	Help:      "Health of the garm",
+}, []string{"metadata_url", "callback_url", "webhook_url", "controller_webhook_url", "controller_id"})

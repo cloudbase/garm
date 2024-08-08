@@ -6,6 +6,7 @@ package enterprises
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -87,11 +88,13 @@ func (o *GetEnterpriseOK) Code() int {
 }
 
 func (o *GetEnterpriseOK) Error() string {
-	return fmt.Sprintf("[GET /enterprises/{enterpriseID}][%d] getEnterpriseOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /enterprises/{enterpriseID}][%d] getEnterpriseOK %s", 200, payload)
 }
 
 func (o *GetEnterpriseOK) String() string {
-	return fmt.Sprintf("[GET /enterprises/{enterpriseID}][%d] getEnterpriseOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /enterprises/{enterpriseID}][%d] getEnterpriseOK %s", 200, payload)
 }
 
 func (o *GetEnterpriseOK) GetPayload() garm_params.Enterprise {
@@ -157,11 +160,13 @@ func (o *GetEnterpriseDefault) Code() int {
 }
 
 func (o *GetEnterpriseDefault) Error() string {
-	return fmt.Sprintf("[GET /enterprises/{enterpriseID}][%d] GetEnterprise default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /enterprises/{enterpriseID}][%d] GetEnterprise default %s", o._statusCode, payload)
 }
 
 func (o *GetEnterpriseDefault) String() string {
-	return fmt.Sprintf("[GET /enterprises/{enterpriseID}][%d] GetEnterprise default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /enterprises/{enterpriseID}][%d] GetEnterprise default %s", o._statusCode, payload)
 }
 
 func (o *GetEnterpriseDefault) GetPayload() apiserver_params.APIErrorResponse {

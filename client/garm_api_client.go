@@ -10,8 +10,10 @@ import (
 	httptransport "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
 
+	"github.com/cloudbase/garm/client/controller"
 	"github.com/cloudbase/garm/client/controller_info"
 	"github.com/cloudbase/garm/client/credentials"
+	"github.com/cloudbase/garm/client/endpoints"
 	"github.com/cloudbase/garm/client/enterprises"
 	"github.com/cloudbase/garm/client/first_run"
 	"github.com/cloudbase/garm/client/instances"
@@ -66,8 +68,10 @@ func New(transport runtime.ClientTransport, formats strfmt.Registry) *GarmAPI {
 
 	cli := new(GarmAPI)
 	cli.Transport = transport
+	cli.Controller = controller.New(transport, formats)
 	cli.ControllerInfo = controller_info.New(transport, formats)
 	cli.Credentials = credentials.New(transport, formats)
+	cli.Endpoints = endpoints.New(transport, formats)
 	cli.Enterprises = enterprises.New(transport, formats)
 	cli.FirstRun = first_run.New(transport, formats)
 	cli.Instances = instances.New(transport, formats)
@@ -122,9 +126,13 @@ func (cfg *TransportConfig) WithSchemes(schemes []string) *TransportConfig {
 
 // GarmAPI is a client for garm API
 type GarmAPI struct {
+	Controller controller.ClientService
+
 	ControllerInfo controller_info.ClientService
 
 	Credentials credentials.ClientService
+
+	Endpoints endpoints.ClientService
 
 	Enterprises enterprises.ClientService
 
@@ -152,8 +160,10 @@ type GarmAPI struct {
 // SetTransport changes the transport on the client and all its subresources
 func (c *GarmAPI) SetTransport(transport runtime.ClientTransport) {
 	c.Transport = transport
+	c.Controller.SetTransport(transport)
 	c.ControllerInfo.SetTransport(transport)
 	c.Credentials.SetTransport(transport)
+	c.Endpoints.SetTransport(transport)
 	c.Enterprises.SetTransport(transport)
 	c.FirstRun.SetTransport(transport)
 	c.Instances.SetTransport(transport)

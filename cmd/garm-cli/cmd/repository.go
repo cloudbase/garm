@@ -17,12 +17,12 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/spf13/cobra"
+
 	"github.com/cloudbase/garm-provider-common/util"
 	apiClientRepos "github.com/cloudbase/garm/client/repositories"
 	"github.com/cloudbase/garm/params"
-
-	"github.com/jedib0t/go-pretty/v6/table"
-	"github.com/spf13/cobra"
 )
 
 var (
@@ -63,7 +63,7 @@ var repoWebhookInstallCmd = &cobra.Command{
 	Short:        "Install webhook",
 	Long:         `Install webhook for a repository.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -93,7 +93,7 @@ var repoHookInfoShowCmd = &cobra.Command{
 	Short:        "Show webhook info",
 	Long:         `Show webhook info for a repository.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -121,7 +121,7 @@ var repoWebhookUninstallCmd = &cobra.Command{
 	Short:        "Uninstall webhook",
 	Long:         `Uninstall webhook for a repository.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -149,7 +149,7 @@ var repoAddCmd = &cobra.Command{
 	Short:        "Add repository",
 	Long:         `Add a new repository to the manager.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, _ []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -164,10 +164,11 @@ var repoAddCmd = &cobra.Command{
 
 		newRepoReq := apiClientRepos.NewCreateRepoParams()
 		newRepoReq.Body = params.CreateRepoParams{
-			Owner:           repoOwner,
-			Name:            repoName,
-			WebhookSecret:   repoWebhookSecret,
-			CredentialsName: repoCreds,
+			Owner:            repoOwner,
+			Name:             repoName,
+			WebhookSecret:    repoWebhookSecret,
+			CredentialsName:  repoCreds,
+			PoolBalancerType: params.PoolBalancerType(poolBalancerType),
 		}
 		response, err := apiCli.Repositories.CreateRepo(newRepoReq, authToken)
 		if err != nil {
@@ -200,9 +201,9 @@ var repoListCmd = &cobra.Command{
 	Use:          "list",
 	Aliases:      []string{"ls"},
 	Short:        "List repositories",
-	Long:         `List all configured respositories that are currently managed.`,
+	Long:         `List all configured repositories that are currently managed.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, _ []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -222,7 +223,7 @@ var repoUpdateCmd = &cobra.Command{
 	Short:        "Update repository",
 	Long:         `Update repository credentials or webhook secret.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -236,8 +237,9 @@ var repoUpdateCmd = &cobra.Command{
 		}
 		updateReposReq := apiClientRepos.NewUpdateRepoParams()
 		updateReposReq.Body = params.UpdateEntityParams{
-			WebhookSecret:   repoWebhookSecret,
-			CredentialsName: repoCreds,
+			WebhookSecret:    repoWebhookSecret,
+			CredentialsName:  repoCreds,
+			PoolBalancerType: params.PoolBalancerType(poolBalancerType),
 		}
 		updateReposReq.RepoID = args[0]
 
@@ -255,7 +257,7 @@ var repoShowCmd = &cobra.Command{
 	Short:        "Show details for one repository",
 	Long:         `Displays detailed information about a single repository.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -282,7 +284,7 @@ var repoDeleteCmd = &cobra.Command{
 	Short:        "Removes one repository",
 	Long:         `Delete one repository from the manager.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -303,8 +305,8 @@ var repoDeleteCmd = &cobra.Command{
 }
 
 func init() {
-
 	repoAddCmd.Flags().StringVar(&repoOwner, "owner", "", "The owner of this repository")
+	repoAddCmd.Flags().StringVar(&poolBalancerType, "pool-balancer-type", string(params.PoolBalancerTypeRoundRobin), "The balancing strategy to use when creating runners in pools matching requested labels.")
 	repoAddCmd.Flags().StringVar(&repoName, "name", "", "The name of the repository")
 	repoAddCmd.Flags().StringVar(&repoWebhookSecret, "webhook-secret", "", "The webhook secret for this repository")
 	repoAddCmd.Flags().StringVar(&repoCreds, "credentials", "", "Credentials name. See credentials list.")
@@ -321,6 +323,7 @@ func init() {
 
 	repoUpdateCmd.Flags().StringVar(&repoWebhookSecret, "webhook-secret", "", "The webhook secret for this repository. If you update this secret, you will have to manually update the secret in GitHub as well.")
 	repoUpdateCmd.Flags().StringVar(&repoCreds, "credentials", "", "Credentials name. See credentials list.")
+	repoUpdateCmd.Flags().StringVar(&poolBalancerType, "pool-balancer-type", "", "The balancing strategy to use when creating runners in pools matching requested labels.")
 
 	repoWebhookInstallCmd.Flags().BoolVar(&insecureRepoWebhook, "insecure", false, "Ignore self signed certificate errors.")
 
@@ -344,10 +347,10 @@ func init() {
 
 func formatRepositories(repos []params.Repository) {
 	t := table.NewWriter()
-	header := table.Row{"ID", "Owner", "Name", "Credentials name", "Pool mgr running"}
+	header := table.Row{"ID", "Owner", "Name", "Endpoint", "Credentials name", "Pool Balancer Type", "Pool mgr running"}
 	t.AppendHeader(header)
 	for _, val := range repos {
-		t.AppendRow(table.Row{val.ID, val.Owner, val.Name, val.CredentialsName, val.PoolManagerStatus.IsRunning})
+		t.AppendRow(table.Row{val.ID, val.Owner, val.Name, val.Endpoint.Name, val.CredentialsName, val.GetBalancerType(), val.PoolManagerStatus.IsRunning})
 		t.AppendSeparator()
 	}
 	fmt.Println(t.Render())
@@ -361,6 +364,8 @@ func formatOneRepository(repo params.Repository) {
 	t.AppendRow(table.Row{"ID", repo.ID})
 	t.AppendRow(table.Row{"Owner", repo.Owner})
 	t.AppendRow(table.Row{"Name", repo.Name})
+	t.AppendRow(table.Row{"Endpoint", repo.Endpoint.Name})
+	t.AppendRow(table.Row{"Pool balancer type", repo.GetBalancerType()})
 	t.AppendRow(table.Row{"Credentials", repo.CredentialsName})
 	t.AppendRow(table.Row{"Pool manager running", repo.PoolManagerStatus.IsRunning})
 	if !repo.PoolManagerStatus.IsRunning {

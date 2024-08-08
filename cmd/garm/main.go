@@ -28,6 +28,11 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/gorilla/handlers"
+	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
+	lumberjack "gopkg.in/natefinch/lumberjack.v2"
+
 	"github.com/cloudbase/garm-provider-common/util"
 	"github.com/cloudbase/garm/apiserver/controllers"
 	"github.com/cloudbase/garm/apiserver/routers"
@@ -35,24 +40,20 @@ import (
 	"github.com/cloudbase/garm/config"
 	"github.com/cloudbase/garm/database"
 	"github.com/cloudbase/garm/database/common"
+	"github.com/cloudbase/garm/database/watcher"
 	"github.com/cloudbase/garm/metrics"
-	"github.com/cloudbase/garm/runner"
+	"github.com/cloudbase/garm/params"
+	"github.com/cloudbase/garm/runner" //nolint:typecheck
+	runnerMetrics "github.com/cloudbase/garm/runner/metrics"
 	garmUtil "github.com/cloudbase/garm/util"
 	"github.com/cloudbase/garm/util/appdefaults"
 	"github.com/cloudbase/garm/websocket"
-	lumberjack "gopkg.in/natefinch/lumberjack.v2"
-
-	"github.com/gorilla/handlers"
-	"github.com/gorilla/mux"
-	"github.com/pkg/errors"
 )
 
 var (
 	conf    = flag.String("config", appdefaults.DefaultConfigFilePath, "garm config file")
 	version = flag.Bool("version", false, "prints version")
 )
-
-var Version string
 
 var signals = []os.Signal{
 	os.Interrupt,
@@ -97,7 +98,7 @@ func setupLogging(ctx context.Context, logCfg config.Logging, hub *websocket.Hub
 		}
 	}()
 
-	var writers []io.Writer = []io.Writer{
+	writers := []io.Writer{
 		logWriter,
 	}
 
@@ -139,21 +140,55 @@ func setupLogging(ctx context.Context, logCfg config.Logging, hub *websocket.Hub
 		Handler: han,
 	}
 	slog.SetDefault(slog.New(wrapped))
+}
 
+func maybeUpdateURLsFromConfig(cfg config.Config, store common.Store) error {
+	info, err := store.ControllerInfo()
+	if err != nil {
+		return errors.Wrap(err, "fetching controller info")
+	}
+
+	var updateParams params.UpdateControllerParams
+
+	if info.MetadataURL == "" && cfg.Default.MetadataURL != "" {
+		updateParams.MetadataURL = &cfg.Default.MetadataURL
+	}
+
+	if info.CallbackURL == "" && cfg.Default.CallbackURL != "" {
+		updateParams.CallbackURL = &cfg.Default.CallbackURL
+	}
+
+	if info.WebhookURL == "" && cfg.Default.WebhookURL != "" {
+		updateParams.WebhookURL = &cfg.Default.WebhookURL
+	}
+
+	if updateParams.MetadataURL == nil && updateParams.CallbackURL == nil && updateParams.WebhookURL == nil {
+		// nothing to update
+		return nil
+	}
+
+	_, err = store.UpdateController(updateParams)
+	if err != nil {
+		return errors.Wrap(err, "updating controller info")
+	}
+	return nil
 }
 
 func main() {
 	flag.Parse()
 	if *version {
-		fmt.Println(Version)
+		fmt.Println(appdefaults.GetVersion())
 		return
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), signals...)
 	defer stop()
+	watcher.InitWatcher(ctx)
+
+	ctx = auth.GetAdminContext(ctx)
 
 	cfg, err := config.NewConfig(*conf)
 	if err != nil {
-		log.Fatalf("Fetching config: %+v", err)
+		log.Fatalf("Fetching config: %+v", err) //nolint:gocritic
 	}
 
 	logCfg := cfg.GetLoggingConfig()
@@ -167,12 +202,19 @@ func main() {
 	}
 	setupLogging(ctx, logCfg, hub)
 
+	// Migrate credentials to the new format. This field will be read
+	// by the DB migration logic.
+	cfg.Database.MigrateCredentials = cfg.Github
 	db, err := database.NewDatabase(ctx, cfg.Database)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	if err := maybeInitController(db); err != nil {
+		log.Fatal(err)
+	}
+
+	if err := maybeUpdateURLsFromConfig(*cfg, db); err != nil {
 		log.Fatal(err)
 	}
 
@@ -207,20 +249,30 @@ func main() {
 		log.Fatal(err)
 	}
 
+	urlsRequiredMiddleware, err := auth.NewUrlsRequiredMiddleware(db)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	metricsMiddleware, err := auth.NewMetricsMiddleware(cfg.JWTAuth)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	router := routers.NewAPIRouter(controller, jwtMiddleware, initMiddleware, instanceMiddleware, cfg.Default.EnableWebhookManagement)
+	router := routers.NewAPIRouter(controller, jwtMiddleware, initMiddleware, urlsRequiredMiddleware, instanceMiddleware, cfg.Default.EnableWebhookManagement)
 
+	// start the metrics collector
 	if cfg.Metrics.Enable {
-		slog.InfoContext(ctx, "registering prometheus metrics collectors")
-		if err := metrics.RegisterCollectors(runner); err != nil {
-			log.Fatal(err)
-		}
 		slog.InfoContext(ctx, "setting up metric routes")
 		router = routers.WithMetricsRouter(router, cfg.Metrics.DisableAuth, metricsMiddleware)
+
+		slog.InfoContext(ctx, "register metrics")
+		if err := metrics.RegisterMetrics(); err != nil {
+			log.Fatal(err)
+		}
+
+		slog.InfoContext(ctx, "start metrics collection")
+		runnerMetrics.CollectObjectMetric(ctx, runner, cfg.Metrics.Duration())
 	}
 
 	if cfg.Default.DebugServer {
@@ -235,6 +287,8 @@ func main() {
 	methodsOk := handlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "OPTIONS", "DELETE"})
 	headersOk := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"})
 
+	// nolint:golangci-lint,gosec
+	// G112: Potential Slowloris Attack because ReadHeaderTimeout is not configured in the http.Server
 	srv := &http.Server{
 		Addr: cfg.APIServer.BindAddress(),
 		// Pass our instance of gorilla/mux in.
@@ -259,13 +313,14 @@ func main() {
 	}()
 
 	<-ctx.Done()
+
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer shutdownCancel()
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "graceful api server shutdown failed")
 	}
 
-	slog.With(slog.Any("error", err)).ErrorContext(ctx, "waiting for runner to stop")
+	slog.With(slog.Any("error", err)).InfoContext(ctx, "waiting for runner to stop")
 	if err := runner.Wait(); err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to shutdown workers")
 		os.Exit(1)

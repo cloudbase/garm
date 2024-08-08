@@ -16,6 +16,7 @@ package auth
 
 import (
 	"context"
+	"time"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/params"
@@ -28,9 +29,11 @@ const (
 	fullNameKey    contextFlags = "full_name"
 	readMetricsKey contextFlags = "read_metrics"
 	// UserIDFlag is the User ID flag we set in the context
-	UserIDFlag    contextFlags = "user_id"
-	isEnabledFlag contextFlags = "is_enabled"
-	jwtTokenFlag  contextFlags = "jwt_token"
+	UserIDFlag             contextFlags = "user_id"
+	isEnabledFlag          contextFlags = "is_enabled"
+	jwtTokenFlag           contextFlags = "jwt_token"
+	authExpiresFlag        contextFlags = "auth_expires"
+	passwordGenerationFlag contextFlags = "password_generation"
 
 	instanceIDKey        contextFlags = "id"
 	instanceNameKey      contextFlags = "name"
@@ -169,12 +172,41 @@ func PopulateInstanceContext(ctx context.Context, instance params.Instance) cont
 
 // PopulateContext sets the appropriate fields in the context, based on
 // the user object
-func PopulateContext(ctx context.Context, user params.User) context.Context {
+func PopulateContext(ctx context.Context, user params.User, authExpires *time.Time) context.Context {
 	ctx = SetUserID(ctx, user.ID)
 	ctx = SetAdmin(ctx, user.IsAdmin)
 	ctx = SetIsEnabled(ctx, user.Enabled)
 	ctx = SetFullName(ctx, user.FullName)
+	ctx = SetExpires(ctx, authExpires)
+	ctx = SetPasswordGeneration(ctx, user.Generation)
 	return ctx
+}
+
+func SetExpires(ctx context.Context, expires *time.Time) context.Context {
+	if expires == nil {
+		return ctx
+	}
+	return context.WithValue(ctx, authExpiresFlag, expires)
+}
+
+func Expires(ctx context.Context) *time.Time {
+	elem := ctx.Value(authExpiresFlag)
+	if elem == nil {
+		return nil
+	}
+	return elem.(*time.Time)
+}
+
+func SetPasswordGeneration(ctx context.Context, val uint) context.Context {
+	return context.WithValue(ctx, passwordGenerationFlag, val)
+}
+
+func PasswordGeneration(ctx context.Context) uint {
+	elem := ctx.Value(passwordGenerationFlag)
+	if elem == nil {
+		return 0
+	}
+	return elem.(uint)
 }
 
 // SetFullName sets the user full name in the context
@@ -238,8 +270,10 @@ func UserID(ctx context.Context) string {
 
 // GetAdminContext will return an admin context. This can be used internally
 // when fetching users.
-func GetAdminContext() context.Context {
-	ctx := context.Background()
+func GetAdminContext(ctx context.Context) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	ctx = SetUserID(ctx, "")
 	ctx = SetAdmin(ctx, true)
 	ctx = SetIsEnabled(ctx, true)

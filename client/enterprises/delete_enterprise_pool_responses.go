@@ -6,6 +6,7 @@ package enterprises
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -81,11 +82,13 @@ func (o *DeleteEnterprisePoolDefault) Code() int {
 }
 
 func (o *DeleteEnterprisePoolDefault) Error() string {
-	return fmt.Sprintf("[DELETE /enterprises/{enterpriseID}/pools/{poolID}][%d] DeleteEnterprisePool default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /enterprises/{enterpriseID}/pools/{poolID}][%d] DeleteEnterprisePool default %s", o._statusCode, payload)
 }
 
 func (o *DeleteEnterprisePoolDefault) String() string {
-	return fmt.Sprintf("[DELETE /enterprises/{enterpriseID}/pools/{poolID}][%d] DeleteEnterprisePool default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[DELETE /enterprises/{enterpriseID}/pools/{poolID}][%d] DeleteEnterprisePool default %s", o._statusCode, payload)
 }
 
 func (o *DeleteEnterprisePoolDefault) GetPayload() apiserver_params.APIErrorResponse {

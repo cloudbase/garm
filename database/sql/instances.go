@@ -17,42 +17,30 @@ package sql
 import (
 	"context"
 	"encoding/json"
-
-	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
-	"github.com/cloudbase/garm-provider-common/util"
-	"github.com/cloudbase/garm/params"
+	"log/slog"
 
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+
+	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	"github.com/cloudbase/garm/database/common"
+	"github.com/cloudbase/garm/params"
 )
 
-func (s *sqlDatabase) marshalAndSeal(data interface{}) ([]byte, error) {
-	enc, err := json.Marshal(data)
-	if err != nil {
-		return nil, errors.Wrap(err, "marshalling data")
-	}
-	return util.Seal(enc, []byte(s.cfg.Passphrase))
-}
-
-func (s *sqlDatabase) unsealAndUnmarshal(data []byte, target interface{}) error {
-	decrypted, err := util.Unseal(data, []byte(s.cfg.Passphrase))
-	if err != nil {
-		return errors.Wrap(err, "decrypting data")
-	}
-	if err := json.Unmarshal(decrypted, target); err != nil {
-		return errors.Wrap(err, "unmarshalling data")
-	}
-	return nil
-}
-
-func (s *sqlDatabase) CreateInstance(ctx context.Context, poolID string, param params.CreateInstanceParams) (params.Instance, error) {
-	pool, err := s.getPoolByID(ctx, poolID)
+func (s *sqlDatabase) CreateInstance(_ context.Context, poolID string, param params.CreateInstanceParams) (instance params.Instance, err error) {
+	pool, err := s.getPoolByID(s.conn, poolID)
 	if err != nil {
 		return params.Instance{}, errors.Wrap(err, "fetching pool")
 	}
+
+	defer func() {
+		if err == nil {
+			s.sendNotify(common.InstanceEntityType, common.CreateOperation, instance)
+		}
+	}()
 
 	var labels datatypes.JSON
 	if len(param.AditionalLabels) > 0 {
@@ -92,24 +80,8 @@ func (s *sqlDatabase) CreateInstance(ctx context.Context, poolID string, param p
 	return s.sqlToParamsInstance(newInstance)
 }
 
-func (s *sqlDatabase) getInstanceByID(ctx context.Context, instanceID string) (Instance, error) {
-	u, err := uuid.Parse(instanceID)
-	if err != nil {
-		return Instance{}, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
-	}
-	var instance Instance
-	q := s.conn.Model(&Instance{}).
-		Preload(clause.Associations).
-		Where("id = ?", u).
-		First(&instance)
-	if q.Error != nil {
-		return Instance{}, errors.Wrap(q.Error, "fetching instance")
-	}
-	return instance, nil
-}
-
-func (s *sqlDatabase) getPoolInstanceByName(ctx context.Context, poolID string, instanceName string) (Instance, error) {
-	pool, err := s.getPoolByID(ctx, poolID)
+func (s *sqlDatabase) getPoolInstanceByName(poolID string, instanceName string) (Instance, error) {
+	pool, err := s.getPoolByID(s.conn, poolID)
 	if err != nil {
 		return Instance{}, errors.Wrap(err, "fetching pool")
 	}
@@ -128,7 +100,7 @@ func (s *sqlDatabase) getPoolInstanceByName(ctx context.Context, poolID string, 
 	return instance, nil
 }
 
-func (s *sqlDatabase) getInstanceByName(ctx context.Context, instanceName string, preload ...string) (Instance, error) {
+func (s *sqlDatabase) getInstanceByName(_ context.Context, instanceName string, preload ...string) (Instance, error) {
 	var instance Instance
 
 	q := s.conn
@@ -152,8 +124,8 @@ func (s *sqlDatabase) getInstanceByName(ctx context.Context, instanceName string
 	return instance, nil
 }
 
-func (s *sqlDatabase) GetPoolInstanceByName(ctx context.Context, poolID string, instanceName string) (params.Instance, error) {
-	instance, err := s.getPoolInstanceByName(ctx, poolID, instanceName)
+func (s *sqlDatabase) GetPoolInstanceByName(_ context.Context, poolID string, instanceName string) (params.Instance, error) {
+	instance, err := s.getPoolInstanceByName(poolID, instanceName)
 	if err != nil {
 		return params.Instance{}, errors.Wrap(err, "fetching instance")
 	}
@@ -170,11 +142,30 @@ func (s *sqlDatabase) GetInstanceByName(ctx context.Context, instanceName string
 	return s.sqlToParamsInstance(instance)
 }
 
-func (s *sqlDatabase) DeleteInstance(ctx context.Context, poolID string, instanceName string) error {
-	instance, err := s.getPoolInstanceByName(ctx, poolID, instanceName)
+func (s *sqlDatabase) DeleteInstance(_ context.Context, poolID string, instanceName string) (err error) {
+	instance, err := s.getPoolInstanceByName(poolID, instanceName)
 	if err != nil {
 		return errors.Wrap(err, "deleting instance")
 	}
+
+	defer func() {
+		if err == nil {
+			var providerID string
+			if instance.ProviderID != nil {
+				providerID = *instance.ProviderID
+			}
+			if notifyErr := s.sendNotify(common.InstanceEntityType, common.DeleteOperation, params.Instance{
+				ID:         instance.ID.String(),
+				Name:       instance.Name,
+				ProviderID: providerID,
+				AgentID:    instance.AgentID,
+				PoolID:     instance.PoolID.String(),
+			}); notifyErr != nil {
+				slog.With(slog.Any("error", notifyErr)).Error("failed to send notify")
+			}
+		}
+	}()
+
 	if q := s.conn.Unscoped().Delete(&instance); q.Error != nil {
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
 			return nil
@@ -184,34 +175,8 @@ func (s *sqlDatabase) DeleteInstance(ctx context.Context, poolID string, instanc
 	return nil
 }
 
-func (s *sqlDatabase) ListInstanceEvents(ctx context.Context, instanceID string, eventType params.EventType, eventLevel params.EventLevel) ([]params.StatusMessage, error) {
-	var events []InstanceStatusUpdate
-	query := s.conn.Model(&InstanceStatusUpdate{}).Where("instance_id = ?", instanceID)
-	if eventLevel != "" {
-		query = query.Where("event_level = ?", eventLevel)
-	}
-
-	if eventType != "" {
-		query = query.Where("event_type = ?", eventType)
-	}
-
-	if result := query.Find(&events); result.Error != nil {
-		return nil, errors.Wrap(result.Error, "fetching events")
-	}
-
-	eventParams := make([]params.StatusMessage, len(events))
-	for idx, val := range events {
-		eventParams[idx] = params.StatusMessage{
-			Message:    val.Message,
-			EventType:  val.EventType,
-			EventLevel: val.EventLevel,
-		}
-	}
-	return eventParams, nil
-}
-
-func (s *sqlDatabase) AddInstanceEvent(ctx context.Context, instanceID string, event params.EventType, eventLevel params.EventLevel, statusMessage string) error {
-	instance, err := s.getInstanceByID(ctx, instanceID)
+func (s *sqlDatabase) AddInstanceEvent(ctx context.Context, instanceName string, event params.EventType, eventLevel params.EventLevel, statusMessage string) error {
+	instance, err := s.getInstanceByName(ctx, instanceName)
 	if err != nil {
 		return errors.Wrap(err, "updating instance")
 	}
@@ -228,8 +193,8 @@ func (s *sqlDatabase) AddInstanceEvent(ctx context.Context, instanceID string, e
 	return nil
 }
 
-func (s *sqlDatabase) UpdateInstance(ctx context.Context, instanceID string, param params.UpdateInstanceParams) (params.Instance, error) {
-	instance, err := s.getInstanceByID(ctx, instanceID)
+func (s *sqlDatabase) UpdateInstance(ctx context.Context, instanceName string, param params.UpdateInstanceParams) (params.Instance, error) {
+	instance, err := s.getInstanceByName(ctx, instanceName)
 	if err != nil {
 		return params.Instance{}, errors.Wrap(err, "updating instance")
 	}
@@ -292,18 +257,22 @@ func (s *sqlDatabase) UpdateInstance(ctx context.Context, instanceID string, par
 			return params.Instance{}, errors.Wrap(err, "updating addresses")
 		}
 	}
-
-	return s.sqlToParamsInstance(instance)
+	inst, err := s.sqlToParamsInstance(instance)
+	if err != nil {
+		return params.Instance{}, errors.Wrap(err, "converting instance")
+	}
+	s.sendNotify(common.InstanceEntityType, common.UpdateOperation, inst)
+	return inst, nil
 }
 
-func (s *sqlDatabase) ListPoolInstances(ctx context.Context, poolID string) ([]params.Instance, error) {
+func (s *sqlDatabase) ListPoolInstances(_ context.Context, poolID string) ([]params.Instance, error) {
 	u, err := uuid.Parse(poolID)
 	if err != nil {
 		return nil, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
 	}
 
 	var instances []Instance
-	query := s.conn.Model(&Instance{}).Where("pool_id = ?", u)
+	query := s.conn.Model(&Instance{}).Preload("Job").Where("pool_id = ?", u)
 
 	if err := query.Find(&instances); err.Error != nil {
 		return nil, errors.Wrap(err.Error, "fetching instances")
@@ -319,10 +288,10 @@ func (s *sqlDatabase) ListPoolInstances(ctx context.Context, poolID string) ([]p
 	return ret, nil
 }
 
-func (s *sqlDatabase) ListAllInstances(ctx context.Context) ([]params.Instance, error) {
+func (s *sqlDatabase) ListAllInstances(_ context.Context) ([]params.Instance, error) {
 	var instances []Instance
 
-	q := s.conn.Model(&Instance{}).Find(&instances)
+	q := s.conn.Model(&Instance{}).Preload("Job").Find(&instances)
 	if q.Error != nil {
 		return nil, errors.Wrap(q.Error, "fetching instances")
 	}
@@ -337,8 +306,8 @@ func (s *sqlDatabase) ListAllInstances(ctx context.Context) ([]params.Instance, 
 	return ret, nil
 }
 
-func (s *sqlDatabase) PoolInstanceCount(ctx context.Context, poolID string) (int64, error) {
-	pool, err := s.getPoolByID(ctx, poolID)
+func (s *sqlDatabase) PoolInstanceCount(_ context.Context, poolID string) (int64, error) {
+	pool, err := s.getPoolByID(s.conn, poolID)
 	if err != nil {
 		return 0, errors.Wrap(err, "fetching pool")
 	}

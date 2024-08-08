@@ -17,12 +17,12 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/spf13/cobra"
+
 	"github.com/cloudbase/garm-provider-common/util"
 	apiClientOrgs "github.com/cloudbase/garm/client/organizations"
 	"github.com/cloudbase/garm/params"
-
-	"github.com/jedib0t/go-pretty/v6/table"
-	"github.com/spf13/cobra"
 )
 
 var (
@@ -62,7 +62,7 @@ var orgWebhookInstallCmd = &cobra.Command{
 	Short:        "Install webhook",
 	Long:         `Install webhook for an organization.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -92,7 +92,7 @@ var orgHookInfoShowCmd = &cobra.Command{
 	Short:        "Show webhook info",
 	Long:         `Show webhook info for an organization.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -120,7 +120,7 @@ var orgWebhookUninstallCmd = &cobra.Command{
 	Short:        "Uninstall webhook",
 	Long:         `Uninstall webhook for an organization.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -148,7 +148,7 @@ var orgAddCmd = &cobra.Command{
 	Short:        "Add organization",
 	Long:         `Add a new organization to the manager.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, _ []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -163,9 +163,10 @@ var orgAddCmd = &cobra.Command{
 
 		newOrgReq := apiClientOrgs.NewCreateOrgParams()
 		newOrgReq.Body = params.CreateOrgParams{
-			Name:            orgName,
-			WebhookSecret:   orgWebhookSecret,
-			CredentialsName: orgCreds,
+			Name:             orgName,
+			WebhookSecret:    orgWebhookSecret,
+			CredentialsName:  orgCreds,
+			PoolBalancerType: params.PoolBalancerType(poolBalancerType),
 		}
 		response, err := apiCli.Organizations.CreateOrg(newOrgReq, authToken)
 		if err != nil {
@@ -199,7 +200,7 @@ var orgUpdateCmd = &cobra.Command{
 	Short:        "Update organization",
 	Long:         `Update organization credentials or webhook secret.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -213,8 +214,9 @@ var orgUpdateCmd = &cobra.Command{
 		}
 		updateOrgReq := apiClientOrgs.NewUpdateOrgParams()
 		updateOrgReq.Body = params.UpdateEntityParams{
-			WebhookSecret:   orgWebhookSecret,
-			CredentialsName: orgCreds,
+			WebhookSecret:    orgWebhookSecret,
+			CredentialsName:  orgCreds,
+			PoolBalancerType: params.PoolBalancerType(poolBalancerType),
 		}
 		updateOrgReq.OrgID = args[0]
 		response, err := apiCli.Organizations.UpdateOrg(updateOrgReq, authToken)
@@ -232,7 +234,7 @@ var orgListCmd = &cobra.Command{
 	Short:        "List organizations",
 	Long:         `List all configured organizations that are currently managed.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, _ []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -252,7 +254,7 @@ var orgShowCmd = &cobra.Command{
 	Short:        "Show details for one organization",
 	Long:         `Displays detailed information about a single organization.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -279,7 +281,7 @@ var orgDeleteCmd = &cobra.Command{
 	Short:        "Removes one organization",
 	Long:         `Delete one organization from the manager.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -300,8 +302,8 @@ var orgDeleteCmd = &cobra.Command{
 }
 
 func init() {
-
 	orgAddCmd.Flags().StringVar(&orgName, "name", "", "The name of the organization")
+	orgAddCmd.Flags().StringVar(&poolBalancerType, "pool-balancer-type", string(params.PoolBalancerTypeRoundRobin), "The balancing strategy to use when creating runners in pools matching requested labels.")
 	orgAddCmd.Flags().StringVar(&orgWebhookSecret, "webhook-secret", "", "The webhook secret for this organization")
 	orgAddCmd.Flags().StringVar(&orgCreds, "credentials", "", "Credentials name. See credentials list.")
 	orgAddCmd.Flags().BoolVar(&orgRandomWebhookSecret, "random-webhook-secret", false, "Generate a random webhook secret for this organization.")
@@ -316,6 +318,7 @@ func init() {
 
 	orgUpdateCmd.Flags().StringVar(&orgWebhookSecret, "webhook-secret", "", "The webhook secret for this organization")
 	orgUpdateCmd.Flags().StringVar(&orgCreds, "credentials", "", "Credentials name. See credentials list.")
+	orgUpdateCmd.Flags().StringVar(&poolBalancerType, "pool-balancer-type", "", "The balancing strategy to use when creating runners in pools matching requested labels.")
 
 	orgWebhookInstallCmd.Flags().BoolVar(&insecureOrgWebhook, "insecure", false, "Ignore self signed certificate errors.")
 	orgWebhookCmd.AddCommand(
@@ -338,10 +341,10 @@ func init() {
 
 func formatOrganizations(orgs []params.Organization) {
 	t := table.NewWriter()
-	header := table.Row{"ID", "Name", "Credentials name", "Pool mgr running"}
+	header := table.Row{"ID", "Name", "Endpoint", "Credentials name", "Pool Balancer Type", "Pool mgr running"}
 	t.AppendHeader(header)
 	for _, val := range orgs {
-		t.AppendRow(table.Row{val.ID, val.Name, val.CredentialsName, val.PoolManagerStatus.IsRunning})
+		t.AppendRow(table.Row{val.ID, val.Name, val.Endpoint.Name, val.CredentialsName, val.GetBalancerType(), val.PoolManagerStatus.IsRunning})
 		t.AppendSeparator()
 	}
 	fmt.Println(t.Render())
@@ -354,6 +357,8 @@ func formatOneOrganization(org params.Organization) {
 	t.AppendHeader(header)
 	t.AppendRow(table.Row{"ID", org.ID})
 	t.AppendRow(table.Row{"Name", org.Name})
+	t.AppendRow(table.Row{"Endpoint", org.Endpoint.Name})
+	t.AppendRow(table.Row{"Pool balancer type", org.GetBalancerType()})
 	t.AppendRow(table.Row{"Credentials", org.CredentialsName})
 	t.AppendRow(table.Row{"Pool manager running", org.PoolManagerStatus.IsRunning})
 	if !org.PoolManagerStatus.IsRunning {

@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/stretchr/testify/suite"
+
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/config"
@@ -27,7 +29,6 @@ import (
 	garmTesting "github.com/cloudbase/garm/internal/testing"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
-	"github.com/stretchr/testify/suite"
 )
 
 type PoolTestFixtures struct {
@@ -44,10 +45,15 @@ type PoolTestSuite struct {
 	suite.Suite
 	Fixtures *PoolTestFixtures
 	Runner   *Runner
+
+	adminCtx           context.Context
+	testCreds          params.GithubCredentials
+	secondaryTestCreds params.GithubCredentials
+	githubEndpoint     params.GithubEndpoint
 }
 
 func (s *PoolTestSuite) SetupTest() {
-	adminCtx := auth.GetAdminContext()
+	adminCtx := auth.GetAdminContext(context.Background())
 
 	// create testing sqlite database
 	dbCfg := garmTesting.GetTestSqliteDBConfig(s.T())
@@ -56,18 +62,28 @@ func (s *PoolTestSuite) SetupTest() {
 		s.FailNow(fmt.Sprintf("failed to create db connection: %s", err))
 	}
 
+	s.adminCtx = garmTesting.ImpersonateAdminContext(adminCtx, db, s.T())
+
+	s.githubEndpoint = garmTesting.CreateDefaultGithubEndpoint(s.adminCtx, db, s.T())
+	s.testCreds = garmTesting.CreateTestGithubCredentials(s.adminCtx, "new-creds", db, s.T(), s.githubEndpoint)
+	s.secondaryTestCreds = garmTesting.CreateTestGithubCredentials(s.adminCtx, "secondary-creds", db, s.T(), s.githubEndpoint)
+
 	// create an organization for testing purposes
-	org, err := db.CreateOrganization(context.Background(), "test-org", "test-creds", "test-webhookSecret")
+	org, err := db.CreateOrganization(s.adminCtx, "test-org", s.testCreds.Name, "test-webhookSecret", params.PoolBalancerTypeRoundRobin)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to create org: %s", err))
 	}
 
 	// create some pool objects in the database, for testing purposes
+	entity := params.GithubEntity{
+		ID:         org.ID,
+		EntityType: params.GithubEntityTypeOrganization,
+	}
 	orgPools := []params.Pool{}
 	for i := 1; i <= 3; i++ {
-		pool, err := db.CreateOrganizationPool(
-			context.Background(),
-			org.ID,
+		pool, err := db.CreateEntityPool(
+			adminCtx,
+			entity,
 			params.CreatePoolParams{
 				ProviderName:           "test-provider",
 				MaxRunners:             4,
@@ -75,7 +91,7 @@ func (s *PoolTestSuite) SetupTest() {
 				Image:                  fmt.Sprintf("test-image-%d", i),
 				Flavor:                 "test-flavor",
 				OSType:                 "linux",
-				Tags:                   []string{"self-hosted", "amd64", "linux"},
+				Tags:                   []string{"amd64-linux-runner"},
 				RunnerBootstrapTimeout: 0,
 			},
 		)
@@ -97,6 +113,9 @@ func (s *PoolTestSuite) SetupTest() {
 			MinIdleRunners: &minIdleRunners,
 			Image:          "test-images-updated",
 			Flavor:         "test-flavor-updated",
+			Tags: []string{
+				"amd64-linux-runner",
+			},
 		},
 		CreateInstanceParams: params.CreateInstanceParams{
 			Name:   "test-instance-name",
@@ -107,10 +126,9 @@ func (s *PoolTestSuite) SetupTest() {
 
 	// setup test runner
 	runner := &Runner{
-		providers:   fixtures.Providers,
-		credentials: fixtures.Credentials,
-		store:       fixtures.Store,
-		ctx:         fixtures.AdminContext,
+		providers: fixtures.Providers,
+		store:     fixtures.Store,
+		ctx:       fixtures.AdminContext,
 	}
 	s.Runner = runner
 }
@@ -207,7 +225,7 @@ func (s *PoolTestSuite) TestTestUpdatePoolByIDInvalidPoolID() {
 
 func (s *PoolTestSuite) TestTestUpdatePoolByIDRunnerBootstrapTimeoutFailed() {
 	// this is already created in `SetupTest()`
-	var RunnerBootstrapTimeout uint = 0
+	var RunnerBootstrapTimeout uint // default is 0
 	s.Fixtures.UpdatePoolParams.RunnerBootstrapTimeout = &RunnerBootstrapTimeout
 
 	_, err := s.Runner.UpdatePoolByID(s.Fixtures.AdminContext, s.Fixtures.Pools[0].ID, s.Fixtures.UpdatePoolParams)

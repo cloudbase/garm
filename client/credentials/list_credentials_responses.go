@@ -6,6 +6,7 @@ package credentials
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -37,7 +38,7 @@ func (o *ListCredentialsReader) ReadResponse(response runtime.ClientResponse, co
 		}
 		return nil, result
 	default:
-		return nil, runtime.NewAPIError("[GET /credentials] ListCredentials", response, response.Code())
+		return nil, runtime.NewAPIError("[GET /github/credentials] ListCredentials", response, response.Code())
 	}
 }
 
@@ -86,11 +87,13 @@ func (o *ListCredentialsOK) Code() int {
 }
 
 func (o *ListCredentialsOK) Error() string {
-	return fmt.Sprintf("[GET /credentials][%d] listCredentialsOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /github/credentials][%d] listCredentialsOK %s", 200, payload)
 }
 
 func (o *ListCredentialsOK) String() string {
-	return fmt.Sprintf("[GET /credentials][%d] listCredentialsOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /github/credentials][%d] listCredentialsOK %s", 200, payload)
 }
 
 func (o *ListCredentialsOK) GetPayload() garm_params.Credentials {
@@ -152,11 +155,13 @@ func (o *ListCredentialsBadRequest) Code() int {
 }
 
 func (o *ListCredentialsBadRequest) Error() string {
-	return fmt.Sprintf("[GET /credentials][%d] listCredentialsBadRequest  %+v", 400, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /github/credentials][%d] listCredentialsBadRequest %s", 400, payload)
 }
 
 func (o *ListCredentialsBadRequest) String() string {
-	return fmt.Sprintf("[GET /credentials][%d] listCredentialsBadRequest  %+v", 400, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /github/credentials][%d] listCredentialsBadRequest %s", 400, payload)
 }
 
 func (o *ListCredentialsBadRequest) GetPayload() apiserver_params.APIErrorResponse {

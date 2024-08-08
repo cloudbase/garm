@@ -17,13 +17,13 @@ package sql
 import (
 	"time"
 
-	commonParams "github.com/cloudbase/garm-provider-common/params"
-	"github.com/cloudbase/garm/params"
-
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
+
+	commonParams "github.com/cloudbase/garm-provider-common/params"
+	"github.com/cloudbase/garm/params"
 )
 
 type Base struct {
@@ -33,9 +33,9 @@ type Base struct {
 	DeletedAt gorm.DeletedAt `gorm:"index"`
 }
 
-func (b *Base) BeforeCreate(tx *gorm.DB) error {
-	emptyId := uuid.UUID{}
-	if b.ID != emptyId {
+func (b *Base) BeforeCreate(_ *gorm.DB) error {
+	emptyID := uuid.UUID{}
+	if b.ID != emptyID {
 		return nil
 	}
 	newID, err := uuid.NewRandom()
@@ -83,37 +83,62 @@ type Pool struct {
 	Enterprise   Enterprise `gorm:"foreignKey:EnterpriseID"`
 
 	Instances []Instance `gorm:"foreignKey:PoolID"`
+	Priority  uint       `gorm:"index:idx_pool_priority"`
 }
 
 type Repository struct {
 	Base
 
 	CredentialsName string
-	Owner           string `gorm:"index:idx_owner_nocase,unique,collate:nocase"`
-	Name            string `gorm:"index:idx_owner_nocase,unique,collate:nocase"`
-	WebhookSecret   []byte
-	Pools           []Pool        `gorm:"foreignKey:RepoID"`
-	Jobs            []WorkflowJob `gorm:"foreignKey:RepoID;constraint:OnDelete:SET NULL"`
+
+	CredentialsID *uint             `gorm:"index"`
+	Credentials   GithubCredentials `gorm:"foreignKey:CredentialsID;constraint:OnDelete:SET NULL"`
+
+	Owner            string `gorm:"index:idx_owner_nocase,unique,collate:nocase"`
+	Name             string `gorm:"index:idx_owner_nocase,unique,collate:nocase"`
+	WebhookSecret    []byte
+	Pools            []Pool                  `gorm:"foreignKey:RepoID"`
+	Jobs             []WorkflowJob           `gorm:"foreignKey:RepoID;constraint:OnDelete:SET NULL"`
+	PoolBalancerType params.PoolBalancerType `gorm:"type:varchar(64)"`
+
+	EndpointName *string        `gorm:"index:idx_owner_nocase,unique,collate:nocase"`
+	Endpoint     GithubEndpoint `gorm:"foreignKey:EndpointName;constraint:OnDelete:SET NULL"`
 }
 
 type Organization struct {
 	Base
 
 	CredentialsName string
-	Name            string `gorm:"index:idx_org_name_nocase,collate:nocase"`
-	WebhookSecret   []byte
-	Pools           []Pool        `gorm:"foreignKey:OrgID"`
-	Jobs            []WorkflowJob `gorm:"foreignKey:OrgID;constraint:OnDelete:SET NULL"`
+
+	CredentialsID *uint             `gorm:"index"`
+	Credentials   GithubCredentials `gorm:"foreignKey:CredentialsID;constraint:OnDelete:SET NULL"`
+
+	Name             string `gorm:"index:idx_org_name_nocase,collate:nocase"`
+	WebhookSecret    []byte
+	Pools            []Pool                  `gorm:"foreignKey:OrgID"`
+	Jobs             []WorkflowJob           `gorm:"foreignKey:OrgID;constraint:OnDelete:SET NULL"`
+	PoolBalancerType params.PoolBalancerType `gorm:"type:varchar(64)"`
+
+	EndpointName *string        `gorm:"index:idx_org_name_nocase,collate:nocase"`
+	Endpoint     GithubEndpoint `gorm:"foreignKey:EndpointName;constraint:OnDelete:SET NULL"`
 }
 
 type Enterprise struct {
 	Base
 
 	CredentialsName string
-	Name            string `gorm:"index:idx_ent_name_nocase,collate:nocase"`
-	WebhookSecret   []byte
-	Pools           []Pool        `gorm:"foreignKey:EnterpriseID"`
-	Jobs            []WorkflowJob `gorm:"foreignKey:EnterpriseID;constraint:OnDelete:SET NULL"`
+
+	CredentialsID *uint             `gorm:"index"`
+	Credentials   GithubCredentials `gorm:"foreignKey:CredentialsID;constraint:OnDelete:SET NULL"`
+
+	Name             string `gorm:"index:idx_ent_name_nocase,collate:nocase"`
+	WebhookSecret    []byte
+	Pools            []Pool                  `gorm:"foreignKey:EnterpriseID"`
+	Jobs             []WorkflowJob           `gorm:"foreignKey:EnterpriseID;constraint:OnDelete:SET NULL"`
+	PoolBalancerType params.PoolBalancerType `gorm:"type:varchar(64)"`
+
+	EndpointName *string        `gorm:"index:idx_ent_name_nocase,collate:nocase"`
+	Endpoint     GithubEndpoint `gorm:"foreignKey:EndpointName;constraint:OnDelete:SET NULL"`
 }
 
 type Address struct {
@@ -170,18 +195,29 @@ type Instance struct {
 type User struct {
 	Base
 
-	Username string `gorm:"uniqueIndex;varchar(64)"`
-	FullName string `gorm:"type:varchar(254)"`
-	Email    string `gorm:"type:varchar(254);unique;index:idx_email"`
-	Password string `gorm:"type:varchar(60)"`
-	IsAdmin  bool
-	Enabled  bool
+	Username   string `gorm:"uniqueIndex;varchar(64)"`
+	FullName   string `gorm:"type:varchar(254)"`
+	Email      string `gorm:"type:varchar(254);unique;index:idx_email"`
+	Password   string `gorm:"type:varchar(60)"`
+	Generation uint
+	IsAdmin    bool
+	Enabled    bool
 }
 
 type ControllerInfo struct {
 	Base
 
 	ControllerID uuid.UUID
+
+	CallbackURL    string
+	MetadataURL    string
+	WebhookBaseURL string
+	// MinimumJobAgeBackoff is the minimum time that a job must be in the queue
+	// before GARM will attempt to allocate a runner to service it. This backoff
+	// is useful if you have idle runners in various pools that could potentially
+	// pick up the job. GARM would allow this amount of time for runners to react
+	// before spinning up a new one and potentially having to scale down later.
+	MinimumJobAgeBackoff uint
 }
 
 type WorkflowJob struct {
@@ -241,4 +277,36 @@ type WorkflowJob struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	DeletedAt gorm.DeletedAt `gorm:"index"`
+}
+
+type GithubEndpoint struct {
+	Name      string `gorm:"type:varchar(64) collate nocase;primary_key;"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	DeletedAt gorm.DeletedAt `gorm:"index"`
+
+	Description   string `gorm:"type:text"`
+	APIBaseURL    string `gorm:"type:text collate nocase"`
+	UploadBaseURL string `gorm:"type:text collate nocase"`
+	BaseURL       string `gorm:"type:text collate nocase"`
+	CACertBundle  []byte `gorm:"type:longblob"`
+}
+
+type GithubCredentials struct {
+	gorm.Model
+
+	Name   string     `gorm:"index:idx_github_credentials,unique;type:varchar(64) collate nocase"`
+	UserID *uuid.UUID `gorm:"index:idx_github_credentials,unique"`
+	User   User       `gorm:"foreignKey:UserID"`
+
+	Description string                `gorm:"type:text"`
+	AuthType    params.GithubAuthType `gorm:"index"`
+	Payload     []byte                `gorm:"type:longblob"`
+
+	Endpoint     GithubEndpoint `gorm:"foreignKey:EndpointName"`
+	EndpointName *string        `gorm:"index"`
+
+	Repositories  []Repository   `gorm:"foreignKey:CredentialsID"`
+	Organizations []Organization `gorm:"foreignKey:CredentialsID"`
+	Enterprises   []Enterprise   `gorm:"foreignKey:CredentialsID"`
 }

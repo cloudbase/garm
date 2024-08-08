@@ -31,7 +31,8 @@ func getDefaultExternalConfig(t *testing.T) External {
 	}
 	t.Cleanup(func() { os.RemoveAll(dir) })
 
-	err = os.WriteFile(filepath.Join(dir, "garm-external-provider"), []byte{}, 0755)
+	// nolint:golangci-lint,gosec
+	err = os.WriteFile(filepath.Join(dir, "garm-external-provider"), []byte{}, 0o755)
 	if err != nil {
 		t.Fatalf("failed to write file: %s", err)
 	}
@@ -77,7 +78,7 @@ func TestExternal(t *testing.T) {
 				ConfigFile:  "",
 				ProviderDir: "../test",
 			},
-			errString: "fetching executable path: executable path must be an absolute path",
+			errString: "failed to get executable path: executable path must be an absolute path",
 		},
 		{
 			name: "Provider executable path must be absolute",
@@ -85,7 +86,7 @@ func TestExternal(t *testing.T) {
 				ConfigFile:         "",
 				ProviderExecutable: "../test",
 			},
-			errString: "fetching executable path: executable path must be an absolute path",
+			errString: "failed to get executable path: executable path must be an absolute path",
 		},
 		{
 			name: "Provider executable not found",
@@ -93,7 +94,7 @@ func TestExternal(t *testing.T) {
 				ConfigFile:  "",
 				ProviderDir: "/tmp",
 			},
-			errString: "checking provider executable: stat /tmp/garm-external-provider: no such file or directory",
+			errString: "failed to access external provider binary /tmp/garm-external-provider",
 		},
 	}
 

@@ -44,7 +44,7 @@ func (t *Table) analyzeAndStringifyColumn(colIdx int, col interface{}, hint rend
 		colStr = fmt.Sprint(col)
 	}
 	colStr = strings.ReplaceAll(colStr, "\t", "    ")
-	colStr = strings.ReplaceAll(colStr, "\r", "")
+	colStr = text.ProcessCRLF(colStr)
 	return fmt.Sprintf("%s%s", t.style.Format.Direction.Modifier(), colStr)
 }
 
@@ -278,6 +278,7 @@ func (t *Table) reset() {
 	t.autoIndexVIndexMaxLength = 0
 	t.columnConfigMap = nil
 	t.columnIsNonNumeric = nil
+	t.firstRowOfPage = true
 	t.maxColumnLengths = nil
 	t.maxRowLength = 0
 	t.numColumns = 0

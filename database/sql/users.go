@@ -18,15 +18,15 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/pkg/errors"
+	"gorm.io/gorm"
+
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm-provider-common/util"
 	"github.com/cloudbase/garm/params"
-
-	"github.com/pkg/errors"
-	"gorm.io/gorm"
 )
 
-func (s *sqlDatabase) getUserByUsernameOrEmail(user string) (User, error) {
+func (s *sqlDatabase) getUserByUsernameOrEmail(tx *gorm.DB, user string) (User, error) {
 	field := "username"
 	if util.IsValidEmail(user) {
 		field = "email"
@@ -34,7 +34,7 @@ func (s *sqlDatabase) getUserByUsernameOrEmail(user string) (User, error) {
 	query := fmt.Sprintf("%s = ?", field)
 
 	var dbUser User
-	q := s.conn.Model(&User{}).Where(query, user).First(&dbUser)
+	q := tx.Model(&User{}).Where(query, user).First(&dbUser)
 	if q.Error != nil {
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
 			return User{}, runnerErrors.ErrNotFound
@@ -44,9 +44,9 @@ func (s *sqlDatabase) getUserByUsernameOrEmail(user string) (User, error) {
 	return dbUser, nil
 }
 
-func (s *sqlDatabase) getUserByID(userID string) (User, error) {
+func (s *sqlDatabase) getUserByID(tx *gorm.DB, userID string) (User, error) {
 	var dbUser User
-	q := s.conn.Model(&User{}).Where("id = ?", userID).First(&dbUser)
+	q := tx.Model(&User{}).Where("id = ?", userID).First(&dbUser)
 	if q.Error != nil {
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
 			return User{}, runnerErrors.ErrNotFound
@@ -56,17 +56,10 @@ func (s *sqlDatabase) getUserByID(userID string) (User, error) {
 	return dbUser, nil
 }
 
-func (s *sqlDatabase) CreateUser(ctx context.Context, user params.NewUserParams) (params.User, error) {
-	if user.Username == "" || user.Email == "" {
-		return params.User{}, runnerErrors.NewBadRequestError("missing username or email")
+func (s *sqlDatabase) CreateUser(_ context.Context, user params.NewUserParams) (params.User, error) {
+	if user.Username == "" || user.Email == "" || user.Password == "" {
+		return params.User{}, runnerErrors.NewBadRequestError("missing username, password or email")
 	}
-	if _, err := s.getUserByUsernameOrEmail(user.Username); err == nil || !errors.Is(err, runnerErrors.ErrNotFound) {
-		return params.User{}, runnerErrors.NewConflictError("username already exists")
-	}
-	if _, err := s.getUserByUsernameOrEmail(user.Email); err == nil || !errors.Is(err, runnerErrors.ErrNotFound) {
-		return params.User{}, runnerErrors.NewConflictError("email already exists")
-	}
-
 	newUser := User{
 		Username: user.Username,
 		Password: user.Password,
@@ -75,57 +68,98 @@ func (s *sqlDatabase) CreateUser(ctx context.Context, user params.NewUserParams)
 		Email:    user.Email,
 		IsAdmin:  user.IsAdmin,
 	}
+	err := s.conn.Transaction(func(tx *gorm.DB) error {
+		if _, err := s.getUserByUsernameOrEmail(tx, user.Username); err == nil || !errors.Is(err, runnerErrors.ErrNotFound) {
+			return runnerErrors.NewConflictError("username already exists")
+		}
+		if _, err := s.getUserByUsernameOrEmail(tx, user.Email); err == nil || !errors.Is(err, runnerErrors.ErrNotFound) {
+			return runnerErrors.NewConflictError("email already exists")
+		}
 
-	q := s.conn.Save(&newUser)
-	if q.Error != nil {
-		return params.User{}, errors.Wrap(q.Error, "creating user")
+		if s.hasAdmin(tx) && user.IsAdmin {
+			return runnerErrors.NewBadRequestError("admin user already exists")
+		}
+
+		q := tx.Save(&newUser)
+		if q.Error != nil {
+			return errors.Wrap(q.Error, "creating user")
+		}
+		return nil
+	})
+	if err != nil {
+		return params.User{}, errors.Wrap(err, "creating user")
 	}
 	return s.sqlToParamsUser(newUser), nil
 }
 
-func (s *sqlDatabase) HasAdminUser(ctx context.Context) bool {
+func (s *sqlDatabase) hasAdmin(tx *gorm.DB) bool {
 	var user User
-	q := s.conn.Model(&User{}).Where("is_admin = ?", true).First(&user)
+	q := tx.Model(&User{}).Where("is_admin = ?", true).First(&user)
 	return q.Error == nil
 }
 
-func (s *sqlDatabase) GetUser(ctx context.Context, user string) (params.User, error) {
-	dbUser, err := s.getUserByUsernameOrEmail(user)
+func (s *sqlDatabase) HasAdminUser(_ context.Context) bool {
+	return s.hasAdmin(s.conn)
+}
+
+func (s *sqlDatabase) GetUser(_ context.Context, user string) (params.User, error) {
+	dbUser, err := s.getUserByUsernameOrEmail(s.conn, user)
 	if err != nil {
 		return params.User{}, errors.Wrap(err, "fetching user")
 	}
 	return s.sqlToParamsUser(dbUser), nil
 }
 
-func (s *sqlDatabase) GetUserByID(ctx context.Context, userID string) (params.User, error) {
-	dbUser, err := s.getUserByID(userID)
+func (s *sqlDatabase) GetUserByID(_ context.Context, userID string) (params.User, error) {
+	dbUser, err := s.getUserByID(s.conn, userID)
 	if err != nil {
 		return params.User{}, errors.Wrap(err, "fetching user")
 	}
 	return s.sqlToParamsUser(dbUser), nil
 }
 
-func (s *sqlDatabase) UpdateUser(ctx context.Context, user string, param params.UpdateUserParams) (params.User, error) {
-	dbUser, err := s.getUserByUsernameOrEmail(user)
+func (s *sqlDatabase) UpdateUser(_ context.Context, user string, param params.UpdateUserParams) (params.User, error) {
+	var err error
+	var dbUser User
+	err = s.conn.Transaction(func(tx *gorm.DB) error {
+		dbUser, err = s.getUserByUsernameOrEmail(tx, user)
+		if err != nil {
+			return errors.Wrap(err, "fetching user")
+		}
+
+		if param.FullName != "" {
+			dbUser.FullName = param.FullName
+		}
+
+		if param.Enabled != nil {
+			dbUser.Enabled = *param.Enabled
+		}
+
+		if param.Password != "" {
+			dbUser.Password = param.Password
+			dbUser.Generation++
+		}
+
+		if q := tx.Save(&dbUser); q.Error != nil {
+			return errors.Wrap(q.Error, "saving user")
+		}
+		return nil
+	})
 	if err != nil {
-		return params.User{}, errors.Wrap(err, "fetching user")
+		return params.User{}, errors.Wrap(err, "updating user")
 	}
-
-	if param.FullName != "" {
-		dbUser.FullName = param.FullName
-	}
-
-	if param.Enabled != nil {
-		dbUser.Enabled = *param.Enabled
-	}
-
-	if param.Password != "" {
-		dbUser.Password = param.Password
-	}
-
-	if q := s.conn.Save(&dbUser); q.Error != nil {
-		return params.User{}, errors.Wrap(q.Error, "saving user")
-	}
-
 	return s.sqlToParamsUser(dbUser), nil
+}
+
+// GetAdminUser returns the system admin user. This is only for internal use.
+func (s *sqlDatabase) GetAdminUser(_ context.Context) (params.User, error) {
+	var user User
+	q := s.conn.Model(&User{}).Where("is_admin = ?", true).First(&user)
+	if q.Error != nil {
+		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
+			return params.User{}, runnerErrors.ErrNotFound
+		}
+		return params.User{}, errors.Wrap(q.Error, "fetching admin user")
+	}
+	return s.sqlToParamsUser(user), nil
 }

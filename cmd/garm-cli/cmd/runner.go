@@ -18,22 +18,24 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/cloudbase/garm/params"
+	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/spf13/cobra"
 
 	apiClientEnterprises "github.com/cloudbase/garm/client/enterprises"
 	apiClientInstances "github.com/cloudbase/garm/client/instances"
 	apiClientOrgs "github.com/cloudbase/garm/client/organizations"
 	apiClientRepos "github.com/cloudbase/garm/client/repositories"
-	"github.com/jedib0t/go-pretty/v6/table"
-	"github.com/spf13/cobra"
+	"github.com/cloudbase/garm/params"
 )
 
 var (
-	runnerRepository   string
-	runnerOrganization string
-	runnerEnterprise   string
-	runnerAll          bool
-	forceRemove        bool
+	runnerRepository     string
+	runnerOrganization   string
+	runnerEnterprise     string
+	runnerAll            bool
+	forceRemove          bool
+	bypassGHUnauthorized bool
+	long                 bool
 )
 
 // runnerCmd represents the runner command
@@ -129,7 +131,7 @@ Example:
 		}
 
 		instances := response.GetPayload()
-		formatInstances(instances)
+		formatInstances(instances, long)
 		return nil
 	},
 }
@@ -139,7 +141,7 @@ var runnerShowCmd = &cobra.Command{
 	Short:        "Show details for a runner",
 	Long:         `Displays a detailed view of a single runner.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -178,7 +180,7 @@ NOTE: An active runner cannot be removed from Github. You will have
 to either cancel the workflow or wait for it to finish.
 `,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -190,6 +192,7 @@ to either cancel the workflow or wait for it to finish.
 		deleteInstanceReq := apiClientInstances.NewDeleteInstanceParams()
 		deleteInstanceReq.InstanceName = args[0]
 		deleteInstanceReq.ForceRemove = &forceRemove
+		deleteInstanceReq.BypassGHUnauthorized = &bypassGHUnauthorized
 		if err := apiCli.Instances.DeleteInstance(deleteInstanceReq, authToken); err != nil {
 			return err
 		}
@@ -199,12 +202,14 @@ to either cancel the workflow or wait for it to finish.
 
 func init() {
 	runnerListCmd.Flags().StringVarP(&runnerRepository, "repo", "r", "", "List all runners from all pools within this repository.")
-	runnerListCmd.Flags().StringVarP(&runnerOrganization, "org", "o", "", "List all runners from all pools withing this organization.")
-	runnerListCmd.Flags().StringVarP(&runnerEnterprise, "enterprise", "e", "", "List all runners from all pools withing this enterprise.")
+	runnerListCmd.Flags().StringVarP(&runnerOrganization, "org", "o", "", "List all runners from all pools within this organization.")
+	runnerListCmd.Flags().StringVarP(&runnerEnterprise, "enterprise", "e", "", "List all runners from all pools within this enterprise.")
 	runnerListCmd.Flags().BoolVarP(&runnerAll, "all", "a", false, "List all runners, regardless of org or repo.")
+	runnerListCmd.Flags().BoolVarP(&long, "long", "l", false, "Include information about tasks.")
 	runnerListCmd.MarkFlagsMutuallyExclusive("repo", "org", "enterprise", "all")
 
 	runnerDeleteCmd.Flags().BoolVarP(&forceRemove, "force-remove-runner", "f", false, "Forcefully remove a runner. If set to true, GARM will ignore provider errors when removing the runner.")
+	runnerDeleteCmd.Flags().BoolVarP(&bypassGHUnauthorized, "bypass-github-unauthorized", "b", false, "Ignore Unauthorized errors from GitHub and proceed with removing runner from provider and DB. This is useful when credentials are no longer valid and you want to remove your runners. Warning, this has the potential to leave orphaned runners in GitHub. You will need to update your credentials to properly consolidate.")
 	runnerDeleteCmd.MarkFlagsMutuallyExclusive("force-remove-runner")
 
 	runnerCmd.AddCommand(
@@ -216,13 +221,21 @@ func init() {
 	rootCmd.AddCommand(runnerCmd)
 }
 
-func formatInstances(param []params.Instance) {
+func formatInstances(param []params.Instance, detailed bool) {
 	t := table.NewWriter()
 	header := table.Row{"Nr", "Name", "Status", "Runner Status", "Pool ID"}
+	if detailed {
+		header = append(header, "Job Name", "Started At", "Run ID", "Repository")
+	}
 	t.AppendHeader(header)
 
 	for idx, inst := range param {
-		t.AppendRow(table.Row{idx + 1, inst.Name, inst.Status, inst.RunnerStatus, inst.PoolID})
+		row := table.Row{idx + 1, inst.Name, inst.Status, inst.RunnerStatus, inst.PoolID}
+		if detailed && inst.Job != nil {
+			repo := fmt.Sprintf("%s/%s", inst.Job.RepositoryOwner, inst.Job.RepositoryName)
+			row = append(row, inst.Job.Name, inst.Job.StartedAt, inst.Job.RunID, repo)
+		}
+		t.AppendRow(row)
 		t.AppendSeparator()
 	}
 	fmt.Println(t.Render())

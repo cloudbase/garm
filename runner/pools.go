@@ -16,13 +16,12 @@ package runner
 
 import (
 	"context"
-	"fmt"
+
+	"github.com/pkg/errors"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/params"
-
-	"github.com/pkg/errors"
 )
 
 func (r *Runner) ListAllPools(ctx context.Context) ([]params.Pool, error) {
@@ -100,26 +99,12 @@ func (r *Runner) UpdatePoolByID(ctx context.Context, poolID string, param params
 		return params.Pool{}, runnerErrors.NewBadRequestError("min_idle_runners cannot be larger than max_runners")
 	}
 
-	if param.Tags != nil && len(param.Tags) > 0 {
-		newTags, err := r.processTags(string(pool.OSArch), pool.OSType, param.Tags)
-		if err != nil {
-			return params.Pool{}, errors.Wrap(err, "processing tags")
-		}
-		param.Tags = newTags
+	entity, err := pool.GithubEntity()
+	if err != nil {
+		return params.Pool{}, errors.Wrap(err, "getting entity")
 	}
 
-	var newPool params.Pool
-
-	if pool.RepoID != "" {
-		newPool, err = r.store.UpdateRepositoryPool(ctx, pool.RepoID, poolID, param)
-	} else if pool.OrgID != "" {
-		newPool, err = r.store.UpdateOrganizationPool(ctx, pool.OrgID, poolID, param)
-	} else if pool.EnterpriseID != "" {
-		newPool, err = r.store.UpdateEnterprisePool(ctx, pool.EnterpriseID, poolID, param)
-	} else {
-		return params.Pool{}, fmt.Errorf("pool not found to a repo, org or enterprise")
-	}
-
+	newPool, err := r.store.UpdateEntityPool(ctx, entity, poolID, param)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "updating pool")
 	}

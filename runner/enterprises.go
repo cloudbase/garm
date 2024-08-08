@@ -6,13 +6,13 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
 	"github.com/cloudbase/garm/util/appdefaults"
-
-	"github.com/pkg/errors"
 )
 
 func (r *Runner) CreateEnterprise(ctx context.Context, param params.CreateEnterpriseParams) (enterprise params.Enterprise, err error) {
@@ -25,12 +25,12 @@ func (r *Runner) CreateEnterprise(ctx context.Context, param params.CreateEnterp
 		return params.Enterprise{}, errors.Wrap(err, "validating params")
 	}
 
-	creds, ok := r.credentials[param.CredentialsName]
-	if !ok {
+	creds, err := r.store.GetGithubCredentialsByName(ctx, param.CredentialsName, true)
+	if err != nil {
 		return params.Enterprise{}, runnerErrors.NewBadRequestError("credentials %s not defined", param.CredentialsName)
 	}
 
-	_, err = r.store.GetEnterprise(ctx, param.Name)
+	_, err = r.store.GetEnterprise(ctx, param.Name, creds.Endpoint.Name)
 	if err != nil {
 		if !errors.Is(err, runnerErrors.ErrNotFound) {
 			return params.Enterprise{}, errors.Wrap(err, "fetching enterprise")
@@ -39,7 +39,7 @@ func (r *Runner) CreateEnterprise(ctx context.Context, param params.CreateEnterp
 		return params.Enterprise{}, runnerErrors.NewConflictError("enterprise %s already exists", param.Name)
 	}
 
-	enterprise, err = r.store.CreateEnterprise(ctx, param.Name, creds.Name, param.WebhookSecret)
+	enterprise, err = r.store.CreateEnterprise(ctx, param.Name, creds.Name, param.WebhookSecret, param.PoolBalancerType)
 	if err != nil {
 		return params.Enterprise{}, errors.Wrap(err, "creating enterprise")
 	}
@@ -54,6 +54,8 @@ func (r *Runner) CreateEnterprise(ctx context.Context, param params.CreateEnterp
 		}
 	}()
 
+	// Use the admin context in the pool manager. Any access control is already done above when
+	// updating the store.
 	var poolMgr common.PoolManager
 	poolMgr, err = r.poolManagerCtrl.CreateEnterprisePoolManager(r.ctx, enterprise, r.providers, r.store)
 	if err != nil {
@@ -124,18 +126,23 @@ func (r *Runner) DeleteEnterprise(ctx context.Context, enterpriseID string) erro
 		return errors.Wrap(err, "fetching enterprise")
 	}
 
-	pools, err := r.store.ListEnterprisePools(ctx, enterpriseID)
+	entity, err := enterprise.GetEntity()
+	if err != nil {
+		return errors.Wrap(err, "getting entity")
+	}
+
+	pools, err := r.store.ListEntityPools(ctx, entity)
 	if err != nil {
 		return errors.Wrap(err, "fetching enterprise pools")
 	}
 
 	if len(pools) > 0 {
-		poolIds := []string{}
+		poolIDs := []string{}
 		for _, pool := range pools {
-			poolIds = append(poolIds, pool.ID)
+			poolIDs = append(poolIDs, pool.ID)
 		}
 
-		return runnerErrors.NewBadRequestError("enterprise has pools defined (%s)", strings.Join(poolIds, ", "))
+		return runnerErrors.NewBadRequestError("enterprise has pools defined (%s)", strings.Join(poolIDs, ", "))
 	}
 
 	if err := r.poolManagerCtrl.DeleteEnterprisePoolManager(enterprise); err != nil {
@@ -156,26 +163,20 @@ func (r *Runner) UpdateEnterprise(ctx context.Context, enterpriseID string, para
 	r.mux.Lock()
 	defer r.mux.Unlock()
 
-	enterprise, err := r.store.GetEnterpriseByID(ctx, enterpriseID)
-	if err != nil {
-		return params.Enterprise{}, errors.Wrap(err, "fetching enterprise")
+	switch param.PoolBalancerType {
+	case params.PoolBalancerTypeRoundRobin, params.PoolBalancerTypePack, params.PoolBalancerTypeNone:
+	default:
+		return params.Enterprise{}, runnerErrors.NewBadRequestError("invalid pool balancer type: %s", param.PoolBalancerType)
 	}
 
-	if param.CredentialsName != "" {
-		// Check that credentials are set before saving to db
-		if _, ok := r.credentials[param.CredentialsName]; !ok {
-			return params.Enterprise{}, runnerErrors.NewBadRequestError("invalid credentials (%s) for enterprise %s", param.CredentialsName, enterprise.Name)
-		}
-	}
-
-	enterprise, err = r.store.UpdateEnterprise(ctx, enterpriseID, param)
+	enterprise, err := r.store.UpdateEnterprise(ctx, enterpriseID, param)
 	if err != nil {
 		return params.Enterprise{}, errors.Wrap(err, "updating enterprise")
 	}
 
-	poolMgr, err := r.poolManagerCtrl.UpdateEnterprisePoolManager(r.ctx, enterprise)
+	poolMgr, err := r.poolManagerCtrl.GetEnterprisePoolManager(enterprise)
 	if err != nil {
-		return params.Enterprise{}, fmt.Errorf("failed to update enterprise pool manager: %w", err)
+		return params.Enterprise{}, fmt.Errorf("failed to get enterprise pool manager: %w", err)
 	}
 
 	enterprise.PoolManagerStatus = poolMgr.Status()
@@ -187,30 +188,23 @@ func (r *Runner) CreateEnterprisePool(ctx context.Context, enterpriseID string, 
 		return params.Pool{}, runnerErrors.ErrUnauthorized
 	}
 
-	r.mux.Lock()
-	defer r.mux.Unlock()
-
-	enterprise, err := r.store.GetEnterpriseByID(ctx, enterpriseID)
-	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "fetching enterprise")
-	}
-
-	if _, err := r.poolManagerCtrl.GetEnterprisePoolManager(enterprise); err != nil {
-		return params.Pool{}, runnerErrors.ErrNotFound
-	}
-
 	createPoolParams, err := r.appendTagsToCreatePoolParams(param)
 	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "fetching pool params")
+		return params.Pool{}, fmt.Errorf("failed to append tags to create pool params: %w", err)
 	}
 
 	if param.RunnerBootstrapTimeout == 0 {
 		param.RunnerBootstrapTimeout = appdefaults.DefaultRunnerBootstrapTimeout
 	}
 
-	pool, err := r.store.CreateEnterprisePool(ctx, enterpriseID, createPoolParams)
+	entity := params.GithubEntity{
+		ID:         enterpriseID,
+		EntityType: params.GithubEntityTypeEnterprise,
+	}
+
+	pool, err := r.store.CreateEntityPool(ctx, entity, createPoolParams)
 	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "creating pool")
+		return params.Pool{}, fmt.Errorf("failed to create enterprise pool: %w", err)
 	}
 
 	return pool, nil
@@ -220,8 +214,11 @@ func (r *Runner) GetEnterprisePoolByID(ctx context.Context, enterpriseID, poolID
 	if !auth.IsAdmin(ctx) {
 		return params.Pool{}, runnerErrors.ErrUnauthorized
 	}
-
-	pool, err := r.store.GetEnterprisePool(ctx, enterpriseID, poolID)
+	entity := params.GithubEntity{
+		ID:         enterpriseID,
+		EntityType: params.GithubEntityTypeEnterprise,
+	}
+	pool, err := r.store.GetEntityPool(ctx, entity, poolID)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}
@@ -233,27 +230,27 @@ func (r *Runner) DeleteEnterprisePool(ctx context.Context, enterpriseID, poolID 
 		return runnerErrors.ErrUnauthorized
 	}
 
-	// TODO: dedup instance count verification
-	pool, err := r.store.GetEnterprisePool(ctx, enterpriseID, poolID)
+	entity := params.GithubEntity{
+		ID:         enterpriseID,
+		EntityType: params.GithubEntityTypeEnterprise,
+	}
+
+	pool, err := r.store.GetEntityPool(ctx, entity, poolID)
 	if err != nil {
 		return errors.Wrap(err, "fetching pool")
 	}
 
-	instances, err := r.store.ListPoolInstances(ctx, pool.ID)
-	if err != nil {
-		return errors.Wrap(err, "fetching instances")
-	}
-
+	// nolint:golangci-lint,godox
 	// TODO: implement a count function
-	if len(instances) > 0 {
+	if len(pool.Instances) > 0 {
 		runnerIDs := []string{}
-		for _, run := range instances {
+		for _, run := range pool.Instances {
 			runnerIDs = append(runnerIDs, run.ID)
 		}
 		return runnerErrors.NewBadRequestError("pool has runners: %s", strings.Join(runnerIDs, ", "))
 	}
 
-	if err := r.store.DeleteEnterprisePool(ctx, enterpriseID, poolID); err != nil {
+	if err := r.store.DeleteEntityPool(ctx, entity, poolID); err != nil {
 		return errors.Wrap(err, "deleting pool")
 	}
 	return nil
@@ -264,7 +261,11 @@ func (r *Runner) ListEnterprisePools(ctx context.Context, enterpriseID string) (
 		return []params.Pool{}, runnerErrors.ErrUnauthorized
 	}
 
-	pools, err := r.store.ListEnterprisePools(ctx, enterpriseID)
+	entity := params.GithubEntity{
+		ID:         enterpriseID,
+		EntityType: params.GithubEntityTypeEnterprise,
+	}
+	pools, err := r.store.ListEntityPools(ctx, entity)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching pools")
 	}
@@ -276,7 +277,11 @@ func (r *Runner) UpdateEnterprisePool(ctx context.Context, enterpriseID, poolID 
 		return params.Pool{}, runnerErrors.ErrUnauthorized
 	}
 
-	pool, err := r.store.GetEnterprisePool(ctx, enterpriseID, poolID)
+	entity := params.GithubEntity{
+		ID:         enterpriseID,
+		EntityType: params.GithubEntityTypeEnterprise,
+	}
+	pool, err := r.store.GetEntityPool(ctx, entity, poolID)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}
@@ -295,7 +300,7 @@ func (r *Runner) UpdateEnterprisePool(ctx context.Context, enterpriseID, poolID 
 		return params.Pool{}, runnerErrors.NewBadRequestError("min_idle_runners cannot be larger than max_runners")
 	}
 
-	newPool, err := r.store.UpdateEnterprisePool(ctx, enterpriseID, poolID, param)
+	newPool, err := r.store.UpdateEntityPool(ctx, entity, poolID, param)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "updating pool")
 	}
@@ -306,19 +311,22 @@ func (r *Runner) ListEnterpriseInstances(ctx context.Context, enterpriseID strin
 	if !auth.IsAdmin(ctx) {
 		return nil, runnerErrors.ErrUnauthorized
 	}
-
-	instances, err := r.store.ListEnterpriseInstances(ctx, enterpriseID)
+	entity := params.GithubEntity{
+		ID:         enterpriseID,
+		EntityType: params.GithubEntityTypeEnterprise,
+	}
+	instances, err := r.store.ListEntityInstances(ctx, entity)
 	if err != nil {
 		return []params.Instance{}, errors.Wrap(err, "fetching instances")
 	}
 	return instances, nil
 }
 
-func (r *Runner) findEnterprisePoolManager(name string) (common.PoolManager, error) {
+func (r *Runner) findEnterprisePoolManager(name, endpointName string) (common.PoolManager, error) {
 	r.mux.Lock()
 	defer r.mux.Unlock()
 
-	enterprise, err := r.store.GetEnterprise(r.ctx, name)
+	enterprise, err := r.store.GetEnterprise(r.ctx, name, endpointName)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching enterprise")
 	}

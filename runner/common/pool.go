@@ -53,19 +53,13 @@ type PoolManager interface {
 	// a repo, org or enterprise, we determine the destination of that webhook, retrieve the pool manager
 	// for it and call this function with the WorkflowJob as a parameter.
 	HandleWorkflowJob(job params.WorkflowJob) error
-	// RefreshState allows us to update webhook secrets and configuration for a pool manager.
-	RefreshState(param params.UpdatePoolStateParams) error
-	// ForceDeleteRunner will attempt to remove a runner from the pool.
-	//
-	// Deprecated: FunctionName is deprecated. Use DeleteRunner instead.
-	ForceDeleteRunner(runner params.Instance) error
 
 	// DeleteRunner will attempt to remove a runner from the pool. If forceRemove is true, any error
-	// received from the provider will be ignored and we will procede to remove the runner from the database.
+	// received from the provider will be ignored and we will proceed to remove the runner from the database.
 	// An error received while attempting to remove from GitHub (other than 404) will still stop the deletion
 	// process. This can happen if the runner is already processing a job. At which point, you can simply cancel
 	// the job in github. Doing so will prompt GARM to reap the runner automatically.
-	DeleteRunner(runner params.Instance, forceRemove bool) error
+	DeleteRunner(runner params.Instance, forceRemove, bypassGHUnauthorizedError bool) error
 
 	// InstallWebhook will create a webhook in github for the entity associated with this pool manager.
 	InstallWebhook(ctx context.Context, param params.InstallWebhookParams) (params.HookInfo, error)

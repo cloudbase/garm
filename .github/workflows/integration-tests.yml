@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup Golang
         uses: actions/setup-go@v3
@@ -19,8 +19,10 @@ jobs:
       - name: Setup LXD
         uses: canonical/setup-lxd@v0.1.1
 
-      - name: Build GARM
-        run: make build
+      - name: Install dependencies
+        run: |
+          sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list
+          sudo apt-get -qq update && sudo apt-get -qq install -y apg coreutils make
 
       - name: Set up ngrok
         id: ngrok
@@ -30,17 +32,8 @@ jobs:
           port: 9997
           tunnel_type: http
 
-      - name: Setup GARM
-        run: ./test/integration/scripts/setup-garm.sh
-        env:
-          GH_OAUTH_TOKEN: ${{ secrets.GH_OAUTH_TOKEN }}
-          CREDENTIALS_NAME: test-garm-creds
-          GARM_BASE_URL: ${{ steps.ngrok.outputs.tunnel-url }}
-
       - name: Generate secrets
         run: |
-          sudo apt-get -qq update && sudo apt-get -qq install -y apg
-
           GARM_PASSWORD=$(apg -n1 -m32)
           REPO_WEBHOOK_SECRET=$(apg -n1 -m32)
           ORG_WEBHOOK_SECRET=$(apg -n1 -m32)
@@ -52,6 +45,7 @@ jobs:
           echo "GARM_PASSWORD=$GARM_PASSWORD" >> $GITHUB_ENV
           echo "REPO_WEBHOOK_SECRET=$REPO_WEBHOOK_SECRET" >> $GITHUB_ENV
           echo "ORG_WEBHOOK_SECRET=$ORG_WEBHOOK_SECRET" >> $GITHUB_ENV
+          echo "GARM_CHECKOUT_DIR=$GITHUB_WORKSPACE" >> $GITHUB_ENV
 
       - name: Create logs directory
         if: always()
@@ -61,7 +55,7 @@ jobs:
         run: |
           set -o pipefail
           set -o errexit
-          go run ./test/integration/main.go 2>&1 | tee /artifacts-logs/e2e.log
+          make integration 2>&1
         env:
           GARM_BASE_URL: ${{ steps.ngrok.outputs.tunnel-url }}
           ORG_NAME: gsamfira
@@ -73,8 +67,9 @@ jobs:
       - name: Show GARM logs
         if: always()
         run: |
-          sudo systemctl status garm
-          sudo journalctl -u garm --no-pager 2>&1 | tee /artifacts-logs/garm.log
+          sudo systemctl status garm@runner || true
+          sudo journalctl --no-pager 2>&1 > /artifacts-logs/system.log
+          sudo journalctl -u garm@runner --no-pager 2>&1 > /artifacts-logs/garm.log
 
       - name: Upload GARM and e2e logs
         if: always()
@@ -89,9 +84,8 @@ jobs:
           set -o pipefail
           set -o errexit
 
-          sudo systemctl stop garm
-
-          go run ./test/integration/gh_cleanup/main.go
+          sudo systemctl stop garm@runner || true
+          go run ./test/integration/gh_cleanup/main.go || true
         env:
           GARM_BASE_URL: ${{ steps.ngrok.outputs.tunnel-url }}
           ORG_NAME: gsamfira

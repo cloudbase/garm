@@ -30,18 +30,18 @@ cd $GARM_SOURCE/cmd/garm
 GOOS=linux GOARCH=amd64 go build -mod vendor \
     -o $BUILD_DIR/linux/amd64/garm \
     -tags osusergo,netgo,sqlite_omit_load_extension \
-    -ldflags "-extldflags '-static' -s -w -X main.Version=$VERSION" .
+    -ldflags "-extldflags '-static' -s -w -X github.com/cloudbase/garm/util/appdefaults.Version=$VERSION" .
 GOOS=linux GOARCH=arm64 CC=aarch64-linux-musl-gcc go build \
     -mod vendor \
     -o $BUILD_DIR/linux/arm64/garm \
     -tags osusergo,netgo,sqlite_omit_load_extension \
-    -ldflags "-extldflags '-static' -s -w -X main.Version=$VERSION" .
+    -ldflags "-extldflags '-static' -s -w -X github.com/cloudbase/garm/util/appdefaults.Version=$VERSION" .
 
 # Windows
 GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-cc go build -mod vendor \
     -o $BUILD_DIR/windows/amd64/garm.exe \
     -tags osusergo,netgo,sqlite_omit_load_extension \
-    -ldflags "-s -w -X main.Version=$VERSION" .
+    -ldflags "-s -w -X github.com/cloudbase/garm/util/appdefaults.Version=$VERSION" .
 
 # garm-cli
 cd $GARM_SOURCE/cmd/garm-cli
@@ -50,17 +50,17 @@ cd $GARM_SOURCE/cmd/garm-cli
 GOOS=linux GOARCH=amd64 go build -mod vendor \
     -o $BUILD_DIR/linux/amd64/garm-cli \
     -tags osusergo,netgo,sqlite_omit_load_extension \
-    -ldflags "-extldflags '-static' -s -w -X github.com/cloudbase/garm/cmd/garm-cli/cmd.Version=$VERSION" .
+    -ldflags "-extldflags '-static' -s -w -X github.com/cloudbase/garm/util/appdefaults.Version=$VERSION" .
 GOOS=linux GOARCH=arm64 CC=aarch64-linux-musl-gcc go build -mod vendor \
     -o $BUILD_DIR/linux/arm64/garm-cli \
     -tags osusergo,netgo,sqlite_omit_load_extension \
-    -ldflags "-extldflags '-static' -s -w -X github.com/cloudbase/garm/cmd/garm-cli/cmd.Version=$VERSION" .
+    -ldflags "-extldflags '-static' -s -w -X github.com/cloudbase/garm/util/appdefaults.Version=$VERSION" .
 
 # Windows
 GOOS=windows GOARCH=amd64 go build -mod vendor \
     -o $BUILD_DIR/windows/amd64/garm-cli.exe \
     -tags osusergo,netgo,sqlite_omit_load_extension \
-    -ldflags "-s -w -X github.com/cloudbase/garm/cmd/garm-cli/cmd.Version=$VERSION" .
+    -ldflags "-s -w -X github.com/cloudbase/garm/util/appdefaults.Version=$VERSION" .
 
 
 git checkout $CURRENT_BRANCH || true

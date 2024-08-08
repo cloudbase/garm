@@ -6,6 +6,7 @@ package jobs
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -86,11 +87,13 @@ func (o *ListJobsOK) Code() int {
 }
 
 func (o *ListJobsOK) Error() string {
-	return fmt.Sprintf("[GET /jobs][%d] listJobsOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /jobs][%d] listJobsOK %s", 200, payload)
 }
 
 func (o *ListJobsOK) String() string {
-	return fmt.Sprintf("[GET /jobs][%d] listJobsOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /jobs][%d] listJobsOK %s", 200, payload)
 }
 
 func (o *ListJobsOK) GetPayload() garm_params.Jobs {
@@ -152,11 +155,13 @@ func (o *ListJobsBadRequest) Code() int {
 }
 
 func (o *ListJobsBadRequest) Error() string {
-	return fmt.Sprintf("[GET /jobs][%d] listJobsBadRequest  %+v", 400, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /jobs][%d] listJobsBadRequest %s", 400, payload)
 }
 
 func (o *ListJobsBadRequest) String() string {
-	return fmt.Sprintf("[GET /jobs][%d] listJobsBadRequest  %+v", 400, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /jobs][%d] listJobsBadRequest %s", 400, payload)
 }
 
 func (o *ListJobsBadRequest) GetPayload() apiserver_params.APIErrorResponse {

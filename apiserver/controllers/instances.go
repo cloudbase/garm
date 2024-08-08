@@ -20,11 +20,11 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/gorilla/mux"
+
 	gErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/apiserver/params"
 	runnerParams "github.com/cloudbase/garm/params"
-
-	"github.com/gorilla/mux"
 )
 
 // swagger:route GET /pools/{poolID}/instances instances ListPoolInstances
@@ -128,8 +128,15 @@ func (a *APIController) GetInstanceHandler(w http.ResponseWriter, r *http.Reques
 //	    in: query
 //	    required: false
 //
-//	Responses:
-//	  default: APIErrorResponse
+//	  + name: bypassGHUnauthorized
+//	    description: If true GARM will ignore unauthorized errors returned by GitHub when removing a runner. This is useful if you want to clean up runners and your credentials have expired.
+//	    type: boolean
+//	    in: query
+//	    required: false
+//
+// Responses:
+//
+//	default: APIErrorResponse
 func (a *APIController) DeleteInstanceHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	vars := mux.Vars(r)
@@ -146,7 +153,8 @@ func (a *APIController) DeleteInstanceHandler(w http.ResponseWriter, r *http.Req
 	}
 
 	forceRemove, _ := strconv.ParseBool(r.URL.Query().Get("forceRemove"))
-	if err := a.r.DeleteRunner(ctx, instanceName, forceRemove); err != nil {
+	bypassGHUnauthorized, _ := strconv.ParseBool(r.URL.Query().Get("bypassGHUnauthorized"))
+	if err := a.r.DeleteRunner(ctx, instanceName, forceRemove, bypassGHUnauthorized); err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "removing runner")
 		handleError(ctx, w, err)
 		return

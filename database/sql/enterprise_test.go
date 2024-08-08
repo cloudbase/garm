@@ -22,17 +22,16 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/cloudbase/garm/params"
-
-	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
-	dbCommon "github.com/cloudbase/garm/database/common"
-	garmTesting "github.com/cloudbase/garm/internal/testing"
-
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
+
+	"github.com/cloudbase/garm/auth"
+	dbCommon "github.com/cloudbase/garm/database/common"
+	garmTesting "github.com/cloudbase/garm/internal/testing"
+	"github.com/cloudbase/garm/params"
 )
 
 type EnterpriseTestFixtures struct {
@@ -50,6 +49,13 @@ type EnterpriseTestSuite struct {
 	Store          dbCommon.Store
 	StoreSQLMocked *sqlDatabase
 	Fixtures       *EnterpriseTestFixtures
+
+	adminCtx    context.Context
+	adminUserID string
+
+	testCreds          params.GithubCredentials
+	secondaryTestCreds params.GithubCredentials
+	githubEndpoint     params.GithubEndpoint
 }
 
 func (s *EnterpriseTestSuite) equalInstancesByName(expected, actual []params.Instance) {
@@ -78,17 +84,27 @@ func (s *EnterpriseTestSuite) SetupTest() {
 	}
 	s.Store = db
 
+	adminCtx := garmTesting.ImpersonateAdminContext(context.Background(), db, s.T())
+	s.adminCtx = adminCtx
+	s.adminUserID = auth.UserID(adminCtx)
+	s.Require().NotEmpty(s.adminUserID)
+
+	s.githubEndpoint = garmTesting.CreateDefaultGithubEndpoint(adminCtx, db, s.T())
+	s.testCreds = garmTesting.CreateTestGithubCredentials(adminCtx, "new-creds", db, s.T(), s.githubEndpoint)
+	s.secondaryTestCreds = garmTesting.CreateTestGithubCredentials(adminCtx, "secondary-creds", db, s.T(), s.githubEndpoint)
+
 	// create some enterprise objects in the database, for testing purposes
 	enterprises := []params.Enterprise{}
 	for i := 1; i <= 3; i++ {
 		enterprise, err := db.CreateEnterprise(
-			context.Background(),
+			s.adminCtx,
 			fmt.Sprintf("test-enterprise-%d", i),
-			fmt.Sprintf("test-creds-%d", i),
+			s.testCreds.Name,
 			fmt.Sprintf("test-webhook-secret-%d", i),
+			params.PoolBalancerTypeRoundRobin,
 		)
 		if err != nil {
-			s.FailNow(fmt.Sprintf("failed to create database object (test-enterprise-%d)", i))
+			s.FailNow(fmt.Sprintf("failed to create database object (test-enterprise-%d): %q", i, err))
 		}
 
 		enterprises = append(enterprises, enterprise)
@@ -105,7 +121,7 @@ func (s *EnterpriseTestSuite) SetupTest() {
 		SkipInitializeWithVersion: true,
 	}
 	gormConfig := &gorm.Config{}
-	if flag.Lookup("test.v").Value.String() == "false" {
+	if flag.Lookup("test.v").Value.String() == falseString {
 		gormConfig.Logger = logger.Default.LogMode(logger.Silent)
 	}
 	gormConn, err := gorm.Open(mysql.New(mysqlConfig), gormConfig)
@@ -124,7 +140,7 @@ func (s *EnterpriseTestSuite) SetupTest() {
 		Enterprises: enterprises,
 		CreateEnterpriseParams: params.CreateEnterpriseParams{
 			Name:            "new-test-enterprise",
-			CredentialsName: "new-creds",
+			CredentialsName: s.testCreds.Name,
 			WebhookSecret:   "new-webhook-secret",
 		},
 		CreatePoolParams: params.CreatePoolParams{
@@ -136,14 +152,14 @@ func (s *EnterpriseTestSuite) SetupTest() {
 			Flavor:         "test-flavor",
 			OSType:         "linux",
 			OSArch:         "amd64",
-			Tags:           []string{"self-hosted", "arm64", "linux"},
+			Tags:           []string{"amd64-linux-runner"},
 		},
 		CreateInstanceParams: params.CreateInstanceParams{
 			Name:   "test-instance-name",
 			OSType: "linux",
 		},
 		UpdateRepoParams: params.UpdateEntityParams{
-			CredentialsName: "test-update-creds",
+			CredentialsName: s.secondaryTestCreds.Name,
 			WebhookSecret:   "test-update-repo-webhook-secret",
 		},
 		UpdatePoolParams: params.UpdatePoolParams{
@@ -160,19 +176,20 @@ func (s *EnterpriseTestSuite) SetupTest() {
 func (s *EnterpriseTestSuite) TestCreateEnterprise() {
 	// call tested function
 	enterprise, err := s.Store.CreateEnterprise(
-		context.Background(),
+		s.adminCtx,
 		s.Fixtures.CreateEnterpriseParams.Name,
 		s.Fixtures.CreateEnterpriseParams.CredentialsName,
-		s.Fixtures.CreateEnterpriseParams.WebhookSecret)
+		s.Fixtures.CreateEnterpriseParams.WebhookSecret,
+		params.PoolBalancerTypeRoundRobin)
 
 	// assertions
 	s.Require().Nil(err)
-	storeEnterprise, err := s.Store.GetEnterpriseByID(context.Background(), enterprise.ID)
+	storeEnterprise, err := s.Store.GetEnterpriseByID(s.adminCtx, enterprise.ID)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to get enterprise by id: %v", err))
 	}
 	s.Require().Equal(storeEnterprise.Name, enterprise.Name)
-	s.Require().Equal(storeEnterprise.CredentialsName, enterprise.CredentialsName)
+	s.Require().Equal(storeEnterprise.Credentials.Name, enterprise.Credentials.Name)
 	s.Require().Equal(storeEnterprise.WebhookSecret, enterprise.WebhookSecret)
 }
 
@@ -183,17 +200,18 @@ func (s *EnterpriseTestSuite) TestCreateEnterpriseInvalidDBPassphrase() {
 		s.FailNow(fmt.Sprintf("failed to create db connection: %s", err))
 	}
 	// make sure we use a 'sqlDatabase' struct with a wrong 'cfg.Passphrase'
-	cfg.Passphrase = "wrong-passphrase" // it must have a size different than 32
+	cfg.Passphrase = wrongPassphrase // it must have a size different than 32
 	sqlDB := &sqlDatabase{
 		conn: conn,
 		cfg:  cfg,
 	}
 
 	_, err = sqlDB.CreateEnterprise(
-		context.Background(),
+		s.adminCtx,
 		s.Fixtures.CreateEnterpriseParams.Name,
 		s.Fixtures.CreateEnterpriseParams.CredentialsName,
-		s.Fixtures.CreateEnterpriseParams.WebhookSecret)
+		s.Fixtures.CreateEnterpriseParams.WebhookSecret,
+		params.PoolBalancerTypeRoundRobin)
 
 	s.Require().NotNil(err)
 	s.Require().Equal("encoding secret: invalid passphrase length (expected length 32 characters)", err.Error())
@@ -202,23 +220,32 @@ func (s *EnterpriseTestSuite) TestCreateEnterpriseInvalidDBPassphrase() {
 func (s *EnterpriseTestSuite) TestCreateEnterpriseDBCreateErr() {
 	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_credentials` WHERE user_id = ? AND name = ? AND `github_credentials`.`deleted_at` IS NULL ORDER BY `github_credentials`.`id` LIMIT ?")).
+		WithArgs(s.adminUserID, s.Fixtures.Enterprises[0].CredentialsName, 1).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "endpoint_name"}).AddRow(s.testCreds.ID, s.testCreds.Endpoint.Name))
+	s.Fixtures.SQLMock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_endpoints` WHERE `github_endpoints`.`name` = ? AND `github_endpoints`.`deleted_at` IS NULL")).
+		WithArgs(s.testCreds.Endpoint.Name).
+		WillReturnRows(sqlmock.NewRows([]string{"name"}).
+			AddRow(s.testCreds.Endpoint.Name))
+	s.Fixtures.SQLMock.
 		ExpectExec(regexp.QuoteMeta("INSERT INTO `enterprises`")).
 		WillReturnError(fmt.Errorf("creating enterprise mock error"))
 	s.Fixtures.SQLMock.ExpectRollback()
 
 	_, err := s.StoreSQLMocked.CreateEnterprise(
-		context.Background(),
+		s.adminCtx,
 		s.Fixtures.CreateEnterpriseParams.Name,
 		s.Fixtures.CreateEnterpriseParams.CredentialsName,
-		s.Fixtures.CreateEnterpriseParams.WebhookSecret)
+		s.Fixtures.CreateEnterpriseParams.WebhookSecret,
+		params.PoolBalancerTypeRoundRobin)
 
-	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
-	s.Require().Equal("creating enterprise: creating enterprise mock error", err.Error())
+	s.Require().Equal("creating enterprise: creating enterprise: creating enterprise mock error", err.Error())
+	s.assertSQLMockExpectations()
 }
 
 func (s *EnterpriseTestSuite) TestGetEnterprise() {
-	enterprise, err := s.Store.GetEnterprise(context.Background(), s.Fixtures.Enterprises[0].Name)
+	enterprise, err := s.Store.GetEnterprise(s.adminCtx, s.Fixtures.Enterprises[0].Name, s.Fixtures.Enterprises[0].Endpoint.Name)
 
 	s.Require().Nil(err)
 	s.Require().Equal(s.Fixtures.Enterprises[0].Name, enterprise.Name)
@@ -226,14 +253,14 @@ func (s *EnterpriseTestSuite) TestGetEnterprise() {
 }
 
 func (s *EnterpriseTestSuite) TestGetEnterpriseCaseInsensitive() {
-	enterprise, err := s.Store.GetEnterprise(context.Background(), "TeSt-eNtErPriSe-1")
+	enterprise, err := s.Store.GetEnterprise(s.adminCtx, "TeSt-eNtErPriSe-1", "github.com")
 
 	s.Require().Nil(err)
 	s.Require().Equal("test-enterprise-1", enterprise.Name)
 }
 
 func (s *EnterpriseTestSuite) TestGetEnterpriseNotFound() {
-	_, err := s.Store.GetEnterprise(context.Background(), "dummy-name")
+	_, err := s.Store.GetEnterprise(s.adminCtx, "dummy-name", "github.com")
 
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching enterprise: not found", err.Error())
@@ -241,19 +268,19 @@ func (s *EnterpriseTestSuite) TestGetEnterpriseNotFound() {
 
 func (s *EnterpriseTestSuite) TestGetEnterpriseDBDecryptingErr() {
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `enterprises` WHERE name = ? COLLATE NOCASE AND `enterprises`.`deleted_at` IS NULL ORDER BY `enterprises`.`id` LIMIT 1")).
-		WithArgs(s.Fixtures.Enterprises[0].Name).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `enterprises` WHERE (name = ? COLLATE NOCASE and endpoint_name = ? COLLATE NOCASE) AND `enterprises`.`deleted_at` IS NULL ORDER BY `enterprises`.`id` LIMIT ?")).
+		WithArgs(s.Fixtures.Enterprises[0].Name, s.Fixtures.Enterprises[0].Endpoint.Name, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"name"}).AddRow(s.Fixtures.Enterprises[0].Name))
 
-	_, err := s.StoreSQLMocked.GetEnterprise(context.Background(), s.Fixtures.Enterprises[0].Name)
+	_, err := s.StoreSQLMocked.GetEnterprise(s.adminCtx, s.Fixtures.Enterprises[0].Name, s.Fixtures.Enterprises[0].Endpoint.Name)
 
-	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching enterprise: missing secret", err.Error())
+	s.assertSQLMockExpectations()
 }
 
 func (s *EnterpriseTestSuite) TestListEnterprises() {
-	enterprises, err := s.Store.ListEnterprises(context.Background())
+	enterprises, err := s.Store.ListEnterprises(s.adminCtx)
 
 	s.Require().Nil(err)
 	garmTesting.EqualDBEntityByName(s.T(), s.Fixtures.Enterprises, enterprises)
@@ -264,7 +291,7 @@ func (s *EnterpriseTestSuite) TestListEnterprisesDBFetchErr() {
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `enterprises` WHERE `enterprises`.`deleted_at` IS NULL")).
 		WillReturnError(fmt.Errorf("fetching user from database mock error"))
 
-	_, err := s.StoreSQLMocked.ListEnterprises(context.Background())
+	_, err := s.StoreSQLMocked.ListEnterprises(s.adminCtx)
 
 	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
@@ -272,16 +299,16 @@ func (s *EnterpriseTestSuite) TestListEnterprisesDBFetchErr() {
 }
 
 func (s *EnterpriseTestSuite) TestDeleteEnterprise() {
-	err := s.Store.DeleteEnterprise(context.Background(), s.Fixtures.Enterprises[0].ID)
+	err := s.Store.DeleteEnterprise(s.adminCtx, s.Fixtures.Enterprises[0].ID)
 
 	s.Require().Nil(err)
-	_, err = s.Store.GetEnterpriseByID(context.Background(), s.Fixtures.Enterprises[0].ID)
+	_, err = s.Store.GetEnterpriseByID(s.adminCtx, s.Fixtures.Enterprises[0].ID)
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching enterprise: not found", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestDeleteEnterpriseInvalidEnterpriseID() {
-	err := s.Store.DeleteEnterprise(context.Background(), "dummy-enterprise-id")
+	err := s.Store.DeleteEnterprise(s.adminCtx, "dummy-enterprise-id")
 
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching enterprise: parsing id: invalid request", err.Error())
@@ -289,8 +316,8 @@ func (s *EnterpriseTestSuite) TestDeleteEnterpriseInvalidEnterpriseID() {
 
 func (s *EnterpriseTestSuite) TestDeleteEnterpriseDBDeleteErr() {
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `enterprises` WHERE id = ? AND `enterprises`.`deleted_at` IS NULL ORDER BY `enterprises`.`id` LIMIT 1")).
-		WithArgs(s.Fixtures.Enterprises[0].ID).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `enterprises` WHERE id = ? AND `enterprises`.`deleted_at` IS NULL ORDER BY `enterprises`.`id` LIMIT ?")).
+		WithArgs(s.Fixtures.Enterprises[0].ID, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Enterprises[0].ID))
 	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
@@ -299,86 +326,119 @@ func (s *EnterpriseTestSuite) TestDeleteEnterpriseDBDeleteErr() {
 		WillReturnError(fmt.Errorf("mocked delete enterprise error"))
 	s.Fixtures.SQLMock.ExpectRollback()
 
-	err := s.StoreSQLMocked.DeleteEnterprise(context.Background(), s.Fixtures.Enterprises[0].ID)
+	err := s.StoreSQLMocked.DeleteEnterprise(s.adminCtx, s.Fixtures.Enterprises[0].ID)
 
-	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
 	s.Require().Equal("deleting enterprise: mocked delete enterprise error", err.Error())
+	s.assertSQLMockExpectations()
 }
 
 func (s *EnterpriseTestSuite) TestUpdateEnterprise() {
-	enterprise, err := s.Store.UpdateEnterprise(context.Background(), s.Fixtures.Enterprises[0].ID, s.Fixtures.UpdateRepoParams)
+	enterprise, err := s.Store.UpdateEnterprise(s.adminCtx, s.Fixtures.Enterprises[0].ID, s.Fixtures.UpdateRepoParams)
 
 	s.Require().Nil(err)
-	s.Require().Equal(s.Fixtures.UpdateRepoParams.CredentialsName, enterprise.CredentialsName)
+	s.Require().Equal(s.Fixtures.UpdateRepoParams.CredentialsName, enterprise.Credentials.Name)
 	s.Require().Equal(s.Fixtures.UpdateRepoParams.WebhookSecret, enterprise.WebhookSecret)
 }
 
 func (s *EnterpriseTestSuite) TestUpdateEnterpriseInvalidEnterpriseID() {
-	_, err := s.Store.UpdateEnterprise(context.Background(), "dummy-enterprise-id", s.Fixtures.UpdateRepoParams)
+	_, err := s.Store.UpdateEnterprise(s.adminCtx, "dummy-enterprise-id", s.Fixtures.UpdateRepoParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching enterprise: parsing id: invalid request", err.Error())
+	s.Require().Equal("updating enterprise: fetching enterprise: parsing id: invalid request", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestUpdateEnterpriseDBEncryptErr() {
-	s.StoreSQLMocked.cfg.Passphrase = "wrong-passphrase"
-
+	s.StoreSQLMocked.cfg.Passphrase = wrongPassphrase
+	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `enterprises` WHERE id = ? AND `enterprises`.`deleted_at` IS NULL ORDER BY `enterprises`.`id` LIMIT 1")).
-		WithArgs(s.Fixtures.Enterprises[0].ID).
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Enterprises[0].ID))
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `enterprises` WHERE id = ? AND `enterprises`.`deleted_at` IS NULL ORDER BY `enterprises`.`id` LIMIT ?")).
+		WithArgs(s.Fixtures.Enterprises[0].ID, 1).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "endpoint_name"}).
+			AddRow(s.Fixtures.Enterprises[0].ID, s.Fixtures.Enterprises[0].Endpoint.Name))
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_credentials` WHERE user_id = ? AND name = ? AND `github_credentials`.`deleted_at` IS NULL ORDER BY `github_credentials`.`id` LIMIT ?")).
+		WithArgs(s.adminUserID, s.secondaryTestCreds.Name, 1).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "endpoint_name"}).
+			AddRow(s.secondaryTestCreds.ID, s.secondaryTestCreds.Endpoint.Name))
+	s.Fixtures.SQLMock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_endpoints` WHERE `github_endpoints`.`name` = ? AND `github_endpoints`.`deleted_at` IS NULL")).
+		WithArgs(s.testCreds.Endpoint.Name).
+		WillReturnRows(sqlmock.NewRows([]string{"name"}).
+			AddRow(s.secondaryTestCreds.Endpoint.Name))
+	s.Fixtures.SQLMock.ExpectRollback()
 
-	_, err := s.StoreSQLMocked.UpdateEnterprise(context.Background(), s.Fixtures.Enterprises[0].ID, s.Fixtures.UpdateRepoParams)
+	_, err := s.StoreSQLMocked.UpdateEnterprise(s.adminCtx, s.Fixtures.Enterprises[0].ID, s.Fixtures.UpdateRepoParams)
 
-	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
-	s.Require().Equal("encoding secret: invalid passphrase length (expected length 32 characters)", err.Error())
+	s.Require().Equal("updating enterprise: encoding secret: invalid passphrase length (expected length 32 characters)", err.Error())
+	s.assertSQLMockExpectations()
 }
 
 func (s *EnterpriseTestSuite) TestUpdateEnterpriseDBSaveErr() {
-	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `enterprises` WHERE id = ? AND `enterprises`.`deleted_at` IS NULL ORDER BY `enterprises`.`id` LIMIT 1")).
-		WithArgs(s.Fixtures.Enterprises[0].ID).
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Enterprises[0].ID))
 	s.Fixtures.SQLMock.ExpectBegin()
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `enterprises` WHERE id = ? AND `enterprises`.`deleted_at` IS NULL ORDER BY `enterprises`.`id` LIMIT ?")).
+		WithArgs(s.Fixtures.Enterprises[0].ID, 1).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "endpoint_name"}).
+			AddRow(s.Fixtures.Enterprises[0].ID, s.Fixtures.Enterprises[0].Endpoint.Name))
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_credentials` WHERE user_id = ? AND name = ? AND `github_credentials`.`deleted_at` IS NULL ORDER BY `github_credentials`.`id` LIMIT ?")).
+		WithArgs(s.adminUserID, s.secondaryTestCreds.Name, 1).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "endpoint_name"}).
+			AddRow(s.secondaryTestCreds.ID, s.secondaryTestCreds.Endpoint.Name))
+	s.Fixtures.SQLMock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_endpoints` WHERE `github_endpoints`.`name` = ? AND `github_endpoints`.`deleted_at` IS NULL")).
+		WithArgs(s.testCreds.Endpoint.Name).
+		WillReturnRows(sqlmock.NewRows([]string{"name"}).
+			AddRow(s.secondaryTestCreds.Endpoint.Name))
 	s.Fixtures.SQLMock.
 		ExpectExec(("UPDATE `enterprises` SET")).
 		WillReturnError(fmt.Errorf("saving enterprise mock error"))
 	s.Fixtures.SQLMock.ExpectRollback()
 
-	_, err := s.StoreSQLMocked.UpdateEnterprise(context.Background(), s.Fixtures.Enterprises[0].ID, s.Fixtures.UpdateRepoParams)
+	_, err := s.StoreSQLMocked.UpdateEnterprise(s.adminCtx, s.Fixtures.Enterprises[0].ID, s.Fixtures.UpdateRepoParams)
 
-	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
-	s.Require().Equal("saving enterprise: saving enterprise mock error", err.Error())
+	s.Require().Equal("updating enterprise: saving enterprise: saving enterprise mock error", err.Error())
+	s.assertSQLMockExpectations()
 }
 
 func (s *EnterpriseTestSuite) TestUpdateEnterpriseDBDecryptingErr() {
-	s.StoreSQLMocked.cfg.Passphrase = "wrong-passphrase"
-	s.Fixtures.UpdateRepoParams.WebhookSecret = "webhook-secret"
+	s.StoreSQLMocked.cfg.Passphrase = wrongPassphrase
+	s.Fixtures.UpdateRepoParams.WebhookSecret = webhookSecret
 
+	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `enterprises` WHERE id = ? AND `enterprises`.`deleted_at` IS NULL ORDER BY `enterprises`.`id` LIMIT 1")).
-		WithArgs(s.Fixtures.Enterprises[0].ID).
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Enterprises[0].ID))
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `enterprises` WHERE id = ? AND `enterprises`.`deleted_at` IS NULL ORDER BY `enterprises`.`id` LIMIT ?")).
+		WithArgs(s.Fixtures.Enterprises[0].ID, 1).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "endpoint_name"}).
+			AddRow(s.Fixtures.Enterprises[0].ID, s.Fixtures.Enterprises[0].Endpoint.Name))
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_credentials` WHERE user_id = ? AND name = ? AND `github_credentials`.`deleted_at` IS NULL ORDER BY `github_credentials`.`id` LIMIT ?")).
+		WithArgs(s.adminUserID, s.secondaryTestCreds.Name, 1).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "endpoint_name"}).
+			AddRow(s.secondaryTestCreds.ID, s.secondaryTestCreds.Endpoint.Name))
+	s.Fixtures.SQLMock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_endpoints` WHERE `github_endpoints`.`name` = ? AND `github_endpoints`.`deleted_at` IS NULL")).
+		WithArgs(s.testCreds.Endpoint.Name).
+		WillReturnRows(sqlmock.NewRows([]string{"name"}).
+			AddRow(s.secondaryTestCreds.Endpoint.Name))
+	s.Fixtures.SQLMock.ExpectRollback()
 
-	_, err := s.StoreSQLMocked.UpdateEnterprise(context.Background(), s.Fixtures.Enterprises[0].ID, s.Fixtures.UpdateRepoParams)
+	_, err := s.StoreSQLMocked.UpdateEnterprise(s.adminCtx, s.Fixtures.Enterprises[0].ID, s.Fixtures.UpdateRepoParams)
 
-	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
-	s.Require().Equal("encoding secret: invalid passphrase length (expected length 32 characters)", err.Error())
+	s.Require().Equal("updating enterprise: encoding secret: invalid passphrase length (expected length 32 characters)", err.Error())
+	s.assertSQLMockExpectations()
 }
 
 func (s *EnterpriseTestSuite) TestGetEnterpriseByID() {
-	enterprise, err := s.Store.GetEnterpriseByID(context.Background(), s.Fixtures.Enterprises[0].ID)
+	enterprise, err := s.Store.GetEnterpriseByID(s.adminCtx, s.Fixtures.Enterprises[0].ID)
 
 	s.Require().Nil(err)
 	s.Require().Equal(s.Fixtures.Enterprises[0].ID, enterprise.ID)
 }
 
 func (s *EnterpriseTestSuite) TestGetEnterpriseByIDInvalidEnterpriseID() {
-	_, err := s.Store.GetEnterpriseByID(context.Background(), "dummy-enterprise-id")
+	_, err := s.Store.GetEnterpriseByID(s.adminCtx, "dummy-enterprise-id")
 
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching enterprise: parsing id: invalid request", err.Error())
@@ -386,15 +446,15 @@ func (s *EnterpriseTestSuite) TestGetEnterpriseByIDInvalidEnterpriseID() {
 
 func (s *EnterpriseTestSuite) TestGetEnterpriseByIDDBDecryptingErr() {
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `enterprises` WHERE id = ? AND `enterprises`.`deleted_at` IS NULL ORDER BY `enterprises`.`id` LIMIT 1")).
-		WithArgs(s.Fixtures.Enterprises[0].ID).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `enterprises` WHERE id = ? AND `enterprises`.`deleted_at` IS NULL ORDER BY `enterprises`.`id` LIMIT ?")).
+		WithArgs(s.Fixtures.Enterprises[0].ID, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Enterprises[0].ID))
 	s.Fixtures.SQLMock.
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE `pools`.`enterprise_id` = ? AND `pools`.`deleted_at` IS NULL")).
 		WithArgs(s.Fixtures.Enterprises[0].ID).
 		WillReturnRows(sqlmock.NewRows([]string{"enterprise_id"}).AddRow(s.Fixtures.Enterprises[0].ID))
 
-	_, err := s.StoreSQLMocked.GetEnterpriseByID(context.Background(), s.Fixtures.Enterprises[0].ID)
+	_, err := s.StoreSQLMocked.GetEnterpriseByID(s.adminCtx, s.Fixtures.Enterprises[0].ID)
 
 	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
@@ -402,11 +462,13 @@ func (s *EnterpriseTestSuite) TestGetEnterpriseByIDDBDecryptingErr() {
 }
 
 func (s *EnterpriseTestSuite) TestCreateEnterprisePool() {
-	pool, err := s.Store.CreateEnterprisePool(context.Background(), s.Fixtures.Enterprises[0].ID, s.Fixtures.CreatePoolParams)
+	entity, err := s.Fixtures.Enterprises[0].GetEntity()
+	s.Require().Nil(err)
+	pool, err := s.Store.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 
 	s.Require().Nil(err)
 
-	enterprise, err := s.Store.GetEnterpriseByID(context.Background(), s.Fixtures.Enterprises[0].ID)
+	enterprise, err := s.Store.GetEnterpriseByID(s.adminCtx, s.Fixtures.Enterprises[0].ID)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot get enterprise by ID: %v", err))
 	}
@@ -419,216 +481,119 @@ func (s *EnterpriseTestSuite) TestCreateEnterprisePool() {
 
 func (s *EnterpriseTestSuite) TestCreateEnterprisePoolMissingTags() {
 	s.Fixtures.CreatePoolParams.Tags = []string{}
-
-	_, err := s.Store.CreateEnterprisePool(context.Background(), s.Fixtures.Enterprises[0].ID, s.Fixtures.CreatePoolParams)
+	entity, err := s.Fixtures.Enterprises[0].GetEntity()
+	s.Require().Nil(err)
+	_, err = s.Store.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 
 	s.Require().NotNil(err)
 	s.Require().Equal("no tags specified", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestCreateEnterprisePoolInvalidEnterpriseID() {
-	_, err := s.Store.CreateEnterprisePool(context.Background(), "dummy-enterprise-id", s.Fixtures.CreatePoolParams)
+	entity := params.GithubEntity{
+		ID:         "dummy-enterprise-id",
+		EntityType: params.GithubEntityTypeEnterprise,
+	}
+	_, err := s.Store.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching enterprise: parsing id: invalid request", err.Error())
-}
-
-func (s *EnterpriseTestSuite) TestCreateEnterprisePoolDBCreateErr() {
-	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `enterprises` WHERE id = ? AND `enterprises`.`deleted_at` IS NULL ORDER BY `enterprises`.`id` LIMIT 1")).
-		WithArgs(s.Fixtures.Enterprises[0].ID).
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Enterprises[0].ID))
-	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `enterprises` WHERE id = ? AND `enterprises`.`deleted_at` IS NULL ORDER BY `enterprises`.`id` LIMIT 1")).
-		WithArgs(s.Fixtures.Enterprises[0].ID).
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Enterprises[0].ID))
-	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE `pools`.`enterprise_id` = ? AND (provider_name = ? and image = ? and flavor = ?) AND `pools`.`deleted_at` IS NULL")).
-		WillReturnError(fmt.Errorf("mocked creating pool error"))
-
-	_, err := s.StoreSQLMocked.CreateEnterprisePool(context.Background(), s.Fixtures.Enterprises[0].ID, s.Fixtures.CreatePoolParams)
-
-	s.assertSQLMockExpectations()
-	s.Require().NotNil(err)
-	s.Require().Equal("creating pool: fetching pool: mocked creating pool error", err.Error())
-}
-
-func (s *EnterpriseTestSuite) TestCreateEnterpriseDBPoolAlreadyExistErr() {
-	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `enterprises` WHERE id = ? AND `enterprises`.`deleted_at` IS NULL ORDER BY `enterprises`.`id` LIMIT 1")).
-		WithArgs(s.Fixtures.Enterprises[0].ID).
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Enterprises[0].ID))
-	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `enterprises` WHERE id = ? AND `enterprises`.`deleted_at` IS NULL ORDER BY `enterprises`.`id` LIMIT 1")).
-		WithArgs(s.Fixtures.Enterprises[0].ID).
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Enterprises[0].ID))
-	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE `pools`.`enterprise_id` = ? AND (provider_name = ? and image = ? and flavor = ?) AND `pools`.`deleted_at` IS NULL")).
-		WithArgs(
-			s.Fixtures.Enterprises[0].ID,
-			s.Fixtures.CreatePoolParams.ProviderName,
-			s.Fixtures.CreatePoolParams.Image,
-			s.Fixtures.CreatePoolParams.Flavor).
-		WillReturnRows(sqlmock.NewRows([]string{"enterprise_id", "provider_name", "image", "flavor"}).
-			AddRow(
-				s.Fixtures.Enterprises[0].ID,
-				s.Fixtures.CreatePoolParams.ProviderName,
-				s.Fixtures.CreatePoolParams.Image,
-				s.Fixtures.CreatePoolParams.Flavor))
-
-	_, err := s.StoreSQLMocked.CreateEnterprisePool(context.Background(), s.Fixtures.Enterprises[0].ID, s.Fixtures.CreatePoolParams)
-
-	s.assertSQLMockExpectations()
-	s.Require().NotNil(err)
-	s.Require().Equal(runnerErrors.NewConflictError("pool with the same image and flavor already exists on this provider"), err)
+	s.Require().Equal("parsing id: invalid request", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestCreateEnterprisePoolDBFetchTagErr() {
+	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `enterprises` WHERE id = ? AND `enterprises`.`deleted_at` IS NULL ORDER BY `enterprises`.`id` LIMIT 1")).
-		WithArgs(s.Fixtures.Enterprises[0].ID).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `enterprises` WHERE id = ? AND `enterprises`.`deleted_at` IS NULL ORDER BY `enterprises`.`id` LIMIT ?")).
+		WithArgs(s.Fixtures.Enterprises[0].ID, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Enterprises[0].ID))
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `enterprises` WHERE id = ? AND `enterprises`.`deleted_at` IS NULL ORDER BY `enterprises`.`id` LIMIT 1")).
-		WithArgs(s.Fixtures.Enterprises[0].ID).
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Enterprises[0].ID))
-	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE `pools`.`enterprise_id` = ? AND (provider_name = ? and image = ? and flavor = ?) AND `pools`.`deleted_at` IS NULL")).
-		WithArgs(
-			s.Fixtures.Enterprises[0].ID,
-			s.Fixtures.CreatePoolParams.ProviderName,
-			s.Fixtures.CreatePoolParams.Image,
-			s.Fixtures.CreatePoolParams.Flavor).
-		WillReturnRows(sqlmock.NewRows([]string{"enterprise_id"}))
-	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `tags` WHERE name = ? AND `tags`.`deleted_at` IS NULL ORDER BY `tags`.`id` LIMIT 1")).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `tags` WHERE name = ? AND `tags`.`deleted_at` IS NULL ORDER BY `tags`.`id` LIMIT ?")).
 		WillReturnError(fmt.Errorf("mocked fetching tag error"))
 
-	_, err := s.StoreSQLMocked.CreateEnterprisePool(context.Background(), s.Fixtures.Enterprises[0].ID, s.Fixtures.CreatePoolParams)
+	entity, err := s.Fixtures.Enterprises[0].GetEntity()
+	s.Require().Nil(err)
+	_, err = s.StoreSQLMocked.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 
-	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching tag: fetching tag from database: mocked fetching tag error", err.Error())
+	s.Require().Equal("creating tag: fetching tag from database: mocked fetching tag error", err.Error())
+	s.assertSQLMockExpectations()
 }
 
 func (s *EnterpriseTestSuite) TestCreateEnterprisePoolDBAddingPoolErr() {
 	s.Fixtures.CreatePoolParams.Tags = []string{"linux"}
-
-	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `enterprises` WHERE id = ? AND `enterprises`.`deleted_at` IS NULL ORDER BY `enterprises`.`id` LIMIT 1")).
-		WithArgs(s.Fixtures.Enterprises[0].ID).
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Enterprises[0].ID))
-	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `enterprises` WHERE id = ? AND `enterprises`.`deleted_at` IS NULL ORDER BY `enterprises`.`id` LIMIT 1")).
-		WithArgs(s.Fixtures.Enterprises[0].ID).
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Enterprises[0].ID))
-	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE `pools`.`enterprise_id` = ? AND (provider_name = ? and image = ? and flavor = ?) AND `pools`.`deleted_at` IS NULL")).
-		WithArgs(
-			s.Fixtures.Enterprises[0].ID,
-			s.Fixtures.CreatePoolParams.ProviderName,
-			s.Fixtures.CreatePoolParams.Image,
-			s.Fixtures.CreatePoolParams.Flavor).
-		WillReturnRows(sqlmock.NewRows([]string{"enterprise_id"}))
-	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `tags` WHERE name = ? AND `tags`.`deleted_at` IS NULL ORDER BY `tags`.`id` LIMIT 1")).
-		WillReturnRows(sqlmock.NewRows([]string{"linux"}))
 	s.Fixtures.SQLMock.ExpectBegin()
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `enterprises` WHERE id = ? AND `enterprises`.`deleted_at` IS NULL ORDER BY `enterprises`.`id` LIMIT ?")).
+		WithArgs(s.Fixtures.Enterprises[0].ID, 1).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Enterprises[0].ID))
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `tags` WHERE name = ? AND `tags`.`deleted_at` IS NULL ORDER BY `tags`.`id` LIMIT ?")).
+		WillReturnRows(sqlmock.NewRows([]string{"linux"}))
 	s.Fixtures.SQLMock.
 		ExpectExec(regexp.QuoteMeta("INSERT INTO `tags`")).
 		WillReturnResult(sqlmock.NewResult(1, 1))
-	s.Fixtures.SQLMock.ExpectCommit()
-	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
 		ExpectExec(regexp.QuoteMeta("INSERT INTO `pools`")).
 		WillReturnError(fmt.Errorf("mocked adding pool error"))
 	s.Fixtures.SQLMock.ExpectRollback()
 
-	_, err := s.StoreSQLMocked.CreateEnterprisePool(context.Background(), s.Fixtures.Enterprises[0].ID, s.Fixtures.CreatePoolParams)
+	entity, err := s.Fixtures.Enterprises[0].GetEntity()
+	s.Require().Nil(err)
+	_, err = s.StoreSQLMocked.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 
-	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
-	s.Require().Equal("adding pool: mocked adding pool error", err.Error())
+	s.Require().Equal("creating pool: mocked adding pool error", err.Error())
+	s.assertSQLMockExpectations()
 }
 
 func (s *EnterpriseTestSuite) TestCreateEnterprisePoolDBSaveTagErr() {
 	s.Fixtures.CreatePoolParams.Tags = []string{"linux"}
 
-	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `enterprises` WHERE id = ? AND `enterprises`.`deleted_at` IS NULL ORDER BY `enterprises`.`id` LIMIT 1")).
-		WithArgs(s.Fixtures.Enterprises[0].ID).
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Enterprises[0].ID))
-	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `enterprises` WHERE id = ? AND `enterprises`.`deleted_at` IS NULL ORDER BY `enterprises`.`id` LIMIT 1")).
-		WithArgs(s.Fixtures.Enterprises[0].ID).
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Enterprises[0].ID))
-	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE `pools`.`enterprise_id` = ? AND (provider_name = ? and image = ? and flavor = ?) AND `pools`.`deleted_at` IS NULL")).
-		WithArgs(
-			s.Fixtures.Enterprises[0].ID,
-			s.Fixtures.CreatePoolParams.ProviderName,
-			s.Fixtures.CreatePoolParams.Image,
-			s.Fixtures.CreatePoolParams.Flavor).
-		WillReturnRows(sqlmock.NewRows([]string{"enterprise_id"}))
-	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `tags` WHERE name = ? AND `tags`.`deleted_at` IS NULL ORDER BY `tags`.`id` LIMIT 1")).
-		WillReturnRows(sqlmock.NewRows([]string{"linux"}))
 	s.Fixtures.SQLMock.ExpectBegin()
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `enterprises` WHERE id = ? AND `enterprises`.`deleted_at` IS NULL ORDER BY `enterprises`.`id` LIMIT ?")).
+		WithArgs(s.Fixtures.Enterprises[0].ID, 1).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Enterprises[0].ID))
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `tags` WHERE name = ? AND `tags`.`deleted_at` IS NULL ORDER BY `tags`.`id` LIMIT ?")).
+		WillReturnRows(sqlmock.NewRows([]string{"linux"}))
 	s.Fixtures.SQLMock.
 		ExpectExec(regexp.QuoteMeta("INSERT INTO `tags`")).
 		WillReturnResult(sqlmock.NewResult(1, 1))
-	s.Fixtures.SQLMock.ExpectCommit()
-	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
 		ExpectExec(regexp.QuoteMeta("INSERT INTO `pools`")).
 		WillReturnResult(sqlmock.NewResult(1, 1))
-	s.Fixtures.SQLMock.ExpectCommit()
-	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
 		ExpectExec(regexp.QuoteMeta("UPDATE `pools` SET")).
 		WillReturnError(fmt.Errorf("mocked saving tag error"))
 	s.Fixtures.SQLMock.ExpectRollback()
 
-	_, err := s.StoreSQLMocked.CreateEnterprisePool(context.Background(), s.Fixtures.Enterprises[0].ID, s.Fixtures.CreatePoolParams)
+	entity, err := s.Fixtures.Enterprises[0].GetEntity()
+	s.Require().Nil(err)
+	_, err = s.StoreSQLMocked.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 
-	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
-	s.Require().Equal("saving tag: mocked saving tag error", err.Error())
+	s.Require().Equal("associating tags: mocked saving tag error", err.Error())
+	s.assertSQLMockExpectations()
 }
 
 func (s *EnterpriseTestSuite) TestCreateEnterprisePoolDBFetchPoolErr() {
 	s.Fixtures.CreatePoolParams.Tags = []string{"linux"}
 
-	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `enterprises` WHERE id = ? AND `enterprises`.`deleted_at` IS NULL ORDER BY `enterprises`.`id` LIMIT 1")).
-		WithArgs(s.Fixtures.Enterprises[0].ID).
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Enterprises[0].ID))
-	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `enterprises` WHERE id = ? AND `enterprises`.`deleted_at` IS NULL ORDER BY `enterprises`.`id` LIMIT 1")).
-		WithArgs(s.Fixtures.Enterprises[0].ID).
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Enterprises[0].ID))
-	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE `pools`.`enterprise_id` = ? AND (provider_name = ? and image = ? and flavor = ?) AND `pools`.`deleted_at` IS NULL")).
-		WithArgs(
-			s.Fixtures.Enterprises[0].ID,
-			s.Fixtures.CreatePoolParams.ProviderName,
-			s.Fixtures.CreatePoolParams.Image,
-			s.Fixtures.CreatePoolParams.Flavor).
-		WillReturnRows(sqlmock.NewRows([]string{"enterprise_id"}))
-	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `tags` WHERE name = ? AND `tags`.`deleted_at` IS NULL ORDER BY `tags`.`id` LIMIT 1")).
-		WillReturnRows(sqlmock.NewRows([]string{"linux"}))
 	s.Fixtures.SQLMock.ExpectBegin()
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `enterprises` WHERE id = ? AND `enterprises`.`deleted_at` IS NULL ORDER BY `enterprises`.`id` LIMIT ?")).
+		WithArgs(s.Fixtures.Enterprises[0].ID, 1).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Enterprises[0].ID))
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `tags` WHERE name = ? AND `tags`.`deleted_at` IS NULL ORDER BY `tags`.`id` LIMIT ?")).
+		WillReturnRows(sqlmock.NewRows([]string{"linux"}))
 	s.Fixtures.SQLMock.
 		ExpectExec(regexp.QuoteMeta("INSERT INTO `tags`")).
 		WillReturnResult(sqlmock.NewResult(1, 1))
-	s.Fixtures.SQLMock.ExpectCommit()
-	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
 		ExpectExec(regexp.QuoteMeta("INSERT INTO `pools`")).
 		WillReturnResult(sqlmock.NewResult(1, 1))
-	s.Fixtures.SQLMock.ExpectCommit()
-	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
 		ExpectExec(regexp.QuoteMeta("UPDATE `pools` SET")).
 		WillReturnResult(sqlmock.NewResult(1, 1))
@@ -640,161 +605,163 @@ func (s *EnterpriseTestSuite) TestCreateEnterprisePoolDBFetchPoolErr() {
 		WillReturnResult(sqlmock.NewResult(1, 1))
 	s.Fixtures.SQLMock.ExpectCommit()
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE id = ? AND `pools`.`deleted_at` IS NULL ORDER BY `pools`.`id` LIMIT 1")).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE id = ? AND `pools`.`deleted_at` IS NULL ORDER BY `pools`.`id` LIMIT ?")).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}))
 
-	_, err := s.StoreSQLMocked.CreateEnterprisePool(context.Background(), s.Fixtures.Enterprises[0].ID, s.Fixtures.CreatePoolParams)
+	entity, err := s.Fixtures.Enterprises[0].GetEntity()
+	s.Require().Nil(err)
+	_, err = s.StoreSQLMocked.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 
-	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching pool: not found", err.Error())
+	s.assertSQLMockExpectations()
 }
 
 func (s *EnterpriseTestSuite) TestListEnterprisePools() {
 	enterprisePools := []params.Pool{}
+	entity, err := s.Fixtures.Enterprises[0].GetEntity()
+	s.Require().Nil(err)
 	for i := 1; i <= 2; i++ {
 		s.Fixtures.CreatePoolParams.Flavor = fmt.Sprintf("test-flavor-%v", i)
-		pool, err := s.Store.CreateEnterprisePool(context.Background(), s.Fixtures.Enterprises[0].ID, s.Fixtures.CreatePoolParams)
+		pool, err := s.Store.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 		if err != nil {
 			s.FailNow(fmt.Sprintf("cannot create enterprise pool: %v", err))
 		}
 		enterprisePools = append(enterprisePools, pool)
 	}
 
-	pools, err := s.Store.ListEnterprisePools(context.Background(), s.Fixtures.Enterprises[0].ID)
+	pools, err := s.Store.ListEntityPools(s.adminCtx, entity)
 
 	s.Require().Nil(err)
 	garmTesting.EqualDBEntityID(s.T(), enterprisePools, pools)
 }
 
 func (s *EnterpriseTestSuite) TestListEnterprisePoolsInvalidEnterpriseID() {
-	_, err := s.Store.ListEnterprisePools(context.Background(), "dummy-enterprise-id")
+	entity := params.GithubEntity{
+		ID:         "dummy-enterprise-id",
+		EntityType: params.GithubEntityTypeEnterprise,
+	}
+	_, err := s.Store.ListEntityPools(s.adminCtx, entity)
 
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching pools: parsing id: invalid request", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestGetEnterprisePool() {
-	pool, err := s.Store.CreateEnterprisePool(context.Background(), s.Fixtures.Enterprises[0].ID, s.Fixtures.CreatePoolParams)
+	entity, err := s.Fixtures.Enterprises[0].GetEntity()
+	s.Require().Nil(err)
+	pool, err := s.Store.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create enterprise pool: %v", err))
 	}
 
-	enterprisePool, err := s.Store.GetEnterprisePool(context.Background(), s.Fixtures.Enterprises[0].ID, pool.ID)
+	enterprisePool, err := s.Store.GetEntityPool(s.adminCtx, entity, pool.ID)
 
 	s.Require().Nil(err)
 	s.Require().Equal(enterprisePool.ID, pool.ID)
 }
 
 func (s *EnterpriseTestSuite) TestGetEnterprisePoolInvalidEnterpriseID() {
-	_, err := s.Store.GetEnterprisePool(context.Background(), "dummy-enterprise-id", "dummy-pool-id")
+	entity := params.GithubEntity{
+		ID:         "dummy-enterprise-id",
+		EntityType: params.GithubEntityTypeEnterprise,
+	}
+	_, err := s.Store.GetEntityPool(s.adminCtx, entity, "dummy-pool-id")
 
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching pool: parsing id: invalid request", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestDeleteEnterprisePool() {
-	pool, err := s.Store.CreateEnterprisePool(context.Background(), s.Fixtures.Enterprises[0].ID, s.Fixtures.CreatePoolParams)
+	entity, err := s.Fixtures.Enterprises[0].GetEntity()
+	s.Require().Nil(err)
+	pool, err := s.Store.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create enterprise pool: %v", err))
 	}
 
-	err = s.Store.DeleteEnterprisePool(context.Background(), s.Fixtures.Enterprises[0].ID, pool.ID)
+	err = s.Store.DeleteEntityPool(s.adminCtx, entity, pool.ID)
 
 	s.Require().Nil(err)
-	_, err = s.Store.GetEnterprisePool(context.Background(), s.Fixtures.Enterprises[0].ID, pool.ID)
+	_, err = s.Store.GetEntityPool(s.adminCtx, entity, pool.ID)
 	s.Require().Equal("fetching pool: finding pool: not found", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestDeleteEnterprisePoolInvalidEnterpriseID() {
-	err := s.Store.DeleteEnterprisePool(context.Background(), "dummy-enterprise-id", "dummy-pool-id")
+	entity := params.GithubEntity{
+		ID:         "dummy-enterprise-id",
+		EntityType: params.GithubEntityTypeEnterprise,
+	}
+	err := s.Store.DeleteEntityPool(s.adminCtx, entity, "dummy-pool-id")
 
 	s.Require().NotNil(err)
-	s.Require().Equal("looking up enterprise pool: parsing id: invalid request", err.Error())
+	s.Require().Equal("parsing id: invalid request", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestDeleteEnterprisePoolDBDeleteErr() {
-	pool, err := s.Store.CreateEnterprisePool(context.Background(), s.Fixtures.Enterprises[0].ID, s.Fixtures.CreatePoolParams)
+	entity, err := s.Fixtures.Enterprises[0].GetEntity()
+	s.Require().Nil(err)
+	pool, err := s.Store.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create enterprise pool: %v", err))
 	}
 
-	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE (id = ? and enterprise_id = ?) AND `pools`.`deleted_at` IS NULL ORDER BY `pools`.`id` LIMIT 1")).
-		WithArgs(pool.ID, s.Fixtures.Enterprises[0].ID).
-		WillReturnRows(sqlmock.NewRows([]string{"enterprise_id", "id"}).AddRow(s.Fixtures.Enterprises[0].ID, pool.ID))
 	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
-		ExpectExec(regexp.QuoteMeta("DELETE FROM `pools` WHERE `pools`.`id` = ?")).
-		WithArgs(pool.ID).
+		ExpectExec(regexp.QuoteMeta("DELETE FROM `pools` WHERE id = ? and enterprise_id = ?")).
+		WithArgs(pool.ID, s.Fixtures.Enterprises[0].ID).
 		WillReturnError(fmt.Errorf("mocked deleting pool error"))
 	s.Fixtures.SQLMock.ExpectRollback()
 
-	err = s.StoreSQLMocked.DeleteEnterprisePool(context.Background(), s.Fixtures.Enterprises[0].ID, pool.ID)
-
+	err = s.StoreSQLMocked.DeleteEntityPool(s.adminCtx, entity, pool.ID)
+	s.Require().NotNil(err)
+	s.Require().Equal("removing pool: mocked deleting pool error", err.Error())
 	s.assertSQLMockExpectations()
-	s.Require().NotNil(err)
-	s.Require().Equal("deleting pool: mocked deleting pool error", err.Error())
-}
-
-func (s *EnterpriseTestSuite) TestFindEnterprisePoolByTags() {
-	enterprisePool, err := s.Store.CreateEnterprisePool(context.Background(), s.Fixtures.Enterprises[0].ID, s.Fixtures.CreatePoolParams)
-	if err != nil {
-		s.FailNow(fmt.Sprintf("cannot create enterprise pool: %v", err))
-	}
-
-	pool, err := s.Store.FindEnterprisePoolByTags(context.Background(), s.Fixtures.Enterprises[0].ID, s.Fixtures.CreatePoolParams.Tags)
-
-	s.Require().Nil(err)
-	s.Require().Equal(enterprisePool.ID, pool.ID)
-	s.Require().Equal(enterprisePool.Image, pool.Image)
-	s.Require().Equal(enterprisePool.Flavor, pool.Flavor)
-}
-
-func (s *EnterpriseTestSuite) TestFindEnterprisePoolByTagsMissingTags() {
-	tags := []string{}
-
-	_, err := s.Store.FindEnterprisePoolByTags(context.Background(), s.Fixtures.Enterprises[0].ID, tags)
-
-	s.Require().NotNil(err)
-	s.Require().Equal("fetching pool: missing tags", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestListEnterpriseInstances() {
-	pool, err := s.Store.CreateEnterprisePool(context.Background(), s.Fixtures.Enterprises[0].ID, s.Fixtures.CreatePoolParams)
+	entity, err := s.Fixtures.Enterprises[0].GetEntity()
+	s.Require().Nil(err)
+	pool, err := s.Store.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create enterprise pool: %v", err))
 	}
 	poolInstances := []params.Instance{}
 	for i := 1; i <= 3; i++ {
 		s.Fixtures.CreateInstanceParams.Name = fmt.Sprintf("test-enterprise-%v", i)
-		instance, err := s.Store.CreateInstance(context.Background(), pool.ID, s.Fixtures.CreateInstanceParams)
+		instance, err := s.Store.CreateInstance(s.adminCtx, pool.ID, s.Fixtures.CreateInstanceParams)
 		if err != nil {
 			s.FailNow(fmt.Sprintf("cannot create instance: %s", err))
 		}
 		poolInstances = append(poolInstances, instance)
 	}
 
-	instances, err := s.Store.ListEnterpriseInstances(context.Background(), s.Fixtures.Enterprises[0].ID)
+	instances, err := s.Store.ListEntityInstances(s.adminCtx, entity)
 
 	s.Require().Nil(err)
 	s.equalInstancesByName(poolInstances, instances)
 }
 
 func (s *EnterpriseTestSuite) TestListEnterpriseInstancesInvalidEnterpriseID() {
-	_, err := s.Store.ListEnterpriseInstances(context.Background(), "dummy-enterprise-id")
+	entity := params.GithubEntity{
+		ID:         "dummy-enterprise-id",
+		EntityType: params.GithubEntityTypeEnterprise,
+	}
+	_, err := s.Store.ListEntityInstances(s.adminCtx, entity)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching enterprise: parsing id: invalid request", err.Error())
+	s.Require().Equal("fetching entity: parsing id: invalid request", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestUpdateEnterprisePool() {
-	pool, err := s.Store.CreateEnterprisePool(context.Background(), s.Fixtures.Enterprises[0].ID, s.Fixtures.CreatePoolParams)
+	entity, err := s.Fixtures.Enterprises[0].GetEntity()
+	s.Require().Nil(err)
+	pool, err := s.Store.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("cannot create enterprise pool: %v", err))
 	}
 
-	pool, err = s.Store.UpdateEnterprisePool(context.Background(), s.Fixtures.Enterprises[0].ID, pool.ID, s.Fixtures.UpdatePoolParams)
+	pool, err = s.Store.UpdateEntityPool(s.adminCtx, entity, pool.ID, s.Fixtures.UpdatePoolParams)
 
 	s.Require().Nil(err)
 	s.Require().Equal(*s.Fixtures.UpdatePoolParams.MaxRunners, pool.MaxRunners)
@@ -804,7 +771,11 @@ func (s *EnterpriseTestSuite) TestUpdateEnterprisePool() {
 }
 
 func (s *EnterpriseTestSuite) TestUpdateEnterprisePoolInvalidEnterpriseID() {
-	_, err := s.Store.UpdateEnterprisePool(context.Background(), "dummy-enterprise-id", "dummy-pool-id", s.Fixtures.UpdatePoolParams)
+	entity := params.GithubEntity{
+		ID:         "dummy-enterprise-id",
+		EntityType: params.GithubEntityTypeEnterprise,
+	}
+	_, err := s.Store.UpdateEntityPool(s.adminCtx, entity, "dummy-pool-id", s.Fixtures.UpdatePoolParams)
 
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching pool: parsing id: invalid request", err.Error())

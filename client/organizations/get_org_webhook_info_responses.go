@@ -6,6 +6,7 @@ package organizations
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -87,11 +88,13 @@ func (o *GetOrgWebhookInfoOK) Code() int {
 }
 
 func (o *GetOrgWebhookInfoOK) Error() string {
-	return fmt.Sprintf("[GET /organizations/{orgID}/webhook][%d] getOrgWebhookInfoOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /organizations/{orgID}/webhook][%d] getOrgWebhookInfoOK %s", 200, payload)
 }
 
 func (o *GetOrgWebhookInfoOK) String() string {
-	return fmt.Sprintf("[GET /organizations/{orgID}/webhook][%d] getOrgWebhookInfoOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /organizations/{orgID}/webhook][%d] getOrgWebhookInfoOK %s", 200, payload)
 }
 
 func (o *GetOrgWebhookInfoOK) GetPayload() garm_params.HookInfo {
@@ -157,11 +160,13 @@ func (o *GetOrgWebhookInfoDefault) Code() int {
 }
 
 func (o *GetOrgWebhookInfoDefault) Error() string {
-	return fmt.Sprintf("[GET /organizations/{orgID}/webhook][%d] GetOrgWebhookInfo default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /organizations/{orgID}/webhook][%d] GetOrgWebhookInfo default %s", o._statusCode, payload)
 }
 
 func (o *GetOrgWebhookInfoDefault) String() string {
-	return fmt.Sprintf("[GET /organizations/{orgID}/webhook][%d] GetOrgWebhookInfo default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /organizations/{orgID}/webhook][%d] GetOrgWebhookInfo default %s", o._statusCode, payload)
 }
 
 func (o *GetOrgWebhookInfoDefault) GetPayload() apiserver_params.APIErrorResponse {

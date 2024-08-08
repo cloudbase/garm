@@ -20,18 +20,16 @@ import (
 	"os"
 	"strings"
 
-	apiClientEnterprises "github.com/cloudbase/garm/client/enterprises"
-	apiClientOrgs "github.com/cloudbase/garm/client/organizations"
-	apiClientPools "github.com/cloudbase/garm/client/pools"
-	apiClientRepos "github.com/cloudbase/garm/client/repositories"
-
-	"github.com/cloudbase/garm/params"
-
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	commonParams "github.com/cloudbase/garm-provider-common/params"
+	apiClientEnterprises "github.com/cloudbase/garm/client/enterprises"
+	apiClientOrgs "github.com/cloudbase/garm/client/organizations"
+	apiClientPools "github.com/cloudbase/garm/client/pools"
+	apiClientRepos "github.com/cloudbase/garm/client/repositories"
+	"github.com/cloudbase/garm/params"
 )
 
 var (
@@ -53,9 +51,10 @@ var (
 	poolExtraSpecs             string
 	poolAll                    bool
 	poolGitHubRunnerGroup      string
+	priority                   uint
 )
 
-type poolPayloadGetter interface {
+type poolsPayloadGetter interface {
 	GetPayload() params.Pools
 }
 
@@ -99,7 +98,7 @@ Example:
 			return errNeedsInitError
 		}
 
-		var response poolPayloadGetter
+		var response poolsPayloadGetter
 		var err error
 
 		switch len(args) {
@@ -141,7 +140,7 @@ var poolShowCmd = &cobra.Command{
 	Short:        "Show details for a runner",
 	Long:         `Displays a detailed view of a single runner.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -171,7 +170,7 @@ var poolDeleteCmd = &cobra.Command{
 	Short:        "Delete pool by ID",
 	Long:         `Delete one pool by referencing it's ID, regardless of repo or org.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -193,13 +192,17 @@ var poolDeleteCmd = &cobra.Command{
 	},
 }
 
+type poolPayloadGetter interface {
+	GetPayload() params.Pool
+}
+
 var poolAddCmd = &cobra.Command{
 	Use:          "add",
 	Aliases:      []string{"create"},
 	Short:        "Add pool",
 	Long:         `Add a new pool to a repository or organization.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -220,6 +223,7 @@ var poolAddCmd = &cobra.Command{
 			Enabled:                poolEnabled,
 			RunnerBootstrapTimeout: poolRunnerBootstrapTimeout,
 			GitHubRunnerGroup:      poolGitHubRunnerGroup,
+			Priority:               priority,
 		}
 
 		if cmd.Flags().Changed("extra-specs") {
@@ -242,30 +246,23 @@ var poolAddCmd = &cobra.Command{
 			return err
 		}
 
-		var pool params.Pool
 		var err error
-
+		var response poolPayloadGetter
 		if cmd.Flags().Changed("repo") {
-			var response *apiClientRepos.CreateRepoPoolOK
 			newRepoPoolReq := apiClientRepos.NewCreateRepoPoolParams()
 			newRepoPoolReq.RepoID = poolRepository
 			newRepoPoolReq.Body = newPoolParams
 			response, err = apiCli.Repositories.CreateRepoPool(newRepoPoolReq, authToken)
-			pool = response.Payload
 		} else if cmd.Flags().Changed("org") {
-			var response *apiClientOrgs.CreateOrgPoolOK
 			newOrgPoolReq := apiClientOrgs.NewCreateOrgPoolParams()
 			newOrgPoolReq.OrgID = poolOrganization
 			newOrgPoolReq.Body = newPoolParams
 			response, err = apiCli.Organizations.CreateOrgPool(newOrgPoolReq, authToken)
-			pool = response.Payload
 		} else if cmd.Flags().Changed("enterprise") {
-			var response *apiClientEnterprises.CreateEnterprisePoolOK
 			newEnterprisePoolReq := apiClientEnterprises.NewCreateEnterprisePoolParams()
 			newEnterprisePoolReq.EnterpriseID = poolEnterprise
 			newEnterprisePoolReq.Body = newPoolParams
 			response, err = apiCli.Enterprises.CreateEnterprisePool(newEnterprisePoolReq, authToken)
-			pool = response.Payload
 		} else {
 			cmd.Help() //nolint
 			os.Exit(0)
@@ -274,7 +271,8 @@ var poolAddCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		formatOnePool(pool)
+
+		formatOnePool(response.GetPayload())
 		return nil
 	},
 }
@@ -327,6 +325,9 @@ explicitly remove them using the runner delete command.
 
 		if cmd.Flags().Changed("max-runners") {
 			poolUpdateParams.MaxRunners = &poolMaxRunners
+		}
+		if cmd.Flags().Changed("priority") {
+			poolUpdateParams.Priority = &priority
 		}
 
 		if cmd.Flags().Changed("min-idle-runners") {
@@ -381,12 +382,13 @@ explicitly remove them using the runner delete command.
 
 func init() {
 	poolListCmd.Flags().StringVarP(&poolRepository, "repo", "r", "", "List all pools within this repository.")
-	poolListCmd.Flags().StringVarP(&poolOrganization, "org", "o", "", "List all pools withing this organization.")
-	poolListCmd.Flags().StringVarP(&poolEnterprise, "enterprise", "e", "", "List all pools withing this enterprise.")
+	poolListCmd.Flags().StringVarP(&poolOrganization, "org", "o", "", "List all pools within this organization.")
+	poolListCmd.Flags().StringVarP(&poolEnterprise, "enterprise", "e", "", "List all pools within this enterprise.")
 	poolListCmd.Flags().BoolVarP(&poolAll, "all", "a", false, "List all pools, regardless of org or repo.")
 	poolListCmd.MarkFlagsMutuallyExclusive("repo", "org", "all", "enterprise")
 
 	poolUpdateCmd.Flags().StringVar(&poolImage, "image", "", "The provider-specific image name to use for runners in this pool.")
+	poolUpdateCmd.Flags().UintVar(&priority, "priority", 0, "When multiple pools match the same labels, priority dictates the order by which they are returned, in descending order.")
 	poolUpdateCmd.Flags().StringVar(&poolFlavor, "flavor", "", "The flavor to use for this runner.")
 	poolUpdateCmd.Flags().StringVar(&poolTags, "tags", "", "A comma separated list of tags to assign to this runner.")
 	poolUpdateCmd.Flags().StringVar(&poolOSType, "os-type", "linux", "Operating system type (windows, linux, etc).")
@@ -402,6 +404,7 @@ func init() {
 	poolUpdateCmd.MarkFlagsMutuallyExclusive("extra-specs-file", "extra-specs")
 
 	poolAddCmd.Flags().StringVar(&poolProvider, "provider-name", "", "The name of the provider where runners will be created.")
+	poolAddCmd.Flags().UintVar(&priority, "priority", 0, "When multiple pools match the same labels, priority dictates the order by which they are returned, in descending order.")
 	poolAddCmd.Flags().StringVar(&poolImage, "image", "", "The provider-specific image name to use for runners in this pool.")
 	poolAddCmd.Flags().StringVar(&poolFlavor, "flavor", "", "The flavor to use for this runner.")
 	poolAddCmd.Flags().StringVar(&poolRunnerPrefix, "runner-prefix", "", "The name prefix to use for runners in this pool.")
@@ -421,8 +424,8 @@ func init() {
 	poolAddCmd.MarkFlagRequired("tags")          //nolint
 
 	poolAddCmd.Flags().StringVarP(&poolRepository, "repo", "r", "", "Add the new pool within this repository.")
-	poolAddCmd.Flags().StringVarP(&poolOrganization, "org", "o", "", "Add the new pool withing this organization.")
-	poolAddCmd.Flags().StringVarP(&poolEnterprise, "enterprise", "e", "", "Add the new pool withing this enterprise.")
+	poolAddCmd.Flags().StringVarP(&poolOrganization, "org", "o", "", "Add the new pool within this organization.")
+	poolAddCmd.Flags().StringVarP(&poolEnterprise, "enterprise", "e", "", "Add the new pool within this enterprise.")
 	poolAddCmd.MarkFlagsMutuallyExclusive("repo", "org", "enterprise")
 	poolAddCmd.MarkFlagsMutuallyExclusive("extra-specs-file", "extra-specs")
 
@@ -453,18 +456,18 @@ func asRawMessage(data []byte) (json.RawMessage, error) {
 		return nil, errors.Wrap(err, "decoding extra specs")
 	}
 
-	var asRawJson json.RawMessage
+	var asRawJSON json.RawMessage
 	var err error
-	asRawJson, err = json.Marshal(unmarshaled)
+	asRawJSON, err = json.Marshal(unmarshaled)
 	if err != nil {
 		return nil, errors.Wrap(err, "marshaling json")
 	}
-	return asRawJson, nil
+	return asRawJSON, nil
 }
 
 func formatPools(pools []params.Pool) {
 	t := table.NewWriter()
-	header := table.Row{"ID", "Image", "Flavor", "Tags", "Belongs to", "Level", "Enabled", "Runner Prefix"}
+	header := table.Row{"ID", "Image", "Flavor", "Tags", "Belongs to", "Level", "Enabled", "Runner Prefix", "Priority"}
 	t.AppendHeader(header)
 
 	for _, pool := range pools {
@@ -475,17 +478,18 @@ func formatPools(pools []params.Pool) {
 		var belongsTo string
 		var level string
 
-		if pool.RepoID != "" && pool.RepoName != "" {
+		switch {
+		case pool.RepoID != "" && pool.RepoName != "":
 			belongsTo = pool.RepoName
 			level = "repo"
-		} else if pool.OrgID != "" && pool.OrgName != "" {
+		case pool.OrgID != "" && pool.OrgName != "":
 			belongsTo = pool.OrgName
 			level = "org"
-		} else if pool.EnterpriseID != "" && pool.EnterpriseName != "" {
+		case pool.EnterpriseID != "" && pool.EnterpriseName != "":
 			belongsTo = pool.EnterpriseName
 			level = "enterprise"
 		}
-		t.AppendRow(table.Row{pool.ID, pool.Image, pool.Flavor, strings.Join(tags, " "), belongsTo, level, pool.Enabled, pool.GetRunnerPrefix()})
+		t.AppendRow(table.Row{pool.ID, pool.Image, pool.Flavor, strings.Join(tags, " "), belongsTo, level, pool.Enabled, pool.GetRunnerPrefix(), pool.Priority})
 		t.AppendSeparator()
 	}
 	fmt.Println(t.Render())
@@ -505,13 +509,14 @@ func formatOnePool(pool params.Pool) {
 	var belongsTo string
 	var level string
 
-	if pool.RepoID != "" && pool.RepoName != "" {
+	switch {
+	case pool.RepoID != "" && pool.RepoName != "":
 		belongsTo = pool.RepoName
 		level = "repo"
-	} else if pool.OrgID != "" && pool.OrgName != "" {
+	case pool.OrgID != "" && pool.OrgName != "":
 		belongsTo = pool.OrgName
 		level = "org"
-	} else if pool.EnterpriseID != "" && pool.EnterpriseName != "" {
+	case pool.EnterpriseID != "" && pool.EnterpriseName != "":
 		belongsTo = pool.EnterpriseName
 		level = "enterprise"
 	}
@@ -519,6 +524,7 @@ func formatOnePool(pool params.Pool) {
 	t.AppendHeader(header)
 	t.AppendRow(table.Row{"ID", pool.ID})
 	t.AppendRow(table.Row{"Provider Name", pool.ProviderName})
+	t.AppendRow(table.Row{"Priority", pool.Priority})
 	t.AppendRow(table.Row{"Image", pool.Image})
 	t.AppendRow(table.Row{"Flavor", pool.Flavor})
 	t.AppendRow(table.Row{"OS Type", pool.OSType})
@@ -532,7 +538,7 @@ func formatOnePool(pool params.Pool) {
 	t.AppendRow(table.Row{"Enabled", pool.Enabled})
 	t.AppendRow(table.Row{"Runner Prefix", pool.GetRunnerPrefix()})
 	t.AppendRow(table.Row{"Extra specs", string(pool.ExtraSpecs)})
-	t.AppendRow(table.Row{"GitHub Runner Group", string(pool.GitHubRunnerGroup)})
+	t.AppendRow(table.Row{"GitHub Runner Group", pool.GitHubRunnerGroup})
 
 	if len(pool.Instances) > 0 {
 		for _, instance := range pool.Instances {

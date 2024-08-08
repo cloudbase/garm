@@ -9,11 +9,12 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	"github.com/cloudbase/garm-provider-common/defaults"
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/params"
-	"github.com/pkg/errors"
 )
 
 var systemdUnitTemplate = `[Unit]
@@ -68,12 +69,12 @@ func (r *Runner) GetRunnerServiceName(ctx context.Context) (string, error) {
 	tpl := "actions.runner.%s.%s"
 	var serviceName string
 	switch pool.PoolType() {
-	case params.EnterprisePool:
+	case params.GithubEntityTypeEnterprise:
 		serviceName = fmt.Sprintf(tpl, pool.EnterpriseName, instance.Name)
-	case params.OrganizationPool:
+	case params.GithubEntityTypeOrganization:
 		serviceName = fmt.Sprintf(tpl, pool.OrgName, instance.Name)
-	case params.RepositoryPool:
-		serviceName = fmt.Sprintf(tpl, strings.Replace(pool.RepoName, "/", "-", -1), instance.Name)
+	case params.GithubEntityTypeRepository:
+		serviceName = fmt.Sprintf(tpl, strings.ReplaceAll(pool.RepoName, "/", "-"), instance.Name)
 	}
 	return serviceName, nil
 }
@@ -165,11 +166,11 @@ func (r *Runner) GetInstanceGithubRegistrationToken(ctx context.Context) (string
 		TokenFetched: &tokenFetched,
 	}
 
-	if _, err := r.store.UpdateInstance(r.ctx, instance.ID, updateParams); err != nil {
+	if _, err := r.store.UpdateInstance(r.ctx, instance.Name, updateParams); err != nil {
 		return "", errors.Wrap(err, "setting token_fetched for instance")
 	}
 
-	if err := r.store.AddInstanceEvent(ctx, instance.ID, params.FetchTokenEvent, params.EventInfo, "runner registration token was retrieved"); err != nil {
+	if err := r.store.AddInstanceEvent(ctx, instance.Name, params.FetchTokenEvent, params.EventInfo, "runner registration token was retrieved"); err != nil {
 		return "", errors.Wrap(err, "recording event")
 	}
 

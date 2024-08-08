@@ -17,52 +17,81 @@ package sql
 import (
 	"context"
 	"fmt"
-
-	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
-	"github.com/cloudbase/garm-provider-common/util"
-	"github.com/cloudbase/garm/params"
+	"log/slog"
 
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
-	"gorm.io/datatypes"
 	"gorm.io/gorm"
+
+	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	"github.com/cloudbase/garm-provider-common/util"
+	"github.com/cloudbase/garm/database/common"
+	"github.com/cloudbase/garm/params"
 )
 
-func (s *sqlDatabase) CreateOrganization(ctx context.Context, name, credentialsName, webhookSecret string) (params.Organization, error) {
+func (s *sqlDatabase) CreateOrganization(ctx context.Context, name, credentialsName, webhookSecret string, poolBalancerType params.PoolBalancerType) (org params.Organization, err error) {
 	if webhookSecret == "" {
 		return params.Organization{}, errors.New("creating org: missing secret")
 	}
 	secret, err := util.Seal([]byte(webhookSecret), []byte(s.cfg.Passphrase))
 	if err != nil {
-		return params.Organization{}, fmt.Errorf("failed to encrypt string")
+		return params.Organization{}, errors.Wrap(err, "encoding secret")
 	}
+
+	defer func() {
+		if err == nil {
+			s.sendNotify(common.OrganizationEntityType, common.CreateOperation, org)
+		}
+	}()
 	newOrg := Organization{
-		Name:            name,
-		WebhookSecret:   secret,
-		CredentialsName: credentialsName,
+		Name:             name,
+		WebhookSecret:    secret,
+		CredentialsName:  credentialsName,
+		PoolBalancerType: poolBalancerType,
 	}
 
-	q := s.conn.Create(&newOrg)
-	if q.Error != nil {
-		return params.Organization{}, errors.Wrap(q.Error, "creating org")
-	}
+	err = s.conn.Transaction(func(tx *gorm.DB) error {
+		creds, err := s.getGithubCredentialsByName(ctx, tx, credentialsName, false)
+		if err != nil {
+			return errors.Wrap(err, "creating org")
+		}
+		if creds.EndpointName == nil {
+			return errors.Wrap(runnerErrors.ErrUnprocessable, "credentials have no endpoint")
+		}
+		newOrg.CredentialsID = &creds.ID
+		newOrg.CredentialsName = creds.Name
+		newOrg.EndpointName = creds.EndpointName
 
-	param, err := s.sqlToCommonOrganization(newOrg)
+		q := tx.Create(&newOrg)
+		if q.Error != nil {
+			return errors.Wrap(q.Error, "creating org")
+		}
+
+		newOrg.Credentials = creds
+		newOrg.Endpoint = creds.Endpoint
+
+		return nil
+	})
 	if err != nil {
 		return params.Organization{}, errors.Wrap(err, "creating org")
 	}
-	param.WebhookSecret = webhookSecret
 
-	return param, nil
+	org, err = s.sqlToCommonOrganization(newOrg, true)
+	if err != nil {
+		return params.Organization{}, errors.Wrap(err, "creating org")
+	}
+	org.WebhookSecret = webhookSecret
+
+	return org, nil
 }
 
-func (s *sqlDatabase) GetOrganization(ctx context.Context, name string) (params.Organization, error) {
-	org, err := s.getOrg(ctx, name)
+func (s *sqlDatabase) GetOrganization(ctx context.Context, name, endpointName string) (params.Organization, error) {
+	org, err := s.getOrg(ctx, name, endpointName)
 	if err != nil {
 		return params.Organization{}, errors.Wrap(err, "fetching org")
 	}
 
-	param, err := s.sqlToCommonOrganization(org)
+	param, err := s.sqlToCommonOrganization(org, true)
 	if err != nil {
 		return params.Organization{}, errors.Wrap(err, "fetching org")
 	}
@@ -70,9 +99,13 @@ func (s *sqlDatabase) GetOrganization(ctx context.Context, name string) (params.
 	return param, nil
 }
 
-func (s *sqlDatabase) ListOrganizations(ctx context.Context) ([]params.Organization, error) {
+func (s *sqlDatabase) ListOrganizations(_ context.Context) ([]params.Organization, error) {
 	var orgs []Organization
-	q := s.conn.Find(&orgs)
+	q := s.conn.
+		Preload("Credentials").
+		Preload("Credentials.Endpoint").
+		Preload("Endpoint").
+		Find(&orgs)
 	if q.Error != nil {
 		return []params.Organization{}, errors.Wrap(q.Error, "fetching org from database")
 	}
@@ -80,7 +113,7 @@ func (s *sqlDatabase) ListOrganizations(ctx context.Context) ([]params.Organizat
 	ret := make([]params.Organization, len(orgs))
 	for idx, val := range orgs {
 		var err error
-		ret[idx], err = s.sqlToCommonOrganization(val)
+		ret[idx], err = s.sqlToCommonOrganization(val, true)
 		if err != nil {
 			return nil, errors.Wrap(err, "fetching org")
 		}
@@ -89,11 +122,22 @@ func (s *sqlDatabase) ListOrganizations(ctx context.Context) ([]params.Organizat
 	return ret, nil
 }
 
-func (s *sqlDatabase) DeleteOrganization(ctx context.Context, orgID string) error {
-	org, err := s.getOrgByID(ctx, orgID)
+func (s *sqlDatabase) DeleteOrganization(ctx context.Context, orgID string) (err error) {
+	org, err := s.getOrgByID(ctx, s.conn, orgID, "Endpoint", "Credentials", "Credentials.Endpoint")
 	if err != nil {
 		return errors.Wrap(err, "fetching org")
 	}
+
+	defer func(org Organization) {
+		if err == nil {
+			asParam, innerErr := s.sqlToCommonOrganization(org, true)
+			if innerErr == nil {
+				s.sendNotify(common.OrganizationEntityType, common.DeleteOperation, asParam)
+			} else {
+				slog.With(slog.Any("error", innerErr)).ErrorContext(ctx, "error sending delete notification", "org", orgID)
+			}
+		}
+	}(org)
 
 	q := s.conn.Unscoped().Delete(&org)
 	if q.Error != nil && !errors.Is(q.Error, gorm.ErrRecordNotFound) {
@@ -103,219 +147,95 @@ func (s *sqlDatabase) DeleteOrganization(ctx context.Context, orgID string) erro
 	return nil
 }
 
-func (s *sqlDatabase) UpdateOrganization(ctx context.Context, orgID string, param params.UpdateEntityParams) (params.Organization, error) {
-	org, err := s.getOrgByID(ctx, orgID)
-	if err != nil {
-		return params.Organization{}, errors.Wrap(err, "fetching org")
-	}
-
-	if param.CredentialsName != "" {
-		org.CredentialsName = param.CredentialsName
-	}
-
-	if param.WebhookSecret != "" {
-		secret, err := util.Seal([]byte(param.WebhookSecret), []byte(s.cfg.Passphrase))
-		if err != nil {
-			return params.Organization{}, fmt.Errorf("saving org: failed to encrypt string: %w", err)
+func (s *sqlDatabase) UpdateOrganization(ctx context.Context, orgID string, param params.UpdateEntityParams) (paramOrg params.Organization, err error) {
+	defer func() {
+		if err == nil {
+			s.sendNotify(common.OrganizationEntityType, common.UpdateOperation, paramOrg)
 		}
-		org.WebhookSecret = secret
-	}
+	}()
+	var org Organization
+	var creds GithubCredentials
+	err = s.conn.Transaction(func(tx *gorm.DB) error {
+		var err error
+		org, err = s.getOrgByID(ctx, tx, orgID)
+		if err != nil {
+			return errors.Wrap(err, "fetching org")
+		}
+		if org.EndpointName == nil {
+			return errors.Wrap(runnerErrors.ErrUnprocessable, "org has no endpoint")
+		}
 
-	q := s.conn.Save(&org)
-	if q.Error != nil {
-		return params.Organization{}, errors.Wrap(q.Error, "saving org")
-	}
+		if param.CredentialsName != "" {
+			org.CredentialsName = param.CredentialsName
+			creds, err = s.getGithubCredentialsByName(ctx, tx, param.CredentialsName, false)
+			if err != nil {
+				return errors.Wrap(err, "fetching credentials")
+			}
+			if creds.EndpointName == nil {
+				return errors.Wrap(runnerErrors.ErrUnprocessable, "credentials have no endpoint")
+			}
 
-	newParams, err := s.sqlToCommonOrganization(org)
+			if *creds.EndpointName != *org.EndpointName {
+				return errors.Wrap(runnerErrors.ErrBadRequest, "endpoint mismatch")
+			}
+			org.CredentialsID = &creds.ID
+		}
+
+		if param.WebhookSecret != "" {
+			secret, err := util.Seal([]byte(param.WebhookSecret), []byte(s.cfg.Passphrase))
+			if err != nil {
+				return fmt.Errorf("saving org: failed to encrypt string: %w", err)
+			}
+			org.WebhookSecret = secret
+		}
+
+		if param.PoolBalancerType != "" {
+			org.PoolBalancerType = param.PoolBalancerType
+		}
+
+		q := tx.Save(&org)
+		if q.Error != nil {
+			return errors.Wrap(q.Error, "saving org")
+		}
+
+		return nil
+	})
 	if err != nil {
 		return params.Organization{}, errors.Wrap(err, "saving org")
 	}
-	return newParams, nil
+
+	org, err = s.getOrgByID(ctx, s.conn, orgID, "Endpoint", "Credentials", "Credentials.Endpoint")
+	if err != nil {
+		return params.Organization{}, errors.Wrap(err, "updating enterprise")
+	}
+	paramOrg, err = s.sqlToCommonOrganization(org, true)
+	if err != nil {
+		return params.Organization{}, errors.Wrap(err, "saving org")
+	}
+	return paramOrg, nil
 }
 
 func (s *sqlDatabase) GetOrganizationByID(ctx context.Context, orgID string) (params.Organization, error) {
-	org, err := s.getOrgByID(ctx, orgID, "Pools")
+	org, err := s.getOrgByID(ctx, s.conn, orgID, "Pools", "Credentials", "Endpoint")
 	if err != nil {
 		return params.Organization{}, errors.Wrap(err, "fetching org")
 	}
 
-	param, err := s.sqlToCommonOrganization(org)
+	param, err := s.sqlToCommonOrganization(org, true)
 	if err != nil {
-		return params.Organization{}, errors.Wrap(err, "fetching enterprise")
+		return params.Organization{}, errors.Wrap(err, "fetching org")
 	}
 	return param, nil
 }
 
-func (s *sqlDatabase) CreateOrganizationPool(ctx context.Context, orgId string, param params.CreatePoolParams) (params.Pool, error) {
-	if len(param.Tags) == 0 {
-		return params.Pool{}, runnerErrors.NewBadRequestError("no tags specified")
-	}
-
-	org, err := s.getOrgByID(ctx, orgId)
-	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "fetching org")
-	}
-
-	newPool := Pool{
-		ProviderName:           param.ProviderName,
-		MaxRunners:             param.MaxRunners,
-		MinIdleRunners:         param.MinIdleRunners,
-		RunnerPrefix:           param.GetRunnerPrefix(),
-		Image:                  param.Image,
-		Flavor:                 param.Flavor,
-		OSType:                 param.OSType,
-		OSArch:                 param.OSArch,
-		OrgID:                  &org.ID,
-		Enabled:                param.Enabled,
-		RunnerBootstrapTimeout: param.RunnerBootstrapTimeout,
-		GitHubRunnerGroup:      param.GitHubRunnerGroup,
-	}
-
-	if len(param.ExtraSpecs) > 0 {
-		newPool.ExtraSpecs = datatypes.JSON(param.ExtraSpecs)
-	}
-
-	_, err = s.getOrgPoolByUniqueFields(ctx, orgId, newPool.ProviderName, newPool.Image, newPool.Flavor)
-	if err != nil {
-		if !errors.Is(err, runnerErrors.ErrNotFound) {
-			return params.Pool{}, errors.Wrap(err, "creating pool")
-		}
-	} else {
-		return params.Pool{}, runnerErrors.NewConflictError("pool with the same image and flavor already exists on this provider")
-	}
-
-	tags := []Tag{}
-	for _, val := range param.Tags {
-		t, err := s.getOrCreateTag(val)
-		if err != nil {
-			return params.Pool{}, errors.Wrap(err, "fetching tag")
-		}
-		tags = append(tags, t)
-	}
-
-	q := s.conn.Create(&newPool)
-	if q.Error != nil {
-		return params.Pool{}, errors.Wrap(q.Error, "adding pool")
-	}
-
-	for _, tt := range tags {
-		if err := s.conn.Model(&newPool).Association("Tags").Append(&tt); err != nil {
-			return params.Pool{}, errors.Wrap(err, "saving tag")
-		}
-	}
-
-	pool, err := s.getPoolByID(ctx, newPool.ID.String(), "Tags", "Instances", "Enterprise", "Organization", "Repository")
-	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "fetching pool")
-	}
-
-	return s.sqlToCommonPool(pool)
-}
-
-func (s *sqlDatabase) ListOrgPools(ctx context.Context, orgID string) ([]params.Pool, error) {
-	pools, err := s.listEntityPools(ctx, params.OrganizationPool, orgID, "Tags", "Instances")
-	if err != nil {
-		return nil, errors.Wrap(err, "fetching pools")
-	}
-
-	ret := make([]params.Pool, len(pools))
-	for idx, pool := range pools {
-		ret[idx], err = s.sqlToCommonPool(pool)
-		if err != nil {
-			return nil, errors.Wrap(err, "fetching pool")
-		}
-	}
-
-	return ret, nil
-}
-
-func (s *sqlDatabase) GetOrganizationPool(ctx context.Context, orgID, poolID string) (params.Pool, error) {
-	pool, err := s.getEntityPool(ctx, params.OrganizationPool, orgID, poolID, "Tags", "Instances")
-	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "fetching pool")
-	}
-	return s.sqlToCommonPool(pool)
-}
-
-func (s *sqlDatabase) DeleteOrganizationPool(ctx context.Context, orgID, poolID string) error {
-	pool, err := s.getEntityPool(ctx, params.OrganizationPool, orgID, poolID)
-	if err != nil {
-		return errors.Wrap(err, "looking up org pool")
-	}
-	q := s.conn.Unscoped().Delete(&pool)
-	if q.Error != nil && !errors.Is(q.Error, gorm.ErrRecordNotFound) {
-		return errors.Wrap(q.Error, "deleting pool")
-	}
-	return nil
-}
-
-func (s *sqlDatabase) FindOrganizationPoolByTags(ctx context.Context, orgID string, tags []string) (params.Pool, error) {
-	pool, err := s.findPoolByTags(orgID, params.OrganizationPool, tags)
-	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "fetching pool")
-	}
-	return pool[0], nil
-}
-
-func (s *sqlDatabase) ListOrgInstances(ctx context.Context, orgID string) ([]params.Instance, error) {
-	pools, err := s.listEntityPools(ctx, params.OrganizationPool, orgID, "Tags", "Instances")
-	if err != nil {
-		return nil, errors.Wrap(err, "fetching org")
-	}
-	ret := []params.Instance{}
-	for _, pool := range pools {
-		for _, instance := range pool.Instances {
-			paramsInstance, err := s.sqlToParamsInstance(instance)
-			if err != nil {
-				return nil, errors.Wrap(err, "fetching instance")
-			}
-			ret = append(ret, paramsInstance)
-		}
-	}
-	return ret, nil
-}
-
-func (s *sqlDatabase) UpdateOrganizationPool(ctx context.Context, orgID, poolID string, param params.UpdatePoolParams) (params.Pool, error) {
-	pool, err := s.getEntityPool(ctx, params.OrganizationPool, orgID, poolID, "Tags", "Instances", "Enterprise", "Organization", "Repository")
-	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "fetching pool")
-	}
-
-	return s.updatePool(pool, param)
-}
-
-func (s *sqlDatabase) getPoolByID(ctx context.Context, poolID string, preload ...string) (Pool, error) {
-	u, err := uuid.Parse(poolID)
-	if err != nil {
-		return Pool{}, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
-	}
-	var pool Pool
-	q := s.conn.Model(&Pool{})
-	if len(preload) > 0 {
-		for _, item := range preload {
-			q = q.Preload(item)
-		}
-	}
-
-	q = q.Where("id = ?", u).First(&pool)
-
-	if q.Error != nil {
-		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
-			return Pool{}, runnerErrors.ErrNotFound
-		}
-		return Pool{}, errors.Wrap(q.Error, "fetching org from database")
-	}
-	return pool, nil
-}
-
-func (s *sqlDatabase) getOrgByID(ctx context.Context, id string, preload ...string) (Organization, error) {
+func (s *sqlDatabase) getOrgByID(_ context.Context, db *gorm.DB, id string, preload ...string) (Organization, error) {
 	u, err := uuid.Parse(id)
 	if err != nil {
 		return Organization{}, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
 	}
 	var org Organization
 
-	q := s.conn
+	q := db
 	if len(preload) > 0 {
 		for _, field := range preload {
 			q = q.Preload(field)
@@ -332,11 +252,14 @@ func (s *sqlDatabase) getOrgByID(ctx context.Context, id string, preload ...stri
 	return org, nil
 }
 
-func (s *sqlDatabase) getOrg(ctx context.Context, name string) (Organization, error) {
+func (s *sqlDatabase) getOrg(_ context.Context, name, endpointName string) (Organization, error) {
 	var org Organization
 
-	q := s.conn.Where("name = ? COLLATE NOCASE", name)
-	q = q.First(&org)
+	q := s.conn.Where("name = ? COLLATE NOCASE and endpoint_name = ? COLLATE NOCASE", name, endpointName).
+		Preload("Credentials").
+		Preload("Credentials.Endpoint").
+		Preload("Endpoint").
+		First(&org)
 	if q.Error != nil {
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
 			return Organization{}, runnerErrors.ErrNotFound
@@ -344,23 +267,4 @@ func (s *sqlDatabase) getOrg(ctx context.Context, name string) (Organization, er
 		return Organization{}, errors.Wrap(q.Error, "fetching org from database")
 	}
 	return org, nil
-}
-
-func (s *sqlDatabase) getOrgPoolByUniqueFields(ctx context.Context, orgID string, provider, image, flavor string) (Pool, error) {
-	org, err := s.getOrgByID(ctx, orgID)
-	if err != nil {
-		return Pool{}, errors.Wrap(err, "fetching org")
-	}
-
-	q := s.conn
-	var pool []Pool
-	err = q.Model(&org).Association("Pools").Find(&pool, "provider_name = ? and image = ? and flavor = ?", provider, image, flavor)
-	if err != nil {
-		return Pool{}, errors.Wrap(err, "fetching pool")
-	}
-	if len(pool) == 0 {
-		return Pool{}, runnerErrors.ErrNotFound
-	}
-
-	return pool[0], nil
 }

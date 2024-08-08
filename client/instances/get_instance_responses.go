@@ -6,6 +6,7 @@ package instances
 // Editing this file might prove futile when you re-run the swagger generate command
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -87,11 +88,13 @@ func (o *GetInstanceOK) Code() int {
 }
 
 func (o *GetInstanceOK) Error() string {
-	return fmt.Sprintf("[GET /instances/{instanceName}][%d] getInstanceOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /instances/{instanceName}][%d] getInstanceOK %s", 200, payload)
 }
 
 func (o *GetInstanceOK) String() string {
-	return fmt.Sprintf("[GET /instances/{instanceName}][%d] getInstanceOK  %+v", 200, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /instances/{instanceName}][%d] getInstanceOK %s", 200, payload)
 }
 
 func (o *GetInstanceOK) GetPayload() garm_params.Instance {
@@ -157,11 +160,13 @@ func (o *GetInstanceDefault) Code() int {
 }
 
 func (o *GetInstanceDefault) Error() string {
-	return fmt.Sprintf("[GET /instances/{instanceName}][%d] GetInstance default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /instances/{instanceName}][%d] GetInstance default %s", o._statusCode, payload)
 }
 
 func (o *GetInstanceDefault) String() string {
-	return fmt.Sprintf("[GET /instances/{instanceName}][%d] GetInstance default  %+v", o._statusCode, o.Payload)
+	payload, _ := json.Marshal(o.Payload)
+	return fmt.Sprintf("[GET /instances/{instanceName}][%d] GetInstance default %s", o._statusCode, payload)
 }
 
 func (o *GetInstanceDefault) GetPayload() apiserver_params.APIErrorResponse {

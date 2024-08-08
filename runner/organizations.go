@@ -20,13 +20,13 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
 	"github.com/cloudbase/garm/util/appdefaults"
-
-	"github.com/pkg/errors"
 )
 
 func (r *Runner) CreateOrganization(ctx context.Context, param params.CreateOrgParams) (org params.Organization, err error) {
@@ -38,12 +38,12 @@ func (r *Runner) CreateOrganization(ctx context.Context, param params.CreateOrgP
 		return params.Organization{}, errors.Wrap(err, "validating params")
 	}
 
-	creds, ok := r.credentials[param.CredentialsName]
-	if !ok {
+	creds, err := r.store.GetGithubCredentialsByName(ctx, param.CredentialsName, true)
+	if err != nil {
 		return params.Organization{}, runnerErrors.NewBadRequestError("credentials %s not defined", param.CredentialsName)
 	}
 
-	_, err = r.store.GetOrganization(ctx, param.Name)
+	_, err = r.store.GetOrganization(ctx, param.Name, creds.Endpoint.Name)
 	if err != nil {
 		if !errors.Is(err, runnerErrors.ErrNotFound) {
 			return params.Organization{}, errors.Wrap(err, "fetching org")
@@ -52,7 +52,7 @@ func (r *Runner) CreateOrganization(ctx context.Context, param params.CreateOrgP
 		return params.Organization{}, runnerErrors.NewConflictError("organization %s already exists", param.Name)
 	}
 
-	org, err = r.store.CreateOrganization(ctx, param.Name, creds.Name, param.WebhookSecret)
+	org, err = r.store.CreateOrganization(ctx, param.Name, creds.Name, param.WebhookSecret, param.PoolBalancerType)
 	if err != nil {
 		return params.Organization{}, errors.Wrap(err, "creating organization")
 	}
@@ -67,6 +67,8 @@ func (r *Runner) CreateOrganization(ctx context.Context, param params.CreateOrgP
 		}
 	}()
 
+	// Use the admin context in the pool manager. Any access control is already done above when
+	// updating the store.
 	poolMgr, err := r.poolManagerCtrl.CreateOrgPoolManager(r.ctx, org, r.providers, r.store)
 	if err != nil {
 		return params.Organization{}, errors.Wrap(err, "creating org pool manager")
@@ -138,18 +140,23 @@ func (r *Runner) DeleteOrganization(ctx context.Context, orgID string, keepWebho
 		return errors.Wrap(err, "fetching org")
 	}
 
-	pools, err := r.store.ListOrgPools(ctx, orgID)
+	entity, err := org.GetEntity()
+	if err != nil {
+		return errors.Wrap(err, "getting entity")
+	}
+
+	pools, err := r.store.ListEntityPools(ctx, entity)
 	if err != nil {
 		return errors.Wrap(err, "fetching org pools")
 	}
 
 	if len(pools) > 0 {
-		poolIds := []string{}
+		poolIDs := []string{}
 		for _, pool := range pools {
-			poolIds = append(poolIds, pool.ID)
+			poolIDs = append(poolIDs, pool.ID)
 		}
 
-		return runnerErrors.NewBadRequestError("org has pools defined (%s)", strings.Join(poolIds, ", "))
+		return runnerErrors.NewBadRequestError("org has pools defined (%s)", strings.Join(poolIDs, ", "))
 	}
 
 	if !keepWebhook && r.config.Default.EnableWebhookManagement {
@@ -159,6 +166,7 @@ func (r *Runner) DeleteOrganization(ctx context.Context, orgID string, keepWebho
 		}
 
 		if err := poolMgr.UninstallWebhook(ctx); err != nil {
+			// nolint:golangci-lint,godox
 			// TODO(gabriel-samfira): Should we error out here?
 			slog.With(slog.Any("error", err)).ErrorContext(
 				ctx, "failed to uninstall webhook",
@@ -184,26 +192,20 @@ func (r *Runner) UpdateOrganization(ctx context.Context, orgID string, param par
 	r.mux.Lock()
 	defer r.mux.Unlock()
 
-	org, err := r.store.GetOrganizationByID(ctx, orgID)
-	if err != nil {
-		return params.Organization{}, errors.Wrap(err, "fetching org")
+	switch param.PoolBalancerType {
+	case params.PoolBalancerTypeRoundRobin, params.PoolBalancerTypePack, params.PoolBalancerTypeNone:
+	default:
+		return params.Organization{}, runnerErrors.NewBadRequestError("invalid pool balancer type: %s", param.PoolBalancerType)
 	}
 
-	if param.CredentialsName != "" {
-		// Check that credentials are set before saving to db
-		if _, ok := r.credentials[param.CredentialsName]; !ok {
-			return params.Organization{}, runnerErrors.NewBadRequestError("invalid credentials (%s) for org %s", param.CredentialsName, org.Name)
-		}
-	}
-
-	org, err = r.store.UpdateOrganization(ctx, orgID, param)
+	org, err := r.store.UpdateOrganization(ctx, orgID, param)
 	if err != nil {
 		return params.Organization{}, errors.Wrap(err, "updating org")
 	}
 
-	poolMgr, err := r.poolManagerCtrl.UpdateOrgPoolManager(r.ctx, org)
+	poolMgr, err := r.poolManagerCtrl.GetOrgPoolManager(org)
 	if err != nil {
-		return params.Organization{}, fmt.Errorf("updating org pool manager: %w", err)
+		return params.Organization{}, fmt.Errorf("failed to get org pool manager: %w", err)
 	}
 
 	org.PoolManagerStatus = poolMgr.Status()
@@ -215,18 +217,6 @@ func (r *Runner) CreateOrgPool(ctx context.Context, orgID string, param params.C
 		return params.Pool{}, runnerErrors.ErrUnauthorized
 	}
 
-	r.mux.Lock()
-	defer r.mux.Unlock()
-
-	org, err := r.store.GetOrganizationByID(ctx, orgID)
-	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "fetching org")
-	}
-
-	if _, err := r.poolManagerCtrl.GetOrgPoolManager(org); err != nil {
-		return params.Pool{}, runnerErrors.ErrNotFound
-	}
-
 	createPoolParams, err := r.appendTagsToCreatePoolParams(param)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool params")
@@ -236,7 +226,12 @@ func (r *Runner) CreateOrgPool(ctx context.Context, orgID string, param params.C
 		param.RunnerBootstrapTimeout = appdefaults.DefaultRunnerBootstrapTimeout
 	}
 
-	pool, err := r.store.CreateOrganizationPool(ctx, orgID, createPoolParams)
+	entity := params.GithubEntity{
+		ID:         orgID,
+		EntityType: params.GithubEntityTypeOrganization,
+	}
+
+	pool, err := r.store.CreateEntityPool(ctx, entity, createPoolParams)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "creating pool")
 	}
@@ -249,10 +244,16 @@ func (r *Runner) GetOrgPoolByID(ctx context.Context, orgID, poolID string) (para
 		return params.Pool{}, runnerErrors.ErrUnauthorized
 	}
 
-	pool, err := r.store.GetOrganizationPool(ctx, orgID, poolID)
+	entity := params.GithubEntity{
+		ID:         orgID,
+		EntityType: params.GithubEntityTypeOrganization,
+	}
+
+	pool, err := r.store.GetEntityPool(ctx, entity, poolID)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}
+
 	return pool, nil
 }
 
@@ -261,27 +262,30 @@ func (r *Runner) DeleteOrgPool(ctx context.Context, orgID, poolID string) error 
 		return runnerErrors.ErrUnauthorized
 	}
 
-	// TODO: dedup instance count verification
-	pool, err := r.store.GetOrganizationPool(ctx, orgID, poolID)
-	if err != nil {
-		return errors.Wrap(err, "fetching pool")
+	entity := params.GithubEntity{
+		ID:         orgID,
+		EntityType: params.GithubEntityTypeOrganization,
 	}
 
-	instances, err := r.store.ListPoolInstances(ctx, pool.ID)
+	pool, err := r.store.GetEntityPool(ctx, entity, poolID)
 	if err != nil {
-		return errors.Wrap(err, "fetching instances")
+		if !errors.Is(err, runnerErrors.ErrNotFound) {
+			return errors.Wrap(err, "fetching pool")
+		}
+		return nil
 	}
 
+	// nolint:golangci-lint,godox
 	// TODO: implement a count function
-	if len(instances) > 0 {
+	if len(pool.Instances) > 0 {
 		runnerIDs := []string{}
-		for _, run := range instances {
+		for _, run := range pool.Instances {
 			runnerIDs = append(runnerIDs, run.ID)
 		}
 		return runnerErrors.NewBadRequestError("pool has runners: %s", strings.Join(runnerIDs, ", "))
 	}
 
-	if err := r.store.DeleteOrganizationPool(ctx, orgID, poolID); err != nil {
+	if err := r.store.DeleteEntityPool(ctx, entity, poolID); err != nil {
 		return errors.Wrap(err, "deleting pool")
 	}
 	return nil
@@ -291,8 +295,11 @@ func (r *Runner) ListOrgPools(ctx context.Context, orgID string) ([]params.Pool,
 	if !auth.IsAdmin(ctx) {
 		return []params.Pool{}, runnerErrors.ErrUnauthorized
 	}
-
-	pools, err := r.store.ListOrgPools(ctx, orgID)
+	entity := params.GithubEntity{
+		ID:         orgID,
+		EntityType: params.GithubEntityTypeOrganization,
+	}
+	pools, err := r.store.ListEntityPools(ctx, entity)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching pools")
 	}
@@ -304,7 +311,12 @@ func (r *Runner) UpdateOrgPool(ctx context.Context, orgID, poolID string, param 
 		return params.Pool{}, runnerErrors.ErrUnauthorized
 	}
 
-	pool, err := r.store.GetOrganizationPool(ctx, orgID, poolID)
+	entity := params.GithubEntity{
+		ID:         orgID,
+		EntityType: params.GithubEntityTypeOrganization,
+	}
+
+	pool, err := r.store.GetEntityPool(ctx, entity, poolID)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}
@@ -323,7 +335,7 @@ func (r *Runner) UpdateOrgPool(ctx context.Context, orgID, poolID string, param 
 		return params.Pool{}, runnerErrors.NewBadRequestError("min_idle_runners cannot be larger than max_runners")
 	}
 
-	newPool, err := r.store.UpdateOrganizationPool(ctx, orgID, poolID, param)
+	newPool, err := r.store.UpdateEntityPool(ctx, entity, poolID, param)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "updating pool")
 	}
@@ -335,18 +347,23 @@ func (r *Runner) ListOrgInstances(ctx context.Context, orgID string) ([]params.I
 		return nil, runnerErrors.ErrUnauthorized
 	}
 
-	instances, err := r.store.ListOrgInstances(ctx, orgID)
+	entity := params.GithubEntity{
+		ID:         orgID,
+		EntityType: params.GithubEntityTypeOrganization,
+	}
+
+	instances, err := r.store.ListEntityInstances(ctx, entity)
 	if err != nil {
 		return []params.Instance{}, errors.Wrap(err, "fetching instances")
 	}
 	return instances, nil
 }
 
-func (r *Runner) findOrgPoolManager(name string) (common.PoolManager, error) {
+func (r *Runner) findOrgPoolManager(name, endpointName string) (common.PoolManager, error) {
 	r.mux.Lock()
 	defer r.mux.Unlock()
 
-	org, err := r.store.GetOrganization(r.ctx, name)
+	org, err := r.store.GetOrganization(r.ctx, name, endpointName)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching org")
 	}

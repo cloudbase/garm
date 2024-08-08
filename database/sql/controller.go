@@ -15,13 +15,34 @@
 package sql
 
 import (
-	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
-	"github.com/cloudbase/garm/params"
+	"net/url"
 
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"gorm.io/gorm"
+
+	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	"github.com/cloudbase/garm/database/common"
+	"github.com/cloudbase/garm/params"
+	"github.com/cloudbase/garm/util/appdefaults"
 )
+
+func dbControllerToCommonController(dbInfo ControllerInfo) (params.ControllerInfo, error) {
+	url, err := url.JoinPath(dbInfo.WebhookBaseURL, dbInfo.ControllerID.String())
+	if err != nil {
+		return params.ControllerInfo{}, errors.Wrap(err, "joining webhook URL")
+	}
+
+	return params.ControllerInfo{
+		ControllerID:         dbInfo.ControllerID,
+		MetadataURL:          dbInfo.MetadataURL,
+		WebhookURL:           dbInfo.WebhookBaseURL,
+		ControllerWebhookURL: url,
+		CallbackURL:          dbInfo.CallbackURL,
+		MinimumJobAgeBackoff: dbInfo.MinimumJobAgeBackoff,
+		Version:              appdefaults.GetVersion(),
+	}, nil
+}
 
 func (s *sqlDatabase) ControllerInfo() (params.ControllerInfo, error) {
 	var info ControllerInfo
@@ -32,9 +53,13 @@ func (s *sqlDatabase) ControllerInfo() (params.ControllerInfo, error) {
 		}
 		return params.ControllerInfo{}, errors.Wrap(q.Error, "fetching controller info")
 	}
-	return params.ControllerInfo{
-		ControllerID: info.ControllerID,
-	}, nil
+
+	paramInfo, err := dbControllerToCommonController(info)
+	if err != nil {
+		return params.ControllerInfo{}, errors.Wrap(err, "converting controller info")
+	}
+
+	return paramInfo, nil
 }
 
 func (s *sqlDatabase) InitController() (params.ControllerInfo, error) {
@@ -48,7 +73,8 @@ func (s *sqlDatabase) InitController() (params.ControllerInfo, error) {
 	}
 
 	newInfo := ControllerInfo{
-		ControllerID: newID,
+		ControllerID:         newID,
+		MinimumJobAgeBackoff: 30,
 	}
 
 	q := s.conn.Save(&newInfo)
@@ -59,4 +85,57 @@ func (s *sqlDatabase) InitController() (params.ControllerInfo, error) {
 	return params.ControllerInfo{
 		ControllerID: newInfo.ControllerID,
 	}, nil
+}
+
+func (s *sqlDatabase) UpdateController(info params.UpdateControllerParams) (paramInfo params.ControllerInfo, err error) {
+	defer func() {
+		if err == nil {
+			s.sendNotify(common.ControllerEntityType, common.UpdateOperation, paramInfo)
+		}
+	}()
+	var dbInfo ControllerInfo
+	err = s.conn.Transaction(func(tx *gorm.DB) error {
+		q := tx.Model(&ControllerInfo{}).First(&dbInfo)
+		if q.Error != nil {
+			if errors.Is(q.Error, gorm.ErrRecordNotFound) {
+				return errors.Wrap(runnerErrors.ErrNotFound, "fetching controller info")
+			}
+			return errors.Wrap(q.Error, "fetching controller info")
+		}
+
+		if err := info.Validate(); err != nil {
+			return errors.Wrap(err, "validating controller info")
+		}
+
+		if info.MetadataURL != nil {
+			dbInfo.MetadataURL = *info.MetadataURL
+		}
+
+		if info.CallbackURL != nil {
+			dbInfo.CallbackURL = *info.CallbackURL
+		}
+
+		if info.WebhookURL != nil {
+			dbInfo.WebhookBaseURL = *info.WebhookURL
+		}
+
+		if info.MinimumJobAgeBackoff != nil {
+			dbInfo.MinimumJobAgeBackoff = *info.MinimumJobAgeBackoff
+		}
+
+		q = tx.Save(&dbInfo)
+		if q.Error != nil {
+			return errors.Wrap(q.Error, "saving controller info")
+		}
+		return nil
+	})
+	if err != nil {
+		return params.ControllerInfo{}, errors.Wrap(err, "updating controller info")
+	}
+
+	paramInfo, err = dbControllerToCommonController(dbInfo)
+	if err != nil {
+		return params.ControllerInfo{}, errors.Wrap(err, "converting controller info")
+	}
+	return paramInfo, nil
 }

@@ -40,16 +40,16 @@
 // swagger:meta
 package routers
 
-//go:generate go run github.com/go-swagger/go-swagger/cmd/swagger@v0.30.5 generate spec --input=../swagger-models.yaml --output=../swagger.yaml --include="routers|controllers"
-//go:generate go run github.com/go-swagger/go-swagger/cmd/swagger@v0.30.5 validate ../swagger.yaml
+//go:generate go run github.com/go-swagger/go-swagger/cmd/swagger@v0.31.0 generate spec --input=../swagger-models.yaml --output=../swagger.yaml --include="routers|controllers"
+//go:generate go run github.com/go-swagger/go-swagger/cmd/swagger@v0.31.0 validate ../swagger.yaml
 //go:generate rm -rf ../../client
-//go:generate go run github.com/go-swagger/go-swagger/cmd/swagger@v0.30.5 generate client --target=../../ --spec=../swagger.yaml
+//go:generate go run github.com/go-swagger/go-swagger/cmd/swagger@v0.31.0 generate client --target=../../ --spec=../swagger.yaml
 
 import (
 	_ "expvar" // Register the expvar handlers
 	"log/slog"
 	"net/http"
-	_ "net/http/pprof" // Register the pprof handlers
+	_ "net/http/pprof" //nolint:golangci-lint,gosec // Register the pprof handlers
 
 	"github.com/felixge/httpsnoop"
 	"github.com/gorilla/mux"
@@ -87,7 +87,6 @@ func requestLogger(h http.Handler) http.Handler {
 		// gathers metrics from the upstream handlers
 		metrics := httpsnoop.CaptureMetrics(h, w, r)
 
-		//prints log and metrics
 		slog.Info(
 			"access_log",
 			slog.String("method", r.Method),
@@ -101,7 +100,7 @@ func requestLogger(h http.Handler) http.Handler {
 	})
 }
 
-func NewAPIRouter(han *controllers.APIController, authMiddleware, initMiddleware, instanceMiddleware auth.Middleware, manageWebhooks bool) *mux.Router {
+func NewAPIRouter(han *controllers.APIController, authMiddleware, initMiddleware, urlsRequiredMiddleware, instanceMiddleware auth.Middleware, manageWebhooks bool) *mux.Router {
 	router := mux.NewRouter()
 	router.Use(requestLogger)
 
@@ -153,10 +152,37 @@ func NewAPIRouter(han *controllers.APIController, authMiddleware, initMiddleware
 	authRouter.Handle("/{login:login\\/?}", http.HandlerFunc(han.LoginHandler)).Methods("POST", "OPTIONS")
 	authRouter.Use(initMiddleware.Middleware)
 
+	//////////////////////////
+	// Controller endpoints //
+	//////////////////////////
+	controllerRouter := apiSubRouter.PathPrefix("/controller").Subrouter()
+	// The controller endpoints allow us to get information about the controller and update the URL endpoints.
+	// This endpoint must not be guarded by the urlsRequiredMiddleware as that would prevent the user from
+	// updating the URLs.
+	controllerRouter.Use(initMiddleware.Middleware)
+	controllerRouter.Use(authMiddleware.Middleware)
+	controllerRouter.Use(auth.AdminRequiredMiddleware)
+	// Get controller info
+	controllerRouter.Handle("/", http.HandlerFunc(han.ControllerInfoHandler)).Methods("GET", "OPTIONS")
+	controllerRouter.Handle("", http.HandlerFunc(han.ControllerInfoHandler)).Methods("GET", "OPTIONS")
+	// Update controller
+	controllerRouter.Handle("/", http.HandlerFunc(han.UpdateControllerHandler)).Methods("PUT", "OPTIONS")
+	controllerRouter.Handle("", http.HandlerFunc(han.UpdateControllerHandler)).Methods("PUT", "OPTIONS")
+
+	////////////////////////////////////
+	// API router for everything else //
+	////////////////////////////////////
 	apiRouter := apiSubRouter.PathPrefix("").Subrouter()
 	apiRouter.Use(initMiddleware.Middleware)
+	// all endpoints except the controller endpoint should return an error
+	// if the required metadata, callback and webhook URLs are not set.
+	apiRouter.Use(urlsRequiredMiddleware.Middleware)
 	apiRouter.Use(authMiddleware.Middleware)
 	apiRouter.Use(auth.AdminRequiredMiddleware)
+
+	// Legacy controller path
+	apiRouter.Handle("/controller-info/", http.HandlerFunc(han.ControllerInfoHandler)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/controller-info", http.HandlerFunc(han.ControllerInfoHandler)).Methods("GET", "OPTIONS")
 
 	// Metrics Token
 	apiRouter.Handle("/metrics-token/", http.HandlerFunc(han.MetricsTokenHandler)).Methods("GET", "OPTIONS")
@@ -340,18 +366,63 @@ func NewAPIRouter(han *controllers.APIController, authMiddleware, initMiddleware
 	apiRouter.Handle("/enterprises/", http.HandlerFunc(han.CreateEnterpriseHandler)).Methods("POST", "OPTIONS")
 	apiRouter.Handle("/enterprises", http.HandlerFunc(han.CreateEnterpriseHandler)).Methods("POST", "OPTIONS")
 
-	// Credentials and providers
-	apiRouter.Handle("/credentials/", http.HandlerFunc(han.ListCredentials)).Methods("GET", "OPTIONS")
-	apiRouter.Handle("/credentials", http.HandlerFunc(han.ListCredentials)).Methods("GET", "OPTIONS")
+	// Providers
 	apiRouter.Handle("/providers/", http.HandlerFunc(han.ListProviders)).Methods("GET", "OPTIONS")
 	apiRouter.Handle("/providers", http.HandlerFunc(han.ListProviders)).Methods("GET", "OPTIONS")
 
-	// Controller info
-	apiRouter.Handle("/controller-info/", http.HandlerFunc(han.ControllerInfoHandler)).Methods("GET", "OPTIONS")
-	apiRouter.Handle("/controller-info", http.HandlerFunc(han.ControllerInfoHandler)).Methods("GET", "OPTIONS")
+	//////////////////////
+	// Github Endpoints //
+	//////////////////////
+	// Create Github Endpoint
+	apiRouter.Handle("/github/endpoints/", http.HandlerFunc(han.CreateGithubEndpoint)).Methods("POST", "OPTIONS")
+	apiRouter.Handle("/github/endpoints", http.HandlerFunc(han.CreateGithubEndpoint)).Methods("POST", "OPTIONS")
+	// List Github Endpoints
+	apiRouter.Handle("/github/endpoints/", http.HandlerFunc(han.ListGithubEndpoints)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/github/endpoints", http.HandlerFunc(han.ListGithubEndpoints)).Methods("GET", "OPTIONS")
+	// Get Github Endpoint
+	apiRouter.Handle("/github/endpoints/{name}/", http.HandlerFunc(han.GetGithubEndpoint)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/github/endpoints/{name}", http.HandlerFunc(han.GetGithubEndpoint)).Methods("GET", "OPTIONS")
+	// Delete Github Endpoint
+	apiRouter.Handle("/github/endpoints/{name}/", http.HandlerFunc(han.DeleteGithubEndpoint)).Methods("DELETE", "OPTIONS")
+	apiRouter.Handle("/github/endpoints/{name}", http.HandlerFunc(han.DeleteGithubEndpoint)).Methods("DELETE", "OPTIONS")
+	// Update Github Endpoint
+	apiRouter.Handle("/github/endpoints/{name}/", http.HandlerFunc(han.UpdateGithubEndpoint)).Methods("PUT", "OPTIONS")
+	apiRouter.Handle("/github/endpoints/{name}", http.HandlerFunc(han.UpdateGithubEndpoint)).Methods("PUT", "OPTIONS")
 
-	// Websocket log writer
-	apiRouter.Handle("/{ws:ws\\/?}", http.HandlerFunc(han.WSHandler)).Methods("GET")
+	////////////////////////
+	// Github credentials //
+	////////////////////////
+	// Legacy credentials path
+	apiRouter.Handle("/credentials/", http.HandlerFunc(han.ListCredentials)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/credentials", http.HandlerFunc(han.ListCredentials)).Methods("GET", "OPTIONS")
+	// List Github Credentials
+	apiRouter.Handle("/github/credentials/", http.HandlerFunc(han.ListCredentials)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/github/credentials", http.HandlerFunc(han.ListCredentials)).Methods("GET", "OPTIONS")
+	// Create Github Credentials
+	apiRouter.Handle("/github/credentials/", http.HandlerFunc(han.CreateGithubCredential)).Methods("POST", "OPTIONS")
+	apiRouter.Handle("/github/credentials", http.HandlerFunc(han.CreateGithubCredential)).Methods("POST", "OPTIONS")
+	// Get Github Credential
+	apiRouter.Handle("/github/credentials/{id}/", http.HandlerFunc(han.GetGithubCredential)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/github/credentials/{id}", http.HandlerFunc(han.GetGithubCredential)).Methods("GET", "OPTIONS")
+	// Delete Github Credential
+	apiRouter.Handle("/github/credentials/{id}/", http.HandlerFunc(han.DeleteGithubCredential)).Methods("DELETE", "OPTIONS")
+	apiRouter.Handle("/github/credentials/{id}", http.HandlerFunc(han.DeleteGithubCredential)).Methods("DELETE", "OPTIONS")
+	// Update Github Credential
+	apiRouter.Handle("/github/credentials/{id}/", http.HandlerFunc(han.UpdateGithubCredential)).Methods("PUT", "OPTIONS")
+	apiRouter.Handle("/github/credentials/{id}", http.HandlerFunc(han.UpdateGithubCredential)).Methods("PUT", "OPTIONS")
+
+	/////////////////////////
+	// Websocket endpoints //
+	/////////////////////////
+	// Legacy log websocket path
+	apiRouter.Handle("/ws/", http.HandlerFunc(han.WSHandler)).Methods("GET")
+	apiRouter.Handle("/ws", http.HandlerFunc(han.WSHandler)).Methods("GET")
+	// Log websocket endpoint
+	apiRouter.Handle("/ws/logs/", http.HandlerFunc(han.WSHandler)).Methods("GET")
+	apiRouter.Handle("/ws/logs", http.HandlerFunc(han.WSHandler)).Methods("GET")
+	// DB watcher websocket endpoint
+	apiRouter.Handle("/ws/events/", http.HandlerFunc(han.EventsHandler)).Methods("GET")
+	apiRouter.Handle("/ws/events", http.HandlerFunc(han.EventsHandler)).Methods("GET")
 
 	// NotFound handler
 	apiRouter.PathPrefix("/").HandlerFunc(han.NotFoundHandler).Methods("GET", "POST", "PUT", "DELETE", "OPTIONS")

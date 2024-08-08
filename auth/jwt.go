@@ -21,13 +21,14 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
+
+	jwt "github.com/golang-jwt/jwt/v5"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	apiParams "github.com/cloudbase/garm/apiserver/params"
 	"github.com/cloudbase/garm/config"
 	dbCommon "github.com/cloudbase/garm/database/common"
-
-	jwt "github.com/golang-jwt/jwt/v5"
 )
 
 // JWTClaims holds JWT claims
@@ -37,6 +38,7 @@ type JWTClaims struct {
 	FullName    string `json:"full_name"`
 	IsAdmin     bool   `json:"is_admin"`
 	ReadMetrics bool   `json:"read_metrics"`
+	Generation  uint   `json:"generation"`
 	jwt.RegisteredClaims
 }
 
@@ -69,7 +71,18 @@ func (amw *jwtMiddleware) claimsToContext(ctx context.Context, claims *JWTClaims
 		return ctx, runnerErrors.ErrUnauthorized
 	}
 
-	ctx = PopulateContext(ctx, userInfo)
+	var expiresAt *time.Time
+	if claims.ExpiresAt != nil {
+		expires := claims.ExpiresAt.Time.UTC()
+		expiresAt = &expires
+	}
+
+	if userInfo.Generation != claims.Generation {
+		// Password was reset since token was issued. Invalidate.
+		return ctx, runnerErrors.ErrUnauthorized
+	}
+
+	ctx = PopulateContext(ctx, userInfo, expiresAt)
 	return ctx, nil
 }
 
@@ -87,6 +100,7 @@ func invalidAuthResponse(ctx context.Context, w http.ResponseWriter) {
 // Middleware implements the middleware interface
 func (amw *jwtMiddleware) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// nolint:golangci-lint,godox
 		// TODO: Log error details when authentication fails
 		ctx := r.Context()
 		authorizationHeader := r.Header.Get("authorization")
@@ -108,7 +122,6 @@ func (amw *jwtMiddleware) Middleware(next http.Handler) http.Handler {
 			}
 			return []byte(amw.cfg.Secret), nil
 		})
-
 		if err != nil {
 			invalidAuthResponse(ctx, w)
 			return

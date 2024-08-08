@@ -15,26 +15,35 @@
 package config
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"log/slog"
 	"net"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/BurntSushi/toml"
-	"github.com/cloudbase/garm/params"
-	"github.com/cloudbase/garm/util/appdefaults"
+	"github.com/bradleyfalzon/ghinstallation/v2"
 	zxcvbn "github.com/nbutton23/zxcvbn-go"
 	"github.com/pkg/errors"
+	"golang.org/x/oauth2"
+
+	"github.com/cloudbase/garm/params"
+	"github.com/cloudbase/garm/util/appdefaults"
 )
 
-type DBBackendType string
-type LogLevel string
-type LogFormat string
+type (
+	DBBackendType  string
+	LogLevel       string
+	LogFormat      string
+	GithubAuthType string
+)
 
 const (
 	// MySQLBackend represents the MySQL DB backend
@@ -64,6 +73,13 @@ const (
 	FormatJSON LogFormat = "json"
 )
 
+const (
+	// GithubAuthTypePAT is the OAuth token based authentication
+	GithubAuthTypePAT GithubAuthType = "pat"
+	// GithubAuthTypeApp is the GitHub App based authentication
+	GithubAuthTypeApp GithubAuthType = "app"
+)
+
 // NewConfig returns a new Config
 func NewConfig(cfgFile string) (*Config, error) {
 	var config Config
@@ -90,37 +106,37 @@ type Config struct {
 // Validate validates the config
 func (c *Config) Validate() error {
 	if err := c.APIServer.Validate(); err != nil {
-		return errors.Wrap(err, "validating APIServer config")
+		return fmt.Errorf("error validating apiserver config: %w", err)
 	}
 	if err := c.Database.Validate(); err != nil {
-		return errors.Wrap(err, "validating database config")
+		return fmt.Errorf("error validating database config: %w", err)
 	}
 
 	if err := c.Default.Validate(); err != nil {
-		return errors.Wrap(err, "validating default section")
+		return fmt.Errorf("error validating default config: %w", err)
 	}
 
 	for _, gh := range c.Github {
 		if err := gh.Validate(); err != nil {
-			return errors.Wrap(err, "validating github config")
+			return fmt.Errorf("error validating github config: %w", err)
 		}
 	}
 
 	if err := c.JWTAuth.Validate(); err != nil {
-		return errors.Wrap(err, "validating jwt config")
+		return fmt.Errorf("error validating jwt_auth config: %w", err)
 	}
 
 	if err := c.Logging.Validate(); err != nil {
-		return errors.Wrap(err, "validating logging config")
+		return fmt.Errorf("error validating logging config: %w", err)
 	}
 
 	providerNames := map[string]int{}
 
 	for _, provider := range c.Providers {
 		if err := provider.Validate(); err != nil {
-			return errors.Wrap(err, "validating provider")
+			return fmt.Errorf("error validating provider %s: %w", provider.Name, err)
 		}
-		providerNames[provider.Name] += 1
+		providerNames[provider.Name]++
 	}
 
 	for name, count := range providerNames {
@@ -196,20 +212,69 @@ type Default struct {
 }
 
 func (d *Default) Validate() error {
-	if d.CallbackURL == "" {
-		return fmt.Errorf("missing callback_url")
+	if d.CallbackURL != "" {
+		_, err := url.ParseRequestURI(d.CallbackURL)
+		if err != nil {
+			return fmt.Errorf("invalid callback_url: %w", err)
+		}
 	}
-	_, err := url.Parse(d.CallbackURL)
+
+	if d.MetadataURL != "" {
+		if _, err := url.ParseRequestURI(d.MetadataURL); err != nil {
+			return fmt.Errorf("invalid metadata_url: %w", err)
+		}
+	}
+
+	if d.WebhookURL != "" {
+		if _, err := url.ParseRequestURI(d.WebhookURL); err != nil {
+			return fmt.Errorf("invalid webhook_url: %w", err)
+		}
+	}
+	return nil
+}
+
+type GithubPAT struct {
+	OAuth2Token string `toml:"oauth2_token" json:"oauth2-token"`
+}
+
+type GithubApp struct {
+	AppID          int64  `toml:"app_id" json:"app-id"`
+	PrivateKeyPath string `toml:"private_key_path" json:"private-key-path"`
+	InstallationID int64  `toml:"installation_id" json:"installation-id"`
+}
+
+func (a *GithubApp) PrivateKeyBytes() ([]byte, error) {
+	keyBytes, err := os.ReadFile(a.PrivateKeyPath)
 	if err != nil {
-		return errors.Wrap(err, "validating callback_url")
+		return nil, fmt.Errorf("reading private_key_path: %w", err)
+	}
+	return keyBytes, nil
+}
+
+func (a *GithubApp) Validate() error {
+	if a.AppID == 0 {
+		return fmt.Errorf("missing app_id")
+	}
+	if a.PrivateKeyPath == "" {
+		return fmt.Errorf("missing private_key_path")
+	}
+	if a.InstallationID == 0 {
+		return fmt.Errorf("missing installation_id")
 	}
 
-	if d.MetadataURL == "" {
-		return fmt.Errorf("missing metadata-url")
+	if _, err := os.Stat(a.PrivateKeyPath); err != nil {
+		return fmt.Errorf("error accessing private_key_path: %w", err)
 	}
-
-	if _, err := url.Parse(d.MetadataURL); err != nil {
-		return errors.Wrap(err, "validating metadata_url")
+	// Read the private key as bytes
+	keyBytes, err := os.ReadFile(a.PrivateKeyPath)
+	if err != nil {
+		return fmt.Errorf("reading private_key_path: %w", err)
+	}
+	block, _ := pem.Decode(keyBytes)
+	// Parse the private key as PCKS1
+	_, err = x509.ParsePKCS1PrivateKey(block.Bytes)
+	if err != nil {
+		return fmt.Errorf("parsing private_key_path: %w", err)
 	}
 
 	return nil
@@ -218,8 +283,11 @@ func (d *Default) Validate() error {
 // Github hold configuration options specific to interacting with github.
 // Currently that is just a OAuth2 personal token.
 type Github struct {
-	Name          string `toml:"name" json:"name"`
-	Description   string `toml:"description" json:"description"`
+	Name        string `toml:"name" json:"name"`
+	Description string `toml:"description" json:"description"`
+	// OAuth2Token is the personal access token used to authenticate with the
+	// github API. This is deprecated and will be removed in the future.
+	// Use the PAT section instead.
 	OAuth2Token   string `toml:"oauth2_token" json:"oauth2-token"`
 	APIBaseURL    string `toml:"api_base_url" json:"api-base-url"`
 	UploadBaseURL string `toml:"upload_base_url" json:"upload-base-url"`
@@ -227,7 +295,17 @@ type Github struct {
 	// CACertBundlePath is the path on disk to a CA certificate bundle that
 	// can validate the endpoints defined above. Leave empty if not using a
 	// self signed certificate.
-	CACertBundlePath string `toml:"ca_cert_bundle" json:"ca-cert-bundle"`
+	CACertBundlePath string         `toml:"ca_cert_bundle" json:"ca-cert-bundle"`
+	AuthType         GithubAuthType `toml:"auth_type" json:"auth-type"`
+	PAT              GithubPAT      `toml:"pat" json:"pat"`
+	App              GithubApp      `toml:"app" json:"app"`
+}
+
+func (g *Github) GetAuthType() GithubAuthType {
+	if g.AuthType == "" {
+		return GithubAuthTypePAT
+	}
+	return g.AuthType
 }
 
 func (g *Github) APIEndpoint() string {
@@ -243,12 +321,12 @@ func (g *Github) CACertBundle() ([]byte, error) {
 		return nil, nil
 	}
 	if _, err := os.Stat(g.CACertBundlePath); err != nil {
-		return nil, errors.Wrap(err, "accessing CA bundle")
+		return nil, fmt.Errorf("error accessing ca_cert_bundle: %w", err)
 	}
 
 	contents, err := os.ReadFile(g.CACertBundlePath)
 	if err != nil {
-		return nil, errors.Wrap(err, "reading CA bundle")
+		return nil, fmt.Errorf("reading ca_cert_bundle: %w", err)
 	}
 
 	roots := x509.NewCertPool()
@@ -277,11 +355,97 @@ func (g *Github) BaseEndpoint() string {
 }
 
 func (g *Github) Validate() error {
-	if g.OAuth2Token == "" {
-		return fmt.Errorf("missing github oauth2 token")
+	if g.Name == "" {
+		return fmt.Errorf("missing credentials name")
+	}
+	if g.Description == "" {
+		return fmt.Errorf("missing credentials description")
+	}
+
+	if g.APIBaseURL != "" {
+		if _, err := url.ParseRequestURI(g.APIBaseURL); err != nil {
+			return fmt.Errorf("invalid api_base_url: %w", err)
+		}
+	}
+
+	if g.UploadBaseURL != "" {
+		if _, err := url.ParseRequestURI(g.UploadBaseURL); err != nil {
+			return fmt.Errorf("invalid upload_base_url: %w", err)
+		}
+	}
+
+	if g.BaseURL != "" {
+		if _, err := url.ParseRequestURI(g.BaseURL); err != nil {
+			return fmt.Errorf("invalid base_url: %w", err)
+		}
+	}
+
+	switch g.AuthType {
+	case GithubAuthTypeApp:
+		if err := g.App.Validate(); err != nil {
+			return fmt.Errorf("invalid github app config: %w", err)
+		}
+	default:
+		if g.OAuth2Token == "" && g.PAT.OAuth2Token == "" {
+			return fmt.Errorf("missing github oauth2 token")
+		}
+		if g.OAuth2Token != "" {
+			slog.Warn("the github.oauth2_token option is deprecated, please use the PAT section")
+		}
 	}
 
 	return nil
+}
+
+func (g *Github) HTTPClient(ctx context.Context) (*http.Client, error) {
+	if err := g.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid github config: %w", err)
+	}
+	var roots *x509.CertPool
+	caBundle, err := g.CACertBundle()
+	if err != nil {
+		return nil, fmt.Errorf("fetching CA cert bundle: %w", err)
+	}
+	if caBundle != nil {
+		roots = x509.NewCertPool()
+		ok := roots.AppendCertsFromPEM(caBundle)
+		if !ok {
+			return nil, fmt.Errorf("failed to parse CA cert")
+		}
+	}
+	// nolint:golangci-lint,gosec,godox
+	// TODO: set TLS MinVersion
+	httpTransport := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			RootCAs: roots,
+		},
+	}
+
+	var tc *http.Client
+	switch g.AuthType {
+	case GithubAuthTypeApp:
+		itr, err := ghinstallation.NewKeyFromFile(httpTransport, g.App.AppID, g.App.InstallationID, g.App.PrivateKeyPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create github app installation transport: %w", err)
+		}
+
+		tc = &http.Client{Transport: itr}
+	default:
+		httpClient := &http.Client{Transport: httpTransport}
+		ctx = context.WithValue(ctx, oauth2.HTTPClient, httpClient)
+
+		token := g.PAT.OAuth2Token
+		if token == "" {
+			token = g.OAuth2Token
+		}
+
+		ts := oauth2.StaticTokenSource(
+			&oauth2.Token{AccessToken: token},
+		)
+		tc = oauth2.NewClient(ctx, ts)
+	}
+
+	return tc, nil
 }
 
 // Provider holds access information for a particular provider.
@@ -305,7 +469,7 @@ func (p *Provider) Validate() error {
 	switch p.ProviderType {
 	case params.ExternalProvider:
 		if err := p.External.Validate(); err != nil {
-			return errors.Wrap(err, "validating external provider info")
+			return fmt.Errorf("invalid external provider config: %w", err)
 		}
 	default:
 		return fmt.Errorf("unknown provider type: %s", p.ProviderType)
@@ -325,6 +489,11 @@ type Database struct {
 	// Don't lose or change this. It will invalidate all encrypted data
 	// in the DB. This field must be set and must be exactly 32 characters.
 	Passphrase string `toml:"passphrase"`
+
+	// MigrateCredentials is a list of github credentials that need to be migrated
+	// from the config file to the database. This field will be removed once GARM
+	// reaches version 0.2.x. It's only meant to be used for the migration process.
+	MigrateCredentials []Github `toml:"-"`
 }
 
 // GormParams returns the database type and connection URI
@@ -368,11 +537,11 @@ func (d *Database) Validate() error {
 	switch d.DbBackend {
 	case MySQLBackend:
 		if err := d.MySQL.Validate(); err != nil {
-			return errors.Wrap(err, "validating mysql config")
+			return fmt.Errorf("validating mysql config: %w", err)
 		}
 	case SQLiteBackend:
 		if err := d.SQLite.Validate(); err != nil {
-			return errors.Wrap(err, "validating sqlite3 config")
+			return fmt.Errorf("validating sqlite3 config: %w", err)
 		}
 	default:
 		return fmt.Errorf("invalid database backend: %s", d.DbBackend)
@@ -396,7 +565,7 @@ func (s *SQLite) Validate() error {
 
 	parent := filepath.Dir(s.DBFile)
 	if _, err := os.Stat(parent); err != nil {
-		return errors.Wrapf(err, "accessing db_file parent dir: %s", parent)
+		return fmt.Errorf("parent directory of db_file does not exist: %w", err)
 	}
 	return nil
 }
@@ -456,8 +625,39 @@ func (t *TLSConfig) Validate() error {
 }
 
 type Metrics struct {
+	// DisableAuth defines if the API endpoint will be protected by
+	// JWT authentication
 	DisableAuth bool `toml:"disable_auth" json:"disable-auth"`
-	Enable      bool `toml:"enable" json:"enable"`
+	// Enable define if the API endpoint for metrics collection will
+	// be enabled
+	Enable bool `toml:"enable" json:"enable"`
+	// Period defines the internal period at which internal metrics are getting updated
+	// and propagated to the /metrics endpoint
+	Period time.Duration `toml:"period" json:"period"`
+}
+
+// ParseDuration parses the configured duration and returns a time.Duration of 0
+// if the duration is invalid.
+func (m *Metrics) ParseDuration() (time.Duration, error) {
+	duration, err := time.ParseDuration(fmt.Sprint(m.Period))
+	if err != nil {
+		return 0, err
+	}
+	return duration, nil
+}
+
+// Duration returns the configured duration or the default duration if no value
+// is configured or the configured value is invalid.
+func (m *Metrics) Duration() time.Duration {
+	duration, err := m.ParseDuration()
+	if err != nil {
+		slog.With(slog.Any("error", err)).Error(fmt.Sprintf("defined duration %s is invalid", m.Period))
+	}
+	if duration == 0 {
+		slog.Debug(fmt.Sprintf("using default duration %s for metrics update interval", appdefaults.DefaultMetricsUpdateInterval))
+		return appdefaults.DefaultMetricsUpdateInterval
+	}
+	return duration
 }
 
 // APIServer holds configuration for the API server
@@ -479,7 +679,7 @@ func (a *APIServer) BindAddress() string {
 func (a *APIServer) Validate() error {
 	if a.UseTLS {
 		if err := a.TLSConfig.Validate(); err != nil {
-			return errors.Wrap(err, "TLS validation failed")
+			return fmt.Errorf("invalid tls config: %w", err)
 		}
 	}
 	if a.Port > 65535 || a.Port < 1 {
@@ -512,6 +712,7 @@ func (d *timeToLive) Duration() time.Duration {
 		slog.With(slog.Any("error", err)).Error("failed to parse duration")
 		return appdefaults.DefaultJWTTTL
 	}
+	// nolint:golangci-lint,godox
 	// TODO(gabriel-samfira): should we have a minimum TTL?
 	if duration < appdefaults.DefaultJWTTTL {
 		return appdefaults.DefaultJWTTTL
@@ -523,7 +724,7 @@ func (d *timeToLive) Duration() time.Duration {
 func (d *timeToLive) UnmarshalText(text []byte) error {
 	_, err := time.ParseDuration(string(text))
 	if err != nil {
-		return errors.Wrap(err, "parsing time_to_live")
+		return fmt.Errorf("invalid duration: %w", err)
 	}
 
 	*d = timeToLive(text)
@@ -539,7 +740,7 @@ type JWTAuth struct {
 // Validate validates the JWTAuth config
 func (j *JWTAuth) Validate() error {
 	if _, err := j.TimeToLive.ParseDuration(); err != nil {
-		return errors.Wrap(err, "parsing duration")
+		return fmt.Errorf("invalid time_to_live: %w", err)
 	}
 
 	if j.Secret == "" {

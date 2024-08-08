@@ -20,13 +20,13 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
 	"github.com/cloudbase/garm/util/appdefaults"
-
-	"github.com/pkg/errors"
 )
 
 func (r *Runner) CreateRepository(ctx context.Context, param params.CreateRepoParams) (repo params.Repository, err error) {
@@ -38,12 +38,12 @@ func (r *Runner) CreateRepository(ctx context.Context, param params.CreateRepoPa
 		return params.Repository{}, errors.Wrap(err, "validating params")
 	}
 
-	creds, ok := r.credentials[param.CredentialsName]
-	if !ok {
+	creds, err := r.store.GetGithubCredentialsByName(ctx, param.CredentialsName, true)
+	if err != nil {
 		return params.Repository{}, runnerErrors.NewBadRequestError("credentials %s not defined", param.CredentialsName)
 	}
 
-	_, err = r.store.GetRepository(ctx, param.Owner, param.Name)
+	_, err = r.store.GetRepository(ctx, param.Owner, param.Name, creds.Endpoint.Name)
 	if err != nil {
 		if !errors.Is(err, runnerErrors.ErrNotFound) {
 			return params.Repository{}, errors.Wrap(err, "fetching repo")
@@ -52,7 +52,7 @@ func (r *Runner) CreateRepository(ctx context.Context, param params.CreateRepoPa
 		return params.Repository{}, runnerErrors.NewConflictError("repository %s/%s already exists", param.Owner, param.Name)
 	}
 
-	repo, err = r.store.CreateRepository(ctx, param.Owner, param.Name, creds.Name, param.WebhookSecret)
+	repo, err = r.store.CreateRepository(ctx, param.Owner, param.Name, creds.Name, param.WebhookSecret, param.PoolBalancerType)
 	if err != nil {
 		return params.Repository{}, errors.Wrap(err, "creating repository")
 	}
@@ -67,6 +67,8 @@ func (r *Runner) CreateRepository(ctx context.Context, param params.CreateRepoPa
 		}
 	}()
 
+	// Use the admin context in the pool manager. Any access control is already done above when
+	// updating the store.
 	poolMgr, err := r.poolManagerCtrl.CreateRepoPoolManager(r.ctx, repo, r.providers, r.store)
 	if err != nil {
 		return params.Repository{}, errors.Wrap(err, "creating repo pool manager")
@@ -137,18 +139,23 @@ func (r *Runner) DeleteRepository(ctx context.Context, repoID string, keepWebhoo
 		return errors.Wrap(err, "fetching repo")
 	}
 
-	pools, err := r.store.ListRepoPools(ctx, repoID)
+	entity, err := repo.GetEntity()
+	if err != nil {
+		return errors.Wrap(err, "getting entity")
+	}
+
+	pools, err := r.store.ListEntityPools(ctx, entity)
 	if err != nil {
 		return errors.Wrap(err, "fetching repo pools")
 	}
 
 	if len(pools) > 0 {
-		poolIds := []string{}
+		poolIDs := []string{}
 		for _, pool := range pools {
-			poolIds = append(poolIds, pool.ID)
+			poolIDs = append(poolIDs, pool.ID)
 		}
 
-		return runnerErrors.NewBadRequestError("repo has pools defined (%s)", strings.Join(poolIds, ", "))
+		return runnerErrors.NewBadRequestError("repo has pools defined (%s)", strings.Join(poolIDs, ", "))
 	}
 
 	if !keepWebhook && r.config.Default.EnableWebhookManagement {
@@ -158,6 +165,7 @@ func (r *Runner) DeleteRepository(ctx context.Context, repoID string, keepWebhoo
 		}
 
 		if err := poolMgr.UninstallWebhook(ctx); err != nil {
+			// nolint:golangci-lint,godox
 			// TODO(gabriel-samfira): Should we error out here?
 			slog.With(slog.Any("error", err)).ErrorContext(
 				ctx, "failed to uninstall webhook",
@@ -183,26 +191,21 @@ func (r *Runner) UpdateRepository(ctx context.Context, repoID string, param para
 	r.mux.Lock()
 	defer r.mux.Unlock()
 
-	repo, err := r.store.GetRepositoryByID(ctx, repoID)
-	if err != nil {
-		return params.Repository{}, errors.Wrap(err, "fetching repo")
+	switch param.PoolBalancerType {
+	case params.PoolBalancerTypeRoundRobin, params.PoolBalancerTypePack, params.PoolBalancerTypeNone:
+	default:
+		return params.Repository{}, runnerErrors.NewBadRequestError("invalid pool balancer type: %s", param.PoolBalancerType)
 	}
 
-	if param.CredentialsName != "" {
-		// Check that credentials are set before saving to db
-		if _, ok := r.credentials[param.CredentialsName]; !ok {
-			return params.Repository{}, runnerErrors.NewBadRequestError("invalid credentials (%s) for repo %s/%s", param.CredentialsName, repo.Owner, repo.Name)
-		}
-	}
-
-	repo, err = r.store.UpdateRepository(ctx, repoID, param)
+	slog.InfoContext(ctx, "updating repository", "repo_id", repoID, "param", param)
+	repo, err := r.store.UpdateRepository(ctx, repoID, param)
 	if err != nil {
 		return params.Repository{}, errors.Wrap(err, "updating repo")
 	}
 
-	poolMgr, err := r.poolManagerCtrl.UpdateRepoPoolManager(r.ctx, repo)
+	poolMgr, err := r.poolManagerCtrl.GetRepoPoolManager(repo)
 	if err != nil {
-		return params.Repository{}, fmt.Errorf("failed to update pool manager: %w", err)
+		return params.Repository{}, fmt.Errorf("failed to get pool manager: %w", err)
 	}
 
 	repo.PoolManagerStatus = poolMgr.Status()
@@ -214,30 +217,23 @@ func (r *Runner) CreateRepoPool(ctx context.Context, repoID string, param params
 		return params.Pool{}, runnerErrors.ErrUnauthorized
 	}
 
-	r.mux.Lock()
-	defer r.mux.Unlock()
-
-	repo, err := r.store.GetRepositoryByID(ctx, repoID)
-	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "fetching repo")
-	}
-
-	if _, err := r.poolManagerCtrl.GetRepoPoolManager(repo); err != nil {
-		return params.Pool{}, runnerErrors.ErrNotFound
-	}
-
 	createPoolParams, err := r.appendTagsToCreatePoolParams(param)
 	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "fetching pool params")
+		return params.Pool{}, fmt.Errorf("failed to append tags to create pool params: %w", err)
 	}
 
 	if createPoolParams.RunnerBootstrapTimeout == 0 {
 		createPoolParams.RunnerBootstrapTimeout = appdefaults.DefaultRunnerBootstrapTimeout
 	}
 
-	pool, err := r.store.CreateRepositoryPool(ctx, repoID, createPoolParams)
+	entity := params.GithubEntity{
+		ID:         repoID,
+		EntityType: params.GithubEntityTypeRepository,
+	}
+
+	pool, err := r.store.CreateEntityPool(ctx, entity, createPoolParams)
 	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "creating pool")
+		return params.Pool{}, fmt.Errorf("failed to create pool: %w", err)
 	}
 
 	return pool, nil
@@ -248,10 +244,16 @@ func (r *Runner) GetRepoPoolByID(ctx context.Context, repoID, poolID string) (pa
 		return params.Pool{}, runnerErrors.ErrUnauthorized
 	}
 
-	pool, err := r.store.GetRepositoryPool(ctx, repoID, poolID)
+	entity := params.GithubEntity{
+		ID:         repoID,
+		EntityType: params.GithubEntityTypeRepository,
+	}
+
+	pool, err := r.store.GetEntityPool(ctx, entity, poolID)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}
+
 	return pool, nil
 }
 
@@ -260,26 +262,26 @@ func (r *Runner) DeleteRepoPool(ctx context.Context, repoID, poolID string) erro
 		return runnerErrors.ErrUnauthorized
 	}
 
-	pool, err := r.store.GetRepositoryPool(ctx, repoID, poolID)
+	entity := params.GithubEntity{
+		ID:         repoID,
+		EntityType: params.GithubEntityTypeRepository,
+	}
+	pool, err := r.store.GetEntityPool(ctx, entity, poolID)
 	if err != nil {
 		return errors.Wrap(err, "fetching pool")
 	}
 
-	instances, err := r.store.ListPoolInstances(ctx, pool.ID)
-	if err != nil {
-		return errors.Wrap(err, "fetching instances")
-	}
-
+	// nolint:golangci-lint,godox
 	// TODO: implement a count function
-	if len(instances) > 0 {
+	if len(pool.Instances) > 0 {
 		runnerIDs := []string{}
-		for _, run := range instances {
+		for _, run := range pool.Instances {
 			runnerIDs = append(runnerIDs, run.ID)
 		}
 		return runnerErrors.NewBadRequestError("pool has runners: %s", strings.Join(runnerIDs, ", "))
 	}
 
-	if err := r.store.DeleteRepositoryPool(ctx, repoID, poolID); err != nil {
+	if err := r.store.DeleteEntityPool(ctx, entity, poolID); err != nil {
 		return errors.Wrap(err, "deleting pool")
 	}
 	return nil
@@ -289,8 +291,11 @@ func (r *Runner) ListRepoPools(ctx context.Context, repoID string) ([]params.Poo
 	if !auth.IsAdmin(ctx) {
 		return []params.Pool{}, runnerErrors.ErrUnauthorized
 	}
-
-	pools, err := r.store.ListRepoPools(ctx, repoID)
+	entity := params.GithubEntity{
+		ID:         repoID,
+		EntityType: params.GithubEntityTypeRepository,
+	}
+	pools, err := r.store.ListEntityPools(ctx, entity)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching pools")
 	}
@@ -314,7 +319,11 @@ func (r *Runner) UpdateRepoPool(ctx context.Context, repoID, poolID string, para
 		return params.Pool{}, runnerErrors.ErrUnauthorized
 	}
 
-	pool, err := r.store.GetRepositoryPool(ctx, repoID, poolID)
+	entity := params.GithubEntity{
+		ID:         repoID,
+		EntityType: params.GithubEntityTypeRepository,
+	}
+	pool, err := r.store.GetEntityPool(ctx, entity, poolID)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool")
 	}
@@ -333,7 +342,7 @@ func (r *Runner) UpdateRepoPool(ctx context.Context, repoID, poolID string, para
 		return params.Pool{}, runnerErrors.NewBadRequestError("min_idle_runners cannot be larger than max_runners")
 	}
 
-	newPool, err := r.store.UpdateRepositoryPool(ctx, repoID, poolID, param)
+	newPool, err := r.store.UpdateEntityPool(ctx, entity, poolID, param)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "updating pool")
 	}
@@ -344,19 +353,22 @@ func (r *Runner) ListRepoInstances(ctx context.Context, repoID string) ([]params
 	if !auth.IsAdmin(ctx) {
 		return nil, runnerErrors.ErrUnauthorized
 	}
-
-	instances, err := r.store.ListRepoInstances(ctx, repoID)
+	entity := params.GithubEntity{
+		ID:         repoID,
+		EntityType: params.GithubEntityTypeRepository,
+	}
+	instances, err := r.store.ListEntityInstances(ctx, entity)
 	if err != nil {
 		return []params.Instance{}, errors.Wrap(err, "fetching instances")
 	}
 	return instances, nil
 }
 
-func (r *Runner) findRepoPoolManager(owner, name string) (common.PoolManager, error) {
+func (r *Runner) findRepoPoolManager(owner, name, endpointName string) (common.PoolManager, error) {
 	r.mux.Lock()
 	defer r.mux.Unlock()
 
-	repo, err := r.store.GetRepository(r.ctx, owner, name)
+	repo, err := r.store.GetRepository(r.ctx, owner, name, endpointName)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching repo")
 	}

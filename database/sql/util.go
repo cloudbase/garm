@@ -18,14 +18,16 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/cloudbase/garm-provider-common/util"
-	"github.com/cloudbase/garm/params"
-
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 
+	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
+	"github.com/cloudbase/garm-provider-common/util"
+	dbCommon "github.com/cloudbase/garm/database/common"
+	"github.com/cloudbase/garm/params"
 )
 
 func (s *sqlDatabase) sqlToParamsInstance(instance Instance) (params.Instance, error) {
@@ -70,6 +72,14 @@ func (s *sqlDatabase) sqlToParamsInstance(instance Instance) (params.Instance, e
 		AditionalLabels:   labels,
 	}
 
+	if instance.Job != nil {
+		paramJob, err := sqlWorkflowJobToParamsJob(*instance.Job)
+		if err != nil {
+			return params.Instance{}, errors.Wrap(err, "converting job")
+		}
+		ret.Job = &paramJob
+	}
+
 	if len(instance.ProviderFault) > 0 {
 		ret.ProviderFault = instance.ProviderFault
 	}
@@ -96,7 +106,7 @@ func (s *sqlDatabase) sqlAddressToParamsAddress(addr Address) commonParams.Addre
 	}
 }
 
-func (s *sqlDatabase) sqlToCommonOrganization(org Organization) (params.Organization, error) {
+func (s *sqlDatabase) sqlToCommonOrganization(org Organization, detailed bool) (params.Organization, error) {
 	if len(org.WebhookSecret) == 0 {
 		return params.Organization{}, errors.New("missing secret")
 	}
@@ -105,12 +115,34 @@ func (s *sqlDatabase) sqlToCommonOrganization(org Organization) (params.Organiza
 		return params.Organization{}, errors.Wrap(err, "decrypting secret")
 	}
 
+	endpoint, err := s.sqlToCommonGithubEndpoint(org.Endpoint)
+	if err != nil {
+		return params.Organization{}, errors.Wrap(err, "converting endpoint")
+	}
 	ret := params.Organization{
-		ID:              org.ID.String(),
-		Name:            org.Name,
-		CredentialsName: org.CredentialsName,
-		Pools:           make([]params.Pool, len(org.Pools)),
-		WebhookSecret:   string(secret),
+		ID:               org.ID.String(),
+		Name:             org.Name,
+		CredentialsName:  org.Credentials.Name,
+		Pools:            make([]params.Pool, len(org.Pools)),
+		WebhookSecret:    string(secret),
+		PoolBalancerType: org.PoolBalancerType,
+		Endpoint:         endpoint,
+	}
+
+	if org.CredentialsID != nil {
+		ret.CredentialsID = *org.CredentialsID
+	}
+
+	if detailed {
+		creds, err := s.sqlToCommonGithubCredentials(org.Credentials)
+		if err != nil {
+			return params.Organization{}, errors.Wrap(err, "converting credentials")
+		}
+		ret.Credentials = creds
+	}
+
+	if ret.PoolBalancerType == "" {
+		ret.PoolBalancerType = params.PoolBalancerTypeRoundRobin
 	}
 
 	for idx, pool := range org.Pools {
@@ -123,7 +155,7 @@ func (s *sqlDatabase) sqlToCommonOrganization(org Organization) (params.Organiza
 	return ret, nil
 }
 
-func (s *sqlDatabase) sqlToCommonEnterprise(enterprise Enterprise) (params.Enterprise, error) {
+func (s *sqlDatabase) sqlToCommonEnterprise(enterprise Enterprise, detailed bool) (params.Enterprise, error) {
 	if len(enterprise.WebhookSecret) == 0 {
 		return params.Enterprise{}, errors.New("missing secret")
 	}
@@ -132,12 +164,34 @@ func (s *sqlDatabase) sqlToCommonEnterprise(enterprise Enterprise) (params.Enter
 		return params.Enterprise{}, errors.Wrap(err, "decrypting secret")
 	}
 
+	endpoint, err := s.sqlToCommonGithubEndpoint(enterprise.Endpoint)
+	if err != nil {
+		return params.Enterprise{}, errors.Wrap(err, "converting endpoint")
+	}
 	ret := params.Enterprise{
-		ID:              enterprise.ID.String(),
-		Name:            enterprise.Name,
-		CredentialsName: enterprise.CredentialsName,
-		Pools:           make([]params.Pool, len(enterprise.Pools)),
-		WebhookSecret:   string(secret),
+		ID:               enterprise.ID.String(),
+		Name:             enterprise.Name,
+		CredentialsName:  enterprise.Credentials.Name,
+		Pools:            make([]params.Pool, len(enterprise.Pools)),
+		WebhookSecret:    string(secret),
+		PoolBalancerType: enterprise.PoolBalancerType,
+		Endpoint:         endpoint,
+	}
+
+	if enterprise.CredentialsID != nil {
+		ret.CredentialsID = *enterprise.CredentialsID
+	}
+
+	if detailed {
+		creds, err := s.sqlToCommonGithubCredentials(enterprise.Credentials)
+		if err != nil {
+			return params.Enterprise{}, errors.Wrap(err, "converting credentials")
+		}
+		ret.Credentials = creds
+	}
+
+	if ret.PoolBalancerType == "" {
+		ret.PoolBalancerType = params.PoolBalancerTypeRoundRobin
 	}
 
 	for idx, pool := range enterprise.Pools {
@@ -169,6 +223,7 @@ func (s *sqlDatabase) sqlToCommonPool(pool Pool) (params.Pool, error) {
 		RunnerBootstrapTimeout: pool.RunnerBootstrapTimeout,
 		ExtraSpecs:             json.RawMessage(pool.ExtraSpecs),
 		GitHubRunnerGroup:      pool.GitHubRunnerGroup,
+		Priority:               pool.Priority,
 	}
 
 	if pool.RepoID != nil {
@@ -210,7 +265,7 @@ func (s *sqlDatabase) sqlToCommonTags(tag Tag) params.Tag {
 	}
 }
 
-func (s *sqlDatabase) sqlToCommonRepository(repo Repository) (params.Repository, error) {
+func (s *sqlDatabase) sqlToCommonRepository(repo Repository, detailed bool) (params.Repository, error) {
 	if len(repo.WebhookSecret) == 0 {
 		return params.Repository{}, errors.New("missing secret")
 	}
@@ -218,14 +273,35 @@ func (s *sqlDatabase) sqlToCommonRepository(repo Repository) (params.Repository,
 	if err != nil {
 		return params.Repository{}, errors.Wrap(err, "decrypting secret")
 	}
-
+	endpoint, err := s.sqlToCommonGithubEndpoint(repo.Endpoint)
+	if err != nil {
+		return params.Repository{}, errors.Wrap(err, "converting endpoint")
+	}
 	ret := params.Repository{
-		ID:              repo.ID.String(),
-		Name:            repo.Name,
-		Owner:           repo.Owner,
-		CredentialsName: repo.CredentialsName,
-		Pools:           make([]params.Pool, len(repo.Pools)),
-		WebhookSecret:   string(secret),
+		ID:               repo.ID.String(),
+		Name:             repo.Name,
+		Owner:            repo.Owner,
+		CredentialsName:  repo.Credentials.Name,
+		Pools:            make([]params.Pool, len(repo.Pools)),
+		WebhookSecret:    string(secret),
+		PoolBalancerType: repo.PoolBalancerType,
+		Endpoint:         endpoint,
+	}
+
+	if repo.CredentialsID != nil {
+		ret.CredentialsID = *repo.CredentialsID
+	}
+
+	if detailed {
+		creds, err := s.sqlToCommonGithubCredentials(repo.Credentials)
+		if err != nil {
+			return params.Repository{}, errors.Wrap(err, "converting credentials")
+		}
+		ret.Credentials = creds
+	}
+
+	if ret.PoolBalancerType == "" {
+		ret.PoolBalancerType = params.PoolBalancerTypeRoundRobin
 	}
 
 	for idx, pool := range repo.Pools {
@@ -240,21 +316,22 @@ func (s *sqlDatabase) sqlToCommonRepository(repo Repository) (params.Repository,
 
 func (s *sqlDatabase) sqlToParamsUser(user User) params.User {
 	return params.User{
-		ID:        user.ID.String(),
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
-		Email:     user.Email,
-		Username:  user.Username,
-		FullName:  user.FullName,
-		Password:  user.Password,
-		Enabled:   user.Enabled,
-		IsAdmin:   user.IsAdmin,
+		ID:         user.ID.String(),
+		CreatedAt:  user.CreatedAt,
+		UpdatedAt:  user.UpdatedAt,
+		Email:      user.Email,
+		Username:   user.Username,
+		FullName:   user.FullName,
+		Password:   user.Password,
+		Enabled:    user.Enabled,
+		IsAdmin:    user.IsAdmin,
+		Generation: user.Generation,
 	}
 }
 
-func (s *sqlDatabase) getOrCreateTag(tagName string) (Tag, error) {
+func (s *sqlDatabase) getOrCreateTag(tx *gorm.DB, tagName string) (Tag, error) {
 	var tag Tag
-	q := s.conn.Where("name = ?", tagName).First(&tag)
+	q := tx.Where("name = ?", tagName).First(&tag)
 	if q.Error == nil {
 		return tag, nil
 	}
@@ -265,14 +342,13 @@ func (s *sqlDatabase) getOrCreateTag(tagName string) (Tag, error) {
 		Name: tagName,
 	}
 
-	q = s.conn.Create(&newTag)
-	if q.Error != nil {
-		return Tag{}, errors.Wrap(q.Error, "creating tag")
+	if err := tx.Create(&newTag).Error; err != nil {
+		return Tag{}, errors.Wrap(err, "creating tag")
 	}
 	return newTag, nil
 }
 
-func (s *sqlDatabase) updatePool(pool Pool, param params.UpdatePoolParams) (params.Pool, error) {
+func (s *sqlDatabase) updatePool(tx *gorm.DB, pool Pool, param params.UpdatePoolParams) (params.Pool, error) {
 	if param.Enabled != nil && pool.Enabled != *param.Enabled {
 		pool.Enabled = *param.Enabled
 	}
@@ -317,24 +393,114 @@ func (s *sqlDatabase) updatePool(pool Pool, param params.UpdatePoolParams) (para
 		pool.GitHubRunnerGroup = *param.GitHubRunnerGroup
 	}
 
-	if q := s.conn.Save(&pool); q.Error != nil {
+	if param.Priority != nil {
+		pool.Priority = *param.Priority
+	}
+
+	if q := tx.Save(&pool); q.Error != nil {
 		return params.Pool{}, errors.Wrap(q.Error, "saving database entry")
 	}
 
 	tags := []Tag{}
 	if param.Tags != nil && len(param.Tags) > 0 {
 		for _, val := range param.Tags {
-			t, err := s.getOrCreateTag(val)
+			t, err := s.getOrCreateTag(tx, val)
 			if err != nil {
 				return params.Pool{}, errors.Wrap(err, "fetching tag")
 			}
 			tags = append(tags, t)
 		}
 
-		if err := s.conn.Model(&pool).Association("Tags").Replace(&tags); err != nil {
+		if err := tx.Model(&pool).Association("Tags").Replace(&tags); err != nil {
 			return params.Pool{}, errors.Wrap(err, "replacing tags")
 		}
 	}
 
 	return s.sqlToCommonPool(pool)
+}
+
+func (s *sqlDatabase) getPoolByID(tx *gorm.DB, poolID string, preload ...string) (Pool, error) {
+	u, err := uuid.Parse(poolID)
+	if err != nil {
+		return Pool{}, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
+	}
+	var pool Pool
+	q := tx.Model(&Pool{})
+	if len(preload) > 0 {
+		for _, item := range preload {
+			q = q.Preload(item)
+		}
+	}
+
+	q = q.Where("id = ?", u).First(&pool)
+
+	if q.Error != nil {
+		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
+			return Pool{}, runnerErrors.ErrNotFound
+		}
+		return Pool{}, errors.Wrap(q.Error, "fetching org from database")
+	}
+	return pool, nil
+}
+
+func (s *sqlDatabase) hasGithubEntity(tx *gorm.DB, entityType params.GithubEntityType, entityID string) error {
+	u, err := uuid.Parse(entityID)
+	if err != nil {
+		return errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
+	}
+	var q *gorm.DB
+	switch entityType {
+	case params.GithubEntityTypeRepository:
+		q = tx.Model(&Repository{}).Where("id = ?", u)
+	case params.GithubEntityTypeOrganization:
+		q = tx.Model(&Organization{}).Where("id = ?", u)
+	case params.GithubEntityTypeEnterprise:
+		q = tx.Model(&Enterprise{}).Where("id = ?", u)
+	default:
+		return errors.Wrap(runnerErrors.ErrBadRequest, "invalid entity type")
+	}
+
+	var entity interface{}
+	if err := q.First(entity).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.Wrap(runnerErrors.ErrNotFound, "entity not found")
+		}
+		return errors.Wrap(err, "fetching entity from database")
+	}
+	return nil
+}
+
+func (s *sqlDatabase) marshalAndSeal(data interface{}) ([]byte, error) {
+	enc, err := json.Marshal(data)
+	if err != nil {
+		return nil, errors.Wrap(err, "marshalling data")
+	}
+	return util.Seal(enc, []byte(s.cfg.Passphrase))
+}
+
+func (s *sqlDatabase) unsealAndUnmarshal(data []byte, target interface{}) error {
+	decrypted, err := util.Unseal(data, []byte(s.cfg.Passphrase))
+	if err != nil {
+		return errors.Wrap(err, "decrypting data")
+	}
+	if err := json.Unmarshal(decrypted, target); err != nil {
+		return errors.Wrap(err, "unmarshalling data")
+	}
+	return nil
+}
+
+func (s *sqlDatabase) sendNotify(entityType dbCommon.DatabaseEntityType, op dbCommon.OperationType, payload interface{}) error {
+	if s.producer == nil {
+		// no producer was registered. Not sending notifications.
+		return nil
+	}
+	if payload == nil {
+		return errors.New("missing payload")
+	}
+	message := dbCommon.ChangePayload{
+		Operation:  op,
+		Payload:    payload,
+		EntityType: entityType,
+	}
+	return s.producer.Notify(message)
 }

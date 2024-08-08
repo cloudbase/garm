@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/cloudbase/garm/config"
-
 	jwt "github.com/golang-jwt/jwt/v5"
+
+	"github.com/cloudbase/garm/config"
 )
 
 type MetricsMiddleware struct {
@@ -23,7 +23,6 @@ func NewMetricsMiddleware(cfg config.JWTAuth) (*MetricsMiddleware, error) {
 
 func (m *MetricsMiddleware) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
 		ctx := r.Context()
 		authorizationHeader := r.Header.Get("authorization")
 		if authorizationHeader == "" {
@@ -44,7 +43,6 @@ func (m *MetricsMiddleware) Middleware(next http.Handler) http.Handler {
 			}
 			return []byte(m.cfg.Secret), nil
 		})
-
 		if err != nil {
 			invalidAuthResponse(ctx, w)
 			return

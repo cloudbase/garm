@@ -17,11 +17,11 @@ package cmd
 import (
 	"fmt"
 
-	apiClientEnterprises "github.com/cloudbase/garm/client/enterprises"
-	"github.com/cloudbase/garm/params"
-
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/spf13/cobra"
+
+	apiClientEnterprises "github.com/cloudbase/garm/client/enterprises"
+	"github.com/cloudbase/garm/params"
 )
 
 var (
@@ -50,16 +50,17 @@ var enterpriseAddCmd = &cobra.Command{
 	Short:        "Add enterprise",
 	Long:         `Add a new enterprise to the manager.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, _ []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
 
 		newEnterpriseReq := apiClientEnterprises.NewCreateEnterpriseParams()
 		newEnterpriseReq.Body = params.CreateEnterpriseParams{
-			Name:            enterpriseName,
-			WebhookSecret:   enterpriseWebhookSecret,
-			CredentialsName: enterpriseCreds,
+			Name:             enterpriseName,
+			WebhookSecret:    enterpriseWebhookSecret,
+			CredentialsName:  enterpriseCreds,
+			PoolBalancerType: params.PoolBalancerType(poolBalancerType),
 		}
 		response, err := apiCli.Enterprises.CreateEnterprise(newEnterpriseReq, authToken)
 		if err != nil {
@@ -76,7 +77,7 @@ var enterpriseListCmd = &cobra.Command{
 	Short:        "List enterprises",
 	Long:         `List all configured enterprises that are currently managed.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, _ []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -96,7 +97,7 @@ var enterpriseShowCmd = &cobra.Command{
 	Short:        "Show details for one enterprise",
 	Long:         `Displays detailed information about a single enterprise.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -123,7 +124,7 @@ var enterpriseDeleteCmd = &cobra.Command{
 	Short:        "Removes one enterprise",
 	Long:         `Delete one enterprise from the manager.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -147,7 +148,7 @@ var enterpriseUpdateCmd = &cobra.Command{
 	Short:        "Update enterprise",
 	Long:         `Update enterprise credentials or webhook secret.`,
 	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -161,8 +162,9 @@ var enterpriseUpdateCmd = &cobra.Command{
 		}
 		updateEnterpriseReq := apiClientEnterprises.NewUpdateEnterpriseParams()
 		updateEnterpriseReq.Body = params.UpdateEntityParams{
-			WebhookSecret:   repoWebhookSecret,
-			CredentialsName: repoCreds,
+			WebhookSecret:    repoWebhookSecret,
+			CredentialsName:  repoCreds,
+			PoolBalancerType: params.PoolBalancerType(poolBalancerType),
 		}
 		updateEnterpriseReq.EnterpriseID = args[0]
 		response, err := apiCli.Enterprises.UpdateEnterprise(updateEnterpriseReq, authToken)
@@ -175,15 +177,16 @@ var enterpriseUpdateCmd = &cobra.Command{
 }
 
 func init() {
-
 	enterpriseAddCmd.Flags().StringVar(&enterpriseName, "name", "", "The name of the enterprise")
 	enterpriseAddCmd.Flags().StringVar(&enterpriseWebhookSecret, "webhook-secret", "", "The webhook secret for this enterprise")
 	enterpriseAddCmd.Flags().StringVar(&enterpriseCreds, "credentials", "", "Credentials name. See credentials list.")
+	enterpriseAddCmd.Flags().StringVar(&poolBalancerType, "pool-balancer-type", string(params.PoolBalancerTypeRoundRobin), "The balancing strategy to use when creating runners in pools matching requested labels.")
 
 	enterpriseAddCmd.MarkFlagRequired("credentials") //nolint
 	enterpriseAddCmd.MarkFlagRequired("name")        //nolint
 	enterpriseUpdateCmd.Flags().StringVar(&enterpriseWebhookSecret, "webhook-secret", "", "The webhook secret for this enterprise")
 	enterpriseUpdateCmd.Flags().StringVar(&enterpriseCreds, "credentials", "", "Credentials name. See credentials list.")
+	enterpriseUpdateCmd.Flags().StringVar(&poolBalancerType, "pool-balancer-type", "", "The balancing strategy to use when creating runners in pools matching requested labels.")
 
 	enterpriseCmd.AddCommand(
 		enterpriseListCmd,
@@ -198,10 +201,10 @@ func init() {
 
 func formatEnterprises(enterprises []params.Enterprise) {
 	t := table.NewWriter()
-	header := table.Row{"ID", "Name", "Credentials name", "Pool mgr running"}
+	header := table.Row{"ID", "Name", "Endpoint", "Credentials name", "Pool Balancer Type", "Pool mgr running"}
 	t.AppendHeader(header)
 	for _, val := range enterprises {
-		t.AppendRow(table.Row{val.ID, val.Name, val.CredentialsName, val.PoolManagerStatus.IsRunning})
+		t.AppendRow(table.Row{val.ID, val.Name, val.Endpoint.Name, val.Credentials.Name, val.GetBalancerType(), val.PoolManagerStatus.IsRunning})
 		t.AppendSeparator()
 	}
 	fmt.Println(t.Render())
@@ -214,7 +217,9 @@ func formatOneEnterprise(enterprise params.Enterprise) {
 	t.AppendHeader(header)
 	t.AppendRow(table.Row{"ID", enterprise.ID})
 	t.AppendRow(table.Row{"Name", enterprise.Name})
-	t.AppendRow(table.Row{"Credentials", enterprise.CredentialsName})
+	t.AppendRow(table.Row{"Endpoint", enterprise.Endpoint.Name})
+	t.AppendRow(table.Row{"Pool balancer type", enterprise.GetBalancerType()})
+	t.AppendRow(table.Row{"Credentials", enterprise.Credentials.Name})
 	t.AppendRow(table.Row{"Pool manager running", enterprise.PoolManagerStatus.IsRunning})
 	if !enterprise.PoolManagerStatus.IsRunning {
 		t.AppendRow(table.Row{"Failure reason", enterprise.PoolManagerStatus.FailureReason})

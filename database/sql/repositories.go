@@ -17,18 +17,25 @@ package sql
 import (
 	"context"
 	"fmt"
-
-	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
-	"github.com/cloudbase/garm-provider-common/util"
-	"github.com/cloudbase/garm/params"
+	"log/slog"
 
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
-	"gorm.io/datatypes"
 	"gorm.io/gorm"
+
+	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	"github.com/cloudbase/garm-provider-common/util"
+	"github.com/cloudbase/garm/database/common"
+	"github.com/cloudbase/garm/params"
 )
 
-func (s *sqlDatabase) CreateRepository(ctx context.Context, owner, name, credentialsName, webhookSecret string) (params.Repository, error) {
+func (s *sqlDatabase) CreateRepository(ctx context.Context, owner, name, credentialsName, webhookSecret string, poolBalancerType params.PoolBalancerType) (param params.Repository, err error) {
+	defer func() {
+		if err == nil {
+			s.sendNotify(common.RepositoryEntityType, common.CreateOperation, param)
+		}
+	}()
+
 	if webhookSecret == "" {
 		return params.Repository{}, errors.New("creating repo: missing secret")
 	}
@@ -36,19 +43,40 @@ func (s *sqlDatabase) CreateRepository(ctx context.Context, owner, name, credent
 	if err != nil {
 		return params.Repository{}, fmt.Errorf("failed to encrypt string")
 	}
+
 	newRepo := Repository{
-		Name:            name,
-		Owner:           owner,
-		WebhookSecret:   secret,
-		CredentialsName: credentialsName,
+		Name:             name,
+		Owner:            owner,
+		WebhookSecret:    secret,
+		PoolBalancerType: poolBalancerType,
+	}
+	err = s.conn.Transaction(func(tx *gorm.DB) error {
+		creds, err := s.getGithubCredentialsByName(ctx, tx, credentialsName, false)
+		if err != nil {
+			return errors.Wrap(err, "creating repository")
+		}
+		if creds.EndpointName == nil {
+			return errors.Wrap(runnerErrors.ErrUnprocessable, "credentials have no endpoint")
+		}
+		newRepo.CredentialsID = &creds.ID
+		newRepo.CredentialsName = creds.Name
+		newRepo.EndpointName = creds.EndpointName
+
+		q := tx.Create(&newRepo)
+		if q.Error != nil {
+			return errors.Wrap(q.Error, "creating repository")
+		}
+
+		newRepo.Credentials = creds
+		newRepo.Endpoint = creds.Endpoint
+
+		return nil
+	})
+	if err != nil {
+		return params.Repository{}, errors.Wrap(err, "creating repository")
 	}
 
-	q := s.conn.Create(&newRepo)
-	if q.Error != nil {
-		return params.Repository{}, errors.Wrap(q.Error, "creating repository")
-	}
-
-	param, err := s.sqlToCommonRepository(newRepo)
+	param, err = s.sqlToCommonRepository(newRepo, true)
 	if err != nil {
 		return params.Repository{}, errors.Wrap(err, "creating repository")
 	}
@@ -56,13 +84,13 @@ func (s *sqlDatabase) CreateRepository(ctx context.Context, owner, name, credent
 	return param, nil
 }
 
-func (s *sqlDatabase) GetRepository(ctx context.Context, owner, name string) (params.Repository, error) {
-	repo, err := s.getRepo(ctx, owner, name)
+func (s *sqlDatabase) GetRepository(ctx context.Context, owner, name, endpointName string) (params.Repository, error) {
+	repo, err := s.getRepo(ctx, owner, name, endpointName)
 	if err != nil {
 		return params.Repository{}, errors.Wrap(err, "fetching repo")
 	}
 
-	param, err := s.sqlToCommonRepository(repo)
+	param, err := s.sqlToCommonRepository(repo, true)
 	if err != nil {
 		return params.Repository{}, errors.Wrap(err, "fetching repo")
 	}
@@ -70,9 +98,13 @@ func (s *sqlDatabase) GetRepository(ctx context.Context, owner, name string) (pa
 	return param, nil
 }
 
-func (s *sqlDatabase) ListRepositories(ctx context.Context) ([]params.Repository, error) {
+func (s *sqlDatabase) ListRepositories(_ context.Context) ([]params.Repository, error) {
 	var repos []Repository
-	q := s.conn.Find(&repos)
+	q := s.conn.
+		Preload("Credentials").
+		Preload("Credentials.Endpoint").
+		Preload("Endpoint").
+		Find(&repos)
 	if q.Error != nil {
 		return []params.Repository{}, errors.Wrap(q.Error, "fetching user from database")
 	}
@@ -80,7 +112,7 @@ func (s *sqlDatabase) ListRepositories(ctx context.Context) ([]params.Repository
 	ret := make([]params.Repository, len(repos))
 	for idx, val := range repos {
 		var err error
-		ret[idx], err = s.sqlToCommonRepository(val)
+		ret[idx], err = s.sqlToCommonRepository(val, true)
 		if err != nil {
 			return nil, errors.Wrap(err, "fetching repositories")
 		}
@@ -89,11 +121,22 @@ func (s *sqlDatabase) ListRepositories(ctx context.Context) ([]params.Repository
 	return ret, nil
 }
 
-func (s *sqlDatabase) DeleteRepository(ctx context.Context, repoID string) error {
-	repo, err := s.getRepoByID(ctx, repoID)
+func (s *sqlDatabase) DeleteRepository(ctx context.Context, repoID string) (err error) {
+	repo, err := s.getRepoByID(ctx, s.conn, repoID, "Endpoint", "Credentials", "Credentials.Endpoint")
 	if err != nil {
 		return errors.Wrap(err, "fetching repo")
 	}
+
+	defer func(repo Repository) {
+		if err == nil {
+			asParam, innerErr := s.sqlToCommonRepository(repo, true)
+			if innerErr == nil {
+				s.sendNotify(common.RepositoryEntityType, common.DeleteOperation, asParam)
+			} else {
+				slog.With(slog.Any("error", innerErr)).ErrorContext(ctx, "error sending delete notification", "repo", repoID)
+			}
+		}
+	}(repo)
 
 	q := s.conn.Unscoped().Delete(&repo)
 	if q.Error != nil && !errors.Is(q.Error, gorm.ErrRecordNotFound) {
@@ -103,30 +146,69 @@ func (s *sqlDatabase) DeleteRepository(ctx context.Context, repoID string) error
 	return nil
 }
 
-func (s *sqlDatabase) UpdateRepository(ctx context.Context, repoID string, param params.UpdateEntityParams) (params.Repository, error) {
-	repo, err := s.getRepoByID(ctx, repoID)
-	if err != nil {
-		return params.Repository{}, errors.Wrap(err, "fetching repo")
-	}
-
-	if param.CredentialsName != "" {
-		repo.CredentialsName = param.CredentialsName
-	}
-
-	if param.WebhookSecret != "" {
-		secret, err := util.Seal([]byte(param.WebhookSecret), []byte(s.cfg.Passphrase))
-		if err != nil {
-			return params.Repository{}, fmt.Errorf("saving repo: failed to encrypt string: %w", err)
+func (s *sqlDatabase) UpdateRepository(ctx context.Context, repoID string, param params.UpdateEntityParams) (newParams params.Repository, err error) {
+	defer func() {
+		if err == nil {
+			s.sendNotify(common.RepositoryEntityType, common.UpdateOperation, newParams)
 		}
-		repo.WebhookSecret = secret
+	}()
+	var repo Repository
+	var creds GithubCredentials
+	err = s.conn.Transaction(func(tx *gorm.DB) error {
+		var err error
+		repo, err = s.getRepoByID(ctx, tx, repoID)
+		if err != nil {
+			return errors.Wrap(err, "fetching repo")
+		}
+		if repo.EndpointName == nil {
+			return errors.Wrap(runnerErrors.ErrUnprocessable, "repository has no endpoint")
+		}
+
+		if param.CredentialsName != "" {
+			repo.CredentialsName = param.CredentialsName
+			creds, err = s.getGithubCredentialsByName(ctx, tx, param.CredentialsName, false)
+			if err != nil {
+				return errors.Wrap(err, "fetching credentials")
+			}
+			if creds.EndpointName == nil {
+				return errors.Wrap(runnerErrors.ErrUnprocessable, "credentials have no endpoint")
+			}
+
+			if *creds.EndpointName != *repo.EndpointName {
+				return errors.Wrap(runnerErrors.ErrBadRequest, "endpoint mismatch")
+			}
+			repo.CredentialsID = &creds.ID
+		}
+
+		if param.WebhookSecret != "" {
+			secret, err := util.Seal([]byte(param.WebhookSecret), []byte(s.cfg.Passphrase))
+			if err != nil {
+				return fmt.Errorf("saving repo: failed to encrypt string: %w", err)
+			}
+			repo.WebhookSecret = secret
+		}
+
+		if param.PoolBalancerType != "" {
+			repo.PoolBalancerType = param.PoolBalancerType
+		}
+
+		q := tx.Save(&repo)
+		if q.Error != nil {
+			return errors.Wrap(q.Error, "saving repo")
+		}
+
+		return nil
+	})
+	if err != nil {
+		return params.Repository{}, errors.Wrap(err, "saving repo")
 	}
 
-	q := s.conn.Save(&repo)
-	if q.Error != nil {
-		return params.Repository{}, errors.Wrap(q.Error, "saving repo")
+	repo, err = s.getRepoByID(ctx, s.conn, repoID, "Endpoint", "Credentials", "Credentials.Endpoint")
+	if err != nil {
+		return params.Repository{}, errors.Wrap(err, "updating enterprise")
 	}
 
-	newParams, err := s.sqlToCommonRepository(repo)
+	newParams, err = s.sqlToCommonRepository(repo, true)
 	if err != nil {
 		return params.Repository{}, errors.Wrap(err, "saving repo")
 	}
@@ -134,161 +216,25 @@ func (s *sqlDatabase) UpdateRepository(ctx context.Context, repoID string, param
 }
 
 func (s *sqlDatabase) GetRepositoryByID(ctx context.Context, repoID string) (params.Repository, error) {
-	repo, err := s.getRepoByID(ctx, repoID, "Pools")
+	repo, err := s.getRepoByID(ctx, s.conn, repoID, "Pools", "Credentials", "Endpoint")
 	if err != nil {
 		return params.Repository{}, errors.Wrap(err, "fetching repo")
 	}
 
-	param, err := s.sqlToCommonRepository(repo)
+	param, err := s.sqlToCommonRepository(repo, true)
 	if err != nil {
 		return params.Repository{}, errors.Wrap(err, "fetching repo")
 	}
 	return param, nil
 }
 
-func (s *sqlDatabase) CreateRepositoryPool(ctx context.Context, repoId string, param params.CreatePoolParams) (params.Pool, error) {
-	if len(param.Tags) == 0 {
-		return params.Pool{}, runnerErrors.NewBadRequestError("no tags specified")
-	}
-
-	repo, err := s.getRepoByID(ctx, repoId)
-	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "fetching repo")
-	}
-
-	newPool := Pool{
-		ProviderName:           param.ProviderName,
-		MaxRunners:             param.MaxRunners,
-		MinIdleRunners:         param.MinIdleRunners,
-		RunnerPrefix:           param.GetRunnerPrefix(),
-		Image:                  param.Image,
-		Flavor:                 param.Flavor,
-		OSType:                 param.OSType,
-		OSArch:                 param.OSArch,
-		RepoID:                 &repo.ID,
-		Enabled:                param.Enabled,
-		RunnerBootstrapTimeout: param.RunnerBootstrapTimeout,
-		GitHubRunnerGroup:      param.GitHubRunnerGroup,
-	}
-
-	if len(param.ExtraSpecs) > 0 {
-		newPool.ExtraSpecs = datatypes.JSON(param.ExtraSpecs)
-	}
-
-	_, err = s.getRepoPoolByUniqueFields(ctx, repoId, newPool.ProviderName, newPool.Image, newPool.Flavor)
-	if err != nil {
-		if !errors.Is(err, runnerErrors.ErrNotFound) {
-			return params.Pool{}, errors.Wrap(err, "creating pool")
-		}
-	} else {
-		return params.Pool{}, runnerErrors.NewConflictError("pool with the same image and flavor already exists on this provider")
-	}
-
-	tags := []Tag{}
-	for _, val := range param.Tags {
-		t, err := s.getOrCreateTag(val)
-		if err != nil {
-			return params.Pool{}, errors.Wrap(err, "fetching tag")
-		}
-		tags = append(tags, t)
-	}
-
-	q := s.conn.Create(&newPool)
-	if q.Error != nil {
-		return params.Pool{}, errors.Wrap(q.Error, "adding pool")
-	}
-
-	for _, tt := range tags {
-		if err := s.conn.Model(&newPool).Association("Tags").Append(&tt); err != nil {
-			return params.Pool{}, errors.Wrap(err, "saving tag")
-		}
-	}
-
-	pool, err := s.getPoolByID(ctx, newPool.ID.String(), "Tags", "Instances", "Enterprise", "Organization", "Repository")
-	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "fetching pool")
-	}
-
-	return s.sqlToCommonPool(pool)
-}
-
-func (s *sqlDatabase) ListRepoPools(ctx context.Context, repoID string) ([]params.Pool, error) {
-	pools, err := s.listEntityPools(ctx, params.RepositoryPool, repoID, "Tags", "Instances")
-	if err != nil {
-		return nil, errors.Wrap(err, "fetching pools")
-	}
-
-	ret := make([]params.Pool, len(pools))
-	for idx, pool := range pools {
-		ret[idx], err = s.sqlToCommonPool(pool)
-		if err != nil {
-			return nil, errors.Wrap(err, "fetching pool")
-		}
-	}
-
-	return ret, nil
-}
-
-func (s *sqlDatabase) GetRepositoryPool(ctx context.Context, repoID, poolID string) (params.Pool, error) {
-	pool, err := s.getEntityPool(ctx, params.RepositoryPool, repoID, poolID, "Tags", "Instances")
-	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "fetching pool")
-	}
-	return s.sqlToCommonPool(pool)
-}
-
-func (s *sqlDatabase) DeleteRepositoryPool(ctx context.Context, repoID, poolID string) error {
-	pool, err := s.getEntityPool(ctx, params.RepositoryPool, repoID, poolID)
-	if err != nil {
-		return errors.Wrap(err, "looking up repo pool")
-	}
-	q := s.conn.Unscoped().Delete(&pool)
-	if q.Error != nil && !errors.Is(q.Error, gorm.ErrRecordNotFound) {
-		return errors.Wrap(q.Error, "deleting pool")
-	}
-	return nil
-}
-
-func (s *sqlDatabase) FindRepositoryPoolByTags(ctx context.Context, repoID string, tags []string) (params.Pool, error) {
-	pool, err := s.findPoolByTags(repoID, params.RepositoryPool, tags)
-	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "fetching pool")
-	}
-	return pool[0], nil
-}
-
-func (s *sqlDatabase) ListRepoInstances(ctx context.Context, repoID string) ([]params.Instance, error) {
-	pools, err := s.listEntityPools(ctx, params.RepositoryPool, repoID, "Tags", "Instances")
-	if err != nil {
-		return nil, errors.Wrap(err, "fetching repo")
-	}
-
-	ret := []params.Instance{}
-	for _, pool := range pools {
-		for _, instance := range pool.Instances {
-			paramsInstance, err := s.sqlToParamsInstance(instance)
-			if err != nil {
-				return nil, errors.Wrap(err, "fetching instance")
-			}
-			ret = append(ret, paramsInstance)
-		}
-	}
-	return ret, nil
-}
-
-func (s *sqlDatabase) UpdateRepositoryPool(ctx context.Context, repoID, poolID string, param params.UpdatePoolParams) (params.Pool, error) {
-	pool, err := s.getEntityPool(ctx, params.RepositoryPool, repoID, poolID, "Tags", "Instances", "Enterprise", "Organization", "Repository")
-	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "fetching pool")
-	}
-
-	return s.updatePool(pool, param)
-}
-
-func (s *sqlDatabase) getRepo(ctx context.Context, owner, name string) (Repository, error) {
+func (s *sqlDatabase) getRepo(_ context.Context, owner, name, endpointName string) (Repository, error) {
 	var repo Repository
 
-	q := s.conn.Where("name = ? COLLATE NOCASE and owner = ? COLLATE NOCASE", name, owner).
+	q := s.conn.Where("name = ? COLLATE NOCASE and owner = ? COLLATE NOCASE and endpoint_name = ? COLLATE NOCASE", name, owner, endpointName).
+		Preload("Credentials").
+		Preload("Credentials.Endpoint").
+		Preload("Endpoint").
 		First(&repo)
 
 	q = q.First(&repo)
@@ -302,33 +248,14 @@ func (s *sqlDatabase) getRepo(ctx context.Context, owner, name string) (Reposito
 	return repo, nil
 }
 
-func (s *sqlDatabase) getRepoPoolByUniqueFields(ctx context.Context, repoID string, provider, image, flavor string) (Pool, error) {
-	repo, err := s.getRepoByID(ctx, repoID)
-	if err != nil {
-		return Pool{}, errors.Wrap(err, "fetching repo")
-	}
-
-	q := s.conn
-	var pool []Pool
-	err = q.Model(&repo).Association("Pools").Find(&pool, "provider_name = ? and image = ? and flavor = ?", provider, image, flavor)
-	if err != nil {
-		return Pool{}, errors.Wrap(err, "fetching pool")
-	}
-	if len(pool) == 0 {
-		return Pool{}, runnerErrors.ErrNotFound
-	}
-
-	return pool[0], nil
-}
-
-func (s *sqlDatabase) getRepoByID(ctx context.Context, id string, preload ...string) (Repository, error) {
+func (s *sqlDatabase) getRepoByID(_ context.Context, tx *gorm.DB, id string, preload ...string) (Repository, error) {
 	u, err := uuid.Parse(id)
 	if err != nil {
 		return Repository{}, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
 	}
 	var repo Repository
 
-	q := s.conn
+	q := tx
 	if len(preload) > 0 {
 		for _, field := range preload {
 			q = q.Preload(field)

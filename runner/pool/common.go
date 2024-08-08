@@ -1,13 +1,16 @@
 package pool
 
 import (
+	"context"
+	"net/http"
 	"net/url"
 	"strings"
 
-	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
-	"github.com/cloudbase/garm/params"
 	"github.com/google/go-github/v57/github"
 	"github.com/pkg/errors"
+
+	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	"github.com/cloudbase/garm/params"
 )
 
 func validateHookRequest(controllerID, baseURL string, allHooks []*github.Hook, req *github.Hook) error {
@@ -60,4 +63,26 @@ func hookToParamsHookInfo(hook *github.Hook) params.HookInfo {
 		Active:      *hook.Active,
 		InsecureSSL: insecureSSL,
 	}
+}
+
+func (r *basePoolManager) listHooks(ctx context.Context) ([]*github.Hook, error) {
+	opts := github.ListOptions{
+		PerPage: 100,
+	}
+	var allHooks []*github.Hook
+	for {
+		hooks, ghResp, err := r.ghcli.ListEntityHooks(ctx, &opts)
+		if err != nil {
+			if ghResp != nil && ghResp.StatusCode == http.StatusNotFound {
+				return nil, runnerErrors.NewBadRequestError("repository not found or your PAT does not have access to manage webhooks")
+			}
+			return nil, errors.Wrap(err, "fetching hooks")
+		}
+		allHooks = append(allHooks, hooks...)
+		if ghResp.NextPage == 0 {
+			break
+		}
+		opts.Page = ghResp.NextPage
+	}
+	return allHooks, nil
 }

@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -26,8 +27,13 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
+	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/config"
 	"github.com/cloudbase/garm/database/common"
+	"github.com/cloudbase/garm/database/watcher"
+	"github.com/cloudbase/garm/params"
+	"github.com/cloudbase/garm/util/appdefaults"
 )
 
 // newDBConn returns a new gorm db connection, given the config
@@ -63,10 +69,15 @@ func NewSQLDatabase(ctx context.Context, cfg config.Database) (common.Store, err
 	if err != nil {
 		return nil, errors.Wrap(err, "creating DB connection")
 	}
+	producer, err := watcher.RegisterProducer(ctx, "sql")
+	if err != nil {
+		return nil, errors.Wrap(err, "registering producer")
+	}
 	db := &sqlDatabase{
-		conn: conn,
-		ctx:  ctx,
-		cfg:  cfg,
+		conn:     conn,
+		ctx:      ctx,
+		cfg:      cfg,
+		producer: producer,
 	}
 
 	if err := db.migrateDB(); err != nil {
@@ -76,9 +87,10 @@ func NewSQLDatabase(ctx context.Context, cfg config.Database) (common.Store, err
 }
 
 type sqlDatabase struct {
-	conn *gorm.DB
-	ctx  context.Context
-	cfg  config.Database
+	conn     *gorm.DB
+	ctx      context.Context
+	cfg      config.Database
+	producer common.Producer
 }
 
 var renameTemplate = `
@@ -190,6 +202,163 @@ func (s *sqlDatabase) cascadeMigration() error {
 	return nil
 }
 
+func (s *sqlDatabase) ensureGithubEndpoint() error {
+	// Create the default Github endpoint.
+	createEndpointParams := params.CreateGithubEndpointParams{
+		Name:          "github.com",
+		Description:   "The github.com endpoint",
+		APIBaseURL:    appdefaults.GithubDefaultBaseURL,
+		BaseURL:       appdefaults.DefaultGithubURL,
+		UploadBaseURL: appdefaults.GithubDefaultUploadBaseURL,
+	}
+
+	if _, err := s.CreateGithubEndpoint(context.Background(), createEndpointParams); err != nil {
+		if !errors.Is(err, runnerErrors.ErrDuplicateEntity) {
+			return errors.Wrap(err, "creating default github endpoint")
+		}
+	}
+
+	return nil
+}
+
+func (s *sqlDatabase) migrateCredentialsToDB() (err error) {
+	s.conn.Exec("PRAGMA foreign_keys = OFF")
+	defer s.conn.Exec("PRAGMA foreign_keys = ON")
+
+	adminUser, err := s.GetAdminUser(s.ctx)
+	if err != nil {
+		if errors.Is(err, runnerErrors.ErrNotFound) {
+			// Admin user doesn't exist. This is a new deploy. Nothing to migrate.
+			return nil
+		}
+		return errors.Wrap(err, "getting admin user")
+	}
+
+	// Impersonate the admin user. We're migrating from config credentials to
+	// database credentials. At this point, there is no other user than the admin
+	// user. GARM is not yet multi-user, so it's safe to assume we only have this
+	// one user.
+	adminCtx := context.Background()
+	adminCtx = auth.PopulateContext(adminCtx, adminUser, nil)
+
+	slog.Info("migrating credentials to DB")
+	slog.Info("creating github endpoints table")
+	if err := s.conn.AutoMigrate(&GithubEndpoint{}); err != nil {
+		return errors.Wrap(err, "migrating github endpoints")
+	}
+
+	defer func() {
+		if err != nil {
+			slog.With(slog.Any("error", err)).Error("rolling back github github endpoints table")
+			s.conn.Migrator().DropTable(&GithubEndpoint{})
+		}
+	}()
+
+	slog.Info("creating github credentials table")
+	if err := s.conn.AutoMigrate(&GithubCredentials{}); err != nil {
+		return errors.Wrap(err, "migrating github credentials")
+	}
+
+	defer func() {
+		if err != nil {
+			slog.With(slog.Any("error", err)).Error("rolling back github github credentials table")
+			s.conn.Migrator().DropTable(&GithubCredentials{})
+		}
+	}()
+
+	// Nothing to migrate.
+	if len(s.cfg.MigrateCredentials) == 0 {
+		return nil
+	}
+
+	slog.Info("importing credentials from config")
+	for _, cred := range s.cfg.MigrateCredentials {
+		slog.Info("importing credential", "name", cred.Name)
+		parsed, err := url.Parse(cred.BaseEndpoint())
+		if err != nil {
+			return errors.Wrap(err, "parsing base URL")
+		}
+
+		certBundle, err := cred.CACertBundle()
+		if err != nil {
+			return errors.Wrap(err, "getting CA cert bundle")
+		}
+		hostname := parsed.Hostname()
+		createParams := params.CreateGithubEndpointParams{
+			Name:          hostname,
+			Description:   fmt.Sprintf("Endpoint for %s", hostname),
+			APIBaseURL:    cred.APIEndpoint(),
+			BaseURL:       cred.BaseEndpoint(),
+			UploadBaseURL: cred.UploadEndpoint(),
+			CACertBundle:  certBundle,
+		}
+
+		var endpoint params.GithubEndpoint
+		endpoint, err = s.GetGithubEndpoint(adminCtx, hostname)
+		if err != nil {
+			if !errors.Is(err, runnerErrors.ErrNotFound) {
+				return errors.Wrap(err, "getting github endpoint")
+			}
+			endpoint, err = s.CreateGithubEndpoint(adminCtx, createParams)
+			if err != nil {
+				return errors.Wrap(err, "creating default github endpoint")
+			}
+		}
+
+		credParams := params.CreateGithubCredentialsParams{
+			Name:        cred.Name,
+			Description: cred.Description,
+			Endpoint:    endpoint.Name,
+			AuthType:    params.GithubAuthType(cred.GetAuthType()),
+		}
+		switch credParams.AuthType {
+		case params.GithubAuthTypeApp:
+			keyBytes, err := cred.App.PrivateKeyBytes()
+			if err != nil {
+				return errors.Wrap(err, "getting private key bytes")
+			}
+			credParams.App = params.GithubApp{
+				AppID:           cred.App.AppID,
+				InstallationID:  cred.App.InstallationID,
+				PrivateKeyBytes: keyBytes,
+			}
+
+			if err := credParams.App.Validate(); err != nil {
+				return errors.Wrap(err, "validating app credentials")
+			}
+		case params.GithubAuthTypePAT:
+			token := cred.PAT.OAuth2Token
+			if token == "" {
+				token = cred.OAuth2Token
+			}
+			if token == "" {
+				return errors.New("missing OAuth2 token")
+			}
+			credParams.PAT = params.GithubPAT{
+				OAuth2Token: token,
+			}
+		}
+
+		creds, err := s.CreateGithubCredentials(adminCtx, credParams)
+		if err != nil {
+			return errors.Wrap(err, "creating github credentials")
+		}
+
+		if err := s.conn.Exec("update repositories set credentials_id = ?,endpoint_name = ? where credentials_name = ?", creds.ID, creds.Endpoint.Name, creds.Name).Error; err != nil {
+			return errors.Wrap(err, "updating repositories")
+		}
+
+		if err := s.conn.Exec("update organizations set credentials_id = ?,endpoint_name = ? where credentials_name = ?", creds.ID, creds.Endpoint.Name, creds.Name).Error; err != nil {
+			return errors.Wrap(err, "updating organizations")
+		}
+
+		if err := s.conn.Exec("update enterprises set credentials_id = ?,endpoint_name = ? where credentials_name = ?", creds.ID, creds.Endpoint.Name, creds.Name).Error; err != nil {
+			return errors.Wrap(err, "updating enterprises")
+		}
+	}
+	return nil
+}
+
 func (s *sqlDatabase) migrateDB() error {
 	if s.conn.Migrator().HasIndex(&Organization{}, "idx_organizations_name") {
 		if err := s.conn.Migrator().DropIndex(&Organization{}, "idx_organizations_name"); err != nil {
@@ -234,7 +403,21 @@ func (s *sqlDatabase) migrateDB() error {
 		}
 	}
 
+	var needsCredentialMigration bool
+	if !s.conn.Migrator().HasTable(&GithubCredentials{}) || !s.conn.Migrator().HasTable(&GithubEndpoint{}) {
+		needsCredentialMigration = true
+	}
+
+	var hasMinAgeField bool
+	if s.conn.Migrator().HasTable(&ControllerInfo{}) && s.conn.Migrator().HasColumn(&ControllerInfo{}, "minimum_job_age_backoff") {
+		hasMinAgeField = true
+	}
+
+	s.conn.Exec("PRAGMA foreign_keys = OFF")
 	if err := s.conn.AutoMigrate(
+		&User{},
+		&GithubEndpoint{},
+		&GithubCredentials{},
 		&Tag{},
 		&Pool{},
 		&Repository{},
@@ -244,11 +427,34 @@ func (s *sqlDatabase) migrateDB() error {
 		&InstanceStatusUpdate{},
 		&Instance{},
 		&ControllerInfo{},
-		&User{},
 		&WorkflowJob{},
 	); err != nil {
 		return errors.Wrap(err, "running auto migrate")
 	}
+	s.conn.Exec("PRAGMA foreign_keys = ON")
 
+	if !hasMinAgeField {
+		var controller ControllerInfo
+		if err := s.conn.First(&controller).Error; err != nil {
+			if !errors.Is(err, gorm.ErrRecordNotFound) {
+				return errors.Wrap(err, "updating controller info")
+			}
+		} else {
+			controller.MinimumJobAgeBackoff = 30
+			if err := s.conn.Save(&controller).Error; err != nil {
+				return errors.Wrap(err, "updating controller info")
+			}
+		}
+	}
+
+	if err := s.ensureGithubEndpoint(); err != nil {
+		return errors.Wrap(err, "ensuring github endpoint")
+	}
+
+	if needsCredentialMigration {
+		if err := s.migrateCredentialsToDB(); err != nil {
+			return errors.Wrap(err, "migrating credentials")
+		}
+	}
 	return nil
 }

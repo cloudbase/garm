@@ -227,3 +227,61 @@ definitions:
         import:
             package: github.com/cloudbase/garm/apiserver/params
             alias: apiserver_params
+  CreateInstanceParams:
+    type: object
+    x-go-type:
+        type: CreateInstanceParams
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+  UpdateGithubEndpointParams:
+    type: object
+    x-go-type:
+        type: UpdateGithubEndpointParams
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+  GithubEndpoint:
+    type: object
+    x-go-type:
+        type: GithubEndpoint
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+  GithubEndpoints:
+    type: array
+    x-go-type:
+        type: GithubEndpoints
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+    items:
+        $ref: '#/definitions/GithubEndpoint'
+  CreateGithubEndpointParams:
+    type: object
+    x-go-type:
+        type: CreateGithubEndpointParams
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+  CreateGithubCredentialsParams:
+    type: object
+    x-go-type:
+        type: CreateGithubCredentialsParams
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+  UpdateGithubCredentialsParams:
+    type: object
+    x-go-type:
+        type: UpdateGithubCredentialsParams
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+  UpdateControllerParams:
+    type: object
+    x-go-type:
+        type: UpdateControllerParams
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params

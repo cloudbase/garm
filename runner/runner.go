@@ -17,21 +17,26 @@ package runner
 import (
 	"context"
 	"crypto/hmac"
-	"crypto/sha1"
+	"crypto/sha1" //nolint:golangci-lint,gosec // sha1 is used for github webhooks
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"hash"
 	"log/slog"
+	"net/url"
 	"os"
 	"strings"
 	"sync"
 	"time"
 
-	commonParams "github.com/cloudbase/garm-provider-common/params"
+	"github.com/juju/clock"
+	"github.com/juju/retry"
+	"github.com/pkg/errors"
+	"golang.org/x/sync/errgroup"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm-provider-common/util"
 	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/config"
@@ -40,21 +45,15 @@ import (
 	"github.com/cloudbase/garm/runner/common"
 	"github.com/cloudbase/garm/runner/pool"
 	"github.com/cloudbase/garm/runner/providers"
-	"golang.org/x/sync/errgroup"
-
-	"github.com/google/uuid"
-	"github.com/juju/clock"
-	"github.com/juju/retry"
-	"github.com/pkg/errors"
 )
 
 func NewRunner(ctx context.Context, cfg config.Config, db dbCommon.Store) (*Runner, error) {
-	ctrlId, err := db.ControllerInfo()
+	ctrlID, err := db.ControllerInfo()
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching controller info")
 	}
 
-	providers, err := providers.LoadProvidersFromConfig(ctx, cfg, ctrlId.ControllerID.String())
+	providers, err := providers.LoadProvidersFromConfig(ctx, cfg, ctrlID.ControllerID.String())
 	if err != nil {
 		return nil, errors.Wrap(err, "loading providers")
 	}
@@ -66,9 +65,8 @@ func NewRunner(ctx context.Context, cfg config.Config, db dbCommon.Store) (*Runn
 	}
 
 	poolManagerCtrl := &poolManagerCtrl{
-		controllerID:  ctrlId.ControllerID.String(),
 		config:        cfg,
-		credentials:   creds,
+		store:         db,
 		repositories:  map[string]common.PoolManager{},
 		organizations: map[string]common.PoolManager{},
 		enterprises:   map[string]common.PoolManager{},
@@ -79,8 +77,6 @@ func NewRunner(ctx context.Context, cfg config.Config, db dbCommon.Store) (*Runn
 		store:           db,
 		poolManagerCtrl: poolManagerCtrl,
 		providers:       providers,
-		credentials:     creds,
-		controllerID:    ctrlId.ControllerID,
 	}
 
 	if err := runner.loadReposOrgsAndEnterprises(); err != nil {
@@ -93,9 +89,8 @@ func NewRunner(ctx context.Context, cfg config.Config, db dbCommon.Store) (*Runn
 type poolManagerCtrl struct {
 	mux sync.Mutex
 
-	controllerID string
-	config       config.Config
-	credentials  map[string]config.Github
+	config config.Config
+	store  dbCommon.Store
 
 	repositories  map[string]common.PoolManager
 	organizations map[string]common.PoolManager
@@ -106,41 +101,21 @@ func (p *poolManagerCtrl) CreateRepoPoolManager(ctx context.Context, repo params
 	p.mux.Lock()
 	defer p.mux.Unlock()
 
-	cfgInternal, err := p.getInternalConfig(repo.CredentialsName)
+	entity, err := repo.GetEntity()
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching internal config")
+		return nil, errors.Wrap(err, "getting entity")
 	}
-	poolManager, err := pool.NewRepositoryPoolManager(ctx, repo, cfgInternal, providers, store)
+
+	instanceTokenGetter, err := auth.NewInstanceTokenGetter(p.config.JWTAuth.Secret)
+	if err != nil {
+		return nil, errors.Wrap(err, "creating instance token getter")
+	}
+	poolManager, err := pool.NewEntityPoolManager(ctx, entity, instanceTokenGetter, providers, store)
 	if err != nil {
 		return nil, errors.Wrap(err, "creating repo pool manager")
 	}
 	p.repositories[repo.ID] = poolManager
 	return poolManager, nil
-}
-
-func (p *poolManagerCtrl) UpdateRepoPoolManager(ctx context.Context, repo params.Repository) (common.PoolManager, error) {
-	p.mux.Lock()
-	defer p.mux.Unlock()
-
-	poolMgr, ok := p.repositories[repo.ID]
-	if !ok {
-		return nil, errors.Wrapf(runnerErrors.ErrNotFound, "repository %s/%s pool manager not loaded", repo.Owner, repo.Name)
-	}
-
-	internalCfg, err := p.getInternalConfig(repo.CredentialsName)
-	if err != nil {
-		return nil, errors.Wrap(err, "fetching internal config")
-	}
-
-	newState := params.UpdatePoolStateParams{
-		WebhookSecret:  repo.WebhookSecret,
-		InternalConfig: &internalCfg,
-	}
-
-	if err := poolMgr.RefreshState(newState); err != nil {
-		return nil, errors.Wrap(err, "updating repo pool manager")
-	}
-	return poolMgr, nil
 }
 
 func (p *poolManagerCtrl) GetRepoPoolManager(repo params.Repository) (common.PoolManager, error) {
@@ -172,41 +147,21 @@ func (p *poolManagerCtrl) CreateOrgPoolManager(ctx context.Context, org params.O
 	p.mux.Lock()
 	defer p.mux.Unlock()
 
-	cfgInternal, err := p.getInternalConfig(org.CredentialsName)
+	entity, err := org.GetEntity()
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching internal config")
+		return nil, errors.Wrap(err, "getting entity")
 	}
-	poolManager, err := pool.NewOrganizationPoolManager(ctx, org, cfgInternal, providers, store)
+
+	instanceTokenGetter, err := auth.NewInstanceTokenGetter(p.config.JWTAuth.Secret)
+	if err != nil {
+		return nil, errors.Wrap(err, "creating instance token getter")
+	}
+	poolManager, err := pool.NewEntityPoolManager(ctx, entity, instanceTokenGetter, providers, store)
 	if err != nil {
 		return nil, errors.Wrap(err, "creating org pool manager")
 	}
 	p.organizations[org.ID] = poolManager
 	return poolManager, nil
-}
-
-func (p *poolManagerCtrl) UpdateOrgPoolManager(ctx context.Context, org params.Organization) (common.PoolManager, error) {
-	p.mux.Lock()
-	defer p.mux.Unlock()
-
-	poolMgr, ok := p.organizations[org.ID]
-	if !ok {
-		return nil, errors.Wrapf(runnerErrors.ErrNotFound, "org %s pool manager not loaded", org.Name)
-	}
-
-	internalCfg, err := p.getInternalConfig(org.CredentialsName)
-	if err != nil {
-		return nil, errors.Wrap(err, "fetching internal config")
-	}
-
-	newState := params.UpdatePoolStateParams{
-		WebhookSecret:  org.WebhookSecret,
-		InternalConfig: &internalCfg,
-	}
-
-	if err := poolMgr.RefreshState(newState); err != nil {
-		return nil, errors.Wrap(err, "updating repo pool manager")
-	}
-	return poolMgr, nil
 }
 
 func (p *poolManagerCtrl) GetOrgPoolManager(org params.Organization) (common.PoolManager, error) {
@@ -238,41 +193,21 @@ func (p *poolManagerCtrl) CreateEnterprisePoolManager(ctx context.Context, enter
 	p.mux.Lock()
 	defer p.mux.Unlock()
 
-	cfgInternal, err := p.getInternalConfig(enterprise.CredentialsName)
+	entity, err := enterprise.GetEntity()
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching internal config")
+		return nil, errors.Wrap(err, "getting entity")
 	}
-	poolManager, err := pool.NewEnterprisePoolManager(ctx, enterprise, cfgInternal, providers, store)
+
+	instanceTokenGetter, err := auth.NewInstanceTokenGetter(p.config.JWTAuth.Secret)
+	if err != nil {
+		return nil, errors.Wrap(err, "creating instance token getter")
+	}
+	poolManager, err := pool.NewEntityPoolManager(ctx, entity, instanceTokenGetter, providers, store)
 	if err != nil {
 		return nil, errors.Wrap(err, "creating enterprise pool manager")
 	}
 	p.enterprises[enterprise.ID] = poolManager
 	return poolManager, nil
-}
-
-func (p *poolManagerCtrl) UpdateEnterprisePoolManager(ctx context.Context, enterprise params.Enterprise) (common.PoolManager, error) {
-	p.mux.Lock()
-	defer p.mux.Unlock()
-
-	poolMgr, ok := p.enterprises[enterprise.ID]
-	if !ok {
-		return nil, errors.Wrapf(runnerErrors.ErrNotFound, "enterprise %s pool manager not loaded", enterprise.Name)
-	}
-
-	internalCfg, err := p.getInternalConfig(enterprise.CredentialsName)
-	if err != nil {
-		return nil, errors.Wrap(err, "fetching internal config")
-	}
-
-	newState := params.UpdatePoolStateParams{
-		WebhookSecret:  enterprise.WebhookSecret,
-		InternalConfig: &internalCfg,
-	}
-
-	if err := poolMgr.RefreshState(newState); err != nil {
-		return nil, errors.Wrap(err, "updating repo pool manager")
-	}
-	return poolMgr, nil
 }
 
 func (p *poolManagerCtrl) GetEnterprisePoolManager(enterprise params.Enterprise) (common.PoolManager, error) {
@@ -300,40 +235,6 @@ func (p *poolManagerCtrl) GetEnterprisePoolManagers() (map[string]common.PoolMan
 	return p.enterprises, nil
 }
 
-func (p *poolManagerCtrl) getInternalConfig(credsName string) (params.Internal, error) {
-	creds, ok := p.credentials[credsName]
-	if !ok {
-		return params.Internal{}, runnerErrors.NewBadRequestError("invalid credential name (%s)", credsName)
-	}
-
-	caBundle, err := creds.CACertBundle()
-	if err != nil {
-		return params.Internal{}, fmt.Errorf("fetching CA bundle for creds: %w", err)
-	}
-
-	var controllerWebhookURL string
-	if p.config.Default.WebhookURL != "" {
-		controllerWebhookURL = fmt.Sprintf("%s/%s", p.config.Default.WebhookURL, p.controllerID)
-	}
-	return params.Internal{
-		OAuth2Token:          creds.OAuth2Token,
-		ControllerID:         p.controllerID,
-		InstanceCallbackURL:  p.config.Default.CallbackURL,
-		InstanceMetadataURL:  p.config.Default.MetadataURL,
-		BaseWebhookURL:       p.config.Default.WebhookURL,
-		ControllerWebhookURL: controllerWebhookURL,
-		JWTSecret:            p.config.JWTAuth.Secret,
-		GithubCredentialsDetails: params.GithubCredentials{
-			Name:          creds.Name,
-			Description:   creds.Description,
-			BaseURL:       creds.BaseEndpoint(),
-			APIBaseURL:    creds.APIEndpoint(),
-			UploadBaseURL: creds.UploadEndpoint(),
-			CABundle:      caBundle,
-		},
-	}, nil
-}
-
 type Runner struct {
 	mux sync.Mutex
 
@@ -343,11 +244,24 @@ type Runner struct {
 
 	poolManagerCtrl PoolManagerController
 
-	providers   map[string]common.Provider
-	credentials map[string]config.Github
+	providers map[string]common.Provider
+}
 
-	controllerInfo params.ControllerInfo
-	controllerID   uuid.UUID
+// UpdateController will update the controller settings.
+func (r *Runner) UpdateController(ctx context.Context, param params.UpdateControllerParams) (params.ControllerInfo, error) {
+	if !auth.IsAdmin(ctx) {
+		return params.ControllerInfo{}, runnerErrors.ErrUnauthorized
+	}
+
+	if err := param.Validate(); err != nil {
+		return params.ControllerInfo{}, errors.Wrap(err, "validating controller update params")
+	}
+
+	info, err := r.store.UpdateController(param)
+	if err != nil {
+		return params.ControllerInfo{}, errors.Wrap(err, "updating controller info")
+	}
+	return info, nil
 }
 
 // GetControllerInfo returns the controller id and the hostname.
@@ -381,37 +295,18 @@ func (r *Runner) GetControllerInfo(ctx context.Context) (params.ControllerInfo, 
 	if err != nil {
 		return params.ControllerInfo{}, errors.Wrap(err, "fetching hostname")
 	}
-	r.controllerInfo.Hostname = hostname
-	var controllerWebhook string
-	if r.controllerID != uuid.Nil && r.config.Default.WebhookURL != "" {
-		controllerWebhook = fmt.Sprintf("%s/%s", r.config.Default.WebhookURL, r.controllerID.String())
-	}
-	return params.ControllerInfo{
-		ControllerID:         r.controllerID,
-		Hostname:             hostname,
-		MetadataURL:          r.config.Default.MetadataURL,
-		CallbackURL:          r.config.Default.CallbackURL,
-		WebhookURL:           r.config.Default.WebhookURL,
-		ControllerWebhookURL: controllerWebhook,
-	}, nil
-}
 
-func (r *Runner) ListCredentials(ctx context.Context) ([]params.GithubCredentials, error) {
-	if !auth.IsAdmin(ctx) {
-		return nil, runnerErrors.ErrUnauthorized
+	info, err := r.store.ControllerInfo()
+	if err != nil {
+		return params.ControllerInfo{}, errors.Wrap(err, "fetching controller info")
 	}
-	ret := []params.GithubCredentials{}
 
-	for _, val := range r.config.Github {
-		ret = append(ret, params.GithubCredentials{
-			Name:          val.Name,
-			Description:   val.Description,
-			BaseURL:       val.BaseEndpoint(),
-			APIBaseURL:    val.APIEndpoint(),
-			UploadBaseURL: val.UploadEndpoint(),
-		})
-	}
-	return ret, nil
+	// This is temporary. Right now, GARM is a single-instance deployment. When we add the
+	// ability to scale out, the hostname field will be moved form here to a dedicated node
+	// object. As a single controller will be made up of multiple nodes, we will need to model
+	// that aspect of GARM.
+	info.Hostname = hostname
+	return info, nil
 }
 
 func (r *Runner) ListProviders(ctx context.Context) ([]params.Provider, error) {
@@ -537,11 +432,12 @@ func (r *Runner) waitForErrorGroupOrTimeout(g *errgroup.Group) error {
 	go func() {
 		done <- g.Wait()
 	}()
-
+	timer := time.NewTimer(60 * time.Second)
+	defer timer.Stop()
 	select {
 	case err := <-done:
 		return err
-	case <-time.After(60 * time.Second):
+	case <-timer.C:
 		return fmt.Errorf("timed out waiting for pool manager start")
 	}
 }
@@ -627,34 +523,34 @@ func (r *Runner) Wait() error {
 		return errors.Wrap(err, "fetch enterprise pool managers")
 	}
 
-	for poolId, repo := range repos {
+	for poolID, repo := range repos {
 		wg.Add(1)
 		go func(id string, poolMgr common.PoolManager) {
 			defer wg.Done()
 			if err := poolMgr.Wait(); err != nil {
 				slog.With(slog.Any("error", err)).ErrorContext(r.ctx, "timed out waiting for pool manager to exit", "pool_id", id, "pool_mgr_id", poolMgr.ID())
 			}
-		}(poolId, repo)
+		}(poolID, repo)
 	}
 
-	for poolId, org := range orgs {
+	for poolID, org := range orgs {
 		wg.Add(1)
 		go func(id string, poolMgr common.PoolManager) {
 			defer wg.Done()
 			if err := poolMgr.Wait(); err != nil {
 				slog.With(slog.Any("error", err)).ErrorContext(r.ctx, "timed out waiting for pool manager to exit", "pool_id", id)
 			}
-		}(poolId, org)
+		}(poolID, org)
 	}
 
-	for poolId, enterprise := range enterprises {
+	for poolID, enterprise := range enterprises {
 		wg.Add(1)
 		go func(id string, poolMgr common.PoolManager) {
 			defer wg.Done()
 			if err := poolMgr.Wait(); err != nil {
 				slog.With(slog.Any("error", err)).ErrorContext(r.ctx, "timed out waiting for pool manager to exit", "pool_id", id)
 			}
-		}(poolId, enterprise)
+		}(poolID, enterprise)
 	}
 
 	wg.Wait()
@@ -704,6 +600,31 @@ func (r *Runner) validateHookBody(signature, secret string, body []byte) error {
 	return nil
 }
 
+func (r *Runner) findEndpointForJob(job params.WorkflowJob) (params.GithubEndpoint, error) {
+	uri, err := url.ParseRequestURI(job.WorkflowJob.HTMLURL)
+	if err != nil {
+		return params.GithubEndpoint{}, errors.Wrap(err, "parsing job URL")
+	}
+	baseURI := fmt.Sprintf("%s://%s", uri.Scheme, uri.Host)
+
+	// Note(gabriel-samfira): Endpoints should be cached. We don't expect to have a large number
+	// of endpoints. In most cases there will be just one (github.com). In cases where there is
+	// a GHES involved, those users will have just one extra endpoint or 2 (if they also have a
+	// test env). But there should be a relatively small number, regardless. So we don't really care
+	// that much about the performance of this function.
+	endpoints, err := r.store.ListGithubEndpoints(r.ctx)
+	if err != nil {
+		return params.GithubEndpoint{}, errors.Wrap(err, "fetching github endpoints")
+	}
+	for _, ep := range endpoints {
+		if ep.BaseURL == baseURI {
+			return ep, nil
+		}
+	}
+
+	return params.GithubEndpoint{}, runnerErrors.NewNotFoundError("no endpoint found for job")
+}
+
 func (r *Runner) DispatchWorkflowJob(hookTargetType, signature string, jobData []byte) error {
 	if len(jobData) == 0 {
 		return runnerErrors.NewBadRequestError("missing job data")
@@ -714,8 +635,12 @@ func (r *Runner) DispatchWorkflowJob(hookTargetType, signature string, jobData [
 		return errors.Wrapf(runnerErrors.ErrBadRequest, "invalid job data: %s", err)
 	}
 
+	endpoint, err := r.findEndpointForJob(job)
+	if err != nil {
+		return errors.Wrap(err, "finding endpoint for job")
+	}
+
 	var poolManager common.PoolManager
-	var err error
 
 	switch HookTargetType(hookTargetType) {
 	case RepoHook:
@@ -723,17 +648,17 @@ func (r *Runner) DispatchWorkflowJob(hookTargetType, signature string, jobData [
 			r.ctx, "got hook for repo",
 			"repo_owner", util.SanitizeLogEntry(job.Repository.Owner.Login),
 			"repo_name", util.SanitizeLogEntry(job.Repository.Name))
-		poolManager, err = r.findRepoPoolManager(job.Repository.Owner.Login, job.Repository.Name)
+		poolManager, err = r.findRepoPoolManager(job.Repository.Owner.Login, job.Repository.Name, endpoint.Name)
 	case OrganizationHook:
 		slog.DebugContext(
 			r.ctx, "got hook for organization",
 			"organization", util.SanitizeLogEntry(job.Organization.Login))
-		poolManager, err = r.findOrgPoolManager(job.Organization.Login)
+		poolManager, err = r.findOrgPoolManager(job.Organization.Login, endpoint.Name)
 	case EnterpriseHook:
 		slog.DebugContext(
 			r.ctx, "got hook for enterprise",
 			"enterprise", util.SanitizeLogEntry(job.Enterprise.Slug))
-		poolManager, err = r.findEnterprisePoolManager(job.Enterprise.Slug)
+		poolManager, err = r.findEnterprisePoolManager(job.Enterprise.Slug, endpoint.Name)
 	default:
 		return runnerErrors.NewBadRequestError("cannot handle hook target type %s", hookTargetType)
 	}
@@ -760,7 +685,8 @@ func (r *Runner) DispatchWorkflowJob(hookTargetType, signature string, jobData [
 
 func (r *Runner) appendTagsToCreatePoolParams(param params.CreatePoolParams) (params.CreatePoolParams, error) {
 	if err := param.Validate(); err != nil {
-		return params.CreatePoolParams{}, errors.Wrapf(runnerErrors.ErrBadRequest, "validating params: %s", err)
+		return params.CreatePoolParams{}, fmt.Errorf("failed to validate params (%q): %w", err, runnerErrors.ErrBadRequest)
+		// errors.Wrapf(runnerErrors.ErrBadRequest, "validating params: %s", err)
 	}
 
 	if !IsSupportedOSType(param.OSType) {
@@ -776,47 +702,7 @@ func (r *Runner) appendTagsToCreatePoolParams(param params.CreatePoolParams) (pa
 		return params.CreatePoolParams{}, runnerErrors.NewBadRequestError("no such provider %s", param.ProviderName)
 	}
 
-	newTags, err := r.processTags(string(param.OSArch), param.OSType, param.Tags)
-	if err != nil {
-		return params.CreatePoolParams{}, errors.Wrap(err, "processing tags")
-	}
-
-	param.Tags = newTags
-
 	return param, nil
-}
-
-func (r *Runner) processTags(osArch string, osType commonParams.OSType, tags []string) ([]string, error) {
-	// github automatically adds the "self-hosted" tag as well as the OS type (linux, windows, etc)
-	// and architecture (arm, x64, etc) to all self hosted runners. When a workflow job comes in, we try
-	// to find a pool based on the labels that are set in the workflow. If we don't explicitly define these
-	// default tags for each pool, and the user targets these labels, we won't be able to match any pools.
-	// The downside is that all pools with the same OS and arch will have these default labels. Users should
-	// set distinct and unique labels on each pool, and explicitly target those labels, or risk assigning
-	// the job to the wrong worker type.
-	ghArch, err := util.ResolveToGithubArch(osArch)
-	if err != nil {
-		return nil, errors.Wrap(err, "invalid arch")
-	}
-
-	ghOSType, err := util.ResolveToGithubTag(osType)
-	if err != nil {
-		return nil, errors.Wrap(err, "invalid os type")
-	}
-
-	labels := []string{
-		"self-hosted",
-		ghArch,
-		ghOSType,
-	}
-
-	for _, val := range tags {
-		if val != "self-hosted" && val != ghArch && val != ghOSType {
-			labels = append(labels, val)
-		}
-	}
-
-	return labels, nil
 }
 
 func (r *Runner) GetInstance(ctx context.Context, instanceName string) (params.Instance, error) {
@@ -844,12 +730,12 @@ func (r *Runner) ListAllInstances(ctx context.Context) ([]params.Instance, error
 }
 
 func (r *Runner) AddInstanceStatusMessage(ctx context.Context, param params.InstanceUpdateMessage) error {
-	instanceID := auth.InstanceID(ctx)
-	if instanceID == "" {
+	instanceName := auth.InstanceName(ctx)
+	if instanceName == "" {
 		return runnerErrors.ErrUnauthorized
 	}
 
-	if err := r.store.AddInstanceEvent(ctx, instanceID, params.StatusEvent, params.EventInfo, param.Message); err != nil {
+	if err := r.store.AddInstanceEvent(ctx, instanceName, params.StatusEvent, params.EventInfo, param.Message); err != nil {
 		return errors.Wrap(err, "adding status update")
 	}
 
@@ -861,7 +747,7 @@ func (r *Runner) AddInstanceStatusMessage(ctx context.Context, param params.Inst
 		updateParams.AgentID = *param.AgentID
 	}
 
-	if _, err := r.store.UpdateInstance(r.ctx, instanceID, updateParams); err != nil {
+	if _, err := r.store.UpdateInstance(r.ctx, instanceName, updateParams); err != nil {
 		return errors.Wrap(err, "updating runner agent ID")
 	}
 
@@ -869,9 +755,9 @@ func (r *Runner) AddInstanceStatusMessage(ctx context.Context, param params.Inst
 }
 
 func (r *Runner) UpdateSystemInfo(ctx context.Context, param params.UpdateSystemInfoParams) error {
-	instanceID := auth.InstanceID(ctx)
-	if instanceID == "" {
-		slog.ErrorContext(ctx, "missing instance ID")
+	instanceName := auth.InstanceName(ctx)
+	if instanceName == "" {
+		slog.ErrorContext(ctx, "missing instance name")
 		return runnerErrors.ErrUnauthorized
 	}
 
@@ -889,7 +775,7 @@ func (r *Runner) UpdateSystemInfo(ctx context.Context, param params.UpdateSystem
 		updateParams.AgentID = *param.AgentID
 	}
 
-	if _, err := r.store.UpdateInstance(r.ctx, instanceID, updateParams); err != nil {
+	if _, err := r.store.UpdateInstance(r.ctx, instanceName, updateParams); err != nil {
 		return errors.Wrap(err, "updating runner system info")
 	}
 
@@ -904,30 +790,31 @@ func (r *Runner) getPoolManagerFromInstance(ctx context.Context, instance params
 
 	var poolMgr common.PoolManager
 
-	if pool.RepoID != "" {
+	switch {
+	case pool.RepoID != "":
 		repo, err := r.store.GetRepositoryByID(ctx, pool.RepoID)
 		if err != nil {
 			return nil, errors.Wrap(err, "fetching repo")
 		}
-		poolMgr, err = r.findRepoPoolManager(repo.Owner, repo.Name)
+		poolMgr, err = r.findRepoPoolManager(repo.Owner, repo.Name, repo.Endpoint.Name)
 		if err != nil {
 			return nil, errors.Wrapf(err, "fetching pool manager for repo %s", pool.RepoName)
 		}
-	} else if pool.OrgID != "" {
+	case pool.OrgID != "":
 		org, err := r.store.GetOrganizationByID(ctx, pool.OrgID)
 		if err != nil {
 			return nil, errors.Wrap(err, "fetching org")
 		}
-		poolMgr, err = r.findOrgPoolManager(org.Name)
+		poolMgr, err = r.findOrgPoolManager(org.Name, org.Endpoint.Name)
 		if err != nil {
 			return nil, errors.Wrapf(err, "fetching pool manager for org %s", pool.OrgName)
 		}
-	} else if pool.EnterpriseID != "" {
+	case pool.EnterpriseID != "":
 		enterprise, err := r.store.GetEnterpriseByID(ctx, pool.EnterpriseID)
 		if err != nil {
 			return nil, errors.Wrap(err, "fetching enterprise")
 		}
-		poolMgr, err = r.findEnterprisePoolManager(enterprise.Name)
+		poolMgr, err = r.findEnterprisePoolManager(enterprise.Name, enterprise.Endpoint.Name)
 		if err != nil {
 			return nil, errors.Wrapf(err, "fetching pool manager for enterprise %s", pool.EnterpriseName)
 		}
@@ -936,17 +823,10 @@ func (r *Runner) getPoolManagerFromInstance(ctx context.Context, instance params
 	return poolMgr, nil
 }
 
-// ForceDeleteRunner will attempt to remove a runner from a pool.
-//
-// Deprecated: FunctionName is deprecated. Use DeleteRunner instead.
-func (r *Runner) ForceDeleteRunner(ctx context.Context, instanceName string) error {
-	return r.DeleteRunner(ctx, instanceName, true)
-}
-
 // DeleteRunner removes a runner from a pool. If forceDelete is true, GARM will ignore any provider errors
 // that may occur, and attempt to remove the runner from GitHub and then the database, regardless of provider
 // errors.
-func (r *Runner) DeleteRunner(ctx context.Context, instanceName string, forceDelete bool) error {
+func (r *Runner) DeleteRunner(ctx context.Context, instanceName string, forceDelete, bypassGithubUnauthorized bool) error {
 	if !auth.IsAdmin(ctx) {
 		return runnerErrors.ErrUnauthorized
 	}
@@ -974,7 +854,7 @@ func (r *Runner) DeleteRunner(ctx context.Context, instanceName string, forceDel
 		return errors.Wrap(err, "fetching pool manager for instance")
 	}
 
-	if err := poolMgr.DeleteRunner(instance, forceDelete); err != nil {
+	if err := poolMgr.DeleteRunner(instance, forceDelete, bypassGithubUnauthorized); err != nil {
 		return errors.Wrap(err, "removing runner")
 	}
 	return nil
