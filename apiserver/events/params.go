@@ -5,8 +5,8 @@ import (
 )
 
 type Filter struct {
-	Operations []common.OperationType    `json:"operations,omitempty" jsonschema:"title=operations,description=A list of operations to filter on,default=[],enum=create,enum=update,enum=delete"`
-	EntityType common.DatabaseEntityType `json:"entity-type,omitempty" jsonschema:"title=entity type,description=The type of entity to filter on,default=repository,enum=repository,enum=organization,enum=enterprise,enum=pool,enum=user,enum=instance,enum=job,enum=controller,enum=github_credentials,enum=github_endpoint"`
+	Operations []common.OperationType    `json:"operations,omitempty" jsonschema:"title=operations,description=A list of operations to filter on,enum=create,enum=update,enum=delete"`
+	EntityType common.DatabaseEntityType `json:"entity-type,omitempty" jsonschema:"title=entity type,description=The type of entity to filter on,enum=repository,enum=organization,enum=enterprise,enum=pool,enum=user,enum=instance,enum=job,enum=controller,enum=github_credentials,enum=github_endpoint"`
 }
 
 func (f Filter) Validate() error {
@@ -31,7 +31,7 @@ func (f Filter) Validate() error {
 
 type Options struct {
 	SendEverything bool     `json:"send-everything,omitempty" jsonschema:"title=send everything, description=send all events,default=false"`
-	Filters        []Filter `json:"filters,omitempty" jsonschema:"title=filters,description=A list of filters to apply to the events. This is ignored when send-everything is true,default=[]"`
+	Filters        []Filter `json:"filters,omitempty" jsonschema:"title=filters,description=A list of filters to apply to the events. This is ignored when send-everything is true"`
 }
 
 func (o Options) Validate() error {

@@ -44,6 +44,9 @@ jobs:
             docker buildx build \
               --provenance=false \
               --platform linux/amd64,linux/arm64 \
+              --label "org.opencontainers.image.source=https://github.com/cloudbase/garm/tree/${{ github.event.inputs.ref }}" \
+              --label "org.opencontainers.image.description=GARM ${{ github.event.inputs.ref }}" \
+              --label "org.opencontainers.image.licenses=Apache 2.0" \
               --build-arg="GARM_REF=${{ github.event.inputs.ref }}" \
               -t ${{ github.event.inputs.push_to_project }}/garm:"${VERSION}" \
               --push .
