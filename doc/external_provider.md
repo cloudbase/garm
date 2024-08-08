@@ -1,31 +1,31 @@
 # Writing an external provider
 
-External provider enables you to write a fully functional provider, using any scripting or programming language. Garm will call your executable to manage the lifecycle of the instances hosting the runners. This document describes the API that an executable needs to implement to be usable by ```garm```.
+External provider enables you to write a fully functional provider, using any scripting or programming language. Garm will call your executable to manage the lifecycle of the instances hosting the runners. This document describes the API that an executable needs to implement to be usable by `garm`.
 
 ## Environment variables
 
-When ```garm``` calls your executable, a number of environment variables are set, depending on the operation. There are three environment variables that will always be set regardless of operation. Those variables are:
+When `garm` calls your executable, a number of environment variables are set, depending on the operation. There are three environment variables that will always be set regardless of operation. Those variables are:
 
-* ```GARM_COMMAND```
-* ```GARM_PROVIDER_CONFIG_FILE```
-* ```GARM_CONTROLLER_ID```
+* `GARM_COMMAND`
+* `GARM_PROVIDER_CONFIG_FILE`
+* `GARM_CONTROLLER_ID`
 
 The following are variables that are specific to some operations:
 
-* ```GARM_POOL_ID```
-* ```GARM_INSTANCE_ID```
+* `GARM_POOL_ID`
+* `GARM_INSTANCE_ID`
 
 ### The GARM_COMMAND variable
 
-The ```GARM_COMMAND``` environment variable will be set to one of the operations defined in the interface. When your executable is called, you'll need to inspect this variable to know which operation you need to execute.
+The `GARM_COMMAND` environment variable will be set to one of the operations defined in the interface. When your executable is called, you'll need to inspect this variable to know which operation you need to execute.
 
 ### The GARM_PROVIDER_CONFIG_FILE variable
 
-The ```GARM_PROVIDER_CONFIG_FILE``` variable will contain a path on disk to a file that can contain whatever configuration your executable needs. For example, in the case of the [sample OpenStack external provider](../contrib/providers.d/openstack/keystonerc), this file contains variables that you would normally find in a ```keystonerc``` file, used to access an OpenStack cloud. But you can use it to add any extra configuration you need.
+The `GARM_PROVIDER_CONFIG_FILE` variable will contain a path on disk to a file that can contain whatever configuration your executable needs. For example, in the case of the [OpenStack external provider](https://github.com/cloudbase/garm-provider-openstack), this file is a toml which contains provider specific configuration options. The provider author decides what this file needs to contain for the provider to function properly. 
 
-The config is opaque to ```garm``` itself. It only has meaning for your external provider.
+GARM does not read this file in any way. It is simply passed to the executable via the environment variable.
 
-In your executable, you could implement something like this:
+The OpenStack provider mentioned above is written in Go, but it doesn't need to be. For example, if your provider is written in BASH, handling the config file could look something like this:
 
 ```bash
 if [ -f "${GARM_PROVIDER_CONFIG_FILE}" ];then
@@ -54,37 +54,37 @@ esac
 
 ### The GARM_CONTROLLER_ID variable
 
-The ```GARM_CONTROLLER_ID``` variable is set for all operations.
+The `GARM_CONTROLLER_ID` variable is set for all operations.
 
 When garm first starts up, it generates a unique ID that identifies it as an instance. This ID is passed to the provider and should always be used to tag resources in whichever cloud you write your provider for. This ensures that if you have multiple garm installations, one particular deployment of garm will never touch any resources it did not create.
 
-In most clouds you can attach ```tags``` to resources. You can use the controller ID as one of the tags during the ```CreateInstance``` operation.
+In most clouds you can attach `tags` to resources. You can use the controller ID as one of the tags during the `CreateInstance` operation.
 
 ### The GARM_POOL_ID variable
 
-The ```GARM_POOL_ID``` environment variable is a ```UUID4``` describing the pool in which a runner is created. This variable is set in two operations:
+The `GARM_POOL_ID` environment variable is a `UUID4` describing the pool in which a runner is created. This variable is set in two operations:
 
 * CreateInstance
 * ListInstances
 
-As with the ```GARM_CONTROLLER_ID```, this ID **must** also be attached as a tag or whichever mechanism your target cloud supports, to identify the pool to which the resources (in most cases the VMs) belong to.
+As with the `GARM_CONTROLLER_ID`, this ID **must** also be attached as a tag or whichever mechanism your target cloud supports, to identify the pool to which the resources (in most cases the VMs) belong to.
 
 ### The GARM_INSTANCE_ID variable
 
-The ```GARM_INSTANCE_ID``` environment variable is used in four operations:
+The `GARM_INSTANCE_ID` environment variable is used in four operations:
 
 * GetInstance
 * DeleteInstance
 * Start
 * Stop
 
-It contains the ```provider_id``` of the instance. The ```provider_id``` is a unique identifier, specific to the IaaS in which the compute resource was created. In OpenStack, it's an ```UUID4```, while in LXD, it's the virtual machine's name.
+It contains the `provider_id` of the instance. The `provider_id` is a unique identifier, specific to the IaaS in which the compute resource was created. In OpenStack, it's an `UUID4`, while in LXD, it's the virtual machine's name.
 
 We need this ID whenever we need to execute an operation that targets one specific runner.
 
 ## Operations
 
-The operations that a provider must implement are described in the ```Provider``` [interface available here](https://github.com/cloudbase/garm/blob/223477c4ddfb6b6f9079c444d2f301ef587f048b/runner/providers/external/execution/interface.go#L9-L27). The external provider implements this interface, and delegates each operation to your external executable. [These operations are](https://github.com/cloudbase/garm/blob/223477c4ddfb6b6f9079c444d2f301ef587f048b/runner/providers/external/execution/commands.go#L5-L13):
+The operations that a provider must implement are described in the `Provider` [interface available here](https://github.com/cloudbase/garm/blob/223477c4ddfb6b6f9079c444d2f301ef587f048b/runner/providers/external/execution/interface.go#L9-L27). The external provider implements this interface, and delegates each operation to your external executable. [These operations are](https://github.com/cloudbase/garm/blob/223477c4ddfb6b6f9079c444d2f301ef587f048b/runner/providers/external/execution/commands.go#L5-L13):
 
 * CreateInstance
 * DeleteInstance
@@ -96,30 +96,30 @@ The operations that a provider must implement are described in the ```Provider``
 
 ## CreateInstance
 
-The ```CreateInstance``` command has the most moving parts. The ideal external provider is one that will create all required resources for a fully functional instance, will start the instance. Waiting for the instance to start is not necessary. If the instance can reach the ```callback_url``` configured in ```garm```, it will update it's own status when it starts running the userdata script.
+The `CreateInstance` command has the most moving parts. The ideal external provider is one that will create all required resources for a fully functional instance, will start the instance. Waiting for the instance to start is not necessary. If the instance can reach the `callback_url` configured in `garm`, it will update it's own status when it starts running the userdata script.
 
 But aside from creating resources, the ideal external provider is also idempotent, and will clean up after itself in case of failure. If for any reason the executable will fail to create the instance, any dependency that it has created up to the point of failure, should be cleaned up before returning an error code.
 
-At the very least, it must be able to clean up those resources, if it is called with the ```DeleteInstance``` command by ```garm```. Garm will retry creating a failed instance. Before it tries again, it will attempt to run a ```DeleteInstance``` using the ```provider_id``` returned by your executable.
+At the very least, it must be able to clean up those resources, if it is called with the `DeleteInstance` command by `garm`. Garm will retry creating a failed instance. Before it tries again, it will attempt to run a `DeleteInstance` using the `provider_id` returned by your executable.
 
-If your executable failed before a ```provider_id``` could be supplied, ```garm``` will send the name of the instance as a ```GARM_INSTANCE_ID``` environment variable.
+If your executable failed before a `provider_id` could be supplied, `garm` will send the name of the instance as a `GARM_INSTANCE_ID` environment variable.
 
-Your external provider will need to be able to handle both. The instance name generated by ```garm``` will be unique, so it's fairly safe to use when deleting instances.
+Your external provider will need to be able to handle both. The instance name generated by `garm` will be unique, so it's fairly safe to use when deleting instances.
 
 ### CreateInstance inputs
 
-The ```CreateInstance``` command is the only command that needs to handle standard input. Garm will send the runner bootstrap information in stdin. The environment variables set for this command are:
+The `CreateInstance` command is the only command that needs to handle standard input. Garm will send the runner bootstrap information in stdin. The environment variables set for this command are:
 
 * GARM_PROVIDER_CONFIG_FILE - Config file specific to your executable
 * GARM_COMMAND - the command we need to run
-* GARM_CONTROLLER_ID - The unique ID of the ```garm``` installation
+* GARM_CONTROLLER_ID - The unique ID of the `garm` installation
 * GARM_POOL_ID - The unique ID of the pool this node is a part of
 
-The information sent in via standard input is a ```json``` serialized instance of the [BootstrapInstance structure](https://github.com/cloudbase/garm/blob/6b3ea50ca54501595e541adde106703d289bb804/params/params.go#L164-L217)
+The information sent in via standard input is a `json` serialized instance of the [BootstrapInstance structure](https://github.com/cloudbase/garm/blob/6b3ea50ca54501595e541adde106703d289bb804/params/params.go#L164-L217)
 
 Here is a sample of that:
 
-  ```json
+```json
   {
     "name": "garm-ny9HeeQYw2rl",
     "tools": [
@@ -194,20 +194,20 @@ Here is a sample of that:
     ],
     "pool_id": "9dcf590a-1192-4a9c-b3e4-e0902974c2c0"
   }
-  ```
+```
 
 In your executable you can read in this blob, by using something like this:
 
-  ```bash
+```bash
   # Test if the stdin file descriptor is opened
   if [ ! -t 0 ]
   then
       # Read in the information from standard in
       INPUT=$(cat -)
   fi
-  ```
+```
 
-Then you can easily parse it. If you're using ```bash```, you can use the amazing [jq json processor](https://stedolan.github.io/jq/). Other programming languages have suitable libraries that can handle ```json```.
+Then you can easily parse it. If you're using `bash`, you can use the amazing [jq json processor](https://stedolan.github.io/jq/). Other programming languages have suitable libraries that can handle `json`.
 
 You will have to parse the bootstrap params, verify that the requested image exists, gather operating system information, CPU architecture information and using that information, you will need to select the appropriate tools for the arch/OS combination you are deploying.
 
@@ -220,11 +220,11 @@ Examples of external providers written in Go can be found at the following locat
 
 ### CreateInstance outputs
 
-On success, your executable is expected to print to standard output a json that can be deserialized into an ```Instance{}``` structure [defined here](https://github.com/cloudbase/garm/blob/6b3ea50ca54501595e541adde106703d289bb804/params/params.go#L90-L154).
+On success, your executable is expected to print to standard output a json that can be deserialized into an `Instance{}` structure [defined here](https://github.com/cloudbase/garm/blob/6b3ea50ca54501595e541adde106703d289bb804/params/params.go#L90-L154).
 
 Not all fields are expected to be populated by the provider. The ones that should be set are:
 
-  ```json
+```json
   {
     "provider_id": "88818ff3-1fca-4cb5-9b37-84bfc3511ea6",
     "name": "garm-ny9HeeQYw2rl",
@@ -236,17 +236,17 @@ Not all fields are expected to be populated by the provider. The ones that shoul
     "pool_id": "41c4a43a-acee-493a-965b-cf340b2c775d",
     "provider_fault": ""
   }
-  ```
+```
 
-In case of error, ```garm``` expects at the very least to see a non-zero exit code. If possible, your executable should return as much information as possible via the above ```json```, with the ```status``` field set to ```error``` and the ```provider_fault``` set to a meaningful error message describing what has happened. That information will be visible when doing a:
+In case of error, `garm` expects at the very least to see a non-zero exit code. If possible, your executable should return as much information as possible via the above `json`, with the `status` field set to `error` and the `provider_fault` set to a meaningful error message describing what has happened. That information will be visible when doing a:
 
-  ```bash
+```bash
   garm-cli runner show <runner name>
-  ```
+```
 
 ## DeleteInstance
 
-The ```DeleteInstance``` command will permanently remove an instance from the cloud provider.
+The `DeleteInstance` command will permanently remove an instance from the cloud provider.
 
 The environment variables set for this command are:
 
@@ -255,13 +255,13 @@ The environment variables set for this command are:
 * GARM_INSTANCE_ID
 * GARM_PROVIDER_CONFIG_FILE
 
-This command is not expected to output anything. On success it should simply ```exit 0```.
+This command is not expected to output anything. On success it should simply `exit 0`.
 
 If the target instance does not exist in the provider, this command is expected to be a no-op.
 
 ## GetInstance
 
-The ```GetInstance``` command will return details about the instance, as seen by the provider.
+The `GetInstance` command will return details about the instance, as seen by the provider.
 
 The environment variables set for this command are:
 
@@ -270,13 +270,13 @@ The environment variables set for this command are:
 * GARM_INSTANCE_ID
 * GARM_PROVIDER_CONFIG_FILE
 
-On success, this command is expected to return a valid ```json``` that can be deserialized into an ```Instance{}``` structure (see CreateInstance). If possible, IP addresses allocated to the VM should be returned in addition to the sample ```json``` printed above.
+On success, this command is expected to return a valid `json` that can be deserialized into an `Instance{}` structure (see CreateInstance). If possible, IP addresses allocated to the VM should be returned in addition to the sample `json` printed above.
 
 On failure, this command is expected to return a non-zero exit code.
 
 ## ListInstances
 
-The ```ListInstances``` command will print to standard output, a json that is deserializable into an **array** of ```Instance{}```.
+The `ListInstances` command will print to standard output, a json that is deserializable into an **array** of `Instance{}`.
 
 The environment variables set for this command are:
 
@@ -285,15 +285,15 @@ The environment variables set for this command are:
 * GARM_PROVIDER_CONFIG_FILE
 * GARM_POOL_ID
 
-This command must list all instances that have been tagged with the value in ```GARM_POOL_ID```.
+This command must list all instances that have been tagged with the value in `GARM_POOL_ID`.
 
-On success, a ```json``` is expected on standard output.
+On success, a `json` is expected on standard output.
 
 On failure, a non-zero exit code is expected.
 
 ## RemoveAllInstances
 
-The ```RemoveAllInstances``` operation will remove all resources created in a cloud that have been tagged with the ```GARM_CONTROLLER_ID```. External providers should tag all resources they create with the garm controller ID. That tag can then be used to identify all resources when attempting to delete all instances.
+The `RemoveAllInstances` operation will remove all resources created in a cloud that have been tagged with the `GARM_CONTROLLER_ID`. External providers should tag all resources they create with the garm controller ID. That tag can then be used to identify all resources when attempting to delete all instances.
 
 The environment variables set for this command are:
 
@@ -309,7 +309,7 @@ Note: This command is currently not used by garm.
 
 ## Start
 
-The ```Start``` operation will start the virtual machine in the selected cloud.
+The `Start` operation will start the virtual machine in the selected cloud.
 
 The environment variables set for this command are:
 
@@ -324,9 +324,9 @@ On failure, a non-zero exit code is expected.
 
 ## Stop
 
-NOTE: This operation is currently not use by ```garm```, but should be implemented.
+NOTE: This operation is currently not use by `garm`, but should be implemented.
 
-The ```Stop``` operation will stop the virtual machine in the selected cloud.
+The `Stop` operation will stop the virtual machine in the selected cloud.
 
 Available environment variables:
 

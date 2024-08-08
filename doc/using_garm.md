@@ -116,7 +116,7 @@ GARM uses providers to create runners. These providers are external executables 
 
 ### Listing configured providers
 
-Once configured (see [provider configuration](/doc/providers.md)), you can list the configured providers by running the following command:
+Once configured (see [provider configuration](/doc/config.md#providers)), you can list the configured providers by running the following command:
 
 ```bash
 ubuntu@garm:~$ garm-cli provider list

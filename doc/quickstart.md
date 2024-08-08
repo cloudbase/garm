@@ -2,19 +2,18 @@
 
 <!-- TOC -->
 
-- [Quick start](#quick-start)
-    - [Create the config folder](#create-the-config-folder)
-    - [The config file](#the-config-file)
-    - [The provider section](#the-provider-section)
-    - [Starting the service](#starting-the-service)
-        - [Using Docker](#using-docker)
-        - [Setting up GARM as a system service](#setting-up-garm-as-a-system-service)
-    - [Initializing GARM](#initializing-garm)
-    - [Setting up the webhook](#setting-up-the-webhook)
-    - [Creating a GitHub endpoint Optional](#creating-a-github-endpoint-optional)
-    - [Adding credentials](#adding-credentials)
-    - [Define a repo](#define-a-repo)
-    - [Create a pool](#create-a-pool)
+  - [Create the config folder](#create-the-config-folder)
+  - [The config file](#the-config-file)
+  - [The provider section](#the-provider-section)
+  - [Starting the service](#starting-the-service)
+      - [Using Docker](#using-docker)
+      - [Setting up GARM as a system service](#setting-up-garm-as-a-system-service)
+  - [Initializing GARM](#initializing-garm)
+  - [Setting up the webhook](#setting-up-the-webhook)
+  - [Creating a GitHub endpoint Optional](#creating-a-github-endpoint-optional)
+  - [Adding credentials](#adding-credentials)
+  - [Define a repo](#define-a-repo)
+  - [Create a pool](#create-a-pool)
 
 <!-- /TOC -->
 
@@ -26,11 +25,11 @@ All of our config files and data will be stored in `/etc/garm`. Let's create tha
 sudo mkdir -p /etc/garm
 ```
 
-Coincidentally, this is also where the docker container [looks for the config](../Dockerfile#L29) when it starts up. You can either use `Docker` or you can set up garm directly on your system. We'll walk you through both options. In both cases, we need to first create the config folder and a proper config file.
+Coincidentally, this is also where the docker container [looks for the config](/Dockerfile#L29) when it starts up. You can either use `Docker` or you can set up garm directly on your system. We'll walk you through both options. In both cases, we need to first create the config folder and a proper config file.
 
 ## The config file
 
-There is a full config file, with detailed comments for each option, in the [testdata folder](../testdata/config.toml). You can use that as a reference. But for the purposes of this guide, we'll be using a minimal config file and add things on as we proceed.
+There is a full config file, with detailed comments for each option, in the [testdata folder](/testdata/config.toml). You can use that as a reference. But for the purposes of this guide, we'll be using a minimal config file and add things on as we proceed.
 
 Open `/etc/garm/config.toml` in your favorite editor and paste the following:
 
@@ -71,7 +70,7 @@ time_to_live = "8760h"
     db_file = "/etc/garm/garm.db"
 ```
 
-This is a minimal config, with no providers defined. In this example we have the [default](./config_default.md), [logging](./config_logging.md), [metrics](./config_metrics.md), [jwt_auth](./config_jwt_auth.md), [apiserver](./config_api_server.md) and [database](./database.md) sections. Each are documented separately. Feel free to read through the available docs if, for example you need to enable TLS without using an nginx reverse proxy or if you want to enable the debug server, the log streamer or a log file.
+This is a minimal config, with no providers defined. In this example we have the [default](/doc/config.md#the-default-config-section), [logging](/doc/config.md#the-logging-section), [metrics](/doc/config.md#the-metrics-section), [jwt_auth](/doc/config.md#the-jwt-authentication-config-section), [apiserver](/doc/config.md#the-api-server-config-section) and [database](/doc/config.md#database-configuration) sections. Each are documented separately. Feel free to read through the available docs if, for example you need to enable TLS without using an nginx reverse proxy or if you want to enable the debug server, the log streamer or a log file.
 
 In this sample config we:
 
@@ -295,9 +294,9 @@ garm-cli profile switch another_garm
 
 ## Setting up the webhook
 
-There are two options when it comes to setting up the webhook in GitHub. You can manually set up the webhook in the GitHub UI, and then use the resulting secret when creating the entity (repo, org, enterprise), or you can let GARM do it automatically if the app or PAT you're using has the [required privileges](./github_credentials.md).
+There are two options when it comes to setting up the webhook in GitHub. You can manually set up the webhook in the GitHub UI, and then use the resulting secret when creating the entity (repo, org, enterprise), or you can let GARM do it automatically if the app or PAT you're using has the [required privileges](/doc/github_credentials.md).
 
-If you want to manually set up the webhooks, have a look at the [webhooks doc](./webhooks.md) for more information.
+If you want to manually set up the webhooks, have a look at the [webhooks doc](/doc/webhooks.md) for more information.
 
 In this guide, I'll show you how to do it automatically when adding a new repo, assuming you have the required privileges. Note, you'll still have to manually set up webhooks if you want to use GARM at the enterprise level. Automatic webhook management is only available for repos and orgs.
 
