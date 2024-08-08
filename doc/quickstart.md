@@ -136,7 +136,7 @@ docker run -d \
   ghcr.io/cloudbase/garm:v0.1.4
 ```
 
-You will notice we also mounted the LXD unix socket from the host inside the container where the config you pasted expects to find it. If you plan to use an external provider that does not need to connect to LXD over a unix socket, feel free to remove that mount.
+You will notice that we also mounted the LXD unix socket from the host inside the container where the config you pasted expects to find it. If you plan to use an external provider that does not need to connect to LXD over a unix socket, feel free to remove that mount.
 
 Check the logs to make sure everything is working as expected:
 
@@ -333,7 +333,7 @@ In this exampe, we add a new github endpoint called `example`. The `ca-cert-path
 
 Before we can add a new entity, we need github credentials to interact with that entity (manipulate runners, create webhooks, etc). Credentials are tied to a specific github endpoint. In this section we'll be adding credentials that are valid for either [github.com](https://github.com) or your own GHES server (if you added one in the previous section).
 
-When creating a new entity (repo, org, enterprise) using the credentials you define here, GARM will automatically associate that entity with the gitHub endpoint that the credentials use.
+When creating a new entity (repo, org, enterprise) using the credentials you define here, GARM will automatically associate that entity with the github endpoint that the credentials use.
 
 If you want to swap the credentials for an entity, the new credentials will need to be associated with the same endpoint as the old credentials.
 
@@ -620,6 +620,6 @@ gabriel@rossak:~$ garm-cli job ls
 
 There are no jobs sent yet to my GARM install, but once you start sending jobs, you'll see them here as well.
 
-That's it! You now have a working GARM installation. You can add more repos, orgs or enterprises and create more pools. You can also add more providers for different clouds and credentials with access to different GitHub resources.
+That's it! Now you have a working GARM installation. You can add more repos, orgs or enterprises and create more pools. You can also add more providers for different clouds and credentials with access to different GitHub resources.
 
 Check out the [Using GARM](/doc/using_garm.md) guide for more details on how to use GARM.

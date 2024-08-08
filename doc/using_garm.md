@@ -48,7 +48,7 @@ While using the GARM cli, you will most likely spend most of your time listing p
 
 ## Controller operations
 
-The `controller` is essentially GARM itself. Every deployment of GARM will have its own controller ID which will be used to tag runners in github. The controller is responsible for managing runners, webhooks, repositories, organizations and enterprises. There are a few settings at the controller level which you can tweak and we will cover them below.
+The `controller` is essentially GARM itself. Every deployment of GARM will have its own controller ID which will be used to tag runners in github. The controller is responsible for managing runners, webhooks, repositories, organizations and enterprises. There are a few settings at the controller level which you can tweak, which we will cover below.
 
 ### Listing controller info
 
@@ -85,7 +85,7 @@ We will see the `Controller Webhook URL` later when we set up the GitHub repo to
 
 ### Updating controller settings
 
-Like we've mentioned before, there are 3 URLs that are very important for normal operations:
+As we've mentioned before, there are 3 URLs that are very important for normal operations:
 
 * `metadata_url` - Must be reachable by runners
 * `callback_url` - Must be reachable by runners
@@ -145,7 +145,7 @@ Each of these providers can be used to set up a runner pool for a repository, or
 
 GARM can be used to manage runners for repos, orgs and enterprises hosted on `github.com` or on a GitHub Enterprise Server.
 
-Endpoints are the way that GARM identifies where the credentials and entities you create are located and where the API endpoints for the GitHub API can be reached, along with a possible CA certificate that validates the connection. There is a default endpoint for `github.com`, so you don't need to add it. But if you're using GHES, you'll need to add an endpoint for it.
+Endpoints are the way that GARM identifies where the credentials and entities you create are located and where the API endpoints for the GitHub API can be reached, along with a possible CA certificate that validates the connection. There is a default endpoint for `github.com`, so you don't need to add it, unless you're using GHES.
 
 ### Creating a GitHub Endpoint
 
@@ -241,7 +241,7 @@ There are two types of credentials:
 * PAT - Personal Access Token
 * App - GitHub App
 
-To add each of these types of credentials requires slightly different command line arguments (obviously). I'm going to give you an example of both.
+To add each of these types of credentials, slightly different command line arguments (obviously) are required. I'm going to give you an example of both.
 
 To add a PAT, you can run the following command:
 
@@ -318,7 +318,7 @@ To delete a credential, you can run the following command:
 garm-cli github credentials delete 2
 ```
 
-Note, you may not delete credentials that are currently associated with a repository, organization or enterprise. You will need to first replace the credentials on the entity, and then you can delete the credentials.
+> **NOTE**: You may not delete credentials that are currently associated with a repository, organization or enterprise. You will need to first replace the credentials on the entity, and then you can delete the credentials.
 
 ## Repositories
 
@@ -381,7 +381,7 @@ garm-cli repository delete be3a0673-56af-4395-9ebf-4521fea67567
 
 This will remove the repository from GARM, and if a webhook was installed, will also clean up the webhook from the repository.
 
-Note: GARM will not remove a webhook that points to the `Base Webhook URL`. It will only remove webhooks that are namespaced to the running controller.
+> **NOTE**: GARM will not remove a webhook that points to the `Base Webhook URL`. It will only remove webhooks that are namespaced to the running controller.
 
 ## Organizations
 
@@ -407,9 +407,9 @@ ubuntu@garm:~$ garm-cli organization add \
 
 This will add the organization `gsamfira` to GARM, and install a webhook for it. The webhook will be validated against the secret that was generated. The only difference between adding an organization and adding a repository is that you use the `organization` subcommand instead of the `repository` subcommand, and the `--name` option represents the `name` of the organization.
 
-Managing webhooks for organizations is similar to managing webhooks for repositories. You can list, show, install and uninstall webhooks for organizations using the `garm-cli organization webhook` subcommand. We won't go into details here, as it's similar to managing webhooks for repositories.
+Managing webhooks for organizations is similar to managing webhooks for repositories. You can *list*, *show*, *install* and *uninstall* webhooks for organizations using the `garm-cli organization webhook` subcommand. We won't go into details here, as it's similar to managing webhooks for repositories.
 
-All the other operations that exist on repositories, like listing, removing, etc, also exist for organizations and enterprises. Have a look at the help for the `garm-cli organization` subcommand for more details.
+All the other operations that exist on repositories, like listing, removing, etc, also exist for organizations and enterprises. Check out the help for the `garm-cli organization` subcommand for more details.
 
 ## Enterprises
 
@@ -497,7 +497,7 @@ To manually add a webhook, see the [webhooks](/doc/webhooks.md) section.
 
 Now that we have a repository, organization or enterprise added to GARM, we can create a runner pool for it. A runner pool is a collection of runners of the same type, that are managed by GARM and are used to run workflows for the repository, organization or enterprise.
 
-You can create multiple pools of runners for the same entity (repository, organization or enterprise), and you can create multiple pools of runners, each pool defining different runner types. For example, you can have a pool of runners that are created on AWS, and another pool of runners that are created on Azure, k8s, LXD, etc. For repositories or organizations with complex needs, you can set up a number of pools that cover a wide range of needs, based on cost, capability (GPUs, FPGAs, etc) or sheer raw computing power. You don't have to pick just one and managing all of them is done using the exact same commands, as we'll show below.
+You can create multiple pools of runners for the same entity (repository, organization or enterprise), and you can create multiple pools of runners, each pool defining different runner types. For example, you can have a pool of runners that are created on AWS, and another pool of runners that are created on Azure, k8s, LXD, etc. For repositories or organizations with complex needs, you can set up a number of pools that cover a wide range of needs, based on cost, capability (GPUs, FPGAs, etc) or sheer raw computing power. You don't have to pick just one, especially since managing all of them is done using the exact same commands, as we'll show below.
 
 Before we create a pool, we have to decide which provider we want to use. We've listed the providers above, so let's pick one and create a pool of runners for our repository. For the purpose of this example, we'll use the `incus` provider. We'll show you how to create a pool using this provider, but keep in mind that adding another pool using a different provider is done using the exact same commands. The only difference will be in the `--image`, `--flavor` and `--extra-specs` options that you'll use when creating the pool.
 
