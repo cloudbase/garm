@@ -3,7 +3,6 @@
 This document will walk you through the various commands and options available in GARM. It is assumed that you have already installed GARM and have it running. If you haven't, please check out the [quickstart](/doc/quickstart.md) document for instructions on how to install GARM.
 
 While using the GARM cli, you will most likely spend most of your time listing pools and runners, but we will cover most of the available commands and options. Some of them we'll skip (like the `init` or `profile` subcommands), as they've been covered in the [quickstart](/doc/quickstart.md) document.
-
 <!-- TOC -->
 
 - [Using GARM](#using-garm)
@@ -42,13 +41,14 @@ While using the GARM cli, you will most likely spend most of your time listing p
         - [Showing runner info](#showing-runner-info)
         - [Deleting a runner](#deleting-a-runner)
     - [The debug-log command](#the-debug-log-command)
+    - [The debug-events command](#the-debug-events-command)
     - [Listing recorded jobs](#listing-recorded-jobs)
 
 <!-- /TOC -->
 
 ## Controller operations
 
-The `controller` is essentially GARM itself. Every deployment of GARM will have its own controller ID which will be used to tag runners in github. The controller is responsible for managing runners, webhooks, repositories, organizations and enterprises. There are a few settings at the controller level which you can tweak and we will cover them below.
+The `controller` is essentially GARM itself. Every deployment of GARM will have its own controller ID which will be used to tag runners in github. The controller is responsible for managing runners, webhooks, repositories, organizations and enterprises. There are a few settings at the controller level which you can tweak, which we will cover below.
 
 ### Listing controller info
 
@@ -56,16 +56,18 @@ You can list the controller info by running the following command:
 
 ```bash
 garm-cli controller show
-+------------------------+----------------------------------------------------------------------------+
-| FIELD                  | VALUE                                                                      |
-+------------------------+----------------------------------------------------------------------------+
-| Controller ID          | a4dd5f41-8e1e-42a7-af53-c0ba5ff6b0b3                                       |
-| Hostname               | garm                                                                       |
-| Metadata URL           | https://garm.example.com/api/v1/metadata                                   |
-| Callback URL           | https://garm.example.com/api/v1/callbacks                                  |
-| Webhook Base URL       | https://garm.example.com/webhooks                                          |
-| Controller Webhook URL | https://garm.example.com/webhooks/a4dd5f41-8e1e-42a7-af53-c0ba5ff6b0b3     |
-+------------------------+----------------------------------------------------------------------------+
++-------------------------+----------------------------------------------------------------------------+
+| FIELD                   | VALUE                                                                      |
++-------------------------+----------------------------------------------------------------------------+
+| Controller ID           | a4dd5f41-8e1e-42a7-af53-c0ba5ff6b0b3                                       |
+| Hostname                | garm                                                                       |
+| Metadata URL            | https://garm.example.com/api/v1/metadata                                   |
+| Callback URL            | https://garm.example.com/api/v1/callbacks                                  |
+| Webhook Base URL        | https://garm.example.com/webhooks                                          |
+| Controller Webhook URL  | https://garm.example.com/webhooks/a4dd5f41-8e1e-42a7-af53-c0ba5ff6b0b3     |
+| Minimum Job Age Backoff | 30                                                                         |
+| Version                 | v0.1.5                                                                     |
++-------------------------+----------------------------------------------------------------------------+
 ```
 
 There are several things of interest in this output.
@@ -76,12 +78,14 @@ There are several things of interest in this output.
 * `Callback URL` - This URL is configured by the user, and is the URL that is presented to the runners via userdata when they get set up. Runners will connect to this URL and send status updates and system information (OS version, OS name, github runner agent ID, etc) to the controller. Runners must be able to connect to this URL.
 * `Webhook Base URL` - This is the base URL for webhooks. It is configured by the user in the GARM config file. This URL can be called into by GitHub itself when hooks get triggered by a workflow. GARM needs to know when a new job is started in order to schedule the creation of a new runner. Job webhooks sent to this URL will be recorded by GARM and acted upon. While you can configure this URL directly in your GitHub repo settings, it is advised to use the `Controller Webhook URL` instead, as it is unique to each controller, and allows you to potentially install multiple GARM controller inside the same repo. Github must be able to connect to this URL.
 * `Controller Webhook URL` - This is the URL that GitHub will call into when a webhook is triggered. This URL is unique to each GARM controller and is the preferred URL to use in order to receive webhooks from GitHub. It serves the same purpose as the `Webhook Base URL`, but is unique to each controller, allowing you to potentially install multiple GARM controllers inside the same repo. Github must be able to connect to this URL.
+* `Minimum Job Age Backoff` - This is the job age in seconds, after which GARM will consider spinning up a new runner to handle it. By default GARM waits for 30 seconds after receiving a new job, before it spins up a runner. This delay is there to allow any existing idle runners (managed by GARM or not) to pick up the job, before reacting to it. This way we avoid being too eager and spin up a runner for a job that would have been picked up by an existing runner anyway. You can set this to 0 if you want GARM to react immediately.
+* `Version` - This is the version of GARM that is running.
 
 We will see the `Controller Webhook URL` later when we set up the GitHub repo to send webhooks to GARM.
 
 ### Updating controller settings
 
-Like we've mentioned before, there are 3 URLs that are very important for normal operations:
+As we've mentioned before, there are 3 URLs that are very important for normal operations:
 
 * `metadata_url` - Must be reachable by runners
 * `callback_url` - Must be reachable by runners
@@ -112,7 +116,7 @@ GARM uses providers to create runners. These providers are external executables 
 
 ### Listing configured providers
 
-Once configured (see [provider configuration](/doc/providers.md)), you can list the configured providers by running the following command:
+Once configured (see [provider configuration](/doc/config.md#providers)), you can list the configured providers by running the following command:
 
 ```bash
 ubuntu@garm:~$ garm-cli provider list
@@ -141,7 +145,7 @@ Each of these providers can be used to set up a runner pool for a repository, or
 
 GARM can be used to manage runners for repos, orgs and enterprises hosted on `github.com` or on a GitHub Enterprise Server.
 
-Endpoints are the way that GARM identifies where the credentials and entities you create, are located and where the API endpoints for the GitHub API can be reached, along with a possible CA certificate that validates the connection. There is a default endpoint for `github.com`, so you don't need to add it. But if you're using GHES, you'll need to add an endpoint for it.
+Endpoints are the way that GARM identifies where the credentials and entities you create are located and where the API endpoints for the GitHub API can be reached, along with a possible CA certificate that validates the connection. There is a default endpoint for `github.com`, so you don't need to add it, unless you're using GHES.
 
 ### Creating a GitHub Endpoint
 
@@ -214,7 +218,7 @@ garm-cli github endpoint show github.com
 
 ### Deleting a GitHub Endpoint
 
-You can delete an endpoint unless one of the following conditions is met:
+You can delete an endpoint unless any of the following conditions are met:
 
 * The endpoint is the default endpoint for `github.com`
 * The endpoint is in use by a repository, organization or enterprise
@@ -237,7 +241,7 @@ There are two types of credentials:
 * PAT - Personal Access Token
 * App - GitHub App
 
-To add each of these types of credentials requires slightly different command line arguments (obviously). I'm going to give you an example of both.
+To add each of these types of credentials, slightly different command line arguments (obviously) are required. I'm going to give you an example of both.
 
 To add a PAT, you can run the following command:
 
@@ -314,7 +318,7 @@ To delete a credential, you can run the following command:
 garm-cli github credentials delete 2
 ```
 
-Note, you may not delete credentials that are currently associated with a repository, organization or enterprise. You will need to first replace the credentials on the entity, and then you can delete the credentials.
+> **NOTE**: You may not delete credentials that are currently associated with a repository, organization or enterprise. You will need to first replace the credentials on the entity, and then you can delete the credentials.
 
 ## Repositories
 
@@ -377,7 +381,7 @@ garm-cli repository delete be3a0673-56af-4395-9ebf-4521fea67567
 
 This will remove the repository from GARM, and if a webhook was installed, will also clean up the webhook from the repository.
 
-Note: GARM will not remove a webhook that points to the `Base Webhook URL`. It will only remove webhooks that are namespaced to the running controller.
+> **NOTE**: GARM will not remove a webhook that points to the `Base Webhook URL`. It will only remove webhooks that are namespaced to the running controller.
 
 ## Organizations
 
@@ -403,9 +407,9 @@ ubuntu@garm:~$ garm-cli organization add \
 
 This will add the organization `gsamfira` to GARM, and install a webhook for it. The webhook will be validated against the secret that was generated. The only difference between adding an organization and adding a repository is that you use the `organization` subcommand instead of the `repository` subcommand, and the `--name` option represents the `name` of the organization.
 
-Managing webhooks for organizations is similar to managing webhooks for repositories. You can list, show, install and uninstall webhooks for organizations using the `garm-cli organization webhook` subcommand. We won't go into details here, as it's similar to managing webhooks for repositories.
+Managing webhooks for organizations is similar to managing webhooks for repositories. You can *list*, *show*, *install* and *uninstall* webhooks for organizations using the `garm-cli organization webhook` subcommand. We won't go into details here, as it's similar to managing webhooks for repositories.
 
-All the other operations that exist on repositories, like listing, removing, etc, also exist for organizations and enterprises. Have a look at the help for the `garm-cli organization` subcommand for more details.
+All the other operations that exist on repositories, like listing, removing, etc, also exist for organizations and enterprises. Check out the help for the `garm-cli organization` subcommand for more details.
 
 ## Enterprises
 
@@ -493,11 +497,11 @@ To manually add a webhook, see the [webhooks](/doc/webhooks.md) section.
 
 Now that we have a repository, organization or enterprise added to GARM, we can create a runner pool for it. A runner pool is a collection of runners of the same type, that are managed by GARM and are used to run workflows for the repository, organization or enterprise.
 
-You can create multiple pools of runners for the same entity (repository, organization or enterprise), and you can create pools of runners of different types. For example, you can have a pool of runners that are created on AWS, and another pool of runners that are created on Azure, k8s, LXD, etc. For repositories or organizations with complex needs, you can set up a number of pools that cover a wide range of needs, based on cost, capability (GPUs, FPGAs, etc) or sheer raw computing power. You don't have to pick just one and managing all of them is done using the exact same commands, as we'll show below.
+You can create multiple pools of runners for the same entity (repository, organization or enterprise), and you can create multiple pools of runners, each pool defining different runner types. For example, you can have a pool of runners that are created on AWS, and another pool of runners that are created on Azure, k8s, LXD, etc. For repositories or organizations with complex needs, you can set up a number of pools that cover a wide range of needs, based on cost, capability (GPUs, FPGAs, etc) or sheer raw computing power. You don't have to pick just one, especially since managing all of them is done using the exact same commands, as we'll show below.
 
-Before we create a pool, we have to decide on which provider we want to use. We've listed the providers above, so let's pick one and create a pool of runners for our repository. For the purpose of this example, we'll use the `incus` provider. We'll show you how to create a pool using this provider, but keep in mind that adding another pool using a different provider is done using the exact same commands. The only difference will be in the `--image`, `--flavor` and `--extra-specs` options that you'll use when creating the pool.
+Before we create a pool, we have to decide which provider we want to use. We've listed the providers above, so let's pick one and create a pool of runners for our repository. For the purpose of this example, we'll use the `incus` provider. We'll show you how to create a pool using this provider, but keep in mind that adding another pool using a different provider is done using the exact same commands. The only difference will be in the `--image`, `--flavor` and `--extra-specs` options that you'll use when creating the pool.
 
-Out of those three options, only the `--image` and `--flavor` are mandatory. The `--extra-specs` option is optional and is used to pass additional information to the provider when creating the pool. The `--extra-specs` option is provider specific, and you'll have to consult the provider documentation to see what options are available.
+Out of those three options, only the `--image` and `--flavor` are mandatory. The `--extra-specs` flag is optional and is used to pass additional information to the provider when creating the pool. The `--extra-specs` option is provider specific, and you'll have to consult the provider documentation to see what options are available.
 
 But I digress. Let's create a pool of runners using the `incus` provider, for the `gabriel-samfira/garm` repository we created above:
 
@@ -532,7 +536,7 @@ garm-cli pool add \
 +--------------------------+----------------------------------------+
 ```
 
-Let's unpack the command a bit and explain what happened above. We added a new pool of runners to GARM, that belongs to the `gabriel-samfira/garm` repository. We used the `incus` provider to create the pool, and we specified the `--image` and `--flavor` options to tell the provider what kind of runners we want to create. On Incus and LXD, the flavor maps to a `profile` and the image maps to an incus or LXD image, as you would normally use when spinning up a new container or VM using the `incus launch` command.
+Let's unpack the command and explain what happened above. We added a new pool of runners to GARM, that belongs to the `gabriel-samfira/garm` repository. We used the `incus` provider to create the pool, and we specified the `--image` and `--flavor` options to tell the provider what kind of runners we want to create. On Incus and LXD, the flavor maps to a `profile`. The profile can specify the resources allocated to a container or VM (RAM, CPUs, disk space, etc). The image maps to an incus or LXD image, as you would normally use when spinning up a new container or VM using the `incus launch` command.
 
 We also specified the `--min-idle-runners` option to tell GARM to always keep at least 1 runner idle in the pool. This is useful for repositories that have a lot of workflows that run often, and we want to make sure that we always have a runner ready to pick up a job.
 
@@ -692,7 +696,7 @@ root@incus:~# incus list
 +-------------------+---------+----------------------+-----------------------------------------------+-----------+-----------+
 ```
 
-Awesome! This runner will be able to pick up bobs that match the labels we've set on the pool.
+Awesome! This runner will be able to pick up jobs that match the labels we've set on the pool.
 
 ## Runners
 
@@ -780,6 +784,24 @@ time=2024-02-12T08:36:31.251Z level=INFO msg=access_log method=GET uri=/api/v1/i
 ```
 
 This will bring a real-time log to your terminal. While this feature should be fairly secure, I encourage you to only expose it within networks you know are secure. This can be done by configuring a reverse proxy in front of GARM that only allows connections to the websocket endpoint from certain locations.
+
+## The debug-events command
+
+Starting with GARM v0.1.5 a new command has been added to the CLI that consumes database events recorded by GARM. Whenever something is updated in the database, a new event is generated. These events are generated by the database watcher and are also exported via a websocket endpoint. This websocket endpoint is meant to be consumed by applications that wish to integrate GARM and want to avoid having to poll the API.
+
+This command is not meant to be used to integrate GARM events, it is mearly a debug tool that allows you to see what events are being generated by GARM. To use it, you can run:
+
+```bash
+garm-cli debug-events --filters='{"send-everything": true}'
+```
+
+This command will send all events to your CLI as they happen. You can also filter by entity or operation like so:
+
+```bash
+garm-cli debug-events --filters='{"filters": [{"entity-type": "instance", "operations": ["create", "delete"]}, {"entity-type": "pool"}, {"entity-type": "controller"}]}'
+```
+
+The payloads that get sent to your terminal are described in the [events](/doc/events.md) section, but the short description is that you get the operation type (create, update, delete), the entity type (instance, pool, repo, etc) and the json payload as you normaly would when you fetch them through the API. Sensitive info like tokens or passwords are never returned.
 
 ## Listing recorded jobs
 
