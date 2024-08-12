@@ -71,7 +71,7 @@ sudo cp $CONFIG_DIR/garm-provider-lxd.toml $LXD_PROVIDER_CONFIG
 function clone_and_build_lxd_provider() {
     git clone https://github.com/cloudbase/garm-provider-lxd ~/garm-provider-lxd
     pushd ~/garm-provider-lxd
-    go build -o $LXD_PROVIDER_EXECUTABLE
+    CGO_ENABLED=1 go build -o $LXD_PROVIDER_EXECUTABLE
     popd
 }
 
