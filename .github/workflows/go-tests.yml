@@ -26,9 +26,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libbtrfs-dev build-essential apg jq
 
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v5
         with:
-          go-version: 'stable'
+          go-version: '^1.22.3'
       - uses: actions/checkout@v3
       - name: make lint
         run: make golangci-lint && GOLANGCI_LINT_EXTRA_ARGS="--timeout=8m --build-tags=testing,integration" make lint

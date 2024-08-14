@@ -5,7 +5,7 @@ secure_boot = false
 project_name = "default"
 [image_remotes]
   [image_remotes.ubuntu]
-    addr = "https://cloud-images.ubuntu.com/releases"
+    addr = "${LXD_REMOTE_SERVER}"
     public = true
     protocol = "simplestreams"
     skip_verify = false
