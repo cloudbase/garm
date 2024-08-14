@@ -18,6 +18,8 @@ jobs:
 
       - name: Setup LXD
         uses: canonical/setup-lxd@main
+        with:
+          channel: latest/stable
 
       - name: Install dependencies
         run: |
@@ -42,9 +44,9 @@ jobs:
 
           echo "GARM_BASE_URL=$GARM_BASE_URL" >> $GITHUB_ENV
 
-          cat <<EOF | sudo tee /etc/systemd/system/localshow-tunnel.service
+          cat <<EOF | sudo tee /etc/systemd/system/garm-tunnel.service
           [Unit]
-          Description=Localshow tunnel
+          Description=GARM tunnel
           After=network.target
 
           [Service]
@@ -57,8 +59,8 @@ jobs:
           EOF
 
           sudo systemctl daemon-reload
-          sudo systemctl enable localshow-tunnel
-          sudo systemctl start localshow-tunnel
+          sudo systemctl enable garm-tunnel
+          sudo systemctl start garm-tunnel
 
       - name: Generate secrets
         run: |
@@ -90,6 +92,7 @@ jobs:
           CREDENTIALS_NAME: test-garm-creds
           WORKFLOW_FILE_NAME: test.yml
           GH_TOKEN: ${{ secrets.GH_OAUTH_TOKEN }}
+          LXD_REMOTE_SERVER: ${{ secrets.LXD_REMOTE_SERVER }}
 
       - name: Show GARM logs
         if: always()
