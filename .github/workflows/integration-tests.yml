@@ -6,7 +6,7 @@ on:
 
 jobs:
   integration-tests:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-noble-garm
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -17,14 +17,14 @@ jobs:
           go-version-file: go.mod
 
       - name: Setup LXD
-        uses: canonical/setup-lxd@v0.1.1
+        uses: canonical/setup-lxd@main
 
       - name: Install dependencies
         run: |
           sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list
-          sudo apt-get -qq update && sudo apt-get -qq install -y apg coreutils make
+          sudo apt-get -qq update && sudo apt-get -qq install -y apg coreutils make jq build-essential libsqlite3-dev libsqlite3-0
 
-      - name: Set up localshow tunnel
+      - name: Set up tunnel
         shell: bash
         run: |
           mkdir -p /home/runner/.ssh

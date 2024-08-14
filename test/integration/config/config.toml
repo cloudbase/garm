@@ -38,13 +38,3 @@ provider_type = "external"
   [provider.external]
   config_file = "${GARM_CONFIG_DIR}/test-provider/config"
   provider_executable = "${GARM_CONFIG_DIR}/test-provider/garm-external-provider"
-
-[[github]]
-name = "${CREDENTIALS_NAME}"
-description = "GARM GitHub OAuth token"
-oauth2_token = "${GH_TOKEN}"
-
-[[github]]
-name = "${CREDENTIALS_NAME}-clone"
-description = "GARM GitHub OAuth token - clone"
-oauth2_token = "${GH_TOKEN}"
