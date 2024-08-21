@@ -12,17 +12,11 @@
 //    License for the specific language governing permissions and limitations
 //    under the License.
 
-package execution
-
-type ExecutionCommand string
+package common
 
 const (
-	CreateInstanceCommand     ExecutionCommand = "CreateInstance"
-	DeleteInstanceCommand     ExecutionCommand = "DeleteInstance"
-	GetInstanceCommand        ExecutionCommand = "GetInstance"
-	ListInstancesCommand      ExecutionCommand = "ListInstances"
-	StartInstanceCommand      ExecutionCommand = "StartInstance"
-	StopInstanceCommand       ExecutionCommand = "StopInstance"
-	RemoveAllInstancesCommand ExecutionCommand = "RemoveAllInstances"
-	GetVersionInfoCommand     ExecutionCommand = "GetVersionInfo"
+	// Version v0.1.0
+	Version010 = "v0.1.0"
+	// Version v0.1.1
+	Version011 = "v0.1.1"
 )

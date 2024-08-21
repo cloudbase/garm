@@ -11,7 +11,7 @@ import (
 	"github.com/pkg/errors"
 
 	garmErrors "github.com/cloudbase/garm-provider-common/errors"
-	execution "github.com/cloudbase/garm-provider-common/execution/v0.1.1"
+	commonExecution "github.com/cloudbase/garm-provider-common/execution/common"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 	garmExec "github.com/cloudbase/garm-provider-common/util/exec"
 	"github.com/cloudbase/garm/config"
@@ -75,7 +75,7 @@ func (e *external) validateResult(inst commonParams.ProviderInstance) error {
 // CreateInstance creates a new compute instance in the provider.
 func (e *external) CreateInstance(ctx context.Context, bootstrapParams commonParams.BootstrapInstance, _ common.CreateInstanceParams) (commonParams.ProviderInstance, error) {
 	asEnv := []string{
-		fmt.Sprintf("GARM_COMMAND=%s", execution.CreateInstanceCommand),
+		fmt.Sprintf("GARM_COMMAND=%s", commonExecution.CreateInstanceCommand),
 		fmt.Sprintf("GARM_CONTROLLER_ID=%s", e.controllerID),
 		fmt.Sprintf("GARM_POOL_ID=%s", bootstrapParams.PoolID),
 		fmt.Sprintf("GARM_PROVIDER_CONFIG_FILE=%s", e.cfg.External.ConfigFile),
@@ -135,7 +135,7 @@ func (e *external) DeleteInstance(ctx context.Context, instance string, deleteIn
 	// Encode the extraspecs as base64 to avoid issues with special characters.
 	base64EncodedExtraSpecs := base64.StdEncoding.EncodeToString(extraspecsValue)
 	asEnv := []string{
-		fmt.Sprintf("GARM_COMMAND=%s", execution.DeleteInstanceCommand),
+		fmt.Sprintf("GARM_COMMAND=%s", commonExecution.DeleteInstanceCommand),
 		fmt.Sprintf("GARM_CONTROLLER_ID=%s", e.controllerID),
 		fmt.Sprintf("GARM_INSTANCE_ID=%s", instance),
 		fmt.Sprintf("GARM_PROVIDER_CONFIG_FILE=%s", e.cfg.External.ConfigFile),
@@ -151,7 +151,7 @@ func (e *external) DeleteInstance(ctx context.Context, instance string, deleteIn
 	_, err = garmExec.Exec(ctx, e.execPath, nil, asEnv)
 	if err != nil {
 		var exitErr *exec.ExitError
-		if !errors.As(err, &exitErr) || exitErr.ExitCode() != execution.ExitCodeNotFound {
+		if !errors.As(err, &exitErr) || exitErr.ExitCode() != commonExecution.ExitCodeNotFound {
 			metrics.InstanceOperationFailedCount.WithLabelValues(
 				"DeleteInstance", // label: operation
 				e.cfg.Name,       // label: provider
@@ -172,7 +172,7 @@ func (e *external) GetInstance(ctx context.Context, instance string, getInstance
 	// Encode the extraspecs as base64 to avoid issues with special characters.
 	base64EncodedExtraSpecs := base64.StdEncoding.EncodeToString(extraspecsValue)
 	asEnv := []string{
-		fmt.Sprintf("GARM_COMMAND=%s", execution.GetInstanceCommand),
+		fmt.Sprintf("GARM_COMMAND=%s", commonExecution.GetInstanceCommand),
 		fmt.Sprintf("GARM_CONTROLLER_ID=%s", e.controllerID),
 		fmt.Sprintf("GARM_INSTANCE_ID=%s", instance),
 		fmt.Sprintf("GARM_PROVIDER_CONFIG_FILE=%s", e.cfg.External.ConfigFile),
@@ -227,7 +227,7 @@ func (e *external) ListInstances(ctx context.Context, poolID string, listInstanc
 	// Encode the extraspecs as base64 to avoid issues with special characters.
 	base64EncodedExtraSpecs := base64.StdEncoding.EncodeToString(extraspecsValue)
 	asEnv := []string{
-		fmt.Sprintf("GARM_COMMAND=%s", execution.ListInstancesCommand),
+		fmt.Sprintf("GARM_COMMAND=%s", commonExecution.ListInstancesCommand),
 		fmt.Sprintf("GARM_CONTROLLER_ID=%s", e.controllerID),
 		fmt.Sprintf("GARM_POOL_ID=%s", poolID),
 		fmt.Sprintf("GARM_PROVIDER_CONFIG_FILE=%s", e.cfg.External.ConfigFile),
@@ -282,7 +282,7 @@ func (e *external) RemoveAllInstances(ctx context.Context, removeAllInstances co
 	// Encode the extraspecs as base64 to avoid issues with special characters.
 	base64EncodedExtraSpecs := base64.StdEncoding.EncodeToString(extraspecsValue)
 	asEnv := []string{
-		fmt.Sprintf("GARM_COMMAND=%s", execution.RemoveAllInstancesCommand),
+		fmt.Sprintf("GARM_COMMAND=%s", commonExecution.RemoveAllInstancesCommand),
 		fmt.Sprintf("GARM_CONTROLLER_ID=%s", e.controllerID),
 		fmt.Sprintf("GARM_PROVIDER_CONFIG_FILE=%s", e.cfg.External.ConfigFile),
 		fmt.Sprintf("GARM_POOL_ID=%s", removeAllInstances.RemoveAllInstancesV011.PoolInfo.ID),
@@ -316,7 +316,7 @@ func (e *external) Stop(ctx context.Context, instance string, stopParams common.
 	// Encode the extraspecs as base64 to avoid issues with special characters.
 	base64EncodedExtraSpecs := base64.StdEncoding.EncodeToString(extraspecsValue)
 	asEnv := []string{
-		fmt.Sprintf("GARM_COMMAND=%s", execution.StopInstanceCommand),
+		fmt.Sprintf("GARM_COMMAND=%s", commonExecution.StopInstanceCommand),
 		fmt.Sprintf("GARM_CONTROLLER_ID=%s", e.controllerID),
 		fmt.Sprintf("GARM_INSTANCE_ID=%s", instance),
 		fmt.Sprintf("GARM_PROVIDER_CONFIG_FILE=%s", e.cfg.External.ConfigFile),
@@ -350,7 +350,7 @@ func (e *external) Start(ctx context.Context, instance string, startParams commo
 	// Encode the extraspecs as base64 to avoid issues with special characters.
 	base64EncodedExtraSpecs := base64.StdEncoding.EncodeToString(extraspecsValue)
 	asEnv := []string{
-		fmt.Sprintf("GARM_COMMAND=%s", execution.StartInstanceCommand),
+		fmt.Sprintf("GARM_COMMAND=%s", commonExecution.StartInstanceCommand),
 		fmt.Sprintf("GARM_CONTROLLER_ID=%s", e.controllerID),
 		fmt.Sprintf("GARM_INSTANCE_ID=%s", instance),
 		fmt.Sprintf("GARM_PROVIDER_CONFIG_FILE=%s", e.cfg.External.ConfigFile),
