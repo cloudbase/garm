@@ -17,7 +17,7 @@ import (
 	"github.com/cloudbase/garm/metrics"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
-	"github.com/cloudbase/garm/runner/providers/util"
+	commonExternal "github.com/cloudbase/garm/runner/providers/common"
 )
 
 var _ common.Provider = (*external)(nil)
@@ -55,22 +55,6 @@ type external struct {
 	cfg                  *config.Provider
 	execPath             string
 	environmentVariables []string
-}
-
-func (e *external) validateResult(inst commonParams.ProviderInstance) error {
-	if inst.ProviderID == "" {
-		return garmErrors.NewProviderError("missing provider ID")
-	}
-
-	if inst.Name == "" {
-		return garmErrors.NewProviderError("missing instance name")
-	}
-
-	if !util.IsValidProviderStatus(inst.Status) {
-		return garmErrors.NewProviderError("invalid status returned (%s)", inst.Status)
-	}
-
-	return nil
 }
 
 // CreateInstance creates a new compute instance in the provider.
@@ -111,7 +95,7 @@ func (e *external) CreateInstance(ctx context.Context, bootstrapParams commonPar
 		return commonParams.ProviderInstance{}, garmErrors.NewProviderError("failed to decode response from binary: %s", err)
 	}
 
-	if err := e.validateResult(param); err != nil {
+	if err := commonExternal.ValidateResult(param); err != nil {
 		metrics.InstanceOperationFailedCount.WithLabelValues(
 			"CreateInstance", // label: operation
 			e.cfg.Name,       // label: provider
@@ -189,7 +173,7 @@ func (e *external) GetInstance(ctx context.Context, instance string, _ common.Ge
 		return commonParams.ProviderInstance{}, garmErrors.NewProviderError("failed to decode response from binary: %s", err)
 	}
 
-	if err := e.validateResult(param); err != nil {
+	if err := commonExternal.ValidateResult(param); err != nil {
 		metrics.InstanceOperationFailedCount.WithLabelValues(
 			"GetInstance", // label: operation
 			e.cfg.Name,    // label: provider
@@ -235,7 +219,7 @@ func (e *external) ListInstances(ctx context.Context, poolID string, _ common.Li
 
 	ret := make([]commonParams.ProviderInstance, len(param))
 	for idx, inst := range param {
-		if err := e.validateResult(inst); err != nil {
+		if err := commonExternal.ValidateResult(inst); err != nil {
 			metrics.InstanceOperationFailedCount.WithLabelValues(
 				"ListInstances", // label: operation
 				e.cfg.Name,      // label: provider

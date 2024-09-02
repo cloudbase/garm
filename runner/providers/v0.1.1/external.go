@@ -18,7 +18,7 @@ import (
 	"github.com/cloudbase/garm/metrics"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
-	"github.com/cloudbase/garm/runner/providers/util"
+	commonExternal "github.com/cloudbase/garm/runner/providers/common"
 )
 
 var _ common.Provider = (*external)(nil)
@@ -56,29 +56,21 @@ type external struct {
 	environmentVariables []string
 }
 
-func (e *external) validateResult(inst commonParams.ProviderInstance) error {
-	if inst.ProviderID == "" {
-		return garmErrors.NewProviderError("missing provider ID")
-	}
-
-	if inst.Name == "" {
-		return garmErrors.NewProviderError("missing instance name")
-	}
-
-	if !util.IsValidProviderStatus(inst.Status) {
-		return garmErrors.NewProviderError("invalid status returned (%s)", inst.Status)
-	}
-
-	return nil
-}
-
 // CreateInstance creates a new compute instance in the provider.
 func (e *external) CreateInstance(ctx context.Context, bootstrapParams commonParams.BootstrapInstance, _ common.CreateInstanceParams) (commonParams.ProviderInstance, error) {
+	extraspecs := bootstrapParams.ExtraSpecs
+	extraspecsValue, err := json.Marshal(extraspecs)
+	if err != nil {
+		return commonParams.ProviderInstance{}, errors.Wrap(err, "serializing extraspecs")
+	}
+	// Encode the extraspecs as base64 to avoid issues with special characters.
+	base64EncodedExtraSpecs := base64.StdEncoding.EncodeToString(extraspecsValue)
 	asEnv := []string{
 		fmt.Sprintf("GARM_COMMAND=%s", commonExecution.CreateInstanceCommand),
 		fmt.Sprintf("GARM_CONTROLLER_ID=%s", e.controllerID),
 		fmt.Sprintf("GARM_POOL_ID=%s", bootstrapParams.PoolID),
 		fmt.Sprintf("GARM_PROVIDER_CONFIG_FILE=%s", e.cfg.External.ConfigFile),
+		fmt.Sprintf("GARM_POOL_EXTRASPECS=%s", base64EncodedExtraSpecs),
 	}
 	asEnv = append(asEnv, e.environmentVariables...)
 
@@ -110,7 +102,7 @@ func (e *external) CreateInstance(ctx context.Context, bootstrapParams commonPar
 		return commonParams.ProviderInstance{}, garmErrors.NewProviderError("failed to decode response from binary: %s", err)
 	}
 
-	if err := e.validateResult(param); err != nil {
+	if err := commonExternal.ValidateResult(param); err != nil {
 		metrics.InstanceOperationFailedCount.WithLabelValues(
 			"CreateInstance", // label: operation
 			e.cfg.Name,       // label: provider
@@ -206,7 +198,7 @@ func (e *external) GetInstance(ctx context.Context, instance string, getInstance
 		return commonParams.ProviderInstance{}, garmErrors.NewProviderError("failed to decode response from binary: %s", err)
 	}
 
-	if err := e.validateResult(param); err != nil {
+	if err := commonExternal.ValidateResult(param); err != nil {
 		metrics.InstanceOperationFailedCount.WithLabelValues(
 			"GetInstance", // label: operation
 			e.cfg.Name,    // label: provider
@@ -260,7 +252,7 @@ func (e *external) ListInstances(ctx context.Context, poolID string, listInstanc
 
 	ret := make([]commonParams.ProviderInstance, len(param))
 	for idx, inst := range param {
-		if err := e.validateResult(inst); err != nil {
+		if err := commonExternal.ValidateResult(inst); err != nil {
 			metrics.InstanceOperationFailedCount.WithLabelValues(
 				"ListInstances", // label: operation
 				e.cfg.Name,      // label: provider
