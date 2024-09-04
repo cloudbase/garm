@@ -12,7 +12,7 @@
 //    License for the specific language governing permissions and limitations
 //    under the License.
 
-package execution
+package common
 
 import (
 	"context"
@@ -20,7 +20,7 @@ import (
 	"github.com/cloudbase/garm-provider-common/params"
 )
 
-// ExternalProvider defines an interface that external providers need to implement.
+// ExternalProvider defines a common interface that external providers need to implement.
 // This is very similar to the common.Provider interface, and was redefined here to
 // decouple it, in case it may diverge from native providers.
 type ExternalProvider interface {
@@ -38,4 +38,6 @@ type ExternalProvider interface {
 	Stop(ctx context.Context, instance string, force bool) error
 	// Start boots up an instance.
 	Start(ctx context.Context, instance string) error
+	// GetVersion returns the version of the provider.
+	GetVersion(ctx context.Context) string
 }
