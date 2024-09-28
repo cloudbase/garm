@@ -206,7 +206,7 @@ func (s *sqlDatabase) findPoolByTags(id string, poolType params.GithubEntityType
 	}
 
 	var pools []Pool
-	where := fmt.Sprintf("tags.name in ? and %s = ? and enabled = true", fieldName)
+	where := fmt.Sprintf("tags.name COLLATE NOCASE in ? and %s = ? and enabled = true", fieldName)
 	q := s.conn.Joins("JOIN pool_tags on pool_tags.pool_id=pools.id").
 		Joins("JOIN tags on tags.id=pool_tags.tag_id").
 		Group("pools.id").
