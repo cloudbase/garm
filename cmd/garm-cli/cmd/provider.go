@@ -21,6 +21,7 @@ import (
 	"github.com/spf13/cobra"
 
 	apiClientProviders "github.com/cloudbase/garm/client/providers"
+	"github.com/cloudbase/garm/cmd/garm-cli/common"
 	"github.com/cloudbase/garm/params"
 )
 
@@ -64,6 +65,10 @@ func init() {
 }
 
 func formatProviders(providers []params.Provider) {
+	if outputFormat == common.OutputFormatJSON {
+		printAsJSON(providers)
+		return
+	}
 	t := table.NewWriter()
 	header := table.Row{"Name", "Description", "Type"}
 	t.AppendHeader(header)

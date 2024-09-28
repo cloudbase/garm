@@ -25,6 +25,7 @@ import (
 	apiClientInstances "github.com/cloudbase/garm/client/instances"
 	apiClientOrgs "github.com/cloudbase/garm/client/organizations"
 	apiClientRepos "github.com/cloudbase/garm/client/repositories"
+	"github.com/cloudbase/garm/cmd/garm-cli/common"
 	"github.com/cloudbase/garm/params"
 )
 
@@ -222,6 +223,10 @@ func init() {
 }
 
 func formatInstances(param []params.Instance, detailed bool) {
+	if outputFormat == common.OutputFormatJSON {
+		printAsJSON(param)
+		return
+	}
 	t := table.NewWriter()
 	header := table.Row{"Nr", "Name", "Status", "Runner Status", "Pool ID"}
 	if detailed {
@@ -242,6 +247,10 @@ func formatInstances(param []params.Instance, detailed bool) {
 }
 
 func formatSingleInstance(instance params.Instance) {
+	if outputFormat == common.OutputFormatJSON {
+		printAsJSON(instance)
+		return
+	}
 	t := table.NewWriter()
 
 	header := table.Row{"Field", "Value"}

@@ -21,6 +21,7 @@ import (
 	"github.com/spf13/cobra"
 
 	apiClientEnterprises "github.com/cloudbase/garm/client/enterprises"
+	"github.com/cloudbase/garm/cmd/garm-cli/common"
 	"github.com/cloudbase/garm/params"
 )
 
@@ -200,6 +201,10 @@ func init() {
 }
 
 func formatEnterprises(enterprises []params.Enterprise) {
+	if outputFormat == common.OutputFormatJSON {
+		printAsJSON(enterprises)
+		return
+	}
 	t := table.NewWriter()
 	header := table.Row{"ID", "Name", "Endpoint", "Credentials name", "Pool Balancer Type", "Pool mgr running"}
 	t.AppendHeader(header)
@@ -211,6 +216,10 @@ func formatEnterprises(enterprises []params.Enterprise) {
 }
 
 func formatOneEnterprise(enterprise params.Enterprise) {
+	if outputFormat == common.OutputFormatJSON {
+		printAsJSON(enterprise)
+		return
+	}
 	t := table.NewWriter()
 	rowConfigAutoMerge := table.RowConfig{AutoMerge: true}
 	header := table.Row{"Field", "Value"}
