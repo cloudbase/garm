@@ -40,11 +40,11 @@ type InstanceRequest struct {
 }
 
 type CreateRepoParams struct {
-	Owner            string           `json:"owner"`
-	Name             string           `json:"name"`
-	CredentialsName  string           `json:"credentials_name"`
-	WebhookSecret    string           `json:"webhook_secret"`
-	PoolBalancerType PoolBalancerType `json:"pool_balancer_type"`
+	Owner            string           `json:"owner,omitempty"`
+	Name             string           `json:"name,omitempty"`
+	CredentialsName  string           `json:"credentials_name,omitempty"`
+	WebhookSecret    string           `json:"webhook_secret,omitempty"`
+	PoolBalancerType PoolBalancerType `json:"pool_balancer_type,omitempty"`
 }
 
 func (c *CreateRepoParams) Validate() error {
@@ -73,10 +73,10 @@ func (c *CreateRepoParams) Validate() error {
 }
 
 type CreateOrgParams struct {
-	Name             string           `json:"name"`
-	CredentialsName  string           `json:"credentials_name"`
-	WebhookSecret    string           `json:"webhook_secret"`
-	PoolBalancerType PoolBalancerType `json:"pool_balancer_type"`
+	Name             string           `json:"name,omitempty"`
+	CredentialsName  string           `json:"credentials_name,omitempty"`
+	WebhookSecret    string           `json:"webhook_secret,omitempty"`
+	PoolBalancerType PoolBalancerType `json:"pool_balancer_type,omitempty"`
 }
 
 func (c *CreateOrgParams) Validate() error {
@@ -100,10 +100,10 @@ func (c *CreateOrgParams) Validate() error {
 }
 
 type CreateEnterpriseParams struct {
-	Name             string           `json:"name"`
-	CredentialsName  string           `json:"credentials_name"`
-	WebhookSecret    string           `json:"webhook_secret"`
-	PoolBalancerType PoolBalancerType `json:"pool_balancer_type"`
+	Name             string           `json:"name,omitempty"`
+	CredentialsName  string           `json:"credentials_name,omitempty"`
+	WebhookSecret    string           `json:"webhook_secret,omitempty"`
+	PoolBalancerType PoolBalancerType `json:"pool_balancer_type,omitempty"`
 }
 
 func (c *CreateEnterpriseParams) Validate() error {
@@ -128,10 +128,10 @@ func (c *CreateEnterpriseParams) Validate() error {
 // NewUserParams holds the needed information to create
 // a new user
 type NewUserParams struct {
-	Email    string `json:"email"`
-	Username string `json:"username"`
-	FullName string `json:"full_name"`
-	Password string `json:"password"`
+	Email    string `json:"email,omitempty"`
+	Username string `json:"username,omitempty"`
+	FullName string `json:"full_name,omitempty"`
+	Password string `json:"password,omitempty"`
 	IsAdmin  bool   `json:"-"`
 	Enabled  bool   `json:"-"`
 }
@@ -144,10 +144,10 @@ type UpdatePoolParams struct {
 	MaxRunners             *uint               `json:"max_runners,omitempty"`
 	MinIdleRunners         *uint               `json:"min_idle_runners,omitempty"`
 	RunnerBootstrapTimeout *uint               `json:"runner_bootstrap_timeout,omitempty"`
-	Image                  string              `json:"image"`
-	Flavor                 string              `json:"flavor"`
-	OSType                 commonParams.OSType `json:"os_type"`
-	OSArch                 commonParams.OSArch `json:"os_arch"`
+	Image                  string              `json:"image,omitempty"`
+	Flavor                 string              `json:"flavor,omitempty"`
+	OSType                 commonParams.OSType `json:"os_type,omitempty"`
+	OSArch                 commonParams.OSArch `json:"os_arch,omitempty"`
 	ExtraSpecs             json.RawMessage     `json:"extra_specs,omitempty"`
 	// GithubRunnerGroup is the github runner group in which the runners of this
 	// pool will be added to.
@@ -157,41 +157,41 @@ type UpdatePoolParams struct {
 }
 
 type CreateInstanceParams struct {
-	Name         string
-	OSType       commonParams.OSType
-	OSArch       commonParams.OSArch
-	Status       commonParams.InstanceStatus
-	RunnerStatus RunnerStatus
-	CallbackURL  string
-	MetadataURL  string
+	Name         string                      `json:"name,omitempty"`
+	OSType       commonParams.OSType         `json:"os_type,omitempty"`
+	OSArch       commonParams.OSArch         `json:"os_arch,omitempty"`
+	Status       commonParams.InstanceStatus `json:"status,omitempty"`
+	RunnerStatus RunnerStatus                `json:"runner_status,omitempty"`
+	CallbackURL  string                      `json:"callback_url,omitempty"`
+	MetadataURL  string                      `json:"metadata_url,omitempty"`
 	// GithubRunnerGroup is the github runner group to which the runner belongs.
 	// The runner group must be created by someone with access to the enterprise.
-	GitHubRunnerGroup string
-	CreateAttempt     int   `json:"-"`
-	AgentID           int64 `json:"-"`
-	AditionalLabels   []string
-	JitConfiguration  map[string]string
+	GitHubRunnerGroup string            `json:"github-runner-group,omitempty"`
+	CreateAttempt     int               `json:"-"`
+	AgentID           int64             `json:"-"`
+	AditionalLabels   []string          `json:"aditional_labels,omitempty"`
+	JitConfiguration  map[string]string `json:"jit_configuration,omitempty"`
 }
 
 type CreatePoolParams struct {
 	RunnerPrefix
 
-	ProviderName           string              `json:"provider_name"`
-	MaxRunners             uint                `json:"max_runners"`
-	MinIdleRunners         uint                `json:"min_idle_runners"`
-	Image                  string              `json:"image"`
-	Flavor                 string              `json:"flavor"`
-	OSType                 commonParams.OSType `json:"os_type"`
-	OSArch                 commonParams.OSArch `json:"os_arch"`
-	Tags                   []string            `json:"tags"`
-	Enabled                bool                `json:"enabled"`
-	RunnerBootstrapTimeout uint                `json:"runner_bootstrap_timeout"`
+	ProviderName           string              `json:"provider_name,omitempty"`
+	MaxRunners             uint                `json:"max_runners,omitempty"`
+	MinIdleRunners         uint                `json:"min_idle_runners,omitempty"`
+	Image                  string              `json:"image,omitempty"`
+	Flavor                 string              `json:"flavor,omitempty"`
+	OSType                 commonParams.OSType `json:"os_type,omitempty"`
+	OSArch                 commonParams.OSArch `json:"os_arch,omitempty"`
+	Tags                   []string            `json:"tags,omitempty"`
+	Enabled                bool                `json:"enabled,omitempty"`
+	RunnerBootstrapTimeout uint                `json:"runner_bootstrap_timeout,omitempty"`
 	ExtraSpecs             json.RawMessage     `json:"extra_specs,omitempty"`
 	// GithubRunnerGroup is the github runner group in which the runners of this
 	// pool will be added to.
 	// The runner group must be created by someone with access to the enterprise.
-	GitHubRunnerGroup string `json:"github-runner-group"`
-	Priority          uint   `json:"priority"`
+	GitHubRunnerGroup string `json:"github-runner-group,omitempty"`
+	Priority          uint   `json:"priority,omitempty"`
 }
 
 func (p *CreatePoolParams) Validate() error {
@@ -242,17 +242,17 @@ type UpdateInstanceParams struct {
 }
 
 type UpdateUserParams struct {
-	FullName string `json:"full_name"`
-	Password string `json:"password"`
-	Enabled  *bool  `json:"enabled"`
+	FullName string `json:"full_name,omitempty"`
+	Password string `json:"password,omitempty"`
+	Enabled  *bool  `json:"enabled,omitempty"`
 }
 
 // PasswordLoginParams holds information used during
 // password authentication, that will be passed to a
 // password login function
 type PasswordLoginParams struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
+	Username string `json:"username,omitempty"`
+	Password string `json:"password,omitempty"`
 }
 
 // Validate checks if the username and password are set
@@ -264,14 +264,14 @@ func (p PasswordLoginParams) Validate() error {
 }
 
 type UpdateEntityParams struct {
-	CredentialsName  string           `json:"credentials_name"`
-	WebhookSecret    string           `json:"webhook_secret"`
-	PoolBalancerType PoolBalancerType `json:"pool_balancer_type"`
+	CredentialsName  string           `json:"credentials_name,omitempty"`
+	WebhookSecret    string           `json:"webhook_secret,omitempty"`
+	PoolBalancerType PoolBalancerType `json:"pool_balancer_type,omitempty"`
 }
 
 type InstanceUpdateMessage struct {
-	Status  RunnerStatus `json:"status"`
-	Message string       `json:"message"`
+	Status  RunnerStatus `json:"status,omitempty"`
+	Message string       `json:"message,omitempty"`
 	AgentID *int64       `json:"agent_id,omitempty"`
 }
 
@@ -401,13 +401,13 @@ func (u UpdateGithubEndpointParams) Validate() error {
 }
 
 type GithubPAT struct {
-	OAuth2Token string `json:"oauth2_token"`
+	OAuth2Token string `json:"oauth2_token,omitempty"`
 }
 
 type GithubApp struct {
-	AppID           int64  `json:"app_id"`
-	InstallationID  int64  `json:"installation_id"`
-	PrivateKeyBytes []byte `json:"private_key_bytes"`
+	AppID           int64  `json:"app_id,omitempty"`
+	InstallationID  int64  `json:"installation_id,omitempty"`
+	PrivateKeyBytes []byte `json:"private_key_bytes,omitempty"`
 }
 
 func (g GithubApp) Validate() error {
@@ -437,10 +437,10 @@ func (g GithubApp) Validate() error {
 }
 
 type CreateGithubCredentialsParams struct {
-	Name        string         `json:"name"`
-	Description string         `json:"description"`
-	Endpoint    string         `json:"endpoint"`
-	AuthType    GithubAuthType `json:"auth_type"`
+	Name        string         `json:"name,omitempty"`
+	Description string         `json:"description,omitempty"`
+	Endpoint    string         `json:"endpoint,omitempty"`
+	AuthType    GithubAuthType `json:"auth_type,omitempty"`
 	PAT         GithubPAT      `json:"pat,omitempty"`
 	App         GithubApp      `json:"app,omitempty"`
 }
