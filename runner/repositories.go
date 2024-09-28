@@ -205,7 +205,7 @@ func (r *Runner) UpdateRepository(ctx context.Context, repoID string, param para
 
 	poolMgr, err := r.poolManagerCtrl.GetRepoPoolManager(repo)
 	if err != nil {
-		return params.Repository{}, fmt.Errorf("failed to get pool manager: %w", err)
+		return params.Repository{}, errors.Wrap(err, "getting pool manager")
 	}
 
 	repo.PoolManagerStatus = poolMgr.Status()
@@ -219,7 +219,7 @@ func (r *Runner) CreateRepoPool(ctx context.Context, repoID string, param params
 
 	createPoolParams, err := r.appendTagsToCreatePoolParams(param)
 	if err != nil {
-		return params.Pool{}, fmt.Errorf("failed to append tags to create pool params: %w", err)
+		return params.Pool{}, errors.Wrap(err, "appending tags to create pool params")
 	}
 
 	if createPoolParams.RunnerBootstrapTimeout == 0 {
@@ -233,7 +233,7 @@ func (r *Runner) CreateRepoPool(ctx context.Context, repoID string, param params
 
 	pool, err := r.store.CreateEntityPool(ctx, entity, createPoolParams)
 	if err != nil {
-		return params.Pool{}, fmt.Errorf("failed to create pool: %w", err)
+		return params.Pool{}, errors.Wrap(err, "creating pool")
 	}
 
 	return pool, nil
