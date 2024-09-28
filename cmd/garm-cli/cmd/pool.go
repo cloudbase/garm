@@ -29,6 +29,7 @@ import (
 	apiClientOrgs "github.com/cloudbase/garm/client/organizations"
 	apiClientPools "github.com/cloudbase/garm/client/pools"
 	apiClientRepos "github.com/cloudbase/garm/client/repositories"
+	"github.com/cloudbase/garm/cmd/garm-cli/common"
 	"github.com/cloudbase/garm/params"
 )
 
@@ -466,6 +467,10 @@ func asRawMessage(data []byte) (json.RawMessage, error) {
 }
 
 func formatPools(pools []params.Pool) {
+	if outputFormat == common.OutputFormatJSON {
+		printAsJSON(pools)
+		return
+	}
 	t := table.NewWriter()
 	header := table.Row{"ID", "Image", "Flavor", "Tags", "Belongs to", "Level", "Enabled", "Runner Prefix", "Priority"}
 	t.AppendHeader(header)
@@ -496,6 +501,10 @@ func formatPools(pools []params.Pool) {
 }
 
 func formatOnePool(pool params.Pool) {
+	if outputFormat == common.OutputFormatJSON {
+		printAsJSON(pool)
+		return
+	}
 	t := table.NewWriter()
 	rowConfigAutoMerge := table.RowConfig{AutoMerge: true}
 

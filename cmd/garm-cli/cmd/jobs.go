@@ -23,6 +23,7 @@ import (
 	"github.com/spf13/cobra"
 
 	apiClientJobs "github.com/cloudbase/garm/client/jobs"
+	"github.com/cloudbase/garm/cmd/garm-cli/common"
 	"github.com/cloudbase/garm/params"
 )
 
@@ -57,6 +58,10 @@ var jobsListCmd = &cobra.Command{
 }
 
 func formatJobs(jobs []params.Job) {
+	if outputFormat == common.OutputFormatJSON {
+		printAsJSON(jobs)
+		return
+	}
 	t := table.NewWriter()
 	header := table.Row{"ID", "Name", "Status", "Conclusion", "Runner Name", "Repository", "Requested Labels", "Locked by"}
 	t.AppendHeader(header)

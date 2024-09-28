@@ -239,6 +239,10 @@ func init() {
 }
 
 func formatProfiles(profiles []config.Manager) {
+	if outputFormat == common.OutputFormatJSON {
+		printAsJSON(profiles)
+		return
+	}
 	t := table.NewWriter()
 	header := table.Row{"Name", "Base URL"}
 	t.AppendHeader(header)

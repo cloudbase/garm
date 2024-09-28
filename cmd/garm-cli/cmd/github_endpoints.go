@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	apiClientEndpoints "github.com/cloudbase/garm/client/endpoints"
+	"github.com/cloudbase/garm/cmd/garm-cli/common"
 	"github.com/cloudbase/garm/params"
 )
 
@@ -250,6 +251,10 @@ func parseCreateParams() (params.CreateGithubEndpointParams, error) {
 }
 
 func formatEndpoints(endpoints params.GithubEndpoints) {
+	if outputFormat == common.OutputFormatJSON {
+		printAsJSON(endpoints)
+		return
+	}
 	t := table.NewWriter()
 	header := table.Row{"Name", "Base URL", "Description"}
 	t.AppendHeader(header)
@@ -261,6 +266,10 @@ func formatEndpoints(endpoints params.GithubEndpoints) {
 }
 
 func formatOneEndpoint(endpoint params.GithubEndpoint) {
+	if outputFormat == common.OutputFormatJSON {
+		printAsJSON(endpoint)
+		return
+	}
 	t := table.NewWriter()
 	header := table.Row{"Field", "Value"}
 	t.AppendHeader(header)

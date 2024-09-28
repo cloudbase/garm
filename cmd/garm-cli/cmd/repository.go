@@ -22,6 +22,7 @@ import (
 
 	"github.com/cloudbase/garm-provider-common/util"
 	apiClientRepos "github.com/cloudbase/garm/client/repositories"
+	"github.com/cloudbase/garm/cmd/garm-cli/common"
 	"github.com/cloudbase/garm/params"
 )
 
@@ -346,6 +347,10 @@ func init() {
 }
 
 func formatRepositories(repos []params.Repository) {
+	if outputFormat == common.OutputFormatJSON {
+		printAsJSON(repos)
+		return
+	}
 	t := table.NewWriter()
 	header := table.Row{"ID", "Owner", "Name", "Endpoint", "Credentials name", "Pool Balancer Type", "Pool mgr running"}
 	t.AppendHeader(header)
@@ -357,6 +362,10 @@ func formatRepositories(repos []params.Repository) {
 }
 
 func formatOneRepository(repo params.Repository) {
+	if outputFormat == common.OutputFormatJSON {
+		printAsJSON(repo)
+		return
+	}
 	t := table.NewWriter()
 	rowConfigAutoMerge := table.RowConfig{AutoMerge: true}
 	header := table.Row{"Field", "Value"}

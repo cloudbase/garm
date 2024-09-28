@@ -25,6 +25,7 @@ import (
 	"github.com/spf13/cobra"
 
 	apiClientCreds "github.com/cloudbase/garm/client/credentials"
+	"github.com/cloudbase/garm/cmd/garm-cli/common"
 	"github.com/cloudbase/garm/params"
 )
 
@@ -342,6 +343,10 @@ func parseCredentialsUpdateParams() (params.UpdateGithubCredentialsParams, error
 }
 
 func formatGithubCredentials(creds []params.GithubCredentials) {
+	if outputFormat == common.OutputFormatJSON {
+		printAsJSON(creds)
+		return
+	}
 	t := table.NewWriter()
 	header := table.Row{"ID", "Name", "Description", "Base URL", "API URL", "Upload URL", "Type"}
 	t.AppendHeader(header)
@@ -353,6 +358,10 @@ func formatGithubCredentials(creds []params.GithubCredentials) {
 }
 
 func formatOneGithubCredential(cred params.GithubCredentials) {
+	if outputFormat == common.OutputFormatJSON {
+		printAsJSON(cred)
+		return
+	}
 	t := table.NewWriter()
 	header := table.Row{"Field", "Value"}
 	t.AppendHeader(header)

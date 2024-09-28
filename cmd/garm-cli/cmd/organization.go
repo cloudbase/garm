@@ -22,6 +22,7 @@ import (
 
 	"github.com/cloudbase/garm-provider-common/util"
 	apiClientOrgs "github.com/cloudbase/garm/client/organizations"
+	"github.com/cloudbase/garm/cmd/garm-cli/common"
 	"github.com/cloudbase/garm/params"
 )
 
@@ -340,6 +341,10 @@ func init() {
 }
 
 func formatOrganizations(orgs []params.Organization) {
+	if outputFormat == common.OutputFormatJSON {
+		printAsJSON(orgs)
+		return
+	}
 	t := table.NewWriter()
 	header := table.Row{"ID", "Name", "Endpoint", "Credentials name", "Pool Balancer Type", "Pool mgr running"}
 	t.AppendHeader(header)
@@ -351,6 +356,10 @@ func formatOrganizations(orgs []params.Organization) {
 }
 
 func formatOneOrganization(org params.Organization) {
+	if outputFormat == common.OutputFormatJSON {
+		printAsJSON(org)
+		return
+	}
 	t := table.NewWriter()
 	rowConfigAutoMerge := table.RowConfig{AutoMerge: true}
 	header := table.Row{"Field", "Value"}
