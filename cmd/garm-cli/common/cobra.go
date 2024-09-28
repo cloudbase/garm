@@ -9,8 +9,11 @@ const (
 	OutputFormatJSON  OutputFormat = "json"
 )
 
-func (o OutputFormat) String() string {
-	return string(o)
+func (o *OutputFormat) String() string {
+	if o == nil {
+		return ""
+	}
+	return string(*o)
 }
 
 func (o *OutputFormat) Set(value string) error {
@@ -23,6 +26,6 @@ func (o *OutputFormat) Set(value string) error {
 	return nil
 }
 
-func (o OutputFormat) Type() string {
+func (o *OutputFormat) Type() string {
 	return "string"
 }

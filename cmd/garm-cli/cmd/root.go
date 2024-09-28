@@ -39,8 +39,8 @@ var (
 	needsInit         bool
 	debug             bool
 	poolBalancerType  string
-	outputFormat      common.OutputFormat
-	errNeedsInitError = fmt.Errorf("please log into a garm installation first")
+	outputFormat      common.OutputFormat = common.OutputFormatTable
+	errNeedsInitError                     = fmt.Errorf("please log into a garm installation first")
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -55,9 +55,6 @@ var rootCmd = &cobra.Command{
 func Execute() {
 	rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "Enable debug on all API calls")
 	rootCmd.PersistentFlags().VarP(&outputFormat, "format", "f", "Output format (table, json)")
-	if outputFormat.String() == "" {
-		outputFormat = common.OutputFormatTable
-	}
 
 	cobra.OnInitialize(initConfig)
 
