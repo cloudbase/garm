@@ -54,7 +54,7 @@ var rootCmd = &cobra.Command{
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
 	rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "Enable debug on all API calls")
-	rootCmd.PersistentFlags().VarP(&outputFormat, "format", "f", "Output format (table, json)")
+	rootCmd.PersistentFlags().Var(&outputFormat, "format", "Output format (table, json)")
 
 	cobra.OnInitialize(initConfig)
 
