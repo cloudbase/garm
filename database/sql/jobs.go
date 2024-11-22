@@ -3,7 +3,6 @@ package sql
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log/slog"
 
 	"github.com/google/uuid"
@@ -247,7 +246,7 @@ func (s *sqlDatabase) CreateOrUpdateJob(ctx context.Context, job params.Job) (pa
 				workflowJob.InstanceID = &instance.ID
 			} else {
 				// This usually is very normal as not all jobs run on our runners.
-				slog.DebugContext(ctx, fmt.Sprintf("failed to get instance by name: %s", job.RunnerName))
+				slog.DebugContext(ctx, "failed to get instance by name", "instance_name", job.RunnerName)
 			}
 		}
 
