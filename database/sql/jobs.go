@@ -86,7 +86,7 @@ func (s *sqlDatabase) paramsJobToWorkflowJob(ctx context.Context, job params.Job
 		instance, err := s.getInstanceByName(s.ctx, job.RunnerName)
 		if err != nil {
 			// This usually is very normal as not all jobs run on our runners.
-			slog.DebugContext(ctx, fmt.Sprintf("failed to get instance by name: %s", job.RunnerName))
+			slog.DebugContext(ctx, "failed to get instance by name", "instance_name", job.RunnerName)
 		} else {
 			workflofJob.InstanceID = &instance.ID
 		}
