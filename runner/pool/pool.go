@@ -135,6 +135,14 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 		return errors.Wrap(err, "validating owner")
 	}
 
+	// we see events where the lables seem to be missing. We should ignore these
+	// as we can't know if we should handle them or not.
+	if len(job.WorkflowJob.Labels) == 0 {
+		slog.WarnContext(
+			r.ctx, fmt.Sprintf("job has no labels: %s", job.WorkflowJob.Name))
+		return nil
+	}
+
 	var jobParams params.Job
 	var err error
 	var triggeredBy int64
