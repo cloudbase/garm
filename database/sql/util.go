@@ -402,7 +402,7 @@ func (s *sqlDatabase) updatePool(tx *gorm.DB, pool Pool, param params.UpdatePool
 	}
 
 	tags := []Tag{}
-	if param.Tags != nil && len(param.Tags) > 0 {
+	if len(param.Tags) > 0 {
 		for _, val := range param.Tags {
 			t, err := s.getOrCreateTag(tx, val)
 			if err != nil {
