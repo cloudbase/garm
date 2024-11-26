@@ -84,7 +84,8 @@ func (s *sqlDatabase) paramsJobToWorkflowJob(ctx context.Context, job params.Job
 	if job.RunnerName != "" {
 		instance, err := s.getInstanceByName(s.ctx, job.RunnerName)
 		if err != nil {
-			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to get instance by name")
+			// This usually is very normal as not all jobs run on our runners.
+			slog.DebugContext(ctx, "failed to get instance by name", "instance_name", job.RunnerName)
 		} else {
 			workflofJob.InstanceID = &instance.ID
 		}
@@ -244,7 +245,8 @@ func (s *sqlDatabase) CreateOrUpdateJob(ctx context.Context, job params.Job) (pa
 			if err == nil {
 				workflowJob.InstanceID = &instance.ID
 			} else {
-				slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to get instance by name")
+				// This usually is very normal as not all jobs run on our runners.
+				slog.DebugContext(ctx, "failed to get instance by name", "instance_name", job.RunnerName)
 			}
 		}
 
