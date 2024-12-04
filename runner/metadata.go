@@ -23,7 +23,7 @@ After=network.target
 
 [Service]
 ExecStart=/home/{{.RunAsUser}}/actions-runner/runsvc.sh
-User=runner
+User={{.RunAsUser}}
 WorkingDirectory=/home/{{.RunAsUser}}/actions-runner
 KillMode=process
 KillSignal=SIGTERM
