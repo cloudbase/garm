@@ -115,7 +115,7 @@ garm-cli init --name=dev --url=https://runner.example.com --username=admin --pas
 		}
 
 		controllerInfoResponse, err := apiCli.Controller.UpdateController(updateUrlsReq, authToken)
-		renderResponseMessage(response.Payload, controllerInfoResponse.Payload, err)
+		renderResponseMessage(response.Payload, controllerInfoResponse, err)
 		return nil
 	},
 }
@@ -204,10 +204,7 @@ func renderUserTable(user params.User) string {
 	return t.Render()
 }
 
-func renderResponseMessage(user params.User, controllerInfo params.ControllerInfo, err error) {
-	userTable := renderUserTable(user)
-	controllerInfoTable := renderControllerInfoTable(controllerInfo)
-
+func renderResponseMessage(user params.User, controllerInfo *apiClientController.UpdateControllerOK, controllerURLUpdateErr error) {
 	headerMsg := `Congrats! Your controller is now initialized.
 
 Following are the details of the admin user and details about the controller.
@@ -244,11 +241,13 @@ you must set them up by running:
 See the help message for garm-cli controller update for more information.
 `
 	var ctrlMsg string
-	if err != nil {
-		ctrlMsg = fmt.Sprintf(controllerErrorMsg, err)
+	if controllerURLUpdateErr != nil || controllerInfo == nil {
+		ctrlMsg = fmt.Sprintf(controllerErrorMsg, controllerURLUpdateErr)
 	} else {
+		controllerInfoTable := renderControllerInfoTable(controllerInfo.Payload)
 		ctrlMsg = fmt.Sprintf(controllerMsg, controllerInfoTable)
 	}
 
+	userTable := renderUserTable(user)
 	fmt.Printf("%s\n%s\n", fmt.Sprintf(headerMsg, userTable), ctrlMsg)
 }
