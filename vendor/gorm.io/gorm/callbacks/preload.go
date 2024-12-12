@@ -75,7 +75,7 @@ func embeddedValues(embeddedRelations *schema.Relationships) []string {
 	names := make([]string, 0, len(embeddedRelations.Relations)+len(embeddedRelations.EmbeddedRelations))
 	for _, relation := range embeddedRelations.Relations {
 		// skip first struct name
-		names = append(names, strings.Join(relation.Field.BindNames[1:], "."))
+		names = append(names, strings.Join(relation.Field.EmbeddedBindNames[1:], "."))
 	}
 	for _, relations := range embeddedRelations.EmbeddedRelations {
 		names = append(names, embeddedValues(relations)...)
@@ -123,14 +123,26 @@ func preloadEntryPoint(db *gorm.DB, joins []string, relationships *schema.Relati
 			if joined, nestedJoins := isJoined(name); joined {
 				switch rv := db.Statement.ReflectValue; rv.Kind() {
 				case reflect.Slice, reflect.Array:
-					for i := 0; i < rv.Len(); i++ {
-						reflectValue := rel.Field.ReflectValueOf(db.Statement.Context, rv.Index(i))
+					if rv.Len() > 0 {
+						reflectValue := rel.FieldSchema.MakeSlice().Elem()
+						for i := 0; i < rv.Len(); i++ {
+							frv := rel.Field.ReflectValueOf(db.Statement.Context, rv.Index(i))
+							if frv.Kind() != reflect.Ptr {
+								reflectValue = reflect.Append(reflectValue, frv.Addr())
+							} else {
+								if frv.IsNil() {
+									continue
+								}
+								reflectValue = reflect.Append(reflectValue, frv)
+							}
+						}
+
 						tx := preloadDB(db, reflectValue, reflectValue.Interface())
 						if err := preloadEntryPoint(tx, nestedJoins, &tx.Statement.Schema.Relationships, preloadMap[name], associationsConds); err != nil {
 							return err
 						}
 					}
-				case reflect.Struct:
+				case reflect.Struct, reflect.Pointer:
 					reflectValue := rel.Field.ReflectValueOf(db.Statement.Context, rv)
 					tx := preloadDB(db, reflectValue, reflectValue.Interface())
 					if err := preloadEntryPoint(tx, nestedJoins, &tx.Statement.Schema.Relationships, preloadMap[name], associationsConds); err != nil {

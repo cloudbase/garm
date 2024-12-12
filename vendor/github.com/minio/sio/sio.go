@@ -122,6 +122,10 @@ type Config struct {
 	// the default value (crypto/rand.Reader) is used.
 	Rand io.Reader
 
+	// Nonce will override the nonce if set non-nil.
+	// V2 will use all 12 bytes, V1 first 8 bytes.
+	Nonce *[12]byte
+
 	// The size of the encrypted payload in bytes. The
 	// default value is 64KB. It should be used to restrict
 	// the size of encrypted packages. The payload size

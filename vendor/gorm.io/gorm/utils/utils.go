@@ -32,12 +32,16 @@ func sourceDir(file string) string {
 
 // FileWithLineNum return the file name and line number of the current file
 func FileWithLineNum() string {
-	// the second caller usually from gorm internal, so set i start from 2
-	for i := 2; i < 15; i++ {
-		_, file, line, ok := runtime.Caller(i)
-		if ok && (!strings.HasPrefix(file, gormSourceDir) || strings.HasSuffix(file, "_test.go")) &&
-			!strings.HasSuffix(file, ".gen.go") {
-			return file + ":" + strconv.FormatInt(int64(line), 10)
+	pcs := [13]uintptr{}
+	// the third caller usually from gorm internal
+	len := runtime.Callers(3, pcs[:])
+	frames := runtime.CallersFrames(pcs[:len])
+	for i := 0; i < len; i++ {
+		// second return value is "more", not "ok"
+		frame, _ := frames.Next()
+		if (!strings.HasPrefix(frame.File, gormSourceDir) ||
+			strings.HasSuffix(frame.File, "_test.go")) && !strings.HasSuffix(frame.File, ".gen.go") {
+			return string(strconv.AppendInt(append([]byte(frame.File), ':'), int64(frame.Line), 10))
 		}
 	}
 
@@ -161,4 +165,15 @@ func SplitNestedRelationName(name string) []string {
 // JoinNestedRelationNames nested relationships like `Manager__Company`
 func JoinNestedRelationNames(relationNames []string) string {
 	return strings.Join(relationNames, nestedRelationSplit)
+}
+
+// RTrimSlice Right trims the given slice by given length
+func RTrimSlice[T any](v []T, trimLen int) []T {
+	if trimLen >= len(v) { // trimLen greater than slice len means fully sliced
+		return v[:0]
+	}
+	if trimLen < 0 { // negative trimLen is ignored
+		return v[:]
+	}
+	return v[:len(v)-trimLen]
 }
