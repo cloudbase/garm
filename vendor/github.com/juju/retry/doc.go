@@ -13,10 +13,10 @@
 //	})
 //
 // The bare minimum arguments that need to be specified are:
-//  * Func - the function to call
-//  * Attempts - the number of times to try Func before giving up, or a negative number for unlimited attempts (`retry.UnlimitedAttempts`)
-//  * Delay - how long to wait between each try that returns an error
-//  * Clock - either the wall clock, or some testing clock
+//   - Func - the function to call
+//   - Attempts - the number of times to try Func before giving up, or a negative number for unlimited attempts (`retry.UnlimitedAttempts`)
+//   - Delay - how long to wait between each try that returns an error
+//   - Clock - either the wall clock, or some testing clock
 //
 // Any error that is returned from the Func is considered transient.
 // In order to identify some errors as fatal, pass in a function for the
@@ -87,5 +87,4 @@
 //		Delay:       100 * time.Millisecond,
 //		Clock:       clock.WallClock,
 //	})
-//
 package retry

@@ -42,9 +42,10 @@ const (
 
 // V0.1.1 commands
 const (
-	ValidatePoolInfoCommand        ExecutionCommand = "ValidatePoolInfo"
-	GetConfigJSONSchemaCommand     ExecutionCommand = "GetConfigJSONSchema"
-	GetExtraSpecsJSONSchemaCommand ExecutionCommand = "GetExtraSpecsJSONSchema"
+	GetSupportedInterfaceVersionsCommand ExecutionCommand = "GetSupportedInterfaceVersions"
+	ValidatePoolInfoCommand              ExecutionCommand = "ValidatePoolInfo"
+	GetConfigJSONSchemaCommand           ExecutionCommand = "GetConfigJSONSchema"
+	GetExtraSpecsJSONSchemaCommand       ExecutionCommand = "GetExtraSpecsJSONSchema"
 )
 
 const (

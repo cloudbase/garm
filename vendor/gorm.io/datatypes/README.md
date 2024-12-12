@@ -13,7 +13,7 @@ type UserWithJSON struct {
 	Attributes datatypes.JSON
 }
 
-DB.Create(&User{
+DB.Create(&UserWithJSON{
 	Name:       "json-1",
 	Attributes: datatypes.JSON([]byte(`{"name": "jinzhu", "age": 18, "tags": ["tag1", "tag2"], "orgs": {"orga": "orga"}}`)),
 }
@@ -180,14 +180,12 @@ type UserWithJSON struct {
 
 var user = UserWithJSON{
 	Name: "hello",
-	Attributes: datatypes.JSONType[Attribute]{
-		Data: Attribute{
-			Age:  18,
-			Sex:  1,
-			Orgs: map[string]string{"orga": "orga"},
-			Tags: []string{"tag1", "tag2", "tag3"},
-		},
-	},
+	Attributes: datatypes.NewJSONType(Attribute{
+        Age:  18,
+        Sex:  1,
+        Orgs: map[string]string{"orga": "orga"},
+        Tags: []string{"tag1", "tag2", "tag3"},
+    }),
 }
 
 // Create
@@ -199,14 +197,12 @@ DB.First(&result, user.ID)
 
 // Update
 jsonMap = UserWithJSON{
-	Attributes: datatypes.JSONType[Attribute]{
-		Data: Attribute{
-			Age:  18,
-			Sex:  1,
-			Orgs: map[string]string{"orga": "orga"},
-			Tags: []string{"tag1", "tag2", "tag3"},
-		},
-	},
+	Attributes: datatypes.NewJSONType(Attribute{
+        Age:  18,
+        Sex:  1,
+        Orgs: map[string]string{"orga": "orga"},
+        Tags: []string{"tag1", "tag2", "tag3"},
+    }),
 }
 
 DB.Model(&user).Updates(jsonMap)
@@ -263,7 +259,7 @@ mysql supported
 ```go
 import "gorm.io/datatypes"
 
-type Params struct {
+type Param struct {
     ID          int
     Letters     string
     Config      datatypes.JSON
@@ -286,4 +282,47 @@ DB.Where(datatypes.JSONArrayQuery("config").Contains("c")).Find(&retMultiple)
 }
 ```
 
+## UUID
 
+MySQL, PostgreSQL, SQLServer and SQLite are supported.
+
+```go
+import "gorm.io/datatypes"
+
+type UserWithUUID struct {
+    gorm.Model
+    Name string
+    UserUUID datatypes.UUID
+}
+
+// Generate a new random UUID (version 4).
+userUUID := datatypes.NewUUIDv4()
+
+user := UserWithUUID{Name: "jinzhu", UserUUID: userUUID}
+DB.Create(&user)
+// INSERT INTO `user_with_uuids` (`name`,`user_uuid`) VALUES ("jinzhu","ca95a578-816c-4812-babd-a7602b042460")
+
+var result UserWithUUID
+DB.First(&result, "name = ? AND user_uuid = ?", "jinzhu", userUUID)
+// SELECT * FROM user_with_uuids WHERE name = "jinzhu" AND user_uuid = "ca95a578-816c-4812-babd-a7602b042460" ORDER BY `user_with_uuids`.`id` LIMIT 1
+
+// Use the datatype's Equals() to compare the UUIDs.
+if userCreate.UserUUID.Equals(userFound.UserUUID) {
+	fmt.Println("User UUIDs match as expected.")
+} else {
+	fmt.Println("User UUIDs do not match. Something is wrong.")
+}
+
+// Use the datatype's String() function to get the UUID as a string type.
+fmt.Printf("User UUID is %s", userFound.UserUUID.String())
+
+// Check the UUID value with datatype's IsNil() and IsEmpty() functions.
+if userFound.UserUUID.IsNil() {
+	fmt.Println("User UUID is a nil UUID (i.e. all bits are zero)")
+}
+if userFound.UserUUID.IsEmpty() {
+	fmt.Println(
+		"User UUID is empty (i.e. either a nil UUID or a zero length string)",
+	)
+}
+```

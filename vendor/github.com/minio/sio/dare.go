@@ -90,7 +90,9 @@ func newAuthEncV10(cfg *Config) (authEncV10, error) {
 		return authEncV10{}, err
 	}
 	var randVal [8]byte
-	if _, err = io.ReadFull(cfg.Rand, randVal[:]); err != nil {
+	if cfg.Nonce != nil {
+		copy(randVal[:], cfg.Nonce[:8])
+	} else if _, err = io.ReadFull(cfg.Rand, randVal[:]); err != nil {
 		return authEncV10{}, err
 	}
 	return authEncV10{
@@ -167,7 +169,9 @@ func newAuthEncV20(cfg *Config) (authEncV20, error) {
 		return authEncV20{}, err
 	}
 	var randVal [12]byte
-	if _, err = io.ReadFull(cfg.Rand, randVal[:]); err != nil {
+	if cfg.Nonce != nil {
+		randVal = *cfg.Nonce
+	} else if _, err = io.ReadFull(cfg.Rand, randVal[:]); err != nil {
 		return authEncV20{}, err
 	}
 	return authEncV20{
