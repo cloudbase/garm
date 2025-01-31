@@ -103,10 +103,11 @@ jobs:
 
       - name: Upload GARM and e2e logs
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: garm-logs
           path: /artifacts-logs
+          merge-multiple: true
 
       - name: Cleanup orphan GARM resources via GitHub API
         if: always()
