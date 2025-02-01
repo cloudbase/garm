@@ -97,6 +97,11 @@ time_to_live = "8760h"
   [database.sqlite3]
     # Path on disk to the sqlite3 database file.
     db_file = "/etc/garm/garm.db"
+    # busy_timeout_seconds is an optional parameter that will set the
+    # sqlite3_busy_timeout to the specified value. This is useful when
+    # GARM may be under heavy load and the database is locked by some
+    # other go routine. The default value is 0.
+    busy_timeout_seconds = 5
 
 # Currently, providers are defined statically in the config. This is due to the fact
 # that we have not yet added support for storing secrets in something like Barbican
