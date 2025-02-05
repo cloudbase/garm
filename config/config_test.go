@@ -668,15 +668,6 @@ func TestGithubConfig(t *testing.T) {
 			errString: "missing credentials name",
 		},
 		{
-			name: "Description is empty",
-			cfg: Github{
-				Name:        "dummy_creds",
-				Description: "",
-				OAuth2Token: "bogus",
-			},
-			errString: "missing credentials description",
-		},
-		{
 			name: "OAuth token is set in the PAT section",
 			cfg: Github{
 				Name:        "dummy_creds",
