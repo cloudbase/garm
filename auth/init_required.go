@@ -66,7 +66,7 @@ func (u *urlsRequired) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		ctrlInfo, err := u.store.ControllerInfo()
-		if err != nil || ctrlInfo.WebhookURL == "" || ctrlInfo.MetadataURL == "" || ctrlInfo.CallbackURL == "" {
+		if err != nil || ctrlInfo.MetadataURL == "" || ctrlInfo.CallbackURL == "" {
 			w.Header().Add("Content-Type", "application/json")
 			w.WriteHeader(http.StatusConflict)
 			if err := json.NewEncoder(w).Encode(params.URLsRequired); err != nil {
