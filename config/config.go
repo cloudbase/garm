@@ -358,9 +358,6 @@ func (g *Github) Validate() error {
 	if g.Name == "" {
 		return fmt.Errorf("missing credentials name")
 	}
-	if g.Description == "" {
-		return fmt.Errorf("missing credentials description")
-	}
 
 	if g.APIBaseURL != "" {
 		if _, err := url.ParseRequestURI(g.APIBaseURL); err != nil {
