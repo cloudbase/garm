@@ -386,6 +386,7 @@ func init() {
 	poolListCmd.Flags().StringVarP(&poolOrganization, "org", "o", "", "List all pools within this organization.")
 	poolListCmd.Flags().StringVarP(&poolEnterprise, "enterprise", "e", "", "List all pools within this enterprise.")
 	poolListCmd.Flags().BoolVarP(&poolAll, "all", "a", false, "List all pools, regardless of org or repo.")
+	poolListCmd.Flags().BoolVarP(&long, "long", "l", false, "Include additional info.")
 	poolListCmd.MarkFlagsMutuallyExclusive("repo", "org", "all", "enterprise")
 
 	poolUpdateCmd.Flags().StringVar(&poolImage, "image", "", "The provider-specific image name to use for runners in this pool.")
@@ -472,7 +473,13 @@ func formatPools(pools []params.Pool) {
 		return
 	}
 	t := table.NewWriter()
-	header := table.Row{"ID", "Image", "Flavor", "Tags", "Belongs to", "Level", "Enabled", "Runner Prefix", "Priority"}
+	t.SetColumnConfigs([]table.ColumnConfig{
+		{Number: 2, WidthMax: 40},
+	})
+	header := table.Row{"ID", "Image", "Flavor", "Tags", "Belongs to", "Enabled"}
+	if long {
+		header = append(header, "Level", "Created At", "Updated at", "Runner Prefix", "Priority")
+	}
 	t.AppendHeader(header)
 
 	for _, pool := range pools {
@@ -494,7 +501,11 @@ func formatPools(pools []params.Pool) {
 			belongsTo = pool.EnterpriseName
 			level = "enterprise"
 		}
-		t.AppendRow(table.Row{pool.ID, pool.Image, pool.Flavor, strings.Join(tags, " "), belongsTo, level, pool.Enabled, pool.GetRunnerPrefix(), pool.Priority})
+		row := table.Row{pool.ID, pool.Image, pool.Flavor, strings.Join(tags, " "), belongsTo, pool.Enabled}
+		if long {
+			row = append(row, level, pool.CreatedAt, pool.UpdatedAt, pool.GetRunnerPrefix(), pool.Priority)
+		}
+		t.AppendRow(row)
 		t.AppendSeparator()
 	}
 	fmt.Println(t.Render())
@@ -532,6 +543,8 @@ func formatOnePool(pool params.Pool) {
 
 	t.AppendHeader(header)
 	t.AppendRow(table.Row{"ID", pool.ID})
+	t.AppendRow(table.Row{"Created At", pool.CreatedAt})
+	t.AppendRow(table.Row{"Updated At", pool.UpdatedAt})
 	t.AppendRow(table.Row{"Provider Name", pool.ProviderName})
 	t.AppendRow(table.Row{"Priority", pool.Priority})
 	t.AppendRow(table.Row{"Image", pool.Image})

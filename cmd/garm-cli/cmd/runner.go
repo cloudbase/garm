@@ -206,7 +206,7 @@ func init() {
 	runnerListCmd.Flags().StringVarP(&runnerOrganization, "org", "o", "", "List all runners from all pools within this organization.")
 	runnerListCmd.Flags().StringVarP(&runnerEnterprise, "enterprise", "e", "", "List all runners from all pools within this enterprise.")
 	runnerListCmd.Flags().BoolVarP(&runnerAll, "all", "a", false, "List all runners, regardless of org or repo.")
-	runnerListCmd.Flags().BoolVarP(&long, "long", "l", false, "Include information about tasks.")
+	runnerListCmd.Flags().BoolVarP(&long, "long", "l", false, "Include additional info.")
 	runnerListCmd.MarkFlagsMutuallyExclusive("repo", "org", "enterprise", "all")
 
 	runnerDeleteCmd.Flags().BoolVarP(&forceRemove, "force-remove-runner", "f", false, "Forcefully remove a runner. If set to true, GARM will ignore provider errors when removing the runner.")
@@ -230,15 +230,18 @@ func formatInstances(param []params.Instance, detailed bool) {
 	t := table.NewWriter()
 	header := table.Row{"Nr", "Name", "Status", "Runner Status", "Pool ID"}
 	if detailed {
-		header = append(header, "Job Name", "Started At", "Run ID", "Repository")
+		header = append(header, "Created At", "Updated At", "Job Name", "Started At", "Run ID", "Repository")
 	}
 	t.AppendHeader(header)
 
 	for idx, inst := range param {
 		row := table.Row{idx + 1, inst.Name, inst.Status, inst.RunnerStatus, inst.PoolID}
-		if detailed && inst.Job != nil {
-			repo := fmt.Sprintf("%s/%s", inst.Job.RepositoryOwner, inst.Job.RepositoryName)
-			row = append(row, inst.Job.Name, inst.Job.StartedAt, inst.Job.RunID, repo)
+		if detailed {
+			row = append(row, inst.CreatedAt, inst.UpdatedAt)
+			if inst.Job != nil {
+				repo := fmt.Sprintf("%s/%s", inst.Job.RepositoryOwner, inst.Job.RepositoryName)
+				row = append(row, inst.Job.Name, inst.Job.StartedAt, inst.Job.RunID, repo)
+			}
 		}
 		t.AppendRow(row)
 		t.AppendSeparator()
@@ -257,6 +260,8 @@ func formatSingleInstance(instance params.Instance) {
 
 	t.AppendHeader(header)
 	t.AppendRow(table.Row{"ID", instance.ID}, table.RowConfig{AutoMerge: false})
+	t.AppendRow(table.Row{"Created At", instance.CreatedAt})
+	t.AppendRow(table.Row{"Updated At", instance.UpdatedAt})
 	t.AppendRow(table.Row{"Provider ID", instance.ProviderID}, table.RowConfig{AutoMerge: false})
 	t.AppendRow(table.Row{"Name", instance.Name}, table.RowConfig{AutoMerge: false})
 	t.AppendRow(table.Row{"OS Type", instance.OSType}, table.RowConfig{AutoMerge: false})

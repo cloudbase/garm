@@ -223,6 +223,8 @@ func init() {
 	githubCredentialsUpdateCmd.Flags().Int64Var(&credentialsAppID, "app-id", 0, "If the credential is an app, the app ID")
 	githubCredentialsUpdateCmd.Flags().StringVar(&credentialsPrivateKeyPath, "private-key-path", "", "If the credential is an app, the path to the private key file")
 
+	githubCredentialsListCmd.Flags().BoolVarP(&long, "long", "l", false, "Include additional info.")
+
 	githubCredentialsUpdateCmd.MarkFlagsMutuallyExclusive("pat-oauth-token", "app-installation-id")
 	githubCredentialsUpdateCmd.MarkFlagsMutuallyExclusive("pat-oauth-token", "app-id")
 	githubCredentialsUpdateCmd.MarkFlagsMutuallyExclusive("pat-oauth-token", "private-key-path")
@@ -349,9 +351,16 @@ func formatGithubCredentials(creds []params.GithubCredentials) {
 	}
 	t := table.NewWriter()
 	header := table.Row{"ID", "Name", "Description", "Base URL", "API URL", "Upload URL", "Type"}
+	if long {
+		header = append(header, "Created At", "Updated At")
+	}
 	t.AppendHeader(header)
 	for _, val := range creds {
-		t.AppendRow(table.Row{val.ID, val.Name, val.Description, val.BaseURL, val.APIBaseURL, val.UploadBaseURL, val.AuthType})
+		row := table.Row{val.ID, val.Name, val.Description, val.BaseURL, val.APIBaseURL, val.UploadBaseURL, val.AuthType}
+		if long {
+			row = append(row, val.CreatedAt, val.UpdatedAt)
+		}
+		t.AppendRow(row)
 		t.AppendSeparator()
 	}
 	fmt.Println(t.Render())
@@ -367,6 +376,8 @@ func formatOneGithubCredential(cred params.GithubCredentials) {
 	t.AppendHeader(header)
 
 	t.AppendRow(table.Row{"ID", cred.ID})
+	t.AppendRow(table.Row{"Created At", cred.CreatedAt})
+	t.AppendRow(table.Row{"Updated At", cred.UpdatedAt})
 	t.AppendRow(table.Row{"Name", cred.Name})
 	t.AppendRow(table.Row{"Description", cred.Description})
 	t.AppendRow(table.Row{"Base URL", cred.BaseURL})
