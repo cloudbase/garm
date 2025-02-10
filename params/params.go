@@ -186,6 +186,9 @@ type Instance struct {
 	// up.
 	StatusMessages []StatusMessage `json:"status_messages,omitempty"`
 
+	// CreatedAt is the timestamp of the creation of this runner.
+	CreatedAt time.Time `json:"created_at,omitempty"`
+
 	// UpdatedAt is the timestamp of the last update to this runner.
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
 
@@ -305,6 +308,8 @@ type Pool struct {
 	EnterpriseID           string              `json:"enterprise_id,omitempty"`
 	EnterpriseName         string              `json:"enterprise_name,omitempty"`
 	RunnerBootstrapTimeout uint                `json:"runner_bootstrap_timeout,omitempty"`
+	CreatedAt              time.Time           `json:"created_at,omitempty"`
+	UpdatedAt              time.Time           `json:"updated_at,omitempty"`
 	// ExtraSpecs is an opaque raw json that gets sent to the provider
 	// as part of the bootstrap params for instances. It can contain
 	// any kind of data needed by providers. The contents of this field means
@@ -396,6 +401,8 @@ type Repository struct {
 	PoolManagerStatus PoolManagerStatus `json:"pool_manager_status,omitempty"`
 	PoolBalancerType  PoolBalancerType  `json:"pool_balancing_type,omitempty"`
 	Endpoint          GithubEndpoint    `json:"endpoint,omitempty"`
+	CreatedAt         time.Time         `json:"created_at,omitempty"`
+	UpdatedAt         time.Time         `json:"updated_at,omitempty"`
 	// Do not serialize sensitive info.
 	WebhookSecret string `json:"-"`
 }
@@ -450,6 +457,8 @@ type Organization struct {
 	PoolManagerStatus PoolManagerStatus `json:"pool_manager_status,omitempty"`
 	PoolBalancerType  PoolBalancerType  `json:"pool_balancing_type,omitempty"`
 	Endpoint          GithubEndpoint    `json:"endpoint,omitempty"`
+	CreatedAt         time.Time         `json:"created_at,omitempty"`
+	UpdatedAt         time.Time         `json:"updated_at,omitempty"`
 	// Do not serialize sensitive info.
 	WebhookSecret string `json:"-"`
 }
@@ -499,6 +508,8 @@ type Enterprise struct {
 	PoolManagerStatus PoolManagerStatus `json:"pool_manager_status,omitempty"`
 	PoolBalancerType  PoolBalancerType  `json:"pool_balancing_type,omitempty"`
 	Endpoint          GithubEndpoint    `json:"endpoint,omitempty"`
+	CreatedAt         time.Time         `json:"created_at,omitempty"`
+	UpdatedAt         time.Time         `json:"updated_at,omitempty"`
 	// Do not serialize sensitive info.
 	WebhookSecret string `json:"-"`
 }
@@ -614,6 +625,8 @@ type GithubCredentials struct {
 	Organizations []Organization `json:"organizations,omitempty"`
 	Enterprises   []Enterprise   `json:"enterprises,omitempty"`
 	Endpoint      GithubEndpoint `json:"endpoint,omitempty"`
+	CreatedAt     time.Time      `json:"created_at,omitempty"`
+	UpdatedAt     time.Time      `json:"updated_at,omitempty"`
 
 	// Do not serialize sensitive info.
 	CredentialsPayload []byte `json:"-"`
@@ -856,12 +869,14 @@ func (g GithubEntity) String() string {
 type GithubEndpoints []GithubEndpoint
 
 type GithubEndpoint struct {
-	Name          string `json:"name,omitempty"`
-	Description   string `json:"description,omitempty"`
-	APIBaseURL    string `json:"api_base_url,omitempty"`
-	UploadBaseURL string `json:"upload_base_url,omitempty"`
-	BaseURL       string `json:"base_url,omitempty"`
-	CACertBundle  []byte `json:"ca_cert_bundle,omitempty"`
+	Name          string    `json:"name,omitempty"`
+	Description   string    `json:"description,omitempty"`
+	APIBaseURL    string    `json:"api_base_url,omitempty"`
+	UploadBaseURL string    `json:"upload_base_url,omitempty"`
+	BaseURL       string    `json:"base_url,omitempty"`
+	CACertBundle  []byte    `json:"ca_cert_bundle,omitempty"`
+	CreatedAt     time.Time `json:"created_at,omitempty"`
+	UpdatedAt     time.Time `json:"updated_at,omitempty"`
 
 	Credentials []GithubCredentials `json:"credentials,omitempty"`
 }

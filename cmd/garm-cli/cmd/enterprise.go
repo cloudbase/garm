@@ -183,6 +183,8 @@ func init() {
 	enterpriseAddCmd.Flags().StringVar(&enterpriseCreds, "credentials", "", "Credentials name. See credentials list.")
 	enterpriseAddCmd.Flags().StringVar(&poolBalancerType, "pool-balancer-type", string(params.PoolBalancerTypeRoundRobin), "The balancing strategy to use when creating runners in pools matching requested labels.")
 
+	enterpriseListCmd.Flags().BoolVarP(&long, "long", "l", false, "Include additional info.")
+
 	enterpriseAddCmd.MarkFlagRequired("credentials") //nolint
 	enterpriseAddCmd.MarkFlagRequired("name")        //nolint
 	enterpriseUpdateCmd.Flags().StringVar(&enterpriseWebhookSecret, "webhook-secret", "", "The webhook secret for this enterprise")
@@ -207,9 +209,16 @@ func formatEnterprises(enterprises []params.Enterprise) {
 	}
 	t := table.NewWriter()
 	header := table.Row{"ID", "Name", "Endpoint", "Credentials name", "Pool Balancer Type", "Pool mgr running"}
+	if long {
+		header = append(header, "Created At", "Updated At")
+	}
 	t.AppendHeader(header)
 	for _, val := range enterprises {
-		t.AppendRow(table.Row{val.ID, val.Name, val.Endpoint.Name, val.Credentials.Name, val.GetBalancerType(), val.PoolManagerStatus.IsRunning})
+		row := table.Row{val.ID, val.Name, val.Endpoint.Name, val.Credentials.Name, val.GetBalancerType(), val.PoolManagerStatus.IsRunning}
+		if long {
+			row = append(row, val.CreatedAt, val.UpdatedAt)
+		}
+		t.AppendRow(row)
 		t.AppendSeparator()
 	}
 	fmt.Println(t.Render())
@@ -225,6 +234,8 @@ func formatOneEnterprise(enterprise params.Enterprise) {
 	header := table.Row{"Field", "Value"}
 	t.AppendHeader(header)
 	t.AppendRow(table.Row{"ID", enterprise.ID})
+	t.AppendRow(table.Row{"Created At", enterprise.CreatedAt})
+	t.AppendRow(table.Row{"Updated At", enterprise.UpdatedAt})
 	t.AppendRow(table.Row{"Name", enterprise.Name})
 	t.AppendRow(table.Row{"Endpoint", enterprise.Endpoint.Name})
 	t.AppendRow(table.Row{"Pool balancer type", enterprise.GetBalancerType()})

@@ -189,6 +189,8 @@ func init() {
 	githubEndpointCreateCmd.Flags().StringVar(&endpointAPIBaseURL, "api-base-url", "", "API Base URL of the GitHub endpoint")
 	githubEndpointCreateCmd.Flags().StringVar(&endpointCACertPath, "ca-cert-path", "", "CA Cert Path of the GitHub endpoint")
 
+	githubEndpointListCmd.Flags().BoolVarP(&long, "long", "l", false, "Include additional info.")
+
 	githubEndpointCreateCmd.MarkFlagRequired("name")
 	githubEndpointCreateCmd.MarkFlagRequired("base-url")
 	githubEndpointCreateCmd.MarkFlagRequired("api-base-url")
@@ -257,9 +259,16 @@ func formatEndpoints(endpoints params.GithubEndpoints) {
 	}
 	t := table.NewWriter()
 	header := table.Row{"Name", "Base URL", "Description"}
+	if long {
+		header = append(header, "Created At", "Updated At")
+	}
 	t.AppendHeader(header)
 	for _, val := range endpoints {
-		t.AppendRow([]interface{}{val.Name, val.BaseURL, val.Description})
+		row := table.Row{val.Name, val.BaseURL, val.Description}
+		if long {
+			row = append(row, val.CreatedAt, val.UpdatedAt)
+		}
+		t.AppendRow(row)
 		t.AppendSeparator()
 	}
 	fmt.Println(t.Render())
@@ -274,6 +283,9 @@ func formatOneEndpoint(endpoint params.GithubEndpoint) {
 	header := table.Row{"Field", "Value"}
 	t.AppendHeader(header)
 	t.AppendRow([]interface{}{"Name", endpoint.Name})
+	t.AppendRow([]interface{}{"Description", endpoint.Description})
+	t.AppendRow([]interface{}{"Created At", endpoint.CreatedAt})
+	t.AppendRow([]interface{}{"Updated At", endpoint.UpdatedAt})
 	t.AppendRow([]interface{}{"Base URL", endpoint.BaseURL})
 	t.AppendRow([]interface{}{"Upload URL", endpoint.UploadBaseURL})
 	t.AppendRow([]interface{}{"API Base URL", endpoint.APIBaseURL})

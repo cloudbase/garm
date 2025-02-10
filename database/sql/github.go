@@ -55,6 +55,8 @@ func (s *sqlDatabase) sqlToCommonGithubCredentials(creds GithubCredentials) (par
 		UploadBaseURL:      creds.Endpoint.UploadBaseURL,
 		CABundle:           creds.Endpoint.CACertBundle,
 		AuthType:           creds.AuthType,
+		CreatedAt:          creds.CreatedAt,
+		UpdatedAt:          creds.UpdatedAt,
 		Endpoint:           ep,
 		CredentialsPayload: data,
 	}
@@ -94,6 +96,8 @@ func (s *sqlDatabase) sqlToCommonGithubEndpoint(ep GithubEndpoint) (params.Githu
 		BaseURL:       ep.BaseURL,
 		UploadBaseURL: ep.UploadBaseURL,
 		CACertBundle:  ep.CACertBundle,
+		CreatedAt:     ep.CreatedAt,
+		UpdatedAt:     ep.UpdatedAt,
 	}, nil
 }
 
