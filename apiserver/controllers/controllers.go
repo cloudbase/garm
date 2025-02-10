@@ -159,8 +159,10 @@ func (a *APIController) WebhookHandler(w http.ResponseWriter, r *http.Request) {
 	switch event {
 	case runnerParams.WorkflowJobEvent:
 		a.handleWorkflowJobEvent(ctx, w, r)
+	case runnerParams.PingEvent:
+		// Ignore ping event. We may want to save the ping in the github entity table in the future.
 	default:
-		slog.InfoContext(ctx, "ignoring unknown event", "gh_event", util.SanitizeLogEntry(string(event)))
+		slog.DebugContext(ctx, "ignoring unknown event", "gh_event", util.SanitizeLogEntry(string(event)))
 	}
 }
 
