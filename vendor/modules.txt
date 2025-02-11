@@ -121,8 +121,8 @@ github.com/gorilla/websocket
 # github.com/inconshreveable/mousetrap v1.1.0
 ## explicit; go 1.18
 github.com/inconshreveable/mousetrap
-# github.com/jedib0t/go-pretty/v6 v6.6.5
-## explicit; go 1.17
+# github.com/jedib0t/go-pretty/v6 v6.6.6
+## explicit; go 1.18
 github.com/jedib0t/go-pretty/v6/table
 github.com/jedib0t/go-pretty/v6/text
 # github.com/jinzhu/inflection v1.0.0
