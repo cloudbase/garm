@@ -1,9 +1,6 @@
 module github.com/cloudbase/garm
 
 go 1.22.0
-
-toolchain go1.23.0
-
 require (
 	github.com/BurntSushi/toml v1.4.0
 	github.com/bradleyfalzon/ghinstallation/v2 v2.13.0
@@ -28,7 +25,7 @@ require (
 	github.com/prometheus/client_golang v1.20.5
 	github.com/spf13/cobra v1.8.1
 	github.com/stretchr/testify v1.10.0
-	golang.org/x/crypto v0.33.0
+	golang.org/x/crypto v0.34.0
 	golang.org/x/oauth2 v0.26.0
 	golang.org/x/sync v0.11.0
 	gopkg.in/DATA-DOG/go-sqlmock.v1 v1.3.0
