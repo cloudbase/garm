@@ -12,7 +12,7 @@ require (
 	github.com/go-openapi/errors v0.22.0
 	github.com/go-openapi/runtime v0.28.0
 	github.com/go-openapi/strfmt v0.23.0
-	github.com/go-openapi/swag v0.23.0
+	github.com/go-openapi/swag v0.23.1
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/google/go-github/v57 v57.0.0
 	github.com/google/uuid v1.6.0
