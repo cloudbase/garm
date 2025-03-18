@@ -5,7 +5,7 @@ go 1.23.0
 toolchain go1.23.6
 
 require (
-	github.com/BurntSushi/toml v1.4.0
+	github.com/BurntSushi/toml v1.5.0
 	github.com/bradleyfalzon/ghinstallation/v2 v2.14.0
 	github.com/cloudbase/garm-provider-common v0.1.4
 	github.com/felixge/httpsnoop v1.0.4
