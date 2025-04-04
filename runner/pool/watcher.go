@@ -9,7 +9,7 @@ import (
 	"github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/params"
 	runnerCommon "github.com/cloudbase/garm/runner/common"
-	garmUtil "github.com/cloudbase/garm/util"
+	ghClient "github.com/cloudbase/garm/util/github"
 )
 
 // entityGetter is implemented by all github entities (repositories, organizations and enterprises)
@@ -28,7 +28,7 @@ func (r *basePoolManager) handleControllerUpdateEvent(controllerInfo params.Cont
 func (r *basePoolManager) getClientOrStub() runnerCommon.GithubClient {
 	var err error
 	var ghc runnerCommon.GithubClient
-	ghc, err = garmUtil.GithubClient(r.ctx, r.entity, r.entity.Credentials)
+	ghc, err = ghClient.GithubClient(r.ctx, r.entity)
 	if err != nil {
 		slog.WarnContext(r.ctx, "failed to create github client", "error", err)
 		ghc = &stubGithubClient{

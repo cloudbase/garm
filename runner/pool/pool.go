@@ -41,6 +41,7 @@ import (
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
 	garmUtil "github.com/cloudbase/garm/util"
+	ghClient "github.com/cloudbase/garm/util/github"
 )
 
 var (
@@ -65,8 +66,8 @@ const (
 )
 
 func NewEntityPoolManager(ctx context.Context, entity params.GithubEntity, instanceTokenGetter auth.InstanceTokenGetter, providers map[string]common.Provider, store dbCommon.Store) (common.PoolManager, error) {
-	ctx = garmUtil.WithContext(ctx, slog.Any("pool_mgr", entity.String()), slog.Any("pool_type", entity.EntityType))
-	ghc, err := garmUtil.GithubClient(ctx, entity, entity.Credentials)
+	ctx = garmUtil.WithSlogContext(ctx, slog.Any("pool_mgr", entity.String()), slog.Any("pool_type", entity.EntityType))
+	ghc, err := ghClient.GithubClient(ctx, entity)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting github client")
 	}
