@@ -14,7 +14,14 @@
 
 package params
 
-import "time"
+import (
+	"fmt"
+	"net/url"
+	"time"
+
+	jwt "github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
+)
 
 type Event string
 
@@ -207,4 +214,241 @@ type WorkflowJob struct {
 		Type              string `json:"type"`
 		SiteAdmin         bool   `json:"site_admin"`
 	} `json:"sender"`
+}
+
+type RunnerSetting struct {
+	Ephemeral     bool `json:"ephemeral,omitempty"`
+	IsElastic     bool `json:"isElastic,omitempty"`
+	DisableUpdate bool `json:"disableUpdate,omitempty"`
+}
+
+type Label struct {
+	Type string `json:"type"`
+	Name string `json:"name"`
+}
+
+type RunnerScaleSetStatistic struct {
+	TotalAvailableJobs     int `json:"totalAvailableJobs"`
+	TotalAcquiredJobs      int `json:"totalAcquiredJobs"`
+	TotalAssignedJobs      int `json:"totalAssignedJobs"`
+	TotalRunningJobs       int `json:"totalRunningJobs"`
+	TotalRegisteredRunners int `json:"totalRegisteredRunners"`
+	TotalBusyRunners       int `json:"totalBusyRunners"`
+	TotalIdleRunners       int `json:"totalIdleRunners"`
+}
+
+type RunnerScaleSet struct {
+	Id                   int                      `json:"id,omitempty"`
+	Name                 string                   `json:"name,omitempty"`
+	RunnerGroupId        int                      `json:"runnerGroupId,omitempty"`
+	RunnerGroupName      string                   `json:"runnerGroupName,omitempty"`
+	Labels               []Label                  `json:"labels,omitempty"`
+	RunnerSetting        RunnerSetting            `json:"RunnerSetting,omitempty"`
+	CreatedOn            time.Time                `json:"createdOn,omitempty"`
+	RunnerJitConfigUrl   string                   `json:"runnerJitConfigUrl,omitempty"`
+	GetAcquirableJobsUrl string                   `json:"getAcquirableJobsUrl,omitempty"`
+	AcquireJobsUrl       string                   `json:"acquireJobsUrl,omitempty"`
+	Statistics           *RunnerScaleSetStatistic `json:"statistics,omitempty"`
+	Status               string                   `json:"status,omitempty"`
+	Enabled              *bool                    `json:"enabled,omitempty"`
+}
+
+type RunnerScaleSetsResponse struct {
+	Count           int              `json:"count"`
+	RunnerScaleSets []RunnerScaleSet `json:"value"`
+}
+
+type ActionsServiceAdminInfoResponse struct {
+	URL   string `json:"url,omitempty"`
+	Token string `json:"token,omitempty"`
+}
+
+func (a ActionsServiceAdminInfoResponse) GetURL() (*url.URL, error) {
+	if a.URL == "" {
+		return nil, fmt.Errorf("no url specified")
+	}
+	u, err := url.ParseRequestURI(a.URL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse URL: %w", err)
+	}
+	return u, nil
+}
+
+func (a ActionsServiceAdminInfoResponse) getJWT() (*jwt.Token, error) {
+	// We're parsing a token we got from the GitHub API. We can't verify its signature.
+	// We do need the expiration date however, or other info.
+	token, _, err := jwt.NewParser().ParseUnverified(a.Token, &jwt.RegisteredClaims{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse jwt token: %w", err)
+	}
+	return token, nil
+}
+
+func (a ActionsServiceAdminInfoResponse) ExiresAt() (time.Time, error) {
+	jwt, err := a.getJWT()
+	if err != nil {
+		return time.Time{}, fmt.Errorf("failed to decode jwt token: %w", err)
+	}
+	expiration, err := jwt.Claims.GetExpirationTime()
+	if err != nil {
+		return time.Time{}, fmt.Errorf("failed to get expiration time: %w", err)
+	}
+
+	return expiration.Time, nil
+}
+
+func (a ActionsServiceAdminInfoResponse) IsExpired() bool {
+	if exp, err := a.ExiresAt(); err == nil {
+		return time.Now().UTC().After(exp)
+	}
+	return true
+}
+
+func (a ActionsServiceAdminInfoResponse) TimeRemaining() (time.Duration, error) {
+	exp, err := a.ExiresAt()
+	if err != nil {
+		return 0, fmt.Errorf("failed to get expiration: %w", err)
+	}
+	now := time.Now().UTC()
+	return exp.Sub(now), nil
+}
+
+func (a ActionsServiceAdminInfoResponse) ExpiresIn(t time.Duration) bool {
+	remaining, err := a.TimeRemaining()
+	if err != nil {
+		return true
+	}
+	return remaining <= t
+}
+
+type ActionsServiceAdminInfoRequest struct {
+	URL         string `json:"url,omitempty"`
+	RunnerEvent string `json:"runner_event,omitempty"`
+}
+
+type RunnerScaleSetSession struct {
+	SessionId               *uuid.UUID               `json:"sessionId,omitempty"`
+	OwnerName               string                   `json:"ownerName,omitempty"`
+	RunnerScaleSet          *RunnerScaleSet          `json:"runnerScaleSet,omitempty"`
+	MessageQueueUrl         string                   `json:"messageQueueUrl,omitempty"`
+	MessageQueueAccessToken string                   `json:"messageQueueAccessToken,omitempty"`
+	Statistics              *RunnerScaleSetStatistic `json:"statistics,omitempty"`
+}
+
+func (a RunnerScaleSetSession) GetURL() (*url.URL, error) {
+	if a.MessageQueueUrl == "" {
+		return nil, fmt.Errorf("no url specified")
+	}
+	u, err := url.ParseRequestURI(a.MessageQueueUrl)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse URL: %w", err)
+	}
+	return u, nil
+}
+
+func (a RunnerScaleSetSession) getJWT() (*jwt.Token, error) {
+	// We're parsing a token we got from the GitHub API. We can't verify its signature.
+	// We do need the expiration date however, or other info.
+	token, _, err := jwt.NewParser().ParseUnverified(a.MessageQueueAccessToken, &jwt.RegisteredClaims{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse jwt token: %w", err)
+	}
+	return token, nil
+}
+
+func (a RunnerScaleSetSession) ExiresAt() (time.Time, error) {
+	jwt, err := a.getJWT()
+	if err != nil {
+		return time.Time{}, fmt.Errorf("failed to decode jwt token: %w", err)
+	}
+	expiration, err := jwt.Claims.GetExpirationTime()
+	if err != nil {
+		return time.Time{}, fmt.Errorf("failed to get expiration time: %w", err)
+	}
+
+	return expiration.Time, nil
+}
+
+func (a RunnerScaleSetSession) IsExpired() bool {
+	if exp, err := a.ExiresAt(); err == nil {
+		return time.Now().UTC().After(exp)
+	}
+	return true
+}
+
+func (a RunnerScaleSetSession) TimeRemaining() (time.Duration, error) {
+	exp, err := a.ExiresAt()
+	if err != nil {
+		return 0, fmt.Errorf("failed to get expiration: %w", err)
+	}
+	now := time.Now().UTC()
+	return exp.Sub(now), nil
+}
+
+func (a RunnerScaleSetSession) ExpiresIn(t time.Duration) bool {
+	remaining, err := a.TimeRemaining()
+	if err != nil {
+		return true
+	}
+	return remaining <= t
+}
+
+type RunnerScaleSetMessage struct {
+	MessageId   int64                    `json:"messageId"`
+	MessageType string                   `json:"messageType"`
+	Body        string                   `json:"body"`
+	Statistics  *RunnerScaleSetStatistic `json:"statistics"`
+}
+
+type RunnerReference struct {
+	Id                int          `json:"id"`
+	Name              string       `json:"name"`
+	RunnerScaleSetId  int          `json:"runnerScaleSetId"`
+	CreatedOn         time.Time    `json:"createdOn"`
+	RunnerGroupID     uint64       `json:"runnerGroupId"`
+	RunnerGroupName   string       `json:"runnerGroupName"`
+	Version           string       `json:"version"`
+	Enabled           bool         `json:"enabled"`
+	Ephemeral         bool         `json:"ephemeral"`
+	Status            RunnerStatus `json:"status"`
+	DisableUpdate     bool         `json:"disableUpdate"`
+	ProvisioningState string       `json:"provisioningState"`
+}
+
+type RunnerScaleSetJitRunnerConfig struct {
+	Runner           *RunnerReference `json:"runner"`
+	EncodedJITConfig string           `json:"encodedJITConfig"`
+}
+
+type RunnerReferenceList struct {
+	Count            int               `json:"count"`
+	RunnerReferences []RunnerReference `json:"value"`
+}
+
+type AcquirableJobList struct {
+	Count int             `json:"count"`
+	Jobs  []AcquirableJob `json:"value"`
+}
+
+type AcquirableJob struct {
+	AcquireJobUrl   string   `json:"acquireJobUrl"`
+	MessageType     string   `json:"messageType"`
+	RunnerRequestId int64    `json:"run0ne00rRequestId"`
+	RepositoryName  string   `json:"repositoryName"`
+	OwnerName       string   `json:"ownerName"`
+	JobWorkflowRef  string   `json:"jobWorkflowRef"`
+	EventName       string   `json:"eventName"`
+	RequestLabels   []string `json:"requestLabels"`
+}
+
+type RunnerGroup struct {
+	ID        int64  `json:"id"`
+	Name      string `json:"name"`
+	Size      int64  `json:"size"`
+	IsDefault bool   `json:"isDefaultGroup"`
+}
+
+type RunnerGroupList struct {
+	Count        int           `json:"count"`
+	RunnerGroups []RunnerGroup `json:"value"`
 }

@@ -837,6 +837,18 @@ type GithubEntity struct {
 	WebhookSecret string `json:"-"`
 }
 
+func (g *GithubEntity) GithubURL() string {
+	switch g.EntityType {
+	case GithubEntityTypeRepository:
+		return fmt.Sprintf("%s/%s/%s", g.Credentials.BaseURL, g.Owner, g.Name)
+	case GithubEntityTypeOrganization:
+		return fmt.Sprintf("%s/%s", g.Credentials.BaseURL, g.Owner)
+	case GithubEntityTypeEnterprise:
+		return fmt.Sprintf("%s/enterprises/%s", g.Credentials.BaseURL, g.Owner)
+	}
+	return ""
+}
+
 func (g GithubEntity) GetPoolBalancerType() PoolBalancerType {
 	if g.PoolBalancerType == "" {
 		return PoolBalancerTypeRoundRobin

@@ -2,6 +2,7 @@ package pool
 
 import (
 	"context"
+	"net/url"
 
 	"github.com/google/go-github/v57/github"
 
@@ -54,4 +55,12 @@ func (s *stubGithubClient) GetEntityJITConfig(_ context.Context, _ string, _ par
 
 func (s *stubGithubClient) GetWorkflowJobByID(_ context.Context, _, _ string, _ int64) (*github.WorkflowJob, *github.Response, error) {
 	return nil, nil, s.err
+}
+
+func (s *stubGithubClient) GetEntity() params.GithubEntity {
+	return params.GithubEntity{}
+}
+
+func (s *stubGithubClient) GithubBaseURL() *url.URL {
+	return nil
 }

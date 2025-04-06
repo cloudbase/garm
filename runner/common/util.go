@@ -2,6 +2,7 @@ package common
 
 import (
 	"context"
+	"net/url"
 
 	"github.com/google/go-github/v57/github"
 
@@ -19,6 +20,11 @@ type GithubEntityOperations interface {
 	RemoveEntityRunner(ctx context.Context, runnerID int64) (*github.Response, error)
 	CreateEntityRegistrationToken(ctx context.Context) (*github.RegistrationToken, *github.Response, error)
 	GetEntityJITConfig(ctx context.Context, instance string, pool params.Pool, labels []string) (jitConfigMap map[string]string, runner *github.Runner, err error)
+
+	// GetEntity returns the GitHub entity for which the github client was instanciated.
+	GetEntity() params.GithubEntity
+	// GithubBaseURL returns the base URL for the github or GHES API.
+	GithubBaseURL() *url.URL
 }
 
 // GithubClient that describes the minimum list of functions we need to interact with github.
