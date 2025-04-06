@@ -29,10 +29,10 @@ type acquireJobsResult struct {
 	Value []int64 `json:"value"`
 }
 
-func (s *ScaleSetClient) AcquireJobs(ctx context.Context, runnerScaleSetId int, messageQueueAccessToken string, requestIds []int64) ([]int64, error) {
-	u := fmt.Sprintf("%s/%d/acquirejobs?api-version=6.0-preview", scaleSetEndpoint, runnerScaleSetId)
+func (s *ScaleSetClient) AcquireJobs(ctx context.Context, runnerScaleSetID int, messageQueueAccessToken string, requestIDs []int64) ([]int64, error) {
+	u := fmt.Sprintf("%s/%d/acquirejobs?api-version=6.0-preview", scaleSetEndpoint, runnerScaleSetID)
 
-	body, err := json.Marshal(requestIds)
+	body, err := json.Marshal(requestIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -60,8 +60,8 @@ func (s *ScaleSetClient) AcquireJobs(ctx context.Context, runnerScaleSetId int, 
 	return acquiredJobs.Value, nil
 }
 
-func (s *ScaleSetClient) GetAcquirableJobs(ctx context.Context, runnerScaleSetId int) (params.AcquirableJobList, error) {
-	path := fmt.Sprintf("%d/acquirablejobs", runnerScaleSetId)
+func (s *ScaleSetClient) GetAcquirableJobs(ctx context.Context, runnerScaleSetID int) (params.AcquirableJobList, error) {
+	path := fmt.Sprintf("%d/acquirablejobs", runnerScaleSetID)
 
 	req, err := s.newActionsRequest(ctx, http.MethodGet, path, nil)
 	if err != nil {

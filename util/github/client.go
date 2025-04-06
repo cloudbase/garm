@@ -445,7 +445,7 @@ func (g *githubClient) GithubBaseURL() *url.URL {
 	return g.cli.BaseURL
 }
 
-func GithubClient(ctx context.Context, entity params.GithubEntity) (common.GithubClient, error) {
+func Client(ctx context.Context, entity params.GithubEntity) (common.GithubClient, error) {
 	// func GithubClient(ctx context.Context, entity params.GithubEntity) (common.GithubClient, error) {
 	httpClient, err := entity.Credentials.GetHTTPClient(ctx)
 	if err != nil {

@@ -17,11 +17,12 @@ package scalesets
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
-	"math/rand/v2"
+	"math/big"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -103,7 +104,7 @@ func (m *MessageSession) SessionsRelativeURL() (string, error) {
 	if m.session.RunnerScaleSet == nil {
 		return "", fmt.Errorf("runner scale set is nil")
 	}
-	relativePath := fmt.Sprintf("%s/%d/sessions/%s", scaleSetEndpoint, m.session.RunnerScaleSet.Id, m.session.SessionId.String())
+	relativePath := fmt.Sprintf("%s/%d/sessions/%s", scaleSetEndpoint, m.session.RunnerScaleSet.ID, m.session.SessionID.String())
 	return relativePath, nil
 }
 
@@ -138,7 +139,11 @@ func (m *MessageSession) maybeRefreshToken(ctx context.Context) error {
 		return fmt.Errorf("session is nil")
 	}
 	// add some jitter
-	jitter := time.Duration(rand.IntN(10000)) * time.Millisecond
+	randInt, err := rand.Int(rand.Reader, big.NewInt(1000))
+	if err != nil {
+		return fmt.Errorf("failed to get a random number")
+	}
+	jitter := time.Duration(randInt.Int64()) * time.Millisecond
 	if m.session.ExpiresIn(2*time.Minute + jitter) {
 		if err := m.Refresh(ctx); err != nil {
 			return fmt.Errorf("failed to refresh message queue token: %w", err)
@@ -147,15 +152,15 @@ func (m *MessageSession) maybeRefreshToken(ctx context.Context) error {
 	return nil
 }
 
-func (m *MessageSession) GetMessage(ctx context.Context, lastMessageId int64, maxCapacity uint) (params.RunnerScaleSetMessage, error) {
-	u, err := url.Parse(m.session.MessageQueueUrl)
+func (m *MessageSession) GetMessage(ctx context.Context, lastMessageID int64, maxCapacity uint) (params.RunnerScaleSetMessage, error) {
+	u, err := url.Parse(m.session.MessageQueueURL)
 	if err != nil {
 		return params.RunnerScaleSetMessage{}, err
 	}
 
-	if lastMessageId > 0 {
+	if lastMessageID > 0 {
 		q := u.Query()
-		q.Set("lastMessageId", strconv.FormatInt(lastMessageId, 10))
+		q.Set("lastMessageId", strconv.FormatInt(lastMessageID, 10))
 		u.RawQuery = q.Encode()
 	}
 
@@ -185,13 +190,13 @@ func (m *MessageSession) GetMessage(ctx context.Context, lastMessageId int64, ma
 	return message, nil
 }
 
-func (m *MessageSession) DeleteMessage(ctx context.Context, messageId int64) error {
-	u, err := url.Parse(m.session.MessageQueueUrl)
+func (m *MessageSession) DeleteMessage(ctx context.Context, messageID int64) error {
+	u, err := url.Parse(m.session.MessageQueueURL)
 	if err != nil {
 		return err
 	}
 
-	u.Path = fmt.Sprintf("%s/%d", u.Path, messageId)
+	u.Path = fmt.Sprintf("%s/%d", u.Path, messageID)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, u.String(), nil)
 	if err != nil {
@@ -210,8 +215,8 @@ func (m *MessageSession) DeleteMessage(ctx context.Context, messageId int64) err
 	return nil
 }
 
-func (s *ScaleSetClient) CreateMessageSession(ctx context.Context, runnerScaleSetId int, owner string) (*MessageSession, error) {
-	path := fmt.Sprintf("%s/%d/sessions", scaleSetEndpoint, runnerScaleSetId)
+func (s *ScaleSetClient) CreateMessageSession(ctx context.Context, runnerScaleSetID int, owner string) (*MessageSession, error) {
+	path := fmt.Sprintf("%s/%d/sessions", scaleSetEndpoint, runnerScaleSetID)
 
 	newSession := params.RunnerScaleSetSession{
 		OwnerName: owner,

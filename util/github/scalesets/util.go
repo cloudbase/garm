@@ -26,12 +26,12 @@ func (s *ScaleSetClient) newActionsRequest(ctx context.Context, method, path str
 		return nil, fmt.Errorf("failed to update token: %w", err)
 	}
 
-	actionsUri, err := s.actionsServiceInfo.GetURL()
+	actionsURI, err := s.actionsServiceInfo.GetURL()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get pipeline URL: %w", err)
 	}
 
-	uri, err := actionsUri.Parse(path)
+	uri, err := actionsURI.Parse(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse path: %w", err)
 	}

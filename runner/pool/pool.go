@@ -67,7 +67,7 @@ const (
 
 func NewEntityPoolManager(ctx context.Context, entity params.GithubEntity, instanceTokenGetter auth.InstanceTokenGetter, providers map[string]common.Provider, store dbCommon.Store) (common.PoolManager, error) {
 	ctx = garmUtil.WithSlogContext(ctx, slog.Any("pool_mgr", entity.String()), slog.Any("pool_type", entity.EntityType))
-	ghc, err := ghClient.GithubClient(ctx, entity)
+	ghc, err := ghClient.Client(ctx, entity)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting github client")
 	}
@@ -1044,7 +1044,7 @@ func (r *basePoolManager) scaleDownOnePool(ctx context.Context, pool params.Pool
 		return nil
 	}
 
-	surplus := float64(len(idleWorkers) - int(pool.MinIdleRunners))
+	surplus := float64(len(idleWorkers) - pool.MinIdleRunnersAsInt())
 
 	if surplus <= 0 {
 		return nil
@@ -1124,7 +1124,7 @@ func (r *basePoolManager) addRunnerToPool(pool params.Pool, aditionalLabels []st
 		return fmt.Errorf("failed to list pool instances: %w", err)
 	}
 
-	if poolInstanceCount >= int64(pool.MaxRunners) {
+	if poolInstanceCount >= int64(pool.MaxRunnersAsInt()) {
 		return fmt.Errorf("max workers (%d) reached for pool %s", pool.MaxRunners, pool.ID)
 	}
 
@@ -1160,14 +1160,19 @@ func (r *basePoolManager) ensureIdleRunnersForOnePool(pool params.Pool) error {
 	}
 
 	var required int
-	if len(idleOrPendingWorkers) < int(pool.MinIdleRunners) {
+	if len(idleOrPendingWorkers) < pool.MinIdleRunnersAsInt() {
 		// get the needed delta.
-		required = int(pool.MinIdleRunners) - len(idleOrPendingWorkers)
+		required = pool.MinIdleRunnersAsInt() - len(idleOrPendingWorkers)
 
 		projectedInstanceCount := len(existingInstances) + required
-		if uint(projectedInstanceCount) > pool.MaxRunners {
+
+		var projected uint
+		if projectedInstanceCount > 0 {
+			projected = uint(projectedInstanceCount)
+		}
+		if projected > pool.MaxRunners {
 			// ensure we don't go above max workers
-			delta := projectedInstanceCount - int(pool.MaxRunners)
+			delta := projectedInstanceCount - pool.MaxRunnersAsInt()
 			required -= delta
 		}
 	}
@@ -1748,7 +1753,7 @@ func (r *basePoolManager) consumeQueuedJobs() error {
 			continue
 		}
 
-		if time.Since(job.UpdatedAt) < time.Second*time.Duration(r.controllerInfo.MinimumJobAgeBackoff) {
+		if time.Since(job.UpdatedAt) < time.Second*r.controllerInfo.JobBackoff() {
 			// give the idle runners a chance to pick up the job.
 			slog.DebugContext(
 				r.ctx, "job backoff not reached", "backoff_interval", r.controllerInfo.MinimumJobAgeBackoff,

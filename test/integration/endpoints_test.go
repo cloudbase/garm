@@ -100,7 +100,7 @@ func (suite *GarmSuite) TestGithubEndpointDeletionFailsWhenCredentialsExist() {
 	err = deleteGithubEndpoint(suite.cli, suite.authToken, endpoint.Name)
 	suite.Error(err, "expected error when deleting endpoint with credentials")
 
-	err = suite.DeleteGithubCredential(int64(creds.ID))
+	err = suite.DeleteGithubCredential(int64(creds.ID)) //nolint:gosec
 	suite.NoError(err, "error deleting credentials")
 	err = suite.DeleteGithubEndpoint(endpoint.Name)
 	suite.NoError(err, "error deleting endpoint")

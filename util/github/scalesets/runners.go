@@ -41,7 +41,7 @@ func (s *ScaleSetClient) GenerateJitRunnerConfig(ctx context.Context, runnerName
 		return params.RunnerScaleSetJitRunnerConfig{}, err
 	}
 
-	req, err := s.newActionsRequest(ctx, http.MethodPost, scaleSet.RunnerJitConfigUrl, bytes.NewBuffer(body))
+	req, err := s.newActionsRequest(ctx, http.MethodPost, scaleSet.RunnerJitConfigURL, bytes.NewBuffer(body))
 	if err != nil {
 		return params.RunnerScaleSetJitRunnerConfig{}, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -59,8 +59,8 @@ func (s *ScaleSetClient) GenerateJitRunnerConfig(ctx context.Context, runnerName
 	return runnerJitConfig, nil
 }
 
-func (s *ScaleSetClient) GetRunner(ctx context.Context, runnerId int64) (params.RunnerReference, error) {
-	path := fmt.Sprintf("%s/%d", runnerEndpoint, runnerId)
+func (s *ScaleSetClient) GetRunner(ctx context.Context, runnerID int64) (params.RunnerReference, error) {
+	path := fmt.Sprintf("%s/%d", runnerEndpoint, runnerID)
 
 	req, err := s.newActionsRequest(ctx, http.MethodGet, path, nil)
 	if err != nil {
@@ -111,8 +111,8 @@ func (s *ScaleSetClient) GetRunnerByName(ctx context.Context, runnerName string)
 	return runnerList.RunnerReferences[0], nil
 }
 
-func (s *ScaleSetClient) RemoveRunner(ctx context.Context, runnerId int64) error {
-	path := fmt.Sprintf("%s/%d", runnerEndpoint, runnerId)
+func (s *ScaleSetClient) RemoveRunner(ctx context.Context, runnerID int64) error {
+	path := fmt.Sprintf("%s/%d", runnerEndpoint, runnerID)
 
 	req, err := s.newActionsRequest(ctx, http.MethodDelete, path, nil)
 	if err != nil {

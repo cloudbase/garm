@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"math"
 	"net/http"
 	"time"
 
@@ -326,6 +327,21 @@ type Pool struct {
 	Priority uint `json:"priority,omitempty"`
 }
 
+func (p Pool) MinIdleRunnersAsInt() int {
+	if p.MinIdleRunners > math.MaxInt {
+		return math.MaxInt
+	}
+
+	return int(p.MinIdleRunners)
+}
+
+func (p Pool) MaxRunnersAsInt() int {
+	if p.MaxRunners > math.MaxInt {
+		return math.MaxInt
+	}
+	return int(p.MaxRunners)
+}
+
 func (p Pool) GithubEntity() (GithubEntity, error) {
 	switch p.PoolType() {
 	case GithubEntityTypeRepository:
@@ -609,6 +625,14 @@ type ControllerInfo struct {
 	MinimumJobAgeBackoff uint `json:"minimum_job_age_backoff,omitempty"`
 	// Version is the version of the GARM controller.
 	Version string `json:"version,omitempty"`
+}
+
+func (c *ControllerInfo) JobBackoff() time.Duration {
+	if math.MaxInt64 > c.MinimumJobAgeBackoff {
+		return time.Duration(math.MaxInt64)
+	}
+
+	return time.Duration(int64(c.MinimumJobAgeBackoff))
 }
 
 type GithubCredentials struct {

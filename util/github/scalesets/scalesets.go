@@ -36,8 +36,8 @@ const (
 	HeaderGitHubRequestID   = "X-GitHub-Request-Id"
 )
 
-func (s *ScaleSetClient) GetRunnerScaleSetByNameAndRunnerGroup(ctx context.Context, runnerGroupId int, name string) (params.RunnerScaleSet, error) {
-	path := fmt.Sprintf("%s?runnerGroupId=%d&name=%s", scaleSetEndpoint, runnerGroupId, name)
+func (s *ScaleSetClient) GetRunnerScaleSetByNameAndRunnerGroup(ctx context.Context, runnerGroupID int, name string) (params.RunnerScaleSet, error) {
+	path := fmt.Sprintf("%s?runnerGroupId=%d&name=%s", scaleSetEndpoint, runnerGroupID, name)
 	req, err := s.newActionsRequest(ctx, http.MethodGet, path, nil)
 	if err != nil {
 		return params.RunnerScaleSet{}, err
@@ -53,7 +53,7 @@ func (s *ScaleSetClient) GetRunnerScaleSetByNameAndRunnerGroup(ctx context.Conte
 		return params.RunnerScaleSet{}, fmt.Errorf("failed to decode response: %w", err)
 	}
 	if runnerScaleSetList.Count == 0 {
-		return params.RunnerScaleSet{}, runnerErrors.NewNotFoundError("runner scale set with name %s and runner group ID %d was not found", name, runnerGroupId)
+		return params.RunnerScaleSet{}, runnerErrors.NewNotFoundError("runner scale set with name %s and runner group ID %d was not found", name, runnerGroupID)
 	}
 
 	// Runner scale sets must have a uniqe name. Attempting to create a runner scale set with the same name as
@@ -61,8 +61,8 @@ func (s *ScaleSetClient) GetRunnerScaleSetByNameAndRunnerGroup(ctx context.Conte
 	return runnerScaleSetList.RunnerScaleSets[0], nil
 }
 
-func (s *ScaleSetClient) GetRunnerScaleSetById(ctx context.Context, runnerScaleSetId int) (params.RunnerScaleSet, error) {
-	path := fmt.Sprintf("%s/%d", scaleSetEndpoint, runnerScaleSetId)
+func (s *ScaleSetClient) GetRunnerScaleSetByID(ctx context.Context, runnerScaleSetID int) (params.RunnerScaleSet, error) {
+	path := fmt.Sprintf("%s/%d", scaleSetEndpoint, runnerScaleSetID)
 	req, err := s.newActionsRequest(ctx, http.MethodGet, path, nil)
 	if err != nil {
 		return params.RunnerScaleSet{}, err
@@ -70,7 +70,7 @@ func (s *ScaleSetClient) GetRunnerScaleSetById(ctx context.Context, runnerScaleS
 
 	resp, err := s.Do(req)
 	if err != nil {
-		return params.RunnerScaleSet{}, fmt.Errorf("failed to get runner scaleset with ID %d: %w", runnerScaleSetId, err)
+		return params.RunnerScaleSet{}, fmt.Errorf("failed to get runner scaleset with ID %d: %w", runnerScaleSetID, err)
 	}
 
 	var runnerScaleSet params.RunnerScaleSet
@@ -127,8 +127,8 @@ func (s *ScaleSetClient) CreateRunnerScaleSet(ctx context.Context, runnerScaleSe
 	return createdRunnerScaleSet, nil
 }
 
-func (s *ScaleSetClient) UpdateRunnerScaleSet(ctx context.Context, runnerScaleSetId int, runnerScaleSet params.RunnerScaleSet) (params.RunnerScaleSet, error) {
-	path := fmt.Sprintf("%s/%d", scaleSetEndpoint, runnerScaleSetId)
+func (s *ScaleSetClient) UpdateRunnerScaleSet(ctx context.Context, runnerScaleSetID int, runnerScaleSet params.RunnerScaleSet) (params.RunnerScaleSet, error) {
+	path := fmt.Sprintf("%s/%d", scaleSetEndpoint, runnerScaleSetID)
 
 	body, err := json.Marshal(runnerScaleSet)
 	if err != nil {
@@ -152,8 +152,8 @@ func (s *ScaleSetClient) UpdateRunnerScaleSet(ctx context.Context, runnerScaleSe
 	return ret, nil
 }
 
-func (s *ScaleSetClient) DeleteRunnerScaleSet(ctx context.Context, runnerScaleSetId int) error {
-	path := fmt.Sprintf("%s/%d", scaleSetEndpoint, runnerScaleSetId)
+func (s *ScaleSetClient) DeleteRunnerScaleSet(ctx context.Context, runnerScaleSetID int) error {
+	path := fmt.Sprintf("%s/%d", scaleSetEndpoint, runnerScaleSetID)
 	req, err := s.newActionsRequest(ctx, http.MethodDelete, path, nil)
 	if err != nil {
 		return err

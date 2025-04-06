@@ -238,16 +238,16 @@ type RunnerScaleSetStatistic struct {
 }
 
 type RunnerScaleSet struct {
-	Id                   int                      `json:"id,omitempty"`
+	ID                   int                      `json:"id,omitempty"`
 	Name                 string                   `json:"name,omitempty"`
-	RunnerGroupId        int                      `json:"runnerGroupId,omitempty"`
+	RunnerGroupID        int                      `json:"runnerGroupId,omitempty"`
 	RunnerGroupName      string                   `json:"runnerGroupName,omitempty"`
 	Labels               []Label                  `json:"labels,omitempty"`
 	RunnerSetting        RunnerSetting            `json:"RunnerSetting,omitempty"`
 	CreatedOn            time.Time                `json:"createdOn,omitempty"`
-	RunnerJitConfigUrl   string                   `json:"runnerJitConfigUrl,omitempty"`
-	GetAcquirableJobsUrl string                   `json:"getAcquirableJobsUrl,omitempty"`
-	AcquireJobsUrl       string                   `json:"acquireJobsUrl,omitempty"`
+	RunnerJitConfigURL   string                   `json:"runnerJitConfigUrl,omitempty"`
+	GetAcquirableJobsURL string                   `json:"getAcquirableJobsUrl,omitempty"`
+	AcquireJobsURL       string                   `json:"acquireJobsUrl,omitempty"`
 	Statistics           *RunnerScaleSetStatistic `json:"statistics,omitempty"`
 	Status               string                   `json:"status,omitempty"`
 	Enabled              *bool                    `json:"enabled,omitempty"`
@@ -327,19 +327,19 @@ type ActionsServiceAdminInfoRequest struct {
 }
 
 type RunnerScaleSetSession struct {
-	SessionId               *uuid.UUID               `json:"sessionId,omitempty"`
+	SessionID               *uuid.UUID               `json:"sessionId,omitempty"`
 	OwnerName               string                   `json:"ownerName,omitempty"`
 	RunnerScaleSet          *RunnerScaleSet          `json:"runnerScaleSet,omitempty"`
-	MessageQueueUrl         string                   `json:"messageQueueUrl,omitempty"`
+	MessageQueueURL         string                   `json:"messageQueueUrl,omitempty"`
 	MessageQueueAccessToken string                   `json:"messageQueueAccessToken,omitempty"`
 	Statistics              *RunnerScaleSetStatistic `json:"statistics,omitempty"`
 }
 
 func (a RunnerScaleSetSession) GetURL() (*url.URL, error) {
-	if a.MessageQueueUrl == "" {
+	if a.MessageQueueURL == "" {
 		return nil, fmt.Errorf("no url specified")
 	}
-	u, err := url.ParseRequestURI(a.MessageQueueUrl)
+	u, err := url.ParseRequestURI(a.MessageQueueURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse URL: %w", err)
 	}
@@ -394,16 +394,16 @@ func (a RunnerScaleSetSession) ExpiresIn(t time.Duration) bool {
 }
 
 type RunnerScaleSetMessage struct {
-	MessageId   int64                    `json:"messageId"`
+	MessageID   int64                    `json:"messageId"`
 	MessageType string                   `json:"messageType"`
 	Body        string                   `json:"body"`
 	Statistics  *RunnerScaleSetStatistic `json:"statistics"`
 }
 
 type RunnerReference struct {
-	Id                int          `json:"id"`
+	ID                int          `json:"id"`
 	Name              string       `json:"name"`
-	RunnerScaleSetId  int          `json:"runnerScaleSetId"`
+	RunnerScaleSetID  int          `json:"runnerScaleSetId"`
 	CreatedOn         time.Time    `json:"createdOn"`
 	RunnerGroupID     uint64       `json:"runnerGroupId"`
 	RunnerGroupName   string       `json:"runnerGroupName"`
@@ -431,9 +431,9 @@ type AcquirableJobList struct {
 }
 
 type AcquirableJob struct {
-	AcquireJobUrl   string   `json:"acquireJobUrl"`
+	AcquireJobURL   string   `json:"acquireJobUrl"`
 	MessageType     string   `json:"messageType"`
-	RunnerRequestId int64    `json:"run0ne00rRequestId"`
+	RunnerRequestID int64    `json:"run0ne00rRequestId"`
 	RepositoryName  string   `json:"repositoryName"`
 	OwnerName       string   `json:"ownerName"`
 	JobWorkflowRef  string   `json:"jobWorkflowRef"`
