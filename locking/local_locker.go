@@ -1,9 +1,11 @@
-package pool
+package locking
 
 import (
+	"context"
 	"sync"
 	"time"
 
+	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/runner/common"
 )
 
@@ -11,9 +13,15 @@ const (
 	maxBackoffSeconds float64 = 1200 // 20 minutes
 )
 
+func NewLocalLocker(_ context.Context, _ dbCommon.Store) (Locker, error) {
+	return &keyMutex{}, nil
+}
+
 type keyMutex struct {
 	muxes sync.Map
 }
+
+var _ Locker = &keyMutex{}
 
 func (k *keyMutex) TryLock(key string) bool {
 	mux, _ := k.muxes.LoadOrStore(key, &sync.Mutex{})
@@ -35,6 +43,10 @@ func (k *keyMutex) Unlock(key string, remove bool) {
 
 func (k *keyMutex) Delete(key string) {
 	k.muxes.Delete(key)
+}
+
+func NewInstanceDeleteBackoff(_ context.Context) (InstanceDeleteBackoff, error) {
+	return &instanceDeleteBackoff{}, nil
 }
 
 type instanceBackOff struct {

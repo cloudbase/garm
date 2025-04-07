@@ -41,6 +41,7 @@ import (
 	"github.com/cloudbase/garm/database"
 	"github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/database/watcher"
+	"github.com/cloudbase/garm/locking"
 	"github.com/cloudbase/garm/metrics"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner" //nolint:typecheck
@@ -212,6 +213,17 @@ func main() {
 
 	if err := maybeInitController(db); err != nil {
 		log.Fatal(err)
+	}
+
+	// Local locker for now. Will be configurable in the future,
+	// as we add scale-out capability to GARM.
+	lock, err := locking.NewLocalLocker(ctx, db)
+	if err != nil {
+		log.Fatalf("failed to create locker: %q", err)
+	}
+
+	if err := locking.RegisterLocker(lock); err != nil {
+		log.Fatalf("failed to register locker: %q", err)
 	}
 
 	if err := maybeUpdateURLsFromConfig(*cfg, db); err != nil {

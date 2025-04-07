@@ -35,18 +35,6 @@ import (
 
 const maxCapacityHeader = "X-ScaleSetMaxCapacity"
 
-func NewMessageSession(ctx context.Context, cli *ScaleSetClient, session *params.RunnerScaleSetSession) (*MessageSession, error) {
-	sess := &MessageSession{
-		ssCli:   cli,
-		session: session,
-		ctx:     ctx,
-		done:    make(chan struct{}),
-		closed:  false,
-	}
-	go sess.loop()
-	return sess, nil
-}
-
 type MessageSession struct {
 	ssCli   *ScaleSetClient
 	session *params.RunnerScaleSetSession
@@ -243,10 +231,16 @@ func (s *ScaleSetClient) CreateMessageSession(ctx context.Context, runnerScaleSe
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	return &MessageSession{
+	sess := &MessageSession{
 		ssCli:   s,
 		session: &createdSession,
-	}, nil
+		ctx:     ctx,
+		done:    make(chan struct{}),
+		closed:  false,
+	}
+	go sess.loop()
+
+	return sess, nil
 }
 
 func (s *ScaleSetClient) DeleteMessageSession(ctx context.Context, session *MessageSession) error {
