@@ -45,6 +45,7 @@ type (
 	WebhookEndpointType string
 	GithubAuthType      string
 	PoolBalancerType    string
+	ScaleSetState       string
 )
 
 const (
@@ -128,6 +129,14 @@ func (e GithubEntityType) String() string {
 	return string(e)
 }
 
+const (
+	ScaleSetPendingCreate      ScaleSetState = "pending_create"
+	ScaleSetCreated            ScaleSetState = "created"
+	ScaleSetError              ScaleSetState = "error"
+	ScaleSetPendingDelete      ScaleSetState = "pending_delete"
+	ScaleSetPendingForceDelete ScaleSetState = "pending_force_delete"
+)
+
 type StatusMessage struct {
 	CreatedAt  time.Time  `json:"created_at,omitempty"`
 	Message    string     `json:"message,omitempty"`
@@ -178,6 +187,9 @@ type Instance struct {
 
 	// PoolID is the ID of the garm pool to which a runner belongs.
 	PoolID string `json:"pool_id,omitempty"`
+
+	// ScaleSetID is the ID of the scale set to which a runner belongs.
+	ScaleSetID uint `json:"scale_set_id,omitempty"`
 
 	// ProviderFault holds any error messages captured from the IaaS provider that is
 	// responsible for managing the lifecycle of the runner.
@@ -402,6 +414,97 @@ func (p *Pool) HasRequiredLabels(set []string) bool {
 
 // used by swagger client generated code
 type Pools []Pool
+
+type ScaleSet struct {
+	RunnerPrefix
+
+	ID            uint   `json:"id,omitempty"`
+	ScaleSetID    int    `json:"scale_set_id,omitempty"`
+	Name          string `json:"name,omitempty"`
+	DisableUpdate bool   `json:"disable_update"`
+
+	State         ScaleSetState `json:"state"`
+	ExtendedState string        `json:"extended_state,omitempty"`
+
+	ProviderName   string              `json:"provider_name,omitempty"`
+	MaxRunners     uint                `json:"max_runners,omitempty"`
+	MinIdleRunners uint                `json:"min_idle_runners,omitempty"`
+	Image          string              `json:"image,omitempty"`
+	Flavor         string              `json:"flavor,omitempty"`
+	OSType         commonParams.OSType `json:"os_type,omitempty"`
+	OSArch         commonParams.OSArch `json:"os_arch,omitempty"`
+	Enabled        bool                `json:"enabled,omitempty"`
+	Instances      []Instance          `json:"instances,omitempty"`
+
+	RunnerBootstrapTimeout uint `json:"runner_bootstrap_timeout,omitempty"`
+	// ExtraSpecs is an opaque raw json that gets sent to the provider
+	// as part of the bootstrap params for instances. It can contain
+	// any kind of data needed by providers. The contents of this field means
+	// nothing to garm itself. We don't act on the information in this field at
+	// all. We only validate that it's a proper json.
+	ExtraSpecs json.RawMessage `json:"extra_specs,omitempty"`
+	// GithubRunnerGroup is the github runner group in which the runners will be added.
+	// The runner group must be created by someone with access to the enterprise.
+	GitHubRunnerGroup string `json:"github-runner-group,omitempty"`
+
+	StatusMessages []StatusMessage `json:"status_messages"`
+
+	RepoID   string `json:"repo_id,omitempty"`
+	RepoName string `json:"repo_name,omitempty"`
+
+	OrgID   string `json:"org_id,omitempty"`
+	OrgName string `json:"org_name,omitempty"`
+
+	EnterpriseID   string `json:"enterprise_id,omitempty"`
+	EnterpriseName string `json:"enterprise_name,omitempty"`
+}
+
+func (p ScaleSet) GithubEntity() (GithubEntity, error) {
+	switch p.ScaleSetType() {
+	case GithubEntityTypeRepository:
+		return GithubEntity{
+			ID:         p.RepoID,
+			EntityType: GithubEntityTypeRepository,
+		}, nil
+	case GithubEntityTypeOrganization:
+		return GithubEntity{
+			ID:         p.OrgID,
+			EntityType: GithubEntityTypeOrganization,
+		}, nil
+	case GithubEntityTypeEnterprise:
+		return GithubEntity{
+			ID:         p.EnterpriseID,
+			EntityType: GithubEntityTypeEnterprise,
+		}, nil
+	}
+	return GithubEntity{}, fmt.Errorf("pool has no associated entity")
+}
+
+func (p *ScaleSet) ScaleSetType() GithubEntityType {
+	switch {
+	case p.RepoID != "":
+		return GithubEntityTypeRepository
+	case p.OrgID != "":
+		return GithubEntityTypeOrganization
+	case p.EnterpriseID != "":
+		return GithubEntityTypeEnterprise
+	}
+	return ""
+}
+
+func (p ScaleSet) GetID() uint {
+	return p.ID
+}
+
+func (p *ScaleSet) RunnerTimeout() uint {
+	if p.RunnerBootstrapTimeout == 0 {
+		return appdefaults.DefaultRunnerBootstrapTimeout
+	}
+	return p.RunnerBootstrapTimeout
+}
+
+// used by swagger client generated code
+type ScaleSets []ScaleSet
 
 type Repository struct {
 	ID    string `json:"id,omitempty"`

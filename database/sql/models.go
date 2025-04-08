@@ -86,6 +86,54 @@ type Pool struct {
 	Priority  uint       `gorm:"index:idx_pool_priority"`
 }
 
+// ScaleSet represents a github scale set. Scale sets are almost identical to pools with a few
+// notable exceptions:
+//   - Labels are no longer relevant
+//   - Workflows will use the scaleset name to target runners.
+//   - A scale set is a stand alone unit. If a workflow targets a scale set, no other runner will pick up that job.
+type ScaleSet struct {
+	gorm.Model
+
+	// ScaleSetID is the github ID of the scale set. This field may not be set if
+	// the scale set was ceated in GARM but has not yet been created in GitHub.
+	ScaleSetID    int    `gorm:"index:idx_scale_set"`
+	Name          string `gorm:"index:idx_name"`
+	DisableUpdate bool
+
+	// State stores the provisioning state of the scale set in GitHub
+	State params.ScaleSetState
+	// ExtendedState stores a more detailed message regarding the State.
+	// If an error occurs, the reason for the error will be stored here.
+	ExtendedState string
+
+	ProviderName           string
+	RunnerPrefix           string
+	MaxRunners             uint
+	MinIdleRunners         uint
+	RunnerBootstrapTimeout uint
+	Image                  string
+	Flavor                 string
+	OSType                 commonParams.OSType
+	OSArch                 commonParams.OSArch
+	Enabled                bool
+	// ExtraSpecs is an opaque json that gets sent to the provider
+	// as part of the bootstrap params for instances. It can contain
+	// any kind of data needed by providers.
+	ExtraSpecs        datatypes.JSON
+	GitHubRunnerGroup string
+
+	RepoID     *uuid.UUID `gorm:"index"`
+	Repository Repository `gorm:"foreignKey:RepoID;"`
+
+	OrgID        *uuid.UUID   `gorm:"index"`
+	Organization Organization `gorm:"foreignKey:OrgID"`
+
+	EnterpriseID *uuid.UUID `gorm:"index"`
+	Enterprise   Enterprise `gorm:"foreignKey:EnterpriseID"`
+
+	Instances []Instance `gorm:"foreignKey:ScaleSetFkID"`
+}
+
 type Repository struct {
 	Base
 
@@ -98,6 +146,7 @@ type Repository struct {
 	Name             string `gorm:"index:idx_owner_nocase,unique,collate:nocase"`
 	WebhookSecret    []byte
 	Pools            []Pool                  `gorm:"foreignKey:RepoID"`
+	ScaleSets        []ScaleSet              `gorm:"foreignKey:RepoID"`
 	Jobs             []WorkflowJob           `gorm:"foreignKey:RepoID;constraint:OnDelete:SET NULL"`
 	PoolBalancerType params.PoolBalancerType `gorm:"type:varchar(64)"`
 
@@ -116,6 +165,7 @@ type Organization struct {
 	Name             string `gorm:"index:idx_org_name_nocase,collate:nocase"`
 	WebhookSecret    []byte
 	Pools            []Pool                  `gorm:"foreignKey:OrgID"`
+	ScaleSet         []ScaleSet              `gorm:"foreignKey:OrgID"`
 	Jobs             []WorkflowJob           `gorm:"foreignKey:OrgID;constraint:OnDelete:SET NULL"`
 	PoolBalancerType params.PoolBalancerType `gorm:"type:varchar(64)"`
 
@@ -134,6 +184,7 @@ type Enterprise struct {
 	Name             string `gorm:"index:idx_ent_name_nocase,collate:nocase"`
 	WebhookSecret    []byte
 	Pools            []Pool                  `gorm:"foreignKey:EnterpriseID"`
+	ScaleSet         []ScaleSet              `gorm:"foreignKey:EnterpriseID"`
 	Jobs             []WorkflowJob           `gorm:"foreignKey:EnterpriseID;constraint:OnDelete:SET NULL"`
 	PoolBalancerType params.PoolBalancerType `gorm:"type:varchar(64)"`
 
@@ -186,6 +237,9 @@ type Instance struct {
 
 	PoolID uuid.UUID
 	Pool   Pool `gorm:"foreignKey:PoolID"`
+
+	ScaleSetFkID *uint
+	ScaleSet     ScaleSet `gorm:"foreignKey:ScaleSetFkID"`
 
 	StatusMessages []InstanceStatusUpdate `gorm:"foreignKey:InstanceID;constraint:OnDelete:CASCADE,OnUpdate:CASCADE;"`
 

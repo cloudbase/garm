@@ -288,6 +288,25 @@ func (s *sqlDatabase) ListPoolInstances(_ context.Context, poolID string) ([]par
 	return ret, nil
 }
 
+func (s *sqlDatabase) ListScaleSetInstances(_ context.Context, scalesetID uint) ([]params.Instance, error) {
+	var instances []Instance
+	query := s.conn.Model(&Instance{}).Preload("Job").Where("scale_set_id = ?", scalesetID)
+
+	if err := query.Find(&instances); err.Error != nil {
+		return nil, errors.Wrap(err.Error, "fetching instances")
+	}
+
+	var err error
+	ret := make([]params.Instance, len(instances))
+	for idx, inst := range instances {
+		ret[idx], err = s.sqlToParamsInstance(inst)
+		if err != nil {
+			return nil, errors.Wrap(err, "converting instance")
+		}
+	}
+	return ret, nil
+}
+
 func (s *sqlDatabase) ListAllInstances(_ context.Context) ([]params.Instance, error) {
 	var instances []Instance
 
