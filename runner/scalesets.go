@@ -164,11 +164,6 @@ func (r *Runner) UpdateScaleSetByID(ctx context.Context, scaleSetID uint, param 
 			hasUpdates = true
 		}
 
-		if old.Enabled != new.Enabled {
-			updateParams.Enabled = &new.Enabled
-			hasUpdates = true
-		}
-
 		if old.GitHubRunnerGroup != new.GitHubRunnerGroup {
 			runnerGroup, err := scalesetCli.GetRunnerGroupByName(ctx, new.GitHubRunnerGroup)
 			if err != nil {

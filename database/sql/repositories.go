@@ -216,7 +216,7 @@ func (s *sqlDatabase) UpdateRepository(ctx context.Context, repoID string, param
 }
 
 func (s *sqlDatabase) GetRepositoryByID(ctx context.Context, repoID string) (params.Repository, error) {
-	repo, err := s.getRepoByID(ctx, s.conn, repoID, "Pools", "Credentials", "Endpoint")
+	repo, err := s.getRepoByID(ctx, s.conn, repoID, "Pools", "Credentials", "Endpoint", "Credentials.Endpoint")
 	if err != nil {
 		return params.Repository{}, errors.Wrap(err, "fetching repo")
 	}
