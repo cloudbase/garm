@@ -135,6 +135,16 @@ type ControllerStore interface {
 	UpdateController(info params.UpdateControllerParams) (params.ControllerInfo, error)
 }
 
+type ScaleSetsStore interface {
+	ListAllScaleSets(ctx context.Context) ([]params.ScaleSet, error)
+	CreateEntityScaleSet(_ context.Context, entity params.GithubEntity, param params.CreateScaleSetParams) (scaleSet params.ScaleSet, err error)
+	ListEntityScaleSets(_ context.Context, entity params.GithubEntity) ([]params.ScaleSet, error)
+	UpdateEntityScaleSet(_ context.Context, entity params.GithubEntity, scaleSetID uint, param params.UpdateScaleSetParams, callback func(old, new params.ScaleSet) error) (updatedScaleSet params.ScaleSet, err error)
+	GetScaleSetByID(ctx context.Context, scaleSet uint) (params.ScaleSet, error)
+	DeleteScaleSetByID(ctx context.Context, scaleSetID uint) (err error)
+	ListScaleSetInstances(_ context.Context, scalesetID uint) ([]params.Instance, error)
+}
+
 //go:generate mockery --name=Store
 type Store interface {
 	RepoStore
@@ -148,7 +158,9 @@ type Store interface {
 	GithubCredentialsStore
 	ControllerStore
 	EntityPoolStore
+	ScaleSetsStore
 
 	ControllerInfo() (params.ControllerInfo, error)
 	InitController() (params.ControllerInfo, error)
+	GetGithubEntity(_ context.Context, entityType params.GithubEntityType, entityID string) (params.GithubEntity, error)
 }

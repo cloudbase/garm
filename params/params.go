@@ -153,6 +153,10 @@ type Instance struct {
 	// instance in the provider.
 	ProviderID string `json:"provider_id,omitempty"`
 
+	// ProviderName is the name of the IaaS where the instance was
+	// created.
+	ProviderName string `json:"provider_name"`
+
 	// AgentID is the github runner agent ID.
 	AgentID int64 `json:"agent_id,omitempty"`
 
@@ -212,6 +216,10 @@ type Instance struct {
 	// Job is the current job that is being serviced by this runner.
 	Job *Job `json:"job,omitempty"`
 
+	// RunnerBootstrapTimeout is the timeout in minutes after which the runner deployment
+	// will be considered failed. This value is caried over from the pool or scale set.
+	RunnerBootstrapTimeout uint `json:"runner_bootstrap_timeout,omitempty"`
+
 	// Do not serialize sensitive info.
 	CallbackURL      string            `json:"-"`
 	MetadataURL      string            `json:"-"`
@@ -227,6 +235,13 @@ func (i Instance) GetName() string {
 
 func (i Instance) GetID() string {
 	return i.ID
+}
+
+func (i Instance) RunnerTimeout() uint {
+	if i.RunnerBootstrapTimeout == 0 {
+		return appdefaults.DefaultRunnerBootstrapTimeout
+	}
+	return i.RunnerBootstrapTimeout
 }
 
 // used by swagger client generated code

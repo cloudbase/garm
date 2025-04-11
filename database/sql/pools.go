@@ -427,7 +427,10 @@ func (s *sqlDatabase) ListEntityInstances(_ context.Context, entity params.Githu
 	}
 	ret := []params.Instance{}
 	for _, pool := range pools {
-		for _, instance := range pool.Instances {
+		instances := pool.Instances
+		pool.Instances = nil
+		for _, instance := range instances {
+			instance.Pool = pool
 			paramsInstance, err := s.sqlToParamsInstance(instance)
 			if err != nil {
 				return nil, errors.Wrap(err, "fetching instance")

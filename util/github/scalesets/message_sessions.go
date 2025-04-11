@@ -80,7 +80,9 @@ func (m *MessageSession) loop() {
 				// work, if it's credentials issues, users can update them.
 				slog.With(slog.Any("error", err)).ErrorContext(m.ctx, "failed to refresh message queue token")
 				m.lastErr = err
+				continue
 			}
+			m.lastErr = nil
 		}
 	}
 }

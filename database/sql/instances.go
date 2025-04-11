@@ -97,6 +97,8 @@ func (s *sqlDatabase) getPoolInstanceByName(poolID string, instanceName string) 
 		}
 		return Instance{}, errors.Wrap(q.Error, "fetching pool instance by name")
 	}
+
+	instance.Pool = pool
 	return instance, nil
 }
 
@@ -134,7 +136,7 @@ func (s *sqlDatabase) GetPoolInstanceByName(_ context.Context, poolID string, in
 }
 
 func (s *sqlDatabase) GetInstanceByName(ctx context.Context, instanceName string) (params.Instance, error) {
-	instance, err := s.getInstanceByName(ctx, instanceName, "StatusMessages")
+	instance, err := s.getInstanceByName(ctx, instanceName, "StatusMessages", "Pool")
 	if err != nil {
 		return params.Instance{}, errors.Wrap(err, "fetching instance")
 	}
@@ -194,7 +196,7 @@ func (s *sqlDatabase) AddInstanceEvent(ctx context.Context, instanceName string,
 }
 
 func (s *sqlDatabase) UpdateInstance(ctx context.Context, instanceName string, param params.UpdateInstanceParams) (params.Instance, error) {
-	instance, err := s.getInstanceByName(ctx, instanceName)
+	instance, err := s.getInstanceByName(ctx, instanceName, "Pool")
 	if err != nil {
 		return params.Instance{}, errors.Wrap(err, "updating instance")
 	}
@@ -272,7 +274,7 @@ func (s *sqlDatabase) ListPoolInstances(_ context.Context, poolID string) ([]par
 	}
 
 	var instances []Instance
-	query := s.conn.Model(&Instance{}).Preload("Job").Where("pool_id = ?", u)
+	query := s.conn.Model(&Instance{}).Preload("Job", "Pool").Where("pool_id = ?", u)
 
 	if err := query.Find(&instances); err.Error != nil {
 		return nil, errors.Wrap(err.Error, "fetching instances")
@@ -290,7 +292,7 @@ func (s *sqlDatabase) ListPoolInstances(_ context.Context, poolID string) ([]par
 
 func (s *sqlDatabase) ListScaleSetInstances(_ context.Context, scalesetID uint) ([]params.Instance, error) {
 	var instances []Instance
-	query := s.conn.Model(&Instance{}).Preload("Job").Where("scale_set_id = ?", scalesetID)
+	query := s.conn.Model(&Instance{}).Preload("Job", "ScaleSet").Where("scale_set_fk_id = ?", scalesetID)
 
 	if err := query.Find(&instances); err.Error != nil {
 		return nil, errors.Wrap(err.Error, "fetching instances")
@@ -310,7 +312,7 @@ func (s *sqlDatabase) ListScaleSetInstances(_ context.Context, scalesetID uint) 
 func (s *sqlDatabase) ListAllInstances(_ context.Context) ([]params.Instance, error) {
 	var instances []Instance
 
-	q := s.conn.Model(&Instance{}).Preload("Job").Find(&instances)
+	q := s.conn.Model(&Instance{}).Preload("Job", "Pool", "ScaleSet").Find(&instances)
 	if q.Error != nil {
 		return nil, errors.Wrap(q.Error, "fetching instances")
 	}

@@ -69,6 +69,54 @@ func (a *APIController) ListPoolInstancesHandler(w http.ResponseWriter, r *http.
 	}
 }
 
+// swagger:route GET /scalesets/{scalesetID}/instances instances ListScaleSetInstances
+//
+// List runner instances in a scale set.
+//
+//	Parameters:
+//	  + name: scalesetID
+//	    description: Runner scale set ID.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	Responses:
+//	  200: Instances
+//	  default: APIErrorResponse
+func (a *APIController) ListScaleSetInstancesHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	scalesetID, ok := vars["scalesetID"]
+	if !ok {
+		w.WriteHeader(http.StatusBadRequest)
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
+			Error:   "Bad Request",
+			Details: "No pool ID specified",
+		}); err != nil {
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
+		}
+		return
+	}
+	id, err := strconv.ParseUint(scalesetID, 10, 64)
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to parse id")
+		handleError(ctx, w, gErrors.ErrBadRequest)
+		return
+	}
+
+	instances, err := a.r.ListScaleSetInstances(ctx, uint(id))
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "listing pool instances")
+		handleError(ctx, w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(instances); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
+	}
+}
+
 // swagger:route GET /instances/{instanceName} instances GetInstance
 //
 // Get runner instance by name.

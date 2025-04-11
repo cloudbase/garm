@@ -260,3 +260,24 @@ func WithScaleSetInstanceFilter(scaleset params.ScaleSet) dbCommon.PayloadFilter
 		return instance.ScaleSetID == scaleset.ID
 	}
 }
+
+// EntityTypeCallbackFilter is a callback function that takes a ChangePayload and returns a boolean.
+// This callback type is used in the WithEntityTypeAndCallbackFilter (and potentially others) when
+// a filter needs to delegate logic to a specific callback function.
+type EntityTypeCallbackFilter func(payload dbCommon.ChangePayload) (bool, error)
+
+// WithEntityTypeAndCallbackFilter returns a filter function that filters payloads by entity type and the
+// result of a callback function.
+func WithEntityTypeAndCallbackFilter(entityType dbCommon.DatabaseEntityType, callback EntityTypeCallbackFilter) dbCommon.PayloadFilterFunc {
+	return func(payload dbCommon.ChangePayload) bool {
+		if payload.EntityType != entityType {
+			return false
+		}
+
+		ok, err := callback(payload)
+		if err != nil {
+			return false
+		}
+		return ok
+	}
+}

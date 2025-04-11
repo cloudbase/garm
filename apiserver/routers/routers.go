@@ -214,6 +214,25 @@ func NewAPIRouter(han *controllers.APIController, authMiddleware, initMiddleware
 	apiRouter.Handle("/pools/{poolID}/instances/", http.HandlerFunc(han.ListPoolInstancesHandler)).Methods("GET", "OPTIONS")
 	apiRouter.Handle("/pools/{poolID}/instances", http.HandlerFunc(han.ListPoolInstancesHandler)).Methods("GET", "OPTIONS")
 
+	////////////////
+	// Scale sets //
+	////////////////
+	// List all pools
+	apiRouter.Handle("/scalesets/", http.HandlerFunc(han.ListAllScaleSetsHandler)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/scalesets", http.HandlerFunc(han.ListAllScaleSetsHandler)).Methods("GET", "OPTIONS")
+	// Get one pool
+	apiRouter.Handle("/scalesets/{scalesetID}/", http.HandlerFunc(han.GetScaleSetByIDHandler)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/scalesets/{scalesetID}", http.HandlerFunc(han.GetScaleSetByIDHandler)).Methods("GET", "OPTIONS")
+	// Delete one pool
+	apiRouter.Handle("/scalesets/{scalesetID}/", http.HandlerFunc(han.DeleteScaleSetByIDHandler)).Methods("DELETE", "OPTIONS")
+	apiRouter.Handle("/scalesets/{scalesetID}", http.HandlerFunc(han.DeleteScaleSetByIDHandler)).Methods("DELETE", "OPTIONS")
+	// Update one pool
+	apiRouter.Handle("/scalesets/{scalesetID}/", http.HandlerFunc(han.UpdateScaleSetByIDHandler)).Methods("PUT", "OPTIONS")
+	apiRouter.Handle("/scalesets/{scalesetID}", http.HandlerFunc(han.UpdateScaleSetByIDHandler)).Methods("PUT", "OPTIONS")
+	// List pool instances
+	apiRouter.Handle("/scalesets/{scalesetID}/instances/", http.HandlerFunc(han.ListScaleSetInstancesHandler)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/scalesets/{scalesetID}/instances", http.HandlerFunc(han.ListScaleSetInstancesHandler)).Methods("GET", "OPTIONS")
+
 	/////////////
 	// Runners //
 	/////////////

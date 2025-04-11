@@ -415,6 +415,11 @@ func (r *basePoolManager) cleanupOrphanedProviderRunners(runners []*github.Runne
 	}
 
 	for _, instance := range dbInstances {
+		if instance.ScaleSetID != 0 {
+			// ignore scale set instances.
+			continue
+		}
+
 		lockAcquired, err := locking.TryLock(instance.Name)
 		if !lockAcquired || err != nil {
 			slog.DebugContext(
@@ -433,14 +438,9 @@ func (r *basePoolManager) cleanupOrphanedProviderRunners(runners []*github.Runne
 			continue
 		}
 
-		pool, err := r.store.GetEntityPool(r.ctx, r.entity, instance.PoolID)
-		if err != nil {
-			return errors.Wrap(err, "fetching instance pool info")
-		}
-
 		switch instance.RunnerStatus {
 		case params.RunnerPending, params.RunnerInstalling:
-			if time.Since(instance.UpdatedAt).Minutes() < float64(pool.RunnerTimeout()) {
+			if time.Since(instance.UpdatedAt).Minutes() < float64(instance.RunnerTimeout()) {
 				// runner is still installing. We give it a chance to finish.
 				slog.DebugContext(
 					r.ctx, "runner is still installing, give it a chance to finish",
@@ -491,6 +491,11 @@ func (r *basePoolManager) reapTimedOutRunners(runners []*github.Runner) error {
 	}
 
 	for _, instance := range dbInstances {
+		if instance.ScaleSetID != 0 {
+			// ignore scale set instances.
+			continue
+		}
+
 		slog.DebugContext(
 			r.ctx, "attempting to lock instance",
 			"runner_name", instance.Name)
@@ -503,11 +508,7 @@ func (r *basePoolManager) reapTimedOutRunners(runners []*github.Runner) error {
 		}
 		defer locking.Unlock(instance.Name, false)
 
-		pool, err := r.store.GetEntityPool(r.ctx, r.entity, instance.PoolID)
-		if err != nil {
-			return errors.Wrap(err, "fetching instance pool info")
-		}
-		if time.Since(instance.UpdatedAt).Minutes() < float64(pool.RunnerTimeout()) {
+		if time.Since(instance.UpdatedAt).Minutes() < float64(instance.RunnerTimeout()) {
 			continue
 		}
 
@@ -602,13 +603,13 @@ func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner)
 		}
 
 		// check if the provider still has the instance.
-		provider, ok := r.providers[pool.ProviderName]
+		provider, ok := r.providers[dbInstance.ProviderName]
 		if !ok {
-			return fmt.Errorf("unknown provider %s for pool %s", pool.ProviderName, pool.ID)
+			return fmt.Errorf("unknown provider %s for pool %s", dbInstance.ProviderName, dbInstance.PoolID)
 		}
 
 		var poolInstances []commonParams.ProviderInstance
-		poolInstances, ok = poolInstanceCache[pool.ID]
+		poolInstances, ok = poolInstanceCache[dbInstance.PoolID]
 		if !ok {
 			slog.DebugContext(
 				r.ctx, "updating instances cache for pool",
@@ -620,9 +621,9 @@ func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner)
 			}
 			poolInstances, err = provider.ListInstances(r.ctx, pool.ID, listInstancesParams)
 			if err != nil {
-				return errors.Wrapf(err, "fetching instances for pool %s", pool.ID)
+				return errors.Wrapf(err, "fetching instances for pool %s", dbInstance.PoolID)
 			}
-			poolInstanceCache[pool.ID] = poolInstances
+			poolInstanceCache[dbInstance.PoolID] = poolInstances
 		}
 
 		lockAcquired, err := locking.TryLock(dbInstance.Name)
@@ -1348,9 +1349,9 @@ func (r *basePoolManager) deleteInstanceFromProvider(ctx context.Context, instan
 		return errors.Wrap(err, "fetching pool")
 	}
 
-	provider, ok := r.providers[pool.ProviderName]
+	provider, ok := r.providers[instance.ProviderName]
 	if !ok {
-		return fmt.Errorf("unknown provider %s for pool %s", pool.ProviderName, pool.ID)
+		return fmt.Errorf("unknown provider %s for pool %s", instance.ProviderName, instance.PoolID)
 	}
 
 	identifier := instance.ProviderID
@@ -1386,6 +1387,11 @@ func (r *basePoolManager) deletePendingInstances() error {
 	slog.DebugContext(
 		r.ctx, "removing instances in pending_delete")
 	for _, instance := range instances {
+		if instance.ScaleSetID != 0 {
+			// instance is part of a scale set. Skip.
+			continue
+		}
+
 		if instance.Status != commonParams.InstancePendingDelete && instance.Status != commonParams.InstancePendingForceDelete {
 			// not in pending_delete status. Skip.
 			continue
@@ -1493,6 +1499,11 @@ func (r *basePoolManager) addPendingInstances() error {
 		return fmt.Errorf("failed to fetch instances from store: %w", err)
 	}
 	for _, instance := range instances {
+		if instance.ScaleSetID != 0 {
+			// instance is part of a scale set. Skip.
+			continue
+		}
+
 		if instance.Status != commonParams.InstancePendingCreate {
 			// not in pending_create status. Skip.
 			continue
