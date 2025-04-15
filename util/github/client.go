@@ -452,8 +452,8 @@ func Client(ctx context.Context, entity params.GithubEntity) (common.GithubClien
 		return nil, errors.Wrap(err, "fetching http client")
 	}
 
-	slog.InfoContext(
-		ctx, "creating client with",
+	slog.DebugContext(
+		ctx, "creating client for entity",
 		"entity", entity.String(), "base_url", entity.Credentials.APIBaseURL,
 		"upload_url", entity.Credentials.UploadBaseURL)
 

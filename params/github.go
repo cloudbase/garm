@@ -15,6 +15,8 @@
 package params
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"time"
@@ -418,6 +420,21 @@ type RunnerReference struct {
 type RunnerScaleSetJitRunnerConfig struct {
 	Runner           *RunnerReference `json:"runner"`
 	EncodedJITConfig string           `json:"encodedJITConfig"`
+}
+
+func (r RunnerScaleSetJitRunnerConfig) DecodedJITConfig() (map[string]string, error) {
+	if r.EncodedJITConfig == "" {
+		return nil, fmt.Errorf("no encoded JIT config specified")
+	}
+	decoded, err := base64.StdEncoding.DecodeString(r.EncodedJITConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode JIT config: %w", err)
+	}
+	jitConfig := make(map[string]string)
+	if err := json.Unmarshal(decoded, &jitConfig); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal JIT config: %w", err)
+	}
+	return jitConfig, nil
 }
 
 type RunnerReferenceList struct {

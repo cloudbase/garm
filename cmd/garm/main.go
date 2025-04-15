@@ -49,6 +49,7 @@ import (
 	garmUtil "github.com/cloudbase/garm/util"
 	"github.com/cloudbase/garm/util/appdefaults"
 	"github.com/cloudbase/garm/websocket"
+	"github.com/cloudbase/garm/workers/entity"
 )
 
 var (
@@ -230,6 +231,14 @@ func main() {
 		log.Fatal(err)
 	}
 
+	entityController, err := entity.NewController(ctx, db, *cfg)
+	if err != nil {
+		log.Fatalf("failed to create entity controller: %+v", err)
+	}
+	if err := entityController.Start(); err != nil {
+		log.Fatalf("failed to start entity controller: %+v", err)
+	}
+
 	runner, err := runner.NewRunner(ctx, *cfg, db)
 	if err != nil {
 		log.Fatalf("failed to create controller: %+v", err)
@@ -325,6 +334,11 @@ func main() {
 	}()
 
 	<-ctx.Done()
+
+	slog.InfoContext(ctx, "shutting down entity controller")
+	if err := entityController.Stop(); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to stop entity controller")
+	}
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer shutdownCancel()

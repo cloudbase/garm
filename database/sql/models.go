@@ -96,6 +96,8 @@ type ScaleSet struct {
 
 	// ScaleSetID is the github ID of the scale set. This field may not be set if
 	// the scale set was ceated in GARM but has not yet been created in GitHub.
+	// The scale set ID is also not globally unique. It is only unique within the context
+	// of an entity.
 	ScaleSetID    int    `gorm:"index:idx_scale_set"`
 	Name          string `gorm:"index:idx_name"`
 	DisableUpdate bool
