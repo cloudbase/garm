@@ -379,3 +379,15 @@ func (s *sqlDatabase) DeleteScaleSetByID(ctx context.Context, scaleSetID uint) (
 	}
 	return nil
 }
+
+func (s *sqlDatabase) SetScaleSetLastMessageID(ctx context.Context, scaleSetID uint, lastMessageID int64) error {
+	if err := s.conn.Transaction(func(tx *gorm.DB) error {
+		if q := tx.Model(&ScaleSet{}).Where("id = ?", scaleSetID).Update("last_message_id", lastMessageID); q.Error != nil {
+			return errors.Wrap(q.Error, "saving database entry")
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "setting last message ID")
+	}
+	return nil
+}

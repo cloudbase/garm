@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"sync"
 
+	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/util/github/scalesets"
 )
@@ -15,6 +16,7 @@ func newListener(ctx context.Context, scaleSetHelper scaleSetHelper) *scaleSetLi
 	return &scaleSetListener{
 		ctx:            ctx,
 		scaleSetHelper: scaleSetHelper,
+		lastMessageID:  scaleSetHelper.GetScaleSet().LastMessageID,
 	}
 }
 
@@ -33,9 +35,10 @@ type scaleSetListener struct {
 	scaleSetHelper scaleSetHelper
 	messageSession *scalesets.MessageSession
 
-	mux     sync.Mutex
-	running bool
-	quit    chan struct{}
+	mux        sync.Mutex
+	running    bool
+	quit       chan struct{}
+	loopExited chan struct{}
 }
 
 func (l *scaleSetListener) Start() error {
@@ -56,6 +59,7 @@ func (l *scaleSetListener) Start() error {
 	l.messageSession = session
 	l.quit = make(chan struct{})
 	l.running = true
+	l.loopExited = make(chan struct{})
 	go l.loop()
 
 	return nil
@@ -78,10 +82,12 @@ func (l *scaleSetListener) Stop() error {
 			slog.ErrorContext(l.ctx, "error deleting message session", "error", err)
 		}
 	}
-	l.cancelFunc()
+
 	l.messageSession.Close()
 	l.running = false
+	l.listenerCtx = nil
 	close(l.quit)
+	l.cancelFunc()
 	return nil
 }
 
@@ -91,14 +97,22 @@ func (l *scaleSetListener) handleSessionMessage(msg params.RunnerScaleSetMessage
 	body, err := msg.GetJobsFromBody()
 	if err != nil {
 		slog.ErrorContext(l.ctx, "getting jobs from body", "error", err)
-		return
 	}
 	slog.InfoContext(l.ctx, "handling message", "message", msg, "body", body)
-	l.lastMessageID = msg.MessageID
+	if msg.MessageID < l.lastMessageID {
+		slog.DebugContext(l.ctx, "message is older than last message, ignoring")
+	} else {
+		l.lastMessageID = msg.MessageID
+		if err := l.scaleSetHelper.SetLastMessageID(msg.MessageID); err != nil {
+			slog.ErrorContext(l.ctx, "setting last message ID", "error", err)
+		}
+	}
 }
 
 func (l *scaleSetListener) loop() {
+	defer close(l.loopExited)
 	defer l.Stop()
+	retryAfterUnauthorized := false
 
 	slog.DebugContext(l.ctx, "starting scale set listener loop", "scale_set", l.scaleSetHelper.GetScaleSet().ScaleSetID)
 	for {
@@ -112,23 +126,46 @@ func (l *scaleSetListener) loop() {
 			slog.DebugContext(l.ctx, "scaleset worker has stopped")
 			return
 		default:
-			slog.DebugContext(l.ctx, "getting message")
+			slog.DebugContext(l.ctx, "getting message", "last_message_id", l.lastMessageID, "max_runners", l.scaleSetHelper.GetScaleSet().MaxRunners)
 			msg, err := l.messageSession.GetMessage(
 				l.listenerCtx, l.lastMessageID, l.scaleSetHelper.GetScaleSet().MaxRunners)
 			if err != nil {
+				if errors.Is(err, runnerErrors.ErrUnauthorized) {
+					if retryAfterUnauthorized {
+						slog.DebugContext(l.ctx, "unauthorized, stopping listener")
+						return
+					}
+					// The session manager refreshes the token automatically, but once we call
+					// GetMessage(), it blocks until a new message is sent on the longpoll.
+					// If there are no messages for a while, the token used to longpoll expires
+					// and we get an unauthorized error. We simply need to retry the request
+					// and it should use the refreshed token. If we fail a second time, we can
+					// return and the scaleset worker will attempt to restart the listener.
+					retryAfterUnauthorized = true
+					slog.DebugContext(l.ctx, "got unauthorized error, retrying")
+					continue
+				}
 				if !errors.Is(err, context.Canceled) {
 					slog.ErrorContext(l.ctx, "getting message", "error", err)
 				}
+				slog.DebugContext(l.ctx, "stopping scale set listener")
 				return
 			}
-			l.handleSessionMessage(msg)
+			retryAfterUnauthorized = false
+			if !msg.IsNil() {
+				l.handleSessionMessage(msg)
+			}
 		}
 	}
 }
 
 func (l *scaleSetListener) Wait() <-chan struct{} {
+	l.mux.Lock()
 	if !l.running {
+		slog.DebugContext(l.ctx, "scale set listener is not running")
+		l.mux.Unlock()
 		return nil
 	}
-	return l.listenerCtx.Done()
+	l.mux.Unlock()
+	return l.loopExited
 }

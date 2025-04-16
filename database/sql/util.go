@@ -309,6 +309,7 @@ func (s *sqlDatabase) sqlToCommonScaleSet(scaleSet ScaleSet) (params.ScaleSet, e
 		GitHubRunnerGroup:      scaleSet.GitHubRunnerGroup,
 		State:                  scaleSet.State,
 		ExtendedState:          scaleSet.ExtendedState,
+		LastMessageID:          scaleSet.LastMessageID,
 	}
 
 	if scaleSet.RepoID != nil {

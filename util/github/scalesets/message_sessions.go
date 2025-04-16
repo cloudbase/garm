@@ -31,6 +31,7 @@ import (
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/params"
+	garmUtil "github.com/cloudbase/garm/util"
 )
 
 const maxCapacityHeader = "X-ScaleSetMaxCapacity"
@@ -63,16 +64,22 @@ func (m *MessageSession) LastError() error {
 }
 
 func (m *MessageSession) loop() {
-	timer := time.NewTimer(1 * time.Minute)
+	slog.DebugContext(m.ctx, "starting message session refresh loop", "session_id", m.session.SessionID.String())
+	timer := time.NewTicker(1 * time.Minute)
 	defer timer.Stop()
+	defer m.Close()
+
 	if m.closed {
+		slog.DebugContext(m.ctx, "message session refresh loop closed")
 		return
 	}
 	for {
 		select {
 		case <-m.ctx.Done():
+			slog.DebugContext(m.ctx, "message session refresh loop context done")
 			return
 		case <-m.done:
+			slog.DebugContext(m.ctx, "message session refresh loop done")
 			return
 		case <-timer.C:
 			if err := m.maybeRefreshToken(m.ctx); err != nil {
@@ -99,6 +106,7 @@ func (m *MessageSession) SessionsRelativeURL() (string, error) {
 }
 
 func (m *MessageSession) Refresh(ctx context.Context) error {
+	slog.DebugContext(ctx, "refreshing message session token", "session_id", m.session.SessionID.String())
 	m.mux.Lock()
 	defer m.mux.Unlock()
 
@@ -114,13 +122,15 @@ func (m *MessageSession) Refresh(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to delete message session: %w", err)
 	}
+	defer resp.Body.Close()
 
 	var refreshedSession params.RunnerScaleSetSession
 	if err := json.NewDecoder(resp.Body).Decode(&refreshedSession); err != nil {
 		return fmt.Errorf("failed to decode response: %w", err)
 	}
-
-	m.session = &refreshedSession
+	slog.DebugContext(ctx, "refreshed message session token", "session_id", refreshedSession.SessionID.String())
+	m.session.MessageQueueAccessToken = refreshedSession.MessageQueueAccessToken
+	m.session.Statistics = refreshedSession.Statistics
 	return nil
 }
 
@@ -129,16 +139,23 @@ func (m *MessageSession) maybeRefreshToken(ctx context.Context) error {
 		return fmt.Errorf("session is nil")
 	}
 	// add some jitter
-	randInt, err := rand.Int(rand.Reader, big.NewInt(1000))
+	randInt, err := rand.Int(rand.Reader, big.NewInt(5000))
 	if err != nil {
 		return fmt.Errorf("failed to get a random number")
 	}
-	jitter := time.Duration(randInt.Int64()) * time.Millisecond
-	if m.session.ExpiresIn(2*time.Minute + jitter) {
+	expiresAt, err := m.session.ExiresAt()
+	if err != nil {
+		return fmt.Errorf("failed to get expires at: %w", err)
+	}
+	expiresIn := time.Duration(randInt.Int64())*time.Millisecond + 10*time.Minute
+	slog.DebugContext(ctx, "checking if message session token needs refresh", "expires_at", expiresAt)
+	if m.session.ExpiresIn(expiresIn) {
+		slog.DebugContext(ctx, "refreshing message session token")
 		if err := m.Refresh(ctx); err != nil {
 			return fmt.Errorf("failed to refresh message queue token: %w", err)
 		}
 	}
+
 	return nil
 }
 
@@ -170,6 +187,7 @@ func (m *MessageSession) GetMessage(ctx context.Context, lastMessageID int64, ma
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusAccepted {
+		slog.DebugContext(ctx, "no messages available in queue")
 		return params.RunnerScaleSetMessage{}, nil
 	}
 
@@ -200,8 +218,8 @@ func (m *MessageSession) DeleteMessage(ctx context.Context, messageID int64) err
 	if err != nil {
 		return err
 	}
-
 	resp.Body.Close()
+
 	return nil
 }
 
@@ -233,10 +251,13 @@ func (s *ScaleSetClient) CreateMessageSession(ctx context.Context, runnerScaleSe
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
+	msgSessionCtx := garmUtil.WithSlogContext(
+		ctx,
+		slog.Any("session_id", createdSession.SessionID.String()))
 	sess := &MessageSession{
 		ssCli:   s,
 		session: &createdSession,
-		ctx:     ctx,
+		ctx:     msgSessionCtx,
 		done:    make(chan struct{}),
 		closed:  false,
 	}
@@ -256,11 +277,12 @@ func (s *ScaleSetClient) DeleteMessageSession(ctx context.Context, session *Mess
 		return fmt.Errorf("failed to create message delete request: %w", err)
 	}
 
-	_, err = s.Do(req)
+	resp, err := s.Do(req)
 	if err != nil {
 		if !errors.Is(err, runnerErrors.ErrNotFound) {
 			return fmt.Errorf("failed to delete message session: %w", err)
 		}
 	}
+	defer resp.Body.Close()
 	return nil
 }

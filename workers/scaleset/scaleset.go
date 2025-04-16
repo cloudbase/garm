@@ -148,6 +148,12 @@ func (w *Worker) handleEvent(event dbCommon.ChangePayload) {
 	case dbCommon.UpdateOperation:
 		slog.DebugContext(w.ctx, "got update operation")
 		w.mux.Lock()
+		if scaleSet.MaxRunners < w.Entity.MaxRunners {
+			slog.DebugContext(w.ctx, "max runners changed; stopping listener")
+			if err := w.listener.Stop(); err != nil {
+				slog.ErrorContext(w.ctx, "error stopping listener", "error", err)
+			}
+		}
 		w.Entity = scaleSet
 		w.mux.Unlock()
 	default:

@@ -402,6 +402,10 @@ type RunnerScaleSetMessage struct {
 	Statistics  *RunnerScaleSetStatistic `json:"statistics"`
 }
 
+func (r RunnerScaleSetMessage) IsNil() bool {
+	return r.MessageID == 0 && r.MessageType == "" && r.Body == "" && r.Statistics == nil
+}
+
 func (r RunnerScaleSetMessage) GetJobsFromBody() ([]ScaleSetJobMessage, error) {
 	var body []ScaleSetJobMessage
 	if r.Body == "" {

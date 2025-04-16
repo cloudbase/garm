@@ -143,6 +143,7 @@ type ScaleSetsStore interface {
 	GetScaleSetByID(ctx context.Context, scaleSet uint) (params.ScaleSet, error)
 	DeleteScaleSetByID(ctx context.Context, scaleSetID uint) (err error)
 	ListScaleSetInstances(_ context.Context, scalesetID uint) ([]params.Instance, error)
+	SetScaleSetLastMessageID(ctx context.Context, scaleSetID uint, lastMessageID int64) error
 }
 
 //go:generate mockery --name=Store

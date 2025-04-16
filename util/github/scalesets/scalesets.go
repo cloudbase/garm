@@ -47,6 +47,7 @@ func (s *ScaleSetClient) GetRunnerScaleSetByNameAndRunnerGroup(ctx context.Conte
 	if err != nil {
 		return params.RunnerScaleSet{}, err
 	}
+	defer resp.Body.Close()
 
 	var runnerScaleSetList *params.RunnerScaleSetsResponse
 	if err := json.NewDecoder(resp.Body).Decode(&runnerScaleSetList); err != nil {
@@ -72,6 +73,7 @@ func (s *ScaleSetClient) GetRunnerScaleSetByID(ctx context.Context, runnerScaleS
 	if err != nil {
 		return params.RunnerScaleSet{}, fmt.Errorf("failed to get runner scaleset with ID %d: %w", runnerScaleSetID, err)
 	}
+	defer resp.Body.Close()
 
 	var runnerScaleSet params.RunnerScaleSet
 	if err := json.NewDecoder(resp.Body).Decode(&runnerScaleSet); err != nil {
@@ -94,6 +96,7 @@ func (s *ScaleSetClient) ListRunnerScaleSets(ctx context.Context) (*params.Runne
 	if err != nil {
 		return nil, fmt.Errorf("failed to list runner scale sets: %w", err)
 	}
+	defer resp.Body.Close()
 
 	var runnerScaleSetList params.RunnerScaleSetsResponse
 	if err := json.NewDecoder(resp.Body).Decode(&runnerScaleSetList); err != nil {
@@ -119,6 +122,7 @@ func (s *ScaleSetClient) CreateRunnerScaleSet(ctx context.Context, runnerScaleSe
 	if err != nil {
 		return params.RunnerScaleSet{}, fmt.Errorf("failed to create runner scale set: %w", err)
 	}
+	defer resp.Body.Close()
 
 	var createdRunnerScaleSet params.RunnerScaleSet
 	if err := json.NewDecoder(resp.Body).Decode(&createdRunnerScaleSet); err != nil {
@@ -144,6 +148,7 @@ func (s *ScaleSetClient) UpdateRunnerScaleSet(ctx context.Context, runnerScaleSe
 	if err != nil {
 		return params.RunnerScaleSet{}, fmt.Errorf("failed to make request: %w", err)
 	}
+	defer resp.Body.Close()
 
 	var ret params.RunnerScaleSet
 	if err := json.NewDecoder(resp.Body).Decode(&ret); err != nil {
@@ -164,12 +169,12 @@ func (s *ScaleSetClient) DeleteRunnerScaleSet(ctx context.Context, runnerScaleSe
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusNoContent {
 		return fmt.Errorf("failed to delete scale set with code %d", resp.StatusCode)
 	}
 
-	resp.Body.Close()
 	return nil
 }
 

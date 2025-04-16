@@ -472,6 +472,8 @@ type ScaleSet struct {
 
 	EnterpriseID   string `json:"enterprise_id,omitempty"`
 	EnterpriseName string `json:"enterprise_name,omitempty"`
+
+	LastMessageID int64 `json:"-"`
 }
 
 func (p ScaleSet) GithubEntity() (GithubEntity, error) {

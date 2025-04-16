@@ -118,6 +118,7 @@ type ScaleSet struct {
 	OSType                 commonParams.OSType
 	OSArch                 commonParams.OSArch
 	Enabled                bool
+	LastMessageID          int64
 	// ExtraSpecs is an opaque json that gets sent to the provider
 	// as part of the bootstrap params for instances. It can contain
 	// any kind of data needed by providers.
