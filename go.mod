@@ -6,7 +6,7 @@ toolchain go1.23.6
 
 require (
 	github.com/BurntSushi/toml v1.5.0
-	github.com/bradleyfalzon/ghinstallation/v2 v2.14.0
+	github.com/bradleyfalzon/ghinstallation/v2 v2.15.0
 	github.com/cloudbase/garm-provider-common v0.1.4
 	github.com/felixge/httpsnoop v1.0.4
 	github.com/go-openapi/errors v0.22.1
@@ -56,7 +56,7 @@ require (
 	github.com/go-openapi/validate v0.24.0 // indirect
 	github.com/go-sql-driver/mysql v1.9.0 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
-	github.com/google/go-github/v69 v69.2.0 // indirect
+	github.com/google/go-github/v71 v71.0.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
