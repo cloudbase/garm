@@ -2,20 +2,21 @@ package scaleset
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sync"
 	"time"
 
-	commonParams "github.com/cloudbase/garm-provider-common/params"
+	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 
+	"github.com/cloudbase/garm/cache"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/database/watcher"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
 	garmUtil "github.com/cloudbase/garm/util"
 	"github.com/cloudbase/garm/util/github"
-	"github.com/cloudbase/garm/util/github/scalesets"
 )
 
 func NewController(ctx context.Context, store dbCommon.Store, entity params.GithubEntity, providers map[string]common.Provider) (*Controller, error) {
@@ -76,9 +77,7 @@ type Controller struct {
 	store     dbCommon.Store
 	providers map[string]common.Provider
 
-	tools              []commonParams.RunnerApplicationDownload
 	ghCli              common.GithubClient
-	scaleSetCli        *scalesets.ScaleSetClient
 	forgeCredsAreValid bool
 
 	statusUpdates chan scaleSetStatus
@@ -88,14 +87,15 @@ type Controller struct {
 	quit    chan struct{}
 }
 
-func (c *Controller) loadAllScaleSets() error {
+func (c *Controller) loadAllScaleSets(cli common.GithubClient) error {
 	scaleSets, err := c.store.ListEntityScaleSets(c.ctx, c.Entity)
 	if err != nil {
 		return fmt.Errorf("listing scale sets: %w", err)
 	}
 
 	for _, sSet := range scaleSets {
-		if err := c.handleScaleSetCreateOperation(sSet); err != nil {
+		slog.DebugContext(c.ctx, "loading scale set", "scale_set", sSet.ID)
+		if err := c.handleScaleSetCreateOperation(sSet, cli); err != nil {
 			slog.With(slog.Any("error", err)).ErrorContext(c.ctx, "failed to handle scale set create operation")
 			continue
 		}
@@ -104,6 +104,7 @@ func (c *Controller) loadAllScaleSets() error {
 }
 
 func (c *Controller) Start() (err error) {
+	slog.DebugContext(c.ctx, "starting scale set controller", "scale_set", c.consumerID)
 	c.mux.Lock()
 	if c.running {
 		c.mux.Unlock()
@@ -111,13 +112,14 @@ func (c *Controller) Start() (err error) {
 	}
 	c.mux.Unlock()
 
-	if err := c.loadAllScaleSets(); err != nil {
-		return fmt.Errorf("loading all scale sets: %w", err)
-	}
-
 	ghCli, err := github.Client(c.ctx, c.Entity)
 	if err != nil {
 		return fmt.Errorf("creating github client: %w", err)
+	}
+
+	slog.DebugContext(c.ctx, "loaging scale sets", "entity", c.Entity.String())
+	if err := c.loadAllScaleSets(ghCli); err != nil {
+		return fmt.Errorf("loading all scale sets: %w", err)
 	}
 
 	consumer, err := watcher.RegisterConsumer(
@@ -140,6 +142,7 @@ func (c *Controller) Start() (err error) {
 }
 
 func (c *Controller) Stop() error {
+	slog.DebugContext(c.ctx, "stopping scale set controller", "scale_set", c.consumerID)
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
@@ -170,15 +173,21 @@ func (c *Controller) updateTools() error {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
+	slog.DebugContext(c.ctx, "updating tools for entity", "entity", c.Entity.String())
+
 	tools, err := garmUtil.FetchTools(c.ctx, c.ghCli)
 	if err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(
 			c.ctx, "failed to update tools for entity", "entity", c.Entity.String())
-		c.forgeCredsAreValid = false
+		if errors.Is(err, runnerErrors.ErrUnauthorized) {
+			// TODO: block all scale sets
+			c.forgeCredsAreValid = false
+		}
 		return fmt.Errorf("failed to update tools for entity %s: %w", c.Entity.String(), err)
 	}
+	slog.DebugContext(c.ctx, "tools successfully updated for entity", "entity", c.Entity.String())
 	c.forgeCredsAreValid = true
-	c.tools = tools
+	cache.SetGithubToolsCache(c.Entity, tools)
 	return nil
 }
 
@@ -202,7 +211,7 @@ func (c *Controller) loop() {
 	updateToolsTicker := time.NewTicker(common.PoolToolUpdateInterval)
 	initialToolUpdate := make(chan struct{}, 1)
 	go func() {
-		slog.Info("running initial tool update")
+		slog.InfoContext(c.ctx, "running initial tool update")
 		if err := c.updateTools(); err != nil {
 			slog.With(slog.Any("error", err)).Error("failed to update tools")
 		}
@@ -211,7 +220,11 @@ func (c *Controller) loop() {
 
 	for {
 		select {
-		case payload := <-c.consumer.Watch():
+		case payload, ok := <-c.consumer.Watch():
+			if !ok {
+				slog.InfoContext(c.ctx, "consumer channel closed")
+				return
+			}
 			slog.InfoContext(c.ctx, "received payload", slog.Any("payload", payload))
 			go c.handleWatcherEvent(payload)
 		case <-c.ctx.Done():

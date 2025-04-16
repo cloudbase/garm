@@ -74,7 +74,6 @@ func (c *Controller) loadAllRepositories() error {
 		if err != nil {
 			return fmt.Errorf("creating worker: %w", err)
 		}
-		slog.DebugContext(c.ctx, "starting entity worker", "entity_id", entity.ID, "entity_type", entity.EntityType)
 		if err := worker.Start(); err != nil {
 			return fmt.Errorf("starting worker: %w", err)
 		}
@@ -99,7 +98,6 @@ func (c *Controller) loadAllOrganizations() error {
 		if err != nil {
 			return fmt.Errorf("creating worker: %w", err)
 		}
-		slog.DebugContext(c.ctx, "starting entity worker", "entity_id", entity.ID, "entity_type", entity.EntityType)
 		if err := worker.Start(); err != nil {
 			return fmt.Errorf("starting worker: %w", err)
 		}
@@ -124,7 +122,6 @@ func (c *Controller) loadAllEnterprises() error {
 		if err != nil {
 			return fmt.Errorf("creating worker: %w", err)
 		}
-		slog.DebugContext(c.ctx, "starting entity worker", "entity_id", entity.ID, "entity_type", entity.EntityType)
 		if err := worker.Start(); err != nil {
 			return fmt.Errorf("starting worker: %w", err)
 		}
@@ -172,6 +169,7 @@ func (c *Controller) Start() error {
 }
 
 func (c *Controller) Stop() error {
+	slog.DebugContext(c.ctx, "stopping entity controller", "entity", c.consumerID)
 	c.mux.Lock()
 	defer c.mux.Unlock()
 	if !c.running {

@@ -50,6 +50,7 @@ type Worker struct {
 }
 
 func (w *Worker) Stop() error {
+	slog.DebugContext(w.ctx, "stopping entity worker", "entity", w.consumerID)
 	w.mux.Lock()
 	defer w.mux.Unlock()
 
@@ -69,7 +70,8 @@ func (w *Worker) Stop() error {
 	return nil
 }
 
-func (w *Worker) Start() error {
+func (w *Worker) Start() (err error) {
+	slog.DebugContext(w.ctx, "starting entity worker", "entity", w.consumerID)
 	w.mux.Lock()
 	defer w.mux.Unlock()
 
@@ -77,7 +79,18 @@ func (w *Worker) Start() error {
 	if err != nil {
 		return fmt.Errorf("creating scale set controller: %w", err)
 	}
+
+	if err := scaleSetController.Start(); err != nil {
+		return fmt.Errorf("starting scale set controller: %w", err)
+	}
 	w.scaleSetController = scaleSetController
+
+	defer func() {
+		if err != nil {
+			w.scaleSetController.Stop()
+			w.scaleSetController = nil
+		}
+	}()
 
 	consumer, err := watcher.RegisterConsumer(
 		w.ctx, w.consumerID,
@@ -90,6 +103,7 @@ func (w *Worker) Start() error {
 
 	w.running = true
 	w.quit = make(chan struct{})
+
 	go w.loop()
 	return nil
 }

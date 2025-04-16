@@ -402,6 +402,18 @@ type RunnerScaleSetMessage struct {
 	Statistics  *RunnerScaleSetStatistic `json:"statistics"`
 }
 
+func (r RunnerScaleSetMessage) GetJobsFromBody() ([]ScaleSetJobMessage, error) {
+	var body []ScaleSetJobMessage
+	if r.Body == "" {
+		return nil, fmt.Errorf("no body specified")
+	}
+
+	if err := json.Unmarshal([]byte(r.Body), &body); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal body: %w", err)
+	}
+	return body, nil
+}
+
 type RunnerReference struct {
 	ID                int          `json:"id"`
 	Name              string       `json:"name"`
@@ -468,4 +480,24 @@ type RunnerGroup struct {
 type RunnerGroupList struct {
 	Count        int           `json:"count"`
 	RunnerGroups []RunnerGroup `json:"value"`
+}
+
+type ScaleSetJobMessage struct {
+	MessageType        string    `json:"messageType,omitempty"`
+	RunnerRequestId    int64     `json:"runnerRequestId,omitempty"`
+	RepositoryName     string    `json:"repositoryName,omitempty"`
+	OwnerName          string    `json:"ownerName,omitempty"`
+	JobWorkflowRef     string    `json:"jobWorkflowRef,omitempty"`
+	JobDisplayName     string    `json:"jobDisplayName,omitempty"`
+	WorkflowRunId      int64     `json:"workflowRunId,omitempty"`
+	EventName          string    `json:"eventName,omitempty"`
+	RequestLabels      []string  `json:"requestLabels,omitempty"`
+	QueueTime          time.Time `json:"queueTime,omitempty"`
+	ScaleSetAssignTime time.Time `json:"scaleSetAssignTime,omitempty"`
+	RunnerAssignTime   time.Time `json:"runnerAssignTime,omitempty"`
+	FinishTime         time.Time `json:"finishTime,omitempty"`
+	Result             string    `json:"result,omitempty"`
+	RunnerId           int       `json:"runnerId,omitempty"`
+	RunnerName         string    `json:"runnerName,omitempty"`
+	AcquireJobUrl      string    `json:"acquireJobUrl,omitempty"`
 }

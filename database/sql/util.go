@@ -631,3 +631,136 @@ func (s *sqlDatabase) GetGithubEntity(_ context.Context, entityType params.Githu
 	}
 	return entity, nil
 }
+
+func (s *sqlDatabase) addRepositoryEvent(ctx context.Context, repoID string, event params.EventType, eventLevel params.EventLevel, statusMessage string, maxEvents int) error {
+	repo, err := s.GetRepositoryByID(ctx, repoID)
+	if err != nil {
+		return errors.Wrap(err, "updating instance")
+	}
+
+	msg := InstanceStatusUpdate{
+		Message:    statusMessage,
+		EventType:  event,
+		EventLevel: eventLevel,
+	}
+
+	if err := s.conn.Model(&repo).Association("Events").Append(&msg); err != nil {
+		return errors.Wrap(err, "adding status message")
+	}
+
+	if maxEvents > 0 {
+		repoID, err := uuid.Parse(repo.ID)
+		if err != nil {
+			return errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
+		}
+		var latestEvents []OrganizationEvent
+		q := s.conn.Model(&OrganizationEvent{}).
+			Limit(maxEvents).Order("id desc").
+			Where("repo_id = ?", repoID).Find(&latestEvents)
+		if q.Error != nil {
+			return errors.Wrap(q.Error, "fetching latest events")
+		}
+		if len(latestEvents) == maxEvents {
+			lastInList := latestEvents[len(latestEvents)-1]
+			if err := s.conn.Where("repo_id = ? and id < ?", repoID, lastInList.ID).Unscoped().Delete(&OrganizationEvent{}).Error; err != nil {
+				return errors.Wrap(err, "deleting old events")
+			}
+		}
+	}
+	return nil
+}
+
+func (s *sqlDatabase) addOrgEvent(ctx context.Context, orgID string, event params.EventType, eventLevel params.EventLevel, statusMessage string, maxEvents int) error {
+	org, err := s.GetOrganizationByID(ctx, orgID)
+	if err != nil {
+		return errors.Wrap(err, "updating instance")
+	}
+
+	msg := InstanceStatusUpdate{
+		Message:    statusMessage,
+		EventType:  event,
+		EventLevel: eventLevel,
+	}
+
+	if err := s.conn.Model(&org).Association("Events").Append(&msg); err != nil {
+		return errors.Wrap(err, "adding status message")
+	}
+
+	if maxEvents > 0 {
+		orgID, err := uuid.Parse(org.ID)
+		if err != nil {
+			return errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
+		}
+		var latestEvents []OrganizationEvent
+		q := s.conn.Model(&OrganizationEvent{}).
+			Limit(maxEvents).Order("id desc").
+			Where("org_id = ?", orgID).Find(&latestEvents)
+		if q.Error != nil {
+			return errors.Wrap(q.Error, "fetching latest events")
+		}
+		if len(latestEvents) == maxEvents {
+			lastInList := latestEvents[len(latestEvents)-1]
+			if err := s.conn.Where("org_id = ? and id < ?", orgID, lastInList.ID).Unscoped().Delete(&OrganizationEvent{}).Error; err != nil {
+				return errors.Wrap(err, "deleting old events")
+			}
+		}
+	}
+	return nil
+}
+
+func (s *sqlDatabase) addEnterpriseEvent(ctx context.Context, entID string, event params.EventType, eventLevel params.EventLevel, statusMessage string, maxEvents int) error {
+	ent, err := s.GetEnterpriseByID(ctx, entID)
+	if err != nil {
+		return errors.Wrap(err, "updating instance")
+	}
+
+	msg := InstanceStatusUpdate{
+		Message:    statusMessage,
+		EventType:  event,
+		EventLevel: eventLevel,
+	}
+
+	if err := s.conn.Model(&ent).Association("Events").Append(&msg); err != nil {
+		return errors.Wrap(err, "adding status message")
+	}
+
+	if maxEvents > 0 {
+		entID, err := uuid.Parse(ent.ID)
+		if err != nil {
+			return errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
+		}
+		var latestEvents []EnterpriseEvent
+		q := s.conn.Model(&EnterpriseEvent{}).
+			Limit(maxEvents).Order("id desc").
+			Where("enterprise_id = ?", entID).Find(&latestEvents)
+		if q.Error != nil {
+			return errors.Wrap(q.Error, "fetching latest events")
+		}
+		if len(latestEvents) == maxEvents {
+			lastInList := latestEvents[len(latestEvents)-1]
+			if err := s.conn.Where("enterprise_id = ? and id < ?", entID, lastInList.ID).Unscoped().Delete(&EnterpriseEvent{}).Error; err != nil {
+				return errors.Wrap(err, "deleting old events")
+			}
+		}
+	}
+
+	return nil
+}
+
+func (s *sqlDatabase) AddEntityEvent(ctx context.Context, entity params.GithubEntity, event params.EventType, eventLevel params.EventLevel, statusMessage string, maxEvents int) error {
+	if maxEvents == 0 {
+		return errors.Wrap(runnerErrors.ErrBadRequest, "max events cannot be 0")
+	}
+	// TODO(gabriel-samfira): Should we send watcher notifications for events?
+	// Not sure it's of any value.
+	switch entity.EntityType {
+	case params.GithubEntityTypeRepository:
+		return s.addRepositoryEvent(ctx, entity.ID, event, eventLevel, statusMessage, maxEvents)
+	case params.GithubEntityTypeOrganization:
+		return s.addOrgEvent(ctx, entity.ID, event, eventLevel, statusMessage, maxEvents)
+	case params.GithubEntityTypeEnterprise:
+		return s.addEnterpriseEvent(ctx, entity.ID, event, eventLevel, statusMessage, maxEvents)
+	default:
+		return errors.Wrap(runnerErrors.ErrBadRequest, "invalid entity type")
+	}
+}

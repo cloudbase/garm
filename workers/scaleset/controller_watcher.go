@@ -6,8 +6,8 @@ import (
 
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/params"
+	"github.com/cloudbase/garm/runner/common"
 	"github.com/cloudbase/garm/util/github"
-	scaleSetCli "github.com/cloudbase/garm/util/github/scalesets"
 )
 
 func (c *Controller) handleWatcherEvent(event dbCommon.ChangePayload) {
@@ -38,7 +38,7 @@ func (c *Controller) handleScaleSet(event dbCommon.ChangePayload) {
 	switch event.Operation {
 	case dbCommon.CreateOperation:
 		slog.DebugContext(c.ctx, "got create operation for scale set", "scale_set_id", scaleSet.ID, "scale_set_name", scaleSet.Name)
-		if err := c.handleScaleSetCreateOperation(scaleSet); err != nil {
+		if err := c.handleScaleSetCreateOperation(scaleSet, c.ghCli); err != nil {
 			slog.With(slog.Any("error", err)).ErrorContext(c.ctx, "failed to handle scale set create operation")
 		}
 	case dbCommon.UpdateOperation:
@@ -57,7 +57,7 @@ func (c *Controller) handleScaleSet(event dbCommon.ChangePayload) {
 	}
 }
 
-func (c *Controller) handleScaleSetCreateOperation(sSet params.ScaleSet) error {
+func (c *Controller) handleScaleSetCreateOperation(sSet params.ScaleSet, ghCli common.GithubClient) error {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
@@ -74,7 +74,7 @@ func (c *Controller) handleScaleSetCreateOperation(sSet params.ScaleSet) error {
 		return fmt.Errorf("provider %s not found for scale set %s", sSet.ProviderName, sSet.Name)
 	}
 
-	worker, err := NewWorker(c.ctx, c.store, sSet, provider)
+	worker, err := NewWorker(c.ctx, c.store, sSet, provider, ghCli)
 	if err != nil {
 		return fmt.Errorf("creating scale set worker: %w", err)
 	}
@@ -120,7 +120,7 @@ func (c *Controller) handleScaleSetUpdateOperation(sSet params.ScaleSet) error {
 		// Some error may have occured when the scale set was first created, so we
 		// attempt to create it after the user updated the scale set, hopefully
 		// fixing the reason for the failure.
-		return c.handleScaleSetCreateOperation(sSet)
+		return c.handleScaleSetCreateOperation(sSet, c.ghCli)
 	}
 	// We let the watcher in the scale set worker handle the update operation.
 	return nil
@@ -140,8 +140,7 @@ func (c *Controller) handleCredentialsEvent(event dbCommon.ChangePayload) {
 		defer c.mux.Unlock()
 
 		if c.Entity.Credentials.ID != credentials.ID {
-			// credentials were swapped on the entity. We need to recompose the watcher
-			// filters.
+			// stale update event.
 			return
 		}
 		c.Entity.Credentials = credentials
@@ -190,15 +189,10 @@ func (c *Controller) updateAndBroadcastCredentials(entity params.GithubEntity) e
 		return fmt.Errorf("creating github client: %w", err)
 	}
 
-	setCli, err := scaleSetCli.NewClient(ghCli)
-	if err != nil {
-		return fmt.Errorf("creating scaleset client: %w", err)
-	}
 	c.ghCli = ghCli
-	c.scaleSetCli = setCli
 
 	for _, scaleSet := range c.ScaleSets {
-		if err := scaleSet.worker.SetGithubClient(ghCli, setCli); err != nil {
+		if err := scaleSet.worker.SetGithubClient(ghCli); err != nil {
 			slog.ErrorContext(c.ctx, "setting github client on worker", "error", err)
 			continue
 		}

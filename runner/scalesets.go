@@ -94,6 +94,7 @@ func (r *Runner) DeleteScaleSetByID(ctx context.Context, scaleSetID uint) error 
 		return errors.Wrap(err, "getting scaleset client")
 	}
 
+	slog.DebugContext(ctx, "deleting scale set", "scale_set_id", scaleSet.ScaleSetID)
 	if err := scalesetCli.DeleteRunnerScaleSet(ctx, scaleSet.ScaleSetID); err != nil {
 		if !errors.Is(err, runnerErrors.ErrNotFound) {
 			slog.InfoContext(ctx, "scale set not found", "scale_set_id", scaleSet.ScaleSetID)
