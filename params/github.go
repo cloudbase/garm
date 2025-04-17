@@ -251,7 +251,7 @@ type RunnerScaleSet struct {
 	GetAcquirableJobsURL string                   `json:"getAcquirableJobsUrl,omitempty"`
 	AcquireJobsURL       string                   `json:"acquireJobsUrl,omitempty"`
 	Statistics           *RunnerScaleSetStatistic `json:"statistics,omitempty"`
-	Status               string                   `json:"status,omitempty"`
+	Status               interface{}              `json:"status,omitempty"`
 	Enabled              *bool                    `json:"enabled,omitempty"`
 }
 

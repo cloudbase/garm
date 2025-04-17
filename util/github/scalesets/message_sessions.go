@@ -59,6 +59,10 @@ func (m *MessageSession) Close() error {
 	return nil
 }
 
+func (m *MessageSession) MessageQueueAccessToken() string {
+	return m.session.MessageQueueAccessToken
+}
+
 func (m *MessageSession) LastError() error {
 	return m.lastErr
 }
@@ -128,9 +132,8 @@ func (m *MessageSession) Refresh(ctx context.Context) error {
 	if err := json.NewDecoder(resp.Body).Decode(&refreshedSession); err != nil {
 		return fmt.Errorf("failed to decode response: %w", err)
 	}
-	slog.DebugContext(ctx, "refreshed message session token", "session_id", refreshedSession.SessionID.String())
-	m.session.MessageQueueAccessToken = refreshedSession.MessageQueueAccessToken
-	m.session.Statistics = refreshedSession.Statistics
+	slog.DebugContext(ctx, "refreshed message session token", "session", refreshedSession)
+	m.session = &refreshedSession
 	return nil
 }
 
@@ -150,7 +153,6 @@ func (m *MessageSession) maybeRefreshToken(ctx context.Context) error {
 	expiresIn := time.Duration(randInt.Int64())*time.Millisecond + 10*time.Minute
 	slog.DebugContext(ctx, "checking if message session token needs refresh", "expires_at", expiresAt)
 	if m.session.ExpiresIn(expiresIn) {
-		slog.DebugContext(ctx, "refreshing message session token")
 		if err := m.Refresh(ctx); err != nil {
 			return fmt.Errorf("failed to refresh message queue token: %w", err)
 		}
