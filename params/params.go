@@ -462,7 +462,7 @@ type ScaleSet struct {
 	OSArch             commonParams.OSArch `json:"os_arch,omitempty"`
 	Enabled            bool                `json:"enabled,omitempty"`
 	Instances          []Instance          `json:"instances,omitempty"`
-	DesiredRunnerCount int64               `json:"desired_runner_count,omitempty"`
+	DesiredRunnerCount int                 `json:"desired_runner_count,omitempty"`
 
 	RunnerBootstrapTimeout uint `json:"runner_bootstrap_timeout,omitempty"`
 	// ExtraSpecs is an opaque raw json that gets sent to the provider

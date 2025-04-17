@@ -167,6 +167,11 @@ func (l *scaleSetListener) handleSessionMessage(msg params.RunnerScaleSetMessage
 	} else {
 		l.lastMessageID = msg.MessageID
 	}
+
+	if err := l.scaleSetHelper.SetDesiredRunnerCount(msg.Statistics.TotalAssignedJobs); err != nil {
+		slog.ErrorContext(l.ctx, "setting desired runner count", "error", err)
+	}
+
 	if err := l.messageSession.DeleteMessage(l.listenerCtx, msg.MessageID); err != nil {
 		slog.ErrorContext(l.ctx, "deleting message", "error", err)
 	}

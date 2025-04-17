@@ -392,7 +392,7 @@ func (s *sqlDatabase) SetScaleSetLastMessageID(ctx context.Context, scaleSetID u
 	return nil
 }
 
-func (s *sqlDatabase) SetScaleSetDesiredRunnerCount(ctx context.Context, scaleSetID uint, desiredRunnerCount int64) error {
+func (s *sqlDatabase) SetScaleSetDesiredRunnerCount(ctx context.Context, scaleSetID uint, desiredRunnerCount int) error {
 	if err := s.conn.Transaction(func(tx *gorm.DB) error {
 		if q := tx.Model(&ScaleSet{}).Where("id = ?", scaleSetID).Update("desired_runner_count", desiredRunnerCount); q.Error != nil {
 			return errors.Wrap(q.Error, "saving database entry")
