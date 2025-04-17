@@ -33,6 +33,7 @@ func NewWorker(ctx context.Context, store dbCommon.Store, scaleSet params.ScaleS
 		scaleSet:       scaleSet,
 		ghCli:          ghCli,
 		scaleSetCli:    scaleSetCli,
+		runners:        make(map[string]params.Instance),
 	}, nil
 }
 
@@ -44,6 +45,7 @@ type Worker struct {
 	provider common.Provider
 	store    dbCommon.Store
 	scaleSet params.ScaleSet
+	runners  map[string]params.Instance
 
 	ghCli       common.GithubClient
 	scaleSetCli *scalesets.ScaleSetClient
@@ -85,11 +87,23 @@ func (w *Worker) Start() (err error) {
 		return nil
 	}
 
+	instances, err := w.store.ListScaleSetInstances(w.ctx, w.scaleSet.ID)
+	if err != nil {
+		return fmt.Errorf("listing scale set instances: %w", err)
+	}
+
+	for _, instance := range instances {
+		w.runners[instance.ID] = instance
+	}
+
 	consumer, err := watcher.RegisterConsumer(
 		w.ctx, w.consumerID,
-		watcher.WithAll(
-			watcher.WithScaleSetFilter(w.scaleSet),
-			watcher.WithOperationTypeFilter(dbCommon.UpdateOperation),
+		watcher.WithAny(
+			watcher.WithAll(
+				watcher.WithScaleSetFilter(w.scaleSet),
+				watcher.WithOperationTypeFilter(dbCommon.UpdateOperation),
+			),
+			watcher.WithScaleSetInstanceFilter(w.scaleSet),
 		),
 	)
 	if err != nil {
@@ -138,7 +152,7 @@ func (w *Worker) SetGithubClient(client common.GithubClient) error {
 	return nil
 }
 
-func (w *Worker) handleEvent(event dbCommon.ChangePayload) {
+func (w *Worker) handleScaleSetEvent(event dbCommon.ChangePayload) {
 	scaleSet, ok := event.Payload.(params.ScaleSet)
 	if !ok {
 		slog.ErrorContext(w.ctx, "invalid payload for scale set type", "scale_set_type", event.EntityType, "payload", event.Payload)
@@ -159,6 +173,41 @@ func (w *Worker) handleEvent(event dbCommon.ChangePayload) {
 		w.mux.Unlock()
 	default:
 		slog.DebugContext(w.ctx, "invalid operation type; ignoring", "operation_type", event.Operation)
+	}
+}
+
+func (w *Worker) handleInstanceEntityEvent(event dbCommon.ChangePayload) {
+	instance, ok := event.Payload.(params.Instance)
+	if !ok {
+		slog.ErrorContext(w.ctx, "invalid payload for instance type", "instance_type", event.EntityType, "payload", event.Payload)
+		return
+	}
+	switch event.Operation {
+	case dbCommon.UpdateOperation, dbCommon.CreateOperation:
+		slog.DebugContext(w.ctx, "got update operation")
+		w.mux.Lock()
+		w.runners[instance.ID] = instance
+		w.mux.Unlock()
+	case dbCommon.DeleteOperation:
+		slog.DebugContext(w.ctx, "got delete operation")
+		w.mux.Lock()
+		delete(w.runners, instance.ID)
+		w.mux.Unlock()
+	default:
+		slog.DebugContext(w.ctx, "invalid operation type; ignoring", "operation_type", event.Operation)
+	}
+}
+
+func (w *Worker) handleEvent(event dbCommon.ChangePayload) {
+	switch event.EntityType {
+	case dbCommon.ScaleSetEntityType:
+		slog.DebugContext(w.ctx, "got scaleset event", "event", event)
+		w.handleScaleSetEvent(event)
+	case dbCommon.InstanceEntityType:
+		slog.DebugContext(w.ctx, "got instance event", "event", event)
+		w.handleInstanceEntityEvent(event)
+	default:
+		slog.DebugContext(w.ctx, "invalid entity type; ignoring", "entity_type", event.EntityType)
 	}
 }
 
