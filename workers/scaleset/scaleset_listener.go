@@ -91,6 +91,12 @@ func (l *scaleSetListener) Stop() error {
 	return nil
 }
 
+func (l *scaleSetListener) IsRunning() bool {
+	l.mux.Lock()
+	defer l.mux.Unlock()
+	return l.running
+}
+
 func (l *scaleSetListener) handleSessionMessage(msg params.RunnerScaleSetMessage) {
 	l.mux.Lock()
 	defer l.mux.Unlock()
