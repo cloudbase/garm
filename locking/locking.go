@@ -15,6 +15,15 @@ func TryLock(key string) (bool, error) {
 
 	return locker.TryLock(key), nil
 }
+
+func Lock(key string) {
+	if locker == nil {
+		panic("no locker is registered")
+	}
+
+	locker.Lock(key)
+}
+
 func Unlock(key string, remove bool) error {
 	if locker == nil {
 		return fmt.Errorf("no locker is registered")

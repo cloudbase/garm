@@ -136,6 +136,7 @@ func (w *Worker) Start() (err error) {
 	slog.DebugContext(w.ctx, "starting scale set worker loops", "scale_set", w.consumerID)
 	go w.loop()
 	go w.keepListenerAlive()
+	go w.handleAutoScale()
 	return nil
 }
 
@@ -303,6 +304,38 @@ func (w *Worker) keepListenerAlive() {
 				}
 				w.mux.Unlock()
 				break
+			}
+		}
+	}
+}
+
+func (w *Worker) handleAutoScale() {
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-w.quit:
+			return
+		case <-w.ctx.Done():
+			return
+		case <-ticker.C:
+			var desiredRunners uint
+			if w.scaleSet.DesiredRunnerCount > 0 {
+				desiredRunners = uint(w.scaleSet.DesiredRunnerCount)
+			}
+			targetRunners := min(w.scaleSet.MinIdleRunners+desiredRunners, w.scaleSet.MaxRunners)
+
+			currentRunners := uint(len(w.runners))
+			if currentRunners == targetRunners {
+				slog.DebugContext(w.ctx, "desired runner count reached", "desired_runners", targetRunners)
+				continue
+			}
+
+			if currentRunners < targetRunners {
+				slog.DebugContext(w.ctx, "scaling up", "current_runners", currentRunners, "target_runners", targetRunners)
+			} else {
+				slog.DebugContext(w.ctx, "scaling down", "current_runners", currentRunners, "target_runners", targetRunners)
 			}
 		}
 	}

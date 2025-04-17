@@ -29,6 +29,12 @@ func (k *keyMutex) TryLock(key string) bool {
 	return keyMux.TryLock()
 }
 
+func (k *keyMutex) Lock(key string) {
+	mux, _ := k.muxes.LoadOrStore(key, &sync.Mutex{})
+	keyMux := mux.(*sync.Mutex)
+	keyMux.Lock()
+}
+
 func (k *keyMutex) Unlock(key string, remove bool) {
 	mux, ok := k.muxes.Load(key)
 	if !ok {

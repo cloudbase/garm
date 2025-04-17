@@ -8,6 +8,7 @@ import (
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 
+	"github.com/cloudbase/garm/locking"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/util/github/scalesets"
 )
@@ -45,12 +46,16 @@ func (w *Worker) HandleJobsCompleted(jobs []params.ScaleSetJobMessage) error {
 			Status:       commonParams.InstancePendingDelete,
 			RunnerStatus: params.RunnerTerminated,
 		}
+
+		locking.Lock(job.RunnerName)
 		_, err := w.store.UpdateInstance(w.ctx, job.RunnerName, runnerUpdateParams)
 		if err != nil {
 			if !errors.Is(err, runnerErrors.ErrNotFound) {
+				locking.Unlock(job.RunnerName, false)
 				return fmt.Errorf("updating runner %s: %w", job.RunnerName, err)
 			}
 		}
+		locking.Unlock(job.RunnerName, false)
 	}
 	return nil
 }
@@ -68,14 +73,18 @@ func (w *Worker) HandleJobsStarted(jobs []params.ScaleSetJobMessage) error {
 			RunnerStatus: params.RunnerActive,
 		}
 
+		locking.Lock(job.RunnerName)
 		_, err := w.store.UpdateInstance(w.ctx, job.RunnerName, updateParams)
 		if err != nil {
 			if errors.Is(err, runnerErrors.ErrNotFound) {
 				slog.InfoContext(w.ctx, "runner not found; handled by some other controller?", "runner_name", job.RunnerName)
+				locking.Unlock(job.RunnerName, true)
 				continue
 			}
+			locking.Unlock(job.RunnerName, false)
 			return fmt.Errorf("updating runner %s: %w", job.RunnerName, err)
 		}
+		locking.Unlock(job.RunnerName, false)
 	}
 	return nil
 }
