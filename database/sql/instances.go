@@ -136,7 +136,7 @@ func (s *sqlDatabase) GetPoolInstanceByName(_ context.Context, poolID string, in
 }
 
 func (s *sqlDatabase) GetInstanceByName(ctx context.Context, instanceName string) (params.Instance, error) {
-	instance, err := s.getInstanceByName(ctx, instanceName, "StatusMessages", "Pool")
+	instance, err := s.getInstanceByName(ctx, instanceName, "StatusMessages", "Pool", "ScaleSet")
 	if err != nil {
 		return params.Instance{}, errors.Wrap(err, "fetching instance")
 	}
@@ -196,7 +196,7 @@ func (s *sqlDatabase) AddInstanceEvent(ctx context.Context, instanceName string,
 }
 
 func (s *sqlDatabase) UpdateInstance(ctx context.Context, instanceName string, param params.UpdateInstanceParams) (params.Instance, error) {
-	instance, err := s.getInstanceByName(ctx, instanceName, "Pool")
+	instance, err := s.getInstanceByName(ctx, instanceName, "Pool", "ScaleSet")
 	if err != nil {
 		return params.Instance{}, errors.Wrap(err, "updating instance")
 	}
@@ -280,25 +280,6 @@ func (s *sqlDatabase) ListPoolInstances(_ context.Context, poolID string) ([]par
 		return nil, errors.Wrap(err.Error, "fetching instances")
 	}
 
-	ret := make([]params.Instance, len(instances))
-	for idx, inst := range instances {
-		ret[idx], err = s.sqlToParamsInstance(inst)
-		if err != nil {
-			return nil, errors.Wrap(err, "converting instance")
-		}
-	}
-	return ret, nil
-}
-
-func (s *sqlDatabase) ListScaleSetInstances(_ context.Context, scalesetID uint) ([]params.Instance, error) {
-	var instances []Instance
-	query := s.conn.Model(&Instance{}).Preload("Job", "ScaleSet").Where("scale_set_fk_id = ?", scalesetID)
-
-	if err := query.Find(&instances); err.Error != nil {
-		return nil, errors.Wrap(err.Error, "fetching instances")
-	}
-
-	var err error
 	ret := make([]params.Instance, len(instances))
 	for idx, inst := range instances {
 		ret[idx], err = s.sqlToParamsInstance(inst)

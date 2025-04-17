@@ -12,7 +12,7 @@ func (w *Worker) ScaleSetCLI() *scalesets.ScaleSetClient {
 }
 
 func (w *Worker) GetScaleSet() params.ScaleSet {
-	return w.Entity
+	return w.scaleSet
 }
 
 func (w *Worker) Owner() string {
@@ -20,7 +20,7 @@ func (w *Worker) Owner() string {
 }
 
 func (w *Worker) SetLastMessageID(id int64) error {
-	if err := w.store.SetScaleSetLastMessageID(w.ctx, w.Entity.ID, id); err != nil {
+	if err := w.store.SetScaleSetLastMessageID(w.ctx, w.scaleSet.ID, id); err != nil {
 		return fmt.Errorf("setting last message ID: %w", err)
 	}
 	return nil

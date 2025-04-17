@@ -142,8 +142,12 @@ type ScaleSetsStore interface {
 	UpdateEntityScaleSet(_ context.Context, entity params.GithubEntity, scaleSetID uint, param params.UpdateScaleSetParams, callback func(old, new params.ScaleSet) error) (updatedScaleSet params.ScaleSet, err error)
 	GetScaleSetByID(ctx context.Context, scaleSet uint) (params.ScaleSet, error)
 	DeleteScaleSetByID(ctx context.Context, scaleSetID uint) (err error)
-	ListScaleSetInstances(_ context.Context, scalesetID uint) ([]params.Instance, error)
 	SetScaleSetLastMessageID(ctx context.Context, scaleSetID uint, lastMessageID int64) error
+}
+
+type ScaleSetInstanceStore interface {
+	ListScaleSetInstances(_ context.Context, scalesetID uint) ([]params.Instance, error)
+	CreateScaleSetInstance(_ context.Context, scaleSetID uint, param params.CreateInstanceParams) (instance params.Instance, err error)
 }
 
 //go:generate mockery --name=Store
@@ -160,6 +164,7 @@ type Store interface {
 	ControllerStore
 	EntityPoolStore
 	ScaleSetsStore
+	ScaleSetInstanceStore
 
 	ControllerInfo() (params.ControllerInfo, error)
 	InitController() (params.ControllerInfo, error)

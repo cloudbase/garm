@@ -30,7 +30,7 @@ func NewWorker(ctx context.Context, store dbCommon.Store, scaleSet params.ScaleS
 		consumerID:     consumerID,
 		store:          store,
 		provider:       provider,
-		Entity:         scaleSet,
+		scaleSet:       scaleSet,
 		ghCli:          ghCli,
 		scaleSetCli:    scaleSetCli,
 	}, nil
@@ -43,7 +43,7 @@ type Worker struct {
 
 	provider common.Provider
 	store    dbCommon.Store
-	Entity   params.ScaleSet
+	scaleSet params.ScaleSet
 
 	ghCli       common.GithubClient
 	scaleSetCli *scalesets.ScaleSetClient
@@ -88,7 +88,7 @@ func (w *Worker) Start() (err error) {
 	consumer, err := watcher.RegisterConsumer(
 		w.ctx, w.consumerID,
 		watcher.WithAll(
-			watcher.WithScaleSetFilter(w.Entity),
+			watcher.WithScaleSetFilter(w.scaleSet),
 			watcher.WithOperationTypeFilter(dbCommon.UpdateOperation),
 		),
 	)
@@ -148,13 +148,13 @@ func (w *Worker) handleEvent(event dbCommon.ChangePayload) {
 	case dbCommon.UpdateOperation:
 		slog.DebugContext(w.ctx, "got update operation")
 		w.mux.Lock()
-		if scaleSet.MaxRunners < w.Entity.MaxRunners {
+		if scaleSet.MaxRunners < w.scaleSet.MaxRunners {
 			slog.DebugContext(w.ctx, "max runners changed; stopping listener")
 			if err := w.listener.Stop(); err != nil {
 				slog.ErrorContext(w.ctx, "error stopping listener", "error", err)
 			}
 		}
-		w.Entity = scaleSet
+		w.scaleSet = scaleSet
 		w.mux.Unlock()
 	default:
 		slog.DebugContext(w.ctx, "invalid operation type; ignoring", "operation_type", event.Operation)
