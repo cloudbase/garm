@@ -154,6 +154,7 @@ func (w *Worker) handleEvent(event dbCommon.ChangePayload) {
 				slog.ErrorContext(w.ctx, "error stopping listener", "error", err)
 			}
 		}
+		// TODO: should we kick off auto-scaling if desired runner count changes?
 		w.scaleSet = scaleSet
 		w.mux.Unlock()
 	default:

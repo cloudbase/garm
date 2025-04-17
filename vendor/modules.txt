@@ -21,8 +21,8 @@ github.com/cespare/xxhash/v2
 # github.com/chzyer/readline v1.5.1
 ## explicit; go 1.15
 github.com/chzyer/readline
-# github.com/cloudbase/garm-provider-common v0.1.4
-## explicit; go 1.22
+# github.com/cloudbase/garm-provider-common v0.1.5-0.20250417155201-8ef03502d06e
+## explicit; go 1.23.0
 github.com/cloudbase/garm-provider-common/defaults
 github.com/cloudbase/garm-provider-common/errors
 github.com/cloudbase/garm-provider-common/execution/common

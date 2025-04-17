@@ -45,6 +45,7 @@ const (
 	InstancePendingDelete      InstanceStatus = "pending_delete"
 	InstancePendingForceDelete InstanceStatus = "pending_force_delete"
 	InstanceDeleting           InstanceStatus = "deleting"
+	InstanceDeleted            InstanceStatus = "deleted"
 	InstancePendingCreate      InstanceStatus = "pending_create"
 	InstanceCreating           InstanceStatus = "creating"
 	InstanceStatusUnknown      InstanceStatus = "unknown"

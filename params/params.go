@@ -453,15 +453,16 @@ type ScaleSet struct {
 	State         ScaleSetState `json:"state"`
 	ExtendedState string        `json:"extended_state,omitempty"`
 
-	ProviderName   string              `json:"provider_name,omitempty"`
-	MaxRunners     uint                `json:"max_runners,omitempty"`
-	MinIdleRunners uint                `json:"min_idle_runners,omitempty"`
-	Image          string              `json:"image,omitempty"`
-	Flavor         string              `json:"flavor,omitempty"`
-	OSType         commonParams.OSType `json:"os_type,omitempty"`
-	OSArch         commonParams.OSArch `json:"os_arch,omitempty"`
-	Enabled        bool                `json:"enabled,omitempty"`
-	Instances      []Instance          `json:"instances,omitempty"`
+	ProviderName       string              `json:"provider_name,omitempty"`
+	MaxRunners         uint                `json:"max_runners,omitempty"`
+	MinIdleRunners     uint                `json:"min_idle_runners,omitempty"`
+	Image              string              `json:"image,omitempty"`
+	Flavor             string              `json:"flavor,omitempty"`
+	OSType             commonParams.OSType `json:"os_type,omitempty"`
+	OSArch             commonParams.OSArch `json:"os_arch,omitempty"`
+	Enabled            bool                `json:"enabled,omitempty"`
+	Instances          []Instance          `json:"instances,omitempty"`
+	DesiredRunnerCount int64               `json:"desired_runner_count,omitempty"`
 
 	RunnerBootstrapTimeout uint `json:"runner_bootstrap_timeout,omitempty"`
 	// ExtraSpecs is an opaque raw json that gets sent to the provider

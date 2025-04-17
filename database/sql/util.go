@@ -310,6 +310,7 @@ func (s *sqlDatabase) sqlToCommonScaleSet(scaleSet ScaleSet) (params.ScaleSet, e
 		State:                  scaleSet.State,
 		ExtendedState:          scaleSet.ExtendedState,
 		LastMessageID:          scaleSet.LastMessageID,
+		DesiredRunnerCount:     scaleSet.DesiredRunnerCount,
 	}
 
 	if scaleSet.RepoID != nil {
