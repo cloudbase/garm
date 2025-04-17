@@ -46,6 +46,7 @@ type (
 	GithubAuthType      string
 	PoolBalancerType    string
 	ScaleSetState       string
+	ScaleSetMessageType string
 )
 
 const (
@@ -135,6 +136,17 @@ const (
 	ScaleSetError              ScaleSetState = "error"
 	ScaleSetPendingDelete      ScaleSetState = "pending_delete"
 	ScaleSetPendingForceDelete ScaleSetState = "pending_force_delete"
+)
+
+const (
+	MessageTypeRunnerScaleSetJobMessages ScaleSetMessageType = "RunnerScaleSetJobMessages"
+)
+
+const (
+	MessageTypeJobAssigned  = "JobAssigned"
+	MessageTypeJobCompleted = "JobCompleted"
+	MessageTypeJobStarted   = "JobStarted"
+	MessageTypeJobAvailable = "JobAvailable"
 )
 
 type StatusMessage struct {

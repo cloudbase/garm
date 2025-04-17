@@ -25,3 +25,16 @@ func (w *Worker) SetLastMessageID(id int64) error {
 	}
 	return nil
 }
+
+// HandleJobCompleted handles a job completed message. If a job had a runner
+// assigned and was not canceled before it had a chance to run, then we mark
+// that runner as pending_delete.
+func (w *Worker) HandleJobsCompleted(jobs []params.ScaleSetJobMessage) error {
+	return nil
+}
+
+// HandleJobStarted updates the runners from idle to active in the DB and
+// assigns the job to them.
+func (w *Worker) HandleJobsStarted(jobs []params.ScaleSetJobMessage) error {
+	return nil
+}
