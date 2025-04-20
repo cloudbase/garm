@@ -1,6 +1,8 @@
 package watcher
 
 import (
+	commonParams "github.com/cloudbase/garm-provider-common/params"
+
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/params"
 )
@@ -279,5 +281,26 @@ func WithEntityTypeAndCallbackFilter(entityType dbCommon.DatabaseEntityType, cal
 			return false
 		}
 		return ok
+	}
+}
+
+func WithInstanceStatusFilter(statuses ...commonParams.InstanceStatus) dbCommon.PayloadFilterFunc {
+	return func(payload dbCommon.ChangePayload) bool {
+		if payload.EntityType != dbCommon.InstanceEntityType {
+			return false
+		}
+		instance, ok := payload.Payload.(params.Instance)
+		if !ok {
+			return false
+		}
+		if len(statuses) == 0 {
+			return false
+		}
+		for _, status := range statuses {
+			if instance.Status == status {
+				return true
+			}
+		}
+		return false
 	}
 }

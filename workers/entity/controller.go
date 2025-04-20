@@ -7,30 +7,18 @@ import (
 	"sync"
 
 	"github.com/cloudbase/garm/auth"
-	"github.com/cloudbase/garm/config"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/database/watcher"
 	"github.com/cloudbase/garm/runner/common"
-	"github.com/cloudbase/garm/runner/providers"
 	garmUtil "github.com/cloudbase/garm/util"
 )
 
-func NewController(ctx context.Context, store dbCommon.Store, cfg config.Config) (*Controller, error) {
+func NewController(ctx context.Context, store dbCommon.Store, providers map[string]common.Provider) (*Controller, error) {
 	consumerID := "entity-controller"
-	ctrlID, err := store.ControllerInfo()
-	if err != nil {
-		return nil, fmt.Errorf("getting controller info: %w", err)
-	}
-
 	ctx = garmUtil.WithSlogContext(
 		ctx,
 		slog.Any("worker", consumerID))
 	ctx = auth.GetAdminContext(ctx)
-
-	providers, err := providers.LoadProvidersFromConfig(ctx, cfg, ctrlID.ControllerID.String())
-	if err != nil {
-		return nil, fmt.Errorf("loading providers: %w", err)
-	}
 
 	return &Controller{
 		consumerID: consumerID,

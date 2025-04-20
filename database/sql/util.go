@@ -79,7 +79,7 @@ func (s *sqlDatabase) sqlToParamsInstance(instance Instance) (params.Instance, e
 		ret.RunnerBootstrapTimeout = instance.ScaleSet.RunnerBootstrapTimeout
 	}
 
-	if instance.PoolID != uuid.Nil {
+	if instance.PoolID != nil {
 		ret.PoolID = instance.PoolID.String()
 		ret.ProviderName = instance.Pool.ProviderName
 		ret.RunnerBootstrapTimeout = instance.Pool.RunnerBootstrapTimeout

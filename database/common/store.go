@@ -92,6 +92,7 @@ type UserStore interface {
 type InstanceStore interface {
 	CreateInstance(ctx context.Context, poolID string, param params.CreateInstanceParams) (params.Instance, error)
 	DeleteInstance(ctx context.Context, poolID string, instanceName string) error
+	DeleteInstanceByName(ctx context.Context, instanceName string) error
 	UpdateInstance(ctx context.Context, instanceName string, param params.UpdateInstanceParams) (params.Instance, error)
 
 	// Probably a bad idea without some king of filter or at least pagination

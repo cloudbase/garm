@@ -30,7 +30,7 @@ type scaleSetJitRunnerConfig struct {
 	WorkFolder string `json:"workFolder"`
 }
 
-func (s *ScaleSetClient) GenerateJitRunnerConfig(ctx context.Context, runnerName string, scaleSet params.RunnerScaleSet) (params.RunnerScaleSetJitRunnerConfig, error) {
+func (s *ScaleSetClient) GenerateJitRunnerConfig(ctx context.Context, runnerName string, scaleSetID int) (params.RunnerScaleSetJitRunnerConfig, error) {
 	runnerSettings := scaleSetJitRunnerConfig{
 		Name:       runnerName,
 		WorkFolder: "_work",
@@ -41,7 +41,14 @@ func (s *ScaleSetClient) GenerateJitRunnerConfig(ctx context.Context, runnerName
 		return params.RunnerScaleSetJitRunnerConfig{}, err
 	}
 
-	req, err := s.newActionsRequest(ctx, http.MethodPost, scaleSet.RunnerJitConfigURL, bytes.NewBuffer(body))
+	serviceUrl, err := s.actionsServiceInfo.GetURL()
+	if err != nil {
+		return params.RunnerScaleSetJitRunnerConfig{}, fmt.Errorf("failed to get pipeline URL: %w", err)
+	}
+	jitConfigPath := fmt.Sprintf("/%s/%d/generatejitconfig", scaleSetEndpoint, scaleSetID)
+	jitConfigURL := serviceUrl.JoinPath(jitConfigPath)
+
+	req, err := s.newActionsRequest(ctx, http.MethodPost, jitConfigURL.String(), bytes.NewBuffer(body))
 	if err != nil {
 		return params.RunnerScaleSetJitRunnerConfig{}, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -79,6 +86,26 @@ func (s *ScaleSetClient) GetRunner(ctx context.Context, runnerID int64) (params.
 	}
 
 	return runnerReference, nil
+}
+
+func (s *ScaleSetClient) ListAllRunners(ctx context.Context) (params.RunnerReferenceList, error) {
+	req, err := s.newActionsRequest(ctx, http.MethodGet, runnerEndpoint, nil)
+	if err != nil {
+		return params.RunnerReferenceList{}, fmt.Errorf("failed to construct request: %w", err)
+	}
+
+	resp, err := s.Do(req)
+	if err != nil {
+		return params.RunnerReferenceList{}, fmt.Errorf("request failed for %s: %w", req.URL.String(), err)
+	}
+	defer resp.Body.Close()
+
+	var runnerList params.RunnerReferenceList
+	if err := json.NewDecoder(resp.Body).Decode(&runnerList); err != nil {
+		return params.RunnerReferenceList{}, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return runnerList, nil
 }
 
 func (s *ScaleSetClient) GetRunnerByName(ctx context.Context, runnerName string) (params.RunnerReference, error) {

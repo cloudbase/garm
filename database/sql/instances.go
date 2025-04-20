@@ -177,6 +177,39 @@ func (s *sqlDatabase) DeleteInstance(_ context.Context, poolID string, instanceN
 	return nil
 }
 
+func (s *sqlDatabase) DeleteInstanceByName(ctx context.Context, instanceName string) error {
+	instance, err := s.getInstanceByName(ctx, instanceName)
+	if err != nil {
+		return errors.Wrap(err, "deleting instance")
+	}
+
+	defer func() {
+		if err == nil {
+			var providerID string
+			if instance.ProviderID != nil {
+				providerID = *instance.ProviderID
+			}
+			if notifyErr := s.sendNotify(common.InstanceEntityType, common.DeleteOperation, params.Instance{
+				ID:         instance.ID.String(),
+				Name:       instance.Name,
+				ProviderID: providerID,
+				AgentID:    instance.AgentID,
+				PoolID:     instance.PoolID.String(),
+			}); notifyErr != nil {
+				slog.With(slog.Any("error", notifyErr)).Error("failed to send notify")
+			}
+		}
+	}()
+
+	if q := s.conn.Unscoped().Delete(&instance); q.Error != nil {
+		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
+			return nil
+		}
+		return errors.Wrap(q.Error, "deleting instance")
+	}
+	return nil
+}
+
 func (s *sqlDatabase) AddInstanceEvent(ctx context.Context, instanceName string, event params.EventType, eventLevel params.EventLevel, statusMessage string) error {
 	instance, err := s.getInstanceByName(ctx, instanceName)
 	if err != nil {
@@ -293,7 +326,7 @@ func (s *sqlDatabase) ListPoolInstances(_ context.Context, poolID string) ([]par
 func (s *sqlDatabase) ListAllInstances(_ context.Context) ([]params.Instance, error) {
 	var instances []Instance
 
-	q := s.conn.Model(&Instance{}).Preload("Job", "Pool", "ScaleSet").Find(&instances)
+	q := s.conn.Model(&Instance{}).Preload("Job").Find(&instances)
 	if q.Error != nil {
 		return nil, errors.Wrap(q.Error, "fetching instances")
 	}

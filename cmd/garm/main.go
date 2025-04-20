@@ -46,6 +46,7 @@ import (
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner" //nolint:typecheck
 	runnerMetrics "github.com/cloudbase/garm/runner/metrics"
+	"github.com/cloudbase/garm/runner/providers"
 	garmUtil "github.com/cloudbase/garm/util"
 	"github.com/cloudbase/garm/util/appdefaults"
 	"github.com/cloudbase/garm/websocket"
@@ -62,16 +63,17 @@ var signals = []os.Signal{
 	syscall.SIGTERM,
 }
 
-func maybeInitController(db common.Store) error {
-	if _, err := db.ControllerInfo(); err == nil {
-		return nil
+func maybeInitController(db common.Store) (params.ControllerInfo, error) {
+	if info, err := db.ControllerInfo(); err == nil {
+		return info, nil
 	}
 
-	if _, err := db.InitController(); err != nil {
-		return errors.Wrap(err, "initializing controller")
+	info, err := db.InitController()
+	if err != nil {
+		return params.ControllerInfo{}, errors.Wrap(err, "initializing controller")
 	}
 
-	return nil
+	return info, nil
 }
 
 func setupLogging(ctx context.Context, logCfg config.Logging, hub *websocket.Hub) {
@@ -212,7 +214,8 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if err := maybeInitController(db); err != nil {
+	controllerInfo, err := maybeInitController(db)
+	if err != nil {
 		log.Fatal(err)
 	}
 
@@ -231,7 +234,12 @@ func main() {
 		log.Fatal(err)
 	}
 
-	entityController, err := entity.NewController(ctx, db, *cfg)
+	providers, err := providers.LoadProvidersFromConfig(ctx, *cfg, controllerInfo.ControllerID.String())
+	if err != nil {
+		log.Fatalf("loading providers: %+v", err)
+	}
+
+	entityController, err := entity.NewController(ctx, db, providers)
 	if err != nil {
 		log.Fatalf("failed to create entity controller: %+v", err)
 	}

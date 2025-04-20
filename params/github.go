@@ -419,18 +419,18 @@ func (r RunnerScaleSetMessage) GetJobsFromBody() ([]ScaleSetJobMessage, error) {
 }
 
 type RunnerReference struct {
-	ID                int          `json:"id"`
-	Name              string       `json:"name"`
-	RunnerScaleSetID  int          `json:"runnerScaleSetId"`
-	CreatedOn         time.Time    `json:"createdOn"`
-	RunnerGroupID     uint64       `json:"runnerGroupId"`
-	RunnerGroupName   string       `json:"runnerGroupName"`
-	Version           string       `json:"version"`
-	Enabled           bool         `json:"enabled"`
-	Ephemeral         bool         `json:"ephemeral"`
-	Status            RunnerStatus `json:"status"`
-	DisableUpdate     bool         `json:"disableUpdate"`
-	ProvisioningState string       `json:"provisioningState"`
+	ID                int64       `json:"id"`
+	Name              string      `json:"name"`
+	RunnerScaleSetID  int         `json:"runnerScaleSetId"`
+	CreatedOn         interface{} `json:"createdOn"`
+	RunnerGroupID     uint64      `json:"runnerGroupId"`
+	RunnerGroupName   string      `json:"runnerGroupName"`
+	Version           string      `json:"version"`
+	Enabled           bool        `json:"enabled"`
+	Ephemeral         bool        `json:"ephemeral"`
+	Status            interface{} `json:"status"`
+	DisableUpdate     bool        `json:"disableUpdate"`
+	ProvisioningState string      `json:"provisioningState"`
 }
 
 type RunnerScaleSetJitRunnerConfig struct {

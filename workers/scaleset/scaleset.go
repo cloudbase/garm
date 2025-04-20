@@ -2,13 +2,19 @@ package scaleset
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sync"
 	"time"
 
+	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	commonParams "github.com/cloudbase/garm-provider-common/params"
+
+	"github.com/cloudbase/garm-provider-common/util"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/database/watcher"
+	"github.com/cloudbase/garm/locking"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
 	"github.com/cloudbase/garm/util/github/scalesets"
@@ -188,6 +194,17 @@ func (w *Worker) handleScaleSetEvent(event dbCommon.ChangePayload) {
 	}
 }
 
+func (w *Worker) handleInstanceCleanup(instance params.Instance) error {
+	if instance.Status == commonParams.InstanceDeleted {
+		if err := w.store.DeleteInstanceByName(w.ctx, instance.Name); err != nil {
+			if !errors.Is(err, runnerErrors.ErrNotFound) {
+				return fmt.Errorf("deleting instance %s: %w", instance.ID, err)
+			}
+		}
+	}
+	return nil
+}
+
 func (w *Worker) handleInstanceEntityEvent(event dbCommon.ChangePayload) {
 	instance, ok := event.Payload.(params.Instance)
 	if !ok {
@@ -319,6 +336,138 @@ func (w *Worker) keepListenerAlive() {
 	}
 }
 
+func (w *Worker) handleScaleUp(target, current uint) {
+	if !w.scaleSet.Enabled {
+		slog.DebugContext(w.ctx, "scale set is disabled; not scaling up")
+		return
+	}
+
+	if target <= current {
+		slog.DebugContext(w.ctx, "target is less than or equal to current; not scaling up")
+		return
+	}
+
+	controllerConfig, err := w.store.ControllerInfo()
+	if err != nil {
+		slog.ErrorContext(w.ctx, "error getting controller config", "error", err)
+		return
+	}
+
+	for i := current; i < target; i++ {
+		newRunnerName := fmt.Sprintf("%s-%s", w.scaleSet.GetRunnerPrefix(), util.NewID())
+		jitConfig, err := w.scaleSetCli.GenerateJitRunnerConfig(w.ctx, newRunnerName, w.scaleSet.ScaleSetID)
+		if err != nil {
+			slog.ErrorContext(w.ctx, "error generating jit config", "error", err)
+			continue
+		}
+		slog.DebugContext(w.ctx, "creating new runner", "runner_name", newRunnerName)
+		decodedJit, err := jitConfig.DecodedJITConfig()
+		if err != nil {
+			slog.ErrorContext(w.ctx, "error decoding jit config", "error", err)
+			continue
+		}
+		runnerParams := params.CreateInstanceParams{
+			Name:              newRunnerName,
+			Status:            commonParams.InstancePendingCreate,
+			RunnerStatus:      params.RunnerPending,
+			OSArch:            w.scaleSet.OSArch,
+			OSType:            w.scaleSet.OSType,
+			CallbackURL:       controllerConfig.CallbackURL,
+			MetadataURL:       controllerConfig.MetadataURL,
+			CreateAttempt:     1,
+			GitHubRunnerGroup: w.scaleSet.GitHubRunnerGroup,
+			JitConfiguration:  decodedJit,
+			AgentID:           int64(jitConfig.Runner.ID),
+		}
+
+		if _, err := w.store.CreateScaleSetInstance(w.ctx, w.scaleSet.ID, runnerParams); err != nil {
+			slog.ErrorContext(w.ctx, "error creating instance", "error", err)
+			if err := w.scaleSetCli.RemoveRunner(w.ctx, jitConfig.Runner.ID); err != nil {
+				slog.ErrorContext(w.ctx, "error deleting runner", "error", err)
+			}
+			continue
+		}
+
+		runnerDetails, err := w.scaleSetCli.GetRunner(w.ctx, jitConfig.Runner.ID)
+		if err != nil {
+			slog.ErrorContext(w.ctx, "error getting runner details", "error", err)
+			continue
+		}
+		slog.DebugContext(w.ctx, "runner details", "runner_details", runnerDetails)
+	}
+}
+
+func (w *Worker) handleScaleDown(target, current uint) {
+	delta := current - target
+	if delta <= 0 {
+		return
+	}
+	w.mux.Lock()
+	defer w.mux.Unlock()
+	removed := 0
+	for _, runner := range w.runners {
+		if removed >= int(delta) {
+			break
+		}
+
+		locked, err := locking.TryLock(runner.Name)
+		if err != nil || !locked {
+			slog.DebugContext(w.ctx, "runner is locked; skipping", "runner_name", runner.Name)
+			continue
+		}
+
+		switch runner.Status {
+		case commonParams.InstancePendingCreate, commonParams.InstanceRunning:
+		case commonParams.InstancePendingDelete, commonParams.InstancePendingForceDelete:
+			removed++
+			locking.Unlock(runner.Name, true)
+			continue
+		default:
+			slog.DebugContext(w.ctx, "runner is not in a valid state; skipping", "runner_name", runner.Name, "runner_status", runner.Status)
+			locking.Unlock(runner.Name, false)
+			continue
+		}
+
+		switch runner.RunnerStatus {
+		case params.RunnerTerminated, params.RunnerActive:
+			slog.DebugContext(w.ctx, "runner is not in a valid state; skipping", "runner_name", runner.Name, "runner_status", runner.RunnerStatus)
+			locking.Unlock(runner.Name, false)
+			continue
+		}
+
+		slog.DebugContext(w.ctx, "removing runner", "runner_name", runner.Name)
+		if err := w.scaleSetCli.RemoveRunner(w.ctx, runner.AgentID); err != nil {
+			if !errors.Is(err, runnerErrors.ErrNotFound) {
+				slog.ErrorContext(w.ctx, "error removing runner", "runner_name", runner.Name, "error", err)
+				locking.Unlock(runner.Name, false)
+				continue
+			}
+		}
+		runnerUpdateParams := params.UpdateInstanceParams{
+			Status: commonParams.InstancePendingDelete,
+		}
+		if _, err := w.store.UpdateInstance(w.ctx, runner.Name, runnerUpdateParams); err != nil {
+			if errors.Is(err, runnerErrors.ErrNotFound) {
+				// The error seems to be that the instance was removed from the database. We still had it in our
+				// state, so either the update never came from the watcher or something else happened.
+				// Remove it from the local cache.
+				delete(w.runners, runner.ID)
+				removed++
+				locking.Unlock(runner.Name, true)
+				continue
+			}
+			// TODO: This should not happen, unless there is some issue with the database.
+			// The UpdateInstance() function should add tenacity, but even in that case, if it
+			// still errors out, we need to handle it somehow.
+			slog.ErrorContext(w.ctx, "error updating runner", "runner_name", runner.Name, "error", err)
+			locking.Unlock(runner.Name, false)
+			continue
+		}
+		removed++
+		locking.Unlock(runner.Name, false)
+	}
+}
+
 func (w *Worker) handleAutoScale() {
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
@@ -337,6 +486,14 @@ func (w *Worker) handleAutoScale() {
 		case <-w.ctx.Done():
 			return
 		case <-ticker.C:
+			w.mux.Lock()
+			for _, instance := range w.runners {
+				if err := w.handleInstanceCleanup(instance); err != nil {
+					slog.ErrorContext(w.ctx, "error cleaning up instance", "instance_id", instance.ID, "error", err)
+				}
+			}
+			w.mux.Unlock()
+
 			var desiredRunners uint
 			if w.scaleSet.DesiredRunnerCount > 0 {
 				desiredRunners = uint(w.scaleSet.DesiredRunnerCount)
@@ -351,8 +508,10 @@ func (w *Worker) handleAutoScale() {
 
 			if currentRunners < targetRunners {
 				lastMsgDebugLog("scaling up", targetRunners, currentRunners)
+				w.handleScaleUp(targetRunners, currentRunners)
 			} else {
 				lastMsgDebugLog("attempting to scale down", targetRunners, currentRunners)
+				w.handleScaleDown(targetRunners, currentRunners)
 			}
 		}
 	}

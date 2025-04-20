@@ -277,7 +277,7 @@ type Instance struct {
 	GitHubRunnerGroup string
 	AditionalLabels   datatypes.JSON
 
-	PoolID uuid.UUID
+	PoolID *uuid.UUID
 	Pool   Pool `gorm:"foreignKey:PoolID"`
 
 	ScaleSetFkID *uint
