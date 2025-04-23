@@ -99,7 +99,96 @@ func (w *Worker) Start() (err error) {
 	}
 
 	for _, instance := range instances {
+		if instance.Status == commonParams.InstanceCreating {
+			// We're just starting up. We found an instance stuck in creating.
+			// When a provider creates an instance, it sets the db instance to
+			// creating and then issues an API call to the IaaS to create the
+			// instance using some userdata it needs to come up. But the instance
+			// will still need to call back home to fetch aditional metadata and
+			// complete its setup. We should remove the instance as it is not
+			// possible to reliably determine the state of the instance (if it's in
+			// mid boot before it reached the phase where it runs the metadtata, or
+			// if it already failed).
+			instanceState := commonParams.InstancePendingDelete
+			locking.Lock(instance.Name)
+			if instance.AgentID != 0 {
+				if err := w.scaleSetCli.RemoveRunner(w.ctx, instance.AgentID); err != nil {
+					// scale sets use JIT runners. This means that we create the runner in github
+					// before we create the actual instance that will use the credentials. We need
+					// to remove the runner from github if it exists.
+					if !errors.Is(err, runnerErrors.ErrNotFound) {
+						if errors.Is(err, runnerErrors.ErrUnauthorized) {
+							// we don't have access to remove the runner. This implies that our
+							// credentials may have expired.
+							//
+							// TODO: we need to set the scale set as inactive and stop the listener (if any).
+							slog.ErrorContext(w.ctx, "error removing runner", "runner_name", instance.Name, "error", err)
+							w.runners[instance.ID] = instance
+							locking.Unlock(instance.Name, false)
+							continue
+						}
+						// The runner may have come up, registered and is currently running a
+						// job, in which case, github will not allow us to remove it.
+						runnerInstance, err := w.scaleSetCli.GetRunner(w.ctx, instance.AgentID)
+						if err != nil {
+							if !errors.Is(err, runnerErrors.ErrNotFound) {
+								// We could not get info about the runner and it wasn't not found
+								slog.ErrorContext(w.ctx, "error getting runner details", "error", err)
+								w.runners[instance.ID] = instance
+								locking.Unlock(instance.Name, false)
+								continue
+							}
+						}
+						if runnerInstance.Status == string(params.RunnerIdle) ||
+							runnerInstance.Status == string(params.RunnerActive) {
+							// This is a highly unlikely scenario, but let's account for it anyway.
+							//
+							// The runner is running a job or is idle. Mark it as running, as
+							// it appears that it finished booting and is now running.
+							//
+							// NOTE: if the instance was in creating and it managed to boot, there
+							// is a high chance that the we do not have a provider ID for the runner
+							// inside our database. When removing the runner, the provider will attempt
+							// to use the instance name instead of the provider ID, the same as when
+							// creation of the instance fails and we try to clean up any lingering resources
+							// in the provider.
+							slog.DebugContext(w.ctx, "runner is running a job or is idle; not removing", "runner_name", instance.Name)
+							instanceState = commonParams.InstanceRunning
+						}
+					}
+				}
+			}
+			runnerUpdateParams := params.UpdateInstanceParams{
+				Status: instanceState,
+			}
+			instance, err = w.store.UpdateInstance(w.ctx, instance.Name, runnerUpdateParams)
+			if err != nil {
+				if !errors.Is(err, runnerErrors.ErrNotFound) {
+					locking.Unlock(instance.Name, false)
+					return fmt.Errorf("updating runner %s: %w", instance.Name, err)
+				}
+			}
+			locking.Unlock(instance.Name, false)
+		} else if instance.Status == commonParams.InstanceDeleting {
+			// Set the instance in deleting. It is assumed that the runner was already
+			// removed from github either by github or by garm. Deleting status indicates
+			// that it was already being handled by the provider. There should be no entry on
+			// github for the runner if that was the case.
+			// Setting it in pending_delete will cause the provider to try again, an operation
+			// which is idempotent (if it's already deleted, the provider reports success).
+			runnerUpdateParams := params.UpdateInstanceParams{
+				Status: commonParams.InstancePendingDelete,
+			}
+			instance, err = w.store.UpdateInstance(w.ctx, instance.Name, runnerUpdateParams)
+			if err != nil {
+				if !errors.Is(err, runnerErrors.ErrNotFound) {
+					locking.Unlock(instance.Name, false)
+					return fmt.Errorf("updating runner %s: %w", instance.Name, err)
+				}
+			}
+		}
 		w.runners[instance.ID] = instance
+		locking.Unlock(instance.Name, false)
 	}
 
 	consumer, err := watcher.RegisterConsumer(
@@ -212,10 +301,42 @@ func (w *Worker) handleInstanceEntityEvent(event dbCommon.ChangePayload) {
 		return
 	}
 	switch event.Operation {
-	case dbCommon.UpdateOperation, dbCommon.CreateOperation:
-		slog.DebugContext(w.ctx, "got update operation")
+	case dbCommon.CreateOperation:
+		slog.DebugContext(w.ctx, "got create operation")
 		w.mux.Lock()
 		w.runners[instance.ID] = instance
+		w.mux.Unlock()
+	case dbCommon.UpdateOperation:
+		slog.DebugContext(w.ctx, "got update operation")
+		w.mux.Lock()
+		oldInstance, ok := w.runners[instance.ID]
+		w.runners[instance.ID] = instance
+
+		if !ok {
+			slog.DebugContext(w.ctx, "instance not found in local cache; ignoring", "instance_id", instance.ID)
+			w.mux.Unlock()
+			return
+		}
+		if oldInstance.RunnerStatus != instance.RunnerStatus && instance.RunnerStatus == params.RunnerIdle {
+			serviceRuner, err := w.scaleSetCli.GetRunner(w.ctx, instance.AgentID)
+			if err != nil {
+				slog.ErrorContext(w.ctx, "error getting runner details", "error", err)
+				w.mux.Unlock()
+				return
+			}
+			status, ok := serviceRuner.Status.(string)
+			if !ok {
+				slog.ErrorContext(w.ctx, "error getting runner status", "runner_id", instance.AgentID)
+				w.mux.Unlock()
+				return
+			}
+			if status != string(params.RunnerIdle) && status != string(params.RunnerActive) {
+				// TODO: Wait for the status to change for a while (30 seconds?). Mark the instance as
+				// pending_delete if the runner never comes online.
+				w.mux.Unlock()
+				return
+			}
+		}
 		w.mux.Unlock()
 	case dbCommon.DeleteOperation:
 		slog.DebugContext(w.ctx, "got delete operation")

@@ -97,7 +97,7 @@ func (a *APIController) ListScaleSetInstancesHandler(w http.ResponseWriter, r *h
 		}
 		return
 	}
-	id, err := strconv.ParseUint(scalesetID, 10, 64)
+	id, err := strconv.ParseUint(scalesetID, 10, 32)
 	if err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to parse id")
 		handleError(ctx, w, gErrors.ErrBadRequest)

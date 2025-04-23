@@ -86,6 +86,17 @@ type Pool struct {
 	Priority  uint       `gorm:"index:idx_pool_priority"`
 }
 
+type ScaleSetEvent struct {
+	gorm.Model
+
+	EventType  params.EventType
+	EventLevel params.EventLevel
+	Message    string `gorm:"type:text"`
+
+	ScaleSetID uint     `gorm:"index:idx_scale_set_event"`
+	ScaleSet   ScaleSet `gorm:"foreignKey:ScaleSetID"`
+}
+
 // ScaleSet represents a github scale set. Scale sets are almost identical to pools with a few
 // notable exceptions:
 //   - Labels are no longer relevant
@@ -135,7 +146,11 @@ type ScaleSet struct {
 	EnterpriseID *uuid.UUID `gorm:"index"`
 	Enterprise   Enterprise `gorm:"foreignKey:EnterpriseID"`
 
-	Instances []Instance `gorm:"foreignKey:ScaleSetFkID"`
+	Status       string
+	StatusReason string `gorm:"type:text"`
+
+	Instances []Instance      `gorm:"foreignKey:ScaleSetFkID"`
+	Events    []ScaleSetEvent `gorm:"foreignKey:ScaleSetID;constraint:OnDelete:CASCADE,OnUpdate:CASCADE;"`
 }
 
 type RepositoryEvent struct {

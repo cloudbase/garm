@@ -79,7 +79,7 @@ func (a *APIController) GetScaleSetByIDHandler(w http.ResponseWriter, r *http.Re
 		}
 		return
 	}
-	id, err := strconv.ParseUint(scaleSetID, 10, 64)
+	id, err := strconv.ParseUint(scaleSetID, 10, 32)
 	if err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to parse id")
 		handleError(ctx, w, gErrors.ErrBadRequest)
@@ -130,7 +130,7 @@ func (a *APIController) DeleteScaleSetByIDHandler(w http.ResponseWriter, r *http
 		return
 	}
 
-	id, err := strconv.ParseUint(scalesetID, 10, 64)
+	id, err := strconv.ParseUint(scalesetID, 10, 32)
 	if err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to parse id")
 		handleError(ctx, w, gErrors.ErrBadRequest)
@@ -183,7 +183,7 @@ func (a *APIController) UpdateScaleSetByIDHandler(w http.ResponseWriter, r *http
 		return
 	}
 
-	id, err := strconv.ParseUint(scalesetID, 10, 64)
+	id, err := strconv.ParseUint(scalesetID, 10, 32)
 	if err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to parse id")
 		handleError(ctx, w, gErrors.ErrBadRequest)
