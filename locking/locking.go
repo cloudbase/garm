@@ -2,29 +2,41 @@ package locking
 
 import (
 	"fmt"
+	"log/slog"
+	"runtime"
 	"sync"
 )
 
 var locker Locker
 var lockerMux = sync.Mutex{}
 
-func TryLock(key string) (bool, error) {
+func TryLock(key, identifier string) (ok bool, err error) {
+	_, filename, line, _ := runtime.Caller(1)
+	slog.Debug("attempting to try lock", "key", key, "identifier", identifier, "caller", fmt.Sprintf("%s:%d", filename, line))
+	defer slog.Debug("try lock returned", "key", key, "identifier", identifier, "locked", ok, "caller", fmt.Sprintf("%s:%d", filename, line))
 	if locker == nil {
 		return false, fmt.Errorf("no locker is registered")
 	}
 
-	return locker.TryLock(key), nil
+	ok = locker.TryLock(key, identifier)
+	return ok, nil
 }
 
-func Lock(key string) {
+func Lock(key, identifier string) {
+	_, filename, line, _ := runtime.Caller(1)
+	slog.Debug("attempting to lock", "key", key, "identifier", identifier, "caller", fmt.Sprintf("%s:%d", filename, line))
+	defer slog.Debug("lock acquired", "key", key, "identifier", identifier, "caller", fmt.Sprintf("%s:%d", filename, line))
+
 	if locker == nil {
 		panic("no locker is registered")
 	}
 
-	locker.Lock(key)
+	locker.Lock(key, identifier)
 }
 
 func Unlock(key string, remove bool) error {
+	_, filename, line, _ := runtime.Caller(1)
+	slog.Debug("attempting to unlock", "key", key, "remove", remove, "caller", fmt.Sprintf("%s:%d", filename, line))
 	if locker == nil {
 		return fmt.Errorf("no locker is registered")
 	}

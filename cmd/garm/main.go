@@ -25,6 +25,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
 	"time"
 
@@ -51,6 +52,7 @@ import (
 	"github.com/cloudbase/garm/util/appdefaults"
 	"github.com/cloudbase/garm/websocket"
 	"github.com/cloudbase/garm/workers/entity"
+	"github.com/cloudbase/garm/workers/provider"
 )
 
 var (
@@ -247,6 +249,19 @@ func main() {
 		log.Fatalf("failed to start entity controller: %+v", err)
 	}
 
+	instanceTokenGetter, err := auth.NewInstanceTokenGetter(cfg.JWTAuth.Secret)
+	if err != nil {
+		log.Fatalf("failed to create instance token getter: %+v", err)
+	}
+
+	providerWorker, err := provider.NewWorker(ctx, db, providers, instanceTokenGetter)
+	if err != nil {
+		log.Fatalf("failed to create provider worker: %+v", err)
+	}
+	if err := providerWorker.Start(); err != nil {
+		log.Fatalf("failed to start provider worker: %+v", err)
+	}
+
 	runner, err := runner.NewRunner(ctx, *cfg, db)
 	if err != nil {
 		log.Fatalf("failed to create controller: %+v", err)
@@ -305,6 +320,8 @@ func main() {
 	}
 
 	if cfg.Default.DebugServer {
+		runtime.SetBlockProfileRate(1)
+		runtime.SetMutexProfileFraction(1)
 		slog.InfoContext(ctx, "setting up debug routes")
 		router = routers.WithDebugServer(router)
 	}
@@ -346,6 +363,11 @@ func main() {
 	slog.InfoContext(ctx, "shutting down entity controller")
 	if err := entityController.Stop(); err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to stop entity controller")
+	}
+
+	slog.InfoContext(ctx, "shutting down provider worker")
+	if err := providerWorker.Stop(); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to stop provider worker")
 	}
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 60*time.Second)

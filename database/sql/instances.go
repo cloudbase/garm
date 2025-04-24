@@ -189,13 +189,19 @@ func (s *sqlDatabase) DeleteInstanceByName(ctx context.Context, instanceName str
 			if instance.ProviderID != nil {
 				providerID = *instance.ProviderID
 			}
-			if notifyErr := s.sendNotify(common.InstanceEntityType, common.DeleteOperation, params.Instance{
+			payload := params.Instance{
 				ID:         instance.ID.String(),
 				Name:       instance.Name,
 				ProviderID: providerID,
 				AgentID:    instance.AgentID,
-				PoolID:     instance.PoolID.String(),
-			}); notifyErr != nil {
+			}
+			if instance.PoolID != nil {
+				payload.PoolID = instance.PoolID.String()
+			}
+			if instance.ScaleSetFkID != nil {
+				payload.ScaleSetID = *instance.ScaleSetFkID
+			}
+			if notifyErr := s.sendNotify(common.InstanceEntityType, common.DeleteOperation, payload); notifyErr != nil {
 				slog.With(slog.Any("error", notifyErr)).Error("failed to send notify")
 			}
 		}

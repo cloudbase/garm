@@ -4,8 +4,8 @@ import "time"
 
 // TODO(gabriel-samfira): needs owner attribute.
 type Locker interface {
-	TryLock(key string) bool
-	Lock(key string)
+	TryLock(key, identifier string) bool
+	Lock(key, identifier string)
 	Unlock(key string, remove bool)
 	Delete(key string)
 }

@@ -210,6 +210,7 @@ func (c *Controller) loop() {
 	defer c.Stop()
 	updateToolsTicker := time.NewTicker(common.PoolToolUpdateInterval)
 	initialToolUpdate := make(chan struct{}, 1)
+	defer close(initialToolUpdate)
 	go func() {
 		slog.InfoContext(c.ctx, "running initial tool update")
 		if err := c.updateTools(); err != nil {
@@ -225,21 +226,21 @@ func (c *Controller) loop() {
 				slog.InfoContext(c.ctx, "consumer channel closed")
 				return
 			}
-			slog.InfoContext(c.ctx, "received payload", slog.Any("payload", payload))
+			slog.InfoContext(c.ctx, "received payload")
 			go c.handleWatcherEvent(payload)
 		case <-c.ctx.Done():
 			return
-		case _, ok := <-initialToolUpdate:
-			if ok {
-				// channel received the initial update slug. We can close it now.
-				close(initialToolUpdate)
-			}
+		case <-initialToolUpdate:
 		case update, ok := <-c.statusUpdates:
 			if !ok {
 				return
 			}
 			go c.handleScaleSetStatusUpdates(update)
-		case <-updateToolsTicker.C:
+		case _, ok := <-updateToolsTicker.C:
+			if !ok {
+				slog.InfoContext(c.ctx, "update tools ticker closed")
+				return
+			}
 			if err := c.updateTools(); err != nil {
 				slog.With(slog.Any("error", err)).Error("failed to update tools")
 			}

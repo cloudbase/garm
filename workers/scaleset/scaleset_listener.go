@@ -232,6 +232,7 @@ func (l *scaleSetListener) loop() {
 			if !msg.IsNil() {
 				// Longpoll returns after 50 seconds. If no message arrives during that interval
 				// we get a nil message. We can simply ignore it and continue.
+				slog.DebugContext(l.ctx, "handling message", "message_id", msg.MessageID)
 				l.handleSessionMessage(msg)
 			}
 		}

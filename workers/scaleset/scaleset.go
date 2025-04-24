@@ -110,7 +110,7 @@ func (w *Worker) Start() (err error) {
 			// mid boot before it reached the phase where it runs the metadtata, or
 			// if it already failed).
 			instanceState := commonParams.InstancePendingDelete
-			locking.Lock(instance.Name)
+			locking.Lock(instance.Name, w.consumerID)
 			if instance.AgentID != 0 {
 				if err := w.scaleSetCli.RemoveRunner(w.ctx, instance.AgentID); err != nil {
 					// scale sets use JIT runners. This means that we create the runner in github
@@ -119,9 +119,9 @@ func (w *Worker) Start() (err error) {
 					if !errors.Is(err, runnerErrors.ErrNotFound) {
 						if errors.Is(err, runnerErrors.ErrUnauthorized) {
 							// we don't have access to remove the runner. This implies that our
-							// credentials may have expired.
+							// credentials may have expired or ar incorect.
 							//
-							// TODO: we need to set the scale set as inactive and stop the listener (if any).
+							// TODO(gabriel-samfira): we need to set the scale set as inactive and stop the listener (if any).
 							slog.ErrorContext(w.ctx, "error removing runner", "runner_name", instance.Name, "error", err)
 							w.runners[instance.ID] = instance
 							locking.Unlock(instance.Name, false)
@@ -168,7 +168,6 @@ func (w *Worker) Start() (err error) {
 					return fmt.Errorf("updating runner %s: %w", instance.Name, err)
 				}
 			}
-			locking.Unlock(instance.Name, false)
 		} else if instance.Status == commonParams.InstanceDeleting {
 			// Set the instance in deleting. It is assumed that the runner was already
 			// removed from github either by github or by garm. Deleting status indicates
@@ -309,6 +308,13 @@ func (w *Worker) handleInstanceEntityEvent(event dbCommon.ChangePayload) {
 	case dbCommon.UpdateOperation:
 		slog.DebugContext(w.ctx, "got update operation")
 		w.mux.Lock()
+		if instance.Status == commonParams.InstanceDeleted {
+			if err := w.handleInstanceCleanup(instance); err != nil {
+				slog.ErrorContext(w.ctx, "error cleaning up instance", "instance_id", instance.ID, "error", err)
+			}
+			w.mux.Unlock()
+			return
+		}
 		oldInstance, ok := w.runners[instance.ID]
 		w.runners[instance.ID] = instance
 
@@ -351,10 +357,10 @@ func (w *Worker) handleInstanceEntityEvent(event dbCommon.ChangePayload) {
 func (w *Worker) handleEvent(event dbCommon.ChangePayload) {
 	switch event.EntityType {
 	case dbCommon.ScaleSetEntityType:
-		slog.DebugContext(w.ctx, "got scaleset event", "event", event)
+		slog.DebugContext(w.ctx, "got scaleset event")
 		w.handleScaleSetEvent(event)
 	case dbCommon.InstanceEntityType:
-		slog.DebugContext(w.ctx, "got instance event", "event", event)
+		slog.DebugContext(w.ctx, "got instance event")
 		w.handleInstanceEntityEvent(event)
 	default:
 		slog.DebugContext(w.ctx, "invalid entity type; ignoring", "entity_type", event.EntityType)
@@ -509,12 +515,11 @@ func (w *Worker) handleScaleUp(target, current uint) {
 			continue
 		}
 
-		runnerDetails, err := w.scaleSetCli.GetRunner(w.ctx, jitConfig.Runner.ID)
+		_, err = w.scaleSetCli.GetRunner(w.ctx, jitConfig.Runner.ID)
 		if err != nil {
 			slog.ErrorContext(w.ctx, "error getting runner details", "error", err)
 			continue
 		}
-		slog.DebugContext(w.ctx, "runner details", "runner_details", runnerDetails)
 	}
 }
 
@@ -523,15 +528,42 @@ func (w *Worker) handleScaleDown(target, current uint) {
 	if delta <= 0 {
 		return
 	}
-	w.mux.Lock()
-	defer w.mux.Unlock()
 	removed := 0
+	candidates := []params.Instance{}
 	for _, runner := range w.runners {
+		locked, err := locking.TryLock(runner.Name, w.consumerID)
+		if err != nil || !locked {
+			slog.DebugContext(w.ctx, "runner is locked; skipping", "runner_name", runner.Name)
+			continue
+		}
+		switch runner.Status {
+		case commonParams.InstanceRunning:
+			if runner.RunnerStatus != params.RunnerActive {
+				candidates = append(candidates, runner)
+			}
+		case commonParams.InstancePendingDelete, commonParams.InstancePendingForceDelete,
+			commonParams.InstanceDeleting, commonParams.InstanceDeleted:
+			removed++
+			locking.Unlock(runner.Name, true)
+			continue
+		default:
+			slog.DebugContext(w.ctx, "runner is not in a valid state; skipping", "runner_name", runner.Name, "runner_status", runner.Status)
+			locking.Unlock(runner.Name, false)
+			continue
+		}
+		locking.Unlock(runner.Name, false)
+	}
+
+	if removed >= int(delta) {
+		return
+	}
+
+	for _, runner := range candidates {
 		if removed >= int(delta) {
 			break
 		}
 
-		locked, err := locking.TryLock(runner.Name)
+		locked, err := locking.TryLock(runner.Name, w.consumerID)
 		if err != nil || !locked {
 			slog.DebugContext(w.ctx, "runner is locked; skipping", "runner_name", runner.Name)
 			continue
@@ -539,7 +571,8 @@ func (w *Worker) handleScaleDown(target, current uint) {
 
 		switch runner.Status {
 		case commonParams.InstancePendingCreate, commonParams.InstanceRunning:
-		case commonParams.InstancePendingDelete, commonParams.InstancePendingForceDelete:
+		case commonParams.InstancePendingDelete, commonParams.InstancePendingForceDelete,
+			commonParams.InstanceDeleting, commonParams.InstanceDeleted:
 			removed++
 			locking.Unlock(runner.Name, true)
 			continue
@@ -613,8 +646,6 @@ func (w *Worker) handleAutoScale() {
 					slog.ErrorContext(w.ctx, "error cleaning up instance", "instance_id", instance.ID, "error", err)
 				}
 			}
-			w.mux.Unlock()
-
 			var desiredRunners uint
 			if w.scaleSet.DesiredRunnerCount > 0 {
 				desiredRunners = uint(w.scaleSet.DesiredRunnerCount)
@@ -624,6 +655,7 @@ func (w *Worker) handleAutoScale() {
 			currentRunners := uint(len(w.runners))
 			if currentRunners == targetRunners {
 				lastMsgDebugLog("desired runner count reached", targetRunners, currentRunners)
+				w.mux.Unlock()
 				continue
 			}
 
@@ -634,6 +666,7 @@ func (w *Worker) handleAutoScale() {
 				lastMsgDebugLog("attempting to scale down", targetRunners, currentRunners)
 				w.handleScaleDown(targetRunners, currentRunners)
 			}
+			w.mux.Unlock()
 		}
 	}
 }

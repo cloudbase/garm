@@ -380,10 +380,25 @@ func (s *sqlDatabase) DeleteScaleSetByID(ctx context.Context, scaleSetID uint) (
 	return nil
 }
 
-func (s *sqlDatabase) SetScaleSetLastMessageID(ctx context.Context, scaleSetID uint, lastMessageID int64) error {
+func (s *sqlDatabase) SetScaleSetLastMessageID(ctx context.Context, scaleSetID uint, lastMessageID int64) (err error) {
+	var scaleSet params.ScaleSet
+	defer func() {
+		if err == nil && scaleSet.ID != 0 {
+			s.sendNotify(common.ScaleSetEntityType, common.UpdateOperation, scaleSet)
+		}
+	}()
 	if err := s.conn.Transaction(func(tx *gorm.DB) error {
-		if q := tx.Model(&ScaleSet{}).Where("id = ?", scaleSetID).Update("last_message_id", lastMessageID); q.Error != nil {
-			return errors.Wrap(q.Error, "saving database entry")
+		dbSet, err := s.getScaleSetByID(tx, scaleSetID)
+		if err != nil {
+			return errors.Wrap(err, "fetching scale set")
+		}
+		dbSet.LastMessageID = lastMessageID
+		if err := tx.Save(&dbSet).Error; err != nil {
+			return errors.Wrap(err, "saving database entry")
+		}
+		scaleSet, err = s.sqlToCommonScaleSet(dbSet)
+		if err != nil {
+			return errors.Wrap(err, "converting scale set")
 		}
 		return nil
 	}); err != nil {
@@ -392,10 +407,25 @@ func (s *sqlDatabase) SetScaleSetLastMessageID(ctx context.Context, scaleSetID u
 	return nil
 }
 
-func (s *sqlDatabase) SetScaleSetDesiredRunnerCount(ctx context.Context, scaleSetID uint, desiredRunnerCount int) error {
+func (s *sqlDatabase) SetScaleSetDesiredRunnerCount(ctx context.Context, scaleSetID uint, desiredRunnerCount int) (err error) {
+	var scaleSet params.ScaleSet
+	defer func() {
+		if err == nil && scaleSet.ID != 0 {
+			s.sendNotify(common.ScaleSetEntityType, common.UpdateOperation, scaleSet)
+		}
+	}()
 	if err := s.conn.Transaction(func(tx *gorm.DB) error {
-		if q := tx.Model(&ScaleSet{}).Where("id = ?", scaleSetID).Update("desired_runner_count", desiredRunnerCount); q.Error != nil {
-			return errors.Wrap(q.Error, "saving database entry")
+		dbSet, err := s.getScaleSetByID(tx, scaleSetID)
+		if err != nil {
+			return errors.Wrap(err, "fetching scale set")
+		}
+		dbSet.DesiredRunnerCount = desiredRunnerCount
+		if err := tx.Save(&dbSet).Error; err != nil {
+			return errors.Wrap(err, "saving database entry")
+		}
+		scaleSet, err = s.sqlToCommonScaleSet(dbSet)
+		if err != nil {
+			return errors.Wrap(err, "converting scale set")
 		}
 		return nil
 	}); err != nil {

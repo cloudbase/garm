@@ -113,7 +113,7 @@ func (w *Worker) loop() {
 	for {
 		select {
 		case payload := <-w.consumer.Watch():
-			slog.InfoContext(w.ctx, "received payload", slog.Any("payload", payload))
+			slog.InfoContext(w.ctx, "received payload")
 			go w.handleWorkerWatcherEvent(payload)
 		case <-w.ctx.Done():
 			return

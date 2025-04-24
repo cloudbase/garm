@@ -60,7 +60,7 @@ type instanceToken struct {
 	jwtSecret string
 }
 
-func (i *instanceToken) NewInstanceJWTToken(instance params.Instance, entity string, poolType params.GithubEntityType, ttlMinutes uint) (string, error) {
+func (i *instanceToken) NewInstanceJWTToken(instance params.Instance, entity string, entityType params.GithubEntityType, ttlMinutes uint) (string, error) {
 	// Token expiration is equal to the bootstrap timeout set on the pool plus the polling
 	// interval garm uses to check for timed out runners. Runners that have not sent their info
 	// by the end of this interval are most likely failed and will be reaped by garm anyway.
@@ -82,7 +82,7 @@ func (i *instanceToken) NewInstanceJWTToken(instance params.Instance, entity str
 		ID:            instance.ID,
 		Name:          instance.Name,
 		PoolID:        instance.PoolID,
-		Scope:         poolType,
+		Scope:         entityType,
 		Entity:        entity,
 		CreateAttempt: instance.CreateAttempt,
 	}

@@ -100,6 +100,7 @@ func NewEntityPoolManager(ctx context.Context, entity params.GithubEntity, insta
 
 	repo := &basePoolManager{
 		ctx:                 ctx,
+		consumerID:          consumerID,
 		entity:              entity,
 		ghcli:               ghc,
 		controllerInfo:      controllerInfo,
@@ -117,6 +118,7 @@ func NewEntityPoolManager(ctx context.Context, entity params.GithubEntity, insta
 
 type basePoolManager struct {
 	ctx                 context.Context
+	consumerID          string
 	entity              params.GithubEntity
 	ghcli               common.GithubClient
 	controllerInfo      params.ControllerInfo
@@ -420,7 +422,7 @@ func (r *basePoolManager) cleanupOrphanedProviderRunners(runners []*github.Runne
 			continue
 		}
 
-		lockAcquired, err := locking.TryLock(instance.Name)
+		lockAcquired, err := locking.TryLock(instance.Name, r.consumerID)
 		if !lockAcquired || err != nil {
 			slog.DebugContext(
 				r.ctx, "failed to acquire lock for instance",
@@ -499,7 +501,7 @@ func (r *basePoolManager) reapTimedOutRunners(runners []*github.Runner) error {
 		slog.DebugContext(
 			r.ctx, "attempting to lock instance",
 			"runner_name", instance.Name)
-		lockAcquired, err := locking.TryLock(instance.Name)
+		lockAcquired, err := locking.TryLock(instance.Name, r.consumerID)
 		if !lockAcquired || err != nil {
 			slog.DebugContext(
 				r.ctx, "failed to acquire lock for instance",
@@ -626,7 +628,7 @@ func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner)
 			poolInstanceCache[dbInstance.PoolID] = poolInstances
 		}
 
-		lockAcquired, err := locking.TryLock(dbInstance.Name)
+		lockAcquired, err := locking.TryLock(dbInstance.Name, r.consumerID)
 		if !lockAcquired || err != nil {
 			slog.DebugContext(
 				r.ctx, "failed to acquire lock for instance",
@@ -1064,7 +1066,7 @@ func (r *basePoolManager) scaleDownOnePool(ctx context.Context, pool params.Pool
 	for _, instanceToDelete := range idleWorkers[:numScaleDown] {
 		instanceToDelete := instanceToDelete
 
-		lockAcquired, err := locking.TryLock(instanceToDelete.Name)
+		lockAcquired, err := locking.TryLock(instanceToDelete.Name, r.consumerID)
 		if !lockAcquired || err != nil {
 			slog.With(slog.Any("error", err)).ErrorContext(
 				ctx, "failed to acquire lock for instance",
@@ -1217,7 +1219,7 @@ func (r *basePoolManager) retryFailedInstancesForOnePool(ctx context.Context, po
 		slog.DebugContext(
 			ctx, "attempting to retry failed instance",
 			"runner_name", instance.Name)
-		lockAcquired, err := locking.TryLock(instance.Name)
+		lockAcquired, err := locking.TryLock(instance.Name, r.consumerID)
 		if !lockAcquired || err != nil {
 			slog.DebugContext(
 				ctx, "failed to acquire lock for instance",
@@ -1401,7 +1403,7 @@ func (r *basePoolManager) deletePendingInstances() error {
 			r.ctx, "removing instance from pool",
 			"runner_name", instance.Name,
 			"pool_id", instance.PoolID)
-		lockAcquired, err := locking.TryLock(instance.Name)
+		lockAcquired, err := locking.TryLock(instance.Name, r.consumerID)
 		if !lockAcquired || err != nil {
 			slog.InfoContext(
 				r.ctx, "failed to acquire lock for instance",
@@ -1513,7 +1515,7 @@ func (r *basePoolManager) addPendingInstances() error {
 			r.ctx, "attempting to acquire lock for instance",
 			"runner_name", instance.Name,
 			"action", "create_pending")
-		lockAcquired, err := locking.TryLock(instance.Name)
+		lockAcquired, err := locking.TryLock(instance.Name, r.consumerID)
 		if !lockAcquired || err != nil {
 			slog.DebugContext(
 				r.ctx, "failed to acquire lock for instance",

@@ -35,7 +35,10 @@ func (w *Worker) SetLastMessageID(id int64) error {
 // HandleJobCompleted handles a job completed message. If a job had a runner
 // assigned and was not canceled before it had a chance to run, then we mark
 // that runner as pending_delete.
-func (w *Worker) HandleJobsCompleted(jobs []params.ScaleSetJobMessage) error {
+func (w *Worker) HandleJobsCompleted(jobs []params.ScaleSetJobMessage) (err error) {
+	slog.DebugContext(w.ctx, "handling job completed", "jobs", jobs)
+	defer slog.DebugContext(w.ctx, "finished handling job completed", "jobs", jobs, "error", err)
+
 	for _, job := range jobs {
 		if job.RunnerName == "" {
 			// This job was not assigned to a runner, so we can skip it.
@@ -47,7 +50,7 @@ func (w *Worker) HandleJobsCompleted(jobs []params.ScaleSetJobMessage) error {
 			RunnerStatus: params.RunnerTerminated,
 		}
 
-		locking.Lock(job.RunnerName)
+		locking.Lock(job.RunnerName, w.consumerID)
 		_, err := w.store.UpdateInstance(w.ctx, job.RunnerName, runnerUpdateParams)
 		if err != nil {
 			if !errors.Is(err, runnerErrors.ErrNotFound) {
@@ -62,7 +65,9 @@ func (w *Worker) HandleJobsCompleted(jobs []params.ScaleSetJobMessage) error {
 
 // HandleJobStarted updates the runners from idle to active in the DB and
 // assigns the job to them.
-func (w *Worker) HandleJobsStarted(jobs []params.ScaleSetJobMessage) error {
+func (w *Worker) HandleJobsStarted(jobs []params.ScaleSetJobMessage) (err error) {
+	slog.DebugContext(w.ctx, "handling job started", "jobs", jobs)
+	defer slog.DebugContext(w.ctx, "finished handling job started", "jobs", jobs, "error", err)
 	for _, job := range jobs {
 		if job.RunnerName == "" {
 			// This should not happen, but just in case.
@@ -73,7 +78,7 @@ func (w *Worker) HandleJobsStarted(jobs []params.ScaleSetJobMessage) error {
 			RunnerStatus: params.RunnerActive,
 		}
 
-		locking.Lock(job.RunnerName)
+		locking.Lock(job.RunnerName, w.consumerID)
 		_, err := w.store.UpdateInstance(w.ctx, job.RunnerName, updateParams)
 		if err != nil {
 			if errors.Is(err, runnerErrors.ErrNotFound) {

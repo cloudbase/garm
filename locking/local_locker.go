@@ -2,6 +2,9 @@ package locking
 
 import (
 	"context"
+	"fmt"
+	"log/slog"
+	"runtime"
 	"sync"
 	"time"
 
@@ -21,18 +24,29 @@ type keyMutex struct {
 	muxes sync.Map
 }
 
-var _ Locker = &keyMutex{}
-
-func (k *keyMutex) TryLock(key string) bool {
-	mux, _ := k.muxes.LoadOrStore(key, &sync.Mutex{})
-	keyMux := mux.(*sync.Mutex)
-	return keyMux.TryLock()
+type lockWithIdent struct {
+	mux   sync.Mutex
+	ident string
 }
 
-func (k *keyMutex) Lock(key string) {
-	mux, _ := k.muxes.LoadOrStore(key, &sync.Mutex{})
-	keyMux := mux.(*sync.Mutex)
-	keyMux.Lock()
+var _ Locker = &keyMutex{}
+
+func (k *keyMutex) TryLock(key, identifier string) bool {
+	mux, _ := k.muxes.LoadOrStore(key, &lockWithIdent{
+		mux:   sync.Mutex{},
+		ident: identifier,
+	})
+	keyMux := mux.(*lockWithIdent)
+	return keyMux.mux.TryLock()
+}
+
+func (k *keyMutex) Lock(key, identifier string) {
+	mux, _ := k.muxes.LoadOrStore(key, &lockWithIdent{
+		mux:   sync.Mutex{},
+		ident: identifier,
+	})
+	keyMux := mux.(*lockWithIdent)
+	keyMux.mux.Lock()
 }
 
 func (k *keyMutex) Unlock(key string, remove bool) {
@@ -40,11 +54,13 @@ func (k *keyMutex) Unlock(key string, remove bool) {
 	if !ok {
 		return
 	}
-	keyMux := mux.(*sync.Mutex)
+	keyMux := mux.(*lockWithIdent)
 	if remove {
 		k.Delete(key)
 	}
-	keyMux.Unlock()
+	_, filename, line, _ := runtime.Caller(1)
+	slog.Debug("unlocking", "key", key, "identifier", keyMux.ident, "caller", fmt.Sprintf("%s:%d", filename, line))
+	keyMux.mux.Unlock()
 }
 
 func (k *keyMutex) Delete(key string) {

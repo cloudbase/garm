@@ -634,40 +634,6 @@ func (s *sqlDatabase) GetGithubEntity(_ context.Context, entityType params.Githu
 	return entity, nil
 }
 
-func (s *sqlDatabase) AddScaleSetEvent(ctx context.Context, scaleSetID uint, event params.EventType, eventLevel params.EventLevel, statusMessage string, maxEvents int) error {
-	scaleSet, err := s.GetScaleSetByID(ctx, scaleSetID)
-	if err != nil {
-		return errors.Wrap(err, "updating instance")
-	}
-
-	msg := InstanceStatusUpdate{
-		Message:    statusMessage,
-		EventType:  event,
-		EventLevel: eventLevel,
-	}
-
-	if err := s.conn.Model(&scaleSet).Association("Events").Append(&msg); err != nil {
-		return errors.Wrap(err, "adding status message")
-	}
-
-	if maxEvents > 0 {
-		var latestEvents []ScaleSetEvent
-		q := s.conn.Model(&ScaleSetEvent{}).
-			Limit(maxEvents).Order("id desc").
-			Where("scale_set_id = ?", scaleSetID).Find(&latestEvents)
-		if q.Error != nil {
-			return errors.Wrap(q.Error, "fetching latest events")
-		}
-		if len(latestEvents) == maxEvents {
-			lastInList := latestEvents[len(latestEvents)-1]
-			if err := s.conn.Where("scale_set_id = ? and id < ?", scaleSetID, lastInList.ID).Unscoped().Delete(&ScaleSetEvent{}).Error; err != nil {
-				return errors.Wrap(err, "deleting old events")
-			}
-		}
-	}
-	return nil
-}
-
 func (s *sqlDatabase) addRepositoryEvent(ctx context.Context, repoID string, event params.EventType, eventLevel params.EventLevel, statusMessage string, maxEvents int) error {
 	repo, err := s.GetRepositoryByID(ctx, repoID)
 	if err != nil {
