@@ -180,6 +180,7 @@ func maybeUpdateURLsFromConfig(cfg config.Config, store common.Store) error {
 	return nil
 }
 
+//gocyclo:ignore
 func main() {
 	flag.Parse()
 	if *version {

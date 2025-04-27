@@ -446,13 +446,13 @@ func formatScaleSets(scaleSets []params.ScaleSet) {
 		switch {
 		case scaleSet.RepoID != "" && scaleSet.RepoName != "":
 			belongsTo = scaleSet.RepoName
-			level = "repo"
+			level = entityTypeRepo
 		case scaleSet.OrgID != "" && scaleSet.OrgName != "":
 			belongsTo = scaleSet.OrgName
-			level = "org"
+			level = entityTypeOrg
 		case scaleSet.EnterpriseID != "" && scaleSet.EnterpriseName != "":
 			belongsTo = scaleSet.EnterpriseName
-			level = "enterprise"
+			level = entityTypeEnterprise
 		}
 		t.AppendRow(table.Row{scaleSet.ID, scaleSet.Name, scaleSet.Image, scaleSet.Flavor, belongsTo, level, scaleSet.Enabled, scaleSet.GetRunnerPrefix(), scaleSet.ProviderName})
 		t.AppendSeparator()
@@ -476,13 +476,13 @@ func formatOneScaleSet(scaleSet params.ScaleSet) {
 	switch {
 	case scaleSet.RepoID != "" && scaleSet.RepoName != "":
 		belongsTo = scaleSet.RepoName
-		level = "repo"
+		level = entityTypeRepo
 	case scaleSet.OrgID != "" && scaleSet.OrgName != "":
 		belongsTo = scaleSet.OrgName
-		level = "org"
+		level = entityTypeOrg
 	case scaleSet.EnterpriseID != "" && scaleSet.EnterpriseName != "":
 		belongsTo = scaleSet.EnterpriseName
-		level = "enterprise"
+		level = entityTypeEnterprise
 	}
 
 	t.AppendHeader(header)

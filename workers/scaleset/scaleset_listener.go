@@ -123,15 +123,15 @@ func (l *scaleSetListener) handleSessionMessage(msg params.RunnerScaleSetMessage
 	for _, job := range body {
 		switch job.MessageType {
 		case params.MessageTypeJobAssigned:
-			slog.InfoContext(l.ctx, "new job assigned", "job_id", job.RunnerRequestId, "job_name", job.JobDisplayName)
+			slog.InfoContext(l.ctx, "new job assigned", "job_id", job.RunnerRequestID, "job_name", job.JobDisplayName)
 		case params.MessageTypeJobStarted:
-			slog.InfoContext(l.ctx, "job started", "job_id", job.RunnerRequestId, "job_name", job.JobDisplayName, "runner_name", job.RunnerName)
+			slog.InfoContext(l.ctx, "job started", "job_id", job.RunnerRequestID, "job_name", job.JobDisplayName, "runner_name", job.RunnerName)
 			startedJobs = append(startedJobs, job)
 		case params.MessageTypeJobCompleted:
-			slog.InfoContext(l.ctx, "job completed", "job_id", job.RunnerRequestId, "job_name", job.JobDisplayName, "runner_name", job.RunnerName)
+			slog.InfoContext(l.ctx, "job completed", "job_id", job.RunnerRequestID, "job_name", job.JobDisplayName, "runner_name", job.RunnerName)
 			completedJobs = append(completedJobs, job)
 		case params.MessageTypeJobAvailable:
-			slog.InfoContext(l.ctx, "job available", "job_id", job.RunnerRequestId, "job_name", job.JobDisplayName)
+			slog.InfoContext(l.ctx, "job available", "job_id", job.RunnerRequestID, "job_name", job.JobDisplayName)
 			availableJobs = append(availableJobs, job)
 		default:
 			slog.DebugContext(l.ctx, "unknown message type", "message_type", job.MessageType)
@@ -139,13 +139,13 @@ func (l *scaleSetListener) handleSessionMessage(msg params.RunnerScaleSetMessage
 	}
 
 	if len(availableJobs) > 0 {
-		jobIds := make([]int64, len(availableJobs))
+		jobIDs := make([]int64, len(availableJobs))
 		for idx, job := range availableJobs {
-			jobIds[idx] = job.RunnerRequestId
+			jobIDs[idx] = job.RunnerRequestID
 		}
 		idsAcquired, err := l.scaleSetHelper.ScaleSetCLI().AcquireJobs(
 			l.listenerCtx, l.scaleSetHelper.GetScaleSet().ScaleSetID,
-			l.messageSession.MessageQueueAccessToken(), jobIds)
+			l.messageSession.MessageQueueAccessToken(), jobIDs)
 		if err != nil {
 			// don't mark message as processed. It will be requeued.
 			slog.ErrorContext(l.ctx, "acquiring jobs", "error", err)
@@ -201,7 +201,8 @@ func (l *scaleSetListener) loop() {
 			return
 		default:
 			slog.DebugContext(l.ctx, "getting message", "last_message_id", l.lastMessageID, "max_runners", l.scaleSetHelper.GetScaleSet().MaxRunners)
-			// TODO: consume initial message on startup and consolidate.
+			// nolint:golangci-lint,godox
+			// TODO(gabriel-samfira): consume initial message on startup and consolidate.
 			// The scale set may have undergone several messages while GARM was
 			// down.
 			msg, err := l.messageSession.GetMessage(

@@ -140,7 +140,7 @@ type ScaleSetsStore interface {
 	ListAllScaleSets(ctx context.Context) ([]params.ScaleSet, error)
 	CreateEntityScaleSet(_ context.Context, entity params.GithubEntity, param params.CreateScaleSetParams) (scaleSet params.ScaleSet, err error)
 	ListEntityScaleSets(_ context.Context, entity params.GithubEntity) ([]params.ScaleSet, error)
-	UpdateEntityScaleSet(_ context.Context, entity params.GithubEntity, scaleSetID uint, param params.UpdateScaleSetParams, callback func(old, new params.ScaleSet) error) (updatedScaleSet params.ScaleSet, err error)
+	UpdateEntityScaleSet(_ context.Context, entity params.GithubEntity, scaleSetID uint, param params.UpdateScaleSetParams, callback func(old, newSet params.ScaleSet) error) (updatedScaleSet params.ScaleSet, err error)
 	GetScaleSetByID(ctx context.Context, scaleSet uint) (params.ScaleSet, error)
 	DeleteScaleSetByID(ctx context.Context, scaleSetID uint) (err error)
 	SetScaleSetLastMessageID(ctx context.Context, scaleSetID uint, lastMessageID int64) error

@@ -88,8 +88,8 @@ func (c *Controller) handleScaleSetCreateOperation(sSet params.ScaleSet, ghCli c
 	}
 	c.ScaleSets[sSet.ID] = &scaleSet{
 		scaleSet: sSet,
-		status:   scaleSetStatus{},
-		worker:   worker,
+		// status:   scaleSetStatus{},
+		worker: worker,
 	}
 	return nil
 }
@@ -117,7 +117,7 @@ func (c *Controller) handleScaleSetUpdateOperation(sSet params.ScaleSet) error {
 	defer c.mux.Unlock()
 
 	if _, ok := c.ScaleSets[sSet.ID]; !ok {
-		// Some error may have occured when the scale set was first created, so we
+		// Some error may have occurred when the scale set was first created, so we
 		// attempt to create it after the user updated the scale set, hopefully
 		// fixing the reason for the failure.
 		return c.handleScaleSetCreateOperation(sSet, c.ghCli)

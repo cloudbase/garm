@@ -10,7 +10,6 @@ import (
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
-
 	"github.com/cloudbase/garm/cache"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/params"
@@ -18,7 +17,7 @@ import (
 	garmUtil "github.com/cloudbase/garm/util"
 )
 
-func NewInstanceManager(ctx context.Context, instance params.Instance, scaleSet params.ScaleSet, provider common.Provider, helper providerHelper) (*instanceManager, error) {
+func newInstanceManager(ctx context.Context, instance params.Instance, scaleSet params.ScaleSet, provider common.Provider, helper providerHelper) (*instanceManager, error) {
 	ctx = garmUtil.WithSlogContext(ctx, slog.Any("instance", instance.Name))
 
 	githubEntity, err := scaleSet.GetEntity()
@@ -146,7 +145,6 @@ func (i *instanceManager) pseudoPoolID() string {
 }
 
 func (i *instanceManager) handleCreateInstanceInProvider(instance params.Instance) error {
-	// TODO(gabriel-samfira): implement the creation of the instance in the provider.
 	entity, err := i.getEntity()
 	if err != nil {
 		return fmt.Errorf("getting entity: %w", err)

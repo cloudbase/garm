@@ -17,7 +17,7 @@ type providerHelper interface {
 	GetGithubEntity(entity params.GithubEntity) (params.GithubEntity, error)
 }
 
-func (p *provider) updateArgsFromProviderInstance(instanceName string, providerInstance commonParams.ProviderInstance) (params.Instance, error) {
+func (p *Provider) updateArgsFromProviderInstance(instanceName string, providerInstance commonParams.ProviderInstance) (params.Instance, error) {
 	updateParams := params.UpdateInstanceParams{
 		ProviderID:    providerInstance.ProviderID,
 		OSName:        providerInstance.OSName,
@@ -34,7 +34,7 @@ func (p *provider) updateArgsFromProviderInstance(instanceName string, providerI
 	return updated, nil
 }
 
-func (p *provider) GetControllerInfo() (params.ControllerInfo, error) {
+func (p *Provider) GetControllerInfo() (params.ControllerInfo, error) {
 	p.mux.Lock()
 	defer p.mux.Unlock()
 
@@ -46,7 +46,7 @@ func (p *provider) GetControllerInfo() (params.ControllerInfo, error) {
 	return info, nil
 }
 
-func (p *provider) SetInstanceStatus(instanceName string, status commonParams.InstanceStatus, providerFault []byte) error {
+func (p *Provider) SetInstanceStatus(instanceName string, status commonParams.InstanceStatus, providerFault []byte) error {
 	p.mux.Lock()
 	defer p.mux.Unlock()
 
@@ -67,11 +67,11 @@ func (p *provider) SetInstanceStatus(instanceName string, status commonParams.In
 	return nil
 }
 
-func (p *provider) InstanceTokenGetter() auth.InstanceTokenGetter {
+func (p *Provider) InstanceTokenGetter() auth.InstanceTokenGetter {
 	return p.tokenGetter
 }
 
-func (p *provider) GetGithubEntity(entity params.GithubEntity) (params.GithubEntity, error) {
+func (p *Provider) GetGithubEntity(entity params.GithubEntity) (params.GithubEntity, error) {
 	ghEntity, err := p.store.GetGithubEntity(p.ctx, entity.EntityType, entity.ID)
 	if err != nil {
 		return params.GithubEntity{}, fmt.Errorf("getting github entity: %w", err)

@@ -18,13 +18,14 @@ import (
 	"context"
 	"fmt"
 
-	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
-	"github.com/cloudbase/garm/database/common"
-	"github.com/cloudbase/garm/params"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
+
+	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	"github.com/cloudbase/garm/database/common"
+	"github.com/cloudbase/garm/params"
 )
 
 func (s *sqlDatabase) ListAllScaleSets(_ context.Context) ([]params.ScaleSet, error) {
@@ -136,13 +137,13 @@ func (s *sqlDatabase) listEntityScaleSets(tx *gorm.DB, entityType params.GithubE
 	switch entityType {
 	case params.GithubEntityTypeRepository:
 		fieldName = entityTypeRepoName
-		preloadEntity = "Repository"
+		preloadEntity = repositoryFieldName
 	case params.GithubEntityTypeOrganization:
 		fieldName = entityTypeOrgName
-		preloadEntity = "Organization"
+		preloadEntity = organizationFieldName
 	case params.GithubEntityTypeEnterprise:
 		fieldName = entityTypeEnterpriseName
-		preloadEntity = "Enterprise"
+		preloadEntity = enterpriseFieldName
 	default:
 		return nil, fmt.Errorf("invalid entityType: %v", entityType)
 	}
@@ -189,7 +190,7 @@ func (s *sqlDatabase) ListEntityScaleSets(_ context.Context, entity params.Githu
 	return ret, nil
 }
 
-func (s *sqlDatabase) UpdateEntityScaleSet(_ context.Context, entity params.GithubEntity, scaleSetID uint, param params.UpdateScaleSetParams, callback func(old, new params.ScaleSet) error) (updatedScaleSet params.ScaleSet, err error) {
+func (s *sqlDatabase) UpdateEntityScaleSet(_ context.Context, entity params.GithubEntity, scaleSetID uint, param params.UpdateScaleSetParams, callback func(old, newSet params.ScaleSet) error) (updatedScaleSet params.ScaleSet, err error) {
 	defer func() {
 		if err == nil {
 			s.sendNotify(common.ScaleSetEntityType, common.UpdateOperation, updatedScaleSet)
@@ -348,7 +349,7 @@ func (s *sqlDatabase) GetScaleSetByID(_ context.Context, scaleSet uint) (params.
 	return s.sqlToCommonScaleSet(set)
 }
 
-func (s *sqlDatabase) DeleteScaleSetByID(ctx context.Context, scaleSetID uint) (err error) {
+func (s *sqlDatabase) DeleteScaleSetByID(_ context.Context, scaleSetID uint) (err error) {
 	var scaleSet params.ScaleSet
 	defer func() {
 		if err == nil && scaleSet.ID != 0 {
@@ -380,7 +381,7 @@ func (s *sqlDatabase) DeleteScaleSetByID(ctx context.Context, scaleSetID uint) (
 	return nil
 }
 
-func (s *sqlDatabase) SetScaleSetLastMessageID(ctx context.Context, scaleSetID uint, lastMessageID int64) (err error) {
+func (s *sqlDatabase) SetScaleSetLastMessageID(_ context.Context, scaleSetID uint, lastMessageID int64) (err error) {
 	var scaleSet params.ScaleSet
 	defer func() {
 		if err == nil && scaleSet.ID != 0 {
@@ -407,7 +408,7 @@ func (s *sqlDatabase) SetScaleSetLastMessageID(ctx context.Context, scaleSetID u
 	return nil
 }
 
-func (s *sqlDatabase) SetScaleSetDesiredRunnerCount(ctx context.Context, scaleSetID uint, desiredRunnerCount int) (err error) {
+func (s *sqlDatabase) SetScaleSetDesiredRunnerCount(_ context.Context, scaleSetID uint, desiredRunnerCount int) (err error) {
 	var scaleSet params.ScaleSet
 	defer func() {
 		if err == nil && scaleSet.ID != 0 {

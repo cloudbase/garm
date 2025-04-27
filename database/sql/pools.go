@@ -101,13 +101,13 @@ func (s *sqlDatabase) getEntityPool(tx *gorm.DB, entityType params.GithubEntityT
 	switch entityType {
 	case params.GithubEntityTypeRepository:
 		fieldName = entityTypeRepoName
-		entityField = "Repository"
+		entityField = repositoryFieldName
 	case params.GithubEntityTypeOrganization:
 		fieldName = entityTypeOrgName
-		entityField = "Organization"
+		entityField = organizationFieldName
 	case params.GithubEntityTypeEnterprise:
 		fieldName = entityTypeEnterpriseName
-		entityField = "Enterprise"
+		entityField = enterpriseFieldName
 	default:
 		return Pool{}, fmt.Errorf("invalid entityType: %v", entityType)
 	}

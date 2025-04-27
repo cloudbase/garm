@@ -7,7 +7,6 @@ import (
 	"sync"
 
 	commonParams "github.com/cloudbase/garm-provider-common/params"
-
 	"github.com/cloudbase/garm/auth"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/database/watcher"
@@ -15,9 +14,9 @@ import (
 	"github.com/cloudbase/garm/runner/common"
 )
 
-func NewWorker(ctx context.Context, store dbCommon.Store, providers map[string]common.Provider, tokenGetter auth.InstanceTokenGetter) (*provider, error) {
+func NewWorker(ctx context.Context, store dbCommon.Store, providers map[string]common.Provider, tokenGetter auth.InstanceTokenGetter) (*Provider, error) {
 	consumerID := "provider-worker"
-	return &provider{
+	return &Provider{
 		ctx:         context.Background(),
 		store:       store,
 		consumerID:  consumerID,
@@ -28,11 +27,12 @@ func NewWorker(ctx context.Context, store dbCommon.Store, providers map[string]c
 	}, nil
 }
 
-type provider struct {
+type Provider struct {
 	ctx        context.Context
 	consumerID string
 
 	consumer dbCommon.Consumer
+	// nolint:golangci-lint,godox
 	// TODO: not all workers should have access to the store.
 	// We need to implement way to RPC from workers to controllers
 	// and abstract that into something we can use to eventually
@@ -51,7 +51,7 @@ type provider struct {
 	quit    chan struct{}
 }
 
-func (p *provider) loadAllScaleSets() error {
+func (p *Provider) loadAllScaleSets() error {
 	scaleSets, err := p.store.ListAllScaleSets(p.ctx)
 	if err != nil {
 		return fmt.Errorf("fetching scale sets: %w", err)
@@ -67,7 +67,7 @@ func (p *provider) loadAllScaleSets() error {
 // loadAllRunners loads all runners from the database. At this stage we only
 // care about runners created by scale sets, but in the future, we will migrate
 // the pool manager to the same model.
-func (p *provider) loadAllRunners() error {
+func (p *Provider) loadAllRunners() error {
 	runners, err := p.store.ListAllInstances(p.ctx)
 	if err != nil {
 		return fmt.Errorf("fetching runners: %w", err)
@@ -102,7 +102,7 @@ func (p *provider) loadAllRunners() error {
 			slog.ErrorContext(p.ctx, "provider not found", "provider_name", runner.ProviderName)
 			continue
 		}
-		instanceManager, err := NewInstanceManager(
+		instanceManager, err := newInstanceManager(
 			p.ctx, runner, scaleSet, provider, p)
 		if err != nil {
 			return fmt.Errorf("creating instance manager: %w", err)
@@ -117,7 +117,7 @@ func (p *provider) loadAllRunners() error {
 	return nil
 }
 
-func (p *provider) Start() error {
+func (p *Provider) Start() error {
 	p.mux.Lock()
 	defer p.mux.Unlock()
 
@@ -147,7 +147,7 @@ func (p *provider) Start() error {
 	return nil
 }
 
-func (p *provider) Stop() error {
+func (p *Provider) Stop() error {
 	p.mux.Lock()
 	defer p.mux.Unlock()
 
@@ -161,7 +161,7 @@ func (p *provider) Stop() error {
 	return nil
 }
 
-func (p *provider) loop() {
+func (p *Provider) loop() {
 	defer p.Stop()
 	for {
 		select {
@@ -180,7 +180,7 @@ func (p *provider) loop() {
 	}
 }
 
-func (p *provider) handleWatcherEvent(payload dbCommon.ChangePayload) {
+func (p *Provider) handleWatcherEvent(payload dbCommon.ChangePayload) {
 	switch payload.EntityType {
 	case dbCommon.ScaleSetEntityType:
 		p.handleScaleSetEvent(payload)
@@ -191,7 +191,7 @@ func (p *provider) handleWatcherEvent(payload dbCommon.ChangePayload) {
 	}
 }
 
-func (p *provider) handleScaleSetEvent(event dbCommon.ChangePayload) {
+func (p *Provider) handleScaleSetEvent(event dbCommon.ChangePayload) {
 	p.mux.Lock()
 	defer p.mux.Unlock()
 
@@ -214,12 +214,12 @@ func (p *provider) handleScaleSetEvent(event dbCommon.ChangePayload) {
 	}
 }
 
-func (p *provider) handleInstanceAdded(instance params.Instance) error {
+func (p *Provider) handleInstanceAdded(instance params.Instance) error {
 	scaleSet, ok := p.scaleSets[instance.ScaleSetID]
 	if !ok {
 		return fmt.Errorf("scale set not found for instance %s", instance.Name)
 	}
-	instanceManager, err := NewInstanceManager(
+	instanceManager, err := newInstanceManager(
 		p.ctx, instance, scaleSet, p.providers[instance.ProviderName], p)
 	if err != nil {
 		return fmt.Errorf("creating instance manager: %w", err)
@@ -231,7 +231,7 @@ func (p *provider) handleInstanceAdded(instance params.Instance) error {
 	return nil
 }
 
-func (p *provider) handleInstanceEvent(event dbCommon.ChangePayload) {
+func (p *Provider) handleInstanceEvent(event dbCommon.ChangePayload) {
 	p.mux.Lock()
 	defer p.mux.Unlock()
 

@@ -58,7 +58,8 @@ func (r *Runner) GetRunnerServiceName(ctx context.Context) (string, error) {
 	}
 	var entity params.GithubEntity
 
-	if instance.PoolID != "" {
+	switch {
+	case instance.PoolID != "":
 		pool, err := r.store.GetPoolByID(r.ctx, instance.PoolID)
 		if err != nil {
 			slog.With(slog.Any("error", err)).ErrorContext(
@@ -73,7 +74,7 @@ func (r *Runner) GetRunnerServiceName(ctx context.Context) (string, error) {
 				"pool_id", instance.PoolID)
 			return "", errors.Wrap(err, "fetching pool entity")
 		}
-	} else if instance.ScaleSetID != 0 {
+	case instance.ScaleSetID != 0:
 		scaleSet, err := r.store.GetScaleSetByID(r.ctx, instance.ScaleSetID)
 		if err != nil {
 			slog.With(slog.Any("error", err)).ErrorContext(
@@ -88,7 +89,7 @@ func (r *Runner) GetRunnerServiceName(ctx context.Context) (string, error) {
 				"scale_set_id", instance.ScaleSetID)
 			return "", errors.Wrap(err, "fetching scale set entity")
 		}
-	} else {
+	default:
 		return "", errors.New("instance not associated with a pool or scale set")
 	}
 

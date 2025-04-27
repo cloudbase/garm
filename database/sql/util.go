@@ -753,8 +753,7 @@ func (s *sqlDatabase) AddEntityEvent(ctx context.Context, entity params.GithubEn
 	if maxEvents == 0 {
 		return errors.Wrap(runnerErrors.ErrBadRequest, "max events cannot be 0")
 	}
-	// TODO(gabriel-samfira): Should we send watcher notifications for events?
-	// Not sure it's of any value.
+
 	switch entity.EntityType {
 	case params.GithubEntityTypeRepository:
 		return s.addRepositoryEvent(ctx, entity.ID, event, eventLevel, statusMessage, maxEvents)

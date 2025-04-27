@@ -20,13 +20,14 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/pkg/errors"
+
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/util/appdefaults"
 	"github.com/cloudbase/garm/util/github"
 	"github.com/cloudbase/garm/util/github/scalesets"
-	"github.com/pkg/errors"
 )
 
 func (r *Runner) ListAllScaleSets(ctx context.Context) ([]params.ScaleSet, error) {
@@ -152,7 +153,7 @@ func (r *Runner) UpdateScaleSetByID(ctx context.Context, scaleSetID uint, param 
 		return params.ScaleSet{}, errors.Wrap(err, "creating github client")
 	}
 
-	callback := func(old, new params.ScaleSet) error {
+	callback := func(old, newSet params.ScaleSet) error {
 		scalesetCli, err := scalesets.NewClient(ghCli)
 		if err != nil {
 			return errors.Wrap(err, "getting scaleset client")
@@ -160,13 +161,13 @@ func (r *Runner) UpdateScaleSetByID(ctx context.Context, scaleSetID uint, param 
 
 		updateParams := params.RunnerScaleSet{}
 		hasUpdates := false
-		if old.Name != new.Name {
-			updateParams.Name = new.Name
+		if old.Name != newSet.Name {
+			updateParams.Name = newSet.Name
 			hasUpdates = true
 		}
 
-		if old.GitHubRunnerGroup != new.GitHubRunnerGroup {
-			runnerGroup, err := scalesetCli.GetRunnerGroupByName(ctx, new.GitHubRunnerGroup)
+		if old.GitHubRunnerGroup != newSet.GitHubRunnerGroup {
+			runnerGroup, err := scalesetCli.GetRunnerGroupByName(ctx, newSet.GitHubRunnerGroup)
 			if err != nil {
 				return fmt.Errorf("error fetching runner group from github: %w", err)
 			}
@@ -174,13 +175,13 @@ func (r *Runner) UpdateScaleSetByID(ctx context.Context, scaleSetID uint, param 
 			hasUpdates = true
 		}
 
-		if old.DisableUpdate != new.DisableUpdate {
-			updateParams.RunnerSetting.DisableUpdate = new.DisableUpdate
+		if old.DisableUpdate != newSet.DisableUpdate {
+			updateParams.RunnerSetting.DisableUpdate = newSet.DisableUpdate
 			hasUpdates = true
 		}
 
 		if hasUpdates {
-			result, err := scalesetCli.UpdateRunnerScaleSet(ctx, new.ScaleSetID, updateParams)
+			result, err := scalesetCli.UpdateRunnerScaleSet(ctx, newSet.ScaleSetID, updateParams)
 			if err != nil {
 				return fmt.Errorf("failed to update scaleset in github: %w", err)
 			}
@@ -224,7 +225,7 @@ func (r *Runner) CreateEntityScaleSet(ctx context.Context, entityType params.Git
 	if err != nil {
 		return params.ScaleSet{}, errors.Wrap(err, "getting scaleset client")
 	}
-	var runnerGroupID int = 1
+	runnerGroupID := 1
 	if param.GitHubRunnerGroup != "Default" {
 		runnerGroup, err := scalesetCli.GetRunnerGroupByName(ctx, param.GitHubRunnerGroup)
 		if err != nil {

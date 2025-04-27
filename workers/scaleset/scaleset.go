@@ -10,7 +10,6 @@ import (
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
-
 	"github.com/cloudbase/garm-provider-common/util"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/database/watcher"
@@ -127,8 +126,9 @@ func (w *Worker) Start() (err error) {
 					if !errors.Is(err, runnerErrors.ErrNotFound) {
 						if errors.Is(err, runnerErrors.ErrUnauthorized) {
 							// we don't have access to remove the runner. This implies that our
-							// credentials may have expired or ar incorect.
+							// credentials may have expired or ar incorrect.
 							//
+							// nolint:golangci-lint,godox
 							// TODO(gabriel-samfira): we need to set the scale set as inactive and stop the listener (if any).
 							slog.ErrorContext(w.ctx, "error removing runner", "runner_name", instance.Name, "error", err)
 							w.runners[instance.ID] = instance
@@ -282,6 +282,7 @@ func (w *Worker) handleScaleSetEvent(event dbCommon.ChangePayload) {
 				slog.ErrorContext(w.ctx, "error stopping listener", "error", err)
 			}
 		}
+		// nolint:golangci-lint,godox
 		// TODO: should we kick off auto-scaling if desired runner count changes?
 		w.scaleSet = scaleSet
 		w.mux.Unlock()
@@ -345,6 +346,7 @@ func (w *Worker) handleInstanceEntityEvent(event dbCommon.ChangePayload) {
 				return
 			}
 			if status != string(params.RunnerIdle) && status != string(params.RunnerActive) {
+				// nolint:golangci-lint,godox
 				// TODO: Wait for the status to change for a while (30 seconds?). Mark the instance as
 				// pending_delete if the runner never comes online.
 				w.mux.Unlock()
@@ -440,7 +442,7 @@ func (w *Worker) keepListenerAlive() {
 			w.mux.Unlock()
 			for {
 				w.mux.Lock()
-				w.listener.Stop() //cleanup
+				w.listener.Stop() // cleanup
 				if !w.scaleSet.Enabled {
 					w.mux.Unlock()
 					break
@@ -449,12 +451,13 @@ func (w *Worker) keepListenerAlive() {
 				if err := w.listener.Start(); err != nil {
 					w.mux.Unlock()
 					slog.ErrorContext(w.ctx, "error restarting listener", "error", err)
-					if backoff > 60*time.Second {
+					switch {
+					case backoff > 60*time.Second:
 						backoff = 60 * time.Second
-					} else if backoff == 0 {
+					case backoff == 0:
 						backoff = 5 * time.Second
 						slog.InfoContext(w.ctx, "backing off restart attempt", "backoff", backoff)
-					} else {
+					default:
 						backoff *= 2
 					}
 					slog.ErrorContext(w.ctx, "error restarting listener", "error", err, "backoff", backoff)
@@ -512,7 +515,7 @@ func (w *Worker) handleScaleUp(target, current uint) {
 			CreateAttempt:     1,
 			GitHubRunnerGroup: w.scaleSet.GitHubRunnerGroup,
 			JitConfiguration:  decodedJit,
-			AgentID:           int64(jitConfig.Runner.ID),
+			AgentID:           jitConfig.Runner.ID,
 		}
 
 		if _, err := w.store.CreateScaleSetInstance(w.ctx, w.scaleSet.ID, runnerParams); err != nil {
@@ -618,6 +621,7 @@ func (w *Worker) handleScaleDown(target, current uint) {
 				locking.Unlock(runner.Name, true)
 				continue
 			}
+			// nolint:golangci-lint,godox
 			// TODO: This should not happen, unless there is some issue with the database.
 			// The UpdateInstance() function should add tenacity, but even in that case, if it
 			// still errors out, we need to handle it somehow.

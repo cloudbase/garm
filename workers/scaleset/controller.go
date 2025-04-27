@@ -9,7 +9,6 @@ import (
 	"time"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
-
 	"github.com/cloudbase/garm/cache"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/database/watcher"
@@ -20,7 +19,6 @@ import (
 )
 
 func NewController(ctx context.Context, store dbCommon.Store, entity params.GithubEntity, providers map[string]common.Provider) (*Controller, error) {
-
 	consumerID := fmt.Sprintf("scaleset-worker-%s", entity.String())
 
 	ctx = garmUtil.WithSlogContext(
@@ -28,29 +26,20 @@ func NewController(ctx context.Context, store dbCommon.Store, entity params.Gith
 		slog.Any("worker", consumerID))
 
 	return &Controller{
-		ctx:           ctx,
-		consumerID:    consumerID,
-		ScaleSets:     make(map[uint]*scaleSet),
-		Entity:        entity,
-		providers:     providers,
-		store:         store,
-		statusUpdates: make(chan scaleSetStatus, 10),
+		ctx:        ctx,
+		consumerID: consumerID,
+		ScaleSets:  make(map[uint]*scaleSet),
+		Entity:     entity,
+		providers:  providers,
+		store:      store,
 	}, nil
 }
 
 type scaleSet struct {
 	scaleSet params.ScaleSet
-	status   scaleSetStatus
 	worker   *Worker
 
 	mux sync.Mutex
-}
-
-func (s *scaleSet) updateStatus(status scaleSetStatus) {
-	s.mux.Lock()
-	defer s.mux.Unlock()
-
-	s.status = status
 }
 
 func (s *scaleSet) Stop() error {
@@ -79,8 +68,6 @@ type Controller struct {
 
 	ghCli              common.GithubClient
 	forgeCredsAreValid bool
-
-	statusUpdates chan scaleSetStatus
 
 	mux     sync.Mutex
 	running bool
@@ -162,8 +149,6 @@ func (c *Controller) Stop() error {
 	c.running = false
 	close(c.quit)
 	c.quit = nil
-	close(c.statusUpdates)
-	c.statusUpdates = nil
 	c.consumer.Close()
 
 	return nil
@@ -180,6 +165,7 @@ func (c *Controller) updateTools() error {
 		slog.With(slog.Any("error", err)).ErrorContext(
 			c.ctx, "failed to update tools for entity", "entity", c.Entity.String())
 		if errors.Is(err, runnerErrors.ErrUnauthorized) {
+			// nolint:golangci-lint,godox
 			// TODO: block all scale sets
 			c.forgeCredsAreValid = false
 		}
@@ -189,21 +175,6 @@ func (c *Controller) updateTools() error {
 	c.forgeCredsAreValid = true
 	cache.SetGithubToolsCache(c.Entity, tools)
 	return nil
-}
-
-func (c *Controller) handleScaleSetStatusUpdates(status scaleSetStatus) {
-	if status.scaleSet.ID == 0 {
-		slog.DebugContext(c.ctx, "invalid scale set ID; ignoring")
-		return
-	}
-
-	scaleSet, ok := c.ScaleSets[status.scaleSet.ID]
-	if !ok {
-		slog.DebugContext(c.ctx, "scale set not found; ignoring")
-		return
-	}
-
-	scaleSet.updateStatus(status)
 }
 
 func (c *Controller) loop() {
@@ -231,11 +202,6 @@ func (c *Controller) loop() {
 		case <-c.ctx.Done():
 			return
 		case <-initialToolUpdate:
-		case update, ok := <-c.statusUpdates:
-			if !ok {
-				return
-			}
-			go c.handleScaleSetStatusUpdates(update)
 		case _, ok := <-updateToolsTicker.C:
 			if !ok {
 				slog.InfoContext(c.ctx, "update tools ticker closed")

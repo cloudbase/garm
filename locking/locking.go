@@ -8,6 +8,7 @@ import (
 )
 
 var locker Locker
+
 var lockerMux = sync.Mutex{}
 
 func TryLock(key, identifier string) (ok bool, err error) {

@@ -2,7 +2,6 @@ package watcher
 
 import (
 	commonParams "github.com/cloudbase/garm-provider-common/params"
-
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/params"
 )

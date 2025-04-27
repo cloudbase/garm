@@ -2,7 +2,6 @@ package locking
 
 import "time"
 
-// TODO(gabriel-samfira): needs owner attribute.
 type Locker interface {
 	TryLock(key, identifier string) bool
 	Lock(key, identifier string)

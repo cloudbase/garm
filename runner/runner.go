@@ -857,11 +857,12 @@ func (r *Runner) DeleteRunner(ctx context.Context, instanceName string, forceDel
 	}
 
 	if instance.AgentID != 0 {
-		if instance.ScaleSetID != 0 {
+		switch {
+		case instance.ScaleSetID != 0:
 			err = ssCli.RemoveRunner(ctx, instance.AgentID)
-		} else if instance.PoolID != "" {
+		case instance.PoolID != "":
 			err = ghCli.RemoveEntityRunner(ctx, instance.AgentID)
-		} else {
+		default:
 			return errors.New("instance does not have a pool or scale set")
 		}
 
@@ -901,20 +902,23 @@ func (r *Runner) DeleteRunner(ctx context.Context, instanceName string, forceDel
 }
 
 func (r *Runner) getGHCliFromInstance(ctx context.Context, instance params.Instance) (common.GithubClient, *scalesets.ScaleSetClient, error) {
+	// nolint:golangci-lint,godox
 	// TODO(gabriel-samfira): We can probably cache the entity.
 	var entityGetter params.EntityGetter
 	var err error
-	if instance.PoolID != "" {
+
+	switch {
+	case instance.PoolID != "":
 		entityGetter, err = r.store.GetPoolByID(ctx, instance.PoolID)
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "fetching pool")
 		}
-	} else if instance.ScaleSetID != 0 {
+	case instance.ScaleSetID != 0:
 		entityGetter, err = r.store.GetScaleSetByID(ctx, instance.ScaleSetID)
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "fetching scale set")
 		}
-	} else {
+	default:
 		return nil, nil, errors.New("instance does not have a pool or scale set")
 	}
 

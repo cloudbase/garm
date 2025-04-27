@@ -3,9 +3,10 @@ package sql
 import (
 	"context"
 
+	"github.com/pkg/errors"
+
 	"github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/params"
-	"github.com/pkg/errors"
 )
 
 func (s *sqlDatabase) CreateScaleSetInstance(_ context.Context, scaleSetID uint, param params.CreateInstanceParams) (instance params.Instance, err error) {

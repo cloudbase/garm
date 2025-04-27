@@ -40,9 +40,6 @@ type Worker struct {
 	Entity             params.GithubEntity
 	providers          map[string]common.Provider
 	scaleSetController *scaleset.Controller
-	// TODO(gabriel-samfira): replace current pool manager with something similar
-	// to the scale set controller.
-	// poolManager *pool.Controller
 
 	mux     sync.Mutex
 	running bool

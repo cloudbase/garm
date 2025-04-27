@@ -140,7 +140,6 @@ func (c *Controller) Start() error {
 		c.ctx, c.consumerID,
 		composeControllerWatcherFilters(),
 	)
-
 	if err != nil {
 		return fmt.Errorf("failed to create consumer for entity controller: %w", err)
 	}

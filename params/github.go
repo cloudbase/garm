@@ -488,12 +488,12 @@ type RunnerGroupList struct {
 
 type ScaleSetJobMessage struct {
 	MessageType        string    `json:"messageType,omitempty"`
-	RunnerRequestId    int64     `json:"runnerRequestId,omitempty"`
+	RunnerRequestID    int64     `json:"runnerRequestId,omitempty"`
 	RepositoryName     string    `json:"repositoryName,omitempty"`
 	OwnerName          string    `json:"ownerName,omitempty"`
 	JobWorkflowRef     string    `json:"jobWorkflowRef,omitempty"`
 	JobDisplayName     string    `json:"jobDisplayName,omitempty"`
-	WorkflowRunId      int64     `json:"workflowRunId,omitempty"`
+	WorkflowRunID      int64     `json:"workflowRunId,omitempty"`
 	EventName          string    `json:"eventName,omitempty"`
 	RequestLabels      []string  `json:"requestLabels,omitempty"`
 	QueueTime          time.Time `json:"queueTime,omitempty"`
@@ -501,7 +501,7 @@ type ScaleSetJobMessage struct {
 	RunnerAssignTime   time.Time `json:"runnerAssignTime,omitempty"`
 	FinishTime         time.Time `json:"finishTime,omitempty"`
 	Result             string    `json:"result,omitempty"`
-	RunnerId           int       `json:"runnerId,omitempty"`
+	RunnerID           int       `json:"runnerId,omitempty"`
 	RunnerName         string    `json:"runnerName,omitempty"`
-	AcquireJobUrl      string    `json:"acquireJobUrl,omitempty"`
+	AcquireJobURL      string    `json:"acquireJobUrl,omitempty"`
 }

@@ -41,12 +41,12 @@ func (s *ScaleSetClient) GenerateJitRunnerConfig(ctx context.Context, runnerName
 		return params.RunnerScaleSetJitRunnerConfig{}, err
 	}
 
-	serviceUrl, err := s.actionsServiceInfo.GetURL()
+	serviceURL, err := s.actionsServiceInfo.GetURL()
 	if err != nil {
 		return params.RunnerScaleSetJitRunnerConfig{}, fmt.Errorf("failed to get pipeline URL: %w", err)
 	}
 	jitConfigPath := fmt.Sprintf("/%s/%d/generatejitconfig", scaleSetEndpoint, scaleSetID)
-	jitConfigURL := serviceUrl.JoinPath(jitConfigPath)
+	jitConfigURL := serviceURL.JoinPath(jitConfigPath)
 
 	req, err := s.newActionsRequest(ctx, http.MethodPost, jitConfigURL.String(), bytes.NewBuffer(body))
 	if err != nil {
