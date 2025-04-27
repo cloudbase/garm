@@ -156,13 +156,20 @@ func (s *sqlDatabase) DeleteInstance(_ context.Context, poolID string, instanceN
 			if instance.ProviderID != nil {
 				providerID = *instance.ProviderID
 			}
-			if notifyErr := s.sendNotify(common.InstanceEntityType, common.DeleteOperation, params.Instance{
+			instanceNotif := params.Instance{
 				ID:         instance.ID.String(),
 				Name:       instance.Name,
 				ProviderID: providerID,
 				AgentID:    instance.AgentID,
-				PoolID:     instance.PoolID.String(),
-			}); notifyErr != nil {
+			}
+			switch {
+			case instance.PoolID != nil:
+				instanceNotif.PoolID = instance.PoolID.String()
+			case instance.ScaleSetFkID != nil:
+				instanceNotif.ScaleSetID = *instance.ScaleSetFkID
+			}
+
+			if notifyErr := s.sendNotify(common.InstanceEntityType, common.DeleteOperation, instanceNotif); notifyErr != nil {
 				slog.With(slog.Any("error", notifyErr)).Error("failed to send notify")
 			}
 		}
@@ -313,7 +320,7 @@ func (s *sqlDatabase) ListPoolInstances(_ context.Context, poolID string) ([]par
 	}
 
 	var instances []Instance
-	query := s.conn.Model(&Instance{}).Preload("Job", "Pool").Where("pool_id = ?", u)
+	query := s.conn.Model(&Instance{}).Preload("Job").Where("pool_id = ?", u)
 
 	if err := query.Find(&instances); err.Error != nil {
 		return nil, errors.Wrap(err.Error, "fetching instances")
