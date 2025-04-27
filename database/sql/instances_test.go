@@ -277,6 +277,23 @@ func (s *InstancesTestSuite) TestDeleteInstance() {
 
 	_, err = s.Store.GetPoolInstanceByName(s.adminCtx, s.Fixtures.Pool.ID, storeInstance.Name)
 	s.Require().Equal("fetching instance: fetching pool instance by name: not found", err.Error())
+
+	err = s.Store.DeleteInstance(s.adminCtx, s.Fixtures.Pool.ID, storeInstance.Name)
+	s.Require().Nil(err)
+}
+
+func (s *InstancesTestSuite) TestDeleteInstanceByName() {
+	storeInstance := s.Fixtures.Instances[0]
+
+	err := s.Store.DeleteInstanceByName(s.adminCtx, storeInstance.Name)
+
+	s.Require().Nil(err)
+
+	_, err = s.Store.GetPoolInstanceByName(s.adminCtx, s.Fixtures.Pool.ID, storeInstance.Name)
+	s.Require().Equal("fetching instance: fetching pool instance by name: not found", err.Error())
+
+	err = s.Store.DeleteInstanceByName(s.adminCtx, storeInstance.Name)
+	s.Require().Nil(err)
 }
 
 func (s *InstancesTestSuite) TestDeleteInstanceInvalidPoolID() {

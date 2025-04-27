@@ -147,6 +147,9 @@ func (s *sqlDatabase) GetInstanceByName(ctx context.Context, instanceName string
 func (s *sqlDatabase) DeleteInstance(_ context.Context, poolID string, instanceName string) (err error) {
 	instance, err := s.getPoolInstanceByName(poolID, instanceName)
 	if err != nil {
+		if errors.Is(err, runnerErrors.ErrNotFound) {
+			return nil
+		}
 		return errors.Wrap(err, "deleting instance")
 	}
 
@@ -187,6 +190,9 @@ func (s *sqlDatabase) DeleteInstance(_ context.Context, poolID string, instanceN
 func (s *sqlDatabase) DeleteInstanceByName(ctx context.Context, instanceName string) error {
 	instance, err := s.getInstanceByName(ctx, instanceName)
 	if err != nil {
+		if errors.Is(err, runnerErrors.ErrNotFound) {
+			return nil
+		}
 		return errors.Wrap(err, "deleting instance")
 	}
 
