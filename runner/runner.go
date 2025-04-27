@@ -45,6 +45,8 @@ import (
 	"github.com/cloudbase/garm/runner/common"
 	"github.com/cloudbase/garm/runner/pool"
 	"github.com/cloudbase/garm/runner/providers"
+	"github.com/cloudbase/garm/util/github"
+	"github.com/cloudbase/garm/util/github/scalesets"
 )
 
 func NewRunner(ctx context.Context, cfg config.Config, db dbCommon.Store) (*Runner, error) {
@@ -849,13 +851,92 @@ func (r *Runner) DeleteRunner(ctx context.Context, instanceName string, forceDel
 		return runnerErrors.NewBadRequestError("runner must be in one of the following states: %q", strings.Join(validStates, ", "))
 	}
 
-	poolMgr, err := r.getPoolManagerFromInstance(ctx, instance)
+	ghCli, ssCli, err := r.getGHCliFromInstance(ctx, instance)
 	if err != nil {
-		return errors.Wrap(err, "fetching pool manager for instance")
+		return errors.Wrap(err, "fetching github client")
 	}
 
-	if err := poolMgr.DeleteRunner(instance, forceDelete, bypassGithubUnauthorized); err != nil {
-		return errors.Wrap(err, "removing runner")
+	if instance.AgentID != 0 {
+		if instance.ScaleSetID != 0 {
+			err = ssCli.RemoveRunner(ctx, instance.AgentID)
+		} else if instance.PoolID != "" {
+			err = ghCli.RemoveEntityRunner(ctx, instance.AgentID)
+		} else {
+			return errors.New("instance does not have a pool or scale set")
+		}
+
+		if err != nil {
+			if errors.Is(err, runnerErrors.ErrUnauthorized) && instance.PoolID != "" {
+				poolMgr, err := r.getPoolManagerFromInstance(ctx, instance)
+				if err != nil {
+					return errors.Wrap(err, "fetching pool manager for instance")
+				}
+				poolMgr.SetPoolRunningState(false, fmt.Sprintf("failed to remove runner: %q", err))
+			}
+			if !bypassGithubUnauthorized {
+				return errors.Wrap(err, "removing runner from github")
+			}
+		}
 	}
+
+	instanceStatus := commonParams.InstancePendingDelete
+	if forceDelete {
+		instanceStatus = commonParams.InstancePendingForceDelete
+	}
+
+	slog.InfoContext(
+		r.ctx, "setting instance status",
+		"runner_name", instance.Name,
+		"status", instanceStatus)
+
+	updateParams := params.UpdateInstanceParams{
+		Status: instanceStatus,
+	}
+	_, err = r.store.UpdateInstance(r.ctx, instance.Name, updateParams)
+	if err != nil {
+		return errors.Wrap(err, "updating runner state")
+	}
+
 	return nil
+}
+
+func (r *Runner) getGHCliFromInstance(ctx context.Context, instance params.Instance) (common.GithubClient, *scalesets.ScaleSetClient, error) {
+	// TODO(gabriel-samfira): We can probably cache the entity.
+	var entityGetter params.EntityGetter
+	var err error
+	if instance.PoolID != "" {
+		entityGetter, err = r.store.GetPoolByID(ctx, instance.PoolID)
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "fetching pool")
+		}
+	} else if instance.ScaleSetID != 0 {
+		entityGetter, err = r.store.GetScaleSetByID(ctx, instance.ScaleSetID)
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "fetching scale set")
+		}
+	} else {
+		return nil, nil, errors.New("instance does not have a pool or scale set")
+	}
+
+	entity, err := entityGetter.GetEntity()
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "fetching entity")
+	}
+
+	// Fetching the entity from the database will populate all fields, including credentials.
+	entity, err = r.store.GetGithubEntity(ctx, entity.EntityType, entity.ID)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "fetching entity")
+	}
+
+	ghCli, err := github.Client(ctx, entity)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "creating github client")
+	}
+
+	scaleSetCli, err := scalesets.NewClient(ghCli)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "creating scaleset client")
+	}
+	return ghCli, scaleSetCli, nil
 }

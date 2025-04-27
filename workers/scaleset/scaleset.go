@@ -64,6 +64,14 @@ type Worker struct {
 	quit    chan struct{}
 }
 
+func (w *Worker) RunnersAndStatuses() map[string]string {
+	runners := make(map[string]string)
+	for _, runner := range w.runners {
+		runners[runner.Name] = string(runner.Status)
+	}
+	return runners
+}
+
 func (w *Worker) Stop() error {
 	slog.DebugContext(w.ctx, "stopping scale set worker", "scale_set", w.consumerID)
 	w.mux.Lock()
@@ -629,7 +637,7 @@ func (w *Worker) handleAutoScale() {
 	lastMsg := ""
 	lastMsgDebugLog := func(msg string, targetRunners, currentRunners uint) {
 		if lastMsg != msg {
-			slog.DebugContext(w.ctx, msg, "current_runners", currentRunners, "target_runners", targetRunners)
+			slog.DebugContext(w.ctx, msg, "current_runners", currentRunners, "target_runners", targetRunners, "current_runners", w.RunnersAndStatuses())
 			lastMsg = msg
 		}
 	}

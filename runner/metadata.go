@@ -66,7 +66,7 @@ func (r *Runner) GetRunnerServiceName(ctx context.Context) (string, error) {
 				"pool_id", instance.PoolID)
 			return "", errors.Wrap(err, "fetching pool")
 		}
-		entity, err = pool.GithubEntity()
+		entity, err = pool.GetEntity()
 		if err != nil {
 			slog.With(slog.Any("error", err)).ErrorContext(
 				ctx, "failed to get pool entity",
@@ -81,7 +81,7 @@ func (r *Runner) GetRunnerServiceName(ctx context.Context) (string, error) {
 				"scale_set_id", instance.ScaleSetID)
 			return "", errors.Wrap(err, "fetching scale set")
 		}
-		entity, err = scaleSet.GithubEntity()
+		entity, err = scaleSet.GetEntity()
 		if err != nil {
 			slog.With(slog.Any("error", err)).ErrorContext(
 				ctx, "failed to get scale set entity",

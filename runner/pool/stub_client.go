@@ -41,8 +41,8 @@ func (s *stubGithubClient) ListEntityRunnerApplicationDownloads(_ context.Contex
 	return nil, nil, s.err
 }
 
-func (s *stubGithubClient) RemoveEntityRunner(_ context.Context, _ int64) (*github.Response, error) {
-	return nil, s.err
+func (s *stubGithubClient) RemoveEntityRunner(_ context.Context, _ int64) error {
+	return s.err
 }
 
 func (s *stubGithubClient) CreateEntityRegistrationToken(_ context.Context) (*github.RegistrationToken, *github.Response, error) {

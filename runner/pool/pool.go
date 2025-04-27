@@ -349,7 +349,7 @@ func (r *basePoolManager) startLoopForFunction(f func() error, interval time.Dur
 						r.ctx, "error in loop",
 						"loop_name", name)
 					if errors.Is(err, runnerErrors.ErrUnauthorized) {
-						r.setPoolRunningState(false, err.Error())
+						r.SetPoolRunningState(false, err.Error())
 					}
 				}
 			case <-r.ctx.Done():
@@ -380,7 +380,7 @@ func (r *basePoolManager) updateTools() error {
 	if err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(
 			r.ctx, "failed to update tools for entity", "entity", r.entity.String())
-		r.setPoolRunningState(false, err.Error())
+		r.SetPoolRunningState(false, err.Error())
 		return fmt.Errorf("failed to update tools for entity %s: %w", r.entity.String(), err)
 	}
 	r.mux.Lock()
@@ -388,7 +388,7 @@ func (r *basePoolManager) updateTools() error {
 	r.mux.Unlock()
 
 	slog.DebugContext(r.ctx, "successfully updated tools")
-	r.setPoolRunningState(true, "")
+	r.SetPoolRunningState(true, "")
 	return err
 }
 
@@ -565,14 +565,17 @@ func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner)
 			slog.InfoContext(
 				r.ctx, "Runner has no database entry in garm, removing from github",
 				"runner_name", runner.GetName())
-			resp, err := r.ghcli.RemoveEntityRunner(r.ctx, runner.GetID())
-			if err != nil {
+			if err := r.ghcli.RemoveEntityRunner(r.ctx, runner.GetID()); err != nil {
 				// Removed in the meantime?
-				if resp != nil && resp.StatusCode == http.StatusNotFound {
+				if errors.Is(err, runnerErrors.ErrNotFound) {
 					continue
 				}
 				return errors.Wrap(err, "removing runner")
 			}
+			continue
+		}
+		if dbInstance.ScaleSetID != 0 {
+			// ignore scale set instances.
 			continue
 		}
 
@@ -650,10 +653,9 @@ func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner)
 				slog.InfoContext(
 					r.ctx, "Runner instance is no longer on the provider, removing from github",
 					"runner_name", dbInstance.Name)
-				resp, err := r.ghcli.RemoveEntityRunner(r.ctx, runner.GetID())
-				if err != nil {
+				if err := r.ghcli.RemoveEntityRunner(r.ctx, runner.GetID()); err != nil {
 					// Removed in the meantime?
-					if resp != nil && resp.StatusCode == http.StatusNotFound {
+					if errors.Is(err, runnerErrors.ErrNotFound) {
 						slog.DebugContext(
 							r.ctx, "runner disappeared from github",
 							"runner_name", dbInstance.Name)
@@ -806,7 +808,7 @@ func (r *basePoolManager) AddRunner(ctx context.Context, poolID string, aditiona
 			}
 
 			if runner != nil {
-				_, runnerCleanupErr := r.ghcli.RemoveEntityRunner(r.ctx, runner.GetID())
+				runnerCleanupErr := r.ghcli.RemoveEntityRunner(r.ctx, runner.GetID())
 				if err != nil {
 					slog.With(slog.Any("error", runnerCleanupErr)).ErrorContext(
 						ctx, "failed to remove runner",
@@ -840,7 +842,7 @@ func (r *basePoolManager) waitForTimeoutOrCancelled(timeout time.Duration) {
 	}
 }
 
-func (r *basePoolManager) setPoolRunningState(isRunning bool, failureReason string) {
+func (r *basePoolManager) SetPoolRunningState(isRunning bool, failureReason string) {
 	r.mux.Lock()
 	r.managerErrorReason = failureReason
 	r.managerIsRunning = isRunning
@@ -1660,45 +1662,22 @@ func (r *basePoolManager) DeleteRunner(runner params.Instance, forceRemove, bypa
 	if !r.managerIsRunning && !bypassGHUnauthorizedError {
 		return runnerErrors.NewConflictError("pool manager is not running for %s", r.entity.String())
 	}
+
 	if runner.AgentID != 0 {
-		resp, err := r.ghcli.RemoveEntityRunner(r.ctx, runner.AgentID)
-		if err != nil {
-			if resp != nil {
-				switch resp.StatusCode {
-				case http.StatusUnprocessableEntity:
-					return errors.Wrapf(runnerErrors.ErrBadRequest, "removing runner: %q", err)
-				case http.StatusNotFound:
-					// Runner may have been deleted by a finished job, or manually by the user.
-					slog.DebugContext(
-						r.ctx, "runner was not found in github",
-						"agent_id", runner.AgentID)
-				case http.StatusUnauthorized:
-					slog.With(slog.Any("error", err)).ErrorContext(r.ctx, "failed to remove runner from github")
-					// Mark the pool as offline from this point forward
-					r.setPoolRunningState(false, fmt.Sprintf("failed to remove runner: %q", err))
-					slog.With(slog.Any("error", err)).ErrorContext(
-						r.ctx, "failed to remove runner")
-					if bypassGHUnauthorizedError {
-						slog.Info("bypass github unauthorized error is set, marking runner for deletion")
-						break
-					}
-					// evaluate the next switch case.
-					fallthrough
-				default:
+		if err := r.ghcli.RemoveEntityRunner(r.ctx, runner.AgentID); err != nil {
+			if errors.Is(err, runnerErrors.ErrUnauthorized) {
+				slog.With(slog.Any("error", err)).ErrorContext(r.ctx, "failed to remove runner from github")
+				// Mark the pool as offline from this point forward
+				r.SetPoolRunningState(false, fmt.Sprintf("failed to remove runner: %q", err))
+				slog.With(slog.Any("error", err)).ErrorContext(
+					r.ctx, "failed to remove runner")
+				if bypassGHUnauthorizedError {
+					slog.Info("bypass github unauthorized error is set, marking runner for deletion")
+				} else {
 					return errors.Wrap(err, "removing runner")
 				}
 			} else {
-				errResp := &github.ErrorResponse{}
-				if errors.As(err, &errResp) {
-					if errResp.Response != nil && errResp.Response.StatusCode == http.StatusUnauthorized && bypassGHUnauthorizedError {
-						slog.Info("bypass github unauthorized error is set, marking runner for deletion")
-					} else {
-						return errors.Wrap(err, "removing runner")
-					}
-				} else {
-					// We got a nil response. Assume we are in error.
-					return errors.Wrap(err, "removing runner")
-				}
+				return errors.Wrap(err, "removing runner")
 			}
 		}
 	}

@@ -74,7 +74,7 @@ func (r *Runner) DeleteScaleSetByID(ctx context.Context, scaleSetID uint) error 
 		return runnerErrors.NewBadRequestError("scale set is enabled; disable it first")
 	}
 
-	paramEntity, err := scaleSet.GithubEntity()
+	paramEntity, err := scaleSet.GetEntity()
 	if err != nil {
 		return errors.Wrap(err, "getting entity")
 	}
@@ -137,7 +137,7 @@ func (r *Runner) UpdateScaleSetByID(ctx context.Context, scaleSetID uint, param 
 		return params.ScaleSet{}, runnerErrors.NewBadRequestError("min_idle_runners cannot be larger than max_runners")
 	}
 
-	paramEntity, err := scaleSet.GithubEntity()
+	paramEntity, err := scaleSet.GetEntity()
 	if err != nil {
 		return params.ScaleSet{}, errors.Wrap(err, "getting entity")
 	}

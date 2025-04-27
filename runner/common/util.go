@@ -17,7 +17,7 @@ type GithubEntityOperations interface {
 	PingEntityHook(ctx context.Context, id int64) (ret *github.Response, err error)
 	ListEntityRunners(ctx context.Context, opts *github.ListOptions) (*github.Runners, *github.Response, error)
 	ListEntityRunnerApplicationDownloads(ctx context.Context) ([]*github.RunnerApplicationDownload, *github.Response, error)
-	RemoveEntityRunner(ctx context.Context, runnerID int64) (*github.Response, error)
+	RemoveEntityRunner(ctx context.Context, runnerID int64) error
 	CreateEntityRegistrationToken(ctx context.Context) (*github.RegistrationToken, *github.Response, error)
 	GetEntityJITConfig(ctx context.Context, instance string, pool params.Pool, labels []string) (jitConfigMap map[string]string, runner *github.Runner, err error)
 

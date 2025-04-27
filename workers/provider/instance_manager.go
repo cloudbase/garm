@@ -21,7 +21,7 @@ import (
 func NewInstanceManager(ctx context.Context, instance params.Instance, scaleSet params.ScaleSet, provider common.Provider, helper providerHelper) (*instanceManager, error) {
 	ctx = garmUtil.WithSlogContext(ctx, slog.Any("instance", instance.Name))
 
-	githubEntity, err := scaleSet.GithubEntity()
+	githubEntity, err := scaleSet.GetEntity()
 	if err != nil {
 		return nil, fmt.Errorf("getting github entity: %w", err)
 	}
@@ -129,7 +129,7 @@ func (i *instanceManager) incrementBackOff() {
 }
 
 func (i *instanceManager) getEntity() (params.GithubEntity, error) {
-	entity, err := i.scaleSet.GithubEntity()
+	entity, err := i.scaleSet.GetEntity()
 	if err != nil {
 		return params.GithubEntity{}, fmt.Errorf("getting entity: %w", err)
 	}
@@ -276,6 +276,9 @@ func (i *instanceManager) handleDeleteInstanceInProvider(instance params.Instanc
 func (i *instanceManager) consolidateState() error {
 	i.mux.Lock()
 	defer i.mux.Unlock()
+	if !i.running {
+		return nil
+	}
 
 	switch i.instance.Status {
 	case commonParams.InstancePendingCreate:
@@ -305,6 +308,7 @@ func (i *instanceManager) consolidateState() error {
 			}
 		}
 
+		prevStatus := i.instance.Status
 		if err := i.helper.SetInstanceStatus(i.instance.Name, commonParams.InstanceDeleting, nil); err != nil {
 			if errors.Is(err, runnerErrors.ErrNotFound) {
 				return nil
@@ -314,7 +318,7 @@ func (i *instanceManager) consolidateState() error {
 
 		if err := i.handleDeleteInstanceInProvider(i.instance); err != nil {
 			slog.ErrorContext(i.ctx, "deleting instance in provider", "error", err, "forced", i.instance.Status == commonParams.InstancePendingForceDelete)
-			if i.instance.Status == commonParams.InstancePendingDelete {
+			if prevStatus == commonParams.InstancePendingDelete {
 				i.incrementBackOff()
 				if err := i.helper.SetInstanceStatus(i.instance.Name, commonParams.InstancePendingDelete, []byte(err.Error())); err != nil {
 					return fmt.Errorf("setting instance status to error: %w", err)
@@ -324,8 +328,11 @@ func (i *instanceManager) consolidateState() error {
 			}
 		}
 		if err := i.helper.SetInstanceStatus(i.instance.Name, commonParams.InstanceDeleted, nil); err != nil {
-			return fmt.Errorf("setting instance status to deleted: %w", err)
+			if !errors.Is(err, runnerErrors.ErrNotFound) {
+				return fmt.Errorf("setting instance status to deleted: %w", err)
+			}
 		}
+		return ErrInstanceDeleted
 	case commonParams.InstanceError:
 		// Instance is in error state. We wait for next status or potentially retry
 		// spawning the instance with a backoff timer.
@@ -343,26 +350,23 @@ func (i *instanceManager) handleUpdate(update dbCommon.ChangePayload) error {
 	// end up with an inconsistent state between what we know about the instance and what
 	// is reflected in the database.
 	i.mux.Lock()
+	defer i.mux.Unlock()
 
 	if !i.running {
-		i.mux.Unlock()
 		return nil
 	}
 
 	instance, ok := update.Payload.(params.Instance)
 	if !ok {
-		i.mux.Unlock()
 		return runnerErrors.NewBadRequestError("invalid payload type")
 	}
 
 	i.instance = instance
 	if i.instance.Status == instance.Status {
 		// Nothing of interest happened.
-		i.mux.Unlock()
 		return nil
 	}
-	i.mux.Unlock()
-	return i.consolidateState()
+	return nil
 }
 
 func (i *instanceManager) Update(instance dbCommon.ChangePayload) error {

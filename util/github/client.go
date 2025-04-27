@@ -226,7 +226,7 @@ func (g *githubClient) ListEntityRunnerApplicationDownloads(ctx context.Context)
 	return ret, response, err
 }
 
-func (g *githubClient) RemoveEntityRunner(ctx context.Context, runnerID int64) (*github.Response, error) {
+func (g *githubClient) RemoveEntityRunner(ctx context.Context, runnerID int64) error {
 	var response *github.Response
 	var err error
 
@@ -251,10 +251,36 @@ func (g *githubClient) RemoveEntityRunner(ctx context.Context, runnerID int64) (
 	case params.GithubEntityTypeEnterprise:
 		response, err = g.enterprise.RemoveRunner(ctx, g.entity.Owner, runnerID)
 	default:
-		return nil, errors.New("invalid entity type")
+		return errors.New("invalid entity type")
 	}
 
-	return response, err
+	switch response.StatusCode {
+	case http.StatusNotFound:
+		return runnerErrors.NewNotFoundError("runner %d not found", runnerID)
+	case http.StatusUnauthorized:
+		return runnerErrors.ErrUnauthorized
+	case http.StatusUnprocessableEntity:
+		return runnerErrors.NewBadRequestError("cannot remove runner %d in its current state", runnerID)
+	default:
+		if err != nil {
+			errResp := &github.ErrorResponse{}
+			if errors.As(err, &errResp) && errResp.Response != nil {
+				switch errResp.Response.StatusCode {
+				case http.StatusNotFound:
+					return runnerErrors.NewNotFoundError("runner %d not found", runnerID)
+				case http.StatusUnauthorized:
+					return runnerErrors.ErrUnauthorized
+				case http.StatusUnprocessableEntity:
+					return runnerErrors.NewBadRequestError("cannot remove runner %d in its current state", runnerID)
+				default:
+					return errors.Wrap(err, "removing runner")
+				}
+			}
+			return errors.Wrap(err, "removing runner")
+		}
+	}
+
+	return nil
 }
 
 func (g *githubClient) CreateEntityRegistrationToken(ctx context.Context) (*github.RegistrationToken, *github.Response, error) {
@@ -417,7 +443,7 @@ func (g *githubClient) GetEntityJITConfig(ctx context.Context, instance string, 
 
 	defer func(run *github.Runner) {
 		if err != nil && run != nil {
-			_, innerErr := g.RemoveEntityRunner(ctx, run.GetID())
+			innerErr := g.RemoveEntityRunner(ctx, run.GetID())
 			slog.With(slog.Any("error", innerErr)).ErrorContext(
 				ctx, "failed to remove runner",
 				"runner_id", run.GetID(), string(g.entity.EntityType), g.entity.String())

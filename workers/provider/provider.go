@@ -88,6 +88,10 @@ func (p *provider) loadAllRunners() error {
 		if runner.Status == commonParams.InstanceCreating {
 			continue
 		}
+		if runner.Status == commonParams.InstanceDeleting || runner.Status == commonParams.InstanceDeleted {
+			continue
+		}
+
 		scaleSet, ok := p.scaleSets[runner.ScaleSetID]
 		if !ok {
 			slog.ErrorContext(p.ctx, "scale set not found", "scale_set_id", runner.ScaleSetID)

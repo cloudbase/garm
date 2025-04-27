@@ -381,7 +381,7 @@ func (p Pool) MaxRunnersAsInt() int {
 	return int(p.MaxRunners)
 }
 
-func (p Pool) GithubEntity() (GithubEntity, error) {
+func (p Pool) GetEntity() (GithubEntity, error) {
 	switch p.PoolType() {
 	case GithubEntityTypeRepository:
 		return GithubEntity{
@@ -489,7 +489,7 @@ type ScaleSet struct {
 	LastMessageID int64 `json:"-"`
 }
 
-func (p ScaleSet) GithubEntity() (GithubEntity, error) {
+func (p ScaleSet) GetEntity() (GithubEntity, error) {
 	switch p.ScaleSetType() {
 	case GithubEntityTypeRepository:
 		return GithubEntity{
