@@ -228,14 +228,14 @@ func formatInstances(param []params.Instance, detailed bool) {
 		return
 	}
 	t := table.NewWriter()
-	header := table.Row{"Nr", "Name", "Status", "Runner Status", "Pool ID"}
+	header := table.Row{"Nr", "Name", "Status", "Runner Status", "Pool ID", "Scalse Set ID"}
 	if detailed {
 		header = append(header, "Created At", "Updated At", "Job Name", "Started At", "Run ID", "Repository")
 	}
 	t.AppendHeader(header)
 
 	for idx, inst := range param {
-		row := table.Row{idx + 1, inst.Name, inst.Status, inst.RunnerStatus, inst.PoolID}
+		row := table.Row{idx + 1, inst.Name, inst.Status, inst.RunnerStatus, inst.PoolID, inst.ScaleSetID}
 		if detailed {
 			row = append(row, inst.CreatedAt, inst.UpdatedAt)
 			if inst.Job != nil {
@@ -270,7 +270,11 @@ func formatSingleInstance(instance params.Instance) {
 	t.AppendRow(table.Row{"OS Version", instance.OSVersion}, table.RowConfig{AutoMerge: false})
 	t.AppendRow(table.Row{"Status", instance.Status}, table.RowConfig{AutoMerge: false})
 	t.AppendRow(table.Row{"Runner Status", instance.RunnerStatus}, table.RowConfig{AutoMerge: false})
-	t.AppendRow(table.Row{"Pool ID", instance.PoolID}, table.RowConfig{AutoMerge: false})
+	if instance.PoolID != "" {
+		t.AppendRow(table.Row{"Pool ID", instance.PoolID}, table.RowConfig{AutoMerge: false})
+	} else if instance.ScaleSetID != 0 {
+		t.AppendRow(table.Row{"Scale Set ID", instance.ScaleSetID}, table.RowConfig{AutoMerge: false})
+	}
 
 	if len(instance.Addresses) > 0 {
 		for _, addr := range instance.Addresses {
