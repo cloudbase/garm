@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/url"
 
-	"github.com/google/go-github/v57/github"
+	"github.com/google/go-github/v71/github"
 
 	"github.com/cloudbase/garm/params"
 )
@@ -33,7 +33,7 @@ func (s *stubGithubClient) PingEntityHook(_ context.Context, _ int64) (*github.R
 	return nil, s.err
 }
 
-func (s *stubGithubClient) ListEntityRunners(_ context.Context, _ *github.ListOptions) (*github.Runners, *github.Response, error) {
+func (s *stubGithubClient) ListEntityRunners(_ context.Context, _ *github.ListRunnersOptions) (*github.Runners, *github.Response, error) {
 	return nil, nil, s.err
 }
 

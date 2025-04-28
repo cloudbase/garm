@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/google/go-github/v57/github"
+	"github.com/google/go-github/v71/github"
 	"golang.org/x/oauth2"
 )
 
@@ -141,8 +141,8 @@ func getGhOrgWebhook(url, ghToken, orgName string) (*github.Hook, error) {
 	}
 
 	for _, hook := range ghOrgHooks {
-		hookURL, ok := hook.Config["url"].(string)
-		if ok && hookURL == url {
+		hookURL := hook.Config.GetURL()
+		if hookURL == url {
 			return hook, nil
 		}
 	}
@@ -158,8 +158,8 @@ func getGhRepoWebhook(url, ghToken, orgName, repoName string) (*github.Hook, err
 	}
 
 	for _, hook := range ghRepoHooks {
-		hookURL, ok := hook.Config["url"].(string)
-		if ok && hookURL == url {
+		hookURL := hook.Config.GetURL()
+		if hookURL == url {
 			return hook, nil
 		}
 	}

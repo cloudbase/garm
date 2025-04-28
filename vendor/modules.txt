@@ -97,9 +97,6 @@ github.com/golang-jwt/jwt/v4
 # github.com/golang-jwt/jwt/v5 v5.2.2
 ## explicit; go 1.18
 github.com/golang-jwt/jwt/v5
-# github.com/google/go-github/v57 v57.0.0
-## explicit; go 1.17
-github.com/google/go-github/v57/github
 # github.com/google/go-github/v71 v71.0.0
 ## explicit; go 1.23.0
 github.com/google/go-github/v71/github

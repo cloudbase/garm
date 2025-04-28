@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/go-github/v57/github"
+	"github.com/google/go-github/v71/github"
 	"golang.org/x/oauth2"
 
 	commonParams "github.com/cloudbase/garm-provider-common/params"

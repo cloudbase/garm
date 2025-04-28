@@ -23,7 +23,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/google/go-github/v57/github"
+	"github.com/google/go-github/v71/github"
 	"github.com/pkg/errors"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
@@ -162,7 +162,7 @@ func (g *githubClient) PingEntityHook(ctx context.Context, id int64) (ret *githu
 	return ret, err
 }
 
-func (g *githubClient) ListEntityRunners(ctx context.Context, opts *github.ListOptions) (*github.Runners, *github.Response, error) {
+func (g *githubClient) ListEntityRunners(ctx context.Context, opts *github.ListRunnersOptions) (*github.Runners, *github.Response, error) {
 	var ret *github.Runners
 	var response *github.Response
 	var err error
