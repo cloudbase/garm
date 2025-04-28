@@ -84,10 +84,8 @@ func (w *Worker) Stop() error {
 	w.running = false
 	if w.quit != nil {
 		close(w.quit)
-		w.quit = nil
 	}
 	w.listener.Stop()
-	w.listener = nil
 	return nil
 }
 
@@ -214,7 +212,6 @@ func (w *Worker) Start() (err error) {
 	defer func() {
 		if err != nil {
 			consumer.Close()
-			w.consumer = nil
 		}
 	}()
 
@@ -282,8 +279,6 @@ func (w *Worker) handleScaleSetEvent(event dbCommon.ChangePayload) {
 				slog.ErrorContext(w.ctx, "error stopping listener", "error", err)
 			}
 		}
-		// nolint:golangci-lint,godox
-		// TODO: should we kick off auto-scaling if desired runner count changes?
 		w.scaleSet = scaleSet
 		w.mux.Unlock()
 	default:

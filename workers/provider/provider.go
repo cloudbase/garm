@@ -241,6 +241,11 @@ func (p *Provider) handleInstanceEvent(event dbCommon.ChangePayload) {
 		return
 	}
 
+	if instance.ScaleSetID == 0 {
+		slog.DebugContext(p.ctx, "skipping instance event for non scale set instance")
+		return
+	}
+
 	switch event.Operation {
 	case dbCommon.CreateOperation:
 		slog.DebugContext(p.ctx, "got create operation")

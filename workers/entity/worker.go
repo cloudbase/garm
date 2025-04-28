@@ -59,7 +59,6 @@ func (w *Worker) Stop() error {
 	if err := w.scaleSetController.Stop(); err != nil {
 		return fmt.Errorf("stopping scale set controller: %w", err)
 	}
-	w.scaleSetController = nil
 
 	w.running = false
 	close(w.quit)
@@ -85,7 +84,6 @@ func (w *Worker) Start() (err error) {
 	defer func() {
 		if err != nil {
 			w.scaleSetController.Stop()
-			w.scaleSetController = nil
 		}
 	}()
 

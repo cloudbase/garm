@@ -85,7 +85,6 @@ func (l *scaleSetListener) Stop() error {
 
 	l.messageSession.Close()
 	l.running = false
-	l.listenerCtx = nil
 	close(l.quit)
 	l.cancelFunc()
 	return nil
@@ -201,10 +200,6 @@ func (l *scaleSetListener) loop() {
 			return
 		default:
 			slog.DebugContext(l.ctx, "getting message", "last_message_id", l.lastMessageID, "max_runners", l.scaleSetHelper.GetScaleSet().MaxRunners)
-			// nolint:golangci-lint,godox
-			// TODO(gabriel-samfira): consume initial message on startup and consolidate.
-			// The scale set may have undergone several messages while GARM was
-			// down.
 			msg, err := l.messageSession.GetMessage(
 				l.listenerCtx, l.lastMessageID, l.scaleSetHelper.GetScaleSet().MaxRunners)
 			if err != nil {

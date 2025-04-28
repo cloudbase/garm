@@ -172,7 +172,6 @@ func (c *Controller) Stop() error {
 
 	c.running = false
 	close(c.quit)
-	c.quit = nil
 	c.consumer.Close()
 	return nil
 }

@@ -431,6 +431,7 @@ type RunnerReference struct {
 	Status            interface{} `json:"status"`
 	DisableUpdate     bool        `json:"disableUpdate"`
 	ProvisioningState string      `json:"provisioningState"`
+	Labels            []Label     `json:"labels,omitempty"`
 }
 
 type RunnerScaleSetJitRunnerConfig struct {

@@ -13,5 +13,6 @@ func composeProviderWatcher() dbCommon.PayloadFilterFunc {
 			commonParams.InstancePendingDelete,
 			commonParams.InstancePendingForceDelete,
 		),
+		watcher.WithEntityTypeFilter(dbCommon.ScaleSetEntityType),
 	)
 }
