@@ -64,3 +64,7 @@ func (s *stubGithubClient) GetEntity() params.GithubEntity {
 func (s *stubGithubClient) GithubBaseURL() *url.URL {
 	return nil
 }
+
+func (s *stubGithubClient) RateLimit(_ context.Context) (*github.RateLimits, error) {
+	return nil, s.err
+}

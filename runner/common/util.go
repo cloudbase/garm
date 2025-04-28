@@ -18,6 +18,7 @@ type GithubEntityOperations interface {
 	ListEntityRunners(ctx context.Context, opts *github.ListRunnersOptions) (*github.Runners, *github.Response, error)
 	ListEntityRunnerApplicationDownloads(ctx context.Context) ([]*github.RunnerApplicationDownload, *github.Response, error)
 	RemoveEntityRunner(ctx context.Context, runnerID int64) error
+	RateLimit(ctx context.Context) (*github.RateLimits, error)
 	CreateEntityRegistrationToken(ctx context.Context) (*github.RegistrationToken, *github.Response, error)
 	GetEntityJITConfig(ctx context.Context, instance string, pool params.Pool, labels []string) (jitConfigMap map[string]string, runner *github.Runner, err error)
 

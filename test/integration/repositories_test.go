@@ -109,8 +109,8 @@ func getGhRepoWebhook(url, ghToken, orgName, repoName string) (*github.Hook, err
 	}
 
 	for _, hook := range ghRepoHooks {
-		hookURL, ok := hook.Config["url"].(string)
-		if ok && hookURL == url {
+		hookURL := hook.Config.GetURL()
+		if hookURL == url {
 			return hook, nil
 		}
 	}

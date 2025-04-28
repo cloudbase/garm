@@ -99,8 +99,8 @@ func getGhOrgWebhook(url, ghToken, orgName string) (*github.Hook, error) {
 	}
 
 	for _, hook := range ghOrgHooks {
-		hookURL, ok := hook.Config["url"].(string)
-		if ok && hookURL == url {
+		hookURL := hook.Config.GetURL()
+		if hookURL == url {
 			return hook, nil
 		}
 	}

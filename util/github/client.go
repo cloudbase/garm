@@ -37,6 +37,7 @@ type githubClient struct {
 	org        *github.OrganizationsService
 	repo       *github.RepositoriesService
 	enterprise *github.EnterpriseService
+	rateLimit  *github.RateLimitService
 
 	entity params.GithubEntity
 	cli    *github.Client
@@ -226,6 +227,38 @@ func (g *githubClient) ListEntityRunnerApplicationDownloads(ctx context.Context)
 	return ret, response, err
 }
 
+func parseError(response *github.Response, err error) error {
+	switch response.StatusCode {
+	case http.StatusNotFound:
+		return runnerErrors.ErrNotFound
+	case http.StatusUnauthorized:
+		return runnerErrors.ErrUnauthorized
+	case http.StatusUnprocessableEntity:
+		return runnerErrors.ErrBadRequest
+	default:
+		if response.StatusCode >= 100 && response.StatusCode < 300 {
+			return nil
+		}
+		if err != nil {
+			errResp := &github.ErrorResponse{}
+			if errors.As(err, &errResp) && errResp.Response != nil {
+				switch errResp.Response.StatusCode {
+				case http.StatusNotFound:
+					return runnerErrors.ErrNotFound
+				case http.StatusUnauthorized:
+					return runnerErrors.ErrUnauthorized
+				case http.StatusUnprocessableEntity:
+					return runnerErrors.ErrBadRequest
+				default:
+					return err
+				}
+			}
+			return err
+		}
+		return errors.New("unknown error")
+	}
+}
+
 func (g *githubClient) RemoveEntityRunner(ctx context.Context, runnerID int64) error {
 	var response *github.Response
 	var err error
@@ -254,30 +287,8 @@ func (g *githubClient) RemoveEntityRunner(ctx context.Context, runnerID int64) e
 		return errors.New("invalid entity type")
 	}
 
-	switch response.StatusCode {
-	case http.StatusNotFound:
-		return runnerErrors.NewNotFoundError("runner %d not found", runnerID)
-	case http.StatusUnauthorized:
-		return runnerErrors.ErrUnauthorized
-	case http.StatusUnprocessableEntity:
-		return runnerErrors.NewBadRequestError("cannot remove runner %d in its current state", runnerID)
-	default:
-		if err != nil {
-			errResp := &github.ErrorResponse{}
-			if errors.As(err, &errResp) && errResp.Response != nil {
-				switch errResp.Response.StatusCode {
-				case http.StatusNotFound:
-					return runnerErrors.NewNotFoundError("runner %d not found", runnerID)
-				case http.StatusUnauthorized:
-					return runnerErrors.ErrUnauthorized
-				case http.StatusUnprocessableEntity:
-					return runnerErrors.NewBadRequestError("cannot remove runner %d in its current state", runnerID)
-				default:
-					return errors.Wrap(err, "removing runner")
-				}
-			}
-			return errors.Wrap(err, "removing runner")
-		}
+	if err := parseError(response, err); err != nil {
+		return errors.Wrapf(err, "removing runner %d", runnerID)
 	}
 
 	return nil
@@ -411,7 +422,7 @@ func (g *githubClient) GetEntityJITConfig(ctx context.Context, instance string, 
 		Labels:        labels,
 		// nolint:golangci-lint,godox
 		// TODO(gabriel-samfira): Should we make this configurable?
-		WorkFolder: github.String("_work"),
+		WorkFolder: github.Ptr("_work"),
 	}
 
 	metrics.GithubOperationCount.WithLabelValues(
@@ -463,6 +474,14 @@ func (g *githubClient) GetEntityJITConfig(ctx context.Context, instance string, 
 	return jitConfig, ret.Runner, nil
 }
 
+func (g *githubClient) RateLimit(ctx context.Context) (*github.RateLimits, error) {
+	limits, resp, err := g.rateLimit.Get(ctx)
+	if err := parseError(resp, err); err != nil {
+		return nil, fmt.Errorf("getting rate limit: %w", err)
+	}
+	return limits, nil
+}
+
 func (g *githubClient) GetEntity() params.GithubEntity {
 	return g.entity
 }
@@ -494,6 +513,7 @@ func Client(ctx context.Context, entity params.GithubEntity) (common.GithubClien
 		org:            ghClient.Organizations,
 		repo:           ghClient.Repositories,
 		enterprise:     ghClient.Enterprise,
+		rateLimit:      ghClient.RateLimit,
 		cli:            ghClient,
 		entity:         entity,
 	}
