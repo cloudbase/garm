@@ -28,6 +28,10 @@ type GithubEntityOperations interface {
 	GithubBaseURL() *url.URL
 }
 
+type RateLimitClient interface {
+	RateLimit(ctx context.Context) (*github.RateLimits, error)
+}
+
 // GithubClient that describes the minimum list of functions we need to interact with github.
 // Allows for easier testing.
 //

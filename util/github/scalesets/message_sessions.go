@@ -141,16 +141,17 @@ func (m *MessageSession) maybeRefreshToken(ctx context.Context) error {
 	if m.session == nil {
 		return fmt.Errorf("session is nil")
 	}
-	// add some jitter
-	randInt, err := rand.Int(rand.Reader, big.NewInt(5000))
-	if err != nil {
-		return fmt.Errorf("failed to get a random number")
-	}
+
 	expiresAt, err := m.session.ExiresAt()
 	if err != nil {
 		return fmt.Errorf("failed to get expires at: %w", err)
 	}
-	expiresIn := time.Duration(randInt.Int64())*time.Millisecond + 10*time.Minute
+	// add some jitter (30 second interval)
+	randInt, err := rand.Int(rand.Reader, big.NewInt(30))
+	if err != nil {
+		return fmt.Errorf("failed to get a random number")
+	}
+	expiresIn := time.Duration(randInt.Int64())*time.Second + 10*time.Minute
 	slog.DebugContext(ctx, "checking if message session token needs refresh", "expires_at", expiresAt)
 	if m.session.ExpiresIn(expiresIn) {
 		if err := m.Refresh(ctx); err != nil {

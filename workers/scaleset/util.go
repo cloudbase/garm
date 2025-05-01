@@ -1,6 +1,8 @@
 package scaleset
 
 import (
+	"strings"
+
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/database/watcher"
 	"github.com/cloudbase/garm/params"
@@ -25,4 +27,13 @@ func composeControllerWatcherFilters(entity params.GithubEntity) dbCommon.Payloa
 			watcher.WithOperationTypeFilter(dbCommon.UpdateOperation),
 		),
 	)
+}
+
+func poolIDFromLabels(runner params.RunnerReference) string {
+	for _, lbl := range runner.Labels {
+		if strings.HasPrefix(lbl.Name, poolIDLabelprefix) {
+			return lbl.Name[len(poolIDLabelprefix):]
+		}
+	}
+	return ""
 }

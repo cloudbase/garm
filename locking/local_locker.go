@@ -33,19 +33,19 @@ var _ Locker = &keyMutex{}
 
 func (k *keyMutex) TryLock(key, identifier string) bool {
 	mux, _ := k.muxes.LoadOrStore(key, &lockWithIdent{
-		mux:   sync.Mutex{},
-		ident: identifier,
+		mux: sync.Mutex{},
 	})
 	keyMux := mux.(*lockWithIdent)
+	keyMux.ident = identifier
 	return keyMux.mux.TryLock()
 }
 
 func (k *keyMutex) Lock(key, identifier string) {
 	mux, _ := k.muxes.LoadOrStore(key, &lockWithIdent{
-		mux:   sync.Mutex{},
-		ident: identifier,
+		mux: sync.Mutex{},
 	})
 	keyMux := mux.(*lockWithIdent)
+	keyMux.ident = identifier
 	keyMux.mux.Lock()
 }
 
@@ -60,6 +60,7 @@ func (k *keyMutex) Unlock(key string, remove bool) {
 	}
 	_, filename, line, _ := runtime.Caller(1)
 	slog.Debug("unlocking", "key", key, "identifier", keyMux.ident, "caller", fmt.Sprintf("%s:%d", filename, line))
+	keyMux.ident = ""
 	keyMux.mux.Unlock()
 }
 

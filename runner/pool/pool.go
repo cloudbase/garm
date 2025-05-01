@@ -439,10 +439,14 @@ func (r *basePoolManager) cleanupOrphanedProviderRunners(runners []*github.Runne
 			// github so we let them be for now.
 			continue
 		}
+		pool, err := r.store.GetEntityPool(r.ctx, r.entity, instance.PoolID)
+		if err != nil {
+			return errors.Wrap(err, "fetching instance pool info")
+		}
 
 		switch instance.RunnerStatus {
 		case params.RunnerPending, params.RunnerInstalling:
-			if time.Since(instance.UpdatedAt).Minutes() < float64(instance.RunnerTimeout()) {
+			if time.Since(instance.UpdatedAt).Minutes() < float64(pool.RunnerTimeout()) {
 				// runner is still installing. We give it a chance to finish.
 				slog.DebugContext(
 					r.ctx, "runner is still installing, give it a chance to finish",
@@ -510,7 +514,11 @@ func (r *basePoolManager) reapTimedOutRunners(runners []*github.Runner) error {
 		}
 		defer locking.Unlock(instance.Name, false)
 
-		if time.Since(instance.UpdatedAt).Minutes() < float64(instance.RunnerTimeout()) {
+		pool, err := r.store.GetEntityPool(r.ctx, r.entity, instance.PoolID)
+		if err != nil {
+			return errors.Wrap(err, "fetching instance pool info")
+		}
+		if time.Since(instance.UpdatedAt).Minutes() < float64(pool.RunnerTimeout()) {
 			continue
 		}
 

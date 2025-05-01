@@ -255,9 +255,10 @@ func WithScaleSetInstanceFilter(scaleset params.ScaleSet) dbCommon.PayloadFilter
 		}
 
 		instance, ok := payload.Payload.(params.Instance)
-		if !ok {
+		if !ok || instance.ScaleSetID == 0 {
 			return false
 		}
+
 		return instance.ScaleSetID == scaleset.ID
 	}
 }

@@ -490,6 +490,30 @@ func (g *githubClient) GithubBaseURL() *url.URL {
 	return g.cli.BaseURL
 }
 
+func NewRateLimitClient(ctx context.Context, credentials params.GithubCredentials) (common.RateLimitClient, error) {
+	httpClient, err := credentials.GetHTTPClient(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "fetching http client")
+	}
+
+	slog.DebugContext(
+		ctx, "creating rate limit client",
+		"base_url", credentials.APIBaseURL,
+		"upload_url", credentials.UploadBaseURL)
+
+	ghClient, err := github.NewClient(httpClient).WithEnterpriseURLs(
+		credentials.APIBaseURL, credentials.UploadBaseURL)
+	if err != nil {
+		return nil, errors.Wrap(err, "fetching github client")
+	}
+	cli := &githubClient{
+		rateLimit: ghClient.RateLimit,
+		cli:       ghClient,
+	}
+
+	return cli, nil
+}
+
 func Client(ctx context.Context, entity params.GithubEntity) (common.GithubClient, error) {
 	// func GithubClient(ctx context.Context, entity params.GithubEntity) (common.GithubClient, error) {
 	httpClient, err := entity.Credentials.GetHTTPClient(ctx)

@@ -13,32 +13,28 @@ func (w *Worker) handleWorkerWatcherEvent(event dbCommon.ChangePayload) {
 	entityType := dbCommon.DatabaseEntityType(w.Entity.EntityType)
 	switch event.EntityType {
 	case entityType:
-		entityGetter, ok := event.Payload.(params.EntityGetter)
-		if !ok {
-			slog.ErrorContext(w.ctx, "invalid payload for entity type", "entity_type", event.EntityType, "payload", event.Payload)
-			return
-		}
-		entity, err := entityGetter.GetEntity()
-		if err != nil {
-			slog.ErrorContext(w.ctx, "getting entity from repository", "entity_type", event.EntityType, "payload", event.Payload, "error", err)
-			return
-		}
-		w.handleEntityEventPayload(entity, event)
+		w.handleEntityEventPayload(event)
 		return
 	case dbCommon.GithubCredentialsEntityType:
 		slog.DebugContext(w.ctx, "got github credentials payload event")
-		credentials, ok := event.Payload.(params.GithubCredentials)
-		if !ok {
-			slog.ErrorContext(w.ctx, "invalid payload for entity type", "entity_type", event.EntityType, "payload", event.Payload)
-			return
-		}
-		w.handleEntityCredentialsEventPayload(credentials, event)
+		w.handleEntityCredentialsEventPayload(event)
 	default:
 		slog.DebugContext(w.ctx, "invalid entity type; ignoring", "entity_type", event.EntityType)
 	}
 }
 
-func (w *Worker) handleEntityEventPayload(entity params.GithubEntity, event dbCommon.ChangePayload) {
+func (w *Worker) handleEntityEventPayload(event dbCommon.ChangePayload) {
+	entityGetter, ok := event.Payload.(params.EntityGetter)
+	if !ok {
+		slog.ErrorContext(w.ctx, "invalid payload for entity type", "entity_type", event.EntityType, "payload", event.Payload)
+		return
+	}
+	entity, err := entityGetter.GetEntity()
+	if err != nil {
+		slog.ErrorContext(w.ctx, "getting entity from repository", "entity_type", event.EntityType, "payload", event.Payload, "error", err)
+		return
+	}
+
 	switch event.Operation {
 	case dbCommon.UpdateOperation:
 		slog.DebugContext(w.ctx, "got update operation")
@@ -57,7 +53,13 @@ func (w *Worker) handleEntityEventPayload(entity params.GithubEntity, event dbCo
 	}
 }
 
-func (w *Worker) handleEntityCredentialsEventPayload(credentials params.GithubCredentials, event dbCommon.ChangePayload) {
+func (w *Worker) handleEntityCredentialsEventPayload(event dbCommon.ChangePayload) {
+	credentials, ok := event.Payload.(params.GithubCredentials)
+	if !ok {
+		slog.ErrorContext(w.ctx, "invalid payload for entity type", "entity_type", event.EntityType, "payload", event.Payload)
+		return
+	}
+
 	switch event.Operation {
 	case dbCommon.UpdateOperation:
 		slog.DebugContext(w.ctx, "got delete operation")

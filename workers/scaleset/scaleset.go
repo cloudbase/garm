@@ -63,14 +63,6 @@ type Worker struct {
 	quit    chan struct{}
 }
 
-func (w *Worker) RunnersAndStatuses() map[string]string {
-	runners := make(map[string]string)
-	for _, runner := range w.runners {
-		runners[runner.Name] = string(runner.Status)
-	}
-	return runners
-}
-
 func (w *Worker) Stop() error {
 	slog.DebugContext(w.ctx, "stopping scale set worker", "scale_set", w.consumerID)
 	w.mux.Lock()
@@ -239,6 +231,240 @@ func (w *Worker) Start() (err error) {
 	return nil
 }
 
+func (w *Worker) runnerByName() map[string]params.Instance {
+	runners := make(map[string]params.Instance)
+	for _, runner := range w.runners {
+		runners[runner.Name] = runner
+	}
+	return runners
+}
+
+func (w *Worker) setRunnerDBStatus(runner string, status commonParams.InstanceStatus) (params.Instance, error) {
+	updateParams := params.UpdateInstanceParams{
+		Status: status,
+	}
+	newDbInstance, err := w.store.UpdateInstance(w.ctx, runner, updateParams)
+	if err != nil {
+		if !errors.Is(err, runnerErrors.ErrNotFound) {
+			return params.Instance{}, fmt.Errorf("updating runner %s: %w", runner, err)
+		}
+	}
+	return newDbInstance, nil
+}
+
+func (w *Worker) removeRunnerFromGithubAndSetPendingDelete(runnerName string, agentID int64) error {
+	if err := w.scaleSetCli.RemoveRunner(w.ctx, agentID); err != nil {
+		if !errors.Is(err, runnerErrors.ErrNotFound) {
+			return fmt.Errorf("removing runner %s: %w", runnerName, err)
+		}
+	}
+	instance, err := w.setRunnerDBStatus(runnerName, commonParams.InstancePendingDelete)
+	if err != nil {
+		return fmt.Errorf("updating runner %s: %w", instance.Name, err)
+	}
+	w.runners[instance.ID] = instance
+	return nil
+}
+
+func (w *Worker) reapTimedOutRunners(runners map[string]params.RunnerReference) (func(), error) {
+	lockNames := []string{}
+
+	unlockFn := func() {
+		for _, name := range lockNames {
+			slog.DebugContext(w.ctx, "unlockFn unlocking runner", "runner_name", name)
+			locking.Unlock(name, false)
+		}
+	}
+
+	for _, runner := range w.runners {
+		if time.Since(runner.UpdatedAt).Minutes() < float64(w.scaleSet.RunnerBootstrapTimeout) {
+			continue
+		}
+		switch runner.Status {
+		case commonParams.InstancePendingDelete, commonParams.InstancePendingForceDelete,
+			commonParams.InstanceDeleting, commonParams.InstanceDeleted:
+			continue
+		}
+
+		if runner.RunnerStatus != params.RunnerPending && runner.RunnerStatus != params.RunnerInstalling {
+			slog.DebugContext(w.ctx, "runner is not pending or installing; skipping", "runner_name", runner.Name)
+			continue
+		}
+		if ghRunner, ok := runners[runner.Name]; !ok || ghRunner.GetStatus() == params.RunnerOffline {
+			if ok, err := locking.TryLock(runner.Name, w.consumerID); err != nil || !ok {
+				slog.DebugContext(w.ctx, "runner is locked; skipping", "runner_name", runner.Name)
+				continue
+			}
+			lockNames = append(lockNames, runner.Name)
+
+			slog.InfoContext(
+				w.ctx, "reaping timed-out/failed runner",
+				"runner_name", runner.Name)
+
+			if err := w.removeRunnerFromGithubAndSetPendingDelete(runner.Name, runner.AgentID); err != nil {
+				slog.ErrorContext(w.ctx, "error removing runner", "runner_name", runner.Name, "error", err)
+				unlockFn()
+				return nil, fmt.Errorf("removing runner %s: %w", runner.Name, err)
+			}
+		}
+	}
+	return unlockFn, nil
+}
+
+func (w *Worker) consolidateRunnerState(runners []params.RunnerReference) error {
+	w.mux.Lock()
+	defer w.mux.Unlock()
+
+	ghRunnersByName := make(map[string]params.RunnerReference)
+	for _, runner := range runners {
+		ghRunnersByName[runner.Name] = runner
+	}
+
+	dbRunnersByName := w.runnerByName()
+	// Cross check what exists in github with what we have in the database.
+	for name, runner := range ghRunnersByName {
+		status := runner.GetStatus()
+		if _, ok := dbRunnersByName[name]; !ok {
+			// runner appears to be active. Is it not managed by GARM?
+			if status != params.RunnerIdle && status != params.RunnerActive {
+				slog.InfoContext(w.ctx, "runner does not exist in GARM; removing from github", "runner_name", name)
+				if err := w.scaleSetCli.RemoveRunner(w.ctx, runner.ID); err != nil {
+					if errors.Is(err, runnerErrors.ErrNotFound) {
+						continue
+					}
+					slog.ErrorContext(w.ctx, "error removing runner", "runner_name", runner.Name, "error", err)
+				}
+			}
+			continue
+		}
+	}
+
+	unlockFn, err := w.reapTimedOutRunners(ghRunnersByName)
+	if err != nil {
+		return fmt.Errorf("reaping timed out runners: %w", err)
+	}
+	defer unlockFn()
+
+	// refresh the map. It may have been mutated above.
+	dbRunnersByName = w.runnerByName()
+	// Cross check what exists in the database with what we have in github.
+	for name, runner := range dbRunnersByName {
+		// in the case of scale sets, JIT configs re used. There is no situation
+		// in which we create a runner in the DB and one does not exist in github.
+		// We can safely assume that if the runner is not in github anymore, it can
+		// be removed from the provider and the DB.
+		switch runner.Status {
+		case commonParams.InstancePendingDelete, commonParams.InstancePendingForceDelete,
+			commonParams.InstanceDeleting, commonParams.InstanceDeleted:
+			continue
+		}
+
+		if _, ok := ghRunnersByName[name]; !ok {
+			if ok, err := locking.TryLock(name, w.consumerID); err != nil || !ok {
+				slog.DebugContext(w.ctx, "runner is locked; skipping", "runner_name", name)
+				continue
+			}
+			// unlock the runner only after this function returns. This function also cross
+			// checks between the provider and the database, and removes left over runners.
+			// If we unlock early, the provider worker will attempt to remove runners that
+			// we set in pending_delete. This function holds the mutex, so we won't see those
+			// changes until we return. So we hold the instance lock here until we are done.
+			// That way, even if the provider sees the pending_delete status, it won't act on
+			// it until it manages to lock the instance.
+			defer locking.Unlock(name, false)
+
+			slog.InfoContext(w.ctx, "runner does not exist in github; removing from provider", "runner_name", name)
+			instance, err := w.setRunnerDBStatus(runner.Name, commonParams.InstancePendingDelete)
+			if err != nil {
+				if !errors.Is(err, runnerErrors.ErrNotFound) {
+					return fmt.Errorf("updating runner %s: %w", instance.Name, err)
+				}
+			}
+			// We will get an update event anyway from the watcher, but updating the runner
+			// here, will prevent race conditions if some other event is already in the queue
+			// which involves this runner. For the duration of the lifetime of this function, we
+			// hold the lock, so no race condition can occur.
+			w.runners[runner.ID] = instance
+		}
+	}
+
+	// Cross check what exists in the provider with the DB.
+	pseudoPoolID, err := w.pseudoPoolID()
+	if err != nil {
+		return fmt.Errorf("getting pseudo pool ID: %w", err)
+	}
+	listParams := common.ListInstancesParams{
+		ListInstancesV011: common.ListInstancesV011Params{
+			ProviderBaseParams: common.ProviderBaseParams{
+				ControllerInfo: w.controllerInfo,
+			},
+		},
+	}
+
+	providerRunners, err := w.provider.ListInstances(w.ctx, pseudoPoolID, listParams)
+	if err != nil {
+		return fmt.Errorf("listing instances: %w", err)
+	}
+
+	providerRunnersByName := make(map[string]commonParams.ProviderInstance)
+	for _, runner := range providerRunners {
+		providerRunnersByName[runner.Name] = runner
+	}
+
+	deleteInstanceParams := common.DeleteInstanceParams{
+		DeleteInstanceV011: common.DeleteInstanceV011Params{
+			ProviderBaseParams: common.ProviderBaseParams{
+				ControllerInfo: w.controllerInfo,
+			},
+		},
+	}
+
+	// refresh the map. It may have been mutated above.
+	dbRunnersByName = w.runnerByName()
+	for _, runner := range providerRunners {
+		if _, ok := dbRunnersByName[runner.Name]; !ok {
+			slog.InfoContext(w.ctx, "runner does not exist in database; removing from provider", "runner_name", runner.Name)
+			// There is no situation in which the runner will disappear from the provider
+			// after it was removed from the database. The provider worker will remove the
+			// instance from the provider nd mark the instance as deleted in the database.
+			// It is the responsibility of the scaleset worker to then clean up the runners
+			// in the deleted state.
+			// That means that if we have a runner in the provider but not the DB, it is most
+			// likely an inconsistency.
+			if err := w.provider.DeleteInstance(w.ctx, runner.Name, deleteInstanceParams); err != nil {
+				slog.ErrorContext(w.ctx, "error removing instance", "instance_name", runner.Name, "error", err)
+			}
+			continue
+		}
+	}
+
+	for _, runner := range dbRunnersByName {
+		switch runner.Status {
+		case commonParams.InstancePendingDelete, commonParams.InstancePendingForceDelete,
+			commonParams.InstanceDeleting, commonParams.InstanceDeleted:
+			// This instance is already being deleted.
+			continue
+		}
+
+		locked, err := locking.TryLock(runner.Name, w.consumerID)
+		if err != nil || !locked {
+			slog.DebugContext(w.ctx, "runner is locked; skipping", "runner_name", runner.Name)
+			continue
+		}
+		defer locking.Unlock(runner.Name, false)
+
+		if _, ok := providerRunnersByName[runner.Name]; !ok {
+			// The runner is not in the provider anymore. Remove it from the DB.
+			slog.InfoContext(w.ctx, "runner does not exist in provider; removing from database", "runner_name", runner.Name)
+			if err := w.removeRunnerFromGithubAndSetPendingDelete(runner.Name, runner.AgentID); err != nil {
+				return fmt.Errorf("removing runner %s: %w", runner.Name, err)
+			}
+		}
+	}
+
+	return nil
+}
+
 func (w *Worker) SetGithubClient(client common.GithubClient) error {
 	w.mux.Lock()
 	defer w.mux.Unlock()
@@ -254,6 +480,15 @@ func (w *Worker) SetGithubClient(client common.GithubClient) error {
 	}
 	w.scaleSetCli = scaleSetCli
 	return nil
+}
+
+func (w *Worker) pseudoPoolID() (string, error) {
+	// This is temporary. We need to extend providers to know about scale sets.
+	entity, err := w.scaleSet.GetEntity()
+	if err != nil {
+		return "", fmt.Errorf("getting entity: %w", err)
+	}
+	return fmt.Sprintf("%s-%s", w.scaleSet.Name, entity.ID), nil
 }
 
 func (w *Worker) handleScaleSetEvent(event dbCommon.ChangePayload) {
@@ -418,7 +653,10 @@ func (w *Worker) keepListenerAlive() {
 			w.mux.Unlock()
 			continue
 		}
-		// noop if already started
+		// noop if already started. If the scaleset was just enabled, we need to
+		// start the listener here, or the <-w.listener.Wait() channel receive bellow
+		// will block forever, even if we start the listener, as a nil channel will
+		// block forever.
 		w.listener.Start()
 		w.mux.Unlock()
 
@@ -513,13 +751,15 @@ func (w *Worker) handleScaleUp(target, current uint) {
 			AgentID:           jitConfig.Runner.ID,
 		}
 
-		if _, err := w.store.CreateScaleSetInstance(w.ctx, w.scaleSet.ID, runnerParams); err != nil {
+		dbInstance, err := w.store.CreateScaleSetInstance(w.ctx, w.scaleSet.ID, runnerParams)
+		if err != nil {
 			slog.ErrorContext(w.ctx, "error creating instance", "error", err)
 			if err := w.scaleSetCli.RemoveRunner(w.ctx, jitConfig.Runner.ID); err != nil {
 				slog.ErrorContext(w.ctx, "error deleting runner", "error", err)
 			}
 			continue
 		}
+		w.runners[dbInstance.ID] = dbInstance
 
 		_, err = w.scaleSetCli.GetRunner(w.ctx, jitConfig.Runner.ID)
 		if err != nil {
@@ -636,7 +876,7 @@ func (w *Worker) handleAutoScale() {
 	lastMsg := ""
 	lastMsgDebugLog := func(msg string, targetRunners, currentRunners uint) {
 		if lastMsg != msg {
-			slog.DebugContext(w.ctx, msg, "current_runners", currentRunners, "target_runners", targetRunners, "current_runners", w.RunnersAndStatuses())
+			slog.DebugContext(w.ctx, msg, "current_runners", currentRunners, "target_runners", targetRunners)
 			lastMsg = msg
 		}
 	}

@@ -49,6 +49,18 @@ type (
 	ScaleSetMessageType string
 )
 
+func (s RunnerStatus) IsValid() bool {
+	switch s {
+	case RunnerIdle, RunnerPending, RunnerTerminated,
+		RunnerInstalling, RunnerFailed,
+		RunnerActive, RunnerOffline,
+		RunnerUnknown, RunnerOnline:
+
+		return true
+	}
+	return false
+}
+
 const (
 	// PoolBalancerTypeRoundRobin will try to cycle through the pools of an entity
 	// in a round robin fashion. For example, if a repository has multiple pools that
@@ -117,6 +129,9 @@ const (
 	RunnerInstalling RunnerStatus = "installing"
 	RunnerFailed     RunnerStatus = "failed"
 	RunnerActive     RunnerStatus = "active"
+	RunnerOffline    RunnerStatus = "offline"
+	RunnerOnline     RunnerStatus = "online"
+	RunnerUnknown    RunnerStatus = "unknown"
 )
 
 const (
