@@ -153,6 +153,10 @@ type NameAndIDDBEntity interface {
 	GetName() string
 }
 
+func Ptr[T any](v T) *T {
+	return &v
+}
+
 func EqualDBEntityByName[T NameAndIDDBEntity](t *testing.T, expected, actual []T) {
 	require.Equal(t, len(expected), len(actual))
 

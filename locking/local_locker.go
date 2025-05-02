@@ -2,14 +2,9 @@ package locking
 
 import (
 	"context"
-	"fmt"
-	"log/slog"
-	"runtime"
 	"sync"
-	"time"
 
 	dbCommon "github.com/cloudbase/garm/database/common"
-	"github.com/cloudbase/garm/runner/common"
 )
 
 const (
@@ -36,8 +31,11 @@ func (k *keyMutex) TryLock(key, identifier string) bool {
 		mux: sync.Mutex{},
 	})
 	keyMux := mux.(*lockWithIdent)
-	keyMux.ident = identifier
-	return keyMux.mux.TryLock()
+	locked := keyMux.mux.TryLock()
+	if locked {
+		keyMux.ident = identifier
+	}
+	return locked
 }
 
 func (k *keyMutex) Lock(key, identifier string) {
@@ -58,8 +56,6 @@ func (k *keyMutex) Unlock(key string, remove bool) {
 	if remove {
 		k.Delete(key)
 	}
-	_, filename, line, _ := runtime.Caller(1)
-	slog.Debug("unlocking", "key", key, "identifier", keyMux.ident, "caller", fmt.Sprintf("%s:%d", filename, line))
 	keyMux.ident = ""
 	keyMux.mux.Unlock()
 }
@@ -68,56 +64,15 @@ func (k *keyMutex) Delete(key string) {
 	k.muxes.Delete(key)
 }
 
-func NewInstanceDeleteBackoff(_ context.Context) (InstanceDeleteBackoff, error) {
-	return &instanceDeleteBackoff{}, nil
-}
-
-type instanceBackOff struct {
-	backoffSeconds          float64
-	lastRecordedFailureTime time.Time
-	mux                     sync.Mutex
-}
-
-type instanceDeleteBackoff struct {
-	muxes sync.Map
-}
-
-func (i *instanceDeleteBackoff) ShouldProcess(key string) (bool, time.Time) {
-	backoff, loaded := i.muxes.LoadOrStore(key, &instanceBackOff{})
-	if !loaded {
-		return true, time.Time{}
+func (k *keyMutex) LockedBy(key string) (string, bool) {
+	mux, ok := k.muxes.Load(key)
+	if !ok {
+		return "", false
+	}
+	keyMux := mux.(*lockWithIdent)
+	if keyMux.ident == "" {
+		return "", false
 	}
 
-	ib := backoff.(*instanceBackOff)
-	ib.mux.Lock()
-	defer ib.mux.Unlock()
-
-	if ib.lastRecordedFailureTime.IsZero() || ib.backoffSeconds == 0 {
-		return true, time.Time{}
-	}
-
-	now := time.Now().UTC()
-	deadline := ib.lastRecordedFailureTime.Add(time.Duration(ib.backoffSeconds) * time.Second)
-	return deadline.After(now), deadline
-}
-
-func (i *instanceDeleteBackoff) Delete(key string) {
-	i.muxes.Delete(key)
-}
-
-func (i *instanceDeleteBackoff) RecordFailure(key string) {
-	backoff, _ := i.muxes.LoadOrStore(key, &instanceBackOff{})
-	ib := backoff.(*instanceBackOff)
-	ib.mux.Lock()
-	defer ib.mux.Unlock()
-
-	ib.lastRecordedFailureTime = time.Now().UTC()
-	if ib.backoffSeconds == 0 {
-		ib.backoffSeconds = common.PoolConsilitationInterval.Seconds()
-	} else {
-		// Geometric progression of 1.5
-		newBackoff := ib.backoffSeconds * 1.5
-		// Cap the backoff to 20 minutes
-		ib.backoffSeconds = min(newBackoff, maxBackoffSeconds)
-	}
+	return keyMux.ident, true
 }

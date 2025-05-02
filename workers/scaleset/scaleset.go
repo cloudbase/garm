@@ -291,7 +291,7 @@ func (w *Worker) reapTimedOutRunners(runners map[string]params.RunnerReference) 
 			continue
 		}
 		if ghRunner, ok := runners[runner.Name]; !ok || ghRunner.GetStatus() == params.RunnerOffline {
-			if ok, err := locking.TryLock(runner.Name, w.consumerID); err != nil || !ok {
+			if ok := locking.TryLock(runner.Name, w.consumerID); !ok {
 				slog.DebugContext(w.ctx, "runner is locked; skipping", "runner_name", runner.Name)
 				continue
 			}
@@ -360,7 +360,7 @@ func (w *Worker) consolidateRunnerState(runners []params.RunnerReference) error 
 		}
 
 		if _, ok := ghRunnersByName[name]; !ok {
-			if ok, err := locking.TryLock(name, w.consumerID); err != nil || !ok {
+			if ok := locking.TryLock(name, w.consumerID); !ok {
 				slog.DebugContext(w.ctx, "runner is locked; skipping", "runner_name", name)
 				continue
 			}
@@ -446,8 +446,8 @@ func (w *Worker) consolidateRunnerState(runners []params.RunnerReference) error 
 			continue
 		}
 
-		locked, err := locking.TryLock(runner.Name, w.consumerID)
-		if err != nil || !locked {
+		locked := locking.TryLock(runner.Name, w.consumerID)
+		if !locked {
 			slog.DebugContext(w.ctx, "runner is locked; skipping", "runner_name", runner.Name)
 			continue
 		}
@@ -777,8 +777,8 @@ func (w *Worker) handleScaleDown(target, current uint) {
 	removed := 0
 	candidates := []params.Instance{}
 	for _, runner := range w.runners {
-		locked, err := locking.TryLock(runner.Name, w.consumerID)
-		if err != nil || !locked {
+		locked := locking.TryLock(runner.Name, w.consumerID)
+		if !locked {
 			slog.DebugContext(w.ctx, "runner is locked; skipping", "runner_name", runner.Name)
 			continue
 		}
@@ -809,8 +809,8 @@ func (w *Worker) handleScaleDown(target, current uint) {
 			break
 		}
 
-		locked, err := locking.TryLock(runner.Name, w.consumerID)
-		if err != nil || !locked {
+		locked := locking.TryLock(runner.Name, w.consumerID)
+		if !locked {
 			slog.DebugContext(w.ctx, "runner is locked; skipping", "runner_name", runner.Name)
 			continue
 		}
