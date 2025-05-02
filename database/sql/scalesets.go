@@ -357,7 +357,7 @@ func (s *sqlDatabase) DeleteScaleSetByID(_ context.Context, scaleSetID uint) (er
 		}
 	}()
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
-		dbSet, err := s.getScaleSetByID(tx, scaleSetID, "Instances")
+		dbSet, err := s.getScaleSetByID(tx, scaleSetID, "Instances", "Enterprise", "Organization", "Repository")
 		if err != nil {
 			return errors.Wrap(err, "fetching scale set")
 		}

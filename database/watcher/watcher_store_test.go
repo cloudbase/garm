@@ -241,6 +241,112 @@ func (s *WatcherStoreTestSuite) TestInstanceWatcher() {
 	}
 }
 
+func (s *WatcherStoreTestSuite) TestScaleSetInstanceWatcher() {
+	consumer, err := watcher.RegisterConsumer(
+		s.ctx, "instance-test",
+		watcher.WithEntityTypeFilter(common.InstanceEntityType),
+		watcher.WithAny(
+			watcher.WithOperationTypeFilter(common.CreateOperation),
+			watcher.WithOperationTypeFilter(common.UpdateOperation),
+			watcher.WithOperationTypeFilter(common.DeleteOperation)),
+	)
+	s.Require().NoError(err)
+	s.Require().NotNil(consumer)
+	s.T().Cleanup(func() { consumer.Close() })
+	consumeEvents(consumer)
+
+	ep := garmTesting.CreateDefaultGithubEndpoint(s.ctx, s.store, s.T())
+	creds := garmTesting.CreateTestGithubCredentials(s.ctx, "test-creds", s.store, s.T(), ep)
+	s.T().Cleanup(func() { s.store.DeleteGithubCredentials(s.ctx, creds.ID) })
+
+	repo, err := s.store.CreateRepository(s.ctx, "test-owner", "test-repo", creds.Name, "test-secret", params.PoolBalancerTypeRoundRobin)
+	s.Require().NoError(err)
+	s.Require().NotEmpty(repo.ID)
+	s.T().Cleanup(func() { s.store.DeleteRepository(s.ctx, repo.ID) })
+
+	entity, err := repo.GetEntity()
+	s.Require().NoError(err)
+
+	createScaleSetParams := params.CreateScaleSetParams{
+		ProviderName:   "test-provider",
+		Name:           "test-scaleset",
+		Image:          "test-image",
+		Flavor:         "test-flavor",
+		MinIdleRunners: 0,
+		MaxRunners:     1,
+		OSType:         commonParams.Linux,
+		OSArch:         commonParams.Amd64,
+	}
+
+	scaleSet, err := s.store.CreateEntityScaleSet(s.ctx, entity, createScaleSetParams)
+	s.Require().NoError(err)
+	s.Require().NotEmpty(scaleSet.ID)
+	s.T().Cleanup(func() { s.store.DeleteScaleSetByID(s.ctx, scaleSet.ID) })
+
+	createInstanceParams := params.CreateInstanceParams{
+		Name:   "test-instance",
+		OSType: commonParams.Linux,
+		OSArch: commonParams.Amd64,
+		Status: commonParams.InstanceCreating,
+	}
+	instance, err := s.store.CreateScaleSetInstance(s.ctx, scaleSet.ID, createInstanceParams)
+	s.Require().NoError(err)
+	s.Require().NotEmpty(instance.ID)
+
+	select {
+	case event := <-consumer.Watch():
+		s.Require().Equal(common.ChangePayload{
+			EntityType: common.InstanceEntityType,
+			Operation:  common.CreateOperation,
+			Payload:    instance,
+		}, event)
+		asInstance, ok := event.Payload.(params.Instance)
+		s.Require().True(ok)
+		s.Require().Equal(instance.Name, "test-instance")
+		s.Require().Equal(asInstance.Name, "test-instance")
+	case <-time.After(1 * time.Second):
+		s.T().Fatal("expected payload not received")
+	}
+
+	updateParams := params.UpdateInstanceParams{
+		RunnerStatus: params.RunnerActive,
+	}
+
+	updatedInstance, err := s.store.UpdateInstance(s.ctx, instance.Name, updateParams)
+	s.Require().NoError(err)
+
+	select {
+	case event := <-consumer.Watch():
+		s.Require().Equal(common.ChangePayload{
+			EntityType: common.InstanceEntityType,
+			Operation:  common.UpdateOperation,
+			Payload:    updatedInstance,
+		}, event)
+	case <-time.After(1 * time.Second):
+		s.T().Fatal("expected payload not received")
+	}
+
+	err = s.store.DeleteInstanceByName(s.ctx, updatedInstance.Name)
+	s.Require().NoError(err)
+
+	select {
+	case event := <-consumer.Watch():
+		s.Require().Equal(common.ChangePayload{
+			EntityType: common.InstanceEntityType,
+			Operation:  common.DeleteOperation,
+			Payload: params.Instance{
+				ID:         updatedInstance.ID,
+				Name:       updatedInstance.Name,
+				ProviderID: updatedInstance.ProviderID,
+				AgentID:    updatedInstance.AgentID,
+				ScaleSetID: updatedInstance.ScaleSetID,
+			},
+		}, event)
+	case <-time.After(1 * time.Second):
+		s.T().Fatal("expected payload not received")
+	}
+}
+
 func (s *WatcherStoreTestSuite) TestPoolWatcher() {
 	consumer, err := watcher.RegisterConsumer(
 		s.ctx, "pool-test",
@@ -356,6 +462,134 @@ func (s *WatcherStoreTestSuite) TestPoolWatcher() {
 			EntityType: common.PoolEntityType,
 			Operation:  common.DeleteOperation,
 			Payload:    params.Pool{ID: pool.ID},
+		}, event)
+	case <-time.After(1 * time.Second):
+		s.T().Fatal("expected payload not received")
+	}
+}
+
+func (s *WatcherStoreTestSuite) TestScaleSetWatcher() {
+	consumer, err := watcher.RegisterConsumer(
+		s.ctx, "scaleset-test",
+		watcher.WithEntityTypeFilter(common.ScaleSetEntityType),
+		watcher.WithAny(
+			watcher.WithOperationTypeFilter(common.CreateOperation),
+			watcher.WithOperationTypeFilter(common.UpdateOperation),
+			watcher.WithOperationTypeFilter(common.DeleteOperation)),
+	)
+	s.Require().NoError(err)
+	s.Require().NotNil(consumer)
+	s.T().Cleanup(func() { consumer.Close() })
+	consumeEvents(consumer)
+
+	ep := garmTesting.CreateDefaultGithubEndpoint(s.ctx, s.store, s.T())
+	creds := garmTesting.CreateTestGithubCredentials(s.ctx, "test-creds", s.store, s.T(), ep)
+	s.T().Cleanup(func() {
+		if err := s.store.DeleteGithubCredentials(s.ctx, creds.ID); err != nil {
+			s.T().Logf("failed to delete Github credentials: %v", err)
+		}
+	})
+
+	repo, err := s.store.CreateRepository(s.ctx, "test-owner", "test-repo", creds.Name, "test-secret", params.PoolBalancerTypeRoundRobin)
+	s.Require().NoError(err)
+	s.Require().NotEmpty(repo.ID)
+	s.T().Cleanup(func() { s.store.DeleteRepository(s.ctx, repo.ID) })
+
+	entity, err := repo.GetEntity()
+	s.Require().NoError(err)
+
+	createScaleSetParams := params.CreateScaleSetParams{
+		ProviderName:   "test-provider",
+		Name:           "test-scaleset",
+		Image:          "test-image",
+		Flavor:         "test-flavor",
+		MinIdleRunners: 0,
+		MaxRunners:     1,
+		OSType:         commonParams.Linux,
+		OSArch:         commonParams.Amd64,
+		Tags:           []string{"test-tag"},
+	}
+	scaleSet, err := s.store.CreateEntityScaleSet(s.ctx, entity, createScaleSetParams)
+	s.Require().NoError(err)
+	s.Require().NotEmpty(scaleSet.ID)
+
+	select {
+	case event := <-consumer.Watch():
+		s.Require().Equal(common.ChangePayload{
+			EntityType: common.ScaleSetEntityType,
+			Operation:  common.CreateOperation,
+			Payload:    scaleSet,
+		}, event)
+		asScaleSet, ok := event.Payload.(params.ScaleSet)
+		s.Require().True(ok)
+		s.Require().Equal(scaleSet.Image, "test-image")
+		s.Require().Equal(asScaleSet.Image, "test-image")
+	case <-time.After(1 * time.Second):
+		s.T().Fatal("expected payload not received")
+	}
+
+	updateParams := params.UpdateScaleSetParams{
+		Flavor: "updated-flavor",
+	}
+
+	callbackFn := func(old, newScaleSet params.ScaleSet) error {
+		s.Require().Equal(old.ID, newScaleSet.ID)
+		s.Require().Equal(old.Flavor, "test-flavor")
+		s.Require().Equal(newScaleSet.Flavor, "updated-flavor")
+		return nil
+	}
+	updatedScaleSet, err := s.store.UpdateEntityScaleSet(s.ctx, entity, scaleSet.ID, updateParams, callbackFn)
+	s.Require().NoError(err)
+
+	select {
+	case event := <-consumer.Watch():
+		s.Require().Equal(common.ChangePayload{
+			EntityType: common.ScaleSetEntityType,
+			Operation:  common.UpdateOperation,
+			Payload:    updatedScaleSet,
+		}, event)
+	case <-time.After(1 * time.Second):
+		s.T().Fatal("expected payload not received")
+	}
+
+	err = s.store.SetScaleSetLastMessageID(s.ctx, updatedScaleSet.ID, 99)
+	s.Require().NoError(err)
+
+	select {
+	case event := <-consumer.Watch():
+		asScaleSet, ok := event.Payload.(params.ScaleSet)
+		s.Require().True(ok)
+		s.Require().Equal(asScaleSet.ID, updatedScaleSet.ID)
+		s.Require().Equal(asScaleSet.LastMessageID, int64(99))
+	case <-time.After(1 * time.Second):
+		s.T().Fatal("expected payload not received")
+	}
+
+	err = s.store.SetScaleSetDesiredRunnerCount(s.ctx, updatedScaleSet.ID, 5)
+	s.Require().NoError(err)
+
+	select {
+	case event := <-consumer.Watch():
+		asScaleSet, ok := event.Payload.(params.ScaleSet)
+		s.Require().True(ok)
+		s.Require().Equal(asScaleSet.ID, updatedScaleSet.ID)
+		s.Require().Equal(asScaleSet.DesiredRunnerCount, 5)
+	case <-time.After(1 * time.Second):
+		s.T().Fatal("expected payload not received")
+	}
+
+	err = s.store.DeleteScaleSetByID(s.ctx, scaleSet.ID)
+	s.Require().NoError(err)
+
+	select {
+	case event := <-consumer.Watch():
+		// We updated last message ID and desired runner count above.
+		updatedScaleSet.DesiredRunnerCount = 5
+		updatedScaleSet.LastMessageID = 99
+		s.Require().Equal(common.ChangePayload{
+			EntityType: common.ScaleSetEntityType,
+			Operation:  common.DeleteOperation,
+			Payload:    updatedScaleSet,
 		}, event)
 	case <-time.After(1 * time.Second):
 		s.T().Fatal("expected payload not received")
