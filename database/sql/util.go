@@ -76,13 +76,11 @@ func (s *sqlDatabase) sqlToParamsInstance(instance Instance) (params.Instance, e
 	if instance.ScaleSetFkID != nil {
 		ret.ScaleSetID = *instance.ScaleSetFkID
 		ret.ProviderName = instance.ScaleSet.ProviderName
-		ret.RunnerBootstrapTimeout = instance.ScaleSet.RunnerBootstrapTimeout
 	}
 
 	if instance.PoolID != nil {
 		ret.PoolID = instance.PoolID.String()
 		ret.ProviderName = instance.Pool.ProviderName
-		ret.RunnerBootstrapTimeout = instance.Pool.RunnerBootstrapTimeout
 	}
 
 	if ret.ScaleSetID == 0 && ret.PoolID == "" {
