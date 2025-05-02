@@ -29,7 +29,6 @@ import (
 	"gorm.io/gorm/logger"
 
 	commonParams "github.com/cloudbase/garm-provider-common/params"
-
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/database/watcher"
 	garmTesting "github.com/cloudbase/garm/internal/testing"
@@ -331,9 +330,9 @@ func (s *PoolsTestSuite) TestListEntityInstances() {
 	s.Require().Len(instances, 1)
 	s.Require().Equal(instance.ID, instances[0].ID)
 	s.Require().Equal(instance.Name, instances[0].Name)
+	s.Require().Equal(instance.ProviderName, pool.ProviderName)
 }
 
 func TestPoolsTestSuite(t *testing.T) {
-	t.Parallel()
 	suite.Run(t, new(PoolsTestSuite))
 }

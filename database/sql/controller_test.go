@@ -69,6 +69,5 @@ func (s *CtrlTestSuite) TestInitControllerAlreadyInitialized() {
 }
 
 func TestCtrlTestSuite(t *testing.T) {
-	t.Parallel()
 	suite.Run(t, new(CtrlTestSuite))
 }

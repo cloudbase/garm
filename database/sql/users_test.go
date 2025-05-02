@@ -28,6 +28,7 @@ import (
 	"gorm.io/gorm/logger"
 
 	dbCommon "github.com/cloudbase/garm/database/common"
+	"github.com/cloudbase/garm/database/watcher"
 	garmTesting "github.com/cloudbase/garm/internal/testing"
 	"github.com/cloudbase/garm/params"
 )
@@ -53,7 +54,13 @@ func (s *UserTestSuite) assertSQLMockExpectations() {
 	}
 }
 
+func (s *UserTestSuite) TearDownTest() {
+	watcher.CloseWatcher()
+}
+
 func (s *UserTestSuite) SetupTest() {
+	ctx := context.Background()
+	watcher.InitWatcher(ctx)
 	// create testing sqlite database
 	db, err := NewSQLDatabase(context.Background(), garmTesting.GetTestSqliteDBConfig(s.T()))
 	if err != nil {

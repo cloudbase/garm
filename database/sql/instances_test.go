@@ -591,6 +591,5 @@ func (s *InstancesTestSuite) TestPoolInstanceCountDBCountErr() {
 }
 
 func TestInstTestSuite(t *testing.T) {
-	t.Parallel()
 	suite.Run(t, new(InstancesTestSuite))
 }
