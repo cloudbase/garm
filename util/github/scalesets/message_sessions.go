@@ -132,7 +132,7 @@ func (m *MessageSession) Refresh(ctx context.Context) error {
 	if err := json.NewDecoder(resp.Body).Decode(&refreshedSession); err != nil {
 		return fmt.Errorf("failed to decode response: %w", err)
 	}
-	slog.DebugContext(ctx, "refreshed message session token", "session", refreshedSession)
+	slog.DebugContext(ctx, "refreshed message session token")
 	m.session = &refreshedSession
 	return nil
 }

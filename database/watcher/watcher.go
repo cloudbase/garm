@@ -29,6 +29,15 @@ func InitWatcher(ctx context.Context) {
 	databaseWatcher = w
 }
 
+func CloseWatcher() error {
+	if databaseWatcher == nil {
+		return nil
+	}
+	databaseWatcher.Close()
+	databaseWatcher = nil
+	return nil
+}
+
 func RegisterProducer(ctx context.Context, id string) (common.Producer, error) {
 	if databaseWatcher == nil {
 		return nil, common.ErrWatcherNotInitialized

@@ -119,6 +119,12 @@ func (s *InstancesTestSuite) SetupTest() {
 				CallbackURL:  "https://garm.example.com/",
 				Status:       commonParams.InstanceRunning,
 				RunnerStatus: params.RunnerIdle,
+				JitConfiguration: map[string]string{
+					"secret": fmt.Sprintf("secret-%d", i),
+				},
+				AditionalLabels: []string{
+					fmt.Sprintf("label-%d", i),
+				},
 			},
 		)
 		if err != nil {

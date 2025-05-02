@@ -748,8 +748,11 @@ func consumeEvents(consumer common.Consumer) {
 consume:
 	for {
 		select {
-		case <-consumer.Watch():
+		case _, ok := <-consumer.Watch():
 			// throw away event.
+			if !ok {
+				return
+			}
 		case <-time.After(100 * time.Millisecond):
 			break consume
 		}
