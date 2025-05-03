@@ -98,9 +98,10 @@ type ScaleSet struct {
 	// the scale set was ceated in GARM but has not yet been created in GitHub.
 	// The scale set ID is also not globally unique. It is only unique within the context
 	// of an entity.
-	ScaleSetID    int    `gorm:"index:idx_scale_set"`
-	Name          string `gorm:"index:idx_name"`
-	DisableUpdate bool
+	ScaleSetID        int    `gorm:"index:idx_scale_set"`
+	Name              string `gorm:"unique_index:idx_name"`
+	GitHubRunnerGroup string `gorm:"unique_index:idx_name"`
+	DisableUpdate     bool
 
 	// State stores the provisioning state of the scale set in GitHub
 	State params.ScaleSetState
@@ -123,8 +124,7 @@ type ScaleSet struct {
 	// ExtraSpecs is an opaque json that gets sent to the provider
 	// as part of the bootstrap params for instances. It can contain
 	// any kind of data needed by providers.
-	ExtraSpecs        datatypes.JSON
-	GitHubRunnerGroup string
+	ExtraSpecs datatypes.JSON
 
 	RepoID     *uuid.UUID `gorm:"index"`
 	Repository Repository `gorm:"foreignKey:RepoID;"`
