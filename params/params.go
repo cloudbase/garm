@@ -663,6 +663,7 @@ func (g GithubCredentials) GetHTTPClient(ctx context.Context) (*http.Client, err
 		if err != nil {
 			return nil, fmt.Errorf("failed to create github app installation transport: %w", err)
 		}
+		itr.BaseURL = g.APIBaseURL
 
 		tc = &http.Client{Transport: itr}
 	default:
