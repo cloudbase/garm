@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/cloudbase/garm/auth"
+	"github.com/cloudbase/garm/cache"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/database/watcher"
 	"github.com/cloudbase/garm/runner/common"
@@ -66,6 +67,9 @@ func (c *Controller) loadAllRepositories() error {
 			return fmt.Errorf("starting worker: %w", err)
 		}
 		c.Entities[entity.ID] = worker
+		// take advantage of the fact that we're loading all entities
+		// and set the cache.
+		cache.SetEntity(entity)
 	}
 	return nil
 }
@@ -90,6 +94,9 @@ func (c *Controller) loadAllOrganizations() error {
 			return fmt.Errorf("starting worker: %w", err)
 		}
 		c.Entities[entity.ID] = worker
+		// take advantage of the fact that we're loading all entities
+		// and set the cache.
+		cache.SetEntity(entity)
 	}
 	return nil
 }
@@ -114,6 +121,9 @@ func (c *Controller) loadAllEnterprises() error {
 			return fmt.Errorf("starting worker: %w", err)
 		}
 		c.Entities[entity.ID] = worker
+		// take advantage of the fact that we're loading all entities
+		// and set the cache.
+		cache.SetEntity(entity)
 	}
 	return nil
 }
@@ -126,14 +136,14 @@ func (c *Controller) Start() error {
 	}
 	c.mux.Unlock()
 
-	if err := c.loadAllRepositories(); err != nil {
-		return fmt.Errorf("loading repositories: %w", err)
+	if err := c.loadAllEnterprises(); err != nil {
+		return fmt.Errorf("loading enterprises: %w", err)
 	}
 	if err := c.loadAllOrganizations(); err != nil {
 		return fmt.Errorf("loading organizations: %w", err)
 	}
-	if err := c.loadAllEnterprises(); err != nil {
-		return fmt.Errorf("loading enterprises: %w", err)
+	if err := c.loadAllRepositories(); err != nil {
+		return fmt.Errorf("loading repositories: %w", err)
 	}
 
 	consumer, err := watcher.RegisterConsumer(

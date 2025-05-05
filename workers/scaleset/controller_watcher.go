@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/cloudbase/garm/cache"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
@@ -63,6 +64,7 @@ func (c *Controller) handleScaleSetCreateOperation(sSet params.ScaleSet, ghCli c
 
 	if _, ok := c.ScaleSets[sSet.ID]; ok {
 		slog.DebugContext(c.ctx, "scale set already exists in worker list", "scale_set_id", sSet.ID)
+		cache.SetEntityScaleSet(c.Entity.ID, sSet)
 		return nil
 	}
 
@@ -88,9 +90,9 @@ func (c *Controller) handleScaleSetCreateOperation(sSet params.ScaleSet, ghCli c
 	}
 	c.ScaleSets[sSet.ID] = &scaleSet{
 		scaleSet: sSet,
-		// status:   scaleSetStatus{},
-		worker: worker,
+		worker:   worker,
 	}
+	cache.SetEntityScaleSet(c.Entity.ID, sSet)
 	return nil
 }
 
@@ -109,6 +111,7 @@ func (c *Controller) handleScaleSetDeleteOperation(sSet params.ScaleSet) error {
 		return fmt.Errorf("stopping scale set worker: %w", err)
 	}
 	delete(c.ScaleSets, sSet.ID)
+	cache.DeleteEntityScaleSet(c.Entity.ID, sSet.ID)
 	return nil
 }
 
@@ -116,12 +119,16 @@ func (c *Controller) handleScaleSetUpdateOperation(sSet params.ScaleSet) error {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
-	if _, ok := c.ScaleSets[sSet.ID]; !ok {
+	set, ok := c.ScaleSets[sSet.ID]
+	if !ok {
 		// Some error may have occurred when the scale set was first created, so we
 		// attempt to create it after the user updated the scale set, hopefully
 		// fixing the reason for the failure.
 		return c.handleScaleSetCreateOperation(sSet, c.ghCli)
 	}
+	set.scaleSet = sSet
+	c.ScaleSets[sSet.ID] = set
+	cache.SetEntityScaleSet(c.Entity.ID, sSet)
 	// We let the watcher in the scale set worker handle the update operation.
 	return nil
 }
@@ -139,6 +146,7 @@ func (c *Controller) handleCredentialsEvent(event dbCommon.ChangePayload) {
 		c.mux.Lock()
 		defer c.mux.Unlock()
 
+		cache.SetGithubCredentials(credentials)
 		if c.Entity.Credentials.ID != credentials.ID {
 			// stale update event.
 			return
@@ -177,6 +185,7 @@ func (c *Controller) handleEntityEvent(event dbCommon.ChangePayload) {
 			}
 		}
 		c.Entity = entity
+		cache.SetEntity(c.Entity)
 	default:
 		slog.ErrorContext(c.ctx, "invalid operation type", "operation_type", event.Operation)
 		return
