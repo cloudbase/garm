@@ -8,16 +8,23 @@ import (
 
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm/auth"
+	"github.com/cloudbase/garm/cache"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/database/watcher"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
+	garmUtil "github.com/cloudbase/garm/util"
 )
 
 func NewWorker(ctx context.Context, store dbCommon.Store, providers map[string]common.Provider, tokenGetter auth.InstanceTokenGetter) (*Provider, error) {
 	consumerID := "provider-worker"
+
+	ctx = garmUtil.WithSlogContext(
+		ctx,
+		slog.Any("worker", consumerID))
+
 	return &Provider{
-		ctx:         context.Background(),
+		ctx:         ctx,
 		store:       store,
 		consumerID:  consumerID,
 		providers:   providers,
@@ -74,6 +81,7 @@ func (p *Provider) loadAllRunners() error {
 	}
 
 	for _, runner := range runners {
+		cache.SetInstanceCache(runner)
 		// Skip non scale set instances for now. This condition needs to be
 		// removed once we replace the current pool manager.
 		if runner.ScaleSetID == 0 {
@@ -246,29 +254,34 @@ func (p *Provider) handleInstanceEvent(event dbCommon.ChangePayload) {
 		return
 	}
 
+	slog.DebugContext(p.ctx, "handling instance event", "instance_name", instance.Name)
 	switch event.Operation {
 	case dbCommon.CreateOperation:
+		cache.SetInstanceCache(instance)
 		slog.DebugContext(p.ctx, "got create operation")
 		if err := p.handleInstanceAdded(instance); err != nil {
 			slog.ErrorContext(p.ctx, "failed to handle instance added", "error", err)
 			return
 		}
 	case dbCommon.UpdateOperation:
+		cache.SetInstanceCache(instance)
 		slog.DebugContext(p.ctx, "got update operation")
 		existingInstance, ok := p.runners[instance.Name]
 		if !ok {
+			slog.DebugContext(p.ctx, "instance not found, creating new instance", "instance_name", instance.Name)
 			if err := p.handleInstanceAdded(instance); err != nil {
 				slog.ErrorContext(p.ctx, "failed to handle instance added", "error", err)
 				return
 			}
 		} else {
+			slog.DebugContext(p.ctx, "updating instance", "instance_name", instance.Name)
 			if err := existingInstance.Update(event); err != nil {
 				slog.ErrorContext(p.ctx, "failed to update instance", "error", err)
 				return
 			}
 		}
 	case dbCommon.DeleteOperation:
-		slog.DebugContext(p.ctx, "got delete operation")
+		slog.DebugContext(p.ctx, "got delete operation", "instance_name", instance.Name)
 		existingInstance, ok := p.runners[instance.Name]
 		if ok {
 			if err := existingInstance.Stop(); err != nil {
@@ -277,6 +290,7 @@ func (p *Provider) handleInstanceEvent(event dbCommon.ChangePayload) {
 			}
 		}
 		delete(p.runners, instance.Name)
+		cache.DeleteInstanceCache(instance.ID)
 	default:
 		slog.ErrorContext(p.ctx, "invalid operation type", "operation_type", event.Operation)
 		return

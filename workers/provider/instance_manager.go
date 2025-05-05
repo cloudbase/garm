@@ -18,7 +18,7 @@ import (
 )
 
 func newInstanceManager(ctx context.Context, instance params.Instance, scaleSet params.ScaleSet, provider common.Provider, helper providerHelper) (*instanceManager, error) {
-	ctx = garmUtil.WithSlogContext(ctx, slog.Any("instance", instance.Name))
+	ctx = garmUtil.WithSlogContext(ctx, slog.Any("worker", fmt.Sprintf("instance-worker-%s", instance.Name)))
 
 	githubEntity, err := scaleSet.GetEntity()
 	if err != nil {
@@ -66,25 +66,17 @@ func (i *instanceManager) Start() error {
 	i.mux.Lock()
 	defer i.mux.Unlock()
 
+	slog.DebugContext(i.ctx, "starting instance manager", "instance", i.instance.Name)
 	if i.running {
 		return nil
 	}
 
-	// switch i.instance.Status {
-	// case commonParams.InstancePendingCreate,
-	// 	commonParams.InstancePendingDelete,
-	// 	commonParams.InstancePendingForceDelete:
-	// 	if err := i.consolidateState(); err != nil {
-	// 		return fmt.Errorf("consolidating state: %w", err)
-	// 	}
-	// case commonParams.InstanceDeleted:
-	// 	return ErrInstanceDeleted
-	// }
 	i.running = true
 	i.quit = make(chan struct{})
 	i.updates = make(chan dbCommon.ChangePayload)
 
 	go i.loop()
+	go i.updatesLoop()
 	return nil
 }
 
@@ -106,6 +98,7 @@ func (i *instanceManager) sleepForBackOffOrCanceled() bool {
 	timer := time.NewTimer(i.deleteBackoff)
 	defer timer.Stop()
 
+	slog.DebugContext(i.ctx, "sleeping for backoff", "duration", i.deleteBackoff, "instance", i.instance.Name)
 	select {
 	case <-timer.C:
 		return false
@@ -274,6 +267,7 @@ func (i *instanceManager) handleDeleteInstanceInProvider(instance params.Instanc
 func (i *instanceManager) consolidateState() error {
 	i.mux.Lock()
 	defer i.mux.Unlock()
+
 	if !i.running {
 		return nil
 	}
@@ -347,9 +341,6 @@ func (i *instanceManager) handleUpdate(update dbCommon.ChangePayload) error {
 	// We need a better way to handle instance state. Database updates may fail, and we
 	// end up with an inconsistent state between what we know about the instance and what
 	// is reflected in the database.
-	i.mux.Lock()
-	defer i.mux.Unlock()
-
 	if !i.running {
 		return nil
 	}
@@ -359,25 +350,23 @@ func (i *instanceManager) handleUpdate(update dbCommon.ChangePayload) error {
 		return runnerErrors.NewBadRequestError("invalid payload type")
 	}
 
-	i.instance = instance
-	if i.instance.Status == instance.Status {
-		// Nothing of interest happened.
+	switch instance.Status {
+	case commonParams.InstanceDeleting, commonParams.InstanceCreating:
 		return nil
 	}
+	i.instance = instance
 	return nil
 }
 
 func (i *instanceManager) Update(instance dbCommon.ChangePayload) error {
-	i.mux.Lock()
-	defer i.mux.Unlock()
-
 	if !i.running {
 		return runnerErrors.NewBadRequestError("instance manager is not running")
 	}
 
-	timer := time.NewTimer(60 * time.Second)
+	timer := time.NewTimer(10 * time.Second)
 	defer timer.Stop()
 
+	slog.DebugContext(i.ctx, "sending update to instance manager")
 	select {
 	case i.updates <- instance:
 	case <-i.quit:
@@ -388,6 +377,33 @@ func (i *instanceManager) Update(instance dbCommon.ChangePayload) error {
 		return fmt.Errorf("timeout while sending update to instance manager")
 	}
 	return nil
+}
+
+func (i *instanceManager) updatesLoop() {
+	defer i.Stop()
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-i.quit:
+			return
+		case <-i.ctx.Done():
+			return
+		case update, ok := <-i.updates:
+			if !ok {
+				slog.InfoContext(i.ctx, "updates channel closed")
+				return
+			}
+			slog.DebugContext(i.ctx, "received update")
+			if err := i.handleUpdate(update); err != nil {
+				if errors.Is(err, ErrInstanceDeleted) {
+					// instance had been deleted, we can exit the loop.
+					return
+				}
+				slog.ErrorContext(i.ctx, "handling update", "error", err)
+			}
+		}
+	}
 }
 
 func (i *instanceManager) loop() {
@@ -407,17 +423,6 @@ func (i *instanceManager) loop() {
 					return
 				}
 				slog.ErrorContext(i.ctx, "consolidating state", "error", err)
-			}
-		case update, ok := <-i.updates:
-			if !ok {
-				return
-			}
-			if err := i.handleUpdate(update); err != nil {
-				if errors.Is(err, ErrInstanceDeleted) {
-					// instance had been deleted, we can exit the loop.
-					return
-				}
-				slog.ErrorContext(i.ctx, "handling update", "error", err)
 			}
 		}
 	}

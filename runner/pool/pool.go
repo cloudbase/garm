@@ -226,12 +226,6 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 	case "completed":
 		jobParams, err = r.paramsWorkflowJobToParamsJob(job)
 		if err != nil {
-			if errors.Is(err, runnerErrors.ErrNotFound) {
-				// Unassigned jobs will have an empty runner_name.
-				// We also need to ignore not found errors, as we may get a webhook regarding
-				// a workflow that is handled by a runner at a different hierarchy level.
-				return nil
-			}
 			return errors.Wrap(err, "converting job to params")
 		}
 

@@ -49,6 +49,16 @@ func (e *EntityCache) SetEntity(entity params.GithubEntity) {
 	e.mux.Lock()
 	defer e.mux.Unlock()
 
+	_, ok := e.entities[entity.ID]
+	if !ok {
+		e.entities[entity.ID] = EntityItem{
+			Entity:    entity,
+			Pools:     make(map[string]params.Pool),
+			ScaleSets: make(map[uint]params.ScaleSet),
+		}
+		return
+	}
+
 	e.entities[entity.ID] = EntityItem{
 		Entity: entity,
 	}
