@@ -28,11 +28,11 @@ type EntityCache struct {
 	entities map[string]EntityItem
 }
 
-func (e *EntityCache) GetEntity(entity params.GithubEntity) (EntityItem, bool) {
+func (e *EntityCache) GetEntity(entityID string) (params.GithubEntity, bool) {
 	e.mux.Lock()
 	defer e.mux.Unlock()
 
-	if cache, ok := e.entities[entity.ID]; ok {
+	if cache, ok := e.entities[entityID]; ok {
 		// Updating specific credential details will not update entity cache which
 		// uses those credentials.
 		// Entity credentials in the cache are only updated if you swap the creds
@@ -41,9 +41,9 @@ func (e *EntityCache) GetEntity(entity params.GithubEntity) (EntityItem, bool) {
 		if ok {
 			cache.Entity.Credentials = creds
 		}
-		return cache, true
+		return cache.Entity, true
 	}
-	return EntityItem{}, false
+	return params.GithubEntity{}, false
 }
 
 func (e *EntityCache) SetEntity(entity params.GithubEntity) {
@@ -193,8 +193,22 @@ func (e *EntityCache) GetEntityPools(entityID string) []params.Pool {
 	return nil
 }
 
-func GetEntity(entity params.GithubEntity) (EntityItem, bool) {
-	return entityCache.GetEntity(entity)
+func (e *EntityCache) GetEntityScaleSets(entityID string) []params.ScaleSet {
+	e.mux.Lock()
+	defer e.mux.Unlock()
+
+	if cache, ok := e.entities[entityID]; ok {
+		var scaleSets []params.ScaleSet
+		for _, scaleSet := range cache.ScaleSets {
+			scaleSets = append(scaleSets, scaleSet)
+		}
+		return scaleSets
+	}
+	return nil
+}
+
+func GetEntity(entityID string) (params.GithubEntity, bool) {
+	return entityCache.GetEntity(entityID)
 }
 
 func SetEntity(entity params.GithubEntity) {
@@ -243,4 +257,8 @@ func FindPoolsMatchingAllTags(entityID string, tags []string) []params.Pool {
 
 func GetEntityPools(entityID string) []params.Pool {
 	return entityCache.GetEntityPools(entityID)
+}
+
+func GetEntityScaleSets(entityID string) []params.ScaleSet {
+	return entityCache.GetEntityScaleSets(entityID)
 }
