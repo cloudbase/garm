@@ -6,10 +6,11 @@ import (
 	"github.com/pkg/errors"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	"github.com/cloudbase/garm/cache"
 	"github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/params"
 	runnerCommon "github.com/cloudbase/garm/runner/common"
-	garmUtil "github.com/cloudbase/garm/util"
+	ghClient "github.com/cloudbase/garm/util/github"
 )
 
 // entityGetter is implemented by all github entities (repositories, organizations and enterprises)
@@ -28,7 +29,7 @@ func (r *basePoolManager) handleControllerUpdateEvent(controllerInfo params.Cont
 func (r *basePoolManager) getClientOrStub() runnerCommon.GithubClient {
 	var err error
 	var ghc runnerCommon.GithubClient
-	ghc, err = garmUtil.GithubClient(r.ctx, r.entity, r.entity.Credentials)
+	ghc, err = ghClient.Client(r.ctx, r.entity)
 	if err != nil {
 		slog.WarnContext(r.ctx, "failed to create github client", "error", err)
 		ghc = &stubGithubClient{
@@ -121,6 +122,23 @@ func (r *basePoolManager) handleCredentialsUpdate(credentials params.GithubCrede
 	r.mux.Unlock()
 }
 
+func (r *basePoolManager) handleEntityPoolEvent(event common.ChangePayload) {
+	pool, ok := event.Payload.(params.Pool)
+	if !ok {
+		slog.ErrorContext(r.ctx, "failed to cast payload to pool")
+		return
+	}
+
+	switch event.Operation {
+	case common.CreateOperation, common.UpdateOperation:
+		slog.DebugContext(r.ctx, "updating pool in cache", "pool_id", pool.ID)
+		cache.SetEntityPool(r.entity.ID, pool)
+	case common.DeleteOperation:
+		slog.DebugContext(r.ctx, "deleting pool from cache", "pool_id", pool.ID)
+		cache.DeleteEntityPool(r.entity.ID, pool.ID)
+	}
+}
+
 func (r *basePoolManager) handleWatcherEvent(event common.ChangePayload) {
 	dbEntityType := common.DatabaseEntityType(r.entity.EntityType)
 	switch event.EntityType {
@@ -150,6 +168,8 @@ func (r *basePoolManager) handleWatcherEvent(event common.ChangePayload) {
 			return
 		}
 		r.handleEntityUpdate(entityInfo, event.Operation)
+	case common.PoolEntityType:
+		r.handleEntityPoolEvent(event)
 	}
 }
 

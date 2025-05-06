@@ -119,6 +119,12 @@ func (s *InstancesTestSuite) SetupTest() {
 				CallbackURL:  "https://garm.example.com/",
 				Status:       commonParams.InstanceRunning,
 				RunnerStatus: params.RunnerIdle,
+				JitConfiguration: map[string]string{
+					"secret": fmt.Sprintf("secret-%d", i),
+				},
+				AditionalLabels: []string{
+					fmt.Sprintf("label-%d", i),
+				},
 			},
 		)
 		if err != nil {
@@ -277,6 +283,23 @@ func (s *InstancesTestSuite) TestDeleteInstance() {
 
 	_, err = s.Store.GetPoolInstanceByName(s.adminCtx, s.Fixtures.Pool.ID, storeInstance.Name)
 	s.Require().Equal("fetching instance: fetching pool instance by name: not found", err.Error())
+
+	err = s.Store.DeleteInstance(s.adminCtx, s.Fixtures.Pool.ID, storeInstance.Name)
+	s.Require().Nil(err)
+}
+
+func (s *InstancesTestSuite) TestDeleteInstanceByName() {
+	storeInstance := s.Fixtures.Instances[0]
+
+	err := s.Store.DeleteInstanceByName(s.adminCtx, storeInstance.Name)
+
+	s.Require().Nil(err)
+
+	_, err = s.Store.GetPoolInstanceByName(s.adminCtx, s.Fixtures.Pool.ID, storeInstance.Name)
+	s.Require().Equal("fetching instance: fetching pool instance by name: not found", err.Error())
+
+	err = s.Store.DeleteInstanceByName(s.adminCtx, storeInstance.Name)
+	s.Require().Nil(err)
 }
 
 func (s *InstancesTestSuite) TestDeleteInstanceInvalidPoolID() {
@@ -568,6 +591,5 @@ func (s *InstancesTestSuite) TestPoolInstanceCountDBCountErr() {
 }
 
 func TestInstTestSuite(t *testing.T) {
-	t.Parallel()
 	suite.Run(t, new(InstancesTestSuite))
 }

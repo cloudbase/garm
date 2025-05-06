@@ -99,7 +99,7 @@ func (r *Runner) UpdatePoolByID(ctx context.Context, poolID string, param params
 		return params.Pool{}, runnerErrors.NewBadRequestError("min_idle_runners cannot be larger than max_runners")
 	}
 
-	entity, err := pool.GithubEntity()
+	entity, err := pool.GetEntity()
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "getting entity")
 	}

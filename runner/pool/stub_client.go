@@ -2,8 +2,9 @@ package pool
 
 import (
 	"context"
+	"net/url"
 
-	"github.com/google/go-github/v57/github"
+	"github.com/google/go-github/v71/github"
 
 	"github.com/cloudbase/garm/params"
 )
@@ -32,7 +33,7 @@ func (s *stubGithubClient) PingEntityHook(_ context.Context, _ int64) (*github.R
 	return nil, s.err
 }
 
-func (s *stubGithubClient) ListEntityRunners(_ context.Context, _ *github.ListOptions) (*github.Runners, *github.Response, error) {
+func (s *stubGithubClient) ListEntityRunners(_ context.Context, _ *github.ListRunnersOptions) (*github.Runners, *github.Response, error) {
 	return nil, nil, s.err
 }
 
@@ -40,8 +41,8 @@ func (s *stubGithubClient) ListEntityRunnerApplicationDownloads(_ context.Contex
 	return nil, nil, s.err
 }
 
-func (s *stubGithubClient) RemoveEntityRunner(_ context.Context, _ int64) (*github.Response, error) {
-	return nil, s.err
+func (s *stubGithubClient) RemoveEntityRunner(_ context.Context, _ int64) error {
+	return s.err
 }
 
 func (s *stubGithubClient) CreateEntityRegistrationToken(_ context.Context) (*github.RegistrationToken, *github.Response, error) {
@@ -54,4 +55,16 @@ func (s *stubGithubClient) GetEntityJITConfig(_ context.Context, _ string, _ par
 
 func (s *stubGithubClient) GetWorkflowJobByID(_ context.Context, _, _ string, _ int64) (*github.WorkflowJob, *github.Response, error) {
 	return nil, nil, s.err
+}
+
+func (s *stubGithubClient) GetEntity() params.GithubEntity {
+	return params.GithubEntity{}
+}
+
+func (s *stubGithubClient) GithubBaseURL() *url.URL {
+	return nil
+}
+
+func (s *stubGithubClient) RateLimit(_ context.Context) (*github.RateLimits, error) {
+	return nil, s.err
 }

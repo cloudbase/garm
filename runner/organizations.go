@@ -159,6 +159,15 @@ func (r *Runner) DeleteOrganization(ctx context.Context, orgID string, keepWebho
 		return runnerErrors.NewBadRequestError("org has pools defined (%s)", strings.Join(poolIDs, ", "))
 	}
 
+	scaleSets, err := r.store.ListEntityScaleSets(ctx, entity)
+	if err != nil {
+		return errors.Wrap(err, "fetching organization scale sets")
+	}
+
+	if len(scaleSets) > 0 {
+		return runnerErrors.NewBadRequestError("organization has scale sets defined; delete them first")
+	}
+
 	if !keepWebhook && r.config.Default.EnableWebhookManagement {
 		poolMgr, err := r.poolManagerCtrl.GetOrgPoolManager(org)
 		if err != nil {

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"html/template"
 	"log/slog"
-	"strings"
 
 	"github.com/pkg/errors"
 
@@ -57,24 +56,52 @@ func (r *Runner) GetRunnerServiceName(ctx context.Context) (string, error) {
 			ctx, "failed to get instance params")
 		return "", runnerErrors.ErrUnauthorized
 	}
+	var entity params.GithubEntity
 
-	pool, err := r.store.GetPoolByID(r.ctx, instance.PoolID)
-	if err != nil {
-		slog.With(slog.Any("error", err)).ErrorContext(
-			ctx, "failed to get pool",
-			"pool_id", instance.PoolID)
-		return "", errors.Wrap(err, "fetching pool")
+	switch {
+	case instance.PoolID != "":
+		pool, err := r.store.GetPoolByID(r.ctx, instance.PoolID)
+		if err != nil {
+			slog.With(slog.Any("error", err)).ErrorContext(
+				ctx, "failed to get pool",
+				"pool_id", instance.PoolID)
+			return "", errors.Wrap(err, "fetching pool")
+		}
+		entity, err = pool.GetEntity()
+		if err != nil {
+			slog.With(slog.Any("error", err)).ErrorContext(
+				ctx, "failed to get pool entity",
+				"pool_id", instance.PoolID)
+			return "", errors.Wrap(err, "fetching pool entity")
+		}
+	case instance.ScaleSetID != 0:
+		scaleSet, err := r.store.GetScaleSetByID(r.ctx, instance.ScaleSetID)
+		if err != nil {
+			slog.With(slog.Any("error", err)).ErrorContext(
+				ctx, "failed to get scale set",
+				"scale_set_id", instance.ScaleSetID)
+			return "", errors.Wrap(err, "fetching scale set")
+		}
+		entity, err = scaleSet.GetEntity()
+		if err != nil {
+			slog.With(slog.Any("error", err)).ErrorContext(
+				ctx, "failed to get scale set entity",
+				"scale_set_id", instance.ScaleSetID)
+			return "", errors.Wrap(err, "fetching scale set entity")
+		}
+	default:
+		return "", errors.New("instance not associated with a pool or scale set")
 	}
 
 	tpl := "actions.runner.%s.%s"
 	var serviceName string
-	switch pool.PoolType() {
+	switch entity.EntityType {
 	case params.GithubEntityTypeEnterprise:
-		serviceName = fmt.Sprintf(tpl, pool.EnterpriseName, instance.Name)
+		serviceName = fmt.Sprintf(tpl, entity.Owner, instance.Name)
 	case params.GithubEntityTypeOrganization:
-		serviceName = fmt.Sprintf(tpl, pool.OrgName, instance.Name)
+		serviceName = fmt.Sprintf(tpl, entity.Owner, instance.Name)
 	case params.GithubEntityTypeRepository:
-		serviceName = fmt.Sprintf(tpl, strings.ReplaceAll(pool.RepoName, "/", "-"), instance.Name)
+		serviceName = fmt.Sprintf(tpl, fmt.Sprintf("%s-%s", entity.Owner, entity.Name), instance.Name)
 	}
 	return serviceName, nil
 }

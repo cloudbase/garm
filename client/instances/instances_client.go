@@ -62,6 +62,8 @@ type ClientService interface {
 
 	ListPoolInstances(params *ListPoolInstancesParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListPoolInstancesOK, error)
 
+	ListScaleSetInstances(params *ListScaleSetInstancesParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListScaleSetInstancesOK, error)
+
 	SetTransport(transport runtime.ClientTransport)
 }
 
@@ -208,6 +210,44 @@ func (a *Client) ListPoolInstances(params *ListPoolInstancesParams, authInfo run
 	}
 	// unexpected success response
 	unexpectedSuccess := result.(*ListPoolInstancesDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+ListScaleSetInstances lists runner instances in a scale set
+*/
+func (a *Client) ListScaleSetInstances(params *ListScaleSetInstancesParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListScaleSetInstancesOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewListScaleSetInstancesParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "ListScaleSetInstances",
+		Method:             "GET",
+		PathPattern:        "/scalesets/{scalesetID}/instances",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &ListScaleSetInstancesReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*ListScaleSetInstancesOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*ListScaleSetInstancesDefault)
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 

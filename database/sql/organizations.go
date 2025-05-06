@@ -216,7 +216,7 @@ func (s *sqlDatabase) UpdateOrganization(ctx context.Context, orgID string, para
 }
 
 func (s *sqlDatabase) GetOrganizationByID(ctx context.Context, orgID string) (params.Organization, error) {
-	org, err := s.getOrgByID(ctx, s.conn, orgID, "Pools", "Credentials", "Endpoint")
+	org, err := s.getOrgByID(ctx, s.conn, orgID, "Pools", "Credentials", "Endpoint", "Credentials.Endpoint")
 	if err != nil {
 		return params.Organization{}, errors.Wrap(err, "fetching org")
 	}

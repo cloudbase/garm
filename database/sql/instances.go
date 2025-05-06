@@ -97,6 +97,8 @@ func (s *sqlDatabase) getPoolInstanceByName(poolID string, instanceName string) 
 		}
 		return Instance{}, errors.Wrap(q.Error, "fetching pool instance by name")
 	}
+
+	instance.Pool = pool
 	return instance, nil
 }
 
@@ -134,7 +136,7 @@ func (s *sqlDatabase) GetPoolInstanceByName(_ context.Context, poolID string, in
 }
 
 func (s *sqlDatabase) GetInstanceByName(ctx context.Context, instanceName string) (params.Instance, error) {
-	instance, err := s.getInstanceByName(ctx, instanceName, "StatusMessages")
+	instance, err := s.getInstanceByName(ctx, instanceName, "StatusMessages", "Pool", "ScaleSet")
 	if err != nil {
 		return params.Instance{}, errors.Wrap(err, "fetching instance")
 	}
@@ -145,6 +147,9 @@ func (s *sqlDatabase) GetInstanceByName(ctx context.Context, instanceName string
 func (s *sqlDatabase) DeleteInstance(_ context.Context, poolID string, instanceName string) (err error) {
 	instance, err := s.getPoolInstanceByName(poolID, instanceName)
 	if err != nil {
+		if errors.Is(err, runnerErrors.ErrNotFound) {
+			return nil
+		}
 		return errors.Wrap(err, "deleting instance")
 	}
 
@@ -154,13 +159,62 @@ func (s *sqlDatabase) DeleteInstance(_ context.Context, poolID string, instanceN
 			if instance.ProviderID != nil {
 				providerID = *instance.ProviderID
 			}
-			if notifyErr := s.sendNotify(common.InstanceEntityType, common.DeleteOperation, params.Instance{
+			instanceNotif := params.Instance{
 				ID:         instance.ID.String(),
 				Name:       instance.Name,
 				ProviderID: providerID,
 				AgentID:    instance.AgentID,
-				PoolID:     instance.PoolID.String(),
-			}); notifyErr != nil {
+			}
+			switch {
+			case instance.PoolID != nil:
+				instanceNotif.PoolID = instance.PoolID.String()
+			case instance.ScaleSetFkID != nil:
+				instanceNotif.ScaleSetID = *instance.ScaleSetFkID
+			}
+
+			if notifyErr := s.sendNotify(common.InstanceEntityType, common.DeleteOperation, instanceNotif); notifyErr != nil {
+				slog.With(slog.Any("error", notifyErr)).Error("failed to send notify")
+			}
+		}
+	}()
+
+	if q := s.conn.Unscoped().Delete(&instance); q.Error != nil {
+		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
+			return nil
+		}
+		return errors.Wrap(q.Error, "deleting instance")
+	}
+	return nil
+}
+
+func (s *sqlDatabase) DeleteInstanceByName(ctx context.Context, instanceName string) error {
+	instance, err := s.getInstanceByName(ctx, instanceName, "Pool", "ScaleSet")
+	if err != nil {
+		if errors.Is(err, runnerErrors.ErrNotFound) {
+			return nil
+		}
+		return errors.Wrap(err, "deleting instance")
+	}
+
+	defer func() {
+		if err == nil {
+			var providerID string
+			if instance.ProviderID != nil {
+				providerID = *instance.ProviderID
+			}
+			payload := params.Instance{
+				ID:         instance.ID.String(),
+				Name:       instance.Name,
+				ProviderID: providerID,
+				AgentID:    instance.AgentID,
+			}
+			if instance.PoolID != nil {
+				payload.PoolID = instance.PoolID.String()
+			}
+			if instance.ScaleSetFkID != nil {
+				payload.ScaleSetID = *instance.ScaleSetFkID
+			}
+			if notifyErr := s.sendNotify(common.InstanceEntityType, common.DeleteOperation, payload); notifyErr != nil {
 				slog.With(slog.Any("error", notifyErr)).Error("failed to send notify")
 			}
 		}
@@ -194,7 +248,7 @@ func (s *sqlDatabase) AddInstanceEvent(ctx context.Context, instanceName string,
 }
 
 func (s *sqlDatabase) UpdateInstance(ctx context.Context, instanceName string, param params.UpdateInstanceParams) (params.Instance, error) {
-	instance, err := s.getInstanceByName(ctx, instanceName)
+	instance, err := s.getInstanceByName(ctx, instanceName, "Pool", "ScaleSet")
 	if err != nil {
 		return params.Instance{}, errors.Wrap(err, "updating instance")
 	}

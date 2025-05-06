@@ -54,13 +54,6 @@ type PoolManager interface {
 	// for it and call this function with the WorkflowJob as a parameter.
 	HandleWorkflowJob(job params.WorkflowJob) error
 
-	// DeleteRunner will attempt to remove a runner from the pool. If forceRemove is true, any error
-	// received from the provider will be ignored and we will proceed to remove the runner from the database.
-	// An error received while attempting to remove from GitHub (other than 404) will still stop the deletion
-	// process. This can happen if the runner is already processing a job. At which point, you can simply cancel
-	// the job in github. Doing so will prompt GARM to reap the runner automatically.
-	DeleteRunner(runner params.Instance, forceRemove, bypassGHUnauthorizedError bool) error
-
 	// InstallWebhook will create a webhook in github for the entity associated with this pool manager.
 	InstallWebhook(ctx context.Context, param params.InstallWebhookParams) (params.HookInfo, error)
 	// GetWebhookInfo will return information about the webhook installed in github for the entity associated
@@ -73,6 +66,8 @@ type PoolManager interface {
 	// can include multiple CA certificates for the GARM api server, GHES server and any provider API endpoint that
 	// may use internal or self signed certificates.
 	RootCABundle() (params.CertificateBundle, error)
+
+	SetPoolRunningState(isRunning bool, failureReason string)
 
 	// Start will start the pool manager and all associated workers.
 	Start() error

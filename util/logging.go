@@ -25,6 +25,6 @@ func (h ContextHandler) Handle(ctx context.Context, r slog.Record) error {
 	return h.Handler.Handle(ctx, r)
 }
 
-func WithContext(ctx context.Context, attrs ...slog.Attr) context.Context {
+func WithSlogContext(ctx context.Context, attrs ...slog.Attr) context.Context {
 	return context.WithValue(ctx, slogCtxFields, attrs)
 }

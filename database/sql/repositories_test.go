@@ -94,6 +94,9 @@ func (s *RepoTestSuite) assertSQLMockExpectations() {
 
 func (s *RepoTestSuite) SetupTest() {
 	// create testing sqlite database
+	ctx := context.Background()
+	watcher.InitWatcher(ctx)
+
 	db, err := NewSQLDatabase(context.Background(), garmTesting.GetTestSqliteDBConfig(s.T()))
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to create db connection: %s", err))
@@ -189,6 +192,10 @@ func (s *RepoTestSuite) SetupTest() {
 		SQLMock: sqlMock,
 	}
 	s.Fixtures = fixtures
+}
+
+func (s *RepoTestSuite) TearDownTest() {
+	watcher.CloseWatcher()
 }
 
 func (s *RepoTestSuite) TestCreateRepository() {
@@ -831,7 +838,5 @@ func (s *RepoTestSuite) TestUpdateRepositoryPoolInvalidRepoID() {
 }
 
 func TestRepoTestSuite(t *testing.T) {
-	t.Parallel()
-
 	suite.Run(t, new(RepoTestSuite))
 }

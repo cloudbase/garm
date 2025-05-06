@@ -158,6 +158,15 @@ func (r *Runner) DeleteRepository(ctx context.Context, repoID string, keepWebhoo
 		return runnerErrors.NewBadRequestError("repo has pools defined (%s)", strings.Join(poolIDs, ", "))
 	}
 
+	scaleSets, err := r.store.ListEntityScaleSets(ctx, entity)
+	if err != nil {
+		return errors.Wrap(err, "fetching repo scale sets")
+	}
+
+	if len(scaleSets) > 0 {
+		return runnerErrors.NewBadRequestError("repo has scale sets defined; delete them first")
+	}
+
 	if !keepWebhook && r.config.Default.EnableWebhookManagement {
 		poolMgr, err := r.poolManagerCtrl.GetRepoPoolManager(repo)
 		if err != nil {

@@ -17,7 +17,7 @@ func InitWatcher(ctx context.Context) {
 	if databaseWatcher != nil {
 		return
 	}
-	ctx = garmUtil.WithContext(ctx, slog.Any("watcher", "database"))
+	ctx = garmUtil.WithSlogContext(ctx, slog.Any("watcher", "database"))
 	w := &watcher{
 		producers: make(map[string]*producer),
 		consumers: make(map[string]*consumer),
@@ -29,11 +29,20 @@ func InitWatcher(ctx context.Context) {
 	databaseWatcher = w
 }
 
+func CloseWatcher() error {
+	if databaseWatcher == nil {
+		return nil
+	}
+	databaseWatcher.Close()
+	databaseWatcher = nil
+	return nil
+}
+
 func RegisterProducer(ctx context.Context, id string) (common.Producer, error) {
 	if databaseWatcher == nil {
 		return nil, common.ErrWatcherNotInitialized
 	}
-	ctx = garmUtil.WithContext(ctx, slog.Any("producer_id", id))
+	ctx = garmUtil.WithSlogContext(ctx, slog.Any("producer_id", id))
 	return databaseWatcher.RegisterProducer(ctx, id)
 }
 
@@ -41,7 +50,7 @@ func RegisterConsumer(ctx context.Context, id string, filters ...common.PayloadF
 	if databaseWatcher == nil {
 		return nil, common.ErrWatcherNotInitialized
 	}
-	ctx = garmUtil.WithContext(ctx, slog.Any("consumer_id", id))
+	ctx = garmUtil.WithSlogContext(ctx, slog.Any("consumer_id", id))
 	return databaseWatcher.RegisterConsumer(ctx, id, filters...)
 }
 

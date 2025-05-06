@@ -31,6 +31,12 @@ import (
 	"github.com/cloudbase/garm/params"
 )
 
+const (
+	entityTypeOrg        string = "org"
+	entityTypeRepo       string = "repo"
+	entityTypeEnterprise string = "enterprise"
+)
+
 var (
 	cfg               *config.Config
 	mgr               config.Manager

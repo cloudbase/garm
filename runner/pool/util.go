@@ -6,7 +6,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/google/go-github/v57/github"
+	"github.com/google/go-github/v71/github"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
@@ -132,5 +132,7 @@ func composeWatcherFilters(entity params.GithubEntity) dbCommon.PayloadFilterFun
 		watcher.WithEntityFilter(entity),
 		// Watch for changes to the github credentials
 		watcher.WithGithubCredentialsFilter(entity.Credentials),
+		// Watch for entity pool operations
+		watcher.WithEntityPoolFilter(entity),
 	)
 }

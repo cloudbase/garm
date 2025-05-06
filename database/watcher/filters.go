@@ -1,11 +1,12 @@
 package watcher
 
 import (
+	commonParams "github.com/cloudbase/garm-provider-common/params"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/params"
 )
 
-type idGetter interface {
+type IDGetter interface {
 	GetID() string
 }
 
@@ -72,21 +73,41 @@ func WithEntityPoolFilter(ghEntity params.GithubEntity) dbCommon.PayloadFilterFu
 			}
 			switch ghEntity.EntityType {
 			case params.GithubEntityTypeRepository:
-				if pool.RepoID != ghEntity.ID {
-					return false
-				}
+				return pool.RepoID == ghEntity.ID
 			case params.GithubEntityTypeOrganization:
-				if pool.OrgID != ghEntity.ID {
-					return false
-				}
+				return pool.OrgID == ghEntity.ID
 			case params.GithubEntityTypeEnterprise:
-				if pool.EnterpriseID != ghEntity.ID {
-					return false
-				}
+				return pool.EnterpriseID == ghEntity.ID
 			default:
 				return false
 			}
-			return true
+		default:
+			return false
+		}
+	}
+}
+
+// WithEntityPoolFilter returns true if the change payload is a pool that belongs to the
+// supplied Github entity. This is useful when an entity worker wants to watch for changes
+// in pools that belong to it.
+func WithEntityScaleSetFilter(ghEntity params.GithubEntity) dbCommon.PayloadFilterFunc {
+	return func(payload dbCommon.ChangePayload) bool {
+		switch payload.EntityType {
+		case dbCommon.ScaleSetEntityType:
+			scaleSet, ok := payload.Payload.(params.ScaleSet)
+			if !ok {
+				return false
+			}
+			switch ghEntity.EntityType {
+			case params.GithubEntityTypeRepository:
+				return scaleSet.RepoID == ghEntity.ID
+			case params.GithubEntityTypeOrganization:
+				return scaleSet.OrgID == ghEntity.ID
+			case params.GithubEntityTypeEnterprise:
+				return scaleSet.EnterpriseID == ghEntity.ID
+			default:
+				return false
+			}
 		default:
 			return false
 		}
@@ -100,7 +121,7 @@ func WithEntityFilter(entity params.GithubEntity) dbCommon.PayloadFilterFunc {
 		if params.GithubEntityType(payload.EntityType) != entity.EntityType {
 			return false
 		}
-		var ent idGetter
+		var ent IDGetter
 		var ok bool
 		switch payload.EntityType {
 		case dbCommon.RepositoryEntityType:
@@ -208,5 +229,78 @@ func WithEverything() dbCommon.PayloadFilterFunc {
 func WithExcludeEntityTypeFilter(entityType dbCommon.DatabaseEntityType) dbCommon.PayloadFilterFunc {
 	return func(payload dbCommon.ChangePayload) bool {
 		return payload.EntityType != entityType
+	}
+}
+
+// WithScaleSetFilter returns a filter function that matches a particular scale set.
+func WithScaleSetFilter(scaleset params.ScaleSet) dbCommon.PayloadFilterFunc {
+	return func(payload dbCommon.ChangePayload) bool {
+		if payload.EntityType != dbCommon.ScaleSetEntityType {
+			return false
+		}
+
+		ss, ok := payload.Payload.(params.ScaleSet)
+		if !ok {
+			return false
+		}
+
+		return ss.ID == scaleset.ID
+	}
+}
+
+func WithScaleSetInstanceFilter(scaleset params.ScaleSet) dbCommon.PayloadFilterFunc {
+	return func(payload dbCommon.ChangePayload) bool {
+		if payload.EntityType != dbCommon.InstanceEntityType {
+			return false
+		}
+
+		instance, ok := payload.Payload.(params.Instance)
+		if !ok || instance.ScaleSetID == 0 {
+			return false
+		}
+
+		return instance.ScaleSetID == scaleset.ID
+	}
+}
+
+// EntityTypeCallbackFilter is a callback function that takes a ChangePayload and returns a boolean.
+// This callback type is used in the WithEntityTypeAndCallbackFilter (and potentially others) when
+// a filter needs to delegate logic to a specific callback function.
+type EntityTypeCallbackFilter func(payload dbCommon.ChangePayload) (bool, error)
+
+// WithEntityTypeAndCallbackFilter returns a filter function that filters payloads by entity type and the
+// result of a callback function.
+func WithEntityTypeAndCallbackFilter(entityType dbCommon.DatabaseEntityType, callback EntityTypeCallbackFilter) dbCommon.PayloadFilterFunc {
+	return func(payload dbCommon.ChangePayload) bool {
+		if payload.EntityType != entityType {
+			return false
+		}
+
+		ok, err := callback(payload)
+		if err != nil {
+			return false
+		}
+		return ok
+	}
+}
+
+func WithInstanceStatusFilter(statuses ...commonParams.InstanceStatus) dbCommon.PayloadFilterFunc {
+	return func(payload dbCommon.ChangePayload) bool {
+		if payload.EntityType != dbCommon.InstanceEntityType {
+			return false
+		}
+		instance, ok := payload.Payload.(params.Instance)
+		if !ok {
+			return false
+		}
+		if len(statuses) == 0 {
+			return false
+		}
+		for _, status := range statuses {
+			if instance.Status == status {
+				return true
+			}
+		}
+		return false
 	}
 }

@@ -65,6 +65,13 @@ definitions:
                 alias: garm_params
                 package: github.com/cloudbase/garm/params
             type: CreateRepoParams
+    CreateScaleSetParams:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: CreateScaleSetParams
     Credentials:
         items:
             $ref: '#/definitions/GithubCredentials'
@@ -244,6 +251,22 @@ definitions:
                 alias: garm_params
                 package: github.com/cloudbase/garm/params
             type: Repository
+    ScaleSet:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: ScaleSet
+    ScaleSets:
+        items:
+            $ref: '#/definitions/ScaleSet'
+        type: array
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: ScaleSets
     UpdateControllerParams:
         type: object
         x-go-type:
@@ -279,6 +302,13 @@ definitions:
                 alias: garm_params
                 package: github.com/cloudbase/garm/params
             type: UpdatePoolParams
+    UpdateScaleSetParams:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: UpdateScaleSetParams
     User:
         type: object
         x-go-type:
@@ -616,6 +646,57 @@ paths:
             tags:
                 - enterprises
                 - pools
+    /enterprises/{enterpriseID}/scalesets:
+        get:
+            operationId: ListEnterpriseScaleSets
+            parameters:
+                - description: Enterprise ID.
+                  in: path
+                  name: enterpriseID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: ScaleSets
+                    schema:
+                        $ref: '#/definitions/ScaleSets'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List enterprise scale sets.
+            tags:
+                - enterprises
+                - scalesets
+        post:
+            operationId: CreateEnterpriseScaleSet
+            parameters:
+                - description: Enterprise ID.
+                  in: path
+                  name: enterpriseID
+                  required: true
+                  type: string
+                - description: Parameters used when creating the enterprise scale set.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/CreateScaleSetParams'
+                    description: Parameters used when creating the enterprise scale set.
+                    type: object
+            responses:
+                "200":
+                    description: ScaleSet
+                    schema:
+                        $ref: '#/definitions/ScaleSet'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Create enterprise pool with the parameters given.
+            tags:
+                - enterprises
+                - scalesets
     /first-run:
         post:
             operationId: FirstRun
@@ -1199,6 +1280,57 @@ paths:
             tags:
                 - organizations
                 - pools
+    /organizations/{orgID}/scalesets:
+        get:
+            operationId: ListOrgScaleSets
+            parameters:
+                - description: Organization ID.
+                  in: path
+                  name: orgID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: ScaleSets
+                    schema:
+                        $ref: '#/definitions/ScaleSets'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List organization scale sets.
+            tags:
+                - organizations
+                - scalesets
+        post:
+            operationId: CreateOrgScaleSet
+            parameters:
+                - description: Organization ID.
+                  in: path
+                  name: orgID
+                  required: true
+                  type: string
+                - description: Parameters used when creating the organization scale set.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/CreateScaleSetParams'
+                    description: Parameters used when creating the organization scale set.
+                    type: object
+            responses:
+                "200":
+                    description: ScaleSet
+                    schema:
+                        $ref: '#/definitions/ScaleSet'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Create organization scale set with the parameters given.
+            tags:
+                - organizations
+                - scalesets
     /organizations/{orgID}/webhook:
         delete:
             operationId: UninstallOrgWebhook
@@ -1648,6 +1780,57 @@ paths:
             tags:
                 - repositories
                 - pools
+    /repositories/{repoID}/scalesets:
+        get:
+            operationId: ListRepoScaleSets
+            parameters:
+                - description: Repository ID.
+                  in: path
+                  name: repoID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: ScaleSets
+                    schema:
+                        $ref: '#/definitions/ScaleSets'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List repository scale sets.
+            tags:
+                - repositories
+                - scalesets
+        post:
+            operationId: CreateRepoScaleSet
+            parameters:
+                - description: Repository ID.
+                  in: path
+                  name: repoID
+                  required: true
+                  type: string
+                - description: Parameters used when creating the repository scale set.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/CreateScaleSetParams'
+                    description: Parameters used when creating the repository scale set.
+                    type: object
+            responses:
+                "200":
+                    description: ScaleSet
+                    schema:
+                        $ref: '#/definitions/ScaleSet'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Create repository scale set with the parameters given.
+            tags:
+                - repositories
+                - scalesets
     /repositories/{repoID}/webhook:
         delete:
             operationId: UninstallRepoWebhook
@@ -1718,6 +1901,107 @@ paths:
             tags:
                 - repositories
                 - hooks
+    /scalesets:
+        get:
+            operationId: ListScalesets
+            responses:
+                "200":
+                    description: ScaleSets
+                    schema:
+                        $ref: '#/definitions/ScaleSets'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List all scalesets.
+            tags:
+                - scalesets
+    /scalesets/{scalesetID}:
+        delete:
+            operationId: DeleteScaleSet
+            parameters:
+                - description: ID of the scale set to delete.
+                  in: path
+                  name: scalesetID
+                  required: true
+                  type: string
+            responses:
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Delete scale set by ID.
+            tags:
+                - scalesets
+        get:
+            operationId: GetScaleSet
+            parameters:
+                - description: ID of the scale set to fetch.
+                  in: path
+                  name: scalesetID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: ScaleSet
+                    schema:
+                        $ref: '#/definitions/ScaleSet'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get scale set by ID.
+            tags:
+                - scalesets
+        put:
+            operationId: UpdateScaleSet
+            parameters:
+                - description: ID of the scale set to update.
+                  in: path
+                  name: scalesetID
+                  required: true
+                  type: string
+                - description: Parameters to update the scale set with.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/UpdateScaleSetParams'
+                    description: Parameters to update the scale set with.
+                    type: object
+            responses:
+                "200":
+                    description: ScaleSet
+                    schema:
+                        $ref: '#/definitions/ScaleSet'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Update scale set by ID.
+            tags:
+                - scalesets
+    /scalesets/{scalesetID}/instances:
+        get:
+            operationId: ListScaleSetInstances
+            parameters:
+                - description: Runner scale set ID.
+                  in: path
+                  name: scalesetID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: Instances
+                    schema:
+                        $ref: '#/definitions/Instances'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List runner instances in a scale set.
+            tags:
+                - instances
 produces:
     - application/json
 security:

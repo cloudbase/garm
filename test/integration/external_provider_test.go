@@ -73,7 +73,7 @@ func (suite *GarmSuite) WaitPoolInstances(poolID string, status commonParams.Ins
 			"Pool instance with pool_id %s reached status %v and runner_status %v, desired_instance_count %d, pool_instance_count %d",
 			poolID, status, runnerStatus, instancesCount,
 			len(poolInstances))
-		if int(pool.MinIdleRunners) == instancesCount {
+		if pool.MinIdleRunnersAsInt() == instancesCount {
 			return nil
 		}
 		time.Sleep(5 * time.Second)

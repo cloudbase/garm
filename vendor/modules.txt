@@ -21,8 +21,8 @@ github.com/cespare/xxhash/v2
 # github.com/chzyer/readline v1.5.1
 ## explicit; go 1.15
 github.com/chzyer/readline
-# github.com/cloudbase/garm-provider-common v0.1.4
-## explicit; go 1.22
+# github.com/cloudbase/garm-provider-common v0.1.5-0.20250417155201-8ef03502d06e
+## explicit; go 1.23.0
 github.com/cloudbase/garm-provider-common/defaults
 github.com/cloudbase/garm-provider-common/errors
 github.com/cloudbase/garm-provider-common/execution/common
@@ -97,9 +97,6 @@ github.com/golang-jwt/jwt/v4
 # github.com/golang-jwt/jwt/v5 v5.2.2
 ## explicit; go 1.18
 github.com/golang-jwt/jwt/v5
-# github.com/google/go-github/v57 v57.0.0
-## explicit; go 1.17
-github.com/google/go-github/v57/github
 # github.com/google/go-github/v71 v71.0.0
 ## explicit; go 1.23.0
 github.com/google/go-github/v71/github
@@ -215,8 +212,8 @@ github.com/prometheus/client_model/go
 ## explicit; go 1.21
 github.com/prometheus/common/expfmt
 github.com/prometheus/common/model
-# github.com/prometheus/procfs v0.16.0
-## explicit; go 1.21
+# github.com/prometheus/procfs v0.16.1
+## explicit; go 1.23.0
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
@@ -280,7 +277,7 @@ go.opentelemetry.io/otel/trace
 go.opentelemetry.io/otel/trace/embedded
 go.opentelemetry.io/otel/trace/internal/telemetry
 go.opentelemetry.io/otel/trace/noop
-# golang.org/x/crypto v0.37.0
+# golang.org/x/crypto v0.38.0
 ## explicit; go 1.23.0
 golang.org/x/crypto/bcrypt
 golang.org/x/crypto/blowfish
@@ -289,23 +286,23 @@ golang.org/x/crypto/chacha20poly1305
 golang.org/x/crypto/hkdf
 golang.org/x/crypto/internal/alias
 golang.org/x/crypto/internal/poly1305
-# golang.org/x/net v0.39.0
+# golang.org/x/net v0.40.0
 ## explicit; go 1.23.0
 golang.org/x/net/internal/socks
 golang.org/x/net/proxy
-# golang.org/x/oauth2 v0.29.0
+# golang.org/x/oauth2 v0.30.0
 ## explicit; go 1.23.0
 golang.org/x/oauth2
 golang.org/x/oauth2/internal
-# golang.org/x/sync v0.13.0
+# golang.org/x/sync v0.14.0
 ## explicit; go 1.23.0
 golang.org/x/sync/errgroup
-# golang.org/x/sys v0.32.0
+# golang.org/x/sys v0.33.0
 ## explicit; go 1.23.0
 golang.org/x/sys/cpu
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/text v0.24.0
+# golang.org/x/text v0.25.0
 ## explicit; go 1.23.0
 golang.org/x/text/cases
 golang.org/x/text/internal
@@ -365,11 +362,13 @@ gorm.io/driver/mysql
 # gorm.io/driver/sqlite v1.5.7
 ## explicit; go 1.20
 gorm.io/driver/sqlite
-# gorm.io/gorm v1.25.12
+# gorm.io/gorm v1.26.0
 ## explicit; go 1.18
 gorm.io/gorm
 gorm.io/gorm/callbacks
 gorm.io/gorm/clause
+gorm.io/gorm/internal/lru
+gorm.io/gorm/internal/stmt_store
 gorm.io/gorm/logger
 gorm.io/gorm/migrator
 gorm.io/gorm/schema

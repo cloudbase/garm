@@ -16,6 +16,7 @@ package sql
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"regexp"
@@ -27,7 +28,9 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
+	commonParams "github.com/cloudbase/garm-provider-common/params"
 	dbCommon "github.com/cloudbase/garm/database/common"
+	"github.com/cloudbase/garm/database/watcher"
 	garmTesting "github.com/cloudbase/garm/internal/testing"
 	"github.com/cloudbase/garm/params"
 )
@@ -40,7 +43,9 @@ type PoolsTestFixtures struct {
 
 type PoolsTestSuite struct {
 	suite.Suite
-	Store          dbCommon.Store
+	Store dbCommon.Store
+	ctx   context.Context
+
 	StoreSQLMocked *sqlDatabase
 	Fixtures       *PoolsTestFixtures
 	adminCtx       context.Context
@@ -53,13 +58,21 @@ func (s *PoolsTestSuite) assertSQLMockExpectations() {
 	}
 }
 
+func (s *PoolsTestSuite) TearDownTest() {
+	watcher.CloseWatcher()
+}
+
 func (s *PoolsTestSuite) SetupTest() {
 	// create testing sqlite database
+	ctx := context.Background()
+	watcher.InitWatcher(ctx)
+
 	db, err := NewSQLDatabase(context.Background(), garmTesting.GetTestSqliteDBConfig(s.T()))
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to create db connection: %s", err))
 	}
 	s.Store = db
+	s.ctx = garmTesting.ImpersonateAdminContext(ctx, s.Store, s.T())
 
 	adminCtx := garmTesting.ImpersonateAdminContext(context.Background(), db, s.T())
 	s.adminCtx = adminCtx
@@ -194,7 +207,132 @@ func (s *PoolsTestSuite) TestDeletePoolByIDDBRemoveErr() {
 	s.Require().Equal("removing pool: mocked removing pool error", err.Error())
 }
 
+func (s *PoolsTestSuite) TestEntityPoolOperations() {
+	ep := garmTesting.CreateDefaultGithubEndpoint(s.ctx, s.Store, s.T())
+	creds := garmTesting.CreateTestGithubCredentials(s.ctx, "test-creds", s.Store, s.T(), ep)
+	s.T().Cleanup(func() { s.Store.DeleteGithubCredentials(s.ctx, creds.ID) })
+	repo, err := s.Store.CreateRepository(s.ctx, "test-owner", "test-repo", creds.Name, "test-secret", params.PoolBalancerTypeRoundRobin)
+	s.Require().NoError(err)
+	s.Require().NotEmpty(repo.ID)
+	s.T().Cleanup(func() { s.Store.DeleteRepository(s.ctx, repo.ID) })
+
+	entity, err := repo.GetEntity()
+	s.Require().NoError(err)
+
+	createPoolParams := params.CreatePoolParams{
+		ProviderName: "test-provider",
+		Image:        "test-image",
+		Flavor:       "test-flavor",
+		OSType:       commonParams.Linux,
+		OSArch:       commonParams.Amd64,
+		Tags:         []string{"test-tag"},
+	}
+
+	pool, err := s.Store.CreateEntityPool(s.ctx, entity, createPoolParams)
+	s.Require().NoError(err)
+	s.Require().NotEmpty(pool.ID)
+	s.T().Cleanup(func() { s.Store.DeleteEntityPool(s.ctx, entity, pool.ID) })
+
+	entityPool, err := s.Store.GetEntityPool(s.ctx, entity, pool.ID)
+	s.Require().NoError(err)
+	s.Require().Equal(pool.ID, entityPool.ID)
+	s.Require().Equal(pool.ProviderName, entityPool.ProviderName)
+
+	updatePoolParams := params.UpdatePoolParams{
+		Enabled: garmTesting.Ptr(true),
+		Flavor:  "new-flavor",
+		Image:   "new-image",
+		RunnerPrefix: params.RunnerPrefix{
+			Prefix: "new-prefix",
+		},
+		MaxRunners:             garmTesting.Ptr(uint(100)),
+		MinIdleRunners:         garmTesting.Ptr(uint(50)),
+		OSType:                 commonParams.Windows,
+		OSArch:                 commonParams.Amd64,
+		Tags:                   []string{"new-tag"},
+		RunnerBootstrapTimeout: garmTesting.Ptr(uint(10)),
+		ExtraSpecs:             json.RawMessage(`{"extra": "specs"}`),
+		GitHubRunnerGroup:      garmTesting.Ptr("new-group"),
+		Priority:               garmTesting.Ptr(uint(1)),
+	}
+	pool, err = s.Store.UpdateEntityPool(s.ctx, entity, pool.ID, updatePoolParams)
+	s.Require().NoError(err)
+	s.Require().Equal(*updatePoolParams.Enabled, pool.Enabled)
+	s.Require().Equal(updatePoolParams.Flavor, pool.Flavor)
+	s.Require().Equal(updatePoolParams.Image, pool.Image)
+	s.Require().Equal(updatePoolParams.RunnerPrefix.Prefix, pool.RunnerPrefix.Prefix)
+	s.Require().Equal(*updatePoolParams.MaxRunners, pool.MaxRunners)
+	s.Require().Equal(*updatePoolParams.MinIdleRunners, pool.MinIdleRunners)
+	s.Require().Equal(updatePoolParams.OSType, pool.OSType)
+	s.Require().Equal(updatePoolParams.OSArch, pool.OSArch)
+	s.Require().Equal(*updatePoolParams.RunnerBootstrapTimeout, pool.RunnerBootstrapTimeout)
+	s.Require().Equal(updatePoolParams.ExtraSpecs, pool.ExtraSpecs)
+	s.Require().Equal(*updatePoolParams.GitHubRunnerGroup, pool.GitHubRunnerGroup)
+	s.Require().Equal(*updatePoolParams.Priority, pool.Priority)
+
+	entityPools, err := s.Store.ListEntityPools(s.ctx, entity)
+	s.Require().NoError(err)
+	s.Require().Len(entityPools, 1)
+	s.Require().Equal(pool.ID, entityPools[0].ID)
+
+	tagsToMatch := []string{"new-tag"}
+	pools, err := s.Store.FindPoolsMatchingAllTags(s.ctx, entity.EntityType, entity.ID, tagsToMatch)
+	s.Require().NoError(err)
+	s.Require().Len(pools, 1)
+	s.Require().Equal(pool.ID, pools[0].ID)
+
+	invalidTagsToMatch := []string{"invalid-tag"}
+	pools, err = s.Store.FindPoolsMatchingAllTags(s.ctx, entity.EntityType, entity.ID, invalidTagsToMatch)
+	s.Require().NoError(err)
+	s.Require().Len(pools, 0)
+}
+
+func (s *PoolsTestSuite) TestListEntityInstances() {
+	ep := garmTesting.CreateDefaultGithubEndpoint(s.ctx, s.Store, s.T())
+	creds := garmTesting.CreateTestGithubCredentials(s.ctx, "test-creds", s.Store, s.T(), ep)
+	s.T().Cleanup(func() { s.Store.DeleteGithubCredentials(s.ctx, creds.ID) })
+	repo, err := s.Store.CreateRepository(s.ctx, "test-owner", "test-repo", creds.Name, "test-secret", params.PoolBalancerTypeRoundRobin)
+	s.Require().NoError(err)
+	s.Require().NotEmpty(repo.ID)
+	s.T().Cleanup(func() { s.Store.DeleteRepository(s.ctx, repo.ID) })
+
+	entity, err := repo.GetEntity()
+	s.Require().NoError(err)
+
+	createPoolParams := params.CreatePoolParams{
+		ProviderName: "test-provider",
+		Image:        "test-image",
+		Flavor:       "test-flavor",
+		OSType:       commonParams.Linux,
+		OSArch:       commonParams.Amd64,
+		Tags:         []string{"test-tag"},
+	}
+
+	pool, err := s.Store.CreateEntityPool(s.ctx, entity, createPoolParams)
+	s.Require().NoError(err)
+	s.Require().NotEmpty(pool.ID)
+	s.T().Cleanup(func() { s.Store.DeleteEntityPool(s.ctx, entity, pool.ID) })
+
+	createInstanceParams := params.CreateInstanceParams{
+		Name:   "test-instance",
+		OSType: commonParams.Linux,
+		OSArch: commonParams.Amd64,
+		Status: commonParams.InstanceCreating,
+	}
+	instance, err := s.Store.CreateInstance(s.ctx, pool.ID, createInstanceParams)
+	s.Require().NoError(err)
+	s.Require().NotEmpty(instance.ID)
+
+	s.T().Cleanup(func() { s.Store.DeleteInstance(s.ctx, pool.ID, instance.ID) })
+
+	instances, err := s.Store.ListEntityInstances(s.ctx, entity)
+	s.Require().NoError(err)
+	s.Require().Len(instances, 1)
+	s.Require().Equal(instance.ID, instances[0].ID)
+	s.Require().Equal(instance.Name, instances[0].Name)
+	s.Require().Equal(instance.ProviderName, pool.ProviderName)
+}
+
 func TestPoolsTestSuite(t *testing.T) {
-	t.Parallel()
 	suite.Run(t, new(PoolsTestSuite))
 }

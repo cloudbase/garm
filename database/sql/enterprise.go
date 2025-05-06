@@ -96,7 +96,7 @@ func (s *sqlDatabase) GetEnterprise(ctx context.Context, name, endpointName stri
 }
 
 func (s *sqlDatabase) GetEnterpriseByID(ctx context.Context, enterpriseID string) (params.Enterprise, error) {
-	enterprise, err := s.getEnterpriseByID(ctx, s.conn, enterpriseID, "Pools", "Credentials", "Endpoint")
+	enterprise, err := s.getEnterpriseByID(ctx, s.conn, enterpriseID, "Pools", "Credentials", "Endpoint", "Credentials.Endpoint")
 	if err != nil {
 		return params.Enterprise{}, errors.Wrap(err, "fetching enterprise")
 	}

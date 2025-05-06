@@ -286,6 +286,62 @@ func (a *APIController) CreateRepoPoolHandler(w http.ResponseWriter, r *http.Req
 	}
 }
 
+// swagger:route POST /repositories/{repoID}/scalesets repositories scalesets CreateRepoScaleSet
+//
+// Create repository scale set with the parameters given.
+//
+//	Parameters:
+//	  + name: repoID
+//	    description: Repository ID.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: Body
+//	    description: Parameters used when creating the repository scale set.
+//	    type: CreateScaleSetParams
+//	    in: body
+//	    required: true
+//
+//	Responses:
+//	  200: ScaleSet
+//	  default: APIErrorResponse
+func (a *APIController) CreateRepoScaleSetHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	vars := mux.Vars(r)
+	repoID, ok := vars["repoID"]
+	if !ok {
+		w.WriteHeader(http.StatusBadRequest)
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
+			Error:   "Bad Request",
+			Details: "No repo ID specified",
+		}); err != nil {
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
+		}
+		return
+	}
+
+	var scaleSetData runnerParams.CreateScaleSetParams
+	if err := json.NewDecoder(r.Body).Decode(&scaleSetData); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to decode")
+		handleError(ctx, w, gErrors.ErrBadRequest)
+		return
+	}
+
+	scaleSet, err := a.r.CreateEntityScaleSet(ctx, runnerParams.GithubEntityTypeRepository, repoID, scaleSetData)
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error creating repository scale set")
+		handleError(ctx, w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(scaleSet); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
+	}
+}
+
 // swagger:route GET /repositories/{repoID}/pools repositories pools ListRepoPools
 //
 // List repository pools.
@@ -324,6 +380,48 @@ func (a *APIController) ListRepoPoolsHandler(w http.ResponseWriter, r *http.Requ
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(pools); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
+	}
+}
+
+// swagger:route GET /repositories/{repoID}/scalesets repositories scalesets ListRepoScaleSets
+//
+// List repository scale sets.
+//
+//	Parameters:
+//	  + name: repoID
+//	    description: Repository ID.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	Responses:
+//	  200: ScaleSets
+//	  default: APIErrorResponse
+func (a *APIController) ListRepoScaleSetsHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	repoID, ok := vars["repoID"]
+	if !ok {
+		w.WriteHeader(http.StatusBadRequest)
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
+			Error:   "Bad Request",
+			Details: "No repo ID specified",
+		}); err != nil {
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
+		}
+		return
+	}
+
+	scaleSets, err := a.r.ListEntityScaleSets(ctx, runnerParams.GithubEntityTypeRepository, repoID)
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "listing scale sets")
+		handleError(ctx, w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(scaleSets); err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }

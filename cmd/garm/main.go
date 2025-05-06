@@ -25,6 +25,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
 	"time"
 
@@ -41,13 +42,18 @@ import (
 	"github.com/cloudbase/garm/database"
 	"github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/database/watcher"
+	"github.com/cloudbase/garm/locking"
 	"github.com/cloudbase/garm/metrics"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner" //nolint:typecheck
 	runnerMetrics "github.com/cloudbase/garm/runner/metrics"
+	"github.com/cloudbase/garm/runner/providers"
 	garmUtil "github.com/cloudbase/garm/util"
 	"github.com/cloudbase/garm/util/appdefaults"
 	"github.com/cloudbase/garm/websocket"
+	"github.com/cloudbase/garm/workers/credentials"
+	"github.com/cloudbase/garm/workers/entity"
+	"github.com/cloudbase/garm/workers/provider"
 )
 
 var (
@@ -60,16 +66,17 @@ var signals = []os.Signal{
 	syscall.SIGTERM,
 }
 
-func maybeInitController(db common.Store) error {
-	if _, err := db.ControllerInfo(); err == nil {
-		return nil
+func maybeInitController(db common.Store) (params.ControllerInfo, error) {
+	if info, err := db.ControllerInfo(); err == nil {
+		return info, nil
 	}
 
-	if _, err := db.InitController(); err != nil {
-		return errors.Wrap(err, "initializing controller")
+	info, err := db.InitController()
+	if err != nil {
+		return params.ControllerInfo{}, errors.Wrap(err, "initializing controller")
 	}
 
-	return nil
+	return info, nil
 }
 
 func setupLogging(ctx context.Context, logCfg config.Logging, hub *websocket.Hub) {
@@ -174,6 +181,7 @@ func maybeUpdateURLsFromConfig(cfg config.Config, store common.Store) error {
 	return nil
 }
 
+//gocyclo:ignore
 func main() {
 	flag.Parse()
 	if *version {
@@ -210,12 +218,58 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if err := maybeInitController(db); err != nil {
+	controllerInfo, err := maybeInitController(db)
+	if err != nil {
 		log.Fatal(err)
+	}
+
+	// Local locker for now. Will be configurable in the future,
+	// as we add scale-out capability to GARM.
+	lock, err := locking.NewLocalLocker(ctx, db)
+	if err != nil {
+		log.Fatalf("failed to create locker: %q", err)
+	}
+
+	if err := locking.RegisterLocker(lock); err != nil {
+		log.Fatalf("failed to register locker: %q", err)
 	}
 
 	if err := maybeUpdateURLsFromConfig(*cfg, db); err != nil {
 		log.Fatal(err)
+	}
+
+	credsWorker, err := credentials.NewWorker(ctx, db)
+	if err != nil {
+		log.Fatalf("failed to create credentials worker: %+v", err)
+	}
+	if err := credsWorker.Start(); err != nil {
+		log.Fatalf("failed to start credentials worker: %+v", err)
+	}
+
+	providers, err := providers.LoadProvidersFromConfig(ctx, *cfg, controllerInfo.ControllerID.String())
+	if err != nil {
+		log.Fatalf("loading providers: %+v", err)
+	}
+
+	entityController, err := entity.NewController(ctx, db, providers)
+	if err != nil {
+		log.Fatalf("failed to create entity controller: %+v", err)
+	}
+	if err := entityController.Start(); err != nil {
+		log.Fatalf("failed to start entity controller: %+v", err)
+	}
+
+	instanceTokenGetter, err := auth.NewInstanceTokenGetter(cfg.JWTAuth.Secret)
+	if err != nil {
+		log.Fatalf("failed to create instance token getter: %+v", err)
+	}
+
+	providerWorker, err := provider.NewWorker(ctx, db, providers, instanceTokenGetter)
+	if err != nil {
+		log.Fatalf("failed to create provider worker: %+v", err)
+	}
+	if err := providerWorker.Start(); err != nil {
+		log.Fatalf("failed to start provider worker: %+v", err)
 	}
 
 	runner, err := runner.NewRunner(ctx, *cfg, db)
@@ -276,6 +330,8 @@ func main() {
 	}
 
 	if cfg.Default.DebugServer {
+		runtime.SetBlockProfileRate(1)
+		runtime.SetMutexProfileFraction(1)
 		slog.InfoContext(ctx, "setting up debug routes")
 		router = routers.WithDebugServer(router)
 	}
@@ -313,6 +369,20 @@ func main() {
 	}()
 
 	<-ctx.Done()
+
+	if err := credsWorker.Stop(); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to stop credentials worker")
+	}
+
+	slog.InfoContext(ctx, "shutting down entity controller")
+	if err := entityController.Stop(); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to stop entity controller")
+	}
+
+	slog.InfoContext(ctx, "shutting down provider worker")
+	if err := providerWorker.Stop(); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to stop provider worker")
+	}
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer shutdownCancel()

@@ -287,6 +287,62 @@ func (a *APIController) CreateOrgPoolHandler(w http.ResponseWriter, r *http.Requ
 	}
 }
 
+// swagger:route POST /organizations/{orgID}/scalesets organizations scalesets CreateOrgScaleSet
+//
+// Create organization scale set with the parameters given.
+//
+//	Parameters:
+//	  + name: orgID
+//	    description: Organization ID.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: Body
+//	    description: Parameters used when creating the organization scale set.
+//	    type: CreateScaleSetParams
+//	    in: body
+//	    required: true
+//
+//	Responses:
+//	  200: ScaleSet
+//	  default: APIErrorResponse
+func (a *APIController) CreateOrgScaleSetHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	vars := mux.Vars(r)
+	orgID, ok := vars["orgID"]
+	if !ok {
+		w.WriteHeader(http.StatusBadRequest)
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
+			Error:   "Bad Request",
+			Details: "No org ID specified",
+		}); err != nil {
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
+		}
+		return
+	}
+
+	var scalesetData runnerParams.CreateScaleSetParams
+	if err := json.NewDecoder(r.Body).Decode(&scalesetData); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to decode")
+		handleError(ctx, w, gErrors.ErrBadRequest)
+		return
+	}
+
+	scaleSet, err := a.r.CreateEntityScaleSet(ctx, runnerParams.GithubEntityTypeOrganization, orgID, scalesetData)
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error creating organization scale set")
+		handleError(ctx, w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(scaleSet); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
+	}
+}
+
 // swagger:route GET /organizations/{orgID}/pools organizations pools ListOrgPools
 //
 // List organization pools.
@@ -325,6 +381,48 @@ func (a *APIController) ListOrgPoolsHandler(w http.ResponseWriter, r *http.Reque
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(pools); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
+	}
+}
+
+// swagger:route GET /organizations/{orgID}/scalesets organizations scalesets ListOrgScaleSets
+//
+// List organization scale sets.
+//
+//	Parameters:
+//	  + name: orgID
+//	    description: Organization ID.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	Responses:
+//	  200: ScaleSets
+//	  default: APIErrorResponse
+func (a *APIController) ListOrgScaleSetsHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	orgID, ok := vars["orgID"]
+	if !ok {
+		w.WriteHeader(http.StatusBadRequest)
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
+			Error:   "Bad Request",
+			Details: "No org ID specified",
+		}); err != nil {
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
+		}
+		return
+	}
+
+	scaleSets, err := a.r.ListEntityScaleSets(ctx, runnerParams.GithubEntityTypeOrganization, orgID)
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "listing scale sets")
+		handleError(ctx, w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(scaleSets); err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }

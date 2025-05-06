@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"math"
 	"net/http"
 	"strings"
 	"time"
@@ -59,11 +60,17 @@ type instanceToken struct {
 	jwtSecret string
 }
 
-func (i *instanceToken) NewInstanceJWTToken(instance params.Instance, entity string, poolType params.GithubEntityType, ttlMinutes uint) (string, error) {
+func (i *instanceToken) NewInstanceJWTToken(instance params.Instance, entity string, entityType params.GithubEntityType, ttlMinutes uint) (string, error) {
 	// Token expiration is equal to the bootstrap timeout set on the pool plus the polling
 	// interval garm uses to check for timed out runners. Runners that have not sent their info
 	// by the end of this interval are most likely failed and will be reaped by garm anyway.
-	expireToken := time.Now().Add(time.Duration(ttlMinutes)*time.Minute + common.PoolReapTimeoutInterval)
+	var ttl int
+	if ttlMinutes > math.MaxInt {
+		ttl = math.MaxInt
+	} else {
+		ttl = int(ttlMinutes)
+	}
+	expireToken := time.Now().Add(time.Duration(ttl)*time.Minute + common.PoolReapTimeoutInterval)
 	expires := &jwt.NumericDate{
 		Time: expireToken,
 	}
@@ -75,7 +82,7 @@ func (i *instanceToken) NewInstanceJWTToken(instance params.Instance, entity str
 		ID:            instance.ID,
 		Name:          instance.Name,
 		PoolID:        instance.PoolID,
-		Scope:         poolType,
+		Scope:         entityType,
 		Entity:        entity,
 		CreateAttempt: instance.CreateAttempt,
 	}

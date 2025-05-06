@@ -19,6 +19,7 @@ const (
 	ControllerEntityType        DatabaseEntityType = "controller"
 	GithubCredentialsEntityType DatabaseEntityType = "github_credentials" // #nosec G101
 	GithubEndpointEntityType    DatabaseEntityType = "github_endpoint"
+	ScaleSetEntityType          DatabaseEntityType = "scaleset"
 )
 
 const (

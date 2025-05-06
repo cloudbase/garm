@@ -101,13 +101,13 @@ func (s *sqlDatabase) getEntityPool(tx *gorm.DB, entityType params.GithubEntityT
 	switch entityType {
 	case params.GithubEntityTypeRepository:
 		fieldName = entityTypeRepoName
-		entityField = "Repository"
+		entityField = repositoryFieldName
 	case params.GithubEntityTypeOrganization:
 		fieldName = entityTypeOrgName
-		entityField = "Organization"
+		entityField = organizationFieldName
 	case params.GithubEntityTypeEnterprise:
 		fieldName = entityTypeEnterpriseName
-		entityField = "Enterprise"
+		entityField = enterpriseFieldName
 	default:
 		return Pool{}, fmt.Errorf("invalid entityType: %v", entityType)
 	}
@@ -427,7 +427,10 @@ func (s *sqlDatabase) ListEntityInstances(_ context.Context, entity params.Githu
 	}
 	ret := []params.Instance{}
 	for _, pool := range pools {
-		for _, instance := range pool.Instances {
+		instances := pool.Instances
+		pool.Instances = nil
+		for _, instance := range instances {
+			instance.Pool = pool
 			paramsInstance, err := s.sqlToParamsInstance(instance)
 			if err != nil {
 				return nil, errors.Wrap(err, "fetching instance")

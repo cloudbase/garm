@@ -493,13 +493,13 @@ func formatPools(pools []params.Pool) {
 		switch {
 		case pool.RepoID != "" && pool.RepoName != "":
 			belongsTo = pool.RepoName
-			level = "repo"
+			level = entityTypeRepo
 		case pool.OrgID != "" && pool.OrgName != "":
 			belongsTo = pool.OrgName
-			level = "org"
+			level = entityTypeOrg
 		case pool.EnterpriseID != "" && pool.EnterpriseName != "":
 			belongsTo = pool.EnterpriseName
-			level = "enterprise"
+			level = entityTypeEnterprise
 		}
 		row := table.Row{pool.ID, pool.Image, pool.Flavor, strings.Join(tags, " "), belongsTo, pool.Enabled}
 		if long {
@@ -532,13 +532,13 @@ func formatOnePool(pool params.Pool) {
 	switch {
 	case pool.RepoID != "" && pool.RepoName != "":
 		belongsTo = pool.RepoName
-		level = "repo"
+		level = entityTypeRepo
 	case pool.OrgID != "" && pool.OrgName != "":
 		belongsTo = pool.OrgName
-		level = "org"
+		level = entityTypeOrg
 	case pool.EnterpriseID != "" && pool.EnterpriseName != "":
 		belongsTo = pool.EnterpriseName
-		level = "enterprise"
+		level = entityTypeEnterprise
 	}
 
 	t.AppendHeader(header)

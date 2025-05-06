@@ -18,7 +18,7 @@ func (suite *GarmSuite) TestGithubCredentialsErrorOnDuplicateCredentialsName() {
 	creds, err := suite.createDummyCredentials(dummyCredentialsName, defaultEndpointName)
 	suite.NoError(err)
 	t.Cleanup(func() {
-		suite.DeleteGithubCredential(int64(creds.ID))
+		suite.DeleteGithubCredential(int64(creds.ID)) //nolint:gosec
 	})
 
 	createCredsParams := params.CreateGithubCredentialsParams{
@@ -54,10 +54,10 @@ func (suite *GarmSuite) TestGithubCredentialsFailsToDeleteWhenInUse() {
 	suite.NoError(err)
 	t.Cleanup(func() {
 		deleteRepo(suite.cli, suite.authToken, repo.ID)
-		deleteGithubCredentials(suite.cli, suite.authToken, int64(creds.ID))
+		deleteGithubCredentials(suite.cli, suite.authToken, int64(creds.ID)) //nolint:gosec
 	})
 
-	err = deleteGithubCredentials(suite.cli, suite.authToken, int64(creds.ID))
+	err = deleteGithubCredentials(suite.cli, suite.authToken, int64(creds.ID)) //nolint:gosec
 	suite.Error(err, "expected error when deleting credentials in use")
 }
 
@@ -120,7 +120,7 @@ func (suite *GarmSuite) TestGithubCredentialsUpdateFailsWhenBothPATAndAppAreSupp
 	creds, err := suite.createDummyCredentials(dummyCredentialsName, defaultEndpointName)
 	suite.NoError(err)
 	t.Cleanup(func() {
-		suite.DeleteGithubCredential(int64(creds.ID))
+		suite.DeleteGithubCredential(int64(creds.ID)) //nolint:gosec
 	})
 
 	privateKeyBytes, err := getTestFileContents("certs/srv-key.pem")
@@ -135,7 +135,7 @@ func (suite *GarmSuite) TestGithubCredentialsUpdateFailsWhenBothPATAndAppAreSupp
 			PrivateKeyBytes: privateKeyBytes,
 		},
 	}
-	_, err = updateGithubCredentials(suite.cli, suite.authToken, int64(creds.ID), updateCredsParams)
+	_, err = updateGithubCredentials(suite.cli, suite.authToken, int64(creds.ID), updateCredsParams) //nolint:gosec
 	suite.Error(err, "expected error when updating credentials with both PAT and App")
 	expectAPIStatusCode(err, 400)
 }
@@ -182,7 +182,7 @@ func (suite *GarmSuite) TestGithubCredentialsFailsOnDuplicateName() {
 	creds, err := suite.createDummyCredentials(dummyCredentialsName, defaultEndpointName)
 	suite.NoError(err)
 	t.Cleanup(func() {
-		suite.DeleteGithubCredential(int64(creds.ID))
+		suite.DeleteGithubCredential(int64(creds.ID)) //nolint:gosec
 	})
 
 	createCredsParams := params.CreateGithubCredentialsParams{

@@ -92,6 +92,7 @@ type UserStore interface {
 type InstanceStore interface {
 	CreateInstance(ctx context.Context, poolID string, param params.CreateInstanceParams) (params.Instance, error)
 	DeleteInstance(ctx context.Context, poolID string, instanceName string) error
+	DeleteInstanceByName(ctx context.Context, instanceName string) error
 	UpdateInstance(ctx context.Context, instanceName string, param params.UpdateInstanceParams) (params.Instance, error)
 
 	// Probably a bad idea without some king of filter or at least pagination
@@ -135,6 +136,22 @@ type ControllerStore interface {
 	UpdateController(info params.UpdateControllerParams) (params.ControllerInfo, error)
 }
 
+type ScaleSetsStore interface {
+	ListAllScaleSets(ctx context.Context) ([]params.ScaleSet, error)
+	CreateEntityScaleSet(_ context.Context, entity params.GithubEntity, param params.CreateScaleSetParams) (scaleSet params.ScaleSet, err error)
+	ListEntityScaleSets(_ context.Context, entity params.GithubEntity) ([]params.ScaleSet, error)
+	UpdateEntityScaleSet(_ context.Context, entity params.GithubEntity, scaleSetID uint, param params.UpdateScaleSetParams, callback func(old, newSet params.ScaleSet) error) (updatedScaleSet params.ScaleSet, err error)
+	GetScaleSetByID(ctx context.Context, scaleSet uint) (params.ScaleSet, error)
+	DeleteScaleSetByID(ctx context.Context, scaleSetID uint) (err error)
+	SetScaleSetLastMessageID(ctx context.Context, scaleSetID uint, lastMessageID int64) error
+	SetScaleSetDesiredRunnerCount(ctx context.Context, scaleSetID uint, desiredRunnerCount int) error
+}
+
+type ScaleSetInstanceStore interface {
+	ListScaleSetInstances(_ context.Context, scalesetID uint) ([]params.Instance, error)
+	CreateScaleSetInstance(_ context.Context, scaleSetID uint, param params.CreateInstanceParams) (instance params.Instance, err error)
+}
+
 //go:generate mockery --name=Store
 type Store interface {
 	RepoStore
@@ -148,7 +165,11 @@ type Store interface {
 	GithubCredentialsStore
 	ControllerStore
 	EntityPoolStore
+	ScaleSetsStore
+	ScaleSetInstanceStore
 
 	ControllerInfo() (params.ControllerInfo, error)
 	InitController() (params.ControllerInfo, error)
+	GetGithubEntity(_ context.Context, entityType params.GithubEntityType, entityID string) (params.GithubEntity, error)
+	AddEntityEvent(ctx context.Context, entity params.GithubEntity, event params.EventType, eventLevel params.EventLevel, statusMessage string, maxEvents int) error
 }

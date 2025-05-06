@@ -787,6 +787,5 @@ func (s *OrgTestSuite) TestUpdateOrganizationPoolInvalidOrgID() {
 }
 
 func TestOrgTestSuite(t *testing.T) {
-	t.Parallel()
 	suite.Run(t, new(OrgTestSuite))
 }

@@ -58,6 +58,8 @@ type ClientService interface {
 
 	CreateRepoPool(params *CreateRepoPoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateRepoPoolOK, error)
 
+	CreateRepoScaleSet(params *CreateRepoScaleSetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateRepoScaleSetOK, error)
+
 	DeleteRepo(params *DeleteRepoParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error
 
 	DeleteRepoPool(params *DeleteRepoPoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error
@@ -73,6 +75,8 @@ type ClientService interface {
 	ListRepoInstances(params *ListRepoInstancesParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListRepoInstancesOK, error)
 
 	ListRepoPools(params *ListRepoPoolsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListRepoPoolsOK, error)
+
+	ListRepoScaleSets(params *ListRepoScaleSetsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListRepoScaleSetsOK, error)
 
 	ListRepos(params *ListReposParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListReposOK, error)
 
@@ -158,6 +162,44 @@ func (a *Client) CreateRepoPool(params *CreateRepoPoolParams, authInfo runtime.C
 	}
 	// unexpected success response
 	unexpectedSuccess := result.(*CreateRepoPoolDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+CreateRepoScaleSet creates repository scale set with the parameters given
+*/
+func (a *Client) CreateRepoScaleSet(params *CreateRepoScaleSetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateRepoScaleSetOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewCreateRepoScaleSetParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "CreateRepoScaleSet",
+		Method:             "POST",
+		PathPattern:        "/repositories/{repoID}/scalesets",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &CreateRepoScaleSetReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*CreateRepoScaleSetOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*CreateRepoScaleSetDefault)
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -452,6 +494,44 @@ func (a *Client) ListRepoPools(params *ListRepoPoolsParams, authInfo runtime.Cli
 	}
 	// unexpected success response
 	unexpectedSuccess := result.(*ListRepoPoolsDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+ListRepoScaleSets lists repository scale sets
+*/
+func (a *Client) ListRepoScaleSets(params *ListRepoScaleSetsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListRepoScaleSetsOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewListRepoScaleSetsParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "ListRepoScaleSets",
+		Method:             "GET",
+		PathPattern:        "/repositories/{repoID}/scalesets",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &ListRepoScaleSetsReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*ListRepoScaleSetsOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*ListRepoScaleSetsDefault)
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 

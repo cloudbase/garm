@@ -145,6 +145,15 @@ func (r *Runner) DeleteEnterprise(ctx context.Context, enterpriseID string) erro
 		return runnerErrors.NewBadRequestError("enterprise has pools defined (%s)", strings.Join(poolIDs, ", "))
 	}
 
+	scaleSets, err := r.store.ListEntityScaleSets(ctx, entity)
+	if err != nil {
+		return errors.Wrap(err, "fetching enterprise scale sets")
+	}
+
+	if len(scaleSets) > 0 {
+		return runnerErrors.NewBadRequestError("enterprise has scale sets defined; delete them first")
+	}
+
 	if err := r.poolManagerCtrl.DeleteEnterprisePoolManager(enterprise); err != nil {
 		return errors.Wrap(err, "deleting enterprise pool manager")
 	}

@@ -782,6 +782,5 @@ func (s *EnterpriseTestSuite) TestUpdateEnterprisePoolInvalidEnterpriseID() {
 }
 
 func TestEnterpriseTestSuite(t *testing.T) {
-	t.Parallel()
 	suite.Run(t, new(EnterpriseTestSuite))
 }

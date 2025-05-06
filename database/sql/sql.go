@@ -36,6 +36,12 @@ import (
 	"github.com/cloudbase/garm/util/appdefaults"
 )
 
+const (
+	repositoryFieldName   string = "Repository"
+	organizationFieldName string = "Organization"
+	enterpriseFieldName   string = "Enterprise"
+)
+
 // newDBConn returns a new gorm db connection, given the config
 func newDBConn(dbCfg config.Database) (conn *gorm.DB, err error) {
 	dbType, connURI, err := dbCfg.GormParams()
@@ -423,11 +429,15 @@ func (s *sqlDatabase) migrateDB() error {
 		&Repository{},
 		&Organization{},
 		&Enterprise{},
+		&EnterpriseEvent{},
+		&OrganizationEvent{},
+		&RepositoryEvent{},
 		&Address{},
 		&InstanceStatusUpdate{},
 		&Instance{},
 		&ControllerInfo{},
 		&WorkflowJob{},
+		&ScaleSet{},
 	); err != nil {
 		return errors.Wrap(err, "running auto migrate")
 	}

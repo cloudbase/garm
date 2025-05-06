@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/go-github/v57/github"
+	"github.com/google/go-github/v71/github"
 	"golang.org/x/oauth2"
 
 	commonParams "github.com/cloudbase/garm-provider-common/params"
@@ -109,8 +109,8 @@ func getGhRepoWebhook(url, ghToken, orgName, repoName string) (*github.Hook, err
 	}
 
 	for _, hook := range ghRepoHooks {
-		hookURL, ok := hook.Config["url"].(string)
-		if ok && hookURL == url {
+		hookURL := hook.Config.GetURL()
+		if hookURL == url {
 			return hook, nil
 		}
 	}

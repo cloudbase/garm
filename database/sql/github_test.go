@@ -738,7 +738,6 @@ func (s *GithubTestSuite) TestAdminUserCanUpdateAnyGithubCredentials() {
 }
 
 func TestGithubTestSuite(t *testing.T) {
-	t.Parallel()
 	suite.Run(t, new(GithubTestSuite))
 }
 

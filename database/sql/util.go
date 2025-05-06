@@ -15,6 +15,7 @@
 package sql
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -60,7 +61,6 @@ func (s *sqlDatabase) sqlToParamsInstance(instance Instance) (params.Instance, e
 		OSArch:            instance.OSArch,
 		Status:            instance.Status,
 		RunnerStatus:      instance.RunnerStatus,
-		PoolID:            instance.PoolID.String(),
 		CallbackURL:       instance.CallbackURL,
 		MetadataURL:       instance.MetadataURL,
 		StatusMessages:    []params.StatusMessage{},
@@ -71,6 +71,24 @@ func (s *sqlDatabase) sqlToParamsInstance(instance Instance) (params.Instance, e
 		JitConfiguration:  jitConfig,
 		GitHubRunnerGroup: instance.GitHubRunnerGroup,
 		AditionalLabels:   labels,
+	}
+
+	if instance.ScaleSetFkID != nil {
+		ret.ScaleSetID = *instance.ScaleSetFkID
+		ret.ProviderName = instance.ScaleSet.ProviderName
+	}
+
+	if instance.PoolID != nil {
+		ret.PoolID = instance.PoolID.String()
+		ret.ProviderName = instance.Pool.ProviderName
+	}
+
+	if ret.ScaleSetID == 0 && ret.PoolID == "" {
+		return params.Instance{}, errors.New("missing pool or scale set id")
+	}
+
+	if ret.ScaleSetID != 0 && ret.PoolID != "" {
+		return params.Instance{}, errors.New("both pool and scale set ids are set")
 	}
 
 	if instance.Job != nil {
@@ -265,6 +283,62 @@ func (s *sqlDatabase) sqlToCommonPool(pool Pool) (params.Pool, error) {
 	return ret, nil
 }
 
+func (s *sqlDatabase) sqlToCommonScaleSet(scaleSet ScaleSet) (params.ScaleSet, error) {
+	ret := params.ScaleSet{
+		ID:            scaleSet.ID,
+		ScaleSetID:    scaleSet.ScaleSetID,
+		Name:          scaleSet.Name,
+		DisableUpdate: scaleSet.DisableUpdate,
+
+		ProviderName:   scaleSet.ProviderName,
+		MaxRunners:     scaleSet.MaxRunners,
+		MinIdleRunners: scaleSet.MinIdleRunners,
+		RunnerPrefix: params.RunnerPrefix{
+			Prefix: scaleSet.RunnerPrefix,
+		},
+		Image:                  scaleSet.Image,
+		Flavor:                 scaleSet.Flavor,
+		OSArch:                 scaleSet.OSArch,
+		OSType:                 scaleSet.OSType,
+		Enabled:                scaleSet.Enabled,
+		Instances:              make([]params.Instance, len(scaleSet.Instances)),
+		RunnerBootstrapTimeout: scaleSet.RunnerBootstrapTimeout,
+		ExtraSpecs:             json.RawMessage(scaleSet.ExtraSpecs),
+		GitHubRunnerGroup:      scaleSet.GitHubRunnerGroup,
+		State:                  scaleSet.State,
+		ExtendedState:          scaleSet.ExtendedState,
+		LastMessageID:          scaleSet.LastMessageID,
+		DesiredRunnerCount:     scaleSet.DesiredRunnerCount,
+	}
+
+	if scaleSet.RepoID != nil {
+		ret.RepoID = scaleSet.RepoID.String()
+		if scaleSet.Repository.Owner != "" && scaleSet.Repository.Name != "" {
+			ret.RepoName = fmt.Sprintf("%s/%s", scaleSet.Repository.Owner, scaleSet.Repository.Name)
+		}
+	}
+
+	if scaleSet.OrgID != nil && scaleSet.Organization.Name != "" {
+		ret.OrgID = scaleSet.OrgID.String()
+		ret.OrgName = scaleSet.Organization.Name
+	}
+
+	if scaleSet.EnterpriseID != nil && scaleSet.Enterprise.Name != "" {
+		ret.EnterpriseID = scaleSet.EnterpriseID.String()
+		ret.EnterpriseName = scaleSet.Enterprise.Name
+	}
+
+	var err error
+	for idx, inst := range scaleSet.Instances {
+		ret.Instances[idx], err = s.sqlToParamsInstance(inst)
+		if err != nil {
+			return params.ScaleSet{}, errors.Wrap(err, "converting instance")
+		}
+	}
+
+	return ret, nil
+}
+
 func (s *sqlDatabase) sqlToCommonTags(tag Tag) params.Tag {
 	return params.Tag{
 		ID:   tag.ID.String(),
@@ -452,6 +526,26 @@ func (s *sqlDatabase) getPoolByID(tx *gorm.DB, poolID string, preload ...string)
 	return pool, nil
 }
 
+func (s *sqlDatabase) getScaleSetByID(tx *gorm.DB, scaleSetID uint, preload ...string) (ScaleSet, error) {
+	var scaleSet ScaleSet
+	q := tx.Model(&ScaleSet{})
+	if len(preload) > 0 {
+		for _, item := range preload {
+			q = q.Preload(item)
+		}
+	}
+
+	q = q.Where("id = ?", scaleSetID).First(&scaleSet)
+
+	if q.Error != nil {
+		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
+			return ScaleSet{}, runnerErrors.ErrNotFound
+		}
+		return ScaleSet{}, errors.Wrap(q.Error, "fetching scale set from database")
+	}
+	return scaleSet, nil
+}
+
 func (s *sqlDatabase) hasGithubEntity(tx *gorm.DB, entityType params.GithubEntityType, entityID string) error {
 	u, err := uuid.Parse(entityID)
 	if err != nil {
@@ -512,4 +606,160 @@ func (s *sqlDatabase) sendNotify(entityType dbCommon.DatabaseEntityType, op dbCo
 		EntityType: entityType,
 	}
 	return s.producer.Notify(message)
+}
+
+func (s *sqlDatabase) GetGithubEntity(_ context.Context, entityType params.GithubEntityType, entityID string) (params.GithubEntity, error) {
+	var ghEntity params.EntityGetter
+	var err error
+	switch entityType {
+	case params.GithubEntityTypeEnterprise:
+		ghEntity, err = s.GetEnterpriseByID(s.ctx, entityID)
+	case params.GithubEntityTypeOrganization:
+		ghEntity, err = s.GetOrganizationByID(s.ctx, entityID)
+	case params.GithubEntityTypeRepository:
+		ghEntity, err = s.GetRepositoryByID(s.ctx, entityID)
+	default:
+		return params.GithubEntity{}, errors.Wrap(runnerErrors.ErrBadRequest, "invalid entity type")
+	}
+	if err != nil {
+		return params.GithubEntity{}, errors.Wrap(err, "failed to get ")
+	}
+
+	entity, err := ghEntity.GetEntity()
+	if err != nil {
+		return params.GithubEntity{}, errors.Wrap(err, "failed to get entity")
+	}
+	return entity, nil
+}
+
+func (s *sqlDatabase) addRepositoryEvent(ctx context.Context, repoID string, event params.EventType, eventLevel params.EventLevel, statusMessage string, maxEvents int) error {
+	repo, err := s.GetRepositoryByID(ctx, repoID)
+	if err != nil {
+		return errors.Wrap(err, "updating instance")
+	}
+
+	msg := InstanceStatusUpdate{
+		Message:    statusMessage,
+		EventType:  event,
+		EventLevel: eventLevel,
+	}
+
+	if err := s.conn.Model(&repo).Association("Events").Append(&msg); err != nil {
+		return errors.Wrap(err, "adding status message")
+	}
+
+	if maxEvents > 0 {
+		repoID, err := uuid.Parse(repo.ID)
+		if err != nil {
+			return errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
+		}
+		var latestEvents []OrganizationEvent
+		q := s.conn.Model(&OrganizationEvent{}).
+			Limit(maxEvents).Order("id desc").
+			Where("repo_id = ?", repoID).Find(&latestEvents)
+		if q.Error != nil {
+			return errors.Wrap(q.Error, "fetching latest events")
+		}
+		if len(latestEvents) == maxEvents {
+			lastInList := latestEvents[len(latestEvents)-1]
+			if err := s.conn.Where("repo_id = ? and id < ?", repoID, lastInList.ID).Unscoped().Delete(&OrganizationEvent{}).Error; err != nil {
+				return errors.Wrap(err, "deleting old events")
+			}
+		}
+	}
+	return nil
+}
+
+func (s *sqlDatabase) addOrgEvent(ctx context.Context, orgID string, event params.EventType, eventLevel params.EventLevel, statusMessage string, maxEvents int) error {
+	org, err := s.GetOrganizationByID(ctx, orgID)
+	if err != nil {
+		return errors.Wrap(err, "updating instance")
+	}
+
+	msg := InstanceStatusUpdate{
+		Message:    statusMessage,
+		EventType:  event,
+		EventLevel: eventLevel,
+	}
+
+	if err := s.conn.Model(&org).Association("Events").Append(&msg); err != nil {
+		return errors.Wrap(err, "adding status message")
+	}
+
+	if maxEvents > 0 {
+		orgID, err := uuid.Parse(org.ID)
+		if err != nil {
+			return errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
+		}
+		var latestEvents []OrganizationEvent
+		q := s.conn.Model(&OrganizationEvent{}).
+			Limit(maxEvents).Order("id desc").
+			Where("org_id = ?", orgID).Find(&latestEvents)
+		if q.Error != nil {
+			return errors.Wrap(q.Error, "fetching latest events")
+		}
+		if len(latestEvents) == maxEvents {
+			lastInList := latestEvents[len(latestEvents)-1]
+			if err := s.conn.Where("org_id = ? and id < ?", orgID, lastInList.ID).Unscoped().Delete(&OrganizationEvent{}).Error; err != nil {
+				return errors.Wrap(err, "deleting old events")
+			}
+		}
+	}
+	return nil
+}
+
+func (s *sqlDatabase) addEnterpriseEvent(ctx context.Context, entID string, event params.EventType, eventLevel params.EventLevel, statusMessage string, maxEvents int) error {
+	ent, err := s.GetEnterpriseByID(ctx, entID)
+	if err != nil {
+		return errors.Wrap(err, "updating instance")
+	}
+
+	msg := InstanceStatusUpdate{
+		Message:    statusMessage,
+		EventType:  event,
+		EventLevel: eventLevel,
+	}
+
+	if err := s.conn.Model(&ent).Association("Events").Append(&msg); err != nil {
+		return errors.Wrap(err, "adding status message")
+	}
+
+	if maxEvents > 0 {
+		entID, err := uuid.Parse(ent.ID)
+		if err != nil {
+			return errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
+		}
+		var latestEvents []EnterpriseEvent
+		q := s.conn.Model(&EnterpriseEvent{}).
+			Limit(maxEvents).Order("id desc").
+			Where("enterprise_id = ?", entID).Find(&latestEvents)
+		if q.Error != nil {
+			return errors.Wrap(q.Error, "fetching latest events")
+		}
+		if len(latestEvents) == maxEvents {
+			lastInList := latestEvents[len(latestEvents)-1]
+			if err := s.conn.Where("enterprise_id = ? and id < ?", entID, lastInList.ID).Unscoped().Delete(&EnterpriseEvent{}).Error; err != nil {
+				return errors.Wrap(err, "deleting old events")
+			}
+		}
+	}
+
+	return nil
+}
+
+func (s *sqlDatabase) AddEntityEvent(ctx context.Context, entity params.GithubEntity, event params.EventType, eventLevel params.EventLevel, statusMessage string, maxEvents int) error {
+	if maxEvents == 0 {
+		return errors.Wrap(runnerErrors.ErrBadRequest, "max events cannot be 0")
+	}
+
+	switch entity.EntityType {
+	case params.GithubEntityTypeRepository:
+		return s.addRepositoryEvent(ctx, entity.ID, event, eventLevel, statusMessage, maxEvents)
+	case params.GithubEntityTypeOrganization:
+		return s.addOrgEvent(ctx, entity.ID, event, eventLevel, statusMessage, maxEvents)
+	case params.GithubEntityTypeEnterprise:
+		return s.addEnterpriseEvent(ctx, entity.ID, event, eventLevel, statusMessage, maxEvents)
+	default:
+		return errors.Wrap(runnerErrors.ErrBadRequest, "invalid entity type")
+	}
 }
