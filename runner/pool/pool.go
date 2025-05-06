@@ -162,8 +162,11 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 		return nil
 	}
 
-	var jobParams params.Job
-	var err error
+	jobParams, err := r.paramsWorkflowJobToParamsJob(job)
+	if err != nil {
+		return errors.Wrap(err, "converting job to params")
+	}
+
 	var triggeredBy int64
 	defer func() {
 		if jobParams.ID == 0 {
@@ -213,16 +216,7 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 	case "queued":
 		// Record the job in the database. Queued jobs will be picked up by the consumeQueuedJobs() method
 		// when reconciling.
-		jobParams, err = r.paramsWorkflowJobToParamsJob(job)
-		if err != nil {
-			return errors.Wrap(err, "converting job to params")
-		}
 	case "completed":
-		jobParams, err = r.paramsWorkflowJobToParamsJob(job)
-		if err != nil {
-			return errors.Wrap(err, "converting job to params")
-		}
-
 		// If job was not assigned to a runner, we can ignore it.
 		if jobParams.RunnerName == "" {
 			slog.InfoContext(
@@ -263,11 +257,6 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 			return errors.Wrap(err, "updating runner")
 		}
 	case "in_progress":
-		jobParams, err = r.paramsWorkflowJobToParamsJob(job)
-		if err != nil {
-			return errors.Wrap(err, "converting job to params")
-		}
-
 		fromCache, ok := cache.GetInstanceCache(jobParams.RunnerName)
 		if !ok {
 			slog.DebugContext(r.ctx, "instance not found in cache", "runner_name", jobParams.RunnerName)
