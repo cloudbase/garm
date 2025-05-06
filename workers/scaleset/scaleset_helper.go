@@ -31,6 +31,37 @@ func (w *Worker) SetLastMessageID(id int64) error {
 	return nil
 }
 
+func (w *Worker) recordOrUpdateJob(job params.ScaleSetJobMessage) error {
+	entity, err := w.scaleSet.GetEntity()
+	if err != nil {
+		return fmt.Errorf("getting entity: %w", err)
+	}
+	asUUID, err := entity.GetIDAsUUID()
+	if err != nil {
+		return fmt.Errorf("getting entity ID as UUID: %w", err)
+	}
+
+	jobParams := job.ToJob()
+	jobParams.RunnerGroupName = w.scaleSet.GitHubRunnerGroup
+
+	switch entity.EntityType {
+	case params.GithubEntityTypeEnterprise:
+		jobParams.EnterpriseID = &asUUID
+	case params.GithubEntityTypeRepository:
+		jobParams.RepoID = &asUUID
+	case params.GithubEntityTypeOrganization:
+		jobParams.OrgID = &asUUID
+	default:
+		return fmt.Errorf("unknown entity type: %s", entity.EntityType)
+	}
+
+	if _, jobErr := w.store.CreateOrUpdateJob(w.ctx, jobParams); jobErr != nil {
+		slog.With(slog.Any("error", jobErr)).ErrorContext(
+			w.ctx, "failed to update job", "job_id", jobParams.ID)
+	}
+	return nil
+}
+
 // HandleJobCompleted handles a job completed message. If a job had a runner
 // assigned and was not canceled before it had a chance to run, then we mark
 // that runner as pending_delete.
@@ -39,6 +70,11 @@ func (w *Worker) HandleJobsCompleted(jobs []params.ScaleSetJobMessage) (err erro
 	defer slog.DebugContext(w.ctx, "finished handling job completed", "jobs", jobs, "error", err)
 
 	for _, job := range jobs {
+		if err := w.recordOrUpdateJob(job); err != nil {
+			// recording scale set jobs are purely informational for now.
+			slog.ErrorContext(w.ctx, "recording job", "job", job, "error", err)
+		}
+
 		if job.RunnerName == "" {
 			// This job was not assigned to a runner, so we can skip it.
 			continue
@@ -68,6 +104,11 @@ func (w *Worker) HandleJobsStarted(jobs []params.ScaleSetJobMessage) (err error)
 	slog.DebugContext(w.ctx, "handling job started", "jobs", jobs)
 	defer slog.DebugContext(w.ctx, "finished handling job started", "jobs", jobs, "error", err)
 	for _, job := range jobs {
+		if err := w.recordOrUpdateJob(job); err != nil {
+			// recording scale set jobs are purely informational for now.
+			slog.ErrorContext(w.ctx, "recording job", "job", job, "error", err)
+		}
+
 		if job.RunnerName == "" {
 			// This should not happen, but just in case.
 			continue
@@ -89,6 +130,16 @@ func (w *Worker) HandleJobsStarted(jobs []params.ScaleSetJobMessage) (err error)
 			return fmt.Errorf("updating runner %s: %w", job.RunnerName, err)
 		}
 		locking.Unlock(job.RunnerName, false)
+	}
+	return nil
+}
+
+func (w *Worker) HandleJobsAvailable(jobs []params.ScaleSetJobMessage) error {
+	for _, job := range jobs {
+		if err := w.recordOrUpdateJob(job); err != nil {
+			// recording scale set jobs are purely informational for now.
+			slog.ErrorContext(w.ctx, "recording job", "job", job, "error", err)
+		}
 	}
 	return nil
 }

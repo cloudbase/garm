@@ -350,10 +350,6 @@ func (i *instanceManager) handleUpdate(update dbCommon.ChangePayload) error {
 		return runnerErrors.NewBadRequestError("invalid payload type")
 	}
 
-	switch instance.Status {
-	case commonParams.InstanceDeleting, commonParams.InstanceCreating:
-		return nil
-	}
 	i.instance = instance
 	return nil
 }

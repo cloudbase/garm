@@ -36,6 +36,7 @@ import (
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm-provider-common/util"
 	"github.com/cloudbase/garm/auth"
+	"github.com/cloudbase/garm/cache"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/database/watcher"
 	"github.com/cloudbase/garm/locking"
@@ -165,14 +166,13 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 	var err error
 	var triggeredBy int64
 	defer func() {
+		if jobParams.ID == 0 {
+			return
+		}
 		// we're updating the job in the database, regardless of whether it was successful or not.
 		// or if it was meant for this pool or not. Github will send the same job data to all hierarchies
 		// that have been configured to work with garm. Updating the job at all levels should yield the same
 		// outcome in the db.
-		if jobParams.ID == 0 {
-			return
-		}
-
 		_, err := r.store.GetJobByID(r.ctx, jobParams.ID)
 		if err != nil {
 			if !errors.Is(err, runnerErrors.ErrNotFound) {
@@ -182,13 +182,7 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 				return
 			}
 			// This job is new to us. Check if we have a pool that can handle it.
-			potentialPools, err := r.store.FindPoolsMatchingAllTags(r.ctx, r.entity.EntityType, r.entity.ID, jobParams.Labels)
-			if err != nil {
-				slog.With(slog.Any("error", err)).WarnContext(
-					r.ctx, "failed to find pools matching tags; not recording job",
-					"requested_tags", strings.Join(jobParams.Labels, ", "))
-				return
-			}
+			potentialPools := cache.FindPoolsMatchingAllTags(r.entity.ID, jobParams.Labels)
 			if len(potentialPools) == 0 {
 				slog.WarnContext(
 					r.ctx, "no pools matching tags; not recording job",
@@ -236,6 +230,16 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 			return nil
 		}
 
+		fromCache, ok := cache.GetInstanceCache(jobParams.RunnerName)
+		if !ok {
+			return nil
+		}
+
+		if _, ok := cache.GetEntityPool(r.entity.ID, fromCache.PoolID); !ok {
+			slog.DebugContext(r.ctx, "instance belongs to a pool not managed by this entity", "pool_id", fromCache.PoolID)
+			return nil
+		}
+
 		// update instance workload state.
 		if _, err := r.setInstanceRunnerStatus(jobParams.RunnerName, params.RunnerTerminated); err != nil {
 			if errors.Is(err, runnerErrors.ErrNotFound) {
@@ -261,17 +265,20 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 	case "in_progress":
 		jobParams, err = r.paramsWorkflowJobToParamsJob(job)
 		if err != nil {
-			if errors.Is(err, runnerErrors.ErrNotFound) {
-				// This is most likely a runner we're not managing. If we define a repo from within an org
-				// and also define that same org, we will get a hook from github from both the repo and the org
-				// regarding the same workflow. We look for the runner in the database, and make sure it exists and is
-				// part of a pool that this manager is responsible for. A not found error here will most likely mean
-				// that we are not responsible for that runner, and we should ignore it.
-				return nil
-			}
 			return errors.Wrap(err, "converting job to params")
 		}
 
+		fromCache, ok := cache.GetInstanceCache(jobParams.RunnerName)
+		if !ok {
+			slog.DebugContext(r.ctx, "instance not found in cache", "runner_name", jobParams.RunnerName)
+			return nil
+		}
+
+		pool, ok := cache.GetEntityPool(r.entity.ID, fromCache.PoolID)
+		if !ok {
+			slog.DebugContext(r.ctx, "instance belongs to a pool not managed by this entity", "pool_id", fromCache.PoolID)
+			return nil
+		}
 		// update instance workload state.
 		instance, err := r.setInstanceRunnerStatus(jobParams.RunnerName, params.RunnerActive)
 		if err != nil {
@@ -288,10 +295,6 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 
 		// A runner has picked up the job, and is now running it. It may need to be replaced if the pool has
 		// a minimum number of idle runners configured.
-		pool, err := r.store.GetEntityPool(r.ctx, r.entity, instance.PoolID)
-		if err != nil {
-			return errors.Wrap(err, "getting pool")
-		}
 		if err := r.ensureIdleRunnersForOnePool(pool); err != nil {
 			slog.With(slog.Any("error", err)).ErrorContext(
 				r.ctx, "error ensuring idle runners for pool",
@@ -1286,10 +1289,7 @@ func (r *basePoolManager) retryFailedInstancesForOnePool(ctx context.Context, po
 }
 
 func (r *basePoolManager) retryFailedInstances() error {
-	pools, err := r.store.ListEntityPools(r.ctx, r.entity)
-	if err != nil {
-		return fmt.Errorf("error listing pools: %w", err)
-	}
+	pools := cache.GetEntityPools(r.entity.ID)
 	g, ctx := errgroup.WithContext(r.ctx)
 	for _, pool := range pools {
 		pool := pool
@@ -1309,10 +1309,7 @@ func (r *basePoolManager) retryFailedInstances() error {
 }
 
 func (r *basePoolManager) scaleDown() error {
-	pools, err := r.store.ListEntityPools(r.ctx, r.entity)
-	if err != nil {
-		return fmt.Errorf("error listing pools: %w", err)
-	}
+	pools := cache.GetEntityPools(r.entity.ID)
 	g, ctx := errgroup.WithContext(r.ctx)
 	for _, pool := range pools {
 		pool := pool
@@ -1330,11 +1327,7 @@ func (r *basePoolManager) scaleDown() error {
 }
 
 func (r *basePoolManager) ensureMinIdleRunners() error {
-	pools, err := r.store.ListEntityPools(r.ctx, r.entity)
-	if err != nil {
-		return fmt.Errorf("error listing pools: %w", err)
-	}
-
+	pools := cache.GetEntityPools(r.entity.ID)
 	g, _ := errgroup.WithContext(r.ctx)
 	for _, pool := range pools {
 		pool := pool
@@ -1613,6 +1606,13 @@ func (r *basePoolManager) cleanupOrphanedRunners(runners []*github.Runner) error
 }
 
 func (r *basePoolManager) Start() error {
+	// load pools in cache
+	pools, err := r.store.ListEntityPools(r.ctx, r.entity)
+	if err != nil {
+		return fmt.Errorf("failed to list pools: %w", err)
+	}
+	cache.ReplaceEntityPools(r.entity.ID, pools)
+
 	initialToolUpdate := make(chan struct{}, 1)
 	go func() {
 		slog.Info("running initial tool update")

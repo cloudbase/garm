@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"log/slog"
 	"sync"
 
 	"github.com/cloudbase/garm/params"
@@ -64,14 +65,21 @@ func (e *EntityCache) SetEntity(entity params.GithubEntity) {
 	}
 }
 
-func (e *EntityCache) ReplaceEntityPools(entityID string, pools map[string]params.Pool) {
+func (e *EntityCache) ReplaceEntityPools(entityID string, pools []params.Pool) {
 	e.mux.Lock()
 	defer e.mux.Unlock()
 
-	if cache, ok := e.entities[entityID]; ok {
-		cache.Pools = pools
-		e.entities[entityID] = cache
+	cache, ok := e.entities[entityID]
+	if !ok {
+		return
 	}
+
+	poolsByID := map[string]params.Pool{}
+	for _, pool := range pools {
+		poolsByID[pool.ID] = pool
+	}
+	cache.Pools = poolsByID
+	e.entities[entityID] = cache
 }
 
 func (e *EntityCache) ReplaceEntityScaleSets(entityID string, scaleSets map[uint]params.ScaleSet) {
@@ -154,6 +162,37 @@ func (e *EntityCache) GetEntityScaleSet(entityID string, scaleSetID uint) (param
 	return params.ScaleSet{}, false
 }
 
+func (e *EntityCache) FindPoolsMatchingAllTags(entityID string, tags []string) []params.Pool {
+	e.mux.Lock()
+	defer e.mux.Unlock()
+
+	if cache, ok := e.entities[entityID]; ok {
+		var pools []params.Pool
+		slog.Debug("Finding pools matching all tags", "entityID", entityID, "tags", tags, "pools", cache.Pools)
+		for _, pool := range cache.Pools {
+			if pool.HasRequiredLabels(tags) {
+				pools = append(pools, pool)
+			}
+		}
+		return pools
+	}
+	return nil
+}
+
+func (e *EntityCache) GetEntityPools(entityID string) []params.Pool {
+	e.mux.Lock()
+	defer e.mux.Unlock()
+
+	if cache, ok := e.entities[entityID]; ok {
+		var pools []params.Pool
+		for _, pool := range cache.Pools {
+			pools = append(pools, pool)
+		}
+		return pools
+	}
+	return nil
+}
+
 func GetEntity(entity params.GithubEntity) (EntityItem, bool) {
 	return entityCache.GetEntity(entity)
 }
@@ -162,7 +201,7 @@ func SetEntity(entity params.GithubEntity) {
 	entityCache.SetEntity(entity)
 }
 
-func ReplaceEntityPools(entityID string, pools map[string]params.Pool) {
+func ReplaceEntityPools(entityID string, pools []params.Pool) {
 	entityCache.ReplaceEntityPools(entityID, pools)
 }
 
@@ -196,4 +235,12 @@ func GetEntityPool(entityID string, poolID string) (params.Pool, bool) {
 
 func GetEntityScaleSet(entityID string, scaleSetID uint) (params.ScaleSet, bool) {
 	return entityCache.GetEntityScaleSet(entityID, scaleSetID)
+}
+
+func FindPoolsMatchingAllTags(entityID string, tags []string) []params.Pool {
+	return entityCache.FindPoolsMatchingAllTags(entityID, tags)
+}
+
+func GetEntityPools(entityID string) []params.Pool {
+	return entityCache.GetEntityPools(entityID)
 }

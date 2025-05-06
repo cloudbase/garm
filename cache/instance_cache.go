@@ -25,24 +25,24 @@ func (i *InstanceCache) SetInstance(instance params.Instance) {
 	i.mux.Lock()
 	defer i.mux.Unlock()
 
-	i.cache[instance.ID] = instance
+	i.cache[instance.Name] = instance
 }
 
-func (i *InstanceCache) GetInstance(id string) (params.Instance, bool) {
+func (i *InstanceCache) GetInstance(name string) (params.Instance, bool) {
 	i.mux.Lock()
 	defer i.mux.Unlock()
 
-	if instance, ok := i.cache[id]; ok {
+	if instance, ok := i.cache[name]; ok {
 		return instance, true
 	}
 	return params.Instance{}, false
 }
 
-func (i *InstanceCache) DeleteInstance(id string) {
+func (i *InstanceCache) DeleteInstance(name string) {
 	i.mux.Lock()
 	defer i.mux.Unlock()
 
-	delete(i.cache, id)
+	delete(i.cache, name)
 }
 
 func (i *InstanceCache) GetAllInstances() []params.Instance {
@@ -86,12 +86,12 @@ func SetInstanceCache(instance params.Instance) {
 	instanceCache.SetInstance(instance)
 }
 
-func GetInstanceCache(id string) (params.Instance, bool) {
-	return instanceCache.GetInstance(id)
+func GetInstanceCache(name string) (params.Instance, bool) {
+	return instanceCache.GetInstance(name)
 }
 
-func DeleteInstanceCache(id string) {
-	instanceCache.DeleteInstance(id)
+func DeleteInstanceCache(name string) {
+	instanceCache.DeleteInstance(name)
 }
 
 func GetAllInstancesCache() []params.Instance {

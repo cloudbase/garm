@@ -61,10 +61,10 @@ func (c *Controller) handleScaleSet(event dbCommon.ChangePayload) {
 func (c *Controller) handleScaleSetCreateOperation(sSet params.ScaleSet, ghCli common.GithubClient) error {
 	c.mux.Lock()
 	defer c.mux.Unlock()
+	cache.SetEntityScaleSet(c.Entity.ID, sSet)
 
 	if _, ok := c.ScaleSets[sSet.ID]; ok {
 		slog.DebugContext(c.ctx, "scale set already exists in worker list", "scale_set_id", sSet.ID)
-		cache.SetEntityScaleSet(c.Entity.ID, sSet)
 		return nil
 	}
 
@@ -92,7 +92,6 @@ func (c *Controller) handleScaleSetCreateOperation(sSet params.ScaleSet, ghCli c
 		scaleSet: sSet,
 		worker:   worker,
 	}
-	cache.SetEntityScaleSet(c.Entity.ID, sSet)
 	return nil
 }
 
@@ -119,6 +118,8 @@ func (c *Controller) handleScaleSetUpdateOperation(sSet params.ScaleSet) error {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
+	cache.SetEntityScaleSet(c.Entity.ID, sSet)
+
 	set, ok := c.ScaleSets[sSet.ID]
 	if !ok {
 		// Some error may have occurred when the scale set was first created, so we
@@ -128,7 +129,6 @@ func (c *Controller) handleScaleSetUpdateOperation(sSet params.ScaleSet) error {
 	}
 	set.scaleSet = sSet
 	c.ScaleSets[sSet.ID] = set
-	cache.SetEntityScaleSet(c.Entity.ID, sSet)
 	// We let the watcher in the scale set worker handle the update operation.
 	return nil
 }

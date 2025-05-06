@@ -242,7 +242,7 @@ type RunnerScaleSetStatistic struct {
 type RunnerScaleSet struct {
 	ID                   int                      `json:"id,omitempty"`
 	Name                 string                   `json:"name,omitempty"`
-	RunnerGroupID        int                      `json:"runnerGroupId,omitempty"`
+	RunnerGroupID        int64                    `json:"runnerGroupId,omitempty"`
 	RunnerGroupName      string                   `json:"runnerGroupName,omitempty"`
 	Labels               []Label                  `json:"labels,omitempty"`
 	RunnerSetting        RunnerSetting            `json:"RunnerSetting,omitempty"`
@@ -523,7 +523,38 @@ type ScaleSetJobMessage struct {
 	RunnerAssignTime   time.Time `json:"runnerAssignTime,omitempty"`
 	FinishTime         time.Time `json:"finishTime,omitempty"`
 	Result             string    `json:"result,omitempty"`
-	RunnerID           int       `json:"runnerId,omitempty"`
+	RunnerID           int64     `json:"runnerId,omitempty"`
 	RunnerName         string    `json:"runnerName,omitempty"`
 	AcquireJobURL      string    `json:"acquireJobUrl,omitempty"`
+}
+
+func (s ScaleSetJobMessage) MessageTypeToStatus() JobStatus {
+	switch s.MessageType {
+	case MessageTypeJobAssigned:
+		return JobStatusQueued
+	case MessageTypeJobStarted:
+		return JobStatusInProgress
+	case MessageTypeJobCompleted:
+		return JobStatusCompleted
+	default:
+		return JobStatusQueued
+	}
+}
+
+func (s ScaleSetJobMessage) ToJob() Job {
+	return Job{
+		ID:              s.RunnerRequestID,
+		Action:          s.EventName,
+		RunID:           s.WorkflowRunID,
+		Status:          string(s.MessageTypeToStatus()),
+		Conclusion:      s.Result,
+		CompletedAt:     s.FinishTime,
+		StartedAt:       s.RunnerAssignTime,
+		Name:            s.JobDisplayName,
+		GithubRunnerID:  s.RunnerID,
+		RunnerName:      s.RunnerName,
+		RepositoryName:  s.RepositoryName,
+		RepositoryOwner: s.OwnerName,
+		Labels:          s.RequestLabels,
+	}
 }

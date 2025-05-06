@@ -1039,6 +1039,17 @@ func (g GithubEntity) String() string {
 	return ""
 }
 
+func (g GithubEntity) GetIDAsUUID() (uuid.UUID, error) {
+	if g.ID == "" {
+		return uuid.Nil, nil
+	}
+	id, err := uuid.Parse(g.ID)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("failed to parse entity ID: %w", err)
+	}
+	return id, nil
+}
+
 // used by swagger client generated code
 type GithubEndpoints []GithubEndpoint
 

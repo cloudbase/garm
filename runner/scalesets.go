@@ -153,12 +153,12 @@ func (r *Runner) UpdateScaleSetByID(ctx context.Context, scaleSetID uint, param 
 		return params.ScaleSet{}, errors.Wrap(err, "creating github client")
 	}
 
-	callback := func(old, newSet params.ScaleSet) error {
-		scalesetCli, err := scalesets.NewClient(ghCli)
-		if err != nil {
-			return errors.Wrap(err, "getting scaleset client")
-		}
+	scalesetCli, err := scalesets.NewClient(ghCli)
+	if err != nil {
+		return params.ScaleSet{}, errors.Wrap(err, "getting scaleset client")
+	}
 
+	callback := func(old, newSet params.ScaleSet) error {
 		updateParams := params.RunnerScaleSet{}
 		hasUpdates := false
 		if old.Name != newSet.Name {
@@ -171,7 +171,7 @@ func (r *Runner) UpdateScaleSetByID(ctx context.Context, scaleSetID uint, param 
 			if err != nil {
 				return fmt.Errorf("error fetching runner group from github: %w", err)
 			}
-			updateParams.RunnerGroupID = int(runnerGroup.ID)
+			updateParams.RunnerGroupID = runnerGroup.ID
 			hasUpdates = true
 		}
 
@@ -225,13 +225,13 @@ func (r *Runner) CreateEntityScaleSet(ctx context.Context, entityType params.Git
 	if err != nil {
 		return params.ScaleSet{}, errors.Wrap(err, "getting scaleset client")
 	}
-	runnerGroupID := 1
+	var runnerGroupID int64 = 1
 	if param.GitHubRunnerGroup != "Default" {
 		runnerGroup, err := scalesetCli.GetRunnerGroupByName(ctx, param.GitHubRunnerGroup)
 		if err != nil {
 			return params.ScaleSet{}, errors.Wrap(err, "getting runner group")
 		}
-		runnerGroupID = int(runnerGroup.ID)
+		runnerGroupID = runnerGroup.ID
 	}
 
 	createParam := &params.RunnerScaleSet{

@@ -13,4 +13,5 @@ type scaleSetHelper interface {
 	Owner() string
 	HandleJobsCompleted(jobs []params.ScaleSetJobMessage) error
 	HandleJobsStarted(jobs []params.ScaleSetJobMessage) error
+	HandleJobsAvailable(jobs []params.ScaleSetJobMessage) error
 }

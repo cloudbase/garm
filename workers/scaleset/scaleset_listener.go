@@ -150,6 +150,11 @@ func (l *scaleSetListener) handleSessionMessage(msg params.RunnerScaleSetMessage
 			slog.ErrorContext(l.ctx, "acquiring jobs", "error", err)
 			return
 		}
+		// HandleJobsAvailable only records jobs in the database for now. The jobs are purely
+		// informational, so an error here won't break anything.
+		if err := l.scaleSetHelper.HandleJobsAvailable(availableJobs); err != nil {
+			slog.ErrorContext(l.ctx, "error handling available jobs", "error", err)
+		}
 		slog.DebugContext(l.ctx, "acquired jobs", "job_ids", idsAcquired)
 	}
 

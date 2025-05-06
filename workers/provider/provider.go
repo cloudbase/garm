@@ -239,6 +239,15 @@ func (p *Provider) handleInstanceAdded(instance params.Instance) error {
 	return nil
 }
 
+func (p *Provider) updateInstanceCache(instance params.Instance, op dbCommon.OperationType) {
+	if op == dbCommon.DeleteOperation {
+		slog.DebugContext(p.ctx, "deleting instance from cache", "instance_name", instance.Name)
+		cache.DeleteInstanceCache(instance.Name)
+		return
+	}
+	cache.SetInstanceCache(instance)
+}
+
 func (p *Provider) handleInstanceEvent(event dbCommon.ChangePayload) {
 	p.mux.Lock()
 	defer p.mux.Unlock()
@@ -248,6 +257,7 @@ func (p *Provider) handleInstanceEvent(event dbCommon.ChangePayload) {
 		slog.ErrorContext(p.ctx, "invalid payload type", "payload_type", fmt.Sprintf("%T", event.Payload))
 		return
 	}
+	p.updateInstanceCache(instance, event.Operation)
 
 	if instance.ScaleSetID == 0 {
 		slog.DebugContext(p.ctx, "skipping instance event for non scale set instance")
@@ -290,7 +300,7 @@ func (p *Provider) handleInstanceEvent(event dbCommon.ChangePayload) {
 			}
 		}
 		delete(p.runners, instance.Name)
-		cache.DeleteInstanceCache(instance.ID)
+		cache.DeleteInstanceCache(instance.Name)
 	default:
 		slog.ErrorContext(p.ctx, "invalid operation type", "operation_type", event.Operation)
 		return
