@@ -118,11 +118,13 @@ func (l *scaleSetListener) handleSessionMessage(msg params.RunnerScaleSetMessage
 	var completedJobs []params.ScaleSetJobMessage
 	var availableJobs []params.ScaleSetJobMessage
 	var startedJobs []params.ScaleSetJobMessage
+	var assignedJobs []params.ScaleSetJobMessage
 
 	for _, job := range body {
 		switch job.MessageType {
 		case params.MessageTypeJobAssigned:
 			slog.InfoContext(l.ctx, "new job assigned", "job_id", job.RunnerRequestID, "job_name", job.JobDisplayName)
+			assignedJobs = append(assignedJobs, job)
 		case params.MessageTypeJobStarted:
 			slog.InfoContext(l.ctx, "job started", "job_id", job.RunnerRequestID, "job_name", job.JobDisplayName, "runner_name", job.RunnerName)
 			startedJobs = append(startedJobs, job)
@@ -134,6 +136,12 @@ func (l *scaleSetListener) handleSessionMessage(msg params.RunnerScaleSetMessage
 			availableJobs = append(availableJobs, job)
 		default:
 			slog.DebugContext(l.ctx, "unknown message type", "message_type", job.MessageType)
+		}
+	}
+
+	if len(assignedJobs) > 0 {
+		if err := l.scaleSetHelper.HandleJobsAvailable(assignedJobs); err != nil {
+			slog.ErrorContext(l.ctx, "error handling available jobs", "error", err)
 		}
 	}
 

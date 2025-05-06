@@ -72,7 +72,7 @@ func (w *Worker) HandleJobsCompleted(jobs []params.ScaleSetJobMessage) (err erro
 	for _, job := range jobs {
 		if err := w.recordOrUpdateJob(job); err != nil {
 			// recording scale set jobs are purely informational for now.
-			slog.ErrorContext(w.ctx, "recording job", "job", job, "error", err)
+			slog.ErrorContext(w.ctx, "failed to save job data", "job", job, "error", err)
 		}
 
 		if job.RunnerName == "" {
@@ -106,7 +106,7 @@ func (w *Worker) HandleJobsStarted(jobs []params.ScaleSetJobMessage) (err error)
 	for _, job := range jobs {
 		if err := w.recordOrUpdateJob(job); err != nil {
 			// recording scale set jobs are purely informational for now.
-			slog.ErrorContext(w.ctx, "recording job", "job", job, "error", err)
+			slog.ErrorContext(w.ctx, "failed to save job data", "job", job, "error", err)
 		}
 
 		if job.RunnerName == "" {
@@ -138,7 +138,7 @@ func (w *Worker) HandleJobsAvailable(jobs []params.ScaleSetJobMessage) error {
 	for _, job := range jobs {
 		if err := w.recordOrUpdateJob(job); err != nil {
 			// recording scale set jobs are purely informational for now.
-			slog.ErrorContext(w.ctx, "recording job", "job", job, "error", err)
+			slog.ErrorContext(w.ctx, "failed to save job data", "job", job, "error", err)
 		}
 	}
 	return nil
