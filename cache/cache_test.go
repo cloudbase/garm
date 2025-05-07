@@ -324,7 +324,7 @@ func (c *CacheTestSuite) TestReplaceEntityScaleSets() {
 	}
 
 	SetEntity(entity)
-	ReplaceEntityScaleSets(entity.ID, map[uint]params.ScaleSet{1: scaleSet1, 2: scaleSet2})
+	ReplaceEntityScaleSets(entity.ID, []params.ScaleSet{scaleSet1, scaleSet2})
 	cachedEntity, ok := GetEntity(entity.ID)
 	c.Require().True(ok)
 	c.Require().Equal(entity.ID, cachedEntity.ID)

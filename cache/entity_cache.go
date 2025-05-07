@@ -82,14 +82,21 @@ func (e *EntityCache) ReplaceEntityPools(entityID string, pools []params.Pool) {
 	e.entities[entityID] = cache
 }
 
-func (e *EntityCache) ReplaceEntityScaleSets(entityID string, scaleSets map[uint]params.ScaleSet) {
+func (e *EntityCache) ReplaceEntityScaleSets(entityID string, scaleSets []params.ScaleSet) {
 	e.mux.Lock()
 	defer e.mux.Unlock()
 
-	if cache, ok := e.entities[entityID]; ok {
-		cache.ScaleSets = scaleSets
-		e.entities[entityID] = cache
+	cache, ok := e.entities[entityID]
+	if !ok {
+		return
 	}
+
+	scaleSetsByID := map[uint]params.ScaleSet{}
+	for _, scaleSet := range scaleSets {
+		scaleSetsByID[scaleSet.ID] = scaleSet
+	}
+	cache.ScaleSets = scaleSetsByID
+	e.entities[entityID] = cache
 }
 
 func (e *EntityCache) DeleteEntity(entityID string) {
@@ -219,7 +226,7 @@ func ReplaceEntityPools(entityID string, pools []params.Pool) {
 	entityCache.ReplaceEntityPools(entityID, pools)
 }
 
-func ReplaceEntityScaleSets(entityID string, scaleSets map[uint]params.ScaleSet) {
+func ReplaceEntityScaleSets(entityID string, scaleSets []params.ScaleSet) {
 	entityCache.ReplaceEntityScaleSets(entityID, scaleSets)
 }
 
