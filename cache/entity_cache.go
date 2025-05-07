@@ -1,7 +1,6 @@
 package cache
 
 import (
-	"log/slog"
 	"sync"
 
 	"github.com/cloudbase/garm/params"
@@ -28,15 +27,24 @@ type EntityCache struct {
 	entities map[string]EntityItem
 }
 
+func (e *EntityCache) UpdateCredentialsInAffectedEntities(creds params.GithubCredentials) {
+	e.mux.Lock()
+	defer e.mux.Unlock()
+
+	for entityID, cache := range e.entities {
+		if cache.Entity.Credentials.ID == creds.ID {
+			cache.Entity.Credentials = creds
+			e.entities[entityID] = cache
+		}
+	}
+}
+
 func (e *EntityCache) GetEntity(entityID string) (params.GithubEntity, bool) {
 	e.mux.Lock()
 	defer e.mux.Unlock()
 
 	if cache, ok := e.entities[entityID]; ok {
-		// Updating specific credential details will not update entity cache which
-		// uses those credentials.
-		// Entity credentials in the cache are only updated if you swap the creds
-		// on the entity. We get the updated credentials from the credentials cache.
+		// Get the credentials from the credentials cache.
 		creds, ok := GetGithubCredentials(cache.Entity.Credentials.ID)
 		if ok {
 			cache.Entity.Credentials = creds
@@ -173,7 +181,6 @@ func (e *EntityCache) FindPoolsMatchingAllTags(entityID string, tags []string) [
 
 	if cache, ok := e.entities[entityID]; ok {
 		var pools []params.Pool
-		slog.Debug("Finding pools matching all tags", "entityID", entityID, "tags", tags, "pools", cache.Pools)
 		for _, pool := range cache.Pools {
 			if pool.HasRequiredLabels(tags) {
 				pools = append(pools, pool)
@@ -210,6 +217,35 @@ func (e *EntityCache) GetEntityScaleSets(entityID string) []params.ScaleSet {
 		return scaleSets
 	}
 	return nil
+}
+
+func (e *EntityCache) GetEntitiesUsingGredentials(credsID uint) []params.GithubEntity {
+	e.mux.Lock()
+	defer e.mux.Unlock()
+
+	var entities []params.GithubEntity
+	for _, cache := range e.entities {
+		if cache.Entity.Credentials.ID == credsID {
+			entities = append(entities, cache.Entity)
+		}
+	}
+	return entities
+}
+
+func (e *EntityCache) GetAllEntities() []params.GithubEntity {
+	e.mux.Lock()
+	defer e.mux.Unlock()
+
+	var entities []params.GithubEntity
+	for _, cache := range e.entities {
+		// Get the credentials from the credentials cache.
+		creds, ok := GetGithubCredentials(cache.Entity.Credentials.ID)
+		if ok {
+			cache.Entity.Credentials = creds
+		}
+		entities = append(entities, cache.Entity)
+	}
+	return entities
 }
 
 func GetEntity(entityID string) (params.GithubEntity, bool) {
@@ -266,4 +302,16 @@ func GetEntityPools(entityID string) []params.Pool {
 
 func GetEntityScaleSets(entityID string) []params.ScaleSet {
 	return entityCache.GetEntityScaleSets(entityID)
+}
+
+func UpdateCredentialsInAffectedEntities(creds params.GithubCredentials) {
+	entityCache.UpdateCredentialsInAffectedEntities(creds)
+}
+
+func GetEntitiesUsingGredentials(credsID uint) []params.GithubEntity {
+	return entityCache.GetEntitiesUsingGredentials(credsID)
+}
+
+func GetAllEntities() []params.GithubEntity {
+	return entityCache.GetAllEntities()
 }

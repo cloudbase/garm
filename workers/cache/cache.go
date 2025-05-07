@@ -20,10 +20,11 @@ func NewWorker(ctx context.Context, store common.Store) *Worker {
 		slog.Any("worker", consumerID))
 
 	return &Worker{
-		ctx:        ctx,
-		store:      store,
-		consumerID: consumerID,
-		quit:       make(chan struct{}),
+		ctx:         ctx,
+		store:       store,
+		consumerID:  consumerID,
+		toolsWorkes: make(map[string]*toolsUpdater),
+		quit:        make(chan struct{}),
 	}
 }
 
@@ -31,8 +32,9 @@ type Worker struct {
 	ctx        context.Context
 	consumerID string
 
-	consumer common.Consumer
-	store    common.Store
+	consumer    common.Consumer
+	store       common.Store
+	toolsWorkes map[string]*toolsUpdater
 
 	mux     sync.Mutex
 	running bool
@@ -110,6 +112,13 @@ func (w *Worker) loadAllEntities() error {
 		}
 	}
 
+	for _, entity := range cache.GetAllEntities() {
+		worker := newToolsUpdater(w.ctx, entity)
+		if err := worker.Start(); err != nil {
+			return fmt.Errorf("starting tools updater: %w", err)
+		}
+		w.toolsWorkes[entity.ID] = worker
+	}
 	return nil
 }
 
@@ -181,6 +190,11 @@ func (w *Worker) Stop() error {
 		return nil
 	}
 
+	for _, worker := range w.toolsWorkes {
+		if err := worker.Stop(); err != nil {
+			slog.ErrorContext(w.ctx, "stopping tools updater", "error", err)
+		}
+	}
 	w.consumer.Close()
 	w.running = false
 	close(w.quit)
@@ -195,9 +209,31 @@ func (w *Worker) handleEntityEvent(entityGetter params.EntityGetter, op common.O
 	}
 	switch op {
 	case common.CreateOperation, common.UpdateOperation:
+		old, hasOld := cache.GetEntity(entity.ID)
 		cache.SetEntity(entity)
+		worker, ok := w.toolsWorkes[entity.ID]
+		if !ok {
+			worker = newToolsUpdater(w.ctx, entity)
+			if err := worker.Start(); err != nil {
+				slog.ErrorContext(w.ctx, "starting tools updater", "error", err)
+				return
+			}
+			w.toolsWorkes[entity.ID] = worker
+		} else if hasOld {
+			// probably an update operation
+			if old.Credentials.ID != entity.Credentials.ID {
+				worker.Reset()
+			}
+		}
 	case common.DeleteOperation:
 		cache.DeleteEntity(entity.ID)
+		worker, ok := w.toolsWorkes[entity.ID]
+		if ok {
+			if err := worker.Stop(); err != nil {
+				slog.ErrorContext(w.ctx, "stopping tools updater", "error", err)
+			}
+			delete(w.toolsWorkes, entity.ID)
+		}
 	}
 }
 
@@ -291,13 +327,20 @@ func (w *Worker) handleCredentialsEvent(event common.ChangePayload) {
 	switch event.Operation {
 	case common.CreateOperation, common.UpdateOperation:
 		cache.SetGithubCredentials(credentials)
+		entities := cache.GetEntitiesUsingGredentials(credentials.ID)
+		for _, entity := range entities {
+			worker, ok := w.toolsWorkes[entity.ID]
+			if ok {
+				worker.Reset()
+			}
+		}
 	case common.DeleteOperation:
 		cache.DeleteGithubCredentials(credentials.ID)
 	}
 }
 
 func (w *Worker) handleEvent(event common.ChangePayload) {
-	slog.DebugContext(w.ctx, "handling event", "event", event)
+	slog.DebugContext(w.ctx, "handling event", "event_entity_type", event.EntityType, "event_operation", event.Operation)
 	switch event.EntityType {
 	case common.PoolEntityType:
 		w.handlePoolEvent(event)

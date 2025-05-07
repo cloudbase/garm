@@ -109,7 +109,7 @@ func (l *scaleSetListener) handleSessionMessage(msg params.RunnerScaleSetMessage
 	if err != nil {
 		slog.ErrorContext(l.ctx, "getting jobs from body", "error", err)
 	}
-	slog.InfoContext(l.ctx, "handling message", "message", msg, "body", body)
+
 	if msg.MessageID < l.lastMessageID {
 		slog.DebugContext(l.ctx, "message is older than last message, ignoring")
 		return

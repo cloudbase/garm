@@ -148,7 +148,7 @@ func (i *instanceManager) handleCreateInstanceInProvider(instance params.Instanc
 	if err != nil {
 		return fmt.Errorf("creating instance token: %w", err)
 	}
-	tools, ok := cache.GetGithubToolsCache(entity)
+	tools, ok := cache.GetGithubToolsCache(entity.ID)
 	if !ok {
 		return fmt.Errorf("tools not found in cache for entity %s", entity.String())
 	}
