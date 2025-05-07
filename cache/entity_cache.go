@@ -50,7 +50,7 @@ func (e *EntityCache) SetEntity(entity params.GithubEntity) {
 	e.mux.Lock()
 	defer e.mux.Unlock()
 
-	_, ok := e.entities[entity.ID]
+	cache, ok := e.entities[entity.ID]
 	if !ok {
 		e.entities[entity.ID] = EntityItem{
 			Entity:    entity,
@@ -59,10 +59,8 @@ func (e *EntityCache) SetEntity(entity params.GithubEntity) {
 		}
 		return
 	}
-
-	e.entities[entity.ID] = EntityItem{
-		Entity: entity,
-	}
+	cache.Entity = entity
+	e.entities[entity.ID] = cache
 }
 
 func (e *EntityCache) ReplaceEntityPools(entityID string, pools []params.Pool) {
