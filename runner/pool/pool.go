@@ -1595,13 +1595,6 @@ func (r *basePoolManager) cleanupOrphanedRunners(runners []*github.Runner) error
 }
 
 func (r *basePoolManager) Start() error {
-	// load pools in cache
-	pools, err := r.store.ListEntityPools(r.ctx, r.entity)
-	if err != nil {
-		return fmt.Errorf("failed to list pools: %w", err)
-	}
-	cache.ReplaceEntityPools(r.entity.ID, pools)
-
 	initialToolUpdate := make(chan struct{}, 1)
 	go func() {
 		slog.Info("running initial tool update")

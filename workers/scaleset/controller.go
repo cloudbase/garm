@@ -91,8 +91,6 @@ func (c *Controller) loadAllScaleSets(cli common.GithubClient) error {
 	}
 
 	for _, sSet := range scaleSets {
-		cache.SetEntityScaleSet(c.Entity.ID, sSet)
-
 		slog.DebugContext(c.ctx, "loading scale set", "scale_set", sSet.ID)
 		if err := c.handleScaleSetCreateOperation(sSet, cli); err != nil {
 			slog.With(slog.Any("error", err)).ErrorContext(c.ctx, "failed to handle scale set create operation")

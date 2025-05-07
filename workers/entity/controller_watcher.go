@@ -3,7 +3,6 @@ package entity
 import (
 	"log/slog"
 
-	"github.com/cloudbase/garm/cache"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/params"
 )
@@ -96,5 +95,4 @@ func (c *Controller) handleWatcherDeleteOperation(entityGetter params.EntityGett
 		return
 	}
 	delete(c.Entities, entity.ID)
-	cache.DeleteEntity(entity.ID)
 }

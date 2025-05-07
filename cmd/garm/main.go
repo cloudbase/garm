@@ -51,7 +51,7 @@ import (
 	garmUtil "github.com/cloudbase/garm/util"
 	"github.com/cloudbase/garm/util/appdefaults"
 	"github.com/cloudbase/garm/websocket"
-	"github.com/cloudbase/garm/workers/credentials"
+	"github.com/cloudbase/garm/workers/cache"
 	"github.com/cloudbase/garm/workers/entity"
 	"github.com/cloudbase/garm/workers/provider"
 )
@@ -238,11 +238,11 @@ func main() {
 		log.Fatal(err)
 	}
 
-	credsWorker, err := credentials.NewWorker(ctx, db)
+	cacheWorker := cache.NewWorker(ctx, db)
 	if err != nil {
 		log.Fatalf("failed to create credentials worker: %+v", err)
 	}
-	if err := credsWorker.Start(); err != nil {
+	if err := cacheWorker.Start(); err != nil {
 		log.Fatalf("failed to start credentials worker: %+v", err)
 	}
 
@@ -370,7 +370,7 @@ func main() {
 
 	<-ctx.Done()
 
-	if err := credsWorker.Stop(); err != nil {
+	if err := cacheWorker.Stop(); err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to stop credentials worker")
 	}
 

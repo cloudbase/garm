@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/cloudbase/garm/cache"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
@@ -61,7 +60,6 @@ func (c *Controller) handleScaleSet(event dbCommon.ChangePayload) {
 func (c *Controller) handleScaleSetCreateOperation(sSet params.ScaleSet, ghCli common.GithubClient) error {
 	c.mux.Lock()
 	defer c.mux.Unlock()
-	cache.SetEntityScaleSet(c.Entity.ID, sSet)
 
 	if _, ok := c.ScaleSets[sSet.ID]; ok {
 		slog.DebugContext(c.ctx, "scale set already exists in worker list", "scale_set_id", sSet.ID)
@@ -110,15 +108,12 @@ func (c *Controller) handleScaleSetDeleteOperation(sSet params.ScaleSet) error {
 		return fmt.Errorf("stopping scale set worker: %w", err)
 	}
 	delete(c.ScaleSets, sSet.ID)
-	cache.DeleteEntityScaleSet(c.Entity.ID, sSet.ID)
 	return nil
 }
 
 func (c *Controller) handleScaleSetUpdateOperation(sSet params.ScaleSet) error {
 	c.mux.Lock()
 	defer c.mux.Unlock()
-
-	cache.SetEntityScaleSet(c.Entity.ID, sSet)
 
 	set, ok := c.ScaleSets[sSet.ID]
 	if !ok {
@@ -146,7 +141,6 @@ func (c *Controller) handleCredentialsEvent(event dbCommon.ChangePayload) {
 		c.mux.Lock()
 		defer c.mux.Unlock()
 
-		cache.SetGithubCredentials(credentials)
 		if c.Entity.Credentials.ID != credentials.ID {
 			// stale update event.
 			return
@@ -185,7 +179,6 @@ func (c *Controller) handleEntityEvent(event dbCommon.ChangePayload) {
 			}
 		}
 		c.Entity = entity
-		cache.SetEntity(c.Entity)
 	default:
 		slog.ErrorContext(c.ctx, "invalid operation type", "operation_type", event.Operation)
 		return

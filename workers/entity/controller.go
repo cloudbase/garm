@@ -7,7 +7,6 @@ import (
 	"sync"
 
 	"github.com/cloudbase/garm/auth"
-	"github.com/cloudbase/garm/cache"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/database/watcher"
 	"github.com/cloudbase/garm/runner/common"
@@ -67,9 +66,6 @@ func (c *Controller) loadAllRepositories() error {
 			return fmt.Errorf("starting worker: %w", err)
 		}
 		c.Entities[entity.ID] = worker
-		// take advantage of the fact that we're loading all entities
-		// and set the cache.
-		cache.SetEntity(entity)
 	}
 	return nil
 }
@@ -94,9 +90,6 @@ func (c *Controller) loadAllOrganizations() error {
 			return fmt.Errorf("starting worker: %w", err)
 		}
 		c.Entities[entity.ID] = worker
-		// take advantage of the fact that we're loading all entities
-		// and set the cache.
-		cache.SetEntity(entity)
 	}
 	return nil
 }
@@ -121,9 +114,6 @@ func (c *Controller) loadAllEnterprises() error {
 			return fmt.Errorf("starting worker: %w", err)
 		}
 		c.Entities[entity.ID] = worker
-		// take advantage of the fact that we're loading all entities
-		// and set the cache.
-		cache.SetEntity(entity)
 	}
 	return nil
 }

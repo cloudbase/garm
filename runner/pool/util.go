@@ -132,7 +132,5 @@ func composeWatcherFilters(entity params.GithubEntity) dbCommon.PayloadFilterFun
 		watcher.WithEntityFilter(entity),
 		// Watch for changes to the github credentials
 		watcher.WithGithubCredentialsFilter(entity.Credentials),
-		// Watch for entity pool operations
-		watcher.WithEntityPoolFilter(entity),
 	)
 }
