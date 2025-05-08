@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"sync"
 
+	"golang.org/x/sync/errgroup"
+
 	"github.com/cloudbase/garm/auth"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/database/watcher"
@@ -53,19 +55,26 @@ func (c *Controller) loadAllRepositories() error {
 		return fmt.Errorf("fetching repositories: %w", err)
 	}
 
+	g, _ := errgroup.WithContext(c.ctx)
 	for _, repo := range repos {
-		entity, err := repo.GetEntity()
-		if err != nil {
-			return fmt.Errorf("getting entity: %w", err)
-		}
-		worker, err := NewWorker(c.ctx, c.store, entity, c.providers)
-		if err != nil {
-			return fmt.Errorf("creating worker: %w", err)
-		}
-		if err := worker.Start(); err != nil {
-			return fmt.Errorf("starting worker: %w", err)
-		}
-		c.Entities[entity.ID] = worker
+		g.Go(func() error {
+			entity, err := repo.GetEntity()
+			if err != nil {
+				return fmt.Errorf("getting entity: %w", err)
+			}
+			worker, err := NewWorker(c.ctx, c.store, entity, c.providers)
+			if err != nil {
+				return fmt.Errorf("creating worker: %w", err)
+			}
+			if err := worker.Start(); err != nil {
+				return fmt.Errorf("starting worker: %w", err)
+			}
+			c.Entities[entity.ID] = worker
+			return nil
+		})
+	}
+	if err := c.waitForErrorGroupOrContextCancelled(g); err != nil {
+		return fmt.Errorf("waiting for error group: %w", err)
 	}
 	return nil
 }
@@ -77,19 +86,27 @@ func (c *Controller) loadAllOrganizations() error {
 	if err != nil {
 		return fmt.Errorf("fetching organizations: %w", err)
 	}
+
+	g, _ := errgroup.WithContext(c.ctx)
 	for _, org := range orgs {
-		entity, err := org.GetEntity()
-		if err != nil {
-			return fmt.Errorf("getting entity: %w", err)
-		}
-		worker, err := NewWorker(c.ctx, c.store, entity, c.providers)
-		if err != nil {
-			return fmt.Errorf("creating worker: %w", err)
-		}
-		if err := worker.Start(); err != nil {
-			return fmt.Errorf("starting worker: %w", err)
-		}
-		c.Entities[entity.ID] = worker
+		g.Go(func() error {
+			entity, err := org.GetEntity()
+			if err != nil {
+				return fmt.Errorf("getting entity: %w", err)
+			}
+			worker, err := NewWorker(c.ctx, c.store, entity, c.providers)
+			if err != nil {
+				return fmt.Errorf("creating worker: %w", err)
+			}
+			if err := worker.Start(); err != nil {
+				return fmt.Errorf("starting worker: %w", err)
+			}
+			c.Entities[entity.ID] = worker
+			return nil
+		})
+	}
+	if err := c.waitForErrorGroupOrContextCancelled(g); err != nil {
+		return fmt.Errorf("waiting for error group: %w", err)
 	}
 	return nil
 }
@@ -101,19 +118,28 @@ func (c *Controller) loadAllEnterprises() error {
 	if err != nil {
 		return fmt.Errorf("fetching enterprises: %w", err)
 	}
+
+	g, _ := errgroup.WithContext(c.ctx)
+
 	for _, enterprise := range enterprises {
-		entity, err := enterprise.GetEntity()
-		if err != nil {
-			return fmt.Errorf("getting entity: %w", err)
-		}
-		worker, err := NewWorker(c.ctx, c.store, entity, c.providers)
-		if err != nil {
-			return fmt.Errorf("creating worker: %w", err)
-		}
-		if err := worker.Start(); err != nil {
-			return fmt.Errorf("starting worker: %w", err)
-		}
-		c.Entities[entity.ID] = worker
+		g.Go(func() error {
+			entity, err := enterprise.GetEntity()
+			if err != nil {
+				return fmt.Errorf("getting entity: %w", err)
+			}
+			worker, err := NewWorker(c.ctx, c.store, entity, c.providers)
+			if err != nil {
+				return fmt.Errorf("creating worker: %w", err)
+			}
+			if err := worker.Start(); err != nil {
+				return fmt.Errorf("starting worker: %w", err)
+			}
+			c.Entities[entity.ID] = worker
+			return nil
+		})
+	}
+	if err := c.waitForErrorGroupOrContextCancelled(g); err != nil {
+		return fmt.Errorf("waiting for error group: %w", err)
 	}
 	return nil
 }
@@ -126,14 +152,30 @@ func (c *Controller) Start() error {
 	}
 	c.mux.Unlock()
 
-	if err := c.loadAllEnterprises(); err != nil {
-		return fmt.Errorf("loading enterprises: %w", err)
-	}
-	if err := c.loadAllOrganizations(); err != nil {
-		return fmt.Errorf("loading organizations: %w", err)
-	}
-	if err := c.loadAllRepositories(); err != nil {
-		return fmt.Errorf("loading repositories: %w", err)
+	g, _ := errgroup.WithContext(c.ctx)
+	g.Go(func() error {
+		if err := c.loadAllEnterprises(); err != nil {
+			return fmt.Errorf("loading enterprises: %w", err)
+		}
+		return nil
+	})
+
+	g.Go(func() error {
+		if err := c.loadAllOrganizations(); err != nil {
+			return fmt.Errorf("loading organizations: %w", err)
+		}
+		return nil
+	})
+
+	g.Go(func() error {
+		if err := c.loadAllRepositories(); err != nil {
+			return fmt.Errorf("loading repositories: %w", err)
+		}
+		return nil
+	})
+
+	if err := c.waitForErrorGroupOrContextCancelled(g); err != nil {
+		return fmt.Errorf("waiting for error group: %w", err)
 	}
 
 	consumer, err := watcher.RegisterConsumer(
