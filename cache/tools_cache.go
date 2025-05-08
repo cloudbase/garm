@@ -29,14 +29,14 @@ type GithubToolsCache struct {
 	entities map[string]GithubEntityTools
 }
 
-func (g *GithubToolsCache) Get(entity params.GithubEntity) ([]commonParams.RunnerApplicationDownload, bool) {
+func (g *GithubToolsCache) Get(entityID string) ([]commonParams.RunnerApplicationDownload, bool) {
 	g.mux.Lock()
 	defer g.mux.Unlock()
 
-	if cache, ok := g.entities[entity.String()]; ok {
+	if cache, ok := g.entities[entityID]; ok {
 		if time.Since(cache.updatedAt) > 1*time.Hour {
 			// Stale cache, remove it.
-			delete(g.entities, entity.String())
+			delete(g.entities, entityID)
 			return nil, false
 		}
 		return cache.tools, true
@@ -48,7 +48,7 @@ func (g *GithubToolsCache) Set(entity params.GithubEntity, tools []commonParams.
 	g.mux.Lock()
 	defer g.mux.Unlock()
 
-	g.entities[entity.String()] = GithubEntityTools{
+	g.entities[entity.ID] = GithubEntityTools{
 		updatedAt: time.Now(),
 		entity:    entity,
 		tools:     tools,
@@ -59,6 +59,6 @@ func SetGithubToolsCache(entity params.GithubEntity, tools []commonParams.Runner
 	githubToolsCache.Set(entity, tools)
 }
 
-func GetGithubToolsCache(entity params.GithubEntity) ([]commonParams.RunnerApplicationDownload, bool) {
-	return githubToolsCache.Get(entity)
+func GetGithubToolsCache(entityID string) ([]commonParams.RunnerApplicationDownload, bool) {
+	return githubToolsCache.Get(entityID)
 }

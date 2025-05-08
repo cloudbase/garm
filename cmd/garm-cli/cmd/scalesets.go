@@ -436,7 +436,7 @@ func formatScaleSets(scaleSets []params.ScaleSet) {
 		return
 	}
 	t := table.NewWriter()
-	header := table.Row{"ID", "Scale Set Name", "Image", "Flavor", "Belongs to", "Level", "Enabled", "Runner Prefix", "Provider"}
+	header := table.Row{"ID", "Scale Set Name", "Image", "Flavor", "Belongs to", "Level", "Runner Group", "Enabled", "Runner Prefix", "Provider"}
 	t.AppendHeader(header)
 
 	for _, scaleSet := range scaleSets {
@@ -454,7 +454,7 @@ func formatScaleSets(scaleSets []params.ScaleSet) {
 			belongsTo = scaleSet.EnterpriseName
 			level = entityTypeEnterprise
 		}
-		t.AppendRow(table.Row{scaleSet.ID, scaleSet.Name, scaleSet.Image, scaleSet.Flavor, belongsTo, level, scaleSet.Enabled, scaleSet.GetRunnerPrefix(), scaleSet.ProviderName})
+		t.AppendRow(table.Row{scaleSet.ID, scaleSet.Name, scaleSet.Image, scaleSet.Flavor, belongsTo, level, scaleSet.GitHubRunnerGroup, scaleSet.Enabled, scaleSet.GetRunnerPrefix(), scaleSet.ProviderName})
 		t.AppendSeparator()
 	}
 	fmt.Println(t.Render())

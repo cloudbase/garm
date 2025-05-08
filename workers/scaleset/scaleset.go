@@ -11,6 +11,7 @@ import (
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm-provider-common/util"
+	"github.com/cloudbase/garm/cache"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/database/watcher"
 	"github.com/cloudbase/garm/locking"
@@ -769,6 +770,24 @@ func (w *Worker) handleScaleUp(target, current uint) {
 	}
 }
 
+func (w *Worker) waitForToolsOrCancel() (hasTools, stopped bool) {
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+	select {
+	case <-ticker.C:
+		entity, err := w.scaleSet.GetEntity()
+		if err != nil {
+			slog.ErrorContext(w.ctx, "error getting entity", "error", err)
+		}
+		_, ok := cache.GetGithubToolsCache(entity.ID)
+		return ok, false
+	case <-w.quit:
+		return false, true
+	case <-w.ctx.Done():
+		return false, true
+	}
+}
+
 func (w *Worker) handleScaleDown(target, current uint) {
 	delta := current - target
 	if delta <= 0 {
@@ -880,7 +899,19 @@ func (w *Worker) handleAutoScale() {
 			lastMsg = msg
 		}
 	}
+
 	for {
+		hasTools, stopped := w.waitForToolsOrCancel()
+		if stopped {
+			slog.DebugContext(w.ctx, "worker is stopped; exiting handleAutoScale")
+			return
+		}
+
+		if !hasTools {
+			time.Sleep(1 * time.Second)
+			continue
+		}
+
 		select {
 		case <-w.quit:
 			return

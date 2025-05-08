@@ -2,7 +2,6 @@ package scaleset
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -10,8 +9,6 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
-	"github.com/cloudbase/garm/cache"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/database/watcher"
 	"github.com/cloudbase/garm/params"
@@ -29,7 +26,7 @@ const (
 )
 
 func NewController(ctx context.Context, store dbCommon.Store, entity params.GithubEntity, providers map[string]common.Provider) (*Controller, error) {
-	consumerID := fmt.Sprintf("scaleset-worker-%s", entity.String())
+	consumerID := fmt.Sprintf("scaleset-controller-%s", entity.String())
 
 	ctx = garmUtil.WithSlogContext(
 		ctx,
@@ -76,8 +73,7 @@ type Controller struct {
 	store     dbCommon.Store
 	providers map[string]common.Provider
 
-	ghCli              common.GithubClient
-	forgeCredsAreValid bool
+	ghCli common.GithubClient
 
 	mux     sync.Mutex
 	running bool
@@ -163,29 +159,6 @@ func (c *Controller) Stop() error {
 	return nil
 }
 
-func (c *Controller) updateTools() error {
-	c.mux.Lock()
-	defer c.mux.Unlock()
-
-	slog.DebugContext(c.ctx, "updating tools for entity", "entity", c.Entity.String())
-
-	tools, err := garmUtil.FetchTools(c.ctx, c.ghCli)
-	if err != nil {
-		slog.With(slog.Any("error", err)).ErrorContext(
-			c.ctx, "failed to update tools for entity", "entity", c.Entity.String())
-		if errors.Is(err, runnerErrors.ErrUnauthorized) {
-			// nolint:golangci-lint,godox
-			// TODO: block all scale sets
-			c.forgeCredsAreValid = false
-		}
-		return fmt.Errorf("failed to update tools for entity %s: %w", c.Entity.String(), err)
-	}
-	slog.DebugContext(c.ctx, "tools successfully updated for entity", "entity", c.Entity.String())
-	c.forgeCredsAreValid = true
-	cache.SetGithubToolsCache(c.Entity, tools)
-	return nil
-}
-
 // consolidateRunnerState will list all runners on GitHub for this entity, sort by
 // pool or scale set and pass those runners to the appropriate worker. The worker will
 // then have the responsibility to cross check the runners from github with what it
@@ -259,22 +232,9 @@ func (c *Controller) waitForErrorGroupOrContextCancelled(g *errgroup.Group) erro
 
 func (c *Controller) loop() {
 	defer c.Stop()
-	updateToolsTicker := time.NewTicker(common.PoolToolUpdateInterval)
-	defer updateToolsTicker.Stop()
 
 	consilidateTicker := time.NewTicker(common.PoolReapTimeoutInterval)
 	defer consilidateTicker.Stop()
-
-	initialToolUpdate := make(chan struct{}, 1)
-	defer close(initialToolUpdate)
-
-	go func() {
-		slog.InfoContext(c.ctx, "running initial tool update")
-		if err := c.updateTools(); err != nil {
-			slog.With(slog.Any("error", err)).Error("failed to update tools")
-		}
-		initialToolUpdate <- struct{}{}
-	}()
 
 	for {
 		select {
@@ -287,25 +247,6 @@ func (c *Controller) loop() {
 			go c.handleWatcherEvent(payload)
 		case <-c.ctx.Done():
 			return
-		case <-initialToolUpdate:
-		case _, ok := <-updateToolsTicker.C:
-			if !ok {
-				slog.InfoContext(c.ctx, "update tools ticker closed")
-				return
-			}
-			validCreds := c.forgeCredsAreValid
-			if err := c.updateTools(); err != nil {
-				if err := c.store.AddEntityEvent(c.ctx, c.Entity, params.StatusEvent, params.EventError, fmt.Sprintf("failed to update tools: %q", err.Error()), 30); err != nil {
-					slog.With(slog.Any("error", err)).Error("failed to add entity event")
-				}
-				slog.With(slog.Any("error", err)).Error("failed to update tools")
-				continue
-			}
-			if validCreds != c.forgeCredsAreValid && c.forgeCredsAreValid {
-				if err := c.store.AddEntityEvent(c.ctx, c.Entity, params.StatusEvent, params.EventInfo, "tools updated successfully", 30); err != nil {
-					slog.With(slog.Any("error", err)).Error("failed to add entity event")
-				}
-			}
 		case _, ok := <-consilidateTicker.C:
 			if !ok {
 				slog.InfoContext(c.ctx, "consolidate ticker closed")
