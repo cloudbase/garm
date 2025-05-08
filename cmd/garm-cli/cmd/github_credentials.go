@@ -375,6 +375,8 @@ func formatOneGithubCredential(cred params.GithubCredentials) {
 	header := table.Row{"Field", "Value"}
 	t.AppendHeader(header)
 
+	resetMinutes := cred.RateLimit.ResetIn().Minutes()
+
 	t.AppendRow(table.Row{"ID", cred.ID})
 	t.AppendRow(table.Row{"Created At", cred.CreatedAt})
 	t.AppendRow(table.Row{"Updated At", cred.UpdatedAt})
@@ -385,6 +387,10 @@ func formatOneGithubCredential(cred params.GithubCredentials) {
 	t.AppendRow(table.Row{"Upload URL", cred.UploadBaseURL})
 	t.AppendRow(table.Row{"Type", cred.AuthType})
 	t.AppendRow(table.Row{"Endpoint", cred.Endpoint.Name})
+	if resetMinutes > 0 {
+		t.AppendRow(table.Row{"Remaining API requests", cred.RateLimit.Remaining})
+		t.AppendRow(table.Row{"Rate limit reset", fmt.Sprintf("%d minutes", int64(resetMinutes))})
+	}
 
 	if len(cred.Repositories) > 0 {
 		t.AppendRow(table.Row{"", ""})

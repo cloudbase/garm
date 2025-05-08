@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+	"time"
 
 	"github.com/cloudbase/garm/cache"
 	"github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/database/watcher"
 	"github.com/cloudbase/garm/params"
 	garmUtil "github.com/cloudbase/garm/util"
+	"github.com/cloudbase/garm/util/github"
 )
 
 func NewWorker(ctx context.Context, store common.Store) *Worker {
@@ -47,23 +49,23 @@ func (w *Worker) setCacheForEntity(entityGetter params.EntityGetter, pools []par
 		return fmt.Errorf("getting entity: %w", err)
 	}
 	cache.SetEntity(entity)
-	var repoPools []params.Pool
-	var repoScaleSets []params.ScaleSet
+	var entityPools []params.Pool
+	var entityScaleSets []params.ScaleSet
 
 	for _, pool := range pools {
-		if pool.RepoID == entity.ID {
-			repoPools = append(repoPools, pool)
+		if pool.BelongsTo(entity) {
+			entityPools = append(entityPools, pool)
 		}
 	}
 
 	for _, scaleSet := range scaleSets {
-		if scaleSet.RepoID == entity.ID {
-			repoScaleSets = append(repoScaleSets, scaleSet)
+		if scaleSet.BelongsTo(entity) {
+			entityScaleSets = append(entityScaleSets, scaleSet)
 		}
 	}
 
-	cache.ReplaceEntityPools(entity.ID, repoPools)
-	cache.ReplaceEntityScaleSets(entity.ID, repoScaleSets)
+	cache.ReplaceEntityPools(entity.ID, entityPools)
+	cache.ReplaceEntityScaleSets(entity.ID, entityScaleSets)
 
 	return nil
 }
@@ -178,6 +180,7 @@ func (w *Worker) Start() error {
 	w.quit = make(chan struct{})
 
 	go w.loop()
+	go w.rateLimitLoop()
 	return nil
 }
 
@@ -376,6 +379,47 @@ func (w *Worker) loop() {
 		case <-w.ctx.Done():
 			slog.DebugContext(w.ctx, "context done")
 			return
+		}
+	}
+}
+
+func (w *Worker) rateLimitLoop() {
+	defer w.Stop()
+
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-w.quit:
+			return
+		case <-w.ctx.Done():
+			slog.DebugContext(w.ctx, "context done")
+			return
+		case <-ticker.C:
+			// update credentials rate limits
+			for _, creds := range cache.GetAllGithubCredentials() {
+				rateCli, err := github.NewRateLimitClient(w.ctx, creds)
+				if err != nil {
+					slog.With(slog.Any("error", err)).ErrorContext(w.ctx, "failed to create rate limit client")
+					continue
+				}
+				rateLimit, err := rateCli.RateLimit(w.ctx)
+				if err != nil {
+					slog.With(slog.Any("error", err)).ErrorContext(w.ctx, "failed to get rate limit")
+					continue
+				}
+				if rateLimit != nil {
+					core := rateLimit.GetCore()
+					limit := params.GithubRateLimit{
+						Limit:     core.Limit,
+						Used:      core.Used,
+						Remaining: core.Remaining,
+						Reset:     core.Reset.Unix(),
+					}
+					cache.SetCredentialsRateLimit(creds.ID, limit)
+				}
+			}
 		}
 	}
 }

@@ -233,8 +233,8 @@ func (c *Controller) waitForErrorGroupOrContextCancelled(g *errgroup.Group) erro
 func (c *Controller) loop() {
 	defer c.Stop()
 
-	consilidateTicker := time.NewTicker(common.PoolReapTimeoutInterval)
-	defer consilidateTicker.Stop()
+	consolidateTicker := time.NewTicker(common.PoolReapTimeoutInterval)
+	defer consolidateTicker.Stop()
 
 	for {
 		select {
@@ -244,10 +244,10 @@ func (c *Controller) loop() {
 				return
 			}
 			slog.InfoContext(c.ctx, "received payload")
-			go c.handleWatcherEvent(payload)
+			c.handleWatcherEvent(payload)
 		case <-c.ctx.Done():
 			return
-		case _, ok := <-consilidateTicker.C:
+		case _, ok := <-consolidateTicker.C:
 			if !ok {
 				slog.InfoContext(c.ctx, "consolidate ticker closed")
 				return

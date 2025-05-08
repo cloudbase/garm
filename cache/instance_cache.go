@@ -53,6 +53,7 @@ func (i *InstanceCache) GetAllInstances() []params.Instance {
 	for _, instance := range i.cache {
 		instances = append(instances, instance)
 	}
+	sortByCreationDate(instances)
 	return instances
 }
 
@@ -66,6 +67,7 @@ func (i *InstanceCache) GetInstancesForPool(poolID string) []params.Instance {
 			filteredInstances = append(filteredInstances, instance)
 		}
 	}
+	sortByCreationDate(filteredInstances)
 	return filteredInstances
 }
 
@@ -79,6 +81,7 @@ func (i *InstanceCache) GetInstancesForScaleSet(scaleSetID uint) []params.Instan
 			filteredInstances = append(filteredInstances, instance)
 		}
 	}
+	sortByCreationDate(filteredInstances)
 	return filteredInstances
 }
 

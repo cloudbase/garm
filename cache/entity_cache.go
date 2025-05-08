@@ -186,6 +186,8 @@ func (e *EntityCache) FindPoolsMatchingAllTags(entityID string, tags []string) [
 				pools = append(pools, pool)
 			}
 		}
+		// Sort the pools by creation date.
+		sortByCreationDate(pools)
 		return pools
 	}
 	return nil
@@ -200,6 +202,8 @@ func (e *EntityCache) GetEntityPools(entityID string) []params.Pool {
 		for _, pool := range cache.Pools {
 			pools = append(pools, pool)
 		}
+		// Sort the pools by creation date.
+		sortByCreationDate(pools)
 		return pools
 	}
 	return nil
@@ -214,6 +218,8 @@ func (e *EntityCache) GetEntityScaleSets(entityID string) []params.ScaleSet {
 		for _, scaleSet := range cache.ScaleSets {
 			scaleSets = append(scaleSets, scaleSet)
 		}
+		// Sort the scale sets by creation date.
+		sortByID(scaleSets)
 		return scaleSets
 	}
 	return nil
@@ -229,6 +235,7 @@ func (e *EntityCache) GetEntitiesUsingGredentials(credsID uint) []params.GithubE
 			entities = append(entities, cache.Entity)
 		}
 	}
+	sortByCreationDate(entities)
 	return entities
 }
 
@@ -245,7 +252,36 @@ func (e *EntityCache) GetAllEntities() []params.GithubEntity {
 		}
 		entities = append(entities, cache.Entity)
 	}
+	sortByCreationDate(entities)
 	return entities
+}
+
+func (e *EntityCache) GetAllPools() []params.Pool {
+	e.mux.Lock()
+	defer e.mux.Unlock()
+
+	var pools []params.Pool
+	for _, cache := range e.entities {
+		for _, pool := range cache.Pools {
+			pools = append(pools, pool)
+		}
+	}
+	sortByCreationDate(pools)
+	return pools
+}
+
+func (e *EntityCache) GetAllScaleSets() []params.ScaleSet {
+	e.mux.Lock()
+	defer e.mux.Unlock()
+
+	var scaleSets []params.ScaleSet
+	for _, cache := range e.entities {
+		for _, scaleSet := range cache.ScaleSets {
+			scaleSets = append(scaleSets, scaleSet)
+		}
+	}
+	sortByID(scaleSets)
+	return scaleSets
 }
 
 func GetEntity(entityID string) (params.GithubEntity, bool) {
@@ -314,4 +350,12 @@ func GetEntitiesUsingGredentials(credsID uint) []params.GithubEntity {
 
 func GetAllEntities() []params.GithubEntity {
 	return entityCache.GetAllEntities()
+}
+
+func GetAllPools() []params.Pool {
+	return entityCache.GetAllPools()
+}
+
+func GetAllScaleSets() []params.ScaleSet {
+	return entityCache.GetAllScaleSets()
 }
