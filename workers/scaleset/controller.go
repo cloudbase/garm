@@ -26,7 +26,7 @@ const (
 )
 
 func NewController(ctx context.Context, store dbCommon.Store, entity params.GithubEntity, providers map[string]common.Provider) (*Controller, error) {
-	consumerID := fmt.Sprintf("scaleset-worker-%s", entity.String())
+	consumerID := fmt.Sprintf("scaleset-controller-%s", entity.String())
 
 	ctx = garmUtil.WithSlogContext(
 		ctx,

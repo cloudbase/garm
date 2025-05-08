@@ -31,7 +31,7 @@ func (c *Controller) handleWatcherEvent(event dbCommon.ChangePayload) {
 func (c *Controller) handleScaleSet(event dbCommon.ChangePayload) {
 	scaleSet, ok := event.Payload.(params.ScaleSet)
 	if !ok {
-		slog.ErrorContext(c.ctx, "invalid payload for entity type", "entity_type", event.EntityType, "payload", event.Payload)
+		slog.ErrorContext(c.ctx, "invalid scale set payload for entity type", "entity_type", event.EntityType, "payload", event)
 		return
 	}
 
@@ -131,7 +131,7 @@ func (c *Controller) handleScaleSetUpdateOperation(sSet params.ScaleSet) error {
 func (c *Controller) handleCredentialsEvent(event dbCommon.ChangePayload) {
 	credentials, ok := event.Payload.(params.GithubCredentials)
 	if !ok {
-		slog.ErrorContext(c.ctx, "invalid payload for entity type", "entity_type", event.EntityType, "payload", event.Payload)
+		slog.ErrorContext(c.ctx, "invalid credentials payload for entity type", "entity_type", event.EntityType, "payload", event)
 		return
 	}
 
@@ -158,9 +158,24 @@ func (c *Controller) handleCredentialsEvent(event dbCommon.ChangePayload) {
 }
 
 func (c *Controller) handleEntityEvent(event dbCommon.ChangePayload) {
-	entity, ok := event.Payload.(params.GithubEntity)
+	var entityGetter params.EntityGetter
+	var ok bool
+	switch c.Entity.EntityType {
+	case params.GithubEntityTypeRepository:
+		entityGetter, ok = event.Payload.(params.Repository)
+	case params.GithubEntityTypeOrganization:
+		entityGetter, ok = event.Payload.(params.Organization)
+	case params.GithubEntityTypeEnterprise:
+		entityGetter, ok = event.Payload.(params.Enterprise)
+	}
 	if !ok {
-		slog.ErrorContext(c.ctx, "invalid payload for entity type", "entity_type", event.EntityType, "payload", event.Payload)
+		slog.ErrorContext(c.ctx, "invalid entity payload for entity type", "entity_type", event.EntityType, "payload", event)
+		return
+	}
+
+	entity, err := entityGetter.GetEntity()
+	if err != nil {
+		slog.ErrorContext(c.ctx, "invalid GitHub entity payload for entity type", "entity_type", event.EntityType, "payload", event)
 		return
 	}
 
