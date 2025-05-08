@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/sync/errgroup"
+
 	"github.com/cloudbase/garm/cache"
 	"github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/database/watcher"
@@ -148,6 +150,27 @@ func (w *Worker) loadAllCredentials() error {
 	return nil
 }
 
+func (w *Worker) waitForErrorGroupOrContextCancelled(g *errgroup.Group) error {
+	if g == nil {
+		return nil
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		waitErr := g.Wait()
+		done <- waitErr
+	}()
+
+	select {
+	case err := <-done:
+		return err
+	case <-w.ctx.Done():
+		return w.ctx.Err()
+	case <-w.quit:
+		return nil
+	}
+}
+
 func (w *Worker) Start() error {
 	slog.DebugContext(w.ctx, "starting cache worker")
 	w.mux.Lock()
@@ -157,16 +180,31 @@ func (w *Worker) Start() error {
 		return nil
 	}
 
-	if err := w.loadAllEntities(); err != nil {
-		return fmt.Errorf("loading all entities: %w", err)
-	}
+	g, _ := errgroup.WithContext(w.ctx)
 
-	if err := w.loadAllInstances(); err != nil {
-		return fmt.Errorf("loading all instances: %w", err)
-	}
+	g.Go(func() error {
+		if err := w.loadAllEntities(); err != nil {
+			return fmt.Errorf("loading all entities: %w", err)
+		}
+		return nil
+	})
 
-	if err := w.loadAllCredentials(); err != nil {
-		return fmt.Errorf("loading all credentials: %w", err)
+	g.Go(func() error {
+		if err := w.loadAllInstances(); err != nil {
+			return fmt.Errorf("loading all instances: %w", err)
+		}
+		return nil
+	})
+
+	g.Go(func() error {
+		if err := w.loadAllCredentials(); err != nil {
+			return fmt.Errorf("loading all credentials: %w", err)
+		}
+		return nil
+	})
+
+	if err := w.waitForErrorGroupOrContextCancelled(g); err != nil {
+		return fmt.Errorf("waiting for error group: %w", err)
 	}
 
 	consumer, err := watcher.RegisterConsumer(

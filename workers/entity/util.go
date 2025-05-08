@@ -1,6 +1,8 @@
 package entity
 
 import (
+	"golang.org/x/sync/errgroup"
+
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/database/watcher"
 	"github.com/cloudbase/garm/params"
@@ -32,4 +34,25 @@ func composeWorkerWatcherFilters(entity params.GithubEntity) dbCommon.PayloadFil
 			watcher.WithOperationTypeFilter(dbCommon.UpdateOperation),
 		),
 	)
+}
+
+func (c *Controller) waitForErrorGroupOrContextCancelled(g *errgroup.Group) error {
+	if g == nil {
+		return nil
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		waitErr := g.Wait()
+		done <- waitErr
+	}()
+
+	select {
+	case err := <-done:
+		return err
+	case <-c.ctx.Done():
+		return c.ctx.Err()
+	case <-c.quit:
+		return nil
+	}
 }
