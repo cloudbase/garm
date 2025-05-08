@@ -252,6 +252,10 @@ type Instance struct {
 	JitConfiguration map[string]string `json:"-"`
 }
 
+func (i Instance) GetCreatedAt() time.Time {
+	return i.CreatedAt
+}
+
 func (i Instance) GetName() string {
 	return i.Name
 }
@@ -368,6 +372,22 @@ type Pool struct {
 	// When fetching matching pools for a set of tags, the result will be sorted in descending
 	// order of priority.
 	Priority uint `json:"priority,omitempty"`
+}
+
+func (p Pool) BelongsTo(entity GithubEntity) bool {
+	switch p.PoolType() {
+	case GithubEntityTypeRepository:
+		return p.RepoID == entity.ID
+	case GithubEntityTypeOrganization:
+		return p.OrgID == entity.ID
+	case GithubEntityTypeEnterprise:
+		return p.EnterpriseID == entity.ID
+	}
+	return false
+}
+
+func (p Pool) GetCreatedAt() time.Time {
+	return p.CreatedAt
 }
 
 func (p Pool) MinIdleRunnersAsInt() int {
@@ -493,6 +513,22 @@ type ScaleSet struct {
 	LastMessageID int64 `json:"-"`
 }
 
+func (p ScaleSet) BelongsTo(entity GithubEntity) bool {
+	switch p.ScaleSetType() {
+	case GithubEntityTypeRepository:
+		return p.RepoID == entity.ID
+	case GithubEntityTypeOrganization:
+		return p.OrgID == entity.ID
+	case GithubEntityTypeEnterprise:
+		return p.EnterpriseID == entity.ID
+	}
+	return false
+}
+
+func (p ScaleSet) GetID() uint {
+	return p.ID
+}
+
 func (p ScaleSet) GetEntity() (GithubEntity, error) {
 	switch p.ScaleSetType() {
 	case GithubEntityTypeRepository:
@@ -526,10 +562,6 @@ func (p *ScaleSet) ScaleSetType() GithubEntityType {
 	return ""
 }
 
-func (p ScaleSet) GetID() uint {
-	return p.ID
-}
-
 func (p *ScaleSet) RunnerTimeout() uint {
 	if p.RunnerBootstrapTimeout == 0 {
 		return appdefaults.DefaultRunnerBootstrapTimeout
@@ -560,6 +592,10 @@ type Repository struct {
 	WebhookSecret string `json:"-"`
 }
 
+func (r Repository) CreationDateGetter() time.Time {
+	return r.CreatedAt
+}
+
 func (r Repository) GetEntity() (GithubEntity, error) {
 	if r.ID == "" {
 		return GithubEntity{}, fmt.Errorf("repository has no ID")
@@ -572,6 +608,7 @@ func (r Repository) GetEntity() (GithubEntity, error) {
 		PoolBalancerType: r.PoolBalancerType,
 		Credentials:      r.Credentials,
 		WebhookSecret:    r.WebhookSecret,
+		CreatedAt:        r.CreatedAt,
 	}, nil
 }
 
@@ -616,6 +653,10 @@ type Organization struct {
 	WebhookSecret string `json:"-"`
 }
 
+func (o Organization) GetCreatedAt() time.Time {
+	return o.CreatedAt
+}
+
 func (o Organization) GetEntity() (GithubEntity, error) {
 	if o.ID == "" {
 		return GithubEntity{}, fmt.Errorf("organization has no ID")
@@ -627,6 +668,7 @@ func (o Organization) GetEntity() (GithubEntity, error) {
 		WebhookSecret:    o.WebhookSecret,
 		PoolBalancerType: o.PoolBalancerType,
 		Credentials:      o.Credentials,
+		CreatedAt:        o.CreatedAt,
 	}, nil
 }
 
@@ -667,6 +709,10 @@ type Enterprise struct {
 	WebhookSecret string `json:"-"`
 }
 
+func (e Enterprise) GetCreatedAt() time.Time {
+	return e.CreatedAt
+}
+
 func (e Enterprise) GetEntity() (GithubEntity, error) {
 	if e.ID == "" {
 		return GithubEntity{}, fmt.Errorf("enterprise has no ID")
@@ -678,6 +724,7 @@ func (e Enterprise) GetEntity() (GithubEntity, error) {
 		WebhookSecret:    e.WebhookSecret,
 		PoolBalancerType: e.PoolBalancerType,
 		Credentials:      e.Credentials,
+		CreatedAt:        e.CreatedAt,
 	}, nil
 }
 
@@ -772,6 +819,24 @@ func (c *ControllerInfo) JobBackoff() time.Duration {
 	return time.Duration(int64(c.MinimumJobAgeBackoff))
 }
 
+type GithubRateLimit struct {
+	Limit     int   `json:"limit,omitempty"`
+	Used      int   `json:"used,omitempty"`
+	Remaining int   `json:"remaining,omitempty"`
+	Reset     int64 `json:"reset,omitempty"`
+}
+
+func (g GithubRateLimit) ResetIn() time.Duration {
+	return time.Until(g.ResetAt())
+}
+
+func (g GithubRateLimit) ResetAt() time.Time {
+	if g.Reset == 0 {
+		return time.Time{}
+	}
+	return time.Unix(g.Reset, 0)
+}
+
 type GithubCredentials struct {
 	ID            uint           `json:"id,omitempty"`
 	Name          string         `json:"name,omitempty"`
@@ -782,15 +847,20 @@ type GithubCredentials struct {
 	CABundle      []byte         `json:"ca_bundle,omitempty"`
 	AuthType      GithubAuthType `json:"auth-type,omitempty"`
 
-	Repositories  []Repository   `json:"repositories,omitempty"`
-	Organizations []Organization `json:"organizations,omitempty"`
-	Enterprises   []Enterprise   `json:"enterprises,omitempty"`
-	Endpoint      GithubEndpoint `json:"endpoint,omitempty"`
-	CreatedAt     time.Time      `json:"created_at,omitempty"`
-	UpdatedAt     time.Time      `json:"updated_at,omitempty"`
+	Repositories  []Repository    `json:"repositories,omitempty"`
+	Organizations []Organization  `json:"organizations,omitempty"`
+	Enterprises   []Enterprise    `json:"enterprises,omitempty"`
+	Endpoint      GithubEndpoint  `json:"endpoint,omitempty"`
+	CreatedAt     time.Time       `json:"created_at,omitempty"`
+	UpdatedAt     time.Time       `json:"updated_at,omitempty"`
+	RateLimit     GithubRateLimit `json:"rate_limit,omitempty"`
 
 	// Do not serialize sensitive info.
 	CredentialsPayload []byte `json:"-"`
+}
+
+func (g GithubCredentials) GetID() uint {
+	return g.ID
 }
 
 func (g GithubCredentials) GetHTTPClient(ctx context.Context) (*http.Client, error) {
@@ -994,11 +1064,16 @@ type GithubEntity struct {
 	EntityType       GithubEntityType  `json:"entity_type,omitempty"`
 	Credentials      GithubCredentials `json:"credentials,omitempty"`
 	PoolBalancerType PoolBalancerType  `json:"pool_balancing_type,omitempty"`
+	CreatedAt        time.Time         `json:"created_at,omitempty"`
 
 	WebhookSecret string `json:"-"`
 }
 
-func (g *GithubEntity) GithubURL() string {
+func (g GithubEntity) GetCreatedAt() time.Time {
+	return g.CreatedAt
+}
+
+func (g GithubEntity) GithubURL() string {
 	switch g.EntityType {
 	case GithubEntityTypeRepository:
 		return fmt.Sprintf("%s/%s/%s", g.Credentials.BaseURL, g.Owner, g.Name)

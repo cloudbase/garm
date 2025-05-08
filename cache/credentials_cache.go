@@ -21,6 +21,16 @@ type GithubCredentials struct {
 	cache map[uint]params.GithubCredentials
 }
 
+func (g *GithubCredentials) SetCredentialsRateLimit(credsID uint, rateLimit params.GithubRateLimit) {
+	g.mux.Lock()
+	defer g.mux.Unlock()
+
+	if creds, ok := g.cache[credsID]; ok {
+		creds.RateLimit = rateLimit
+		g.cache[credsID] = creds
+	}
+}
+
 func (g *GithubCredentials) SetCredentials(credentials params.GithubCredentials) {
 	g.mux.Lock()
 	defer g.mux.Unlock()
@@ -54,6 +64,21 @@ func (g *GithubCredentials) GetAllCredentials() []params.GithubCredentials {
 	for _, cred := range g.cache {
 		creds = append(creds, cred)
 	}
+
+	// Sort the credentials by ID
+	sortByID(creds)
+	return creds
+}
+
+func (g *GithubCredentials) GetAllCredentialsAsMap() map[uint]params.GithubCredentials {
+	g.mux.Lock()
+	defer g.mux.Unlock()
+
+	creds := make(map[uint]params.GithubCredentials, len(g.cache))
+	for id, cred := range g.cache {
+		creds[id] = cred
+	}
+
 	return creds
 }
 
@@ -71,4 +96,12 @@ func DeleteGithubCredentials(id uint) {
 
 func GetAllGithubCredentials() []params.GithubCredentials {
 	return credentialsCache.GetAllCredentials()
+}
+
+func SetCredentialsRateLimit(credsID uint, rateLimit params.GithubRateLimit) {
+	credentialsCache.SetCredentialsRateLimit(credsID, rateLimit)
+}
+
+func GetAllGithubCredentialsAsMap() map[uint]params.GithubCredentials {
+	return credentialsCache.GetAllCredentialsAsMap()
 }
