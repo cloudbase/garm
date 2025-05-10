@@ -3,8 +3,10 @@ package entity
 import (
 	"log/slog"
 
+	"github.com/cloudbase/garm/cache"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/params"
+	"github.com/cloudbase/garm/util/github"
 )
 
 func (w *Worker) handleWorkerWatcherEvent(event dbCommon.ChangePayload) {
@@ -46,6 +48,13 @@ func (w *Worker) handleEntityEventPayload(event dbCommon.ChangePayload) {
 			// credentials were swapped on the entity. We need to recompose the watcher
 			// filters.
 			w.consumer.SetFilters(composeWorkerWatcherFilters(entity))
+			ghCli, err := github.Client(w.ctx, entity)
+			if err != nil {
+				slog.ErrorContext(w.ctx, "creating github client", "entity_id", entity.ID, "error", err)
+				return
+			}
+			w.ghCli = ghCli
+			cache.SetGithubClient(entity.ID, ghCli)
 		}
 		w.Entity = entity
 	default:
@@ -72,6 +81,13 @@ func (w *Worker) handleEntityCredentialsEventPayload(event dbCommon.ChangePayloa
 			return
 		}
 		w.Entity.Credentials = credentials
+		ghCli, err := github.Client(w.ctx, w.Entity)
+		if err != nil {
+			slog.ErrorContext(w.ctx, "creating github client", "entity_id", w.Entity.ID, "error", err)
+			return
+		}
+		w.ghCli = ghCli
+		cache.SetGithubClient(w.Entity.ID, ghCli)
 	default:
 		slog.ErrorContext(w.ctx, "invalid operation type", "operation_type", event.Operation)
 	}

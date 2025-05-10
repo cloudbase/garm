@@ -1,11 +1,20 @@
 package entity
 
 import (
+	"strings"
+
 	"golang.org/x/sync/errgroup"
 
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/database/watcher"
 	"github.com/cloudbase/garm/params"
+)
+
+const (
+	// These are duplicated until we decide if we move the pool manager to the new
+	// worker flow.
+	poolIDLabelprefix     = "runner-pool-id:"
+	controllerLabelPrefix = "runner-controller-id:"
 )
 
 func composeControllerWatcherFilters() dbCommon.PayloadFilterFunc {
@@ -55,4 +64,13 @@ func (c *Controller) waitForErrorGroupOrContextCancelled(g *errgroup.Group) erro
 	case <-c.quit:
 		return nil
 	}
+}
+
+func poolIDFromLabels(runner params.RunnerReference) string {
+	for _, lbl := range runner.Labels {
+		if strings.HasPrefix(lbl.Name, poolIDLabelprefix) {
+			return lbl.Name[len(poolIDLabelprefix):]
+		}
+	}
+	return ""
 }

@@ -48,8 +48,12 @@ func (l *scaleSetListener) Start() error {
 
 	l.listenerCtx, l.cancelFunc = context.WithCancel(context.Background())
 	scaleSet := l.scaleSetHelper.GetScaleSet()
+	scaleSetClient, err := l.scaleSetHelper.GetScaleSetClient()
+	if err != nil {
+		return fmt.Errorf("getting scale set client: %w", err)
+	}
 	slog.DebugContext(l.ctx, "creating new message session", "scale_set", scaleSet.ScaleSetID)
-	session, err := l.scaleSetHelper.ScaleSetCLI().CreateMessageSession(
+	session, err := scaleSetClient.CreateMessageSession(
 		l.listenerCtx, scaleSet.ScaleSetID,
 		l.scaleSetHelper.Owner(),
 	)
@@ -72,13 +76,16 @@ func (l *scaleSetListener) Stop() error {
 	if !l.running {
 		return nil
 	}
-
+	scaleSetClient, err := l.scaleSetHelper.GetScaleSetClient()
+	if err != nil {
+		return fmt.Errorf("getting scale set client: %w", err)
+	}
 	if l.messageSession != nil {
 		slog.DebugContext(l.ctx, "closing message session", "scale_set", l.scaleSetHelper.GetScaleSet().ScaleSetID)
 		if err := l.messageSession.Close(); err != nil {
 			slog.ErrorContext(l.ctx, "closing message session", "error", err)
 		}
-		if err := l.scaleSetHelper.ScaleSetCLI().DeleteMessageSession(context.Background(), l.messageSession); err != nil {
+		if err := scaleSetClient.DeleteMessageSession(context.Background(), l.messageSession); err != nil {
 			slog.ErrorContext(l.ctx, "error deleting message session", "error", err)
 		}
 	}
@@ -145,12 +152,17 @@ func (l *scaleSetListener) handleSessionMessage(msg params.RunnerScaleSetMessage
 		}
 	}
 
+	scaleSetClient, err := l.scaleSetHelper.GetScaleSetClient()
+	if err != nil {
+		slog.ErrorContext(l.ctx, "getting scale set client", "error", err)
+		return
+	}
 	if len(availableJobs) > 0 {
 		jobIDs := make([]int64, len(availableJobs))
 		for idx, job := range availableJobs {
 			jobIDs[idx] = job.RunnerRequestID
 		}
-		idsAcquired, err := l.scaleSetHelper.ScaleSetCLI().AcquireJobs(
+		idsAcquired, err := scaleSetClient.AcquireJobs(
 			l.listenerCtx, l.scaleSetHelper.GetScaleSet().ScaleSetID,
 			l.messageSession.MessageQueueAccessToken(), jobIDs)
 		if err != nil {

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
-	"time"
 
 	"golang.org/x/sync/errgroup"
 
@@ -14,15 +13,6 @@ import (
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
 	garmUtil "github.com/cloudbase/garm/util"
-	"github.com/cloudbase/garm/util/github"
-	"github.com/cloudbase/garm/util/github/scalesets"
-)
-
-const (
-	// These are duplicated until we decide if we move the pool manager to the new
-	// worker flow.
-	poolIDLabelprefix     = "runner-pool-id:"
-	controllerLabelPrefix = "runner-controller-id:"
 )
 
 func NewController(ctx context.Context, store dbCommon.Store, entity params.GithubEntity, providers map[string]common.Provider) (*Controller, error) {
@@ -73,14 +63,12 @@ type Controller struct {
 	store     dbCommon.Store
 	providers map[string]common.Provider
 
-	ghCli common.GithubClient
-
 	mux     sync.Mutex
 	running bool
 	quit    chan struct{}
 }
 
-func (c *Controller) loadAllScaleSets(cli common.GithubClient) error {
+func (c *Controller) loadAllScaleSets() error {
 	scaleSets, err := c.store.ListEntityScaleSets(c.ctx, c.Entity)
 	if err != nil {
 		return fmt.Errorf("listing scale sets: %w", err)
@@ -88,7 +76,7 @@ func (c *Controller) loadAllScaleSets(cli common.GithubClient) error {
 
 	for _, sSet := range scaleSets {
 		slog.DebugContext(c.ctx, "loading scale set", "scale_set", sSet.ID)
-		if err := c.handleScaleSetCreateOperation(sSet, cli); err != nil {
+		if err := c.handleScaleSetCreateOperation(sSet); err != nil {
 			slog.With(slog.Any("error", err)).ErrorContext(c.ctx, "failed to handle scale set create operation")
 			continue
 		}
@@ -105,13 +93,8 @@ func (c *Controller) Start() (err error) {
 	}
 	c.mux.Unlock()
 
-	ghCli, err := github.Client(c.ctx, c.Entity)
-	if err != nil {
-		return fmt.Errorf("creating github client: %w", err)
-	}
-
 	slog.DebugContext(c.ctx, "loaging scale sets", "entity", c.Entity.String())
-	if err := c.loadAllScaleSets(ghCli); err != nil {
+	if err := c.loadAllScaleSets(); err != nil {
 		return fmt.Errorf("loading all scale sets: %w", err)
 	}
 
@@ -124,7 +107,6 @@ func (c *Controller) Start() (err error) {
 	}
 
 	c.mux.Lock()
-	c.ghCli = ghCli
 	c.consumer = consumer
 	c.running = true
 	c.quit = make(chan struct{})
@@ -159,39 +141,11 @@ func (c *Controller) Stop() error {
 	return nil
 }
 
-// consolidateRunnerState will list all runners on GitHub for this entity, sort by
-// pool or scale set and pass those runners to the appropriate worker. The worker will
-// then have the responsibility to cross check the runners from github with what it
-// knows should be true from the database. Any inconsistency needs to be handled.
-// If we have an offline runner in github but no database entry for it, we remove the
-// runner from github. If we have a runner that is active in the provider but does not
-// exist in github, we remove it from the provider and the database.
-func (c *Controller) consolidateRunnerState() error {
-	scaleSetCli, err := scalesets.NewClient(c.ghCli)
-	if err != nil {
-		return fmt.Errorf("creating scaleset client: %w", err)
-	}
-	// Client is scoped to the current entity. Only runners in a repo/org/enterprise
-	// will be listed.
-	runners, err := scaleSetCli.ListAllRunners(c.ctx)
-	if err != nil {
-		return fmt.Errorf("listing runners: %w", err)
-	}
-
-	byPoolID := make(map[string][]params.RunnerReference)
-	byScaleSetID := make(map[int][]params.RunnerReference)
-	for _, runner := range runners.RunnerReferences {
-		if runner.RunnerScaleSetID != 0 {
-			byScaleSetID[runner.RunnerScaleSetID] = append(byScaleSetID[runner.RunnerScaleSetID], runner)
-		} else {
-			poolID := poolIDFromLabels(runner)
-			if poolID == "" {
-				continue
-			}
-			byPoolID[poolID] = append(byPoolID[poolID], runner)
-		}
-	}
-
+// ConsolidateRunnerState will send a list of existing github runners to each scale set worker.
+// The scale set worker will then need to cross check the existing runners in Github with the sate
+// in the database. Any inconsistencies will b reconciliated. This cleans up any manually removed
+// runners in either github or the providers.
+func (c *Controller) ConsolidateRunnerState(byScaleSetID map[int][]params.RunnerReference) error {
 	g, ctx := errgroup.WithContext(c.ctx)
 	for _, scaleSet := range c.ScaleSets {
 		runners := byScaleSetID[scaleSet.scaleSet.ScaleSetID]
@@ -233,9 +187,6 @@ func (c *Controller) waitForErrorGroupOrContextCancelled(g *errgroup.Group) erro
 func (c *Controller) loop() {
 	defer c.Stop()
 
-	consolidateTicker := time.NewTicker(common.PoolReapTimeoutInterval)
-	defer consolidateTicker.Stop()
-
 	for {
 		select {
 		case payload, ok := <-c.consumer.Watch():
@@ -247,17 +198,6 @@ func (c *Controller) loop() {
 			c.handleWatcherEvent(payload)
 		case <-c.ctx.Done():
 			return
-		case _, ok := <-consolidateTicker.C:
-			if !ok {
-				slog.InfoContext(c.ctx, "consolidate ticker closed")
-				return
-			}
-			if err := c.consolidateRunnerState(); err != nil {
-				if err := c.store.AddEntityEvent(c.ctx, c.Entity, params.StatusEvent, params.EventError, fmt.Sprintf("failed to consolidate runner state: %q", err.Error()), 30); err != nil {
-					slog.With(slog.Any("error", err)).Error("failed to add entity event")
-				}
-				slog.With(slog.Any("error", err)).Error("failed to consolidate runner state")
-			}
 		case <-c.quit:
 			return
 		}

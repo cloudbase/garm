@@ -17,18 +17,13 @@ import (
 	"github.com/cloudbase/garm/locking"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
-	"github.com/cloudbase/garm/util/github/scalesets"
 )
 
-func NewWorker(ctx context.Context, store dbCommon.Store, scaleSet params.ScaleSet, provider common.Provider, ghCli common.GithubClient) (*Worker, error) {
+func NewWorker(ctx context.Context, store dbCommon.Store, scaleSet params.ScaleSet, provider common.Provider) (*Worker, error) {
 	consumerID := fmt.Sprintf("scaleset-worker-%s-%d", scaleSet.Name, scaleSet.ID)
 	controllerInfo, err := store.ControllerInfo()
 	if err != nil {
 		return nil, fmt.Errorf("getting controller info: %w", err)
-	}
-	scaleSetCli, err := scalesets.NewClient(ghCli)
-	if err != nil {
-		return nil, fmt.Errorf("creating scale set client: %w", err)
 	}
 	return &Worker{
 		ctx:            ctx,
@@ -37,8 +32,6 @@ func NewWorker(ctx context.Context, store dbCommon.Store, scaleSet params.ScaleS
 		store:          store,
 		provider:       provider,
 		scaleSet:       scaleSet,
-		ghCli:          ghCli,
-		scaleSetCli:    scaleSetCli,
 		runners:        make(map[string]params.Instance),
 	}, nil
 }
@@ -53,9 +46,7 @@ type Worker struct {
 	scaleSet params.ScaleSet
 	runners  map[string]params.Instance
 
-	ghCli       common.GithubClient
-	scaleSetCli *scalesets.ScaleSetClient
-	consumer    dbCommon.Consumer
+	consumer dbCommon.Consumer
 
 	listener *scaleSetListener
 
@@ -110,7 +101,12 @@ func (w *Worker) Start() (err error) {
 			instanceState := commonParams.InstancePendingDelete
 			locking.Lock(instance.Name, w.consumerID)
 			if instance.AgentID != 0 {
-				if err := w.scaleSetCli.RemoveRunner(w.ctx, instance.AgentID); err != nil {
+				scaleSetCli, err := w.GetScaleSetClient()
+				if err != nil {
+					slog.ErrorContext(w.ctx, "error getting scale set client", "error", err)
+					return fmt.Errorf("getting scale set client: %w", err)
+				}
+				if err := scaleSetCli.RemoveRunner(w.ctx, instance.AgentID); err != nil {
 					// scale sets use JIT runners. This means that we create the runner in github
 					// before we create the actual instance that will use the credentials. We need
 					// to remove the runner from github if it exists.
@@ -128,7 +124,7 @@ func (w *Worker) Start() (err error) {
 						}
 						// The runner may have come up, registered and is currently running a
 						// job, in which case, github will not allow us to remove it.
-						runnerInstance, err := w.scaleSetCli.GetRunner(w.ctx, instance.AgentID)
+						runnerInstance, err := scaleSetCli.GetRunner(w.ctx, instance.AgentID)
 						if err != nil {
 							if !errors.Is(err, runnerErrors.ErrNotFound) {
 								// We could not get info about the runner and it wasn't not found
@@ -254,7 +250,11 @@ func (w *Worker) setRunnerDBStatus(runner string, status commonParams.InstanceSt
 }
 
 func (w *Worker) removeRunnerFromGithubAndSetPendingDelete(runnerName string, agentID int64) error {
-	if err := w.scaleSetCli.RemoveRunner(w.ctx, agentID); err != nil {
+	scaleSetCli, err := w.GetScaleSetClient()
+	if err != nil {
+		return fmt.Errorf("getting scale set client: %w", err)
+	}
+	if err := scaleSetCli.RemoveRunner(w.ctx, agentID); err != nil {
 		if !errors.Is(err, runnerErrors.ErrNotFound) {
 			return fmt.Errorf("removing runner %s: %w", runnerName, err)
 		}
@@ -321,6 +321,10 @@ func (w *Worker) consolidateRunnerState(runners []params.RunnerReference) error 
 		ghRunnersByName[runner.Name] = runner
 	}
 
+	scaleSetCli, err := w.GetScaleSetClient()
+	if err != nil {
+		return fmt.Errorf("getting scale set client: %w", err)
+	}
 	dbRunnersByName := w.runnerByName()
 	// Cross check what exists in github with what we have in the database.
 	for name, runner := range ghRunnersByName {
@@ -329,7 +333,7 @@ func (w *Worker) consolidateRunnerState(runners []params.RunnerReference) error 
 			// runner appears to be active. Is it not managed by GARM?
 			if status != params.RunnerIdle && status != params.RunnerActive {
 				slog.InfoContext(w.ctx, "runner does not exist in GARM; removing from github", "runner_name", name)
-				if err := w.scaleSetCli.RemoveRunner(w.ctx, runner.ID); err != nil {
+				if err := scaleSetCli.RemoveRunner(w.ctx, runner.ID); err != nil {
 					if errors.Is(err, runnerErrors.ErrNotFound) {
 						continue
 					}
@@ -466,23 +470,6 @@ func (w *Worker) consolidateRunnerState(runners []params.RunnerReference) error 
 	return nil
 }
 
-func (w *Worker) SetGithubClient(client common.GithubClient) error {
-	w.mux.Lock()
-	defer w.mux.Unlock()
-
-	if err := w.listener.Stop(); err != nil {
-		slog.ErrorContext(w.ctx, "error stopping listener", "error", err)
-	}
-
-	w.ghCli = client
-	scaleSetCli, err := scalesets.NewClient(client)
-	if err != nil {
-		return fmt.Errorf("error creating scale set client: %w", err)
-	}
-	w.scaleSetCli = scaleSetCli
-	return nil
-}
-
 func (w *Worker) pseudoPoolID() (string, error) {
 	// This is temporary. We need to extend providers to know about scale sets.
 	entity, err := w.scaleSet.GetEntity()
@@ -563,8 +550,13 @@ func (w *Worker) handleInstanceEntityEvent(event dbCommon.ChangePayload) {
 			w.mux.Unlock()
 			return
 		}
+		scaleSetCli, err := w.GetScaleSetClient()
+		if err != nil {
+			slog.ErrorContext(w.ctx, "error getting scale set client", "error", err)
+			return
+		}
 		if oldInstance.RunnerStatus != instance.RunnerStatus && instance.RunnerStatus == params.RunnerIdle {
-			serviceRuner, err := w.scaleSetCli.GetRunner(w.ctx, instance.AgentID)
+			serviceRuner, err := scaleSetCli.GetRunner(w.ctx, instance.AgentID)
 			if err != nil {
 				slog.ErrorContext(w.ctx, "error getting runner details", "error", err)
 				w.mux.Unlock()
@@ -725,9 +717,14 @@ func (w *Worker) handleScaleUp(target, current uint) {
 		return
 	}
 
+	scaleSetCli, err := w.GetScaleSetClient()
+	if err != nil {
+		slog.ErrorContext(w.ctx, "error getting scale set client", "error", err)
+		return
+	}
 	for i := current; i < target; i++ {
 		newRunnerName := fmt.Sprintf("%s-%s", w.scaleSet.GetRunnerPrefix(), util.NewID())
-		jitConfig, err := w.scaleSetCli.GenerateJitRunnerConfig(w.ctx, newRunnerName, w.scaleSet.ScaleSetID)
+		jitConfig, err := scaleSetCli.GenerateJitRunnerConfig(w.ctx, newRunnerName, w.scaleSet.ScaleSetID)
 		if err != nil {
 			slog.ErrorContext(w.ctx, "error generating jit config", "error", err)
 			continue
@@ -755,14 +752,14 @@ func (w *Worker) handleScaleUp(target, current uint) {
 		dbInstance, err := w.store.CreateScaleSetInstance(w.ctx, w.scaleSet.ID, runnerParams)
 		if err != nil {
 			slog.ErrorContext(w.ctx, "error creating instance", "error", err)
-			if err := w.scaleSetCli.RemoveRunner(w.ctx, jitConfig.Runner.ID); err != nil {
+			if err := scaleSetCli.RemoveRunner(w.ctx, jitConfig.Runner.ID); err != nil {
 				slog.ErrorContext(w.ctx, "error deleting runner", "error", err)
 			}
 			continue
 		}
 		w.runners[dbInstance.ID] = dbInstance
 
-		_, err = w.scaleSetCli.GetRunner(w.ctx, jitConfig.Runner.ID)
+		_, err = scaleSetCli.GetRunner(w.ctx, jitConfig.Runner.ID)
 		if err != nil {
 			slog.ErrorContext(w.ctx, "error getting runner details", "error", err)
 			continue
@@ -854,8 +851,13 @@ func (w *Worker) handleScaleDown(target, current uint) {
 			continue
 		}
 
+		scaleSetCli, err := w.GetScaleSetClient()
+		if err != nil {
+			slog.ErrorContext(w.ctx, "error getting scale set client", "error", err)
+			return
+		}
 		slog.DebugContext(w.ctx, "removing runner", "runner_name", runner.Name)
-		if err := w.scaleSetCli.RemoveRunner(w.ctx, runner.AgentID); err != nil {
+		if err := scaleSetCli.RemoveRunner(w.ctx, runner.AgentID); err != nil {
 			if !errors.Is(err, runnerErrors.ErrNotFound) {
 				slog.ErrorContext(w.ctx, "error removing runner", "runner_name", runner.Name, "error", err)
 				locking.Unlock(runner.Name, false)

@@ -6,8 +6,8 @@ import (
 )
 
 type scaleSetHelper interface {
-	ScaleSetCLI() *scalesets.ScaleSetClient
 	GetScaleSet() params.ScaleSet
+	GetScaleSetClient() (*scalesets.ScaleSetClient, error)
 	SetLastMessageID(id int64) error
 	SetDesiredRunnerCount(count int) error
 	Owner() string

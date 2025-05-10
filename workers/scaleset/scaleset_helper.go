@@ -7,13 +7,28 @@ import (
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
+	"github.com/cloudbase/garm/cache"
 	"github.com/cloudbase/garm/locking"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/util/github/scalesets"
 )
 
-func (w *Worker) ScaleSetCLI() *scalesets.ScaleSetClient {
-	return w.scaleSetCli
+func (w *Worker) GetScaleSetClient() (*scalesets.ScaleSetClient, error) {
+	scaleSetEntity, err := w.scaleSet.GetEntity()
+	if err != nil {
+		return nil, fmt.Errorf("getting entity: %w", err)
+	}
+
+	ghCli, ok := cache.GetGithubClient(scaleSetEntity.ID)
+	if !ok {
+		return nil, fmt.Errorf("getting github client: %w", err)
+	}
+	scaleSetClient, err := scalesets.NewClient(ghCli)
+	if err != nil {
+		return nil, fmt.Errorf("creating scale set client: %w", err)
+	}
+
+	return scaleSetClient, nil
 }
 
 func (w *Worker) GetScaleSet() params.ScaleSet {
