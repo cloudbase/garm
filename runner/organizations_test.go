@@ -58,7 +58,7 @@ type OrgTestSuite struct {
 
 	testCreds          params.GithubCredentials
 	secondaryTestCreds params.GithubCredentials
-	githubEndpoint     params.GithubEndpoint
+	githubEndpoint     params.ForgeEndpoint
 }
 
 func (s *OrgTestSuite) SetupTest() {
@@ -284,9 +284,9 @@ func (s *OrgTestSuite) TestDeleteOrganizationErrUnauthorized() {
 }
 
 func (s *OrgTestSuite) TestDeleteOrganizationPoolDefinedFailed() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         s.Fixtures.StoreOrgs["test-org-1"].ID,
-		EntityType: params.GithubEntityTypeOrganization,
+		EntityType: params.ForgeEntityTypeOrganization,
 	}
 	pool, err := s.Fixtures.Store.CreateEntityPool(s.Fixtures.AdminContext, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
@@ -402,9 +402,9 @@ func (s *OrgTestSuite) TestCreateOrgPoolFetchPoolParamsFailed() {
 }
 
 func (s *OrgTestSuite) TestGetOrgPoolByID() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         s.Fixtures.StoreOrgs["test-org-1"].ID,
-		EntityType: params.GithubEntityTypeOrganization,
+		EntityType: params.ForgeEntityTypeOrganization,
 	}
 	orgPool, err := s.Fixtures.Store.CreateEntityPool(s.Fixtures.AdminContext, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
@@ -424,9 +424,9 @@ func (s *OrgTestSuite) TestGetOrgPoolByIDErrUnauthorized() {
 }
 
 func (s *OrgTestSuite) TestDeleteOrgPool() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         s.Fixtures.StoreOrgs["test-org-1"].ID,
-		EntityType: params.GithubEntityTypeOrganization,
+		EntityType: params.ForgeEntityTypeOrganization,
 	}
 	pool, err := s.Fixtures.Store.CreateEntityPool(s.Fixtures.AdminContext, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
@@ -448,9 +448,9 @@ func (s *OrgTestSuite) TestDeleteOrgPoolErrUnauthorized() {
 }
 
 func (s *OrgTestSuite) TestDeleteOrgPoolRunnersFailed() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         s.Fixtures.StoreOrgs["test-org-1"].ID,
-		EntityType: params.GithubEntityTypeOrganization,
+		EntityType: params.ForgeEntityTypeOrganization,
 	}
 	pool, err := s.Fixtures.Store.CreateEntityPool(s.Fixtures.AdminContext, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
@@ -467,9 +467,9 @@ func (s *OrgTestSuite) TestDeleteOrgPoolRunnersFailed() {
 }
 
 func (s *OrgTestSuite) TestListOrgPools() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         s.Fixtures.StoreOrgs["test-org-1"].ID,
-		EntityType: params.GithubEntityTypeOrganization,
+		EntityType: params.ForgeEntityTypeOrganization,
 	}
 	orgPools := []params.Pool{}
 	for i := 1; i <= 2; i++ {
@@ -494,9 +494,9 @@ func (s *OrgTestSuite) TestListOrgPoolsErrUnauthorized() {
 }
 
 func (s *OrgTestSuite) TestUpdateOrgPool() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         s.Fixtures.StoreOrgs["test-org-1"].ID,
-		EntityType: params.GithubEntityTypeOrganization,
+		EntityType: params.ForgeEntityTypeOrganization,
 	}
 	orgPool, err := s.Fixtures.Store.CreateEntityPool(s.Fixtures.AdminContext, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
@@ -517,9 +517,9 @@ func (s *OrgTestSuite) TestUpdateOrgPoolErrUnauthorized() {
 }
 
 func (s *OrgTestSuite) TestUpdateOrgPoolMinIdleGreaterThanMax() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         s.Fixtures.StoreOrgs["test-org-1"].ID,
-		EntityType: params.GithubEntityTypeOrganization,
+		EntityType: params.ForgeEntityTypeOrganization,
 	}
 	pool, err := s.Fixtures.Store.CreateEntityPool(s.Fixtures.AdminContext, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
@@ -536,9 +536,9 @@ func (s *OrgTestSuite) TestUpdateOrgPoolMinIdleGreaterThanMax() {
 }
 
 func (s *OrgTestSuite) TestListOrgInstances() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         s.Fixtures.StoreOrgs["test-org-1"].ID,
-		EntityType: params.GithubEntityTypeOrganization,
+		EntityType: params.ForgeEntityTypeOrganization,
 	}
 	pool, err := s.Fixtures.Store.CreateEntityPool(s.Fixtures.AdminContext, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {

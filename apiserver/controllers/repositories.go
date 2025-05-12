@@ -329,7 +329,7 @@ func (a *APIController) CreateRepoScaleSetHandler(w http.ResponseWriter, r *http
 		return
 	}
 
-	scaleSet, err := a.r.CreateEntityScaleSet(ctx, runnerParams.GithubEntityTypeRepository, repoID, scaleSetData)
+	scaleSet, err := a.r.CreateEntityScaleSet(ctx, runnerParams.ForgeEntityTypeRepository, repoID, scaleSetData)
 	if err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error creating repository scale set")
 		handleError(ctx, w, err)
@@ -413,7 +413,7 @@ func (a *APIController) ListRepoScaleSetsHandler(w http.ResponseWriter, r *http.
 		return
 	}
 
-	scaleSets, err := a.r.ListEntityScaleSets(ctx, runnerParams.GithubEntityTypeRepository, repoID)
+	scaleSets, err := a.r.ListEntityScaleSets(ctx, runnerParams.ForgeEntityTypeRepository, repoID)
 	if err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "listing scale sets")
 		handleError(ctx, w, err)

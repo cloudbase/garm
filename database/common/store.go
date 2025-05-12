@@ -21,10 +21,10 @@ import (
 )
 
 type GithubEndpointStore interface {
-	CreateGithubEndpoint(ctx context.Context, param params.CreateGithubEndpointParams) (params.GithubEndpoint, error)
-	GetGithubEndpoint(ctx context.Context, name string) (params.GithubEndpoint, error)
-	ListGithubEndpoints(ctx context.Context) ([]params.GithubEndpoint, error)
-	UpdateGithubEndpoint(ctx context.Context, name string, param params.UpdateGithubEndpointParams) (params.GithubEndpoint, error)
+	CreateGithubEndpoint(ctx context.Context, param params.CreateGithubEndpointParams) (params.ForgeEndpoint, error)
+	GetGithubEndpoint(ctx context.Context, name string) (params.ForgeEndpoint, error)
+	ListGithubEndpoints(ctx context.Context) ([]params.ForgeEndpoint, error)
+	UpdateGithubEndpoint(ctx context.Context, name string, param params.UpdateGithubEndpointParams) (params.ForgeEndpoint, error)
 	DeleteGithubEndpoint(ctx context.Context, name string) error
 }
 
@@ -76,7 +76,7 @@ type PoolStore interface {
 
 	PoolInstanceCount(ctx context.Context, poolID string) (int64, error)
 	GetPoolInstanceByName(ctx context.Context, poolID string, instanceName string) (params.Instance, error)
-	FindPoolsMatchingAllTags(ctx context.Context, entityType params.GithubEntityType, entityID string, tags []string) ([]params.Pool, error)
+	FindPoolsMatchingAllTags(ctx context.Context, entityType params.ForgeEntityType, entityID string, tags []string) ([]params.Pool, error)
 }
 
 type UserStore interface {
@@ -107,7 +107,7 @@ type InstanceStore interface {
 
 type JobsStore interface {
 	CreateOrUpdateJob(ctx context.Context, job params.Job) (params.Job, error)
-	ListEntityJobsByStatus(ctx context.Context, entityType params.GithubEntityType, entityID string, status params.JobStatus) ([]params.Job, error)
+	ListEntityJobsByStatus(ctx context.Context, entityType params.ForgeEntityType, entityID string, status params.JobStatus) ([]params.Job, error)
 	ListJobsByStatus(ctx context.Context, status params.JobStatus) ([]params.Job, error)
 	ListAllJobs(ctx context.Context) ([]params.Job, error)
 
@@ -121,13 +121,13 @@ type JobsStore interface {
 }
 
 type EntityPoolStore interface {
-	CreateEntityPool(ctx context.Context, entity params.GithubEntity, param params.CreatePoolParams) (params.Pool, error)
-	GetEntityPool(ctx context.Context, entity params.GithubEntity, poolID string) (params.Pool, error)
-	DeleteEntityPool(ctx context.Context, entity params.GithubEntity, poolID string) error
-	UpdateEntityPool(ctx context.Context, entity params.GithubEntity, poolID string, param params.UpdatePoolParams) (params.Pool, error)
+	CreateEntityPool(ctx context.Context, entity params.ForgeEntity, param params.CreatePoolParams) (params.Pool, error)
+	GetEntityPool(ctx context.Context, entity params.ForgeEntity, poolID string) (params.Pool, error)
+	DeleteEntityPool(ctx context.Context, entity params.ForgeEntity, poolID string) error
+	UpdateEntityPool(ctx context.Context, entity params.ForgeEntity, poolID string, param params.UpdatePoolParams) (params.Pool, error)
 
-	ListEntityPools(ctx context.Context, entity params.GithubEntity) ([]params.Pool, error)
-	ListEntityInstances(ctx context.Context, entity params.GithubEntity) ([]params.Instance, error)
+	ListEntityPools(ctx context.Context, entity params.ForgeEntity) ([]params.Pool, error)
+	ListEntityInstances(ctx context.Context, entity params.ForgeEntity) ([]params.Instance, error)
 }
 
 type ControllerStore interface {
@@ -138,9 +138,9 @@ type ControllerStore interface {
 
 type ScaleSetsStore interface {
 	ListAllScaleSets(ctx context.Context) ([]params.ScaleSet, error)
-	CreateEntityScaleSet(_ context.Context, entity params.GithubEntity, param params.CreateScaleSetParams) (scaleSet params.ScaleSet, err error)
-	ListEntityScaleSets(_ context.Context, entity params.GithubEntity) ([]params.ScaleSet, error)
-	UpdateEntityScaleSet(_ context.Context, entity params.GithubEntity, scaleSetID uint, param params.UpdateScaleSetParams, callback func(old, newSet params.ScaleSet) error) (updatedScaleSet params.ScaleSet, err error)
+	CreateEntityScaleSet(_ context.Context, entity params.ForgeEntity, param params.CreateScaleSetParams) (scaleSet params.ScaleSet, err error)
+	ListEntityScaleSets(_ context.Context, entity params.ForgeEntity) ([]params.ScaleSet, error)
+	UpdateEntityScaleSet(_ context.Context, entity params.ForgeEntity, scaleSetID uint, param params.UpdateScaleSetParams, callback func(old, newSet params.ScaleSet) error) (updatedScaleSet params.ScaleSet, err error)
 	GetScaleSetByID(ctx context.Context, scaleSet uint) (params.ScaleSet, error)
 	DeleteScaleSetByID(ctx context.Context, scaleSetID uint) (err error)
 	SetScaleSetLastMessageID(ctx context.Context, scaleSetID uint, lastMessageID int64) error
@@ -170,6 +170,6 @@ type Store interface {
 
 	ControllerInfo() (params.ControllerInfo, error)
 	InitController() (params.ControllerInfo, error)
-	GetGithubEntity(_ context.Context, entityType params.GithubEntityType, entityID string) (params.GithubEntity, error)
-	AddEntityEvent(ctx context.Context, entity params.GithubEntity, event params.EventType, eventLevel params.EventLevel, statusMessage string, maxEvents int) error
+	GetForgeEntity(_ context.Context, entityType params.ForgeEntityType, entityID string) (params.ForgeEntity, error)
+	AddEntityEvent(ctx context.Context, entity params.ForgeEntity, event params.EventType, eventLevel params.EventLevel, statusMessage string, maxEvents int) error
 }

@@ -55,7 +55,7 @@ type EnterpriseTestSuite struct {
 
 	testCreds          params.GithubCredentials
 	secondaryTestCreds params.GithubCredentials
-	githubEndpoint     params.GithubEndpoint
+	githubEndpoint     params.ForgeEndpoint
 }
 
 func (s *EnterpriseTestSuite) equalInstancesByName(expected, actual []params.Instance) {
@@ -490,9 +490,9 @@ func (s *EnterpriseTestSuite) TestCreateEnterprisePoolMissingTags() {
 }
 
 func (s *EnterpriseTestSuite) TestCreateEnterprisePoolInvalidEnterpriseID() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         "dummy-enterprise-id",
-		EntityType: params.GithubEntityTypeEnterprise,
+		EntityType: params.ForgeEntityTypeEnterprise,
 	}
 	_, err := s.Store.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 
@@ -637,9 +637,9 @@ func (s *EnterpriseTestSuite) TestListEnterprisePools() {
 }
 
 func (s *EnterpriseTestSuite) TestListEnterprisePoolsInvalidEnterpriseID() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         "dummy-enterprise-id",
-		EntityType: params.GithubEntityTypeEnterprise,
+		EntityType: params.ForgeEntityTypeEnterprise,
 	}
 	_, err := s.Store.ListEntityPools(s.adminCtx, entity)
 
@@ -662,9 +662,9 @@ func (s *EnterpriseTestSuite) TestGetEnterprisePool() {
 }
 
 func (s *EnterpriseTestSuite) TestGetEnterprisePoolInvalidEnterpriseID() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         "dummy-enterprise-id",
-		EntityType: params.GithubEntityTypeEnterprise,
+		EntityType: params.ForgeEntityTypeEnterprise,
 	}
 	_, err := s.Store.GetEntityPool(s.adminCtx, entity, "dummy-pool-id")
 
@@ -688,9 +688,9 @@ func (s *EnterpriseTestSuite) TestDeleteEnterprisePool() {
 }
 
 func (s *EnterpriseTestSuite) TestDeleteEnterprisePoolInvalidEnterpriseID() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         "dummy-enterprise-id",
-		EntityType: params.GithubEntityTypeEnterprise,
+		EntityType: params.ForgeEntityTypeEnterprise,
 	}
 	err := s.Store.DeleteEntityPool(s.adminCtx, entity, "dummy-pool-id")
 
@@ -743,9 +743,9 @@ func (s *EnterpriseTestSuite) TestListEnterpriseInstances() {
 }
 
 func (s *EnterpriseTestSuite) TestListEnterpriseInstancesInvalidEnterpriseID() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         "dummy-enterprise-id",
-		EntityType: params.GithubEntityTypeEnterprise,
+		EntityType: params.ForgeEntityTypeEnterprise,
 	}
 	_, err := s.Store.ListEntityInstances(s.adminCtx, entity)
 
@@ -771,9 +771,9 @@ func (s *EnterpriseTestSuite) TestUpdateEnterprisePool() {
 }
 
 func (s *EnterpriseTestSuite) TestUpdateEnterprisePoolInvalidEnterpriseID() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         "dummy-enterprise-id",
-		EntityType: params.GithubEntityTypeEnterprise,
+		EntityType: params.ForgeEntityTypeEnterprise,
 	}
 	_, err := s.Store.UpdateEntityPool(s.adminCtx, entity, "dummy-pool-id", s.Fixtures.UpdatePoolParams)
 

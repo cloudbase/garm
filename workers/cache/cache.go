@@ -262,7 +262,7 @@ func (w *Worker) handleEntityEvent(entityGetter params.EntityGetter, op common.O
 			w.toolsWorkes[entity.ID] = worker
 		} else if hasOld {
 			// probably an update operation
-			if old.Credentials.ID != entity.Credentials.ID {
+			if old.Credentials.GetID() != entity.Credentials.GetID() {
 				worker.Reset()
 			}
 		}

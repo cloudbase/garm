@@ -85,7 +85,7 @@ func CreateGARMTestUser(ctx context.Context, username string, db common.Store, s
 	return user
 }
 
-func CreateDefaultGithubEndpoint(ctx context.Context, db common.Store, s *testing.T) params.GithubEndpoint {
+func CreateDefaultGithubEndpoint(ctx context.Context, db common.Store, s *testing.T) params.ForgeEndpoint {
 	endpointParams := params.CreateGithubEndpointParams{
 		Name:          "github.com",
 		Description:   "github endpoint",
@@ -110,11 +110,11 @@ func CreateDefaultGithubEndpoint(ctx context.Context, db common.Store, s *testin
 	return ep
 }
 
-func CreateTestGithubCredentials(ctx context.Context, credsName string, db common.Store, s *testing.T, endpoint params.GithubEndpoint) params.GithubCredentials {
+func CreateTestGithubCredentials(ctx context.Context, credsName string, db common.Store, s *testing.T, endpoint params.ForgeEndpoint) params.GithubCredentials {
 	newCredsParams := params.CreateGithubCredentialsParams{
 		Name:        credsName,
 		Description: "Test creds",
-		AuthType:    params.GithubAuthTypePAT,
+		AuthType:    params.ForgeAuthTypePAT,
 		Endpoint:    endpoint.Name,
 		PAT: params.GithubPAT{
 			OAuth2Token: "test-token",

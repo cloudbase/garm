@@ -118,18 +118,18 @@ func (_m *GithubClient) DeleteEntityHook(ctx context.Context, id int64) (*github
 }
 
 // GetEntity provides a mock function with no fields
-func (_m *GithubClient) GetEntity() params.GithubEntity {
+func (_m *GithubClient) GetEntity() params.ForgeEntity {
 	ret := _m.Called()
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetEntity")
 	}
 
-	var r0 params.GithubEntity
-	if rf, ok := ret.Get(0).(func() params.GithubEntity); ok {
+	var r0 params.ForgeEntity
+	if rf, ok := ret.Get(0).(func() params.ForgeEntity); ok {
 		r0 = rf()
 	} else {
-		r0 = ret.Get(0).(params.GithubEntity)
+		r0 = ret.Get(0).(params.ForgeEntity)
 	}
 
 	return r0

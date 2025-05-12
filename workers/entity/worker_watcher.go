@@ -44,7 +44,7 @@ func (w *Worker) handleEntityEventPayload(event dbCommon.ChangePayload) {
 		defer w.mux.Unlock()
 
 		credentials := entity.Credentials
-		if w.Entity.Credentials.ID != credentials.ID {
+		if w.Entity.Credentials.GetID() != credentials.GetID() {
 			// credentials were swapped on the entity. We need to recompose the watcher
 			// filters.
 			w.consumer.SetFilters(composeWorkerWatcherFilters(entity))
@@ -63,18 +63,29 @@ func (w *Worker) handleEntityEventPayload(event dbCommon.ChangePayload) {
 }
 
 func (w *Worker) handleEntityCredentialsEventPayload(event dbCommon.ChangePayload) {
-	credentials, ok := event.Payload.(params.GithubCredentials)
+	var credsGetter params.ForgeCredentialsGetter
+	var ok bool
+
+	switch event.EntityType {
+	case dbCommon.GithubCredentialsEntityType:
+		credsGetter, ok = event.Payload.(params.GithubCredentials)
+	default:
+		slog.ErrorContext(w.ctx, "invalid entity type", "entity_type", event.EntityType)
+		return
+	}
 	if !ok {
 		slog.ErrorContext(w.ctx, "invalid payload for entity type", "entity_type", event.EntityType, "payload", event.Payload)
 		return
 	}
+
+	credentials := credsGetter.GetForgeCredentials()
 
 	switch event.Operation {
 	case dbCommon.UpdateOperation:
 		slog.DebugContext(w.ctx, "got delete operation")
 		w.mux.Lock()
 		defer w.mux.Unlock()
-		if w.Entity.Credentials.ID != credentials.ID {
+		if w.Entity.Credentials.GetID() != credentials.GetID() {
 			// The channel is buffered. We may get an old update. If credentials get updated
 			// immediately after they are swapped on the entity, we may still get an update
 			// pushed to the channel before the filters are swapped. We can ignore the update.

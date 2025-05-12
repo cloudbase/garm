@@ -53,7 +53,7 @@ func (s *sqlDatabase) ListAllScaleSets(_ context.Context) ([]params.ScaleSet, er
 	return ret, nil
 }
 
-func (s *sqlDatabase) CreateEntityScaleSet(_ context.Context, entity params.GithubEntity, param params.CreateScaleSetParams) (scaleSet params.ScaleSet, err error) {
+func (s *sqlDatabase) CreateEntityScaleSet(_ context.Context, entity params.ForgeEntity, param params.CreateScaleSetParams) (scaleSet params.ScaleSet, err error) {
 	if err := param.Validate(); err != nil {
 		return params.ScaleSet{}, fmt.Errorf("failed to validate create params: %w", err)
 	}
@@ -92,11 +92,11 @@ func (s *sqlDatabase) CreateEntityScaleSet(_ context.Context, entity params.Gith
 	}
 
 	switch entity.EntityType {
-	case params.GithubEntityTypeRepository:
+	case params.ForgeEntityTypeRepository:
 		newScaleSet.RepoID = &entityID
-	case params.GithubEntityTypeOrganization:
+	case params.ForgeEntityTypeOrganization:
 		newScaleSet.OrgID = &entityID
-	case params.GithubEntityTypeEnterprise:
+	case params.ForgeEntityTypeEnterprise:
 		newScaleSet.EnterpriseID = &entityID
 	}
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
@@ -123,7 +123,7 @@ func (s *sqlDatabase) CreateEntityScaleSet(_ context.Context, entity params.Gith
 	return s.sqlToCommonScaleSet(dbScaleSet)
 }
 
-func (s *sqlDatabase) listEntityScaleSets(tx *gorm.DB, entityType params.GithubEntityType, entityID string, preload ...string) ([]ScaleSet, error) {
+func (s *sqlDatabase) listEntityScaleSets(tx *gorm.DB, entityType params.ForgeEntityType, entityID string, preload ...string) ([]ScaleSet, error) {
 	if _, err := uuid.Parse(entityID); err != nil {
 		return nil, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
 	}
@@ -135,13 +135,13 @@ func (s *sqlDatabase) listEntityScaleSets(tx *gorm.DB, entityType params.GithubE
 	var preloadEntity string
 	var fieldName string
 	switch entityType {
-	case params.GithubEntityTypeRepository:
+	case params.ForgeEntityTypeRepository:
 		fieldName = entityTypeRepoName
 		preloadEntity = repositoryFieldName
-	case params.GithubEntityTypeOrganization:
+	case params.ForgeEntityTypeOrganization:
 		fieldName = entityTypeOrgName
 		preloadEntity = organizationFieldName
-	case params.GithubEntityTypeEnterprise:
+	case params.ForgeEntityTypeEnterprise:
 		fieldName = entityTypeEnterpriseName
 		preloadEntity = enterpriseFieldName
 	default:
@@ -173,7 +173,7 @@ func (s *sqlDatabase) listEntityScaleSets(tx *gorm.DB, entityType params.GithubE
 	return scaleSets, nil
 }
 
-func (s *sqlDatabase) ListEntityScaleSets(_ context.Context, entity params.GithubEntity) ([]params.ScaleSet, error) {
+func (s *sqlDatabase) ListEntityScaleSets(_ context.Context, entity params.ForgeEntity) ([]params.ScaleSet, error) {
 	scaleSets, err := s.listEntityScaleSets(s.conn, entity.EntityType, entity.ID)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching scale sets")
@@ -190,7 +190,7 @@ func (s *sqlDatabase) ListEntityScaleSets(_ context.Context, entity params.Githu
 	return ret, nil
 }
 
-func (s *sqlDatabase) UpdateEntityScaleSet(_ context.Context, entity params.GithubEntity, scaleSetID uint, param params.UpdateScaleSetParams, callback func(old, newSet params.ScaleSet) error) (updatedScaleSet params.ScaleSet, err error) {
+func (s *sqlDatabase) UpdateEntityScaleSet(_ context.Context, entity params.ForgeEntity, scaleSetID uint, param params.UpdateScaleSetParams, callback func(old, newSet params.ScaleSet) error) (updatedScaleSet params.ScaleSet, err error) {
 	defer func() {
 		if err == nil {
 			s.sendNotify(common.ScaleSetEntityType, common.UpdateOperation, updatedScaleSet)
@@ -225,7 +225,7 @@ func (s *sqlDatabase) UpdateEntityScaleSet(_ context.Context, entity params.Gith
 	return updatedScaleSet, nil
 }
 
-func (s *sqlDatabase) getEntityScaleSet(tx *gorm.DB, entityType params.GithubEntityType, entityID string, scaleSetID uint, preload ...string) (ScaleSet, error) {
+func (s *sqlDatabase) getEntityScaleSet(tx *gorm.DB, entityType params.ForgeEntityType, entityID string, scaleSetID uint, preload ...string) (ScaleSet, error) {
 	if entityID == "" {
 		return ScaleSet{}, errors.Wrap(runnerErrors.ErrBadRequest, "missing entity id")
 	}
@@ -237,13 +237,13 @@ func (s *sqlDatabase) getEntityScaleSet(tx *gorm.DB, entityType params.GithubEnt
 	var fieldName string
 	var entityField string
 	switch entityType {
-	case params.GithubEntityTypeRepository:
+	case params.ForgeEntityTypeRepository:
 		fieldName = entityTypeRepoName
 		entityField = "Repository"
-	case params.GithubEntityTypeOrganization:
+	case params.ForgeEntityTypeOrganization:
 		fieldName = entityTypeOrgName
 		entityField = "Organization"
-	case params.GithubEntityTypeEnterprise:
+	case params.ForgeEntityTypeEnterprise:
 		fieldName = entityTypeEnterpriseName
 		entityField = "Enterprise"
 	default:

@@ -25,7 +25,7 @@ func (suite *GarmSuite) TestGithubCredentialsErrorOnDuplicateCredentialsName() {
 		Name:        dummyCredentialsName,
 		Endpoint:    defaultEndpointName,
 		Description: "GARM test credentials",
-		AuthType:    params.GithubAuthTypePAT,
+		AuthType:    params.ForgeAuthTypePAT,
 		PAT: params.GithubPAT{
 			OAuth2Token: "dummy",
 		},
@@ -68,7 +68,7 @@ func (suite *GarmSuite) TestGithubCredentialsFailsOnInvalidAuthType() {
 		Name:        dummyCredentialsName,
 		Endpoint:    defaultEndpointName,
 		Description: "GARM test credentials",
-		AuthType:    params.GithubAuthType("invalid"),
+		AuthType:    params.ForgeAuthType("invalid"),
 		PAT: params.GithubPAT{
 			OAuth2Token: "dummy",
 		},
@@ -87,7 +87,7 @@ func (suite *GarmSuite) TestGithubCredentialsFailsWhenAuthTypeParamsAreIncorrect
 		Name:        dummyCredentialsName,
 		Endpoint:    defaultEndpointName,
 		Description: "GARM test credentials",
-		AuthType:    params.GithubAuthTypePAT,
+		AuthType:    params.ForgeAuthTypePAT,
 		App: params.GithubApp{
 			AppID:           123,
 			InstallationID:  456,
@@ -107,7 +107,7 @@ func (suite *GarmSuite) TestGithubCredentialsFailsWhenAuthTypeParamsAreMissing()
 		Name:        dummyCredentialsName,
 		Endpoint:    defaultEndpointName,
 		Description: "GARM test credentials",
-		AuthType:    params.GithubAuthTypeApp,
+		AuthType:    params.ForgeAuthTypeApp,
 	}
 	_, err := createGithubCredentials(suite.cli, suite.authToken, createCredsParams)
 	suite.Error(err, "expected error when creating credentials with missing auth type params")
@@ -147,7 +147,7 @@ func (suite *GarmSuite) TestGithubCredentialsFailWhenAppKeyIsInvalid() {
 		Name:        dummyCredentialsName,
 		Endpoint:    defaultEndpointName,
 		Description: "GARM test credentials",
-		AuthType:    params.GithubAuthTypeApp,
+		AuthType:    params.ForgeAuthTypeApp,
 		App: params.GithubApp{
 			AppID:           123,
 			InstallationID:  456,
@@ -166,7 +166,7 @@ func (suite *GarmSuite) TestGithubCredentialsFailWhenEndpointDoesntExist() {
 		Name:        dummyCredentialsName,
 		Endpoint:    "iDontExist.example.com",
 		Description: "GARM test credentials",
-		AuthType:    params.GithubAuthTypePAT,
+		AuthType:    params.ForgeAuthTypePAT,
 		PAT: params.GithubPAT{
 			OAuth2Token: "dummy",
 		},
@@ -189,7 +189,7 @@ func (suite *GarmSuite) TestGithubCredentialsFailsOnDuplicateName() {
 		Name:        dummyCredentialsName,
 		Endpoint:    defaultEndpointName,
 		Description: "GARM test credentials",
-		AuthType:    params.GithubAuthTypePAT,
+		AuthType:    params.ForgeAuthTypePAT,
 		PAT: params.GithubPAT{
 			OAuth2Token: "dummy",
 		},
@@ -204,7 +204,7 @@ func (suite *GarmSuite) createDummyCredentials(name, endpointName string) (*para
 		Name:        name,
 		Endpoint:    endpointName,
 		Description: "GARM test credentials",
-		AuthType:    params.GithubAuthTypePAT,
+		AuthType:    params.ForgeAuthTypePAT,
 		PAT: params.GithubPAT{
 			OAuth2Token: "dummy",
 		},

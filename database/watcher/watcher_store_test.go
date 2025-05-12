@@ -848,7 +848,7 @@ func (s *WatcherStoreTestSuite) TestGithubCredentialsWatcher() {
 		Name:        "test-creds",
 		Description: "test credentials",
 		Endpoint:    "github.com",
-		AuthType:    params.GithubAuthTypePAT,
+		AuthType:    params.ForgeAuthTypePAT,
 		PAT: params.GithubPAT{
 			OAuth2Token: "bogus",
 		},
@@ -971,7 +971,7 @@ func (s *WatcherStoreTestSuite) TestGithubEndpointWatcher() {
 			EntityType: common.GithubEndpointEntityType,
 			Operation:  common.DeleteOperation,
 			// We only get the name of the deleted entity
-			Payload: params.GithubEndpoint{Name: ghEp.Name},
+			Payload: params.ForgeEndpoint{Name: ghEp.Name},
 		}, event)
 	case <-time.After(1 * time.Second):
 		s.T().Fatal("expected payload not received")

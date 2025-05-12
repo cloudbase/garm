@@ -60,11 +60,11 @@ func (w *Worker) recordOrUpdateJob(job params.ScaleSetJobMessage) error {
 	jobParams.RunnerGroupName = w.scaleSet.GitHubRunnerGroup
 
 	switch entity.EntityType {
-	case params.GithubEntityTypeEnterprise:
+	case params.ForgeEntityTypeEnterprise:
 		jobParams.EnterpriseID = &asUUID
-	case params.GithubEntityTypeRepository:
+	case params.ForgeEntityTypeRepository:
 		jobParams.RepoID = &asUUID
-	case params.GithubEntityTypeOrganization:
+	case params.ForgeEntityTypeOrganization:
 		jobParams.OrgID = &asUUID
 	default:
 		return fmt.Errorf("unknown entity type: %s", entity.EntityType)

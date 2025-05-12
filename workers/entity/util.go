@@ -31,7 +31,7 @@ func composeControllerWatcherFilters() dbCommon.PayloadFilterFunc {
 	)
 }
 
-func composeWorkerWatcherFilters(entity params.GithubEntity) dbCommon.PayloadFilterFunc {
+func composeWorkerWatcherFilters(entity params.ForgeEntity) dbCommon.PayloadFilterFunc {
 	return watcher.WithAny(
 		watcher.WithAll(
 			watcher.WithEntityFilter(entity),
@@ -39,7 +39,7 @@ func composeWorkerWatcherFilters(entity params.GithubEntity) dbCommon.PayloadFil
 		),
 		// Watch for credentials updates.
 		watcher.WithAll(
-			watcher.WithGithubCredentialsFilter(entity.Credentials),
+			watcher.WithForgeCredentialsFilter(entity.Credentials),
 			watcher.WithOperationTypeFilter(dbCommon.UpdateOperation),
 		),
 	)

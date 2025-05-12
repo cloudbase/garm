@@ -55,7 +55,7 @@ type OrgTestSuite struct {
 
 	testCreds          params.GithubCredentials
 	secondaryTestCreds params.GithubCredentials
-	githubEndpoint     params.GithubEndpoint
+	githubEndpoint     params.ForgeEndpoint
 }
 
 func (s *OrgTestSuite) equalInstancesByName(expected, actual []params.Instance) {
@@ -492,9 +492,9 @@ func (s *OrgTestSuite) TestCreateOrganizationPoolMissingTags() {
 }
 
 func (s *OrgTestSuite) TestCreateOrganizationPoolInvalidOrgID() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         "dummy-org-id",
-		EntityType: params.GithubEntityTypeOrganization,
+		EntityType: params.ForgeEntityTypeOrganization,
 	}
 	_, err := s.Store.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 
@@ -640,9 +640,9 @@ func (s *OrgTestSuite) TestListOrgPools() {
 }
 
 func (s *OrgTestSuite) TestListOrgPoolsInvalidOrgID() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         "dummy-org-id",
-		EntityType: params.GithubEntityTypeOrganization,
+		EntityType: params.ForgeEntityTypeOrganization,
 	}
 	_, err := s.Store.ListEntityPools(s.adminCtx, entity)
 
@@ -665,9 +665,9 @@ func (s *OrgTestSuite) TestGetOrganizationPool() {
 }
 
 func (s *OrgTestSuite) TestGetOrganizationPoolInvalidOrgID() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         "dummy-org-id",
-		EntityType: params.GithubEntityTypeOrganization,
+		EntityType: params.ForgeEntityTypeOrganization,
 	}
 	_, err := s.Store.GetEntityPool(s.adminCtx, entity, "dummy-pool-id")
 
@@ -691,9 +691,9 @@ func (s *OrgTestSuite) TestDeleteOrganizationPool() {
 }
 
 func (s *OrgTestSuite) TestDeleteOrganizationPoolInvalidOrgID() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         "dummy-org-id",
-		EntityType: params.GithubEntityTypeOrganization,
+		EntityType: params.ForgeEntityTypeOrganization,
 	}
 	err := s.Store.DeleteEntityPool(s.adminCtx, entity, "dummy-pool-id")
 
@@ -748,9 +748,9 @@ func (s *OrgTestSuite) TestListOrgInstances() {
 }
 
 func (s *OrgTestSuite) TestListOrgInstancesInvalidOrgID() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         "dummy-org-id",
-		EntityType: params.GithubEntityTypeOrganization,
+		EntityType: params.ForgeEntityTypeOrganization,
 	}
 	_, err := s.Store.ListEntityInstances(s.adminCtx, entity)
 
@@ -776,9 +776,9 @@ func (s *OrgTestSuite) TestUpdateOrganizationPool() {
 }
 
 func (s *OrgTestSuite) TestUpdateOrganizationPoolInvalidOrgID() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         "dummy-org-id",
-		EntityType: params.GithubEntityTypeOrganization,
+		EntityType: params.ForgeEntityTypeOrganization,
 	}
 	_, err := s.Store.UpdateEntityPool(s.adminCtx, entity, "dummy-pool-id", s.Fixtures.UpdatePoolParams)
 

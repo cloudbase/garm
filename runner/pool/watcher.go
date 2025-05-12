@@ -14,7 +14,7 @@ import (
 
 // entityGetter is implemented by all github entities (repositories, organizations and enterprises)
 type entityGetter interface {
-	GetEntity() (params.GithubEntity, error)
+	GetEntity() (params.ForgeEntity, error)
 }
 
 func (r *basePoolManager) handleControllerUpdateEvent(controllerInfo params.ControllerInfo) {
@@ -38,7 +38,7 @@ func (r *basePoolManager) getClientOrStub() runnerCommon.GithubClient {
 	return ghc
 }
 
-func (r *basePoolManager) handleEntityUpdate(entity params.GithubEntity, operation common.OperationType) {
+func (r *basePoolManager) handleEntityUpdate(entity params.ForgeEntity, operation common.OperationType) {
 	slog.DebugContext(r.ctx, "received entity operation", "entity", entity.ID, "operation", operation)
 	if r.entity.ID != entity.ID {
 		slog.WarnContext(r.ctx, "entity ID mismatch; stale event? refusing to update", "entity", entity.ID)
@@ -56,7 +56,7 @@ func (r *basePoolManager) handleEntityUpdate(entity params.GithubEntity, operati
 		return
 	}
 
-	credentialsUpdate := r.entity.Credentials.ID != entity.Credentials.ID
+	credentialsUpdate := r.entity.Credentials.GetID() != entity.Credentials.GetID()
 	defer func() {
 		slog.DebugContext(r.ctx, "deferred tools update", "credentials_update", credentialsUpdate)
 		if !credentialsUpdate {
@@ -85,7 +85,7 @@ func (r *basePoolManager) handleEntityUpdate(entity params.GithubEntity, operati
 	slog.DebugContext(r.ctx, "lock released", "entity", entity.ID)
 }
 
-func (r *basePoolManager) handleCredentialsUpdate(credentials params.GithubCredentials) {
+func (r *basePoolManager) handleCredentialsUpdate(credentials params.ForgeCredentials) {
 	// when we switch credentials on an entity (like from one app to another or from an app
 	// to a PAT), we may still get events for the previous credentials as the channel is buffered.
 	// The watcher will watch for changes to the entity itself, which includes events that
@@ -97,12 +97,12 @@ func (r *basePoolManager) handleCredentialsUpdate(credentials params.GithubCrede
 	// test-repo. This function would handle situations where "org_pat" is updated.
 	// If "test-repo" is updated with new credentials, that event is handled above in
 	// handleEntityUpdate.
-	shouldUpdateTools := r.entity.Credentials.ID == credentials.ID
+	shouldUpdateTools := r.entity.Credentials.GetID() == credentials.GetID()
 	defer func() {
 		if !shouldUpdateTools {
 			return
 		}
-		slog.DebugContext(r.ctx, "deferred tools update", "credentials_id", credentials.ID)
+		slog.DebugContext(r.ctx, "deferred tools update", "credentials_id", credentials.GetID())
 		if err := r.updateTools(); err != nil {
 			slog.ErrorContext(r.ctx, "failed to update tools", "error", err)
 		}
@@ -110,12 +110,12 @@ func (r *basePoolManager) handleCredentialsUpdate(credentials params.GithubCrede
 
 	r.mux.Lock()
 	if !shouldUpdateTools {
-		slog.InfoContext(r.ctx, "credential ID mismatch; stale event?", "credentials_id", credentials.ID)
+		slog.InfoContext(r.ctx, "credential ID mismatch; stale event?", "credentials_id", credentials.GetID())
 		r.mux.Unlock()
 		return
 	}
 
-	slog.DebugContext(r.ctx, "updating credentials", "credentials_id", credentials.ID)
+	slog.DebugContext(r.ctx, "updating credentials", "credentials_id", credentials.GetID())
 	r.entity.Credentials = credentials
 	r.ghcli = r.getClientOrStub()
 	r.mux.Unlock()
@@ -130,7 +130,7 @@ func (r *basePoolManager) handleWatcherEvent(event common.ChangePayload) {
 			slog.ErrorContext(r.ctx, "failed to cast payload to github credentials")
 			return
 		}
-		r.handleCredentialsUpdate(credentials)
+		r.handleCredentialsUpdate(credentials.GetForgeCredentials())
 	case common.ControllerEntityType:
 		controllerInfo, ok := event.Payload.(params.ControllerInfo)
 		if !ok {

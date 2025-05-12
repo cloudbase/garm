@@ -448,12 +448,12 @@ func (g GithubApp) Validate() error {
 }
 
 type CreateGithubCredentialsParams struct {
-	Name        string         `json:"name,omitempty"`
-	Description string         `json:"description,omitempty"`
-	Endpoint    string         `json:"endpoint,omitempty"`
-	AuthType    GithubAuthType `json:"auth_type,omitempty"`
-	PAT         GithubPAT      `json:"pat,omitempty"`
-	App         GithubApp      `json:"app,omitempty"`
+	Name        string        `json:"name,omitempty"`
+	Description string        `json:"description,omitempty"`
+	Endpoint    string        `json:"endpoint,omitempty"`
+	AuthType    ForgeAuthType `json:"auth_type,omitempty"`
+	PAT         GithubPAT     `json:"pat,omitempty"`
+	App         GithubApp     `json:"app,omitempty"`
 }
 
 func (c CreateGithubCredentialsParams) Validate() error {
@@ -466,18 +466,18 @@ func (c CreateGithubCredentialsParams) Validate() error {
 	}
 
 	switch c.AuthType {
-	case GithubAuthTypePAT, GithubAuthTypeApp:
+	case ForgeAuthTypePAT, ForgeAuthTypeApp:
 	default:
 		return runnerErrors.NewBadRequestError("invalid auth_type")
 	}
 
-	if c.AuthType == GithubAuthTypePAT {
+	if c.AuthType == ForgeAuthTypePAT {
 		if c.PAT.OAuth2Token == "" {
 			return runnerErrors.NewBadRequestError("missing oauth2_token")
 		}
 	}
 
-	if c.AuthType == GithubAuthTypeApp {
+	if c.AuthType == ForgeAuthTypeApp {
 		if err := c.App.Validate(); err != nil {
 			return errors.Wrap(err, "invalid app")
 		}

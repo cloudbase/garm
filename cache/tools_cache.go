@@ -19,7 +19,7 @@ func init() {
 
 type GithubEntityTools struct {
 	updatedAt time.Time
-	entity    params.GithubEntity
+	entity    params.ForgeEntity
 	tools     []commonParams.RunnerApplicationDownload
 }
 
@@ -44,7 +44,7 @@ func (g *GithubToolsCache) Get(entityID string) ([]commonParams.RunnerApplicatio
 	return nil, false
 }
 
-func (g *GithubToolsCache) Set(entity params.GithubEntity, tools []commonParams.RunnerApplicationDownload) {
+func (g *GithubToolsCache) Set(entity params.ForgeEntity, tools []commonParams.RunnerApplicationDownload) {
 	g.mux.Lock()
 	defer g.mux.Unlock()
 
@@ -55,7 +55,7 @@ func (g *GithubToolsCache) Set(entity params.GithubEntity, tools []commonParams.
 	}
 }
 
-func SetGithubToolsCache(entity params.GithubEntity, tools []commonParams.RunnerApplicationDownload) {
+func SetGithubToolsCache(entity params.ForgeEntity, tools []commonParams.RunnerApplicationDownload) {
 	githubToolsCache.Set(entity, tools)
 }
 

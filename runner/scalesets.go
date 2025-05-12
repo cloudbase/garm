@@ -80,7 +80,7 @@ func (r *Runner) DeleteScaleSetByID(ctx context.Context, scaleSetID uint) error 
 		return errors.Wrap(err, "getting entity")
 	}
 
-	entity, err := r.store.GetGithubEntity(ctx, paramEntity.EntityType, paramEntity.ID)
+	entity, err := r.store.GetForgeEntity(ctx, paramEntity.EntityType, paramEntity.ID)
 	if err != nil {
 		return errors.Wrap(err, "getting entity")
 	}
@@ -143,7 +143,7 @@ func (r *Runner) UpdateScaleSetByID(ctx context.Context, scaleSetID uint, param 
 		return params.ScaleSet{}, errors.Wrap(err, "getting entity")
 	}
 
-	entity, err := r.store.GetGithubEntity(ctx, paramEntity.EntityType, paramEntity.ID)
+	entity, err := r.store.GetForgeEntity(ctx, paramEntity.EntityType, paramEntity.ID)
 	if err != nil {
 		return params.ScaleSet{}, errors.Wrap(err, "getting entity")
 	}
@@ -198,7 +198,7 @@ func (r *Runner) UpdateScaleSetByID(ctx context.Context, scaleSetID uint, param 
 	return newScaleSet, nil
 }
 
-func (r *Runner) CreateEntityScaleSet(ctx context.Context, entityType params.GithubEntityType, entityID string, param params.CreateScaleSetParams) (scaleSetRet params.ScaleSet, err error) {
+func (r *Runner) CreateEntityScaleSet(ctx context.Context, entityType params.ForgeEntityType, entityID string, param params.CreateScaleSetParams) (scaleSetRet params.ScaleSet, err error) {
 	if !auth.IsAdmin(ctx) {
 		return params.ScaleSet{}, runnerErrors.ErrUnauthorized
 	}
@@ -211,7 +211,7 @@ func (r *Runner) CreateEntityScaleSet(ctx context.Context, entityType params.Git
 		param.GitHubRunnerGroup = "Default"
 	}
 
-	entity, err := r.store.GetGithubEntity(ctx, entityType, entityID)
+	entity, err := r.store.GetForgeEntity(ctx, entityType, entityID)
 	if err != nil {
 		return params.ScaleSet{}, errors.Wrap(err, "getting entity")
 	}
@@ -287,11 +287,11 @@ func (r *Runner) ListScaleSetInstances(ctx context.Context, scalesetID uint) ([]
 	return instances, nil
 }
 
-func (r *Runner) ListEntityScaleSets(ctx context.Context, entityType params.GithubEntityType, entityID string) ([]params.ScaleSet, error) {
+func (r *Runner) ListEntityScaleSets(ctx context.Context, entityType params.ForgeEntityType, entityID string) ([]params.ScaleSet, error) {
 	if !auth.IsAdmin(ctx) {
 		return []params.ScaleSet{}, runnerErrors.ErrUnauthorized
 	}
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         entityID,
 		EntityType: entityType,
 	}

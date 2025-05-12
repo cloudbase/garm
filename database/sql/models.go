@@ -397,9 +397,9 @@ type GithubCredentials struct {
 	UserID *uuid.UUID `gorm:"index:idx_github_credentials,unique"`
 	User   User       `gorm:"foreignKey:UserID"`
 
-	Description string                `gorm:"type:text"`
-	AuthType    params.GithubAuthType `gorm:"index"`
-	Payload     []byte                `gorm:"type:longblob"`
+	Description string               `gorm:"type:text"`
+	AuthType    params.ForgeAuthType `gorm:"index"`
+	Payload     []byte               `gorm:"type:longblob"`
 
 	Endpoint     GithubEndpoint `gorm:"foreignKey:EndpointName"`
 	EndpointName *string        `gorm:"index"`

@@ -602,10 +602,10 @@ func (r *Runner) validateHookBody(signature, secret string, body []byte) error {
 	return nil
 }
 
-func (r *Runner) findEndpointForJob(job params.WorkflowJob) (params.GithubEndpoint, error) {
+func (r *Runner) findEndpointForJob(job params.WorkflowJob) (params.ForgeEndpoint, error) {
 	uri, err := url.ParseRequestURI(job.WorkflowJob.HTMLURL)
 	if err != nil {
-		return params.GithubEndpoint{}, errors.Wrap(err, "parsing job URL")
+		return params.ForgeEndpoint{}, errors.Wrap(err, "parsing job URL")
 	}
 	baseURI := fmt.Sprintf("%s://%s", uri.Scheme, uri.Host)
 
@@ -616,7 +616,7 @@ func (r *Runner) findEndpointForJob(job params.WorkflowJob) (params.GithubEndpoi
 	// that much about the performance of this function.
 	endpoints, err := r.store.ListGithubEndpoints(r.ctx)
 	if err != nil {
-		return params.GithubEndpoint{}, errors.Wrap(err, "fetching github endpoints")
+		return params.ForgeEndpoint{}, errors.Wrap(err, "fetching github endpoints")
 	}
 	for _, ep := range endpoints {
 		if ep.BaseURL == baseURI {
@@ -624,7 +624,7 @@ func (r *Runner) findEndpointForJob(job params.WorkflowJob) (params.GithubEndpoi
 		}
 	}
 
-	return params.GithubEndpoint{}, runnerErrors.NewNotFoundError("no endpoint found for job")
+	return params.ForgeEndpoint{}, runnerErrors.NewNotFoundError("no endpoint found for job")
 }
 
 func (r *Runner) DispatchWorkflowJob(hookTargetType, signature string, jobData []byte) error {
@@ -928,7 +928,7 @@ func (r *Runner) getGHCliFromInstance(ctx context.Context, instance params.Insta
 	}
 
 	// Fetching the entity from the database will populate all fields, including credentials.
-	entity, err = r.store.GetGithubEntity(ctx, entity.EntityType, entity.ID)
+	entity, err = r.store.GetForgeEntity(ctx, entity.EntityType, entity.ID)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "fetching entity")
 	}

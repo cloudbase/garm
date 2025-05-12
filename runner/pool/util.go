@@ -119,7 +119,7 @@ func isManagedRunner(labels []string, controllerID string) bool {
 	return runnerControllerID == controllerID
 }
 
-func composeWatcherFilters(entity params.GithubEntity) dbCommon.PayloadFilterFunc {
+func composeWatcherFilters(entity params.ForgeEntity) dbCommon.PayloadFilterFunc {
 	// We want to watch for changes in either the controller or the
 	// entity itself.
 	return watcher.WithAny(
@@ -131,6 +131,6 @@ func composeWatcherFilters(entity params.GithubEntity) dbCommon.PayloadFilterFun
 		// Any operation on the entity we're managing the pool for.
 		watcher.WithEntityFilter(entity),
 		// Watch for changes to the github credentials
-		watcher.WithGithubCredentialsFilter(entity.Credentials),
+		watcher.WithForgeCredentialsFilter(entity.Credentials),
 	)
 }

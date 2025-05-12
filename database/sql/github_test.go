@@ -266,7 +266,7 @@ func (s *GithubTestSuite) TestCreateCredentials() {
 		Name:        testCredsName,
 		Description: testCredsDescription,
 		Endpoint:    defaultGithubEndpoint,
-		AuthType:    params.GithubAuthTypePAT,
+		AuthType:    params.ForgeAuthTypePAT,
 		PAT: params.GithubPAT{
 			OAuth2Token: "test",
 		},
@@ -290,7 +290,7 @@ func (s *GithubTestSuite) TestCreateCredentialsFailsOnDuplicateCredentials() {
 		Name:        testCredsName,
 		Description: testCredsDescription,
 		Endpoint:    defaultGithubEndpoint,
-		AuthType:    params.GithubAuthTypePAT,
+		AuthType:    params.ForgeAuthTypePAT,
 		PAT: params.GithubPAT{
 			OAuth2Token: "test",
 		},
@@ -320,7 +320,7 @@ func (s *GithubTestSuite) TestNormalUsersCanOnlySeeTheirOwnCredentialsAdminCanSe
 		Name:        testCredsName,
 		Description: testCredsDescription,
 		Endpoint:    defaultGithubEndpoint,
-		AuthType:    params.GithubAuthTypePAT,
+		AuthType:    params.ForgeAuthTypePAT,
 		PAT: params.GithubPAT{
 			OAuth2Token: "test",
 		},
@@ -376,7 +376,7 @@ func (s *GithubTestSuite) TestGetGithubCredentialsByNameReturnsOnlyCurrentUserCr
 		Name:        testCredsName,
 		Description: testCredsDescription,
 		Endpoint:    defaultGithubEndpoint,
-		AuthType:    params.GithubAuthTypePAT,
+		AuthType:    params.ForgeAuthTypePAT,
 		PAT: params.GithubPAT{
 			OAuth2Token: "test",
 		},
@@ -421,7 +421,7 @@ func (s *GithubTestSuite) TestGetGithubCredentials() {
 		Name:        testCredsName,
 		Description: testCredsDescription,
 		Endpoint:    defaultGithubEndpoint,
-		AuthType:    params.GithubAuthTypePAT,
+		AuthType:    params.ForgeAuthTypePAT,
 		PAT: params.GithubPAT{
 			OAuth2Token: "test",
 		},
@@ -451,7 +451,7 @@ func (s *GithubTestSuite) TestDeleteGithubCredentials() {
 		Name:        testCredsName,
 		Description: testCredsDescription,
 		Endpoint:    defaultGithubEndpoint,
-		AuthType:    params.GithubAuthTypePAT,
+		AuthType:    params.ForgeAuthTypePAT,
 		PAT: params.GithubPAT{
 			OAuth2Token: "test",
 		},
@@ -478,7 +478,7 @@ func (s *GithubTestSuite) TestDeleteGithubCredentialsByNonAdminUser() {
 		Name:        testCredsName,
 		Description: testCredsDescription,
 		Endpoint:    defaultGithubEndpoint,
-		AuthType:    params.GithubAuthTypePAT,
+		AuthType:    params.ForgeAuthTypePAT,
 		PAT: params.GithubPAT{
 			OAuth2Token: "test-creds4",
 		},
@@ -523,7 +523,7 @@ func (s *GithubTestSuite) TestDeleteCredentialsFailsIfReposOrgsOrEntitiesUseIt()
 		Name:        testCredsName,
 		Description: testCredsDescription,
 		Endpoint:    defaultGithubEndpoint,
-		AuthType:    params.GithubAuthTypePAT,
+		AuthType:    params.ForgeAuthTypePAT,
 		PAT: params.GithubPAT{
 			OAuth2Token: "test",
 		},
@@ -581,7 +581,7 @@ func (s *GithubTestSuite) TestUpdateCredentials() {
 		Name:        testCredsName,
 		Description: testCredsDescription,
 		Endpoint:    defaultGithubEndpoint,
-		AuthType:    params.GithubAuthTypePAT,
+		AuthType:    params.ForgeAuthTypePAT,
 		PAT: params.GithubPAT{
 			OAuth2Token: "test",
 		},
@@ -616,7 +616,7 @@ func (s *GithubTestSuite) TestUpdateGithubCredentialsFailIfWrongCredentialTypeIs
 		Name:        testCredsName,
 		Description: testCredsDescription,
 		Endpoint:    defaultGithubEndpoint,
-		AuthType:    params.GithubAuthTypePAT,
+		AuthType:    params.ForgeAuthTypePAT,
 		PAT: params.GithubPAT{
 			OAuth2Token: "test",
 		},
@@ -643,7 +643,7 @@ func (s *GithubTestSuite) TestUpdateGithubCredentialsFailIfWrongCredentialTypeIs
 		Name:        "test-credsApp",
 		Description: "test credsApp",
 		Endpoint:    defaultGithubEndpoint,
-		AuthType:    params.GithubAuthTypeApp,
+		AuthType:    params.ForgeAuthTypeApp,
 		App: params.GithubApp{
 			AppID:           1,
 			InstallationID:  2,
@@ -688,7 +688,7 @@ func (s *GithubTestSuite) TestUpdateCredentialsFailsIfCredentialsAreOwnedByNonAd
 		Name:        testCredsName,
 		Description: testCredsDescription,
 		Endpoint:    defaultGithubEndpoint,
-		AuthType:    params.GithubAuthTypePAT,
+		AuthType:    params.ForgeAuthTypePAT,
 		PAT: params.GithubPAT{
 			OAuth2Token: "test-creds5",
 		},
@@ -717,7 +717,7 @@ func (s *GithubTestSuite) TestAdminUserCanUpdateAnyGithubCredentials() {
 		Name:        testCredsName,
 		Description: testCredsDescription,
 		Endpoint:    defaultGithubEndpoint,
-		AuthType:    params.GithubAuthTypePAT,
+		AuthType:    params.ForgeAuthTypePAT,
 		PAT: params.GithubPAT{
 			OAuth2Token: "test-creds5",
 		},
@@ -836,10 +836,10 @@ func TestCredentialsAndEndpointMigration(t *testing.T) {
 		t.Fatalf("expected ghes-test to be associated with example.com endpoint, got %s", creds[1].Endpoint.Name)
 	}
 
-	if creds[0].AuthType != params.GithubAuthTypePAT {
+	if creds[0].AuthType != params.ForgeAuthTypePAT {
 		t.Fatalf("expected test-creds to have PAT auth type, got %s", creds[0].AuthType)
 	}
-	if creds[1].AuthType != params.GithubAuthTypeApp {
+	if creds[1].AuthType != params.ForgeAuthTypeApp {
 		t.Fatalf("expected ghes-test to have App auth type, got %s", creds[1].AuthType)
 	}
 	if len(creds[0].CredentialsPayload) == 0 {

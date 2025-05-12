@@ -6,7 +6,7 @@ import (
 	"github.com/cloudbase/garm/params"
 )
 
-func composeControllerWatcherFilters(entity params.GithubEntity) dbCommon.PayloadFilterFunc {
+func composeControllerWatcherFilters(entity params.ForgeEntity) dbCommon.PayloadFilterFunc {
 	return watcher.WithAny(
 		watcher.WithAll(
 			watcher.WithEntityScaleSetFilter(entity),

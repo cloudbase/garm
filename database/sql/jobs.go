@@ -306,7 +306,7 @@ func (s *sqlDatabase) ListJobsByStatus(_ context.Context, status params.JobStatu
 }
 
 // ListEntityJobsByStatus lists all jobs for a given entity type and id.
-func (s *sqlDatabase) ListEntityJobsByStatus(_ context.Context, entityType params.GithubEntityType, entityID string, status params.JobStatus) ([]params.Job, error) {
+func (s *sqlDatabase) ListEntityJobsByStatus(_ context.Context, entityType params.ForgeEntityType, entityID string, status params.JobStatus) ([]params.Job, error) {
 	u, err := uuid.Parse(entityID)
 	if err != nil {
 		return nil, err
@@ -316,11 +316,11 @@ func (s *sqlDatabase) ListEntityJobsByStatus(_ context.Context, entityType param
 	query := s.conn.Model(&WorkflowJob{}).Preload("Instance").Where("status = ?", status)
 
 	switch entityType {
-	case params.GithubEntityTypeOrganization:
+	case params.ForgeEntityTypeOrganization:
 		query = query.Where("org_id = ?", u)
-	case params.GithubEntityTypeRepository:
+	case params.ForgeEntityTypeRepository:
 		query = query.Where("repo_id = ?", u)
-	case params.GithubEntityTypeEnterprise:
+	case params.ForgeEntityTypeEnterprise:
 		query = query.Where("enterprise_id = ?", u)
 	}
 

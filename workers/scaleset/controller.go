@@ -15,7 +15,7 @@ import (
 	garmUtil "github.com/cloudbase/garm/util"
 )
 
-func NewController(ctx context.Context, store dbCommon.Store, entity params.GithubEntity, providers map[string]common.Provider) (*Controller, error) {
+func NewController(ctx context.Context, store dbCommon.Store, entity params.ForgeEntity, providers map[string]common.Provider) (*Controller, error) {
 	consumerID := fmt.Sprintf("scaleset-controller-%s", entity.String())
 
 	ctx = garmUtil.WithSlogContext(
@@ -57,7 +57,7 @@ type Controller struct {
 
 	ScaleSets map[uint]*scaleSet
 
-	Entity params.GithubEntity
+	Entity params.ForgeEntity
 
 	consumer  dbCommon.Consumer
 	store     dbCommon.Store

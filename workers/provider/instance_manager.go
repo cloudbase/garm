@@ -52,7 +52,7 @@ type instanceManager struct {
 	helper   providerHelper
 
 	scaleSet       params.ScaleSet
-	scaleSetEntity params.GithubEntity
+	scaleSetEntity params.ForgeEntity
 
 	deleteBackoff time.Duration
 
@@ -120,14 +120,14 @@ func (i *instanceManager) incrementBackOff() {
 	}
 }
 
-func (i *instanceManager) getEntity() (params.GithubEntity, error) {
+func (i *instanceManager) getEntity() (params.ForgeEntity, error) {
 	entity, err := i.scaleSet.GetEntity()
 	if err != nil {
-		return params.GithubEntity{}, fmt.Errorf("getting entity: %w", err)
+		return params.ForgeEntity{}, fmt.Errorf("getting entity: %w", err)
 	}
 	ghEntity, err := i.helper.GetGithubEntity(entity)
 	if err != nil {
-		return params.GithubEntity{}, fmt.Errorf("getting entity: %w", err)
+		return params.ForgeEntity{}, fmt.Errorf("getting entity: %w", err)
 	}
 	return ghEntity, nil
 }
@@ -156,7 +156,7 @@ func (i *instanceManager) handleCreateInstanceInProvider(instance params.Instanc
 	bootstrapArgs := commonParams.BootstrapInstance{
 		Name:          instance.Name,
 		Tools:         tools,
-		RepoURL:       entity.GithubURL(),
+		RepoURL:       entity.ForgeURL(),
 		MetadataURL:   instance.MetadataURL,
 		CallbackURL:   instance.CallbackURL,
 		InstanceToken: token,
@@ -167,7 +167,7 @@ func (i *instanceManager) handleCreateInstanceInProvider(instance params.Instanc
 		ExtraSpecs:    i.scaleSet.ExtraSpecs,
 		// This is temporary. We need to extend providers to know about scale sets.
 		PoolID:            i.pseudoPoolID(),
-		CACertBundle:      entity.Credentials.CABundle,
+		CACertBundle:      entity.Credentials.CABundle(),
 		GitHubRunnerGroup: i.scaleSet.GitHubRunnerGroup,
 		JitConfigEnabled:  true,
 	}

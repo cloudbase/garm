@@ -546,18 +546,18 @@ func (s *sqlDatabase) getScaleSetByID(tx *gorm.DB, scaleSetID uint, preload ...s
 	return scaleSet, nil
 }
 
-func (s *sqlDatabase) hasGithubEntity(tx *gorm.DB, entityType params.GithubEntityType, entityID string) error {
+func (s *sqlDatabase) hasGithubEntity(tx *gorm.DB, entityType params.ForgeEntityType, entityID string) error {
 	u, err := uuid.Parse(entityID)
 	if err != nil {
 		return errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
 	}
 	var q *gorm.DB
 	switch entityType {
-	case params.GithubEntityTypeRepository:
+	case params.ForgeEntityTypeRepository:
 		q = tx.Model(&Repository{}).Where("id = ?", u)
-	case params.GithubEntityTypeOrganization:
+	case params.ForgeEntityTypeOrganization:
 		q = tx.Model(&Organization{}).Where("id = ?", u)
-	case params.GithubEntityTypeEnterprise:
+	case params.ForgeEntityTypeEnterprise:
 		q = tx.Model(&Enterprise{}).Where("id = ?", u)
 	default:
 		return errors.Wrap(runnerErrors.ErrBadRequest, "invalid entity type")
@@ -608,26 +608,26 @@ func (s *sqlDatabase) sendNotify(entityType dbCommon.DatabaseEntityType, op dbCo
 	return s.producer.Notify(message)
 }
 
-func (s *sqlDatabase) GetGithubEntity(_ context.Context, entityType params.GithubEntityType, entityID string) (params.GithubEntity, error) {
+func (s *sqlDatabase) GetForgeEntity(_ context.Context, entityType params.ForgeEntityType, entityID string) (params.ForgeEntity, error) {
 	var ghEntity params.EntityGetter
 	var err error
 	switch entityType {
-	case params.GithubEntityTypeEnterprise:
+	case params.ForgeEntityTypeEnterprise:
 		ghEntity, err = s.GetEnterpriseByID(s.ctx, entityID)
-	case params.GithubEntityTypeOrganization:
+	case params.ForgeEntityTypeOrganization:
 		ghEntity, err = s.GetOrganizationByID(s.ctx, entityID)
-	case params.GithubEntityTypeRepository:
+	case params.ForgeEntityTypeRepository:
 		ghEntity, err = s.GetRepositoryByID(s.ctx, entityID)
 	default:
-		return params.GithubEntity{}, errors.Wrap(runnerErrors.ErrBadRequest, "invalid entity type")
+		return params.ForgeEntity{}, errors.Wrap(runnerErrors.ErrBadRequest, "invalid entity type")
 	}
 	if err != nil {
-		return params.GithubEntity{}, errors.Wrap(err, "failed to get ")
+		return params.ForgeEntity{}, errors.Wrap(err, "failed to get ")
 	}
 
 	entity, err := ghEntity.GetEntity()
 	if err != nil {
-		return params.GithubEntity{}, errors.Wrap(err, "failed to get entity")
+		return params.ForgeEntity{}, errors.Wrap(err, "failed to get entity")
 	}
 	return entity, nil
 }
@@ -747,17 +747,17 @@ func (s *sqlDatabase) addEnterpriseEvent(ctx context.Context, entID string, even
 	return nil
 }
 
-func (s *sqlDatabase) AddEntityEvent(ctx context.Context, entity params.GithubEntity, event params.EventType, eventLevel params.EventLevel, statusMessage string, maxEvents int) error {
+func (s *sqlDatabase) AddEntityEvent(ctx context.Context, entity params.ForgeEntity, event params.EventType, eventLevel params.EventLevel, statusMessage string, maxEvents int) error {
 	if maxEvents == 0 {
 		return errors.Wrap(runnerErrors.ErrBadRequest, "max events cannot be 0")
 	}
 
 	switch entity.EntityType {
-	case params.GithubEntityTypeRepository:
+	case params.ForgeEntityTypeRepository:
 		return s.addRepositoryEvent(ctx, entity.ID, event, eventLevel, statusMessage, maxEvents)
-	case params.GithubEntityTypeOrganization:
+	case params.ForgeEntityTypeOrganization:
 		return s.addOrgEvent(ctx, entity.ID, event, eventLevel, statusMessage, maxEvents)
-	case params.GithubEntityTypeEnterprise:
+	case params.ForgeEntityTypeEnterprise:
 		return s.addEnterpriseEvent(ctx, entity.ID, event, eventLevel, statusMessage, maxEvents)
 	default:
 		return errors.Wrap(runnerErrors.ErrBadRequest, "invalid entity type")

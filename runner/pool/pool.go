@@ -67,7 +67,7 @@ const (
 	maxCreateAttempts = 5
 )
 
-func NewEntityPoolManager(ctx context.Context, entity params.GithubEntity, instanceTokenGetter auth.InstanceTokenGetter, providers map[string]common.Provider, store dbCommon.Store) (common.PoolManager, error) {
+func NewEntityPoolManager(ctx context.Context, entity params.ForgeEntity, instanceTokenGetter auth.InstanceTokenGetter, providers map[string]common.Provider, store dbCommon.Store) (common.PoolManager, error) {
 	ctx = garmUtil.WithSlogContext(ctx, slog.Any("pool_mgr", entity.String()), slog.Any("pool_type", entity.EntityType))
 	ghc, err := ghClient.Client(ctx, entity)
 	if err != nil {
@@ -83,7 +83,7 @@ func NewEntityPoolManager(ctx context.Context, entity params.GithubEntity, insta
 		return nil, errors.Wrap(err, "getting controller info")
 	}
 
-	consumerID := fmt.Sprintf("pool-manager-%s-%s", entity.String(), entity.Credentials.Endpoint.Name)
+	consumerID := fmt.Sprintf("pool-manager-%s-%s", entity.String(), entity.Credentials.Endpoint().Name)
 	slog.InfoContext(ctx, "registering consumer", "consumer_id", consumerID)
 	consumer, err := watcher.RegisterConsumer(
 		ctx, consumerID,
@@ -120,7 +120,7 @@ func NewEntityPoolManager(ctx context.Context, entity params.GithubEntity, insta
 type basePoolManager struct {
 	ctx                 context.Context
 	consumerID          string
-	entity              params.GithubEntity
+	entity              params.ForgeEntity
 	ghcli               common.GithubClient
 	controllerInfo      params.ControllerInfo
 	instanceTokenGetter auth.InstanceTokenGetter
@@ -877,7 +877,7 @@ func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error 
 	bootstrapArgs := commonParams.BootstrapInstance{
 		Name:              instance.Name,
 		Tools:             r.tools,
-		RepoURL:           r.entity.GithubURL(),
+		RepoURL:           r.entity.ForgeURL(),
 		MetadataURL:       instance.MetadataURL,
 		CallbackURL:       instance.CallbackURL,
 		InstanceToken:     jwtToken,
@@ -887,7 +887,7 @@ func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error 
 		Image:             pool.Image,
 		ExtraSpecs:        pool.ExtraSpecs,
 		PoolID:            instance.PoolID,
-		CACertBundle:      r.entity.Credentials.CABundle,
+		CACertBundle:      r.entity.Credentials.CABundle(),
 		GitHubRunnerGroup: instance.GitHubRunnerGroup,
 		JitConfigEnabled:  hasJITConfig,
 	}
@@ -981,11 +981,11 @@ func (r *basePoolManager) paramsWorkflowJobToParamsJob(job params.WorkflowJob) (
 	}
 
 	switch r.entity.EntityType {
-	case params.GithubEntityTypeEnterprise:
+	case params.ForgeEntityTypeEnterprise:
 		jobParams.EnterpriseID = &asUUID
-	case params.GithubEntityTypeRepository:
+	case params.ForgeEntityTypeRepository:
 		jobParams.RepoID = &asUUID
-	case params.GithubEntityTypeOrganization:
+	case params.ForgeEntityTypeOrganization:
 		jobParams.OrgID = &asUUID
 	default:
 		return jobParams, errors.Errorf("unknown pool type: %s", r.entity.EntityType)
@@ -1931,15 +1931,15 @@ func (r *basePoolManager) InstallWebhook(ctx context.Context, param params.Insta
 
 func (r *basePoolManager) ValidateOwner(job params.WorkflowJob) error {
 	switch r.entity.EntityType {
-	case params.GithubEntityTypeRepository:
+	case params.ForgeEntityTypeRepository:
 		if !strings.EqualFold(job.Repository.Name, r.entity.Name) || !strings.EqualFold(job.Repository.Owner.Login, r.entity.Owner) {
 			return runnerErrors.NewBadRequestError("job not meant for this pool manager")
 		}
-	case params.GithubEntityTypeOrganization:
+	case params.ForgeEntityTypeOrganization:
 		if !strings.EqualFold(job.Organization.Login, r.entity.Owner) {
 			return runnerErrors.NewBadRequestError("job not meant for this pool manager")
 		}
-	case params.GithubEntityTypeEnterprise:
+	case params.ForgeEntityTypeEnterprise:
 		if !strings.EqualFold(job.Enterprise.Slug, r.entity.Owner) {
 			return runnerErrors.NewBadRequestError("job not meant for this pool manager")
 		}

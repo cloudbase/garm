@@ -60,7 +60,7 @@ type RepoTestSuite struct {
 
 	testCreds          params.GithubCredentials
 	secondaryTestCreds params.GithubCredentials
-	githubEndpoint     params.GithubEndpoint
+	githubEndpoint     params.ForgeEndpoint
 }
 
 func (s *RepoTestSuite) equalReposByName(expected, actual []params.Repository) {
@@ -541,9 +541,9 @@ func (s *RepoTestSuite) TestCreateRepositoryPoolMissingTags() {
 }
 
 func (s *RepoTestSuite) TestCreateRepositoryPoolInvalidRepoID() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         "dummy-repo-id",
-		EntityType: params.GithubEntityTypeRepository,
+		EntityType: params.ForgeEntityTypeRepository,
 	}
 	_, err := s.Store.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 
@@ -692,9 +692,9 @@ func (s *RepoTestSuite) TestListRepoPools() {
 }
 
 func (s *RepoTestSuite) TestListRepoPoolsInvalidRepoID() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         "dummy-repo-id",
-		EntityType: params.GithubEntityTypeRepository,
+		EntityType: params.ForgeEntityTypeRepository,
 	}
 	_, err := s.Store.ListEntityPools(s.adminCtx, entity)
 
@@ -717,9 +717,9 @@ func (s *RepoTestSuite) TestGetRepositoryPool() {
 }
 
 func (s *RepoTestSuite) TestGetRepositoryPoolInvalidRepoID() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         "dummy-repo-id",
-		EntityType: params.GithubEntityTypeRepository,
+		EntityType: params.ForgeEntityTypeRepository,
 	}
 	_, err := s.Store.GetEntityPool(s.adminCtx, entity, "dummy-pool-id")
 
@@ -743,9 +743,9 @@ func (s *RepoTestSuite) TestDeleteRepositoryPool() {
 }
 
 func (s *RepoTestSuite) TestDeleteRepositoryPoolInvalidRepoID() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         "dummy-repo-id",
-		EntityType: params.GithubEntityTypeRepository,
+		EntityType: params.ForgeEntityTypeRepository,
 	}
 	err := s.Store.DeleteEntityPool(s.adminCtx, entity, "dummy-pool-id")
 
@@ -799,9 +799,9 @@ func (s *RepoTestSuite) TestListRepoInstances() {
 }
 
 func (s *RepoTestSuite) TestListRepoInstancesInvalidRepoID() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         "dummy-repo-id",
-		EntityType: params.GithubEntityTypeRepository,
+		EntityType: params.ForgeEntityTypeRepository,
 	}
 	_, err := s.Store.ListEntityInstances(s.adminCtx, entity)
 
@@ -827,9 +827,9 @@ func (s *RepoTestSuite) TestUpdateRepositoryPool() {
 }
 
 func (s *RepoTestSuite) TestUpdateRepositoryPoolInvalidRepoID() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         "dummy-repo-id",
-		EntityType: params.GithubEntityTypeRepository,
+		EntityType: params.ForgeEntityTypeRepository,
 	}
 	_, err := s.Store.UpdateEntityPool(s.adminCtx, entity, "dummy-repo-id", s.Fixtures.UpdatePoolParams)
 

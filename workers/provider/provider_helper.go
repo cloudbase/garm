@@ -14,7 +14,7 @@ type providerHelper interface {
 	InstanceTokenGetter() auth.InstanceTokenGetter
 	updateArgsFromProviderInstance(instanceName string, providerInstance commonParams.ProviderInstance) (params.Instance, error)
 	GetControllerInfo() (params.ControllerInfo, error)
-	GetGithubEntity(entity params.GithubEntity) (params.GithubEntity, error)
+	GetGithubEntity(entity params.ForgeEntity) (params.ForgeEntity, error)
 }
 
 func (p *Provider) updateArgsFromProviderInstance(instanceName string, providerInstance commonParams.ProviderInstance) (params.Instance, error) {
@@ -71,10 +71,10 @@ func (p *Provider) InstanceTokenGetter() auth.InstanceTokenGetter {
 	return p.tokenGetter
 }
 
-func (p *Provider) GetGithubEntity(entity params.GithubEntity) (params.GithubEntity, error) {
-	ghEntity, err := p.store.GetGithubEntity(p.ctx, entity.EntityType, entity.ID)
+func (p *Provider) GetGithubEntity(entity params.ForgeEntity) (params.ForgeEntity, error) {
+	ghEntity, err := p.store.GetForgeEntity(p.ctx, entity.EntityType, entity.ID)
 	if err != nil {
-		return params.GithubEntity{}, fmt.Errorf("getting github entity: %w", err)
+		return params.ForgeEntity{}, fmt.Errorf("getting github entity: %w", err)
 	}
 
 	return ghEntity, nil

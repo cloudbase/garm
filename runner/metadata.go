@@ -56,7 +56,7 @@ func (r *Runner) GetRunnerServiceName(ctx context.Context) (string, error) {
 			ctx, "failed to get instance params")
 		return "", runnerErrors.ErrUnauthorized
 	}
-	var entity params.GithubEntity
+	var entity params.ForgeEntity
 
 	switch {
 	case instance.PoolID != "":
@@ -96,11 +96,11 @@ func (r *Runner) GetRunnerServiceName(ctx context.Context) (string, error) {
 	tpl := "actions.runner.%s.%s"
 	var serviceName string
 	switch entity.EntityType {
-	case params.GithubEntityTypeEnterprise:
+	case params.ForgeEntityTypeEnterprise:
 		serviceName = fmt.Sprintf(tpl, entity.Owner, instance.Name)
-	case params.GithubEntityTypeOrganization:
+	case params.ForgeEntityTypeOrganization:
 		serviceName = fmt.Sprintf(tpl, entity.Owner, instance.Name)
-	case params.GithubEntityTypeRepository:
+	case params.ForgeEntityTypeRepository:
 		serviceName = fmt.Sprintf(tpl, fmt.Sprintf("%s-%s", entity.Owner, entity.Name), instance.Name)
 	}
 	return serviceName, nil

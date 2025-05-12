@@ -49,7 +49,7 @@ type PoolTestSuite struct {
 	adminCtx           context.Context
 	testCreds          params.GithubCredentials
 	secondaryTestCreds params.GithubCredentials
-	githubEndpoint     params.GithubEndpoint
+	githubEndpoint     params.ForgeEndpoint
 }
 
 func (s *PoolTestSuite) SetupTest() {
@@ -75,9 +75,9 @@ func (s *PoolTestSuite) SetupTest() {
 	}
 
 	// create some pool objects in the database, for testing purposes
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         org.ID,
-		EntityType: params.GithubEntityTypeOrganization,
+		EntityType: params.ForgeEntityTypeOrganization,
 	}
 	orgPools := []params.Pool{}
 	for i := 1; i <= 3; i++ {

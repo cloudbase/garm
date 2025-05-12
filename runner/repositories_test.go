@@ -62,7 +62,7 @@ type RepoTestSuite struct {
 
 	testCreds          params.GithubCredentials
 	secondaryTestCreds params.GithubCredentials
-	githubEndpoint     params.GithubEndpoint
+	githubEndpoint     params.ForgeEndpoint
 }
 
 func (s *RepoTestSuite) SetupTest() {
@@ -299,9 +299,9 @@ func (s *RepoTestSuite) TestDeleteRepositoryErrUnauthorized() {
 }
 
 func (s *RepoTestSuite) TestDeleteRepositoryPoolDefinedFailed() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         s.Fixtures.StoreRepos["test-repo-1"].ID,
-		EntityType: params.GithubEntityTypeRepository,
+		EntityType: params.ForgeEntityTypeRepository,
 	}
 	pool, err := s.Fixtures.Store.CreateEntityPool(s.Fixtures.AdminContext, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
@@ -419,9 +419,9 @@ func (s *RepoTestSuite) TestCreateRepoPoolFetchPoolParamsFailed() {
 }
 
 func (s *RepoTestSuite) TestGetRepoPoolByID() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         s.Fixtures.StoreRepos["test-repo-1"].ID,
-		EntityType: params.GithubEntityTypeRepository,
+		EntityType: params.ForgeEntityTypeRepository,
 	}
 	repoPool, err := s.Fixtures.Store.CreateEntityPool(s.Fixtures.AdminContext, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
@@ -441,9 +441,9 @@ func (s *RepoTestSuite) TestGetRepoPoolByIDErrUnauthorized() {
 }
 
 func (s *RepoTestSuite) TestDeleteRepoPool() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         s.Fixtures.StoreRepos["test-repo-1"].ID,
-		EntityType: params.GithubEntityTypeRepository,
+		EntityType: params.ForgeEntityTypeRepository,
 	}
 	pool, err := s.Fixtures.Store.CreateEntityPool(s.Fixtures.AdminContext, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
@@ -465,9 +465,9 @@ func (s *RepoTestSuite) TestDeleteRepoPoolErrUnauthorized() {
 }
 
 func (s *RepoTestSuite) TestDeleteRepoPoolRunnersFailed() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         s.Fixtures.StoreRepos["test-repo-1"].ID,
-		EntityType: params.GithubEntityTypeRepository,
+		EntityType: params.ForgeEntityTypeRepository,
 	}
 	pool, err := s.Fixtures.Store.CreateEntityPool(s.Fixtures.AdminContext, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
@@ -484,9 +484,9 @@ func (s *RepoTestSuite) TestDeleteRepoPoolRunnersFailed() {
 }
 
 func (s *RepoTestSuite) TestListRepoPools() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         s.Fixtures.StoreRepos["test-repo-1"].ID,
-		EntityType: params.GithubEntityTypeRepository,
+		EntityType: params.ForgeEntityTypeRepository,
 	}
 	repoPools := []params.Pool{}
 	for i := 1; i <= 2; i++ {
@@ -511,9 +511,9 @@ func (s *RepoTestSuite) TestListRepoPoolsErrUnauthorized() {
 }
 
 func (s *RepoTestSuite) TestListPoolInstances() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         s.Fixtures.StoreRepos["test-repo-1"].ID,
-		EntityType: params.GithubEntityTypeRepository,
+		EntityType: params.ForgeEntityTypeRepository,
 	}
 	pool, err := s.Fixtures.Store.CreateEntityPool(s.Fixtures.AdminContext, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
@@ -542,9 +542,9 @@ func (s *RepoTestSuite) TestListPoolInstancesErrUnauthorized() {
 }
 
 func (s *RepoTestSuite) TestUpdateRepoPool() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         s.Fixtures.StoreRepos["test-repo-1"].ID,
-		EntityType: params.GithubEntityTypeRepository,
+		EntityType: params.ForgeEntityTypeRepository,
 	}
 	repoPool, err := s.Fixtures.Store.CreateEntityPool(s.Fixtures.AdminContext, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
@@ -565,9 +565,9 @@ func (s *RepoTestSuite) TestUpdateRepoPoolErrUnauthorized() {
 }
 
 func (s *RepoTestSuite) TestUpdateRepoPoolMinIdleGreaterThanMax() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         s.Fixtures.StoreRepos["test-repo-1"].ID,
-		EntityType: params.GithubEntityTypeRepository,
+		EntityType: params.ForgeEntityTypeRepository,
 	}
 	pool, err := s.Fixtures.Store.CreateEntityPool(s.Fixtures.AdminContext, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
@@ -584,9 +584,9 @@ func (s *RepoTestSuite) TestUpdateRepoPoolMinIdleGreaterThanMax() {
 }
 
 func (s *RepoTestSuite) TestListRepoInstances() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         s.Fixtures.StoreRepos["test-repo-1"].ID,
-		EntityType: params.GithubEntityTypeRepository,
+		EntityType: params.ForgeEntityTypeRepository,
 	}
 	pool, err := s.Fixtures.Store.CreateEntityPool(s.Fixtures.AdminContext, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {

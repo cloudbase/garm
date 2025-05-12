@@ -22,7 +22,7 @@ func (suite *GarmSuite) EnsureTestCredentials(name string, oauthToken string, en
 		Name:        name,
 		Endpoint:    endpointName,
 		Description: "GARM test credentials",
-		AuthType:    params.GithubAuthTypePAT,
+		AuthType:    params.ForgeAuthTypePAT,
 		PAT: params.GithubPAT{
 			OAuth2Token: oauthToken,
 		},

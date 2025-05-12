@@ -15,7 +15,7 @@ type Store struct {
 }
 
 // AddEntityEvent provides a mock function with given fields: ctx, entity, event, eventLevel, statusMessage, maxEvents
-func (_m *Store) AddEntityEvent(ctx context.Context, entity params.GithubEntity, event params.EventType, eventLevel params.EventLevel, statusMessage string, maxEvents int) error {
+func (_m *Store) AddEntityEvent(ctx context.Context, entity params.ForgeEntity, event params.EventType, eventLevel params.EventLevel, statusMessage string, maxEvents int) error {
 	ret := _m.Called(ctx, entity, event, eventLevel, statusMessage, maxEvents)
 
 	if len(ret) == 0 {
@@ -23,7 +23,7 @@ func (_m *Store) AddEntityEvent(ctx context.Context, entity params.GithubEntity,
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, params.GithubEntity, params.EventType, params.EventLevel, string, int) error); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, params.ForgeEntity, params.EventType, params.EventLevel, string, int) error); ok {
 		r0 = rf(ctx, entity, event, eventLevel, statusMessage, maxEvents)
 	} else {
 		r0 = ret.Error(0)
@@ -125,7 +125,7 @@ func (_m *Store) CreateEnterprise(ctx context.Context, name string, credentialsN
 }
 
 // CreateEntityPool provides a mock function with given fields: ctx, entity, param
-func (_m *Store) CreateEntityPool(ctx context.Context, entity params.GithubEntity, param params.CreatePoolParams) (params.Pool, error) {
+func (_m *Store) CreateEntityPool(ctx context.Context, entity params.ForgeEntity, param params.CreatePoolParams) (params.Pool, error) {
 	ret := _m.Called(ctx, entity, param)
 
 	if len(ret) == 0 {
@@ -134,16 +134,16 @@ func (_m *Store) CreateEntityPool(ctx context.Context, entity params.GithubEntit
 
 	var r0 params.Pool
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, params.GithubEntity, params.CreatePoolParams) (params.Pool, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, params.ForgeEntity, params.CreatePoolParams) (params.Pool, error)); ok {
 		return rf(ctx, entity, param)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, params.GithubEntity, params.CreatePoolParams) params.Pool); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, params.ForgeEntity, params.CreatePoolParams) params.Pool); ok {
 		r0 = rf(ctx, entity, param)
 	} else {
 		r0 = ret.Get(0).(params.Pool)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, params.GithubEntity, params.CreatePoolParams) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, params.ForgeEntity, params.CreatePoolParams) error); ok {
 		r1 = rf(ctx, entity, param)
 	} else {
 		r1 = ret.Error(1)
@@ -153,7 +153,7 @@ func (_m *Store) CreateEntityPool(ctx context.Context, entity params.GithubEntit
 }
 
 // CreateEntityScaleSet provides a mock function with given fields: _a0, entity, param
-func (_m *Store) CreateEntityScaleSet(_a0 context.Context, entity params.GithubEntity, param params.CreateScaleSetParams) (params.ScaleSet, error) {
+func (_m *Store) CreateEntityScaleSet(_a0 context.Context, entity params.ForgeEntity, param params.CreateScaleSetParams) (params.ScaleSet, error) {
 	ret := _m.Called(_a0, entity, param)
 
 	if len(ret) == 0 {
@@ -162,16 +162,16 @@ func (_m *Store) CreateEntityScaleSet(_a0 context.Context, entity params.GithubE
 
 	var r0 params.ScaleSet
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, params.GithubEntity, params.CreateScaleSetParams) (params.ScaleSet, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, params.ForgeEntity, params.CreateScaleSetParams) (params.ScaleSet, error)); ok {
 		return rf(_a0, entity, param)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, params.GithubEntity, params.CreateScaleSetParams) params.ScaleSet); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, params.ForgeEntity, params.CreateScaleSetParams) params.ScaleSet); ok {
 		r0 = rf(_a0, entity, param)
 	} else {
 		r0 = ret.Get(0).(params.ScaleSet)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, params.GithubEntity, params.CreateScaleSetParams) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, params.ForgeEntity, params.CreateScaleSetParams) error); ok {
 		r1 = rf(_a0, entity, param)
 	} else {
 		r1 = ret.Error(1)
@@ -209,22 +209,22 @@ func (_m *Store) CreateGithubCredentials(ctx context.Context, param params.Creat
 }
 
 // CreateGithubEndpoint provides a mock function with given fields: ctx, param
-func (_m *Store) CreateGithubEndpoint(ctx context.Context, param params.CreateGithubEndpointParams) (params.GithubEndpoint, error) {
+func (_m *Store) CreateGithubEndpoint(ctx context.Context, param params.CreateGithubEndpointParams) (params.ForgeEndpoint, error) {
 	ret := _m.Called(ctx, param)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateGithubEndpoint")
 	}
 
-	var r0 params.GithubEndpoint
+	var r0 params.ForgeEndpoint
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, params.CreateGithubEndpointParams) (params.GithubEndpoint, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, params.CreateGithubEndpointParams) (params.ForgeEndpoint, error)); ok {
 		return rf(ctx, param)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, params.CreateGithubEndpointParams) params.GithubEndpoint); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, params.CreateGithubEndpointParams) params.ForgeEndpoint); ok {
 		r0 = rf(ctx, param)
 	} else {
-		r0 = ret.Get(0).(params.GithubEndpoint)
+		r0 = ret.Get(0).(params.ForgeEndpoint)
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, params.CreateGithubEndpointParams) error); ok {
@@ -441,7 +441,7 @@ func (_m *Store) DeleteEnterprise(ctx context.Context, enterpriseID string) erro
 }
 
 // DeleteEntityPool provides a mock function with given fields: ctx, entity, poolID
-func (_m *Store) DeleteEntityPool(ctx context.Context, entity params.GithubEntity, poolID string) error {
+func (_m *Store) DeleteEntityPool(ctx context.Context, entity params.ForgeEntity, poolID string) error {
 	ret := _m.Called(ctx, entity, poolID)
 
 	if len(ret) == 0 {
@@ -449,7 +449,7 @@ func (_m *Store) DeleteEntityPool(ctx context.Context, entity params.GithubEntit
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, params.GithubEntity, string) error); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, params.ForgeEntity, string) error); ok {
 		r0 = rf(ctx, entity, poolID)
 	} else {
 		r0 = ret.Error(0)
@@ -621,7 +621,7 @@ func (_m *Store) DeleteScaleSetByID(ctx context.Context, scaleSetID uint) error 
 }
 
 // FindPoolsMatchingAllTags provides a mock function with given fields: ctx, entityType, entityID, tags
-func (_m *Store) FindPoolsMatchingAllTags(ctx context.Context, entityType params.GithubEntityType, entityID string, tags []string) ([]params.Pool, error) {
+func (_m *Store) FindPoolsMatchingAllTags(ctx context.Context, entityType params.ForgeEntityType, entityID string, tags []string) ([]params.Pool, error) {
 	ret := _m.Called(ctx, entityType, entityID, tags)
 
 	if len(ret) == 0 {
@@ -630,10 +630,10 @@ func (_m *Store) FindPoolsMatchingAllTags(ctx context.Context, entityType params
 
 	var r0 []params.Pool
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, params.GithubEntityType, string, []string) ([]params.Pool, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, params.ForgeEntityType, string, []string) ([]params.Pool, error)); ok {
 		return rf(ctx, entityType, entityID, tags)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, params.GithubEntityType, string, []string) []params.Pool); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, params.ForgeEntityType, string, []string) []params.Pool); ok {
 		r0 = rf(ctx, entityType, entityID, tags)
 	} else {
 		if ret.Get(0) != nil {
@@ -641,7 +641,7 @@ func (_m *Store) FindPoolsMatchingAllTags(ctx context.Context, entityType params
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, params.GithubEntityType, string, []string) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, params.ForgeEntityType, string, []string) error); ok {
 		r1 = rf(ctx, entityType, entityID, tags)
 	} else {
 		r1 = ret.Error(1)
@@ -735,7 +735,7 @@ func (_m *Store) GetEnterpriseByID(ctx context.Context, enterpriseID string) (pa
 }
 
 // GetEntityPool provides a mock function with given fields: ctx, entity, poolID
-func (_m *Store) GetEntityPool(ctx context.Context, entity params.GithubEntity, poolID string) (params.Pool, error) {
+func (_m *Store) GetEntityPool(ctx context.Context, entity params.ForgeEntity, poolID string) (params.Pool, error) {
 	ret := _m.Called(ctx, entity, poolID)
 
 	if len(ret) == 0 {
@@ -744,16 +744,16 @@ func (_m *Store) GetEntityPool(ctx context.Context, entity params.GithubEntity, 
 
 	var r0 params.Pool
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, params.GithubEntity, string) (params.Pool, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, params.ForgeEntity, string) (params.Pool, error)); ok {
 		return rf(ctx, entity, poolID)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, params.GithubEntity, string) params.Pool); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, params.ForgeEntity, string) params.Pool); ok {
 		r0 = rf(ctx, entity, poolID)
 	} else {
 		r0 = ret.Get(0).(params.Pool)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, params.GithubEntity, string) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, params.ForgeEntity, string) error); ok {
 		r1 = rf(ctx, entity, poolID)
 	} else {
 		r1 = ret.Error(1)
@@ -819,22 +819,22 @@ func (_m *Store) GetGithubCredentialsByName(ctx context.Context, name string, de
 }
 
 // GetGithubEndpoint provides a mock function with given fields: ctx, name
-func (_m *Store) GetGithubEndpoint(ctx context.Context, name string) (params.GithubEndpoint, error) {
+func (_m *Store) GetGithubEndpoint(ctx context.Context, name string) (params.ForgeEndpoint, error) {
 	ret := _m.Called(ctx, name)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetGithubEndpoint")
 	}
 
-	var r0 params.GithubEndpoint
+	var r0 params.ForgeEndpoint
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) (params.GithubEndpoint, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string) (params.ForgeEndpoint, error)); ok {
 		return rf(ctx, name)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) params.GithubEndpoint); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string) params.ForgeEndpoint); ok {
 		r0 = rf(ctx, name)
 	} else {
-		r0 = ret.Get(0).(params.GithubEndpoint)
+		r0 = ret.Get(0).(params.ForgeEndpoint)
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
@@ -846,26 +846,26 @@ func (_m *Store) GetGithubEndpoint(ctx context.Context, name string) (params.Git
 	return r0, r1
 }
 
-// GetGithubEntity provides a mock function with given fields: _a0, entityType, entityID
-func (_m *Store) GetGithubEntity(_a0 context.Context, entityType params.GithubEntityType, entityID string) (params.GithubEntity, error) {
+// GetForgeEntity provides a mock function with given fields: _a0, entityType, entityID
+func (_m *Store) GetForgeEntity(_a0 context.Context, entityType params.ForgeEntityType, entityID string) (params.ForgeEntity, error) {
 	ret := _m.Called(_a0, entityType, entityID)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetGithubEntity")
+		panic("no return value specified for GetForgeEntity")
 	}
 
-	var r0 params.GithubEntity
+	var r0 params.ForgeEntity
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, params.GithubEntityType, string) (params.GithubEntity, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, params.ForgeEntityType, string) (params.ForgeEntity, error)); ok {
 		return rf(_a0, entityType, entityID)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, params.GithubEntityType, string) params.GithubEntity); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, params.ForgeEntityType, string) params.ForgeEntity); ok {
 		r0 = rf(_a0, entityType, entityID)
 	} else {
-		r0 = ret.Get(0).(params.GithubEntity)
+		r0 = ret.Get(0).(params.ForgeEntity)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, params.GithubEntityType, string) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, params.ForgeEntityType, string) error); ok {
 		r1 = rf(_a0, entityType, entityID)
 	} else {
 		r1 = ret.Error(1)
@@ -1379,7 +1379,7 @@ func (_m *Store) ListEnterprises(ctx context.Context) ([]params.Enterprise, erro
 }
 
 // ListEntityInstances provides a mock function with given fields: ctx, entity
-func (_m *Store) ListEntityInstances(ctx context.Context, entity params.GithubEntity) ([]params.Instance, error) {
+func (_m *Store) ListEntityInstances(ctx context.Context, entity params.ForgeEntity) ([]params.Instance, error) {
 	ret := _m.Called(ctx, entity)
 
 	if len(ret) == 0 {
@@ -1388,10 +1388,10 @@ func (_m *Store) ListEntityInstances(ctx context.Context, entity params.GithubEn
 
 	var r0 []params.Instance
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, params.GithubEntity) ([]params.Instance, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, params.ForgeEntity) ([]params.Instance, error)); ok {
 		return rf(ctx, entity)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, params.GithubEntity) []params.Instance); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, params.ForgeEntity) []params.Instance); ok {
 		r0 = rf(ctx, entity)
 	} else {
 		if ret.Get(0) != nil {
@@ -1399,7 +1399,7 @@ func (_m *Store) ListEntityInstances(ctx context.Context, entity params.GithubEn
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, params.GithubEntity) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, params.ForgeEntity) error); ok {
 		r1 = rf(ctx, entity)
 	} else {
 		r1 = ret.Error(1)
@@ -1409,7 +1409,7 @@ func (_m *Store) ListEntityInstances(ctx context.Context, entity params.GithubEn
 }
 
 // ListEntityJobsByStatus provides a mock function with given fields: ctx, entityType, entityID, status
-func (_m *Store) ListEntityJobsByStatus(ctx context.Context, entityType params.GithubEntityType, entityID string, status params.JobStatus) ([]params.Job, error) {
+func (_m *Store) ListEntityJobsByStatus(ctx context.Context, entityType params.ForgeEntityType, entityID string, status params.JobStatus) ([]params.Job, error) {
 	ret := _m.Called(ctx, entityType, entityID, status)
 
 	if len(ret) == 0 {
@@ -1418,10 +1418,10 @@ func (_m *Store) ListEntityJobsByStatus(ctx context.Context, entityType params.G
 
 	var r0 []params.Job
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, params.GithubEntityType, string, params.JobStatus) ([]params.Job, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, params.ForgeEntityType, string, params.JobStatus) ([]params.Job, error)); ok {
 		return rf(ctx, entityType, entityID, status)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, params.GithubEntityType, string, params.JobStatus) []params.Job); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, params.ForgeEntityType, string, params.JobStatus) []params.Job); ok {
 		r0 = rf(ctx, entityType, entityID, status)
 	} else {
 		if ret.Get(0) != nil {
@@ -1429,7 +1429,7 @@ func (_m *Store) ListEntityJobsByStatus(ctx context.Context, entityType params.G
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, params.GithubEntityType, string, params.JobStatus) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, params.ForgeEntityType, string, params.JobStatus) error); ok {
 		r1 = rf(ctx, entityType, entityID, status)
 	} else {
 		r1 = ret.Error(1)
@@ -1439,7 +1439,7 @@ func (_m *Store) ListEntityJobsByStatus(ctx context.Context, entityType params.G
 }
 
 // ListEntityPools provides a mock function with given fields: ctx, entity
-func (_m *Store) ListEntityPools(ctx context.Context, entity params.GithubEntity) ([]params.Pool, error) {
+func (_m *Store) ListEntityPools(ctx context.Context, entity params.ForgeEntity) ([]params.Pool, error) {
 	ret := _m.Called(ctx, entity)
 
 	if len(ret) == 0 {
@@ -1448,10 +1448,10 @@ func (_m *Store) ListEntityPools(ctx context.Context, entity params.GithubEntity
 
 	var r0 []params.Pool
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, params.GithubEntity) ([]params.Pool, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, params.ForgeEntity) ([]params.Pool, error)); ok {
 		return rf(ctx, entity)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, params.GithubEntity) []params.Pool); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, params.ForgeEntity) []params.Pool); ok {
 		r0 = rf(ctx, entity)
 	} else {
 		if ret.Get(0) != nil {
@@ -1459,7 +1459,7 @@ func (_m *Store) ListEntityPools(ctx context.Context, entity params.GithubEntity
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, params.GithubEntity) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, params.ForgeEntity) error); ok {
 		r1 = rf(ctx, entity)
 	} else {
 		r1 = ret.Error(1)
@@ -1469,7 +1469,7 @@ func (_m *Store) ListEntityPools(ctx context.Context, entity params.GithubEntity
 }
 
 // ListEntityScaleSets provides a mock function with given fields: _a0, entity
-func (_m *Store) ListEntityScaleSets(_a0 context.Context, entity params.GithubEntity) ([]params.ScaleSet, error) {
+func (_m *Store) ListEntityScaleSets(_a0 context.Context, entity params.ForgeEntity) ([]params.ScaleSet, error) {
 	ret := _m.Called(_a0, entity)
 
 	if len(ret) == 0 {
@@ -1478,10 +1478,10 @@ func (_m *Store) ListEntityScaleSets(_a0 context.Context, entity params.GithubEn
 
 	var r0 []params.ScaleSet
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, params.GithubEntity) ([]params.ScaleSet, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, params.ForgeEntity) ([]params.ScaleSet, error)); ok {
 		return rf(_a0, entity)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, params.GithubEntity) []params.ScaleSet); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, params.ForgeEntity) []params.ScaleSet); ok {
 		r0 = rf(_a0, entity)
 	} else {
 		if ret.Get(0) != nil {
@@ -1489,7 +1489,7 @@ func (_m *Store) ListEntityScaleSets(_a0 context.Context, entity params.GithubEn
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, params.GithubEntity) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, params.ForgeEntity) error); ok {
 		r1 = rf(_a0, entity)
 	} else {
 		r1 = ret.Error(1)
@@ -1529,23 +1529,23 @@ func (_m *Store) ListGithubCredentials(ctx context.Context) ([]params.GithubCred
 }
 
 // ListGithubEndpoints provides a mock function with given fields: ctx
-func (_m *Store) ListGithubEndpoints(ctx context.Context) ([]params.GithubEndpoint, error) {
+func (_m *Store) ListGithubEndpoints(ctx context.Context) ([]params.ForgeEndpoint, error) {
 	ret := _m.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListGithubEndpoints")
 	}
 
-	var r0 []params.GithubEndpoint
+	var r0 []params.ForgeEndpoint
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context) ([]params.GithubEndpoint, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context) ([]params.ForgeEndpoint, error)); ok {
 		return rf(ctx)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context) []params.GithubEndpoint); ok {
+	if rf, ok := ret.Get(0).(func(context.Context) []params.ForgeEndpoint); ok {
 		r0 = rf(ctx)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]params.GithubEndpoint)
+			r0 = ret.Get(0).([]params.ForgeEndpoint)
 		}
 	}
 
@@ -1865,7 +1865,7 @@ func (_m *Store) UpdateEnterprise(ctx context.Context, enterpriseID string, para
 }
 
 // UpdateEntityPool provides a mock function with given fields: ctx, entity, poolID, param
-func (_m *Store) UpdateEntityPool(ctx context.Context, entity params.GithubEntity, poolID string, param params.UpdatePoolParams) (params.Pool, error) {
+func (_m *Store) UpdateEntityPool(ctx context.Context, entity params.ForgeEntity, poolID string, param params.UpdatePoolParams) (params.Pool, error) {
 	ret := _m.Called(ctx, entity, poolID, param)
 
 	if len(ret) == 0 {
@@ -1874,16 +1874,16 @@ func (_m *Store) UpdateEntityPool(ctx context.Context, entity params.GithubEntit
 
 	var r0 params.Pool
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, params.GithubEntity, string, params.UpdatePoolParams) (params.Pool, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, params.ForgeEntity, string, params.UpdatePoolParams) (params.Pool, error)); ok {
 		return rf(ctx, entity, poolID, param)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, params.GithubEntity, string, params.UpdatePoolParams) params.Pool); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, params.ForgeEntity, string, params.UpdatePoolParams) params.Pool); ok {
 		r0 = rf(ctx, entity, poolID, param)
 	} else {
 		r0 = ret.Get(0).(params.Pool)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, params.GithubEntity, string, params.UpdatePoolParams) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, params.ForgeEntity, string, params.UpdatePoolParams) error); ok {
 		r1 = rf(ctx, entity, poolID, param)
 	} else {
 		r1 = ret.Error(1)
@@ -1893,7 +1893,7 @@ func (_m *Store) UpdateEntityPool(ctx context.Context, entity params.GithubEntit
 }
 
 // UpdateEntityScaleSet provides a mock function with given fields: _a0, entity, scaleSetID, param, callback
-func (_m *Store) UpdateEntityScaleSet(_a0 context.Context, entity params.GithubEntity, scaleSetID uint, param params.UpdateScaleSetParams, callback func(params.ScaleSet, params.ScaleSet) error) (params.ScaleSet, error) {
+func (_m *Store) UpdateEntityScaleSet(_a0 context.Context, entity params.ForgeEntity, scaleSetID uint, param params.UpdateScaleSetParams, callback func(params.ScaleSet, params.ScaleSet) error) (params.ScaleSet, error) {
 	ret := _m.Called(_a0, entity, scaleSetID, param, callback)
 
 	if len(ret) == 0 {
@@ -1902,16 +1902,16 @@ func (_m *Store) UpdateEntityScaleSet(_a0 context.Context, entity params.GithubE
 
 	var r0 params.ScaleSet
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, params.GithubEntity, uint, params.UpdateScaleSetParams, func(params.ScaleSet, params.ScaleSet) error) (params.ScaleSet, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, params.ForgeEntity, uint, params.UpdateScaleSetParams, func(params.ScaleSet, params.ScaleSet) error) (params.ScaleSet, error)); ok {
 		return rf(_a0, entity, scaleSetID, param, callback)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, params.GithubEntity, uint, params.UpdateScaleSetParams, func(params.ScaleSet, params.ScaleSet) error) params.ScaleSet); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, params.ForgeEntity, uint, params.UpdateScaleSetParams, func(params.ScaleSet, params.ScaleSet) error) params.ScaleSet); ok {
 		r0 = rf(_a0, entity, scaleSetID, param, callback)
 	} else {
 		r0 = ret.Get(0).(params.ScaleSet)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, params.GithubEntity, uint, params.UpdateScaleSetParams, func(params.ScaleSet, params.ScaleSet) error) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, params.ForgeEntity, uint, params.UpdateScaleSetParams, func(params.ScaleSet, params.ScaleSet) error) error); ok {
 		r1 = rf(_a0, entity, scaleSetID, param, callback)
 	} else {
 		r1 = ret.Error(1)
@@ -1949,22 +1949,22 @@ func (_m *Store) UpdateGithubCredentials(ctx context.Context, id uint, param par
 }
 
 // UpdateGithubEndpoint provides a mock function with given fields: ctx, name, param
-func (_m *Store) UpdateGithubEndpoint(ctx context.Context, name string, param params.UpdateGithubEndpointParams) (params.GithubEndpoint, error) {
+func (_m *Store) UpdateGithubEndpoint(ctx context.Context, name string, param params.UpdateGithubEndpointParams) (params.ForgeEndpoint, error) {
 	ret := _m.Called(ctx, name, param)
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateGithubEndpoint")
 	}
 
-	var r0 params.GithubEndpoint
+	var r0 params.ForgeEndpoint
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, params.UpdateGithubEndpointParams) (params.GithubEndpoint, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string, params.UpdateGithubEndpointParams) (params.ForgeEndpoint, error)); ok {
 		return rf(ctx, name, param)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, params.UpdateGithubEndpointParams) params.GithubEndpoint); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string, params.UpdateGithubEndpointParams) params.ForgeEndpoint); ok {
 		r0 = rf(ctx, name, param)
 	} else {
-		r0 = ret.Get(0).(params.GithubEndpoint)
+		r0 = ret.Get(0).(params.ForgeEndpoint)
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, string, params.UpdateGithubEndpointParams) error); ok {

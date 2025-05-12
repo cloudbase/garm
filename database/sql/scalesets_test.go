@@ -25,9 +25,9 @@ type ScaleSetsTestSuite struct {
 	repo       params.Repository
 	enterprise params.Enterprise
 
-	orgEntity        params.GithubEntity
-	repoEntity       params.GithubEntity
-	enterpriseEntity params.GithubEntity
+	orgEntity        params.ForgeEntity
+	repoEntity       params.ForgeEntity
+	enterpriseEntity params.ForgeEntity
 }
 
 func (s *ScaleSetsTestSuite) SetupTest() {
@@ -298,7 +298,7 @@ func (s *ScaleSetsTestSuite) TestScaleSetOperations() {
 	})
 
 	s.T().Run("update scaleset with invalid entity", func(_ *testing.T) {
-		_, err = s.Store.UpdateEntityScaleSet(s.adminCtx, params.GithubEntity{}, enterpriseScaleSet.ID, params.UpdateScaleSetParams{}, nil)
+		_, err = s.Store.UpdateEntityScaleSet(s.adminCtx, params.ForgeEntity{}, enterpriseScaleSet.ID, params.UpdateScaleSetParams{}, nil)
 		s.Require().Error(err)
 		s.Require().Contains(err.Error(), "missing entity id")
 	})

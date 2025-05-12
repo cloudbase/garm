@@ -283,12 +283,12 @@ func parsePrivateKeyFromPath(path string) ([]byte, error) {
 func parseCredentialsAddParams() (ret params.CreateGithubCredentialsParams, err error) {
 	ret.Name = credentialsName
 	ret.Description = credentialsDescription
-	ret.AuthType = params.GithubAuthType(credentialsType)
+	ret.AuthType = params.ForgeAuthType(credentialsType)
 	ret.Endpoint = credentialsEndpoint
 	switch ret.AuthType {
-	case params.GithubAuthTypePAT:
+	case params.ForgeAuthTypePAT:
 		ret.PAT.OAuth2Token = credentialsOAuthToken
-	case params.GithubAuthTypeApp:
+	case params.ForgeAuthTypeApp:
 		ret.App.InstallationID = credentialsAppInstallationID
 		ret.App.AppID = credentialsAppID
 		keyContents, err := parsePrivateKeyFromPath(credentialsPrivateKeyPath)

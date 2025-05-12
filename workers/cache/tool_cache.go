@@ -16,7 +16,7 @@ import (
 	"github.com/cloudbase/garm/util/github"
 )
 
-func newToolsUpdater(ctx context.Context, entity params.GithubEntity) *toolsUpdater {
+func newToolsUpdater(ctx context.Context, entity params.ForgeEntity) *toolsUpdater {
 	return &toolsUpdater{
 		ctx:    ctx,
 		entity: entity,
@@ -27,7 +27,7 @@ func newToolsUpdater(ctx context.Context, entity params.GithubEntity) *toolsUpda
 type toolsUpdater struct {
 	ctx context.Context
 
-	entity     params.GithubEntity
+	entity     params.ForgeEntity
 	tools      []commonParams.RunnerApplicationDownload
 	lastUpdate time.Time
 

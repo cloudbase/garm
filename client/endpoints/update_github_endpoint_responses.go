@@ -54,7 +54,7 @@ UpdateGithubEndpointOK describes a response with status code 200, with default h
 GithubEndpoint
 */
 type UpdateGithubEndpointOK struct {
-	Payload garm_params.GithubEndpoint
+	Payload garm_params.ForgeEndpoint
 }
 
 // IsSuccess returns true when this update github endpoint o k response has a 2xx status code
@@ -97,7 +97,7 @@ func (o *UpdateGithubEndpointOK) String() string {
 	return fmt.Sprintf("[PUT /github/endpoints/{name}][%d] updateGithubEndpointOK %s", 200, payload)
 }
 
-func (o *UpdateGithubEndpointOK) GetPayload() garm_params.GithubEndpoint {
+func (o *UpdateGithubEndpointOK) GetPayload() garm_params.ForgeEndpoint {
 	return o.Payload
 }
 

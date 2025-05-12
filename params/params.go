@@ -36,14 +36,14 @@ import (
 )
 
 type (
-	GithubEntityType    string
+	ForgeEntityType     string
 	EventType           string
 	EventLevel          string
 	ProviderType        string
 	JobStatus           string
 	RunnerStatus        string
 	WebhookEndpointType string
-	GithubAuthType      string
+	ForgeAuthType       string
 	EndpointType        string
 	PoolBalancerType    string
 	ScaleSetState       string
@@ -106,9 +106,9 @@ const (
 )
 
 const (
-	GithubEntityTypeRepository   GithubEntityType = "repository"
-	GithubEntityTypeOrganization GithubEntityType = "organization"
-	GithubEntityTypeEnterprise   GithubEntityType = "enterprise"
+	ForgeEntityTypeRepository   ForgeEntityType = "repository"
+	ForgeEntityTypeOrganization ForgeEntityType = "organization"
+	ForgeEntityTypeEnterprise   ForgeEntityType = "enterprise"
 )
 
 const (
@@ -141,13 +141,13 @@ const (
 )
 
 const (
-	// GithubAuthTypePAT is the OAuth token based authentication
-	GithubAuthTypePAT GithubAuthType = "pat"
-	// GithubAuthTypeApp is the GitHub App based authentication
-	GithubAuthTypeApp GithubAuthType = "app"
+	// ForgeAuthTypePAT is the OAuth token based authentication
+	ForgeAuthTypePAT ForgeAuthType = "pat"
+	// ForgeAuthTypeApp is the GitHub App based authentication
+	ForgeAuthTypeApp ForgeAuthType = "app"
 )
 
-func (e GithubEntityType) String() string {
+func (e ForgeEntityType) String() string {
 	return string(e)
 }
 
@@ -380,13 +380,13 @@ type Pool struct {
 	Priority uint `json:"priority,omitempty"`
 }
 
-func (p Pool) BelongsTo(entity GithubEntity) bool {
+func (p Pool) BelongsTo(entity ForgeEntity) bool {
 	switch p.PoolType() {
-	case GithubEntityTypeRepository:
+	case ForgeEntityTypeRepository:
 		return p.RepoID == entity.ID
-	case GithubEntityTypeOrganization:
+	case ForgeEntityTypeOrganization:
 		return p.OrgID == entity.ID
-	case GithubEntityTypeEnterprise:
+	case ForgeEntityTypeEnterprise:
 		return p.EnterpriseID == entity.ID
 	}
 	return false
@@ -411,25 +411,25 @@ func (p Pool) MaxRunnersAsInt() int {
 	return int(p.MaxRunners)
 }
 
-func (p Pool) GetEntity() (GithubEntity, error) {
+func (p Pool) GetEntity() (ForgeEntity, error) {
 	switch p.PoolType() {
-	case GithubEntityTypeRepository:
-		return GithubEntity{
+	case ForgeEntityTypeRepository:
+		return ForgeEntity{
 			ID:         p.RepoID,
-			EntityType: GithubEntityTypeRepository,
+			EntityType: ForgeEntityTypeRepository,
 		}, nil
-	case GithubEntityTypeOrganization:
-		return GithubEntity{
+	case ForgeEntityTypeOrganization:
+		return ForgeEntity{
 			ID:         p.OrgID,
-			EntityType: GithubEntityTypeOrganization,
+			EntityType: ForgeEntityTypeOrganization,
 		}, nil
-	case GithubEntityTypeEnterprise:
-		return GithubEntity{
+	case ForgeEntityTypeEnterprise:
+		return ForgeEntity{
 			ID:         p.EnterpriseID,
-			EntityType: GithubEntityTypeEnterprise,
+			EntityType: ForgeEntityTypeEnterprise,
 		}, nil
 	}
-	return GithubEntity{}, fmt.Errorf("pool has no associated entity")
+	return ForgeEntity{}, fmt.Errorf("pool has no associated entity")
 }
 
 func (p Pool) GetID() string {
@@ -443,14 +443,14 @@ func (p *Pool) RunnerTimeout() uint {
 	return p.RunnerBootstrapTimeout
 }
 
-func (p *Pool) PoolType() GithubEntityType {
+func (p *Pool) PoolType() ForgeEntityType {
 	switch {
 	case p.RepoID != "":
-		return GithubEntityTypeRepository
+		return ForgeEntityTypeRepository
 	case p.OrgID != "":
-		return GithubEntityTypeOrganization
+		return ForgeEntityTypeOrganization
 	case p.EnterpriseID != "":
-		return GithubEntityTypeEnterprise
+		return ForgeEntityTypeEnterprise
 	}
 	return ""
 }
@@ -519,13 +519,13 @@ type ScaleSet struct {
 	LastMessageID int64 `json:"-"`
 }
 
-func (p ScaleSet) BelongsTo(entity GithubEntity) bool {
+func (p ScaleSet) BelongsTo(entity ForgeEntity) bool {
 	switch p.ScaleSetType() {
-	case GithubEntityTypeRepository:
+	case ForgeEntityTypeRepository:
 		return p.RepoID == entity.ID
-	case GithubEntityTypeOrganization:
+	case ForgeEntityTypeOrganization:
 		return p.OrgID == entity.ID
-	case GithubEntityTypeEnterprise:
+	case ForgeEntityTypeEnterprise:
 		return p.EnterpriseID == entity.ID
 	}
 	return false
@@ -535,35 +535,35 @@ func (p ScaleSet) GetID() uint {
 	return p.ID
 }
 
-func (p ScaleSet) GetEntity() (GithubEntity, error) {
+func (p ScaleSet) GetEntity() (ForgeEntity, error) {
 	switch p.ScaleSetType() {
-	case GithubEntityTypeRepository:
-		return GithubEntity{
+	case ForgeEntityTypeRepository:
+		return ForgeEntity{
 			ID:         p.RepoID,
-			EntityType: GithubEntityTypeRepository,
+			EntityType: ForgeEntityTypeRepository,
 		}, nil
-	case GithubEntityTypeOrganization:
-		return GithubEntity{
+	case ForgeEntityTypeOrganization:
+		return ForgeEntity{
 			ID:         p.OrgID,
-			EntityType: GithubEntityTypeOrganization,
+			EntityType: ForgeEntityTypeOrganization,
 		}, nil
-	case GithubEntityTypeEnterprise:
-		return GithubEntity{
+	case ForgeEntityTypeEnterprise:
+		return ForgeEntity{
 			ID:         p.EnterpriseID,
-			EntityType: GithubEntityTypeEnterprise,
+			EntityType: ForgeEntityTypeEnterprise,
 		}, nil
 	}
-	return GithubEntity{}, fmt.Errorf("pool has no associated entity")
+	return ForgeEntity{}, fmt.Errorf("pool has no associated entity")
 }
 
-func (p *ScaleSet) ScaleSetType() GithubEntityType {
+func (p *ScaleSet) ScaleSetType() ForgeEntityType {
 	switch {
 	case p.RepoID != "":
-		return GithubEntityTypeRepository
+		return ForgeEntityTypeRepository
 	case p.OrgID != "":
-		return GithubEntityTypeOrganization
+		return ForgeEntityTypeOrganization
 	case p.EnterpriseID != "":
-		return GithubEntityTypeEnterprise
+		return ForgeEntityTypeEnterprise
 	}
 	return ""
 }
@@ -591,7 +591,7 @@ type Repository struct {
 	Credentials       GithubCredentials `json:"credentials,omitempty"`
 	PoolManagerStatus PoolManagerStatus `json:"pool_manager_status,omitempty"`
 	PoolBalancerType  PoolBalancerType  `json:"pool_balancing_type,omitempty"`
-	Endpoint          GithubEndpoint    `json:"endpoint,omitempty"`
+	Endpoint          ForgeEndpoint     `json:"endpoint,omitempty"`
 	CreatedAt         time.Time         `json:"created_at,omitempty"`
 	UpdatedAt         time.Time         `json:"updated_at,omitempty"`
 	// Do not serialize sensitive info.
@@ -602,19 +602,23 @@ func (r Repository) CreationDateGetter() time.Time {
 	return r.CreatedAt
 }
 
-func (r Repository) GetEntity() (GithubEntity, error) {
+func (r Repository) GetEntity() (ForgeEntity, error) {
 	if r.ID == "" {
-		return GithubEntity{}, fmt.Errorf("repository has no ID")
+		return ForgeEntity{}, fmt.Errorf("repository has no ID")
 	}
-	return GithubEntity{
+	return ForgeEntity{
 		ID:               r.ID,
-		EntityType:       GithubEntityTypeRepository,
+		EntityType:       ForgeEntityTypeRepository,
 		Owner:            r.Owner,
 		Name:             r.Name,
 		PoolBalancerType: r.PoolBalancerType,
-		Credentials:      r.Credentials,
-		WebhookSecret:    r.WebhookSecret,
-		CreatedAt:        r.CreatedAt,
+		Credentials: ForgeCredentials{
+			ForgeType:         GithubEndpointType,
+			GithubCredentials: r.Credentials,
+		},
+		WebhookSecret: r.WebhookSecret,
+		CreatedAt:     r.CreatedAt,
+		UpdatedAt:     r.UpdatedAt,
 	}, nil
 }
 
@@ -652,7 +656,7 @@ type Organization struct {
 	CredentialsID     uint              `json:"credentials_id,omitempty"`
 	PoolManagerStatus PoolManagerStatus `json:"pool_manager_status,omitempty"`
 	PoolBalancerType  PoolBalancerType  `json:"pool_balancing_type,omitempty"`
-	Endpoint          GithubEndpoint    `json:"endpoint,omitempty"`
+	Endpoint          ForgeEndpoint     `json:"endpoint,omitempty"`
 	CreatedAt         time.Time         `json:"created_at,omitempty"`
 	UpdatedAt         time.Time         `json:"updated_at,omitempty"`
 	// Do not serialize sensitive info.
@@ -663,18 +667,22 @@ func (o Organization) GetCreatedAt() time.Time {
 	return o.CreatedAt
 }
 
-func (o Organization) GetEntity() (GithubEntity, error) {
+func (o Organization) GetEntity() (ForgeEntity, error) {
 	if o.ID == "" {
-		return GithubEntity{}, fmt.Errorf("organization has no ID")
+		return ForgeEntity{}, fmt.Errorf("organization has no ID")
 	}
-	return GithubEntity{
+	return ForgeEntity{
 		ID:               o.ID,
-		EntityType:       GithubEntityTypeOrganization,
+		EntityType:       ForgeEntityTypeOrganization,
 		Owner:            o.Name,
 		WebhookSecret:    o.WebhookSecret,
 		PoolBalancerType: o.PoolBalancerType,
-		Credentials:      o.Credentials,
-		CreatedAt:        o.CreatedAt,
+		Credentials: ForgeCredentials{
+			ForgeType:         GithubEndpointType,
+			GithubCredentials: o.Credentials,
+		},
+		CreatedAt: o.CreatedAt,
+		UpdatedAt: o.UpdatedAt,
 	}, nil
 }
 
@@ -708,7 +716,7 @@ type Enterprise struct {
 	CredentialsID     uint              `json:"credentials_id,omitempty"`
 	PoolManagerStatus PoolManagerStatus `json:"pool_manager_status,omitempty"`
 	PoolBalancerType  PoolBalancerType  `json:"pool_balancing_type,omitempty"`
-	Endpoint          GithubEndpoint    `json:"endpoint,omitempty"`
+	Endpoint          ForgeEndpoint     `json:"endpoint,omitempty"`
 	CreatedAt         time.Time         `json:"created_at,omitempty"`
 	UpdatedAt         time.Time         `json:"updated_at,omitempty"`
 	// Do not serialize sensitive info.
@@ -719,18 +727,22 @@ func (e Enterprise) GetCreatedAt() time.Time {
 	return e.CreatedAt
 }
 
-func (e Enterprise) GetEntity() (GithubEntity, error) {
+func (e Enterprise) GetEntity() (ForgeEntity, error) {
 	if e.ID == "" {
-		return GithubEntity{}, fmt.Errorf("enterprise has no ID")
+		return ForgeEntity{}, fmt.Errorf("enterprise has no ID")
 	}
-	return GithubEntity{
+	return ForgeEntity{
 		ID:               e.ID,
-		EntityType:       GithubEntityTypeEnterprise,
+		EntityType:       ForgeEntityTypeEnterprise,
 		Owner:            e.Name,
 		WebhookSecret:    e.WebhookSecret,
 		PoolBalancerType: e.PoolBalancerType,
-		Credentials:      e.Credentials,
-		CreatedAt:        e.CreatedAt,
+		Credentials: ForgeCredentials{
+			ForgeType:         GithubEndpointType,
+			GithubCredentials: e.Credentials,
+		},
+		CreatedAt: e.CreatedAt,
+		UpdatedAt: e.UpdatedAt,
 	}, nil
 }
 
@@ -843,20 +855,113 @@ func (g GithubRateLimit) ResetAt() time.Time {
 	return time.Unix(g.Reset, 0)
 }
 
+type ForgeCredentials struct {
+	ForgeType         EndpointType      `json:"type,omitempty"`
+	GithubCredentials GithubCredentials `json:"github,omitempty"`
+}
+
+func (f ForgeCredentials) CABundle() []byte {
+	switch f.ForgeType {
+	case GithubEndpointType:
+		return f.GithubCredentials.CABundle
+	case GiteaEndpointType:
+		return nil
+	default:
+		return nil
+	}
+}
+
+func (f ForgeCredentials) Endpoint() ForgeEndpoint {
+	switch f.ForgeType {
+	case GithubEndpointType:
+		return f.GithubCredentials.Endpoint
+	case GiteaEndpointType:
+		return ForgeEndpoint{}
+	default:
+		return ForgeEndpoint{}
+	}
+}
+
+func (f ForgeCredentials) APIBaseURL() string {
+	switch f.ForgeType {
+	case GithubEndpointType:
+		return f.GithubCredentials.APIBaseURL
+	case GiteaEndpointType:
+		return ""
+	default:
+		return ""
+	}
+}
+
+func (f ForgeCredentials) UploadBaseURL() string {
+	switch f.ForgeType {
+	case GithubEndpointType:
+		return f.GithubCredentials.UploadBaseURL
+	case GiteaEndpointType:
+		return ""
+	default:
+		return ""
+	}
+}
+
+func (f ForgeCredentials) BaseURL() string {
+	switch f.ForgeType {
+	case GithubEndpointType:
+		return f.GithubCredentials.BaseURL
+	case GiteaEndpointType:
+		return ""
+	default:
+		return ""
+	}
+}
+
+func (f ForgeCredentials) GetHTTPClient(ctx context.Context) (*http.Client, error) {
+	switch f.ForgeType {
+	case GithubEndpointType:
+		return f.GithubCredentials.GetHTTPClient(ctx)
+	case GiteaEndpointType:
+		return nil, fmt.Errorf("gitea credentials not supported")
+	default:
+		return nil, fmt.Errorf("unknown credentials type")
+	}
+}
+
+func (f ForgeCredentials) GetID() uint {
+	switch f.ForgeType {
+	case GithubEndpointType:
+		return f.GithubCredentials.ID
+	case GiteaEndpointType:
+		return 0
+	default:
+		return 0
+	}
+}
+
+func (f ForgeCredentials) RootCertificateBundle() (CertificateBundle, error) {
+	switch f.ForgeType {
+	case GithubEndpointType:
+		return f.GithubCredentials.RootCertificateBundle()
+	case GiteaEndpointType:
+		return CertificateBundle{}, fmt.Errorf("gitea credentials not supported")
+	default:
+		return CertificateBundle{}, fmt.Errorf("unknown credentials type")
+	}
+}
+
 type GithubCredentials struct {
-	ID            uint           `json:"id,omitempty"`
-	Name          string         `json:"name,omitempty"`
-	Description   string         `json:"description,omitempty"`
-	APIBaseURL    string         `json:"api_base_url,omitempty"`
-	UploadBaseURL string         `json:"upload_base_url,omitempty"`
-	BaseURL       string         `json:"base_url,omitempty"`
-	CABundle      []byte         `json:"ca_bundle,omitempty"`
-	AuthType      GithubAuthType `json:"auth-type,omitempty"`
+	ID            uint          `json:"id,omitempty"`
+	Name          string        `json:"name,omitempty"`
+	Description   string        `json:"description,omitempty"`
+	APIBaseURL    string        `json:"api_base_url,omitempty"`
+	UploadBaseURL string        `json:"upload_base_url,omitempty"`
+	BaseURL       string        `json:"base_url,omitempty"`
+	CABundle      []byte        `json:"ca_bundle,omitempty"`
+	AuthType      ForgeAuthType `json:"auth-type,omitempty"`
 
 	Repositories  []Repository    `json:"repositories,omitempty"`
 	Organizations []Organization  `json:"organizations,omitempty"`
 	Enterprises   []Enterprise    `json:"enterprises,omitempty"`
-	Endpoint      GithubEndpoint  `json:"endpoint,omitempty"`
+	Endpoint      ForgeEndpoint   `json:"endpoint,omitempty"`
 	CreatedAt     time.Time       `json:"created_at,omitempty"`
 	UpdatedAt     time.Time       `json:"updated_at,omitempty"`
 	RateLimit     GithubRateLimit `json:"rate_limit,omitempty"`
@@ -867,6 +972,13 @@ type GithubCredentials struct {
 
 func (g GithubCredentials) GetID() uint {
 	return g.ID
+}
+
+func (g GithubCredentials) GetForgeCredentials() ForgeCredentials {
+	return ForgeCredentials{
+		ForgeType:         GithubEndpointType,
+		GithubCredentials: g,
+	}
 }
 
 func (g GithubCredentials) GetHTTPClient(ctx context.Context) (*http.Client, error) {
@@ -888,7 +1000,7 @@ func (g GithubCredentials) GetHTTPClient(ctx context.Context) (*http.Client, err
 
 	var tc *http.Client
 	switch g.AuthType {
-	case GithubAuthTypeApp:
+	case ForgeAuthTypeApp:
 		var app GithubApp
 		if err := json.Unmarshal(g.CredentialsPayload, &app); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal github app credentials: %w", err)
@@ -1063,64 +1175,65 @@ type UpdateSystemInfoParams struct {
 	AgentID   *int64 `json:"agent_id,omitempty"`
 }
 
-type GithubEntity struct {
-	Owner            string            `json:"owner,omitempty"`
-	Name             string            `json:"name,omitempty"`
-	ID               string            `json:"id,omitempty"`
-	EntityType       GithubEntityType  `json:"entity_type,omitempty"`
-	Credentials      GithubCredentials `json:"credentials,omitempty"`
-	PoolBalancerType PoolBalancerType  `json:"pool_balancing_type,omitempty"`
-	CreatedAt        time.Time         `json:"created_at,omitempty"`
+type ForgeEntity struct {
+	Owner            string           `json:"owner,omitempty"`
+	Name             string           `json:"name,omitempty"`
+	ID               string           `json:"id,omitempty"`
+	EntityType       ForgeEntityType  `json:"entity_type,omitempty"`
+	Credentials      ForgeCredentials `json:"credentials,omitempty"`
+	PoolBalancerType PoolBalancerType `json:"pool_balancing_type,omitempty"`
+	CreatedAt        time.Time        `json:"created_at,omitempty"`
+	UpdatedAt        time.Time        `json:"updated_at,omitempty"`
 
 	WebhookSecret string `json:"-"`
 }
 
-func (g GithubEntity) GetCreatedAt() time.Time {
+func (g ForgeEntity) GetCreatedAt() time.Time {
 	return g.CreatedAt
 }
 
-func (g GithubEntity) GithubURL() string {
+func (g ForgeEntity) ForgeURL() string {
 	switch g.EntityType {
-	case GithubEntityTypeRepository:
-		return fmt.Sprintf("%s/%s/%s", g.Credentials.BaseURL, g.Owner, g.Name)
-	case GithubEntityTypeOrganization:
-		return fmt.Sprintf("%s/%s", g.Credentials.BaseURL, g.Owner)
-	case GithubEntityTypeEnterprise:
-		return fmt.Sprintf("%s/enterprises/%s", g.Credentials.BaseURL, g.Owner)
+	case ForgeEntityTypeRepository:
+		return fmt.Sprintf("%s/%s/%s", g.Credentials.BaseURL(), g.Owner, g.Name)
+	case ForgeEntityTypeOrganization:
+		return fmt.Sprintf("%s/%s", g.Credentials.BaseURL(), g.Owner)
+	case ForgeEntityTypeEnterprise:
+		return fmt.Sprintf("%s/enterprises/%s", g.Credentials.BaseURL(), g.Owner)
 	}
 	return ""
 }
 
-func (g GithubEntity) GetPoolBalancerType() PoolBalancerType {
+func (g ForgeEntity) GetPoolBalancerType() PoolBalancerType {
 	if g.PoolBalancerType == "" {
 		return PoolBalancerTypeRoundRobin
 	}
 	return g.PoolBalancerType
 }
 
-func (g GithubEntity) LabelScope() string {
+func (g ForgeEntity) LabelScope() string {
 	switch g.EntityType {
-	case GithubEntityTypeRepository:
+	case ForgeEntityTypeRepository:
 		return MetricsLabelRepositoryScope
-	case GithubEntityTypeOrganization:
+	case ForgeEntityTypeOrganization:
 		return MetricsLabelOrganizationScope
-	case GithubEntityTypeEnterprise:
+	case ForgeEntityTypeEnterprise:
 		return MetricsLabelEnterpriseScope
 	}
 	return ""
 }
 
-func (g GithubEntity) String() string {
+func (g ForgeEntity) String() string {
 	switch g.EntityType {
-	case GithubEntityTypeRepository:
+	case ForgeEntityTypeRepository:
 		return fmt.Sprintf("%s/%s", g.Owner, g.Name)
-	case GithubEntityTypeOrganization, GithubEntityTypeEnterprise:
+	case ForgeEntityTypeOrganization, ForgeEntityTypeEnterprise:
 		return g.Owner
 	}
 	return ""
 }
 
-func (g GithubEntity) GetIDAsUUID() (uuid.UUID, error) {
+func (g ForgeEntity) GetIDAsUUID() (uuid.UUID, error) {
 	if g.ID == "" {
 		return uuid.Nil, nil
 	}
@@ -1132,9 +1245,9 @@ func (g GithubEntity) GetIDAsUUID() (uuid.UUID, error) {
 }
 
 // used by swagger client generated code
-type GithubEndpoints []GithubEndpoint
+type ForgeEndpoints []ForgeEndpoint
 
-type GithubEndpoint struct {
+type ForgeEndpoint struct {
 	Name          string    `json:"name,omitempty"`
 	Description   string    `json:"description,omitempty"`
 	APIBaseURL    string    `json:"api_base_url,omitempty"`
@@ -1145,6 +1258,4 @@ type GithubEndpoint struct {
 	UpdatedAt     time.Time `json:"updated_at,omitempty"`
 
 	EndpointType EndpointType `json:"endpoint_type,omitempty"`
-
-	Credentials []GithubCredentials `json:"credentials,omitempty"`
 }

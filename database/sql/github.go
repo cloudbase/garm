@@ -88,8 +88,8 @@ func (s *sqlDatabase) sqlToCommonGithubCredentials(creds GithubCredentials) (par
 	return commonCreds, nil
 }
 
-func (s *sqlDatabase) sqlToCommonGithubEndpoint(ep GithubEndpoint) (params.GithubEndpoint, error) {
-	return params.GithubEndpoint{
+func (s *sqlDatabase) sqlToCommonGithubEndpoint(ep GithubEndpoint) (params.ForgeEndpoint, error) {
+	return params.ForgeEndpoint{
 		Name:          ep.Name,
 		Description:   ep.Description,
 		APIBaseURL:    ep.APIBaseURL,
@@ -115,7 +115,7 @@ func getUIDFromContext(ctx context.Context) (uuid.UUID, error) {
 	return asUUID, nil
 }
 
-func (s *sqlDatabase) CreateGithubEndpoint(_ context.Context, param params.CreateGithubEndpointParams) (ghEndpoint params.GithubEndpoint, err error) {
+func (s *sqlDatabase) CreateGithubEndpoint(_ context.Context, param params.CreateGithubEndpointParams) (ghEndpoint params.ForgeEndpoint, err error) {
 	defer func() {
 		if err == nil {
 			s.sendNotify(common.GithubEndpointEntityType, common.CreateOperation, ghEndpoint)
@@ -141,23 +141,23 @@ func (s *sqlDatabase) CreateGithubEndpoint(_ context.Context, param params.Creat
 		return nil
 	})
 	if err != nil {
-		return params.GithubEndpoint{}, errors.Wrap(err, "creating github endpoint")
+		return params.ForgeEndpoint{}, errors.Wrap(err, "creating github endpoint")
 	}
 	ghEndpoint, err = s.sqlToCommonGithubEndpoint(endpoint)
 	if err != nil {
-		return params.GithubEndpoint{}, errors.Wrap(err, "converting github endpoint")
+		return params.ForgeEndpoint{}, errors.Wrap(err, "converting github endpoint")
 	}
 	return ghEndpoint, nil
 }
 
-func (s *sqlDatabase) ListGithubEndpoints(_ context.Context) ([]params.GithubEndpoint, error) {
+func (s *sqlDatabase) ListGithubEndpoints(_ context.Context) ([]params.ForgeEndpoint, error) {
 	var endpoints []GithubEndpoint
 	err := s.conn.Find(&endpoints).Error
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching github endpoints")
 	}
 
-	var ret []params.GithubEndpoint
+	var ret []params.ForgeEndpoint
 	for _, ep := range endpoints {
 		commonEp, err := s.sqlToCommonGithubEndpoint(ep)
 		if err != nil {
@@ -168,9 +168,9 @@ func (s *sqlDatabase) ListGithubEndpoints(_ context.Context) ([]params.GithubEnd
 	return ret, nil
 }
 
-func (s *sqlDatabase) UpdateGithubEndpoint(_ context.Context, name string, param params.UpdateGithubEndpointParams) (ghEndpoint params.GithubEndpoint, err error) {
+func (s *sqlDatabase) UpdateGithubEndpoint(_ context.Context, name string, param params.UpdateGithubEndpointParams) (ghEndpoint params.ForgeEndpoint, err error) {
 	if name == defaultGithubEndpoint {
-		return params.GithubEndpoint{}, errors.Wrap(runnerErrors.ErrBadRequest, "cannot update default github endpoint")
+		return params.ForgeEndpoint{}, errors.Wrap(runnerErrors.ErrBadRequest, "cannot update default github endpoint")
 	}
 
 	defer func() {
@@ -213,24 +213,24 @@ func (s *sqlDatabase) UpdateGithubEndpoint(_ context.Context, name string, param
 		return nil
 	})
 	if err != nil {
-		return params.GithubEndpoint{}, errors.Wrap(err, "updating github endpoint")
+		return params.ForgeEndpoint{}, errors.Wrap(err, "updating github endpoint")
 	}
 	ghEndpoint, err = s.sqlToCommonGithubEndpoint(endpoint)
 	if err != nil {
-		return params.GithubEndpoint{}, errors.Wrap(err, "converting github endpoint")
+		return params.ForgeEndpoint{}, errors.Wrap(err, "converting github endpoint")
 	}
 	return ghEndpoint, nil
 }
 
-func (s *sqlDatabase) GetGithubEndpoint(_ context.Context, name string) (params.GithubEndpoint, error) {
+func (s *sqlDatabase) GetGithubEndpoint(_ context.Context, name string) (params.ForgeEndpoint, error) {
 	var endpoint GithubEndpoint
 
 	err := s.conn.Where("name = ?", name).First(&endpoint).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return params.GithubEndpoint{}, errors.Wrap(runnerErrors.ErrNotFound, "github endpoint not found")
+			return params.ForgeEndpoint{}, errors.Wrap(runnerErrors.ErrNotFound, "github endpoint not found")
 		}
-		return params.GithubEndpoint{}, errors.Wrap(err, "fetching github endpoint")
+		return params.ForgeEndpoint{}, errors.Wrap(err, "fetching github endpoint")
 	}
 
 	return s.sqlToCommonGithubEndpoint(endpoint)
@@ -243,7 +243,7 @@ func (s *sqlDatabase) DeleteGithubEndpoint(_ context.Context, name string) (err 
 
 	defer func() {
 		if err == nil {
-			s.sendNotify(common.GithubEndpointEntityType, common.DeleteOperation, params.GithubEndpoint{Name: name})
+			s.sendNotify(common.GithubEndpointEntityType, common.DeleteOperation, params.ForgeEndpoint{Name: name})
 		}
 	}()
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
@@ -329,9 +329,9 @@ func (s *sqlDatabase) CreateGithubCredentials(ctx context.Context, param params.
 		var data []byte
 		var err error
 		switch param.AuthType {
-		case params.GithubAuthTypePAT:
+		case params.ForgeAuthTypePAT:
 			data, err = s.marshalAndSeal(param.PAT)
-		case params.GithubAuthTypeApp:
+		case params.ForgeAuthTypeApp:
 			data, err = s.marshalAndSeal(param.App)
 		default:
 			return errors.Wrap(runnerErrors.ErrBadRequest, "invalid auth type")
@@ -495,7 +495,7 @@ func (s *sqlDatabase) UpdateGithubCredentials(ctx context.Context, id uint, para
 		var data []byte
 		var err error
 		switch creds.AuthType {
-		case params.GithubAuthTypePAT:
+		case params.ForgeAuthTypePAT:
 			if param.PAT != nil {
 				data, err = s.marshalAndSeal(param.PAT)
 			}
@@ -503,7 +503,7 @@ func (s *sqlDatabase) UpdateGithubCredentials(ctx context.Context, id uint, para
 			if param.App != nil {
 				return errors.Wrap(runnerErrors.ErrBadRequest, "cannot update app credentials for PAT")
 			}
-		case params.GithubAuthTypeApp:
+		case params.ForgeAuthTypeApp:
 			if param.App != nil {
 				data, err = s.marshalAndSeal(param.App)
 			}

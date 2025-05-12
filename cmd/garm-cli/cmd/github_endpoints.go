@@ -252,7 +252,7 @@ func parseCreateParams() (params.CreateGithubEndpointParams, error) {
 	return ret, nil
 }
 
-func formatEndpoints(endpoints params.GithubEndpoints) {
+func formatEndpoints(endpoints params.ForgeEndpoints) {
 	if outputFormat == common.OutputFormatJSON {
 		printAsJSON(endpoints)
 		return
@@ -274,7 +274,7 @@ func formatEndpoints(endpoints params.GithubEndpoints) {
 	fmt.Println(t.Render())
 }
 
-func formatOneEndpoint(endpoint params.GithubEndpoint) {
+func formatOneEndpoint(endpoint params.ForgeEndpoint) {
 	if outputFormat == common.OutputFormatJSON {
 		printAsJSON(endpoint)
 		return

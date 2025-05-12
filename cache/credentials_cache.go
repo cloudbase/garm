@@ -36,7 +36,7 @@ func (g *GithubCredentials) SetCredentials(credentials params.GithubCredentials)
 	defer g.mux.Unlock()
 
 	g.cache[credentials.ID] = credentials
-	UpdateCredentialsInAffectedEntities(credentials)
+	UpdateCredentialsInAffectedEntities(credentials.GetForgeCredentials())
 }
 
 func (g *GithubCredentials) GetCredentials(id uint) (params.GithubCredentials, bool) {

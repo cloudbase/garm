@@ -127,11 +127,11 @@ func (c *Controller) handleEntityEvent(event dbCommon.ChangePayload) {
 	var entityGetter params.EntityGetter
 	var ok bool
 	switch c.Entity.EntityType {
-	case params.GithubEntityTypeRepository:
+	case params.ForgeEntityTypeRepository:
 		entityGetter, ok = event.Payload.(params.Repository)
-	case params.GithubEntityTypeOrganization:
+	case params.ForgeEntityTypeOrganization:
 		entityGetter, ok = event.Payload.(params.Organization)
-	case params.GithubEntityTypeEnterprise:
+	case params.ForgeEntityTypeEnterprise:
 		entityGetter, ok = event.Payload.(params.Enterprise)
 	}
 	if !ok {

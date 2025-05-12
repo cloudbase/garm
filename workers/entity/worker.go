@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/sync/errgroup"
+
 	"github.com/cloudbase/garm/cache"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/database/watcher"
@@ -16,10 +18,9 @@ import (
 	"github.com/cloudbase/garm/util/github"
 	"github.com/cloudbase/garm/util/github/scalesets"
 	"github.com/cloudbase/garm/workers/scaleset"
-	"golang.org/x/sync/errgroup"
 )
 
-func NewWorker(ctx context.Context, store dbCommon.Store, entity params.GithubEntity, providers map[string]common.Provider) (*Worker, error) {
+func NewWorker(ctx context.Context, store dbCommon.Store, entity params.ForgeEntity, providers map[string]common.Provider) (*Worker, error) {
 	consumerID := fmt.Sprintf("entity-worker-%s", entity.String())
 
 	ctx = garmUtil.WithSlogContext(
@@ -43,7 +44,7 @@ type Worker struct {
 	store    dbCommon.Store
 	ghCli    common.GithubClient
 
-	Entity             params.GithubEntity
+	Entity             params.ForgeEntity
 	providers          map[string]common.Provider
 	scaleSetController *scaleset.Controller
 
