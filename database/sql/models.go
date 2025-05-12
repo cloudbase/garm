@@ -381,6 +381,8 @@ type GithubEndpoint struct {
 	UpdatedAt time.Time
 	DeletedAt gorm.DeletedAt `gorm:"index"`
 
+	EndpointType params.EndpointType
+
 	Description   string `gorm:"type:text"`
 	APIBaseURL    string `gorm:"type:text collate nocase"`
 	UploadBaseURL string `gorm:"type:text collate nocase"`

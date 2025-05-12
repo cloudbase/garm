@@ -409,6 +409,17 @@ func (s *sqlDatabase) migrateDB() error {
 		}
 	}
 
+	if s.conn.Migrator().HasTable(&GithubEndpoint{}) {
+		if !s.conn.Migrator().HasColumn(&GithubEndpoint{}, "endpoint_type") {
+			if err := s.conn.Migrator().AutoMigrate(&GithubEndpoint{}); err != nil {
+				return errors.Wrap(err, "migrating github endpoints")
+			}
+			if err := s.conn.Exec("update github_endpoints set endpoint_type = 'github' where endpoint_type is null").Error; err != nil {
+				return errors.Wrap(err, "updating github endpoints")
+			}
+		}
+	}
+
 	var needsCredentialMigration bool
 	if !s.conn.Migrator().HasTable(&GithubCredentials{}) || !s.conn.Migrator().HasTable(&GithubEndpoint{}) {
 		needsCredentialMigration = true

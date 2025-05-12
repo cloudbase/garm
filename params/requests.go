@@ -281,12 +281,21 @@ type CreateGithubEndpointParams struct {
 	APIBaseURL    string `json:"api_base_url,omitempty"`
 	UploadBaseURL string `json:"upload_base_url,omitempty"`
 	BaseURL       string `json:"base_url,omitempty"`
+	EndpointType  string `json:"endpoint_type,omitempty"`
 	CACertBundle  []byte `json:"ca_cert_bundle,omitempty"`
 }
 
 func (c CreateGithubEndpointParams) Validate() error {
 	if c.APIBaseURL == "" {
 		return runnerErrors.NewBadRequestError("missing api_base_url")
+	}
+
+	if c.EndpointType != "" {
+		switch c.EndpointType {
+		case string(GithubEndpointType), string(GiteaEndpointType):
+		default:
+			return runnerErrors.NewBadRequestError("invalid endpoint_type: %s", c.EndpointType)
+		}
 	}
 
 	url, err := url.Parse(c.APIBaseURL)
@@ -299,19 +308,21 @@ func (c CreateGithubEndpointParams) Validate() error {
 		return runnerErrors.NewBadRequestError("invalid api_base_url")
 	}
 
-	if c.UploadBaseURL == "" {
-		return runnerErrors.NewBadRequestError("missing upload_base_url")
-	}
+	if c.EndpointType == string(GithubEndpointType) {
+		if c.UploadBaseURL == "" {
+			return runnerErrors.NewBadRequestError("missing upload_base_url")
+		}
 
-	url, err = url.Parse(c.UploadBaseURL)
-	if err != nil || url.Scheme == "" || url.Host == "" {
-		return runnerErrors.NewBadRequestError("invalid upload_base_url")
-	}
+		url, err = url.Parse(c.UploadBaseURL)
+		if err != nil || url.Scheme == "" || url.Host == "" {
+			return runnerErrors.NewBadRequestError("invalid upload_base_url")
+		}
 
-	switch url.Scheme {
-	case httpsScheme, httpScheme:
-	default:
-		return runnerErrors.NewBadRequestError("invalid api_base_url")
+		switch url.Scheme {
+		case httpsScheme, httpScheme:
+		default:
+			return runnerErrors.NewBadRequestError("invalid api_base_url")
+		}
 	}
 
 	if c.BaseURL == "" {

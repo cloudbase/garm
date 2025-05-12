@@ -44,6 +44,7 @@ type (
 	RunnerStatus        string
 	WebhookEndpointType string
 	GithubAuthType      string
+	EndpointType        string
 	PoolBalancerType    string
 	ScaleSetState       string
 	ScaleSetMessageType string
@@ -74,6 +75,11 @@ const (
 	// PoolBalancerTypeNone denotes to the default behavior of the pool manager, which is
 	// to use the round robin balancer.
 	PoolBalancerTypeNone PoolBalancerType = ""
+)
+
+const (
+	GithubEndpointType EndpointType = "github"
+	GiteaEndpointType  EndpointType = "gitea"
 )
 
 const (
@@ -1137,6 +1143,8 @@ type GithubEndpoint struct {
 	CACertBundle  []byte    `json:"ca_cert_bundle,omitempty"`
 	CreatedAt     time.Time `json:"created_at,omitempty"`
 	UpdatedAt     time.Time `json:"updated_at,omitempty"`
+
+	EndpointType EndpointType `json:"endpoint_type,omitempty"`
 
 	Credentials []GithubCredentials `json:"credentials,omitempty"`
 }

@@ -97,6 +97,7 @@ func (s *sqlDatabase) sqlToCommonGithubEndpoint(ep GithubEndpoint) (params.Githu
 		UploadBaseURL: ep.UploadBaseURL,
 		CACertBundle:  ep.CACertBundle,
 		CreatedAt:     ep.CreatedAt,
+		EndpointType:  ep.EndpointType,
 		UpdatedAt:     ep.UpdatedAt,
 	}, nil
 }
