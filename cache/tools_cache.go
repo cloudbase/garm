@@ -68,7 +68,7 @@ func (g *GithubToolsCache) Set(entity params.ForgeEntity, tools []commonParams.R
 	}
 
 	if entity.Credentials.ForgeType == params.GithubEndpointType {
-		forgeTools.expiresAt = time.Now().Add(24 * time.Hour)
+		forgeTools.expiresAt = time.Now().Add(1 * time.Hour)
 	}
 
 	g.entities[entity.ID] = forgeTools

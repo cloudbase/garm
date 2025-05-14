@@ -290,8 +290,11 @@ func (s *sqlDatabase) getGithubCredentialsByName(ctx context.Context, tx *gorm.D
 	if detailed {
 		q = q.
 			Preload("Repositories").
+			Preload("Repositories.Credentials").
 			Preload("Organizations").
-			Preload("Enterprises")
+			Preload("Organizations.Credentials").
+			Preload("Enterprises").
+			Preload("Enterprises.Credentials")
 	}
 
 	userID, err := getUIDFromContext(ctx)
@@ -316,7 +319,6 @@ func (s *sqlDatabase) GetGithubCredentialsByName(ctx context.Context, name strin
 	if err != nil {
 		return params.ForgeCredentials{}, errors.Wrap(err, "fetching github credentials")
 	}
-
 	return s.sqlToCommonForgeCredentials(creds)
 }
 
@@ -327,8 +329,11 @@ func (s *sqlDatabase) GetGithubCredentials(ctx context.Context, id uint, detaile
 	if detailed {
 		q = q.
 			Preload("Repositories").
+			Preload("Repositories.Credentials").
 			Preload("Organizations").
-			Preload("Enterprises")
+			Preload("Organizations.Credentials").
+			Preload("Enterprises").
+			Preload("Enterprises.Credentials")
 	}
 
 	if !auth.IsAdmin(ctx) {

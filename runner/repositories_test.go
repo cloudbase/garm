@@ -116,6 +116,7 @@ func (s *RepoTestSuite) SetupTest() {
 			Name:            "test-repo-create",
 			CredentialsName: s.testCreds.Name,
 			WebhookSecret:   "test-create-repo-webhook-secret",
+			ForgeType:       params.GithubEndpointType,
 		},
 		CreatePoolParams: params.CreatePoolParams{
 			ProviderName:           "test-provider",

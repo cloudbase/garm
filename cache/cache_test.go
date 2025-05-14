@@ -22,6 +22,11 @@ func (c *CacheTestSuite) SetupTest() {
 		EntityType: params.ForgeEntityTypeOrganization,
 		Name:       "test",
 		Owner:      "test",
+		Credentials: params.ForgeCredentials{
+			ID:        1,
+			Name:      "test",
+			ForgeType: params.GithubEndpointType,
+		},
 	}
 }
 
@@ -50,7 +55,6 @@ func (c *CacheTestSuite) TestSetCacheWorks() {
 			DownloadURL: garmTesting.Ptr("https://example.com"),
 		},
 	}
-
 	c.Require().NotNil(githubToolsCache)
 	c.Require().Len(githubToolsCache.entities, 0)
 	SetGithubToolsCache(c.entity, tools)
@@ -71,13 +75,17 @@ func (c *CacheTestSuite) TestTimedOutToolsCache() {
 	c.Require().NotNil(githubToolsCache)
 	c.Require().Len(githubToolsCache.entities, 0)
 	SetGithubToolsCache(c.entity, tools)
-	c.Require().Len(githubToolsCache.entities, 1)
 	entity := githubToolsCache.entities[c.entity.ID]
-	entity.updatedAt = entity.updatedAt.Add(-2 * time.Hour)
+
+	c.Require().Equal(int64(entity.expiresAt.Sub(entity.updatedAt).Minutes()), int64(60))
+	c.Require().Len(githubToolsCache.entities, 1)
+	entity = githubToolsCache.entities[c.entity.ID]
+	entity.updatedAt = entity.updatedAt.Add(-3 * time.Hour)
+	entity.expiresAt = entity.updatedAt.Add(-2 * time.Hour)
 	githubToolsCache.entities[c.entity.ID] = entity
 
 	cachedTools, err := GetGithubToolsCache(c.entity.ID)
-	c.Require().NoError(err)
+	c.Require().Error(err)
 	c.Require().Nil(cachedTools)
 }
 
@@ -85,7 +93,7 @@ func (c *CacheTestSuite) TestGetInexistentCache() {
 	c.Require().NotNil(githubToolsCache)
 	c.Require().Len(githubToolsCache.entities, 0)
 	cachedTools, err := GetGithubToolsCache(c.entity.ID)
-	c.Require().NoError(err)
+	c.Require().Error(err)
 	c.Require().Nil(cachedTools)
 }
 
@@ -280,7 +288,8 @@ func (c *CacheTestSuite) TestReplaceEntityPools() {
 		Name:       "test",
 		Owner:      "test",
 		Credentials: params.ForgeCredentials{
-			ID: 1,
+			ID:        1,
+			ForgeType: params.GithubEndpointType,
 		},
 	}
 	pool1 := params.Pool{
@@ -291,8 +300,9 @@ func (c *CacheTestSuite) TestReplaceEntityPools() {
 	}
 
 	credentials := params.ForgeCredentials{
-		ID:   1,
-		Name: "test",
+		ID:        1,
+		Name:      "test",
+		ForgeType: params.GithubEndpointType,
 	}
 	SetGithubCredentials(credentials)
 
