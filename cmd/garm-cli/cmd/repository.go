@@ -357,13 +357,17 @@ func formatRepositories(repos []params.Repository) {
 		return
 	}
 	t := table.NewWriter()
-	header := table.Row{"ID", "Owner", "Name", "Endpoint", "Credentials name", "Pool Balancer Type", "Pool mgr running"}
+	header := table.Row{"ID", "Owner", "Name", "Endpoint", "Credentials name", "Pool Balancer Type", "Forge type", "Pool mgr running"}
 	if long {
 		header = append(header, "Created At", "Updated At")
 	}
 	t.AppendHeader(header)
 	for _, val := range repos {
-		row := table.Row{val.ID, val.Owner, val.Name, val.Endpoint.Name, val.GetCredentialsName(), val.GetBalancerType(), val.PoolManagerStatus.IsRunning}
+		forgeType := val.Endpoint.EndpointType
+		if forgeType == "" {
+			forgeType = params.GithubEndpointType
+		}
+		row := table.Row{val.ID, val.Owner, val.Name, val.Endpoint.Name, val.GetCredentialsName(), val.GetBalancerType(), forgeType, val.PoolManagerStatus.IsRunning}
 		if long {
 			row = append(row, val.CreatedAt, val.UpdatedAt)
 		}
