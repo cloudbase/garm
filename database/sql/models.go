@@ -171,7 +171,7 @@ type Repository struct {
 	EndpointName *string        `gorm:"index:idx_owner_nocase,unique,collate:nocase"`
 	Endpoint     GithubEndpoint `gorm:"foreignKey:EndpointName;constraint:OnDelete:SET NULL"`
 
-	Events []RepositoryEvent `gorm:"foreignKey:RepoID;constraint:OnDelete:CASCADE,OnUpdate:CASCADE;"`
+	Events []*RepositoryEvent `gorm:"foreignKey:RepoID;constraint:OnDelete:CASCADE,OnUpdate:CASCADE;"`
 }
 
 type OrganizationEvent struct {
@@ -203,7 +203,7 @@ type Organization struct {
 	EndpointName *string        `gorm:"index:idx_org_name_nocase,collate:nocase"`
 	Endpoint     GithubEndpoint `gorm:"foreignKey:EndpointName;constraint:OnDelete:SET NULL"`
 
-	Events []OrganizationEvent `gorm:"foreignKey:OrgID;constraint:OnDelete:CASCADE,OnUpdate:CASCADE;"`
+	Events []*OrganizationEvent `gorm:"foreignKey:OrgID;constraint:OnDelete:CASCADE,OnUpdate:CASCADE;"`
 }
 
 type EnterpriseEvent struct {
@@ -233,7 +233,7 @@ type Enterprise struct {
 	EndpointName *string        `gorm:"index:idx_ent_name_nocase,collate:nocase"`
 	Endpoint     GithubEndpoint `gorm:"foreignKey:EndpointName;constraint:OnDelete:SET NULL"`
 
-	Events []EnterpriseEvent `gorm:"foreignKey:EnterpriseID;constraint:OnDelete:CASCADE,OnUpdate:CASCADE;"`
+	Events []*EnterpriseEvent `gorm:"foreignKey:EnterpriseID;constraint:OnDelete:CASCADE,OnUpdate:CASCADE;"`
 }
 
 type Address struct {
