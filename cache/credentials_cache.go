@@ -6,8 +6,10 @@ import (
 	"github.com/cloudbase/garm/params"
 )
 
-var credentialsCache *CredentialCache
-var giteaCredentialsCache *CredentialCache
+var (
+	credentialsCache      *CredentialCache
+	giteaCredentialsCache *CredentialCache
+)
 
 func init() {
 	ghCredentialsCache := &CredentialCache{

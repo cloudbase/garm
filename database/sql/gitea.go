@@ -4,12 +4,13 @@ import (
 	"context"
 	"log/slog"
 
+	"github.com/pkg/errors"
+	"gorm.io/gorm"
+
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/params"
-	"github.com/pkg/errors"
-	"gorm.io/gorm"
 )
 
 func (s *sqlDatabase) CreateGiteaEndpoint(_ context.Context, param params.CreateGiteaEndpointParams) (ghEndpoint params.ForgeEndpoint, err error) {

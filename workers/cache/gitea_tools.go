@@ -8,8 +8,9 @@ import (
 	"strings"
 	"time"
 
-	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"golang.org/x/mod/semver"
+
+	commonParams "github.com/cloudbase/garm-provider-common/params"
 )
 
 const (
@@ -20,17 +21,15 @@ const (
 	GiteaRunnerMinimumVersion = "v0.2.12"
 )
 
-var (
-	githubArchMapping map[string]string = map[string]string{
-		"x86_64":  "x64",
-		"amd64":   "x64",
-		"armv7l":  "arm",
-		"aarch64": "arm64",
-		"x64":     "x64",
-		"arm":     "arm",
-		"arm64":   "arm64",
-	}
-)
+var githubArchMapping = map[string]string{
+	"x86_64":  "x64",
+	"amd64":   "x64",
+	"armv7l":  "arm",
+	"aarch64": "arm64",
+	"x64":     "x64",
+	"arm":     "arm",
+	"arm64":   "arm64",
+}
 
 var nightlyActRunner = GiteaEntityTool{
 	TagName:    "nightly",
