@@ -1099,13 +1099,18 @@ func (g ForgeEntity) GetCreatedAt() time.Time {
 }
 
 func (g ForgeEntity) ForgeURL() string {
-	switch g.EntityType {
-	case ForgeEntityTypeRepository:
-		return fmt.Sprintf("%s/%s/%s", g.Credentials.BaseURL, g.Owner, g.Name)
-	case ForgeEntityTypeOrganization:
-		return fmt.Sprintf("%s/%s", g.Credentials.BaseURL, g.Owner)
-	case ForgeEntityTypeEnterprise:
-		return fmt.Sprintf("%s/enterprises/%s", g.Credentials.BaseURL, g.Owner)
+	switch g.Credentials.ForgeType {
+	case GiteaEndpointType:
+		return g.Credentials.Endpoint.APIBaseURL
+	default:
+		switch g.EntityType {
+		case ForgeEntityTypeRepository:
+			return fmt.Sprintf("%s/%s/%s", g.Credentials.BaseURL, g.Owner, g.Name)
+		case ForgeEntityTypeOrganization:
+			return fmt.Sprintf("%s/%s", g.Credentials.BaseURL, g.Owner)
+		case ForgeEntityTypeEnterprise:
+			return fmt.Sprintf("%s/enterprises/%s", g.Credentials.BaseURL, g.Owner)
+		}
 	}
 	return ""
 }

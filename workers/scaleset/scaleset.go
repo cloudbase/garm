@@ -776,8 +776,11 @@ func (w *Worker) waitForToolsOrCancel() (hasTools, stopped bool) {
 		if err != nil {
 			slog.ErrorContext(w.ctx, "error getting entity", "error", err)
 		}
-		_, ok := cache.GetGithubToolsCache(entity.ID)
-		return ok, false
+		if _, err := cache.GetGithubToolsCache(entity.ID); err != nil {
+			slog.DebugContext(w.ctx, "tools not found in cache; waiting for tools")
+			return false, false
+		}
+		return true, false
 	case <-w.quit:
 		return false, true
 	case <-w.ctx.Done():

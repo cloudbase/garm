@@ -107,8 +107,15 @@ func (a *APIController) handleWorkflowJobEvent(ctx context.Context, w http.Respo
 
 	signature := r.Header.Get("X-Hub-Signature-256")
 	hookType := r.Header.Get("X-Github-Hook-Installation-Target-Type")
+	giteaTargetType := r.Header.Get("X-Gitea-Hook-Installation-Target-Type")
 
-	if err := a.r.DispatchWorkflowJob(hookType, signature, body); err != nil {
+	forgeType := runnerParams.GithubEndpointType
+	if giteaTargetType != "" {
+		forgeType = runnerParams.GiteaEndpointType
+		hookType = giteaTargetType
+	}
+
+	if err := a.r.DispatchWorkflowJob(hookType, signature, forgeType, body); err != nil {
 		switch {
 		case errors.Is(err, gErrors.ErrNotFound):
 			metrics.WebhooksReceived.WithLabelValues(

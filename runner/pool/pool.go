@@ -47,15 +47,15 @@ import (
 )
 
 var (
-	poolIDLabelprefix     = "runner-pool-id:"
-	controllerLabelPrefix = "runner-controller-id:"
+	poolIDLabelprefix     = "runner-pool-id"
+	controllerLabelPrefix = "runner-controller-id"
 	// We tag runners that have been spawned as a result of a queued job with the job ID
 	// that spawned them. There is no way to guarantee that the runner spawned in response to a particular
 	// job, will be picked up by that job. We mark them so as in the very likely event that the runner
 	// has picked up a different job, we can clear the lock on the job that spaned it.
 	// The job it picked up would already be transitioned to in_progress so it will be ignored by the
 	// consume loop.
-	jobLabelPrefix = "in_response_to_job:"
+	jobLabelPrefix = "in_response_to_job"
 )
 
 const (
@@ -296,7 +296,8 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 func jobIDFromLabels(labels []string) int64 {
 	for _, lbl := range labels {
 		if strings.HasPrefix(lbl, jobLabelPrefix) {
-			jobID, err := strconv.ParseInt(lbl[len(jobLabelPrefix):], 10, 64)
+			trimLength := min(len(jobLabelPrefix)+1, len(lbl))
+			jobID, err := strconv.ParseInt(lbl[trimLength:], 10, 64)
 			if err != nil {
 				return 0
 			}
@@ -361,21 +362,21 @@ func (r *basePoolManager) startLoopForFunction(f func() error, interval time.Dur
 }
 
 func (r *basePoolManager) updateTools() error {
-	// Update tools cache.
-	tools, err := r.FetchTools()
+	tools, err := cache.GetGithubToolsCache(r.entity.ID)
 	if err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(
 			r.ctx, "failed to update tools for entity", "entity", r.entity.String())
 		r.SetPoolRunningState(false, err.Error())
 		return fmt.Errorf("failed to update tools for entity %s: %w", r.entity.String(), err)
 	}
+
 	r.mux.Lock()
 	r.tools = tools
 	r.mux.Unlock()
 
 	slog.DebugContext(r.ctx, "successfully updated tools")
 	r.SetPoolRunningState(true, "")
-	return err
+	return nil
 }
 
 // cleanupOrphanedProviderRunners compares runners in github with local runners and removes
@@ -995,11 +996,11 @@ func (r *basePoolManager) paramsWorkflowJobToParamsJob(job params.WorkflowJob) (
 }
 
 func (r *basePoolManager) poolLabel(poolID string) string {
-	return fmt.Sprintf("%s%s", poolIDLabelprefix, poolID)
+	return fmt.Sprintf("%s=%s", poolIDLabelprefix, poolID)
 }
 
 func (r *basePoolManager) controllerLabel() string {
-	return fmt.Sprintf("%s%s", controllerLabelPrefix, r.controllerInfo.ControllerID.String())
+	return fmt.Sprintf("%s=%s", controllerLabelPrefix, r.controllerInfo.ControllerID.String())
 }
 
 func (r *basePoolManager) updateArgsFromProviderInstance(providerInstance commonParams.ProviderInstance) params.UpdateInstanceParams {
@@ -1613,6 +1614,16 @@ func (r *basePoolManager) Start() error {
 	initialToolUpdate := make(chan struct{}, 1)
 	go func() {
 		slog.Info("running initial tool update")
+		for {
+			slog.DebugContext(r.ctx, "waiting for tools to be available")
+			hasTools, stopped := r.waitForToolsOrCancel()
+			if stopped {
+				return
+			}
+			if hasTools {
+				break
+			}
+		}
 		if err := r.updateTools(); err != nil {
 			slog.With(slog.Any("error", err)).Error("failed to update tools")
 		}
@@ -1804,7 +1815,7 @@ func (r *basePoolManager) consumeQueuedJobs() error {
 		}
 
 		jobLabels := []string{
-			fmt.Sprintf("%s%d", jobLabelPrefix, job.ID),
+			fmt.Sprintf("%s=%d", jobLabelPrefix, job.ID),
 		}
 		for i := 0; i < poolRR.Len(); i++ {
 			pool, err := poolRR.Next()

@@ -49,7 +49,7 @@ func (t *toolsUpdater) Start() error {
 	t.running = true
 	t.quit = make(chan struct{})
 
-	slog.DebugContext(t.ctx, "starting tools updater", "entity", t.entity.String(), "forge_type", t.entity.Credentials)
+	slog.DebugContext(t.ctx, "starting tools updater", "entity", t.entity.String(), "forge_type", t.entity.Credentials.ForgeType)
 
 	switch t.entity.Credentials.ForgeType {
 	case params.GithubEndpointType:

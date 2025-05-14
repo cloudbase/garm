@@ -55,8 +55,8 @@ func (c *CacheTestSuite) TestSetCacheWorks() {
 	c.Require().Len(githubToolsCache.entities, 0)
 	SetGithubToolsCache(c.entity, tools)
 	c.Require().Len(githubToolsCache.entities, 1)
-	cachedTools, ok := GetGithubToolsCache(c.entity.ID)
-	c.Require().True(ok)
+	cachedTools, err := GetGithubToolsCache(c.entity.ID)
+	c.Require().NoError(err)
 	c.Require().Len(cachedTools, 1)
 	c.Require().Equal(tools[0].GetDownloadURL(), cachedTools[0].GetDownloadURL())
 }
@@ -76,16 +76,16 @@ func (c *CacheTestSuite) TestTimedOutToolsCache() {
 	entity.updatedAt = entity.updatedAt.Add(-2 * time.Hour)
 	githubToolsCache.entities[c.entity.ID] = entity
 
-	cachedTools, ok := GetGithubToolsCache(c.entity.ID)
-	c.Require().False(ok)
+	cachedTools, err := GetGithubToolsCache(c.entity.ID)
+	c.Require().NoError(err)
 	c.Require().Nil(cachedTools)
 }
 
 func (c *CacheTestSuite) TestGetInexistentCache() {
 	c.Require().NotNil(githubToolsCache)
 	c.Require().Len(githubToolsCache.entities, 0)
-	cachedTools, ok := GetGithubToolsCache(c.entity.ID)
-	c.Require().False(ok)
+	cachedTools, err := GetGithubToolsCache(c.entity.ID)
+	c.Require().NoError(err)
 	c.Require().Nil(cachedTools)
 }
 

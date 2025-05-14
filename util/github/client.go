@@ -229,6 +229,7 @@ func (g *githubClient) ListEntityRunnerApplicationDownloads(ctx context.Context)
 }
 
 func parseError(response *github.Response, err error) error {
+	slog.Debug("parsing error", "status_code", response.StatusCode, "response", response, "error", err)
 	switch response.StatusCode {
 	case http.StatusNotFound:
 		return runnerErrors.ErrNotFound
@@ -251,6 +252,10 @@ func parseError(response *github.Response, err error) error {
 				case http.StatusUnprocessableEntity:
 					return runnerErrors.ErrBadRequest
 				default:
+					// ugly hack. Gitea returns 500 if we try to remove a runner that does not exist.
+					if strings.Contains(err.Error(), "does not exist") {
+						return runnerErrors.ErrNotFound
+					}
 					return err
 				}
 			}
