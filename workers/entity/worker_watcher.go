@@ -63,12 +63,11 @@ func (w *Worker) handleEntityEventPayload(event dbCommon.ChangePayload) {
 }
 
 func (w *Worker) handleEntityCredentialsEventPayload(event dbCommon.ChangePayload) {
-	var credsGetter params.ForgeCredentialsGetter
+	var creds params.ForgeCredentials
 	var ok bool
-
 	switch event.EntityType {
 	case dbCommon.GithubCredentialsEntityType:
-		credsGetter, ok = event.Payload.(params.GithubCredentials)
+		creds, ok = event.Payload.(params.ForgeCredentials)
 	default:
 		slog.ErrorContext(w.ctx, "invalid entity type", "entity_type", event.EntityType)
 		return
@@ -78,7 +77,7 @@ func (w *Worker) handleEntityCredentialsEventPayload(event dbCommon.ChangePayloa
 		return
 	}
 
-	credentials := credsGetter.GetForgeCredentials()
+	credentials := creds
 
 	switch event.Operation {
 	case dbCommon.UpdateOperation:

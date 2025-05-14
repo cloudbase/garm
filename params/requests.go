@@ -45,6 +45,16 @@ type CreateRepoParams struct {
 	CredentialsName  string           `json:"credentials_name,omitempty"`
 	WebhookSecret    string           `json:"webhook_secret,omitempty"`
 	PoolBalancerType PoolBalancerType `json:"pool_balancer_type,omitempty"`
+	ForgeType        EndpointType     `json:"forge_type,omitempty"`
+}
+
+func (c CreateRepoParams) GetForgeType() EndpointType {
+	switch c.ForgeType {
+	case GithubEndpointType, GiteaEndpointType:
+		return c.ForgeType
+	default:
+		return GithubEndpointType
+	}
 }
 
 func (c *CreateRepoParams) Validate() error {
@@ -77,6 +87,16 @@ type CreateOrgParams struct {
 	CredentialsName  string           `json:"credentials_name,omitempty"`
 	WebhookSecret    string           `json:"webhook_secret,omitempty"`
 	PoolBalancerType PoolBalancerType `json:"pool_balancer_type,omitempty"`
+	ForgeType        EndpointType     `json:"forge_type,omitempty"`
+}
+
+func (c CreateOrgParams) GetForgeType() EndpointType {
+	switch c.ForgeType {
+	case GithubEndpointType, GiteaEndpointType:
+		return c.ForgeType
+	default:
+		return GithubEndpointType
+	}
 }
 
 func (c *CreateOrgParams) Validate() error {
@@ -281,21 +301,12 @@ type CreateGithubEndpointParams struct {
 	APIBaseURL    string `json:"api_base_url,omitempty"`
 	UploadBaseURL string `json:"upload_base_url,omitempty"`
 	BaseURL       string `json:"base_url,omitempty"`
-	EndpointType  string `json:"endpoint_type,omitempty"`
 	CACertBundle  []byte `json:"ca_cert_bundle,omitempty"`
 }
 
 func (c CreateGithubEndpointParams) Validate() error {
 	if c.APIBaseURL == "" {
 		return runnerErrors.NewBadRequestError("missing api_base_url")
-	}
-
-	if c.EndpointType != "" {
-		switch c.EndpointType {
-		case string(GithubEndpointType), string(GiteaEndpointType):
-		default:
-			return runnerErrors.NewBadRequestError("invalid endpoint_type: %s", c.EndpointType)
-		}
 	}
 
 	url, err := url.Parse(c.APIBaseURL)
@@ -308,21 +319,19 @@ func (c CreateGithubEndpointParams) Validate() error {
 		return runnerErrors.NewBadRequestError("invalid api_base_url")
 	}
 
-	if c.EndpointType == string(GithubEndpointType) {
-		if c.UploadBaseURL == "" {
-			return runnerErrors.NewBadRequestError("missing upload_base_url")
-		}
+	if c.UploadBaseURL == "" {
+		return runnerErrors.NewBadRequestError("missing upload_base_url")
+	}
 
-		url, err = url.Parse(c.UploadBaseURL)
-		if err != nil || url.Scheme == "" || url.Host == "" {
-			return runnerErrors.NewBadRequestError("invalid upload_base_url")
-		}
+	url, err = url.Parse(c.UploadBaseURL)
+	if err != nil || url.Scheme == "" || url.Host == "" {
+		return runnerErrors.NewBadRequestError("invalid upload_base_url")
+	}
 
-		switch url.Scheme {
-		case httpsScheme, httpScheme:
-		default:
-			return runnerErrors.NewBadRequestError("invalid api_base_url")
-		}
+	switch url.Scheme {
+	case httpsScheme, httpScheme:
+	default:
+		return runnerErrors.NewBadRequestError("invalid api_base_url")
 	}
 
 	if c.BaseURL == "" {
@@ -616,4 +625,155 @@ type UpdateScaleSetParams struct {
 	GitHubRunnerGroup *string        `json:"runner_group,omitempty"`
 	State             *ScaleSetState `json:"state"`
 	ExtendedState     *string        `json:"extended_state"`
+}
+
+type CreateGiteaEndpointParams struct {
+	Name         string `json:"name,omitempty"`
+	Description  string `json:"description,omitempty"`
+	APIBaseURL   string `json:"api_base_url,omitempty"`
+	BaseURL      string `json:"base_url,omitempty"`
+	CACertBundle []byte `json:"ca_cert_bundle,omitempty"`
+}
+
+func (c CreateGiteaEndpointParams) Validate() error {
+	if c.APIBaseURL == "" {
+		return runnerErrors.NewBadRequestError("missing api_base_url")
+	}
+
+	url, err := url.Parse(c.APIBaseURL)
+	if err != nil || url.Scheme == "" || url.Host == "" {
+		return runnerErrors.NewBadRequestError("invalid api_base_url")
+	}
+	switch url.Scheme {
+	case httpsScheme, httpScheme:
+	default:
+		return runnerErrors.NewBadRequestError("invalid api_base_url")
+	}
+
+	switch url.Scheme {
+	case httpsScheme, httpScheme:
+	default:
+		return runnerErrors.NewBadRequestError("invalid api_base_url")
+	}
+
+	if c.BaseURL == "" {
+		return runnerErrors.NewBadRequestError("missing base_url")
+	}
+
+	url, err = url.Parse(c.BaseURL)
+	if err != nil || url.Scheme == "" || url.Host == "" {
+		return runnerErrors.NewBadRequestError("invalid base_url")
+	}
+
+	switch url.Scheme {
+	case httpsScheme, httpScheme:
+	default:
+		return runnerErrors.NewBadRequestError("invalid api_base_url")
+	}
+
+	if c.CACertBundle != nil {
+		block, _ := pem.Decode(c.CACertBundle)
+		if block == nil {
+			return runnerErrors.NewBadRequestError("invalid ca_cert_bundle")
+		}
+		if _, err := x509.ParseCertificates(block.Bytes); err != nil {
+			return runnerErrors.NewBadRequestError("invalid ca_cert_bundle")
+		}
+	}
+
+	return nil
+}
+
+type UpdateGiteaEndpointParams struct {
+	Description  *string `json:"description,omitempty"`
+	APIBaseURL   *string `json:"api_base_url,omitempty"`
+	BaseURL      *string `json:"base_url,omitempty"`
+	CACertBundle []byte  `json:"ca_cert_bundle,omitempty"`
+}
+
+func (u UpdateGiteaEndpointParams) Validate() error {
+	if u.APIBaseURL != nil {
+		url, err := url.Parse(*u.APIBaseURL)
+		if err != nil || url.Scheme == "" || url.Host == "" {
+			return runnerErrors.NewBadRequestError("invalid api_base_url")
+		}
+		switch url.Scheme {
+		case httpsScheme, httpScheme:
+		default:
+			return runnerErrors.NewBadRequestError("invalid api_base_url")
+		}
+	}
+
+	if u.BaseURL != nil {
+		url, err := url.Parse(*u.BaseURL)
+		if err != nil || url.Scheme == "" || url.Host == "" {
+			return runnerErrors.NewBadRequestError("invalid base_url")
+		}
+		switch url.Scheme {
+		case httpsScheme, httpScheme:
+		default:
+			return runnerErrors.NewBadRequestError("invalid api_base_url")
+		}
+	}
+
+	if u.CACertBundle != nil {
+		block, _ := pem.Decode(u.CACertBundle)
+		if block == nil {
+			return runnerErrors.NewBadRequestError("invalid ca_cert_bundle")
+		}
+		if _, err := x509.ParseCertificates(block.Bytes); err != nil {
+			return runnerErrors.NewBadRequestError("invalid ca_cert_bundle")
+		}
+	}
+
+	return nil
+}
+
+type CreateGiteaCredentialsParams struct {
+	Name        string        `json:"name,omitempty"`
+	Description string        `json:"description,omitempty"`
+	Endpoint    string        `json:"endpoint,omitempty"`
+	AuthType    ForgeAuthType `json:"auth_type,omitempty"`
+	PAT         GithubPAT     `json:"pat,omitempty"`
+	App         GithubApp     `json:"app,omitempty"`
+}
+
+func (c CreateGiteaCredentialsParams) Validate() error {
+	if c.Name == "" {
+		return runnerErrors.NewBadRequestError("missing name")
+	}
+
+	if c.Endpoint == "" {
+		return runnerErrors.NewBadRequestError("missing endpoint")
+	}
+
+	switch c.AuthType {
+	case ForgeAuthTypePAT:
+	default:
+		return runnerErrors.NewBadRequestError("invalid auth_type: %s", c.AuthType)
+	}
+
+	if c.AuthType == ForgeAuthTypePAT {
+		if c.PAT.OAuth2Token == "" {
+			return runnerErrors.NewBadRequestError("missing oauth2_token")
+		}
+	}
+
+	return nil
+}
+
+type UpdateGiteaCredentialsParams struct {
+	Name        *string    `json:"name,omitempty"`
+	Description *string    `json:"description,omitempty"`
+	PAT         *GithubPAT `json:"pat,omitempty"`
+}
+
+func (u UpdateGiteaCredentialsParams) Validate() error {
+	if u.PAT != nil {
+		if u.PAT.OAuth2Token == "" {
+			return runnerErrors.NewBadRequestError("missing oauth2_token")
+		}
+	}
+
+	return nil
 }

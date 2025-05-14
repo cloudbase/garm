@@ -45,7 +45,6 @@ func (s *sqlDatabase) CreateEnterprise(ctx context.Context, name, credentialsNam
 	newEnterprise := Enterprise{
 		Name:             name,
 		WebhookSecret:    secret,
-		CredentialsName:  credentialsName,
 		PoolBalancerType: poolBalancerType,
 	}
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
@@ -57,7 +56,6 @@ func (s *sqlDatabase) CreateEnterprise(ctx context.Context, name, credentialsNam
 			return errors.Wrap(runnerErrors.ErrUnprocessable, "credentials have no endpoint")
 		}
 		newEnterprise.CredentialsID = &creds.ID
-		newEnterprise.CredentialsName = creds.Name
 		newEnterprise.EndpointName = creds.EndpointName
 
 		q := tx.Create(&newEnterprise)

@@ -39,7 +39,7 @@ type OrgTestFixtures struct {
 	Store                dbCommon.Store
 	StoreOrgs            map[string]params.Organization
 	Providers            map[string]common.Provider
-	Credentials          map[string]params.GithubCredentials
+	Credentials          map[string]params.ForgeCredentials
 	CreateOrgParams      params.CreateOrgParams
 	CreatePoolParams     params.CreatePoolParams
 	CreateInstanceParams params.CreateInstanceParams
@@ -56,8 +56,8 @@ type OrgTestSuite struct {
 	Fixtures *OrgTestFixtures
 	Runner   *Runner
 
-	testCreds          params.GithubCredentials
-	secondaryTestCreds params.GithubCredentials
+	testCreds          params.ForgeCredentials
+	secondaryTestCreds params.ForgeCredentials
 	githubEndpoint     params.ForgeEndpoint
 }
 
@@ -104,7 +104,7 @@ func (s *OrgTestSuite) SetupTest() {
 		Providers: map[string]common.Provider{
 			"test-provider": providerMock,
 		},
-		Credentials: map[string]params.GithubCredentials{
+		Credentials: map[string]params.ForgeCredentials{
 			s.testCreds.Name:          s.testCreds,
 			s.secondaryTestCreds.Name: s.secondaryTestCreds,
 		},

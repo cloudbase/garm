@@ -167,7 +167,7 @@ func (i *instanceManager) handleCreateInstanceInProvider(instance params.Instanc
 		ExtraSpecs:    i.scaleSet.ExtraSpecs,
 		// This is temporary. We need to extend providers to know about scale sets.
 		PoolID:            i.pseudoPoolID(),
-		CACertBundle:      entity.Credentials.CABundle(),
+		CACertBundle:      entity.Credentials.CABundle,
 		GitHubRunnerGroup: i.scaleSet.GitHubRunnerGroup,
 		JitConfigEnabled:  true,
 	}

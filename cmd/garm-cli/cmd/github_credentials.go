@@ -344,7 +344,7 @@ func parseCredentialsUpdateParams() (params.UpdateGithubCredentialsParams, error
 	return updateParams, nil
 }
 
-func formatGithubCredentials(creds []params.GithubCredentials) {
+func formatGithubCredentials(creds []params.ForgeCredentials) {
 	if outputFormat == common.OutputFormatJSON {
 		printAsJSON(creds)
 		return
@@ -366,7 +366,7 @@ func formatGithubCredentials(creds []params.GithubCredentials) {
 	fmt.Println(t.Render())
 }
 
-func formatOneGithubCredential(cred params.GithubCredentials) {
+func formatOneGithubCredential(cred params.ForgeCredentials) {
 	if outputFormat == common.OutputFormatJSON {
 		printAsJSON(cred)
 		return

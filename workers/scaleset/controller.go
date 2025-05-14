@@ -137,7 +137,7 @@ func (c *Controller) Stop() error {
 	c.running = false
 	close(c.quit)
 	c.consumer.Close()
-
+	slog.DebugContext(c.ctx, "stopped scale set controller", "entity", c.Entity.String())
 	return nil
 }
 

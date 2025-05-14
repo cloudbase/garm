@@ -83,7 +83,7 @@ func NewEntityPoolManager(ctx context.Context, entity params.ForgeEntity, instan
 		return nil, errors.Wrap(err, "getting controller info")
 	}
 
-	consumerID := fmt.Sprintf("pool-manager-%s-%s", entity.String(), entity.Credentials.Endpoint().Name)
+	consumerID := fmt.Sprintf("pool-manager-%s-%s", entity.String(), entity.Credentials.Endpoint.Name)
 	slog.InfoContext(ctx, "registering consumer", "consumer_id", consumerID)
 	consumer, err := watcher.RegisterConsumer(
 		ctx, consumerID,
@@ -887,7 +887,7 @@ func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error 
 		Image:             pool.Image,
 		ExtraSpecs:        pool.ExtraSpecs,
 		PoolID:            instance.PoolID,
-		CACertBundle:      r.entity.Credentials.CABundle(),
+		CACertBundle:      r.entity.Credentials.CABundle,
 		GitHubRunnerGroup: instance.GitHubRunnerGroup,
 		JitConfigEnabled:  hasJITConfig,
 	}
@@ -1366,6 +1366,19 @@ func (r *basePoolManager) deleteInstanceFromProvider(ctx context.Context, instan
 	return nil
 }
 
+func (r *basePoolManager) sleepWithCancel(sleepTime time.Duration) (canceled bool) {
+	ticker := time.NewTicker(sleepTime)
+	defer ticker.Stop()
+
+	select {
+	case <-ticker.C:
+		return false
+	case <-r.quit:
+	case <-r.ctx.Done():
+	}
+	return true
+}
+
 func (r *basePoolManager) deletePendingInstances() error {
 	instances, err := r.store.ListEntityInstances(r.ctx, r.entity)
 	if err != nil {
@@ -1414,7 +1427,9 @@ func (r *basePoolManager) deletePendingInstances() error {
 				return fmt.Errorf("failed to generate random number: %w", err)
 			}
 			jitter := time.Duration(num.Int64()) * time.Millisecond
-			time.Sleep(jitter)
+			if canceled := r.sleepWithCancel(jitter); canceled {
+				return nil
+			}
 
 			currentStatus := instance.Status
 			deleteMux := false

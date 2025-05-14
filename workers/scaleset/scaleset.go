@@ -910,7 +910,7 @@ func (w *Worker) handleAutoScale() {
 		}
 
 		if !hasTools {
-			time.Sleep(1 * time.Second)
+			w.sleepWithCancel(1 * time.Second)
 			continue
 		}
 

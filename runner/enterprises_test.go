@@ -39,7 +39,7 @@ type EnterpriseTestFixtures struct {
 	Store                  dbCommon.Store
 	StoreEnterprises       map[string]params.Enterprise
 	Providers              map[string]common.Provider
-	Credentials            map[string]params.GithubCredentials
+	Credentials            map[string]params.ForgeCredentials
 	CreateEnterpriseParams params.CreateEnterpriseParams
 	CreatePoolParams       params.CreatePoolParams
 	CreateInstanceParams   params.CreateInstanceParams
@@ -56,8 +56,8 @@ type EnterpriseTestSuite struct {
 	Fixtures *EnterpriseTestFixtures
 	Runner   *Runner
 
-	testCreds          params.GithubCredentials
-	secondaryTestCreds params.GithubCredentials
+	testCreds          params.ForgeCredentials
+	secondaryTestCreds params.ForgeCredentials
 	forgeEndpoint      params.ForgeEndpoint
 }
 
@@ -103,7 +103,7 @@ func (s *EnterpriseTestSuite) SetupTest() {
 		Providers: map[string]common.Provider{
 			"test-provider": providerMock,
 		},
-		Credentials: map[string]params.GithubCredentials{
+		Credentials: map[string]params.ForgeCredentials{
 			s.testCreds.Name:          s.testCreds,
 			s.secondaryTestCreds.Name: s.secondaryTestCreds,
 		},

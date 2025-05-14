@@ -477,6 +477,12 @@ func (g *githubClient) GetEntityJITConfig(ctx context.Context, instance string, 
 
 func (g *githubClient) RateLimit(ctx context.Context) (*github.RateLimits, error) {
 	limits, resp, err := g.rateLimit.Get(ctx)
+	if err != nil {
+		metrics.GithubOperationFailedCount.WithLabelValues(
+			"GetRateLimit",        // label: operation
+			g.entity.LabelScope(), // label: scope
+		).Inc()
+	}
 	if err := parseError(resp, err); err != nil {
 		return nil, fmt.Errorf("getting rate limit: %w", err)
 	}
@@ -491,7 +497,7 @@ func (g *githubClient) GithubBaseURL() *url.URL {
 	return g.cli.BaseURL
 }
 
-func NewRateLimitClient(ctx context.Context, credentials params.GithubCredentials) (common.RateLimitClient, error) {
+func NewRateLimitClient(ctx context.Context, credentials params.ForgeCredentials) (common.RateLimitClient, error) {
 	httpClient, err := credentials.GetHTTPClient(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching http client")
@@ -515,12 +521,12 @@ func NewRateLimitClient(ctx context.Context, credentials params.GithubCredential
 	return cli, nil
 }
 
-func withGiteaURLs(client *github.Client, apiBaseURL, uploadBaseURL string) (*github.Client, error) {
+func withGiteaURLs(client *github.Client, apiBaseURL string) (*github.Client, error) {
 	if client == nil {
 		return nil, errors.New("client is nil")
 	}
 
-	if apiBaseURL == "" || uploadBaseURL == "" {
+	if apiBaseURL == "" {
 		return nil, errors.New("invalid gitea URLs")
 	}
 
@@ -537,21 +543,8 @@ func withGiteaURLs(client *github.Client, apiBaseURL, uploadBaseURL string) (*gi
 		parsedBaseURL.Path += "api/v1/"
 	}
 
-	parsedUploadURL, err := url.ParseRequestURI(uploadBaseURL)
-	if err != nil {
-		return nil, errors.Wrap(err, "parsing gitea upload URL")
-	}
-
-	if !strings.HasSuffix(parsedUploadURL.Path, "/") {
-		parsedUploadURL.Path += "/"
-	}
-
-	if !strings.HasSuffix(parsedUploadURL.Path, "/api/v1/") {
-		parsedUploadURL.Path += "api/v1/"
-	}
-
 	client.BaseURL = parsedBaseURL
-	client.UploadURL = parsedUploadURL
+	client.UploadURL = parsedBaseURL
 
 	return client, nil
 }
@@ -565,15 +558,15 @@ func Client(ctx context.Context, entity params.ForgeEntity) (common.GithubClient
 
 	slog.DebugContext(
 		ctx, "creating client for entity",
-		"entity", entity.String(), "base_url", entity.Credentials.APIBaseURL(),
-		"upload_url", entity.Credentials.UploadBaseURL())
+		"entity", entity.String(), "base_url", entity.Credentials.APIBaseURL,
+		"upload_url", entity.Credentials.UploadBaseURL)
 
 	ghClient := github.NewClient(httpClient)
-	switch entity.Credentials.ForgeType {
+	switch entity.Credentials.Endpoint.EndpointType {
 	case params.GithubEndpointType:
-		ghClient, err = ghClient.WithEnterpriseURLs(entity.Credentials.APIBaseURL(), entity.Credentials.UploadBaseURL())
+		ghClient, err = ghClient.WithEnterpriseURLs(entity.Credentials.APIBaseURL, entity.Credentials.UploadBaseURL)
 	case params.GiteaEndpointType:
-		ghClient, err = withGiteaURLs(ghClient, entity.Credentials.APIBaseURL(), entity.Credentials.UploadBaseURL())
+		ghClient, err = withGiteaURLs(ghClient, entity.Credentials.APIBaseURL)
 	}
 
 	if err != nil {

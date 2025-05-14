@@ -30,7 +30,7 @@ func (c *CacheTestSuite) TearDownTest() {
 	githubToolsCache.mux.Lock()
 	defer githubToolsCache.mux.Unlock()
 	githubToolsCache.entities = make(map[string]GithubEntityTools)
-	credentialsCache.cache = make(map[uint]params.GithubCredentials)
+	credentialsCache.cache = make(map[uint]params.ForgeCredentials)
 	instanceCache.cache = make(map[string]params.Instance)
 	entityCache = &EntityCache{
 		entities: make(map[string]EntityItem),
@@ -90,7 +90,7 @@ func (c *CacheTestSuite) TestGetInexistentCache() {
 }
 
 func (c *CacheTestSuite) TestSetGithubCredentials() {
-	credentials := params.GithubCredentials{
+	credentials := params.ForgeCredentials{
 		ID: 1,
 	}
 	SetGithubCredentials(credentials)
@@ -100,7 +100,7 @@ func (c *CacheTestSuite) TestSetGithubCredentials() {
 }
 
 func (c *CacheTestSuite) TestGetGithubCredentials() {
-	credentials := params.GithubCredentials{
+	credentials := params.ForgeCredentials{
 		ID: 1,
 	}
 	SetGithubCredentials(credentials)
@@ -110,11 +110,11 @@ func (c *CacheTestSuite) TestGetGithubCredentials() {
 
 	nonExisting, ok := GetGithubCredentials(2)
 	c.Require().False(ok)
-	c.Require().Equal(params.GithubCredentials{}, nonExisting)
+	c.Require().Equal(params.ForgeCredentials{}, nonExisting)
 }
 
 func (c *CacheTestSuite) TestDeleteGithubCredentials() {
-	credentials := params.GithubCredentials{
+	credentials := params.ForgeCredentials{
 		ID: 1,
 	}
 	SetGithubCredentials(credentials)
@@ -125,14 +125,14 @@ func (c *CacheTestSuite) TestDeleteGithubCredentials() {
 	DeleteGithubCredentials(1)
 	cachedCreds, ok = GetGithubCredentials(1)
 	c.Require().False(ok)
-	c.Require().Equal(params.GithubCredentials{}, cachedCreds)
+	c.Require().Equal(params.ForgeCredentials{}, cachedCreds)
 }
 
 func (c *CacheTestSuite) TestGetAllGithubCredentials() {
-	credentials1 := params.GithubCredentials{
+	credentials1 := params.ForgeCredentials{
 		ID: 1,
 	}
-	credentials2 := params.GithubCredentials{
+	credentials2 := params.ForgeCredentials{
 		ID: 2,
 	}
 	SetGithubCredentials(credentials1)
@@ -265,12 +265,12 @@ func (c *CacheTestSuite) TestSetGetEntityCache() {
 	c.Require().True(ok)
 	c.Require().Equal(entity.ID, cachedEntity.ID)
 
-	entity.Credentials.GithubCredentials.Description = "test description"
+	entity.Credentials.Description = "test description"
 	SetEntity(entity)
 	cachedEntity, ok = GetEntity("test-entity")
 	c.Require().True(ok)
 	c.Require().Equal(entity.ID, cachedEntity.ID)
-	c.Require().Equal(entity.Credentials.GithubCredentials.Description, cachedEntity.Credentials.GithubCredentials.Description)
+	c.Require().Equal(entity.Credentials.Description, cachedEntity.Credentials.Description)
 }
 
 func (c *CacheTestSuite) TestReplaceEntityPools() {
@@ -280,10 +280,7 @@ func (c *CacheTestSuite) TestReplaceEntityPools() {
 		Name:       "test",
 		Owner:      "test",
 		Credentials: params.ForgeCredentials{
-			ForgeType: params.GithubEndpointType,
-			GithubCredentials: params.GithubCredentials{
-				ID: 1,
-			},
+			ID: 1,
 		},
 	}
 	pool1 := params.Pool{
@@ -293,7 +290,7 @@ func (c *CacheTestSuite) TestReplaceEntityPools() {
 		ID: "pool-2",
 	}
 
-	credentials := params.GithubCredentials{
+	credentials := params.ForgeCredentials{
 		ID:   1,
 		Name: "test",
 	}
@@ -304,7 +301,7 @@ func (c *CacheTestSuite) TestReplaceEntityPools() {
 	cachedEntity, ok := GetEntity(entity.ID)
 	c.Require().True(ok)
 	c.Require().Equal(entity.ID, cachedEntity.ID)
-	c.Require().Equal("test", cachedEntity.Credentials.GithubCredentials.Name)
+	c.Require().Equal("test", cachedEntity.Credentials.Name)
 
 	pools := GetEntityPools(entity.ID)
 	c.Require().Len(pools, 2)

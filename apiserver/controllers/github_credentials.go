@@ -47,7 +47,7 @@ func (a *APIController) ListCredentials(w http.ResponseWriter, r *http.Request) 
 //	    required: true
 //
 //	Responses:
-//	  200: GithubCredentials
+//	  200: ForgeCredentials
 //	  400: APIErrorResponse
 func (a *APIController) CreateGithubCredential(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -83,7 +83,7 @@ func (a *APIController) CreateGithubCredential(w http.ResponseWriter, r *http.Re
 //	    required: true
 //
 //	Responses:
-//	  200: GithubCredentials
+//	  200: ForgeCredentials
 //	  400: APIErrorResponse
 func (a *APIController) GetGithubCredential(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -183,7 +183,7 @@ func (a *APIController) DeleteGithubCredential(w http.ResponseWriter, r *http.Re
 //	    required: true
 //
 //	Responses:
-//	  200: GithubCredentials
+//	  200: ForgeCredentials
 //	  400: APIErrorResponse
 func (a *APIController) UpdateGithubCredential(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()

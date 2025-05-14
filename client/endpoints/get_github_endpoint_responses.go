@@ -51,7 +51,7 @@ func NewGetGithubEndpointOK() *GetGithubEndpointOK {
 /*
 GetGithubEndpointOK describes a response with status code 200, with default header values.
 
-GithubEndpoint
+ForgeEndpoint
 */
 type GetGithubEndpointOK struct {
 	Payload garm_params.ForgeEndpoint

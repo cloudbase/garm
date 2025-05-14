@@ -19,7 +19,7 @@ type ScaleSetsTestSuite struct {
 	suite.Suite
 	Store    dbCommon.Store
 	adminCtx context.Context
-	creds    params.GithubCredentials
+	creds    params.ForgeCredentials
 
 	org        params.Organization
 	repo       params.Repository
@@ -53,7 +53,7 @@ func (s *ScaleSetsTestSuite) SetupTest() {
 		s.FailNow(fmt.Sprintf("failed to create org: %s", err))
 	}
 
-	s.repo, err = s.Store.CreateRepository(s.adminCtx, "test-org", "test-repo", s.creds.Name, "test-webhookSecret", params.PoolBalancerTypeRoundRobin)
+	s.repo, err = s.Store.CreateRepository(s.adminCtx, "test-org", "test-repo", s.creds, "test-webhookSecret", params.PoolBalancerTypeRoundRobin)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to create repo: %s", err))
 	}

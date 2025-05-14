@@ -47,8 +47,8 @@ type PoolTestSuite struct {
 	Runner   *Runner
 
 	adminCtx           context.Context
-	testCreds          params.GithubCredentials
-	secondaryTestCreds params.GithubCredentials
+	testCreds          params.ForgeCredentials
+	secondaryTestCreds params.ForgeCredentials
 	githubEndpoint     params.ForgeEndpoint
 }
 

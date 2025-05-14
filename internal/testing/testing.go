@@ -110,7 +110,7 @@ func CreateDefaultGithubEndpoint(ctx context.Context, db common.Store, s *testin
 	return ep
 }
 
-func CreateTestGithubCredentials(ctx context.Context, credsName string, db common.Store, s *testing.T, endpoint params.ForgeEndpoint) params.GithubCredentials {
+func CreateTestGithubCredentials(ctx context.Context, credsName string, db common.Store, s *testing.T, endpoint params.ForgeEndpoint) params.ForgeCredentials {
 	newCredsParams := params.CreateGithubCredentialsParams{
 		Name:        credsName,
 		Description: "Test creds",

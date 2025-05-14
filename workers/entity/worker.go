@@ -70,6 +70,7 @@ func (w *Worker) Stop() error {
 	w.running = false
 	close(w.quit)
 	w.consumer.Close()
+	slog.DebugContext(w.ctx, "entity worker stopped", "entity", w.consumerID)
 	return nil
 }
 

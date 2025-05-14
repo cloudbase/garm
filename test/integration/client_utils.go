@@ -51,7 +51,7 @@ func listCredentials(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfo
 	return listCredentialsResponse.Payload, nil
 }
 
-func createGithubCredentials(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, credentialsParams params.CreateGithubCredentialsParams) (*params.GithubCredentials, error) {
+func createGithubCredentials(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, credentialsParams params.CreateGithubCredentialsParams) (*params.ForgeCredentials, error) {
 	createCredentialsResponse, err := apiCli.Credentials.CreateCredentials(
 		clientCredentials.NewCreateCredentialsParams().WithBody(credentialsParams),
 		apiAuthToken)
@@ -67,7 +67,7 @@ func deleteGithubCredentials(apiCli *client.GarmAPI, apiAuthToken runtime.Client
 		apiAuthToken)
 }
 
-func updateGithubCredentials(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, credentialsID int64, credentialsParams params.UpdateGithubCredentialsParams) (*params.GithubCredentials, error) {
+func updateGithubCredentials(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, credentialsID int64, credentialsParams params.UpdateGithubCredentialsParams) (*params.ForgeCredentials, error) {
 	updateCredentialsResponse, err := apiCli.Credentials.UpdateCredentials(
 		clientCredentials.NewUpdateCredentialsParams().WithID(credentialsID).WithBody(credentialsParams),
 		apiAuthToken)

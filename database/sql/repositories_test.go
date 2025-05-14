@@ -58,8 +58,8 @@ type RepoTestSuite struct {
 	adminCtx    context.Context
 	adminUserID string
 
-	testCreds          params.GithubCredentials
-	secondaryTestCreds params.GithubCredentials
+	testCreds          params.ForgeCredentials
+	secondaryTestCreds params.ForgeCredentials
 	githubEndpoint     params.ForgeEndpoint
 }
 
@@ -119,7 +119,7 @@ func (s *RepoTestSuite) SetupTest() {
 			adminCtx,
 			fmt.Sprintf("test-owner-%d", i),
 			fmt.Sprintf("test-repo-%d", i),
-			s.testCreds.Name,
+			s.testCreds,
 			fmt.Sprintf("test-webhook-secret-%d", i),
 			params.PoolBalancerTypeRoundRobin,
 		)
@@ -204,7 +204,7 @@ func (s *RepoTestSuite) TestCreateRepository() {
 		s.adminCtx,
 		s.Fixtures.CreateRepoParams.Owner,
 		s.Fixtures.CreateRepoParams.Name,
-		s.Fixtures.CreateRepoParams.CredentialsName,
+		s.testCreds,
 		s.Fixtures.CreateRepoParams.WebhookSecret,
 		params.PoolBalancerTypeRoundRobin,
 	)
@@ -238,7 +238,7 @@ func (s *RepoTestSuite) TestCreateRepositoryInvalidDBPassphrase() {
 		s.adminCtx,
 		s.Fixtures.CreateRepoParams.Owner,
 		s.Fixtures.CreateRepoParams.Name,
-		s.Fixtures.CreateRepoParams.CredentialsName,
+		s.testCreds,
 		s.Fixtures.CreateRepoParams.WebhookSecret,
 		params.PoolBalancerTypeRoundRobin,
 	)
@@ -267,7 +267,7 @@ func (s *RepoTestSuite) TestCreateRepositoryInvalidDBCreateErr() {
 		s.adminCtx,
 		s.Fixtures.CreateRepoParams.Owner,
 		s.Fixtures.CreateRepoParams.Name,
-		s.Fixtures.CreateRepoParams.CredentialsName,
+		s.testCreds,
 		s.Fixtures.CreateRepoParams.WebhookSecret,
 		params.PoolBalancerTypeRoundRobin,
 	)

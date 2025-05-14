@@ -44,18 +44,16 @@ func (e *EntityCache) GetEntity(entityID string) (params.ForgeEntity, bool) {
 	defer e.mux.Unlock()
 
 	if cache, ok := e.entities[entityID]; ok {
-		// Get the credentials from the credentials cache.
-		var forgeCredsGetter params.ForgeCredentialsGetter
-		var credsOk bool
+		var creds params.ForgeCredentials
+		var ok bool
 		switch cache.Entity.Credentials.ForgeType {
 		case params.GithubEndpointType:
-			forgeCredsGetter, credsOk = GetGithubCredentials(cache.Entity.Credentials.GetID())
+			creds, ok = GetGithubCredentials(cache.Entity.Credentials.ID)
 		case params.GiteaEndpointType:
-			// add gitea credentials getter
-			return cache.Entity, false
+			creds, ok = GetGiteaCredentials(cache.Entity.Credentials.ID)
 		}
-		if credsOk {
-			cache.Entity.Credentials = forgeCredsGetter.GetForgeCredentials()
+		if ok {
+			cache.Entity.Credentials = creds
 		}
 		return cache.Entity, true
 	}
@@ -254,17 +252,16 @@ func (e *EntityCache) GetAllEntities() []params.ForgeEntity {
 	var entities []params.ForgeEntity
 	for _, cache := range e.entities {
 		// Get the credentials from the credentials cache.
-		var forgeCredsGetter params.ForgeCredentialsGetter
-		var credsOk bool
+		var creds params.ForgeCredentials
+		var ok bool
 		switch cache.Entity.Credentials.ForgeType {
 		case params.GithubEndpointType:
-			forgeCredsGetter, credsOk = GetGithubCredentials(cache.Entity.Credentials.GetID())
+			creds, ok = GetGithubCredentials(cache.Entity.Credentials.ID)
 		case params.GiteaEndpointType:
-			// add gitea credentials getter
-			return nil
+			creds, ok = GetGiteaCredentials(cache.Entity.Credentials.ID)
 		}
-		if credsOk {
-			cache.Entity.Credentials = forgeCredsGetter.GetForgeCredentials()
+		if ok {
+			cache.Entity.Credentials = creds
 		}
 		entities = append(entities, cache.Entity)
 	}

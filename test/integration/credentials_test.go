@@ -199,7 +199,7 @@ func (suite *GarmSuite) TestGithubCredentialsFailsOnDuplicateName() {
 	expectAPIStatusCode(err, 409)
 }
 
-func (suite *GarmSuite) createDummyCredentials(name, endpointName string) (*params.GithubCredentials, error) {
+func (suite *GarmSuite) createDummyCredentials(name, endpointName string) (*params.ForgeCredentials, error) {
 	createCredsParams := params.CreateGithubCredentialsParams{
 		Name:        name,
 		Endpoint:    endpointName,
@@ -212,7 +212,7 @@ func (suite *GarmSuite) createDummyCredentials(name, endpointName string) (*para
 	return suite.CreateGithubCredentials(createCredsParams)
 }
 
-func (suite *GarmSuite) CreateGithubCredentials(credentialsParams params.CreateGithubCredentialsParams) (*params.GithubCredentials, error) {
+func (suite *GarmSuite) CreateGithubCredentials(credentialsParams params.CreateGithubCredentialsParams) (*params.ForgeCredentials, error) {
 	t := suite.T()
 	t.Log("Create GitHub credentials")
 	credentials, err := createGithubCredentials(suite.cli, suite.authToken, credentialsParams)

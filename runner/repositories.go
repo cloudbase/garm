@@ -38,7 +38,16 @@ func (r *Runner) CreateRepository(ctx context.Context, param params.CreateRepoPa
 		return params.Repository{}, errors.Wrap(err, "validating params")
 	}
 
-	creds, err := r.store.GetGithubCredentialsByName(ctx, param.CredentialsName, true)
+	var creds params.ForgeCredentials
+	switch param.GetForgeType() {
+	case params.GithubEndpointType:
+		creds, err = r.store.GetGithubCredentialsByName(ctx, param.CredentialsName, true)
+	case params.GiteaEndpointType:
+		creds, err = r.store.GetGiteaCredentialsByName(ctx, param.CredentialsName, true)
+	default:
+		return params.Repository{}, runnerErrors.NewBadRequestError("invalid forge type: %s", param.GetForgeType())
+	}
+
 	if err != nil {
 		return params.Repository{}, runnerErrors.NewBadRequestError("credentials %s not defined", param.CredentialsName)
 	}
@@ -52,7 +61,7 @@ func (r *Runner) CreateRepository(ctx context.Context, param params.CreateRepoPa
 		return params.Repository{}, runnerErrors.NewConflictError("repository %s/%s already exists", param.Owner, param.Name)
 	}
 
-	repo, err = r.store.CreateRepository(ctx, param.Owner, param.Name, creds.Name, param.WebhookSecret, param.PoolBalancerType)
+	repo, err = r.store.CreateRepository(ctx, param.Owner, param.Name, creds, param.WebhookSecret, param.PoolBalancerType)
 	if err != nil {
 		return params.Repository{}, errors.Wrap(err, "creating repository")
 	}

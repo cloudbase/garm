@@ -138,7 +138,7 @@ func (w *Worker) loadAllInstances() error {
 	return nil
 }
 
-func (w *Worker) loadAllCredentials() error {
+func (w *Worker) loadAllGithubCredentials() error {
 	creds, err := w.store.ListGithubCredentials(w.ctx)
 	if err != nil {
 		return fmt.Errorf("listing github credentials: %w", err)
@@ -146,6 +146,18 @@ func (w *Worker) loadAllCredentials() error {
 
 	for _, cred := range creds {
 		cache.SetGithubCredentials(cred)
+	}
+	return nil
+}
+
+func (w *Worker) loadAllGiteaCredentials() error {
+	creds, err := w.store.ListGiteaCredentials(w.ctx)
+	if err != nil {
+		return fmt.Errorf("listing gitea credentials: %w", err)
+	}
+
+	for _, cred := range creds {
+		cache.SetGiteaCredentials(cred)
 	}
 	return nil
 }
@@ -183,6 +195,20 @@ func (w *Worker) Start() error {
 	g, _ := errgroup.WithContext(w.ctx)
 
 	g.Go(func() error {
+		if err := w.loadAllGithubCredentials(); err != nil {
+			return fmt.Errorf("loading all github credentials: %w", err)
+		}
+		return nil
+	})
+
+	g.Go(func() error {
+		if err := w.loadAllGiteaCredentials(); err != nil {
+			return fmt.Errorf("loading all gitea credentials: %w", err)
+		}
+		return nil
+	})
+
+	g.Go(func() error {
 		if err := w.loadAllEntities(); err != nil {
 			return fmt.Errorf("loading all entities: %w", err)
 		}
@@ -192,13 +218,6 @@ func (w *Worker) Start() error {
 	g.Go(func() error {
 		if err := w.loadAllInstances(); err != nil {
 			return fmt.Errorf("loading all instances: %w", err)
-		}
-		return nil
-	})
-
-	g.Go(func() error {
-		if err := w.loadAllCredentials(); err != nil {
-			return fmt.Errorf("loading all credentials: %w", err)
 		}
 		return nil
 	})
@@ -360,7 +379,7 @@ func (w *Worker) handleInstanceEvent(event common.ChangePayload) {
 }
 
 func (w *Worker) handleCredentialsEvent(event common.ChangePayload) {
-	credentials, ok := event.Payload.(params.GithubCredentials)
+	credentials, ok := event.Payload.(params.ForgeCredentials)
 	if !ok {
 		slog.DebugContext(w.ctx, "invalid payload type for credentials event", "payload", event.Payload)
 		return

@@ -180,23 +180,79 @@ func (_m *Store) CreateEntityScaleSet(_a0 context.Context, entity params.ForgeEn
 	return r0, r1
 }
 
+// CreateGiteaCredentials provides a mock function with given fields: ctx, param
+func (_m *Store) CreateGiteaCredentials(ctx context.Context, param params.CreateGiteaCredentialsParams) (params.ForgeCredentials, error) {
+	ret := _m.Called(ctx, param)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateGiteaCredentials")
+	}
+
+	var r0 params.ForgeCredentials
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, params.CreateGiteaCredentialsParams) (params.ForgeCredentials, error)); ok {
+		return rf(ctx, param)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, params.CreateGiteaCredentialsParams) params.ForgeCredentials); ok {
+		r0 = rf(ctx, param)
+	} else {
+		r0 = ret.Get(0).(params.ForgeCredentials)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, params.CreateGiteaCredentialsParams) error); ok {
+		r1 = rf(ctx, param)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// CreateGiteaEndpoint provides a mock function with given fields: _a0, param
+func (_m *Store) CreateGiteaEndpoint(_a0 context.Context, param params.CreateGiteaEndpointParams) (params.ForgeEndpoint, error) {
+	ret := _m.Called(_a0, param)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateGiteaEndpoint")
+	}
+
+	var r0 params.ForgeEndpoint
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, params.CreateGiteaEndpointParams) (params.ForgeEndpoint, error)); ok {
+		return rf(_a0, param)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, params.CreateGiteaEndpointParams) params.ForgeEndpoint); ok {
+		r0 = rf(_a0, param)
+	} else {
+		r0 = ret.Get(0).(params.ForgeEndpoint)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, params.CreateGiteaEndpointParams) error); ok {
+		r1 = rf(_a0, param)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // CreateGithubCredentials provides a mock function with given fields: ctx, param
-func (_m *Store) CreateGithubCredentials(ctx context.Context, param params.CreateGithubCredentialsParams) (params.GithubCredentials, error) {
+func (_m *Store) CreateGithubCredentials(ctx context.Context, param params.CreateGithubCredentialsParams) (params.ForgeCredentials, error) {
 	ret := _m.Called(ctx, param)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateGithubCredentials")
 	}
 
-	var r0 params.GithubCredentials
+	var r0 params.ForgeCredentials
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, params.CreateGithubCredentialsParams) (params.GithubCredentials, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, params.CreateGithubCredentialsParams) (params.ForgeCredentials, error)); ok {
 		return rf(ctx, param)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, params.CreateGithubCredentialsParams) params.GithubCredentials); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, params.CreateGithubCredentialsParams) params.ForgeCredentials); ok {
 		r0 = rf(ctx, param)
 	} else {
-		r0 = ret.Get(0).(params.GithubCredentials)
+		r0 = ret.Get(0).(params.ForgeCredentials)
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, params.CreateGithubCredentialsParams) error); ok {
@@ -320,9 +376,9 @@ func (_m *Store) CreateOrganization(ctx context.Context, name string, credential
 	return r0, r1
 }
 
-// CreateRepository provides a mock function with given fields: ctx, owner, name, credentialsName, webhookSecret, poolBalancerType
-func (_m *Store) CreateRepository(ctx context.Context, owner string, name string, credentialsName string, webhookSecret string, poolBalancerType params.PoolBalancerType) (params.Repository, error) {
-	ret := _m.Called(ctx, owner, name, credentialsName, webhookSecret, poolBalancerType)
+// CreateRepository provides a mock function with given fields: ctx, owner, name, credentials, webhookSecret, poolBalancerType
+func (_m *Store) CreateRepository(ctx context.Context, owner string, name string, credentials params.ForgeCredentials, webhookSecret string, poolBalancerType params.PoolBalancerType) (params.Repository, error) {
+	ret := _m.Called(ctx, owner, name, credentials, webhookSecret, poolBalancerType)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateRepository")
@@ -330,17 +386,17 @@ func (_m *Store) CreateRepository(ctx context.Context, owner string, name string
 
 	var r0 params.Repository
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, string, params.PoolBalancerType) (params.Repository, error)); ok {
-		return rf(ctx, owner, name, credentialsName, webhookSecret, poolBalancerType)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, params.ForgeCredentials, string, params.PoolBalancerType) (params.Repository, error)); ok {
+		return rf(ctx, owner, name, credentials, webhookSecret, poolBalancerType)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, string, string, params.PoolBalancerType) params.Repository); ok {
-		r0 = rf(ctx, owner, name, credentialsName, webhookSecret, poolBalancerType)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, params.ForgeCredentials, string, params.PoolBalancerType) params.Repository); ok {
+		r0 = rf(ctx, owner, name, credentials, webhookSecret, poolBalancerType)
 	} else {
 		r0 = ret.Get(0).(params.Repository)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string, string, string, string, params.PoolBalancerType) error); ok {
-		r1 = rf(ctx, owner, name, credentialsName, webhookSecret, poolBalancerType)
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, params.ForgeCredentials, string, params.PoolBalancerType) error); ok {
+		r1 = rf(ctx, owner, name, credentials, webhookSecret, poolBalancerType)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -451,6 +507,42 @@ func (_m *Store) DeleteEntityPool(ctx context.Context, entity params.ForgeEntity
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, params.ForgeEntity, string) error); ok {
 		r0 = rf(ctx, entity, poolID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// DeleteGiteaCredentials provides a mock function with given fields: ctx, id
+func (_m *Store) DeleteGiteaCredentials(ctx context.Context, id uint) error {
+	ret := _m.Called(ctx, id)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteGiteaCredentials")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint) error); ok {
+		r0 = rf(ctx, id)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// DeleteGiteaEndpoint provides a mock function with given fields: _a0, name
+func (_m *Store) DeleteGiteaEndpoint(_a0 context.Context, name string) error {
+	ret := _m.Called(_a0, name)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteGiteaEndpoint")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = rf(_a0, name)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -762,23 +854,135 @@ func (_m *Store) GetEntityPool(ctx context.Context, entity params.ForgeEntity, p
 	return r0, r1
 }
 
+// GetForgeEntity provides a mock function with given fields: _a0, entityType, entityID
+func (_m *Store) GetForgeEntity(_a0 context.Context, entityType params.ForgeEntityType, entityID string) (params.ForgeEntity, error) {
+	ret := _m.Called(_a0, entityType, entityID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetForgeEntity")
+	}
+
+	var r0 params.ForgeEntity
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, params.ForgeEntityType, string) (params.ForgeEntity, error)); ok {
+		return rf(_a0, entityType, entityID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, params.ForgeEntityType, string) params.ForgeEntity); ok {
+		r0 = rf(_a0, entityType, entityID)
+	} else {
+		r0 = ret.Get(0).(params.ForgeEntity)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, params.ForgeEntityType, string) error); ok {
+		r1 = rf(_a0, entityType, entityID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetGiteaCredentials provides a mock function with given fields: ctx, id, detailed
+func (_m *Store) GetGiteaCredentials(ctx context.Context, id uint, detailed bool) (params.ForgeCredentials, error) {
+	ret := _m.Called(ctx, id, detailed)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetGiteaCredentials")
+	}
+
+	var r0 params.ForgeCredentials
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint, bool) (params.ForgeCredentials, error)); ok {
+		return rf(ctx, id, detailed)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uint, bool) params.ForgeCredentials); ok {
+		r0 = rf(ctx, id, detailed)
+	} else {
+		r0 = ret.Get(0).(params.ForgeCredentials)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uint, bool) error); ok {
+		r1 = rf(ctx, id, detailed)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetGiteaCredentialsByName provides a mock function with given fields: ctx, name, detailed
+func (_m *Store) GetGiteaCredentialsByName(ctx context.Context, name string, detailed bool) (params.ForgeCredentials, error) {
+	ret := _m.Called(ctx, name, detailed)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetGiteaCredentialsByName")
+	}
+
+	var r0 params.ForgeCredentials
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, bool) (params.ForgeCredentials, error)); ok {
+		return rf(ctx, name, detailed)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, bool) params.ForgeCredentials); ok {
+		r0 = rf(ctx, name, detailed)
+	} else {
+		r0 = ret.Get(0).(params.ForgeCredentials)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, bool) error); ok {
+		r1 = rf(ctx, name, detailed)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetGiteaEndpoint provides a mock function with given fields: _a0, name
+func (_m *Store) GetGiteaEndpoint(_a0 context.Context, name string) (params.ForgeEndpoint, error) {
+	ret := _m.Called(_a0, name)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetGiteaEndpoint")
+	}
+
+	var r0 params.ForgeEndpoint
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (params.ForgeEndpoint, error)); ok {
+		return rf(_a0, name)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) params.ForgeEndpoint); ok {
+		r0 = rf(_a0, name)
+	} else {
+		r0 = ret.Get(0).(params.ForgeEndpoint)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(_a0, name)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetGithubCredentials provides a mock function with given fields: ctx, id, detailed
-func (_m *Store) GetGithubCredentials(ctx context.Context, id uint, detailed bool) (params.GithubCredentials, error) {
+func (_m *Store) GetGithubCredentials(ctx context.Context, id uint, detailed bool) (params.ForgeCredentials, error) {
 	ret := _m.Called(ctx, id, detailed)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetGithubCredentials")
 	}
 
-	var r0 params.GithubCredentials
+	var r0 params.ForgeCredentials
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint, bool) (params.GithubCredentials, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, uint, bool) (params.ForgeCredentials, error)); ok {
 		return rf(ctx, id, detailed)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, uint, bool) params.GithubCredentials); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, uint, bool) params.ForgeCredentials); ok {
 		r0 = rf(ctx, id, detailed)
 	} else {
-		r0 = ret.Get(0).(params.GithubCredentials)
+		r0 = ret.Get(0).(params.ForgeCredentials)
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, uint, bool) error); ok {
@@ -791,22 +995,22 @@ func (_m *Store) GetGithubCredentials(ctx context.Context, id uint, detailed boo
 }
 
 // GetGithubCredentialsByName provides a mock function with given fields: ctx, name, detailed
-func (_m *Store) GetGithubCredentialsByName(ctx context.Context, name string, detailed bool) (params.GithubCredentials, error) {
+func (_m *Store) GetGithubCredentialsByName(ctx context.Context, name string, detailed bool) (params.ForgeCredentials, error) {
 	ret := _m.Called(ctx, name, detailed)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetGithubCredentialsByName")
 	}
 
-	var r0 params.GithubCredentials
+	var r0 params.ForgeCredentials
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, bool) (params.GithubCredentials, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string, bool) (params.ForgeCredentials, error)); ok {
 		return rf(ctx, name, detailed)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, bool) params.GithubCredentials); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string, bool) params.ForgeCredentials); ok {
 		r0 = rf(ctx, name, detailed)
 	} else {
-		r0 = ret.Get(0).(params.GithubCredentials)
+		r0 = ret.Get(0).(params.ForgeCredentials)
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, string, bool) error); ok {
@@ -839,34 +1043,6 @@ func (_m *Store) GetGithubEndpoint(ctx context.Context, name string) (params.For
 
 	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
 		r1 = rf(ctx, name)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// GetForgeEntity provides a mock function with given fields: _a0, entityType, entityID
-func (_m *Store) GetForgeEntity(_a0 context.Context, entityType params.ForgeEntityType, entityID string) (params.ForgeEntity, error) {
-	ret := _m.Called(_a0, entityType, entityID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetForgeEntity")
-	}
-
-	var r0 params.ForgeEntity
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, params.ForgeEntityType, string) (params.ForgeEntity, error)); ok {
-		return rf(_a0, entityType, entityID)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, params.ForgeEntityType, string) params.ForgeEntity); ok {
-		r0 = rf(_a0, entityType, entityID)
-	} else {
-		r0 = ret.Get(0).(params.ForgeEntity)
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, params.ForgeEntityType, string) error); ok {
-		r1 = rf(_a0, entityType, entityID)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1498,24 +1674,84 @@ func (_m *Store) ListEntityScaleSets(_a0 context.Context, entity params.ForgeEnt
 	return r0, r1
 }
 
+// ListGiteaCredentials provides a mock function with given fields: ctx
+func (_m *Store) ListGiteaCredentials(ctx context.Context) ([]params.ForgeCredentials, error) {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListGiteaCredentials")
+	}
+
+	var r0 []params.ForgeCredentials
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) ([]params.ForgeCredentials, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) []params.ForgeCredentials); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]params.ForgeCredentials)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ListGiteaEndpoints provides a mock function with given fields: _a0
+func (_m *Store) ListGiteaEndpoints(_a0 context.Context) ([]params.ForgeEndpoint, error) {
+	ret := _m.Called(_a0)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListGiteaEndpoints")
+	}
+
+	var r0 []params.ForgeEndpoint
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) ([]params.ForgeEndpoint, error)); ok {
+		return rf(_a0)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) []params.ForgeEndpoint); ok {
+		r0 = rf(_a0)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]params.ForgeEndpoint)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(_a0)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // ListGithubCredentials provides a mock function with given fields: ctx
-func (_m *Store) ListGithubCredentials(ctx context.Context) ([]params.GithubCredentials, error) {
+func (_m *Store) ListGithubCredentials(ctx context.Context) ([]params.ForgeCredentials, error) {
 	ret := _m.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListGithubCredentials")
 	}
 
-	var r0 []params.GithubCredentials
+	var r0 []params.ForgeCredentials
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context) ([]params.GithubCredentials, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context) ([]params.ForgeCredentials, error)); ok {
 		return rf(ctx)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context) []params.GithubCredentials); ok {
+	if rf, ok := ret.Get(0).(func(context.Context) []params.ForgeCredentials); ok {
 		r0 = rf(ctx)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]params.GithubCredentials)
+			r0 = ret.Get(0).([]params.ForgeCredentials)
 		}
 	}
 
@@ -1920,23 +2156,79 @@ func (_m *Store) UpdateEntityScaleSet(_a0 context.Context, entity params.ForgeEn
 	return r0, r1
 }
 
+// UpdateGiteaCredentials provides a mock function with given fields: ctx, id, param
+func (_m *Store) UpdateGiteaCredentials(ctx context.Context, id uint, param params.UpdateGiteaCredentialsParams) (params.ForgeCredentials, error) {
+	ret := _m.Called(ctx, id, param)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateGiteaCredentials")
+	}
+
+	var r0 params.ForgeCredentials
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint, params.UpdateGiteaCredentialsParams) (params.ForgeCredentials, error)); ok {
+		return rf(ctx, id, param)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uint, params.UpdateGiteaCredentialsParams) params.ForgeCredentials); ok {
+		r0 = rf(ctx, id, param)
+	} else {
+		r0 = ret.Get(0).(params.ForgeCredentials)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uint, params.UpdateGiteaCredentialsParams) error); ok {
+		r1 = rf(ctx, id, param)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// UpdateGiteaEndpoint provides a mock function with given fields: _a0, name, param
+func (_m *Store) UpdateGiteaEndpoint(_a0 context.Context, name string, param params.UpdateGiteaEndpointParams) (params.ForgeEndpoint, error) {
+	ret := _m.Called(_a0, name, param)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateGiteaEndpoint")
+	}
+
+	var r0 params.ForgeEndpoint
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, params.UpdateGiteaEndpointParams) (params.ForgeEndpoint, error)); ok {
+		return rf(_a0, name, param)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, params.UpdateGiteaEndpointParams) params.ForgeEndpoint); ok {
+		r0 = rf(_a0, name, param)
+	} else {
+		r0 = ret.Get(0).(params.ForgeEndpoint)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, params.UpdateGiteaEndpointParams) error); ok {
+		r1 = rf(_a0, name, param)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // UpdateGithubCredentials provides a mock function with given fields: ctx, id, param
-func (_m *Store) UpdateGithubCredentials(ctx context.Context, id uint, param params.UpdateGithubCredentialsParams) (params.GithubCredentials, error) {
+func (_m *Store) UpdateGithubCredentials(ctx context.Context, id uint, param params.UpdateGithubCredentialsParams) (params.ForgeCredentials, error) {
 	ret := _m.Called(ctx, id, param)
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateGithubCredentials")
 	}
 
-	var r0 params.GithubCredentials
+	var r0 params.ForgeCredentials
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint, params.UpdateGithubCredentialsParams) (params.GithubCredentials, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, uint, params.UpdateGithubCredentialsParams) (params.ForgeCredentials, error)); ok {
 		return rf(ctx, id, param)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, uint, params.UpdateGithubCredentialsParams) params.GithubCredentials); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, uint, params.UpdateGithubCredentialsParams) params.ForgeCredentials); ok {
 		r0 = rf(ctx, id, param)
 	} else {
-		r0 = ret.Get(0).(params.GithubCredentials)
+		r0 = ret.Get(0).(params.ForgeCredentials)
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, uint, params.UpdateGithubCredentialsParams) error); ok {

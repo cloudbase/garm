@@ -39,7 +39,7 @@ type RepoTestFixtures struct {
 	Store                dbCommon.Store
 	StoreRepos           map[string]params.Repository
 	Providers            map[string]common.Provider
-	Credentials          map[string]params.GithubCredentials
+	Credentials          map[string]params.ForgeCredentials
 	CreateRepoParams     params.CreateRepoParams
 	CreatePoolParams     params.CreatePoolParams
 	CreateInstanceParams params.CreateInstanceParams
@@ -60,8 +60,8 @@ type RepoTestSuite struct {
 	Fixtures *RepoTestFixtures
 	Runner   *Runner
 
-	testCreds          params.GithubCredentials
-	secondaryTestCreds params.GithubCredentials
+	testCreds          params.ForgeCredentials
+	secondaryTestCreds params.ForgeCredentials
 	githubEndpoint     params.ForgeEndpoint
 }
 
@@ -86,7 +86,7 @@ func (s *RepoTestSuite) SetupTest() {
 			adminCtx,
 			fmt.Sprintf("test-owner-%v", i),
 			name,
-			s.testCreds.Name,
+			s.testCreds,
 			fmt.Sprintf("test-webhook-secret-%v", i),
 			params.PoolBalancerTypeRoundRobin,
 		)
@@ -107,7 +107,7 @@ func (s *RepoTestSuite) SetupTest() {
 		Providers: map[string]common.Provider{
 			"test-provider": providerMock,
 		},
-		Credentials: map[string]params.GithubCredentials{
+		Credentials: map[string]params.ForgeCredentials{
 			s.testCreds.Name:          s.testCreds,
 			s.secondaryTestCreds.Name: s.secondaryTestCreds,
 		},

@@ -29,16 +29,16 @@ type GithubEndpointStore interface {
 }
 
 type GithubCredentialsStore interface {
-	CreateGithubCredentials(ctx context.Context, param params.CreateGithubCredentialsParams) (params.GithubCredentials, error)
-	GetGithubCredentials(ctx context.Context, id uint, detailed bool) (params.GithubCredentials, error)
-	GetGithubCredentialsByName(ctx context.Context, name string, detailed bool) (params.GithubCredentials, error)
-	ListGithubCredentials(ctx context.Context) ([]params.GithubCredentials, error)
-	UpdateGithubCredentials(ctx context.Context, id uint, param params.UpdateGithubCredentialsParams) (params.GithubCredentials, error)
+	CreateGithubCredentials(ctx context.Context, param params.CreateGithubCredentialsParams) (params.ForgeCredentials, error)
+	GetGithubCredentials(ctx context.Context, id uint, detailed bool) (params.ForgeCredentials, error)
+	GetGithubCredentialsByName(ctx context.Context, name string, detailed bool) (params.ForgeCredentials, error)
+	ListGithubCredentials(ctx context.Context) ([]params.ForgeCredentials, error)
+	UpdateGithubCredentials(ctx context.Context, id uint, param params.UpdateGithubCredentialsParams) (params.ForgeCredentials, error)
 	DeleteGithubCredentials(ctx context.Context, id uint) error
 }
 
 type RepoStore interface {
-	CreateRepository(ctx context.Context, owner, name, credentialsName, webhookSecret string, poolBalancerType params.PoolBalancerType) (params.Repository, error)
+	CreateRepository(ctx context.Context, owner, name string, credentials params.ForgeCredentials, webhookSecret string, poolBalancerType params.PoolBalancerType) (param params.Repository, err error)
 	GetRepository(ctx context.Context, owner, name, endpointName string) (params.Repository, error)
 	GetRepositoryByID(ctx context.Context, repoID string) (params.Repository, error)
 	ListRepositories(ctx context.Context) ([]params.Repository, error)
@@ -152,6 +152,23 @@ type ScaleSetInstanceStore interface {
 	CreateScaleSetInstance(_ context.Context, scaleSetID uint, param params.CreateInstanceParams) (instance params.Instance, err error)
 }
 
+type GiteaEndpointStore interface {
+	CreateGiteaEndpoint(_ context.Context, param params.CreateGiteaEndpointParams) (ghEndpoint params.ForgeEndpoint, err error)
+	ListGiteaEndpoints(_ context.Context) ([]params.ForgeEndpoint, error)
+	DeleteGiteaEndpoint(_ context.Context, name string) (err error)
+	GetGiteaEndpoint(_ context.Context, name string) (params.ForgeEndpoint, error)
+	UpdateGiteaEndpoint(_ context.Context, name string, param params.UpdateGiteaEndpointParams) (ghEndpoint params.ForgeEndpoint, err error)
+}
+
+type GiteaCredentialsStore interface {
+	CreateGiteaCredentials(ctx context.Context, param params.CreateGiteaCredentialsParams) (gtCreds params.ForgeCredentials, err error)
+	GetGiteaCredentialsByName(ctx context.Context, name string, detailed bool) (params.ForgeCredentials, error)
+	GetGiteaCredentials(ctx context.Context, id uint, detailed bool) (params.ForgeCredentials, error)
+	ListGiteaCredentials(ctx context.Context) ([]params.ForgeCredentials, error)
+	UpdateGiteaCredentials(ctx context.Context, id uint, param params.UpdateGiteaCredentialsParams) (gtCreds params.ForgeCredentials, err error)
+	DeleteGiteaCredentials(ctx context.Context, id uint) (err error)
+}
+
 //go:generate mockery --name=Store
 type Store interface {
 	RepoStore
@@ -167,6 +184,8 @@ type Store interface {
 	EntityPoolStore
 	ScaleSetsStore
 	ScaleSetInstanceStore
+	GiteaEndpointStore
+	GiteaCredentialsStore
 
 	ControllerInfo() (params.ControllerInfo, error)
 	InitController() (params.ControllerInfo, error)

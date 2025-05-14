@@ -384,6 +384,7 @@ func main() {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to stop provider worker")
 	}
 
+	slog.InfoContext(ctx, "shutting down http server")
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer shutdownCancel()
 	if err := srv.Shutdown(shutdownCtx); err != nil {

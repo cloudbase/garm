@@ -49,7 +49,14 @@ func (t *toolsUpdater) Start() error {
 	t.running = true
 	t.quit = make(chan struct{})
 
-	go t.loop()
+	slog.DebugContext(t.ctx, "starting tools updater", "entity", t.entity.String(), "forge_type", t.entity.Credentials)
+
+	switch t.entity.Credentials.ForgeType {
+	case params.GithubEndpointType:
+		go t.loop()
+	case params.GiteaEndpointType:
+		go t.giteaUpdateLoop()
+	}
 	return nil
 }
 
@@ -68,7 +75,7 @@ func (t *toolsUpdater) Stop() error {
 }
 
 func (t *toolsUpdater) updateTools() error {
-	slog.DebugContext(t.ctx, "updating tools", "entity", t.entity.String())
+	slog.DebugContext(t.ctx, "updating tools", "entity", t.entity.String(), "forge_type", t.entity.Credentials.ForgeType)
 	entity, ok := cache.GetEntity(t.entity.ID)
 	if !ok {
 		return fmt.Errorf("getting entity from cache: %s", t.entity.ID)
@@ -98,9 +105,66 @@ func (t *toolsUpdater) Reset() {
 		return
 	}
 
+	if t.entity.Credentials.ForgeType == params.GiteaEndpointType {
+		// no need to reset the gitea tools updater when credentials
+		// are updated.
+		return
+	}
+
 	if t.reset != nil {
 		close(t.reset)
 		t.reset = nil
+	}
+}
+
+func (t *toolsUpdater) sleepWithCancel(sleepTime time.Duration) (canceled bool) {
+	ticker := time.NewTicker(sleepTime)
+	defer ticker.Stop()
+
+	select {
+	case <-ticker.C:
+		return false
+	case <-t.quit:
+	case <-t.ctx.Done():
+	}
+	return true
+}
+
+// giteaUpdateLoop updates tools for gitea. The act runner can be downloaded
+// without a token, unlike the github tools, which for GHES require a token.
+func (t *toolsUpdater) giteaUpdateLoop() {
+	defer t.Stop()
+
+	// add some jitter. When spinning up multiple entities, we add
+	// jitter to prevent stampeeding herd.
+	randInt, err := rand.Int(rand.Reader, big.NewInt(3000))
+	if err != nil {
+		randInt = big.NewInt(0)
+	}
+	t.sleepWithCancel(time.Duration(randInt.Int64()) * time.Millisecond)
+	tools, err := getTools()
+	if err == nil {
+		cache.SetGithubToolsCache(t.entity, tools)
+	}
+
+	// Once every 3 hours should be enough. Tools don't expire.
+	ticker := time.NewTicker(3 * time.Hour)
+
+	for {
+		select {
+		case <-t.quit:
+			slog.DebugContext(t.ctx, "stopping tools updater")
+			return
+		case <-t.ctx.Done():
+			return
+		case <-ticker.C:
+			tools, err := getTools()
+			if err != nil {
+				slog.DebugContext(t.ctx, "failed to update gitea tools", "error", err)
+				continue
+			}
+			cache.SetGithubToolsCache(t.entity, tools)
+		}
 	}
 }
 
@@ -113,7 +177,7 @@ func (t *toolsUpdater) loop() {
 	if err != nil {
 		randInt = big.NewInt(0)
 	}
-	time.Sleep(time.Duration(randInt.Int64()) * time.Millisecond)
+	t.sleepWithCancel(time.Duration(randInt.Int64()) * time.Millisecond)
 
 	var resetTime time.Time
 	now := time.Now().UTC()

@@ -125,12 +125,12 @@ func (r *basePoolManager) handleWatcherEvent(event common.ChangePayload) {
 	dbEntityType := common.DatabaseEntityType(r.entity.EntityType)
 	switch event.EntityType {
 	case common.GithubCredentialsEntityType:
-		credentials, ok := event.Payload.(params.GithubCredentials)
+		credentials, ok := event.Payload.(params.ForgeCredentials)
 		if !ok {
 			slog.ErrorContext(r.ctx, "failed to cast payload to github credentials")
 			return
 		}
-		r.handleCredentialsUpdate(credentials.GetForgeCredentials())
+		r.handleCredentialsUpdate(credentials)
 	case common.ControllerEntityType:
 		controllerInfo, ok := event.Payload.(params.ControllerInfo)
 		if !ok {

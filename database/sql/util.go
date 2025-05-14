@@ -27,6 +27,7 @@ import (
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm-provider-common/util"
+	"github.com/cloudbase/garm/auth"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/params"
 )
@@ -155,7 +156,7 @@ func (s *sqlDatabase) sqlToCommonOrganization(org Organization, detailed bool) (
 	}
 
 	if detailed {
-		creds, err := s.sqlToCommonGithubCredentials(org.Credentials)
+		creds, err := s.sqlToCommonForgeCredentials(org.Credentials)
 		if err != nil {
 			return params.Organization{}, errors.Wrap(err, "converting credentials")
 		}
@@ -206,7 +207,7 @@ func (s *sqlDatabase) sqlToCommonEnterprise(enterprise Enterprise, detailed bool
 	}
 
 	if detailed {
-		creds, err := s.sqlToCommonGithubCredentials(enterprise.Credentials)
+		creds, err := s.sqlToCommonForgeCredentials(enterprise.Credentials)
 		if err != nil {
 			return params.Enterprise{}, errors.Wrap(err, "converting credentials")
 		}
@@ -371,16 +372,28 @@ func (s *sqlDatabase) sqlToCommonRepository(repo Repository, detailed bool) (par
 		Endpoint:         endpoint,
 	}
 
+	if repo.CredentialsID != nil && repo.GiteaCredentialsID != nil {
+		return params.Repository{}, runnerErrors.NewConflictError("both gitea and github credentials are set for repo %s", repo.Name)
+	}
+
+	var forgeCreds params.ForgeCredentials
 	if repo.CredentialsID != nil {
 		ret.CredentialsID = *repo.CredentialsID
+		forgeCreds, err = s.sqlToCommonForgeCredentials(repo.Credentials)
+	}
+
+	if repo.GiteaCredentialsID != nil {
+		ret.CredentialsID = *repo.GiteaCredentialsID
+		forgeCreds, err = s.sqlGiteaToCommonForgeCredentials(repo.GiteaCredentials)
+	}
+
+	if err != nil {
+		return params.Repository{}, errors.Wrap(err, "converting credentials")
 	}
 
 	if detailed {
-		creds, err := s.sqlToCommonGithubCredentials(repo.Credentials)
-		if err != nil {
-			return params.Repository{}, errors.Wrap(err, "converting credentials")
-		}
-		ret.Credentials = creds
+		ret.Credentials = forgeCreds
+		ret.CredentialsName = forgeCreds.Name
 	}
 
 	if ret.PoolBalancerType == "" {
@@ -638,7 +651,7 @@ func (s *sqlDatabase) addRepositoryEvent(ctx context.Context, repoID string, eve
 		return errors.Wrap(err, "updating instance")
 	}
 
-	msg := InstanceStatusUpdate{
+	msg := RepositoryEvent{
 		Message:    statusMessage,
 		EventType:  event,
 		EventLevel: eventLevel,
@@ -653,8 +666,8 @@ func (s *sqlDatabase) addRepositoryEvent(ctx context.Context, repoID string, eve
 		if err != nil {
 			return errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
 		}
-		var latestEvents []OrganizationEvent
-		q := s.conn.Model(&OrganizationEvent{}).
+		var latestEvents []RepositoryEvent
+		q := s.conn.Model(&RepositoryEvent{}).
 			Limit(maxEvents).Order("id desc").
 			Where("repo_id = ?", repoID).Find(&latestEvents)
 		if q.Error != nil {
@@ -662,7 +675,7 @@ func (s *sqlDatabase) addRepositoryEvent(ctx context.Context, repoID string, eve
 		}
 		if len(latestEvents) == maxEvents {
 			lastInList := latestEvents[len(latestEvents)-1]
-			if err := s.conn.Where("repo_id = ? and id < ?", repoID, lastInList.ID).Unscoped().Delete(&OrganizationEvent{}).Error; err != nil {
+			if err := s.conn.Where("repo_id = ? and id < ?", repoID, lastInList.ID).Unscoped().Delete(&RepositoryEvent{}).Error; err != nil {
 				return errors.Wrap(err, "deleting old events")
 			}
 		}
@@ -676,7 +689,7 @@ func (s *sqlDatabase) addOrgEvent(ctx context.Context, orgID string, event param
 		return errors.Wrap(err, "updating instance")
 	}
 
-	msg := InstanceStatusUpdate{
+	msg := OrganizationEvent{
 		Message:    statusMessage,
 		EventType:  event,
 		EventLevel: eventLevel,
@@ -714,7 +727,7 @@ func (s *sqlDatabase) addEnterpriseEvent(ctx context.Context, entID string, even
 		return errors.Wrap(err, "updating instance")
 	}
 
-	msg := InstanceStatusUpdate{
+	msg := EnterpriseEvent{
 		Message:    statusMessage,
 		EventType:  event,
 		EventLevel: eventLevel,
@@ -762,4 +775,136 @@ func (s *sqlDatabase) AddEntityEvent(ctx context.Context, entity params.ForgeEnt
 	default:
 		return errors.Wrap(runnerErrors.ErrBadRequest, "invalid entity type")
 	}
+}
+
+func (s *sqlDatabase) sqlToCommonForgeCredentials(creds GithubCredentials) (params.ForgeCredentials, error) {
+	if len(creds.Payload) == 0 {
+		return params.ForgeCredentials{}, errors.New("empty credentials payload")
+	}
+	data, err := util.Unseal(creds.Payload, []byte(s.cfg.Passphrase))
+	if err != nil {
+		return params.ForgeCredentials{}, errors.Wrap(err, "unsealing credentials")
+	}
+
+	ep, err := s.sqlToCommonGithubEndpoint(creds.Endpoint)
+	if err != nil {
+		return params.ForgeCredentials{}, errors.Wrap(err, "converting github endpoint")
+	}
+
+	commonCreds := params.ForgeCredentials{
+		ID:                 creds.ID,
+		Name:               creds.Name,
+		Description:        creds.Description,
+		APIBaseURL:         creds.Endpoint.APIBaseURL,
+		BaseURL:            creds.Endpoint.BaseURL,
+		UploadBaseURL:      creds.Endpoint.UploadBaseURL,
+		CABundle:           creds.Endpoint.CACertBundle,
+		AuthType:           creds.AuthType,
+		CreatedAt:          creds.CreatedAt,
+		UpdatedAt:          creds.UpdatedAt,
+		ForgeType:          creds.Endpoint.EndpointType,
+		Endpoint:           ep,
+		CredentialsPayload: data,
+	}
+
+	for _, repo := range creds.Repositories {
+		commonRepo, err := s.sqlToCommonRepository(repo, false)
+		if err != nil {
+			return params.ForgeCredentials{}, errors.Wrap(err, "converting github repository")
+		}
+		commonCreds.Repositories = append(commonCreds.Repositories, commonRepo)
+	}
+
+	for _, org := range creds.Organizations {
+		commonOrg, err := s.sqlToCommonOrganization(org, false)
+		if err != nil {
+			return params.ForgeCredentials{}, errors.Wrap(err, "converting github organization")
+		}
+		commonCreds.Organizations = append(commonCreds.Organizations, commonOrg)
+	}
+
+	for _, ent := range creds.Enterprises {
+		commonEnt, err := s.sqlToCommonEnterprise(ent, false)
+		if err != nil {
+			return params.ForgeCredentials{}, errors.Wrapf(err, "converting github enterprise: %s", ent.Name)
+		}
+		commonCreds.Enterprises = append(commonCreds.Enterprises, commonEnt)
+	}
+
+	return commonCreds, nil
+}
+
+func (s *sqlDatabase) sqlGiteaToCommonForgeCredentials(creds GiteaCredentials) (params.ForgeCredentials, error) {
+	if len(creds.Payload) == 0 {
+		return params.ForgeCredentials{}, errors.New("empty credentials payload")
+	}
+	data, err := util.Unseal(creds.Payload, []byte(s.cfg.Passphrase))
+	if err != nil {
+		return params.ForgeCredentials{}, errors.Wrap(err, "unsealing credentials")
+	}
+
+	ep, err := s.sqlToCommonGithubEndpoint(creds.Endpoint)
+	if err != nil {
+		return params.ForgeCredentials{}, errors.Wrap(err, "converting github endpoint")
+	}
+
+	commonCreds := params.ForgeCredentials{
+		ID:                 creds.ID,
+		Name:               creds.Name,
+		Description:        creds.Description,
+		APIBaseURL:         creds.Endpoint.APIBaseURL,
+		BaseURL:            creds.Endpoint.BaseURL,
+		CABundle:           creds.Endpoint.CACertBundle,
+		AuthType:           creds.AuthType,
+		CreatedAt:          creds.CreatedAt,
+		UpdatedAt:          creds.UpdatedAt,
+		ForgeType:          creds.Endpoint.EndpointType,
+		Endpoint:           ep,
+		CredentialsPayload: data,
+	}
+
+	for _, repo := range creds.Repositories {
+		commonRepo, err := s.sqlToCommonRepository(repo, false)
+		if err != nil {
+			return params.ForgeCredentials{}, errors.Wrap(err, "converting github repository")
+		}
+		commonCreds.Repositories = append(commonCreds.Repositories, commonRepo)
+	}
+
+	for _, org := range creds.Organizations {
+		commonOrg, err := s.sqlToCommonOrganization(org, false)
+		if err != nil {
+			return params.ForgeCredentials{}, errors.Wrap(err, "converting github organization")
+		}
+		commonCreds.Organizations = append(commonCreds.Organizations, commonOrg)
+	}
+
+	return commonCreds, nil
+}
+
+func (s *sqlDatabase) sqlToCommonGithubEndpoint(ep GithubEndpoint) (params.ForgeEndpoint, error) {
+	return params.ForgeEndpoint{
+		Name:          ep.Name,
+		Description:   ep.Description,
+		APIBaseURL:    ep.APIBaseURL,
+		BaseURL:       ep.BaseURL,
+		UploadBaseURL: ep.UploadBaseURL,
+		CACertBundle:  ep.CACertBundle,
+		CreatedAt:     ep.CreatedAt,
+		EndpointType:  ep.EndpointType,
+		UpdatedAt:     ep.UpdatedAt,
+	}, nil
+}
+
+func getUIDFromContext(ctx context.Context) (uuid.UUID, error) {
+	userID := auth.UserID(ctx)
+	if userID == "" {
+		return uuid.Nil, errors.Wrap(runnerErrors.ErrUnauthorized, "getting UID from context")
+	}
+
+	asUUID, err := uuid.Parse(userID)
+	if err != nil {
+		return uuid.Nil, errors.Wrap(runnerErrors.ErrUnauthorized, "parsing UID from context")
+	}
+	return asUUID, nil
 }

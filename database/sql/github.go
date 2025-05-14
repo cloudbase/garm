@@ -17,12 +17,10 @@ package sql
 import (
 	"context"
 
-	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"gorm.io/gorm"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
-	"github.com/cloudbase/garm-provider-common/util"
 	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/params"
@@ -31,89 +29,6 @@ import (
 const (
 	defaultGithubEndpoint string = "github.com"
 )
-
-func (s *sqlDatabase) sqlToCommonGithubCredentials(creds GithubCredentials) (params.GithubCredentials, error) {
-	if len(creds.Payload) == 0 {
-		return params.GithubCredentials{}, errors.New("empty credentials payload")
-	}
-	data, err := util.Unseal(creds.Payload, []byte(s.cfg.Passphrase))
-	if err != nil {
-		return params.GithubCredentials{}, errors.Wrap(err, "unsealing credentials")
-	}
-
-	ep, err := s.sqlToCommonGithubEndpoint(creds.Endpoint)
-	if err != nil {
-		return params.GithubCredentials{}, errors.Wrap(err, "converting github endpoint")
-	}
-
-	commonCreds := params.GithubCredentials{
-		ID:                 creds.ID,
-		Name:               creds.Name,
-		Description:        creds.Description,
-		APIBaseURL:         creds.Endpoint.APIBaseURL,
-		BaseURL:            creds.Endpoint.BaseURL,
-		UploadBaseURL:      creds.Endpoint.UploadBaseURL,
-		CABundle:           creds.Endpoint.CACertBundle,
-		AuthType:           creds.AuthType,
-		CreatedAt:          creds.CreatedAt,
-		UpdatedAt:          creds.UpdatedAt,
-		Endpoint:           ep,
-		CredentialsPayload: data,
-	}
-
-	for _, repo := range creds.Repositories {
-		commonRepo, err := s.sqlToCommonRepository(repo, false)
-		if err != nil {
-			return params.GithubCredentials{}, errors.Wrap(err, "converting github repository")
-		}
-		commonCreds.Repositories = append(commonCreds.Repositories, commonRepo)
-	}
-
-	for _, org := range creds.Organizations {
-		commonOrg, err := s.sqlToCommonOrganization(org, false)
-		if err != nil {
-			return params.GithubCredentials{}, errors.Wrap(err, "converting github organization")
-		}
-		commonCreds.Organizations = append(commonCreds.Organizations, commonOrg)
-	}
-
-	for _, ent := range creds.Enterprises {
-		commonEnt, err := s.sqlToCommonEnterprise(ent, false)
-		if err != nil {
-			return params.GithubCredentials{}, errors.Wrapf(err, "converting github enterprise: %s", ent.Name)
-		}
-		commonCreds.Enterprises = append(commonCreds.Enterprises, commonEnt)
-	}
-
-	return commonCreds, nil
-}
-
-func (s *sqlDatabase) sqlToCommonGithubEndpoint(ep GithubEndpoint) (params.ForgeEndpoint, error) {
-	return params.ForgeEndpoint{
-		Name:          ep.Name,
-		Description:   ep.Description,
-		APIBaseURL:    ep.APIBaseURL,
-		BaseURL:       ep.BaseURL,
-		UploadBaseURL: ep.UploadBaseURL,
-		CACertBundle:  ep.CACertBundle,
-		CreatedAt:     ep.CreatedAt,
-		EndpointType:  ep.EndpointType,
-		UpdatedAt:     ep.UpdatedAt,
-	}, nil
-}
-
-func getUIDFromContext(ctx context.Context) (uuid.UUID, error) {
-	userID := auth.UserID(ctx)
-	if userID == "" {
-		return uuid.Nil, errors.Wrap(runnerErrors.ErrUnauthorized, "getting UID from context")
-	}
-
-	asUUID, err := uuid.Parse(userID)
-	if err != nil {
-		return uuid.Nil, errors.Wrap(runnerErrors.ErrUnauthorized, "parsing UID from context")
-	}
-	return asUUID, nil
-}
 
 func (s *sqlDatabase) CreateGithubEndpoint(_ context.Context, param params.CreateGithubEndpointParams) (ghEndpoint params.ForgeEndpoint, err error) {
 	defer func() {
@@ -133,6 +48,7 @@ func (s *sqlDatabase) CreateGithubEndpoint(_ context.Context, param params.Creat
 			BaseURL:       param.BaseURL,
 			UploadBaseURL: param.UploadBaseURL,
 			CACertBundle:  param.CACertBundle,
+			EndpointType:  params.GithubEndpointType,
 		}
 
 		if err := tx.Create(&endpoint).Error; err != nil {
@@ -152,7 +68,7 @@ func (s *sqlDatabase) CreateGithubEndpoint(_ context.Context, param params.Creat
 
 func (s *sqlDatabase) ListGithubEndpoints(_ context.Context) ([]params.ForgeEndpoint, error) {
 	var endpoints []GithubEndpoint
-	err := s.conn.Find(&endpoints).Error
+	err := s.conn.Where("endpoint_type = ?", params.GithubEndpointType).Find(&endpoints).Error
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching github endpoints")
 	}
@@ -180,7 +96,7 @@ func (s *sqlDatabase) UpdateGithubEndpoint(_ context.Context, name string, param
 	}()
 	var endpoint GithubEndpoint
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("name = ?", name).First(&endpoint).Error; err != nil {
+		if err := tx.Where("name = ? and endpoint_type = ?", name, params.GithubEndpointType).First(&endpoint).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return errors.Wrap(runnerErrors.ErrNotFound, "github endpoint not found")
 			}
@@ -225,7 +141,7 @@ func (s *sqlDatabase) UpdateGithubEndpoint(_ context.Context, name string, param
 func (s *sqlDatabase) GetGithubEndpoint(_ context.Context, name string) (params.ForgeEndpoint, error) {
 	var endpoint GithubEndpoint
 
-	err := s.conn.Where("name = ?", name).First(&endpoint).Error
+	err := s.conn.Where("name = ? and endpoint_type = ?", name, params.GithubEndpointType).First(&endpoint).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return params.ForgeEndpoint{}, errors.Wrap(runnerErrors.ErrNotFound, "github endpoint not found")
@@ -248,7 +164,7 @@ func (s *sqlDatabase) DeleteGithubEndpoint(_ context.Context, name string) (err 
 	}()
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
 		var endpoint GithubEndpoint
-		if err := tx.Where("name = ?", name).First(&endpoint).Error; err != nil {
+		if err := tx.Where("name = ? and endpoint_type = ?", name, params.GithubEndpointType).First(&endpoint).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return nil
 			}
@@ -298,13 +214,13 @@ func (s *sqlDatabase) DeleteGithubEndpoint(_ context.Context, name string) (err 
 	return nil
 }
 
-func (s *sqlDatabase) CreateGithubCredentials(ctx context.Context, param params.CreateGithubCredentialsParams) (ghCreds params.GithubCredentials, err error) {
+func (s *sqlDatabase) CreateGithubCredentials(ctx context.Context, param params.CreateGithubCredentialsParams) (ghCreds params.ForgeCredentials, err error) {
 	userID, err := getUIDFromContext(ctx)
 	if err != nil {
-		return params.GithubCredentials{}, errors.Wrap(err, "creating github credentials")
+		return params.ForgeCredentials{}, errors.Wrap(err, "creating github credentials")
 	}
 	if param.Endpoint == "" {
-		return params.GithubCredentials{}, errors.Wrap(runnerErrors.ErrBadRequest, "endpoint name is required")
+		return params.ForgeCredentials{}, errors.Wrap(runnerErrors.ErrBadRequest, "endpoint name is required")
 	}
 
 	defer func() {
@@ -315,7 +231,7 @@ func (s *sqlDatabase) CreateGithubCredentials(ctx context.Context, param params.
 	var creds GithubCredentials
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
 		var endpoint GithubEndpoint
-		if err := tx.Where("name = ?", param.Endpoint).First(&endpoint).Error; err != nil {
+		if err := tx.Where("name = ? and endpoint_type = ?", param.Endpoint, params.GithubEndpointType).First(&endpoint).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return errors.Wrap(runnerErrors.ErrNotFound, "github endpoint not found")
 			}
@@ -358,11 +274,11 @@ func (s *sqlDatabase) CreateGithubCredentials(ctx context.Context, param params.
 		return nil
 	})
 	if err != nil {
-		return params.GithubCredentials{}, errors.Wrap(err, "creating github credentials")
+		return params.ForgeCredentials{}, errors.Wrap(err, "creating github credentials")
 	}
-	ghCreds, err = s.sqlToCommonGithubCredentials(creds)
+	ghCreds, err = s.sqlToCommonForgeCredentials(creds)
 	if err != nil {
-		return params.GithubCredentials{}, errors.Wrap(err, "converting github credentials")
+		return params.ForgeCredentials{}, errors.Wrap(err, "converting github credentials")
 	}
 	return ghCreds, nil
 }
@@ -395,16 +311,16 @@ func (s *sqlDatabase) getGithubCredentialsByName(ctx context.Context, tx *gorm.D
 	return creds, nil
 }
 
-func (s *sqlDatabase) GetGithubCredentialsByName(ctx context.Context, name string, detailed bool) (params.GithubCredentials, error) {
+func (s *sqlDatabase) GetGithubCredentialsByName(ctx context.Context, name string, detailed bool) (params.ForgeCredentials, error) {
 	creds, err := s.getGithubCredentialsByName(ctx, s.conn, name, detailed)
 	if err != nil {
-		return params.GithubCredentials{}, errors.Wrap(err, "fetching github credentials")
+		return params.ForgeCredentials{}, errors.Wrap(err, "fetching github credentials")
 	}
 
-	return s.sqlToCommonGithubCredentials(creds)
+	return s.sqlToCommonForgeCredentials(creds)
 }
 
-func (s *sqlDatabase) GetGithubCredentials(ctx context.Context, id uint, detailed bool) (params.GithubCredentials, error) {
+func (s *sqlDatabase) GetGithubCredentials(ctx context.Context, id uint, detailed bool) (params.ForgeCredentials, error) {
 	var creds GithubCredentials
 	q := s.conn.Preload("Endpoint")
 
@@ -418,7 +334,7 @@ func (s *sqlDatabase) GetGithubCredentials(ctx context.Context, id uint, detaile
 	if !auth.IsAdmin(ctx) {
 		userID, err := getUIDFromContext(ctx)
 		if err != nil {
-			return params.GithubCredentials{}, errors.Wrap(err, "fetching github credentials")
+			return params.ForgeCredentials{}, errors.Wrap(err, "fetching github credentials")
 		}
 		q = q.Where("user_id = ?", userID)
 	}
@@ -426,15 +342,15 @@ func (s *sqlDatabase) GetGithubCredentials(ctx context.Context, id uint, detaile
 	err := q.Where("id = ?", id).First(&creds).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return params.GithubCredentials{}, errors.Wrap(runnerErrors.ErrNotFound, "github credentials not found")
+			return params.ForgeCredentials{}, errors.Wrap(runnerErrors.ErrNotFound, "github credentials not found")
 		}
-		return params.GithubCredentials{}, errors.Wrap(err, "fetching github credentials")
+		return params.ForgeCredentials{}, errors.Wrap(err, "fetching github credentials")
 	}
 
-	return s.sqlToCommonGithubCredentials(creds)
+	return s.sqlToCommonForgeCredentials(creds)
 }
 
-func (s *sqlDatabase) ListGithubCredentials(ctx context.Context) ([]params.GithubCredentials, error) {
+func (s *sqlDatabase) ListGithubCredentials(ctx context.Context) ([]params.ForgeCredentials, error) {
 	q := s.conn.Preload("Endpoint")
 	if !auth.IsAdmin(ctx) {
 		userID, err := getUIDFromContext(ctx)
@@ -450,9 +366,9 @@ func (s *sqlDatabase) ListGithubCredentials(ctx context.Context) ([]params.Githu
 		return nil, errors.Wrap(err, "fetching github credentials")
 	}
 
-	var ret []params.GithubCredentials
+	var ret []params.ForgeCredentials
 	for _, c := range creds {
-		commonCreds, err := s.sqlToCommonGithubCredentials(c)
+		commonCreds, err := s.sqlToCommonForgeCredentials(c)
 		if err != nil {
 			return nil, errors.Wrap(err, "converting github credentials")
 		}
@@ -461,7 +377,7 @@ func (s *sqlDatabase) ListGithubCredentials(ctx context.Context) ([]params.Githu
 	return ret, nil
 }
 
-func (s *sqlDatabase) UpdateGithubCredentials(ctx context.Context, id uint, param params.UpdateGithubCredentialsParams) (ghCreds params.GithubCredentials, err error) {
+func (s *sqlDatabase) UpdateGithubCredentials(ctx context.Context, id uint, param params.UpdateGithubCredentialsParams) (ghCreds params.ForgeCredentials, err error) {
 	defer func() {
 		if err == nil {
 			s.sendNotify(common.GithubCredentialsEntityType, common.UpdateOperation, ghCreds)
@@ -530,12 +446,12 @@ func (s *sqlDatabase) UpdateGithubCredentials(ctx context.Context, id uint, para
 		return nil
 	})
 	if err != nil {
-		return params.GithubCredentials{}, errors.Wrap(err, "updating github credentials")
+		return params.ForgeCredentials{}, errors.Wrap(err, "updating github credentials")
 	}
 
-	ghCreds, err = s.sqlToCommonGithubCredentials(creds)
+	ghCreds, err = s.sqlToCommonForgeCredentials(creds)
 	if err != nil {
-		return params.GithubCredentials{}, errors.Wrap(err, "converting github credentials")
+		return params.ForgeCredentials{}, errors.Wrap(err, "converting github credentials")
 	}
 	return ghCreds, nil
 }
@@ -544,7 +460,7 @@ func (s *sqlDatabase) DeleteGithubCredentials(ctx context.Context, id uint) (err
 	var name string
 	defer func() {
 		if err == nil {
-			s.sendNotify(common.GithubCredentialsEntityType, common.DeleteOperation, params.GithubCredentials{ID: id, Name: name})
+			s.sendNotify(common.GithubCredentialsEntityType, common.DeleteOperation, params.ForgeCredentials{ID: id, Name: name})
 		}
 	}()
 	err = s.conn.Transaction(func(tx *gorm.DB) error {

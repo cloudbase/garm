@@ -29,6 +29,7 @@ require (
 	github.com/spf13/cobra v1.9.1
 	github.com/stretchr/testify v1.10.0
 	golang.org/x/crypto v0.38.0
+	golang.org/x/mod v0.17.0
 	golang.org/x/oauth2 v0.30.0
 	golang.org/x/sync v0.14.0
 	gopkg.in/DATA-DOG/go-sqlmock.v1 v1.3.0

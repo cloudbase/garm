@@ -19,6 +19,7 @@ func init() {
 
 type GithubEntityTools struct {
 	updatedAt time.Time
+	expiresAt time.Time
 	entity    params.ForgeEntity
 	tools     []commonParams.RunnerApplicationDownload
 }
@@ -34,10 +35,12 @@ func (g *GithubToolsCache) Get(entityID string) ([]commonParams.RunnerApplicatio
 	defer g.mux.Unlock()
 
 	if cache, ok := g.entities[entityID]; ok {
-		if time.Since(cache.updatedAt) > 1*time.Hour {
-			// Stale cache, remove it.
-			delete(g.entities, entityID)
-			return nil, false
+		if cache.entity.Credentials.ForgeType == params.GithubEndpointType {
+			if time.Now().UTC().After(cache.expiresAt.Add(-5 * time.Minute)) {
+				// Stale cache, remove it.
+				delete(g.entities, entityID)
+				return nil, false
+			}
 		}
 		return cache.tools, true
 	}
@@ -48,11 +51,17 @@ func (g *GithubToolsCache) Set(entity params.ForgeEntity, tools []commonParams.R
 	g.mux.Lock()
 	defer g.mux.Unlock()
 
-	g.entities[entity.ID] = GithubEntityTools{
+	forgeTools := GithubEntityTools{
 		updatedAt: time.Now(),
 		entity:    entity,
 		tools:     tools,
 	}
+
+	if entity.Credentials.ForgeType == params.GithubEndpointType {
+		forgeTools.expiresAt = time.Now().Add(24 * time.Hour)
+	}
+
+	g.entities[entity.ID] = forgeTools
 }
 
 func SetGithubToolsCache(entity params.ForgeEntity, tools []commonParams.RunnerApplicationDownload) {

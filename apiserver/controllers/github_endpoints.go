@@ -23,7 +23,7 @@ import (
 //	    required: true
 //
 //	Responses:
-//	  200: GithubEndpoint
+//	  200: ForgeEndpoint
 //	  default: APIErrorResponse
 func (a *APIController) CreateGithubEndpoint(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -52,7 +52,7 @@ func (a *APIController) CreateGithubEndpoint(w http.ResponseWriter, r *http.Requ
 // List all GitHub Endpoints.
 //
 //	Responses:
-//	  200: GithubEndpoints
+//	  200: ForgeEndpoints
 //	  default: APIErrorResponse
 func (a *APIController) ListGithubEndpoints(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -81,7 +81,7 @@ func (a *APIController) ListGithubEndpoints(w http.ResponseWriter, r *http.Reque
 //	    required: true
 //
 //	Responses:
-//	  200: GithubEndpoint
+//	  200: ForgeEndpoint
 //	  default: APIErrorResponse
 func (a *APIController) GetGithubEndpoint(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -153,7 +153,7 @@ func (a *APIController) DeleteGithubEndpoint(w http.ResponseWriter, r *http.Requ
 //	    required: true
 //
 //	Responses:
-//	  200: GithubEndpoint
+//	  200: ForgeEndpoint
 //	  default: APIErrorResponse
 func (a *APIController) UpdateGithubEndpoint(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()

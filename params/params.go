@@ -344,26 +344,30 @@ type Tag struct {
 type Pool struct {
 	RunnerPrefix
 
-	ID                     string              `json:"id,omitempty"`
-	ProviderName           string              `json:"provider_name,omitempty"`
-	MaxRunners             uint                `json:"max_runners,omitempty"`
-	MinIdleRunners         uint                `json:"min_idle_runners,omitempty"`
-	Image                  string              `json:"image,omitempty"`
-	Flavor                 string              `json:"flavor,omitempty"`
-	OSType                 commonParams.OSType `json:"os_type,omitempty"`
-	OSArch                 commonParams.OSArch `json:"os_arch,omitempty"`
-	Tags                   []Tag               `json:"tags,omitempty"`
-	Enabled                bool                `json:"enabled,omitempty"`
-	Instances              []Instance          `json:"instances,omitempty"`
-	RepoID                 string              `json:"repo_id,omitempty"`
-	RepoName               string              `json:"repo_name,omitempty"`
-	OrgID                  string              `json:"org_id,omitempty"`
-	OrgName                string              `json:"org_name,omitempty"`
-	EnterpriseID           string              `json:"enterprise_id,omitempty"`
-	EnterpriseName         string              `json:"enterprise_name,omitempty"`
-	RunnerBootstrapTimeout uint                `json:"runner_bootstrap_timeout,omitempty"`
-	CreatedAt              time.Time           `json:"created_at,omitempty"`
-	UpdatedAt              time.Time           `json:"updated_at,omitempty"`
+	ID             string              `json:"id,omitempty"`
+	ProviderName   string              `json:"provider_name,omitempty"`
+	MaxRunners     uint                `json:"max_runners,omitempty"`
+	MinIdleRunners uint                `json:"min_idle_runners,omitempty"`
+	Image          string              `json:"image,omitempty"`
+	Flavor         string              `json:"flavor,omitempty"`
+	OSType         commonParams.OSType `json:"os_type,omitempty"`
+	OSArch         commonParams.OSArch `json:"os_arch,omitempty"`
+	Tags           []Tag               `json:"tags,omitempty"`
+	Enabled        bool                `json:"enabled,omitempty"`
+	Instances      []Instance          `json:"instances,omitempty"`
+
+	RepoID   string `json:"repo_id,omitempty"`
+	RepoName string `json:"repo_name,omitempty"`
+
+	OrgID   string `json:"org_id,omitempty"`
+	OrgName string `json:"org_name,omitempty"`
+
+	EnterpriseID   string `json:"enterprise_id,omitempty"`
+	EnterpriseName string `json:"enterprise_name,omitempty"`
+
+	RunnerBootstrapTimeout uint      `json:"runner_bootstrap_timeout,omitempty"`
+	CreatedAt              time.Time `json:"created_at,omitempty"`
+	UpdatedAt              time.Time `json:"updated_at,omitempty"`
 	// ExtraSpecs is an opaque raw json that gets sent to the provider
 	// as part of the bootstrap params for instances. It can contain
 	// any kind of data needed by providers. The contents of this field means
@@ -586,9 +590,11 @@ type Repository struct {
 	// CredentialName is the name of the credentials associated with the enterprise.
 	// This field is now deprecated. Use CredentialsID instead. This field will be
 	// removed in v0.2.0.
-	CredentialsName   string            `json:"credentials_name,omitempty"`
-	CredentialsID     uint              `json:"credentials_id,omitempty"`
-	Credentials       GithubCredentials `json:"credentials,omitempty"`
+	CredentialsName string `json:"credentials_name,omitempty"`
+
+	CredentialsID uint             `json:"credentials_id,omitempty"`
+	Credentials   ForgeCredentials `json:"credentials,omitempty"`
+
 	PoolManagerStatus PoolManagerStatus `json:"pool_manager_status,omitempty"`
 	PoolBalancerType  PoolBalancerType  `json:"pool_balancing_type,omitempty"`
 	Endpoint          ForgeEndpoint     `json:"endpoint,omitempty"`
@@ -596,6 +602,13 @@ type Repository struct {
 	UpdatedAt         time.Time         `json:"updated_at,omitempty"`
 	// Do not serialize sensitive info.
 	WebhookSecret string `json:"-"`
+}
+
+func (r Repository) GetCredentialsName() string {
+	if r.CredentialsName != "" {
+		return r.CredentialsName
+	}
+	return r.Credentials.Name
 }
 
 func (r Repository) CreationDateGetter() time.Time {
@@ -612,13 +625,10 @@ func (r Repository) GetEntity() (ForgeEntity, error) {
 		Owner:            r.Owner,
 		Name:             r.Name,
 		PoolBalancerType: r.PoolBalancerType,
-		Credentials: ForgeCredentials{
-			ForgeType:         GithubEndpointType,
-			GithubCredentials: r.Credentials,
-		},
-		WebhookSecret: r.WebhookSecret,
-		CreatedAt:     r.CreatedAt,
-		UpdatedAt:     r.UpdatedAt,
+		Credentials:      r.Credentials,
+		WebhookSecret:    r.WebhookSecret,
+		CreatedAt:        r.CreatedAt,
+		UpdatedAt:        r.UpdatedAt,
 	}, nil
 }
 
@@ -652,7 +662,7 @@ type Organization struct {
 	// This field is now deprecated. Use CredentialsID instead. This field will be
 	// removed in v0.2.0.
 	CredentialsName   string            `json:"credentials_name,omitempty"`
-	Credentials       GithubCredentials `json:"credentials,omitempty"`
+	Credentials       ForgeCredentials  `json:"credentials,omitempty"`
 	CredentialsID     uint              `json:"credentials_id,omitempty"`
 	PoolManagerStatus PoolManagerStatus `json:"pool_manager_status,omitempty"`
 	PoolBalancerType  PoolBalancerType  `json:"pool_balancing_type,omitempty"`
@@ -677,12 +687,9 @@ func (o Organization) GetEntity() (ForgeEntity, error) {
 		Owner:            o.Name,
 		WebhookSecret:    o.WebhookSecret,
 		PoolBalancerType: o.PoolBalancerType,
-		Credentials: ForgeCredentials{
-			ForgeType:         GithubEndpointType,
-			GithubCredentials: o.Credentials,
-		},
-		CreatedAt: o.CreatedAt,
-		UpdatedAt: o.UpdatedAt,
+		Credentials:      o.Credentials,
+		CreatedAt:        o.CreatedAt,
+		UpdatedAt:        o.UpdatedAt,
 	}, nil
 }
 
@@ -712,7 +719,7 @@ type Enterprise struct {
 	// This field is now deprecated. Use CredentialsID instead. This field will be
 	// removed in v0.2.0.
 	CredentialsName   string            `json:"credentials_name,omitempty"`
-	Credentials       GithubCredentials `json:"credentials,omitempty"`
+	Credentials       ForgeCredentials  `json:"credentials,omitempty"`
 	CredentialsID     uint              `json:"credentials_id,omitempty"`
 	PoolManagerStatus PoolManagerStatus `json:"pool_manager_status,omitempty"`
 	PoolBalancerType  PoolBalancerType  `json:"pool_balancing_type,omitempty"`
@@ -737,12 +744,9 @@ func (e Enterprise) GetEntity() (ForgeEntity, error) {
 		Owner:            e.Name,
 		WebhookSecret:    e.WebhookSecret,
 		PoolBalancerType: e.PoolBalancerType,
-		Credentials: ForgeCredentials{
-			ForgeType:         GithubEndpointType,
-			GithubCredentials: e.Credentials,
-		},
-		CreatedAt: e.CreatedAt,
-		UpdatedAt: e.UpdatedAt,
+		Credentials:      e.Credentials,
+		CreatedAt:        e.CreatedAt,
+		UpdatedAt:        e.UpdatedAt,
 	}, nil
 }
 
@@ -856,99 +860,6 @@ func (g GithubRateLimit) ResetAt() time.Time {
 }
 
 type ForgeCredentials struct {
-	ForgeType         EndpointType      `json:"type,omitempty"`
-	GithubCredentials GithubCredentials `json:"github,omitempty"`
-}
-
-func (f ForgeCredentials) CABundle() []byte {
-	switch f.ForgeType {
-	case GithubEndpointType:
-		return f.GithubCredentials.CABundle
-	case GiteaEndpointType:
-		return nil
-	default:
-		return nil
-	}
-}
-
-func (f ForgeCredentials) Endpoint() ForgeEndpoint {
-	switch f.ForgeType {
-	case GithubEndpointType:
-		return f.GithubCredentials.Endpoint
-	case GiteaEndpointType:
-		return ForgeEndpoint{}
-	default:
-		return ForgeEndpoint{}
-	}
-}
-
-func (f ForgeCredentials) APIBaseURL() string {
-	switch f.ForgeType {
-	case GithubEndpointType:
-		return f.GithubCredentials.APIBaseURL
-	case GiteaEndpointType:
-		return ""
-	default:
-		return ""
-	}
-}
-
-func (f ForgeCredentials) UploadBaseURL() string {
-	switch f.ForgeType {
-	case GithubEndpointType:
-		return f.GithubCredentials.UploadBaseURL
-	case GiteaEndpointType:
-		return ""
-	default:
-		return ""
-	}
-}
-
-func (f ForgeCredentials) BaseURL() string {
-	switch f.ForgeType {
-	case GithubEndpointType:
-		return f.GithubCredentials.BaseURL
-	case GiteaEndpointType:
-		return ""
-	default:
-		return ""
-	}
-}
-
-func (f ForgeCredentials) GetHTTPClient(ctx context.Context) (*http.Client, error) {
-	switch f.ForgeType {
-	case GithubEndpointType:
-		return f.GithubCredentials.GetHTTPClient(ctx)
-	case GiteaEndpointType:
-		return nil, fmt.Errorf("gitea credentials not supported")
-	default:
-		return nil, fmt.Errorf("unknown credentials type")
-	}
-}
-
-func (f ForgeCredentials) GetID() uint {
-	switch f.ForgeType {
-	case GithubEndpointType:
-		return f.GithubCredentials.ID
-	case GiteaEndpointType:
-		return 0
-	default:
-		return 0
-	}
-}
-
-func (f ForgeCredentials) RootCertificateBundle() (CertificateBundle, error) {
-	switch f.ForgeType {
-	case GithubEndpointType:
-		return f.GithubCredentials.RootCertificateBundle()
-	case GiteaEndpointType:
-		return CertificateBundle{}, fmt.Errorf("gitea credentials not supported")
-	default:
-		return CertificateBundle{}, fmt.Errorf("unknown credentials type")
-	}
-}
-
-type GithubCredentials struct {
 	ID            uint          `json:"id,omitempty"`
 	Name          string        `json:"name,omitempty"`
 	Description   string        `json:"description,omitempty"`
@@ -958,30 +869,25 @@ type GithubCredentials struct {
 	CABundle      []byte        `json:"ca_bundle,omitempty"`
 	AuthType      ForgeAuthType `json:"auth-type,omitempty"`
 
-	Repositories  []Repository    `json:"repositories,omitempty"`
-	Organizations []Organization  `json:"organizations,omitempty"`
-	Enterprises   []Enterprise    `json:"enterprises,omitempty"`
-	Endpoint      ForgeEndpoint   `json:"endpoint,omitempty"`
-	CreatedAt     time.Time       `json:"created_at,omitempty"`
-	UpdatedAt     time.Time       `json:"updated_at,omitempty"`
-	RateLimit     GithubRateLimit `json:"rate_limit,omitempty"`
+	ForgeType EndpointType `json:"forge_type,omitempty"`
+
+	Repositories  []Repository     `json:"repositories,omitempty"`
+	Organizations []Organization   `json:"organizations,omitempty"`
+	Enterprises   []Enterprise     `json:"enterprises,omitempty"`
+	Endpoint      ForgeEndpoint    `json:"endpoint,omitempty"`
+	CreatedAt     time.Time        `json:"created_at,omitempty"`
+	UpdatedAt     time.Time        `json:"updated_at,omitempty"`
+	RateLimit     *GithubRateLimit `json:"rate_limit,omitempty"`
 
 	// Do not serialize sensitive info.
 	CredentialsPayload []byte `json:"-"`
 }
 
-func (g GithubCredentials) GetID() uint {
+func (g ForgeCredentials) GetID() uint {
 	return g.ID
 }
 
-func (g GithubCredentials) GetForgeCredentials() ForgeCredentials {
-	return ForgeCredentials{
-		ForgeType:         GithubEndpointType,
-		GithubCredentials: g,
-	}
-}
-
-func (g GithubCredentials) GetHTTPClient(ctx context.Context) (*http.Client, error) {
+func (g ForgeCredentials) GetHTTPClient(ctx context.Context) (*http.Client, error) {
 	var roots *x509.CertPool
 	if g.CABundle != nil {
 		roots = x509.NewCertPool()
@@ -1036,7 +942,7 @@ func (g GithubCredentials) GetHTTPClient(ctx context.Context) (*http.Client, err
 	return tc, nil
 }
 
-func (g GithubCredentials) RootCertificateBundle() (CertificateBundle, error) {
+func (g ForgeCredentials) RootCertificateBundle() (CertificateBundle, error) {
 	if len(g.CABundle) == 0 {
 		return CertificateBundle{}, nil
 	}
@@ -1067,7 +973,7 @@ func (g GithubCredentials) RootCertificateBundle() (CertificateBundle, error) {
 }
 
 // used by swagger client generated code
-type Credentials []GithubCredentials
+type Credentials []ForgeCredentials
 
 type Provider struct {
 	Name         string       `json:"name,omitempty"`
@@ -1195,11 +1101,11 @@ func (g ForgeEntity) GetCreatedAt() time.Time {
 func (g ForgeEntity) ForgeURL() string {
 	switch g.EntityType {
 	case ForgeEntityTypeRepository:
-		return fmt.Sprintf("%s/%s/%s", g.Credentials.BaseURL(), g.Owner, g.Name)
+		return fmt.Sprintf("%s/%s/%s", g.Credentials.BaseURL, g.Owner, g.Name)
 	case ForgeEntityTypeOrganization:
-		return fmt.Sprintf("%s/%s", g.Credentials.BaseURL(), g.Owner)
+		return fmt.Sprintf("%s/%s", g.Credentials.BaseURL, g.Owner)
 	case ForgeEntityTypeEnterprise:
-		return fmt.Sprintf("%s/enterprises/%s", g.Credentials.BaseURL(), g.Owner)
+		return fmt.Sprintf("%s/enterprises/%s", g.Credentials.BaseURL, g.Owner)
 	}
 	return ""
 }

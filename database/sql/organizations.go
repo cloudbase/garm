@@ -46,7 +46,6 @@ func (s *sqlDatabase) CreateOrganization(ctx context.Context, name, credentialsN
 	newOrg := Organization{
 		Name:             name,
 		WebhookSecret:    secret,
-		CredentialsName:  credentialsName,
 		PoolBalancerType: poolBalancerType,
 	}
 
@@ -59,7 +58,6 @@ func (s *sqlDatabase) CreateOrganization(ctx context.Context, name, credentialsN
 			return errors.Wrap(runnerErrors.ErrUnprocessable, "credentials have no endpoint")
 		}
 		newOrg.CredentialsID = &creds.ID
-		newOrg.CredentialsName = creds.Name
 		newOrg.EndpointName = creds.EndpointName
 
 		q := tx.Create(&newOrg)
@@ -166,7 +164,6 @@ func (s *sqlDatabase) UpdateOrganization(ctx context.Context, orgID string, para
 		}
 
 		if param.CredentialsName != "" {
-			org.CredentialsName = param.CredentialsName
 			creds, err = s.getGithubCredentialsByName(ctx, tx, param.CredentialsName, false)
 			if err != nil {
 				return errors.Wrap(err, "fetching credentials")
