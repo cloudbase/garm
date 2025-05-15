@@ -386,8 +386,16 @@ func (w *Worker) handleCredentialsEvent(event common.ChangePayload) {
 	}
 	switch event.Operation {
 	case common.CreateOperation, common.UpdateOperation:
-		cache.SetGithubCredentials(credentials)
-		entities := cache.GetEntitiesUsingGredentials(credentials.ID)
+		switch credentials.ForgeType {
+		case params.GithubEndpointType:
+			cache.SetGithubCredentials(credentials)
+		case params.GiteaEndpointType:
+			cache.SetGiteaCredentials(credentials)
+		default:
+			slog.DebugContext(w.ctx, "invalid credentials type", "credentials_type", credentials.ForgeType)
+			return
+		}
+		entities := cache.GetEntitiesUsingCredentials(credentials)
 		for _, entity := range entities {
 			worker, ok := w.toolsWorkes[entity.ID]
 			if ok {
@@ -414,7 +422,7 @@ func (w *Worker) handleEvent(event common.ChangePayload) {
 		w.handleOrgEvent(event)
 	case common.EnterpriseEntityType:
 		w.handleEnterpriseEvent(event)
-	case common.GithubCredentialsEntityType:
+	case common.GithubCredentialsEntityType, common.GiteaCredentialsEntityType:
 		w.handleCredentialsEvent(event)
 	default:
 		slog.DebugContext(w.ctx, "unknown entity type", "entity_type", event.EntityType)

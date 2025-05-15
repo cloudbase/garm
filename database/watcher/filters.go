@@ -188,7 +188,7 @@ func WithForgeCredentialsFilter(creds params.ForgeCredentials) dbCommon.PayloadF
 		var idGetter params.IDGetter
 		var ok bool
 		switch payload.EntityType {
-		case dbCommon.GithubCredentialsEntityType:
+		case dbCommon.GithubCredentialsEntityType, dbCommon.GiteaCredentialsEntityType:
 			idGetter, ok = payload.Payload.(params.ForgeCredentials)
 		default:
 			return false

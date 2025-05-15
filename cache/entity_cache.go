@@ -231,13 +231,17 @@ func (e *EntityCache) GetEntityScaleSets(entityID string) []params.ScaleSet {
 	return nil
 }
 
-func (e *EntityCache) GetEntitiesUsingGredentials(credsID uint) []params.ForgeEntity {
+func (e *EntityCache) GetEntitiesUsingCredentials(creds params.ForgeCredentials) []params.ForgeEntity {
 	e.mux.Lock()
 	defer e.mux.Unlock()
 
 	var entities []params.ForgeEntity
 	for _, cache := range e.entities {
-		if cache.Entity.Credentials.GetID() == credsID {
+		if cache.Entity.Credentials.ForgeType != creds.ForgeType {
+			continue
+		}
+
+		if cache.Entity.Credentials.GetID() == creds.GetID() {
 			entities = append(entities, cache.Entity)
 		}
 	}
@@ -357,8 +361,8 @@ func UpdateCredentialsInAffectedEntities(creds params.ForgeCredentials) {
 	entityCache.UpdateCredentialsInAffectedEntities(creds)
 }
 
-func GetEntitiesUsingGredentials(credsID uint) []params.ForgeEntity {
-	return entityCache.GetEntitiesUsingGredentials(credsID)
+func GetEntitiesUsingCredentials(creds params.ForgeCredentials) []params.ForgeEntity {
+	return entityCache.GetEntitiesUsingCredentials(creds)
 }
 
 func GetAllEntities() []params.ForgeEntity {

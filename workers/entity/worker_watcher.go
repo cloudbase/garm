@@ -17,7 +17,7 @@ func (w *Worker) handleWorkerWatcherEvent(event dbCommon.ChangePayload) {
 	case entityType:
 		w.handleEntityEventPayload(event)
 		return
-	case dbCommon.GithubCredentialsEntityType:
+	case dbCommon.GithubCredentialsEntityType, dbCommon.GiteaCredentialsEntityType:
 		slog.DebugContext(w.ctx, "got github credentials payload event")
 		w.handleEntityCredentialsEventPayload(event)
 	default:
@@ -66,7 +66,7 @@ func (w *Worker) handleEntityCredentialsEventPayload(event dbCommon.ChangePayloa
 	var creds params.ForgeCredentials
 	var ok bool
 	switch event.EntityType {
-	case dbCommon.GithubCredentialsEntityType:
+	case dbCommon.GithubCredentialsEntityType, dbCommon.GiteaCredentialsEntityType:
 		creds, ok = event.Payload.(params.ForgeCredentials)
 	default:
 		slog.ErrorContext(w.ctx, "invalid entity type", "entity_type", event.EntityType)
