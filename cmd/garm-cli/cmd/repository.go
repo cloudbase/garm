@@ -31,6 +31,7 @@ var (
 	repoName            string
 	repoWebhookSecret   string
 	repoCreds           string
+	forgeType           string
 	randomWebhookSecret bool
 	insecureRepoWebhook bool
 	keepRepoWebhook     bool
@@ -169,6 +170,7 @@ var repoAddCmd = &cobra.Command{
 			Name:             repoName,
 			WebhookSecret:    repoWebhookSecret,
 			CredentialsName:  repoCreds,
+			ForgeType:        params.EndpointType(forgeType),
 			PoolBalancerType: params.PoolBalancerType(poolBalancerType),
 		}
 		response, err := apiCli.Repositories.CreateRepo(newRepoReq, authToken)
@@ -309,6 +311,7 @@ func init() {
 	repoAddCmd.Flags().StringVar(&repoOwner, "owner", "", "The owner of this repository")
 	repoAddCmd.Flags().StringVar(&poolBalancerType, "pool-balancer-type", string(params.PoolBalancerTypeRoundRobin), "The balancing strategy to use when creating runners in pools matching requested labels.")
 	repoAddCmd.Flags().StringVar(&repoName, "name", "", "The name of the repository")
+	repoAddCmd.Flags().StringVar(&forgeType, "forge-type", string(params.GithubEndpointType), "The forge type of the repository. Supported values: github, gitea.")
 	repoAddCmd.Flags().StringVar(&repoWebhookSecret, "webhook-secret", "", "The webhook secret for this repository")
 	repoAddCmd.Flags().StringVar(&repoCreds, "credentials", "", "Credentials name. See credentials list.")
 	repoAddCmd.Flags().BoolVar(&randomWebhookSecret, "random-webhook-secret", false, "Generate a random webhook secret for this repository.")
@@ -354,13 +357,17 @@ func formatRepositories(repos []params.Repository) {
 		return
 	}
 	t := table.NewWriter()
-	header := table.Row{"ID", "Owner", "Name", "Endpoint", "Credentials name", "Pool Balancer Type", "Pool mgr running"}
+	header := table.Row{"ID", "Owner", "Name", "Endpoint", "Credentials name", "Pool Balancer Type", "Forge type", "Pool mgr running"}
 	if long {
 		header = append(header, "Created At", "Updated At")
 	}
 	t.AppendHeader(header)
 	for _, val := range repos {
-		row := table.Row{val.ID, val.Owner, val.Name, val.Endpoint.Name, val.CredentialsName, val.GetBalancerType(), val.PoolManagerStatus.IsRunning}
+		forgeType := val.Endpoint.EndpointType
+		if forgeType == "" {
+			forgeType = params.GithubEndpointType
+		}
+		row := table.Row{val.ID, val.Owner, val.Name, val.Endpoint.Name, val.GetCredentialsName(), val.GetBalancerType(), forgeType, val.PoolManagerStatus.IsRunning}
 		if long {
 			row = append(row, val.CreatedAt, val.UpdatedAt)
 		}
@@ -386,7 +393,7 @@ func formatOneRepository(repo params.Repository) {
 	t.AppendRow(table.Row{"Name", repo.Name})
 	t.AppendRow(table.Row{"Endpoint", repo.Endpoint.Name})
 	t.AppendRow(table.Row{"Pool balancer type", repo.GetBalancerType()})
-	t.AppendRow(table.Row{"Credentials", repo.CredentialsName})
+	t.AppendRow(table.Row{"Credentials", repo.GetCredentialsName()})
 	t.AppendRow(table.Row{"Pool manager running", repo.PoolManagerStatus.IsRunning})
 	if !repo.PoolManagerStatus.IsRunning {
 		t.AppendRow(table.Row{"Failure reason", repo.PoolManagerStatus.FailureReason})

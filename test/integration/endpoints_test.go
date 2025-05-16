@@ -163,7 +163,7 @@ func (suite *GarmSuite) MustDefaultGithubEndpoint() {
 	suite.Equal(ep.Name, "github.com", "default GitHub endpoint name mismatch")
 }
 
-func (suite *GarmSuite) GetGithubEndpoint(name string) *params.GithubEndpoint {
+func (suite *GarmSuite) GetGithubEndpoint(name string) *params.ForgeEndpoint {
 	t := suite.T()
 	t.Log("Get GitHub endpoint")
 	endpoint, err := getGithubEndpoint(suite.cli, suite.authToken, name)
@@ -172,7 +172,7 @@ func (suite *GarmSuite) GetGithubEndpoint(name string) *params.GithubEndpoint {
 	return endpoint
 }
 
-func (suite *GarmSuite) CreateGithubEndpoint(params params.CreateGithubEndpointParams) (*params.GithubEndpoint, error) {
+func (suite *GarmSuite) CreateGithubEndpoint(params params.CreateGithubEndpointParams) (*params.ForgeEndpoint, error) {
 	t := suite.T()
 	t.Log("Create GitHub endpoint")
 	endpoint, err := createGithubEndpoint(suite.cli, suite.authToken, params)
@@ -190,7 +190,7 @@ func (suite *GarmSuite) DeleteGithubEndpoint(name string) error {
 	return nil
 }
 
-func (suite *GarmSuite) ListGithubEndpoints() params.GithubEndpoints {
+func (suite *GarmSuite) ListGithubEndpoints() params.ForgeEndpoints {
 	t := suite.T()
 	t.Log("List GitHub endpoints")
 	endpoints, err := listGithubEndpoints(suite.cli, suite.authToken)
@@ -199,7 +199,7 @@ func (suite *GarmSuite) ListGithubEndpoints() params.GithubEndpoints {
 	return endpoints
 }
 
-func (suite *GarmSuite) createDummyEndpoint(name string) (*params.GithubEndpoint, error) {
+func (suite *GarmSuite) createDummyEndpoint(name string) (*params.ForgeEndpoint, error) {
 	endpointParams := params.CreateGithubEndpointParams{
 		Name:          name,
 		Description:   "Dummy endpoint",

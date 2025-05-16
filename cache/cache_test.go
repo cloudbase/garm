@@ -13,15 +13,20 @@ import (
 
 type CacheTestSuite struct {
 	suite.Suite
-	entity params.GithubEntity
+	entity params.ForgeEntity
 }
 
 func (c *CacheTestSuite) SetupTest() {
-	c.entity = params.GithubEntity{
+	c.entity = params.ForgeEntity{
 		ID:         "1234",
-		EntityType: params.GithubEntityTypeOrganization,
+		EntityType: params.ForgeEntityTypeOrganization,
 		Name:       "test",
 		Owner:      "test",
+		Credentials: params.ForgeCredentials{
+			ID:        1,
+			Name:      "test",
+			ForgeType: params.GithubEndpointType,
+		},
 	}
 }
 
@@ -30,7 +35,7 @@ func (c *CacheTestSuite) TearDownTest() {
 	githubToolsCache.mux.Lock()
 	defer githubToolsCache.mux.Unlock()
 	githubToolsCache.entities = make(map[string]GithubEntityTools)
-	credentialsCache.cache = make(map[uint]params.GithubCredentials)
+	credentialsCache.cache = make(map[uint]params.ForgeCredentials)
 	instanceCache.cache = make(map[string]params.Instance)
 	entityCache = &EntityCache{
 		entities: make(map[string]EntityItem),
@@ -50,13 +55,12 @@ func (c *CacheTestSuite) TestSetCacheWorks() {
 			DownloadURL: garmTesting.Ptr("https://example.com"),
 		},
 	}
-
 	c.Require().NotNil(githubToolsCache)
 	c.Require().Len(githubToolsCache.entities, 0)
 	SetGithubToolsCache(c.entity, tools)
 	c.Require().Len(githubToolsCache.entities, 1)
-	cachedTools, ok := GetGithubToolsCache(c.entity.ID)
-	c.Require().True(ok)
+	cachedTools, err := GetGithubToolsCache(c.entity.ID)
+	c.Require().NoError(err)
 	c.Require().Len(cachedTools, 1)
 	c.Require().Equal(tools[0].GetDownloadURL(), cachedTools[0].GetDownloadURL())
 }
@@ -71,26 +75,30 @@ func (c *CacheTestSuite) TestTimedOutToolsCache() {
 	c.Require().NotNil(githubToolsCache)
 	c.Require().Len(githubToolsCache.entities, 0)
 	SetGithubToolsCache(c.entity, tools)
-	c.Require().Len(githubToolsCache.entities, 1)
 	entity := githubToolsCache.entities[c.entity.ID]
-	entity.updatedAt = entity.updatedAt.Add(-2 * time.Hour)
+
+	c.Require().Equal(int64(entity.expiresAt.Sub(entity.updatedAt).Minutes()), int64(60))
+	c.Require().Len(githubToolsCache.entities, 1)
+	entity = githubToolsCache.entities[c.entity.ID]
+	entity.updatedAt = entity.updatedAt.Add(-3 * time.Hour)
+	entity.expiresAt = entity.updatedAt.Add(-2 * time.Hour)
 	githubToolsCache.entities[c.entity.ID] = entity
 
-	cachedTools, ok := GetGithubToolsCache(c.entity.ID)
-	c.Require().False(ok)
+	cachedTools, err := GetGithubToolsCache(c.entity.ID)
+	c.Require().Error(err)
 	c.Require().Nil(cachedTools)
 }
 
 func (c *CacheTestSuite) TestGetInexistentCache() {
 	c.Require().NotNil(githubToolsCache)
 	c.Require().Len(githubToolsCache.entities, 0)
-	cachedTools, ok := GetGithubToolsCache(c.entity.ID)
-	c.Require().False(ok)
+	cachedTools, err := GetGithubToolsCache(c.entity.ID)
+	c.Require().Error(err)
 	c.Require().Nil(cachedTools)
 }
 
 func (c *CacheTestSuite) TestSetGithubCredentials() {
-	credentials := params.GithubCredentials{
+	credentials := params.ForgeCredentials{
 		ID: 1,
 	}
 	SetGithubCredentials(credentials)
@@ -100,7 +108,7 @@ func (c *CacheTestSuite) TestSetGithubCredentials() {
 }
 
 func (c *CacheTestSuite) TestGetGithubCredentials() {
-	credentials := params.GithubCredentials{
+	credentials := params.ForgeCredentials{
 		ID: 1,
 	}
 	SetGithubCredentials(credentials)
@@ -110,11 +118,11 @@ func (c *CacheTestSuite) TestGetGithubCredentials() {
 
 	nonExisting, ok := GetGithubCredentials(2)
 	c.Require().False(ok)
-	c.Require().Equal(params.GithubCredentials{}, nonExisting)
+	c.Require().Equal(params.ForgeCredentials{}, nonExisting)
 }
 
 func (c *CacheTestSuite) TestDeleteGithubCredentials() {
-	credentials := params.GithubCredentials{
+	credentials := params.ForgeCredentials{
 		ID: 1,
 	}
 	SetGithubCredentials(credentials)
@@ -125,14 +133,14 @@ func (c *CacheTestSuite) TestDeleteGithubCredentials() {
 	DeleteGithubCredentials(1)
 	cachedCreds, ok = GetGithubCredentials(1)
 	c.Require().False(ok)
-	c.Require().Equal(params.GithubCredentials{}, cachedCreds)
+	c.Require().Equal(params.ForgeCredentials{}, cachedCreds)
 }
 
 func (c *CacheTestSuite) TestGetAllGithubCredentials() {
-	credentials1 := params.GithubCredentials{
+	credentials1 := params.ForgeCredentials{
 		ID: 1,
 	}
-	credentials2 := params.GithubCredentials{
+	credentials2 := params.ForgeCredentials{
 		ID: 2,
 	}
 	SetGithubCredentials(credentials1)
@@ -254,9 +262,9 @@ func (c *CacheTestSuite) TestGetInstancesForScaleSet() {
 }
 
 func (c *CacheTestSuite) TestSetGetEntityCache() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         "test-entity",
-		EntityType: params.GithubEntityTypeOrganization,
+		EntityType: params.ForgeEntityTypeOrganization,
 		Name:       "test",
 		Owner:      "test",
 	}
@@ -274,13 +282,14 @@ func (c *CacheTestSuite) TestSetGetEntityCache() {
 }
 
 func (c *CacheTestSuite) TestReplaceEntityPools() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         "test-entity",
-		EntityType: params.GithubEntityTypeOrganization,
+		EntityType: params.ForgeEntityTypeOrganization,
 		Name:       "test",
 		Owner:      "test",
-		Credentials: params.GithubCredentials{
-			ID: 1,
+		Credentials: params.ForgeCredentials{
+			ID:        1,
+			ForgeType: params.GithubEndpointType,
 		},
 	}
 	pool1 := params.Pool{
@@ -290,9 +299,10 @@ func (c *CacheTestSuite) TestReplaceEntityPools() {
 		ID: "pool-2",
 	}
 
-	credentials := params.GithubCredentials{
-		ID:   1,
-		Name: "test",
+	credentials := params.ForgeCredentials{
+		ID:        1,
+		Name:      "test",
+		ForgeType: params.GithubEndpointType,
 	}
 	SetGithubCredentials(credentials)
 
@@ -310,9 +320,9 @@ func (c *CacheTestSuite) TestReplaceEntityPools() {
 }
 
 func (c *CacheTestSuite) TestReplaceEntityScaleSets() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         "test-entity",
-		EntityType: params.GithubEntityTypeOrganization,
+		EntityType: params.ForgeEntityTypeOrganization,
 		Name:       "test",
 		Owner:      "test",
 	}
@@ -336,9 +346,9 @@ func (c *CacheTestSuite) TestReplaceEntityScaleSets() {
 }
 
 func (c *CacheTestSuite) TestDeleteEntity() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         "test-entity",
-		EntityType: params.GithubEntityTypeOrganization,
+		EntityType: params.ForgeEntityTypeOrganization,
 		Name:       "test",
 		Owner:      "test",
 	}
@@ -350,13 +360,13 @@ func (c *CacheTestSuite) TestDeleteEntity() {
 	DeleteEntity(entity.ID)
 	cachedEntity, ok = GetEntity(entity.ID)
 	c.Require().False(ok)
-	c.Require().Equal(params.GithubEntity{}, cachedEntity)
+	c.Require().Equal(params.ForgeEntity{}, cachedEntity)
 }
 
 func (c *CacheTestSuite) TestSetEntityPool() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         "test-entity",
-		EntityType: params.GithubEntityTypeOrganization,
+		EntityType: params.ForgeEntityTypeOrganization,
 		Name:       "test",
 		Owner:      "test",
 	}
@@ -387,9 +397,9 @@ func (c *CacheTestSuite) TestSetEntityPool() {
 }
 
 func (c *CacheTestSuite) TestSetEntityScaleSet() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         "test-entity",
-		EntityType: params.GithubEntityTypeOrganization,
+		EntityType: params.ForgeEntityTypeOrganization,
 		Name:       "test",
 		Owner:      "test",
 	}
@@ -417,9 +427,9 @@ func (c *CacheTestSuite) TestSetEntityScaleSet() {
 }
 
 func (c *CacheTestSuite) TestDeleteEntityPool() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         "test-entity",
-		EntityType: params.GithubEntityTypeOrganization,
+		EntityType: params.ForgeEntityTypeOrganization,
 		Name:       "test",
 		Owner:      "test",
 	}
@@ -440,9 +450,9 @@ func (c *CacheTestSuite) TestDeleteEntityPool() {
 }
 
 func (c *CacheTestSuite) TestDeleteEntityScaleSet() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         "test-entity",
-		EntityType: params.GithubEntityTypeOrganization,
+		EntityType: params.ForgeEntityTypeOrganization,
 		Name:       "test",
 		Owner:      "test",
 	}
@@ -463,9 +473,9 @@ func (c *CacheTestSuite) TestDeleteEntityScaleSet() {
 }
 
 func (c *CacheTestSuite) TestFindPoolsMatchingAllTags() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         "test-entity",
-		EntityType: params.GithubEntityTypeOrganization,
+		EntityType: params.ForgeEntityTypeOrganization,
 		Name:       "test",
 		Owner:      "test",
 	}
@@ -520,9 +530,9 @@ func (c *CacheTestSuite) TestFindPoolsMatchingAllTags() {
 }
 
 func (c *CacheTestSuite) TestGetEntityPools() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         "test-entity",
-		EntityType: params.GithubEntityTypeOrganization,
+		EntityType: params.ForgeEntityTypeOrganization,
 		Name:       "test",
 		Owner:      "test",
 	}
@@ -562,9 +572,9 @@ func (c *CacheTestSuite) TestGetEntityPools() {
 }
 
 func (c *CacheTestSuite) TestGetEntityScaleSet() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         "test-entity",
-		EntityType: params.GithubEntityTypeOrganization,
+		EntityType: params.ForgeEntityTypeOrganization,
 		Name:       "test",
 		Owner:      "test",
 	}
@@ -584,9 +594,9 @@ func (c *CacheTestSuite) TestGetEntityScaleSet() {
 }
 
 func (c *CacheTestSuite) TestGetEntityPool() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         "test-entity",
-		EntityType: params.GithubEntityTypeOrganization,
+		EntityType: params.ForgeEntityTypeOrganization,
 		Name:       "test",
 		Owner:      "test",
 	}

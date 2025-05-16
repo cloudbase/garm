@@ -330,7 +330,7 @@ func (a *APIController) CreateOrgScaleSetHandler(w http.ResponseWriter, r *http.
 		return
 	}
 
-	scaleSet, err := a.r.CreateEntityScaleSet(ctx, runnerParams.GithubEntityTypeOrganization, orgID, scalesetData)
+	scaleSet, err := a.r.CreateEntityScaleSet(ctx, runnerParams.ForgeEntityTypeOrganization, orgID, scalesetData)
 	if err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error creating organization scale set")
 		handleError(ctx, w, err)
@@ -414,7 +414,7 @@ func (a *APIController) ListOrgScaleSetsHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	scaleSets, err := a.r.ListEntityScaleSets(ctx, runnerParams.GithubEntityTypeOrganization, orgID)
+	scaleSets, err := a.r.ListEntityScaleSets(ctx, runnerParams.ForgeEntityTypeOrganization, orgID)
 	if err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "listing scale sets")
 		handleError(ctx, w, err)

@@ -145,7 +145,7 @@ var githubEndpointUpdateCmd = &cobra.Command{
 		updateParams := params.UpdateGithubEndpointParams{}
 
 		if cmd.Flags().Changed("ca-cert-path") {
-			cert, err := parseReadAndParsCABundle()
+			cert, err := parseAndReadCABundle()
 			if err != nil {
 				return err
 			}
@@ -213,7 +213,7 @@ func init() {
 	githubCmd.AddCommand(githubEndpointCmd)
 }
 
-func parseReadAndParsCABundle() ([]byte, error) {
+func parseAndReadCABundle() ([]byte, error) {
 	if endpointCACertPath == "" {
 		return nil, nil
 	}
@@ -236,7 +236,7 @@ func parseReadAndParsCABundle() ([]byte, error) {
 }
 
 func parseCreateParams() (params.CreateGithubEndpointParams, error) {
-	certBundleBytes, err := parseReadAndParsCABundle()
+	certBundleBytes, err := parseAndReadCABundle()
 	if err != nil {
 		return params.CreateGithubEndpointParams{}, err
 	}
@@ -252,7 +252,7 @@ func parseCreateParams() (params.CreateGithubEndpointParams, error) {
 	return ret, nil
 }
 
-func formatEndpoints(endpoints params.GithubEndpoints) {
+func formatEndpoints(endpoints params.ForgeEndpoints) {
 	if outputFormat == common.OutputFormatJSON {
 		printAsJSON(endpoints)
 		return
@@ -274,7 +274,7 @@ func formatEndpoints(endpoints params.GithubEndpoints) {
 	fmt.Println(t.Render())
 }
 
-func formatOneEndpoint(endpoint params.GithubEndpoint) {
+func formatOneEndpoint(endpoint params.ForgeEndpoint) {
 	if outputFormat == common.OutputFormatJSON {
 		printAsJSON(endpoint)
 		return
@@ -287,7 +287,9 @@ func formatOneEndpoint(endpoint params.GithubEndpoint) {
 	t.AppendRow([]interface{}{"Created At", endpoint.CreatedAt})
 	t.AppendRow([]interface{}{"Updated At", endpoint.UpdatedAt})
 	t.AppendRow([]interface{}{"Base URL", endpoint.BaseURL})
-	t.AppendRow([]interface{}{"Upload URL", endpoint.UploadBaseURL})
+	if endpoint.UploadBaseURL != "" {
+		t.AppendRow([]interface{}{"Upload URL", endpoint.UploadBaseURL})
+	}
 	t.AppendRow([]interface{}{"API Base URL", endpoint.APIBaseURL})
 	if len(endpoint.CACertBundle) > 0 {
 		t.AppendRow([]interface{}{"CA Cert Bundle", string(endpoint.CACertBundle)})

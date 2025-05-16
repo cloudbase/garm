@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -19,8 +20,17 @@ func init() {
 
 type GithubEntityTools struct {
 	updatedAt time.Time
-	entity    params.GithubEntity
+	expiresAt time.Time
+	err       error
+	entity    params.ForgeEntity
 	tools     []commonParams.RunnerApplicationDownload
+}
+
+func (g GithubEntityTools) Error() string {
+	if g.err != nil {
+		return g.err.Error()
+	}
+	return ""
 }
 
 type GithubToolsCache struct {
@@ -29,36 +39,65 @@ type GithubToolsCache struct {
 	entities map[string]GithubEntityTools
 }
 
-func (g *GithubToolsCache) Get(entityID string) ([]commonParams.RunnerApplicationDownload, bool) {
+func (g *GithubToolsCache) Get(entityID string) ([]commonParams.RunnerApplicationDownload, error) {
 	g.mux.Lock()
 	defer g.mux.Unlock()
 
 	if cache, ok := g.entities[entityID]; ok {
-		if time.Since(cache.updatedAt) > 1*time.Hour {
-			// Stale cache, remove it.
-			delete(g.entities, entityID)
-			return nil, false
+		if cache.entity.Credentials.ForgeType == params.GithubEndpointType {
+			if time.Now().UTC().After(cache.expiresAt.Add(-5 * time.Minute)) {
+				// Stale cache, remove it.
+				delete(g.entities, entityID)
+				return nil, fmt.Errorf("cache expired for entity %s", entityID)
+			}
 		}
-		return cache.tools, true
+		return cache.tools, cache.err
 	}
-	return nil, false
+	return nil, fmt.Errorf("no cache found for entity %s", entityID)
 }
 
-func (g *GithubToolsCache) Set(entity params.GithubEntity, tools []commonParams.RunnerApplicationDownload) {
+func (g *GithubToolsCache) Set(entity params.ForgeEntity, tools []commonParams.RunnerApplicationDownload) {
 	g.mux.Lock()
 	defer g.mux.Unlock()
 
-	g.entities[entity.ID] = GithubEntityTools{
+	forgeTools := GithubEntityTools{
 		updatedAt: time.Now(),
 		entity:    entity,
 		tools:     tools,
+		err:       nil,
 	}
+
+	if entity.Credentials.ForgeType == params.GithubEndpointType {
+		forgeTools.expiresAt = time.Now().Add(1 * time.Hour)
+	}
+
+	g.entities[entity.ID] = forgeTools
 }
 
-func SetGithubToolsCache(entity params.GithubEntity, tools []commonParams.RunnerApplicationDownload) {
+func (g *GithubToolsCache) SetToolsError(entity params.ForgeEntity, err error) {
+	g.mux.Lock()
+	defer g.mux.Unlock()
+
+	// If the entity is not in the cache, add it with the error.
+	cache, ok := g.entities[entity.ID]
+	if !ok {
+		g.entities[entity.ID] = GithubEntityTools{
+			updatedAt: time.Now(),
+			entity:    entity,
+			err:       err,
+		}
+		return
+	}
+
+	// Update the error for the existing entity.
+	cache.err = err
+	g.entities[entity.ID] = cache
+}
+
+func SetGithubToolsCache(entity params.ForgeEntity, tools []commonParams.RunnerApplicationDownload) {
 	githubToolsCache.Set(entity, tools)
 }
 
-func GetGithubToolsCache(entityID string) ([]commonParams.RunnerApplicationDownload, bool) {
+func GetGithubToolsCache(entityID string) ([]commonParams.RunnerApplicationDownload, error) {
 	return githubToolsCache.Get(entityID)
 }

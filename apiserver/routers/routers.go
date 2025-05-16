@@ -454,6 +454,44 @@ func NewAPIRouter(han *controllers.APIController, authMiddleware, initMiddleware
 	apiRouter.Handle("/github/credentials/{id}/", http.HandlerFunc(han.UpdateGithubCredential)).Methods("PUT", "OPTIONS")
 	apiRouter.Handle("/github/credentials/{id}", http.HandlerFunc(han.UpdateGithubCredential)).Methods("PUT", "OPTIONS")
 
+	//////////////////////
+	// Gitea Endpoints  //
+	//////////////////////
+	// Create Gitea Endpoint
+	apiRouter.Handle("/gitea/endpoints/", http.HandlerFunc(han.CreateGiteaEndpoint)).Methods("POST", "OPTIONS")
+	apiRouter.Handle("/gitea/endpoints", http.HandlerFunc(han.CreateGiteaEndpoint)).Methods("POST", "OPTIONS")
+	// List Gitea Endpoints
+	apiRouter.Handle("/gitea/endpoints/", http.HandlerFunc(han.ListGiteaEndpoints)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/gitea/endpoints", http.HandlerFunc(han.ListGiteaEndpoints)).Methods("GET", "OPTIONS")
+	// Get Gitea Endpoint
+	apiRouter.Handle("/gitea/endpoints/{name}/", http.HandlerFunc(han.GetGiteaEndpoint)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/gitea/endpoints/{name}", http.HandlerFunc(han.GetGiteaEndpoint)).Methods("GET", "OPTIONS")
+	// Delete Gitea Endpoint
+	apiRouter.Handle("/gitea/endpoints/{name}/", http.HandlerFunc(han.DeleteGiteaEndpoint)).Methods("DELETE", "OPTIONS")
+	apiRouter.Handle("/gitea/endpoints/{name}", http.HandlerFunc(han.DeleteGiteaEndpoint)).Methods("DELETE", "OPTIONS")
+	// Update Gitea Endpoint
+	apiRouter.Handle("/gitea/endpoints/{name}/", http.HandlerFunc(han.UpdateGiteaEndpoint)).Methods("PUT", "OPTIONS")
+	apiRouter.Handle("/gitea/endpoints/{name}", http.HandlerFunc(han.UpdateGiteaEndpoint)).Methods("PUT", "OPTIONS")
+
+	////////////////////////
+	// Gitea credentials  //
+	////////////////////////
+	// List Gitea Credentials
+	apiRouter.Handle("/gitea/credentials/", http.HandlerFunc(han.ListGiteaCredentials)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/gitea/credentials", http.HandlerFunc(han.ListGiteaCredentials)).Methods("GET", "OPTIONS")
+	// Create Gitea Credentials
+	apiRouter.Handle("/gitea/credentials/", http.HandlerFunc(han.CreateGiteaCredential)).Methods("POST", "OPTIONS")
+	apiRouter.Handle("/gitea/credentials", http.HandlerFunc(han.CreateGiteaCredential)).Methods("POST", "OPTIONS")
+	// Get Gitea Credential
+	apiRouter.Handle("/gitea/credentials/{id}/", http.HandlerFunc(han.GetGiteaCredential)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/gitea/credentials/{id}", http.HandlerFunc(han.GetGiteaCredential)).Methods("GET", "OPTIONS")
+	// Delete Gitea Credential
+	apiRouter.Handle("/gitea/credentials/{id}/", http.HandlerFunc(han.DeleteGiteaCredential)).Methods("DELETE", "OPTIONS")
+	apiRouter.Handle("/gitea/credentials/{id}", http.HandlerFunc(han.DeleteGiteaCredential)).Methods("DELETE", "OPTIONS")
+	// Update Gitea Credential
+	apiRouter.Handle("/gitea/credentials/{id}/", http.HandlerFunc(han.UpdateGiteaCredential)).Methods("PUT", "OPTIONS")
+	apiRouter.Handle("/gitea/credentials/{id}", http.HandlerFunc(han.UpdateGiteaCredential)).Methods("PUT", "OPTIONS")
+
 	/////////////////////////
 	// Websocket endpoints //
 	/////////////////////////

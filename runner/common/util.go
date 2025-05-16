@@ -23,7 +23,7 @@ type GithubEntityOperations interface {
 	GetEntityJITConfig(ctx context.Context, instance string, pool params.Pool, labels []string) (jitConfigMap map[string]string, runner *github.Runner, err error)
 
 	// GetEntity returns the GitHub entity for which the github client was instanciated.
-	GetEntity() params.GithubEntity
+	GetEntity() params.ForgeEntity
 	// GithubBaseURL returns the base URL for the github or GHES API.
 	GithubBaseURL() *url.URL
 }

@@ -29,7 +29,7 @@ import (
 	"github.com/cloudbase/garm/params"
 )
 
-func (s *sqlDatabase) CreateRepository(ctx context.Context, owner, name, credentialsName, webhookSecret string, poolBalancerType params.PoolBalancerType) (param params.Repository, err error) {
+func (s *sqlDatabase) CreateRepository(ctx context.Context, owner, name string, credentials params.ForgeCredentials, webhookSecret string, poolBalancerType params.PoolBalancerType) (param params.Repository, err error) {
 	defer func() {
 		if err == nil {
 			s.sendNotify(common.RepositoryEntityType, common.CreateOperation, param)
@@ -51,32 +51,32 @@ func (s *sqlDatabase) CreateRepository(ctx context.Context, owner, name, credent
 		PoolBalancerType: poolBalancerType,
 	}
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
-		creds, err := s.getGithubCredentialsByName(ctx, tx, credentialsName, false)
-		if err != nil {
-			return errors.Wrap(err, "creating repository")
+		switch credentials.ForgeType {
+		case params.GithubEndpointType:
+			newRepo.CredentialsID = &credentials.ID
+		case params.GiteaEndpointType:
+			newRepo.GiteaCredentialsID = &credentials.ID
+		default:
+			return errors.Wrap(runnerErrors.ErrBadRequest, "unsupported credentials type")
 		}
-		if creds.EndpointName == nil {
-			return errors.Wrap(runnerErrors.ErrUnprocessable, "credentials have no endpoint")
-		}
-		newRepo.CredentialsID = &creds.ID
-		newRepo.CredentialsName = creds.Name
-		newRepo.EndpointName = creds.EndpointName
 
+		newRepo.EndpointName = &credentials.Endpoint.Name
 		q := tx.Create(&newRepo)
 		if q.Error != nil {
 			return errors.Wrap(q.Error, "creating repository")
 		}
-
-		newRepo.Credentials = creds
-		newRepo.Endpoint = creds.Endpoint
-
 		return nil
 	})
 	if err != nil {
 		return params.Repository{}, errors.Wrap(err, "creating repository")
 	}
 
-	param, err = s.sqlToCommonRepository(newRepo, true)
+	repo, err := s.getRepoByID(ctx, s.conn, newRepo.ID.String(), "Endpoint", "Credentials", "GiteaCredentials", "Credentials.Endpoint", "GiteaCredentials.Endpoint")
+	if err != nil {
+		return params.Repository{}, errors.Wrap(err, "creating repository")
+	}
+
+	param, err = s.sqlToCommonRepository(repo, true)
 	if err != nil {
 		return params.Repository{}, errors.Wrap(err, "creating repository")
 	}
@@ -102,7 +102,9 @@ func (s *sqlDatabase) ListRepositories(_ context.Context) ([]params.Repository, 
 	var repos []Repository
 	q := s.conn.
 		Preload("Credentials").
+		Preload("GiteaCredentials").
 		Preload("Credentials.Endpoint").
+		Preload("GiteaCredentials.Endpoint").
 		Preload("Endpoint").
 		Find(&repos)
 	if q.Error != nil {
@@ -122,7 +124,7 @@ func (s *sqlDatabase) ListRepositories(_ context.Context) ([]params.Repository, 
 }
 
 func (s *sqlDatabase) DeleteRepository(ctx context.Context, repoID string) (err error) {
-	repo, err := s.getRepoByID(ctx, s.conn, repoID, "Endpoint", "Credentials", "Credentials.Endpoint")
+	repo, err := s.getRepoByID(ctx, s.conn, repoID, "Endpoint", "Credentials", "Credentials.Endpoint", "GiteaCredentials", "GiteaCredentials.Endpoint")
 	if err != nil {
 		return errors.Wrap(err, "fetching repo")
 	}
@@ -165,7 +167,6 @@ func (s *sqlDatabase) UpdateRepository(ctx context.Context, repoID string, param
 		}
 
 		if param.CredentialsName != "" {
-			repo.CredentialsName = param.CredentialsName
 			creds, err = s.getGithubCredentialsByName(ctx, tx, param.CredentialsName, false)
 			if err != nil {
 				return errors.Wrap(err, "fetching credentials")
@@ -203,7 +204,7 @@ func (s *sqlDatabase) UpdateRepository(ctx context.Context, repoID string, param
 		return params.Repository{}, errors.Wrap(err, "saving repo")
 	}
 
-	repo, err = s.getRepoByID(ctx, s.conn, repoID, "Endpoint", "Credentials", "Credentials.Endpoint")
+	repo, err = s.getRepoByID(ctx, s.conn, repoID, "Endpoint", "Credentials", "Credentials.Endpoint", "GiteaCredentials", "GiteaCredentials.Endpoint")
 	if err != nil {
 		return params.Repository{}, errors.Wrap(err, "updating enterprise")
 	}
@@ -216,7 +217,7 @@ func (s *sqlDatabase) UpdateRepository(ctx context.Context, repoID string, param
 }
 
 func (s *sqlDatabase) GetRepositoryByID(ctx context.Context, repoID string) (params.Repository, error) {
-	repo, err := s.getRepoByID(ctx, s.conn, repoID, "Pools", "Credentials", "Endpoint", "Credentials.Endpoint")
+	repo, err := s.getRepoByID(ctx, s.conn, repoID, "Pools", "Credentials", "Endpoint", "Credentials.Endpoint", "GiteaCredentials", "GiteaCredentials.Endpoint")
 	if err != nil {
 		return params.Repository{}, errors.Wrap(err, "fetching repo")
 	}
@@ -234,6 +235,8 @@ func (s *sqlDatabase) getRepo(_ context.Context, owner, name, endpointName strin
 	q := s.conn.Where("name = ? COLLATE NOCASE and owner = ? COLLATE NOCASE and endpoint_name = ? COLLATE NOCASE", name, owner, endpointName).
 		Preload("Credentials").
 		Preload("Credentials.Endpoint").
+		Preload("GiteaCredentials").
+		Preload("GiteaCredentials.Endpoint").
 		Preload("Endpoint").
 		First(&repo)
 

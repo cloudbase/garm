@@ -206,9 +206,9 @@ func (r *Runner) CreateEnterprisePool(ctx context.Context, enterpriseID string, 
 		param.RunnerBootstrapTimeout = appdefaults.DefaultRunnerBootstrapTimeout
 	}
 
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         enterpriseID,
-		EntityType: params.GithubEntityTypeEnterprise,
+		EntityType: params.ForgeEntityTypeEnterprise,
 	}
 
 	pool, err := r.store.CreateEntityPool(ctx, entity, createPoolParams)
@@ -223,9 +223,9 @@ func (r *Runner) GetEnterprisePoolByID(ctx context.Context, enterpriseID, poolID
 	if !auth.IsAdmin(ctx) {
 		return params.Pool{}, runnerErrors.ErrUnauthorized
 	}
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         enterpriseID,
-		EntityType: params.GithubEntityTypeEnterprise,
+		EntityType: params.ForgeEntityTypeEnterprise,
 	}
 	pool, err := r.store.GetEntityPool(ctx, entity, poolID)
 	if err != nil {
@@ -239,9 +239,9 @@ func (r *Runner) DeleteEnterprisePool(ctx context.Context, enterpriseID, poolID 
 		return runnerErrors.ErrUnauthorized
 	}
 
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         enterpriseID,
-		EntityType: params.GithubEntityTypeEnterprise,
+		EntityType: params.ForgeEntityTypeEnterprise,
 	}
 
 	pool, err := r.store.GetEntityPool(ctx, entity, poolID)
@@ -270,9 +270,9 @@ func (r *Runner) ListEnterprisePools(ctx context.Context, enterpriseID string) (
 		return []params.Pool{}, runnerErrors.ErrUnauthorized
 	}
 
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         enterpriseID,
-		EntityType: params.GithubEntityTypeEnterprise,
+		EntityType: params.ForgeEntityTypeEnterprise,
 	}
 	pools, err := r.store.ListEntityPools(ctx, entity)
 	if err != nil {
@@ -286,9 +286,9 @@ func (r *Runner) UpdateEnterprisePool(ctx context.Context, enterpriseID, poolID 
 		return params.Pool{}, runnerErrors.ErrUnauthorized
 	}
 
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         enterpriseID,
-		EntityType: params.GithubEntityTypeEnterprise,
+		EntityType: params.ForgeEntityTypeEnterprise,
 	}
 	pool, err := r.store.GetEntityPool(ctx, entity, poolID)
 	if err != nil {
@@ -320,9 +320,9 @@ func (r *Runner) ListEnterpriseInstances(ctx context.Context, enterpriseID strin
 	if !auth.IsAdmin(ctx) {
 		return nil, runnerErrors.ErrUnauthorized
 	}
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         enterpriseID,
-		EntityType: params.GithubEntityTypeEnterprise,
+		EntityType: params.ForgeEntityTypeEnterprise,
 	}
 	instances, err := r.store.ListEntityInstances(ctx, entity)
 	if err != nil {

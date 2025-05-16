@@ -86,7 +86,7 @@ func (s *sqlDatabase) DeletePoolByID(_ context.Context, poolID string) (err erro
 	return nil
 }
 
-func (s *sqlDatabase) getEntityPool(tx *gorm.DB, entityType params.GithubEntityType, entityID, poolID string, preload ...string) (Pool, error) {
+func (s *sqlDatabase) getEntityPool(tx *gorm.DB, entityType params.ForgeEntityType, entityID, poolID string, preload ...string) (Pool, error) {
 	if entityID == "" {
 		return Pool{}, errors.Wrap(runnerErrors.ErrBadRequest, "missing entity id")
 	}
@@ -99,13 +99,13 @@ func (s *sqlDatabase) getEntityPool(tx *gorm.DB, entityType params.GithubEntityT
 	var fieldName string
 	var entityField string
 	switch entityType {
-	case params.GithubEntityTypeRepository:
+	case params.ForgeEntityTypeRepository:
 		fieldName = entityTypeRepoName
 		entityField = repositoryFieldName
-	case params.GithubEntityTypeOrganization:
+	case params.ForgeEntityTypeOrganization:
 		fieldName = entityTypeOrgName
 		entityField = organizationFieldName
-	case params.GithubEntityTypeEnterprise:
+	case params.ForgeEntityTypeEnterprise:
 		fieldName = entityTypeEnterpriseName
 		entityField = enterpriseFieldName
 	default:
@@ -135,7 +135,7 @@ func (s *sqlDatabase) getEntityPool(tx *gorm.DB, entityType params.GithubEntityT
 	return pool, nil
 }
 
-func (s *sqlDatabase) listEntityPools(tx *gorm.DB, entityType params.GithubEntityType, entityID string, preload ...string) ([]Pool, error) {
+func (s *sqlDatabase) listEntityPools(tx *gorm.DB, entityType params.ForgeEntityType, entityID string, preload ...string) ([]Pool, error) {
 	if _, err := uuid.Parse(entityID); err != nil {
 		return nil, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
 	}
@@ -147,13 +147,13 @@ func (s *sqlDatabase) listEntityPools(tx *gorm.DB, entityType params.GithubEntit
 	var preloadEntity string
 	var fieldName string
 	switch entityType {
-	case params.GithubEntityTypeRepository:
+	case params.ForgeEntityTypeRepository:
 		fieldName = entityTypeRepoName
 		preloadEntity = "Repository"
-	case params.GithubEntityTypeOrganization:
+	case params.ForgeEntityTypeOrganization:
 		fieldName = entityTypeOrgName
 		preloadEntity = "Organization"
-	case params.GithubEntityTypeEnterprise:
+	case params.ForgeEntityTypeEnterprise:
 		fieldName = entityTypeEnterpriseName
 		preloadEntity = "Enterprise"
 	default:
@@ -184,7 +184,7 @@ func (s *sqlDatabase) listEntityPools(tx *gorm.DB, entityType params.GithubEntit
 	return pools, nil
 }
 
-func (s *sqlDatabase) findPoolByTags(id string, poolType params.GithubEntityType, tags []string) ([]params.Pool, error) {
+func (s *sqlDatabase) findPoolByTags(id string, poolType params.ForgeEntityType, tags []string) ([]params.Pool, error) {
 	if len(tags) == 0 {
 		return nil, runnerErrors.NewBadRequestError("missing tags")
 	}
@@ -195,11 +195,11 @@ func (s *sqlDatabase) findPoolByTags(id string, poolType params.GithubEntityType
 
 	var fieldName string
 	switch poolType {
-	case params.GithubEntityTypeRepository:
+	case params.ForgeEntityTypeRepository:
 		fieldName = entityTypeRepoName
-	case params.GithubEntityTypeOrganization:
+	case params.ForgeEntityTypeOrganization:
 		fieldName = entityTypeOrgName
-	case params.GithubEntityTypeEnterprise:
+	case params.ForgeEntityTypeEnterprise:
 		fieldName = entityTypeEnterpriseName
 	default:
 		return nil, fmt.Errorf("invalid poolType: %v", poolType)
@@ -238,7 +238,7 @@ func (s *sqlDatabase) findPoolByTags(id string, poolType params.GithubEntityType
 	return ret, nil
 }
 
-func (s *sqlDatabase) FindPoolsMatchingAllTags(_ context.Context, entityType params.GithubEntityType, entityID string, tags []string) ([]params.Pool, error) {
+func (s *sqlDatabase) FindPoolsMatchingAllTags(_ context.Context, entityType params.ForgeEntityType, entityID string, tags []string) ([]params.Pool, error) {
 	if len(tags) == 0 {
 		return nil, runnerErrors.NewBadRequestError("missing tags")
 	}
@@ -254,7 +254,7 @@ func (s *sqlDatabase) FindPoolsMatchingAllTags(_ context.Context, entityType par
 	return pools, nil
 }
 
-func (s *sqlDatabase) CreateEntityPool(_ context.Context, entity params.GithubEntity, param params.CreatePoolParams) (pool params.Pool, err error) {
+func (s *sqlDatabase) CreateEntityPool(_ context.Context, entity params.ForgeEntity, param params.CreatePoolParams) (pool params.Pool, err error) {
 	if len(param.Tags) == 0 {
 		return params.Pool{}, runnerErrors.NewBadRequestError("no tags specified")
 	}
@@ -289,11 +289,11 @@ func (s *sqlDatabase) CreateEntityPool(_ context.Context, entity params.GithubEn
 	}
 
 	switch entity.EntityType {
-	case params.GithubEntityTypeRepository:
+	case params.ForgeEntityTypeRepository:
 		newPool.RepoID = &entityID
-	case params.GithubEntityTypeOrganization:
+	case params.ForgeEntityTypeOrganization:
 		newPool.OrgID = &entityID
-	case params.GithubEntityTypeEnterprise:
+	case params.ForgeEntityTypeEnterprise:
 		newPool.EnterpriseID = &entityID
 	}
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
@@ -334,7 +334,7 @@ func (s *sqlDatabase) CreateEntityPool(_ context.Context, entity params.GithubEn
 	return s.sqlToCommonPool(dbPool)
 }
 
-func (s *sqlDatabase) GetEntityPool(_ context.Context, entity params.GithubEntity, poolID string) (params.Pool, error) {
+func (s *sqlDatabase) GetEntityPool(_ context.Context, entity params.ForgeEntity, poolID string) (params.Pool, error) {
 	pool, err := s.getEntityPool(s.conn, entity.EntityType, entity.ID, poolID, "Tags", "Instances")
 	if err != nil {
 		return params.Pool{}, fmt.Errorf("fetching pool: %w", err)
@@ -342,7 +342,7 @@ func (s *sqlDatabase) GetEntityPool(_ context.Context, entity params.GithubEntit
 	return s.sqlToCommonPool(pool)
 }
 
-func (s *sqlDatabase) DeleteEntityPool(_ context.Context, entity params.GithubEntity, poolID string) (err error) {
+func (s *sqlDatabase) DeleteEntityPool(_ context.Context, entity params.ForgeEntity, poolID string) (err error) {
 	entityID, err := uuid.Parse(entity.ID)
 	if err != nil {
 		return errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
@@ -363,11 +363,11 @@ func (s *sqlDatabase) DeleteEntityPool(_ context.Context, entity params.GithubEn
 	}
 	var fieldName string
 	switch entity.EntityType {
-	case params.GithubEntityTypeRepository:
+	case params.ForgeEntityTypeRepository:
 		fieldName = entityTypeRepoName
-	case params.GithubEntityTypeOrganization:
+	case params.ForgeEntityTypeOrganization:
 		fieldName = entityTypeOrgName
-	case params.GithubEntityTypeEnterprise:
+	case params.ForgeEntityTypeEnterprise:
 		fieldName = entityTypeEnterpriseName
 	default:
 		return fmt.Errorf("invalid entityType: %v", entity.EntityType)
@@ -379,7 +379,7 @@ func (s *sqlDatabase) DeleteEntityPool(_ context.Context, entity params.GithubEn
 	return nil
 }
 
-func (s *sqlDatabase) UpdateEntityPool(_ context.Context, entity params.GithubEntity, poolID string, param params.UpdatePoolParams) (updatedPool params.Pool, err error) {
+func (s *sqlDatabase) UpdateEntityPool(_ context.Context, entity params.ForgeEntity, poolID string, param params.UpdatePoolParams) (updatedPool params.Pool, err error) {
 	defer func() {
 		if err == nil {
 			s.sendNotify(common.PoolEntityType, common.UpdateOperation, updatedPool)
@@ -403,7 +403,7 @@ func (s *sqlDatabase) UpdateEntityPool(_ context.Context, entity params.GithubEn
 	return updatedPool, nil
 }
 
-func (s *sqlDatabase) ListEntityPools(_ context.Context, entity params.GithubEntity) ([]params.Pool, error) {
+func (s *sqlDatabase) ListEntityPools(_ context.Context, entity params.ForgeEntity) ([]params.Pool, error) {
 	pools, err := s.listEntityPools(s.conn, entity.EntityType, entity.ID, "Tags")
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching pools")
@@ -420,7 +420,7 @@ func (s *sqlDatabase) ListEntityPools(_ context.Context, entity params.GithubEnt
 	return ret, nil
 }
 
-func (s *sqlDatabase) ListEntityInstances(_ context.Context, entity params.GithubEntity) ([]params.Instance, error) {
+func (s *sqlDatabase) ListEntityInstances(_ context.Context, entity params.ForgeEntity) ([]params.Instance, error) {
 	pools, err := s.listEntityPools(s.conn, entity.EntityType, entity.ID, "Instances", "Instances.Job")
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching entity")

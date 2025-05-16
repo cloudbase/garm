@@ -58,13 +58,23 @@ type ClientOption func(*runtime.ClientOperation)
 type ClientService interface {
 	CreateCredentials(params *CreateCredentialsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateCredentialsOK, error)
 
+	CreateGiteaCredentials(params *CreateGiteaCredentialsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateGiteaCredentialsOK, error)
+
 	DeleteCredentials(params *DeleteCredentialsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error
+
+	DeleteGiteaCredentials(params *DeleteGiteaCredentialsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error
 
 	GetCredentials(params *GetCredentialsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetCredentialsOK, error)
 
+	GetGiteaCredentials(params *GetGiteaCredentialsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetGiteaCredentialsOK, error)
+
 	ListCredentials(params *ListCredentialsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListCredentialsOK, error)
 
+	ListGiteaCredentials(params *ListGiteaCredentialsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListGiteaCredentialsOK, error)
+
 	UpdateCredentials(params *UpdateCredentialsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateCredentialsOK, error)
+
+	UpdateGiteaCredentials(params *UpdateGiteaCredentialsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateGiteaCredentialsOK, error)
 
 	SetTransport(transport runtime.ClientTransport)
 }
@@ -109,6 +119,45 @@ func (a *Client) CreateCredentials(params *CreateCredentialsParams, authInfo run
 }
 
 /*
+CreateGiteaCredentials creates a gitea credential
+*/
+func (a *Client) CreateGiteaCredentials(params *CreateGiteaCredentialsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateGiteaCredentialsOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewCreateGiteaCredentialsParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "CreateGiteaCredentials",
+		Method:             "POST",
+		PathPattern:        "/gitea/credentials",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &CreateGiteaCredentialsReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*CreateGiteaCredentialsOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
+	msg := fmt.Sprintf("unexpected success response for CreateGiteaCredentials: API contract not enforced by server. Client expected to get an error, but got: %T", result)
+	panic(msg)
+}
+
+/*
 DeleteCredentials deletes a git hub credential
 */
 func (a *Client) DeleteCredentials(params *DeleteCredentialsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error {
@@ -125,6 +174,38 @@ func (a *Client) DeleteCredentials(params *DeleteCredentialsParams, authInfo run
 		Schemes:            []string{"http"},
 		Params:             params,
 		Reader:             &DeleteCredentialsReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	_, err := a.transport.Submit(op)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+/*
+DeleteGiteaCredentials deletes a gitea credential
+*/
+func (a *Client) DeleteGiteaCredentials(params *DeleteGiteaCredentialsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewDeleteGiteaCredentialsParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "DeleteGiteaCredentials",
+		Method:             "DELETE",
+		PathPattern:        "/gitea/credentials/{id}",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &DeleteGiteaCredentialsReader{formats: a.formats},
 		AuthInfo:           authInfo,
 		Context:            params.Context,
 		Client:             params.HTTPClient,
@@ -180,6 +261,45 @@ func (a *Client) GetCredentials(params *GetCredentialsParams, authInfo runtime.C
 }
 
 /*
+GetGiteaCredentials gets a gitea credential
+*/
+func (a *Client) GetGiteaCredentials(params *GetGiteaCredentialsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetGiteaCredentialsOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewGetGiteaCredentialsParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "GetGiteaCredentials",
+		Method:             "GET",
+		PathPattern:        "/gitea/credentials/{id}",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &GetGiteaCredentialsReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*GetGiteaCredentialsOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
+	msg := fmt.Sprintf("unexpected success response for GetGiteaCredentials: API contract not enforced by server. Client expected to get an error, but got: %T", result)
+	panic(msg)
+}
+
+/*
 ListCredentials lists all credentials
 */
 func (a *Client) ListCredentials(params *ListCredentialsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListCredentialsOK, error) {
@@ -219,6 +339,45 @@ func (a *Client) ListCredentials(params *ListCredentialsParams, authInfo runtime
 }
 
 /*
+ListGiteaCredentials lists all credentials
+*/
+func (a *Client) ListGiteaCredentials(params *ListGiteaCredentialsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListGiteaCredentialsOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewListGiteaCredentialsParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "ListGiteaCredentials",
+		Method:             "GET",
+		PathPattern:        "/gitea/credentials",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &ListGiteaCredentialsReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*ListGiteaCredentialsOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
+	msg := fmt.Sprintf("unexpected success response for ListGiteaCredentials: API contract not enforced by server. Client expected to get an error, but got: %T", result)
+	panic(msg)
+}
+
+/*
 UpdateCredentials updates a git hub credential
 */
 func (a *Client) UpdateCredentials(params *UpdateCredentialsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateCredentialsOK, error) {
@@ -254,6 +413,45 @@ func (a *Client) UpdateCredentials(params *UpdateCredentialsParams, authInfo run
 	// unexpected success response
 	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
 	msg := fmt.Sprintf("unexpected success response for UpdateCredentials: API contract not enforced by server. Client expected to get an error, but got: %T", result)
+	panic(msg)
+}
+
+/*
+UpdateGiteaCredentials updates a gitea credential
+*/
+func (a *Client) UpdateGiteaCredentials(params *UpdateGiteaCredentialsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateGiteaCredentialsOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewUpdateGiteaCredentialsParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "UpdateGiteaCredentials",
+		Method:             "PUT",
+		PathPattern:        "/gitea/credentials/{id}",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &UpdateGiteaCredentialsReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*UpdateGiteaCredentialsOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
+	msg := fmt.Sprintf("unexpected success response for UpdateGiteaCredentials: API contract not enforced by server. Client expected to get an error, but got: %T", result)
 	panic(msg)
 }
 

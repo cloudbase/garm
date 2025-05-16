@@ -320,7 +320,7 @@ func (a *APIController) CreateEnterpriseScaleSetHandler(w http.ResponseWriter, r
 		return
 	}
 
-	scaleSet, err := a.r.CreateEntityScaleSet(ctx, runnerParams.GithubEntityTypeEnterprise, enterpriseID, scaleSetData)
+	scaleSet, err := a.r.CreateEntityScaleSet(ctx, runnerParams.ForgeEntityTypeEnterprise, enterpriseID, scaleSetData)
 	if err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error creating enterprise scale set")
 		handleError(ctx, w, err)
@@ -404,7 +404,7 @@ func (a *APIController) ListEnterpriseScaleSetsHandler(w http.ResponseWriter, r 
 		return
 	}
 
-	scaleSets, err := a.r.ListEntityScaleSets(ctx, runnerParams.GithubEntityTypeEnterprise, enterpriseID)
+	scaleSets, err := a.r.ListEntityScaleSets(ctx, runnerParams.ForgeEntityTypeEnterprise, enterpriseID)
 	if err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "listing scale sets")
 		handleError(ctx, w, err)

@@ -36,7 +36,7 @@ func (s *ScaleSetClient) getActionServiceInfo(ctx context.Context) (params.Actio
 
 	entity := s.ghCli.GetEntity()
 	body := params.ActionsServiceAdminInfoRequest{
-		URL:         entity.GithubURL(),
+		URL:         entity.ForgeURL(),
 		RunnerEvent: "register",
 	}
 

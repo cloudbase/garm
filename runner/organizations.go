@@ -38,7 +38,18 @@ func (r *Runner) CreateOrganization(ctx context.Context, param params.CreateOrgP
 		return params.Organization{}, errors.Wrap(err, "validating params")
 	}
 
-	creds, err := r.store.GetGithubCredentialsByName(ctx, param.CredentialsName, true)
+	var creds params.ForgeCredentials
+	switch param.GetForgeType() {
+	case params.GithubEndpointType:
+		slog.DebugContext(ctx, "getting github credentials")
+		creds, err = r.store.GetGithubCredentialsByName(ctx, param.CredentialsName, true)
+	case params.GiteaEndpointType:
+		slog.DebugContext(ctx, "getting gitea credentials")
+		creds, err = r.store.GetGiteaCredentialsByName(ctx, param.CredentialsName, true)
+	default:
+		return params.Organization{}, runnerErrors.NewBadRequestError("invalid forge type: %s", param.GetForgeType())
+	}
+
 	if err != nil {
 		return params.Organization{}, runnerErrors.NewBadRequestError("credentials %s not defined", param.CredentialsName)
 	}
@@ -52,7 +63,7 @@ func (r *Runner) CreateOrganization(ctx context.Context, param params.CreateOrgP
 		return params.Organization{}, runnerErrors.NewConflictError("organization %s already exists", param.Name)
 	}
 
-	org, err = r.store.CreateOrganization(ctx, param.Name, creds.Name, param.WebhookSecret, param.PoolBalancerType)
+	org, err = r.store.CreateOrganization(ctx, param.Name, creds, param.WebhookSecret, param.PoolBalancerType)
 	if err != nil {
 		return params.Organization{}, errors.Wrap(err, "creating organization")
 	}
@@ -235,9 +246,9 @@ func (r *Runner) CreateOrgPool(ctx context.Context, orgID string, param params.C
 		param.RunnerBootstrapTimeout = appdefaults.DefaultRunnerBootstrapTimeout
 	}
 
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         orgID,
-		EntityType: params.GithubEntityTypeOrganization,
+		EntityType: params.ForgeEntityTypeOrganization,
 	}
 
 	pool, err := r.store.CreateEntityPool(ctx, entity, createPoolParams)
@@ -253,9 +264,9 @@ func (r *Runner) GetOrgPoolByID(ctx context.Context, orgID, poolID string) (para
 		return params.Pool{}, runnerErrors.ErrUnauthorized
 	}
 
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         orgID,
-		EntityType: params.GithubEntityTypeOrganization,
+		EntityType: params.ForgeEntityTypeOrganization,
 	}
 
 	pool, err := r.store.GetEntityPool(ctx, entity, poolID)
@@ -271,9 +282,9 @@ func (r *Runner) DeleteOrgPool(ctx context.Context, orgID, poolID string) error 
 		return runnerErrors.ErrUnauthorized
 	}
 
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         orgID,
-		EntityType: params.GithubEntityTypeOrganization,
+		EntityType: params.ForgeEntityTypeOrganization,
 	}
 
 	pool, err := r.store.GetEntityPool(ctx, entity, poolID)
@@ -304,9 +315,9 @@ func (r *Runner) ListOrgPools(ctx context.Context, orgID string) ([]params.Pool,
 	if !auth.IsAdmin(ctx) {
 		return []params.Pool{}, runnerErrors.ErrUnauthorized
 	}
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         orgID,
-		EntityType: params.GithubEntityTypeOrganization,
+		EntityType: params.ForgeEntityTypeOrganization,
 	}
 	pools, err := r.store.ListEntityPools(ctx, entity)
 	if err != nil {
@@ -320,9 +331,9 @@ func (r *Runner) UpdateOrgPool(ctx context.Context, orgID, poolID string, param 
 		return params.Pool{}, runnerErrors.ErrUnauthorized
 	}
 
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         orgID,
-		EntityType: params.GithubEntityTypeOrganization,
+		EntityType: params.ForgeEntityTypeOrganization,
 	}
 
 	pool, err := r.store.GetEntityPool(ctx, entity, poolID)
@@ -356,9 +367,9 @@ func (r *Runner) ListOrgInstances(ctx context.Context, orgID string) ([]params.I
 		return nil, runnerErrors.ErrUnauthorized
 	}
 
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         orgID,
-		EntityType: params.GithubEntityTypeOrganization,
+		EntityType: params.ForgeEntityTypeOrganization,
 	}
 
 	instances, err := r.store.ListEntityInstances(ctx, entity)

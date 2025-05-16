@@ -8,7 +8,7 @@ import (
 	"github.com/cloudbase/garm/params"
 )
 
-func checkEndpointParamsAreEqual(a, b params.GithubEndpoint) error {
+func checkEndpointParamsAreEqual(a, b params.ForgeEndpoint) error {
 	if a.Name != b.Name {
 		return fmt.Errorf("endpoint name mismatch")
 	}

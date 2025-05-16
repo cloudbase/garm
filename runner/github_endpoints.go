@@ -10,30 +10,30 @@ import (
 	"github.com/cloudbase/garm/params"
 )
 
-func (r *Runner) CreateGithubEndpoint(ctx context.Context, param params.CreateGithubEndpointParams) (params.GithubEndpoint, error) {
+func (r *Runner) CreateGithubEndpoint(ctx context.Context, param params.CreateGithubEndpointParams) (params.ForgeEndpoint, error) {
 	if !auth.IsAdmin(ctx) {
-		return params.GithubEndpoint{}, runnerErrors.ErrUnauthorized
+		return params.ForgeEndpoint{}, runnerErrors.ErrUnauthorized
 	}
 
 	if err := param.Validate(); err != nil {
-		return params.GithubEndpoint{}, errors.Wrap(err, "failed to validate github endpoint params")
+		return params.ForgeEndpoint{}, errors.Wrap(err, "failed to validate github endpoint params")
 	}
 
 	ep, err := r.store.CreateGithubEndpoint(ctx, param)
 	if err != nil {
-		return params.GithubEndpoint{}, errors.Wrap(err, "failed to create github endpoint")
+		return params.ForgeEndpoint{}, errors.Wrap(err, "failed to create github endpoint")
 	}
 
 	return ep, nil
 }
 
-func (r *Runner) GetGithubEndpoint(ctx context.Context, name string) (params.GithubEndpoint, error) {
+func (r *Runner) GetGithubEndpoint(ctx context.Context, name string) (params.ForgeEndpoint, error) {
 	if !auth.IsAdmin(ctx) {
-		return params.GithubEndpoint{}, runnerErrors.ErrUnauthorized
+		return params.ForgeEndpoint{}, runnerErrors.ErrUnauthorized
 	}
 	endpoint, err := r.store.GetGithubEndpoint(ctx, name)
 	if err != nil {
-		return params.GithubEndpoint{}, errors.Wrap(err, "failed to get github endpoint")
+		return params.ForgeEndpoint{}, errors.Wrap(err, "failed to get github endpoint")
 	}
 
 	return endpoint, nil
@@ -52,23 +52,23 @@ func (r *Runner) DeleteGithubEndpoint(ctx context.Context, name string) error {
 	return nil
 }
 
-func (r *Runner) UpdateGithubEndpoint(ctx context.Context, name string, param params.UpdateGithubEndpointParams) (params.GithubEndpoint, error) {
+func (r *Runner) UpdateGithubEndpoint(ctx context.Context, name string, param params.UpdateGithubEndpointParams) (params.ForgeEndpoint, error) {
 	if !auth.IsAdmin(ctx) {
-		return params.GithubEndpoint{}, runnerErrors.ErrUnauthorized
+		return params.ForgeEndpoint{}, runnerErrors.ErrUnauthorized
 	}
 
 	if err := param.Validate(); err != nil {
-		return params.GithubEndpoint{}, errors.Wrap(err, "failed to validate github endpoint params")
+		return params.ForgeEndpoint{}, errors.Wrap(err, "failed to validate github endpoint params")
 	}
 
 	newEp, err := r.store.UpdateGithubEndpoint(ctx, name, param)
 	if err != nil {
-		return params.GithubEndpoint{}, errors.Wrap(err, "failed to update github endpoint")
+		return params.ForgeEndpoint{}, errors.Wrap(err, "failed to update github endpoint")
 	}
 	return newEp, nil
 }
 
-func (r *Runner) ListGithubEndpoints(ctx context.Context) ([]params.GithubEndpoint, error) {
+func (r *Runner) ListGithubEndpoints(ctx context.Context) ([]params.ForgeEndpoint, error) {
 	if !auth.IsAdmin(ctx) {
 		return nil, runnerErrors.ErrUnauthorized
 	}

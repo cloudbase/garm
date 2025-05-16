@@ -50,10 +50,10 @@ func NewGetCredentialsOK() *GetCredentialsOK {
 /*
 GetCredentialsOK describes a response with status code 200, with default header values.
 
-GithubCredentials
+ForgeCredentials
 */
 type GetCredentialsOK struct {
-	Payload garm_params.GithubCredentials
+	Payload garm_params.ForgeCredentials
 }
 
 // IsSuccess returns true when this get credentials o k response has a 2xx status code
@@ -96,7 +96,7 @@ func (o *GetCredentialsOK) String() string {
 	return fmt.Sprintf("[GET /github/credentials/{id}][%d] getCredentialsOK %s", 200, payload)
 }
 
-func (o *GetCredentialsOK) GetPayload() garm_params.GithubCredentials {
+func (o *GetCredentialsOK) GetPayload() garm_params.ForgeCredentials {
 	return o.Payload
 }
 

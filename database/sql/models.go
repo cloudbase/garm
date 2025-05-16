@@ -1,17 +1,3 @@
-// Copyright 2022 Cloudbase Solutions SRL
-//
-//    Licensed under the Apache License, Version 2.0 (the "License"); you may
-//    not use this file except in compliance with the License. You may obtain
-//    a copy of the License at
-//
-//         http://www.apache.org/licenses/LICENSE-2.0
-//
-//    Unless required by applicable law or agreed to in writing, software
-//    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-//    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-//    License for the specific language governing permissions and limitations
-//    under the License.
-
 package sql
 
 import (
@@ -44,6 +30,22 @@ func (b *Base) BeforeCreate(_ *gorm.DB) error {
 	}
 	b.ID = newID
 	return nil
+}
+
+type ControllerInfo struct {
+	Base
+
+	ControllerID uuid.UUID
+
+	CallbackURL    string
+	MetadataURL    string
+	WebhookBaseURL string
+	// MinimumJobAgeBackoff is the minimum time that a job must be in the queue
+	// before GARM will attempt to allocate a runner to service it. This backoff
+	// is useful if you have idle runners in various pools that could potentially
+	// pick up the job. GARM would allow this amount of time for runners to react
+	// before spinning up a new one and potentially having to scale down later.
+	MinimumJobAgeBackoff uint
 }
 
 type Tag struct {
@@ -152,10 +154,11 @@ type RepositoryEvent struct {
 type Repository struct {
 	Base
 
-	CredentialsName string
-
 	CredentialsID *uint             `gorm:"index"`
 	Credentials   GithubCredentials `gorm:"foreignKey:CredentialsID;constraint:OnDelete:SET NULL"`
+
+	GiteaCredentialsID *uint            `gorm:"index"`
+	GiteaCredentials   GiteaCredentials `gorm:"foreignKey:GiteaCredentialsID;constraint:OnDelete:SET NULL"`
 
 	Owner            string `gorm:"index:idx_owner_nocase,unique,collate:nocase"`
 	Name             string `gorm:"index:idx_owner_nocase,unique,collate:nocase"`
@@ -168,7 +171,7 @@ type Repository struct {
 	EndpointName *string        `gorm:"index:idx_owner_nocase,unique,collate:nocase"`
 	Endpoint     GithubEndpoint `gorm:"foreignKey:EndpointName;constraint:OnDelete:SET NULL"`
 
-	Events []RepositoryEvent `gorm:"foreignKey:RepoID;constraint:OnDelete:CASCADE,OnUpdate:CASCADE;"`
+	Events []*RepositoryEvent `gorm:"foreignKey:RepoID;constraint:OnDelete:CASCADE,OnUpdate:CASCADE;"`
 }
 
 type OrganizationEvent struct {
@@ -184,10 +187,11 @@ type OrganizationEvent struct {
 type Organization struct {
 	Base
 
-	CredentialsName string
-
 	CredentialsID *uint             `gorm:"index"`
 	Credentials   GithubCredentials `gorm:"foreignKey:CredentialsID;constraint:OnDelete:SET NULL"`
+
+	GiteaCredentialsID *uint            `gorm:"index"`
+	GiteaCredentials   GiteaCredentials `gorm:"foreignKey:GiteaCredentialsID;constraint:OnDelete:SET NULL"`
 
 	Name             string `gorm:"index:idx_org_name_nocase,collate:nocase"`
 	WebhookSecret    []byte
@@ -199,7 +203,7 @@ type Organization struct {
 	EndpointName *string        `gorm:"index:idx_org_name_nocase,collate:nocase"`
 	Endpoint     GithubEndpoint `gorm:"foreignKey:EndpointName;constraint:OnDelete:SET NULL"`
 
-	Events []OrganizationEvent `gorm:"foreignKey:OrgID;constraint:OnDelete:CASCADE,OnUpdate:CASCADE;"`
+	Events []*OrganizationEvent `gorm:"foreignKey:OrgID;constraint:OnDelete:CASCADE,OnUpdate:CASCADE;"`
 }
 
 type EnterpriseEvent struct {
@@ -216,8 +220,6 @@ type EnterpriseEvent struct {
 type Enterprise struct {
 	Base
 
-	CredentialsName string
-
 	CredentialsID *uint             `gorm:"index"`
 	Credentials   GithubCredentials `gorm:"foreignKey:CredentialsID;constraint:OnDelete:SET NULL"`
 
@@ -231,7 +233,7 @@ type Enterprise struct {
 	EndpointName *string        `gorm:"index:idx_ent_name_nocase,collate:nocase"`
 	Endpoint     GithubEndpoint `gorm:"foreignKey:EndpointName;constraint:OnDelete:SET NULL"`
 
-	Events []EnterpriseEvent `gorm:"foreignKey:EnterpriseID;constraint:OnDelete:CASCADE,OnUpdate:CASCADE;"`
+	Events []*EnterpriseEvent `gorm:"foreignKey:EnterpriseID;constraint:OnDelete:CASCADE,OnUpdate:CASCADE;"`
 }
 
 type Address struct {
@@ -300,22 +302,6 @@ type User struct {
 	Enabled    bool
 }
 
-type ControllerInfo struct {
-	Base
-
-	ControllerID uuid.UUID
-
-	CallbackURL    string
-	MetadataURL    string
-	WebhookBaseURL string
-	// MinimumJobAgeBackoff is the minimum time that a job must be in the queue
-	// before GARM will attempt to allocate a runner to service it. This backoff
-	// is useful if you have idle runners in various pools that could potentially
-	// pick up the job. GARM would allow this amount of time for runners to react
-	// before spinning up a new one and potentially having to scale down later.
-	MinimumJobAgeBackoff uint
-}
-
 type WorkflowJob struct {
 	// ID is the ID of the job.
 	ID int64 `gorm:"index"`
@@ -381,6 +367,8 @@ type GithubEndpoint struct {
 	UpdatedAt time.Time
 	DeletedAt gorm.DeletedAt `gorm:"index"`
 
+	EndpointType params.EndpointType `gorm:"index:idx_endpoint_type"`
+
 	Description   string `gorm:"type:text"`
 	APIBaseURL    string `gorm:"type:text collate nocase"`
 	UploadBaseURL string `gorm:"type:text collate nocase"`
@@ -395,9 +383,9 @@ type GithubCredentials struct {
 	UserID *uuid.UUID `gorm:"index:idx_github_credentials,unique"`
 	User   User       `gorm:"foreignKey:UserID"`
 
-	Description string                `gorm:"type:text"`
-	AuthType    params.GithubAuthType `gorm:"index"`
-	Payload     []byte                `gorm:"type:longblob"`
+	Description string               `gorm:"type:text"`
+	AuthType    params.ForgeAuthType `gorm:"index"`
+	Payload     []byte               `gorm:"type:longblob"`
 
 	Endpoint     GithubEndpoint `gorm:"foreignKey:EndpointName"`
 	EndpointName *string        `gorm:"index"`
@@ -405,4 +393,22 @@ type GithubCredentials struct {
 	Repositories  []Repository   `gorm:"foreignKey:CredentialsID"`
 	Organizations []Organization `gorm:"foreignKey:CredentialsID"`
 	Enterprises   []Enterprise   `gorm:"foreignKey:CredentialsID"`
+}
+
+type GiteaCredentials struct {
+	gorm.Model
+
+	Name   string     `gorm:"index:idx_gitea_credentials,unique;type:varchar(64) collate nocase"`
+	UserID *uuid.UUID `gorm:"index:idx_gitea_credentials,unique"`
+	User   User       `gorm:"foreignKey:UserID"`
+
+	Description string               `gorm:"type:text"`
+	AuthType    params.ForgeAuthType `gorm:"index"`
+	Payload     []byte               `gorm:"type:longblob"`
+
+	Endpoint     GithubEndpoint `gorm:"foreignKey:EndpointName"`
+	EndpointName *string        `gorm:"index"`
+
+	Repositories  []Repository   `gorm:"foreignKey:GiteaCredentialsID"`
+	Organizations []Organization `gorm:"foreignKey:GiteaCredentialsID"`
 }

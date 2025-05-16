@@ -19,15 +19,15 @@ type ScaleSetsTestSuite struct {
 	suite.Suite
 	Store    dbCommon.Store
 	adminCtx context.Context
-	creds    params.GithubCredentials
+	creds    params.ForgeCredentials
 
 	org        params.Organization
 	repo       params.Repository
 	enterprise params.Enterprise
 
-	orgEntity        params.GithubEntity
-	repoEntity       params.GithubEntity
-	enterpriseEntity params.GithubEntity
+	orgEntity        params.ForgeEntity
+	repoEntity       params.ForgeEntity
+	enterpriseEntity params.ForgeEntity
 }
 
 func (s *ScaleSetsTestSuite) SetupTest() {
@@ -48,12 +48,12 @@ func (s *ScaleSetsTestSuite) SetupTest() {
 	s.creds = garmTesting.CreateTestGithubCredentials(adminCtx, "new-creds", db, s.T(), githubEndpoint)
 
 	// create an organization for testing purposes
-	s.org, err = s.Store.CreateOrganization(s.adminCtx, "test-org", s.creds.Name, "test-webhookSecret", params.PoolBalancerTypeRoundRobin)
+	s.org, err = s.Store.CreateOrganization(s.adminCtx, "test-org", s.creds, "test-webhookSecret", params.PoolBalancerTypeRoundRobin)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to create org: %s", err))
 	}
 
-	s.repo, err = s.Store.CreateRepository(s.adminCtx, "test-org", "test-repo", s.creds.Name, "test-webhookSecret", params.PoolBalancerTypeRoundRobin)
+	s.repo, err = s.Store.CreateRepository(s.adminCtx, "test-org", "test-repo", s.creds, "test-webhookSecret", params.PoolBalancerTypeRoundRobin)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to create repo: %s", err))
 	}
@@ -298,7 +298,7 @@ func (s *ScaleSetsTestSuite) TestScaleSetOperations() {
 	})
 
 	s.T().Run("update scaleset with invalid entity", func(_ *testing.T) {
-		_, err = s.Store.UpdateEntityScaleSet(s.adminCtx, params.GithubEntity{}, enterpriseScaleSet.ID, params.UpdateScaleSetParams{}, nil)
+		_, err = s.Store.UpdateEntityScaleSet(s.adminCtx, params.ForgeEntity{}, enterpriseScaleSet.ID, params.UpdateScaleSetParams{}, nil)
 		s.Require().Error(err)
 		s.Require().Contains(err.Error(), "missing entity id")
 	})

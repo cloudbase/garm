@@ -6,8 +6,6 @@ import (
 	"log/slog"
 	"sync"
 
-	"golang.org/x/sync/errgroup"
-
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm/auth"
 	dbCommon "github.com/cloudbase/garm/database/common"
@@ -133,24 +131,12 @@ func (p *Provider) Start() error {
 		return nil
 	}
 
-	g, _ := errgroup.WithContext(p.ctx)
+	if err := p.loadAllScaleSets(); err != nil {
+		return fmt.Errorf("loading all scale sets: %w", err)
+	}
 
-	g.Go(func() error {
-		if err := p.loadAllScaleSets(); err != nil {
-			return fmt.Errorf("loading all scale sets: %w", err)
-		}
-		return nil
-	})
-
-	g.Go(func() error {
-		if err := p.loadAllRunners(); err != nil {
-			return fmt.Errorf("loading all runners: %w", err)
-		}
-		return nil
-	})
-
-	if err := p.waitForErrorGroupOrContextCancelled(g); err != nil {
-		return fmt.Errorf("waiting for error group: %w", err)
+	if err := p.loadAllRunners(); err != nil {
+		return fmt.Errorf("loading all runners: %w", err)
 	}
 
 	consumer, err := watcher.RegisterConsumer(

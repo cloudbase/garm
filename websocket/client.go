@@ -58,8 +58,6 @@ func NewClient(ctx context.Context, conn *websocket.Conn) (*Client, error) {
 		userID:             user,
 		passwordGeneration: generation,
 		consumer:           consumer,
-		done:               make(chan struct{}),
-		send:               make(chan []byte, 100),
 	}, nil
 }
 
@@ -116,6 +114,8 @@ func (c *Client) Start() error {
 	defer c.mux.Unlock()
 
 	c.running = true
+	c.send = make(chan []byte, 100)
+	c.done = make(chan struct{})
 
 	go c.runWatcher()
 	go c.clientReader()

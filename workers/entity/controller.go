@@ -215,6 +215,7 @@ func (c *Controller) Stop() error {
 	c.running = false
 	close(c.quit)
 	c.consumer.Close()
+	slog.DebugContext(c.ctx, "stopped entity controller", "entity", c.consumerID)
 	return nil
 }
 

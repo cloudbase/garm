@@ -51,10 +51,10 @@ func NewListGithubEndpointsOK() *ListGithubEndpointsOK {
 /*
 ListGithubEndpointsOK describes a response with status code 200, with default header values.
 
-GithubEndpoints
+ForgeEndpoints
 */
 type ListGithubEndpointsOK struct {
-	Payload garm_params.GithubEndpoints
+	Payload garm_params.ForgeEndpoints
 }
 
 // IsSuccess returns true when this list github endpoints o k response has a 2xx status code
@@ -97,7 +97,7 @@ func (o *ListGithubEndpointsOK) String() string {
 	return fmt.Sprintf("[GET /github/endpoints][%d] listGithubEndpointsOK %s", 200, payload)
 }
 
-func (o *ListGithubEndpointsOK) GetPayload() garm_params.GithubEndpoints {
+func (o *ListGithubEndpointsOK) GetPayload() garm_params.ForgeEndpoints {
 	return o.Payload
 }
 

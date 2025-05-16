@@ -52,7 +52,7 @@ type instanceManager struct {
 	helper   providerHelper
 
 	scaleSet       params.ScaleSet
-	scaleSetEntity params.GithubEntity
+	scaleSetEntity params.ForgeEntity
 
 	deleteBackoff time.Duration
 
@@ -120,14 +120,14 @@ func (i *instanceManager) incrementBackOff() {
 	}
 }
 
-func (i *instanceManager) getEntity() (params.GithubEntity, error) {
+func (i *instanceManager) getEntity() (params.ForgeEntity, error) {
 	entity, err := i.scaleSet.GetEntity()
 	if err != nil {
-		return params.GithubEntity{}, fmt.Errorf("getting entity: %w", err)
+		return params.ForgeEntity{}, fmt.Errorf("getting entity: %w", err)
 	}
 	ghEntity, err := i.helper.GetGithubEntity(entity)
 	if err != nil {
-		return params.GithubEntity{}, fmt.Errorf("getting entity: %w", err)
+		return params.ForgeEntity{}, fmt.Errorf("getting entity: %w", err)
 	}
 	return ghEntity, nil
 }
@@ -148,15 +148,15 @@ func (i *instanceManager) handleCreateInstanceInProvider(instance params.Instanc
 	if err != nil {
 		return fmt.Errorf("creating instance token: %w", err)
 	}
-	tools, ok := cache.GetGithubToolsCache(entity.ID)
-	if !ok {
-		return fmt.Errorf("tools not found in cache for entity %s", entity.String())
+	tools, err := cache.GetGithubToolsCache(entity.ID)
+	if err != nil {
+		return fmt.Errorf("tools not found in cache for entity %s: %w", entity.String(), err)
 	}
 
 	bootstrapArgs := commonParams.BootstrapInstance{
 		Name:          instance.Name,
 		Tools:         tools,
-		RepoURL:       entity.GithubURL(),
+		RepoURL:       entity.ForgeURL(),
 		MetadataURL:   instance.MetadataURL,
 		CallbackURL:   instance.CallbackURL,
 		InstanceToken: token,

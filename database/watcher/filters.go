@@ -63,7 +63,7 @@ func WithOperationTypeFilter(operationType dbCommon.OperationType) dbCommon.Payl
 // WithEntityPoolFilter returns true if the change payload is a pool that belongs to the
 // supplied Github entity. This is useful when an entity worker wants to watch for changes
 // in pools that belong to it.
-func WithEntityPoolFilter(ghEntity params.GithubEntity) dbCommon.PayloadFilterFunc {
+func WithEntityPoolFilter(ghEntity params.ForgeEntity) dbCommon.PayloadFilterFunc {
 	return func(payload dbCommon.ChangePayload) bool {
 		switch payload.EntityType {
 		case dbCommon.PoolEntityType:
@@ -72,11 +72,11 @@ func WithEntityPoolFilter(ghEntity params.GithubEntity) dbCommon.PayloadFilterFu
 				return false
 			}
 			switch ghEntity.EntityType {
-			case params.GithubEntityTypeRepository:
+			case params.ForgeEntityTypeRepository:
 				return pool.RepoID == ghEntity.ID
-			case params.GithubEntityTypeOrganization:
+			case params.ForgeEntityTypeOrganization:
 				return pool.OrgID == ghEntity.ID
-			case params.GithubEntityTypeEnterprise:
+			case params.ForgeEntityTypeEnterprise:
 				return pool.EnterpriseID == ghEntity.ID
 			default:
 				return false
@@ -90,8 +90,16 @@ func WithEntityPoolFilter(ghEntity params.GithubEntity) dbCommon.PayloadFilterFu
 // WithEntityPoolFilter returns true if the change payload is a pool that belongs to the
 // supplied Github entity. This is useful when an entity worker wants to watch for changes
 // in pools that belong to it.
-func WithEntityScaleSetFilter(ghEntity params.GithubEntity) dbCommon.PayloadFilterFunc {
+func WithEntityScaleSetFilter(ghEntity params.ForgeEntity) dbCommon.PayloadFilterFunc {
 	return func(payload dbCommon.ChangePayload) bool {
+		forgeType, err := ghEntity.GetForgeType()
+		if err != nil {
+			return false
+		}
+		if forgeType != params.GiteaEndpointType {
+			return false
+		}
+
 		switch payload.EntityType {
 		case dbCommon.ScaleSetEntityType:
 			scaleSet, ok := payload.Payload.(params.ScaleSet)
@@ -99,11 +107,11 @@ func WithEntityScaleSetFilter(ghEntity params.GithubEntity) dbCommon.PayloadFilt
 				return false
 			}
 			switch ghEntity.EntityType {
-			case params.GithubEntityTypeRepository:
+			case params.ForgeEntityTypeRepository:
 				return scaleSet.RepoID == ghEntity.ID
-			case params.GithubEntityTypeOrganization:
+			case params.ForgeEntityTypeOrganization:
 				return scaleSet.OrgID == ghEntity.ID
-			case params.GithubEntityTypeEnterprise:
+			case params.ForgeEntityTypeEnterprise:
 				return scaleSet.EnterpriseID == ghEntity.ID
 			default:
 				return false
@@ -116,26 +124,26 @@ func WithEntityScaleSetFilter(ghEntity params.GithubEntity) dbCommon.PayloadFilt
 
 // WithEntityFilter returns a filter function that filters payloads by entity.
 // Change payloads that match the entity type and ID will return true.
-func WithEntityFilter(entity params.GithubEntity) dbCommon.PayloadFilterFunc {
+func WithEntityFilter(entity params.ForgeEntity) dbCommon.PayloadFilterFunc {
 	return func(payload dbCommon.ChangePayload) bool {
-		if params.GithubEntityType(payload.EntityType) != entity.EntityType {
+		if params.ForgeEntityType(payload.EntityType) != entity.EntityType {
 			return false
 		}
 		var ent IDGetter
 		var ok bool
 		switch payload.EntityType {
 		case dbCommon.RepositoryEntityType:
-			if entity.EntityType != params.GithubEntityTypeRepository {
+			if entity.EntityType != params.ForgeEntityTypeRepository {
 				return false
 			}
 			ent, ok = payload.Payload.(params.Repository)
 		case dbCommon.OrganizationEntityType:
-			if entity.EntityType != params.GithubEntityTypeOrganization {
+			if entity.EntityType != params.ForgeEntityTypeOrganization {
 				return false
 			}
 			ent, ok = payload.Payload.(params.Organization)
 		case dbCommon.EnterpriseEntityType:
-			if entity.EntityType != params.GithubEntityTypeEnterprise {
+			if entity.EntityType != params.ForgeEntityTypeEnterprise {
 				return false
 			}
 			ent, ok = payload.Payload.(params.Enterprise)
@@ -149,7 +157,7 @@ func WithEntityFilter(entity params.GithubEntity) dbCommon.PayloadFilterFunc {
 	}
 }
 
-func WithEntityJobFilter(ghEntity params.GithubEntity) dbCommon.PayloadFilterFunc {
+func WithEntityJobFilter(ghEntity params.ForgeEntity) dbCommon.PayloadFilterFunc {
 	return func(payload dbCommon.ChangePayload) bool {
 		switch payload.EntityType {
 		case dbCommon.JobEntityType:
@@ -159,15 +167,15 @@ func WithEntityJobFilter(ghEntity params.GithubEntity) dbCommon.PayloadFilterFun
 			}
 
 			switch ghEntity.EntityType {
-			case params.GithubEntityTypeRepository:
+			case params.ForgeEntityTypeRepository:
 				if job.RepoID != nil && job.RepoID.String() != ghEntity.ID {
 					return false
 				}
-			case params.GithubEntityTypeOrganization:
+			case params.ForgeEntityTypeOrganization:
 				if job.OrgID != nil && job.OrgID.String() != ghEntity.ID {
 					return false
 				}
-			case params.GithubEntityTypeEnterprise:
+			case params.ForgeEntityTypeEnterprise:
 				if job.EnterpriseID != nil && job.EnterpriseID.String() != ghEntity.ID {
 					return false
 				}
@@ -182,17 +190,21 @@ func WithEntityJobFilter(ghEntity params.GithubEntity) dbCommon.PayloadFilterFun
 	}
 }
 
-// WithGithubCredentialsFilter returns a filter function that filters payloads by Github credentials.
-func WithGithubCredentialsFilter(creds params.GithubCredentials) dbCommon.PayloadFilterFunc {
+// WithForgeCredentialsFilter returns a filter function that filters payloads by Github credentials.
+func WithForgeCredentialsFilter(creds params.ForgeCredentials) dbCommon.PayloadFilterFunc {
 	return func(payload dbCommon.ChangePayload) bool {
-		if payload.EntityType != dbCommon.GithubCredentialsEntityType {
+		var idGetter params.IDGetter
+		var ok bool
+		switch payload.EntityType {
+		case dbCommon.GithubCredentialsEntityType, dbCommon.GiteaCredentialsEntityType:
+			idGetter, ok = payload.Payload.(params.ForgeCredentials)
+		default:
 			return false
 		}
-		credsPayload, ok := payload.Payload.(params.GithubCredentials)
 		if !ok {
 			return false
 		}
-		return credsPayload.ID == creds.ID
+		return idGetter.GetID() == creds.GetID()
 	}
 }
 

@@ -74,11 +74,11 @@ definitions:
             package: github.com/cloudbase/garm/params
             alias: garm_params
     items:
-        $ref: '#/definitions/GithubCredentials'
-  GithubCredentials:
+        $ref: '#/definitions/ForgeCredentials'
+  ForgeCredentials:
     type: object
     x-go-type:
-        type: GithubCredentials
+        type: ForgeCredentials
         import:
             package: github.com/cloudbase/garm/params
             alias: garm_params
@@ -271,26 +271,40 @@ definitions:
         import:
             package: github.com/cloudbase/garm/params
             alias: garm_params
-  GithubEndpoint:
+  UpdateGiteaEndpointParams:
     type: object
     x-go-type:
-        type: GithubEndpoint
+        type: UpdateGiteaEndpointParams
         import:
             package: github.com/cloudbase/garm/params
             alias: garm_params
-  GithubEndpoints:
+  ForgeEndpoint:
+    type: object
+    x-go-type:
+        type: ForgeEndpoint
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+  ForgeEndpoints:
     type: array
     x-go-type:
-        type: GithubEndpoints
+        type: ForgeEndpoints
         import:
             package: github.com/cloudbase/garm/params
             alias: garm_params
     items:
-        $ref: '#/definitions/GithubEndpoint'
+        $ref: '#/definitions/ForgeEndpoint'
   CreateGithubEndpointParams:
     type: object
     x-go-type:
         type: CreateGithubEndpointParams
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+  CreateGiteaEndpointParams:
+    type: object
+    x-go-type:
+        type: CreateGiteaEndpointParams
         import:
             package: github.com/cloudbase/garm/params
             alias: garm_params
@@ -301,10 +315,24 @@ definitions:
         import:
             package: github.com/cloudbase/garm/params
             alias: garm_params
+  CreateGiteaCredentialsParams:
+    type: object
+    x-go-type:
+        type: CreateGiteaCredentialsParams
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
   UpdateGithubCredentialsParams:
     type: object
     x-go-type:
         type: UpdateGithubCredentialsParams
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+  UpdateGiteaCredentialsParams:
+    type: object
+    x-go-type:
+        type: UpdateGiteaCredentialsParams
         import:
             package: github.com/cloudbase/garm/params
             alias: garm_params

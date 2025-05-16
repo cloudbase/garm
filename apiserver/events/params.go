@@ -14,7 +14,7 @@ func (f Filter) Validate() error {
 	case common.RepositoryEntityType, common.OrganizationEntityType, common.EnterpriseEntityType,
 		common.PoolEntityType, common.UserEntityType, common.InstanceEntityType,
 		common.JobEntityType, common.ControllerEntityType, common.GithubCredentialsEntityType,
-		common.GithubEndpointEntityType:
+		common.GiteaCredentialsEntityType, common.ScaleSetEntityType, common.GithubEndpointEntityType:
 	default:
 		return common.ErrInvalidEntityType
 	}

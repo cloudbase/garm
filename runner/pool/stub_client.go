@@ -57,8 +57,8 @@ func (s *stubGithubClient) GetWorkflowJobByID(_ context.Context, _, _ string, _ 
 	return nil, nil, s.err
 }
 
-func (s *stubGithubClient) GetEntity() params.GithubEntity {
-	return params.GithubEntity{}
+func (s *stubGithubClient) GetEntity() params.ForgeEntity {
+	return params.ForgeEntity{}
 }
 
 func (s *stubGithubClient) GithubBaseURL() *url.URL {

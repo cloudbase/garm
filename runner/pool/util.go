@@ -5,11 +5,13 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/google/go-github/v71/github"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
+	"github.com/cloudbase/garm/cache"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/database/watcher"
 	"github.com/cloudbase/garm/params"
@@ -91,7 +93,8 @@ func instanceInList(instanceName string, instances []commonParams.ProviderInstan
 func controllerIDFromLabels(labels []string) string {
 	for _, lbl := range labels {
 		if strings.HasPrefix(lbl, controllerLabelPrefix) {
-			return lbl[len(controllerLabelPrefix):]
+			trimLength := min(len(controllerLabelPrefix)+1, len(lbl))
+			return lbl[trimLength:]
 		}
 	}
 	return ""
@@ -119,7 +122,7 @@ func isManagedRunner(labels []string, controllerID string) bool {
 	return runnerControllerID == controllerID
 }
 
-func composeWatcherFilters(entity params.GithubEntity) dbCommon.PayloadFilterFunc {
+func composeWatcherFilters(entity params.ForgeEntity) dbCommon.PayloadFilterFunc {
 	// We want to watch for changes in either the controller or the
 	// entity itself.
 	return watcher.WithAny(
@@ -131,6 +134,22 @@ func composeWatcherFilters(entity params.GithubEntity) dbCommon.PayloadFilterFun
 		// Any operation on the entity we're managing the pool for.
 		watcher.WithEntityFilter(entity),
 		// Watch for changes to the github credentials
-		watcher.WithGithubCredentialsFilter(entity.Credentials),
+		watcher.WithForgeCredentialsFilter(entity.Credentials),
 	)
+}
+
+func (r *basePoolManager) waitForToolsOrCancel() (hasTools, stopped bool) {
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+	select {
+	case <-ticker.C:
+		if _, err := cache.GetGithubToolsCache(r.entity.ID); err != nil {
+			return false, false
+		}
+		return true, false
+	case <-r.quit:
+		return false, true
+	case <-r.ctx.Done():
+		return false, true
+	}
 }
