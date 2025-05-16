@@ -182,7 +182,7 @@ func WithEntityJobFilter(ghEntity params.ForgeEntity) dbCommon.PayloadFilterFunc
 	}
 }
 
-// WithGithubCredentialsFilter returns a filter function that filters payloads by Github credentials.
+// WithForgeCredentialsFilter returns a filter function that filters payloads by Github credentials.
 func WithForgeCredentialsFilter(creds params.ForgeCredentials) dbCommon.PayloadFilterFunc {
 	return func(payload dbCommon.ChangePayload) bool {
 		var idGetter params.IDGetter

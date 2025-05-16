@@ -92,7 +92,7 @@ func (g *githubClient) GetEntityHook(ctx context.Context, id int64) (ret *github
 	return ret, err
 }
 
-func (g *githubClient) CreateEntityHook(ctx context.Context, hook *github.Hook) (ret *github.Hook, err error) {
+func (g *githubClient) createGithubEntityHook(ctx context.Context, hook *github.Hook) (ret *github.Hook, err error) {
 	metrics.GithubOperationCount.WithLabelValues(
 		"CreateHook",          // label: operation
 		g.entity.LabelScope(), // label: scope
@@ -114,6 +114,17 @@ func (g *githubClient) CreateEntityHook(ctx context.Context, hook *github.Hook) 
 		return nil, errors.New("invalid entity type")
 	}
 	return ret, err
+}
+
+func (g *githubClient) CreateEntityHook(ctx context.Context, hook *github.Hook) (ret *github.Hook, err error) {
+	switch g.entity.Credentials.ForgeType {
+	case params.GithubEndpointType:
+		return g.createGithubEntityHook(ctx, hook)
+	case params.GiteaEndpointType:
+		return g.createGiteaEntityHook(ctx, hook)
+	default:
+		return nil, errors.New("invalid entity type")
+	}
 }
 
 func (g *githubClient) DeleteEntityHook(ctx context.Context, id int64) (ret *github.Response, err error) {
