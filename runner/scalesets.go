@@ -16,7 +16,6 @@ package runner
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 
@@ -181,12 +180,10 @@ func (r *Runner) UpdateScaleSetByID(ctx context.Context, scaleSetID uint, param 
 		}
 
 		if hasUpdates {
-			result, err := scalesetCli.UpdateRunnerScaleSet(ctx, newSet.ScaleSetID, updateParams)
+			_, err := scalesetCli.UpdateRunnerScaleSet(ctx, newSet.ScaleSetID, updateParams)
 			if err != nil {
 				return fmt.Errorf("failed to update scaleset in github: %w", err)
 			}
-			asJs, _ := json.MarshalIndent(result, "", "  ")
-			slog.Info("update result", "data", string(asJs))
 		}
 		return nil
 	}
@@ -214,6 +211,10 @@ func (r *Runner) CreateEntityScaleSet(ctx context.Context, entityType params.For
 	entity, err := r.store.GetForgeEntity(ctx, entityType, entityID)
 	if err != nil {
 		return params.ScaleSet{}, errors.Wrap(err, "getting entity")
+	}
+
+	if entity.Credentials.ForgeType != params.GithubEndpointType {
+		return params.ScaleSet{}, runnerErrors.NewBadRequestError("scale sets are only supported for github entities")
 	}
 
 	ghCli, err := github.Client(ctx, entity)
@@ -254,9 +255,6 @@ func (r *Runner) CreateEntityScaleSet(ctx context.Context, entityType params.For
 	if err != nil {
 		return params.ScaleSet{}, errors.Wrap(err, "creating runner scale set")
 	}
-
-	asJs, _ := json.MarshalIndent(runnerScaleSet, "", "  ")
-	slog.InfoContext(ctx, "scale set", "data", string(asJs))
 
 	defer func() {
 		if err != nil {

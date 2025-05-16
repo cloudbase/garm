@@ -38,7 +38,18 @@ func (r *Runner) CreateOrganization(ctx context.Context, param params.CreateOrgP
 		return params.Organization{}, errors.Wrap(err, "validating params")
 	}
 
-	creds, err := r.store.GetGithubCredentialsByName(ctx, param.CredentialsName, true)
+	var creds params.ForgeCredentials
+	switch param.GetForgeType() {
+	case params.GithubEndpointType:
+		slog.DebugContext(ctx, "getting github credentials")
+		creds, err = r.store.GetGithubCredentialsByName(ctx, param.CredentialsName, true)
+	case params.GiteaEndpointType:
+		slog.DebugContext(ctx, "getting gitea credentials")
+		creds, err = r.store.GetGiteaCredentialsByName(ctx, param.CredentialsName, true)
+	default:
+		return params.Organization{}, runnerErrors.NewBadRequestError("invalid forge type: %s", param.GetForgeType())
+	}
+
 	if err != nil {
 		return params.Organization{}, runnerErrors.NewBadRequestError("credentials %s not defined", param.CredentialsName)
 	}
@@ -52,7 +63,7 @@ func (r *Runner) CreateOrganization(ctx context.Context, param params.CreateOrgP
 		return params.Organization{}, runnerErrors.NewConflictError("organization %s already exists", param.Name)
 	}
 
-	org, err = r.store.CreateOrganization(ctx, param.Name, creds.Name, param.WebhookSecret, param.PoolBalancerType)
+	org, err = r.store.CreateOrganization(ctx, param.Name, creds, param.WebhookSecret, param.PoolBalancerType)
 	if err != nil {
 		return params.Organization{}, errors.Wrap(err, "creating organization")
 	}

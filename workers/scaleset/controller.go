@@ -16,7 +16,7 @@ import (
 )
 
 func NewController(ctx context.Context, store dbCommon.Store, entity params.ForgeEntity, providers map[string]common.Provider) (*Controller, error) {
-	consumerID := fmt.Sprintf("scaleset-controller-%s", entity.String())
+	consumerID := fmt.Sprintf("scaleset-controller-%s", entity.ID)
 
 	ctx = garmUtil.WithSlogContext(
 		ctx,
@@ -93,9 +93,16 @@ func (c *Controller) Start() (err error) {
 	}
 	c.mux.Unlock()
 
-	slog.DebugContext(c.ctx, "loaging scale sets", "entity", c.Entity.String())
-	if err := c.loadAllScaleSets(); err != nil {
-		return fmt.Errorf("loading all scale sets: %w", err)
+	forgeType, err := c.Entity.GetForgeType()
+	if err != nil {
+		return fmt.Errorf("getting forge type: %w", err)
+	}
+	if forgeType == params.GithubEndpointType {
+		// scale sets are only available in Github
+		slog.DebugContext(c.ctx, "loaging scale sets", "entity", c.Entity.String())
+		if err := c.loadAllScaleSets(); err != nil {
+			return fmt.Errorf("loading all scale sets: %w", err)
+		}
 	}
 
 	consumer, err := watcher.RegisterConsumer(
@@ -103,7 +110,7 @@ func (c *Controller) Start() (err error) {
 		composeControllerWatcherFilters(c.Entity),
 	)
 	if err != nil {
-		return fmt.Errorf("registering consumer: %w", err)
+		return fmt.Errorf("registering consumer %q: %w", c.consumerID, err)
 	}
 
 	c.mux.Lock()

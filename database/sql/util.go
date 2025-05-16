@@ -151,16 +151,24 @@ func (s *sqlDatabase) sqlToCommonOrganization(org Organization, detailed bool) (
 		UpdatedAt:        org.UpdatedAt,
 	}
 
+	var forgeCreds params.ForgeCredentials
 	if org.CredentialsID != nil {
 		ret.CredentialsID = *org.CredentialsID
+		forgeCreds, err = s.sqlToCommonForgeCredentials(org.Credentials)
+	}
+
+	if org.GiteaCredentialsID != nil {
+		ret.CredentialsID = *org.GiteaCredentialsID
+		forgeCreds, err = s.sqlGiteaToCommonForgeCredentials(org.GiteaCredentials)
+	}
+
+	if err != nil {
+		return params.Organization{}, errors.Wrap(err, "converting credentials")
 	}
 
 	if detailed {
-		creds, err := s.sqlToCommonForgeCredentials(org.Credentials)
-		if err != nil {
-			return params.Organization{}, errors.Wrap(err, "converting credentials")
-		}
-		ret.Credentials = creds
+		ret.Credentials = forgeCreds
+		ret.CredentialsName = forgeCreds.Name
 	}
 
 	if ret.PoolBalancerType == "" {

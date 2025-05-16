@@ -92,6 +92,14 @@ func WithEntityPoolFilter(ghEntity params.ForgeEntity) dbCommon.PayloadFilterFun
 // in pools that belong to it.
 func WithEntityScaleSetFilter(ghEntity params.ForgeEntity) dbCommon.PayloadFilterFunc {
 	return func(payload dbCommon.ChangePayload) bool {
+		forgeType, err := ghEntity.GetForgeType()
+		if err != nil {
+			return false
+		}
+		if forgeType != params.GiteaEndpointType {
+			return false
+		}
+
 		switch payload.EntityType {
 		case dbCommon.ScaleSetEntityType:
 			scaleSet, ok := payload.Payload.(params.ScaleSet)

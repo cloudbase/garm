@@ -1098,6 +1098,13 @@ func (g ForgeEntity) GetCreatedAt() time.Time {
 	return g.CreatedAt
 }
 
+func (g ForgeEntity) GetForgeType() (EndpointType, error) {
+	if g.Credentials.ForgeType == "" {
+		return "", fmt.Errorf("credentials forge type is empty")
+	}
+	return g.Credentials.ForgeType, nil
+}
+
 func (g ForgeEntity) ForgeURL() string {
 	switch g.Credentials.ForgeType {
 	case GiteaEndpointType:

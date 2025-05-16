@@ -21,7 +21,7 @@ import (
 )
 
 func NewWorker(ctx context.Context, store dbCommon.Store, entity params.ForgeEntity, providers map[string]common.Provider) (*Worker, error) {
-	consumerID := fmt.Sprintf("entity-worker-%s", entity.String())
+	consumerID := fmt.Sprintf("entity-worker-%s", entity.ID)
 
 	ctx = garmUtil.WithSlogContext(
 		ctx,

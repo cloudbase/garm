@@ -578,7 +578,7 @@ func Client(ctx context.Context, entity params.ForgeEntity) (common.GithubClient
 		"upload_url", entity.Credentials.UploadBaseURL)
 
 	ghClient := github.NewClient(httpClient)
-	switch entity.Credentials.Endpoint.EndpointType {
+	switch entity.Credentials.ForgeType {
 	case params.GithubEndpointType:
 		ghClient, err = ghClient.WithEnterpriseURLs(entity.Credentials.APIBaseURL, entity.Credentials.UploadBaseURL)
 	case params.GiteaEndpointType:

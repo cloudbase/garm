@@ -544,7 +544,7 @@ func (s *GithubTestSuite) TestDeleteCredentialsFailsIfReposOrgsOrEntitiesUseIt()
 	err = s.db.DeleteRepository(ctx, repo.ID)
 	s.Require().NoError(err)
 
-	org, err := s.db.CreateOrganization(ctx, "test-org", creds.Name, "superSecret@123BlaBla", params.PoolBalancerTypeRoundRobin)
+	org, err := s.db.CreateOrganization(ctx, "test-org", creds, "superSecret@123BlaBla", params.PoolBalancerTypeRoundRobin)
 	s.Require().NoError(err)
 	s.Require().NotNil(org)
 

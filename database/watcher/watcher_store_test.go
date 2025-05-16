@@ -713,7 +713,7 @@ func (s *WatcherStoreTestSuite) TestOrgWatcher() {
 	creds := garmTesting.CreateTestGithubCredentials(s.ctx, "test-creds", s.store, s.T(), ep)
 	s.T().Cleanup(func() { s.store.DeleteGithubCredentials(s.ctx, creds.ID) })
 
-	org, err := s.store.CreateOrganization(s.ctx, "test-org", creds.Name, "test-secret", params.PoolBalancerTypeRoundRobin)
+	org, err := s.store.CreateOrganization(s.ctx, "test-org", creds, "test-secret", params.PoolBalancerTypeRoundRobin)
 	s.Require().NoError(err)
 	s.Require().NotEmpty(org.ID)
 

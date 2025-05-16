@@ -268,7 +268,11 @@ func (s *sqlDatabase) getGiteaCredentialsByName(ctx context.Context, tx *gorm.DB
 	if detailed {
 		q = q.
 			Preload("Repositories").
-			Preload("Organizations")
+			Preload("Organizations").
+			Preload("Repositories.GiteaCredentials").
+			Preload("Organizations.GiteaCredentials").
+			Preload("Repositories.Credentials").
+			Preload("Organizations.Credentials")
 	}
 
 	userID, err := getUIDFromContext(ctx)
@@ -304,7 +308,11 @@ func (s *sqlDatabase) GetGiteaCredentials(ctx context.Context, id uint, detailed
 	if detailed {
 		q = q.
 			Preload("Repositories").
-			Preload("Organizations")
+			Preload("Organizations").
+			Preload("Repositories.GiteaCredentials").
+			Preload("Organizations.GiteaCredentials").
+			Preload("Repositories.Credentials").
+			Preload("Organizations.Credentials")
 	}
 
 	if !auth.IsAdmin(ctx) {

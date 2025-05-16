@@ -82,7 +82,7 @@ func (s *OrgTestSuite) SetupTest() {
 		org, err := db.CreateOrganization(
 			adminCtx,
 			name,
-			s.testCreds.Name,
+			s.testCreds,
 			fmt.Sprintf("test-webhook-secret-%v", i),
 			params.PoolBalancerTypeRoundRobin,
 		)

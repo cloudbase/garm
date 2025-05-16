@@ -100,7 +100,7 @@ func (s *OrgTestSuite) SetupTest() {
 		org, err := db.CreateOrganization(
 			s.adminCtx,
 			fmt.Sprintf("test-org-%d", i),
-			s.testCreds.Name,
+			s.testCreds,
 			fmt.Sprintf("test-webhook-secret-%d", i),
 			params.PoolBalancerTypeRoundRobin,
 		)
@@ -179,7 +179,7 @@ func (s *OrgTestSuite) TestCreateOrganization() {
 	org, err := s.Store.CreateOrganization(
 		s.adminCtx,
 		s.Fixtures.CreateOrgParams.Name,
-		s.Fixtures.CreateOrgParams.CredentialsName,
+		s.testCreds,
 		s.Fixtures.CreateOrgParams.WebhookSecret,
 		params.PoolBalancerTypeRoundRobin)
 
@@ -210,7 +210,7 @@ func (s *OrgTestSuite) TestCreateOrganizationInvalidDBPassphrase() {
 	_, err = sqlDB.CreateOrganization(
 		s.adminCtx,
 		s.Fixtures.CreateOrgParams.Name,
-		s.Fixtures.CreateOrgParams.CredentialsName,
+		s.testCreds,
 		s.Fixtures.CreateOrgParams.WebhookSecret,
 		params.PoolBalancerTypeRoundRobin)
 
@@ -221,15 +221,6 @@ func (s *OrgTestSuite) TestCreateOrganizationInvalidDBPassphrase() {
 func (s *OrgTestSuite) TestCreateOrganizationDBCreateErr() {
 	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_credentials` WHERE user_id = ? AND name = ? AND `github_credentials`.`deleted_at` IS NULL ORDER BY `github_credentials`.`id` LIMIT ?")).
-		WithArgs(s.adminUserID, s.Fixtures.Orgs[0].CredentialsName, 1).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "endpoint_name"}).
-			AddRow(s.testCreds.ID, s.githubEndpoint.Name))
-	s.Fixtures.SQLMock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_endpoints` WHERE `github_endpoints`.`name` = ? AND `github_endpoints`.`deleted_at` IS NULL")).
-		WithArgs(s.testCreds.Endpoint.Name).
-		WillReturnRows(sqlmock.NewRows([]string{"name"}).
-			AddRow(s.githubEndpoint.Name))
-	s.Fixtures.SQLMock.
 		ExpectExec(regexp.QuoteMeta("INSERT INTO `organizations`")).
 		WillReturnError(fmt.Errorf("creating org mock error"))
 	s.Fixtures.SQLMock.ExpectRollback()
@@ -237,7 +228,7 @@ func (s *OrgTestSuite) TestCreateOrganizationDBCreateErr() {
 	_, err := s.StoreSQLMocked.CreateOrganization(
 		s.adminCtx,
 		s.Fixtures.CreateOrgParams.Name,
-		s.Fixtures.CreateOrgParams.CredentialsName,
+		s.testCreds,
 		s.Fixtures.CreateOrgParams.WebhookSecret,
 		params.PoolBalancerTypeRoundRobin)
 

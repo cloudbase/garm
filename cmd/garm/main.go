@@ -240,10 +240,10 @@ func main() {
 
 	cacheWorker := cache.NewWorker(ctx, db)
 	if err != nil {
-		log.Fatalf("failed to create credentials worker: %+v", err)
+		log.Fatalf("failed to create cache worker: %+v", err)
 	}
 	if err := cacheWorker.Start(); err != nil {
-		log.Fatalf("failed to start credentials worker: %+v", err)
+		log.Fatalf("failed to start cache worker: %+v", err)
 	}
 
 	providers, err := providers.LoadProvidersFromConfig(ctx, *cfg, controllerInfo.ControllerID.String())
