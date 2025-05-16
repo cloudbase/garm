@@ -152,6 +152,7 @@ func (r *basePoolManager) getProviderBaseParams(pool params.Pool) common.Provide
 
 func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 	if err := r.ValidateOwner(job); err != nil {
+		slog.ErrorContext(r.ctx, "failed to validate owner", "error", err)
 		return errors.Wrap(err, "validating owner")
 	}
 
@@ -164,6 +165,7 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 
 	jobParams, err := r.paramsWorkflowJobToParamsJob(job)
 	if err != nil {
+		slog.ErrorContext(r.ctx, "failed to convert job to params", "error", err)
 		return errors.Wrap(err, "converting job to params")
 	}
 
@@ -1962,7 +1964,7 @@ func (r *basePoolManager) ValidateOwner(job params.WorkflowJob) error {
 			return runnerErrors.NewBadRequestError("job not meant for this pool manager")
 		}
 	case params.ForgeEntityTypeOrganization:
-		if !strings.EqualFold(job.Organization.Login, r.entity.Owner) {
+		if !strings.EqualFold(job.GetOrgName(r.entity.Credentials.ForgeType), r.entity.Owner) {
 			return runnerErrors.NewBadRequestError("job not meant for this pool manager")
 		}
 	case params.ForgeEntityTypeEnterprise:

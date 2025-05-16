@@ -171,7 +171,9 @@ type WorkflowJob struct {
 		DefaultBranch string `json:"default_branch"`
 	} `json:"repository"`
 	Organization struct {
-		Login            string `json:"login"`
+		Login string `json:"login"`
+		// Name is a gitea specific field
+		Name             string `json:"name"`
 		ID               int64  `json:"id"`
 		NodeID           string `json:"node_id"`
 		URL              string `json:"url"`
@@ -216,6 +218,13 @@ type WorkflowJob struct {
 		Type              string `json:"type"`
 		SiteAdmin         bool   `json:"site_admin"`
 	} `json:"sender"`
+}
+
+func (w WorkflowJob) GetOrgName(forgeType EndpointType) string {
+	if forgeType == GiteaEndpointType {
+		return w.Organization.Name
+	}
+	return w.Organization.Login
 }
 
 type RunnerSetting struct {

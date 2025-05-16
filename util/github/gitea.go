@@ -32,6 +32,7 @@ func (g *githubClient) createGiteaRepoHook(ctx context.Context, owner, name stri
 			"content_type": hook.GetConfig().GetContentType(),
 			"url":          hook.GetConfig().GetURL(),
 			"http_method":  "post",
+			"secret":       hook.GetConfig().GetSecret(),
 		},
 	}
 
@@ -59,6 +60,7 @@ func (g *githubClient) createGiteaOrgHook(ctx context.Context, owner string, hoo
 			"content_type": hook.GetConfig().GetContentType(),
 			"url":          hook.GetConfig().GetURL(),
 			"http_method":  "post",
+			"secret":       hook.GetConfig().GetSecret(),
 		},
 	}
 

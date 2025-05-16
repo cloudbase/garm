@@ -103,7 +103,6 @@ func (a *APIController) handleWorkflowJobEvent(ctx context.Context, w http.Respo
 		handleError(ctx, w, gErrors.NewBadRequestError("invalid post body: %s", err))
 		return
 	}
-	slog.Debug("received workflow job event", "body", string(body))
 
 	signature := r.Header.Get("X-Hub-Signature-256")
 	hookType := r.Header.Get("X-Github-Hook-Installation-Target-Type")
@@ -162,9 +161,6 @@ func (a *APIController) WebhookHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	headers := r.Header.Clone()
-	for k, v := range headers {
-		slog.Debug("header", "key", k, "value", v)
-	}
 
 	event := runnerParams.Event(headers.Get("X-Github-Event"))
 	switch event {

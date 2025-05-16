@@ -668,8 +668,8 @@ func (r *Runner) DispatchWorkflowJob(hookTargetType, signature string, forgeType
 	case OrganizationHook:
 		slog.DebugContext(
 			r.ctx, "got hook for organization",
-			"organization", util.SanitizeLogEntry(job.Organization.Login))
-		poolManager, err = r.findOrgPoolManager(job.Organization.Login, endpoint.Name)
+			"organization", util.SanitizeLogEntry(job.GetOrgName(forgeType)))
+		poolManager, err = r.findOrgPoolManager(job.GetOrgName(forgeType), endpoint.Name)
 	case EnterpriseHook:
 		slog.DebugContext(
 			r.ctx, "got hook for enterprise",
@@ -679,7 +679,9 @@ func (r *Runner) DispatchWorkflowJob(hookTargetType, signature string, forgeType
 		return runnerErrors.NewBadRequestError("cannot handle hook target type %s", hookTargetType)
 	}
 
+	slog.DebugContext(r.ctx, "found pool manager", "pool_manager", poolManager.ID())
 	if err != nil {
+		slog.ErrorContext(r.ctx, "failed to find pool manager", "error", err, "hook_target_type", hookTargetType)
 		// We don't have a repository or organization configured that
 		// can handle this workflow job.
 		return errors.Wrap(err, "fetching poolManager")
@@ -689,10 +691,12 @@ func (r *Runner) DispatchWorkflowJob(hookTargetType, signature string, forgeType
 	// we make sure that the source of this workflow job is valid.
 	secret := poolManager.WebhookSecret()
 	if err := r.validateHookBody(signature, secret, jobData); err != nil {
+		slog.ErrorContext(r.ctx, "failed to validate webhook data", "error", err)
 		return errors.Wrap(err, "validating webhook data")
 	}
 
 	if err := poolManager.HandleWorkflowJob(job); err != nil {
+		slog.ErrorContext(r.ctx, "failed to handle workflow job", "error", err)
 		return errors.Wrap(err, "handling workflow job")
 	}
 
