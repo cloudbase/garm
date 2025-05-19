@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
+	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 	garmTesting "github.com/cloudbase/garm/internal/testing"
 	"github.com/cloudbase/garm/params"
@@ -35,6 +36,7 @@ func (c *CacheTestSuite) TearDownTest() {
 	githubToolsCache.mux.Lock()
 	defer githubToolsCache.mux.Unlock()
 	githubToolsCache.entities = make(map[string]GithubEntityTools)
+	giteaCredentialsCache.cache = make(map[uint]params.ForgeCredentials)
 	credentialsCache.cache = make(map[uint]params.ForgeCredentials)
 	instanceCache.cache = make(map[string]params.Instance)
 	entityCache = &EntityCache{
@@ -49,7 +51,7 @@ func (c *CacheTestSuite) TestCacheIsInitialized() {
 	c.Require().NotNil(entityCache)
 }
 
-func (c *CacheTestSuite) TestSetCacheWorks() {
+func (c *CacheTestSuite) TestSetToolsCacheWorks() {
 	tools := []commonParams.RunnerApplicationDownload{
 		{
 			DownloadURL: garmTesting.Ptr("https://example.com"),
@@ -63,6 +65,39 @@ func (c *CacheTestSuite) TestSetCacheWorks() {
 	c.Require().NoError(err)
 	c.Require().Len(cachedTools, 1)
 	c.Require().Equal(tools[0].GetDownloadURL(), cachedTools[0].GetDownloadURL())
+}
+
+func (c *CacheTestSuite) TestSetToolsCacheWithError() {
+	tools := []commonParams.RunnerApplicationDownload{
+		{
+			DownloadURL: garmTesting.Ptr("https://example.com"),
+		},
+	}
+	c.Require().NotNil(githubToolsCache)
+	c.Require().Len(githubToolsCache.entities, 0)
+	SetGithubToolsCache(c.entity, tools)
+	entity := githubToolsCache.entities[c.entity.ID]
+
+	c.Require().Equal(int64(entity.expiresAt.Sub(entity.updatedAt).Minutes()), int64(60))
+	c.Require().Len(githubToolsCache.entities, 1)
+	SetGithubToolsCacheError(c.entity, runnerErrors.ErrNotFound)
+
+	cachedTools, err := GetGithubToolsCache(c.entity.ID)
+	c.Require().Error(err)
+	c.Require().Nil(cachedTools)
+}
+
+func (c *CacheTestSuite) TestSetErrorOnNonExistingCacheEntity() {
+	entity := params.ForgeEntity{
+		ID: "non-existing-entity",
+	}
+	c.Require().NotNil(githubToolsCache)
+	c.Require().Len(githubToolsCache.entities, 0)
+	SetGithubToolsCacheError(entity, runnerErrors.ErrNotFound)
+
+	storedEntity, err := GetGithubToolsCache(entity.ID)
+	c.Require().Error(err)
+	c.Require().Nil(storedEntity)
 }
 
 func (c *CacheTestSuite) TestTimedOutToolsCache() {
@@ -273,12 +308,23 @@ func (c *CacheTestSuite) TestSetGetEntityCache() {
 	c.Require().True(ok)
 	c.Require().Equal(entity.ID, cachedEntity.ID)
 
+	pool := params.Pool{
+		ID: "pool-1",
+	}
+	SetEntityPool(entity.ID, pool)
+	cachedEntityPools := GetEntityPools("test-entity")
+	c.Require().Equal(1, len(cachedEntityPools))
+
 	entity.Credentials.Description = "test description"
 	SetEntity(entity)
 	cachedEntity, ok = GetEntity("test-entity")
 	c.Require().True(ok)
 	c.Require().Equal(entity.ID, cachedEntity.ID)
 	c.Require().Equal(entity.Credentials.Description, cachedEntity.Credentials.Description)
+
+	// Make sure we don't clobber pools after updating the entity
+	cachedEntityPools = GetEntityPools("test-entity")
+	c.Require().Equal(1, len(cachedEntityPools))
 }
 
 func (c *CacheTestSuite) TestReplaceEntityPools() {
@@ -621,6 +667,358 @@ func (c *CacheTestSuite) TestGetEntityPool() {
 	poolFromCache, ok := GetEntityPool(entity.ID, pool.ID)
 	c.Require().True(ok)
 	c.Require().Equal(pool.ID, poolFromCache.ID)
+}
+
+func (c *CacheTestSuite) TestSetGiteaCredentials() {
+	credentials := params.ForgeCredentials{
+		ID:          1,
+		Description: "test description",
+	}
+	SetGiteaCredentials(credentials)
+	cachedCreds, ok := GetGiteaCredentials(1)
+	c.Require().True(ok)
+	c.Require().Equal(credentials.ID, cachedCreds.ID)
+
+	cachedCreds.Description = "new description"
+	SetGiteaCredentials(cachedCreds)
+	cachedCreds, ok = GetGiteaCredentials(1)
+	c.Require().True(ok)
+	c.Require().Equal(credentials.ID, cachedCreds.ID)
+	c.Require().Equal("new description", cachedCreds.Description)
+}
+
+func (c *CacheTestSuite) TestGetAllGiteaCredentials() {
+	credentials1 := params.ForgeCredentials{
+		ID: 1,
+	}
+	credentials2 := params.ForgeCredentials{
+		ID: 2,
+	}
+	SetGiteaCredentials(credentials1)
+	SetGiteaCredentials(credentials2)
+
+	cachedCreds := GetAllGiteaCredentials()
+	c.Require().Len(cachedCreds, 2)
+	c.Require().Contains(cachedCreds, credentials1)
+	c.Require().Contains(cachedCreds, credentials2)
+}
+
+func (c *CacheTestSuite) TestDeleteGiteaCredentials() {
+	credentials := params.ForgeCredentials{
+		ID: 1,
+	}
+	SetGiteaCredentials(credentials)
+	cachedCreds, ok := GetGiteaCredentials(1)
+	c.Require().True(ok)
+	c.Require().Equal(credentials.ID, cachedCreds.ID)
+
+	DeleteGiteaCredentials(1)
+	cachedCreds, ok = GetGiteaCredentials(1)
+	c.Require().False(ok)
+	c.Require().Equal(params.ForgeCredentials{}, cachedCreds)
+}
+
+func (c *CacheTestSuite) TestDeleteGiteaCredentialsNotFound() {
+	credentials := params.ForgeCredentials{
+		ID: 1,
+	}
+	SetGiteaCredentials(credentials)
+	cachedCreds, ok := GetGiteaCredentials(1)
+	c.Require().True(ok)
+	c.Require().Equal(credentials.ID, cachedCreds.ID)
+
+	DeleteGiteaCredentials(2)
+	cachedCreds, ok = GetGiteaCredentials(1)
+	c.Require().True(ok)
+	c.Require().Equal(credentials.ID, cachedCreds.ID)
+}
+
+func (c *CacheTestSuite) TestUpdateCredentialsInAffectedEntities() {
+	credentials := params.ForgeCredentials{
+		ID:          1,
+		Description: "test description",
+	}
+	entity1 := params.ForgeEntity{
+		ID:          "test-entity-1",
+		EntityType:  params.ForgeEntityTypeOrganization,
+		Name:        "test",
+		Owner:       "test",
+		Credentials: credentials,
+	}
+
+	entity2 := params.ForgeEntity{
+		ID:          "test-entity-2",
+		EntityType:  params.ForgeEntityTypeOrganization,
+		Name:        "test",
+		Owner:       "test",
+		Credentials: credentials,
+	}
+
+	SetEntity(entity1)
+	SetEntity(entity2)
+
+	cachedEntity1, ok := GetEntity(entity1.ID)
+	c.Require().True(ok)
+	c.Require().Equal(entity1.ID, cachedEntity1.ID)
+	cachedEntity2, ok := GetEntity(entity2.ID)
+	c.Require().True(ok)
+	c.Require().Equal(entity2.ID, cachedEntity2.ID)
+
+	c.Require().Equal(credentials.ID, cachedEntity1.Credentials.ID)
+	c.Require().Equal(credentials.ID, cachedEntity2.Credentials.ID)
+	c.Require().Equal(credentials.Description, cachedEntity1.Credentials.Description)
+	c.Require().Equal(credentials.Description, cachedEntity2.Credentials.Description)
+
+	credentials.Description = "new description"
+	SetGiteaCredentials(credentials)
+
+	cachedEntity1, ok = GetEntity(entity1.ID)
+	c.Require().True(ok)
+	c.Require().Equal(entity1.ID, cachedEntity1.ID)
+	cachedEntity2, ok = GetEntity(entity2.ID)
+	c.Require().True(ok)
+	c.Require().Equal(entity2.ID, cachedEntity2.ID)
+
+	c.Require().Equal(credentials.ID, cachedEntity1.Credentials.ID)
+	c.Require().Equal(credentials.ID, cachedEntity2.Credentials.ID)
+	c.Require().Equal(credentials.Description, cachedEntity1.Credentials.Description)
+	c.Require().Equal(credentials.Description, cachedEntity2.Credentials.Description)
+}
+
+func (c *CacheTestSuite) TestSetGiteaEntity() {
+	credentials := params.ForgeCredentials{
+		ID:          1,
+		Description: "test description",
+		ForgeType:   params.GiteaEndpointType,
+	}
+	entity := params.ForgeEntity{
+		ID:          "test-entity",
+		EntityType:  params.ForgeEntityTypeOrganization,
+		Name:        "test",
+		Owner:       "test",
+		Credentials: credentials,
+	}
+
+	SetGiteaCredentials(credentials)
+	SetEntity(entity)
+
+	cachedEntity, ok := GetEntity(entity.ID)
+	c.Require().True(ok)
+	c.Require().Equal(entity.ID, cachedEntity.ID)
+	c.Require().Equal(credentials.ID, cachedEntity.Credentials.ID)
+	c.Require().Equal(credentials.Description, cachedEntity.Credentials.Description)
+	c.Require().Equal(credentials.ForgeType, cachedEntity.Credentials.ForgeType)
+}
+
+func (c *CacheTestSuite) TestGetEntitiesUsingCredentials() {
+	credentials := params.ForgeCredentials{
+		ID:          1,
+		Description: "test description",
+		Name:        "test",
+		ForgeType:   params.GithubEndpointType,
+	}
+
+	credentials2 := params.ForgeCredentials{
+		ID:          2,
+		Description: "test description2",
+		Name:        "test",
+		ForgeType:   params.GiteaEndpointType,
+	}
+
+	entity1 := params.ForgeEntity{
+		ID:          "test-entity-1",
+		EntityType:  params.ForgeEntityTypeOrganization,
+		Name:        "test",
+		Owner:       "test",
+		Credentials: credentials,
+	}
+
+	entity2 := params.ForgeEntity{
+		ID:          "test-entity-2",
+		EntityType:  params.ForgeEntityTypeOrganization,
+		Name:        "test",
+		Owner:       "test",
+		Credentials: credentials,
+	}
+	entity3 := params.ForgeEntity{
+		ID:          "test-entity-3",
+		EntityType:  params.ForgeEntityTypeOrganization,
+		Name:        "test",
+		Owner:       "test",
+		Credentials: credentials2,
+	}
+
+	SetEntity(entity1)
+	SetEntity(entity2)
+	SetEntity(entity3)
+
+	cachedEntities := GetEntitiesUsingCredentials(credentials)
+	c.Require().Len(cachedEntities, 2)
+	c.Require().Contains(cachedEntities, entity1)
+	c.Require().Contains(cachedEntities, entity2)
+
+	cachedEntities = GetEntitiesUsingCredentials(credentials2)
+	c.Require().Len(cachedEntities, 1)
+	c.Require().Contains(cachedEntities, entity3)
+}
+
+func (c *CacheTestSuite) TestGetallEntities() {
+	credentials := params.ForgeCredentials{
+		ID:          1,
+		Description: "test description",
+		Name:        "test",
+		ForgeType:   params.GithubEndpointType,
+	}
+
+	credentials2 := params.ForgeCredentials{
+		ID:          2,
+		Description: "test description2",
+		Name:        "test",
+		ForgeType:   params.GiteaEndpointType,
+	}
+
+	entity1 := params.ForgeEntity{
+		ID:          "test-entity-1",
+		EntityType:  params.ForgeEntityTypeOrganization,
+		Name:        "test",
+		Owner:       "test",
+		Credentials: credentials,
+		CreatedAt:   time.Now(),
+	}
+
+	entity2 := params.ForgeEntity{
+		ID:          "test-entity-2",
+		EntityType:  params.ForgeEntityTypeOrganization,
+		Name:        "test",
+		Owner:       "test",
+		Credentials: credentials,
+		CreatedAt:   time.Now().Add(1 * time.Second),
+	}
+
+	entity3 := params.ForgeEntity{
+		ID:          "test-entity-3",
+		EntityType:  params.ForgeEntityTypeOrganization,
+		Name:        "test",
+		Owner:       "test",
+		Credentials: credentials2,
+		CreatedAt:   time.Now().Add(2 * time.Second),
+	}
+
+	SetEntity(entity1)
+	SetEntity(entity2)
+	SetEntity(entity3)
+
+	// Sorted by creation date
+	cachedEntities := GetAllEntities()
+	c.Require().Len(cachedEntities, 3)
+	c.Require().Equal(cachedEntities[0], entity1)
+	c.Require().Equal(cachedEntities[1], entity2)
+	c.Require().Equal(cachedEntities[2], entity3)
+}
+
+func (c *CacheTestSuite) TestGetAllPools() {
+	entity := params.ForgeEntity{
+		ID:         "test-entity",
+		EntityType: params.ForgeEntityTypeOrganization,
+		Name:       "test",
+		Owner:      "test",
+	}
+	pool1 := params.Pool{
+		ID:        "pool-1",
+		CreatedAt: time.Now(),
+		Tags: []params.Tag{
+			{
+				Name: "tag1",
+			},
+			{
+				Name: "tag2",
+			},
+		},
+	}
+
+	pool2 := params.Pool{
+		ID:        "pool-2",
+		CreatedAt: time.Now().Add(1 * time.Second),
+		Tags: []params.Tag{
+			{
+				Name: "tag1",
+			},
+			{
+				Name: "tag3",
+			},
+		},
+	}
+
+	SetEntity(entity)
+	SetEntityPool(entity.ID, pool1)
+	SetEntityPool(entity.ID, pool2)
+	cachedEntity, ok := GetEntity(entity.ID)
+	c.Require().True(ok)
+	c.Require().Equal(entity.ID, cachedEntity.ID)
+	pools := GetAllPools()
+	c.Require().Len(pools, 2)
+	c.Require().Equal(pools[0].ID, pool1.ID)
+	c.Require().Equal(pools[1].ID, pool2.ID)
+}
+
+func (c *CacheTestSuite) TestGetAllScaleSets() {
+	entity := params.ForgeEntity{
+		ID:         "test-entity",
+		EntityType: params.ForgeEntityTypeOrganization,
+		Name:       "test",
+		Owner:      "test",
+	}
+	scaleSet1 := params.ScaleSet{
+		ID: 1,
+	}
+	scaleSet2 := params.ScaleSet{
+		ID: 2,
+	}
+
+	SetEntity(entity)
+	SetEntityScaleSet(entity.ID, scaleSet1)
+	SetEntityScaleSet(entity.ID, scaleSet2)
+	cachedEntity, ok := GetEntity(entity.ID)
+	c.Require().True(ok)
+	c.Require().Equal(entity.ID, cachedEntity.ID)
+	scaleSets := GetAllScaleSets()
+	c.Require().Len(scaleSets, 2)
+	c.Require().Equal(scaleSets[0].ID, scaleSet1.ID)
+	c.Require().Equal(scaleSets[1].ID, scaleSet2.ID)
+}
+
+func (c *CacheTestSuite) TestGetAllGetAllGithubCredentialsAsMap() {
+	credentials1 := params.ForgeCredentials{
+		ID: 1,
+	}
+	credentials2 := params.ForgeCredentials{
+		ID: 2,
+	}
+	SetGithubCredentials(credentials1)
+	SetGithubCredentials(credentials2)
+
+	cachedCreds := GetAllGithubCredentialsAsMap()
+	c.Require().Len(cachedCreds, 2)
+	c.Require().Contains(cachedCreds, credentials1.ID)
+	c.Require().Contains(cachedCreds, credentials2.ID)
+}
+
+func (c *CacheTestSuite) TestGetAllGiteaCredentialsAsMap() {
+	credentials1 := params.ForgeCredentials{
+		ID:        1,
+		CreatedAt: time.Now(),
+	}
+	credentials2 := params.ForgeCredentials{
+		ID:        2,
+		CreatedAt: time.Now().Add(1 * time.Second),
+	}
+	SetGiteaCredentials(credentials1)
+	SetGiteaCredentials(credentials2)
+
+	cachedCreds := GetAllGiteaCredentialsAsMap()
+	c.Require().Len(cachedCreds, 2)
+	c.Require().Contains(cachedCreds, credentials1.ID)
+	c.Require().Contains(cachedCreds, credentials2.ID)
 }
 
 func TestCacheTestSuite(t *testing.T) {

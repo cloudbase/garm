@@ -44,7 +44,20 @@ const (
 	instanceTokenFetched contextFlags = "tokenFetched"
 	instanceHasJITConfig contextFlags = "hasJITConfig"
 	instanceParams       contextFlags = "instanceParams"
+	instanceForgeTypeKey contextFlags = "forge_type"
 )
+
+func SetInstanceForgeType(ctx context.Context, val string) context.Context {
+	return context.WithValue(ctx, instanceForgeTypeKey, val)
+}
+
+func InstanceForgeType(ctx context.Context) params.EndpointType {
+	elem := ctx.Value(instanceForgeTypeKey)
+	if elem == nil {
+		return ""
+	}
+	return elem.(params.EndpointType)
+}
 
 func SetInstanceID(ctx context.Context, id string) context.Context {
 	return context.WithValue(ctx, instanceIDKey, id)
@@ -159,7 +172,7 @@ func InstanceEntity(ctx context.Context) string {
 	return elem.(string)
 }
 
-func PopulateInstanceContext(ctx context.Context, instance params.Instance) context.Context {
+func PopulateInstanceContext(ctx context.Context, instance params.Instance, claims *InstanceJWTClaims) context.Context {
 	ctx = SetInstanceID(ctx, instance.ID)
 	ctx = SetInstanceName(ctx, instance.Name)
 	ctx = SetInstancePoolID(ctx, instance.PoolID)
@@ -167,6 +180,7 @@ func PopulateInstanceContext(ctx context.Context, instance params.Instance) cont
 	ctx = SetInstanceTokenFetched(ctx, instance.TokenFetched)
 	ctx = SetInstanceHasJITConfig(ctx, instance.JitConfiguration)
 	ctx = SetInstanceParams(ctx, instance)
+	ctx = SetInstanceForgeType(ctx, claims.ForgeType)
 	return ctx
 }
 

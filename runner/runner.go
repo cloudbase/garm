@@ -663,17 +663,20 @@ func (r *Runner) DispatchWorkflowJob(hookTargetType, signature string, forgeType
 		slog.DebugContext(
 			r.ctx, "got hook for repo",
 			"repo_owner", util.SanitizeLogEntry(job.Repository.Owner.Login),
-			"repo_name", util.SanitizeLogEntry(job.Repository.Name))
+			"repo_name", util.SanitizeLogEntry(job.Repository.Name),
+			"endpoint", endpoint.Name)
 		poolManager, err = r.findRepoPoolManager(job.Repository.Owner.Login, job.Repository.Name, endpoint.Name)
 	case OrganizationHook:
 		slog.DebugContext(
 			r.ctx, "got hook for organization",
-			"organization", util.SanitizeLogEntry(job.GetOrgName(forgeType)))
+			"organization", util.SanitizeLogEntry(job.GetOrgName(forgeType)),
+			"endpoint", endpoint.Name)
 		poolManager, err = r.findOrgPoolManager(job.GetOrgName(forgeType), endpoint.Name)
 	case EnterpriseHook:
 		slog.DebugContext(
 			r.ctx, "got hook for enterprise",
-			"enterprise", util.SanitizeLogEntry(job.Enterprise.Slug))
+			"enterprise", util.SanitizeLogEntry(job.Enterprise.Slug),
+			"endpoint", endpoint.Name)
 		poolManager, err = r.findEnterprisePoolManager(job.Enterprise.Slug, endpoint.Name)
 	default:
 		return runnerErrors.NewBadRequestError("cannot handle hook target type %s", hookTargetType)

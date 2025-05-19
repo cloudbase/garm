@@ -26,13 +26,6 @@ type GithubEntityTools struct {
 	tools     []commonParams.RunnerApplicationDownload
 }
 
-func (g GithubEntityTools) Error() string {
-	if g.err != nil {
-		return g.err.Error()
-	}
-	return ""
-}
-
 type GithubToolsCache struct {
 	mux sync.Mutex
 	// entity IDs are UUID4s. It is highly unlikely they will collide (🤞).
@@ -51,7 +44,10 @@ func (g *GithubToolsCache) Get(entityID string) ([]commonParams.RunnerApplicatio
 				return nil, fmt.Errorf("cache expired for entity %s", entityID)
 			}
 		}
-		return cache.tools, cache.err
+		if cache.err != nil {
+			return nil, cache.err
+		}
+		return cache.tools, nil
 	}
 	return nil, fmt.Errorf("no cache found for entity %s", entityID)
 }
@@ -100,4 +96,8 @@ func SetGithubToolsCache(entity params.ForgeEntity, tools []commonParams.RunnerA
 
 func GetGithubToolsCache(entityID string) ([]commonParams.RunnerApplicationDownload, error) {
 	return githubToolsCache.Get(entityID)
+}
+
+func SetGithubToolsCacheError(entity params.ForgeEntity, err error) {
+	githubToolsCache.SetToolsError(entity, err)
 }

@@ -87,16 +87,17 @@ func WithEntityPoolFilter(ghEntity params.ForgeEntity) dbCommon.PayloadFilterFun
 	}
 }
 
-// WithEntityPoolFilter returns true if the change payload is a pool that belongs to the
-// supplied Github entity. This is useful when an entity worker wants to watch for changes
-// in pools that belong to it.
+// WithEntityScaleSetFilter returns true if the change payload is a scale set that belongs to the
+// supplied Github entity.
 func WithEntityScaleSetFilter(ghEntity params.ForgeEntity) dbCommon.PayloadFilterFunc {
 	return func(payload dbCommon.ChangePayload) bool {
 		forgeType, err := ghEntity.GetForgeType()
 		if err != nil {
 			return false
 		}
-		if forgeType != params.GiteaEndpointType {
+
+		// Gitea does not have scale sets.
+		if forgeType == params.GiteaEndpointType {
 			return false
 		}
 
