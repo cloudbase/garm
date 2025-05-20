@@ -33,13 +33,14 @@ import (
 )
 
 const (
-	testUploadBaseURL       string = "https://uploads.example.com"
-	testBaseURL             string = "https://example.com"
-	testAPIBaseURL          string = "https://api.example.com"
-	testEndpointName        string = "test-endpoint"
-	testEndpointDescription string = "test description"
-	testCredsName           string = "test-creds"
-	testCredsDescription    string = "test creds"
+	testUploadBaseURL        string = "https://uploads.example.com"
+	testBaseURL              string = "https://example.com"
+	testAPIBaseURL           string = "https://api.example.com"
+	testEndpointName         string = "test-endpoint"
+	alternetTestEndpointName string = "test-endpoint-alternate"
+	testEndpointDescription  string = "test description"
+	testCredsName            string = "test-creds"
+	testCredsDescription     string = "test creds"
 )
 
 type GithubTestSuite struct {
@@ -266,7 +267,7 @@ func (s *GithubTestSuite) TestCreateCredentials() {
 		Name:        testCredsName,
 		Description: testCredsDescription,
 		Endpoint:    defaultGithubEndpoint,
-		AuthType:    params.GithubAuthTypePAT,
+		AuthType:    params.ForgeAuthTypePAT,
 		PAT: params.GithubPAT{
 			OAuth2Token: "test",
 		},
@@ -290,7 +291,7 @@ func (s *GithubTestSuite) TestCreateCredentialsFailsOnDuplicateCredentials() {
 		Name:        testCredsName,
 		Description: testCredsDescription,
 		Endpoint:    defaultGithubEndpoint,
-		AuthType:    params.GithubAuthTypePAT,
+		AuthType:    params.ForgeAuthTypePAT,
 		PAT: params.GithubPAT{
 			OAuth2Token: "test",
 		},
@@ -320,7 +321,7 @@ func (s *GithubTestSuite) TestNormalUsersCanOnlySeeTheirOwnCredentialsAdminCanSe
 		Name:        testCredsName,
 		Description: testCredsDescription,
 		Endpoint:    defaultGithubEndpoint,
-		AuthType:    params.GithubAuthTypePAT,
+		AuthType:    params.ForgeAuthTypePAT,
 		PAT: params.GithubPAT{
 			OAuth2Token: "test",
 		},
@@ -376,7 +377,7 @@ func (s *GithubTestSuite) TestGetGithubCredentialsByNameReturnsOnlyCurrentUserCr
 		Name:        testCredsName,
 		Description: testCredsDescription,
 		Endpoint:    defaultGithubEndpoint,
-		AuthType:    params.GithubAuthTypePAT,
+		AuthType:    params.ForgeAuthTypePAT,
 		PAT: params.GithubPAT{
 			OAuth2Token: "test",
 		},
@@ -421,7 +422,7 @@ func (s *GithubTestSuite) TestGetGithubCredentials() {
 		Name:        testCredsName,
 		Description: testCredsDescription,
 		Endpoint:    defaultGithubEndpoint,
-		AuthType:    params.GithubAuthTypePAT,
+		AuthType:    params.ForgeAuthTypePAT,
 		PAT: params.GithubPAT{
 			OAuth2Token: "test",
 		},
@@ -451,7 +452,7 @@ func (s *GithubTestSuite) TestDeleteGithubCredentials() {
 		Name:        testCredsName,
 		Description: testCredsDescription,
 		Endpoint:    defaultGithubEndpoint,
-		AuthType:    params.GithubAuthTypePAT,
+		AuthType:    params.ForgeAuthTypePAT,
 		PAT: params.GithubPAT{
 			OAuth2Token: "test",
 		},
@@ -478,7 +479,7 @@ func (s *GithubTestSuite) TestDeleteGithubCredentialsByNonAdminUser() {
 		Name:        testCredsName,
 		Description: testCredsDescription,
 		Endpoint:    defaultGithubEndpoint,
-		AuthType:    params.GithubAuthTypePAT,
+		AuthType:    params.ForgeAuthTypePAT,
 		PAT: params.GithubPAT{
 			OAuth2Token: "test-creds4",
 		},
@@ -523,7 +524,7 @@ func (s *GithubTestSuite) TestDeleteCredentialsFailsIfReposOrgsOrEntitiesUseIt()
 		Name:        testCredsName,
 		Description: testCredsDescription,
 		Endpoint:    defaultGithubEndpoint,
-		AuthType:    params.GithubAuthTypePAT,
+		AuthType:    params.ForgeAuthTypePAT,
 		PAT: params.GithubPAT{
 			OAuth2Token: "test",
 		},
@@ -533,7 +534,7 @@ func (s *GithubTestSuite) TestDeleteCredentialsFailsIfReposOrgsOrEntitiesUseIt()
 	s.Require().NoError(err)
 	s.Require().NotNil(creds)
 
-	repo, err := s.db.CreateRepository(ctx, "test-owner", "test-repo", creds.Name, "superSecret@123BlaBla", params.PoolBalancerTypeRoundRobin)
+	repo, err := s.db.CreateRepository(ctx, "test-owner", "test-repo", creds, "superSecret@123BlaBla", params.PoolBalancerTypeRoundRobin)
 	s.Require().NoError(err)
 	s.Require().NotNil(repo)
 
@@ -544,7 +545,7 @@ func (s *GithubTestSuite) TestDeleteCredentialsFailsIfReposOrgsOrEntitiesUseIt()
 	err = s.db.DeleteRepository(ctx, repo.ID)
 	s.Require().NoError(err)
 
-	org, err := s.db.CreateOrganization(ctx, "test-org", creds.Name, "superSecret@123BlaBla", params.PoolBalancerTypeRoundRobin)
+	org, err := s.db.CreateOrganization(ctx, "test-org", creds, "superSecret@123BlaBla", params.PoolBalancerTypeRoundRobin)
 	s.Require().NoError(err)
 	s.Require().NotNil(org)
 
@@ -555,7 +556,7 @@ func (s *GithubTestSuite) TestDeleteCredentialsFailsIfReposOrgsOrEntitiesUseIt()
 	err = s.db.DeleteOrganization(ctx, org.ID)
 	s.Require().NoError(err)
 
-	enterprise, err := s.db.CreateEnterprise(ctx, "test-enterprise", creds.Name, "superSecret@123BlaBla", params.PoolBalancerTypeRoundRobin)
+	enterprise, err := s.db.CreateEnterprise(ctx, "test-enterprise", creds, "superSecret@123BlaBla", params.PoolBalancerTypeRoundRobin)
 	s.Require().NoError(err)
 	s.Require().NotNil(enterprise)
 
@@ -581,7 +582,7 @@ func (s *GithubTestSuite) TestUpdateCredentials() {
 		Name:        testCredsName,
 		Description: testCredsDescription,
 		Endpoint:    defaultGithubEndpoint,
-		AuthType:    params.GithubAuthTypePAT,
+		AuthType:    params.ForgeAuthTypePAT,
 		PAT: params.GithubPAT{
 			OAuth2Token: "test",
 		},
@@ -616,7 +617,7 @@ func (s *GithubTestSuite) TestUpdateGithubCredentialsFailIfWrongCredentialTypeIs
 		Name:        testCredsName,
 		Description: testCredsDescription,
 		Endpoint:    defaultGithubEndpoint,
-		AuthType:    params.GithubAuthTypePAT,
+		AuthType:    params.ForgeAuthTypePAT,
 		PAT: params.GithubPAT{
 			OAuth2Token: "test",
 		},
@@ -643,7 +644,7 @@ func (s *GithubTestSuite) TestUpdateGithubCredentialsFailIfWrongCredentialTypeIs
 		Name:        "test-credsApp",
 		Description: "test credsApp",
 		Endpoint:    defaultGithubEndpoint,
-		AuthType:    params.GithubAuthTypeApp,
+		AuthType:    params.ForgeAuthTypeApp,
 		App: params.GithubApp{
 			AppID:           1,
 			InstallationID:  2,
@@ -688,7 +689,7 @@ func (s *GithubTestSuite) TestUpdateCredentialsFailsIfCredentialsAreOwnedByNonAd
 		Name:        testCredsName,
 		Description: testCredsDescription,
 		Endpoint:    defaultGithubEndpoint,
-		AuthType:    params.GithubAuthTypePAT,
+		AuthType:    params.ForgeAuthTypePAT,
 		PAT: params.GithubPAT{
 			OAuth2Token: "test-creds5",
 		},
@@ -717,7 +718,7 @@ func (s *GithubTestSuite) TestAdminUserCanUpdateAnyGithubCredentials() {
 		Name:        testCredsName,
 		Description: testCredsDescription,
 		Endpoint:    defaultGithubEndpoint,
-		AuthType:    params.GithubAuthTypePAT,
+		AuthType:    params.ForgeAuthTypePAT,
 		PAT: params.GithubPAT{
 			OAuth2Token: "test-creds5",
 		},
@@ -735,6 +736,68 @@ func (s *GithubTestSuite) TestAdminUserCanUpdateAnyGithubCredentials() {
 	newCreds, err := s.db.UpdateGithubCredentials(ctx, creds.ID, updateCredParams)
 	s.Require().NoError(err)
 	s.Require().Equal(newDescription, newCreds.Description)
+}
+
+func (s *GithubTestSuite) TestDeleteGithubEndpointFailsWithOrgsReposOrCredentials() {
+	ctx := garmTesting.ImpersonateAdminContext(context.Background(), s.db, s.T())
+
+	endpointParams := params.CreateGithubEndpointParams{
+		Name:        "deleteme",
+		Description: testEndpointDescription,
+		APIBaseURL:  testAPIBaseURL,
+		BaseURL:     testBaseURL,
+	}
+
+	ep, err := s.db.CreateGithubEndpoint(ctx, endpointParams)
+	s.Require().NoError(err)
+	s.Require().NotNil(ep)
+
+	credParams := params.CreateGithubCredentialsParams{
+		Name:        testCredsName,
+		Description: testCredsDescription,
+		Endpoint:    ep.Name,
+		AuthType:    params.ForgeAuthTypePAT,
+		PAT: params.GithubPAT{
+			OAuth2Token: "test-creds5",
+		},
+	}
+
+	creds, err := s.db.CreateGithubCredentials(ctx, credParams)
+	s.Require().NoError(err)
+	s.Require().NotNil(creds)
+
+	repo, err := s.db.CreateRepository(ctx, "test-owner", "test-repo", creds, "superSecret@123BlaBla", params.PoolBalancerTypeRoundRobin)
+	s.Require().NoError(err)
+	s.Require().NotNil(repo)
+
+	badRequest := &runnerErrors.BadRequestError{}
+	err = s.db.DeleteGithubEndpoint(ctx, ep.Name)
+	s.Require().Error(err)
+	s.Require().ErrorAs(err, &badRequest)
+
+	err = s.db.DeleteRepository(ctx, repo.ID)
+	s.Require().NoError(err)
+
+	org, err := s.db.CreateOrganization(ctx, "test-org", creds, "superSecret@123BlaBla", params.PoolBalancerTypeRoundRobin)
+	s.Require().NoError(err)
+	s.Require().NotNil(org)
+
+	err = s.db.DeleteGithubEndpoint(ctx, ep.Name)
+	s.Require().Error(err)
+	s.Require().ErrorAs(err, &badRequest)
+
+	err = s.db.DeleteOrganization(ctx, org.ID)
+	s.Require().NoError(err)
+
+	err = s.db.DeleteGithubCredentials(ctx, creds.ID)
+	s.Require().NoError(err)
+
+	err = s.db.DeleteGithubEndpoint(ctx, ep.Name)
+	s.Require().NoError(err)
+
+	_, err = s.db.GetGithubEndpoint(ctx, ep.Name)
+	s.Require().Error(err)
+	s.Require().ErrorIs(err, runnerErrors.ErrNotFound)
 }
 
 func TestGithubTestSuite(t *testing.T) {
@@ -836,10 +899,10 @@ func TestCredentialsAndEndpointMigration(t *testing.T) {
 		t.Fatalf("expected ghes-test to be associated with example.com endpoint, got %s", creds[1].Endpoint.Name)
 	}
 
-	if creds[0].AuthType != params.GithubAuthTypePAT {
+	if creds[0].AuthType != params.ForgeAuthTypePAT {
 		t.Fatalf("expected test-creds to have PAT auth type, got %s", creds[0].AuthType)
 	}
-	if creds[1].AuthType != params.GithubAuthTypeApp {
+	if creds[1].AuthType != params.ForgeAuthTypeApp {
 		t.Fatalf("expected ghes-test to have App auth type, got %s", creds[1].AuthType)
 	}
 	if len(creds[0].CredentialsPayload) == 0 {

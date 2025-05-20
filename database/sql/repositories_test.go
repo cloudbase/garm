@@ -58,9 +58,11 @@ type RepoTestSuite struct {
 	adminCtx    context.Context
 	adminUserID string
 
-	testCreds          params.GithubCredentials
-	secondaryTestCreds params.GithubCredentials
-	githubEndpoint     params.GithubEndpoint
+	testCreds          params.ForgeCredentials
+	testCredsGitea     params.ForgeCredentials
+	secondaryTestCreds params.ForgeCredentials
+	githubEndpoint     params.ForgeEndpoint
+	giteaEndpoint      params.ForgeEndpoint
 }
 
 func (s *RepoTestSuite) equalReposByName(expected, actual []params.Repository) {
@@ -109,7 +111,9 @@ func (s *RepoTestSuite) SetupTest() {
 	s.Require().NotEmpty(s.adminUserID)
 
 	s.githubEndpoint = garmTesting.CreateDefaultGithubEndpoint(adminCtx, db, s.T())
+	s.giteaEndpoint = garmTesting.CreateDefaultGiteaEndpoint(adminCtx, db, s.T())
 	s.testCreds = garmTesting.CreateTestGithubCredentials(adminCtx, "new-creds", db, s.T(), s.githubEndpoint)
+	s.testCredsGitea = garmTesting.CreateTestGiteaCredentials(adminCtx, "new-creds", db, s.T(), s.giteaEndpoint)
 	s.secondaryTestCreds = garmTesting.CreateTestGithubCredentials(adminCtx, "secondary-creds", db, s.T(), s.githubEndpoint)
 
 	// create some repository objects in the database, for testing purposes
@@ -119,7 +123,7 @@ func (s *RepoTestSuite) SetupTest() {
 			adminCtx,
 			fmt.Sprintf("test-owner-%d", i),
 			fmt.Sprintf("test-repo-%d", i),
-			s.testCreds.Name,
+			s.testCreds,
 			fmt.Sprintf("test-webhook-secret-%d", i),
 			params.PoolBalancerTypeRoundRobin,
 		)
@@ -204,7 +208,7 @@ func (s *RepoTestSuite) TestCreateRepository() {
 		s.adminCtx,
 		s.Fixtures.CreateRepoParams.Owner,
 		s.Fixtures.CreateRepoParams.Name,
-		s.Fixtures.CreateRepoParams.CredentialsName,
+		s.testCreds,
 		s.Fixtures.CreateRepoParams.WebhookSecret,
 		params.PoolBalancerTypeRoundRobin,
 	)
@@ -219,6 +223,68 @@ func (s *RepoTestSuite) TestCreateRepository() {
 	s.Require().Equal(storeRepo.Name, repo.Name)
 	s.Require().Equal(storeRepo.Credentials.Name, repo.Credentials.Name)
 	s.Require().Equal(storeRepo.WebhookSecret, repo.WebhookSecret)
+
+	entity, err := repo.GetEntity()
+	s.Require().Nil(err)
+	s.Require().Equal(s.Fixtures.CreateRepoParams.Owner, entity.Owner)
+	s.Require().Equal(entity.EntityType, params.ForgeEntityTypeRepository)
+
+	forgeType, err := entity.GetForgeType()
+	s.Require().Nil(err)
+	s.Require().Equal(forgeType, params.GithubEndpointType)
+}
+
+func (s *RepoTestSuite) TestCreateRepositoryGitea() {
+	// call tested function
+	repo, err := s.Store.CreateRepository(
+		s.adminCtx,
+		s.Fixtures.CreateRepoParams.Owner,
+		s.Fixtures.CreateRepoParams.Name,
+		s.testCredsGitea,
+		s.Fixtures.CreateRepoParams.WebhookSecret,
+		params.PoolBalancerTypeRoundRobin,
+	)
+
+	// assertions
+	s.Require().Nil(err)
+	storeRepo, err := s.Store.GetRepositoryByID(s.adminCtx, repo.ID)
+	if err != nil {
+		s.FailNow(fmt.Sprintf("failed to get repository by id: %v", err))
+	}
+	s.Require().Equal(storeRepo.Owner, repo.Owner)
+	s.Require().Equal(storeRepo.Name, repo.Name)
+	s.Require().Equal(storeRepo.Credentials.Name, repo.Credentials.Name)
+	s.Require().Equal(storeRepo.WebhookSecret, repo.WebhookSecret)
+
+	entity, err := repo.GetEntity()
+	s.Require().Nil(err)
+	s.Require().Equal(repo.ID, entity.ID)
+	s.Require().Equal(entity.EntityType, params.ForgeEntityTypeRepository)
+
+	forgeType, err := entity.GetForgeType()
+	s.Require().Nil(err)
+	s.Require().Equal(forgeType, params.GiteaEndpointType)
+}
+
+func (s *RepoTestSuite) TestCreateRepositoryInvalidForgeType() {
+	// call tested function
+	_, err := s.Store.CreateRepository(
+		s.adminCtx,
+		s.Fixtures.CreateRepoParams.Owner,
+		s.Fixtures.CreateRepoParams.Name,
+		params.ForgeCredentials{
+			Name:      "test-creds",
+			ForgeType: "invalid-forge-type",
+			Endpoint: params.ForgeEndpoint{
+				Name: "test-endpoint",
+			},
+		},
+		s.Fixtures.CreateRepoParams.WebhookSecret,
+		params.PoolBalancerTypeRoundRobin,
+	)
+
+	s.Require().NotNil(err)
+	s.Require().Equal("creating repository: unsupported credentials type: invalid request", err.Error())
 }
 
 func (s *RepoTestSuite) TestCreateRepositoryInvalidDBPassphrase() {
@@ -238,7 +304,7 @@ func (s *RepoTestSuite) TestCreateRepositoryInvalidDBPassphrase() {
 		s.adminCtx,
 		s.Fixtures.CreateRepoParams.Owner,
 		s.Fixtures.CreateRepoParams.Name,
-		s.Fixtures.CreateRepoParams.CredentialsName,
+		s.testCreds,
 		s.Fixtures.CreateRepoParams.WebhookSecret,
 		params.PoolBalancerTypeRoundRobin,
 	)
@@ -250,15 +316,6 @@ func (s *RepoTestSuite) TestCreateRepositoryInvalidDBPassphrase() {
 func (s *RepoTestSuite) TestCreateRepositoryInvalidDBCreateErr() {
 	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_credentials` WHERE user_id = ? AND name = ? AND `github_credentials`.`deleted_at` IS NULL ORDER BY `github_credentials`.`id` LIMIT ?")).
-		WithArgs(s.adminUserID, s.Fixtures.Repos[0].CredentialsName, 1).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "endpoint_name"}).
-			AddRow(s.testCreds.ID, s.githubEndpoint.Name))
-	s.Fixtures.SQLMock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_endpoints` WHERE `github_endpoints`.`name` = ? AND `github_endpoints`.`deleted_at` IS NULL")).
-		WithArgs(s.testCreds.Endpoint.Name).
-		WillReturnRows(sqlmock.NewRows([]string{"name"}).
-			AddRow(s.githubEndpoint.Name))
-	s.Fixtures.SQLMock.
 		ExpectExec(regexp.QuoteMeta("INSERT INTO `repositories`")).
 		WillReturnError(fmt.Errorf("creating repo mock error"))
 	s.Fixtures.SQLMock.ExpectRollback()
@@ -267,7 +324,7 @@ func (s *RepoTestSuite) TestCreateRepositoryInvalidDBCreateErr() {
 		s.adminCtx,
 		s.Fixtures.CreateRepoParams.Owner,
 		s.Fixtures.CreateRepoParams.Name,
-		s.Fixtures.CreateRepoParams.CredentialsName,
+		s.testCreds,
 		s.Fixtures.CreateRepoParams.WebhookSecret,
 		params.PoolBalancerTypeRoundRobin,
 	)
@@ -541,9 +598,9 @@ func (s *RepoTestSuite) TestCreateRepositoryPoolMissingTags() {
 }
 
 func (s *RepoTestSuite) TestCreateRepositoryPoolInvalidRepoID() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         "dummy-repo-id",
-		EntityType: params.GithubEntityTypeRepository,
+		EntityType: params.ForgeEntityTypeRepository,
 	}
 	_, err := s.Store.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 
@@ -692,9 +749,9 @@ func (s *RepoTestSuite) TestListRepoPools() {
 }
 
 func (s *RepoTestSuite) TestListRepoPoolsInvalidRepoID() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         "dummy-repo-id",
-		EntityType: params.GithubEntityTypeRepository,
+		EntityType: params.ForgeEntityTypeRepository,
 	}
 	_, err := s.Store.ListEntityPools(s.adminCtx, entity)
 
@@ -717,9 +774,9 @@ func (s *RepoTestSuite) TestGetRepositoryPool() {
 }
 
 func (s *RepoTestSuite) TestGetRepositoryPoolInvalidRepoID() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         "dummy-repo-id",
-		EntityType: params.GithubEntityTypeRepository,
+		EntityType: params.ForgeEntityTypeRepository,
 	}
 	_, err := s.Store.GetEntityPool(s.adminCtx, entity, "dummy-pool-id")
 
@@ -743,9 +800,9 @@ func (s *RepoTestSuite) TestDeleteRepositoryPool() {
 }
 
 func (s *RepoTestSuite) TestDeleteRepositoryPoolInvalidRepoID() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         "dummy-repo-id",
-		EntityType: params.GithubEntityTypeRepository,
+		EntityType: params.ForgeEntityTypeRepository,
 	}
 	err := s.Store.DeleteEntityPool(s.adminCtx, entity, "dummy-pool-id")
 
@@ -799,9 +856,9 @@ func (s *RepoTestSuite) TestListRepoInstances() {
 }
 
 func (s *RepoTestSuite) TestListRepoInstancesInvalidRepoID() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         "dummy-repo-id",
-		EntityType: params.GithubEntityTypeRepository,
+		EntityType: params.ForgeEntityTypeRepository,
 	}
 	_, err := s.Store.ListEntityInstances(s.adminCtx, entity)
 
@@ -827,9 +884,9 @@ func (s *RepoTestSuite) TestUpdateRepositoryPool() {
 }
 
 func (s *RepoTestSuite) TestUpdateRepositoryPoolInvalidRepoID() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         "dummy-repo-id",
-		EntityType: params.GithubEntityTypeRepository,
+		EntityType: params.ForgeEntityTypeRepository,
 	}
 	_, err := s.Store.UpdateEntityPool(s.adminCtx, entity, "dummy-repo-id", s.Fixtures.UpdatePoolParams)
 

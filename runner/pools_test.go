@@ -47,9 +47,9 @@ type PoolTestSuite struct {
 	Runner   *Runner
 
 	adminCtx           context.Context
-	testCreds          params.GithubCredentials
-	secondaryTestCreds params.GithubCredentials
-	githubEndpoint     params.GithubEndpoint
+	testCreds          params.ForgeCredentials
+	secondaryTestCreds params.ForgeCredentials
+	githubEndpoint     params.ForgeEndpoint
 }
 
 func (s *PoolTestSuite) SetupTest() {
@@ -69,15 +69,15 @@ func (s *PoolTestSuite) SetupTest() {
 	s.secondaryTestCreds = garmTesting.CreateTestGithubCredentials(s.adminCtx, "secondary-creds", db, s.T(), s.githubEndpoint)
 
 	// create an organization for testing purposes
-	org, err := db.CreateOrganization(s.adminCtx, "test-org", s.testCreds.Name, "test-webhookSecret", params.PoolBalancerTypeRoundRobin)
+	org, err := db.CreateOrganization(s.adminCtx, "test-org", s.testCreds, "test-webhookSecret", params.PoolBalancerTypeRoundRobin)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to create org: %s", err))
 	}
 
 	// create some pool objects in the database, for testing purposes
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         org.ID,
-		EntityType: params.GithubEntityTypeOrganization,
+		EntityType: params.ForgeEntityTypeOrganization,
 	}
 	orgPools := []params.Pool{}
 	for i := 1; i <= 3; i++ {

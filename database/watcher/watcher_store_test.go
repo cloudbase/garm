@@ -1,3 +1,17 @@
+// Copyright 2025 Cloudbase Solutions SRL
+//
+//    Licensed under the Apache License, Version 2.0 (the "License"); you may
+//    not use this file except in compliance with the License. You may obtain
+//    a copy of the License at
+//
+//         http://www.apache.org/licenses/LICENSE-2.0
+//
+//    Unless required by applicable law or agreed to in writing, software
+//    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+//    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+//    License for the specific language governing permissions and limitations
+//    under the License.
+
 package watcher_test
 
 import (
@@ -155,7 +169,7 @@ func (s *WatcherStoreTestSuite) TestInstanceWatcher() {
 	creds := garmTesting.CreateTestGithubCredentials(s.ctx, "test-creds", s.store, s.T(), ep)
 	s.T().Cleanup(func() { s.store.DeleteGithubCredentials(s.ctx, creds.ID) })
 
-	repo, err := s.store.CreateRepository(s.ctx, "test-owner", "test-repo", creds.Name, "test-secret", params.PoolBalancerTypeRoundRobin)
+	repo, err := s.store.CreateRepository(s.ctx, "test-owner", "test-repo", creds, "test-secret", params.PoolBalancerTypeRoundRobin)
 	s.Require().NoError(err)
 	s.Require().NotEmpty(repo.ID)
 	s.T().Cleanup(func() { s.store.DeleteRepository(s.ctx, repo.ID) })
@@ -259,7 +273,7 @@ func (s *WatcherStoreTestSuite) TestScaleSetInstanceWatcher() {
 	creds := garmTesting.CreateTestGithubCredentials(s.ctx, "test-creds", s.store, s.T(), ep)
 	s.T().Cleanup(func() { s.store.DeleteGithubCredentials(s.ctx, creds.ID) })
 
-	repo, err := s.store.CreateRepository(s.ctx, "test-owner", "test-repo", creds.Name, "test-secret", params.PoolBalancerTypeRoundRobin)
+	repo, err := s.store.CreateRepository(s.ctx, "test-owner", "test-repo", creds, "test-secret", params.PoolBalancerTypeRoundRobin)
 	s.Require().NoError(err)
 	s.Require().NotEmpty(repo.ID)
 	s.T().Cleanup(func() { s.store.DeleteRepository(s.ctx, repo.ID) })
@@ -369,7 +383,7 @@ func (s *WatcherStoreTestSuite) TestPoolWatcher() {
 		}
 	})
 
-	repo, err := s.store.CreateRepository(s.ctx, "test-owner", "test-repo", creds.Name, "test-secret", params.PoolBalancerTypeRoundRobin)
+	repo, err := s.store.CreateRepository(s.ctx, "test-owner", "test-repo", creds, "test-secret", params.PoolBalancerTypeRoundRobin)
 	s.Require().NoError(err)
 	s.Require().NotEmpty(repo.ID)
 	s.T().Cleanup(func() { s.store.DeleteRepository(s.ctx, repo.ID) })
@@ -490,7 +504,7 @@ func (s *WatcherStoreTestSuite) TestScaleSetWatcher() {
 		}
 	})
 
-	repo, err := s.store.CreateRepository(s.ctx, "test-owner", "test-repo", creds.Name, "test-secret", params.PoolBalancerTypeRoundRobin)
+	repo, err := s.store.CreateRepository(s.ctx, "test-owner", "test-repo", creds, "test-secret", params.PoolBalancerTypeRoundRobin)
 	s.Require().NoError(err)
 	s.Require().NotEmpty(repo.ID)
 	s.T().Cleanup(func() { s.store.DeleteRepository(s.ctx, repo.ID) })
@@ -646,7 +660,7 @@ func (s *WatcherStoreTestSuite) TestEnterpriseWatcher() {
 	creds := garmTesting.CreateTestGithubCredentials(s.ctx, "test-creds", s.store, s.T(), ep)
 	s.T().Cleanup(func() { s.store.DeleteGithubCredentials(s.ctx, creds.ID) })
 
-	ent, err := s.store.CreateEnterprise(s.ctx, "test-enterprise", creds.Name, "test-secret", params.PoolBalancerTypeRoundRobin)
+	ent, err := s.store.CreateEnterprise(s.ctx, "test-enterprise", creds, "test-secret", params.PoolBalancerTypeRoundRobin)
 	s.Require().NoError(err)
 	s.Require().NotEmpty(ent.ID)
 
@@ -713,7 +727,7 @@ func (s *WatcherStoreTestSuite) TestOrgWatcher() {
 	creds := garmTesting.CreateTestGithubCredentials(s.ctx, "test-creds", s.store, s.T(), ep)
 	s.T().Cleanup(func() { s.store.DeleteGithubCredentials(s.ctx, creds.ID) })
 
-	org, err := s.store.CreateOrganization(s.ctx, "test-org", creds.Name, "test-secret", params.PoolBalancerTypeRoundRobin)
+	org, err := s.store.CreateOrganization(s.ctx, "test-org", creds, "test-secret", params.PoolBalancerTypeRoundRobin)
 	s.Require().NoError(err)
 	s.Require().NotEmpty(org.ID)
 
@@ -780,7 +794,7 @@ func (s *WatcherStoreTestSuite) TestRepoWatcher() {
 	creds := garmTesting.CreateTestGithubCredentials(s.ctx, "test-creds", s.store, s.T(), ep)
 	s.T().Cleanup(func() { s.store.DeleteGithubCredentials(s.ctx, creds.ID) })
 
-	repo, err := s.store.CreateRepository(s.ctx, "test-owner", "test-repo", creds.Name, "test-secret", params.PoolBalancerTypeRoundRobin)
+	repo, err := s.store.CreateRepository(s.ctx, "test-owner", "test-repo", creds, "test-secret", params.PoolBalancerTypeRoundRobin)
 	s.Require().NoError(err)
 	s.Require().NotEmpty(repo.ID)
 
@@ -848,7 +862,7 @@ func (s *WatcherStoreTestSuite) TestGithubCredentialsWatcher() {
 		Name:        "test-creds",
 		Description: "test credentials",
 		Endpoint:    "github.com",
-		AuthType:    params.GithubAuthTypePAT,
+		AuthType:    params.ForgeAuthTypePAT,
 		PAT: params.GithubPAT{
 			OAuth2Token: "bogus",
 		},
@@ -898,8 +912,100 @@ func (s *WatcherStoreTestSuite) TestGithubCredentialsWatcher() {
 			EntityType: common.GithubCredentialsEntityType,
 			Operation:  common.DeleteOperation,
 			// We only get the ID and Name of the deleted entity
-			Payload: params.GithubCredentials{ID: ghCred.ID, Name: ghCred.Name},
+			Payload: params.ForgeCredentials{ID: ghCred.ID, Name: ghCred.Name},
 		}, event)
+	case <-time.After(1 * time.Second):
+		s.T().Fatal("expected payload not received")
+	}
+}
+
+func (s *WatcherStoreTestSuite) TestGiteaCredentialsWatcher() {
+	consumer, err := watcher.RegisterConsumer(
+		s.ctx, "gitea-cred-test",
+		watcher.WithEntityTypeFilter(common.GiteaCredentialsEntityType),
+		watcher.WithAny(
+			watcher.WithOperationTypeFilter(common.CreateOperation),
+			watcher.WithOperationTypeFilter(common.UpdateOperation),
+			watcher.WithOperationTypeFilter(common.DeleteOperation)),
+	)
+	s.Require().NoError(err)
+	s.Require().NotNil(consumer)
+	s.T().Cleanup(func() { consumer.Close() })
+	consumeEvents(consumer)
+
+	testEndpointParams := params.CreateGiteaEndpointParams{
+		Name:        "test",
+		Description: "test endpoint",
+		APIBaseURL:  "https://api.gitea.example.com",
+		BaseURL:     "https://gitea.example.com",
+	}
+
+	testEndpoint, err := s.store.CreateGiteaEndpoint(s.ctx, testEndpointParams)
+	s.Require().NoError(err)
+	s.Require().NotEmpty(testEndpoint.Name)
+
+	s.T().Cleanup(func() {
+		if err := s.store.DeleteGiteaEndpoint(s.ctx, testEndpoint.Name); err != nil {
+			s.T().Logf("failed to delete Gitea endpoint: %v", err)
+		}
+		consumeEvents(consumer)
+	})
+
+	giteaCredParams := params.CreateGiteaCredentialsParams{
+		Name:        "test-creds",
+		Description: "test credentials",
+		Endpoint:    testEndpoint.Name,
+		AuthType:    params.ForgeAuthTypePAT,
+		PAT: params.GithubPAT{
+			OAuth2Token: "bogus",
+		},
+	}
+
+	giteaCred, err := s.store.CreateGiteaCredentials(s.ctx, giteaCredParams)
+	s.Require().NoError(err)
+	s.Require().NotEmpty(giteaCred.ID)
+
+	select {
+	case event := <-consumer.Watch():
+		s.Require().Equal(common.ChangePayload{
+			EntityType: common.GiteaCredentialsEntityType,
+			Operation:  common.CreateOperation,
+			Payload:    giteaCred,
+		}, event)
+	case <-time.After(1 * time.Second):
+		s.T().Fatal("expected payload not received")
+	}
+
+	newDesc := "updated test description"
+	updateParams := params.UpdateGiteaCredentialsParams{
+		Description: &newDesc,
+	}
+
+	updatedGiteaCred, err := s.store.UpdateGiteaCredentials(s.ctx, giteaCred.ID, updateParams)
+	s.Require().NoError(err)
+	s.Require().Equal(newDesc, updatedGiteaCred.Description)
+
+	select {
+	case event := <-consumer.Watch():
+		s.Require().Equal(common.ChangePayload{
+			EntityType: common.GiteaCredentialsEntityType,
+			Operation:  common.UpdateOperation,
+			Payload:    updatedGiteaCred,
+		}, event)
+	case <-time.After(1 * time.Second):
+		s.T().Fatal("expected payload not received")
+	}
+
+	err = s.store.DeleteGiteaCredentials(s.ctx, giteaCred.ID)
+	s.Require().NoError(err)
+
+	select {
+	case event := <-consumer.Watch():
+		asCreds, ok := event.Payload.(params.ForgeCredentials)
+		s.Require().True(ok)
+		s.Require().Equal(event.Operation, common.DeleteOperation)
+		s.Require().Equal(event.EntityType, common.GiteaCredentialsEntityType)
+		s.Require().Equal(asCreds.ID, updatedGiteaCred.ID)
 	case <-time.After(1 * time.Second):
 		s.T().Fatal("expected payload not received")
 	}
@@ -971,7 +1077,7 @@ func (s *WatcherStoreTestSuite) TestGithubEndpointWatcher() {
 			EntityType: common.GithubEndpointEntityType,
 			Operation:  common.DeleteOperation,
 			// We only get the name of the deleted entity
-			Payload: params.GithubEndpoint{Name: ghEp.Name},
+			Payload: params.ForgeEndpoint{Name: ghEp.Name},
 		}, event)
 	case <-time.After(1 * time.Second):
 		s.T().Fatal("expected payload not received")
@@ -987,7 +1093,7 @@ consume:
 			if !ok {
 				return
 			}
-		case <-time.After(100 * time.Millisecond):
+		case <-time.After(20 * time.Millisecond):
 			break consume
 		}
 	}

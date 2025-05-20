@@ -1,3 +1,16 @@
+// Copyright 2025 Cloudbase Solutions SRL
+//
+//	Licensed under the Apache License, Version 2.0 (the "License"); you may
+//	not use this file except in compliance with the License. You may obtain
+//	a copy of the License at
+//
+//	     http://www.apache.org/licenses/LICENSE-2.0
+//
+//	Unless required by applicable law or agreed to in writing, software
+//	distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+//	WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+//	License for the specific language governing permissions and limitations
+//	under the License.
 package provider
 
 import (
@@ -14,7 +27,7 @@ type providerHelper interface {
 	InstanceTokenGetter() auth.InstanceTokenGetter
 	updateArgsFromProviderInstance(instanceName string, providerInstance commonParams.ProviderInstance) (params.Instance, error)
 	GetControllerInfo() (params.ControllerInfo, error)
-	GetGithubEntity(entity params.GithubEntity) (params.GithubEntity, error)
+	GetGithubEntity(entity params.ForgeEntity) (params.ForgeEntity, error)
 }
 
 func (p *Provider) updateArgsFromProviderInstance(instanceName string, providerInstance commonParams.ProviderInstance) (params.Instance, error) {
@@ -71,10 +84,10 @@ func (p *Provider) InstanceTokenGetter() auth.InstanceTokenGetter {
 	return p.tokenGetter
 }
 
-func (p *Provider) GetGithubEntity(entity params.GithubEntity) (params.GithubEntity, error) {
-	ghEntity, err := p.store.GetGithubEntity(p.ctx, entity.EntityType, entity.ID)
+func (p *Provider) GetGithubEntity(entity params.ForgeEntity) (params.ForgeEntity, error) {
+	ghEntity, err := p.store.GetForgeEntity(p.ctx, entity.EntityType, entity.ID)
 	if err != nil {
-		return params.GithubEntity{}, fmt.Errorf("getting github entity: %w", err)
+		return params.ForgeEntity{}, fmt.Errorf("getting github entity: %w", err)
 	}
 
 	return ghEntity, nil

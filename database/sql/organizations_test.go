@@ -53,9 +53,11 @@ type OrgTestSuite struct {
 	adminCtx    context.Context
 	adminUserID string
 
-	testCreds          params.GithubCredentials
-	secondaryTestCreds params.GithubCredentials
-	githubEndpoint     params.GithubEndpoint
+	testCreds          params.ForgeCredentials
+	testCredsGitea     params.ForgeCredentials
+	secondaryTestCreds params.ForgeCredentials
+	githubEndpoint     params.ForgeEndpoint
+	giteaEndpoint      params.ForgeEndpoint
 }
 
 func (s *OrgTestSuite) equalInstancesByName(expected, actual []params.Instance) {
@@ -91,7 +93,9 @@ func (s *OrgTestSuite) SetupTest() {
 	s.Require().NotEmpty(s.adminUserID)
 
 	s.githubEndpoint = garmTesting.CreateDefaultGithubEndpoint(adminCtx, db, s.T())
+	s.giteaEndpoint = garmTesting.CreateDefaultGiteaEndpoint(adminCtx, db, s.T())
 	s.testCreds = garmTesting.CreateTestGithubCredentials(adminCtx, "new-creds", db, s.T(), s.githubEndpoint)
+	s.testCredsGitea = garmTesting.CreateTestGiteaCredentials(adminCtx, "new-creds", db, s.T(), s.giteaEndpoint)
 	s.secondaryTestCreds = garmTesting.CreateTestGithubCredentials(adminCtx, "secondary-creds", db, s.T(), s.githubEndpoint)
 
 	// create some organization objects in the database, for testing purposes
@@ -100,7 +104,7 @@ func (s *OrgTestSuite) SetupTest() {
 		org, err := db.CreateOrganization(
 			s.adminCtx,
 			fmt.Sprintf("test-org-%d", i),
-			s.testCreds.Name,
+			s.testCreds,
 			fmt.Sprintf("test-webhook-secret-%d", i),
 			params.PoolBalancerTypeRoundRobin,
 		)
@@ -179,7 +183,7 @@ func (s *OrgTestSuite) TestCreateOrganization() {
 	org, err := s.Store.CreateOrganization(
 		s.adminCtx,
 		s.Fixtures.CreateOrgParams.Name,
-		s.Fixtures.CreateOrgParams.CredentialsName,
+		s.testCreds,
 		s.Fixtures.CreateOrgParams.WebhookSecret,
 		params.PoolBalancerTypeRoundRobin)
 
@@ -192,6 +196,62 @@ func (s *OrgTestSuite) TestCreateOrganization() {
 	s.Require().Equal(storeOrg.Name, org.Name)
 	s.Require().Equal(storeOrg.Credentials.Name, org.Credentials.Name)
 	s.Require().Equal(storeOrg.WebhookSecret, org.WebhookSecret)
+
+	entity, err := org.GetEntity()
+	s.Require().Nil(err)
+	s.Require().Equal(entity.EntityType, params.ForgeEntityTypeOrganization)
+	s.Require().Equal(entity.ID, org.ID)
+
+	forgeType, err := entity.GetForgeType()
+	s.Require().Nil(err)
+	s.Require().Equal(forgeType, params.GithubEndpointType)
+}
+
+func (s *OrgTestSuite) TestCreateOrgForGitea() {
+	// call tested function
+	org, err := s.Store.CreateOrganization(
+		s.adminCtx,
+		s.Fixtures.CreateOrgParams.Name,
+		s.testCredsGitea,
+		s.Fixtures.CreateOrgParams.WebhookSecret,
+		params.PoolBalancerTypeRoundRobin)
+
+	// assertions
+	s.Require().Nil(err)
+	storeOrg, err := s.Store.GetOrganizationByID(s.adminCtx, org.ID)
+	if err != nil {
+		s.FailNow(fmt.Sprintf("failed to get organization by id: %v", err))
+	}
+	s.Require().Equal(storeOrg.Name, org.Name)
+	s.Require().Equal(storeOrg.Credentials.Name, org.Credentials.Name)
+	s.Require().Equal(storeOrg.WebhookSecret, org.WebhookSecret)
+
+	entity, err := org.GetEntity()
+	s.Require().Nil(err)
+	s.Require().Equal(entity.EntityType, params.ForgeEntityTypeOrganization)
+	s.Require().Equal(entity.ID, org.ID)
+
+	forgeType, err := entity.GetForgeType()
+	s.Require().Nil(err)
+	s.Require().Equal(forgeType, params.GiteaEndpointType)
+}
+
+func (s *OrgTestSuite) TestCreateOrganizationInvalidForgeType() {
+	credentials := params.ForgeCredentials{
+		Name:      "test-creds",
+		Endpoint:  s.githubEndpoint,
+		ID:        99,
+		ForgeType: params.EndpointType("invalid-forge-type"),
+	}
+
+	_, err := s.Store.CreateOrganization(
+		s.adminCtx,
+		s.Fixtures.CreateOrgParams.Name,
+		credentials,
+		s.Fixtures.CreateOrgParams.WebhookSecret,
+		params.PoolBalancerTypeRoundRobin)
+	s.Require().NotNil(err)
+	s.Require().Equal("creating org: unsupported credentials type: invalid request", err.Error())
 }
 
 func (s *OrgTestSuite) TestCreateOrganizationInvalidDBPassphrase() {
@@ -210,7 +270,7 @@ func (s *OrgTestSuite) TestCreateOrganizationInvalidDBPassphrase() {
 	_, err = sqlDB.CreateOrganization(
 		s.adminCtx,
 		s.Fixtures.CreateOrgParams.Name,
-		s.Fixtures.CreateOrgParams.CredentialsName,
+		s.testCreds,
 		s.Fixtures.CreateOrgParams.WebhookSecret,
 		params.PoolBalancerTypeRoundRobin)
 
@@ -221,15 +281,6 @@ func (s *OrgTestSuite) TestCreateOrganizationInvalidDBPassphrase() {
 func (s *OrgTestSuite) TestCreateOrganizationDBCreateErr() {
 	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_credentials` WHERE user_id = ? AND name = ? AND `github_credentials`.`deleted_at` IS NULL ORDER BY `github_credentials`.`id` LIMIT ?")).
-		WithArgs(s.adminUserID, s.Fixtures.Orgs[0].CredentialsName, 1).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "endpoint_name"}).
-			AddRow(s.testCreds.ID, s.githubEndpoint.Name))
-	s.Fixtures.SQLMock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_endpoints` WHERE `github_endpoints`.`name` = ? AND `github_endpoints`.`deleted_at` IS NULL")).
-		WithArgs(s.testCreds.Endpoint.Name).
-		WillReturnRows(sqlmock.NewRows([]string{"name"}).
-			AddRow(s.githubEndpoint.Name))
-	s.Fixtures.SQLMock.
 		ExpectExec(regexp.QuoteMeta("INSERT INTO `organizations`")).
 		WillReturnError(fmt.Errorf("creating org mock error"))
 	s.Fixtures.SQLMock.ExpectRollback()
@@ -237,7 +288,7 @@ func (s *OrgTestSuite) TestCreateOrganizationDBCreateErr() {
 	_, err := s.StoreSQLMocked.CreateOrganization(
 		s.adminCtx,
 		s.Fixtures.CreateOrgParams.Name,
-		s.Fixtures.CreateOrgParams.CredentialsName,
+		s.testCreds,
 		s.Fixtures.CreateOrgParams.WebhookSecret,
 		params.PoolBalancerTypeRoundRobin)
 
@@ -492,9 +543,9 @@ func (s *OrgTestSuite) TestCreateOrganizationPoolMissingTags() {
 }
 
 func (s *OrgTestSuite) TestCreateOrganizationPoolInvalidOrgID() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         "dummy-org-id",
-		EntityType: params.GithubEntityTypeOrganization,
+		EntityType: params.ForgeEntityTypeOrganization,
 	}
 	_, err := s.Store.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 
@@ -640,9 +691,9 @@ func (s *OrgTestSuite) TestListOrgPools() {
 }
 
 func (s *OrgTestSuite) TestListOrgPoolsInvalidOrgID() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         "dummy-org-id",
-		EntityType: params.GithubEntityTypeOrganization,
+		EntityType: params.ForgeEntityTypeOrganization,
 	}
 	_, err := s.Store.ListEntityPools(s.adminCtx, entity)
 
@@ -665,9 +716,9 @@ func (s *OrgTestSuite) TestGetOrganizationPool() {
 }
 
 func (s *OrgTestSuite) TestGetOrganizationPoolInvalidOrgID() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         "dummy-org-id",
-		EntityType: params.GithubEntityTypeOrganization,
+		EntityType: params.ForgeEntityTypeOrganization,
 	}
 	_, err := s.Store.GetEntityPool(s.adminCtx, entity, "dummy-pool-id")
 
@@ -691,9 +742,9 @@ func (s *OrgTestSuite) TestDeleteOrganizationPool() {
 }
 
 func (s *OrgTestSuite) TestDeleteOrganizationPoolInvalidOrgID() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         "dummy-org-id",
-		EntityType: params.GithubEntityTypeOrganization,
+		EntityType: params.ForgeEntityTypeOrganization,
 	}
 	err := s.Store.DeleteEntityPool(s.adminCtx, entity, "dummy-pool-id")
 
@@ -748,9 +799,9 @@ func (s *OrgTestSuite) TestListOrgInstances() {
 }
 
 func (s *OrgTestSuite) TestListOrgInstancesInvalidOrgID() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         "dummy-org-id",
-		EntityType: params.GithubEntityTypeOrganization,
+		EntityType: params.ForgeEntityTypeOrganization,
 	}
 	_, err := s.Store.ListEntityInstances(s.adminCtx, entity)
 
@@ -776,9 +827,9 @@ func (s *OrgTestSuite) TestUpdateOrganizationPool() {
 }
 
 func (s *OrgTestSuite) TestUpdateOrganizationPoolInvalidOrgID() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         "dummy-org-id",
-		EntityType: params.GithubEntityTypeOrganization,
+		EntityType: params.ForgeEntityTypeOrganization,
 	}
 	_, err := s.Store.UpdateEntityPool(s.adminCtx, entity, "dummy-pool-id", s.Fixtures.UpdatePoolParams)
 

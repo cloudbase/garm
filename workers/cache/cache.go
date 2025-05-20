@@ -1,3 +1,16 @@
+// Copyright 2025 Cloudbase Solutions SRL
+//
+//	Licensed under the Apache License, Version 2.0 (the "License"); you may
+//	not use this file except in compliance with the License. You may obtain
+//	a copy of the License at
+//
+//	     http://www.apache.org/licenses/LICENSE-2.0
+//
+//	Unless required by applicable law or agreed to in writing, software
+//	distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+//	WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+//	License for the specific language governing permissions and limitations
+//	under the License.
 package cache
 
 import (
@@ -138,7 +151,7 @@ func (w *Worker) loadAllInstances() error {
 	return nil
 }
 
-func (w *Worker) loadAllCredentials() error {
+func (w *Worker) loadAllGithubCredentials() error {
 	creds, err := w.store.ListGithubCredentials(w.ctx)
 	if err != nil {
 		return fmt.Errorf("listing github credentials: %w", err)
@@ -146,6 +159,18 @@ func (w *Worker) loadAllCredentials() error {
 
 	for _, cred := range creds {
 		cache.SetGithubCredentials(cred)
+	}
+	return nil
+}
+
+func (w *Worker) loadAllGiteaCredentials() error {
+	creds, err := w.store.ListGiteaCredentials(w.ctx)
+	if err != nil {
+		return fmt.Errorf("listing gitea credentials: %w", err)
+	}
+
+	for _, cred := range creds {
+		cache.SetGiteaCredentials(cred)
 	}
 	return nil
 }
@@ -183,6 +208,20 @@ func (w *Worker) Start() error {
 	g, _ := errgroup.WithContext(w.ctx)
 
 	g.Go(func() error {
+		if err := w.loadAllGithubCredentials(); err != nil {
+			return fmt.Errorf("loading all github credentials: %w", err)
+		}
+		return nil
+	})
+
+	g.Go(func() error {
+		if err := w.loadAllGiteaCredentials(); err != nil {
+			return fmt.Errorf("loading all gitea credentials: %w", err)
+		}
+		return nil
+	})
+
+	g.Go(func() error {
 		if err := w.loadAllEntities(); err != nil {
 			return fmt.Errorf("loading all entities: %w", err)
 		}
@@ -192,13 +231,6 @@ func (w *Worker) Start() error {
 	g.Go(func() error {
 		if err := w.loadAllInstances(); err != nil {
 			return fmt.Errorf("loading all instances: %w", err)
-		}
-		return nil
-	})
-
-	g.Go(func() error {
-		if err := w.loadAllCredentials(); err != nil {
-			return fmt.Errorf("loading all credentials: %w", err)
 		}
 		return nil
 	})
@@ -262,7 +294,7 @@ func (w *Worker) handleEntityEvent(entityGetter params.EntityGetter, op common.O
 			w.toolsWorkes[entity.ID] = worker
 		} else if hasOld {
 			// probably an update operation
-			if old.Credentials.ID != entity.Credentials.ID {
+			if old.Credentials.GetID() != entity.Credentials.GetID() {
 				worker.Reset()
 			}
 		}
@@ -360,15 +392,23 @@ func (w *Worker) handleInstanceEvent(event common.ChangePayload) {
 }
 
 func (w *Worker) handleCredentialsEvent(event common.ChangePayload) {
-	credentials, ok := event.Payload.(params.GithubCredentials)
+	credentials, ok := event.Payload.(params.ForgeCredentials)
 	if !ok {
 		slog.DebugContext(w.ctx, "invalid payload type for credentials event", "payload", event.Payload)
 		return
 	}
 	switch event.Operation {
 	case common.CreateOperation, common.UpdateOperation:
-		cache.SetGithubCredentials(credentials)
-		entities := cache.GetEntitiesUsingGredentials(credentials.ID)
+		switch credentials.ForgeType {
+		case params.GithubEndpointType:
+			cache.SetGithubCredentials(credentials)
+		case params.GiteaEndpointType:
+			cache.SetGiteaCredentials(credentials)
+		default:
+			slog.DebugContext(w.ctx, "invalid credentials type", "credentials_type", credentials.ForgeType)
+			return
+		}
+		entities := cache.GetEntitiesUsingCredentials(credentials)
 		for _, entity := range entities {
 			worker, ok := w.toolsWorkes[entity.ID]
 			if ok {
@@ -395,7 +435,7 @@ func (w *Worker) handleEvent(event common.ChangePayload) {
 		w.handleOrgEvent(event)
 	case common.EnterpriseEntityType:
 		w.handleEnterpriseEvent(event)
-	case common.GithubCredentialsEntityType:
+	case common.GithubCredentialsEntityType, common.GiteaCredentialsEntityType:
 		w.handleCredentialsEvent(event)
 	default:
 		slog.DebugContext(w.ctx, "unknown entity type", "entity_type", event.EntityType)

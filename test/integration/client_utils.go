@@ -1,3 +1,17 @@
+// Copyright 2025 Cloudbase Solutions SRL
+//
+//    Licensed under the Apache License, Version 2.0 (the "License"); you may
+//    not use this file except in compliance with the License. You may obtain
+//    a copy of the License at
+//
+//         http://www.apache.org/licenses/LICENSE-2.0
+//
+//    Unless required by applicable law or agreed to in writing, software
+//    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+//    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+//    License for the specific language governing permissions and limitations
+//    under the License.
+
 package integration
 
 import (
@@ -51,7 +65,7 @@ func listCredentials(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfo
 	return listCredentialsResponse.Payload, nil
 }
 
-func createGithubCredentials(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, credentialsParams params.CreateGithubCredentialsParams) (*params.GithubCredentials, error) {
+func createGithubCredentials(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, credentialsParams params.CreateGithubCredentialsParams) (*params.ForgeCredentials, error) {
 	createCredentialsResponse, err := apiCli.Credentials.CreateCredentials(
 		clientCredentials.NewCreateCredentialsParams().WithBody(credentialsParams),
 		apiAuthToken)
@@ -67,7 +81,7 @@ func deleteGithubCredentials(apiCli *client.GarmAPI, apiAuthToken runtime.Client
 		apiAuthToken)
 }
 
-func updateGithubCredentials(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, credentialsID int64, credentialsParams params.UpdateGithubCredentialsParams) (*params.GithubCredentials, error) {
+func updateGithubCredentials(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, credentialsID int64, credentialsParams params.UpdateGithubCredentialsParams) (*params.ForgeCredentials, error) {
 	updateCredentialsResponse, err := apiCli.Credentials.UpdateCredentials(
 		clientCredentials.NewUpdateCredentialsParams().WithID(credentialsID).WithBody(credentialsParams),
 		apiAuthToken)
@@ -77,7 +91,7 @@ func updateGithubCredentials(apiCli *client.GarmAPI, apiAuthToken runtime.Client
 	return &updateCredentialsResponse.Payload, nil
 }
 
-func createGithubEndpoint(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, endpointParams params.CreateGithubEndpointParams) (*params.GithubEndpoint, error) {
+func createGithubEndpoint(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, endpointParams params.CreateGithubEndpointParams) (*params.ForgeEndpoint, error) {
 	createEndpointResponse, err := apiCli.Endpoints.CreateGithubEndpoint(
 		clientEndpoints.NewCreateGithubEndpointParams().WithBody(endpointParams),
 		apiAuthToken)
@@ -87,7 +101,7 @@ func createGithubEndpoint(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAut
 	return &createEndpointResponse.Payload, nil
 }
 
-func listGithubEndpoints(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter) (params.GithubEndpoints, error) {
+func listGithubEndpoints(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter) (params.ForgeEndpoints, error) {
 	listEndpointsResponse, err := apiCli.Endpoints.ListGithubEndpoints(
 		clientEndpoints.NewListGithubEndpointsParams(),
 		apiAuthToken)
@@ -97,7 +111,7 @@ func listGithubEndpoints(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuth
 	return listEndpointsResponse.Payload, nil
 }
 
-func getGithubEndpoint(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, endpointName string) (*params.GithubEndpoint, error) {
+func getGithubEndpoint(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, endpointName string) (*params.ForgeEndpoint, error) {
 	getEndpointResponse, err := apiCli.Endpoints.GetGithubEndpoint(
 		clientEndpoints.NewGetGithubEndpointParams().WithName(endpointName),
 		apiAuthToken)
@@ -113,7 +127,7 @@ func deleteGithubEndpoint(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAut
 		apiAuthToken)
 }
 
-func updateGithubEndpoint(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, endpointName string, endpointParams params.UpdateGithubEndpointParams) (*params.GithubEndpoint, error) {
+func updateGithubEndpoint(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, endpointName string, endpointParams params.UpdateGithubEndpointParams) (*params.ForgeEndpoint, error) {
 	updateEndpointResponse, err := apiCli.Endpoints.UpdateGithubEndpoint(
 		clientEndpoints.NewUpdateGithubEndpointParams().WithName(endpointName).WithBody(endpointParams),
 		apiAuthToken)

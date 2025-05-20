@@ -53,9 +53,9 @@ type EnterpriseTestSuite struct {
 	adminCtx    context.Context
 	adminUserID string
 
-	testCreds          params.GithubCredentials
-	secondaryTestCreds params.GithubCredentials
-	githubEndpoint     params.GithubEndpoint
+	testCreds          params.ForgeCredentials
+	secondaryTestCreds params.ForgeCredentials
+	githubEndpoint     params.ForgeEndpoint
 }
 
 func (s *EnterpriseTestSuite) equalInstancesByName(expected, actual []params.Instance) {
@@ -99,7 +99,7 @@ func (s *EnterpriseTestSuite) SetupTest() {
 		enterprise, err := db.CreateEnterprise(
 			s.adminCtx,
 			fmt.Sprintf("test-enterprise-%d", i),
-			s.testCreds.Name,
+			s.testCreds,
 			fmt.Sprintf("test-webhook-secret-%d", i),
 			params.PoolBalancerTypeRoundRobin,
 		)
@@ -178,7 +178,7 @@ func (s *EnterpriseTestSuite) TestCreateEnterprise() {
 	enterprise, err := s.Store.CreateEnterprise(
 		s.adminCtx,
 		s.Fixtures.CreateEnterpriseParams.Name,
-		s.Fixtures.CreateEnterpriseParams.CredentialsName,
+		s.testCreds,
 		s.Fixtures.CreateEnterpriseParams.WebhookSecret,
 		params.PoolBalancerTypeRoundRobin)
 
@@ -209,7 +209,7 @@ func (s *EnterpriseTestSuite) TestCreateEnterpriseInvalidDBPassphrase() {
 	_, err = sqlDB.CreateEnterprise(
 		s.adminCtx,
 		s.Fixtures.CreateEnterpriseParams.Name,
-		s.Fixtures.CreateEnterpriseParams.CredentialsName,
+		s.testCreds,
 		s.Fixtures.CreateEnterpriseParams.WebhookSecret,
 		params.PoolBalancerTypeRoundRobin)
 
@@ -220,14 +220,6 @@ func (s *EnterpriseTestSuite) TestCreateEnterpriseInvalidDBPassphrase() {
 func (s *EnterpriseTestSuite) TestCreateEnterpriseDBCreateErr() {
 	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_credentials` WHERE user_id = ? AND name = ? AND `github_credentials`.`deleted_at` IS NULL ORDER BY `github_credentials`.`id` LIMIT ?")).
-		WithArgs(s.adminUserID, s.Fixtures.Enterprises[0].CredentialsName, 1).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "endpoint_name"}).AddRow(s.testCreds.ID, s.testCreds.Endpoint.Name))
-	s.Fixtures.SQLMock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `github_endpoints` WHERE `github_endpoints`.`name` = ? AND `github_endpoints`.`deleted_at` IS NULL")).
-		WithArgs(s.testCreds.Endpoint.Name).
-		WillReturnRows(sqlmock.NewRows([]string{"name"}).
-			AddRow(s.testCreds.Endpoint.Name))
-	s.Fixtures.SQLMock.
 		ExpectExec(regexp.QuoteMeta("INSERT INTO `enterprises`")).
 		WillReturnError(fmt.Errorf("creating enterprise mock error"))
 	s.Fixtures.SQLMock.ExpectRollback()
@@ -235,7 +227,7 @@ func (s *EnterpriseTestSuite) TestCreateEnterpriseDBCreateErr() {
 	_, err := s.StoreSQLMocked.CreateEnterprise(
 		s.adminCtx,
 		s.Fixtures.CreateEnterpriseParams.Name,
-		s.Fixtures.CreateEnterpriseParams.CredentialsName,
+		s.testCreds,
 		s.Fixtures.CreateEnterpriseParams.WebhookSecret,
 		params.PoolBalancerTypeRoundRobin)
 
@@ -490,9 +482,9 @@ func (s *EnterpriseTestSuite) TestCreateEnterprisePoolMissingTags() {
 }
 
 func (s *EnterpriseTestSuite) TestCreateEnterprisePoolInvalidEnterpriseID() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         "dummy-enterprise-id",
-		EntityType: params.GithubEntityTypeEnterprise,
+		EntityType: params.ForgeEntityTypeEnterprise,
 	}
 	_, err := s.Store.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 
@@ -637,9 +629,9 @@ func (s *EnterpriseTestSuite) TestListEnterprisePools() {
 }
 
 func (s *EnterpriseTestSuite) TestListEnterprisePoolsInvalidEnterpriseID() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         "dummy-enterprise-id",
-		EntityType: params.GithubEntityTypeEnterprise,
+		EntityType: params.ForgeEntityTypeEnterprise,
 	}
 	_, err := s.Store.ListEntityPools(s.adminCtx, entity)
 
@@ -662,9 +654,9 @@ func (s *EnterpriseTestSuite) TestGetEnterprisePool() {
 }
 
 func (s *EnterpriseTestSuite) TestGetEnterprisePoolInvalidEnterpriseID() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         "dummy-enterprise-id",
-		EntityType: params.GithubEntityTypeEnterprise,
+		EntityType: params.ForgeEntityTypeEnterprise,
 	}
 	_, err := s.Store.GetEntityPool(s.adminCtx, entity, "dummy-pool-id")
 
@@ -688,9 +680,9 @@ func (s *EnterpriseTestSuite) TestDeleteEnterprisePool() {
 }
 
 func (s *EnterpriseTestSuite) TestDeleteEnterprisePoolInvalidEnterpriseID() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         "dummy-enterprise-id",
-		EntityType: params.GithubEntityTypeEnterprise,
+		EntityType: params.ForgeEntityTypeEnterprise,
 	}
 	err := s.Store.DeleteEntityPool(s.adminCtx, entity, "dummy-pool-id")
 
@@ -743,9 +735,9 @@ func (s *EnterpriseTestSuite) TestListEnterpriseInstances() {
 }
 
 func (s *EnterpriseTestSuite) TestListEnterpriseInstancesInvalidEnterpriseID() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         "dummy-enterprise-id",
-		EntityType: params.GithubEntityTypeEnterprise,
+		EntityType: params.ForgeEntityTypeEnterprise,
 	}
 	_, err := s.Store.ListEntityInstances(s.adminCtx, entity)
 
@@ -771,9 +763,9 @@ func (s *EnterpriseTestSuite) TestUpdateEnterprisePool() {
 }
 
 func (s *EnterpriseTestSuite) TestUpdateEnterprisePoolInvalidEnterpriseID() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         "dummy-enterprise-id",
-		EntityType: params.GithubEntityTypeEnterprise,
+		EntityType: params.ForgeEntityTypeEnterprise,
 	}
 	_, err := s.Store.UpdateEntityPool(s.adminCtx, entity, "dummy-pool-id", s.Fixtures.UpdatePoolParams)
 

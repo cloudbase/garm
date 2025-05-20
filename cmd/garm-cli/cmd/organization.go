@@ -167,6 +167,7 @@ var orgAddCmd = &cobra.Command{
 			Name:             orgName,
 			WebhookSecret:    orgWebhookSecret,
 			CredentialsName:  orgCreds,
+			ForgeType:        params.EndpointType(forgeType),
 			PoolBalancerType: params.PoolBalancerType(poolBalancerType),
 		}
 		response, err := apiCli.Organizations.CreateOrg(newOrgReq, authToken)
@@ -306,6 +307,7 @@ func init() {
 	orgAddCmd.Flags().StringVar(&orgName, "name", "", "The name of the organization")
 	orgAddCmd.Flags().StringVar(&poolBalancerType, "pool-balancer-type", string(params.PoolBalancerTypeRoundRobin), "The balancing strategy to use when creating runners in pools matching requested labels.")
 	orgAddCmd.Flags().StringVar(&orgWebhookSecret, "webhook-secret", "", "The webhook secret for this organization")
+	orgAddCmd.Flags().StringVar(&forgeType, "forge-type", string(params.GithubEndpointType), "The forge type of the organization. Supported values: github, gitea.")
 	orgAddCmd.Flags().StringVar(&orgCreds, "credentials", "", "Credentials name. See credentials list.")
 	orgAddCmd.Flags().BoolVar(&orgRandomWebhookSecret, "random-webhook-secret", false, "Generate a random webhook secret for this organization.")
 	orgAddCmd.Flags().BoolVar(&installOrgWebhook, "install-webhook", false, "Install the webhook as part of the add operation.")
@@ -347,13 +349,17 @@ func formatOrganizations(orgs []params.Organization) {
 		return
 	}
 	t := table.NewWriter()
-	header := table.Row{"ID", "Name", "Endpoint", "Credentials name", "Pool Balancer Type", "Pool mgr running"}
+	header := table.Row{"ID", "Name", "Endpoint", "Credentials name", "Pool Balancer Type", "Forge type", "Pool mgr running"}
 	if long {
 		header = append(header, "Created At", "Updated At")
 	}
 	t.AppendHeader(header)
 	for _, val := range orgs {
-		row := table.Row{val.ID, val.Name, val.Endpoint.Name, val.CredentialsName, val.GetBalancerType(), val.PoolManagerStatus.IsRunning}
+		forgeType := val.Endpoint.EndpointType
+		if forgeType == "" {
+			forgeType = params.GithubEndpointType
+		}
+		row := table.Row{val.ID, val.Name, val.Endpoint.Name, val.CredentialsName, val.GetBalancerType(), forgeType, val.PoolManagerStatus.IsRunning}
 		if long {
 			row = append(row, val.CreatedAt, val.UpdatedAt)
 		}

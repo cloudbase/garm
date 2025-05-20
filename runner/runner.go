@@ -602,10 +602,10 @@ func (r *Runner) validateHookBody(signature, secret string, body []byte) error {
 	return nil
 }
 
-func (r *Runner) findEndpointForJob(job params.WorkflowJob) (params.GithubEndpoint, error) {
+func (r *Runner) findEndpointForJob(job params.WorkflowJob, forgeType params.EndpointType) (params.ForgeEndpoint, error) {
 	uri, err := url.ParseRequestURI(job.WorkflowJob.HTMLURL)
 	if err != nil {
-		return params.GithubEndpoint{}, errors.Wrap(err, "parsing job URL")
+		return params.ForgeEndpoint{}, errors.Wrap(err, "parsing job URL")
 	}
 	baseURI := fmt.Sprintf("%s://%s", uri.Scheme, uri.Host)
 
@@ -614,31 +614,45 @@ func (r *Runner) findEndpointForJob(job params.WorkflowJob) (params.GithubEndpoi
 	// a GHES involved, those users will have just one extra endpoint or 2 (if they also have a
 	// test env). But there should be a relatively small number, regardless. So we don't really care
 	// that much about the performance of this function.
-	endpoints, err := r.store.ListGithubEndpoints(r.ctx)
+	var endpoints []params.ForgeEndpoint
+	switch forgeType {
+	case params.GithubEndpointType:
+		endpoints, err = r.store.ListGithubEndpoints(r.ctx)
+	case params.GiteaEndpointType:
+		endpoints, err = r.store.ListGiteaEndpoints(r.ctx)
+	default:
+		return params.ForgeEndpoint{}, runnerErrors.NewBadRequestError("unknown forge type %s", forgeType)
+	}
+
 	if err != nil {
-		return params.GithubEndpoint{}, errors.Wrap(err, "fetching github endpoints")
+		return params.ForgeEndpoint{}, errors.Wrap(err, "fetching github endpoints")
 	}
 	for _, ep := range endpoints {
-		if ep.BaseURL == baseURI {
+		slog.DebugContext(r.ctx, "checking endpoint", "base_uri", baseURI, "endpoint", ep.BaseURL)
+		epBaseURI := strings.TrimSuffix(ep.BaseURL, "/")
+		if epBaseURI == baseURI {
 			return ep, nil
 		}
 	}
 
-	return params.GithubEndpoint{}, runnerErrors.NewNotFoundError("no endpoint found for job")
+	return params.ForgeEndpoint{}, runnerErrors.NewNotFoundError("no endpoint found for job")
 }
 
-func (r *Runner) DispatchWorkflowJob(hookTargetType, signature string, jobData []byte) error {
+func (r *Runner) DispatchWorkflowJob(hookTargetType, signature string, forgeType params.EndpointType, jobData []byte) error {
 	if len(jobData) == 0 {
+		slog.ErrorContext(r.ctx, "missing job data")
 		return runnerErrors.NewBadRequestError("missing job data")
 	}
 
 	var job params.WorkflowJob
 	if err := json.Unmarshal(jobData, &job); err != nil {
+		slog.ErrorContext(r.ctx, "failed to unmarshal job data", "error", err)
 		return errors.Wrapf(runnerErrors.ErrBadRequest, "invalid job data: %s", err)
 	}
 
-	endpoint, err := r.findEndpointForJob(job)
+	endpoint, err := r.findEndpointForJob(job, forgeType)
 	if err != nil {
+		slog.ErrorContext(r.ctx, "failed to find endpoint for job", "error", err)
 		return errors.Wrap(err, "finding endpoint for job")
 	}
 
@@ -649,23 +663,28 @@ func (r *Runner) DispatchWorkflowJob(hookTargetType, signature string, jobData [
 		slog.DebugContext(
 			r.ctx, "got hook for repo",
 			"repo_owner", util.SanitizeLogEntry(job.Repository.Owner.Login),
-			"repo_name", util.SanitizeLogEntry(job.Repository.Name))
+			"repo_name", util.SanitizeLogEntry(job.Repository.Name),
+			"endpoint", endpoint.Name)
 		poolManager, err = r.findRepoPoolManager(job.Repository.Owner.Login, job.Repository.Name, endpoint.Name)
 	case OrganizationHook:
 		slog.DebugContext(
 			r.ctx, "got hook for organization",
-			"organization", util.SanitizeLogEntry(job.Organization.Login))
-		poolManager, err = r.findOrgPoolManager(job.Organization.Login, endpoint.Name)
+			"organization", util.SanitizeLogEntry(job.GetOrgName(forgeType)),
+			"endpoint", endpoint.Name)
+		poolManager, err = r.findOrgPoolManager(job.GetOrgName(forgeType), endpoint.Name)
 	case EnterpriseHook:
 		slog.DebugContext(
 			r.ctx, "got hook for enterprise",
-			"enterprise", util.SanitizeLogEntry(job.Enterprise.Slug))
+			"enterprise", util.SanitizeLogEntry(job.Enterprise.Slug),
+			"endpoint", endpoint.Name)
 		poolManager, err = r.findEnterprisePoolManager(job.Enterprise.Slug, endpoint.Name)
 	default:
 		return runnerErrors.NewBadRequestError("cannot handle hook target type %s", hookTargetType)
 	}
 
+	slog.DebugContext(r.ctx, "found pool manager", "pool_manager", poolManager.ID())
 	if err != nil {
+		slog.ErrorContext(r.ctx, "failed to find pool manager", "error", err, "hook_target_type", hookTargetType)
 		// We don't have a repository or organization configured that
 		// can handle this workflow job.
 		return errors.Wrap(err, "fetching poolManager")
@@ -675,10 +694,12 @@ func (r *Runner) DispatchWorkflowJob(hookTargetType, signature string, jobData [
 	// we make sure that the source of this workflow job is valid.
 	secret := poolManager.WebhookSecret()
 	if err := r.validateHookBody(signature, secret, jobData); err != nil {
+		slog.ErrorContext(r.ctx, "failed to validate webhook data", "error", err)
 		return errors.Wrap(err, "validating webhook data")
 	}
 
 	if err := poolManager.HandleWorkflowJob(job); err != nil {
+		slog.ErrorContext(r.ctx, "failed to handle workflow job", "error", err)
 		return errors.Wrap(err, "handling workflow job")
 	}
 
@@ -867,15 +888,17 @@ func (r *Runner) DeleteRunner(ctx context.Context, instanceName string, forceDel
 		}
 
 		if err != nil {
-			if errors.Is(err, runnerErrors.ErrUnauthorized) && instance.PoolID != "" {
-				poolMgr, err := r.getPoolManagerFromInstance(ctx, instance)
-				if err != nil {
-					return errors.Wrap(err, "fetching pool manager for instance")
+			if !errors.Is(err, runnerErrors.ErrNotFound) {
+				if errors.Is(err, runnerErrors.ErrUnauthorized) && instance.PoolID != "" {
+					poolMgr, err := r.getPoolManagerFromInstance(ctx, instance)
+					if err != nil {
+						return errors.Wrap(err, "fetching pool manager for instance")
+					}
+					poolMgr.SetPoolRunningState(false, fmt.Sprintf("failed to remove runner: %q", err))
 				}
-				poolMgr.SetPoolRunningState(false, fmt.Sprintf("failed to remove runner: %q", err))
-			}
-			if !bypassGithubUnauthorized {
-				return errors.Wrap(err, "removing runner from github")
+				if !bypassGithubUnauthorized {
+					return errors.Wrap(err, "removing runner from github")
+				}
 			}
 		}
 	}
@@ -928,7 +951,7 @@ func (r *Runner) getGHCliFromInstance(ctx context.Context, instance params.Insta
 	}
 
 	// Fetching the entity from the database will populate all fields, including credentials.
-	entity, err = r.store.GetGithubEntity(ctx, entity.EntityType, entity.ID)
+	entity, err = r.store.GetForgeEntity(ctx, entity.EntityType, entity.ID)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "fetching entity")
 	}

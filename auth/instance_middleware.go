@@ -40,10 +40,11 @@ type InstanceJWTClaims struct {
 	Name   string `json:"name"`
 	PoolID string `json:"provider_id"`
 	// Scope is either repository or organization
-	Scope params.GithubEntityType `json:"scope"`
+	Scope params.ForgeEntityType `json:"scope"`
 	// Entity is the repo or org name
 	Entity        string `json:"entity"`
 	CreateAttempt int    `json:"create_attempt"`
+	ForgeType     string `json:"forge_type"`
 	jwt.RegisteredClaims
 }
 
@@ -60,7 +61,7 @@ type instanceToken struct {
 	jwtSecret string
 }
 
-func (i *instanceToken) NewInstanceJWTToken(instance params.Instance, entity string, entityType params.GithubEntityType, ttlMinutes uint) (string, error) {
+func (i *instanceToken) NewInstanceJWTToken(instance params.Instance, entity params.ForgeEntity, entityType params.ForgeEntityType, ttlMinutes uint) (string, error) {
 	// Token expiration is equal to the bootstrap timeout set on the pool plus the polling
 	// interval garm uses to check for timed out runners. Runners that have not sent their info
 	// by the end of this interval are most likely failed and will be reaped by garm anyway.
@@ -83,7 +84,8 @@ func (i *instanceToken) NewInstanceJWTToken(instance params.Instance, entity str
 		Name:          instance.Name,
 		PoolID:        instance.PoolID,
 		Scope:         entityType,
-		Entity:        entity,
+		Entity:        entity.String(),
+		ForgeType:     string(entity.Credentials.ForgeType),
 		CreateAttempt: instance.CreateAttempt,
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -124,7 +126,7 @@ func (amw *instanceMiddleware) claimsToContext(ctx context.Context, claims *Inst
 		return ctx, runnerErrors.ErrUnauthorized
 	}
 
-	ctx = PopulateInstanceContext(ctx, instanceInfo)
+	ctx = PopulateInstanceContext(ctx, instanceInfo, claims)
 	return ctx, nil
 }
 

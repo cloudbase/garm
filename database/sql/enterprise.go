@@ -28,10 +28,14 @@ import (
 	"github.com/cloudbase/garm/params"
 )
 
-func (s *sqlDatabase) CreateEnterprise(ctx context.Context, name, credentialsName, webhookSecret string, poolBalancerType params.PoolBalancerType) (paramEnt params.Enterprise, err error) {
+func (s *sqlDatabase) CreateEnterprise(ctx context.Context, name string, credentials params.ForgeCredentials, webhookSecret string, poolBalancerType params.PoolBalancerType) (paramEnt params.Enterprise, err error) {
 	if webhookSecret == "" {
 		return params.Enterprise{}, errors.New("creating enterprise: missing secret")
 	}
+	if credentials.ForgeType != params.GithubEndpointType {
+		return params.Enterprise{}, errors.Wrap(runnerErrors.ErrBadRequest, "enterprises are not supported on this forge type")
+	}
+
 	secret, err := util.Seal([]byte(webhookSecret), []byte(s.cfg.Passphrase))
 	if err != nil {
 		return params.Enterprise{}, errors.Wrap(err, "encoding secret")
@@ -45,29 +49,21 @@ func (s *sqlDatabase) CreateEnterprise(ctx context.Context, name, credentialsNam
 	newEnterprise := Enterprise{
 		Name:             name,
 		WebhookSecret:    secret,
-		CredentialsName:  credentialsName,
 		PoolBalancerType: poolBalancerType,
 	}
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
-		creds, err := s.getGithubCredentialsByName(ctx, tx, credentialsName, false)
-		if err != nil {
-			return errors.Wrap(err, "creating enterprise")
-		}
-		if creds.EndpointName == nil {
-			return errors.Wrap(runnerErrors.ErrUnprocessable, "credentials have no endpoint")
-		}
-		newEnterprise.CredentialsID = &creds.ID
-		newEnterprise.CredentialsName = creds.Name
-		newEnterprise.EndpointName = creds.EndpointName
+		newEnterprise.CredentialsID = &credentials.ID
+		newEnterprise.EndpointName = &credentials.Endpoint.Name
 
 		q := tx.Create(&newEnterprise)
 		if q.Error != nil {
 			return errors.Wrap(q.Error, "creating enterprise")
 		}
 
-		newEnterprise.Credentials = creds
-		newEnterprise.Endpoint = creds.Endpoint
-
+		newEnterprise, err = s.getEnterpriseByID(ctx, tx, newEnterprise.ID.String(), "Pools", "Credentials", "Endpoint", "Credentials.Endpoint")
+		if err != nil {
+			return errors.Wrap(err, "creating enterprise")
+		}
 		return nil
 	})
 	if err != nil {

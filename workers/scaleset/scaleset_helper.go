@@ -1,3 +1,16 @@
+// Copyright 2025 Cloudbase Solutions SRL
+//
+//	Licensed under the Apache License, Version 2.0 (the "License"); you may
+//	not use this file except in compliance with the License. You may obtain
+//	a copy of the License at
+//
+//	     http://www.apache.org/licenses/LICENSE-2.0
+//
+//	Unless required by applicable law or agreed to in writing, software
+//	distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+//	WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+//	License for the specific language governing permissions and limitations
+//	under the License.
 package scaleset
 
 import (
@@ -7,13 +20,28 @@ import (
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
+	"github.com/cloudbase/garm/cache"
 	"github.com/cloudbase/garm/locking"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/util/github/scalesets"
 )
 
-func (w *Worker) ScaleSetCLI() *scalesets.ScaleSetClient {
-	return w.scaleSetCli
+func (w *Worker) GetScaleSetClient() (*scalesets.ScaleSetClient, error) {
+	scaleSetEntity, err := w.scaleSet.GetEntity()
+	if err != nil {
+		return nil, fmt.Errorf("getting entity: %w", err)
+	}
+
+	ghCli, ok := cache.GetGithubClient(scaleSetEntity.ID)
+	if !ok {
+		return nil, fmt.Errorf("getting github client: %w", err)
+	}
+	scaleSetClient, err := scalesets.NewClient(ghCli)
+	if err != nil {
+		return nil, fmt.Errorf("creating scale set client: %w", err)
+	}
+
+	return scaleSetClient, nil
 }
 
 func (w *Worker) GetScaleSet() params.ScaleSet {
@@ -45,11 +73,11 @@ func (w *Worker) recordOrUpdateJob(job params.ScaleSetJobMessage) error {
 	jobParams.RunnerGroupName = w.scaleSet.GitHubRunnerGroup
 
 	switch entity.EntityType {
-	case params.GithubEntityTypeEnterprise:
+	case params.ForgeEntityTypeEnterprise:
 		jobParams.EnterpriseID = &asUUID
-	case params.GithubEntityTypeRepository:
+	case params.ForgeEntityTypeRepository:
 		jobParams.RepoID = &asUUID
-	case params.GithubEntityTypeOrganization:
+	case params.ForgeEntityTypeOrganization:
 		jobParams.OrgID = &asUUID
 	default:
 		return fmt.Errorf("unknown entity type: %s", entity.EntityType)

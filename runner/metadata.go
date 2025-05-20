@@ -1,3 +1,17 @@
+// Copyright 2025 Cloudbase Solutions SRL
+//
+//    Licensed under the Apache License, Version 2.0 (the "License"); you may
+//    not use this file except in compliance with the License. You may obtain
+//    a copy of the License at
+//
+//         http://www.apache.org/licenses/LICENSE-2.0
+//
+//    Unless required by applicable law or agreed to in writing, software
+//    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+//    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+//    License for the specific language governing permissions and limitations
+//    under the License.
+
 package runner
 
 import (
@@ -16,7 +30,7 @@ import (
 	"github.com/cloudbase/garm/params"
 )
 
-var systemdUnitTemplate = `[Unit]
+var githubSystemdUnitTemplate = `[Unit]
 Description=GitHub Actions Runner ({{.ServiceName}})
 After=network.target
 
@@ -32,11 +46,24 @@ TimeoutStopSec=5min
 WantedBy=multi-user.target
 `
 
-func validateInstanceState(ctx context.Context) (params.Instance, error) {
-	if !auth.InstanceHasJITConfig(ctx) {
-		return params.Instance{}, fmt.Errorf("instance not configured for JIT: %w", runnerErrors.ErrNotFound)
-	}
+var giteaSystemdUnitTemplate = `[Unit]
+Description=Act Runner ({{.ServiceName}})
+After=network.target
 
+[Service]
+ExecStart=/home/{{.RunAsUser}}/act-runner/act_runner daemon --once
+User={{.RunAsUser}}
+WorkingDirectory=/home/{{.RunAsUser}}/act-runner
+KillMode=process
+KillSignal=SIGTERM
+TimeoutStopSec=5min
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+`
+
+func validateInstanceState(ctx context.Context) (params.Instance, error) {
 	status := auth.InstanceRunnerStatus(ctx)
 	if status != params.RunnerPending && status != params.RunnerInstalling {
 		return params.Instance{}, runnerErrors.ErrUnauthorized
@@ -49,6 +76,56 @@ func validateInstanceState(ctx context.Context) (params.Instance, error) {
 	return instance, nil
 }
 
+func (r *Runner) getForgeEntityFromInstance(ctx context.Context, instance params.Instance) (params.ForgeEntity, error) {
+	var entityGetter params.EntityGetter
+	var err error
+	switch {
+	case instance.PoolID != "":
+		entityGetter, err = r.store.GetPoolByID(r.ctx, instance.PoolID)
+	case instance.ScaleSetID != 0:
+		entityGetter, err = r.store.GetScaleSetByID(r.ctx, instance.ScaleSetID)
+	default:
+		return params.ForgeEntity{}, errors.New("instance not associated with a pool or scale set")
+	}
+
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(
+			ctx, "failed to get entity getter",
+			"instance", instance.Name)
+		return params.ForgeEntity{}, errors.Wrap(err, "fetching entity getter")
+	}
+
+	poolEntity, err := entityGetter.GetEntity()
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(
+			ctx, "failed to get entity",
+			"instance", instance.Name)
+		return params.ForgeEntity{}, errors.Wrap(err, "fetching entity")
+	}
+
+	entity, err := r.store.GetForgeEntity(r.ctx, poolEntity.EntityType, poolEntity.ID)
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(
+			ctx, "failed to get entity",
+			"instance", instance.Name)
+		return params.ForgeEntity{}, errors.Wrap(err, "fetching entity")
+	}
+	return entity, nil
+}
+
+func (r *Runner) getServiceNameForEntity(entity params.ForgeEntity) (string, error) {
+	switch entity.EntityType {
+	case params.ForgeEntityTypeEnterprise:
+		return fmt.Sprintf("actions.runner.%s.%s", entity.Owner, entity.Name), nil
+	case params.ForgeEntityTypeOrganization:
+		return fmt.Sprintf("actions.runner.%s.%s", entity.Owner, entity.Name), nil
+	case params.ForgeEntityTypeRepository:
+		return fmt.Sprintf("actions.runner.%s-%s.%s", entity.Owner, entity.Name, entity.Name), nil
+	default:
+		return "", errors.New("unknown entity type")
+	}
+}
+
 func (r *Runner) GetRunnerServiceName(ctx context.Context) (string, error) {
 	instance, err := validateInstanceState(ctx)
 	if err != nil {
@@ -56,64 +133,51 @@ func (r *Runner) GetRunnerServiceName(ctx context.Context) (string, error) {
 			ctx, "failed to get instance params")
 		return "", runnerErrors.ErrUnauthorized
 	}
-	var entity params.GithubEntity
-
-	switch {
-	case instance.PoolID != "":
-		pool, err := r.store.GetPoolByID(r.ctx, instance.PoolID)
-		if err != nil {
-			slog.With(slog.Any("error", err)).ErrorContext(
-				ctx, "failed to get pool",
-				"pool_id", instance.PoolID)
-			return "", errors.Wrap(err, "fetching pool")
-		}
-		entity, err = pool.GetEntity()
-		if err != nil {
-			slog.With(slog.Any("error", err)).ErrorContext(
-				ctx, "failed to get pool entity",
-				"pool_id", instance.PoolID)
-			return "", errors.Wrap(err, "fetching pool entity")
-		}
-	case instance.ScaleSetID != 0:
-		scaleSet, err := r.store.GetScaleSetByID(r.ctx, instance.ScaleSetID)
-		if err != nil {
-			slog.With(slog.Any("error", err)).ErrorContext(
-				ctx, "failed to get scale set",
-				"scale_set_id", instance.ScaleSetID)
-			return "", errors.Wrap(err, "fetching scale set")
-		}
-		entity, err = scaleSet.GetEntity()
-		if err != nil {
-			slog.With(slog.Any("error", err)).ErrorContext(
-				ctx, "failed to get scale set entity",
-				"scale_set_id", instance.ScaleSetID)
-			return "", errors.Wrap(err, "fetching scale set entity")
-		}
-	default:
-		return "", errors.New("instance not associated with a pool or scale set")
+	entity, err := r.getForgeEntityFromInstance(ctx, instance)
+	if err != nil {
+		slog.ErrorContext(r.ctx, "failed to get entity", "error", err)
+		return "", errors.Wrap(err, "fetching entity")
 	}
 
-	tpl := "actions.runner.%s.%s"
-	var serviceName string
-	switch entity.EntityType {
-	case params.GithubEntityTypeEnterprise:
-		serviceName = fmt.Sprintf(tpl, entity.Owner, instance.Name)
-	case params.GithubEntityTypeOrganization:
-		serviceName = fmt.Sprintf(tpl, entity.Owner, instance.Name)
-	case params.GithubEntityTypeRepository:
-		serviceName = fmt.Sprintf(tpl, fmt.Sprintf("%s-%s", entity.Owner, entity.Name), instance.Name)
+	serviceName, err := r.getServiceNameForEntity(entity)
+	if err != nil {
+		slog.ErrorContext(r.ctx, "failed to get service name", "error", err)
+		return "", errors.Wrap(err, "fetching service name")
 	}
 	return serviceName, nil
 }
 
 func (r *Runner) GenerateSystemdUnitFile(ctx context.Context, runAsUser string) ([]byte, error) {
-	serviceName, err := r.GetRunnerServiceName(ctx)
+	instance, err := validateInstanceState(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching runner service name")
+		slog.With(slog.Any("error", err)).ErrorContext(
+			ctx, "failed to get instance params")
+		return nil, runnerErrors.ErrUnauthorized
+	}
+	entity, err := r.getForgeEntityFromInstance(ctx, instance)
+	if err != nil {
+		slog.ErrorContext(r.ctx, "failed to get entity", "error", err)
+		return nil, errors.Wrap(err, "fetching entity")
 	}
 
-	unitTemplate, err := template.New("").Parse(systemdUnitTemplate)
+	serviceName, err := r.getServiceNameForEntity(entity)
 	if err != nil {
+		slog.ErrorContext(r.ctx, "failed to get service name", "error", err)
+		return nil, errors.Wrap(err, "fetching service name")
+	}
+
+	var unitTemplate *template.Template
+	switch entity.Credentials.ForgeType {
+	case params.GithubEndpointType:
+		unitTemplate, err = template.New("").Parse(githubSystemdUnitTemplate)
+	case params.GiteaEndpointType:
+		unitTemplate, err = template.New("").Parse(giteaSystemdUnitTemplate)
+	default:
+		slog.ErrorContext(r.ctx, "unknown forge type", "forge_type", entity.Credentials.ForgeType)
+		return nil, errors.New("unknown forge type")
+	}
+	if err != nil {
+		slog.ErrorContext(r.ctx, "failed to parse template", "error", err)
 		return nil, errors.Wrap(err, "parsing template")
 	}
 
@@ -131,12 +195,17 @@ func (r *Runner) GenerateSystemdUnitFile(ctx context.Context, runAsUser string) 
 
 	var unitFile bytes.Buffer
 	if err := unitTemplate.Execute(&unitFile, data); err != nil {
+		slog.ErrorContext(r.ctx, "failed to execute template", "error", err)
 		return nil, errors.Wrap(err, "executing template")
 	}
 	return unitFile.Bytes(), nil
 }
 
 func (r *Runner) GetJITConfigFile(ctx context.Context, file string) ([]byte, error) {
+	if !auth.InstanceHasJITConfig(ctx) {
+		return nil, fmt.Errorf("instance not configured for JIT: %w", runnerErrors.ErrNotFound)
+	}
+
 	instance, err := validateInstanceState(ctx)
 	if err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(

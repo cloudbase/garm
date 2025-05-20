@@ -1,3 +1,16 @@
+// Copyright 2025 Cloudbase Solutions SRL
+//
+//	Licensed under the Apache License, Version 2.0 (the "License"); you may
+//	not use this file except in compliance with the License. You may obtain
+//	a copy of the License at
+//
+//	     http://www.apache.org/licenses/LICENSE-2.0
+//
+//	Unless required by applicable law or agreed to in writing, software
+//	distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+//	WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+//	License for the specific language governing permissions and limitations
+//	under the License.
 package scaleset
 
 import (
@@ -6,8 +19,6 @@ import (
 
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/params"
-	"github.com/cloudbase/garm/runner/common"
-	"github.com/cloudbase/garm/util/github"
 )
 
 func (c *Controller) handleWatcherEvent(event dbCommon.ChangePayload) {
@@ -19,9 +30,6 @@ func (c *Controller) handleWatcherEvent(event dbCommon.ChangePayload) {
 	case entityType:
 		slog.DebugContext(c.ctx, "got entity payload event")
 		c.handleEntityEvent(event)
-	case dbCommon.GithubCredentialsEntityType:
-		slog.DebugContext(c.ctx, "got github credentials payload event")
-		c.handleCredentialsEvent(event)
 	default:
 		slog.ErrorContext(c.ctx, "invalid entity type", "entity_type", event.EntityType)
 		return
@@ -38,7 +46,7 @@ func (c *Controller) handleScaleSet(event dbCommon.ChangePayload) {
 	switch event.Operation {
 	case dbCommon.CreateOperation:
 		slog.DebugContext(c.ctx, "got create operation for scale set", "scale_set_id", scaleSet.ID, "scale_set_name", scaleSet.Name)
-		if err := c.handleScaleSetCreateOperation(scaleSet, c.ghCli); err != nil {
+		if err := c.handleScaleSetCreateOperation(scaleSet); err != nil {
 			slog.With(slog.Any("error", err)).ErrorContext(c.ctx, "failed to handle scale set create operation")
 		}
 	case dbCommon.UpdateOperation:
@@ -57,7 +65,7 @@ func (c *Controller) handleScaleSet(event dbCommon.ChangePayload) {
 	}
 }
 
-func (c *Controller) handleScaleSetCreateOperation(sSet params.ScaleSet, ghCli common.GithubClient) error {
+func (c *Controller) handleScaleSetCreateOperation(sSet params.ScaleSet) error {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
@@ -74,7 +82,7 @@ func (c *Controller) handleScaleSetCreateOperation(sSet params.ScaleSet, ghCli c
 		return fmt.Errorf("provider %s not found for scale set %s", sSet.ProviderName, sSet.Name)
 	}
 
-	worker, err := NewWorker(c.ctx, c.store, sSet, provider, ghCli)
+	worker, err := NewWorker(c.ctx, c.store, sSet, provider)
 	if err != nil {
 		return fmt.Errorf("creating scale set worker: %w", err)
 	}
@@ -120,7 +128,7 @@ func (c *Controller) handleScaleSetUpdateOperation(sSet params.ScaleSet) error {
 		// Some error may have occurred when the scale set was first created, so we
 		// attempt to create it after the user updated the scale set, hopefully
 		// fixing the reason for the failure.
-		return c.handleScaleSetCreateOperation(sSet, c.ghCli)
+		return c.handleScaleSetCreateOperation(sSet)
 	}
 	set.scaleSet = sSet
 	c.ScaleSets[sSet.ID] = set
@@ -128,44 +136,15 @@ func (c *Controller) handleScaleSetUpdateOperation(sSet params.ScaleSet) error {
 	return nil
 }
 
-func (c *Controller) handleCredentialsEvent(event dbCommon.ChangePayload) {
-	credentials, ok := event.Payload.(params.GithubCredentials)
-	if !ok {
-		slog.ErrorContext(c.ctx, "invalid credentials payload for entity type", "entity_type", event.EntityType, "payload", event)
-		return
-	}
-
-	switch event.Operation {
-	case dbCommon.UpdateOperation:
-		slog.DebugContext(c.ctx, "got update operation")
-		c.mux.Lock()
-		defer c.mux.Unlock()
-
-		if c.Entity.Credentials.ID != credentials.ID {
-			// stale update event.
-			return
-		}
-		c.Entity.Credentials = credentials
-
-		if err := c.updateAndBroadcastCredentials(c.Entity); err != nil {
-			slog.With(slog.Any("error", err)).ErrorContext(c.ctx, "failed to update credentials")
-			return
-		}
-	default:
-		slog.ErrorContext(c.ctx, "invalid operation type", "operation_type", event.Operation)
-		return
-	}
-}
-
 func (c *Controller) handleEntityEvent(event dbCommon.ChangePayload) {
 	var entityGetter params.EntityGetter
 	var ok bool
 	switch c.Entity.EntityType {
-	case params.GithubEntityTypeRepository:
+	case params.ForgeEntityTypeRepository:
 		entityGetter, ok = event.Payload.(params.Repository)
-	case params.GithubEntityTypeOrganization:
+	case params.ForgeEntityTypeOrganization:
 		entityGetter, ok = event.Payload.(params.Organization)
-	case params.GithubEntityTypeEnterprise:
+	case params.ForgeEntityTypeEnterprise:
 		entityGetter, ok = event.Payload.(params.Enterprise)
 	}
 	if !ok {
@@ -184,35 +163,9 @@ func (c *Controller) handleEntityEvent(event dbCommon.ChangePayload) {
 		slog.DebugContext(c.ctx, "got update operation")
 		c.mux.Lock()
 		defer c.mux.Unlock()
-
-		if c.Entity.Credentials.ID != entity.Credentials.ID {
-			// credentials were swapped on the entity. We need to recompose the watcher
-			// filters.
-			c.consumer.SetFilters(composeControllerWatcherFilters(entity))
-			if err := c.updateAndBroadcastCredentials(c.Entity); err != nil {
-				slog.With(slog.Any("error", err)).ErrorContext(c.ctx, "failed to update credentials")
-			}
-		}
 		c.Entity = entity
 	default:
 		slog.ErrorContext(c.ctx, "invalid operation type", "operation_type", event.Operation)
 		return
 	}
-}
-
-func (c *Controller) updateAndBroadcastCredentials(entity params.GithubEntity) error {
-	ghCli, err := github.Client(c.ctx, entity)
-	if err != nil {
-		return fmt.Errorf("creating github client: %w", err)
-	}
-
-	c.ghCli = ghCli
-
-	for _, scaleSet := range c.ScaleSets {
-		if err := scaleSet.worker.SetGithubClient(ghCli); err != nil {
-			slog.ErrorContext(c.ctx, "setting github client on worker", "error", err)
-			continue
-		}
-	}
-	return nil
 }

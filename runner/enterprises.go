@@ -1,3 +1,17 @@
+// Copyright 2025 Cloudbase Solutions SRL
+//
+//    Licensed under the Apache License, Version 2.0 (the "License"); you may
+//    not use this file except in compliance with the License. You may obtain
+//    a copy of the License at
+//
+//         http://www.apache.org/licenses/LICENSE-2.0
+//
+//    Unless required by applicable law or agreed to in writing, software
+//    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+//    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+//    License for the specific language governing permissions and limitations
+//    under the License.
+
 package runner
 
 import (
@@ -39,7 +53,7 @@ func (r *Runner) CreateEnterprise(ctx context.Context, param params.CreateEnterp
 		return params.Enterprise{}, runnerErrors.NewConflictError("enterprise %s already exists", param.Name)
 	}
 
-	enterprise, err = r.store.CreateEnterprise(ctx, param.Name, creds.Name, param.WebhookSecret, param.PoolBalancerType)
+	enterprise, err = r.store.CreateEnterprise(ctx, param.Name, creds, param.WebhookSecret, param.PoolBalancerType)
 	if err != nil {
 		return params.Enterprise{}, errors.Wrap(err, "creating enterprise")
 	}
@@ -206,9 +220,9 @@ func (r *Runner) CreateEnterprisePool(ctx context.Context, enterpriseID string, 
 		param.RunnerBootstrapTimeout = appdefaults.DefaultRunnerBootstrapTimeout
 	}
 
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         enterpriseID,
-		EntityType: params.GithubEntityTypeEnterprise,
+		EntityType: params.ForgeEntityTypeEnterprise,
 	}
 
 	pool, err := r.store.CreateEntityPool(ctx, entity, createPoolParams)
@@ -223,9 +237,9 @@ func (r *Runner) GetEnterprisePoolByID(ctx context.Context, enterpriseID, poolID
 	if !auth.IsAdmin(ctx) {
 		return params.Pool{}, runnerErrors.ErrUnauthorized
 	}
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         enterpriseID,
-		EntityType: params.GithubEntityTypeEnterprise,
+		EntityType: params.ForgeEntityTypeEnterprise,
 	}
 	pool, err := r.store.GetEntityPool(ctx, entity, poolID)
 	if err != nil {
@@ -239,9 +253,9 @@ func (r *Runner) DeleteEnterprisePool(ctx context.Context, enterpriseID, poolID 
 		return runnerErrors.ErrUnauthorized
 	}
 
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         enterpriseID,
-		EntityType: params.GithubEntityTypeEnterprise,
+		EntityType: params.ForgeEntityTypeEnterprise,
 	}
 
 	pool, err := r.store.GetEntityPool(ctx, entity, poolID)
@@ -270,9 +284,9 @@ func (r *Runner) ListEnterprisePools(ctx context.Context, enterpriseID string) (
 		return []params.Pool{}, runnerErrors.ErrUnauthorized
 	}
 
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         enterpriseID,
-		EntityType: params.GithubEntityTypeEnterprise,
+		EntityType: params.ForgeEntityTypeEnterprise,
 	}
 	pools, err := r.store.ListEntityPools(ctx, entity)
 	if err != nil {
@@ -286,9 +300,9 @@ func (r *Runner) UpdateEnterprisePool(ctx context.Context, enterpriseID, poolID 
 		return params.Pool{}, runnerErrors.ErrUnauthorized
 	}
 
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         enterpriseID,
-		EntityType: params.GithubEntityTypeEnterprise,
+		EntityType: params.ForgeEntityTypeEnterprise,
 	}
 	pool, err := r.store.GetEntityPool(ctx, entity, poolID)
 	if err != nil {
@@ -320,9 +334,9 @@ func (r *Runner) ListEnterpriseInstances(ctx context.Context, enterpriseID strin
 	if !auth.IsAdmin(ctx) {
 		return nil, runnerErrors.ErrUnauthorized
 	}
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         enterpriseID,
-		EntityType: params.GithubEntityTypeEnterprise,
+		EntityType: params.ForgeEntityTypeEnterprise,
 	}
 	instances, err := r.store.ListEntityInstances(ctx, entity)
 	if err != nil {

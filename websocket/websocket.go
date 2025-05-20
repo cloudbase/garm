@@ -1,3 +1,16 @@
+// Copyright 2025 Cloudbase Solutions SRL
+//
+//	Licensed under the Apache License, Version 2.0 (the "License"); you may
+//	not use this file except in compliance with the License. You may obtain
+//	a copy of the License at
+//
+//	     http://www.apache.org/licenses/LICENSE-2.0
+//
+//	Unless required by applicable law or agreed to in writing, software
+//	distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+//	WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+//	License for the specific language governing permissions and limitations
+//	under the License.
 package websocket
 
 import (
@@ -28,14 +41,15 @@ type Hub struct {
 	// Inbound messages from the clients.
 	broadcast chan []byte
 
-	mux  sync.Mutex
-	once sync.Once
+	mux     sync.Mutex
+	running bool
+	once    sync.Once
 }
 
 func (h *Hub) run() {
-	defer func() {
-		close(h.closed)
-	}()
+	defer close(h.closed)
+	defer h.Stop()
+
 	for {
 		select {
 		case <-h.quit:
@@ -59,8 +73,7 @@ func (h *Hub) run() {
 				for _, id := range staleClients {
 					if client, ok := h.clients[id]; ok {
 						if client != nil {
-							client.conn.Close()
-							close(client.send)
+							client.Stop()
 						}
 						delete(h.clients, id)
 					}
@@ -105,6 +118,13 @@ func (h *Hub) Unregister(client *Client) error {
 }
 
 func (h *Hub) Write(msg []byte) (int, error) {
+	h.mux.Lock()
+	if !h.running {
+		h.mux.Unlock()
+		return 0, fmt.Errorf("websocket writer is not running")
+	}
+	h.mux.Unlock()
+
 	tmp := make([]byte, len(msg))
 	copy(tmp, msg)
 	timer := time.NewTimer(5 * time.Second)
@@ -118,6 +138,15 @@ func (h *Hub) Write(msg []byte) (int, error) {
 }
 
 func (h *Hub) Start() error {
+	h.mux.Lock()
+	defer h.mux.Unlock()
+
+	if h.running {
+		return nil
+	}
+
+	h.running = true
+
 	go h.run()
 	return nil
 }
@@ -130,11 +159,22 @@ func (h *Hub) Close() error {
 }
 
 func (h *Hub) Stop() error {
+	h.mux.Lock()
+	defer h.mux.Unlock()
+
+	if !h.running {
+		return nil
+	}
+
+	h.running = false
 	h.Close()
 	return h.Wait()
 }
 
 func (h *Hub) Wait() error {
+	if !h.running {
+		return nil
+	}
 	timer := time.NewTimer(60 * time.Second)
 	defer timer.Stop()
 	select {

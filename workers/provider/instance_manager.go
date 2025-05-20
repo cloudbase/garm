@@ -1,3 +1,16 @@
+// Copyright 2025 Cloudbase Solutions SRL
+//
+//	Licensed under the Apache License, Version 2.0 (the "License"); you may
+//	not use this file except in compliance with the License. You may obtain
+//	a copy of the License at
+//
+//	     http://www.apache.org/licenses/LICENSE-2.0
+//
+//	Unless required by applicable law or agreed to in writing, software
+//	distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+//	WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+//	License for the specific language governing permissions and limitations
+//	under the License.
 package provider
 
 import (
@@ -52,7 +65,7 @@ type instanceManager struct {
 	helper   providerHelper
 
 	scaleSet       params.ScaleSet
-	scaleSetEntity params.GithubEntity
+	scaleSetEntity params.ForgeEntity
 
 	deleteBackoff time.Duration
 
@@ -120,14 +133,14 @@ func (i *instanceManager) incrementBackOff() {
 	}
 }
 
-func (i *instanceManager) getEntity() (params.GithubEntity, error) {
+func (i *instanceManager) getEntity() (params.ForgeEntity, error) {
 	entity, err := i.scaleSet.GetEntity()
 	if err != nil {
-		return params.GithubEntity{}, fmt.Errorf("getting entity: %w", err)
+		return params.ForgeEntity{}, fmt.Errorf("getting entity: %w", err)
 	}
 	ghEntity, err := i.helper.GetGithubEntity(entity)
 	if err != nil {
-		return params.GithubEntity{}, fmt.Errorf("getting entity: %w", err)
+		return params.ForgeEntity{}, fmt.Errorf("getting entity: %w", err)
 	}
 	return ghEntity, nil
 }
@@ -144,19 +157,19 @@ func (i *instanceManager) handleCreateInstanceInProvider(instance params.Instanc
 	}
 
 	token, err := i.helper.InstanceTokenGetter().NewInstanceJWTToken(
-		instance, entity.String(), entity.EntityType, i.scaleSet.RunnerBootstrapTimeout)
+		instance, entity, entity.EntityType, i.scaleSet.RunnerBootstrapTimeout)
 	if err != nil {
 		return fmt.Errorf("creating instance token: %w", err)
 	}
-	tools, ok := cache.GetGithubToolsCache(entity.ID)
-	if !ok {
-		return fmt.Errorf("tools not found in cache for entity %s", entity.String())
+	tools, err := cache.GetGithubToolsCache(entity.ID)
+	if err != nil {
+		return fmt.Errorf("tools not found in cache for entity %s: %w", entity.String(), err)
 	}
 
 	bootstrapArgs := commonParams.BootstrapInstance{
 		Name:          instance.Name,
 		Tools:         tools,
-		RepoURL:       entity.GithubURL(),
+		RepoURL:       entity.ForgeURL(),
 		MetadataURL:   instance.MetadataURL,
 		CallbackURL:   instance.CallbackURL,
 		InstanceToken: token,

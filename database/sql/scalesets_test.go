@@ -1,3 +1,17 @@
+// Copyright 2025 Cloudbase Solutions SRL
+//
+//    Licensed under the Apache License, Version 2.0 (the "License"); you may
+//    not use this file except in compliance with the License. You may obtain
+//    a copy of the License at
+//
+//         http://www.apache.org/licenses/LICENSE-2.0
+//
+//    Unless required by applicable law or agreed to in writing, software
+//    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+//    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+//    License for the specific language governing permissions and limitations
+//    under the License.
+
 package sql
 
 import (
@@ -19,15 +33,15 @@ type ScaleSetsTestSuite struct {
 	suite.Suite
 	Store    dbCommon.Store
 	adminCtx context.Context
-	creds    params.GithubCredentials
+	creds    params.ForgeCredentials
 
 	org        params.Organization
 	repo       params.Repository
 	enterprise params.Enterprise
 
-	orgEntity        params.GithubEntity
-	repoEntity       params.GithubEntity
-	enterpriseEntity params.GithubEntity
+	orgEntity        params.ForgeEntity
+	repoEntity       params.ForgeEntity
+	enterpriseEntity params.ForgeEntity
 }
 
 func (s *ScaleSetsTestSuite) SetupTest() {
@@ -48,17 +62,17 @@ func (s *ScaleSetsTestSuite) SetupTest() {
 	s.creds = garmTesting.CreateTestGithubCredentials(adminCtx, "new-creds", db, s.T(), githubEndpoint)
 
 	// create an organization for testing purposes
-	s.org, err = s.Store.CreateOrganization(s.adminCtx, "test-org", s.creds.Name, "test-webhookSecret", params.PoolBalancerTypeRoundRobin)
+	s.org, err = s.Store.CreateOrganization(s.adminCtx, "test-org", s.creds, "test-webhookSecret", params.PoolBalancerTypeRoundRobin)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to create org: %s", err))
 	}
 
-	s.repo, err = s.Store.CreateRepository(s.adminCtx, "test-org", "test-repo", s.creds.Name, "test-webhookSecret", params.PoolBalancerTypeRoundRobin)
+	s.repo, err = s.Store.CreateRepository(s.adminCtx, "test-org", "test-repo", s.creds, "test-webhookSecret", params.PoolBalancerTypeRoundRobin)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to create repo: %s", err))
 	}
 
-	s.enterprise, err = s.Store.CreateEnterprise(s.adminCtx, "test-enterprise", s.creds.Name, "test-webhookSecret", params.PoolBalancerTypeRoundRobin)
+	s.enterprise, err = s.Store.CreateEnterprise(s.adminCtx, "test-enterprise", s.creds, "test-webhookSecret", params.PoolBalancerTypeRoundRobin)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to create enterprise: %s", err))
 	}
@@ -298,7 +312,7 @@ func (s *ScaleSetsTestSuite) TestScaleSetOperations() {
 	})
 
 	s.T().Run("update scaleset with invalid entity", func(_ *testing.T) {
-		_, err = s.Store.UpdateEntityScaleSet(s.adminCtx, params.GithubEntity{}, enterpriseScaleSet.ID, params.UpdateScaleSetParams{}, nil)
+		_, err = s.Store.UpdateEntityScaleSet(s.adminCtx, params.ForgeEntity{}, enterpriseScaleSet.ID, params.UpdateScaleSetParams{}, nil)
 		s.Require().Error(err)
 		s.Require().Contains(err.Error(), "missing entity id")
 	})

@@ -1,3 +1,17 @@
+// Copyright 2025 Cloudbase Solutions SRL
+//
+//    Licensed under the Apache License, Version 2.0 (the "License"); you may
+//    not use this file except in compliance with the License. You may obtain
+//    a copy of the License at
+//
+//         http://www.apache.org/licenses/LICENSE-2.0
+//
+//    Unless required by applicable law or agreed to in writing, software
+//    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+//    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+//    License for the specific language governing permissions and limitations
+//    under the License.
+
 package sql
 
 import (
@@ -306,7 +320,7 @@ func (s *sqlDatabase) ListJobsByStatus(_ context.Context, status params.JobStatu
 }
 
 // ListEntityJobsByStatus lists all jobs for a given entity type and id.
-func (s *sqlDatabase) ListEntityJobsByStatus(_ context.Context, entityType params.GithubEntityType, entityID string, status params.JobStatus) ([]params.Job, error) {
+func (s *sqlDatabase) ListEntityJobsByStatus(_ context.Context, entityType params.ForgeEntityType, entityID string, status params.JobStatus) ([]params.Job, error) {
 	u, err := uuid.Parse(entityID)
 	if err != nil {
 		return nil, err
@@ -316,11 +330,11 @@ func (s *sqlDatabase) ListEntityJobsByStatus(_ context.Context, entityType param
 	query := s.conn.Model(&WorkflowJob{}).Preload("Instance").Where("status = ?", status)
 
 	switch entityType {
-	case params.GithubEntityTypeOrganization:
+	case params.ForgeEntityTypeOrganization:
 		query = query.Where("org_id = ?", u)
-	case params.GithubEntityTypeRepository:
+	case params.ForgeEntityTypeRepository:
 		query = query.Where("repo_id = ?", u)
-	case params.GithubEntityTypeEnterprise:
+	case params.ForgeEntityTypeEnterprise:
 		query = query.Where("enterprise_id = ?", u)
 	}
 

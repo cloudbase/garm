@@ -1,3 +1,17 @@
+// Copyright 2025 Cloudbase Solutions SRL
+//
+//    Licensed under the Apache License, Version 2.0 (the "License"); you may
+//    not use this file except in compliance with the License. You may obtain
+//    a copy of the License at
+//
+//         http://www.apache.org/licenses/LICENSE-2.0
+//
+//    Unless required by applicable law or agreed to in writing, software
+//    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+//    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+//    License for the specific language governing permissions and limitations
+//    under the License.
+
 package runner
 
 import (
@@ -11,7 +25,7 @@ import (
 	"github.com/cloudbase/garm/params"
 )
 
-func (r *Runner) ListCredentials(ctx context.Context) ([]params.GithubCredentials, error) {
+func (r *Runner) ListCredentials(ctx context.Context) ([]params.ForgeCredentials, error) {
 	if !auth.IsAdmin(ctx) {
 		return nil, runnerErrors.ErrUnauthorized
 	}
@@ -37,31 +51,31 @@ func (r *Runner) ListCredentials(ctx context.Context) ([]params.GithubCredential
 	return creds, nil
 }
 
-func (r *Runner) CreateGithubCredentials(ctx context.Context, param params.CreateGithubCredentialsParams) (params.GithubCredentials, error) {
+func (r *Runner) CreateGithubCredentials(ctx context.Context, param params.CreateGithubCredentialsParams) (params.ForgeCredentials, error) {
 	if !auth.IsAdmin(ctx) {
-		return params.GithubCredentials{}, runnerErrors.ErrUnauthorized
+		return params.ForgeCredentials{}, runnerErrors.ErrUnauthorized
 	}
 
 	if err := param.Validate(); err != nil {
-		return params.GithubCredentials{}, errors.Wrap(err, "failed to validate github credentials params")
+		return params.ForgeCredentials{}, errors.Wrap(err, "failed to validate github credentials params")
 	}
 
 	creds, err := r.store.CreateGithubCredentials(ctx, param)
 	if err != nil {
-		return params.GithubCredentials{}, errors.Wrap(err, "failed to create github credentials")
+		return params.ForgeCredentials{}, errors.Wrap(err, "failed to create github credentials")
 	}
 
 	return creds, nil
 }
 
-func (r *Runner) GetGithubCredentials(ctx context.Context, id uint) (params.GithubCredentials, error) {
+func (r *Runner) GetGithubCredentials(ctx context.Context, id uint) (params.ForgeCredentials, error) {
 	if !auth.IsAdmin(ctx) {
-		return params.GithubCredentials{}, runnerErrors.ErrUnauthorized
+		return params.ForgeCredentials{}, runnerErrors.ErrUnauthorized
 	}
 
 	creds, err := r.store.GetGithubCredentials(ctx, id, true)
 	if err != nil {
-		return params.GithubCredentials{}, errors.Wrap(err, "failed to get github credentials")
+		return params.ForgeCredentials{}, errors.Wrap(err, "failed to get github credentials")
 	}
 
 	cached, ok := cache.GetGithubCredentials((creds.ID))
@@ -84,18 +98,18 @@ func (r *Runner) DeleteGithubCredentials(ctx context.Context, id uint) error {
 	return nil
 }
 
-func (r *Runner) UpdateGithubCredentials(ctx context.Context, id uint, param params.UpdateGithubCredentialsParams) (params.GithubCredentials, error) {
+func (r *Runner) UpdateGithubCredentials(ctx context.Context, id uint, param params.UpdateGithubCredentialsParams) (params.ForgeCredentials, error) {
 	if !auth.IsAdmin(ctx) {
-		return params.GithubCredentials{}, runnerErrors.ErrUnauthorized
+		return params.ForgeCredentials{}, runnerErrors.ErrUnauthorized
 	}
 
 	if err := param.Validate(); err != nil {
-		return params.GithubCredentials{}, errors.Wrap(err, "failed to validate github credentials params")
+		return params.ForgeCredentials{}, errors.Wrap(err, "failed to validate github credentials params")
 	}
 
 	newCreds, err := r.store.UpdateGithubCredentials(ctx, id, param)
 	if err != nil {
-		return params.GithubCredentials{}, errors.Wrap(err, "failed to update github credentials")
+		return params.ForgeCredentials{}, errors.Wrap(err, "failed to update github credentials")
 	}
 
 	return newCreds, nil

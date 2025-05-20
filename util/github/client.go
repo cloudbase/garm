@@ -22,6 +22,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/google/go-github/v71/github"
 	"github.com/pkg/errors"
@@ -39,7 +40,7 @@ type githubClient struct {
 	enterprise *github.EnterpriseService
 	rateLimit  *github.RateLimitService
 
-	entity params.GithubEntity
+	entity params.ForgeEntity
 	cli    *github.Client
 }
 
@@ -57,9 +58,9 @@ func (g *githubClient) ListEntityHooks(ctx context.Context, opts *github.ListOpt
 		}
 	}()
 	switch g.entity.EntityType {
-	case params.GithubEntityTypeRepository:
+	case params.ForgeEntityTypeRepository:
 		ret, response, err = g.repo.ListHooks(ctx, g.entity.Owner, g.entity.Name, opts)
-	case params.GithubEntityTypeOrganization:
+	case params.ForgeEntityTypeOrganization:
 		ret, response, err = g.org.ListHooks(ctx, g.entity.Owner, opts)
 	default:
 		return nil, nil, fmt.Errorf("invalid entity type: %s", g.entity.EntityType)
@@ -81,9 +82,9 @@ func (g *githubClient) GetEntityHook(ctx context.Context, id int64) (ret *github
 		}
 	}()
 	switch g.entity.EntityType {
-	case params.GithubEntityTypeRepository:
+	case params.ForgeEntityTypeRepository:
 		ret, _, err = g.repo.GetHook(ctx, g.entity.Owner, g.entity.Name, id)
-	case params.GithubEntityTypeOrganization:
+	case params.ForgeEntityTypeOrganization:
 		ret, _, err = g.org.GetHook(ctx, g.entity.Owner, id)
 	default:
 		return nil, errors.New("invalid entity type")
@@ -91,7 +92,7 @@ func (g *githubClient) GetEntityHook(ctx context.Context, id int64) (ret *github
 	return ret, err
 }
 
-func (g *githubClient) CreateEntityHook(ctx context.Context, hook *github.Hook) (ret *github.Hook, err error) {
+func (g *githubClient) createGithubEntityHook(ctx context.Context, hook *github.Hook) (ret *github.Hook, err error) {
 	metrics.GithubOperationCount.WithLabelValues(
 		"CreateHook",          // label: operation
 		g.entity.LabelScope(), // label: scope
@@ -105,14 +106,25 @@ func (g *githubClient) CreateEntityHook(ctx context.Context, hook *github.Hook) 
 		}
 	}()
 	switch g.entity.EntityType {
-	case params.GithubEntityTypeRepository:
+	case params.ForgeEntityTypeRepository:
 		ret, _, err = g.repo.CreateHook(ctx, g.entity.Owner, g.entity.Name, hook)
-	case params.GithubEntityTypeOrganization:
+	case params.ForgeEntityTypeOrganization:
 		ret, _, err = g.org.CreateHook(ctx, g.entity.Owner, hook)
 	default:
 		return nil, errors.New("invalid entity type")
 	}
 	return ret, err
+}
+
+func (g *githubClient) CreateEntityHook(ctx context.Context, hook *github.Hook) (ret *github.Hook, err error) {
+	switch g.entity.Credentials.ForgeType {
+	case params.GithubEndpointType:
+		return g.createGithubEntityHook(ctx, hook)
+	case params.GiteaEndpointType:
+		return g.createGiteaEntityHook(ctx, hook)
+	default:
+		return nil, errors.New("invalid entity type")
+	}
 }
 
 func (g *githubClient) DeleteEntityHook(ctx context.Context, id int64) (ret *github.Response, err error) {
@@ -129,9 +141,9 @@ func (g *githubClient) DeleteEntityHook(ctx context.Context, id int64) (ret *git
 		}
 	}()
 	switch g.entity.EntityType {
-	case params.GithubEntityTypeRepository:
+	case params.ForgeEntityTypeRepository:
 		ret, err = g.repo.DeleteHook(ctx, g.entity.Owner, g.entity.Name, id)
-	case params.GithubEntityTypeOrganization:
+	case params.ForgeEntityTypeOrganization:
 		ret, err = g.org.DeleteHook(ctx, g.entity.Owner, id)
 	default:
 		return nil, errors.New("invalid entity type")
@@ -153,9 +165,9 @@ func (g *githubClient) PingEntityHook(ctx context.Context, id int64) (ret *githu
 		}
 	}()
 	switch g.entity.EntityType {
-	case params.GithubEntityTypeRepository:
+	case params.ForgeEntityTypeRepository:
 		ret, err = g.repo.PingHook(ctx, g.entity.Owner, g.entity.Name, id)
-	case params.GithubEntityTypeOrganization:
+	case params.ForgeEntityTypeOrganization:
 		ret, err = g.org.PingHook(ctx, g.entity.Owner, id)
 	default:
 		return nil, errors.New("invalid entity type")
@@ -182,11 +194,11 @@ func (g *githubClient) ListEntityRunners(ctx context.Context, opts *github.ListR
 	}()
 
 	switch g.entity.EntityType {
-	case params.GithubEntityTypeRepository:
+	case params.ForgeEntityTypeRepository:
 		ret, response, err = g.ListRunners(ctx, g.entity.Owner, g.entity.Name, opts)
-	case params.GithubEntityTypeOrganization:
+	case params.ForgeEntityTypeOrganization:
 		ret, response, err = g.ListOrganizationRunners(ctx, g.entity.Owner, opts)
-	case params.GithubEntityTypeEnterprise:
+	case params.ForgeEntityTypeEnterprise:
 		ret, response, err = g.enterprise.ListRunners(ctx, g.entity.Owner, opts)
 	default:
 		return nil, nil, errors.New("invalid entity type")
@@ -214,11 +226,11 @@ func (g *githubClient) ListEntityRunnerApplicationDownloads(ctx context.Context)
 	}()
 
 	switch g.entity.EntityType {
-	case params.GithubEntityTypeRepository:
+	case params.ForgeEntityTypeRepository:
 		ret, response, err = g.ListRunnerApplicationDownloads(ctx, g.entity.Owner, g.entity.Name)
-	case params.GithubEntityTypeOrganization:
+	case params.ForgeEntityTypeOrganization:
 		ret, response, err = g.ListOrganizationRunnerApplicationDownloads(ctx, g.entity.Owner)
-	case params.GithubEntityTypeEnterprise:
+	case params.ForgeEntityTypeEnterprise:
 		ret, response, err = g.enterprise.ListRunnerApplicationDownloads(ctx, g.entity.Owner)
 	default:
 		return nil, nil, errors.New("invalid entity type")
@@ -228,6 +240,7 @@ func (g *githubClient) ListEntityRunnerApplicationDownloads(ctx context.Context)
 }
 
 func parseError(response *github.Response, err error) error {
+	slog.Debug("parsing error", "status_code", response.StatusCode, "response", response, "error", err)
 	switch response.StatusCode {
 	case http.StatusNotFound:
 		return runnerErrors.ErrNotFound
@@ -250,6 +263,10 @@ func parseError(response *github.Response, err error) error {
 				case http.StatusUnprocessableEntity:
 					return runnerErrors.ErrBadRequest
 				default:
+					// ugly hack. Gitea returns 500 if we try to remove a runner that does not exist.
+					if strings.Contains(err.Error(), "does not exist") {
+						return runnerErrors.ErrNotFound
+					}
 					return err
 				}
 			}
@@ -277,11 +294,11 @@ func (g *githubClient) RemoveEntityRunner(ctx context.Context, runnerID int64) e
 	}()
 
 	switch g.entity.EntityType {
-	case params.GithubEntityTypeRepository:
+	case params.ForgeEntityTypeRepository:
 		response, err = g.RemoveRunner(ctx, g.entity.Owner, g.entity.Name, runnerID)
-	case params.GithubEntityTypeOrganization:
+	case params.ForgeEntityTypeOrganization:
 		response, err = g.RemoveOrganizationRunner(ctx, g.entity.Owner, runnerID)
-	case params.GithubEntityTypeEnterprise:
+	case params.ForgeEntityTypeEnterprise:
 		response, err = g.enterprise.RemoveRunner(ctx, g.entity.Owner, runnerID)
 	default:
 		return errors.New("invalid entity type")
@@ -313,11 +330,11 @@ func (g *githubClient) CreateEntityRegistrationToken(ctx context.Context) (*gith
 	}()
 
 	switch g.entity.EntityType {
-	case params.GithubEntityTypeRepository:
+	case params.ForgeEntityTypeRepository:
 		ret, response, err = g.CreateRegistrationToken(ctx, g.entity.Owner, g.entity.Name)
-	case params.GithubEntityTypeOrganization:
+	case params.ForgeEntityTypeOrganization:
 		ret, response, err = g.CreateOrganizationRegistrationToken(ctx, g.entity.Owner)
-	case params.GithubEntityTypeEnterprise:
+	case params.ForgeEntityTypeEnterprise:
 		ret, response, err = g.enterprise.CreateRegistrationToken(ctx, g.entity.Owner)
 	default:
 		return nil, nil, errors.New("invalid entity type")
@@ -326,7 +343,7 @@ func (g *githubClient) CreateEntityRegistrationToken(ctx context.Context) (*gith
 	return ret, response, err
 }
 
-func (g *githubClient) getOrganizationRunnerGroupIDByName(ctx context.Context, entity params.GithubEntity, rgName string) (int64, error) {
+func (g *githubClient) getOrganizationRunnerGroupIDByName(ctx context.Context, entity params.ForgeEntity, rgName string) (int64, error) {
 	opts := github.ListOrgRunnerGroupOptions{
 		ListOptions: github.ListOptions{
 			PerPage: 100,
@@ -362,7 +379,7 @@ func (g *githubClient) getOrganizationRunnerGroupIDByName(ctx context.Context, e
 	return 0, runnerErrors.NewNotFoundError("runner group %s not found", rgName)
 }
 
-func (g *githubClient) getEnterpriseRunnerGroupIDByName(ctx context.Context, entity params.GithubEntity, rgName string) (int64, error) {
+func (g *githubClient) getEnterpriseRunnerGroupIDByName(ctx context.Context, entity params.ForgeEntity, rgName string) (int64, error) {
 	opts := github.ListEnterpriseRunnerGroupOptions{
 		ListOptions: github.ListOptions{
 			PerPage: 100,
@@ -405,9 +422,9 @@ func (g *githubClient) GetEntityJITConfig(ctx context.Context, instance string, 
 
 	if pool.GitHubRunnerGroup != "" {
 		switch g.entity.EntityType {
-		case params.GithubEntityTypeOrganization:
+		case params.ForgeEntityTypeOrganization:
 			rgID, err = g.getOrganizationRunnerGroupIDByName(ctx, g.entity, pool.GitHubRunnerGroup)
-		case params.GithubEntityTypeEnterprise:
+		case params.ForgeEntityTypeEnterprise:
 			rgID, err = g.getEnterpriseRunnerGroupIDByName(ctx, g.entity, pool.GitHubRunnerGroup)
 		}
 
@@ -434,11 +451,11 @@ func (g *githubClient) GetEntityJITConfig(ctx context.Context, instance string, 
 	var response *github.Response
 
 	switch g.entity.EntityType {
-	case params.GithubEntityTypeRepository:
+	case params.ForgeEntityTypeRepository:
 		ret, response, err = g.GenerateRepoJITConfig(ctx, g.entity.Owner, g.entity.Name, &req)
-	case params.GithubEntityTypeOrganization:
+	case params.ForgeEntityTypeOrganization:
 		ret, response, err = g.GenerateOrgJITConfig(ctx, g.entity.Owner, &req)
-	case params.GithubEntityTypeEnterprise:
+	case params.ForgeEntityTypeEnterprise:
 		ret, response, err = g.enterprise.GenerateEnterpriseJITConfig(ctx, g.entity.Owner, &req)
 	}
 	if err != nil {
@@ -476,13 +493,19 @@ func (g *githubClient) GetEntityJITConfig(ctx context.Context, instance string, 
 
 func (g *githubClient) RateLimit(ctx context.Context) (*github.RateLimits, error) {
 	limits, resp, err := g.rateLimit.Get(ctx)
+	if err != nil {
+		metrics.GithubOperationFailedCount.WithLabelValues(
+			"GetRateLimit",        // label: operation
+			g.entity.LabelScope(), // label: scope
+		).Inc()
+	}
 	if err := parseError(resp, err); err != nil {
 		return nil, fmt.Errorf("getting rate limit: %w", err)
 	}
 	return limits, nil
 }
 
-func (g *githubClient) GetEntity() params.GithubEntity {
+func (g *githubClient) GetEntity() params.ForgeEntity {
 	return g.entity
 }
 
@@ -490,7 +513,7 @@ func (g *githubClient) GithubBaseURL() *url.URL {
 	return g.cli.BaseURL
 }
 
-func NewRateLimitClient(ctx context.Context, credentials params.GithubCredentials) (common.RateLimitClient, error) {
+func NewRateLimitClient(ctx context.Context, credentials params.ForgeCredentials) (common.RateLimitClient, error) {
 	httpClient, err := credentials.GetHTTPClient(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching http client")
@@ -514,8 +537,36 @@ func NewRateLimitClient(ctx context.Context, credentials params.GithubCredential
 	return cli, nil
 }
 
-func Client(ctx context.Context, entity params.GithubEntity) (common.GithubClient, error) {
-	// func GithubClient(ctx context.Context, entity params.GithubEntity) (common.GithubClient, error) {
+func withGiteaURLs(client *github.Client, apiBaseURL string) (*github.Client, error) {
+	if client == nil {
+		return nil, errors.New("client is nil")
+	}
+
+	if apiBaseURL == "" {
+		return nil, errors.New("invalid gitea URLs")
+	}
+
+	parsedBaseURL, err := url.ParseRequestURI(apiBaseURL)
+	if err != nil {
+		return nil, errors.Wrap(err, "parsing gitea base URL")
+	}
+
+	if !strings.HasSuffix(parsedBaseURL.Path, "/") {
+		parsedBaseURL.Path += "/"
+	}
+
+	if !strings.HasSuffix(parsedBaseURL.Path, "/api/v1/") {
+		parsedBaseURL.Path += "api/v1/"
+	}
+
+	client.BaseURL = parsedBaseURL
+	client.UploadURL = parsedBaseURL
+
+	return client, nil
+}
+
+func Client(ctx context.Context, entity params.ForgeEntity) (common.GithubClient, error) {
+	// func GithubClient(ctx context.Context, entity params.ForgeEntity) (common.GithubClient, error) {
 	httpClient, err := entity.Credentials.GetHTTPClient(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching http client")
@@ -526,8 +577,14 @@ func Client(ctx context.Context, entity params.GithubEntity) (common.GithubClien
 		"entity", entity.String(), "base_url", entity.Credentials.APIBaseURL,
 		"upload_url", entity.Credentials.UploadBaseURL)
 
-	ghClient, err := github.NewClient(httpClient).WithEnterpriseURLs(
-		entity.Credentials.APIBaseURL, entity.Credentials.UploadBaseURL)
+	ghClient := github.NewClient(httpClient)
+	switch entity.Credentials.ForgeType {
+	case params.GithubEndpointType:
+		ghClient, err = ghClient.WithEnterpriseURLs(entity.Credentials.APIBaseURL, entity.Credentials.UploadBaseURL)
+	case params.GiteaEndpointType:
+		ghClient, err = withGiteaURLs(ghClient, entity.Credentials.APIBaseURL)
+	}
+
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching github client")
 	}

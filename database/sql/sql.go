@@ -299,7 +299,7 @@ func (s *sqlDatabase) migrateCredentialsToDB() (err error) {
 			CACertBundle:  certBundle,
 		}
 
-		var endpoint params.GithubEndpoint
+		var endpoint params.ForgeEndpoint
 		endpoint, err = s.GetGithubEndpoint(adminCtx, hostname)
 		if err != nil {
 			if !errors.Is(err, runnerErrors.ErrNotFound) {
@@ -315,10 +315,10 @@ func (s *sqlDatabase) migrateCredentialsToDB() (err error) {
 			Name:        cred.Name,
 			Description: cred.Description,
 			Endpoint:    endpoint.Name,
-			AuthType:    params.GithubAuthType(cred.GetAuthType()),
+			AuthType:    params.ForgeAuthType(cred.GetAuthType()),
 		}
 		switch credParams.AuthType {
-		case params.GithubAuthTypeApp:
+		case params.ForgeAuthTypeApp:
 			keyBytes, err := cred.App.PrivateKeyBytes()
 			if err != nil {
 				return errors.Wrap(err, "getting private key bytes")
@@ -332,7 +332,7 @@ func (s *sqlDatabase) migrateCredentialsToDB() (err error) {
 			if err := credParams.App.Validate(); err != nil {
 				return errors.Wrap(err, "validating app credentials")
 			}
-		case params.GithubAuthTypePAT:
+		case params.ForgeAuthTypePAT:
 			token := cred.PAT.OAuth2Token
 			if token == "" {
 				token = cred.OAuth2Token
@@ -409,6 +409,17 @@ func (s *sqlDatabase) migrateDB() error {
 		}
 	}
 
+	if s.conn.Migrator().HasTable(&GithubEndpoint{}) {
+		if !s.conn.Migrator().HasColumn(&GithubEndpoint{}, "endpoint_type") {
+			if err := s.conn.Migrator().AutoMigrate(&GithubEndpoint{}); err != nil {
+				return errors.Wrap(err, "migrating github endpoints")
+			}
+			if err := s.conn.Exec("update github_endpoints set endpoint_type = 'github' where endpoint_type is null").Error; err != nil {
+				return errors.Wrap(err, "updating github endpoints")
+			}
+		}
+	}
+
 	var needsCredentialMigration bool
 	if !s.conn.Migrator().HasTable(&GithubCredentials{}) || !s.conn.Migrator().HasTable(&GithubEndpoint{}) {
 		needsCredentialMigration = true
@@ -424,6 +435,7 @@ func (s *sqlDatabase) migrateDB() error {
 		&User{},
 		&GithubEndpoint{},
 		&GithubCredentials{},
+		&GiteaCredentials{},
 		&Tag{},
 		&Pool{},
 		&Repository{},

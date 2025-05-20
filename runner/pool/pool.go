@@ -47,15 +47,15 @@ import (
 )
 
 var (
-	poolIDLabelprefix     = "runner-pool-id:"
-	controllerLabelPrefix = "runner-controller-id:"
+	poolIDLabelprefix     = "runner-pool-id"
+	controllerLabelPrefix = "runner-controller-id"
 	// We tag runners that have been spawned as a result of a queued job with the job ID
 	// that spawned them. There is no way to guarantee that the runner spawned in response to a particular
 	// job, will be picked up by that job. We mark them so as in the very likely event that the runner
 	// has picked up a different job, we can clear the lock on the job that spaned it.
 	// The job it picked up would already be transitioned to in_progress so it will be ignored by the
 	// consume loop.
-	jobLabelPrefix = "in_response_to_job:"
+	jobLabelPrefix = "in_response_to_job"
 )
 
 const (
@@ -67,7 +67,7 @@ const (
 	maxCreateAttempts = 5
 )
 
-func NewEntityPoolManager(ctx context.Context, entity params.GithubEntity, instanceTokenGetter auth.InstanceTokenGetter, providers map[string]common.Provider, store dbCommon.Store) (common.PoolManager, error) {
+func NewEntityPoolManager(ctx context.Context, entity params.ForgeEntity, instanceTokenGetter auth.InstanceTokenGetter, providers map[string]common.Provider, store dbCommon.Store) (common.PoolManager, error) {
 	ctx = garmUtil.WithSlogContext(ctx, slog.Any("pool_mgr", entity.String()), slog.Any("pool_type", entity.EntityType))
 	ghc, err := ghClient.Client(ctx, entity)
 	if err != nil {
@@ -120,7 +120,7 @@ func NewEntityPoolManager(ctx context.Context, entity params.GithubEntity, insta
 type basePoolManager struct {
 	ctx                 context.Context
 	consumerID          string
-	entity              params.GithubEntity
+	entity              params.ForgeEntity
 	ghcli               common.GithubClient
 	controllerInfo      params.ControllerInfo
 	instanceTokenGetter auth.InstanceTokenGetter
@@ -152,6 +152,7 @@ func (r *basePoolManager) getProviderBaseParams(pool params.Pool) common.Provide
 
 func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 	if err := r.ValidateOwner(job); err != nil {
+		slog.ErrorContext(r.ctx, "failed to validate owner", "error", err)
 		return errors.Wrap(err, "validating owner")
 	}
 
@@ -164,6 +165,7 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 
 	jobParams, err := r.paramsWorkflowJobToParamsJob(job)
 	if err != nil {
+		slog.ErrorContext(r.ctx, "failed to convert job to params", "error", err)
 		return errors.Wrap(err, "converting job to params")
 	}
 
@@ -296,7 +298,8 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 func jobIDFromLabels(labels []string) int64 {
 	for _, lbl := range labels {
 		if strings.HasPrefix(lbl, jobLabelPrefix) {
-			jobID, err := strconv.ParseInt(lbl[len(jobLabelPrefix):], 10, 64)
+			trimLength := min(len(jobLabelPrefix)+1, len(lbl))
+			jobID, err := strconv.ParseInt(lbl[trimLength:], 10, 64)
 			if err != nil {
 				return 0
 			}
@@ -361,21 +364,21 @@ func (r *basePoolManager) startLoopForFunction(f func() error, interval time.Dur
 }
 
 func (r *basePoolManager) updateTools() error {
-	// Update tools cache.
-	tools, err := r.FetchTools()
+	tools, err := cache.GetGithubToolsCache(r.entity.ID)
 	if err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(
 			r.ctx, "failed to update tools for entity", "entity", r.entity.String())
 		r.SetPoolRunningState(false, err.Error())
 		return fmt.Errorf("failed to update tools for entity %s: %w", r.entity.String(), err)
 	}
+
 	r.mux.Lock()
 	r.tools = tools
 	r.mux.Unlock()
 
 	slog.DebugContext(r.ctx, "successfully updated tools")
 	r.SetPoolRunningState(true, "")
-	return err
+	return nil
 }
 
 // cleanupOrphanedProviderRunners compares runners in github with local runners and removes
@@ -866,8 +869,7 @@ func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error 
 
 	jwtValidity := pool.RunnerTimeout()
 
-	entity := r.entity.String()
-	jwtToken, err := r.instanceTokenGetter.NewInstanceJWTToken(instance, entity, pool.PoolType(), jwtValidity)
+	jwtToken, err := r.instanceTokenGetter.NewInstanceJWTToken(instance, r.entity, pool.PoolType(), jwtValidity)
 	if err != nil {
 		return errors.Wrap(err, "fetching instance jwt token")
 	}
@@ -877,7 +879,7 @@ func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error 
 	bootstrapArgs := commonParams.BootstrapInstance{
 		Name:              instance.Name,
 		Tools:             r.tools,
-		RepoURL:           r.entity.GithubURL(),
+		RepoURL:           r.entity.ForgeURL(),
 		MetadataURL:       instance.MetadataURL,
 		CallbackURL:       instance.CallbackURL,
 		InstanceToken:     jwtToken,
@@ -981,11 +983,11 @@ func (r *basePoolManager) paramsWorkflowJobToParamsJob(job params.WorkflowJob) (
 	}
 
 	switch r.entity.EntityType {
-	case params.GithubEntityTypeEnterprise:
+	case params.ForgeEntityTypeEnterprise:
 		jobParams.EnterpriseID = &asUUID
-	case params.GithubEntityTypeRepository:
+	case params.ForgeEntityTypeRepository:
 		jobParams.RepoID = &asUUID
-	case params.GithubEntityTypeOrganization:
+	case params.ForgeEntityTypeOrganization:
 		jobParams.OrgID = &asUUID
 	default:
 		return jobParams, errors.Errorf("unknown pool type: %s", r.entity.EntityType)
@@ -995,11 +997,11 @@ func (r *basePoolManager) paramsWorkflowJobToParamsJob(job params.WorkflowJob) (
 }
 
 func (r *basePoolManager) poolLabel(poolID string) string {
-	return fmt.Sprintf("%s%s", poolIDLabelprefix, poolID)
+	return fmt.Sprintf("%s=%s", poolIDLabelprefix, poolID)
 }
 
 func (r *basePoolManager) controllerLabel() string {
-	return fmt.Sprintf("%s%s", controllerLabelPrefix, r.controllerInfo.ControllerID.String())
+	return fmt.Sprintf("%s=%s", controllerLabelPrefix, r.controllerInfo.ControllerID.String())
 }
 
 func (r *basePoolManager) updateArgsFromProviderInstance(providerInstance commonParams.ProviderInstance) params.UpdateInstanceParams {
@@ -1366,6 +1368,19 @@ func (r *basePoolManager) deleteInstanceFromProvider(ctx context.Context, instan
 	return nil
 }
 
+func (r *basePoolManager) sleepWithCancel(sleepTime time.Duration) (canceled bool) {
+	ticker := time.NewTicker(sleepTime)
+	defer ticker.Stop()
+
+	select {
+	case <-ticker.C:
+		return false
+	case <-r.quit:
+	case <-r.ctx.Done():
+	}
+	return true
+}
+
 func (r *basePoolManager) deletePendingInstances() error {
 	instances, err := r.store.ListEntityInstances(r.ctx, r.entity)
 	if err != nil {
@@ -1414,7 +1429,9 @@ func (r *basePoolManager) deletePendingInstances() error {
 				return fmt.Errorf("failed to generate random number: %w", err)
 			}
 			jitter := time.Duration(num.Int64()) * time.Millisecond
-			time.Sleep(jitter)
+			if canceled := r.sleepWithCancel(jitter); canceled {
+				return nil
+			}
 
 			currentStatus := instance.Status
 			deleteMux := false
@@ -1598,6 +1615,16 @@ func (r *basePoolManager) Start() error {
 	initialToolUpdate := make(chan struct{}, 1)
 	go func() {
 		slog.Info("running initial tool update")
+		for {
+			slog.DebugContext(r.ctx, "waiting for tools to be available")
+			hasTools, stopped := r.waitForToolsOrCancel()
+			if stopped {
+				return
+			}
+			if hasTools {
+				break
+			}
+		}
 		if err := r.updateTools(); err != nil {
 			slog.With(slog.Any("error", err)).Error("failed to update tools")
 		}
@@ -1789,7 +1816,7 @@ func (r *basePoolManager) consumeQueuedJobs() error {
 		}
 
 		jobLabels := []string{
-			fmt.Sprintf("%s%d", jobLabelPrefix, job.ID),
+			fmt.Sprintf("%s=%d", jobLabelPrefix, job.ID),
 		}
 		for i := 0; i < poolRR.Len(); i++ {
 			pool, err := poolRR.Next()
@@ -1931,15 +1958,15 @@ func (r *basePoolManager) InstallWebhook(ctx context.Context, param params.Insta
 
 func (r *basePoolManager) ValidateOwner(job params.WorkflowJob) error {
 	switch r.entity.EntityType {
-	case params.GithubEntityTypeRepository:
+	case params.ForgeEntityTypeRepository:
 		if !strings.EqualFold(job.Repository.Name, r.entity.Name) || !strings.EqualFold(job.Repository.Owner.Login, r.entity.Owner) {
 			return runnerErrors.NewBadRequestError("job not meant for this pool manager")
 		}
-	case params.GithubEntityTypeOrganization:
-		if !strings.EqualFold(job.Organization.Login, r.entity.Owner) {
+	case params.ForgeEntityTypeOrganization:
+		if !strings.EqualFold(job.GetOrgName(r.entity.Credentials.ForgeType), r.entity.Owner) {
 			return runnerErrors.NewBadRequestError("job not meant for this pool manager")
 		}
-	case params.GithubEntityTypeEnterprise:
+	case params.ForgeEntityTypeEnterprise:
 		if !strings.EqualFold(job.Enterprise.Slug, r.entity.Owner) {
 			return runnerErrors.NewBadRequestError("job not meant for this pool manager")
 		}

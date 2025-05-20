@@ -84,7 +84,7 @@ func (s *InstancesTestSuite) SetupTest() {
 	creds := garmTesting.CreateTestGithubCredentials(adminCtx, "new-creds", db, s.T(), githubEndpoint)
 
 	// create an organization for testing purposes
-	org, err := s.Store.CreateOrganization(s.adminCtx, "test-org", creds.Name, "test-webhookSecret", params.PoolBalancerTypeRoundRobin)
+	org, err := s.Store.CreateOrganization(s.adminCtx, "test-org", creds, "test-webhookSecret", params.PoolBalancerTypeRoundRobin)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to create org: %s", err))
 	}

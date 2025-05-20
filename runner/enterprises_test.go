@@ -39,7 +39,7 @@ type EnterpriseTestFixtures struct {
 	Store                  dbCommon.Store
 	StoreEnterprises       map[string]params.Enterprise
 	Providers              map[string]common.Provider
-	Credentials            map[string]params.GithubCredentials
+	Credentials            map[string]params.ForgeCredentials
 	CreateEnterpriseParams params.CreateEnterpriseParams
 	CreatePoolParams       params.CreatePoolParams
 	CreateInstanceParams   params.CreateInstanceParams
@@ -56,9 +56,9 @@ type EnterpriseTestSuite struct {
 	Fixtures *EnterpriseTestFixtures
 	Runner   *Runner
 
-	testCreds          params.GithubCredentials
-	secondaryTestCreds params.GithubCredentials
-	githubEndpoint     params.GithubEndpoint
+	testCreds          params.ForgeCredentials
+	secondaryTestCreds params.ForgeCredentials
+	forgeEndpoint      params.ForgeEndpoint
 }
 
 func (s *EnterpriseTestSuite) SetupTest() {
@@ -70,9 +70,9 @@ func (s *EnterpriseTestSuite) SetupTest() {
 	}
 
 	adminCtx := garmTesting.ImpersonateAdminContext(context.Background(), db, s.T())
-	s.githubEndpoint = garmTesting.CreateDefaultGithubEndpoint(adminCtx, db, s.T())
-	s.testCreds = garmTesting.CreateTestGithubCredentials(adminCtx, "new-creds", db, s.T(), s.githubEndpoint)
-	s.secondaryTestCreds = garmTesting.CreateTestGithubCredentials(adminCtx, "secondary-creds", db, s.T(), s.githubEndpoint)
+	s.forgeEndpoint = garmTesting.CreateDefaultGithubEndpoint(adminCtx, db, s.T())
+	s.testCreds = garmTesting.CreateTestGithubCredentials(adminCtx, "new-creds", db, s.T(), s.forgeEndpoint)
+	s.secondaryTestCreds = garmTesting.CreateTestGithubCredentials(adminCtx, "secondary-creds", db, s.T(), s.forgeEndpoint)
 
 	// create some organization objects in the database, for testing purposes
 	enterprises := map[string]params.Enterprise{}
@@ -81,7 +81,7 @@ func (s *EnterpriseTestSuite) SetupTest() {
 		enterprise, err := db.CreateEnterprise(
 			adminCtx,
 			name,
-			s.testCreds.Name,
+			s.testCreds,
 			fmt.Sprintf("test-webhook-secret-%v", i),
 			params.PoolBalancerTypeRoundRobin,
 		)
@@ -103,7 +103,7 @@ func (s *EnterpriseTestSuite) SetupTest() {
 		Providers: map[string]common.Provider{
 			"test-provider": providerMock,
 		},
-		Credentials: map[string]params.GithubCredentials{
+		Credentials: map[string]params.ForgeCredentials{
 			s.testCreds.Name:          s.testCreds,
 			s.secondaryTestCreds.Name: s.secondaryTestCreds,
 		},
@@ -270,9 +270,9 @@ func (s *EnterpriseTestSuite) TestDeleteEnterpriseErrUnauthorized() {
 }
 
 func (s *EnterpriseTestSuite) TestDeleteEnterprisePoolDefinedFailed() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         s.Fixtures.StoreEnterprises["test-enterprise-1"].ID,
-		EntityType: params.GithubEntityTypeEnterprise,
+		EntityType: params.ForgeEntityTypeEnterprise,
 	}
 	pool, err := s.Fixtures.Store.CreateEntityPool(s.Fixtures.AdminContext, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
@@ -377,9 +377,9 @@ func (s *EnterpriseTestSuite) TestCreateEnterprisePoolFetchPoolParamsFailed() {
 }
 
 func (s *EnterpriseTestSuite) TestGetEnterprisePoolByID() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         s.Fixtures.StoreEnterprises["test-enterprise-1"].ID,
-		EntityType: params.GithubEntityTypeEnterprise,
+		EntityType: params.ForgeEntityTypeEnterprise,
 	}
 	enterprisePool, err := s.Fixtures.Store.CreateEntityPool(s.Fixtures.AdminContext, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
@@ -399,9 +399,9 @@ func (s *EnterpriseTestSuite) TestGetEnterprisePoolByIDErrUnauthorized() {
 }
 
 func (s *EnterpriseTestSuite) TestDeleteEnterprisePool() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         s.Fixtures.StoreEnterprises["test-enterprise-1"].ID,
-		EntityType: params.GithubEntityTypeEnterprise,
+		EntityType: params.ForgeEntityTypeEnterprise,
 	}
 	pool, err := s.Fixtures.Store.CreateEntityPool(s.Fixtures.AdminContext, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
@@ -423,9 +423,9 @@ func (s *EnterpriseTestSuite) TestDeleteEnterprisePoolErrUnauthorized() {
 }
 
 func (s *EnterpriseTestSuite) TestDeleteEnterprisePoolRunnersFailed() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         s.Fixtures.StoreEnterprises["test-enterprise-1"].ID,
-		EntityType: params.GithubEntityTypeEnterprise,
+		EntityType: params.ForgeEntityTypeEnterprise,
 	}
 	pool, err := s.Fixtures.Store.CreateEntityPool(s.Fixtures.AdminContext, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
@@ -442,9 +442,9 @@ func (s *EnterpriseTestSuite) TestDeleteEnterprisePoolRunnersFailed() {
 }
 
 func (s *EnterpriseTestSuite) TestListEnterprisePools() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         s.Fixtures.StoreEnterprises["test-enterprise-1"].ID,
-		EntityType: params.GithubEntityTypeEnterprise,
+		EntityType: params.ForgeEntityTypeEnterprise,
 	}
 	enterprisePools := []params.Pool{}
 	for i := 1; i <= 2; i++ {
@@ -469,9 +469,9 @@ func (s *EnterpriseTestSuite) TestListOrgPoolsErrUnauthorized() {
 }
 
 func (s *EnterpriseTestSuite) TestUpdateEnterprisePool() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         s.Fixtures.StoreEnterprises["test-enterprise-1"].ID,
-		EntityType: params.GithubEntityTypeEnterprise,
+		EntityType: params.ForgeEntityTypeEnterprise,
 	}
 	enterprisePool, err := s.Fixtures.Store.CreateEntityPool(s.Fixtures.AdminContext, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
@@ -492,9 +492,9 @@ func (s *EnterpriseTestSuite) TestUpdateEnterprisePoolErrUnauthorized() {
 }
 
 func (s *EnterpriseTestSuite) TestUpdateEnterprisePoolMinIdleGreaterThanMax() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         s.Fixtures.StoreEnterprises["test-enterprise-1"].ID,
-		EntityType: params.GithubEntityTypeEnterprise,
+		EntityType: params.ForgeEntityTypeEnterprise,
 	}
 	pool, err := s.Fixtures.Store.CreateEntityPool(s.Fixtures.AdminContext, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {
@@ -511,9 +511,9 @@ func (s *EnterpriseTestSuite) TestUpdateEnterprisePoolMinIdleGreaterThanMax() {
 }
 
 func (s *EnterpriseTestSuite) TestListEnterpriseInstances() {
-	entity := params.GithubEntity{
+	entity := params.ForgeEntity{
 		ID:         s.Fixtures.StoreEnterprises["test-enterprise-1"].ID,
-		EntityType: params.GithubEntityTypeEnterprise,
+		EntityType: params.ForgeEntityTypeEnterprise,
 	}
 	pool, err := s.Fixtures.Store.CreateEntityPool(s.Fixtures.AdminContext, entity, s.Fixtures.CreatePoolParams)
 	if err != nil {

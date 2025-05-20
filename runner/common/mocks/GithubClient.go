@@ -118,18 +118,18 @@ func (_m *GithubClient) DeleteEntityHook(ctx context.Context, id int64) (*github
 }
 
 // GetEntity provides a mock function with no fields
-func (_m *GithubClient) GetEntity() params.GithubEntity {
+func (_m *GithubClient) GetEntity() params.ForgeEntity {
 	ret := _m.Called()
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetEntity")
 	}
 
-	var r0 params.GithubEntity
-	if rf, ok := ret.Get(0).(func() params.GithubEntity); ok {
+	var r0 params.ForgeEntity
+	if rf, ok := ret.Get(0).(func() params.ForgeEntity); ok {
 		r0 = rf()
 	} else {
-		r0 = ret.Get(0).(params.GithubEntity)
+		r0 = ret.Get(0).(params.ForgeEntity)
 	}
 
 	return r0
@@ -342,7 +342,7 @@ func (_m *GithubClient) ListEntityRunnerApplicationDownloads(ctx context.Context
 }
 
 // ListEntityRunners provides a mock function with given fields: ctx, opts
-func (_m *GithubClient) ListEntityRunners(ctx context.Context, opts *github.ListOptions) (*github.Runners, *github.Response, error) {
+func (_m *GithubClient) ListEntityRunners(ctx context.Context, opts *github.ListRunnersOptions) (*github.Runners, *github.Response, error) {
 	ret := _m.Called(ctx, opts)
 
 	if len(ret) == 0 {
@@ -352,10 +352,10 @@ func (_m *GithubClient) ListEntityRunners(ctx context.Context, opts *github.List
 	var r0 *github.Runners
 	var r1 *github.Response
 	var r2 error
-	if rf, ok := ret.Get(0).(func(context.Context, *github.ListOptions) (*github.Runners, *github.Response, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *github.ListRunnersOptions) (*github.Runners, *github.Response, error)); ok {
 		return rf(ctx, opts)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *github.ListOptions) *github.Runners); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *github.ListRunnersOptions) *github.Runners); ok {
 		r0 = rf(ctx, opts)
 	} else {
 		if ret.Get(0) != nil {
@@ -363,7 +363,7 @@ func (_m *GithubClient) ListEntityRunners(ctx context.Context, opts *github.List
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *github.ListOptions) *github.Response); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *github.ListRunnersOptions) *github.Response); ok {
 		r1 = rf(ctx, opts)
 	} else {
 		if ret.Get(1) != nil {
@@ -371,7 +371,7 @@ func (_m *GithubClient) ListEntityRunners(ctx context.Context, opts *github.List
 		}
 	}
 
-	if rf, ok := ret.Get(2).(func(context.Context, *github.ListOptions) error); ok {
+	if rf, ok := ret.Get(2).(func(context.Context, *github.ListRunnersOptions) error); ok {
 		r2 = rf(ctx, opts)
 	} else {
 		r2 = ret.Error(2)
@@ -403,6 +403,36 @@ func (_m *GithubClient) PingEntityHook(ctx context.Context, id int64) (*github.R
 
 	if rf, ok := ret.Get(1).(func(context.Context, int64) error); ok {
 		r1 = rf(ctx, id)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// RateLimit provides a mock function with given fields: ctx
+func (_m *GithubClient) RateLimit(ctx context.Context) (*github.RateLimits, error) {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RateLimit")
+	}
+
+	var r0 *github.RateLimits
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context) (*github.RateLimits, error)); ok {
+		return rf(ctx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context) *github.RateLimits); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*github.RateLimits)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}

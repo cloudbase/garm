@@ -1,6 +1,19 @@
 //go:build integration
 // +build integration
 
+// Copyright 2025 Cloudbase Solutions SRL
+//
+//	Licensed under the Apache License, Version 2.0 (the "License"); you may
+//	not use this file except in compliance with the License. You may obtain
+//	a copy of the License at
+//
+//	     http://www.apache.org/licenses/LICENSE-2.0
+//
+//	Unless required by applicable law or agreed to in writing, software
+//	distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+//	WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+//	License for the specific language governing permissions and limitations
+//	under the License.
 package integration
 
 import (
@@ -25,7 +38,7 @@ func (suite *GarmSuite) TestGithubCredentialsErrorOnDuplicateCredentialsName() {
 		Name:        dummyCredentialsName,
 		Endpoint:    defaultEndpointName,
 		Description: "GARM test credentials",
-		AuthType:    params.GithubAuthTypePAT,
+		AuthType:    params.ForgeAuthTypePAT,
 		PAT: params.GithubPAT{
 			OAuth2Token: "dummy",
 		},
@@ -68,7 +81,7 @@ func (suite *GarmSuite) TestGithubCredentialsFailsOnInvalidAuthType() {
 		Name:        dummyCredentialsName,
 		Endpoint:    defaultEndpointName,
 		Description: "GARM test credentials",
-		AuthType:    params.GithubAuthType("invalid"),
+		AuthType:    params.ForgeAuthType("invalid"),
 		PAT: params.GithubPAT{
 			OAuth2Token: "dummy",
 		},
@@ -87,7 +100,7 @@ func (suite *GarmSuite) TestGithubCredentialsFailsWhenAuthTypeParamsAreIncorrect
 		Name:        dummyCredentialsName,
 		Endpoint:    defaultEndpointName,
 		Description: "GARM test credentials",
-		AuthType:    params.GithubAuthTypePAT,
+		AuthType:    params.ForgeAuthTypePAT,
 		App: params.GithubApp{
 			AppID:           123,
 			InstallationID:  456,
@@ -107,7 +120,7 @@ func (suite *GarmSuite) TestGithubCredentialsFailsWhenAuthTypeParamsAreMissing()
 		Name:        dummyCredentialsName,
 		Endpoint:    defaultEndpointName,
 		Description: "GARM test credentials",
-		AuthType:    params.GithubAuthTypeApp,
+		AuthType:    params.ForgeAuthTypeApp,
 	}
 	_, err := createGithubCredentials(suite.cli, suite.authToken, createCredsParams)
 	suite.Error(err, "expected error when creating credentials with missing auth type params")
@@ -147,7 +160,7 @@ func (suite *GarmSuite) TestGithubCredentialsFailWhenAppKeyIsInvalid() {
 		Name:        dummyCredentialsName,
 		Endpoint:    defaultEndpointName,
 		Description: "GARM test credentials",
-		AuthType:    params.GithubAuthTypeApp,
+		AuthType:    params.ForgeAuthTypeApp,
 		App: params.GithubApp{
 			AppID:           123,
 			InstallationID:  456,
@@ -166,7 +179,7 @@ func (suite *GarmSuite) TestGithubCredentialsFailWhenEndpointDoesntExist() {
 		Name:        dummyCredentialsName,
 		Endpoint:    "iDontExist.example.com",
 		Description: "GARM test credentials",
-		AuthType:    params.GithubAuthTypePAT,
+		AuthType:    params.ForgeAuthTypePAT,
 		PAT: params.GithubPAT{
 			OAuth2Token: "dummy",
 		},
@@ -189,7 +202,7 @@ func (suite *GarmSuite) TestGithubCredentialsFailsOnDuplicateName() {
 		Name:        dummyCredentialsName,
 		Endpoint:    defaultEndpointName,
 		Description: "GARM test credentials",
-		AuthType:    params.GithubAuthTypePAT,
+		AuthType:    params.ForgeAuthTypePAT,
 		PAT: params.GithubPAT{
 			OAuth2Token: "dummy",
 		},
@@ -199,12 +212,12 @@ func (suite *GarmSuite) TestGithubCredentialsFailsOnDuplicateName() {
 	expectAPIStatusCode(err, 409)
 }
 
-func (suite *GarmSuite) createDummyCredentials(name, endpointName string) (*params.GithubCredentials, error) {
+func (suite *GarmSuite) createDummyCredentials(name, endpointName string) (*params.ForgeCredentials, error) {
 	createCredsParams := params.CreateGithubCredentialsParams{
 		Name:        name,
 		Endpoint:    endpointName,
 		Description: "GARM test credentials",
-		AuthType:    params.GithubAuthTypePAT,
+		AuthType:    params.ForgeAuthTypePAT,
 		PAT: params.GithubPAT{
 			OAuth2Token: "dummy",
 		},
@@ -212,7 +225,7 @@ func (suite *GarmSuite) createDummyCredentials(name, endpointName string) (*para
 	return suite.CreateGithubCredentials(createCredsParams)
 }
 
-func (suite *GarmSuite) CreateGithubCredentials(credentialsParams params.CreateGithubCredentialsParams) (*params.GithubCredentials, error) {
+func (suite *GarmSuite) CreateGithubCredentials(credentialsParams params.CreateGithubCredentialsParams) (*params.ForgeCredentials, error) {
 	t := suite.T()
 	t.Log("Create GitHub credentials")
 	credentials, err := createGithubCredentials(suite.cli, suite.authToken, credentialsParams)

@@ -21,24 +21,24 @@ import (
 )
 
 type GithubEndpointStore interface {
-	CreateGithubEndpoint(ctx context.Context, param params.CreateGithubEndpointParams) (params.GithubEndpoint, error)
-	GetGithubEndpoint(ctx context.Context, name string) (params.GithubEndpoint, error)
-	ListGithubEndpoints(ctx context.Context) ([]params.GithubEndpoint, error)
-	UpdateGithubEndpoint(ctx context.Context, name string, param params.UpdateGithubEndpointParams) (params.GithubEndpoint, error)
+	CreateGithubEndpoint(ctx context.Context, param params.CreateGithubEndpointParams) (params.ForgeEndpoint, error)
+	GetGithubEndpoint(ctx context.Context, name string) (params.ForgeEndpoint, error)
+	ListGithubEndpoints(ctx context.Context) ([]params.ForgeEndpoint, error)
+	UpdateGithubEndpoint(ctx context.Context, name string, param params.UpdateGithubEndpointParams) (params.ForgeEndpoint, error)
 	DeleteGithubEndpoint(ctx context.Context, name string) error
 }
 
 type GithubCredentialsStore interface {
-	CreateGithubCredentials(ctx context.Context, param params.CreateGithubCredentialsParams) (params.GithubCredentials, error)
-	GetGithubCredentials(ctx context.Context, id uint, detailed bool) (params.GithubCredentials, error)
-	GetGithubCredentialsByName(ctx context.Context, name string, detailed bool) (params.GithubCredentials, error)
-	ListGithubCredentials(ctx context.Context) ([]params.GithubCredentials, error)
-	UpdateGithubCredentials(ctx context.Context, id uint, param params.UpdateGithubCredentialsParams) (params.GithubCredentials, error)
+	CreateGithubCredentials(ctx context.Context, param params.CreateGithubCredentialsParams) (params.ForgeCredentials, error)
+	GetGithubCredentials(ctx context.Context, id uint, detailed bool) (params.ForgeCredentials, error)
+	GetGithubCredentialsByName(ctx context.Context, name string, detailed bool) (params.ForgeCredentials, error)
+	ListGithubCredentials(ctx context.Context) ([]params.ForgeCredentials, error)
+	UpdateGithubCredentials(ctx context.Context, id uint, param params.UpdateGithubCredentialsParams) (params.ForgeCredentials, error)
 	DeleteGithubCredentials(ctx context.Context, id uint) error
 }
 
 type RepoStore interface {
-	CreateRepository(ctx context.Context, owner, name, credentialsName, webhookSecret string, poolBalancerType params.PoolBalancerType) (params.Repository, error)
+	CreateRepository(ctx context.Context, owner, name string, credentials params.ForgeCredentials, webhookSecret string, poolBalancerType params.PoolBalancerType) (param params.Repository, err error)
 	GetRepository(ctx context.Context, owner, name, endpointName string) (params.Repository, error)
 	GetRepositoryByID(ctx context.Context, repoID string) (params.Repository, error)
 	ListRepositories(ctx context.Context) ([]params.Repository, error)
@@ -47,7 +47,7 @@ type RepoStore interface {
 }
 
 type OrgStore interface {
-	CreateOrganization(ctx context.Context, name, credentialsName, webhookSecret string, poolBalancerType params.PoolBalancerType) (params.Organization, error)
+	CreateOrganization(ctx context.Context, name string, credentials params.ForgeCredentials, webhookSecret string, poolBalancerType params.PoolBalancerType) (org params.Organization, err error)
 	GetOrganization(ctx context.Context, name, endpointName string) (params.Organization, error)
 	GetOrganizationByID(ctx context.Context, orgID string) (params.Organization, error)
 	ListOrganizations(ctx context.Context) ([]params.Organization, error)
@@ -56,7 +56,7 @@ type OrgStore interface {
 }
 
 type EnterpriseStore interface {
-	CreateEnterprise(ctx context.Context, name, credentialsName, webhookSecret string, poolBalancerType params.PoolBalancerType) (params.Enterprise, error)
+	CreateEnterprise(ctx context.Context, name string, credentialsName params.ForgeCredentials, webhookSecret string, poolBalancerType params.PoolBalancerType) (params.Enterprise, error)
 	GetEnterprise(ctx context.Context, name, endpointName string) (params.Enterprise, error)
 	GetEnterpriseByID(ctx context.Context, enterpriseID string) (params.Enterprise, error)
 	ListEnterprises(ctx context.Context) ([]params.Enterprise, error)
@@ -76,7 +76,7 @@ type PoolStore interface {
 
 	PoolInstanceCount(ctx context.Context, poolID string) (int64, error)
 	GetPoolInstanceByName(ctx context.Context, poolID string, instanceName string) (params.Instance, error)
-	FindPoolsMatchingAllTags(ctx context.Context, entityType params.GithubEntityType, entityID string, tags []string) ([]params.Pool, error)
+	FindPoolsMatchingAllTags(ctx context.Context, entityType params.ForgeEntityType, entityID string, tags []string) ([]params.Pool, error)
 }
 
 type UserStore interface {
@@ -107,7 +107,7 @@ type InstanceStore interface {
 
 type JobsStore interface {
 	CreateOrUpdateJob(ctx context.Context, job params.Job) (params.Job, error)
-	ListEntityJobsByStatus(ctx context.Context, entityType params.GithubEntityType, entityID string, status params.JobStatus) ([]params.Job, error)
+	ListEntityJobsByStatus(ctx context.Context, entityType params.ForgeEntityType, entityID string, status params.JobStatus) ([]params.Job, error)
 	ListJobsByStatus(ctx context.Context, status params.JobStatus) ([]params.Job, error)
 	ListAllJobs(ctx context.Context) ([]params.Job, error)
 
@@ -121,13 +121,13 @@ type JobsStore interface {
 }
 
 type EntityPoolStore interface {
-	CreateEntityPool(ctx context.Context, entity params.GithubEntity, param params.CreatePoolParams) (params.Pool, error)
-	GetEntityPool(ctx context.Context, entity params.GithubEntity, poolID string) (params.Pool, error)
-	DeleteEntityPool(ctx context.Context, entity params.GithubEntity, poolID string) error
-	UpdateEntityPool(ctx context.Context, entity params.GithubEntity, poolID string, param params.UpdatePoolParams) (params.Pool, error)
+	CreateEntityPool(ctx context.Context, entity params.ForgeEntity, param params.CreatePoolParams) (params.Pool, error)
+	GetEntityPool(ctx context.Context, entity params.ForgeEntity, poolID string) (params.Pool, error)
+	DeleteEntityPool(ctx context.Context, entity params.ForgeEntity, poolID string) error
+	UpdateEntityPool(ctx context.Context, entity params.ForgeEntity, poolID string, param params.UpdatePoolParams) (params.Pool, error)
 
-	ListEntityPools(ctx context.Context, entity params.GithubEntity) ([]params.Pool, error)
-	ListEntityInstances(ctx context.Context, entity params.GithubEntity) ([]params.Instance, error)
+	ListEntityPools(ctx context.Context, entity params.ForgeEntity) ([]params.Pool, error)
+	ListEntityInstances(ctx context.Context, entity params.ForgeEntity) ([]params.Instance, error)
 }
 
 type ControllerStore interface {
@@ -138,9 +138,9 @@ type ControllerStore interface {
 
 type ScaleSetsStore interface {
 	ListAllScaleSets(ctx context.Context) ([]params.ScaleSet, error)
-	CreateEntityScaleSet(_ context.Context, entity params.GithubEntity, param params.CreateScaleSetParams) (scaleSet params.ScaleSet, err error)
-	ListEntityScaleSets(_ context.Context, entity params.GithubEntity) ([]params.ScaleSet, error)
-	UpdateEntityScaleSet(_ context.Context, entity params.GithubEntity, scaleSetID uint, param params.UpdateScaleSetParams, callback func(old, newSet params.ScaleSet) error) (updatedScaleSet params.ScaleSet, err error)
+	CreateEntityScaleSet(_ context.Context, entity params.ForgeEntity, param params.CreateScaleSetParams) (scaleSet params.ScaleSet, err error)
+	ListEntityScaleSets(_ context.Context, entity params.ForgeEntity) ([]params.ScaleSet, error)
+	UpdateEntityScaleSet(_ context.Context, entity params.ForgeEntity, scaleSetID uint, param params.UpdateScaleSetParams, callback func(old, newSet params.ScaleSet) error) (updatedScaleSet params.ScaleSet, err error)
 	GetScaleSetByID(ctx context.Context, scaleSet uint) (params.ScaleSet, error)
 	DeleteScaleSetByID(ctx context.Context, scaleSetID uint) (err error)
 	SetScaleSetLastMessageID(ctx context.Context, scaleSetID uint, lastMessageID int64) error
@@ -150,6 +150,23 @@ type ScaleSetsStore interface {
 type ScaleSetInstanceStore interface {
 	ListScaleSetInstances(_ context.Context, scalesetID uint) ([]params.Instance, error)
 	CreateScaleSetInstance(_ context.Context, scaleSetID uint, param params.CreateInstanceParams) (instance params.Instance, err error)
+}
+
+type GiteaEndpointStore interface {
+	CreateGiteaEndpoint(_ context.Context, param params.CreateGiteaEndpointParams) (ghEndpoint params.ForgeEndpoint, err error)
+	ListGiteaEndpoints(_ context.Context) ([]params.ForgeEndpoint, error)
+	DeleteGiteaEndpoint(_ context.Context, name string) (err error)
+	GetGiteaEndpoint(_ context.Context, name string) (params.ForgeEndpoint, error)
+	UpdateGiteaEndpoint(_ context.Context, name string, param params.UpdateGiteaEndpointParams) (ghEndpoint params.ForgeEndpoint, err error)
+}
+
+type GiteaCredentialsStore interface {
+	CreateGiteaCredentials(ctx context.Context, param params.CreateGiteaCredentialsParams) (gtCreds params.ForgeCredentials, err error)
+	GetGiteaCredentialsByName(ctx context.Context, name string, detailed bool) (params.ForgeCredentials, error)
+	GetGiteaCredentials(ctx context.Context, id uint, detailed bool) (params.ForgeCredentials, error)
+	ListGiteaCredentials(ctx context.Context) ([]params.ForgeCredentials, error)
+	UpdateGiteaCredentials(ctx context.Context, id uint, param params.UpdateGiteaCredentialsParams) (gtCreds params.ForgeCredentials, err error)
+	DeleteGiteaCredentials(ctx context.Context, id uint) (err error)
 }
 
 //go:generate mockery --name=Store
@@ -167,9 +184,11 @@ type Store interface {
 	EntityPoolStore
 	ScaleSetsStore
 	ScaleSetInstanceStore
+	GiteaEndpointStore
+	GiteaCredentialsStore
 
 	ControllerInfo() (params.ControllerInfo, error)
 	InitController() (params.ControllerInfo, error)
-	GetGithubEntity(_ context.Context, entityType params.GithubEntityType, entityID string) (params.GithubEntity, error)
-	AddEntityEvent(ctx context.Context, entity params.GithubEntity, event params.EventType, eventLevel params.EventLevel, statusMessage string, maxEvents int) error
+	GetForgeEntity(_ context.Context, entityType params.ForgeEntityType, entityID string) (params.ForgeEntity, error)
+	AddEntityEvent(ctx context.Context, entity params.ForgeEntity, event params.EventType, eventLevel params.EventLevel, statusMessage string, maxEvents int) error
 }

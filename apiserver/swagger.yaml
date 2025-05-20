@@ -23,6 +23,20 @@ definitions:
                 alias: garm_params
                 package: github.com/cloudbase/garm/params
             type: CreateEnterpriseParams
+    CreateGiteaCredentialsParams:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: CreateGiteaCredentialsParams
+    CreateGiteaEndpointParams:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: CreateGiteaEndpointParams
     CreateGithubCredentialsParams:
         type: object
         x-go-type:
@@ -74,7 +88,7 @@ definitions:
             type: CreateScaleSetParams
     Credentials:
         items:
-            $ref: '#/definitions/GithubCredentials'
+            $ref: '#/definitions/ForgeCredentials'
         type: array
         x-go-type:
             import:
@@ -97,29 +111,29 @@ definitions:
                 alias: garm_params
                 package: github.com/cloudbase/garm/params
             type: Enterprises
-    GithubCredentials:
+    ForgeCredentials:
         type: object
         x-go-type:
             import:
                 alias: garm_params
                 package: github.com/cloudbase/garm/params
-            type: GithubCredentials
-    GithubEndpoint:
+            type: ForgeCredentials
+    ForgeEndpoint:
         type: object
         x-go-type:
             import:
                 alias: garm_params
                 package: github.com/cloudbase/garm/params
-            type: GithubEndpoint
-    GithubEndpoints:
+            type: ForgeEndpoint
+    ForgeEndpoints:
         items:
-            $ref: '#/definitions/GithubEndpoint'
+            $ref: '#/definitions/ForgeEndpoint'
         type: array
         x-go-type:
             import:
                 alias: garm_params
                 package: github.com/cloudbase/garm/params
-            type: GithubEndpoints
+            type: ForgeEndpoints
     HookInfo:
         type: object
         x-go-type:
@@ -281,6 +295,20 @@ definitions:
                 alias: garm_params
                 package: github.com/cloudbase/garm/params
             type: UpdateEntityParams
+    UpdateGiteaCredentialsParams:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: UpdateGiteaCredentialsParams
+    UpdateGiteaEndpointParams:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: UpdateGiteaEndpointParams
     UpdateGithubCredentialsParams:
         type: object
         x-go-type:
@@ -721,6 +749,212 @@ paths:
             summary: Initialize the first run of the controller.
             tags:
                 - first-run
+    /gitea/credentials:
+        get:
+            operationId: ListGiteaCredentials
+            responses:
+                "200":
+                    description: Credentials
+                    schema:
+                        $ref: '#/definitions/Credentials'
+                "400":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List all credentials.
+            tags:
+                - credentials
+        post:
+            operationId: CreateGiteaCredentials
+            parameters:
+                - description: Parameters used when creating a Gitea credential.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/CreateGiteaCredentialsParams'
+                    description: Parameters used when creating a Gitea credential.
+                    type: object
+            responses:
+                "200":
+                    description: ForgeCredentials
+                    schema:
+                        $ref: '#/definitions/ForgeCredentials'
+                "400":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Create a Gitea credential.
+            tags:
+                - credentials
+    /gitea/credentials/{id}:
+        delete:
+            operationId: DeleteGiteaCredentials
+            parameters:
+                - description: ID of the Gitea credential.
+                  in: path
+                  name: id
+                  required: true
+                  type: integer
+            responses:
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Delete a Gitea credential.
+            tags:
+                - credentials
+        get:
+            operationId: GetGiteaCredentials
+            parameters:
+                - description: ID of the Gitea credential.
+                  in: path
+                  name: id
+                  required: true
+                  type: integer
+            responses:
+                "200":
+                    description: ForgeCredentials
+                    schema:
+                        $ref: '#/definitions/ForgeCredentials'
+                "400":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get a Gitea credential.
+            tags:
+                - credentials
+        put:
+            operationId: UpdateGiteaCredentials
+            parameters:
+                - description: ID of the Gitea credential.
+                  in: path
+                  name: id
+                  required: true
+                  type: integer
+                - description: Parameters used when updating a Gitea credential.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/UpdateGiteaCredentialsParams'
+                    description: Parameters used when updating a Gitea credential.
+                    type: object
+            responses:
+                "200":
+                    description: ForgeCredentials
+                    schema:
+                        $ref: '#/definitions/ForgeCredentials'
+                "400":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Update a Gitea credential.
+            tags:
+                - credentials
+    /gitea/endpoints:
+        get:
+            operationId: ListGiteaEndpoints
+            responses:
+                "200":
+                    description: ForgeEndpoints
+                    schema:
+                        $ref: '#/definitions/ForgeEndpoints'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List all Gitea Endpoints.
+            tags:
+                - endpoints
+        post:
+            operationId: CreateGiteaEndpoint
+            parameters:
+                - description: Parameters used when creating a Gitea endpoint.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/CreateGiteaEndpointParams'
+                    description: Parameters used when creating a Gitea endpoint.
+                    type: object
+            responses:
+                "200":
+                    description: ForgeEndpoint
+                    schema:
+                        $ref: '#/definitions/ForgeEndpoint'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Create a Gitea Endpoint.
+            tags:
+                - endpoints
+    /gitea/endpoints/{name}:
+        delete:
+            operationId: DeleteGiteaEndpoint
+            parameters:
+                - description: The name of the Gitea endpoint.
+                  in: path
+                  name: name
+                  required: true
+                  type: string
+            responses:
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Delete a Gitea Endpoint.
+            tags:
+                - endpoints
+        get:
+            operationId: GetGiteaEndpoint
+            parameters:
+                - description: The name of the Gitea endpoint.
+                  in: path
+                  name: name
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: ForgeEndpoint
+                    schema:
+                        $ref: '#/definitions/ForgeEndpoint'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get a Gitea Endpoint.
+            tags:
+                - endpoints
+        put:
+            operationId: UpdateGiteaEndpoint
+            parameters:
+                - description: The name of the Gitea endpoint.
+                  in: path
+                  name: name
+                  required: true
+                  type: string
+                - description: Parameters used when updating a Gitea endpoint.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/UpdateGiteaEndpointParams'
+                    description: Parameters used when updating a Gitea endpoint.
+                    type: object
+            responses:
+                "200":
+                    description: ForgeEndpoint
+                    schema:
+                        $ref: '#/definitions/ForgeEndpoint'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Update a Gitea Endpoint.
+            tags:
+                - endpoints
     /github/credentials:
         get:
             operationId: ListCredentials
@@ -749,9 +983,9 @@ paths:
                     type: object
             responses:
                 "200":
-                    description: GithubCredentials
+                    description: ForgeCredentials
                     schema:
-                        $ref: '#/definitions/GithubCredentials'
+                        $ref: '#/definitions/ForgeCredentials'
                 "400":
                     description: APIErrorResponse
                     schema:
@@ -786,9 +1020,9 @@ paths:
                   type: integer
             responses:
                 "200":
-                    description: GithubCredentials
+                    description: ForgeCredentials
                     schema:
-                        $ref: '#/definitions/GithubCredentials'
+                        $ref: '#/definitions/ForgeCredentials'
                 "400":
                     description: APIErrorResponse
                     schema:
@@ -814,9 +1048,9 @@ paths:
                     type: object
             responses:
                 "200":
-                    description: GithubCredentials
+                    description: ForgeCredentials
                     schema:
-                        $ref: '#/definitions/GithubCredentials'
+                        $ref: '#/definitions/ForgeCredentials'
                 "400":
                     description: APIErrorResponse
                     schema:
@@ -829,9 +1063,9 @@ paths:
             operationId: ListGithubEndpoints
             responses:
                 "200":
-                    description: GithubEndpoints
+                    description: ForgeEndpoints
                     schema:
-                        $ref: '#/definitions/GithubEndpoints'
+                        $ref: '#/definitions/ForgeEndpoints'
                 default:
                     description: APIErrorResponse
                     schema:
@@ -852,9 +1086,9 @@ paths:
                     type: object
             responses:
                 "200":
-                    description: GithubEndpoint
+                    description: ForgeEndpoint
                     schema:
-                        $ref: '#/definitions/GithubEndpoint'
+                        $ref: '#/definitions/ForgeEndpoint'
                 default:
                     description: APIErrorResponse
                     schema:
@@ -889,9 +1123,9 @@ paths:
                   type: string
             responses:
                 "200":
-                    description: GithubEndpoint
+                    description: ForgeEndpoint
                     schema:
-                        $ref: '#/definitions/GithubEndpoint'
+                        $ref: '#/definitions/ForgeEndpoint'
                 default:
                     description: APIErrorResponse
                     schema:
@@ -917,9 +1151,9 @@ paths:
                     type: object
             responses:
                 "200":
-                    description: GithubEndpoint
+                    description: ForgeEndpoint
                     schema:
-                        $ref: '#/definitions/GithubEndpoint'
+                        $ref: '#/definitions/ForgeEndpoint'
                 default:
                     description: APIErrorResponse
                     schema:

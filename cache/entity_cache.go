@@ -1,3 +1,16 @@
+// Copyright 2025 Cloudbase Solutions SRL
+//
+//	Licensed under the Apache License, Version 2.0 (the "License"); you may
+//	not use this file except in compliance with the License. You may obtain
+//	a copy of the License at
+//
+//	     http://www.apache.org/licenses/LICENSE-2.0
+//
+//	Unless required by applicable law or agreed to in writing, software
+//	distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+//	WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+//	License for the specific language governing permissions and limitations
+//	under the License.
 package cache
 
 import (
@@ -16,7 +29,7 @@ func init() {
 }
 
 type EntityItem struct {
-	Entity    params.GithubEntity
+	Entity    params.ForgeEntity
 	Pools     map[string]params.Pool
 	ScaleSets map[uint]params.ScaleSet
 }
@@ -27,34 +40,40 @@ type EntityCache struct {
 	entities map[string]EntityItem
 }
 
-func (e *EntityCache) UpdateCredentialsInAffectedEntities(creds params.GithubCredentials) {
+func (e *EntityCache) UpdateCredentialsInAffectedEntities(creds params.ForgeCredentials) {
 	e.mux.Lock()
 	defer e.mux.Unlock()
 
 	for entityID, cache := range e.entities {
-		if cache.Entity.Credentials.ID == creds.ID {
+		if cache.Entity.Credentials.GetID() == creds.GetID() {
 			cache.Entity.Credentials = creds
 			e.entities[entityID] = cache
 		}
 	}
 }
 
-func (e *EntityCache) GetEntity(entityID string) (params.GithubEntity, bool) {
+func (e *EntityCache) GetEntity(entityID string) (params.ForgeEntity, bool) {
 	e.mux.Lock()
 	defer e.mux.Unlock()
 
 	if cache, ok := e.entities[entityID]; ok {
-		// Get the credentials from the credentials cache.
-		creds, ok := GetGithubCredentials(cache.Entity.Credentials.ID)
+		var creds params.ForgeCredentials
+		var ok bool
+		switch cache.Entity.Credentials.ForgeType {
+		case params.GithubEndpointType:
+			creds, ok = GetGithubCredentials(cache.Entity.Credentials.ID)
+		case params.GiteaEndpointType:
+			creds, ok = GetGiteaCredentials(cache.Entity.Credentials.ID)
+		}
 		if ok {
 			cache.Entity.Credentials = creds
 		}
 		return cache.Entity, true
 	}
-	return params.GithubEntity{}, false
+	return params.ForgeEntity{}, false
 }
 
-func (e *EntityCache) SetEntity(entity params.GithubEntity) {
+func (e *EntityCache) SetEntity(entity params.ForgeEntity) {
 	e.mux.Lock()
 	defer e.mux.Unlock()
 
@@ -225,13 +244,17 @@ func (e *EntityCache) GetEntityScaleSets(entityID string) []params.ScaleSet {
 	return nil
 }
 
-func (e *EntityCache) GetEntitiesUsingGredentials(credsID uint) []params.GithubEntity {
+func (e *EntityCache) GetEntitiesUsingCredentials(creds params.ForgeCredentials) []params.ForgeEntity {
 	e.mux.Lock()
 	defer e.mux.Unlock()
 
-	var entities []params.GithubEntity
+	var entities []params.ForgeEntity
 	for _, cache := range e.entities {
-		if cache.Entity.Credentials.ID == credsID {
+		if cache.Entity.Credentials.ForgeType != creds.ForgeType {
+			continue
+		}
+
+		if cache.Entity.Credentials.GetID() == creds.GetID() {
 			entities = append(entities, cache.Entity)
 		}
 	}
@@ -239,14 +262,21 @@ func (e *EntityCache) GetEntitiesUsingGredentials(credsID uint) []params.GithubE
 	return entities
 }
 
-func (e *EntityCache) GetAllEntities() []params.GithubEntity {
+func (e *EntityCache) GetAllEntities() []params.ForgeEntity {
 	e.mux.Lock()
 	defer e.mux.Unlock()
 
-	var entities []params.GithubEntity
+	var entities []params.ForgeEntity
 	for _, cache := range e.entities {
 		// Get the credentials from the credentials cache.
-		creds, ok := GetGithubCredentials(cache.Entity.Credentials.ID)
+		var creds params.ForgeCredentials
+		var ok bool
+		switch cache.Entity.Credentials.ForgeType {
+		case params.GithubEndpointType:
+			creds, ok = GetGithubCredentials(cache.Entity.Credentials.ID)
+		case params.GiteaEndpointType:
+			creds, ok = GetGiteaCredentials(cache.Entity.Credentials.ID)
+		}
 		if ok {
 			cache.Entity.Credentials = creds
 		}
@@ -284,11 +314,11 @@ func (e *EntityCache) GetAllScaleSets() []params.ScaleSet {
 	return scaleSets
 }
 
-func GetEntity(entityID string) (params.GithubEntity, bool) {
+func GetEntity(entityID string) (params.ForgeEntity, bool) {
 	return entityCache.GetEntity(entityID)
 }
 
-func SetEntity(entity params.GithubEntity) {
+func SetEntity(entity params.ForgeEntity) {
 	entityCache.SetEntity(entity)
 }
 
@@ -340,15 +370,15 @@ func GetEntityScaleSets(entityID string) []params.ScaleSet {
 	return entityCache.GetEntityScaleSets(entityID)
 }
 
-func UpdateCredentialsInAffectedEntities(creds params.GithubCredentials) {
+func UpdateCredentialsInAffectedEntities(creds params.ForgeCredentials) {
 	entityCache.UpdateCredentialsInAffectedEntities(creds)
 }
 
-func GetEntitiesUsingGredentials(credsID uint) []params.GithubEntity {
-	return entityCache.GetEntitiesUsingGredentials(credsID)
+func GetEntitiesUsingCredentials(creds params.ForgeCredentials) []params.ForgeEntity {
+	return entityCache.GetEntitiesUsingCredentials(creds)
 }
 
-func GetAllEntities() []params.GithubEntity {
+func GetAllEntities() []params.ForgeEntity {
 	return entityCache.GetAllEntities()
 }
 

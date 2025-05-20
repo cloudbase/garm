@@ -1,3 +1,16 @@
+// Copyright 2025 Cloudbase Solutions SRL
+//
+//	Licensed under the Apache License, Version 2.0 (the "License"); you may
+//	not use this file except in compliance with the License. You may obtain
+//	a copy of the License at
+//
+//	     http://www.apache.org/licenses/LICENSE-2.0
+//
+//	Unless required by applicable law or agreed to in writing, software
+//	distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+//	WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+//	License for the specific language governing permissions and limitations
+//	under the License.
 package cmd
 
 import (
@@ -145,7 +158,7 @@ var githubEndpointUpdateCmd = &cobra.Command{
 		updateParams := params.UpdateGithubEndpointParams{}
 
 		if cmd.Flags().Changed("ca-cert-path") {
-			cert, err := parseReadAndParsCABundle()
+			cert, err := parseAndReadCABundle()
 			if err != nil {
 				return err
 			}
@@ -213,7 +226,7 @@ func init() {
 	githubCmd.AddCommand(githubEndpointCmd)
 }
 
-func parseReadAndParsCABundle() ([]byte, error) {
+func parseAndReadCABundle() ([]byte, error) {
 	if endpointCACertPath == "" {
 		return nil, nil
 	}
@@ -236,7 +249,7 @@ func parseReadAndParsCABundle() ([]byte, error) {
 }
 
 func parseCreateParams() (params.CreateGithubEndpointParams, error) {
-	certBundleBytes, err := parseReadAndParsCABundle()
+	certBundleBytes, err := parseAndReadCABundle()
 	if err != nil {
 		return params.CreateGithubEndpointParams{}, err
 	}
@@ -252,7 +265,7 @@ func parseCreateParams() (params.CreateGithubEndpointParams, error) {
 	return ret, nil
 }
 
-func formatEndpoints(endpoints params.GithubEndpoints) {
+func formatEndpoints(endpoints params.ForgeEndpoints) {
 	if outputFormat == common.OutputFormatJSON {
 		printAsJSON(endpoints)
 		return
@@ -274,7 +287,7 @@ func formatEndpoints(endpoints params.GithubEndpoints) {
 	fmt.Println(t.Render())
 }
 
-func formatOneEndpoint(endpoint params.GithubEndpoint) {
+func formatOneEndpoint(endpoint params.ForgeEndpoint) {
 	if outputFormat == common.OutputFormatJSON {
 		printAsJSON(endpoint)
 		return
@@ -287,7 +300,9 @@ func formatOneEndpoint(endpoint params.GithubEndpoint) {
 	t.AppendRow([]interface{}{"Created At", endpoint.CreatedAt})
 	t.AppendRow([]interface{}{"Updated At", endpoint.UpdatedAt})
 	t.AppendRow([]interface{}{"Base URL", endpoint.BaseURL})
-	t.AppendRow([]interface{}{"Upload URL", endpoint.UploadBaseURL})
+	if endpoint.UploadBaseURL != "" {
+		t.AppendRow([]interface{}{"Upload URL", endpoint.UploadBaseURL})
+	}
 	t.AppendRow([]interface{}{"API Base URL", endpoint.APIBaseURL})
 	if len(endpoint.CACertBundle) > 0 {
 		t.AppendRow([]interface{}{"CA Cert Bundle", string(endpoint.CACertBundle)})

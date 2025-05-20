@@ -29,7 +29,7 @@ import (
 	"github.com/cloudbase/garm/params"
 )
 
-func (s *sqlDatabase) CreateOrganization(ctx context.Context, name, credentialsName, webhookSecret string, poolBalancerType params.PoolBalancerType) (org params.Organization, err error) {
+func (s *sqlDatabase) CreateOrganization(ctx context.Context, name string, credentials params.ForgeCredentials, webhookSecret string, poolBalancerType params.PoolBalancerType) (param params.Organization, err error) {
 	if webhookSecret == "" {
 		return params.Organization{}, errors.New("creating org: missing secret")
 	}
@@ -40,49 +40,47 @@ func (s *sqlDatabase) CreateOrganization(ctx context.Context, name, credentialsN
 
 	defer func() {
 		if err == nil {
-			s.sendNotify(common.OrganizationEntityType, common.CreateOperation, org)
+			s.sendNotify(common.OrganizationEntityType, common.CreateOperation, param)
 		}
 	}()
 	newOrg := Organization{
 		Name:             name,
 		WebhookSecret:    secret,
-		CredentialsName:  credentialsName,
 		PoolBalancerType: poolBalancerType,
 	}
 
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
-		creds, err := s.getGithubCredentialsByName(ctx, tx, credentialsName, false)
-		if err != nil {
-			return errors.Wrap(err, "creating org")
+		switch credentials.ForgeType {
+		case params.GithubEndpointType:
+			newOrg.CredentialsID = &credentials.ID
+		case params.GiteaEndpointType:
+			newOrg.GiteaCredentialsID = &credentials.ID
+		default:
+			return errors.Wrap(runnerErrors.ErrBadRequest, "unsupported credentials type")
 		}
-		if creds.EndpointName == nil {
-			return errors.Wrap(runnerErrors.ErrUnprocessable, "credentials have no endpoint")
-		}
-		newOrg.CredentialsID = &creds.ID
-		newOrg.CredentialsName = creds.Name
-		newOrg.EndpointName = creds.EndpointName
 
+		newOrg.EndpointName = &credentials.Endpoint.Name
 		q := tx.Create(&newOrg)
 		if q.Error != nil {
 			return errors.Wrap(q.Error, "creating org")
 		}
-
-		newOrg.Credentials = creds
-		newOrg.Endpoint = creds.Endpoint
-
 		return nil
 	})
 	if err != nil {
 		return params.Organization{}, errors.Wrap(err, "creating org")
 	}
 
-	org, err = s.sqlToCommonOrganization(newOrg, true)
+	org, err := s.getOrgByID(ctx, s.conn, newOrg.ID.String(), "Pools", "Endpoint", "Credentials", "GiteaCredentials", "Credentials.Endpoint", "GiteaCredentials.Endpoint")
 	if err != nil {
 		return params.Organization{}, errors.Wrap(err, "creating org")
 	}
-	org.WebhookSecret = webhookSecret
 
-	return org, nil
+	param, err = s.sqlToCommonOrganization(org, true)
+	if err != nil {
+		return params.Organization{}, errors.Wrap(err, "creating org")
+	}
+
+	return param, nil
 }
 
 func (s *sqlDatabase) GetOrganization(ctx context.Context, name, endpointName string) (params.Organization, error) {
@@ -103,7 +101,9 @@ func (s *sqlDatabase) ListOrganizations(_ context.Context) ([]params.Organizatio
 	var orgs []Organization
 	q := s.conn.
 		Preload("Credentials").
+		Preload("GiteaCredentials").
 		Preload("Credentials.Endpoint").
+		Preload("GiteaCredentials.Endpoint").
 		Preload("Endpoint").
 		Find(&orgs)
 	if q.Error != nil {
@@ -123,7 +123,7 @@ func (s *sqlDatabase) ListOrganizations(_ context.Context) ([]params.Organizatio
 }
 
 func (s *sqlDatabase) DeleteOrganization(ctx context.Context, orgID string) (err error) {
-	org, err := s.getOrgByID(ctx, s.conn, orgID, "Endpoint", "Credentials", "Credentials.Endpoint")
+	org, err := s.getOrgByID(ctx, s.conn, orgID, "Endpoint", "Credentials", "Credentials.Endpoint", "GiteaCredentials", "GiteaCredentials.Endpoint")
 	if err != nil {
 		return errors.Wrap(err, "fetching org")
 	}
@@ -166,7 +166,6 @@ func (s *sqlDatabase) UpdateOrganization(ctx context.Context, orgID string, para
 		}
 
 		if param.CredentialsName != "" {
-			org.CredentialsName = param.CredentialsName
 			creds, err = s.getGithubCredentialsByName(ctx, tx, param.CredentialsName, false)
 			if err != nil {
 				return errors.Wrap(err, "fetching credentials")
@@ -204,7 +203,7 @@ func (s *sqlDatabase) UpdateOrganization(ctx context.Context, orgID string, para
 		return params.Organization{}, errors.Wrap(err, "saving org")
 	}
 
-	org, err = s.getOrgByID(ctx, s.conn, orgID, "Endpoint", "Credentials", "Credentials.Endpoint")
+	org, err = s.getOrgByID(ctx, s.conn, orgID, "Endpoint", "Credentials", "Credentials.Endpoint", "GiteaCredentials", "GiteaCredentials.Endpoint")
 	if err != nil {
 		return params.Organization{}, errors.Wrap(err, "updating enterprise")
 	}
@@ -216,7 +215,7 @@ func (s *sqlDatabase) UpdateOrganization(ctx context.Context, orgID string, para
 }
 
 func (s *sqlDatabase) GetOrganizationByID(ctx context.Context, orgID string) (params.Organization, error) {
-	org, err := s.getOrgByID(ctx, s.conn, orgID, "Pools", "Credentials", "Endpoint", "Credentials.Endpoint")
+	org, err := s.getOrgByID(ctx, s.conn, orgID, "Pools", "Credentials", "Endpoint", "Credentials.Endpoint", "GiteaCredentials", "GiteaCredentials.Endpoint")
 	if err != nil {
 		return params.Organization{}, errors.Wrap(err, "fetching org")
 	}
@@ -257,7 +256,9 @@ func (s *sqlDatabase) getOrg(_ context.Context, name, endpointName string) (Orga
 
 	q := s.conn.Where("name = ? COLLATE NOCASE and endpoint_name = ? COLLATE NOCASE", name, endpointName).
 		Preload("Credentials").
+		Preload("GiteaCredentials").
 		Preload("Credentials.Endpoint").
+		Preload("GiteaCredentials.Endpoint").
 		Preload("Endpoint").
 		First(&org)
 	if q.Error != nil {

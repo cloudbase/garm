@@ -54,17 +54,65 @@ type ClientOption func(*runtime.ClientOperation)
 
 // ClientService is the interface for Client methods
 type ClientService interface {
+	CreateGiteaEndpoint(params *CreateGiteaEndpointParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateGiteaEndpointOK, error)
+
 	CreateGithubEndpoint(params *CreateGithubEndpointParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateGithubEndpointOK, error)
+
+	DeleteGiteaEndpoint(params *DeleteGiteaEndpointParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error
 
 	DeleteGithubEndpoint(params *DeleteGithubEndpointParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error
 
+	GetGiteaEndpoint(params *GetGiteaEndpointParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetGiteaEndpointOK, error)
+
 	GetGithubEndpoint(params *GetGithubEndpointParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetGithubEndpointOK, error)
 
+	ListGiteaEndpoints(params *ListGiteaEndpointsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListGiteaEndpointsOK, error)
+
 	ListGithubEndpoints(params *ListGithubEndpointsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListGithubEndpointsOK, error)
+
+	UpdateGiteaEndpoint(params *UpdateGiteaEndpointParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateGiteaEndpointOK, error)
 
 	UpdateGithubEndpoint(params *UpdateGithubEndpointParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateGithubEndpointOK, error)
 
 	SetTransport(transport runtime.ClientTransport)
+}
+
+/*
+CreateGiteaEndpoint creates a gitea endpoint
+*/
+func (a *Client) CreateGiteaEndpoint(params *CreateGiteaEndpointParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateGiteaEndpointOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewCreateGiteaEndpointParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "CreateGiteaEndpoint",
+		Method:             "POST",
+		PathPattern:        "/gitea/endpoints",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &CreateGiteaEndpointReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*CreateGiteaEndpointOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*CreateGiteaEndpointDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
 /*
@@ -106,6 +154,38 @@ func (a *Client) CreateGithubEndpoint(params *CreateGithubEndpointParams, authIn
 }
 
 /*
+DeleteGiteaEndpoint deletes a gitea endpoint
+*/
+func (a *Client) DeleteGiteaEndpoint(params *DeleteGiteaEndpointParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewDeleteGiteaEndpointParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "DeleteGiteaEndpoint",
+		Method:             "DELETE",
+		PathPattern:        "/gitea/endpoints/{name}",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &DeleteGiteaEndpointReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	_, err := a.transport.Submit(op)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+/*
 DeleteGithubEndpoint deletes a git hub endpoint
 */
 func (a *Client) DeleteGithubEndpoint(params *DeleteGithubEndpointParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error {
@@ -135,6 +215,44 @@ func (a *Client) DeleteGithubEndpoint(params *DeleteGithubEndpointParams, authIn
 		return err
 	}
 	return nil
+}
+
+/*
+GetGiteaEndpoint gets a gitea endpoint
+*/
+func (a *Client) GetGiteaEndpoint(params *GetGiteaEndpointParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetGiteaEndpointOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewGetGiteaEndpointParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "GetGiteaEndpoint",
+		Method:             "GET",
+		PathPattern:        "/gitea/endpoints/{name}",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &GetGiteaEndpointReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*GetGiteaEndpointOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*GetGiteaEndpointDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
 /*
@@ -176,6 +294,44 @@ func (a *Client) GetGithubEndpoint(params *GetGithubEndpointParams, authInfo run
 }
 
 /*
+ListGiteaEndpoints lists all gitea endpoints
+*/
+func (a *Client) ListGiteaEndpoints(params *ListGiteaEndpointsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListGiteaEndpointsOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewListGiteaEndpointsParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "ListGiteaEndpoints",
+		Method:             "GET",
+		PathPattern:        "/gitea/endpoints",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &ListGiteaEndpointsReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*ListGiteaEndpointsOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*ListGiteaEndpointsDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
 ListGithubEndpoints lists all git hub endpoints
 */
 func (a *Client) ListGithubEndpoints(params *ListGithubEndpointsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListGithubEndpointsOK, error) {
@@ -210,6 +366,44 @@ func (a *Client) ListGithubEndpoints(params *ListGithubEndpointsParams, authInfo
 	}
 	// unexpected success response
 	unexpectedSuccess := result.(*ListGithubEndpointsDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+UpdateGiteaEndpoint updates a gitea endpoint
+*/
+func (a *Client) UpdateGiteaEndpoint(params *UpdateGiteaEndpointParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateGiteaEndpointOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewUpdateGiteaEndpointParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "UpdateGiteaEndpoint",
+		Method:             "PUT",
+		PathPattern:        "/gitea/endpoints/{name}",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &UpdateGiteaEndpointReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*UpdateGiteaEndpointOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*UpdateGiteaEndpointDefault)
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
