@@ -161,7 +161,7 @@ func (s *GiteaTestSuite) TestUpdateEndpoint() {
 	s.Require().NoError(err)
 	s.Require().NotNil(endpoint)
 
-	newDescription := "new description"
+	newDescription := "another description"
 	newAPIBaseURL := "https://new-api.example.com"
 	newBaseURL := "https://new.example.com"
 	caCertBundle, err := os.ReadFile("../../testdata/certs/srv-pub.pem")
@@ -185,7 +185,7 @@ func (s *GiteaTestSuite) TestUpdateEndpoint() {
 func (s *GiteaTestSuite) TestUpdatingNonExistingEndpointReturnsNotFoundError() {
 	ctx := garmTesting.ImpersonateAdminContext(context.Background(), s.db, s.T())
 
-	newDescription := "test"
+	newDescription := "test desc"
 	updateEpParams := params.UpdateGiteaEndpointParams{
 		Description: &newDescription,
 	}
@@ -573,7 +573,7 @@ func (s *GiteaTestSuite) TestUpdateCredentials() {
 	s.Require().NoError(err)
 	s.Require().NotNil(creds)
 
-	newDescription := "new description"
+	newDescription := "just a description"
 	newName := "new-name"
 	newToken := "new-token"
 	updateCredParams := params.UpdateGiteaCredentialsParams{
@@ -622,7 +622,7 @@ func (s *GiteaTestSuite) TestUpdateCredentialsFailsIfCredentialsAreOwnedByNonAdm
 	s.Require().NoError(err)
 	s.Require().NotNil(creds)
 
-	newDescription := "new description2"
+	newDescription := "new params desc"
 	updateCredParams := params.UpdateGiteaCredentialsParams{
 		Description: &newDescription,
 	}
@@ -651,7 +651,7 @@ func (s *GiteaTestSuite) TestAdminUserCanUpdateAnyGiteaCredentials() {
 	s.Require().NoError(err)
 	s.Require().NotNil(creds)
 
-	newDescription := "new description2"
+	newDescription := "another new description"
 	updateCredParams := params.UpdateGiteaCredentialsParams{
 		Description: &newDescription,
 	}
