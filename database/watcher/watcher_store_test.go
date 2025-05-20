@@ -919,6 +919,98 @@ func (s *WatcherStoreTestSuite) TestGithubCredentialsWatcher() {
 	}
 }
 
+func (s *WatcherStoreTestSuite) TestGiteaCredentialsWatcher() {
+	consumer, err := watcher.RegisterConsumer(
+		s.ctx, "gitea-cred-test",
+		watcher.WithEntityTypeFilter(common.GiteaCredentialsEntityType),
+		watcher.WithAny(
+			watcher.WithOperationTypeFilter(common.CreateOperation),
+			watcher.WithOperationTypeFilter(common.UpdateOperation),
+			watcher.WithOperationTypeFilter(common.DeleteOperation)),
+	)
+	s.Require().NoError(err)
+	s.Require().NotNil(consumer)
+	s.T().Cleanup(func() { consumer.Close() })
+	consumeEvents(consumer)
+
+	testEndpointParams := params.CreateGiteaEndpointParams{
+		Name:        "test",
+		Description: "test endpoint",
+		APIBaseURL:  "https://api.gitea.example.com",
+		BaseURL:     "https://gitea.example.com",
+	}
+
+	testEndpoint, err := s.store.CreateGiteaEndpoint(s.ctx, testEndpointParams)
+	s.Require().NoError(err)
+	s.Require().NotEmpty(testEndpoint.Name)
+
+	s.T().Cleanup(func() {
+		if err := s.store.DeleteGiteaEndpoint(s.ctx, testEndpoint.Name); err != nil {
+			s.T().Logf("failed to delete Gitea endpoint: %v", err)
+		}
+		consumeEvents(consumer)
+	})
+
+	giteaCredParams := params.CreateGiteaCredentialsParams{
+		Name:        "test-creds",
+		Description: "test credentials",
+		Endpoint:    testEndpoint.Name,
+		AuthType:    params.ForgeAuthTypePAT,
+		PAT: params.GithubPAT{
+			OAuth2Token: "bogus",
+		},
+	}
+
+	giteaCred, err := s.store.CreateGiteaCredentials(s.ctx, giteaCredParams)
+	s.Require().NoError(err)
+	s.Require().NotEmpty(giteaCred.ID)
+
+	select {
+	case event := <-consumer.Watch():
+		s.Require().Equal(common.ChangePayload{
+			EntityType: common.GiteaCredentialsEntityType,
+			Operation:  common.CreateOperation,
+			Payload:    giteaCred,
+		}, event)
+	case <-time.After(1 * time.Second):
+		s.T().Fatal("expected payload not received")
+	}
+
+	newDesc := "updated test description"
+	updateParams := params.UpdateGiteaCredentialsParams{
+		Description: &newDesc,
+	}
+
+	updatedGiteaCred, err := s.store.UpdateGiteaCredentials(s.ctx, giteaCred.ID, updateParams)
+	s.Require().NoError(err)
+	s.Require().Equal(newDesc, updatedGiteaCred.Description)
+
+	select {
+	case event := <-consumer.Watch():
+		s.Require().Equal(common.ChangePayload{
+			EntityType: common.GiteaCredentialsEntityType,
+			Operation:  common.UpdateOperation,
+			Payload:    updatedGiteaCred,
+		}, event)
+	case <-time.After(1 * time.Second):
+		s.T().Fatal("expected payload not received")
+	}
+
+	err = s.store.DeleteGiteaCredentials(s.ctx, giteaCred.ID)
+	s.Require().NoError(err)
+
+	select {
+	case event := <-consumer.Watch():
+		asCreds, ok := event.Payload.(params.ForgeCredentials)
+		s.Require().True(ok)
+		s.Require().Equal(event.Operation, common.DeleteOperation)
+		s.Require().Equal(event.EntityType, common.GiteaCredentialsEntityType)
+		s.Require().Equal(asCreds.ID, updatedGiteaCred.ID)
+	case <-time.After(1 * time.Second):
+		s.T().Fatal("expected payload not received")
+	}
+}
+
 func (s *WatcherStoreTestSuite) TestGithubEndpointWatcher() {
 	consumer, err := watcher.RegisterConsumer(
 		s.ctx, "gh-ep-test",
@@ -1001,7 +1093,7 @@ consume:
 			if !ok {
 				return
 			}
-		case <-time.After(100 * time.Millisecond):
+		case <-time.After(20 * time.Millisecond):
 			break consume
 		}
 	}

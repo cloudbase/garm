@@ -61,6 +61,7 @@ func (s *WatcherTestSuite) TestRegisterConsumerTwiceWillError() {
 	consumer, err := watcher.RegisterConsumer(s.ctx, "test")
 	s.Require().NoError(err)
 	s.Require().NotNil(consumer)
+	consumeEvents(consumer)
 
 	consumer, err = watcher.RegisterConsumer(s.ctx, "test")
 	s.Require().ErrorIs(err, common.ErrConsumerAlreadyRegistered)
@@ -117,6 +118,7 @@ func (s *WatcherTestSuite) TestProducerAndConsumer() {
 		watcher.WithOperationTypeFilter(common.UpdateOperation))
 	s.Require().NoError(err)
 	s.Require().NotNil(consumer)
+	consumeEvents(consumer)
 
 	payload := common.ChangePayload{
 		EntityType: common.ControllerEntityType,
@@ -141,6 +143,7 @@ func (s *WatcherTestSuite) TestConsumeWithFilter() {
 		watcher.WithOperationTypeFilter(common.UpdateOperation))
 	s.Require().NoError(err)
 	s.Require().NotNil(consumer)
+	consumeEvents(consumer)
 
 	payload := common.ChangePayload{
 		EntityType: common.ControllerEntityType,
@@ -184,6 +187,7 @@ func (s *WatcherTestSuite) TestWithAnyFilter() {
 		))
 	s.Require().NoError(err)
 	s.Require().NotNil(consumer)
+	consumeEvents(consumer)
 
 	payload := common.ChangePayload{
 		EntityType: common.ControllerEntityType,
@@ -265,6 +269,7 @@ func (s *WatcherTestSuite) TestWithAllFilter() {
 		))
 	s.Require().NoError(err)
 	s.Require().NotNil(consumer)
+	consumeEvents(consumer)
 
 	payload := common.ChangePayload{
 		EntityType: common.RepositoryEntityType,
@@ -329,6 +334,7 @@ func (s *WatcherTestSuite) TestWithEntityPoolFilterRepository() {
 	)
 	s.Require().NoError(err)
 	s.Require().NotNil(consumer)
+	consumeEvents(consumer)
 
 	payload := common.ChangePayload{
 		EntityType: common.PoolEntityType,
@@ -377,6 +383,7 @@ func (s *WatcherTestSuite) TestWithEntityPoolFilterOrg() {
 	)
 	s.Require().NoError(err)
 	s.Require().NotNil(consumer)
+	consumeEvents(consumer)
 
 	payload := common.ChangePayload{
 		EntityType: common.PoolEntityType,
@@ -425,6 +432,7 @@ func (s *WatcherTestSuite) TestWithEntityPoolFilterEnterprise() {
 	)
 	s.Require().NoError(err)
 	s.Require().NotNil(consumer)
+	consumeEvents(consumer)
 
 	payload := common.ChangePayload{
 		EntityType: common.PoolEntityType,
@@ -490,6 +498,7 @@ func (s *WatcherTestSuite) TestWithEntityPoolFilterBogusEntityType() {
 	)
 	s.Require().NoError(err)
 	s.Require().NotNil(consumer)
+	consumeEvents(consumer)
 
 	payload := common.ChangePayload{
 		EntityType: common.PoolEntityType,
@@ -541,6 +550,7 @@ func (s *WatcherTestSuite) TestWithEntityScaleSetFilterRepository() {
 	)
 	s.Require().NoError(err)
 	s.Require().NotNil(consumer)
+	consumeEvents(consumer)
 
 	payload := common.ChangePayload{
 		EntityType: common.ScaleSetEntityType,
@@ -592,6 +602,7 @@ func (s *WatcherTestSuite) TestWithEntityScaleSetFilterOrg() {
 	)
 	s.Require().NoError(err)
 	s.Require().NotNil(consumer)
+	consumeEvents(consumer)
 
 	payload := common.ChangePayload{
 		EntityType: common.ScaleSetEntityType,
@@ -643,6 +654,7 @@ func (s *WatcherTestSuite) TestWithEntityScaleSetFilterEnterprise() {
 	)
 	s.Require().NoError(err)
 	s.Require().NotNil(consumer)
+	consumeEvents(consumer)
 
 	payload := common.ChangePayload{
 		EntityType: common.ScaleSetEntityType,
@@ -696,6 +708,7 @@ func (s *WatcherTestSuite) TestWithEntityScaleSetFilterBogusEntityType() {
 	)
 	s.Require().NoError(err)
 	s.Require().NotNil(consumer)
+	consumeEvents(consumer)
 
 	payload := common.ChangePayload{
 		EntityType: common.ScaleSetEntityType,
@@ -747,6 +760,7 @@ func (s *WatcherTestSuite) TestWithEntityScaleSetFilterReturnsFalseForGiteaEndpo
 	)
 	s.Require().NoError(err)
 	s.Require().NotNil(consumer)
+	consumeEvents(consumer)
 
 	payload := common.ChangePayload{
 		EntityType: common.ScaleSetEntityType,
@@ -781,6 +795,7 @@ func (s *WatcherTestSuite) TestWithEntityFilterRepository() {
 	)
 	s.Require().NoError(err)
 	s.Require().NotNil(consumer)
+	consumeEvents(consumer)
 
 	payload := common.ChangePayload{
 		EntityType: common.RepositoryEntityType,
@@ -831,6 +846,7 @@ func (s *WatcherTestSuite) TestWithEntityFilterOrg() {
 	)
 	s.Require().NoError(err)
 	s.Require().NotNil(consumer)
+	consumeEvents(consumer)
 
 	payload := common.ChangePayload{
 		EntityType: common.OrganizationEntityType,
@@ -879,6 +895,7 @@ func (s *WatcherTestSuite) TestWithEntityFilterEnterprise() {
 	)
 	s.Require().NoError(err)
 	s.Require().NotNil(consumer)
+	consumeEvents(consumer)
 
 	payload := common.ChangePayload{
 		EntityType: common.EnterpriseEntityType,
@@ -933,6 +950,7 @@ func (s *WatcherTestSuite) TestWithEntityJobFilterRepository() {
 	)
 	s.Require().NoError(err)
 	s.Require().NotNil(consumer)
+	consumeEvents(consumer)
 
 	payload := common.ChangePayload{
 		EntityType: common.JobEntityType,
@@ -989,6 +1007,7 @@ func (s *WatcherTestSuite) TestWithEntityJobFilterOrg() {
 	)
 	s.Require().NoError(err)
 	s.Require().NotNil(consumer)
+	consumeEvents(consumer)
 
 	payload := common.ChangePayload{
 		EntityType: common.JobEntityType,
@@ -1045,6 +1064,7 @@ func (s *WatcherTestSuite) TestWithEntityJobFilterEnterprise() {
 	)
 	s.Require().NoError(err)
 	s.Require().NotNil(consumer)
+	consumeEvents(consumer)
 
 	payload := common.ChangePayload{
 		EntityType: common.JobEntityType,
@@ -1097,6 +1117,7 @@ func (s *WatcherTestSuite) TestWithEntityJobFilterBogusEntityType() {
 	)
 	s.Require().NoError(err)
 	s.Require().NotNil(consumer)
+	consumeEvents(consumer)
 
 	payload := common.ChangePayload{
 		EntityType: common.JobEntityType,
@@ -1140,6 +1161,7 @@ func (s *WatcherTestSuite) TestWithNone() {
 	)
 	s.Require().NoError(err)
 	s.Require().NotNil(consumer)
+	consumeEvents(consumer)
 
 	payload := common.ChangePayload{
 		EntityType: common.RepositoryEntityType,
@@ -1174,6 +1196,7 @@ func (s *WatcherTestSuite) TestWithUserIDFilter() {
 	)
 	s.Require().NoError(err)
 	s.Require().NotNil(consumer)
+	consumeEvents(consumer)
 
 	payload := common.ChangePayload{
 		EntityType: common.UserEntityType,
@@ -1231,6 +1254,7 @@ func (s *WatcherTestSuite) TestWithForgeCredentialsGithub() {
 	)
 	s.Require().NoError(err)
 	s.Require().NotNil(consumer)
+	consumeEvents(consumer)
 
 	payload := common.ChangePayload{
 		EntityType: common.GithubCredentialsEntityType,
@@ -1288,6 +1312,7 @@ func (s *WatcherTestSuite) TestWithcaleSetFilter() {
 	)
 	s.Require().NoError(err)
 	s.Require().NotNil(consumer)
+	consumeEvents(consumer)
 
 	payload := common.ChangePayload{
 		EntityType: common.ScaleSetEntityType,
@@ -1341,6 +1366,7 @@ func (s *WatcherTestSuite) TestWithExcludeEntityTypeFilter() {
 	)
 	s.Require().NoError(err)
 	s.Require().NotNil(consumer)
+	consumeEvents(consumer)
 
 	payload := common.ChangePayload{
 		EntityType: common.RepositoryEntityType,
@@ -1386,6 +1412,7 @@ func (s *WatcherTestSuite) TestWithInstanceStatusFilter() {
 	)
 	s.Require().NoError(err)
 	s.Require().NotNil(consumer)
+	consumeEvents(consumer)
 
 	payload := common.ChangePayload{
 		EntityType: common.InstanceEntityType,
