@@ -59,8 +59,10 @@ type RepoTestSuite struct {
 	adminUserID string
 
 	testCreds          params.ForgeCredentials
+	testCredsGitea     params.ForgeCredentials
 	secondaryTestCreds params.ForgeCredentials
 	githubEndpoint     params.ForgeEndpoint
+	giteaEndpoint      params.ForgeEndpoint
 }
 
 func (s *RepoTestSuite) equalReposByName(expected, actual []params.Repository) {
@@ -109,7 +111,9 @@ func (s *RepoTestSuite) SetupTest() {
 	s.Require().NotEmpty(s.adminUserID)
 
 	s.githubEndpoint = garmTesting.CreateDefaultGithubEndpoint(adminCtx, db, s.T())
+	s.giteaEndpoint = garmTesting.CreateDefaultGiteaEndpoint(adminCtx, db, s.T())
 	s.testCreds = garmTesting.CreateTestGithubCredentials(adminCtx, "new-creds", db, s.T(), s.githubEndpoint)
+	s.testCredsGitea = garmTesting.CreateTestGiteaCredentials(adminCtx, "new-creds", db, s.T(), s.giteaEndpoint)
 	s.secondaryTestCreds = garmTesting.CreateTestGithubCredentials(adminCtx, "secondary-creds", db, s.T(), s.githubEndpoint)
 
 	// create some repository objects in the database, for testing purposes
@@ -219,6 +223,68 @@ func (s *RepoTestSuite) TestCreateRepository() {
 	s.Require().Equal(storeRepo.Name, repo.Name)
 	s.Require().Equal(storeRepo.Credentials.Name, repo.Credentials.Name)
 	s.Require().Equal(storeRepo.WebhookSecret, repo.WebhookSecret)
+
+	entity, err := repo.GetEntity()
+	s.Require().Nil(err)
+	s.Require().Equal(s.Fixtures.CreateRepoParams.Owner, entity.ID)
+	s.Require().Equal(entity.EntityType, params.ForgeEntityTypeRepository)
+
+	forgeType, err := entity.GetForgeType()
+	s.Require().Nil(err)
+	s.Require().Equal(forgeType, params.GithubEndpointType)
+}
+
+func (s *RepoTestSuite) TestCreateRepositoryGitea() {
+	// call tested function
+	repo, err := s.Store.CreateRepository(
+		s.adminCtx,
+		s.Fixtures.CreateRepoParams.Owner,
+		s.Fixtures.CreateRepoParams.Name,
+		s.testCredsGitea,
+		s.Fixtures.CreateRepoParams.WebhookSecret,
+		params.PoolBalancerTypeRoundRobin,
+	)
+
+	// assertions
+	s.Require().Nil(err)
+	storeRepo, err := s.Store.GetRepositoryByID(s.adminCtx, repo.ID)
+	if err != nil {
+		s.FailNow(fmt.Sprintf("failed to get repository by id: %v", err))
+	}
+	s.Require().Equal(storeRepo.Owner, repo.Owner)
+	s.Require().Equal(storeRepo.Name, repo.Name)
+	s.Require().Equal(storeRepo.Credentials.Name, repo.Credentials.Name)
+	s.Require().Equal(storeRepo.WebhookSecret, repo.WebhookSecret)
+
+	entity, err := repo.GetEntity()
+	s.Require().Nil(err)
+	s.Require().Equal(repo.ID, entity.ID)
+	s.Require().Equal(entity.EntityType, params.ForgeEntityTypeRepository)
+
+	forgeType, err := entity.GetForgeType()
+	s.Require().Nil(err)
+	s.Require().Equal(forgeType, params.GiteaEndpointType)
+}
+
+func (s *RepoTestSuite) TestCreateRepositoryInvalidForgeType() {
+	// call tested function
+	_, err := s.Store.CreateRepository(
+		s.adminCtx,
+		s.Fixtures.CreateRepoParams.Owner,
+		s.Fixtures.CreateRepoParams.Name,
+		params.ForgeCredentials{
+			Name:      "test-creds",
+			ForgeType: "invalid-forge-type",
+			Endpoint: params.ForgeEndpoint{
+				Name: "test-endpoint",
+			},
+		},
+		s.Fixtures.CreateRepoParams.WebhookSecret,
+		params.PoolBalancerTypeRoundRobin,
+	)
+
+	s.Require().NotNil(err)
+	s.Require().Equal("creating repository: unsupported credentials type: invalid request", err.Error())
 }
 
 func (s *RepoTestSuite) TestCreateRepositoryInvalidDBPassphrase() {

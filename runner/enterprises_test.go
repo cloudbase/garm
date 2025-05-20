@@ -81,7 +81,7 @@ func (s *EnterpriseTestSuite) SetupTest() {
 		enterprise, err := db.CreateEnterprise(
 			adminCtx,
 			name,
-			s.testCreds.Name,
+			s.testCreds,
 			fmt.Sprintf("test-webhook-secret-%v", i),
 			params.PoolBalancerTypeRoundRobin,
 		)

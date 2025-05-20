@@ -22,7 +22,7 @@ func (s *sqlDatabase) CreateGiteaEndpoint(_ context.Context, param params.Create
 	var endpoint GithubEndpoint
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("name = ?", param.Name).First(&endpoint).Error; err == nil {
-			return errors.Wrap(runnerErrors.ErrDuplicateEntity, "github endpoint already exists")
+			return errors.Wrap(runnerErrors.ErrDuplicateEntity, "gitea endpoint already exists")
 		}
 		endpoint = GithubEndpoint{
 			Name:         param.Name,
@@ -34,16 +34,16 @@ func (s *sqlDatabase) CreateGiteaEndpoint(_ context.Context, param params.Create
 		}
 
 		if err := tx.Create(&endpoint).Error; err != nil {
-			return errors.Wrap(err, "creating github endpoint")
+			return errors.Wrap(err, "creating gitea endpoint")
 		}
 		return nil
 	})
 	if err != nil {
-		return params.ForgeEndpoint{}, errors.Wrap(err, "creating github endpoint")
+		return params.ForgeEndpoint{}, errors.Wrap(err, "creating gitea endpoint")
 	}
 	ghEndpoint, err = s.sqlToCommonGithubEndpoint(endpoint)
 	if err != nil {
-		return params.ForgeEndpoint{}, errors.Wrap(err, "converting github endpoint")
+		return params.ForgeEndpoint{}, errors.Wrap(err, "converting gitea endpoint")
 	}
 	return ghEndpoint, nil
 }
@@ -52,14 +52,14 @@ func (s *sqlDatabase) ListGiteaEndpoints(_ context.Context) ([]params.ForgeEndpo
 	var endpoints []GithubEndpoint
 	err := s.conn.Where("endpoint_type = ?", params.GiteaEndpointType).Find(&endpoints).Error
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching github endpoints")
+		return nil, errors.Wrap(err, "fetching gitea endpoints")
 	}
 
 	var ret []params.ForgeEndpoint
 	for _, ep := range endpoints {
 		commonEp, err := s.sqlToCommonGithubEndpoint(ep)
 		if err != nil {
-			return nil, errors.Wrap(err, "converting github endpoint")
+			return nil, errors.Wrap(err, "converting gitea endpoint")
 		}
 		ret = append(ret, commonEp)
 	}
@@ -67,10 +67,6 @@ func (s *sqlDatabase) ListGiteaEndpoints(_ context.Context) ([]params.ForgeEndpo
 }
 
 func (s *sqlDatabase) UpdateGiteaEndpoint(_ context.Context, name string, param params.UpdateGiteaEndpointParams) (ghEndpoint params.ForgeEndpoint, err error) {
-	if name == defaultGithubEndpoint {
-		return params.ForgeEndpoint{}, runnerErrors.NewBadRequestError("cannot update default endpoint %s", defaultGithubEndpoint)
-	}
-
 	defer func() {
 		if err == nil {
 			s.sendNotify(common.GithubEndpointEntityType, common.UpdateOperation, ghEndpoint)
@@ -118,7 +114,6 @@ func (s *sqlDatabase) UpdateGiteaEndpoint(_ context.Context, name string, param 
 
 func (s *sqlDatabase) GetGiteaEndpoint(_ context.Context, name string) (params.ForgeEndpoint, error) {
 	var endpoint GithubEndpoint
-
 	err := s.conn.Where("name = ? and endpoint_type = ?", name, params.GiteaEndpointType).First(&endpoint).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -150,7 +145,7 @@ func (s *sqlDatabase) DeleteGiteaEndpoint(_ context.Context, name string) (err e
 		}
 
 		var credsCount int64
-		if err := tx.Model(&GithubCredentials{}).Where("endpoint_name = ?", endpoint.Name).Count(&credsCount).Error; err != nil {
+		if err := tx.Model(&GiteaCredentials{}).Where("endpoint_name = ?", endpoint.Name).Count(&credsCount).Error; err != nil {
 			if !errors.Is(err, gorm.ErrRecordNotFound) {
 				return errors.Wrap(err, "fetching gitea credentials")
 			}
@@ -170,15 +165,8 @@ func (s *sqlDatabase) DeleteGiteaEndpoint(_ context.Context, name string) (err e
 			}
 		}
 
-		var entCnt int64
-		if err := tx.Model(&Enterprise{}).Where("endpoint_name = ?", endpoint.Name).Count(&entCnt).Error; err != nil {
-			if !errors.Is(err, gorm.ErrRecordNotFound) {
-				return errors.Wrap(err, "fetching gitea enterprises")
-			}
-		}
-
-		if credsCount > 0 || repoCnt > 0 || orgCnt > 0 || entCnt > 0 {
-			return errors.New("cannot delete endpoint with associated entities")
+		if credsCount > 0 || repoCnt > 0 || orgCnt > 0 {
+			return runnerErrors.NewBadRequestError("cannot delete endpoint with associated entities")
 		}
 
 		if err := tx.Unscoped().Delete(&endpoint).Error; err != nil {
@@ -195,7 +183,7 @@ func (s *sqlDatabase) DeleteGiteaEndpoint(_ context.Context, name string) (err e
 func (s *sqlDatabase) CreateGiteaCredentials(ctx context.Context, param params.CreateGiteaCredentialsParams) (gtCreds params.ForgeCredentials, err error) {
 	userID, err := getUIDFromContext(ctx)
 	if err != nil {
-		return params.ForgeCredentials{}, errors.Wrap(err, "creating github credentials")
+		return params.ForgeCredentials{}, errors.Wrap(err, "creating gitea credentials")
 	}
 	if param.Endpoint == "" {
 		return params.ForgeCredentials{}, errors.Wrap(runnerErrors.ErrBadRequest, "endpoint name is required")
@@ -211,13 +199,13 @@ func (s *sqlDatabase) CreateGiteaCredentials(ctx context.Context, param params.C
 		var endpoint GithubEndpoint
 		if err := tx.Where("name = ? and endpoint_type = ?", param.Endpoint, params.GiteaEndpointType).First(&endpoint).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return errors.Wrap(runnerErrors.ErrNotFound, "github endpoint not found")
+				return errors.Wrap(runnerErrors.ErrNotFound, "gitea endpoint not found")
 			}
-			return errors.Wrap(err, "fetching github endpoint")
+			return errors.Wrap(err, "fetching gitea endpoint")
 		}
 
 		if err := tx.Where("name = ? and user_id = ?", param.Name, userID).First(&creds).Error; err == nil {
-			return errors.Wrap(runnerErrors.ErrDuplicateEntity, "github credentials already exists")
+			return errors.Wrap(runnerErrors.ErrDuplicateEntity, "gitea credentials already exists")
 		}
 
 		var data []byte
@@ -225,8 +213,6 @@ func (s *sqlDatabase) CreateGiteaCredentials(ctx context.Context, param params.C
 		switch param.AuthType {
 		case params.ForgeAuthTypePAT:
 			data, err = s.marshalAndSeal(param.PAT)
-		case params.ForgeAuthTypeApp:
-			data, err = s.marshalAndSeal(param.App)
 		default:
 			return errors.Wrap(runnerErrors.ErrBadRequest, "invalid auth type")
 		}
@@ -244,7 +230,7 @@ func (s *sqlDatabase) CreateGiteaCredentials(ctx context.Context, param params.C
 		}
 
 		if err := tx.Create(&creds).Error; err != nil {
-			return errors.Wrap(err, "creating github credentials")
+			return errors.Wrap(err, "creating gitea credentials")
 		}
 		// Skip making an extra query.
 		creds.Endpoint = endpoint
@@ -252,11 +238,11 @@ func (s *sqlDatabase) CreateGiteaCredentials(ctx context.Context, param params.C
 		return nil
 	})
 	if err != nil {
-		return params.ForgeCredentials{}, errors.Wrap(err, "creating github credentials")
+		return params.ForgeCredentials{}, errors.Wrap(err, "creating gitea credentials")
 	}
 	gtCreds, err = s.sqlGiteaToCommonForgeCredentials(creds)
 	if err != nil {
-		return params.ForgeCredentials{}, errors.Wrap(err, "converting github credentials")
+		return params.ForgeCredentials{}, errors.Wrap(err, "converting gitea credentials")
 	}
 	return gtCreds, nil
 }

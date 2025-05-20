@@ -200,7 +200,7 @@ func (s *sqlDatabase) DeleteGithubEndpoint(_ context.Context, name string) (err 
 		}
 
 		if credsCount > 0 || repoCnt > 0 || orgCnt > 0 || entCnt > 0 {
-			return errors.New("cannot delete endpoint with associated entities")
+			return runnerErrors.NewBadRequestError("cannot delete endpoint with associated entities")
 		}
 
 		if err := tx.Unscoped().Delete(&endpoint).Error; err != nil {

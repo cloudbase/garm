@@ -555,7 +555,7 @@ func (s *GithubTestSuite) TestDeleteCredentialsFailsIfReposOrgsOrEntitiesUseIt()
 	err = s.db.DeleteOrganization(ctx, org.ID)
 	s.Require().NoError(err)
 
-	enterprise, err := s.db.CreateEnterprise(ctx, "test-enterprise", creds.Name, "superSecret@123BlaBla", params.PoolBalancerTypeRoundRobin)
+	enterprise, err := s.db.CreateEnterprise(ctx, "test-enterprise", creds, "superSecret@123BlaBla", params.PoolBalancerTypeRoundRobin)
 	s.Require().NoError(err)
 	s.Require().NotNil(enterprise)
 
@@ -735,6 +735,68 @@ func (s *GithubTestSuite) TestAdminUserCanUpdateAnyGithubCredentials() {
 	newCreds, err := s.db.UpdateGithubCredentials(ctx, creds.ID, updateCredParams)
 	s.Require().NoError(err)
 	s.Require().Equal(newDescription, newCreds.Description)
+}
+
+func (s *GithubTestSuite) TestDeleteGithubEndpointFailsWithOrgsReposOrCredentials() {
+	ctx := garmTesting.ImpersonateAdminContext(context.Background(), s.db, s.T())
+
+	endpointParams := params.CreateGithubEndpointParams{
+		Name:        "deleteme",
+		Description: testEndpointDescription,
+		APIBaseURL:  testAPIBaseURL,
+		BaseURL:     testBaseURL,
+	}
+
+	ep, err := s.db.CreateGithubEndpoint(ctx, endpointParams)
+	s.Require().NoError(err)
+	s.Require().NotNil(ep)
+
+	credParams := params.CreateGithubCredentialsParams{
+		Name:        testCredsName,
+		Description: testCredsDescription,
+		Endpoint:    ep.Name,
+		AuthType:    params.ForgeAuthTypePAT,
+		PAT: params.GithubPAT{
+			OAuth2Token: "test-creds5",
+		},
+	}
+
+	creds, err := s.db.CreateGithubCredentials(ctx, credParams)
+	s.Require().NoError(err)
+	s.Require().NotNil(creds)
+
+	repo, err := s.db.CreateRepository(ctx, "test-owner", "test-repo", creds, "superSecret@123BlaBla", params.PoolBalancerTypeRoundRobin)
+	s.Require().NoError(err)
+	s.Require().NotNil(repo)
+
+	badRequest := &runnerErrors.BadRequestError{}
+	err = s.db.DeleteGithubEndpoint(ctx, ep.Name)
+	s.Require().Error(err)
+	s.Require().ErrorAs(err, &badRequest)
+
+	err = s.db.DeleteRepository(ctx, repo.ID)
+	s.Require().NoError(err)
+
+	org, err := s.db.CreateOrganization(ctx, "test-org", creds, "superSecret@123BlaBla", params.PoolBalancerTypeRoundRobin)
+	s.Require().NoError(err)
+	s.Require().NotNil(org)
+
+	err = s.db.DeleteGithubEndpoint(ctx, ep.Name)
+	s.Require().Error(err)
+	s.Require().ErrorAs(err, &badRequest)
+
+	err = s.db.DeleteOrganization(ctx, org.ID)
+	s.Require().NoError(err)
+
+	err = s.db.DeleteGithubCredentials(ctx, creds.ID)
+	s.Require().NoError(err)
+
+	err = s.db.DeleteGithubEndpoint(ctx, ep.Name)
+	s.Require().NoError(err)
+
+	_, err = s.db.GetGithubEndpoint(ctx, ep.Name)
+	s.Require().Error(err)
+	s.Require().ErrorIs(err, runnerErrors.ErrNotFound)
 }
 
 func TestGithubTestSuite(t *testing.T) {

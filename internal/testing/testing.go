@@ -110,6 +110,30 @@ func CreateDefaultGithubEndpoint(ctx context.Context, db common.Store, s *testin
 	return ep
 }
 
+func CreateDefaultGiteaEndpoint(ctx context.Context, db common.Store, s *testing.T) params.ForgeEndpoint {
+	endpointParams := params.CreateGiteaEndpointParams{
+		Name:        "gitea.example.com",
+		Description: "gitea endpoint",
+		APIBaseURL:  "https://gitea.example.com/",
+		BaseURL:     "https://gitea.example.com/",
+	}
+
+	ep, err := db.GetGithubEndpoint(ctx, endpointParams.Name)
+	if err != nil {
+		if !errors.Is(err, runnerErrors.ErrNotFound) {
+			s.Fatalf("failed to get database object (github.com): %v", err)
+		}
+		ep, err = db.CreateGiteaEndpoint(ctx, endpointParams)
+		if err != nil {
+			if !errors.Is(err, runnerErrors.ErrDuplicateEntity) {
+				s.Fatalf("failed to create database object (github.com): %v", err)
+			}
+		}
+	}
+
+	return ep
+}
+
 func CreateTestGithubCredentials(ctx context.Context, credsName string, db common.Store, s *testing.T, endpoint params.ForgeEndpoint) params.ForgeCredentials {
 	newCredsParams := params.CreateGithubCredentialsParams{
 		Name:        credsName,
@@ -121,6 +145,23 @@ func CreateTestGithubCredentials(ctx context.Context, credsName string, db commo
 		},
 	}
 	newCreds, err := db.CreateGithubCredentials(ctx, newCredsParams)
+	if err != nil {
+		s.Fatalf("failed to create database object (%s): %v", credsName, err)
+	}
+	return newCreds
+}
+
+func CreateTestGiteaCredentials(ctx context.Context, credsName string, db common.Store, s *testing.T, endpoint params.ForgeEndpoint) params.ForgeCredentials {
+	newCredsParams := params.CreateGiteaCredentialsParams{
+		Name:        credsName,
+		Description: "Test creds",
+		AuthType:    params.ForgeAuthTypePAT,
+		Endpoint:    endpoint.Name,
+		PAT: params.GithubPAT{
+			OAuth2Token: "test-token",
+		},
+	}
+	newCreds, err := db.CreateGiteaCredentials(ctx, newCredsParams)
 	if err != nil {
 		s.Fatalf("failed to create database object (%s): %v", credsName, err)
 	}

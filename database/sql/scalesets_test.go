@@ -58,7 +58,7 @@ func (s *ScaleSetsTestSuite) SetupTest() {
 		s.FailNow(fmt.Sprintf("failed to create repo: %s", err))
 	}
 
-	s.enterprise, err = s.Store.CreateEnterprise(s.adminCtx, "test-enterprise", s.creds.Name, "test-webhookSecret", params.PoolBalancerTypeRoundRobin)
+	s.enterprise, err = s.Store.CreateEnterprise(s.adminCtx, "test-enterprise", s.creds, "test-webhookSecret", params.PoolBalancerTypeRoundRobin)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to create enterprise: %s", err))
 	}

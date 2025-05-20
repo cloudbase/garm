@@ -54,8 +54,10 @@ type OrgTestSuite struct {
 	adminUserID string
 
 	testCreds          params.ForgeCredentials
+	testCredsGitea     params.ForgeCredentials
 	secondaryTestCreds params.ForgeCredentials
 	githubEndpoint     params.ForgeEndpoint
+	giteaEndpoint      params.ForgeEndpoint
 }
 
 func (s *OrgTestSuite) equalInstancesByName(expected, actual []params.Instance) {
@@ -91,7 +93,9 @@ func (s *OrgTestSuite) SetupTest() {
 	s.Require().NotEmpty(s.adminUserID)
 
 	s.githubEndpoint = garmTesting.CreateDefaultGithubEndpoint(adminCtx, db, s.T())
+	s.giteaEndpoint = garmTesting.CreateDefaultGiteaEndpoint(adminCtx, db, s.T())
 	s.testCreds = garmTesting.CreateTestGithubCredentials(adminCtx, "new-creds", db, s.T(), s.githubEndpoint)
+	s.testCredsGitea = garmTesting.CreateTestGiteaCredentials(adminCtx, "new-creds", db, s.T(), s.giteaEndpoint)
 	s.secondaryTestCreds = garmTesting.CreateTestGithubCredentials(adminCtx, "secondary-creds", db, s.T(), s.githubEndpoint)
 
 	// create some organization objects in the database, for testing purposes
@@ -192,6 +196,62 @@ func (s *OrgTestSuite) TestCreateOrganization() {
 	s.Require().Equal(storeOrg.Name, org.Name)
 	s.Require().Equal(storeOrg.Credentials.Name, org.Credentials.Name)
 	s.Require().Equal(storeOrg.WebhookSecret, org.WebhookSecret)
+
+	entity, err := org.GetEntity()
+	s.Require().Nil(err)
+	s.Require().Equal(entity.EntityType, params.ForgeEntityTypeOrganization)
+	s.Require().Equal(entity.ID, org.ID)
+
+	forgeType, err := entity.GetForgeType()
+	s.Require().Nil(err)
+	s.Require().Equal(forgeType, params.GithubEndpointType)
+}
+
+func (s *OrgTestSuite) TestCreateOrgForGitea() {
+	// call tested function
+	org, err := s.Store.CreateOrganization(
+		s.adminCtx,
+		s.Fixtures.CreateOrgParams.Name,
+		s.testCredsGitea,
+		s.Fixtures.CreateOrgParams.WebhookSecret,
+		params.PoolBalancerTypeRoundRobin)
+
+	// assertions
+	s.Require().Nil(err)
+	storeOrg, err := s.Store.GetOrganizationByID(s.adminCtx, org.ID)
+	if err != nil {
+		s.FailNow(fmt.Sprintf("failed to get organization by id: %v", err))
+	}
+	s.Require().Equal(storeOrg.Name, org.Name)
+	s.Require().Equal(storeOrg.Credentials.Name, org.Credentials.Name)
+	s.Require().Equal(storeOrg.WebhookSecret, org.WebhookSecret)
+
+	entity, err := org.GetEntity()
+	s.Require().Nil(err)
+	s.Require().Equal(entity.EntityType, params.ForgeEntityTypeOrganization)
+	s.Require().Equal(entity.ID, org.ID)
+
+	forgeType, err := entity.GetForgeType()
+	s.Require().Nil(err)
+	s.Require().Equal(forgeType, params.GiteaEndpointType)
+}
+
+func (s *OrgTestSuite) TestCreateOrganizationInvalidForgeType() {
+	credentials := params.ForgeCredentials{
+		Name:      "test-creds",
+		Endpoint:  s.githubEndpoint,
+		ID:        99,
+		ForgeType: params.EndpointType("invalid-forge-type"),
+	}
+
+	_, err := s.Store.CreateOrganization(
+		s.adminCtx,
+		s.Fixtures.CreateOrgParams.Name,
+		credentials,
+		s.Fixtures.CreateOrgParams.WebhookSecret,
+		params.PoolBalancerTypeRoundRobin)
+	s.Require().NotNil(err)
+	s.Require().Equal("creating org: unsupported credentials type: invalid request", err.Error())
 }
 
 func (s *OrgTestSuite) TestCreateOrganizationInvalidDBPassphrase() {

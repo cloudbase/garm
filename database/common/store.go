@@ -56,7 +56,7 @@ type OrgStore interface {
 }
 
 type EnterpriseStore interface {
-	CreateEnterprise(ctx context.Context, name, credentialsName, webhookSecret string, poolBalancerType params.PoolBalancerType) (params.Enterprise, error)
+	CreateEnterprise(ctx context.Context, name string, credentialsName params.ForgeCredentials, webhookSecret string, poolBalancerType params.PoolBalancerType) (params.Enterprise, error)
 	GetEnterprise(ctx context.Context, name, endpointName string) (params.Enterprise, error)
 	GetEnterpriseByID(ctx context.Context, enterpriseID string) (params.Enterprise, error)
 	ListEnterprises(ctx context.Context) ([]params.Enterprise, error)

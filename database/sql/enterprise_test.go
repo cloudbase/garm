@@ -99,7 +99,7 @@ func (s *EnterpriseTestSuite) SetupTest() {
 		enterprise, err := db.CreateEnterprise(
 			s.adminCtx,
 			fmt.Sprintf("test-enterprise-%d", i),
-			s.testCreds.Name,
+			s.testCreds,
 			fmt.Sprintf("test-webhook-secret-%d", i),
 			params.PoolBalancerTypeRoundRobin,
 		)
@@ -178,7 +178,7 @@ func (s *EnterpriseTestSuite) TestCreateEnterprise() {
 	enterprise, err := s.Store.CreateEnterprise(
 		s.adminCtx,
 		s.Fixtures.CreateEnterpriseParams.Name,
-		s.Fixtures.CreateEnterpriseParams.CredentialsName,
+		s.testCreds,
 		s.Fixtures.CreateEnterpriseParams.WebhookSecret,
 		params.PoolBalancerTypeRoundRobin)
 
@@ -209,7 +209,7 @@ func (s *EnterpriseTestSuite) TestCreateEnterpriseInvalidDBPassphrase() {
 	_, err = sqlDB.CreateEnterprise(
 		s.adminCtx,
 		s.Fixtures.CreateEnterpriseParams.Name,
-		s.Fixtures.CreateEnterpriseParams.CredentialsName,
+		s.testCreds,
 		s.Fixtures.CreateEnterpriseParams.WebhookSecret,
 		params.PoolBalancerTypeRoundRobin)
 
@@ -235,7 +235,7 @@ func (s *EnterpriseTestSuite) TestCreateEnterpriseDBCreateErr() {
 	_, err := s.StoreSQLMocked.CreateEnterprise(
 		s.adminCtx,
 		s.Fixtures.CreateEnterpriseParams.Name,
-		s.Fixtures.CreateEnterpriseParams.CredentialsName,
+		s.testCreds,
 		s.Fixtures.CreateEnterpriseParams.WebhookSecret,
 		params.PoolBalancerTypeRoundRobin)
 

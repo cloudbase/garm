@@ -39,7 +39,7 @@ func (r *Runner) CreateEnterprise(ctx context.Context, param params.CreateEnterp
 		return params.Enterprise{}, runnerErrors.NewConflictError("enterprise %s already exists", param.Name)
 	}
 
-	enterprise, err = r.store.CreateEnterprise(ctx, param.Name, creds.Name, param.WebhookSecret, param.PoolBalancerType)
+	enterprise, err = r.store.CreateEnterprise(ctx, param.Name, creds, param.WebhookSecret, param.PoolBalancerType)
 	if err != nil {
 		return params.Enterprise{}, errors.Wrap(err, "creating enterprise")
 	}
