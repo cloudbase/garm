@@ -10,6 +10,8 @@ on:
         description: "Ref to build"
         required: true
         default: "main"
+  schedule:
+    - cron: "0 2 * * *"
 
 permissions:
   contents: read
