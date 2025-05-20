@@ -205,21 +205,26 @@ func WithEntityJobFilter(ghEntity params.ForgeEntity) dbCommon.PayloadFilterFunc
 	}
 }
 
-// WithForgeCredentialsFilter returns a filter function that filters payloads by Github credentials.
+// WithForgeCredentialsFilter returns a filter function that filters payloads by Github or Gitea credentials.
 func WithForgeCredentialsFilter(creds params.ForgeCredentials) dbCommon.PayloadFilterFunc {
 	return func(payload dbCommon.ChangePayload) bool {
-		var idGetter params.IDGetter
+		var forgeCreds params.ForgeCredentials
 		var ok bool
 		switch payload.EntityType {
 		case dbCommon.GithubCredentialsEntityType, dbCommon.GiteaCredentialsEntityType:
-			idGetter, ok = payload.Payload.(params.ForgeCredentials)
+			forgeCreds, ok = payload.Payload.(params.ForgeCredentials)
 		default:
 			return false
 		}
 		if !ok {
 			return false
 		}
-		return idGetter.GetID() == creds.GetID()
+		// Gite and Github creds have different models. The ID is uint, so we
+		// need to explicitly check their type, or risk a clash.
+		if forgeCreds.ForgeType != creds.ForgeType {
+			return false
+		}
+		return forgeCreds.GetID() == creds.GetID()
 	}
 }
 
