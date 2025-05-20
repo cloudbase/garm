@@ -226,7 +226,7 @@ func (s *RepoTestSuite) TestCreateRepository() {
 
 	entity, err := repo.GetEntity()
 	s.Require().Nil(err)
-	s.Require().Equal(s.Fixtures.CreateRepoParams.Owner, entity.ID)
+	s.Require().Equal(s.Fixtures.CreateRepoParams.Owner, entity.Owner)
 	s.Require().Equal(entity.EntityType, params.ForgeEntityTypeRepository)
 
 	forgeType, err := entity.GetForgeType()

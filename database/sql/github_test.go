@@ -33,13 +33,14 @@ import (
 )
 
 const (
-	testUploadBaseURL       string = "https://uploads.example.com"
-	testBaseURL             string = "https://example.com"
-	testAPIBaseURL          string = "https://api.example.com"
-	testEndpointName        string = "test-endpoint"
-	testEndpointDescription string = "test description"
-	testCredsName           string = "test-creds"
-	testCredsDescription    string = "test creds"
+	testUploadBaseURL        string = "https://uploads.example.com"
+	testBaseURL              string = "https://example.com"
+	testAPIBaseURL           string = "https://api.example.com"
+	testEndpointName         string = "test-endpoint"
+	alternetTestEndpointName string = "test-endpoint-alternate"
+	testEndpointDescription  string = "test description"
+	testCredsName            string = "test-creds"
+	testCredsDescription     string = "test creds"
 )
 
 type GithubTestSuite struct {

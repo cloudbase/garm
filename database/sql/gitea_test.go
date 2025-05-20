@@ -61,7 +61,7 @@ func (s *GiteaTestSuite) TestCreatingEndpoint() {
 	ctx := garmTesting.ImpersonateAdminContext(context.Background(), s.db, s.T())
 
 	createEpParams := params.CreateGiteaEndpointParams{
-		Name:        testEndpointName,
+		Name:        alternetTestEndpointName,
 		Description: testEndpointDescription,
 		APIBaseURL:  testAPIBaseURL,
 		BaseURL:     testBaseURL,
@@ -70,14 +70,14 @@ func (s *GiteaTestSuite) TestCreatingEndpoint() {
 	endpoint, err := s.db.CreateGiteaEndpoint(ctx, createEpParams)
 	s.Require().NoError(err)
 	s.Require().NotNil(endpoint)
-	s.Require().Equal(testEndpointName, endpoint.Name)
+	s.Require().Equal(alternetTestEndpointName, endpoint.Name)
 }
 
 func (s *GiteaTestSuite) TestCreatingDuplicateEndpointFails() {
 	ctx := garmTesting.ImpersonateAdminContext(context.Background(), s.db, s.T())
 
 	createEpParams := params.CreateGiteaEndpointParams{
-		Name:        testEndpointName,
+		Name:        alternetTestEndpointName,
 		Description: testEndpointDescription,
 		APIBaseURL:  testAPIBaseURL,
 		BaseURL:     testBaseURL,
@@ -95,7 +95,7 @@ func (s *GiteaTestSuite) TestGetEndpoint() {
 	ctx := garmTesting.ImpersonateAdminContext(context.Background(), s.db, s.T())
 
 	createEpParams := params.CreateGiteaEndpointParams{
-		Name:        "deleteme",
+		Name:        alternetTestEndpointName,
 		Description: testEndpointDescription,
 		APIBaseURL:  testAPIBaseURL,
 		BaseURL:     testBaseURL,
@@ -129,7 +129,7 @@ func (s *GiteaTestSuite) TestDeletingEndpoint() {
 	ctx := garmTesting.ImpersonateAdminContext(context.Background(), s.db, s.T())
 
 	createEpParams := params.CreateGiteaEndpointParams{
-		Name:        testEndpointName,
+		Name:        alternetTestEndpointName,
 		Description: testEndpointDescription,
 		APIBaseURL:  testAPIBaseURL,
 		BaseURL:     testBaseURL,
@@ -139,10 +139,10 @@ func (s *GiteaTestSuite) TestDeletingEndpoint() {
 	s.Require().NoError(err)
 	s.Require().NotNil(endpoint)
 
-	err = s.db.DeleteGiteaEndpoint(ctx, testEndpointName)
+	err = s.db.DeleteGiteaEndpoint(ctx, alternetTestEndpointName)
 	s.Require().NoError(err)
 
-	_, err = s.db.GetGiteaEndpoint(ctx, testEndpointName)
+	_, err = s.db.GetGiteaEndpoint(ctx, alternetTestEndpointName)
 	s.Require().Error(err)
 	s.Require().ErrorIs(err, runnerErrors.ErrNotFound)
 }
@@ -199,7 +199,7 @@ func (s *GiteaTestSuite) TestListEndpoints() {
 	ctx := garmTesting.ImpersonateAdminContext(context.Background(), s.db, s.T())
 
 	createEpParams := params.CreateGiteaEndpointParams{
-		Name:        testEndpointName,
+		Name:        alternetTestEndpointName,
 		Description: testEndpointDescription,
 		APIBaseURL:  testAPIBaseURL,
 		BaseURL:     testBaseURL,
@@ -210,7 +210,7 @@ func (s *GiteaTestSuite) TestListEndpoints() {
 
 	endpoints, err := s.db.ListGiteaEndpoints(ctx)
 	s.Require().NoError(err)
-	s.Require().Len(endpoints, 1)
+	s.Require().Len(endpoints, 2)
 }
 
 func (s *GiteaTestSuite) TestCreateCredentialsFailsWithUnauthorizedForAnonUser() {
