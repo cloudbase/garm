@@ -30,6 +30,10 @@ RUN cd /build/garm && go build -o /bin/garm \
     -tags osusergo,netgo,sqlite_omit_load_extension \
     -ldflags "-linkmode external -extldflags '-static' -s -w -X github.com/cloudbase/garm/util/appdefaults.Version=$(git describe --tags --match='v[0-9]*' --dirty --always)" \
     /build/garm/cmd/garm && upx /bin/garm
+RUN cd /build/garm/cmd/garm-cli && go build -o /bin/garm-cli \
+    -tags osusergo,netgo,sqlite_omit_load_extension \
+    -ldflags "-linkmode external -extldflags '-static' -s -w -X github.com/cloudbase/garm/util/appdefaults.Version=$(git describe --tags --match='v[0-9]*' --dirty --always)" \
+    . && upx /bin/garm-cli
 RUN mkdir -p /opt/garm/providers.d
 RUN cd /build/garm-provider-azure && go build -ldflags="-linkmode external -extldflags '-static' -s -w -X main.Version=$(git describe --tags --match='v[0-9]*' --dirty --always)" -o /opt/garm/providers.d/garm-provider-azure . && upx /opt/garm/providers.d/garm-provider-azure
 RUN cd /build/garm-provider-openstack && go build -ldflags="-linkmode external -extldflags '-static' -s -w -X main.Version=$(git describe --tags --match='v[0-9]*' --dirty --always)" -o /opt/garm/providers.d/garm-provider-openstack . && upx /opt/garm/providers.d/garm-provider-openstack
