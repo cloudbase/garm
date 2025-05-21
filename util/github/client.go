@@ -240,8 +240,13 @@ func (g *githubClient) ListEntityRunnerApplicationDownloads(ctx context.Context)
 }
 
 func parseError(response *github.Response, err error) error {
-	slog.Debug("parsing error", "status_code", response.StatusCode, "response", response, "error", err)
-	switch response.StatusCode {
+	var statusCode int
+	if response != nil {
+		statusCode = response.StatusCode
+	}
+
+	slog.Debug("parsing error", "status_code", statusCode, "response", response, "error", err)
+	switch statusCode {
 	case http.StatusNotFound:
 		return runnerErrors.ErrNotFound
 	case http.StatusUnauthorized:
@@ -249,7 +254,7 @@ func parseError(response *github.Response, err error) error {
 	case http.StatusUnprocessableEntity:
 		return runnerErrors.ErrBadRequest
 	default:
-		if response.StatusCode >= 100 && response.StatusCode < 300 {
+		if statusCode >= 100 && statusCode < 300 {
 			return nil
 		}
 		if err != nil {
