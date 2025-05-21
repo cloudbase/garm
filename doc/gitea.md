@@ -72,7 +72,7 @@ services:
       - /etc/garm:/etc/garm
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
-      # Give GARM access to the LXD socker. We need this later in the LXD provider.
+      # Give GARM access to the LXD socket. We need this later in the LXD provider.
       - /var/snap/lxd/common/lxd/unix.socket:/var/snap/lxd/common/lxd/unix.socket
     ports:
       - "9997:9997"
