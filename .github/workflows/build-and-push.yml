@@ -42,7 +42,13 @@ jobs:
         - name: Build and push
           run: |
             set -x
-            cd src/github.com/cloudbase/garm
+            REGISTRY_INPUT="${{ github.event.inputs.push_to_project }}"
+            REF_INPUT="${{ github.event.inputs.ref }}"
+
+            PUSH_TO_PROJECT="${REGISTRY_INPUT:-ghcr.io/cloudbase}"
+            GH_REF="${REF_INPUT:-main}"
+            cd src/github.com/cloudbase/garm && git checkout "${GH_REF}"
+
             VERSION=$(git describe --tags --match='v[0-9]*' --always)
             AZURE_REF=v0.1.0
             OPENSTACK_REF=v0.1.0
@@ -52,7 +58,7 @@ jobs:
             GCP_REF=v0.1.0
             EQUINIX_REF=v0.1.0
             K8S_REF=v0.3.2
-            if [ "${{ github.event.inputs.ref }}" == "main" ]; then
+            if [ "$GH_REF" == "main" ]; then
               AZURE_REF="main"
               OPENSTACK_REF="main"
               LXD_REF="main"
@@ -66,10 +72,10 @@ jobs:
             docker buildx build \
               --provenance=false \
               --platform linux/amd64,linux/arm64 \
-              --label "org.opencontainers.image.source=https://github.com/cloudbase/garm/tree/${{ github.event.inputs.ref }}" \
-              --label "org.opencontainers.image.description=GARM ${{ github.event.inputs.ref }}" \
+              --label "org.opencontainers.image.source=https://github.com/cloudbase/garm/tree/${GH_REF}" \
+              --label "org.opencontainers.image.description=GARM ${GH_REF}" \
               --label "org.opencontainers.image.licenses=Apache 2.0" \
-              --build-arg="GARM_REF=${{ github.event.inputs.ref }}" \
+              --build-arg="GARM_REF=${GH_REF}" \
               --build-arg="AZURE_REF=${AZURE_REF}" \
               --build-arg="OPENSTACK_REF=${OPENSTACK_REF}" \
               --build-arg="LXD_REF=${LXD_REF}" \
@@ -78,5 +84,5 @@ jobs:
               --build-arg="GCP_REF=${GCP_REF}" \
               --build-arg="EQUINIX_REF=${EQUINIX_REF}" \
               --build-arg="K8S_REF=${K8S_REF}" \
-              -t ${{ github.event.inputs.push_to_project }}/garm:"${VERSION}" \
+              -t ${PUSH_TO_PROJECT}/garm:"${VERSION}" \
               --push .
