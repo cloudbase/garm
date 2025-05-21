@@ -83,7 +83,7 @@ That's it. You now have a scale set created, ready to accept jobs.
 
 Scale sets are a new way of managing runners. They were introduced by GitHub to enable more efficient scheduling of runners. Scale sets are meant to reduce API calls, improve reliability of message deliveries to the auto scaler and improve efficiency of runner scheduling. While webhooks work great most of the time, under heavy load, they may not fire or they may fire while the auto scaler is offline, leading to lost messages. If webhooks are fired while GARM is down, we will never know about those jobs unless we query the current workflow runs.
 
-Listing workflow runs is not feisable for orgs or enterprises, as that would mean listing all repos withing an org then for each repository, listing all workflow runs. This gets worse for enterprises. Scale sets on the other hand allows GARM to subscribe to a message queue and get messages just for that scale set over HTTP long poll.
+Listing workflow runs is not feasible for orgs or enterprises, as that would mean listing all repos within an org then for each repository, listing all workflow runs. This gets worse for enterprises. Scale sets on the other hand allow GARM to subscribe to a message queue and get messages just for that scale set over HTTP long poll.
 
 Advantages of scale sets over pools:
 
