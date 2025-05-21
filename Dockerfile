@@ -48,6 +48,7 @@ RUN cd /build/garm-provider-k8s/cmd/garm-provider-k8s && go build -ldflags="-lin
 FROM busybox
 
 COPY --from=builder /bin/garm /bin/garm
+COPY --from=builder /bin/garm-cli /bin/garm-cli
 COPY --from=builder /opt/garm/providers.d/garm-provider-openstack /opt/garm/providers.d/garm-provider-openstack
 COPY --from=builder /opt/garm/providers.d/garm-provider-lxd /opt/garm/providers.d/garm-provider-lxd
 COPY --from=builder /opt/garm/providers.d/garm-provider-incus /opt/garm/providers.d/garm-provider-incus
