@@ -41,6 +41,10 @@ func (s *ScaleSetClient) GenerateJitRunnerConfig(ctx context.Context, runnerName
 		return params.RunnerScaleSetJitRunnerConfig{}, err
 	}
 
+	if err := s.ensureAdminInfo(ctx); err != nil {
+		return params.RunnerScaleSetJitRunnerConfig{}, fmt.Errorf("failed to ensure admin info: %w", err)
+	}
+
 	serviceURL, err := s.actionsServiceInfo.GetURL()
 	if err != nil {
 		return params.RunnerScaleSetJitRunnerConfig{}, fmt.Errorf("failed to get pipeline URL: %w", err)
