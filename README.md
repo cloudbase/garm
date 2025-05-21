@@ -22,11 +22,9 @@
 
 Welcome to GARM!
 
-GARM enables you to create and automatically maintain pools of [self-hosted GitHub runners](https://docs.github.com/en/actions/hosting-your-own-runners/about-self-hosted-runners), with auto-scaling that can be used inside your github workflow runs.
+GARM enables you to create and automatically maintain pools of self-hosted runners in both [Github](https://docs.github.com/en/actions/hosting-your-own-runners/about-self-hosted-runners) and [Gitea](https://github.com/go-gitea/gitea/) with auto-scaling that can be used inside your workflow runs.
 
 The goal of ```GARM``` is to be simple to set up, simple to configure and simple to use. The server itself is a single binary that can run on any GNU/Linux machine without any other requirements other than the providers you want to enable in your setup. It is intended to be easy to deploy in any environment and can create runners in virtually any system you can write a provider for (if one does not alreay exist). There is no complicated setup process and no extremely complex concepts to understand. Once set up, it's meant to stay out of your way.
-
-GARM supports creating pools and scale sets in either GitHub itself or in your own deployment of [GitHub Enterprise Server](https://docs.github.com/en/enterprise-server@3.10/admin/overview/about-github-enterprise-server). For instructions on how to use ```GARM``` with GHE, see the [credentials](/doc/github_credentials.md) section of the documentation.
 
 Through the use of providers, `GARM` can create runners in a variety of environments using the same `GARM` instance. Whether you want to create runners in your OpenStack cloud, your Azure cloud or your Kubernetes cluster, that is easily achieved by installing the appropriate providers, configuring them in `GARM` and creating pools that use them. You can create zero-runner pools for instances with high costs (large VMs, GPU enabled instances, etc) and have them spin up on demand, or you can create large pools of eagerly created k8s backed runners that can be used for your CI/CD pipelines at a moment's notice. You can mix them up and create pools in any combination of providers or resource allocations you want.
 
@@ -61,6 +59,14 @@ Check out the [quickstart](/doc/quickstart.md) document for instructions on how 
 ### Installing on Kubernetes
 
 Thanks to the efforts of the amazing folks at [@mercedes-benz](https://github.com/mercedes-benz/), GARM can now be integrated into k8s via their operator. Check out the [GARM operator](https://github.com/mercedes-benz/garm-operator/) for more details.
+
+## Configuring GARM for GHES
+
+GARM supports creating pools and scale sets in either GitHub itself or in your own deployment of [GitHub Enterprise Server](https://docs.github.com/en/enterprise-server@3.10/admin/overview/about-github-enterprise-server). For instructions on how to use ```GARM``` with GHE, see the [credentials](/doc/github_credentials.md) section of the documentation.
+
+## Configuring GARM for Gitea
+
+GARM now has support for Gitea (>=1.24.0). For information on getting started with Gitea, see the [Gitea quickstart](/doc/gitea.md) document.
 
 ## Using GARM
 
