@@ -375,7 +375,10 @@ func formatOneGithubCredential(cred params.ForgeCredentials) {
 	header := table.Row{"Field", "Value"}
 	t.AppendHeader(header)
 
-	resetMinutes := cred.RateLimit.ResetIn().Minutes()
+	var resetMinutes float64
+	if cred.RateLimit != nil {
+		resetMinutes = cred.RateLimit.ResetIn().Minutes()
+	}
 
 	t.AppendRow(table.Row{"ID", cred.ID})
 	t.AppendRow(table.Row{"Created At", cred.CreatedAt})
