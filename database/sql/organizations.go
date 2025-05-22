@@ -70,17 +70,12 @@ func (s *sqlDatabase) CreateOrganization(ctx context.Context, name string, crede
 		return params.Organization{}, errors.Wrap(err, "creating org")
 	}
 
-	org, err := s.getOrgByID(ctx, s.conn, newOrg.ID.String(), "Pools", "Endpoint", "Credentials", "GiteaCredentials", "Credentials.Endpoint", "GiteaCredentials.Endpoint")
+	ret, err := s.GetOrganizationByID(ctx, newOrg.ID.String())
 	if err != nil {
 		return params.Organization{}, errors.Wrap(err, "creating org")
 	}
 
-	param, err = s.sqlToCommonOrganization(org, true)
-	if err != nil {
-		return params.Organization{}, errors.Wrap(err, "creating org")
-	}
-
-	return param, nil
+	return ret, nil
 }
 
 func (s *sqlDatabase) GetOrganization(ctx context.Context, name, endpointName string) (params.Organization, error) {
@@ -215,7 +210,16 @@ func (s *sqlDatabase) UpdateOrganization(ctx context.Context, orgID string, para
 }
 
 func (s *sqlDatabase) GetOrganizationByID(ctx context.Context, orgID string) (params.Organization, error) {
-	org, err := s.getOrgByID(ctx, s.conn, orgID, "Pools", "Credentials", "Endpoint", "Credentials.Endpoint", "GiteaCredentials", "GiteaCredentials.Endpoint")
+	preloadList := []string{
+		"Pools",
+		"Credentials",
+		"Endpoint",
+		"Credentials.Endpoint",
+		"GiteaCredentials",
+		"GiteaCredentials.Endpoint",
+		"Events",
+	}
+	org, err := s.getOrgByID(ctx, s.conn, orgID, preloadList...)
 	if err != nil {
 		return params.Organization{}, errors.Wrap(err, "fetching org")
 	}

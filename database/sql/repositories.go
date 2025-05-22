@@ -71,17 +71,12 @@ func (s *sqlDatabase) CreateRepository(ctx context.Context, owner, name string, 
 		return params.Repository{}, errors.Wrap(err, "creating repository")
 	}
 
-	repo, err := s.getRepoByID(ctx, s.conn, newRepo.ID.String(), "Endpoint", "Credentials", "GiteaCredentials", "Credentials.Endpoint", "GiteaCredentials.Endpoint")
+	ret, err := s.GetRepositoryByID(ctx, newRepo.ID.String())
 	if err != nil {
 		return params.Repository{}, errors.Wrap(err, "creating repository")
 	}
 
-	param, err = s.sqlToCommonRepository(repo, true)
-	if err != nil {
-		return params.Repository{}, errors.Wrap(err, "creating repository")
-	}
-
-	return param, nil
+	return ret, nil
 }
 
 func (s *sqlDatabase) GetRepository(ctx context.Context, owner, name, endpointName string) (params.Repository, error) {
@@ -217,7 +212,16 @@ func (s *sqlDatabase) UpdateRepository(ctx context.Context, repoID string, param
 }
 
 func (s *sqlDatabase) GetRepositoryByID(ctx context.Context, repoID string) (params.Repository, error) {
-	repo, err := s.getRepoByID(ctx, s.conn, repoID, "Pools", "Credentials", "Endpoint", "Credentials.Endpoint", "GiteaCredentials", "GiteaCredentials.Endpoint")
+	preloadList := []string{
+		"Pools",
+		"Credentials",
+		"Endpoint",
+		"Credentials.Endpoint",
+		"GiteaCredentials",
+		"GiteaCredentials.Endpoint",
+		"Events",
+	}
+	repo, err := s.getRepoByID(ctx, s.conn, repoID, preloadList...)
 	if err != nil {
 		return params.Repository{}, errors.Wrap(err, "fetching repo")
 	}

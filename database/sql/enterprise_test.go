@@ -442,6 +442,10 @@ func (s *EnterpriseTestSuite) TestGetEnterpriseByIDDBDecryptingErr() {
 		WithArgs(s.Fixtures.Enterprises[0].ID, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Enterprises[0].ID))
 	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `enterprise_events` WHERE `enterprise_events`.`enterprise_id` = ? AND `enterprise_events`.`deleted_at` IS NULL")).
+		WithArgs(s.Fixtures.Enterprises[0].ID).
+		WillReturnRows(sqlmock.NewRows([]string{"enterprise_id"}).AddRow(s.Fixtures.Enterprises[0].ID))
+	s.Fixtures.SQLMock.
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE `pools`.`enterprise_id` = ? AND `pools`.`deleted_at` IS NULL")).
 		WithArgs(s.Fixtures.Enterprises[0].ID).
 		WillReturnRows(sqlmock.NewRows([]string{"enterprise_id"}).AddRow(s.Fixtures.Enterprises[0].ID))
@@ -771,6 +775,28 @@ func (s *EnterpriseTestSuite) TestUpdateEnterprisePoolInvalidEnterpriseID() {
 
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching pool: parsing id: invalid request", err.Error())
+}
+
+func (s *EnterpriseTestSuite) TestAddRepoEntityEvent() {
+	enterprise, err := s.Store.CreateEnterprise(
+		s.adminCtx,
+		s.Fixtures.CreateEnterpriseParams.Name,
+		s.testCreds,
+		s.Fixtures.CreateEnterpriseParams.WebhookSecret,
+		params.PoolBalancerTypeRoundRobin)
+
+	s.Require().Nil(err)
+	entity, err := enterprise.GetEntity()
+	s.Require().Nil(err)
+	err = s.Store.AddEntityEvent(s.adminCtx, entity, params.StatusEvent, params.EventInfo, "this is a test", 20)
+	s.Require().Nil(err)
+
+	enterprise, err = s.Store.GetEnterpriseByID(s.adminCtx, enterprise.ID)
+	s.Require().Nil(err)
+	s.Require().Equal(1, len(enterprise.Events))
+	s.Require().Equal(params.StatusEvent, enterprise.Events[0].EventType)
+	s.Require().Equal(params.EventInfo, enterprise.Events[0].EventLevel)
+	s.Require().Equal("this is a test", enterprise.Events[0].Message)
 }
 
 func TestEnterpriseTestSuite(t *testing.T) {

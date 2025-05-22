@@ -503,6 +503,10 @@ func (s *OrgTestSuite) TestGetOrganizationByIDDBDecryptingErr() {
 		WithArgs(s.Fixtures.Orgs[0].ID, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Orgs[0].ID))
 	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organization_events` WHERE `organization_events`.`org_id` = ? AND `organization_events`.`deleted_at` IS NULL")).
+		WithArgs(s.Fixtures.Orgs[0].ID).
+		WillReturnRows(sqlmock.NewRows([]string{"org_id"}).AddRow(s.Fixtures.Orgs[0].ID))
+	s.Fixtures.SQLMock.
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE `pools`.`org_id` = ? AND `pools`.`deleted_at` IS NULL")).
 		WithArgs(s.Fixtures.Orgs[0].ID).
 		WillReturnRows(sqlmock.NewRows([]string{"org_id"}).AddRow(s.Fixtures.Orgs[0].ID))
@@ -824,6 +828,28 @@ func (s *OrgTestSuite) TestUpdateOrganizationPool() {
 	s.Require().Equal(*s.Fixtures.UpdatePoolParams.MinIdleRunners, pool.MinIdleRunners)
 	s.Require().Equal(s.Fixtures.UpdatePoolParams.Image, pool.Image)
 	s.Require().Equal(s.Fixtures.UpdatePoolParams.Flavor, pool.Flavor)
+}
+
+func (s *OrgTestSuite) TestAddOrgEntityEvent() {
+	org, err := s.Store.CreateOrganization(
+		s.adminCtx,
+		s.Fixtures.CreateOrgParams.Name,
+		s.testCreds,
+		s.Fixtures.CreateOrgParams.WebhookSecret,
+		params.PoolBalancerTypeRoundRobin)
+
+	s.Require().Nil(err)
+	entity, err := org.GetEntity()
+	s.Require().Nil(err)
+	err = s.Store.AddEntityEvent(s.adminCtx, entity, params.StatusEvent, params.EventInfo, "this is a test", 20)
+	s.Require().Nil(err)
+
+	org, err = s.Store.GetOrganizationByID(s.adminCtx, org.ID)
+	s.Require().Nil(err)
+	s.Require().Equal(1, len(org.Events))
+	s.Require().Equal(params.StatusEvent, org.Events[0].EventType)
+	s.Require().Equal(params.EventInfo, org.Events[0].EventLevel)
+	s.Require().Equal("this is a test", org.Events[0].Message)
 }
 
 func (s *OrgTestSuite) TestUpdateOrganizationPoolInvalidOrgID() {

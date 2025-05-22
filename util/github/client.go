@@ -245,7 +245,6 @@ func parseError(response *github.Response, err error) error {
 		statusCode = response.StatusCode
 	}
 
-	slog.Debug("parsing error", "status_code", statusCode, "response", response, "error", err)
 	switch statusCode {
 	case http.StatusNotFound:
 		return runnerErrors.ErrNotFound

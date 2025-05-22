@@ -559,6 +559,10 @@ func (s *RepoTestSuite) TestGetRepositoryByIDDBDecryptingErr() {
 		WithArgs(s.Fixtures.Repos[0].ID, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Repos[0].ID))
 	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `repository_events` WHERE `repository_events`.`repo_id` = ? AND `repository_events`.`deleted_at` IS NULL")).
+		WithArgs(s.Fixtures.Repos[0].ID).
+		WillReturnRows(sqlmock.NewRows([]string{"repo_id"}).AddRow(s.Fixtures.Repos[0].ID))
+	s.Fixtures.SQLMock.
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE `pools`.`repo_id` = ? AND `pools`.`deleted_at` IS NULL")).
 		WithArgs(s.Fixtures.Repos[0].ID).
 		WillReturnRows(sqlmock.NewRows([]string{"repo_id"}).AddRow(s.Fixtures.Repos[0].ID))
@@ -892,6 +896,29 @@ func (s *RepoTestSuite) TestUpdateRepositoryPoolInvalidRepoID() {
 
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching pool: parsing id: invalid request", err.Error())
+}
+
+func (s *RepoTestSuite) TestAddRepoEntityEvent() {
+	repo, err := s.Store.CreateRepository(
+		s.adminCtx,
+		s.Fixtures.CreateRepoParams.Owner,
+		s.Fixtures.CreateRepoParams.Name,
+		s.testCreds,
+		s.Fixtures.CreateRepoParams.WebhookSecret,
+		params.PoolBalancerTypeRoundRobin)
+
+	s.Require().Nil(err)
+	entity, err := repo.GetEntity()
+	s.Require().Nil(err)
+	err = s.Store.AddEntityEvent(s.adminCtx, entity, params.StatusEvent, params.EventInfo, "this is a test", 20)
+	s.Require().Nil(err)
+
+	repo, err = s.Store.GetRepositoryByID(s.adminCtx, repo.ID)
+	s.Require().Nil(err)
+	s.Require().Equal(1, len(repo.Events))
+	s.Require().Equal(params.StatusEvent, repo.Events[0].EventType)
+	s.Require().Equal(params.EventInfo, repo.Events[0].EventLevel)
+	s.Require().Equal("this is a test", repo.Events[0].Message)
 }
 
 func TestRepoTestSuite(t *testing.T) {

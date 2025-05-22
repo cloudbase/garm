@@ -16,6 +16,7 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/spf13/cobra"
@@ -404,9 +405,16 @@ func formatOneRepository(repo params.Repository) {
 			t.AppendRow(table.Row{"Pools", pool.ID}, rowConfigAutoMerge)
 		}
 	}
+
+	if len(repo.Events) > 0 {
+		for _, event := range repo.Events {
+			t.AppendRow(table.Row{"Events", fmt.Sprintf("%s %s: %s", event.CreatedAt.Format("2006-01-02T15:04:05"), strings.ToUpper(string(event.EventLevel)), event.Message)}, rowConfigAutoMerge)
+		}
+	}
+
 	t.SetColumnConfigs([]table.ColumnConfig{
 		{Number: 1, AutoMerge: true},
-		{Number: 2, AutoMerge: false},
+		{Number: 2, AutoMerge: false, WidthMax: 100},
 	})
 
 	fmt.Println(t.Render())

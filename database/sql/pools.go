@@ -40,8 +40,11 @@ func (s *sqlDatabase) ListAllPools(_ context.Context) ([]params.Pool, error) {
 	q := s.conn.Model(&Pool{}).
 		Preload("Tags").
 		Preload("Organization").
+		Preload("Organization.Endpoint").
 		Preload("Repository").
+		Preload("Repository.Endpoint").
 		Preload("Enterprise").
+		Preload("Enterprise.Endpoint").
 		Omit("extra_specs").
 		Find(&pools)
 	if q.Error != nil {
@@ -60,7 +63,17 @@ func (s *sqlDatabase) ListAllPools(_ context.Context) ([]params.Pool, error) {
 }
 
 func (s *sqlDatabase) GetPoolByID(_ context.Context, poolID string) (params.Pool, error) {
-	pool, err := s.getPoolByID(s.conn, poolID, "Tags", "Instances", "Enterprise", "Organization", "Repository")
+	preloadList := []string{
+		"Tags",
+		"Instances",
+		"Enterprise",
+		"Enterprise.Endpoint",
+		"Organization",
+		"Organization.Endpoint",
+		"Repository",
+		"Repository.Endpoint",
+	}
+	pool, err := s.getPoolByID(s.conn, poolID, preloadList...)
 	if err != nil {
 		return params.Pool{}, errors.Wrap(err, "fetching pool by ID")
 	}

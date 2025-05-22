@@ -476,7 +476,7 @@ func formatPools(pools []params.Pool) {
 	t.SetColumnConfigs([]table.ColumnConfig{
 		{Number: 2, WidthMax: 40},
 	})
-	header := table.Row{"ID", "Image", "Flavor", "Tags", "Belongs to", "Enabled"}
+	header := table.Row{"ID", "Image", "Flavor", "Tags", "Belongs to", "Endpoint", "Forge Type", "Enabled"}
 	if long {
 		header = append(header, "Level", "Created At", "Updated at", "Runner Prefix", "Priority")
 	}
@@ -501,7 +501,7 @@ func formatPools(pools []params.Pool) {
 			belongsTo = pool.EnterpriseName
 			level = entityTypeEnterprise
 		}
-		row := table.Row{pool.ID, pool.Image, pool.Flavor, strings.Join(tags, " "), belongsTo, pool.Enabled}
+		row := table.Row{pool.ID, pool.Image, pool.Flavor, strings.Join(tags, " "), belongsTo, pool.Endpoint.Name, pool.Endpoint.EndpointType, pool.Enabled}
 		if long {
 			row = append(row, level, pool.CreatedAt, pool.UpdatedAt, pool.GetRunnerPrefix(), pool.Priority)
 		}
@@ -561,6 +561,8 @@ func formatOnePool(pool params.Pool) {
 	t.AppendRow(table.Row{"Runner Prefix", pool.GetRunnerPrefix()})
 	t.AppendRow(table.Row{"Extra specs", string(pool.ExtraSpecs)})
 	t.AppendRow(table.Row{"GitHub Runner Group", pool.GitHubRunnerGroup})
+	t.AppendRow(table.Row{"Forge Type", pool.Endpoint.EndpointType})
+	t.AppendRow(table.Row{"Endpoint Name", pool.Endpoint.Name})
 
 	if len(pool.Instances) > 0 {
 		for _, instance := range pool.Instances {
