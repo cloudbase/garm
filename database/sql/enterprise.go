@@ -70,12 +70,12 @@ func (s *sqlDatabase) CreateEnterprise(ctx context.Context, name string, credent
 		return params.Enterprise{}, errors.Wrap(err, "creating enterprise")
 	}
 
-	paramEnt, err = s.sqlToCommonEnterprise(newEnterprise, true)
+	ret, err := s.GetEnterpriseByID(ctx, newEnterprise.ID.String())
 	if err != nil {
 		return params.Enterprise{}, errors.Wrap(err, "creating enterprise")
 	}
 
-	return paramEnt, nil
+	return ret, nil
 }
 
 func (s *sqlDatabase) GetEnterprise(ctx context.Context, name, endpointName string) (params.Enterprise, error) {
@@ -92,7 +92,14 @@ func (s *sqlDatabase) GetEnterprise(ctx context.Context, name, endpointName stri
 }
 
 func (s *sqlDatabase) GetEnterpriseByID(ctx context.Context, enterpriseID string) (params.Enterprise, error) {
-	enterprise, err := s.getEnterpriseByID(ctx, s.conn, enterpriseID, "Pools", "Credentials", "Endpoint", "Credentials.Endpoint")
+	preloadList := []string{
+		"Pools",
+		"Credentials",
+		"Endpoint",
+		"Credentials.Endpoint",
+		"Events",
+	}
+	enterprise, err := s.getEnterpriseByID(ctx, s.conn, enterpriseID, preloadList...)
 	if err != nil {
 		return params.Enterprise{}, errors.Wrap(err, "fetching enterprise")
 	}

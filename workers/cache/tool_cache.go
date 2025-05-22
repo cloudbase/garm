@@ -25,16 +25,18 @@ import (
 
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm/cache"
+	"github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/params"
 	garmUtil "github.com/cloudbase/garm/util"
 	"github.com/cloudbase/garm/util/github"
 )
 
-func newToolsUpdater(ctx context.Context, entity params.ForgeEntity) *toolsUpdater {
+func newToolsUpdater(ctx context.Context, entity params.ForgeEntity, store common.Store) *toolsUpdater {
 	return &toolsUpdater{
 		ctx:    ctx,
 		entity: entity,
 		quit:   make(chan struct{}),
+		store:  store,
 	}
 }
 
@@ -44,6 +46,7 @@ type toolsUpdater struct {
 	entity     params.ForgeEntity
 	tools      []commonParams.RunnerApplicationDownload
 	lastUpdate time.Time
+	store      common.Store
 
 	mux     sync.Mutex
 	running bool
@@ -157,7 +160,14 @@ func (t *toolsUpdater) giteaUpdateLoop() {
 	}
 	t.sleepWithCancel(time.Duration(randInt.Int64()) * time.Millisecond)
 	tools, err := getTools()
-	if err == nil {
+	if err != nil {
+		if err := t.store.AddEntityEvent(t.ctx, t.entity, params.StatusEvent, params.EventError, fmt.Sprintf("failed to update gitea tools: %q", err), 30); err != nil {
+			slog.ErrorContext(t.ctx, "failed to add entity event", "error", err)
+		}
+	} else {
+		if err := t.store.AddEntityEvent(t.ctx, t.entity, params.StatusEvent, params.EventInfo, "successfully updated tools", 30); err != nil {
+			slog.ErrorContext(t.ctx, "failed to add entity event", "error", err)
+		}
 		cache.SetGithubToolsCache(t.entity, tools)
 	}
 
@@ -174,8 +184,14 @@ func (t *toolsUpdater) giteaUpdateLoop() {
 		case <-ticker.C:
 			tools, err := getTools()
 			if err != nil {
+				if err := t.store.AddEntityEvent(t.ctx, t.entity, params.StatusEvent, params.EventError, fmt.Sprintf("failed to update gitea tools: %q", err), 30); err != nil {
+					slog.ErrorContext(t.ctx, "failed to add entity event", "error", err)
+				}
 				slog.DebugContext(t.ctx, "failed to update gitea tools", "error", err)
 				continue
+			}
+			if err := t.store.AddEntityEvent(t.ctx, t.entity, params.StatusEvent, params.EventInfo, "successfully updated tools", 30); err != nil {
+				slog.ErrorContext(t.ctx, "failed to add entity event", "error", err)
 			}
 			cache.SetGithubToolsCache(t.entity, tools)
 		}
@@ -197,12 +213,18 @@ func (t *toolsUpdater) loop() {
 	now := time.Now().UTC()
 	if now.After(t.lastUpdate.Add(40 * time.Minute)) {
 		if err := t.updateTools(); err != nil {
+			if err := t.store.AddEntityEvent(t.ctx, t.entity, params.StatusEvent, params.EventError, fmt.Sprintf("failed to update tools: %q", err), 30); err != nil {
+				slog.ErrorContext(t.ctx, "failed to add entity event", "error", err)
+			}
 			slog.ErrorContext(t.ctx, "initial tools update error", "error", err)
 			resetTime = now.Add(5 * time.Minute)
 			slog.ErrorContext(t.ctx, "initial tools update error", "error", err)
 		} else {
 			// Tools are usually valid for 1 hour.
 			resetTime = t.lastUpdate.Add(40 * time.Minute)
+			if err := t.store.AddEntityEvent(t.ctx, t.entity, params.StatusEvent, params.EventInfo, "successfully updated tools", 30); err != nil {
+				slog.ErrorContext(t.ctx, "failed to add entity event", "error", err)
+			}
 		}
 	}
 
@@ -224,12 +246,18 @@ func (t *toolsUpdater) loop() {
 		case <-timer.C:
 			slog.DebugContext(t.ctx, "updating tools")
 			now = time.Now().UTC()
-			if err := t.updateTools(); err == nil {
+			if err := t.updateTools(); err != nil {
 				slog.ErrorContext(t.ctx, "updating tools", "error", err)
+				if err := t.store.AddEntityEvent(t.ctx, t.entity, params.StatusEvent, params.EventError, fmt.Sprintf("failed to update tools: %q", err), 30); err != nil {
+					slog.ErrorContext(t.ctx, "failed to add entity event", "error", err)
+				}
 				resetTime = now.Add(5 * time.Minute)
 			} else {
 				// Tools are usually valid for 1 hour.
 				resetTime = t.lastUpdate.Add(40 * time.Minute)
+				if err := t.store.AddEntityEvent(t.ctx, t.entity, params.StatusEvent, params.EventInfo, "successfully updated tools", 30); err != nil {
+					slog.ErrorContext(t.ctx, "failed to add entity event", "error", err)
+				}
 			}
 		case <-t.reset:
 			slog.DebugContext(t.ctx, "resetting tools updater")
@@ -237,10 +265,16 @@ func (t *toolsUpdater) loop() {
 			now = time.Now().UTC()
 			if err := t.updateTools(); err != nil {
 				slog.ErrorContext(t.ctx, "updating tools", "error", err)
+				if err := t.store.AddEntityEvent(t.ctx, t.entity, params.StatusEvent, params.EventError, fmt.Sprintf("failed to update tools: %q", err), 30); err != nil {
+					slog.ErrorContext(t.ctx, "failed to add entity event", "error", err)
+				}
 				resetTime = now.Add(5 * time.Minute)
 			} else {
 				// Tools are usually valid for 1 hour.
 				resetTime = t.lastUpdate.Add(40 * time.Minute)
+				if err := t.store.AddEntityEvent(t.ctx, t.entity, params.StatusEvent, params.EventInfo, "successfully updated tools", 30); err != nil {
+					slog.ErrorContext(t.ctx, "failed to add entity event", "error", err)
+				}
 			}
 		}
 		timer.Stop()

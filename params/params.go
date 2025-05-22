@@ -177,6 +177,15 @@ type StatusMessage struct {
 	EventLevel EventLevel `json:"event_level,omitempty"`
 }
 
+type EntityEvent struct {
+	ID        uint      `json:"id,omitempty"`
+	CreatedAt time.Time `json:"created_at,omitempty"`
+
+	EventType  EventType  `json:"event_type,omitempty"`
+	EventLevel EventLevel `json:"event_level,omitempty"`
+	Message    string     `json:"message,omitempty"`
+}
+
 type Instance struct {
 	// ID is the database ID of this instance.
 	ID string `json:"id,omitempty"`
@@ -364,6 +373,8 @@ type Pool struct {
 
 	EnterpriseID   string `json:"enterprise_id,omitempty"`
 	EnterpriseName string `json:"enterprise_name,omitempty"`
+
+	Endpoint ForgeEndpoint `json:"forge_type,omitempty"`
 
 	RunnerBootstrapTimeout uint      `json:"runner_bootstrap_timeout,omitempty"`
 	CreatedAt              time.Time `json:"created_at,omitempty"`
@@ -600,6 +611,7 @@ type Repository struct {
 	Endpoint          ForgeEndpoint     `json:"endpoint,omitempty"`
 	CreatedAt         time.Time         `json:"created_at,omitempty"`
 	UpdatedAt         time.Time         `json:"updated_at,omitempty"`
+	Events            []EntityEvent     `json:"events,omitempty"`
 	// Do not serialize sensitive info.
 	WebhookSecret string `json:"-"`
 }
@@ -669,6 +681,7 @@ type Organization struct {
 	Endpoint          ForgeEndpoint     `json:"endpoint,omitempty"`
 	CreatedAt         time.Time         `json:"created_at,omitempty"`
 	UpdatedAt         time.Time         `json:"updated_at,omitempty"`
+	Events            []EntityEvent     `json:"events,omitempty"`
 	// Do not serialize sensitive info.
 	WebhookSecret string `json:"-"`
 }
@@ -726,6 +739,7 @@ type Enterprise struct {
 	Endpoint          ForgeEndpoint     `json:"endpoint,omitempty"`
 	CreatedAt         time.Time         `json:"created_at,omitempty"`
 	UpdatedAt         time.Time         `json:"updated_at,omitempty"`
+	Events            []EntityEvent     `json:"events,omitempty"`
 	// Do not serialize sensitive info.
 	WebhookSecret string `json:"-"`
 }

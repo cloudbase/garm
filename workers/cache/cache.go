@@ -130,7 +130,7 @@ func (w *Worker) loadAllEntities() error {
 	}
 
 	for _, entity := range cache.GetAllEntities() {
-		worker := newToolsUpdater(w.ctx, entity)
+		worker := newToolsUpdater(w.ctx, entity, w.store)
 		if err := worker.Start(); err != nil {
 			return fmt.Errorf("starting tools updater: %w", err)
 		}
@@ -286,7 +286,7 @@ func (w *Worker) handleEntityEvent(entityGetter params.EntityGetter, op common.O
 		cache.SetEntity(entity)
 		worker, ok := w.toolsWorkes[entity.ID]
 		if !ok {
-			worker = newToolsUpdater(w.ctx, entity)
+			worker = newToolsUpdater(w.ctx, entity, w.store)
 			if err := worker.Start(); err != nil {
 				slog.ErrorContext(w.ctx, "starting tools updater", "error", err)
 				return

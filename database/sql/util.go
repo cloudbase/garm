@@ -166,6 +166,19 @@ func (s *sqlDatabase) sqlToCommonOrganization(org Organization, detailed bool) (
 		return params.Organization{}, errors.Wrap(err, "converting credentials")
 	}
 
+	if len(org.Events) > 0 {
+		ret.Events = make([]params.EntityEvent, len(org.Events))
+		for idx, event := range org.Events {
+			ret.Events[idx] = params.EntityEvent{
+				ID:         event.ID,
+				Message:    event.Message,
+				EventType:  event.EventType,
+				EventLevel: event.EventLevel,
+				CreatedAt:  event.CreatedAt,
+			}
+		}
+	}
+
 	if detailed {
 		ret.Credentials = forgeCreds
 		ret.CredentialsName = forgeCreds.Name
@@ -214,6 +227,19 @@ func (s *sqlDatabase) sqlToCommonEnterprise(enterprise Enterprise, detailed bool
 		ret.CredentialsID = *enterprise.CredentialsID
 	}
 
+	if len(enterprise.Events) > 0 {
+		ret.Events = make([]params.EntityEvent, len(enterprise.Events))
+		for idx, event := range enterprise.Events {
+			ret.Events[idx] = params.EntityEvent{
+				ID:         event.ID,
+				Message:    event.Message,
+				EventType:  event.EventType,
+				EventLevel: event.EventLevel,
+				CreatedAt:  event.CreatedAt,
+			}
+		}
+	}
+
 	if detailed {
 		creds, err := s.sqlToCommonForgeCredentials(enterprise.Credentials)
 		if err != nil {
@@ -260,28 +286,37 @@ func (s *sqlDatabase) sqlToCommonPool(pool Pool) (params.Pool, error) {
 		UpdatedAt:              pool.UpdatedAt,
 	}
 
+	var ep GithubEndpoint
 	if pool.RepoID != nil {
 		ret.RepoID = pool.RepoID.String()
 		if pool.Repository.Owner != "" && pool.Repository.Name != "" {
 			ret.RepoName = fmt.Sprintf("%s/%s", pool.Repository.Owner, pool.Repository.Name)
 		}
+		ep = pool.Repository.Endpoint
 	}
 
 	if pool.OrgID != nil && pool.Organization.Name != "" {
 		ret.OrgID = pool.OrgID.String()
 		ret.OrgName = pool.Organization.Name
+		ep = pool.Organization.Endpoint
 	}
 
 	if pool.EnterpriseID != nil && pool.Enterprise.Name != "" {
 		ret.EnterpriseID = pool.EnterpriseID.String()
 		ret.EnterpriseName = pool.Enterprise.Name
+		ep = pool.Enterprise.Endpoint
 	}
+
+	endpoint, err := s.sqlToCommonGithubEndpoint(ep)
+	if err != nil {
+		return params.Pool{}, errors.Wrap(err, "converting endpoint")
+	}
+	ret.Endpoint = endpoint
 
 	for idx, val := range pool.Tags {
 		ret.Tags[idx] = s.sqlToCommonTags(*val)
 	}
 
-	var err error
 	for idx, inst := range pool.Instances {
 		ret.Instances[idx], err = s.sqlToParamsInstance(inst)
 		if err != nil {
@@ -397,6 +432,19 @@ func (s *sqlDatabase) sqlToCommonRepository(repo Repository, detailed bool) (par
 
 	if err != nil {
 		return params.Repository{}, errors.Wrap(err, "converting credentials")
+	}
+
+	if len(repo.Events) > 0 {
+		ret.Events = make([]params.EntityEvent, len(repo.Events))
+		for idx, event := range repo.Events {
+			ret.Events[idx] = params.EntityEvent{
+				ID:         event.ID,
+				Message:    event.Message,
+				EventType:  event.EventType,
+				EventLevel: event.EventLevel,
+				CreatedAt:  event.CreatedAt,
+			}
+		}
 	}
 
 	if detailed {
@@ -654,7 +702,7 @@ func (s *sqlDatabase) GetForgeEntity(_ context.Context, entityType params.ForgeE
 }
 
 func (s *sqlDatabase) addRepositoryEvent(ctx context.Context, repoID string, event params.EventType, eventLevel params.EventLevel, statusMessage string, maxEvents int) error {
-	repo, err := s.GetRepositoryByID(ctx, repoID)
+	repo, err := s.getRepoByID(ctx, s.conn, repoID)
 	if err != nil {
 		return errors.Wrap(err, "updating instance")
 	}
@@ -670,20 +718,16 @@ func (s *sqlDatabase) addRepositoryEvent(ctx context.Context, repoID string, eve
 	}
 
 	if maxEvents > 0 {
-		repoID, err := uuid.Parse(repo.ID)
-		if err != nil {
-			return errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
-		}
 		var latestEvents []RepositoryEvent
 		q := s.conn.Model(&RepositoryEvent{}).
 			Limit(maxEvents).Order("id desc").
-			Where("repo_id = ?", repoID).Find(&latestEvents)
+			Where("repo_id = ?", repo.ID).Find(&latestEvents)
 		if q.Error != nil {
 			return errors.Wrap(q.Error, "fetching latest events")
 		}
 		if len(latestEvents) == maxEvents {
 			lastInList := latestEvents[len(latestEvents)-1]
-			if err := s.conn.Where("repo_id = ? and id < ?", repoID, lastInList.ID).Unscoped().Delete(&RepositoryEvent{}).Error; err != nil {
+			if err := s.conn.Where("repo_id = ? and id < ?", repo.ID, lastInList.ID).Unscoped().Delete(&RepositoryEvent{}).Error; err != nil {
 				return errors.Wrap(err, "deleting old events")
 			}
 		}
@@ -692,7 +736,7 @@ func (s *sqlDatabase) addRepositoryEvent(ctx context.Context, repoID string, eve
 }
 
 func (s *sqlDatabase) addOrgEvent(ctx context.Context, orgID string, event params.EventType, eventLevel params.EventLevel, statusMessage string, maxEvents int) error {
-	org, err := s.GetOrganizationByID(ctx, orgID)
+	org, err := s.getOrgByID(ctx, s.conn, orgID)
 	if err != nil {
 		return errors.Wrap(err, "updating instance")
 	}
@@ -708,20 +752,16 @@ func (s *sqlDatabase) addOrgEvent(ctx context.Context, orgID string, event param
 	}
 
 	if maxEvents > 0 {
-		orgID, err := uuid.Parse(org.ID)
-		if err != nil {
-			return errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
-		}
 		var latestEvents []OrganizationEvent
 		q := s.conn.Model(&OrganizationEvent{}).
 			Limit(maxEvents).Order("id desc").
-			Where("org_id = ?", orgID).Find(&latestEvents)
+			Where("org_id = ?", org.ID).Find(&latestEvents)
 		if q.Error != nil {
 			return errors.Wrap(q.Error, "fetching latest events")
 		}
 		if len(latestEvents) == maxEvents {
 			lastInList := latestEvents[len(latestEvents)-1]
-			if err := s.conn.Where("org_id = ? and id < ?", orgID, lastInList.ID).Unscoped().Delete(&OrganizationEvent{}).Error; err != nil {
+			if err := s.conn.Where("org_id = ? and id < ?", org.ID, lastInList.ID).Unscoped().Delete(&OrganizationEvent{}).Error; err != nil {
 				return errors.Wrap(err, "deleting old events")
 			}
 		}
@@ -730,7 +770,7 @@ func (s *sqlDatabase) addOrgEvent(ctx context.Context, orgID string, event param
 }
 
 func (s *sqlDatabase) addEnterpriseEvent(ctx context.Context, entID string, event params.EventType, eventLevel params.EventLevel, statusMessage string, maxEvents int) error {
-	ent, err := s.GetEnterpriseByID(ctx, entID)
+	ent, err := s.getEnterpriseByID(ctx, s.conn, entID)
 	if err != nil {
 		return errors.Wrap(err, "updating instance")
 	}
@@ -746,20 +786,16 @@ func (s *sqlDatabase) addEnterpriseEvent(ctx context.Context, entID string, even
 	}
 
 	if maxEvents > 0 {
-		entID, err := uuid.Parse(ent.ID)
-		if err != nil {
-			return errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
-		}
 		var latestEvents []EnterpriseEvent
 		q := s.conn.Model(&EnterpriseEvent{}).
 			Limit(maxEvents).Order("id desc").
-			Where("enterprise_id = ?", entID).Find(&latestEvents)
+			Where("enterprise_id = ?", ent.ID).Find(&latestEvents)
 		if q.Error != nil {
 			return errors.Wrap(q.Error, "fetching latest events")
 		}
 		if len(latestEvents) == maxEvents {
 			lastInList := latestEvents[len(latestEvents)-1]
-			if err := s.conn.Where("enterprise_id = ? and id < ?", entID, lastInList.ID).Unscoped().Delete(&EnterpriseEvent{}).Error; err != nil {
+			if err := s.conn.Where("enterprise_id = ? and id < ?", ent.ID, lastInList.ID).Unscoped().Delete(&EnterpriseEvent{}).Error; err != nil {
 				return errors.Wrap(err, "deleting old events")
 			}
 		}
