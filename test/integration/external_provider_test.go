@@ -22,7 +22,7 @@ func (suite *GarmSuite) TestExternalProvider() {
 		MaxRunners:     2,
 		MinIdleRunners: 0,
 		Flavor:         "default",
-		Image:          "ubuntu:22.04",
+		Image:          "ubuntu:24.04",
 		OSType:         commonParams.Linux,
 		OSArch:         commonParams.Amd64,
 		ProviderName:   "test_external",

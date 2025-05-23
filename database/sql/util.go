@@ -65,6 +65,7 @@ func (s *sqlDatabase) sqlToParamsInstance(instance Instance) (params.Instance, e
 		MetadataURL:       instance.MetadataURL,
 		StatusMessages:    []params.StatusMessage{},
 		CreateAttempt:     instance.CreateAttempt,
+		CreatedAt:         instance.CreatedAt,
 		UpdatedAt:         instance.UpdatedAt,
 		TokenFetched:      instance.TokenFetched,
 		JitConfiguration:  jitConfig,
@@ -127,6 +128,8 @@ func (s *sqlDatabase) sqlToCommonOrganization(org Organization, detailed bool) (
 		WebhookSecret:    string(secret),
 		PoolBalancerType: org.PoolBalancerType,
 		Endpoint:         endpoint,
+		CreatedAt:        org.CreatedAt,
+		UpdatedAt:        org.UpdatedAt,
 	}
 
 	if org.CredentialsID != nil {
@@ -175,6 +178,8 @@ func (s *sqlDatabase) sqlToCommonEnterprise(enterprise Enterprise, detailed bool
 		Pools:            make([]params.Pool, len(enterprise.Pools)),
 		WebhookSecret:    string(secret),
 		PoolBalancerType: enterprise.PoolBalancerType,
+		CreatedAt:        enterprise.CreatedAt,
+		UpdatedAt:        enterprise.UpdatedAt,
 		Endpoint:         endpoint,
 	}
 
@@ -224,6 +229,8 @@ func (s *sqlDatabase) sqlToCommonPool(pool Pool) (params.Pool, error) {
 		ExtraSpecs:             json.RawMessage(pool.ExtraSpecs),
 		GitHubRunnerGroup:      pool.GitHubRunnerGroup,
 		Priority:               pool.Priority,
+		CreatedAt:              pool.CreatedAt,
+		UpdatedAt:              pool.UpdatedAt,
 	}
 
 	if pool.RepoID != nil {
@@ -285,6 +292,8 @@ func (s *sqlDatabase) sqlToCommonRepository(repo Repository, detailed bool) (par
 		Pools:            make([]params.Pool, len(repo.Pools)),
 		WebhookSecret:    string(secret),
 		PoolBalancerType: repo.PoolBalancerType,
+		CreatedAt:        repo.CreatedAt,
+		UpdatedAt:        repo.UpdatedAt,
 		Endpoint:         endpoint,
 	}
 
@@ -331,7 +340,7 @@ func (s *sqlDatabase) sqlToParamsUser(user User) params.User {
 
 func (s *sqlDatabase) getOrCreateTag(tx *gorm.DB, tagName string) (Tag, error) {
 	var tag Tag
-	q := tx.Where("name = ?", tagName).First(&tag)
+	q := tx.Where("name = ? COLLATE NOCASE", tagName).First(&tag)
 	if q.Error == nil {
 		return tag, nil
 	}
@@ -402,7 +411,7 @@ func (s *sqlDatabase) updatePool(tx *gorm.DB, pool Pool, param params.UpdatePool
 	}
 
 	tags := []Tag{}
-	if param.Tags != nil && len(param.Tags) > 0 {
+	if len(param.Tags) > 0 {
 		for _, val := range param.Tags {
 			t, err := s.getOrCreateTag(tx, val)
 			if err != nil {

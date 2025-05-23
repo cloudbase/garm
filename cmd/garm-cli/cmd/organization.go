@@ -22,6 +22,7 @@ import (
 
 	"github.com/cloudbase/garm-provider-common/util"
 	apiClientOrgs "github.com/cloudbase/garm/client/organizations"
+	"github.com/cloudbase/garm/cmd/garm-cli/common"
 	"github.com/cloudbase/garm/params"
 )
 
@@ -310,6 +311,7 @@ func init() {
 	orgAddCmd.Flags().BoolVar(&installOrgWebhook, "install-webhook", false, "Install the webhook as part of the add operation.")
 	orgAddCmd.MarkFlagsMutuallyExclusive("webhook-secret", "random-webhook-secret")
 	orgAddCmd.MarkFlagsOneRequired("webhook-secret", "random-webhook-secret")
+	orgListCmd.Flags().BoolVarP(&long, "long", "l", false, "Include additional info.")
 
 	orgAddCmd.MarkFlagRequired("credentials") //nolint
 	orgAddCmd.MarkFlagRequired("name")        //nolint
@@ -340,26 +342,45 @@ func init() {
 }
 
 func formatOrganizations(orgs []params.Organization) {
+	if outputFormat == common.OutputFormatJSON {
+		printAsJSON(orgs)
+		return
+	}
 	t := table.NewWriter()
 	header := table.Row{"ID", "Name", "Endpoint", "Credentials name", "Pool Balancer Type", "Pool mgr running"}
+	if long {
+		header = append(header, "Created At", "Updated At")
+	}
 	t.AppendHeader(header)
 	for _, val := range orgs {
-		t.AppendRow(table.Row{val.ID, val.Name, val.Endpoint.Name, val.CredentialsName, val.GetBalancerType(), val.PoolManagerStatus.IsRunning})
+		row := table.Row{val.ID, val.Name, val.Endpoint.Name, val.CredentialsName, val.GetBalancerType(), val.PoolManagerStatus.IsRunning}
+		if long {
+			row = append(row, val.CreatedAt, val.UpdatedAt)
+		}
+		t.AppendRow(row)
 		t.AppendSeparator()
 	}
 	fmt.Println(t.Render())
 }
 
 func formatOneOrganization(org params.Organization) {
+	if outputFormat == common.OutputFormatJSON {
+		printAsJSON(org)
+		return
+	}
 	t := table.NewWriter()
 	rowConfigAutoMerge := table.RowConfig{AutoMerge: true}
 	header := table.Row{"Field", "Value"}
 	t.AppendHeader(header)
 	t.AppendRow(table.Row{"ID", org.ID})
+	t.AppendRow(table.Row{"Created At", org.CreatedAt})
+	t.AppendRow(table.Row{"Updated At", org.UpdatedAt})
 	t.AppendRow(table.Row{"Name", org.Name})
 	t.AppendRow(table.Row{"Endpoint", org.Endpoint.Name})
 	t.AppendRow(table.Row{"Pool balancer type", org.GetBalancerType()})
 	t.AppendRow(table.Row{"Credentials", org.CredentialsName})
+	t.AppendRow(table.Row{"Created at", org.CreatedAt})
+	t.AppendRow(table.Row{"Updated at", org.UpdatedAt})
 	t.AppendRow(table.Row{"Pool manager running", org.PoolManagerStatus.IsRunning})
 	if !org.PoolManagerStatus.IsRunning {
 		t.AppendRow(table.Row{"Failure reason", org.PoolManagerStatus.FailureReason})

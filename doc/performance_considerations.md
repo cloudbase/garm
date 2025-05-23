@@ -8,15 +8,7 @@ Performance is often important when running GitHub action runners with garm. Thi
 
 When a new instance is created by garm, it usually downloads the latest available GitHub action runner binary, installs the requirements and starts it afterwards. This can be a time consuming task that quickly adds up when a lot of instances are created by garm throughout the day. Therefore it is recommended to include the GitHub action runner binary inside of the used image.
 
-There are two ways to do that:
-
-1. Add the extracted runner to `/opt/cache/actions-runner/latest` in which case, garm won't do any version checking and will blindly trust that whatever you put there is indeed the latest. This is useful if you want to run a pre-release of the runner or have your own patches applied to it. Also GitHub runners have an auto-update mechanism. When it detects that a new version is available, it updates itself to the latest version.
-
-2. Add the extracted runner to `/opt/cache/actions-runner/$VERSION` where `$VERSION` is the version of the runner. In this case, if what garm fetches from GitHub is different than what you bundled in the image, it will download and install the version indicated by GitHub.
-
-Note, when bundling the runner with your image, you will have to download it, extract it to one of the above mentioned locations and also run the `./bin/installdependencies.sh` inside the extracted folder. All dependencies needed to run the runner must be pre-installed when bundling.
-
-Example steps:
+Example steps for setting a cached runner on a linux image in LXD:
 
 ```bash
 # Create a temporary instance from your base image
@@ -26,26 +18,28 @@ lxc launch <BASE_IMAGE> temp
 lxc exec temp -- bash
 
 # Get and install the runner
-mkdir -p /opt/cache/actions-runner/latest
-cd /opt/cache/actions-runner/latest
-curl -o actions-runner-linux-x64-2.305.0.tar.gz -L https://github.com/actions/runner/releases/download/v2.305.0/actions-runner-linux-x64-2.305.0.tar.gz
-tar xzf ./actions-runner-linux-x64-2.305.0.tar.gz
-./bin/installdependencies.sh 
+mkdir -p /home/runner/actions-runner
+cd /home/runner/actions-runner
+curl -O -L https://github.com/actions/runner/releases/download/v2.320.0/actions-runner-linux-x64-2.320.0.tar.gz
+# Extract the installer
+tar xzf ./actions-runner-linux-x64-2.320.0.tar.gz 
 
 # Exit the container
 exit
 
 # Stop the instance and publish it as a new image
 lxc stop temp
-lxc publish temp --alias BASE_IMAGE-2.305.0
+lxc publish temp --alias BASE_IMAGE-2.320.0
 
 # Delete the temporary instance
 lxc delete temp
 
 # Update garm to use the new image
 garm-cli pool update <POOL_ID> \
-  --image=BASE_IMAGE-2.305.0
+  --image=BASE_IMAGE-2.320.0
 ```
+
+You can read more about cached runners in the [Using Cached Runners](https://github.com/cloudbase/garm/blob/main/doc/using_cached_runners.md) documentation.
 
 ### Disable updates
 

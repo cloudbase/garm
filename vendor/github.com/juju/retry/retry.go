@@ -232,7 +232,8 @@ func DoubleDelay(delay time.Duration, attempt int) time.Duration {
 // structure.
 //
 // The next delay value is calculated using the following formula:
-//   newDelay = min(minDelay * exp^attempt, maxDelay)
+//
+//	newDelay = min(minDelay * exp^attempt, maxDelay)
 //
 // If applyJitter is set to true, the function will randomly select and return
 // back a value in the [minDelay, newDelay] range.
@@ -241,18 +242,19 @@ func ExpBackoff(minDelay, maxDelay time.Duration, exp float64, applyJitter bool)
 	maxDelayF := float64(maxDelay)
 	return func(_ time.Duration, attempt int) time.Duration {
 		newDelay := minDelayF * math.Pow(exp, float64(attempt))
-		if newDelay > maxDelayF {
-			newDelay = maxDelayF
-		}
 
 		// Return a random value in the [minDelay, newDelay) range.
 		if applyJitter {
-			newDelay = rand.Float64() * newDelay
-			if newDelay < minDelayF {
-				newDelay = minDelayF
-			}
+			// We want to go +/- 20%, which is a 40% swing, and
+			// Float64 returns in the range 0-1
+			newDelay = (1 + rand.Float64()*0.4 - 0.2) * newDelay
 		}
-
+		if newDelay < minDelayF {
+			newDelay = minDelayF
+		}
+		if newDelay > maxDelayF {
+			newDelay = maxDelayF
+		}
 		return time.Duration(newDelay).Round(time.Millisecond)
 	}
 }

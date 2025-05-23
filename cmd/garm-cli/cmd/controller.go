@@ -22,6 +22,7 @@ import (
 
 	apiClientController "github.com/cloudbase/garm/client/controller"
 	apiClientControllerInfo "github.com/cloudbase/garm/client/controller_info"
+	"github.com/cloudbase/garm/cmd/garm-cli/common"
 	"github.com/cloudbase/garm/params"
 )
 
@@ -164,6 +165,10 @@ func renderControllerInfoTable(info params.ControllerInfo) string {
 }
 
 func formatInfo(info params.ControllerInfo) error {
+	if outputFormat == common.OutputFormatJSON {
+		printAsJSON(info)
+		return nil
+	}
 	fmt.Println(renderControllerInfoTable(info))
 	return nil
 }

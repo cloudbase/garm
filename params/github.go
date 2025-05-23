@@ -22,6 +22,7 @@ const (
 	// WorkflowJobEvent is the event set in the webhook payload from github
 	// when a workflow_job hook is sent.
 	WorkflowJobEvent Event = "workflow_job"
+	PingEvent        Event = "ping"
 )
 
 // WorkflowJob holds the payload sent by github when a workload_job is sent.

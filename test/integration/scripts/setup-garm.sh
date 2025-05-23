@@ -14,6 +14,7 @@ export RUN_USER=${RUN_USER:-$USER}
 export GARM_PORT=${GARM_PORT:-"9997"}
 export GARM_SERVICE_NAME=${GARM_SERVICE_NAME:-"garm"}
 export GARM_CONFIG_FILE=${GARM_CONFIG_FILE:-"${GARM_CONFIG_DIR}/config.toml"}
+export LXD_REMOTE_SERVER=${LXD_REMOTE_SERVER:-"https://cloud-images.ubuntu.com/releases"}
 
 if [ -f "$GITHUB_ENV" ];then
     echo "export GARM_CONFIG_DIR=${GARM_CONFIG_DIR}" >> $GITHUB_ENV
@@ -66,12 +67,12 @@ sudo chown -R $RUN_USER:$RUN_USER ${GARM_CONFIG_DIR}
 
 export LXD_PROVIDER_EXECUTABLE="$PROVIDER_BIN_DIR/garm-provider-lxd"
 export LXD_PROVIDER_CONFIG="${GARM_CONFIG_DIR}/garm-provider-lxd.toml"
-sudo cp $CONFIG_DIR/garm-provider-lxd.toml $LXD_PROVIDER_CONFIG
+cat $CONFIG_DIR/garm-provider-lxd.toml| envsubst | sudo tee $LXD_PROVIDER_CONFIG > /dev/null
 
 function clone_and_build_lxd_provider() {
     git clone https://github.com/cloudbase/garm-provider-lxd ~/garm-provider-lxd
     pushd ~/garm-provider-lxd
-    go build -o $LXD_PROVIDER_EXECUTABLE
+    CGO_ENABLED=1 go build -o $LXD_PROVIDER_EXECUTABLE
     popd
 }
 

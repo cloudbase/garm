@@ -128,10 +128,10 @@ func (e GithubEntityType) String() string {
 }
 
 type StatusMessage struct {
-	CreatedAt  time.Time  `json:"created_at"`
-	Message    string     `json:"message"`
-	EventType  EventType  `json:"event_type"`
-	EventLevel EventLevel `json:"event_level"`
+	CreatedAt  time.Time  `json:"created_at,omitempty"`
+	Message    string     `json:"message,omitempty"`
+	EventType  EventType  `json:"event_type,omitempty"`
+	EventLevel EventLevel `json:"event_level,omitempty"`
 }
 
 type Instance struct {
@@ -144,7 +144,7 @@ type Instance struct {
 	ProviderID string `json:"provider_id,omitempty"`
 
 	// AgentID is the github runner agent ID.
-	AgentID int64 `json:"agent_id"`
+	AgentID int64 `json:"agent_id,omitempty"`
 
 	// Name is the name associated with an instance. Depending on
 	// the provider, this may or may not be useful in the context of
@@ -186,12 +186,15 @@ type Instance struct {
 	// up.
 	StatusMessages []StatusMessage `json:"status_messages,omitempty"`
 
+	// CreatedAt is the timestamp of the creation of this runner.
+	CreatedAt time.Time `json:"created_at,omitempty"`
+
 	// UpdatedAt is the timestamp of the last update to this runner.
-	UpdatedAt time.Time `json:"updated_at"`
+	UpdatedAt time.Time `json:"updated_at,omitempty"`
 
 	// GithubRunnerGroup is the github runner group to which the runner belongs.
 	// The runner group must be created by someone with access to the enterprise.
-	GitHubRunnerGroup string `json:"github-runner-group"`
+	GitHubRunnerGroup string `json:"github-runner-group,omitempty"`
 
 	// Job is the current job that is being serviced by this runner.
 	Job *Job `json:"job,omitempty"`
@@ -217,21 +220,21 @@ func (i Instance) GetID() string {
 type Instances []Instance
 
 type BootstrapInstance struct {
-	Name  string                              `json:"name"`
-	Tools []*github.RunnerApplicationDownload `json:"tools"`
+	Name  string                              `json:"name,omitempty"`
+	Tools []*github.RunnerApplicationDownload `json:"tools,omitempty"`
 	// RepoURL is the URL the github runner agent needs to configure itself.
-	RepoURL string `json:"repo_url"`
+	RepoURL string `json:"repo_url,omitempty"`
 	// CallbackUrl is the URL where the instance can send a post, signaling
 	// progress or status.
-	CallbackURL string `json:"callback-url"`
+	CallbackURL string `json:"callback-url,omitempty"`
 	// MetadataURL is the URL where instances can fetch information needed to set themselves up.
-	MetadataURL string `json:"metadata-url"`
+	MetadataURL string `json:"metadata-url,omitempty"`
 	// InstanceToken is the token that needs to be set by the instance in the headers
 	// in order to send updated back to the garm via CallbackURL.
-	InstanceToken string `json:"instance-token"`
+	InstanceToken string `json:"instance-token,omitempty"`
 	// SSHKeys are the ssh public keys we may want to inject inside the runners, if the
 	// provider supports it.
-	SSHKeys []string `json:"ssh-keys"`
+	SSHKeys []string `json:"ssh-keys,omitempty"`
 	// ExtraSpecs is an opaque raw json that gets sent to the provider
 	// as part of the bootstrap params for instances. It can contain
 	// any kind of data needed by providers. The contents of this field means
@@ -242,69 +245,71 @@ type BootstrapInstance struct {
 	// GitHubRunnerGroup is the github runner group in which the newly installed runner
 	// should be added to. The runner group must be created by someone with access to the
 	// enterprise.
-	GitHubRunnerGroup string `json:"github-runner-group"`
+	GitHubRunnerGroup string `json:"github-runner-group,omitempty"`
 
 	// CACertBundle is a CA certificate bundle which will be sent to instances and which
 	// will tipically be installed as a system wide trusted root CA. by either cloud-init
 	// or whatever mechanism the provider will use to set up the runner.
-	CACertBundle []byte `json:"ca-cert-bundle"`
+	CACertBundle []byte `json:"ca-cert-bundle,omitempty"`
 
 	// OSArch is the target OS CPU architecture of the runner.
-	OSArch commonParams.OSArch `json:"arch"`
+	OSArch commonParams.OSArch `json:"arch,omitempty"`
 
 	// OSType is the target OS platform of the runner (windows, linux).
-	OSType commonParams.OSType `json:"os_type"`
+	OSType commonParams.OSType `json:"os_type,omitempty"`
 
 	// Flavor is the platform specific abstraction that defines what resources will be allocated
 	// to the runner (CPU, RAM, disk space, etc). This field is meaningful to the provider which
 	// handles the actual creation.
-	Flavor string `json:"flavor"`
+	Flavor string `json:"flavor,omitempty"`
 
 	// Image is the platform specific identifier of the operating system template that will be used
 	// to spin up a new machine.
-	Image string `json:"image"`
+	Image string `json:"image,omitempty"`
 
 	// Labels are a list of github runner labels that will be added to the runner.
-	Labels []string `json:"labels"`
+	Labels []string `json:"labels,omitempty"`
 
 	// PoolID is the ID of the garm pool to which this runner belongs.
-	PoolID string `json:"pool_id"`
+	PoolID string `json:"pool_id,omitempty"`
 
 	// UserDataOptions are the options for the user data generation.
-	UserDataOptions UserDataOptions `json:"user_data_options"`
+	UserDataOptions UserDataOptions `json:"user_data_options,omitempty"`
 }
 
 type UserDataOptions struct {
-	DisableUpdatesOnBoot bool     `json:"disable_updates_on_boot"`
-	ExtraPackages        []string `json:"extra_packages"`
+	DisableUpdatesOnBoot bool     `json:"disable_updates_on_boot,omitempty"`
+	ExtraPackages        []string `json:"extra_packages,omitempty"`
 }
 
 type Tag struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID   string `json:"id,omitempty"`
+	Name string `json:"name,omitempty"`
 }
 
 type Pool struct {
 	RunnerPrefix
 
-	ID                     string              `json:"id"`
-	ProviderName           string              `json:"provider_name"`
-	MaxRunners             uint                `json:"max_runners"`
-	MinIdleRunners         uint                `json:"min_idle_runners"`
-	Image                  string              `json:"image"`
-	Flavor                 string              `json:"flavor"`
-	OSType                 commonParams.OSType `json:"os_type"`
-	OSArch                 commonParams.OSArch `json:"os_arch"`
-	Tags                   []Tag               `json:"tags"`
-	Enabled                bool                `json:"enabled"`
-	Instances              []Instance          `json:"instances"`
+	ID                     string              `json:"id,omitempty"`
+	ProviderName           string              `json:"provider_name,omitempty"`
+	MaxRunners             uint                `json:"max_runners,omitempty"`
+	MinIdleRunners         uint                `json:"min_idle_runners,omitempty"`
+	Image                  string              `json:"image,omitempty"`
+	Flavor                 string              `json:"flavor,omitempty"`
+	OSType                 commonParams.OSType `json:"os_type,omitempty"`
+	OSArch                 commonParams.OSArch `json:"os_arch,omitempty"`
+	Tags                   []Tag               `json:"tags,omitempty"`
+	Enabled                bool                `json:"enabled,omitempty"`
+	Instances              []Instance          `json:"instances,omitempty"`
 	RepoID                 string              `json:"repo_id,omitempty"`
 	RepoName               string              `json:"repo_name,omitempty"`
 	OrgID                  string              `json:"org_id,omitempty"`
 	OrgName                string              `json:"org_name,omitempty"`
 	EnterpriseID           string              `json:"enterprise_id,omitempty"`
 	EnterpriseName         string              `json:"enterprise_name,omitempty"`
-	RunnerBootstrapTimeout uint                `json:"runner_bootstrap_timeout"`
+	RunnerBootstrapTimeout uint                `json:"runner_bootstrap_timeout,omitempty"`
+	CreatedAt              time.Time           `json:"created_at,omitempty"`
+	UpdatedAt              time.Time           `json:"updated_at,omitempty"`
 	// ExtraSpecs is an opaque raw json that gets sent to the provider
 	// as part of the bootstrap params for instances. It can contain
 	// any kind of data needed by providers. The contents of this field means
@@ -313,12 +318,12 @@ type Pool struct {
 	ExtraSpecs json.RawMessage `json:"extra_specs,omitempty"`
 	// GithubRunnerGroup is the github runner group in which the runners will be added.
 	// The runner group must be created by someone with access to the enterprise.
-	GitHubRunnerGroup string `json:"github-runner-group"`
+	GitHubRunnerGroup string `json:"github-runner-group,omitempty"`
 
 	// Priority is the priority of the pool. The higher the number, the higher the priority.
 	// When fetching matching pools for a set of tags, the result will be sorted in descending
 	// order of priority.
-	Priority uint `json:"priority"`
+	Priority uint `json:"priority,omitempty"`
 }
 
 func (p Pool) GithubEntity() (GithubEntity, error) {
@@ -383,19 +388,21 @@ func (p *Pool) HasRequiredLabels(set []string) bool {
 type Pools []Pool
 
 type Repository struct {
-	ID    string `json:"id"`
-	Owner string `json:"owner"`
-	Name  string `json:"name"`
+	ID    string `json:"id,omitempty"`
+	Owner string `json:"owner,omitempty"`
+	Name  string `json:"name,omitempty"`
 	Pools []Pool `json:"pool,omitempty"`
 	// CredentialName is the name of the credentials associated with the enterprise.
 	// This field is now deprecated. Use CredentialsID instead. This field will be
 	// removed in v0.2.0.
 	CredentialsName   string            `json:"credentials_name,omitempty"`
-	CredentialsID     uint              `json:"credentials_id"`
-	Credentials       GithubCredentials `json:"credentials"`
+	CredentialsID     uint              `json:"credentials_id,omitempty"`
+	Credentials       GithubCredentials `json:"credentials,omitempty"`
 	PoolManagerStatus PoolManagerStatus `json:"pool_manager_status,omitempty"`
-	PoolBalancerType  PoolBalancerType  `json:"pool_balancing_type"`
-	Endpoint          GithubEndpoint    `json:"endpoint"`
+	PoolBalancerType  PoolBalancerType  `json:"pool_balancing_type,omitempty"`
+	Endpoint          GithubEndpoint    `json:"endpoint,omitempty"`
+	CreatedAt         time.Time         `json:"created_at,omitempty"`
+	UpdatedAt         time.Time         `json:"updated_at,omitempty"`
 	// Do not serialize sensitive info.
 	WebhookSecret string `json:"-"`
 }
@@ -438,18 +445,20 @@ func (r Repository) String() string {
 type Repositories []Repository
 
 type Organization struct {
-	ID    string `json:"id"`
-	Name  string `json:"name"`
+	ID    string `json:"id,omitempty"`
+	Name  string `json:"name,omitempty"`
 	Pools []Pool `json:"pool,omitempty"`
 	// CredentialName is the name of the credentials associated with the enterprise.
 	// This field is now deprecated. Use CredentialsID instead. This field will be
 	// removed in v0.2.0.
 	CredentialsName   string            `json:"credentials_name,omitempty"`
-	Credentials       GithubCredentials `json:"credentials"`
-	CredentialsID     uint              `json:"credentials_id"`
+	Credentials       GithubCredentials `json:"credentials,omitempty"`
+	CredentialsID     uint              `json:"credentials_id,omitempty"`
 	PoolManagerStatus PoolManagerStatus `json:"pool_manager_status,omitempty"`
-	PoolBalancerType  PoolBalancerType  `json:"pool_balancing_type"`
-	Endpoint          GithubEndpoint    `json:"endpoint"`
+	PoolBalancerType  PoolBalancerType  `json:"pool_balancing_type,omitempty"`
+	Endpoint          GithubEndpoint    `json:"endpoint,omitempty"`
+	CreatedAt         time.Time         `json:"created_at,omitempty"`
+	UpdatedAt         time.Time         `json:"updated_at,omitempty"`
 	// Do not serialize sensitive info.
 	WebhookSecret string `json:"-"`
 }
@@ -487,18 +496,20 @@ func (o Organization) GetBalancerType() PoolBalancerType {
 type Organizations []Organization
 
 type Enterprise struct {
-	ID    string `json:"id"`
-	Name  string `json:"name"`
+	ID    string `json:"id,omitempty"`
+	Name  string `json:"name,omitempty"`
 	Pools []Pool `json:"pool,omitempty"`
 	// CredentialName is the name of the credentials associated with the enterprise.
 	// This field is now deprecated. Use CredentialsID instead. This field will be
 	// removed in v0.2.0.
 	CredentialsName   string            `json:"credentials_name,omitempty"`
-	Credentials       GithubCredentials `json:"credentials"`
-	CredentialsID     uint              `json:"credentials_id"`
+	Credentials       GithubCredentials `json:"credentials,omitempty"`
+	CredentialsID     uint              `json:"credentials_id,omitempty"`
 	PoolManagerStatus PoolManagerStatus `json:"pool_manager_status,omitempty"`
-	PoolBalancerType  PoolBalancerType  `json:"pool_balancing_type"`
-	Endpoint          GithubEndpoint    `json:"endpoint"`
+	PoolBalancerType  PoolBalancerType  `json:"pool_balancing_type,omitempty"`
+	Endpoint          GithubEndpoint    `json:"endpoint,omitempty"`
+	CreatedAt         time.Time         `json:"created_at,omitempty"`
+	UpdatedAt         time.Time         `json:"updated_at,omitempty"`
 	// Do not serialize sensitive info.
 	WebhookSecret string `json:"-"`
 }
@@ -537,14 +548,14 @@ type Enterprises []Enterprise
 
 // Users holds information about a particular user
 type User struct {
-	ID        string    `json:"id"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	Email     string    `json:"email"`
-	Username  string    `json:"username"`
-	FullName  string    `json:"full_name"`
-	Enabled   bool      `json:"enabled"`
-	IsAdmin   bool      `json:"is_admin"`
+	ID        string    `json:"id,omitempty"`
+	CreatedAt time.Time `json:"created_at,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty"`
+	Email     string    `json:"email,omitempty"`
+	Username  string    `json:"username,omitempty"`
+	FullName  string    `json:"full_name,omitempty"`
+	Enabled   bool      `json:"enabled,omitempty"`
+	IsAdmin   bool      `json:"is_admin,omitempty"`
 	// Do not serialize sensitive info.
 	Password   string `json:"-"`
 	Generation uint   `json:"-"`
@@ -553,67 +564,69 @@ type User struct {
 // JWTResponse holds the JWT token returned as a result of a
 // successful auth
 type JWTResponse struct {
-	Token string `json:"token"`
+	Token string `json:"token,omitempty"`
 }
 
 type ControllerInfo struct {
 	// ControllerID is the unique ID of this controller. This ID gets generated
 	// automatically on controller init.
-	ControllerID uuid.UUID `json:"controller_id"`
+	ControllerID uuid.UUID `json:"controller_id,omitempty"`
 	// Hostname is the hostname of the machine that runs this controller. In the
 	// future, this field will be migrated to a separate table that will keep track
 	// of each the controller nodes that are part of a cluster. This will happen when
 	// we implement controller scale-out capability.
-	Hostname string `json:"hostname"`
+	Hostname string `json:"hostname,omitempty"`
 	// MetadataURL is the public metadata URL of the GARM instance. This URL is used
 	// by instances to fetch information they need to set themselves up. The URL itself
 	// may be made available to runners via a reverse proxy or a load balancer. That
 	// means that the user is responsible for telling GARM what the public URL is, by
 	// setting this field.
-	MetadataURL string `json:"metadata_url"`
+	MetadataURL string `json:"metadata_url,omitempty"`
 	// CallbackURL is the URL where instances can send updates back to the controller.
 	// This URL is used by instances to send status updates back to the controller. The
 	// URL itself may be made available to instances via a reverse proxy or a load balancer.
 	// That means that the user is responsible for telling GARM what the public URL is, by
 	// setting this field.
-	CallbackURL string `json:"callback_url"`
+	CallbackURL string `json:"callback_url,omitempty"`
 	// WebhookURL is the base URL where the controller will receive webhooks from github.
 	// When webhook management is used, this URL is used as a base to which the controller
 	// UUID is appended and which will receive the webhooks.
 	// The URL itself may be made available to instances via a reverse proxy or a load balancer.
 	// That means that the user is responsible for telling GARM what the public URL is, by
 	// setting this field.
-	WebhookURL string `json:"webhook_url"`
+	WebhookURL string `json:"webhook_url,omitempty"`
 	// ControllerWebhookURL is the controller specific URL where webhooks will be received.
 	// This field holds the WebhookURL defined above to which we append the ControllerID.
 	// Functionally it is the same as WebhookURL, but it allows us to safely manage webhooks
 	// from GARM without accidentally removing webhooks from other services or GARM controllers.
-	ControllerWebhookURL string `json:"controller_webhook_url"`
+	ControllerWebhookURL string `json:"controller_webhook_url,omitempty"`
 	// MinimumJobAgeBackoff is the minimum time in seconds that a job must be in queued state
 	// before GARM will attempt to allocate a runner for it. When set to a non zero value,
 	// GARM will ignore the job until the job's age is greater than this value. When using
 	// the min_idle_runners feature of a pool, this gives enough time for potential idle
 	// runners to pick up the job before GARM attempts to allocate a new runner, thus avoiding
 	// the need to potentially scale down runners later.
-	MinimumJobAgeBackoff uint `json:"minimum_job_age_backoff"`
+	MinimumJobAgeBackoff uint `json:"minimum_job_age_backoff,omitempty"`
 	// Version is the version of the GARM controller.
-	Version string `json:"version"`
+	Version string `json:"version,omitempty"`
 }
 
 type GithubCredentials struct {
-	ID            uint           `json:"id"`
+	ID            uint           `json:"id,omitempty"`
 	Name          string         `json:"name,omitempty"`
 	Description   string         `json:"description,omitempty"`
-	APIBaseURL    string         `json:"api_base_url"`
-	UploadBaseURL string         `json:"upload_base_url"`
-	BaseURL       string         `json:"base_url"`
+	APIBaseURL    string         `json:"api_base_url,omitempty"`
+	UploadBaseURL string         `json:"upload_base_url,omitempty"`
+	BaseURL       string         `json:"base_url,omitempty"`
 	CABundle      []byte         `json:"ca_bundle,omitempty"`
-	AuthType      GithubAuthType `toml:"auth_type" json:"auth-type"`
+	AuthType      GithubAuthType `json:"auth-type,omitempty"`
 
 	Repositories  []Repository   `json:"repositories,omitempty"`
 	Organizations []Organization `json:"organizations,omitempty"`
 	Enterprises   []Enterprise   `json:"enterprises,omitempty"`
-	Endpoint      GithubEndpoint `json:"endpoint"`
+	Endpoint      GithubEndpoint `json:"endpoint,omitempty"`
+	CreatedAt     time.Time      `json:"created_at,omitempty"`
+	UpdatedAt     time.Time      `json:"updated_at,omitempty"`
 
 	// Do not serialize sensitive info.
 	CredentialsPayload []byte `json:"-"`
@@ -650,6 +663,7 @@ func (g GithubCredentials) GetHTTPClient(ctx context.Context) (*http.Client, err
 		if err != nil {
 			return nil, fmt.Errorf("failed to create github app installation transport: %w", err)
 		}
+		itr.BaseURL = g.APIBaseURL
 
 		tc = &http.Client{Transport: itr}
 	default:
@@ -707,26 +721,26 @@ func (g GithubCredentials) RootCertificateBundle() (CertificateBundle, error) {
 type Credentials []GithubCredentials
 
 type Provider struct {
-	Name         string       `json:"name"`
-	ProviderType ProviderType `json:"type"`
-	Description  string       `json:"description"`
+	Name         string       `json:"name,omitempty"`
+	ProviderType ProviderType `json:"type,omitempty"`
+	Description  string       `json:"description,omitempty"`
 }
 
 // used by swagger client generated code
 type Providers []Provider
 
 type PoolManagerStatus struct {
-	IsRunning     bool   `json:"running"`
+	IsRunning     bool   `json:"running,omitempty"`
 	FailureReason string `json:"failure_reason,omitempty"`
 }
 
 type RunnerInfo struct {
-	Name   string
-	Labels []string
+	Name   string   `json:"name,omitempty"`
+	Labels []string `json:"labels,omitempty"`
 }
 
 type RunnerPrefix struct {
-	Prefix string `json:"runner_prefix"`
+	Prefix string `json:"runner_prefix,omitempty"`
 }
 
 func (p RunnerPrefix) GetRunnerPrefix() string {
@@ -738,34 +752,34 @@ func (p RunnerPrefix) GetRunnerPrefix() string {
 
 type Job struct {
 	// ID is the ID of the job.
-	ID int64 `json:"id"`
+	ID int64 `json:"id,omitempty"`
 	// RunID is the ID of the workflow run. A run may have multiple jobs.
-	RunID int64 `json:"run_id"`
+	RunID int64 `json:"run_id,omitempty"`
 	// Action is the specific activity that triggered the event.
-	Action string `json:"action"`
+	Action string `json:"action,omitempty"`
 	// Conclusion is the outcome of the job.
 	// Possible values: "success", "failure", "neutral", "cancelled", "skipped",
 	// "timed_out", "action_required"
-	Conclusion string `json:"conclusion"`
+	Conclusion string `json:"conclusion,omitempty"`
 	// Status is the phase of the lifecycle that the job is currently in.
 	// "queued", "in_progress" and "completed".
-	Status string `json:"status"`
+	Status string `json:"status,omitempty"`
 	// Name is the name if the job that was triggered.
-	Name string `json:"name"`
+	Name string `json:"name,omitempty"`
 
-	StartedAt   time.Time
-	CompletedAt time.Time
+	StartedAt   time.Time `json:"started_at,omitempty"`
+	CompletedAt time.Time `json:"completed_at,omitempty"`
 
-	GithubRunnerID  int64  `json:"runner_id"`
-	RunnerName      string `json:"runner_name"`
-	RunnerGroupID   int64  `json:"runner_group_id"`
-	RunnerGroupName string `json:"runner_group_name"`
+	GithubRunnerID  int64  `json:"runner_id,omitempty"`
+	RunnerName      string `json:"runner_name,omitempty"`
+	RunnerGroupID   int64  `json:"runner_group_id,omitempty"`
+	RunnerGroupName string `json:"runner_group_name,omitempty"`
 
 	// repository in which the job was triggered.
-	RepositoryName  string
-	RepositoryOwner string
+	RepositoryName  string `json:"repository_name,omitempty"`
+	RepositoryOwner string `json:"repository_owner,omitempty"`
 
-	Labels []string
+	Labels []string `json:"labels,omitempty"`
 
 	// The entity that received the hook.
 	//
@@ -780,30 +794,30 @@ type Job struct {
 	OrgID        *uuid.UUID `json:"org_id,omitempty"`
 	EnterpriseID *uuid.UUID `json:"enterprise_id,omitempty"`
 
-	LockedBy uuid.UUID
+	LockedBy uuid.UUID `json:"locked_by,omitempty"`
 
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	CreatedAt time.Time `json:"created_at,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty"`
 }
 
 // used by swagger client generated code
 type Jobs []Job
 
 type InstallWebhookParams struct {
-	WebhookEndpointType WebhookEndpointType `json:"webhook_endpoint_type"`
-	InsecureSSL         bool                `json:"insecure_ssl"`
+	WebhookEndpointType WebhookEndpointType `json:"webhook_endpoint_type,omitempty"`
+	InsecureSSL         bool                `json:"insecure_ssl,omitempty"`
 }
 
 type HookInfo struct {
-	ID          int64    `json:"id"`
-	URL         string   `json:"url"`
-	Events      []string `json:"events"`
-	Active      bool     `json:"active"`
-	InsecureSSL bool     `json:"insecure_ssl"`
+	ID          int64    `json:"id,omitempty"`
+	URL         string   `json:"url,omitempty"`
+	Events      []string `json:"events,omitempty"`
+	Active      bool     `json:"active,omitempty"`
+	InsecureSSL bool     `json:"insecure_ssl,omitempty"`
 }
 
 type CertificateBundle struct {
-	RootCertificates map[string][]byte `json:"root_certificates"`
+	RootCertificates map[string][]byte `json:"root_certificates,omitempty"`
 }
 
 type UpdateSystemInfoParams struct {
@@ -813,12 +827,12 @@ type UpdateSystemInfoParams struct {
 }
 
 type GithubEntity struct {
-	Owner            string            `json:"owner"`
-	Name             string            `json:"name"`
-	ID               string            `json:"id"`
-	EntityType       GithubEntityType  `json:"entity_type"`
-	Credentials      GithubCredentials `json:"credentials"`
-	PoolBalancerType PoolBalancerType  `json:"pool_balancing_type"`
+	Owner            string            `json:"owner,omitempty"`
+	Name             string            `json:"name,omitempty"`
+	ID               string            `json:"id,omitempty"`
+	EntityType       GithubEntityType  `json:"entity_type,omitempty"`
+	Credentials      GithubCredentials `json:"credentials,omitempty"`
+	PoolBalancerType PoolBalancerType  `json:"pool_balancing_type,omitempty"`
 
 	WebhookSecret string `json:"-"`
 }
@@ -856,12 +870,14 @@ func (g GithubEntity) String() string {
 type GithubEndpoints []GithubEndpoint
 
 type GithubEndpoint struct {
-	Name          string `json:"name"`
-	Description   string `json:"description"`
-	APIBaseURL    string `json:"api_base_url"`
-	UploadBaseURL string `json:"upload_base_url"`
-	BaseURL       string `json:"base_url"`
-	CACertBundle  []byte `json:"ca_cert_bundle,omitempty"`
+	Name          string    `json:"name,omitempty"`
+	Description   string    `json:"description,omitempty"`
+	APIBaseURL    string    `json:"api_base_url,omitempty"`
+	UploadBaseURL string    `json:"upload_base_url,omitempty"`
+	BaseURL       string    `json:"base_url,omitempty"`
+	CACertBundle  []byte    `json:"ca_cert_bundle,omitempty"`
+	CreatedAt     time.Time `json:"created_at,omitempty"`
+	UpdatedAt     time.Time `json:"updated_at,omitempty"`
 
 	Credentials []GithubCredentials `json:"credentials,omitempty"`
 }

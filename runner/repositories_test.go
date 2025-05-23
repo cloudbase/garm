@@ -373,7 +373,7 @@ func (s *RepoTestSuite) TestUpdateRepositoryPoolMgrFailed() {
 	_, err := s.Runner.UpdateRepository(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID, s.Fixtures.UpdateRepoParams)
 
 	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
-	s.Require().Equal(fmt.Sprintf("failed to get pool manager: %s", s.Fixtures.ErrMock.Error()), err.Error())
+	s.Require().Equal(fmt.Sprintf("getting pool manager: %s", s.Fixtures.ErrMock.Error()), err.Error())
 }
 
 func (s *RepoTestSuite) TestUpdateRepositoryCreateRepoPoolMgrFailed() {
@@ -382,7 +382,7 @@ func (s *RepoTestSuite) TestUpdateRepositoryCreateRepoPoolMgrFailed() {
 	_, err := s.Runner.UpdateRepository(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID, s.Fixtures.UpdateRepoParams)
 
 	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
-	s.Require().Equal(fmt.Sprintf("failed to get pool manager: %s", s.Fixtures.ErrMock.Error()), err.Error())
+	s.Require().Equal(fmt.Sprintf("getting pool manager: %s", s.Fixtures.ErrMock.Error()), err.Error())
 }
 
 func (s *RepoTestSuite) TestCreateRepoPool() {
@@ -415,7 +415,7 @@ func (s *RepoTestSuite) TestCreateRepoPoolFetchPoolParamsFailed() {
 
 	s.Fixtures.PoolMgrMock.AssertExpectations(s.T())
 	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
-	s.Require().Regexp("failed to append tags to create pool params: no such provider not-existent-provider-name", err.Error())
+	s.Require().Regexp("appending tags to create pool params: no such provider not-existent-provider-name", err.Error())
 }
 
 func (s *RepoTestSuite) TestGetRepoPoolByID() {

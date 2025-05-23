@@ -6,7 +6,7 @@ on:
 
 jobs:
   integration-tests:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-noble-garm
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -17,20 +17,50 @@ jobs:
           go-version-file: go.mod
 
       - name: Setup LXD
-        uses: canonical/setup-lxd@v0.1.1
+        uses: canonical/setup-lxd@main
+        with:
+          channel: latest/stable
 
       - name: Install dependencies
         run: |
           sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list
-          sudo apt-get -qq update && sudo apt-get -qq install -y apg coreutils make
+          sudo apt-get -qq update && sudo apt-get -qq install -y apg coreutils make jq build-essential libsqlite3-dev libsqlite3-0
 
-      - name: Set up ngrok
-        id: ngrok
-        uses: gabriel-samfira/ngrok-tunnel-action@v1.1
-        with:
-          ngrok_authtoken: ${{ secrets.NGROK_AUTH_TOKEN }}
-          port: 9997
-          tunnel_type: http
+      - name: Set up tunnel
+        shell: bash
+        run: |
+          mkdir -p /home/runner/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > /home/runner/.ssh/ssh_key
+          sudo chown -R runner:runner /home/runner/.ssh
+          sudo chmod 500 /home/runner/.ssh
+          sudo chmod 400 /home/runner/.ssh/ssh_key
+
+          SUBDOMAIN=$(apg -a 0 -M l -m 12 -n 1)
+          echo "::add-mask::$SUBDOMAIN"
+
+          BASE_URL="${{ secrets.TUNNEL_BASE_URL }}"
+          GARM_BASE_URL="https://$SUBDOMAIN.$BASE_URL"
+          echo "::add-mask::$GARM_BASE_URL"
+
+          echo "GARM_BASE_URL=$GARM_BASE_URL" >> $GITHUB_ENV
+
+          cat <<EOF | sudo tee /etc/systemd/system/garm-tunnel.service
+          [Unit]
+          Description=GARM tunnel
+          After=network.target
+
+          [Service]
+          Type=simple
+          ExecStart=/usr/bin/ssh -q -i /home/runner/.ssh/ssh_key -N -n -o ServerAliveInterval=60 -o ExitOnForwardFailure=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -R $SUBDOMAIN:80:127.0.0.1:9997 $BASE_URL
+          Restart=always
+          User=runner
+          [Install]
+          WantedBy=default.target
+          EOF
+
+          sudo systemctl daemon-reload
+          sudo systemctl enable garm-tunnel
+          sudo systemctl start garm-tunnel
 
       - name: Generate secrets
         run: |
@@ -57,12 +87,12 @@ jobs:
           set -o errexit
           make integration 2>&1
         env:
-          GARM_BASE_URL: ${{ steps.ngrok.outputs.tunnel-url }}
           ORG_NAME: gsamfira
           REPO_NAME: garm-testing
           CREDENTIALS_NAME: test-garm-creds
           WORKFLOW_FILE_NAME: test.yml
           GH_TOKEN: ${{ secrets.GH_OAUTH_TOKEN }}
+          LXD_REMOTE_SERVER: ${{ secrets.LXD_REMOTE_SERVER }}
 
       - name: Show GARM logs
         if: always()
@@ -73,10 +103,11 @@ jobs:
 
       - name: Upload GARM and e2e logs
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: garm-logs
           path: /artifacts-logs
+          merge-multiple: true
 
       - name: Cleanup orphan GARM resources via GitHub API
         if: always()
@@ -87,7 +118,6 @@ jobs:
           sudo systemctl stop garm@runner || true
           go run ./test/integration/gh_cleanup/main.go || true
         env:
-          GARM_BASE_URL: ${{ steps.ngrok.outputs.tunnel-url }}
           ORG_NAME: gsamfira
           REPO_NAME: garm-testing
           GH_TOKEN: ${{ secrets.GH_OAUTH_TOKEN }}

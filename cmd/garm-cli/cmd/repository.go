@@ -22,6 +22,7 @@ import (
 
 	"github.com/cloudbase/garm-provider-common/util"
 	apiClientRepos "github.com/cloudbase/garm/client/repositories"
+	"github.com/cloudbase/garm/cmd/garm-cli/common"
 	"github.com/cloudbase/garm/params"
 )
 
@@ -315,6 +316,8 @@ func init() {
 	repoAddCmd.MarkFlagsMutuallyExclusive("webhook-secret", "random-webhook-secret")
 	repoAddCmd.MarkFlagsOneRequired("webhook-secret", "random-webhook-secret")
 
+	repoListCmd.Flags().BoolVarP(&long, "long", "l", false, "Include additional info.")
+
 	repoAddCmd.MarkFlagRequired("credentials") //nolint
 	repoAddCmd.MarkFlagRequired("owner")       //nolint
 	repoAddCmd.MarkFlagRequired("name")        //nolint
@@ -346,22 +349,39 @@ func init() {
 }
 
 func formatRepositories(repos []params.Repository) {
+	if outputFormat == common.OutputFormatJSON {
+		printAsJSON(repos)
+		return
+	}
 	t := table.NewWriter()
 	header := table.Row{"ID", "Owner", "Name", "Endpoint", "Credentials name", "Pool Balancer Type", "Pool mgr running"}
+	if long {
+		header = append(header, "Created At", "Updated At")
+	}
 	t.AppendHeader(header)
 	for _, val := range repos {
-		t.AppendRow(table.Row{val.ID, val.Owner, val.Name, val.Endpoint.Name, val.CredentialsName, val.GetBalancerType(), val.PoolManagerStatus.IsRunning})
+		row := table.Row{val.ID, val.Owner, val.Name, val.Endpoint.Name, val.CredentialsName, val.GetBalancerType(), val.PoolManagerStatus.IsRunning}
+		if long {
+			row = append(row, val.CreatedAt, val.UpdatedAt)
+		}
+		t.AppendRow(row)
 		t.AppendSeparator()
 	}
 	fmt.Println(t.Render())
 }
 
 func formatOneRepository(repo params.Repository) {
+	if outputFormat == common.OutputFormatJSON {
+		printAsJSON(repo)
+		return
+	}
 	t := table.NewWriter()
 	rowConfigAutoMerge := table.RowConfig{AutoMerge: true}
 	header := table.Row{"Field", "Value"}
 	t.AppendHeader(header)
 	t.AppendRow(table.Row{"ID", repo.ID})
+	t.AppendRow(table.Row{"Created At", repo.CreatedAt})
+	t.AppendRow(table.Row{"Updated At", repo.UpdatedAt})
 	t.AppendRow(table.Row{"Owner", repo.Owner})
 	t.AppendRow(table.Row{"Name", repo.Name})
 	t.AppendRow(table.Row{"Endpoint", repo.Endpoint.Name})

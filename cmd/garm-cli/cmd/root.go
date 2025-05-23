@@ -15,6 +15,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"os"
@@ -25,6 +26,7 @@ import (
 	"github.com/spf13/cobra"
 
 	apiClient "github.com/cloudbase/garm/client"
+	"github.com/cloudbase/garm/cmd/garm-cli/common"
 	"github.com/cloudbase/garm/cmd/garm-cli/config"
 	"github.com/cloudbase/garm/params"
 )
@@ -37,7 +39,8 @@ var (
 	needsInit         bool
 	debug             bool
 	poolBalancerType  string
-	errNeedsInitError = fmt.Errorf("please log into a garm installation first")
+	outputFormat      common.OutputFormat = common.OutputFormatTable
+	errNeedsInitError                     = fmt.Errorf("please log into a garm installation first")
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -51,6 +54,8 @@ var rootCmd = &cobra.Command{
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
 	rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "Enable debug on all API calls")
+	rootCmd.PersistentFlags().Var(&outputFormat, "format", "Output format (table, json)")
+
 	cobra.OnInitialize(initConfig)
 
 	err := rootCmd.Execute()
@@ -112,4 +117,13 @@ func formatOneHookInfo(hook params.HookInfo) {
 		{"Insecure SSL", hook.InsecureSSL},
 	})
 	fmt.Println(t.Render())
+}
+
+func printAsJSON(value interface{}) {
+	asJs, err := json.Marshal(value)
+	if err != nil {
+		fmt.Printf("Failed to marshal value to json: %s", err)
+		os.Exit(1)
+	}
+	fmt.Println(string(asJs))
 }

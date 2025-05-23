@@ -16,9 +16,11 @@ package pool
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"log/slog"
 	"math"
+	"math/big"
 	"net/http"
 	"strconv"
 	"strings"
@@ -90,6 +92,7 @@ func NewEntityPoolManager(ctx context.Context, entity params.GithubEntity, insta
 
 	wg := &sync.WaitGroup{}
 	keyMuxes := &keyMutex{}
+	backoff := &instanceDeleteBackoff{}
 
 	repo := &basePoolManager{
 		ctx:                 ctx,
@@ -103,6 +106,7 @@ func NewEntityPoolManager(ctx context.Context, entity params.GithubEntity, insta
 		quit:      make(chan struct{}),
 		wg:        wg,
 		keyMux:    keyMuxes,
+		backoff:   backoff,
 		consumer:  consumer,
 	}
 	return repo, nil
@@ -125,14 +129,32 @@ type basePoolManager struct {
 	managerIsRunning   bool
 	managerErrorReason string
 
-	mux    sync.Mutex
-	wg     *sync.WaitGroup
-	keyMux *keyMutex
+	mux     sync.Mutex
+	wg      *sync.WaitGroup
+	keyMux  *keyMutex
+	backoff *instanceDeleteBackoff
+}
+
+func (r *basePoolManager) getProviderBaseParams(pool params.Pool) common.ProviderBaseParams {
+	r.mux.Lock()
+	defer r.mux.Unlock()
+
+	return common.ProviderBaseParams{
+		PoolInfo:       pool,
+		ControllerInfo: r.controllerInfo,
+	}
 }
 
 func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 	if err := r.ValidateOwner(job); err != nil {
 		return errors.Wrap(err, "validating owner")
+	}
+
+	// we see events where the lables seem to be missing. We should ignore these
+	// as we can't know if we should handle them or not.
+	if len(job.WorkflowJob.Labels) == 0 {
+		slog.WarnContext(r.ctx, "job has no labels", "workflow_job", job.WorkflowJob.Name)
+		return nil
 	}
 
 	var jobParams params.Job
@@ -589,7 +611,12 @@ func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner)
 			slog.DebugContext(
 				r.ctx, "updating instances cache for pool",
 				"pool_id", pool.ID)
-			poolInstances, err = provider.ListInstances(r.ctx, pool.ID)
+			listInstancesParams := common.ListInstancesParams{
+				ListInstancesV011: common.ListInstancesV011Params{
+					ProviderBaseParams: r.getProviderBaseParams(pool),
+				},
+			}
+			poolInstances, err = provider.ListInstances(r.ctx, pool.ID, listInstancesParams)
 			if err != nil {
 				return errors.Wrapf(err, "fetching instances for pool %s", pool.ID)
 			}
@@ -654,7 +681,12 @@ func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner)
 				r.ctx, "instance was found in stopped state; starting",
 				"runner_name", dbInstance.Name)
 
-			if err := provider.Start(r.ctx, dbInstance.ProviderID); err != nil {
+			startParams := common.StartParams{
+				StartV011: common.StartV011Params{
+					ProviderBaseParams: r.getProviderBaseParams(pool),
+				},
+			}
+			if err := provider.Start(r.ctx, dbInstance.ProviderID, startParams); err != nil {
 				return errors.Wrapf(err, "starting instance %s", dbInstance.ProviderID)
 			}
 			return nil
@@ -870,7 +902,12 @@ func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error 
 
 	defer func() {
 		if instanceIDToDelete != "" {
-			if err := provider.DeleteInstance(r.ctx, instanceIDToDelete); err != nil {
+			deleteInstanceParams := common.DeleteInstanceParams{
+				DeleteInstanceV011: common.DeleteInstanceV011Params{
+					ProviderBaseParams: r.getProviderBaseParams(pool),
+				},
+			}
+			if err := provider.DeleteInstance(r.ctx, instanceIDToDelete, deleteInstanceParams); err != nil {
 				if !errors.Is(err, runnerErrors.ErrNotFound) {
 					slog.With(slog.Any("error", err)).ErrorContext(
 						r.ctx, "failed to cleanup instance",
@@ -880,7 +917,12 @@ func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error 
 		}
 	}()
 
-	providerInstance, err := provider.CreateInstance(r.ctx, bootstrapArgs)
+	createInstanceParams := common.CreateInstanceParams{
+		CreateInstanceV011: common.CreateInstanceV011Params{
+			ProviderBaseParams: r.getProviderBaseParams(pool),
+		},
+	}
+	providerInstance, err := provider.CreateInstance(r.ctx, bootstrapArgs, createInstanceParams)
 	if err != nil {
 		instanceIDToDelete = instance.Name
 		return errors.Wrap(err, "creating instance")
@@ -1316,7 +1358,12 @@ func (r *basePoolManager) deleteInstanceFromProvider(ctx context.Context, instan
 		"runner_name", instance.Name,
 		"provider_id", identifier)
 
-	if err := provider.DeleteInstance(ctx, identifier); err != nil {
+	deleteInstanceParams := common.DeleteInstanceParams{
+		DeleteInstanceV011: common.DeleteInstanceV011Params{
+			ProviderBaseParams: r.getProviderBaseParams(pool),
+		},
+	}
+	if err := provider.DeleteInstance(ctx, identifier, deleteInstanceParams); err != nil {
 		return errors.Wrap(err, "removing instance")
 	}
 
@@ -1349,21 +1396,35 @@ func (r *basePoolManager) deletePendingInstances() error {
 			continue
 		}
 
-		currentStatus := instance.Status
-		// Set the status to deleting before launching the goroutine that removes
-		// the runner from the provider (which can take a long time).
-		if _, err := r.setInstanceStatus(instance.Name, commonParams.InstanceDeleting, nil); err != nil {
-			slog.With(slog.Any("error", err)).ErrorContext(
-				r.ctx, "failed to update runner status",
-				"runner_name", instance.Name)
+		shouldProcess, deadline := r.backoff.ShouldProcess(instance.Name)
+		if !shouldProcess {
+			slog.DebugContext(
+				r.ctx, "backoff in effect for instance",
+				"runner_name", instance.Name, "deadline", deadline)
 			r.keyMux.Unlock(instance.Name, false)
 			continue
 		}
 
 		go func(instance params.Instance) (err error) {
+			// Prevent Thundering Herd. Should alleviate some of the database
+			// is locked errors in sqlite3.
+			num, err := rand.Int(rand.Reader, big.NewInt(2000))
+			if err != nil {
+				return fmt.Errorf("failed to generate random number: %w", err)
+			}
+			jitter := time.Duration(num.Int64()) * time.Millisecond
+			time.Sleep(jitter)
+
+			currentStatus := instance.Status
 			deleteMux := false
 			defer func() {
 				r.keyMux.Unlock(instance.Name, deleteMux)
+				if deleteMux {
+					// deleteMux is set only when the instance was successfully removed.
+					// We can use it as a marker to signal that the backoff is no longer
+					// needed.
+					r.backoff.Delete(instance.Name)
+				}
 			}()
 			defer func(instance params.Instance) {
 				if err != nil {
@@ -1372,13 +1433,21 @@ func (r *basePoolManager) deletePendingInstances() error {
 						"runner_name", instance.Name)
 					// failed to remove from provider. Set status to previous value, which will retry
 					// the operation.
-					if _, err := r.setInstanceStatus(instance.Name, currentStatus, nil); err != nil {
+					if _, err := r.setInstanceStatus(instance.Name, currentStatus, []byte(err.Error())); err != nil {
 						slog.With(slog.Any("error", err)).ErrorContext(
 							r.ctx, "failed to update runner status",
 							"runner_name", instance.Name)
 					}
+					r.backoff.RecordFailure(instance.Name)
 				}
 			}(instance)
+
+			if _, err := r.setInstanceStatus(instance.Name, commonParams.InstanceDeleting, nil); err != nil {
+				slog.With(slog.Any("error", err)).ErrorContext(
+					r.ctx, "failed to update runner status",
+					"runner_name", instance.Name)
+				return err
+			}
 
 			slog.DebugContext(
 				r.ctx, "removing instance from provider",

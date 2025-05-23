@@ -509,7 +509,7 @@ func (s *OrgTestSuite) TestCreateOrganizationPoolDBFetchTagErr() {
 		WithArgs(s.Fixtures.Orgs[0].ID, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Orgs[0].ID))
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `tags` WHERE name = ? AND `tags`.`deleted_at` IS NULL ORDER BY `tags`.`id` LIMIT ?")).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `tags` WHERE name = ? COLLATE NOCASE AND `tags`.`deleted_at` IS NULL ORDER BY `tags`.`id` LIMIT ?")).
 		WillReturnError(fmt.Errorf("mocked fetching tag error"))
 
 	entity, err := s.Fixtures.Orgs[0].GetEntity()
@@ -530,7 +530,7 @@ func (s *OrgTestSuite) TestCreateOrganizationPoolDBAddingPoolErr() {
 		WithArgs(s.Fixtures.Orgs[0].ID, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Orgs[0].ID))
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `tags` WHERE name = ? AND `tags`.`deleted_at` IS NULL ORDER BY `tags`.`id` LIMIT ?")).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `tags` WHERE name = ? COLLATE NOCASE AND `tags`.`deleted_at` IS NULL ORDER BY `tags`.`id` LIMIT ?")).
 		WillReturnRows(sqlmock.NewRows([]string{"linux"}))
 	s.Fixtures.SQLMock.
 		ExpectExec(regexp.QuoteMeta("INSERT INTO `tags`")).
@@ -558,7 +558,7 @@ func (s *OrgTestSuite) TestCreateOrganizationPoolDBSaveTagErr() {
 		WithArgs(s.Fixtures.Orgs[0].ID, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Orgs[0].ID))
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `tags` WHERE name = ? AND `tags`.`deleted_at` IS NULL ORDER BY `tags`.`id` LIMIT ?")).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `tags` WHERE name = ? COLLATE NOCASE AND `tags`.`deleted_at` IS NULL ORDER BY `tags`.`id` LIMIT ?")).
 		WillReturnRows(sqlmock.NewRows([]string{"linux"}))
 	s.Fixtures.SQLMock.
 		ExpectExec(regexp.QuoteMeta("INSERT INTO `tags`")).
@@ -589,7 +589,7 @@ func (s *OrgTestSuite) TestCreateOrganizationPoolDBFetchPoolErr() {
 		WithArgs(s.Fixtures.Orgs[0].ID, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(s.Fixtures.Orgs[0].ID))
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `tags` WHERE name = ? AND `tags`.`deleted_at` IS NULL ORDER BY `tags`.`id` LIMIT ?")).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `tags` WHERE name = ? COLLATE NOCASE AND `tags`.`deleted_at` IS NULL ORDER BY `tags`.`id` LIMIT ?")).
 		WillReturnRows(sqlmock.NewRows([]string{"linux"}))
 	s.Fixtures.SQLMock.
 		ExpectExec(regexp.QuoteMeta("INSERT INTO `tags`")).

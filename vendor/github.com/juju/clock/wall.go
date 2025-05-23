@@ -45,3 +45,33 @@ type wallTimer struct {
 func (t wallTimer) Chan() <-chan time.Time {
 	return t.C
 }
+
+// At implements Clock.At.
+func (wallClock) At(t time.Time) <-chan time.Time {
+	return time.After(time.Until(t))
+}
+
+// AtFunc implements Clock.AtFunc.
+func (wallClock) AtFunc(t time.Time, f func()) Alarm {
+	return wallAlarm{time.AfterFunc(time.Until(t), f)}
+}
+
+// NewAlarm implements Clock.NewAlarm.
+func (wallClock) NewAlarm(t time.Time) Alarm {
+	return wallAlarm{time.NewTimer(time.Until(t))}
+}
+
+// wallAlarm implements the Alarm interface.
+type wallAlarm struct {
+	*time.Timer
+}
+
+// Chan implements Alarm.Chan.
+func (a wallAlarm) Chan() <-chan time.Time {
+	return a.C
+}
+
+// Reset implements Alarm.Reset
+func (a wallAlarm) Reset(t time.Time) bool {
+	return a.Timer.Reset(time.Until(t))
+}
