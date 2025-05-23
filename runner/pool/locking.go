@@ -63,7 +63,7 @@ func (i *instanceDeleteBackoff) ShouldProcess(key string) (bool, time.Time) {
 
 	now := time.Now().UTC()
 	deadline := ib.lastRecordedFailureTime.Add(time.Duration(ib.backoffSeconds) * time.Second)
-	return deadline.After(now), deadline
+	return now.After(deadline), deadline
 }
 
 func (i *instanceDeleteBackoff) Delete(key string) {
