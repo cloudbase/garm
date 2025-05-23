@@ -40,6 +40,7 @@ const (
 	testEndpointDescription string = "test description"
 	testCredsName           string = "test-creds"
 	testCredsDescription    string = "test creds"
+	defaultGithubEndpoint   string = "github.com"
 )
 
 type GithubTestSuite struct {
@@ -56,18 +57,11 @@ func (s *GithubTestSuite) SetupTest() {
 	s.db = db
 }
 
-func (s *GithubTestSuite) TestDefaultEndpointGetsCreatedAutomatically() {
+func (s *GithubTestSuite) TestDefaultEndpointGetsCreatedAutomaticallyIfNoOtherEndpointExists() {
 	ctx := garmTesting.ImpersonateAdminContext(context.Background(), s.db, s.T())
 	endpoint, err := s.db.GetGithubEndpoint(ctx, defaultGithubEndpoint)
 	s.Require().NoError(err)
 	s.Require().NotNil(endpoint)
-}
-
-func (s *GithubTestSuite) TestDeletingDefaultEndpointFails() {
-	ctx := garmTesting.ImpersonateAdminContext(context.Background(), s.db, s.T())
-	err := s.db.DeleteGithubEndpoint(ctx, defaultGithubEndpoint)
-	s.Require().Error(err)
-	s.Require().ErrorIs(err, runnerErrors.ErrBadRequest)
 }
 
 func (s *GithubTestSuite) TestCreatingEndpoint() {
@@ -153,6 +147,39 @@ func (s *GithubTestSuite) TestDeletingEndpoint() {
 	s.Require().ErrorIs(err, runnerErrors.ErrNotFound)
 }
 
+func (s *GithubTestSuite) TestDeleteGithubEndpointFailsWhenCredentialsExist() {
+	ctx := garmTesting.ImpersonateAdminContext(context.Background(), s.db, s.T())
+
+	createEpParams := params.CreateGithubEndpointParams{
+		Name:          testEndpointName,
+		Description:   testEndpointDescription,
+		APIBaseURL:    testAPIBaseURL,
+		UploadBaseURL: testUploadBaseURL,
+		BaseURL:       testBaseURL,
+	}
+
+	endpoint, err := s.db.CreateGithubEndpoint(ctx, createEpParams)
+	s.Require().NoError(err)
+	s.Require().NotNil(endpoint)
+
+	credParams := params.CreateGithubCredentialsParams{
+		Name:        testCredsName,
+		Description: testCredsDescription,
+		Endpoint:    testEndpointName,
+		AuthType:    params.GithubAuthTypePAT,
+		PAT: params.GithubPAT{
+			OAuth2Token: "test",
+		},
+	}
+
+	_, err = s.db.CreateGithubCredentials(ctx, credParams)
+	s.Require().NoError(err)
+
+	err = s.db.DeleteGithubEndpoint(ctx, testEndpointName)
+	s.Require().Error(err)
+	s.Require().ErrorIs(err, runnerErrors.ErrBadRequest)
+}
+
 func (s *GithubTestSuite) TestUpdateEndpoint() {
 	ctx := garmTesting.ImpersonateAdminContext(context.Background(), s.db, s.T())
 
@@ -168,7 +195,7 @@ func (s *GithubTestSuite) TestUpdateEndpoint() {
 	s.Require().NoError(err)
 	s.Require().NotNil(endpoint)
 
-	newDescription := "new description"
+	newDescription := "the new description"
 	newAPIBaseURL := "https://new-api.example.com"
 	newUploadBaseURL := "https://new-uploads.example.com"
 	newBaseURL := "https://new.example.com"
@@ -190,6 +217,72 @@ func (s *GithubTestSuite) TestUpdateEndpoint() {
 	s.Require().Equal(newUploadBaseURL, updatedEndpoint.UploadBaseURL)
 	s.Require().Equal(newBaseURL, updatedEndpoint.BaseURL)
 	s.Require().Equal(caCertBundle, updatedEndpoint.CACertBundle)
+}
+
+func (s *GithubTestSuite) TestUpdateEndpointUDLsFailsIfCredentialsAreAssociated() {
+	ctx := garmTesting.ImpersonateAdminContext(context.Background(), s.db, s.T())
+
+	createEpParams := params.CreateGithubEndpointParams{
+		Name:          testEndpointName,
+		Description:   testEndpointDescription,
+		APIBaseURL:    testAPIBaseURL,
+		UploadBaseURL: testUploadBaseURL,
+		BaseURL:       testBaseURL,
+	}
+
+	endpoint, err := s.db.CreateGithubEndpoint(ctx, createEpParams)
+	s.Require().NoError(err)
+	s.Require().NotNil(endpoint)
+
+	credParams := params.CreateGithubCredentialsParams{
+		Name:        testCredsName,
+		Description: testCredsDescription,
+		Endpoint:    testEndpointName,
+		AuthType:    params.GithubAuthTypePAT,
+		PAT: params.GithubPAT{
+			OAuth2Token: "test",
+		},
+	}
+
+	_, err = s.db.CreateGithubCredentials(ctx, credParams)
+	s.Require().NoError(err)
+
+	newDescription := "new description"
+	newBaseURL := "https://new.example.com"
+	newAPIBaseURL := "https://new-api.example.com"
+	newUploadBaseURL := "https://new-uploads.example.com"
+	updateEpParams := params.UpdateGithubEndpointParams{
+		BaseURL: &newBaseURL,
+	}
+
+	_, err = s.db.UpdateGithubEndpoint(ctx, testEndpointName, updateEpParams)
+	s.Require().Error(err)
+	s.Require().ErrorIs(err, runnerErrors.ErrBadRequest)
+	s.Require().EqualError(err, "updating github endpoint: cannot update endpoint URLs with existing credentials: invalid request")
+
+	updateEpParams = params.UpdateGithubEndpointParams{
+		UploadBaseURL: &newUploadBaseURL,
+	}
+
+	_, err = s.db.UpdateGithubEndpoint(ctx, testEndpointName, updateEpParams)
+	s.Require().Error(err)
+	s.Require().ErrorIs(err, runnerErrors.ErrBadRequest)
+	s.Require().EqualError(err, "updating github endpoint: cannot update endpoint URLs with existing credentials: invalid request")
+
+	updateEpParams = params.UpdateGithubEndpointParams{
+		APIBaseURL: &newAPIBaseURL,
+	}
+	_, err = s.db.UpdateGithubEndpoint(ctx, testEndpointName, updateEpParams)
+	s.Require().Error(err)
+	s.Require().ErrorIs(err, runnerErrors.ErrBadRequest)
+	s.Require().EqualError(err, "updating github endpoint: cannot update endpoint URLs with existing credentials: invalid request")
+
+	updateEpParams = params.UpdateGithubEndpointParams{
+		Description: &newDescription,
+	}
+	ret, err := s.db.UpdateGithubEndpoint(ctx, testEndpointName, updateEpParams)
+	s.Require().NoError(err)
+	s.Require().Equal(newDescription, ret.Description)
 }
 
 func (s *GithubTestSuite) TestUpdatingNonExistingEndpointReturnsNotFoundError() {
