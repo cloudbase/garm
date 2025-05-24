@@ -26,10 +26,6 @@ import (
 	"github.com/cloudbase/garm/params"
 )
 
-const (
-	defaultGithubEndpoint string = "github.com"
-)
-
 func (s *sqlDatabase) CreateGithubEndpoint(_ context.Context, param params.CreateGithubEndpointParams) (ghEndpoint params.ForgeEndpoint, err error) {
 	defer func() {
 		if err == nil {
@@ -85,10 +81,6 @@ func (s *sqlDatabase) ListGithubEndpoints(_ context.Context) ([]params.ForgeEndp
 }
 
 func (s *sqlDatabase) UpdateGithubEndpoint(_ context.Context, name string, param params.UpdateGithubEndpointParams) (ghEndpoint params.ForgeEndpoint, err error) {
-	if name == defaultGithubEndpoint {
-		return params.ForgeEndpoint{}, errors.Wrap(runnerErrors.ErrBadRequest, "cannot update default github endpoint")
-	}
-
 	defer func() {
 		if err == nil {
 			s.sendNotify(common.GithubEndpointEntityType, common.UpdateOperation, ghEndpoint)
@@ -102,6 +94,17 @@ func (s *sqlDatabase) UpdateGithubEndpoint(_ context.Context, name string, param
 			}
 			return errors.Wrap(err, "fetching github endpoint")
 		}
+
+		var credsCount int64
+		if err := tx.Model(&GithubCredentials{}).Where("endpoint_name = ?", endpoint.Name).Count(&credsCount).Error; err != nil {
+			if !errors.Is(err, gorm.ErrRecordNotFound) {
+				return errors.Wrap(err, "fetching github credentials")
+			}
+		}
+		if credsCount > 0 && (param.APIBaseURL != nil || param.BaseURL != nil || param.UploadBaseURL != nil) {
+			return errors.Wrap(runnerErrors.ErrBadRequest, "cannot update endpoint URLs with existing credentials")
+		}
+
 		if param.APIBaseURL != nil {
 			endpoint.APIBaseURL = *param.APIBaseURL
 		}
@@ -153,10 +156,6 @@ func (s *sqlDatabase) GetGithubEndpoint(_ context.Context, name string) (params.
 }
 
 func (s *sqlDatabase) DeleteGithubEndpoint(_ context.Context, name string) (err error) {
-	if name == defaultGithubEndpoint {
-		return errors.Wrap(runnerErrors.ErrBadRequest, "cannot delete default github endpoint")
-	}
-
 	defer func() {
 		if err == nil {
 			s.sendNotify(common.GithubEndpointEntityType, common.DeleteOperation, params.ForgeEndpoint{Name: name})
@@ -200,7 +199,7 @@ func (s *sqlDatabase) DeleteGithubEndpoint(_ context.Context, name string) (err 
 		}
 
 		if credsCount > 0 || repoCnt > 0 || orgCnt > 0 || entCnt > 0 {
-			return runnerErrors.NewBadRequestError("cannot delete endpoint with associated entities")
+			return errors.Wrap(runnerErrors.ErrBadRequest, "cannot delete endpoint with associated entities")
 		}
 
 		if err := tx.Unscoped().Delete(&endpoint).Error; err != nil {

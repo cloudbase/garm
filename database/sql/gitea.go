@@ -94,6 +94,17 @@ func (s *sqlDatabase) UpdateGiteaEndpoint(_ context.Context, name string, param 
 			}
 			return errors.Wrap(err, "fetching gitea endpoint")
 		}
+
+		var credsCount int64
+		if err := tx.Model(&GiteaCredentials{}).Where("endpoint_name = ?", endpoint.Name).Count(&credsCount).Error; err != nil {
+			if !errors.Is(err, gorm.ErrRecordNotFound) {
+				return errors.Wrap(err, "fetching gitea credentials")
+			}
+		}
+		if credsCount > 0 && (param.APIBaseURL != nil || param.BaseURL != nil) {
+			return errors.Wrap(runnerErrors.ErrBadRequest, "cannot update endpoint URLs with existing credentials")
+		}
+
 		if param.APIBaseURL != nil {
 			endpoint.APIBaseURL = *param.APIBaseURL
 		}
@@ -140,10 +151,6 @@ func (s *sqlDatabase) GetGiteaEndpoint(_ context.Context, name string) (params.F
 }
 
 func (s *sqlDatabase) DeleteGiteaEndpoint(_ context.Context, name string) (err error) {
-	if name == defaultGithubEndpoint {
-		return runnerErrors.NewBadRequestError("cannot delete default endpoint %s", defaultGithubEndpoint)
-	}
-
 	defer func() {
 		if err == nil {
 			s.sendNotify(common.GithubEndpointEntityType, common.DeleteOperation, params.ForgeEndpoint{Name: name})
@@ -180,7 +187,7 @@ func (s *sqlDatabase) DeleteGiteaEndpoint(_ context.Context, name string) (err e
 		}
 
 		if credsCount > 0 || repoCnt > 0 || orgCnt > 0 {
-			return runnerErrors.NewBadRequestError("cannot delete endpoint with associated entities")
+			return errors.Wrap(runnerErrors.ErrBadRequest, "cannot delete endpoint with associated entities")
 		}
 
 		if err := tx.Unscoped().Delete(&endpoint).Error; err != nil {

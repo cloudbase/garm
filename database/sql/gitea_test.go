@@ -162,8 +162,8 @@ func (s *GiteaTestSuite) TestUpdateEndpoint() {
 	s.Require().NotNil(endpoint)
 
 	newDescription := "another description"
-	newAPIBaseURL := "https://new-api.example.com"
-	newBaseURL := "https://new.example.com"
+	newAPIBaseURL := "https://updated.example.com"
+	newBaseURL := "https://updated.example.com"
 	caCertBundle, err := os.ReadFile("../../testdata/certs/srv-pub.pem")
 	s.Require().NoError(err)
 	updateEpParams := params.UpdateGiteaEndpointParams{
@@ -768,6 +768,61 @@ func (s *GiteaTestSuite) TestDeleteGiteaEndpointFailsWithOrgsReposOrCredentials(
 	_, err = s.db.GetGiteaEndpoint(ctx, ep.Name)
 	s.Require().Error(err)
 	s.Require().ErrorIs(err, runnerErrors.ErrNotFound)
+}
+
+func (s *GiteaTestSuite) TestUpdateEndpointURLsFailsIfCredentialsAreAssociated() {
+	ctx := garmTesting.ImpersonateAdminContext(context.Background(), s.db, s.T())
+
+	createEpParams := params.CreateGiteaEndpointParams{
+		Name:        "deleteme",
+		Description: testEndpointDescription,
+		APIBaseURL:  testAPIBaseURL,
+		BaseURL:     testBaseURL,
+	}
+
+	endpoint, err := s.db.CreateGiteaEndpoint(ctx, createEpParams)
+	s.Require().NoError(err)
+	s.Require().NotNil(endpoint)
+
+	credParams := params.CreateGiteaCredentialsParams{
+		Name:        testCredsName,
+		Description: testCredsDescription,
+		Endpoint:    testEndpointName,
+		AuthType:    params.ForgeAuthTypePAT,
+		PAT: params.GithubPAT{
+			OAuth2Token: "test",
+		},
+	}
+
+	_, err = s.db.CreateGiteaCredentials(ctx, credParams)
+	s.Require().NoError(err)
+
+	newDescription := "new gitea description"
+	newBaseURL := "https://new-gitea.example.com"
+	newAPIBaseURL := "https://new-gotea.example.com"
+	updateEpParams := params.UpdateGiteaEndpointParams{
+		BaseURL: &newBaseURL,
+	}
+
+	_, err = s.db.UpdateGiteaEndpoint(ctx, testEndpointName, updateEpParams)
+	s.Require().Error(err)
+	s.Require().ErrorIs(err, runnerErrors.ErrBadRequest)
+	s.Require().EqualError(err, "updating gitea endpoint: cannot update endpoint URLs with existing credentials: invalid request")
+
+	updateEpParams = params.UpdateGiteaEndpointParams{
+		APIBaseURL: &newAPIBaseURL,
+	}
+	_, err = s.db.UpdateGiteaEndpoint(ctx, testEndpointName, updateEpParams)
+	s.Require().Error(err)
+	s.Require().ErrorIs(err, runnerErrors.ErrBadRequest)
+	s.Require().EqualError(err, "updating gitea endpoint: cannot update endpoint URLs with existing credentials: invalid request")
+
+	updateEpParams = params.UpdateGiteaEndpointParams{
+		Description: &newDescription,
+	}
+	ret, err := s.db.UpdateGiteaEndpoint(ctx, testEndpointName, updateEpParams)
+	s.Require().NoError(err)
+	s.Require().Equal(newDescription, ret.Description)
 }
 
 func (s *GiteaTestSuite) TestListGiteaEndpoints() {
