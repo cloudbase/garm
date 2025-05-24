@@ -1,3 +1,9 @@
+
+<p align="center">
+    <img src="doc/images/garm-light.svg#gh-light-mode-only" width="384px" alt="Light mode image" />
+    <img src="doc/images/garm-dark.svg#gh-dark-mode-only" width="384px" alt="Dark mode image" />
+</p>
+
 # GitHub Actions Runner Manager (GARM)
 
 [![Go Tests](https://github.com/cloudbase/garm/actions/workflows/go-tests.yml/badge.svg)](https://github.com/cloudbase/garm/actions/workflows/go-tests.yml)
@@ -10,6 +16,8 @@
     - [Installing](#installing)
         - [Quickstart](#quickstart)
         - [Installing on Kubernetes](#installing-on-kubernetes)
+    - [Configuring GARM for GHES](#configuring-garm-for-ghes)
+    - [Configuring GARM for Gitea](#configuring-garm-for-gitea)
     - [Using GARM](#using-garm)
     - [Supported providers](#supported-providers)
         - [Installing external providers](#installing-external-providers)
@@ -35,8 +43,8 @@ GARM supports two modes of operation:
 
 Here is a brief architectural diagram of how pools work and how GARM reacts to workflows triggered in GitHub (click the image to see a larger version):
 
-![GARM architecture diagram](/doc/images/garm-light.drawio.svg?raw=true#gh-light-mode-only)
-![GARM architecture diagram](/doc/images/garm-dark.drawio.svg?raw=true#gh-dark-mode-only)
+![GARM architecture diagram](/doc/images/garm-light.diagram.svg?raw=true#gh-light-mode-only)
+![GARM architecture diagram](/doc/images/garm-dark.diagram.svg?raw=true#gh-dark-mode-only)
 
 **Scale sets** work differently. While pools (as they are defined in GARM) rely on webhooks to know when a job was started and GARM needs to internally make the right decission in terms of which pool should handle that runner, scale sets have a lot of the scheduling and decission making logic done in GitHub itself.
 
