@@ -218,9 +218,18 @@ func (s *sqlDatabase) ensureGithubEndpoint() error {
 		UploadBaseURL: appdefaults.GithubDefaultUploadBaseURL,
 	}
 
-	if _, err := s.CreateGithubEndpoint(context.Background(), createEndpointParams); err != nil {
-		if !errors.Is(err, runnerErrors.ErrDuplicateEntity) {
-			return errors.Wrap(err, "creating default github endpoint")
+	var epCount int64
+	if err := s.conn.Model(&GithubEndpoint{}).Count(&epCount).Error; err != nil {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.Wrap(err, "counting github endpoints")
+		}
+	}
+
+	if epCount == 0 {
+		if _, err := s.CreateGithubEndpoint(context.Background(), createEndpointParams); err != nil {
+			if !errors.Is(err, runnerErrors.ErrDuplicateEntity) {
+				return errors.Wrap(err, "creating default github endpoint")
+			}
 		}
 	}
 
