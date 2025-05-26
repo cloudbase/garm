@@ -29,6 +29,9 @@ import (
 )
 
 func (s *sqlDatabase) CreateEnterprise(ctx context.Context, name, credentialsName, webhookSecret string, poolBalancerType params.PoolBalancerType) (paramEnt params.Enterprise, err error) {
+	s.writeMux.Lock()
+	defer s.writeMux.Unlock()
+
 	if webhookSecret == "" {
 		return params.Enterprise{}, errors.New("creating enterprise: missing secret")
 	}
@@ -132,6 +135,9 @@ func (s *sqlDatabase) ListEnterprises(_ context.Context) ([]params.Enterprise, e
 }
 
 func (s *sqlDatabase) DeleteEnterprise(ctx context.Context, enterpriseID string) error {
+	s.writeMux.Lock()
+	defer s.writeMux.Unlock()
+
 	enterprise, err := s.getEnterpriseByID(ctx, s.conn, enterpriseID, "Endpoint", "Credentials", "Credentials.Endpoint")
 	if err != nil {
 		return errors.Wrap(err, "fetching enterprise")
@@ -157,6 +163,9 @@ func (s *sqlDatabase) DeleteEnterprise(ctx context.Context, enterpriseID string)
 }
 
 func (s *sqlDatabase) UpdateEnterprise(ctx context.Context, enterpriseID string, param params.UpdateEntityParams) (newParams params.Enterprise, err error) {
+	s.writeMux.Lock()
+	defer s.writeMux.Unlock()
+
 	defer func() {
 		if err == nil {
 			s.sendNotify(common.EnterpriseEntityType, common.UpdateOperation, newParams)

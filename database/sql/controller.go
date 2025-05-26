@@ -63,6 +63,9 @@ func (s *sqlDatabase) ControllerInfo() (params.ControllerInfo, error) {
 }
 
 func (s *sqlDatabase) InitController() (params.ControllerInfo, error) {
+	s.writeMux.Lock()
+	defer s.writeMux.Unlock()
+
 	if _, err := s.ControllerInfo(); err == nil {
 		return params.ControllerInfo{}, runnerErrors.NewConflictError("controller already initialized")
 	}
@@ -88,6 +91,9 @@ func (s *sqlDatabase) InitController() (params.ControllerInfo, error) {
 }
 
 func (s *sqlDatabase) UpdateController(info params.UpdateControllerParams) (paramInfo params.ControllerInfo, err error) {
+	s.writeMux.Lock()
+	defer s.writeMux.Unlock()
+
 	defer func() {
 		if err == nil {
 			s.sendNotify(common.ControllerEntityType, common.UpdateOperation, paramInfo)

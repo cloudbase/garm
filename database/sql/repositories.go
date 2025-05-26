@@ -30,6 +30,9 @@ import (
 )
 
 func (s *sqlDatabase) CreateRepository(ctx context.Context, owner, name, credentialsName, webhookSecret string, poolBalancerType params.PoolBalancerType) (param params.Repository, err error) {
+	s.writeMux.Lock()
+	defer s.writeMux.Unlock()
+
 	defer func() {
 		if err == nil {
 			s.sendNotify(common.RepositoryEntityType, common.CreateOperation, param)
@@ -122,6 +125,9 @@ func (s *sqlDatabase) ListRepositories(_ context.Context) ([]params.Repository, 
 }
 
 func (s *sqlDatabase) DeleteRepository(ctx context.Context, repoID string) (err error) {
+	s.writeMux.Lock()
+	defer s.writeMux.Unlock()
+
 	repo, err := s.getRepoByID(ctx, s.conn, repoID, "Endpoint", "Credentials", "Credentials.Endpoint")
 	if err != nil {
 		return errors.Wrap(err, "fetching repo")
@@ -147,6 +153,9 @@ func (s *sqlDatabase) DeleteRepository(ctx context.Context, repoID string) (err 
 }
 
 func (s *sqlDatabase) UpdateRepository(ctx context.Context, repoID string, param params.UpdateEntityParams) (newParams params.Repository, err error) {
+	s.writeMux.Lock()
+	defer s.writeMux.Unlock()
+
 	defer func() {
 		if err == nil {
 			s.sendNotify(common.RepositoryEntityType, common.UpdateOperation, newParams)

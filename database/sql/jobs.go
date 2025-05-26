@@ -95,6 +95,9 @@ func (s *sqlDatabase) paramsJobToWorkflowJob(ctx context.Context, job params.Job
 }
 
 func (s *sqlDatabase) DeleteJob(_ context.Context, jobID int64) (err error) {
+	s.writeMux.Lock()
+	defer s.writeMux.Unlock()
+
 	defer func() {
 		if err == nil {
 			if notifyErr := s.sendNotify(common.JobEntityType, common.DeleteOperation, params.Job{ID: jobID}); notifyErr != nil {
@@ -113,6 +116,9 @@ func (s *sqlDatabase) DeleteJob(_ context.Context, jobID int64) (err error) {
 }
 
 func (s *sqlDatabase) LockJob(_ context.Context, jobID int64, entityID string) error {
+	s.writeMux.Lock()
+	defer s.writeMux.Unlock()
+
 	entityUUID, err := uuid.Parse(entityID)
 	if err != nil {
 		return errors.Wrap(err, "parsing entity id")
@@ -152,6 +158,9 @@ func (s *sqlDatabase) LockJob(_ context.Context, jobID int64, entityID string) e
 }
 
 func (s *sqlDatabase) BreakLockJobIsQueued(_ context.Context, jobID int64) (err error) {
+	s.writeMux.Lock()
+	defer s.writeMux.Unlock()
+
 	var workflowJob WorkflowJob
 	q := s.conn.Clauses(clause.Locking{Strength: "UPDATE"}).Preload("Instance").Where("id = ? and status = ?", jobID, params.JobStatusQueued).First(&workflowJob)
 
@@ -180,6 +189,9 @@ func (s *sqlDatabase) BreakLockJobIsQueued(_ context.Context, jobID int64) (err 
 }
 
 func (s *sqlDatabase) UnlockJob(_ context.Context, jobID int64, entityID string) error {
+	s.writeMux.Lock()
+	defer s.writeMux.Unlock()
+
 	var workflowJob WorkflowJob
 	q := s.conn.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ?", jobID).First(&workflowJob)
 
@@ -213,6 +225,9 @@ func (s *sqlDatabase) UnlockJob(_ context.Context, jobID int64, entityID string)
 }
 
 func (s *sqlDatabase) CreateOrUpdateJob(ctx context.Context, job params.Job) (params.Job, error) {
+	s.writeMux.Lock()
+	defer s.writeMux.Unlock()
+
 	var workflowJob WorkflowJob
 	var err error
 	q := s.conn.Clauses(clause.Locking{Strength: "UPDATE"}).Preload("Instance").Where("id = ?", job.ID).First(&workflowJob)
@@ -381,6 +396,9 @@ func (s *sqlDatabase) GetJobByID(_ context.Context, jobID int64) (params.Job, er
 
 // DeleteCompletedJobs deletes all completed jobs.
 func (s *sqlDatabase) DeleteCompletedJobs(_ context.Context) error {
+	s.writeMux.Lock()
+	defer s.writeMux.Unlock()
+
 	query := s.conn.Model(&WorkflowJob{}).Where("status = ?", params.JobStatusCompleted)
 
 	if err := query.Unscoped().Delete(&WorkflowJob{}); err.Error != nil {

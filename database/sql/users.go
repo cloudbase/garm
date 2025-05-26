@@ -57,6 +57,9 @@ func (s *sqlDatabase) getUserByID(tx *gorm.DB, userID string) (User, error) {
 }
 
 func (s *sqlDatabase) CreateUser(_ context.Context, user params.NewUserParams) (params.User, error) {
+	s.writeMux.Lock()
+	defer s.writeMux.Unlock()
+
 	if user.Username == "" || user.Email == "" || user.Password == "" {
 		return params.User{}, runnerErrors.NewBadRequestError("missing username, password or email")
 	}
@@ -119,6 +122,9 @@ func (s *sqlDatabase) GetUserByID(_ context.Context, userID string) (params.User
 }
 
 func (s *sqlDatabase) UpdateUser(_ context.Context, user string, param params.UpdateUserParams) (params.User, error) {
+	s.writeMux.Lock()
+	defer s.writeMux.Unlock()
+
 	var err error
 	var dbUser User
 	err = s.conn.Transaction(func(tx *gorm.DB) error {

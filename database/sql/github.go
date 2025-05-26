@@ -111,6 +111,9 @@ func getUIDFromContext(ctx context.Context) (uuid.UUID, error) {
 }
 
 func (s *sqlDatabase) CreateGithubEndpoint(_ context.Context, param params.CreateGithubEndpointParams) (ghEndpoint params.GithubEndpoint, err error) {
+	s.writeMux.Lock()
+	defer s.writeMux.Unlock()
+
 	defer func() {
 		if err == nil {
 			s.sendNotify(common.GithubEndpointEntityType, common.CreateOperation, ghEndpoint)
@@ -164,6 +167,9 @@ func (s *sqlDatabase) ListGithubEndpoints(_ context.Context) ([]params.GithubEnd
 }
 
 func (s *sqlDatabase) UpdateGithubEndpoint(_ context.Context, name string, param params.UpdateGithubEndpointParams) (ghEndpoint params.GithubEndpoint, err error) {
+	s.writeMux.Lock()
+	defer s.writeMux.Unlock()
+
 	defer func() {
 		if err == nil {
 			s.sendNotify(common.GithubEndpointEntityType, common.UpdateOperation, ghEndpoint)
@@ -229,6 +235,9 @@ func (s *sqlDatabase) GetGithubEndpoint(_ context.Context, name string) (params.
 }
 
 func (s *sqlDatabase) DeleteGithubEndpoint(_ context.Context, name string) (err error) {
+	s.writeMux.Lock()
+	defer s.writeMux.Unlock()
+
 	defer func() {
 		if err == nil {
 			s.sendNotify(common.GithubEndpointEntityType, common.DeleteOperation, params.GithubEndpoint{Name: name})
@@ -287,6 +296,9 @@ func (s *sqlDatabase) DeleteGithubEndpoint(_ context.Context, name string) (err 
 }
 
 func (s *sqlDatabase) CreateGithubCredentials(ctx context.Context, param params.CreateGithubCredentialsParams) (ghCreds params.GithubCredentials, err error) {
+	s.writeMux.Lock()
+	defer s.writeMux.Unlock()
+
 	userID, err := getUIDFromContext(ctx)
 	if err != nil {
 		return params.GithubCredentials{}, errors.Wrap(err, "creating github credentials")
@@ -450,6 +462,9 @@ func (s *sqlDatabase) ListGithubCredentials(ctx context.Context) ([]params.Githu
 }
 
 func (s *sqlDatabase) UpdateGithubCredentials(ctx context.Context, id uint, param params.UpdateGithubCredentialsParams) (ghCreds params.GithubCredentials, err error) {
+	s.writeMux.Lock()
+	defer s.writeMux.Unlock()
+
 	defer func() {
 		if err == nil {
 			s.sendNotify(common.GithubCredentialsEntityType, common.UpdateOperation, ghCreds)
@@ -529,6 +544,9 @@ func (s *sqlDatabase) UpdateGithubCredentials(ctx context.Context, id uint, para
 }
 
 func (s *sqlDatabase) DeleteGithubCredentials(ctx context.Context, id uint) (err error) {
+	s.writeMux.Lock()
+	defer s.writeMux.Unlock()
+
 	var name string
 	defer func() {
 		if err == nil {
