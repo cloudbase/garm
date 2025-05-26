@@ -178,15 +178,6 @@ func (s *sqlDatabase) UpdateGithubEndpoint(_ context.Context, name string, param
 			return errors.Wrap(err, "fetching github endpoint")
 		}
 
-		var credsCount int64
-		if err := tx.Model(&GithubCredentials{}).Where("endpoint_name = ?", endpoint.Name).Count(&credsCount).Error; err != nil {
-			if !errors.Is(err, gorm.ErrRecordNotFound) {
-				return errors.Wrap(err, "fetching github credentials")
-			}
-		}
-		if credsCount > 0 && (param.APIBaseURL != nil || param.BaseURL != nil || param.UploadBaseURL != nil) {
-			return errors.Wrap(runnerErrors.ErrBadRequest, "cannot update endpoint URLs with existing credentials")
-		}
 		if param.APIBaseURL != nil {
 			endpoint.APIBaseURL = *param.APIBaseURL
 		}
