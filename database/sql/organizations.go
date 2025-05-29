@@ -30,6 +30,9 @@ import (
 )
 
 func (s *sqlDatabase) CreateOrganization(ctx context.Context, name, credentialsName, webhookSecret string, poolBalancerType params.PoolBalancerType) (org params.Organization, err error) {
+	s.writeMux.Lock()
+	defer s.writeMux.Unlock()
+
 	if webhookSecret == "" {
 		return params.Organization{}, errors.New("creating org: missing secret")
 	}
@@ -123,6 +126,9 @@ func (s *sqlDatabase) ListOrganizations(_ context.Context) ([]params.Organizatio
 }
 
 func (s *sqlDatabase) DeleteOrganization(ctx context.Context, orgID string) (err error) {
+	s.writeMux.Lock()
+	defer s.writeMux.Unlock()
+
 	org, err := s.getOrgByID(ctx, s.conn, orgID, "Endpoint", "Credentials", "Credentials.Endpoint")
 	if err != nil {
 		return errors.Wrap(err, "fetching org")
@@ -148,6 +154,9 @@ func (s *sqlDatabase) DeleteOrganization(ctx context.Context, orgID string) (err
 }
 
 func (s *sqlDatabase) UpdateOrganization(ctx context.Context, orgID string, param params.UpdateEntityParams) (paramOrg params.Organization, err error) {
+	s.writeMux.Lock()
+	defer s.writeMux.Unlock()
+
 	defer func() {
 		if err == nil {
 			s.sendNotify(common.OrganizationEntityType, common.UpdateOperation, paramOrg)

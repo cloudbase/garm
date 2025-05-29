@@ -20,6 +20,7 @@ import (
 	"log/slog"
 	"net/url"
 	"strings"
+	"sync"
 
 	"github.com/pkg/errors"
 	"gorm.io/driver/mysql"
@@ -91,6 +92,11 @@ type sqlDatabase struct {
 	ctx      context.Context
 	cfg      config.Database
 	producer common.Producer
+
+	// while busy_timeout helps, in situations of high contention, we can still
+	// end up with multiple threads trying to write to the database. SQLite does now
+	// support row level locking.
+	writeMux sync.Mutex
 }
 
 var renameTemplate = `

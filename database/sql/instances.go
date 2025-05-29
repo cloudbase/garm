@@ -31,6 +31,9 @@ import (
 )
 
 func (s *sqlDatabase) CreateInstance(_ context.Context, poolID string, param params.CreateInstanceParams) (instance params.Instance, err error) {
+	s.writeMux.Lock()
+	defer s.writeMux.Unlock()
+
 	pool, err := s.getPoolByID(s.conn, poolID)
 	if err != nil {
 		return params.Instance{}, errors.Wrap(err, "fetching pool")
@@ -143,6 +146,9 @@ func (s *sqlDatabase) GetInstanceByName(ctx context.Context, instanceName string
 }
 
 func (s *sqlDatabase) DeleteInstance(_ context.Context, poolID string, instanceName string) (err error) {
+	s.writeMux.Lock()
+	defer s.writeMux.Unlock()
+
 	instance, err := s.getPoolInstanceByName(poolID, instanceName)
 	if err != nil {
 		return errors.Wrap(err, "deleting instance")
@@ -176,6 +182,9 @@ func (s *sqlDatabase) DeleteInstance(_ context.Context, poolID string, instanceN
 }
 
 func (s *sqlDatabase) AddInstanceEvent(ctx context.Context, instanceName string, event params.EventType, eventLevel params.EventLevel, statusMessage string) error {
+	s.writeMux.Lock()
+	defer s.writeMux.Unlock()
+
 	instance, err := s.getInstanceByName(ctx, instanceName)
 	if err != nil {
 		return errors.Wrap(err, "updating instance")
@@ -194,6 +203,9 @@ func (s *sqlDatabase) AddInstanceEvent(ctx context.Context, instanceName string,
 }
 
 func (s *sqlDatabase) UpdateInstance(ctx context.Context, instanceName string, param params.UpdateInstanceParams) (params.Instance, error) {
+	s.writeMux.Lock()
+	defer s.writeMux.Unlock()
+
 	instance, err := s.getInstanceByName(ctx, instanceName)
 	if err != nil {
 		return params.Instance{}, errors.Wrap(err, "updating instance")

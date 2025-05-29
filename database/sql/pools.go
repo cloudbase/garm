@@ -68,6 +68,9 @@ func (s *sqlDatabase) GetPoolByID(_ context.Context, poolID string) (params.Pool
 }
 
 func (s *sqlDatabase) DeletePoolByID(_ context.Context, poolID string) (err error) {
+	s.writeMux.Lock()
+	defer s.writeMux.Unlock()
+
 	pool, err := s.getPoolByID(s.conn, poolID)
 	if err != nil {
 		return errors.Wrap(err, "fetching pool by ID")
@@ -255,6 +258,9 @@ func (s *sqlDatabase) FindPoolsMatchingAllTags(_ context.Context, entityType par
 }
 
 func (s *sqlDatabase) CreateEntityPool(_ context.Context, entity params.GithubEntity, param params.CreatePoolParams) (pool params.Pool, err error) {
+	s.writeMux.Lock()
+	defer s.writeMux.Unlock()
+
 	if len(param.Tags) == 0 {
 		return params.Pool{}, runnerErrors.NewBadRequestError("no tags specified")
 	}
@@ -343,6 +349,9 @@ func (s *sqlDatabase) GetEntityPool(_ context.Context, entity params.GithubEntit
 }
 
 func (s *sqlDatabase) DeleteEntityPool(_ context.Context, entity params.GithubEntity, poolID string) (err error) {
+	s.writeMux.Lock()
+	defer s.writeMux.Unlock()
+
 	entityID, err := uuid.Parse(entity.ID)
 	if err != nil {
 		return errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
@@ -380,6 +389,9 @@ func (s *sqlDatabase) DeleteEntityPool(_ context.Context, entity params.GithubEn
 }
 
 func (s *sqlDatabase) UpdateEntityPool(_ context.Context, entity params.GithubEntity, poolID string, param params.UpdatePoolParams) (updatedPool params.Pool, err error) {
+	s.writeMux.Lock()
+	defer s.writeMux.Unlock()
+
 	defer func() {
 		if err == nil {
 			s.sendNotify(common.PoolEntityType, common.UpdateOperation, updatedPool)
