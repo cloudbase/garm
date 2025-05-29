@@ -2187,6 +2187,50 @@ paths:
             tags:
                 - Repositories
                 - hooks
+    /repositories/{owner}{repo}/pools/{poolID}:
+        put:
+            operationId: UpdateRepoByNamePool
+            parameters:
+                - description: Repository owner.
+                  in: path
+                  name: owner
+                  required: true
+                  type: string
+                - description: Repository name.
+                  in: path
+                  name: repo
+                  required: true
+                  type: string
+                - description: Repository endpointName.
+                  in: query
+                  name: endpointName
+                  type: string
+                - description: ID of the repository pool to update.
+                  in: path
+                  name: poolID
+                  required: true
+                  type: string
+                - description: Parameters used when updating the repository pool.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/UpdatePoolParams'
+                    description: Parameters used when updating the repository pool.
+                    type: object
+            responses:
+                "200":
+                    description: Pool
+                    schema:
+                        $ref: '#/definitions/Pool'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Update repository pool with the parameters given.
+            tags:
+                - repositories
+                - pools
     /repositories/{repoID}:
         delete:
             operationId: DeleteRepo

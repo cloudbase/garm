@@ -108,6 +108,8 @@ type ClientService interface {
 
 	UpdateRepoByName(params *UpdateRepoByNameParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateRepoByNameOK, error)
 
+	UpdateRepoByNamePool(params *UpdateRepoByNamePoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateRepoByNamePoolOK, error)
+
 	UpdateRepoPool(params *UpdateRepoPoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateRepoPoolOK, error)
 
 	SetTransport(transport runtime.ClientTransport)
@@ -1104,6 +1106,44 @@ func (a *Client) UpdateRepoByName(params *UpdateRepoByNameParams, authInfo runti
 	}
 	// unexpected success response
 	unexpectedSuccess := result.(*UpdateRepoByNameDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+UpdateRepoByNamePool updates repository pool with the parameters given
+*/
+func (a *Client) UpdateRepoByNamePool(params *UpdateRepoByNamePoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateRepoByNamePoolOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewUpdateRepoByNamePoolParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "UpdateRepoByNamePool",
+		Method:             "PUT",
+		PathPattern:        "/repositories/{owner}{repo}/pools/{poolID}",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &UpdateRepoByNamePoolReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*UpdateRepoByNamePoolOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*UpdateRepoByNamePoolDefault)
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 

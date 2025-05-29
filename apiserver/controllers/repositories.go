@@ -762,6 +762,44 @@ func (a *APIController) DeleteRepoPoolHandler(w http.ResponseWriter, r *http.Req
 //	Responses:
 //	  200: Pool
 //	  default: APIErrorResponse
+
+// swagger:route PUT /repositories/{owner}{repo}/pools/{poolID} repositories pools UpdateRepoByNamePool
+//
+// Update repository pool with the parameters given.
+//
+//	Parameters:
+//	  + name: owner
+//	    description: Repository owner.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: repo
+//	    description: Repository name.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: endpointName
+//	    description: Repository endpointName.
+//	    type: string
+//	    in: query
+//
+//	  + name: poolID
+//	    description: ID of the repository pool to update.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: Body
+//	    description: Parameters used when updating the repository pool.
+//	    type: UpdatePoolParams
+//	    in: body
+//	    required: true
+//
+//	Responses:
+//	  200: Pool
+//	  default: APIErrorResponse
 func (a *APIController) UpdateRepoPoolHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
