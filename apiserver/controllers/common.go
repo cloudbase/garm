@@ -30,7 +30,7 @@ func (a *APIController) GetRepository(w http.ResponseWriter, r *http.Request) (p
 	repoID, ok := vars["repoID"]
 	owner, hasOwner := vars["owner"]
 	repo, hasRepo := vars["repo"]
-	if !ok || !hasOwner && !hasRepo {
+	if !ok && !(hasOwner && hasRepo) {
 		w.WriteHeader(http.StatusBadRequest)
 		if err := json.NewEncoder(w).Encode(apiParams.APIErrorResponse{
 			Error:   "Bad Request",
