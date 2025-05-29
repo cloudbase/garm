@@ -67,7 +67,7 @@ lint-fix: golangci-lint $(GOLANGCI_LINT) ## Lint the codebase and run auto-fixer
 
 verify-vendor: ## verify if all the go.mod/go.sum files are up-to-date
 	$(eval TMPDIR := $(shell mktemp -d))
-	@cp -R ${ROOTDIR} ${TMPDIR}
+	@cp -R ${ROOTDIR} ${TMPDIR}/.
 	@(cd ${TMPDIR}/garm && ${GO} mod tidy)
 	@diff -r -u -q ${ROOTDIR} ${TMPDIR}/garm >/dev/null 2>&1; if [ "$$?" -ne 0 ];then echo "please run: go mod tidy && go mod vendor"; exit 1; fi
 	@rm -rf ${TMPDIR}
