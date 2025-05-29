@@ -78,6 +78,7 @@ const (
 )
 
 const (
+	AutoEndpointType   EndpointType = ""
 	GithubEndpointType EndpointType = "github"
 	GiteaEndpointType  EndpointType = "gitea"
 )

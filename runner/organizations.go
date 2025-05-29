@@ -39,7 +39,7 @@ func (r *Runner) CreateOrganization(ctx context.Context, param params.CreateOrgP
 	}
 
 	var creds params.ForgeCredentials
-	switch param.GetForgeType() {
+	switch param.ForgeType {
 	case params.GithubEndpointType:
 		slog.DebugContext(ctx, "getting github credentials")
 		creds, err = r.store.GetGithubCredentialsByName(ctx, param.CredentialsName, true)
@@ -47,7 +47,7 @@ func (r *Runner) CreateOrganization(ctx context.Context, param params.CreateOrgP
 		slog.DebugContext(ctx, "getting gitea credentials")
 		creds, err = r.store.GetGiteaCredentialsByName(ctx, param.CredentialsName, true)
 	default:
-		return params.Organization{}, runnerErrors.NewBadRequestError("invalid forge type: %s", param.GetForgeType())
+		creds, err = r.ResolveForgeCredentialByName(ctx, param.CredentialsName)
 	}
 
 	if err != nil {

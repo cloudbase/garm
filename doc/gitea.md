@@ -295,8 +295,7 @@ garm-cli repo add \
     --name testrepo \
     --owner testorg \
     --random-webhook-secret \
-    --install-webhook \
-    --forge-type gitea
+    --install-webhook
 ```
 
 Make a note of the repo UUID. You will need it when adding a pool.
