@@ -100,6 +100,21 @@ func (a *APIController) ListReposHandler(w http.ResponseWriter, r *http.Request)
 //	Responses:
 //	  200: Repository
 //	  default: APIErrorResponse
+//
+// swagger:route GET /repositories/{owner}/{repo} RepoByNamesitories GetRepoByNameByName
+//
+// Get repository by ID.
+//
+//	Parameters:
+//	  + name: repoID
+//	    description: ID of the repository to fetch.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	Responses:
+//	  200: Repository
+//	  default: APIErrorResponse
 func (a *APIController) GetRepoByIDHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -115,6 +130,26 @@ func (a *APIController) GetRepoByIDHandler(w http.ResponseWriter, r *http.Reques
 }
 
 // swagger:route DELETE /repositories/{repoID} repositories DeleteRepo
+//
+// Delete repository by ID.
+//
+//	Parameters:
+//	  + name: repoID
+//	    description: ID of the repository to delete.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: keepWebhook
+//	    description: If true and a webhook is installed for this repo, it will not be removed.
+//	    type: boolean
+//	    in: query
+//	    required: false
+//
+//	Responses:
+//	  default: APIErrorResponse
+//
+// swagger:route DELETE /repositories/{owner}/{repo} RepoByNamesitories DeleteRepo
 //
 // Delete repository by ID.
 //
@@ -172,6 +207,27 @@ func (a *APIController) DeleteRepoHandler(w http.ResponseWriter, r *http.Request
 //	Responses:
 //	  200: Repository
 //	  default: APIErrorResponse
+//
+// swagger:route PUT /repositories/{owner}/{repo} RepoByNamesitories UpdateRepo
+//
+// Update repository with the parameters given.
+//
+//	Parameters:
+//	  + name: repoID
+//	    description: ID of the repository to update.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: Body
+//	    description: Parameters used when updating the repository.
+//	    type: UpdateEntityParams
+//	    in: body
+//	    required: true
+//
+//	Responses:
+//	  200: Repository
+//	  default: APIErrorResponse
 func (a *APIController) UpdateRepoHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -200,6 +256,27 @@ func (a *APIController) UpdateRepoHandler(w http.ResponseWriter, r *http.Request
 }
 
 // swagger:route POST /repositories/{repoID}/pools repositories pools CreateRepoPool
+//
+// Create repository pool with the parameters given.
+//
+//	Parameters:
+//	  + name: repoID
+//	    description: Repository ID.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: Body
+//	    description: Parameters used when creating the repository pool.
+//	    type: CreatePoolParams
+//	    in: body
+//	    required: true
+//
+//	Responses:
+//	  200: Pool
+//	  default: APIErrorResponse
+//
+// swagger:route POST /repositories/{owner}/{repo}/pools RepoByNamesitories pools CreateRepoByNamePool
 //
 // Create repository pool with the parameters given.
 //
@@ -267,6 +344,27 @@ func (a *APIController) CreateRepoPoolHandler(w http.ResponseWriter, r *http.Req
 //	Responses:
 //	  200: ScaleSet
 //	  default: APIErrorResponse
+//
+// swagger:route POST /repositories/{owner}/{repo}/scalesets RepoByNamesitories scalesets CreateRepoByNameScaleSet
+//
+// Create repository scale set with the parameters given.
+//
+//	Parameters:
+//	  + name: repoID
+//	    description: Repository ID.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: Body
+//	    description: Parameters used when creating the repository scale set.
+//	    type: CreateScaleSetParams
+//	    in: body
+//	    required: true
+//
+//	Responses:
+//	  200: ScaleSet
+//	  default: APIErrorResponse
 func (a *APIController) CreateRepoScaleSetHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -309,6 +407,21 @@ func (a *APIController) CreateRepoScaleSetHandler(w http.ResponseWriter, r *http
 //	Responses:
 //	  200: Pools
 //	  default: APIErrorResponse
+//
+// swagger:route GET /repositories/{owner}/{repo}/pools RepoByNamesitories pools ListRepoByNamePools
+//
+// List repository pools.
+//
+//	Parameters:
+//	  + name: repoID
+//	    description: Repository ID.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	Responses:
+//	  200: Pools
+//	  default: APIErrorResponse
 func (a *APIController) ListRepoPoolsHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -331,6 +444,21 @@ func (a *APIController) ListRepoPoolsHandler(w http.ResponseWriter, r *http.Requ
 }
 
 // swagger:route GET /repositories/{repoID}/scalesets repositories scalesets ListRepoScaleSets
+//
+// List repository scale sets.
+//
+//	Parameters:
+//	  + name: repoID
+//	    description: Repository ID.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	Responses:
+//	  200: ScaleSets
+//	  default: APIErrorResponse
+//
+// swagger:route GET /repositories/{owner}/{repo}/scalesets RepoByNamesitories scalesets ListRepoByNameScaleSets
 //
 // List repository scale sets.
 //
@@ -385,6 +513,27 @@ func (a *APIController) ListRepoScaleSetsHandler(w http.ResponseWriter, r *http.
 //	Responses:
 //	  200: Pool
 //	  default: APIErrorResponse
+//
+// swagger:route GET /repositories/{owner}/{repo}/pools/{poolID} RepoByNamesitories pools GetRepoByNameByNamePool
+//
+// Get repository pool by ID.
+//
+//	Parameters:
+//	  + name: repoID
+//	    description: Repository ID.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: poolID
+//	    description: Pool ID.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	Responses:
+//	  200: Pool
+//	  default: APIErrorResponse
 func (a *APIController) GetRepoPoolHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	vars := mux.Vars(r)
@@ -419,6 +568,26 @@ func (a *APIController) GetRepoPoolHandler(w http.ResponseWriter, r *http.Reques
 }
 
 // swagger:route DELETE /repositories/{repoID}/pools/{poolID} repositories pools DeleteRepoPool
+//
+// Delete repository pool by ID.
+//
+//	Parameters:
+//	  + name: repoID
+//	    description: Repository ID.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: poolID
+//	    description: ID of the repository pool to delete.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	Responses:
+//	  default: APIErrorResponse
+//
+// swagger:route DELETE /repositories/{owner}/{repo}/pools/{poolID} RepoByNamesitories pools DeleteRepoByNamePool
 //
 // Delete repository pool by ID.
 //
@@ -556,6 +725,28 @@ func (a *APIController) UpdateRepoPoolHandler(w http.ResponseWriter, r *http.Req
 //	Responses:
 //	  200: HookInfo
 //	  default: APIErrorResponse
+//
+// swagger:route POST /repositories/{owner}/{repo}/webhook RepoByNamesitories hooks InstallRepoByNameWebhook
+//
+// Install the GARM webhook for an organization. The secret configured on the organization will
+// be used to validate the requests.
+//
+//	Parameters:
+//	  + name: repoID
+//	    description: Repository ID.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: Body
+//	    description: Parameters used when creating the repository webhook.
+//	    type: InstallWebhookParams
+//	    in: body
+//	    required: true
+//
+//	Responses:
+//	  200: HookInfo
+//	  default: APIErrorResponse
 func (a *APIController) InstallRepoWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -597,6 +788,20 @@ func (a *APIController) InstallRepoWebhookHandler(w http.ResponseWriter, r *http
 //
 //	Responses:
 //	  default: APIErrorResponse
+//
+// swagger:route DELETE /repositories/{owner}/{repo}/webhook RepoByNamesitories hooks UninstallRepoByNameWebhook
+//
+// Uninstall organization webhook.
+//
+//	Parameters:
+//	  + name: repoID
+//	    description: Repository ID.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	Responses:
+//	  default: APIErrorResponse
 func (a *APIController) UninstallRepoWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -616,6 +821,21 @@ func (a *APIController) UninstallRepoWebhookHandler(w http.ResponseWriter, r *ht
 }
 
 // swagger:route GET /repositories/{repoID}/webhook repositories hooks GetRepoWebhookInfo
+//
+// Get information about the GARM installed webhook on a repository.
+//
+//	Parameters:
+//	  + name: repoID
+//	    description: Repository ID.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	Responses:
+//	  200: HookInfo
+//	  default: APIErrorResponse
+//
+// swagger:route GET /repositories/{owner}/{repo}/webhook RepoByNamesitories hooks GetRepoByNameByNameWebhookInfo
 //
 // Get information about the GARM installed webhook on a repository.
 //
