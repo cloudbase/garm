@@ -2,9 +2,7 @@ package runner
 
 import (
 	"context"
-	"strings"
 
-	"github.com/google/uuid"
 	"github.com/pkg/errors"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
@@ -32,20 +30,24 @@ func (r *Runner) ResolveForgeCredentialByName(ctx context.Context, credentialsNa
 	return params.ForgeCredentials{}, runnerErrors.NewBadRequestError("credentials %s not found", credentialsName)
 }
 
-func (r *Runner) ResolveRepositoryID(ctx context.Context, repoID string) (string, error) {
-	if _, err := uuid.Parse(repoID); err == nil {
-		return repoID, nil
-	}
-	if repoID == "" {
-		return "", runnerErrors.NewBadRequestError("repository ID cannot be empty")
-	}
-	comp := strings.SplitN(repoID, "/", 2)
-	repo, err := r.store.GetRepository(ctx, comp[0], comp[1], "")
+func (r *Runner) ResolveRepositoryID(ctx context.Context, owner, repo, endpointName string) (string, error) {
+	repoObj, err := r.store.GetRepository(ctx, owner, repo, endpointName)
 	if err != nil {
 		if errors.Is(err, runnerErrors.ErrNotFound) {
-			return "", runnerErrors.NewBadRequestError("repository %s not found", repoID)
+			return "", runnerErrors.NewBadRequestError("repository %s/%s (%s) not found", owner, repo, endpointName)
 		}
-		return "", errors.Wrapf(err, "fetching repository %s", repoID)
+		return "", errors.Wrapf(err, "fetching repository %s/%s (%s)", owner, repo, endpointName)
 	}
-	return repo.ID, nil
+	return repoObj.ID, nil
+}
+
+func (r *Runner) ResolveRepository(ctx context.Context, owner, repo, endpointName string) (params.Repository, error) {
+	repoObj, err := r.store.GetRepository(ctx, owner, repo, endpointName)
+	if err != nil {
+		if errors.Is(err, runnerErrors.ErrNotFound) {
+			return params.Repository{}, runnerErrors.NewBadRequestError("repository %s/%s (%s) not found", owner, repo, endpointName)
+		}
+		return params.Repository{}, errors.Wrapf(err, "fetching repository %s/%s (%s)", owner, repo, endpointName)
+	}
+	return repoObj, nil
 }

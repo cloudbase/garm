@@ -228,20 +228,13 @@ func (a *APIController) DeleteInstanceHandler(w http.ResponseWriter, r *http.Req
 //	  default: APIErrorResponse
 func (a *APIController) ListRepoInstancesHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	vars := mux.Vars(r)
-	repoID, ok := vars["repoID"]
+
+	repo, ok := a.GetRepository(w, r)
 	if !ok {
-		w.WriteHeader(http.StatusBadRequest)
-		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
-			Error:   "Bad Request",
-			Details: "No repo ID specified",
-		}); err != nil {
-			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
-		}
 		return
 	}
 
-	instances, err := a.r.ListRepoInstances(ctx, repoID)
+	instances, err := a.r.ListRepoInstances(ctx, repo.ID)
 	if err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "listing pools")
 		handleError(ctx, w, err)
