@@ -236,15 +236,26 @@ func (s *sqlDatabase) GetRepositoryByID(ctx context.Context, repoID string) (par
 func (s *sqlDatabase) getRepo(_ context.Context, owner, name, endpointName string) (Repository, error) {
 	var repo Repository
 
-	q := s.conn.Where("name = ? COLLATE NOCASE and owner = ? COLLATE NOCASE and endpoint_name = ? COLLATE NOCASE", name, owner, endpointName).
-		Preload("Credentials").
+	q := s.conn.Where("name = ? COLLATE NOCASE and owner = ? COLLATE NOCASE", name, owner)
+
+	if endpointName != "" {
+		q = q.Where("endpoint_name = ? COLLATE NOCASE", endpointName)
+	}
+
+	q = q.Preload("Credentials").
 		Preload("Credentials.Endpoint").
 		Preload("GiteaCredentials").
 		Preload("GiteaCredentials.Endpoint").
-		Preload("Endpoint").
-		First(&repo)
+		Preload("Endpoint")
 
 	q = q.First(&repo)
+
+	var cnt int64
+	q = q.Count(&cnt)
+
+	if cnt > 1 {
+		return Repository{}, errors.Wrap(runnerErrors.ErrBadRequest, "multiple repositories with the same name and owner found")
+	}
 
 	if q.Error != nil {
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {

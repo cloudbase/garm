@@ -103,7 +103,12 @@ func (a *APIController) ListReposHandler(w http.ResponseWriter, r *http.Request)
 func (a *APIController) GetRepoByIDHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	vars := mux.Vars(r)
+	vars, err := unescapeVars(mux.Vars(r))
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error unescaping path parameters")
+		handleError(ctx, w, err)
+		return
+	}
 	repoID, ok := vars["repoID"]
 	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
@@ -113,6 +118,13 @@ func (a *APIController) GetRepoByIDHandler(w http.ResponseWriter, r *http.Reques
 		}); err != nil {
 			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 		}
+		return
+	}
+
+	repoID, err = a.r.ResolveRepositoryID(ctx, repoID)
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error resolving repository name")
+		handleError(ctx, w, err)
 		return
 	}
 
@@ -151,7 +163,12 @@ func (a *APIController) GetRepoByIDHandler(w http.ResponseWriter, r *http.Reques
 func (a *APIController) DeleteRepoHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	vars := mux.Vars(r)
+	vars, err := unescapeVars(mux.Vars(r))
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error unescaping path parameters")
+		handleError(ctx, w, err)
+		return
+	}
 	repoID, ok := vars["repoID"]
 	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
@@ -161,6 +178,13 @@ func (a *APIController) DeleteRepoHandler(w http.ResponseWriter, r *http.Request
 		}); err != nil {
 			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 		}
+		return
+	}
+
+	repoID, err = a.r.ResolveRepositoryID(ctx, repoID)
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error resolving repository name")
+		handleError(ctx, w, err)
 		return
 	}
 
@@ -198,7 +222,12 @@ func (a *APIController) DeleteRepoHandler(w http.ResponseWriter, r *http.Request
 func (a *APIController) UpdateRepoHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	vars := mux.Vars(r)
+	vars, err := unescapeVars(mux.Vars(r))
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error unescaping path parameters")
+		handleError(ctx, w, err)
+		return
+	}
 	repoID, ok := vars["repoID"]
 	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
@@ -214,6 +243,13 @@ func (a *APIController) UpdateRepoHandler(w http.ResponseWriter, r *http.Request
 	var updatePayload runnerParams.UpdateEntityParams
 	if err := json.NewDecoder(r.Body).Decode(&updatePayload); err != nil {
 		handleError(ctx, w, gErrors.ErrBadRequest)
+		return
+	}
+
+	repoID, err = a.r.ResolveRepositoryID(ctx, repoID)
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error resolving repository name")
+		handleError(ctx, w, err)
 		return
 	}
 
@@ -253,7 +289,12 @@ func (a *APIController) UpdateRepoHandler(w http.ResponseWriter, r *http.Request
 func (a *APIController) CreateRepoPoolHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	vars := mux.Vars(r)
+	vars, err := unescapeVars(mux.Vars(r))
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error unescaping path parameters")
+		handleError(ctx, w, err)
+		return
+	}
 	repoID, ok := vars["repoID"]
 	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
@@ -270,6 +311,13 @@ func (a *APIController) CreateRepoPoolHandler(w http.ResponseWriter, r *http.Req
 	if err := json.NewDecoder(r.Body).Decode(&poolData); err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to decode")
 		handleError(ctx, w, gErrors.ErrBadRequest)
+		return
+	}
+
+	repoID, err = a.r.ResolveRepositoryID(ctx, repoID)
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error resolving repository name")
+		handleError(ctx, w, err)
 		return
 	}
 
@@ -309,7 +357,12 @@ func (a *APIController) CreateRepoPoolHandler(w http.ResponseWriter, r *http.Req
 func (a *APIController) CreateRepoScaleSetHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	vars := mux.Vars(r)
+	vars, err := unescapeVars(mux.Vars(r))
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error unescaping path parameters")
+		handleError(ctx, w, err)
+		return
+	}
 	repoID, ok := vars["repoID"]
 	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
@@ -326,6 +379,13 @@ func (a *APIController) CreateRepoScaleSetHandler(w http.ResponseWriter, r *http
 	if err := json.NewDecoder(r.Body).Decode(&scaleSetData); err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to decode")
 		handleError(ctx, w, gErrors.ErrBadRequest)
+		return
+	}
+
+	repoID, err = a.r.ResolveRepositoryID(ctx, repoID)
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error resolving repository name")
+		handleError(ctx, w, err)
 		return
 	}
 
@@ -358,7 +418,12 @@ func (a *APIController) CreateRepoScaleSetHandler(w http.ResponseWriter, r *http
 //	  default: APIErrorResponse
 func (a *APIController) ListRepoPoolsHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	vars := mux.Vars(r)
+	vars, err := unescapeVars(mux.Vars(r))
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error unescaping path parameters")
+		handleError(ctx, w, err)
+		return
+	}
 	repoID, ok := vars["repoID"]
 	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
@@ -368,6 +433,13 @@ func (a *APIController) ListRepoPoolsHandler(w http.ResponseWriter, r *http.Requ
 		}); err != nil {
 			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 		}
+		return
+	}
+
+	repoID, err = a.r.ResolveRepositoryID(ctx, repoID)
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error resolving repository name")
+		handleError(ctx, w, err)
 		return
 	}
 
@@ -400,7 +472,12 @@ func (a *APIController) ListRepoPoolsHandler(w http.ResponseWriter, r *http.Requ
 //	  default: APIErrorResponse
 func (a *APIController) ListRepoScaleSetsHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	vars := mux.Vars(r)
+	vars, err := unescapeVars(mux.Vars(r))
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error unescaping path parameters")
+		handleError(ctx, w, err)
+		return
+	}
 	repoID, ok := vars["repoID"]
 	if !ok {
 		w.WriteHeader(http.StatusBadRequest)
@@ -410,6 +487,13 @@ func (a *APIController) ListRepoScaleSetsHandler(w http.ResponseWriter, r *http.
 		}); err != nil {
 			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 		}
+		return
+	}
+
+	repoID, err = a.r.ResolveRepositoryID(ctx, repoID)
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error resolving repository name")
+		handleError(ctx, w, err)
 		return
 	}
 
@@ -448,7 +532,12 @@ func (a *APIController) ListRepoScaleSetsHandler(w http.ResponseWriter, r *http.
 //	  default: APIErrorResponse
 func (a *APIController) GetRepoPoolHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	vars := mux.Vars(r)
+	vars, err := unescapeVars(mux.Vars(r))
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error unescaping path parameters")
+		handleError(ctx, w, err)
+		return
+	}
 	repoID, repoOk := vars["repoID"]
 	poolID, poolOk := vars["poolID"]
 	if !repoOk || !poolOk {
@@ -459,6 +548,13 @@ func (a *APIController) GetRepoPoolHandler(w http.ResponseWriter, r *http.Reques
 		}); err != nil {
 			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 		}
+		return
+	}
+
+	repoID, err = a.r.ResolveRepositoryID(ctx, repoID)
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error resolving repository name")
+		handleError(ctx, w, err)
 		return
 	}
 
@@ -497,7 +593,12 @@ func (a *APIController) GetRepoPoolHandler(w http.ResponseWriter, r *http.Reques
 func (a *APIController) DeleteRepoPoolHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	vars := mux.Vars(r)
+	vars, err := unescapeVars(mux.Vars(r))
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error unescaping path parameters")
+		handleError(ctx, w, err)
+		return
+	}
 	repoID, repoOk := vars["repoID"]
 	poolID, poolOk := vars["poolID"]
 	if !repoOk || !poolOk {
@@ -508,6 +609,13 @@ func (a *APIController) DeleteRepoPoolHandler(w http.ResponseWriter, r *http.Req
 		}); err != nil {
 			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 		}
+		return
+	}
+
+	repoID, err = a.r.ResolveRepositoryID(ctx, repoID)
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error resolving repository name")
+		handleError(ctx, w, err)
 		return
 	}
 
@@ -550,7 +658,12 @@ func (a *APIController) DeleteRepoPoolHandler(w http.ResponseWriter, r *http.Req
 func (a *APIController) UpdateRepoPoolHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	vars := mux.Vars(r)
+	vars, err := unescapeVars(mux.Vars(r))
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error unescaping path parameters")
+		handleError(ctx, w, err)
+		return
+	}
 	repoID, repoOk := vars["repoID"]
 	poolID, poolOk := vars["poolID"]
 	if !repoOk || !poolOk {
@@ -568,6 +681,13 @@ func (a *APIController) UpdateRepoPoolHandler(w http.ResponseWriter, r *http.Req
 	if err := json.NewDecoder(r.Body).Decode(&poolData); err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to decode")
 		handleError(ctx, w, gErrors.ErrBadRequest)
+		return
+	}
+
+	repoID, err = a.r.ResolveRepositoryID(ctx, repoID)
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error resolving repository name")
+		handleError(ctx, w, err)
 		return
 	}
 
@@ -608,7 +728,12 @@ func (a *APIController) UpdateRepoPoolHandler(w http.ResponseWriter, r *http.Req
 func (a *APIController) InstallRepoWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	vars := mux.Vars(r)
+	vars, err := unescapeVars(mux.Vars(r))
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error unescaping path parameters")
+		handleError(ctx, w, err)
+		return
+	}
 	repoID, orgOk := vars["repoID"]
 	if !orgOk {
 		w.WriteHeader(http.StatusBadRequest)
@@ -625,6 +750,13 @@ func (a *APIController) InstallRepoWebhookHandler(w http.ResponseWriter, r *http
 	if err := json.NewDecoder(r.Body).Decode(&hookParam); err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to decode")
 		handleError(ctx, w, gErrors.ErrBadRequest)
+		return
+	}
+
+	repoID, err = a.r.ResolveRepositoryID(ctx, repoID)
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error resolving repository name")
+		handleError(ctx, w, err)
 		return
 	}
 
@@ -657,7 +789,12 @@ func (a *APIController) InstallRepoWebhookHandler(w http.ResponseWriter, r *http
 func (a *APIController) UninstallRepoWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	vars := mux.Vars(r)
+	vars, err := unescapeVars(mux.Vars(r))
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error unescaping path parameters")
+		handleError(ctx, w, err)
+		return
+	}
 	repoID, orgOk := vars["repoID"]
 	if !orgOk {
 		w.WriteHeader(http.StatusBadRequest)
@@ -667,6 +804,13 @@ func (a *APIController) UninstallRepoWebhookHandler(w http.ResponseWriter, r *ht
 		}); err != nil {
 			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 		}
+		return
+	}
+
+	repoID, err = a.r.ResolveRepositoryID(ctx, repoID)
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error resolving repository name")
+		handleError(ctx, w, err)
 		return
 	}
 
@@ -697,7 +841,12 @@ func (a *APIController) UninstallRepoWebhookHandler(w http.ResponseWriter, r *ht
 func (a *APIController) GetRepoWebhookInfoHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	vars := mux.Vars(r)
+	vars, err := unescapeVars(mux.Vars(r))
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error unescaping path parameters")
+		handleError(ctx, w, err)
+		return
+	}
 	repoID, orgOk := vars["repoID"]
 	if !orgOk {
 		w.WriteHeader(http.StatusBadRequest)
@@ -707,6 +856,13 @@ func (a *APIController) GetRepoWebhookInfoHandler(w http.ResponseWriter, r *http
 		}); err != nil {
 			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 		}
+		return
+	}
+
+	repoID, err = a.r.ResolveRepositoryID(ctx, repoID)
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error resolving repository name")
+		handleError(ctx, w, err)
 		return
 	}
 
