@@ -39,13 +39,13 @@ func (r *Runner) CreateRepository(ctx context.Context, param params.CreateRepoPa
 	}
 
 	var creds params.ForgeCredentials
-	switch param.GetForgeType() {
+	switch param.ForgeType {
 	case params.GithubEndpointType:
 		creds, err = r.store.GetGithubCredentialsByName(ctx, param.CredentialsName, true)
 	case params.GiteaEndpointType:
 		creds, err = r.store.GetGiteaCredentialsByName(ctx, param.CredentialsName, true)
 	default:
-		return params.Repository{}, runnerErrors.NewBadRequestError("invalid forge type: %s", param.GetForgeType())
+		creds, err = r.ResolveForgeCredentialByName(ctx, param.CredentialsName)
 	}
 
 	if err != nil {

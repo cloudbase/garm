@@ -48,15 +48,6 @@ type CreateRepoParams struct {
 	ForgeType        EndpointType     `json:"forge_type,omitempty"`
 }
 
-func (c CreateRepoParams) GetForgeType() EndpointType {
-	switch c.ForgeType {
-	case GithubEndpointType, GiteaEndpointType:
-		return c.ForgeType
-	default:
-		return GithubEndpointType
-	}
-}
-
 func (c *CreateRepoParams) Validate() error {
 	if c.Owner == "" {
 		return runnerErrors.NewBadRequestError("missing owner")
@@ -71,6 +62,13 @@ func (c *CreateRepoParams) Validate() error {
 	}
 	if c.WebhookSecret == "" {
 		return runnerErrors.NewMissingSecretError("missing secret")
+	}
+
+	switch c.ForgeType {
+	case GithubEndpointType, GiteaEndpointType, AutoEndpointType:
+		break
+	default:
+		return runnerErrors.NewBadRequestError("invalid forge type")
 	}
 
 	switch c.PoolBalancerType {
@@ -90,15 +88,6 @@ type CreateOrgParams struct {
 	ForgeType        EndpointType     `json:"forge_type,omitempty"`
 }
 
-func (c CreateOrgParams) GetForgeType() EndpointType {
-	switch c.ForgeType {
-	case GithubEndpointType, GiteaEndpointType:
-		return c.ForgeType
-	default:
-		return GithubEndpointType
-	}
-}
-
 func (c *CreateOrgParams) Validate() error {
 	if c.Name == "" {
 		return runnerErrors.NewBadRequestError("missing org name")
@@ -109,6 +98,13 @@ func (c *CreateOrgParams) Validate() error {
 	}
 	if c.WebhookSecret == "" {
 		return runnerErrors.NewMissingSecretError("missing secret")
+	}
+
+	switch c.ForgeType {
+	case GithubEndpointType, GiteaEndpointType, AutoEndpointType:
+		break
+	default:
+		return runnerErrors.NewBadRequestError("invalid forge type")
 	}
 
 	switch c.PoolBalancerType {

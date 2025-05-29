@@ -308,7 +308,7 @@ func init() {
 	orgAddCmd.Flags().StringVar(&orgName, "name", "", "The name of the organization")
 	orgAddCmd.Flags().StringVar(&poolBalancerType, "pool-balancer-type", string(params.PoolBalancerTypeRoundRobin), "The balancing strategy to use when creating runners in pools matching requested labels.")
 	orgAddCmd.Flags().StringVar(&orgWebhookSecret, "webhook-secret", "", "The webhook secret for this organization")
-	orgAddCmd.Flags().StringVar(&forgeType, "forge-type", string(params.GithubEndpointType), "The forge type of the organization. Supported values: github, gitea.")
+	orgAddCmd.Flags().StringVar(&forgeType, "forge-type", "", "The forge type of the organization. Supported values: github, gitea.")
 	orgAddCmd.Flags().StringVar(&orgCreds, "credentials", "", "Credentials name. See credentials list.")
 	orgAddCmd.Flags().BoolVar(&orgRandomWebhookSecret, "random-webhook-secret", false, "Generate a random webhook secret for this organization.")
 	orgAddCmd.Flags().BoolVar(&installOrgWebhook, "install-webhook", false, "Install the webhook as part of the add operation.")

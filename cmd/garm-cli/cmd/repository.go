@@ -312,7 +312,7 @@ func init() {
 	repoAddCmd.Flags().StringVar(&repoOwner, "owner", "", "The owner of this repository")
 	repoAddCmd.Flags().StringVar(&poolBalancerType, "pool-balancer-type", string(params.PoolBalancerTypeRoundRobin), "The balancing strategy to use when creating runners in pools matching requested labels.")
 	repoAddCmd.Flags().StringVar(&repoName, "name", "", "The name of the repository")
-	repoAddCmd.Flags().StringVar(&forgeType, "forge-type", string(params.GithubEndpointType), "The forge type of the repository. Supported values: github, gitea.")
+	repoAddCmd.Flags().StringVar(&forgeType, "forge-type", "", "The forge type of the repository. Supported values: github, gitea.")
 	repoAddCmd.Flags().StringVar(&repoWebhookSecret, "webhook-secret", "", "The webhook secret for this repository")
 	repoAddCmd.Flags().StringVar(&repoCreds, "credentials", "", "Credentials name. See credentials list.")
 	repoAddCmd.Flags().BoolVar(&randomWebhookSecret, "random-webhook-secret", false, "Generate a random webhook secret for this repository.")
