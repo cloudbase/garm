@@ -1789,6 +1789,404 @@ paths:
             summary: Create repository with the parameters given.
             tags:
                 - repositories
+    /repositories/{owner}/{repo}:
+        delete:
+            operationId: DeleteRepoByName
+            parameters:
+                - description: owner of the repository to delete.
+                  in: path
+                  name: owner
+                  required: true
+                  type: string
+                - description: name of the repository to delete.
+                  in: path
+                  name: repo
+                  required: true
+                  type: string
+                - description: endpointName of the repository to delete.
+                  in: query
+                  name: endpointName
+                  type: string
+                - description: If true and a webhook is installed for this repo, it will not be removed.
+                  in: query
+                  name: keepWebhook
+                  type: boolean
+            responses:
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Delete repository by ID.
+            tags:
+                - Repositories
+        get:
+            operationId: GetRepoByName
+            parameters:
+                - description: owner of the repository to fetch.
+                  in: path
+                  name: owner
+                  required: true
+                  type: string
+                - description: name of the repository to fetch.
+                  in: path
+                  name: repo
+                  required: true
+                  type: string
+                - description: endpointName of the repository to fetch.
+                  in: query
+                  name: endpointName
+                  type: string
+            responses:
+                "200":
+                    description: Repository
+                    schema:
+                        $ref: '#/definitions/Repository'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get repository by ID.
+            tags:
+                - Repositories
+        put:
+            operationId: UpdateRepoByName
+            parameters:
+                - description: owner of the repository to update.
+                  in: path
+                  name: owner
+                  required: true
+                  type: string
+                - description: name of the repository to update.
+                  in: path
+                  name: repo
+                  required: true
+                  type: string
+                - description: endpointName of the repository to update.
+                  in: query
+                  name: endpointName
+                  type: string
+                - description: Parameters used when updating the repository.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/UpdateEntityParams'
+                    description: Parameters used when updating the repository.
+                    type: object
+            responses:
+                "200":
+                    description: Repository
+                    schema:
+                        $ref: '#/definitions/Repository'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Update repository with the parameters given.
+            tags:
+                - Repositories
+    /repositories/{owner}/{repo}/pools:
+        get:
+            operationId: ListRepoByNamePools
+            parameters:
+                - description: Repository owner.
+                  in: path
+                  name: owner
+                  required: true
+                  type: string
+                - description: Repository name.
+                  in: path
+                  name: repo
+                  required: true
+                  type: string
+                - description: Repository endpointName.
+                  in: query
+                  name: endpointName
+                  type: string
+            responses:
+                "200":
+                    description: Pools
+                    schema:
+                        $ref: '#/definitions/Pools'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List repository pools.
+            tags:
+                - Repositories
+                - pools
+        post:
+            operationId: CreateRepoByNamePool
+            parameters:
+                - description: Repository owner.
+                  in: path
+                  name: owner
+                  required: true
+                  type: string
+                - description: Repository name.
+                  in: path
+                  name: repo
+                  required: true
+                  type: string
+                - description: Repository endpointName.
+                  in: query
+                  name: endpointName
+                  type: string
+                - description: Parameters used when creating the repository pool.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/CreatePoolParams'
+                    description: Parameters used when creating the repository pool.
+                    type: object
+            responses:
+                "200":
+                    description: Pool
+                    schema:
+                        $ref: '#/definitions/Pool'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Create repository pool with the parameters given.
+            tags:
+                - Repositories
+                - pools
+    /repositories/{owner}/{repo}/pools/{poolID}:
+        delete:
+            operationId: DeleteRepoByNamePool
+            parameters:
+                - description: Repository owner.
+                  in: path
+                  name: owner
+                  required: true
+                  type: string
+                - description: Repository name.
+                  in: path
+                  name: repo
+                  required: true
+                  type: string
+                - description: Repository endpointName.
+                  in: query
+                  name: endpointName
+                  type: string
+                - description: ID of the repository pool to delete.
+                  in: path
+                  name: poolID
+                  required: true
+                  type: string
+            responses:
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Delete repository pool by ID.
+            tags:
+                - Repositories
+                - pools
+        get:
+            operationId: GetRepoByNamePool
+            parameters:
+                - description: Repository owner.
+                  in: path
+                  name: owner
+                  required: true
+                  type: string
+                - description: Repository name.
+                  in: path
+                  name: repo
+                  required: true
+                  type: string
+                - description: Repository endpointName.
+                  in: query
+                  name: endpointName
+                  type: string
+                - description: Pool ID.
+                  in: path
+                  name: poolID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: Pool
+                    schema:
+                        $ref: '#/definitions/Pool'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get repository pool by ID.
+            tags:
+                - Repositories
+                - pools
+    /repositories/{owner}/{repo}/scalesets:
+        get:
+            operationId: ListRepoByNameScaleSets
+            parameters:
+                - description: Repository owner.
+                  in: path
+                  name: owner
+                  required: true
+                  type: string
+                - description: Repository name.
+                  in: path
+                  name: repo
+                  required: true
+                  type: string
+                - description: Repository endpointName.
+                  in: query
+                  name: endpointName
+                  type: string
+            responses:
+                "200":
+                    description: ScaleSets
+                    schema:
+                        $ref: '#/definitions/ScaleSets'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List repository scale sets.
+            tags:
+                - Repositories
+                - scalesets
+        post:
+            operationId: CreateRepoByNameScaleSet
+            parameters:
+                - description: Repository owner.
+                  in: path
+                  name: owner
+                  required: true
+                  type: string
+                - description: Repository name.
+                  in: path
+                  name: repo
+                  required: true
+                  type: string
+                - description: Repository endpointName.
+                  in: query
+                  name: endpointName
+                  type: string
+                - description: Parameters used when creating the repository scale set.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/CreateScaleSetParams'
+                    description: Parameters used when creating the repository scale set.
+                    type: object
+            responses:
+                "200":
+                    description: ScaleSet
+                    schema:
+                        $ref: '#/definitions/ScaleSet'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Create repository scale set with the parameters given.
+            tags:
+                - Repositories
+                - scalesets
+    /repositories/{owner}/{repo}/webhook:
+        delete:
+            operationId: UninstallRepoByNameWebhook
+            parameters:
+                - description: Repository owner.
+                  in: path
+                  name: owner
+                  required: true
+                  type: string
+                - description: Repository name.
+                  in: path
+                  name: repo
+                  required: true
+                  type: string
+                - description: Repository endpointName.
+                  in: query
+                  name: endpointName
+                  type: string
+            responses:
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Uninstall organization webhook.
+            tags:
+                - Repositories
+                - hooks
+        get:
+            operationId: GetRepoByNameWebhookInfo
+            parameters:
+                - description: Repository owner.
+                  in: path
+                  name: owner
+                  required: true
+                  type: string
+                - description: Repository name.
+                  in: path
+                  name: repo
+                  required: true
+                  type: string
+                - description: Repository endpointName.
+                  in: query
+                  name: endpointName
+                  type: string
+            responses:
+                "200":
+                    description: HookInfo
+                    schema:
+                        $ref: '#/definitions/HookInfo'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get information about the GARM installed webhook on a repository.
+            tags:
+                - Repositories
+                - hooks
+        post:
+            description: |-
+                Install the GARM webhook for an organization. The secret configured on the organization will
+                be used to validate the requests.
+            operationId: InstallRepoByNameWebhook
+            parameters:
+                - description: Repository owner.
+                  in: path
+                  name: owner
+                  required: true
+                  type: string
+                - description: Repository name.
+                  in: path
+                  name: repo
+                  required: true
+                  type: string
+                - description: Repository endpointName.
+                  in: query
+                  name: endpointName
+                  type: string
+                - description: Parameters used when creating the repository webhook.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/InstallWebhookParams'
+                    description: Parameters used when creating the repository webhook.
+                    type: object
+            responses:
+                "200":
+                    description: HookInfo
+                    schema:
+                        $ref: '#/definitions/HookInfo'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            tags:
+                - Repositories
+                - hooks
     /repositories/{repoID}:
         delete:
             operationId: DeleteRepo

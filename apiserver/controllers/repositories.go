@@ -100,17 +100,28 @@ func (a *APIController) ListReposHandler(w http.ResponseWriter, r *http.Request)
 //	Responses:
 //	  200: Repository
 //	  default: APIErrorResponse
-//
-// swagger:route GET /repositories/{owner}/{repo} RepoByNamesitories GetRepoByNameByName
+
+// swagger:route GET /repositories/{owner}/{repo} Repositories GetRepoByName
 //
 // Get repository by ID.
 //
 //	Parameters:
-//	  + name: repoID
-//	    description: ID of the repository to fetch.
+//	  + name: owner
+//	    description: owner of the repository to fetch.
 //	    type: string
 //	    in: path
 //	    required: true
+//
+//	  + name: repo
+//	    description: name of the repository to fetch.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: endpointName
+//	    description: endpointName of the repository to fetch.
+//	    type: string
+//	    in: query
 //
 //	Responses:
 //	  200: Repository
@@ -148,17 +159,28 @@ func (a *APIController) GetRepoByIDHandler(w http.ResponseWriter, r *http.Reques
 //
 //	Responses:
 //	  default: APIErrorResponse
-//
-// swagger:route DELETE /repositories/{owner}/{repo} RepoByNamesitories DeleteRepo
+
+// swagger:route DELETE /repositories/{owner}/{repo} Repositories DeleteRepoByName
 //
 // Delete repository by ID.
 //
 //	Parameters:
-//	  + name: repoID
-//	    description: ID of the repository to delete.
+//	  + name: owner
+//	    description: owner of the repository to delete.
 //	    type: string
 //	    in: path
 //	    required: true
+//
+//	  + name: repo
+//	    description: name of the repository to delete.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: endpointName
+//	    description: endpointName of the repository to delete.
+//	    type: string
+//	    in: query
 //
 //	  + name: keepWebhook
 //	    description: If true and a webhook is installed for this repo, it will not be removed.
@@ -207,17 +229,28 @@ func (a *APIController) DeleteRepoHandler(w http.ResponseWriter, r *http.Request
 //	Responses:
 //	  200: Repository
 //	  default: APIErrorResponse
-//
-// swagger:route PUT /repositories/{owner}/{repo} RepoByNamesitories UpdateRepo
+
+// swagger:route PUT /repositories/{owner}/{repo} Repositories UpdateRepoByName
 //
 // Update repository with the parameters given.
 //
 //	Parameters:
-//	  + name: repoID
-//	    description: ID of the repository to update.
+//	  + name: owner
+//	    description: owner of the repository to update.
 //	    type: string
 //	    in: path
 //	    required: true
+//
+//	  + name: repo
+//	    description: name of the repository to update.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: endpointName
+//	    description: endpointName of the repository to update.
+//	    type: string
+//	    in: query
 //
 //	  + name: Body
 //	    description: Parameters used when updating the repository.
@@ -275,17 +308,28 @@ func (a *APIController) UpdateRepoHandler(w http.ResponseWriter, r *http.Request
 //	Responses:
 //	  200: Pool
 //	  default: APIErrorResponse
-//
-// swagger:route POST /repositories/{owner}/{repo}/pools RepoByNamesitories pools CreateRepoByNamePool
+
+// swagger:route POST /repositories/{owner}/{repo}/pools Repositories pools CreateRepoByNamePool
 //
 // Create repository pool with the parameters given.
 //
 //	Parameters:
-//	  + name: repoID
-//	    description: Repository ID.
+//	  + name: owner
+//	    description: Repository owner.
 //	    type: string
 //	    in: path
 //	    required: true
+//
+//	  + name: repo
+//	    description: Repository name.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: endpointName
+//	    description: Repository endpointName.
+//	    type: string
+//	    in: query
 //
 //	  + name: Body
 //	    description: Parameters used when creating the repository pool.
@@ -344,17 +388,28 @@ func (a *APIController) CreateRepoPoolHandler(w http.ResponseWriter, r *http.Req
 //	Responses:
 //	  200: ScaleSet
 //	  default: APIErrorResponse
-//
-// swagger:route POST /repositories/{owner}/{repo}/scalesets RepoByNamesitories scalesets CreateRepoByNameScaleSet
+
+// swagger:route POST /repositories/{owner}/{repo}/scalesets Repositories scalesets CreateRepoByNameScaleSet
 //
 // Create repository scale set with the parameters given.
 //
 //	Parameters:
-//	  + name: repoID
-//	    description: Repository ID.
+//	  + name: owner
+//	    description: Repository owner.
 //	    type: string
 //	    in: path
 //	    required: true
+//
+//	  + name: repo
+//	    description: Repository name.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: endpointName
+//	    description: Repository endpointName.
+//	    type: string
+//	    in: query
 //
 //	  + name: Body
 //	    description: Parameters used when creating the repository scale set.
@@ -407,17 +462,28 @@ func (a *APIController) CreateRepoScaleSetHandler(w http.ResponseWriter, r *http
 //	Responses:
 //	  200: Pools
 //	  default: APIErrorResponse
-//
-// swagger:route GET /repositories/{owner}/{repo}/pools RepoByNamesitories pools ListRepoByNamePools
+
+// swagger:route GET /repositories/{owner}/{repo}/pools Repositories pools ListRepoByNamePools
 //
 // List repository pools.
 //
 //	Parameters:
-//	  + name: repoID
-//	    description: Repository ID.
+//	  + name: owner
+//	    description: Repository owner.
 //	    type: string
 //	    in: path
 //	    required: true
+//
+//	  + name: repo
+//	    description: Repository name.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: endpointName
+//	    description: Repository endpointName.
+//	    type: string
+//	    in: query
 //
 //	Responses:
 //	  200: Pools
@@ -457,17 +523,28 @@ func (a *APIController) ListRepoPoolsHandler(w http.ResponseWriter, r *http.Requ
 //	Responses:
 //	  200: ScaleSets
 //	  default: APIErrorResponse
-//
-// swagger:route GET /repositories/{owner}/{repo}/scalesets RepoByNamesitories scalesets ListRepoByNameScaleSets
+
+// swagger:route GET /repositories/{owner}/{repo}/scalesets Repositories scalesets ListRepoByNameScaleSets
 //
 // List repository scale sets.
 //
 //	Parameters:
-//	  + name: repoID
-//	    description: Repository ID.
+//	  + name: owner
+//	    description: Repository owner.
 //	    type: string
 //	    in: path
 //	    required: true
+//
+//	  + name: repo
+//	    description: Repository name.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: endpointName
+//	    description: Repository endpointName.
+//	    type: string
+//	    in: query
 //
 //	Responses:
 //	  200: ScaleSets
@@ -513,17 +590,28 @@ func (a *APIController) ListRepoScaleSetsHandler(w http.ResponseWriter, r *http.
 //	Responses:
 //	  200: Pool
 //	  default: APIErrorResponse
-//
-// swagger:route GET /repositories/{owner}/{repo}/pools/{poolID} RepoByNamesitories pools GetRepoByNameByNamePool
+
+// swagger:route GET /repositories/{owner}/{repo}/pools/{poolID} Repositories pools GetRepoByNamePool
 //
 // Get repository pool by ID.
 //
 //	Parameters:
-//	  + name: repoID
-//	    description: Repository ID.
+//	  + name: owner
+//	    description: Repository owner.
 //	    type: string
 //	    in: path
 //	    required: true
+//
+//	  + name: repo
+//	    description: Repository name.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: endpointName
+//	    description: Repository endpointName.
+//	    type: string
+//	    in: query
 //
 //	  + name: poolID
 //	    description: Pool ID.
@@ -586,17 +674,28 @@ func (a *APIController) GetRepoPoolHandler(w http.ResponseWriter, r *http.Reques
 //
 //	Responses:
 //	  default: APIErrorResponse
-//
-// swagger:route DELETE /repositories/{owner}/{repo}/pools/{poolID} RepoByNamesitories pools DeleteRepoByNamePool
+
+// swagger:route DELETE /repositories/{owner}/{repo}/pools/{poolID} Repositories pools DeleteRepoByNamePool
 //
 // Delete repository pool by ID.
 //
 //	Parameters:
-//	  + name: repoID
-//	    description: Repository ID.
+//	  + name: owner
+//	    description: Repository owner.
 //	    type: string
 //	    in: path
 //	    required: true
+//
+//	  + name: repo
+//	    description: Repository name.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: endpointName
+//	    description: Repository endpointName.
+//	    type: string
+//	    in: query
 //
 //	  + name: poolID
 //	    description: ID of the repository pool to delete.
@@ -725,18 +824,29 @@ func (a *APIController) UpdateRepoPoolHandler(w http.ResponseWriter, r *http.Req
 //	Responses:
 //	  200: HookInfo
 //	  default: APIErrorResponse
-//
-// swagger:route POST /repositories/{owner}/{repo}/webhook RepoByNamesitories hooks InstallRepoByNameWebhook
+
+// swagger:route POST /repositories/{owner}/{repo}/webhook Repositories hooks InstallRepoByNameWebhook
 //
 // Install the GARM webhook for an organization. The secret configured on the organization will
 // be used to validate the requests.
 //
 //	Parameters:
-//	  + name: repoID
-//	    description: Repository ID.
+//	  + name: owner
+//	    description: Repository owner.
 //	    type: string
 //	    in: path
 //	    required: true
+//
+//	  + name: repo
+//	    description: Repository name.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: endpointName
+//	    description: Repository endpointName.
+//	    type: string
+//	    in: query
 //
 //	  + name: Body
 //	    description: Parameters used when creating the repository webhook.
@@ -788,17 +898,28 @@ func (a *APIController) InstallRepoWebhookHandler(w http.ResponseWriter, r *http
 //
 //	Responses:
 //	  default: APIErrorResponse
-//
-// swagger:route DELETE /repositories/{owner}/{repo}/webhook RepoByNamesitories hooks UninstallRepoByNameWebhook
+
+// swagger:route DELETE /repositories/{owner}/{repo}/webhook Repositories hooks UninstallRepoByNameWebhook
 //
 // Uninstall organization webhook.
 //
 //	Parameters:
-//	  + name: repoID
-//	    description: Repository ID.
+//	  + name: owner
+//	    description: Repository owner.
 //	    type: string
 //	    in: path
 //	    required: true
+//
+//	  + name: repo
+//	    description: Repository name.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: endpointName
+//	    description: Repository endpointName.
+//	    type: string
+//	    in: query
 //
 //	Responses:
 //	  default: APIErrorResponse
@@ -834,17 +955,28 @@ func (a *APIController) UninstallRepoWebhookHandler(w http.ResponseWriter, r *ht
 //	Responses:
 //	  200: HookInfo
 //	  default: APIErrorResponse
-//
-// swagger:route GET /repositories/{owner}/{repo}/webhook RepoByNamesitories hooks GetRepoByNameByNameWebhookInfo
+
+// swagger:route GET /repositories/{owner}/{repo}/webhook Repositories hooks GetRepoByNameWebhookInfo
 //
 // Get information about the GARM installed webhook on a repository.
 //
 //	Parameters:
-//	  + name: repoID
-//	    description: Repository ID.
+//	  + name: owner
+//	    description: Repository owner.
 //	    type: string
 //	    in: path
 //	    required: true
+//
+//	  + name: repo
+//	    description: Repository name.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: endpointName
+//	    description: Repository endpointName.
+//	    type: string
+//	    in: query
 //
 //	Responses:
 //	  200: HookInfo
