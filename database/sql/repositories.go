@@ -250,11 +250,13 @@ func (s *sqlDatabase) getRepo(_ context.Context, owner, name, endpointName strin
 
 	q = q.First(&repo)
 
-	var cnt int64
-	q = q.Count(&cnt)
+	if endpointName == "" && q.Error == nil {
+		var cnt int64
+		q = q.Count(&cnt)
 
-	if cnt > 1 {
-		return Repository{}, errors.Wrap(runnerErrors.ErrBadRequest, "multiple repositories with the same name and owner found")
+		if cnt > 1 {
+			return Repository{}, errors.Wrap(runnerErrors.ErrBadRequest, "multiple repositories with the same name and owner found")
+		}
 	}
 
 	if q.Error != nil {
