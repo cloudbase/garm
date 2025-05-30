@@ -474,7 +474,7 @@ func (a *Client) GetRepo(params *GetRepoParams, authInfo runtime.ClientAuthInfoW
 }
 
 /*
-GetRepoByName gets repository by ID
+GetRepoByName gets repository by name
 */
 func (a *Client) GetRepoByName(params *GetRepoByNameParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetRepoByNameOK, error) {
 	// TODO: Validate the params before sending

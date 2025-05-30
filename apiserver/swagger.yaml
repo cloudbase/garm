@@ -1845,7 +1845,7 @@ paths:
                     description: APIErrorResponse
                     schema:
                         $ref: '#/definitions/APIErrorResponse'
-            summary: Get repository by ID.
+            summary: Get repository by name.
             tags:
                 - Repositories
         put:
