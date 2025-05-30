@@ -251,29 +251,29 @@ func NewAPIRouter(han *controllers.APIController, authMiddleware, initMiddleware
 	/////////////////////
 	// Get pool
 	apiRouter.Handle("/repositories/{repoID}/pools/{poolID}/", http.HandlerFunc(han.GetRepoPoolHandler)).Methods("GET", "OPTIONS")
-	apiRouter.Handle("/repositories/{owner}/{repo}/pools/{poolID}/", http.HandlerFunc(han.GetRepoPoolHandler)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/repositories/{owner}/{repo}/pools/{poolID}/", http.HandlerFunc(han.GetRepoByNamePoolHandler)).Methods("GET", "OPTIONS")
 	apiRouter.Handle("/repositories/{repoID}/pools/{poolID}", http.HandlerFunc(han.GetRepoPoolHandler)).Methods("GET", "OPTIONS")
-	apiRouter.Handle("/repositories/{owner}/{repo}/pools/{poolID}", http.HandlerFunc(han.GetRepoPoolHandler)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/repositories/{owner}/{repo}/pools/{poolID}", http.HandlerFunc(han.GetRepoByNamePoolHandler)).Methods("GET", "OPTIONS")
 	// Delete pool
 	apiRouter.Handle("/repositories/{repoID}/pools/{poolID}/", http.HandlerFunc(han.DeleteRepoPoolHandler)).Methods("DELETE", "OPTIONS")
-	apiRouter.Handle("/repositories/{owner}/{repo}/pools/{poolID}/", http.HandlerFunc(han.DeleteRepoPoolHandler)).Methods("DELETE", "OPTIONS")
+	apiRouter.Handle("/repositories/{owner}/{repo}/pools/{poolID}/", http.HandlerFunc(han.DeleteRepoByNamePoolHandler)).Methods("DELETE", "OPTIONS")
 	apiRouter.Handle("/repositories/{repoID}/pools/{poolID}", http.HandlerFunc(han.DeleteRepoPoolHandler)).Methods("DELETE", "OPTIONS")
-	apiRouter.Handle("/repositories/{owner}/{repo}/pools/{poolID}", http.HandlerFunc(han.DeleteRepoPoolHandler)).Methods("DELETE", "OPTIONS")
+	apiRouter.Handle("/repositories/{owner}/{repo}/pools/{poolID}", http.HandlerFunc(han.DeleteRepoByNamePoolHandler)).Methods("DELETE", "OPTIONS")
 	// Update pool
 	apiRouter.Handle("/repositories/{repoID}/pools/{poolID}/", http.HandlerFunc(han.UpdateRepoPoolHandler)).Methods("PUT", "OPTIONS")
-	apiRouter.Handle("/repositories/{owner}/{repo}/pools/{poolID}/", http.HandlerFunc(han.UpdateRepoPoolHandler)).Methods("PUT", "OPTIONS")
+	apiRouter.Handle("/repositories/{owner}/{repo}/pools/{poolID}/", http.HandlerFunc(han.UpdateRepoByNamePoolHandler)).Methods("PUT", "OPTIONS")
 	apiRouter.Handle("/repositories/{repoID}/pools/{poolID}", http.HandlerFunc(han.UpdateRepoPoolHandler)).Methods("PUT", "OPTIONS")
-	apiRouter.Handle("/repositories/{owner}/{repo}/pools/{poolID}", http.HandlerFunc(han.UpdateRepoPoolHandler)).Methods("PUT", "OPTIONS")
+	apiRouter.Handle("/repositories/{owner}/{repo}/pools/{poolID}", http.HandlerFunc(han.UpdateRepoByNamePoolHandler)).Methods("PUT", "OPTIONS")
 	// List pools
 	apiRouter.Handle("/repositories/{repoID}/pools/", http.HandlerFunc(han.ListRepoPoolsHandler)).Methods("GET", "OPTIONS")
-	apiRouter.Handle("/repositories/{owner}/{repo}/pools/", http.HandlerFunc(han.ListRepoPoolsHandler)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/repositories/{owner}/{repo}/pools/", http.HandlerFunc(han.ListRepoByNamePoolsHandler)).Methods("GET", "OPTIONS")
 	apiRouter.Handle("/repositories/{repoID}/pools", http.HandlerFunc(han.ListRepoPoolsHandler)).Methods("GET", "OPTIONS")
-	apiRouter.Handle("/repositories/{owner}/{repo}/pools", http.HandlerFunc(han.ListRepoPoolsHandler)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/repositories/{owner}/{repo}/pools", http.HandlerFunc(han.ListRepoByNamePoolsHandler)).Methods("GET", "OPTIONS")
 	// Create pool
 	apiRouter.Handle("/repositories/{repoID}/pools/", http.HandlerFunc(han.CreateRepoPoolHandler)).Methods("POST", "OPTIONS")
-	apiRouter.Handle("/repositories/{owner}/{repo}/pools/", http.HandlerFunc(han.CreateRepoPoolHandler)).Methods("POST", "OPTIONS")
+	apiRouter.Handle("/repositories/{owner}/{repo}/pools/", http.HandlerFunc(han.CreateRepoByNamePoolHandler)).Methods("POST", "OPTIONS")
 	apiRouter.Handle("/repositories/{repoID}/pools", http.HandlerFunc(han.CreateRepoPoolHandler)).Methods("POST", "OPTIONS")
-	apiRouter.Handle("/repositories/{owner}/{repo}/pools", http.HandlerFunc(han.CreateRepoPoolHandler)).Methods("POST", "OPTIONS")
+	apiRouter.Handle("/repositories/{owner}/{repo}/pools", http.HandlerFunc(han.CreateRepoByNamePoolHandler)).Methods("POST", "OPTIONS")
 
 	// Create scale set
 	apiRouter.Handle("/repositories/{repoID}/scalesets/", http.HandlerFunc(han.CreateRepoScaleSetHandler)).Methods("POST", "OPTIONS")
@@ -306,19 +306,19 @@ func NewAPIRouter(han *controllers.APIController, authMiddleware, initMiddleware
 	if manageWebhooks {
 		// Install Webhook
 		apiRouter.Handle("/repositories/{repoID}/webhook/", http.HandlerFunc(han.InstallRepoWebhookHandler)).Methods("POST", "OPTIONS")
-		apiRouter.Handle("/repositories/{owner}/{repo}/webhook/", http.HandlerFunc(han.InstallRepoWebhookHandler)).Methods("POST", "OPTIONS")
+		apiRouter.Handle("/repositories/{owner}/{repo}/webhook/", http.HandlerFunc(han.InstallRepoByNameWebhookHandler)).Methods("POST", "OPTIONS")
 		apiRouter.Handle("/repositories/{repoID}/webhook", http.HandlerFunc(han.InstallRepoWebhookHandler)).Methods("POST", "OPTIONS")
-		apiRouter.Handle("/repositories/{owner}/{repo}/webhook", http.HandlerFunc(han.InstallRepoWebhookHandler)).Methods("POST", "OPTIONS")
+		apiRouter.Handle("/repositories/{owner}/{repo}/webhook", http.HandlerFunc(han.InstallRepoByNameWebhookHandler)).Methods("POST", "OPTIONS")
 		// Uninstall Webhook
 		apiRouter.Handle("/repositories/{repoID}/webhook/", http.HandlerFunc(han.UninstallRepoWebhookHandler)).Methods("DELETE", "OPTIONS")
-		apiRouter.Handle("/repositories/{owner}/{repo}/webhook/", http.HandlerFunc(han.UninstallRepoWebhookHandler)).Methods("DELETE", "OPTIONS")
+		apiRouter.Handle("/repositories/{owner}/{repo}/webhook/", http.HandlerFunc(han.UninstallRepoByNameWebhookHandler)).Methods("DELETE", "OPTIONS")
 		apiRouter.Handle("/repositories/{repoID}/webhook", http.HandlerFunc(han.UninstallRepoWebhookHandler)).Methods("DELETE", "OPTIONS")
-		apiRouter.Handle("/repositories/{owner}/{repo}/webhook", http.HandlerFunc(han.UninstallRepoWebhookHandler)).Methods("DELETE", "OPTIONS")
+		apiRouter.Handle("/repositories/{owner}/{repo}/webhook", http.HandlerFunc(han.UninstallRepoByNameWebhookHandler)).Methods("DELETE", "OPTIONS")
 		// Get webhook info
 		apiRouter.Handle("/repositories/{repoID}/webhook/", http.HandlerFunc(han.GetRepoWebhookInfoHandler)).Methods("GET", "OPTIONS")
-		apiRouter.Handle("/repositories/{owner}/{repo}/webhook/", http.HandlerFunc(han.GetRepoWebhookInfoHandler)).Methods("GET", "OPTIONS")
+		apiRouter.Handle("/repositories/{owner}/{repo}/webhook/", http.HandlerFunc(han.GetRepoByNameWebhookInfoHandler)).Methods("GET", "OPTIONS")
 		apiRouter.Handle("/repositories/{repoID}/webhook", http.HandlerFunc(han.GetRepoWebhookInfoHandler)).Methods("GET", "OPTIONS")
-		apiRouter.Handle("/repositories/{owner}/{repo}/webhook", http.HandlerFunc(han.GetRepoWebhookInfoHandler)).Methods("GET", "OPTIONS")
+		apiRouter.Handle("/repositories/{owner}/{repo}/webhook", http.HandlerFunc(han.GetRepoByNameWebhookInfoHandler)).Methods("GET", "OPTIONS")
 	}
 	/////////////////////////////
 	// Organizations and pools //

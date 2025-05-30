@@ -226,6 +226,33 @@ func (a *APIController) DeleteInstanceHandler(w http.ResponseWriter, r *http.Req
 //	Responses:
 //	  200: Instances
 //	  default: APIErrorResponse
+func (a *APIController) ListRepoInstancesHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	repoID, ok := vars["repoID"]
+	if !ok {
+		w.WriteHeader(http.StatusBadRequest)
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
+			Error:   "Bad Request",
+			Details: "No repo ID specified",
+		}); err != nil {
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
+		}
+		return
+	}
+
+	instances, err := a.r.ListRepoInstances(ctx, repoID)
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "listing pools")
+		handleError(ctx, w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(instances); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
+	}
+}
 
 // swagger:route GET /repositories/{owner}/{repo}/instances repositories instances ListRepoByNameInstances
 //
@@ -252,7 +279,7 @@ func (a *APIController) DeleteInstanceHandler(w http.ResponseWriter, r *http.Req
 //	Responses:
 //	  200: Instances
 //	  default: APIErrorResponse
-func (a *APIController) ListRepoInstancesHandler(w http.ResponseWriter, r *http.Request) {
+func (a *APIController) ListRepoByNameInstancesHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	repoID, ok := a.GetRepositoryID(w, r)
