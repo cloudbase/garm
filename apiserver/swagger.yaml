@@ -1889,17 +1889,17 @@ paths:
         get:
             operationId: ListRepoByNameInstances
             parameters:
-                - description: owner of the repository to fetch.
+                - description: Repository owner.
                   in: path
                   name: owner
                   required: true
                   type: string
-                - description: name of the repository to fetch.
+                - description: Repository name.
                   in: path
                   name: repo
                   required: true
                   type: string
-                - description: endpointName of the repository to fetch.
+                - description: Repository endpointName.
                   in: query
                   name: endpointName
                   type: string

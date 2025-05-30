@@ -233,19 +233,19 @@ func (a *APIController) DeleteInstanceHandler(w http.ResponseWriter, r *http.Req
 //
 //	Parameters:
 //	  + name: owner
-//	    description: owner of the repository to fetch.
+//	    description: Repository owner.
 //	    type: string
 //	    in: path
 //	    required: true
 //
 //	  + name: repo
-//	    description: name of the repository to fetch.
+//	    description: Repository name.
 //	    type: string
 //	    in: path
 //	    required: true
 //
 //	  + name: endpointName
-//	    description: endpointName of the repository to fetch.
+//	    description: Repository endpointName.
 //	    type: string
 //	    in: query
 //

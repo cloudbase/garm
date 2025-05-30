@@ -63,19 +63,19 @@ type ListRepoByNameInstancesParams struct {
 
 	/* EndpointName.
 
-	   endpointName of the repository to fetch.
+	   Repository endpointName.
 	*/
 	EndpointName *string
 
 	/* Owner.
 
-	   owner of the repository to fetch.
+	   Repository owner.
 	*/
 	Owner string
 
 	/* Repo.
 
-	   name of the repository to fetch.
+	   Repository name.
 	*/
 	Repo string
 
