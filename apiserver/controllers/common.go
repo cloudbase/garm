@@ -12,10 +12,9 @@ import (
 
 func (a *APIController) GetRepository(w http.ResponseWriter, r *http.Request) (params.Repository, bool) {
 	vars := mux.Vars(r)
-	repoID, ok := vars["repoID"]
 	owner, hasOwner := vars["owner"]
 	repo, hasRepo := vars["repo"]
-	if !ok && !(hasOwner && hasRepo) {
+	if !(hasOwner && hasRepo) {
 		w.WriteHeader(http.StatusBadRequest)
 		if err := json.NewEncoder(w).Encode(apiParams.APIErrorResponse{
 			Error:   "Bad Request",
@@ -25,13 +24,7 @@ func (a *APIController) GetRepository(w http.ResponseWriter, r *http.Request) (p
 		}
 		return params.Repository{}, false
 	}
-	var repoObj params.Repository
-	var err error
-	if hasOwner && hasRepo {
-		repoObj, err = a.r.ResolveRepository(r.Context(), owner, repo, r.URL.Query().Get("endpointName"))
-	} else {
-		repoObj, err = a.r.GetRepositoryByID(r.Context(), repoID)
-	}
+	repoObj, err := a.r.ResolveRepository(r.Context(), owner, repo, r.URL.Query().Get("endpointName"))
 	if err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(r.Context(), "listing pools")
 		handleError(r.Context(), w, err)
@@ -42,10 +35,9 @@ func (a *APIController) GetRepository(w http.ResponseWriter, r *http.Request) (p
 
 func (a *APIController) GetRepositoryID(w http.ResponseWriter, r *http.Request) (string, bool) {
 	vars := mux.Vars(r)
-	repoID, ok := vars["repoID"]
 	owner, hasOwner := vars["owner"]
 	repo, hasRepo := vars["repo"]
-	if !ok && !(hasOwner && hasRepo) {
+	if !(hasOwner && hasRepo) {
 		w.WriteHeader(http.StatusBadRequest)
 		if err := json.NewEncoder(w).Encode(apiParams.APIErrorResponse{
 			Error:   "Bad Request",
@@ -55,13 +47,7 @@ func (a *APIController) GetRepositoryID(w http.ResponseWriter, r *http.Request) 
 		}
 		return "", false
 	}
-	var repoObj params.Repository
-	var err error
-	if hasOwner && hasRepo {
-		repoObj, err = a.r.ResolveRepository(r.Context(), owner, repo, r.URL.Query().Get("endpointName"))
-	} else {
-		return repoID, true
-	}
+	repoObj, err := a.r.ResolveRepository(r.Context(), owner, repo, r.URL.Query().Get("endpointName"))
 	if err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(r.Context(), "listing pools")
 		handleError(r.Context(), w, err)
