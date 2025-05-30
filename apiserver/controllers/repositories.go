@@ -193,13 +193,13 @@ func (a *APIController) GetRepoByIDHandler(w http.ResponseWriter, r *http.Reques
 func (a *APIController) DeleteRepoHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	repo, ok := a.GetRepository(w, r)
+	repoID, ok := a.GetRepositoryID(w, r)
 	if !ok {
 		return
 	}
 
 	keepWebhook, _ := strconv.ParseBool(r.URL.Query().Get("keepWebhook"))
-	if err := a.r.DeleteRepository(ctx, repo.ID, keepWebhook); err != nil {
+	if err := a.r.DeleteRepository(ctx, repoID, keepWebhook); err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "fetching repository")
 		handleError(ctx, w, err)
 		return
@@ -270,12 +270,12 @@ func (a *APIController) UpdateRepoHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	repo, ok := a.GetRepository(w, r)
+	repoID, ok := a.GetRepositoryID(w, r)
 	if !ok {
 		return
 	}
 
-	repo, err := a.r.UpdateRepository(ctx, repo.ID, updatePayload)
+	repo, err := a.r.UpdateRepository(ctx, repoID, updatePayload)
 	if err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error updating repository")
 		handleError(ctx, w, err)
@@ -350,12 +350,12 @@ func (a *APIController) CreateRepoPoolHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	repo, ok := a.GetRepository(w, r)
+	repoID, ok := a.GetRepositoryID(w, r)
 	if !ok {
 		return
 	}
 
-	pool, err := a.r.CreateRepoPool(ctx, repo.ID, poolData)
+	pool, err := a.r.CreateRepoPool(ctx, repoID, poolData)
 	if err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error creating repository pool")
 		handleError(ctx, w, err)
@@ -430,12 +430,12 @@ func (a *APIController) CreateRepoScaleSetHandler(w http.ResponseWriter, r *http
 		return
 	}
 
-	repo, ok := a.GetRepository(w, r)
+	repoID, ok := a.GetRepositoryID(w, r)
 	if !ok {
 		return
 	}
 
-	scaleSet, err := a.r.CreateEntityScaleSet(ctx, runnerParams.ForgeEntityTypeRepository, repo.ID, scaleSetData)
+	scaleSet, err := a.r.CreateEntityScaleSet(ctx, runnerParams.ForgeEntityTypeRepository, repoID, scaleSetData)
 	if err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error creating repository scale set")
 		handleError(ctx, w, err)
@@ -637,12 +637,12 @@ func (a *APIController) GetRepoPoolHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	repo, ok := a.GetRepository(w, r)
+	repoID, ok := a.GetRepositoryID(w, r)
 	if !ok {
 		return
 	}
 
-	pool, err := a.r.GetRepoPoolByID(ctx, repo.ID, poolID)
+	pool, err := a.r.GetRepoPoolByID(ctx, repoID, poolID)
 	if err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "listing pools")
 		handleError(ctx, w, err)
@@ -721,12 +721,12 @@ func (a *APIController) DeleteRepoPoolHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	repo, ok := a.GetRepository(w, r)
+	repoID, ok := a.GetRepositoryID(w, r)
 	if !ok {
 		return
 	}
 
-	if err := a.r.DeleteRepoPool(ctx, repo.ID, poolID); err != nil {
+	if err := a.r.DeleteRepoPool(ctx, repoID, poolID); err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "removing pool")
 		handleError(ctx, w, err)
 		return
@@ -823,12 +823,12 @@ func (a *APIController) UpdateRepoPoolHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	repo, ok := a.GetRepository(w, r)
+	repoID, ok := a.GetRepositoryID(w, r)
 	if !ok {
 		return
 	}
 
-	pool, err := a.r.UpdateRepoPool(ctx, repo.ID, poolID, poolData)
+	pool, err := a.r.UpdateRepoPool(ctx, repoID, poolID, poolData)
 	if err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error creating repository pool")
 		handleError(ctx, w, err)
@@ -905,12 +905,12 @@ func (a *APIController) InstallRepoWebhookHandler(w http.ResponseWriter, r *http
 		return
 	}
 
-	repo, ok := a.GetRepository(w, r)
+	repoID, ok := a.GetRepositoryID(w, r)
 	if !ok {
 		return
 	}
 
-	info, err := a.r.InstallRepoWebhook(ctx, repo.ID, hookParam)
+	info, err := a.r.InstallRepoWebhook(ctx, repoID, hookParam)
 	if err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "installing webhook")
 		handleError(ctx, w, err)

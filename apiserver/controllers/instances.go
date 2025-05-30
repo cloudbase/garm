@@ -255,12 +255,12 @@ func (a *APIController) DeleteInstanceHandler(w http.ResponseWriter, r *http.Req
 func (a *APIController) ListRepoInstancesHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	repo, ok := a.GetRepository(w, r)
+	repoID, ok := a.GetRepositoryID(w, r)
 	if !ok {
 		return
 	}
 
-	instances, err := a.r.ListRepoInstances(ctx, repo.ID)
+	instances, err := a.r.ListRepoInstances(ctx, repoID)
 	if err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "listing pools")
 		handleError(ctx, w, err)
