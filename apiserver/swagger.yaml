@@ -1885,6 +1885,37 @@ paths:
             summary: Update repository with the parameters given.
             tags:
                 - Repositories
+    /repositories/{owner}/{repo}/instances:
+        get:
+            operationId: ListRepoByNameInstances
+            parameters:
+                - description: owner of the repository to fetch.
+                  in: path
+                  name: owner
+                  required: true
+                  type: string
+                - description: name of the repository to fetch.
+                  in: path
+                  name: repo
+                  required: true
+                  type: string
+                - description: endpointName of the repository to fetch.
+                  in: query
+                  name: endpointName
+                  type: string
+            responses:
+                "200":
+                    description: Instances
+                    schema:
+                        $ref: '#/definitions/Instances'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List repository instances.
+            tags:
+                - repositories
+                - instances
     /repositories/{owner}/{repo}/pools:
         get:
             operationId: ListRepoByNamePools

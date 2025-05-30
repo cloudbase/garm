@@ -226,6 +226,32 @@ func (a *APIController) DeleteInstanceHandler(w http.ResponseWriter, r *http.Req
 //	Responses:
 //	  200: Instances
 //	  default: APIErrorResponse
+
+// swagger:route GET /repositories/{owner}/{repo}/instances repositories instances ListRepoByNameInstances
+//
+// List repository instances.
+//
+//	Parameters:
+//	  + name: owner
+//	    description: owner of the repository to fetch.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: repo
+//	    description: name of the repository to fetch.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: endpointName
+//	    description: endpointName of the repository to fetch.
+//	    type: string
+//	    in: query
+//
+//	Responses:
+//	  200: Instances
+//	  default: APIErrorResponse
 func (a *APIController) ListRepoInstancesHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 

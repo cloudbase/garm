@@ -88,6 +88,8 @@ type ClientService interface {
 
 	InstallRepoWebhook(params *InstallRepoWebhookParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*InstallRepoWebhookOK, error)
 
+	ListRepoByNameInstances(params *ListRepoByNameInstancesParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListRepoByNameInstancesOK, error)
+
 	ListRepoByNamePools(params *ListRepoByNamePoolsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListRepoByNamePoolsOK, error)
 
 	ListRepoByNameScaleSets(params *ListRepoByNameScaleSetsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListRepoByNameScaleSetsOK, error)
@@ -738,6 +740,44 @@ func (a *Client) InstallRepoWebhook(params *InstallRepoWebhookParams, authInfo r
 	}
 	// unexpected success response
 	unexpectedSuccess := result.(*InstallRepoWebhookDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+ListRepoByNameInstances lists repository instances
+*/
+func (a *Client) ListRepoByNameInstances(params *ListRepoByNameInstancesParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListRepoByNameInstancesOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewListRepoByNameInstancesParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "ListRepoByNameInstances",
+		Method:             "GET",
+		PathPattern:        "/repositories/{owner}/{repo}/instances",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &ListRepoByNameInstancesReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*ListRepoByNameInstancesOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*ListRepoByNameInstancesDefault)
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 

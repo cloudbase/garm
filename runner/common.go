@@ -30,17 +30,6 @@ func (r *Runner) ResolveForgeCredentialByName(ctx context.Context, credentialsNa
 	return params.ForgeCredentials{}, runnerErrors.NewBadRequestError("credentials %s not found", credentialsName)
 }
 
-func (r *Runner) ResolveRepositoryID(ctx context.Context, owner, repo, endpointName string) (string, error) {
-	repoObj, err := r.store.GetRepository(ctx, owner, repo, endpointName)
-	if err != nil {
-		if errors.Is(err, runnerErrors.ErrNotFound) {
-			return "", runnerErrors.NewBadRequestError("repository %s/%s (%s) not found", owner, repo, endpointName)
-		}
-		return "", errors.Wrapf(err, "fetching repository %s/%s (%s)", owner, repo, endpointName)
-	}
-	return repoObj.ID, nil
-}
-
 func (r *Runner) ResolveRepository(ctx context.Context, owner, repo, endpointName string) (params.Repository, error) {
 	repoObj, err := r.store.GetRepository(ctx, owner, repo, endpointName)
 	if err != nil {
