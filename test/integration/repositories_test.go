@@ -94,6 +94,54 @@ func (suite *GarmSuite) TestRepositories() {
 	suite.WaitRepoRunningIdleInstances(suite.repo.ID, 6*time.Minute)
 }
 
+func (suite *GarmSuite) TestRepositoriesByName() {
+	t := suite.T()
+
+	t.Logf("Update repo with repo_id %s%s", suite.repo.Owner, suite.repo.Name)
+	updateParams := params.UpdateEntityParams{
+		CredentialsName: fmt.Sprintf("%s-clone", suite.credentialsName),
+	}
+	repo, err := updateRepoByName(suite.cli, suite.authToken, suite.repo.Owner, suite.repo.Name, updateParams)
+	suite.NoError(err, "error updating repository")
+	suite.Equal(fmt.Sprintf("%s-clone", suite.credentialsName), repo.CredentialsName, "credentials name mismatch")
+	suite.repo = repo
+
+	hookRepoInfo := suite.InstallRepoByNameWebhook(suite.repo.Owner, suite.repo.Name)
+	suite.ValidateRepoWebhookInstalled(suite.ghToken, hookRepoInfo.URL, orgName, repoName)
+	suite.UninstallRepoByNameWebhook(suite.repo.Owner, suite.repo.Name)
+	suite.ValidateRepoWebhookUninstalled(suite.ghToken, hookRepoInfo.URL, orgName, repoName)
+
+	suite.InstallRepoByNameWebhook(suite.repo.Owner, suite.repo.Name)
+	suite.ValidateRepoWebhookInstalled(suite.ghToken, hookRepoInfo.URL, orgName, repoName)
+
+	repoPoolParams := params.CreatePoolParams{
+		MaxRunners:     2,
+		MinIdleRunners: 0,
+		Flavor:         "default",
+		Image:          "ubuntu:24.04",
+		OSType:         commonParams.Linux,
+		OSArch:         commonParams.Amd64,
+		ProviderName:   "lxd_local",
+		Tags:           []string{"repo-runner"},
+		Enabled:        true,
+	}
+
+	repoPool := suite.CreateRepoByNamePool(suite.repo.Owner, suite.repo.Name, repoPoolParams)
+	suite.Equal(repoPool.MaxRunners, repoPoolParams.MaxRunners, "max runners mismatch")
+	suite.Equal(repoPool.MinIdleRunners, repoPoolParams.MinIdleRunners, "min idle runners mismatch")
+
+	repoPoolGet := suite.GetRepoByNamePool(suite.repo.Owner, suite.repo.Name, repoPool.ID)
+	suite.Equal(*repoPool, *repoPoolGet, "pool get mismatch")
+
+	suite.DeleteRepoByNamePool(suite.repo.Owner, suite.repo.Name, repoPool.ID)
+
+	repoPool = suite.CreateRepoByNamePool(suite.repo.Owner, suite.repo.Name, repoPoolParams)
+	updatedRepoPool := suite.UpdateRepoByNamePool(suite.repo.Owner, suite.repo.Name, repoPool.ID, repoPoolParams.MaxRunners, 1)
+	suite.NotEqual(updatedRepoPool.MinIdleRunners, repoPool.MinIdleRunners, "min idle runners mismatch")
+
+	suite.WaitRepoRunningIdleInstances(suite.repo.ID, 6*time.Minute)
+}
+
 func (suite *GarmSuite) InstallRepoWebhook(id string) *params.HookInfo {
 	t := suite.T()
 	t.Logf("Install repo webhook with repo_id %s", id)
@@ -104,6 +152,20 @@ func (suite *GarmSuite) InstallRepoWebhook(id string) *params.HookInfo {
 	suite.NoError(err, "error installing repository webhook")
 
 	webhookInfo, err := getRepoWebhook(suite.cli, suite.authToken, id)
+	suite.NoError(err, "error getting repository webhook")
+	return webhookInfo
+}
+
+func (suite *GarmSuite) InstallRepoByNameWebhook(owner, name string) *params.HookInfo {
+	t := suite.T()
+	t.Logf("Install repo webhook with repo_id %s/%s", owner, name)
+	webhookParams := params.InstallWebhookParams{
+		WebhookEndpointType: params.WebhookEndpointDirect,
+	}
+	_, err := installRepoByNameWebhook(suite.cli, suite.authToken, owner, name, webhookParams)
+	suite.NoError(err, "error installing repository webhook")
+
+	webhookInfo, err := getRepoByNameWebhook(suite.cli, suite.authToken, owner, name)
 	suite.NoError(err, "error getting repository webhook")
 	return webhookInfo
 }
@@ -144,6 +206,13 @@ func (suite *GarmSuite) UninstallRepoWebhook(id string) {
 	suite.NoError(err, "error uninstalling repository webhook")
 }
 
+func (suite *GarmSuite) UninstallRepoByNameWebhook(owner, repo string) {
+	t := suite.T()
+	t.Logf("Uninstall repo webhook with repo_id %s/%s", owner, repo)
+	err := uninstallRepoByNameWebhook(suite.cli, suite.authToken, owner, repo)
+	suite.NoError(err, "error uninstalling repository webhook")
+}
+
 func (suite *GarmSuite) ValidateRepoWebhookUninstalled(ghToken, url, orgName, repoName string) {
 	hook, err := getGhRepoWebhook(url, ghToken, orgName, repoName)
 	suite.NoError(err, "error getting github webhook")
@@ -158,10 +227,26 @@ func (suite *GarmSuite) CreateRepoPool(repoID string, poolParams params.CreatePo
 	return pool
 }
 
+func (suite *GarmSuite) CreateRepoByNamePool(owner, repo string, poolParams params.CreatePoolParams) *params.Pool {
+	t := suite.T()
+	t.Logf("Create repo pool with repo %s/%s and pool_params %+v", owner, repo, poolParams)
+	pool, err := createRepoByNamePool(suite.cli, suite.authToken, owner, repo, poolParams)
+	suite.NoError(err, "error creating repository pool")
+	return pool
+}
+
 func (suite *GarmSuite) GetRepoPool(repoID, repoPoolID string) *params.Pool {
 	t := suite.T()
 	t.Logf("Get repo pool repo_id %s and pool_id %s", repoID, repoPoolID)
 	pool, err := getRepoPool(suite.cli, suite.authToken, repoID, repoPoolID)
+	suite.NoError(err, "error getting repository pool")
+	return pool
+}
+
+func (suite *GarmSuite) GetRepoByNamePool(owner, repo, repoPoolID string) *params.Pool {
+	t := suite.T()
+	t.Logf("Get repo pool repo %s/%s and pool_id %s", owner, repo, repoPoolID)
+	pool, err := getRepoByNamePool(suite.cli, suite.authToken, owner, repo, repoPoolID)
 	suite.NoError(err, "error getting repository pool")
 	return pool
 }
@@ -173,6 +258,13 @@ func (suite *GarmSuite) DeleteRepoPool(repoID, repoPoolID string) {
 	suite.NoError(err, "error deleting repository pool")
 }
 
+func (suite *GarmSuite) DeleteRepoByNamePool(owner, repo, repoPoolID string) {
+	t := suite.T()
+	t.Logf("Delete repo pool with repo %s/%s and pool_id %s", owner, repo, repoPoolID)
+	err := deleteRepoByNamePool(suite.cli, suite.authToken, owner, repo, repoPoolID)
+	suite.NoError(err, "error deleting repository pool")
+}
+
 func (suite *GarmSuite) UpdateRepoPool(repoID, repoPoolID string, maxRunners, minIdleRunners uint) *params.Pool {
 	t := suite.T()
 	t.Logf("Update repo pool with repo_id %s and pool_id %s", repoID, repoPoolID)
@@ -181,6 +273,18 @@ func (suite *GarmSuite) UpdateRepoPool(repoID, repoPoolID string, maxRunners, mi
 		MaxRunners:     &maxRunners,
 	}
 	pool, err := updateRepoPool(suite.cli, suite.authToken, repoID, repoPoolID, poolParams)
+	suite.NoError(err, "error updating repository pool")
+	return pool
+}
+
+func (suite *GarmSuite) UpdateRepoByNamePool(owner, repo, repoPoolID string, maxRunners, minIdleRunners uint) *params.Pool {
+	t := suite.T()
+	t.Logf("Update repo pool with repo %s/%s and pool_id %s", owner, repo, repoPoolID)
+	poolParams := params.UpdatePoolParams{
+		MinIdleRunners: &minIdleRunners,
+		MaxRunners:     &maxRunners,
+	}
+	pool, err := updateRepoByNamePool(suite.cli, suite.authToken, owner, repo, repoPoolID, poolParams)
 	suite.NoError(err, "error updating repository pool")
 	return pool
 }
@@ -198,6 +302,19 @@ func (suite *GarmSuite) WaitRepoRunningIdleInstances(repoID string, timeout time
 	}
 }
 
+func (suite *GarmSuite) WaitRepoByNameRunningIdleInstances(owner, repo string, timeout time.Duration) {
+	t := suite.T()
+	repoPools, err := listRepoByNamePools(suite.cli, suite.authToken, owner, repo)
+	suite.NoError(err, "error listing repo pools")
+	for _, pool := range repoPools {
+		err := suite.WaitPoolInstances(pool.ID, commonParams.InstanceRunning, params.RunnerIdle, timeout)
+		if err != nil {
+			suite.dumpRepoByNameInstancesDetails(owner, repo)
+			t.Errorf("error waiting for pool instances to be running idle: %v", err)
+		}
+	}
+}
+
 func (suite *GarmSuite) dumpRepoInstancesDetails(repoID string) {
 	t := suite.T()
 	// print repo details
@@ -210,6 +327,28 @@ func (suite *GarmSuite) dumpRepoInstancesDetails(repoID string) {
 	// print repo instances details
 	t.Logf("Dumping repo instances details for repo %s", repoID)
 	instances, err := listRepoInstances(suite.cli, suite.authToken, repoID)
+	suite.NoError(err, "error listing repo instances")
+	for _, instance := range instances {
+		instance, err := getInstance(suite.cli, suite.authToken, instance.Name)
+		suite.NoError(err, "error getting instance")
+		t.Logf("Instance info for instance %s", instance.Name)
+		err = printJSONResponse(instance)
+		suite.NoError(err, "error printing instance")
+	}
+}
+
+func (suite *GarmSuite) dumpRepoByNameInstancesDetails(owner, repo string) {
+	t := suite.T()
+	// print repo details
+	t.Logf("Dumping repo details for repo %s/%s", owner, repo)
+	repoObj, err := getRepoByName(suite.cli, suite.authToken, owner, repo)
+	suite.NoError(err, "error getting repo")
+	err = printJSONResponse(repoObj)
+	suite.NoError(err, "error printing repo")
+
+	// print repo instances details
+	t.Logf("Dumping repo instances details for repo %s/%s", owner, repo)
+	instances, err := listRepoByNameInstances(suite.cli, suite.authToken, owner, repo)
 	suite.NoError(err, "error listing repo instances")
 	for _, instance := range instances {
 		instance, err := getInstance(suite.cli, suite.authToken, instance.Name)

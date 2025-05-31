@@ -24,6 +24,7 @@ import (
 
 	gErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/apiserver/params"
+	apiParams "github.com/cloudbase/garm/apiserver/params"
 	runnerParams "github.com/cloudbase/garm/params"
 )
 
@@ -240,6 +241,68 @@ func (a *APIController) ListRepoInstancesHandler(w http.ResponseWriter, r *http.
 		}
 		return
 	}
+
+	instances, err := a.r.ListRepoInstances(ctx, repoID)
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "listing pools")
+		handleError(ctx, w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(instances); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
+	}
+}
+
+// swagger:route GET /repositories/{owner}/{repo}/instances repositories instances ListRepoByNameInstances
+//
+// List repository instances.
+//
+//	Parameters:
+//	  + name: owner
+//	    description: Repository owner.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: repo
+//	    description: Repository name.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: endpointName
+//	    description: Repository endpointName.
+//	    type: string
+//	    in: query
+//
+//	Responses:
+//	  200: Instances
+//	  default: APIErrorResponse
+func (a *APIController) ListRepoByNameInstancesHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	vars := mux.Vars(r)
+	owner, hasOwner := vars["owner"]
+	repo, hasRepo := vars["repo"]
+	if !(hasOwner && hasRepo) {
+		w.WriteHeader(http.StatusBadRequest)
+		if err := json.NewEncoder(w).Encode(apiParams.APIErrorResponse{
+			Error:   "Bad Request",
+			Details: "No repo ID specified",
+		}); err != nil {
+			slog.With(slog.Any("error", err)).ErrorContext(r.Context(), "failed to encode response")
+		}
+		return
+	}
+	repoObj, err := a.r.ResolveRepository(r.Context(), owner, repo, r.URL.Query().Get("endpointName"))
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(r.Context(), "listing pools")
+		handleError(r.Context(), w, err)
+		return
+	}
+	repoID := repoObj.ID
 
 	instances, err := a.r.ListRepoInstances(ctx, repoID)
 	if err != nil {
