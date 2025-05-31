@@ -29,7 +29,6 @@ func (w *Worker) handleWorkerWatcherEvent(event dbCommon.ChangePayload) {
 	switch event.EntityType {
 	case entityType:
 		w.handleEntityEventPayload(event)
-		return
 	case dbCommon.GithubCredentialsEntityType, dbCommon.GiteaCredentialsEntityType:
 		slog.DebugContext(w.ctx, "got github credentials payload event")
 		w.handleEntityCredentialsEventPayload(event)
@@ -90,20 +89,18 @@ func (w *Worker) handleEntityCredentialsEventPayload(event dbCommon.ChangePayloa
 		return
 	}
 
-	credentials := creds
-
 	switch event.Operation {
 	case dbCommon.UpdateOperation:
 		slog.DebugContext(w.ctx, "got delete operation")
 		w.mux.Lock()
 		defer w.mux.Unlock()
-		if w.Entity.Credentials.GetID() != credentials.GetID() {
+		if w.Entity.Credentials.GetID() != creds.GetID() {
 			// The channel is buffered. We may get an old update. If credentials get updated
 			// immediately after they are swapped on the entity, we may still get an update
 			// pushed to the channel before the filters are swapped. We can ignore the update.
 			return
 		}
-		w.Entity.Credentials = credentials
+		w.Entity.Credentials = creds
 		ghCli, err := github.Client(w.ctx, w.Entity)
 		if err != nil {
 			slog.ErrorContext(w.ctx, "creating github client", "entity_id", w.Entity.ID, "error", err)

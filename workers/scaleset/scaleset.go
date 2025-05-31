@@ -646,24 +646,38 @@ func (w *Worker) sleepWithCancel(sleepTime time.Duration) (canceled bool) {
 	return true
 }
 
+func (w *Worker) sessionLoopMayRun() bool {
+	w.mux.Lock()
+	defer w.mux.Unlock()
+	return w.scaleSet.Enabled
+}
+
 func (w *Worker) keepListenerAlive() {
 	var backoff time.Duration
+Loop:
 	for {
-		w.mux.Lock()
-		if !w.scaleSet.Enabled {
+		if !w.sessionLoopMayRun() {
 			if canceled := w.sleepWithCancel(2 * time.Second); canceled {
-				slog.DebugContext(w.ctx, "worker is stopped; exiting keepListenerAlive")
-				w.mux.Unlock()
+				slog.InfoContext(w.ctx, "worker is stopped; exiting keepListenerAlive")
 				return
 			}
-			w.mux.Unlock()
 			continue
 		}
 		// noop if already started. If the scaleset was just enabled, we need to
 		// start the listener here, or the <-w.listener.Wait() channel receive bellow
 		// will block forever, even if we start the listener, as a nil channel will
 		// block forever.
-		w.listener.Start()
+		if err := w.listener.Start(); err != nil {
+			slog.ErrorContext(w.ctx, "error starting listener", "error", err, "consumer_id", w.consumerID)
+			if canceled := w.sleepWithCancel(2 * time.Second); canceled {
+				slog.InfoContext(w.ctx, "worker is stopped; exiting keepListenerAlive")
+				w.mux.Unlock()
+				return
+			}
+			// we failed to start the listener. Try again.
+			w.mux.Unlock()
+			continue
+		}
 		w.mux.Unlock()
 
 		select {
@@ -675,8 +689,9 @@ func (w *Worker) keepListenerAlive() {
 			slog.DebugContext(w.ctx, "listener is stopped; attempting to restart")
 			w.mux.Lock()
 			if !w.scaleSet.Enabled {
+				w.listener.Stop() // cleanup
 				w.mux.Unlock()
-				continue
+				continue Loop
 			}
 			w.mux.Unlock()
 			for {
@@ -684,7 +699,7 @@ func (w *Worker) keepListenerAlive() {
 				w.listener.Stop() // cleanup
 				if !w.scaleSet.Enabled {
 					w.mux.Unlock()
-					break
+					continue Loop
 				}
 				slog.DebugContext(w.ctx, "attempting to restart")
 				if err := w.listener.Start(); err != nil {
@@ -707,7 +722,7 @@ func (w *Worker) keepListenerAlive() {
 					continue
 				}
 				w.mux.Unlock()
-				break
+				continue Loop
 			}
 		}
 	}
