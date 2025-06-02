@@ -97,7 +97,7 @@ func (suite *GarmSuite) TestRepositories() {
 func (suite *GarmSuite) TestRepositoriesByName() {
 	t := suite.T()
 
-	t.Logf("Update repo with repo_id %s%s", suite.repo.Owner, suite.repo.Name)
+	t.Logf("Update repo with repo %s/%s", suite.repo.Owner, suite.repo.Name)
 	updateParams := params.UpdateEntityParams{
 		CredentialsName: fmt.Sprintf("%s-clone", suite.credentialsName),
 	}
@@ -158,7 +158,7 @@ func (suite *GarmSuite) InstallRepoWebhook(id string) *params.HookInfo {
 
 func (suite *GarmSuite) InstallRepoByNameWebhook(owner, name string) *params.HookInfo {
 	t := suite.T()
-	t.Logf("Install repo webhook with repo_id %s/%s", owner, name)
+	t.Logf("Install repo webhook with repo %s/%s", owner, name)
 	webhookParams := params.InstallWebhookParams{
 		WebhookEndpointType: params.WebhookEndpointDirect,
 	}
@@ -208,7 +208,7 @@ func (suite *GarmSuite) UninstallRepoWebhook(id string) {
 
 func (suite *GarmSuite) UninstallRepoByNameWebhook(owner, repo string) {
 	t := suite.T()
-	t.Logf("Uninstall repo webhook with repo_id %s/%s", owner, repo)
+	t.Logf("Uninstall repo webhook with repo %s/%s", owner, repo)
 	err := uninstallRepoByNameWebhook(suite.cli, suite.authToken, owner, repo)
 	suite.NoError(err, "error uninstalling repository webhook")
 }
