@@ -24,7 +24,6 @@ import (
 
 	gErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/apiserver/params"
-	apiParams "github.com/cloudbase/garm/apiserver/params"
 	runnerParams "github.com/cloudbase/garm/params"
 )
 
@@ -752,28 +751,13 @@ func (a *APIController) GetRepoWebhookInfoHandler(w http.ResponseWriter, r *http
 func (a *APIController) GetRepoByNameHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	vars := mux.Vars(r)
-	owner, hasOwner := vars["owner"]
-	repo, hasRepo := vars["repo"]
-	if !(hasOwner && hasRepo) {
-		w.WriteHeader(http.StatusBadRequest)
-		if err := json.NewEncoder(w).Encode(apiParams.APIErrorResponse{
-			Error:   "Bad Request",
-			Details: "No repo ID specified",
-		}); err != nil {
-			slog.With(slog.Any("error", err)).ErrorContext(r.Context(), "failed to encode response")
-		}
-		return
-	}
-	repoObj, err := a.r.ResolveRepository(r.Context(), owner, repo, r.URL.Query().Get("endpointName"))
-	if err != nil {
-		slog.With(slog.Any("error", err)).ErrorContext(r.Context(), "listing pools")
-		handleError(r.Context(), w, err)
+	repo, ok := a.GetRepository(w, r)
+	if !ok {
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(repoObj); err != nil {
+	if err := json.NewEncoder(w).Encode(repo); err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }
@@ -811,26 +795,10 @@ func (a *APIController) GetRepoByNameHandler(w http.ResponseWriter, r *http.Requ
 func (a *APIController) DeleteRepoByNameHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	vars := mux.Vars(r)
-	owner, hasOwner := vars["owner"]
-	repo, hasRepo := vars["repo"]
-	if !(hasOwner && hasRepo) {
-		w.WriteHeader(http.StatusBadRequest)
-		if err := json.NewEncoder(w).Encode(apiParams.APIErrorResponse{
-			Error:   "Bad Request",
-			Details: "No repo ID specified",
-		}); err != nil {
-			slog.With(slog.Any("error", err)).ErrorContext(r.Context(), "failed to encode response")
-		}
+	repoID, ok := a.GetRepositoryID(w, r)
+	if !ok {
 		return
 	}
-	repoObj, err := a.r.ResolveRepository(r.Context(), owner, repo, r.URL.Query().Get("endpointName"))
-	if err != nil {
-		slog.With(slog.Any("error", err)).ErrorContext(r.Context(), "listing pools")
-		handleError(r.Context(), w, err)
-		return
-	}
-	repoID := repoObj.ID
 
 	keepWebhook, _ := strconv.ParseBool(r.URL.Query().Get("keepWebhook"))
 	if err := a.r.DeleteRepository(ctx, repoID, keepWebhook); err != nil {
@@ -883,28 +851,12 @@ func (a *APIController) UpdateRepoByNameHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	vars := mux.Vars(r)
-	owner, hasOwner := vars["owner"]
-	repo, hasRepo := vars["repo"]
-	if !(hasOwner && hasRepo) {
-		w.WriteHeader(http.StatusBadRequest)
-		if err := json.NewEncoder(w).Encode(apiParams.APIErrorResponse{
-			Error:   "Bad Request",
-			Details: "No repo ID specified",
-		}); err != nil {
-			slog.With(slog.Any("error", err)).ErrorContext(r.Context(), "failed to encode response")
-		}
+	repoID, ok := a.GetRepositoryID(w, r)
+	if !ok {
 		return
 	}
-	repoObj, err := a.r.ResolveRepository(r.Context(), owner, repo, r.URL.Query().Get("endpointName"))
-	if err != nil {
-		slog.With(slog.Any("error", err)).ErrorContext(r.Context(), "listing pools")
-		handleError(r.Context(), w, err)
-		return
-	}
-	repoID := repoObj.ID
 
-	repoObj, err = a.r.UpdateRepository(ctx, repoID, updatePayload)
+	repo, err := a.r.UpdateRepository(ctx, repoID, updatePayload)
 	if err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error updating repository")
 		handleError(ctx, w, err)
@@ -912,7 +864,7 @@ func (a *APIController) UpdateRepoByNameHandler(w http.ResponseWriter, r *http.R
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(repoObj); err != nil {
+	if err := json.NewEncoder(w).Encode(repo); err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }
@@ -958,26 +910,10 @@ func (a *APIController) CreateRepoByNamePoolHandler(w http.ResponseWriter, r *ht
 		return
 	}
 
-	vars := mux.Vars(r)
-	owner, hasOwner := vars["owner"]
-	repo, hasRepo := vars["repo"]
-	if !(hasOwner && hasRepo) {
-		w.WriteHeader(http.StatusBadRequest)
-		if err := json.NewEncoder(w).Encode(apiParams.APIErrorResponse{
-			Error:   "Bad Request",
-			Details: "No repo ID specified",
-		}); err != nil {
-			slog.With(slog.Any("error", err)).ErrorContext(r.Context(), "failed to encode response")
-		}
+	repoID, ok := a.GetRepositoryID(w, r)
+	if !ok {
 		return
 	}
-	repoObj, err := a.r.ResolveRepository(r.Context(), owner, repo, r.URL.Query().Get("endpointName"))
-	if err != nil {
-		slog.With(slog.Any("error", err)).ErrorContext(r.Context(), "listing pools")
-		handleError(r.Context(), w, err)
-		return
-	}
-	repoID := repoObj.ID
 
 	pool, err := a.r.CreateRepoPool(ctx, repoID, poolData)
 	if err != nil {
@@ -1033,26 +969,10 @@ func (a *APIController) CreateRepoByNameScaleSetHandler(w http.ResponseWriter, r
 		return
 	}
 
-	vars := mux.Vars(r)
-	owner, hasOwner := vars["owner"]
-	repo, hasRepo := vars["repo"]
-	if !(hasOwner && hasRepo) {
-		w.WriteHeader(http.StatusBadRequest)
-		if err := json.NewEncoder(w).Encode(apiParams.APIErrorResponse{
-			Error:   "Bad Request",
-			Details: "No repo ID specified",
-		}); err != nil {
-			slog.With(slog.Any("error", err)).ErrorContext(r.Context(), "failed to encode response")
-		}
+	repoID, ok := a.GetRepositoryID(w, r)
+	if !ok {
 		return
 	}
-	repoObj, err := a.r.ResolveRepository(r.Context(), owner, repo, r.URL.Query().Get("endpointName"))
-	if err != nil {
-		slog.With(slog.Any("error", err)).ErrorContext(r.Context(), "listing pools")
-		handleError(r.Context(), w, err)
-		return
-	}
-	repoID := repoObj.ID
 
 	scaleSet, err := a.r.CreateEntityScaleSet(ctx, runnerParams.ForgeEntityTypeRepository, repoID, scaleSetData)
 	if err != nil {
@@ -1095,27 +1015,12 @@ func (a *APIController) CreateRepoByNameScaleSetHandler(w http.ResponseWriter, r
 func (a *APIController) ListRepoByNamePoolsHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	vars := mux.Vars(r)
-	owner, hasOwner := vars["owner"]
-	repo, hasRepo := vars["repo"]
-	if !(hasOwner && hasRepo) {
-		w.WriteHeader(http.StatusBadRequest)
-		if err := json.NewEncoder(w).Encode(apiParams.APIErrorResponse{
-			Error:   "Bad Request",
-			Details: "No repo ID specified",
-		}); err != nil {
-			slog.With(slog.Any("error", err)).ErrorContext(r.Context(), "failed to encode response")
-		}
-		return
-	}
-	repoObj, err := a.r.ResolveRepository(r.Context(), owner, repo, r.URL.Query().Get("endpointName"))
-	if err != nil {
-		slog.With(slog.Any("error", err)).ErrorContext(r.Context(), "listing pools")
-		handleError(r.Context(), w, err)
+	repo, ok := a.GetRepository(w, r)
+	if !ok {
 		return
 	}
 
-	pools, err := a.r.ListRepoPools(ctx, repoObj.ID)
+	pools, err := a.r.ListRepoPools(ctx, repo.ID)
 	if err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "listing pools")
 		handleError(ctx, w, err)
@@ -1156,27 +1061,12 @@ func (a *APIController) ListRepoByNamePoolsHandler(w http.ResponseWriter, r *htt
 func (a *APIController) ListRepoByNameScaleSetsHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	vars := mux.Vars(r)
-	owner, hasOwner := vars["owner"]
-	repo, hasRepo := vars["repo"]
-	if !(hasOwner && hasRepo) {
-		w.WriteHeader(http.StatusBadRequest)
-		if err := json.NewEncoder(w).Encode(apiParams.APIErrorResponse{
-			Error:   "Bad Request",
-			Details: "No repo ID specified",
-		}); err != nil {
-			slog.With(slog.Any("error", err)).ErrorContext(r.Context(), "failed to encode response")
-		}
-		return
-	}
-	repoObj, err := a.r.ResolveRepository(r.Context(), owner, repo, r.URL.Query().Get("endpointName"))
-	if err != nil {
-		slog.With(slog.Any("error", err)).ErrorContext(r.Context(), "listing pools")
-		handleError(r.Context(), w, err)
+	repo, ok := a.GetRepository(w, r)
+	if !ok {
 		return
 	}
 
-	scaleSets, err := a.r.ListEntityScaleSets(ctx, runnerParams.ForgeEntityTypeRepository, repoObj.ID)
+	scaleSets, err := a.r.ListEntityScaleSets(ctx, runnerParams.ForgeEntityTypeRepository, repo.ID)
 	if err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "listing scale sets")
 		handleError(ctx, w, err)
@@ -1235,25 +1125,10 @@ func (a *APIController) GetRepoByNamePoolHandler(w http.ResponseWriter, r *http.
 		return
 	}
 
-	owner, hasOwner := vars["owner"]
-	repo, hasRepo := vars["repo"]
-	if !(hasOwner && hasRepo) {
-		w.WriteHeader(http.StatusBadRequest)
-		if err := json.NewEncoder(w).Encode(apiParams.APIErrorResponse{
-			Error:   "Bad Request",
-			Details: "No repo ID specified",
-		}); err != nil {
-			slog.With(slog.Any("error", err)).ErrorContext(r.Context(), "failed to encode response")
-		}
+	repoID, ok := a.GetRepositoryID(w, r)
+	if !ok {
 		return
 	}
-	repoObj, err := a.r.ResolveRepository(r.Context(), owner, repo, r.URL.Query().Get("endpointName"))
-	if err != nil {
-		slog.With(slog.Any("error", err)).ErrorContext(r.Context(), "listing pools")
-		handleError(r.Context(), w, err)
-		return
-	}
-	repoID := repoObj.ID
 
 	pool, err := a.r.GetRepoPoolByID(ctx, repoID, poolID)
 	if err != nil {
@@ -1314,25 +1189,10 @@ func (a *APIController) DeleteRepoByNamePoolHandler(w http.ResponseWriter, r *ht
 		return
 	}
 
-	owner, hasOwner := vars["owner"]
-	repo, hasRepo := vars["repo"]
-	if !(hasOwner && hasRepo) {
-		w.WriteHeader(http.StatusBadRequest)
-		if err := json.NewEncoder(w).Encode(apiParams.APIErrorResponse{
-			Error:   "Bad Request",
-			Details: "No repo ID specified",
-		}); err != nil {
-			slog.With(slog.Any("error", err)).ErrorContext(r.Context(), "failed to encode response")
-		}
+	repoID, ok := a.GetRepositoryID(w, r)
+	if !ok {
 		return
 	}
-	repoObj, err := a.r.ResolveRepository(r.Context(), owner, repo, r.URL.Query().Get("endpointName"))
-	if err != nil {
-		slog.With(slog.Any("error", err)).ErrorContext(r.Context(), "listing pools")
-		handleError(r.Context(), w, err)
-		return
-	}
-	repoID := repoObj.ID
 
 	if err := a.r.DeleteRepoPool(ctx, repoID, poolID); err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "removing pool")
@@ -1404,25 +1264,10 @@ func (a *APIController) UpdateRepoByNamePoolHandler(w http.ResponseWriter, r *ht
 		return
 	}
 
-	owner, hasOwner := vars["owner"]
-	repo, hasRepo := vars["repo"]
-	if !(hasOwner && hasRepo) {
-		w.WriteHeader(http.StatusBadRequest)
-		if err := json.NewEncoder(w).Encode(apiParams.APIErrorResponse{
-			Error:   "Bad Request",
-			Details: "No repo ID specified",
-		}); err != nil {
-			slog.With(slog.Any("error", err)).ErrorContext(r.Context(), "failed to encode response")
-		}
+	repoID, ok := a.GetRepositoryID(w, r)
+	if !ok {
 		return
 	}
-	repoObj, err := a.r.ResolveRepository(r.Context(), owner, repo, r.URL.Query().Get("endpointName"))
-	if err != nil {
-		slog.With(slog.Any("error", err)).ErrorContext(r.Context(), "listing pools")
-		handleError(r.Context(), w, err)
-		return
-	}
-	repoID := repoObj.ID
 
 	pool, err := a.r.UpdateRepoPool(ctx, repoID, poolID, poolData)
 	if err != nil {
@@ -1479,26 +1324,10 @@ func (a *APIController) InstallRepoByNameWebhookHandler(w http.ResponseWriter, r
 		return
 	}
 
-	vars := mux.Vars(r)
-	owner, hasOwner := vars["owner"]
-	repo, hasRepo := vars["repo"]
-	if !(hasOwner && hasRepo) {
-		w.WriteHeader(http.StatusBadRequest)
-		if err := json.NewEncoder(w).Encode(apiParams.APIErrorResponse{
-			Error:   "Bad Request",
-			Details: "No repo ID specified",
-		}); err != nil {
-			slog.With(slog.Any("error", err)).ErrorContext(r.Context(), "failed to encode response")
-		}
+	repoID, ok := a.GetRepositoryID(w, r)
+	if !ok {
 		return
 	}
-	repoObj, err := a.r.ResolveRepository(r.Context(), owner, repo, r.URL.Query().Get("endpointName"))
-	if err != nil {
-		slog.With(slog.Any("error", err)).ErrorContext(r.Context(), "listing pools")
-		handleError(r.Context(), w, err)
-		return
-	}
-	repoID := repoObj.ID
 
 	info, err := a.r.InstallRepoWebhook(ctx, repoID, hookParam)
 	if err != nil {
@@ -1540,27 +1369,12 @@ func (a *APIController) InstallRepoByNameWebhookHandler(w http.ResponseWriter, r
 func (a *APIController) UninstallRepoByNameWebhookHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	vars := mux.Vars(r)
-	owner, hasOwner := vars["owner"]
-	repo, hasRepo := vars["repo"]
-	if !(hasOwner && hasRepo) {
-		w.WriteHeader(http.StatusBadRequest)
-		if err := json.NewEncoder(w).Encode(apiParams.APIErrorResponse{
-			Error:   "Bad Request",
-			Details: "No repo ID specified",
-		}); err != nil {
-			slog.With(slog.Any("error", err)).ErrorContext(r.Context(), "failed to encode response")
-		}
-		return
-	}
-	repoObj, err := a.r.ResolveRepository(r.Context(), owner, repo, r.URL.Query().Get("endpointName"))
-	if err != nil {
-		slog.With(slog.Any("error", err)).ErrorContext(r.Context(), "listing pools")
-		handleError(r.Context(), w, err)
+	repo, ok := a.GetRepository(w, r)
+	if !ok {
 		return
 	}
 
-	if err := a.r.UninstallRepoWebhook(ctx, repoObj.ID); err != nil {
+	if err := a.r.UninstallRepoWebhook(ctx, repo.ID); err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "removing webhook")
 		handleError(ctx, w, err)
 		return
@@ -1598,27 +1412,12 @@ func (a *APIController) UninstallRepoByNameWebhookHandler(w http.ResponseWriter,
 func (a *APIController) GetRepoByNameWebhookInfoHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	vars := mux.Vars(r)
-	owner, hasOwner := vars["owner"]
-	repo, hasRepo := vars["repo"]
-	if !(hasOwner && hasRepo) {
-		w.WriteHeader(http.StatusBadRequest)
-		if err := json.NewEncoder(w).Encode(apiParams.APIErrorResponse{
-			Error:   "Bad Request",
-			Details: "No repo ID specified",
-		}); err != nil {
-			slog.With(slog.Any("error", err)).ErrorContext(r.Context(), "failed to encode response")
-		}
-		return
-	}
-	repoObj, err := a.r.ResolveRepository(r.Context(), owner, repo, r.URL.Query().Get("endpointName"))
-	if err != nil {
-		slog.With(slog.Any("error", err)).ErrorContext(r.Context(), "listing pools")
-		handleError(r.Context(), w, err)
+	repo, ok := a.GetRepository(w, r)
+	if !ok {
 		return
 	}
 
-	info, err := a.r.GetRepoWebhookInfo(ctx, repoObj.ID)
+	info, err := a.r.GetRepoWebhookInfo(ctx, repo.ID)
 	if err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "getting webhook info")
 		handleError(ctx, w, err)
