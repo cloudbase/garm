@@ -359,8 +359,8 @@ gopkg.in/yaml.v3
 # gorm.io/datatypes v1.2.5
 ## explicit; go 1.19
 gorm.io/datatypes
-# gorm.io/driver/mysql v1.5.7
-## explicit; go 1.14
+# gorm.io/driver/mysql v1.6.0
+## explicit; go 1.18
 gorm.io/driver/mysql
 # gorm.io/driver/sqlite v1.5.7
 ## explicit; go 1.20
