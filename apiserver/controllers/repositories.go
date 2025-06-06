@@ -722,3 +722,710 @@ func (a *APIController) GetRepoWebhookInfoHandler(w http.ResponseWriter, r *http
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }
+
+// swagger:route GET /repositories/{owner}/{repo} Repositories GetRepoByFriendlyName
+//
+// Get repository by name.
+//
+//	Parameters:
+//	  + name: owner
+//	    description: owner of the repository to fetch.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: repo
+//	    description: name of the repository to fetch.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: endpointName
+//	    description: endpointName of the repository to fetch.
+//	    type: string
+//	    in: query
+//
+//	Responses:
+//	  200: Repository
+//	  default: APIErrorResponse
+func (a *APIController) GetRepoByFriendlyNameHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	repo, ok := a.GetRepository(w, r)
+	if !ok {
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(repo); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
+	}
+}
+
+// swagger:route DELETE /repositories/{owner}/{repo} Repositories DeleteRepoByFriendlyName
+//
+// Delete repository by ID.
+//
+//	Parameters:
+//	  + name: owner
+//	    description: owner of the repository to delete.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: repo
+//	    description: name of the repository to delete.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: endpointName
+//	    description: endpointName of the repository to delete.
+//	    type: string
+//	    in: query
+//
+//	  + name: keepWebhook
+//	    description: If true and a webhook is installed for this repo, it will not be removed.
+//	    type: boolean
+//	    in: query
+//	    required: false
+//
+//	Responses:
+//	  default: APIErrorResponse
+func (a *APIController) DeleteRepoByFriendlyNameHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	repoID, ok := a.GetRepositoryID(w, r)
+	if !ok {
+		return
+	}
+
+	keepWebhook, _ := strconv.ParseBool(r.URL.Query().Get("keepWebhook"))
+	if err := a.r.DeleteRepository(ctx, repoID, keepWebhook); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "fetching repository")
+		handleError(ctx, w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+}
+
+// swagger:route PUT /repositories/{owner}/{repo} Repositories UpdateRepoByFriendlyName
+//
+// Update repository with the parameters given.
+//
+//	Parameters:
+//	  + name: owner
+//	    description: owner of the repository to update.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: repo
+//	    description: name of the repository to update.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: endpointName
+//	    description: endpointName of the repository to update.
+//	    type: string
+//	    in: query
+//
+//	  + name: Body
+//	    description: Parameters used when updating the repository.
+//	    type: UpdateEntityParams
+//	    in: body
+//	    required: true
+//
+//	Responses:
+//	  200: Repository
+//	  default: APIErrorResponse
+func (a *APIController) UpdateRepoByFriendlyNameHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var updatePayload runnerParams.UpdateEntityParams
+	if err := json.NewDecoder(r.Body).Decode(&updatePayload); err != nil {
+		handleError(ctx, w, gErrors.ErrBadRequest)
+		return
+	}
+
+	repoID, ok := a.GetRepositoryID(w, r)
+	if !ok {
+		return
+	}
+
+	repo, err := a.r.UpdateRepository(ctx, repoID, updatePayload)
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error updating repository")
+		handleError(ctx, w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(repo); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
+	}
+}
+
+// swagger:route POST /repositories/{owner}/{repo}/pools Repositories pools CreateRepoPoolByFriendlyName
+//
+// Create repository pool with the parameters given.
+//
+//	Parameters:
+//	  + name: owner
+//	    description: Repository owner.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: repo
+//	    description: Repository name.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: endpointName
+//	    description: Repository endpointName.
+//	    type: string
+//	    in: query
+//
+//	  + name: Body
+//	    description: Parameters used when creating the repository pool.
+//	    type: CreatePoolParams
+//	    in: body
+//	    required: true
+//
+//	Responses:
+//	  200: Pool
+//	  default: APIErrorResponse
+func (a *APIController) CreateRepoPoolByFriendlyNameHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var poolData runnerParams.CreatePoolParams
+	if err := json.NewDecoder(r.Body).Decode(&poolData); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to decode")
+		handleError(ctx, w, gErrors.ErrBadRequest)
+		return
+	}
+
+	repoID, ok := a.GetRepositoryID(w, r)
+	if !ok {
+		return
+	}
+
+	pool, err := a.r.CreateRepoPool(ctx, repoID, poolData)
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error creating repository pool")
+		handleError(ctx, w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(pool); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
+	}
+}
+
+// swagger:route POST /repositories/{owner}/{repo}/scalesets Repositories scalesets CreateRepoScaleSetByFriendlyName
+//
+// Create repository scale set with the parameters given.
+//
+//	Parameters:
+//	  + name: owner
+//	    description: Repository owner.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: repo
+//	    description: Repository name.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: endpointName
+//	    description: Repository endpointName.
+//	    type: string
+//	    in: query
+//
+//	  + name: Body
+//	    description: Parameters used when creating the repository scale set.
+//	    type: CreateScaleSetParams
+//	    in: body
+//	    required: true
+//
+//	Responses:
+//	  200: ScaleSet
+//	  default: APIErrorResponse
+func (a *APIController) CreateRepoScaleSetByFriendlyNameHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var scaleSetData runnerParams.CreateScaleSetParams
+	if err := json.NewDecoder(r.Body).Decode(&scaleSetData); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to decode")
+		handleError(ctx, w, gErrors.ErrBadRequest)
+		return
+	}
+
+	repoID, ok := a.GetRepositoryID(w, r)
+	if !ok {
+		return
+	}
+
+	scaleSet, err := a.r.CreateEntityScaleSet(ctx, runnerParams.ForgeEntityTypeRepository, repoID, scaleSetData)
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error creating repository scale set")
+		handleError(ctx, w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(scaleSet); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
+	}
+}
+
+// swagger:route GET /repositories/{owner}/{repo}/pools Repositories pools ListRepoPoolsByFriendlyName
+//
+// List repository pools.
+//
+//	Parameters:
+//	  + name: owner
+//	    description: Repository owner.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: repo
+//	    description: Repository name.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: endpointName
+//	    description: Repository endpointName.
+//	    type: string
+//	    in: query
+//
+//	Responses:
+//	  200: Pools
+//	  default: APIErrorResponse
+func (a *APIController) ListRepoPoolsByFriendlyNameHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	repo, ok := a.GetRepository(w, r)
+	if !ok {
+		return
+	}
+
+	pools, err := a.r.ListRepoPools(ctx, repo.ID)
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "listing pools")
+		handleError(ctx, w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(pools); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
+	}
+}
+
+// swagger:route GET /repositories/{owner}/{repo}/scalesets Repositories scalesets ListRepoScaleSetsByFriendlyName
+//
+// List repository scale sets.
+//
+//	Parameters:
+//	  + name: owner
+//	    description: Repository owner.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: repo
+//	    description: Repository name.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: endpointName
+//	    description: Repository endpointName.
+//	    type: string
+//	    in: query
+//
+//	Responses:
+//	  200: ScaleSets
+//	  default: APIErrorResponse
+func (a *APIController) ListRepoScaleSetsByFriendlyNameHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	repo, ok := a.GetRepository(w, r)
+	if !ok {
+		return
+	}
+
+	scaleSets, err := a.r.ListEntityScaleSets(ctx, runnerParams.ForgeEntityTypeRepository, repo.ID)
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "listing scale sets")
+		handleError(ctx, w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(scaleSets); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
+	}
+}
+
+// swagger:route GET /repositories/{owner}/{repo}/pools/{poolID} Repositories pools GetRepoPoolByFriendlyName
+//
+// Get repository pool by ID.
+//
+//	Parameters:
+//	  + name: owner
+//	    description: Repository owner.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: repo
+//	    description: Repository name.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: endpointName
+//	    description: Repository endpointName.
+//	    type: string
+//	    in: query
+//
+//	  + name: poolID
+//	    description: Pool ID.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	Responses:
+//	  200: Pool
+//	  default: APIErrorResponse
+func (a *APIController) GetRepoPoolByFriendlyNameHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	poolID, poolOk := vars["poolID"]
+	if !poolOk {
+		w.WriteHeader(http.StatusBadRequest)
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
+			Error:   "Bad Request",
+			Details: "No pool ID specified",
+		}); err != nil {
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
+		}
+		return
+	}
+
+	repoID, ok := a.GetRepositoryID(w, r)
+	if !ok {
+		return
+	}
+
+	pool, err := a.r.GetRepoPoolByID(ctx, repoID, poolID)
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "listing pools")
+		handleError(ctx, w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(pool); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
+	}
+}
+
+// swagger:route DELETE /repositories/{owner}/{repo}/pools/{poolID} Repositories pools DeleteRepoPoolByFriendlyName
+//
+// Delete repository pool by ID.
+//
+//	Parameters:
+//	  + name: owner
+//	    description: Repository owner.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: repo
+//	    description: Repository name.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: endpointName
+//	    description: Repository endpointName.
+//	    type: string
+//	    in: query
+//
+//	  + name: poolID
+//	    description: ID of the repository pool to delete.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	Responses:
+//	  default: APIErrorResponse
+func (a *APIController) DeleteRepoPoolByFriendlyNameHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	vars := mux.Vars(r)
+	poolID, poolOk := vars["poolID"]
+	if !poolOk {
+		w.WriteHeader(http.StatusBadRequest)
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
+			Error:   "Bad Request",
+			Details: "No pool ID specified",
+		}); err != nil {
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
+		}
+		return
+	}
+
+	repoID, ok := a.GetRepositoryID(w, r)
+	if !ok {
+		return
+	}
+
+	if err := a.r.DeleteRepoPool(ctx, repoID, poolID); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "removing pool")
+		handleError(ctx, w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+}
+
+// swagger:route PUT /repositories/{owner}{repo}/pools/{poolID} repositories pools UpdateRepoPoolByFriendlyName
+//
+// Update repository pool with the parameters given.
+//
+//	Parameters:
+//	  + name: owner
+//	    description: Repository owner.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: repo
+//	    description: Repository name.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: endpointName
+//	    description: Repository endpointName.
+//	    type: string
+//	    in: query
+//
+//	  + name: poolID
+//	    description: ID of the repository pool to update.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: Body
+//	    description: Parameters used when updating the repository pool.
+//	    type: UpdatePoolParams
+//	    in: body
+//	    required: true
+//
+//	Responses:
+//	  200: Pool
+//	  default: APIErrorResponse
+func (a *APIController) UpdateRepoPoolByFriendlyNameHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	vars := mux.Vars(r)
+	poolID, poolOk := vars["poolID"]
+	if !poolOk {
+		w.WriteHeader(http.StatusBadRequest)
+		if err := json.NewEncoder(w).Encode(params.APIErrorResponse{
+			Error:   "Bad Request",
+			Details: "No pool ID specified",
+		}); err != nil {
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
+		}
+		return
+	}
+
+	var poolData runnerParams.UpdatePoolParams
+	if err := json.NewDecoder(r.Body).Decode(&poolData); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to decode")
+		handleError(ctx, w, gErrors.ErrBadRequest)
+		return
+	}
+
+	repoID, ok := a.GetRepositoryID(w, r)
+	if !ok {
+		return
+	}
+
+	pool, err := a.r.UpdateRepoPool(ctx, repoID, poolID, poolData)
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error creating repository pool")
+		handleError(ctx, w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(pool); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
+	}
+}
+
+// swagger:route POST /repositories/{owner}/{repo}/webhook Repositories hooks InstallRepoWebhookByFriendlyName
+//
+// Install the GARM webhook for an organization. The secret configured on the organization will
+// be used to validate the requests.
+//
+//	Parameters:
+//	  + name: owner
+//	    description: Repository owner.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: repo
+//	    description: Repository name.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: endpointName
+//	    description: Repository endpointName.
+//	    type: string
+//	    in: query
+//
+//	  + name: Body
+//	    description: Parameters used when creating the repository webhook.
+//	    type: InstallWebhookParams
+//	    in: body
+//	    required: true
+//
+//	Responses:
+//	  200: HookInfo
+//	  default: APIErrorResponse
+func (a *APIController) InstallRepoWebhookByFriendlyNameHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var hookParam runnerParams.InstallWebhookParams
+	if err := json.NewDecoder(r.Body).Decode(&hookParam); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to decode")
+		handleError(ctx, w, gErrors.ErrBadRequest)
+		return
+	}
+
+	repoID, ok := a.GetRepositoryID(w, r)
+	if !ok {
+		return
+	}
+
+	info, err := a.r.InstallRepoWebhook(ctx, repoID, hookParam)
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "installing webhook")
+		handleError(ctx, w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(info); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
+	}
+}
+
+// swagger:route DELETE /repositories/{owner}/{repo}/webhook Repositories hooks UninstallRepoWebhookByFriendlyName
+//
+// Uninstall organization webhook.
+//
+//	Parameters:
+//	  + name: owner
+//	    description: Repository owner.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: repo
+//	    description: Repository name.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: endpointName
+//	    description: Repository endpointName.
+//	    type: string
+//	    in: query
+//
+//	Responses:
+//	  default: APIErrorResponse
+func (a *APIController) UninstallRepoWebhookByFriendlyNameHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	repo, ok := a.GetRepository(w, r)
+	if !ok {
+		return
+	}
+
+	if err := a.r.UninstallRepoWebhook(ctx, repo.ID); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "removing webhook")
+		handleError(ctx, w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+}
+
+// swagger:route GET /repositories/{owner}/{repo}/webhook Repositories hooks GetRepoWebhookInfoByFriendlyName
+//
+// Get information about the GARM installed webhook on a repository.
+//
+//	Parameters:
+//	  + name: owner
+//	    description: Repository owner.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: repo
+//	    description: Repository name.
+//	    type: string
+//	    in: path
+//	    required: true
+//
+//	  + name: endpointName
+//	    description: Repository endpointName.
+//	    type: string
+//	    in: query
+//
+//	Responses:
+//	  200: HookInfo
+//	  default: APIErrorResponse
+func (a *APIController) GetRepoWebhookInfoByFriendlyNameHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	repo, ok := a.GetRepository(w, r)
+	if !ok {
+		return
+	}
+
+	info, err := a.r.GetRepoWebhookInfo(ctx, repo.ID)
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "getting webhook info")
+		handleError(ctx, w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(info); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
+	}
+}
