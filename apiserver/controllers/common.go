@@ -26,7 +26,7 @@ func (a *APIController) GetRepository(w http.ResponseWriter, r *http.Request) (p
 	}
 	repoObj, err := a.r.ResolveRepository(r.Context(), owner, repo, r.URL.Query().Get("endpointName"))
 	if err != nil {
-		slog.With(slog.Any("error", err)).ErrorContext(r.Context(), "listing pools")
+		slog.With(slog.Any("error", err)).ErrorContext(r.Context(), "resolving repository")
 		handleError(r.Context(), w, err)
 		return params.Repository{}, false
 	}
@@ -49,7 +49,7 @@ func (a *APIController) GetRepositoryID(w http.ResponseWriter, r *http.Request) 
 	}
 	repoObj, err := a.r.ResolveRepository(r.Context(), owner, repo, r.URL.Query().Get("endpointName"))
 	if err != nil {
-		slog.With(slog.Any("error", err)).ErrorContext(r.Context(), "listing pools")
+		slog.With(slog.Any("error", err)).ErrorContext(r.Context(), "resolving repository")
 		handleError(r.Context(), w, err)
 		return "", false
 	}
