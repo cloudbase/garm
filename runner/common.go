@@ -34,7 +34,7 @@ func (r *Runner) ResolveRepository(ctx context.Context, owner, repo, endpointNam
 	repoObj, err := r.store.GetRepository(ctx, owner, repo, endpointName)
 	if err != nil {
 		if errors.Is(err, runnerErrors.ErrNotFound) {
-			return params.Repository{}, runnerErrors.NewBadRequestError("repository %s/%s (%s) not found", owner, repo, endpointName)
+			return params.Repository{}, runnerErrors.NewNotFoundError("repository %s/%s (%s) not found", owner, repo, endpointName)
 		}
 		return params.Repository{}, errors.Wrapf(err, "fetching repository %s/%s (%s)", owner, repo, endpointName)
 	}
