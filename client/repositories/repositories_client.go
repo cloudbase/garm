@@ -56,63 +56,63 @@ type ClientOption func(*runtime.ClientOperation)
 type ClientService interface {
 	CreateRepo(params *CreateRepoParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateRepoOK, error)
 
-	CreateRepoByNamePool(params *CreateRepoByNamePoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateRepoByNamePoolOK, error)
-
-	CreateRepoByNameScaleSet(params *CreateRepoByNameScaleSetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateRepoByNameScaleSetOK, error)
-
 	CreateRepoPool(params *CreateRepoPoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateRepoPoolOK, error)
+
+	CreateRepoPoolByFriendlyName(params *CreateRepoPoolByFriendlyNameParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateRepoPoolByFriendlyNameOK, error)
 
 	CreateRepoScaleSet(params *CreateRepoScaleSetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateRepoScaleSetOK, error)
 
+	CreateRepoScaleSetByFriendlyName(params *CreateRepoScaleSetByFriendlyNameParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateRepoScaleSetByFriendlyNameOK, error)
+
 	DeleteRepo(params *DeleteRepoParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error
 
-	DeleteRepoByName(params *DeleteRepoByNameParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error
-
-	DeleteRepoByNamePool(params *DeleteRepoByNamePoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error
+	DeleteRepoByFriendlyName(params *DeleteRepoByFriendlyNameParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error
 
 	DeleteRepoPool(params *DeleteRepoPoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error
 
+	DeleteRepoPoolByFriendlyName(params *DeleteRepoPoolByFriendlyNameParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error
+
 	GetRepo(params *GetRepoParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetRepoOK, error)
 
-	GetRepoByName(params *GetRepoByNameParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetRepoByNameOK, error)
-
-	GetRepoByNamePool(params *GetRepoByNamePoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetRepoByNamePoolOK, error)
-
-	GetRepoByNameWebhookInfo(params *GetRepoByNameWebhookInfoParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetRepoByNameWebhookInfoOK, error)
+	GetRepoByFriendlyName(params *GetRepoByFriendlyNameParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetRepoByFriendlyNameOK, error)
 
 	GetRepoPool(params *GetRepoPoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetRepoPoolOK, error)
 
+	GetRepoPoolByFriendlyName(params *GetRepoPoolByFriendlyNameParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetRepoPoolByFriendlyNameOK, error)
+
 	GetRepoWebhookInfo(params *GetRepoWebhookInfoParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetRepoWebhookInfoOK, error)
 
-	InstallRepoByNameWebhook(params *InstallRepoByNameWebhookParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*InstallRepoByNameWebhookOK, error)
+	GetRepoWebhookInfoByFriendlyName(params *GetRepoWebhookInfoByFriendlyNameParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetRepoWebhookInfoByFriendlyNameOK, error)
 
 	InstallRepoWebhook(params *InstallRepoWebhookParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*InstallRepoWebhookOK, error)
 
-	ListRepoByNameInstances(params *ListRepoByNameInstancesParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListRepoByNameInstancesOK, error)
-
-	ListRepoByNamePools(params *ListRepoByNamePoolsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListRepoByNamePoolsOK, error)
-
-	ListRepoByNameScaleSets(params *ListRepoByNameScaleSetsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListRepoByNameScaleSetsOK, error)
+	InstallRepoWebhookByFriendlyName(params *InstallRepoWebhookByFriendlyNameParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*InstallRepoWebhookByFriendlyNameOK, error)
 
 	ListRepoInstances(params *ListRepoInstancesParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListRepoInstancesOK, error)
 
+	ListRepoInstancesByFriendlyName(params *ListRepoInstancesByFriendlyNameParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListRepoInstancesByFriendlyNameOK, error)
+
 	ListRepoPools(params *ListRepoPoolsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListRepoPoolsOK, error)
+
+	ListRepoPoolsByFriendlyName(params *ListRepoPoolsByFriendlyNameParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListRepoPoolsByFriendlyNameOK, error)
 
 	ListRepoScaleSets(params *ListRepoScaleSetsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListRepoScaleSetsOK, error)
 
-	ListRepos(params *ListReposParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListReposOK, error)
+	ListRepoScaleSetsByFriendlyName(params *ListRepoScaleSetsByFriendlyNameParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListRepoScaleSetsByFriendlyNameOK, error)
 
-	UninstallRepoByNameWebhook(params *UninstallRepoByNameWebhookParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error
+	ListRepos(params *ListReposParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListReposOK, error)
 
 	UninstallRepoWebhook(params *UninstallRepoWebhookParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error
 
+	UninstallRepoWebhookByFriendlyName(params *UninstallRepoWebhookByFriendlyNameParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error
+
 	UpdateRepo(params *UpdateRepoParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateRepoOK, error)
 
-	UpdateRepoByName(params *UpdateRepoByNameParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateRepoByNameOK, error)
-
-	UpdateRepoByNamePool(params *UpdateRepoByNamePoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateRepoByNamePoolOK, error)
+	UpdateRepoByFriendlyName(params *UpdateRepoByFriendlyNameParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateRepoByFriendlyNameOK, error)
 
 	UpdateRepoPool(params *UpdateRepoPoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateRepoPoolOK, error)
+
+	UpdateRepoPoolByFriendlyName(params *UpdateRepoPoolByFriendlyNameParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateRepoPoolByFriendlyNameOK, error)
 
 	SetTransport(transport runtime.ClientTransport)
 }
@@ -156,82 +156,6 @@ func (a *Client) CreateRepo(params *CreateRepoParams, authInfo runtime.ClientAut
 }
 
 /*
-CreateRepoByNamePool creates repository pool with the parameters given
-*/
-func (a *Client) CreateRepoByNamePool(params *CreateRepoByNamePoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateRepoByNamePoolOK, error) {
-	// TODO: Validate the params before sending
-	if params == nil {
-		params = NewCreateRepoByNamePoolParams()
-	}
-	op := &runtime.ClientOperation{
-		ID:                 "CreateRepoByNamePool",
-		Method:             "POST",
-		PathPattern:        "/repositories/{owner}/{repo}/pools",
-		ProducesMediaTypes: []string{"application/json"},
-		ConsumesMediaTypes: []string{"application/json"},
-		Schemes:            []string{"http"},
-		Params:             params,
-		Reader:             &CreateRepoByNamePoolReader{formats: a.formats},
-		AuthInfo:           authInfo,
-		Context:            params.Context,
-		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
-	if err != nil {
-		return nil, err
-	}
-	success, ok := result.(*CreateRepoByNamePoolOK)
-	if ok {
-		return success, nil
-	}
-	// unexpected success response
-	unexpectedSuccess := result.(*CreateRepoByNamePoolDefault)
-	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
-}
-
-/*
-CreateRepoByNameScaleSet creates repository scale set with the parameters given
-*/
-func (a *Client) CreateRepoByNameScaleSet(params *CreateRepoByNameScaleSetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateRepoByNameScaleSetOK, error) {
-	// TODO: Validate the params before sending
-	if params == nil {
-		params = NewCreateRepoByNameScaleSetParams()
-	}
-	op := &runtime.ClientOperation{
-		ID:                 "CreateRepoByNameScaleSet",
-		Method:             "POST",
-		PathPattern:        "/repositories/{owner}/{repo}/scalesets",
-		ProducesMediaTypes: []string{"application/json"},
-		ConsumesMediaTypes: []string{"application/json"},
-		Schemes:            []string{"http"},
-		Params:             params,
-		Reader:             &CreateRepoByNameScaleSetReader{formats: a.formats},
-		AuthInfo:           authInfo,
-		Context:            params.Context,
-		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
-	if err != nil {
-		return nil, err
-	}
-	success, ok := result.(*CreateRepoByNameScaleSetOK)
-	if ok {
-		return success, nil
-	}
-	// unexpected success response
-	unexpectedSuccess := result.(*CreateRepoByNameScaleSetDefault)
-	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
-}
-
-/*
 CreateRepoPool creates repository pool with the parameters given
 */
 func (a *Client) CreateRepoPool(params *CreateRepoPoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateRepoPoolOK, error) {
@@ -266,6 +190,44 @@ func (a *Client) CreateRepoPool(params *CreateRepoPoolParams, authInfo runtime.C
 	}
 	// unexpected success response
 	unexpectedSuccess := result.(*CreateRepoPoolDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+CreateRepoPoolByFriendlyName creates repository pool with the parameters given
+*/
+func (a *Client) CreateRepoPoolByFriendlyName(params *CreateRepoPoolByFriendlyNameParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateRepoPoolByFriendlyNameOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewCreateRepoPoolByFriendlyNameParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "CreateRepoPoolByFriendlyName",
+		Method:             "POST",
+		PathPattern:        "/repositories/{owner}/{repo}/pools",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &CreateRepoPoolByFriendlyNameReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*CreateRepoPoolByFriendlyNameOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*CreateRepoPoolByFriendlyNameDefault)
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -308,6 +270,44 @@ func (a *Client) CreateRepoScaleSet(params *CreateRepoScaleSetParams, authInfo r
 }
 
 /*
+CreateRepoScaleSetByFriendlyName creates repository scale set with the parameters given
+*/
+func (a *Client) CreateRepoScaleSetByFriendlyName(params *CreateRepoScaleSetByFriendlyNameParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateRepoScaleSetByFriendlyNameOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewCreateRepoScaleSetByFriendlyNameParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "CreateRepoScaleSetByFriendlyName",
+		Method:             "POST",
+		PathPattern:        "/repositories/{owner}/{repo}/scalesets",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &CreateRepoScaleSetByFriendlyNameReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*CreateRepoScaleSetByFriendlyNameOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*CreateRepoScaleSetByFriendlyNameDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
 DeleteRepo deletes repository by ID
 */
 func (a *Client) DeleteRepo(params *DeleteRepoParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error {
@@ -340,54 +340,22 @@ func (a *Client) DeleteRepo(params *DeleteRepoParams, authInfo runtime.ClientAut
 }
 
 /*
-DeleteRepoByName deletes repository by ID
+DeleteRepoByFriendlyName deletes repository by ID
 */
-func (a *Client) DeleteRepoByName(params *DeleteRepoByNameParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error {
+func (a *Client) DeleteRepoByFriendlyName(params *DeleteRepoByFriendlyNameParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error {
 	// TODO: Validate the params before sending
 	if params == nil {
-		params = NewDeleteRepoByNameParams()
+		params = NewDeleteRepoByFriendlyNameParams()
 	}
 	op := &runtime.ClientOperation{
-		ID:                 "DeleteRepoByName",
+		ID:                 "DeleteRepoByFriendlyName",
 		Method:             "DELETE",
 		PathPattern:        "/repositories/{owner}/{repo}",
 		ProducesMediaTypes: []string{"application/json"},
 		ConsumesMediaTypes: []string{"application/json"},
 		Schemes:            []string{"http"},
 		Params:             params,
-		Reader:             &DeleteRepoByNameReader{formats: a.formats},
-		AuthInfo:           authInfo,
-		Context:            params.Context,
-		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	_, err := a.transport.Submit(op)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-/*
-DeleteRepoByNamePool deletes repository pool by ID
-*/
-func (a *Client) DeleteRepoByNamePool(params *DeleteRepoByNamePoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error {
-	// TODO: Validate the params before sending
-	if params == nil {
-		params = NewDeleteRepoByNamePoolParams()
-	}
-	op := &runtime.ClientOperation{
-		ID:                 "DeleteRepoByNamePool",
-		Method:             "DELETE",
-		PathPattern:        "/repositories/{owner}/{repo}/pools/{poolID}",
-		ProducesMediaTypes: []string{"application/json"},
-		ConsumesMediaTypes: []string{"application/json"},
-		Schemes:            []string{"http"},
-		Params:             params,
-		Reader:             &DeleteRepoByNamePoolReader{formats: a.formats},
+		Reader:             &DeleteRepoByFriendlyNameReader{formats: a.formats},
 		AuthInfo:           authInfo,
 		Context:            params.Context,
 		Client:             params.HTTPClient,
@@ -420,6 +388,38 @@ func (a *Client) DeleteRepoPool(params *DeleteRepoPoolParams, authInfo runtime.C
 		Schemes:            []string{"http"},
 		Params:             params,
 		Reader:             &DeleteRepoPoolReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	_, err := a.transport.Submit(op)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+/*
+DeleteRepoPoolByFriendlyName deletes repository pool by ID
+*/
+func (a *Client) DeleteRepoPoolByFriendlyName(params *DeleteRepoPoolByFriendlyNameParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewDeleteRepoPoolByFriendlyNameParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "DeleteRepoPoolByFriendlyName",
+		Method:             "DELETE",
+		PathPattern:        "/repositories/{owner}/{repo}/pools/{poolID}",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &DeleteRepoPoolByFriendlyNameReader{formats: a.formats},
 		AuthInfo:           authInfo,
 		Context:            params.Context,
 		Client:             params.HTTPClient,
@@ -474,22 +474,22 @@ func (a *Client) GetRepo(params *GetRepoParams, authInfo runtime.ClientAuthInfoW
 }
 
 /*
-GetRepoByName gets repository by name
+GetRepoByFriendlyName gets repository by name
 */
-func (a *Client) GetRepoByName(params *GetRepoByNameParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetRepoByNameOK, error) {
+func (a *Client) GetRepoByFriendlyName(params *GetRepoByFriendlyNameParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetRepoByFriendlyNameOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
-		params = NewGetRepoByNameParams()
+		params = NewGetRepoByFriendlyNameParams()
 	}
 	op := &runtime.ClientOperation{
-		ID:                 "GetRepoByName",
+		ID:                 "GetRepoByFriendlyName",
 		Method:             "GET",
 		PathPattern:        "/repositories/{owner}/{repo}",
 		ProducesMediaTypes: []string{"application/json"},
 		ConsumesMediaTypes: []string{"application/json"},
 		Schemes:            []string{"http"},
 		Params:             params,
-		Reader:             &GetRepoByNameReader{formats: a.formats},
+		Reader:             &GetRepoByFriendlyNameReader{formats: a.formats},
 		AuthInfo:           authInfo,
 		Context:            params.Context,
 		Client:             params.HTTPClient,
@@ -502,88 +502,12 @@ func (a *Client) GetRepoByName(params *GetRepoByNameParams, authInfo runtime.Cli
 	if err != nil {
 		return nil, err
 	}
-	success, ok := result.(*GetRepoByNameOK)
+	success, ok := result.(*GetRepoByFriendlyNameOK)
 	if ok {
 		return success, nil
 	}
 	// unexpected success response
-	unexpectedSuccess := result.(*GetRepoByNameDefault)
-	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
-}
-
-/*
-GetRepoByNamePool gets repository pool by ID
-*/
-func (a *Client) GetRepoByNamePool(params *GetRepoByNamePoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetRepoByNamePoolOK, error) {
-	// TODO: Validate the params before sending
-	if params == nil {
-		params = NewGetRepoByNamePoolParams()
-	}
-	op := &runtime.ClientOperation{
-		ID:                 "GetRepoByNamePool",
-		Method:             "GET",
-		PathPattern:        "/repositories/{owner}/{repo}/pools/{poolID}",
-		ProducesMediaTypes: []string{"application/json"},
-		ConsumesMediaTypes: []string{"application/json"},
-		Schemes:            []string{"http"},
-		Params:             params,
-		Reader:             &GetRepoByNamePoolReader{formats: a.formats},
-		AuthInfo:           authInfo,
-		Context:            params.Context,
-		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
-	if err != nil {
-		return nil, err
-	}
-	success, ok := result.(*GetRepoByNamePoolOK)
-	if ok {
-		return success, nil
-	}
-	// unexpected success response
-	unexpectedSuccess := result.(*GetRepoByNamePoolDefault)
-	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
-}
-
-/*
-GetRepoByNameWebhookInfo gets information about the g a r m installed webhook on a repository
-*/
-func (a *Client) GetRepoByNameWebhookInfo(params *GetRepoByNameWebhookInfoParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetRepoByNameWebhookInfoOK, error) {
-	// TODO: Validate the params before sending
-	if params == nil {
-		params = NewGetRepoByNameWebhookInfoParams()
-	}
-	op := &runtime.ClientOperation{
-		ID:                 "GetRepoByNameWebhookInfo",
-		Method:             "GET",
-		PathPattern:        "/repositories/{owner}/{repo}/webhook",
-		ProducesMediaTypes: []string{"application/json"},
-		ConsumesMediaTypes: []string{"application/json"},
-		Schemes:            []string{"http"},
-		Params:             params,
-		Reader:             &GetRepoByNameWebhookInfoReader{formats: a.formats},
-		AuthInfo:           authInfo,
-		Context:            params.Context,
-		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
-	if err != nil {
-		return nil, err
-	}
-	success, ok := result.(*GetRepoByNameWebhookInfoOK)
-	if ok {
-		return success, nil
-	}
-	// unexpected success response
-	unexpectedSuccess := result.(*GetRepoByNameWebhookInfoDefault)
+	unexpectedSuccess := result.(*GetRepoByFriendlyNameDefault)
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -626,6 +550,44 @@ func (a *Client) GetRepoPool(params *GetRepoPoolParams, authInfo runtime.ClientA
 }
 
 /*
+GetRepoPoolByFriendlyName gets repository pool by ID
+*/
+func (a *Client) GetRepoPoolByFriendlyName(params *GetRepoPoolByFriendlyNameParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetRepoPoolByFriendlyNameOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewGetRepoPoolByFriendlyNameParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "GetRepoPoolByFriendlyName",
+		Method:             "GET",
+		PathPattern:        "/repositories/{owner}/{repo}/pools/{poolID}",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &GetRepoPoolByFriendlyNameReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*GetRepoPoolByFriendlyNameOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*GetRepoPoolByFriendlyNameDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
 GetRepoWebhookInfo gets information about the g a r m installed webhook on a repository
 */
 func (a *Client) GetRepoWebhookInfo(params *GetRepoWebhookInfoParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetRepoWebhookInfoOK, error) {
@@ -664,24 +626,22 @@ func (a *Client) GetRepoWebhookInfo(params *GetRepoWebhookInfoParams, authInfo r
 }
 
 /*
-	InstallRepoByNameWebhook Install the GARM webhook for an organization. The secret configured on the organization will
-
-be used to validate the requests.
+GetRepoWebhookInfoByFriendlyName gets information about the g a r m installed webhook on a repository
 */
-func (a *Client) InstallRepoByNameWebhook(params *InstallRepoByNameWebhookParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*InstallRepoByNameWebhookOK, error) {
+func (a *Client) GetRepoWebhookInfoByFriendlyName(params *GetRepoWebhookInfoByFriendlyNameParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetRepoWebhookInfoByFriendlyNameOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
-		params = NewInstallRepoByNameWebhookParams()
+		params = NewGetRepoWebhookInfoByFriendlyNameParams()
 	}
 	op := &runtime.ClientOperation{
-		ID:                 "InstallRepoByNameWebhook",
-		Method:             "POST",
+		ID:                 "GetRepoWebhookInfoByFriendlyName",
+		Method:             "GET",
 		PathPattern:        "/repositories/{owner}/{repo}/webhook",
 		ProducesMediaTypes: []string{"application/json"},
 		ConsumesMediaTypes: []string{"application/json"},
 		Schemes:            []string{"http"},
 		Params:             params,
-		Reader:             &InstallRepoByNameWebhookReader{formats: a.formats},
+		Reader:             &GetRepoWebhookInfoByFriendlyNameReader{formats: a.formats},
 		AuthInfo:           authInfo,
 		Context:            params.Context,
 		Client:             params.HTTPClient,
@@ -694,12 +654,12 @@ func (a *Client) InstallRepoByNameWebhook(params *InstallRepoByNameWebhookParams
 	if err != nil {
 		return nil, err
 	}
-	success, ok := result.(*InstallRepoByNameWebhookOK)
+	success, ok := result.(*GetRepoWebhookInfoByFriendlyNameOK)
 	if ok {
 		return success, nil
 	}
 	// unexpected success response
-	unexpectedSuccess := result.(*InstallRepoByNameWebhookDefault)
+	unexpectedSuccess := result.(*GetRepoWebhookInfoByFriendlyNameDefault)
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -744,22 +704,24 @@ func (a *Client) InstallRepoWebhook(params *InstallRepoWebhookParams, authInfo r
 }
 
 /*
-ListRepoByNameInstances lists repository instances
+	InstallRepoWebhookByFriendlyName Install the GARM webhook for an organization. The secret configured on the organization will
+
+be used to validate the requests.
 */
-func (a *Client) ListRepoByNameInstances(params *ListRepoByNameInstancesParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListRepoByNameInstancesOK, error) {
+func (a *Client) InstallRepoWebhookByFriendlyName(params *InstallRepoWebhookByFriendlyNameParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*InstallRepoWebhookByFriendlyNameOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
-		params = NewListRepoByNameInstancesParams()
+		params = NewInstallRepoWebhookByFriendlyNameParams()
 	}
 	op := &runtime.ClientOperation{
-		ID:                 "ListRepoByNameInstances",
-		Method:             "GET",
-		PathPattern:        "/repositories/{owner}/{repo}/instances",
+		ID:                 "InstallRepoWebhookByFriendlyName",
+		Method:             "POST",
+		PathPattern:        "/repositories/{owner}/{repo}/webhook",
 		ProducesMediaTypes: []string{"application/json"},
 		ConsumesMediaTypes: []string{"application/json"},
 		Schemes:            []string{"http"},
 		Params:             params,
-		Reader:             &ListRepoByNameInstancesReader{formats: a.formats},
+		Reader:             &InstallRepoWebhookByFriendlyNameReader{formats: a.formats},
 		AuthInfo:           authInfo,
 		Context:            params.Context,
 		Client:             params.HTTPClient,
@@ -772,88 +734,12 @@ func (a *Client) ListRepoByNameInstances(params *ListRepoByNameInstancesParams, 
 	if err != nil {
 		return nil, err
 	}
-	success, ok := result.(*ListRepoByNameInstancesOK)
+	success, ok := result.(*InstallRepoWebhookByFriendlyNameOK)
 	if ok {
 		return success, nil
 	}
 	// unexpected success response
-	unexpectedSuccess := result.(*ListRepoByNameInstancesDefault)
-	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
-}
-
-/*
-ListRepoByNamePools lists repository pools
-*/
-func (a *Client) ListRepoByNamePools(params *ListRepoByNamePoolsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListRepoByNamePoolsOK, error) {
-	// TODO: Validate the params before sending
-	if params == nil {
-		params = NewListRepoByNamePoolsParams()
-	}
-	op := &runtime.ClientOperation{
-		ID:                 "ListRepoByNamePools",
-		Method:             "GET",
-		PathPattern:        "/repositories/{owner}/{repo}/pools",
-		ProducesMediaTypes: []string{"application/json"},
-		ConsumesMediaTypes: []string{"application/json"},
-		Schemes:            []string{"http"},
-		Params:             params,
-		Reader:             &ListRepoByNamePoolsReader{formats: a.formats},
-		AuthInfo:           authInfo,
-		Context:            params.Context,
-		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
-	if err != nil {
-		return nil, err
-	}
-	success, ok := result.(*ListRepoByNamePoolsOK)
-	if ok {
-		return success, nil
-	}
-	// unexpected success response
-	unexpectedSuccess := result.(*ListRepoByNamePoolsDefault)
-	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
-}
-
-/*
-ListRepoByNameScaleSets lists repository scale sets
-*/
-func (a *Client) ListRepoByNameScaleSets(params *ListRepoByNameScaleSetsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListRepoByNameScaleSetsOK, error) {
-	// TODO: Validate the params before sending
-	if params == nil {
-		params = NewListRepoByNameScaleSetsParams()
-	}
-	op := &runtime.ClientOperation{
-		ID:                 "ListRepoByNameScaleSets",
-		Method:             "GET",
-		PathPattern:        "/repositories/{owner}/{repo}/scalesets",
-		ProducesMediaTypes: []string{"application/json"},
-		ConsumesMediaTypes: []string{"application/json"},
-		Schemes:            []string{"http"},
-		Params:             params,
-		Reader:             &ListRepoByNameScaleSetsReader{formats: a.formats},
-		AuthInfo:           authInfo,
-		Context:            params.Context,
-		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
-	if err != nil {
-		return nil, err
-	}
-	success, ok := result.(*ListRepoByNameScaleSetsOK)
-	if ok {
-		return success, nil
-	}
-	// unexpected success response
-	unexpectedSuccess := result.(*ListRepoByNameScaleSetsDefault)
+	unexpectedSuccess := result.(*InstallRepoWebhookByFriendlyNameDefault)
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -896,6 +782,44 @@ func (a *Client) ListRepoInstances(params *ListRepoInstancesParams, authInfo run
 }
 
 /*
+ListRepoInstancesByFriendlyName lists repository instances
+*/
+func (a *Client) ListRepoInstancesByFriendlyName(params *ListRepoInstancesByFriendlyNameParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListRepoInstancesByFriendlyNameOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewListRepoInstancesByFriendlyNameParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "ListRepoInstancesByFriendlyName",
+		Method:             "GET",
+		PathPattern:        "/repositories/{owner}/{repo}/instances",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &ListRepoInstancesByFriendlyNameReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*ListRepoInstancesByFriendlyNameOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*ListRepoInstancesByFriendlyNameDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
 ListRepoPools lists repository pools
 */
 func (a *Client) ListRepoPools(params *ListRepoPoolsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListRepoPoolsOK, error) {
@@ -930,6 +854,44 @@ func (a *Client) ListRepoPools(params *ListRepoPoolsParams, authInfo runtime.Cli
 	}
 	// unexpected success response
 	unexpectedSuccess := result.(*ListRepoPoolsDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+ListRepoPoolsByFriendlyName lists repository pools
+*/
+func (a *Client) ListRepoPoolsByFriendlyName(params *ListRepoPoolsByFriendlyNameParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListRepoPoolsByFriendlyNameOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewListRepoPoolsByFriendlyNameParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "ListRepoPoolsByFriendlyName",
+		Method:             "GET",
+		PathPattern:        "/repositories/{owner}/{repo}/pools",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &ListRepoPoolsByFriendlyNameReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*ListRepoPoolsByFriendlyNameOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*ListRepoPoolsByFriendlyNameDefault)
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -972,6 +934,44 @@ func (a *Client) ListRepoScaleSets(params *ListRepoScaleSetsParams, authInfo run
 }
 
 /*
+ListRepoScaleSetsByFriendlyName lists repository scale sets
+*/
+func (a *Client) ListRepoScaleSetsByFriendlyName(params *ListRepoScaleSetsByFriendlyNameParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListRepoScaleSetsByFriendlyNameOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewListRepoScaleSetsByFriendlyNameParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "ListRepoScaleSetsByFriendlyName",
+		Method:             "GET",
+		PathPattern:        "/repositories/{owner}/{repo}/scalesets",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &ListRepoScaleSetsByFriendlyNameReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*ListRepoScaleSetsByFriendlyNameOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*ListRepoScaleSetsByFriendlyNameDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
 ListRepos lists repositories
 */
 func (a *Client) ListRepos(params *ListReposParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListReposOK, error) {
@@ -1010,38 +1010,6 @@ func (a *Client) ListRepos(params *ListReposParams, authInfo runtime.ClientAuthI
 }
 
 /*
-UninstallRepoByNameWebhook uninstalls organization webhook
-*/
-func (a *Client) UninstallRepoByNameWebhook(params *UninstallRepoByNameWebhookParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error {
-	// TODO: Validate the params before sending
-	if params == nil {
-		params = NewUninstallRepoByNameWebhookParams()
-	}
-	op := &runtime.ClientOperation{
-		ID:                 "UninstallRepoByNameWebhook",
-		Method:             "DELETE",
-		PathPattern:        "/repositories/{owner}/{repo}/webhook",
-		ProducesMediaTypes: []string{"application/json"},
-		ConsumesMediaTypes: []string{"application/json"},
-		Schemes:            []string{"http"},
-		Params:             params,
-		Reader:             &UninstallRepoByNameWebhookReader{formats: a.formats},
-		AuthInfo:           authInfo,
-		Context:            params.Context,
-		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	_, err := a.transport.Submit(op)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-/*
 UninstallRepoWebhook uninstalls organization webhook
 */
 func (a *Client) UninstallRepoWebhook(params *UninstallRepoWebhookParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error {
@@ -1058,6 +1026,38 @@ func (a *Client) UninstallRepoWebhook(params *UninstallRepoWebhookParams, authIn
 		Schemes:            []string{"http"},
 		Params:             params,
 		Reader:             &UninstallRepoWebhookReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	_, err := a.transport.Submit(op)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+/*
+UninstallRepoWebhookByFriendlyName uninstalls organization webhook
+*/
+func (a *Client) UninstallRepoWebhookByFriendlyName(params *UninstallRepoWebhookByFriendlyNameParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewUninstallRepoWebhookByFriendlyNameParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "UninstallRepoWebhookByFriendlyName",
+		Method:             "DELETE",
+		PathPattern:        "/repositories/{owner}/{repo}/webhook",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &UninstallRepoWebhookByFriendlyNameReader{formats: a.formats},
 		AuthInfo:           authInfo,
 		Context:            params.Context,
 		Client:             params.HTTPClient,
@@ -1112,22 +1112,22 @@ func (a *Client) UpdateRepo(params *UpdateRepoParams, authInfo runtime.ClientAut
 }
 
 /*
-UpdateRepoByName updates repository with the parameters given
+UpdateRepoByFriendlyName updates repository with the parameters given
 */
-func (a *Client) UpdateRepoByName(params *UpdateRepoByNameParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateRepoByNameOK, error) {
+func (a *Client) UpdateRepoByFriendlyName(params *UpdateRepoByFriendlyNameParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateRepoByFriendlyNameOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
-		params = NewUpdateRepoByNameParams()
+		params = NewUpdateRepoByFriendlyNameParams()
 	}
 	op := &runtime.ClientOperation{
-		ID:                 "UpdateRepoByName",
+		ID:                 "UpdateRepoByFriendlyName",
 		Method:             "PUT",
 		PathPattern:        "/repositories/{owner}/{repo}",
 		ProducesMediaTypes: []string{"application/json"},
 		ConsumesMediaTypes: []string{"application/json"},
 		Schemes:            []string{"http"},
 		Params:             params,
-		Reader:             &UpdateRepoByNameReader{formats: a.formats},
+		Reader:             &UpdateRepoByFriendlyNameReader{formats: a.formats},
 		AuthInfo:           authInfo,
 		Context:            params.Context,
 		Client:             params.HTTPClient,
@@ -1140,50 +1140,12 @@ func (a *Client) UpdateRepoByName(params *UpdateRepoByNameParams, authInfo runti
 	if err != nil {
 		return nil, err
 	}
-	success, ok := result.(*UpdateRepoByNameOK)
+	success, ok := result.(*UpdateRepoByFriendlyNameOK)
 	if ok {
 		return success, nil
 	}
 	// unexpected success response
-	unexpectedSuccess := result.(*UpdateRepoByNameDefault)
-	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
-}
-
-/*
-UpdateRepoByNamePool updates repository pool with the parameters given
-*/
-func (a *Client) UpdateRepoByNamePool(params *UpdateRepoByNamePoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateRepoByNamePoolOK, error) {
-	// TODO: Validate the params before sending
-	if params == nil {
-		params = NewUpdateRepoByNamePoolParams()
-	}
-	op := &runtime.ClientOperation{
-		ID:                 "UpdateRepoByNamePool",
-		Method:             "PUT",
-		PathPattern:        "/repositories/{owner}{repo}/pools/{poolID}",
-		ProducesMediaTypes: []string{"application/json"},
-		ConsumesMediaTypes: []string{"application/json"},
-		Schemes:            []string{"http"},
-		Params:             params,
-		Reader:             &UpdateRepoByNamePoolReader{formats: a.formats},
-		AuthInfo:           authInfo,
-		Context:            params.Context,
-		Client:             params.HTTPClient,
-	}
-	for _, opt := range opts {
-		opt(op)
-	}
-
-	result, err := a.transport.Submit(op)
-	if err != nil {
-		return nil, err
-	}
-	success, ok := result.(*UpdateRepoByNamePoolOK)
-	if ok {
-		return success, nil
-	}
-	// unexpected success response
-	unexpectedSuccess := result.(*UpdateRepoByNamePoolDefault)
+	unexpectedSuccess := result.(*UpdateRepoByFriendlyNameDefault)
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -1222,6 +1184,44 @@ func (a *Client) UpdateRepoPool(params *UpdateRepoPoolParams, authInfo runtime.C
 	}
 	// unexpected success response
 	unexpectedSuccess := result.(*UpdateRepoPoolDefault)
+	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+UpdateRepoPoolByFriendlyName updates repository pool with the parameters given
+*/
+func (a *Client) UpdateRepoPoolByFriendlyName(params *UpdateRepoPoolByFriendlyNameParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateRepoPoolByFriendlyNameOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewUpdateRepoPoolByFriendlyNameParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "UpdateRepoPoolByFriendlyName",
+		Method:             "PUT",
+		PathPattern:        "/repositories/{owner}{repo}/pools/{poolID}",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &UpdateRepoPoolByFriendlyNameReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*UpdateRepoPoolByFriendlyNameOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	unexpectedSuccess := result.(*UpdateRepoPoolByFriendlyNameDefault)
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 

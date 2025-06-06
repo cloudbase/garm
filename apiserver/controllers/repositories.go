@@ -723,7 +723,7 @@ func (a *APIController) GetRepoWebhookInfoHandler(w http.ResponseWriter, r *http
 	}
 }
 
-// swagger:route GET /repositories/{owner}/{repo} Repositories GetRepoByName
+// swagger:route GET /repositories/{owner}/{repo} Repositories GetRepoByFriendlyName
 //
 // Get repository by name.
 //
@@ -748,7 +748,7 @@ func (a *APIController) GetRepoWebhookInfoHandler(w http.ResponseWriter, r *http
 //	Responses:
 //	  200: Repository
 //	  default: APIErrorResponse
-func (a *APIController) GetRepoByNameHandler(w http.ResponseWriter, r *http.Request) {
+func (a *APIController) GetRepoByFriendlyNameHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	repo, ok := a.GetRepository(w, r)
@@ -762,7 +762,7 @@ func (a *APIController) GetRepoByNameHandler(w http.ResponseWriter, r *http.Requ
 	}
 }
 
-// swagger:route DELETE /repositories/{owner}/{repo} Repositories DeleteRepoByName
+// swagger:route DELETE /repositories/{owner}/{repo} Repositories DeleteRepoByFriendlyName
 //
 // Delete repository by ID.
 //
@@ -792,7 +792,7 @@ func (a *APIController) GetRepoByNameHandler(w http.ResponseWriter, r *http.Requ
 //
 //	Responses:
 //	  default: APIErrorResponse
-func (a *APIController) DeleteRepoByNameHandler(w http.ResponseWriter, r *http.Request) {
+func (a *APIController) DeleteRepoByFriendlyNameHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	repoID, ok := a.GetRepositoryID(w, r)
@@ -811,7 +811,7 @@ func (a *APIController) DeleteRepoByNameHandler(w http.ResponseWriter, r *http.R
 	w.WriteHeader(http.StatusOK)
 }
 
-// swagger:route PUT /repositories/{owner}/{repo} Repositories UpdateRepoByName
+// swagger:route PUT /repositories/{owner}/{repo} Repositories UpdateRepoByFriendlyName
 //
 // Update repository with the parameters given.
 //
@@ -842,7 +842,7 @@ func (a *APIController) DeleteRepoByNameHandler(w http.ResponseWriter, r *http.R
 //	Responses:
 //	  200: Repository
 //	  default: APIErrorResponse
-func (a *APIController) UpdateRepoByNameHandler(w http.ResponseWriter, r *http.Request) {
+func (a *APIController) UpdateRepoByFriendlyNameHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	var updatePayload runnerParams.UpdateEntityParams
@@ -869,7 +869,7 @@ func (a *APIController) UpdateRepoByNameHandler(w http.ResponseWriter, r *http.R
 	}
 }
 
-// swagger:route POST /repositories/{owner}/{repo}/pools Repositories pools CreateRepoByNamePool
+// swagger:route POST /repositories/{owner}/{repo}/pools Repositories pools CreateRepoPoolByFriendlyName
 //
 // Create repository pool with the parameters given.
 //
@@ -900,7 +900,7 @@ func (a *APIController) UpdateRepoByNameHandler(w http.ResponseWriter, r *http.R
 //	Responses:
 //	  200: Pool
 //	  default: APIErrorResponse
-func (a *APIController) CreateRepoByNamePoolHandler(w http.ResponseWriter, r *http.Request) {
+func (a *APIController) CreateRepoPoolByFriendlyNameHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	var poolData runnerParams.CreatePoolParams
@@ -928,7 +928,7 @@ func (a *APIController) CreateRepoByNamePoolHandler(w http.ResponseWriter, r *ht
 	}
 }
 
-// swagger:route POST /repositories/{owner}/{repo}/scalesets Repositories scalesets CreateRepoByNameScaleSet
+// swagger:route POST /repositories/{owner}/{repo}/scalesets Repositories scalesets CreateRepoScaleSetByFriendlyName
 //
 // Create repository scale set with the parameters given.
 //
@@ -959,7 +959,7 @@ func (a *APIController) CreateRepoByNamePoolHandler(w http.ResponseWriter, r *ht
 //	Responses:
 //	  200: ScaleSet
 //	  default: APIErrorResponse
-func (a *APIController) CreateRepoByNameScaleSetHandler(w http.ResponseWriter, r *http.Request) {
+func (a *APIController) CreateRepoScaleSetByFriendlyNameHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	var scaleSetData runnerParams.CreateScaleSetParams
@@ -987,7 +987,7 @@ func (a *APIController) CreateRepoByNameScaleSetHandler(w http.ResponseWriter, r
 	}
 }
 
-// swagger:route GET /repositories/{owner}/{repo}/pools Repositories pools ListRepoByNamePools
+// swagger:route GET /repositories/{owner}/{repo}/pools Repositories pools ListRepoPoolsByFriendlyName
 //
 // List repository pools.
 //
@@ -1012,7 +1012,7 @@ func (a *APIController) CreateRepoByNameScaleSetHandler(w http.ResponseWriter, r
 //	Responses:
 //	  200: Pools
 //	  default: APIErrorResponse
-func (a *APIController) ListRepoByNamePoolsHandler(w http.ResponseWriter, r *http.Request) {
+func (a *APIController) ListRepoPoolsByFriendlyNameHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	repo, ok := a.GetRepository(w, r)
@@ -1033,7 +1033,7 @@ func (a *APIController) ListRepoByNamePoolsHandler(w http.ResponseWriter, r *htt
 	}
 }
 
-// swagger:route GET /repositories/{owner}/{repo}/scalesets Repositories scalesets ListRepoByNameScaleSets
+// swagger:route GET /repositories/{owner}/{repo}/scalesets Repositories scalesets ListRepoScaleSetsByFriendlyName
 //
 // List repository scale sets.
 //
@@ -1058,7 +1058,7 @@ func (a *APIController) ListRepoByNamePoolsHandler(w http.ResponseWriter, r *htt
 //	Responses:
 //	  200: ScaleSets
 //	  default: APIErrorResponse
-func (a *APIController) ListRepoByNameScaleSetsHandler(w http.ResponseWriter, r *http.Request) {
+func (a *APIController) ListRepoScaleSetsByFriendlyNameHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	repo, ok := a.GetRepository(w, r)
@@ -1079,7 +1079,7 @@ func (a *APIController) ListRepoByNameScaleSetsHandler(w http.ResponseWriter, r 
 	}
 }
 
-// swagger:route GET /repositories/{owner}/{repo}/pools/{poolID} Repositories pools GetRepoByNamePool
+// swagger:route GET /repositories/{owner}/{repo}/pools/{poolID} Repositories pools GetRepoPoolByFriendlyName
 //
 // Get repository pool by ID.
 //
@@ -1110,7 +1110,7 @@ func (a *APIController) ListRepoByNameScaleSetsHandler(w http.ResponseWriter, r 
 //	Responses:
 //	  200: Pool
 //	  default: APIErrorResponse
-func (a *APIController) GetRepoByNamePoolHandler(w http.ResponseWriter, r *http.Request) {
+func (a *APIController) GetRepoPoolByFriendlyNameHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	vars := mux.Vars(r)
 	poolID, poolOk := vars["poolID"]
@@ -1143,7 +1143,7 @@ func (a *APIController) GetRepoByNamePoolHandler(w http.ResponseWriter, r *http.
 	}
 }
 
-// swagger:route DELETE /repositories/{owner}/{repo}/pools/{poolID} Repositories pools DeleteRepoByNamePool
+// swagger:route DELETE /repositories/{owner}/{repo}/pools/{poolID} Repositories pools DeleteRepoPoolByFriendlyName
 //
 // Delete repository pool by ID.
 //
@@ -1173,7 +1173,7 @@ func (a *APIController) GetRepoByNamePoolHandler(w http.ResponseWriter, r *http.
 //
 //	Responses:
 //	  default: APIErrorResponse
-func (a *APIController) DeleteRepoByNamePoolHandler(w http.ResponseWriter, r *http.Request) {
+func (a *APIController) DeleteRepoPoolByFriendlyNameHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	vars := mux.Vars(r)
@@ -1204,7 +1204,7 @@ func (a *APIController) DeleteRepoByNamePoolHandler(w http.ResponseWriter, r *ht
 	w.WriteHeader(http.StatusOK)
 }
 
-// swagger:route PUT /repositories/{owner}{repo}/pools/{poolID} repositories pools UpdateRepoByNamePool
+// swagger:route PUT /repositories/{owner}{repo}/pools/{poolID} repositories pools UpdateRepoPoolByFriendlyName
 //
 // Update repository pool with the parameters given.
 //
@@ -1241,7 +1241,7 @@ func (a *APIController) DeleteRepoByNamePoolHandler(w http.ResponseWriter, r *ht
 //	Responses:
 //	  200: Pool
 //	  default: APIErrorResponse
-func (a *APIController) UpdateRepoByNamePoolHandler(w http.ResponseWriter, r *http.Request) {
+func (a *APIController) UpdateRepoPoolByFriendlyNameHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	vars := mux.Vars(r)
@@ -1282,7 +1282,7 @@ func (a *APIController) UpdateRepoByNamePoolHandler(w http.ResponseWriter, r *ht
 	}
 }
 
-// swagger:route POST /repositories/{owner}/{repo}/webhook Repositories hooks InstallRepoByNameWebhook
+// swagger:route POST /repositories/{owner}/{repo}/webhook Repositories hooks InstallRepoWebhookByFriendlyName
 //
 // Install the GARM webhook for an organization. The secret configured on the organization will
 // be used to validate the requests.
@@ -1314,7 +1314,7 @@ func (a *APIController) UpdateRepoByNamePoolHandler(w http.ResponseWriter, r *ht
 //	Responses:
 //	  200: HookInfo
 //	  default: APIErrorResponse
-func (a *APIController) InstallRepoByNameWebhookHandler(w http.ResponseWriter, r *http.Request) {
+func (a *APIController) InstallRepoWebhookByFriendlyNameHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	var hookParam runnerParams.InstallWebhookParams
@@ -1342,7 +1342,7 @@ func (a *APIController) InstallRepoByNameWebhookHandler(w http.ResponseWriter, r
 	}
 }
 
-// swagger:route DELETE /repositories/{owner}/{repo}/webhook Repositories hooks UninstallRepoByNameWebhook
+// swagger:route DELETE /repositories/{owner}/{repo}/webhook Repositories hooks UninstallRepoWebhookByFriendlyName
 //
 // Uninstall organization webhook.
 //
@@ -1366,7 +1366,7 @@ func (a *APIController) InstallRepoByNameWebhookHandler(w http.ResponseWriter, r
 //
 //	Responses:
 //	  default: APIErrorResponse
-func (a *APIController) UninstallRepoByNameWebhookHandler(w http.ResponseWriter, r *http.Request) {
+func (a *APIController) UninstallRepoWebhookByFriendlyNameHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	repo, ok := a.GetRepository(w, r)
@@ -1384,7 +1384,7 @@ func (a *APIController) UninstallRepoByNameWebhookHandler(w http.ResponseWriter,
 	w.WriteHeader(http.StatusOK)
 }
 
-// swagger:route GET /repositories/{owner}/{repo}/webhook Repositories hooks GetRepoByNameWebhookInfo
+// swagger:route GET /repositories/{owner}/{repo}/webhook Repositories hooks GetRepoWebhookInfoByFriendlyName
 //
 // Get information about the GARM installed webhook on a repository.
 //
@@ -1409,7 +1409,7 @@ func (a *APIController) UninstallRepoByNameWebhookHandler(w http.ResponseWriter,
 //	Responses:
 //	  200: HookInfo
 //	  default: APIErrorResponse
-func (a *APIController) GetRepoByNameWebhookInfoHandler(w http.ResponseWriter, r *http.Request) {
+func (a *APIController) GetRepoWebhookInfoByFriendlyNameHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	repo, ok := a.GetRepository(w, r)

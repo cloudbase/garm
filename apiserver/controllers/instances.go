@@ -254,7 +254,7 @@ func (a *APIController) ListRepoInstancesHandler(w http.ResponseWriter, r *http.
 	}
 }
 
-// swagger:route GET /repositories/{owner}/{repo}/instances repositories instances ListRepoByNameInstances
+// swagger:route GET /repositories/{owner}/{repo}/instances repositories instances ListRepoInstancesByFriendlyName
 //
 // List repository instances.
 //
@@ -279,7 +279,7 @@ func (a *APIController) ListRepoInstancesHandler(w http.ResponseWriter, r *http.
 //	Responses:
 //	  200: Instances
 //	  default: APIErrorResponse
-func (a *APIController) ListRepoByNameInstancesHandler(w http.ResponseWriter, r *http.Request) {
+func (a *APIController) ListRepoInstancesByFriendlyNameHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	repoID, ok := a.GetRepositoryID(w, r)
