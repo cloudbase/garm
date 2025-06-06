@@ -277,25 +277,37 @@ func NewAPIRouter(han *controllers.APIController, authMiddleware, initMiddleware
 
 	// Create scale set
 	apiRouter.Handle("/repositories/{repoID}/scalesets/", http.HandlerFunc(han.CreateRepoScaleSetHandler)).Methods("POST", "OPTIONS")
+	apiRouter.Handle("/repositories/{owner}/{repo}/scalesets/", http.HandlerFunc(han.CreateRepoByNameScaleSetHandler)).Methods("POST", "OPTIONS")
 	apiRouter.Handle("/repositories/{repoID}/scalesets", http.HandlerFunc(han.CreateRepoScaleSetHandler)).Methods("POST", "OPTIONS")
+	apiRouter.Handle("/repositories/{owner}/{repo}/scalesets", http.HandlerFunc(han.CreateRepoByNameScaleSetHandler)).Methods("POST", "OPTIONS")
 
 	// List scale sets
 	apiRouter.Handle("/repositories/{repoID}/scalesets/", http.HandlerFunc(han.ListRepoScaleSetsHandler)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/repositories/{owner}/{repo}/scalesets/", http.HandlerFunc(han.ListRepoByNameScaleSetsHandler)).Methods("GET", "OPTIONS")
 	apiRouter.Handle("/repositories/{repoID}/scalesets", http.HandlerFunc(han.ListRepoScaleSetsHandler)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/repositories/{owner}/{repo}/scalesets", http.HandlerFunc(han.ListRepoByNameScaleSetsHandler)).Methods("GET", "OPTIONS")
 
 	// Repo instances list
 	apiRouter.Handle("/repositories/{repoID}/instances/", http.HandlerFunc(han.ListRepoInstancesHandler)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/repositories/{owner}/{repo}/instances/", http.HandlerFunc(han.ListRepoByNameInstancesHandler)).Methods("GET", "OPTIONS")
 	apiRouter.Handle("/repositories/{repoID}/instances", http.HandlerFunc(han.ListRepoInstancesHandler)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/repositories/{owner}/{repo}/instances", http.HandlerFunc(han.ListRepoByNameInstancesHandler)).Methods("GET", "OPTIONS")
 
 	// Get repo
-	apiRouter.Handle("/repositories/{repoID}/", http.HandlerFunc(han.GetRepoByIDHandler)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/repositories/{repoID}/", http.HandlerFunc(han.GetRepoByNameHandler)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/repositories/{owner}/{repo}/", http.HandlerFunc(han.GetRepoByIDHandler)).Methods("GET", "OPTIONS")
 	apiRouter.Handle("/repositories/{repoID}", http.HandlerFunc(han.GetRepoByIDHandler)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/repositories/{owner}/{repo}", http.HandlerFunc(han.GetRepoByNameHandler)).Methods("GET", "OPTIONS")
 	// Update repo
 	apiRouter.Handle("/repositories/{repoID}/", http.HandlerFunc(han.UpdateRepoHandler)).Methods("PUT", "OPTIONS")
+	apiRouter.Handle("/repositories/{owner}/{repo}/", http.HandlerFunc(han.UpdateRepoByNameHandler)).Methods("PUT", "OPTIONS")
 	apiRouter.Handle("/repositories/{repoID}", http.HandlerFunc(han.UpdateRepoHandler)).Methods("PUT", "OPTIONS")
+	apiRouter.Handle("/repositories/{owner}/{repo}", http.HandlerFunc(han.UpdateRepoByNameHandler)).Methods("PUT", "OPTIONS")
 	// Delete repo
 	apiRouter.Handle("/repositories/{repoID}/", http.HandlerFunc(han.DeleteRepoHandler)).Methods("DELETE", "OPTIONS")
+	apiRouter.Handle("/repositories/{owner}/{repo}/", http.HandlerFunc(han.DeleteRepoByNameHandler)).Methods("DELETE", "OPTIONS")
 	apiRouter.Handle("/repositories/{repoID}", http.HandlerFunc(han.DeleteRepoHandler)).Methods("DELETE", "OPTIONS")
+	apiRouter.Handle("/repositories/{owner}/{repo}", http.HandlerFunc(han.DeleteRepoByNameHandler)).Methods("DELETE", "OPTIONS")
 	// List repos
 	apiRouter.Handle("/repositories/", http.HandlerFunc(han.ListReposHandler)).Methods("GET", "OPTIONS")
 	apiRouter.Handle("/repositories", http.HandlerFunc(han.ListReposHandler)).Methods("GET", "OPTIONS")
