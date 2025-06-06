@@ -31,7 +31,7 @@ require (
 	golang.org/x/crypto v0.38.0
 	golang.org/x/mod v0.24.0
 	golang.org/x/oauth2 v0.30.0
-	golang.org/x/sync v0.14.0
+	golang.org/x/sync v0.15.0
 	gopkg.in/DATA-DOG/go-sqlmock.v1 v1.3.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gorm.io/datatypes v1.2.5
