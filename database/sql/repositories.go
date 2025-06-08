@@ -248,21 +248,23 @@ func (s *sqlDatabase) getRepo(_ context.Context, owner, name, endpointName strin
 		Preload("GiteaCredentials.Endpoint").
 		Preload("Endpoint")
 
-	q = q.First(&repo)
-
 	if endpointName == "" && q.Error == nil {
 		var cnt int64
 		q = q.Count(&cnt)
 
+		if q.Error != nil {
+			return Repository{}, errors.Wrap(q.Error, "fetching repository from database")
+		}
 		if cnt > 1 {
 			return Repository{}, errors.Wrap(runnerErrors.ErrBadRequest, "multiple repositories with the same name and owner found")
+		} else if cnt == 0 {
+			return Repository{}, runnerErrors.ErrNotFound
 		}
 	}
 
+	q = q.First(&repo)
+
 	if q.Error != nil {
-		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
-			return Repository{}, runnerErrors.ErrNotFound
-		}
 		return Repository{}, errors.Wrap(q.Error, "fetching repository from database")
 	}
 	return repo, nil
