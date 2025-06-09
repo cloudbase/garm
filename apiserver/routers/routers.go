@@ -293,6 +293,24 @@ func NewAPIRouter(han *controllers.APIController, authMiddleware, initMiddleware
 	apiRouter.Handle("/repositories/{repoID}/instances", http.HandlerFunc(han.ListRepoInstancesHandler)).Methods("GET", "OPTIONS")
 	apiRouter.Handle("/repositories/{owner}/{repo}/instances", http.HandlerFunc(han.ListRepoInstancesByFriendlyNameHandler)).Methods("GET", "OPTIONS")
 
+	if manageWebhooks {
+		// Install Webhook
+		apiRouter.Handle("/repositories/{repoID}/webhook/", http.HandlerFunc(han.InstallRepoWebhookHandler)).Methods("POST", "OPTIONS")
+		apiRouter.Handle("/repositories/{owner}/{repo}/webhook/", http.HandlerFunc(han.InstallRepoWebhookByFriendlyNameHandler)).Methods("POST", "OPTIONS")
+		apiRouter.Handle("/repositories/{repoID}/webhook", http.HandlerFunc(han.InstallRepoWebhookHandler)).Methods("POST", "OPTIONS")
+		apiRouter.Handle("/repositories/{owner}/{repo}/webhook", http.HandlerFunc(han.InstallRepoWebhookByFriendlyNameHandler)).Methods("POST", "OPTIONS")
+		// Uninstall Webhook
+		apiRouter.Handle("/repositories/{repoID}/webhook/", http.HandlerFunc(han.UninstallRepoWebhookHandler)).Methods("DELETE", "OPTIONS")
+		apiRouter.Handle("/repositories/{owner}/{repo}/webhook/", http.HandlerFunc(han.UninstallRepoWebhookByFriendlyNameHandler)).Methods("DELETE", "OPTIONS")
+		apiRouter.Handle("/repositories/{repoID}/webhook", http.HandlerFunc(han.UninstallRepoWebhookHandler)).Methods("DELETE", "OPTIONS")
+		apiRouter.Handle("/repositories/{owner}/{repo}/webhook", http.HandlerFunc(han.UninstallRepoWebhookByFriendlyNameHandler)).Methods("DELETE", "OPTIONS")
+		// Get webhook info
+		apiRouter.Handle("/repositories/{repoID}/webhook/", http.HandlerFunc(han.GetRepoWebhookInfoHandler)).Methods("GET", "OPTIONS")
+		apiRouter.Handle("/repositories/{owner}/{repo}/webhook/", http.HandlerFunc(han.GetRepoWebhookInfoByFriendlyNameHandler)).Methods("GET", "OPTIONS")
+		apiRouter.Handle("/repositories/{repoID}/webhook", http.HandlerFunc(han.GetRepoWebhookInfoHandler)).Methods("GET", "OPTIONS")
+		apiRouter.Handle("/repositories/{owner}/{repo}/webhook", http.HandlerFunc(han.GetRepoWebhookInfoByFriendlyNameHandler)).Methods("GET", "OPTIONS")
+	}
+
 	// Get repo
 	apiRouter.Handle("/repositories/{repoID}/", http.HandlerFunc(han.GetRepoByFriendlyNameHandler)).Methods("GET", "OPTIONS")
 	apiRouter.Handle("/repositories/{owner}/{repo}/", http.HandlerFunc(han.GetRepoByIDHandler)).Methods("GET", "OPTIONS")
@@ -315,23 +333,6 @@ func NewAPIRouter(han *controllers.APIController, authMiddleware, initMiddleware
 	apiRouter.Handle("/repositories/", http.HandlerFunc(han.CreateRepoHandler)).Methods("POST", "OPTIONS")
 	apiRouter.Handle("/repositories", http.HandlerFunc(han.CreateRepoHandler)).Methods("POST", "OPTIONS")
 
-	if manageWebhooks {
-		// Install Webhook
-		apiRouter.Handle("/repositories/{repoID}/webhook/", http.HandlerFunc(han.InstallRepoWebhookHandler)).Methods("POST", "OPTIONS")
-		apiRouter.Handle("/repositories/{owner}/{repo}/webhook/", http.HandlerFunc(han.InstallRepoWebhookByFriendlyNameHandler)).Methods("POST", "OPTIONS")
-		apiRouter.Handle("/repositories/{repoID}/webhook", http.HandlerFunc(han.InstallRepoWebhookHandler)).Methods("POST", "OPTIONS")
-		apiRouter.Handle("/repositories/{owner}/{repo}/webhook", http.HandlerFunc(han.InstallRepoWebhookByFriendlyNameHandler)).Methods("POST", "OPTIONS")
-		// Uninstall Webhook
-		apiRouter.Handle("/repositories/{repoID}/webhook/", http.HandlerFunc(han.UninstallRepoWebhookHandler)).Methods("DELETE", "OPTIONS")
-		apiRouter.Handle("/repositories/{owner}/{repo}/webhook/", http.HandlerFunc(han.UninstallRepoWebhookByFriendlyNameHandler)).Methods("DELETE", "OPTIONS")
-		apiRouter.Handle("/repositories/{repoID}/webhook", http.HandlerFunc(han.UninstallRepoWebhookHandler)).Methods("DELETE", "OPTIONS")
-		apiRouter.Handle("/repositories/{owner}/{repo}/webhook", http.HandlerFunc(han.UninstallRepoWebhookByFriendlyNameHandler)).Methods("DELETE", "OPTIONS")
-		// Get webhook info
-		apiRouter.Handle("/repositories/{repoID}/webhook/", http.HandlerFunc(han.GetRepoWebhookInfoHandler)).Methods("GET", "OPTIONS")
-		apiRouter.Handle("/repositories/{owner}/{repo}/webhook/", http.HandlerFunc(han.GetRepoWebhookInfoByFriendlyNameHandler)).Methods("GET", "OPTIONS")
-		apiRouter.Handle("/repositories/{repoID}/webhook", http.HandlerFunc(han.GetRepoWebhookInfoHandler)).Methods("GET", "OPTIONS")
-		apiRouter.Handle("/repositories/{owner}/{repo}/webhook", http.HandlerFunc(han.GetRepoWebhookInfoByFriendlyNameHandler)).Methods("GET", "OPTIONS")
-	}
 	/////////////////////////////
 	// Organizations and pools //
 	/////////////////////////////
