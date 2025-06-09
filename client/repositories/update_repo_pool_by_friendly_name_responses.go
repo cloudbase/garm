@@ -89,12 +89,12 @@ func (o *UpdateRepoPoolByFriendlyNameOK) Code() int {
 
 func (o *UpdateRepoPoolByFriendlyNameOK) Error() string {
 	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /repositories/{owner}{repo}/pools/{poolID}][%d] updateRepoPoolByFriendlyNameOK %s", 200, payload)
+	return fmt.Sprintf("[PUT /repositories/{owner}/{repo}/pools/{poolID}][%d] updateRepoPoolByFriendlyNameOK %s", 200, payload)
 }
 
 func (o *UpdateRepoPoolByFriendlyNameOK) String() string {
 	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /repositories/{owner}{repo}/pools/{poolID}][%d] updateRepoPoolByFriendlyNameOK %s", 200, payload)
+	return fmt.Sprintf("[PUT /repositories/{owner}/{repo}/pools/{poolID}][%d] updateRepoPoolByFriendlyNameOK %s", 200, payload)
 }
 
 func (o *UpdateRepoPoolByFriendlyNameOK) GetPayload() garm_params.Pool {
@@ -161,12 +161,12 @@ func (o *UpdateRepoPoolByFriendlyNameDefault) Code() int {
 
 func (o *UpdateRepoPoolByFriendlyNameDefault) Error() string {
 	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /repositories/{owner}{repo}/pools/{poolID}][%d] UpdateRepoPoolByFriendlyName default %s", o._statusCode, payload)
+	return fmt.Sprintf("[PUT /repositories/{owner}/{repo}/pools/{poolID}][%d] UpdateRepoPoolByFriendlyName default %s", o._statusCode, payload)
 }
 
 func (o *UpdateRepoPoolByFriendlyNameDefault) String() string {
 	payload, _ := json.Marshal(o.Payload)
-	return fmt.Sprintf("[PUT /repositories/{owner}{repo}/pools/{poolID}][%d] UpdateRepoPoolByFriendlyName default %s", o._statusCode, payload)
+	return fmt.Sprintf("[PUT /repositories/{owner}/{repo}/pools/{poolID}][%d] UpdateRepoPoolByFriendlyName default %s", o._statusCode, payload)
 }
 
 func (o *UpdateRepoPoolByFriendlyNameDefault) GetPayload() apiserver_params.APIErrorResponse {

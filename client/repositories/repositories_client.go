@@ -1198,7 +1198,7 @@ func (a *Client) UpdateRepoPoolByFriendlyName(params *UpdateRepoPoolByFriendlyNa
 	op := &runtime.ClientOperation{
 		ID:                 "UpdateRepoPoolByFriendlyName",
 		Method:             "PUT",
-		PathPattern:        "/repositories/{owner}{repo}/pools/{poolID}",
+		PathPattern:        "/repositories/{owner}/{repo}/pools/{poolID}",
 		ProducesMediaTypes: []string{"application/json"},
 		ConsumesMediaTypes: []string{"application/json"},
 		Schemes:            []string{"http"},

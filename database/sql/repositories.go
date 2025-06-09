@@ -250,6 +250,7 @@ func (s *sqlDatabase) getRepo(_ context.Context, owner, name, endpointName strin
 
 	if endpointName == "" && q.Error == nil {
 		var cnt int64
+		q = q.Model(&Repository{})
 		q = q.Count(&cnt)
 
 		if q.Error != nil {
@@ -265,6 +266,9 @@ func (s *sqlDatabase) getRepo(_ context.Context, owner, name, endpointName strin
 	q = q.First(&repo)
 
 	if q.Error != nil {
+		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
+			return Repository{}, runnerErrors.ErrNotFound
+		}
 		return Repository{}, errors.Wrap(q.Error, "fetching repository from database")
 	}
 	return repo, nil

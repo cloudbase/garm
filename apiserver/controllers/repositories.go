@@ -1204,7 +1204,7 @@ func (a *APIController) DeleteRepoPoolByFriendlyNameHandler(w http.ResponseWrite
 	w.WriteHeader(http.StatusOK)
 }
 
-// swagger:route PUT /repositories/{owner}{repo}/pools/{poolID} repositories pools UpdateRepoPoolByFriendlyName
+// swagger:route PUT /repositories/{owner}/{repo}/pools/{poolID} repositories pools UpdateRepoPoolByFriendlyName
 //
 // Update repository pool with the parameters given.
 //
