@@ -94,6 +94,7 @@ GARM uses providers to create runners in a particular IaaS. The providers are ex
 
 External providers are binaries that GARM calls into to create runners in a particular IaaS. There are several external providers available:
 
+* [Akamai/Linode](https://github.com/flatcar/garm-provider-linode) - Experimental
 * [Amazon EC2](https://github.com/cloudbase/garm-provider-aws)
 * [Azure](https://github.com/cloudbase/garm-provider-azure)
 * [Equinix Metal](https://github.com/cloudbase/garm-provider-equinix)
