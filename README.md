@@ -94,14 +94,14 @@ GARM uses providers to create runners in a particular IaaS. The providers are ex
 
 External providers are binaries that GARM calls into to create runners in a particular IaaS. There are several external providers available:
 
-* [OpenStack](https://github.com/cloudbase/garm-provider-openstack)
+* [Amazon EC2](https://github.com/cloudbase/garm-provider-aws)
 * [Azure](https://github.com/cloudbase/garm-provider-azure)
+* [Equinix Metal](https://github.com/cloudbase/garm-provider-equinix)
+* [Google Cloud Platform (GCP)](https://github.com/cloudbase/garm-provider-gcp)
+* [Incus](https://github.com/cloudbase/garm-provider-incus)
 * [Kubernetes](https://github.com/mercedes-benz/garm-provider-k8s) - Thanks to the amazing folks at @mercedes-benz for sharing their awesome provider!
 * [LXD](https://github.com/cloudbase/garm-provider-lxd)
-* [Incus](https://github.com/cloudbase/garm-provider-incus)
-* [Equinix Metal](https://github.com/cloudbase/garm-provider-equinix)
-* [Amazon EC2](https://github.com/cloudbase/garm-provider-aws)
-* [Google Cloud Platform (GCP)](https://github.com/cloudbase/garm-provider-gcp)
+* [OpenStack](https://github.com/cloudbase/garm-provider-openstack)
 * [Oracle Cloud Infrastructure (OCI)](https://github.com/cloudbase/garm-provider-oci)
 
 Follow the instructions in the README of each provider to install them. 
