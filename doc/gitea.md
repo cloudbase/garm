@@ -36,8 +36,6 @@ sudo iptables -I DOCKER-USER -j ACCEPT
 Create a docker compose file in `$HOME/compose.yaml`. This docker compose will deploy both gitea and GARM. If you already have a Gitea >=1.24.0, you can edit this docker compose to only deploy GARM. 
 
 ```yaml
-version: "3"
-
 networks:
   default:
     external: false
