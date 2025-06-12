@@ -214,9 +214,29 @@ func updateRepo(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWrite
 	return &updateRepoResponse.Payload, nil
 }
 
+func updateRepoByFriendlyName(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, owner, repo string, repoParams params.UpdateEntityParams) (*params.Repository, error) {
+	updateRepoResponse, err := apiCli.Repositories.UpdateRepoByFriendlyName(
+		clientRepositories.NewUpdateRepoByFriendlyNameParams().WithOwner(owner).WithRepo(repo).WithBody(repoParams),
+		apiAuthToken)
+	if err != nil {
+		return nil, err
+	}
+	return &updateRepoResponse.Payload, nil
+}
+
 func getRepo(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, repoID string) (*params.Repository, error) {
 	getRepoResponse, err := apiCli.Repositories.GetRepo(
 		clientRepositories.NewGetRepoParams().WithRepoID(repoID),
+		apiAuthToken)
+	if err != nil {
+		return nil, err
+	}
+	return &getRepoResponse.Payload, nil
+}
+
+func getRepoByFriendlyName(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, owner, repo string) (*params.Repository, error) {
+	getRepoResponse, err := apiCli.Repositories.GetRepoByFriendlyName(
+		clientRepositories.NewGetRepoByFriendlyNameParams().WithOwner(owner).WithRepo(repo),
 		apiAuthToken)
 	if err != nil {
 		return nil, err
@@ -234,9 +254,29 @@ func installRepoWebhook(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthI
 	return &installRepoWebhookResponse.Payload, nil
 }
 
+func installRepoWebhookByFriendlyName(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, owner, repo string, webhookParams params.InstallWebhookParams) (*params.HookInfo, error) {
+	installRepoWebhookResponse, err := apiCli.Repositories.InstallRepoWebhookByFriendlyName(
+		clientRepositories.NewInstallRepoWebhookByFriendlyNameParams().WithOwner(owner).WithRepo(repo).WithBody(webhookParams),
+		apiAuthToken)
+	if err != nil {
+		return nil, err
+	}
+	return &installRepoWebhookResponse.Payload, nil
+}
+
 func getRepoWebhook(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, repoID string) (*params.HookInfo, error) {
 	getRepoWebhookResponse, err := apiCli.Repositories.GetRepoWebhookInfo(
 		clientRepositories.NewGetRepoWebhookInfoParams().WithRepoID(repoID),
+		apiAuthToken)
+	if err != nil {
+		return nil, err
+	}
+	return &getRepoWebhookResponse.Payload, nil
+}
+
+func getRepoWebhookByFriendlyName(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, owner, repo string) (*params.HookInfo, error) {
+	getRepoWebhookResponse, err := apiCli.Repositories.GetRepoWebhookInfoByFriendlyName(
+		clientRepositories.NewGetRepoWebhookInfoByFriendlyNameParams().WithOwner(owner).WithRepo(repo),
 		apiAuthToken)
 	if err != nil {
 		return nil, err
@@ -250,9 +290,25 @@ func uninstallRepoWebhook(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAut
 		apiAuthToken)
 }
 
+func uninstallRepoWebhookByFriendlyName(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, owner, repo string) error {
+	return apiCli.Repositories.UninstallRepoWebhookByFriendlyName(
+		clientRepositories.NewUninstallRepoWebhookByFriendlyNameParams().WithOwner(owner).WithRepo(repo),
+		apiAuthToken)
+}
+
 func createRepoPool(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, repoID string, poolParams params.CreatePoolParams) (*params.Pool, error) {
 	createRepoPoolResponse, err := apiCli.Repositories.CreateRepoPool(
 		clientRepositories.NewCreateRepoPoolParams().WithRepoID(repoID).WithBody(poolParams),
+		apiAuthToken)
+	if err != nil {
+		return nil, err
+	}
+	return &createRepoPoolResponse.Payload, nil
+}
+
+func createRepoPoolByFriendlyName(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, owner, repo string, poolParams params.CreatePoolParams) (*params.Pool, error) {
+	createRepoPoolResponse, err := apiCli.Repositories.CreateRepoPoolByFriendlyName(
+		clientRepositories.NewCreateRepoPoolByFriendlyNameParams().WithOwner(owner).WithRepo(repo).WithBody(poolParams),
 		apiAuthToken)
 	if err != nil {
 		return nil, err
@@ -270,9 +326,29 @@ func listRepoPools(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWr
 	return listRepoPoolsResponse.Payload, nil
 }
 
+func listRepoPoolsByFriendlyName(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, owner, repo string) (params.Pools, error) {
+	listRepoPoolsResponse, err := apiCli.Repositories.ListRepoPoolsByFriendlyName(
+		clientRepositories.NewListRepoPoolsByFriendlyNameParams().WithOwner(owner).WithRepo(repo),
+		apiAuthToken)
+	if err != nil {
+		return nil, err
+	}
+	return listRepoPoolsResponse.Payload, nil
+}
+
 func getRepoPool(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, repoID, poolID string) (*params.Pool, error) {
 	getRepoPoolResponse, err := apiCli.Repositories.GetRepoPool(
 		clientRepositories.NewGetRepoPoolParams().WithRepoID(repoID).WithPoolID(poolID),
+		apiAuthToken)
+	if err != nil {
+		return nil, err
+	}
+	return &getRepoPoolResponse.Payload, nil
+}
+
+func getRepoPoolByFriendlyName(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, owner, repo, poolID string) (*params.Pool, error) {
+	getRepoPoolResponse, err := apiCli.Repositories.GetRepoPoolByFriendlyName(
+		clientRepositories.NewGetRepoPoolByFriendlyNameParams().WithOwner(owner).WithRepo(repo).WithPoolID(poolID),
 		apiAuthToken)
 	if err != nil {
 		return nil, err
@@ -290,9 +366,29 @@ func updateRepoPool(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoW
 	return &updateRepoPoolResponse.Payload, nil
 }
 
+func updateRepoPoolByFriendlyName(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, owner, repo, poolID string, poolParams params.UpdatePoolParams) (*params.Pool, error) {
+	updateRepoPoolResponse, err := apiCli.Repositories.UpdateRepoPoolByFriendlyName(
+		clientRepositories.NewUpdateRepoPoolByFriendlyNameParams().WithOwner(owner).WithRepo(repo).WithPoolID(poolID).WithBody(poolParams),
+		apiAuthToken)
+	if err != nil {
+		return nil, err
+	}
+	return &updateRepoPoolResponse.Payload, nil
+}
+
 func listRepoInstances(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, repoID string) (params.Instances, error) {
 	listRepoInstancesResponse, err := apiCli.Repositories.ListRepoInstances(
 		clientRepositories.NewListRepoInstancesParams().WithRepoID(repoID),
+		apiAuthToken)
+	if err != nil {
+		return nil, err
+	}
+	return listRepoInstancesResponse.Payload, nil
+}
+
+func listRepoInstancesByFriendlyName(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, owner, repo string) (params.Instances, error) {
+	listRepoInstancesResponse, err := apiCli.Repositories.ListRepoInstancesByFriendlyName(
+		clientRepositories.NewListRepoInstancesByFriendlyNameParams().WithOwner(owner).WithRepo(repo),
 		apiAuthToken)
 	if err != nil {
 		return nil, err
@@ -309,6 +405,12 @@ func deleteRepo(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWrite
 func deleteRepoPool(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, repoID, poolID string) error {
 	return apiCli.Repositories.DeleteRepoPool(
 		clientRepositories.NewDeleteRepoPoolParams().WithRepoID(repoID).WithPoolID(poolID),
+		apiAuthToken)
+}
+
+func deleteRepoPoolByFriendlyName(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, owner, repo, poolID string) error {
+	return apiCli.Repositories.DeleteRepoPoolByFriendlyName(
+		clientRepositories.NewDeleteRepoPoolByFriendlyNameParams().WithOwner(owner).WithRepo(repo).WithPoolID(poolID),
 		apiAuthToken)
 }
 
