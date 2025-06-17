@@ -20,7 +20,7 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/google/go-github/v71/github"
+	"github.com/google/go-github/v72/github"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/params"
