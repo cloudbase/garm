@@ -111,13 +111,19 @@ func (s *sqlDatabase) GetEnterpriseByID(ctx context.Context, enterpriseID string
 	return param, nil
 }
 
-func (s *sqlDatabase) ListEnterprises(_ context.Context) ([]params.Enterprise, error) {
+func (s *sqlDatabase) ListEnterprises(_ context.Context, filter params.EnterpriseFilter) ([]params.Enterprise, error) {
 	var enterprises []Enterprise
 	q := s.conn.
 		Preload("Credentials").
 		Preload("Credentials.Endpoint").
-		Preload("Endpoint").
-		Find(&enterprises)
+		Preload("Endpoint")
+	if filter.Name != "" {
+		q = q.Where("name = ?", filter.Name)
+	}
+	if filter.Endpoint != "" {
+		q = q.Where("endpoint_name = ?", filter.Endpoint)
+	}
+	q = q.Find(&enterprises)
 	if q.Error != nil {
 		return []params.Enterprise{}, errors.Wrap(q.Error, "fetching enterprises")
 	}

@@ -19,6 +19,7 @@ import (
 	"strconv"
 
 	"github.com/cloudbase/garm/metrics"
+	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner" //nolint:typecheck
 )
 
@@ -28,7 +29,7 @@ func CollectEnterpriseMetric(ctx context.Context, r *runner.Runner) error {
 	metrics.EnterpriseInfo.Reset()
 	metrics.EnterprisePoolManagerStatus.Reset()
 
-	enterprises, err := r.ListEnterprises(ctx)
+	enterprises, err := r.ListEnterprises(ctx, params.EnterpriseFilter{})
 	if err != nil {
 		return err
 	}

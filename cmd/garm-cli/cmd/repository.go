@@ -30,6 +30,7 @@ import (
 var (
 	repoOwner           string
 	repoName            string
+	repoEndpoint        string
 	repoWebhookSecret   string
 	repoCreds           string
 	forgeType           string
@@ -213,6 +214,9 @@ var repoListCmd = &cobra.Command{
 		}
 
 		listReposReq := apiClientRepos.NewListReposParams()
+		listReposReq.Name = &repoName
+		listReposReq.Owner = &repoOwner
+		listReposReq.Endpoint = &repoEndpoint
 		response, err := apiCli.Repositories.ListRepos(listReposReq, authToken)
 		if err != nil {
 			return err
@@ -321,6 +325,9 @@ func init() {
 	repoAddCmd.MarkFlagsOneRequired("webhook-secret", "random-webhook-secret")
 
 	repoListCmd.Flags().BoolVarP(&long, "long", "l", false, "Include additional info.")
+	repoListCmd.Flags().StringVarP(&repoName, "name", "n", "", "Exact repo name to filter by.")
+	repoListCmd.Flags().StringVarP(&repoOwner, "owner", "o", "", "Exact repo owner to filter by.")
+	repoListCmd.Flags().StringVarP(&repoEndpoint, "endpoint", "e", "", "Exact endpoint name to filter by.")
 
 	repoAddCmd.MarkFlagRequired("credentials") //nolint
 	repoAddCmd.MarkFlagRequired("owner")       //nolint

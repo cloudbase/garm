@@ -29,6 +29,7 @@ import (
 
 var (
 	orgName                string
+	orgEndpoint            string
 	orgWebhookSecret       string
 	orgCreds               string
 	orgRandomWebhookSecret bool
@@ -243,6 +244,8 @@ var orgListCmd = &cobra.Command{
 		}
 
 		listOrgsReq := apiClientOrgs.NewListOrgsParams()
+		listOrgsReq.Name = &orgName
+		listOrgsReq.Endpoint = &orgEndpoint
 		response, err := apiCli.Organizations.ListOrgs(listOrgsReq, authToken)
 		if err != nil {
 			return err
@@ -314,7 +317,10 @@ func init() {
 	orgAddCmd.Flags().BoolVar(&installOrgWebhook, "install-webhook", false, "Install the webhook as part of the add operation.")
 	orgAddCmd.MarkFlagsMutuallyExclusive("webhook-secret", "random-webhook-secret")
 	orgAddCmd.MarkFlagsOneRequired("webhook-secret", "random-webhook-secret")
+
 	orgListCmd.Flags().BoolVarP(&long, "long", "l", false, "Include additional info.")
+	orgListCmd.Flags().StringVarP(&orgName, "name", "n", "", "Exact org name to filter by.")
+	orgListCmd.Flags().StringVarP(&orgEndpoint, "endpoint", "e", "", "Exact endpoint name to filter by.")
 
 	orgAddCmd.MarkFlagRequired("credentials") //nolint
 	orgAddCmd.MarkFlagRequired("name")        //nolint

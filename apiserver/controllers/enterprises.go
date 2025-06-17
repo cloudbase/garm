@@ -66,13 +66,30 @@ func (a *APIController) CreateEnterpriseHandler(w http.ResponseWriter, r *http.R
 //
 // List all enterprises.
 //
+//	Parameters:
+//	  + name: name
+//	    description: Exact enterprise name to filter by
+//	    type: string
+//	    in: query
+//	    required: false
+//
+//	  + name: endpoint
+//	    description: Exact endpoint name to filter by
+//	    type: string
+//	    in: query
+//	    required: false
+//
 //	Responses:
 //	  200: Enterprises
 //	  default: APIErrorResponse
 func (a *APIController) ListEnterprisesHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	enterprise, err := a.r.ListEnterprises(ctx)
+	filter := runnerParams.EnterpriseFilter{
+		Name:     r.URL.Query().Get("name"),
+		Endpoint: r.URL.Query().Get("endpoint"),
+	}
+	enterprise, err := a.r.ListEnterprises(ctx, filter)
 	if err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "listing enterprise")
 		handleError(ctx, w, err)

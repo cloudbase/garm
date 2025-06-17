@@ -24,6 +24,7 @@ import (
 	"github.com/cloudbase/garm/auth"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/database/watcher"
+	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
 	garmUtil "github.com/cloudbase/garm/util"
 )
@@ -63,7 +64,7 @@ type Controller struct {
 func (c *Controller) loadAllRepositories() error {
 	c.mux.Lock()
 	defer c.mux.Unlock()
-	repos, err := c.store.ListRepositories(c.ctx)
+	repos, err := c.store.ListRepositories(c.ctx, params.RepositoryFilter{})
 	if err != nil {
 		return fmt.Errorf("fetching repositories: %w", err)
 	}
@@ -95,7 +96,7 @@ func (c *Controller) loadAllRepositories() error {
 func (c *Controller) loadAllOrganizations() error {
 	c.mux.Lock()
 	defer c.mux.Unlock()
-	orgs, err := c.store.ListOrganizations(c.ctx)
+	orgs, err := c.store.ListOrganizations(c.ctx, params.OrganizationFilter{})
 	if err != nil {
 		return fmt.Errorf("fetching organizations: %w", err)
 	}
@@ -127,7 +128,7 @@ func (c *Controller) loadAllOrganizations() error {
 func (c *Controller) loadAllEnterprises() error {
 	c.mux.Lock()
 	defer c.mux.Unlock()
-	enterprises, err := c.store.ListEnterprises(c.ctx)
+	enterprises, err := c.store.ListEnterprises(c.ctx, params.EnterpriseFilter{})
 	if err != nil {
 		return fmt.Errorf("fetching enterprises: %w", err)
 	}

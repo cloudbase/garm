@@ -92,15 +92,23 @@ func (s *sqlDatabase) GetOrganization(ctx context.Context, name, endpointName st
 	return param, nil
 }
 
-func (s *sqlDatabase) ListOrganizations(_ context.Context) ([]params.Organization, error) {
+func (s *sqlDatabase) ListOrganizations(_ context.Context, filter params.OrganizationFilter) ([]params.Organization, error) {
 	var orgs []Organization
 	q := s.conn.
 		Preload("Credentials").
 		Preload("GiteaCredentials").
 		Preload("Credentials.Endpoint").
 		Preload("GiteaCredentials.Endpoint").
-		Preload("Endpoint").
-		Find(&orgs)
+		Preload("Endpoint")
+
+	if filter.Name != "" {
+		q = q.Where("name = ?", filter.Name)
+	}
+
+	if filter.Endpoint != "" {
+		q = q.Where("endpoint_name = ?", filter.Endpoint)
+	}
+	q = q.Find(&orgs)
 	if q.Error != nil {
 		return []params.Organization{}, errors.Wrap(q.Error, "fetching org from database")
 	}

@@ -67,13 +67,30 @@ func (a *APIController) CreateOrgHandler(w http.ResponseWriter, r *http.Request)
 //
 // List organizations.
 //
+//	Parameters:
+//	  + name: name
+//	    description: Exact organization name to filter by
+//	    type: string
+//	    in: query
+//	    required: false
+//
+//	  + name: endpoint
+//	    description: Exact endpoint name to filter by
+//	    type: string
+//	    in: query
+//	    required: false
+//
 //	Responses:
 //	  200: Organizations
 //	  default: APIErrorResponse
 func (a *APIController) ListOrgsHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	orgs, err := a.r.ListOrganizations(ctx)
+	filter := runnerParams.OrganizationFilter{
+		Name:     r.URL.Query().Get("name"),
+		Endpoint: r.URL.Query().Get("endpoint"),
+	}
+	orgs, err := a.r.ListOrganizations(ctx, filter)
 	if err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "listing orgs")
 		handleError(ctx, w, err)

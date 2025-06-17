@@ -60,6 +60,25 @@ ListReposParams contains all the parameters to send to the API endpoint
 	Typically these are written to a http.Request.
 */
 type ListReposParams struct {
+
+	/* Endpoint.
+
+	   Exact endpoint name to filter by
+	*/
+	Endpoint *string
+
+	/* Name.
+
+	   Exact repository name to filter by
+	*/
+	Name *string
+
+	/* Owner.
+
+	   Exact owner name to filter by
+	*/
+	Owner *string
+
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
@@ -113,6 +132,39 @@ func (o *ListReposParams) SetHTTPClient(client *http.Client) {
 	o.HTTPClient = client
 }
 
+// WithEndpoint adds the endpoint to the list repos params
+func (o *ListReposParams) WithEndpoint(endpoint *string) *ListReposParams {
+	o.SetEndpoint(endpoint)
+	return o
+}
+
+// SetEndpoint adds the endpoint to the list repos params
+func (o *ListReposParams) SetEndpoint(endpoint *string) {
+	o.Endpoint = endpoint
+}
+
+// WithName adds the name to the list repos params
+func (o *ListReposParams) WithName(name *string) *ListReposParams {
+	o.SetName(name)
+	return o
+}
+
+// SetName adds the name to the list repos params
+func (o *ListReposParams) SetName(name *string) {
+	o.Name = name
+}
+
+// WithOwner adds the owner to the list repos params
+func (o *ListReposParams) WithOwner(owner *string) *ListReposParams {
+	o.SetOwner(owner)
+	return o
+}
+
+// SetOwner adds the owner to the list repos params
+func (o *ListReposParams) SetOwner(owner *string) {
+	o.Owner = owner
+}
+
 // WriteToRequest writes these params to a swagger request
 func (o *ListReposParams) WriteToRequest(r runtime.ClientRequest, reg strfmt.Registry) error {
 
@@ -120,6 +172,57 @@ func (o *ListReposParams) WriteToRequest(r runtime.ClientRequest, reg strfmt.Reg
 		return err
 	}
 	var res []error
+
+	if o.Endpoint != nil {
+
+		// query param endpoint
+		var qrEndpoint string
+
+		if o.Endpoint != nil {
+			qrEndpoint = *o.Endpoint
+		}
+		qEndpoint := qrEndpoint
+		if qEndpoint != "" {
+
+			if err := r.SetQueryParam("endpoint", qEndpoint); err != nil {
+				return err
+			}
+		}
+	}
+
+	if o.Name != nil {
+
+		// query param name
+		var qrName string
+
+		if o.Name != nil {
+			qrName = *o.Name
+		}
+		qName := qrName
+		if qName != "" {
+
+			if err := r.SetQueryParam("name", qName); err != nil {
+				return err
+			}
+		}
+	}
+
+	if o.Owner != nil {
+
+		// query param owner
+		var qrOwner string
+
+		if o.Owner != nil {
+			qrOwner = *o.Owner
+		}
+		qOwner := qrOwner
+		if qOwner != "" {
+
+			if err := r.SetQueryParam("owner", qOwner); err != nil {
+				return err
+			}
+		}
+	}
 
 	if len(res) > 0 {
 		return errors.CompositeValidationError(res...)

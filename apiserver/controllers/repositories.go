@@ -67,13 +67,37 @@ func (a *APIController) CreateRepoHandler(w http.ResponseWriter, r *http.Request
 //
 // List repositories.
 //
+//	Parameters:
+//	  + name: owner
+//	    description: Exact owner name to filter by
+//	    type: string
+//	    in: query
+//	    required: false
+//
+//	  + name: name
+//	    description: Exact repository name to filter by
+//	    type: string
+//	    in: query
+//	    required: false
+//
+//	  + name: endpoint
+//	    description: Exact endpoint name to filter by
+//	    type: string
+//	    in: query
+//	    required: false
+//
 //	Responses:
 //	  200: Repositories
 //	  default: APIErrorResponse
 func (a *APIController) ListReposHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	repos, err := a.r.ListRepositories(ctx)
+	filter := runnerParams.RepositoryFilter{
+		Name:     r.URL.Query().Get("name"),
+		Owner:    r.URL.Query().Get("owner"),
+		Endpoint: r.URL.Query().Get("endpoint"),
+	}
+	repos, err := a.r.ListRepositories(ctx, filter)
 	if err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "listing repositories")
 		handleError(ctx, w, err)

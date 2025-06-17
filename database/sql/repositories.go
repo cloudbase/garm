@@ -93,15 +93,24 @@ func (s *sqlDatabase) GetRepository(ctx context.Context, owner, name, endpointNa
 	return param, nil
 }
 
-func (s *sqlDatabase) ListRepositories(_ context.Context) ([]params.Repository, error) {
+func (s *sqlDatabase) ListRepositories(_ context.Context, filter params.RepositoryFilter) ([]params.Repository, error) {
 	var repos []Repository
 	q := s.conn.
 		Preload("Credentials").
 		Preload("GiteaCredentials").
 		Preload("Credentials.Endpoint").
 		Preload("GiteaCredentials.Endpoint").
-		Preload("Endpoint").
-		Find(&repos)
+		Preload("Endpoint")
+	if filter.Owner != "" {
+		q = q.Where("owner = ?", filter.Owner)
+	}
+	if filter.Name != "" {
+		q = q.Where("name = ?", filter.Name)
+	}
+	if filter.Endpoint != "" {
+		q = q.Where("endpoint_name = ?", filter.Endpoint)
+	}
+	q = q.Find(&repos)
 	if q.Error != nil {
 		return []params.Repository{}, errors.Wrap(q.Error, "fetching user from database")
 	}

@@ -1192,3 +1192,19 @@ type ForgeEndpoint struct {
 
 	EndpointType EndpointType `json:"endpoint_type,omitempty"`
 }
+
+type RepositoryFilter struct {
+	Owner    string
+	Name     string
+	Endpoint string
+}
+
+type OrganizationFilter struct {
+	Name     string
+	Endpoint string
+}
+
+type EnterpriseFilter struct {
+	Name     string
+	Endpoint string
+}

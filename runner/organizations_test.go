@@ -58,7 +58,9 @@ type OrgTestSuite struct {
 
 	testCreds          params.ForgeCredentials
 	secondaryTestCreds params.ForgeCredentials
+	giteaTestCreds     params.ForgeCredentials
 	githubEndpoint     params.ForgeEndpoint
+	giteaEndpoint      params.ForgeEndpoint
 }
 
 func (s *OrgTestSuite) SetupTest() {
@@ -72,7 +74,9 @@ func (s *OrgTestSuite) SetupTest() {
 	adminCtx := garmTesting.ImpersonateAdminContext(context.Background(), db, s.T())
 
 	s.githubEndpoint = garmTesting.CreateDefaultGithubEndpoint(adminCtx, db, s.T())
+	s.giteaEndpoint = garmTesting.CreateDefaultGiteaEndpoint(adminCtx, db, s.T())
 	s.testCreds = garmTesting.CreateTestGithubCredentials(adminCtx, "new-creds", db, s.T(), s.githubEndpoint)
+	s.giteaTestCreds = garmTesting.CreateTestGiteaCredentials(adminCtx, "gitea-creds", db, s.T(), s.giteaEndpoint)
 	s.secondaryTestCreds = garmTesting.CreateTestGithubCredentials(adminCtx, "secondary-creds", db, s.T(), s.githubEndpoint)
 
 	// create some organization objects in the database, for testing purposes
@@ -238,14 +242,74 @@ func (s *OrgTestSuite) TestCreateOrganizationStartPoolMgrFailed() {
 func (s *OrgTestSuite) TestListOrganizations() {
 	s.Fixtures.PoolMgrCtrlMock.On("GetOrgPoolManager", mock.AnythingOfType("params.Organization")).Return(s.Fixtures.PoolMgrMock, nil)
 	s.Fixtures.PoolMgrMock.On("Status").Return(params.PoolManagerStatus{IsRunning: true}, nil)
-	orgs, err := s.Runner.ListOrganizations(s.Fixtures.AdminContext)
+	orgs, err := s.Runner.ListOrganizations(s.Fixtures.AdminContext, params.OrganizationFilter{})
 
 	s.Require().Nil(err)
 	garmTesting.EqualDBEntityByName(s.T(), garmTesting.DBEntityMapToSlice(s.Fixtures.StoreOrgs), orgs)
 }
 
+func (s *OrgTestSuite) TestListOrganizationsWithFilter() {
+	s.Fixtures.PoolMgrCtrlMock.On("GetOrgPoolManager", mock.AnythingOfType("params.Organization")).Return(s.Fixtures.PoolMgrMock, nil)
+	s.Fixtures.PoolMgrMock.On("Status").Return(params.PoolManagerStatus{IsRunning: true}, nil)
+
+	org, err := s.Fixtures.Store.CreateOrganization(
+		s.Fixtures.AdminContext,
+		"test-org",
+		s.testCreds,
+		"super-secret",
+		params.PoolBalancerTypeRoundRobin)
+	s.Require().NoError(err)
+
+	org2, err := s.Fixtures.Store.CreateOrganization(
+		s.Fixtures.AdminContext,
+		"test-org",
+		s.giteaTestCreds,
+		"super-secret",
+		params.PoolBalancerTypeRoundRobin)
+	s.Require().NoError(err)
+
+	org3, err := s.Fixtures.Store.CreateOrganization(
+		s.Fixtures.AdminContext,
+		"test-org2",
+		s.giteaTestCreds,
+		"super-secret",
+		params.PoolBalancerTypeRoundRobin)
+	s.Require().NoError(err)
+
+	orgs, err := s.Runner.ListOrganizations(
+		s.Fixtures.AdminContext,
+		params.OrganizationFilter{
+			Name: "test-org",
+		},
+	)
+
+	s.Require().Nil(err)
+	garmTesting.EqualDBEntityByName(s.T(), []params.Organization{org, org2}, orgs)
+
+	orgs, err = s.Runner.ListOrganizations(
+		s.Fixtures.AdminContext,
+		params.OrganizationFilter{
+			Name:     "test-org",
+			Endpoint: s.giteaEndpoint.Name,
+		},
+	)
+
+	s.Require().Nil(err)
+	garmTesting.EqualDBEntityByName(s.T(), []params.Organization{org2}, orgs)
+
+	orgs, err = s.Runner.ListOrganizations(
+		s.Fixtures.AdminContext,
+		params.OrganizationFilter{
+			Name: "test-org2",
+		},
+	)
+
+	s.Require().Nil(err)
+	garmTesting.EqualDBEntityByName(s.T(), []params.Organization{org3}, orgs)
+}
+
 func (s *OrgTestSuite) TestListOrganizationsErrUnauthorized() {
-	_, err := s.Runner.ListOrganizations(context.Background())
+	_, err := s.Runner.ListOrganizations(context.Background(), params.OrganizationFilter{})
 
 	s.Require().Equal(runnerErrors.ErrUnauthorized, err)
 }
