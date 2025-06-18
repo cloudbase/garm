@@ -327,17 +327,17 @@ func (r *Runner) loadReposOrgsAndEnterprises() error {
 	r.mux.Lock()
 	defer r.mux.Unlock()
 
-	repos, err := r.store.ListRepositories(r.ctx)
+	repos, err := r.store.ListRepositories(r.ctx, params.RepositoryFilter{})
 	if err != nil {
 		return errors.Wrap(err, "fetching repositories")
 	}
 
-	orgs, err := r.store.ListOrganizations(r.ctx)
+	orgs, err := r.store.ListOrganizations(r.ctx, params.OrganizationFilter{})
 	if err != nil {
 		return errors.Wrap(err, "fetching organizations")
 	}
 
-	enterprises, err := r.store.ListEnterprises(r.ctx)
+	enterprises, err := r.store.ListEnterprises(r.ctx, params.EnterpriseFilter{})
 	if err != nil {
 		return errors.Wrap(err, "fetching enterprises")
 	}

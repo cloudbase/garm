@@ -95,12 +95,12 @@ func (r *Runner) CreateOrganization(ctx context.Context, param params.CreateOrgP
 	return org, nil
 }
 
-func (r *Runner) ListOrganizations(ctx context.Context) ([]params.Organization, error) {
+func (r *Runner) ListOrganizations(ctx context.Context, filter params.OrganizationFilter) ([]params.Organization, error) {
 	if !auth.IsAdmin(ctx) {
 		return nil, runnerErrors.ErrUnauthorized
 	}
 
-	orgs, err := r.store.ListOrganizations(ctx)
+	orgs, err := r.store.ListOrganizations(ctx, filter)
 	if err != nil {
 		return nil, errors.Wrap(err, "listing organizations")
 	}

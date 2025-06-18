@@ -41,7 +41,7 @@ type RepoStore interface {
 	CreateRepository(ctx context.Context, owner, name string, credentials params.ForgeCredentials, webhookSecret string, poolBalancerType params.PoolBalancerType) (param params.Repository, err error)
 	GetRepository(ctx context.Context, owner, name, endpointName string) (params.Repository, error)
 	GetRepositoryByID(ctx context.Context, repoID string) (params.Repository, error)
-	ListRepositories(ctx context.Context) ([]params.Repository, error)
+	ListRepositories(ctx context.Context, filter params.RepositoryFilter) ([]params.Repository, error)
 	DeleteRepository(ctx context.Context, repoID string) error
 	UpdateRepository(ctx context.Context, repoID string, param params.UpdateEntityParams) (params.Repository, error)
 }
@@ -50,7 +50,7 @@ type OrgStore interface {
 	CreateOrganization(ctx context.Context, name string, credentials params.ForgeCredentials, webhookSecret string, poolBalancerType params.PoolBalancerType) (org params.Organization, err error)
 	GetOrganization(ctx context.Context, name, endpointName string) (params.Organization, error)
 	GetOrganizationByID(ctx context.Context, orgID string) (params.Organization, error)
-	ListOrganizations(ctx context.Context) ([]params.Organization, error)
+	ListOrganizations(ctx context.Context, filter params.OrganizationFilter) ([]params.Organization, error)
 	DeleteOrganization(ctx context.Context, orgID string) error
 	UpdateOrganization(ctx context.Context, orgID string, param params.UpdateEntityParams) (params.Organization, error)
 }
@@ -59,7 +59,7 @@ type EnterpriseStore interface {
 	CreateEnterprise(ctx context.Context, name string, credentialsName params.ForgeCredentials, webhookSecret string, poolBalancerType params.PoolBalancerType) (params.Enterprise, error)
 	GetEnterprise(ctx context.Context, name, endpointName string) (params.Enterprise, error)
 	GetEnterpriseByID(ctx context.Context, enterpriseID string) (params.Enterprise, error)
-	ListEnterprises(ctx context.Context) ([]params.Enterprise, error)
+	ListEnterprises(ctx context.Context, filter params.EnterpriseFilter) ([]params.Enterprise, error)
 	DeleteEnterprise(ctx context.Context, enterpriseID string) error
 	UpdateEnterprise(ctx context.Context, enterpriseID string, param params.UpdateEntityParams) (params.Enterprise, error)
 }

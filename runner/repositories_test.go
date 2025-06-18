@@ -62,7 +62,9 @@ type RepoTestSuite struct {
 
 	testCreds          params.ForgeCredentials
 	secondaryTestCreds params.ForgeCredentials
+	giteaTestCreds     params.ForgeCredentials
 	githubEndpoint     params.ForgeEndpoint
+	giteaEndpoint      params.ForgeEndpoint
 }
 
 func (s *RepoTestSuite) SetupTest() {
@@ -75,8 +77,10 @@ func (s *RepoTestSuite) SetupTest() {
 
 	adminCtx := garmTesting.ImpersonateAdminContext(context.Background(), db, s.T())
 	s.githubEndpoint = garmTesting.CreateDefaultGithubEndpoint(adminCtx, db, s.T())
+	s.giteaEndpoint = garmTesting.CreateDefaultGiteaEndpoint(adminCtx, db, s.T())
 	s.testCreds = garmTesting.CreateTestGithubCredentials(adminCtx, "new-creds", db, s.T(), s.githubEndpoint)
 	s.secondaryTestCreds = garmTesting.CreateTestGithubCredentials(adminCtx, "secondary-creds", db, s.T(), s.githubEndpoint)
+	s.giteaTestCreds = garmTesting.CreateTestGiteaCredentials(adminCtx, "gitea-creds", db, s.T(), s.giteaEndpoint)
 
 	// create some repository objects in the database, for testing purposes
 	repos := map[string]params.Repository{}
@@ -254,14 +258,81 @@ func (s *RepoTestSuite) TestCreateRepositoryStartPoolMgrFailed() {
 func (s *RepoTestSuite) TestListRepositories() {
 	s.Fixtures.PoolMgrCtrlMock.On("GetRepoPoolManager", mock.AnythingOfType("params.Repository")).Return(s.Fixtures.PoolMgrMock, nil)
 	s.Fixtures.PoolMgrMock.On("Status").Return(params.PoolManagerStatus{IsRunning: true}, nil)
-	repos, err := s.Runner.ListRepositories(s.Fixtures.AdminContext)
+	repos, err := s.Runner.ListRepositories(s.Fixtures.AdminContext, params.RepositoryFilter{})
 
 	s.Require().Nil(err)
 	garmTesting.EqualDBEntityByName(s.T(), garmTesting.DBEntityMapToSlice(s.Fixtures.StoreRepos), repos)
 }
 
+func (s *RepoTestSuite) TestListRepositoriesWithFilters() {
+	s.Fixtures.PoolMgrCtrlMock.On("GetRepoPoolManager", mock.AnythingOfType("params.Repository")).Return(s.Fixtures.PoolMgrMock, nil)
+	s.Fixtures.PoolMgrMock.On("Status").Return(params.PoolManagerStatus{IsRunning: true}, nil)
+
+	repo, err := s.Fixtures.Store.CreateRepository(
+		s.Fixtures.AdminContext,
+		"example-owner",
+		"example-repo",
+		s.testCreds,
+		"test-webhook-secret",
+		params.PoolBalancerTypeRoundRobin,
+	)
+	if err != nil {
+		s.FailNow(fmt.Sprintf("failed to create database object (example-repo): %q", err))
+	}
+
+	repo2, err := s.Fixtures.Store.CreateRepository(
+		s.Fixtures.AdminContext,
+		"another-example-owner",
+		"example-repo",
+		s.testCreds,
+		"test-webhook-secret",
+		params.PoolBalancerTypeRoundRobin,
+	)
+	if err != nil {
+		s.FailNow(fmt.Sprintf("failed to create database object (example-repo): %q", err))
+	}
+
+	repo3, err := s.Fixtures.Store.CreateRepository(
+		s.Fixtures.AdminContext,
+		"example-owner",
+		"example-repo",
+		s.giteaTestCreds,
+		"test-webhook-secret",
+		params.PoolBalancerTypeRoundRobin,
+	)
+	if err != nil {
+		s.FailNow(fmt.Sprintf("failed to create database object (example-repo): %q", err))
+	}
+
+	repos, err := s.Runner.ListRepositories(s.Fixtures.AdminContext, params.RepositoryFilter{Name: "example-repo"})
+
+	s.Require().Nil(err)
+	garmTesting.EqualDBEntityByName(s.T(), []params.Repository{repo, repo2, repo3}, repos)
+
+	repos, err = s.Runner.ListRepositories(
+		s.Fixtures.AdminContext,
+		params.RepositoryFilter{
+			Name:  "example-repo",
+			Owner: "example-owner",
+		},
+	)
+	s.Require().Nil(err)
+	garmTesting.EqualDBEntityByName(s.T(), []params.Repository{repo, repo3}, repos)
+
+	repos, err = s.Runner.ListRepositories(
+		s.Fixtures.AdminContext,
+		params.RepositoryFilter{
+			Name:     "example-repo",
+			Owner:    "example-owner",
+			Endpoint: s.giteaEndpoint.Name,
+		},
+	)
+	s.Require().Nil(err)
+	garmTesting.EqualDBEntityByName(s.T(), []params.Repository{repo3}, repos)
+}
+
 func (s *RepoTestSuite) TestListRepositoriesErrUnauthorized() {
-	_, err := s.Runner.ListRepositories(context.Background())
+	_, err := s.Runner.ListRepositories(context.Background(), params.RepositoryFilter{})
 
 	s.Require().Equal(runnerErrors.ErrUnauthorized, err)
 }

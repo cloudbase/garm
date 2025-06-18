@@ -86,12 +86,12 @@ func (r *Runner) CreateEnterprise(ctx context.Context, param params.CreateEnterp
 	return enterprise, nil
 }
 
-func (r *Runner) ListEnterprises(ctx context.Context) ([]params.Enterprise, error) {
+func (r *Runner) ListEnterprises(ctx context.Context, filter params.EnterpriseFilter) ([]params.Enterprise, error) {
 	if !auth.IsAdmin(ctx) {
 		return nil, runnerErrors.ErrUnauthorized
 	}
 
-	enterprises, err := r.store.ListEnterprises(ctx)
+	enterprises, err := r.store.ListEnterprises(ctx, filter)
 	if err != nil {
 		return nil, errors.Wrap(err, "listing enterprises")
 	}

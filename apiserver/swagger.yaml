@@ -418,6 +418,15 @@ paths:
     /enterprises:
         get:
             operationId: ListEnterprises
+            parameters:
+                - description: Exact enterprise name to filter by
+                  in: query
+                  name: name
+                  type: string
+                - description: Exact endpoint name to filter by
+                  in: query
+                  name: endpoint
+                  type: string
             responses:
                 "200":
                     description: Enterprises
@@ -1254,6 +1263,15 @@ paths:
     /organizations:
         get:
             operationId: ListOrgs
+            parameters:
+                - description: Exact organization name to filter by
+                  in: query
+                  name: name
+                  type: string
+                - description: Exact endpoint name to filter by
+                  in: query
+                  name: endpoint
+                  type: string
             responses:
                 "200":
                     description: Organizations
@@ -1754,6 +1772,19 @@ paths:
     /repositories:
         get:
             operationId: ListRepos
+            parameters:
+                - description: Exact owner name to filter by
+                  in: query
+                  name: owner
+                  type: string
+                - description: Exact repository name to filter by
+                  in: query
+                  name: name
+                  type: string
+                - description: Exact endpoint name to filter by
+                  in: query
+                  name: endpoint
+                  type: string
             responses:
                 "200":
                     description: Repositories

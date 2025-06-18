@@ -54,8 +54,10 @@ type EnterpriseTestSuite struct {
 	adminUserID string
 
 	testCreds          params.ForgeCredentials
+	ghesCreds          params.ForgeCredentials
 	secondaryTestCreds params.ForgeCredentials
 	githubEndpoint     params.ForgeEndpoint
+	ghesEndpoint       params.ForgeEndpoint
 }
 
 func (s *EnterpriseTestSuite) equalInstancesByName(expected, actual []params.Instance) {
@@ -90,7 +92,9 @@ func (s *EnterpriseTestSuite) SetupTest() {
 	s.Require().NotEmpty(s.adminUserID)
 
 	s.githubEndpoint = garmTesting.CreateDefaultGithubEndpoint(adminCtx, db, s.T())
+	s.ghesEndpoint = garmTesting.CreateGHESEndpoint(adminCtx, db, s.T())
 	s.testCreds = garmTesting.CreateTestGithubCredentials(adminCtx, "new-creds", db, s.T(), s.githubEndpoint)
+	s.ghesCreds = garmTesting.CreateTestGithubCredentials(adminCtx, "ghes-creds", db, s.T(), s.ghesEndpoint)
 	s.secondaryTestCreds = garmTesting.CreateTestGithubCredentials(adminCtx, "secondary-creds", db, s.T(), s.githubEndpoint)
 
 	// create some enterprise objects in the database, for testing purposes
@@ -272,10 +276,60 @@ func (s *EnterpriseTestSuite) TestGetEnterpriseDBDecryptingErr() {
 }
 
 func (s *EnterpriseTestSuite) TestListEnterprises() {
-	enterprises, err := s.Store.ListEnterprises(s.adminCtx)
+	enterprises, err := s.Store.ListEnterprises(s.adminCtx, params.EnterpriseFilter{})
 
 	s.Require().Nil(err)
 	garmTesting.EqualDBEntityByName(s.T(), s.Fixtures.Enterprises, enterprises)
+}
+
+func (s *EnterpriseTestSuite) TestListEnterprisesWithFilter() {
+	enterprise, err := s.Store.CreateEnterprise(
+		s.adminCtx,
+		"test-enterprise",
+		s.ghesCreds,
+		"test-secret",
+		params.PoolBalancerTypeRoundRobin,
+	)
+	s.Require().NoError(err)
+
+	enterprise2, err := s.Store.CreateEnterprise(
+		s.adminCtx,
+		"test-enterprise",
+		s.testCreds,
+		"test-secret",
+		params.PoolBalancerTypeRoundRobin,
+	)
+	s.Require().NoError(err)
+
+	enterprise3, err := s.Store.CreateEnterprise(
+		s.adminCtx,
+		"test-enterprise2",
+		s.testCreds,
+		"test-secret",
+		params.PoolBalancerTypeRoundRobin,
+	)
+	s.Require().NoError(err)
+	enterprises, err := s.Store.ListEnterprises(s.adminCtx, params.EnterpriseFilter{
+		Name: "test-enterprise",
+	})
+
+	s.Require().Nil(err)
+	garmTesting.EqualDBEntityByName(s.T(), []params.Enterprise{enterprise, enterprise2}, enterprises)
+
+	enterprises, err = s.Store.ListEnterprises(s.adminCtx, params.EnterpriseFilter{
+		Name:     "test-enterprise",
+		Endpoint: s.ghesEndpoint.Name,
+	})
+
+	s.Require().Nil(err)
+	garmTesting.EqualDBEntityByName(s.T(), []params.Enterprise{enterprise}, enterprises)
+
+	enterprises, err = s.Store.ListEnterprises(s.adminCtx, params.EnterpriseFilter{
+		Name: "test-enterprise2",
+	})
+
+	s.Require().Nil(err)
+	garmTesting.EqualDBEntityByName(s.T(), []params.Enterprise{enterprise3}, enterprises)
 }
 
 func (s *EnterpriseTestSuite) TestListEnterprisesDBFetchErr() {
@@ -283,7 +337,7 @@ func (s *EnterpriseTestSuite) TestListEnterprisesDBFetchErr() {
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `enterprises` WHERE `enterprises`.`deleted_at` IS NULL")).
 		WillReturnError(fmt.Errorf("fetching user from database mock error"))
 
-	_, err := s.StoreSQLMocked.ListEnterprises(s.adminCtx)
+	_, err := s.StoreSQLMocked.ListEnterprises(s.adminCtx, params.EnterpriseFilter{})
 
 	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)

@@ -96,17 +96,17 @@ func (w *Worker) loadAllEntities() error {
 		return fmt.Errorf("listing scale sets: %w", err)
 	}
 
-	repos, err := w.store.ListRepositories(w.ctx)
+	repos, err := w.store.ListRepositories(w.ctx, params.RepositoryFilter{})
 	if err != nil {
 		return fmt.Errorf("listing repositories: %w", err)
 	}
 
-	orgs, err := w.store.ListOrganizations(w.ctx)
+	orgs, err := w.store.ListOrganizations(w.ctx, params.OrganizationFilter{})
 	if err != nil {
 		return fmt.Errorf("listing organizations: %w", err)
 	}
 
-	enterprises, err := w.store.ListEnterprises(w.ctx)
+	enterprises, err := w.store.ListEnterprises(w.ctx, params.EnterpriseFilter{})
 	if err != nil {
 		return fmt.Errorf("listing enterprises: %w", err)
 	}

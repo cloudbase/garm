@@ -333,10 +333,66 @@ func (s *OrgTestSuite) TestGetOrganizationDBDecryptingErr() {
 }
 
 func (s *OrgTestSuite) TestListOrganizations() {
-	orgs, err := s.Store.ListOrganizations(s.adminCtx)
+	orgs, err := s.Store.ListOrganizations(s.adminCtx, params.OrganizationFilter{})
 
 	s.Require().Nil(err)
 	garmTesting.EqualDBEntityByName(s.T(), s.Fixtures.Orgs, orgs)
+}
+
+func (s *OrgTestSuite) TestListOrganizationsWithFilters() {
+	org, err := s.Store.CreateOrganization(
+		s.adminCtx,
+		"test-org",
+		s.testCreds,
+		"super secret",
+		params.PoolBalancerTypeRoundRobin,
+	)
+	s.Require().NoError(err)
+
+	org2, err := s.Store.CreateOrganization(
+		s.adminCtx,
+		"test-org",
+		s.testCredsGitea,
+		"super secret",
+		params.PoolBalancerTypeRoundRobin,
+	)
+	s.Require().NoError(err)
+
+	org3, err := s.Store.CreateOrganization(
+		s.adminCtx,
+		"test-org2",
+		s.testCreds,
+		"super secret",
+		params.PoolBalancerTypeRoundRobin,
+	)
+	s.Require().NoError(err)
+	orgs, err := s.Store.ListOrganizations(
+		s.adminCtx,
+		params.OrganizationFilter{
+			Name: "test-org",
+		})
+
+	s.Require().Nil(err)
+	garmTesting.EqualDBEntityByName(s.T(), []params.Organization{org, org2}, orgs)
+
+	orgs, err = s.Store.ListOrganizations(
+		s.adminCtx,
+		params.OrganizationFilter{
+			Name:     "test-org",
+			Endpoint: s.giteaEndpoint.Name,
+		})
+
+	s.Require().Nil(err)
+	garmTesting.EqualDBEntityByName(s.T(), []params.Organization{org2}, orgs)
+
+	orgs, err = s.Store.ListOrganizations(
+		s.adminCtx,
+		params.OrganizationFilter{
+			Name: "test-org2",
+		})
+
+	s.Require().Nil(err)
+	garmTesting.EqualDBEntityByName(s.T(), []params.Organization{org3}, orgs)
 }
 
 func (s *OrgTestSuite) TestListOrganizationsDBFetchErr() {
@@ -344,7 +400,7 @@ func (s *OrgTestSuite) TestListOrganizationsDBFetchErr() {
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE `organizations`.`deleted_at` IS NULL")).
 		WillReturnError(fmt.Errorf("fetching user from database mock error"))
 
-	_, err := s.StoreSQLMocked.ListOrganizations(s.adminCtx)
+	_, err := s.StoreSQLMocked.ListOrganizations(s.adminCtx, params.OrganizationFilter{})
 
 	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)

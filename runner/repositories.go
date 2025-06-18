@@ -93,12 +93,12 @@ func (r *Runner) CreateRepository(ctx context.Context, param params.CreateRepoPa
 	return repo, nil
 }
 
-func (r *Runner) ListRepositories(ctx context.Context) ([]params.Repository, error) {
+func (r *Runner) ListRepositories(ctx context.Context, filter params.RepositoryFilter) ([]params.Repository, error) {
 	if !auth.IsAdmin(ctx) {
 		return nil, runnerErrors.ErrUnauthorized
 	}
 
-	repos, err := r.store.ListRepositories(ctx)
+	repos, err := r.store.ListRepositories(ctx, filter)
 	if err != nil {
 		return nil, errors.Wrap(err, "listing repositories")
 	}

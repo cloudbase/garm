@@ -1524,9 +1524,9 @@ func (_m *Store) ListAllScaleSets(ctx context.Context) ([]params.ScaleSet, error
 	return r0, r1
 }
 
-// ListEnterprises provides a mock function with given fields: ctx
-func (_m *Store) ListEnterprises(ctx context.Context) ([]params.Enterprise, error) {
-	ret := _m.Called(ctx)
+// ListEnterprises provides a mock function with given fields: ctx, filter
+func (_m *Store) ListEnterprises(ctx context.Context, filter params.EnterpriseFilter) ([]params.Enterprise, error) {
+	ret := _m.Called(ctx, filter)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListEnterprises")
@@ -1534,19 +1534,19 @@ func (_m *Store) ListEnterprises(ctx context.Context) ([]params.Enterprise, erro
 
 	var r0 []params.Enterprise
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context) ([]params.Enterprise, error)); ok {
-		return rf(ctx)
+	if rf, ok := ret.Get(0).(func(context.Context, params.EnterpriseFilter) ([]params.Enterprise, error)); ok {
+		return rf(ctx, filter)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context) []params.Enterprise); ok {
-		r0 = rf(ctx)
+	if rf, ok := ret.Get(0).(func(context.Context, params.EnterpriseFilter) []params.Enterprise); ok {
+		r0 = rf(ctx, filter)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]params.Enterprise)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = rf(ctx)
+	if rf, ok := ret.Get(1).(func(context.Context, params.EnterpriseFilter) error); ok {
+		r1 = rf(ctx, filter)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1824,9 +1824,9 @@ func (_m *Store) ListJobsByStatus(ctx context.Context, status params.JobStatus) 
 	return r0, r1
 }
 
-// ListOrganizations provides a mock function with given fields: ctx
-func (_m *Store) ListOrganizations(ctx context.Context) ([]params.Organization, error) {
-	ret := _m.Called(ctx)
+// ListOrganizations provides a mock function with given fields: ctx, filter
+func (_m *Store) ListOrganizations(ctx context.Context, filter params.OrganizationFilter) ([]params.Organization, error) {
+	ret := _m.Called(ctx, filter)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListOrganizations")
@@ -1834,19 +1834,19 @@ func (_m *Store) ListOrganizations(ctx context.Context) ([]params.Organization, 
 
 	var r0 []params.Organization
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context) ([]params.Organization, error)); ok {
-		return rf(ctx)
+	if rf, ok := ret.Get(0).(func(context.Context, params.OrganizationFilter) ([]params.Organization, error)); ok {
+		return rf(ctx, filter)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context) []params.Organization); ok {
-		r0 = rf(ctx)
+	if rf, ok := ret.Get(0).(func(context.Context, params.OrganizationFilter) []params.Organization); ok {
+		r0 = rf(ctx, filter)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]params.Organization)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = rf(ctx)
+	if rf, ok := ret.Get(1).(func(context.Context, params.OrganizationFilter) error); ok {
+		r1 = rf(ctx, filter)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1884,9 +1884,9 @@ func (_m *Store) ListPoolInstances(ctx context.Context, poolID string) ([]params
 	return r0, r1
 }
 
-// ListRepositories provides a mock function with given fields: ctx
-func (_m *Store) ListRepositories(ctx context.Context) ([]params.Repository, error) {
-	ret := _m.Called(ctx)
+// ListRepositories provides a mock function with given fields: ctx, filter
+func (_m *Store) ListRepositories(ctx context.Context, filter params.RepositoryFilter) ([]params.Repository, error) {
+	ret := _m.Called(ctx, filter)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListRepositories")
@@ -1894,19 +1894,19 @@ func (_m *Store) ListRepositories(ctx context.Context) ([]params.Repository, err
 
 	var r0 []params.Repository
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context) ([]params.Repository, error)); ok {
-		return rf(ctx)
+	if rf, ok := ret.Get(0).(func(context.Context, params.RepositoryFilter) ([]params.Repository, error)); ok {
+		return rf(ctx, filter)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context) []params.Repository); ok {
-		r0 = rf(ctx)
+	if rf, ok := ret.Get(0).(func(context.Context, params.RepositoryFilter) []params.Repository); ok {
+		r0 = rf(ctx, filter)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]params.Repository)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = rf(ctx)
+	if rf, ok := ret.Get(1).(func(context.Context, params.RepositoryFilter) error); ok {
+		r1 = rf(ctx, filter)
 	} else {
 		r1 = ret.Error(1)
 	}

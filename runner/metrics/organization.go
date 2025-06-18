@@ -19,6 +19,7 @@ import (
 	"strconv"
 
 	"github.com/cloudbase/garm/metrics"
+	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner"
 )
 
@@ -28,7 +29,7 @@ func CollectOrganizationMetric(ctx context.Context, r *runner.Runner) error {
 	metrics.OrganizationInfo.Reset()
 	metrics.OrganizationPoolManagerStatus.Reset()
 
-	organizations, err := r.ListOrganizations(ctx)
+	organizations, err := r.ListOrganizations(ctx, params.OrganizationFilter{})
 	if err != nil {
 		return err
 	}

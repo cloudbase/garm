@@ -59,6 +59,8 @@ type EnterpriseTestSuite struct {
 	testCreds          params.ForgeCredentials
 	secondaryTestCreds params.ForgeCredentials
 	forgeEndpoint      params.ForgeEndpoint
+	ghesEndpoint       params.ForgeEndpoint
+	ghesCreds          params.ForgeCredentials
 }
 
 func (s *EnterpriseTestSuite) SetupTest() {
@@ -71,8 +73,10 @@ func (s *EnterpriseTestSuite) SetupTest() {
 
 	adminCtx := garmTesting.ImpersonateAdminContext(context.Background(), db, s.T())
 	s.forgeEndpoint = garmTesting.CreateDefaultGithubEndpoint(adminCtx, db, s.T())
+	s.ghesEndpoint = garmTesting.CreateGHESEndpoint(adminCtx, db, s.T())
 	s.testCreds = garmTesting.CreateTestGithubCredentials(adminCtx, "new-creds", db, s.T(), s.forgeEndpoint)
 	s.secondaryTestCreds = garmTesting.CreateTestGithubCredentials(adminCtx, "secondary-creds", db, s.T(), s.forgeEndpoint)
+	s.ghesCreds = garmTesting.CreateTestGithubCredentials(adminCtx, "ghes-creds", db, s.T(), s.ghesEndpoint)
 
 	// create some organization objects in the database, for testing purposes
 	enterprises := map[string]params.Enterprise{}
@@ -224,14 +228,74 @@ func (s *EnterpriseTestSuite) TestCreateEnterpriseStartPoolMgrFailed() {
 func (s *EnterpriseTestSuite) TestListEnterprises() {
 	s.Fixtures.PoolMgrCtrlMock.On("GetEnterprisePoolManager", mock.AnythingOfType("params.Enterprise")).Return(s.Fixtures.PoolMgrMock, nil)
 	s.Fixtures.PoolMgrMock.On("Status").Return(params.PoolManagerStatus{IsRunning: true}, nil)
-	orgs, err := s.Runner.ListEnterprises(s.Fixtures.AdminContext)
+	orgs, err := s.Runner.ListEnterprises(s.Fixtures.AdminContext, params.EnterpriseFilter{})
 
 	s.Require().Nil(err)
 	garmTesting.EqualDBEntityByName(s.T(), garmTesting.DBEntityMapToSlice(s.Fixtures.StoreEnterprises), orgs)
 }
 
+func (s *EnterpriseTestSuite) TestListEnterprisesWithFilters() {
+	s.Fixtures.PoolMgrCtrlMock.On("GetEnterprisePoolManager", mock.AnythingOfType("params.Enterprise")).Return(s.Fixtures.PoolMgrMock, nil)
+	s.Fixtures.PoolMgrMock.On("Status").Return(params.PoolManagerStatus{IsRunning: true}, nil)
+
+	enterprise, err := s.Fixtures.Store.CreateEnterprise(
+		s.Fixtures.AdminContext,
+		"test-enterprise",
+		s.testCreds,
+		"super secret",
+		params.PoolBalancerTypeRoundRobin,
+	)
+	s.Require().NoError(err)
+	enterprise2, err := s.Fixtures.Store.CreateEnterprise(
+		s.Fixtures.AdminContext,
+		"test-enterprise2",
+		s.testCreds,
+		"super secret",
+		params.PoolBalancerTypeRoundRobin,
+	)
+	s.Require().NoError(err)
+	enterprise3, err := s.Fixtures.Store.CreateEnterprise(
+		s.Fixtures.AdminContext,
+		"test-enterprise",
+		s.ghesCreds,
+		"super secret",
+		params.PoolBalancerTypeRoundRobin,
+	)
+	s.Require().NoError(err)
+	orgs, err := s.Runner.ListEnterprises(
+		s.Fixtures.AdminContext,
+		params.EnterpriseFilter{
+			Name: "test-enterprise",
+		},
+	)
+
+	s.Require().Nil(err)
+	garmTesting.EqualDBEntityByName(s.T(), []params.Enterprise{enterprise, enterprise3}, orgs)
+
+	orgs, err = s.Runner.ListEnterprises(
+		s.Fixtures.AdminContext,
+		params.EnterpriseFilter{
+			Name:     "test-enterprise",
+			Endpoint: s.ghesEndpoint.Name,
+		},
+	)
+
+	s.Require().Nil(err)
+	garmTesting.EqualDBEntityByName(s.T(), []params.Enterprise{enterprise3}, orgs)
+
+	orgs, err = s.Runner.ListEnterprises(
+		s.Fixtures.AdminContext,
+		params.EnterpriseFilter{
+			Name: "test-enterprise2",
+		},
+	)
+
+	s.Require().Nil(err)
+	garmTesting.EqualDBEntityByName(s.T(), []params.Enterprise{enterprise2}, orgs)
+}
+
 func (s *EnterpriseTestSuite) TestListEnterprisesErrUnauthorized() {
-	_, err := s.Runner.ListEnterprises(context.Background())
+	_, err := s.Runner.ListEnterprises(context.Background(), params.EnterpriseFilter{})
 
 	s.Require().Equal(runnerErrors.ErrUnauthorized, err)
 }

@@ -28,6 +28,7 @@ import (
 
 var (
 	enterpriseName          string
+	enterpriseEndpoint      string
 	enterpriseWebhookSecret string
 	enterpriseCreds         string
 )
@@ -85,6 +86,8 @@ var enterpriseListCmd = &cobra.Command{
 		}
 
 		listEnterprisesReq := apiClientEnterprises.NewListEnterprisesParams()
+		listEnterprisesReq.Name = &enterpriseName
+		listEnterprisesReq.Endpoint = &enterpriseEndpoint
 		response, err := apiCli.Enterprises.ListEnterprises(listEnterprisesReq, authToken)
 		if err != nil {
 			return err
@@ -185,6 +188,8 @@ func init() {
 	enterpriseAddCmd.Flags().StringVar(&poolBalancerType, "pool-balancer-type", string(params.PoolBalancerTypeRoundRobin), "The balancing strategy to use when creating runners in pools matching requested labels.")
 
 	enterpriseListCmd.Flags().BoolVarP(&long, "long", "l", false, "Include additional info.")
+	enterpriseListCmd.Flags().StringVarP(&enterpriseName, "name", "n", "", "Exact enterprise name to filter by.")
+	enterpriseListCmd.Flags().StringVarP(&enterpriseEndpoint, "endpoint", "e", "", "Exact endpoint name to filter by.")
 
 	enterpriseAddCmd.MarkFlagRequired("credentials") //nolint
 	enterpriseAddCmd.MarkFlagRequired("name")        //nolint

@@ -85,6 +85,31 @@ func CreateGARMTestUser(ctx context.Context, username string, db common.Store, s
 	return user
 }
 
+func CreateGHESEndpoint(ctx context.Context, db common.Store, s *testing.T) params.ForgeEndpoint {
+	endpointParams := params.CreateGithubEndpointParams{
+		Name:          "ghes.example.com",
+		Description:   "GHES endpoint",
+		APIBaseURL:    "https://ghes.example.com",
+		UploadBaseURL: "https://upload.ghes.example.com/",
+		BaseURL:       "https://ghes.example.com",
+	}
+
+	ep, err := db.GetGithubEndpoint(ctx, endpointParams.Name)
+	if err != nil {
+		if !errors.Is(err, runnerErrors.ErrNotFound) {
+			s.Fatalf("failed to get database object (%s): %v", endpointParams.Name, err)
+		}
+		ep, err = db.CreateGithubEndpoint(ctx, endpointParams)
+		if err != nil {
+			if !errors.Is(err, runnerErrors.ErrDuplicateEntity) {
+				s.Fatalf("failed to create database object (%s): %v", endpointParams.Name, err)
+			}
+		}
+	}
+
+	return ep
+}
+
 func CreateDefaultGithubEndpoint(ctx context.Context, db common.Store, s *testing.T) params.ForgeEndpoint {
 	endpointParams := params.CreateGithubEndpointParams{
 		Name:          "github.com",

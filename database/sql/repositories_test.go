@@ -376,10 +376,91 @@ func (s *RepoTestSuite) TestGetRepositoryDBDecryptingErr() {
 }
 
 func (s *RepoTestSuite) TestListRepositories() {
-	repos, err := s.Store.ListRepositories(s.adminCtx)
+	repos, err := s.Store.ListRepositories(s.adminCtx, params.RepositoryFilter{})
 
 	s.Require().Nil(err)
 	s.equalReposByName(s.Fixtures.Repos, repos)
+}
+
+func (s *RepoTestSuite) TestListRepositoriesWithFilters() {
+	repo, err := s.Store.CreateRepository(
+		s.adminCtx,
+		"test-owner",
+		"test-repo",
+		s.testCreds,
+		"super secret",
+		params.PoolBalancerTypeRoundRobin,
+	)
+	s.Require().NoError(err)
+
+	repo2, err := s.Store.CreateRepository(
+		s.adminCtx,
+		"test-owner",
+		"test-repo",
+		s.testCredsGitea,
+		"super secret",
+		params.PoolBalancerTypeRoundRobin,
+	)
+	s.Require().NoError(err)
+
+	repo3, err := s.Store.CreateRepository(
+		s.adminCtx,
+		"test-owner",
+		"test-repo2",
+		s.testCreds,
+		"super secret",
+		params.PoolBalancerTypeRoundRobin,
+	)
+	s.Require().NoError(err)
+
+	repo4, err := s.Store.CreateRepository(
+		s.adminCtx,
+		"test-owner2",
+		"test-repo",
+		s.testCreds,
+		"super secret",
+		params.PoolBalancerTypeRoundRobin,
+	)
+	s.Require().NoError(err)
+
+	repos, err := s.Store.ListRepositories(
+		s.adminCtx,
+		params.RepositoryFilter{
+			Name: "test-repo",
+		})
+
+	s.Require().Nil(err)
+	s.equalReposByName([]params.Repository{repo, repo2, repo4}, repos)
+
+	repos, err = s.Store.ListRepositories(
+		s.adminCtx,
+		params.RepositoryFilter{
+			Name:  "test-repo",
+			Owner: "test-owner",
+		})
+
+	s.Require().Nil(err)
+	s.equalReposByName([]params.Repository{repo, repo2}, repos)
+
+	repos, err = s.Store.ListRepositories(
+		s.adminCtx,
+		params.RepositoryFilter{
+			Name:     "test-repo",
+			Owner:    "test-owner",
+			Endpoint: s.giteaEndpoint.Name,
+		})
+
+	s.Require().Nil(err)
+	s.equalReposByName([]params.Repository{repo2}, repos)
+
+	repos, err = s.Store.ListRepositories(
+		s.adminCtx,
+		params.RepositoryFilter{
+			Name: "test-repo2",
+		})
+
+	s.Require().Nil(err)
+	s.equalReposByName([]params.Repository{repo3}, repos)
 }
 
 func (s *RepoTestSuite) TestListRepositoriesDBFetchErr() {
@@ -387,7 +468,7 @@ func (s *RepoTestSuite) TestListRepositoriesDBFetchErr() {
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `repositories` WHERE `repositories`.`deleted_at` IS NULL")).
 		WillReturnError(fmt.Errorf("fetching user from database mock error"))
 
-	_, err := s.StoreSQLMocked.ListRepositories(s.adminCtx)
+	_, err := s.StoreSQLMocked.ListRepositories(s.adminCtx, params.RepositoryFilter{})
 
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching user from database: fetching user from database mock error", err.Error())
@@ -401,7 +482,7 @@ func (s *RepoTestSuite) TestListRepositoriesDBDecryptingErr() {
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `repositories` WHERE `repositories`.`deleted_at` IS NULL")).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "webhook_secret"}).AddRow(s.Fixtures.Repos[0].ID, s.Fixtures.Repos[0].WebhookSecret))
 
-	_, err := s.StoreSQLMocked.ListRepositories(s.adminCtx)
+	_, err := s.StoreSQLMocked.ListRepositories(s.adminCtx, params.RepositoryFilter{})
 
 	s.Require().NotNil(err)
 	s.Require().Equal("fetching repositories: decrypting secret: invalid passphrase length (expected length 32 characters)", err.Error())

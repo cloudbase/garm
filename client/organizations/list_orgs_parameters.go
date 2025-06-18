@@ -60,6 +60,19 @@ ListOrgsParams contains all the parameters to send to the API endpoint
 	Typically these are written to a http.Request.
 */
 type ListOrgsParams struct {
+
+	/* Endpoint.
+
+	   Exact endpoint name to filter by
+	*/
+	Endpoint *string
+
+	/* Name.
+
+	   Exact organization name to filter by
+	*/
+	Name *string
+
 	timeout    time.Duration
 	Context    context.Context
 	HTTPClient *http.Client
@@ -113,6 +126,28 @@ func (o *ListOrgsParams) SetHTTPClient(client *http.Client) {
 	o.HTTPClient = client
 }
 
+// WithEndpoint adds the endpoint to the list orgs params
+func (o *ListOrgsParams) WithEndpoint(endpoint *string) *ListOrgsParams {
+	o.SetEndpoint(endpoint)
+	return o
+}
+
+// SetEndpoint adds the endpoint to the list orgs params
+func (o *ListOrgsParams) SetEndpoint(endpoint *string) {
+	o.Endpoint = endpoint
+}
+
+// WithName adds the name to the list orgs params
+func (o *ListOrgsParams) WithName(name *string) *ListOrgsParams {
+	o.SetName(name)
+	return o
+}
+
+// SetName adds the name to the list orgs params
+func (o *ListOrgsParams) SetName(name *string) {
+	o.Name = name
+}
+
 // WriteToRequest writes these params to a swagger request
 func (o *ListOrgsParams) WriteToRequest(r runtime.ClientRequest, reg strfmt.Registry) error {
 
@@ -120,6 +155,40 @@ func (o *ListOrgsParams) WriteToRequest(r runtime.ClientRequest, reg strfmt.Regi
 		return err
 	}
 	var res []error
+
+	if o.Endpoint != nil {
+
+		// query param endpoint
+		var qrEndpoint string
+
+		if o.Endpoint != nil {
+			qrEndpoint = *o.Endpoint
+		}
+		qEndpoint := qrEndpoint
+		if qEndpoint != "" {
+
+			if err := r.SetQueryParam("endpoint", qEndpoint); err != nil {
+				return err
+			}
+		}
+	}
+
+	if o.Name != nil {
+
+		// query param name
+		var qrName string
+
+		if o.Name != nil {
+			qrName = *o.Name
+		}
+		qName := qrName
+		if qName != "" {
+
+			if err := r.SetQueryParam("name", qName); err != nil {
+				return err
+			}
+		}
+	}
 
 	if len(res) > 0 {
 		return errors.CompositeValidationError(res...)
