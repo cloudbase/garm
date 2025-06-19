@@ -5,7 +5,7 @@ package mocks
 import (
 	context "context"
 
-	github "github.com/google/go-github/v57/github"
+	github "github.com/google/go-github/v72/github"
 	mock "github.com/stretchr/testify/mock"
 
 	params "github.com/cloudbase/garm/params"
@@ -302,7 +302,7 @@ func (_m *GithubClient) ListEntityRunnerApplicationDownloads(ctx context.Context
 }
 
 // ListEntityRunners provides a mock function with given fields: ctx, opts
-func (_m *GithubClient) ListEntityRunners(ctx context.Context, opts *github.ListOptions) (*github.Runners, *github.Response, error) {
+func (_m *GithubClient) ListEntityRunners(ctx context.Context, opts *github.ListRunnersOptions) (*github.Runners, *github.Response, error) {
 	ret := _m.Called(ctx, opts)
 
 	if len(ret) == 0 {
@@ -312,10 +312,10 @@ func (_m *GithubClient) ListEntityRunners(ctx context.Context, opts *github.List
 	var r0 *github.Runners
 	var r1 *github.Response
 	var r2 error
-	if rf, ok := ret.Get(0).(func(context.Context, *github.ListOptions) (*github.Runners, *github.Response, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *github.ListRunnersOptions) (*github.Runners, *github.Response, error)); ok {
 		return rf(ctx, opts)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *github.ListOptions) *github.Runners); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *github.ListRunnersOptions) *github.Runners); ok {
 		r0 = rf(ctx, opts)
 	} else {
 		if ret.Get(0) != nil {
@@ -323,7 +323,7 @@ func (_m *GithubClient) ListEntityRunners(ctx context.Context, opts *github.List
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *github.ListOptions) *github.Response); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *github.ListRunnersOptions) *github.Response); ok {
 		r1 = rf(ctx, opts)
 	} else {
 		if ret.Get(1) != nil {
@@ -331,7 +331,7 @@ func (_m *GithubClient) ListEntityRunners(ctx context.Context, opts *github.List
 		}
 	}
 
-	if rf, ok := ret.Get(2).(func(context.Context, *github.ListOptions) error); ok {
+	if rf, ok := ret.Get(2).(func(context.Context, *github.ListRunnersOptions) error); ok {
 		r2 = rf(ctx, opts)
 	} else {
 		r2 = ret.Error(2)

@@ -27,7 +27,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/go-github/v57/github"
+	"github.com/google/go-github/v72/github"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
@@ -1931,12 +1931,12 @@ func (r *basePoolManager) InstallWebhook(ctx context.Context, param params.Insta
 		insecureSSL = "1"
 	}
 	req := &github.Hook{
-		Active: github.Bool(true),
-		Config: map[string]interface{}{
-			"url":          r.controllerInfo.ControllerWebhookURL,
-			"content_type": "json",
-			"insecure_ssl": insecureSSL,
-			"secret":       r.WebhookSecret(),
+		Active: github.Ptr(true),
+		Config: &github.HookConfig{
+			URL:         github.Ptr(r.controllerInfo.ControllerWebhookURL),
+			ContentType: github.Ptr("json"),
+			InsecureSSL: github.Ptr(insecureSSL),
+			Secret:      github.Ptr(r.WebhookSecret()),
 		},
 		Events: []string{
 			"workflow_job",
@@ -1998,8 +1998,10 @@ func (r *basePoolManager) FetchTools() ([]commonParams.RunnerApplicationDownload
 }
 
 func (r *basePoolManager) GetGithubRunners() ([]*github.Runner, error) {
-	opts := github.ListOptions{
-		PerPage: 100,
+	opts := github.ListRunnersOptions{
+		ListOptions: github.ListOptions{
+			PerPage: 100,
+		},
 	}
 	var allRunners []*github.Runner
 

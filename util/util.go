@@ -22,7 +22,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/google/go-github/v57/github"
+	"github.com/google/go-github/v72/github"
 	"github.com/pkg/errors"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
@@ -160,7 +160,7 @@ func (g *githubClient) PingEntityHook(ctx context.Context, id int64) (ret *githu
 	return ret, err
 }
 
-func (g *githubClient) ListEntityRunners(ctx context.Context, opts *github.ListOptions) (*github.Runners, *github.Response, error) {
+func (g *githubClient) ListEntityRunners(ctx context.Context, opts *github.ListRunnersOptions) (*github.Runners, *github.Response, error) {
 	var ret *github.Runners
 	var response *github.Response
 	var err error
@@ -383,7 +383,7 @@ func (g *githubClient) GetEntityJITConfig(ctx context.Context, instance string, 
 		Labels:        labels,
 		// nolint:golangci-lint,godox
 		// TODO(gabriel-samfira): Should we make this configurable?
-		WorkFolder: github.String("_work"),
+		WorkFolder: github.Ptr("_work"),
 	}
 
 	metrics.GithubOperationCount.WithLabelValues(
