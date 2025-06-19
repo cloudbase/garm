@@ -105,14 +105,26 @@ Example:
 		switch len(args) {
 		case 0:
 			if cmd.Flags().Changed("repo") {
+				scalesetRepository, err = resolveRepository(scalesetRepository)
+				if err != nil {
+					return err
+				}
 				listRepoScaleSetsReq := apiClientRepos.NewListRepoScaleSetsParams()
 				listRepoScaleSetsReq.RepoID = scalesetRepository
 				response, err = apiCli.Repositories.ListRepoScaleSets(listRepoScaleSetsReq, authToken)
 			} else if cmd.Flags().Changed("org") {
+				scalesetOrganization, err = resolveOrganization(scalesetOrganization)
+				if err != nil {
+					return err
+				}
 				listOrgScaleSetsReq := apiClientOrgs.NewListOrgScaleSetsParams()
 				listOrgScaleSetsReq.OrgID = scalesetOrganization
 				response, err = apiCli.Organizations.ListOrgScaleSets(listOrgScaleSetsReq, authToken)
 			} else if cmd.Flags().Changed("enterprise") {
+				scalesetEnterprise, err = resolveEnterprise(scalesetEnterprise)
+				if err != nil {
+					return err
+				}
 				listEnterpriseScaleSetsReq := apiClientEnterprises.NewListEnterpriseScaleSetsParams()
 				listEnterpriseScaleSetsReq.EnterpriseID = scalesetEnterprise
 				response, err = apiCli.Enterprises.ListEnterpriseScaleSets(listEnterpriseScaleSetsReq, authToken)
@@ -244,16 +256,28 @@ var scaleSetAddCmd = &cobra.Command{
 		var err error
 		var response scalesetPayloadGetter
 		if cmd.Flags().Changed("repo") {
+			scalesetRepository, err = resolveRepository(scalesetRepository)
+			if err != nil {
+				return err
+			}
 			newRepoScaleSetReq := apiClientRepos.NewCreateRepoScaleSetParams()
 			newRepoScaleSetReq.RepoID = scalesetRepository
 			newRepoScaleSetReq.Body = newScaleSetParams
 			response, err = apiCli.Repositories.CreateRepoScaleSet(newRepoScaleSetReq, authToken)
 		} else if cmd.Flags().Changed("org") {
+			scalesetOrganization, err = resolveOrganization(scalesetOrganization)
+			if err != nil {
+				return err
+			}
 			newOrgScaleSetReq := apiClientOrgs.NewCreateOrgScaleSetParams()
 			newOrgScaleSetReq.OrgID = scalesetOrganization
 			newOrgScaleSetReq.Body = newScaleSetParams
 			response, err = apiCli.Organizations.CreateOrgScaleSet(newOrgScaleSetReq, authToken)
 		} else if cmd.Flags().Changed("enterprise") {
+			scalesetEnterprise, err = resolveEnterprise(scalesetEnterprise)
+			if err != nil {
+				return err
+			}
 			newEnterpriseScaleSetReq := apiClientEnterprises.NewCreateEnterpriseScaleSetParams()
 			newEnterpriseScaleSetReq.EnterpriseID = scalesetEnterprise
 			newEnterpriseScaleSetReq.Body = newScaleSetParams

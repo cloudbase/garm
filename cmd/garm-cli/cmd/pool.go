@@ -105,14 +105,26 @@ Example:
 		switch len(args) {
 		case 0:
 			if cmd.Flags().Changed("repo") {
+				poolRepository, err = resolveRepository(poolRepository)
+				if err != nil {
+					return err
+				}
 				listRepoPoolsReq := apiClientRepos.NewListRepoPoolsParams()
 				listRepoPoolsReq.RepoID = poolRepository
 				response, err = apiCli.Repositories.ListRepoPools(listRepoPoolsReq, authToken)
 			} else if cmd.Flags().Changed("org") {
+				poolOrganization, err = resolveOrganization(poolOrganization)
+				if err != nil {
+					return err
+				}
 				listOrgPoolsReq := apiClientOrgs.NewListOrgPoolsParams()
 				listOrgPoolsReq.OrgID = poolOrganization
 				response, err = apiCli.Organizations.ListOrgPools(listOrgPoolsReq, authToken)
 			} else if cmd.Flags().Changed("enterprise") {
+				poolEnterprise, err = resolveEnterprise(poolEnterprise)
+				if err != nil {
+					return err
+				}
 				listEnterprisePoolsReq := apiClientEnterprises.NewListEnterprisePoolsParams()
 				listEnterprisePoolsReq.EnterpriseID = poolEnterprise
 				response, err = apiCli.Enterprises.ListEnterprisePools(listEnterprisePoolsReq, authToken)
@@ -250,16 +262,28 @@ var poolAddCmd = &cobra.Command{
 		var err error
 		var response poolPayloadGetter
 		if cmd.Flags().Changed("repo") {
+			poolRepository, err = resolveRepository(poolRepository)
+			if err != nil {
+				return err
+			}
 			newRepoPoolReq := apiClientRepos.NewCreateRepoPoolParams()
 			newRepoPoolReq.RepoID = poolRepository
 			newRepoPoolReq.Body = newPoolParams
 			response, err = apiCli.Repositories.CreateRepoPool(newRepoPoolReq, authToken)
 		} else if cmd.Flags().Changed("org") {
+			poolOrganization, err = resolveOrganization(poolOrganization)
+			if err != nil {
+				return err
+			}
 			newOrgPoolReq := apiClientOrgs.NewCreateOrgPoolParams()
 			newOrgPoolReq.OrgID = poolOrganization
 			newOrgPoolReq.Body = newPoolParams
 			response, err = apiCli.Organizations.CreateOrgPool(newOrgPoolReq, authToken)
 		} else if cmd.Flags().Changed("enterprise") {
+			poolEnterprise, err = resolveEnterprise(poolEnterprise)
+			if err != nil {
+				return err
+			}
 			newEnterprisePoolReq := apiClientEnterprises.NewCreateEnterprisePoolParams()
 			newEnterprisePoolReq.EnterpriseID = poolEnterprise
 			newEnterprisePoolReq.Body = newPoolParams

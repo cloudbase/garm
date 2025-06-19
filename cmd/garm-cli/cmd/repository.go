@@ -78,8 +78,13 @@ var repoWebhookInstallCmd = &cobra.Command{
 			return fmt.Errorf("too many arguments")
 		}
 
+		repoID, err := resolveRepository(args[0])
+		if err != nil {
+			return err
+		}
+
 		installWebhookReq := apiClientRepos.NewInstallRepoWebhookParams()
-		installWebhookReq.RepoID = args[0]
+		installWebhookReq.RepoID = repoID
 		installWebhookReq.Body.InsecureSSL = insecureRepoWebhook
 		installWebhookReq.Body.WebhookEndpointType = params.WebhookEndpointDirect
 
@@ -108,8 +113,13 @@ var repoHookInfoShowCmd = &cobra.Command{
 			return fmt.Errorf("too many arguments")
 		}
 
+		repoID, err := resolveRepository(args[0])
+		if err != nil {
+			return err
+		}
+
 		showWebhookInfoReq := apiClientRepos.NewGetRepoWebhookInfoParams()
-		showWebhookInfoReq.RepoID = args[0]
+		showWebhookInfoReq.RepoID = repoID
 
 		response, err := apiCli.Repositories.GetRepoWebhookInfo(showWebhookInfoReq, authToken)
 		if err != nil {
@@ -136,10 +146,15 @@ var repoWebhookUninstallCmd = &cobra.Command{
 			return fmt.Errorf("too many arguments")
 		}
 
-		uninstallWebhookReq := apiClientRepos.NewUninstallRepoWebhookParams()
-		uninstallWebhookReq.RepoID = args[0]
+		repoID, err := resolveRepository(args[0])
+		if err != nil {
+			return err
+		}
 
-		err := apiCli.Repositories.UninstallRepoWebhook(uninstallWebhookReq, authToken)
+		uninstallWebhookReq := apiClientRepos.NewUninstallRepoWebhookParams()
+		uninstallWebhookReq.RepoID = repoID
+
+		err = apiCli.Repositories.UninstallRepoWebhook(uninstallWebhookReq, authToken)
 		if err != nil {
 			return err
 		}
@@ -243,13 +258,19 @@ var repoUpdateCmd = &cobra.Command{
 		if len(args) > 1 {
 			return fmt.Errorf("too many arguments")
 		}
+
+		repoID, err := resolveRepository(args[0])
+		if err != nil {
+			return err
+		}
+
 		updateReposReq := apiClientRepos.NewUpdateRepoParams()
 		updateReposReq.Body = params.UpdateEntityParams{
 			WebhookSecret:    repoWebhookSecret,
 			CredentialsName:  repoCreds,
 			PoolBalancerType: params.PoolBalancerType(poolBalancerType),
 		}
-		updateReposReq.RepoID = args[0]
+		updateReposReq.RepoID = repoID
 
 		response, err := apiCli.Repositories.UpdateRepo(updateReposReq, authToken)
 		if err != nil {
@@ -275,8 +296,14 @@ var repoShowCmd = &cobra.Command{
 		if len(args) > 1 {
 			return fmt.Errorf("too many arguments")
 		}
+
+		repoID, err := resolveRepository(args[0])
+		if err != nil {
+			return err
+		}
+
 		showRepoReq := apiClientRepos.NewGetRepoParams()
-		showRepoReq.RepoID = args[0]
+		showRepoReq.RepoID = repoID
 		response, err := apiCli.Repositories.GetRepo(showRepoReq, authToken)
 		if err != nil {
 			return err
@@ -302,8 +329,14 @@ var repoDeleteCmd = &cobra.Command{
 		if len(args) > 1 {
 			return fmt.Errorf("too many arguments")
 		}
+
+		repoID, err := resolveRepository(args[0])
+		if err != nil {
+			return err
+		}
+
 		deleteRepoReq := apiClientRepos.NewDeleteRepoParams()
-		deleteRepoReq.RepoID = args[0]
+		deleteRepoReq.RepoID = repoID
 		deleteRepoReq.KeepWebhook = &keepRepoWebhook
 		if err := apiCli.Repositories.DeleteRepo(deleteRepoReq, authToken); err != nil {
 			return err
