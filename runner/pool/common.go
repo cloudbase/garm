@@ -39,14 +39,16 @@ func validateHookRequest(controllerID, baseURL string, allHooks []*github.Hook, 
 
 func hookToParamsHookInfo(hook *github.Hook) params.HookInfo {
 	var insecureSSL bool
+	var hookURL string
 	config := hook.GetConfig()
 	if config != nil {
 		insecureSSL = config.GetInsecureSSL() == "1"
+		hookURL = config.GetURL()
 	}
 
 	return params.HookInfo{
 		ID:          *hook.ID,
-		URL:         hook.GetURL(),
+		URL:         hookURL,
 		Events:      hook.Events,
 		Active:      *hook.Active,
 		InsecureSSL: insecureSSL,
