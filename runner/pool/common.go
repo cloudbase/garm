@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/google/go-github/v57/github"
+	"github.com/google/go-github/v72/github"
 	"github.com/pkg/errors"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
@@ -21,16 +21,12 @@ func validateHookRequest(controllerID, baseURL string, allHooks []*github.Hook, 
 
 	partialMatches := []string{}
 	for _, hook := range allHooks {
-		hookURL, ok := hook.Config["url"].(string)
-		if !ok {
-			continue
-		}
-		hookURL = strings.ToLower(hookURL)
+		hookURL := strings.ToLower(hook.GetURL())
 
-		if hook.Config["url"] == req.Config["url"] {
+		if hook.GetURL() == req.GetURL() {
 			return runnerErrors.NewConflictError("hook already installed")
 		} else if strings.Contains(hookURL, controllerID) || strings.Contains(hookURL, parsed.Hostname()) {
-			partialMatches = append(partialMatches, hook.Config["url"].(string))
+			partialMatches = append(partialMatches, hook.GetURL())
 		}
 	}
 
@@ -42,23 +38,15 @@ func validateHookRequest(controllerID, baseURL string, allHooks []*github.Hook, 
 }
 
 func hookToParamsHookInfo(hook *github.Hook) params.HookInfo {
-	var hookURL string
-	url, ok := hook.Config["url"]
-	if ok {
-		hookURL = url.(string)
-	}
-
 	var insecureSSL bool
-	insecureSSLConfig, ok := hook.Config["insecure_ssl"]
-	if ok {
-		if insecureSSLConfig.(string) == "1" {
-			insecureSSL = true
-		}
+	config := hook.GetConfig()
+	if config != nil {
+		insecureSSL = config.GetInsecureSSL() == "1"
 	}
 
 	return params.HookInfo{
 		ID:          *hook.ID,
-		URL:         hookURL,
+		URL:         hook.GetURL(),
 		Events:      hook.Events,
 		Active:      *hook.Active,
 		InsecureSSL: insecureSSL,

@@ -12,7 +12,7 @@ github.com/asaskevich/govalidator
 # github.com/beorn7/perks v1.0.1
 ## explicit; go 1.11
 github.com/beorn7/perks/quantile
-# github.com/bradleyfalzon/ghinstallation/v2 v2.15.0
+# github.com/bradleyfalzon/ghinstallation/v2 v2.16.0
 ## explicit; go 1.23.0
 github.com/bradleyfalzon/ghinstallation/v2
 # github.com/cespare/xxhash/v2 v2.3.0
@@ -21,8 +21,8 @@ github.com/cespare/xxhash/v2
 # github.com/chzyer/readline v1.5.1
 ## explicit; go 1.15
 github.com/chzyer/readline
-# github.com/cloudbase/garm-provider-common v0.1.4
-## explicit; go 1.22
+# github.com/cloudbase/garm-provider-common v0.1.5
+## explicit; go 1.23.0
 github.com/cloudbase/garm-provider-common/defaults
 github.com/cloudbase/garm-provider-common/errors
 github.com/cloudbase/garm-provider-common/execution/common
@@ -36,7 +36,7 @@ github.com/davecgh/go-spew/spew
 # github.com/felixge/httpsnoop v1.0.4
 ## explicit; go 1.13
 github.com/felixge/httpsnoop
-# github.com/go-logr/logr v1.4.2
+# github.com/go-logr/logr v1.4.3
 ## explicit; go 1.18
 github.com/go-logr/logr
 github.com/go-logr/logr/funcr
@@ -88,7 +88,7 @@ github.com/go-openapi/swag
 # github.com/go-openapi/validate v0.24.0
 ## explicit; go 1.20
 github.com/go-openapi/validate
-# github.com/go-sql-driver/mysql v1.9.2
+# github.com/go-sql-driver/mysql v1.9.3
 ## explicit; go 1.21.0
 github.com/go-sql-driver/mysql
 # github.com/golang-jwt/jwt/v4 v4.5.2
@@ -97,12 +97,9 @@ github.com/golang-jwt/jwt/v4
 # github.com/golang-jwt/jwt/v5 v5.2.2
 ## explicit; go 1.18
 github.com/golang-jwt/jwt/v5
-# github.com/google/go-github/v57 v57.0.0
-## explicit; go 1.17
-github.com/google/go-github/v57/github
-# github.com/google/go-github/v71 v71.0.0
+# github.com/google/go-github/v72 v72.0.0
 ## explicit; go 1.23.0
-github.com/google/go-github/v71/github
+github.com/google/go-github/v72/github
 # github.com/google/go-querystring v1.1.0
 ## explicit; go 1.10
 github.com/google/go-querystring/query
@@ -242,7 +239,7 @@ github.com/stretchr/testify/suite
 # github.com/teris-io/shortid v0.0.0-20220617161101-71ec9f2aa569
 ## explicit; go 1.18
 github.com/teris-io/shortid
-# go.mongodb.org/mongo-driver v1.17.3
+# go.mongodb.org/mongo-driver v1.17.4
 ## explicit; go 1.18
 go.mongodb.org/mongo-driver/bson
 go.mongodb.org/mongo-driver/bson/bsoncodec
@@ -279,7 +276,7 @@ go.opentelemetry.io/otel/trace
 go.opentelemetry.io/otel/trace/embedded
 go.opentelemetry.io/otel/trace/internal/telemetry
 go.opentelemetry.io/otel/trace/noop
-# golang.org/x/crypto v0.38.0
+# golang.org/x/crypto v0.39.0
 ## explicit; go 1.23.0
 golang.org/x/crypto/bcrypt
 golang.org/x/crypto/blowfish
@@ -288,7 +285,7 @@ golang.org/x/crypto/chacha20poly1305
 golang.org/x/crypto/hkdf
 golang.org/x/crypto/internal/alias
 golang.org/x/crypto/internal/poly1305
-# golang.org/x/net v0.40.0
+# golang.org/x/net v0.41.0
 ## explicit; go 1.23.0
 golang.org/x/net/internal/socks
 golang.org/x/net/proxy
@@ -296,7 +293,7 @@ golang.org/x/net/proxy
 ## explicit; go 1.23.0
 golang.org/x/oauth2
 golang.org/x/oauth2/internal
-# golang.org/x/sync v0.14.0
+# golang.org/x/sync v0.15.0
 ## explicit; go 1.23.0
 golang.org/x/sync/errgroup
 # golang.org/x/sys v0.33.0
@@ -304,7 +301,7 @@ golang.org/x/sync/errgroup
 golang.org/x/sys/cpu
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/text v0.25.0
+# golang.org/x/text v0.26.0
 ## explicit; go 1.23.0
 golang.org/x/text/cases
 golang.org/x/text/internal
@@ -358,13 +355,13 @@ gopkg.in/yaml.v3
 # gorm.io/datatypes v1.2.5
 ## explicit; go 1.19
 gorm.io/datatypes
-# gorm.io/driver/mysql v1.5.7
-## explicit; go 1.14
+# gorm.io/driver/mysql v1.6.0
+## explicit; go 1.18
 gorm.io/driver/mysql
-# gorm.io/driver/sqlite v1.5.7
+# gorm.io/driver/sqlite v1.6.0
 ## explicit; go 1.20
 gorm.io/driver/sqlite
-# gorm.io/gorm v1.26.1
+# gorm.io/gorm v1.30.0
 ## explicit; go 1.18
 gorm.io/gorm
 gorm.io/gorm/callbacks
