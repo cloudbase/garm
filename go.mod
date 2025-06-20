@@ -7,7 +7,7 @@ toolchain go1.23.6
 require (
 	github.com/BurntSushi/toml v1.5.0
 	github.com/bradleyfalzon/ghinstallation/v2 v2.16.0
-	github.com/cloudbase/garm-provider-common v0.1.5-0.20250417155201-8ef03502d06e
+	github.com/cloudbase/garm-provider-common v0.1.5
 	github.com/felixge/httpsnoop v1.0.4
 	github.com/go-openapi/errors v0.22.1
 	github.com/go-openapi/runtime v0.28.0
