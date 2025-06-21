@@ -112,8 +112,14 @@ var enterpriseShowCmd = &cobra.Command{
 		if len(args) > 1 {
 			return fmt.Errorf("too many arguments")
 		}
+
+		enterpriseID, err := resolveEnterprise(args[0], enterpriseEndpoint)
+		if err != nil {
+			return err
+		}
+
 		showEnterpriseReq := apiClientEnterprises.NewGetEnterpriseParams()
-		showEnterpriseReq.EnterpriseID = args[0]
+		showEnterpriseReq.EnterpriseID = enterpriseID
 		response, err := apiCli.Enterprises.GetEnterprise(showEnterpriseReq, authToken)
 		if err != nil {
 			return err
@@ -139,8 +145,14 @@ var enterpriseDeleteCmd = &cobra.Command{
 		if len(args) > 1 {
 			return fmt.Errorf("too many arguments")
 		}
+
+		enterpriseID, err := resolveEnterprise(args[0], enterpriseEndpoint)
+		if err != nil {
+			return err
+		}
+
 		deleteEnterpriseReq := apiClientEnterprises.NewDeleteEnterpriseParams()
-		deleteEnterpriseReq.EnterpriseID = args[0]
+		deleteEnterpriseReq.EnterpriseID = enterpriseID
 		if err := apiCli.Enterprises.DeleteEnterprise(deleteEnterpriseReq, authToken); err != nil {
 			return err
 		}
@@ -165,13 +177,18 @@ var enterpriseUpdateCmd = &cobra.Command{
 		if len(args) > 1 {
 			return fmt.Errorf("too many arguments")
 		}
+		enterpriseID, err := resolveEnterprise(args[0], enterpriseEndpoint)
+		if err != nil {
+			return err
+		}
+
 		updateEnterpriseReq := apiClientEnterprises.NewUpdateEnterpriseParams()
 		updateEnterpriseReq.Body = params.UpdateEntityParams{
 			WebhookSecret:    repoWebhookSecret,
 			CredentialsName:  repoCreds,
 			PoolBalancerType: params.PoolBalancerType(poolBalancerType),
 		}
-		updateEnterpriseReq.EnterpriseID = args[0]
+		updateEnterpriseReq.EnterpriseID = enterpriseID
 		response, err := apiCli.Enterprises.UpdateEnterprise(updateEnterpriseReq, authToken)
 		if err != nil {
 			return err
@@ -196,6 +213,10 @@ func init() {
 	enterpriseUpdateCmd.Flags().StringVar(&enterpriseWebhookSecret, "webhook-secret", "", "The webhook secret for this enterprise")
 	enterpriseUpdateCmd.Flags().StringVar(&enterpriseCreds, "credentials", "", "Credentials name. See credentials list.")
 	enterpriseUpdateCmd.Flags().StringVar(&poolBalancerType, "pool-balancer-type", "", "The balancing strategy to use when creating runners in pools matching requested labels.")
+	enterpriseUpdateCmd.Flags().StringVar(&enterpriseEndpoint, "endpoint", "", "When using the name of the enterprise, the endpoint must be specified when multiple enterprises with the same name exist.")
+
+	enterpriseDeleteCmd.Flags().StringVar(&enterpriseEndpoint, "endpoint", "", "When using the name of the enterprise, the endpoint must be specified when multiple enterprises with the same name exist.")
+	enterpriseShowCmd.Flags().StringVar(&enterpriseEndpoint, "endpoint", "", "When using the name of the enterprise, the endpoint must be specified when multiple enterprises with the same name exist.")
 
 	enterpriseCmd.AddCommand(
 		enterpriseListCmd,

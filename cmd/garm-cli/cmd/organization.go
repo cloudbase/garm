@@ -76,8 +76,13 @@ var orgWebhookInstallCmd = &cobra.Command{
 			return fmt.Errorf("too many arguments")
 		}
 
+		orgID, err := resolveOrganization(args[0], orgEndpoint)
+		if err != nil {
+			return err
+		}
+
 		installWebhookReq := apiClientOrgs.NewInstallOrgWebhookParams()
-		installWebhookReq.OrgID = args[0]
+		installWebhookReq.OrgID = orgID
 		installWebhookReq.Body.InsecureSSL = insecureOrgWebhook
 		installWebhookReq.Body.WebhookEndpointType = params.WebhookEndpointDirect
 
@@ -105,9 +110,12 @@ var orgHookInfoShowCmd = &cobra.Command{
 		if len(args) > 1 {
 			return fmt.Errorf("too many arguments")
 		}
-
+		orgID, err := resolveOrganization(args[0], orgEndpoint)
+		if err != nil {
+			return err
+		}
 		showWebhookInfoReq := apiClientOrgs.NewGetOrgWebhookInfoParams()
-		showWebhookInfoReq.OrgID = args[0]
+		showWebhookInfoReq.OrgID = orgID
 
 		response, err := apiCli.Organizations.GetOrgWebhookInfo(showWebhookInfoReq, authToken)
 		if err != nil {
@@ -134,10 +142,15 @@ var orgWebhookUninstallCmd = &cobra.Command{
 			return fmt.Errorf("too many arguments")
 		}
 
-		uninstallWebhookReq := apiClientOrgs.NewUninstallOrgWebhookParams()
-		uninstallWebhookReq.OrgID = args[0]
+		orgID, err := resolveOrganization(args[0], orgEndpoint)
+		if err != nil {
+			return err
+		}
 
-		err := apiCli.Organizations.UninstallOrgWebhook(uninstallWebhookReq, authToken)
+		uninstallWebhookReq := apiClientOrgs.NewUninstallOrgWebhookParams()
+		uninstallWebhookReq.OrgID = orgID
+
+		err = apiCli.Organizations.UninstallOrgWebhook(uninstallWebhookReq, authToken)
 		if err != nil {
 			return err
 		}
@@ -216,13 +229,19 @@ var orgUpdateCmd = &cobra.Command{
 		if len(args) > 1 {
 			return fmt.Errorf("too many arguments")
 		}
+
+		orgID, err := resolveOrganization(args[0], orgEndpoint)
+		if err != nil {
+			return err
+		}
+
 		updateOrgReq := apiClientOrgs.NewUpdateOrgParams()
 		updateOrgReq.Body = params.UpdateEntityParams{
 			WebhookSecret:    orgWebhookSecret,
 			CredentialsName:  orgCreds,
 			PoolBalancerType: params.PoolBalancerType(poolBalancerType),
 		}
-		updateOrgReq.OrgID = args[0]
+		updateOrgReq.OrgID = orgID
 		response, err := apiCli.Organizations.UpdateOrg(updateOrgReq, authToken)
 		if err != nil {
 			return err
@@ -270,8 +289,14 @@ var orgShowCmd = &cobra.Command{
 		if len(args) > 1 {
 			return fmt.Errorf("too many arguments")
 		}
+
+		orgID, err := resolveOrganization(args[0], orgEndpoint)
+		if err != nil {
+			return err
+		}
+
 		showOrgReq := apiClientOrgs.NewGetOrgParams()
-		showOrgReq.OrgID = args[0]
+		showOrgReq.OrgID = orgID
 		response, err := apiCli.Organizations.GetOrg(showOrgReq, authToken)
 		if err != nil {
 			return err
@@ -297,8 +322,14 @@ var orgDeleteCmd = &cobra.Command{
 		if len(args) > 1 {
 			return fmt.Errorf("too many arguments")
 		}
+
+		orgID, err := resolveOrganization(args[0], orgEndpoint)
+		if err != nil {
+			return err
+		}
+
 		deleteOrgReq := apiClientOrgs.NewDeleteOrgParams()
-		deleteOrgReq.OrgID = args[0]
+		deleteOrgReq.OrgID = orgID
 		deleteOrgReq.KeepWebhook = &keepOrgWebhook
 		if err := apiCli.Organizations.DeleteOrg(deleteOrgReq, authToken); err != nil {
 			return err
@@ -326,12 +357,22 @@ func init() {
 	orgAddCmd.MarkFlagRequired("name")        //nolint
 
 	orgDeleteCmd.Flags().BoolVar(&keepOrgWebhook, "keep-webhook", false, "Do not delete any existing webhook when removing the organization from GARM.")
+	orgDeleteCmd.Flags().StringVar(&orgEndpoint, "endpoint", "", "When using the name of the org, the endpoint must be specified when multiple organizations with the same name exist.")
+
+	orgShowCmd.Flags().StringVar(&orgEndpoint, "endpoint", "", "When using the name of the org, the endpoint must be specified when multiple organizations with the same name exist.")
 
 	orgUpdateCmd.Flags().StringVar(&orgWebhookSecret, "webhook-secret", "", "The webhook secret for this organization")
 	orgUpdateCmd.Flags().StringVar(&orgCreds, "credentials", "", "Credentials name. See credentials list.")
 	orgUpdateCmd.Flags().StringVar(&poolBalancerType, "pool-balancer-type", "", "The balancing strategy to use when creating runners in pools matching requested labels.")
+	orgUpdateCmd.Flags().StringVar(&orgEndpoint, "endpoint", "", "When using the name of the org, the endpoint must be specified when multiple organizations with the same name exist.")
 
 	orgWebhookInstallCmd.Flags().BoolVar(&insecureOrgWebhook, "insecure", false, "Ignore self signed certificate errors.")
+	orgWebhookInstallCmd.Flags().StringVar(&orgEndpoint, "endpoint", "", "When using the name of the org, the endpoint must be specified when multiple organizations with the same name exist.")
+
+	orgWebhookUninstallCmd.Flags().StringVar(&orgEndpoint, "endpoint", "", "When using the name of the org, the endpoint must be specified when multiple organizations with the same name exist.")
+
+	orgHookInfoShowCmd.Flags().StringVar(&orgEndpoint, "endpoint", "", "When using the name of the org, the endpoint must be specified when multiple organizations with the same name exist.")
+
 	orgWebhookCmd.AddCommand(
 		orgWebhookInstallCmd,
 		orgWebhookUninstallCmd,
