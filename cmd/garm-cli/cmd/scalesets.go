@@ -105,7 +105,7 @@ Example:
 		switch len(args) {
 		case 0:
 			if cmd.Flags().Changed("repo") {
-				scalesetRepository, err = resolveRepository(scalesetRepository)
+				scalesetRepository, err = resolveRepository(scalesetRepository, endpointName)
 				if err != nil {
 					return err
 				}
@@ -113,7 +113,7 @@ Example:
 				listRepoScaleSetsReq.RepoID = scalesetRepository
 				response, err = apiCli.Repositories.ListRepoScaleSets(listRepoScaleSetsReq, authToken)
 			} else if cmd.Flags().Changed("org") {
-				scalesetOrganization, err = resolveOrganization(scalesetOrganization)
+				scalesetOrganization, err = resolveOrganization(scalesetOrganization, endpointName)
 				if err != nil {
 					return err
 				}
@@ -121,7 +121,7 @@ Example:
 				listOrgScaleSetsReq.OrgID = scalesetOrganization
 				response, err = apiCli.Organizations.ListOrgScaleSets(listOrgScaleSetsReq, authToken)
 			} else if cmd.Flags().Changed("enterprise") {
-				scalesetEnterprise, err = resolveEnterprise(scalesetEnterprise)
+				scalesetEnterprise, err = resolveEnterprise(scalesetEnterprise, endpointName)
 				if err != nil {
 					return err
 				}
@@ -256,7 +256,7 @@ var scaleSetAddCmd = &cobra.Command{
 		var err error
 		var response scalesetPayloadGetter
 		if cmd.Flags().Changed("repo") {
-			scalesetRepository, err = resolveRepository(scalesetRepository)
+			scalesetRepository, err = resolveRepository(scalesetRepository, endpointName)
 			if err != nil {
 				return err
 			}
@@ -265,7 +265,7 @@ var scaleSetAddCmd = &cobra.Command{
 			newRepoScaleSetReq.Body = newScaleSetParams
 			response, err = apiCli.Repositories.CreateRepoScaleSet(newRepoScaleSetReq, authToken)
 		} else if cmd.Flags().Changed("org") {
-			scalesetOrganization, err = resolveOrganization(scalesetOrganization)
+			scalesetOrganization, err = resolveOrganization(scalesetOrganization, endpointName)
 			if err != nil {
 				return err
 			}
@@ -274,7 +274,7 @@ var scaleSetAddCmd = &cobra.Command{
 			newOrgScaleSetReq.Body = newScaleSetParams
 			response, err = apiCli.Organizations.CreateOrgScaleSet(newOrgScaleSetReq, authToken)
 		} else if cmd.Flags().Changed("enterprise") {
-			scalesetEnterprise, err = resolveEnterprise(scalesetEnterprise)
+			scalesetEnterprise, err = resolveEnterprise(scalesetEnterprise, endpointName)
 			if err != nil {
 				return err
 			}
@@ -402,6 +402,7 @@ func init() {
 	scalesetListCmd.Flags().StringVarP(&scalesetEnterprise, "enterprise", "e", "", "List all scale sets within this enterprise.")
 	scalesetListCmd.Flags().BoolVarP(&scalesetAll, "all", "a", false, "List all scale sets, regardless of org or repo.")
 	scalesetListCmd.MarkFlagsMutuallyExclusive("repo", "org", "all", "enterprise")
+	scalesetListCmd.Flags().StringVar(&endpointName, "endpoint", "", "When using the name of an entity, the endpoint must be specified when multiple entities with the same name exist.")
 
 	scaleSetUpdateCmd.Flags().StringVar(&scalesetImage, "image", "", "The provider-specific image name to use for runners in this scale set.")
 	scaleSetUpdateCmd.Flags().StringVar(&scalesetFlavor, "flavor", "", "The flavor to use for the runners in this scale set.")
@@ -432,6 +433,7 @@ func init() {
 	scaleSetAddCmd.Flags().UintVar(&scalesetRunnerBootstrapTimeout, "runner-bootstrap-timeout", 20, "Duration in minutes after which a runner is considered failed if it does not join Github.")
 	scaleSetAddCmd.Flags().UintVar(&scalesetMinIdleRunners, "min-idle-runners", 1, "Attempt to maintain a minimum of idle self-hosted runners of this type.")
 	scaleSetAddCmd.Flags().BoolVar(&scalesetEnabled, "enabled", false, "Enable this scale set.")
+	scaleSetAddCmd.Flags().StringVar(&endpointName, "endpoint", "", "When using the name of an entity, the endpoint must be specified when multiple entities with the same name exist.")
 	scaleSetAddCmd.MarkFlagRequired("provider-name") //nolint
 	scaleSetAddCmd.MarkFlagRequired("name")          //nolint
 	scaleSetAddCmd.MarkFlagRequired("image")         //nolint

@@ -11,7 +11,7 @@ import (
 	apiClientRepos "github.com/cloudbase/garm/client/repositories"
 )
 
-func resolveRepository(nameOrID string) (string, error) {
+func resolveRepository(nameOrID, endpoint string) (string, error) {
 	if nameOrID == "" {
 		return "", fmt.Errorf("missing repository name or ID")
 	}
@@ -30,6 +30,9 @@ func resolveRepository(nameOrID string) (string, error) {
 	listReposReq := apiClientRepos.NewListReposParams()
 	listReposReq.Owner = &parts[0]
 	listReposReq.Name = &parts[1]
+	if endpoint != "" {
+		listReposReq.Endpoint = &endpoint
+	}
 	response, err := apiCli.Repositories.ListRepos(listReposReq, authToken)
 	if err != nil {
 		return "", err
@@ -39,12 +42,12 @@ func resolveRepository(nameOrID string) (string, error) {
 	}
 
 	if len(response.Payload) > 1 {
-		return "", fmt.Errorf("multiple repositories with the name %s exist, please use the repository ID", nameOrID)
+		return "", fmt.Errorf("multiple repositories with the name %s exist, please use the repository ID or specify the --endpoint parameter", nameOrID)
 	}
 	return response.Payload[0].ID, nil
 }
 
-func resolveOrganization(nameOrID string) (string, error) {
+func resolveOrganization(nameOrID, endpoint string) (string, error) {
 	if nameOrID == "" {
 		return "", fmt.Errorf("missing organization name or ID")
 	}
@@ -55,6 +58,9 @@ func resolveOrganization(nameOrID string) (string, error) {
 
 	listOrgsReq := apiClientOrgs.NewListOrgsParams()
 	listOrgsReq.Name = &nameOrID
+	if endpoint != "" {
+		listOrgsReq.Endpoint = &endpoint
+	}
 	response, err := apiCli.Organizations.ListOrgs(listOrgsReq, authToken)
 	if err != nil {
 		return "", err
@@ -65,13 +71,13 @@ func resolveOrganization(nameOrID string) (string, error) {
 	}
 
 	if len(response.Payload) > 1 {
-		return "", fmt.Errorf("multiple organizations with the name %s exist, please use the organization ID", nameOrID)
+		return "", fmt.Errorf("multiple organizations with the name %s exist, please use the organization ID or specify the --endpoint parameter", nameOrID)
 	}
 
 	return response.Payload[0].ID, nil
 }
 
-func resolveEnterprise(nameOrID string) (string, error) {
+func resolveEnterprise(nameOrID, endpoint string) (string, error) {
 	if nameOrID == "" {
 		return "", fmt.Errorf("missing enterprise name or ID")
 	}
@@ -82,7 +88,9 @@ func resolveEnterprise(nameOrID string) (string, error) {
 
 	listEnterprisesReq := apiClientEnterprises.NewListEnterprisesParams()
 	listEnterprisesReq.Name = &enterpriseName
-	listEnterprisesReq.Endpoint = &enterpriseEndpoint
+	if endpoint != "" {
+		listEnterprisesReq.Endpoint = &endpoint
+	}
 	response, err := apiCli.Enterprises.ListEnterprises(listEnterprisesReq, authToken)
 	if err != nil {
 		return "", err
@@ -93,7 +101,7 @@ func resolveEnterprise(nameOrID string) (string, error) {
 	}
 
 	if len(response.Payload) > 1 {
-		return "", fmt.Errorf("multiple enterprises with the name %s exist, please use the enterprise ID", nameOrID)
+		return "", fmt.Errorf("multiple enterprises with the name %s exist, please use the enterprise ID or specify the --endpoint parameter", nameOrID)
 	}
 
 	return response.Payload[0].ID, nil

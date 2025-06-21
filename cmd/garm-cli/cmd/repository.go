@@ -78,7 +78,7 @@ var repoWebhookInstallCmd = &cobra.Command{
 			return fmt.Errorf("too many arguments")
 		}
 
-		repoID, err := resolveRepository(args[0])
+		repoID, err := resolveRepository(args[0], repoEndpoint)
 		if err != nil {
 			return err
 		}
@@ -113,7 +113,7 @@ var repoHookInfoShowCmd = &cobra.Command{
 			return fmt.Errorf("too many arguments")
 		}
 
-		repoID, err := resolveRepository(args[0])
+		repoID, err := resolveRepository(args[0], repoEndpoint)
 		if err != nil {
 			return err
 		}
@@ -146,7 +146,7 @@ var repoWebhookUninstallCmd = &cobra.Command{
 			return fmt.Errorf("too many arguments")
 		}
 
-		repoID, err := resolveRepository(args[0])
+		repoID, err := resolveRepository(args[0], repoEndpoint)
 		if err != nil {
 			return err
 		}
@@ -259,7 +259,7 @@ var repoUpdateCmd = &cobra.Command{
 			return fmt.Errorf("too many arguments")
 		}
 
-		repoID, err := resolveRepository(args[0])
+		repoID, err := resolveRepository(args[0], repoEndpoint)
 		if err != nil {
 			return err
 		}
@@ -297,7 +297,7 @@ var repoShowCmd = &cobra.Command{
 			return fmt.Errorf("too many arguments")
 		}
 
-		repoID, err := resolveRepository(args[0])
+		repoID, err := resolveRepository(args[0], repoEndpoint)
 		if err != nil {
 			return err
 		}
@@ -330,7 +330,7 @@ var repoDeleteCmd = &cobra.Command{
 			return fmt.Errorf("too many arguments")
 		}
 
-		repoID, err := resolveRepository(args[0])
+		repoID, err := resolveRepository(args[0], repoEndpoint)
 		if err != nil {
 			return err
 		}
@@ -367,12 +367,21 @@ func init() {
 	repoAddCmd.MarkFlagRequired("name")        //nolint
 
 	repoDeleteCmd.Flags().BoolVar(&keepRepoWebhook, "keep-webhook", false, "Do not delete any existing webhook when removing the repo from GARM.")
+	repoDeleteCmd.Flags().StringVar(&repoEndpoint, "endpoint", "", "When using the name of the repo, the endpoint must be specified when multiple repositories with the same name exist.")
+
+	repoShowCmd.Flags().StringVar(&repoEndpoint, "endpoint", "", "When using the name of the repo, the endpoint must be specified when multiple repositories with the same name exist.")
 
 	repoUpdateCmd.Flags().StringVar(&repoWebhookSecret, "webhook-secret", "", "The webhook secret for this repository. If you update this secret, you will have to manually update the secret in GitHub as well.")
 	repoUpdateCmd.Flags().StringVar(&repoCreds, "credentials", "", "Credentials name. See credentials list.")
 	repoUpdateCmd.Flags().StringVar(&poolBalancerType, "pool-balancer-type", "", "The balancing strategy to use when creating runners in pools matching requested labels.")
+	repoUpdateCmd.Flags().StringVar(&repoEndpoint, "endpoint", "", "When using the name of the repo, the endpoint must be specified when multiple repositories with the same name exist.")
 
 	repoWebhookInstallCmd.Flags().BoolVar(&insecureRepoWebhook, "insecure", false, "Ignore self signed certificate errors.")
+	repoWebhookInstallCmd.Flags().StringVar(&repoEndpoint, "endpoint", "", "When using the name of the repo, the endpoint must be specified when multiple repositories with the same name exist.")
+
+	repoWebhookUninstallCmd.Flags().StringVar(&repoEndpoint, "endpoint", "", "When using the name of the repo, the endpoint must be specified when multiple repositories with the same name exist.")
+
+	repoHookInfoShowCmd.Flags().StringVar(&repoEndpoint, "endpoint", "", "When using the name of the repo, the endpoint must be specified when multiple repositories with the same name exist.")
 
 	repoWebhookCmd.AddCommand(
 		repoWebhookInstallCmd,

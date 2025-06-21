@@ -105,7 +105,7 @@ Example:
 		switch len(args) {
 		case 0:
 			if cmd.Flags().Changed("repo") {
-				poolRepository, err = resolveRepository(poolRepository)
+				poolRepository, err = resolveRepository(poolRepository, endpointName)
 				if err != nil {
 					return err
 				}
@@ -113,7 +113,7 @@ Example:
 				listRepoPoolsReq.RepoID = poolRepository
 				response, err = apiCli.Repositories.ListRepoPools(listRepoPoolsReq, authToken)
 			} else if cmd.Flags().Changed("org") {
-				poolOrganization, err = resolveOrganization(poolOrganization)
+				poolOrganization, err = resolveOrganization(poolOrganization, endpointName)
 				if err != nil {
 					return err
 				}
@@ -121,7 +121,7 @@ Example:
 				listOrgPoolsReq.OrgID = poolOrganization
 				response, err = apiCli.Organizations.ListOrgPools(listOrgPoolsReq, authToken)
 			} else if cmd.Flags().Changed("enterprise") {
-				poolEnterprise, err = resolveEnterprise(poolEnterprise)
+				poolEnterprise, err = resolveEnterprise(poolEnterprise, endpointName)
 				if err != nil {
 					return err
 				}
@@ -262,7 +262,7 @@ var poolAddCmd = &cobra.Command{
 		var err error
 		var response poolPayloadGetter
 		if cmd.Flags().Changed("repo") {
-			poolRepository, err = resolveRepository(poolRepository)
+			poolRepository, err = resolveRepository(poolRepository, endpointName)
 			if err != nil {
 				return err
 			}
@@ -271,7 +271,7 @@ var poolAddCmd = &cobra.Command{
 			newRepoPoolReq.Body = newPoolParams
 			response, err = apiCli.Repositories.CreateRepoPool(newRepoPoolReq, authToken)
 		} else if cmd.Flags().Changed("org") {
-			poolOrganization, err = resolveOrganization(poolOrganization)
+			poolOrganization, err = resolveOrganization(poolOrganization, endpointName)
 			if err != nil {
 				return err
 			}
@@ -280,7 +280,7 @@ var poolAddCmd = &cobra.Command{
 			newOrgPoolReq.Body = newPoolParams
 			response, err = apiCli.Organizations.CreateOrgPool(newOrgPoolReq, authToken)
 		} else if cmd.Flags().Changed("enterprise") {
-			poolEnterprise, err = resolveEnterprise(poolEnterprise)
+			poolEnterprise, err = resolveEnterprise(poolEnterprise, endpointName)
 			if err != nil {
 				return err
 			}
@@ -411,6 +411,8 @@ func init() {
 	poolListCmd.Flags().StringVarP(&poolEnterprise, "enterprise", "e", "", "List all pools within this enterprise.")
 	poolListCmd.Flags().BoolVarP(&poolAll, "all", "a", false, "List all pools, regardless of org or repo.")
 	poolListCmd.Flags().BoolVarP(&long, "long", "l", false, "Include additional info.")
+	poolListCmd.Flags().StringVar(&endpointName, "endpoint", "", "When using the name of an entity, the endpoint must be specified when multiple entities with the same name exist.")
+
 	poolListCmd.MarkFlagsMutuallyExclusive("repo", "org", "all", "enterprise")
 
 	poolUpdateCmd.Flags().StringVar(&poolImage, "image", "", "The provider-specific image name to use for runners in this pool.")
@@ -444,6 +446,8 @@ func init() {
 	poolAddCmd.Flags().UintVar(&poolRunnerBootstrapTimeout, "runner-bootstrap-timeout", 20, "Duration in minutes after which a runner is considered failed if it does not join Github.")
 	poolAddCmd.Flags().UintVar(&poolMinIdleRunners, "min-idle-runners", 1, "Attempt to maintain a minimum of idle self-hosted runners of this type.")
 	poolAddCmd.Flags().BoolVar(&poolEnabled, "enabled", false, "Enable this pool.")
+	poolAddCmd.Flags().StringVar(&endpointName, "endpoint", "", "When using the name of an entity, the endpoint must be specified when multiple entities with the same name exist.")
+
 	poolAddCmd.MarkFlagRequired("provider-name") //nolint
 	poolAddCmd.MarkFlagRequired("image")         //nolint
 	poolAddCmd.MarkFlagRequired("flavor")        //nolint

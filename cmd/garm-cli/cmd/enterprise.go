@@ -113,7 +113,7 @@ var enterpriseShowCmd = &cobra.Command{
 			return fmt.Errorf("too many arguments")
 		}
 
-		enterpriseID, err := resolveEnterprise(args[0])
+		enterpriseID, err := resolveEnterprise(args[0], enterpriseEndpoint)
 		if err != nil {
 			return err
 		}
@@ -146,7 +146,7 @@ var enterpriseDeleteCmd = &cobra.Command{
 			return fmt.Errorf("too many arguments")
 		}
 
-		enterpriseID, err := resolveEnterprise(args[0])
+		enterpriseID, err := resolveEnterprise(args[0], enterpriseEndpoint)
 		if err != nil {
 			return err
 		}
@@ -177,7 +177,7 @@ var enterpriseUpdateCmd = &cobra.Command{
 		if len(args) > 1 {
 			return fmt.Errorf("too many arguments")
 		}
-		enterpriseID, err := resolveEnterprise(args[0])
+		enterpriseID, err := resolveEnterprise(args[0], enterpriseEndpoint)
 		if err != nil {
 			return err
 		}
@@ -213,6 +213,10 @@ func init() {
 	enterpriseUpdateCmd.Flags().StringVar(&enterpriseWebhookSecret, "webhook-secret", "", "The webhook secret for this enterprise")
 	enterpriseUpdateCmd.Flags().StringVar(&enterpriseCreds, "credentials", "", "Credentials name. See credentials list.")
 	enterpriseUpdateCmd.Flags().StringVar(&poolBalancerType, "pool-balancer-type", "", "The balancing strategy to use when creating runners in pools matching requested labels.")
+	enterpriseUpdateCmd.Flags().StringVar(&enterpriseEndpoint, "endpoint", "", "When using the name of the enterprise, the endpoint must be specified when multiple enterprises with the same name exist.")
+
+	enterpriseDeleteCmd.Flags().StringVar(&enterpriseEndpoint, "endpoint", "", "When using the name of the enterprise, the endpoint must be specified when multiple enterprises with the same name exist.")
+	enterpriseShowCmd.Flags().StringVar(&enterpriseEndpoint, "endpoint", "", "When using the name of the enterprise, the endpoint must be specified when multiple enterprises with the same name exist.")
 
 	enterpriseCmd.AddCommand(
 		enterpriseListCmd,
