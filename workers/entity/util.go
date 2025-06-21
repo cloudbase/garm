@@ -40,6 +40,7 @@ func composeControllerWatcherFilters() dbCommon.PayloadFilterFunc {
 		watcher.WithAny(
 			watcher.WithOperationTypeFilter(dbCommon.CreateOperation),
 			watcher.WithOperationTypeFilter(dbCommon.DeleteOperation),
+			watcher.WithOperationTypeFilter(dbCommon.UpdateOperation),
 		),
 	)
 }

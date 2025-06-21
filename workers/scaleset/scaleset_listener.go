@@ -59,6 +59,10 @@ func (l *scaleSetListener) Start() error {
 	l.mux.Lock()
 	defer l.mux.Unlock()
 
+	if l.running {
+		return nil
+	}
+
 	l.listenerCtx, l.cancelFunc = context.WithCancel(context.Background())
 	scaleSet := l.scaleSetHelper.GetScaleSet()
 	scaleSetClient, err := l.scaleSetHelper.GetScaleSetClient()
@@ -103,7 +107,6 @@ func (l *scaleSetListener) Stop() error {
 		}
 	}
 
-	l.messageSession.Close()
 	l.running = false
 	close(l.quit)
 	l.cancelFunc()

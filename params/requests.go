@@ -646,12 +646,6 @@ func (c CreateGiteaEndpointParams) Validate() error {
 		return runnerErrors.NewBadRequestError("invalid api_base_url")
 	}
 
-	switch url.Scheme {
-	case httpsScheme, httpScheme:
-	default:
-		return runnerErrors.NewBadRequestError("invalid api_base_url")
-	}
-
 	if c.BaseURL == "" {
 		return runnerErrors.NewBadRequestError("missing base_url")
 	}

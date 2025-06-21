@@ -132,6 +132,12 @@ func (w *Worker) Start() (err error) {
 	return nil
 }
 
+func (w *Worker) IsRunning() bool {
+	w.mux.Lock()
+	defer w.mux.Unlock()
+	return w.running
+}
+
 // consolidateRunnerState will list all runners on GitHub for this entity, sort by
 // pool or scale set and pass those runners to the appropriate controller (pools or scale sets).
 // The controller will then pass along to their respective workers the list of runners
@@ -212,9 +218,7 @@ func (w *Worker) consolidateRunnerLoop() {
 				return
 			}
 			if err := w.consolidateRunnerState(); err != nil {
-				if err := w.store.AddEntityEvent(w.ctx, w.Entity, params.StatusEvent, params.EventError, fmt.Sprintf("failed to consolidate runner state: %q", err.Error()), 30); err != nil {
-					slog.With(slog.Any("error", err)).Error("failed to add entity event")
-				}
+				w.addStatusEvent(fmt.Sprintf("failed to consolidate runner state: %q", err.Error()), params.EventError)
 				slog.With(slog.Any("error", err)).Error("failed to consolidate runner state")
 			}
 		case <-w.ctx.Done():
@@ -237,5 +241,11 @@ func (w *Worker) loop() {
 		case <-w.quit:
 			return
 		}
+	}
+}
+
+func (w *Worker) addStatusEvent(msg string, level params.EventLevel) {
+	if err := w.store.AddEntityEvent(w.ctx, w.Entity, params.StatusEvent, level, msg, 30); err != nil {
+		slog.With(slog.Any("error", err)).Error("failed to add entity event")
 	}
 }
