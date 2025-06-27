@@ -23,6 +23,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"math"
+	"net"
 	"net/http"
 	"time"
 
@@ -912,11 +913,22 @@ func (g ForgeCredentials) GetHTTPClient(ctx context.Context) (*http.Client, erro
 		}
 	}
 
+	dialer := &net.Dialer{
+		Timeout:   30 * time.Second,
+		KeepAlive: 30 * time.Second,
+	}
+
 	httpTransport := &http.Transport{
+		Proxy:       http.ProxyFromEnvironment,
+		DialContext: dialer.DialContext,
 		TLSClientConfig: &tls.Config{
 			RootCAs:    roots,
 			MinVersion: tls.VersionTLS12,
 		},
+		ForceAttemptHTTP2:     true,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
 	}
 
 	var tc *http.Client
