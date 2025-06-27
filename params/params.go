@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"net"
 	"net/http"
 	"time"
 
@@ -642,11 +643,22 @@ func (g GithubCredentials) GetHTTPClient(ctx context.Context) (*http.Client, err
 		}
 	}
 
+	dialer := &net.Dialer{
+		Timeout:   30 * time.Second,
+		KeepAlive: 30 * time.Second,
+	}
+
 	httpTransport := &http.Transport{
+		Proxy:       http.ProxyFromEnvironment,
+		DialContext: dialer.DialContext,
 		TLSClientConfig: &tls.Config{
 			RootCAs:    roots,
 			MinVersion: tls.VersionTLS12,
 		},
+		ForceAttemptHTTP2:     true,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
 	}
 
 	var tc *http.Client
