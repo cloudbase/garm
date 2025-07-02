@@ -6,8 +6,9 @@ export SHELLOPTS:=$(if $(SHELLOPTS),$(SHELLOPTS):)pipefail:errexit
 GEN_PASSWORD=$(shell (/usr/bin/apg -n1 -m32))
 IMAGE_TAG = garm-build
 
-USER_ID=$(shell ((docker --version | grep -q podman) && echo "0" || id -u))
-USER_GROUP=$(shell ((docker --version | grep -q podman) && echo "0" || id -g))
+IMAGE_BUILDER=$(shell (which docker || which podman))
+USER_ID=$(shell (($(IMAGE_BUILDER) --version | grep -q podman) && echo "0" || id -u))
+USER_GROUP=$(shell (($(IMAGE_BUILDER) --version | grep -q podman) && echo "0" || id -g))
 ROOTDIR=$(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 GOPATH ?= $(shell go env GOPATH)
 VERSION ?= $(shell git describe --tags --match='v[0-9]*' --dirty --always)
@@ -32,9 +33,9 @@ default: build
 .PHONY : build-static test install-lint-deps lint go-test fmt fmtcheck verify-vendor verify create-release-files release
 build-static: ## Build garm statically
 	@echo Building garm
-	docker build --tag $(IMAGE_TAG) -f Dockerfile.build-static .
+	$(IMAGE_BUILDER) build -v /etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt --tag $(IMAGE_TAG) -f Dockerfile.build-static .
 	mkdir -p build
-	docker run --rm -e USER_ID=$(USER_ID) -e GARM_REF=$(GARM_REF) -e USER_GROUP=$(USER_GROUP) -v $(PWD)/build:/build/output:z $(IMAGE_TAG) /build-static.sh
+	$(IMAGE_BUILDER) run --rm -e USER_ID=$(USER_ID) -e GARM_REF=$(GARM_REF) -e USER_GROUP=$(USER_GROUP) -v $(PWD)/build:/build/output:z $(IMAGE_TAG) /build-static.sh
 	@echo Binaries are available in $(PWD)/build
 
 clean: ## Clean up build artifacts
