@@ -7,8 +7,9 @@ GEN_PASSWORD=$(shell (/usr/bin/apg -n1 -m32))
 IMAGE_TAG = garm-build
 
 IMAGE_BUILDER=$(shell (which docker || which podman))
-USER_ID=$(shell (($(IMAGE_BUILDER) --version | grep -q podman) && echo "0" || id -u))
-USER_GROUP=$(shell (($(IMAGE_BUILDER) --version | grep -q podman) && echo "0" || id -g))
+IS_PODMAN=$(shell (($(IMAGE_BUILDER) --version | grep -q podman) && echo "yes" || echo "no"))
+USER_ID=$(if $(filter yes,$(IS_PODMAN)),0,$(shell id -u))
+USER_GROUP=$(if $(filter yes,$(IS_PODMAN)),0,$(shell id -g))
 ROOTDIR=$(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 GOPATH ?= $(shell go env GOPATH)
 VERSION ?= $(shell git describe --tags --match='v[0-9]*' --dirty --always)
@@ -20,6 +21,11 @@ export ORG_WEBHOOK_SECRET = ${GEN_PASSWORD}
 export CREDENTIALS_NAME ?= test-garm-creds
 export WORKFLOW_FILE_NAME ?= test.yml
 export GARM_ADMIN_USERNAME ?= admin
+
+ifeq ($(IS_PODMAN),yes)
+    EXTRA_ARGS := -v /etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt
+endif
+
 
 .PHONY: help
 help: ## Display this help.
@@ -33,7 +39,7 @@ default: build
 .PHONY : build-static test install-lint-deps lint go-test fmt fmtcheck verify-vendor verify create-release-files release
 build-static: ## Build garm statically
 	@echo Building garm
-	$(IMAGE_BUILDER) build -v /etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt --tag $(IMAGE_TAG) -f Dockerfile.build-static .
+	$(IMAGE_BUILDER) build $(EXTRA_ARGS) --tag $(IMAGE_TAG) -f Dockerfile.build-static .
 	mkdir -p build
 	$(IMAGE_BUILDER) run --rm -e USER_ID=$(USER_ID) -e GARM_REF=$(GARM_REF) -e USER_GROUP=$(USER_GROUP) -v $(PWD)/build:/build/output:z $(IMAGE_TAG) /build-static.sh
 	@echo Binaries are available in $(PWD)/build
