@@ -10,7 +10,7 @@ USER_ID=$(shell ((docker --version | grep -q podman) && echo "0" || id -u))
 USER_GROUP=$(shell ((docker --version | grep -q podman) && echo "0" || id -g))
 ROOTDIR=$(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 GOPATH ?= $(shell go env GOPATH)
-VERSION ?= $(shell git describe --tags --match='v[0-9]*' --dirty --always)
+VERSION ?= $(shell ./scripts/get-version.sh)
 GARM_REF ?= $(shell git rev-parse --abbrev-ref HEAD)
 GO ?= go
 export GARM_PASSWORD ?= ${GEN_PASSWORD}
