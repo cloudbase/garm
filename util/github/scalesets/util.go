@@ -31,11 +31,7 @@ func (s *ScaleSetClient) newActionsRequest(ctx context.Context, method, path str
 		return nil, fmt.Errorf("failed to get pipeline URL: %w", err)
 	}
 
-	uri, err := actionsURI.Parse(path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse path: %w", err)
-	}
-
+	uri := actionsURI.JoinPath(path)
 	q := uri.Query()
 	if q.Get("api-version") == "" {
 		q.Set("api-version", "6.0-preview")

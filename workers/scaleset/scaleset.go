@@ -671,14 +671,11 @@ Loop:
 			slog.ErrorContext(w.ctx, "error starting listener", "error", err, "consumer_id", w.consumerID)
 			if canceled := w.sleepWithCancel(2 * time.Second); canceled {
 				slog.InfoContext(w.ctx, "worker is stopped; exiting keepListenerAlive")
-				w.mux.Unlock()
 				return
 			}
 			// we failed to start the listener. Try again.
-			w.mux.Unlock()
 			continue
 		}
-		w.mux.Unlock()
 
 		select {
 		case <-w.quit:
