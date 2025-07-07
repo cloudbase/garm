@@ -135,6 +135,9 @@ func (t *toolsUpdater) Reset() {
 }
 
 func (t *toolsUpdater) sleepWithCancel(sleepTime time.Duration) (canceled bool) {
+	if sleepTime == 0 {
+		return false
+	}
 	ticker := time.NewTicker(sleepTime)
 	defer ticker.Stop()
 
