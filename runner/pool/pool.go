@@ -1369,6 +1369,9 @@ func (r *basePoolManager) deleteInstanceFromProvider(ctx context.Context, instan
 }
 
 func (r *basePoolManager) sleepWithCancel(sleepTime time.Duration) (canceled bool) {
+	if sleepTime == 0 {
+		return false
+	}
 	ticker := time.NewTicker(sleepTime)
 	defer ticker.Stop()
 

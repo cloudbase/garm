@@ -634,6 +634,9 @@ func (w *Worker) loop() {
 }
 
 func (w *Worker) sleepWithCancel(sleepTime time.Duration) (canceled bool) {
+	if sleepTime == 0 {
+		return false
+	}
 	ticker := time.NewTicker(sleepTime)
 	defer ticker.Stop()
 
@@ -663,10 +666,7 @@ Loop:
 			}
 			continue
 		}
-		// noop if already started. If the scaleset was just enabled, we need to
-		// start the listener here, or the <-w.listener.Wait() channel receive bellow
-		// will block forever, even if we start the listener, as a nil channel will
-		// block forever.
+		// noop if already started.
 		if err := w.listener.Start(); err != nil {
 			slog.ErrorContext(w.ctx, "error starting listener", "error", err, "consumer_id", w.consumerID)
 			if canceled := w.sleepWithCancel(2 * time.Second); canceled {

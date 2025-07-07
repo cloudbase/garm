@@ -25,6 +25,10 @@ import (
 	"github.com/cloudbase/garm/util/github/scalesets"
 )
 
+var closed = make(chan struct{})
+
+func init() { close(closed) }
+
 func newListener(ctx context.Context, scaleSetHelper scaleSetHelper) *scaleSetListener {
 	return &scaleSetListener{
 		ctx:            ctx,
@@ -278,11 +282,11 @@ func (l *scaleSetListener) loop() {
 
 func (l *scaleSetListener) Wait() <-chan struct{} {
 	l.mux.Lock()
+	defer l.mux.Unlock()
+
 	if !l.running {
 		slog.DebugContext(l.ctx, "scale set listener is not running")
-		l.mux.Unlock()
-		return nil
+		return closed
 	}
-	l.mux.Unlock()
 	return l.loopExited
 }
