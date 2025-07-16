@@ -19,9 +19,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"path"
 )
 
-func (s *ScaleSetClient) newActionsRequest(ctx context.Context, method, path string, body io.Reader) (*http.Request, error) {
+func (s *ScaleSetClient) newActionsRequest(ctx context.Context, method, uriPath string, body io.Reader) (*http.Request, error) {
 	if err := s.ensureAdminInfo(ctx); err != nil {
 		return nil, fmt.Errorf("failed to update token: %w", err)
 	}
@@ -31,14 +33,27 @@ func (s *ScaleSetClient) newActionsRequest(ctx context.Context, method, path str
 		return nil, fmt.Errorf("failed to get pipeline URL: %w", err)
 	}
 
-	uri := actionsURI.JoinPath(path)
-	q := uri.Query()
-	if q.Get("api-version") == "" {
-		q.Set("api-version", "6.0-preview")
+	pathURI, err := url.Parse(uriPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse path: %w", err)
 	}
-	uri.RawQuery = q.Encode()
+	pathQuery := pathURI.Query()
+	baseQuery := actionsURI.Query()
+	for k, values := range pathQuery {
+		if baseQuery.Get(k) == "" {
+			for _, val := range values {
+				baseQuery.Add(k, val)
+			}
+		}
+	}
+	if baseQuery.Get("api-version") == "" {
+		baseQuery.Set("api-version", "6.0-preview")
+	}
 
-	req, err := http.NewRequestWithContext(ctx, method, uri.String(), body)
+	actionsURI.Path = path.Join(actionsURI.Path, pathURI.Path)
+	actionsURI.RawQuery = baseQuery.Encode()
+
+	req, err := http.NewRequestWithContext(ctx, method, actionsURI.String(), body)
 	if err != nil {
 		return nil, err
 	}
