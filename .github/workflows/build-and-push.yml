@@ -1,14 +1,16 @@
-name: "Build GARM images"
+name: "Build and push GARM images"
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       push_to_project:
         description: "Project to build images for"
         required: true
+        type: string
         default: "ghcr.io/cloudbase"
       ref:
         description: "Ref to build"
         required: true
+        type: string
         default: "main"
   schedule:
     - cron: "0 2 * * *"
@@ -24,8 +26,9 @@ jobs:
       runs-on: ubuntu-latest
       steps:
         - name: "Checkout"
-          uses: actions/checkout@v3
+          uses: actions/checkout@v4
           with:
+            ref: ${{ inputs.ref }}
             path: src/github.com/cloudbase/garm
             fetch-depth: 0
 
@@ -40,15 +43,12 @@ jobs:
             password: ${{ secrets.GITHUB_TOKEN }}
 
         - name: Build and push
+          env:
+            REGISTRY_INPUT: ${{ inputs.push_to_project }}
+            GH_REF: ${{ inputs.ref }}
+          working-directory: src/github.com/cloudbase/garm
           run: |
             set -x
-            REGISTRY_INPUT="${{ github.event.inputs.push_to_project }}"
-            REF_INPUT="${{ github.event.inputs.ref }}"
-
-            PUSH_TO_PROJECT="${REGISTRY_INPUT:-ghcr.io/cloudbase}"
-            GH_REF="${REF_INPUT:-main}"
-            cd src/github.com/cloudbase/garm && git checkout "${GH_REF}"
-
             VERSION=$(git describe --tags --match='v[0-9]*' --always)
             AZURE_REF=v0.1.0
             OPENSTACK_REF=v0.1.0
@@ -68,6 +68,9 @@ jobs:
               EQUINIX_REF="main"
               K8S_REF="main"
               VERSION="nightly"
+            fi
+            if [ "$GH_REF" == "release/v1" ]; then
+              VERSION="v0.1"
             fi
             docker buildx build \
               --provenance=false \

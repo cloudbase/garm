@@ -1,0 +1,19 @@
+name: Manual build of GARM images
+on:
+  workflow_dispatch:
+    inputs:
+      push_to_project:
+        description: "Project to build images for"
+        required: true
+        default: "ghcr.io/cloudbase"
+      ref:
+        description: "Ref to build"
+        required: true
+        default: "main"
+
+jobs:
+  call-build-and-push:
+    uses: ./.github/workflows/build-and-push.yml
+    with:
+      push_to_project: ${{ inputs.push_to_project }}
+      ref: ${{ inputs.ref }}
