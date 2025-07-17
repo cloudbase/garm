@@ -162,7 +162,7 @@ func (t *toolsUpdater) giteaUpdateLoop() {
 		randInt = big.NewInt(0)
 	}
 	t.sleepWithCancel(time.Duration(randInt.Int64()) * time.Millisecond)
-	tools, err := getTools()
+	tools, err := getTools(t.ctx)
 	if err != nil {
 		t.addStatusEvent(fmt.Sprintf("failed to update gitea tools: %q", err), params.EventError)
 	} else {
@@ -181,7 +181,7 @@ func (t *toolsUpdater) giteaUpdateLoop() {
 		case <-t.ctx.Done():
 			return
 		case <-ticker.C:
-			tools, err := getTools()
+			tools, err := getTools(t.ctx)
 			if err != nil {
 				t.addStatusEvent(fmt.Sprintf("failed to update gitea tools: %q", err), params.EventError)
 				slog.DebugContext(t.ctx, "failed to update gitea tools", "error", err)

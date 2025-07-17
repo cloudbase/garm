@@ -362,12 +362,12 @@ func (s *sqlDatabase) sqlToCommonScaleSet(scaleSet ScaleSet) (params.ScaleSet, e
 		}
 	}
 
-	if scaleSet.OrgID != nil && scaleSet.Organization.Name != "" {
+	if scaleSet.OrgID != nil {
 		ret.OrgID = scaleSet.OrgID.String()
 		ret.OrgName = scaleSet.Organization.Name
 	}
 
-	if scaleSet.EnterpriseID != nil && scaleSet.Enterprise.Name != "" {
+	if scaleSet.EnterpriseID != nil {
 		ret.EnterpriseID = scaleSet.EnterpriseID.String()
 		ret.EnterpriseName = scaleSet.Enterprise.Name
 	}

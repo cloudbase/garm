@@ -15,9 +15,11 @@
 package cache
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -139,7 +141,7 @@ func (g GiteaEntityTools) MinimumVersion() (GiteaEntityTool, bool) {
 	return GiteaEntityTool{}, false
 }
 
-func getTools() ([]commonParams.RunnerApplicationDownload, error) {
+func getTools(ctx context.Context) ([]commonParams.RunnerApplicationDownload, error) {
 	resp, err := http.Get(GiteaRunnerReleasesURL)
 	if err != nil {
 		return nil, err
@@ -170,11 +172,13 @@ func getTools() ([]commonParams.RunnerApplicationDownload, error) {
 	for _, asset := range latest.Assets {
 		arch, err := asset.GetArch()
 		if err != nil {
-			return nil, fmt.Errorf("getting arch: %w", err)
+			slog.InfoContext(ctx, "ignoring unrecognized tools arch", "tool", asset.Name)
+			continue
 		}
 		os, err := asset.GetOS()
 		if err != nil {
-			return nil, fmt.Errorf("getting os: %w", err)
+			slog.InfoContext(ctx, "ignoring unrecognized tools os", "tool", asset.Name)
+			continue
 		}
 		ret = append(ret, commonParams.RunnerApplicationDownload{
 			OS:           os,

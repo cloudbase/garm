@@ -570,7 +570,7 @@ func (p ScaleSet) GetEntity() (ForgeEntity, error) {
 			EntityType: ForgeEntityTypeEnterprise,
 		}, nil
 	}
-	return ForgeEntity{}, fmt.Errorf("pool has no associated entity")
+	return ForgeEntity{}, fmt.Errorf("scale set has no associated entity")
 }
 
 func (p *ScaleSet) ScaleSetType() ForgeEntityType {

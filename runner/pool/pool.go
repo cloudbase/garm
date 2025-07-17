@@ -68,7 +68,12 @@ const (
 )
 
 func NewEntityPoolManager(ctx context.Context, entity params.ForgeEntity, instanceTokenGetter auth.InstanceTokenGetter, providers map[string]common.Provider, store dbCommon.Store) (common.PoolManager, error) {
-	ctx = garmUtil.WithSlogContext(ctx, slog.Any("pool_mgr", entity.String()), slog.Any("pool_type", entity.EntityType))
+	ctx = garmUtil.WithSlogContext(
+		ctx,
+		slog.Any("pool_mgr", entity.String()),
+		slog.Any("endpoint", entity.Credentials.Endpoint.Name),
+		slog.Any("pool_type", entity.EntityType),
+	)
 	ghc, err := ghClient.Client(ctx, entity)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting github client")

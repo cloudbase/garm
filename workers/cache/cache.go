@@ -365,7 +365,7 @@ func (w *Worker) handleScaleSetEvent(event common.ChangePayload) {
 	}
 	entity, err := scaleSet.GetEntity()
 	if err != nil {
-		slog.DebugContext(w.ctx, "getting entity from pool", "error", err)
+		slog.DebugContext(w.ctx, "getting entity from scale set", "error", err)
 		return
 	}
 
