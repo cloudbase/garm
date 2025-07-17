@@ -389,7 +389,7 @@ func (s *sqlDatabase) SetScaleSetLastMessageID(_ context.Context, scaleSetID uin
 		}
 	}()
 	if err := s.conn.Transaction(func(tx *gorm.DB) error {
-		dbSet, err := s.getScaleSetByID(tx, scaleSetID)
+		dbSet, err := s.getScaleSetByID(tx, scaleSetID, "Instances", "Enterprise", "Organization", "Repository")
 		if err != nil {
 			return errors.Wrap(err, "fetching scale set")
 		}
@@ -416,7 +416,7 @@ func (s *sqlDatabase) SetScaleSetDesiredRunnerCount(_ context.Context, scaleSetI
 		}
 	}()
 	if err := s.conn.Transaction(func(tx *gorm.DB) error {
-		dbSet, err := s.getScaleSetByID(tx, scaleSetID)
+		dbSet, err := s.getScaleSetByID(tx, scaleSetID, "Instances", "Enterprise", "Organization", "Repository")
 		if err != nil {
 			return errors.Wrap(err, "fetching scale set")
 		}
