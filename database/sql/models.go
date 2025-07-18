@@ -319,6 +319,12 @@ type User struct {
 type WorkflowJob struct {
 	// ID is the ID of the job.
 	ID int64 `gorm:"index"`
+
+	// WorkflowJobID is the ID of the workflow job.
+	WorkflowJobID int64 `gorm:"index:workflow_job_id_idx"`
+	// ScaleSetJobID is the job ID for a scaleset job.
+	ScaleSetJobID string `gorm:"index:scaleset_job_id_idx"`
+
 	// RunID is the ID of the workflow run. A run may have multiple jobs.
 	RunID int64
 	// Action is the specific activity that triggered the event.

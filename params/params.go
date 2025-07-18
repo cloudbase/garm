@@ -1035,6 +1035,10 @@ func (p RunnerPrefix) GetRunnerPrefix() string {
 type Job struct {
 	// ID is the ID of the job.
 	ID int64 `json:"id,omitempty"`
+
+	WorkflowJobID int64 `json:"workflow_job_id,omitempty"`
+	// ScaleSetJobID is the job ID when generated for a scale set.
+	ScaleSetJobID string `json:"scaleset_job_id,omitempty"`
 	// RunID is the ID of the workflow run. A run may have multiple jobs.
 	RunID int64 `json:"run_id,omitempty"`
 	// Action is the specific activity that triggered the event.

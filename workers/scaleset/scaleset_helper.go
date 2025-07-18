@@ -80,7 +80,7 @@ func (w *Worker) recordOrUpdateJob(job params.ScaleSetJobMessage) error {
 	case params.ForgeEntityTypeOrganization:
 		jobParams.OrgID = &asUUID
 	default:
-		return fmt.Errorf("unknown entity type: %s", entity.EntityType)
+		return fmt.Errorf("unknown entity type: %s --> %s", entity.EntityType, entity)
 	}
 
 	if _, jobErr := w.store.CreateOrUpdateJob(w.ctx, jobParams); jobErr != nil {
@@ -163,6 +163,7 @@ func (w *Worker) HandleJobsStarted(jobs []params.ScaleSetJobMessage) (err error)
 }
 
 func (w *Worker) HandleJobsAvailable(jobs []params.ScaleSetJobMessage) error {
+	slog.DebugContext(w.ctx, "handling jobs available", "jobs", jobs)
 	for _, job := range jobs {
 		if err := w.recordOrUpdateJob(job); err != nil {
 			// recording scale set jobs are purely informational for now.
