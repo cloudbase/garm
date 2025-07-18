@@ -420,7 +420,6 @@ func (r RunnerScaleSetMessage) GetJobsFromBody() ([]ScaleSetJobMessage, error) {
 	if r.Body == "" {
 		return nil, fmt.Errorf("no body specified")
 	}
-
 	if err := json.Unmarshal([]byte(r.Body), &body); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal body: %w", err)
 	}
@@ -519,6 +518,7 @@ type RunnerGroupList struct {
 
 type ScaleSetJobMessage struct {
 	MessageType        string    `json:"messageType,omitempty"`
+	JobID              string    `json:"jobId,omitempty"`
 	RunnerRequestID    int64     `json:"runnerRequestId,omitempty"`
 	RepositoryName     string    `json:"repositoryName,omitempty"`
 	OwnerName          string    `json:"ownerName,omitempty"`
@@ -552,7 +552,7 @@ func (s ScaleSetJobMessage) MessageTypeToStatus() JobStatus {
 
 func (s ScaleSetJobMessage) ToJob() Job {
 	return Job{
-		ID:              s.RunnerRequestID,
+		ScaleSetJobID:   s.JobID,
 		Action:          s.EventName,
 		RunID:           s.WorkflowRunID,
 		Status:          string(s.MessageTypeToStatus()),

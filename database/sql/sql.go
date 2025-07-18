@@ -374,6 +374,22 @@ func (s *sqlDatabase) migrateCredentialsToDB() (err error) {
 	return nil
 }
 
+func (s *sqlDatabase) migrateWorkflow() error {
+	if s.conn.Migrator().HasTable(&WorkflowJob{}) {
+		if s.conn.Migrator().HasColumn(&WorkflowJob{}, "runner_name") {
+			// Remove jobs that are not in "queued" status. We really only care about queued jobs. Once they transition
+			// to something else, we don't really consume them anyway.
+			if err := s.conn.Exec("delete from workflow_jobs where status is not 'queued'").Error; err != nil {
+				return errors.Wrap(err, "updating workflow_jobs")
+			}
+			if err := s.conn.Migrator().DropColumn(&WorkflowJob{}, "runner_name"); err != nil {
+				return errors.Wrap(err, "updating workflow_jobs")
+			}
+		}
+	}
+	return nil
+}
+
 func (s *sqlDatabase) migrateDB() error {
 	if s.conn.Migrator().HasIndex(&Organization{}, "idx_organizations_name") {
 		if err := s.conn.Migrator().DropIndex(&Organization{}, "idx_organizations_name"); err != nil {
@@ -405,17 +421,8 @@ func (s *sqlDatabase) migrateDB() error {
 		}
 	}
 
-	if s.conn.Migrator().HasTable(&WorkflowJob{}) {
-		if s.conn.Migrator().HasColumn(&WorkflowJob{}, "runner_name") {
-			// Remove jobs that are not in "queued" status. We really only care about queued jobs. Once they transition
-			// to something else, we don't really consume them anyway.
-			if err := s.conn.Exec("delete from workflow_jobs where status is not 'queued'").Error; err != nil {
-				return errors.Wrap(err, "updating workflow_jobs")
-			}
-			if err := s.conn.Migrator().DropColumn(&WorkflowJob{}, "runner_name"); err != nil {
-				return errors.Wrap(err, "updating workflow_jobs")
-			}
-		}
+	if err := s.migrateWorkflow(); err != nil {
+		return errors.Wrap(err, "migrating workflows")
 	}
 
 	if s.conn.Migrator().HasTable(&GithubEndpoint{}) {

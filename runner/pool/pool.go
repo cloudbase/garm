@@ -176,19 +176,19 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 
 	var triggeredBy int64
 	defer func() {
-		if jobParams.ID == 0 {
+		if jobParams.WorkflowJobID == 0 {
 			return
 		}
 		// we're updating the job in the database, regardless of whether it was successful or not.
 		// or if it was meant for this pool or not. Github will send the same job data to all hierarchies
 		// that have been configured to work with garm. Updating the job at all levels should yield the same
 		// outcome in the db.
-		_, err := r.store.GetJobByID(r.ctx, jobParams.ID)
+		_, err := r.store.GetJobByID(r.ctx, jobParams.WorkflowJobID)
 		if err != nil {
 			if !errors.Is(err, runnerErrors.ErrNotFound) {
 				slog.With(slog.Any("error", err)).ErrorContext(
 					r.ctx, "failed to get job",
-					"job_id", jobParams.ID)
+					"job_id", jobParams.WorkflowJobID)
 				return
 			}
 			// This job is new to us. Check if we have a pool that can handle it.
@@ -203,10 +203,10 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 
 		if _, jobErr := r.store.CreateOrUpdateJob(r.ctx, jobParams); jobErr != nil {
 			slog.With(slog.Any("error", jobErr)).ErrorContext(
-				r.ctx, "failed to update job", "job_id", jobParams.ID)
+				r.ctx, "failed to update job", "job_id", jobParams.WorkflowJobID)
 		}
 
-		if triggeredBy != 0 && jobParams.ID != triggeredBy {
+		if triggeredBy != 0 && jobParams.WorkflowJobID != triggeredBy {
 			// The triggeredBy value is only set by the "in_progress" webhook. The runner that
 			// transitioned to in_progress was created as a result of a different queued job. If that job is
 			// still queued and we don't remove the lock, it will linger until the lock timeout is reached.
@@ -970,7 +970,7 @@ func (r *basePoolManager) paramsWorkflowJobToParamsJob(job params.WorkflowJob) (
 	}
 
 	jobParams := params.Job{
-		ID:              job.WorkflowJob.ID,
+		WorkflowJobID:   job.WorkflowJob.ID,
 		Action:          job.Action,
 		RunID:           job.WorkflowJob.RunID,
 		Status:          job.WorkflowJob.Status,
@@ -1106,10 +1106,10 @@ func (r *basePoolManager) scaleDownOnePool(ctx context.Context, pool params.Pool
 
 		for _, job := range queued {
 			if time.Since(job.CreatedAt).Minutes() > 10 && pool.HasRequiredLabels(job.Labels) {
-				if err := r.store.DeleteJob(ctx, job.ID); err != nil && !errors.Is(err, runnerErrors.ErrNotFound) {
+				if err := r.store.DeleteJob(ctx, job.WorkflowJobID); err != nil && !errors.Is(err, runnerErrors.ErrNotFound) {
 					slog.With(slog.Any("error", err)).ErrorContext(
 						ctx, "failed to delete job",
-						"job_id", job.ID)
+						"job_id", job.WorkflowJobID)
 				}
 			}
 		}
@@ -1760,7 +1760,7 @@ func (r *basePoolManager) consumeQueuedJobs() error {
 			// Job was handled by us or another entity.
 			slog.DebugContext(
 				r.ctx, "job is locked",
-				"job_id", job.ID,
+				"job_id", job.WorkflowJobID,
 				"locking_entity", job.LockedBy.String())
 			continue
 		}
@@ -1769,7 +1769,7 @@ func (r *basePoolManager) consumeQueuedJobs() error {
 			// give the idle runners a chance to pick up the job.
 			slog.DebugContext(
 				r.ctx, "job backoff not reached", "backoff_interval", r.controllerInfo.MinimumJobAgeBackoff,
-				"job_id", job.ID)
+				"job_id", job.WorkflowJobID)
 			continue
 		}
 
@@ -1777,12 +1777,12 @@ func (r *basePoolManager) consumeQueuedJobs() error {
 			// Job is still queued in our db, 10 minutes after a matching runner
 			// was spawned. Unlock it and try again. A different job may have picked up
 			// the runner.
-			if err := r.store.UnlockJob(r.ctx, job.ID, r.ID()); err != nil {
+			if err := r.store.UnlockJob(r.ctx, job.WorkflowJobID, r.ID()); err != nil {
 				// nolint:golangci-lint,godox
 				// TODO: Implament a cache? Should we return here?
 				slog.With(slog.Any("error", err)).ErrorContext(
 					r.ctx, "failed to unlock job",
-					"job_id", job.ID)
+					"job_id", job.WorkflowJobID)
 				continue
 			}
 		}
@@ -1795,7 +1795,7 @@ func (r *basePoolManager) consumeQueuedJobs() error {
 			// runner.
 			slog.DebugContext(
 				r.ctx, "job is locked by us",
-				"job_id", job.ID)
+				"job_id", job.WorkflowJobID)
 			continue
 		}
 
@@ -1816,29 +1816,29 @@ func (r *basePoolManager) consumeQueuedJobs() error {
 		}
 
 		runnerCreated := false
-		if err := r.store.LockJob(r.ctx, job.ID, r.ID()); err != nil {
+		if err := r.store.LockJob(r.ctx, job.WorkflowJobID, r.ID()); err != nil {
 			slog.With(slog.Any("error", err)).ErrorContext(
 				r.ctx, "could not lock job",
-				"job_id", job.ID)
+				"job_id", job.WorkflowJobID)
 			continue
 		}
 
 		jobLabels := []string{
-			fmt.Sprintf("%s=%d", jobLabelPrefix, job.ID),
+			fmt.Sprintf("%s=%d", jobLabelPrefix, job.WorkflowJobID),
 		}
 		for i := 0; i < poolRR.Len(); i++ {
 			pool, err := poolRR.Next()
 			if err != nil {
 				slog.With(slog.Any("error", err)).ErrorContext(
 					r.ctx, "could not find a pool to create a runner for job",
-					"job_id", job.ID)
+					"job_id", job.WorkflowJobID)
 				break
 			}
 
 			slog.InfoContext(
 				r.ctx, "attempting to create a runner in pool",
 				"pool_id", pool.ID,
-				"job_id", job.ID)
+				"job_id", job.WorkflowJobID)
 			if err := r.addRunnerToPool(pool, jobLabels); err != nil {
 				slog.With(slog.Any("error", err)).ErrorContext(
 					r.ctx, "could not add runner to pool",
@@ -1847,7 +1847,7 @@ func (r *basePoolManager) consumeQueuedJobs() error {
 			}
 			slog.DebugContext(r.ctx, "a new runner was added as a response to queued job",
 				"pool_id", pool.ID,
-				"job_id", job.ID)
+				"job_id", job.WorkflowJobID)
 			runnerCreated = true
 			break
 		}
@@ -1855,11 +1855,11 @@ func (r *basePoolManager) consumeQueuedJobs() error {
 		if !runnerCreated {
 			slog.WarnContext(
 				r.ctx, "could not create a runner for job; unlocking",
-				"job_id", job.ID)
-			if err := r.store.UnlockJob(r.ctx, job.ID, r.ID()); err != nil {
+				"job_id", job.WorkflowJobID)
+			if err := r.store.UnlockJob(r.ctx, job.WorkflowJobID, r.ID()); err != nil {
 				slog.With(slog.Any("error", err)).ErrorContext(
 					r.ctx, "failed to unlock job",
-					"job_id", job.ID)
+					"job_id", job.WorkflowJobID)
 				return errors.Wrap(err, "unlocking job")
 			}
 		}

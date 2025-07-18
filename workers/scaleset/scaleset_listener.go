@@ -150,25 +150,19 @@ func (l *scaleSetListener) handleSessionMessage(msg params.RunnerScaleSetMessage
 	for _, job := range body {
 		switch job.MessageType {
 		case params.MessageTypeJobAssigned:
-			slog.InfoContext(l.ctx, "new job assigned", "job_id", job.RunnerRequestID, "job_name", job.JobDisplayName)
+			slog.InfoContext(l.ctx, "new job assigned", "job_id", job.JobID, "job_name", job.JobDisplayName)
 			assignedJobs = append(assignedJobs, job)
 		case params.MessageTypeJobStarted:
-			slog.InfoContext(l.ctx, "job started", "job_id", job.RunnerRequestID, "job_name", job.JobDisplayName, "runner_name", job.RunnerName)
+			slog.InfoContext(l.ctx, "job started", "job_id", job.JobID, "job_name", job.JobDisplayName, "runner_name", job.RunnerName)
 			startedJobs = append(startedJobs, job)
 		case params.MessageTypeJobCompleted:
-			slog.InfoContext(l.ctx, "job completed", "job_id", job.RunnerRequestID, "job_name", job.JobDisplayName, "runner_name", job.RunnerName)
+			slog.InfoContext(l.ctx, "job completed", "job_id", job.JobID, "job_name", job.JobDisplayName, "runner_name", job.RunnerName)
 			completedJobs = append(completedJobs, job)
 		case params.MessageTypeJobAvailable:
-			slog.InfoContext(l.ctx, "job available", "job_id", job.RunnerRequestID, "job_name", job.JobDisplayName)
+			slog.InfoContext(l.ctx, "job available", "job_id", job.JobID, "job_name", job.JobDisplayName)
 			availableJobs = append(availableJobs, job)
 		default:
 			slog.DebugContext(l.ctx, "unknown message type", "message_type", job.MessageType)
-		}
-	}
-
-	if len(assignedJobs) > 0 {
-		if err := l.scaleSetHelper.HandleJobsAvailable(assignedJobs); err != nil {
-			slog.ErrorContext(l.ctx, "error handling available jobs", "error", err)
 		}
 	}
 
@@ -198,16 +192,22 @@ func (l *scaleSetListener) handleSessionMessage(msg params.RunnerScaleSetMessage
 		slog.DebugContext(l.ctx, "acquired jobs", "job_ids", idsAcquired)
 	}
 
-	if len(completedJobs) > 0 {
-		if err := l.scaleSetHelper.HandleJobsCompleted(completedJobs); err != nil {
-			slog.ErrorContext(l.ctx, "error handling completed jobs", "error", err)
-			return
+	if len(assignedJobs) > 0 {
+		if err := l.scaleSetHelper.HandleJobsAvailable(assignedJobs); err != nil {
+			slog.ErrorContext(l.ctx, "error handling available jobs", "error", err)
 		}
 	}
 
 	if len(startedJobs) > 0 {
 		if err := l.scaleSetHelper.HandleJobsStarted(startedJobs); err != nil {
 			slog.ErrorContext(l.ctx, "error handling started jobs", "error", err)
+			return
+		}
+	}
+
+	if len(completedJobs) > 0 {
+		if err := l.scaleSetHelper.HandleJobsCompleted(completedJobs); err != nil {
+			slog.ErrorContext(l.ctx, "error handling completed jobs", "error", err)
 			return
 		}
 	}

@@ -41,6 +41,8 @@ func sqlWorkflowJobToParamsJob(job WorkflowJob) (params.Job, error) {
 
 	jobParam := params.Job{
 		ID:              job.ID,
+		WorkflowJobID:   job.WorkflowJobID,
+		ScaleSetJobID:   job.ScaleSetJobID,
 		RunID:           job.RunID,
 		Action:          job.Action,
 		Status:          job.Status,
@@ -75,7 +77,8 @@ func (s *sqlDatabase) paramsJobToWorkflowJob(ctx context.Context, job params.Job
 	}
 
 	workflofJob := WorkflowJob{
-		ID:              job.ID,
+		ScaleSetJobID:   job.ScaleSetJobID,
+		WorkflowJobID:   job.ID,
 		RunID:           job.RunID,
 		Action:          job.Action,
 		Status:          job.Status,
@@ -109,14 +112,27 @@ func (s *sqlDatabase) paramsJobToWorkflowJob(ctx context.Context, job params.Job
 }
 
 func (s *sqlDatabase) DeleteJob(_ context.Context, jobID int64) (err error) {
+	var workflowJob WorkflowJob
+	q := s.conn.Where("workflow_job_id = ?", jobID).Preload("Instance").First(&workflowJob)
+	if q.Error != nil {
+		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
+			return nil
+		}
+		return errors.Wrap(q.Error, "fetching job")
+	}
+	removedJob, err := sqlWorkflowJobToParamsJob(workflowJob)
+	if err != nil {
+		return errors.Wrap(err, "converting job")
+	}
+
 	defer func() {
 		if err == nil {
-			if notifyErr := s.sendNotify(common.JobEntityType, common.DeleteOperation, params.Job{ID: jobID}); notifyErr != nil {
+			if notifyErr := s.sendNotify(common.JobEntityType, common.DeleteOperation, removedJob); notifyErr != nil {
 				slog.With(slog.Any("error", notifyErr)).Error("failed to send notify")
 			}
 		}
 	}()
-	q := s.conn.Delete(&WorkflowJob{}, jobID)
+	q = s.conn.Delete(&workflowJob)
 	if q.Error != nil {
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
 			return nil
@@ -132,7 +148,7 @@ func (s *sqlDatabase) LockJob(_ context.Context, jobID int64, entityID string) e
 		return errors.Wrap(err, "parsing entity id")
 	}
 	var workflowJob WorkflowJob
-	q := s.conn.Clauses(clause.Locking{Strength: "UPDATE"}).Preload("Instance").Where("id = ?", jobID).First(&workflowJob)
+	q := s.conn.Preload("Instance").Where("id = ?", jobID).First(&workflowJob)
 
 	if q.Error != nil {
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
@@ -167,7 +183,7 @@ func (s *sqlDatabase) LockJob(_ context.Context, jobID int64, entityID string) e
 
 func (s *sqlDatabase) BreakLockJobIsQueued(_ context.Context, jobID int64) (err error) {
 	var workflowJob WorkflowJob
-	q := s.conn.Clauses(clause.Locking{Strength: "UPDATE"}).Preload("Instance").Where("id = ? and status = ?", jobID, params.JobStatusQueued).First(&workflowJob)
+	q := s.conn.Clauses(clause.Locking{Strength: "UPDATE"}).Preload("Instance").Where("workflow_job_id = ? and status = ?", jobID, params.JobStatusQueued).First(&workflowJob)
 
 	if q.Error != nil {
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
@@ -195,7 +211,7 @@ func (s *sqlDatabase) BreakLockJobIsQueued(_ context.Context, jobID int64) (err 
 
 func (s *sqlDatabase) UnlockJob(_ context.Context, jobID int64, entityID string) error {
 	var workflowJob WorkflowJob
-	q := s.conn.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ?", jobID).First(&workflowJob)
+	q := s.conn.Clauses(clause.Locking{Strength: "UPDATE"}).Where("workflow_job_id = ?", jobID).First(&workflowJob)
 
 	if q.Error != nil {
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
@@ -229,7 +245,14 @@ func (s *sqlDatabase) UnlockJob(_ context.Context, jobID int64, entityID string)
 func (s *sqlDatabase) CreateOrUpdateJob(ctx context.Context, job params.Job) (params.Job, error) {
 	var workflowJob WorkflowJob
 	var err error
-	q := s.conn.Clauses(clause.Locking{Strength: "UPDATE"}).Preload("Instance").Where("id = ?", job.ID).First(&workflowJob)
+
+	searchField := "workflow_job_id = ?"
+	var searchVal any = job.ID
+	if job.ScaleSetJobID != "" {
+		searchField = "scale_set_job_id = ?"
+		searchVal = job.ScaleSetJobID
+	}
+	q := s.conn.Preload("Instance").Where(searchField, searchVal).First(&workflowJob)
 
 	if q.Error != nil {
 		if !errors.Is(q.Error, gorm.ErrRecordNotFound) {
@@ -249,6 +272,9 @@ func (s *sqlDatabase) CreateOrUpdateJob(ctx context.Context, job params.Job) (pa
 		workflowJob.GithubRunnerID = job.GithubRunnerID
 		workflowJob.RunnerGroupID = job.RunnerGroupID
 		workflowJob.RunnerGroupName = job.RunnerGroupName
+		if job.RunID != 0 && workflowJob.RunID == 0 {
+			workflowJob.RunID = job.RunID
+		}
 
 		if job.LockedBy != uuid.Nil {
 			workflowJob.LockedBy = job.LockedBy
@@ -327,7 +353,11 @@ func (s *sqlDatabase) ListEntityJobsByStatus(_ context.Context, entityType param
 	}
 
 	var jobs []WorkflowJob
-	query := s.conn.Model(&WorkflowJob{}).Preload("Instance").Where("status = ?", status)
+	query := s.conn.
+		Model(&WorkflowJob{}).
+		Preload("Instance").
+		Where("status = ?", status).
+		Where("workflow_job_id > 0")
 
 	switch entityType {
 	case params.ForgeEntityTypeOrganization:
@@ -381,7 +411,7 @@ func (s *sqlDatabase) ListAllJobs(_ context.Context) ([]params.Job, error) {
 // GetJobByID gets a job by id.
 func (s *sqlDatabase) GetJobByID(_ context.Context, jobID int64) (params.Job, error) {
 	var job WorkflowJob
-	query := s.conn.Model(&WorkflowJob{}).Preload("Instance").Where("id = ?", jobID)
+	query := s.conn.Model(&WorkflowJob{}).Preload("Instance").Where("workflow_job_id = ?", jobID)
 
 	if err := query.First(&job); err.Error != nil {
 		if errors.Is(err.Error, gorm.ErrRecordNotFound) {
