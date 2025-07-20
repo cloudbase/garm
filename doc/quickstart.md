@@ -2,18 +2,19 @@
 
 <!-- TOC -->
 
-  - [Create the config folder](#create-the-config-folder)
-  - [The config file](#the-config-file)
-  - [The provider section](#the-provider-section)
-  - [Starting the service](#starting-the-service)
-      - [Using Docker](#using-docker)
-      - [Setting up GARM as a system service](#setting-up-garm-as-a-system-service)
-  - [Initializing GARM](#initializing-garm)
-  - [Setting up the webhook](#setting-up-the-webhook)
-  - [Creating a GitHub endpoint Optional](#creating-a-github-endpoint-optional)
-  - [Adding credentials](#adding-credentials)
-  - [Define a repo](#define-a-repo)
-  - [Create a pool](#create-a-pool)
+- [Quick start](#quick-start)
+    - [Create the config folder](#create-the-config-folder)
+    - [The config file](#the-config-file)
+    - [The provider section](#the-provider-section)
+    - [Starting the service](#starting-the-service)
+        - [Using Docker](#using-docker)
+        - [Setting up GARM as a system service](#setting-up-garm-as-a-system-service)
+    - [Initializing GARM](#initializing-garm)
+    - [Setting up the webhook](#setting-up-the-webhook)
+    - [Creating a GitHub endpoint Optional](#creating-a-github-endpoint-optional)
+    - [Adding credentials](#adding-credentials)
+    - [Define a repo](#define-a-repo)
+    - [Create a pool](#create-a-pool)
 
 <!-- /TOC -->
 
@@ -133,7 +134,7 @@ docker run -d \
   -p 80:80 \
   -v /etc/garm:/etc/garm:rw \
   -v /var/snap/lxd/common/lxd/unix.socket:/var/snap/lxd/common/lxd/unix.socket:rw \
-  ghcr.io/cloudbase/garm:v0.1.4
+  ghcr.io/cloudbase/garm:v0.1.6
 ```
 
 You will notice that we also mounted the LXD unix socket from the host inside the container where the config you pasted expects to find it. If you plan to use an external provider that does not need to connect to LXD over a unix socket, feel free to remove that mount.
@@ -166,7 +167,7 @@ Adding the `garm` user to the LXD group will allow it to connect to the LXD unix
 Next, download the latest release from the [releases page](https://github.com/cloudbase/garm/releases).
 
 ```bash
-wget -q -O - https://github.com/cloudbase/garm/releases/download/v0.1.5/garm-linux-amd64.tgz |  tar xzf - -C /usr/local/bin/
+wget -q -O - https://github.com/cloudbase/garm/releases/download/v0.1.6/garm-linux-amd64.tgz |  tar xzf - -C /usr/local/bin/
 ```
 
 We'll be running under an unprivileged user. If we want to be able to listen on any port under `1024`, we'll have to set some capabilities on the binary:
@@ -199,7 +200,7 @@ Copy the sample `systemd` service file:
 
 ```bash
 wget -O /etc/systemd/system/garm.service \
-  https://raw.githubusercontent.com/cloudbase/garm/v0.1.5/contrib/garm.service
+  https://raw.githubusercontent.com/cloudbase/garm/v0.1.6/contrib/garm.service
 ```
 
 Reload the `systemd` daemon and start the service:
@@ -234,7 +235,7 @@ Before we can start using GARM, we need initialize it. This will create the `adm
 To initialize GARM, we'll use the `garm-cli` tool. You can download the latest release from the [releases page](https://github.com/cloudbase/garm/releases):
 
 ```bash
-wget -q -O - https://github.com/cloudbase/garm/releases/download/v0.1.5/garm-cli-linux-amd64.tgz |  tar xzf - -C /usr/local/bin/
+wget -q -O - https://github.com/cloudbase/garm/releases/download/v0.1.6/garm-cli-linux-amd64.tgz |  tar xzf - -C /usr/local/bin/
 ```
 
 Now we can initialize GARM:

@@ -1,19 +1,18 @@
 # GitHub Actions Runner Manager (GARM)
 
-[![Go Tests](https://github.com/cloudbase/garm/actions/workflows/go-tests.yml/badge.svg)](https://github.com/cloudbase/garm/actions/workflows/go-tests.yml)
-
 <!-- TOC -->
 
-- [About GARM](#about-garm)
-- [Join us on slack](#join-us-on-slack)
-- [Installing](#installing)
-    - [Quickstart](#quickstart)
-    - [Installing on Kubernetes](#installing-on-kubernetes)
-- [Using GARM](#using-garm)
-- [Supported providers](#supported-providers)
-    - [Installing external providers](#installing-external-providers)
-- [Optimizing your runners](#optimizing-your-runners)
-- [Write your own provider](#write-your-own-provider)
+- [GitHub Actions Runner Manager GARM](#github-actions-runner-manager-garm)
+    - [About GARM](#about-garm)
+    - [Join us on slack](#join-us-on-slack)
+    - [Installing](#installing)
+        - [Quickstart](#quickstart)
+        - [Installing on Kubernetes](#installing-on-kubernetes)
+    - [Using GARM](#using-garm)
+    - [Supported providers](#supported-providers)
+        - [Installing external providers](#installing-external-providers)
+    - [Optimizing your runners](#optimizing-your-runners)
+    - [Write your own provider](#write-your-own-provider)
 
 <!-- /TOC -->
 
@@ -34,7 +33,7 @@ Here is a brief architectural diagram of how GARM reacts to workflows triggered 
 ![GARM architecture diagram](/doc/images/garm-light.drawio.svg?raw=true#gh-light-mode-only)
 ![GARM architecture diagram](/doc/images/garm-dark.drawio.svg?raw=true#gh-dark-mode-only)
 
-:warning: **Important note**: The README and documentation in the `main` branch are relevant to the not yet released code that is present in `main`. Following the documentation from the `main` branch for a stable release of GARM, may lead to errors. To view the documentation for the latest stable release, please switch to the appropriate tag. For information about setting up `v0.1.5`, please refer to the [v0.1.5 tag](https://github.com/cloudbase/garm/tree/v0.1.5).
+:warning: **Important note**: The README and documentation in the `main` branch are relevant to the not yet released code that is present in `main`. Following the documentation from the `main` branch for a stable release of GARM, may lead to errors. To view the documentation for the latest stable release, please switch to the appropriate tag. For information about setting up `v0.1.6`, please refer to the [v0.1.6 tag](https://github.com/cloudbase/garm/tree/v0.1.6).
 
 ## Join us on slack
 
