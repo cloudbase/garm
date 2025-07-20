@@ -66,7 +66,7 @@ garm-cli controller show
 | Webhook Base URL        | https://garm.example.com/webhooks                                          |
 | Controller Webhook URL  | https://garm.example.com/webhooks/a4dd5f41-8e1e-42a7-af53-c0ba5ff6b0b3     |
 | Minimum Job Age Backoff | 30                                                                         |
-| Version                 | v0.1.5                                                                     |
+| Version                 | v0.1.6                                                                     |
 +-------------------------+----------------------------------------------------------------------------+
 ```
 
