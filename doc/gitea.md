@@ -346,7 +346,7 @@ garm-cli pool add \
 You should now see 1 runner being spun up in LXD. You can check the status of the pool by doing:
 
 ```bash
-garm-cli runner ls -a
+garm-cli runner ls
 ```
 
 To get more details about the runner, run:
