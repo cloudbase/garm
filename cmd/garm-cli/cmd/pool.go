@@ -128,12 +128,9 @@ Example:
 				listEnterprisePoolsReq := apiClientEnterprises.NewListEnterprisePoolsParams()
 				listEnterprisePoolsReq.EnterpriseID = poolEnterprise
 				response, err = apiCli.Enterprises.ListEnterprisePools(listEnterprisePoolsReq, authToken)
-			} else if cmd.Flags().Changed("all") {
+			} else {
 				listPoolsReq := apiClientPools.NewListPoolsParams()
 				response, err = apiCli.Pools.ListPools(listPoolsReq, authToken)
-			} else {
-				cmd.Help() //nolint
-				os.Exit(0)
 			}
 		default:
 			cmd.Help() //nolint
@@ -409,11 +406,12 @@ func init() {
 	poolListCmd.Flags().StringVarP(&poolRepository, "repo", "r", "", "List all pools within this repository.")
 	poolListCmd.Flags().StringVarP(&poolOrganization, "org", "o", "", "List all pools within this organization.")
 	poolListCmd.Flags().StringVarP(&poolEnterprise, "enterprise", "e", "", "List all pools within this enterprise.")
-	poolListCmd.Flags().BoolVarP(&poolAll, "all", "a", false, "List all pools, regardless of org or repo.")
+	poolListCmd.Flags().BoolVarP(&poolAll, "all", "a", true, "List all pools, regardless of org or repo.")
 	poolListCmd.Flags().BoolVarP(&long, "long", "l", false, "Include additional info.")
 	poolListCmd.Flags().StringVar(&endpointName, "endpoint", "", "When using the name of an entity, the endpoint must be specified when multiple entities with the same name exist.")
 
-	poolListCmd.MarkFlagsMutuallyExclusive("repo", "org", "all", "enterprise")
+	poolListCmd.Flags().MarkDeprecated("all", "all pools are listed by default in the absence of --repo, --org or --enterprise.")
+	poolListCmd.MarkFlagsMutuallyExclusive("repo", "org", "enterprise", "all")
 
 	poolUpdateCmd.Flags().StringVar(&poolImage, "image", "", "The provider-specific image name to use for runners in this pool.")
 	poolUpdateCmd.Flags().UintVar(&priority, "priority", 0, "When multiple pools match the same labels, priority dictates the order by which they are returned, in descending order.")

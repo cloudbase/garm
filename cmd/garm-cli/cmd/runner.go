@@ -104,23 +104,32 @@ Example:
 			response, err = apiCli.Instances.ListPoolInstances(listPoolInstancesReq, authToken)
 		case 0:
 			if cmd.Flags().Changed("repo") {
+				runnerRepo, resErr := resolveRepository(runnerRepository, endpointName)
+				if resErr != nil {
+					return resErr
+				}
 				listRepoInstancesReq := apiClientRepos.NewListRepoInstancesParams()
-				listRepoInstancesReq.RepoID = runnerRepository
+				listRepoInstancesReq.RepoID = runnerRepo
 				response, err = apiCli.Repositories.ListRepoInstances(listRepoInstancesReq, authToken)
 			} else if cmd.Flags().Changed("org") {
+				runnerOrg, resErr := resolveOrganization(runnerOrganization, endpointName)
+				if resErr != nil {
+					return resErr
+				}
 				listOrgInstancesReq := apiClientOrgs.NewListOrgInstancesParams()
-				listOrgInstancesReq.OrgID = runnerOrganization
+				listOrgInstancesReq.OrgID = runnerOrg
 				response, err = apiCli.Organizations.ListOrgInstances(listOrgInstancesReq, authToken)
 			} else if cmd.Flags().Changed("enterprise") {
+				runnerEnt, resErr := resolveEnterprise(runnerEnterprise, endpointName)
+				if resErr != nil {
+					return resErr
+				}
 				listEnterpriseInstancesReq := apiClientEnterprises.NewListEnterpriseInstancesParams()
-				listEnterpriseInstancesReq.EnterpriseID = runnerEnterprise
+				listEnterpriseInstancesReq.EnterpriseID = runnerEnt
 				response, err = apiCli.Enterprises.ListEnterpriseInstances(listEnterpriseInstancesReq, authToken)
-			} else if cmd.Flags().Changed("all") {
+			} else {
 				listInstancesReq := apiClientInstances.NewListInstancesParams()
 				response, err = apiCli.Instances.ListInstances(listInstancesReq, authToken)
-			} else {
-				cmd.Help() //nolint
-				os.Exit(0)
 			}
 		default:
 			cmd.Help() //nolint
@@ -205,9 +214,12 @@ func init() {
 	runnerListCmd.Flags().StringVarP(&runnerRepository, "repo", "r", "", "List all runners from all pools within this repository.")
 	runnerListCmd.Flags().StringVarP(&runnerOrganization, "org", "o", "", "List all runners from all pools within this organization.")
 	runnerListCmd.Flags().StringVarP(&runnerEnterprise, "enterprise", "e", "", "List all runners from all pools within this enterprise.")
-	runnerListCmd.Flags().BoolVarP(&runnerAll, "all", "a", false, "List all runners, regardless of org or repo.")
+	runnerListCmd.Flags().BoolVarP(&runnerAll, "all", "a", true, "List all runners, regardless of org or repo. (deprecated)")
 	runnerListCmd.Flags().BoolVarP(&long, "long", "l", false, "Include additional info.")
 	runnerListCmd.MarkFlagsMutuallyExclusive("repo", "org", "enterprise", "all")
+	runnerListCmd.Flags().StringVar(&endpointName, "endpoint", "", "When using the name of an entity, the endpoint must be specified when multiple entities with the same name exist.")
+
+	runnerListCmd.Flags().MarkDeprecated("all", "all runners are listed by default in the absence of --repo, --org or --enterprise.")
 
 	runnerDeleteCmd.Flags().BoolVarP(&forceRemove, "force-remove-runner", "f", false, "Forcefully remove a runner. If set to true, GARM will ignore provider errors when removing the runner.")
 	runnerDeleteCmd.Flags().BoolVarP(&bypassGHUnauthorized, "bypass-github-unauthorized", "b", false, "Ignore Unauthorized errors from GitHub and proceed with removing runner from provider and DB. This is useful when credentials are no longer valid and you want to remove your runners. Warning, this has the potential to leave orphaned runners in GitHub. You will need to update your credentials to properly consolidate.")

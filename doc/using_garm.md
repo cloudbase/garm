@@ -66,7 +66,7 @@ garm-cli controller show
 | Webhook Base URL        | https://garm.example.com/webhooks                                          |
 | Controller Webhook URL  | https://garm.example.com/webhooks/a4dd5f41-8e1e-42a7-af53-c0ba5ff6b0b3     |
 | Minimum Job Age Backoff | 30                                                                         |
-| Version                 | v0.1.5                                                                     |
+| Version                 | v0.1.6                                                                     |
 +-------------------------+----------------------------------------------------------------------------+
 ```
 
@@ -567,10 +567,10 @@ ubuntu@garm:~$ garm-cli pool list --repo=be3a0673-56af-4395-9ebf-4521fea67567
 
 If you want to list pools for an organization or enterprise, you can use the `--org` or `--enterprise` options respectively.
 
-You can also list **all** pools from all configureg github entities by using the `--all` option.
+In the absence or the `--repo`, `--org` or `--enterprise` options, the command will list all pools in GARM, regardless of the entity they belong to.
 
 ```bash
-ubuntu@garm:~/garm$ garm-cli pool list --all
+ubuntu@garm:~/garm$ garm-cli pool list
 +--------------------------------------+---------------------------+--------------+-----------------------------------------+------------------+-------+---------+---------------+----------+
 | ID                                   | IMAGE                     | FLAVOR       | TAGS                                    | BELONGS TO       | LEVEL | ENABLED | RUNNER PREFIX | PRIORITY |
 +--------------------------------------+---------------------------+--------------+-----------------------------------------+------------------+-------+---------+---------------+----------+
@@ -705,7 +705,7 @@ Awesome! This runner will be able to pick up jobs that match the labels we've se
 You can list runners for a pool, for a repository, organization or enterprise, or for all of them. To list all runners, you can run:
 
 ```bash
-ubuntu@garm:~$ garm-cli runner list --all
+ubuntu@garm:~$ garm-cli runner list
 +----+---------------------+---------+---------------+--------------------------------------+
 | NR | NAME                | STATUS  | RUNNER STATUS | POOL ID                              |
 +----+---------------------+---------+---------------+--------------------------------------+
