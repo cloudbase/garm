@@ -19,7 +19,7 @@ require (
 	github.com/gorilla/handlers v1.5.2
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.4-0.20240702125206-a62d9d2a8413
-	github.com/jedib0t/go-pretty/v6 v6.6.7
+	github.com/jedib0t/go-pretty/v6 v6.6.8
 	github.com/juju/clock v1.1.1
 	github.com/juju/retry v1.0.1
 	github.com/manifoldco/promptui v0.9.0
