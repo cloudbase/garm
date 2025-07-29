@@ -78,10 +78,10 @@ jobs:
               LINODE_REF=$(get_gh_latest_release flatcar/garm-provider-linode)
               K8S_REF=$(get_gh_latest_release mercedes-benz/garm-provider-k8s)
             fi
-            if [ "$GH_REF" == "release/v1" ]; then
+            if [ "$GH_REF" == "release/v0.1" ]; then
               VERSION="v0.1"
             fi
-            if [ "$GH_REF" == "release/v2" ]; then
+            if [ "$GH_REF" == "release/v0.2" ]; then
               VERSION="v0.2"
             fi
             docker buildx build \
