@@ -8,6 +8,6 @@ jobs:
     uses: ./.github/workflows/build-and-push.yml
     strategy:
       matrix:
-        ref: ["main", "release/v1", "release/v2"]
+        ref: ["main", "release/v0.1", "release/v0.2"]
     with:
       ref: ${{ matrix.ref }}
