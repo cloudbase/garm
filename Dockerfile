@@ -11,7 +11,7 @@ ARG K8S_REF=v0.3.2
 
 LABEL stage=builder
 
-RUN apk add musl-dev gcc libtool m4 autoconf g++ make libblkid util-linux-dev git linux-headers upx
+RUN apk add --no-cache musl-dev gcc libtool m4 autoconf g++ make libblkid util-linux-dev git linux-headers upx
 RUN git config --global --add safe.directory /build
 
 ADD . /build/garm
