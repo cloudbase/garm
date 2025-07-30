@@ -8,7 +8,8 @@ RUN git config --global --add safe.directory /build && git config --global --add
 
 ADD . /build/garm
 
-RUN cd /build/garm && git checkout ${GARM_REF} \
+RUN git -C /build/garm checkout ${GARM_REF}
+RUN cd /build/garm \
     && go build -o /bin/garm \
       -tags osusergo,netgo,sqlite_omit_load_extension \
       -ldflags "-linkmode external -extldflags '-static' -s -w -X github.com/cloudbase/garm/util/appdefaults.Version=$(git describe --tags --match='v[0-9]*' --dirty --always)" \
@@ -18,7 +19,8 @@ RUN cd /build/garm/cmd/garm-cli \
       -tags osusergo,netgo,sqlite_omit_load_extension \
       -ldflags "-linkmode external -extldflags '-static' -s -w -X github.com/cloudbase/garm/util/appdefaults.Version=$(git describe --tags --match='v[0-9]*' --dirty --always)" \
       . && upx /bin/garm-cli
-RUN mkdir -p /opt/garm/providers.d; \
+RUN set -e; \
+    mkdir -p /opt/garm/providers.d; \
     for repo in \
       cloudbase/garm-provider-azure \
       cloudbase/garm-provider-openstack \
@@ -37,20 +39,20 @@ RUN mkdir -p /opt/garm/providers.d; \
         else \
           export PROVIDER_TAG="$(curl -s -L https://api.github.com/repos/$repo/releases/latest | jq -r '.tag_name')"; \
         fi; \
+        git clone --branch "$PROVIDER_TAG" "https://github.com/$repo" "/build/$PROVIDER_NAME"; \
         case $PROVIDER_NAME in \
         "garm-provider-k8s") \
-            export PROVIDER_TAG=v0.3.1; \
             export PROVIDER_SUBDIR="cmd/garm-provider-k8s"; \
             export PROVIDER_LDFLAGS="-linkmode external -extldflags \"-static\" -s -w"; \
+            git -C /build/garm-provider-k8s checkout v0.3.1; \
             ;; \
         "garm-provider-linode") \
             export PROVIDER_LDFLAGS="-linkmode external -extldflags \"-static\" -s -w"; \
             ;; \
         *) \
-            export PROVIDER_LDFLAGS="-linkmode external -extldflags \"-static\" -s -w -X main.Version=$PROVIDER_TAG"; \
+            export PROVIDER_LDFLAGS="-linkmode external -extldflags \"-static\" -s -w -X main.Version=$(git -C /build/$PROVIDER_NAME describe --tags --match='v[0-9]*' --dirty --always)"; \
             ;; \
         esac; \
-        git clone --depth 1 --branch "$PROVIDER_TAG" "https://github.com/$repo" "/build/$PROVIDER_NAME" \
         && cd "/build/$PROVIDER_NAME/$PROVIDER_SUBDIR" \
         && go build -ldflags="$PROVIDER_LDFLAGS" -o /opt/garm/providers.d/$PROVIDER_NAME . \
         && upx /opt/garm/providers.d/$PROVIDER_NAME; \
