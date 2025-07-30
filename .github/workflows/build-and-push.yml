@@ -48,7 +48,6 @@ jobs:
             GH_REF: ${{ inputs.ref }}
           working-directory: src/github.com/cloudbase/garm
           run: |
-            set -x
             if [ "$GH_REF" == "main" ]; then
               VERSION="nightly"
             else
@@ -67,5 +66,5 @@ jobs:
               --label "org.opencontainers.image.description=GARM ${GH_REF}" \
               --label "org.opencontainers.image.licenses=Apache 2.0" \
               --build-arg="GARM_REF=${GH_REF}" \
-              -t ${PUSH_TO_PROJECT}/garm:"${VERSION}" \
+              -t ${REGISTRY_INPUT}/garm:"${VERSION}" \
               --push .
