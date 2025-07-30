@@ -42,22 +42,16 @@ jobs:
             username: ${{ github.actor }}
             password: ${{ secrets.GITHUB_TOKEN }}
 
-        - name: Build and push
+        - name: Build and push image
           env:
-            REGISTRY_INPUT: ${{ inputs.push_to_project }}
+            IMAGE_REGISTRY: ${{ inputs.push_to_project }}
             GH_REF: ${{ inputs.ref }}
           working-directory: src/github.com/cloudbase/garm
           run: |
             if [ "$GH_REF" == "main" ]; then
-              VERSION="nightly"
+              IMAGE_TAG="nightly"
             else
-              VERSION=$(git describe --tags --match='v[0-9]*' --always)
-            fi
-            if [ "$GH_REF" == "release/v0.1" ]; then
-              VERSION="v0.1"
-            fi
-            if [ "$GH_REF" == "release/v0.2" ]; then
-              VERSION="v0.2"
+              IMAGE_TAG=$(git describe --tags --match='v[0-9]*' --always)
             fi
             docker buildx build \
               --provenance=false \
@@ -66,5 +60,5 @@ jobs:
               --label "org.opencontainers.image.description=GARM ${GH_REF}" \
               --label "org.opencontainers.image.licenses=Apache 2.0" \
               --build-arg="GARM_REF=${GH_REF}" \
-              -t ${REGISTRY_INPUT}/garm:"${VERSION}" \
+              -t ${IMAGE_REGISTRY}/garm:"${IMAGE_TAG}" \
               --push .

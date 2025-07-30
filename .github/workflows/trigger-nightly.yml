@@ -6,8 +6,5 @@ on:
 jobs:
   call-build-and-push:
     uses: ./.github/workflows/build-and-push.yml
-    strategy:
-      matrix:
-        ref: ["main", "release/v0.1", "release/v0.2"]
     with:
-      ref: ${{ matrix.ref }}
+      ref: "main"

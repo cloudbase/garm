@@ -35,11 +35,11 @@ RUN set -e; \
         export PROVIDER_NAME="$(basename $repo)"; \
         export PROVIDER_SUBDIR=""; \
         if [ "$GARM_REF" == "main" ]; then \
-          export PROVIDER_TAG="main"; \
+          export PROVIDER_REF="main"; \
         else \
-          export PROVIDER_TAG="$(curl -s -L https://api.github.com/repos/$repo/releases/latest | jq -r '.tag_name')"; \
+          export PROVIDER_REF="$(curl -s -L https://api.github.com/repos/$repo/releases/latest | jq -r '.tag_name')"; \
         fi; \
-        git clone --branch "$PROVIDER_TAG" "https://github.com/$repo" "/build/$PROVIDER_NAME"; \
+        git clone --branch "$PROVIDER_REF" "https://github.com/$repo" "/build/$PROVIDER_NAME"; \
         case $PROVIDER_NAME in \
         "garm-provider-k8s") \
             export PROVIDER_SUBDIR="cmd/garm-provider-k8s"; \
@@ -49,7 +49,8 @@ RUN set -e; \
             export PROVIDER_LDFLAGS="-linkmode external -extldflags \"-static\" -s -w"; \
             ;; \
         *) \
-            export PROVIDER_LDFLAGS="-linkmode external -extldflags \"-static\" -s -w -X main.Version=$(git -C /build/$PROVIDER_NAME describe --tags --match='v[0-9]*' --dirty --always)"; \
+            export PROVIDER_VERSION=$(git -C /build/$PROVIDER_NAME describe --tags --match='v[0-9]*' --dirty --always); \
+            export PROVIDER_LDFLAGS="-linkmode external -extldflags \"-static\" -s -w -X main.Version=$PROVIDER_VERSION"; \
             ;; \
         esac; \
         cd "/build/$PROVIDER_NAME/$PROVIDER_SUBDIR" \
