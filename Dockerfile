@@ -44,7 +44,6 @@ RUN set -e; \
         "garm-provider-k8s") \
             export PROVIDER_SUBDIR="cmd/garm-provider-k8s"; \
             export PROVIDER_LDFLAGS="-linkmode external -extldflags \"-static\" -s -w"; \
-            git -C /build/garm-provider-k8s checkout v0.3.1; \
             ;; \
         "garm-provider-linode") \
             export PROVIDER_LDFLAGS="-linkmode external -extldflags \"-static\" -s -w"; \
@@ -53,7 +52,7 @@ RUN set -e; \
             export PROVIDER_LDFLAGS="-linkmode external -extldflags \"-static\" -s -w -X main.Version=$(git -C /build/$PROVIDER_NAME describe --tags --match='v[0-9]*' --dirty --always)"; \
             ;; \
         esac; \
-        && cd "/build/$PROVIDER_NAME/$PROVIDER_SUBDIR" \
+        cd "/build/$PROVIDER_NAME/$PROVIDER_SUBDIR" \
         && go build -ldflags="$PROVIDER_LDFLAGS" -o /opt/garm/providers.d/$PROVIDER_NAME . \
         && upx /opt/garm/providers.d/$PROVIDER_NAME; \
     done
