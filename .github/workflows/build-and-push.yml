@@ -48,35 +48,11 @@ jobs:
             GH_REF: ${{ inputs.ref }}
           working-directory: src/github.com/cloudbase/garm
           run: |
-            get_gh_latest_release() {
-              curl -s -L -H "Accept: application/vnd.github+json" \
-              -H "X-GitHub-Api-Version: 2022-11-28" \
-              "https://api.github.com/repos/$1/latest" \
-              | jq -r '.tag_name'
-            }
             set -x
             if [ "$GH_REF" == "main" ]; then
               VERSION="nightly"
-              AZURE_REF="main"
-              OPENSTACK_REF="main"
-              LXD_REF="main"
-              INCUS_REF="main"
-              AWS_REF="main"
-              GCP_REF="main"
-              EQUINIX_REF="main"
-              LINODE_REF="main"
-              K8S_REF="main"
             else
               VERSION=$(git describe --tags --match='v[0-9]*' --always)
-              AZURE_REF=$(get_gh_latest_release cloudbase/garm-provider-azure)
-              OPENSTACK_REF=$(get_gh_latest_release cloudbase/garm-provider-openstack)
-              LXD_REF=$(get_gh_latest_release cloudbase/garm-provider-lxd)
-              INCUS_REF=$(get_gh_latest_release cloudbase/garm-provider-incus)
-              AWS_REF=$(get_gh_latest_release cloudbase/garm-provider-aws)
-              GCP_REF=$(get_gh_latest_release cloudbase/garm-provider-gcp)
-              EQUINIX_REF=$(get_gh_latest_release cloudbase/garm-provider-equinix)
-              LINODE_REF=$(get_gh_latest_release flatcar/garm-provider-linode)
-              K8S_REF=$(get_gh_latest_release mercedes-benz/garm-provider-k8s)
             fi
             if [ "$GH_REF" == "release/v0.1" ]; then
               VERSION="v0.1"
@@ -91,13 +67,5 @@ jobs:
               --label "org.opencontainers.image.description=GARM ${GH_REF}" \
               --label "org.opencontainers.image.licenses=Apache 2.0" \
               --build-arg="GARM_REF=${GH_REF}" \
-              --build-arg="AZURE_REF=${AZURE_REF}" \
-              --build-arg="OPENSTACK_REF=${OPENSTACK_REF}" \
-              --build-arg="LXD_REF=${LXD_REF}" \
-              --build-arg="INCUS_REF=${INCUS_REF}" \
-              --build-arg="AWS_REF=${AWS_REF}" \
-              --build-arg="GCP_REF=${GCP_REF}" \
-              --build-arg="EQUINIX_REF=${EQUINIX_REF}" \
-              --build-arg="K8S_REF=${K8S_REF}" \
               -t ${PUSH_TO_PROJECT}/garm:"${VERSION}" \
               --push .
