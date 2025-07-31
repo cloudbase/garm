@@ -4,16 +4,14 @@ on:
     inputs:
       push_to_project:
         description: "Project to build images for"
-        required: true
+        required: false
         type: string
         default: "ghcr.io/cloudbase"
       ref:
         description: "Ref to build"
-        required: true
+        required: false
         type: string
         default: "main"
-  schedule:
-    - cron: "0 2 * * *"
 
 permissions:
   contents: read
