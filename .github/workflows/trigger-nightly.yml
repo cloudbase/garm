@@ -1,0 +1,10 @@
+name: Nightly build of GARM images
+on:
+  schedule:
+    - cron: "0 2 * * *"
+
+jobs:
+  call-build-and-push:
+    uses: ./.github/workflows/build-and-push.yml
+    with:
+      ref: "main"

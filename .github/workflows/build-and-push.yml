@@ -1,17 +1,17 @@
-name: "Build GARM images"
+name: "Build and push GARM images"
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       push_to_project:
         description: "Project to build images for"
-        required: true
+        required: false
+        type: string
         default: "ghcr.io/cloudbase"
       ref:
         description: "Ref to build"
-        required: true
+        required: false
+        type: string
         default: "main"
-  schedule:
-    - cron: "0 2 * * *"
 
 permissions:
   contents: read
@@ -24,8 +24,9 @@ jobs:
       runs-on: ubuntu-latest
       steps:
         - name: "Checkout"
-          uses: actions/checkout@v3
+          uses: actions/checkout@v4
           with:
+            ref: ${{ inputs.ref }}
             path: src/github.com/cloudbase/garm
             fetch-depth: 0
 
@@ -39,35 +40,16 @@ jobs:
             username: ${{ github.actor }}
             password: ${{ secrets.GITHUB_TOKEN }}
 
-        - name: Build and push
+        - name: Build and push image
+          env:
+            IMAGE_REGISTRY: ${{ inputs.push_to_project }}
+            GH_REF: ${{ inputs.ref }}
+          working-directory: src/github.com/cloudbase/garm
           run: |
-            set -x
-            REGISTRY_INPUT="${{ github.event.inputs.push_to_project }}"
-            REF_INPUT="${{ github.event.inputs.ref }}"
-
-            PUSH_TO_PROJECT="${REGISTRY_INPUT:-ghcr.io/cloudbase}"
-            GH_REF="${REF_INPUT:-main}"
-            cd src/github.com/cloudbase/garm && git checkout "${GH_REF}"
-
-            VERSION=$(git describe --tags --match='v[0-9]*' --always)
-            AZURE_REF=v0.1.0
-            OPENSTACK_REF=v0.1.0
-            LXD_REF=v0.1.0
-            INCUS_REF=v0.1.0
-            AWS_REF=v0.1.0
-            GCP_REF=v0.1.0
-            EQUINIX_REF=v0.1.0
-            K8S_REF=v0.3.2
             if [ "$GH_REF" == "main" ]; then
-              AZURE_REF="main"
-              OPENSTACK_REF="main"
-              LXD_REF="main"
-              INCUS_REF="main"
-              AWS_REF="main"
-              GCP_REF="main"
-              EQUINIX_REF="main"
-              K8S_REF="main"
-              VERSION="nightly"
+              IMAGE_TAG="nightly"
+            else
+              IMAGE_TAG=$(git describe --tags --match='v[0-9]*' --always)
             fi
             docker buildx build \
               --provenance=false \
@@ -76,13 +58,5 @@ jobs:
               --label "org.opencontainers.image.description=GARM ${GH_REF}" \
               --label "org.opencontainers.image.licenses=Apache 2.0" \
               --build-arg="GARM_REF=${GH_REF}" \
-              --build-arg="AZURE_REF=${AZURE_REF}" \
-              --build-arg="OPENSTACK_REF=${OPENSTACK_REF}" \
-              --build-arg="LXD_REF=${LXD_REF}" \
-              --build-arg="INCUS_REF=${INCUS_REF}" \
-              --build-arg="AWS_REF=${AWS_REF}" \
-              --build-arg="GCP_REF=${GCP_REF}" \
-              --build-arg="EQUINIX_REF=${EQUINIX_REF}" \
-              --build-arg="K8S_REF=${K8S_REF}" \
-              -t ${PUSH_TO_PROJECT}/garm:"${VERSION}" \
+              -t ${IMAGE_REGISTRY}/garm:"${IMAGE_TAG}" \
               --push .
