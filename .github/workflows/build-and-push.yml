@@ -26,7 +26,6 @@ jobs:
         - name: "Checkout"
           uses: actions/checkout@v4
           with:
-            ref: ${{ inputs.ref }}
             path: src/github.com/cloudbase/garm
             fetch-depth: 0
 
