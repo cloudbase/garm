@@ -48,7 +48,7 @@ jobs:
             if [ "$GH_REF" == "main" ]; then
               IMAGE_TAG="nightly"
             else
-              IMAGE_TAG=$(git describe --tags --match='v[0-9]*' --always)
+              IMAGE_TAG=$(git describe --tags --match='v[0-9]*' --always ${GH_REF})
             fi
             docker buildx build \
               --provenance=false \
