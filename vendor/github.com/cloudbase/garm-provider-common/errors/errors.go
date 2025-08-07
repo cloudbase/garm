@@ -29,9 +29,9 @@ var (
 	// ErrBadRequest is returned is a malformed request is sent
 	ErrBadRequest = NewBadRequestError("invalid request")
 	// ErrTimeout is returned when a timeout occurs.
-	ErrTimeout          = fmt.Errorf("timed out")
-	ErrUnprocessable    = fmt.Errorf("cannot process request")
-	ErrNoPoolsAvailable = fmt.Errorf("no pools available")
+	ErrTimeout          = NewTimeoutError("timed out")
+	ErrUnprocessable    = NewUnprocessableError("cannot process request")
+	ErrNoPoolsAvailable = NewNoPoolsAvailableError("no pools available")
 )
 
 type baseError struct {
@@ -56,6 +56,15 @@ type ProviderError struct {
 	baseError
 }
 
+func (p *ProviderError) Is(target error) bool {
+	if target == nil {
+		return false
+	}
+
+	_, ok := target.(*ProviderError)
+	return ok
+}
+
 // NewMissingSecretError returns a new MissingSecretError
 func NewMissingSecretError(msg string, a ...interface{}) error {
 	return &MissingSecretError{
@@ -68,6 +77,15 @@ func NewMissingSecretError(msg string, a ...interface{}) error {
 // MissingSecretError is returned the secret to validate a webhook is missing
 type MissingSecretError struct {
 	baseError
+}
+
+func (p *MissingSecretError) Is(target error) bool {
+	if target == nil {
+		return false
+	}
+
+	_, ok := target.(*MissingSecretError)
+	return ok
 }
 
 // NewUnauthorizedError returns a new UnauthorizedError
@@ -84,6 +102,15 @@ type UnauthorizedError struct {
 	baseError
 }
 
+func (p *UnauthorizedError) Is(target error) bool {
+	if target == nil {
+		return false
+	}
+
+	_, ok := target.(*UnauthorizedError)
+	return ok
+}
+
 // NewNotFoundError returns a new NotFoundError
 func NewNotFoundError(msg string, a ...interface{}) error {
 	return &NotFoundError{
@@ -96,6 +123,15 @@ func NewNotFoundError(msg string, a ...interface{}) error {
 // NotFoundError is returned when a resource is not found
 type NotFoundError struct {
 	baseError
+}
+
+func (p *NotFoundError) Is(target error) bool {
+	if target == nil {
+		return false
+	}
+
+	_, ok := target.(*NotFoundError)
+	return ok
 }
 
 // NewDuplicateUserError returns a new DuplicateUserError
@@ -112,6 +148,15 @@ type DuplicateUserError struct {
 	baseError
 }
 
+func (p *DuplicateUserError) Is(target error) bool {
+	if target == nil {
+		return false
+	}
+
+	_, ok := target.(*DuplicateUserError)
+	return ok
+}
+
 // NewBadRequestError returns a new BadRequestError
 func NewBadRequestError(msg string, a ...interface{}) error {
 	return &BadRequestError{
@@ -126,6 +171,15 @@ type BadRequestError struct {
 	baseError
 }
 
+func (p *BadRequestError) Is(target error) bool {
+	if target == nil {
+		return false
+	}
+
+	_, ok := target.(*BadRequestError)
+	return ok
+}
+
 // NewConflictError returns a new ConflictError
 func NewConflictError(msg string, a ...interface{}) error {
 	return &ConflictError{
@@ -138,4 +192,82 @@ func NewConflictError(msg string, a ...interface{}) error {
 // ConflictError is returned when a conflicting request is made
 type ConflictError struct {
 	baseError
+}
+
+func (p *ConflictError) Is(target error) bool {
+	if target == nil {
+		return false
+	}
+
+	_, ok := target.(*ConflictError)
+	return ok
+}
+
+// NewTimeoutError returns a new TimoutError
+func NewTimeoutError(msg string, a ...interface{}) error {
+	return &TimoutError{
+		baseError{
+			msg: fmt.Sprintf(msg, a...),
+		},
+	}
+}
+
+// TimoutError is returned when an operation times out.
+type TimoutError struct {
+	baseError
+}
+
+func (p *TimoutError) Is(target error) bool {
+	if target == nil {
+		return false
+	}
+
+	_, ok := target.(*TimoutError)
+	return ok
+}
+
+// NewUnprocessableError returns a new UnprocessableError
+func NewUnprocessableError(msg string, a ...interface{}) error {
+	return &TimoutError{
+		baseError{
+			msg: fmt.Sprintf(msg, a...),
+		},
+	}
+}
+
+// TimoutError is returned when an operation times out.
+type UnprocessableError struct {
+	baseError
+}
+
+func (p *UnprocessableError) Is(target error) bool {
+	if target == nil {
+		return false
+	}
+
+	_, ok := target.(*UnprocessableError)
+	return ok
+}
+
+// NewNoPoolsAvailableError returns a new UnprocessableError
+func NewNoPoolsAvailableError(msg string, a ...interface{}) error {
+	return &TimoutError{
+		baseError{
+			msg: fmt.Sprintf(msg, a...),
+		},
+	}
+}
+
+// NoPoolsAvailableError is returned when anthere are not pools available.
+type NoPoolsAvailableError struct {
+	baseError
+}
+
+func (p *NoPoolsAvailableError) Is(target error) bool {
+	if target == nil {
+		return false
+	}
+
+	_, ok := target.(*NoPoolsAvailableError)
+	return ok
 }
