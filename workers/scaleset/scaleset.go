@@ -193,6 +193,12 @@ func (w *Worker) Start() (err error) {
 					return fmt.Errorf("updating runner %s: %w", instance.Name, err)
 				}
 			}
+		} else if instance.Status == commonParams.InstanceDeleted {
+			if err := w.handleInstanceCleanup(instance); err != nil {
+				locking.Unlock(instance.Name, false)
+				return fmt.Errorf("failed to remove database entry for %s: %w", instance.Name, err)
+			}
+			continue
 		}
 		w.runners[instance.ID] = instance
 		locking.Unlock(instance.Name, false)

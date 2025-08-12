@@ -180,6 +180,10 @@ func getTools(ctx context.Context) ([]commonParams.RunnerApplicationDownload, er
 			slog.InfoContext(ctx, "ignoring unrecognized tools os", "tool", asset.Name)
 			continue
 		}
+		if !strings.HasSuffix(asset.DownloadURL, ".xz") {
+			// filter out non compressed versions.
+			continue
+		}
 		ret = append(ret, commonParams.RunnerApplicationDownload{
 			OS:           os,
 			Architecture: arch,

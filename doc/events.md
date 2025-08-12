@@ -88,7 +88,9 @@ The filter is defined as a JSON that you write over the websocket connections. T
             "job",
             "controller",
             "github_credentials",
-            "github_endpoint"
+            "gitea_credentials",
+            "github_endpoint",
+            "scaleset"
           ],
           "title": "entity type",
           "description": "The type of entity to filter on",
