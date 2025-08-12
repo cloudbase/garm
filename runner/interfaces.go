@@ -43,7 +43,7 @@ type EnterprisePoolManager interface {
 	GetEnterprisePoolManagers() (map[string]common.PoolManager, error)
 }
 
-//go:generate mockery --name=PoolManagerController
+//go:generate go run github.com/vektra/mockery/v2@latest
 
 type PoolManagerController interface {
 	RepoPoolManager

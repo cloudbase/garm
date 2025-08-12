@@ -101,7 +101,8 @@ func (w *Worker) Start() (err error) {
 	}
 
 	for _, instance := range instances {
-		if instance.Status == commonParams.InstanceCreating {
+		switch {
+		case instance.Status == commonParams.InstanceCreating:
 			// We're just starting up. We found an instance stuck in creating.
 			// When a provider creates an instance, it sets the db instance to
 			// creating and then issues an API call to the IaaS to create the
@@ -176,7 +177,7 @@ func (w *Worker) Start() (err error) {
 					return fmt.Errorf("updating runner %s: %w", instance.Name, err)
 				}
 			}
-		} else if instance.Status == commonParams.InstanceDeleting {
+		case instance.Status == commonParams.InstanceDeleting:
 			// Set the instance in deleting. It is assumed that the runner was already
 			// removed from github either by github or by garm. Deleting status indicates
 			// that it was already being handled by the provider. There should be no entry on
@@ -193,7 +194,7 @@ func (w *Worker) Start() (err error) {
 					return fmt.Errorf("updating runner %s: %w", instance.Name, err)
 				}
 			}
-		} else if instance.Status == commonParams.InstanceDeleted {
+		case instance.Status == commonParams.InstanceDeleted:
 			if err := w.handleInstanceCleanup(instance); err != nil {
 				locking.Unlock(instance.Name, false)
 				return fmt.Errorf("failed to remove database entry for %s: %w", instance.Name, err)

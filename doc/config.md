@@ -473,6 +473,8 @@ The config options are fairly straight forward.
     certificate = ""
     # The path on disk to the corresponding private key for the certificate.
     key = ""
+  [apiserver.webui]
+    enable = true
 ```
 
 The GARM API server has the option to enable TLS, but I suggest you use a reverse proxy and enable TLS termination in that reverse proxy. There is an `nginx` sample in this repository with TLS termination enabled.

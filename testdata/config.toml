@@ -82,6 +82,8 @@ time_to_live = "8760h"
     certificate = ""
     # The path on disk to the corresponding private key for the certificate.
     key = ""
+  [apiserver.webui]
+    enable = true
 
 [database]
   # Turn on/off debugging for database queries.

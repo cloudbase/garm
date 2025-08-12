@@ -193,7 +193,7 @@ func (s *sqlDatabase) ListEntityScaleSets(_ context.Context, entity params.Forge
 	return ret, nil
 }
 
-func (s *sqlDatabase) UpdateEntityScaleSet(_ context.Context, entity params.ForgeEntity, scaleSetID uint, param params.UpdateScaleSetParams, callback func(old, newSet params.ScaleSet) error) (updatedScaleSet params.ScaleSet, err error) {
+func (s *sqlDatabase) UpdateEntityScaleSet(ctx context.Context, entity params.ForgeEntity, scaleSetID uint, param params.UpdateScaleSetParams, callback func(old, newSet params.ScaleSet) error) (updatedScaleSet params.ScaleSet, err error) {
 	defer func() {
 		if err == nil {
 			s.sendNotify(common.ScaleSetEntityType, common.UpdateOperation, updatedScaleSet)
@@ -222,6 +222,11 @@ func (s *sqlDatabase) UpdateEntityScaleSet(_ context.Context, entity params.Forg
 		}
 		return nil
 	})
+	if err != nil {
+		return params.ScaleSet{}, err
+	}
+
+	updatedScaleSet, err = s.GetScaleSetByID(ctx, scaleSetID)
 	if err != nil {
 		return params.ScaleSet{}, err
 	}
@@ -345,7 +350,17 @@ func (s *sqlDatabase) updateScaleSet(tx *gorm.DB, scaleSet ScaleSet, param param
 }
 
 func (s *sqlDatabase) GetScaleSetByID(_ context.Context, scaleSet uint) (params.ScaleSet, error) {
-	set, err := s.getScaleSetByID(s.conn, scaleSet, "Instances", "Enterprise", "Organization", "Repository")
+	set, err := s.getScaleSetByID(
+		s.conn,
+		scaleSet,
+		"Instances",
+		"Enterprise",
+		"Enterprise.Endpoint",
+		"Organization",
+		"Organization.Endpoint",
+		"Repository",
+		"Repository.Endpoint",
+	)
 	if err != nil {
 		return params.ScaleSet{}, errors.Wrap(err, "fetching scale set by ID")
 	}

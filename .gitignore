@@ -23,3 +23,5 @@ node_modules/
 .svelte-kit/
 debug.html
 git_push.sh
+webapp/src/lib/api/generated/docs
+.env

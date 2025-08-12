@@ -6,6 +6,7 @@ export SHELLOPTS:=$(if $(SHELLOPTS),$(SHELLOPTS):)pipefail:errexit
 GEN_PASSWORD=$(shell (/usr/bin/apg -n1 -m32))
 IMAGE_TAG = garm-build
 
+HAS_TAILWINDCSS=$(shell (which tailwindcss || echo "no"))
 IMAGE_BUILDER=$(shell (which docker || which podman))
 IS_PODMAN=$(shell (($(IMAGE_BUILDER) --version | grep -q podman) && echo "yes" || echo "no"))
 USER_ID=$(if $(filter yes,$(IS_PODMAN)),0,$(shell id -u))
@@ -54,6 +55,21 @@ build: ## Build garm
 	@$(GO) build -ldflags "-s -w -X github.com/cloudbase/garm/util/appdefaults.Version=${VERSION}" -tags osusergo,netgo,sqlite_omit_load_extension -o bin/garm ./cmd/garm
 	@$(GO) build -ldflags "-s -w -X github.com/cloudbase/garm/util/appdefaults.Version=${VERSION}" -tags osusergo,netgo,sqlite_omit_load_extension -o bin/garm-cli ./cmd/garm-cli
 	@echo Binaries are available in $(PWD)/bin
+
+.PHONY: build-webui
+build-webui:
+	@echo Building GARM web ui
+	./build-webapp.sh
+	rm -rf webapp/assets/_app
+	cp -r webapp/build/* webapp/assets/
+
+.PHONY: generate
+generate: ## Run go generate after checking required tools are in PATH
+	@echo Checking required tools...
+	@which openapi-generator-cli > /dev/null || (echo "Error: openapi-generator-cli not found in PATH" && exit 1)
+	@which tailwindcss > /dev/null || (echo "Error: tailwindcss not found in PATH" && exit 1)
+	@echo Running go generate
+	@$(GO) generate ./...
 
 test: verify go-test ## Run tests
 

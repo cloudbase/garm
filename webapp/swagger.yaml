@@ -1,0 +1,3469 @@
+basePath: /api/v1
+consumes:
+    - application/json
+definitions:
+    APIErrorResponse:
+        properties:
+            details:
+                type: string
+                x-go-name: Details
+            error:
+                type: string
+                x-go-name: Error
+        type: object
+        x-go-package: github.com/cloudbase/garm/apiserver/params
+    Address:
+        properties:
+            address:
+                type: string
+                x-go-name: Address
+            type:
+                $ref: '#/definitions/AddressType'
+        type: object
+        x-go-package: github.com/cloudbase/garm-provider-common/params
+    AddressType:
+        type: string
+        x-go-package: github.com/cloudbase/garm-provider-common/params
+    ControllerInfo:
+        properties:
+            callback_url:
+                description: |-
+                    CallbackURL is the URL where instances can send updates back to the controller.
+                    This URL is used by instances to send status updates back to the controller. The
+                    URL itself may be made available to instances via a reverse proxy or a load balancer.
+                    That means that the user is responsible for telling GARM what the public URL is, by
+                    setting this field.
+                type: string
+                x-go-name: CallbackURL
+            controller_id:
+                description: |-
+                    ControllerID is the unique ID of this controller. This ID gets generated
+                    automatically on controller init.
+                format: uuid
+                type: string
+                x-go-name: ControllerID
+            controller_webhook_url:
+                description: |-
+                    ControllerWebhookURL is the controller specific URL where webhooks will be received.
+                    This field holds the WebhookURL defined above to which we append the ControllerID.
+                    Functionally it is the same as WebhookURL, but it allows us to safely manage webhooks
+                    from GARM without accidentally removing webhooks from other services or GARM controllers.
+                type: string
+                x-go-name: ControllerWebhookURL
+            hostname:
+                description: |-
+                    Hostname is the hostname of the machine that runs this controller. In the
+                    future, this field will be migrated to a separate table that will keep track
+                    of each the controller nodes that are part of a cluster. This will happen when
+                    we implement controller scale-out capability.
+                type: string
+                x-go-name: Hostname
+            metadata_url:
+                description: |-
+                    MetadataURL is the public metadata URL of the GARM instance. This URL is used
+                    by instances to fetch information they need to set themselves up. The URL itself
+                    may be made available to runners via a reverse proxy or a load balancer. That
+                    means that the user is responsible for telling GARM what the public URL is, by
+                    setting this field.
+                type: string
+                x-go-name: MetadataURL
+            minimum_job_age_backoff:
+                description: |-
+                    MinimumJobAgeBackoff is the minimum time in seconds that a job must be in queued state
+                    before GARM will attempt to allocate a runner for it. When set to a non zero value,
+                    GARM will ignore the job until the job's age is greater than this value. When using
+                    the min_idle_runners feature of a pool, this gives enough time for potential idle
+                    runners to pick up the job before GARM attempts to allocate a new runner, thus avoiding
+                    the need to potentially scale down runners later.
+                format: uint64
+                type: integer
+                x-go-name: MinimumJobAgeBackoff
+            version:
+                description: Version is the version of the GARM controller.
+                type: string
+                x-go-name: Version
+            webhook_url:
+                description: |-
+                    WebhookURL is the base URL where the controller will receive webhooks from github.
+                    When webhook management is used, this URL is used as a base to which the controller
+                    UUID is appended and which will receive the webhooks.
+                    The URL itself may be made available to instances via a reverse proxy or a load balancer.
+                    That means that the user is responsible for telling GARM what the public URL is, by
+                    setting this field.
+                type: string
+                x-go-name: WebhookURL
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    CreateEnterpriseParams:
+        properties:
+            credentials_name:
+                type: string
+                x-go-name: CredentialsName
+            name:
+                type: string
+                x-go-name: Name
+            pool_balancer_type:
+                $ref: '#/definitions/PoolBalancerType'
+            webhook_secret:
+                type: string
+                x-go-name: WebhookSecret
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    CreateGiteaCredentialsParams:
+        properties:
+            app:
+                $ref: '#/definitions/GithubApp'
+            auth_type:
+                $ref: '#/definitions/ForgeAuthType'
+            description:
+                type: string
+                x-go-name: Description
+            endpoint:
+                type: string
+                x-go-name: Endpoint
+            name:
+                type: string
+                x-go-name: Name
+            pat:
+                $ref: '#/definitions/GithubPAT'
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    CreateGiteaEndpointParams:
+        properties:
+            api_base_url:
+                type: string
+                x-go-name: APIBaseURL
+            base_url:
+                type: string
+                x-go-name: BaseURL
+            ca_cert_bundle:
+                items:
+                    format: uint8
+                    type: integer
+                type: array
+                x-go-name: CACertBundle
+            description:
+                type: string
+                x-go-name: Description
+            name:
+                type: string
+                x-go-name: Name
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    CreateGithubCredentialsParams:
+        properties:
+            app:
+                $ref: '#/definitions/GithubApp'
+            auth_type:
+                $ref: '#/definitions/ForgeAuthType'
+            description:
+                type: string
+                x-go-name: Description
+            endpoint:
+                type: string
+                x-go-name: Endpoint
+            name:
+                type: string
+                x-go-name: Name
+            pat:
+                $ref: '#/definitions/GithubPAT'
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    CreateGithubEndpointParams:
+        properties:
+            api_base_url:
+                type: string
+                x-go-name: APIBaseURL
+            base_url:
+                type: string
+                x-go-name: BaseURL
+            ca_cert_bundle:
+                items:
+                    format: uint8
+                    type: integer
+                type: array
+                x-go-name: CACertBundle
+            description:
+                type: string
+                x-go-name: Description
+            name:
+                type: string
+                x-go-name: Name
+            upload_base_url:
+                type: string
+                x-go-name: UploadBaseURL
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    CreateOrgParams:
+        properties:
+            credentials_name:
+                type: string
+                x-go-name: CredentialsName
+            forge_type:
+                $ref: '#/definitions/EndpointType'
+            name:
+                type: string
+                x-go-name: Name
+            pool_balancer_type:
+                $ref: '#/definitions/PoolBalancerType'
+            webhook_secret:
+                type: string
+                x-go-name: WebhookSecret
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    CreatePoolParams:
+        properties:
+            enabled:
+                type: boolean
+                x-go-name: Enabled
+            extra_specs:
+                type: object
+                x-go-name: ExtraSpecs
+            flavor:
+                type: string
+                x-go-name: Flavor
+            github-runner-group:
+                description: |-
+                    GithubRunnerGroup is the github runner group in which the runners of this
+                    pool will be added to.
+                    The runner group must be created by someone with access to the enterprise.
+                type: string
+                x-go-name: GitHubRunnerGroup
+            image:
+                type: string
+                x-go-name: Image
+            max_runners:
+                format: uint64
+                type: integer
+                x-go-name: MaxRunners
+            min_idle_runners:
+                format: uint64
+                type: integer
+                x-go-name: MinIdleRunners
+            os_arch:
+                $ref: '#/definitions/OSArch'
+            os_type:
+                $ref: '#/definitions/OSType'
+            priority:
+                format: uint64
+                type: integer
+                x-go-name: Priority
+            provider_name:
+                type: string
+                x-go-name: ProviderName
+            runner_bootstrap_timeout:
+                format: uint64
+                type: integer
+                x-go-name: RunnerBootstrapTimeout
+            runner_prefix:
+                type: string
+                x-go-name: Prefix
+            tags:
+                items:
+                    type: string
+                type: array
+                x-go-name: Tags
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    CreateRepoParams:
+        properties:
+            credentials_name:
+                type: string
+                x-go-name: CredentialsName
+            forge_type:
+                $ref: '#/definitions/EndpointType'
+            name:
+                type: string
+                x-go-name: Name
+            owner:
+                type: string
+                x-go-name: Owner
+            pool_balancer_type:
+                $ref: '#/definitions/PoolBalancerType'
+            webhook_secret:
+                type: string
+                x-go-name: WebhookSecret
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    CreateScaleSetParams:
+        properties:
+            disable_update:
+                type: boolean
+                x-go-name: DisableUpdate
+            enabled:
+                type: boolean
+                x-go-name: Enabled
+            extra_specs:
+                type: object
+                x-go-name: ExtraSpecs
+            flavor:
+                type: string
+                x-go-name: Flavor
+            github-runner-group:
+                description: |-
+                    GithubRunnerGroup is the github runner group in which the runners of this
+                    pool will be added to.
+                    The runner group must be created by someone with access to the enterprise.
+                type: string
+                x-go-name: GitHubRunnerGroup
+            image:
+                type: string
+                x-go-name: Image
+            max_runners:
+                format: uint64
+                type: integer
+                x-go-name: MaxRunners
+            min_idle_runners:
+                format: uint64
+                type: integer
+                x-go-name: MinIdleRunners
+            name:
+                type: string
+                x-go-name: Name
+            os_arch:
+                $ref: '#/definitions/OSArch'
+            os_type:
+                $ref: '#/definitions/OSType'
+            provider_name:
+                type: string
+                x-go-name: ProviderName
+            runner_bootstrap_timeout:
+                format: uint64
+                type: integer
+                x-go-name: RunnerBootstrapTimeout
+            runner_prefix:
+                type: string
+                x-go-name: Prefix
+            scale_set_id:
+                format: int64
+                type: integer
+                x-go-name: ScaleSetID
+            tags:
+                items:
+                    type: string
+                type: array
+                x-go-name: Tags
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    Credentials:
+        description: used by swagger client generated code
+        items:
+            $ref: '#/definitions/ForgeCredentials'
+        type: array
+        x-go-package: github.com/cloudbase/garm/params
+    EndpointType:
+        type: string
+        x-go-package: github.com/cloudbase/garm/params
+    Enterprise:
+        properties:
+            created_at:
+                format: date-time
+                type: string
+                x-go-name: CreatedAt
+            credentials:
+                $ref: '#/definitions/ForgeCredentials'
+            credentials_id:
+                format: uint64
+                type: integer
+                x-go-name: CredentialsID
+            credentials_name:
+                description: |-
+                    CredentialName is the name of the credentials associated with the enterprise.
+                    This field is now deprecated. Use CredentialsID instead. This field will be
+                    removed in v0.2.0.
+                type: string
+                x-go-name: CredentialsName
+            endpoint:
+                $ref: '#/definitions/ForgeEndpoint'
+            events:
+                items:
+                    $ref: '#/definitions/EntityEvent'
+                type: array
+                x-go-name: Events
+            id:
+                type: string
+                x-go-name: ID
+            name:
+                type: string
+                x-go-name: Name
+            pool:
+                items:
+                    $ref: '#/definitions/Pool'
+                type: array
+                x-go-name: Pools
+            pool_balancing_type:
+                $ref: '#/definitions/PoolBalancerType'
+            pool_manager_status:
+                $ref: '#/definitions/PoolManagerStatus'
+            updated_at:
+                format: date-time
+                type: string
+                x-go-name: UpdatedAt
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    Enterprises:
+        description: used by swagger client generated code
+        items:
+            $ref: '#/definitions/Enterprise'
+        type: array
+        x-go-package: github.com/cloudbase/garm/params
+    EntityEvent:
+        properties:
+            created_at:
+                format: date-time
+                type: string
+                x-go-name: CreatedAt
+            event_level:
+                $ref: '#/definitions/EventLevel'
+            event_type:
+                $ref: '#/definitions/EventType'
+            id:
+                format: uint64
+                type: integer
+                x-go-name: ID
+            message:
+                type: string
+                x-go-name: Message
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    EventLevel:
+        type: string
+        x-go-package: github.com/cloudbase/garm/params
+    EventType:
+        type: string
+        x-go-package: github.com/cloudbase/garm/params
+    ForgeAuthType:
+        type: string
+        x-go-package: github.com/cloudbase/garm/params
+    ForgeCredentials:
+        properties:
+            api_base_url:
+                type: string
+                x-go-name: APIBaseURL
+            auth-type:
+                $ref: '#/definitions/ForgeAuthType'
+            base_url:
+                type: string
+                x-go-name: BaseURL
+            ca_bundle:
+                items:
+                    format: uint8
+                    type: integer
+                type: array
+                x-go-name: CABundle
+            created_at:
+                format: date-time
+                type: string
+                x-go-name: CreatedAt
+            description:
+                type: string
+                x-go-name: Description
+            endpoint:
+                $ref: '#/definitions/ForgeEndpoint'
+            enterprises:
+                items:
+                    $ref: '#/definitions/Enterprise'
+                type: array
+                x-go-name: Enterprises
+            forge_type:
+                $ref: '#/definitions/EndpointType'
+            id:
+                format: uint64
+                type: integer
+                x-go-name: ID
+            name:
+                type: string
+                x-go-name: Name
+            organizations:
+                items:
+                    $ref: '#/definitions/Organization'
+                type: array
+                x-go-name: Organizations
+            rate_limit:
+                $ref: '#/definitions/GithubRateLimit'
+            repositories:
+                items:
+                    $ref: '#/definitions/Repository'
+                type: array
+                x-go-name: Repositories
+            updated_at:
+                format: date-time
+                type: string
+                x-go-name: UpdatedAt
+            upload_base_url:
+                type: string
+                x-go-name: UploadBaseURL
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    ForgeEndpoint:
+        properties:
+            api_base_url:
+                type: string
+                x-go-name: APIBaseURL
+            base_url:
+                type: string
+                x-go-name: BaseURL
+            ca_cert_bundle:
+                items:
+                    format: uint8
+                    type: integer
+                type: array
+                x-go-name: CACertBundle
+            created_at:
+                format: date-time
+                type: string
+                x-go-name: CreatedAt
+            description:
+                type: string
+                x-go-name: Description
+            endpoint_type:
+                $ref: '#/definitions/EndpointType'
+            name:
+                type: string
+                x-go-name: Name
+            updated_at:
+                format: date-time
+                type: string
+                x-go-name: UpdatedAt
+            upload_base_url:
+                type: string
+                x-go-name: UploadBaseURL
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    ForgeEndpoints:
+        description: used by swagger client generated code
+        items:
+            $ref: '#/definitions/ForgeEndpoint'
+        type: array
+        x-go-package: github.com/cloudbase/garm/params
+    ForgeEntity:
+        properties:
+            agent_id:
+                format: int64
+                type: integer
+                x-go-name: AgentID
+            os_name:
+                type: string
+                x-go-name: OSName
+            os_version:
+                type: string
+                x-go-name: OSVersion
+        type: object
+        x-go-name: UpdateSystemInfoParams
+        x-go-package: github.com/cloudbase/garm/params
+    GithubApp:
+        properties:
+            app_id:
+                format: int64
+                type: integer
+                x-go-name: AppID
+            installation_id:
+                format: int64
+                type: integer
+                x-go-name: InstallationID
+            private_key_bytes:
+                items:
+                    format: uint8
+                    type: integer
+                type: array
+                x-go-name: PrivateKeyBytes
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    GithubPAT:
+        properties:
+            oauth2_token:
+                type: string
+                x-go-name: OAuth2Token
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    GithubRateLimit:
+        properties:
+            limit:
+                format: int64
+                type: integer
+                x-go-name: Limit
+            remaining:
+                format: int64
+                type: integer
+                x-go-name: Remaining
+            reset:
+                format: int64
+                type: integer
+                x-go-name: Reset
+            used:
+                format: int64
+                type: integer
+                x-go-name: Used
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    HookInfo:
+        properties:
+            active:
+                type: boolean
+                x-go-name: Active
+            events:
+                items:
+                    type: string
+                type: array
+                x-go-name: Events
+            id:
+                format: int64
+                type: integer
+                x-go-name: ID
+            insecure_ssl:
+                type: boolean
+                x-go-name: InsecureSSL
+            url:
+                type: string
+                x-go-name: URL
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    InstallWebhookParams:
+        properties:
+            insecure_ssl:
+                type: boolean
+                x-go-name: InsecureSSL
+            webhook_endpoint_type:
+                $ref: '#/definitions/WebhookEndpointType'
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    Instance:
+        properties:
+            addresses:
+                description: |-
+                    Addresses is a list of IP addresses the provider reports
+                    for this instance.
+                items:
+                    $ref: '#/definitions/Address'
+                type: array
+                x-go-name: Addresses
+            agent_id:
+                description: AgentID is the github runner agent ID.
+                format: int64
+                type: integer
+                x-go-name: AgentID
+            created_at:
+                description: CreatedAt is the timestamp of the creation of this runner.
+                format: date-time
+                type: string
+                x-go-name: CreatedAt
+            github-runner-group:
+                description: |-
+                    GithubRunnerGroup is the github runner group to which the runner belongs.
+                    The runner group must be created by someone with access to the enterprise.
+                type: string
+                x-go-name: GitHubRunnerGroup
+            id:
+                description: ID is the database ID of this instance.
+                type: string
+                x-go-name: ID
+            job:
+                $ref: '#/definitions/Job'
+            name:
+                description: |-
+                    Name is the name associated with an instance. Depending on
+                    the provider, this may or may not be useful in the context of
+                    the provider, but we can use it internally to identify the
+                    instance.
+                type: string
+                x-go-name: Name
+            os_arch:
+                $ref: '#/definitions/OSArch'
+            os_name:
+                description: 'OSName is the name of the OS. Eg: ubuntu, centos, etc.'
+                type: string
+                x-go-name: OSName
+            os_type:
+                $ref: '#/definitions/OSType'
+            os_version:
+                description: OSVersion is the version of the operating system.
+                type: string
+                x-go-name: OSVersion
+            pool_id:
+                description: PoolID is the ID of the garm pool to which a runner belongs.
+                type: string
+                x-go-name: PoolID
+            provider_fault:
+                description: |-
+                    ProviderFault holds any error messages captured from the IaaS provider that is
+                    responsible for managing the lifecycle of the runner.
+                items:
+                    format: uint8
+                    type: integer
+                type: array
+                x-go-name: ProviderFault
+            provider_id:
+                description: |-
+                    PeoviderID is the unique ID the provider associated
+                    with the compute instance. We use this to identify the
+                    instance in the provider.
+                type: string
+                x-go-name: ProviderID
+            provider_name:
+                description: |-
+                    ProviderName is the name of the IaaS where the instance was
+                    created.
+                type: string
+                x-go-name: ProviderName
+            runner_status:
+                $ref: '#/definitions/RunnerStatus'
+            scale_set_id:
+                description: ScaleSetID is the ID of the scale set to which a runner belongs.
+                format: uint64
+                type: integer
+                x-go-name: ScaleSetID
+            status:
+                $ref: '#/definitions/InstanceStatus'
+            status_messages:
+                description: |-
+                    StatusMessages is a list of status messages sent back by the runner as it sets itself
+                    up.
+                items:
+                    $ref: '#/definitions/StatusMessage'
+                type: array
+                x-go-name: StatusMessages
+            updated_at:
+                description: UpdatedAt is the timestamp of the last update to this runner.
+                format: date-time
+                type: string
+                x-go-name: UpdatedAt
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    InstanceStatus:
+        type: string
+        x-go-package: github.com/cloudbase/garm-provider-common/params
+    Instances:
+        description: used by swagger client generated code
+        items:
+            $ref: '#/definitions/Instance'
+        type: array
+        x-go-package: github.com/cloudbase/garm/params
+    JWTResponse:
+        description: |-
+            JWTResponse holds the JWT token returned as a result of a
+            successful auth
+        properties:
+            token:
+                type: string
+                x-go-name: Token
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    Job:
+        properties:
+            action:
+                description: Action is the specific activity that triggered the event.
+                type: string
+                x-go-name: Action
+            completed_at:
+                format: date-time
+                type: string
+                x-go-name: CompletedAt
+            conclusion:
+                description: |-
+                    Conclusion is the outcome of the job.
+                    Possible values: "success", "failure", "neutral", "cancelled", "skipped",
+                    "timed_out", "action_required"
+                type: string
+                x-go-name: Conclusion
+            created_at:
+                format: date-time
+                type: string
+                x-go-name: CreatedAt
+            enterprise_id:
+                format: uuid
+                type: string
+                x-go-name: EnterpriseID
+            id:
+                description: ID is the ID of the job.
+                format: int64
+                type: integer
+                x-go-name: ID
+            labels:
+                items:
+                    type: string
+                type: array
+                x-go-name: Labels
+            locked_by:
+                format: uuid
+                type: string
+                x-go-name: LockedBy
+            name:
+                description: Name is the name if the job that was triggered.
+                type: string
+                x-go-name: Name
+            org_id:
+                format: uuid
+                type: string
+                x-go-name: OrgID
+            repo_id:
+                description: |-
+                    The entity that received the hook.
+
+                    Webhooks may be configured on the repo, the org and/or the enterprise.
+                    If we only configure a repo to use garm, we'll only ever receive a
+                    webhook from the repo. But if we configure the parent org of the repo and
+                    the parent enterprise of the org to use garm, a webhook will be sent for each
+                    entity type, in response to one workflow event. Thus, we will get 3 webhooks
+                    with the same run_id and job id. Record all involved entities in the same job
+                    if we have them configured in garm.
+                format: uuid
+                type: string
+                x-go-name: RepoID
+            repository_name:
+                description: repository in which the job was triggered.
+                type: string
+                x-go-name: RepositoryName
+            repository_owner:
+                type: string
+                x-go-name: RepositoryOwner
+            run_id:
+                description: RunID is the ID of the workflow run. A run may have multiple jobs.
+                format: int64
+                type: integer
+                x-go-name: RunID
+            runner_group_id:
+                format: int64
+                type: integer
+                x-go-name: RunnerGroupID
+            runner_group_name:
+                type: string
+                x-go-name: RunnerGroupName
+            runner_id:
+                format: int64
+                type: integer
+                x-go-name: GithubRunnerID
+            runner_name:
+                type: string
+                x-go-name: RunnerName
+            scaleset_job_id:
+                description: ScaleSetJobID is the job ID when generated for a scale set.
+                type: string
+                x-go-name: ScaleSetJobID
+            started_at:
+                format: date-time
+                type: string
+                x-go-name: StartedAt
+            status:
+                description: |-
+                    Status is the phase of the lifecycle that the job is currently in.
+                    "queued", "in_progress" and "completed".
+                type: string
+                x-go-name: Status
+            updated_at:
+                format: date-time
+                type: string
+                x-go-name: UpdatedAt
+            workflow_job_id:
+                format: int64
+                type: integer
+                x-go-name: WorkflowJobID
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    Jobs:
+        items:
+            $ref: '#/definitions/Job'
+        type: array
+        x-go-package: github.com/cloudbase/garm/params
+    NewUserParams:
+        description: |-
+            NewUserParams holds the needed information to create
+            a new user
+        properties:
+            email:
+                type: string
+                x-go-name: Email
+            full_name:
+                type: string
+                x-go-name: FullName
+            password:
+                type: string
+                x-go-name: Password
+            username:
+                type: string
+                x-go-name: Username
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    OSArch:
+        type: string
+        x-go-package: github.com/cloudbase/garm-provider-common/params
+    OSType:
+        type: string
+        x-go-package: github.com/cloudbase/garm-provider-common/params
+    Organization:
+        properties:
+            created_at:
+                format: date-time
+                type: string
+                x-go-name: CreatedAt
+            credentials:
+                $ref: '#/definitions/ForgeCredentials'
+            credentials_id:
+                format: uint64
+                type: integer
+                x-go-name: CredentialsID
+            credentials_name:
+                description: |-
+                    CredentialName is the name of the credentials associated with the enterprise.
+                    This field is now deprecated. Use CredentialsID instead. This field will be
+                    removed in v0.2.0.
+                type: string
+                x-go-name: CredentialsName
+            endpoint:
+                $ref: '#/definitions/ForgeEndpoint'
+            events:
+                items:
+                    $ref: '#/definitions/EntityEvent'
+                type: array
+                x-go-name: Events
+            id:
+                type: string
+                x-go-name: ID
+            name:
+                type: string
+                x-go-name: Name
+            pool:
+                items:
+                    $ref: '#/definitions/Pool'
+                type: array
+                x-go-name: Pools
+            pool_balancing_type:
+                $ref: '#/definitions/PoolBalancerType'
+            pool_manager_status:
+                $ref: '#/definitions/PoolManagerStatus'
+            updated_at:
+                format: date-time
+                type: string
+                x-go-name: UpdatedAt
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    Organizations:
+        description: used by swagger client generated code
+        items:
+            $ref: '#/definitions/Organization'
+        type: array
+        x-go-package: github.com/cloudbase/garm/params
+    PasswordLoginParams:
+        properties:
+            password:
+                type: string
+                x-go-name: Password
+            username:
+                type: string
+                x-go-name: Username
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    Pool:
+        properties:
+            created_at:
+                format: date-time
+                type: string
+                x-go-name: CreatedAt
+            enabled:
+                type: boolean
+                x-go-name: Enabled
+            endpoint:
+                $ref: '#/definitions/ForgeEndpoint'
+            enterprise_id:
+                type: string
+                x-go-name: EnterpriseID
+            enterprise_name:
+                type: string
+                x-go-name: EnterpriseName
+            extra_specs:
+                description: |-
+                    ExtraSpecs is an opaque raw json that gets sent to the provider
+                    as part of the bootstrap params for instances. It can contain
+                    any kind of data needed by providers. The contents of this field means
+                    nothing to garm itself. We don't act on the information in this field at
+                    all. We only validate that it's a proper json.
+                type: object
+                x-go-name: ExtraSpecs
+            flavor:
+                type: string
+                x-go-name: Flavor
+            github-runner-group:
+                description: |-
+                    GithubRunnerGroup is the github runner group in which the runners will be added.
+                    The runner group must be created by someone with access to the enterprise.
+                type: string
+                x-go-name: GitHubRunnerGroup
+            id:
+                type: string
+                x-go-name: ID
+            image:
+                type: string
+                x-go-name: Image
+            instances:
+                items:
+                    $ref: '#/definitions/Instance'
+                type: array
+                x-go-name: Instances
+            max_runners:
+                format: uint64
+                type: integer
+                x-go-name: MaxRunners
+            min_idle_runners:
+                format: uint64
+                type: integer
+                x-go-name: MinIdleRunners
+            org_id:
+                type: string
+                x-go-name: OrgID
+            org_name:
+                type: string
+                x-go-name: OrgName
+            os_arch:
+                $ref: '#/definitions/OSArch'
+            os_type:
+                $ref: '#/definitions/OSType'
+            priority:
+                description: |-
+                    Priority is the priority of the pool. The higher the number, the higher the priority.
+                    When fetching matching pools for a set of tags, the result will be sorted in descending
+                    order of priority.
+                format: uint64
+                type: integer
+                x-go-name: Priority
+            provider_name:
+                type: string
+                x-go-name: ProviderName
+            repo_id:
+                type: string
+                x-go-name: RepoID
+            repo_name:
+                type: string
+                x-go-name: RepoName
+            runner_bootstrap_timeout:
+                format: uint64
+                type: integer
+                x-go-name: RunnerBootstrapTimeout
+            runner_prefix:
+                type: string
+                x-go-name: Prefix
+            tags:
+                items:
+                    $ref: '#/definitions/Tag'
+                type: array
+                x-go-name: Tags
+            updated_at:
+                format: date-time
+                type: string
+                x-go-name: UpdatedAt
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    PoolBalancerType:
+        type: string
+        x-go-package: github.com/cloudbase/garm/params
+    PoolManagerStatus:
+        properties:
+            failure_reason:
+                type: string
+                x-go-name: FailureReason
+            running:
+                type: boolean
+                x-go-name: IsRunning
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    Pools:
+        description: used by swagger client generated code
+        items:
+            $ref: '#/definitions/Pool'
+        type: array
+        x-go-package: github.com/cloudbase/garm/params
+    Provider:
+        properties:
+            description:
+                type: string
+                x-go-name: Description
+            name:
+                type: string
+                x-go-name: Name
+            type:
+                $ref: '#/definitions/ProviderType'
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    ProviderType:
+        type: string
+        x-go-package: github.com/cloudbase/garm/params
+    Providers:
+        description: used by swagger client generated code
+        items:
+            $ref: '#/definitions/Provider'
+        type: array
+        x-go-package: github.com/cloudbase/garm/params
+    Repositories:
+        description: used by swagger client generated code
+        items:
+            $ref: '#/definitions/Repository'
+        type: array
+        x-go-package: github.com/cloudbase/garm/params
+    Repository:
+        properties:
+            created_at:
+                format: date-time
+                type: string
+                x-go-name: CreatedAt
+            credentials:
+                $ref: '#/definitions/ForgeCredentials'
+            credentials_id:
+                format: uint64
+                type: integer
+                x-go-name: CredentialsID
+            credentials_name:
+                description: |-
+                    CredentialName is the name of the credentials associated with the enterprise.
+                    This field is now deprecated. Use CredentialsID instead. This field will be
+                    removed in v0.2.0.
+                type: string
+                x-go-name: CredentialsName
+            endpoint:
+                $ref: '#/definitions/ForgeEndpoint'
+            events:
+                items:
+                    $ref: '#/definitions/EntityEvent'
+                type: array
+                x-go-name: Events
+            id:
+                type: string
+                x-go-name: ID
+            name:
+                type: string
+                x-go-name: Name
+            owner:
+                type: string
+                x-go-name: Owner
+            pool:
+                items:
+                    $ref: '#/definitions/Pool'
+                type: array
+                x-go-name: Pools
+            pool_balancing_type:
+                $ref: '#/definitions/PoolBalancerType'
+            pool_manager_status:
+                $ref: '#/definitions/PoolManagerStatus'
+            updated_at:
+                format: date-time
+                type: string
+                x-go-name: UpdatedAt
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    RunnerPrefix:
+        properties:
+            runner_prefix:
+                type: string
+                x-go-name: Prefix
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    RunnerStatus:
+        type: string
+        x-go-package: github.com/cloudbase/garm/params
+    ScaleSet:
+        properties:
+            created_at:
+                format: date-time
+                type: string
+                x-go-name: CreatedAt
+            desired_runner_count:
+                format: int64
+                type: integer
+                x-go-name: DesiredRunnerCount
+            disable_update:
+                type: boolean
+                x-go-name: DisableUpdate
+            enabled:
+                type: boolean
+                x-go-name: Enabled
+            endpoint:
+                $ref: '#/definitions/ForgeEndpoint'
+            enterprise_id:
+                type: string
+                x-go-name: EnterpriseID
+            enterprise_name:
+                type: string
+                x-go-name: EnterpriseName
+            extended_state:
+                type: string
+                x-go-name: ExtendedState
+            extra_specs:
+                description: |-
+                    ExtraSpecs is an opaque raw json that gets sent to the provider
+                    as part of the bootstrap params for instances. It can contain
+                    any kind of data needed by providers. The contents of this field means
+                    nothing to garm itself. We don't act on the information in this field at
+                    all. We only validate that it's a proper json.
+                type: object
+                x-go-name: ExtraSpecs
+            flavor:
+                type: string
+                x-go-name: Flavor
+            github-runner-group:
+                description: |-
+                    GithubRunnerGroup is the github runner group in which the runners will be added.
+                    The runner group must be created by someone with access to the enterprise.
+                type: string
+                x-go-name: GitHubRunnerGroup
+            id:
+                format: uint64
+                type: integer
+                x-go-name: ID
+            image:
+                type: string
+                x-go-name: Image
+            instances:
+                items:
+                    $ref: '#/definitions/Instance'
+                type: array
+                x-go-name: Instances
+            max_runners:
+                format: uint64
+                type: integer
+                x-go-name: MaxRunners
+            min_idle_runners:
+                format: uint64
+                type: integer
+                x-go-name: MinIdleRunners
+            name:
+                type: string
+                x-go-name: Name
+            org_id:
+                type: string
+                x-go-name: OrgID
+            org_name:
+                type: string
+                x-go-name: OrgName
+            os_arch:
+                $ref: '#/definitions/OSArch'
+            os_type:
+                $ref: '#/definitions/OSType'
+            provider_name:
+                type: string
+                x-go-name: ProviderName
+            repo_id:
+                type: string
+                x-go-name: RepoID
+            repo_name:
+                type: string
+                x-go-name: RepoName
+            runner_bootstrap_timeout:
+                format: uint64
+                type: integer
+                x-go-name: RunnerBootstrapTimeout
+            runner_prefix:
+                type: string
+                x-go-name: Prefix
+            scale_set_id:
+                format: int64
+                type: integer
+                x-go-name: ScaleSetID
+            state:
+                $ref: '#/definitions/ScaleSetState'
+            status_messages:
+                items:
+                    $ref: '#/definitions/StatusMessage'
+                type: array
+                x-go-name: StatusMessages
+            updated_at:
+                format: date-time
+                type: string
+                x-go-name: UpdatedAt
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    ScaleSetState:
+        type: string
+        x-go-package: github.com/cloudbase/garm/params
+    ScaleSets:
+        description: used by swagger client generated code
+        items:
+            $ref: '#/definitions/ScaleSet'
+        type: array
+        x-go-package: github.com/cloudbase/garm/params
+    StatusMessage:
+        properties:
+            created_at:
+                format: date-time
+                type: string
+                x-go-name: CreatedAt
+            event_level:
+                $ref: '#/definitions/EventLevel'
+            event_type:
+                $ref: '#/definitions/EventType'
+            message:
+                type: string
+                x-go-name: Message
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    Tag:
+        properties:
+            id:
+                type: string
+                x-go-name: ID
+            name:
+                type: string
+                x-go-name: Name
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    UpdateControllerParams:
+        properties:
+            callback_url:
+                type: string
+                x-go-name: CallbackURL
+            metadata_url:
+                type: string
+                x-go-name: MetadataURL
+            minimum_job_age_backoff:
+                format: uint64
+                type: integer
+                x-go-name: MinimumJobAgeBackoff
+            webhook_url:
+                type: string
+                x-go-name: WebhookURL
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    UpdateEntityParams:
+        properties:
+            credentials_name:
+                type: string
+                x-go-name: CredentialsName
+            pool_balancer_type:
+                $ref: '#/definitions/PoolBalancerType'
+            webhook_secret:
+                type: string
+                x-go-name: WebhookSecret
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    UpdateGiteaCredentialsParams:
+        properties:
+            description:
+                type: string
+                x-go-name: Description
+            name:
+                type: string
+                x-go-name: Name
+            pat:
+                $ref: '#/definitions/GithubPAT'
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    UpdateGiteaEndpointParams:
+        properties:
+            api_base_url:
+                type: string
+                x-go-name: APIBaseURL
+            base_url:
+                type: string
+                x-go-name: BaseURL
+            ca_cert_bundle:
+                items:
+                    format: uint8
+                    type: integer
+                type: array
+                x-go-name: CACertBundle
+            description:
+                type: string
+                x-go-name: Description
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    UpdateGithubCredentialsParams:
+        properties:
+            app:
+                $ref: '#/definitions/GithubApp'
+            description:
+                type: string
+                x-go-name: Description
+            name:
+                type: string
+                x-go-name: Name
+            pat:
+                $ref: '#/definitions/GithubPAT'
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    UpdateGithubEndpointParams:
+        properties:
+            api_base_url:
+                type: string
+                x-go-name: APIBaseURL
+            base_url:
+                type: string
+                x-go-name: BaseURL
+            ca_cert_bundle:
+                items:
+                    format: uint8
+                    type: integer
+                type: array
+                x-go-name: CACertBundle
+            description:
+                type: string
+                x-go-name: Description
+            upload_base_url:
+                type: string
+                x-go-name: UploadBaseURL
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    UpdatePoolParams:
+        properties:
+            enabled:
+                type: boolean
+                x-go-name: Enabled
+            extra_specs:
+                type: object
+                x-go-name: ExtraSpecs
+            flavor:
+                type: string
+                x-go-name: Flavor
+            github-runner-group:
+                description: |-
+                    GithubRunnerGroup is the github runner group in which the runners of this
+                    pool will be added to.
+                    The runner group must be created by someone with access to the enterprise.
+                type: string
+                x-go-name: GitHubRunnerGroup
+            image:
+                type: string
+                x-go-name: Image
+            max_runners:
+                format: uint64
+                type: integer
+                x-go-name: MaxRunners
+            min_idle_runners:
+                format: uint64
+                type: integer
+                x-go-name: MinIdleRunners
+            os_arch:
+                $ref: '#/definitions/OSArch'
+            os_type:
+                $ref: '#/definitions/OSType'
+            priority:
+                format: uint64
+                type: integer
+                x-go-name: Priority
+            runner_bootstrap_timeout:
+                format: uint64
+                type: integer
+                x-go-name: RunnerBootstrapTimeout
+            runner_prefix:
+                type: string
+                x-go-name: Prefix
+            tags:
+                items:
+                    type: string
+                type: array
+                x-go-name: Tags
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    UpdateScaleSetParams:
+        properties:
+            enabled:
+                type: boolean
+                x-go-name: Enabled
+            extended_state:
+                type: string
+                x-go-name: ExtendedState
+            extra_specs:
+                type: object
+                x-go-name: ExtraSpecs
+            flavor:
+                type: string
+                x-go-name: Flavor
+            image:
+                type: string
+                x-go-name: Image
+            max_runners:
+                format: uint64
+                type: integer
+                x-go-name: MaxRunners
+            min_idle_runners:
+                format: uint64
+                type: integer
+                x-go-name: MinIdleRunners
+            name:
+                type: string
+                x-go-name: Name
+            os_arch:
+                $ref: '#/definitions/OSArch'
+            os_type:
+                $ref: '#/definitions/OSType'
+            runner_bootstrap_timeout:
+                format: uint64
+                type: integer
+                x-go-name: RunnerBootstrapTimeout
+            runner_group:
+                description: |-
+                    GithubRunnerGroup is the github runner group in which the runners of this
+                    pool will be added to.
+                    The runner group must be created by someone with access to the enterprise.
+                type: string
+                x-go-name: GitHubRunnerGroup
+            runner_prefix:
+                type: string
+                x-go-name: Prefix
+            state:
+                $ref: '#/definitions/ScaleSetState'
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    User:
+        description: Users holds information about a particular user
+        properties:
+            created_at:
+                format: date-time
+                type: string
+                x-go-name: CreatedAt
+            email:
+                type: string
+                x-go-name: Email
+            enabled:
+                type: boolean
+                x-go-name: Enabled
+            full_name:
+                type: string
+                x-go-name: FullName
+            id:
+                type: string
+                x-go-name: ID
+            is_admin:
+                type: boolean
+                x-go-name: IsAdmin
+            updated_at:
+                format: date-time
+                type: string
+                x-go-name: UpdatedAt
+            username:
+                type: string
+                x-go-name: Username
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    WebhookEndpointType:
+        type: string
+        x-go-package: github.com/cloudbase/garm/params
+info:
+    description: The Garm API generated using go-swagger.
+    license:
+        name: Apache 2.0
+        url: https://www.apache.org/licenses/LICENSE-2.0
+    title: Garm API.
+    version: 1.0.0
+paths:
+    /auth/login:
+        post:
+            operationId: Login
+            parameters:
+                - description: Login information.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/PasswordLoginParams'
+                    description: Login information.
+                    type: object
+            responses:
+                "200":
+                    description: JWTResponse
+                    schema:
+                        $ref: '#/definitions/JWTResponse'
+                "400":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Logs in a user and returns a JWT token.
+            tags:
+                - login
+    /controller:
+        put:
+            operationId: UpdateController
+            parameters:
+                - description: Parameters used when updating the controller.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/UpdateControllerParams'
+                    description: Parameters used when updating the controller.
+                    type: object
+            responses:
+                "200":
+                    description: ControllerInfo
+                    schema:
+                        $ref: '#/definitions/ControllerInfo'
+                "400":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Update controller.
+            tags:
+                - controller
+    /controller-info:
+        get:
+            operationId: ControllerInfo
+            responses:
+                "200":
+                    description: ControllerInfo
+                    schema:
+                        $ref: '#/definitions/ControllerInfo'
+                "409":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get controller info.
+            tags:
+                - controllerInfo
+    /enterprises:
+        get:
+            operationId: ListEnterprises
+            parameters:
+                - description: Exact enterprise name to filter by
+                  in: query
+                  name: name
+                  type: string
+                - description: Exact endpoint name to filter by
+                  in: query
+                  name: endpoint
+                  type: string
+            responses:
+                "200":
+                    description: Enterprises
+                    schema:
+                        $ref: '#/definitions/Enterprises'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List all enterprises.
+            tags:
+                - enterprises
+        post:
+            operationId: CreateEnterprise
+            parameters:
+                - description: Parameters used to create the enterprise.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/CreateEnterpriseParams'
+                    description: Parameters used to create the enterprise.
+                    type: object
+            responses:
+                "200":
+                    description: Enterprise
+                    schema:
+                        $ref: '#/definitions/Enterprise'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Create enterprise with the given parameters.
+            tags:
+                - enterprises
+    /enterprises/{enterpriseID}:
+        delete:
+            operationId: DeleteEnterprise
+            parameters:
+                - description: ID of the enterprise to delete.
+                  in: path
+                  name: enterpriseID
+                  required: true
+                  type: string
+            responses:
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Delete enterprise by ID.
+            tags:
+                - enterprises
+        get:
+            operationId: GetEnterprise
+            parameters:
+                - description: The ID of the enterprise to fetch.
+                  in: path
+                  name: enterpriseID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: Enterprise
+                    schema:
+                        $ref: '#/definitions/Enterprise'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get enterprise by ID.
+            tags:
+                - enterprises
+        put:
+            operationId: UpdateEnterprise
+            parameters:
+                - description: The ID of the enterprise to update.
+                  in: path
+                  name: enterpriseID
+                  required: true
+                  type: string
+                - description: Parameters used when updating the enterprise.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/UpdateEntityParams'
+                    description: Parameters used when updating the enterprise.
+                    type: object
+            responses:
+                "200":
+                    description: Enterprise
+                    schema:
+                        $ref: '#/definitions/Enterprise'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Update enterprise with the given parameters.
+            tags:
+                - enterprises
+    /enterprises/{enterpriseID}/instances:
+        get:
+            operationId: ListEnterpriseInstances
+            parameters:
+                - description: Enterprise ID.
+                  in: path
+                  name: enterpriseID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: Instances
+                    schema:
+                        $ref: '#/definitions/Instances'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List enterprise instances.
+            tags:
+                - enterprises
+                - instances
+    /enterprises/{enterpriseID}/pools:
+        get:
+            operationId: ListEnterprisePools
+            parameters:
+                - description: Enterprise ID.
+                  in: path
+                  name: enterpriseID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: Pools
+                    schema:
+                        $ref: '#/definitions/Pools'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List enterprise pools.
+            tags:
+                - enterprises
+                - pools
+        post:
+            operationId: CreateEnterprisePool
+            parameters:
+                - description: Enterprise ID.
+                  in: path
+                  name: enterpriseID
+                  required: true
+                  type: string
+                - description: Parameters used when creating the enterprise pool.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/CreatePoolParams'
+                    description: Parameters used when creating the enterprise pool.
+                    type: object
+            responses:
+                "200":
+                    description: Pool
+                    schema:
+                        $ref: '#/definitions/Pool'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Create enterprise pool with the parameters given.
+            tags:
+                - enterprises
+                - pools
+    /enterprises/{enterpriseID}/pools/{poolID}:
+        delete:
+            operationId: DeleteEnterprisePool
+            parameters:
+                - description: Enterprise ID.
+                  in: path
+                  name: enterpriseID
+                  required: true
+                  type: string
+                - description: ID of the enterprise pool to delete.
+                  in: path
+                  name: poolID
+                  required: true
+                  type: string
+            responses:
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Delete enterprise pool by ID.
+            tags:
+                - enterprises
+                - pools
+        get:
+            operationId: GetEnterprisePool
+            parameters:
+                - description: Enterprise ID.
+                  in: path
+                  name: enterpriseID
+                  required: true
+                  type: string
+                - description: Pool ID.
+                  in: path
+                  name: poolID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: Pool
+                    schema:
+                        $ref: '#/definitions/Pool'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get enterprise pool by ID.
+            tags:
+                - enterprises
+                - pools
+        put:
+            operationId: UpdateEnterprisePool
+            parameters:
+                - description: Enterprise ID.
+                  in: path
+                  name: enterpriseID
+                  required: true
+                  type: string
+                - description: ID of the enterprise pool to update.
+                  in: path
+                  name: poolID
+                  required: true
+                  type: string
+                - description: Parameters used when updating the enterprise pool.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/UpdatePoolParams'
+                    description: Parameters used when updating the enterprise pool.
+                    type: object
+            responses:
+                "200":
+                    description: Pool
+                    schema:
+                        $ref: '#/definitions/Pool'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Update enterprise pool with the parameters given.
+            tags:
+                - enterprises
+                - pools
+    /enterprises/{enterpriseID}/scalesets:
+        get:
+            operationId: ListEnterpriseScaleSets
+            parameters:
+                - description: Enterprise ID.
+                  in: path
+                  name: enterpriseID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: ScaleSets
+                    schema:
+                        $ref: '#/definitions/ScaleSets'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List enterprise scale sets.
+            tags:
+                - enterprises
+                - scalesets
+        post:
+            operationId: CreateEnterpriseScaleSet
+            parameters:
+                - description: Enterprise ID.
+                  in: path
+                  name: enterpriseID
+                  required: true
+                  type: string
+                - description: Parameters used when creating the enterprise scale set.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/CreateScaleSetParams'
+                    description: Parameters used when creating the enterprise scale set.
+                    type: object
+            responses:
+                "200":
+                    description: ScaleSet
+                    schema:
+                        $ref: '#/definitions/ScaleSet'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Create enterprise pool with the parameters given.
+            tags:
+                - enterprises
+                - scalesets
+    /first-run:
+        post:
+            operationId: FirstRun
+            parameters:
+                - description: Create a new user.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/NewUserParams'
+                    description: Create a new user.
+                    type: object
+            responses:
+                "200":
+                    description: User
+                    schema:
+                        $ref: '#/definitions/User'
+                "400":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Initialize the first run of the controller.
+            tags:
+                - first-run
+    /gitea/credentials:
+        get:
+            operationId: ListGiteaCredentials
+            responses:
+                "200":
+                    description: Credentials
+                    schema:
+                        $ref: '#/definitions/Credentials'
+                "400":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List all credentials.
+            tags:
+                - credentials
+        post:
+            operationId: CreateGiteaCredentials
+            parameters:
+                - description: Parameters used when creating a Gitea credential.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/CreateGiteaCredentialsParams'
+                    description: Parameters used when creating a Gitea credential.
+                    type: object
+            responses:
+                "200":
+                    description: ForgeCredentials
+                    schema:
+                        $ref: '#/definitions/ForgeCredentials'
+                "400":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Create a Gitea credential.
+            tags:
+                - credentials
+    /gitea/credentials/{id}:
+        delete:
+            operationId: DeleteGiteaCredentials
+            parameters:
+                - description: ID of the Gitea credential.
+                  in: path
+                  name: id
+                  required: true
+                  type: integer
+            responses:
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Delete a Gitea credential.
+            tags:
+                - credentials
+        get:
+            operationId: GetGiteaCredentials
+            parameters:
+                - description: ID of the Gitea credential.
+                  in: path
+                  name: id
+                  required: true
+                  type: integer
+            responses:
+                "200":
+                    description: ForgeCredentials
+                    schema:
+                        $ref: '#/definitions/ForgeCredentials'
+                "400":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get a Gitea credential.
+            tags:
+                - credentials
+        put:
+            operationId: UpdateGiteaCredentials
+            parameters:
+                - description: ID of the Gitea credential.
+                  in: path
+                  name: id
+                  required: true
+                  type: integer
+                - description: Parameters used when updating a Gitea credential.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/UpdateGiteaCredentialsParams'
+                    description: Parameters used when updating a Gitea credential.
+                    type: object
+            responses:
+                "200":
+                    description: ForgeCredentials
+                    schema:
+                        $ref: '#/definitions/ForgeCredentials'
+                "400":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Update a Gitea credential.
+            tags:
+                - credentials
+    /gitea/endpoints:
+        get:
+            operationId: ListGiteaEndpoints
+            responses:
+                "200":
+                    description: ForgeEndpoints
+                    schema:
+                        $ref: '#/definitions/ForgeEndpoints'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List all Gitea Endpoints.
+            tags:
+                - endpoints
+        post:
+            operationId: CreateGiteaEndpoint
+            parameters:
+                - description: Parameters used when creating a Gitea endpoint.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/CreateGiteaEndpointParams'
+                    description: Parameters used when creating a Gitea endpoint.
+                    type: object
+            responses:
+                "200":
+                    description: ForgeEndpoint
+                    schema:
+                        $ref: '#/definitions/ForgeEndpoint'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Create a Gitea Endpoint.
+            tags:
+                - endpoints
+    /gitea/endpoints/{name}:
+        delete:
+            operationId: DeleteGiteaEndpoint
+            parameters:
+                - description: The name of the Gitea endpoint.
+                  in: path
+                  name: name
+                  required: true
+                  type: string
+            responses:
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Delete a Gitea Endpoint.
+            tags:
+                - endpoints
+        get:
+            operationId: GetGiteaEndpoint
+            parameters:
+                - description: The name of the Gitea endpoint.
+                  in: path
+                  name: name
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: ForgeEndpoint
+                    schema:
+                        $ref: '#/definitions/ForgeEndpoint'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get a Gitea Endpoint.
+            tags:
+                - endpoints
+        put:
+            operationId: UpdateGiteaEndpoint
+            parameters:
+                - description: The name of the Gitea endpoint.
+                  in: path
+                  name: name
+                  required: true
+                  type: string
+                - description: Parameters used when updating a Gitea endpoint.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/UpdateGiteaEndpointParams'
+                    description: Parameters used when updating a Gitea endpoint.
+                    type: object
+            responses:
+                "200":
+                    description: ForgeEndpoint
+                    schema:
+                        $ref: '#/definitions/ForgeEndpoint'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Update a Gitea Endpoint.
+            tags:
+                - endpoints
+    /github/credentials:
+        get:
+            operationId: ListCredentials
+            responses:
+                "200":
+                    description: Credentials
+                    schema:
+                        $ref: '#/definitions/Credentials'
+                "400":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List all credentials.
+            tags:
+                - credentials
+        post:
+            operationId: CreateCredentials
+            parameters:
+                - description: Parameters used when creating a GitHub credential.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/CreateGithubCredentialsParams'
+                    description: Parameters used when creating a GitHub credential.
+                    type: object
+            responses:
+                "200":
+                    description: ForgeCredentials
+                    schema:
+                        $ref: '#/definitions/ForgeCredentials'
+                "400":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Create a GitHub credential.
+            tags:
+                - credentials
+    /github/credentials/{id}:
+        delete:
+            operationId: DeleteCredentials
+            parameters:
+                - description: ID of the GitHub credential.
+                  in: path
+                  name: id
+                  required: true
+                  type: integer
+            responses:
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Delete a GitHub credential.
+            tags:
+                - credentials
+        get:
+            operationId: GetCredentials
+            parameters:
+                - description: ID of the GitHub credential.
+                  in: path
+                  name: id
+                  required: true
+                  type: integer
+            responses:
+                "200":
+                    description: ForgeCredentials
+                    schema:
+                        $ref: '#/definitions/ForgeCredentials'
+                "400":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get a GitHub credential.
+            tags:
+                - credentials
+        put:
+            operationId: UpdateCredentials
+            parameters:
+                - description: ID of the GitHub credential.
+                  in: path
+                  name: id
+                  required: true
+                  type: integer
+                - description: Parameters used when updating a GitHub credential.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/UpdateGithubCredentialsParams'
+                    description: Parameters used when updating a GitHub credential.
+                    type: object
+            responses:
+                "200":
+                    description: ForgeCredentials
+                    schema:
+                        $ref: '#/definitions/ForgeCredentials'
+                "400":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Update a GitHub credential.
+            tags:
+                - credentials
+    /github/endpoints:
+        get:
+            operationId: ListGithubEndpoints
+            responses:
+                "200":
+                    description: ForgeEndpoints
+                    schema:
+                        $ref: '#/definitions/ForgeEndpoints'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List all GitHub Endpoints.
+            tags:
+                - endpoints
+        post:
+            operationId: CreateGithubEndpoint
+            parameters:
+                - description: Parameters used when creating a GitHub endpoint.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/CreateGithubEndpointParams'
+                    description: Parameters used when creating a GitHub endpoint.
+                    type: object
+            responses:
+                "200":
+                    description: ForgeEndpoint
+                    schema:
+                        $ref: '#/definitions/ForgeEndpoint'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Create a GitHub Endpoint.
+            tags:
+                - endpoints
+    /github/endpoints/{name}:
+        delete:
+            operationId: DeleteGithubEndpoint
+            parameters:
+                - description: The name of the GitHub endpoint.
+                  in: path
+                  name: name
+                  required: true
+                  type: string
+            responses:
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Delete a GitHub Endpoint.
+            tags:
+                - endpoints
+        get:
+            operationId: GetGithubEndpoint
+            parameters:
+                - description: The name of the GitHub endpoint.
+                  in: path
+                  name: name
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: ForgeEndpoint
+                    schema:
+                        $ref: '#/definitions/ForgeEndpoint'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get a GitHub Endpoint.
+            tags:
+                - endpoints
+        put:
+            operationId: UpdateGithubEndpoint
+            parameters:
+                - description: The name of the GitHub endpoint.
+                  in: path
+                  name: name
+                  required: true
+                  type: string
+                - description: Parameters used when updating a GitHub endpoint.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/UpdateGithubEndpointParams'
+                    description: Parameters used when updating a GitHub endpoint.
+                    type: object
+            responses:
+                "200":
+                    description: ForgeEndpoint
+                    schema:
+                        $ref: '#/definitions/ForgeEndpoint'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Update a GitHub Endpoint.
+            tags:
+                - endpoints
+    /instances:
+        get:
+            operationId: ListInstances
+            responses:
+                "200":
+                    description: Instances
+                    schema:
+                        $ref: '#/definitions/Instances'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get all runners' instances.
+            tags:
+                - instances
+    /instances/{instanceName}:
+        delete:
+            operationId: DeleteInstance
+            parameters:
+                - description: Runner instance name.
+                  in: path
+                  name: instanceName
+                  required: true
+                  type: string
+                - description: If true GARM will ignore any provider error when removing the runner and will continue to remove the runner from github and the GARM database.
+                  in: query
+                  name: forceRemove
+                  type: boolean
+                - description: If true GARM will ignore unauthorized errors returned by GitHub when removing a runner. This is useful if you want to clean up runners and your credentials have expired.
+                  in: query
+                  name: bypassGHUnauthorized
+                  type: boolean
+            responses:
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Delete runner instance by name.
+            tags:
+                - instances
+        get:
+            operationId: GetInstance
+            parameters:
+                - description: Runner instance name.
+                  in: path
+                  name: instanceName
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: Instance
+                    schema:
+                        $ref: '#/definitions/Instance'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get runner instance by name.
+            tags:
+                - instances
+    /jobs:
+        get:
+            operationId: ListJobs
+            responses:
+                "200":
+                    description: Jobs
+                    schema:
+                        $ref: '#/definitions/Jobs'
+                "400":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List all jobs.
+            tags:
+                - jobs
+    /metrics-token:
+        get:
+            operationId: GetMetricsToken
+            responses:
+                "200":
+                    description: JWTResponse
+                    schema:
+                        $ref: '#/definitions/JWTResponse'
+                "401":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Returns a JWT token that can be used to access the metrics endpoint.
+            tags:
+                - metrics-token
+    /organizations:
+        get:
+            operationId: ListOrgs
+            parameters:
+                - description: Exact organization name to filter by
+                  in: query
+                  name: name
+                  type: string
+                - description: Exact endpoint name to filter by
+                  in: query
+                  name: endpoint
+                  type: string
+            responses:
+                "200":
+                    description: Organizations
+                    schema:
+                        $ref: '#/definitions/Organizations'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List organizations.
+            tags:
+                - organizations
+        post:
+            operationId: CreateOrg
+            parameters:
+                - description: Parameters used when creating the organization.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/CreateOrgParams'
+                    description: Parameters used when creating the organization.
+                    type: object
+            responses:
+                "200":
+                    description: Organization
+                    schema:
+                        $ref: '#/definitions/Organization'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Create organization with the parameters given.
+            tags:
+                - organizations
+    /organizations/{orgID}:
+        delete:
+            operationId: DeleteOrg
+            parameters:
+                - description: ID of the organization to delete.
+                  in: path
+                  name: orgID
+                  required: true
+                  type: string
+                - description: If true and a webhook is installed for this organization, it will not be removed.
+                  in: query
+                  name: keepWebhook
+                  type: boolean
+            responses:
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Delete organization by ID.
+            tags:
+                - organizations
+        get:
+            operationId: GetOrg
+            parameters:
+                - description: ID of the organization to fetch.
+                  in: path
+                  name: orgID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: Organization
+                    schema:
+                        $ref: '#/definitions/Organization'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get organization by ID.
+            tags:
+                - organizations
+        put:
+            operationId: UpdateOrg
+            parameters:
+                - description: ID of the organization to update.
+                  in: path
+                  name: orgID
+                  required: true
+                  type: string
+                - description: Parameters used when updating the organization.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/UpdateEntityParams'
+                    description: Parameters used when updating the organization.
+                    type: object
+            responses:
+                "200":
+                    description: Organization
+                    schema:
+                        $ref: '#/definitions/Organization'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Update organization with the parameters given.
+            tags:
+                - organizations
+    /organizations/{orgID}/instances:
+        get:
+            operationId: ListOrgInstances
+            parameters:
+                - description: Organization ID.
+                  in: path
+                  name: orgID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: Instances
+                    schema:
+                        $ref: '#/definitions/Instances'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List organization instances.
+            tags:
+                - organizations
+                - instances
+    /organizations/{orgID}/pools:
+        get:
+            operationId: ListOrgPools
+            parameters:
+                - description: Organization ID.
+                  in: path
+                  name: orgID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: Pools
+                    schema:
+                        $ref: '#/definitions/Pools'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List organization pools.
+            tags:
+                - organizations
+                - pools
+        post:
+            operationId: CreateOrgPool
+            parameters:
+                - description: Organization ID.
+                  in: path
+                  name: orgID
+                  required: true
+                  type: string
+                - description: Parameters used when creating the organization pool.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/CreatePoolParams'
+                    description: Parameters used when creating the organization pool.
+                    type: object
+            responses:
+                "200":
+                    description: Pool
+                    schema:
+                        $ref: '#/definitions/Pool'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Create organization pool with the parameters given.
+            tags:
+                - organizations
+                - pools
+    /organizations/{orgID}/pools/{poolID}:
+        delete:
+            operationId: DeleteOrgPool
+            parameters:
+                - description: Organization ID.
+                  in: path
+                  name: orgID
+                  required: true
+                  type: string
+                - description: ID of the organization pool to delete.
+                  in: path
+                  name: poolID
+                  required: true
+                  type: string
+            responses:
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Delete organization pool by ID.
+            tags:
+                - organizations
+                - pools
+        get:
+            operationId: GetOrgPool
+            parameters:
+                - description: Organization ID.
+                  in: path
+                  name: orgID
+                  required: true
+                  type: string
+                - description: Pool ID.
+                  in: path
+                  name: poolID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: Pool
+                    schema:
+                        $ref: '#/definitions/Pool'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get organization pool by ID.
+            tags:
+                - organizations
+                - pools
+        put:
+            operationId: UpdateOrgPool
+            parameters:
+                - description: Organization ID.
+                  in: path
+                  name: orgID
+                  required: true
+                  type: string
+                - description: ID of the organization pool to update.
+                  in: path
+                  name: poolID
+                  required: true
+                  type: string
+                - description: Parameters used when updating the organization pool.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/UpdatePoolParams'
+                    description: Parameters used when updating the organization pool.
+                    type: object
+            responses:
+                "200":
+                    description: Pool
+                    schema:
+                        $ref: '#/definitions/Pool'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Update organization pool with the parameters given.
+            tags:
+                - organizations
+                - pools
+    /organizations/{orgID}/scalesets:
+        get:
+            operationId: ListOrgScaleSets
+            parameters:
+                - description: Organization ID.
+                  in: path
+                  name: orgID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: ScaleSets
+                    schema:
+                        $ref: '#/definitions/ScaleSets'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List organization scale sets.
+            tags:
+                - organizations
+                - scalesets
+        post:
+            operationId: CreateOrgScaleSet
+            parameters:
+                - description: Organization ID.
+                  in: path
+                  name: orgID
+                  required: true
+                  type: string
+                - description: Parameters used when creating the organization scale set.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/CreateScaleSetParams'
+                    description: Parameters used when creating the organization scale set.
+                    type: object
+            responses:
+                "200":
+                    description: ScaleSet
+                    schema:
+                        $ref: '#/definitions/ScaleSet'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Create organization scale set with the parameters given.
+            tags:
+                - organizations
+                - scalesets
+    /organizations/{orgID}/webhook:
+        delete:
+            operationId: UninstallOrgWebhook
+            parameters:
+                - description: Organization ID.
+                  in: path
+                  name: orgID
+                  required: true
+                  type: string
+            responses:
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Uninstall organization webhook.
+            tags:
+                - organizations
+                - hooks
+        get:
+            operationId: GetOrgWebhookInfo
+            parameters:
+                - description: Organization ID.
+                  in: path
+                  name: orgID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: HookInfo
+                    schema:
+                        $ref: '#/definitions/HookInfo'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get information about the GARM installed webhook on an organization.
+            tags:
+                - organizations
+                - hooks
+        post:
+            description: |-
+                Install the GARM webhook for an organization. The secret configured on the organization will
+                be used to validate the requests.
+            operationId: InstallOrgWebhook
+            parameters:
+                - description: Organization ID.
+                  in: path
+                  name: orgID
+                  required: true
+                  type: string
+                - description: Parameters used when creating the organization webhook.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/InstallWebhookParams'
+                    description: Parameters used when creating the organization webhook.
+                    type: object
+            responses:
+                "200":
+                    description: HookInfo
+                    schema:
+                        $ref: '#/definitions/HookInfo'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            tags:
+                - organizations
+                - hooks
+    /pools:
+        get:
+            operationId: ListPools
+            responses:
+                "200":
+                    description: Pools
+                    schema:
+                        $ref: '#/definitions/Pools'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List all pools.
+            tags:
+                - pools
+    /pools/{poolID}:
+        delete:
+            operationId: DeletePool
+            parameters:
+                - description: ID of the pool to delete.
+                  in: path
+                  name: poolID
+                  required: true
+                  type: string
+            responses:
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Delete pool by ID.
+            tags:
+                - pools
+        get:
+            operationId: GetPool
+            parameters:
+                - description: ID of the pool to fetch.
+                  in: path
+                  name: poolID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: Pool
+                    schema:
+                        $ref: '#/definitions/Pool'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get pool by ID.
+            tags:
+                - pools
+        put:
+            operationId: UpdatePool
+            parameters:
+                - description: ID of the pool to update.
+                  in: path
+                  name: poolID
+                  required: true
+                  type: string
+                - description: Parameters to update the pool with.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/UpdatePoolParams'
+                    description: Parameters to update the pool with.
+                    type: object
+            responses:
+                "200":
+                    description: Pool
+                    schema:
+                        $ref: '#/definitions/Pool'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Update pool by ID.
+            tags:
+                - pools
+    /pools/{poolID}/instances:
+        get:
+            operationId: ListPoolInstances
+            parameters:
+                - description: Runner pool ID.
+                  in: path
+                  name: poolID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: Instances
+                    schema:
+                        $ref: '#/definitions/Instances'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List runner instances in a pool.
+            tags:
+                - instances
+    /providers:
+        get:
+            operationId: ListProviders
+            responses:
+                "200":
+                    description: Providers
+                    schema:
+                        $ref: '#/definitions/Providers'
+                "400":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List all providers.
+            tags:
+                - providers
+    /repositories:
+        get:
+            operationId: ListRepos
+            parameters:
+                - description: Exact owner name to filter by
+                  in: query
+                  name: owner
+                  type: string
+                - description: Exact repository name to filter by
+                  in: query
+                  name: name
+                  type: string
+                - description: Exact endpoint name to filter by
+                  in: query
+                  name: endpoint
+                  type: string
+            responses:
+                "200":
+                    description: Repositories
+                    schema:
+                        $ref: '#/definitions/Repositories'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List repositories.
+            tags:
+                - repositories
+        post:
+            operationId: CreateRepo
+            parameters:
+                - description: Parameters used when creating the repository.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/CreateRepoParams'
+                    description: Parameters used when creating the repository.
+                    type: object
+            responses:
+                "200":
+                    description: Repository
+                    schema:
+                        $ref: '#/definitions/Repository'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Create repository with the parameters given.
+            tags:
+                - repositories
+    /repositories/{repoID}:
+        delete:
+            operationId: DeleteRepo
+            parameters:
+                - description: ID of the repository to delete.
+                  in: path
+                  name: repoID
+                  required: true
+                  type: string
+                - description: If true and a webhook is installed for this repo, it will not be removed.
+                  in: query
+                  name: keepWebhook
+                  type: boolean
+            responses:
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Delete repository by ID.
+            tags:
+                - repositories
+        get:
+            operationId: GetRepo
+            parameters:
+                - description: ID of the repository to fetch.
+                  in: path
+                  name: repoID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: Repository
+                    schema:
+                        $ref: '#/definitions/Repository'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get repository by ID.
+            tags:
+                - repositories
+        put:
+            operationId: UpdateRepo
+            parameters:
+                - description: ID of the repository to update.
+                  in: path
+                  name: repoID
+                  required: true
+                  type: string
+                - description: Parameters used when updating the repository.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/UpdateEntityParams'
+                    description: Parameters used when updating the repository.
+                    type: object
+            responses:
+                "200":
+                    description: Repository
+                    schema:
+                        $ref: '#/definitions/Repository'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Update repository with the parameters given.
+            tags:
+                - repositories
+    /repositories/{repoID}/instances:
+        get:
+            operationId: ListRepoInstances
+            parameters:
+                - description: Repository ID.
+                  in: path
+                  name: repoID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: Instances
+                    schema:
+                        $ref: '#/definitions/Instances'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List repository instances.
+            tags:
+                - repositories
+                - instances
+    /repositories/{repoID}/pools:
+        get:
+            operationId: ListRepoPools
+            parameters:
+                - description: Repository ID.
+                  in: path
+                  name: repoID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: Pools
+                    schema:
+                        $ref: '#/definitions/Pools'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List repository pools.
+            tags:
+                - repositories
+                - pools
+        post:
+            operationId: CreateRepoPool
+            parameters:
+                - description: Repository ID.
+                  in: path
+                  name: repoID
+                  required: true
+                  type: string
+                - description: Parameters used when creating the repository pool.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/CreatePoolParams'
+                    description: Parameters used when creating the repository pool.
+                    type: object
+            responses:
+                "200":
+                    description: Pool
+                    schema:
+                        $ref: '#/definitions/Pool'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Create repository pool with the parameters given.
+            tags:
+                - repositories
+                - pools
+    /repositories/{repoID}/pools/{poolID}:
+        delete:
+            operationId: DeleteRepoPool
+            parameters:
+                - description: Repository ID.
+                  in: path
+                  name: repoID
+                  required: true
+                  type: string
+                - description: ID of the repository pool to delete.
+                  in: path
+                  name: poolID
+                  required: true
+                  type: string
+            responses:
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Delete repository pool by ID.
+            tags:
+                - repositories
+                - pools
+        get:
+            operationId: GetRepoPool
+            parameters:
+                - description: Repository ID.
+                  in: path
+                  name: repoID
+                  required: true
+                  type: string
+                - description: Pool ID.
+                  in: path
+                  name: poolID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: Pool
+                    schema:
+                        $ref: '#/definitions/Pool'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get repository pool by ID.
+            tags:
+                - repositories
+                - pools
+        put:
+            operationId: UpdateRepoPool
+            parameters:
+                - description: Repository ID.
+                  in: path
+                  name: repoID
+                  required: true
+                  type: string
+                - description: ID of the repository pool to update.
+                  in: path
+                  name: poolID
+                  required: true
+                  type: string
+                - description: Parameters used when updating the repository pool.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/UpdatePoolParams'
+                    description: Parameters used when updating the repository pool.
+                    type: object
+            responses:
+                "200":
+                    description: Pool
+                    schema:
+                        $ref: '#/definitions/Pool'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Update repository pool with the parameters given.
+            tags:
+                - repositories
+                - pools
+    /repositories/{repoID}/scalesets:
+        get:
+            operationId: ListRepoScaleSets
+            parameters:
+                - description: Repository ID.
+                  in: path
+                  name: repoID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: ScaleSets
+                    schema:
+                        $ref: '#/definitions/ScaleSets'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List repository scale sets.
+            tags:
+                - repositories
+                - scalesets
+        post:
+            operationId: CreateRepoScaleSet
+            parameters:
+                - description: Repository ID.
+                  in: path
+                  name: repoID
+                  required: true
+                  type: string
+                - description: Parameters used when creating the repository scale set.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/CreateScaleSetParams'
+                    description: Parameters used when creating the repository scale set.
+                    type: object
+            responses:
+                "200":
+                    description: ScaleSet
+                    schema:
+                        $ref: '#/definitions/ScaleSet'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Create repository scale set with the parameters given.
+            tags:
+                - repositories
+                - scalesets
+    /repositories/{repoID}/webhook:
+        delete:
+            operationId: UninstallRepoWebhook
+            parameters:
+                - description: Repository ID.
+                  in: path
+                  name: repoID
+                  required: true
+                  type: string
+            responses:
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Uninstall organization webhook.
+            tags:
+                - repositories
+                - hooks
+        get:
+            operationId: GetRepoWebhookInfo
+            parameters:
+                - description: Repository ID.
+                  in: path
+                  name: repoID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: HookInfo
+                    schema:
+                        $ref: '#/definitions/HookInfo'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get information about the GARM installed webhook on a repository.
+            tags:
+                - repositories
+                - hooks
+        post:
+            description: |-
+                Install the GARM webhook for an organization. The secret configured on the organization will
+                be used to validate the requests.
+            operationId: InstallRepoWebhook
+            parameters:
+                - description: Repository ID.
+                  in: path
+                  name: repoID
+                  required: true
+                  type: string
+                - description: Parameters used when creating the repository webhook.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/InstallWebhookParams'
+                    description: Parameters used when creating the repository webhook.
+                    type: object
+            responses:
+                "200":
+                    description: HookInfo
+                    schema:
+                        $ref: '#/definitions/HookInfo'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            tags:
+                - repositories
+                - hooks
+    /scalesets:
+        get:
+            operationId: ListScalesets
+            responses:
+                "200":
+                    description: ScaleSets
+                    schema:
+                        $ref: '#/definitions/ScaleSets'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List all scalesets.
+            tags:
+                - scalesets
+    /scalesets/{scalesetID}:
+        delete:
+            operationId: DeleteScaleSet
+            parameters:
+                - description: ID of the scale set to delete.
+                  in: path
+                  name: scalesetID
+                  required: true
+                  type: string
+            responses:
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Delete scale set by ID.
+            tags:
+                - scalesets
+        get:
+            operationId: GetScaleSet
+            parameters:
+                - description: ID of the scale set to fetch.
+                  in: path
+                  name: scalesetID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: ScaleSet
+                    schema:
+                        $ref: '#/definitions/ScaleSet'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get scale set by ID.
+            tags:
+                - scalesets
+        put:
+            operationId: UpdateScaleSet
+            parameters:
+                - description: ID of the scale set to update.
+                  in: path
+                  name: scalesetID
+                  required: true
+                  type: string
+                - description: Parameters to update the scale set with.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/UpdateScaleSetParams'
+                    description: Parameters to update the scale set with.
+                    type: object
+            responses:
+                "200":
+                    description: ScaleSet
+                    schema:
+                        $ref: '#/definitions/ScaleSet'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Update scale set by ID.
+            tags:
+                - scalesets
+    /scalesets/{scalesetID}/instances:
+        get:
+            operationId: ListScaleSetInstances
+            parameters:
+                - description: Runner scale set ID.
+                  in: path
+                  name: scalesetID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: Instances
+                    schema:
+                        $ref: '#/definitions/Instances'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List runner instances in a scale set.
+            tags:
+                - instances
+produces:
+    - application/json
+security:
+    - Bearer: []
+securityDefinitions:
+    Bearer:
+        description: 'The token with the `Bearer: ` prefix, e.g. "Bearer abcde12345".'
+        in: header
+        name: Authorization
+        type: apiKey
+swagger: "2.0"

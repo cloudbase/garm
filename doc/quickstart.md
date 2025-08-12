@@ -61,6 +61,9 @@ time_to_live = "8760h"
   bind = "0.0.0.0"
   port = 80
   use_tls = false
+  [apiserver.webui]
+    # Set this to false if you want to disable the Web UI.
+    enable = true
 
 [database]
   backend = "sqlite3"

@@ -600,6 +600,11 @@ func (s *WatcherStoreTestSuite) TestScaleSetWatcher() {
 		// We updated last message ID and desired runner count above.
 		updatedScaleSet.DesiredRunnerCount = 5
 		updatedScaleSet.LastMessageID = 99
+		payloadFromEvent, ok := event.Payload.(params.ScaleSet)
+		s.Require().True(ok)
+		updatedScaleSet.UpdatedAt = payloadFromEvent.UpdatedAt
+		updatedScaleSet.CreatedAt = payloadFromEvent.CreatedAt
+		updatedScaleSet.Endpoint = params.ForgeEndpoint{}
 		s.Require().Equal(common.ChangePayload{
 			EntityType: common.ScaleSetEntityType,
 			Operation:  common.DeleteOperation,

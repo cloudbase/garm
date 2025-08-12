@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<!-- Light theme icon -->
+                <link rel="icon" href="/ui/favicon-light.png" media="(prefers-color-scheme: light)" id="favicon-light" />
+                <!-- Dark theme icon -->
+                <link rel="icon" href="/ui/favicon-dark.png" media="(prefers-color-scheme: dark)" id="favicon-dark" />
+                <!-- Fallback favicon -->
+                <link rel="icon" href="/ui/favicon-light.png" id="favicon-fallback" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<script>
+			// Theme management - apply system theme or saved preference
+			(function() {
+				function applyTheme() {
+					const savedTheme = localStorage.getItem('theme');
+					const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+					
+					// Determine if we should use dark mode
+					const useDarkMode = savedTheme === 'dark' || 
+						(!savedTheme && prefersDark) || 
+						(savedTheme === 'system' && prefersDark);
+					
+					// Apply the theme class to document
+					if (useDarkMode) {
+						document.documentElement.classList.add('dark');
+					} else {
+						document.documentElement.classList.remove('dark');
+					}
+				}
+				
+				function updateFavicon() {
+					const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+					const savedTheme = localStorage.getItem('theme');
+					const useDarkMode = savedTheme === 'dark' || 
+						(!savedTheme && prefersDark) || 
+						(savedTheme === 'system' && prefersDark);
+					const fallbackIcon = document.getElementById('favicon-fallback');
+					
+					if (useDarkMode) {
+						fallbackIcon.href = '/ui/favicon-dark.png';
+					} else {
+						fallbackIcon.href = '/ui/favicon-light.png';
+					}
+				}
+				
+				// Apply theme and favicon on load
+				applyTheme();
+				updateFavicon();
+				
+				// Listen for system theme changes
+				if (window.matchMedia) {
+					const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+					const handleChange = function(e) {
+						const savedTheme = localStorage.getItem('theme');
+						// Only update if using system theme (no saved preference or explicit 'system')
+						if (!savedTheme || savedTheme === 'system') {
+							applyTheme();
+							updateFavicon();
+						}
+					};
+					
+					// Modern browsers
+					if (mediaQuery.addEventListener) {
+						mediaQuery.addEventListener('change', handleChange);
+					} else {
+						// Older browsers
+						mediaQuery.addListener(handleChange);
+					}
+				}
+			})();
+		</script>
+		
+		<link rel="modulepreload" href="/ui/_app/immutable/entry/start.CI0Cdear.js">
+		<link rel="modulepreload" href="/ui/_app/immutable/chunks/CTf6mQoE.js">
+		<link rel="modulepreload" href="/ui/_app/immutable/chunks/D8EpLgQ1.js">
+		<link rel="modulepreload" href="/ui/_app/immutable/chunks/CoIRRsD9.js">
+		<link rel="modulepreload" href="/ui/_app/immutable/entry/app.kAVAdeq9.js">
+		<link rel="modulepreload" href="/ui/_app/immutable/chunks/DsnmJJEf.js">
+		<link rel="modulepreload" href="/ui/_app/immutable/chunks/5WA7h8uK.js">
+		<link rel="modulepreload" href="/ui/_app/immutable/chunks/CCSWcuVN.js">
+		<link rel="modulepreload" href="/ui/_app/immutable/chunks/BAg1iRPq.js">
+	</head>
+	<body data-sveltekit-preload-data="hover" class="bg-gray-100 dark:bg-gray-900">
+		<div style="display: contents">
+			<script>
+				{
+					__sveltekit_13hoftk = {
+						base: "/ui",
+						assets: "/ui"
+					};
+
+					const element = document.currentScript.parentElement;
+
+					Promise.all([
+						import("/ui/_app/immutable/entry/start.CI0Cdear.js"),
+						import("/ui/_app/immutable/entry/app.kAVAdeq9.js")
+					]).then(([kit, app]) => {
+						kit.start(app, element);
+					});
+				}
+			</script>
+		</div>
+	</body>
+</html>

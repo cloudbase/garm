@@ -663,6 +663,21 @@ func (m *Metrics) Duration() time.Duration {
 	return duration
 }
 
+// WebUI holds configuration for the web UI
+type WebUI struct {
+	EnableWebUI bool `toml:"enable" json:"enable"`
+}
+
+// Validate validates the WebUI config
+func (w *WebUI) Validate() error {
+	return nil
+}
+
+// GetWebappPath returns the webapp path with proper formatting
+func (w *WebUI) GetWebappPath() string {
+	return "/ui/"
+}
+
 // APIServer holds configuration for the API server
 // worker
 type APIServer struct {
@@ -671,6 +686,7 @@ type APIServer struct {
 	UseTLS      bool      `toml:"use_tls" json:"use-tls"`
 	TLSConfig   TLSConfig `toml:"tls" json:"tls"`
 	CORSOrigins []string  `toml:"cors_origins" json:"cors-origins"`
+	WebUI       WebUI     `toml:"webui" json:"webui"`
 }
 
 // BindAddress returns a host:port string.
@@ -696,6 +712,11 @@ func (a *APIServer) Validate() error {
 		// when we try to bind to it.
 		return fmt.Errorf("invalid IP address")
 	}
+
+	if err := a.WebUI.Validate(); err != nil {
+		return fmt.Errorf("invalid webui config: %w", err)
+	}
+
 	return nil
 }
 

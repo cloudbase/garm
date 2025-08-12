@@ -17,6 +17,7 @@ package util
 import (
 	"context"
 	"net/http"
+	"unicode/utf8"
 
 	"github.com/pkg/errors"
 
@@ -42,4 +43,71 @@ func FetchTools(ctx context.Context, cli common.GithubClient) ([]commonParams.Ru
 		ret = append(ret, commonParams.RunnerApplicationDownload(*tool))
 	}
 	return ret, nil
+}
+
+func ASCIIEqualFold(s, t string) bool {
+	// Fast ASCII path for equal-length ASCII strings
+	if len(s) == len(t) && isASCII(s) && isASCII(t) {
+		for i := 0; i < len(s); i++ {
+			a, b := s[i], t[i]
+			if a != b {
+				if 'A' <= a && a <= 'Z' {
+					a = a + 'a' - 'A'
+				}
+				if 'A' <= b && b <= 'Z' {
+					b = b + 'a' - 'A'
+				}
+				if a != b {
+					return false
+				}
+			}
+		}
+		return true
+	}
+
+	// UTF-8 path - handle different byte lengths correctly
+	i, j := 0, 0
+	for i < len(s) && j < len(t) {
+		sr, sizeS := utf8.DecodeRuneInString(s[i:])
+		tr, sizeT := utf8.DecodeRuneInString(t[j:])
+
+		// Handle invalid UTF-8 - they must be identical
+		if sr == utf8.RuneError || tr == utf8.RuneError {
+			// For invalid UTF-8, compare the raw bytes
+			if sr == utf8.RuneError && tr == utf8.RuneError {
+				if sizeS == sizeT && s[i:i+sizeS] == t[j:j+sizeT] {
+					i += sizeS
+					j += sizeT
+					continue
+				}
+			}
+			return false
+		}
+
+		if sr != tr {
+			// Apply ASCII case folding only
+			if 'A' <= sr && sr <= 'Z' {
+				sr = sr + 'a' - 'A'
+			}
+			if 'A' <= tr && tr <= 'Z' {
+				tr = tr + 'a' - 'A'
+			}
+			if sr != tr {
+				return false
+			}
+		}
+
+		i += sizeS
+		j += sizeT
+	}
+	return i == len(s) && j == len(t)
+}
+
+func isASCII(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] >= 0x80 {
+			return false
+		}
+	}
+	return true
 }

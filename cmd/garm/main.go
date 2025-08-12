@@ -283,7 +283,7 @@ func main() {
 	}
 
 	authenticator := auth.NewAuthenticator(cfg.JWTAuth, db)
-	controller, err := controllers.NewAPIController(runner, authenticator, hub)
+	controller, err := controllers.NewAPIController(runner, authenticator, hub, cfg.APIServer)
 	if err != nil {
 		log.Fatalf("failed to create controller: %+v", err)
 	}
@@ -314,6 +314,9 @@ func main() {
 	}
 
 	router := routers.NewAPIRouter(controller, jwtMiddleware, initMiddleware, urlsRequiredMiddleware, instanceMiddleware, cfg.Default.EnableWebhookManagement)
+
+	// Add WebUI routes
+	router = routers.WithWebUI(router, cfg.APIServer)
 
 	// start the metrics collector
 	if cfg.Metrics.Enable {

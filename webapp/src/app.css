@@ -1,0 +1,18 @@
+@import "tailwindcss";
+
+@theme {
+	--breakpoint-sm: 640px;
+	--breakpoint-md: 768px;  
+	--breakpoint-lg: 1024px;
+	--breakpoint-xl: 1280px;
+	--breakpoint-2xl: 1536px;
+}
+
+/* Configure dark mode to use class strategy in Tailwind v4 */
+@variant dark (.dark &);
+
+@layer base {
+	html {
+		font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+	}
+}

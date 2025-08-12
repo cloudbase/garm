@@ -37,7 +37,7 @@ const (
 func (s *sqlDatabase) ListAllPools(_ context.Context) ([]params.Pool, error) {
 	var pools []Pool
 
-	q := s.conn.Model(&Pool{}).
+	q := s.conn.
 		Preload("Tags").
 		Preload("Organization").
 		Preload("Organization.Endpoint").
@@ -46,7 +46,6 @@ func (s *sqlDatabase) ListAllPools(_ context.Context) ([]params.Pool, error) {
 		Preload("Enterprise").
 		Preload("Enterprise.Endpoint").
 		Omit("extra_specs").
-		Omit("status_messages").
 		Find(&pools)
 	if q.Error != nil {
 		return nil, errors.Wrap(q.Error, "fetching all pools")
@@ -393,7 +392,7 @@ func (s *sqlDatabase) DeleteEntityPool(_ context.Context, entity params.ForgeEnt
 	return nil
 }
 
-func (s *sqlDatabase) UpdateEntityPool(_ context.Context, entity params.ForgeEntity, poolID string, param params.UpdatePoolParams) (updatedPool params.Pool, err error) {
+func (s *sqlDatabase) UpdateEntityPool(ctx context.Context, entity params.ForgeEntity, poolID string, param params.UpdatePoolParams) (updatedPool params.Pool, err error) {
 	defer func() {
 		if err == nil {
 			s.sendNotify(common.PoolEntityType, common.UpdateOperation, updatedPool)
@@ -411,6 +410,11 @@ func (s *sqlDatabase) UpdateEntityPool(_ context.Context, entity params.ForgeEnt
 		}
 		return nil
 	})
+	if err != nil {
+		return params.Pool{}, err
+	}
+
+	updatedPool, err = s.GetPoolByID(ctx, poolID)
 	if err != nil {
 		return params.Pool{}, err
 	}
