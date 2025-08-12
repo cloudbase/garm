@@ -326,7 +326,10 @@ func (s *sqlDatabase) ListPoolInstances(_ context.Context, poolID string) ([]par
 	}
 
 	var instances []Instance
-	query := s.conn.Model(&Instance{}).Preload("Job").Where("pool_id = ?", u)
+	query := s.conn.
+		Preload("Pool").
+		Preload("Job").
+		Where("pool_id = ?", u)
 
 	if err := query.Find(&instances); err.Error != nil {
 		return nil, errors.Wrap(err.Error, "fetching instances")
@@ -345,7 +348,11 @@ func (s *sqlDatabase) ListPoolInstances(_ context.Context, poolID string) ([]par
 func (s *sqlDatabase) ListAllInstances(_ context.Context) ([]params.Instance, error) {
 	var instances []Instance
 
-	q := s.conn.Model(&Instance{}).Preload("Job").Find(&instances)
+	q := s.conn.
+		Preload("Pool").
+		Preload("ScaleSet").
+		Preload("Job").
+		Find(&instances)
 	if q.Error != nil {
 		return nil, errors.Wrap(q.Error, "fetching instances")
 	}

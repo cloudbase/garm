@@ -33,8 +33,11 @@ func (s *sqlDatabase) ListAllScaleSets(_ context.Context) ([]params.ScaleSet, er
 
 	q := s.conn.Model(&ScaleSet{}).
 		Preload("Organization").
+		Preload("Organization.Endpoint").
 		Preload("Repository").
+		Preload("Repository.Endpoint").
 		Preload("Enterprise").
+		Preload("Enterprise.Endpoint").
 		Omit("extra_specs").
 		Omit("status_messages").
 		Find(&scaleSets)

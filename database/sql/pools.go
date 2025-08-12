@@ -46,6 +46,7 @@ func (s *sqlDatabase) ListAllPools(_ context.Context) ([]params.Pool, error) {
 		Preload("Enterprise").
 		Preload("Enterprise.Endpoint").
 		Omit("extra_specs").
+		Omit("status_messages").
 		Find(&pools)
 	if q.Error != nil {
 		return nil, errors.Wrap(q.Error, "fetching all pools")
