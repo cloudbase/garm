@@ -120,7 +120,7 @@ func (amw *instanceMiddleware) claimsToContext(ctx context.Context, claims *Inst
 		return nil, runnerErrors.ErrUnauthorized
 	}
 
-	instanceInfo, err := amw.store.GetInstanceByName(ctx, claims.Name)
+	instanceInfo, err := amw.store.GetInstance(ctx, claims.Name)
 	if err != nil {
 		return ctx, runnerErrors.ErrUnauthorized
 	}

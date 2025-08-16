@@ -103,9 +103,16 @@ func (s *sqlDatabase) getPoolInstanceByName(poolID string, instanceName string) 
 	return instance, nil
 }
 
-func (s *sqlDatabase) getInstanceByName(_ context.Context, instanceName string, preload ...string) (Instance, error) {
+func (s *sqlDatabase) getInstance(_ context.Context, instanceNameOrID string, preload ...string) (Instance, error) {
 	var instance Instance
 
+	var whereArg any = instanceNameOrID
+	whereClause := "name = ?"
+	id, err := uuid.Parse(instanceNameOrID)
+	if err == nil {
+		whereArg = id
+		whereClause = "id = ?"
+	}
 	q := s.conn
 
 	if len(preload) > 0 {
@@ -116,7 +123,7 @@ func (s *sqlDatabase) getInstanceByName(_ context.Context, instanceName string, 
 
 	q = q.Model(&Instance{}).
 		Preload(clause.Associations).
-		Where("name = ?", instanceName).
+		Where(whereClause, whereArg).
 		First(&instance)
 	if q.Error != nil {
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
@@ -127,17 +134,8 @@ func (s *sqlDatabase) getInstanceByName(_ context.Context, instanceName string, 
 	return instance, nil
 }
 
-func (s *sqlDatabase) GetPoolInstanceByName(_ context.Context, poolID string, instanceName string) (params.Instance, error) {
-	instance, err := s.getPoolInstanceByName(poolID, instanceName)
-	if err != nil {
-		return params.Instance{}, fmt.Errorf("error fetching instance: %w", err)
-	}
-
-	return s.sqlToParamsInstance(instance)
-}
-
-func (s *sqlDatabase) GetInstanceByName(ctx context.Context, instanceName string) (params.Instance, error) {
-	instance, err := s.getInstanceByName(ctx, instanceName, "StatusMessages", "Pool", "ScaleSet")
+func (s *sqlDatabase) GetInstance(ctx context.Context, instanceName string) (params.Instance, error) {
+	instance, err := s.getInstance(ctx, instanceName, "StatusMessages", "Pool", "ScaleSet")
 	if err != nil {
 		return params.Instance{}, fmt.Errorf("error fetching instance: %w", err)
 	}
@@ -189,7 +187,7 @@ func (s *sqlDatabase) DeleteInstance(_ context.Context, poolID string, instanceN
 }
 
 func (s *sqlDatabase) DeleteInstanceByName(ctx context.Context, instanceName string) error {
-	instance, err := s.getInstanceByName(ctx, instanceName, "Pool", "ScaleSet")
+	instance, err := s.getInstance(ctx, instanceName, "Pool", "ScaleSet")
 	if err != nil {
 		if errors.Is(err, runnerErrors.ErrNotFound) {
 			return nil
@@ -231,7 +229,7 @@ func (s *sqlDatabase) DeleteInstanceByName(ctx context.Context, instanceName str
 }
 
 func (s *sqlDatabase) AddInstanceEvent(ctx context.Context, instanceName string, event params.EventType, eventLevel params.EventLevel, statusMessage string) error {
-	instance, err := s.getInstanceByName(ctx, instanceName)
+	instance, err := s.getInstance(ctx, instanceName)
 	if err != nil {
 		return fmt.Errorf("error updating instance: %w", err)
 	}
@@ -249,7 +247,7 @@ func (s *sqlDatabase) AddInstanceEvent(ctx context.Context, instanceName string,
 }
 
 func (s *sqlDatabase) UpdateInstance(ctx context.Context, instanceName string, param params.UpdateInstanceParams) (params.Instance, error) {
-	instance, err := s.getInstanceByName(ctx, instanceName, "Pool", "ScaleSet")
+	instance, err := s.getInstance(ctx, instanceName, "Pool", "ScaleSet")
 	if err != nil {
 		return params.Instance{}, fmt.Errorf("error updating instance: %w", err)
 	}
