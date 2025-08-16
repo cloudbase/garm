@@ -731,7 +731,7 @@ func (r *Runner) GetInstance(ctx context.Context, instanceName string) (params.I
 		return params.Instance{}, runnerErrors.ErrUnauthorized
 	}
 
-	instance, err := r.store.GetInstanceByName(ctx, instanceName)
+	instance, err := r.store.GetInstance(ctx, instanceName)
 	if err != nil {
 		return params.Instance{}, fmt.Errorf("error fetching instance: %w", err)
 	}
@@ -852,7 +852,7 @@ func (r *Runner) DeleteRunner(ctx context.Context, instanceName string, forceDel
 		return runnerErrors.ErrUnauthorized
 	}
 
-	instance, err := r.store.GetInstanceByName(ctx, instanceName)
+	instance, err := r.store.GetInstance(ctx, instanceName)
 	if err != nil {
 		return fmt.Errorf("error fetching instance: %w", err)
 	}

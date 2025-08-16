@@ -75,7 +75,6 @@ type PoolStore interface {
 	ListPoolInstances(ctx context.Context, poolID string) ([]params.Instance, error)
 
 	PoolInstanceCount(ctx context.Context, poolID string) (int64, error)
-	GetPoolInstanceByName(ctx context.Context, poolID string, instanceName string) (params.Instance, error)
 	FindPoolsMatchingAllTags(ctx context.Context, entityType params.ForgeEntityType, entityID string, tags []string) ([]params.Pool, error)
 }
 
@@ -91,9 +90,9 @@ type UserStore interface {
 
 type InstanceStore interface {
 	CreateInstance(ctx context.Context, poolID string, param params.CreateInstanceParams) (params.Instance, error)
-	DeleteInstance(ctx context.Context, poolID string, instanceName string) error
+	DeleteInstance(ctx context.Context, poolID string, instanceNameOrID string) error
 	DeleteInstanceByName(ctx context.Context, instanceName string) error
-	UpdateInstance(ctx context.Context, instanceName string, param params.UpdateInstanceParams) (params.Instance, error)
+	UpdateInstance(ctx context.Context, instanceNameOrID string, param params.UpdateInstanceParams) (params.Instance, error)
 
 	// Probably a bad idea without some king of filter or at least pagination
 	//
@@ -101,8 +100,8 @@ type InstanceStore interface {
 	// TODO: add filter/pagination
 	ListAllInstances(ctx context.Context) ([]params.Instance, error)
 
-	GetInstanceByName(ctx context.Context, instanceName string) (params.Instance, error)
-	AddInstanceEvent(ctx context.Context, instanceName string, event params.EventType, eventLevel params.EventLevel, eventMessage string) error
+	GetInstance(ctx context.Context, instanceNameOrID string) (params.Instance, error)
+	AddInstanceEvent(ctx context.Context, instanceNameOrID string, event params.EventType, eventLevel params.EventLevel, eventMessage string) error
 }
 
 type JobsStore interface {

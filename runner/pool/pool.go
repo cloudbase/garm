@@ -557,7 +557,7 @@ func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner)
 			continue
 		}
 
-		dbInstance, err := r.store.GetInstanceByName(r.ctx, *runner.Name)
+		dbInstance, err := r.store.GetInstance(r.ctx, *runner.Name)
 		if err != nil {
 			if !errors.Is(err, runnerErrors.ErrNotFound) {
 				return fmt.Errorf("error fetching instance from DB: %w", err)

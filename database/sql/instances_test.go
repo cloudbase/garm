@@ -196,7 +196,7 @@ func (s *InstancesTestSuite) TestCreateInstance() {
 
 	// assertions
 	s.Require().Nil(err)
-	storeInstance, err := s.Store.GetInstanceByName(s.adminCtx, s.Fixtures.CreateInstanceParams.Name)
+	storeInstance, err := s.Store.GetInstance(s.adminCtx, s.Fixtures.CreateInstanceParams.Name)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to get instance: %v", err))
 	}
@@ -236,29 +236,10 @@ func (s *InstancesTestSuite) TestCreateInstanceDBCreateErr() {
 	s.Require().Equal("error creating instance: mocked insert instance error", err.Error())
 }
 
-func (s *InstancesTestSuite) TestGetPoolInstanceByName() {
-	storeInstance := s.Fixtures.Instances[0] // this is already created in `SetupTest()`
-
-	instance, err := s.Store.GetPoolInstanceByName(s.adminCtx, s.Fixtures.Pool.ID, storeInstance.Name)
-
-	s.Require().Nil(err)
-	s.Require().Equal(storeInstance.Name, instance.Name)
-	s.Require().Equal(storeInstance.PoolID, instance.PoolID)
-	s.Require().Equal(storeInstance.OSArch, instance.OSArch)
-	s.Require().Equal(storeInstance.OSType, instance.OSType)
-	s.Require().Equal(storeInstance.CallbackURL, instance.CallbackURL)
-}
-
-func (s *InstancesTestSuite) TestGetPoolInstanceByNameNotFound() {
-	_, err := s.Store.GetPoolInstanceByName(s.adminCtx, s.Fixtures.Pool.ID, "not-existent-instance-name")
-
-	s.Require().Equal("error fetching instance: error fetching pool instance by name: not found", err.Error())
-}
-
 func (s *InstancesTestSuite) TestGetInstanceByName() {
 	storeInstance := s.Fixtures.Instances[1]
 
-	instance, err := s.Store.GetInstanceByName(s.adminCtx, storeInstance.Name)
+	instance, err := s.Store.GetInstance(s.adminCtx, storeInstance.Name)
 
 	s.Require().Nil(err)
 	s.Require().Equal(storeInstance.Name, instance.Name)
@@ -269,7 +250,7 @@ func (s *InstancesTestSuite) TestGetInstanceByName() {
 }
 
 func (s *InstancesTestSuite) TestGetInstanceByNameFetchInstanceFailed() {
-	_, err := s.Store.GetInstanceByName(s.adminCtx, "not-existent-instance-name")
+	_, err := s.Store.GetInstance(s.adminCtx, "not-existent-instance-name")
 
 	s.Require().Equal("error fetching instance: error fetching instance by name: not found", err.Error())
 }
@@ -281,8 +262,8 @@ func (s *InstancesTestSuite) TestDeleteInstance() {
 
 	s.Require().Nil(err)
 
-	_, err = s.Store.GetPoolInstanceByName(s.adminCtx, s.Fixtures.Pool.ID, storeInstance.Name)
-	s.Require().Equal("error fetching instance: error fetching pool instance by name: not found", err.Error())
+	_, err = s.Store.GetInstance(s.adminCtx, storeInstance.Name)
+	s.Require().Equal("error fetching instance: error fetching instance by name: not found", err.Error())
 
 	err = s.Store.DeleteInstance(s.adminCtx, s.Fixtures.Pool.ID, storeInstance.Name)
 	s.Require().Nil(err)
@@ -295,8 +276,8 @@ func (s *InstancesTestSuite) TestDeleteInstanceByName() {
 
 	s.Require().Nil(err)
 
-	_, err = s.Store.GetPoolInstanceByName(s.adminCtx, s.Fixtures.Pool.ID, storeInstance.Name)
-	s.Require().Equal("error fetching instance: error fetching pool instance by name: not found", err.Error())
+	_, err = s.Store.GetInstance(s.adminCtx, storeInstance.Name)
+	s.Require().Equal("error fetching instance: error fetching instance by name: not found", err.Error())
 
 	err = s.Store.DeleteInstanceByName(s.adminCtx, storeInstance.Name)
 	s.Require().Nil(err)
@@ -390,7 +371,7 @@ func (s *InstancesTestSuite) TestAddInstanceEvent() {
 	err := s.Store.AddInstanceEvent(s.adminCtx, storeInstance.Name, params.StatusEvent, params.EventInfo, statusMsg)
 
 	s.Require().Nil(err)
-	instance, err := s.Store.GetInstanceByName(s.adminCtx, storeInstance.Name)
+	instance, err := s.Store.GetInstance(s.adminCtx, storeInstance.Name)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to get db instance: %s", err))
 	}
