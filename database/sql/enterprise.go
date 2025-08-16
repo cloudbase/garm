@@ -16,10 +16,11 @@ package sql
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
 
 	"github.com/google/uuid"
-	"github.com/pkg/errors"
 	"gorm.io/gorm"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
@@ -33,12 +34,12 @@ func (s *sqlDatabase) CreateEnterprise(ctx context.Context, name string, credent
 		return params.Enterprise{}, errors.New("creating enterprise: missing secret")
 	}
 	if credentials.ForgeType != params.GithubEndpointType {
-		return params.Enterprise{}, errors.Wrap(runnerErrors.ErrBadRequest, "enterprises are not supported on this forge type")
+		return params.Enterprise{}, fmt.Errorf("enterprises are not supported on this forge type: %w", runnerErrors.ErrBadRequest)
 	}
 
 	secret, err := util.Seal([]byte(webhookSecret), []byte(s.cfg.Passphrase))
 	if err != nil {
-		return params.Enterprise{}, errors.Wrap(err, "encoding secret")
+		return params.Enterprise{}, fmt.Errorf("error encoding secret: %w", err)
 	}
 
 	defer func() {
@@ -57,22 +58,22 @@ func (s *sqlDatabase) CreateEnterprise(ctx context.Context, name string, credent
 
 		q := tx.Create(&newEnterprise)
 		if q.Error != nil {
-			return errors.Wrap(q.Error, "creating enterprise")
+			return fmt.Errorf("error creating enterprise: %w", q.Error)
 		}
 
 		newEnterprise, err = s.getEnterpriseByID(ctx, tx, newEnterprise.ID.String(), "Pools", "Credentials", "Endpoint", "Credentials.Endpoint")
 		if err != nil {
-			return errors.Wrap(err, "creating enterprise")
+			return fmt.Errorf("error creating enterprise: %w", err)
 		}
 		return nil
 	})
 	if err != nil {
-		return params.Enterprise{}, errors.Wrap(err, "creating enterprise")
+		return params.Enterprise{}, fmt.Errorf("error creating enterprise: %w", err)
 	}
 
 	ret, err := s.GetEnterpriseByID(ctx, newEnterprise.ID.String())
 	if err != nil {
-		return params.Enterprise{}, errors.Wrap(err, "creating enterprise")
+		return params.Enterprise{}, fmt.Errorf("error creating enterprise: %w", err)
 	}
 
 	return ret, nil
@@ -81,12 +82,12 @@ func (s *sqlDatabase) CreateEnterprise(ctx context.Context, name string, credent
 func (s *sqlDatabase) GetEnterprise(ctx context.Context, name, endpointName string) (params.Enterprise, error) {
 	enterprise, err := s.getEnterprise(ctx, name, endpointName)
 	if err != nil {
-		return params.Enterprise{}, errors.Wrap(err, "fetching enterprise")
+		return params.Enterprise{}, fmt.Errorf("error fetching enterprise: %w", err)
 	}
 
 	param, err := s.sqlToCommonEnterprise(enterprise, true)
 	if err != nil {
-		return params.Enterprise{}, errors.Wrap(err, "fetching enterprise")
+		return params.Enterprise{}, fmt.Errorf("error fetching enterprise: %w", err)
 	}
 	return param, nil
 }
@@ -101,12 +102,12 @@ func (s *sqlDatabase) GetEnterpriseByID(ctx context.Context, enterpriseID string
 	}
 	enterprise, err := s.getEnterpriseByID(ctx, s.conn, enterpriseID, preloadList...)
 	if err != nil {
-		return params.Enterprise{}, errors.Wrap(err, "fetching enterprise")
+		return params.Enterprise{}, fmt.Errorf("error fetching enterprise: %w", err)
 	}
 
 	param, err := s.sqlToCommonEnterprise(enterprise, true)
 	if err != nil {
-		return params.Enterprise{}, errors.Wrap(err, "fetching enterprise")
+		return params.Enterprise{}, fmt.Errorf("error fetching enterprise: %w", err)
 	}
 	return param, nil
 }
@@ -125,7 +126,7 @@ func (s *sqlDatabase) ListEnterprises(_ context.Context, filter params.Enterpris
 	}
 	q = q.Find(&enterprises)
 	if q.Error != nil {
-		return []params.Enterprise{}, errors.Wrap(q.Error, "fetching enterprises")
+		return []params.Enterprise{}, fmt.Errorf("error fetching enterprises: %w", q.Error)
 	}
 
 	ret := make([]params.Enterprise, len(enterprises))
@@ -133,7 +134,7 @@ func (s *sqlDatabase) ListEnterprises(_ context.Context, filter params.Enterpris
 		var err error
 		ret[idx], err = s.sqlToCommonEnterprise(val, true)
 		if err != nil {
-			return nil, errors.Wrap(err, "fetching enterprises")
+			return nil, fmt.Errorf("error fetching enterprises: %w", err)
 		}
 	}
 
@@ -143,7 +144,7 @@ func (s *sqlDatabase) ListEnterprises(_ context.Context, filter params.Enterpris
 func (s *sqlDatabase) DeleteEnterprise(ctx context.Context, enterpriseID string) error {
 	enterprise, err := s.getEnterpriseByID(ctx, s.conn, enterpriseID, "Endpoint", "Credentials", "Credentials.Endpoint")
 	if err != nil {
-		return errors.Wrap(err, "fetching enterprise")
+		return fmt.Errorf("error fetching enterprise: %w", err)
 	}
 
 	defer func(ent Enterprise) {
@@ -159,7 +160,7 @@ func (s *sqlDatabase) DeleteEnterprise(ctx context.Context, enterpriseID string)
 
 	q := s.conn.Unscoped().Delete(&enterprise)
 	if q.Error != nil && !errors.Is(q.Error, gorm.ErrRecordNotFound) {
-		return errors.Wrap(q.Error, "deleting enterprise")
+		return fmt.Errorf("error deleting enterprise: %w", q.Error)
 	}
 
 	return nil
@@ -177,31 +178,31 @@ func (s *sqlDatabase) UpdateEnterprise(ctx context.Context, enterpriseID string,
 		var err error
 		enterprise, err = s.getEnterpriseByID(ctx, tx, enterpriseID)
 		if err != nil {
-			return errors.Wrap(err, "fetching enterprise")
+			return fmt.Errorf("error fetching enterprise: %w", err)
 		}
 
 		if enterprise.EndpointName == nil {
-			return errors.Wrap(runnerErrors.ErrUnprocessable, "enterprise has no endpoint")
+			return fmt.Errorf("error enterprise has no endpoint: %w", runnerErrors.ErrUnprocessable)
 		}
 
 		if param.CredentialsName != "" {
 			creds, err = s.getGithubCredentialsByName(ctx, tx, param.CredentialsName, false)
 			if err != nil {
-				return errors.Wrap(err, "fetching credentials")
+				return fmt.Errorf("error fetching credentials: %w", err)
 			}
 			if creds.EndpointName == nil {
-				return errors.Wrap(runnerErrors.ErrUnprocessable, "credentials have no endpoint")
+				return fmt.Errorf("error credentials have no endpoint: %w", runnerErrors.ErrUnprocessable)
 			}
 
 			if *creds.EndpointName != *enterprise.EndpointName {
-				return errors.Wrap(runnerErrors.ErrBadRequest, "endpoint mismatch")
+				return fmt.Errorf("error endpoint mismatch: %w", runnerErrors.ErrBadRequest)
 			}
 			enterprise.CredentialsID = &creds.ID
 		}
 		if param.WebhookSecret != "" {
 			secret, err := util.Seal([]byte(param.WebhookSecret), []byte(s.cfg.Passphrase))
 			if err != nil {
-				return errors.Wrap(err, "encoding secret")
+				return fmt.Errorf("error encoding secret: %w", err)
 			}
 			enterprise.WebhookSecret = secret
 		}
@@ -212,22 +213,22 @@ func (s *sqlDatabase) UpdateEnterprise(ctx context.Context, enterpriseID string,
 
 		q := tx.Save(&enterprise)
 		if q.Error != nil {
-			return errors.Wrap(q.Error, "saving enterprise")
+			return fmt.Errorf("error saving enterprise: %w", q.Error)
 		}
 
 		return nil
 	})
 	if err != nil {
-		return params.Enterprise{}, errors.Wrap(err, "updating enterprise")
+		return params.Enterprise{}, fmt.Errorf("error updating enterprise: %w", err)
 	}
 
 	enterprise, err = s.getEnterpriseByID(ctx, s.conn, enterpriseID, "Endpoint", "Credentials", "Credentials.Endpoint")
 	if err != nil {
-		return params.Enterprise{}, errors.Wrap(err, "updating enterprise")
+		return params.Enterprise{}, fmt.Errorf("error updating enterprise: %w", err)
 	}
 	newParams, err = s.sqlToCommonEnterprise(enterprise, true)
 	if err != nil {
-		return params.Enterprise{}, errors.Wrap(err, "updating enterprise")
+		return params.Enterprise{}, fmt.Errorf("error updating enterprise: %w", err)
 	}
 	return newParams, nil
 }
@@ -244,7 +245,7 @@ func (s *sqlDatabase) getEnterprise(_ context.Context, name, endpointName string
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
 			return Enterprise{}, runnerErrors.ErrNotFound
 		}
-		return Enterprise{}, errors.Wrap(q.Error, "fetching enterprise from database")
+		return Enterprise{}, fmt.Errorf("error fetching enterprise from database: %w", q.Error)
 	}
 	return enterprise, nil
 }
@@ -252,7 +253,7 @@ func (s *sqlDatabase) getEnterprise(_ context.Context, name, endpointName string
 func (s *sqlDatabase) getEnterpriseByID(_ context.Context, tx *gorm.DB, id string, preload ...string) (Enterprise, error) {
 	u, err := uuid.Parse(id)
 	if err != nil {
-		return Enterprise{}, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
+		return Enterprise{}, fmt.Errorf("error parsing id: %w", runnerErrors.ErrBadRequest)
 	}
 	var enterprise Enterprise
 
@@ -268,7 +269,7 @@ func (s *sqlDatabase) getEnterpriseByID(_ context.Context, tx *gorm.DB, id strin
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
 			return Enterprise{}, runnerErrors.ErrNotFound
 		}
-		return Enterprise{}, errors.Wrap(q.Error, "fetching enterprise from database")
+		return Enterprise{}, fmt.Errorf("error fetching enterprise from database: %w", q.Error)
 	}
 	return enterprise, nil
 }

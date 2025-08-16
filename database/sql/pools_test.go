@@ -157,7 +157,7 @@ func (s *PoolsTestSuite) TestListAllPoolsDBFetchErr() {
 
 	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching all pools: mocked fetching all pools error", err.Error())
+	s.Require().Equal("error fetching all pools: mocked fetching all pools error", err.Error())
 }
 
 func (s *PoolsTestSuite) TestGetPoolByID() {
@@ -171,7 +171,7 @@ func (s *PoolsTestSuite) TestGetPoolByIDInvalidPoolID() {
 	_, err := s.Store.GetPoolByID(s.adminCtx, "dummy-pool-id")
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching pool by ID: parsing id: invalid request", err.Error())
+	s.Require().Equal("error fetching pool by ID: error parsing id: invalid request", err.Error())
 }
 
 func (s *PoolsTestSuite) TestDeletePoolByID() {
@@ -179,14 +179,14 @@ func (s *PoolsTestSuite) TestDeletePoolByID() {
 
 	s.Require().Nil(err)
 	_, err = s.Store.GetPoolByID(s.adminCtx, s.Fixtures.Pools[0].ID)
-	s.Require().Equal("fetching pool by ID: not found", err.Error())
+	s.Require().Equal("error fetching pool by ID: not found", err.Error())
 }
 
 func (s *PoolsTestSuite) TestDeletePoolByIDInvalidPoolID() {
 	err := s.Store.DeletePoolByID(s.adminCtx, "dummy-pool-id")
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching pool by ID: parsing id: invalid request", err.Error())
+	s.Require().Equal("error fetching pool by ID: error parsing id: invalid request", err.Error())
 }
 
 func (s *PoolsTestSuite) TestDeletePoolByIDDBRemoveErr() {
@@ -204,7 +204,7 @@ func (s *PoolsTestSuite) TestDeletePoolByIDDBRemoveErr() {
 
 	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
-	s.Require().Equal("removing pool: mocked removing pool error", err.Error())
+	s.Require().Equal("error removing pool: mocked removing pool error", err.Error())
 }
 
 func (s *PoolsTestSuite) TestEntityPoolOperations() {

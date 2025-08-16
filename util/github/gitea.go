@@ -16,11 +16,11 @@ package github
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 
 	"github.com/google/go-github/v72/github"
-	"github.com/pkg/errors"
 
 	"github.com/cloudbase/garm/metrics"
 	"github.com/cloudbase/garm/params"

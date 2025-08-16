@@ -16,11 +16,12 @@ package auth
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"time"
 
 	jwt "github.com/golang-jwt/jwt/v5"
 	"github.com/nbutton23/zxcvbn-go"
-	"github.com/pkg/errors"
 	"golang.org/x/crypto/bcrypt"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
@@ -49,7 +50,7 @@ func (a *Authenticator) IsInitialized() bool {
 func (a *Authenticator) GetJWTToken(ctx context.Context) (string, error) {
 	tokenID, err := util.GetRandomString(16)
 	if err != nil {
-		return "", errors.Wrap(err, "generating random string")
+		return "", fmt.Errorf("error generating random string: %w", err)
 	}
 	expireToken := time.Now().Add(a.cfg.TimeToLive.Duration())
 	expires := &jwt.NumericDate{
@@ -72,7 +73,7 @@ func (a *Authenticator) GetJWTToken(ctx context.Context) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString([]byte(a.cfg.Secret))
 	if err != nil {
-		return "", errors.Wrap(err, "fetching token string")
+		return "", fmt.Errorf("error fetching token string: %w", err)
 	}
 
 	return tokenString, nil
@@ -87,7 +88,7 @@ func (a *Authenticator) GetJWTMetricsToken(ctx context.Context) (string, error) 
 
 	tokenID, err := util.GetRandomString(16)
 	if err != nil {
-		return "", errors.Wrap(err, "generating random string")
+		return "", fmt.Errorf("error generating random string: %w", err)
 	}
 	// nolint:golangci-lint,godox
 	// TODO: currently this is the same TTL as the normal Token
@@ -111,7 +112,7 @@ func (a *Authenticator) GetJWTMetricsToken(ctx context.Context) (string, error) 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString([]byte(a.cfg.Secret))
 	if err != nil {
-		return "", errors.Wrap(err, "fetching token string")
+		return "", fmt.Errorf("error fetching token string: %w", err)
 	}
 
 	return tokenString, nil
@@ -121,7 +122,7 @@ func (a *Authenticator) InitController(ctx context.Context, param params.NewUser
 	_, err := a.store.ControllerInfo()
 	if err != nil {
 		if !errors.Is(err, runnerErrors.ErrNotFound) {
-			return params.User{}, errors.Wrap(err, "initializing controller")
+			return params.User{}, fmt.Errorf("error initializing controller: %w", err)
 		}
 	}
 	if a.store.HasAdminUser(ctx) {
@@ -151,7 +152,7 @@ func (a *Authenticator) InitController(ctx context.Context, param params.NewUser
 
 	hashed, err := util.PaswsordToBcrypt(param.Password)
 	if err != nil {
-		return params.User{}, errors.Wrap(err, "creating user")
+		return params.User{}, fmt.Errorf("error creating user: %w", err)
 	}
 
 	param.Password = hashed
@@ -169,7 +170,7 @@ func (a *Authenticator) AuthenticateUser(ctx context.Context, info params.Passwo
 		if errors.Is(err, runnerErrors.ErrNotFound) {
 			return ctx, runnerErrors.ErrUnauthorized
 		}
-		return ctx, errors.Wrap(err, "authenticating")
+		return ctx, fmt.Errorf("error authenticating: %w", err)
 	}
 
 	if !user.Enabled {

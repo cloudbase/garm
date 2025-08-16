@@ -18,11 +18,10 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os/exec"
-
-	"github.com/pkg/errors"
 
 	garmErrors "github.com/cloudbase/garm-provider-common/errors"
 	commonExecution "github.com/cloudbase/garm-provider-common/execution/common"
@@ -44,7 +43,7 @@ func NewProvider(ctx context.Context, cfg *config.Provider, controllerID string)
 
 	execPath, err := cfg.External.ExecutablePath()
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching executable path")
+		return nil, fmt.Errorf("error fetching executable path: %w", err)
 	}
 
 	// Set GARM_INTERFACE_VERSION to the version of the interface that the external
@@ -75,7 +74,7 @@ func (e *external) CreateInstance(ctx context.Context, bootstrapParams commonPar
 	extraspecs := bootstrapParams.ExtraSpecs
 	extraspecsValue, err := json.Marshal(extraspecs)
 	if err != nil {
-		return commonParams.ProviderInstance{}, errors.Wrap(err, "serializing extraspecs")
+		return commonParams.ProviderInstance{}, fmt.Errorf("error serializing extraspecs: %w", err)
 	}
 	// Encode the extraspecs as base64 to avoid issues with special characters.
 	base64EncodedExtraSpecs := base64.StdEncoding.EncodeToString(extraspecsValue)
@@ -90,7 +89,7 @@ func (e *external) CreateInstance(ctx context.Context, bootstrapParams commonPar
 
 	asJs, err := json.Marshal(bootstrapParams)
 	if err != nil {
-		return commonParams.ProviderInstance{}, errors.Wrap(err, "serializing bootstrap params")
+		return commonParams.ProviderInstance{}, fmt.Errorf("error serializing bootstrap params: %w", err)
 	}
 
 	metrics.InstanceOperationCount.WithLabelValues(
@@ -136,7 +135,7 @@ func (e *external) DeleteInstance(ctx context.Context, instance string, deleteIn
 	extraspecs := deleteInstanceParams.DeleteInstanceV011.PoolInfo.ExtraSpecs
 	extraspecsValue, err := json.Marshal(extraspecs)
 	if err != nil {
-		return errors.Wrap(err, "serializing extraspecs")
+		return fmt.Errorf("error serializing extraspecs: %w", err)
 	}
 	// Encode the extraspecs as base64 to avoid issues with special characters.
 	base64EncodedExtraSpecs := base64.StdEncoding.EncodeToString(extraspecsValue)
@@ -173,7 +172,7 @@ func (e *external) GetInstance(ctx context.Context, instance string, getInstance
 	extraspecs := getInstanceParams.GetInstanceV011.PoolInfo.ExtraSpecs
 	extraspecsValue, err := json.Marshal(extraspecs)
 	if err != nil {
-		return commonParams.ProviderInstance{}, errors.Wrap(err, "serializing extraspecs")
+		return commonParams.ProviderInstance{}, fmt.Errorf("error serializing extraspecs: %w", err)
 	}
 	// Encode the extraspecs as base64 to avoid issues with special characters.
 	base64EncodedExtraSpecs := base64.StdEncoding.EncodeToString(extraspecsValue)
@@ -228,7 +227,7 @@ func (e *external) ListInstances(ctx context.Context, poolID string, listInstanc
 	extraspecs := listInstancesParams.ListInstancesV011.PoolInfo.ExtraSpecs
 	extraspecsValue, err := json.Marshal(extraspecs)
 	if err != nil {
-		return []commonParams.ProviderInstance{}, errors.Wrap(err, "serializing extraspecs")
+		return []commonParams.ProviderInstance{}, fmt.Errorf("error serializing extraspecs: %w", err)
 	}
 	// Encode the extraspecs as base64 to avoid issues with special characters.
 	base64EncodedExtraSpecs := base64.StdEncoding.EncodeToString(extraspecsValue)
@@ -283,7 +282,7 @@ func (e *external) RemoveAllInstances(ctx context.Context, removeAllInstances co
 	extraspecs := removeAllInstances.RemoveAllInstancesV011.PoolInfo.ExtraSpecs
 	extraspecsValue, err := json.Marshal(extraspecs)
 	if err != nil {
-		return errors.Wrap(err, "serializing extraspecs")
+		return fmt.Errorf("error serializing extraspecs: %w", err)
 	}
 	// Encode the extraspecs as base64 to avoid issues with special characters.
 	base64EncodedExtraSpecs := base64.StdEncoding.EncodeToString(extraspecsValue)
@@ -317,7 +316,7 @@ func (e *external) Stop(ctx context.Context, instance string, stopParams common.
 	extraspecs := stopParams.StopV011.PoolInfo.ExtraSpecs
 	extraspecsValue, err := json.Marshal(extraspecs)
 	if err != nil {
-		return errors.Wrap(err, "serializing extraspecs")
+		return fmt.Errorf("error serializing extraspecs: %w", err)
 	}
 	// Encode the extraspecs as base64 to avoid issues with special characters.
 	base64EncodedExtraSpecs := base64.StdEncoding.EncodeToString(extraspecsValue)
@@ -351,7 +350,7 @@ func (e *external) Start(ctx context.Context, instance string, startParams commo
 	extraspecs := startParams.StartV011.PoolInfo.ExtraSpecs
 	extraspecsValue, err := json.Marshal(extraspecs)
 	if err != nil {
-		return errors.Wrap(err, "serializing extraspecs")
+		return fmt.Errorf("error serializing extraspecs: %w", err)
 	}
 	// Encode the extraspecs as base64 to avoid issues with special characters.
 	base64EncodedExtraSpecs := base64.StdEncoding.EncodeToString(extraspecsValue)

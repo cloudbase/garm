@@ -16,8 +16,7 @@ package sql
 
 import (
 	"context"
-
-	"github.com/pkg/errors"
+	"fmt"
 
 	"github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/params"
@@ -26,7 +25,7 @@ import (
 func (s *sqlDatabase) CreateScaleSetInstance(_ context.Context, scaleSetID uint, param params.CreateInstanceParams) (instance params.Instance, err error) {
 	scaleSet, err := s.getScaleSetByID(s.conn, scaleSetID)
 	if err != nil {
-		return params.Instance{}, errors.Wrap(err, "fetching scale set")
+		return params.Instance{}, fmt.Errorf("error fetching scale set: %w", err)
 	}
 
 	defer func() {
@@ -39,7 +38,7 @@ func (s *sqlDatabase) CreateScaleSetInstance(_ context.Context, scaleSetID uint,
 	if len(param.JitConfiguration) > 0 {
 		secret, err = s.marshalAndSeal(param.JitConfiguration)
 		if err != nil {
-			return params.Instance{}, errors.Wrap(err, "marshalling jit config")
+			return params.Instance{}, fmt.Errorf("error marshalling jit config: %w", err)
 		}
 	}
 
@@ -58,7 +57,7 @@ func (s *sqlDatabase) CreateScaleSetInstance(_ context.Context, scaleSetID uint,
 	}
 	q := s.conn.Create(&newInstance)
 	if q.Error != nil {
-		return params.Instance{}, errors.Wrap(q.Error, "creating instance")
+		return params.Instance{}, fmt.Errorf("error creating instance: %w", q.Error)
 	}
 
 	return s.sqlToParamsInstance(newInstance)
@@ -72,7 +71,7 @@ func (s *sqlDatabase) ListScaleSetInstances(_ context.Context, scalesetID uint) 
 		Where("scale_set_fk_id = ?", scalesetID)
 
 	if err := query.Find(&instances); err.Error != nil {
-		return nil, errors.Wrap(err.Error, "fetching instances")
+		return nil, fmt.Errorf("error fetching instances: %w", err.Error)
 	}
 
 	var err error
@@ -80,7 +79,7 @@ func (s *sqlDatabase) ListScaleSetInstances(_ context.Context, scalesetID uint) 
 	for idx, inst := range instances {
 		ret[idx], err = s.sqlToParamsInstance(inst)
 		if err != nil {
-			return nil, errors.Wrap(err, "converting instance")
+			return nil, fmt.Errorf("error converting instance: %w", err)
 		}
 	}
 	return ret, nil

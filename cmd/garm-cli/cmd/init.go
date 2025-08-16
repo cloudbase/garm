@@ -21,7 +21,6 @@ import (
 
 	openapiRuntimeClient "github.com/go-openapi/runtime/client"
 	"github.com/jedib0t/go-pretty/v6/table"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	apiClientController "github.com/cloudbase/garm/client/controller"
@@ -80,7 +79,7 @@ garm-cli init --name=dev --url=https://runner.example.com --username=admin --pas
 
 		response, err := apiCli.FirstRun.FirstRun(newUserReq, authToken)
 		if err != nil {
-			return errors.Wrap(err, "initializing manager")
+			return fmt.Errorf("error initializing manager: %w", err)
 		}
 
 		newLoginParamsReq := apiClientLogin.NewLoginParams()
@@ -91,7 +90,7 @@ garm-cli init --name=dev --url=https://runner.example.com --username=admin --pas
 
 		token, err := apiCli.Login.Login(newLoginParamsReq, authToken)
 		if err != nil {
-			return errors.Wrap(err, "authenticating")
+			return fmt.Errorf("error authenticating: %w", err)
 		}
 
 		cfg.Managers = append(cfg.Managers, config.Manager{
@@ -104,7 +103,7 @@ garm-cli init --name=dev --url=https://runner.example.com --username=admin --pas
 		cfg.ActiveManager = loginProfileName
 
 		if err := cfg.SaveConfig(); err != nil {
-			return errors.Wrap(err, "saving config")
+			return fmt.Errorf("error saving config: %w", err)
 		}
 
 		updateUrlsReq := apiClientController.NewUpdateControllerParams()

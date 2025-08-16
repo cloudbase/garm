@@ -16,8 +16,7 @@ package runner
 
 import (
 	"context"
-
-	"github.com/pkg/errors"
+	"fmt"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/auth"
@@ -30,12 +29,12 @@ func (r *Runner) CreateGiteaEndpoint(ctx context.Context, param params.CreateGit
 	}
 
 	if err := param.Validate(); err != nil {
-		return params.ForgeEndpoint{}, errors.Wrap(err, "failed to validate gitea endpoint params")
+		return params.ForgeEndpoint{}, fmt.Errorf("failed to validate gitea endpoint params: %w", err)
 	}
 
 	ep, err := r.store.CreateGiteaEndpoint(ctx, param)
 	if err != nil {
-		return params.ForgeEndpoint{}, errors.Wrap(err, "failed to create gitea endpoint")
+		return params.ForgeEndpoint{}, fmt.Errorf("failed to create gitea endpoint: %w", err)
 	}
 
 	return ep, nil
@@ -47,7 +46,7 @@ func (r *Runner) GetGiteaEndpoint(ctx context.Context, name string) (params.Forg
 	}
 	endpoint, err := r.store.GetGiteaEndpoint(ctx, name)
 	if err != nil {
-		return params.ForgeEndpoint{}, errors.Wrap(err, "failed to get gitea endpoint")
+		return params.ForgeEndpoint{}, fmt.Errorf("failed to get gitea endpoint: %w", err)
 	}
 
 	return endpoint, nil
@@ -60,7 +59,7 @@ func (r *Runner) DeleteGiteaEndpoint(ctx context.Context, name string) error {
 
 	err := r.store.DeleteGiteaEndpoint(ctx, name)
 	if err != nil {
-		return errors.Wrap(err, "failed to delete gitea endpoint")
+		return fmt.Errorf("failed to delete gitea endpoint: %w", err)
 	}
 
 	return nil
@@ -72,12 +71,12 @@ func (r *Runner) UpdateGiteaEndpoint(ctx context.Context, name string, param par
 	}
 
 	if err := param.Validate(); err != nil {
-		return params.ForgeEndpoint{}, errors.Wrap(err, "failed to validate gitea endpoint params")
+		return params.ForgeEndpoint{}, fmt.Errorf("failed to validate gitea endpoint params: %w", err)
 	}
 
 	newEp, err := r.store.UpdateGiteaEndpoint(ctx, name, param)
 	if err != nil {
-		return params.ForgeEndpoint{}, errors.Wrap(err, "failed to update gitea endpoint")
+		return params.ForgeEndpoint{}, fmt.Errorf("failed to update gitea endpoint: %w", err)
 	}
 	return newEp, nil
 }
@@ -89,7 +88,7 @@ func (r *Runner) ListGiteaEndpoints(ctx context.Context) ([]params.ForgeEndpoint
 
 	endpoints, err := r.store.ListGiteaEndpoints(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to list gitea endpoints")
+		return nil, fmt.Errorf("failed to list gitea endpoints: %w", err)
 	}
 
 	return endpoints, nil

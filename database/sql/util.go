@@ -17,10 +17,10 @@ package sql
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/pkg/errors"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 
@@ -41,14 +41,14 @@ func (s *sqlDatabase) sqlToParamsInstance(instance Instance) (params.Instance, e
 	var labels []string
 	if len(instance.AditionalLabels) > 0 {
 		if err := json.Unmarshal(instance.AditionalLabels, &labels); err != nil {
-			return params.Instance{}, errors.Wrap(err, "unmarshalling labels")
+			return params.Instance{}, fmt.Errorf("error unmarshalling labels: %w", err)
 		}
 	}
 
 	var jitConfig map[string]string
 	if len(instance.JitConfiguration) > 0 {
 		if err := s.unsealAndUnmarshal(instance.JitConfiguration, &jitConfig); err != nil {
-			return params.Instance{}, errors.Wrap(err, "unmarshalling jit configuration")
+			return params.Instance{}, fmt.Errorf("error unmarshalling jit configuration: %w", err)
 		}
 	}
 	ret := params.Instance{
@@ -95,7 +95,7 @@ func (s *sqlDatabase) sqlToParamsInstance(instance Instance) (params.Instance, e
 	if instance.Job != nil {
 		paramJob, err := sqlWorkflowJobToParamsJob(*instance.Job)
 		if err != nil {
-			return params.Instance{}, errors.Wrap(err, "converting job")
+			return params.Instance{}, fmt.Errorf("error converting job: %w", err)
 		}
 		ret.Job = &paramJob
 	}
@@ -132,12 +132,12 @@ func (s *sqlDatabase) sqlToCommonOrganization(org Organization, detailed bool) (
 	}
 	secret, err := util.Unseal(org.WebhookSecret, []byte(s.cfg.Passphrase))
 	if err != nil {
-		return params.Organization{}, errors.Wrap(err, "decrypting secret")
+		return params.Organization{}, fmt.Errorf("error decrypting secret: %w", err)
 	}
 
 	endpoint, err := s.sqlToCommonGithubEndpoint(org.Endpoint)
 	if err != nil {
-		return params.Organization{}, errors.Wrap(err, "converting endpoint")
+		return params.Organization{}, fmt.Errorf("error converting endpoint: %w", err)
 	}
 	ret := params.Organization{
 		ID:               org.ID.String(),
@@ -163,7 +163,7 @@ func (s *sqlDatabase) sqlToCommonOrganization(org Organization, detailed bool) (
 	}
 
 	if err != nil {
-		return params.Organization{}, errors.Wrap(err, "converting credentials")
+		return params.Organization{}, fmt.Errorf("error converting credentials: %w", err)
 	}
 
 	if len(org.Events) > 0 {
@@ -191,7 +191,7 @@ func (s *sqlDatabase) sqlToCommonOrganization(org Organization, detailed bool) (
 	for idx, pool := range org.Pools {
 		ret.Pools[idx], err = s.sqlToCommonPool(pool)
 		if err != nil {
-			return params.Organization{}, errors.Wrap(err, "converting pool")
+			return params.Organization{}, fmt.Errorf("error converting pool: %w", err)
 		}
 	}
 
@@ -204,12 +204,12 @@ func (s *sqlDatabase) sqlToCommonEnterprise(enterprise Enterprise, detailed bool
 	}
 	secret, err := util.Unseal(enterprise.WebhookSecret, []byte(s.cfg.Passphrase))
 	if err != nil {
-		return params.Enterprise{}, errors.Wrap(err, "decrypting secret")
+		return params.Enterprise{}, fmt.Errorf("error decrypting secret: %w", err)
 	}
 
 	endpoint, err := s.sqlToCommonGithubEndpoint(enterprise.Endpoint)
 	if err != nil {
-		return params.Enterprise{}, errors.Wrap(err, "converting endpoint")
+		return params.Enterprise{}, fmt.Errorf("error converting endpoint: %w", err)
 	}
 	ret := params.Enterprise{
 		ID:               enterprise.ID.String(),
@@ -243,7 +243,7 @@ func (s *sqlDatabase) sqlToCommonEnterprise(enterprise Enterprise, detailed bool
 	if detailed {
 		creds, err := s.sqlToCommonForgeCredentials(enterprise.Credentials)
 		if err != nil {
-			return params.Enterprise{}, errors.Wrap(err, "converting credentials")
+			return params.Enterprise{}, fmt.Errorf("error converting credentials: %w", err)
 		}
 		ret.Credentials = creds
 	}
@@ -255,7 +255,7 @@ func (s *sqlDatabase) sqlToCommonEnterprise(enterprise Enterprise, detailed bool
 	for idx, pool := range enterprise.Pools {
 		ret.Pools[idx], err = s.sqlToCommonPool(pool)
 		if err != nil {
-			return params.Enterprise{}, errors.Wrap(err, "converting pool")
+			return params.Enterprise{}, fmt.Errorf("error converting pool: %w", err)
 		}
 	}
 
@@ -309,7 +309,7 @@ func (s *sqlDatabase) sqlToCommonPool(pool Pool) (params.Pool, error) {
 
 	endpoint, err := s.sqlToCommonGithubEndpoint(ep)
 	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "converting endpoint")
+		return params.Pool{}, fmt.Errorf("error converting endpoint: %w", err)
 	}
 	ret.Endpoint = endpoint
 
@@ -320,7 +320,7 @@ func (s *sqlDatabase) sqlToCommonPool(pool Pool) (params.Pool, error) {
 	for idx, inst := range pool.Instances {
 		ret.Instances[idx], err = s.sqlToParamsInstance(inst)
 		if err != nil {
-			return params.Pool{}, errors.Wrap(err, "converting instance")
+			return params.Pool{}, fmt.Errorf("error converting instance: %w", err)
 		}
 	}
 
@@ -380,14 +380,14 @@ func (s *sqlDatabase) sqlToCommonScaleSet(scaleSet ScaleSet) (params.ScaleSet, e
 
 	endpoint, err := s.sqlToCommonGithubEndpoint(ep)
 	if err != nil {
-		return params.ScaleSet{}, errors.Wrap(err, "converting endpoint")
+		return params.ScaleSet{}, fmt.Errorf("error converting endpoint: %w", err)
 	}
 	ret.Endpoint = endpoint
 
 	for idx, inst := range scaleSet.Instances {
 		ret.Instances[idx], err = s.sqlToParamsInstance(inst)
 		if err != nil {
-			return params.ScaleSet{}, errors.Wrap(err, "converting instance")
+			return params.ScaleSet{}, fmt.Errorf("error converting instance: %w", err)
 		}
 	}
 
@@ -407,11 +407,11 @@ func (s *sqlDatabase) sqlToCommonRepository(repo Repository, detailed bool) (par
 	}
 	secret, err := util.Unseal(repo.WebhookSecret, []byte(s.cfg.Passphrase))
 	if err != nil {
-		return params.Repository{}, errors.Wrap(err, "decrypting secret")
+		return params.Repository{}, fmt.Errorf("error decrypting secret: %w", err)
 	}
 	endpoint, err := s.sqlToCommonGithubEndpoint(repo.Endpoint)
 	if err != nil {
-		return params.Repository{}, errors.Wrap(err, "converting endpoint")
+		return params.Repository{}, fmt.Errorf("error converting endpoint: %w", err)
 	}
 	ret := params.Repository{
 		ID:               repo.ID.String(),
@@ -442,7 +442,7 @@ func (s *sqlDatabase) sqlToCommonRepository(repo Repository, detailed bool) (par
 	}
 
 	if err != nil {
-		return params.Repository{}, errors.Wrap(err, "converting credentials")
+		return params.Repository{}, fmt.Errorf("error converting credentials: %w", err)
 	}
 
 	if len(repo.Events) > 0 {
@@ -470,7 +470,7 @@ func (s *sqlDatabase) sqlToCommonRepository(repo Repository, detailed bool) (par
 	for idx, pool := range repo.Pools {
 		ret.Pools[idx], err = s.sqlToCommonPool(pool)
 		if err != nil {
-			return params.Repository{}, errors.Wrap(err, "converting pool")
+			return params.Repository{}, fmt.Errorf("error converting pool: %w", err)
 		}
 	}
 
@@ -499,14 +499,14 @@ func (s *sqlDatabase) getOrCreateTag(tx *gorm.DB, tagName string) (Tag, error) {
 		return tag, nil
 	}
 	if !errors.Is(q.Error, gorm.ErrRecordNotFound) {
-		return Tag{}, errors.Wrap(q.Error, "fetching tag from database")
+		return Tag{}, fmt.Errorf("error fetching tag from database: %w", q.Error)
 	}
 	newTag := Tag{
 		Name: tagName,
 	}
 
 	if err := tx.Create(&newTag).Error; err != nil {
-		return Tag{}, errors.Wrap(err, "creating tag")
+		return Tag{}, fmt.Errorf("error creating tag: %w", err)
 	}
 	return newTag, nil
 }
@@ -561,7 +561,7 @@ func (s *sqlDatabase) updatePool(tx *gorm.DB, pool Pool, param params.UpdatePool
 	}
 
 	if q := tx.Save(&pool); q.Error != nil {
-		return params.Pool{}, errors.Wrap(q.Error, "saving database entry")
+		return params.Pool{}, fmt.Errorf("error saving database entry: %w", q.Error)
 	}
 
 	tags := []Tag{}
@@ -569,13 +569,13 @@ func (s *sqlDatabase) updatePool(tx *gorm.DB, pool Pool, param params.UpdatePool
 		for _, val := range param.Tags {
 			t, err := s.getOrCreateTag(tx, val)
 			if err != nil {
-				return params.Pool{}, errors.Wrap(err, "fetching tag")
+				return params.Pool{}, fmt.Errorf("error fetching tag: %w", err)
 			}
 			tags = append(tags, t)
 		}
 
 		if err := tx.Model(&pool).Association("Tags").Replace(&tags); err != nil {
-			return params.Pool{}, errors.Wrap(err, "replacing tags")
+			return params.Pool{}, fmt.Errorf("error replacing tags: %w", err)
 		}
 	}
 
@@ -585,7 +585,7 @@ func (s *sqlDatabase) updatePool(tx *gorm.DB, pool Pool, param params.UpdatePool
 func (s *sqlDatabase) getPoolByID(tx *gorm.DB, poolID string, preload ...string) (Pool, error) {
 	u, err := uuid.Parse(poolID)
 	if err != nil {
-		return Pool{}, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
+		return Pool{}, fmt.Errorf("error parsing id: %w", runnerErrors.ErrBadRequest)
 	}
 	var pool Pool
 	q := tx.Model(&Pool{})
@@ -601,7 +601,7 @@ func (s *sqlDatabase) getPoolByID(tx *gorm.DB, poolID string, preload ...string)
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
 			return Pool{}, runnerErrors.ErrNotFound
 		}
-		return Pool{}, errors.Wrap(q.Error, "fetching org from database")
+		return Pool{}, fmt.Errorf("error fetching org from database: %w", q.Error)
 	}
 	return pool, nil
 }
@@ -621,7 +621,7 @@ func (s *sqlDatabase) getScaleSetByID(tx *gorm.DB, scaleSetID uint, preload ...s
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
 			return ScaleSet{}, runnerErrors.ErrNotFound
 		}
-		return ScaleSet{}, errors.Wrap(q.Error, "fetching scale set from database")
+		return ScaleSet{}, fmt.Errorf("error fetching scale set from database: %w", q.Error)
 	}
 	return scaleSet, nil
 }
@@ -629,7 +629,7 @@ func (s *sqlDatabase) getScaleSetByID(tx *gorm.DB, scaleSetID uint, preload ...s
 func (s *sqlDatabase) hasGithubEntity(tx *gorm.DB, entityType params.ForgeEntityType, entityID string) error {
 	u, err := uuid.Parse(entityID)
 	if err != nil {
-		return errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
+		return fmt.Errorf("error parsing id: %w", runnerErrors.ErrBadRequest)
 	}
 	var q *gorm.DB
 	switch entityType {
@@ -640,15 +640,15 @@ func (s *sqlDatabase) hasGithubEntity(tx *gorm.DB, entityType params.ForgeEntity
 	case params.ForgeEntityTypeEnterprise:
 		q = tx.Model(&Enterprise{}).Where("id = ?", u)
 	default:
-		return errors.Wrap(runnerErrors.ErrBadRequest, "invalid entity type")
+		return fmt.Errorf("error invalid entity type: %w", runnerErrors.ErrBadRequest)
 	}
 
 	var entity interface{}
 	if err := q.First(entity).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.Wrap(runnerErrors.ErrNotFound, "entity not found")
+			return fmt.Errorf("error entity not found: %w", runnerErrors.ErrNotFound)
 		}
-		return errors.Wrap(err, "fetching entity from database")
+		return fmt.Errorf("error fetching entity from database: %w", err)
 	}
 	return nil
 }
@@ -656,7 +656,7 @@ func (s *sqlDatabase) hasGithubEntity(tx *gorm.DB, entityType params.ForgeEntity
 func (s *sqlDatabase) marshalAndSeal(data interface{}) ([]byte, error) {
 	enc, err := json.Marshal(data)
 	if err != nil {
-		return nil, errors.Wrap(err, "marshalling data")
+		return nil, fmt.Errorf("error marshalling data: %w", err)
 	}
 	return util.Seal(enc, []byte(s.cfg.Passphrase))
 }
@@ -664,10 +664,10 @@ func (s *sqlDatabase) marshalAndSeal(data interface{}) ([]byte, error) {
 func (s *sqlDatabase) unsealAndUnmarshal(data []byte, target interface{}) error {
 	decrypted, err := util.Unseal(data, []byte(s.cfg.Passphrase))
 	if err != nil {
-		return errors.Wrap(err, "decrypting data")
+		return fmt.Errorf("error decrypting data: %w", err)
 	}
 	if err := json.Unmarshal(decrypted, target); err != nil {
-		return errors.Wrap(err, "unmarshalling data")
+		return fmt.Errorf("error unmarshalling data: %w", err)
 	}
 	return nil
 }
@@ -699,15 +699,15 @@ func (s *sqlDatabase) GetForgeEntity(_ context.Context, entityType params.ForgeE
 	case params.ForgeEntityTypeRepository:
 		ghEntity, err = s.GetRepositoryByID(s.ctx, entityID)
 	default:
-		return params.ForgeEntity{}, errors.Wrap(runnerErrors.ErrBadRequest, "invalid entity type")
+		return params.ForgeEntity{}, fmt.Errorf("error invalid entity type: %w", runnerErrors.ErrBadRequest)
 	}
 	if err != nil {
-		return params.ForgeEntity{}, errors.Wrap(err, "failed to get ")
+		return params.ForgeEntity{}, fmt.Errorf("error failed to get entity from db: %w", err)
 	}
 
 	entity, err := ghEntity.GetEntity()
 	if err != nil {
-		return params.ForgeEntity{}, errors.Wrap(err, "failed to get entity")
+		return params.ForgeEntity{}, fmt.Errorf("error failed to get entity: %w", err)
 	}
 	return entity, nil
 }
@@ -715,7 +715,7 @@ func (s *sqlDatabase) GetForgeEntity(_ context.Context, entityType params.ForgeE
 func (s *sqlDatabase) addRepositoryEvent(ctx context.Context, repoID string, event params.EventType, eventLevel params.EventLevel, statusMessage string, maxEvents int) error {
 	repo, err := s.getRepoByID(ctx, s.conn, repoID)
 	if err != nil {
-		return errors.Wrap(err, "updating instance")
+		return fmt.Errorf("error updating instance: %w", err)
 	}
 
 	msg := RepositoryEvent{
@@ -725,7 +725,7 @@ func (s *sqlDatabase) addRepositoryEvent(ctx context.Context, repoID string, eve
 	}
 
 	if err := s.conn.Model(&repo).Association("Events").Append(&msg); err != nil {
-		return errors.Wrap(err, "adding status message")
+		return fmt.Errorf("error adding status message: %w", err)
 	}
 
 	if maxEvents > 0 {
@@ -734,12 +734,12 @@ func (s *sqlDatabase) addRepositoryEvent(ctx context.Context, repoID string, eve
 			Limit(maxEvents).Order("id desc").
 			Where("repo_id = ?", repo.ID).Find(&latestEvents)
 		if q.Error != nil {
-			return errors.Wrap(q.Error, "fetching latest events")
+			return fmt.Errorf("error fetching latest events: %w", q.Error)
 		}
 		if len(latestEvents) == maxEvents {
 			lastInList := latestEvents[len(latestEvents)-1]
 			if err := s.conn.Where("repo_id = ? and id < ?", repo.ID, lastInList.ID).Unscoped().Delete(&RepositoryEvent{}).Error; err != nil {
-				return errors.Wrap(err, "deleting old events")
+				return fmt.Errorf("error deleting old events: %w", err)
 			}
 		}
 	}
@@ -749,7 +749,7 @@ func (s *sqlDatabase) addRepositoryEvent(ctx context.Context, repoID string, eve
 func (s *sqlDatabase) addOrgEvent(ctx context.Context, orgID string, event params.EventType, eventLevel params.EventLevel, statusMessage string, maxEvents int) error {
 	org, err := s.getOrgByID(ctx, s.conn, orgID)
 	if err != nil {
-		return errors.Wrap(err, "updating instance")
+		return fmt.Errorf("error updating instance: %w", err)
 	}
 
 	msg := OrganizationEvent{
@@ -759,7 +759,7 @@ func (s *sqlDatabase) addOrgEvent(ctx context.Context, orgID string, event param
 	}
 
 	if err := s.conn.Model(&org).Association("Events").Append(&msg); err != nil {
-		return errors.Wrap(err, "adding status message")
+		return fmt.Errorf("error adding status message: %w", err)
 	}
 
 	if maxEvents > 0 {
@@ -768,12 +768,12 @@ func (s *sqlDatabase) addOrgEvent(ctx context.Context, orgID string, event param
 			Limit(maxEvents).Order("id desc").
 			Where("org_id = ?", org.ID).Find(&latestEvents)
 		if q.Error != nil {
-			return errors.Wrap(q.Error, "fetching latest events")
+			return fmt.Errorf("error fetching latest events: %w", q.Error)
 		}
 		if len(latestEvents) == maxEvents {
 			lastInList := latestEvents[len(latestEvents)-1]
 			if err := s.conn.Where("org_id = ? and id < ?", org.ID, lastInList.ID).Unscoped().Delete(&OrganizationEvent{}).Error; err != nil {
-				return errors.Wrap(err, "deleting old events")
+				return fmt.Errorf("error deleting old events: %w", err)
 			}
 		}
 	}
@@ -783,7 +783,7 @@ func (s *sqlDatabase) addOrgEvent(ctx context.Context, orgID string, event param
 func (s *sqlDatabase) addEnterpriseEvent(ctx context.Context, entID string, event params.EventType, eventLevel params.EventLevel, statusMessage string, maxEvents int) error {
 	ent, err := s.getEnterpriseByID(ctx, s.conn, entID)
 	if err != nil {
-		return errors.Wrap(err, "updating instance")
+		return fmt.Errorf("error updating instance: %w", err)
 	}
 
 	msg := EnterpriseEvent{
@@ -793,7 +793,7 @@ func (s *sqlDatabase) addEnterpriseEvent(ctx context.Context, entID string, even
 	}
 
 	if err := s.conn.Model(&ent).Association("Events").Append(&msg); err != nil {
-		return errors.Wrap(err, "adding status message")
+		return fmt.Errorf("error adding status message: %w", err)
 	}
 
 	if maxEvents > 0 {
@@ -802,12 +802,12 @@ func (s *sqlDatabase) addEnterpriseEvent(ctx context.Context, entID string, even
 			Limit(maxEvents).Order("id desc").
 			Where("enterprise_id = ?", ent.ID).Find(&latestEvents)
 		if q.Error != nil {
-			return errors.Wrap(q.Error, "fetching latest events")
+			return fmt.Errorf("error fetching latest events: %w", q.Error)
 		}
 		if len(latestEvents) == maxEvents {
 			lastInList := latestEvents[len(latestEvents)-1]
 			if err := s.conn.Where("enterprise_id = ? and id < ?", ent.ID, lastInList.ID).Unscoped().Delete(&EnterpriseEvent{}).Error; err != nil {
-				return errors.Wrap(err, "deleting old events")
+				return fmt.Errorf("error deleting old events: %w", err)
 			}
 		}
 	}
@@ -817,7 +817,7 @@ func (s *sqlDatabase) addEnterpriseEvent(ctx context.Context, entID string, even
 
 func (s *sqlDatabase) AddEntityEvent(ctx context.Context, entity params.ForgeEntity, event params.EventType, eventLevel params.EventLevel, statusMessage string, maxEvents int) error {
 	if maxEvents == 0 {
-		return errors.Wrap(runnerErrors.ErrBadRequest, "max events cannot be 0")
+		return fmt.Errorf("max events cannot be 0: %w", runnerErrors.ErrBadRequest)
 	}
 
 	switch entity.EntityType {
@@ -828,7 +828,7 @@ func (s *sqlDatabase) AddEntityEvent(ctx context.Context, entity params.ForgeEnt
 	case params.ForgeEntityTypeEnterprise:
 		return s.addEnterpriseEvent(ctx, entity.ID, event, eventLevel, statusMessage, maxEvents)
 	default:
-		return errors.Wrap(runnerErrors.ErrBadRequest, "invalid entity type")
+		return fmt.Errorf("invalid entity type: %w", runnerErrors.ErrBadRequest)
 	}
 }
 
@@ -838,12 +838,12 @@ func (s *sqlDatabase) sqlToCommonForgeCredentials(creds GithubCredentials) (para
 	}
 	data, err := util.Unseal(creds.Payload, []byte(s.cfg.Passphrase))
 	if err != nil {
-		return params.ForgeCredentials{}, errors.Wrap(err, "unsealing credentials")
+		return params.ForgeCredentials{}, fmt.Errorf("error unsealing credentials: %w", err)
 	}
 
 	ep, err := s.sqlToCommonGithubEndpoint(creds.Endpoint)
 	if err != nil {
-		return params.ForgeCredentials{}, errors.Wrap(err, "converting github endpoint")
+		return params.ForgeCredentials{}, fmt.Errorf("error converting github endpoint: %w", err)
 	}
 
 	commonCreds := params.ForgeCredentials{
@@ -865,7 +865,7 @@ func (s *sqlDatabase) sqlToCommonForgeCredentials(creds GithubCredentials) (para
 	for _, repo := range creds.Repositories {
 		commonRepo, err := s.sqlToCommonRepository(repo, false)
 		if err != nil {
-			return params.ForgeCredentials{}, errors.Wrap(err, "converting github repository")
+			return params.ForgeCredentials{}, fmt.Errorf("error converting github repository: %w", err)
 		}
 		commonCreds.Repositories = append(commonCreds.Repositories, commonRepo)
 	}
@@ -873,7 +873,7 @@ func (s *sqlDatabase) sqlToCommonForgeCredentials(creds GithubCredentials) (para
 	for _, org := range creds.Organizations {
 		commonOrg, err := s.sqlToCommonOrganization(org, false)
 		if err != nil {
-			return params.ForgeCredentials{}, errors.Wrap(err, "converting github organization")
+			return params.ForgeCredentials{}, fmt.Errorf("error converting github organization: %w", err)
 		}
 		commonCreds.Organizations = append(commonCreds.Organizations, commonOrg)
 	}
@@ -881,7 +881,7 @@ func (s *sqlDatabase) sqlToCommonForgeCredentials(creds GithubCredentials) (para
 	for _, ent := range creds.Enterprises {
 		commonEnt, err := s.sqlToCommonEnterprise(ent, false)
 		if err != nil {
-			return params.ForgeCredentials{}, errors.Wrapf(err, "converting github enterprise: %s", ent.Name)
+			return params.ForgeCredentials{}, fmt.Errorf("error converting github enterprise %s: %w", ent.Name, err)
 		}
 		commonCreds.Enterprises = append(commonCreds.Enterprises, commonEnt)
 	}
@@ -895,12 +895,12 @@ func (s *sqlDatabase) sqlGiteaToCommonForgeCredentials(creds GiteaCredentials) (
 	}
 	data, err := util.Unseal(creds.Payload, []byte(s.cfg.Passphrase))
 	if err != nil {
-		return params.ForgeCredentials{}, errors.Wrap(err, "unsealing credentials")
+		return params.ForgeCredentials{}, fmt.Errorf("error unsealing credentials: %w", err)
 	}
 
 	ep, err := s.sqlToCommonGithubEndpoint(creds.Endpoint)
 	if err != nil {
-		return params.ForgeCredentials{}, errors.Wrap(err, "converting github endpoint")
+		return params.ForgeCredentials{}, fmt.Errorf("error converting github endpoint: %w", err)
 	}
 
 	commonCreds := params.ForgeCredentials{
@@ -921,7 +921,7 @@ func (s *sqlDatabase) sqlGiteaToCommonForgeCredentials(creds GiteaCredentials) (
 	for _, repo := range creds.Repositories {
 		commonRepo, err := s.sqlToCommonRepository(repo, false)
 		if err != nil {
-			return params.ForgeCredentials{}, errors.Wrap(err, "converting github repository")
+			return params.ForgeCredentials{}, fmt.Errorf("error converting github repository: %w", err)
 		}
 		commonCreds.Repositories = append(commonCreds.Repositories, commonRepo)
 	}
@@ -929,7 +929,7 @@ func (s *sqlDatabase) sqlGiteaToCommonForgeCredentials(creds GiteaCredentials) (
 	for _, org := range creds.Organizations {
 		commonOrg, err := s.sqlToCommonOrganization(org, false)
 		if err != nil {
-			return params.ForgeCredentials{}, errors.Wrap(err, "converting github organization")
+			return params.ForgeCredentials{}, fmt.Errorf("error converting github organization: %w", err)
 		}
 		commonCreds.Organizations = append(commonCreds.Organizations, commonOrg)
 	}
@@ -954,12 +954,12 @@ func (s *sqlDatabase) sqlToCommonGithubEndpoint(ep GithubEndpoint) (params.Forge
 func getUIDFromContext(ctx context.Context) (uuid.UUID, error) {
 	userID := auth.UserID(ctx)
 	if userID == "" {
-		return uuid.Nil, errors.Wrap(runnerErrors.ErrUnauthorized, "getting UID from context")
+		return uuid.Nil, fmt.Errorf("error getting UID from context: %w", runnerErrors.ErrUnauthorized)
 	}
 
 	asUUID, err := uuid.Parse(userID)
 	if err != nil {
-		return uuid.Nil, errors.Wrap(runnerErrors.ErrUnauthorized, "parsing UID from context")
+		return uuid.Nil, fmt.Errorf("error parsing UID from context: %w", runnerErrors.ErrUnauthorized)
 	}
 	return asUUID, nil
 }

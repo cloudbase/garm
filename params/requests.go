@@ -21,8 +21,6 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/pkg/errors"
-
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 )
@@ -497,7 +495,7 @@ func (c CreateGithubCredentialsParams) Validate() error {
 
 	if c.AuthType == ForgeAuthTypeApp {
 		if err := c.App.Validate(); err != nil {
-			return errors.Wrap(err, "invalid app")
+			return fmt.Errorf("invalid app: %w", err)
 		}
 	}
 
@@ -525,7 +523,7 @@ func (u UpdateGithubCredentialsParams) Validate() error {
 
 	if u.App != nil {
 		if err := u.App.Validate(); err != nil {
-			return errors.Wrap(err, "invalid app")
+			return fmt.Errorf("invalid app: %w", err)
 		}
 	}
 

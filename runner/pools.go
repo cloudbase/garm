@@ -16,8 +16,8 @@ package runner
 
 import (
 	"context"
-
-	"github.com/pkg/errors"
+	"errors"
+	"fmt"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/auth"
@@ -31,7 +31,7 @@ func (r *Runner) ListAllPools(ctx context.Context) ([]params.Pool, error) {
 
 	pools, err := r.store.ListAllPools(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching pools")
+		return nil, fmt.Errorf("error fetching pools: %w", err)
 	}
 	return pools, nil
 }
@@ -43,7 +43,7 @@ func (r *Runner) GetPoolByID(ctx context.Context, poolID string) (params.Pool, e
 
 	pool, err := r.store.GetPoolByID(ctx, poolID)
 	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "fetching pool")
+		return params.Pool{}, fmt.Errorf("error fetching pool: %w", err)
 	}
 	return pool, nil
 }
@@ -56,7 +56,7 @@ func (r *Runner) DeletePoolByID(ctx context.Context, poolID string) error {
 	pool, err := r.store.GetPoolByID(ctx, poolID)
 	if err != nil {
 		if !errors.Is(err, runnerErrors.ErrNotFound) {
-			return errors.Wrap(err, "fetching pool")
+			return fmt.Errorf("error fetching pool: %w", err)
 		}
 		return nil
 	}
@@ -66,7 +66,7 @@ func (r *Runner) DeletePoolByID(ctx context.Context, poolID string) error {
 	}
 
 	if err := r.store.DeletePoolByID(ctx, poolID); err != nil {
-		return errors.Wrap(err, "deleting pool")
+		return fmt.Errorf("error deleting pool: %w", err)
 	}
 	return nil
 }
@@ -78,7 +78,7 @@ func (r *Runner) UpdatePoolByID(ctx context.Context, poolID string, param params
 
 	pool, err := r.store.GetPoolByID(ctx, poolID)
 	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "fetching pool")
+		return params.Pool{}, fmt.Errorf("error fetching pool: %w", err)
 	}
 
 	maxRunners := pool.MaxRunners
@@ -101,12 +101,12 @@ func (r *Runner) UpdatePoolByID(ctx context.Context, poolID string, param params
 
 	entity, err := pool.GetEntity()
 	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "getting entity")
+		return params.Pool{}, fmt.Errorf("error getting entity: %w", err)
 	}
 
 	newPool, err := r.store.UpdateEntityPool(ctx, entity, poolID, param)
 	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "updating pool")
+		return params.Pool{}, fmt.Errorf("error updating pool: %w", err)
 	}
 	return newPool, nil
 }
@@ -118,7 +118,7 @@ func (r *Runner) ListAllJobs(ctx context.Context) ([]params.Job, error) {
 
 	jobs, err := r.store.ListAllJobs(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching jobs")
+		return nil, fmt.Errorf("error fetching jobs: %w", err)
 	}
 	return jobs, nil
 }

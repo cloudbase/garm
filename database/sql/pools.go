@@ -16,10 +16,10 @@ package sql
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/pkg/errors"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 
@@ -48,7 +48,7 @@ func (s *sqlDatabase) ListAllPools(_ context.Context) ([]params.Pool, error) {
 		Omit("extra_specs").
 		Find(&pools)
 	if q.Error != nil {
-		return nil, errors.Wrap(q.Error, "fetching all pools")
+		return nil, fmt.Errorf("error fetching all pools: %w", q.Error)
 	}
 
 	ret := make([]params.Pool, len(pools))
@@ -56,7 +56,7 @@ func (s *sqlDatabase) ListAllPools(_ context.Context) ([]params.Pool, error) {
 	for idx, val := range pools {
 		ret[idx], err = s.sqlToCommonPool(val)
 		if err != nil {
-			return nil, errors.Wrap(err, "converting pool")
+			return nil, fmt.Errorf("error converting pool: %w", err)
 		}
 	}
 	return ret, nil
@@ -75,7 +75,7 @@ func (s *sqlDatabase) GetPoolByID(_ context.Context, poolID string) (params.Pool
 	}
 	pool, err := s.getPoolByID(s.conn, poolID, preloadList...)
 	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "fetching pool by ID")
+		return params.Pool{}, fmt.Errorf("error fetching pool by ID: %w", err)
 	}
 	return s.sqlToCommonPool(pool)
 }
@@ -83,7 +83,7 @@ func (s *sqlDatabase) GetPoolByID(_ context.Context, poolID string) (params.Pool
 func (s *sqlDatabase) DeletePoolByID(_ context.Context, poolID string) (err error) {
 	pool, err := s.getPoolByID(s.conn, poolID)
 	if err != nil {
-		return errors.Wrap(err, "fetching pool by ID")
+		return fmt.Errorf("error fetching pool by ID: %w", err)
 	}
 
 	defer func() {
@@ -93,7 +93,7 @@ func (s *sqlDatabase) DeletePoolByID(_ context.Context, poolID string) (err erro
 	}()
 
 	if q := s.conn.Unscoped().Delete(&pool); q.Error != nil {
-		return errors.Wrap(q.Error, "removing pool")
+		return fmt.Errorf("error removing pool: %w", q.Error)
 	}
 
 	return nil
@@ -101,12 +101,12 @@ func (s *sqlDatabase) DeletePoolByID(_ context.Context, poolID string) (err erro
 
 func (s *sqlDatabase) getEntityPool(tx *gorm.DB, entityType params.ForgeEntityType, entityID, poolID string, preload ...string) (Pool, error) {
 	if entityID == "" {
-		return Pool{}, errors.Wrap(runnerErrors.ErrBadRequest, "missing entity id")
+		return Pool{}, fmt.Errorf("error missing entity id: %w", runnerErrors.ErrBadRequest)
 	}
 
 	u, err := uuid.Parse(poolID)
 	if err != nil {
-		return Pool{}, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
+		return Pool{}, fmt.Errorf("error parsing id: %w", runnerErrors.ErrBadRequest)
 	}
 
 	var fieldName string
@@ -140,9 +140,9 @@ func (s *sqlDatabase) getEntityPool(tx *gorm.DB, entityType params.ForgeEntityTy
 		First(&pool).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return Pool{}, errors.Wrap(runnerErrors.ErrNotFound, "finding pool")
+			return Pool{}, fmt.Errorf("error finding pool: %w", runnerErrors.ErrNotFound)
 		}
-		return Pool{}, errors.Wrap(err, "fetching pool")
+		return Pool{}, fmt.Errorf("error fetching pool: %w", err)
 	}
 
 	return pool, nil
@@ -150,11 +150,11 @@ func (s *sqlDatabase) getEntityPool(tx *gorm.DB, entityType params.ForgeEntityTy
 
 func (s *sqlDatabase) listEntityPools(tx *gorm.DB, entityType params.ForgeEntityType, entityID string, preload ...string) ([]Pool, error) {
 	if _, err := uuid.Parse(entityID); err != nil {
-		return nil, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
+		return nil, fmt.Errorf("error parsing id: %w", runnerErrors.ErrBadRequest)
 	}
 
 	if err := s.hasGithubEntity(tx, entityType, entityID); err != nil {
-		return nil, errors.Wrap(err, "checking entity existence")
+		return nil, fmt.Errorf("error checking entity existence: %w", err)
 	}
 
 	var preloadEntity string
@@ -191,7 +191,7 @@ func (s *sqlDatabase) listEntityPools(tx *gorm.DB, entityType params.ForgeEntity
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return []Pool{}, nil
 		}
-		return nil, errors.Wrap(err, "fetching pool")
+		return nil, fmt.Errorf("error fetching pool: %w", err)
 	}
 
 	return pools, nil
@@ -203,7 +203,7 @@ func (s *sqlDatabase) findPoolByTags(id string, poolType params.ForgeEntityType,
 	}
 	u, err := uuid.Parse(id)
 	if err != nil {
-		return nil, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
+		return nil, fmt.Errorf("error parsing id: %w", runnerErrors.ErrBadRequest)
 	}
 
 	var fieldName string
@@ -233,7 +233,7 @@ func (s *sqlDatabase) findPoolByTags(id string, poolType params.ForgeEntityType,
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
 			return nil, runnerErrors.ErrNotFound
 		}
-		return nil, errors.Wrap(q.Error, "fetching pool")
+		return nil, fmt.Errorf("error fetching pool: %w", q.Error)
 	}
 
 	if len(pools) == 0 {
@@ -244,7 +244,7 @@ func (s *sqlDatabase) findPoolByTags(id string, poolType params.ForgeEntityType,
 	for idx, val := range pools {
 		ret[idx], err = s.sqlToCommonPool(val)
 		if err != nil {
-			return nil, errors.Wrap(err, "converting pool")
+			return nil, fmt.Errorf("error converting pool: %w", err)
 		}
 	}
 
@@ -261,7 +261,7 @@ func (s *sqlDatabase) FindPoolsMatchingAllTags(_ context.Context, entityType par
 		if errors.Is(err, runnerErrors.ErrNotFound) {
 			return []params.Pool{}, nil
 		}
-		return nil, errors.Wrap(err, "fetching pools")
+		return nil, fmt.Errorf("error fetching pools: %w", err)
 	}
 
 	return pools, nil
@@ -298,7 +298,7 @@ func (s *sqlDatabase) CreateEntityPool(_ context.Context, entity params.ForgeEnt
 
 	entityID, err := uuid.Parse(entity.ID)
 	if err != nil {
-		return params.Pool{}, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
+		return params.Pool{}, fmt.Errorf("error parsing id: %w", runnerErrors.ErrBadRequest)
 	}
 
 	switch entity.EntityType {
@@ -311,26 +311,26 @@ func (s *sqlDatabase) CreateEntityPool(_ context.Context, entity params.ForgeEnt
 	}
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
 		if err := s.hasGithubEntity(tx, entity.EntityType, entity.ID); err != nil {
-			return errors.Wrap(err, "checking entity existence")
+			return fmt.Errorf("error checking entity existence: %w", err)
 		}
 
 		tags := []Tag{}
 		for _, val := range param.Tags {
 			t, err := s.getOrCreateTag(tx, val)
 			if err != nil {
-				return errors.Wrap(err, "creating tag")
+				return fmt.Errorf("error creating tag: %w", err)
 			}
 			tags = append(tags, t)
 		}
 
 		q := tx.Create(&newPool)
 		if q.Error != nil {
-			return errors.Wrap(q.Error, "creating pool")
+			return fmt.Errorf("error creating pool: %w", q.Error)
 		}
 
 		for i := range tags {
 			if err := tx.Model(&newPool).Association("Tags").Append(&tags[i]); err != nil {
-				return errors.Wrap(err, "associating tags")
+				return fmt.Errorf("error associating tags: %w", err)
 			}
 		}
 		return nil
@@ -341,7 +341,7 @@ func (s *sqlDatabase) CreateEntityPool(_ context.Context, entity params.ForgeEnt
 
 	dbPool, err := s.getPoolByID(s.conn, newPool.ID.String(), "Tags", "Instances", "Enterprise", "Organization", "Repository")
 	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "fetching pool")
+		return params.Pool{}, fmt.Errorf("error fetching pool: %w", err)
 	}
 
 	return s.sqlToCommonPool(dbPool)
@@ -358,7 +358,7 @@ func (s *sqlDatabase) GetEntityPool(_ context.Context, entity params.ForgeEntity
 func (s *sqlDatabase) DeleteEntityPool(_ context.Context, entity params.ForgeEntity, poolID string) (err error) {
 	entityID, err := uuid.Parse(entity.ID)
 	if err != nil {
-		return errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
+		return fmt.Errorf("error parsing id: %w", runnerErrors.ErrBadRequest)
 	}
 
 	defer func() {
@@ -372,7 +372,7 @@ func (s *sqlDatabase) DeleteEntityPool(_ context.Context, entity params.ForgeEnt
 
 	poolUUID, err := uuid.Parse(poolID)
 	if err != nil {
-		return errors.Wrap(runnerErrors.ErrBadRequest, "parsing pool id")
+		return fmt.Errorf("error parsing pool id: %w", runnerErrors.ErrBadRequest)
 	}
 	var fieldName string
 	switch entity.EntityType {
@@ -387,7 +387,7 @@ func (s *sqlDatabase) DeleteEntityPool(_ context.Context, entity params.ForgeEnt
 	}
 	condition := fmt.Sprintf("id = ? and %s = ?", fieldName)
 	if err := s.conn.Unscoped().Where(condition, poolUUID, entityID).Delete(&Pool{}).Error; err != nil {
-		return errors.Wrap(err, "removing pool")
+		return fmt.Errorf("error removing pool: %w", err)
 	}
 	return nil
 }
@@ -401,12 +401,12 @@ func (s *sqlDatabase) UpdateEntityPool(ctx context.Context, entity params.ForgeE
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
 		pool, err := s.getEntityPool(tx, entity.EntityType, entity.ID, poolID, "Tags", "Instances")
 		if err != nil {
-			return errors.Wrap(err, "fetching pool")
+			return fmt.Errorf("error fetching pool: %w", err)
 		}
 
 		updatedPool, err = s.updatePool(tx, pool, param)
 		if err != nil {
-			return errors.Wrap(err, "updating pool")
+			return fmt.Errorf("error updating pool: %w", err)
 		}
 		return nil
 	})
@@ -424,14 +424,14 @@ func (s *sqlDatabase) UpdateEntityPool(ctx context.Context, entity params.ForgeE
 func (s *sqlDatabase) ListEntityPools(_ context.Context, entity params.ForgeEntity) ([]params.Pool, error) {
 	pools, err := s.listEntityPools(s.conn, entity.EntityType, entity.ID, "Tags")
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching pools")
+		return nil, fmt.Errorf("error fetching pools: %w", err)
 	}
 
 	ret := make([]params.Pool, len(pools))
 	for idx, pool := range pools {
 		ret[idx], err = s.sqlToCommonPool(pool)
 		if err != nil {
-			return nil, errors.Wrap(err, "fetching pool")
+			return nil, fmt.Errorf("error fetching pool: %w", err)
 		}
 	}
 
@@ -441,7 +441,7 @@ func (s *sqlDatabase) ListEntityPools(_ context.Context, entity params.ForgeEnti
 func (s *sqlDatabase) ListEntityInstances(_ context.Context, entity params.ForgeEntity) ([]params.Instance, error) {
 	pools, err := s.listEntityPools(s.conn, entity.EntityType, entity.ID, "Instances", "Instances.Job")
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching entity")
+		return nil, fmt.Errorf("error fetching entity: %w", err)
 	}
 	ret := []params.Instance{}
 	for _, pool := range pools {
@@ -451,7 +451,7 @@ func (s *sqlDatabase) ListEntityInstances(_ context.Context, entity params.Forge
 			instance.Pool = pool
 			paramsInstance, err := s.sqlToParamsInstance(instance)
 			if err != nil {
-				return nil, errors.Wrap(err, "fetching instance")
+				return nil, fmt.Errorf("error fetching instance: %w", err)
 			}
 			ret = append(ret, paramsInstance)
 		}

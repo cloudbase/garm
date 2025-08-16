@@ -517,7 +517,6 @@ func TestJWTAuthConfig(t *testing.T) {
 
 func TestTimeToLiveDuration(t *testing.T) {
 	cfg := JWTAuth{
-		Secret:     EncryptionPassphrase,
 		TimeToLive: "48h",
 	}
 

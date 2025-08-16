@@ -16,11 +16,11 @@ package sql
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 
 	"github.com/google/uuid"
-	"github.com/pkg/errors"
 	"gorm.io/gorm"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
@@ -35,7 +35,7 @@ func (s *sqlDatabase) CreateOrganization(ctx context.Context, name string, crede
 	}
 	secret, err := util.Seal([]byte(webhookSecret), []byte(s.cfg.Passphrase))
 	if err != nil {
-		return params.Organization{}, errors.Wrap(err, "encoding secret")
+		return params.Organization{}, fmt.Errorf("error encoding secret: %w", err)
 	}
 
 	defer func() {
@@ -56,23 +56,23 @@ func (s *sqlDatabase) CreateOrganization(ctx context.Context, name string, crede
 		case params.GiteaEndpointType:
 			newOrg.GiteaCredentialsID = &credentials.ID
 		default:
-			return errors.Wrap(runnerErrors.ErrBadRequest, "unsupported credentials type")
+			return fmt.Errorf("unsupported credentials type: %w", runnerErrors.ErrBadRequest)
 		}
 
 		newOrg.EndpointName = &credentials.Endpoint.Name
 		q := tx.Create(&newOrg)
 		if q.Error != nil {
-			return errors.Wrap(q.Error, "creating org")
+			return fmt.Errorf("error creating org: %w", q.Error)
 		}
 		return nil
 	})
 	if err != nil {
-		return params.Organization{}, errors.Wrap(err, "creating org")
+		return params.Organization{}, fmt.Errorf("error creating org: %w", err)
 	}
 
 	ret, err := s.GetOrganizationByID(ctx, newOrg.ID.String())
 	if err != nil {
-		return params.Organization{}, errors.Wrap(err, "creating org")
+		return params.Organization{}, fmt.Errorf("error creating org: %w", err)
 	}
 
 	return ret, nil
@@ -81,12 +81,12 @@ func (s *sqlDatabase) CreateOrganization(ctx context.Context, name string, crede
 func (s *sqlDatabase) GetOrganization(ctx context.Context, name, endpointName string) (params.Organization, error) {
 	org, err := s.getOrg(ctx, name, endpointName)
 	if err != nil {
-		return params.Organization{}, errors.Wrap(err, "fetching org")
+		return params.Organization{}, fmt.Errorf("error fetching org: %w", err)
 	}
 
 	param, err := s.sqlToCommonOrganization(org, true)
 	if err != nil {
-		return params.Organization{}, errors.Wrap(err, "fetching org")
+		return params.Organization{}, fmt.Errorf("error fetching org: %w", err)
 	}
 
 	return param, nil
@@ -110,7 +110,7 @@ func (s *sqlDatabase) ListOrganizations(_ context.Context, filter params.Organiz
 	}
 	q = q.Find(&orgs)
 	if q.Error != nil {
-		return []params.Organization{}, errors.Wrap(q.Error, "fetching org from database")
+		return []params.Organization{}, fmt.Errorf("error fetching org from database: %w", q.Error)
 	}
 
 	ret := make([]params.Organization, len(orgs))
@@ -118,7 +118,7 @@ func (s *sqlDatabase) ListOrganizations(_ context.Context, filter params.Organiz
 		var err error
 		ret[idx], err = s.sqlToCommonOrganization(val, true)
 		if err != nil {
-			return nil, errors.Wrap(err, "fetching org")
+			return nil, fmt.Errorf("error fetching org: %w", err)
 		}
 	}
 
@@ -128,7 +128,7 @@ func (s *sqlDatabase) ListOrganizations(_ context.Context, filter params.Organiz
 func (s *sqlDatabase) DeleteOrganization(ctx context.Context, orgID string) (err error) {
 	org, err := s.getOrgByID(ctx, s.conn, orgID, "Endpoint", "Credentials", "Credentials.Endpoint", "GiteaCredentials", "GiteaCredentials.Endpoint")
 	if err != nil {
-		return errors.Wrap(err, "fetching org")
+		return fmt.Errorf("error fetching org: %w", err)
 	}
 
 	defer func(org Organization) {
@@ -144,7 +144,7 @@ func (s *sqlDatabase) DeleteOrganization(ctx context.Context, orgID string) (err
 
 	q := s.conn.Unscoped().Delete(&org)
 	if q.Error != nil && !errors.Is(q.Error, gorm.ErrRecordNotFound) {
-		return errors.Wrap(q.Error, "deleting org")
+		return fmt.Errorf("error deleting org: %w", q.Error)
 	}
 
 	return nil
@@ -162,23 +162,23 @@ func (s *sqlDatabase) UpdateOrganization(ctx context.Context, orgID string, para
 		var err error
 		org, err = s.getOrgByID(ctx, tx, orgID)
 		if err != nil {
-			return errors.Wrap(err, "fetching org")
+			return fmt.Errorf("error fetching org: %w", err)
 		}
 		if org.EndpointName == nil {
-			return errors.Wrap(runnerErrors.ErrUnprocessable, "org has no endpoint")
+			return fmt.Errorf("error org has no endpoint: %w", runnerErrors.ErrUnprocessable)
 		}
 
 		if param.CredentialsName != "" {
 			creds, err = s.getGithubCredentialsByName(ctx, tx, param.CredentialsName, false)
 			if err != nil {
-				return errors.Wrap(err, "fetching credentials")
+				return fmt.Errorf("error fetching credentials: %w", err)
 			}
 			if creds.EndpointName == nil {
-				return errors.Wrap(runnerErrors.ErrUnprocessable, "credentials have no endpoint")
+				return fmt.Errorf("error credentials have no endpoint: %w", runnerErrors.ErrUnprocessable)
 			}
 
 			if *creds.EndpointName != *org.EndpointName {
-				return errors.Wrap(runnerErrors.ErrBadRequest, "endpoint mismatch")
+				return fmt.Errorf("error endpoint mismatch: %w", runnerErrors.ErrBadRequest)
 			}
 			org.CredentialsID = &creds.ID
 		}
@@ -197,22 +197,22 @@ func (s *sqlDatabase) UpdateOrganization(ctx context.Context, orgID string, para
 
 		q := tx.Save(&org)
 		if q.Error != nil {
-			return errors.Wrap(q.Error, "saving org")
+			return fmt.Errorf("error saving org: %w", q.Error)
 		}
 
 		return nil
 	})
 	if err != nil {
-		return params.Organization{}, errors.Wrap(err, "saving org")
+		return params.Organization{}, fmt.Errorf("error saving org: %w", err)
 	}
 
 	org, err = s.getOrgByID(ctx, s.conn, orgID, "Endpoint", "Credentials", "Credentials.Endpoint", "GiteaCredentials", "GiteaCredentials.Endpoint")
 	if err != nil {
-		return params.Organization{}, errors.Wrap(err, "updating enterprise")
+		return params.Organization{}, fmt.Errorf("error updating enterprise: %w", err)
 	}
 	paramOrg, err = s.sqlToCommonOrganization(org, true)
 	if err != nil {
-		return params.Organization{}, errors.Wrap(err, "saving org")
+		return params.Organization{}, fmt.Errorf("error saving org: %w", err)
 	}
 	return paramOrg, nil
 }
@@ -229,12 +229,12 @@ func (s *sqlDatabase) GetOrganizationByID(ctx context.Context, orgID string) (pa
 	}
 	org, err := s.getOrgByID(ctx, s.conn, orgID, preloadList...)
 	if err != nil {
-		return params.Organization{}, errors.Wrap(err, "fetching org")
+		return params.Organization{}, fmt.Errorf("error fetching org: %w", err)
 	}
 
 	param, err := s.sqlToCommonOrganization(org, true)
 	if err != nil {
-		return params.Organization{}, errors.Wrap(err, "fetching org")
+		return params.Organization{}, fmt.Errorf("error fetching org: %w", err)
 	}
 	return param, nil
 }
@@ -242,7 +242,7 @@ func (s *sqlDatabase) GetOrganizationByID(ctx context.Context, orgID string) (pa
 func (s *sqlDatabase) getOrgByID(_ context.Context, db *gorm.DB, id string, preload ...string) (Organization, error) {
 	u, err := uuid.Parse(id)
 	if err != nil {
-		return Organization{}, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
+		return Organization{}, fmt.Errorf("error parsing id: %w", runnerErrors.ErrBadRequest)
 	}
 	var org Organization
 
@@ -258,7 +258,7 @@ func (s *sqlDatabase) getOrgByID(_ context.Context, db *gorm.DB, id string, prel
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
 			return Organization{}, runnerErrors.ErrNotFound
 		}
-		return Organization{}, errors.Wrap(q.Error, "fetching org from database")
+		return Organization{}, fmt.Errorf("error fetching org from database: %w", q.Error)
 	}
 	return org, nil
 }
@@ -277,7 +277,7 @@ func (s *sqlDatabase) getOrg(_ context.Context, name, endpointName string) (Orga
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
 			return Organization{}, runnerErrors.ErrNotFound
 		}
-		return Organization{}, errors.Wrap(q.Error, "fetching org from database")
+		return Organization{}, fmt.Errorf("error fetching org from database: %w", q.Error)
 	}
 	return org, nil
 }

@@ -236,7 +236,7 @@ func (s *GiteaTestSuite) TestCreateCredentialsFailsWhenEndpointDoesNotExist() {
 	_, err := s.db.CreateGiteaCredentials(ctx, params.CreateGiteaCredentialsParams{Endpoint: "non-existing"})
 	s.Require().Error(err)
 	s.Require().ErrorIs(err, runnerErrors.ErrNotFound)
-	s.Require().Regexp("endpoint not found", err.Error())
+	s.Require().Regexp("error creating gitea credentials: gitea endpoint \"non-existing\" not found", err.Error())
 }
 
 func (s *GiteaTestSuite) TestCreateCredentialsFailsWhenAuthTypeIsInvalid() {
@@ -807,7 +807,7 @@ func (s *GiteaTestSuite) TestUpdateEndpointURLsFailsIfCredentialsAreAssociated()
 	_, err = s.db.UpdateGiteaEndpoint(ctx, testEndpointName, updateEpParams)
 	s.Require().Error(err)
 	s.Require().ErrorIs(err, runnerErrors.ErrBadRequest)
-	s.Require().EqualError(err, "updating gitea endpoint: cannot update endpoint URLs with existing credentials: invalid request")
+	s.Require().EqualError(err, "error updating gitea endpoint: cannot update endpoint URLs with existing credentials")
 
 	updateEpParams = params.UpdateGiteaEndpointParams{
 		APIBaseURL: &newAPIBaseURL,
@@ -815,7 +815,7 @@ func (s *GiteaTestSuite) TestUpdateEndpointURLsFailsIfCredentialsAreAssociated()
 	_, err = s.db.UpdateGiteaEndpoint(ctx, testEndpointName, updateEpParams)
 	s.Require().Error(err)
 	s.Require().ErrorIs(err, runnerErrors.ErrBadRequest)
-	s.Require().EqualError(err, "updating gitea endpoint: cannot update endpoint URLs with existing credentials: invalid request")
+	s.Require().EqualError(err, "error updating gitea endpoint: cannot update endpoint URLs with existing credentials")
 
 	updateEpParams = params.UpdateGiteaEndpointParams{
 		Description: &newDescription,

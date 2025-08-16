@@ -16,11 +16,10 @@ package runner
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
-
-	"github.com/pkg/errors"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/auth"
@@ -35,7 +34,7 @@ func (r *Runner) CreateRepository(ctx context.Context, param params.CreateRepoPa
 	}
 
 	if err := param.Validate(); err != nil {
-		return params.Repository{}, errors.Wrap(err, "validating params")
+		return params.Repository{}, fmt.Errorf("error validating params: %w", err)
 	}
 
 	var creds params.ForgeCredentials
@@ -55,7 +54,7 @@ func (r *Runner) CreateRepository(ctx context.Context, param params.CreateRepoPa
 	_, err = r.store.GetRepository(ctx, param.Owner, param.Name, creds.Endpoint.Name)
 	if err != nil {
 		if !errors.Is(err, runnerErrors.ErrNotFound) {
-			return params.Repository{}, errors.Wrap(err, "fetching repo")
+			return params.Repository{}, fmt.Errorf("error fetching repo: %w", err)
 		}
 	} else {
 		return params.Repository{}, runnerErrors.NewConflictError("repository %s/%s already exists", param.Owner, param.Name)
@@ -63,7 +62,7 @@ func (r *Runner) CreateRepository(ctx context.Context, param params.CreateRepoPa
 
 	repo, err = r.store.CreateRepository(ctx, param.Owner, param.Name, creds, param.WebhookSecret, param.PoolBalancerType)
 	if err != nil {
-		return params.Repository{}, errors.Wrap(err, "creating repository")
+		return params.Repository{}, fmt.Errorf("error creating repository: %w", err)
 	}
 
 	defer func() {
@@ -80,7 +79,7 @@ func (r *Runner) CreateRepository(ctx context.Context, param params.CreateRepoPa
 	// updating the store.
 	poolMgr, err := r.poolManagerCtrl.CreateRepoPoolManager(r.ctx, repo, r.providers, r.store)
 	if err != nil {
-		return params.Repository{}, errors.Wrap(err, "creating repo pool manager")
+		return params.Repository{}, fmt.Errorf("error creating repo pool manager: %w", err)
 	}
 	if err := poolMgr.Start(); err != nil {
 		if deleteErr := r.poolManagerCtrl.DeleteRepoPoolManager(repo); deleteErr != nil {
@@ -88,7 +87,7 @@ func (r *Runner) CreateRepository(ctx context.Context, param params.CreateRepoPa
 				ctx, "failed to cleanup pool manager for repo",
 				"repository_id", repo.ID)
 		}
-		return params.Repository{}, errors.Wrap(err, "starting repo pool manager")
+		return params.Repository{}, fmt.Errorf("error starting repo pool manager: %w", err)
 	}
 	return repo, nil
 }
@@ -100,7 +99,7 @@ func (r *Runner) ListRepositories(ctx context.Context, filter params.RepositoryF
 
 	repos, err := r.store.ListRepositories(ctx, filter)
 	if err != nil {
-		return nil, errors.Wrap(err, "listing repositories")
+		return nil, fmt.Errorf("error listing repositories: %w", err)
 	}
 
 	var allRepos []params.Repository
@@ -126,7 +125,7 @@ func (r *Runner) GetRepositoryByID(ctx context.Context, repoID string) (params.R
 
 	repo, err := r.store.GetRepositoryByID(ctx, repoID)
 	if err != nil {
-		return params.Repository{}, errors.Wrap(err, "fetching repository")
+		return params.Repository{}, fmt.Errorf("error fetching repository: %w", err)
 	}
 
 	poolMgr, err := r.poolManagerCtrl.GetRepoPoolManager(repo)
@@ -145,17 +144,17 @@ func (r *Runner) DeleteRepository(ctx context.Context, repoID string, keepWebhoo
 
 	repo, err := r.store.GetRepositoryByID(ctx, repoID)
 	if err != nil {
-		return errors.Wrap(err, "fetching repo")
+		return fmt.Errorf("error fetching repo: %w", err)
 	}
 
 	entity, err := repo.GetEntity()
 	if err != nil {
-		return errors.Wrap(err, "getting entity")
+		return fmt.Errorf("error getting entity: %w", err)
 	}
 
 	pools, err := r.store.ListEntityPools(ctx, entity)
 	if err != nil {
-		return errors.Wrap(err, "fetching repo pools")
+		return fmt.Errorf("error fetching repo pools: %w", err)
 	}
 
 	if len(pools) > 0 {
@@ -169,7 +168,7 @@ func (r *Runner) DeleteRepository(ctx context.Context, repoID string, keepWebhoo
 
 	scaleSets, err := r.store.ListEntityScaleSets(ctx, entity)
 	if err != nil {
-		return errors.Wrap(err, "fetching repo scale sets")
+		return fmt.Errorf("error fetching repo scale sets: %w", err)
 	}
 
 	if len(scaleSets) > 0 {
@@ -179,7 +178,7 @@ func (r *Runner) DeleteRepository(ctx context.Context, repoID string, keepWebhoo
 	if !keepWebhook && r.config.Default.EnableWebhookManagement {
 		poolMgr, err := r.poolManagerCtrl.GetRepoPoolManager(repo)
 		if err != nil {
-			return errors.Wrap(err, "fetching pool manager")
+			return fmt.Errorf("error fetching pool manager: %w", err)
 		}
 
 		if err := poolMgr.UninstallWebhook(ctx); err != nil {
@@ -192,11 +191,11 @@ func (r *Runner) DeleteRepository(ctx context.Context, repoID string, keepWebhoo
 	}
 
 	if err := r.poolManagerCtrl.DeleteRepoPoolManager(repo); err != nil {
-		return errors.Wrap(err, "deleting repo pool manager")
+		return fmt.Errorf("error deleting repo pool manager: %w", err)
 	}
 
 	if err := r.store.DeleteRepository(ctx, repoID); err != nil {
-		return errors.Wrap(err, "removing repository")
+		return fmt.Errorf("error removing repository: %w", err)
 	}
 	return nil
 }
@@ -218,12 +217,12 @@ func (r *Runner) UpdateRepository(ctx context.Context, repoID string, param para
 	slog.InfoContext(ctx, "updating repository", "repo_id", repoID, "param", param)
 	repo, err := r.store.UpdateRepository(ctx, repoID, param)
 	if err != nil {
-		return params.Repository{}, errors.Wrap(err, "updating repo")
+		return params.Repository{}, fmt.Errorf("error updating repo: %w", err)
 	}
 
 	poolMgr, err := r.poolManagerCtrl.GetRepoPoolManager(repo)
 	if err != nil {
-		return params.Repository{}, errors.Wrap(err, "getting pool manager")
+		return params.Repository{}, fmt.Errorf("error getting pool manager: %w", err)
 	}
 
 	repo.PoolManagerStatus = poolMgr.Status()
@@ -237,7 +236,7 @@ func (r *Runner) CreateRepoPool(ctx context.Context, repoID string, param params
 
 	createPoolParams, err := r.appendTagsToCreatePoolParams(param)
 	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "appending tags to create pool params")
+		return params.Pool{}, fmt.Errorf("error appending tags to create pool params: %w", err)
 	}
 
 	if createPoolParams.RunnerBootstrapTimeout == 0 {
@@ -251,7 +250,7 @@ func (r *Runner) CreateRepoPool(ctx context.Context, repoID string, param params
 
 	pool, err := r.store.CreateEntityPool(ctx, entity, createPoolParams)
 	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "creating pool")
+		return params.Pool{}, fmt.Errorf("error creating pool: %w", err)
 	}
 
 	return pool, nil
@@ -269,7 +268,7 @@ func (r *Runner) GetRepoPoolByID(ctx context.Context, repoID, poolID string) (pa
 
 	pool, err := r.store.GetEntityPool(ctx, entity, poolID)
 	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "fetching pool")
+		return params.Pool{}, fmt.Errorf("error fetching pool: %w", err)
 	}
 
 	return pool, nil
@@ -286,7 +285,7 @@ func (r *Runner) DeleteRepoPool(ctx context.Context, repoID, poolID string) erro
 	}
 	pool, err := r.store.GetEntityPool(ctx, entity, poolID)
 	if err != nil {
-		return errors.Wrap(err, "fetching pool")
+		return fmt.Errorf("error fetching pool: %w", err)
 	}
 
 	// nolint:golangci-lint,godox
@@ -300,7 +299,7 @@ func (r *Runner) DeleteRepoPool(ctx context.Context, repoID, poolID string) erro
 	}
 
 	if err := r.store.DeleteEntityPool(ctx, entity, poolID); err != nil {
-		return errors.Wrap(err, "deleting pool")
+		return fmt.Errorf("error deleting pool: %w", err)
 	}
 	return nil
 }
@@ -315,7 +314,7 @@ func (r *Runner) ListRepoPools(ctx context.Context, repoID string) ([]params.Poo
 	}
 	pools, err := r.store.ListEntityPools(ctx, entity)
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching pools")
+		return nil, fmt.Errorf("error fetching pools: %w", err)
 	}
 	return pools, nil
 }
@@ -327,7 +326,7 @@ func (r *Runner) ListPoolInstances(ctx context.Context, poolID string) ([]params
 
 	instances, err := r.store.ListPoolInstances(ctx, poolID)
 	if err != nil {
-		return []params.Instance{}, errors.Wrap(err, "fetching instances")
+		return []params.Instance{}, fmt.Errorf("error fetching instances: %w", err)
 	}
 	return instances, nil
 }
@@ -343,7 +342,7 @@ func (r *Runner) UpdateRepoPool(ctx context.Context, repoID, poolID string, para
 	}
 	pool, err := r.store.GetEntityPool(ctx, entity, poolID)
 	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "fetching pool")
+		return params.Pool{}, fmt.Errorf("error fetching pool: %w", err)
 	}
 
 	maxRunners := pool.MaxRunners
@@ -362,7 +361,7 @@ func (r *Runner) UpdateRepoPool(ctx context.Context, repoID, poolID string, para
 
 	newPool, err := r.store.UpdateEntityPool(ctx, entity, poolID, param)
 	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "updating pool")
+		return params.Pool{}, fmt.Errorf("error updating pool: %w", err)
 	}
 	return newPool, nil
 }
@@ -377,7 +376,7 @@ func (r *Runner) ListRepoInstances(ctx context.Context, repoID string) ([]params
 	}
 	instances, err := r.store.ListEntityInstances(ctx, entity)
 	if err != nil {
-		return []params.Instance{}, errors.Wrap(err, "fetching instances")
+		return []params.Instance{}, fmt.Errorf("error , errfetching instances: %w", err)
 	}
 	return instances, nil
 }
@@ -388,12 +387,12 @@ func (r *Runner) findRepoPoolManager(owner, name, endpointName string) (common.P
 
 	repo, err := r.store.GetRepository(r.ctx, owner, name, endpointName)
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching repo")
+		return nil, fmt.Errorf("error fetching repo: %w", err)
 	}
 
 	poolManager, err := r.poolManagerCtrl.GetRepoPoolManager(repo)
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching pool manager for repo")
+		return nil, fmt.Errorf("error fetching pool manager for repo: %w", err)
 	}
 	return poolManager, nil
 }
@@ -405,17 +404,17 @@ func (r *Runner) InstallRepoWebhook(ctx context.Context, repoID string, param pa
 
 	repo, err := r.store.GetRepositoryByID(ctx, repoID)
 	if err != nil {
-		return params.HookInfo{}, errors.Wrap(err, "fetching repo")
+		return params.HookInfo{}, fmt.Errorf("error fetching repo: %w", err)
 	}
 
 	poolManager, err := r.poolManagerCtrl.GetRepoPoolManager(repo)
 	if err != nil {
-		return params.HookInfo{}, errors.Wrap(err, "fetching pool manager for repo")
+		return params.HookInfo{}, fmt.Errorf("error fetching pool manager for repo: %w", err)
 	}
 
 	info, err := poolManager.InstallWebhook(ctx, param)
 	if err != nil {
-		return params.HookInfo{}, errors.Wrap(err, "installing webhook")
+		return params.HookInfo{}, fmt.Errorf("error installing webhook: %w", err)
 	}
 	return info, nil
 }
@@ -427,16 +426,16 @@ func (r *Runner) UninstallRepoWebhook(ctx context.Context, repoID string) error 
 
 	repo, err := r.store.GetRepositoryByID(ctx, repoID)
 	if err != nil {
-		return errors.Wrap(err, "fetching repo")
+		return fmt.Errorf("error fetching repo: %w", err)
 	}
 
 	poolManager, err := r.poolManagerCtrl.GetRepoPoolManager(repo)
 	if err != nil {
-		return errors.Wrap(err, "fetching pool manager for repo")
+		return fmt.Errorf("error fetching pool manager for repo: %w", err)
 	}
 
 	if err := poolManager.UninstallWebhook(ctx); err != nil {
-		return errors.Wrap(err, "uninstalling webhook")
+		return fmt.Errorf("error uninstalling webhook: %w", err)
 	}
 	return nil
 }
@@ -448,17 +447,17 @@ func (r *Runner) GetRepoWebhookInfo(ctx context.Context, repoID string) (params.
 
 	repo, err := r.store.GetRepositoryByID(ctx, repoID)
 	if err != nil {
-		return params.HookInfo{}, errors.Wrap(err, "fetching repo")
+		return params.HookInfo{}, fmt.Errorf("error fetching repo: %w", err)
 	}
 
 	poolManager, err := r.poolManagerCtrl.GetRepoPoolManager(repo)
 	if err != nil {
-		return params.HookInfo{}, errors.Wrap(err, "fetching pool manager for repo")
+		return params.HookInfo{}, fmt.Errorf("error fetching pool manager for repo: %w", err)
 	}
 
 	info, err := poolManager.GetWebhookInfo(ctx)
 	if err != nil {
-		return params.HookInfo{}, errors.Wrap(err, "getting webhook info")
+		return params.HookInfo{}, fmt.Errorf("error getting webhook info: %w", err)
 	}
 	return info, nil
 }

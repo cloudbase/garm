@@ -17,16 +17,15 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
-
-	"github.com/pkg/errors"
 )
 
 func getHomeDir() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return "", errors.Wrap(err, "fetching home dir")
+		return "", fmt.Errorf("error fetching home dir: %w", err)
 	}
 
 	return filepath.Join(home, ".local", "share", DefaultAppFolder), nil

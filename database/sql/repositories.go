@@ -16,11 +16,11 @@ package sql
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 
 	"github.com/google/uuid"
-	"github.com/pkg/errors"
 	"gorm.io/gorm"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
@@ -57,23 +57,23 @@ func (s *sqlDatabase) CreateRepository(ctx context.Context, owner, name string, 
 		case params.GiteaEndpointType:
 			newRepo.GiteaCredentialsID = &credentials.ID
 		default:
-			return errors.Wrap(runnerErrors.ErrBadRequest, "unsupported credentials type")
+			return runnerErrors.NewBadRequestError("unsupported credentials type")
 		}
 
 		newRepo.EndpointName = &credentials.Endpoint.Name
 		q := tx.Create(&newRepo)
 		if q.Error != nil {
-			return errors.Wrap(q.Error, "creating repository")
+			return fmt.Errorf("error creating repository: %w", q.Error)
 		}
 		return nil
 	})
 	if err != nil {
-		return params.Repository{}, errors.Wrap(err, "creating repository")
+		return params.Repository{}, fmt.Errorf("error creating repository: %w", err)
 	}
 
 	ret, err := s.GetRepositoryByID(ctx, newRepo.ID.String())
 	if err != nil {
-		return params.Repository{}, errors.Wrap(err, "creating repository")
+		return params.Repository{}, fmt.Errorf("error creating repository: %w", err)
 	}
 
 	return ret, nil
@@ -82,12 +82,12 @@ func (s *sqlDatabase) CreateRepository(ctx context.Context, owner, name string, 
 func (s *sqlDatabase) GetRepository(ctx context.Context, owner, name, endpointName string) (params.Repository, error) {
 	repo, err := s.getRepo(ctx, owner, name, endpointName)
 	if err != nil {
-		return params.Repository{}, errors.Wrap(err, "fetching repo")
+		return params.Repository{}, fmt.Errorf("error fetching repo: %w", err)
 	}
 
 	param, err := s.sqlToCommonRepository(repo, true)
 	if err != nil {
-		return params.Repository{}, errors.Wrap(err, "fetching repo")
+		return params.Repository{}, fmt.Errorf("error fetching repo: %w", err)
 	}
 
 	return param, nil
@@ -112,7 +112,7 @@ func (s *sqlDatabase) ListRepositories(_ context.Context, filter params.Reposito
 	}
 	q = q.Find(&repos)
 	if q.Error != nil {
-		return []params.Repository{}, errors.Wrap(q.Error, "fetching user from database")
+		return []params.Repository{}, fmt.Errorf("error fetching user from database: %w", q.Error)
 	}
 
 	ret := make([]params.Repository, len(repos))
@@ -120,7 +120,7 @@ func (s *sqlDatabase) ListRepositories(_ context.Context, filter params.Reposito
 		var err error
 		ret[idx], err = s.sqlToCommonRepository(val, true)
 		if err != nil {
-			return nil, errors.Wrap(err, "fetching repositories")
+			return nil, fmt.Errorf("error fetching repositories: %w", err)
 		}
 	}
 
@@ -130,7 +130,7 @@ func (s *sqlDatabase) ListRepositories(_ context.Context, filter params.Reposito
 func (s *sqlDatabase) DeleteRepository(ctx context.Context, repoID string) (err error) {
 	repo, err := s.getRepoByID(ctx, s.conn, repoID, "Endpoint", "Credentials", "Credentials.Endpoint", "GiteaCredentials", "GiteaCredentials.Endpoint")
 	if err != nil {
-		return errors.Wrap(err, "fetching repo")
+		return fmt.Errorf("error fetching repo: %w", err)
 	}
 
 	defer func(repo Repository) {
@@ -146,7 +146,7 @@ func (s *sqlDatabase) DeleteRepository(ctx context.Context, repoID string) (err 
 
 	q := s.conn.Unscoped().Delete(&repo)
 	if q.Error != nil && !errors.Is(q.Error, gorm.ErrRecordNotFound) {
-		return errors.Wrap(q.Error, "deleting repo")
+		return fmt.Errorf("error deleting repo: %w", q.Error)
 	}
 
 	return nil
@@ -164,23 +164,23 @@ func (s *sqlDatabase) UpdateRepository(ctx context.Context, repoID string, param
 		var err error
 		repo, err = s.getRepoByID(ctx, tx, repoID)
 		if err != nil {
-			return errors.Wrap(err, "fetching repo")
+			return fmt.Errorf("error fetching repo: %w", err)
 		}
 		if repo.EndpointName == nil {
-			return errors.Wrap(runnerErrors.ErrUnprocessable, "repository has no endpoint")
+			return runnerErrors.NewUnprocessableError("repository has no endpoint")
 		}
 
 		if param.CredentialsName != "" {
 			creds, err = s.getGithubCredentialsByName(ctx, tx, param.CredentialsName, false)
 			if err != nil {
-				return errors.Wrap(err, "fetching credentials")
+				return fmt.Errorf("error fetching credentials: %w", err)
 			}
 			if creds.EndpointName == nil {
-				return errors.Wrap(runnerErrors.ErrUnprocessable, "credentials have no endpoint")
+				return runnerErrors.NewUnprocessableError("credentials have no endpoint")
 			}
 
 			if *creds.EndpointName != *repo.EndpointName {
-				return errors.Wrap(runnerErrors.ErrBadRequest, "endpoint mismatch")
+				return runnerErrors.NewBadRequestError("endpoint mismatch")
 			}
 			repo.CredentialsID = &creds.ID
 		}
@@ -199,23 +199,23 @@ func (s *sqlDatabase) UpdateRepository(ctx context.Context, repoID string, param
 
 		q := tx.Save(&repo)
 		if q.Error != nil {
-			return errors.Wrap(q.Error, "saving repo")
+			return fmt.Errorf("error saving repo: %w", q.Error)
 		}
 
 		return nil
 	})
 	if err != nil {
-		return params.Repository{}, errors.Wrap(err, "saving repo")
+		return params.Repository{}, fmt.Errorf("error saving repo: %w", err)
 	}
 
 	repo, err = s.getRepoByID(ctx, s.conn, repoID, "Endpoint", "Credentials", "Credentials.Endpoint", "GiteaCredentials", "GiteaCredentials.Endpoint")
 	if err != nil {
-		return params.Repository{}, errors.Wrap(err, "updating enterprise")
+		return params.Repository{}, fmt.Errorf("error updating enterprise: %w", err)
 	}
 
 	newParams, err = s.sqlToCommonRepository(repo, true)
 	if err != nil {
-		return params.Repository{}, errors.Wrap(err, "saving repo")
+		return params.Repository{}, fmt.Errorf("error saving repo: %w", err)
 	}
 	return newParams, nil
 }
@@ -232,12 +232,12 @@ func (s *sqlDatabase) GetRepositoryByID(ctx context.Context, repoID string) (par
 	}
 	repo, err := s.getRepoByID(ctx, s.conn, repoID, preloadList...)
 	if err != nil {
-		return params.Repository{}, errors.Wrap(err, "fetching repo")
+		return params.Repository{}, fmt.Errorf("error fetching repo: %w", err)
 	}
 
 	param, err := s.sqlToCommonRepository(repo, true)
 	if err != nil {
-		return params.Repository{}, errors.Wrap(err, "fetching repo")
+		return params.Repository{}, fmt.Errorf("error fetching repo: %w", err)
 	}
 	return param, nil
 }
@@ -259,7 +259,7 @@ func (s *sqlDatabase) getRepo(_ context.Context, owner, name, endpointName strin
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
 			return Repository{}, runnerErrors.ErrNotFound
 		}
-		return Repository{}, errors.Wrap(q.Error, "fetching repository from database")
+		return Repository{}, fmt.Errorf("error fetching repository from database: %w", q.Error)
 	}
 	return repo, nil
 }
@@ -267,7 +267,7 @@ func (s *sqlDatabase) getRepo(_ context.Context, owner, name, endpointName strin
 func (s *sqlDatabase) getRepoByID(_ context.Context, tx *gorm.DB, id string, preload ...string) (Repository, error) {
 	u, err := uuid.Parse(id)
 	if err != nil {
-		return Repository{}, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
+		return Repository{}, runnerErrors.NewBadRequestError("error parsing id: %s", err)
 	}
 	var repo Repository
 
@@ -283,7 +283,7 @@ func (s *sqlDatabase) getRepoByID(_ context.Context, tx *gorm.DB, id string, pre
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
 			return Repository{}, runnerErrors.ErrNotFound
 		}
-		return Repository{}, errors.Wrap(q.Error, "fetching repository from database")
+		return Repository{}, fmt.Errorf("error fetching repository from database: %w", q.Error)
 	}
 	return repo, nil
 }

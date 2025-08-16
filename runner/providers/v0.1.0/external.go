@@ -17,11 +17,10 @@ package v010
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os/exec"
-
-	"github.com/pkg/errors"
 
 	garmErrors "github.com/cloudbase/garm-provider-common/errors"
 	commonExecution "github.com/cloudbase/garm-provider-common/execution/common"
@@ -44,7 +43,7 @@ func NewProvider(ctx context.Context, cfg *config.Provider, controllerID string)
 
 	execPath, err := cfg.External.ExecutablePath()
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching executable path")
+		return nil, fmt.Errorf("error fetching executable path: %w", err)
 	}
 
 	// Set GARM_INTERFACE_VERSION to the version of the interface that the external
@@ -83,7 +82,7 @@ func (e *external) CreateInstance(ctx context.Context, bootstrapParams commonPar
 
 	asJs, err := json.Marshal(bootstrapParams)
 	if err != nil {
-		return commonParams.ProviderInstance{}, errors.Wrap(err, "serializing bootstrap params")
+		return commonParams.ProviderInstance{}, fmt.Errorf("error serializing bootstrap params: %w", err)
 	}
 
 	metrics.InstanceOperationCount.WithLabelValues(

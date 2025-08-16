@@ -16,10 +16,10 @@ package runner
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 
@@ -224,7 +224,7 @@ func (s *OrgTestSuite) TestCreateOrganizationPoolMgrFailed() {
 
 	s.Fixtures.PoolMgrMock.AssertExpectations(s.T())
 	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
-	s.Require().Equal(fmt.Sprintf("creating org pool manager: %s", s.Fixtures.ErrMock.Error()), err.Error())
+	s.Require().Equal(fmt.Sprintf("error creating org pool manager: %s", s.Fixtures.ErrMock.Error()), err.Error())
 }
 
 func (s *OrgTestSuite) TestCreateOrganizationStartPoolMgrFailed() {
@@ -236,7 +236,7 @@ func (s *OrgTestSuite) TestCreateOrganizationStartPoolMgrFailed() {
 
 	s.Fixtures.PoolMgrMock.AssertExpectations(s.T())
 	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
-	s.Require().Equal(fmt.Sprintf("starting org pool manager: %s", s.Fixtures.ErrMock.Error()), err.Error())
+	s.Require().Equal(fmt.Sprintf("error starting org pool manager: %s", s.Fixtures.ErrMock.Error()), err.Error())
 }
 
 func (s *OrgTestSuite) TestListOrganizations() {
@@ -338,7 +338,7 @@ func (s *OrgTestSuite) TestDeleteOrganization() {
 	s.Require().Nil(err)
 
 	_, err = s.Fixtures.Store.GetOrganizationByID(s.Fixtures.AdminContext, s.Fixtures.StoreOrgs["test-org-3"].ID)
-	s.Require().Equal("fetching org: not found", err.Error())
+	s.Require().Equal("error fetching org: not found", err.Error())
 }
 
 func (s *OrgTestSuite) TestDeleteOrganizationErrUnauthorized() {
@@ -368,7 +368,7 @@ func (s *OrgTestSuite) TestDeleteOrganizationPoolMgrFailed() {
 	err := s.Runner.DeleteOrganization(s.Fixtures.AdminContext, s.Fixtures.StoreOrgs["test-org-1"].ID, true)
 
 	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
-	s.Require().Equal(fmt.Sprintf("deleting org pool manager: %s", s.Fixtures.ErrMock.Error()), err.Error())
+	s.Require().Equal(fmt.Sprintf("error deleting org pool manager: %s", s.Fixtures.ErrMock.Error()), err.Error())
 }
 
 func (s *OrgTestSuite) TestUpdateOrganization() {
@@ -502,7 +502,7 @@ func (s *OrgTestSuite) TestDeleteOrgPool() {
 	s.Require().Nil(err)
 
 	_, err = s.Fixtures.Store.GetEntityPool(s.Fixtures.AdminContext, entity, pool.ID)
-	s.Require().Equal("fetching pool: finding pool: not found", err.Error())
+	s.Require().Equal("fetching pool: error finding pool: not found", err.Error())
 }
 
 func (s *OrgTestSuite) TestDeleteOrgPoolErrUnauthorized() {

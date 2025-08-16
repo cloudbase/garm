@@ -2,8 +2,8 @@ package runner
 
 import (
 	"context"
-
-	"github.com/pkg/errors"
+	"errors"
+	"fmt"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/params"
@@ -12,11 +12,11 @@ import (
 func (r *Runner) ResolveForgeCredentialByName(ctx context.Context, credentialsName string) (params.ForgeCredentials, error) {
 	githubCred, err := r.store.GetGithubCredentialsByName(ctx, credentialsName, false)
 	if err != nil && !errors.Is(err, runnerErrors.ErrNotFound) {
-		return params.ForgeCredentials{}, errors.Wrap(err, "fetching github credentials")
+		return params.ForgeCredentials{}, fmt.Errorf("error fetching github credentials: %w", err)
 	}
 	giteaCred, err := r.store.GetGiteaCredentialsByName(ctx, credentialsName, false)
 	if err != nil && !errors.Is(err, runnerErrors.ErrNotFound) {
-		return params.ForgeCredentials{}, errors.Wrap(err, "fetching gitea credentials")
+		return params.ForgeCredentials{}, fmt.Errorf("error fetching gitea credentials: %w", err)
 	}
 	if githubCred.ID != 0 && giteaCred.ID != 0 {
 		return params.ForgeCredentials{}, runnerErrors.NewBadRequestError("credentials %s are defined for both GitHub and Gitea, please specify the forge type", credentialsName)

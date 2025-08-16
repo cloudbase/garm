@@ -16,10 +16,9 @@ package util
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"unicode/utf8"
-
-	"github.com/pkg/errors"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
@@ -30,9 +29,9 @@ func FetchTools(ctx context.Context, cli common.GithubClient) ([]commonParams.Ru
 	tools, ghResp, err := cli.ListEntityRunnerApplicationDownloads(ctx)
 	if err != nil {
 		if ghResp != nil && ghResp.StatusCode == http.StatusUnauthorized {
-			return nil, errors.Wrap(runnerErrors.ErrUnauthorized, "fetching tools")
+			return nil, fmt.Errorf("error fetching tools: %w", runnerErrors.ErrUnauthorized)
 		}
-		return nil, errors.Wrap(err, "fetching runner tools")
+		return nil, fmt.Errorf("error fetching runner tools: %w", err)
 	}
 
 	ret := []commonParams.RunnerApplicationDownload{}

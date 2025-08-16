@@ -18,11 +18,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"html/template"
 	"log/slog"
-
-	"github.com/pkg/errors"
 
 	"github.com/cloudbase/garm-provider-common/defaults"
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
@@ -92,7 +91,7 @@ func (r *Runner) getForgeEntityFromInstance(ctx context.Context, instance params
 		slog.With(slog.Any("error", err)).ErrorContext(
 			ctx, "failed to get entity getter",
 			"instance", instance.Name)
-		return params.ForgeEntity{}, errors.Wrap(err, "fetching entity getter")
+		return params.ForgeEntity{}, fmt.Errorf("error fetching entity getter: %w", err)
 	}
 
 	poolEntity, err := entityGetter.GetEntity()
@@ -100,7 +99,7 @@ func (r *Runner) getForgeEntityFromInstance(ctx context.Context, instance params
 		slog.With(slog.Any("error", err)).ErrorContext(
 			ctx, "failed to get entity",
 			"instance", instance.Name)
-		return params.ForgeEntity{}, errors.Wrap(err, "fetching entity")
+		return params.ForgeEntity{}, fmt.Errorf("error fetching entity: %w", err)
 	}
 
 	entity, err := r.store.GetForgeEntity(r.ctx, poolEntity.EntityType, poolEntity.ID)
@@ -108,7 +107,7 @@ func (r *Runner) getForgeEntityFromInstance(ctx context.Context, instance params
 		slog.With(slog.Any("error", err)).ErrorContext(
 			ctx, "failed to get entity",
 			"instance", instance.Name)
-		return params.ForgeEntity{}, errors.Wrap(err, "fetching entity")
+		return params.ForgeEntity{}, fmt.Errorf("error fetching entity: %w", err)
 	}
 	return entity, nil
 }
@@ -136,13 +135,13 @@ func (r *Runner) GetRunnerServiceName(ctx context.Context) (string, error) {
 	entity, err := r.getForgeEntityFromInstance(ctx, instance)
 	if err != nil {
 		slog.ErrorContext(r.ctx, "failed to get entity", "error", err)
-		return "", errors.Wrap(err, "fetching entity")
+		return "", fmt.Errorf("error fetching entity: %w", err)
 	}
 
 	serviceName, err := r.getServiceNameForEntity(entity)
 	if err != nil {
 		slog.ErrorContext(r.ctx, "failed to get service name", "error", err)
-		return "", errors.Wrap(err, "fetching service name")
+		return "", fmt.Errorf("error fetching service name: %w", err)
 	}
 	return serviceName, nil
 }
@@ -157,13 +156,13 @@ func (r *Runner) GenerateSystemdUnitFile(ctx context.Context, runAsUser string) 
 	entity, err := r.getForgeEntityFromInstance(ctx, instance)
 	if err != nil {
 		slog.ErrorContext(r.ctx, "failed to get entity", "error", err)
-		return nil, errors.Wrap(err, "fetching entity")
+		return nil, fmt.Errorf("error fetching entity: %w", err)
 	}
 
 	serviceName, err := r.getServiceNameForEntity(entity)
 	if err != nil {
 		slog.ErrorContext(r.ctx, "failed to get service name", "error", err)
-		return nil, errors.Wrap(err, "fetching service name")
+		return nil, fmt.Errorf("error fetching service name: %w", err)
 	}
 
 	var unitTemplate *template.Template
@@ -178,7 +177,7 @@ func (r *Runner) GenerateSystemdUnitFile(ctx context.Context, runAsUser string) 
 	}
 	if err != nil {
 		slog.ErrorContext(r.ctx, "failed to parse template", "error", err)
-		return nil, errors.Wrap(err, "parsing template")
+		return nil, fmt.Errorf("error parsing template: %w", err)
 	}
 
 	if runAsUser == "" {
@@ -196,14 +195,14 @@ func (r *Runner) GenerateSystemdUnitFile(ctx context.Context, runAsUser string) 
 	var unitFile bytes.Buffer
 	if err := unitTemplate.Execute(&unitFile, data); err != nil {
 		slog.ErrorContext(r.ctx, "failed to execute template", "error", err)
-		return nil, errors.Wrap(err, "executing template")
+		return nil, fmt.Errorf("error executing template: %w", err)
 	}
 	return unitFile.Bytes(), nil
 }
 
 func (r *Runner) GetJITConfigFile(ctx context.Context, file string) ([]byte, error) {
 	if !auth.InstanceHasJITConfig(ctx) {
-		return nil, fmt.Errorf("instance not configured for JIT: %w", runnerErrors.ErrNotFound)
+		return nil, runnerErrors.NewNotFoundError("instance not configured for JIT")
 	}
 
 	instance, err := validateInstanceState(ctx)
@@ -215,12 +214,12 @@ func (r *Runner) GetJITConfigFile(ctx context.Context, file string) ([]byte, err
 	jitConfig := instance.JitConfiguration
 	contents, ok := jitConfig[file]
 	if !ok {
-		return nil, errors.Wrap(runnerErrors.ErrNotFound, "retrieving file")
+		return nil, runnerErrors.NewNotFoundError("could not find file %q", file)
 	}
 
 	decoded, err := base64.StdEncoding.DecodeString(contents)
 	if err != nil {
-		return nil, errors.Wrap(err, "decoding file contents")
+		return nil, fmt.Errorf("error decoding file contents: %w", err)
 	}
 
 	return decoded, nil
@@ -249,12 +248,12 @@ func (r *Runner) GetInstanceGithubRegistrationToken(ctx context.Context) (string
 
 	poolMgr, err := r.getPoolManagerFromInstance(ctx, instance)
 	if err != nil {
-		return "", errors.Wrap(err, "fetching pool manager for instance")
+		return "", fmt.Errorf("error fetching pool manager for instance: %w", err)
 	}
 
 	token, err := poolMgr.GithubRunnerRegistrationToken()
 	if err != nil {
-		return "", errors.Wrap(err, "fetching runner token")
+		return "", fmt.Errorf("error fetching runner token: %w", err)
 	}
 
 	tokenFetched := true
@@ -263,11 +262,11 @@ func (r *Runner) GetInstanceGithubRegistrationToken(ctx context.Context) (string
 	}
 
 	if _, err := r.store.UpdateInstance(r.ctx, instance.Name, updateParams); err != nil {
-		return "", errors.Wrap(err, "setting token_fetched for instance")
+		return "", fmt.Errorf("error setting token_fetched for instance: %w", err)
 	}
 
 	if err := r.store.AddInstanceEvent(ctx, instance.Name, params.FetchTokenEvent, params.EventInfo, "runner registration token was retrieved"); err != nil {
-		return "", errors.Wrap(err, "recording event")
+		return "", fmt.Errorf("error recording event: %w", err)
 	}
 
 	return token, nil
@@ -283,7 +282,7 @@ func (r *Runner) GetRootCertificateBundle(ctx context.Context) (params.Certifica
 
 	poolMgr, err := r.getPoolManagerFromInstance(ctx, instance)
 	if err != nil {
-		return params.CertificateBundle{}, errors.Wrap(err, "fetching pool manager for instance")
+		return params.CertificateBundle{}, fmt.Errorf("error fetching pool manager for instance: %w", err)
 	}
 
 	bundle, err := poolMgr.RootCABundle()

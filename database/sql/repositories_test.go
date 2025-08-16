@@ -284,7 +284,7 @@ func (s *RepoTestSuite) TestCreateRepositoryInvalidForgeType() {
 	)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("creating repository: unsupported credentials type: invalid request", err.Error())
+	s.Require().Equal("error creating repository: unsupported credentials type", err.Error())
 }
 
 func (s *RepoTestSuite) TestCreateRepositoryInvalidDBPassphrase() {
@@ -330,7 +330,7 @@ func (s *RepoTestSuite) TestCreateRepositoryInvalidDBCreateErr() {
 	)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("creating repository: creating repository: creating repo mock error", err.Error())
+	s.Require().Equal("error creating repository: error creating repository: creating repo mock error", err.Error())
 	s.assertSQLMockExpectations()
 }
 
@@ -355,7 +355,7 @@ func (s *RepoTestSuite) TestGetRepositoryNotFound() {
 	_, err := s.Store.GetRepository(s.adminCtx, "dummy-owner", "dummy-name", "github.com")
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching repo: not found", err.Error())
+	s.Require().Equal("error fetching repo: not found", err.Error())
 }
 
 func (s *RepoTestSuite) TestGetRepositoryDBDecryptingErr() {
@@ -371,7 +371,7 @@ func (s *RepoTestSuite) TestGetRepositoryDBDecryptingErr() {
 	_, err := s.StoreSQLMocked.GetRepository(s.adminCtx, s.Fixtures.Repos[0].Owner, s.Fixtures.Repos[0].Name, s.Fixtures.Repos[0].Endpoint.Name)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching repo: missing secret", err.Error())
+	s.Require().Equal("error fetching repo: missing secret", err.Error())
 	s.assertSQLMockExpectations()
 }
 
@@ -471,7 +471,7 @@ func (s *RepoTestSuite) TestListRepositoriesDBFetchErr() {
 	_, err := s.StoreSQLMocked.ListRepositories(s.adminCtx, params.RepositoryFilter{})
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching user from database: fetching user from database mock error", err.Error())
+	s.Require().Equal("error fetching user from database: fetching user from database mock error", err.Error())
 	s.assertSQLMockExpectations()
 }
 
@@ -485,7 +485,7 @@ func (s *RepoTestSuite) TestListRepositoriesDBDecryptingErr() {
 	_, err := s.StoreSQLMocked.ListRepositories(s.adminCtx, params.RepositoryFilter{})
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching repositories: decrypting secret: invalid passphrase length (expected length 32 characters)", err.Error())
+	s.Require().Equal("error fetching repositories: error decrypting secret: invalid passphrase length (expected length 32 characters)", err.Error())
 	s.assertSQLMockExpectations()
 }
 
@@ -495,14 +495,14 @@ func (s *RepoTestSuite) TestDeleteRepository() {
 	s.Require().Nil(err)
 	_, err = s.Store.GetRepositoryByID(s.adminCtx, s.Fixtures.Repos[0].ID)
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching repo: not found", err.Error())
+	s.Require().Equal("error fetching repo: not found", err.Error())
 }
 
 func (s *RepoTestSuite) TestDeleteRepositoryInvalidRepoID() {
 	err := s.Store.DeleteRepository(s.adminCtx, "dummy-repo-id")
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching repo: parsing id: invalid request", err.Error())
+	s.Require().Equal("error fetching repo: error parsing id: invalid UUID length: 13", err.Error())
 }
 
 func (s *RepoTestSuite) TestDeleteRepositoryDBRemoveErr() {
@@ -520,7 +520,7 @@ func (s *RepoTestSuite) TestDeleteRepositoryDBRemoveErr() {
 	err := s.StoreSQLMocked.DeleteRepository(s.adminCtx, s.Fixtures.Repos[0].ID)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("deleting repo: mocked deleting repo error", err.Error())
+	s.Require().Equal("error deleting repo: mocked deleting repo error", err.Error())
 	s.assertSQLMockExpectations()
 }
 
@@ -536,7 +536,7 @@ func (s *RepoTestSuite) TestUpdateRepositoryInvalidRepoID() {
 	_, err := s.Store.UpdateRepository(s.adminCtx, "dummy-repo-id", s.Fixtures.UpdateRepoParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("saving repo: fetching repo: parsing id: invalid request", err.Error())
+	s.Require().Equal("error saving repo: error fetching repo: error parsing id: invalid UUID length: 13", err.Error())
 }
 
 func (s *RepoTestSuite) TestUpdateRepositoryDBEncryptErr() {
@@ -561,7 +561,7 @@ func (s *RepoTestSuite) TestUpdateRepositoryDBEncryptErr() {
 	_, err := s.StoreSQLMocked.UpdateRepository(s.adminCtx, s.Fixtures.Repos[0].ID, s.Fixtures.UpdateRepoParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("saving repo: saving repo: failed to encrypt string: invalid passphrase length (expected length 32 characters)", err.Error())
+	s.Require().Equal("error saving repo: saving repo: failed to encrypt string: invalid passphrase length (expected length 32 characters)", err.Error())
 	s.assertSQLMockExpectations()
 }
 
@@ -589,7 +589,7 @@ func (s *RepoTestSuite) TestUpdateRepositoryDBSaveErr() {
 	_, err := s.StoreSQLMocked.UpdateRepository(s.adminCtx, s.Fixtures.Repos[0].ID, s.Fixtures.UpdateRepoParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("saving repo: saving repo: saving repo mock error", err.Error())
+	s.Require().Equal("error saving repo: error saving repo: saving repo mock error", err.Error())
 	s.assertSQLMockExpectations()
 }
 
@@ -616,7 +616,7 @@ func (s *RepoTestSuite) TestUpdateRepositoryDBDecryptingErr() {
 	_, err := s.StoreSQLMocked.UpdateRepository(s.adminCtx, s.Fixtures.Repos[0].ID, s.Fixtures.UpdateRepoParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("saving repo: saving repo: failed to encrypt string: invalid passphrase length (expected length 32 characters)", err.Error())
+	s.Require().Equal("error saving repo: saving repo: failed to encrypt string: invalid passphrase length (expected length 32 characters)", err.Error())
 	s.assertSQLMockExpectations()
 }
 
@@ -631,7 +631,7 @@ func (s *RepoTestSuite) TestGetRepositoryByIDInvalidRepoID() {
 	_, err := s.Store.GetRepositoryByID(s.adminCtx, "dummy-repo-id")
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching repo: parsing id: invalid request", err.Error())
+	s.Require().Equal("error fetching repo: error parsing id: invalid UUID length: 13", err.Error())
 }
 
 func (s *RepoTestSuite) TestGetRepositoryByIDDBDecryptingErr() {
@@ -651,7 +651,7 @@ func (s *RepoTestSuite) TestGetRepositoryByIDDBDecryptingErr() {
 	_, err := s.StoreSQLMocked.GetRepositoryByID(s.adminCtx, s.Fixtures.Repos[0].ID)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching repo: missing secret", err.Error())
+	s.Require().Equal("error fetching repo: missing secret", err.Error())
 	s.assertSQLMockExpectations()
 }
 
@@ -690,7 +690,7 @@ func (s *RepoTestSuite) TestCreateRepositoryPoolInvalidRepoID() {
 	_, err := s.Store.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("parsing id: invalid request", err.Error())
+	s.Require().Equal("error parsing id: invalid request", err.Error())
 }
 
 func (s *RepoTestSuite) TestCreateRepositoryPoolDBFetchTagErr() {
@@ -709,7 +709,7 @@ func (s *RepoTestSuite) TestCreateRepositoryPoolDBFetchTagErr() {
 	_, err = s.StoreSQLMocked.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("creating tag: fetching tag from database: mocked fetching tag error", err.Error())
+	s.Require().Equal("error creating tag: error fetching tag from database: mocked fetching tag error", err.Error())
 	s.assertSQLMockExpectations()
 }
 
@@ -738,7 +738,7 @@ func (s *RepoTestSuite) TestCreateRepositoryPoolDBAddingPoolErr() {
 	_, err = s.StoreSQLMocked.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("creating pool: mocked adding pool error", err.Error())
+	s.Require().Equal("error creating pool: mocked adding pool error", err.Error())
 	s.assertSQLMockExpectations()
 }
 
@@ -769,7 +769,7 @@ func (s *RepoTestSuite) TestCreateRepositoryPoolDBSaveTagErr() {
 
 	_, err = s.StoreSQLMocked.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 	s.Require().NotNil(err)
-	s.Require().Equal("associating tags: mocked saving tag error", err.Error())
+	s.Require().Equal("error associating tags: mocked saving tag error", err.Error())
 	s.assertSQLMockExpectations()
 }
 
@@ -810,7 +810,7 @@ func (s *RepoTestSuite) TestCreateRepositoryPoolDBFetchPoolErr() {
 	_, err = s.StoreSQLMocked.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching pool: not found", err.Error())
+	s.Require().Equal("error fetching pool: not found", err.Error())
 	s.assertSQLMockExpectations()
 }
 
@@ -841,7 +841,7 @@ func (s *RepoTestSuite) TestListRepoPoolsInvalidRepoID() {
 	_, err := s.Store.ListEntityPools(s.adminCtx, entity)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching pools: parsing id: invalid request", err.Error())
+	s.Require().Equal("error fetching pools: error parsing id: invalid request", err.Error())
 }
 
 func (s *RepoTestSuite) TestGetRepositoryPool() {
@@ -866,7 +866,7 @@ func (s *RepoTestSuite) TestGetRepositoryPoolInvalidRepoID() {
 	_, err := s.Store.GetEntityPool(s.adminCtx, entity, "dummy-pool-id")
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching pool: parsing id: invalid request", err.Error())
+	s.Require().Equal("fetching pool: error parsing id: invalid request", err.Error())
 }
 
 func (s *RepoTestSuite) TestDeleteRepositoryPool() {
@@ -881,7 +881,7 @@ func (s *RepoTestSuite) TestDeleteRepositoryPool() {
 
 	s.Require().Nil(err)
 	_, err = s.Store.GetEntityPool(s.adminCtx, entity, pool.ID)
-	s.Require().Equal("fetching pool: finding pool: not found", err.Error())
+	s.Require().Equal("fetching pool: error finding pool: not found", err.Error())
 }
 
 func (s *RepoTestSuite) TestDeleteRepositoryPoolInvalidRepoID() {
@@ -892,7 +892,7 @@ func (s *RepoTestSuite) TestDeleteRepositoryPoolInvalidRepoID() {
 	err := s.Store.DeleteEntityPool(s.adminCtx, entity, "dummy-pool-id")
 
 	s.Require().NotNil(err)
-	s.Require().Equal("parsing id: invalid request", err.Error())
+	s.Require().Equal("error parsing id: invalid request", err.Error())
 }
 
 func (s *RepoTestSuite) TestDeleteRepositoryPoolDBDeleteErr() {
@@ -913,7 +913,7 @@ func (s *RepoTestSuite) TestDeleteRepositoryPoolDBDeleteErr() {
 
 	err = s.StoreSQLMocked.DeleteEntityPool(s.adminCtx, entity, pool.ID)
 	s.Require().NotNil(err)
-	s.Require().Equal("removing pool: mocked deleting pool error", err.Error())
+	s.Require().Equal("error removing pool: mocked deleting pool error", err.Error())
 	s.assertSQLMockExpectations()
 }
 
@@ -948,7 +948,7 @@ func (s *RepoTestSuite) TestListRepoInstancesInvalidRepoID() {
 	_, err := s.Store.ListEntityInstances(s.adminCtx, entity)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching entity: parsing id: invalid request", err.Error())
+	s.Require().Equal("error fetching entity: error parsing id: invalid request", err.Error())
 }
 
 func (s *RepoTestSuite) TestUpdateRepositoryPool() {
@@ -976,7 +976,7 @@ func (s *RepoTestSuite) TestUpdateRepositoryPoolInvalidRepoID() {
 	_, err := s.Store.UpdateEntityPool(s.adminCtx, entity, "dummy-repo-id", s.Fixtures.UpdatePoolParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching pool: parsing id: invalid request", err.Error())
+	s.Require().Equal("error fetching pool: error parsing id: invalid request", err.Error())
 }
 
 func (s *RepoTestSuite) TestAddRepoEntityEvent() {

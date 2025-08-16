@@ -17,10 +17,11 @@ package sql
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"log/slog"
 
 	"github.com/google/uuid"
-	"github.com/pkg/errors"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
@@ -35,7 +36,7 @@ func sqlWorkflowJobToParamsJob(job WorkflowJob) (params.Job, error) {
 	labels := []string{}
 	if job.Labels != nil {
 		if err := json.Unmarshal(job.Labels, &labels); err != nil {
-			return params.Job{}, errors.Wrap(err, "unmarshaling labels")
+			return params.Job{}, fmt.Errorf("error unmarshaling labels: %w", err)
 		}
 	}
 
@@ -73,7 +74,7 @@ func sqlWorkflowJobToParamsJob(job WorkflowJob) (params.Job, error) {
 func (s *sqlDatabase) paramsJobToWorkflowJob(ctx context.Context, job params.Job) (WorkflowJob, error) {
 	asJSON, err := json.Marshal(job.Labels)
 	if err != nil {
-		return WorkflowJob{}, errors.Wrap(err, "marshaling labels")
+		return WorkflowJob{}, fmt.Errorf("error marshaling labels: %w", err)
 	}
 
 	workflofJob := WorkflowJob{
@@ -118,11 +119,11 @@ func (s *sqlDatabase) DeleteJob(_ context.Context, jobID int64) (err error) {
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
 			return nil
 		}
-		return errors.Wrap(q.Error, "fetching job")
+		return fmt.Errorf("error fetching job: %w", q.Error)
 	}
 	removedJob, err := sqlWorkflowJobToParamsJob(workflowJob)
 	if err != nil {
-		return errors.Wrap(err, "converting job")
+		return fmt.Errorf("error converting job: %w", err)
 	}
 
 	defer func() {
@@ -137,7 +138,7 @@ func (s *sqlDatabase) DeleteJob(_ context.Context, jobID int64) (err error) {
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
 			return nil
 		}
-		return errors.Wrap(q.Error, "deleting job")
+		return fmt.Errorf("error deleting job: %w", q.Error)
 	}
 	return nil
 }
@@ -145,7 +146,7 @@ func (s *sqlDatabase) DeleteJob(_ context.Context, jobID int64) (err error) {
 func (s *sqlDatabase) LockJob(_ context.Context, jobID int64, entityID string) error {
 	entityUUID, err := uuid.Parse(entityID)
 	if err != nil {
-		return errors.Wrap(err, "parsing entity id")
+		return fmt.Errorf("error parsing entity id: %w", err)
 	}
 	var workflowJob WorkflowJob
 	q := s.conn.Preload("Instance").Where("id = ?", jobID).First(&workflowJob)
@@ -154,7 +155,7 @@ func (s *sqlDatabase) LockJob(_ context.Context, jobID int64, entityID string) e
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
 			return runnerErrors.ErrNotFound
 		}
-		return errors.Wrap(q.Error, "fetching job")
+		return fmt.Errorf("error fetching job: %w", q.Error)
 	}
 
 	if workflowJob.LockedBy.String() == entityID {
@@ -169,12 +170,12 @@ func (s *sqlDatabase) LockJob(_ context.Context, jobID int64, entityID string) e
 	workflowJob.LockedBy = entityUUID
 
 	if err := s.conn.Save(&workflowJob).Error; err != nil {
-		return errors.Wrap(err, "saving job")
+		return fmt.Errorf("error saving job: %w", err)
 	}
 
 	asParams, err := sqlWorkflowJobToParamsJob(workflowJob)
 	if err != nil {
-		return errors.Wrap(err, "converting job")
+		return fmt.Errorf("error converting job: %w", err)
 	}
 	s.sendNotify(common.JobEntityType, common.UpdateOperation, asParams)
 
@@ -189,7 +190,7 @@ func (s *sqlDatabase) BreakLockJobIsQueued(_ context.Context, jobID int64) (err 
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
 			return nil
 		}
-		return errors.Wrap(q.Error, "fetching job")
+		return fmt.Errorf("error fetching job: %w", q.Error)
 	}
 
 	if workflowJob.LockedBy == uuid.Nil {
@@ -199,11 +200,11 @@ func (s *sqlDatabase) BreakLockJobIsQueued(_ context.Context, jobID int64) (err 
 
 	workflowJob.LockedBy = uuid.Nil
 	if err := s.conn.Save(&workflowJob).Error; err != nil {
-		return errors.Wrap(err, "saving job")
+		return fmt.Errorf("error saving job: %w", err)
 	}
 	asParams, err := sqlWorkflowJobToParamsJob(workflowJob)
 	if err != nil {
-		return errors.Wrap(err, "converting job")
+		return fmt.Errorf("error converting job: %w", err)
 	}
 	s.sendNotify(common.JobEntityType, common.UpdateOperation, asParams)
 	return nil
@@ -217,7 +218,7 @@ func (s *sqlDatabase) UnlockJob(_ context.Context, jobID int64, entityID string)
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
 			return runnerErrors.ErrNotFound
 		}
-		return errors.Wrap(q.Error, "fetching job")
+		return fmt.Errorf("error fetching job: %w", q.Error)
 	}
 
 	if workflowJob.LockedBy == uuid.Nil {
@@ -231,12 +232,12 @@ func (s *sqlDatabase) UnlockJob(_ context.Context, jobID int64, entityID string)
 
 	workflowJob.LockedBy = uuid.Nil
 	if err := s.conn.Save(&workflowJob).Error; err != nil {
-		return errors.Wrap(err, "saving job")
+		return fmt.Errorf("error saving job: %w", err)
 	}
 
 	asParams, err := sqlWorkflowJobToParamsJob(workflowJob)
 	if err != nil {
-		return errors.Wrap(err, "converting job")
+		return fmt.Errorf("error converting job: %w", err)
 	}
 	s.sendNotify(common.JobEntityType, common.UpdateOperation, asParams)
 	return nil
@@ -256,7 +257,7 @@ func (s *sqlDatabase) CreateOrUpdateJob(ctx context.Context, job params.Job) (pa
 
 	if q.Error != nil {
 		if !errors.Is(q.Error, gorm.ErrRecordNotFound) {
-			return params.Job{}, errors.Wrap(q.Error, "fetching job")
+			return params.Job{}, fmt.Errorf("error fetching job: %w", q.Error)
 		}
 	}
 	var operation common.OperationType
@@ -302,23 +303,23 @@ func (s *sqlDatabase) CreateOrUpdateJob(ctx context.Context, job params.Job) (pa
 			workflowJob.EnterpriseID = job.EnterpriseID
 		}
 		if err := s.conn.Save(&workflowJob).Error; err != nil {
-			return params.Job{}, errors.Wrap(err, "saving job")
+			return params.Job{}, fmt.Errorf("error saving job: %w", err)
 		}
 	} else {
 		operation = common.CreateOperation
 
 		workflowJob, err = s.paramsJobToWorkflowJob(ctx, job)
 		if err != nil {
-			return params.Job{}, errors.Wrap(err, "converting job")
+			return params.Job{}, fmt.Errorf("error converting job: %w", err)
 		}
 		if err := s.conn.Create(&workflowJob).Error; err != nil {
-			return params.Job{}, errors.Wrap(err, "creating job")
+			return params.Job{}, fmt.Errorf("error creating job: %w", err)
 		}
 	}
 
 	asParams, err := sqlWorkflowJobToParamsJob(workflowJob)
 	if err != nil {
-		return params.Job{}, errors.Wrap(err, "converting job")
+		return params.Job{}, fmt.Errorf("error converting job: %w", err)
 	}
 	s.sendNotify(common.JobEntityType, operation, asParams)
 
@@ -338,7 +339,7 @@ func (s *sqlDatabase) ListJobsByStatus(_ context.Context, status params.JobStatu
 	for idx, job := range jobs {
 		jobParam, err := sqlWorkflowJobToParamsJob(job)
 		if err != nil {
-			return nil, errors.Wrap(err, "converting job")
+			return nil, fmt.Errorf("error converting job: %w", err)
 		}
 		ret[idx] = jobParam
 	}
@@ -379,7 +380,7 @@ func (s *sqlDatabase) ListEntityJobsByStatus(_ context.Context, entityType param
 	for idx, job := range jobs {
 		jobParam, err := sqlWorkflowJobToParamsJob(job)
 		if err != nil {
-			return nil, errors.Wrap(err, "converting job")
+			return nil, fmt.Errorf("error converting job: %w", err)
 		}
 		ret[idx] = jobParam
 	}
@@ -401,7 +402,7 @@ func (s *sqlDatabase) ListAllJobs(_ context.Context) ([]params.Job, error) {
 	for idx, job := range jobs {
 		jobParam, err := sqlWorkflowJobToParamsJob(job)
 		if err != nil {
-			return nil, errors.Wrap(err, "converting job")
+			return nil, fmt.Errorf("error converting job: %w", err)
 		}
 		ret[idx] = jobParam
 	}

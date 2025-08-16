@@ -16,11 +16,10 @@ package runner
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
-
-	"github.com/pkg/errors"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/auth"
@@ -36,7 +35,7 @@ func (r *Runner) CreateEnterprise(ctx context.Context, param params.CreateEnterp
 
 	err = param.Validate()
 	if err != nil {
-		return params.Enterprise{}, errors.Wrap(err, "validating params")
+		return params.Enterprise{}, fmt.Errorf("error validating params: %w", err)
 	}
 
 	creds, err := r.store.GetGithubCredentialsByName(ctx, param.CredentialsName, true)
@@ -47,7 +46,7 @@ func (r *Runner) CreateEnterprise(ctx context.Context, param params.CreateEnterp
 	_, err = r.store.GetEnterprise(ctx, param.Name, creds.Endpoint.Name)
 	if err != nil {
 		if !errors.Is(err, runnerErrors.ErrNotFound) {
-			return params.Enterprise{}, errors.Wrap(err, "fetching enterprise")
+			return params.Enterprise{}, fmt.Errorf("error fetching enterprise: %w", err)
 		}
 	} else {
 		return params.Enterprise{}, runnerErrors.NewConflictError("enterprise %s already exists", param.Name)
@@ -55,7 +54,7 @@ func (r *Runner) CreateEnterprise(ctx context.Context, param params.CreateEnterp
 
 	enterprise, err = r.store.CreateEnterprise(ctx, param.Name, creds, param.WebhookSecret, param.PoolBalancerType)
 	if err != nil {
-		return params.Enterprise{}, errors.Wrap(err, "creating enterprise")
+		return params.Enterprise{}, fmt.Errorf("error creating enterprise: %w", err)
 	}
 
 	defer func() {
@@ -73,7 +72,7 @@ func (r *Runner) CreateEnterprise(ctx context.Context, param params.CreateEnterp
 	var poolMgr common.PoolManager
 	poolMgr, err = r.poolManagerCtrl.CreateEnterprisePoolManager(r.ctx, enterprise, r.providers, r.store)
 	if err != nil {
-		return params.Enterprise{}, errors.Wrap(err, "creating enterprise pool manager")
+		return params.Enterprise{}, fmt.Errorf("error creating enterprise pool manager: %w", err)
 	}
 	if err := poolMgr.Start(); err != nil {
 		if deleteErr := r.poolManagerCtrl.DeleteEnterprisePoolManager(enterprise); deleteErr != nil {
@@ -81,7 +80,7 @@ func (r *Runner) CreateEnterprise(ctx context.Context, param params.CreateEnterp
 				ctx, "failed to cleanup pool manager for enterprise",
 				"enterprise_id", enterprise.ID)
 		}
-		return params.Enterprise{}, errors.Wrap(err, "starting enterprise pool manager")
+		return params.Enterprise{}, fmt.Errorf("error starting enterprise pool manager: %w", err)
 	}
 	return enterprise, nil
 }
@@ -93,7 +92,7 @@ func (r *Runner) ListEnterprises(ctx context.Context, filter params.EnterpriseFi
 
 	enterprises, err := r.store.ListEnterprises(ctx, filter)
 	if err != nil {
-		return nil, errors.Wrap(err, "listing enterprises")
+		return nil, fmt.Errorf("error listing enterprises: %w", err)
 	}
 
 	var allEnterprises []params.Enterprise
@@ -119,7 +118,7 @@ func (r *Runner) GetEnterpriseByID(ctx context.Context, enterpriseID string) (pa
 
 	enterprise, err := r.store.GetEnterpriseByID(ctx, enterpriseID)
 	if err != nil {
-		return params.Enterprise{}, errors.Wrap(err, "fetching enterprise")
+		return params.Enterprise{}, fmt.Errorf("error fetching enterprise: %w", err)
 	}
 	poolMgr, err := r.poolManagerCtrl.GetEnterprisePoolManager(enterprise)
 	if err != nil {
@@ -137,17 +136,17 @@ func (r *Runner) DeleteEnterprise(ctx context.Context, enterpriseID string) erro
 
 	enterprise, err := r.store.GetEnterpriseByID(ctx, enterpriseID)
 	if err != nil {
-		return errors.Wrap(err, "fetching enterprise")
+		return fmt.Errorf("error fetching enterprise: %w", err)
 	}
 
 	entity, err := enterprise.GetEntity()
 	if err != nil {
-		return errors.Wrap(err, "getting entity")
+		return fmt.Errorf("error getting entity: %w", err)
 	}
 
 	pools, err := r.store.ListEntityPools(ctx, entity)
 	if err != nil {
-		return errors.Wrap(err, "fetching enterprise pools")
+		return fmt.Errorf("error fetching enterprise pools: %w", err)
 	}
 
 	if len(pools) > 0 {
@@ -161,7 +160,7 @@ func (r *Runner) DeleteEnterprise(ctx context.Context, enterpriseID string) erro
 
 	scaleSets, err := r.store.ListEntityScaleSets(ctx, entity)
 	if err != nil {
-		return errors.Wrap(err, "fetching enterprise scale sets")
+		return fmt.Errorf("error fetching enterprise scale sets: %w", err)
 	}
 
 	if len(scaleSets) > 0 {
@@ -169,11 +168,11 @@ func (r *Runner) DeleteEnterprise(ctx context.Context, enterpriseID string) erro
 	}
 
 	if err := r.poolManagerCtrl.DeleteEnterprisePoolManager(enterprise); err != nil {
-		return errors.Wrap(err, "deleting enterprise pool manager")
+		return fmt.Errorf("error deleting enterprise pool manager: %w", err)
 	}
 
 	if err := r.store.DeleteEnterprise(ctx, enterpriseID); err != nil {
-		return errors.Wrapf(err, "removing enterprise %s", enterpriseID)
+		return fmt.Errorf("error removing enterprise %s: %w", enterpriseID, err)
 	}
 	return nil
 }
@@ -194,7 +193,7 @@ func (r *Runner) UpdateEnterprise(ctx context.Context, enterpriseID string, para
 
 	enterprise, err := r.store.UpdateEnterprise(ctx, enterpriseID, param)
 	if err != nil {
-		return params.Enterprise{}, errors.Wrap(err, "updating enterprise")
+		return params.Enterprise{}, fmt.Errorf("error updating enterprise: %w", err)
 	}
 
 	poolMgr, err := r.poolManagerCtrl.GetEnterprisePoolManager(enterprise)
@@ -243,7 +242,7 @@ func (r *Runner) GetEnterprisePoolByID(ctx context.Context, enterpriseID, poolID
 	}
 	pool, err := r.store.GetEntityPool(ctx, entity, poolID)
 	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "fetching pool")
+		return params.Pool{}, fmt.Errorf("error fetching pool: %w", err)
 	}
 	return pool, nil
 }
@@ -260,7 +259,7 @@ func (r *Runner) DeleteEnterprisePool(ctx context.Context, enterpriseID, poolID 
 
 	pool, err := r.store.GetEntityPool(ctx, entity, poolID)
 	if err != nil {
-		return errors.Wrap(err, "fetching pool")
+		return fmt.Errorf("error fetching pool: %w", err)
 	}
 
 	// nolint:golangci-lint,godox
@@ -274,7 +273,7 @@ func (r *Runner) DeleteEnterprisePool(ctx context.Context, enterpriseID, poolID 
 	}
 
 	if err := r.store.DeleteEntityPool(ctx, entity, poolID); err != nil {
-		return errors.Wrap(err, "deleting pool")
+		return fmt.Errorf("error deleting pool: %w", err)
 	}
 	return nil
 }
@@ -290,7 +289,7 @@ func (r *Runner) ListEnterprisePools(ctx context.Context, enterpriseID string) (
 	}
 	pools, err := r.store.ListEntityPools(ctx, entity)
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching pools")
+		return nil, fmt.Errorf("error fetching pools: %w", err)
 	}
 	return pools, nil
 }
@@ -306,7 +305,7 @@ func (r *Runner) UpdateEnterprisePool(ctx context.Context, enterpriseID, poolID 
 	}
 	pool, err := r.store.GetEntityPool(ctx, entity, poolID)
 	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "fetching pool")
+		return params.Pool{}, fmt.Errorf("error fetching pool: %w", err)
 	}
 
 	maxRunners := pool.MaxRunners
@@ -325,7 +324,7 @@ func (r *Runner) UpdateEnterprisePool(ctx context.Context, enterpriseID, poolID 
 
 	newPool, err := r.store.UpdateEntityPool(ctx, entity, poolID, param)
 	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "updating pool")
+		return params.Pool{}, fmt.Errorf("error updating pool: %w", err)
 	}
 	return newPool, nil
 }
@@ -340,7 +339,7 @@ func (r *Runner) ListEnterpriseInstances(ctx context.Context, enterpriseID strin
 	}
 	instances, err := r.store.ListEntityInstances(ctx, entity)
 	if err != nil {
-		return []params.Instance{}, errors.Wrap(err, "fetching instances")
+		return []params.Instance{}, fmt.Errorf("error fetching instances: %w", err)
 	}
 	return instances, nil
 }
@@ -351,12 +350,12 @@ func (r *Runner) findEnterprisePoolManager(name, endpointName string) (common.Po
 
 	enterprise, err := r.store.GetEnterprise(r.ctx, name, endpointName)
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching enterprise")
+		return nil, fmt.Errorf("error fetching enterprise: %w", err)
 	}
 
 	poolManager, err := r.poolManagerCtrl.GetEnterprisePoolManager(enterprise)
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching pool manager for enterprise")
+		return nil, fmt.Errorf("error fetching pool manager for enterprise: %w", err)
 	}
 	return poolManager, nil
 }

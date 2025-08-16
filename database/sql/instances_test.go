@@ -210,7 +210,7 @@ func (s *InstancesTestSuite) TestCreateInstance() {
 func (s *InstancesTestSuite) TestCreateInstanceInvalidPoolID() {
 	_, err := s.Store.CreateInstance(s.adminCtx, "dummy-pool-id", params.CreateInstanceParams{})
 
-	s.Require().Equal("fetching pool: parsing id: invalid request", err.Error())
+	s.Require().Equal("error fetching pool: error parsing id: invalid request", err.Error())
 }
 
 func (s *InstancesTestSuite) TestCreateInstanceDBCreateErr() {
@@ -233,7 +233,7 @@ func (s *InstancesTestSuite) TestCreateInstanceDBCreateErr() {
 
 	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
-	s.Require().Equal("creating instance: mocked insert instance error", err.Error())
+	s.Require().Equal("error creating instance: mocked insert instance error", err.Error())
 }
 
 func (s *InstancesTestSuite) TestGetPoolInstanceByName() {
@@ -252,7 +252,7 @@ func (s *InstancesTestSuite) TestGetPoolInstanceByName() {
 func (s *InstancesTestSuite) TestGetPoolInstanceByNameNotFound() {
 	_, err := s.Store.GetPoolInstanceByName(s.adminCtx, s.Fixtures.Pool.ID, "not-existent-instance-name")
 
-	s.Require().Equal("fetching instance: fetching pool instance by name: not found", err.Error())
+	s.Require().Equal("error fetching instance: error fetching pool instance by name: not found", err.Error())
 }
 
 func (s *InstancesTestSuite) TestGetInstanceByName() {
@@ -271,7 +271,7 @@ func (s *InstancesTestSuite) TestGetInstanceByName() {
 func (s *InstancesTestSuite) TestGetInstanceByNameFetchInstanceFailed() {
 	_, err := s.Store.GetInstanceByName(s.adminCtx, "not-existent-instance-name")
 
-	s.Require().Equal("fetching instance: fetching instance by name: not found", err.Error())
+	s.Require().Equal("error fetching instance: error fetching instance by name: not found", err.Error())
 }
 
 func (s *InstancesTestSuite) TestDeleteInstance() {
@@ -282,7 +282,7 @@ func (s *InstancesTestSuite) TestDeleteInstance() {
 	s.Require().Nil(err)
 
 	_, err = s.Store.GetPoolInstanceByName(s.adminCtx, s.Fixtures.Pool.ID, storeInstance.Name)
-	s.Require().Equal("fetching instance: fetching pool instance by name: not found", err.Error())
+	s.Require().Equal("error fetching instance: error fetching pool instance by name: not found", err.Error())
 
 	err = s.Store.DeleteInstance(s.adminCtx, s.Fixtures.Pool.ID, storeInstance.Name)
 	s.Require().Nil(err)
@@ -296,7 +296,7 @@ func (s *InstancesTestSuite) TestDeleteInstanceByName() {
 	s.Require().Nil(err)
 
 	_, err = s.Store.GetPoolInstanceByName(s.adminCtx, s.Fixtures.Pool.ID, storeInstance.Name)
-	s.Require().Equal("fetching instance: fetching pool instance by name: not found", err.Error())
+	s.Require().Equal("error fetching instance: error fetching pool instance by name: not found", err.Error())
 
 	err = s.Store.DeleteInstanceByName(s.adminCtx, storeInstance.Name)
 	s.Require().Nil(err)
@@ -305,7 +305,7 @@ func (s *InstancesTestSuite) TestDeleteInstanceByName() {
 func (s *InstancesTestSuite) TestDeleteInstanceInvalidPoolID() {
 	err := s.Store.DeleteInstance(s.adminCtx, "dummy-pool-id", "dummy-instance-name")
 
-	s.Require().Equal("deleting instance: fetching pool: parsing id: invalid request", err.Error())
+	s.Require().Equal("error deleting instance: error fetching pool: error parsing id: invalid request", err.Error())
 }
 
 func (s *InstancesTestSuite) TestDeleteInstanceDBRecordNotFoundErr() {
@@ -380,7 +380,7 @@ func (s *InstancesTestSuite) TestDeleteInstanceDBDeleteErr() {
 
 	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
-	s.Require().Equal("deleting instance: mocked delete instance error", err.Error())
+	s.Require().Equal("error deleting instance: mocked delete instance error", err.Error())
 }
 
 func (s *InstancesTestSuite) TestAddInstanceEvent() {
@@ -431,7 +431,7 @@ func (s *InstancesTestSuite) TestAddInstanceEventDBUpdateErr() {
 	err := s.StoreSQLMocked.AddInstanceEvent(s.adminCtx, instance.Name, params.StatusEvent, params.EventInfo, statusMsg)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("adding status message: mocked add status message error", err.Error())
+	s.Require().Equal("error adding status message: mocked add status message error", err.Error())
 	s.assertSQLMockExpectations()
 }
 
@@ -476,7 +476,7 @@ func (s *InstancesTestSuite) TestUpdateInstanceDBUpdateInstanceErr() {
 	_, err := s.StoreSQLMocked.UpdateInstance(s.adminCtx, instance.Name, s.Fixtures.UpdateInstanceParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("updating instance: mocked update instance error", err.Error())
+	s.Require().Equal("error updating instance: mocked update instance error", err.Error())
 	s.assertSQLMockExpectations()
 }
 
@@ -522,7 +522,7 @@ func (s *InstancesTestSuite) TestUpdateInstanceDBUpdateAddressErr() {
 	_, err := s.StoreSQLMocked.UpdateInstance(s.adminCtx, instance.Name, s.Fixtures.UpdateInstanceParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("updating addresses: update addresses mock error", err.Error())
+	s.Require().Equal("error updating addresses: update addresses mock error", err.Error())
 	s.assertSQLMockExpectations()
 }
 
@@ -536,7 +536,7 @@ func (s *InstancesTestSuite) TestListPoolInstances() {
 func (s *InstancesTestSuite) TestListPoolInstancesInvalidPoolID() {
 	_, err := s.Store.ListPoolInstances(s.adminCtx, "dummy-pool-id")
 
-	s.Require().Equal("parsing id: invalid request", err.Error())
+	s.Require().Equal("error parsing id: invalid request", err.Error())
 }
 
 func (s *InstancesTestSuite) TestListAllInstances() {
@@ -555,7 +555,7 @@ func (s *InstancesTestSuite) TestListAllInstancesDBFetchErr() {
 
 	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching instances: fetch instances mock error", err.Error())
+	s.Require().Equal("error fetching instances: fetch instances mock error", err.Error())
 }
 
 func (s *InstancesTestSuite) TestPoolInstanceCount() {
@@ -568,7 +568,7 @@ func (s *InstancesTestSuite) TestPoolInstanceCount() {
 func (s *InstancesTestSuite) TestPoolInstanceCountInvalidPoolID() {
 	_, err := s.Store.PoolInstanceCount(s.adminCtx, "dummy-pool-id")
 
-	s.Require().Equal("fetching pool: parsing id: invalid request", err.Error())
+	s.Require().Equal("error fetching pool: error parsing id: invalid request", err.Error())
 }
 
 func (s *InstancesTestSuite) TestPoolInstanceCountDBCountErr() {
@@ -587,7 +587,7 @@ func (s *InstancesTestSuite) TestPoolInstanceCountDBCountErr() {
 
 	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching instance count: count mock error", err.Error())
+	s.Require().Equal("error fetching instance count: count mock error", err.Error())
 }
 
 func TestInstTestSuite(t *testing.T) {

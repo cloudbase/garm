@@ -16,10 +16,10 @@ package runner
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 
@@ -210,7 +210,7 @@ func (s *EnterpriseTestSuite) TestCreateEnterprisePoolMgrFailed() {
 
 	s.Fixtures.PoolMgrMock.AssertExpectations(s.T())
 	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
-	s.Require().Equal(fmt.Sprintf("creating enterprise pool manager: %s", s.Fixtures.ErrMock.Error()), err.Error())
+	s.Require().Equal(fmt.Sprintf("error creating enterprise pool manager: %s", s.Fixtures.ErrMock.Error()), err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestCreateEnterpriseStartPoolMgrFailed() {
@@ -222,7 +222,7 @@ func (s *EnterpriseTestSuite) TestCreateEnterpriseStartPoolMgrFailed() {
 
 	s.Fixtures.PoolMgrMock.AssertExpectations(s.T())
 	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
-	s.Require().Equal(fmt.Sprintf("starting enterprise pool manager: %s", s.Fixtures.ErrMock.Error()), err.Error())
+	s.Require().Equal(fmt.Sprintf("error starting enterprise pool manager: %s", s.Fixtures.ErrMock.Error()), err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestListEnterprises() {
@@ -324,7 +324,7 @@ func (s *EnterpriseTestSuite) TestDeleteEnterprise() {
 	s.Require().Nil(err)
 
 	_, err = s.Fixtures.Store.GetEnterpriseByID(s.Fixtures.AdminContext, s.Fixtures.StoreEnterprises["test-enterprise-3"].ID)
-	s.Require().Equal("fetching enterprise: not found", err.Error())
+	s.Require().Equal("error fetching enterprise: not found", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestDeleteEnterpriseErrUnauthorized() {
@@ -354,7 +354,7 @@ func (s *EnterpriseTestSuite) TestDeleteEnterprisePoolMgrFailed() {
 	err := s.Runner.DeleteEnterprise(s.Fixtures.AdminContext, s.Fixtures.StoreEnterprises["test-enterprise-1"].ID)
 
 	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
-	s.Require().Equal(fmt.Sprintf("deleting enterprise pool manager: %s", s.Fixtures.ErrMock.Error()), err.Error())
+	s.Require().Equal(fmt.Sprintf("error deleting enterprise pool manager: %s", s.Fixtures.ErrMock.Error()), err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestUpdateEnterprise() {
@@ -477,7 +477,7 @@ func (s *EnterpriseTestSuite) TestDeleteEnterprisePool() {
 	s.Require().Nil(err)
 
 	_, err = s.Fixtures.Store.GetEntityPool(s.Fixtures.AdminContext, entity, pool.ID)
-	s.Require().Equal("fetching pool: finding pool: not found", err.Error())
+	s.Require().Equal("fetching pool: error finding pool: not found", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestDeleteEnterprisePoolErrUnauthorized() {

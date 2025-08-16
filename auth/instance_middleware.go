@@ -24,7 +24,6 @@ import (
 	"time"
 
 	jwt "github.com/golang-jwt/jwt/v5"
-	"github.com/pkg/errors"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
@@ -91,7 +90,7 @@ func (i *instanceToken) NewInstanceJWTToken(instance params.Instance, entity par
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString([]byte(i.jwtSecret))
 	if err != nil {
-		return "", errors.Wrap(err, "signing token")
+		return "", fmt.Errorf("error signing token: %w", err)
 	}
 
 	return tokenString, nil
