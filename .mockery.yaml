@@ -1,0 +1,27 @@
+with-expecter: true
+dir: "mocks"
+mockname: "{{ .InterfaceName }}"
+outpkg: "mocks"
+filename: "{{ .InterfaceName }}.go"
+# V3 compatibility settings
+resolve-type-alias: false
+disable-version-string: true
+issue-845-fix: true
+packages:
+  # Database store interfaces
+  github.com/cloudbase/garm/database/common:
+    interfaces:
+      Store:
+        config:
+          dir: "{{ .InterfaceDir }}/mocks"
+  # Runner interfaces  
+  github.com/cloudbase/garm/runner:
+    interfaces:
+      PoolManagerController:
+        config:
+          dir: "{{ .InterfaceDir }}/mocks"
+  # Runner common interfaces (generate all interfaces in this package)
+  github.com/cloudbase/garm/runner/common:
+    config:
+      dir: "{{ .InterfaceDir }}/mocks"
+      all: true

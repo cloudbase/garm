@@ -36,7 +36,7 @@ const (
 	BackoffTimer = 1 * time.Minute
 )
 
-//go:generate mockery --all
+//go:generate go run github.com/vektra/mockery/v2@latest
 type PoolManager interface {
 	// ID returns the ID of the entity (repo, org, enterprise)
 	ID() string

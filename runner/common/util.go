@@ -49,7 +49,7 @@ type RateLimitClient interface {
 // GithubClient that describes the minimum list of functions we need to interact with github.
 // Allows for easier testing.
 //
-//go:generate mockery --all
+//go:generate go run github.com/vektra/mockery/v2@latest
 type GithubClient interface {
 	GithubEntityOperations
 

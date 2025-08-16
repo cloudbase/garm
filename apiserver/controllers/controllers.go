@@ -20,6 +20,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -31,16 +32,41 @@ import (
 	"github.com/cloudbase/garm/apiserver/events"
 	"github.com/cloudbase/garm/apiserver/params"
 	"github.com/cloudbase/garm/auth"
+	"github.com/cloudbase/garm/config"
 	"github.com/cloudbase/garm/metrics"
 	runnerParams "github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner" //nolint:typecheck
+	garmUtil "github.com/cloudbase/garm/util"
 	wsWriter "github.com/cloudbase/garm/websocket"
 )
 
-func NewAPIController(r *runner.Runner, authenticator *auth.Authenticator, hub *wsWriter.Hub) (*APIController, error) {
+func NewAPIController(r *runner.Runner, authenticator *auth.Authenticator, hub *wsWriter.Hub, apiCfg config.APIServer) (*APIController, error) {
 	controllerInfo, err := r.GetControllerInfo(auth.GetAdminContext(context.Background()))
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get controller info")
+	}
+	var checkOrigin func(r *http.Request) bool
+	if len(apiCfg.CORSOrigins) > 0 {
+		checkOrigin = func(r *http.Request) bool {
+			origin := r.Header["Origin"]
+			if len(origin) == 0 {
+				return true
+			}
+			u, err := url.Parse(origin[0])
+			if err != nil {
+				return false
+			}
+			for _, val := range apiCfg.CORSOrigins {
+				corsVal, err := url.Parse(val)
+				if err != nil {
+					continue
+				}
+				if garmUtil.ASCIIEqualFold(u.Host, corsVal.Host) {
+					return true
+				}
+			}
+			return false
+		}
 	}
 	return &APIController{
 		r:    r,
@@ -49,6 +75,7 @@ func NewAPIController(r *runner.Runner, authenticator *auth.Authenticator, hub *
 		upgrader: websocket.Upgrader{
 			ReadBufferSize:  1024,
 			WriteBufferSize: 16384,
+			CheckOrigin:     checkOrigin,
 		},
 		controllerID: controllerInfo.ControllerID.String(),
 	}, nil

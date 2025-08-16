@@ -18,6 +18,7 @@
         - [Installing on Kubernetes](#installing-on-kubernetes)
     - [Configuring GARM for GHES](#configuring-garm-for-ghes)
     - [Configuring GARM for Gitea](#configuring-garm-for-gitea)
+    - [Enabling the web UI](#enabling-the-web-ui)
     - [Using GARM](#using-garm)
     - [Supported providers](#supported-providers)
         - [Installing external providers](#installing-external-providers)
@@ -77,6 +78,17 @@ GARM supports creating pools and scale sets in either GitHub itself or in your o
 ## Configuring GARM for Gitea
 
 GARM now has support for Gitea (>=1.24.0). For information on getting started with Gitea, see the [Gitea quickstart](/doc/gitea.md) document.
+
+## Enabling the web UI
+
+GARM now ships with a single page application. To enable it, add the following to your GARM config:
+
+```toml
+[apiserver.webui]
+  enable = true
+```
+
+Check the [README.md](/webapp/README.md) file for details on the web UI.
 
 ## Using GARM
 

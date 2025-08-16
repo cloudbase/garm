@@ -169,7 +169,7 @@ type GiteaCredentialsStore interface {
 	DeleteGiteaCredentials(ctx context.Context, id uint) (err error)
 }
 
-//go:generate mockery --name=Store
+//go:generate go run github.com/vektra/mockery/v2@latest
 type Store interface {
 	RepoStore
 	OrgStore

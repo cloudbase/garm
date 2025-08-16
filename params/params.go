@@ -172,6 +172,7 @@ const (
 	MessageTypeJobAvailable = "JobAvailable"
 )
 
+// swagger:model StatusMessage
 type StatusMessage struct {
 	CreatedAt  time.Time  `json:"created_at,omitempty"`
 	Message    string     `json:"message,omitempty"`
@@ -179,6 +180,7 @@ type StatusMessage struct {
 	EventLevel EventLevel `json:"event_level,omitempty"`
 }
 
+// swagger:model EntityEvent
 type EntityEvent struct {
 	ID        uint      `json:"id,omitempty"`
 	CreatedAt time.Time `json:"created_at,omitempty"`
@@ -188,6 +190,7 @@ type EntityEvent struct {
 	Message    string     `json:"message,omitempty"`
 }
 
+// swagger:model Instance
 type Instance struct {
 	// ID is the database ID of this instance.
 	ID string `json:"id,omitempty"`
@@ -282,6 +285,7 @@ func (i Instance) GetID() string {
 }
 
 // used by swagger client generated code
+// swagger:model Instances
 type Instances []Instance
 
 type BootstrapInstance struct {
@@ -352,6 +356,7 @@ type Tag struct {
 	Name string `json:"name,omitempty"`
 }
 
+// swagger:model Pool
 type Pool struct {
 	RunnerPrefix
 
@@ -376,7 +381,7 @@ type Pool struct {
 	EnterpriseID   string `json:"enterprise_id,omitempty"`
 	EnterpriseName string `json:"enterprise_name,omitempty"`
 
-	Endpoint ForgeEndpoint `json:"forge_type,omitempty"`
+	Endpoint ForgeEndpoint `json:"endpoint,omitempty"`
 
 	RunnerBootstrapTimeout uint      `json:"runner_bootstrap_timeout,omitempty"`
 	CreatedAt              time.Time `json:"created_at,omitempty"`
@@ -487,10 +492,15 @@ func (p *Pool) HasRequiredLabels(set []string) bool {
 }
 
 // used by swagger client generated code
+// swagger:model Pools
 type Pools []Pool
 
+// swagger:model ScaleSet
 type ScaleSet struct {
 	RunnerPrefix
+
+	CreatedAt time.Time `json:"created_at,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty"`
 
 	ID            uint   `json:"id,omitempty"`
 	ScaleSetID    int    `json:"scale_set_id,omitempty"`
@@ -510,6 +520,8 @@ type ScaleSet struct {
 	Enabled            bool                `json:"enabled,omitempty"`
 	Instances          []Instance          `json:"instances,omitempty"`
 	DesiredRunnerCount int                 `json:"desired_runner_count,omitempty"`
+
+	Endpoint ForgeEndpoint `json:"endpoint,omitempty"`
 
 	RunnerBootstrapTimeout uint `json:"runner_bootstrap_timeout,omitempty"`
 	// ExtraSpecs is an opaque raw json that gets sent to the provider
@@ -593,8 +605,10 @@ func (p *ScaleSet) RunnerTimeout() uint {
 }
 
 // used by swagger client generated code
+// swagger:model ScaleSets
 type ScaleSets []ScaleSet
 
+// swagger:model Repository
 type Repository struct {
 	ID    string `json:"id,omitempty"`
 	Owner string `json:"owner,omitempty"`
@@ -666,8 +680,10 @@ func (r Repository) String() string {
 }
 
 // used by swagger client generated code
+// swagger:model Repositories
 type Repositories []Repository
 
+// swagger:model Organization
 type Organization struct {
 	ID    string `json:"id,omitempty"`
 	Name  string `json:"name,omitempty"`
@@ -724,8 +740,10 @@ func (o Organization) GetBalancerType() PoolBalancerType {
 }
 
 // used by swagger client generated code
+// swagger:model Organizations
 type Organizations []Organization
 
+// swagger:model Enterprise
 type Enterprise struct {
 	ID    string `json:"id,omitempty"`
 	Name  string `json:"name,omitempty"`
@@ -782,9 +800,11 @@ func (e Enterprise) GetBalancerType() PoolBalancerType {
 }
 
 // used by swagger client generated code
+// swagger:model Enterprises
 type Enterprises []Enterprise
 
 // Users holds information about a particular user
+// swagger:model User
 type User struct {
 	ID        string    `json:"id,omitempty"`
 	CreatedAt time.Time `json:"created_at,omitempty"`
@@ -801,10 +821,12 @@ type User struct {
 
 // JWTResponse holds the JWT token returned as a result of a
 // successful auth
+// swagger:model JWTResponse
 type JWTResponse struct {
 	Token string `json:"token,omitempty"`
 }
 
+// swagger:model ControllerInfo
 type ControllerInfo struct {
 	// ControllerID is the unique ID of this controller. This ID gets generated
 	// automatically on controller init.
@@ -857,6 +879,7 @@ func (c *ControllerInfo) JobBackoff() time.Duration {
 	return time.Duration(int64(c.MinimumJobAgeBackoff))
 }
 
+// swagger:model GithubRateLimit
 type GithubRateLimit struct {
 	Limit     int   `json:"limit,omitempty"`
 	Used      int   `json:"used,omitempty"`
@@ -875,6 +898,7 @@ func (g GithubRateLimit) ResetAt() time.Time {
 	return time.Unix(g.Reset, 0)
 }
 
+// swagger:model ForgeCredentials
 type ForgeCredentials struct {
 	ID            uint          `json:"id,omitempty"`
 	Name          string        `json:"name,omitempty"`
@@ -1000,8 +1024,10 @@ func (g ForgeCredentials) RootCertificateBundle() (CertificateBundle, error) {
 }
 
 // used by swagger client generated code
+// swagger:model Credentials
 type Credentials []ForgeCredentials
 
+// swagger:model Provider
 type Provider struct {
 	Name         string       `json:"name,omitempty"`
 	ProviderType ProviderType `json:"type,omitempty"`
@@ -1009,8 +1035,10 @@ type Provider struct {
 }
 
 // used by swagger client generated code
+// swagger:model Providers
 type Providers []Provider
 
+// swagger:model PoolManagerStatus
 type PoolManagerStatus struct {
 	IsRunning     bool   `json:"running,omitempty"`
 	FailureReason string `json:"failure_reason,omitempty"`
@@ -1032,6 +1060,7 @@ func (p RunnerPrefix) GetRunnerPrefix() string {
 	return p.Prefix
 }
 
+// swagger:model Job
 type Job struct {
 	// ID is the ID of the job.
 	ID int64 `json:"id,omitempty"`
@@ -1086,14 +1115,17 @@ type Job struct {
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
 }
 
+// swagger:model Jobs
 // used by swagger client generated code
 type Jobs []Job
 
+// swagger:model InstallWebhookParams
 type InstallWebhookParams struct {
 	WebhookEndpointType WebhookEndpointType `json:"webhook_endpoint_type,omitempty"`
 	InsecureSSL         bool                `json:"insecure_ssl,omitempty"`
 }
 
+// swagger:model HookInfo
 type HookInfo struct {
 	ID          int64    `json:"id,omitempty"`
 	URL         string   `json:"url,omitempty"`
@@ -1106,6 +1138,7 @@ type CertificateBundle struct {
 	RootCertificates map[string][]byte `json:"root_certificates,omitempty"`
 }
 
+// swagger:model ForgeEntity
 type UpdateSystemInfoParams struct {
 	OSName    string `json:"os_name,omitempty"`
 	OSVersion string `json:"os_version,omitempty"`
@@ -1194,8 +1227,10 @@ func (g ForgeEntity) GetIDAsUUID() (uuid.UUID, error) {
 }
 
 // used by swagger client generated code
+// swagger:model ForgeEndpoints
 type ForgeEndpoints []ForgeEndpoint
 
+// swagger:model ForgeEndpoint
 type ForgeEndpoint struct {
 	Name          string    `json:"name,omitempty"`
 	Description   string    `json:"description,omitempty"`

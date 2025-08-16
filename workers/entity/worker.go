@@ -92,6 +92,14 @@ func (w *Worker) Start() (err error) {
 	w.mux.Lock()
 	defer w.mux.Unlock()
 
+	epType, err := w.Entity.GetForgeType()
+	if err != nil {
+		return fmt.Errorf("failed to get endpoint type: %w", err)
+	}
+	if epType != params.GithubEndpointType {
+		return nil
+	}
+
 	ghCli, err := github.Client(w.ctx, w.Entity)
 	if err != nil {
 		return fmt.Errorf("creating github client: %w", err)

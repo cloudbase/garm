@@ -21,7 +21,7 @@ import (
 	"github.com/cloudbase/garm/params"
 )
 
-//go:generate mockery --all
+//go:generate go run github.com/vektra/mockery/v2@latest
 type Provider interface {
 	// CreateInstance creates a new compute instance in the provider.
 	CreateInstance(ctx context.Context, bootstrapParams commonParams.BootstrapInstance, createInstanceParams CreateInstanceParams) (commonParams.ProviderInstance, error)

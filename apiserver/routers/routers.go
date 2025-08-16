@@ -57,6 +57,8 @@ import (
 
 	"github.com/cloudbase/garm/apiserver/controllers"
 	"github.com/cloudbase/garm/auth"
+	"github.com/cloudbase/garm/config"
+	spaAssets "github.com/cloudbase/garm/webapp/assets"
 )
 
 func WithMetricsRouter(parentRouter *mux.Router, disableAuth bool, metricsMiddlerware auth.Middleware) *mux.Router {
@@ -79,6 +81,30 @@ func WithDebugServer(parentRouter *mux.Router) *mux.Router {
 	}
 
 	parentRouter.PathPrefix("/debug/pprof/").Handler(http.DefaultServeMux)
+	return parentRouter
+}
+
+func WithWebUI(parentRouter *mux.Router, apiConfig config.APIServer) *mux.Router {
+	if parentRouter == nil {
+		return nil
+	}
+
+	if apiConfig.WebUI.EnableWebUI {
+		slog.Info("WebUI is enabled, adding webapp routes")
+		webappPath := apiConfig.WebUI.GetWebappPath()
+		slog.Info("Using webapp path", "path", webappPath)
+		// Accessing / should redirect to the UI
+		parentRouter.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, webappPath, http.StatusMovedPermanently) // 301
+		})
+		// Serve the SPA with dynamic path
+		parentRouter.PathPrefix(webappPath).HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			spaAssets.ServeSPAWithPath(w, r, webappPath)
+		}).Methods("GET")
+	} else {
+		slog.Info("WebUI is disabled, skipping webapp routes")
+	}
+
 	return parentRouter
 }
 
@@ -505,7 +531,7 @@ func NewAPIRouter(han *controllers.APIController, authMiddleware, initMiddleware
 	apiRouter.Handle("/ws/events/", http.HandlerFunc(han.EventsHandler)).Methods("GET")
 	apiRouter.Handle("/ws/events", http.HandlerFunc(han.EventsHandler)).Methods("GET")
 
-	// NotFound handler
+	// NotFound handler - this should be last
 	apiRouter.PathPrefix("/").HandlerFunc(han.NotFoundHandler).Methods("GET", "POST", "PUT", "DELETE", "OPTIONS")
 	return router
 }
