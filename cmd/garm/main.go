@@ -31,7 +31,6 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	"github.com/pkg/errors"
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 
 	"github.com/cloudbase/garm-provider-common/util"
@@ -73,7 +72,7 @@ func maybeInitController(db common.Store) (params.ControllerInfo, error) {
 
 	info, err := db.InitController()
 	if err != nil {
-		return params.ControllerInfo{}, errors.Wrap(err, "initializing controller")
+		return params.ControllerInfo{}, fmt.Errorf("error initializing controller: %w", err)
 	}
 
 	return info, nil
@@ -152,7 +151,7 @@ func setupLogging(ctx context.Context, logCfg config.Logging, hub *websocket.Hub
 func maybeUpdateURLsFromConfig(cfg config.Config, store common.Store) error {
 	info, err := store.ControllerInfo()
 	if err != nil {
-		return errors.Wrap(err, "fetching controller info")
+		return fmt.Errorf("error fetching controller info: %w", err)
 	}
 
 	var updateParams params.UpdateControllerParams
@@ -176,7 +175,7 @@ func maybeUpdateURLsFromConfig(cfg config.Config, store common.Store) error {
 
 	_, err = store.UpdateController(updateParams)
 	if err != nil {
-		return errors.Wrap(err, "updating controller info")
+		return fmt.Errorf("error updating controller info: %w", err)
 	}
 	return nil
 }

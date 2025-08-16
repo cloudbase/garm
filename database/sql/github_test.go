@@ -265,7 +265,7 @@ func (s *GithubTestSuite) TestUpdateEndpointURLsFailsIfCredentialsAreAssociated(
 	_, err = s.db.UpdateGithubEndpoint(ctx, testEndpointName, updateEpParams)
 	s.Require().Error(err)
 	s.Require().ErrorIs(err, runnerErrors.ErrBadRequest)
-	s.Require().EqualError(err, "updating github endpoint: cannot update endpoint URLs with existing credentials: invalid request")
+	s.Require().EqualError(err, "error updating github endpoint: cannot update endpoint URLs with existing credentials: invalid request")
 
 	updateEpParams = params.UpdateGithubEndpointParams{
 		UploadBaseURL: &newUploadBaseURL,
@@ -274,7 +274,7 @@ func (s *GithubTestSuite) TestUpdateEndpointURLsFailsIfCredentialsAreAssociated(
 	_, err = s.db.UpdateGithubEndpoint(ctx, testEndpointName, updateEpParams)
 	s.Require().Error(err)
 	s.Require().ErrorIs(err, runnerErrors.ErrBadRequest)
-	s.Require().EqualError(err, "updating github endpoint: cannot update endpoint URLs with existing credentials: invalid request")
+	s.Require().EqualError(err, "error updating github endpoint: cannot update endpoint URLs with existing credentials: invalid request")
 
 	updateEpParams = params.UpdateGithubEndpointParams{
 		APIBaseURL: &newAPIBaseURL,
@@ -282,7 +282,7 @@ func (s *GithubTestSuite) TestUpdateEndpointURLsFailsIfCredentialsAreAssociated(
 	_, err = s.db.UpdateGithubEndpoint(ctx, testEndpointName, updateEpParams)
 	s.Require().Error(err)
 	s.Require().ErrorIs(err, runnerErrors.ErrBadRequest)
-	s.Require().EqualError(err, "updating github endpoint: cannot update endpoint URLs with existing credentials: invalid request")
+	s.Require().EqualError(err, "error updating github endpoint: cannot update endpoint URLs with existing credentials: invalid request")
 
 	updateEpParams = params.UpdateGithubEndpointParams{
 		Description: &newDescription,
@@ -737,7 +737,7 @@ func (s *GithubTestSuite) TestUpdateGithubCredentialsFailIfWrongCredentialTypeIs
 	_, err = s.db.UpdateGithubCredentials(ctx, creds.ID, updateCredParams)
 	s.Require().Error(err)
 	s.Require().ErrorIs(err, runnerErrors.ErrBadRequest)
-	s.Require().EqualError(err, "updating github credentials: cannot update app credentials for PAT: invalid request")
+	s.Require().EqualError(err, "error updating github credentials: cannot update app credentials for PAT: invalid request")
 
 	credParamsWithApp := params.CreateGithubCredentialsParams{
 		Name:        "test-credsApp",
@@ -764,7 +764,7 @@ func (s *GithubTestSuite) TestUpdateGithubCredentialsFailIfWrongCredentialTypeIs
 	_, err = s.db.UpdateGithubCredentials(ctx, credsApp.ID, updateCredParams)
 	s.Require().Error(err)
 	s.Require().ErrorIs(err, runnerErrors.ErrBadRequest)
-	s.Require().EqualError(err, "updating github credentials: cannot update PAT credentials for app: invalid request")
+	s.Require().EqualError(err, "error updating github credentials: cannot update PAT credentials for app: invalid request")
 }
 
 func (s *GithubTestSuite) TestUpdateCredentialsFailsForNonExistingCredentials() {

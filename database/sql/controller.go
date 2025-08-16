@@ -15,10 +15,11 @@
 package sql
 
 import (
+	"errors"
+	"fmt"
 	"net/url"
 
 	"github.com/google/uuid"
-	"github.com/pkg/errors"
 	"gorm.io/gorm"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
@@ -30,7 +31,7 @@ import (
 func dbControllerToCommonController(dbInfo ControllerInfo) (params.ControllerInfo, error) {
 	url, err := url.JoinPath(dbInfo.WebhookBaseURL, dbInfo.ControllerID.String())
 	if err != nil {
-		return params.ControllerInfo{}, errors.Wrap(err, "joining webhook URL")
+		return params.ControllerInfo{}, fmt.Errorf("error joining webhook URL: %w", err)
 	}
 
 	return params.ControllerInfo{
@@ -49,14 +50,14 @@ func (s *sqlDatabase) ControllerInfo() (params.ControllerInfo, error) {
 	q := s.conn.Model(&ControllerInfo{}).First(&info)
 	if q.Error != nil {
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
-			return params.ControllerInfo{}, errors.Wrap(runnerErrors.ErrNotFound, "fetching controller info")
+			return params.ControllerInfo{}, fmt.Errorf("error fetching controller info: %w", runnerErrors.ErrNotFound)
 		}
-		return params.ControllerInfo{}, errors.Wrap(q.Error, "fetching controller info")
+		return params.ControllerInfo{}, fmt.Errorf("error fetching controller info: %w", q.Error)
 	}
 
 	paramInfo, err := dbControllerToCommonController(info)
 	if err != nil {
-		return params.ControllerInfo{}, errors.Wrap(err, "converting controller info")
+		return params.ControllerInfo{}, fmt.Errorf("error converting controller info: %w", err)
 	}
 
 	return paramInfo, nil
@@ -69,7 +70,7 @@ func (s *sqlDatabase) InitController() (params.ControllerInfo, error) {
 
 	newID, err := uuid.NewRandom()
 	if err != nil {
-		return params.ControllerInfo{}, errors.Wrap(err, "generating UUID")
+		return params.ControllerInfo{}, fmt.Errorf("error generating UUID: %w", err)
 	}
 
 	newInfo := ControllerInfo{
@@ -79,7 +80,7 @@ func (s *sqlDatabase) InitController() (params.ControllerInfo, error) {
 
 	q := s.conn.Save(&newInfo)
 	if q.Error != nil {
-		return params.ControllerInfo{}, errors.Wrap(q.Error, "saving controller info")
+		return params.ControllerInfo{}, fmt.Errorf("error saving controller info: %w", q.Error)
 	}
 
 	return params.ControllerInfo{
@@ -98,13 +99,13 @@ func (s *sqlDatabase) UpdateController(info params.UpdateControllerParams) (para
 		q := tx.Model(&ControllerInfo{}).First(&dbInfo)
 		if q.Error != nil {
 			if errors.Is(q.Error, gorm.ErrRecordNotFound) {
-				return errors.Wrap(runnerErrors.ErrNotFound, "fetching controller info")
+				return fmt.Errorf("error fetching controller info: %w", runnerErrors.ErrNotFound)
 			}
-			return errors.Wrap(q.Error, "fetching controller info")
+			return fmt.Errorf("error fetching controller info: %w", q.Error)
 		}
 
 		if err := info.Validate(); err != nil {
-			return errors.Wrap(err, "validating controller info")
+			return fmt.Errorf("error validating controller info: %w", err)
 		}
 
 		if info.MetadataURL != nil {
@@ -125,17 +126,17 @@ func (s *sqlDatabase) UpdateController(info params.UpdateControllerParams) (para
 
 		q = tx.Save(&dbInfo)
 		if q.Error != nil {
-			return errors.Wrap(q.Error, "saving controller info")
+			return fmt.Errorf("error saving controller info: %w", q.Error)
 		}
 		return nil
 	})
 	if err != nil {
-		return params.ControllerInfo{}, errors.Wrap(err, "updating controller info")
+		return params.ControllerInfo{}, fmt.Errorf("error updating controller info: %w", err)
 	}
 
 	paramInfo, err = dbControllerToCommonController(dbInfo)
 	if err != nil {
-		return params.ControllerInfo{}, errors.Wrap(err, "converting controller info")
+		return params.ControllerInfo{}, fmt.Errorf("error converting controller info: %w", err)
 	}
 	return paramInfo, nil
 }

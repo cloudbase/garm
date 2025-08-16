@@ -16,8 +16,7 @@ package runner
 
 import (
 	"context"
-
-	"github.com/pkg/errors"
+	"fmt"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/auth"
@@ -35,7 +34,7 @@ func (r *Runner) ListGiteaCredentials(ctx context.Context) ([]params.ForgeCreden
 	// there is a posibillity that not all creds will be in the cache.
 	creds, err := r.store.ListGiteaCredentials(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching gitea credentials")
+		return nil, fmt.Errorf("error fetching gitea credentials: %w", err)
 	}
 	return creds, nil
 }
@@ -46,12 +45,12 @@ func (r *Runner) CreateGiteaCredentials(ctx context.Context, param params.Create
 	}
 
 	if err := param.Validate(); err != nil {
-		return params.ForgeCredentials{}, errors.Wrap(err, "failed to validate gitea credentials params")
+		return params.ForgeCredentials{}, fmt.Errorf("error failed to validate gitea credentials params: %w", err)
 	}
 
 	creds, err := r.store.CreateGiteaCredentials(ctx, param)
 	if err != nil {
-		return params.ForgeCredentials{}, errors.Wrap(err, "failed to create gitea credentials")
+		return params.ForgeCredentials{}, fmt.Errorf("error failed to create gitea credentials: %w", err)
 	}
 
 	return creds, nil
@@ -64,7 +63,7 @@ func (r *Runner) GetGiteaCredentials(ctx context.Context, id uint) (params.Forge
 
 	creds, err := r.store.GetGiteaCredentials(ctx, id, true)
 	if err != nil {
-		return params.ForgeCredentials{}, errors.Wrap(err, "failed to get gitea credentials")
+		return params.ForgeCredentials{}, fmt.Errorf("error failed to get gitea credentials: %w", err)
 	}
 
 	return creds, nil
@@ -76,7 +75,7 @@ func (r *Runner) DeleteGiteaCredentials(ctx context.Context, id uint) error {
 	}
 
 	if err := r.store.DeleteGiteaCredentials(ctx, id); err != nil {
-		return errors.Wrap(err, "failed to delete gitea credentials")
+		return fmt.Errorf("error failed to delete gitea credentials: %w", err)
 	}
 
 	return nil
@@ -88,12 +87,12 @@ func (r *Runner) UpdateGiteaCredentials(ctx context.Context, id uint, param para
 	}
 
 	if err := param.Validate(); err != nil {
-		return params.ForgeCredentials{}, errors.Wrap(err, "failed to validate gitea credentials params")
+		return params.ForgeCredentials{}, fmt.Errorf("error failed to validate gitea credentials params: %w", err)
 	}
 
 	newCreds, err := r.store.UpdateGiteaCredentials(ctx, id, param)
 	if err != nil {
-		return params.ForgeCredentials{}, errors.Wrap(err, "failed to update gitea credentials")
+		return params.ForgeCredentials{}, fmt.Errorf("error failed to update gitea credentials: %w", err)
 	}
 
 	return newCreds, nil

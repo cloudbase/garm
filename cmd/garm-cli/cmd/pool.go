@@ -21,7 +21,6 @@ import (
 	"strings"
 
 	"github.com/jedib0t/go-pretty/v6/table"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	commonParams "github.com/cloudbase/garm-provider-common/params"
@@ -471,7 +470,7 @@ func init() {
 func extraSpecsFromFile(specsFile string) (json.RawMessage, error) {
 	data, err := os.ReadFile(specsFile)
 	if err != nil {
-		return nil, errors.Wrap(err, "opening specs file")
+		return nil, fmt.Errorf("error opening specs file: %w", err)
 	}
 	return asRawMessage(data)
 }
@@ -481,14 +480,14 @@ func asRawMessage(data []byte) (json.RawMessage, error) {
 	// have a valid json.
 	var unmarshaled interface{}
 	if err := json.Unmarshal(data, &unmarshaled); err != nil {
-		return nil, errors.Wrap(err, "decoding extra specs")
+		return nil, fmt.Errorf("error decoding extra specs: %w", err)
 	}
 
 	var asRawJSON json.RawMessage
 	var err error
 	asRawJSON, err = json.Marshal(unmarshaled)
 	if err != nil {
-		return nil, errors.Wrap(err, "marshaling json")
+		return nil, fmt.Errorf("error marshaling json: %w", err)
 	}
 	return asRawJSON, nil
 }

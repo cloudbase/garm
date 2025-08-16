@@ -16,9 +16,10 @@ package sql
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
 
-	"github.com/pkg/errors"
 	"gorm.io/gorm"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
@@ -36,7 +37,7 @@ func (s *sqlDatabase) CreateGiteaEndpoint(_ context.Context, param params.Create
 	var endpoint GithubEndpoint
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("name = ?", param.Name).First(&endpoint).Error; err == nil {
-			return errors.Wrap(runnerErrors.ErrDuplicateEntity, "gitea endpoint already exists")
+			return fmt.Errorf("gitea endpoint already exists: %w", runnerErrors.ErrDuplicateEntity)
 		}
 		endpoint = GithubEndpoint{
 			Name:         param.Name,
@@ -48,16 +49,16 @@ func (s *sqlDatabase) CreateGiteaEndpoint(_ context.Context, param params.Create
 		}
 
 		if err := tx.Create(&endpoint).Error; err != nil {
-			return errors.Wrap(err, "creating gitea endpoint")
+			return fmt.Errorf("error creating gitea endpoint: %w", err)
 		}
 		return nil
 	})
 	if err != nil {
-		return params.ForgeEndpoint{}, errors.Wrap(err, "creating gitea endpoint")
+		return params.ForgeEndpoint{}, fmt.Errorf("error creating gitea endpoint: %w", err)
 	}
 	ghEndpoint, err = s.sqlToCommonGithubEndpoint(endpoint)
 	if err != nil {
-		return params.ForgeEndpoint{}, errors.Wrap(err, "converting gitea endpoint")
+		return params.ForgeEndpoint{}, fmt.Errorf("error converting gitea endpoint: %w", err)
 	}
 	return ghEndpoint, nil
 }
@@ -66,14 +67,14 @@ func (s *sqlDatabase) ListGiteaEndpoints(_ context.Context) ([]params.ForgeEndpo
 	var endpoints []GithubEndpoint
 	err := s.conn.Where("endpoint_type = ?", params.GiteaEndpointType).Find(&endpoints).Error
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching gitea endpoints")
+		return nil, fmt.Errorf("error fetching gitea endpoints: %w", err)
 	}
 
 	var ret []params.ForgeEndpoint
 	for _, ep := range endpoints {
 		commonEp, err := s.sqlToCommonGithubEndpoint(ep)
 		if err != nil {
-			return nil, errors.Wrap(err, "converting gitea endpoint")
+			return nil, fmt.Errorf("error converting gitea endpoint: %w", err)
 		}
 		ret = append(ret, commonEp)
 	}
@@ -90,19 +91,19 @@ func (s *sqlDatabase) UpdateGiteaEndpoint(_ context.Context, name string, param 
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("name = ? and endpoint_type = ?", name, params.GiteaEndpointType).First(&endpoint).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return errors.Wrap(runnerErrors.ErrNotFound, "gitea endpoint not found")
+				return runnerErrors.NewNotFoundError("gitea endpoint %q not found", name)
 			}
-			return errors.Wrap(err, "fetching gitea endpoint")
+			return fmt.Errorf("error fetching gitea endpoint: %w", err)
 		}
 
 		var credsCount int64
 		if err := tx.Model(&GiteaCredentials{}).Where("endpoint_name = ?", endpoint.Name).Count(&credsCount).Error; err != nil {
 			if !errors.Is(err, gorm.ErrRecordNotFound) {
-				return errors.Wrap(err, "fetching gitea credentials")
+				return fmt.Errorf("error fetching gitea credentials: %w", err)
 			}
 		}
 		if credsCount > 0 && (param.APIBaseURL != nil || param.BaseURL != nil) {
-			return errors.Wrap(runnerErrors.ErrBadRequest, "cannot update endpoint URLs with existing credentials")
+			return runnerErrors.NewBadRequestError("cannot update endpoint URLs with existing credentials")
 		}
 
 		if param.APIBaseURL != nil {
@@ -122,17 +123,17 @@ func (s *sqlDatabase) UpdateGiteaEndpoint(_ context.Context, name string, param 
 		}
 
 		if err := tx.Save(&endpoint).Error; err != nil {
-			return errors.Wrap(err, "updating gitea endpoint")
+			return fmt.Errorf("error updating gitea endpoint: %w", err)
 		}
 
 		return nil
 	})
 	if err != nil {
-		return params.ForgeEndpoint{}, errors.Wrap(err, "updating gitea endpoint")
+		return params.ForgeEndpoint{}, fmt.Errorf("error updating gitea endpoint: %w", err)
 	}
 	ghEndpoint, err = s.sqlToCommonGithubEndpoint(endpoint)
 	if err != nil {
-		return params.ForgeEndpoint{}, errors.Wrap(err, "converting gitea endpoint")
+		return params.ForgeEndpoint{}, fmt.Errorf("error converting gitea endpoint: %w", err)
 	}
 	return ghEndpoint, nil
 }
@@ -142,9 +143,9 @@ func (s *sqlDatabase) GetGiteaEndpoint(_ context.Context, name string) (params.F
 	err := s.conn.Where("name = ? and endpoint_type = ?", name, params.GiteaEndpointType).First(&endpoint).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return params.ForgeEndpoint{}, errors.Wrap(runnerErrors.ErrNotFound, "gitea endpoint not found")
+			return params.ForgeEndpoint{}, runnerErrors.NewNotFoundError("gitea endpoint %q not found", name)
 		}
-		return params.ForgeEndpoint{}, errors.Wrap(err, "fetching gitea endpoint")
+		return params.ForgeEndpoint{}, fmt.Errorf("error fetching gitea endpoint: %w", err)
 	}
 
 	return s.sqlToCommonGithubEndpoint(endpoint)
@@ -162,41 +163,41 @@ func (s *sqlDatabase) DeleteGiteaEndpoint(_ context.Context, name string) (err e
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return nil
 			}
-			return errors.Wrap(err, "fetching gitea endpoint")
+			return fmt.Errorf("error fetching gitea endpoint: %w", err)
 		}
 
 		var credsCount int64
 		if err := tx.Model(&GiteaCredentials{}).Where("endpoint_name = ?", endpoint.Name).Count(&credsCount).Error; err != nil {
 			if !errors.Is(err, gorm.ErrRecordNotFound) {
-				return errors.Wrap(err, "fetching gitea credentials")
+				return fmt.Errorf("error fetching gitea credentials: %w", err)
 			}
 		}
 
 		var repoCnt int64
 		if err := tx.Model(&Repository{}).Where("endpoint_name = ?", endpoint.Name).Count(&repoCnt).Error; err != nil {
 			if !errors.Is(err, gorm.ErrRecordNotFound) {
-				return errors.Wrap(err, "fetching gitea repositories")
+				return fmt.Errorf("error fetching gitea repositories: %w", err)
 			}
 		}
 
 		var orgCnt int64
 		if err := tx.Model(&Organization{}).Where("endpoint_name = ?", endpoint.Name).Count(&orgCnt).Error; err != nil {
 			if !errors.Is(err, gorm.ErrRecordNotFound) {
-				return errors.Wrap(err, "fetching gitea organizations")
+				return fmt.Errorf("error fetching gitea organizations: %w", err)
 			}
 		}
 
 		if credsCount > 0 || repoCnt > 0 || orgCnt > 0 {
-			return errors.Wrap(runnerErrors.ErrBadRequest, "cannot delete endpoint with associated entities")
+			return runnerErrors.NewBadRequestError("cannot delete endpoint with associated entities")
 		}
 
 		if err := tx.Unscoped().Delete(&endpoint).Error; err != nil {
-			return errors.Wrap(err, "deleting gitea endpoint")
+			return fmt.Errorf("error deleting gitea endpoint: %w", err)
 		}
 		return nil
 	})
 	if err != nil {
-		return errors.Wrap(err, "deleting gitea endpoint")
+		return fmt.Errorf("error deleting gitea endpoint: %w", err)
 	}
 	return nil
 }
@@ -204,10 +205,10 @@ func (s *sqlDatabase) DeleteGiteaEndpoint(_ context.Context, name string) (err e
 func (s *sqlDatabase) CreateGiteaCredentials(ctx context.Context, param params.CreateGiteaCredentialsParams) (gtCreds params.ForgeCredentials, err error) {
 	userID, err := getUIDFromContext(ctx)
 	if err != nil {
-		return params.ForgeCredentials{}, errors.Wrap(err, "creating gitea credentials")
+		return params.ForgeCredentials{}, fmt.Errorf("error creating gitea credentials: %w", err)
 	}
 	if param.Endpoint == "" {
-		return params.ForgeCredentials{}, errors.Wrap(runnerErrors.ErrBadRequest, "endpoint name is required")
+		return params.ForgeCredentials{}, runnerErrors.NewBadRequestError("endpoint name is required")
 	}
 
 	defer func() {
@@ -220,13 +221,13 @@ func (s *sqlDatabase) CreateGiteaCredentials(ctx context.Context, param params.C
 		var endpoint GithubEndpoint
 		if err := tx.Where("name = ? and endpoint_type = ?", param.Endpoint, params.GiteaEndpointType).First(&endpoint).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return errors.Wrap(runnerErrors.ErrNotFound, "gitea endpoint not found")
+				return runnerErrors.NewNotFoundError("gitea endpoint %q not found", param.Endpoint)
 			}
-			return errors.Wrap(err, "fetching gitea endpoint")
+			return fmt.Errorf("error fetching gitea endpoint: %w", err)
 		}
 
 		if err := tx.Where("name = ? and user_id = ?", param.Name, userID).First(&creds).Error; err == nil {
-			return errors.Wrap(runnerErrors.ErrDuplicateEntity, "gitea credentials already exists")
+			return fmt.Errorf("gitea credentials already exists: %w", runnerErrors.ErrDuplicateEntity)
 		}
 
 		var data []byte
@@ -235,10 +236,10 @@ func (s *sqlDatabase) CreateGiteaCredentials(ctx context.Context, param params.C
 		case params.ForgeAuthTypePAT:
 			data, err = s.marshalAndSeal(param.PAT)
 		default:
-			return errors.Wrap(runnerErrors.ErrBadRequest, "invalid auth type")
+			return runnerErrors.NewBadRequestError("invalid auth type %q", param.AuthType)
 		}
 		if err != nil {
-			return errors.Wrap(err, "marshaling and sealing credentials")
+			return fmt.Errorf("error marshaling and sealing credentials: %w", err)
 		}
 
 		creds = GiteaCredentials{
@@ -251,7 +252,7 @@ func (s *sqlDatabase) CreateGiteaCredentials(ctx context.Context, param params.C
 		}
 
 		if err := tx.Create(&creds).Error; err != nil {
-			return errors.Wrap(err, "creating gitea credentials")
+			return fmt.Errorf("error creating gitea credentials: %w", err)
 		}
 		// Skip making an extra query.
 		creds.Endpoint = endpoint
@@ -259,11 +260,11 @@ func (s *sqlDatabase) CreateGiteaCredentials(ctx context.Context, param params.C
 		return nil
 	})
 	if err != nil {
-		return params.ForgeCredentials{}, errors.Wrap(err, "creating gitea credentials")
+		return params.ForgeCredentials{}, fmt.Errorf("error creating gitea credentials: %w", err)
 	}
 	gtCreds, err = s.sqlGiteaToCommonForgeCredentials(creds)
 	if err != nil {
-		return params.ForgeCredentials{}, errors.Wrap(err, "converting gitea credentials")
+		return params.ForgeCredentials{}, fmt.Errorf("error converting gitea credentials: %w", err)
 	}
 	return gtCreds, nil
 }
@@ -284,16 +285,16 @@ func (s *sqlDatabase) getGiteaCredentialsByName(ctx context.Context, tx *gorm.DB
 
 	userID, err := getUIDFromContext(ctx)
 	if err != nil {
-		return GiteaCredentials{}, errors.Wrap(err, "fetching gitea credentials")
+		return GiteaCredentials{}, fmt.Errorf("error fetching gitea credentials: %w", err)
 	}
 	q = q.Where("user_id = ?", userID)
 
 	err = q.Where("name = ?", name).First(&creds).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return GiteaCredentials{}, errors.Wrap(runnerErrors.ErrNotFound, "gitea credentials not found")
+			return GiteaCredentials{}, runnerErrors.NewNotFoundError("gitea credentials %q not found", name)
 		}
-		return GiteaCredentials{}, errors.Wrap(err, "fetching gitea credentials")
+		return GiteaCredentials{}, fmt.Errorf("error fetching gitea credentials: %w", err)
 	}
 
 	return creds, nil
@@ -302,7 +303,7 @@ func (s *sqlDatabase) getGiteaCredentialsByName(ctx context.Context, tx *gorm.DB
 func (s *sqlDatabase) GetGiteaCredentialsByName(ctx context.Context, name string, detailed bool) (params.ForgeCredentials, error) {
 	creds, err := s.getGiteaCredentialsByName(ctx, s.conn, name, detailed)
 	if err != nil {
-		return params.ForgeCredentials{}, errors.Wrap(err, "fetching gitea credentials")
+		return params.ForgeCredentials{}, fmt.Errorf("error fetching gitea credentials: %w", err)
 	}
 
 	return s.sqlGiteaToCommonForgeCredentials(creds)
@@ -325,7 +326,7 @@ func (s *sqlDatabase) GetGiteaCredentials(ctx context.Context, id uint, detailed
 	if !auth.IsAdmin(ctx) {
 		userID, err := getUIDFromContext(ctx)
 		if err != nil {
-			return params.ForgeCredentials{}, errors.Wrap(err, "fetching gitea credentials")
+			return params.ForgeCredentials{}, fmt.Errorf("error fetching gitea credentials: %w", err)
 		}
 		q = q.Where("user_id = ?", userID)
 	}
@@ -333,9 +334,9 @@ func (s *sqlDatabase) GetGiteaCredentials(ctx context.Context, id uint, detailed
 	err := q.Where("id = ?", id).First(&creds).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return params.ForgeCredentials{}, errors.Wrap(runnerErrors.ErrNotFound, "gitea credentials not found")
+			return params.ForgeCredentials{}, runnerErrors.NewNotFoundError("gitea credentials not found")
 		}
-		return params.ForgeCredentials{}, errors.Wrap(err, "fetching gitea credentials")
+		return params.ForgeCredentials{}, fmt.Errorf("error fetching gitea credentials: %w", err)
 	}
 
 	return s.sqlGiteaToCommonForgeCredentials(creds)
@@ -346,7 +347,7 @@ func (s *sqlDatabase) ListGiteaCredentials(ctx context.Context) ([]params.ForgeC
 	if !auth.IsAdmin(ctx) {
 		userID, err := getUIDFromContext(ctx)
 		if err != nil {
-			return nil, errors.Wrap(err, "fetching gitea credentials")
+			return nil, fmt.Errorf("error fetching gitea credentials: %w", err)
 		}
 		q = q.Where("user_id = ?", userID)
 	}
@@ -354,14 +355,14 @@ func (s *sqlDatabase) ListGiteaCredentials(ctx context.Context) ([]params.ForgeC
 	var creds []GiteaCredentials
 	err := q.Preload("Endpoint").Find(&creds).Error
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching gitea credentials")
+		return nil, fmt.Errorf("error fetching gitea credentials: %w", err)
 	}
 
 	var ret []params.ForgeCredentials
 	for _, c := range creds {
 		commonCreds, err := s.sqlGiteaToCommonForgeCredentials(c)
 		if err != nil {
-			return nil, errors.Wrap(err, "converting gitea credentials")
+			return nil, fmt.Errorf("error converting gitea credentials: %w", err)
 		}
 		ret = append(ret, commonCreds)
 	}
@@ -380,16 +381,16 @@ func (s *sqlDatabase) UpdateGiteaCredentials(ctx context.Context, id uint, param
 		if !auth.IsAdmin(ctx) {
 			userID, err := getUIDFromContext(ctx)
 			if err != nil {
-				return errors.Wrap(err, "updating gitea credentials")
+				return fmt.Errorf("error updating gitea credentials: %w", err)
 			}
 			q = q.Where("user_id = ?", userID)
 		}
 
 		if err := q.Where("id = ?", id).First(&creds).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return errors.Wrap(runnerErrors.ErrNotFound, "gitea credentials not found")
+				return runnerErrors.NewNotFoundError("gitea credentials not found")
 			}
-			return errors.Wrap(err, "fetching gitea credentials")
+			return fmt.Errorf("error fetching gitea credentials: %w", err)
 		}
 
 		if param.Name != nil {
@@ -407,28 +408,28 @@ func (s *sqlDatabase) UpdateGiteaCredentials(ctx context.Context, id uint, param
 				data, err = s.marshalAndSeal(param.PAT)
 			}
 		default:
-			return errors.Wrap(runnerErrors.ErrBadRequest, "invalid auth type")
+			return runnerErrors.NewBadRequestError("invalid auth type %q", creds.AuthType)
 		}
 
 		if err != nil {
-			return errors.Wrap(err, "marshaling and sealing credentials")
+			return fmt.Errorf("error marshaling and sealing credentials: %w", err)
 		}
 		if len(data) > 0 {
 			creds.Payload = data
 		}
 
 		if err := tx.Save(&creds).Error; err != nil {
-			return errors.Wrap(err, "updating gitea credentials")
+			return fmt.Errorf("error updating gitea credentials: %w", err)
 		}
 		return nil
 	})
 	if err != nil {
-		return params.ForgeCredentials{}, errors.Wrap(err, "updating gitea credentials")
+		return params.ForgeCredentials{}, fmt.Errorf("error updating gitea credentials: %w", err)
 	}
 
 	gtCreds, err = s.sqlGiteaToCommonForgeCredentials(creds)
 	if err != nil {
-		return params.ForgeCredentials{}, errors.Wrap(err, "converting gitea credentials")
+		return params.ForgeCredentials{}, fmt.Errorf("error converting gitea credentials: %w", err)
 	}
 	return gtCreds, nil
 }
@@ -454,7 +455,7 @@ func (s *sqlDatabase) DeleteGiteaCredentials(ctx context.Context, id uint) (err 
 		if !auth.IsAdmin(ctx) {
 			userID, err := getUIDFromContext(ctx)
 			if err != nil {
-				return errors.Wrap(err, "deleting gitea credentials")
+				return fmt.Errorf("error deleting gitea credentials: %w", err)
 			}
 			q = q.Where("user_id = ?", userID)
 		}
@@ -464,22 +465,22 @@ func (s *sqlDatabase) DeleteGiteaCredentials(ctx context.Context, id uint) (err 
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return nil
 			}
-			return errors.Wrap(err, "fetching gitea credentials")
+			return fmt.Errorf("error fetching gitea credentials: %w", err)
 		}
 
 		if len(creds.Repositories) > 0 {
-			return errors.Wrap(runnerErrors.ErrBadRequest, "cannot delete credentials with repositories")
+			return runnerErrors.NewBadRequestError("cannot delete credentials with repositories")
 		}
 		if len(creds.Organizations) > 0 {
-			return errors.Wrap(runnerErrors.ErrBadRequest, "cannot delete credentials with organizations")
+			return runnerErrors.NewBadRequestError("cannot delete credentials with organizations")
 		}
 		if err := tx.Unscoped().Delete(&creds).Error; err != nil {
-			return errors.Wrap(err, "deleting gitea credentials")
+			return fmt.Errorf("error deleting gitea credentials: %w", err)
 		}
 		return nil
 	})
 	if err != nil {
-		return errors.Wrap(err, "deleting gitea credentials")
+		return fmt.Errorf("error deleting gitea credentials: %w", err)
 	}
 	return nil
 }

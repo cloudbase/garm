@@ -16,8 +16,7 @@ package runner
 
 import (
 	"context"
-
-	"github.com/pkg/errors"
+	"fmt"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/auth"
@@ -36,7 +35,7 @@ func (r *Runner) ListCredentials(ctx context.Context) ([]params.ForgeCredentials
 	// there is a posibillity that not all creds will be in the cache.
 	creds, err := r.store.ListGithubCredentials(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching github credentials")
+		return nil, fmt.Errorf("error fetching github credentials: %w", err)
 	}
 
 	// If we do have cache, update the rate limit for each credential. The rate limits are queried
@@ -57,12 +56,12 @@ func (r *Runner) CreateGithubCredentials(ctx context.Context, param params.Creat
 	}
 
 	if err := param.Validate(); err != nil {
-		return params.ForgeCredentials{}, errors.Wrap(err, "failed to validate github credentials params")
+		return params.ForgeCredentials{}, fmt.Errorf("failed to validate github credentials params: %w", err)
 	}
 
 	creds, err := r.store.CreateGithubCredentials(ctx, param)
 	if err != nil {
-		return params.ForgeCredentials{}, errors.Wrap(err, "failed to create github credentials")
+		return params.ForgeCredentials{}, fmt.Errorf("failed to create github credentials: %w", err)
 	}
 
 	return creds, nil
@@ -75,7 +74,7 @@ func (r *Runner) GetGithubCredentials(ctx context.Context, id uint) (params.Forg
 
 	creds, err := r.store.GetGithubCredentials(ctx, id, true)
 	if err != nil {
-		return params.ForgeCredentials{}, errors.Wrap(err, "failed to get github credentials")
+		return params.ForgeCredentials{}, fmt.Errorf("failed to get github credentials: %w", err)
 	}
 
 	cached, ok := cache.GetGithubCredentials((creds.ID))
@@ -92,7 +91,7 @@ func (r *Runner) DeleteGithubCredentials(ctx context.Context, id uint) error {
 	}
 
 	if err := r.store.DeleteGithubCredentials(ctx, id); err != nil {
-		return errors.Wrap(err, "failed to delete github credentials")
+		return fmt.Errorf("failed to delete github credentials: %w", err)
 	}
 
 	return nil
@@ -104,12 +103,12 @@ func (r *Runner) UpdateGithubCredentials(ctx context.Context, id uint, param par
 	}
 
 	if err := param.Validate(); err != nil {
-		return params.ForgeCredentials{}, errors.Wrap(err, "failed to validate github credentials params")
+		return params.ForgeCredentials{}, fmt.Errorf("failed to validate github credentials params: %w", err)
 	}
 
 	newCreds, err := r.store.UpdateGithubCredentials(ctx, id, param)
 	if err != nil {
-		return params.ForgeCredentials{}, errors.Wrap(err, "failed to update github credentials")
+		return params.ForgeCredentials{}, fmt.Errorf("failed to update github credentials: %w", err)
 	}
 
 	return newCreds, nil

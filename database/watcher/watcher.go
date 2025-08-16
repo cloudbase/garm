@@ -16,10 +16,9 @@ package watcher
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"sync"
-
-	"github.com/pkg/errors"
 
 	"github.com/cloudbase/garm/database/common"
 	garmUtil "github.com/cloudbase/garm/util"
@@ -83,7 +82,7 @@ func (w *watcher) RegisterProducer(ctx context.Context, id string) (common.Produ
 	defer w.mux.Unlock()
 
 	if _, ok := w.producers[id]; ok {
-		return nil, errors.Wrapf(common.ErrProducerAlreadyRegistered, "producer_id: %s", id)
+		return nil, fmt.Errorf("producer_id %s: %w", id, common.ErrProducerAlreadyRegistered)
 	}
 	p := &producer{
 		id:       id,

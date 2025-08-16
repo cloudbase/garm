@@ -15,13 +15,13 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
 
 	"github.com/BurntSushi/toml"
-	"github.com/pkg/errors"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 )
@@ -34,11 +34,11 @@ const (
 func getConfigFilePath() (string, error) {
 	configDir, err := getHomeDir()
 	if err != nil {
-		return "", errors.Wrap(err, "fetching home folder")
+		return "", fmt.Errorf("error fetching home folder: %w", err)
 	}
 
 	if err := ensureHomeDir(configDir); err != nil {
-		return "", errors.Wrap(err, "ensuring config dir")
+		return "", fmt.Errorf("error ensuring config dir: %w", err)
 	}
 
 	cfgFile := filepath.Join(configDir, DefaultConfigFileName)
@@ -48,7 +48,7 @@ func getConfigFilePath() (string, error) {
 func LoadConfig() (*Config, error) {
 	cfgFile, err := getConfigFilePath()
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching config")
+		return nil, fmt.Errorf("error fetching config: %w", err)
 	}
 
 	if _, err := os.Stat(cfgFile); err != nil {
@@ -56,12 +56,12 @@ func LoadConfig() (*Config, error) {
 			// return empty config
 			return &Config{}, nil
 		}
-		return nil, errors.Wrap(err, "accessing config file")
+		return nil, fmt.Errorf("error accessing config file: %w", err)
 	}
 
 	var config Config
 	if _, err := toml.DecodeFile(cfgFile, &config); err != nil {
-		return nil, errors.Wrap(err, "decoding toml")
+		return nil, fmt.Errorf("error decoding toml: %w", err)
 	}
 
 	return &config, nil
@@ -157,17 +157,17 @@ func (c *Config) SaveConfig() error {
 	cfgFile, err := getConfigFilePath()
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
-			return errors.Wrap(err, "getting config")
+			return fmt.Errorf("error getting config: %w", err)
 		}
 	}
 	cfgHandle, err := os.Create(cfgFile)
 	if err != nil {
-		return errors.Wrap(err, "getting file handle")
+		return fmt.Errorf("error getting file handle: %w", err)
 	}
 
 	encoder := toml.NewEncoder(cfgHandle)
 	if err := encoder.Encode(c); err != nil {
-		return errors.Wrap(err, "saving config")
+		return fmt.Errorf("error saving config: %w", err)
 	}
 
 	return nil

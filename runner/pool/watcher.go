@@ -17,8 +17,6 @@ package pool
 import (
 	"log/slog"
 
-	"github.com/pkg/errors"
-
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/params"
@@ -46,7 +44,7 @@ func (r *basePoolManager) getClientOrStub() runnerCommon.GithubClient {
 	if err != nil {
 		slog.WarnContext(r.ctx, "failed to create github client", "error", err)
 		ghc = &stubGithubClient{
-			err: errors.Wrapf(runnerErrors.ErrUnauthorized, "failed to create github client; please update credentials: %v", err),
+			err: runnerErrors.NewUnauthorizedError("failed to create github client; please update credentials"),
 		}
 	}
 	return ghc

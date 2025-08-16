@@ -16,11 +16,10 @@ package runner
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
-
-	"github.com/pkg/errors"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/auth"
@@ -35,7 +34,7 @@ func (r *Runner) CreateOrganization(ctx context.Context, param params.CreateOrgP
 	}
 
 	if err := param.Validate(); err != nil {
-		return params.Organization{}, errors.Wrap(err, "validating params")
+		return params.Organization{}, fmt.Errorf("error validating params: %w", err)
 	}
 
 	var creds params.ForgeCredentials
@@ -57,7 +56,7 @@ func (r *Runner) CreateOrganization(ctx context.Context, param params.CreateOrgP
 	_, err = r.store.GetOrganization(ctx, param.Name, creds.Endpoint.Name)
 	if err != nil {
 		if !errors.Is(err, runnerErrors.ErrNotFound) {
-			return params.Organization{}, errors.Wrap(err, "fetching org")
+			return params.Organization{}, fmt.Errorf("error fetching org: %w", err)
 		}
 	} else {
 		return params.Organization{}, runnerErrors.NewConflictError("organization %s already exists", param.Name)
@@ -65,7 +64,7 @@ func (r *Runner) CreateOrganization(ctx context.Context, param params.CreateOrgP
 
 	org, err = r.store.CreateOrganization(ctx, param.Name, creds, param.WebhookSecret, param.PoolBalancerType)
 	if err != nil {
-		return params.Organization{}, errors.Wrap(err, "creating organization")
+		return params.Organization{}, fmt.Errorf("error creating organization: %w", err)
 	}
 
 	defer func() {
@@ -82,7 +81,7 @@ func (r *Runner) CreateOrganization(ctx context.Context, param params.CreateOrgP
 	// updating the store.
 	poolMgr, err := r.poolManagerCtrl.CreateOrgPoolManager(r.ctx, org, r.providers, r.store)
 	if err != nil {
-		return params.Organization{}, errors.Wrap(err, "creating org pool manager")
+		return params.Organization{}, fmt.Errorf("error creating org pool manager: %w", err)
 	}
 	if err := poolMgr.Start(); err != nil {
 		if deleteErr := r.poolManagerCtrl.DeleteOrgPoolManager(org); deleteErr != nil {
@@ -90,7 +89,7 @@ func (r *Runner) CreateOrganization(ctx context.Context, param params.CreateOrgP
 				ctx, "failed to cleanup pool manager for org",
 				"org_id", org.ID)
 		}
-		return params.Organization{}, errors.Wrap(err, "starting org pool manager")
+		return params.Organization{}, fmt.Errorf("error starting org pool manager: %w", err)
 	}
 	return org, nil
 }
@@ -102,7 +101,7 @@ func (r *Runner) ListOrganizations(ctx context.Context, filter params.Organizati
 
 	orgs, err := r.store.ListOrganizations(ctx, filter)
 	if err != nil {
-		return nil, errors.Wrap(err, "listing organizations")
+		return nil, fmt.Errorf("error listing organizations: %w", err)
 	}
 
 	var allOrgs []params.Organization
@@ -129,7 +128,7 @@ func (r *Runner) GetOrganizationByID(ctx context.Context, orgID string) (params.
 
 	org, err := r.store.GetOrganizationByID(ctx, orgID)
 	if err != nil {
-		return params.Organization{}, errors.Wrap(err, "fetching organization")
+		return params.Organization{}, fmt.Errorf("error fetching organization: %w", err)
 	}
 
 	poolMgr, err := r.poolManagerCtrl.GetOrgPoolManager(org)
@@ -148,17 +147,17 @@ func (r *Runner) DeleteOrganization(ctx context.Context, orgID string, keepWebho
 
 	org, err := r.store.GetOrganizationByID(ctx, orgID)
 	if err != nil {
-		return errors.Wrap(err, "fetching org")
+		return fmt.Errorf("error fetching org: %w", err)
 	}
 
 	entity, err := org.GetEntity()
 	if err != nil {
-		return errors.Wrap(err, "getting entity")
+		return fmt.Errorf("error getting entity: %w", err)
 	}
 
 	pools, err := r.store.ListEntityPools(ctx, entity)
 	if err != nil {
-		return errors.Wrap(err, "fetching org pools")
+		return fmt.Errorf("error fetching org pools: %w", err)
 	}
 
 	if len(pools) > 0 {
@@ -172,7 +171,7 @@ func (r *Runner) DeleteOrganization(ctx context.Context, orgID string, keepWebho
 
 	scaleSets, err := r.store.ListEntityScaleSets(ctx, entity)
 	if err != nil {
-		return errors.Wrap(err, "fetching organization scale sets")
+		return fmt.Errorf("error fetching organization scale sets: %w", err)
 	}
 
 	if len(scaleSets) > 0 {
@@ -182,7 +181,7 @@ func (r *Runner) DeleteOrganization(ctx context.Context, orgID string, keepWebho
 	if !keepWebhook && r.config.Default.EnableWebhookManagement {
 		poolMgr, err := r.poolManagerCtrl.GetOrgPoolManager(org)
 		if err != nil {
-			return errors.Wrap(err, "fetching pool manager")
+			return fmt.Errorf("error fetching pool manager: %w", err)
 		}
 
 		if err := poolMgr.UninstallWebhook(ctx); err != nil {
@@ -195,11 +194,11 @@ func (r *Runner) DeleteOrganization(ctx context.Context, orgID string, keepWebho
 	}
 
 	if err := r.poolManagerCtrl.DeleteOrgPoolManager(org); err != nil {
-		return errors.Wrap(err, "deleting org pool manager")
+		return fmt.Errorf("error deleting org pool manager: %w", err)
 	}
 
 	if err := r.store.DeleteOrganization(ctx, orgID); err != nil {
-		return errors.Wrapf(err, "removing organization %s", orgID)
+		return fmt.Errorf("error removing organization %s: %w", orgID, err)
 	}
 	return nil
 }
@@ -220,7 +219,7 @@ func (r *Runner) UpdateOrganization(ctx context.Context, orgID string, param par
 
 	org, err := r.store.UpdateOrganization(ctx, orgID, param)
 	if err != nil {
-		return params.Organization{}, errors.Wrap(err, "updating org")
+		return params.Organization{}, fmt.Errorf("error updating org: %w", err)
 	}
 
 	poolMgr, err := r.poolManagerCtrl.GetOrgPoolManager(org)
@@ -239,7 +238,7 @@ func (r *Runner) CreateOrgPool(ctx context.Context, orgID string, param params.C
 
 	createPoolParams, err := r.appendTagsToCreatePoolParams(param)
 	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "fetching pool params")
+		return params.Pool{}, fmt.Errorf("error fetching pool params: %w", err)
 	}
 
 	if param.RunnerBootstrapTimeout == 0 {
@@ -253,7 +252,7 @@ func (r *Runner) CreateOrgPool(ctx context.Context, orgID string, param params.C
 
 	pool, err := r.store.CreateEntityPool(ctx, entity, createPoolParams)
 	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "creating pool")
+		return params.Pool{}, fmt.Errorf("error creating pool: %w", err)
 	}
 
 	return pool, nil
@@ -271,7 +270,7 @@ func (r *Runner) GetOrgPoolByID(ctx context.Context, orgID, poolID string) (para
 
 	pool, err := r.store.GetEntityPool(ctx, entity, poolID)
 	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "fetching pool")
+		return params.Pool{}, fmt.Errorf("error fetching pool: %w", err)
 	}
 
 	return pool, nil
@@ -290,7 +289,7 @@ func (r *Runner) DeleteOrgPool(ctx context.Context, orgID, poolID string) error 
 	pool, err := r.store.GetEntityPool(ctx, entity, poolID)
 	if err != nil {
 		if !errors.Is(err, runnerErrors.ErrNotFound) {
-			return errors.Wrap(err, "fetching pool")
+			return fmt.Errorf("error fetching pool: %w", err)
 		}
 		return nil
 	}
@@ -306,7 +305,7 @@ func (r *Runner) DeleteOrgPool(ctx context.Context, orgID, poolID string) error 
 	}
 
 	if err := r.store.DeleteEntityPool(ctx, entity, poolID); err != nil {
-		return errors.Wrap(err, "deleting pool")
+		return fmt.Errorf("error deleting pool: %w", err)
 	}
 	return nil
 }
@@ -321,7 +320,7 @@ func (r *Runner) ListOrgPools(ctx context.Context, orgID string) ([]params.Pool,
 	}
 	pools, err := r.store.ListEntityPools(ctx, entity)
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching pools")
+		return nil, fmt.Errorf("error fetching pools: %w", err)
 	}
 	return pools, nil
 }
@@ -338,7 +337,7 @@ func (r *Runner) UpdateOrgPool(ctx context.Context, orgID, poolID string, param 
 
 	pool, err := r.store.GetEntityPool(ctx, entity, poolID)
 	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "fetching pool")
+		return params.Pool{}, fmt.Errorf("error fetching pool: %w", err)
 	}
 
 	maxRunners := pool.MaxRunners
@@ -357,7 +356,7 @@ func (r *Runner) UpdateOrgPool(ctx context.Context, orgID, poolID string, param 
 
 	newPool, err := r.store.UpdateEntityPool(ctx, entity, poolID, param)
 	if err != nil {
-		return params.Pool{}, errors.Wrap(err, "updating pool")
+		return params.Pool{}, fmt.Errorf("error updating pool: %w", err)
 	}
 	return newPool, nil
 }
@@ -374,7 +373,7 @@ func (r *Runner) ListOrgInstances(ctx context.Context, orgID string) ([]params.I
 
 	instances, err := r.store.ListEntityInstances(ctx, entity)
 	if err != nil {
-		return []params.Instance{}, errors.Wrap(err, "fetching instances")
+		return []params.Instance{}, fmt.Errorf("error fetching instances: %w", err)
 	}
 	return instances, nil
 }
@@ -385,12 +384,12 @@ func (r *Runner) findOrgPoolManager(name, endpointName string) (common.PoolManag
 
 	org, err := r.store.GetOrganization(r.ctx, name, endpointName)
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching org")
+		return nil, fmt.Errorf("error fetching org: %w", err)
 	}
 
 	poolManager, err := r.poolManagerCtrl.GetOrgPoolManager(org)
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching pool manager for org")
+		return nil, fmt.Errorf("error fetching pool manager for org: %w", err)
 	}
 	return poolManager, nil
 }
@@ -402,17 +401,17 @@ func (r *Runner) InstallOrgWebhook(ctx context.Context, orgID string, param para
 
 	org, err := r.store.GetOrganizationByID(ctx, orgID)
 	if err != nil {
-		return params.HookInfo{}, errors.Wrap(err, "fetching org")
+		return params.HookInfo{}, fmt.Errorf("error fetching org: %w", err)
 	}
 
 	poolMgr, err := r.poolManagerCtrl.GetOrgPoolManager(org)
 	if err != nil {
-		return params.HookInfo{}, errors.Wrap(err, "fetching pool manager for org")
+		return params.HookInfo{}, fmt.Errorf("error fetching pool manager for org: %w", err)
 	}
 
 	info, err := poolMgr.InstallWebhook(ctx, param)
 	if err != nil {
-		return params.HookInfo{}, errors.Wrap(err, "installing webhook")
+		return params.HookInfo{}, fmt.Errorf("error installing webhook: %w", err)
 	}
 	return info, nil
 }
@@ -424,16 +423,16 @@ func (r *Runner) UninstallOrgWebhook(ctx context.Context, orgID string) error {
 
 	org, err := r.store.GetOrganizationByID(ctx, orgID)
 	if err != nil {
-		return errors.Wrap(err, "fetching org")
+		return fmt.Errorf("error fetching org: %w", err)
 	}
 
 	poolMgr, err := r.poolManagerCtrl.GetOrgPoolManager(org)
 	if err != nil {
-		return errors.Wrap(err, "fetching pool manager for org")
+		return fmt.Errorf("error fetching pool manager for org: %w", err)
 	}
 
 	if err := poolMgr.UninstallWebhook(ctx); err != nil {
-		return errors.Wrap(err, "uninstalling webhook")
+		return fmt.Errorf("error uninstalling webhook: %w", err)
 	}
 	return nil
 }
@@ -445,17 +444,17 @@ func (r *Runner) GetOrgWebhookInfo(ctx context.Context, orgID string) (params.Ho
 
 	org, err := r.store.GetOrganizationByID(ctx, orgID)
 	if err != nil {
-		return params.HookInfo{}, errors.Wrap(err, "fetching org")
+		return params.HookInfo{}, fmt.Errorf("error fetching org: %w", err)
 	}
 
 	poolMgr, err := r.poolManagerCtrl.GetOrgPoolManager(org)
 	if err != nil {
-		return params.HookInfo{}, errors.Wrap(err, "fetching pool manager for org")
+		return params.HookInfo{}, fmt.Errorf("error fetching pool manager for org: %w", err)
 	}
 
 	info, err := poolMgr.GetWebhookInfo(ctx)
 	if err != nil {
-		return params.HookInfo{}, errors.Wrap(err, "fetching webhook info")
+		return params.HookInfo{}, fmt.Errorf("error fetching webhook info: %w", err)
 	}
 	return info, nil
 }

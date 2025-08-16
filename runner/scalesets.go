@@ -16,10 +16,9 @@ package runner
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
-
-	"github.com/pkg/errors"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/auth"
@@ -36,7 +35,7 @@ func (r *Runner) ListAllScaleSets(ctx context.Context) ([]params.ScaleSet, error
 
 	scalesets, err := r.store.ListAllScaleSets(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching pools")
+		return nil, fmt.Errorf("error fetching pools: %w", err)
 	}
 	return scalesets, nil
 }
@@ -48,7 +47,7 @@ func (r *Runner) GetScaleSetByID(ctx context.Context, scaleSet uint) (params.Sca
 
 	set, err := r.store.GetScaleSetByID(ctx, scaleSet)
 	if err != nil {
-		return params.ScaleSet{}, errors.Wrap(err, "fetching scale set")
+		return params.ScaleSet{}, fmt.Errorf("error fetching scale set: %w", err)
 	}
 	return set, nil
 }
@@ -61,7 +60,7 @@ func (r *Runner) DeleteScaleSetByID(ctx context.Context, scaleSetID uint) error 
 	scaleSet, err := r.store.GetScaleSetByID(ctx, scaleSetID)
 	if err != nil {
 		if !errors.Is(err, runnerErrors.ErrNotFound) {
-			return errors.Wrap(err, "fetching scale set")
+			return fmt.Errorf("error fetching scale set: %w", err)
 		}
 		return nil
 	}
@@ -76,22 +75,22 @@ func (r *Runner) DeleteScaleSetByID(ctx context.Context, scaleSetID uint) error 
 
 	paramEntity, err := scaleSet.GetEntity()
 	if err != nil {
-		return errors.Wrap(err, "getting entity")
+		return fmt.Errorf("error getting entity: %w", err)
 	}
 
 	entity, err := r.store.GetForgeEntity(ctx, paramEntity.EntityType, paramEntity.ID)
 	if err != nil {
-		return errors.Wrap(err, "getting entity")
+		return fmt.Errorf("error getting entity: %w", err)
 	}
 
 	ghCli, err := github.Client(ctx, entity)
 	if err != nil {
-		return errors.Wrap(err, "creating github client")
+		return fmt.Errorf("error creating github client: %w", err)
 	}
 
 	scalesetCli, err := scalesets.NewClient(ghCli)
 	if err != nil {
-		return errors.Wrap(err, "getting scaleset client")
+		return fmt.Errorf("error getting scaleset client: %w", err)
 	}
 
 	slog.DebugContext(ctx, "deleting scale set", "scale_set_id", scaleSet.ScaleSetID)
@@ -101,10 +100,10 @@ func (r *Runner) DeleteScaleSetByID(ctx context.Context, scaleSetID uint) error 
 			return nil
 		}
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to delete scale set from github")
-		return errors.Wrap(err, "deleting scale set from github")
+		return fmt.Errorf("error deleting scale set from github: %w", err)
 	}
 	if err := r.store.DeleteScaleSetByID(ctx, scaleSetID); err != nil {
-		return errors.Wrap(err, "deleting scale set")
+		return fmt.Errorf("error deleting scale set: %w", err)
 	}
 	return nil
 }
@@ -116,7 +115,7 @@ func (r *Runner) UpdateScaleSetByID(ctx context.Context, scaleSetID uint, param 
 
 	scaleSet, err := r.store.GetScaleSetByID(ctx, scaleSetID)
 	if err != nil {
-		return params.ScaleSet{}, errors.Wrap(err, "fetching scale set")
+		return params.ScaleSet{}, fmt.Errorf("error fetching scale set: %w", err)
 	}
 
 	maxRunners := scaleSet.MaxRunners
@@ -139,22 +138,22 @@ func (r *Runner) UpdateScaleSetByID(ctx context.Context, scaleSetID uint, param 
 
 	paramEntity, err := scaleSet.GetEntity()
 	if err != nil {
-		return params.ScaleSet{}, errors.Wrap(err, "getting entity")
+		return params.ScaleSet{}, fmt.Errorf("error getting entity: %w", err)
 	}
 
 	entity, err := r.store.GetForgeEntity(ctx, paramEntity.EntityType, paramEntity.ID)
 	if err != nil {
-		return params.ScaleSet{}, errors.Wrap(err, "getting entity")
+		return params.ScaleSet{}, fmt.Errorf("error getting entity: %w", err)
 	}
 
 	ghCli, err := github.Client(ctx, entity)
 	if err != nil {
-		return params.ScaleSet{}, errors.Wrap(err, "creating github client")
+		return params.ScaleSet{}, fmt.Errorf("error creating github client: %w", err)
 	}
 
 	scalesetCli, err := scalesets.NewClient(ghCli)
 	if err != nil {
-		return params.ScaleSet{}, errors.Wrap(err, "getting scaleset client")
+		return params.ScaleSet{}, fmt.Errorf("error getting scaleset client: %w", err)
 	}
 
 	callback := func(old, newSet params.ScaleSet) error {
@@ -190,7 +189,7 @@ func (r *Runner) UpdateScaleSetByID(ctx context.Context, scaleSetID uint, param 
 
 	newScaleSet, err := r.store.UpdateEntityScaleSet(ctx, entity, scaleSetID, param, callback)
 	if err != nil {
-		return params.ScaleSet{}, errors.Wrap(err, "updating pool")
+		return params.ScaleSet{}, fmt.Errorf("error updating pool: %w", err)
 	}
 	return newScaleSet, nil
 }
@@ -210,7 +209,7 @@ func (r *Runner) CreateEntityScaleSet(ctx context.Context, entityType params.For
 
 	entity, err := r.store.GetForgeEntity(ctx, entityType, entityID)
 	if err != nil {
-		return params.ScaleSet{}, errors.Wrap(err, "getting entity")
+		return params.ScaleSet{}, fmt.Errorf("error getting entity: %w", err)
 	}
 
 	if entity.Credentials.ForgeType != params.GithubEndpointType {
@@ -219,18 +218,18 @@ func (r *Runner) CreateEntityScaleSet(ctx context.Context, entityType params.For
 
 	ghCli, err := github.Client(ctx, entity)
 	if err != nil {
-		return params.ScaleSet{}, errors.Wrap(err, "creating github client")
+		return params.ScaleSet{}, fmt.Errorf("error creating github client: %w", err)
 	}
 
 	scalesetCli, err := scalesets.NewClient(ghCli)
 	if err != nil {
-		return params.ScaleSet{}, errors.Wrap(err, "getting scaleset client")
+		return params.ScaleSet{}, fmt.Errorf("error getting scaleset client: %w", err)
 	}
 	var runnerGroupID int64 = 1
 	if param.GitHubRunnerGroup != "Default" {
 		runnerGroup, err := scalesetCli.GetRunnerGroupByName(ctx, param.GitHubRunnerGroup)
 		if err != nil {
-			return params.ScaleSet{}, errors.Wrap(err, "getting runner group")
+			return params.ScaleSet{}, fmt.Errorf("error getting runner group: %w", err)
 		}
 		runnerGroupID = runnerGroup.ID
 	}
@@ -253,7 +252,7 @@ func (r *Runner) CreateEntityScaleSet(ctx context.Context, entityType params.For
 
 	runnerScaleSet, err := scalesetCli.CreateRunnerScaleSet(ctx, createParam)
 	if err != nil {
-		return params.ScaleSet{}, errors.Wrap(err, "creating runner scale set")
+		return params.ScaleSet{}, fmt.Errorf("error creating runner scale set: %w", err)
 	}
 
 	defer func() {
@@ -267,7 +266,7 @@ func (r *Runner) CreateEntityScaleSet(ctx context.Context, entityType params.For
 
 	scaleSet, err := r.store.CreateEntityScaleSet(ctx, entity, param)
 	if err != nil {
-		return params.ScaleSet{}, errors.Wrap(err, "creating scale set")
+		return params.ScaleSet{}, fmt.Errorf("error creating scale set: %w", err)
 	}
 
 	return scaleSet, nil
@@ -280,7 +279,7 @@ func (r *Runner) ListScaleSetInstances(ctx context.Context, scalesetID uint) ([]
 
 	instances, err := r.store.ListScaleSetInstances(ctx, scalesetID)
 	if err != nil {
-		return []params.Instance{}, errors.Wrap(err, "fetching instances")
+		return []params.Instance{}, fmt.Errorf("error fetching instances: %w", err)
 	}
 	return instances, nil
 }
@@ -295,7 +294,7 @@ func (r *Runner) ListEntityScaleSets(ctx context.Context, entityType params.Forg
 	}
 	scaleSets, err := r.store.ListEntityScaleSets(ctx, entity)
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching scale sets")
+		return nil, fmt.Errorf("error fetching scale sets: %w", err)
 	}
 	return scaleSets, nil
 }

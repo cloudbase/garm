@@ -15,10 +15,10 @@
 package sql
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/pkg/errors"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 
@@ -40,7 +40,7 @@ func (b *Base) BeforeCreate(_ *gorm.DB) error {
 	}
 	newID, err := uuid.NewRandom()
 	if err != nil {
-		return errors.Wrap(err, "generating id")
+		return fmt.Errorf("error generating id: %w", err)
 	}
 	b.ID = newID
 	return nil

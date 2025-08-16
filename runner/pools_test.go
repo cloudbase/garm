@@ -169,7 +169,7 @@ func (s *PoolTestSuite) TestGetPoolByIDNotFound() {
 	s.Require().Nil(err)
 	_, err = s.Runner.GetPoolByID(s.Fixtures.AdminContext, s.Fixtures.Pools[0].ID)
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching pool: fetching pool by ID: not found", err.Error())
+	s.Require().Equal("error fetching pool: error fetching pool by ID: not found", err.Error())
 }
 
 func (s *PoolTestSuite) TestDeletePoolByID() {
@@ -178,7 +178,7 @@ func (s *PoolTestSuite) TestDeletePoolByID() {
 	s.Require().Nil(err)
 	_, err = s.Fixtures.Store.GetPoolByID(s.Fixtures.AdminContext, s.Fixtures.Pools[0].ID)
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching pool by ID: not found", err.Error())
+	s.Require().Equal("error fetching pool by ID: not found", err.Error())
 }
 
 func (s *PoolTestSuite) TestDeletePoolByIDErrUnauthorized() {
@@ -220,7 +220,7 @@ func (s *PoolTestSuite) TestTestUpdatePoolByIDInvalidPoolID() {
 	_, err := s.Runner.UpdatePoolByID(s.Fixtures.AdminContext, "dummy-pool-id", s.Fixtures.UpdatePoolParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching pool: fetching pool by ID: parsing id: invalid request", err.Error())
+	s.Require().Equal("error fetching pool: error fetching pool by ID: error parsing id: invalid request", err.Error())
 }
 
 func (s *PoolTestSuite) TestTestUpdatePoolByIDRunnerBootstrapTimeoutFailed() {

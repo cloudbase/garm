@@ -16,10 +16,10 @@ package runner
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 
@@ -240,7 +240,7 @@ func (s *RepoTestSuite) TestCreateRepositoryPoolMgrFailed() {
 
 	s.Fixtures.PoolMgrMock.AssertExpectations(s.T())
 	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
-	s.Require().Equal(fmt.Sprintf("creating repo pool manager: %s", s.Fixtures.ErrMock.Error()), err.Error())
+	s.Require().Equal(fmt.Sprintf("error creating repo pool manager: %s", s.Fixtures.ErrMock.Error()), err.Error())
 }
 
 func (s *RepoTestSuite) TestCreateRepositoryStartPoolMgrFailed() {
@@ -252,7 +252,7 @@ func (s *RepoTestSuite) TestCreateRepositoryStartPoolMgrFailed() {
 
 	s.Fixtures.PoolMgrMock.AssertExpectations(s.T())
 	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
-	s.Require().Equal(fmt.Sprintf("starting repo pool manager: %s", s.Fixtures.ErrMock.Error()), err.Error())
+	s.Require().Equal(fmt.Sprintf("error starting repo pool manager: %s", s.Fixtures.ErrMock.Error()), err.Error())
 }
 
 func (s *RepoTestSuite) TestListRepositories() {
@@ -361,7 +361,7 @@ func (s *RepoTestSuite) TestDeleteRepository() {
 	s.Require().Nil(err)
 
 	_, err = s.Fixtures.Store.GetRepositoryByID(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID)
-	s.Require().Equal("fetching repo: not found", err.Error())
+	s.Require().Equal("error fetching repo: not found", err.Error())
 }
 
 func (s *RepoTestSuite) TestDeleteRepositoryErrUnauthorized() {
@@ -391,7 +391,7 @@ func (s *RepoTestSuite) TestDeleteRepositoryPoolMgrFailed() {
 	err := s.Runner.DeleteRepository(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID, true)
 
 	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
-	s.Require().Equal(fmt.Sprintf("deleting repo pool manager: %s", s.Fixtures.ErrMock.Error()), err.Error())
+	s.Require().Equal(fmt.Sprintf("error deleting repo pool manager: %s", s.Fixtures.ErrMock.Error()), err.Error())
 }
 
 func (s *RepoTestSuite) TestUpdateRepository() {
@@ -445,7 +445,7 @@ func (s *RepoTestSuite) TestUpdateRepositoryPoolMgrFailed() {
 	_, err := s.Runner.UpdateRepository(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID, s.Fixtures.UpdateRepoParams)
 
 	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
-	s.Require().Equal(fmt.Sprintf("getting pool manager: %s", s.Fixtures.ErrMock.Error()), err.Error())
+	s.Require().Equal(fmt.Sprintf("error getting pool manager: %s", s.Fixtures.ErrMock.Error()), err.Error())
 }
 
 func (s *RepoTestSuite) TestUpdateRepositoryCreateRepoPoolMgrFailed() {
@@ -454,7 +454,7 @@ func (s *RepoTestSuite) TestUpdateRepositoryCreateRepoPoolMgrFailed() {
 	_, err := s.Runner.UpdateRepository(s.Fixtures.AdminContext, s.Fixtures.StoreRepos["test-repo-1"].ID, s.Fixtures.UpdateRepoParams)
 
 	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
-	s.Require().Equal(fmt.Sprintf("getting pool manager: %s", s.Fixtures.ErrMock.Error()), err.Error())
+	s.Require().Equal(fmt.Sprintf("error getting pool manager: %s", s.Fixtures.ErrMock.Error()), err.Error())
 }
 
 func (s *RepoTestSuite) TestCreateRepoPool() {
@@ -527,7 +527,7 @@ func (s *RepoTestSuite) TestDeleteRepoPool() {
 	s.Require().Nil(err)
 
 	_, err = s.Fixtures.Store.GetEntityPool(s.Fixtures.AdminContext, entity, pool.ID)
-	s.Require().Equal("fetching pool: finding pool: not found", err.Error())
+	s.Require().Equal("fetching pool: error finding pool: not found", err.Error())
 }
 
 func (s *RepoTestSuite) TestDeleteRepoPoolErrUnauthorized() {

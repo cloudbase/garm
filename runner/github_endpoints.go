@@ -16,8 +16,7 @@ package runner
 
 import (
 	"context"
-
-	"github.com/pkg/errors"
+	"fmt"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/auth"
@@ -30,12 +29,12 @@ func (r *Runner) CreateGithubEndpoint(ctx context.Context, param params.CreateGi
 	}
 
 	if err := param.Validate(); err != nil {
-		return params.ForgeEndpoint{}, errors.Wrap(err, "failed to validate github endpoint params")
+		return params.ForgeEndpoint{}, fmt.Errorf("error failed to validate github endpoint params: %w", err)
 	}
 
 	ep, err := r.store.CreateGithubEndpoint(ctx, param)
 	if err != nil {
-		return params.ForgeEndpoint{}, errors.Wrap(err, "failed to create github endpoint")
+		return params.ForgeEndpoint{}, fmt.Errorf("failed to create github endpoint: %w", err)
 	}
 
 	return ep, nil
@@ -47,7 +46,7 @@ func (r *Runner) GetGithubEndpoint(ctx context.Context, name string) (params.For
 	}
 	endpoint, err := r.store.GetGithubEndpoint(ctx, name)
 	if err != nil {
-		return params.ForgeEndpoint{}, errors.Wrap(err, "failed to get github endpoint")
+		return params.ForgeEndpoint{}, fmt.Errorf("failed to get github endpoint: %w", err)
 	}
 
 	return endpoint, nil
@@ -60,7 +59,7 @@ func (r *Runner) DeleteGithubEndpoint(ctx context.Context, name string) error {
 
 	err := r.store.DeleteGithubEndpoint(ctx, name)
 	if err != nil {
-		return errors.Wrap(err, "failed to delete github endpoint")
+		return fmt.Errorf("failed to delete github endpoint: %w", err)
 	}
 
 	return nil
@@ -72,12 +71,12 @@ func (r *Runner) UpdateGithubEndpoint(ctx context.Context, name string, param pa
 	}
 
 	if err := param.Validate(); err != nil {
-		return params.ForgeEndpoint{}, errors.Wrap(err, "failed to validate github endpoint params")
+		return params.ForgeEndpoint{}, fmt.Errorf("failed to validate github endpoint params: %w", err)
 	}
 
 	newEp, err := r.store.UpdateGithubEndpoint(ctx, name, param)
 	if err != nil {
-		return params.ForgeEndpoint{}, errors.Wrap(err, "failed to update github endpoint")
+		return params.ForgeEndpoint{}, fmt.Errorf("failed to update github endpoint: %w", err)
 	}
 	return newEp, nil
 }
@@ -89,7 +88,7 @@ func (r *Runner) ListGithubEndpoints(ctx context.Context) ([]params.ForgeEndpoin
 
 	endpoints, err := r.store.ListGithubEndpoints(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to list github endpoints")
+		return nil, fmt.Errorf("failed to list github endpoints: %w", err)
 	}
 
 	return endpoints, nil

@@ -16,9 +16,9 @@ package sql
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
-	"github.com/pkg/errors"
 	"gorm.io/gorm"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
@@ -39,7 +39,7 @@ func (s *sqlDatabase) getUserByUsernameOrEmail(tx *gorm.DB, user string) (User, 
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
 			return User{}, runnerErrors.ErrNotFound
 		}
-		return User{}, errors.Wrap(q.Error, "fetching user")
+		return User{}, fmt.Errorf("error fetching user: %w", q.Error)
 	}
 	return dbUser, nil
 }
@@ -51,7 +51,7 @@ func (s *sqlDatabase) getUserByID(tx *gorm.DB, userID string) (User, error) {
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
 			return User{}, runnerErrors.ErrNotFound
 		}
-		return User{}, errors.Wrap(q.Error, "fetching user")
+		return User{}, fmt.Errorf("error fetching user: %w", q.Error)
 	}
 	return dbUser, nil
 }
@@ -82,12 +82,12 @@ func (s *sqlDatabase) CreateUser(_ context.Context, user params.NewUserParams) (
 
 		q := tx.Save(&newUser)
 		if q.Error != nil {
-			return errors.Wrap(q.Error, "creating user")
+			return fmt.Errorf("error creating user: %w", q.Error)
 		}
 		return nil
 	})
 	if err != nil {
-		return params.User{}, errors.Wrap(err, "creating user")
+		return params.User{}, fmt.Errorf("error creating user: %w", err)
 	}
 	return s.sqlToParamsUser(newUser), nil
 }
@@ -105,7 +105,7 @@ func (s *sqlDatabase) HasAdminUser(_ context.Context) bool {
 func (s *sqlDatabase) GetUser(_ context.Context, user string) (params.User, error) {
 	dbUser, err := s.getUserByUsernameOrEmail(s.conn, user)
 	if err != nil {
-		return params.User{}, errors.Wrap(err, "fetching user")
+		return params.User{}, fmt.Errorf("error fetching user: %w", err)
 	}
 	return s.sqlToParamsUser(dbUser), nil
 }
@@ -113,7 +113,7 @@ func (s *sqlDatabase) GetUser(_ context.Context, user string) (params.User, erro
 func (s *sqlDatabase) GetUserByID(_ context.Context, userID string) (params.User, error) {
 	dbUser, err := s.getUserByID(s.conn, userID)
 	if err != nil {
-		return params.User{}, errors.Wrap(err, "fetching user")
+		return params.User{}, fmt.Errorf("error fetching user: %w", err)
 	}
 	return s.sqlToParamsUser(dbUser), nil
 }
@@ -124,7 +124,7 @@ func (s *sqlDatabase) UpdateUser(_ context.Context, user string, param params.Up
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
 		dbUser, err = s.getUserByUsernameOrEmail(tx, user)
 		if err != nil {
-			return errors.Wrap(err, "fetching user")
+			return fmt.Errorf("error fetching user: %w", err)
 		}
 
 		if param.FullName != "" {
@@ -141,12 +141,12 @@ func (s *sqlDatabase) UpdateUser(_ context.Context, user string, param params.Up
 		}
 
 		if q := tx.Save(&dbUser); q.Error != nil {
-			return errors.Wrap(q.Error, "saving user")
+			return fmt.Errorf("error saving user: %w", q.Error)
 		}
 		return nil
 	})
 	if err != nil {
-		return params.User{}, errors.Wrap(err, "updating user")
+		return params.User{}, fmt.Errorf("error updating user: %w", err)
 	}
 	return s.sqlToParamsUser(dbUser), nil
 }
@@ -159,7 +159,7 @@ func (s *sqlDatabase) GetAdminUser(_ context.Context) (params.User, error) {
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
 			return params.User{}, runnerErrors.ErrNotFound
 		}
-		return params.User{}, errors.Wrap(q.Error, "fetching admin user")
+		return params.User{}, fmt.Errorf("error fetching admin user: %w", q.Error)
 	}
 	return s.sqlToParamsUser(user), nil
 }

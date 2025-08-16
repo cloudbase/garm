@@ -17,6 +17,8 @@ package controllers
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -25,7 +27,6 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
-	"github.com/pkg/errors"
 
 	gErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm-provider-common/util"
@@ -43,7 +44,7 @@ import (
 func NewAPIController(r *runner.Runner, authenticator *auth.Authenticator, hub *wsWriter.Hub, apiCfg config.APIServer) (*APIController, error) {
 	controllerInfo, err := r.GetControllerInfo(auth.GetAdminContext(context.Background()))
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get controller info")
+		return nil, fmt.Errorf("failed to get controller info: %w", err)
 	}
 	var checkOrigin func(r *http.Request) bool
 	if len(apiCfg.CORSOrigins) > 0 {
@@ -91,24 +92,22 @@ type APIController struct {
 
 func handleError(ctx context.Context, w http.ResponseWriter, err error) {
 	w.Header().Set("Content-Type", "application/json")
-	origErr := errors.Cause(err)
 	apiErr := params.APIErrorResponse{
-		Details: origErr.Error(),
+		Details: err.Error(),
 	}
-
-	switch origErr.(type) {
-	case *gErrors.NotFoundError:
+	switch {
+	case errors.Is(err, gErrors.ErrNotFound):
 		w.WriteHeader(http.StatusNotFound)
 		apiErr.Error = "Not Found"
-	case *gErrors.UnauthorizedError:
+	case errors.Is(err, gErrors.ErrUnauthorized):
 		w.WriteHeader(http.StatusUnauthorized)
 		apiErr.Error = "Not Authorized"
 		// Don't include details on 401 errors.
 		apiErr.Details = ""
-	case *gErrors.BadRequestError:
+	case errors.Is(err, gErrors.ErrBadRequest):
 		w.WriteHeader(http.StatusBadRequest)
 		apiErr.Error = "Bad Request"
-	case *gErrors.DuplicateUserError, *gErrors.ConflictError:
+	case errors.Is(err, gErrors.ErrDuplicateEntity), errors.Is(err, &gErrors.ConflictError{}):
 		w.WriteHeader(http.StatusConflict)
 		apiErr.Error = "Conflict"
 	default:

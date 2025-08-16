@@ -16,10 +16,10 @@ package sql
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/pkg/errors"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 
@@ -42,7 +42,7 @@ func (s *sqlDatabase) ListAllScaleSets(_ context.Context) ([]params.ScaleSet, er
 		Omit("status_messages").
 		Find(&scaleSets)
 	if q.Error != nil {
-		return nil, errors.Wrap(q.Error, "fetching all scale sets")
+		return nil, fmt.Errorf("error fetching all scale sets: %w", q.Error)
 	}
 
 	ret := make([]params.ScaleSet, len(scaleSets))
@@ -50,7 +50,7 @@ func (s *sqlDatabase) ListAllScaleSets(_ context.Context) ([]params.ScaleSet, er
 	for idx, val := range scaleSets {
 		ret[idx], err = s.sqlToCommonScaleSet(val)
 		if err != nil {
-			return nil, errors.Wrap(err, "converting scale sets")
+			return nil, fmt.Errorf("error converting scale sets: %w", err)
 		}
 	}
 	return ret, nil
@@ -91,7 +91,7 @@ func (s *sqlDatabase) CreateEntityScaleSet(_ context.Context, entity params.Forg
 
 	entityID, err := uuid.Parse(entity.ID)
 	if err != nil {
-		return params.ScaleSet{}, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
+		return params.ScaleSet{}, fmt.Errorf("error parsing id: %w", runnerErrors.ErrBadRequest)
 	}
 
 	switch entity.EntityType {
@@ -104,12 +104,12 @@ func (s *sqlDatabase) CreateEntityScaleSet(_ context.Context, entity params.Forg
 	}
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
 		if err := s.hasGithubEntity(tx, entity.EntityType, entity.ID); err != nil {
-			return errors.Wrap(err, "checking entity existence")
+			return fmt.Errorf("error checking entity existence: %w", err)
 		}
 
 		q := tx.Create(&newScaleSet)
 		if q.Error != nil {
-			return errors.Wrap(q.Error, "creating scale set")
+			return fmt.Errorf("error creating scale set: %w", q.Error)
 		}
 
 		return nil
@@ -120,7 +120,7 @@ func (s *sqlDatabase) CreateEntityScaleSet(_ context.Context, entity params.Forg
 
 	dbScaleSet, err := s.getScaleSetByID(s.conn, newScaleSet.ID, "Instances", "Enterprise", "Organization", "Repository")
 	if err != nil {
-		return params.ScaleSet{}, errors.Wrap(err, "fetching scale set")
+		return params.ScaleSet{}, fmt.Errorf("error fetching scale set: %w", err)
 	}
 
 	return s.sqlToCommonScaleSet(dbScaleSet)
@@ -128,11 +128,11 @@ func (s *sqlDatabase) CreateEntityScaleSet(_ context.Context, entity params.Forg
 
 func (s *sqlDatabase) listEntityScaleSets(tx *gorm.DB, entityType params.ForgeEntityType, entityID string, preload ...string) ([]ScaleSet, error) {
 	if _, err := uuid.Parse(entityID); err != nil {
-		return nil, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
+		return nil, fmt.Errorf("error parsing id: %w", runnerErrors.ErrBadRequest)
 	}
 
 	if err := s.hasGithubEntity(tx, entityType, entityID); err != nil {
-		return nil, errors.Wrap(err, "checking entity existence")
+		return nil, fmt.Errorf("error checking entity existence: %w", err)
 	}
 
 	var preloadEntity string
@@ -170,7 +170,7 @@ func (s *sqlDatabase) listEntityScaleSets(tx *gorm.DB, entityType params.ForgeEn
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return []ScaleSet{}, nil
 		}
-		return nil, errors.Wrap(err, "fetching scale sets")
+		return nil, fmt.Errorf("error fetching scale sets: %w", err)
 	}
 
 	return scaleSets, nil
@@ -179,14 +179,14 @@ func (s *sqlDatabase) listEntityScaleSets(tx *gorm.DB, entityType params.ForgeEn
 func (s *sqlDatabase) ListEntityScaleSets(_ context.Context, entity params.ForgeEntity) ([]params.ScaleSet, error) {
 	scaleSets, err := s.listEntityScaleSets(s.conn, entity.EntityType, entity.ID)
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching scale sets")
+		return nil, fmt.Errorf("error fetching scale sets: %w", err)
 	}
 
 	ret := make([]params.ScaleSet, len(scaleSets))
 	for idx, set := range scaleSets {
 		ret[idx], err = s.sqlToCommonScaleSet(set)
 		if err != nil {
-			return nil, errors.Wrap(err, "conbverting scale set")
+			return nil, fmt.Errorf("error conbverting scale set: %w", err)
 		}
 	}
 
@@ -202,22 +202,22 @@ func (s *sqlDatabase) UpdateEntityScaleSet(ctx context.Context, entity params.Fo
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
 		scaleSet, err := s.getEntityScaleSet(tx, entity.EntityType, entity.ID, scaleSetID, "Instances")
 		if err != nil {
-			return errors.Wrap(err, "fetching scale set")
+			return fmt.Errorf("error fetching scale set: %w", err)
 		}
 
 		old, err := s.sqlToCommonScaleSet(scaleSet)
 		if err != nil {
-			return errors.Wrap(err, "converting scale set")
+			return fmt.Errorf("error converting scale set: %w", err)
 		}
 
 		updatedScaleSet, err = s.updateScaleSet(tx, scaleSet, param)
 		if err != nil {
-			return errors.Wrap(err, "updating scale set")
+			return fmt.Errorf("error updating scale set: %w", err)
 		}
 
 		if callback != nil {
 			if err := callback(old, updatedScaleSet); err != nil {
-				return errors.Wrap(err, "executing update callback")
+				return fmt.Errorf("error executing update callback: %w", err)
 			}
 		}
 		return nil
@@ -235,11 +235,11 @@ func (s *sqlDatabase) UpdateEntityScaleSet(ctx context.Context, entity params.Fo
 
 func (s *sqlDatabase) getEntityScaleSet(tx *gorm.DB, entityType params.ForgeEntityType, entityID string, scaleSetID uint, preload ...string) (ScaleSet, error) {
 	if entityID == "" {
-		return ScaleSet{}, errors.Wrap(runnerErrors.ErrBadRequest, "missing entity id")
+		return ScaleSet{}, fmt.Errorf("error missing entity id: %w", runnerErrors.ErrBadRequest)
 	}
 
 	if scaleSetID == 0 {
-		return ScaleSet{}, errors.Wrap(runnerErrors.ErrBadRequest, "missing scaleset id")
+		return ScaleSet{}, fmt.Errorf("error missing scaleset id: %w", runnerErrors.ErrBadRequest)
 	}
 
 	var fieldName string
@@ -273,9 +273,9 @@ func (s *sqlDatabase) getEntityScaleSet(tx *gorm.DB, entityType params.ForgeEnti
 		First(&scaleSet).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return ScaleSet{}, errors.Wrap(runnerErrors.ErrNotFound, "finding scale set")
+			return ScaleSet{}, fmt.Errorf("error finding scale set: %w", runnerErrors.ErrNotFound)
 		}
-		return ScaleSet{}, errors.Wrap(err, "fetching scale set")
+		return ScaleSet{}, fmt.Errorf("error fetching scale set: %w", err)
 	}
 
 	return scaleSet, nil
@@ -343,7 +343,7 @@ func (s *sqlDatabase) updateScaleSet(tx *gorm.DB, scaleSet ScaleSet, param param
 	}
 
 	if q := tx.Save(&scaleSet); q.Error != nil {
-		return params.ScaleSet{}, errors.Wrap(q.Error, "saving database entry")
+		return params.ScaleSet{}, fmt.Errorf("error saving database entry: %w", q.Error)
 	}
 
 	return s.sqlToCommonScaleSet(scaleSet)
@@ -362,7 +362,7 @@ func (s *sqlDatabase) GetScaleSetByID(_ context.Context, scaleSet uint) (params.
 		"Repository.Endpoint",
 	)
 	if err != nil {
-		return params.ScaleSet{}, errors.Wrap(err, "fetching scale set by ID")
+		return params.ScaleSet{}, fmt.Errorf("error fetching scale set by ID: %w", err)
 	}
 	return s.sqlToCommonScaleSet(set)
 }
@@ -377,7 +377,7 @@ func (s *sqlDatabase) DeleteScaleSetByID(_ context.Context, scaleSetID uint) (er
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
 		dbSet, err := s.getScaleSetByID(tx, scaleSetID, "Instances", "Enterprise", "Organization", "Repository")
 		if err != nil {
-			return errors.Wrap(err, "fetching scale set")
+			return fmt.Errorf("error fetching scale set: %w", err)
 		}
 
 		if len(dbSet.Instances) > 0 {
@@ -385,16 +385,16 @@ func (s *sqlDatabase) DeleteScaleSetByID(_ context.Context, scaleSetID uint) (er
 		}
 		scaleSet, err = s.sqlToCommonScaleSet(dbSet)
 		if err != nil {
-			return errors.Wrap(err, "converting scale set")
+			return fmt.Errorf("error converting scale set: %w", err)
 		}
 
 		if q := tx.Unscoped().Delete(&dbSet); q.Error != nil {
-			return errors.Wrap(q.Error, "deleting scale set")
+			return fmt.Errorf("error deleting scale set: %w", q.Error)
 		}
 		return nil
 	})
 	if err != nil {
-		return errors.Wrap(err, "removing scale set")
+		return fmt.Errorf("error removing scale set: %w", err)
 	}
 	return nil
 }
@@ -409,19 +409,19 @@ func (s *sqlDatabase) SetScaleSetLastMessageID(_ context.Context, scaleSetID uin
 	if err := s.conn.Transaction(func(tx *gorm.DB) error {
 		dbSet, err := s.getScaleSetByID(tx, scaleSetID, "Instances", "Enterprise", "Organization", "Repository")
 		if err != nil {
-			return errors.Wrap(err, "fetching scale set")
+			return fmt.Errorf("error fetching scale set: %w", err)
 		}
 		dbSet.LastMessageID = lastMessageID
 		if err := tx.Save(&dbSet).Error; err != nil {
-			return errors.Wrap(err, "saving database entry")
+			return fmt.Errorf("error saving database entry: %w", err)
 		}
 		scaleSet, err = s.sqlToCommonScaleSet(dbSet)
 		if err != nil {
-			return errors.Wrap(err, "converting scale set")
+			return fmt.Errorf("error converting scale set: %w", err)
 		}
 		return nil
 	}); err != nil {
-		return errors.Wrap(err, "setting last message ID")
+		return fmt.Errorf("error setting last message ID: %w", err)
 	}
 	return nil
 }
@@ -436,19 +436,19 @@ func (s *sqlDatabase) SetScaleSetDesiredRunnerCount(_ context.Context, scaleSetI
 	if err := s.conn.Transaction(func(tx *gorm.DB) error {
 		dbSet, err := s.getScaleSetByID(tx, scaleSetID, "Instances", "Enterprise", "Organization", "Repository")
 		if err != nil {
-			return errors.Wrap(err, "fetching scale set")
+			return fmt.Errorf("error fetching scale set: %w", err)
 		}
 		dbSet.DesiredRunnerCount = desiredRunnerCount
 		if err := tx.Save(&dbSet).Error; err != nil {
-			return errors.Wrap(err, "saving database entry")
+			return fmt.Errorf("error saving database entry: %w", err)
 		}
 		scaleSet, err = s.sqlToCommonScaleSet(dbSet)
 		if err != nil {
-			return errors.Wrap(err, "converting scale set")
+			return fmt.Errorf("error converting scale set: %w", err)
 		}
 		return nil
 	}); err != nil {
-		return errors.Wrap(err, "setting desired runner count")
+		return fmt.Errorf("error setting desired runner count: %w", err)
 	}
 	return nil
 }

@@ -17,10 +17,11 @@ package sql
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"log/slog"
 
 	"github.com/google/uuid"
-	"github.com/pkg/errors"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -33,7 +34,7 @@ import (
 func (s *sqlDatabase) CreateInstance(_ context.Context, poolID string, param params.CreateInstanceParams) (instance params.Instance, err error) {
 	pool, err := s.getPoolByID(s.conn, poolID)
 	if err != nil {
-		return params.Instance{}, errors.Wrap(err, "fetching pool")
+		return params.Instance{}, fmt.Errorf("error fetching pool: %w", err)
 	}
 
 	defer func() {
@@ -46,7 +47,7 @@ func (s *sqlDatabase) CreateInstance(_ context.Context, poolID string, param par
 	if len(param.AditionalLabels) > 0 {
 		labels, err = json.Marshal(param.AditionalLabels)
 		if err != nil {
-			return params.Instance{}, errors.Wrap(err, "marshalling labels")
+			return params.Instance{}, fmt.Errorf("error marshalling labels: %w", err)
 		}
 	}
 
@@ -54,7 +55,7 @@ func (s *sqlDatabase) CreateInstance(_ context.Context, poolID string, param par
 	if len(param.JitConfiguration) > 0 {
 		secret, err = s.marshalAndSeal(param.JitConfiguration)
 		if err != nil {
-			return params.Instance{}, errors.Wrap(err, "marshalling jit config")
+			return params.Instance{}, fmt.Errorf("error marshalling jit config: %w", err)
 		}
 	}
 
@@ -74,7 +75,7 @@ func (s *sqlDatabase) CreateInstance(_ context.Context, poolID string, param par
 	}
 	q := s.conn.Create(&newInstance)
 	if q.Error != nil {
-		return params.Instance{}, errors.Wrap(q.Error, "creating instance")
+		return params.Instance{}, fmt.Errorf("error creating instance: %w", q.Error)
 	}
 
 	return s.sqlToParamsInstance(newInstance)
@@ -83,7 +84,7 @@ func (s *sqlDatabase) CreateInstance(_ context.Context, poolID string, param par
 func (s *sqlDatabase) getPoolInstanceByName(poolID string, instanceName string) (Instance, error) {
 	pool, err := s.getPoolByID(s.conn, poolID)
 	if err != nil {
-		return Instance{}, errors.Wrap(err, "fetching pool")
+		return Instance{}, fmt.Errorf("error fetching pool: %w", err)
 	}
 
 	var instance Instance
@@ -93,9 +94,9 @@ func (s *sqlDatabase) getPoolInstanceByName(poolID string, instanceName string) 
 		First(&instance)
 	if q.Error != nil {
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
-			return Instance{}, errors.Wrap(runnerErrors.ErrNotFound, "fetching pool instance by name")
+			return Instance{}, fmt.Errorf("error fetching pool instance by name: %w", runnerErrors.ErrNotFound)
 		}
-		return Instance{}, errors.Wrap(q.Error, "fetching pool instance by name")
+		return Instance{}, fmt.Errorf("error fetching pool instance by name: %w", q.Error)
 	}
 
 	instance.Pool = pool
@@ -119,9 +120,9 @@ func (s *sqlDatabase) getInstanceByName(_ context.Context, instanceName string, 
 		First(&instance)
 	if q.Error != nil {
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
-			return Instance{}, errors.Wrap(runnerErrors.ErrNotFound, "fetching instance by name")
+			return Instance{}, fmt.Errorf("error fetching instance by name: %w", runnerErrors.ErrNotFound)
 		}
-		return Instance{}, errors.Wrap(q.Error, "fetching instance by name")
+		return Instance{}, fmt.Errorf("error fetching instance by name: %w", q.Error)
 	}
 	return instance, nil
 }
@@ -129,7 +130,7 @@ func (s *sqlDatabase) getInstanceByName(_ context.Context, instanceName string, 
 func (s *sqlDatabase) GetPoolInstanceByName(_ context.Context, poolID string, instanceName string) (params.Instance, error) {
 	instance, err := s.getPoolInstanceByName(poolID, instanceName)
 	if err != nil {
-		return params.Instance{}, errors.Wrap(err, "fetching instance")
+		return params.Instance{}, fmt.Errorf("error fetching instance: %w", err)
 	}
 
 	return s.sqlToParamsInstance(instance)
@@ -138,7 +139,7 @@ func (s *sqlDatabase) GetPoolInstanceByName(_ context.Context, poolID string, in
 func (s *sqlDatabase) GetInstanceByName(ctx context.Context, instanceName string) (params.Instance, error) {
 	instance, err := s.getInstanceByName(ctx, instanceName, "StatusMessages", "Pool", "ScaleSet")
 	if err != nil {
-		return params.Instance{}, errors.Wrap(err, "fetching instance")
+		return params.Instance{}, fmt.Errorf("error fetching instance: %w", err)
 	}
 
 	return s.sqlToParamsInstance(instance)
@@ -150,7 +151,7 @@ func (s *sqlDatabase) DeleteInstance(_ context.Context, poolID string, instanceN
 		if errors.Is(err, runnerErrors.ErrNotFound) {
 			return nil
 		}
-		return errors.Wrap(err, "deleting instance")
+		return fmt.Errorf("error deleting instance: %w", err)
 	}
 
 	defer func() {
@@ -182,7 +183,7 @@ func (s *sqlDatabase) DeleteInstance(_ context.Context, poolID string, instanceN
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
 			return nil
 		}
-		return errors.Wrap(q.Error, "deleting instance")
+		return fmt.Errorf("error deleting instance: %w", q.Error)
 	}
 	return nil
 }
@@ -193,7 +194,7 @@ func (s *sqlDatabase) DeleteInstanceByName(ctx context.Context, instanceName str
 		if errors.Is(err, runnerErrors.ErrNotFound) {
 			return nil
 		}
-		return errors.Wrap(err, "deleting instance")
+		return fmt.Errorf("error deleting instance: %w", err)
 	}
 
 	defer func() {
@@ -224,7 +225,7 @@ func (s *sqlDatabase) DeleteInstanceByName(ctx context.Context, instanceName str
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
 			return nil
 		}
-		return errors.Wrap(q.Error, "deleting instance")
+		return fmt.Errorf("error deleting instance: %w", q.Error)
 	}
 	return nil
 }
@@ -232,7 +233,7 @@ func (s *sqlDatabase) DeleteInstanceByName(ctx context.Context, instanceName str
 func (s *sqlDatabase) AddInstanceEvent(ctx context.Context, instanceName string, event params.EventType, eventLevel params.EventLevel, statusMessage string) error {
 	instance, err := s.getInstanceByName(ctx, instanceName)
 	if err != nil {
-		return errors.Wrap(err, "updating instance")
+		return fmt.Errorf("error updating instance: %w", err)
 	}
 
 	msg := InstanceStatusUpdate{
@@ -242,7 +243,7 @@ func (s *sqlDatabase) AddInstanceEvent(ctx context.Context, instanceName string,
 	}
 
 	if err := s.conn.Model(&instance).Association("StatusMessages").Append(&msg); err != nil {
-		return errors.Wrap(err, "adding status message")
+		return fmt.Errorf("error adding status message: %w", err)
 	}
 	return nil
 }
@@ -250,7 +251,7 @@ func (s *sqlDatabase) AddInstanceEvent(ctx context.Context, instanceName string,
 func (s *sqlDatabase) UpdateInstance(ctx context.Context, instanceName string, param params.UpdateInstanceParams) (params.Instance, error) {
 	instance, err := s.getInstanceByName(ctx, instanceName, "Pool", "ScaleSet")
 	if err != nil {
-		return params.Instance{}, errors.Wrap(err, "updating instance")
+		return params.Instance{}, fmt.Errorf("error updating instance: %w", err)
 	}
 
 	if param.AgentID != 0 {
@@ -287,7 +288,7 @@ func (s *sqlDatabase) UpdateInstance(ctx context.Context, instanceName string, p
 	if param.JitConfiguration != nil {
 		secret, err := s.marshalAndSeal(param.JitConfiguration)
 		if err != nil {
-			return params.Instance{}, errors.Wrap(err, "marshalling jit config")
+			return params.Instance{}, fmt.Errorf("error marshalling jit config: %w", err)
 		}
 		instance.JitConfiguration = secret
 	}
@@ -296,7 +297,7 @@ func (s *sqlDatabase) UpdateInstance(ctx context.Context, instanceName string, p
 
 	q := s.conn.Save(&instance)
 	if q.Error != nil {
-		return params.Instance{}, errors.Wrap(q.Error, "updating instance")
+		return params.Instance{}, fmt.Errorf("error updating instance: %w", q.Error)
 	}
 
 	if len(param.Addresses) > 0 {
@@ -308,12 +309,12 @@ func (s *sqlDatabase) UpdateInstance(ctx context.Context, instanceName string, p
 			})
 		}
 		if err := s.conn.Model(&instance).Association("Addresses").Replace(addrs); err != nil {
-			return params.Instance{}, errors.Wrap(err, "updating addresses")
+			return params.Instance{}, fmt.Errorf("error updating addresses: %w", err)
 		}
 	}
 	inst, err := s.sqlToParamsInstance(instance)
 	if err != nil {
-		return params.Instance{}, errors.Wrap(err, "converting instance")
+		return params.Instance{}, fmt.Errorf("error converting instance: %w", err)
 	}
 	s.sendNotify(common.InstanceEntityType, common.UpdateOperation, inst)
 	return inst, nil
@@ -322,7 +323,7 @@ func (s *sqlDatabase) UpdateInstance(ctx context.Context, instanceName string, p
 func (s *sqlDatabase) ListPoolInstances(_ context.Context, poolID string) ([]params.Instance, error) {
 	u, err := uuid.Parse(poolID)
 	if err != nil {
-		return nil, errors.Wrap(runnerErrors.ErrBadRequest, "parsing id")
+		return nil, fmt.Errorf("error parsing id: %w", runnerErrors.ErrBadRequest)
 	}
 
 	var instances []Instance
@@ -332,14 +333,14 @@ func (s *sqlDatabase) ListPoolInstances(_ context.Context, poolID string) ([]par
 		Where("pool_id = ?", u)
 
 	if err := query.Find(&instances); err.Error != nil {
-		return nil, errors.Wrap(err.Error, "fetching instances")
+		return nil, fmt.Errorf("error fetching instances: %w", err.Error)
 	}
 
 	ret := make([]params.Instance, len(instances))
 	for idx, inst := range instances {
 		ret[idx], err = s.sqlToParamsInstance(inst)
 		if err != nil {
-			return nil, errors.Wrap(err, "converting instance")
+			return nil, fmt.Errorf("error converting instance: %w", err)
 		}
 	}
 	return ret, nil
@@ -354,14 +355,14 @@ func (s *sqlDatabase) ListAllInstances(_ context.Context) ([]params.Instance, er
 		Preload("Job").
 		Find(&instances)
 	if q.Error != nil {
-		return nil, errors.Wrap(q.Error, "fetching instances")
+		return nil, fmt.Errorf("error fetching instances: %w", q.Error)
 	}
 	ret := make([]params.Instance, len(instances))
 	var err error
 	for idx, instance := range instances {
 		ret[idx], err = s.sqlToParamsInstance(instance)
 		if err != nil {
-			return nil, errors.Wrap(err, "converting instance")
+			return nil, fmt.Errorf("error converting instance: %w", err)
 		}
 	}
 	return ret, nil
@@ -370,13 +371,13 @@ func (s *sqlDatabase) ListAllInstances(_ context.Context) ([]params.Instance, er
 func (s *sqlDatabase) PoolInstanceCount(_ context.Context, poolID string) (int64, error) {
 	pool, err := s.getPoolByID(s.conn, poolID)
 	if err != nil {
-		return 0, errors.Wrap(err, "fetching pool")
+		return 0, fmt.Errorf("error fetching pool: %w", err)
 	}
 
 	var cnt int64
 	q := s.conn.Model(&Instance{}).Where("pool_id = ?", pool.ID).Count(&cnt)
 	if q.Error != nil {
-		return 0, errors.Wrap(q.Error, "fetching instance count")
+		return 0, fmt.Errorf("error fetching instance count: %w", q.Error)
 	}
 	return cnt, nil
 }

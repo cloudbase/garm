@@ -251,7 +251,7 @@ func (s *OrgTestSuite) TestCreateOrganizationInvalidForgeType() {
 		s.Fixtures.CreateOrgParams.WebhookSecret,
 		params.PoolBalancerTypeRoundRobin)
 	s.Require().NotNil(err)
-	s.Require().Equal("creating org: unsupported credentials type: invalid request", err.Error())
+	s.Require().Equal("error creating org: unsupported credentials type: invalid request", err.Error())
 }
 
 func (s *OrgTestSuite) TestCreateOrganizationInvalidDBPassphrase() {
@@ -275,7 +275,7 @@ func (s *OrgTestSuite) TestCreateOrganizationInvalidDBPassphrase() {
 		params.PoolBalancerTypeRoundRobin)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("encoding secret: invalid passphrase length (expected length 32 characters)", err.Error())
+	s.Require().Equal("error encoding secret: invalid passphrase length (expected length 32 characters)", err.Error())
 }
 
 func (s *OrgTestSuite) TestCreateOrganizationDBCreateErr() {
@@ -293,7 +293,7 @@ func (s *OrgTestSuite) TestCreateOrganizationDBCreateErr() {
 		params.PoolBalancerTypeRoundRobin)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("creating org: creating org: creating org mock error", err.Error())
+	s.Require().Equal("error creating org: error creating org: creating org mock error", err.Error())
 	s.assertSQLMockExpectations()
 }
 
@@ -316,7 +316,7 @@ func (s *OrgTestSuite) TestGetOrganizationNotFound() {
 	_, err := s.Store.GetOrganization(s.adminCtx, "dummy-name", "github.com")
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching org: not found", err.Error())
+	s.Require().Equal("error fetching org: not found", err.Error())
 }
 
 func (s *OrgTestSuite) TestGetOrganizationDBDecryptingErr() {
@@ -328,7 +328,7 @@ func (s *OrgTestSuite) TestGetOrganizationDBDecryptingErr() {
 	_, err := s.StoreSQLMocked.GetOrganization(s.adminCtx, s.Fixtures.Orgs[0].Name, s.Fixtures.Orgs[0].Endpoint.Name)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching org: missing secret", err.Error())
+	s.Require().Equal("error fetching org: missing secret", err.Error())
 	s.assertSQLMockExpectations()
 }
 
@@ -404,7 +404,7 @@ func (s *OrgTestSuite) TestListOrganizationsDBFetchErr() {
 
 	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching org from database: fetching user from database mock error", err.Error())
+	s.Require().Equal("error fetching org from database: fetching user from database mock error", err.Error())
 }
 
 func (s *OrgTestSuite) TestDeleteOrganization() {
@@ -413,14 +413,14 @@ func (s *OrgTestSuite) TestDeleteOrganization() {
 	s.Require().Nil(err)
 	_, err = s.Store.GetOrganizationByID(s.adminCtx, s.Fixtures.Orgs[0].ID)
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching org: not found", err.Error())
+	s.Require().Equal("error fetching org: not found", err.Error())
 }
 
 func (s *OrgTestSuite) TestDeleteOrganizationInvalidOrgID() {
 	err := s.Store.DeleteOrganization(s.adminCtx, "dummy-org-id")
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching org: parsing id: invalid request", err.Error())
+	s.Require().Equal("error fetching org: error parsing id: invalid request", err.Error())
 }
 
 func (s *OrgTestSuite) TestDeleteOrganizationDBDeleteErr() {
@@ -439,7 +439,7 @@ func (s *OrgTestSuite) TestDeleteOrganizationDBDeleteErr() {
 
 	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
-	s.Require().Equal("deleting org: mocked delete org error", err.Error())
+	s.Require().Equal("error deleting org: mocked delete org error", err.Error())
 }
 
 func (s *OrgTestSuite) TestUpdateOrganization() {
@@ -454,7 +454,7 @@ func (s *OrgTestSuite) TestUpdateOrganizationInvalidOrgID() {
 	_, err := s.Store.UpdateOrganization(s.adminCtx, "dummy-org-id", s.Fixtures.UpdateRepoParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("saving org: fetching org: parsing id: invalid request", err.Error())
+	s.Require().Equal("error saving org: error fetching org: error parsing id: invalid request", err.Error())
 }
 
 func (s *OrgTestSuite) TestUpdateOrganizationDBEncryptErr() {
@@ -479,7 +479,7 @@ func (s *OrgTestSuite) TestUpdateOrganizationDBEncryptErr() {
 	_, err := s.StoreSQLMocked.UpdateOrganization(s.adminCtx, s.Fixtures.Orgs[0].ID, s.Fixtures.UpdateRepoParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("saving org: saving org: failed to encrypt string: invalid passphrase length (expected length 32 characters)", err.Error())
+	s.Require().Equal("error saving org: saving org: failed to encrypt string: invalid passphrase length (expected length 32 characters)", err.Error())
 	s.assertSQLMockExpectations()
 }
 
@@ -507,7 +507,7 @@ func (s *OrgTestSuite) TestUpdateOrganizationDBSaveErr() {
 	_, err := s.StoreSQLMocked.UpdateOrganization(s.adminCtx, s.Fixtures.Orgs[0].ID, s.Fixtures.UpdateRepoParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("saving org: saving org: saving org mock error", err.Error())
+	s.Require().Equal("error saving org: error saving org: saving org mock error", err.Error())
 	s.assertSQLMockExpectations()
 }
 
@@ -535,7 +535,7 @@ func (s *OrgTestSuite) TestUpdateOrganizationDBDecryptingErr() {
 	_, err := s.StoreSQLMocked.UpdateOrganization(s.adminCtx, s.Fixtures.Orgs[0].ID, s.Fixtures.UpdateRepoParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("saving org: saving org: failed to encrypt string: invalid passphrase length (expected length 32 characters)", err.Error())
+	s.Require().Equal("error saving org: saving org: failed to encrypt string: invalid passphrase length (expected length 32 characters)", err.Error())
 	s.assertSQLMockExpectations()
 }
 
@@ -550,7 +550,7 @@ func (s *OrgTestSuite) TestGetOrganizationByIDInvalidOrgID() {
 	_, err := s.Store.GetOrganizationByID(s.adminCtx, "dummy-org-id")
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching org: parsing id: invalid request", err.Error())
+	s.Require().Equal("error fetching org: error parsing id: invalid request", err.Error())
 }
 
 func (s *OrgTestSuite) TestGetOrganizationByIDDBDecryptingErr() {
@@ -571,7 +571,7 @@ func (s *OrgTestSuite) TestGetOrganizationByIDDBDecryptingErr() {
 
 	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching org: missing secret", err.Error())
+	s.Require().Equal("error fetching org: missing secret", err.Error())
 }
 
 func (s *OrgTestSuite) TestCreateOrganizationPool() {
@@ -610,7 +610,7 @@ func (s *OrgTestSuite) TestCreateOrganizationPoolInvalidOrgID() {
 	_, err := s.Store.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("parsing id: invalid request", err.Error())
+	s.Require().Equal("error parsing id: invalid request", err.Error())
 }
 
 func (s *OrgTestSuite) TestCreateOrganizationPoolDBFetchTagErr() {
@@ -628,7 +628,7 @@ func (s *OrgTestSuite) TestCreateOrganizationPoolDBFetchTagErr() {
 	_, err = s.StoreSQLMocked.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("creating tag: fetching tag from database: mocked fetching tag error", err.Error())
+	s.Require().Equal("error creating tag: error fetching tag from database: mocked fetching tag error", err.Error())
 	s.assertSQLMockExpectations()
 }
 
@@ -656,7 +656,7 @@ func (s *OrgTestSuite) TestCreateOrganizationPoolDBAddingPoolErr() {
 	_, err = s.StoreSQLMocked.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("creating pool: mocked adding pool error", err.Error())
+	s.Require().Equal("error creating pool: mocked adding pool error", err.Error())
 	s.assertSQLMockExpectations()
 }
 
@@ -687,7 +687,7 @@ func (s *OrgTestSuite) TestCreateOrganizationPoolDBSaveTagErr() {
 	_, err = s.StoreSQLMocked.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("associating tags: mocked saving tag error", err.Error())
+	s.Require().Equal("error associating tags: mocked saving tag error", err.Error())
 	s.assertSQLMockExpectations()
 }
 
@@ -728,7 +728,7 @@ func (s *OrgTestSuite) TestCreateOrganizationPoolDBFetchPoolErr() {
 	_, err = s.StoreSQLMocked.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching pool: not found", err.Error())
+	s.Require().Equal("error fetching pool: not found", err.Error())
 	s.assertSQLMockExpectations()
 }
 
@@ -758,7 +758,7 @@ func (s *OrgTestSuite) TestListOrgPoolsInvalidOrgID() {
 	_, err := s.Store.ListEntityPools(s.adminCtx, entity)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching pools: parsing id: invalid request", err.Error())
+	s.Require().Equal("error fetching pools: error parsing id: invalid request", err.Error())
 }
 
 func (s *OrgTestSuite) TestGetOrganizationPool() {
@@ -783,7 +783,7 @@ func (s *OrgTestSuite) TestGetOrganizationPoolInvalidOrgID() {
 	_, err := s.Store.GetEntityPool(s.adminCtx, entity, "dummy-pool-id")
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching pool: parsing id: invalid request", err.Error())
+	s.Require().Equal("fetching pool: error parsing id: invalid request", err.Error())
 }
 
 func (s *OrgTestSuite) TestDeleteOrganizationPool() {
@@ -798,7 +798,7 @@ func (s *OrgTestSuite) TestDeleteOrganizationPool() {
 
 	s.Require().Nil(err)
 	_, err = s.Store.GetEntityPool(s.adminCtx, entity, pool.ID)
-	s.Require().Equal("fetching pool: finding pool: not found", err.Error())
+	s.Require().Equal("fetching pool: error finding pool: not found", err.Error())
 }
 
 func (s *OrgTestSuite) TestDeleteOrganizationPoolInvalidOrgID() {
@@ -809,7 +809,7 @@ func (s *OrgTestSuite) TestDeleteOrganizationPoolInvalidOrgID() {
 	err := s.Store.DeleteEntityPool(s.adminCtx, entity, "dummy-pool-id")
 
 	s.Require().NotNil(err)
-	s.Require().Equal("parsing id: invalid request", err.Error())
+	s.Require().Equal("error parsing id: invalid request", err.Error())
 }
 
 func (s *OrgTestSuite) TestDeleteOrganizationPoolDBDeleteErr() {
@@ -831,7 +831,7 @@ func (s *OrgTestSuite) TestDeleteOrganizationPoolDBDeleteErr() {
 	err = s.StoreSQLMocked.DeleteEntityPool(s.adminCtx, entity, pool.ID)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("removing pool: mocked deleting pool error", err.Error())
+	s.Require().Equal("error removing pool: mocked deleting pool error", err.Error())
 	s.assertSQLMockExpectations()
 }
 
@@ -866,7 +866,7 @@ func (s *OrgTestSuite) TestListOrgInstancesInvalidOrgID() {
 	_, err := s.Store.ListEntityInstances(s.adminCtx, entity)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching entity: parsing id: invalid request", err.Error())
+	s.Require().Equal("error fetching entity: error parsing id: invalid request", err.Error())
 }
 
 func (s *OrgTestSuite) TestUpdateOrganizationPool() {
@@ -916,7 +916,7 @@ func (s *OrgTestSuite) TestUpdateOrganizationPoolInvalidOrgID() {
 	_, err := s.Store.UpdateEntityPool(s.adminCtx, entity, "dummy-pool-id", s.Fixtures.UpdatePoolParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching pool: parsing id: invalid request", err.Error())
+	s.Require().Equal("error fetching pool: error parsing id: invalid request", err.Error())
 }
 
 func TestOrgTestSuite(t *testing.T) {

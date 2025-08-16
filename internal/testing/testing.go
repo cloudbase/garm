@@ -19,13 +19,13 @@ package testing
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 	"testing"
 
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"

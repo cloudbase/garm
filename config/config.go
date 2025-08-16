@@ -31,7 +31,6 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/bradleyfalzon/ghinstallation/v2"
 	zxcvbn "github.com/nbutton23/zxcvbn-go"
-	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
 
 	"github.com/cloudbase/garm/params"
@@ -84,10 +83,10 @@ const (
 func NewConfig(cfgFile string) (*Config, error) {
 	var config Config
 	if _, err := toml.DecodeFile(cfgFile, &config); err != nil {
-		return nil, errors.Wrap(err, "decoding toml")
+		return nil, fmt.Errorf("error decoding toml: %w", err)
 	}
 	if err := config.Validate(); err != nil {
-		return nil, errors.Wrap(err, "validating config")
+		return nil, fmt.Errorf("error validating config: %w", err)
 	}
 	return &config, nil
 }
@@ -496,19 +495,19 @@ type Database struct {
 // GormParams returns the database type and connection URI
 func (d *Database) GormParams() (dbType DBBackendType, uri string, err error) {
 	if err := d.Validate(); err != nil {
-		return "", "", errors.Wrap(err, "validating database config")
+		return "", "", fmt.Errorf("error validating database config: %w", err)
 	}
 	dbType = d.DbBackend
 	switch dbType {
 	case MySQLBackend:
 		uri, err = d.MySQL.ConnectionString()
 		if err != nil {
-			return "", "", errors.Wrap(err, "fetching mysql connection string")
+			return "", "", fmt.Errorf("error fetching mysql connection string: %w", err)
 		}
 	case SQLiteBackend:
 		uri, err = d.SQLite.ConnectionString()
 		if err != nil {
-			return "", "", errors.Wrap(err, "fetching sqlite3 connection string")
+			return "", "", fmt.Errorf("error fetching sqlite3 connection string: %w", err)
 		}
 	default:
 		return "", "", fmt.Errorf("invalid database backend: %s", dbType)

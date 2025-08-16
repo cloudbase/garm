@@ -161,7 +161,7 @@ func (s *UserTestSuite) TestCreateUserUsernameAlreadyExist() {
 	_, err := s.Store.CreateUser(context.Background(), s.Fixtures.NewUserParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal(("creating user: username already exists"), err.Error())
+	s.Require().Equal(("error creating user: username already exists"), err.Error())
 }
 
 func (s *UserTestSuite) TestCreateUserEmailAlreadyExist() {
@@ -170,7 +170,7 @@ func (s *UserTestSuite) TestCreateUserEmailAlreadyExist() {
 	_, err := s.Store.CreateUser(context.Background(), s.Fixtures.NewUserParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal(("creating user: email already exists"), err.Error())
+	s.Require().Equal(("error creating user: email already exists"), err.Error())
 }
 
 func (s *UserTestSuite) TestCreateUserDBCreateErr() {
@@ -191,7 +191,7 @@ func (s *UserTestSuite) TestCreateUserDBCreateErr() {
 	_, err := s.StoreSQLMocked.CreateUser(context.Background(), s.Fixtures.NewUserParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("creating user: creating user: creating user mock error", err.Error())
+	s.Require().Equal("error creating user: error creating user: creating user mock error", err.Error())
 	s.assertSQLMockExpectations()
 }
 
@@ -230,7 +230,7 @@ func (s *UserTestSuite) TestGetUserNotFound() {
 	_, err := s.Store.GetUser(context.Background(), "dummy-user")
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching user: not found", err.Error())
+	s.Require().Equal("error fetching user: not found", err.Error())
 }
 
 func (s *UserTestSuite) TestGetUserByID() {
@@ -244,7 +244,7 @@ func (s *UserTestSuite) TestGetUserByIDNotFound() {
 	_, err := s.Store.GetUserByID(context.Background(), "dummy-user-id")
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching user: not found", err.Error())
+	s.Require().Equal("error fetching user: not found", err.Error())
 }
 
 func (s *UserTestSuite) TestUpdateUser() {
@@ -260,7 +260,7 @@ func (s *UserTestSuite) TestUpdateUserNotFound() {
 	_, err := s.Store.UpdateUser(context.Background(), "dummy-user", s.Fixtures.UpdateUserParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("updating user: fetching user: not found", err.Error())
+	s.Require().Equal("error updating user: error fetching user: not found", err.Error())
 }
 
 func (s *UserTestSuite) TestUpdateUserDBSaveErr() {
@@ -278,7 +278,7 @@ func (s *UserTestSuite) TestUpdateUserDBSaveErr() {
 
 	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
-	s.Require().Equal("updating user: saving user: saving user mock error", err.Error())
+	s.Require().Equal("error updating user: error saving user: saving user mock error", err.Error())
 }
 
 func TestUserTestSuite(t *testing.T) {

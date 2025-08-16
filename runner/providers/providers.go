@@ -16,9 +16,8 @@ package providers
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
-
-	"github.com/pkg/errors"
 
 	"github.com/cloudbase/garm/config"
 	"github.com/cloudbase/garm/params"
@@ -39,11 +38,11 @@ func LoadProvidersFromConfig(ctx context.Context, cfg config.Config, controllerI
 			conf := providerCfg
 			provider, err := external.NewProvider(ctx, &conf, controllerID)
 			if err != nil {
-				return nil, errors.Wrap(err, "creating provider")
+				return nil, fmt.Errorf("error creating provider: %w", err)
 			}
 			providers[providerCfg.Name] = provider
 		default:
-			return nil, errors.Errorf("unknown provider type %s", providerCfg.ProviderType)
+			return nil, fmt.Errorf("unknown provider type %s", providerCfg.ProviderType)
 		}
 	}
 	return providers, nil

@@ -218,7 +218,7 @@ func (s *EnterpriseTestSuite) TestCreateEnterpriseInvalidDBPassphrase() {
 		params.PoolBalancerTypeRoundRobin)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("encoding secret: invalid passphrase length (expected length 32 characters)", err.Error())
+	s.Require().Equal("error encoding secret: invalid passphrase length (expected length 32 characters)", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestCreateEnterpriseDBCreateErr() {
@@ -236,7 +236,7 @@ func (s *EnterpriseTestSuite) TestCreateEnterpriseDBCreateErr() {
 		params.PoolBalancerTypeRoundRobin)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("creating enterprise: creating enterprise: creating enterprise mock error", err.Error())
+	s.Require().Equal("error creating enterprise: error creating enterprise: creating enterprise mock error", err.Error())
 	s.assertSQLMockExpectations()
 }
 
@@ -259,7 +259,7 @@ func (s *EnterpriseTestSuite) TestGetEnterpriseNotFound() {
 	_, err := s.Store.GetEnterprise(s.adminCtx, "dummy-name", "github.com")
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching enterprise: not found", err.Error())
+	s.Require().Equal("error fetching enterprise: not found", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestGetEnterpriseDBDecryptingErr() {
@@ -271,7 +271,7 @@ func (s *EnterpriseTestSuite) TestGetEnterpriseDBDecryptingErr() {
 	_, err := s.StoreSQLMocked.GetEnterprise(s.adminCtx, s.Fixtures.Enterprises[0].Name, s.Fixtures.Enterprises[0].Endpoint.Name)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching enterprise: missing secret", err.Error())
+	s.Require().Equal("error fetching enterprise: missing secret", err.Error())
 	s.assertSQLMockExpectations()
 }
 
@@ -341,7 +341,7 @@ func (s *EnterpriseTestSuite) TestListEnterprisesDBFetchErr() {
 
 	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching enterprises: fetching user from database mock error", err.Error())
+	s.Require().Equal("error fetching enterprises: fetching user from database mock error", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestDeleteEnterprise() {
@@ -350,14 +350,14 @@ func (s *EnterpriseTestSuite) TestDeleteEnterprise() {
 	s.Require().Nil(err)
 	_, err = s.Store.GetEnterpriseByID(s.adminCtx, s.Fixtures.Enterprises[0].ID)
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching enterprise: not found", err.Error())
+	s.Require().Equal("error fetching enterprise: not found", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestDeleteEnterpriseInvalidEnterpriseID() {
 	err := s.Store.DeleteEnterprise(s.adminCtx, "dummy-enterprise-id")
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching enterprise: parsing id: invalid request", err.Error())
+	s.Require().Equal("error fetching enterprise: error parsing id: invalid request", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestDeleteEnterpriseDBDeleteErr() {
@@ -375,7 +375,7 @@ func (s *EnterpriseTestSuite) TestDeleteEnterpriseDBDeleteErr() {
 	err := s.StoreSQLMocked.DeleteEnterprise(s.adminCtx, s.Fixtures.Enterprises[0].ID)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("deleting enterprise: mocked delete enterprise error", err.Error())
+	s.Require().Equal("error deleting enterprise: mocked delete enterprise error", err.Error())
 	s.assertSQLMockExpectations()
 }
 
@@ -391,7 +391,7 @@ func (s *EnterpriseTestSuite) TestUpdateEnterpriseInvalidEnterpriseID() {
 	_, err := s.Store.UpdateEnterprise(s.adminCtx, "dummy-enterprise-id", s.Fixtures.UpdateRepoParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("updating enterprise: fetching enterprise: parsing id: invalid request", err.Error())
+	s.Require().Equal("error updating enterprise: error fetching enterprise: error parsing id: invalid request", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestUpdateEnterpriseDBEncryptErr() {
@@ -416,7 +416,7 @@ func (s *EnterpriseTestSuite) TestUpdateEnterpriseDBEncryptErr() {
 	_, err := s.StoreSQLMocked.UpdateEnterprise(s.adminCtx, s.Fixtures.Enterprises[0].ID, s.Fixtures.UpdateRepoParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("updating enterprise: encoding secret: invalid passphrase length (expected length 32 characters)", err.Error())
+	s.Require().Equal("error updating enterprise: error encoding secret: invalid passphrase length (expected length 32 characters)", err.Error())
 	s.assertSQLMockExpectations()
 }
 
@@ -444,7 +444,7 @@ func (s *EnterpriseTestSuite) TestUpdateEnterpriseDBSaveErr() {
 	_, err := s.StoreSQLMocked.UpdateEnterprise(s.adminCtx, s.Fixtures.Enterprises[0].ID, s.Fixtures.UpdateRepoParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("updating enterprise: saving enterprise: saving enterprise mock error", err.Error())
+	s.Require().Equal("error updating enterprise: error saving enterprise: saving enterprise mock error", err.Error())
 	s.assertSQLMockExpectations()
 }
 
@@ -472,7 +472,7 @@ func (s *EnterpriseTestSuite) TestUpdateEnterpriseDBDecryptingErr() {
 	_, err := s.StoreSQLMocked.UpdateEnterprise(s.adminCtx, s.Fixtures.Enterprises[0].ID, s.Fixtures.UpdateRepoParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("updating enterprise: encoding secret: invalid passphrase length (expected length 32 characters)", err.Error())
+	s.Require().Equal("error updating enterprise: error encoding secret: invalid passphrase length (expected length 32 characters)", err.Error())
 	s.assertSQLMockExpectations()
 }
 
@@ -487,7 +487,7 @@ func (s *EnterpriseTestSuite) TestGetEnterpriseByIDInvalidEnterpriseID() {
 	_, err := s.Store.GetEnterpriseByID(s.adminCtx, "dummy-enterprise-id")
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching enterprise: parsing id: invalid request", err.Error())
+	s.Require().Equal("error fetching enterprise: error parsing id: invalid request", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestGetEnterpriseByIDDBDecryptingErr() {
@@ -508,7 +508,7 @@ func (s *EnterpriseTestSuite) TestGetEnterpriseByIDDBDecryptingErr() {
 
 	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching enterprise: missing secret", err.Error())
+	s.Require().Equal("error fetching enterprise: missing secret", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestCreateEnterprisePool() {
@@ -547,7 +547,7 @@ func (s *EnterpriseTestSuite) TestCreateEnterprisePoolInvalidEnterpriseID() {
 	_, err := s.Store.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("parsing id: invalid request", err.Error())
+	s.Require().Equal("error parsing id: invalid request", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestCreateEnterprisePoolDBFetchTagErr() {
@@ -565,7 +565,7 @@ func (s *EnterpriseTestSuite) TestCreateEnterprisePoolDBFetchTagErr() {
 	_, err = s.StoreSQLMocked.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("creating tag: fetching tag from database: mocked fetching tag error", err.Error())
+	s.Require().Equal("error creating tag: error fetching tag from database: mocked fetching tag error", err.Error())
 	s.assertSQLMockExpectations()
 }
 
@@ -592,7 +592,7 @@ func (s *EnterpriseTestSuite) TestCreateEnterprisePoolDBAddingPoolErr() {
 	_, err = s.StoreSQLMocked.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("creating pool: mocked adding pool error", err.Error())
+	s.Require().Equal("error creating pool: mocked adding pool error", err.Error())
 	s.assertSQLMockExpectations()
 }
 
@@ -623,7 +623,7 @@ func (s *EnterpriseTestSuite) TestCreateEnterprisePoolDBSaveTagErr() {
 	_, err = s.StoreSQLMocked.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("associating tags: mocked saving tag error", err.Error())
+	s.Require().Equal("error associating tags: mocked saving tag error", err.Error())
 	s.assertSQLMockExpectations()
 }
 
@@ -663,7 +663,7 @@ func (s *EnterpriseTestSuite) TestCreateEnterprisePoolDBFetchPoolErr() {
 	_, err = s.StoreSQLMocked.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching pool: not found", err.Error())
+	s.Require().Equal("error fetching pool: not found", err.Error())
 	s.assertSQLMockExpectations()
 }
 
@@ -694,7 +694,7 @@ func (s *EnterpriseTestSuite) TestListEnterprisePoolsInvalidEnterpriseID() {
 	_, err := s.Store.ListEntityPools(s.adminCtx, entity)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching pools: parsing id: invalid request", err.Error())
+	s.Require().Equal("error fetching pools: error parsing id: invalid request", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestGetEnterprisePool() {
@@ -719,7 +719,7 @@ func (s *EnterpriseTestSuite) TestGetEnterprisePoolInvalidEnterpriseID() {
 	_, err := s.Store.GetEntityPool(s.adminCtx, entity, "dummy-pool-id")
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching pool: parsing id: invalid request", err.Error())
+	s.Require().Equal("fetching pool: error parsing id: invalid request", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestDeleteEnterprisePool() {
@@ -734,7 +734,7 @@ func (s *EnterpriseTestSuite) TestDeleteEnterprisePool() {
 
 	s.Require().Nil(err)
 	_, err = s.Store.GetEntityPool(s.adminCtx, entity, pool.ID)
-	s.Require().Equal("fetching pool: finding pool: not found", err.Error())
+	s.Require().Equal("fetching pool: error finding pool: not found", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestDeleteEnterprisePoolInvalidEnterpriseID() {
@@ -745,7 +745,7 @@ func (s *EnterpriseTestSuite) TestDeleteEnterprisePoolInvalidEnterpriseID() {
 	err := s.Store.DeleteEntityPool(s.adminCtx, entity, "dummy-pool-id")
 
 	s.Require().NotNil(err)
-	s.Require().Equal("parsing id: invalid request", err.Error())
+	s.Require().Equal("error parsing id: invalid request", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestDeleteEnterprisePoolDBDeleteErr() {
@@ -765,7 +765,7 @@ func (s *EnterpriseTestSuite) TestDeleteEnterprisePoolDBDeleteErr() {
 
 	err = s.StoreSQLMocked.DeleteEntityPool(s.adminCtx, entity, pool.ID)
 	s.Require().NotNil(err)
-	s.Require().Equal("removing pool: mocked deleting pool error", err.Error())
+	s.Require().Equal("error removing pool: mocked deleting pool error", err.Error())
 	s.assertSQLMockExpectations()
 }
 
@@ -800,7 +800,7 @@ func (s *EnterpriseTestSuite) TestListEnterpriseInstancesInvalidEnterpriseID() {
 	_, err := s.Store.ListEntityInstances(s.adminCtx, entity)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching entity: parsing id: invalid request", err.Error())
+	s.Require().Equal("error fetching entity: error parsing id: invalid request", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestUpdateEnterprisePool() {
@@ -828,7 +828,7 @@ func (s *EnterpriseTestSuite) TestUpdateEnterprisePoolInvalidEnterpriseID() {
 	_, err := s.Store.UpdateEntityPool(s.adminCtx, entity, "dummy-pool-id", s.Fixtures.UpdatePoolParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("fetching pool: parsing id: invalid request", err.Error())
+	s.Require().Equal("error fetching pool: error parsing id: invalid request", err.Error())
 }
 
 func (s *EnterpriseTestSuite) TestAddRepoEntityEvent() {

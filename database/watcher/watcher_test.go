@@ -17,11 +17,11 @@ package watcher_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/suite"
 
 	commonParams "github.com/cloudbase/garm-provider-common/params"
@@ -310,7 +310,7 @@ func maybeInitController(db common.Store) error {
 	}
 
 	if _, err := db.InitController(); err != nil {
-		return errors.Wrap(err, "initializing controller")
+		return fmt.Errorf("error initializing controller: %w", err)
 	}
 
 	return nil

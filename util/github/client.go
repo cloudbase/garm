@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -25,7 +26,6 @@ import (
 	"strings"
 
 	"github.com/google/go-github/v72/github"
-	"github.com/pkg/errors"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/metrics"
@@ -309,7 +309,7 @@ func (g *githubClient) RemoveEntityRunner(ctx context.Context, runnerID int64) e
 	}
 
 	if err := parseError(response, err); err != nil {
-		return errors.Wrapf(err, "removing runner %d", runnerID)
+		return fmt.Errorf("error removing runner %d: %w", runnerID, err)
 	}
 
 	return nil
@@ -366,9 +366,9 @@ func (g *githubClient) getOrganizationRunnerGroupIDByName(ctx context.Context, e
 				entity.LabelScope(),            // label: scope
 			).Inc()
 			if ghResp != nil && ghResp.StatusCode == http.StatusUnauthorized {
-				return 0, errors.Wrap(runnerErrors.ErrUnauthorized, "fetching runners")
+				return 0, fmt.Errorf("error fetching runners: %w", runnerErrors.ErrUnauthorized)
 			}
-			return 0, errors.Wrap(err, "fetching runners")
+			return 0, fmt.Errorf("error fetching runners: %w", err)
 		}
 		for _, runnerGroup := range runnerGroups.RunnerGroups {
 			if runnerGroup.Name != nil && *runnerGroup.Name == rgName {
@@ -402,9 +402,9 @@ func (g *githubClient) getEnterpriseRunnerGroupIDByName(ctx context.Context, ent
 				entity.LabelScope(), // label: scope
 			).Inc()
 			if ghResp != nil && ghResp.StatusCode == http.StatusUnauthorized {
-				return 0, errors.Wrap(runnerErrors.ErrUnauthorized, "fetching runners")
+				return 0, fmt.Errorf("error fetching runners: %w", runnerErrors.ErrUnauthorized)
 			}
-			return 0, errors.Wrap(err, "fetching runners")
+			return 0, fmt.Errorf("error fetching runners: %w", err)
 		}
 		for _, runnerGroup := range runnerGroups.RunnerGroups {
 			if runnerGroup.Name != nil && *runnerGroup.Name == rgName {
@@ -520,7 +520,7 @@ func (g *githubClient) GithubBaseURL() *url.URL {
 func NewRateLimitClient(ctx context.Context, credentials params.ForgeCredentials) (common.RateLimitClient, error) {
 	httpClient, err := credentials.GetHTTPClient(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching http client")
+		return nil, fmt.Errorf("error fetching http client: %w", err)
 	}
 
 	slog.DebugContext(
@@ -531,7 +531,7 @@ func NewRateLimitClient(ctx context.Context, credentials params.ForgeCredentials
 	ghClient, err := github.NewClient(httpClient).WithEnterpriseURLs(
 		credentials.APIBaseURL, credentials.UploadBaseURL)
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching github client")
+		return nil, fmt.Errorf("error fetching github client: %w", err)
 	}
 	cli := &githubClient{
 		rateLimit: ghClient.RateLimit,
@@ -552,7 +552,7 @@ func withGiteaURLs(client *github.Client, apiBaseURL string) (*github.Client, er
 
 	parsedBaseURL, err := url.ParseRequestURI(apiBaseURL)
 	if err != nil {
-		return nil, errors.Wrap(err, "parsing gitea base URL")
+		return nil, fmt.Errorf("error parsing gitea base URL: %w", err)
 	}
 
 	if !strings.HasSuffix(parsedBaseURL.Path, "/") {
@@ -573,7 +573,7 @@ func Client(ctx context.Context, entity params.ForgeEntity) (common.GithubClient
 	// func GithubClient(ctx context.Context, entity params.ForgeEntity) (common.GithubClient, error) {
 	httpClient, err := entity.Credentials.GetHTTPClient(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching http client")
+		return nil, fmt.Errorf("error fetching http client: %w", err)
 	}
 
 	slog.DebugContext(
@@ -590,7 +590,7 @@ func Client(ctx context.Context, entity params.ForgeEntity) (common.GithubClient
 	}
 
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching github client")
+		return nil, fmt.Errorf("error fetching github client: %w", err)
 	}
 
 	cli := &githubClient{

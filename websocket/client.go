@@ -16,6 +16,7 @@ package websocket
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -24,7 +25,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
-	"github.com/pkg/errors"
 
 	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/database/common"
@@ -63,7 +63,7 @@ func NewClient(ctx context.Context, conn *websocket.Conn) (*Client, error) {
 		watcher.WithUserIDFilter(user),
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "registering consumer")
+		return nil, fmt.Errorf("error registering consumer: %w", err)
 	}
 	return &Client{
 		id:                 clientID.String(),

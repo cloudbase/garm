@@ -16,12 +16,12 @@ package sql
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/url"
 	"strings"
 
-	"github.com/pkg/errors"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -46,7 +46,7 @@ const (
 func newDBConn(dbCfg config.Database) (conn *gorm.DB, err error) {
 	dbType, connURI, err := dbCfg.GormParams()
 	if err != nil {
-		return nil, errors.Wrap(err, "getting DB URI string")
+		return nil, fmt.Errorf("error getting DB URI string: %w", err)
 	}
 
 	gormConfig := &gorm.Config{}
@@ -61,7 +61,7 @@ func newDBConn(dbCfg config.Database) (conn *gorm.DB, err error) {
 		conn, err = gorm.Open(sqlite.Open(connURI), gormConfig)
 	}
 	if err != nil {
-		return nil, errors.Wrap(err, "connecting to database")
+		return nil, fmt.Errorf("error connecting to database: %w", err)
 	}
 
 	if dbCfg.Debug {
@@ -73,11 +73,11 @@ func newDBConn(dbCfg config.Database) (conn *gorm.DB, err error) {
 func NewSQLDatabase(ctx context.Context, cfg config.Database) (common.Store, error) {
 	conn, err := newDBConn(cfg)
 	if err != nil {
-		return nil, errors.Wrap(err, "creating DB connection")
+		return nil, fmt.Errorf("error creating DB connection: %w", err)
 	}
 	producer, err := watcher.RegisterProducer(ctx, "sql")
 	if err != nil {
-		return nil, errors.Wrap(err, "registering producer")
+		return nil, fmt.Errorf("error registering producer: %w", err)
 	}
 	db := &sqlDatabase{
 		conn:     conn,
@@ -87,7 +87,7 @@ func NewSQLDatabase(ctx context.Context, cfg config.Database) (common.Store, err
 	}
 
 	if err := db.migrateDB(); err != nil {
-		return nil, errors.Wrap(err, "migrating database")
+		return nil, fmt.Errorf("error migrating database: %w", err)
 	}
 	return db, nil
 }
@@ -221,14 +221,14 @@ func (s *sqlDatabase) ensureGithubEndpoint() error {
 	var epCount int64
 	if err := s.conn.Model(&GithubEndpoint{}).Count(&epCount).Error; err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.Wrap(err, "counting github endpoints")
+			return fmt.Errorf("error counting github endpoints: %w", err)
 		}
 	}
 
 	if epCount == 0 {
 		if _, err := s.CreateGithubEndpoint(context.Background(), createEndpointParams); err != nil {
 			if !errors.Is(err, runnerErrors.ErrDuplicateEntity) {
-				return errors.Wrap(err, "creating default github endpoint")
+				return fmt.Errorf("error creating default github endpoint: %w", err)
 			}
 		}
 	}
@@ -246,7 +246,7 @@ func (s *sqlDatabase) migrateCredentialsToDB() (err error) {
 			// Admin user doesn't exist. This is a new deploy. Nothing to migrate.
 			return nil
 		}
-		return errors.Wrap(err, "getting admin user")
+		return fmt.Errorf("error getting admin user: %w", err)
 	}
 
 	// Impersonate the admin user. We're migrating from config credentials to
@@ -259,7 +259,7 @@ func (s *sqlDatabase) migrateCredentialsToDB() (err error) {
 	slog.Info("migrating credentials to DB")
 	slog.Info("creating github endpoints table")
 	if err := s.conn.AutoMigrate(&GithubEndpoint{}); err != nil {
-		return errors.Wrap(err, "migrating github endpoints")
+		return fmt.Errorf("error migrating github endpoints: %w", err)
 	}
 
 	defer func() {
@@ -271,7 +271,7 @@ func (s *sqlDatabase) migrateCredentialsToDB() (err error) {
 
 	slog.Info("creating github credentials table")
 	if err := s.conn.AutoMigrate(&GithubCredentials{}); err != nil {
-		return errors.Wrap(err, "migrating github credentials")
+		return fmt.Errorf("error migrating github credentials: %w", err)
 	}
 
 	defer func() {
@@ -291,12 +291,12 @@ func (s *sqlDatabase) migrateCredentialsToDB() (err error) {
 		slog.Info("importing credential", "name", cred.Name)
 		parsed, err := url.Parse(cred.BaseEndpoint())
 		if err != nil {
-			return errors.Wrap(err, "parsing base URL")
+			return fmt.Errorf("error parsing base URL: %w", err)
 		}
 
 		certBundle, err := cred.CACertBundle()
 		if err != nil {
-			return errors.Wrap(err, "getting CA cert bundle")
+			return fmt.Errorf("error getting CA cert bundle: %w", err)
 		}
 		hostname := parsed.Hostname()
 		createParams := params.CreateGithubEndpointParams{
@@ -312,11 +312,11 @@ func (s *sqlDatabase) migrateCredentialsToDB() (err error) {
 		endpoint, err = s.GetGithubEndpoint(adminCtx, hostname)
 		if err != nil {
 			if !errors.Is(err, runnerErrors.ErrNotFound) {
-				return errors.Wrap(err, "getting github endpoint")
+				return fmt.Errorf("error getting github endpoint: %w", err)
 			}
 			endpoint, err = s.CreateGithubEndpoint(adminCtx, createParams)
 			if err != nil {
-				return errors.Wrap(err, "creating default github endpoint")
+				return fmt.Errorf("error creating default github endpoint: %w", err)
 			}
 		}
 
@@ -330,7 +330,7 @@ func (s *sqlDatabase) migrateCredentialsToDB() (err error) {
 		case params.ForgeAuthTypeApp:
 			keyBytes, err := cred.App.PrivateKeyBytes()
 			if err != nil {
-				return errors.Wrap(err, "getting private key bytes")
+				return fmt.Errorf("error getting private key bytes: %w", err)
 			}
 			credParams.App = params.GithubApp{
 				AppID:           cred.App.AppID,
@@ -339,7 +339,7 @@ func (s *sqlDatabase) migrateCredentialsToDB() (err error) {
 			}
 
 			if err := credParams.App.Validate(); err != nil {
-				return errors.Wrap(err, "validating app credentials")
+				return fmt.Errorf("error validating app credentials: %w", err)
 			}
 		case params.ForgeAuthTypePAT:
 			token := cred.PAT.OAuth2Token
@@ -356,19 +356,19 @@ func (s *sqlDatabase) migrateCredentialsToDB() (err error) {
 
 		creds, err := s.CreateGithubCredentials(adminCtx, credParams)
 		if err != nil {
-			return errors.Wrap(err, "creating github credentials")
+			return fmt.Errorf("error creating github credentials: %w", err)
 		}
 
 		if err := s.conn.Exec("update repositories set credentials_id = ?,endpoint_name = ? where credentials_name = ?", creds.ID, creds.Endpoint.Name, creds.Name).Error; err != nil {
-			return errors.Wrap(err, "updating repositories")
+			return fmt.Errorf("error updating repositories: %w", err)
 		}
 
 		if err := s.conn.Exec("update organizations set credentials_id = ?,endpoint_name = ? where credentials_name = ?", creds.ID, creds.Endpoint.Name, creds.Name).Error; err != nil {
-			return errors.Wrap(err, "updating organizations")
+			return fmt.Errorf("error updating organizations: %w", err)
 		}
 
 		if err := s.conn.Exec("update enterprises set credentials_id = ?,endpoint_name = ? where credentials_name = ?", creds.ID, creds.Endpoint.Name, creds.Name).Error; err != nil {
-			return errors.Wrap(err, "updating enterprises")
+			return fmt.Errorf("error updating enterprises: %w", err)
 		}
 	}
 	return nil
@@ -380,10 +380,10 @@ func (s *sqlDatabase) migrateWorkflow() error {
 			// Remove jobs that are not in "queued" status. We really only care about queued jobs. Once they transition
 			// to something else, we don't really consume them anyway.
 			if err := s.conn.Exec("delete from workflow_jobs where status is not 'queued'").Error; err != nil {
-				return errors.Wrap(err, "updating workflow_jobs")
+				return fmt.Errorf("error updating workflow_jobs: %w", err)
 			}
 			if err := s.conn.Migrator().DropColumn(&WorkflowJob{}, "runner_name"); err != nil {
-				return errors.Wrap(err, "updating workflow_jobs")
+				return fmt.Errorf("error updating workflow_jobs: %w", err)
 			}
 		}
 	}
@@ -404,34 +404,34 @@ func (s *sqlDatabase) migrateDB() error {
 	}
 
 	if err := s.cascadeMigration(); err != nil {
-		return errors.Wrap(err, "running cascade migration")
+		return fmt.Errorf("error running cascade migration: %w", err)
 	}
 
 	if s.conn.Migrator().HasTable(&Pool{}) {
 		if err := s.conn.Exec("update pools set repo_id=NULL where repo_id='00000000-0000-0000-0000-000000000000'").Error; err != nil {
-			return errors.Wrap(err, "updating pools")
+			return fmt.Errorf("error updating pools %w", err)
 		}
 
 		if err := s.conn.Exec("update pools set org_id=NULL where org_id='00000000-0000-0000-0000-000000000000'").Error; err != nil {
-			return errors.Wrap(err, "updating pools")
+			return fmt.Errorf("error updating pools: %w", err)
 		}
 
 		if err := s.conn.Exec("update pools set enterprise_id=NULL where enterprise_id='00000000-0000-0000-0000-000000000000'").Error; err != nil {
-			return errors.Wrap(err, "updating pools")
+			return fmt.Errorf("error updating pools: %w", err)
 		}
 	}
 
 	if err := s.migrateWorkflow(); err != nil {
-		return errors.Wrap(err, "migrating workflows")
+		return fmt.Errorf("error migrating workflows: %w", err)
 	}
 
 	if s.conn.Migrator().HasTable(&GithubEndpoint{}) {
 		if !s.conn.Migrator().HasColumn(&GithubEndpoint{}, "endpoint_type") {
 			if err := s.conn.Migrator().AutoMigrate(&GithubEndpoint{}); err != nil {
-				return errors.Wrap(err, "migrating github endpoints")
+				return fmt.Errorf("error migrating github endpoints: %w", err)
 			}
 			if err := s.conn.Exec("update github_endpoints set endpoint_type = 'github' where endpoint_type is null").Error; err != nil {
-				return errors.Wrap(err, "updating github endpoints")
+				return fmt.Errorf("error updating github endpoints: %w", err)
 			}
 		}
 	}
@@ -467,7 +467,7 @@ func (s *sqlDatabase) migrateDB() error {
 		&WorkflowJob{},
 		&ScaleSet{},
 	); err != nil {
-		return errors.Wrap(err, "running auto migrate")
+		return fmt.Errorf("error running auto migrate: %w", err)
 	}
 	s.conn.Exec("PRAGMA foreign_keys = ON")
 
@@ -475,23 +475,23 @@ func (s *sqlDatabase) migrateDB() error {
 		var controller ControllerInfo
 		if err := s.conn.First(&controller).Error; err != nil {
 			if !errors.Is(err, gorm.ErrRecordNotFound) {
-				return errors.Wrap(err, "updating controller info")
+				return fmt.Errorf("error updating controller info: %w", err)
 			}
 		} else {
 			controller.MinimumJobAgeBackoff = 30
 			if err := s.conn.Save(&controller).Error; err != nil {
-				return errors.Wrap(err, "updating controller info")
+				return fmt.Errorf("error updating controller info: %w", err)
 			}
 		}
 	}
 
 	if err := s.ensureGithubEndpoint(); err != nil {
-		return errors.Wrap(err, "ensuring github endpoint")
+		return fmt.Errorf("error ensuring github endpoint: %w", err)
 	}
 
 	if needsCredentialMigration {
 		if err := s.migrateCredentialsToDB(); err != nil {
-			return errors.Wrap(err, "migrating credentials")
+			return fmt.Errorf("error migrating credentials: %w", err)
 		}
 	}
 	return nil
