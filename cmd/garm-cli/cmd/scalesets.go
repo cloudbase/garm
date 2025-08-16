@@ -47,7 +47,6 @@ var (
 	scalesetEnterprise             string
 	scalesetExtraSpecsFile         string
 	scalesetExtraSpecs             string
-	scalesetAll                    bool
 	scalesetGitHubRunnerGroup      string
 )
 
@@ -128,12 +127,9 @@ Example:
 				listEnterpriseScaleSetsReq := apiClientEnterprises.NewListEnterpriseScaleSetsParams()
 				listEnterpriseScaleSetsReq.EnterpriseID = scalesetEnterprise
 				response, err = apiCli.Enterprises.ListEnterpriseScaleSets(listEnterpriseScaleSetsReq, authToken)
-			} else if cmd.Flags().Changed("all") {
+			} else {
 				listScaleSetsReq := apiClientScaleSets.NewListScalesetsParams()
 				response, err = apiCli.Scalesets.ListScalesets(listScaleSetsReq, authToken)
-			} else {
-				cmd.Help() //nolint
-				os.Exit(0)
 			}
 		default:
 			cmd.Help() //nolint
@@ -400,8 +396,7 @@ func init() {
 	scalesetListCmd.Flags().StringVarP(&scalesetRepository, "repo", "r", "", "List all scale sets within this repository.")
 	scalesetListCmd.Flags().StringVarP(&scalesetOrganization, "org", "o", "", "List all scale sets within this organization.")
 	scalesetListCmd.Flags().StringVarP(&scalesetEnterprise, "enterprise", "e", "", "List all scale sets within this enterprise.")
-	scalesetListCmd.Flags().BoolVarP(&scalesetAll, "all", "a", false, "List all scale sets, regardless of org or repo.")
-	scalesetListCmd.MarkFlagsMutuallyExclusive("repo", "org", "all", "enterprise")
+	scalesetListCmd.MarkFlagsMutuallyExclusive("repo", "org", "enterprise")
 	scalesetListCmd.Flags().StringVar(&endpointName, "endpoint", "", "When using the name of an entity, the endpoint must be specified when multiple entities with the same name exist.")
 
 	scaleSetUpdateCmd.Flags().StringVar(&scalesetImage, "image", "", "The provider-specific image name to use for runners in this scale set.")
