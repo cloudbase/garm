@@ -10,6 +10,6 @@
 		{@html getForgeIcon(item?.endpoint?.endpoint_type || item?.endpoint_type || 'unknown', iconSize)}
 	</div>
 	<div class="text-sm text-gray-900 dark:text-white">
-		{item?.endpoint?.name || item?.endpoint_name || item?.github_endpoint_name || 'Unknown'}
+		{item?.endpoint?.name || item?.endpoint_name || item?.endpoint_type ||'Unknown'}
 	</div>
 </div>
