@@ -1,10 +1,9 @@
 <script lang="ts">
 	import { createEventDispatcher, onMount } from 'svelte';
-	import { garmApi } from '$lib/api/client.js';
-	import type { CreateOrgParams, ForgeCredentials } from '$lib/api/generated/api.js';
+	import type { CreateOrgParams } from '$lib/api/generated/api.js';
 	import Modal from './Modal.svelte';
-	import { getForgeIcon } from '$lib/utils/common.js';
 	import ForgeTypeSelector from './ForgeTypeSelector.svelte';
+	import { extractAPIError } from '$lib/utils/apiError';
 	import { eagerCache, eagerCacheManager } from '$lib/stores/eager-cache.js';
 
 	const dispatch = createEventDispatcher<{
@@ -42,7 +41,7 @@
 			try {
 				await eagerCacheManager.getCredentials();
 			} catch (err) {
-				error = err instanceof Error ? err.message : 'Failed to load credentials';
+				error = extractAPIError(err);
 			}
 		}
 	}

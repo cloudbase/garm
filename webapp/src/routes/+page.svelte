@@ -5,7 +5,8 @@
 	import { websocketStore, type WebSocketEvent } from '$lib/stores/websocket.js';
 	import { eagerCacheManager, eagerCache } from '$lib/stores/eager-cache.js';
 	import ControllerInfoCard from '$lib/components/ControllerInfoCard.svelte';
-	import type { Repository, Organization, Pool, Instance, ControllerInfo } from '$lib/api/generated/api.js';
+	import { extractAPIError } from '$lib/utils/apiError';
+	import type { ControllerInfo } from '$lib/api/generated/api.js';
 
 	// Start with zero values for immediate render
 	let stats = {
@@ -84,7 +85,7 @@
 				controllerInfo = controller;
 			}
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to load dashboard data';
+			error = extractAPIError(err);
 			console.error('Dashboard error:', err);
 		}
 

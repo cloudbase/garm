@@ -10,6 +10,7 @@
 	} from '$lib/api/generated/api.js';
 	import Modal from './Modal.svelte';
 	import JsonEditor from './JsonEditor.svelte';
+	import { extractAPIError } from '$lib/utils/apiError';
 
 	const dispatch = createEventDispatcher<{
 		close: void;
@@ -45,7 +46,7 @@
 			loadingProviders = true;
 			providers = await garmApi.listProviders();
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to load providers';
+			error = extractAPIError(err);
 		} finally {
 			loadingProviders = false;
 		}
@@ -70,7 +71,7 @@
 					break;
 			}
 		} catch (err) {
-			error = err instanceof Error ? err.message : `Failed to load ${entityLevel}s`;
+			error = extractAPIError(err);
 		} finally {
 			loadingEntities = false;
 		}
@@ -137,7 +138,7 @@
 			}
 			dispatch('submit', createdScaleSet);
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to create scale set';
+			error = extractAPIError(err);
 		} finally {
 			loading = false;
 		}

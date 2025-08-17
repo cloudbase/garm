@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { createEventDispatcher, onMount } from 'svelte';
 	import { garmApi } from '$lib/api/client.js';
+	import { extractAPIError } from '$lib/utils/apiError';
 	import type { Enterprise, UpdateEntityParams, ForgeCredentials } from '$lib/api/generated/api.js';
 	import Modal from './Modal.svelte';
 
@@ -35,7 +36,7 @@
 			loading = true;
 			credentials = await garmApi.listAllCredentials();
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to load credentials';
+			error = extractAPIError(err);
 		} finally {
 			loading = false;
 		}
@@ -69,7 +70,7 @@
 
 			dispatch('submit', submitData);
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to update enterprise';
+			error = extractAPIError(err);
 			loading = false;
 		}
 	}

@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { createEventDispatcher, onMount } from 'svelte';
-	import { garmApi } from '$lib/api/client.js';
-	import type { CreateEnterpriseParams, ForgeCredentials } from '$lib/api/generated/api.js';
+	import type { CreateEnterpriseParams } from '$lib/api/generated/api.js';
 	import Modal from './Modal.svelte';
+	import { extractAPIError } from '$lib/utils/apiError';
 	import { eagerCache, eagerCacheManager } from '$lib/stores/eager-cache.js';
 
 	const dispatch = createEventDispatcher<{
@@ -37,7 +37,7 @@
 			try {
 				await eagerCacheManager.getCredentials();
 			} catch (err) {
-				error = err instanceof Error ? err.message : 'Failed to load credentials';
+				error = extractAPIError(err);
 			}
 		}
 	}
@@ -68,7 +68,7 @@
 
 			dispatch('submit', submitData);
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to create enterprise';
+			error = extractAPIError(err);
 			loading = false;
 		}
 	}

@@ -4,6 +4,7 @@
 	import { base } from '$app/paths';
 	import { auth, authStore } from '$lib/stores/auth.js';
 	import { toastStore } from '$lib/stores/toast.js';
+	import { extractAPIError } from '$lib/utils/apiError';
 	import Button from '$lib/components/Button.svelte';
 
 	let username = 'admin';
@@ -68,7 +69,7 @@
 			// Redirect to dashboard
 			goto(`${base}/`);
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to initialize GARM';
+			error = extractAPIError(err);
 		} finally {
 			loading = false;
 		}

@@ -1,18 +1,16 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount } from 'svelte';
 	import { garmApi } from '$lib/api/client.js';
-	import type { Pool, CreatePoolParams, UpdatePoolParams, Provider } from '$lib/api/generated/api.js';
-	import { base } from '$app/paths';
+	import type { Pool, UpdatePoolParams } from '$lib/api/generated/api.js';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import CreatePoolModal from '$lib/components/CreatePoolModal.svelte';
 	import UpdatePoolModal from '$lib/components/UpdatePoolModal.svelte';
 	import DeleteModal from '$lib/components/DeleteModal.svelte';
 	import { eagerCache, eagerCacheManager } from '$lib/stores/eager-cache.js';
 	import { toastStore } from '$lib/stores/toast.js';
-	import { getForgeIcon, truncateImageName, getEntityName, getEntityType, getEntityUrl, filterEntities, getEnabledStatusBadge } from '$lib/utils/common.js';
-	import Badge from '$lib/components/Badge.svelte';
+	import { getEntityName, filterEntities } from '$lib/utils/common.js';
+	import { extractAPIError } from '$lib/utils/apiError';
 import DataTable from '$lib/components/DataTable.svelte';
-import ActionButton from '$lib/components/ActionButton.svelte';
 import { EntityCell, EndpointCell, StatusCell, ActionsCell, GenericCell, PoolEntityCell } from '$lib/components/cells';
 
 	let pools: Pool[] = [];
@@ -49,16 +47,14 @@ import { EntityCell, EndpointCell, StatusCell, ActionsCell, GenericCell, PoolEnt
 		currentPage * perPage
 	);
 
-	async function handleCreatePool(params: CreatePoolParams) {
-		try {
-			error = '';
-			// The actual creation will be handled by the modal based on entity type
-			// No need to reload - eager cache websocket will handle the update
-			showCreateModal = false;
-		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to create pool';
-			throw err; // Let the modal handle the error
-		}
+	async function handleCreatePool() {
+		// The actual creation is already handled by the modal
+		// This function is called after successful creation
+		toastStore.success(
+			'Pool Created',
+			'Pool has been created successfully.'
+		);
+		showCreateModal = false;
 	}
 
 	async function handleUpdatePool(params: UpdatePoolParams) {
@@ -74,7 +70,7 @@ import { EntityCell, EndpointCell, StatusCell, ActionsCell, GenericCell, PoolEnt
 			});
 			selectedPool = null;
 		} catch (err) {
-			const errorMessage = err instanceof Error ? err.message : 'Failed to update pool';
+			const errorMessage = extractAPIError(err);
 			toastStore.add({
 				type: 'error',
 				title: 'Update Failed',
@@ -98,8 +94,7 @@ import { EntityCell, EndpointCell, StatusCell, ActionsCell, GenericCell, PoolEnt
 			});
 			selectedPool = null;
 		} catch (err) {
-			const errorMessage = err instanceof Error ? err.message : 'Failed to delete pool';
-			error = errorMessage;
+			const errorMessage = extractAPIError(err);
 			toastStore.add({
 				type: 'error',
 				title: 'Delete Failed',
@@ -316,7 +311,7 @@ import { EntityCell, EndpointCell, StatusCell, ActionsCell, GenericCell, PoolEnt
 {#if showCreateModal}
 	<CreatePoolModal
 		on:close={() => showCreateModal = false}
-		on:submit={(e) => handleCreatePool(e.detail)}
+		on:submit={() => handleCreatePool()}
 	/>
 {/if}
 

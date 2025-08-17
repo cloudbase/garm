@@ -1,18 +1,15 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount } from 'svelte';
 	import { garmApi } from '$lib/api/client.js';
-	import type { Repository, ForgeCredentials, CreateRepoParams, UpdateEntityParams } from '$lib/api/generated/api.js';
+	import type { Repository, CreateRepoParams, UpdateEntityParams } from '$lib/api/generated/api.js';
 	import CreateRepositoryModal from '$lib/components/CreateRepositoryModal.svelte';
 	import UpdateEntityModal from '$lib/components/UpdateEntityModal.svelte';
 	import DeleteModal from '$lib/components/DeleteModal.svelte';
-	import LoadingState from '$lib/components/LoadingState.svelte';
-	import ErrorState from '$lib/components/ErrorState.svelte';
-	import EmptyState from '$lib/components/EmptyState.svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
-	import Button from '$lib/components/Button.svelte';
 	import { eagerCache, eagerCacheManager } from '$lib/stores/eager-cache.js';
 	import { toastStore } from '$lib/stores/toast.js';
-	import { getForgeIcon, changePage, changePerPage, getEntityStatusBadge, filterRepositories, paginateItems } from '$lib/utils/common.js';
+	import { getForgeIcon, changePerPage, getEntityStatusBadge, filterRepositories, paginateItems } from '$lib/utils/common.js';
+	import { extractAPIError } from '$lib/utils/apiError';
 	import DataTable from '$lib/components/DataTable.svelte';
 	import { EntityCell, EndpointCell, StatusCell, ActionsCell, GenericCell } from '$lib/components/cells';
 
@@ -20,8 +17,6 @@
 	let loading = true;
 	let error = '';
 	let searchTerm = '';
-	let credentials: ForgeCredentials[] = [];
-	let credentialsLoading = false;
 
 	// Modal states
 	let showCreateModal = false;
@@ -98,7 +93,6 @@
 		showDeleteModal = true;
 	}
 
-
 	function closeModals() {
 		showCreateModal = false;
 		showEditModal = false;
@@ -146,7 +140,7 @@
 				`Repository ${createdRepo.owner}/${createdRepo.name} has been created successfully.`
 			);
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to create repository';
+			error = extractAPIError(err);
 			throw err; // Let the modal handle the error display
 		}
 	}
@@ -178,9 +172,11 @@
 				'Repository Deleted',
 				`Repository ${deletingRepository.owner}/${deletingRepository.name} has been deleted successfully.`
 			);
-			closeModals();
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to delete repository';
+			const errorMessage = extractAPIError(err);
+			toastStore.error('Delete Failed', errorMessage);
+		} finally {
+			closeModals();
 		}
 	}
 

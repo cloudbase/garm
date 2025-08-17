@@ -7,7 +7,8 @@
 	import { websocketStore, type WebSocketEvent } from '$lib/stores/websocket.js';
 	import { toastStore } from '$lib/stores/toast.js';
 	import DataTable from '$lib/components/DataTable.svelte';
-	import { EntityCell, EndpointCell, StatusCell, ActionsCell, GenericCell, InstancePoolCell } from '$lib/components/cells';
+	import { extractAPIError } from '$lib/utils/apiError';
+	import { EntityCell, StatusCell, ActionsCell, GenericCell, InstancePoolCell } from '$lib/components/cells';
 
 	let instances: Instance[] = [];
 	let loading = true;
@@ -71,16 +72,12 @@
 				'Instance Deleted',
 				`Instance ${instanceToDelete.name} has been deleted successfully.`
 			);
+		} catch (err) {
+			error = extractAPIError(err);
+		} finally {
 			showDeleteModal = false;
 			instanceToDelete = null;
-		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to delete instance';
 		}
-	}
-
-	function handleStatusFilterChange(event: Event) {
-		statusFilter = (event.target as HTMLSelectElement).value;
-		currentPage = 1;
 	}
 
 	// DataTable configuration

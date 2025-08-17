@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount } from 'svelte';
 	import { garmApi } from '$lib/api/client.js';
 	import type { Organization, CreateOrgParams, UpdateEntityParams } from '$lib/api/generated/api.js';
 	import { base } from '$app/paths';
@@ -10,6 +10,7 @@
 	import { eagerCache, eagerCacheManager } from '$lib/stores/eager-cache.js';
 	import { toastStore } from '$lib/stores/toast.js';
 	import { getForgeIcon, getEntityStatusBadge, filterByName } from '$lib/utils/common.js';
+	import { extractAPIError } from '$lib/utils/apiError';
 	import Badge from '$lib/components/Badge.svelte';
 import DataTable from '$lib/components/DataTable.svelte';
 import ActionButton from '$lib/components/ActionButton.svelte';
@@ -48,6 +49,11 @@ import { EntityCell, EndpointCell, StatusCell, ActionsCell, GenericCell } from '
 		currentPage * perPage
 	);
 
+	function closeModals() {
+		showCreateModal = false;
+		showDeleteModal = false;
+		showUpdateModal = false;
+	}
 
 	async function handleCreateOrganization(event: CustomEvent<CreateOrgParams & { install_webhook?: boolean; auto_generate_secret?: boolean }>) {
 		try {
@@ -87,7 +93,7 @@ import { EntityCell, EndpointCell, StatusCell, ActionsCell, GenericCell } from '
 			);
 			showCreateModal = false;
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to create organization';
+			error = extractAPIError(err);
 			throw err; // Let the modal handle the error
 		}
 	}
@@ -118,10 +124,12 @@ import { EntityCell, EndpointCell, StatusCell, ActionsCell, GenericCell } from '
 				'Organization Deleted',
 				`Organization ${selectedOrganization.name} has been deleted successfully.`
 			);
-			showDeleteModal = false;
 			selectedOrganization = null;
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to delete organization';
+			const errorMessage = extractAPIError(err);
+			toastStore.error('Delete Failed', errorMessage);
+		} finally {
+			closeModals();
 		}
 	}
 

@@ -3,6 +3,7 @@
 	import type { Pool, UpdatePoolParams } from '$lib/api/generated/api.js';
 	import Modal from './Modal.svelte';
 	import JsonEditor from './JsonEditor.svelte';
+	import { extractAPIError } from '$lib/utils/apiError';
 	import { eagerCache } from '$lib/stores/eager-cache.js';
 
 	export let pool: Pool;
@@ -132,7 +133,7 @@
 
 			dispatch('submit', params);
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to update pool';
+			error = extractAPIError(err);
 		} finally {
 			loading = false;
 		}

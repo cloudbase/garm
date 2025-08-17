@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Repository, Organization, Enterprise } from '$lib/api/generated/api.js';
-	import { formatDate, getEntityStatusBadge } from '$lib/utils/common.js';
+	import { formatDate } from '$lib/utils/common.js';
 	import Badge from './Badge.svelte';
 
 	type Entity = Repository | Organization | Enterprise;

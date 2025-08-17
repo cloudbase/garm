@@ -4,6 +4,7 @@
 	import { toastStore } from '$lib/stores/toast.js';
 	import Button from './Button.svelte';
 	import { createEventDispatcher } from 'svelte';
+	import { extractAPIError } from '$lib/utils/apiError';
 
 	export let entityType: 'repository' | 'organization';
 	export let entityId: string;
@@ -93,7 +94,7 @@
 		} catch (err) {
 			toastStore.error(
 				'Webhook Uninstall Failed',
-				err instanceof Error ? err.message : 'Failed to uninstall webhook.'
+				extractAPIError(err)
 			);
 		} finally {
 			loading = false;

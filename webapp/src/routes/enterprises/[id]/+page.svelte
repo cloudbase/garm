@@ -16,6 +16,7 @@
 	import { websocketStore, type WebSocketEvent } from '$lib/stores/websocket.js';
 	import { toastStore } from '$lib/stores/toast.js';
 	import CreatePoolModal from '$lib/components/CreatePoolModal.svelte';
+	import { extractAPIError } from '$lib/utils/apiError';
 	import type { CreatePoolParams } from '$lib/api/generated/api.js';
 
 	let enterprise: Enterprise | null = null;
@@ -94,7 +95,11 @@
 			await garmApi.deleteEnterprise(enterprise.id!);
 			goto(`${base}/enterprises`);
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to delete enterprise';
+			const errorMessage = extractAPIError(err);
+			toastStore.error(
+				'Delete Failed',
+				errorMessage
+			);
 		}
 		showDeleteModal = false;
 	}
@@ -111,7 +116,7 @@
 			showDeleteInstanceModal = false;
 			selectedInstance = null;
 		} catch (err) {
-			const errorMessage = err instanceof Error ? err.message : 'Failed to delete instance';
+			const errorMessage = extractAPIError(err);
 			toastStore.error(
 				'Delete Failed',
 				errorMessage
