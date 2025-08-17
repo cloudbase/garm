@@ -11,6 +11,7 @@
 	import DetailHeader from '$lib/components/DetailHeader.svelte';
 	import PoolsSection from '$lib/components/PoolsSection.svelte';
 	import { getForgeIcon } from '$lib/utils/common.js';
+	import { extractAPIError } from '$lib/utils/apiError';
 	import InstancesSection from '$lib/components/InstancesSection.svelte';
 	import EventsSection from '$lib/components/EventsSection.svelte';
 	import WebhookSection from '$lib/components/WebhookSection.svelte';
@@ -51,7 +52,7 @@
 			pools = repoPools;
 			instances = repoInstances;
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to load repository';
+			error = extractAPIError(err);
 		} finally {
 			loading = false;
 		}
@@ -95,7 +96,11 @@
 			await garmApi.deleteRepository(repository.id!);
 			goto(`${base}/repositories`);
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to delete repository';
+			const errorMessage = extractAPIError(err);
+			toastStore.error(
+				'Delete Failed',
+				errorMessage
+			);
 		}
 		showDeleteModal = false;
 	}
@@ -112,7 +117,7 @@
 			showDeleteInstanceModal = false;
 			selectedInstance = null;
 		} catch (err) {
-			const errorMessage = err instanceof Error ? err.message : 'Failed to delete instance';
+			const errorMessage = extractAPIError(err);
 			toastStore.error(
 				'Delete Failed',
 				errorMessage

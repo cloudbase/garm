@@ -12,6 +12,7 @@
 	import { websocketStore, type WebSocketEvent } from '$lib/stores/websocket.js';
 	import { toastStore } from '$lib/stores/toast.js';
 	import type { Instance } from '$lib/api/generated/api.js';
+	import { extractAPIError } from '$lib/utils/apiError';
 	import { formatDate, getForgeIcon, getEntityName, getEntityType, getEntityUrl } from '$lib/utils/common.js';
 
 	let scaleSet: ScaleSet | null = null;
@@ -60,7 +61,7 @@
 			await garmApi.deleteScaleSet(scaleSet.id!);
 			goto(`${base}/scalesets`);
 		} catch (err) {
-			const errorMessage = err instanceof Error ? err.message : 'Failed to delete scale set';
+			const errorMessage = extractAPIError(err);
 			toastStore.error(
 				'Delete Failed',
 				errorMessage
@@ -77,12 +78,8 @@
 				'Instance Deleted',
 				`Instance ${selectedInstance.name} has been deleted successfully.`
 			);
-			// Reload scale set to update instances list
-			await loadScaleSet();
-			showDeleteInstanceModal = false;
-			selectedInstance = null;
 		} catch (err) {
-			const errorMessage = err instanceof Error ? err.message : 'Failed to delete instance';
+			const errorMessage = extractAPIError(err);
 			toastStore.error(
 				'Delete Failed',
 				errorMessage

@@ -10,6 +10,7 @@
 	import EntityInformation from '$lib/components/EntityInformation.svelte';
 	import DetailHeader from '$lib/components/DetailHeader.svelte';
 	import { getForgeIcon } from '$lib/utils/common.js';
+	import { extractAPIError } from '$lib/utils/apiError';
 	import PoolsSection from '$lib/components/PoolsSection.svelte';
 	import InstancesSection from '$lib/components/InstancesSection.svelte';
 	import EventsSection from '$lib/components/EventsSection.svelte';
@@ -51,7 +52,7 @@
 			pools = orgPools;
 			instances = orgInstances;
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to load organization';
+			error = extractAPIError(err);
 		} finally {
 			loading = false;
 		}
@@ -95,7 +96,11 @@
 			await garmApi.deleteOrganization(organization.id!);
 			goto(`${base}/organizations`);
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to delete organization';
+			const errorMessage = extractAPIError(err);
+			toastStore.error(
+				'Delete Failed',
+				errorMessage
+			);
 		}
 		showDeleteModal = false;
 	}
@@ -112,7 +117,7 @@
 			showDeleteInstanceModal = false;
 			selectedInstance = null;
 		} catch (err) {
-			const errorMessage = err instanceof Error ? err.message : 'Failed to delete instance';
+			const errorMessage = extractAPIError(err);
 			toastStore.error(
 				'Delete Failed',
 				errorMessage

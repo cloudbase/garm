@@ -2,6 +2,7 @@
 	import { createEventDispatcher, onMount } from 'svelte';
 	import type { Repository, Organization, Enterprise, ForgeCredentials, UpdateEntityParams } from '$lib/api/generated/api.js';
 	import { garmApi } from '$lib/api/client.js';
+	import { extractAPIError } from '$lib/utils/apiError';
 	import Modal from './Modal.svelte';
 
 	type Entity = Repository | Organization | Enterprise;
@@ -49,7 +50,7 @@
 			loadingCredentials = true;
 			credentials = await garmApi.listCredentials();
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to load credentials';
+			error = extractAPIError(err);
 		} finally {
 			loadingCredentials = false;
 		}
@@ -101,7 +102,7 @@
 
 			dispatch('submit', params);
 		} catch (err) {
-			error = err instanceof Error ? err.message : `Failed to update ${entityType}`;
+			error = extractAPIError(err);
 		} finally {
 			loading = false;
 		}

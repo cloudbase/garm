@@ -4,6 +4,7 @@
 	import { base } from '$app/paths';
 	import { auth, authStore } from '$lib/stores/auth.js';
 	import Button from '$lib/components/Button.svelte';
+	import { extractAPIError } from '$lib/utils/apiError';
 
 	let username = '';
 	let password = '';
@@ -53,7 +54,7 @@
 			await auth.login(username, password);
 			goto(`${base}/`);
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Login failed';
+			error = extractAPIError(err);
 		} finally {
 			loading = false;
 		}

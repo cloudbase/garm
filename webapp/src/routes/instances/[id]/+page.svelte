@@ -9,6 +9,7 @@
 	import { websocketStore, type WebSocketEvent } from '$lib/stores/websocket.js';
 	import { formatStatusText, getStatusBadgeClass } from '$lib/utils/status.js';
 	import { formatDate, scrollToBottomEvents, getEventLevelBadge } from '$lib/utils/common.js';
+	import { extractAPIError } from '$lib/utils/apiError';
 	import Badge from '$lib/components/Badge.svelte';
 
 	let instance: Instance | null = null;
@@ -41,13 +42,10 @@
 			await garmApi.deleteInstance(instance.name!);
 			goto(`${base}/instances`);
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to delete instance';
+			error = extractAPIError(err);
 		}
 		showDeleteModal = false;
 	}
-
-
-
 
 	function handleInstanceEvent(event: WebSocketEvent) {
 		if (!instance) return;

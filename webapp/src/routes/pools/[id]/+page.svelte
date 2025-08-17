@@ -13,6 +13,7 @@
 	import type { Instance } from '$lib/api/generated/api.js';
 	import { toastStore } from '$lib/stores/toast.js';
 	import { formatDate, getForgeIcon, getEntityName, getEntityType, getEntityUrl } from '$lib/utils/common.js';
+	import { extractAPIError } from '$lib/utils/apiError';
 
 	let pool: Pool | null = null;
 	let loading = true;
@@ -33,7 +34,7 @@
 			error = '';
 			pool = await garmApi.getPool(poolId);
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to load pool';
+			error = extractAPIError(err);
 		} finally {
 			loading = false;
 		}
@@ -52,7 +53,7 @@
 				`Pool ${pool.id} has been updated successfully.`
 			);
 		} catch (err) {
-			const errorMessage = err instanceof Error ? err.message : 'Failed to update pool';
+			const errorMessage = extractAPIError(err);
 			toastStore.error(
 				'Update Failed',
 				errorMessage
@@ -66,7 +67,7 @@
 			await garmApi.deletePool(pool.id!);
 			goto(`${base}/pools`);
 		} catch (err) {
-			const errorMessage = err instanceof Error ? err.message : 'Failed to delete pool';
+			const errorMessage = extractAPIError(err);
 			toastStore.error(
 				'Delete Failed',
 				errorMessage
@@ -83,10 +84,8 @@
 				'Instance Deleted',
 				`Instance ${selectedInstance.name} has been deleted successfully.`
 			);
-			showDeleteInstanceModal = false;
-			selectedInstance = null;
 		} catch (err) {
-			const errorMessage = err instanceof Error ? err.message : 'Failed to delete instance';
+			const errorMessage = extractAPIError(err);
 			toastStore.error(
 				'Delete Failed',
 				errorMessage
@@ -100,7 +99,6 @@
 		selectedInstance = instance;
 		showDeleteInstanceModal = true;
 	}
-
 
 	function formatExtraSpecs(extraSpecs: any): string {
 		if (!extraSpecs) return '{}';

@@ -1,9 +1,8 @@
 <script lang="ts">
 	import { createEventDispatcher, onMount } from 'svelte';
-	import { garmApi } from '$lib/api/client.js';
 	import type { CreateRepoParams, ForgeCredentials } from '$lib/api/generated/api.js';
 	import Modal from './Modal.svelte';
-	import { getForgeIcon } from '$lib/utils/common.js';
+	import { extractAPIError } from '$lib/utils/apiError';
 	import ForgeTypeSelector from './ForgeTypeSelector.svelte';
 	import { eagerCache, eagerCacheManager } from '$lib/stores/eager-cache.js';
 
@@ -43,7 +42,7 @@
 			try {
 				await eagerCacheManager.getCredentials();
 			} catch (err) {
-				error = err instanceof Error ? err.message : 'Failed to load credentials';
+				error = extractAPIError(err);
 			}
 		}
 	}
@@ -118,7 +117,7 @@
 
 			dispatch('submit', submitData);
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to create repository';
+			error = extractAPIError(err);
 			loading = false;
 		}
 	}

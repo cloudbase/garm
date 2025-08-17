@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount } from 'svelte';
 	import { garmApi } from '$lib/api/client.js';
 	import type { ScaleSet, CreateScaleSetParams } from '$lib/api/generated/api.js';
 	import { base } from '$app/paths';
@@ -9,11 +9,10 @@
 	import DeleteModal from '$lib/components/DeleteModal.svelte';
 	import { eagerCache, eagerCacheManager } from '$lib/stores/eager-cache.js';
 	import { toastStore } from '$lib/stores/toast.js';
-	import { getForgeIcon, getEntityName, getEntityType, getEntityUrl, filterEntities, getEnabledStatusBadge } from '$lib/utils/common.js';
-	import Badge from '$lib/components/Badge.svelte';
-import DataTable from '$lib/components/DataTable.svelte';
-import ActionButton from '$lib/components/ActionButton.svelte';
-import { EntityCell, EndpointCell, StatusCell, ActionsCell, GenericCell, PoolEntityCell } from '$lib/components/cells';
+	import { getEntityName, filterEntities } from '$lib/utils/common.js';
+	import { extractAPIError } from '$lib/utils/apiError';
+	import DataTable from '$lib/components/DataTable.svelte';
+	import { EntityCell, EndpointCell, StatusCell, ActionsCell, GenericCell, PoolEntityCell } from '$lib/components/cells';
 
 	let scaleSets: ScaleSet[] = [];
 	let loading = true;
@@ -60,7 +59,7 @@ import { EntityCell, EndpointCell, StatusCell, ActionsCell, GenericCell, PoolEnt
 				'Scale set has been created successfully.'
 			);
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to create scale set';
+			error = extractAPIError(err);
 			throw err; // Let the modal handle the error
 		}
 	}
@@ -90,10 +89,12 @@ import { EntityCell, EndpointCell, StatusCell, ActionsCell, GenericCell, PoolEnt
 				'Scale Set Deleted',
 				`Scale set ${selectedScaleSet.name} has been deleted successfully.`
 			);
+		} catch (err) {
+			const errorMessage = extractAPIError(err);
+			toastStore.error('Delete Failed', errorMessage);
+		} finally {
 			showDeleteModal = false;
 			selectedScaleSet = null;
-		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to delete scale set';
 		}
 	}
 
@@ -126,7 +127,7 @@ import { EntityCell, EndpointCell, StatusCell, ActionsCell, GenericCell, PoolEnt
 			// Cache error is already handled by the eager cache system
 			// We don't need to set error here anymore since it's in the cache state
 			console.error('Failed to load scale sets:', err);
-			error = err instanceof Error ? err.message : 'Failed to load scale sets';
+			error = extractAPIError(err);
 		} finally {
 			loading = false;
 		}

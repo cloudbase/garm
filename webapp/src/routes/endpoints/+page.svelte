@@ -1,22 +1,18 @@
 <svelte:window on:keydown={handleKeydown} />
 
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount } from 'svelte';
 	import { garmApi } from '$lib/api/client.js';
 	import type { ForgeEndpoint } from '$lib/api/generated/api.js';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import ForgeTypeSelector from '$lib/components/ForgeTypeSelector.svelte';
 	import ActionButton from '$lib/components/ActionButton.svelte';
-	import Button from '$lib/components/Button.svelte';
-	import SearchBar from '$lib/components/SearchBar.svelte';
-	import LoadingState from '$lib/components/LoadingState.svelte';
-	import ErrorState from '$lib/components/ErrorState.svelte';
-	import EmptyState from '$lib/components/EmptyState.svelte';
 	import { eagerCache, eagerCacheManager } from '$lib/stores/eager-cache.js';
 	import { toastStore } from '$lib/stores/toast.js';
-	import { getForgeIcon, filterEndpoints, changePage, changePerPage, paginateItems } from '$lib/utils/common.js';
+	import { getForgeIcon, filterEndpoints, changePerPage, paginateItems } from '$lib/utils/common.js';
+	import { extractAPIError } from '$lib/utils/apiError';
 import DataTable from '$lib/components/DataTable.svelte';
-import { EntityCell, EndpointCell, StatusCell, ActionsCell, GenericCell } from '$lib/components/cells';
+import { EndpointCell, ActionsCell, GenericCell } from '$lib/components/cells';
 
 	let loading = true;
 	let endpoints: ForgeEndpoint[] = [];
@@ -334,7 +330,7 @@ import { EntityCell, EndpointCell, StatusCell, ActionsCell, GenericCell } from '
 			);
 			closeModals();
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to create endpoint';
+			error = extractAPIError(err);
 		}
 	}
 
@@ -366,7 +362,7 @@ import { EntityCell, EndpointCell, StatusCell, ActionsCell, GenericCell } from '
 			);
 			closeModals();
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to update endpoint';
+			error = extractAPIError(err);
 		}
 	}
 
@@ -384,10 +380,11 @@ import { EntityCell, EndpointCell, StatusCell, ActionsCell, GenericCell } from '
 				'Endpoint Deleted',
 				`Endpoint ${deletingEndpoint.name} has been deleted successfully.`
 			);
-			closeModals();
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to delete endpoint';
+			const errorMessage = extractAPIError(err);
+			toastStore.error('Delete Failed', errorMessage);
 		}
+		closeModals();
 	}
 
 	function handleFileUpload(event: Event) {

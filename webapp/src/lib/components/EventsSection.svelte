@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { EntityEvent } from '$lib/api/generated/api.js';
-	import { formatDate, getEventLevelBadge } from '$lib/utils/common.js';
+	import { formatDate } from '$lib/utils/common.js';
 	import Badge from './Badge.svelte';
 
 	export let events: EntityEvent[] | undefined;

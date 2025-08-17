@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { createEventDispatcher, onMount } from 'svelte';
+	import { createEventDispatcher } from 'svelte';
+	import { extractAPIError } from '$lib/utils/apiError';
 	import type { Repository, UpdateEntityParams } from '$lib/api/generated/api.js';
 	import Modal from './Modal.svelte';
 
@@ -39,7 +40,7 @@
 
 			dispatch('submit', params);
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to update repository';
+			error = extractAPIError(err);
 		} finally {
 			loading = false;
 		}

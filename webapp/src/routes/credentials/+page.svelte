@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount } from 'svelte';
 	import { garmApi } from '$lib/api/client.js';
 	import type { ForgeCredentials, ForgeEndpoint, CreateGithubCredentialsParams, GithubPAT, GithubApp } from '$lib/api/generated/api.js';
 	// AuthType constants
@@ -10,15 +10,11 @@
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import ForgeTypeSelector from '$lib/components/ForgeTypeSelector.svelte';
 	import ActionButton from '$lib/components/ActionButton.svelte';
-	import Button from '$lib/components/Button.svelte';
-	import SearchBar from '$lib/components/SearchBar.svelte';
-	import LoadingState from '$lib/components/LoadingState.svelte';
-	import ErrorState from '$lib/components/ErrorState.svelte';
-	import EmptyState from '$lib/components/EmptyState.svelte';
 	import DataTable from '$lib/components/DataTable.svelte';
 	import { eagerCache, eagerCacheManager } from '$lib/stores/eager-cache.js';
 	import { toastStore } from '$lib/stores/toast.js';
-	import { getForgeIcon, filterCredentials, changePage, changePerPage, paginateItems, getAuthTypeBadge } from '$lib/utils/common.js';
+	import { getForgeIcon, filterCredentials, changePerPage, paginateItems, getAuthTypeBadge } from '$lib/utils/common.js';
+	import { extractAPIError } from '$lib/utils/apiError';
 	import Badge from '$lib/components/Badge.svelte';
 	import { EntityCell, EndpointCell, StatusCell, ActionsCell, GenericCell } from '$lib/components/cells';
 
@@ -287,7 +283,7 @@
 			);
 			closeModals();
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to create credentials';
+			error = extractAPIError(err);
 		}
 	}
 
@@ -320,7 +316,7 @@
 			);
 			closeModals();
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to update credentials';
+			error = extractAPIError(err);
 		}
 	}
 
@@ -339,9 +335,11 @@
 				'Credentials Deleted',
 				`Credentials ${deletingCredential?.name || 'Unknown'} have been deleted successfully.`
 			);
-			closeModals();
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to delete credentials';
+			const errorMessage = extractAPIError(err);
+			toastStore.error('Delete Failed', errorMessage);
+		} finally {
+			closeModals();
 		}
 	}
 

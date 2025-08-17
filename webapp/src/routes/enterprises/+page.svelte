@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount } from 'svelte';
 	import { garmApi } from '$lib/api/client.js';
 	import type { Enterprise, CreateEnterpriseParams, UpdateEntityParams } from '$lib/api/generated/api.js';
 	import { base } from '$app/paths';
@@ -10,6 +10,7 @@
 	import { eagerCache, eagerCacheManager } from '$lib/stores/eager-cache.js';
 	import { toastStore } from '$lib/stores/toast.js';
 	import { getForgeIcon, getEntityStatusBadge, filterByName } from '$lib/utils/common.js';
+	import { extractAPIError } from '$lib/utils/apiError';
 	import Badge from '$lib/components/Badge.svelte';
 import DataTable from '$lib/components/DataTable.svelte';
 import ActionButton from '$lib/components/ActionButton.svelte';
@@ -59,7 +60,7 @@ import { EntityCell, EndpointCell, StatusCell, ActionsCell, GenericCell } from '
 			);
 			showCreateModal = false;
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to create enterprise';
+			error = extractAPIError(err);
 			throw err; // Let the modal handle the error
 		}
 	}
@@ -93,7 +94,8 @@ import { EntityCell, EndpointCell, StatusCell, ActionsCell, GenericCell } from '
 			showDeleteModal = false;
 			selectedEnterprise = null;
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to delete enterprise';
+			const errorMessage = extractAPIError(err);
+			toastStore.error('Delete Failed', errorMessage);
 		}
 	}
 

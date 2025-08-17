@@ -2,6 +2,7 @@
 	import { createEventDispatcher, onMount } from 'svelte';
 	import type { ScaleSet, CreateScaleSetParams } from '$lib/api/generated/api.js';
 	import Modal from './Modal.svelte';
+	import { extractAPIError } from '$lib/utils/apiError';
 	import JsonEditor from './JsonEditor.svelte';
 
 	export let scaleSet: ScaleSet;
@@ -87,7 +88,7 @@
 
 			dispatch('submit', params);
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to update scale set';
+			error = extractAPIError(err);
 		} finally {
 			loading = false;
 		}
