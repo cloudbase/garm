@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Instance } from '$lib/api/generated/api.js';
-	import { base } from '$app/paths';
+	import { resolve } from '$app/paths';
 	import DataTable from './DataTable.svelte';
 	import { EntityCell, StatusCell, GenericCell, ActionsCell } from './cells';
 
@@ -89,7 +89,7 @@
 	<div class="px-4 py-5 sm:p-6">
 		<div class="flex items-center justify-between mb-4">
 			<h2 class="text-lg font-medium text-gray-900 dark:text-white">Instances ({instances.length})</h2>
-			<a href={`${base}/instances`} class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300">View all instances</a>
+			<a href={resolve('/instances')} class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300">View all instances</a>
 		</div>
 		<DataTable
 			{columns}

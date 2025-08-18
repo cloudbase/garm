@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { base } from '$app/paths';
 	import { getEntityName, getEntityType, getEntityUrl } from '$lib/utils/common.js';
 
 	export let item: any;

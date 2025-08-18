@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { base } from '$app/paths';
+	import { resolve } from '$app/paths';
 	import { auth, authStore } from '$lib/stores/auth.js';
 	import { toastStore } from '$lib/stores/toast.js';
 	import { extractAPIError } from '$lib/utils/apiError';
@@ -67,7 +67,7 @@
 			);
 			
 			// Redirect to dashboard
-			goto(`${base}/`);
+			goto(resolve('/'));
 		} catch (err) {
 			error = extractAPIError(err);
 		} finally {
@@ -79,22 +79,22 @@
 	onMount(() => {
 		// If already authenticated, redirect to dashboard
 		if ($authStore.isAuthenticated) {
-			goto(`${base}/`);
+			goto(resolve('/'));
 			return;
 		}
 		
 		// If doesn't need initialization, redirect to login
 		if (!$authStore.needsInitialization && !$authStore.loading) {
-			goto(`${base}/login`);
+			goto(resolve('/login'));
 		}
 	});
 
 	// Redirect if auth state changes
 	$: {
 		if ($authStore.isAuthenticated) {
-			goto(`${base}/`);
+			goto(resolve('/'));
 		} else if (!$authStore.needsInitialization && !$authStore.loading) {
-			goto(`${base}/login`);
+			goto(resolve('/login'));
 		}
 	}
 </script>
@@ -107,12 +107,12 @@
 	<div class="sm:mx-auto sm:w-full sm:max-w-md">
 		<div class="flex justify-center">
 			<img 
-				src="{base}/assets/garm-light.svg" 
+				src={resolve('/assets/garm-light.svg')} 
 				alt="GARM" 
 				class="h-16 w-auto dark:hidden"
 			/>
 			<img 
-				src="{base}/assets/garm-dark.svg" 
+				src={resolve('/assets/garm-dark.svg')} 
 				alt="GARM" 
 				class="h-16 w-auto hidden dark:block"
 			/>

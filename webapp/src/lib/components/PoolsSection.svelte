@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Pool } from '$lib/api/generated/api.js';
-	import { base } from '$app/paths';
+	import { resolve } from '$app/paths';
 	import { getEnabledStatusBadge, getEntityName } from '$lib/utils/common.js';
 	import { eagerCache } from '$lib/stores/eager-cache.js';
 	import DataTable from './DataTable.svelte';
@@ -91,7 +91,7 @@
 	<div class="px-4 py-5 sm:p-6">
 		<div class="flex items-center justify-between mb-4">
 			<h2 class="text-lg font-medium text-gray-900 dark:text-white">Pools ({pools.length})</h2>
-			<a href={`${base}/pools`} class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300">View all pools</a>
+			<a href={resolve('/pools')} class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300">View all pools</a>
 		</div>
 		{#if pools.length === 0}
 			<!-- Custom empty state with Add Pool button -->

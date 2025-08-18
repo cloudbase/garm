@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { garmApi } from '$lib/api/client.js';
 	import type { Organization, CreateOrgParams, UpdateEntityParams } from '$lib/api/generated/api.js';
-	import { base } from '$app/paths';
+	import { resolve } from '$app/paths';
 	import CreateOrganizationModal from '$lib/components/CreateOrganizationModal.svelte';
 	import UpdateEntityModal from '$lib/components/UpdateEntityModal.svelte';
 	import DeleteModal from '$lib/components/DeleteModal.svelte';
@@ -307,7 +307,7 @@ import { EntityCell, EndpointCell, StatusCell, ActionsCell, GenericCell } from '
 			{@const status = getEntityStatusBadge(organization)}
 			<div class="flex items-center justify-between">
 				<div class="flex-1 min-w-0">
-					<a href={`${base}/organizations/${organization.id}`} class="block">
+					<a href={resolve(`/organizations/${organization.id}`)} class="block">
 						<p class="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 truncate">
 							{organization.name}
 						</p>
