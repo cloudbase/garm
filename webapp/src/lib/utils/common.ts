@@ -1,3 +1,5 @@
+import { resolve } from '$app/paths';
+
 /**
  * Common utility functions shared across components and pages
  */
@@ -84,10 +86,10 @@ export function getEntityType(entity: any): string {
 /**
  * Gets the URL for an entity detail page
  */
-export function getEntityUrl(entity: any, base: string = ''): string {
-	if (entity.repo_id) return `${base}/repositories/${entity.repo_id}`;
-	if (entity.org_id) return `${base}/organizations/${entity.org_id}`;
-	if (entity.enterprise_id) return `${base}/enterprises/${entity.enterprise_id}`;
+export function getEntityUrl(entity: any): string {
+	if (entity.repo_id) return resolve(`/repositories/${entity.repo_id}`);
+	if (entity.org_id) return resolve(`/organizations/${entity.org_id}`);
+	if (entity.enterprise_id) return resolve(`/enterprises/${entity.enterprise_id}`);
 	return '#';
 }
 
