@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { base } from '$app/paths';
+	import { resolve } from '$app/paths';
 
 	export let item: any;
 	export let entityType: 'repository' | 'organization' | 'enterprise' | 'pool' | 'scaleset' | 'instance' = 'repository';
@@ -51,17 +51,17 @@
 
 		switch (entityType) {
 			case 'repository':
-				return `${base}/repositories/${entityId}`;
+				return resolve(`/repositories/${entityId}`);
 			case 'organization':
-				return `${base}/organizations/${entityId}`;
+				return resolve(`/organizations/${entityId}`);
 			case 'enterprise':
-				return `${base}/enterprises/${entityId}`;
+				return resolve(`/enterprises/${entityId}`);
 			case 'pool':
-				return `${base}/pools/${entityId}`;
+				return resolve(`/pools/${entityId}`);
 			case 'scaleset':
-				return `${base}/scalesets/${entityId}`;
+				return resolve(`/scalesets/${entityId}`);
 			case 'instance':
-				return `${base}/instances/${encodeURIComponent(entityId)}`;
+				return resolve(`/instances/${encodeURIComponent(entityId)}`);
 			default:
 				return '#';
 		}

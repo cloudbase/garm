@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
-	import { base } from '$app/paths';
+	import { resolve } from '$app/paths';
 	import ActionButton from './ActionButton.svelte';
 	import Badge from './Badge.svelte';
 	import { getForgeIcon } from '$lib/utils/common.js';
@@ -86,7 +86,7 @@
 		href = href.replace('{id}', item.id || '');
 		href = href.replace('{name}', encodeURIComponent(item.name || ''));
 		
-		return `${base}${href}`;
+		return resolve(href);
 	}
 
 	function handleAction(actionType: string) {

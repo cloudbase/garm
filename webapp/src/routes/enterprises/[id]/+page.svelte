@@ -4,7 +4,7 @@
 	import { goto } from '$app/navigation';
 	import { garmApi } from '$lib/api/client.js';
 	import type { Enterprise, Pool, Instance } from '$lib/api/generated/api.js';
-	import { base } from '$app/paths';
+	import { resolve } from '$app/paths';
 	import UpdateEntityModal from '$lib/components/UpdateEntityModal.svelte';
 	import DeleteModal from '$lib/components/DeleteModal.svelte';
 	import EntityInformation from '$lib/components/EntityInformation.svelte';
@@ -93,7 +93,7 @@
 		if (!enterprise) return;
 		try {
 			await garmApi.deleteEnterprise(enterprise.id!);
-			goto(`${base}/enterprises`);
+			goto(resolve('/enterprises'));
 		} catch (err) {
 			const errorMessage = extractAPIError(err);
 			toastStore.error(
@@ -182,7 +182,7 @@
 			const deletedEnterpriseId = event.payload.id || event.payload;
 			// If this enterprise was deleted, redirect to enterprises list
 			if (enterprise && enterprise.id === deletedEnterpriseId) {
-				goto(`${base}/enterprises`);
+				goto(resolve('/enterprises'));
 			}
 		}
 	}
@@ -287,7 +287,7 @@
 	<nav class="flex" aria-label="Breadcrumb">
 		<ol class="inline-flex items-center space-x-1 md:space-x-3">
 			<li class="inline-flex items-center">
-				<a href={`${base}/enterprises`} class="inline-flex items-center text-sm font-medium text-gray-700 hover:text-blue-600 dark:text-gray-400 dark:hover:text-white">
+				<a href={resolve('/enterprises')} class="inline-flex items-center text-sm font-medium text-gray-700 hover:text-blue-600 dark:text-gray-400 dark:hover:text-white">
 					<svg class="w-3 h-3 mr-2.5" fill="currentColor" viewBox="0 0 20 20">
 						<path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/>
 					</svg>

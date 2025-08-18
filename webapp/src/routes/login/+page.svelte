@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { base } from '$app/paths';
+	import { resolve } from '$app/paths';
 	import { auth, authStore } from '$lib/stores/auth.js';
 	import Button from '$lib/components/Button.svelte';
 	import { extractAPIError } from '$lib/utils/apiError';
@@ -38,7 +38,7 @@
 
 	// Redirect if already authenticated
 	$: if ($authStore.isAuthenticated) {
-		goto(`${base}/`);
+		goto(resolve('/'));
 	}
 
 	async function handleLogin() {
@@ -52,7 +52,7 @@
 
 		try {
 			await auth.login(username, password);
-			goto(`${base}/`);
+			goto(resolve('/'));
 		} catch (err) {
 			error = extractAPIError(err);
 		} finally {
@@ -76,12 +76,12 @@
 		<div>
 			<div class="mx-auto h-48 w-auto flex justify-center">
 				<img 
-					src="{base}/assets/garm-light.svg" 
+					src={resolve('/assets/garm-light.svg')} 
 					alt="GARM" 
 					class="h-48 w-auto dark:hidden"
 				/>
 				<img 
-					src="{base}/assets/garm-dark.svg" 
+					src={resolve('/assets/garm-dark.svg')} 
 					alt="GARM" 
 					class="h-48 w-auto hidden dark:block"
 				/>

@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { garmApi } from '$lib/api/client.js';
 	import type { Enterprise, CreateEnterpriseParams, UpdateEntityParams } from '$lib/api/generated/api.js';
-	import { base } from '$app/paths';
+	import { resolve } from '$app/paths';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import CreateEnterpriseModal from '$lib/components/CreateEnterpriseModal.svelte';
 	import UpdateEntityModal from '$lib/components/UpdateEntityModal.svelte';
@@ -269,7 +269,7 @@ import { EntityCell, EndpointCell, StatusCell, ActionsCell, GenericCell } from '
 			{@const status = getEntityStatusBadge(enterprise)}
 			<div class="flex items-center justify-between">
 				<div class="flex-1 min-w-0">
-					<a href={`${base}/enterprises/${enterprise.id}`} class="block">
+					<a href={resolve(`/enterprises/${enterprise.id}`)} class="block">
 						<p class="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 truncate">
 							{enterprise.name}
 						</p>

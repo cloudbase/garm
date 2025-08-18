@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { base } from '$app/paths';
+	import { resolve } from '$app/paths';
 	import { auth, authStore } from '$lib/stores/auth.js';
 	import { websocketStore } from '$lib/stores/websocket.js';
 	import { onMount } from 'svelte';
@@ -70,37 +70,37 @@
 	// Navigation items with pools and scale sets grouped together, instances after scale sets
 	const mainNavItems = [
 		{ 
-			href: `${base}/`, 
+			href: resolve('/'), 
 			label: 'Dashboard', 
 			icon: ['M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z', 'M8 5a2 2 0 012-2h4a2 2 0 012 2v2H8V5z']
 		},
 		{ 
-			href: `${base}/repositories`, 
+			href: resolve('/repositories'), 
 			label: 'Repositories', 
 			icon: ['M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z', 'M8 5a2 2 0 012-2h4a2 2 0 012 2v2H8V5z']
 		},
 		{ 
-			href: `${base}/organizations`, 
+			href: resolve('/organizations'), 
 			label: 'Organizations', 
 			icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4'
 		},
 		{ 
-			href: `${base}/enterprises`, 
+			href: resolve('/enterprises'), 
 			label: 'Enterprises', 
 			icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4'
 		},
 		{ 
-			href: `${base}/pools`, 
+			href: resolve('/pools'), 
 			label: 'Pools', 
 			icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'
 		},
 		{ 
-			href: `${base}/scalesets`, 
+			href: resolve('/scalesets'), 
 			label: 'Scale Sets', 
 			icon: 'M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4'
 		},
 		{ 
-			href: `${base}/instances`, 
+			href: resolve('/instances'), 
 			label: 'Runners', 
 			icon: 'M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z'
 		}
@@ -108,12 +108,12 @@
 
 	const configNavItems = [
 		{ 
-			href: `${base}/credentials`, 
+			href: resolve('/credentials'), 
 			label: 'Credentials', 
 			icon: 'M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1721 9z'
 		},
 		{ 
-			href: `${base}/endpoints`, 
+			href: resolve('/endpoints'), 
 			label: 'Endpoints', 
 			icon: 'M13 10V3L4 14h7v7l9-11h-7z'
 		}
@@ -129,14 +129,14 @@
 		<div class="flex-shrink-0 border-b border-gray-200 dark:border-gray-700">
 			<!-- Logo Area - Generous padding and larger size -->
 			<div class="px-6 py-3 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-700">
-				<a href={`${base}/`} class="flex justify-center">
+				<a href={resolve('/')} class="flex justify-center">
 					<img 
-						src="{base}/assets/garm-light.svg" 
+						src={resolve('/assets/garm-light.svg')} 
 						alt="GARM" 
 						class="h-24 w-auto dark:hidden transition-transform hover:scale-105"
 					/>
 					<img 
-						src="{base}/assets/garm-dark.svg" 
+						src={resolve('/assets/garm-dark.svg')} 
 						alt="GARM" 
 						class="h-24 w-auto hidden dark:block transition-transform hover:scale-105"
 					/>
@@ -268,12 +268,12 @@
 		<!-- Mobile logo and status -->
 		<div class="flex items-center space-x-3">
 			<img 
-				src="{base}/assets/garm-light.svg" 
+				src={resolve('/assets/garm-light.svg')} 
 				alt="GARM" 
 				class="{darkMode ? 'hidden' : 'block'} h-8 w-8"
 			/>
 			<img 
-				src="{base}/assets/garm-dark.svg" 
+				src={resolve('/assets/garm-dark.svg')} 
 				alt="GARM" 
 				class="{darkMode ? 'block' : 'hidden'} h-8 w-8"
 			/>
