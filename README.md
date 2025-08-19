@@ -71,6 +71,8 @@ Check out the [quickstart](/doc/quickstart.md) document for instructions on how 
 
 Thanks to the efforts of the amazing folks at [@mercedes-benz](https://github.com/mercedes-benz/), GARM can now be integrated into k8s via their operator. Check out the [GARM operator](https://github.com/mercedes-benz/garm-operator/) for more details.
 
+In addition to the operator, GARM can also be deployed on Kubernetes using the provided Helm chart. For detailed instructions, please see the [Helm deployment guide](/doc/helm.md).
+
 ## Configuring GARM for GHES
 
 GARM supports creating pools and scale sets in either GitHub itself or in your own deployment of [GitHub Enterprise Server](https://docs.github.com/en/enterprise-server@3.10/admin/overview/about-github-enterprise-server). For instructions on how to use ```GARM``` with GHE, see the [credentials](/doc/github_credentials.md) section of the documentation.

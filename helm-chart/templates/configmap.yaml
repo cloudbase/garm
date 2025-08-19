@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: "{{ include "garm.fullname" . }}-config"
+  labels:
+    {{- include "garm.labels" . | nindent 4 }}
+data:
+  config.toml: |-
+    [default]
+    enable_webhook_management = true
+
+    [logging]
+    enable_log_streamer = true
+    log_format = "text"
+    log_level = "info"
+    log_source = false
+
+    [metrics]
+    enable = true
+    disable_auth = false
+
+    [jwt_auth]
+    secret = "$GARM_JWT_SECRET"
+    time_to_live = "8760h"
+
+    [apiserver]
+      bind = "0.0.0.0"
+      port = {{ .Values.service.port }}
+      use_tls = false
+      [apiserver.webui]
+        enable = {{ .Values.garm.ui.enabled }}
+
+    [database]
+      backend = "sqlite3"
+      passphrase = "$GARM_DB_PASSPHRASE"
+      [database.sqlite3]
+        db_file = "{{ include "garm.db-path" . }}/garm.db"
+
+    {{- range .Values.providers }}
+    [[provider]]
+      name = "{{ .name }}"
+      provider_type = "{{ .type | default "external" }}"
+      description = "{{ .description }}"
+      [provider.external]
+        provider_executable = "{{ .executable }}"
+        config_file = "/etc/garm/provider-configs/garm-provider-{{ .name }}.toml"
+    {{- end }}

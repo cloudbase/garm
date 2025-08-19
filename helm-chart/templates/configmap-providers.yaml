@@ -1,0 +1,17 @@
+{{- /*
+Create a ConfigMap for each provider defined in values.yaml
+*/}}
+{{- range $provider := .Values.providers }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: "{{ include "garm.fullname" $ }}-provider-{{ .name }}"
+  labels:
+    {{- include "garm.labels" $ | nindent 4 }}
+data:
+  garm-provider-{{ .name }}.toml: |
+    {{- range $key, $value := .config }}
+    {{ $key }} = {{ $value | toToml }}
+    {{- end }}
+{{- end }}

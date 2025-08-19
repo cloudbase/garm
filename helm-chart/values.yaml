@@ -1,0 +1,169 @@
+# -- GARM application configuration
+garm:
+  # -- Enable the GARM web UI.
+  ui:
+    enabled: true
+
+  # -- GARM admin user credentials. These will be stored in a Kubernetes secret.
+  admin:
+    # -- The name of the secret containing the admin credentials.
+    # -- If not set, a secret will be created with a generated password.
+    secretName: ""
+    # -- The default admin username to use when generating the secret.
+    defaultUsername: "admin"
+    # -- The default admin email address to use when generating the secret.
+    defaultEmail: "admin@example.com"
+    # -- The key in the secret for the admin username.
+    usernameKey: "username"
+    # -- The key in the secret for the admin password.
+    passwordKey: "password"
+    # -- The key in the secret for the admin email.
+    emailKey: "email"
+    # -- The key in the secret for the JWT secret.
+    jwtSecretKey: "jwt-secret"
+    # -- The key in the secret for the database passphrase.
+    dbPassphraseKey: "db-passphrase"
+
+  # -- The base URL for the GARM service. This will be used in garm init process.
+  # -- You can omit this variable if URLs below are set.
+  url: "http://garm.example.com:9997"
+  # -- Specify callback URL (with correct URI path). If empty, garm.url will be used.
+  callbackUrl: ""
+  # -- Specify metadata URL (with correct URI path). If empty, garm.url will be used.
+  metadataUrl: ""
+  # -- Specify webhook URL (with correct URI path). If empty, garm.url will be used.
+  webhookUrl: ""
+
+# -- Image configuration for GARM and its components.
+image:
+  # -- GARM image repository.
+  repository: ghcr.io/cloudbase/garm
+  # -- GARM image pull policy.
+  pullPolicy: Always
+  # -- GARM image tag. Overrides the chart's appVersion.
+  tag: ""
+
+# -- Overrides for the chart name.
+nameOverride: ""
+# -- Overrides for the full chart name.
+fullnameOverride: ""
+
+# -- ServiceAccount configuration.
+serviceAccount:
+  # -- Specifies whether a service account should be created.
+  create: true
+  # -- Automatically mount a ServiceAccount's API credentials.
+  automount: true
+  # -- Annotations to add to the service account.
+  annotations: {}
+  # -- The name of the service account to use.
+  # -- If not set and create is true, a name is generated using the fullname template.
+  name: ""
+
+# -- Annotations for the Pod.
+podAnnotations: {}
+# -- Labels for the Pod.
+podLabels: {}
+
+# -- Service configuration.
+service:
+  # -- Kubernetes service type.
+  type: ClusterIP
+  # -- The port for the GARM service.
+  port: 9997
+  annotations: {}
+
+# -- Ingress configuration.
+ingress:
+  # -- Enable or disable the Ingress resource.
+  enabled: false
+  # -- The public-facing host for the Ingress resource. Required if ingress.enabled is true.
+  host: ""
+  # -- IngressClassName for the Ingress resource.
+  className: ""
+  # -- Annotations for the Ingress resource.
+  annotations: {}
+  # -- TLS configuration for the Ingress.
+  tls:
+    # -- The name of the secret containing the TLS certificate.
+    secretName: ""
+
+# -- Resource requests and limits for the GARM container.
+resources:
+  limits:
+    cpu: 100m
+    memory: 128Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# -- Additional volumes to mount in the Pod.
+extraVolumes: []
+# - name: foo
+#   secret:
+#     secretName: mysecret
+#     optional: false
+
+# -- Additional volume mounts for the GARM container.
+extraVolumeMounts: []
+# - name: foo
+#   mountPath: "/etc/foo"
+#   readOnly: true
+
+# -- Persistence configuration for the GARM database.
+persistence:
+  # -- Enable or disable persistence.
+  enabled: true
+  # -- Annotations for the PVC.
+  annotations: {}
+  # -- The storage class to use for the PVC.
+  storageClassName: ""
+  # -- The access modes for the PVC.
+  accessModes:
+    - ReadWriteOnce
+  # -- The size of the PVC.
+  size: 1Gi
+
+# -- Configuration for different git forges.
+forges:
+  # -- Gitea server configurations.
+  gitea:
+    # -- A list of Gitea credentials. If empty, Gitea integration is not initialized.
+    credentials: []
+      # - name: "my-gitea"
+      #   secretName: "garm-gitea-config"
+      #   urlKey: "server-url"
+      #   tokenKey: "access-token"
+
+  # -- GitHub server configurations.
+  github:
+    # -- A list of GitHub servers/credentials. If empty, GitHub integration is not initialized.
+    credentials: []
+    # - name: "my-github"
+    #   secretName: "my-github-secret"
+    # -- If this field is empty, the default GitHub endpoint will be used.
+    #   urlKey: ""
+    # -- Allowed values: 'pat' or 'app'
+    #   authType: "pat"
+    # -- Specify this key only if authType is 'pat'
+    #   tokenKey: "token"
+    # -- Specify values below only if authType is 'app'
+    #   appIdKey: "app-id"
+    #   appInstallationIdKey: "app-installation-id"
+    #   privateKeyKey: "private-key"
+
+# -- Configuration for different providers.
+providers: []
+  # - name: "gcp" # Unique name for this provider
+  #   type: "external" # Provider type
+  #   description: "GCP provider"
+  #   executable: "/opt/garm/providers.d/garm-provider-gcp" # Path to the executable
+  #
+  #   # -- Dynamic configuration for the provider's .toml file.
+  #   # -- You can add any keys here, and they will be added to the ConfigMap.
+  #   config:
+  #     project_id: "my-gcp-project"
+  #     zone: "us-central1-a"
+  #     network_id: "projects/my-gcp-project/global/networks/default"
+  #     subnetwork_id: "projects/my-gcp-project/regions/us-central1/subnetworks/default"
+  #     external_ip_access: true

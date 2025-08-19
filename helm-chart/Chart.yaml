@@ -1,0 +1,9 @@
+apiVersion: v2
+name: garm
+description: GARM (Github/Gitea Actions Runner Manager) Helm Chart
+
+type: application
+
+version: 0.1.0
+
+appVersion: "nightly"

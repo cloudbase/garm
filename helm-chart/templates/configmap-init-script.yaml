@@ -1,0 +1,89 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: "{{ include "garm.fullname" . }}-init-script"
+  labels:
+    {{- include "garm.labels" . | nindent 4 }}
+data:
+  init.sh: |- 
+    #!/bin/sh
+    set -e
+
+    INIT_MARKER="{{ include "garm.db-path" . }}/.initialized"
+    if [ -f "$INIT_MARKER" ]; then
+      echo "GARM already initialized, skipping setup."
+      exit 0
+    fi
+
+    # Start GARM in the background
+    /bin/garm -config /etc/garm/config.toml &
+    GARM_PID=$!
+
+    # Wait for the server to be ready
+    sleep 5
+
+    # Run GARM setup
+      garm-cli init \
+        --name "{{ include "garm.fullname" . }}" \
+        --url "http://localhost:{{ .Values.service.port }}" \
+        --callback-url "{{- if .Values.garm.callbackUrl }}{{ .Values.garm.callbackUrl }}{{- else }}{{ .Values.garm.url | trimSuffix "/" }}/api/v1/callbacks{{- end }}" \
+        --metadata-url "{{- if .Values.garm.metadataUrl }}{{ .Values.garm.metadataUrl }}{{- else }}{{ .Values.garm.url | trimSuffix "/" }}/api/v1/metadata{{- end }}" \
+        --webhook-url "{{- if .Values.garm.webhookUrl }}{{ .Values.garm.webhookUrl }}{{- else }}{{ .Values.garm.url | trimSuffix "/" }}/webhooks{{- end }}" \
+        --username "$GARM_ADMIN_USERNAME" \
+        --email "$GARM_ADMIN_EMAIL" \
+        --password "$GARM_ADMIN_PASSWORD"
+
+    {{- if .Values.forges.gitea.credentials }}
+    {{- range $i, $cred := .Values.forges.gitea.credentials }}
+    GITEA_URL=$(cat /gitea-secrets/{{ $cred.name }}/{{ $cred.urlKey }})
+    GITEA_TOKEN=$(cat /gitea-secrets/{{ $cred.name }}/{{ $cred.tokenKey }})
+
+    garm-cli gitea endpoint create --api-base-url "$GITEA_URL" --base-url "$GITEA_URL" --description "{{ $cred.name }}" --name "{{ $cred.name }}"
+    garm-cli gitea credentials add --endpoint "{{ $cred.name }}" --auth-type pat --pat-oauth-token "$GITEA_TOKEN" --name "{{ $cred.name }}-token" --description "{{ $cred.name }} access token"
+    {{- end }}
+    {{- end }}
+
+    {{- if .Values.forges.github.credentials }}
+    {{- range $cred := .Values.forges.github.credentials }}
+      {{- if $cred.urlKey }}
+    GITHUB_URL=$(cat /github-secrets/{{ $cred.name }}/{{ $cred.urlKey }})
+    garm-cli github endpoint create \
+      --api-base-url "$GITHUB_URL" \
+      --base-url "$GITHUB_URL" \
+      --description "{{ $cred.name }}" \
+      --name "{{ $cred.name }}"
+      {{- end }}
+
+    {{- if eq $cred.authType "pat" }}
+    GITHUB_TOKEN=$(cat /github-secrets/{{ $cred.name }}/{{ $cred.tokenKey }})
+    garm-cli github credentials add \
+      --name "{{ $cred.name }}" \
+      {{- if $cred.urlKey }}
+      --endpoint "{{ $cred.name }}" \
+      {{- end }}
+      --auth-type pat \
+      --pat-oauth-token "$GITHUB_TOKEN"
+    {{- else if eq $cred.authType "app" }}
+    APP_ID=$(cat /github-secrets/{{ $cred.name }}/{{ $cred.appIdKey }})
+    INSTALL_ID=$(cat /github-secrets/{{ $cred.name }}/{{ $cred.appInstallationIdKey }})
+    PRIVATE_KEY_PATH="/github-secrets/{{ $cred.name }}/{{ $cred.privateKeyKey }}"
+    garm-cli github credentials add \
+      --name "{{ $cred.name }}" \
+      {{- if $cred.urlKey }}
+      --endpoint "{{ $cred.name }}" \
+      {{- end }}
+      --auth-type app \
+      --app-id "$APP_ID" \
+      --app-installation-id "$INSTALL_ID" \
+      --private-key-path "$PRIVATE_KEY_PATH"
+    {{- end }}
+    {{- end }}
+    {{- end }}
+
+    echo "GARM initialization complete."
+
+    # Stop the background GARM server
+    kill $GARM_PID
+
+    # Create the marker file to indicate that initialization is done
+    touch "$INIT_MARKER"

@@ -1,0 +1,166 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "garm.fullname" . }}
+  labels:
+    {{- include "garm.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "garm.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "garm.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "garm.serviceAccountName" . }}
+      volumes:
+        - name: garm-config
+          emptyDir: {}
+        {{- if .Values.persistence.enabled }}
+        - name: garm-db
+          persistentVolumeClaim:
+            claimName: {{ include "garm.fullname" . }}-db
+        {{- end }}
+        - name: config-templates
+          configMap:
+            name: "{{ include "garm.fullname" . }}-config"
+        - name: init-script
+          configMap:
+            name: "{{ include "garm.fullname" . }}-init-script"
+            defaultMode: 0755
+        {{- range .Values.providers }}
+        - name: provider-config-{{ .name }}
+          configMap:
+            name: {{ include "garm.fullname" $ }}-provider-{{ .name }}
+        {{- end }}
+        {{- if .Values.forges.gitea.credentials }}
+        {{- range .Values.forges.gitea.credentials }}
+        - name: gitea-secret-{{ .name }}
+          secret:
+            secretName: {{ .secretName }}
+        {{- end }}
+        {{- end }}
+        {{- if .Values.forges.github.credentials }}
+        {{- range .Values.forges.github.credentials }}
+        - name: github-secret-{{ .name }}
+          secret:
+            secretName: {{ .secretName }}
+        {{- end }}
+        {{- end }}
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+
+      initContainers:
+        - name: substitute-config
+          image: envsubst/envsubst
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              envsubst < /config-templates/config.toml > /etc/garm/config.toml
+          env:
+            - name: GARM_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "garm.admin-secret-name" . }}
+                  key: {{ .Values.garm.admin.jwtSecretKey }}
+            - name: GARM_DB_PASSPHRASE
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "garm.admin-secret-name" . }}
+                  key: {{ .Values.garm.admin.dbPassphraseKey }}
+          volumeMounts:
+            - name: garm-config
+              mountPath: /etc/garm
+            - name: config-templates
+              mountPath: /config-templates
+
+        - name: config-init
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/init/init.sh"]
+          env:
+            - name: GARM_ADMIN_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "garm.admin-secret-name" . }}
+                  key: {{ .Values.garm.admin.usernameKey }}
+            - name: GARM_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "garm.admin-secret-name" . }}
+                  key: {{ .Values.garm.admin.passwordKey }}
+            - name: GARM_ADMIN_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "garm.admin-secret-name" . }}
+                  key: {{ .Values.garm.admin.emailKey }}
+          volumeMounts:
+            - name: garm-config
+              mountPath: /etc/garm
+            {{- if .Values.persistence.enabled }}
+            - name: garm-db
+              mountPath: {{ include "garm.db-path" . }}
+            {{- end }}
+            - name: config-templates
+              mountPath: /config-templates
+            - name: init-script
+              mountPath: /init
+            {{- if .Values.forges.gitea.credentials }}
+            {{- range .Values.forges.gitea.credentials }}
+            - name: gitea-secret-{{ .name }}
+              mountPath: /gitea-secrets/{{ .name }}
+              readOnly: true
+            {{- end }}
+            {{- end }}
+            {{- if .Values.forges.github.credentials }}
+            {{- range .Values.forges.github.credentials }}
+            - name: github-secret-{{ .name }}
+              mountPath: /github-secrets/{{ .name }}
+              readOnly: true
+            {{- end }}
+            {{- end }}
+            {{- range .Values.providers }}
+            - name: provider-config-{{ .name }}
+              mountPath: "/etc/garm/provider-configs/garm-provider-{{ .name }}.toml"
+              subPath: "garm-provider-{{ .name }}.toml"
+              readOnly: true
+            {{- end }}
+
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          volumeMounts:
+            - name: garm-config
+              mountPath: /etc/garm
+            {{- if .Values.persistence.enabled }}
+            - name: garm-db
+              mountPath: {{ include "garm.db-path" . }}
+            {{- end }}
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+            {{- range .Values.providers }}
+            - name: provider-config-{{ .name }}
+              mountPath: "/etc/garm/provider-configs/garm-provider-{{ .name }}.toml"
+              subPath: "garm-provider-{{ .name }}.toml"
+              readOnly: true
+            {{- end }}
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
