@@ -26,9 +26,9 @@ data:
       garm-cli init \
         --name "{{ include "garm.fullname" . }}" \
         --url "http://localhost:{{ .Values.service.port }}" \
-        --callback-url "{{- if .Values.garm.callbackUrl }}{{ .Values.garm.callbackUrl }}{{- else }}{{ .Values.garm.url | trimSuffix "/" }}/api/v1/callbacks{{- end }}" \
-        --metadata-url "{{- if .Values.garm.metadataUrl }}{{ .Values.garm.metadataUrl }}{{- else }}{{ .Values.garm.url | trimSuffix "/" }}/api/v1/metadata{{- end }}" \
-        --webhook-url "{{- if .Values.garm.webhookUrl }}{{ .Values.garm.webhookUrl }}{{- else }}{{ .Values.garm.url | trimSuffix "/" }}/webhooks{{- end }}" \
+        --callback-url "{{- if .Values.garm.callbackUrl }}{{ tpl .Values.garm.callbackUrl . }}{{- else }}{{ .Values.garm.url | trimSuffix "/" }}/api/v1/callbacks{{- end }}" \
+        --metadata-url "{{- if .Values.garm.metadataUrl }}{{ tpl .Values.garm.metadataUrl . }}{{- else }}{{ .Values.garm.url | trimSuffix "/" }}/api/v1/metadata{{- end }}" \
+        --webhook-url "{{- if .Values.garm.webhookUrl }}{{ tpl .Values.garm.webhookUrl . }}{{- else }}{{ .Values.garm.url | trimSuffix "/" }}/webhooks{{- end }}" \
         --username "$GARM_ADMIN_USERNAME" \
         --email "$GARM_ADMIN_EMAIL" \
         --password "$GARM_ADMIN_PASSWORD"
