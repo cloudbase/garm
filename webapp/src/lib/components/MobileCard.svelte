@@ -171,9 +171,7 @@
 	<div class="flex-1 min-w-0">
 		{#if config.primaryText.isClickable}
 			<a href={getEntityHref()} class="block">
-				<p class="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 truncate {config.primaryText.isMonospace ? 'font-mono' : ''}">
-					{getPrimaryText()}
-				</p>
+				<p class="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 truncate{config.primaryText.isMonospace ? ' font-mono' : ''}">{getPrimaryText()}</p>
 				{#if config.secondaryText}
 					<p class="text-sm text-gray-500 dark:text-gray-400 truncate mt-1">
 						{getSecondaryText()}
@@ -182,9 +180,7 @@
 			</a>
 		{:else}
 			<div class="block">
-				<p class="text-sm font-medium text-gray-900 dark:text-white truncate">
-					{getPrimaryText()}
-				</p>
+				<p class="text-sm font-medium text-gray-900 dark:text-white truncate">{getPrimaryText()}</p>
 				{#if config.secondaryText}
 					<p class="text-sm text-gray-500 dark:text-gray-400 truncate mt-1">
 						{getSecondaryText()}

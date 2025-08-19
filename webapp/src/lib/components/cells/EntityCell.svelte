@@ -73,10 +73,7 @@
 		href={entityUrl} 
 		class="block w-full truncate text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 {fontMono ? 'font-mono' : ''}"
 		title={entityName}
-	>
-		{entityName}
-	</a>
-	{#if entityType === 'instance' && item?.provider_id}
+	>{entityName}</a>{#if entityType === 'instance' && item?.provider_id}
 		<div class="text-sm text-gray-500 dark:text-gray-400 truncate">
 			{item.provider_id}
 		</div>

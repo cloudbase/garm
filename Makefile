@@ -117,6 +117,9 @@ go-test: ## Run tests
 fmt: ## Run go fmt against code.
 	@$(GO) fmt $$(go list ./...)
 
+webui-test:
+	(cd webapp && npm install)
+	(cd webapp && npm run test:run)
 
 ##@ Build Dependencies
 
