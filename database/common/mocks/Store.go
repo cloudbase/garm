@@ -73,9 +73,9 @@ func (_c *Store_AddEntityEvent_Call) RunAndReturn(run func(context.Context, para
 	return _c
 }
 
-// AddInstanceEvent provides a mock function with given fields: ctx, instanceName, event, eventLevel, eventMessage
-func (_m *Store) AddInstanceEvent(ctx context.Context, instanceName string, event params.EventType, eventLevel params.EventLevel, eventMessage string) error {
-	ret := _m.Called(ctx, instanceName, event, eventLevel, eventMessage)
+// AddInstanceEvent provides a mock function with given fields: ctx, instanceNameOrID, event, eventLevel, eventMessage
+func (_m *Store) AddInstanceEvent(ctx context.Context, instanceNameOrID string, event params.EventType, eventLevel params.EventLevel, eventMessage string) error {
+	ret := _m.Called(ctx, instanceNameOrID, event, eventLevel, eventMessage)
 
 	if len(ret) == 0 {
 		panic("no return value specified for AddInstanceEvent")
@@ -83,7 +83,7 @@ func (_m *Store) AddInstanceEvent(ctx context.Context, instanceName string, even
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, string, params.EventType, params.EventLevel, string) error); ok {
-		r0 = rf(ctx, instanceName, event, eventLevel, eventMessage)
+		r0 = rf(ctx, instanceNameOrID, event, eventLevel, eventMessage)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -98,15 +98,15 @@ type Store_AddInstanceEvent_Call struct {
 
 // AddInstanceEvent is a helper method to define mock.On call
 //   - ctx context.Context
-//   - instanceName string
+//   - instanceNameOrID string
 //   - event params.EventType
 //   - eventLevel params.EventLevel
 //   - eventMessage string
-func (_e *Store_Expecter) AddInstanceEvent(ctx interface{}, instanceName interface{}, event interface{}, eventLevel interface{}, eventMessage interface{}) *Store_AddInstanceEvent_Call {
-	return &Store_AddInstanceEvent_Call{Call: _e.mock.On("AddInstanceEvent", ctx, instanceName, event, eventLevel, eventMessage)}
+func (_e *Store_Expecter) AddInstanceEvent(ctx interface{}, instanceNameOrID interface{}, event interface{}, eventLevel interface{}, eventMessage interface{}) *Store_AddInstanceEvent_Call {
+	return &Store_AddInstanceEvent_Call{Call: _e.mock.On("AddInstanceEvent", ctx, instanceNameOrID, event, eventLevel, eventMessage)}
 }
 
-func (_c *Store_AddInstanceEvent_Call) Run(run func(ctx context.Context, instanceName string, event params.EventType, eventLevel params.EventLevel, eventMessage string)) *Store_AddInstanceEvent_Call {
+func (_c *Store_AddInstanceEvent_Call) Run(run func(ctx context.Context, instanceNameOrID string, event params.EventType, eventLevel params.EventLevel, eventMessage string)) *Store_AddInstanceEvent_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(string), args[2].(params.EventType), args[3].(params.EventLevel), args[4].(string))
 	})
@@ -1309,9 +1309,9 @@ func (_c *Store_DeleteGithubEndpoint_Call) RunAndReturn(run func(context.Context
 	return _c
 }
 
-// DeleteInstance provides a mock function with given fields: ctx, poolID, instanceName
-func (_m *Store) DeleteInstance(ctx context.Context, poolID string, instanceName string) error {
-	ret := _m.Called(ctx, poolID, instanceName)
+// DeleteInstance provides a mock function with given fields: ctx, poolID, instanceNameOrID
+func (_m *Store) DeleteInstance(ctx context.Context, poolID string, instanceNameOrID string) error {
+	ret := _m.Called(ctx, poolID, instanceNameOrID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for DeleteInstance")
@@ -1319,7 +1319,7 @@ func (_m *Store) DeleteInstance(ctx context.Context, poolID string, instanceName
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
-		r0 = rf(ctx, poolID, instanceName)
+		r0 = rf(ctx, poolID, instanceNameOrID)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1335,12 +1335,12 @@ type Store_DeleteInstance_Call struct {
 // DeleteInstance is a helper method to define mock.On call
 //   - ctx context.Context
 //   - poolID string
-//   - instanceName string
-func (_e *Store_Expecter) DeleteInstance(ctx interface{}, poolID interface{}, instanceName interface{}) *Store_DeleteInstance_Call {
-	return &Store_DeleteInstance_Call{Call: _e.mock.On("DeleteInstance", ctx, poolID, instanceName)}
+//   - instanceNameOrID string
+func (_e *Store_Expecter) DeleteInstance(ctx interface{}, poolID interface{}, instanceNameOrID interface{}) *Store_DeleteInstance_Call {
+	return &Store_DeleteInstance_Call{Call: _e.mock.On("DeleteInstance", ctx, poolID, instanceNameOrID)}
 }
 
-func (_c *Store_DeleteInstance_Call) Run(run func(ctx context.Context, poolID string, instanceName string)) *Store_DeleteInstance_Call {
+func (_c *Store_DeleteInstance_Call) Run(run func(ctx context.Context, poolID string, instanceNameOrID string)) *Store_DeleteInstance_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(string), args[2].(string))
 	})
@@ -2333,27 +2333,27 @@ func (_c *Store_GetGithubEndpoint_Call) RunAndReturn(run func(context.Context, s
 	return _c
 }
 
-// GetInstanceByName provides a mock function with given fields: ctx, instanceName
-func (_m *Store) GetInstanceByName(ctx context.Context, instanceName string) (params.Instance, error) {
-	ret := _m.Called(ctx, instanceName)
+// GetInstance provides a mock function with given fields: ctx, instanceNameOrID
+func (_m *Store) GetInstance(ctx context.Context, instanceNameOrID string) (params.Instance, error) {
+	ret := _m.Called(ctx, instanceNameOrID)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetInstanceByName")
+		panic("no return value specified for GetInstance")
 	}
 
 	var r0 params.Instance
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, string) (params.Instance, error)); ok {
-		return rf(ctx, instanceName)
+		return rf(ctx, instanceNameOrID)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, string) params.Instance); ok {
-		r0 = rf(ctx, instanceName)
+		r0 = rf(ctx, instanceNameOrID)
 	} else {
 		r0 = ret.Get(0).(params.Instance)
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, instanceName)
+		r1 = rf(ctx, instanceNameOrID)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -2361,31 +2361,31 @@ func (_m *Store) GetInstanceByName(ctx context.Context, instanceName string) (pa
 	return r0, r1
 }
 
-// Store_GetInstanceByName_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetInstanceByName'
-type Store_GetInstanceByName_Call struct {
+// Store_GetInstance_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetInstance'
+type Store_GetInstance_Call struct {
 	*mock.Call
 }
 
-// GetInstanceByName is a helper method to define mock.On call
+// GetInstance is a helper method to define mock.On call
 //   - ctx context.Context
-//   - instanceName string
-func (_e *Store_Expecter) GetInstanceByName(ctx interface{}, instanceName interface{}) *Store_GetInstanceByName_Call {
-	return &Store_GetInstanceByName_Call{Call: _e.mock.On("GetInstanceByName", ctx, instanceName)}
+//   - instanceNameOrID string
+func (_e *Store_Expecter) GetInstance(ctx interface{}, instanceNameOrID interface{}) *Store_GetInstance_Call {
+	return &Store_GetInstance_Call{Call: _e.mock.On("GetInstance", ctx, instanceNameOrID)}
 }
 
-func (_c *Store_GetInstanceByName_Call) Run(run func(ctx context.Context, instanceName string)) *Store_GetInstanceByName_Call {
+func (_c *Store_GetInstance_Call) Run(run func(ctx context.Context, instanceNameOrID string)) *Store_GetInstance_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(string))
 	})
 	return _c
 }
 
-func (_c *Store_GetInstanceByName_Call) Return(_a0 params.Instance, _a1 error) *Store_GetInstanceByName_Call {
+func (_c *Store_GetInstance_Call) Return(_a0 params.Instance, _a1 error) *Store_GetInstance_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *Store_GetInstanceByName_Call) RunAndReturn(run func(context.Context, string) (params.Instance, error)) *Store_GetInstanceByName_Call {
+func (_c *Store_GetInstance_Call) RunAndReturn(run func(context.Context, string) (params.Instance, error)) *Store_GetInstance_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2615,64 +2615,6 @@ func (_c *Store_GetPoolByID_Call) Return(_a0 params.Pool, _a1 error) *Store_GetP
 }
 
 func (_c *Store_GetPoolByID_Call) RunAndReturn(run func(context.Context, string) (params.Pool, error)) *Store_GetPoolByID_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetPoolInstanceByName provides a mock function with given fields: ctx, poolID, instanceName
-func (_m *Store) GetPoolInstanceByName(ctx context.Context, poolID string, instanceName string) (params.Instance, error) {
-	ret := _m.Called(ctx, poolID, instanceName)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetPoolInstanceByName")
-	}
-
-	var r0 params.Instance
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) (params.Instance, error)); ok {
-		return rf(ctx, poolID, instanceName)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, string) params.Instance); ok {
-		r0 = rf(ctx, poolID, instanceName)
-	} else {
-		r0 = ret.Get(0).(params.Instance)
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
-		r1 = rf(ctx, poolID, instanceName)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// Store_GetPoolInstanceByName_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetPoolInstanceByName'
-type Store_GetPoolInstanceByName_Call struct {
-	*mock.Call
-}
-
-// GetPoolInstanceByName is a helper method to define mock.On call
-//   - ctx context.Context
-//   - poolID string
-//   - instanceName string
-func (_e *Store_Expecter) GetPoolInstanceByName(ctx interface{}, poolID interface{}, instanceName interface{}) *Store_GetPoolInstanceByName_Call {
-	return &Store_GetPoolInstanceByName_Call{Call: _e.mock.On("GetPoolInstanceByName", ctx, poolID, instanceName)}
-}
-
-func (_c *Store_GetPoolInstanceByName_Call) Run(run func(ctx context.Context, poolID string, instanceName string)) *Store_GetPoolInstanceByName_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(string))
-	})
-	return _c
-}
-
-func (_c *Store_GetPoolInstanceByName_Call) Return(_a0 params.Instance, _a1 error) *Store_GetPoolInstanceByName_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *Store_GetPoolInstanceByName_Call) RunAndReturn(run func(context.Context, string, string) (params.Instance, error)) *Store_GetPoolInstanceByName_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -4835,9 +4777,9 @@ func (_c *Store_UpdateGithubEndpoint_Call) RunAndReturn(run func(context.Context
 	return _c
 }
 
-// UpdateInstance provides a mock function with given fields: ctx, instanceName, param
-func (_m *Store) UpdateInstance(ctx context.Context, instanceName string, param params.UpdateInstanceParams) (params.Instance, error) {
-	ret := _m.Called(ctx, instanceName, param)
+// UpdateInstance provides a mock function with given fields: ctx, instanceNameOrID, param
+func (_m *Store) UpdateInstance(ctx context.Context, instanceNameOrID string, param params.UpdateInstanceParams) (params.Instance, error) {
+	ret := _m.Called(ctx, instanceNameOrID, param)
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateInstance")
@@ -4846,16 +4788,16 @@ func (_m *Store) UpdateInstance(ctx context.Context, instanceName string, param 
 	var r0 params.Instance
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, string, params.UpdateInstanceParams) (params.Instance, error)); ok {
-		return rf(ctx, instanceName, param)
+		return rf(ctx, instanceNameOrID, param)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, string, params.UpdateInstanceParams) params.Instance); ok {
-		r0 = rf(ctx, instanceName, param)
+		r0 = rf(ctx, instanceNameOrID, param)
 	} else {
 		r0 = ret.Get(0).(params.Instance)
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, string, params.UpdateInstanceParams) error); ok {
-		r1 = rf(ctx, instanceName, param)
+		r1 = rf(ctx, instanceNameOrID, param)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -4870,13 +4812,13 @@ type Store_UpdateInstance_Call struct {
 
 // UpdateInstance is a helper method to define mock.On call
 //   - ctx context.Context
-//   - instanceName string
+//   - instanceNameOrID string
 //   - param params.UpdateInstanceParams
-func (_e *Store_Expecter) UpdateInstance(ctx interface{}, instanceName interface{}, param interface{}) *Store_UpdateInstance_Call {
-	return &Store_UpdateInstance_Call{Call: _e.mock.On("UpdateInstance", ctx, instanceName, param)}
+func (_e *Store_Expecter) UpdateInstance(ctx interface{}, instanceNameOrID interface{}, param interface{}) *Store_UpdateInstance_Call {
+	return &Store_UpdateInstance_Call{Call: _e.mock.On("UpdateInstance", ctx, instanceNameOrID, param)}
 }
 
-func (_c *Store_UpdateInstance_Call) Run(run func(ctx context.Context, instanceName string, param params.UpdateInstanceParams)) *Store_UpdateInstance_Call {
+func (_c *Store_UpdateInstance_Call) Run(run func(ctx context.Context, instanceNameOrID string, param params.UpdateInstanceParams)) *Store_UpdateInstance_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(string), args[2].(params.UpdateInstanceParams))
 	})
