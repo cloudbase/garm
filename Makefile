@@ -6,7 +6,6 @@ export SHELLOPTS:=$(if $(SHELLOPTS),$(SHELLOPTS):)pipefail:errexit
 GEN_PASSWORD=$(shell (/usr/bin/apg -n1 -m32))
 IMAGE_TAG = garm-build
 
-HAS_TAILWINDCSS=$(shell (which tailwindcss || echo "no"))
 IMAGE_BUILDER=$(shell (which docker || which podman))
 IS_PODMAN=$(shell (($(IMAGE_BUILDER) --version | grep -q podman) && echo "yes" || echo "no"))
 USER_ID=$(if $(filter yes,$(IS_PODMAN)),0,$(shell id -u))
@@ -67,7 +66,6 @@ build-webui:
 generate: ## Run go generate after checking required tools are in PATH
 	@echo Checking required tools...
 	@which openapi-generator-cli > /dev/null || (echo "Error: openapi-generator-cli not found in PATH" && exit 1)
-	@which tailwindcss > /dev/null || (echo "Error: tailwindcss not found in PATH" && exit 1)
 	@echo Running go generate
 	@$(GO) generate ./...
 
