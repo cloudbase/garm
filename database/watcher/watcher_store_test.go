@@ -50,12 +50,12 @@ func (s *WatcherStoreTestSuite) TestJobWatcher() {
 	consumeEvents(consumer)
 
 	jobParams := params.Job{
-		ID:         1,
-		RunID:      2,
-		Action:     "test-action",
-		Conclusion: "started",
-		Status:     "in_progress",
-		Name:       "test-job",
+		WorkflowJobID: 2,
+		RunID:         2,
+		Action:        "test-action",
+		Conclusion:    "started",
+		Status:        "in_progress",
+		Name:          "test-job",
 	}
 
 	job, err := s.store.CreateOrUpdateJob(s.ctx, jobParams)
@@ -76,8 +76,8 @@ func (s *WatcherStoreTestSuite) TestJobWatcher() {
 		s.T().Fatal("expected payload not received")
 	}
 
-	jobParams.Conclusion = "success"
-	updatedJob, err := s.store.CreateOrUpdateJob(s.ctx, jobParams)
+	job.Conclusion = "success"
+	updatedJob, err := s.store.CreateOrUpdateJob(s.ctx, job)
 	s.Require().NoError(err)
 
 	select {
@@ -94,7 +94,7 @@ func (s *WatcherStoreTestSuite) TestJobWatcher() {
 	entityID, err := uuid.NewUUID()
 	s.Require().NoError(err)
 
-	err = s.store.LockJob(s.ctx, updatedJob.ID, entityID.String())
+	err = s.store.LockJob(s.ctx, updatedJob.WorkflowJobID, entityID.String())
 	s.Require().NoError(err)
 
 	select {
@@ -110,7 +110,7 @@ func (s *WatcherStoreTestSuite) TestJobWatcher() {
 		s.T().Fatal("expected payload not received")
 	}
 
-	err = s.store.UnlockJob(s.ctx, updatedJob.ID, entityID.String())
+	err = s.store.UnlockJob(s.ctx, updatedJob.WorkflowJobID, entityID.String())
 	s.Require().NoError(err)
 
 	select {
@@ -134,7 +134,7 @@ func (s *WatcherStoreTestSuite) TestJobWatcher() {
 	// We don't care about the update event here.
 	consumeEvents(consumer)
 
-	err = s.store.BreakLockJobIsQueued(s.ctx, updatedJob.ID)
+	err = s.store.BreakLockJobIsQueued(s.ctx, updatedJob.WorkflowJobID)
 	s.Require().NoError(err)
 
 	select {

@@ -248,7 +248,7 @@ func (s *sqlDatabase) CreateOrUpdateJob(ctx context.Context, job params.Job) (pa
 	var err error
 
 	searchField := "workflow_job_id = ?"
-	var searchVal any = job.ID
+	var searchVal any = job.WorkflowJobID
 	if job.ScaleSetJobID != "" {
 		searchField = "scale_set_job_id = ?"
 		searchVal = job.ScaleSetJobID
