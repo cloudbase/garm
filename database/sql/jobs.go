@@ -79,7 +79,7 @@ func (s *sqlDatabase) paramsJobToWorkflowJob(ctx context.Context, job params.Job
 
 	workflofJob := WorkflowJob{
 		ScaleSetJobID:   job.ScaleSetJobID,
-		WorkflowJobID:   job.ID,
+		WorkflowJobID:   job.WorkflowJobID,
 		RunID:           job.RunID,
 		Action:          job.Action,
 		Status:          job.Status,
@@ -149,7 +149,7 @@ func (s *sqlDatabase) LockJob(_ context.Context, jobID int64, entityID string) e
 		return fmt.Errorf("error parsing entity id: %w", err)
 	}
 	var workflowJob WorkflowJob
-	q := s.conn.Preload("Instance").Where("id = ?", jobID).First(&workflowJob)
+	q := s.conn.Preload("Instance").Where("workflow_job_id = ?", jobID).First(&workflowJob)
 
 	if q.Error != nil {
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
@@ -248,7 +248,7 @@ func (s *sqlDatabase) CreateOrUpdateJob(ctx context.Context, job params.Job) (pa
 	var err error
 
 	searchField := "workflow_job_id = ?"
-	var searchVal any = job.ID
+	var searchVal any = job.WorkflowJobID
 	if job.ScaleSetJobID != "" {
 		searchField = "scale_set_job_id = ?"
 		searchVal = job.ScaleSetJobID
