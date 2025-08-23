@@ -225,13 +225,10 @@ func (r *Runner) CreateEntityScaleSet(ctx context.Context, entityType params.For
 	if err != nil {
 		return params.ScaleSet{}, fmt.Errorf("error getting scaleset client: %w", err)
 	}
-	var runnerGroupID int64 = 1
-	if param.GitHubRunnerGroup != "Default" {
-		runnerGroup, err := scalesetCli.GetRunnerGroupByName(ctx, param.GitHubRunnerGroup)
-		if err != nil {
-			return params.ScaleSet{}, fmt.Errorf("error getting runner group: %w", err)
-		}
-		runnerGroupID = runnerGroup.ID
+
+	runnerGroupID, err := ghCli.GetEntityRunnerGroupIDByName(ctx, param.GitHubRunnerGroup)
+	if err != nil {
+		return params.ScaleSet{}, fmt.Errorf("failed to get github runner group for entity %s: %w", entity.ID, err)
 	}
 
 	createParam := &params.RunnerScaleSet{

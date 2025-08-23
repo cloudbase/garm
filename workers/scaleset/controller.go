@@ -33,7 +33,10 @@ func NewController(ctx context.Context, store dbCommon.Store, entity params.Forg
 
 	ctx = garmUtil.WithSlogContext(
 		ctx,
-		slog.Any("worker", consumerID))
+		slog.Any("worker", consumerID),
+		slog.Any("entity", entity.String()),
+		slog.Any("endpoint", entity.Credentials.Endpoint),
+	)
 
 	return &Controller{
 		ctx:        ctx,

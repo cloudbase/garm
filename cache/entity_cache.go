@@ -15,6 +15,7 @@ package cache
 
 import (
 	"sync"
+	"time"
 
 	"github.com/cloudbase/garm/params"
 )
@@ -28,10 +29,16 @@ func init() {
 	entityCache = ghEntityCache
 }
 
+type RunnerGroupEntry struct {
+	RunnerGroupID int64
+	time          time.Time
+}
+
 type EntityItem struct {
-	Entity    params.ForgeEntity
-	Pools     map[string]params.Pool
-	ScaleSets map[uint]params.ScaleSet
+	Entity       params.ForgeEntity
+	Pools        map[string]params.Pool
+	ScaleSets    map[uint]params.ScaleSet
+	RunnerGroups map[string]RunnerGroupEntry
 }
 
 type EntityCache struct {
@@ -80,9 +87,10 @@ func (e *EntityCache) SetEntity(entity params.ForgeEntity) {
 	cache, ok := e.entities[entity.ID]
 	if !ok {
 		e.entities[entity.ID] = EntityItem{
-			Entity:    entity,
-			Pools:     make(map[string]params.Pool),
-			ScaleSets: make(map[uint]params.ScaleSet),
+			Entity:       entity,
+			Pools:        make(map[string]params.Pool),
+			ScaleSets:    make(map[uint]params.ScaleSet),
+			RunnerGroups: make(map[string]RunnerGroupEntry),
 		}
 		return
 	}
@@ -312,6 +320,42 @@ func (e *EntityCache) GetAllScaleSets() []params.ScaleSet {
 	}
 	sortByID(scaleSets)
 	return scaleSets
+}
+
+func (e *EntityCache) SetEntityRunnerGroup(entityID, runnerGroupName string, runnerGroupID int64) {
+	e.mux.Lock()
+	defer e.mux.Unlock()
+
+	if _, ok := e.entities[entityID]; ok {
+		e.entities[entityID].RunnerGroups[runnerGroupName] = RunnerGroupEntry{
+			RunnerGroupID: runnerGroupID,
+			time:          time.Now().UTC(),
+		}
+	}
+}
+
+func (e *EntityCache) GetEntityRunnerGroup(entityID, runnerGroupName string) (int64, bool) {
+	e.mux.Lock()
+	defer e.mux.Unlock()
+
+	if _, ok := e.entities[entityID]; ok {
+		if runnerGroup, ok := e.entities[entityID].RunnerGroups[runnerGroupName]; ok {
+			if time.Now().UTC().After(runnerGroup.time.Add(1 * time.Hour)) {
+				delete(e.entities[entityID].RunnerGroups, runnerGroupName)
+				return 0, false
+			}
+			return runnerGroup.RunnerGroupID, true
+		}
+	}
+	return 0, false
+}
+
+func SetEntityRunnerGroup(entityID, runnerGroupName string, runnerGroupID int64) {
+	entityCache.SetEntityRunnerGroup(entityID, runnerGroupName, runnerGroupID)
+}
+
+func GetEntityRunnerGroup(entityID, runnerGroupName string) (int64, bool) {
+	return entityCache.GetEntityRunnerGroup(entityID, runnerGroupName)
 }
 
 func GetEntity(entityID string) (params.ForgeEntity, bool) {

@@ -68,6 +68,74 @@ type Worker struct {
 	quit    chan struct{}
 }
 
+func (w *Worker) ensureScaleSetInGitHub() error {
+	entity, err := w.scaleSet.GetEntity()
+	if err != nil {
+		return fmt.Errorf("failed to get entity: %w", err)
+	}
+	cli, err := w.GetScaleSetClient()
+	if err != nil {
+		return fmt.Errorf("failed to get scaleset client: %w", err)
+	}
+
+	ghCli, err := cli.GetGithubClient()
+	if err != nil {
+		return fmt.Errorf("failed to get github client: %w", err)
+	}
+
+	rgID, err := ghCli.GetEntityRunnerGroupIDByName(w.ctx, w.scaleSet.GitHubRunnerGroup)
+	if err != nil {
+		return fmt.Errorf("failed to get github runner group for entity %s: %w", entity.ID, err)
+	}
+	scaleSet, err := cli.GetRunnerScaleSetByNameAndRunnerGroup(w.ctx, int(rgID), w.scaleSet.Name)
+	if err == nil {
+		// The scale set exists
+		if scaleSet.ID != w.scaleSet.ScaleSetID {
+			// The scale set exists in github, but the ID differs from what we know to be true.
+			// It is possible that the scale set is being managed by some other auto scaler.
+			// We error here, as there is no way to listen on a scale set that already has a listener
+			// or is being managed by something else.
+			return fmt.Errorf("scale set already exists in github and it differs from the ID we know (github: %d vs local: %d)", scaleSet.ID, w.scaleSet.ScaleSetID)
+		}
+		return nil
+	}
+	if !errors.Is(err, runnerErrors.ErrNotFound) {
+		return fmt.Errorf("failed to get scale set: %w", err)
+	}
+
+	createScaleSetParams := &params.RunnerScaleSet{
+		Name:          w.scaleSet.Name,
+		RunnerGroupID: rgID,
+		Labels: []params.Label{
+			{
+				Name: w.scaleSet.Name,
+				Type: "System",
+			},
+		},
+		RunnerSetting: params.RunnerSetting{
+			Ephemeral:     true,
+			DisableUpdate: w.scaleSet.DisableUpdate,
+		},
+		Enabled: &w.scaleSet.Enabled,
+	}
+	runnerScaleSet, err := cli.CreateRunnerScaleSet(w.ctx, createScaleSetParams)
+	if err != nil {
+		return fmt.Errorf("error creating runner scale set: %w", err)
+	}
+
+	// update the DB scale set
+	updateParams := params.UpdateScaleSetParams{
+		ScaleSetID: runnerScaleSet.ID,
+	}
+	_, err = w.store.UpdateEntityScaleSet(w.ctx, entity, w.scaleSet.ID, updateParams, nil)
+	if err != nil {
+		return fmt.Errorf("failed to update scale set: %w", err)
+	}
+	w.scaleSet.ScaleSetID = runnerScaleSet.ID
+
+	return nil
+}
+
 func (w *Worker) Stop() error {
 	slog.DebugContext(w.ctx, "stopping scale set worker", "scale_set", w.consumerID)
 	w.mux.Lock()
@@ -86,6 +154,13 @@ func (w *Worker) Stop() error {
 	return nil
 }
 
+func (w *Worker) IsRunning() bool {
+	w.mux.Lock()
+	defer w.mux.Unlock()
+
+	return w.running
+}
+
 func (w *Worker) Start() (err error) {
 	slog.DebugContext(w.ctx, "starting scale set worker", "scale_set", w.consumerID)
 	w.mux.Lock()
@@ -101,8 +176,8 @@ func (w *Worker) Start() (err error) {
 	}
 
 	for _, instance := range instances {
-		switch {
-		case instance.Status == commonParams.InstanceCreating:
+		switch instance.Status {
+		case commonParams.InstanceCreating:
 			// We're just starting up. We found an instance stuck in creating.
 			// When a provider creates an instance, it sets the db instance to
 			// creating and then issues an API call to the IaaS to create the
@@ -177,7 +252,7 @@ func (w *Worker) Start() (err error) {
 					return fmt.Errorf("updating runner %s: %w", instance.Name, err)
 				}
 			}
-		case instance.Status == commonParams.InstanceDeleting:
+		case commonParams.InstanceDeleting:
 			// Set the instance in deleting. It is assumed that the runner was already
 			// removed from github either by github or by garm. Deleting status indicates
 			// that it was already being handled by the provider. There should be no entry on
@@ -194,7 +269,7 @@ func (w *Worker) Start() (err error) {
 					return fmt.Errorf("updating runner %s: %w", instance.Name, err)
 				}
 			}
-		case instance.Status == commonParams.InstanceDeleted:
+		case commonParams.InstanceDeleted:
 			if err := w.handleInstanceCleanup(instance); err != nil {
 				locking.Unlock(instance.Name, false)
 				return fmt.Errorf("failed to remove database entry for %s: %w", instance.Name, err)
@@ -203,6 +278,10 @@ func (w *Worker) Start() (err error) {
 		}
 		w.runners[instance.ID] = instance
 		locking.Unlock(instance.Name, false)
+	}
+
+	if err := w.ensureScaleSetInGitHub(); err != nil {
+		return fmt.Errorf("failed to ensure scale set: %w", err)
 	}
 
 	consumer, err := watcher.RegisterConsumer(

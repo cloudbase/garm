@@ -385,6 +385,63 @@ func (_c *GithubEntityOperations_GetEntityJITConfig_Call) RunAndReturn(run func(
 	return _c
 }
 
+// GetEntityRunnerGroupIDByName provides a mock function with given fields: ctx, runnerGroupName
+func (_m *GithubEntityOperations) GetEntityRunnerGroupIDByName(ctx context.Context, runnerGroupName string) (int64, error) {
+	ret := _m.Called(ctx, runnerGroupName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetEntityRunnerGroupIDByName")
+	}
+
+	var r0 int64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (int64, error)); ok {
+		return rf(ctx, runnerGroupName)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) int64); ok {
+		r0 = rf(ctx, runnerGroupName)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, runnerGroupName)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GithubEntityOperations_GetEntityRunnerGroupIDByName_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetEntityRunnerGroupIDByName'
+type GithubEntityOperations_GetEntityRunnerGroupIDByName_Call struct {
+	*mock.Call
+}
+
+// GetEntityRunnerGroupIDByName is a helper method to define mock.On call
+//   - ctx context.Context
+//   - runnerGroupName string
+func (_e *GithubEntityOperations_Expecter) GetEntityRunnerGroupIDByName(ctx interface{}, runnerGroupName interface{}) *GithubEntityOperations_GetEntityRunnerGroupIDByName_Call {
+	return &GithubEntityOperations_GetEntityRunnerGroupIDByName_Call{Call: _e.mock.On("GetEntityRunnerGroupIDByName", ctx, runnerGroupName)}
+}
+
+func (_c *GithubEntityOperations_GetEntityRunnerGroupIDByName_Call) Run(run func(ctx context.Context, runnerGroupName string)) *GithubEntityOperations_GetEntityRunnerGroupIDByName_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *GithubEntityOperations_GetEntityRunnerGroupIDByName_Call) Return(_a0 int64, _a1 error) *GithubEntityOperations_GetEntityRunnerGroupIDByName_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *GithubEntityOperations_GetEntityRunnerGroupIDByName_Call) RunAndReturn(run func(context.Context, string) (int64, error)) *GithubEntityOperations_GetEntityRunnerGroupIDByName_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GithubBaseURL provides a mock function with no fields
 func (_m *GithubEntityOperations) GithubBaseURL() *url.URL {
 	ret := _m.Called()

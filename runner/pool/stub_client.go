@@ -82,3 +82,7 @@ func (s *stubGithubClient) GithubBaseURL() *url.URL {
 func (s *stubGithubClient) RateLimit(_ context.Context) (*github.RateLimits, error) {
 	return nil, s.err
 }
+
+func (s *stubGithubClient) GetEntityRunnerGroupIDByName(_ context.Context, _ string) (int64, error) {
+	return 0, s.err
+}

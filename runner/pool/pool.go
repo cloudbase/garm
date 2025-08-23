@@ -771,8 +771,7 @@ func (r *basePoolManager) AddRunner(ctx context.Context, poolID string, aditiona
 		// Attempt to create JIT config
 		jitConfig, runner, err = r.ghcli.GetEntityJITConfig(ctx, name, pool, labels)
 		if err != nil {
-			slog.With(slog.Any("error", err)).ErrorContext(
-				ctx, "failed to get JIT config, falling back to registration token")
+			return fmt.Errorf("failed to generate JIT config: %w", err)
 		}
 	}
 
