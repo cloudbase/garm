@@ -35,6 +35,7 @@ type GithubEntityOperations interface {
 	RateLimit(ctx context.Context) (*github.RateLimits, error)
 	CreateEntityRegistrationToken(ctx context.Context) (*github.RegistrationToken, *github.Response, error)
 	GetEntityJITConfig(ctx context.Context, instance string, pool params.Pool, labels []string) (jitConfigMap map[string]string, runner *github.Runner, err error)
+	GetEntityRunnerGroupIDByName(ctx context.Context, runnerGroupName string) (int64, error)
 
 	// GetEntity returns the GitHub entity for which the github client was instanciated.
 	GetEntity() params.ForgeEntity

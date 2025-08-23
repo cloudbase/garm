@@ -294,6 +294,10 @@ func (s *sqlDatabase) updateScaleSet(tx *gorm.DB, scaleSet ScaleSet, param param
 		scaleSet.ExtendedState = *param.ExtendedState
 	}
 
+	if param.ScaleSetID != 0 {
+		scaleSet.ScaleSetID = param.ScaleSetID
+	}
+
 	if param.Name != "" {
 		scaleSet.Name = param.Name
 	}

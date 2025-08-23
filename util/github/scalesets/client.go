@@ -57,6 +57,15 @@ func (s *ScaleSetClient) SetGithubClient(cli common.GithubClient) {
 	s.ghCli = cli
 }
 
+func (s *ScaleSetClient) GetGithubClient() (common.GithubClient, error) {
+	s.mux.Lock()
+	defer s.mux.Unlock()
+	if s.ghCli == nil {
+		return nil, fmt.Errorf("github client is not set in scaleset client")
+	}
+	return s.ghCli, nil
+}
+
 func (s *ScaleSetClient) Do(req *http.Request) (*http.Response, error) {
 	if s.httpClient == nil {
 		return nil, fmt.Errorf("http client is not initialized")

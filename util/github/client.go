@@ -28,6 +28,7 @@ import (
 	"github.com/google/go-github/v72/github"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	"github.com/cloudbase/garm/cache"
 	"github.com/cloudbase/garm/metrics"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
@@ -419,22 +420,35 @@ func (g *githubClient) getEnterpriseRunnerGroupIDByName(ctx context.Context, ent
 	return 0, runnerErrors.NewNotFoundError("runner group not found")
 }
 
-func (g *githubClient) GetEntityJITConfig(ctx context.Context, instance string, pool params.Pool, labels []string) (jitConfigMap map[string]string, runner *github.Runner, err error) {
-	// If no runner group is set, use the default runner group ID. This is also the default for
-	// repository level runners.
+func (g *githubClient) GetEntityRunnerGroupIDByName(ctx context.Context, runnerGroupName string) (int64, error) {
 	var rgID int64 = 1
+	var ok bool
+	var err error
+	// attempt to get the runner group ID from cache. Cache will invalidate after 1 hour.
+	if runnerGroupName != "" && !strings.EqualFold(runnerGroupName, "default") {
+		rgID, ok = cache.GetEntityRunnerGroup(g.entity.ID, runnerGroupName)
+		if !ok {
+			switch g.entity.EntityType {
+			case params.ForgeEntityTypeOrganization:
+				rgID, err = g.getOrganizationRunnerGroupIDByName(ctx, g.entity, runnerGroupName)
+			case params.ForgeEntityTypeEnterprise:
+				rgID, err = g.getEnterpriseRunnerGroupIDByName(ctx, g.entity, runnerGroupName)
+			}
 
-	if pool.GitHubRunnerGroup != "" {
-		switch g.entity.EntityType {
-		case params.ForgeEntityTypeOrganization:
-			rgID, err = g.getOrganizationRunnerGroupIDByName(ctx, g.entity, pool.GitHubRunnerGroup)
-		case params.ForgeEntityTypeEnterprise:
-			rgID, err = g.getEnterpriseRunnerGroupIDByName(ctx, g.entity, pool.GitHubRunnerGroup)
+			if err != nil {
+				return 0, fmt.Errorf("getting runner group ID: %w", err)
+			}
 		}
+		// set cache. Avoid getting the same runner group for more than once an hour.
+		cache.SetEntityRunnerGroup(g.entity.ID, runnerGroupName, rgID)
+	}
+	return rgID, nil
+}
 
-		if err != nil {
-			return nil, nil, fmt.Errorf("getting runner group ID: %w", err)
-		}
+func (g *githubClient) GetEntityJITConfig(ctx context.Context, instance string, pool params.Pool, labels []string) (jitConfigMap map[string]string, runner *github.Runner, err error) {
+	rgID, err := g.GetEntityRunnerGroupIDByName(ctx, pool.GitHubRunnerGroup)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get runner group: %w", err)
 	}
 
 	req := github.GenerateJITConfigRequest{

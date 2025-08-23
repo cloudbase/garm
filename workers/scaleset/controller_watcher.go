@@ -65,6 +65,22 @@ func (c *Controller) handleScaleSet(event dbCommon.ChangePayload) {
 	}
 }
 
+func (c *Controller) createScaleSetWorker(scaleSet params.ScaleSet) (*Worker, error) {
+	provider, ok := c.providers[scaleSet.ProviderName]
+	if !ok {
+		// Providers are currently static, set in the config and cannot be updated without a restart.
+		// ScaleSets and pools also do not allow updating the provider. This condition is not recoverable
+		// without a restart, so we don't need to instantiate a worker for this scale set.
+		return nil, fmt.Errorf("provider %s not found for scale set %s", scaleSet.ProviderName, scaleSet.Name)
+	}
+
+	worker, err := NewWorker(c.ctx, c.store, scaleSet, provider)
+	if err != nil {
+		return nil, fmt.Errorf("creating scale set worker: %w", err)
+	}
+	return worker, nil
+}
+
 func (c *Controller) handleScaleSetCreateOperation(sSet params.ScaleSet) error {
 	c.mux.Lock()
 	defer c.mux.Unlock()
@@ -74,17 +90,9 @@ func (c *Controller) handleScaleSetCreateOperation(sSet params.ScaleSet) error {
 		return nil
 	}
 
-	provider, ok := c.providers[sSet.ProviderName]
-	if !ok {
-		// Providers are currently static, set in the config and cannot be updated without a restart.
-		// ScaleSets and pools also do not allow updating the provider. This condition is not recoverable
-		// without a restart, so we don't need to instantiate a worker for this scale set.
-		return fmt.Errorf("provider %s not found for scale set %s", sSet.ProviderName, sSet.Name)
-	}
-
-	worker, err := NewWorker(c.ctx, c.store, sSet, provider)
+	worker, err := c.createScaleSetWorker(sSet)
 	if err != nil {
-		return fmt.Errorf("creating scale set worker: %w", err)
+		return fmt.Errorf("error creating scale set worker: %w", err)
 	}
 	if err := worker.Start(); err != nil {
 		// The Start() function should only return an error if an unrecoverable error occurs.
@@ -92,7 +100,7 @@ func (c *Controller) handleScaleSetCreateOperation(sSet params.ScaleSet) error {
 		// to retry fixing the condition. For example, not being able to retrieve tools due to bad
 		// credentials should not stop the worker. The credentials can be fixed and the worker
 		// can continue to work.
-		return fmt.Errorf("starting scale set worker: %w", err)
+		return fmt.Errorf("error starting scale set worker: %w", err)
 	}
 	c.ScaleSets[sSet.ID] = &scaleSet{
 		scaleSet: sSet,
@@ -130,6 +138,19 @@ func (c *Controller) handleScaleSetUpdateOperation(sSet params.ScaleSet) error {
 		// fixing the reason for the failure.
 		return c.handleScaleSetCreateOperation(sSet)
 	}
+	if set.worker != nil && !set.worker.IsRunning() {
+		worker, err := c.createScaleSetWorker(sSet)
+		if err != nil {
+			return fmt.Errorf("creating scale set worker: %w", err)
+		}
+		set.worker = worker
+		defer func() {
+			if err := worker.Start(); err != nil {
+				slog.ErrorContext(c.ctx, "failed to start worker", "error", err, "scaleset", sSet.Name)
+			}
+		}()
+	}
+
 	set.scaleSet = sSet
 	c.ScaleSets[sSet.ID] = set
 	// We let the watcher in the scale set worker handle the update operation.

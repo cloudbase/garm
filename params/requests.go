@@ -636,6 +636,7 @@ type UpdateScaleSetParams struct {
 	GitHubRunnerGroup *string        `json:"runner_group,omitempty"`
 	State             *ScaleSetState `json:"state"`
 	ExtendedState     *string        `json:"extended_state"`
+	ScaleSetID        int            `json:"-"`
 }
 
 // swagger:model CreateGiteaEndpointParams
