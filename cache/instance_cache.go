@@ -98,6 +98,22 @@ func (i *InstanceCache) GetInstancesForScaleSet(scaleSetID uint) []params.Instan
 	return filteredInstances
 }
 
+func (i *InstanceCache) GetEntityInstances(entityID string) []params.Instance {
+	pools := GetEntityPools(entityID)
+	poolsAsMap := map[string]bool{}
+	for _, pool := range pools {
+		poolsAsMap[pool.ID] = true
+	}
+
+	ret := []params.Instance{}
+	for _, val := range i.GetAllInstances() {
+		if _, ok := poolsAsMap[val.PoolID]; ok {
+			ret = append(ret, val)
+		}
+	}
+	return ret
+}
+
 func SetInstanceCache(instance params.Instance) {
 	instanceCache.SetInstance(instance)
 }
@@ -120,4 +136,8 @@ func GetInstancesForPool(poolID string) []params.Instance {
 
 func GetInstancesForScaleSet(scaleSetID uint) []params.Instance {
 	return instanceCache.GetInstancesForScaleSet(scaleSetID)
+}
+
+func GetEntityInstances(entityID string) []params.Instance {
+	return instanceCache.GetEntityInstances(entityID)
 }

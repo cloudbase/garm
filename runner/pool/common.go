@@ -14,79 +14,15 @@
 
 package pool
 
-import (
-	"context"
-	"fmt"
-	"net/http"
-	"net/url"
-	"strings"
-
-	"github.com/google/go-github/v72/github"
-
-	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
-	"github.com/cloudbase/garm/params"
-)
-
-func validateHookRequest(controllerID, baseURL string, allHooks []*github.Hook, req *github.Hook) error {
-	parsed, err := url.Parse(baseURL)
-	if err != nil {
-		return fmt.Errorf("error parsing webhook url: %w", err)
-	}
-
-	partialMatches := []string{}
-	for _, hook := range allHooks {
-		hookURL := strings.ToLower(hook.Config.GetURL())
-		if hookURL == "" {
-			continue
-		}
-
-		if hook.Config.GetURL() == req.Config.GetURL() {
-			return runnerErrors.NewConflictError("hook already installed")
-		} else if strings.Contains(hookURL, controllerID) || strings.Contains(hookURL, parsed.Hostname()) {
-			partialMatches = append(partialMatches, hook.Config.GetURL())
-		}
-	}
-
-	if len(partialMatches) > 0 {
-		return runnerErrors.NewConflictError("a webhook containing the controller ID or hostname of this contreoller is already installed on this repository")
-	}
-
-	return nil
+type RunnerLabels struct {
+	ID   int64  `json:"id,omitempty"`
+	Name string `json:"name,omitempty"`
+	Type string `json:"type,omitempty"`
 }
 
-func hookToParamsHookInfo(hook *github.Hook) params.HookInfo {
-	hookURL := hook.Config.GetURL()
-
-	insecureSSLConfig := hook.Config.GetInsecureSSL()
-	insecureSSL := insecureSSLConfig == "1"
-
-	return params.HookInfo{
-		ID:          *hook.ID,
-		URL:         hookURL,
-		Events:      hook.Events,
-		Active:      *hook.Active,
-		InsecureSSL: insecureSSL,
-	}
-}
-
-func (r *basePoolManager) listHooks(ctx context.Context) ([]*github.Hook, error) {
-	opts := github.ListOptions{
-		PerPage: 100,
-	}
-	var allHooks []*github.Hook
-	for {
-		hooks, ghResp, err := r.ghcli.ListEntityHooks(ctx, &opts)
-		if err != nil {
-			if ghResp != nil && ghResp.StatusCode == http.StatusNotFound {
-				return nil, runnerErrors.NewBadRequestError("repository not found or your PAT does not have access to manage webhooks")
-			}
-			return nil, fmt.Errorf("error fetching hooks: %w", err)
-		}
-		allHooks = append(allHooks, hooks...)
-		if ghResp.NextPage == 0 {
-			break
-		}
-		opts.Page = ghResp.NextPage
-	}
-	return allHooks, nil
+type forgeRunner struct {
+	ID     int64          `json:"id,omitempty"`
+	Name   string         `json:"name,omitempty"`
+	Status string         `json:"status,omitempty"`
+	Labels []RunnerLabels `json:"labels,omitempty"`
 }
