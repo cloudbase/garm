@@ -372,6 +372,13 @@ func main() {
 
 	<-ctx.Done()
 
+	slog.InfoContext(ctx, "shutting down http server")
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer shutdownCancel()
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "graceful api server shutdown failed")
+	}
+
 	if err := cacheWorker.Stop(); err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to stop credentials worker")
 	}
@@ -384,13 +391,6 @@ func main() {
 	slog.InfoContext(ctx, "shutting down provider worker")
 	if err := providerWorker.Stop(); err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to stop provider worker")
-	}
-
-	slog.InfoContext(ctx, "shutting down http server")
-	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 60*time.Second)
-	defer shutdownCancel()
-	if err := srv.Shutdown(shutdownCtx); err != nil {
-		slog.With(slog.Any("error", err)).ErrorContext(ctx, "graceful api server shutdown failed")
 	}
 
 	slog.With(slog.Any("error", err)).InfoContext(ctx, "waiting for runner to stop")

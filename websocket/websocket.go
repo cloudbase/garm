@@ -118,23 +118,17 @@ func (h *Hub) Unregister(client *Client) error {
 }
 
 func (h *Hub) Write(msg []byte) (int, error) {
-	h.mux.Lock()
-	if !h.running {
-		h.mux.Unlock()
-		return 0, fmt.Errorf("websocket writer is not running")
-	}
-	h.mux.Unlock()
-
 	tmp := make([]byte, len(msg))
 	copy(tmp, msg)
-	timer := time.NewTimer(5 * time.Second)
-	defer timer.Stop()
+
 	select {
-	case <-timer.C:
-		return 0, fmt.Errorf("timed out sending message to client")
 	case h.broadcast <- tmp:
+		return len(tmp), nil
+	case <-h.quit:
+		return 0, fmt.Errorf("websocket hub is shutting down")
+	default:
+		return 0, fmt.Errorf("failed to broadcast over websocket")
 	}
-	return len(tmp), nil
 }
 
 func (h *Hub) Start() error {
