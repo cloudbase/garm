@@ -44,6 +44,7 @@ import (
 	"github.com/cloudbase/garm/runner/common"
 	garmUtil "github.com/cloudbase/garm/util"
 	ghClient "github.com/cloudbase/garm/util/github"
+	"github.com/cloudbase/garm/util/github/scalesets"
 )
 
 var (
@@ -104,11 +105,19 @@ func NewEntityPoolManager(ctx context.Context, entity params.ForgeEntity, instan
 		return nil, fmt.Errorf("error creating backoff: %w", err)
 	}
 
+	var scaleSetCli *scalesets.ScaleSetClient
+	if entity.Credentials.ForgeType == params.GithubEndpointType {
+		scaleSetCli, err = scalesets.NewClient(ghc)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get scalesets client: %w", err)
+		}
+	}
 	repo := &basePoolManager{
 		ctx:                 ctx,
 		consumerID:          consumerID,
 		entity:              entity,
 		ghcli:               ghc,
+		scaleSetClient:      scaleSetCli,
 		controllerInfo:      controllerInfo,
 		instanceTokenGetter: instanceTokenGetter,
 
@@ -127,6 +136,7 @@ type basePoolManager struct {
 	consumerID          string
 	entity              params.ForgeEntity
 	ghcli               common.GithubClient
+	scaleSetClient      *scalesets.ScaleSetClient
 	controllerInfo      params.ControllerInfo
 	instanceTokenGetter auth.InstanceTokenGetter
 	consumer            dbCommon.Consumer
@@ -393,7 +403,7 @@ func (r *basePoolManager) updateTools() error {
 // happens, github will remove the ephemeral worker and send a webhook our way.
 // If we were offline and did not process the webhook, the instance will linger.
 // We need to remove it from the provider and database.
-func (r *basePoolManager) cleanupOrphanedProviderRunners(runners []*github.Runner) error {
+func (r *basePoolManager) cleanupOrphanedProviderRunners(runners []forgeRunner) error {
 	dbInstances, err := r.store.ListEntityInstances(r.ctx, r.entity)
 	if err != nil {
 		return fmt.Errorf("error fetching instances from db: %w", err)
@@ -404,10 +414,10 @@ func (r *basePoolManager) cleanupOrphanedProviderRunners(runners []*github.Runne
 		if !isManagedRunner(labelsFromRunner(run), r.controllerInfo.ControllerID.String()) {
 			slog.DebugContext(
 				r.ctx, "runner is not managed by a pool we manage",
-				"runner_name", run.GetName())
+				"runner_name", run.Name)
 			continue
 		}
-		runnerNames[*run.Name] = true
+		runnerNames[run.Name] = true
 	}
 
 	for _, instance := range dbInstances {
@@ -473,21 +483,21 @@ func (r *basePoolManager) cleanupOrphanedProviderRunners(runners []*github.Runne
 // reapTimedOutRunners will mark as pending_delete any runner that has a status
 // of "running" in the provider, but that has not registered with Github, and has
 // received no new updates in the configured timeout interval.
-func (r *basePoolManager) reapTimedOutRunners(runners []*github.Runner) error {
+func (r *basePoolManager) reapTimedOutRunners(runners []forgeRunner) error {
 	dbInstances, err := r.store.ListEntityInstances(r.ctx, r.entity)
 	if err != nil {
 		return fmt.Errorf("error fetching instances from db: %w", err)
 	}
 
-	runnersByName := map[string]*github.Runner{}
+	runnersByName := map[string]forgeRunner{}
 	for _, run := range runners {
 		if !isManagedRunner(labelsFromRunner(run), r.controllerInfo.ControllerID.String()) {
 			slog.DebugContext(
 				r.ctx, "runner is not managed by a pool we manage",
-				"runner_name", run.GetName())
+				"runner_name", run.Name)
 			continue
 		}
-		runnersByName[*run.Name] = run
+		runnersByName[run.Name] = run
 	}
 
 	for _, instance := range dbInstances {
@@ -521,7 +531,7 @@ func (r *basePoolManager) reapTimedOutRunners(runners []*github.Runner) error {
 		//   * The runner managed to join github, but the setup process failed later and the runner
 		//     never started on the instance.
 		//   * A JIT config was created, but the runner never joined github.
-		if runner, ok := runnersByName[instance.Name]; !ok || runner.GetStatus() == "offline" {
+		if runner, ok := runnersByName[instance.Name]; !ok || runner.Status == "offline" {
 			slog.InfoContext(
 				r.ctx, "reaping timed-out/failed runner",
 				"runner_name", instance.Name)
@@ -540,24 +550,24 @@ func (r *basePoolManager) reapTimedOutRunners(runners []*github.Runner) error {
 // as offline and for which we no longer have a local instance.
 // This may happen if someone manually deletes the instance in the provider. We need to
 // first remove the instance from github, and then from our database.
-func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner) error {
+func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []forgeRunner) error {
 	poolInstanceCache := map[string][]commonParams.ProviderInstance{}
 	g, ctx := errgroup.WithContext(r.ctx)
 	for _, runner := range runners {
 		if !isManagedRunner(labelsFromRunner(runner), r.controllerInfo.ControllerID.String()) {
 			slog.DebugContext(
 				r.ctx, "runner is not managed by a pool we manage",
-				"runner_name", runner.GetName())
+				"runner_name", runner.Name)
 			continue
 		}
 
-		status := runner.GetStatus()
+		status := runner.Status
 		if status != "offline" {
 			// Runner is online. Ignore it.
 			continue
 		}
 
-		dbInstance, err := r.store.GetInstance(r.ctx, *runner.Name)
+		dbInstance, err := r.store.GetInstance(r.ctx, runner.Name)
 		if err != nil {
 			if !errors.Is(err, runnerErrors.ErrNotFound) {
 				return fmt.Errorf("error fetching instance from DB: %w", err)
@@ -566,8 +576,8 @@ func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner)
 			// Previous forceful removal may have failed?
 			slog.InfoContext(
 				r.ctx, "Runner has no database entry in garm, removing from github",
-				"runner_name", runner.GetName())
-			if err := r.ghcli.RemoveEntityRunner(r.ctx, runner.GetID()); err != nil {
+				"runner_name", runner.Name)
+			if err := r.ghcli.RemoveEntityRunner(r.ctx, runner.ID); err != nil {
 				// Removed in the meantime?
 				if errors.Is(err, runnerErrors.ErrNotFound) {
 					continue
@@ -655,7 +665,7 @@ func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []*github.Runner)
 				slog.InfoContext(
 					r.ctx, "Runner instance is no longer on the provider, removing from github",
 					"runner_name", dbInstance.Name)
-				if err := r.ghcli.RemoveEntityRunner(r.ctx, runner.GetID()); err != nil {
+				if err := r.ghcli.RemoveEntityRunner(r.ctx, runner.ID); err != nil {
 					// Removed in the meantime?
 					if errors.Is(err, runnerErrors.ErrNotFound) {
 						slog.DebugContext(
@@ -767,8 +777,7 @@ func (r *basePoolManager) AddRunner(ctx context.Context, poolID string, aditiona
 	jitConfig := make(map[string]string)
 	var runner *github.Runner
 
-	if !provider.DisableJITConfig() {
-		// Attempt to create JIT config
+	if !provider.DisableJITConfig() && r.entity.Credentials.ForgeType != params.GiteaEndpointType {
 		jitConfig, runner, err = r.ghcli.GetEntityJITConfig(ctx, name, pool, labels)
 		if err != nil {
 			return fmt.Errorf("failed to generate JIT config: %w", err)
@@ -1606,7 +1615,7 @@ func (r *basePoolManager) runnerCleanup() (err error) {
 	return nil
 }
 
-func (r *basePoolManager) cleanupOrphanedRunners(runners []*github.Runner) error {
+func (r *basePoolManager) cleanupOrphanedRunners(runners []forgeRunner) error {
 	if err := r.cleanupOrphanedProviderRunners(runners); err != nil {
 		return fmt.Errorf("error cleaning orphaned instances: %w", err)
 	}
@@ -2012,32 +2021,6 @@ func (r *basePoolManager) FetchTools() ([]commonParams.RunnerApplicationDownload
 		ret = append(ret, commonParams.RunnerApplicationDownload(*tool))
 	}
 	return ret, nil
-}
-
-func (r *basePoolManager) GetGithubRunners() ([]*github.Runner, error) {
-	opts := github.ListRunnersOptions{
-		ListOptions: github.ListOptions{
-			PerPage: 100,
-		},
-	}
-	var allRunners []*github.Runner
-
-	for {
-		runners, ghResp, err := r.ghcli.ListEntityRunners(r.ctx, &opts)
-		if err != nil {
-			if ghResp != nil && ghResp.StatusCode == http.StatusUnauthorized {
-				return nil, runnerErrors.NewUnauthorizedError("error fetching runners")
-			}
-			return nil, fmt.Errorf("error fetching runners: %w", err)
-		}
-		allRunners = append(allRunners, runners.Runners...)
-		if ghResp.NextPage == 0 {
-			break
-		}
-		opts.Page = ghResp.NextPage
-	}
-
-	return allRunners, nil
 }
 
 func (r *basePoolManager) GetWebhookInfo(ctx context.Context) (params.HookInfo, error) {

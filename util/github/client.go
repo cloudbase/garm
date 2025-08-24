@@ -422,12 +422,19 @@ func (g *githubClient) getEnterpriseRunnerGroupIDByName(ctx context.Context, ent
 
 func (g *githubClient) GetEntityRunnerGroupIDByName(ctx context.Context, runnerGroupName string) (int64, error) {
 	var rgID int64 = 1
+
+	if g.entity.EntityType == params.ForgeEntityTypeRepository {
+		// This is a repository. Runner groups are supported at the org and
+		// enterprise levels. Return the default runner group id, early.
+		return rgID, nil
+	}
+
 	var ok bool
 	var err error
 	// attempt to get the runner group ID from cache. Cache will invalidate after 1 hour.
 	if runnerGroupName != "" && !strings.EqualFold(runnerGroupName, "default") {
 		rgID, ok = cache.GetEntityRunnerGroup(g.entity.ID, runnerGroupName)
-		if !ok {
+		if !ok || rgID == 0 {
 			switch g.entity.EntityType {
 			case params.ForgeEntityTypeOrganization:
 				rgID, err = g.getOrganizationRunnerGroupIDByName(ctx, g.entity, runnerGroupName)
@@ -450,7 +457,7 @@ func (g *githubClient) GetEntityJITConfig(ctx context.Context, instance string, 
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get runner group: %w", err)
 	}
-
+	slog.DebugContext(ctx, "using runner group", "group_name", pool.GitHubRunnerGroup, "runner_group_id", rgID)
 	req := github.GenerateJITConfigRequest{
 		Name:          instance,
 		RunnerGroupID: rgID,

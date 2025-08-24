@@ -26,8 +26,7 @@ import (
 const (
 	// These are duplicated until we decide if we move the pool manager to the new
 	// worker flow.
-	poolIDLabelprefix     = "runner-pool-id:"
-	controllerLabelPrefix = "runner-controller-id:"
+	poolIDLabelprefix = "runner-pool-id:"
 )
 
 func composeControllerWatcherFilters() dbCommon.PayloadFilterFunc {
