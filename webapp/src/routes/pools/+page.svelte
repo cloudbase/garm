@@ -47,14 +47,24 @@ import { EntityCell, EndpointCell, StatusCell, ActionsCell, GenericCell, PoolEnt
 		currentPage * perPage
 	);
 
-	async function handleCreatePool() {
-		// The actual creation is already handled by the modal
-		// This function is called after successful creation
-		toastStore.success(
-			'Pool Created',
-			'Pool has been created successfully.'
-		);
-		showCreateModal = false;
+	async function handleCreatePool(event: CustomEvent<CreatePoolParams>) {
+		try {
+			// For the global pools page, the modal itself should handle the API call
+			// since it knows which entity type and ID was selected
+			// We just need to show success and close the modal
+			toastStore.success(
+				'Pool Created',
+				'Pool has been created successfully.'
+			);
+			showCreateModal = false;
+		} catch (err) {
+			const errorMessage = extractAPIError(err);
+			toastStore.error(
+				'Pool Creation Failed',
+				errorMessage
+			);
+			// Don't close the modal on error, let user fix and retry
+		}
 	}
 
 	async function handleUpdatePool(params: UpdatePoolParams) {
@@ -133,7 +143,9 @@ import { EntityCell, EndpointCell, StatusCell, ActionsCell, GenericCell, PoolEnt
 		} catch (err) {
 			// Cache error is already handled by the eager cache system
 			// We don't need to set error here anymore since it's in the cache state
-			console.error('Failed to load pools:', err);
+			if (!import.meta.env?.VITEST) {
+				console.error('Failed to load pools:', err);
+			}
 			error = err instanceof Error ? err.message : 'Failed to load pools';
 		} finally {
 			loading = false;
@@ -144,7 +156,9 @@ import { EntityCell, EndpointCell, StatusCell, ActionsCell, GenericCell, PoolEnt
 		try {
 			await eagerCacheManager.retryResource('pools');
 		} catch (err) {
-			console.error('Retry failed:', err);
+			if (!import.meta.env?.VITEST) {
+				console.error('Retry failed:', err);
+			}
 		}
 	}
 
@@ -311,7 +325,7 @@ import { EntityCell, EndpointCell, StatusCell, ActionsCell, GenericCell, PoolEnt
 {#if showCreateModal}
 	<CreatePoolModal
 		on:close={() => showCreateModal = false}
-		on:submit={() => handleCreatePool()}
+		on:submit={handleCreatePool}
 	/>
 {/if}
 

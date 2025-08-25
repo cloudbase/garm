@@ -145,23 +145,28 @@
 				extra_specs: extraSpecs.trim() ? parsedExtraSpecs : undefined
 			};
 
-			// Call the appropriate creation method based on entity level
-			let pool;
-			switch (entityLevel) {
-				case 'repository':
-					pool = await garmApi.createRepositoryPool(selectedEntityId, params);
-					break;
-				case 'organization':
-					pool = await garmApi.createOrganizationPool(selectedEntityId, params);
-					break;
-				case 'enterprise':
-					pool = await garmApi.createEnterprisePool(selectedEntityId, params);
-					break;
-				default:
-					throw new Error('Invalid entity level');
+			// If we have an initial entity, let the parent handle the API call to avoid duplicates
+			// If no initial entity, we handle it ourselves (global pools page scenario)
+			if (initialEntityType && initialEntityId) {
+				// Entity pages: parent handles the API call
+				dispatch('submit', params);
+			} else {
+				// Global pools page: modal handles the API call
+				switch (entityLevel) {
+					case 'repository':
+						await garmApi.createRepositoryPool(selectedEntityId, params);
+						break;
+					case 'organization':
+						await garmApi.createOrganizationPool(selectedEntityId, params);
+						break;
+					case 'enterprise':
+						await garmApi.createEnterprisePool(selectedEntityId, params);
+						break;
+					default:
+						throw new Error('Invalid entity level');
+				}
+				dispatch('submit', params);
 			}
-
-			dispatch('submit', params);
 		} catch (err) {
 			error = extractAPIError(err);
 		} finally {

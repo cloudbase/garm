@@ -728,7 +728,7 @@ func (s *OrgTestSuite) TestCreateOrganizationPoolDBFetchPoolErr() {
 	_, err = s.StoreSQLMocked.CreateEntityPool(s.adminCtx, entity, s.Fixtures.CreatePoolParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("error fetching pool: not found", err.Error())
+	s.Require().Equal("error fetching pool by ID: not found", err.Error())
 	s.assertSQLMockExpectations()
 }
 
