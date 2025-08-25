@@ -267,7 +267,7 @@ func (s *sqlDatabase) FindPoolsMatchingAllTags(_ context.Context, entityType par
 	return pools, nil
 }
 
-func (s *sqlDatabase) CreateEntityPool(_ context.Context, entity params.ForgeEntity, param params.CreatePoolParams) (pool params.Pool, err error) {
+func (s *sqlDatabase) CreateEntityPool(ctx context.Context, entity params.ForgeEntity, param params.CreatePoolParams) (pool params.Pool, err error) {
 	if len(param.Tags) == 0 {
 		return params.Pool{}, runnerErrors.NewBadRequestError("no tags specified")
 	}
@@ -339,12 +339,7 @@ func (s *sqlDatabase) CreateEntityPool(_ context.Context, entity params.ForgeEnt
 		return params.Pool{}, err
 	}
 
-	dbPool, err := s.getPoolByID(s.conn, newPool.ID.String(), "Tags", "Instances", "Enterprise", "Organization", "Repository")
-	if err != nil {
-		return params.Pool{}, fmt.Errorf("error fetching pool: %w", err)
-	}
-
-	return s.sqlToCommonPool(dbPool)
+	return s.GetPoolByID(ctx, newPool.ID.String())
 }
 
 func (s *sqlDatabase) GetEntityPool(_ context.Context, entity params.ForgeEntity, poolID string) (params.Pool, error) {

@@ -125,7 +125,9 @@
 		} catch (err) {
 			// Cache error is already handled by the eager cache system
 			// We don't need to set error here anymore since it's in the cache state
-			console.error('Failed to load scale sets:', err);
+			if (!import.meta.env?.VITEST) {
+				console.error('Failed to load scale sets:', err);
+			}
 			error = extractAPIError(err);
 		} finally {
 			loading = false;

@@ -147,7 +147,12 @@
 			showCreatePoolModal = false;
 			// Pool will be updated via websocket, so no need to reload manually
 		} catch (err) {
-			throw err; // Let the modal handle the error
+			const errorMessage = extractAPIError(err);
+			toastStore.error(
+				'Pool Creation Failed',
+				errorMessage
+			);
+			// Don't close the modal on error, let user fix and retry
 		}
 	}
 
