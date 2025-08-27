@@ -48,7 +48,8 @@
 		"cookie": "^0.7.0"
 	},
 	"overrides": {
-		"cookie": "^0.7.0"
+		"cookie": "^0.7.0",
+		"devalue": "^5.3.2"
 	},
 	"description": "",
 	"main": "postcss.config.js",
