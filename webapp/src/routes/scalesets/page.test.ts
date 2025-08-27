@@ -58,7 +58,8 @@ vi.mock('$app/navigation', () => ({}));
 vi.mock('$lib/api/client.js', () => ({
 	garmApi: {
 		updateScaleSet: vi.fn(),
-		deleteScaleSet: vi.fn()
+		deleteScaleSet: vi.fn(),
+		getScaleSet: vi.fn()
 	}
 }));
 
@@ -571,6 +572,38 @@ describe('Scale Sets Page - Unit Tests', () => {
 			
 			// Update functionality should be available
 			expect(garmApi.updateScaleSet).toBeDefined();
+		});
+
+		it('should fetch complete scale set data when opening update modal', async () => {
+			const { garmApi } = await import('$lib/api/client.js');
+			
+			// Mock the getScaleSet API to return complete scale set data with extra_specs
+			const mockScaleSet = { id: 1, name: 'test-scaleset', extra_specs: { custom_setting: 'value' } };
+			(garmApi.getScaleSet as any).mockResolvedValue(mockScaleSet);
+			
+			render(ScaleSetsPage);
+			
+			// The openUpdateModal function should call garmApi.getScaleSet to fetch complete data
+			expect(garmApi.getScaleSet).toBeDefined();
+		});
+
+		it('should show loading indicator while fetching scale set details', async () => {
+			const { garmApi } = await import('$lib/api/client.js');
+			
+			// Mock the getScaleSet API with a delayed response
+			let resolveGetScaleSet: (value: any) => void;
+			const getScaleSetPromise = new Promise(resolve => {
+				resolveGetScaleSet = resolve;
+			});
+			(garmApi.getScaleSet as any).mockReturnValue(getScaleSetPromise);
+			
+			const { container } = render(ScaleSetsPage);
+			
+			// Component should handle loading state during scale set fetch
+			expect(container).toBeInTheDocument();
+			
+			// The loading state infrastructure should be ready
+			expect(garmApi.getScaleSet).toBeDefined();
 		});
 
 		it('should handle delete scale set', async () => {

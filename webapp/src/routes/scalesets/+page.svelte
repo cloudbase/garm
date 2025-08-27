@@ -6,6 +6,8 @@
 	import CreateScaleSetModal from '$lib/components/CreateScaleSetModal.svelte';
 	import UpdateScaleSetModal from '$lib/components/UpdateScaleSetModal.svelte';
 	import DeleteModal from '$lib/components/DeleteModal.svelte';
+	import Modal from '$lib/components/Modal.svelte';
+	import LoadingState from '$lib/components/LoadingState.svelte';
 	import { eagerCache, eagerCacheManager } from '$lib/stores/eager-cache.js';
 	import { toastStore } from '$lib/stores/toast.js';
 	import { getEntityName, filterEntities } from '$lib/utils/common.js';
@@ -33,6 +35,7 @@
 	let showUpdateModal = false;
 	let showDeleteModal = false;
 	let selectedScaleSet: ScaleSet | null = null;
+	let loadingScaleSetDetails = false;
 	// Filtered and paginated data
 	$: filteredScaleSets = filterEntities(scaleSets, searchTerm, (scaleSet) => getEntityName(scaleSet));
 	$: totalPages = Math.ceil(filteredScaleSets.length / perPage);
@@ -101,9 +104,23 @@
 		showCreateModal = true;
 	}
 
-	function openUpdateModal(scaleSet: ScaleSet) {
-		selectedScaleSet = scaleSet;
-		showUpdateModal = true;
+	async function openUpdateModal(scaleSet: ScaleSet) {
+		try {
+			loadingScaleSetDetails = true;
+			// Fetch complete scale set data including extra_specs from API
+			// The scale set list data omits extra_specs to reduce payload size
+			const completeScaleSet = await garmApi.getScaleSet(scaleSet.id!);
+			selectedScaleSet = completeScaleSet;
+			showUpdateModal = true;
+		} catch (err) {
+			const errorMessage = extractAPIError(err);
+			toastStore.error(
+				'Failed to Load Scale Set Details',
+				errorMessage
+			);
+		} finally {
+			loadingScaleSetDetails = false;
+		}
 	}
 
 	function openDeleteModal(scaleSet: ScaleSet) {
@@ -315,4 +332,13 @@
 		on:close={() => { showDeleteModal = false; selectedScaleSet = null; }}
 		on:confirm={handleDeleteScaleSet}
 	/>
+{/if}
+
+<!-- Loading Modal for Scale Set Details -->
+{#if loadingScaleSetDetails}
+	<Modal on:close={() => {/* Prevent closing during load */}}>
+		<div class="p-6">
+			<LoadingState message="Loading scale set details..." />
+		</div>
+	</Modal>
 {/if}
