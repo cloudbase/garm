@@ -143,20 +143,18 @@ func (c *Client) Write(msg []byte) (int, error) {
 	defer c.mux.Unlock()
 
 	if !c.running {
-		return 0, fmt.Errorf("client is stopped")
+		return 0, fmt.Errorf("websocket client is stopped")
 	}
 
 	tmp := make([]byte, len(msg))
 	copy(tmp, msg)
-	timer := time.NewTimer(5 * time.Second)
-	defer timer.Stop()
 
 	select {
-	case <-timer.C:
-		return 0, fmt.Errorf("timed out sending message to client")
 	case c.send <- tmp:
+		return len(tmp), nil
+	default:
+		return 0, fmt.Errorf("timed out sending message to websocket client")
 	}
-	return len(tmp), nil
 }
 
 // clientReader waits for options changes from the client. The client can at any time
