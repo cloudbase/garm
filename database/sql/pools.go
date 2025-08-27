@@ -343,7 +343,17 @@ func (s *sqlDatabase) CreateEntityPool(ctx context.Context, entity params.ForgeE
 }
 
 func (s *sqlDatabase) GetEntityPool(_ context.Context, entity params.ForgeEntity, poolID string) (params.Pool, error) {
-	pool, err := s.getEntityPool(s.conn, entity.EntityType, entity.ID, poolID, "Tags", "Instances")
+	preloadList := []string{
+		"Tags",
+		"Instances",
+		"Enterprise",
+		"Enterprise.Endpoint",
+		"Organization",
+		"Organization.Endpoint",
+		"Repository",
+		"Repository.Endpoint",
+	}
+	pool, err := s.getEntityPool(s.conn, entity.EntityType, entity.ID, poolID, preloadList...)
 	if err != nil {
 		return params.Pool{}, fmt.Errorf("fetching pool: %w", err)
 	}
