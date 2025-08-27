@@ -1,11 +1,13 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { garmApi } from '$lib/api/client.js';
-	import type { Pool, UpdatePoolParams } from '$lib/api/generated/api.js';
+	import type { Pool, UpdatePoolParams, CreatePoolParams } from '$lib/api/generated/api.js';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import CreatePoolModal from '$lib/components/CreatePoolModal.svelte';
 	import UpdatePoolModal from '$lib/components/UpdatePoolModal.svelte';
 	import DeleteModal from '$lib/components/DeleteModal.svelte';
+	import Modal from '$lib/components/Modal.svelte';
+	import LoadingState from '$lib/components/LoadingState.svelte';
 	import { eagerCache, eagerCacheManager } from '$lib/stores/eager-cache.js';
 	import { toastStore } from '$lib/stores/toast.js';
 	import { getEntityName, filterEntities } from '$lib/utils/common.js';
@@ -33,6 +35,7 @@ import { EntityCell, EndpointCell, StatusCell, ActionsCell, GenericCell, PoolEnt
 	let showUpdateModal = false;
 	let showDeleteModal = false;
 	let selectedPool: Pool | null = null;
+	let loadingPoolDetails = false;
 	// Filtered and paginated data
 	// Search by entity name since pools don't have names
 	$: filteredPools = filterEntities(pools, searchTerm, (pool) => getEntityName(pool, $eagerCache));
@@ -47,7 +50,7 @@ import { EntityCell, EndpointCell, StatusCell, ActionsCell, GenericCell, PoolEnt
 		currentPage * perPage
 	);
 
-	async function handleCreatePool(event: CustomEvent<CreatePoolParams>) {
+	async function handleCreatePool(_event: CustomEvent<CreatePoolParams>) {
 		try {
 			// For the global pools page, the modal itself should handle the API call
 			// since it knows which entity type and ID was selected
@@ -119,9 +122,23 @@ import { EntityCell, EndpointCell, StatusCell, ActionsCell, GenericCell, PoolEnt
 		showCreateModal = true;
 	}
 
-	function openUpdateModal(pool: Pool) {
-		selectedPool = pool;
-		showUpdateModal = true;
+	async function openUpdateModal(pool: Pool) {
+		try {
+			loadingPoolDetails = true;
+			// Fetch complete pool data including extra_specs from API
+			// The pool list data omits extra_specs to reduce payload size
+			const completePool = await garmApi.getPool(pool.id!);
+			selectedPool = completePool;
+			showUpdateModal = true;
+		} catch (err) {
+			const errorMessage = extractAPIError(err);
+			toastStore.error(
+				'Failed to Load Pool Details',
+				errorMessage
+			);
+		} finally {
+			loadingPoolDetails = false;
+		}
 	}
 
 	function openDeleteModal(pool: Pool) {
@@ -345,4 +362,13 @@ import { EntityCell, EndpointCell, StatusCell, ActionsCell, GenericCell, PoolEnt
 		on:close={() => { showDeleteModal = false; selectedPool = null; }}
 		on:confirm={handleDeletePool}
 	/>
+{/if}
+
+<!-- Loading Modal for Pool Details -->
+{#if loadingPoolDetails}
+	<Modal on:close={() => {/* Prevent closing during load */}}>
+		<div class="p-6">
+			<LoadingState message="Loading pool details..." />
+		</div>
+	</Modal>
 {/if}
