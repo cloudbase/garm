@@ -25,20 +25,58 @@ const (
 	slogCtxFields slogContextKey = "slog_ctx_fields"
 )
 
-type ContextHandler struct {
-	slog.Handler
-}
-
-func (h ContextHandler) Handle(ctx context.Context, r slog.Record) error {
-	attrs, ok := ctx.Value(slogCtxFields).([]slog.Attr)
-	if ok {
-		for _, v := range attrs {
-			r.AddAttrs(v)
-		}
-	}
-	return h.Handler.Handle(ctx, r)
-}
+var _ slog.Handler = &SlogMultiHandler{}
 
 func WithSlogContext(ctx context.Context, attrs ...slog.Attr) context.Context {
 	return context.WithValue(ctx, slogCtxFields, attrs)
+}
+
+type SlogMultiHandler struct {
+	Handlers []slog.Handler
+}
+
+func (m *SlogMultiHandler) Enabled(ctx context.Context, level slog.Level) bool {
+	// Enabled if any handler is enabled
+	for _, h := range m.Handlers {
+		if h.Enabled(ctx, level) {
+			return true
+		}
+	}
+	return false
+}
+
+func (m *SlogMultiHandler) Handle(ctx context.Context, r slog.Record) error {
+	record := r.Clone()
+	attrs, ok := ctx.Value(slogCtxFields).([]slog.Attr)
+	if ok {
+		for _, v := range attrs {
+			record.AddAttrs(v)
+		}
+	}
+
+	var firstErr error
+	for _, h := range m.Handlers {
+		if err := h.Handle(ctx, record); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+	return firstErr
+}
+
+func (m *SlogMultiHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	hs := make([]slog.Handler, len(m.Handlers))
+	for i, h := range m.Handlers {
+		hs[i] = h.WithAttrs(attrs)
+	}
+	return &SlogMultiHandler{
+		Handlers: hs,
+	}
+}
+
+func (m *SlogMultiHandler) WithGroup(name string) slog.Handler {
+	hs := make([]slog.Handler, len(m.Handlers))
+	for i, h := range m.Handlers {
+		hs[i] = h.WithGroup(name)
+	}
+	return &SlogMultiHandler{hs}
 }

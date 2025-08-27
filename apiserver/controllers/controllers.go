@@ -30,7 +30,6 @@ import (
 
 	gErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm-provider-common/util"
-	"github.com/cloudbase/garm/apiserver/events"
 	"github.com/cloudbase/garm/apiserver/params"
 	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/config"
@@ -39,6 +38,7 @@ import (
 	"github.com/cloudbase/garm/runner" //nolint:typecheck
 	garmUtil "github.com/cloudbase/garm/util"
 	wsWriter "github.com/cloudbase/garm/websocket"
+	"github.com/cloudbase/garm/workers/websocket/events"
 )
 
 func NewAPIController(r *runner.Runner, authenticator *auth.Authenticator, hub *wsWriter.Hub, apiCfg config.APIServer) (*APIController, error) {

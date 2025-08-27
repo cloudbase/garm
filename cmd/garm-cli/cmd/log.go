@@ -16,6 +16,7 @@ package cmd
 import (
 	"context"
 	"os/signal"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -23,7 +24,12 @@ import (
 	"github.com/cloudbase/garm/cmd/garm-cli/common"
 )
 
-var eventsFilters string
+var (
+	eventsFilters string
+	logLevel      string
+	filters       []string
+	enableColor   bool
+)
 
 var logCmd = &cobra.Command{
 	Use:          "debug-log",
@@ -34,7 +40,19 @@ var logCmd = &cobra.Command{
 		ctx, stop := signal.NotifyContext(context.Background(), signals...)
 		defer stop()
 
-		reader, err := garmWs.NewReader(ctx, mgr.BaseURL, "/api/v1/ws/logs", mgr.Token, common.PrintWebsocketMessage)
+		// Parse filters into map
+		attributeFilters := make(map[string]string)
+		for _, filter := range filters {
+			parts := strings.SplitN(filter, "=", 2)
+			if len(parts) == 2 {
+				attributeFilters[parts[0]] = parts[1]
+			}
+		}
+
+		// Create log formatter with filters
+		logFormatter := common.NewLogFormatter(logLevel, attributeFilters, enableColor)
+
+		reader, err := garmWs.NewReader(ctx, mgr.BaseURL, "/api/v1/ws/logs", mgr.Token, logFormatter.FormatWebsocketMessage)
 		if err != nil {
 			return err
 		}
@@ -49,5 +67,9 @@ var logCmd = &cobra.Command{
 }
 
 func init() {
+	logCmd.Flags().StringVar(&logLevel, "log-level", "", "Minimum log level to display (DEBUG, INFO, WARN, ERROR)")
+	logCmd.Flags().StringArrayVar(&filters, "filter", []string{}, "Filter logs by attribute (format: key=value) or message content (msg=text). You can specify this option multiple times. The filter will return true for any of the attributes you set.")
+	logCmd.Flags().BoolVar(&enableColor, "enable-color", true, "Enable color logging (auto-detects terminal support)")
+
 	rootCmd.AddCommand(logCmd)
 }

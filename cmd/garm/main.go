@@ -18,7 +18,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io"
 	"log"
 	"log/slog"
 	"net"
@@ -104,16 +103,6 @@ func setupLogging(ctx context.Context, logCfg config.Logging, hub *websocket.Hub
 		}
 	}()
 
-	writers := []io.Writer{
-		logWriter,
-	}
-
-	if hub != nil {
-		writers = append(writers, hub)
-	}
-
-	wr := io.MultiWriter(writers...)
-
 	var logLevel slog.Level
 	switch logCfg.LogLevel {
 	case config.LevelDebug:
@@ -134,16 +123,25 @@ func setupLogging(ctx context.Context, logCfg config.Logging, hub *websocket.Hub
 		Level:     logLevel,
 	}
 
-	var han slog.Handler
+	var fileHan slog.Handler
 	switch logCfg.LogFormat {
 	case config.FormatJSON:
-		han = slog.NewJSONHandler(wr, &opts)
+		fileHan = slog.NewJSONHandler(logWriter, &opts)
 	default:
-		han = slog.NewTextHandler(wr, &opts)
+		fileHan = slog.NewTextHandler(logWriter, &opts)
 	}
 
-	wrapped := garmUtil.ContextHandler{
-		Handler: han,
+	handlers := []slog.Handler{
+		fileHan,
+	}
+
+	if hub != nil {
+		wsHan := slog.NewJSONHandler(hub, &opts)
+		handlers = append(handlers, wsHan)
+	}
+
+	wrapped := &garmUtil.SlogMultiHandler{
+		Handlers: handlers,
 	}
 	slog.SetDefault(slog.New(wrapped))
 }
