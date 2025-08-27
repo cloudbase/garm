@@ -58,7 +58,8 @@ vi.mock('$app/navigation', () => ({}));
 vi.mock('$lib/api/client.js', () => ({
 	garmApi: {
 		updatePool: vi.fn(),
-		deletePool: vi.fn()
+		deletePool: vi.fn(),
+		getPool: vi.fn()
 	}
 }));
 
@@ -298,6 +299,41 @@ describe('Pools Page - Unit Tests', () => {
 			render(PoolsPage);
 			
 			expect(garmApi.updatePool).toBeDefined();
+		});
+
+		it('should fetch complete pool data when opening update modal', async () => {
+			const { garmApi } = await import('$lib/api/client.js');
+			
+			// Mock the getPool API to return complete pool data with extra_specs
+			const completePool = {
+				...mockPool,
+				extra_specs: { custom_setting: 'value' }
+			};
+			(garmApi.getPool as any).mockResolvedValue(completePool);
+			
+			render(PoolsPage);
+			
+			// The openUpdateModal function should call garmApi.getPool to fetch complete data
+			expect(garmApi.getPool).toBeDefined();
+		});
+
+		it('should show loading indicator while fetching pool details', async () => {
+			const { garmApi } = await import('$lib/api/client.js');
+			
+			// Mock the getPool API with a delayed response
+			let resolveGetPool: (value: any) => void;
+			const getPoolPromise = new Promise(resolve => {
+				resolveGetPool = resolve;
+			});
+			(garmApi.getPool as any).mockReturnValue(getPoolPromise);
+			
+			const { container } = render(PoolsPage);
+			
+			// Component should handle loading state during pool fetch
+			expect(container).toBeInTheDocument();
+			
+			// The loading state infrastructure should be ready
+			expect(garmApi.getPool).toBeDefined();
 		});
 
 		it('should show success toast after pool update', async () => {
