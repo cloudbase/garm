@@ -166,7 +166,7 @@ func (c *Controller) Stop() error {
 
 // ConsolidateRunnerState will send a list of existing github runners to each scale set worker.
 // The scale set worker will then need to cross check the existing runners in Github with the sate
-// in the database. Any inconsistencies will b reconciliated. This cleans up any manually removed
+// in the database. Any inconsistencies will be reconciliated. This cleans up any manually removed
 // runners in either github or the providers.
 func (c *Controller) ConsolidateRunnerState(byScaleSetID map[int][]params.RunnerReference) error {
 	g, ctx := errgroup.WithContext(c.ctx)

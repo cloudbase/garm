@@ -189,7 +189,7 @@ func (p *Provider) loop() {
 				slog.ErrorContext(p.ctx, "watcher channel closed")
 				return
 			}
-			slog.InfoContext(p.ctx, "received payload")
+			slog.InfoContext(p.ctx, "received payload", "operation", payload.Operation, "entity_type", payload.EntityType)
 			go p.handleWatcherEvent(payload)
 		case <-p.ctx.Done():
 			return
@@ -250,6 +250,20 @@ func (p *Provider) handleInstanceAdded(instance params.Instance) error {
 	return nil
 }
 
+func (p *Provider) stopAndDeleteInstance(instance params.Instance) error {
+	if instance.Status != commonParams.InstanceDeleted {
+		return nil
+	}
+	existingInstance, ok := p.runners[instance.Name]
+	if ok {
+		if err := existingInstance.Stop(); err != nil {
+			return fmt.Errorf("failed to stop instance manager: %w", err)
+		}
+		delete(p.runners, instance.Name)
+	}
+	return nil
+}
+
 func (p *Provider) handleInstanceEvent(event dbCommon.ChangePayload) {
 	p.mux.Lock()
 	defer p.mux.Unlock()
@@ -265,7 +279,7 @@ func (p *Provider) handleInstanceEvent(event dbCommon.ChangePayload) {
 		return
 	}
 
-	slog.DebugContext(p.ctx, "handling instance event", "instance_name", instance.Name)
+	slog.DebugContext(p.ctx, "handling instance event", "instance_name", instance.Name, "operation", event.Operation)
 	switch event.Operation {
 	case dbCommon.CreateOperation:
 		slog.DebugContext(p.ctx, "got create operation")
@@ -284,21 +298,24 @@ func (p *Provider) handleInstanceEvent(event dbCommon.ChangePayload) {
 			}
 		} else {
 			slog.DebugContext(p.ctx, "updating instance", "instance_name", instance.Name)
+			if instance.Status == commonParams.InstanceDeleted {
+				if err := p.stopAndDeleteInstance(instance); err != nil {
+					slog.ErrorContext(p.ctx, "failed to clean up instance manager", "error", err)
+					return
+				}
+				return
+			}
 			if err := existingInstance.Update(event); err != nil {
-				slog.ErrorContext(p.ctx, "failed to update instance", "error", err)
+				slog.ErrorContext(p.ctx, "failed to update instance", "error", err, "instance_name", instance.Name, "payload", event.Payload)
 				return
 			}
 		}
 	case dbCommon.DeleteOperation:
 		slog.DebugContext(p.ctx, "got delete operation", "instance_name", instance.Name)
-		existingInstance, ok := p.runners[instance.Name]
-		if ok {
-			if err := existingInstance.Stop(); err != nil {
-				slog.ErrorContext(p.ctx, "failed to stop instance", "error", err)
-				return
-			}
+		if err := p.stopAndDeleteInstance(instance); err != nil {
+			slog.ErrorContext(p.ctx, "failed to clean up instance manager", "error", err)
+			return
 		}
-		delete(p.runners, instance.Name)
 	default:
 		slog.ErrorContext(p.ctx, "invalid operation type", "operation_type", event.Operation)
 		return
