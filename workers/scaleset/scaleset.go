@@ -131,6 +131,12 @@ func (w *Worker) ensureScaleSetInGitHub() error {
 	if err != nil {
 		return fmt.Errorf("failed to update scale set: %w", err)
 	}
+
+	// The scale set was recreated. We need to reset the last message ID we recorded previously,
+	// otherwise we'll ignore every message we get from the queue.
+	if err := w.SetLastMessageID(0); err != nil {
+		return fmt.Errorf("failed to reset last message id: %w", err)
+	}
 	w.scaleSet.ScaleSetID = runnerScaleSet.ID
 
 	return nil
@@ -615,6 +621,7 @@ func (w *Worker) handleInstanceCleanup(instance params.Instance) error {
 				return fmt.Errorf("deleting instance %s: %w", instance.ID, err)
 			}
 		}
+		delete(w.runners, instance.ID)
 	}
 	return nil
 }

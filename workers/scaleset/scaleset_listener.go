@@ -138,7 +138,7 @@ func (l *scaleSetListener) handleSessionMessage(msg params.RunnerScaleSetMessage
 	}
 
 	if msg.MessageID < l.lastMessageID {
-		slog.DebugContext(l.ctx, "message is older than last message, ignoring")
+		slog.InfoContext(l.ctx, "message is older than last message, ignoring", "received_msg_id", fmt.Sprintf("%d", msg.MessageID), "recorded_msg_id", fmt.Sprintf("%d", l.lastMessageID))
 		return
 	}
 
