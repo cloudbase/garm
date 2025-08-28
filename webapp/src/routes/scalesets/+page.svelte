@@ -78,7 +78,12 @@
 			showUpdateModal = false;
 			selectedScaleSet = null;
 		} catch (err) {
-			throw err; // Let the modal handle the error
+			const errorMessage = extractAPIError(err);
+			toastStore.error(
+				'Update Failed',
+				errorMessage
+			);
+			throw err; // Let the modal handle the error too
 		}
 	}
 

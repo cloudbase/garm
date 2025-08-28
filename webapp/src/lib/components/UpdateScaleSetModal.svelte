@@ -14,6 +14,7 @@
 
 	let loading = false;
 	let error = '';
+	let validationError = '';
 
 	// Form fields - initialize with scale set values
 	let name = scaleSet.name || '';
@@ -48,11 +49,24 @@
 		}
 	});
 
+	// Validation reactive statement
+	$: {
+		if (minIdleRunners !== null && maxRunners !== null && minIdleRunners > maxRunners) {
+			validationError = 'Min idle runners cannot be greater than max runners';
+		} else {
+			validationError = '';
+		}
+	}
 
 	async function handleSubmit() {
 		try {
 			loading = true;
 			error = '';
+
+			// Client-side validation
+			if (validationError) {
+				throw new Error(validationError);
+			}
 
 			// Validate extra specs JSON
 			let parsedExtraSpecs: any = {};
@@ -107,6 +121,12 @@
 			{#if error}
 				<div class="rounded-md bg-red-50 dark:bg-red-900 p-4">
 					<p class="text-sm font-medium text-red-800 dark:text-red-200">{error}</p>
+				</div>
+			{/if}
+			
+			{#if validationError}
+				<div class="rounded-md bg-yellow-50 dark:bg-yellow-900 p-4">
+					<p class="text-sm font-medium text-yellow-800 dark:text-yellow-200">{validationError}</p>
 				</div>
 			{/if}
 
@@ -219,7 +239,7 @@
 							bind:value={minIdleRunners}
 							min="0"
 							placeholder="0"
-							class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+							class="w-full px-3 py-2 border {validationError ? 'border-red-300 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
 						/>
 					</div>
 					<div>
@@ -232,7 +252,7 @@
 							bind:value={maxRunners}
 							min="1"
 							placeholder="10"
-							class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+							class="w-full px-3 py-2 border {validationError ? 'border-red-300 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
 						/>
 					</div>
 					<div>
@@ -322,7 +342,7 @@
 				</button>
 				<button
 					type="submit"
-					disabled={loading}
+					disabled={loading || validationError !== ''}
 					class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
 				>
 					{#if loading}
