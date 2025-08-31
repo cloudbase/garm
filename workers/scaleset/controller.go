@@ -35,7 +35,7 @@ func NewController(ctx context.Context, store dbCommon.Store, entity params.Forg
 		ctx,
 		slog.Any("worker", consumerID),
 		slog.Any("entity", entity.String()),
-		slog.Any("endpoint", entity.Credentials.Endpoint),
+		slog.Any("endpoint", entity.Credentials.Endpoint.Name),
 	)
 
 	return &Controller{

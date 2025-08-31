@@ -536,7 +536,7 @@ func (w *Worker) consolidateRunnerState(runners []params.RunnerReference) error 
 			slog.InfoContext(w.ctx, "runner does not exist in database; removing from provider", "runner_name", runner.Name)
 			// There is no situation in which the runner will disappear from the provider
 			// after it was removed from the database. The provider worker will remove the
-			// instance from the provider nd mark the instance as deleted in the database.
+			// instance from the provider and mark the instance as deleted in the database.
 			// It is the responsibility of the scaleset worker to then clean up the runners
 			// in the deleted state.
 			// That means that if we have a runner in the provider but not the DB, it is most
@@ -648,40 +648,7 @@ func (w *Worker) handleInstanceEntityEvent(event dbCommon.ChangePayload) {
 			w.mux.Unlock()
 			return
 		}
-		oldInstance, ok := w.runners[instance.ID]
 		w.runners[instance.ID] = instance
-
-		if !ok {
-			slog.DebugContext(w.ctx, "instance not found in local cache; ignoring", "instance_id", instance.ID)
-			w.mux.Unlock()
-			return
-		}
-		scaleSetCli, err := w.GetScaleSetClient()
-		if err != nil {
-			slog.ErrorContext(w.ctx, "error getting scale set client", "error", err)
-			return
-		}
-		if oldInstance.RunnerStatus != instance.RunnerStatus && instance.RunnerStatus == params.RunnerIdle {
-			serviceRuner, err := scaleSetCli.GetRunner(w.ctx, instance.AgentID)
-			if err != nil {
-				slog.ErrorContext(w.ctx, "error getting runner details", "error", err)
-				w.mux.Unlock()
-				return
-			}
-			status, ok := serviceRuner.Status.(string)
-			if !ok {
-				slog.ErrorContext(w.ctx, "error getting runner status", "runner_id", instance.AgentID)
-				w.mux.Unlock()
-				return
-			}
-			if status != string(params.RunnerIdle) && status != string(params.RunnerActive) {
-				// nolint:golangci-lint,godox
-				// TODO: Wait for the status to change for a while (30 seconds?). Mark the instance as
-				// pending_delete if the runner never comes online.
-				w.mux.Unlock()
-				return
-			}
-		}
 		w.mux.Unlock()
 	case dbCommon.DeleteOperation:
 		slog.DebugContext(w.ctx, "got delete operation")
@@ -802,7 +769,7 @@ Loop:
 						backoff = 5 * time.Second
 						slog.InfoContext(w.ctx, "backing off restart attempt", "backoff", backoff)
 					default:
-						backoff *= 2
+						backoff = time.Duration(float64(backoff) * 1.5)
 					}
 					slog.ErrorContext(w.ctx, "error restarting listener", "error", err, "backoff", backoff)
 					if canceled := w.sleepWithCancel(backoff); canceled {
@@ -876,12 +843,6 @@ func (w *Worker) handleScaleUp(target, current uint) {
 			continue
 		}
 		w.runners[dbInstance.ID] = dbInstance
-
-		_, err = scaleSetCli.GetRunner(w.ctx, jitConfig.Runner.ID)
-		if err != nil {
-			slog.ErrorContext(w.ctx, "error getting runner details", "error", err)
-			continue
-		}
 	}
 }
 
@@ -941,6 +902,12 @@ func (w *Worker) handleScaleDown(target, current uint) {
 		return
 	}
 
+	scaleSetCli, err := w.GetScaleSetClient()
+	if err != nil {
+		slog.ErrorContext(w.ctx, "error getting scale set client", "error", err)
+		return
+	}
+
 	for _, runner := range candidates {
 		if removed >= int(delta) {
 			break
@@ -972,11 +939,6 @@ func (w *Worker) handleScaleDown(target, current uint) {
 			continue
 		}
 
-		scaleSetCli, err := w.GetScaleSetClient()
-		if err != nil {
-			slog.ErrorContext(w.ctx, "error getting scale set client", "error", err)
-			return
-		}
 		slog.DebugContext(w.ctx, "removing runner", "runner_name", runner.Name)
 		if err := scaleSetCli.RemoveRunner(w.ctx, runner.AgentID); err != nil {
 			if !errors.Is(err, runnerErrors.ErrNotFound) {
