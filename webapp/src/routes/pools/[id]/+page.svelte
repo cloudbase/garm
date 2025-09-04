@@ -33,6 +33,10 @@
 			loading = true;
 			error = '';
 			pool = await garmApi.getPool(poolId);
+			// Ensure instances array always exists for websocket updates
+			if (!pool.instances) {
+				pool.instances = [];
+			}
 		} catch (err) {
 			error = extractAPIError(err);
 		} finally {
@@ -132,11 +136,16 @@
 
 	function handleInstanceEvent(event: WebSocketEvent) {
 		
-		if (!pool || !pool.instances) return;
+		if (!pool) return;
 		
 		const instance = event.payload;
 		// Only handle instances that belong to this pool
 		if (instance.pool_id !== pool.id) return;
+
+		// Ensure instances array exists
+		if (!pool.instances) {
+			pool.instances = [];
+		}
 
 		if (event.operation === 'create') {
 			// Add new instance to the list
@@ -359,9 +368,7 @@
 		{/if}
 
 		<!-- Instances -->
-		{#if pool.instances}
-			<InstancesSection instances={pool.instances} entityType="repository" onDeleteInstance={openDeleteInstanceModal} />
-		{/if}
+		<InstancesSection instances={pool.instances || []} entityType="pool" onDeleteInstance={openDeleteInstanceModal} />
 
 	{/if}
 </div>
