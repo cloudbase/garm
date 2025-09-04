@@ -33,6 +33,10 @@
 			loading = true;
 			error = '';
 			scaleSet = await garmApi.getScaleSet(scaleSetId);
+			// Ensure instances array always exists for websocket updates
+			if (!scaleSet.instances) {
+				scaleSet.instances = [];
+			}
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to load scale set';
 		} finally {
@@ -126,11 +130,16 @@
 
 	function handleInstanceEvent(event: WebSocketEvent) {
 		
-		if (!scaleSet || !scaleSet.instances) return;
+		if (!scaleSet) return;
 		
 		const instance = event.payload as Instance;
 		// Only handle instances that belong to this scale set
 		if (instance.scale_set_id !== scaleSet.id) return;
+
+		// Ensure instances array exists
+		if (!scaleSet.instances) {
+			scaleSet.instances = [];
+		}
 
 		if (event.operation === 'create') {
 			// Add new instance to the list
@@ -343,9 +352,7 @@
 		{/if}
 
 		<!-- Instances -->
-		{#if scaleSet.instances}
-			<InstancesSection instances={scaleSet.instances} entityType="scaleset" onDeleteInstance={openDeleteInstanceModal} />
-		{/if}
+		<InstancesSection instances={scaleSet.instances || []} entityType="scaleset" onDeleteInstance={openDeleteInstanceModal} />
 
 	{/if}
 </div>
