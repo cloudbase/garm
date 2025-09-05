@@ -137,6 +137,7 @@
 		// Endpoints are already loaded through eager cache
 		showCreateModal = true;
 		selectedForgeType = 'github'; // Default to github
+		formData.auth_type = AuthType.PAT; // Ensure auth_type is set
 	}
 
 	// Add forge type selection state
@@ -145,8 +146,7 @@
 	function handleForgeTypeSelect(event: CustomEvent<'github' | 'gitea'>) {
 		selectedForgeType = event.detail;
 		// Reset form when forge type changes
-		formData.auth_type = AuthType.PAT;
-		selectedAuthType = AuthType.PAT;
+		resetForm();
 	}
 
 	async function showEditCredentialsModal(credential: ForgeCredentials) {
@@ -360,19 +360,20 @@
 		reader.readAsText(file);
 	}
 
-	function isFormValid() {
-		if (!formData.name || !formData.description || !formData.endpoint) return false;
+	// Reactive form validation
+	$: isFormValid = (() => {
+		if (!formData.name || !formData.endpoint) return false;
 		
 		if (formData.auth_type === AuthType.PAT) {
 			return !!formData.oauth2_token;
 		} else {
 			return !!formData.app_id && !!formData.installation_id && !!formData.private_key_bytes;
 		}
-	}
+	})();
 	
 	function isEditFormValid() {
 		// For updates, basic fields are required
-		if (!formData.name.trim() || !formData.description.trim()) return false;
+		if (!formData.name.trim()) return false;
 		
 		// If checkbox is checked, validate credential fields
 		if (wantToChangeCredentials && editingCredential) {
@@ -613,6 +614,7 @@
 							id="name"
 							bind:value={formData.name}
 							required
+							autocomplete="off"
 							class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
 							placeholder="e.g., my-github-credentials"
 						/>
@@ -620,13 +622,13 @@
 
 				<div>
 					<label for="description" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-						Description <span class="text-red-500">*</span>
+						Description
 					</label>
 					<textarea
 						id="description"
 						bind:value={formData.description}
 						rows="2"
-						required
+						autocomplete="off"
 						class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
 						placeholder="Brief description of these credentials"
 					></textarea>
@@ -640,6 +642,7 @@
 						id="endpoint"
 						bind:value={formData.endpoint}
 						required
+						autocomplete="off"
 						class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
 					>
 						<option value="">Select an endpoint</option>
@@ -702,6 +705,7 @@
 							id="oauth2_token"
 							bind:value={formData.oauth2_token}
 							required
+							autocomplete="off"
 							class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
 							placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
 						/>
@@ -719,6 +723,7 @@
 							id="app_id"
 							bind:value={formData.app_id}
 							required
+							autocomplete="off"
 							class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
 							placeholder="123456"
 						/>
@@ -733,6 +738,7 @@
 							id="installation_id"
 							bind:value={formData.installation_id}
 							required
+							autocomplete="off"
 							class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
 							placeholder="12345678"
 						/>
@@ -776,9 +782,9 @@
 					</button>
 					<button
 						type="submit"
-						disabled={!isFormValid()}
+						disabled={!isFormValid}
 						class="px-4 py-2 text-sm font-medium text-white rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors
-							{isFormValid() ? 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500 cursor-pointer' : 'bg-gray-400 cursor-not-allowed'}"
+							{isFormValid ? 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500 cursor-pointer' : 'bg-gray-400 cursor-not-allowed'}"
 					>
 						Create Credentials
 					</button>
@@ -819,19 +825,20 @@
 						id="edit_name"
 						bind:value={formData.name}
 						required
+						autocomplete="off"
 						class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
 					/>
 				</div>
 
 				<div>
 					<label for="edit_description" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-						Description <span class="text-red-500">*</span>
+						Description
 					</label>
 					<textarea
 						id="edit_description"
 						bind:value={formData.description}
 						rows="2"
-						required
+						autocomplete="off"
 						class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
 					></textarea>
 				</div>
@@ -892,6 +899,7 @@
 								id="edit_oauth2_token"
 								bind:value={formData.oauth2_token}
 								required
+								autocomplete="off"
 								class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
 								placeholder="Enter new token"
 							/>
@@ -909,6 +917,7 @@
 								id="edit_app_id"
 								bind:value={formData.app_id}
 								required
+								autocomplete="off"
 								class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
 								placeholder="Enter new App ID"
 							/>
@@ -923,6 +932,7 @@
 								id="edit_installation_id"
 								bind:value={formData.installation_id}
 								required
+								autocomplete="off"
 								class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
 								placeholder="Enter new Installation ID"
 							/>
