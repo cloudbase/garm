@@ -343,12 +343,15 @@ func main() {
 	methodsOk := handlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "OPTIONS", "DELETE"})
 	headersOk := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"})
 
-	// nolint:golangci-lint,gosec
-	// G112: Potential Slowloris Attack because ReadHeaderTimeout is not configured in the http.Server
 	srv := &http.Server{
 		Addr: cfg.APIServer.BindAddress(),
 		// Pass our instance of gorilla/mux in.
-		Handler: handlers.CORS(methodsOk, headersOk, allowedOrigins)(router),
+		Handler:           handlers.CORS(methodsOk, headersOk, allowedOrigins)(router),
+		ReadHeaderTimeout: 5 * time.Second,
+		MaxHeaderBytes:    1 << 20, // 1 MB
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      15 * time.Second,
+		IdleTimeout:       60 * time.Second,
 	}
 
 	listener, err := net.Listen("tcp", srv.Addr)

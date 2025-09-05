@@ -183,11 +183,14 @@ import { EndpointCell, ActionsCell, GenericCell } from '$lib/components/cells';
 	function showCreateEndpointModal() {
 		selectedForgeType = 'github';
 		resetForm();
+		formData.endpoint_type = 'github'; // Ensure endpoint_type is set
 		showCreateModal = true;
 	}
 
 	function handleForgeTypeSelect(event: CustomEvent<'github' | 'gitea'>) {
 		selectedForgeType = event.detail;
+		// Reset form when forge type changes
+		resetForm();
 		formData.endpoint_type = event.detail;
 	}
 
@@ -404,11 +407,12 @@ import { EndpointCell, ActionsCell, GenericCell } from '$lib/components/cells';
 		reader.readAsText(file);
 	}
 
-	function isFormValid() {
-		if (!formData.name || !formData.description || !formData.base_url) return false;
+	// Reactive form validation
+	$: isFormValid = (() => {
+		if (!formData.name || !formData.base_url) return false;
 		if (formData.endpoint_type === 'github' && !formData.api_base_url) return false;
 		return true;
-	}
+	})();
 </script>
 
 <svelte:head>
@@ -521,6 +525,7 @@ import { EndpointCell, ActionsCell, GenericCell } from '$lib/components/cells';
 						id="name"
 						bind:value={formData.name}
 						required
+						autocomplete="off"
 						class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
 						placeholder={selectedForgeType === 'github' ? 'e.g., github-enterprise or github-com' : 'e.g., gitea-main or my-gitea'}
 					/>
@@ -528,13 +533,13 @@ import { EndpointCell, ActionsCell, GenericCell } from '$lib/components/cells';
 
 				<div>
 					<label for="description" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-						Description <span class="text-red-500">*</span>
+						Description
 					</label>
 					<textarea
 						id="description"
 						bind:value={formData.description}
 						rows="2"
-						required
+						autocomplete="off"
 						class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
 						placeholder="Brief description of this endpoint"
 					></textarea>
@@ -549,6 +554,7 @@ import { EndpointCell, ActionsCell, GenericCell } from '$lib/components/cells';
 						id="base_url"
 						bind:value={formData.base_url}
 						required
+						autocomplete="off"
 						class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
 						placeholder={selectedForgeType === 'github' ? 'https://github.com or https://github.example.com' : 'https://gitea.example.com'}
 					/>
@@ -564,6 +570,7 @@ import { EndpointCell, ActionsCell, GenericCell } from '$lib/components/cells';
 							id="api_base_url"
 							bind:value={formData.api_base_url}
 							required
+							autocomplete="off"
 							class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
 							placeholder="https://api.github.com or https://github.example.com/api/v3"
 						/>
@@ -577,6 +584,7 @@ import { EndpointCell, ActionsCell, GenericCell } from '$lib/components/cells';
 							type="url"
 							id="upload_base_url"
 							bind:value={formData.upload_base_url}
+							autocomplete="off"
 							class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
 							placeholder="https://uploads.github.com"
 						/>
@@ -590,6 +598,7 @@ import { EndpointCell, ActionsCell, GenericCell } from '$lib/components/cells';
 							type="url"
 							id="api_base_url"
 							bind:value={formData.api_base_url}
+							autocomplete="off"
 							class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
 							placeholder="https://gitea.example.com/api/v1 (leave empty to use Base URL)"
 						/>
@@ -633,9 +642,9 @@ import { EndpointCell, ActionsCell, GenericCell } from '$lib/components/cells';
 					</button>
 					<button
 						type="submit"
-						disabled={!isFormValid()}
+						disabled={!isFormValid}
 						class="px-4 py-2 text-sm font-medium text-white rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors
-							{isFormValid() ? 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500 cursor-pointer' : 'bg-gray-400 cursor-not-allowed'}"
+							{isFormValid ? 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500 cursor-pointer' : 'bg-gray-400 cursor-not-allowed'}"
 					>
 						Create Endpoint
 					</button>
@@ -676,19 +685,20 @@ import { EndpointCell, ActionsCell, GenericCell } from '$lib/components/cells';
 						id="edit_name"
 						bind:value={formData.name}
 						required
+						autocomplete="off"
 						class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
 					/>
 				</div>
 
 				<div>
 					<label for="edit_description" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-						Description <span class="text-red-500">*</span>
+						Description
 					</label>
 					<textarea
 						id="edit_description"
 						bind:value={formData.description}
 						rows="2"
-						required
+						autocomplete="off"
 						class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
 					></textarea>
 				</div>
@@ -702,6 +712,7 @@ import { EndpointCell, ActionsCell, GenericCell } from '$lib/components/cells';
 						id="edit_base_url"
 						bind:value={formData.base_url}
 						required
+						autocomplete="off"
 						class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
 					/>
 				</div>
@@ -716,6 +727,7 @@ import { EndpointCell, ActionsCell, GenericCell } from '$lib/components/cells';
 							id="edit_api_base_url"
 							bind:value={formData.api_base_url}
 							required
+							autocomplete="off"
 							class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
 						/>
 					</div>
@@ -728,6 +740,7 @@ import { EndpointCell, ActionsCell, GenericCell } from '$lib/components/cells';
 							type="url"
 							id="edit_upload_base_url"
 							bind:value={formData.upload_base_url}
+							autocomplete="off"
 							class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
 						/>
 					</div>
@@ -740,6 +753,7 @@ import { EndpointCell, ActionsCell, GenericCell } from '$lib/components/cells';
 							type="url"
 							id="edit_api_base_url"
 							bind:value={formData.api_base_url}
+							autocomplete="off"
 							class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
 						/>
 						<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">If empty, Base URL will be used as API Base URL</p>
@@ -782,9 +796,9 @@ import { EndpointCell, ActionsCell, GenericCell } from '$lib/components/cells';
 					</button>
 					<button
 						type="submit"
-						disabled={!isFormValid()}
+						disabled={!isFormValid}
 						class="px-4 py-2 text-sm font-medium text-white rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors
-							{isFormValid() ? 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500 cursor-pointer' : 'bg-gray-400 cursor-not-allowed'}"
+							{isFormValid ? 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500 cursor-pointer' : 'bg-gray-400 cursor-not-allowed'}"
 					>
 						Update Endpoint
 					</button>
