@@ -23,7 +23,7 @@ var instanceCache *InstanceCache
 
 func init() {
 	cache := &InstanceCache{
-		cache: make(map[string]params.Instance),
+		cache: make(map[string]params.Instance, 50000),
 	}
 	instanceCache = cache
 }
@@ -68,6 +68,43 @@ func (i *InstanceCache) GetAllInstances() []params.Instance {
 	}
 	sortByCreationDate(instances)
 	return instances
+}
+
+func (i *InstanceCache) GetEntityForInstance(name string) (params.ForgeEntity, bool) {
+	instance, ok := i.GetInstance(name)
+	if !ok {
+		return params.ForgeEntity{}, ok
+	}
+
+	var entityID string
+	switch {
+	case instance.ScaleSetID > 0:
+		if scaleSet, ok := GetScaleSetByID(instance.ScaleSetID); ok {
+			scaleSetEntity, err := scaleSet.GetEntity()
+			if err != nil {
+				return params.ForgeEntity{}, false
+			}
+			entityID = scaleSetEntity.ID
+		}
+	case instance.PoolID != "":
+		if pool, ok := GetPoolByID(instance.PoolID); ok {
+			poolEntity, err := pool.GetEntity()
+			if err != nil {
+				return params.ForgeEntity{}, false
+			}
+			entityID = poolEntity.ID
+		}
+	default:
+		return params.ForgeEntity{}, false
+	}
+
+	// Get the full entity
+	if entityID != "" {
+		if entity, ok := GetEntity(entityID); ok {
+			return entity, true
+		}
+	}
+	return params.ForgeEntity{}, false
 }
 
 func (i *InstanceCache) GetInstancesForPool(poolID string) []params.Instance {
@@ -140,4 +177,8 @@ func GetInstancesForScaleSet(scaleSetID uint) []params.Instance {
 
 func GetEntityInstances(entityID string) []params.Instance {
 	return instanceCache.GetEntityInstances(entityID)
+}
+
+func GetEntityForInstance(name string) (params.ForgeEntity, bool) {
+	return instanceCache.GetEntityForInstance(name)
 }

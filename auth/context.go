@@ -31,7 +31,6 @@ const (
 	// UserIDFlag is the User ID flag we set in the context
 	UserIDFlag             contextFlags = "user_id"
 	isEnabledFlag          contextFlags = "is_enabled"
-	jwtTokenFlag           contextFlags = "jwt_token"
 	authExpiresFlag        contextFlags = "auth_expires"
 	passwordGenerationFlag contextFlags = "password_generation"
 

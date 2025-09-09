@@ -53,7 +53,9 @@ func (c *CacheTestSuite) TearDownTest() {
 	credentialsCache.cache = make(map[uint]params.ForgeCredentials)
 	instanceCache.cache = make(map[string]params.Instance)
 	entityCache = &EntityCache{
-		entities: make(map[string]EntityItem),
+		entities:  make(map[string]EntityItem),
+		pools:     make(map[string]params.Pool),
+		scalesets: make(map[uint]params.ScaleSet),
 	}
 }
 
@@ -322,7 +324,8 @@ func (c *CacheTestSuite) TestSetGetEntityCache() {
 	c.Require().Equal(entity.ID, cachedEntity.ID)
 
 	pool := params.Pool{
-		ID: "pool-1",
+		ID:    "pool-1",
+		OrgID: "test-entity",
 	}
 	SetEntityPool(entity.ID, pool)
 	cachedEntityPools := GetEntityPools("test-entity")
@@ -352,10 +355,12 @@ func (c *CacheTestSuite) TestReplaceEntityPools() {
 		},
 	}
 	pool1 := params.Pool{
-		ID: "pool-1",
+		ID:    "pool-1",
+		OrgID: "test-entity",
 	}
 	pool2 := params.Pool{
-		ID: "pool-2",
+		ID:    "pool-2",
+		OrgID: "test-entity",
 	}
 
 	credentials := params.ForgeCredentials{
@@ -386,10 +391,12 @@ func (c *CacheTestSuite) TestReplaceEntityScaleSets() {
 		Owner:      "test",
 	}
 	scaleSet1 := params.ScaleSet{
-		ID: 1,
+		ID:    1,
+		OrgID: "test-entity",
 	}
 	scaleSet2 := params.ScaleSet{
-		ID: 2,
+		ID:    2,
+		OrgID: "test-entity",
 	}
 
 	SetEntity(entity)
@@ -430,7 +437,8 @@ func (c *CacheTestSuite) TestSetEntityPool() {
 		Owner:      "test",
 	}
 	pool := params.Pool{
-		ID: "pool-1",
+		OrgID: "test-entity",
+		ID:    "pool-1",
 	}
 
 	SetEntity(entity)
@@ -463,7 +471,8 @@ func (c *CacheTestSuite) TestSetEntityScaleSet() {
 		Owner:      "test",
 	}
 	scaleSet := params.ScaleSet{
-		ID: 1,
+		OrgID: "test-entity",
+		ID:    1,
 	}
 
 	SetEntity(entity)
@@ -539,7 +548,8 @@ func (c *CacheTestSuite) TestFindPoolsMatchingAllTags() {
 		Owner:      "test",
 	}
 	pool1 := params.Pool{
-		ID: "pool-1",
+		ID:    "pool-1",
+		OrgID: "test-entity",
 		Tags: []params.Tag{
 			{
 				Name: "tag1",
@@ -550,7 +560,8 @@ func (c *CacheTestSuite) TestFindPoolsMatchingAllTags() {
 		},
 	}
 	pool2 := params.Pool{
-		ID: "pool-2",
+		ID:    "pool-2",
+		OrgID: "test-entity",
 		Tags: []params.Tag{
 			{
 				Name: "tag1",
@@ -558,7 +569,8 @@ func (c *CacheTestSuite) TestFindPoolsMatchingAllTags() {
 		},
 	}
 	pool3 := params.Pool{
-		ID: "pool-3",
+		ID:    "pool-3",
+		OrgID: "test-entity",
 		Tags: []params.Tag{
 			{
 				Name: "tag3",
@@ -596,7 +608,8 @@ func (c *CacheTestSuite) TestGetEntityPools() {
 		Owner:      "test",
 	}
 	pool1 := params.Pool{
-		ID: "pool-1",
+		ID:    "pool-1",
+		OrgID: "test-entity",
 		Tags: []params.Tag{
 			{
 				Name: "tag1",
@@ -607,7 +620,8 @@ func (c *CacheTestSuite) TestGetEntityPools() {
 		},
 	}
 	pool2 := params.Pool{
-		ID: "pool-2",
+		ID:    "pool-2",
+		OrgID: "test-entity",
 		Tags: []params.Tag{
 			{
 				Name: "tag1",
@@ -638,7 +652,8 @@ func (c *CacheTestSuite) TestGetEntityScaleSet() {
 		Owner:      "test",
 	}
 	scaleSet := params.ScaleSet{
-		ID: 1,
+		OrgID: "test-entity",
+		ID:    1,
 	}
 
 	SetEntity(entity)
@@ -661,7 +676,8 @@ func (c *CacheTestSuite) TestGetEntityPool() {
 	}
 
 	pool := params.Pool{
-		ID: "pool-1",
+		ID:    "pool-1",
+		OrgID: "test-entity",
 		Tags: []params.Tag{
 			{
 				Name: "tag1",
@@ -938,6 +954,7 @@ func (c *CacheTestSuite) TestGetAllPools() {
 	}
 	pool1 := params.Pool{
 		ID:        "pool-1",
+		OrgID:     "test-entity",
 		CreatedAt: time.Now(),
 		Tags: []params.Tag{
 			{
@@ -951,6 +968,7 @@ func (c *CacheTestSuite) TestGetAllPools() {
 
 	pool2 := params.Pool{
 		ID:        "pool-2",
+		OrgID:     "test-entity",
 		CreatedAt: time.Now().Add(1 * time.Second),
 		Tags: []params.Tag{
 			{
@@ -982,10 +1000,12 @@ func (c *CacheTestSuite) TestGetAllScaleSets() {
 		Owner:      "test",
 	}
 	scaleSet1 := params.ScaleSet{
-		ID: 1,
+		OrgID: "test-entity",
+		ID:    1,
 	}
 	scaleSet2 := params.ScaleSet{
-		ID: 2,
+		OrgID: "test-entity",
+		ID:    2,
 	}
 
 	SetEntity(entity)
@@ -1032,6 +1052,386 @@ func (c *CacheTestSuite) TestGetAllGiteaCredentialsAsMap() {
 	c.Require().Len(cachedCreds, 2)
 	c.Require().Contains(cachedCreds, credentials1.ID)
 	c.Require().Contains(cachedCreds, credentials2.ID)
+}
+
+func (c *CacheTestSuite) TestGetEntityForPool() {
+	entity := params.ForgeEntity{
+		ID:         "test-entity",
+		EntityType: params.ForgeEntityTypeOrganization,
+		Name:       "test",
+		Owner:      "test",
+	}
+	pool := params.Pool{
+		ID:    "pool-1",
+		OrgID: "test-entity", // Set the org ID to match the entity
+	}
+
+	SetEntity(entity)
+	SetEntityPool(entity.ID, pool)
+
+	retrievedEntity, ok := GetEntityForPool(pool.ID)
+	c.Require().True(ok)
+	c.Require().Equal(entity.ID, retrievedEntity.ID)
+	c.Require().Equal(entity.Name, retrievedEntity.Name)
+
+	nonExistentEntity, ok := GetEntityForPool("non-existent-pool")
+	c.Require().False(ok)
+	c.Require().Equal(params.ForgeEntity{}, nonExistentEntity)
+}
+
+func (c *CacheTestSuite) TestGetEntityForScaleSet() {
+	entity := params.ForgeEntity{
+		ID:         "test-entity",
+		EntityType: params.ForgeEntityTypeOrganization,
+		Name:       "test",
+		Owner:      "test",
+	}
+	scaleSet := params.ScaleSet{
+		ID:    1,
+		OrgID: "test-entity", // Set the org ID to match the entity
+	}
+
+	SetEntity(entity)
+	SetEntityScaleSet(entity.ID, scaleSet)
+
+	retrievedEntity, ok := GetEntityForScaleSet(scaleSet.ID)
+	c.Require().True(ok)
+	c.Require().Equal(entity.ID, retrievedEntity.ID)
+	c.Require().Equal(entity.Name, retrievedEntity.Name)
+
+	nonExistentEntity, ok := GetEntityForScaleSet(999)
+	c.Require().False(ok)
+	c.Require().Equal(params.ForgeEntity{}, nonExistentEntity)
+}
+
+func (c *CacheTestSuite) TestGetPoolByID() {
+	entity := params.ForgeEntity{
+		ID:         "test-entity",
+		EntityType: params.ForgeEntityTypeOrganization,
+		Name:       "test",
+		Owner:      "test",
+	}
+	pool := params.Pool{
+		ID:      "pool-1",
+		OrgID:   "test-entity",
+		Enabled: true,
+		Tags: []params.Tag{
+			{
+				Name: "test-tag",
+			},
+		},
+	}
+
+	SetEntity(entity)
+	SetEntityPool(entity.ID, pool)
+
+	retrievedPool, ok := GetPoolByID(pool.ID)
+	c.Require().True(ok)
+	c.Require().Equal(pool.ID, retrievedPool.ID)
+	c.Require().Equal(pool.Enabled, retrievedPool.Enabled)
+	c.Require().Len(retrievedPool.Tags, 1)
+	c.Require().Equal("test-tag", retrievedPool.Tags[0].Name)
+
+	nonExistentPool, ok := GetPoolByID("non-existent-pool")
+	c.Require().False(ok)
+	c.Require().Equal(params.Pool{}, nonExistentPool)
+}
+
+func (c *CacheTestSuite) TestGetScaleSetByID() {
+	entity := params.ForgeEntity{
+		ID:         "test-entity",
+		EntityType: params.ForgeEntityTypeOrganization,
+		Name:       "test",
+		Owner:      "test",
+	}
+	scaleSet := params.ScaleSet{
+		ID:      1,
+		OrgID:   "test-entity",
+		Enabled: true,
+	}
+
+	SetEntity(entity)
+	SetEntityScaleSet(entity.ID, scaleSet)
+
+	retrievedScaleSet, ok := GetScaleSetByID(scaleSet.ID)
+	c.Require().True(ok)
+	c.Require().Equal(scaleSet.ID, retrievedScaleSet.ID)
+	c.Require().Equal(scaleSet.Enabled, retrievedScaleSet.Enabled)
+
+	nonExistentScaleSet, ok := GetScaleSetByID(999)
+	c.Require().False(ok)
+	c.Require().Equal(params.ScaleSet{}, nonExistentScaleSet)
+}
+
+func (c *CacheTestSuite) TestGetPoolByIDWithMultiplePools() {
+	entity := params.ForgeEntity{
+		ID:         "test-entity",
+		EntityType: params.ForgeEntityTypeOrganization,
+		Name:       "test",
+		Owner:      "test",
+	}
+	pool1 := params.Pool{
+		ID:      "pool-1",
+		Enabled: true,
+		OrgID:   "test-entity",
+	}
+	pool2 := params.Pool{
+		ID:      "pool-2",
+		Enabled: false,
+		OrgID:   "test-entity",
+	}
+
+	SetEntity(entity)
+	SetEntityPool(entity.ID, pool1)
+	SetEntityPool(entity.ID, pool2)
+
+	retrievedPool1, ok := GetPoolByID("pool-1")
+	c.Require().True(ok)
+	c.Require().Equal("pool-1", retrievedPool1.ID)
+	c.Require().True(retrievedPool1.Enabled)
+
+	retrievedPool2, ok := GetPoolByID("pool-2")
+	c.Require().True(ok)
+	c.Require().Equal("pool-2", retrievedPool2.ID)
+	c.Require().False(retrievedPool2.Enabled)
+}
+
+func (c *CacheTestSuite) TestGetScaleSetByIDWithMultipleScaleSets() {
+	entity := params.ForgeEntity{
+		ID:         "test-entity",
+		EntityType: params.ForgeEntityTypeOrganization,
+		Name:       "test",
+		Owner:      "test",
+	}
+	scaleSet1 := params.ScaleSet{
+		ID:      1,
+		Enabled: true,
+		OrgID:   "test-entity",
+	}
+	scaleSet2 := params.ScaleSet{
+		ID:      2,
+		Enabled: false,
+		OrgID:   "test-entity",
+	}
+
+	SetEntity(entity)
+	SetEntityScaleSet(entity.ID, scaleSet1)
+	SetEntityScaleSet(entity.ID, scaleSet2)
+
+	retrievedScaleSet1, ok := GetScaleSetByID(1)
+	c.Require().True(ok)
+	c.Require().Equal(uint(1), retrievedScaleSet1.ID)
+	c.Require().True(retrievedScaleSet1.Enabled)
+
+	retrievedScaleSet2, ok := GetScaleSetByID(2)
+	c.Require().True(ok)
+	c.Require().Equal(uint(2), retrievedScaleSet2.ID)
+	c.Require().False(retrievedScaleSet2.Enabled)
+}
+
+func (c *CacheTestSuite) TestGetEntityForInstanceWithPool() {
+	entity := params.ForgeEntity{
+		ID:         "test-entity",
+		EntityType: params.ForgeEntityTypeOrganization,
+		Name:       "test-org",
+		Owner:      "test-owner",
+	}
+	pool := params.Pool{
+		ID:    "pool-1",
+		OrgID: "test-entity",
+	}
+	instance := params.Instance{
+		Name:   "test-instance",
+		PoolID: "pool-1",
+	}
+
+	SetEntity(entity)
+	SetEntityPool(entity.ID, pool)
+	SetInstanceCache(instance)
+
+	retrievedEntity, ok := GetEntityForInstance("test-instance")
+	c.Require().True(ok)
+	c.Require().Equal(entity.ID, retrievedEntity.ID)
+	c.Require().Equal(entity.Name, retrievedEntity.Name)
+	c.Require().Equal(entity.Owner, retrievedEntity.Owner)
+	c.Require().Equal(entity.EntityType, retrievedEntity.EntityType)
+
+	nonExistentEntity, ok := GetEntityForInstance("non-existent-instance")
+	c.Require().False(ok)
+	c.Require().Equal(params.ForgeEntity{}, nonExistentEntity)
+}
+
+func (c *CacheTestSuite) TestGetEntityForInstanceWithScaleSet() {
+	entity := params.ForgeEntity{
+		ID:         "test-entity",
+		EntityType: params.ForgeEntityTypeOrganization,
+		Name:       "test-org",
+		Owner:      "test-owner",
+	}
+	scaleSet := params.ScaleSet{
+		ID:    1,
+		OrgID: "test-entity",
+	}
+	instance := params.Instance{
+		Name:       "test-instance",
+		ScaleSetID: 1,
+	}
+
+	SetEntity(entity)
+	SetEntityScaleSet(entity.ID, scaleSet)
+	SetInstanceCache(instance)
+
+	retrievedEntity, ok := GetEntityForInstance("test-instance")
+	c.Require().True(ok)
+	c.Require().Equal(entity.ID, retrievedEntity.ID)
+	c.Require().Equal(entity.Name, retrievedEntity.Name)
+	c.Require().Equal(entity.Owner, retrievedEntity.Owner)
+	c.Require().Equal(entity.EntityType, retrievedEntity.EntityType)
+}
+
+func (c *CacheTestSuite) TestGetEntityForInstanceWithRepositoryEntity() {
+	entity := params.ForgeEntity{
+		ID:         "test-repo-entity",
+		EntityType: params.ForgeEntityTypeRepository,
+		Name:       "test-repo",
+		Owner:      "test-owner",
+	}
+	pool := params.Pool{
+		ID:     "pool-repo",
+		RepoID: "test-repo-entity",
+	}
+	instance := params.Instance{
+		Name:   "test-repo-instance",
+		PoolID: "pool-repo",
+	}
+
+	SetEntity(entity)
+	SetEntityPool(entity.ID, pool)
+	SetInstanceCache(instance)
+
+	retrievedEntity, ok := GetEntityForInstance("test-repo-instance")
+	c.Require().True(ok)
+	c.Require().Equal(entity.ID, retrievedEntity.ID)
+	c.Require().Equal(entity.EntityType, retrievedEntity.EntityType)
+	c.Require().Equal("test-repo", retrievedEntity.Name)
+}
+
+func (c *CacheTestSuite) TestGetEntityForInstanceWithEnterpriseEntity() {
+	entity := params.ForgeEntity{
+		ID:         "test-enterprise-entity",
+		EntityType: params.ForgeEntityTypeEnterprise,
+		Name:       "test-enterprise",
+		Owner:      "test-owner",
+	}
+	scaleSet := params.ScaleSet{
+		ID:           2,
+		EnterpriseID: "test-enterprise-entity",
+	}
+	instance := params.Instance{
+		Name:       "test-enterprise-instance",
+		ScaleSetID: 2,
+	}
+
+	SetEntity(entity)
+	SetEntityScaleSet(entity.ID, scaleSet)
+	SetInstanceCache(instance)
+
+	retrievedEntity, ok := GetEntityForInstance("test-enterprise-instance")
+	c.Require().True(ok)
+	c.Require().Equal(entity.ID, retrievedEntity.ID)
+	c.Require().Equal(entity.EntityType, retrievedEntity.EntityType)
+	c.Require().Equal("test-enterprise", retrievedEntity.Name)
+}
+
+func (c *CacheTestSuite) TestGetEntityForInstanceWithNoPoolOrScaleSet() {
+	instance := params.Instance{
+		Name: "orphaned-instance",
+		// No PoolID or ScaleSetID set
+	}
+
+	SetInstanceCache(instance)
+
+	retrievedEntity, ok := GetEntityForInstance("orphaned-instance")
+	c.Require().False(ok)
+	c.Require().Equal(params.ForgeEntity{}, retrievedEntity)
+}
+
+func (c *CacheTestSuite) TestGetEntityForInstanceWithNonExistentPool() {
+	instance := params.Instance{
+		Name:   "test-instance",
+		PoolID: "non-existent-pool",
+	}
+
+	SetInstanceCache(instance)
+
+	retrievedEntity, ok := GetEntityForInstance("test-instance")
+	c.Require().False(ok)
+	c.Require().Equal(params.ForgeEntity{}, retrievedEntity)
+}
+
+func (c *CacheTestSuite) TestGetEntityForInstanceWithNonExistentScaleSet() {
+	instance := params.Instance{
+		Name:       "test-instance",
+		ScaleSetID: 999,
+	}
+
+	SetInstanceCache(instance)
+
+	retrievedEntity, ok := GetEntityForInstance("test-instance")
+	c.Require().False(ok)
+	c.Require().Equal(params.ForgeEntity{}, retrievedEntity)
+}
+
+func (c *CacheTestSuite) TestGetEntityForInstanceWithNonExistentEntity() {
+	pool := params.Pool{
+		ID:    "pool-1",
+		OrgID: "non-existent-entity",
+	}
+	instance := params.Instance{
+		Name:   "test-instance",
+		PoolID: "pool-1",
+	}
+
+	// Only set pool and instance, not the entity
+	SetEntityPool("non-existent-entity", pool)
+	SetInstanceCache(instance)
+
+	retrievedEntity, ok := GetEntityForInstance("test-instance")
+	c.Require().False(ok)
+	c.Require().Equal(params.ForgeEntity{}, retrievedEntity)
+}
+
+func (c *CacheTestSuite) TestGetEntityForInstanceWithBothPoolAndScaleSet() {
+	entity := params.ForgeEntity{
+		ID:         "test-entity",
+		EntityType: params.ForgeEntityTypeOrganization,
+		Name:       "test-org",
+		Owner:      "test-owner",
+	}
+	pool := params.Pool{
+		ID:    "pool-1",
+		OrgID: "test-entity",
+	}
+	scaleSet := params.ScaleSet{
+		ID:    1,
+		OrgID: "test-entity",
+	}
+	// Instance with both pool and scale set - scale set should take precedence
+	instance := params.Instance{
+		Name:       "test-instance",
+		PoolID:     "pool-1",
+		ScaleSetID: 1,
+	}
+
+	SetEntity(entity)
+	SetEntityPool(entity.ID, pool)
+	SetEntityScaleSet(entity.ID, scaleSet)
+	SetInstanceCache(instance)
+
+	retrievedEntity, ok := GetEntityForInstance("test-instance")
+	c.Require().True(ok)
+	c.Require().Equal(entity.ID, retrievedEntity.ID)
+	// Should retrieve entity via scale set (scale set takes precedence)
 }
 
 func TestCacheTestSuite(t *testing.T) {

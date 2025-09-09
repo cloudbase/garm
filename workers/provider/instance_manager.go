@@ -157,7 +157,7 @@ func (i *instanceManager) handleCreateInstanceInProvider(instance params.Instanc
 	}
 
 	token, err := i.helper.InstanceTokenGetter().NewInstanceJWTToken(
-		instance, entity, entity.EntityType, i.scaleSet.RunnerBootstrapTimeout)
+		instance, entity, i.scaleSet.RunnerBootstrapTimeout)
 	if err != nil {
 		return fmt.Errorf("creating instance token: %w", err)
 	}

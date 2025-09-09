@@ -26,5 +26,5 @@ type Middleware interface {
 }
 
 type InstanceTokenGetter interface {
-	NewInstanceJWTToken(instance params.Instance, entity params.ForgeEntity, poolType params.ForgeEntityType, ttlMinutes uint) (string, error)
+	NewInstanceJWTToken(instance params.Instance, entity params.ForgeEntity, ttlMinutes uint) (string, error)
 }

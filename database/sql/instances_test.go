@@ -528,15 +528,18 @@ func (s *InstancesTestSuite) TestListAllInstances() {
 }
 
 func (s *InstancesTestSuite) TestListAllInstancesDBFetchErr() {
+	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `instances` WHERE `instances`.`deleted_at` IS NULL")).
+		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `instances` WHERE `instances`.`deleted_at` IS NULL LIMIT ?")).
+		WithArgs(1000).
 		WillReturnError(fmt.Errorf("fetch instances mock error"))
+	s.Fixtures.SQLMock.ExpectRollback()
 
 	_, err := s.StoreSQLMocked.ListAllInstances(s.adminCtx)
 
 	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
-	s.Require().Equal("error fetching instances: fetch instances mock error", err.Error())
+	s.Require().Equal("failed to list all instances: error fetching instances: fetch instances mock error", err.Error())
 }
 
 func (s *InstancesTestSuite) TestPoolInstanceCount() {

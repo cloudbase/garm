@@ -18,6 +18,8 @@ import (
 	"context"
 	"fmt"
 
+	"gorm.io/gorm"
+
 	"github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/params"
 )
@@ -64,23 +66,11 @@ func (s *sqlDatabase) CreateScaleSetInstance(_ context.Context, scaleSetID uint,
 }
 
 func (s *sqlDatabase) ListScaleSetInstances(_ context.Context, scalesetID uint) ([]params.Instance, error) {
-	var instances []Instance
-	query := s.conn.
-		Preload("ScaleSet").
-		Preload("Job").
-		Where("scale_set_fk_id = ?", scalesetID)
-
-	if err := query.Find(&instances); err.Error != nil {
-		return nil, fmt.Errorf("error fetching instances: %w", err.Error)
-	}
-
-	var err error
-	ret := make([]params.Instance, len(instances))
-	for idx, inst := range instances {
-		ret[idx], err = s.sqlToParamsInstance(inst)
-		if err != nil {
-			return nil, fmt.Errorf("error converting instance: %w", err)
-		}
+	ret, err := s.listInstancesBatched(func(query *gorm.DB) *gorm.DB {
+		return query.Where("scale_set_fk_id = ?", scalesetID)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list scaleset instances: %w", err)
 	}
 	return ret, nil
 }
