@@ -21,3 +21,9 @@ import (
 type ToolsGetter interface {
 	GetTools() ([]commonParams.RunnerApplicationDownload, error)
 }
+
+type Controller interface {
+	// NewInstanceJWTToken returns a new instance JWT token used by runners to identify themselves
+	// against the GARM API. Instance names are unique.
+	NewInstanceJWTToken(instanceName string) (string, error)
+}

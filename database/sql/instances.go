@@ -318,50 +318,77 @@ func (s *sqlDatabase) UpdateInstance(ctx context.Context, instanceName string, p
 	return inst, nil
 }
 
+// listInstancesBatched is a helper function that retrieves instances in batches
+// and converts them to params.Instance. It accepts a query modifier function
+// to customize the base query (e.g., add WHERE clauses).
+func (s *sqlDatabase) listInstancesBatched(queryModifier func(*gorm.DB) *gorm.DB) ([]params.Instance, error) {
+	ret := []params.Instance{}
+	err := s.conn.Transaction(func(tx *gorm.DB) error {
+		batchSize := 1000
+		offset := 0
+		for {
+			var batch []Instance
+
+			// Start with base query and apply modifier
+			query := tx.Limit(batchSize).Offset(offset).
+				Preload("Pool").
+				Preload("ScaleSet").
+				Preload("Job")
+
+			if queryModifier != nil {
+				query = queryModifier(query)
+			}
+
+			q := query.Find(&batch)
+			if q.Error != nil {
+				return fmt.Errorf("error fetching instances: %w", q.Error)
+			}
+			if len(batch) == 0 {
+				break
+			}
+
+			// Pre-grow slice to avoid multiple small reallocations
+			if cap(ret) < len(ret)+len(batch) {
+				newCap := max(len(ret)+len(batch), cap(ret)*2)
+				newRet := make([]params.Instance, len(ret), newCap)
+				copy(newRet, ret)
+				ret = newRet
+			}
+
+			// Convert directly into result slice
+			for _, instance := range batch {
+				converted, err := s.sqlToParamsInstance(instance)
+				if err != nil {
+					return fmt.Errorf("error converting instance: %w", err)
+				}
+				ret = append(ret, converted)
+			}
+			offset += len(batch)
+		}
+		return nil
+	})
+	return ret, err
+}
+
 func (s *sqlDatabase) ListPoolInstances(_ context.Context, poolID string) ([]params.Instance, error) {
 	u, err := uuid.Parse(poolID)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing id: %w", runnerErrors.ErrBadRequest)
 	}
 
-	var instances []Instance
-	query := s.conn.
-		Preload("Pool").
-		Preload("Job").
-		Where("pool_id = ?", u)
-
-	if err := query.Find(&instances); err.Error != nil {
-		return nil, fmt.Errorf("error fetching instances: %w", err.Error)
-	}
-
-	ret := make([]params.Instance, len(instances))
-	for idx, inst := range instances {
-		ret[idx], err = s.sqlToParamsInstance(inst)
-		if err != nil {
-			return nil, fmt.Errorf("error converting instance: %w", err)
-		}
+	ret, err := s.listInstancesBatched(func(query *gorm.DB) *gorm.DB {
+		return query.Where("pool_id = ?", u)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list pool instances: %w", err)
 	}
 	return ret, nil
 }
 
 func (s *sqlDatabase) ListAllInstances(_ context.Context) ([]params.Instance, error) {
-	var instances []Instance
-
-	q := s.conn.
-		Preload("Pool").
-		Preload("ScaleSet").
-		Preload("Job").
-		Find(&instances)
-	if q.Error != nil {
-		return nil, fmt.Errorf("error fetching instances: %w", q.Error)
-	}
-	ret := make([]params.Instance, len(instances))
-	var err error
-	for idx, instance := range instances {
-		ret[idx], err = s.sqlToParamsInstance(instance)
-		if err != nil {
-			return nil, fmt.Errorf("error converting instance: %w", err)
-		}
+	ret, err := s.listInstancesBatched(nil) // No query modifier for all instances
+	if err != nil {
+		return nil, fmt.Errorf("failed to list all instances: %w", err)
 	}
 	return ret, nil
 }

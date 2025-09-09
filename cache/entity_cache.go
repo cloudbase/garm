@@ -24,7 +24,9 @@ var entityCache *EntityCache
 
 func init() {
 	ghEntityCache := &EntityCache{
-		entities: make(map[string]EntityItem),
+		entities:  make(map[string]EntityItem),
+		pools:     make(map[string]params.Pool),
+		scalesets: make(map[uint]params.ScaleSet),
 	}
 	entityCache = ghEntityCache
 }
@@ -36,15 +38,77 @@ type RunnerGroupEntry struct {
 
 type EntityItem struct {
 	Entity       params.ForgeEntity
-	Pools        map[string]params.Pool
-	ScaleSets    map[uint]params.ScaleSet
+	Pools        map[string]struct{}
+	ScaleSets    map[uint]struct{}
 	RunnerGroups map[string]RunnerGroupEntry
 }
 
 type EntityCache struct {
 	mux sync.Mutex
 	// entity IDs are UUID4s. It is highly unlikely they will collide (🤞).
-	entities map[string]EntityItem
+	entities  map[string]EntityItem
+	pools     map[string]params.Pool
+	scalesets map[uint]params.ScaleSet
+}
+
+func (e *EntityCache) GetEntityForScaleSet(scaleSetID uint) (params.ForgeEntity, bool) {
+	e.mux.Lock()
+	defer e.mux.Unlock()
+
+	scaleSet, ok := e.scalesets[scaleSetID]
+	if !ok {
+		return params.ForgeEntity{}, false
+	}
+
+	entity, err := scaleSet.GetEntity()
+	if err != nil {
+		return params.ForgeEntity{}, false
+	}
+	if cacheEntity, ok := e.entities[entity.ID]; ok {
+		return cacheEntity.Entity, true
+	}
+	return params.ForgeEntity{}, false
+}
+
+func (e *EntityCache) GetEntityForPool(poolID string) (params.ForgeEntity, bool) {
+	e.mux.Lock()
+	defer e.mux.Unlock()
+
+	pool, ok := e.pools[poolID]
+	if !ok {
+		return params.ForgeEntity{}, false
+	}
+
+	entity, err := pool.GetEntity()
+	if err != nil {
+		return params.ForgeEntity{}, false
+	}
+	if cacheEntity, ok := e.entities[entity.ID]; ok {
+		return cacheEntity.Entity, true
+	}
+	return params.ForgeEntity{}, false
+}
+
+func (e *EntityCache) GetPoolByID(poolID string) (params.Pool, bool) {
+	e.mux.Lock()
+	defer e.mux.Unlock()
+
+	if pool, ok := e.pools[poolID]; ok {
+		return pool, ok
+	}
+
+	return params.Pool{}, false
+}
+
+func (e *EntityCache) GetScaleSetByID(scaleSetID uint) (params.ScaleSet, bool) {
+	e.mux.Lock()
+	defer e.mux.Unlock()
+
+	if scaleSet, ok := e.scalesets[scaleSetID]; ok {
+		return scaleSet, ok
+	}
+
+	return params.ScaleSet{}, false
 }
 
 func (e *EntityCache) UpdateCredentialsInAffectedEntities(creds params.ForgeCredentials) {
@@ -88,8 +152,8 @@ func (e *EntityCache) SetEntity(entity params.ForgeEntity) {
 	if !ok {
 		e.entities[entity.ID] = EntityItem{
 			Entity:       entity,
-			Pools:        make(map[string]params.Pool),
-			ScaleSets:    make(map[uint]params.ScaleSet),
+			Pools:        make(map[string]struct{}),
+			ScaleSets:    make(map[uint]struct{}),
 			RunnerGroups: make(map[string]RunnerGroupEntry),
 		}
 		return
@@ -107,9 +171,17 @@ func (e *EntityCache) ReplaceEntityPools(entityID string, pools []params.Pool) {
 		return
 	}
 
-	poolsByID := map[string]params.Pool{}
+	poolsByID := map[string]struct{}{}
 	for _, pool := range pools {
-		poolsByID[pool.ID] = pool
+		poolEntity, err := pool.GetEntity()
+		if err != nil || poolEntity.ID != entityID {
+			continue
+		}
+		e.pools[pool.ID] = pool
+		// map the pool ID to the entity. We have to do an extra lookup
+		// in the pools map, but it makes it easier to lookup just pools later
+		// when we want to find the pool for the instance.
+		poolsByID[pool.ID] = struct{}{}
 	}
 	cache.Pools = poolsByID
 	e.entities[entityID] = cache
@@ -124,9 +196,14 @@ func (e *EntityCache) ReplaceEntityScaleSets(entityID string, scaleSets []params
 		return
 	}
 
-	scaleSetsByID := map[uint]params.ScaleSet{}
+	scaleSetsByID := map[uint]struct{}{}
 	for _, scaleSet := range scaleSets {
-		scaleSetsByID[scaleSet.ID] = scaleSet
+		scaleSetEntity, err := scaleSet.GetEntity()
+		if err != nil || scaleSetEntity.ID != entityID {
+			continue
+		}
+		e.scalesets[scaleSet.ID] = scaleSet
+		scaleSetsByID[scaleSet.ID] = struct{}{}
 	}
 	cache.ScaleSets = scaleSetsByID
 	e.entities[entityID] = cache
@@ -142,8 +219,14 @@ func (e *EntityCache) SetEntityPool(entityID string, pool params.Pool) {
 	e.mux.Lock()
 	defer e.mux.Unlock()
 
+	poolEntity, err := pool.GetEntity()
+	if err != nil || poolEntity.ID != entityID {
+		return
+	}
+
 	if cache, ok := e.entities[entityID]; ok {
-		cache.Pools[pool.ID] = pool
+		e.pools[pool.ID] = pool
+		cache.Pools[pool.ID] = struct{}{}
 		e.entities[entityID] = cache
 	}
 }
@@ -152,8 +235,14 @@ func (e *EntityCache) SetEntityScaleSet(entityID string, scaleSet params.ScaleSe
 	e.mux.Lock()
 	defer e.mux.Unlock()
 
+	scaleSetEntity, err := scaleSet.GetEntity()
+	if err != nil || scaleSetEntity.ID != entityID {
+		return
+	}
+
 	if cache, ok := e.entities[entityID]; ok {
-		cache.ScaleSets[scaleSet.ID] = scaleSet
+		e.scalesets[scaleSet.ID] = scaleSet
+		cache.ScaleSets[scaleSet.ID] = struct{}{}
 		e.entities[entityID] = cache
 	}
 }
@@ -183,8 +272,10 @@ func (e *EntityCache) GetEntityPool(entityID string, poolID string) (params.Pool
 	defer e.mux.Unlock()
 
 	if cache, ok := e.entities[entityID]; ok {
-		if pool, ok := cache.Pools[poolID]; ok {
-			return pool, true
+		if _, ok := cache.Pools[poolID]; ok {
+			if cachePool, ok := e.pools[poolID]; ok {
+				return cachePool, true
+			}
 		}
 	}
 	return params.Pool{}, false
@@ -195,8 +286,10 @@ func (e *EntityCache) GetEntityScaleSet(entityID string, scaleSetID uint) (param
 	defer e.mux.Unlock()
 
 	if cache, ok := e.entities[entityID]; ok {
-		if scaleSet, ok := cache.ScaleSets[scaleSetID]; ok {
-			return scaleSet, true
+		if _, ok := cache.ScaleSets[scaleSetID]; ok {
+			if scaleSet, ok := e.scalesets[scaleSetID]; ok {
+				return scaleSet, true
+			}
 		}
 	}
 	return params.ScaleSet{}, false
@@ -208,9 +301,11 @@ func (e *EntityCache) FindPoolsMatchingAllTags(entityID string, tags []string) [
 
 	if cache, ok := e.entities[entityID]; ok {
 		var pools []params.Pool
-		for _, pool := range cache.Pools {
-			if pool.HasRequiredLabels(tags) {
-				pools = append(pools, pool)
+		for poolID := range cache.Pools {
+			if pool, ok := e.pools[poolID]; ok {
+				if pool.HasRequiredLabels(tags) {
+					pools = append(pools, pool)
+				}
 			}
 		}
 		// Sort the pools by creation date.
@@ -226,8 +321,10 @@ func (e *EntityCache) GetEntityPools(entityID string) []params.Pool {
 
 	if cache, ok := e.entities[entityID]; ok {
 		var pools []params.Pool
-		for _, pool := range cache.Pools {
-			pools = append(pools, pool)
+		for poolID := range cache.Pools {
+			if pool, ok := e.pools[poolID]; ok {
+				pools = append(pools, pool)
+			}
 		}
 		// Sort the pools by creation date.
 		sortByCreationDate(pools)
@@ -242,8 +339,10 @@ func (e *EntityCache) GetEntityScaleSets(entityID string) []params.ScaleSet {
 
 	if cache, ok := e.entities[entityID]; ok {
 		var scaleSets []params.ScaleSet
-		for _, scaleSet := range cache.ScaleSets {
-			scaleSets = append(scaleSets, scaleSet)
+		for scaleSetID := range cache.ScaleSets {
+			if scaleSet, ok := e.scalesets[scaleSetID]; ok {
+				scaleSets = append(scaleSets, scaleSet)
+			}
 		}
 		// Sort the scale sets by creation date.
 		sortByID(scaleSets)
@@ -299,10 +398,8 @@ func (e *EntityCache) GetAllPools() []params.Pool {
 	defer e.mux.Unlock()
 
 	var pools []params.Pool
-	for _, cache := range e.entities {
-		for _, pool := range cache.Pools {
-			pools = append(pools, pool)
-		}
+	for _, pool := range e.pools {
+		pools = append(pools, pool)
 	}
 	sortByCreationDate(pools)
 	return pools
@@ -313,10 +410,8 @@ func (e *EntityCache) GetAllScaleSets() []params.ScaleSet {
 	defer e.mux.Unlock()
 
 	var scaleSets []params.ScaleSet
-	for _, cache := range e.entities {
-		for _, scaleSet := range cache.ScaleSets {
-			scaleSets = append(scaleSets, scaleSet)
-		}
+	for _, scaleSet := range e.scalesets {
+		scaleSets = append(scaleSets, scaleSet)
 	}
 	sortByID(scaleSets)
 	return scaleSets
@@ -432,4 +527,20 @@ func GetAllPools() []params.Pool {
 
 func GetAllScaleSets() []params.ScaleSet {
 	return entityCache.GetAllScaleSets()
+}
+
+func GetEntityForScaleSet(scaleSetID uint) (params.ForgeEntity, bool) {
+	return entityCache.GetEntityForScaleSet(scaleSetID)
+}
+
+func GetEntityForPool(poolID string) (params.ForgeEntity, bool) {
+	return entityCache.GetEntityForPool(poolID)
+}
+
+func GetPoolByID(poolID string) (params.Pool, bool) {
+	return entityCache.GetPoolByID(poolID)
+}
+
+func GetScaleSetByID(scaleSetID uint) (params.ScaleSet, bool) {
+	return entityCache.GetScaleSetByID(scaleSetID)
 }

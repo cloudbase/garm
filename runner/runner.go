@@ -47,7 +47,7 @@ import (
 	"github.com/cloudbase/garm/util/github/scalesets"
 )
 
-func NewRunner(ctx context.Context, cfg config.Config, db dbCommon.Store) (*Runner, error) {
+func NewRunner(ctx context.Context, cfg config.Config, db dbCommon.Store, token auth.InstanceTokenGetter) (*Runner, error) {
 	ctrlID, err := db.ControllerInfo()
 	if err != nil {
 		return nil, fmt.Errorf("error fetching controller info: %w", err)
@@ -67,6 +67,7 @@ func NewRunner(ctx context.Context, cfg config.Config, db dbCommon.Store) (*Runn
 	poolManagerCtrl := &poolManagerCtrl{
 		config:        cfg,
 		store:         db,
+		token:         token,
 		repositories:  map[string]common.PoolManager{},
 		organizations: map[string]common.PoolManager{},
 		enterprises:   map[string]common.PoolManager{},
@@ -91,6 +92,7 @@ type poolManagerCtrl struct {
 
 	config config.Config
 	store  dbCommon.Store
+	token  auth.InstanceTokenGetter
 
 	repositories  map[string]common.PoolManager
 	organizations map[string]common.PoolManager
@@ -106,11 +108,7 @@ func (p *poolManagerCtrl) CreateRepoPoolManager(ctx context.Context, repo params
 		return nil, fmt.Errorf("error getting entity: %w", err)
 	}
 
-	instanceTokenGetter, err := auth.NewInstanceTokenGetter(p.config.JWTAuth.Secret)
-	if err != nil {
-		return nil, fmt.Errorf("error creating instance token getter: %w", err)
-	}
-	poolManager, err := pool.NewEntityPoolManager(ctx, entity, instanceTokenGetter, providers, store)
+	poolManager, err := pool.NewEntityPoolManager(ctx, entity, p.token, providers, store)
 	if err != nil {
 		return nil, fmt.Errorf("error creating repo pool manager: %w", err)
 	}
@@ -152,11 +150,7 @@ func (p *poolManagerCtrl) CreateOrgPoolManager(ctx context.Context, org params.O
 		return nil, fmt.Errorf("error getting entity: %w", err)
 	}
 
-	instanceTokenGetter, err := auth.NewInstanceTokenGetter(p.config.JWTAuth.Secret)
-	if err != nil {
-		return nil, fmt.Errorf("error creating instance token getter: %w", err)
-	}
-	poolManager, err := pool.NewEntityPoolManager(ctx, entity, instanceTokenGetter, providers, store)
+	poolManager, err := pool.NewEntityPoolManager(ctx, entity, p.token, providers, store)
 	if err != nil {
 		return nil, fmt.Errorf("error creating org pool manager: %w", err)
 	}
@@ -198,11 +192,7 @@ func (p *poolManagerCtrl) CreateEnterprisePoolManager(ctx context.Context, enter
 		return nil, fmt.Errorf("error getting entity: %w", err)
 	}
 
-	instanceTokenGetter, err := auth.NewInstanceTokenGetter(p.config.JWTAuth.Secret)
-	if err != nil {
-		return nil, fmt.Errorf("error creating instance token getter: %w", err)
-	}
-	poolManager, err := pool.NewEntityPoolManager(ctx, entity, instanceTokenGetter, providers, store)
+	poolManager, err := pool.NewEntityPoolManager(ctx, entity, p.token, providers, store)
 	if err != nil {
 		return nil, fmt.Errorf("error creating enterprise pool manager: %w", err)
 	}

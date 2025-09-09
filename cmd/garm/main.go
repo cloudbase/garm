@@ -236,9 +236,6 @@ func main() {
 	}
 
 	cacheWorker := cache.NewWorker(ctx, db)
-	if err != nil {
-		log.Fatalf("failed to create cache worker: %+v", err)
-	}
 	if err := cacheWorker.Start(); err != nil {
 		log.Fatalf("failed to start cache worker: %+v", err)
 	}
@@ -269,7 +266,7 @@ func main() {
 		log.Fatalf("failed to start provider worker: %+v", err)
 	}
 
-	runner, err := runner.NewRunner(ctx, *cfg, db)
+	runner, err := runner.NewRunner(ctx, *cfg, db, instanceTokenGetter)
 	if err != nil {
 		log.Fatalf("failed to create controller: %+v", err)
 	}
