@@ -29,7 +29,7 @@ import (
 	"github.com/cloudbase/garm/params"
 )
 
-func (s *sqlDatabase) CreateOrganization(ctx context.Context, name string, credentials params.ForgeCredentials, webhookSecret string, poolBalancerType params.PoolBalancerType) (param params.Organization, err error) {
+func (s *sqlDatabase) CreateOrganization(ctx context.Context, name string, credentials params.ForgeCredentials, webhookSecret string, poolBalancerType params.PoolBalancerType, agentMode bool) (param params.Organization, err error) {
 	if webhookSecret == "" {
 		return params.Organization{}, errors.New("creating org: missing secret")
 	}
@@ -47,6 +47,7 @@ func (s *sqlDatabase) CreateOrganization(ctx context.Context, name string, crede
 		Name:             name,
 		WebhookSecret:    secret,
 		PoolBalancerType: poolBalancerType,
+		AgentMode:        agentMode,
 	}
 
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
@@ -193,6 +194,10 @@ func (s *sqlDatabase) UpdateOrganization(ctx context.Context, orgID string, para
 
 		if param.PoolBalancerType != "" {
 			org.PoolBalancerType = param.PoolBalancerType
+		}
+
+		if param.AgentMode != nil {
+			org.AgentMode = *param.AgentMode
 		}
 
 		q := tx.Save(&org)

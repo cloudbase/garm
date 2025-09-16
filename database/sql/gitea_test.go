@@ -529,7 +529,7 @@ func (s *GiteaTestSuite) TestDeleteCredentialsFailsIfReposOrgsOrEntitiesUseIt() 
 	s.Require().NoError(err)
 	s.Require().NotNil(creds)
 
-	repo, err := s.db.CreateRepository(ctx, "test-owner", "test-repo", creds, "superSecret@123BlaBla", params.PoolBalancerTypeRoundRobin)
+	repo, err := s.db.CreateRepository(ctx, "test-owner", "test-repo", creds, "superSecret@123BlaBla", params.PoolBalancerTypeRoundRobin, false)
 	s.Require().NoError(err)
 	s.Require().NotNil(repo)
 
@@ -540,7 +540,7 @@ func (s *GiteaTestSuite) TestDeleteCredentialsFailsIfReposOrgsOrEntitiesUseIt() 
 	err = s.db.DeleteRepository(ctx, repo.ID)
 	s.Require().NoError(err)
 
-	org, err := s.db.CreateOrganization(ctx, "test-org", creds, "superSecret@123BlaBla", params.PoolBalancerTypeRoundRobin)
+	org, err := s.db.CreateOrganization(ctx, "test-org", creds, "superSecret@123BlaBla", params.PoolBalancerTypeRoundRobin, false)
 	s.Require().NoError(err)
 	s.Require().NotNil(org)
 
@@ -551,7 +551,7 @@ func (s *GiteaTestSuite) TestDeleteCredentialsFailsIfReposOrgsOrEntitiesUseIt() 
 	err = s.db.DeleteOrganization(ctx, org.ID)
 	s.Require().NoError(err)
 
-	enterprise, err := s.db.CreateEnterprise(ctx, "test-enterprise", creds, "superSecret@123BlaBla", params.PoolBalancerTypeRoundRobin)
+	enterprise, err := s.db.CreateEnterprise(ctx, "test-enterprise", creds, "superSecret@123BlaBla", params.PoolBalancerTypeRoundRobin, false)
 	s.Require().ErrorIs(err, runnerErrors.ErrBadRequest)
 	s.Require().Equal(params.Enterprise{}, enterprise)
 
@@ -685,7 +685,7 @@ func (s *GiteaTestSuite) TestDeleteCredentialsWithOrgsOrReposFails() {
 	s.Require().NoError(err)
 	s.Require().NotNil(creds)
 
-	repo, err := s.db.CreateRepository(ctx, "test-owner", "test-repo", creds, "superSecret@123BlaBla", params.PoolBalancerTypeRoundRobin)
+	repo, err := s.db.CreateRepository(ctx, "test-owner", "test-repo", creds, "superSecret@123BlaBla", params.PoolBalancerTypeRoundRobin, false)
 	s.Require().NoError(err)
 	s.Require().NotNil(repo)
 
@@ -696,7 +696,7 @@ func (s *GiteaTestSuite) TestDeleteCredentialsWithOrgsOrReposFails() {
 	err = s.db.DeleteRepository(ctx, repo.ID)
 	s.Require().NoError(err)
 
-	org, err := s.db.CreateOrganization(ctx, "test-org", creds, "superSecret@123BlaBla", params.PoolBalancerTypeRoundRobin)
+	org, err := s.db.CreateOrganization(ctx, "test-org", creds, "superSecret@123BlaBla", params.PoolBalancerTypeRoundRobin, false)
 	s.Require().NoError(err)
 	s.Require().NotNil(org)
 
@@ -743,7 +743,7 @@ func (s *GiteaTestSuite) TestDeleteGiteaEndpointFailsWithOrgsReposOrCredentials(
 	s.Require().NoError(err)
 	s.Require().NotNil(creds)
 
-	repo, err := s.db.CreateRepository(ctx, "test-owner", "test-repo", creds, "superSecret@123BlaBla", params.PoolBalancerTypeRoundRobin)
+	repo, err := s.db.CreateRepository(ctx, "test-owner", "test-repo", creds, "superSecret@123BlaBla", params.PoolBalancerTypeRoundRobin, false)
 	s.Require().NoError(err)
 	s.Require().NotNil(repo)
 
@@ -755,7 +755,7 @@ func (s *GiteaTestSuite) TestDeleteGiteaEndpointFailsWithOrgsReposOrCredentials(
 	err = s.db.DeleteRepository(ctx, repo.ID)
 	s.Require().NoError(err)
 
-	org, err := s.db.CreateOrganization(ctx, "test-org", creds, "superSecret@123BlaBla", params.PoolBalancerTypeRoundRobin)
+	org, err := s.db.CreateOrganization(ctx, "test-org", creds, "superSecret@123BlaBla", params.PoolBalancerTypeRoundRobin, false)
 	s.Require().NoError(err)
 	s.Require().NotNil(org)
 

@@ -20,6 +20,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"net/url"
+	"time"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
@@ -45,6 +46,7 @@ type CreateRepoParams struct {
 	WebhookSecret    string           `json:"webhook_secret,omitempty"`
 	PoolBalancerType PoolBalancerType `json:"pool_balancer_type,omitempty"`
 	ForgeType        EndpointType     `json:"forge_type,omitempty"`
+	AgentMode        bool             `json:"agent_mode,omitempty"`
 }
 
 func (c *CreateRepoParams) Validate() error {
@@ -86,6 +88,7 @@ type CreateOrgParams struct {
 	WebhookSecret    string           `json:"webhook_secret,omitempty"`
 	PoolBalancerType PoolBalancerType `json:"pool_balancer_type,omitempty"`
 	ForgeType        EndpointType     `json:"forge_type,omitempty"`
+	AgentMode        bool             `json:"agent_mode,omitempty"`
 }
 
 func (c *CreateOrgParams) Validate() error {
@@ -121,6 +124,7 @@ type CreateEnterpriseParams struct {
 	CredentialsName  string           `json:"credentials_name,omitempty"`
 	WebhookSecret    string           `json:"webhook_secret,omitempty"`
 	PoolBalancerType PoolBalancerType `json:"pool_balancer_type,omitempty"`
+	AgentMode        bool             `json:"agent_mode,omitempty"`
 }
 
 func (c *CreateEnterpriseParams) Validate() error {
@@ -168,6 +172,7 @@ type UpdatePoolParams struct {
 	OSType                 commonParams.OSType `json:"os_type,omitempty"`
 	OSArch                 commonParams.OSArch `json:"os_arch,omitempty"`
 	ExtraSpecs             json.RawMessage     `json:"extra_specs,omitempty"`
+	EnableShell            *bool               `json:"enable_shell"`
 	// GithubRunnerGroup is the github runner group in which the runners of this
 	// pool will be added to.
 	// The runner group must be created by someone with access to the enterprise.
@@ -208,6 +213,7 @@ type CreatePoolParams struct {
 	Enabled                bool                `json:"enabled,omitempty"`
 	RunnerBootstrapTimeout uint                `json:"runner_bootstrap_timeout,omitempty"`
 	ExtraSpecs             json.RawMessage     `json:"extra_specs,omitempty"`
+	EnableShell            bool                `json:"enable_shell"`
 	// GithubRunnerGroup is the github runner group in which the runners of this
 	// pool will be added to.
 	// The runner group must be created by someone with access to the enterprise.
@@ -257,10 +263,12 @@ type UpdateInstanceParams struct {
 	Status           commonParams.InstanceStatus `json:"status,omitempty"`
 	RunnerStatus     RunnerStatus                `json:"runner_status,omitempty"`
 	ProviderFault    []byte                      `json:"provider_fault,omitempty"`
+	Heartbeat        *time.Time                  `json:"heartbeat,omitempty"`
 	AgentID          int64                       `json:"-"`
 	CreateAttempt    int                         `json:"-"`
 	TokenFetched     *bool                       `json:"-"`
 	JitConfiguration map[string]string           `json:"-"`
+	Capabilities     *AgentCapabilities          `json:"-"`
 }
 
 type UpdateUserParams struct {
@@ -291,6 +299,7 @@ type UpdateEntityParams struct {
 	CredentialsName  string           `json:"credentials_name,omitempty"`
 	WebhookSecret    string           `json:"webhook_secret,omitempty"`
 	PoolBalancerType PoolBalancerType `json:"pool_balancer_type,omitempty"`
+	AgentMode        *bool            `json:"agent_mode,omitempty"`
 }
 
 type InstanceUpdateMessage struct {
@@ -537,6 +546,9 @@ type UpdateControllerParams struct {
 	MetadataURL          *string `json:"metadata_url,omitempty"`
 	CallbackURL          *string `json:"callback_url,omitempty"`
 	WebhookURL           *string `json:"webhook_url,omitempty"`
+	AgentURL             *string `json:"agent_url,omitempty"`
+	GARMAgentReleasesURL *string `json:"garm_agent_releases_url,omitempty"`
+	SyncGARMAgentTools   *bool   `json:"enable_agent_tools_sync,omitempty"`
 	MinimumJobAgeBackoff *uint   `json:"minimum_job_age_backoff,omitempty"`
 }
 
@@ -562,6 +574,13 @@ func (u UpdateControllerParams) Validate() error {
 		}
 	}
 
+	if u.AgentURL != nil {
+		u, err := url.Parse(*u.AgentURL)
+		if err != nil || u.Scheme == "" || u.Host == "" {
+			return runnerErrors.NewBadRequestError("invalid agent_url")
+		}
+	}
+
 	return nil
 }
 
@@ -584,6 +603,7 @@ type CreateScaleSetParams struct {
 	Enabled                bool                `json:"enabled,omitempty"`
 	RunnerBootstrapTimeout uint                `json:"runner_bootstrap_timeout,omitempty"`
 	ExtraSpecs             json.RawMessage     `json:"extra_specs,omitempty"`
+	EnableShell            bool                `json:"enable_shell"`
 	// GithubRunnerGroup is the github runner group in which the runners of this
 	// pool will be added to.
 	// The runner group must be created by someone with access to the enterprise.
@@ -633,6 +653,7 @@ type UpdateScaleSetParams struct {
 	OSType                 commonParams.OSType `json:"os_type,omitempty"`
 	OSArch                 commonParams.OSArch `json:"os_arch,omitempty"`
 	ExtraSpecs             json.RawMessage     `json:"extra_specs,omitempty"`
+	EnableShell            *bool               `json:"enable_shell"`
 	// GithubRunnerGroup is the github runner group in which the runners of this
 	// pool will be added to.
 	// The runner group must be created by someone with access to the enterprise.
@@ -827,6 +848,7 @@ type CreateTemplateParams struct {
 	Data        []byte              `json:"data"`
 	OSType      commonParams.OSType `json:"os_type"`
 	ForgeType   EndpointType        `json:"forge_type,omitempty"`
+	IsSystem    bool                `json:"-"`
 }
 
 func (c *CreateTemplateParams) Validate() error {
@@ -888,4 +910,24 @@ type CreateFileObjectParams struct {
 	Description string   `json:"description"`
 	Size        int64    `json:"size"`
 	Tags        []string `json:"tags"`
+}
+
+// swagger:model CreateGARMToolParams
+type CreateGARMToolParams struct {
+	Name        string              `json:"name"`
+	Description string              `json:"description"`
+	Size        int64               `json:"size"`
+	OSType      commonParams.OSType `json:"os_type"`
+	OSArch      commonParams.OSArch `json:"os_arch"`
+	Version     string              `json:"version"`
+}
+
+// swagger:model RestoreTemplateRequest
+type RestoreTemplateRequest struct {
+	Forge  EndpointType        `json:"forge"`
+	OSType commonParams.OSType `json:"os_type"`
+	// RestoreAll indicates whether or not to restore all known
+	// system owned templates. If set, the Forge and OSType params
+	// are ignored.
+	RestoreAll bool `json:"restore_all"`
 }

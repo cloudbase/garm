@@ -193,6 +193,38 @@ func (a *APIController) CreateTemplateHandler(w http.ResponseWriter, r *http.Req
 	}
 }
 
+// swagger:route POST /templates/restore templates RestoreTemplates
+//
+// Create template with the parameters given.
+//
+//	Parameters:
+//	  + name: Body
+//	    description: Parameters used when restoring the templates.
+//	    type: RestoreTemplateRequest
+//	    in: body
+//	    required: true
+//
+//	Responses:
+//	  default: APIErrorResponse
+func (a *APIController) RestoreTemplatesHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var templateData runnerParams.RestoreTemplateRequest
+	if err := json.NewDecoder(r.Body).Decode(&templateData); err != nil {
+		handleError(ctx, w, gErrors.ErrBadRequest)
+		return
+	}
+
+	if err := a.r.RestoreTemplate(ctx, templateData); err != nil {
+		slog.ErrorContext(ctx, "failed to restore system templates", "error", err)
+		handleError(ctx, w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+}
+
 // swagger:route PUT /templates/{templateID} templates UpdateTemplate
 //
 // Update template with the parameters given.

@@ -1,12 +1,16 @@
 <script lang="ts">
-	import { createEventDispatcher, onMount } from 'svelte';
-	import type { Pool, UpdatePoolParams, Template } from '$lib/api/generated/api.js';
+	import { createEventDispatcher, onMount, onDestroy } from 'svelte';
+	import type { Pool, UpdatePoolParams, Template, Repository, Organization, Enterprise, UpdateEntityParams } from '$lib/api/generated/api.js';
 	import { resolve } from '$app/paths';
 	import Modal from './Modal.svelte';
 	import JsonEditor from './JsonEditor.svelte';
 	import { extractAPIError } from '$lib/utils/apiError';
 	import { eagerCache } from '$lib/stores/eager-cache.js';
 	import { garmApi } from '$lib/api/client.js';
+	import { websocketStore, type WebSocketEvent } from '$lib/stores/websocket.js';
+	import UpdateRepositoryModal from './UpdateRepositoryModal.svelte';
+	import UpdateOrganizationModal from './UpdateOrganizationModal.svelte';
+	import UpdateEnterpriseModal from './UpdateEnterpriseModal.svelte';
 
 	export let pool: Pool;
 
@@ -20,6 +24,8 @@
 	let validationError = '';
 	let templates: Template[] = [];
 	let loadingTemplates = false;
+	let showEntityUpdateModal = false;
+	let unsubscribeWebsocket: (() => void) | null = null;
 
 	// Form fields - initialize with pool values
 	let image = pool.image || '';
@@ -33,6 +39,7 @@
 	let osArch = pool.os_arch || 'amd64';
 	let githubRunnerGroup = pool['github-runner-group'] || '';
 	let enabled = pool.enabled;
+	let enableShell = pool.enable_shell ?? false;
 	let tags: string[] = (pool.tags || []).map(tag => tag.name || '').filter(Boolean);
 	let newTag = '';
 	let extraSpecs = '{}';
@@ -90,6 +97,103 @@
 		return null;
 	}
 
+	function getEntityAgentMode(): boolean {
+		// Look up agent_mode from eager cache based on the pool's entity
+		if (pool.repo_id) {
+			const repo = $eagerCache.repositories.find(r => r.id === pool.repo_id);
+			return repo?.agent_mode ?? false;
+		}
+		if (pool.org_id) {
+			const org = $eagerCache.organizations.find(o => o.id === pool.org_id);
+			return org?.agent_mode ?? false;
+		}
+		if (pool.enterprise_id) {
+			const enterprise = $eagerCache.enterprises.find(e => e.id === pool.enterprise_id);
+			return enterprise?.agent_mode ?? false;
+		}
+		return false;
+	}
+
+	// Reactive statement to check agent mode
+	$: entityAgentMode = getEntityAgentMode();
+	$: if (!entityAgentMode) {
+		// Disable shell if agent mode is not enabled on entity
+		enableShell = false;
+	}
+
+	function handleEntityWebSocketEvent(event: WebSocketEvent) {
+		if (event.operation !== 'update') return;
+
+		const updatedEntity = event.payload;
+
+		// Update the eager cache for the entity that was updated
+		if (pool.repo_id && updatedEntity.id === pool.repo_id) {
+			const repo = $eagerCache.repositories.find(r => r.id === pool.repo_id);
+			if (repo) {
+				Object.assign(repo, updatedEntity);
+				// Directly update entityAgentMode if it changed
+				if ('agent_mode' in updatedEntity) {
+					entityAgentMode = updatedEntity.agent_mode ?? false;
+				}
+			}
+		} else if (pool.org_id && updatedEntity.id === pool.org_id) {
+			const org = $eagerCache.organizations.find(o => o.id === pool.org_id);
+			if (org) {
+				Object.assign(org, updatedEntity);
+				// Directly update entityAgentMode if it changed
+				if ('agent_mode' in updatedEntity) {
+					entityAgentMode = updatedEntity.agent_mode ?? false;
+				}
+			}
+		} else if (pool.enterprise_id && updatedEntity.id === pool.enterprise_id) {
+			const enterprise = $eagerCache.enterprises.find(e => e.id === pool.enterprise_id);
+			if (enterprise) {
+				Object.assign(enterprise, updatedEntity);
+				// Directly update entityAgentMode if it changed
+				if ('agent_mode' in updatedEntity) {
+					entityAgentMode = updatedEntity.agent_mode ?? false;
+				}
+			}
+		}
+	}
+
+	async function handleEntityUpdate(params: UpdateEntityParams) {
+		try {
+			// Update the entity
+			if (pool.repo_id) {
+				await garmApi.updateRepository(pool.repo_id, params);
+				// Update eager cache
+				const repo = $eagerCache.repositories.find(r => r.id === pool.repo_id);
+				if (repo) Object.assign(repo, params);
+			} else if (pool.org_id) {
+				await garmApi.updateOrganization(pool.org_id, params);
+				const org = $eagerCache.organizations.find(o => o.id === pool.org_id);
+				if (org) Object.assign(org, params);
+			} else if (pool.enterprise_id) {
+				await garmApi.updateEnterprise(pool.enterprise_id, params);
+				const enterprise = $eagerCache.enterprises.find(e => e.id === pool.enterprise_id);
+				if (enterprise) Object.assign(enterprise, params);
+			}
+
+			// Close the entity update modal
+			showEntityUpdateModal = false;
+		} catch (err) {
+			// Let the modal handle the error display
+			throw err;
+		}
+	}
+
+	function getEntity(): Repository | Organization | Enterprise | null {
+		if (pool.repo_id) {
+			return $eagerCache.repositories.find(r => r.id === pool.repo_id) || null;
+		} else if (pool.org_id) {
+			return $eagerCache.organizations.find(o => o.id === pool.org_id) || null;
+		} else if (pool.enterprise_id) {
+			return $eagerCache.enterprises.find(e => e.id === pool.enterprise_id) || null;
+		}
+		return null;
+	}
+
 	async function loadTemplates() {
 		try {
 			loadingTemplates = true;
@@ -137,9 +241,37 @@
 				extraSpecs = (pool.extra_specs as unknown as string) || '{}';
 			}
 		}
-		
+
 		// Load templates for the current configuration
 		loadTemplates();
+
+		// Subscribe to entity updates via websocket
+		if (pool.repo_id) {
+			unsubscribeWebsocket = websocketStore.subscribeToEntity(
+				'repository',
+				['update'],
+				handleEntityWebSocketEvent
+			);
+		} else if (pool.org_id) {
+			unsubscribeWebsocket = websocketStore.subscribeToEntity(
+				'organization',
+				['update'],
+				handleEntityWebSocketEvent
+			);
+		} else if (pool.enterprise_id) {
+			unsubscribeWebsocket = websocketStore.subscribeToEntity(
+				'enterprise',
+				['update'],
+				handleEntityWebSocketEvent
+			);
+		}
+	});
+
+	onDestroy(() => {
+		if (unsubscribeWebsocket) {
+			unsubscribeWebsocket();
+			unsubscribeWebsocket = null;
+		}
 	});
 
 	// Reactive statements
@@ -207,6 +339,7 @@
 				os_arch: osArch !== pool.os_arch ? osArch : undefined,
 				'github-runner-group': githubRunnerGroup !== pool['github-runner-group'] ? githubRunnerGroup || undefined : undefined,
 				enabled: enabled !== pool.enabled ? enabled : undefined,
+				enable_shell: enableShell !== pool.enable_shell ? enableShell : undefined,
 				tags: JSON.stringify(tags) !== JSON.stringify((pool.tags || []).map(tag => tag.name || '').filter(Boolean)) ? tags : undefined,
 				extra_specs: extraSpecs.trim() !== JSON.stringify(pool.extra_specs || {}, null, 2).trim() ? parsedExtraSpecs : undefined,
 				template_id: selectedTemplate !== (pool as any).template_id ? selectedTemplate : undefined
@@ -529,6 +662,48 @@
 						Pool enabled
 					</label>
 				</div>
+
+				<!-- Enable Shell Checkbox -->
+				<div class="space-y-2">
+					<div class="flex items-center">
+						<input
+							id="enableShell"
+							type="checkbox"
+							bind:checked={enableShell}
+							disabled={!entityAgentMode}
+							class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+						/>
+						<label for="enableShell" class="ml-2 block text-sm font-medium text-gray-700 dark:text-gray-300 {!entityAgentMode ? 'opacity-50' : ''}">
+							Enable Shell
+						</label>
+						<div class="ml-2 relative group">
+							<svg class="w-4 h-4 text-gray-400 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+							</svg>
+							<div class="absolute left-full top-1/2 transform -translate-y-1/2 ml-2 w-80 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+								This enables remote shell in the GARM agent, allowing users to connect via garm-cli or web UI using websockets.
+								<div class="absolute right-full top-1/2 transform -translate-y-1/2 border-4 border-transparent border-r-gray-900"></div>
+							</div>
+						</div>
+					</div>
+					{#if !entityAgentMode}
+						<div class="ml-6 flex items-start space-x-2 text-xs text-yellow-700 dark:text-yellow-400">
+							<svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+							</svg>
+							<span>
+								Shell access requires agent mode to be enabled on the {getEntityType(pool).toLowerCase()}.
+								<button
+									type="button"
+									on:click={() => showEntityUpdateModal = true}
+									class="underline hover:text-yellow-800 dark:hover:text-yellow-300 cursor-pointer"
+								>
+									Enable agent mode
+								</button>
+							</span>
+						</div>
+					{/if}
+				</div>
 			</div>
 
 			<!-- Action Buttons -->
@@ -558,3 +733,29 @@
 		</form>
 	</div>
 </Modal>
+
+<!-- Nested Entity Update Modals -->
+{#if showEntityUpdateModal}
+	{@const entity = getEntity()}
+	{#if entity}
+		{#if pool.repo_id}
+			<UpdateRepositoryModal
+				repository={entity}
+				on:close={() => showEntityUpdateModal = false}
+				on:submit={(e) => handleEntityUpdate(e.detail)}
+			/>
+		{:else if pool.org_id}
+			<UpdateOrganizationModal
+				organization={entity}
+				on:close={() => showEntityUpdateModal = false}
+				on:submit={(e) => handleEntityUpdate(e.detail)}
+			/>
+		{:else if pool.enterprise_id}
+			<UpdateEnterpriseModal
+				enterprise={entity}
+				on:close={() => showEntityUpdateModal = false}
+				on:submit={(e) => handleEntityUpdate(e.detail)}
+			/>
+		{/if}
+	{/if}
+{/if}

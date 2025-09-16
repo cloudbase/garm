@@ -17,12 +17,14 @@ package controllers
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"strconv"
 
 	"github.com/gorilla/mux"
 
+	gErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/apiserver/params"
 )
 
@@ -41,6 +43,25 @@ func (a *APIController) InstanceMetadataHandler(w http.ResponseWriter, r *http.R
 	}
 }
 
+// swagger:route GET /tools/garm-agent tools GarmAgentList
+//
+// List GARM agent tools.
+//
+//	Parameters:
+//	  + name: page
+//	    description: The page at which to list.
+//	    type: integer
+//	    in: query
+//	    required: false
+//	  + name: pageSize
+//	    description: Number of items per page.
+//	    type: integer
+//	    in: query
+//	    required: false
+//
+//	Responses:
+//	  200: GARMAgentToolsPaginatedResponse
+//	  400: APIErrorResponse
 func (a *APIController) InstanceGARMToolsHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -71,6 +92,50 @@ func (a *APIController) InstanceGARMToolsHandler(w http.ResponseWriter, r *http.
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(tools); err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
+	}
+}
+
+func (a *APIController) InstanceShowGARMToolHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	vars := mux.Vars(r)
+	objectID, err := getObjectIDFromVars(vars)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get object ID", "error", err)
+		handleError(ctx, w, gErrors.NewBadRequestError("invalid objectID: %s", err))
+		return
+	}
+	tools, err := a.r.ShowGARMTools(ctx, objectID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get garm tools", "error", err)
+		handleError(ctx, w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(tools); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
+	}
+}
+
+func (a *APIController) InstanceGARMToolDownloadHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+	objectID, err := getObjectIDFromVars(vars)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get object ID", "error", err)
+		handleError(ctx, w, gErrors.NewBadRequestError("invalid objectID: %s", err))
+		return
+	}
+
+	reader, err := a.r.GetGARMToolsReadHandler(ctx, objectID)
+	if err != nil {
+		handleError(ctx, w, err)
+		return
+	}
+	defer reader.Close()
+	if _, err := io.Copy(w, reader); err != nil {
+		slog.ErrorContext(ctx, "failed to stream data", "error", err)
 	}
 }
 

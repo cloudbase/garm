@@ -4,7 +4,7 @@
 	import { formatStatusText, getStatusBadgeClass } from '$lib/utils/status.js';
 
 	export let item: any;
-	export let statusType: 'entity' | 'instance' | 'enabled' | 'custom' = 'entity';
+	export let statusType: 'entity' | 'instance' | 'enabled' | 'custom' | 'os_type' | 'forge_type' = 'entity';
 	export let statusField: string = 'status';
 
 	// Make status directly reactive to item properties instead of using getStatus()
@@ -91,6 +91,57 @@
 				return {
 					variant: item.enabled ? 'success' as const : 'error' as const,
 					text: item.enabled ? 'Enabled' : 'Disabled'
+				};
+			case 'os_type':
+				const osType = (statusValue || '').toLowerCase();
+				let osVariant: any = 'secondary';
+				let osText = statusValue || 'Unknown';
+				
+				switch (osType) {
+					case 'linux':
+						osVariant = 'success';  // Light green
+						osText = 'Linux';
+						break;
+					case 'windows':
+						osVariant = 'blue';     // Blue
+						osText = 'Windows';
+						break;
+					case 'macos':
+					case 'darwin':
+						osVariant = 'purple';   // Purple
+						osText = 'macOS';
+						break;
+					default:
+						osVariant = 'gray';     // Gray for unknown
+						osText = statusValue || 'Unknown';
+						break;
+				}
+				return {
+					variant: osVariant,
+					text: osText
+				};
+			case 'forge_type':
+				const forgeType = (statusValue || '').toLowerCase();
+				let forgeVariant: any = 'secondary';
+				let forgeText = statusValue || 'Unknown';
+				
+				switch (forgeType) {
+					case 'github':
+						forgeVariant = 'gray';
+						forgeText = 'GitHub';
+						break;
+					case 'gitea':
+						forgeVariant = 'green';
+						forgeText = 'Gitea';
+						break;
+					default:
+						forgeVariant = 'secondary';
+						forgeText = statusValue || 'Unknown';
+						break;
+				}
+				return {
+					variant: forgeVariant,
+					text: forgeText
 				};
 			case 'custom':
 				const value = item[statusField] || 'Unknown';

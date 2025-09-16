@@ -253,6 +253,63 @@ func (s *sqlDatabase) DeleteFileObject(_ context.Context, objID uint) (err error
 	return nil
 }
 
+func (s *sqlDatabase) DeleteFileObjectsByTags(_ context.Context, tags []string) (int64, error) {
+	if len(tags) == 0 {
+		return 0, fmt.Errorf("no tags provided")
+	}
+
+	var deletedCount int64
+
+	err := s.objectsConn.Transaction(func(tx *gorm.DB) error {
+		// Build query to find all file objects matching ALL tags
+		query := tx.Model(&FileObject{}).Preload("TagsList").Omit("content")
+		for _, tag := range tags {
+			query = query.Where("EXISTS (SELECT 1 FROM file_object_tags WHERE file_object_tags.file_object_id = file_objects.id AND file_object_tags.tag = ?)", tag)
+		}
+
+		// Get matching objects with their full details (except content blob)
+		var fileObjects []FileObject
+		if err := query.Find(&fileObjects).Error; err != nil {
+			return fmt.Errorf("failed to find matching objects: %w", err)
+		}
+
+		if len(fileObjects) == 0 {
+			// No objects match - not an error, just nothing to delete
+			return nil
+		}
+
+		// Extract IDs for deletion
+		fileObjIDs := make([]uint, len(fileObjects))
+		for i, obj := range fileObjects {
+			fileObjIDs[i] = obj.ID
+		}
+
+		// Delete all matching objects (hard delete with Unscoped)
+		result := tx.Unscoped().Where("id IN ?", fileObjIDs).Delete(&FileObject{})
+		if result.Error != nil {
+			return fmt.Errorf("failed to delete objects: %w", result.Error)
+		}
+
+		deletedCount = result.RowsAffected
+
+		// Send notifications with full object details for each deleted object
+		for _, obj := range fileObjects {
+			s.sendNotify(common.FileObjectEntityType, common.DeleteOperation, s.sqlFileObjectToCommonParams(obj))
+		}
+
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	// NOTE: Same as DeleteFileObject - deleted file objects leave empty space
+	// in the database. Users should run VACUUM manually to reclaim space.
+	// See DeleteFileObject for performance details.
+
+	return deletedCount, nil
+}
+
 func (s *sqlDatabase) GetFileObject(_ context.Context, objID uint) (params.FileObject, error) {
 	var fileObj FileObject
 	if err := s.objectsConn.Preload("TagsList").Where("id = ?", objID).Omit("content").First(&fileObj).Error; err != nil {
@@ -304,7 +361,7 @@ func (s *sqlDatabase) SearchFileObjectByTags(_ context.Context, tags []string, p
 	if err := query.
 		Limit(queryPageSize).
 		Offset(queryOffset).
-		Order("created_at DESC").
+		Order("id DESC").
 		Omit("content").
 		Find(&fileObjectRes).Error; err != nil {
 		return params.FileObjectPaginatedResponse{}, fmt.Errorf("failed to query database: %w", err)
@@ -426,7 +483,7 @@ func (s *sqlDatabase) ListFileObjects(_ context.Context, page, pageSize uint64) 
 	if err := s.objectsConn.Preload("TagsList").Omit("content").
 		Limit(queryPageSize).
 		Offset(queryOffset).
-		Order("created_at DESC").
+		Order("id DESC").
 		Find(&fileObjs).Error; err != nil {
 		return params.FileObjectPaginatedResponse{}, fmt.Errorf("failed to list file objects: %w", err)
 	}

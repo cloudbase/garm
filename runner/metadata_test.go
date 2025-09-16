@@ -77,7 +77,7 @@ func (s *MetadataTestSuite) SetupTest() {
 	testCreds := garmTesting.CreateTestGithubCredentials(s.adminCtx, "test-creds", db, s.T(), s.githubEndpoint)
 
 	// Create test organization
-	org, err := db.CreateOrganization(s.adminCtx, "test-org", testCreds, "test-webhook-secret", params.PoolBalancerTypeRoundRobin)
+	org, err := db.CreateOrganization(s.adminCtx, "test-org", testCreds, "test-webhook-secret", params.PoolBalancerTypeRoundRobin, false)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to create test org: %s", err))
 	}

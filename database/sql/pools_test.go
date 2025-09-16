@@ -81,7 +81,7 @@ func (s *PoolsTestSuite) SetupTest() {
 	creds := garmTesting.CreateTestGithubCredentials(adminCtx, "new-creds", db, s.T(), githubEndpoint)
 
 	// create an organization for testing purposes
-	org, err := s.Store.CreateOrganization(s.adminCtx, "test-org", creds, "test-webhookSecret", params.PoolBalancerTypeRoundRobin)
+	org, err := s.Store.CreateOrganization(s.adminCtx, "test-org", creds, "test-webhookSecret", params.PoolBalancerTypeRoundRobin, false)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to create org: %s", err))
 	}
@@ -211,7 +211,7 @@ func (s *PoolsTestSuite) TestEntityPoolOperations() {
 	ep := garmTesting.CreateDefaultGithubEndpoint(s.ctx, s.Store, s.T())
 	creds := garmTesting.CreateTestGithubCredentials(s.ctx, "test-creds", s.Store, s.T(), ep)
 	s.T().Cleanup(func() { s.Store.DeleteGithubCredentials(s.ctx, creds.ID) })
-	repo, err := s.Store.CreateRepository(s.ctx, "test-owner", "test-repo", creds, "test-secret", params.PoolBalancerTypeRoundRobin)
+	repo, err := s.Store.CreateRepository(s.ctx, "test-owner", "test-repo", creds, "test-secret", params.PoolBalancerTypeRoundRobin, false)
 	s.Require().NoError(err)
 	s.Require().NotEmpty(repo.ID)
 	s.T().Cleanup(func() { s.Store.DeleteRepository(s.ctx, repo.ID) })
@@ -261,7 +261,7 @@ func (s *PoolsTestSuite) TestEntityPoolOperations() {
 	s.Require().Equal(*updatePoolParams.Enabled, pool.Enabled)
 	s.Require().Equal(updatePoolParams.Flavor, pool.Flavor)
 	s.Require().Equal(updatePoolParams.Image, pool.Image)
-	s.Require().Equal(updatePoolParams.RunnerPrefix.Prefix, pool.RunnerPrefix.Prefix)
+	s.Require().Equal(updatePoolParams.Prefix, pool.Prefix)
 	s.Require().Equal(*updatePoolParams.MaxRunners, pool.MaxRunners)
 	s.Require().Equal(*updatePoolParams.MinIdleRunners, pool.MinIdleRunners)
 	s.Require().Equal(updatePoolParams.OSType, pool.OSType)
@@ -292,7 +292,7 @@ func (s *PoolsTestSuite) TestListEntityInstances() {
 	ep := garmTesting.CreateDefaultGithubEndpoint(s.ctx, s.Store, s.T())
 	creds := garmTesting.CreateTestGithubCredentials(s.ctx, "test-creds", s.Store, s.T(), ep)
 	s.T().Cleanup(func() { s.Store.DeleteGithubCredentials(s.ctx, creds.ID) })
-	repo, err := s.Store.CreateRepository(s.ctx, "test-owner", "test-repo", creds, "test-secret", params.PoolBalancerTypeRoundRobin)
+	repo, err := s.Store.CreateRepository(s.ctx, "test-owner", "test-repo", creds, "test-secret", params.PoolBalancerTypeRoundRobin, false)
 	s.Require().NoError(err)
 	s.Require().NotEmpty(repo.ID)
 	s.T().Cleanup(func() { s.Store.DeleteRepository(s.ctx, repo.ID) })

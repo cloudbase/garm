@@ -5,7 +5,7 @@
 		click: void;
 	}>();
 
-	export let action: 'edit' | 'delete' | 'view' | 'add' | 'copy' | 'download' = 'edit';
+	export let action: 'edit' | 'delete' | 'view' | 'add' | 'copy' | 'download' | 'shell' = 'edit';
 	export let disabled: boolean = false;
 	export let title: string = '';
 	export let ariaLabel: string = '';
@@ -30,7 +30,8 @@
 		'view': 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-300 focus:ring-gray-500',
 		'add': 'text-green-600 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300 focus:ring-green-500',
 		'copy': 'text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 focus:ring-blue-500',
-		'download': 'text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 focus:ring-blue-500'
+		'download': 'text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 focus:ring-blue-500',
+		'shell': 'text-green-600 dark:text-green-400 hover:text-green-900 dark:hover:text-green-300 focus:ring-green-500'
 	}[action];
 
 	$: iconSize = size === 'sm' ? 'h-4 w-4' : 'h-5 w-5';
@@ -43,7 +44,8 @@
 		'view': '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />',
 		'add': '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />',
 		'copy': '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />',
-		'download': '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />'
+		'download': '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />',
+		'shell': '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z" />'
 	};
 
 	$: defaultTitles = {
@@ -52,7 +54,8 @@
 		'view': 'View',
 		'add': 'Add',
 		'copy': 'Clone',
-		'download': 'Download'
+		'download': 'Download',
+		'shell': 'Shell'
 	};
 
 	$: computedTitle = title || defaultTitles[action];

@@ -164,9 +164,6 @@ func (c *Client) clientReader() {
 		c.Stop()
 	}()
 	c.conn.SetReadLimit(maxMessageSize)
-	if err := c.conn.SetReadDeadline(time.Now().Add(pongWait)); err != nil {
-		slog.With(slog.Any("error", err)).Error("failed to set read deadline")
-	}
 	c.conn.SetPongHandler(func(string) error {
 		if err := c.conn.SetReadDeadline(time.Now().Add(pongWait)); err != nil {
 			return err

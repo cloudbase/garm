@@ -4,6 +4,7 @@
 	import type { Instance } from '$lib/api/generated/api.js';
 	import DeleteModal from '$lib/components/DeleteModal.svelte';
 	import PageHeader from '$lib/components/PageHeader.svelte';
+	import ShellTerminal from '$lib/components/ShellTerminal.svelte';
 	import { websocketStore, type WebSocketEvent } from '$lib/stores/websocket.js';
 	import { toastStore } from '$lib/stores/toast.js';
 	import DataTable from '$lib/components/DataTable.svelte';
@@ -16,6 +17,10 @@
 	let statusFilter = '';
 	let unsubscribeWebsocket: (() => void) | null = null;
 
+	// Current time for heartbeat staleness check - updates every second
+	let currentTime = Date.now();
+	let heartbeatCheckInterval: ReturnType<typeof setInterval> | null = null;
+
 
 	// Pagination
 	let currentPage = 1;
@@ -25,6 +30,8 @@
 	// Modal state
 	let showDeleteModal = false;
 	let instanceToDelete: Instance | null = null;
+	let showShellModal = false;
+	let instanceForShell: Instance | null = null;
 
 	$: filteredInstances = instances.filter(instance => {
 		const matchesSearch = searchTerm === '' || 
@@ -62,6 +69,27 @@
 		showDeleteModal = true;
 	}
 
+	function handleShell(instance: Instance) {
+		instanceForShell = instance;
+		showShellModal = true;
+	}
+
+	// Check if shell should be disabled (heartbeat stale or instance stopped)
+	function isHeartbeatStale(instance: Instance): boolean {
+		if (!instance.agent_id) return true;
+
+		// Disable if instance doesn't have shell capability
+		if (!instance.capabilities?.has_shell) return true;
+
+		// Disable if instance status is "stopped"
+		if (instance.status === 'stopped') return true;
+
+		const lastHeartbeat = instance.heartbeat;
+		if (!lastHeartbeat) return true;
+		const heartbeatTime = new Date(lastHeartbeat);
+		return (currentTime - heartbeatTime.getTime()) > 60000; // 60 seconds
+	}
+
 	async function confirmDelete() {
 		if (!instanceToDelete) return;
 		
@@ -95,6 +123,12 @@
 			cellComponent: InstancePoolCell
 		},
 		{ 
+			key: 'os_type', 
+			title: 'OS Type',
+			cellComponent: StatusCell,
+			cellProps: { statusType: 'os_type', statusField: 'os_type' }
+		},
+		{ 
 			key: 'created', 
 			title: 'Created',
 			cellComponent: GenericCell,
@@ -119,6 +153,18 @@
 			cellComponent: ActionsCell,
 			cellProps: { 
 				actions: [
+					{
+						type: 'shell',
+						title: 'Shell',
+						ariaLabel: 'Open shell',
+						action: 'shell',
+						isDisabled: (item: Instance) => isHeartbeatStale(item),
+						disabledTitle: (item: Instance) => {
+							if (!item.capabilities?.has_shell) return 'Shell unavailable - Agent does not support shell';
+							if (item.status === 'stopped') return 'Shell unavailable - Instance is stopped';
+							return 'Shell unavailable - Agent heartbeat is stale';
+						}
+					},
 					{ type: 'delete', title: 'Delete', ariaLabel: 'Delete instance', action: 'delete' }
 				]
 			}
@@ -137,10 +183,17 @@
 			field: 'provider_id'
 		},
 		badges: [
+			{ type: 'text' as const, field: 'os_type', label: 'OS' },
 			{ type: 'status' as const, field: 'status' },
 			{ type: 'status' as const, field: 'runner_status' }
 		],
 		actions: [
+			{ 
+				type: 'shell' as const, 
+				title: 'Shell',
+				handler: (item: any) => handleShell(item),
+				isDisabled: (item: Instance) => isHeartbeatStale(item)
+			},
 			{ 
 				type: 'delete' as const, 
 				handler: (item: any) => handleDelete(item) 
@@ -178,6 +231,10 @@
 		handleDelete(event.detail.item);
 	}
 
+	function handleShellInstance(event: CustomEvent<{ item: any }>) {
+		handleShell(event.detail.item);
+	}
+
 
 
 	function handleInstanceEvent(event: WebSocketEvent) {
@@ -201,13 +258,18 @@
 	onMount(() => {
 		// Initial load
 		loadInstances();
-		
+
 		// Subscribe to real-time instance events - correct entity type is 'instance'
 		unsubscribeWebsocket = websocketStore.subscribeToEntity(
 			'instance',
 			['create', 'update', 'delete'],
 			handleInstanceEvent
 		);
+
+		// Update current time every second for heartbeat staleness check
+		heartbeatCheckInterval = setInterval(() => {
+			currentTime = Date.now();
+		}, 1000);
 	});
 
 	onDestroy(() => {
@@ -215,6 +277,12 @@
 		if (unsubscribeWebsocket) {
 			unsubscribeWebsocket();
 			unsubscribeWebsocket = null;
+		}
+
+		// Clean up heartbeat check interval
+		if (heartbeatCheckInterval) {
+			clearInterval(heartbeatCheckInterval);
+			heartbeatCheckInterval = null;
 		}
 	});
 </script>
@@ -263,8 +331,24 @@
 		on:retry={retryLoadInstances}
 		on:edit={handleEdit}
 		on:delete={handleDeleteInstance}
+		on:shell={handleShellInstance}
 	/>
 </div>
+
+<!-- Shell Modal -->
+{#if showShellModal && instanceForShell && !isHeartbeatStale(instanceForShell)}
+	<div class="fixed inset-0 bg-black/30 dark:bg-black/50 overflow-hidden h-full w-full z-50">
+		<div class="relative w-full h-full flex items-center justify-center p-4">
+			<ShellTerminal
+				runnerName={instanceForShell.name!}
+				onClose={() => {
+					showShellModal = false;
+					instanceForShell = null;
+				}}
+			/>
+		</div>
+	</div>
+{/if}
 
 <!-- Delete Modal -->
 {#if showDeleteModal && instanceToDelete}

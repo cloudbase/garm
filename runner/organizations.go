@@ -62,7 +62,7 @@ func (r *Runner) CreateOrganization(ctx context.Context, param params.CreateOrgP
 		return params.Organization{}, runnerErrors.NewConflictError("organization %s already exists", param.Name)
 	}
 
-	org, err = r.store.CreateOrganization(ctx, param.Name, creds, param.WebhookSecret, param.PoolBalancerType)
+	org, err = r.store.CreateOrganization(ctx, param.Name, creds, param.WebhookSecret, param.PoolBalancerType, param.AgentMode)
 	if err != nil {
 		return params.Organization{}, fmt.Errorf("error creating organization: %w", err)
 	}

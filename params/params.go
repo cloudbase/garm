@@ -109,6 +109,11 @@ const (
 )
 
 const (
+	// SystemUser is a virtual user that identifies the system itself.
+	SystemUser = "system"
+)
+
+const (
 	ForgeEntityTypeRepository   ForgeEntityType = "repository"
 	ForgeEntityTypeOrganization ForgeEntityType = "organization"
 	ForgeEntityTypeEnterprise   ForgeEntityType = "enterprise"
@@ -172,6 +177,97 @@ const (
 	MessageTypeJobStarted   = "JobStarted"
 	MessageTypeJobAvailable = "JobAvailable"
 )
+
+var InstanceStatusTransitions = map[commonParams.InstanceStatus][]commonParams.InstanceStatus{
+	commonParams.InstanceRunning: {
+		commonParams.InstancePendingDelete,
+		commonParams.InstancePendingForceDelete,
+		commonParams.InstanceStopped,
+		commonParams.InstanceStatusUnknown,
+	},
+	commonParams.InstanceStopped: {
+		commonParams.InstancePendingDelete,
+		commonParams.InstancePendingForceDelete,
+		commonParams.InstanceRunning,
+		commonParams.InstanceStatusUnknown,
+	},
+	commonParams.InstanceError: {
+		commonParams.InstancePendingDelete,
+		commonParams.InstancePendingForceDelete,
+		commonParams.InstanceStatusUnknown,
+		commonParams.InstanceDeleting,
+	},
+	commonParams.InstancePendingDelete: {
+		commonParams.InstanceDeleting,
+		commonParams.InstancePendingForceDelete,
+	},
+	commonParams.InstancePendingForceDelete: {
+		commonParams.InstanceDeleting,
+	},
+	commonParams.InstanceDeleting: {
+		commonParams.InstanceError,
+		commonParams.InstanceDeleted,
+	},
+	commonParams.InstanceDeleted: {}, // no further transitions possible
+	commonParams.InstancePendingCreate: {
+		commonParams.InstancePendingDelete,
+		commonParams.InstanceCreating,
+		commonParams.InstancePendingForceDelete,
+	},
+	commonParams.InstanceCreating: {
+		commonParams.InstanceError,
+		commonParams.InstanceRunning,
+	},
+	commonParams.InstanceStatusUnknown: {
+		commonParams.InstanceRunning,
+		commonParams.InstanceStopped,
+		commonParams.InstanceError,
+		commonParams.InstancePendingDelete,
+		commonParams.InstancePendingForceDelete,
+		commonParams.InstanceDeleting,
+		commonParams.InstanceDeleted,
+		commonParams.InstancePendingCreate,
+		commonParams.InstanceCreating,
+	},
+}
+
+var RunnerStatusTransitions = map[RunnerStatus][]RunnerStatus{
+	RunnerPending: {
+		RunnerFailed,
+		RunnerInstalling,
+		RunnerTerminated,
+		RunnerPending,
+	},
+	RunnerInstalling: {
+		RunnerFailed,
+		RunnerIdle,
+		RunnerTerminated,
+		RunnerInstalling,
+	},
+	RunnerIdle: {
+		RunnerOffline,
+		RunnerActive,
+		RunnerTerminated,
+		RunnerIdle,
+	},
+	RunnerActive: {
+		RunnerTerminated,
+		RunnerActive,
+	},
+	RunnerFailed: {
+		RunnerTerminated,
+		RunnerFailed,
+	},
+	RunnerOffline: {
+		RunnerIdle,
+		RunnerActive,
+		RunnerTerminated,
+		RunnerOffline,
+	},
+	RunnerTerminated: {
+		RunnerTerminated,
+	},
+}
 
 // swagger:model StatusMessage
 type StatusMessage struct {
@@ -263,6 +359,10 @@ type Instance struct {
 
 	// Job is the current job that is being serviced by this runner.
 	Job *Job `json:"job,omitempty"`
+
+	// Heartbeat is the last recorded heartbeat from the runner
+	Heartbeat    time.Time         `json:"heartbeat"`
+	Capabilities AgentCapabilities `json:"capabilities"`
 
 	// Do not serialize sensitive info.
 	CallbackURL      string            `json:"-"`
@@ -372,6 +472,7 @@ type Pool struct {
 	Tags           []Tag               `json:"tags,omitempty"`
 	Enabled        bool                `json:"enabled,omitempty"`
 	Instances      []Instance          `json:"instances,omitempty"`
+	EnableShell    bool                `json:"enable_shell"`
 
 	RepoID   string `json:"repo_id,omitempty"`
 	RepoName string `json:"repo_name,omitempty"`
@@ -527,6 +628,7 @@ type ScaleSet struct {
 	Enabled            bool                `json:"enabled,omitempty"`
 	Instances          []Instance          `json:"instances,omitempty"`
 	DesiredRunnerCount int                 `json:"desired_runner_count,omitempty"`
+	EnableShell        bool                `json:"enable_shell"`
 
 	Endpoint ForgeEndpoint `json:"endpoint,omitempty"`
 
@@ -630,6 +732,7 @@ type Repository struct {
 
 	CredentialsID uint             `json:"credentials_id,omitempty"`
 	Credentials   ForgeCredentials `json:"credentials,omitempty"`
+	AgentMode     bool             `json:"agent_mode"`
 
 	PoolManagerStatus PoolManagerStatus `json:"pool_manager_status,omitempty"`
 	PoolBalancerType  PoolBalancerType  `json:"pool_balancing_type,omitempty"`
@@ -666,6 +769,7 @@ func (r Repository) GetEntity() (ForgeEntity, error) {
 		WebhookSecret:    r.WebhookSecret,
 		CreatedAt:        r.CreatedAt,
 		UpdatedAt:        r.UpdatedAt,
+		AgentMode:        r.AgentMode,
 	}, nil
 }
 
@@ -709,6 +813,7 @@ type Organization struct {
 	CreatedAt         time.Time         `json:"created_at,omitempty"`
 	UpdatedAt         time.Time         `json:"updated_at,omitempty"`
 	Events            []EntityEvent     `json:"events,omitempty"`
+	AgentMode         bool              `json:"agent_mode"`
 	// Do not serialize sensitive info.
 	WebhookSecret string `json:"-"`
 }
@@ -730,6 +835,7 @@ func (o Organization) GetEntity() (ForgeEntity, error) {
 		Credentials:      o.Credentials,
 		CreatedAt:        o.CreatedAt,
 		UpdatedAt:        o.UpdatedAt,
+		AgentMode:        o.AgentMode,
 	}, nil
 }
 
@@ -769,6 +875,7 @@ type Enterprise struct {
 	CreatedAt         time.Time         `json:"created_at,omitempty"`
 	UpdatedAt         time.Time         `json:"updated_at,omitempty"`
 	Events            []EntityEvent     `json:"events,omitempty"`
+	AgentMode         bool              `json:"agent_mode"`
 	// Do not serialize sensitive info.
 	WebhookSecret string `json:"-"`
 }
@@ -790,6 +897,7 @@ func (e Enterprise) GetEntity() (ForgeEntity, error) {
 		Credentials:      e.Credentials,
 		CreatedAt:        e.CreatedAt,
 		UpdatedAt:        e.UpdatedAt,
+		AgentMode:        e.AgentMode,
 	}, nil
 }
 
@@ -869,6 +977,15 @@ type ControllerInfo struct {
 	// Functionally it is the same as WebhookURL, but it allows us to safely manage webhooks
 	// from GARM without accidentally removing webhooks from other services or GARM controllers.
 	ControllerWebhookURL string `json:"controller_webhook_url,omitempty"`
+	// AgentURL is the URL where the GARM agent will connect. If set behind a reverse proxy, this
+	// URL must be configured to allow websocket connections.
+	AgentURL string `json:"agent_url,omitempty"`
+	// GARMAgentReleasesURL is the URL from where GARM can fetch garm-agent binaries. This URL must
+	// have an API response compatible with the github releases API.
+	// The default value for this field is: https://api.github.com/repos/cloudbase/garm-agent/releases
+	GARMAgentReleasesURL string `json:"garm_agent_releases_url"`
+	// SyncGARMAgentTools enables or disables automatic sync of garm-agent tools.
+	SyncGARMAgentTools bool `json:"enable_agent_tools_sync"`
 	// MinimumJobAgeBackoff is the minimum time in seconds that a job must be in queued state
 	// before GARM will attempt to allocate a runner for it. When set to a non zero value,
 	// GARM will ignore the job until the job's age is greater than this value. When using
@@ -1183,6 +1300,7 @@ type ForgeEntity struct {
 	PoolBalancerType PoolBalancerType `json:"pool_balancing_type,omitempty"`
 	CreatedAt        time.Time        `json:"created_at,omitempty"`
 	UpdatedAt        time.Time        `json:"updated_at,omitempty"`
+	AgentMode        bool             `json:"agent_mode"`
 
 	WebhookSecret string `json:"-"`
 }
@@ -1349,6 +1467,7 @@ type GARMAgentTool struct {
 	Version     string              `json:"version"`
 	OSType      commonParams.OSType `json:"os_type"`
 	OSArch      commonParams.OSArch `json:"os_arch"`
+	DownloadURL string              `json:"download_url"`
 }
 
 // swagger:model GARMAgentToolsPaginatedResponse
@@ -1358,6 +1477,7 @@ type GARMAgentToolsPaginatedResponse = PaginatedResponse[GARMAgentTool]
 type MetadataServiceAccessDetails struct {
 	CallbackURL string `json:"callback_url"`
 	MetadataURL string `json:"metadata_url"`
+	AgentURL    string `json:"agent_url"`
 }
 
 // swagger:model InstanceMetadata
@@ -1376,7 +1496,18 @@ type InstanceMetadata struct {
 	// Also, the instance metadata should never be saved to disk, and the metadata URL is only
 	// accessible during setup of the runner. The API returns unauthorized once the runner
 	// transitions to failed/idle.
-	ExtraSpecs  map[string]any                         `json:"extra_specs,omitempty"`
-	JITEnabled  bool                                   `json:"jit_enabled"`
-	RunnerTools commonParams.RunnerApplicationDownload `json:"runner_tools"`
+	ExtraSpecs map[string]any `json:"extra_specs,omitempty"`
+	// Agent mode indicates whether or not we need to install the GARM agent on the runner.
+	AgentMode bool `json:"agent_mode"`
+	// AgentTools represents the garm agent download details.
+	AgentTools        *GARMAgentTool                         `json:"agent_tools,omitempty"`
+	AgentToken        string                                 `json:"agent_token,omitempty"`
+	AgentShellEnabled bool                                   `json:"agent_shell_enabled,omitempty"`
+	JITEnabled        bool                                   `json:"jit_enabled"`
+	RunnerTools       commonParams.RunnerApplicationDownload `json:"runner_tools"`
+}
+
+// swagger:model AgentCapabilities
+type AgentCapabilities struct {
+	Shell bool `json:"has_shell"`
 }

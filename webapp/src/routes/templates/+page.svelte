@@ -6,6 +6,7 @@
 	import type { Template } from '$lib/api/generated/api.js';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import ActionButton from '$lib/components/ActionButton.svelte';
+	import Button from '$lib/components/Button.svelte';
 	import DataTable from '$lib/components/DataTable.svelte';
 	import { toastStore } from '$lib/stores/toast.js';
 	import { extractAPIError } from '$lib/utils/apiError';
@@ -36,6 +37,7 @@
 
 	// Modals
 	let showDeleteModal = false;
+	let showRestoreModal = false;
 	let selectedTemplate: Template | null = null;
 
 	$: filteredTemplates = searchTerm
@@ -115,6 +117,34 @@
 	function openDeleteModal(template: Template) {
 		selectedTemplate = template;
 		showDeleteModal = true;
+	}
+
+	function openRestoreModal() {
+		showRestoreModal = true;
+	}
+
+	async function handleRestoreTemplates() {
+		try {
+			await garmApi.restoreTemplates({ restore_all: true });
+
+			toastStore.add({
+				type: 'success',
+				title: 'Templates restored',
+				message: 'System templates have been restored successfully.'
+			});
+
+			showRestoreModal = false;
+
+			// Reload templates to show the restored ones
+			await eagerCacheManager.retryResource('templates');
+		} catch (err) {
+			const errorMsg = extractAPIError(err);
+			toastStore.add({
+				type: 'error',
+				title: 'Failed to restore templates',
+				message: errorMsg
+			});
+		}
 	}
 
 
@@ -272,7 +302,19 @@
 	actionLabel="Create Template"
 	showAction={true}
 	on:action={openCreateModal}
-/>
+>
+	<svelte:fragment slot="secondary-actions">
+		{#if isCurrentUserAdmin()}
+			<Button
+				variant="secondary"
+				icon='<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />'
+				on:click={openRestoreModal}
+			>
+				Restore System Templates
+			</Button>
+		{/if}
+	</svelte:fragment>
+</PageHeader>
 
 {#if (error || cacheError) && !loading}
 	<div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4 mb-6">
@@ -341,5 +383,18 @@
 		itemName={selectedTemplate.name}
 		on:close={() => { showDeleteModal = false; selectedTemplate = null; }}
 		on:confirm={handleDeleteTemplate}
+	/>
+{/if}
+
+<!-- Restore Templates Modal -->
+{#if showRestoreModal}
+	<DeleteModal
+		title="Restore System Templates"
+		message="This will restore all system templates from the default configuration. Any missing system templates will be created, and any changes made to existing system templates will be overwritten with the default content."
+		itemName=""
+		confirmLabel="Restore Templates"
+		danger={false}
+		on:close={() => showRestoreModal = false}
+		on:confirm={handleRestoreTemplates}
 	/>
 {/if}

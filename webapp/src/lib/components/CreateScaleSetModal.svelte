@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { createEventDispatcher, onMount } from 'svelte';
+	import { createEventDispatcher, onMount, onDestroy } from 'svelte';
 	import { garmApi } from '$lib/api/client.js';
 	import { resolve } from '$app/paths';
 	import type {
@@ -8,11 +8,17 @@
 		Organization,
 		Enterprise,
 		Provider,
-		Template
+		Template,
+		UpdateEntityParams
 	} from '$lib/api/generated/api.js';
 	import Modal from './Modal.svelte';
 	import JsonEditor from './JsonEditor.svelte';
 	import { extractAPIError } from '$lib/utils/apiError';
+	import { websocketStore, type WebSocketEvent } from '$lib/stores/websocket.js';
+	import { eagerCache } from '$lib/stores/eager-cache.js';
+	import UpdateRepositoryModal from './UpdateRepositoryModal.svelte';
+	import UpdateOrganizationModal from './UpdateOrganizationModal.svelte';
+	import UpdateEnterpriseModal from './UpdateEnterpriseModal.svelte';
 
 	const dispatch = createEventDispatcher<{
 		close: void;
@@ -28,6 +34,8 @@
 	let loadingEntities = false;
 	let loadingProviders = false;
 	let loadingTemplates = false;
+	let showEntityUpdateModal = false;
+	let unsubscribeWebsocket: (() => void) | null = null;
 
 	// Form fields
 	let name = '';
@@ -43,6 +51,7 @@
 	let osArch = 'amd64';
 	let githubRunnerGroup = '';
 	let enabled = true;
+	let enableShell = false;
 	let extraSpecs = '{}';
 	let selectedTemplate: number | undefined = undefined;
 
@@ -98,7 +107,7 @@
 
 	function getSelectedEntityForgeType(): string | null {
 		if (!selectedEntityId || !entities) return null;
-		
+
 		const selectedEntity = entities.find(e => e.id === selectedEntityId);
 		if (!selectedEntity) return null;
 
@@ -114,9 +123,30 @@
 				return (endpoint.endpoint_type as string) || null;
 			}
 		}
-		
+
 		// Default to github for now
 		return 'github';
+	}
+
+	function getSelectedEntityAgentMode(): boolean {
+		if (!selectedEntityId || !entities) return false;
+
+		const selectedEntity = entities.find(e => e.id === selectedEntityId);
+		if (!selectedEntity) return false;
+
+		// Check if entity has agent_mode property
+		if ('agent_mode' in selectedEntity) {
+			return selectedEntity.agent_mode as boolean ?? false;
+		}
+
+		return false;
+	}
+
+	// Reactive statement to check agent mode
+	$: entityAgentMode = getSelectedEntityAgentMode();
+	$: if (!entityAgentMode) {
+		// Disable shell if agent mode is not enabled on entity
+		enableShell = false;
 	}
 
 	async function loadEntities() {
@@ -150,6 +180,64 @@
 		selectedEntityId = '';
 		selectedTemplate = undefined;
 		loadEntities();
+	}
+
+	function handleEntityWebSocketEvent(event: WebSocketEvent) {
+		if (event.operation !== 'update') return;
+
+		const updatedEntity = event.payload;
+
+		// Update the eager cache for the entity that was updated
+		if (entityLevel === 'repository' && updatedEntity.id === selectedEntityId) {
+			const repo = $eagerCache.repositories.find(r => r.id === selectedEntityId);
+			if (repo) {
+				Object.assign(repo, updatedEntity);
+				// Force reactive update by reassigning entityAgentMode
+				entityAgentMode = getSelectedEntityAgentMode();
+			}
+		} else if (entityLevel === 'organization' && updatedEntity.id === selectedEntityId) {
+			const org = $eagerCache.organizations.find(o => o.id === selectedEntityId);
+			if (org) {
+				Object.assign(org, updatedEntity);
+				// Force reactive update by reassigning entityAgentMode
+				entityAgentMode = getSelectedEntityAgentMode();
+			}
+		} else if (entityLevel === 'enterprise' && updatedEntity.id === selectedEntityId) {
+			const enterprise = $eagerCache.enterprises.find(e => e.id === selectedEntityId);
+			if (enterprise) {
+				Object.assign(enterprise, updatedEntity);
+				// Force reactive update by reassigning entityAgentMode
+				entityAgentMode = getSelectedEntityAgentMode();
+			}
+		}
+	}
+
+	async function handleEntityUpdate(params: UpdateEntityParams) {
+		if (!selectedEntityId || !entityLevel) return;
+
+		try {
+			switch (entityLevel) {
+				case 'repository':
+					await garmApi.updateRepository(selectedEntityId, params);
+					break;
+				case 'organization':
+					await garmApi.updateOrganization(selectedEntityId, params);
+					break;
+				case 'enterprise':
+					await garmApi.updateEnterprise(selectedEntityId, params);
+					break;
+			}
+
+			await loadEntities();
+			showEntityUpdateModal = false;
+		} catch (err) {
+			throw err;
+		}
+	}
+
+	function getSelectedEntity(): Repository | Organization | Enterprise | null {
+		if (!selectedEntityId || !entities) return null;
+		return entities.find(e => e.id === selectedEntityId) || null;
 	}
 
 	// Reactive statements
@@ -198,6 +286,7 @@
 				os_arch: osArch as any,
 				'github-runner-group': githubRunnerGroup || undefined,
 				enabled,
+				enable_shell: enableShell,
 				extra_specs: extraSpecs.trim() ? parsedExtraSpecs : undefined,
 				template_id: selectedTemplate
 			};
@@ -227,7 +316,35 @@
 
 	onMount(() => {
 		loadProviders();
+
+		// Subscribe to entity updates via websocket
+		if (entityLevel && (entityLevel === 'repository' || entityLevel === 'organization' || entityLevel === 'enterprise')) {
+			unsubscribeWebsocket = websocketStore.subscribeToEntity(
+				entityLevel as 'repository' | 'organization' | 'enterprise',
+				['update'],
+				handleEntityWebSocketEvent
+			);
+		}
 	});
+
+	onDestroy(() => {
+		if (unsubscribeWebsocket) {
+			unsubscribeWebsocket();
+			unsubscribeWebsocket = null;
+		}
+	});
+
+	// Re-subscribe when entity level changes
+	$: if (entityLevel && (entityLevel === 'repository' || entityLevel === 'organization' || entityLevel === 'enterprise')) {
+		if (unsubscribeWebsocket) {
+			unsubscribeWebsocket();
+		}
+		unsubscribeWebsocket = websocketStore.subscribeToEntity(
+			entityLevel as 'repository' | 'organization' | 'enterprise',
+			['update'],
+			handleEntityWebSocketEvent
+		);
+	}
 </script>
 
 <Modal on:close={() => dispatch('close')}>
@@ -567,6 +684,50 @@
 							Enable scale set immediately
 						</label>
 					</div>
+
+					<!-- Enable Shell Checkbox -->
+					<div class="space-y-2">
+						<div class="flex items-center">
+							<input
+								id="enableShell"
+								type="checkbox"
+								bind:checked={enableShell}
+								disabled={!entityAgentMode}
+								class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+							/>
+							<label for="enableShell" class="ml-2 block text-sm font-medium text-gray-700 dark:text-gray-300 {!entityAgentMode ? 'opacity-50' : ''}">
+								Enable Shell
+							</label>
+							<div class="ml-2 relative group">
+								<svg class="w-4 h-4 text-gray-400 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+								</svg>
+								<div class="absolute left-full top-1/2 transform -translate-y-1/2 ml-2 w-80 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+									This enables remote shell in the GARM agent, allowing users to connect via garm-cli or web UI using websockets.
+									<div class="absolute right-full top-1/2 transform -translate-y-1/2 border-4 border-transparent border-r-gray-900"></div>
+								</div>
+							</div>
+						</div>
+						{#if !entityAgentMode}
+							<div class="ml-6 flex items-start space-x-2 text-xs text-yellow-700 dark:text-yellow-400">
+								<svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+								</svg>
+								<span>
+									Shell access requires agent mode to be enabled on the {entityLevel}.
+									{#if selectedEntityId}
+										<button
+											type="button"
+											on:click={() => showEntityUpdateModal = true}
+											class="underline hover:text-yellow-800 dark:hover:text-yellow-300 cursor-pointer"
+										>
+											Enable agent mode
+										</button>
+									{/if}
+								</span>
+							</div>
+						{/if}
+					</div>
 				</div>
 			{/if}
 
@@ -597,3 +758,29 @@
 		</form>
 	</div>
 </Modal>
+
+<!-- Nested Entity Update Modals -->
+{#if showEntityUpdateModal && selectedEntityId}
+	{@const selectedEntity = getSelectedEntity()}
+	{#if selectedEntity}
+		{#if entityLevel === 'repository'}
+			<UpdateRepositoryModal
+				repository={selectedEntity}
+				on:close={() => showEntityUpdateModal = false}
+				on:submit={(e) => handleEntityUpdate(e.detail)}
+			/>
+		{:else if entityLevel === 'organization'}
+			<UpdateOrganizationModal
+				organization={selectedEntity}
+				on:close={() => showEntityUpdateModal = false}
+				on:submit={(e) => handleEntityUpdate(e.detail)}
+			/>
+		{:else if entityLevel === 'enterprise'}
+			<UpdateEnterpriseModal
+				enterprise={selectedEntity}
+				on:close={() => showEntityUpdateModal = false}
+				on:submit={(e) => handleEntityUpdate(e.detail)}
+			/>
+		{/if}
+	{/if}
+{/if}

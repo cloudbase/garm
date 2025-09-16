@@ -62,6 +62,8 @@ type ClientService interface {
 
 	ListTemplates(params *ListTemplatesParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListTemplatesOK, error)
 
+	RestoreTemplates(params *RestoreTemplatesParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error
+
 	UpdateTemplate(params *UpdateTemplateParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateTemplateOK, error)
 
 	SetTransport(transport runtime.ClientTransport)
@@ -211,6 +213,38 @@ func (a *Client) ListTemplates(params *ListTemplatesParams, authInfo runtime.Cli
 	// unexpected success response
 	unexpectedSuccess := result.(*ListTemplatesDefault)
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
+}
+
+/*
+RestoreTemplates creates template with the parameters given
+*/
+func (a *Client) RestoreTemplates(params *RestoreTemplatesParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewRestoreTemplatesParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "RestoreTemplates",
+		Method:             "POST",
+		PathPattern:        "/templates/restore",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &RestoreTemplatesReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	_, err := a.transport.Submit(op)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 /*

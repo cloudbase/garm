@@ -49,6 +49,9 @@ const (
 	GiteaRunnerReleasesURL = "https://gitea.com/api/v1/repos/gitea/act_runner/releases"
 	// GiteaRunnerMinimumVersion is the minimum version we need in order to support ephemeral runners.
 	GiteaRunnerMinimumVersion = "v0.2.12"
+
+	// GARM agent releases URL
+	GARMAgentDefaultReleasesURL = "https://api.github.com/repos/cloudbase/garm-agent/releases"
 )
 
 var Version string

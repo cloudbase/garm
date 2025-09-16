@@ -313,7 +313,8 @@ describe('Init Page - Unit Tests', () => {
 				{
 					callbackUrl: 'https://garm.example.com/api/v1/callbacks',
 					metadataUrl: 'https://garm.example.com/api/v1/metadata',
-					webhookUrl: 'https://garm.example.com/webhooks'
+					webhookUrl: 'https://garm.example.com/webhooks',
+					agentUrl: 'https://garm.example.com/agent'
 				}
 			);
 		});

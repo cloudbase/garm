@@ -75,6 +75,18 @@ func WithMetricsRouter(parentRouter *mux.Router, disableAuth bool, metricsMiddle
 	return parentRouter
 }
 
+func WithAgentRouter(parentRouter *mux.Router, han *controllers.APIController, middleware auth.Middleware) *mux.Router {
+	if parentRouter == nil {
+		return nil
+	}
+
+	agentRouter := parentRouter.PathPrefix("/agent").Subrouter()
+	agentRouter.Use(middleware.Middleware)
+	agentRouter.Handle("/", http.HandlerFunc(han.AgentHandler)).Methods("GET")
+	agentRouter.Handle("", http.HandlerFunc(han.AgentHandler)).Methods("GET")
+	return parentRouter
+}
+
 func WithDebugServer(parentRouter *mux.Router) *mux.Router {
 	if parentRouter == nil {
 		return nil
@@ -139,7 +151,6 @@ func NewAPIRouter(han *controllers.APIController, authMiddleware, initMiddleware
 
 	// Handles API calls
 	apiSubRouter := router.PathPrefix("/api/v1").Subrouter()
-
 	// FirstRunHandler
 	firstRunRouter := apiSubRouter.PathPrefix("/first-run").Subrouter()
 	firstRunRouter.Handle("/", http.HandlerFunc(han.FirstRunHandler)).Methods("POST", "OPTIONS")
@@ -175,9 +186,15 @@ func NewAPIRouter(han *controllers.APIController, authMiddleware, initMiddleware
 	metadataRouter.Handle("/systemd/unit-file", http.HandlerFunc(han.SystemdUnitFileHandler)).Methods("GET", "OPTIONS")
 	metadataRouter.Handle("/system/cert-bundle/", http.HandlerFunc(han.RootCertificateBundleHandler)).Methods("GET", "OPTIONS")
 	metadataRouter.Handle("/system/cert-bundle", http.HandlerFunc(han.RootCertificateBundleHandler)).Methods("GET", "OPTIONS")
-	// Tools
-	metadataRouter.Handle("/tools/garm/", http.HandlerFunc(han.InstanceGARMToolsHandler)).Methods("GET", "OPTIONS")
-	metadataRouter.Handle("/tools/garm", http.HandlerFunc(han.InstanceGARMToolsHandler)).Methods("GET", "OPTIONS")
+	// List garm agent downloads
+	metadataRouter.Handle("/tools/garm-agent/", http.HandlerFunc(han.InstanceGARMToolsHandler)).Methods("GET", "OPTIONS")
+	metadataRouter.Handle("/tools/garm-agent", http.HandlerFunc(han.InstanceGARMToolsHandler)).Methods("GET", "OPTIONS")
+	// Show details of a particular garm agent
+	metadataRouter.Handle("/tools/garm-agent/{objectID}/", http.HandlerFunc(han.InstanceShowGARMToolHandler)).Methods("GET", "OPTIONS")
+	metadataRouter.Handle("/tools/garm-agent/{objectID}", http.HandlerFunc(han.InstanceShowGARMToolHandler)).Methods("GET", "OPTIONS")
+	// Download garm agent
+	metadataRouter.Handle("/tools/garm-agent/{objectID}/download/", http.HandlerFunc(han.InstanceGARMToolDownloadHandler)).Methods("GET", "OPTIONS")
+	metadataRouter.Handle("/tools/garm-agent/{objectID}/download", http.HandlerFunc(han.InstanceGARMToolDownloadHandler)).Methods("GET", "OPTIONS")
 	// install script
 	metadataRouter.Handle("/install-script/", http.HandlerFunc(han.RunnerInstallScriptHandler)).Methods("GET", "OPTIONS")
 	metadataRouter.Handle("/install-script", http.HandlerFunc(han.RunnerInstallScriptHandler)).Methods("GET", "OPTIONS")
@@ -249,6 +266,9 @@ func NewAPIRouter(han *controllers.APIController, authMiddleware, initMiddleware
 	///////////////////////////////////////////////////////
 	apiRouter.Handle("/tools/garm-agent/", http.HandlerFunc(han.InstanceGARMToolsHandler)).Methods("GET", "OPTIONS")
 	apiRouter.Handle("/tools/garm-agent", http.HandlerFunc(han.InstanceGARMToolsHandler)).Methods("GET", "OPTIONS")
+	// Download garm agent
+	apiRouter.Handle("/tools/garm-agent/{objectID}/download/", http.HandlerFunc(han.InstanceGARMToolDownloadHandler)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/tools/garm-agent/{objectID}/download", http.HandlerFunc(han.InstanceGARMToolDownloadHandler)).Methods("GET", "OPTIONS")
 
 	//////////
 	// Jobs //
@@ -571,7 +591,9 @@ func NewAPIRouter(han *controllers.APIController, authMiddleware, initMiddleware
 	// Update template
 	apiRouter.Handle("/templates/{templateID}/", http.HandlerFunc(han.UpdateTemplateHandler)).Methods("PUT", "OPTIONS")
 	apiRouter.Handle("/templates/{templateID}", http.HandlerFunc(han.UpdateTemplateHandler)).Methods("PUT", "OPTIONS")
-
+	// Restore templates
+	apiRouter.Handle("/templates/restore/", http.HandlerFunc(han.RestoreTemplatesHandler)).Methods("POST", "OPTIONS")
+	apiRouter.Handle("/templates/restore", http.HandlerFunc(han.RestoreTemplatesHandler)).Methods("POST", "OPTIONS")
 	/////////////////////////
 	// Websocket endpoints //
 	/////////////////////////
@@ -584,6 +606,7 @@ func NewAPIRouter(han *controllers.APIController, authMiddleware, initMiddleware
 	// DB watcher websocket endpoint
 	apiRouter.Handle("/ws/events/", http.HandlerFunc(han.EventsHandler)).Methods("GET")
 	apiRouter.Handle("/ws/events", http.HandlerFunc(han.EventsHandler)).Methods("GET")
+	apiRouter.Handle("/ws/agent/{agentName}/shell", http.HandlerFunc(han.AgentShellHandler)).Methods("GET")
 
 	// NotFound handler - this should be last
 	apiRouter.PathPrefix("/").HandlerFunc(han.NotFoundHandler).Methods("GET", "POST", "PUT", "DELETE", "OPTIONS")

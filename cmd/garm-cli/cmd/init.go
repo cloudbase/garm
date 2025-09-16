@@ -35,6 +35,9 @@ var (
 	callbackURL          string
 	metadataURL          string
 	webhookURL           string
+	agentURL             string
+	garmToolsReleasesURL string
+	enableToolsSync      bool
 	minimumJobAgeBackoff uint
 )
 
@@ -140,6 +143,13 @@ func ensureDefaultEndpoints(loginURL string) (err error) {
 			return err
 		}
 	}
+
+	if agentURL == "" {
+		agentURL, err = url.JoinPath(loginURL, "agent")
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -185,6 +195,7 @@ func init() {
 	initCmd.Flags().StringVarP(&metadataURL, "metadata-url", "m", "", "The metadata URL for the controller (ie. https://garm.example.com/api/v1/metadata)")
 	initCmd.Flags().StringVarP(&callbackURL, "callback-url", "c", "", "The callback URL for the controller (ie. https://garm.example.com/api/v1/callbacks)")
 	initCmd.Flags().StringVarP(&webhookURL, "webhook-url", "w", "", "The webhook URL for the controller (ie. https://garm.example.com/webhooks)")
+	initCmd.Flags().StringVarP(&agentURL, "agent-url", "g", "", "The agent URL for the controller (ie. https://garm.example.com/agent)")
 	initCmd.Flags().StringVarP(&loginFullName, "full-name", "f", "", "Full name of the user")
 	initCmd.Flags().StringVarP(&loginPassword, "password", "p", "", "The admin password")
 	initCmd.MarkFlagRequired("name") //nolint
@@ -220,7 +231,7 @@ Admin user information:
 Make sure that the URLs in the table above are reachable by the relevant parties.
 
 The metadata and callback URLs *must* be accessible by the runners that GARM spins up.
-The base webhook and the controller webhook URLs must be accessible by GitHub or GHES. 
+The base webhook and the controller webhook URLs must be accessible by GitHub or GHES.
 `
 
 	controllerErrorMsg := `WARNING: Failed to set the required controller URLs with error: %q
@@ -228,7 +239,7 @@ The base webhook and the controller webhook URLs must be accessible by GitHub or
 Please run:
 
   garm-cli controller show
-  
+
 To make sure that the callback, metadata and webhook URLs are set correctly. If not,
 you must set them up by running:
 

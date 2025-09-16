@@ -113,6 +113,7 @@ func (s *EnterpriseTestSuite) SetupTest() {
 			s.testCreds,
 			fmt.Sprintf("test-webhook-secret-%d", i),
 			params.PoolBalancerTypeRoundRobin,
+			false,
 		)
 		if err != nil {
 			s.FailNow(fmt.Sprintf("failed to create database object (test-enterprise-%d): %q", i, err))
@@ -191,7 +192,9 @@ func (s *EnterpriseTestSuite) TestCreateEnterprise() {
 		s.Fixtures.CreateEnterpriseParams.Name,
 		s.testCreds,
 		s.Fixtures.CreateEnterpriseParams.WebhookSecret,
-		params.PoolBalancerTypeRoundRobin)
+		params.PoolBalancerTypeRoundRobin,
+		false,
+	)
 
 	// assertions
 	s.Require().Nil(err)
@@ -222,7 +225,9 @@ func (s *EnterpriseTestSuite) TestCreateEnterpriseInvalidDBPassphrase() {
 		s.Fixtures.CreateEnterpriseParams.Name,
 		s.testCreds,
 		s.Fixtures.CreateEnterpriseParams.WebhookSecret,
-		params.PoolBalancerTypeRoundRobin)
+		params.PoolBalancerTypeRoundRobin,
+		false,
+	)
 
 	s.Require().NotNil(err)
 	s.Require().Equal("error encoding secret: invalid passphrase length (expected length 32 characters)", err.Error())
@@ -240,7 +245,9 @@ func (s *EnterpriseTestSuite) TestCreateEnterpriseDBCreateErr() {
 		s.Fixtures.CreateEnterpriseParams.Name,
 		s.testCreds,
 		s.Fixtures.CreateEnterpriseParams.WebhookSecret,
-		params.PoolBalancerTypeRoundRobin)
+		params.PoolBalancerTypeRoundRobin,
+		false,
+	)
 
 	s.Require().NotNil(err)
 	s.Require().Equal("error creating enterprise: error creating enterprise: creating enterprise mock error", err.Error())
@@ -296,6 +303,7 @@ func (s *EnterpriseTestSuite) TestListEnterprisesWithFilter() {
 		s.ghesCreds,
 		"test-secret",
 		params.PoolBalancerTypeRoundRobin,
+		false,
 	)
 	s.Require().NoError(err)
 
@@ -305,6 +313,7 @@ func (s *EnterpriseTestSuite) TestListEnterprisesWithFilter() {
 		s.testCreds,
 		"test-secret",
 		params.PoolBalancerTypeRoundRobin,
+		false,
 	)
 	s.Require().NoError(err)
 
@@ -314,6 +323,7 @@ func (s *EnterpriseTestSuite) TestListEnterprisesWithFilter() {
 		s.testCreds,
 		"test-secret",
 		params.PoolBalancerTypeRoundRobin,
+		false,
 	)
 	s.Require().NoError(err)
 	enterprises, err := s.Store.ListEnterprises(s.adminCtx, params.EnterpriseFilter{
@@ -844,7 +854,9 @@ func (s *EnterpriseTestSuite) TestAddRepoEntityEvent() {
 		s.Fixtures.CreateEnterpriseParams.Name,
 		s.testCreds,
 		s.Fixtures.CreateEnterpriseParams.WebhookSecret,
-		params.PoolBalancerTypeRoundRobin)
+		params.PoolBalancerTypeRoundRobin,
+		false,
+	)
 
 	s.Require().Nil(err)
 	entity, err := enterprise.GetEntity()

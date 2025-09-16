@@ -29,7 +29,7 @@ import (
 	"github.com/cloudbase/garm/params"
 )
 
-func (s *sqlDatabase) CreateEnterprise(ctx context.Context, name string, credentials params.ForgeCredentials, webhookSecret string, poolBalancerType params.PoolBalancerType) (paramEnt params.Enterprise, err error) {
+func (s *sqlDatabase) CreateEnterprise(ctx context.Context, name string, credentials params.ForgeCredentials, webhookSecret string, poolBalancerType params.PoolBalancerType, agentMode bool) (paramEnt params.Enterprise, err error) {
 	if webhookSecret == "" {
 		return params.Enterprise{}, errors.New("creating enterprise: missing secret")
 	}
@@ -51,6 +51,7 @@ func (s *sqlDatabase) CreateEnterprise(ctx context.Context, name string, credent
 		Name:             name,
 		WebhookSecret:    secret,
 		PoolBalancerType: poolBalancerType,
+		AgentMode:        agentMode,
 	}
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
 		newEnterprise.CredentialsID = &credentials.ID
@@ -209,6 +210,10 @@ func (s *sqlDatabase) UpdateEnterprise(ctx context.Context, enterpriseID string,
 
 		if param.PoolBalancerType != "" {
 			enterprise.PoolBalancerType = param.PoolBalancerType
+		}
+
+		if param.AgentMode != nil {
+			enterprise.AgentMode = *param.AgentMode
 		}
 
 		q := tx.Save(&enterprise)

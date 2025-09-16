@@ -1269,7 +1269,7 @@ func (r *basePoolManager) retryFailedInstancesForOnePool(ctx context.Context, po
 			// TODO(gabriel-samfira): Incrementing CreateAttempt should be done within a transaction.
 			// It's fairly safe to do here (for now), as there should be no other code path that updates
 			// an instance in this state.
-			var tokenFetched bool = len(instance.JitConfiguration) > 0
+			tokenFetched := len(instance.JitConfiguration) > 0
 			updateParams := params.UpdateInstanceParams{
 				CreateAttempt: instance.CreateAttempt + 1,
 				TokenFetched:  &tokenFetched,

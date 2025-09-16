@@ -241,6 +241,7 @@ export const auth = {
 			callbackUrl?: string;
 			metadataUrl?: string;
 			webhookUrl?: string;
+			agentUrl?: string;
 		}
 	): Promise<void> {
 		try {
@@ -262,11 +263,13 @@ export const auth = {
 			const finalMetadataUrl = urls?.metadataUrl || `${currentUrl}/api/v1/metadata`;
 			const finalCallbackUrl = urls?.callbackUrl || `${currentUrl}/api/v1/callbacks`;
 			const finalWebhookUrl = urls?.webhookUrl || `${currentUrl}/webhooks`;
+			const finalAgentUrl = urls?.agentUrl || `${currentUrl}/agent`;
 			
 			await garmApi.updateController({
 				metadata_url: finalMetadataUrl,
 				callback_url: finalCallbackUrl,
-				webhook_url: finalWebhookUrl
+				webhook_url: finalWebhookUrl,
+				agent_url: finalAgentUrl
 			});
 			
 			authStore.update(state => ({ 

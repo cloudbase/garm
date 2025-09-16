@@ -64,9 +64,28 @@ export interface Address {
 /**
  * 
  * @export
+ * @interface AgentCapabilities
+ */
+export interface AgentCapabilities {
+    /**
+     * 
+     * @type {boolean}
+     * @memberof AgentCapabilities
+     */
+    'has_shell'?: boolean;
+}
+/**
+ * 
+ * @export
  * @interface ControllerInfo
  */
 export interface ControllerInfo {
+    /**
+     * AgentURL is the URL where the GARM agent will connect. If set behind a reverse proxy, this URL must be configured to allow websocket connections.
+     * @type {string}
+     * @memberof ControllerInfo
+     */
+    'agent_url'?: string;
     /**
      * CallbackURL is the URL where instances can send updates back to the controller. This URL is used by instances to send status updates back to the controller. The URL itself may be made available to instances via a reverse proxy or a load balancer. That means that the user is responsible for telling GARM what the public URL is, by setting this field.
      * @type {string}
@@ -85,6 +104,18 @@ export interface ControllerInfo {
      * @memberof ControllerInfo
      */
     'controller_webhook_url'?: string;
+    /**
+     * SyncGARMAgentTools enables or disables automatic sync of garm-agent tools.
+     * @type {boolean}
+     * @memberof ControllerInfo
+     */
+    'enable_agent_tools_sync'?: boolean;
+    /**
+     * GARMAgentReleasesURL is the URL from where GARM can fetch garm-agent binaries. This URL must have an API response compatible with the github releases API. The default value for this field is: https://api.github.com/repos/cloudbase/garm-agent/releases
+     * @type {string}
+     * @memberof ControllerInfo
+     */
+    'garm_agent_releases_url'?: string;
     /**
      * Hostname is the hostname of the machine that runs this controller. In the future, this field will be migrated to a separate table that will keep track of each the controller nodes that are part of a cluster. This will happen when we implement controller scale-out capability.
      * @type {string}
@@ -122,6 +153,12 @@ export interface ControllerInfo {
  * @interface CreateEnterpriseParams
  */
 export interface CreateEnterpriseParams {
+    /**
+     * 
+     * @type {boolean}
+     * @memberof CreateEnterpriseParams
+     */
+    'agent_mode'?: boolean;
     /**
      * 
      * @type {string}
@@ -364,6 +401,12 @@ export interface CreateGithubEndpointParams {
 export interface CreateOrgParams {
     /**
      * 
+     * @type {boolean}
+     * @memberof CreateOrgParams
+     */
+    'agent_mode'?: boolean;
+    /**
+     * 
      * @type {string}
      * @memberof CreateOrgParams
      */
@@ -399,6 +442,12 @@ export interface CreateOrgParams {
  * @interface CreatePoolParams
  */
 export interface CreatePoolParams {
+    /**
+     * 
+     * @type {boolean}
+     * @memberof CreatePoolParams
+     */
+    'enable_shell'?: boolean;
     /**
      * 
      * @type {boolean}
@@ -498,6 +547,12 @@ export interface CreatePoolParams {
 export interface CreateRepoParams {
     /**
      * 
+     * @type {boolean}
+     * @memberof CreateRepoParams
+     */
+    'agent_mode'?: boolean;
+    /**
+     * 
      * @type {string}
      * @memberof CreateRepoParams
      */
@@ -545,6 +600,12 @@ export interface CreateScaleSetParams {
      * @memberof CreateScaleSetParams
      */
     'disable_update'?: boolean;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof CreateScaleSetParams
+     */
+    'enable_shell'?: boolean;
     /**
      * 
      * @type {boolean}
@@ -685,6 +746,12 @@ export interface CreateTemplateParams {
  * @interface Enterprise
  */
 export interface Enterprise {
+    /**
+     * 
+     * @type {boolean}
+     * @memberof Enterprise
+     */
+    'agent_mode'?: boolean;
     /**
      * 
      * @type {string}
@@ -1144,6 +1211,12 @@ export interface ForgeEndpoint {
 export interface ForgeEntity {
     /**
      * 
+     * @type {boolean}
+     * @memberof ForgeEntity
+     */
+    'agent_mode'?: boolean;
+    /**
+     * 
      * @type {string}
      * @memberof ForgeEntity
      */
@@ -1190,6 +1263,207 @@ export interface ForgeEntity {
      * @memberof ForgeEntity
      */
     'updated_at'?: string;
+}
+/**
+ * 
+ * @export
+ * @interface GARMAgentTool
+ */
+export interface GARMAgentTool {
+    /**
+     * 
+     * @type {string}
+     * @memberof GARMAgentTool
+     */
+    'created_at'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GARMAgentTool
+     */
+    'description'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GARMAgentTool
+     */
+    'download_url'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GARMAgentTool
+     */
+    'file_type'?: string;
+    /**
+     * 
+     * @type {number}
+     * @memberof GARMAgentTool
+     */
+    'id'?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof GARMAgentTool
+     */
+    'name'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GARMAgentTool
+     */
+    'os_arch'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GARMAgentTool
+     */
+    'os_type'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GARMAgentTool
+     */
+    'sha256sum'?: string;
+    /**
+     * 
+     * @type {number}
+     * @memberof GARMAgentTool
+     */
+    'size'?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof GARMAgentTool
+     */
+    'updated_at'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GARMAgentTool
+     */
+    'version'?: string;
+}
+/**
+ * 
+ * @export
+ * @interface GARMAgentToolsPaginatedResponse
+ */
+export interface GARMAgentToolsPaginatedResponse {
+    /**
+     * 
+     * @type {number}
+     * @memberof GARMAgentToolsPaginatedResponse
+     */
+    'current_page'?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof GARMAgentToolsPaginatedResponse
+     */
+    'next_page'?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof GARMAgentToolsPaginatedResponse
+     */
+    'pages'?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof GARMAgentToolsPaginatedResponse
+     */
+    'previous_page'?: number;
+    /**
+     * 
+     * @type {Array<GARMAgentToolsPaginatedResponseResultsInner>}
+     * @memberof GARMAgentToolsPaginatedResponse
+     */
+    'results'?: Array<GARMAgentToolsPaginatedResponseResultsInner>;
+    /**
+     * 
+     * @type {number}
+     * @memberof GARMAgentToolsPaginatedResponse
+     */
+    'total_count'?: number;
+}
+/**
+ * 
+ * @export
+ * @interface GARMAgentToolsPaginatedResponseResultsInner
+ */
+export interface GARMAgentToolsPaginatedResponseResultsInner {
+    /**
+     * 
+     * @type {string}
+     * @memberof GARMAgentToolsPaginatedResponseResultsInner
+     */
+    'created_at'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GARMAgentToolsPaginatedResponseResultsInner
+     */
+    'description'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GARMAgentToolsPaginatedResponseResultsInner
+     */
+    'download_url'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GARMAgentToolsPaginatedResponseResultsInner
+     */
+    'file_type'?: string;
+    /**
+     * 
+     * @type {number}
+     * @memberof GARMAgentToolsPaginatedResponseResultsInner
+     */
+    'id'?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof GARMAgentToolsPaginatedResponseResultsInner
+     */
+    'name'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GARMAgentToolsPaginatedResponseResultsInner
+     */
+    'os_arch'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GARMAgentToolsPaginatedResponseResultsInner
+     */
+    'os_type'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GARMAgentToolsPaginatedResponseResultsInner
+     */
+    'sha256sum'?: string;
+    /**
+     * 
+     * @type {number}
+     * @memberof GARMAgentToolsPaginatedResponseResultsInner
+     */
+    'size'?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof GARMAgentToolsPaginatedResponseResultsInner
+     */
+    'updated_at'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof GARMAgentToolsPaginatedResponseResultsInner
+     */
+    'version'?: string;
 }
 /**
  * 
@@ -1335,6 +1609,12 @@ export interface Instance {
      */
     'agent_id'?: number;
     /**
+     * 
+     * @type {AgentCapabilities}
+     * @memberof Instance
+     */
+    'capabilities'?: AgentCapabilities;
+    /**
      * CreatedAt is the timestamp of the creation of this runner.
      * @type {string}
      * @memberof Instance
@@ -1346,6 +1626,12 @@ export interface Instance {
      * @memberof Instance
      */
     'github-runner-group'?: string;
+    /**
+     * Heartbeat is the last recorded heartbeat from the runner
+     * @type {string}
+     * @memberof Instance
+     */
+    'heartbeat'?: string;
     /**
      * ID is the database ID of this instance.
      * @type {string}
@@ -1442,6 +1728,91 @@ export interface Instance {
      * @memberof Instance
      */
     'updated_at'?: string;
+}
+/**
+ * 
+ * @export
+ * @interface InstanceMetadata
+ */
+export interface InstanceMetadata {
+    /**
+     * Agent mode indicates whether or not we need to install the GARM agent on the runner.
+     * @type {boolean}
+     * @memberof InstanceMetadata
+     */
+    'agent_mode'?: boolean;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof InstanceMetadata
+     */
+    'agent_shell_enabled'?: boolean;
+    /**
+     * 
+     * @type {string}
+     * @memberof InstanceMetadata
+     */
+    'agent_token'?: string;
+    /**
+     * 
+     * @type {GARMAgentTool}
+     * @memberof InstanceMetadata
+     */
+    'agent_tools'?: GARMAgentTool;
+    /**
+     * 
+     * @type {{ [key: string]: Array<number>; }}
+     * @memberof InstanceMetadata
+     */
+    'ca_bundles'?: { [key: string]: Array<number>; };
+    /**
+     * ExtraSpecs represents the extra specs set on the pool or scale set. No secrets should be set in extra specs. Also, the instance metadata should never be saved to disk, and the metadata URL is only accessible during setup of the runner. The API returns unauthorized once the runner transitions to failed/idle.
+     * @type {{ [key: string]: object; }}
+     * @memberof InstanceMetadata
+     */
+    'extra_specs'?: { [key: string]: object; };
+    /**
+     * 
+     * @type {string}
+     * @memberof InstanceMetadata
+     */
+    'forge_type'?: string;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof InstanceMetadata
+     */
+    'jit_enabled'?: boolean;
+    /**
+     * 
+     * @type {MetadataServiceAccessDetails}
+     * @memberof InstanceMetadata
+     */
+    'metadata_access'?: MetadataServiceAccessDetails;
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof InstanceMetadata
+     */
+    'runner_labels'?: Array<string>;
+    /**
+     * 
+     * @type {string}
+     * @memberof InstanceMetadata
+     */
+    'runner_name'?: string;
+    /**
+     * RunnerRegistrationURL is the URL the runner needs to configure itself against. This can be a repository, organization, enterprise (github) or system (gitea)
+     * @type {string}
+     * @memberof InstanceMetadata
+     */
+    'runner_registration_url'?: string;
+    /**
+     * 
+     * @type {RunnerApplicationDownload}
+     * @memberof InstanceMetadata
+     */
+    'runner_tools'?: RunnerApplicationDownload;
 }
 /**
  * JWTResponse holds the JWT token returned as a result of a successful auth
@@ -1602,6 +1973,31 @@ export interface Job {
     'workflow_job_id'?: number;
 }
 /**
+ * 
+ * @export
+ * @interface MetadataServiceAccessDetails
+ */
+export interface MetadataServiceAccessDetails {
+    /**
+     * 
+     * @type {string}
+     * @memberof MetadataServiceAccessDetails
+     */
+    'agent_url'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof MetadataServiceAccessDetails
+     */
+    'callback_url'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof MetadataServiceAccessDetails
+     */
+    'metadata_url'?: string;
+}
+/**
  * NewUserParams holds the needed information to create a new user
  * @export
  * @interface NewUserParams
@@ -1638,6 +2034,12 @@ export interface NewUserParams {
  * @interface Organization
  */
 export interface Organization {
+    /**
+     * 
+     * @type {boolean}
+     * @memberof Organization
+     */
+    'agent_mode'?: boolean;
     /**
      * 
      * @type {string}
@@ -1742,6 +2144,12 @@ export interface Pool {
      * @memberof Pool
      */
     'created_at'?: string;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof Pool
+     */
+    'enable_shell'?: boolean;
     /**
      * 
      * @type {boolean}
@@ -1951,6 +2359,12 @@ export interface Provider {
 export interface Repository {
     /**
      * 
+     * @type {boolean}
+     * @memberof Repository
+     */
+    'agent_mode'?: boolean;
+    /**
+     * 
      * @type {string}
      * @memberof Repository
      */
@@ -2031,6 +2445,74 @@ export interface Repository {
 /**
  * 
  * @export
+ * @interface RestoreTemplateRequest
+ */
+export interface RestoreTemplateRequest {
+    /**
+     * 
+     * @type {string}
+     * @memberof RestoreTemplateRequest
+     */
+    'forge'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RestoreTemplateRequest
+     */
+    'os_type'?: string;
+    /**
+     * RestoreAll indicates whether or not to restore all known system owned templates. If set, the Forge and OSType params are ignored.
+     * @type {boolean}
+     * @memberof RestoreTemplateRequest
+     */
+    'restore_all'?: boolean;
+}
+/**
+ * This is copied from the go-github package. It does not make sense to create a dependency on go-github just for this struct.
+ * @export
+ * @interface RunnerApplicationDownload
+ */
+export interface RunnerApplicationDownload {
+    /**
+     * 
+     * @type {string}
+     * @memberof RunnerApplicationDownload
+     */
+    'architecture'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RunnerApplicationDownload
+     */
+    'download_url'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RunnerApplicationDownload
+     */
+    'filename'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RunnerApplicationDownload
+     */
+    'os'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RunnerApplicationDownload
+     */
+    'sha256_checksum'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof RunnerApplicationDownload
+     */
+    'temp_download_token'?: string;
+}
+/**
+ * 
+ * @export
  * @interface RunnerPrefix
  */
 export interface RunnerPrefix {
@@ -2065,6 +2547,12 @@ export interface ScaleSet {
      * @memberof ScaleSet
      */
     'disable_update'?: boolean;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof ScaleSet
+     */
+    'enable_shell'?: boolean;
     /**
      * 
      * @type {boolean}
@@ -2362,7 +2850,25 @@ export interface UpdateControllerParams {
      * @type {string}
      * @memberof UpdateControllerParams
      */
+    'agent_url'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof UpdateControllerParams
+     */
     'callback_url'?: string;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof UpdateControllerParams
+     */
+    'enable_agent_tools_sync'?: boolean;
+    /**
+     * 
+     * @type {string}
+     * @memberof UpdateControllerParams
+     */
+    'garm_agent_releases_url'?: string;
     /**
      * 
      * @type {string}
@@ -2388,6 +2894,12 @@ export interface UpdateControllerParams {
  * @interface UpdateEntityParams
  */
 export interface UpdateEntityParams {
+    /**
+     * 
+     * @type {boolean}
+     * @memberof UpdateEntityParams
+     */
+    'agent_mode'?: boolean;
     /**
      * 
      * @type {string}
@@ -2579,6 +3091,12 @@ export interface UpdatePoolParams {
      * @type {boolean}
      * @memberof UpdatePoolParams
      */
+    'enable_shell'?: boolean;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof UpdatePoolParams
+     */
     'enabled'?: boolean;
     /**
      * 
@@ -2665,6 +3183,12 @@ export interface UpdatePoolParams {
  * @interface UpdateScaleSetParams
  */
 export interface UpdateScaleSetParams {
+    /**
+     * 
+     * @type {boolean}
+     * @memberof UpdateScaleSetParams
+     */
+    'enable_shell'?: boolean;
     /**
      * 
      * @type {boolean}
@@ -12662,6 +13186,45 @@ export const TemplatesApiAxiosParamCreator = function (configuration?: Configura
         },
         /**
          * 
+         * @summary Create template with the parameters given.
+         * @param {RestoreTemplateRequest} body Parameters used when restoring the templates.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        restoreTemplates: async (body: RestoreTemplateRequest, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'body' is not null or undefined
+            assertParamExists('restoreTemplates', 'body', body)
+            const localVarPath = `/templates/restore`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(body, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
          * @summary Update template with the parameters given.
          * @param {string} templateID ID of the template to update.
          * @param {UpdateTemplateParams} body Parameters used when updating the template.
@@ -12769,6 +13332,19 @@ export const TemplatesApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
+         * @summary Create template with the parameters given.
+         * @param {RestoreTemplateRequest} body Parameters used when restoring the templates.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async restoreTemplates(body: RestoreTemplateRequest, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<APIErrorResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.restoreTemplates(body, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['TemplatesApi.restoreTemplates']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @summary Update template with the parameters given.
          * @param {string} templateID ID of the template to update.
          * @param {UpdateTemplateParams} body Parameters used when updating the template.
@@ -12832,6 +13408,16 @@ export const TemplatesApiFactory = function (configuration?: Configuration, base
          */
         listTemplates(osType?: string, partialName?: string, forgeType?: string, options?: RawAxiosRequestConfig): AxiosPromise<Array<Template>> {
             return localVarFp.listTemplates(osType, partialName, forgeType, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Create template with the parameters given.
+         * @param {RestoreTemplateRequest} body Parameters used when restoring the templates.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        restoreTemplates(body: RestoreTemplateRequest, options?: RawAxiosRequestConfig): AxiosPromise<APIErrorResponse> {
+            return localVarFp.restoreTemplates(body, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -12906,6 +13492,18 @@ export class TemplatesApi extends BaseAPI {
 
     /**
      * 
+     * @summary Create template with the parameters given.
+     * @param {RestoreTemplateRequest} body Parameters used when restoring the templates.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof TemplatesApi
+     */
+    public restoreTemplates(body: RestoreTemplateRequest, options?: RawAxiosRequestConfig) {
+        return TemplatesApiFp(this.configuration).restoreTemplates(body, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
      * @summary Update template with the parameters given.
      * @param {string} templateID ID of the template to update.
      * @param {UpdateTemplateParams} body Parameters used when updating the template.
@@ -12915,6 +13513,126 @@ export class TemplatesApi extends BaseAPI {
      */
     public updateTemplate(templateID: string, body: UpdateTemplateParams, options?: RawAxiosRequestConfig) {
         return TemplatesApiFp(this.configuration).updateTemplate(templateID, body, options).then((request) => request(this.axios, this.basePath));
+    }
+}
+
+
+
+/**
+ * ToolsApi - axios parameter creator
+ * @export
+ */
+export const ToolsApiAxiosParamCreator = function (configuration?: Configuration) {
+    return {
+        /**
+         * 
+         * @summary List GARM agent tools.
+         * @param {number} [page] The page at which to list.
+         * @param {number} [pageSize] Number of items per page.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        garmAgentList: async (page?: number, pageSize?: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/tools/garm-agent`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+            if (page !== undefined) {
+                localVarQueryParameter['page'] = page;
+            }
+
+            if (pageSize !== undefined) {
+                localVarQueryParameter['pageSize'] = pageSize;
+            }
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+    }
+};
+
+/**
+ * ToolsApi - functional programming interface
+ * @export
+ */
+export const ToolsApiFp = function(configuration?: Configuration) {
+    const localVarAxiosParamCreator = ToolsApiAxiosParamCreator(configuration)
+    return {
+        /**
+         * 
+         * @summary List GARM agent tools.
+         * @param {number} [page] The page at which to list.
+         * @param {number} [pageSize] Number of items per page.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async garmAgentList(page?: number, pageSize?: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GARMAgentToolsPaginatedResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.garmAgentList(page, pageSize, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ToolsApi.garmAgentList']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+    }
+};
+
+/**
+ * ToolsApi - factory interface
+ * @export
+ */
+export const ToolsApiFactory = function (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) {
+    const localVarFp = ToolsApiFp(configuration)
+    return {
+        /**
+         * 
+         * @summary List GARM agent tools.
+         * @param {number} [page] The page at which to list.
+         * @param {number} [pageSize] Number of items per page.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        garmAgentList(page?: number, pageSize?: number, options?: RawAxiosRequestConfig): AxiosPromise<GARMAgentToolsPaginatedResponse> {
+            return localVarFp.garmAgentList(page, pageSize, options).then((request) => request(axios, basePath));
+        },
+    };
+};
+
+/**
+ * ToolsApi - object-oriented interface
+ * @export
+ * @class ToolsApi
+ * @extends {BaseAPI}
+ */
+export class ToolsApi extends BaseAPI {
+    /**
+     * 
+     * @summary List GARM agent tools.
+     * @param {number} [page] The page at which to list.
+     * @param {number} [pageSize] Number of items per page.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ToolsApi
+     */
+    public garmAgentList(page?: number, pageSize?: number, options?: RawAxiosRequestConfig) {
+        return ToolsApiFp(this.configuration).garmAgentList(page, pageSize, options).then((request) => request(this.axios, this.basePath));
     }
 }
 

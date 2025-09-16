@@ -46,15 +46,15 @@ var nightlyActRunner = GiteaEntityTool{
 	TarballURL: "https://gitea.com/gitea/act_runner/archive/main.tar.gz",
 	Assets: []GiteaToolsAssets{
 		{
-			Name:        "act_runner-nightly-linux-amd64.xz",
+			Name:        "act_runner-nightly-linux-amd64",
 			DownloadURL: "https://dl.gitea.com/act_runner/nightly/act_runner-nightly-linux-amd64",
 		},
 		{
-			Name:        "act_runner-nightly-linux-arm64.xz",
+			Name:        "act_runner-nightly-linux-arm64",
 			DownloadURL: "https://dl.gitea.com/act_runner/nightly/act_runner-nightly-linux-arm64",
 		},
 		{
-			Name:        "act_runner-nightly-windows-amd64.exe.xz",
+			Name:        "act_runner-nightly-windows-amd64.exe",
 			DownloadURL: "https://dl.gitea.com/act_runner/nightly/act_runner-nightly-windows-amd64.exe",
 		},
 	},

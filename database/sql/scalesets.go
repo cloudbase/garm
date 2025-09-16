@@ -84,6 +84,7 @@ func (s *sqlDatabase) CreateEntityScaleSet(ctx context.Context, entity params.Fo
 		GitHubRunnerGroup:      param.GitHubRunnerGroup,
 		State:                  params.ScaleSetPendingCreate,
 		TemplateID:             param.TemplateID,
+		EnableShell:            param.EnableShell,
 	}
 
 	if len(param.ExtraSpecs) > 0 {
@@ -301,6 +302,10 @@ func (s *sqlDatabase) updateScaleSet(tx *gorm.DB, scaleSet ScaleSet, param param
 
 	if param.TemplateID != nil {
 		scaleSet.TemplateID = param.TemplateID
+	}
+
+	if param.EnableShell != nil {
+		scaleSet.EnableShell = *param.EnableShell
 	}
 
 	if param.Name != "" {

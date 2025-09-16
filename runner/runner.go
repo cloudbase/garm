@@ -76,6 +76,7 @@ func NewRunner(ctx context.Context, cfg config.Config, db dbCommon.Store, token 
 		ctx:             ctx,
 		config:          cfg,
 		store:           db,
+		tokenGetter:     token,
 		poolManagerCtrl: poolManagerCtrl,
 		providers:       providers,
 	}
@@ -228,9 +229,10 @@ func (p *poolManagerCtrl) GetEnterprisePoolManagers() (map[string]common.PoolMan
 type Runner struct {
 	mux sync.Mutex
 
-	config config.Config
-	ctx    context.Context
-	store  dbCommon.Store
+	config      config.Config
+	ctx         context.Context
+	store       dbCommon.Store
+	tokenGetter auth.InstanceTokenGetter
 
 	poolManagerCtrl PoolManagerController
 

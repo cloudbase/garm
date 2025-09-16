@@ -1,0 +1,1 @@
+import{ag as h,ah as t,u as b,ae as k,ai as S}from"./BIqNNOMq.js";function u(r,a){return r===a||r?.[S]===a}function d(r={},a,f,T){return h(()=>{var i,s;return t(()=>{i=s,s=[],b(()=>{r!==f(...s)&&(a(r,...s),i&&u(f(...i),r)&&a(null,...i))})}),()=>{k(()=>{s&&u(f(...s),r)&&a(null,...s)})}}),r}export{d as b};

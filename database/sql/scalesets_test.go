@@ -62,17 +62,17 @@ func (s *ScaleSetsTestSuite) SetupTest() {
 	s.creds = garmTesting.CreateTestGithubCredentials(adminCtx, "new-creds", db, s.T(), githubEndpoint)
 
 	// create an organization for testing purposes
-	s.org, err = s.Store.CreateOrganization(s.adminCtx, "test-org", s.creds, "test-webhookSecret", params.PoolBalancerTypeRoundRobin)
+	s.org, err = s.Store.CreateOrganization(s.adminCtx, "test-org", s.creds, "test-webhookSecret", params.PoolBalancerTypeRoundRobin, false)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to create org: %s", err))
 	}
 
-	s.repo, err = s.Store.CreateRepository(s.adminCtx, "test-org", "test-repo", s.creds, "test-webhookSecret", params.PoolBalancerTypeRoundRobin)
+	s.repo, err = s.Store.CreateRepository(s.adminCtx, "test-org", "test-repo", s.creds, "test-webhookSecret", params.PoolBalancerTypeRoundRobin, false)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to create repo: %s", err))
 	}
 
-	s.enterprise, err = s.Store.CreateEnterprise(s.adminCtx, "test-enterprise", s.creds, "test-webhookSecret", params.PoolBalancerTypeRoundRobin)
+	s.enterprise, err = s.Store.CreateEnterprise(s.adminCtx, "test-enterprise", s.creds, "test-webhookSecret", params.PoolBalancerTypeRoundRobin, false)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to create enterprise: %s", err))
 	}
@@ -131,8 +131,8 @@ func (s *ScaleSetsTestSuite) callback(old, newSet params.ScaleSet) error {
 	s.Require().Equal(newSet.Flavor, "new-test-flavor")
 	s.Require().Equal(old.GitHubRunnerGroup, "test-group")
 	s.Require().Equal(newSet.GitHubRunnerGroup, "new-test-group")
-	s.Require().Equal(old.RunnerPrefix.Prefix, "garm")
-	s.Require().Equal(newSet.RunnerPrefix.Prefix, "test-prefix2")
+	s.Require().Equal(old.Prefix, "garm")
+	s.Require().Equal(newSet.Prefix, "test-prefix2")
 	s.Require().Equal(old.Enabled, false)
 	s.Require().Equal(newSet.Enabled, true)
 	return nil

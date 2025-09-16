@@ -229,9 +229,9 @@ func (_c *Store_ControllerInfo_Call) RunAndReturn(run func() (params.ControllerI
 	return _c
 }
 
-// CreateEnterprise provides a mock function with given fields: ctx, name, credentialsName, webhookSecret, poolBalancerType
-func (_m *Store) CreateEnterprise(ctx context.Context, name string, credentialsName params.ForgeCredentials, webhookSecret string, poolBalancerType params.PoolBalancerType) (params.Enterprise, error) {
-	ret := _m.Called(ctx, name, credentialsName, webhookSecret, poolBalancerType)
+// CreateEnterprise provides a mock function with given fields: ctx, name, credentialsName, webhookSecret, poolBalancerType, agentMode
+func (_m *Store) CreateEnterprise(ctx context.Context, name string, credentialsName params.ForgeCredentials, webhookSecret string, poolBalancerType params.PoolBalancerType, agentMode bool) (params.Enterprise, error) {
+	ret := _m.Called(ctx, name, credentialsName, webhookSecret, poolBalancerType, agentMode)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateEnterprise")
@@ -239,17 +239,17 @@ func (_m *Store) CreateEnterprise(ctx context.Context, name string, credentialsN
 
 	var r0 params.Enterprise
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, params.ForgeCredentials, string, params.PoolBalancerType) (params.Enterprise, error)); ok {
-		return rf(ctx, name, credentialsName, webhookSecret, poolBalancerType)
+	if rf, ok := ret.Get(0).(func(context.Context, string, params.ForgeCredentials, string, params.PoolBalancerType, bool) (params.Enterprise, error)); ok {
+		return rf(ctx, name, credentialsName, webhookSecret, poolBalancerType, agentMode)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, params.ForgeCredentials, string, params.PoolBalancerType) params.Enterprise); ok {
-		r0 = rf(ctx, name, credentialsName, webhookSecret, poolBalancerType)
+	if rf, ok := ret.Get(0).(func(context.Context, string, params.ForgeCredentials, string, params.PoolBalancerType, bool) params.Enterprise); ok {
+		r0 = rf(ctx, name, credentialsName, webhookSecret, poolBalancerType, agentMode)
 	} else {
 		r0 = ret.Get(0).(params.Enterprise)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string, params.ForgeCredentials, string, params.PoolBalancerType) error); ok {
-		r1 = rf(ctx, name, credentialsName, webhookSecret, poolBalancerType)
+	if rf, ok := ret.Get(1).(func(context.Context, string, params.ForgeCredentials, string, params.PoolBalancerType, bool) error); ok {
+		r1 = rf(ctx, name, credentialsName, webhookSecret, poolBalancerType, agentMode)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -268,13 +268,14 @@ type Store_CreateEnterprise_Call struct {
 //   - credentialsName params.ForgeCredentials
 //   - webhookSecret string
 //   - poolBalancerType params.PoolBalancerType
-func (_e *Store_Expecter) CreateEnterprise(ctx interface{}, name interface{}, credentialsName interface{}, webhookSecret interface{}, poolBalancerType interface{}) *Store_CreateEnterprise_Call {
-	return &Store_CreateEnterprise_Call{Call: _e.mock.On("CreateEnterprise", ctx, name, credentialsName, webhookSecret, poolBalancerType)}
+//   - agentMode bool
+func (_e *Store_Expecter) CreateEnterprise(ctx interface{}, name interface{}, credentialsName interface{}, webhookSecret interface{}, poolBalancerType interface{}, agentMode interface{}) *Store_CreateEnterprise_Call {
+	return &Store_CreateEnterprise_Call{Call: _e.mock.On("CreateEnterprise", ctx, name, credentialsName, webhookSecret, poolBalancerType, agentMode)}
 }
 
-func (_c *Store_CreateEnterprise_Call) Run(run func(ctx context.Context, name string, credentialsName params.ForgeCredentials, webhookSecret string, poolBalancerType params.PoolBalancerType)) *Store_CreateEnterprise_Call {
+func (_c *Store_CreateEnterprise_Call) Run(run func(ctx context.Context, name string, credentialsName params.ForgeCredentials, webhookSecret string, poolBalancerType params.PoolBalancerType, agentMode bool)) *Store_CreateEnterprise_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(params.ForgeCredentials), args[3].(string), args[4].(params.PoolBalancerType))
+		run(args[0].(context.Context), args[1].(string), args[2].(params.ForgeCredentials), args[3].(string), args[4].(params.PoolBalancerType), args[5].(bool))
 	})
 	return _c
 }
@@ -284,7 +285,7 @@ func (_c *Store_CreateEnterprise_Call) Return(_a0 params.Enterprise, _a1 error) 
 	return _c
 }
 
-func (_c *Store_CreateEnterprise_Call) RunAndReturn(run func(context.Context, string, params.ForgeCredentials, string, params.PoolBalancerType) (params.Enterprise, error)) *Store_CreateEnterprise_Call {
+func (_c *Store_CreateEnterprise_Call) RunAndReturn(run func(context.Context, string, params.ForgeCredentials, string, params.PoolBalancerType, bool) (params.Enterprise, error)) *Store_CreateEnterprise_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -806,9 +807,9 @@ func (_c *Store_CreateOrUpdateJob_Call) RunAndReturn(run func(context.Context, p
 	return _c
 }
 
-// CreateOrganization provides a mock function with given fields: ctx, name, credentials, webhookSecret, poolBalancerType
-func (_m *Store) CreateOrganization(ctx context.Context, name string, credentials params.ForgeCredentials, webhookSecret string, poolBalancerType params.PoolBalancerType) (params.Organization, error) {
-	ret := _m.Called(ctx, name, credentials, webhookSecret, poolBalancerType)
+// CreateOrganization provides a mock function with given fields: ctx, name, credentials, webhookSecret, poolBalancerType, agentMode
+func (_m *Store) CreateOrganization(ctx context.Context, name string, credentials params.ForgeCredentials, webhookSecret string, poolBalancerType params.PoolBalancerType, agentMode bool) (params.Organization, error) {
+	ret := _m.Called(ctx, name, credentials, webhookSecret, poolBalancerType, agentMode)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateOrganization")
@@ -816,17 +817,17 @@ func (_m *Store) CreateOrganization(ctx context.Context, name string, credential
 
 	var r0 params.Organization
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, params.ForgeCredentials, string, params.PoolBalancerType) (params.Organization, error)); ok {
-		return rf(ctx, name, credentials, webhookSecret, poolBalancerType)
+	if rf, ok := ret.Get(0).(func(context.Context, string, params.ForgeCredentials, string, params.PoolBalancerType, bool) (params.Organization, error)); ok {
+		return rf(ctx, name, credentials, webhookSecret, poolBalancerType, agentMode)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, params.ForgeCredentials, string, params.PoolBalancerType) params.Organization); ok {
-		r0 = rf(ctx, name, credentials, webhookSecret, poolBalancerType)
+	if rf, ok := ret.Get(0).(func(context.Context, string, params.ForgeCredentials, string, params.PoolBalancerType, bool) params.Organization); ok {
+		r0 = rf(ctx, name, credentials, webhookSecret, poolBalancerType, agentMode)
 	} else {
 		r0 = ret.Get(0).(params.Organization)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string, params.ForgeCredentials, string, params.PoolBalancerType) error); ok {
-		r1 = rf(ctx, name, credentials, webhookSecret, poolBalancerType)
+	if rf, ok := ret.Get(1).(func(context.Context, string, params.ForgeCredentials, string, params.PoolBalancerType, bool) error); ok {
+		r1 = rf(ctx, name, credentials, webhookSecret, poolBalancerType, agentMode)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -845,13 +846,14 @@ type Store_CreateOrganization_Call struct {
 //   - credentials params.ForgeCredentials
 //   - webhookSecret string
 //   - poolBalancerType params.PoolBalancerType
-func (_e *Store_Expecter) CreateOrganization(ctx interface{}, name interface{}, credentials interface{}, webhookSecret interface{}, poolBalancerType interface{}) *Store_CreateOrganization_Call {
-	return &Store_CreateOrganization_Call{Call: _e.mock.On("CreateOrganization", ctx, name, credentials, webhookSecret, poolBalancerType)}
+//   - agentMode bool
+func (_e *Store_Expecter) CreateOrganization(ctx interface{}, name interface{}, credentials interface{}, webhookSecret interface{}, poolBalancerType interface{}, agentMode interface{}) *Store_CreateOrganization_Call {
+	return &Store_CreateOrganization_Call{Call: _e.mock.On("CreateOrganization", ctx, name, credentials, webhookSecret, poolBalancerType, agentMode)}
 }
 
-func (_c *Store_CreateOrganization_Call) Run(run func(ctx context.Context, name string, credentials params.ForgeCredentials, webhookSecret string, poolBalancerType params.PoolBalancerType)) *Store_CreateOrganization_Call {
+func (_c *Store_CreateOrganization_Call) Run(run func(ctx context.Context, name string, credentials params.ForgeCredentials, webhookSecret string, poolBalancerType params.PoolBalancerType, agentMode bool)) *Store_CreateOrganization_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(params.ForgeCredentials), args[3].(string), args[4].(params.PoolBalancerType))
+		run(args[0].(context.Context), args[1].(string), args[2].(params.ForgeCredentials), args[3].(string), args[4].(params.PoolBalancerType), args[5].(bool))
 	})
 	return _c
 }
@@ -861,14 +863,14 @@ func (_c *Store_CreateOrganization_Call) Return(org params.Organization, err err
 	return _c
 }
 
-func (_c *Store_CreateOrganization_Call) RunAndReturn(run func(context.Context, string, params.ForgeCredentials, string, params.PoolBalancerType) (params.Organization, error)) *Store_CreateOrganization_Call {
+func (_c *Store_CreateOrganization_Call) RunAndReturn(run func(context.Context, string, params.ForgeCredentials, string, params.PoolBalancerType, bool) (params.Organization, error)) *Store_CreateOrganization_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// CreateRepository provides a mock function with given fields: ctx, owner, name, credentials, webhookSecret, poolBalancerType
-func (_m *Store) CreateRepository(ctx context.Context, owner string, name string, credentials params.ForgeCredentials, webhookSecret string, poolBalancerType params.PoolBalancerType) (params.Repository, error) {
-	ret := _m.Called(ctx, owner, name, credentials, webhookSecret, poolBalancerType)
+// CreateRepository provides a mock function with given fields: ctx, owner, name, credentials, webhookSecret, poolBalancerType, agentMode
+func (_m *Store) CreateRepository(ctx context.Context, owner string, name string, credentials params.ForgeCredentials, webhookSecret string, poolBalancerType params.PoolBalancerType, agentMode bool) (params.Repository, error) {
+	ret := _m.Called(ctx, owner, name, credentials, webhookSecret, poolBalancerType, agentMode)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateRepository")
@@ -876,17 +878,17 @@ func (_m *Store) CreateRepository(ctx context.Context, owner string, name string
 
 	var r0 params.Repository
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, params.ForgeCredentials, string, params.PoolBalancerType) (params.Repository, error)); ok {
-		return rf(ctx, owner, name, credentials, webhookSecret, poolBalancerType)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, params.ForgeCredentials, string, params.PoolBalancerType, bool) (params.Repository, error)); ok {
+		return rf(ctx, owner, name, credentials, webhookSecret, poolBalancerType, agentMode)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, params.ForgeCredentials, string, params.PoolBalancerType) params.Repository); ok {
-		r0 = rf(ctx, owner, name, credentials, webhookSecret, poolBalancerType)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string, params.ForgeCredentials, string, params.PoolBalancerType, bool) params.Repository); ok {
+		r0 = rf(ctx, owner, name, credentials, webhookSecret, poolBalancerType, agentMode)
 	} else {
 		r0 = ret.Get(0).(params.Repository)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string, string, params.ForgeCredentials, string, params.PoolBalancerType) error); ok {
-		r1 = rf(ctx, owner, name, credentials, webhookSecret, poolBalancerType)
+	if rf, ok := ret.Get(1).(func(context.Context, string, string, params.ForgeCredentials, string, params.PoolBalancerType, bool) error); ok {
+		r1 = rf(ctx, owner, name, credentials, webhookSecret, poolBalancerType, agentMode)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -906,13 +908,14 @@ type Store_CreateRepository_Call struct {
 //   - credentials params.ForgeCredentials
 //   - webhookSecret string
 //   - poolBalancerType params.PoolBalancerType
-func (_e *Store_Expecter) CreateRepository(ctx interface{}, owner interface{}, name interface{}, credentials interface{}, webhookSecret interface{}, poolBalancerType interface{}) *Store_CreateRepository_Call {
-	return &Store_CreateRepository_Call{Call: _e.mock.On("CreateRepository", ctx, owner, name, credentials, webhookSecret, poolBalancerType)}
+//   - agentMode bool
+func (_e *Store_Expecter) CreateRepository(ctx interface{}, owner interface{}, name interface{}, credentials interface{}, webhookSecret interface{}, poolBalancerType interface{}, agentMode interface{}) *Store_CreateRepository_Call {
+	return &Store_CreateRepository_Call{Call: _e.mock.On("CreateRepository", ctx, owner, name, credentials, webhookSecret, poolBalancerType, agentMode)}
 }
 
-func (_c *Store_CreateRepository_Call) Run(run func(ctx context.Context, owner string, name string, credentials params.ForgeCredentials, webhookSecret string, poolBalancerType params.PoolBalancerType)) *Store_CreateRepository_Call {
+func (_c *Store_CreateRepository_Call) Run(run func(ctx context.Context, owner string, name string, credentials params.ForgeCredentials, webhookSecret string, poolBalancerType params.PoolBalancerType, agentMode bool)) *Store_CreateRepository_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(params.ForgeCredentials), args[4].(string), args[5].(params.PoolBalancerType))
+		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(params.ForgeCredentials), args[4].(string), args[5].(params.PoolBalancerType), args[6].(bool))
 	})
 	return _c
 }
@@ -922,7 +925,7 @@ func (_c *Store_CreateRepository_Call) Return(param params.Repository, err error
 	return _c
 }
 
-func (_c *Store_CreateRepository_Call) RunAndReturn(run func(context.Context, string, string, params.ForgeCredentials, string, params.PoolBalancerType) (params.Repository, error)) *Store_CreateRepository_Call {
+func (_c *Store_CreateRepository_Call) RunAndReturn(run func(context.Context, string, string, params.ForgeCredentials, string, params.PoolBalancerType, bool) (params.Repository, error)) *Store_CreateRepository_Call {
 	_c.Call.Return(run)
 	return _c
 }

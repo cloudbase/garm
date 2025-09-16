@@ -49,6 +49,7 @@ var (
 	scalesetExtraSpecs             string
 	scalesetGitHubRunnerGroup      string
 	scaleSetTemplateNameOrID       string
+	scalesetEnableShell            bool
 )
 
 type scalesetPayloadGetter interface {
@@ -228,6 +229,7 @@ var scaleSetAddCmd = &cobra.Command{
 			Enabled:                scalesetEnabled,
 			RunnerBootstrapTimeout: scalesetRunnerBootstrapTimeout,
 			GitHubRunnerGroup:      scalesetGitHubRunnerGroup,
+			EnableShell:            scalesetEnableShell,
 		}
 
 		if cmd.Flags().Changed("extra-specs") {
@@ -381,6 +383,10 @@ explicitly remove them using the runner delete command.
 			scaleSetUpdateParams.RunnerBootstrapTimeout = &scalesetRunnerBootstrapTimeout
 		}
 
+		if cmd.Flags().Changed("enable-shell") {
+			scaleSetUpdateParams.EnableShell = &scalesetEnableShell
+		}
+
 		if cmd.Flags().Changed("extra-specs") {
 			data, err := asRawMessage([]byte(scalesetExtraSpecs))
 			if err != nil {
@@ -429,6 +435,7 @@ func init() {
 	scaleSetUpdateCmd.Flags().UintVar(&scalesetRunnerBootstrapTimeout, "runner-bootstrap-timeout", 20, "Duration in minutes after which a runner is considered failed if it does not join Github.")
 	scaleSetUpdateCmd.Flags().StringVar(&scalesetExtraSpecsFile, "extra-specs-file", "", "A file containing a valid json which will be passed to the IaaS provider managing the scale set.")
 	scaleSetUpdateCmd.Flags().StringVar(&scalesetExtraSpecs, "extra-specs", "", "A valid json which will be passed to the IaaS provider managing the scale set.")
+	scaleSetUpdateCmd.Flags().BoolVar(&scalesetEnableShell, "enable-shell", false, "Enable shell access for runners in this scale set.")
 	scaleSetUpdateCmd.Flags().StringVar(&scaleSetTemplateNameOrID, "runner-install-template", "", "The runner install template name or ID to use for this scale set.")
 	scaleSetUpdateCmd.MarkFlagsMutuallyExclusive("extra-specs-file", "extra-specs")
 
@@ -446,6 +453,7 @@ func init() {
 	scaleSetAddCmd.Flags().UintVar(&scalesetRunnerBootstrapTimeout, "runner-bootstrap-timeout", 20, "Duration in minutes after which a runner is considered failed if it does not join Github.")
 	scaleSetAddCmd.Flags().UintVar(&scalesetMinIdleRunners, "min-idle-runners", 1, "Attempt to maintain a minimum of idle self-hosted runners of this type.")
 	scaleSetAddCmd.Flags().BoolVar(&scalesetEnabled, "enabled", false, "Enable this scale set.")
+	scaleSetAddCmd.Flags().BoolVar(&scalesetEnableShell, "enable-shell", false, "Enable shell access for runners in this scale set.")
 	scaleSetAddCmd.Flags().StringVar(&endpointName, "endpoint", "", "When using the name of an entity, the endpoint must be specified when multiple entities with the same name exist.")
 	scaleSetAddCmd.Flags().StringVar(&scaleSetTemplateNameOrID, "runner-install-template", "", "The runner install template name or ID to use for this scale set.")
 	scaleSetAddCmd.MarkFlagRequired("provider-name") //nolint

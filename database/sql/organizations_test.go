@@ -114,6 +114,7 @@ func (s *OrgTestSuite) SetupTest() {
 			s.testCreds,
 			fmt.Sprintf("test-webhook-secret-%d", i),
 			params.PoolBalancerTypeRoundRobin,
+			false,
 		)
 		if err != nil {
 			s.FailNow(fmt.Sprintf("failed to create database object (test-org-%d): %q", i, err))
@@ -192,7 +193,9 @@ func (s *OrgTestSuite) TestCreateOrganization() {
 		s.Fixtures.CreateOrgParams.Name,
 		s.testCreds,
 		s.Fixtures.CreateOrgParams.WebhookSecret,
-		params.PoolBalancerTypeRoundRobin)
+		params.PoolBalancerTypeRoundRobin,
+		false,
+	)
 
 	// assertions
 	s.Require().Nil(err)
@@ -221,7 +224,9 @@ func (s *OrgTestSuite) TestCreateOrgForGitea() {
 		s.Fixtures.CreateOrgParams.Name,
 		s.testCredsGitea,
 		s.Fixtures.CreateOrgParams.WebhookSecret,
-		params.PoolBalancerTypeRoundRobin)
+		params.PoolBalancerTypeRoundRobin,
+		false,
+	)
 
 	// assertions
 	s.Require().Nil(err)
@@ -256,7 +261,9 @@ func (s *OrgTestSuite) TestCreateOrganizationInvalidForgeType() {
 		s.Fixtures.CreateOrgParams.Name,
 		credentials,
 		s.Fixtures.CreateOrgParams.WebhookSecret,
-		params.PoolBalancerTypeRoundRobin)
+		params.PoolBalancerTypeRoundRobin,
+		false,
+	)
 	s.Require().NotNil(err)
 	s.Require().Equal("error creating org: unsupported credentials type: invalid request", err.Error())
 }
@@ -279,7 +286,9 @@ func (s *OrgTestSuite) TestCreateOrganizationInvalidDBPassphrase() {
 		s.Fixtures.CreateOrgParams.Name,
 		s.testCreds,
 		s.Fixtures.CreateOrgParams.WebhookSecret,
-		params.PoolBalancerTypeRoundRobin)
+		params.PoolBalancerTypeRoundRobin,
+		false,
+	)
 
 	s.Require().NotNil(err)
 	s.Require().Equal("error encoding secret: invalid passphrase length (expected length 32 characters)", err.Error())
@@ -297,7 +306,8 @@ func (s *OrgTestSuite) TestCreateOrganizationDBCreateErr() {
 		s.Fixtures.CreateOrgParams.Name,
 		s.testCreds,
 		s.Fixtures.CreateOrgParams.WebhookSecret,
-		params.PoolBalancerTypeRoundRobin)
+		params.PoolBalancerTypeRoundRobin,
+		false)
 
 	s.Require().NotNil(err)
 	s.Require().Equal("error creating org: error creating org: creating org mock error", err.Error())
@@ -353,6 +363,7 @@ func (s *OrgTestSuite) TestListOrganizationsWithFilters() {
 		s.testCreds,
 		"super secret",
 		params.PoolBalancerTypeRoundRobin,
+		false,
 	)
 	s.Require().NoError(err)
 
@@ -362,6 +373,7 @@ func (s *OrgTestSuite) TestListOrganizationsWithFilters() {
 		s.testCredsGitea,
 		"super secret",
 		params.PoolBalancerTypeRoundRobin,
+		false,
 	)
 	s.Require().NoError(err)
 
@@ -371,6 +383,7 @@ func (s *OrgTestSuite) TestListOrganizationsWithFilters() {
 		s.testCreds,
 		"super secret",
 		params.PoolBalancerTypeRoundRobin,
+		false,
 	)
 	s.Require().NoError(err)
 	orgs, err := s.Store.ListOrganizations(
@@ -899,7 +912,8 @@ func (s *OrgTestSuite) TestAddOrgEntityEvent() {
 		s.Fixtures.CreateOrgParams.Name,
 		s.testCreds,
 		s.Fixtures.CreateOrgParams.WebhookSecret,
-		params.PoolBalancerTypeRoundRobin)
+		params.PoolBalancerTypeRoundRobin,
+		false)
 
 	s.Require().Nil(err)
 	entity, err := org.GetEntity()

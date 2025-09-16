@@ -29,7 +29,7 @@ import (
 	"github.com/cloudbase/garm/params"
 )
 
-func (s *sqlDatabase) CreateRepository(ctx context.Context, owner, name string, credentials params.ForgeCredentials, webhookSecret string, poolBalancerType params.PoolBalancerType) (param params.Repository, err error) {
+func (s *sqlDatabase) CreateRepository(ctx context.Context, owner, name string, credentials params.ForgeCredentials, webhookSecret string, poolBalancerType params.PoolBalancerType, agentMode bool) (param params.Repository, err error) {
 	defer func() {
 		if err == nil {
 			s.sendNotify(common.RepositoryEntityType, common.CreateOperation, param)
@@ -49,6 +49,7 @@ func (s *sqlDatabase) CreateRepository(ctx context.Context, owner, name string, 
 		Owner:            owner,
 		WebhookSecret:    secret,
 		PoolBalancerType: poolBalancerType,
+		AgentMode:        agentMode,
 	}
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
 		switch credentials.ForgeType {
@@ -195,6 +196,9 @@ func (s *sqlDatabase) UpdateRepository(ctx context.Context, repoID string, param
 
 		if param.PoolBalancerType != "" {
 			repo.PoolBalancerType = param.PoolBalancerType
+		}
+		if param.AgentMode != nil {
+			repo.AgentMode = *param.AgentMode
 		}
 
 		q := tx.Save(&repo)
