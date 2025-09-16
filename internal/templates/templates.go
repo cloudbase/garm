@@ -26,15 +26,11 @@ type WrapperContext struct {
 
 func GetTemplateContent(osType commonParams.OSType, forge params.EndpointType) ([]byte, error) {
 	switch forge {
-	case params.GithubEndpointType:
+	case params.GithubEndpointType, params.GiteaEndpointType:
 		switch osType {
 		case commonParams.Linux, commonParams.Windows:
 		default:
-			return nil, runnerErrors.NewNotFoundError("could not find template for forge github and OS type: %q", osType)
-		}
-	case params.GiteaEndpointType:
-		if osType != commonParams.Linux {
-			return nil, runnerErrors.NewNotFoundError("could not find template for gitea with OS type: %q", osType)
+			return nil, runnerErrors.NewNotFoundError("could not find template for forge %s and OS type: %q", forge, osType)
 		}
 	default:
 		return nil, runnerErrors.NewNotFoundError("could not find template for forge type: %q", forge)

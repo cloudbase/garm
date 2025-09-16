@@ -1,0 +1,596 @@
+#ps1_sysnative
+Param(
+	[Parameter(Mandatory=$false)]
+	[string]$Token="{{.CallbackToken}}"
+)
+
+$ErrorActionPreference="Stop"
+
+function Start-ExecuteWithRetry {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory=$true)]
+        [ScriptBlock]$ScriptBlock,
+        [int]$MaxRetryCount=10,
+        [int]$RetryInterval=3,
+        [string]$RetryMessage,
+        [array]$ArgumentList=@()
+    )
+    PROCESS {
+        $currentErrorActionPreference = $ErrorActionPreference
+        $ErrorActionPreference = "Continue"
+        $retryCount = 0
+        while ($true) {
+            try {
+                $res = Invoke-Command -ScriptBlock $ScriptBlock -ArgumentList $ArgumentList
+                $ErrorActionPreference = $currentErrorActionPreference
+                return $res
+            } catch [System.Exception] {
+                $retryCount++
+
+                if ($_.Exception -is [System.Net.WebException]) {
+                    $webResponse = $_.Exception.Response
+					# Skip retry on Error: 4XX (e.g. 401 Unauthorized, 404 Not Found etc.)
+                    if ($webResponse -and $webResponse.StatusCode -ge 400 -and $webResponse.StatusCode -lt 500) {
+                        # Skip retry on 4xx errors
+                        Write-Output "Encountered non-retryable error (4xx): $($_.Exception.Message)"
+                        $ErrorActionPreference = $currentErrorActionPreference
+                        throw
+                    }
+                }
+
+                if ($retryCount -gt $MaxRetryCount) {
+                    $ErrorActionPreference = $currentErrorActionPreference
+                    throw
+                } else {
+                    if ($RetryMessage) {
+                        Write-Output $RetryMessage
+                    } elseif ($_) {
+                        Write-Output $_
+                    }
+                    Start-Sleep -Seconds $RetryInterval
+                }
+            }
+        }
+    }
+}
+
+function Get-RandomString {
+    [CmdletBinding()]
+    Param(
+        [int]$Length=13
+    )
+    PROCESS {
+        if($Length -lt 6) {
+            $Length = 6
+        }
+        $special = @(44, 45, 46, 64)
+        $numeric = 48..57
+        $upper = 65..90
+        $lower = 97..122
+
+        $passwd = [System.Collections.Generic.List[object]](New-object "System.Collections.Generic.List[object]")
+        for($i=0; $i -lt $Length-4; $i++){
+            $c = get-random -input ($special + $numeric + $upper + $lower)
+            $passwd.Add([char]$c)
+        }
+
+        $passwd.Add([char](get-random -input $numeric))
+        $passwd.Add([char](get-random -input $special))
+        $passwd.Add([char](get-random -input $upper))
+        $passwd.Add([char](get-random -input $lower))
+
+        $Random = New-Object Random
+        return [string]::join("",($passwd|Sort-Object {$Random.Next()}))
+    }
+}
+
+Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+using System.Text;
+
+public class GrantSysPrivileges
+{
+    [StructLayout(LayoutKind.Sequential)]
+    public struct LSA_UNICODE_STRING
+    {
+        public ushort Length;
+        public ushort MaximumLength;
+        public IntPtr Buffer;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct LSA_OBJECT_ATTRIBUTES
+    {
+        public int Length;
+        public IntPtr RootDirectory;
+        public IntPtr ObjectName;
+        public uint Attributes;
+        public IntPtr SecurityDescriptor;
+        public IntPtr SecurityQualityOfService;
+    }
+
+    [DllImport("advapi32.dll", SetLastError=true)]
+    public static extern uint LsaOpenPolicy(
+        ref LSA_UNICODE_STRING SystemName,
+        ref LSA_OBJECT_ATTRIBUTES ObjectAttributes,
+        uint DesiredAccess,
+        out IntPtr PolicyHandle
+    );
+
+    [DllImport("advapi32.dll", SetLastError=true)]
+    public static extern uint LsaAddAccountRights(
+        IntPtr PolicyHandle,
+        IntPtr AccountSid,
+        LSA_UNICODE_STRING[] UserRights,
+        uint CountOfRights
+    );
+
+    [DllImport("advapi32.dll")]
+    public static extern uint LsaClose(IntPtr PolicyHandle);
+
+    [DllImport("advapi32.dll")]
+    public static extern uint LsaNtStatusToWinError(uint status);
+
+    public const uint POLICY_ALL_ACCESS = 0x00F0FFF;
+
+    public static uint GrantPrivilege(byte[] sid, string[] rights)
+    {
+        LSA_OBJECT_ATTRIBUTES loa = new LSA_OBJECT_ATTRIBUTES();
+        LSA_UNICODE_STRING systemName = new LSA_UNICODE_STRING();
+
+        IntPtr policyHandle;
+        uint result = LsaOpenPolicy(ref systemName, ref loa, POLICY_ALL_ACCESS, out policyHandle);
+        if (result != 0)
+        {
+            return LsaNtStatusToWinError(result);
+        }
+
+        LSA_UNICODE_STRING[] userRights = new LSA_UNICODE_STRING[rights.Length];
+        for (int i = 0; i < rights.Length; i++)
+        {
+            byte[] bytes = Encoding.Unicode.GetBytes(rights[i]);
+            IntPtr ptr = Marshal.AllocHGlobal(bytes.Length);
+            Marshal.Copy(bytes, 0, ptr, bytes.Length);
+
+            userRights[i].Buffer = ptr;
+            userRights[i].Length = (ushort)bytes.Length;
+            userRights[i].MaximumLength = (ushort)(bytes.Length);
+        }
+
+        IntPtr sidPtr = Marshal.AllocHGlobal(sid.Length);
+        Marshal.Copy(sid, 0, sidPtr, sid.Length);
+
+        result = LsaAddAccountRights(policyHandle, sidPtr, userRights, (uint)rights.Length);
+        LsaClose(policyHandle);
+
+        foreach (var right in userRights)
+        {
+            Marshal.FreeHGlobal(right.Buffer);
+        }
+        Marshal.FreeHGlobal(sidPtr);
+
+        return LsaNtStatusToWinError(result);
+    }
+}
+"@ -Language CSharp
+
+function Invoke-FastWebRequest {
+	[CmdletBinding()]
+	Param(
+		[Parameter(Mandatory=$True,ValueFromPipeline=$true,Position=0)]
+		[System.Uri]$Uri,
+		[Parameter(Position=1)]
+		[string]$OutFile,
+		[Hashtable]$Headers=@{},
+		[switch]$SkipIntegrityCheck=$false
+	)
+	PROCESS
+	{
+		if(!([System.Management.Automation.PSTypeName]'System.Net.Http.HttpClient').Type)
+		{
+			$assembly = [System.Reflection.Assembly]::LoadWithPartialName("System.Net.Http")
+		}
+
+		if(!$OutFile) {
+			$OutFile = $Uri.PathAndQuery.Substring($Uri.PathAndQuery.LastIndexOf("/") + 1)
+			if(!$OutFile) {
+				throw "The ""OutFile"" parameter needs to be specified"
+			}
+		}
+
+		$fragment = $Uri.Fragment.Trim('#')
+		if ($fragment) {
+			$details = $fragment.Split("=")
+			$algorithm = $details[0]
+			$hash = $details[1]
+		}
+
+		if (!$SkipIntegrityCheck -and $fragment -and (Test-Path $OutFile)) {
+			try {
+				return (Test-FileIntegrity -File $OutFile -Algorithm $algorithm -ExpectedHash $hash)
+			} catch {
+				Remove-Item $OutFile
+			}
+		}
+
+		$client = new-object System.Net.Http.HttpClient
+		foreach ($k in $Headers.Keys){
+			$client.DefaultRequestHeaders.Add($k, $Headers[$k])
+		}
+		$task = $client.GetStreamAsync($Uri)
+		$response = $task.Result
+		if($task.IsFaulted) {
+			$msg = "Request for URL '{0}' is faulted. Task status: {1}." -f @($Uri, $task.Status)
+			if($task.Exception) {
+				$msg += "Exception details: {0}" -f @($task.Exception)
+			}
+			Throw $msg
+		}
+		$outStream = New-Object IO.FileStream $OutFile, Create, Write, None
+
+		try {
+			$totRead = 0
+			$buffer = New-Object Byte[] 1MB
+			while (($read = $response.Read($buffer, 0, $buffer.Length)) -gt 0) {
+				$totRead += $read
+				$outStream.Write($buffer, 0, $read);
+			}
+		}
+		finally {
+			$outStream.Close()
+		}
+		if(!$SkipIntegrityCheck -and $fragment) {
+			Test-FileIntegrity -File $OutFile -Algorithm $algorithm -ExpectedHash $hash
+		}
+	}
+}
+
+function Import-Certificate() {
+	[CmdletBinding()]
+	param (
+		[parameter(Mandatory=$true)]
+		$CertificateData,
+		[parameter(Mandatory=$false)]
+		[System.Security.Cryptography.X509Certificates.StoreLocation]$StoreLocation="LocalMachine",
+		[parameter(Mandatory=$false)]
+		[System.Security.Cryptography.X509Certificates.StoreName]$StoreName="TrustedPublisher"
+	)
+	PROCESS
+	{
+		$store = New-Object System.Security.Cryptography.X509Certificates.X509Store(
+			$StoreName, $StoreLocation)
+		$store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
+		$cert = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($CertificateData)
+		$store.Add($cert)
+	}
+}
+
+function Invoke-APICall() {
+	[CmdletBinding()]
+	param (
+		[parameter(Mandatory=$true)]
+		[object]$Payload,
+		[parameter(Mandatory=$true)]
+		[string]$CallbackURL
+	)
+	PROCESS{
+		Invoke-WebRequest -UseBasicParsing -Method Post -Headers @{"Accept"="application/json"; "Authorization"="Bearer $Token"} -Uri $CallbackURL -Body (ConvertTo-Json $Payload) | Out-Null
+	}
+}
+
+function Update-GarmStatus() {
+	[CmdletBinding()]
+	param (
+		[parameter(Mandatory=$true)]
+		[string]$Message,
+		[parameter(Mandatory=$false)]
+		[int64]$AgentID=0,
+		[parameter(Mandatory=$false)]
+		[string]$Status="installing",
+		[parameter(Mandatory=$true)]
+		[string]$CallbackURL
+	)
+	PROCESS{
+		$body = @{
+			"status"=$Status
+			"message"=$Message
+		}
+
+		if ($AgentID -ne 0) {
+			$body["agent_id"] = $AgentID
+		}
+		Invoke-APICall -Payload $body -CallbackURL $CallbackURL | Out-Null
+	}
+}
+
+function Invoke-GarmSuccess() {
+	[CmdletBinding()]
+	param (
+		[parameter(Mandatory=$true)]
+		[string]$Message,
+		[parameter(Mandatory=$true)]
+		[int64]$AgentID,
+		[parameter(Mandatory=$true)]
+		[string]$CallbackURL
+	)
+	PROCESS{
+		Update-GarmStatus -Message $Message -AgentID $AgentID -CallbackURL $CallbackURL -Status "idle" | Out-Null
+	}
+}
+
+function Invoke-GarmFailure() {
+	[CmdletBinding()]
+	param (
+		[parameter(Mandatory=$true)]
+		[string]$Message,
+		[parameter(Mandatory=$true)]
+		[string]$CallbackURL
+	)
+	PROCESS{
+		Update-GarmStatus -Message $Message -CallbackURL $CallbackURL -Status "failed" | Out-Null
+		Throw $Message
+	}
+}
+
+function Set-SystemInfo {
+    [CmdletBinding()]
+    param (
+        [parameter(Mandatory=$true)]
+        [string]$CallbackURL,
+        [parameter(Mandatory=$true)]
+        [string]$RunnerDir,
+		[parameter(Mandatory=$true)]
+        [string]$BearerToken
+    )
+
+    # Construct the path to the .runner file
+    $agentInfoFile = Join-Path $RunnerDir ".runner"
+
+    # Read and parse the JSON content from the .runner file
+    $agentInfo = ConvertFrom-Json (Get-Content -Raw -Path $agentInfoFile)
+    $AgentId = $agentInfo.agent_id
+
+    # Retrieve OS information
+    $osInfo = Get-WmiObject -Class Win32_OperatingSystem
+    $osName = $osInfo.Caption
+    $osVersion = $osInfo.Version
+
+    # Strip status from the callback URL
+    if ($CallbackUrl -match '^(.*)/status(/)?$') {
+        $CallbackUrl = $matches[1]
+    }
+
+    $SysInfoUrl = "$CallbackUrl/system-info/"
+    $Payload = @{
+        os_name    = $OSName
+        os_version = $OSVersion
+        agent_id   = $AgentId
+    } | ConvertTo-Json
+
+    # Send the POST request
+    try {
+        Invoke-RestMethod -Uri $SysInfoUrl -Method Post -Body $Payload -ContentType 'application/json' -Headers @{ 'Authorization' = "Bearer $BearerToken" } -ErrorAction Stop
+    } catch {
+        Write-Output "Failed to send the system information."
+    }
+}
+
+$CallbackURL="{{.CallbackURL}}"
+if (!($CallbackURL -match "^(.*)/status(/)?$")) {
+	$CallbackURL = "$CallbackURL/status"
+}
+$GHRunnerGroup = "{{.GitHubRunnerGroup}}"
+try {
+    $instanceMetadata = (wget -UseBasicParsing -Headers @{"Accept"="application/json"; "Authorization"="Bearer $Token"} -Uri {{.MetadataURL}}/runner-metadata)
+    $metadata = ConvertFrom-Json $instanceMetadata.Content
+} catch {
+	Invoke-GarmFailure -Message "failed to get runner metadata: $_" -CallbackURL "{{.CallbackURL}}" | Out-Null
+}
+
+function Get-IsAgentMode {
+    return ($metadata.agent_mode -eq $true)
+}
+
+function Get-AgentURL {
+    $url = $metadata.metadata_access.agent_url
+    if (!$url) {
+        Throw("missing agent URL")
+    }
+    return $url
+}
+
+function Get-AgentToken {
+    $token = $metadata.agent_token
+    if (!$token) {
+        Throw("missing agent Token")
+    }
+    return $token
+}
+
+function Get-AgentDownloadURL {
+    $url = $metadata.agent_tools.download_url
+    if (!$url) {
+        Throw("missing agent download URL")
+    }
+    return $url
+}
+
+function Get-AgentShellEnabled {
+    $shellEnabled = $metadata.agent_shell_enabled
+    if ($shellEnabled) {return "true"}
+    return "false"
+}
+
+function Install-GarmAgent {
+    [CmdletBinding()]
+    param (
+        [parameter(Mandatory=$true)]
+        [System.Management.Automation.PSCredential]$pscreds,
+        [parameter(Mandatory=$true)]
+        [string]$runnerExecutable
+    )
+    Update-GarmStatus -Message "Agent mode is enabled" -CallbackURL $CallbackURL | Out-Null
+    $agentDir = "C:\garm-agent"
+    mkdir -Force $agentDir
+    $agentURL = Get-AgentURL
+    $agentDownloadURL = Get-AgentDownloadURL
+    $agentToken = Get-AgentToken
+    $agentDownloadHeaders=@{
+        "Authorization"="Bearer $Token"
+    }
+    $shellEnabled = Get-AgentShellEnabled
+    $runnerExecutable = $runnerExecutable.Replace('\', '/')
+    # '
+    Set-Content "$agentDir\garm-agent.toml" @"
+server_url = "$agentURL"
+log_file = "C:/garm-agent/garm-agent.log"
+shell = "cmd.exe"
+enable_shell = $shellEnabled
+work_dir = "C:/actions-runner/"
+token = "$agentToken"
+runner_cmdline = ["$runnerExecutable", "daemon", "--once"]
+state_db_path = "C:/garm-agent/agent-state.db"
+"@
+
+    Update-GarmStatus -Message "Downloading agent from: $agentDownloadURL" -CallbackURL $CallbackURL | Out-Null
+    Start-ExecuteWithRetry -ScriptBlock {
+        Invoke-FastWebRequest -Headers $agentDownloadHeaders -Uri "$agentDownloadURL" -OutFile $agentDir\garm-agent.exe
+    } -MaxRetryCount 5 -RetryInterval 5 -RetryMessage "Retrying download of runner..."
+
+    try {
+        New-Service -Name garm-agent -BinaryPathName "$agentDir\garm-agent.exe daemon --config $agentDir\garm-agent.toml" -DisplayName "garm-agent" -Description "GARM agent" -StartupType Automatic -Credential $pscreds
+    } catch {
+        Invoke-GarmFailure -CallbackURL $CallbackURL -Message "failed to set up garm agent $_"
+    }
+    Start-Service garm-agent
+}
+
+function Install-NSSM {
+    [CmdletBinding()]
+    param (
+        [parameter(Mandatory=$true)]
+        [string]$username,
+        [parameter(Mandatory=$true)]
+        [string]$password,
+        [parameter(Mandatory=$true)]
+        [string]$runnerDir
+    )
+
+	Start-ExecuteWithRetry -ScriptBlock {
+		Invoke-FastWebRequest -Uri "https://nssm.cc/ci/nssm-2.24-103-gdee49fc.zip" -OutFile "$runnerDir/nssm.zip"
+	} -MaxRetryCount 5 -RetryInterval 5 -RetryMessage "Retrying download of nssm..."
+	Expand-Archive -Path "$runnerDir/nssm.zip" -DestinationPath "$runnerDir/nssm" -Force
+    mv "$runnerDir\nssm\nssm-2.24-103-gdee49fc\win64\nssm.exe" "$runnerDir/nssm.exe"
+    rm -Recurse -Force "$runnerDir\nssm"
+    rm -Force "$runnerDir\nssm.zip"
+    $nssm="$runnerDir/nssm.exe"
+	& $nssm install GiteaActRunner "$runnerDir/act_runner.exe"
+	& $nssm set GiteaActRunner AppParameters daemon
+	& $nssm set GiteaActRunner AppStdout $runnerDir\stdout.log
+	& $nssm set GiteaActRunner AppStderr $runnerDir\stderr.log
+	& $nssm set GiteaActRunner AppStopMethodSkip 6
+	& $nssm set GiteaActRunner AppStopMethodConsole 1000
+	& $nssm set GiteaActRunner AppThrottle 5000
+    & $nssm set GiteaActRunner ObjectName $username $password
+	& $nssm start GiteaActRunner
+}
+
+
+
+function Install-Runner() {
+	$CallbackURL="{{.CallbackURL}}"
+	if (!($CallbackURL -match "^(.*)/status(/)?$")) {
+		$CallbackURL = "$CallbackURL/status"
+	}
+
+	if ($Token.Length -eq 0) {
+		Throw "missing callback authentication token"
+	}
+	try {
+		$MetadataURL="{{.MetadataURL}}"
+		$DownloadURL="{{.DownloadURL}}"
+		if($MetadataURL -eq ""){
+			Throw "missing metadata URL"
+		}
+        $runnerDir = "C:\actions-runner"
+        $runnerExecutable = Join-Path $runnerDir "act_runner.exe"
+
+		# Create user with administrator rights to run service as
+		$userPasswd = Get-RandomString -Length 10
+		$secPasswd = ConvertTo-SecureString "$userPasswd" -AsPlainText -Force
+		$userName = "runner"
+		$user = Get-LocalUser -Name $userName -ErrorAction SilentlyContinue
+		if (-not $user) {
+			New-LocalUser -Name $userName -Password $secPasswd -PasswordNeverExpires -UserMayNotChangePassword
+		} else {
+			Set-LocalUser -PasswordNeverExpires $true -Name $userName -Password $secPasswd
+		}
+		$pscreds = New-Object System.Management.Automation.PSCredential (".\$userName", $secPasswd)
+		$hasUser = Get-LocalGroupMember -SID S-1-5-32-544 -Member $userName -ErrorAction SilentlyContinue
+		if (-not $hasUser){
+			Add-LocalGroupMember -SID S-1-5-32-544 -Member $userName
+		}
+		$ntAcct = New-Object System.Security.Principal.NTAccount($userName)
+		$sid = $ntAcct.Translate([System.Security.Principal.SecurityIdentifier])
+		$sidBytes = New-Object byte[] ($sid.BinaryLength)
+		$sid.GetBinaryForm($sidBytes, 0)
+
+		$result = [GrantSysPrivileges]::GrantPrivilege($sidBytes, ("SeBatchLogonRight", "SeServiceLogonRight"))
+		if ($result -ne 0) {
+		    Throw "Failed to grant privileges"
+		}
+
+		$bundle = wget -UseBasicParsing -Headers @{"Accept"="application/json"; "Authorization"="Bearer $Token"} -Uri $MetadataURL/system/cert-bundle
+		$converted = ConvertFrom-Json $bundle
+		foreach ($i in $converted.root_certificates.psobject.Properties){
+			$data = [System.Convert]::FromBase64String($i.Value)
+			Import-Certificate -CertificateData $data -StoreName Root -StoreLocation LocalMachine
+		}
+
+
+		# Check if a cached runner is available
+		if (-not (Test-Path $runnerDir)) {
+			# No cached runner found, proceed to download and extract
+			Update-GarmStatus -CallbackURL $CallbackURL -Message "downloading tools from {{ .DownloadURL }}"
+            mkdir $runnerDir
+
+			Start-ExecuteWithRetry -ScriptBlock {
+				Invoke-FastWebRequest -Uri "{{ .DownloadURL }}" -OutFile $runnerExecutable
+			} -MaxRetryCount 5 -RetryInterval 5 -RetryMessage "Retrying download of runner..."
+		} else {
+			Update-GarmStatus -CallbackURL $CallbackURL -Message "using cached runner found at $runnerDir"
+		}
+
+		# Ensure runner has full access to actions-runner folder
+		$runnerACL = Get-Acl $runnerDir
+		$runnerACL.SetAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule(
+		    $userName, "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow"
+		)))
+		Set-Acl -Path $runnerDir -AclObject $runnerAcl
+
+		Update-GarmStatus -CallbackURL $CallbackURL -Message "configuring runner"
+		cd $runnerDir
+
+		$GithubRegistrationToken = Start-ExecuteWithRetry -ScriptBlock {
+			Invoke-WebRequest -UseBasicParsing -Headers @{"Accept"="application/json"; "Authorization"="Bearer $Token"} -Uri $MetadataURL/runner-registration-token/
+		} -MaxRetryCount 5 -RetryInterval 5 -RetryMessage "Retrying download of GitHub registration token..."
+        & $runnerExecutable register --ephemeral --no-interactive --instance "{{ .RepoURL }}" --token $GithubRegistrationToken --name "{{ .RunnerName }}" --labels "{{ .RunnerLabels }}"
+		if ($LASTEXITCODE) {
+			Throw "Failed to configure runner. Err code $LASTEXITCODE"
+		}
+		$agentInfoFile = Join-Path $runnerDir ".runner"
+		$agentInfo = ConvertFrom-Json (gc -raw $agentInfoFile)
+		Set-SystemInfo -CallbackURL $CallbackURL -RunnerDir $runnerDir -BearerToken $Token
+        if ((Get-IsAgentMode)) {
+            Install-GarmAgent -pscreds $pscreds -runnerExecutable $runnerExecutable
+        } else {
+            Install-NSSM -username $userName -password $userPasswd -runnerDir $runnerDir
+        }
+		Invoke-GarmSuccess -CallbackURL $CallbackURL -Message "runner successfully installed" -AgentID $agentInfo.id
+	} catch {
+		Invoke-GarmFailure -CallbackURL $CallbackURL -Message $_
+	}
+}
+Install-Runner

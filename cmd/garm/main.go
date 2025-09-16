@@ -52,6 +52,7 @@ import (
 	"github.com/cloudbase/garm/workers/cache"
 	"github.com/cloudbase/garm/workers/entity"
 	"github.com/cloudbase/garm/workers/provider"
+	"github.com/cloudbase/garm/workers/websocket/agent"
 )
 
 var (
@@ -220,6 +221,15 @@ func main() {
 		log.Fatal(err)
 	}
 
+	agentHub, err := agent.NewHub(ctx)
+	if err != nil {
+		log.Fatalf("failed to create agent hub: %q", err)
+	}
+
+	if err := agentHub.Start(); err != nil {
+		log.Fatalf("failed to start agent hub: %q", err)
+	}
+
 	// Local locker for now. Will be configurable in the future,
 	// as we add scale-out capability to GARM.
 	lock, err := locking.NewLocalLocker(ctx, db)
@@ -277,7 +287,7 @@ func main() {
 	}
 
 	authenticator := auth.NewAuthenticator(cfg.JWTAuth, db)
-	controller, err := controllers.NewAPIController(runner, authenticator, hub, cfg.APIServer)
+	controller, err := controllers.NewAPIController(runner, authenticator, hub, agentHub, cfg.APIServer)
 	if err != nil {
 		log.Fatalf("failed to create controller: %+v", err)
 	}
@@ -306,11 +316,16 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	agentMiddleware, err := auth.AgentMiddleware(db, cfg.JWTAuth)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	router := routers.NewAPIRouter(controller, jwtMiddleware, initMiddleware, urlsRequiredMiddleware, instanceMiddleware, cfg.Default.EnableWebhookManagement)
 
 	// Add WebUI routes
 	router = routers.WithWebUI(router, cfg.APIServer)
+	router = routers.WithAgentRouter(router, controller, agentMiddleware)
 
 	// start the metrics collector
 	if cfg.Metrics.Enable {

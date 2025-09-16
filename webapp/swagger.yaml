@@ -24,8 +24,21 @@ definitions:
     AddressType:
         type: string
         x-go-package: github.com/cloudbase/garm-provider-common/params
+    AgentCapabilities:
+        properties:
+            has_shell:
+                type: boolean
+                x-go-name: Shell
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
     ControllerInfo:
         properties:
+            agent_url:
+                description: |-
+                    AgentURL is the URL where the GARM agent will connect. If set behind a reverse proxy, this
+                    URL must be configured to allow websocket connections.
+                type: string
+                x-go-name: AgentURL
             callback_url:
                 description: |-
                     CallbackURL is the URL where instances can send updates back to the controller.
@@ -50,6 +63,17 @@ definitions:
                     from GARM without accidentally removing webhooks from other services or GARM controllers.
                 type: string
                 x-go-name: ControllerWebhookURL
+            enable_agent_tools_sync:
+                description: SyncGARMAgentTools enables or disables automatic sync of garm-agent tools.
+                type: boolean
+                x-go-name: SyncGARMAgentTools
+            garm_agent_releases_url:
+                description: |-
+                    GARMAgentReleasesURL is the URL from where GARM can fetch garm-agent binaries. This URL must
+                    have an API response compatible with the github releases API.
+                    The default value for this field is: https://api.github.com/repos/cloudbase/garm-agent/releases
+                type: string
+                x-go-name: GARMAgentReleasesURL
             hostname:
                 description: |-
                     Hostname is the hostname of the machine that runs this controller. In the
@@ -96,6 +120,9 @@ definitions:
         x-go-package: github.com/cloudbase/garm/params
     CreateEnterpriseParams:
         properties:
+            agent_mode:
+                type: boolean
+                x-go-name: AgentMode
             credentials_name:
                 type: string
                 x-go-name: CredentialsName
@@ -221,6 +248,9 @@ definitions:
         x-go-package: github.com/cloudbase/garm/params
     CreateOrgParams:
         properties:
+            agent_mode:
+                type: boolean
+                x-go-name: AgentMode
             credentials_name:
                 type: string
                 x-go-name: CredentialsName
@@ -238,6 +268,9 @@ definitions:
         x-go-package: github.com/cloudbase/garm/params
     CreatePoolParams:
         properties:
+            enable_shell:
+                type: boolean
+                x-go-name: EnableShell
             enabled:
                 type: boolean
                 x-go-name: Enabled
@@ -296,6 +329,9 @@ definitions:
         x-go-package: github.com/cloudbase/garm/params
     CreateRepoParams:
         properties:
+            agent_mode:
+                type: boolean
+                x-go-name: AgentMode
             credentials_name:
                 type: string
                 x-go-name: CredentialsName
@@ -319,6 +355,9 @@ definitions:
             disable_update:
                 type: boolean
                 x-go-name: DisableUpdate
+            enable_shell:
+                type: boolean
+                x-go-name: EnableShell
             enabled:
                 type: boolean
                 x-go-name: Enabled
@@ -409,6 +448,9 @@ definitions:
         x-go-package: github.com/cloudbase/garm/params
     Enterprise:
         properties:
+            agent_mode:
+                type: boolean
+                x-go-name: AgentMode
             created_at:
                 format: date-time
                 type: string
@@ -697,6 +739,9 @@ definitions:
         x-go-package: github.com/cloudbase/garm/params
     ForgeEntity:
         properties:
+            agent_mode:
+                type: boolean
+                x-go-name: AgentMode
             created_at:
                 format: date-time
                 type: string
@@ -724,6 +769,118 @@ definitions:
         x-go-package: github.com/cloudbase/garm/params
     ForgeEntityType:
         type: string
+        x-go-package: github.com/cloudbase/garm/params
+    GARMAgentTool:
+        properties:
+            created_at:
+                format: date-time
+                type: string
+                x-go-name: CreatedAt
+            description:
+                type: string
+                x-go-name: Description
+            download_url:
+                type: string
+                x-go-name: DownloadURL
+            file_type:
+                type: string
+                x-go-name: FileType
+            id:
+                format: uint64
+                type: integer
+                x-go-name: ID
+            name:
+                type: string
+                x-go-name: Name
+            os_arch:
+                $ref: '#/definitions/OSArch'
+            os_type:
+                $ref: '#/definitions/OSType'
+            sha256sum:
+                type: string
+                x-go-name: SHA256SUM
+            size:
+                format: int64
+                type: integer
+                x-go-name: Size
+            updated_at:
+                format: date-time
+                type: string
+                x-go-name: UpdatedAt
+            version:
+                type: string
+                x-go-name: Version
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    GARMAgentToolsPaginatedResponse:
+        properties:
+            current_page:
+                format: uint64
+                type: integer
+                x-go-name: CurrentPage
+            next_page:
+                format: uint64
+                type: integer
+                x-go-name: NextPage
+            pages:
+                format: uint64
+                type: integer
+                x-go-name: Pages
+            previous_page:
+                format: uint64
+                type: integer
+                x-go-name: PreviousPage
+            results:
+                items:
+                    properties:
+                        created_at:
+                            format: date-time
+                            type: string
+                            x-go-name: CreatedAt
+                        description:
+                            type: string
+                            x-go-name: Description
+                        download_url:
+                            type: string
+                            x-go-name: DownloadURL
+                        file_type:
+                            type: string
+                            x-go-name: FileType
+                        id:
+                            format: uint64
+                            type: integer
+                            x-go-name: ID
+                        name:
+                            type: string
+                            x-go-name: Name
+                        os_arch:
+                            type: string
+                            x-go-name: OSArch
+                        os_type:
+                            type: string
+                            x-go-name: OSType
+                        sha256sum:
+                            type: string
+                            x-go-name: SHA256SUM
+                        size:
+                            format: int64
+                            type: integer
+                            x-go-name: Size
+                        updated_at:
+                            format: date-time
+                            type: string
+                            x-go-name: UpdatedAt
+                        version:
+                            type: string
+                            x-go-name: Version
+                    type: object
+                type: array
+                x-go-name: Results
+            total_count:
+                format: uint64
+                type: integer
+                x-go-name: TotalCount
+        type: object
         x-go-package: github.com/cloudbase/garm/params
     GithubApp:
         properties:
@@ -816,6 +973,8 @@ definitions:
                 format: int64
                 type: integer
                 x-go-name: AgentID
+            capabilities:
+                $ref: '#/definitions/AgentCapabilities'
             created_at:
                 description: CreatedAt is the timestamp of the creation of this runner.
                 format: date-time
@@ -827,6 +986,11 @@ definitions:
                     The runner group must be created by someone with access to the enterprise.
                 type: string
                 x-go-name: GitHubRunnerGroup
+            heartbeat:
+                description: Heartbeat is the last recorded heartbeat from the runner
+                format: date-time
+                type: string
+                x-go-name: Heartbeat
             id:
                 description: ID is the database ID of this instance.
                 type: string
@@ -901,6 +1065,64 @@ definitions:
                 format: date-time
                 type: string
                 x-go-name: UpdatedAt
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    InstanceMetadata:
+        properties:
+            agent_mode:
+                description: Agent mode indicates whether or not we need to install the GARM agent on the runner.
+                type: boolean
+                x-go-name: AgentMode
+            agent_shell_enabled:
+                type: boolean
+                x-go-name: AgentShellEnabled
+            agent_token:
+                type: string
+                x-go-name: AgentToken
+            agent_tools:
+                $ref: '#/definitions/GARMAgentTool'
+            ca_bundles:
+                additionalProperties:
+                    items:
+                        format: uint8
+                        type: integer
+                    type: array
+                type: object
+                x-go-name: CABundle
+            extra_specs:
+                additionalProperties: {}
+                description: |-
+                    ExtraSpecs represents the extra specs set on the pool or scale set. No secrets should
+                    be set in extra specs.
+                    Also, the instance metadata should never be saved to disk, and the metadata URL is only
+                    accessible during setup of the runner. The API returns unauthorized once the runner
+                    transitions to failed/idle.
+                type: object
+                x-go-name: ExtraSpecs
+            forge_type:
+                $ref: '#/definitions/EndpointType'
+            jit_enabled:
+                type: boolean
+                x-go-name: JITEnabled
+            metadata_access:
+                $ref: '#/definitions/MetadataServiceAccessDetails'
+            runner_labels:
+                items:
+                    type: string
+                type: array
+                x-go-name: RunnerLabels
+            runner_name:
+                type: string
+                x-go-name: RunnerName
+            runner_registration_url:
+                description: |-
+                    RunnerRegistrationURL is the URL the runner needs to configure itself
+                    against. This can be a repository, organization, enterprise (github)
+                    or system (gitea)
+                type: string
+                x-go-name: RunnerRegistrationURL
+            runner_tools:
+                $ref: '#/definitions/RunnerApplicationDownload'
         type: object
         x-go-package: github.com/cloudbase/garm/params
     InstanceStatus:
@@ -1038,6 +1260,19 @@ definitions:
             $ref: '#/definitions/Job'
         type: array
         x-go-package: github.com/cloudbase/garm/params
+    MetadataServiceAccessDetails:
+        properties:
+            agent_url:
+                type: string
+                x-go-name: AgentURL
+            callback_url:
+                type: string
+                x-go-name: CallbackURL
+            metadata_url:
+                type: string
+                x-go-name: MetadataURL
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
     NewUserParams:
         description: |-
             NewUserParams holds the needed information to create
@@ -1065,6 +1300,9 @@ definitions:
         x-go-package: github.com/cloudbase/garm-provider-common/params
     Organization:
         properties:
+            agent_mode:
+                type: boolean
+                x-go-name: AgentMode
             created_at:
                 format: date-time
                 type: string
@@ -1132,6 +1370,9 @@ definitions:
                 format: date-time
                 type: string
                 x-go-name: CreatedAt
+            enable_shell:
+                type: boolean
+                x-go-name: EnableShell
             enabled:
                 type: boolean
                 x-go-name: Enabled
@@ -1280,6 +1521,9 @@ definitions:
         x-go-package: github.com/cloudbase/garm/params
     Repository:
         properties:
+            agent_mode:
+                type: boolean
+                x-go-name: AgentMode
             created_at:
                 format: date-time
                 type: string
@@ -1328,6 +1572,47 @@ definitions:
                 x-go-name: UpdatedAt
         type: object
         x-go-package: github.com/cloudbase/garm/params
+    RestoreTemplateRequest:
+        properties:
+            forge:
+                $ref: '#/definitions/EndpointType'
+            os_type:
+                $ref: '#/definitions/OSType'
+            restore_all:
+                description: |-
+                    RestoreAll indicates whether or not to restore all known
+                    system owned templates. If set, the Forge and OSType params
+                    are ignored.
+                type: boolean
+                x-go-name: RestoreAll
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    RunnerApplicationDownload:
+        description: |-
+            This is copied from the go-github package. It does not make sense to create a dependency on go-github just
+            for this struct.
+        properties:
+            architecture:
+                type: string
+                x-go-name: Architecture
+            download_url:
+                type: string
+                x-go-name: DownloadURL
+            filename:
+                type: string
+                x-go-name: Filename
+            os:
+                type: string
+                x-go-name: OS
+            sha256_checksum:
+                type: string
+                x-go-name: SHA256Checksum
+            temp_download_token:
+                type: string
+                x-go-name: TempDownloadToken
+        title: RunnerApplicationDownload represents a binary for the self-hosted runner application that can be downloaded.
+        type: object
+        x-go-package: github.com/cloudbase/garm-provider-common/params
     RunnerPrefix:
         properties:
             runner_prefix:
@@ -1351,6 +1636,9 @@ definitions:
             disable_update:
                 type: boolean
                 x-go-name: DisableUpdate
+            enable_shell:
+                type: boolean
+                x-go-name: EnableShell
             enabled:
                 type: boolean
                 x-go-name: Enabled
@@ -1533,9 +1821,18 @@ definitions:
         x-go-package: github.com/cloudbase/garm/params
     UpdateControllerParams:
         properties:
+            agent_url:
+                type: string
+                x-go-name: AgentURL
             callback_url:
                 type: string
                 x-go-name: CallbackURL
+            enable_agent_tools_sync:
+                type: boolean
+                x-go-name: SyncGARMAgentTools
+            garm_agent_releases_url:
+                type: string
+                x-go-name: GARMAgentReleasesURL
             metadata_url:
                 type: string
                 x-go-name: MetadataURL
@@ -1550,6 +1847,9 @@ definitions:
         x-go-package: github.com/cloudbase/garm/params
     UpdateEntityParams:
         properties:
+            agent_mode:
+                type: boolean
+                x-go-name: AgentMode
             credentials_name:
                 type: string
                 x-go-name: CredentialsName
@@ -1650,6 +1950,9 @@ definitions:
         x-go-package: github.com/cloudbase/garm/params
     UpdatePoolParams:
         properties:
+            enable_shell:
+                type: boolean
+                x-go-name: EnableShell
             enabled:
                 type: boolean
                 x-go-name: Enabled
@@ -1705,6 +2008,9 @@ definitions:
         x-go-package: github.com/cloudbase/garm/params
     UpdateScaleSetParams:
         properties:
+            enable_shell:
+                type: boolean
+                x-go-name: EnableShell
             enabled:
                 type: boolean
                 x-go-name: Enabled
@@ -3939,6 +4245,50 @@ paths:
             summary: Update template with the parameters given.
             tags:
                 - templates
+    /templates/restore:
+        post:
+            operationId: RestoreTemplates
+            parameters:
+                - description: Parameters used when restoring the templates.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/RestoreTemplateRequest'
+                    description: Parameters used when restoring the templates.
+                    type: object
+            responses:
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Create template with the parameters given.
+            tags:
+                - templates
+    /tools/garm-agent:
+        get:
+            operationId: GarmAgentList
+            parameters:
+                - description: The page at which to list.
+                  in: query
+                  name: page
+                  type: integer
+                - description: Number of items per page.
+                  in: query
+                  name: pageSize
+                  type: integer
+            responses:
+                "200":
+                    description: GARMAgentToolsPaginatedResponse
+                    schema:
+                        $ref: '#/definitions/GARMAgentToolsPaginatedResponse'
+                "400":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List GARM agent tools.
+            tags:
+                - tools
 produces:
     - application/json
 security:

@@ -93,6 +93,7 @@ func (s *RepoTestSuite) SetupTest() {
 			s.testCreds,
 			fmt.Sprintf("test-webhook-secret-%v", i),
 			params.PoolBalancerTypeRoundRobin,
+			false,
 		)
 		if err != nil {
 			s.FailNow(fmt.Sprintf("failed to create database object (test-repo-%v): %q", i, err))
@@ -275,6 +276,7 @@ func (s *RepoTestSuite) TestListRepositoriesWithFilters() {
 		s.testCreds,
 		"test-webhook-secret",
 		params.PoolBalancerTypeRoundRobin,
+		false,
 	)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to create database object (example-repo): %q", err))
@@ -287,6 +289,7 @@ func (s *RepoTestSuite) TestListRepositoriesWithFilters() {
 		s.testCreds,
 		"test-webhook-secret",
 		params.PoolBalancerTypeRoundRobin,
+		false,
 	)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to create database object (example-repo): %q", err))
@@ -299,6 +302,7 @@ func (s *RepoTestSuite) TestListRepositoriesWithFilters() {
 		s.giteaTestCreds,
 		"test-webhook-secret",
 		params.PoolBalancerTypeRoundRobin,
+		false,
 	)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to create database object (example-repo): %q", err))

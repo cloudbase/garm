@@ -55,6 +55,80 @@ function fail() {
 	exit 1
 }
 
+INSTANCE_METADATA=$(curl \
+    --retry 5 \
+    --retry-delay 5 \
+    --retry-connrefused \
+    --fail -s \
+    -H 'Accept: application/json' \
+    -H "Authorization: Bearer ${BEARER_TOKEN}" \
+    "$METADATA_URL/runner-metadata" 2>&1) || fail "failed to get instance metadata: $INSTANCE_METADATA"
+
+AGENT_MODE=$(echo "$INSTANCE_METADATA" | jq -r '.agent_mode // empty')
+if [ "$AGENT_MODE" == "true" ]; then
+    sendStatus "Agent mode is enabled; setting up agent"
+    DOWNLOAD_URL=$(echo "$INSTANCE_METADATA" | jq -r '.agent_tools.download_url // empty')
+    if [ -z "$DOWNLOAD_URL" ]; then
+        fail "agent mode is enabled, but no agent tools found in metadata"
+    fi
+    AGENT_URL=$(echo "$INSTANCE_METADATA" | jq -r '.metadata_access.agent_url // empty')
+    if [ -z "$AGENT_URL" ]; then
+        fail "agent mode is enabled, but agent_url was not found in metadata"
+    fi
+    AGENT_TOKEN=$(echo "$INSTANCE_METADATA" | jq -r '.agent_token // empty')
+    if [ -z "$AGENT_TOKEN" ]; then
+        fail "agent mode is enabled, but agent_token was not found in metadata"
+    fi
+    AGENT_SHELL=$(echo "$INSTANCE_METADATA" | jq -r '.agent_shell_enabled // false')
+    sendStatus "Downloading agent from $DOWNLOAD_URL"
+    sudo curl --retry 5 \
+        --retry-delay 5 \
+        --retry-connrefused \
+        --fail -L \
+        -H "Authorization: Bearer ${BEARER_TOKEN}" \
+        -o /usr/local/bin/garm-agent "$DOWNLOAD_URL" || fail "failed to download garm-agent"
+    sudo chmod +x /usr/local/bin/garm-agent || fail "failed to make garm-agent executable"
+    sudo mkdir -p /var/log/garm-agent || fail "failed to create /var/log/garm-agent"
+    sudo chown {{ .RunnerUsername }}:{{ .RunnerUsername }} /var/log/garm-agent || fail "failed to chown /var/log/garm-agent"
+    sudo mkdir -p /etc/garm-agent || fail "failed to create /etc/garm"
+    sudo chown {{ .RunnerUsername }}:{{ .RunnerUsername }} /etc/garm-agent || fail "failed to change owner on /etc/garm-agent"
+
+    sendStatus "Creating config and systemd unit"
+    cat > /etc/garm-agent/garm-agent.toml << EOF
+server_url = "$AGENT_URL"
+log_file = "/var/log/garm-agent/garm-agent.log"
+work_dir = "$RUN_HOME"
+enable_shell = $AGENT_SHELL
+token = "$AGENT_TOKEN"
+runner_cmdline = ["$RUN_HOME/act_runner", "daemon", "--once"]
+state_db_path = "/etc/garm-agent/agent-state.db"
+EOF
+
+    cat > /tmp/garm-agent.service << EOF
+[Unit]
+Description=GARM agent
+After=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/garm-agent daemon --config /etc/garm-agent/garm-agent.toml
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=5s
+User={{ .RunnerUsername }}
+Environment=TERM=xterm-256color
+Environment=LANG=en_US.UTF-8
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    sudo mv /tmp/garm-agent.service /etc/systemd/system/garm-agent.service || fail "failed to create /etc/systemd/system/garm-agent.service"
+    sudo chown root:root /etc/systemd/system/garm-agent.service || fail "failed to change owner on /etc/systemd/system/garm-agent.service"
+    sendStatus "Reloading systemd unit"
+    sudo systemctl daemon-reload || fail "failed to reload systemd"
+fi
+
 function downloadAndExtractRunner() {
 	sendStatus "downloading tools from {{ .DownloadURL }}"
     mkdir -p "$RUN_HOME" || fail "failed to create actions-runner folder"
@@ -124,7 +198,12 @@ sudo systemctl daemon-reload || fail "failed to reload systemd"
 
 AGENT_ID=""
 sendStatus "starting service"
-sudo systemctl enable --now $SVC_NAME
+if [ "$AGENT_MODE" == "true" ]; then
+    sendStatus "Enabling garm-agent service"
+    sudo systemctl enable --now garm-agent
+else
+    sudo systemctl enable --now $SVC_NAME
+fi
 
 set +e
 AGENT_ID=$(grep '"id"' "$RUN_HOME"/.runner |  tr -d -c 0-9)

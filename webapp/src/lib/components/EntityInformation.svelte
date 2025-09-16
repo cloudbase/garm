@@ -15,14 +15,17 @@
 	function getEntityUrl(): string {
 		if (!entity.endpoint?.base_url) return '#';
 		
+		// Remove trailing slash from base URL to avoid double slashes
+		const baseUrl = entity.endpoint.base_url.replace(/\/$/, '');
+		
 		switch (entityType) {
 			case 'repository':
 				const repo = entity as Repository;
-				return `${entity.endpoint.base_url}/${repo.owner}/${entity.name}`;
+				return `${baseUrl}/${repo.owner}/${entity.name}`;
 			case 'organization':
-				return `${entity.endpoint.base_url}/${entity.name}`;
+				return `${baseUrl}/${entity.name}`;
 			case 'enterprise':
-				return `${entity.endpoint.base_url}/enterprises/${entity.name}`;
+				return `${baseUrl}/enterprises/${entity.name}`;
 			default:
 				return '#';
 		}

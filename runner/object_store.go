@@ -15,6 +15,7 @@ package runner
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 
@@ -27,7 +28,11 @@ func (r *Runner) CreateFileObject(ctx context.Context, param params.CreateFileOb
 	if !auth.IsAdmin(ctx) {
 		return params.FileObject{}, runnerErrors.ErrUnauthorized
 	}
-
+	for _, val := range param.Tags {
+		if val == garmAgentFileTag {
+			return params.FileObject{}, runnerErrors.NewBadRequestError("cannot create garm-agent tools via object storage API")
+		}
+	}
 	fileObj, err := r.store.CreateFileObject(ctx, param, reader)
 	if err != nil {
 		return params.FileObject{}, fmt.Errorf("failed to create file object: %w", err)
@@ -53,10 +58,41 @@ func (r *Runner) DeleteFileObject(ctx context.Context, objID uint) error {
 		return runnerErrors.ErrUnauthorized
 	}
 
+	object, err := r.store.GetFileObject(ctx, objID)
+	if err != nil {
+		if errors.Is(err, runnerErrors.ErrNotFound) {
+			return nil
+		}
+		return fmt.Errorf("failed to query object in DB: %w", err)
+	}
+	for _, val := range object.Tags {
+		if val == garmAgentFileTag {
+			return runnerErrors.NewBadRequestError("cannot delete garm-agent tools via object storage API")
+		}
+	}
 	if err := r.store.DeleteFileObject(ctx, objID); err != nil {
 		return fmt.Errorf("failed to delete file object: %w", err)
 	}
 	return nil
+}
+
+func (r *Runner) DeleteFileObjectsByTags(ctx context.Context, tags []string) (int64, error) {
+	if !auth.IsAdmin(ctx) {
+		return 0, runnerErrors.ErrUnauthorized
+	}
+
+	// Check if any of the tags include garm-agent tag
+	for _, tag := range tags {
+		if tag == garmAgentFileTag {
+			return 0, runnerErrors.NewBadRequestError("cannot delete garm-agent tools via object storage API")
+		}
+	}
+
+	deletedCount, err := r.store.DeleteFileObjectsByTags(ctx, tags)
+	if err != nil {
+		return 0, fmt.Errorf("failed to delete file objects by tags: %w", err)
+	}
+	return deletedCount, nil
 }
 
 func (r *Runner) ListFileObjects(ctx context.Context, page, pageSize uint64, tags []string) (params.FileObjectPaginatedResponse, error) {
@@ -82,6 +118,21 @@ func (r *Runner) UpdateFileObject(ctx context.Context, objID uint, param params.
 		return params.FileObject{}, runnerErrors.ErrUnauthorized
 	}
 
+	object, err := r.store.GetFileObject(ctx, objID)
+	if err != nil {
+		return params.FileObject{}, fmt.Errorf("failed to query object in DB: %w", err)
+	}
+	for _, val := range object.Tags {
+		if val == garmAgentFileTag {
+			return params.FileObject{}, runnerErrors.NewBadRequestError("cannot update garm-agent tools via object storage API")
+		}
+	}
+
+	for _, val := range param.Tags {
+		if val == garmAgentFileTag {
+			return params.FileObject{}, runnerErrors.NewBadRequestError("cannot update garm-agent tools via object storage API")
+		}
+	}
 	resp, err := r.store.UpdateFileObject(ctx, objID, param)
 	if err != nil {
 		return params.FileObject{}, fmt.Errorf("failed to update object: %w", err)

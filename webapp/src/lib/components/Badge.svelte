@@ -1,5 +1,5 @@
 <script lang="ts">
-	export let variant: 'success' | 'error' | 'warning' | 'info' | 'gray' | 'blue' | 'green' | 'red' | 'yellow' | 'secondary' = 'gray';
+	export let variant: 'success' | 'error' | 'warning' | 'info' | 'gray' | 'blue' | 'green' | 'red' | 'yellow' | 'secondary' | 'purple' = 'gray';
 	export let size: 'sm' | 'md' = 'sm';
 	export let text: string;
 	export let ring: boolean = false;
@@ -14,7 +14,8 @@
 		green: 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200',
 		red: 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200',
 		yellow: 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200',
-		secondary: 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
+		secondary: 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200',
+		purple: 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200'
 	};
 
 	const ringVariants = {
@@ -27,7 +28,8 @@
 		green: 'ring-green-600/20 dark:ring-green-400/30',
 		red: 'ring-red-600/20 dark:ring-red-400/30',
 		yellow: 'ring-yellow-600/20 dark:ring-yellow-400/30',
-		secondary: 'ring-gray-500/20 dark:ring-gray-400/30'
+		secondary: 'ring-gray-500/20 dark:ring-gray-400/30',
+		purple: 'ring-purple-600/20 dark:ring-purple-400/30'
 	};
 
 	const sizes = {

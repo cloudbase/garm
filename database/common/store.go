@@ -40,7 +40,7 @@ type GithubCredentialsStore interface {
 }
 
 type RepoStore interface {
-	CreateRepository(ctx context.Context, owner, name string, credentials params.ForgeCredentials, webhookSecret string, poolBalancerType params.PoolBalancerType) (param params.Repository, err error)
+	CreateRepository(ctx context.Context, owner, name string, credentials params.ForgeCredentials, webhookSecret string, poolBalancerType params.PoolBalancerType, agentMode bool) (param params.Repository, err error)
 	GetRepository(ctx context.Context, owner, name, endpointName string) (params.Repository, error)
 	GetRepositoryByID(ctx context.Context, repoID string) (params.Repository, error)
 	ListRepositories(ctx context.Context, filter params.RepositoryFilter) ([]params.Repository, error)
@@ -49,7 +49,7 @@ type RepoStore interface {
 }
 
 type OrgStore interface {
-	CreateOrganization(ctx context.Context, name string, credentials params.ForgeCredentials, webhookSecret string, poolBalancerType params.PoolBalancerType) (org params.Organization, err error)
+	CreateOrganization(ctx context.Context, name string, credentials params.ForgeCredentials, webhookSecret string, poolBalancerType params.PoolBalancerType, agentMode bool) (org params.Organization, err error)
 	GetOrganization(ctx context.Context, name, endpointName string) (params.Organization, error)
 	GetOrganizationByID(ctx context.Context, orgID string) (params.Organization, error)
 	ListOrganizations(ctx context.Context, filter params.OrganizationFilter) ([]params.Organization, error)
@@ -58,7 +58,7 @@ type OrgStore interface {
 }
 
 type EnterpriseStore interface {
-	CreateEnterprise(ctx context.Context, name string, credentialsName params.ForgeCredentials, webhookSecret string, poolBalancerType params.PoolBalancerType) (params.Enterprise, error)
+	CreateEnterprise(ctx context.Context, name string, credentialsName params.ForgeCredentials, webhookSecret string, poolBalancerType params.PoolBalancerType, agentMode bool) (params.Enterprise, error)
 	GetEnterprise(ctx context.Context, name, endpointName string) (params.Enterprise, error)
 	GetEnterpriseByID(ctx context.Context, enterpriseID string) (params.Enterprise, error)
 	ListEnterprises(ctx context.Context, filter params.EnterpriseFilter) ([]params.Enterprise, error)
@@ -135,6 +135,7 @@ type ControllerStore interface {
 	ControllerInfo() (params.ControllerInfo, error)
 	InitController() (params.ControllerInfo, error)
 	UpdateController(info params.UpdateControllerParams) (params.ControllerInfo, error)
+	HasEntitiesWithAgentModeEnabled() (bool, error)
 }
 
 type ScaleSetsStore interface {
@@ -186,6 +187,7 @@ type FileObjectStore interface {
 	CreateFileObject(ctx context.Context, param params.CreateFileObjectParams, reader io.Reader) (fileObjParam params.FileObject, err error)
 	UpdateFileObject(ctx context.Context, objID uint, param params.UpdateFileObjectParams) (params.FileObject, error)
 	DeleteFileObject(ctx context.Context, objID uint) error
+	DeleteFileObjectsByTags(ctx context.Context, tags []string) (int64, error)
 	OpenFileObjectContent(ctx context.Context, objID uint) (io.ReadCloser, error)
 }
 

@@ -321,6 +321,258 @@ func (s *TemplateTestSuite) TestDeleteTemplateNotFound() {
 	s.Require().Nil(err) // Should not error for not found templates
 }
 
+func (s *TemplateTestSuite) TestRestoreTemplateSpecific() {
+	osType := commonParams.Linux
+	forgeType := params.GithubEndpointType
+	templates, err := s.Runner.ListTemplates(s.adminCtx, &osType, &forgeType, nil)
+	s.Require().Nil(err)
+	s.Require().GreaterOrEqual(len(templates), 1, "Expected at least one github_linux template from migration")
+
+	var systemTemplate *params.Template
+	for _, tpl := range templates {
+		if tpl.Owner == params.SystemUser {
+			systemTemplate = &tpl
+			break
+		}
+	}
+	s.Require().NotNil(systemTemplate, "Expected system template for github_linux")
+
+	modifiedName := "modified_template_name"
+	modifiedData := []byte("modified template content for testing")
+	updateParams := params.UpdateTemplateParams{
+		Name: &modifiedName,
+		Data: modifiedData,
+	}
+	_, err = s.Runner.UpdateTemplate(s.adminCtx, systemTemplate.ID, updateParams)
+	s.Require().Nil(err)
+
+	updatedTemplate, err := s.Runner.GetTemplate(s.adminCtx, systemTemplate.ID)
+	s.Require().Nil(err)
+	s.Require().Equal(modifiedName, updatedTemplate.Name)
+	s.Require().Equal(modifiedData, updatedTemplate.Data)
+
+	restoreParams := params.RestoreTemplateRequest{
+		Forge:      params.GithubEndpointType,
+		OSType:     commonParams.Linux,
+		RestoreAll: false,
+	}
+	err = s.Runner.RestoreTemplate(s.adminCtx, restoreParams)
+	s.Require().Nil(err)
+
+	// Verify the template was restored
+	restoredTemplate, err := s.Runner.GetTemplate(s.adminCtx, systemTemplate.ID)
+	s.Require().Nil(err)
+	// Name should be restored to the system default
+	s.Require().Equal("github_linux", restoredTemplate.Name)
+	// Data should be restored to original template content (not the modified content)
+	s.Require().NotEqual(modifiedData, restoredTemplate.Data)
+	// Should match the original template data or be close to it (content from internal/templates)
+	s.Require().NotEmpty(restoredTemplate.Data)
+	// Verify it's still a system template
+	s.Require().Equal(params.SystemUser, restoredTemplate.Owner)
+
+	// Verify the data is different from what we modified (restored back to system template)
+	s.Require().NotEqual(string(modifiedData), string(restoredTemplate.Data))
+}
+
+func (s *TemplateTestSuite) TestRestoreTemplateAll() {
+	// Get all system templates
+	allTemplates, err := s.Runner.ListTemplates(s.adminCtx, nil, nil, nil)
+	s.Require().Nil(err)
+
+	// Find all system templates
+	systemTemplates := []params.Template{}
+	for _, tpl := range allTemplates {
+		if tpl.Owner == params.SystemUser {
+			systemTemplates = append(systemTemplates, tpl)
+		}
+	}
+	// We should have at least 4 system templates (github/gitea x linux/windows)
+	s.Require().GreaterOrEqual(len(systemTemplates), 4, "Expected at least 4 system templates")
+
+	// Modify all system templates
+	modifiedTemplateIDs := make(map[uint]struct {
+		originalName string
+		originalData []byte
+	})
+
+	for _, tpl := range systemTemplates {
+		modifiedName := "modified_" + tpl.Name
+		modifiedData := []byte("modified content for " + tpl.Name)
+
+		updateParams := params.UpdateTemplateParams{
+			Name: &modifiedName,
+			Data: modifiedData,
+		}
+		_, err := s.Runner.UpdateTemplate(s.adminCtx, tpl.ID, updateParams)
+		s.Require().Nil(err)
+
+		modifiedTemplateIDs[tpl.ID] = struct {
+			originalName string
+			originalData []byte
+		}{
+			originalName: tpl.Name,
+			originalData: tpl.Data,
+		}
+	}
+
+	// Verify all templates were modified
+	for templateID := range modifiedTemplateIDs {
+		template, err := s.Runner.GetTemplate(s.adminCtx, templateID)
+		s.Require().Nil(err)
+		s.Require().Contains(template.Name, "modified_", "Template name should contain 'modified_'")
+	}
+
+	// Restore all templates
+	restoreParams := params.RestoreTemplateRequest{
+		RestoreAll: true,
+	}
+	err = s.Runner.RestoreTemplate(s.adminCtx, restoreParams)
+	s.Require().Nil(err)
+
+	// Verify all templates were restored
+	for templateID := range modifiedTemplateIDs {
+		template, err := s.Runner.GetTemplate(s.adminCtx, templateID)
+		s.Require().Nil(err)
+
+		// Name should not contain "modified_" anymore
+		s.Require().NotContains(template.Name, "modified_", "Template name should be restored")
+		// Should still be a system template
+		s.Require().Equal(params.SystemUser, template.Owner)
+		// Data should be restored from internal/templates
+		s.Require().NotEmpty(template.Data)
+		s.Require().NotContains(string(template.Data), "modified content", "Template data should be restored")
+	}
+
+	// Verify we can still find templates for each OS/Forge combination
+	combinations := []struct {
+		os    commonParams.OSType
+		forge params.EndpointType
+	}{
+		{commonParams.Linux, params.GithubEndpointType},
+		{commonParams.Windows, params.GithubEndpointType},
+		{commonParams.Linux, params.GiteaEndpointType},
+		{commonParams.Windows, params.GiteaEndpointType},
+	}
+
+	for _, combo := range combinations {
+		templates, err := s.Runner.ListTemplates(s.adminCtx, &combo.os, &combo.forge, nil)
+		s.Require().Nil(err)
+
+		foundSystem := false
+		for _, tpl := range templates {
+			if tpl.Owner == params.SystemUser {
+				foundSystem = true
+				break
+			}
+		}
+		s.Require().True(foundSystem, "Should have system template for %s/%s", combo.forge, combo.os)
+	}
+}
+
+func (s *TemplateTestSuite) TestRestoreTemplateMissingTemplate() {
+	// Delete a system template
+	osType := commonParams.Windows
+	forgeType := params.GiteaEndpointType
+	templates, err := s.Runner.ListTemplates(s.adminCtx, &osType, &forgeType, nil)
+	s.Require().Nil(err)
+
+	var systemTemplate *params.Template
+	for _, tpl := range templates {
+		if tpl.Owner == params.SystemUser {
+			systemTemplate = &tpl
+			break
+		}
+	}
+	s.Require().NotNil(systemTemplate, "Expected system template for gitea_windows")
+
+	// Delete the template
+	err = s.Runner.DeleteTemplate(s.adminCtx, systemTemplate.ID)
+	s.Require().Nil(err)
+
+	// Verify it's deleted
+	templates, err = s.Runner.ListTemplates(s.adminCtx, &osType, &forgeType, nil)
+	s.Require().Nil(err)
+
+	foundSystem := false
+	for _, tpl := range templates {
+		if tpl.Owner == params.SystemUser {
+			foundSystem = true
+			break
+		}
+	}
+	s.Require().False(foundSystem, "System template should be deleted")
+
+	restoreParams := params.RestoreTemplateRequest{
+		Forge:      params.GiteaEndpointType,
+		OSType:     commonParams.Windows,
+		RestoreAll: false,
+	}
+	err = s.Runner.RestoreTemplate(s.adminCtx, restoreParams)
+	s.Require().Nil(err)
+
+	templates, err = s.Runner.ListTemplates(s.adminCtx, &osType, &forgeType, nil)
+	s.Require().Nil(err)
+
+	foundSystem = false
+	var recreatedTemplateID uint
+	for _, tpl := range templates {
+		if tpl.Owner == params.SystemUser {
+			foundSystem = true
+			recreatedTemplateID = tpl.ID
+			break
+		}
+	}
+	s.Require().True(foundSystem, "System template should be recreated")
+	s.Require().NotZero(recreatedTemplateID)
+
+	// Get the full template with data
+	recreatedTemplate, err := s.Runner.GetTemplate(s.adminCtx, recreatedTemplateID)
+	s.Require().Nil(err)
+	s.Require().Equal("gitea_windows", recreatedTemplate.Name)
+	s.Require().NotEmpty(recreatedTemplate.Data)
+}
+
+func (s *TemplateTestSuite) TestRestoreTemplateUnauthorized() {
+	restoreParams := params.RestoreTemplateRequest{
+		Forge:      params.GithubEndpointType,
+		OSType:     commonParams.Linux,
+		RestoreAll: false,
+	}
+
+	err := s.Runner.RestoreTemplate(s.nonAdminCtx, restoreParams)
+
+	s.Require().NotNil(err)
+	s.Require().ErrorIs(err, runnerErrors.ErrUnauthorized)
+}
+
+func (s *TemplateTestSuite) TestRestoreTemplatePreservesUserTemplates() {
+	// Create a user template with the same OS/Forge as a system template
+	userTemplate, err := s.Runner.CreateTemplate(s.adminCtx, params.CreateTemplateParams{
+		Name:        "user-github-linux-template",
+		Description: "User's custom template",
+		OSType:      commonParams.Linux,
+		ForgeType:   params.GithubEndpointType,
+		Data:        []byte("user custom template data"),
+	})
+	s.Require().Nil(err)
+	s.Require().NotEqual(params.SystemUser, userTemplate.Owner, "User template should not be system owned")
+
+	// Restore all templates
+	restoreParams := params.RestoreTemplateRequest{
+		RestoreAll: true,
+	}
+	err = s.Runner.RestoreTemplate(s.adminCtx, restoreParams)
+	s.Require().Nil(err)
+
+	// Verify user template still exists and wasn't modified
+	userTemplateAfter, err := s.Runner.GetTemplate(s.adminCtx, userTemplate.ID)
+	s.Require().Nil(err)
+	s.Require().Equal(userTemplate.Name, userTemplateAfter.Name)
+	s.Require().Equal(userTemplate.Data, userTemplateAfter.Data)
+	s.Require().NotEqual(params.SystemUser, userTemplateAfter.Owner)
+}
+
 func TestTemplateTestSuite(t *testing.T) {
 	suite.Run(t, new(TemplateTestSuite))
 }

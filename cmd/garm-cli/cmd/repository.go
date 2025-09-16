@@ -38,6 +38,7 @@ var (
 	insecureRepoWebhook bool
 	keepRepoWebhook     bool
 	installRepoWebhook  bool
+	repoAgentMode       bool
 )
 
 // repositoryCmd represents the repository command
@@ -189,6 +190,7 @@ var repoAddCmd = &cobra.Command{
 			CredentialsName:  repoCreds,
 			ForgeType:        params.EndpointType(forgeType),
 			PoolBalancerType: params.PoolBalancerType(poolBalancerType),
+			AgentMode:        repoAgentMode,
 		}
 		response, err := apiCli.Repositories.CreateRepo(newRepoReq, authToken)
 		if err != nil {
@@ -246,7 +248,7 @@ var repoUpdateCmd = &cobra.Command{
 	Short:        "Update repository",
 	Long:         `Update repository credentials or webhook secret.`,
 	SilenceUsage: true,
-	RunE: func(_ *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -269,6 +271,9 @@ var repoUpdateCmd = &cobra.Command{
 			WebhookSecret:    repoWebhookSecret,
 			CredentialsName:  repoCreds,
 			PoolBalancerType: params.PoolBalancerType(poolBalancerType),
+		}
+		if cmd.Flags().Changed("agent-mode") {
+			updateReposReq.Body.AgentMode = &repoAgentMode
 		}
 		updateReposReq.RepoID = repoID
 
@@ -354,6 +359,7 @@ func init() {
 	repoAddCmd.Flags().StringVar(&repoCreds, "credentials", "", "Credentials name. See credentials list.")
 	repoAddCmd.Flags().BoolVar(&randomWebhookSecret, "random-webhook-secret", false, "Generate a random webhook secret for this repository.")
 	repoAddCmd.Flags().BoolVar(&installRepoWebhook, "install-webhook", false, "Install the webhook as part of the add operation.")
+	repoAddCmd.Flags().BoolVar(&repoAgentMode, "agent-mode", false, "Enable agent mode for runners in this repository.")
 	repoAddCmd.MarkFlagsMutuallyExclusive("webhook-secret", "random-webhook-secret")
 	repoAddCmd.MarkFlagsOneRequired("webhook-secret", "random-webhook-secret")
 
@@ -374,6 +380,7 @@ func init() {
 	repoUpdateCmd.Flags().StringVar(&repoWebhookSecret, "webhook-secret", "", "The webhook secret for this repository. If you update this secret, you will have to manually update the secret in GitHub as well.")
 	repoUpdateCmd.Flags().StringVar(&repoCreds, "credentials", "", "Credentials name. See credentials list.")
 	repoUpdateCmd.Flags().StringVar(&poolBalancerType, "pool-balancer-type", "", "The balancing strategy to use when creating runners in pools matching requested labels.")
+	repoUpdateCmd.Flags().BoolVar(&repoAgentMode, "agent-mode", false, "Enable agent mode for runners in this repository.")
 	repoUpdateCmd.Flags().StringVar(&repoEndpoint, "endpoint", "", "When using the name of the repo, the endpoint must be specified when multiple repositories with the same name exist.")
 
 	repoWebhookInstallCmd.Flags().BoolVar(&insecureRepoWebhook, "insecure", false, "Ignore self signed certificate errors.")

@@ -20,6 +20,7 @@
 	let callbackUrl = '';
 	let metadataUrl = '';
 	let webhookUrl = '';
+	let agentUrl = '';
 	
 	// Auto-populate URLs with current origin
 	$: if (typeof window !== 'undefined') {
@@ -27,6 +28,7 @@
 		if (!callbackUrl) callbackUrl = `${currentUrl}/api/v1/callbacks`;
 		if (!metadataUrl) metadataUrl = `${currentUrl}/api/v1/metadata`;
 		if (!webhookUrl) webhookUrl = `${currentUrl}/webhooks`;
+		if (!agentUrl) agentUrl = `${currentUrl}/agent`;
 	}
 
 	// Form validation - all mandatory fields must be filled
@@ -57,7 +59,8 @@
 				{
 					callbackUrl: callbackUrl.trim() || undefined,
 					metadataUrl: metadataUrl.trim() || undefined,
-					webhookUrl: webhookUrl.trim() || undefined
+					webhookUrl: webhookUrl.trim() || undefined,
+					agentUrl: agentUrl.trim() || undefined
 				}
 			);
 			
@@ -342,6 +345,26 @@
 										/>
 										<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
 											URL where GitHub/Gitea will send webhook events for job notifications.
+										</p>
+									</div>
+								</div>
+
+								<!-- Agent URL -->
+								<div>
+									<label for="agentUrl" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+										Agent URL
+									</label>
+									<div class="mt-1">
+										<input
+											id="agentUrl"
+											name="agentUrl"
+											type="url"
+											bind:value={agentUrl}
+											class="appearance-none block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white sm:text-sm"
+											placeholder="https://garm.example.com/agent"
+										/>
+										<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+											URL where GARM agents will connect. Must allow websocket connections.
 										</p>
 									</div>
 								</div>

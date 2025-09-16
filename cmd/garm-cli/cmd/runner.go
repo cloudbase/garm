@@ -15,18 +15,27 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/signal"
+	"sync"
+	"syscall"
 
+	"github.com/google/uuid"
+	"github.com/gorilla/websocket"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 
+	garmWs "github.com/cloudbase/garm-provider-common/util/websocket"
 	apiClientEnterprises "github.com/cloudbase/garm/client/enterprises"
 	apiClientInstances "github.com/cloudbase/garm/client/instances"
 	apiClientOrgs "github.com/cloudbase/garm/client/organizations"
 	apiClientRepos "github.com/cloudbase/garm/client/repositories"
 	"github.com/cloudbase/garm/cmd/garm-cli/common"
 	"github.com/cloudbase/garm/params"
+	"github.com/cloudbase/garm/workers/websocket/agent/messaging"
 )
 
 var (
@@ -50,6 +59,165 @@ list all instances.`,
 	Run: nil,
 }
 
+type handlerErr struct {
+	done chan struct{}
+	once sync.Once
+}
+
+func (h *handlerErr) Close() {
+	h.once.Do(func() { close(h.done) })
+}
+
+var agentShellCmd = &cobra.Command{
+	Use:          "shell",
+	Short:        "Execute an interactive shell",
+	Long:         `Execute an interactive shell on the runner.`,
+	SilenceUsage: true,
+	RunE: func(_ *cobra.Command, args []string) error {
+		if needsInit {
+			return errNeedsInitError
+		}
+
+		if len(args) != 1 {
+			return fmt.Errorf("requires a runner name")
+		}
+
+		var sessionID uuid.UUID
+
+		handlerErr := handlerErr{
+			done: make(chan struct{}),
+		}
+		resizeCh := make(chan [2]int, 1)
+		defer close(resizeCh)
+		handler := func(msgType int, msg []byte) error {
+			switch msgType {
+			case websocket.CloseAbnormalClosure, websocket.CloseGoingAway, websocket.CloseMessage:
+				os.Stderr.Write([]byte("remote server closed the connection"))
+				handlerErr.Close()
+			case websocket.BinaryMessage, websocket.TextMessage:
+				agentMsg, err := messaging.UnmarshalAgentMessage(msg)
+				if err != nil {
+					os.Stderr.Write([]byte("failed to unmarshal message"))
+					handlerErr.Close()
+				}
+				switch agentMsg.Type {
+				case messaging.MessageTypeShellReady:
+					shellReady, err := messaging.Unmarshal[messaging.ShellReadyMessage](agentMsg)
+					if err != nil {
+						os.Stderr.Write(fmt.Appendf(nil, "failed to unmarshal shell ready: %q", err))
+						handlerErr.Close()
+					}
+					sessionID = shellReady.SessionID
+					if shellReady.IsError == 1 {
+						if len(shellReady.Message) > 0 {
+							os.Stderr.Write(fmt.Appendf(shellReady.Message, "\r\n"))
+						}
+						handlerErr.Close()
+						return nil
+					}
+					if w, h, err := term.GetSize(int(os.Stdin.Fd())); err == nil {
+						resizeCh <- [2]int{w, h}
+					}
+				case messaging.MessageTypeShellExit:
+					handlerErr.Close()
+				case messaging.MessageTypeShellData:
+					shellData, err := messaging.Unmarshal[messaging.ShellDataMessage](agentMsg)
+					if err != nil {
+						os.Stderr.Write([]byte("failed to unmarshal shell data message"))
+						handlerErr.Close()
+					}
+					os.Stdout.Write(shellData.Data)
+				default:
+					os.Stdout.Write(fmt.Appendf(nil, "invalid agentMsg.Type: %v", agentMsg.Type))
+				}
+			default:
+				os.Stdout.Write(fmt.Appendf(nil, "invalid message type: %v", msgType))
+			}
+			return nil
+		}
+
+		// Put terminal in raw mode
+		oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
+		if err != nil {
+			return err
+		}
+		defer term.Restore(int(os.Stdin.Fd()), oldState)
+		// Channel to stop on Ctrl+C
+		sigch := make(chan os.Signal, 1)
+		signal.Notify(sigch, os.Interrupt, syscall.SIGTERM)
+
+		ctx, stop := signal.NotifyContext(context.Background(), signals...)
+		defer stop()
+
+		reader, err := garmWs.NewReader(ctx, mgr.BaseURL, fmt.Sprintf("/api/v1/ws/agent/%s/shell", args[0]), mgr.Token, handler)
+		if err != nil {
+			return err
+		}
+
+		if err := reader.Start(); err != nil {
+			return err
+		}
+
+		go func() {
+			buf := make([]byte, 1024)
+			for {
+				n, err := os.Stdin.Read(buf)
+				if err != nil {
+					os.Stderr.Write(fmt.Appendf(nil, "failed to write message: %q", err))
+					handlerErr.Close()
+					return
+				}
+
+				if n > 0 && sessionID != uuid.Nil {
+					msg := messaging.ShellDataMessage{
+						SessionID: sessionID,
+						Data:      buf[:n],
+					}
+					if err := reader.WriteMessage(websocket.BinaryMessage, msg.Marshal()); err != nil {
+						os.Stderr.Write(fmt.Appendf(nil, "failed to write message: %q", err))
+						handlerErr.Close()
+						return
+					}
+				}
+			}
+		}()
+
+		// ---- Watch terminal resize ----
+		go watchTermResize(ctx, resizeCh, sessionID)
+
+		// ---- Send resize messages ----
+		go func() {
+			for {
+				select {
+				case size := <-resizeCh:
+					if sessionID == uuid.Nil {
+						continue
+					}
+					msg := messaging.ShellResizeMessage{
+						SessionID: sessionID,
+						Cols:      uint16(size[0]),
+						Rows:      uint16(size[1]),
+					}
+					reader.WriteMessage(websocket.BinaryMessage, msg.Marshal())
+				case <-ctx.Done():
+					return
+				case <-reader.Done():
+					return
+				case <-handlerErr.done:
+					return
+				}
+			}
+		}()
+
+		select {
+		case <-ctx.Done():
+		case <-reader.Done():
+		case <-handlerErr.done:
+		}
+		return nil
+	},
+}
+
 type instancesPayloadGetter interface {
 	GetPayload() params.Instances
 }
@@ -59,7 +227,7 @@ var runnerListCmd = &cobra.Command{
 	Aliases: []string{"ls"},
 	Short:   "List runners",
 	Long: `List runners of pools, repositories, orgs or all of the above.
-	
+
 This command expects to get either a pool ID as a positional parameter, or it expects
 that one of the supported switches be used to fetch runners of --repo, --org or --all
 
@@ -229,6 +397,7 @@ func init() {
 		runnerListCmd,
 		runnerShowCmd,
 		runnerDeleteCmd,
+		agentShellCmd,
 	)
 
 	rootCmd.AddCommand(runnerCmd)
@@ -282,6 +451,8 @@ func formatSingleInstance(instance params.Instance) {
 	t.AppendRow(table.Row{"OS Version", instance.OSVersion}, table.RowConfig{AutoMerge: false})
 	t.AppendRow(table.Row{"Status", instance.Status}, table.RowConfig{AutoMerge: false})
 	t.AppendRow(table.Row{"Runner Status", instance.RunnerStatus}, table.RowConfig{AutoMerge: false})
+	t.AppendRow(table.Row{"Capabilities", fmt.Sprintf("Shell: %v", instance.Capabilities.Shell)}, table.RowConfig{AutoMerge: true})
+
 	if instance.PoolID != "" {
 		t.AppendRow(table.Row{"Pool ID", instance.PoolID}, table.RowConfig{AutoMerge: false})
 	} else if instance.ScaleSetID != 0 {

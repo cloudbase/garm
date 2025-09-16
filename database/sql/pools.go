@@ -293,6 +293,7 @@ func (s *sqlDatabase) CreateEntityPool(ctx context.Context, entity params.ForgeE
 		GitHubRunnerGroup:      param.GitHubRunnerGroup,
 		Priority:               param.Priority,
 		TemplateID:             param.TemplateID,
+		EnableShell:            param.EnableShell,
 	}
 	if len(param.ExtraSpecs) > 0 {
 		newPool.ExtraSpecs = datatypes.JSON(param.ExtraSpecs)
@@ -316,13 +317,13 @@ func (s *sqlDatabase) CreateEntityPool(ctx context.Context, entity params.ForgeE
 			return fmt.Errorf("error checking entity existence: %w", err)
 		}
 
-		tags := []Tag{}
+		var tags []*Tag
 		for _, val := range param.Tags {
 			t, err := s.getOrCreateTag(tx, val)
 			if err != nil {
 				return fmt.Errorf("error creating tag: %w", err)
 			}
-			tags = append(tags, t)
+			tags = append(tags, &t)
 		}
 
 		q := tx.Create(&newPool)
@@ -330,8 +331,9 @@ func (s *sqlDatabase) CreateEntityPool(ctx context.Context, entity params.ForgeE
 			return fmt.Errorf("error creating pool: %w", q.Error)
 		}
 
-		for i := range tags {
-			if err := tx.Model(&newPool).Association("Tags").Append(&tags[i]); err != nil {
+		// Append all tags at once instead of one by one for better performance
+		if len(tags) > 0 {
+			if err := tx.Model(&newPool).Association("Tags").Append(tags); err != nil {
 				return fmt.Errorf("error associating tags: %w", err)
 			}
 		}

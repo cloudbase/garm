@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import { onMount, onDestroy } from 'svelte';
 
 	export let item: any;
 	export let entityType: 'repository' | 'organization' | 'enterprise' | 'pool' | 'scaleset' | 'instance' | 'template' | 'object' = 'repository';
@@ -9,6 +10,53 @@
 
 	$: entityName = getEntityName();
 	$: entityUrl = getEntityUrl();
+
+	// Tooltip state for fixed positioning
+	let iconElement: SVGSVGElement | null = null;
+	let showTooltip = false;
+	let tooltipX = 0;
+	let tooltipY = 0;
+	let positionAbove = false;
+
+	function updateTooltipPosition() {
+		if (iconElement) {
+			const rect = iconElement.getBoundingClientRect();
+			tooltipX = rect.left;
+
+			// Check if there's enough space below (estimate tooltip height ~150px)
+			const spaceBelow = window.innerHeight - rect.bottom;
+			const tooltipEstimatedHeight = 150;
+
+			if (spaceBelow < tooltipEstimatedHeight) {
+				// Not enough space below, position above
+				positionAbove = true;
+				tooltipY = rect.top;
+			} else {
+				// Enough space, position below
+				positionAbove = false;
+				tooltipY = rect.bottom + 4;
+			}
+		}
+	}
+
+	function handleMouseEnter() {
+		showTooltip = true;
+		updateTooltipPosition();
+	}
+
+	function handleMouseLeave() {
+		showTooltip = false;
+	}
+
+	onMount(() => {
+		window.addEventListener('scroll', updateTooltipPosition, true);
+		window.addEventListener('resize', updateTooltipPosition);
+	});
+
+	onDestroy(() => {
+		window.removeEventListener('scroll', updateTooltipPosition, true);
+		window.removeEventListener('resize', updateTooltipPosition);
+	});
 
 	function getEntityName(): string {
 		// Safety check for undefined item
@@ -84,18 +132,20 @@
 			title={entityName}
 		>{entityName}</a>
 		{#if entityType === 'object' && item?.description}
-			<div class="group relative flex-shrink-0">
-				<svg class="w-4 h-4 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+			<div class="flex-shrink-0">
+				<svg
+					bind:this={iconElement}
+					on:mouseenter={handleMouseEnter}
+					on:mouseleave={handleMouseLeave}
+					role="img"
+					aria-label="Has description"
+					class="w-4 h-4 text-gray-400 dark:text-gray-500 cursor-help"
+					fill="none"
+					stroke="currentColor"
+					viewBox="0 0 24 24"
+				>
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
 				</svg>
-				<div class="absolute left-0 top-full mt-1 z-10 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none w-64">
-					<div class="bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-md px-3 py-2 shadow-lg">
-						<div class="font-semibold mb-1">Description:</div>
-						<div class="whitespace-pre-wrap break-words max-h-32 overflow-y-auto">
-							{item.description}
-						</div>
-					</div>
-				</div>
 			</div>
 		{/if}
 	</div>
@@ -105,3 +155,18 @@
 		</div>
 	{/if}
 </div>
+
+<!-- Tooltip portal - uses fixed positioning to escape all containers -->
+{#if entityType === 'object' && item?.description && showTooltip}
+	<div
+		class="fixed z-50 w-64 pointer-events-none"
+		style="left: {tooltipX}px; top: {tooltipY}px; transform: translateY({positionAbove ? '-100%' : '0'});"
+	>
+		<div class="bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-md px-3 py-2 shadow-lg">
+			<div class="font-semibold mb-1">Description:</div>
+			<div class="whitespace-pre-wrap break-words max-h-32 overflow-y-auto">
+				{item.description}
+			</div>
+		</div>
+	</div>
+{/if}

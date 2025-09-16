@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
@@ -142,68 +143,38 @@ func (s *sqlDatabase) GetTemplateByName(ctx context.Context, name string) (param
 	return ret, nil
 }
 
-func (s *sqlDatabase) createSystemTemplate(ctx context.Context, param params.CreateTemplateParams) (template params.Template, err error) {
-	if !auth.IsAdmin(ctx) {
+func (s *sqlDatabase) CreateTemplate(ctx context.Context, param params.CreateTemplateParams) (template params.Template, err error) {
+	if param.IsSystem && !auth.IsAdmin(ctx) {
 		return params.Template{}, runnerErrors.ErrUnauthorized
 	}
-	defer func() {
-		if err == nil {
-			s.sendNotify(common.TemplateEntityType, common.CreateOperation, template)
+	var userID *uuid.UUID
+	if !param.IsSystem {
+		parsedID, err := getUIDFromContext(ctx)
+		if err != nil {
+			return params.Template{}, fmt.Errorf("error creating template: %w", err)
 		}
-	}()
-	sealed, err := s.marshalAndSeal(param.Data)
-	if err != nil {
-		return params.Template{}, fmt.Errorf("failed to seal data: %w", err)
-	}
-	tpl := Template{
-		UserID:      nil,
-		Name:        param.Name,
-		Description: param.Description,
-		OSType:      param.OSType,
-		Data:        sealed,
-		ForgeType:   param.ForgeType,
-	}
-
-	if err := s.conn.Create(&tpl).Error; err != nil {
-		if errors.Is(err, gorm.ErrDuplicatedKey) {
-			return params.Template{}, runnerErrors.NewConflictError("a template name already exists with the specified name")
-		}
-		return params.Template{}, fmt.Errorf("error creating template: %w", err)
-	}
-
-	template, err = s.sqlToParamTemplate(tpl)
-	if err != nil {
-		return params.Template{}, fmt.Errorf("failed to convert template: %w", err)
-	}
-
-	return template, nil
-}
-
-func (s *sqlDatabase) CreateTemplate(ctx context.Context, param params.CreateTemplateParams) (template params.Template, err error) {
-	userID, err := getUIDFromContext(ctx)
-	if err != nil {
-		return params.Template{}, fmt.Errorf("error creating template: %w", err)
+		userID = &parsedID
 	}
 	defer func() {
 		if err == nil {
 			s.sendNotify(common.TemplateEntityType, common.CreateOperation, template)
 		}
 	}()
-
-	sealed, err := s.marshalAndSeal(param.Data)
-	if err != nil {
-		return params.Template{}, fmt.Errorf("failed to seal data: %w", err)
-	}
-	tpl := Template{
-		UserID:      &userID,
-		Name:        param.Name,
-		Description: param.Description,
-		OSType:      param.OSType,
-		Data:        sealed,
-		ForgeType:   param.ForgeType,
-	}
 	if err := param.Validate(); err != nil {
 		return params.Template{}, fmt.Errorf("failed to validate create params: %w", err)
+	}
+
+	sealed, err := s.marshalAndSeal(param.Data)
+	if err != nil {
+		return params.Template{}, fmt.Errorf("failed to seal data: %w", err)
+	}
+	tpl := Template{
+		UserID:      userID,
+		Name:        param.Name,
+		Description: param.Description,
+		OSType:      param.OSType,
+		Data:        sealed,
+		ForgeType:   param.ForgeType,
 	}
 
 	if err := s.conn.Create(&tpl).Error; err != nil {

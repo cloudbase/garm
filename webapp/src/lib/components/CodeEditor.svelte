@@ -1,16 +1,18 @@
 <script lang="ts">
 	import { onMount, onDestroy, createEventDispatcher } from 'svelte';
 	import { EditorView, basicSetup } from 'codemirror';
-	import { EditorState, StateEffect } from '@codemirror/state';
+	import { EditorState, StateEffect, EditorSelection } from '@codemirror/state';
 	import { oneDark } from '@codemirror/theme-one-dark';
 	import { python } from '@codemirror/lang-python';
 	import { StreamLanguage } from '@codemirror/language';
 	import { shell } from '@codemirror/legacy-modes/mode/shell';
 	import { autocompletion, type CompletionContext, type CompletionResult } from '@codemirror/autocomplete';
+	import { keymap } from '@codemirror/view';
 	import { themeStore } from '$lib/stores/theme.js';
 
 	const dispatch = createEventDispatcher<{
 		change: { value: string };
+		save: void;
 	}>();
 
 	export let value: string = '';
@@ -252,7 +254,30 @@
 				'.cm-scroller': {
 					minHeight: minHeight
 				}
-			})
+			}),
+			keymap.of([
+				{
+					key: 'Tab',
+					run: (view) => {
+						if (readonly) return false;
+						const changes = view.state.changeByRange(range => ({
+							changes: { from: range.from, to: range.to, insert: '    ' },
+							range: EditorSelection.range(range.from + 4, range.from + 4)
+						}));
+						view.dispatch(changes);
+						return true;
+					}
+				},
+				{
+					key: 'Ctrl-s',
+					preventDefault: true,
+					run: () => {
+						if (readonly) return false;
+						dispatch('save');
+						return true;
+					}
+				}
+			])
 		];
 		
 		// Add template completion if enabled
@@ -308,7 +333,30 @@
 				'.cm-scroller': {
 					minHeight: minHeight
 				}
-			})
+			}),
+			keymap.of([
+				{
+					key: 'Tab',
+					run: (view) => {
+						if (readonly) return false;
+						const changes = view.state.changeByRange(range => ({
+							changes: { from: range.from, to: range.to, insert: '    ' },
+							range: EditorSelection.range(range.from + 4, range.from + 4)
+						}));
+						view.dispatch(changes);
+						return true;
+					}
+				},
+				{
+					key: 'Ctrl-s',
+					preventDefault: true,
+					run: () => {
+						if (readonly) return false;
+						dispatch('save');
+						return true;
+					}
+				}
+			])
 		];
 		
 		// Add template completion if enabled

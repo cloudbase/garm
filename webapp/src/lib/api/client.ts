@@ -14,6 +14,7 @@ import {
 	type Template,
 	type CreateTemplateParams,
 	type UpdateTemplateParams,
+	type RestoreTemplateRequest,
 	type CreateRepoParams,
 	type CreateOrgParams,
 	type CreateEnterpriseParams,
@@ -90,6 +91,7 @@ export class GarmApiClient extends GeneratedGarmApiClient {
 	declare createTemplate: (params: CreateTemplateParams) => Promise<Template>;
 	declare updateTemplate: (id: number, params: UpdateTemplateParams) => Promise<Template>;
 	declare deleteTemplate: (id: number) => Promise<void>;
+	declare restoreTemplates: (params: RestoreTemplateRequest) => Promise<void>;
 
 	// Explicitly expose file object methods for TypeScript
 	declare listFileObjects: (tags?: string, page?: number, pageSize?: number) => Promise<FileObjectPaginatedResponse>;

@@ -36,6 +36,7 @@ var (
 	insecureOrgWebhook     bool
 	keepOrgWebhook         bool
 	installOrgWebhook      bool
+	orgAgentMode           bool
 )
 
 // organizationCmd represents the organization command
@@ -184,6 +185,7 @@ var orgAddCmd = &cobra.Command{
 			CredentialsName:  orgCreds,
 			ForgeType:        params.EndpointType(forgeType),
 			PoolBalancerType: params.PoolBalancerType(poolBalancerType),
+			AgentMode:        orgAgentMode,
 		}
 		response, err := apiCli.Organizations.CreateOrg(newOrgReq, authToken)
 		if err != nil {
@@ -217,7 +219,7 @@ var orgUpdateCmd = &cobra.Command{
 	Short:        "Update organization",
 	Long:         `Update organization credentials or webhook secret.`,
 	SilenceUsage: true,
-	RunE: func(_ *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -240,6 +242,9 @@ var orgUpdateCmd = &cobra.Command{
 			WebhookSecret:    orgWebhookSecret,
 			CredentialsName:  orgCreds,
 			PoolBalancerType: params.PoolBalancerType(poolBalancerType),
+		}
+		if cmd.Flags().Changed("agent-mode") {
+			updateOrgReq.Body.AgentMode = &orgAgentMode
 		}
 		updateOrgReq.OrgID = orgID
 		response, err := apiCli.Organizations.UpdateOrg(updateOrgReq, authToken)
@@ -346,6 +351,7 @@ func init() {
 	orgAddCmd.Flags().StringVar(&orgCreds, "credentials", "", "Credentials name. See credentials list.")
 	orgAddCmd.Flags().BoolVar(&orgRandomWebhookSecret, "random-webhook-secret", false, "Generate a random webhook secret for this organization.")
 	orgAddCmd.Flags().BoolVar(&installOrgWebhook, "install-webhook", false, "Install the webhook as part of the add operation.")
+	orgAddCmd.Flags().BoolVar(&orgAgentMode, "agent-mode", false, "Enable agent mode for runners in this organization.")
 	orgAddCmd.MarkFlagsMutuallyExclusive("webhook-secret", "random-webhook-secret")
 	orgAddCmd.MarkFlagsOneRequired("webhook-secret", "random-webhook-secret")
 
@@ -364,6 +370,7 @@ func init() {
 	orgUpdateCmd.Flags().StringVar(&orgWebhookSecret, "webhook-secret", "", "The webhook secret for this organization")
 	orgUpdateCmd.Flags().StringVar(&orgCreds, "credentials", "", "Credentials name. See credentials list.")
 	orgUpdateCmd.Flags().StringVar(&poolBalancerType, "pool-balancer-type", "", "The balancing strategy to use when creating runners in pools matching requested labels.")
+	orgUpdateCmd.Flags().BoolVar(&orgAgentMode, "agent-mode", false, "Enable agent mode for runners in this organization.")
 	orgUpdateCmd.Flags().StringVar(&orgEndpoint, "endpoint", "", "When using the name of the org, the endpoint must be specified when multiple organizations with the same name exist.")
 
 	orgWebhookInstallCmd.Flags().BoolVar(&insecureOrgWebhook, "insecure", false, "Ignore self signed certificate errors.")

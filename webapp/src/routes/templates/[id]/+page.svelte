@@ -107,8 +107,7 @@
 				data: Array.from(new TextEncoder().encode(editTemplateContent)) // Convert text to number array
 			};
 
-			const updatedTemplate = await garmApi.updateTemplate(template.id!, params);
-			template = updatedTemplate;
+			await garmApi.updateTemplate(template.id!, params);
 
 			toastStore.add({
 				type: 'success',
@@ -116,12 +115,12 @@
 				message: `Template "${editForm.name}" has been updated successfully.`
 			});
 
-			// Stay on the same page, but update the original values
+			// Update the original values to reflect the save
 			originalForm.name = editForm.name;
 			originalForm.description = editForm.description;
 			originalTemplateContent = editTemplateContent;
 
-			editMode = false;
+			// Don't exit edit mode - template will be updated via WebSocket
 		} catch (err) {
 			const errorMsg = extractAPIError(err);
 			toastStore.add({
@@ -376,16 +375,13 @@
 				// Only handle events for this specific template
 				if (event.payload && event.payload.id === templateId) {
 					if (event.operation === 'update') {
-						// Only reload if not in edit mode to avoid losing user changes
 						if (!editMode) {
+							// Not in edit mode, safe to reload completely
 							loadTemplate();
 						} else {
-							// Show a notification that the template was updated elsewhere
-							toastStore.add({
-								type: 'info',
-								title: 'Template updated',
-								message: 'This template has been updated externally. Your changes are preserved.'
-							});
+							// In edit mode, update the template object but preserve edit state
+							template = event.payload;
+							// Don't update edit form or content - user may still be editing
 						}
 					} else if (event.operation === 'delete') {
 						// Redirect to templates list if this template is deleted
@@ -678,6 +674,7 @@
 							minHeight="400px"
 							placeholder="Enter your template script content here..."
 							on:change={(e) => editTemplateContent = e.detail.value}
+							on:save={handleUpdateTemplate}
 						/>
 						<p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
 							Template content should be a {template.os_type === 'windows' ? 'PowerShell' : 'bash'} script for runner installation and configuration on {template.os_type}.

@@ -53,6 +53,7 @@ var (
 	poolGitHubRunnerGroup      string
 	priority                   uint
 	poolTemplateNameOrID       string
+	poolEnableShell            bool
 )
 
 type poolsPayloadGetter interface {
@@ -234,6 +235,7 @@ var poolAddCmd = &cobra.Command{
 			RunnerBootstrapTimeout: poolRunnerBootstrapTimeout,
 			GitHubRunnerGroup:      poolGitHubRunnerGroup,
 			Priority:               priority,
+			EnableShell:            poolEnableShell,
 		}
 
 		if cmd.Flags().Changed("extra-specs") {
@@ -390,6 +392,10 @@ explicitly remove them using the runner delete command.
 			poolUpdateParams.RunnerBootstrapTimeout = &poolRunnerBootstrapTimeout
 		}
 
+		if cmd.Flags().Changed("enable-shell") {
+			poolUpdateParams.EnableShell = &poolEnableShell
+		}
+
 		if cmd.Flags().Changed("extra-specs") {
 			data, err := asRawMessage([]byte(poolExtraSpecs))
 			if err != nil {
@@ -443,6 +449,7 @@ func init() {
 	poolUpdateCmd.Flags().UintVar(&poolRunnerBootstrapTimeout, "runner-bootstrap-timeout", 20, "Duration in minutes after which a runner is considered failed if it does not join Github.")
 	poolUpdateCmd.Flags().StringVar(&poolExtraSpecsFile, "extra-specs-file", "", "A file containing a valid json which will be passed to the IaaS provider managing the pool.")
 	poolUpdateCmd.Flags().StringVar(&poolExtraSpecs, "extra-specs", "", "A valid json which will be passed to the IaaS provider managing the pool.")
+	poolUpdateCmd.Flags().BoolVar(&poolEnableShell, "enable-shell", false, "Enable shell access for runners in this pool.")
 	poolUpdateCmd.MarkFlagsMutuallyExclusive("extra-specs-file", "extra-specs")
 	poolUpdateCmd.Flags().StringVar(&poolTemplateNameOrID, "runner-install-template", "", "The runner install template name or ID to use for this pool.")
 
@@ -461,6 +468,7 @@ func init() {
 	poolAddCmd.Flags().UintVar(&poolRunnerBootstrapTimeout, "runner-bootstrap-timeout", 20, "Duration in minutes after which a runner is considered failed if it does not join Github.")
 	poolAddCmd.Flags().UintVar(&poolMinIdleRunners, "min-idle-runners", 1, "Attempt to maintain a minimum of idle self-hosted runners of this type.")
 	poolAddCmd.Flags().BoolVar(&poolEnabled, "enabled", false, "Enable this pool.")
+	poolAddCmd.Flags().BoolVar(&poolEnableShell, "enable-shell", false, "Enable shell access for runners in this pool.")
 	poolAddCmd.Flags().StringVar(&poolTemplateNameOrID, "runner-install-template", "", "The runner install template name or ID to use for this pool.")
 	poolAddCmd.Flags().StringVar(&endpointName, "endpoint", "", "When using the name of an entity, the endpoint must be specified when multiple entities with the same name exist.")
 

@@ -333,3 +333,17 @@ func WithInstanceStatusFilter(statuses ...commonParams.InstanceStatus) dbCommon.
 		return false
 	}
 }
+
+func WithInstanceFilter(instance params.Instance) dbCommon.PayloadFilterFunc {
+	return func(payload dbCommon.ChangePayload) bool {
+		if payload.EntityType != dbCommon.InstanceEntityType {
+			return false
+		}
+		payloadInstance, ok := payload.Payload.(params.Instance)
+		if !ok {
+			return false
+		}
+
+		return payloadInstance.Name == instance.Name
+	}
+}

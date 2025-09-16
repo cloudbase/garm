@@ -34,15 +34,23 @@ func dbControllerToCommonController(dbInfo ControllerInfo) (params.ControllerInf
 		return params.ControllerInfo{}, fmt.Errorf("error joining webhook URL: %w", err)
 	}
 
-	return params.ControllerInfo{
+	if dbInfo.GARMAgentReleasesURL == "" {
+		dbInfo.GARMAgentReleasesURL = appdefaults.GARMAgentDefaultReleasesURL
+	}
+
+	ret := params.ControllerInfo{
 		ControllerID:         dbInfo.ControllerID,
 		MetadataURL:          dbInfo.MetadataURL,
 		WebhookURL:           dbInfo.WebhookBaseURL,
 		ControllerWebhookURL: url,
 		CallbackURL:          dbInfo.CallbackURL,
+		AgentURL:             dbInfo.AgentURL,
 		MinimumJobAgeBackoff: dbInfo.MinimumJobAgeBackoff,
 		Version:              appdefaults.GetVersion(),
-	}, nil
+		GARMAgentReleasesURL: dbInfo.GARMAgentReleasesURL,
+		SyncGARMAgentTools:   dbInfo.SyncGARMAgentTools,
+	}
+	return ret, nil
 }
 
 func (s *sqlDatabase) ControllerInfo() (params.ControllerInfo, error) {
@@ -63,6 +71,24 @@ func (s *sqlDatabase) ControllerInfo() (params.ControllerInfo, error) {
 	return paramInfo, nil
 }
 
+func (s *sqlDatabase) HasEntitiesWithAgentModeEnabled() (bool, error) {
+	var reposCnt int64
+	if err := s.conn.Model(&Repository{}).Where("agent_mode = ?", true).Count(&reposCnt).Error; err != nil {
+		return false, fmt.Errorf("error fetching repo count: %w", err)
+	}
+
+	var orgCount int64
+	if err := s.conn.Model(&Organization{}).Where("agent_mode = ?", true).Count(&orgCount).Error; err != nil {
+		return false, fmt.Errorf("error fetching repo count: %w", err)
+	}
+
+	var enterpriseCount int64
+	if err := s.conn.Model(&Enterprise{}).Where("agent_mode = ?", true).Count(&enterpriseCount).Error; err != nil {
+		return false, fmt.Errorf("error fetching repo count: %w", err)
+	}
+	return reposCnt+orgCount+enterpriseCount > 0, nil
+}
+
 func (s *sqlDatabase) InitController() (params.ControllerInfo, error) {
 	if _, err := s.ControllerInfo(); err == nil {
 		return params.ControllerInfo{}, runnerErrors.NewConflictError("controller already initialized")
@@ -76,6 +102,7 @@ func (s *sqlDatabase) InitController() (params.ControllerInfo, error) {
 	newInfo := ControllerInfo{
 		ControllerID:         newID,
 		MinimumJobAgeBackoff: 30,
+		GARMAgentReleasesURL: appdefaults.GARMAgentDefaultReleasesURL,
 	}
 
 	q := s.conn.Save(&newInfo)
@@ -118,6 +145,22 @@ func (s *sqlDatabase) UpdateController(info params.UpdateControllerParams) (para
 
 		if info.WebhookURL != nil {
 			dbInfo.WebhookBaseURL = *info.WebhookURL
+		}
+
+		if info.AgentURL != nil {
+			dbInfo.AgentURL = *info.AgentURL
+		}
+
+		if info.GARMAgentReleasesURL != nil {
+			agentToolsURL := *info.GARMAgentReleasesURL
+			if agentToolsURL == "" {
+				agentToolsURL = appdefaults.GARMAgentDefaultReleasesURL
+			}
+			dbInfo.GARMAgentReleasesURL = agentToolsURL
+		}
+
+		if info.SyncGARMAgentTools != nil {
+			dbInfo.SyncGARMAgentTools = *info.SyncGARMAgentTools
 		}
 
 		if info.MinimumJobAgeBackoff != nil {

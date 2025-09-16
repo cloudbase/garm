@@ -162,6 +162,20 @@ definitions:
                 alias: garm_params
                 package: github.com/cloudbase/garm/params
             type: ForgeEndpoints
+    GARMAgentTool:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: GARMAgentTool
+    GARMAgentToolsPaginatedResponse:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: GARMAgentToolsPaginatedResponse
     HookInfo:
         type: object
         x-go-type:
@@ -293,6 +307,13 @@ definitions:
                 alias: garm_params
                 package: github.com/cloudbase/garm/params
             type: Repository
+    RestoreTemplateRequest:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: RestoreTemplateRequest
     ScaleSet:
         type: object
         x-go-type:
@@ -2534,6 +2555,50 @@ paths:
             summary: Update template with the parameters given.
             tags:
                 - templates
+    /templates/restore:
+        post:
+            operationId: RestoreTemplates
+            parameters:
+                - description: Parameters used when restoring the templates.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/RestoreTemplateRequest'
+                    description: Parameters used when restoring the templates.
+                    type: object
+            responses:
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Create template with the parameters given.
+            tags:
+                - templates
+    /tools/garm-agent:
+        get:
+            operationId: GarmAgentList
+            parameters:
+                - description: The page at which to list.
+                  in: query
+                  name: page
+                  type: integer
+                - description: Number of items per page.
+                  in: query
+                  name: pageSize
+                  type: integer
+            responses:
+                "200":
+                    description: GARMAgentToolsPaginatedResponse
+                    schema:
+                        $ref: '#/definitions/GARMAgentToolsPaginatedResponse'
+                "400":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List GARM agent tools.
+            tags:
+                - tools
 produces:
     - application/json
 security:

@@ -349,6 +349,7 @@ describe('Comprehensive Integration Tests for Init Page', () => {
 				expect(screen.getByLabelText('Metadata URL')).toBeInTheDocument();
 				expect(screen.getByLabelText('Callback URL')).toBeInTheDocument();
 				expect(screen.getByLabelText('Webhook URL')).toBeInTheDocument();
+				expect(screen.getByLabelText('Agent URL')).toBeInTheDocument();
 			});
 
 			// Toggle to hide advanced fields
@@ -373,10 +374,12 @@ describe('Comprehensive Integration Tests for Init Page', () => {
 				const metadataInput = screen.getByLabelText('Metadata URL') as HTMLInputElement;
 				const callbackInput = screen.getByLabelText('Callback URL') as HTMLInputElement;
 				const webhookInput = screen.getByLabelText('Webhook URL') as HTMLInputElement;
+				const agentInput = screen.getByLabelText('Agent URL') as HTMLInputElement;
 				
 				expect(metadataInput.value).toBe('https://garm.example.com/api/v1/metadata');
 				expect(callbackInput.value).toBe('https://garm.example.com/api/v1/callbacks');
 				expect(webhookInput.value).toBe('https://garm.example.com/webhooks');
+				expect(agentInput.value).toBe('https://garm.example.com/agent');
 			});
 		});
 
@@ -432,7 +435,8 @@ describe('Comprehensive Integration Tests for Init Page', () => {
 					{
 						callbackUrl: 'https://garm.example.com/api/v1/callbacks',
 						metadataUrl: 'https://garm.example.com/api/v1/metadata',
-						webhookUrl: 'https://garm.example.com/webhooks'
+						webhookUrl: 'https://garm.example.com/webhooks',
+						agentUrl: 'https://garm.example.com/agent'
 					}
 				);
 			});
@@ -553,6 +557,7 @@ describe('Comprehensive Integration Tests for Init Page', () => {
 			// Customize URLs
 			const metadataInput = screen.getByLabelText('Metadata URL');
 			const callbackInput = screen.getByLabelText('Callback URL');
+			const agentInput = screen.getByLabelText('Agent URL');
 			
 			await fireEvent.input(metadataInput, { target: { value: 'https://custom.example.com/metadata' } });
 			await fireEvent.input(callbackInput, { target: { value: 'https://custom.example.com/callbacks' } });
@@ -578,7 +583,8 @@ describe('Comprehensive Integration Tests for Init Page', () => {
 					{
 						callbackUrl: 'https://custom.example.com/callbacks',
 						metadataUrl: 'https://custom.example.com/metadata',
-						webhookUrl: 'https://garm.example.com/webhooks'
+						webhookUrl: 'https://garm.example.com/webhooks',
+						agentUrl: 'https://garm.example.com/agent'
 					}
 				);
 			});
@@ -603,11 +609,13 @@ describe('Comprehensive Integration Tests for Init Page', () => {
 			const metadataInput = screen.getByLabelText('Metadata URL') as HTMLInputElement;
 			const callbackInput = screen.getByLabelText('Callback URL') as HTMLInputElement;
 			const webhookInput = screen.getByLabelText('Webhook URL') as HTMLInputElement;
+			const agentInput = screen.getByLabelText('Agent URL') as HTMLInputElement;
 			
 			// Verify auto-population works
 			expect(metadataInput.value).toBe('https://garm.example.com/api/v1/metadata');
 			expect(callbackInput.value).toBe('https://garm.example.com/api/v1/callbacks');
 			expect(webhookInput.value).toBe('https://garm.example.com/webhooks');
+			expect(agentInput.value).toBe('https://garm.example.com/agent');
 
 			// Fill in required fields
 			const passwordInput = screen.getByLabelText('Password');
@@ -630,7 +638,8 @@ describe('Comprehensive Integration Tests for Init Page', () => {
 					{
 						callbackUrl: 'https://garm.example.com/api/v1/callbacks',
 						metadataUrl: 'https://garm.example.com/api/v1/metadata',
-						webhookUrl: 'https://garm.example.com/webhooks'
+						webhookUrl: 'https://garm.example.com/webhooks',
+						agentUrl: 'https://garm.example.com/agent'
 					}
 				);
 			});

@@ -45,7 +45,20 @@ const (
 	instanceHasJITConfig contextFlags = "hasJITConfig"
 	instanceParams       contextFlags = "instanceParams"
 	instanceForgeTypeKey contextFlags = "forge_type"
+	instanceIsAgent      contextFlags = "is_agent"
 )
+
+func SetInstanceIsAgent(ctx context.Context, val bool) context.Context {
+	return context.WithValue(ctx, instanceIsAgent, val)
+}
+
+func InstanceIsAgent(ctx context.Context) bool {
+	elem := ctx.Value(instanceIsAgent)
+	if elem == nil {
+		return false
+	}
+	return elem.(bool)
+}
 
 func SetInstanceForgeType(ctx context.Context, val string) context.Context {
 	return context.WithValue(ctx, instanceForgeTypeKey, val)
@@ -194,6 +207,7 @@ func PopulateInstanceContext(ctx context.Context, instance params.Instance, enti
 	ctx = SetInstanceParams(ctx, instance)
 	ctx = SetInstanceForgeType(ctx, claims.ForgeType)
 	ctx = SetInstanceEntity(ctx, entity)
+	ctx = SetInstanceIsAgent(ctx, claims.IsAgent)
 	return ctx
 }
 

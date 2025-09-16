@@ -189,7 +189,7 @@ func (p *Provider) loop() {
 				slog.ErrorContext(p.ctx, "watcher channel closed")
 				return
 			}
-			slog.InfoContext(p.ctx, "received payload", "operation", payload.Operation, "entity_type", payload.EntityType)
+			slog.DebugContext(p.ctx, "received payload", "operation", payload.Operation, "entity_type", payload.EntityType)
 			go p.handleWatcherEvent(payload)
 		case <-p.ctx.Done():
 			return

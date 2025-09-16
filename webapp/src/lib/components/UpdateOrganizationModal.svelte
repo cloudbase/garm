@@ -25,6 +25,7 @@
 
 	let changeWebhookSecret = false;
 	let generateWebhookSecret = true;
+	let agentMode = organization.agent_mode ?? false;
 
 	// Get the organization's endpoint type
 	$: organizationEndpointType = organization.endpoint?.endpoint_type;
@@ -69,6 +70,11 @@
 				delete submitData.webhook_secret;
 			} else if (generateWebhookSecret) {
 				submitData.webhook_secret = ''; // Empty string triggers auto-generation
+			}
+
+			// Only include agent_mode if it changed
+			if (agentMode !== organization.agent_mode) {
+				submitData.agent_mode = agentMode;
 			}
 
 			dispatch('submit', submitData);
@@ -141,6 +147,28 @@
 						<option value="roundrobin">Round Robin</option>
 						<option value="pack">Pack</option>
 					</select>
+				</div>
+
+				<!-- Agent Mode -->
+				<div class="mb-6 flex items-center">
+					<input
+						id="agent-mode"
+						type="checkbox"
+						bind:checked={agentMode}
+						class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
+					/>
+					<label for="agent-mode" class="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+						Agent Mode
+					</label>
+					<div class="ml-2 relative group">
+						<svg class="w-4 h-4 text-gray-400 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+						</svg>
+						<div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-80 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+							When enabled, runners will be installed with the GARM agent via userdata install templates. This allows for enhanced runner management and control.
+							<div class="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+						</div>
+					</div>
 				</div>
 
 				<!-- Change Webhook Secret -->

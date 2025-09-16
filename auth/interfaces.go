@@ -27,4 +27,5 @@ type Middleware interface {
 
 type InstanceTokenGetter interface {
 	NewInstanceJWTToken(instance params.Instance, entity params.ForgeEntity, ttlMinutes uint) (string, error)
+	NewAgentJWTToken(instance params.Instance, entity params.ForgeEntity) (string, error)
 }

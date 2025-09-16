@@ -596,6 +596,44 @@ Files are stored in the database as blobs. You do not need to configure addition
 
 It is not meant to be used to serve files outside of the needs of GARM and it does not implement S3, nor will it ever.
 	`.trim();
+
+	// Mobile card configuration
+	const mobileCardConfig = {
+		entityType: 'repository' as const, // Reuse existing type since 'object' isn't defined
+		primaryText: {
+			field: 'name',
+			isClickable: true,
+			href: '/objects/{id}'
+		},
+		secondaryText: {
+			field: 'description',
+			computedValue: (obj: FileObject) => {
+				const desc = obj.description || 'No description';
+				// Truncate long descriptions for mobile card (max 100 chars)
+				return desc.length > 100 ? desc.substring(0, 100) + '...' : desc;
+			}
+		},
+		customInfo: [
+			{
+				icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />',
+				text: (obj: FileObject) => formatFileSize(obj.size || 0)
+			},
+			{
+				icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />',
+				text: (obj: FileObject) => formatDateTime(obj.updated_at)
+			}
+		],
+		actions: [
+			{
+				type: 'edit' as const,
+				handler: openUpdateModal
+			},
+			{
+				type: 'delete' as const,
+				handler: openDeleteModal
+			}
+		]
+	};
 </script>
 
 <PageHeader
@@ -648,27 +686,21 @@ It is not meant to be used to serve files outside of the needs of GARM and it do
 	bind:searchTerm
 	searchPlaceholder="Search by name or tags..."
 	searchHelpText=""
-	showPagination={false}
+	showPagination={true}
+	paginationComponent={BackendPagination}
+	currentPage={currentPage}
+	totalPages={totalPages}
+	totalItems={totalObjects}
+	perPage={pageSize}
+	{mobileCardConfig}
 	on:search={handleSearch}
+	on:pageChange={handlePageChange}
+	on:pageSizeChange={handlePageSizeChange}
+	on:prefetch={handlePrefetch}
 	on:edit={(e) => openUpdateModal(e.detail.item)}
 	on:delete={(e) => openDeleteModal(e.detail.item)}
 	on:action={(e) => e.detail.type === 'download' && handleDownload(e.detail.item)}
 />
-
-<!-- Pagination -->
-{#if !loading && !error && totalObjects > 0}
-	<BackendPagination
-		{currentPage}
-		{totalPages}
-		totalItems={totalObjects}
-		{pageSize}
-		{loading}
-		itemName="objects"
-		on:pageChange={handlePageChange}
-		on:pageSizeChange={handlePageSizeChange}
-		on:prefetch={handlePrefetch}
-	/>
-{/if}
 
 <!-- Upload Modal -->
 {#if showUploadModal}

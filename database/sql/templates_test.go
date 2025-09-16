@@ -192,7 +192,7 @@ func (s *TemplatesTestSuite) TestListTemplatesWithForgeTypeFilter() {
 }
 
 func (s *TemplatesTestSuite) TestListTemplatesWithNameFilter() {
-	partialName := "system"
+	partialName := params.SystemUser
 	templates, err := s.Store.ListTemplates(s.adminCtx, nil, nil, &partialName)
 	s.Require().Nil(err)
 	s.Require().Len(templates, 1)
@@ -201,7 +201,7 @@ func (s *TemplatesTestSuite) TestListTemplatesWithNameFilter() {
 
 func (s *TemplatesTestSuite) TestListTemplatesDBFetchErr() {
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT `templates`.`id`,`templates`.`created_at`,`templates`.`updated_at`,`templates`.`deleted_at`,`templates`.`name`,`templates`.`user_id`,`templates`.`description`,`templates`.`os_type`,`templates`.`forge_type` FROM `templates` WHERE `templates`.`deleted_at` IS NULL")).
+		ExpectQuery(regexp.QuoteMeta("SELECT `templates`.`id`,`templates`.`created_at`,`templates`.`updated_at`,`templates`.`deleted_at`,`templates`.`name`,`templates`.`user_id`,`templates`.`description`,`templates`.`os_type`,`templates`.`forge_type`,`templates`.`agent_mode` FROM `templates` WHERE `templates`.`deleted_at` IS NULL")).
 		WillReturnError(fmt.Errorf("mocked fetching templates error"))
 
 	_, err := s.StoreSQLMocked.ListTemplates(s.adminCtx, nil, nil, nil)
@@ -320,12 +320,13 @@ func (s *TemplatesTestSuite) TestCreateTemplateSystemAndUserConflict() {
 	// Now try to create a system template with the same name using direct access to createSystemTemplate
 	// This should succeed since the unique constraint is on (name, user_id) and system templates have user_id = NULL
 	sqlDB := s.Store.(*sqlDatabase)
-	_, err = sqlDB.createSystemTemplate(s.adminCtx, params.CreateTemplateParams{
+	_, err = sqlDB.CreateTemplate(s.adminCtx, params.CreateTemplateParams{
 		Name:        templateName,
 		Description: "System template with same name",
 		OSType:      commonParams.Windows,
 		ForgeType:   params.GithubEndpointType,
 		Data:        []byte(`{"provider": "azure", "image": "windows-2022"}`),
+		IsSystem:    true,
 	})
 
 	// This should succeed because system templates (user_id = NULL) and user templates

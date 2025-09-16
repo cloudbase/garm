@@ -6,6 +6,7 @@
 	import type { Instance } from '$lib/api/generated/api.js';
 	import { resolve } from '$app/paths';
 	import DeleteModal from '$lib/components/DeleteModal.svelte';
+	import ShellTerminal from '$lib/components/ShellTerminal.svelte';
 	import { websocketStore, type WebSocketEvent } from '$lib/stores/websocket.js';
 	import { formatStatusText, getStatusBadgeClass } from '$lib/utils/status.js';
 	import { formatDate, scrollToBottomEvents, getEventLevelBadge } from '$lib/utils/common.js';
@@ -16,11 +17,31 @@
 	let loading = true;
 	let error = '';
 	let showDeleteModal = false;
+	let showShellModal = false;
 	let unsubscribeWebsocket: (() => void) | null = null;
 	let statusMessagesContainer: HTMLElement;
 
 
 	$: instanceName = decodeURIComponent($page.params.id || '');
+
+	// Current time for heartbeat staleness check - updates every second
+	let currentTime = Date.now();
+	let heartbeatCheckInterval: ReturnType<typeof setInterval> | null = null;
+
+	// Check if shell should be disabled (heartbeat stale or instance stopped)
+	$: isHeartbeatStale = (instance?.agent_id) ?
+		(() => {
+			// Disable if instance doesn't have shell capability
+			if (!instance.capabilities?.has_shell) return true;
+
+			// Disable if instance status is "stopped"
+			if (instance.status === 'stopped') return true;
+
+			const lastHeartbeat = instance.heartbeat;
+			if (!lastHeartbeat) return true;
+			const heartbeatTime = new Date(lastHeartbeat);
+			return (currentTime - heartbeatTime.getTime()) > 60000; // 60 seconds
+		})() : true;
 
 	async function loadInstance() {
 		if (!instanceName) return;
@@ -85,13 +106,18 @@
 				}, 100);
 			}
 		});
-		
+
 		// Subscribe to real-time instance events
 		unsubscribeWebsocket = websocketStore.subscribeToEntity(
 			'instance',
 			['update', 'delete'],
 			handleInstanceEvent
 		);
+
+		// Update current time every second for heartbeat staleness check
+		heartbeatCheckInterval = setInterval(() => {
+			currentTime = Date.now();
+		}, 1000);
 	});
 
 	onDestroy(() => {
@@ -99,6 +125,12 @@
 		if (unsubscribeWebsocket) {
 			unsubscribeWebsocket();
 			unsubscribeWebsocket = null;
+		}
+
+		// Clean up heartbeat check interval
+		if (heartbeatCheckInterval) {
+			clearInterval(heartbeatCheckInterval);
+			heartbeatCheckInterval = null;
 		}
 	});
 </script>
@@ -158,6 +190,21 @@
 				<div class="flex items-center justify-between mb-4">
 					<h3 class="text-lg font-medium text-gray-900 dark:text-white">Instance Information</h3>
 					<div class="flex items-center space-x-3">
+						<button
+							on:click={() => showShellModal = true}
+							disabled={isHeartbeatStale}
+							class="px-4 py-2 {isHeartbeatStale ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 cursor-pointer'} text-white rounded-lg font-medium text-sm flex items-center space-x-2"
+							title={isHeartbeatStale ?
+								(!instance?.capabilities?.has_shell ? "Shell unavailable - Agent does not support shell" :
+								instance?.status === 'stopped' ? "Shell unavailable - Instance is stopped" :
+								"Shell unavailable - Agent heartbeat is stale") :
+								"Open Shell"}
+						>
+							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+							</svg>
+							<span>Shell</span>
+						</button>
 						<button
 							on:click={() => showDeleteModal = true}
 							class="px-4 py-2 bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800 text-white rounded-lg font-medium text-sm cursor-pointer"
@@ -329,6 +376,18 @@
 		</div>
 	{/if}
 </div>
+
+<!-- Shell Modal -->
+{#if showShellModal && instance && !isHeartbeatStale}
+	<div class="fixed inset-0 bg-black/30 dark:bg-black/50 overflow-hidden h-full w-full z-50">
+		<div class="relative w-full h-full flex items-center justify-center p-4">
+			<ShellTerminal
+				runnerName={instance.name!}
+				onClose={() => showShellModal = false}
+			/>
+		</div>
+	</div>
+{/if}
 
 <!-- Delete Modal -->
 {#if showDeleteModal && instance}

@@ -92,7 +92,7 @@ func (s *InstancesTestSuite) SetupTest() {
 	creds := garmTesting.CreateTestGithubCredentials(adminCtx, "new-creds", db, s.T(), githubEndpoint)
 
 	// create an organization for testing purposes
-	org, err := s.Store.CreateOrganization(s.adminCtx, "test-org", creds, "test-webhookSecret", params.PoolBalancerTypeRoundRobin)
+	org, err := s.Store.CreateOrganization(s.adminCtx, "test-org", creds, "test-webhookSecret", params.PoolBalancerTypeRoundRobin, false)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to create org: %s", err))
 	}
@@ -574,10 +574,6 @@ func (s *InstancesTestSuite) TestAddInstanceEventDBUpdateErr() {
 		WillReturnRows(sqlmock.NewRows([]string{"message", "instance_id"}).AddRow("instance sample message", instance.ID))
 	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
-		ExpectExec(regexp.QuoteMeta("UPDATE `instances` SET `updated_at`=? WHERE `instances`.`deleted_at` IS NULL AND `id` = ?")).
-		WithArgs(sqlmock.AnyArg(), instance.ID).
-		WillReturnResult(sqlmock.NewResult(1, 1))
-	s.Fixtures.SQLMock.
 		ExpectExec(regexp.QuoteMeta("INSERT INTO `instance_status_updates`")).
 		WillReturnError(fmt.Errorf("mocked add status message error"))
 	s.Fixtures.SQLMock.ExpectRollback()
@@ -605,10 +601,12 @@ func (s *InstancesTestSuite) TestUpdateInstance() {
 func (s *InstancesTestSuite) TestUpdateInstanceDBUpdateInstanceErr() {
 	instance := s.Fixtures.Instances[0]
 
+	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `instances` WHERE name = ? AND `instances`.`deleted_at` IS NULL ORDER BY `instances`.`id` LIMIT ?")).
 		WithArgs(instance.Name, 1).
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(instance.ID))
+		WillReturnRows(sqlmock.NewRows([]string{"id", "created_at", "updated_at", "deleted_at", "provider_id", "name", "agent_id", "os_type", "os_arch", "os_name", "os_version", "status", "runner_status", "heartbeat", "callback_url", "metadata_url", "provider_fault", "create_attempt", "token_fetched", "jit_configuration", "git_hub_runner_group", "aditional_labels", "capabilities", "pool_id", "scale_set_fk_id"}).
+			AddRow(instance.ID, instance.CreatedAt, instance.UpdatedAt, nil, nil, instance.Name, 0, "linux", "amd64", "", "", "running", "idle", instance.Heartbeat, "", "", nil, 0, false, nil, "", nil, nil, nil, nil))
 	s.Fixtures.SQLMock.
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `addresses` WHERE `addresses`.`instance_id` = ? AND `addresses`.`deleted_at` IS NULL")).
 		WithArgs(instance.ID).
@@ -621,7 +619,6 @@ func (s *InstancesTestSuite) TestUpdateInstanceDBUpdateInstanceErr() {
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `instance_status_updates` WHERE `instance_status_updates`.`instance_id` = ? AND `instance_status_updates`.`deleted_at` IS NULL")).
 		WithArgs(instance.ID).
 		WillReturnRows(sqlmock.NewRows([]string{"message", "instance_id"}).AddRow("instance sample message", instance.ID))
-	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
 		ExpectExec(("UPDATE `instances`")).
 		WillReturnError(fmt.Errorf("mocked update instance error"))
@@ -630,17 +627,19 @@ func (s *InstancesTestSuite) TestUpdateInstanceDBUpdateInstanceErr() {
 	_, err := s.StoreSQLMocked.UpdateInstance(s.adminCtx, instance.Name, s.Fixtures.UpdateInstanceParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("error updating instance: mocked update instance error", err.Error())
+	s.Require().Equal("error updating instance: error updating instance: mocked update instance error", err.Error())
 	s.assertSQLMockExpectations()
 }
 
 func (s *InstancesTestSuite) TestUpdateInstanceDBUpdateAddressErr() {
 	instance := s.Fixtures.Instances[0]
 
+	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `instances` WHERE name = ? AND `instances`.`deleted_at` IS NULL ORDER BY `instances`.`id` LIMIT ?")).
 		WithArgs(instance.Name, 1).
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(instance.ID))
+		WillReturnRows(sqlmock.NewRows([]string{"id", "created_at", "updated_at", "deleted_at", "provider_id", "name", "agent_id", "os_type", "os_arch", "os_name", "os_version", "status", "runner_status", "heartbeat", "callback_url", "metadata_url", "provider_fault", "create_attempt", "token_fetched", "jit_configuration", "git_hub_runner_group", "aditional_labels", "capabilities", "pool_id", "scale_set_fk_id"}).
+			AddRow(instance.ID, instance.CreatedAt, instance.UpdatedAt, nil, nil, instance.Name, 0, "linux", "amd64", "", "", "running", "idle", instance.Heartbeat, "", "", nil, 0, false, nil, "", nil, nil, nil, nil))
 	s.Fixtures.SQLMock.
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `addresses` WHERE `addresses`.`instance_id` = ? AND `addresses`.`deleted_at` IS NULL")).
 		WithArgs(instance.ID).
@@ -653,18 +652,6 @@ func (s *InstancesTestSuite) TestUpdateInstanceDBUpdateAddressErr() {
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `instance_status_updates` WHERE `instance_status_updates`.`instance_id` = ? AND `instance_status_updates`.`deleted_at` IS NULL")).
 		WithArgs(instance.ID).
 		WillReturnRows(sqlmock.NewRows([]string{"message", "instance_id"}).AddRow("instance sample message", instance.ID))
-	s.Fixtures.SQLMock.ExpectBegin()
-	s.Fixtures.SQLMock.
-		ExpectExec(regexp.QuoteMeta("UPDATE `instances` SET")).
-		WillReturnResult(sqlmock.NewResult(1, 1))
-	s.Fixtures.SQLMock.
-		ExpectExec(regexp.QuoteMeta("INSERT INTO `addresses`")).
-		WillReturnResult(sqlmock.NewResult(1, 1))
-	s.Fixtures.SQLMock.
-		ExpectExec(regexp.QuoteMeta("INSERT INTO `instance_status_updates`")).
-		WillReturnResult(sqlmock.NewResult(1, 1))
-	s.Fixtures.SQLMock.ExpectCommit()
-	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
 		ExpectExec(regexp.QuoteMeta("UPDATE `instances` SET")).
 		WillReturnResult(sqlmock.NewResult(1, 1))
@@ -676,7 +663,7 @@ func (s *InstancesTestSuite) TestUpdateInstanceDBUpdateAddressErr() {
 	_, err := s.StoreSQLMocked.UpdateInstance(s.adminCtx, instance.Name, s.Fixtures.UpdateInstanceParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("error updating addresses: update addresses mock error", err.Error())
+	s.Require().Equal("error updating instance: error updating instance: update addresses mock error; update addresses mock error", err.Error())
 	s.assertSQLMockExpectations()
 }
 

@@ -401,3 +401,24 @@ definitions:
             alias: garm_params
     items:
         $ref: '#/definitions/Template'
+  RestoreTemplateRequest:
+    type: object
+    x-go-type:
+        type: RestoreTemplateRequest
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+  GARMAgentToolsPaginatedResponse:
+    type: object
+    x-go-type:
+        type: GARMAgentToolsPaginatedResponse
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+  GARMAgentTool:
+    type: object
+    x-go-type:
+        type: GARMAgentTool
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params

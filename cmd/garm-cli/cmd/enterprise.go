@@ -31,6 +31,7 @@ var (
 	enterpriseEndpoint      string
 	enterpriseWebhookSecret string
 	enterpriseCreds         string
+	enterpriseAgentMode     bool
 )
 
 // enterpriseCmd represents the enterprise command
@@ -64,6 +65,7 @@ var enterpriseAddCmd = &cobra.Command{
 			WebhookSecret:    enterpriseWebhookSecret,
 			CredentialsName:  enterpriseCreds,
 			PoolBalancerType: params.PoolBalancerType(poolBalancerType),
+			AgentMode:        enterpriseAgentMode,
 		}
 		response, err := apiCli.Enterprises.CreateEnterprise(newEnterpriseReq, authToken)
 		if err != nil {
@@ -165,7 +167,7 @@ var enterpriseUpdateCmd = &cobra.Command{
 	Short:        "Update enterprise",
 	Long:         `Update enterprise credentials or webhook secret.`,
 	SilenceUsage: true,
-	RunE: func(_ *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -184,9 +186,12 @@ var enterpriseUpdateCmd = &cobra.Command{
 
 		updateEnterpriseReq := apiClientEnterprises.NewUpdateEnterpriseParams()
 		updateEnterpriseReq.Body = params.UpdateEntityParams{
-			WebhookSecret:    repoWebhookSecret,
-			CredentialsName:  repoCreds,
+			WebhookSecret:    enterpriseWebhookSecret,
+			CredentialsName:  enterpriseCreds,
 			PoolBalancerType: params.PoolBalancerType(poolBalancerType),
+		}
+		if cmd.Flags().Changed("agent-mode") {
+			updateEnterpriseReq.Body.AgentMode = &enterpriseAgentMode
 		}
 		updateEnterpriseReq.EnterpriseID = enterpriseID
 		response, err := apiCli.Enterprises.UpdateEnterprise(updateEnterpriseReq, authToken)
@@ -203,6 +208,7 @@ func init() {
 	enterpriseAddCmd.Flags().StringVar(&enterpriseWebhookSecret, "webhook-secret", "", "The webhook secret for this enterprise")
 	enterpriseAddCmd.Flags().StringVar(&enterpriseCreds, "credentials", "", "Credentials name. See credentials list.")
 	enterpriseAddCmd.Flags().StringVar(&poolBalancerType, "pool-balancer-type", string(params.PoolBalancerTypeRoundRobin), "The balancing strategy to use when creating runners in pools matching requested labels.")
+	enterpriseAddCmd.Flags().BoolVar(&enterpriseAgentMode, "agent-mode", false, "Enable agent mode for runners in this enterprise.")
 
 	enterpriseListCmd.Flags().BoolVarP(&long, "long", "l", false, "Include additional info.")
 	enterpriseListCmd.Flags().StringVarP(&enterpriseName, "name", "n", "", "Exact enterprise name to filter by.")
@@ -213,6 +219,7 @@ func init() {
 	enterpriseUpdateCmd.Flags().StringVar(&enterpriseWebhookSecret, "webhook-secret", "", "The webhook secret for this enterprise")
 	enterpriseUpdateCmd.Flags().StringVar(&enterpriseCreds, "credentials", "", "Credentials name. See credentials list.")
 	enterpriseUpdateCmd.Flags().StringVar(&poolBalancerType, "pool-balancer-type", "", "The balancing strategy to use when creating runners in pools matching requested labels.")
+	enterpriseUpdateCmd.Flags().BoolVar(&enterpriseAgentMode, "agent-mode", false, "Enable agent mode for runners in this enterprise.")
 	enterpriseUpdateCmd.Flags().StringVar(&enterpriseEndpoint, "endpoint", "", "When using the name of the enterprise, the endpoint must be specified when multiple enterprises with the same name exist.")
 
 	enterpriseDeleteCmd.Flags().StringVar(&enterpriseEndpoint, "endpoint", "", "When using the name of the enterprise, the endpoint must be specified when multiple enterprises with the same name exist.")

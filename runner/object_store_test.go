@@ -129,6 +129,22 @@ func (s *ObjectStoreTestSuite) TestCreateFileObjectUnauthorized() {
 	s.Require().ErrorIs(err, runnerErrors.ErrUnauthorized)
 }
 
+func (s *ObjectStoreTestSuite) TestCreateFileObjectWithGarmAgentTag() {
+	content := []byte("garm-agent tool content")
+	reader := bytes.NewReader(content)
+
+	createParams := params.CreateFileObjectParams{
+		Name: "garm-agent-tool.bin",
+		Size: int64(len(content)),
+		Tags: []string{garmAgentFileTag, "test"},
+	}
+
+	_, err := s.Runner.CreateFileObject(s.Fixtures.AdminContext, createParams, reader)
+
+	s.Require().NotNil(err)
+	s.Require().Contains(err.Error(), "cannot create garm-agent tools via object storage API")
+}
+
 func (s *ObjectStoreTestSuite) TestGetFileObject() {
 	fileObj, err := s.Runner.GetFileObject(s.Fixtures.AdminContext, s.Fixtures.TestFileObject.ID)
 
@@ -184,6 +200,29 @@ func (s *ObjectStoreTestSuite) TestDeleteFileObjectNotFound() {
 	// Delete of non-existent object is a noop and returns nil (idempotent)
 	err := s.Runner.DeleteFileObject(s.Fixtures.AdminContext, 99999)
 
+	s.Require().Nil(err)
+}
+
+func (s *ObjectStoreTestSuite) TestDeleteFileObjectWithGarmAgentTag() {
+	// Create a file with garm-agent tag
+	content := []byte("garm-agent tool")
+	param := params.CreateFileObjectParams{
+		Name: "garm-agent-delete-test.bin",
+		Size: int64(len(content)),
+		Tags: []string{garmAgentFileTag},
+	}
+	// Create directly via store to bypass the API restriction
+	fileObj, err := s.Fixtures.Store.CreateFileObject(s.Fixtures.AdminContext, param, bytes.NewReader(content))
+	s.Require().Nil(err)
+
+	// Try to delete via API
+	err = s.Runner.DeleteFileObject(s.Fixtures.AdminContext, fileObj.ID)
+
+	s.Require().NotNil(err)
+	s.Require().Contains(err.Error(), "cannot delete garm-agent tools via object storage API")
+
+	// Verify file still exists
+	_, err = s.Fixtures.Store.GetFileObject(s.Fixtures.AdminContext, fileObj.ID)
 	s.Require().Nil(err)
 }
 
@@ -318,7 +357,62 @@ func (s *ObjectStoreTestSuite) TestUpdateFileObjectNotFound() {
 	_, err := s.Runner.UpdateFileObject(s.Fixtures.AdminContext, 99999, s.Fixtures.UpdateObjectParams)
 
 	s.Require().NotNil(err)
-	s.Require().Contains(err.Error(), "failed to update object")
+	s.Require().Contains(err.Error(), "failed to query object in DB")
+}
+
+func (s *ObjectStoreTestSuite) TestUpdateFileObjectWithGarmAgentTag() {
+	// Create a file with garm-agent tag
+	content := []byte("garm-agent tool")
+	param := params.CreateFileObjectParams{
+		Name: "garm-agent-update-test.bin",
+		Size: int64(len(content)),
+		Tags: []string{garmAgentFileTag},
+	}
+	// Create directly via store to bypass the API restriction
+	fileObj, err := s.Fixtures.Store.CreateFileObject(s.Fixtures.AdminContext, param, bytes.NewReader(content))
+	s.Require().Nil(err)
+
+	// Try to update via API
+	newName := "updated-agent-tool.bin"
+	updateParams := params.UpdateFileObjectParams{
+		Name: &newName,
+		Tags: []string{"updated"},
+	}
+	_, err = s.Runner.UpdateFileObject(s.Fixtures.AdminContext, fileObj.ID, updateParams)
+
+	s.Require().NotNil(err)
+	s.Require().Contains(err.Error(), "cannot update garm-agent tools via object storage API")
+
+	// Verify file is unchanged
+	unchanged, err := s.Fixtures.Store.GetFileObject(s.Fixtures.AdminContext, fileObj.ID)
+	s.Require().Nil(err)
+	s.Require().Equal(param.Name, unchanged.Name)
+}
+
+func (s *ObjectStoreTestSuite) TestUpdateFileObjectAddingGarmAgentTag() {
+	// Create a regular file
+	content := []byte("regular file")
+	param := params.CreateFileObjectParams{
+		Name: "regular-file.txt",
+		Size: int64(len(content)),
+		Tags: []string{"regular"},
+	}
+	fileObj, err := s.Fixtures.Store.CreateFileObject(s.Fixtures.AdminContext, param, bytes.NewReader(content))
+	s.Require().Nil(err)
+
+	// Try to add garm-agent tag via update
+	updateParams := params.UpdateFileObjectParams{
+		Tags: []string{garmAgentFileTag, "updated"},
+	}
+	_, err = s.Runner.UpdateFileObject(s.Fixtures.AdminContext, fileObj.ID, updateParams)
+
+	s.Require().NotNil(err)
+	s.Require().Contains(err.Error(), "cannot update garm-agent tools via object storage API")
+
+	// Verify file tags are unchanged
+	unchanged, err := s.Fixtures.Store.GetFileObject(s.Fixtures.AdminContext, fileObj.ID)
+	s.Require().Nil(err)
+	s.Require().ElementsMatch(param.Tags, unchanged.Tags)
 }
 
 func (s *ObjectStoreTestSuite) TestGetFileObjectReader() {
@@ -346,6 +440,98 @@ func (s *ObjectStoreTestSuite) TestGetFileObjectReaderNotFound() {
 
 	s.Require().NotNil(err)
 	s.Require().Contains(err.Error(), "failed to open file object")
+}
+
+func (s *ObjectStoreTestSuite) TestDeleteFileObjectsByTags() {
+	// Create multiple test files with specific tags
+	for i := 1; i <= 5; i++ {
+		content := []byte(fmt.Sprintf("test file %d", i))
+		var tags []string
+		if i <= 3 {
+			// First 3 files have matching tags
+			tags = []string{"tag1=value1", "tag2=value2", "test"}
+		} else {
+			// Last 2 files have different tags
+			tags = []string{"tag1=value1", "other"}
+		}
+		param := params.CreateFileObjectParams{
+			Name: fmt.Sprintf("bulk-delete-test-%d.txt", i),
+			Size: int64(len(content)),
+			Tags: tags,
+		}
+		_, err := s.Fixtures.Store.CreateFileObject(s.Fixtures.AdminContext, param, bytes.NewReader(content))
+		s.Require().Nil(err)
+	}
+
+	// Delete files matching BOTH tags
+	deletedCount, err := s.Runner.DeleteFileObjectsByTags(
+		s.Fixtures.AdminContext,
+		[]string{"tag1=value1", "tag2=value2"},
+	)
+
+	s.Require().Nil(err)
+	s.Require().Equal(int64(3), deletedCount)
+
+	// Verify the right files were deleted
+	allObjects, err := s.Fixtures.Store.ListFileObjects(s.Fixtures.AdminContext, 0, 100)
+	s.Require().Nil(err)
+
+	// Count how many bulk-delete-test files remain
+	remainingCount := 0
+	for _, obj := range allObjects.Results {
+		if bytes.Contains([]byte(obj.Name), []byte("bulk-delete-test")) {
+			remainingCount++
+			// Should only be the last 2 files
+			s.Require().Contains(obj.Tags, "other")
+		}
+	}
+	s.Require().Equal(2, remainingCount)
+}
+
+func (s *ObjectStoreTestSuite) TestDeleteFileObjectsByTagsUnauthorized() {
+	deletedCount, err := s.Runner.DeleteFileObjectsByTags(
+		s.Fixtures.UnauthorizedContext,
+		[]string{"tag1", "tag2"},
+	)
+
+	s.Require().NotNil(err)
+	s.Require().ErrorIs(err, runnerErrors.ErrUnauthorized)
+	s.Require().Equal(int64(0), deletedCount)
+}
+
+func (s *ObjectStoreTestSuite) TestDeleteFileObjectsByTagsWithGarmAgentTag() {
+	// Try to delete with garm-agent tag
+	deletedCount, err := s.Runner.DeleteFileObjectsByTags(
+		s.Fixtures.AdminContext,
+		[]string{"category=garm-agent", "test"},
+	)
+
+	s.Require().NotNil(err)
+	s.Require().Contains(err.Error(), "cannot delete garm-agent tools via object storage API")
+	s.Require().Equal(int64(0), deletedCount)
+}
+
+func (s *ObjectStoreTestSuite) TestDeleteFileObjectsByTagsNoMatches() {
+	// Try to delete with tags that don't match anything
+	deletedCount, err := s.Runner.DeleteFileObjectsByTags(
+		s.Fixtures.AdminContext,
+		[]string{"nonexistent-tag1", "nonexistent-tag2"},
+	)
+
+	s.Require().Nil(err)
+	s.Require().Equal(int64(0), deletedCount)
+}
+
+func (s *ObjectStoreTestSuite) TestDeleteFileObjectsByTagsEmptyTags() {
+	// Try to delete with empty tags list
+	deletedCount, err := s.Runner.DeleteFileObjectsByTags(
+		s.Fixtures.AdminContext,
+		[]string{},
+	)
+
+	s.Require().NotNil(err)
+	s.Require().Contains(err.Error(), "no tags provided")
+	s.Require().Equal(int64(0), deletedCount)
 }
 
 func TestObjectStoreTestSuite(t *testing.T) {

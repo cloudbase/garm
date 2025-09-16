@@ -55,6 +55,7 @@ import {
   type FileObject,
   type FileObjectPaginatedResponse,
   type UpdateFileObjectParams,
+  type RestoreTemplateRequest,
   Configuration
 } from './generated/index';
 
@@ -92,6 +93,7 @@ export type {
   FileObject,
   FileObjectPaginatedResponse,
   UpdateFileObjectParams,
+  RestoreTemplateRequest,
 };
 
 // Define common request types for compatibility
@@ -632,6 +634,10 @@ export class GeneratedGarmApiClient {
 
   async deleteTemplate(id: number): Promise<void> {
     await this.templatesApi.deleteTemplate(id);
+  }
+
+  async restoreTemplates(params: RestoreTemplateRequest): Promise<void> {
+    await this.templatesApi.restoreTemplates(params);
   }
 
   // File Object methods

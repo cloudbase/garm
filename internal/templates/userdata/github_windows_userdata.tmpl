@@ -377,14 +377,93 @@ function Set-SystemInfo {
     }
 }
 
+$CallbackURL="{{.CallbackURL}}"
+if (!($CallbackURL -match "^(.*)/status(/)?$")) {
+	$CallbackURL = "$CallbackURL/status"
+}
 $GHRunnerGroup = "{{.GitHubRunnerGroup}}"
+try {
+    $instanceMetadata = (wget -UseBasicParsing -Headers @{"Accept"="application/json"; "Authorization"="Bearer $Token"} -Uri {{.MetadataURL}}/runner-metadata)
+    $metadata = ConvertFrom-Json $instanceMetadata.Content
+} catch {
+	Invoke-GarmFailure -Message "failed to get runner metadata: $_" -CallbackURL "{{.CallbackURL}}" | Out-Null
+}
+
+function Get-IsAgentMode {
+    return ($metadata.agent_mode -eq $true)
+}
+
+function Get-AgentURL {
+    $url = $metadata.metadata_access.agent_url
+    if (!$url) {
+        Throw("missing agent URL")
+    }
+    return $url
+}
+
+function Get-AgentToken {
+    $token = $metadata.agent_token
+    if (!$token) {
+        Throw("missing agent Token")
+    }
+    return $token
+}
+
+function Get-AgentDownloadURL {
+    $url = $metadata.agent_tools.download_url
+    if (!$url) {
+        Throw("missing agent download URL")
+    }
+    return $url
+}
+
+function Get-AgentShellEnabled {
+    $shellEnabled = $metadata.agent_shell_enabled
+    if ($shellEnabled) {return "true"}
+    return "false"
+}
+
+function Install-GarmAgent {
+    [CmdletBinding()]
+    param (
+        [parameter(Mandatory=$true)]
+        [System.Management.Automation.PSCredential]$pscreds
+    )
+    Update-GarmStatus -Message "Agent mode is enabled" -CallbackURL $CallbackURL | Out-Null
+    $agentDir = "C:\garm-agent"
+    mkdir -Force $agentDir
+    $agentURL = Get-AgentURL
+    $agentDownloadURL = Get-AgentDownloadURL
+    $agentToken = Get-AgentToken
+    $agentDownloadHeaders=@{
+        "Authorization"="Bearer $Token"
+    }
+    $shellEnabled = Get-AgentShellEnabled
+    Set-Content "$agentDir\garm-agent.toml" @"
+server_url = "$agentURL"
+log_file = "C:/garm-agent/garm-agent.log"
+shell = "cmd.exe"
+enable_shell = $shellEnabled
+work_dir = "C:/actions-runner/"
+token = "$agentToken"
+runner_cmdline = ["C:\\Windows\\system32\\cmd.exe", "/C", "C:\\actions-runner\\run.cmd"]
+state_db_path = "C:/garm-agent/agent-state.db"
+"@
+
+    Update-GarmStatus -Message "Downloading agent from: $agentDownloadURL" -CallbackURL $CallbackURL | Out-Null
+    Start-ExecuteWithRetry -ScriptBlock {
+        Invoke-FastWebRequest -Headers $agentDownloadHeaders -Uri "$agentDownloadURL" -OutFile $agentDir\garm-agent.exe
+    } -MaxRetryCount 5 -RetryInterval 5 -RetryMessage "Retrying download of runner..."
+
+    try {
+        New-Service -Name garm-agent -BinaryPathName "$agentDir\garm-agent.exe daemon --config $agentDir\garm-agent.toml" -DisplayName "garm-agent" -Description "GARM agent" -StartupType Automatic -Credential $pscreds
+    } catch {
+        Invoke-GarmFailure -CallbackURL $CallbackURL -Message "failed to set up garm agent $_"
+    }
+    Start-Service garm-agent
+}
 
 function Install-Runner() {
-	$CallbackURL="{{.CallbackURL}}"
-	if (!($CallbackURL -match "^(.*)/status(/)?$")) {
-		$CallbackURL = "$CallbackURL/status"
-	}
-
 	if ($Token.Length -eq 0) {
 		Throw "missing callback authentication token"
 	}
@@ -480,8 +559,12 @@ function Install-Runner() {
 
 		Update-GarmStatus -CallbackURL $CallbackURL -Message "Creating system service"
 		$SVC_NAME=(gc -raw $serviceNameFile)
-		New-Service -Name "$SVC_NAME" -BinaryPathName "C:\actions-runner\bin\RunnerService.exe" -DisplayName "$SVC_NAME" -Description "GitHub Actions Runner ($SVC_NAME)" -StartupType Automatic -Credential $pscreds
-		Start-Service "$SVC_NAME"
+        if (!(Get-IsAgentMode)) {
+		    New-Service -Name "$SVC_NAME" -BinaryPathName "C:\actions-runner\bin\RunnerService.exe" -DisplayName "$SVC_NAME" -Description "GitHub Actions Runner ($SVC_NAME)" -StartupType Automatic -Credential $pscreds
+		    Start-Service "$SVC_NAME"
+        } else {
+            Install-GarmAgent $pscreds
+        }
 		Set-SystemInfo -CallbackURL $CallbackURL -RunnerDir $runnerDir -BearerToken $Token
 		Update-GarmStatus -Message "runner successfully installed" -CallbackURL $CallbackURL -Status "idle" | Out-Null
 
@@ -489,17 +572,34 @@ function Install-Runner() {
 		$GithubRegistrationToken = Start-ExecuteWithRetry -ScriptBlock {
 			Invoke-WebRequest -UseBasicParsing -Headers @{"Accept"="application/json"; "Authorization"="Bearer $Token"} -Uri $MetadataURL/runner-registration-token/
 		} -MaxRetryCount 5 -RetryInterval 5 -RetryMessage "Retrying download of GitHub registration token..."
-		{{- if .GitHubRunnerGroup }}
-		./config.cmd --unattended --url "{{ .RepoURL }}" --token $GithubRegistrationToken --runnergroup {{.GitHubRunnerGroup}} --name "{{ .RunnerName }}" --labels "{{ .RunnerLabels }}" --no-default-labels --ephemeral --runasservice --windowslogonaccount "$userName" --windowslogonpassword "$userPasswd"
-		{{- else}}
-		./config.cmd --unattended --url "{{ .RepoURL }}" --token $GithubRegistrationToken --name "{{ .RunnerName }}" --labels "{{ .RunnerLabels }}" --no-default-labels --ephemeral --runasservice --windowslogonaccount "$userName" --windowslogonpassword "$userPasswd"
-		{{- end}}
+        $argList = @{
+            "--unattended" = $null;
+            "--url" =  "{{ .RepoURL }}";
+            "--token" = $GithubRegistrationToken;
+            "--name" = "{{ .RunnerName }}";
+            "--labels" = "{{ .RunnerLabels }}"
+            "--no-default-labels" = $null;
+            "--ephemeral" = $null;
+        }
+        {{- if .GitHubRunnerGroup }}
+            $argList["--runnergroup"] = {{.GitHubRunnerGroup}}
+        {{- end }}
+        if (!(Get-IsAgentMode)) {
+            $argList["--runasservice"] = $null
+            $argList["--windowslogonaccount"] = "$userName"
+            $argList["--windowslogonpassword"] = $userPasswd
+        }
+
+		./config.cmd @argList
 		if ($LASTEXITCODE) {
 			Throw "Failed to configure runner. Err code $LASTEXITCODE"
 		}
 		$agentInfoFile = Join-Path $runnerDir ".runner"
 		$agentInfo = ConvertFrom-Json (gc -raw $agentInfoFile)
 		Set-SystemInfo -CallbackURL $CallbackURL -RunnerDir $runnerDir -BearerToken $Token
+        if ((Get-IsAgentMode)) {
+            Install-GarmAgent $pscreds
+        }
 		Invoke-GarmSuccess -CallbackURL $CallbackURL -Message "runner successfully installed" -AgentID $agentInfo.agentId
 		{{- end }}
 	} catch {

@@ -126,6 +126,7 @@ func (s *RepoTestSuite) SetupTest() {
 			s.testCreds,
 			fmt.Sprintf("test-webhook-secret-%d", i),
 			params.PoolBalancerTypeRoundRobin,
+			false,
 		)
 		if err != nil {
 			s.FailNow(fmt.Sprintf("failed to create database object (test-repo-%d): %v", i, err))
@@ -211,6 +212,7 @@ func (s *RepoTestSuite) TestCreateRepository() {
 		s.testCreds,
 		s.Fixtures.CreateRepoParams.WebhookSecret,
 		params.PoolBalancerTypeRoundRobin,
+		false,
 	)
 
 	// assertions
@@ -243,6 +245,7 @@ func (s *RepoTestSuite) TestCreateRepositoryGitea() {
 		s.testCredsGitea,
 		s.Fixtures.CreateRepoParams.WebhookSecret,
 		params.PoolBalancerTypeRoundRobin,
+		false,
 	)
 
 	// assertions
@@ -281,6 +284,7 @@ func (s *RepoTestSuite) TestCreateRepositoryInvalidForgeType() {
 		},
 		s.Fixtures.CreateRepoParams.WebhookSecret,
 		params.PoolBalancerTypeRoundRobin,
+		false,
 	)
 
 	s.Require().NotNil(err)
@@ -307,6 +311,7 @@ func (s *RepoTestSuite) TestCreateRepositoryInvalidDBPassphrase() {
 		s.testCreds,
 		s.Fixtures.CreateRepoParams.WebhookSecret,
 		params.PoolBalancerTypeRoundRobin,
+		false,
 	)
 
 	s.Require().NotNil(err)
@@ -327,6 +332,7 @@ func (s *RepoTestSuite) TestCreateRepositoryInvalidDBCreateErr() {
 		s.testCreds,
 		s.Fixtures.CreateRepoParams.WebhookSecret,
 		params.PoolBalancerTypeRoundRobin,
+		false,
 	)
 
 	s.Require().NotNil(err)
@@ -390,6 +396,7 @@ func (s *RepoTestSuite) TestListRepositoriesWithFilters() {
 		s.testCreds,
 		"super secret",
 		params.PoolBalancerTypeRoundRobin,
+		false,
 	)
 	s.Require().NoError(err)
 
@@ -400,6 +407,7 @@ func (s *RepoTestSuite) TestListRepositoriesWithFilters() {
 		s.testCredsGitea,
 		"super secret",
 		params.PoolBalancerTypeRoundRobin,
+		false,
 	)
 	s.Require().NoError(err)
 
@@ -410,6 +418,7 @@ func (s *RepoTestSuite) TestListRepositoriesWithFilters() {
 		s.testCreds,
 		"super secret",
 		params.PoolBalancerTypeRoundRobin,
+		false,
 	)
 	s.Require().NoError(err)
 
@@ -420,6 +429,7 @@ func (s *RepoTestSuite) TestListRepositoriesWithFilters() {
 		s.testCreds,
 		"super secret",
 		params.PoolBalancerTypeRoundRobin,
+		false,
 	)
 	s.Require().NoError(err)
 
@@ -986,7 +996,9 @@ func (s *RepoTestSuite) TestAddRepoEntityEvent() {
 		s.Fixtures.CreateRepoParams.Name,
 		s.testCreds,
 		s.Fixtures.CreateRepoParams.WebhookSecret,
-		params.PoolBalancerTypeRoundRobin)
+		params.PoolBalancerTypeRoundRobin,
+		false,
+	)
 
 	s.Require().Nil(err)
 	entity, err := repo.GetEntity()

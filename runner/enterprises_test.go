@@ -88,6 +88,7 @@ func (s *EnterpriseTestSuite) SetupTest() {
 			s.testCreds,
 			fmt.Sprintf("test-webhook-secret-%v", i),
 			params.PoolBalancerTypeRoundRobin,
+			false,
 		)
 		if err != nil {
 			s.FailNow(fmt.Sprintf("failed to create database object (test-enterprise-%v): %+v", i, err))
@@ -244,6 +245,7 @@ func (s *EnterpriseTestSuite) TestListEnterprisesWithFilters() {
 		s.testCreds,
 		"super secret",
 		params.PoolBalancerTypeRoundRobin,
+		false,
 	)
 	s.Require().NoError(err)
 	enterprise2, err := s.Fixtures.Store.CreateEnterprise(
@@ -252,6 +254,7 @@ func (s *EnterpriseTestSuite) TestListEnterprisesWithFilters() {
 		s.testCreds,
 		"super secret",
 		params.PoolBalancerTypeRoundRobin,
+		false,
 	)
 	s.Require().NoError(err)
 	enterprise3, err := s.Fixtures.Store.CreateEnterprise(
@@ -260,6 +263,7 @@ func (s *EnterpriseTestSuite) TestListEnterprisesWithFilters() {
 		s.ghesCreds,
 		"super secret",
 		params.PoolBalancerTypeRoundRobin,
+		false,
 	)
 	s.Require().NoError(err)
 	orgs, err := s.Runner.ListEnterprises(

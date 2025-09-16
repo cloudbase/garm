@@ -48,7 +48,7 @@
 		{
 			href: resolve('/repositories'),
 			label: 'Repositories',
-			icon: 'M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z' // Folder icon
+			icon: 'M7 16V4m0 0a2 2 0 100-4 2 2 0 000 4zm0 0a2 2 0 100 4 2 2 0 000-4zm10 12a2 2 0 100-4 2 2 0 000 4zm0 0V9a5 5 0 00-5-5' // Git branch icon
 		},
 		{
 			href: resolve('/organizations'),

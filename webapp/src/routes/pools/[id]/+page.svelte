@@ -14,6 +14,7 @@
 	import { toastStore } from '$lib/stores/toast.js';
 	import { formatDate, getForgeIcon, getEntityName, getEntityType, getEntityUrl } from '$lib/utils/common.js';
 	import { extractAPIError } from '$lib/utils/apiError';
+	import ForgeTypeCell from '$lib/components/cells/ForgeTypeCell.svelte';
 
 	let pool: Pool | null = null;
 	let loading = true;
@@ -261,6 +262,12 @@
 							<dd class="mt-1 text-sm text-gray-900 dark:text-white">{pool.provider_name}</dd>
 						</div>
 						<div>
+							<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Forge Type</dt>
+							<dd class="mt-1">
+								<ForgeTypeCell item={pool} />
+							</dd>
+						</div>
+						<div>
 							<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Image</dt>
 							<dd class="mt-1 text-sm text-gray-900 dark:text-white">
 								<code class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-xs">{pool.image}</code>
@@ -331,6 +338,14 @@
 						<div>
 							<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">OS Type / Architecture</dt>
 							<dd class="mt-1 text-sm text-gray-900 dark:text-white">{pool.os_type} / {pool.os_arch}</dd>
+						</div>
+						<div>
+							<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Shell Access</dt>
+							<dd class="mt-1">
+								<span class="inline-flex px-2 py-1 text-xs font-medium rounded-full {pool.enable_shell ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200' : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'}">
+									{pool.enable_shell ? 'Enabled' : 'Disabled'}
+								</span>
+							</dd>
 						</div>
 						{#if (pool as any).template_name}
 							<div>

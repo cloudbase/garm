@@ -61,7 +61,7 @@ func (r *Runner) CreateRepository(ctx context.Context, param params.CreateRepoPa
 		return params.Repository{}, runnerErrors.NewConflictError("repository %s/%s already exists", param.Owner, param.Name)
 	}
 
-	repo, err = r.store.CreateRepository(ctx, param.Owner, param.Name, creds, param.WebhookSecret, param.PoolBalancerType)
+	repo, err = r.store.CreateRepository(ctx, param.Owner, param.Name, creds, param.WebhookSecret, param.PoolBalancerType, param.AgentMode)
 	if err != nil {
 		return params.Repository{}, fmt.Errorf("error creating repository: %w", err)
 	}
@@ -248,7 +248,7 @@ func (r *Runner) findTemplate(ctx context.Context, entity params.ForgeEntity, os
 		}
 		for _, val := range tpls {
 			slog.InfoContext(ctx, "considering template", "name", val.Name, "os_type", val.OSType, "pool_os_type", osType, "forge_type", val.ForgeType, "pool_forge_type", entity.Credentials.ForgeType, "owner", val.Owner)
-			if val.OSType == osType && val.ForgeType == entity.Credentials.ForgeType && val.Owner == "system" {
+			if val.OSType == osType && val.ForgeType == entity.Credentials.ForgeType && val.Owner == params.SystemUser {
 				template = val
 				break
 			}

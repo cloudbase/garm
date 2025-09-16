@@ -7,6 +7,7 @@ common.ts
 configuration.ts
 docs/APIErrorResponse.md
 docs/Address.md
+docs/AgentCapabilities.md
 docs/ControllerApi.md
 docs/ControllerInfo.md
 docs/ControllerInfoApi.md
@@ -33,6 +34,9 @@ docs/FirstRunApi.md
 docs/ForgeCredentials.md
 docs/ForgeEndpoint.md
 docs/ForgeEntity.md
+docs/GARMAgentTool.md
+docs/GARMAgentToolsPaginatedResponse.md
+docs/GARMAgentToolsPaginatedResponseResultsInner.md
 docs/GithubApp.md
 docs/GithubPAT.md
 docs/GithubRateLimit.md
@@ -40,11 +44,13 @@ docs/HookInfo.md
 docs/HooksApi.md
 docs/InstallWebhookParams.md
 docs/Instance.md
+docs/InstanceMetadata.md
 docs/InstancesApi.md
 docs/JWTResponse.md
 docs/Job.md
 docs/JobsApi.md
 docs/LoginApi.md
+docs/MetadataServiceAccessDetails.md
 docs/MetricsTokenApi.md
 docs/NewUserParams.md
 docs/ObjectsApi.md
@@ -58,6 +64,8 @@ docs/Provider.md
 docs/ProvidersApi.md
 docs/RepositoriesApi.md
 docs/Repository.md
+docs/RestoreTemplateRequest.md
+docs/RunnerApplicationDownload.md
 docs/RunnerPrefix.md
 docs/ScaleSet.md
 docs/ScalesetsApi.md
@@ -65,6 +73,7 @@ docs/StatusMessage.md
 docs/Tag.md
 docs/Template.md
 docs/TemplatesApi.md
+docs/ToolsApi.md
 docs/UpdateControllerParams.md
 docs/UpdateEntityParams.md
 docs/UpdateFileObjectParams.md

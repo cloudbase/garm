@@ -89,6 +89,7 @@ func (s *OrgTestSuite) SetupTest() {
 			s.testCreds,
 			fmt.Sprintf("test-webhook-secret-%v", i),
 			params.PoolBalancerTypeRoundRobin,
+			false,
 		)
 		if err != nil {
 			s.FailNow(fmt.Sprintf("failed to create database object (test-org-%v)", i))
@@ -257,7 +258,9 @@ func (s *OrgTestSuite) TestListOrganizationsWithFilter() {
 		"test-org",
 		s.testCreds,
 		"super-secret",
-		params.PoolBalancerTypeRoundRobin)
+		params.PoolBalancerTypeRoundRobin,
+		false,
+	)
 	s.Require().NoError(err)
 
 	org2, err := s.Fixtures.Store.CreateOrganization(
@@ -265,7 +268,9 @@ func (s *OrgTestSuite) TestListOrganizationsWithFilter() {
 		"test-org",
 		s.giteaTestCreds,
 		"super-secret",
-		params.PoolBalancerTypeRoundRobin)
+		params.PoolBalancerTypeRoundRobin,
+		false,
+	)
 	s.Require().NoError(err)
 
 	org3, err := s.Fixtures.Store.CreateOrganization(
@@ -273,7 +278,9 @@ func (s *OrgTestSuite) TestListOrganizationsWithFilter() {
 		"test-org2",
 		s.giteaTestCreds,
 		"super-secret",
-		params.PoolBalancerTypeRoundRobin)
+		params.PoolBalancerTypeRoundRobin,
+		false,
+	)
 	s.Require().NoError(err)
 
 	orgs, err := s.Runner.ListOrganizations(
