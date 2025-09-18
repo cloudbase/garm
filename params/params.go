@@ -1259,3 +1259,20 @@ type EnterpriseFilter struct {
 	Name     string
 	Endpoint string
 }
+
+// swagger:model Template
+type Template struct {
+	ID        uint      `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+
+	Name        string              `json:"name"`
+	Description string              `json:"description"`
+	OSType      commonParams.OSType `json:"os_type"`
+	ForgeType   EndpointType        `json:"forge_type,omitempty"`
+	Data        []byte              `json:"data"`
+}
+
+// used by swagger client generated code
+// swagger:model Templates
+type Templates []Template

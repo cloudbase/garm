@@ -453,6 +453,7 @@ func (s *sqlDatabase) migrateDB() error {
 		&GithubCredentials{},
 		&GiteaCredentials{},
 		&Tag{},
+		&Template{},
 		&Pool{},
 		&Repository{},
 		&Organization{},

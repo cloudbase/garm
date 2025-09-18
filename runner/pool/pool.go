@@ -881,14 +881,12 @@ func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error 
 	}
 
 	jwtValidity := pool.RunnerTimeout()
-
 	jwtToken, err := r.instanceTokenGetter.NewInstanceJWTToken(instance, r.entity, jwtValidity)
 	if err != nil {
 		return fmt.Errorf("error fetching instance jwt token: %w", err)
 	}
 
 	hasJITConfig := len(instance.JitConfiguration) > 0
-
 	bootstrapArgs := commonParams.BootstrapInstance{
 		Name:              instance.Name,
 		Tools:             r.tools,

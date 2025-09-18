@@ -787,3 +787,50 @@ func (u UpdateGiteaCredentialsParams) Validate() error {
 
 	return nil
 }
+
+// swagger:model CreateTemplateParams
+type CreateTemplateParams struct {
+	Name        string              `json:"name"`
+	Description string              `json:"description"`
+	Data        []byte              `json:"data"`
+	OSType      commonParams.OSType `json:"os_type"`
+	ForgeType   EndpointType        `json:"forge_type,omitempty"`
+}
+
+func (c *CreateTemplateParams) Validate() error {
+	if c.Name == "" {
+		return fmt.Errorf("name cannot be empty")
+	}
+
+	if len(c.Data) == 0 {
+		return fmt.Errorf("template data is empty")
+	}
+
+	switch c.OSType {
+	case commonParams.Linux, commonParams.Windows:
+	default:
+		return fmt.Errorf("invalid OS type: %q", c.OSType)
+	}
+
+	switch c.ForgeType {
+	case GithubEndpointType, GiteaEndpointType:
+	default:
+		return fmt.Errorf("invalid forge type: %q", c.ForgeType)
+	}
+	return nil
+}
+
+// swagger:model UpdateTemplateParams
+type UpdateTemplateParams struct {
+	Name        *string `json:"name"`
+	Description *string `json:"description"`
+	Data        []byte  `json:"data"`
+}
+
+func (u *UpdateTemplateParams) Validate() error {
+	if u.Name != nil && *u.Name == "" {
+		return fmt.Errorf("name cannot be empty")
+	}
+
+	return nil
+}

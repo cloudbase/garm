@@ -963,3 +963,23 @@ func getUIDFromContext(ctx context.Context) (uuid.UUID, error) {
 	}
 	return asUUID, nil
 }
+
+func (s *sqlDatabase) sqlToParamTemplate(template Template) (params.Template, error) {
+	var data []byte
+	var err error
+	if len(template.Data) > 0 {
+		data, err = util.Unseal(template.Data, []byte(s.cfg.Passphrase))
+		if err != nil {
+			return params.Template{}, fmt.Errorf("error unsealing template: %w", err)
+		}
+	}
+	return params.Template{
+		ID:          template.ID,
+		CreatedAt:   template.CreatedAt,
+		UpdatedAt:   template.UpdatedAt,
+		Name:        template.Name,
+		Description: template.Description,
+		Data:        data,
+		ForgeType:   template.ForgeType,
+	}, nil
+}

@@ -590,6 +590,43 @@ export interface CreateScaleSetParams {
 /**
  * 
  * @export
+ * @interface CreateTemplateParams
+ */
+export interface CreateTemplateParams {
+    /**
+     * 
+     * @type {Array<number>}
+     * @memberof CreateTemplateParams
+     */
+    'data'?: Array<number>;
+    /**
+     * 
+     * @type {string}
+     * @memberof CreateTemplateParams
+     */
+    'description'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof CreateTemplateParams
+     */
+    'forge_type'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof CreateTemplateParams
+     */
+    'name'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof CreateTemplateParams
+     */
+    'os_type'?: string;
+}
+/**
+ * 
+ * @export
  * @interface Enterprise
  */
 export interface Enterprise {
@@ -1970,6 +2007,61 @@ export interface Tag {
 /**
  * 
  * @export
+ * @interface Template
+ */
+export interface Template {
+    /**
+     * 
+     * @type {string}
+     * @memberof Template
+     */
+    'created_at'?: string;
+    /**
+     * 
+     * @type {Array<number>}
+     * @memberof Template
+     */
+    'data'?: Array<number>;
+    /**
+     * 
+     * @type {string}
+     * @memberof Template
+     */
+    'description'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof Template
+     */
+    'forge_type'?: string;
+    /**
+     * 
+     * @type {number}
+     * @memberof Template
+     */
+    'id'?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof Template
+     */
+    'name'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof Template
+     */
+    'os_type'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof Template
+     */
+    'updated_at'?: string;
+}
+/**
+ * 
+ * @export
  * @interface UpdateControllerParams
  */
 export interface UpdateControllerParams {
@@ -2322,6 +2414,31 @@ export interface UpdateScaleSetParams {
      * @memberof UpdateScaleSetParams
      */
     'state'?: string;
+}
+/**
+ * 
+ * @export
+ * @interface UpdateTemplateParams
+ */
+export interface UpdateTemplateParams {
+    /**
+     * 
+     * @type {Array<number>}
+     * @memberof UpdateTemplateParams
+     */
+    'data'?: Array<number>;
+    /**
+     * 
+     * @type {string}
+     * @memberof UpdateTemplateParams
+     */
+    'description'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof UpdateTemplateParams
+     */
+    'name'?: string;
 }
 /**
  * Users holds information about a particular user
@@ -11677,6 +11794,433 @@ export class ScalesetsApi extends BaseAPI {
      */
     public updateScaleSet(scalesetID: string, body: UpdateScaleSetParams, options?: RawAxiosRequestConfig) {
         return ScalesetsApiFp(this.configuration).updateScaleSet(scalesetID, body, options).then((request) => request(this.axios, this.basePath));
+    }
+}
+
+
+
+/**
+ * TemplatesApi - axios parameter creator
+ * @export
+ */
+export const TemplatesApiAxiosParamCreator = function (configuration?: Configuration) {
+    return {
+        /**
+         * 
+         * @summary Create template with the parameters given.
+         * @param {CreateTemplateParams} body Parameters used when creating the template.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        createTemplate: async (body: CreateTemplateParams, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'body' is not null or undefined
+            assertParamExists('createTemplate', 'body', body)
+            const localVarPath = `/templates`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(body, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary Get template by ID.
+         * @param {number} templateID ID of the template to delete.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        deleteTemplate: async (templateID: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'templateID' is not null or undefined
+            assertParamExists('deleteTemplate', 'templateID', templateID)
+            const localVarPath = `/templates/{templateID}`
+                .replace(`{${"templateID"}}`, encodeURIComponent(String(templateID)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'DELETE', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary Get template by ID.
+         * @param {number} templateID ID of the template to fetch.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getTemplate: async (templateID: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'templateID' is not null or undefined
+            assertParamExists('getTemplate', 'templateID', templateID)
+            const localVarPath = `/templates/{templateID}`
+                .replace(`{${"templateID"}}`, encodeURIComponent(String(templateID)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary List templates.
+         * @param {string} [osType] OS type of the templates.
+         * @param {string} [partialName] Partial or full name of the template.
+         * @param {string} [forgeType] Forge type of the templates.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        listTemplates: async (osType?: string, partialName?: string, forgeType?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/templates`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+            if (osType !== undefined) {
+                localVarQueryParameter['osType'] = osType;
+            }
+
+            if (partialName !== undefined) {
+                localVarQueryParameter['partialName'] = partialName;
+            }
+
+            if (forgeType !== undefined) {
+                localVarQueryParameter['forgeType'] = forgeType;
+            }
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary Update template with the parameters given.
+         * @param {string} templateID ID of the template to update.
+         * @param {UpdateTemplateParams} body Parameters used when updating the template.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        updateTemplate: async (templateID: string, body: UpdateTemplateParams, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'templateID' is not null or undefined
+            assertParamExists('updateTemplate', 'templateID', templateID)
+            // verify required parameter 'body' is not null or undefined
+            assertParamExists('updateTemplate', 'body', body)
+            const localVarPath = `/templates/{templateID}`
+                .replace(`{${"templateID"}}`, encodeURIComponent(String(templateID)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'PUT', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(body, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+    }
+};
+
+/**
+ * TemplatesApi - functional programming interface
+ * @export
+ */
+export const TemplatesApiFp = function(configuration?: Configuration) {
+    const localVarAxiosParamCreator = TemplatesApiAxiosParamCreator(configuration)
+    return {
+        /**
+         * 
+         * @summary Create template with the parameters given.
+         * @param {CreateTemplateParams} body Parameters used when creating the template.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async createTemplate(body: CreateTemplateParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Template>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.createTemplate(body, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['TemplatesApi.createTemplate']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary Get template by ID.
+         * @param {number} templateID ID of the template to delete.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async deleteTemplate(templateID: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<APIErrorResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.deleteTemplate(templateID, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['TemplatesApi.deleteTemplate']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary Get template by ID.
+         * @param {number} templateID ID of the template to fetch.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getTemplate(templateID: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Template>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getTemplate(templateID, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['TemplatesApi.getTemplate']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary List templates.
+         * @param {string} [osType] OS type of the templates.
+         * @param {string} [partialName] Partial or full name of the template.
+         * @param {string} [forgeType] Forge type of the templates.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async listTemplates(osType?: string, partialName?: string, forgeType?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<Template>>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.listTemplates(osType, partialName, forgeType, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['TemplatesApi.listTemplates']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary Update template with the parameters given.
+         * @param {string} templateID ID of the template to update.
+         * @param {UpdateTemplateParams} body Parameters used when updating the template.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async updateTemplate(templateID: string, body: UpdateTemplateParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Template>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.updateTemplate(templateID, body, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['TemplatesApi.updateTemplate']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+    }
+};
+
+/**
+ * TemplatesApi - factory interface
+ * @export
+ */
+export const TemplatesApiFactory = function (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) {
+    const localVarFp = TemplatesApiFp(configuration)
+    return {
+        /**
+         * 
+         * @summary Create template with the parameters given.
+         * @param {CreateTemplateParams} body Parameters used when creating the template.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        createTemplate(body: CreateTemplateParams, options?: RawAxiosRequestConfig): AxiosPromise<Template> {
+            return localVarFp.createTemplate(body, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Get template by ID.
+         * @param {number} templateID ID of the template to delete.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        deleteTemplate(templateID: number, options?: RawAxiosRequestConfig): AxiosPromise<APIErrorResponse> {
+            return localVarFp.deleteTemplate(templateID, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Get template by ID.
+         * @param {number} templateID ID of the template to fetch.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getTemplate(templateID: number, options?: RawAxiosRequestConfig): AxiosPromise<Template> {
+            return localVarFp.getTemplate(templateID, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary List templates.
+         * @param {string} [osType] OS type of the templates.
+         * @param {string} [partialName] Partial or full name of the template.
+         * @param {string} [forgeType] Forge type of the templates.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        listTemplates(osType?: string, partialName?: string, forgeType?: string, options?: RawAxiosRequestConfig): AxiosPromise<Array<Template>> {
+            return localVarFp.listTemplates(osType, partialName, forgeType, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Update template with the parameters given.
+         * @param {string} templateID ID of the template to update.
+         * @param {UpdateTemplateParams} body Parameters used when updating the template.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        updateTemplate(templateID: string, body: UpdateTemplateParams, options?: RawAxiosRequestConfig): AxiosPromise<Template> {
+            return localVarFp.updateTemplate(templateID, body, options).then((request) => request(axios, basePath));
+        },
+    };
+};
+
+/**
+ * TemplatesApi - object-oriented interface
+ * @export
+ * @class TemplatesApi
+ * @extends {BaseAPI}
+ */
+export class TemplatesApi extends BaseAPI {
+    /**
+     * 
+     * @summary Create template with the parameters given.
+     * @param {CreateTemplateParams} body Parameters used when creating the template.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof TemplatesApi
+     */
+    public createTemplate(body: CreateTemplateParams, options?: RawAxiosRequestConfig) {
+        return TemplatesApiFp(this.configuration).createTemplate(body, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Get template by ID.
+     * @param {number} templateID ID of the template to delete.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof TemplatesApi
+     */
+    public deleteTemplate(templateID: number, options?: RawAxiosRequestConfig) {
+        return TemplatesApiFp(this.configuration).deleteTemplate(templateID, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Get template by ID.
+     * @param {number} templateID ID of the template to fetch.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof TemplatesApi
+     */
+    public getTemplate(templateID: number, options?: RawAxiosRequestConfig) {
+        return TemplatesApiFp(this.configuration).getTemplate(templateID, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary List templates.
+     * @param {string} [osType] OS type of the templates.
+     * @param {string} [partialName] Partial or full name of the template.
+     * @param {string} [forgeType] Forge type of the templates.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof TemplatesApi
+     */
+    public listTemplates(osType?: string, partialName?: string, forgeType?: string, options?: RawAxiosRequestConfig) {
+        return TemplatesApiFp(this.configuration).listTemplates(osType, partialName, forgeType, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Update template with the parameters given.
+     * @param {string} templateID ID of the template to update.
+     * @param {UpdateTemplateParams} body Parameters used when updating the template.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof TemplatesApi
+     */
+    public updateTemplate(templateID: string, body: UpdateTemplateParams, options?: RawAxiosRequestConfig) {
+        return TemplatesApiFp(this.configuration).updateTemplate(templateID, body, options).then((request) => request(this.axios, this.basePath));
     }
 }
 

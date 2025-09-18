@@ -26,6 +26,7 @@ import (
 	"github.com/cloudbase/garm-provider-common/defaults"
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/auth"
+	"github.com/cloudbase/garm/internal/templates"
 	"github.com/cloudbase/garm/params"
 )
 
@@ -75,43 +76,6 @@ func validateInstanceState(ctx context.Context) (params.Instance, error) {
 	return instance, nil
 }
 
-func (r *Runner) getForgeEntityFromInstance(ctx context.Context, instance params.Instance) (params.ForgeEntity, error) {
-	var entityGetter params.EntityGetter
-	var err error
-	switch {
-	case instance.PoolID != "":
-		entityGetter, err = r.store.GetPoolByID(r.ctx, instance.PoolID)
-	case instance.ScaleSetID != 0:
-		entityGetter, err = r.store.GetScaleSetByID(r.ctx, instance.ScaleSetID)
-	default:
-		return params.ForgeEntity{}, errors.New("instance not associated with a pool or scale set")
-	}
-
-	if err != nil {
-		slog.With(slog.Any("error", err)).ErrorContext(
-			ctx, "failed to get entity getter",
-			"instance", instance.Name)
-		return params.ForgeEntity{}, fmt.Errorf("error fetching entity getter: %w", err)
-	}
-
-	poolEntity, err := entityGetter.GetEntity()
-	if err != nil {
-		slog.With(slog.Any("error", err)).ErrorContext(
-			ctx, "failed to get entity",
-			"instance", instance.Name)
-		return params.ForgeEntity{}, fmt.Errorf("error fetching entity: %w", err)
-	}
-
-	entity, err := r.store.GetForgeEntity(r.ctx, poolEntity.EntityType, poolEntity.ID)
-	if err != nil {
-		slog.With(slog.Any("error", err)).ErrorContext(
-			ctx, "failed to get entity",
-			"instance", instance.Name)
-		return params.ForgeEntity{}, fmt.Errorf("error fetching entity: %w", err)
-	}
-	return entity, nil
-}
-
 func (r *Runner) getServiceNameForEntity(entity params.ForgeEntity) (string, error) {
 	switch entity.EntityType {
 	case params.ForgeEntityTypeEnterprise:
@@ -126,16 +90,10 @@ func (r *Runner) getServiceNameForEntity(entity params.ForgeEntity) (string, err
 }
 
 func (r *Runner) GetRunnerServiceName(ctx context.Context) (string, error) {
-	instance, err := validateInstanceState(ctx)
-	if err != nil {
-		slog.With(slog.Any("error", err)).ErrorContext(
-			ctx, "failed to get instance params")
-		return "", runnerErrors.ErrUnauthorized
-	}
-	entity, err := r.getForgeEntityFromInstance(ctx, instance)
+	entity, err := auth.InstanceEntity(ctx)
 	if err != nil {
 		slog.ErrorContext(r.ctx, "failed to get entity", "error", err)
-		return "", fmt.Errorf("error fetching entity: %w", err)
+		return "", runnerErrors.ErrUnauthorized
 	}
 
 	serviceName, err := r.getServiceNameForEntity(entity)
@@ -146,17 +104,36 @@ func (r *Runner) GetRunnerServiceName(ctx context.Context) (string, error) {
 	return serviceName, nil
 }
 
-func (r *Runner) GenerateSystemdUnitFile(ctx context.Context, runAsUser string) ([]byte, error) {
+func (r *Runner) GetRunnerInstallScript(ctx context.Context) ([]byte, error) {
 	instance, err := validateInstanceState(ctx)
 	if err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(
 			ctx, "failed to get instance params")
 		return nil, runnerErrors.ErrUnauthorized
 	}
-	entity, err := r.getForgeEntityFromInstance(ctx, instance)
+
+	entity, err := auth.InstanceEntity(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get instance entity: %w", err)
+	}
+
+	token, err := auth.InstanceAuthToken(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get instance token: %w", err)
+	}
+
+	installScript, err := templates.RenderUserdata(instance, entity, token)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get runner install script: %w", err)
+	}
+	return installScript, nil
+}
+
+func (r *Runner) GenerateSystemdUnitFile(ctx context.Context, runAsUser string) ([]byte, error) {
+	entity, err := auth.InstanceEntity(ctx)
 	if err != nil {
 		slog.ErrorContext(r.ctx, "failed to get entity", "error", err)
-		return nil, fmt.Errorf("error fetching entity: %w", err)
+		return nil, runnerErrors.ErrUnauthorized
 	}
 
 	serviceName, err := r.getServiceNameForEntity(entity)

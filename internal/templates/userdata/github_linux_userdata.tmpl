@@ -1,0 +1,179 @@
+#!/bin/bash
+
+set -e
+set -o pipefail
+
+{{- if .EnableBootDebug }}
+set -x
+{{- end }}
+
+CALLBACK_URL="{{ .CallbackURL }}"
+METADATA_URL="{{ .MetadataURL }}"
+BEARER_TOKEN="{{ .CallbackToken }}"
+
+RUN_HOME="/home/{{ .RunnerUsername }}/actions-runner"
+
+if [ -z "$METADATA_URL" ];then
+	echo "no token is available and METADATA_URL is not set"
+	exit 1
+fi
+
+function call() {
+	PAYLOAD="$1"
+	[[ $CALLBACK_URL =~ ^(.*)/status(/)?$ ]] || CALLBACK_URL="${CALLBACK_URL}/status"
+	curl --retry 5 --retry-delay 5 --retry-connrefused --fail -s -X POST -d "${PAYLOAD}" -H 'Accept: application/json' -H "Authorization: Bearer ${BEARER_TOKEN}" "${CALLBACK_URL}" || echo "failed to call home: exit code ($?)"
+}
+
+function systemInfo() {
+	if [ -f "/etc/os-release" ];then
+		. /etc/os-release
+	fi
+	OS_NAME=${NAME:-""}
+	OS_VERSION=${VERSION_ID:-""}
+	AGENT_ID=${1:-null}
+	# strip status from the callback url
+	[[ $CALLBACK_URL =~ ^(.*)/status(/)?$ ]] && CALLBACK_URL="${BASH_REMATCH[1]}" || true
+	SYSINFO_URL="${CALLBACK_URL}/system-info/"
+	PAYLOAD="{\"os_name\": \"$OS_NAME\", \"os_version\": \"$OS_VERSION\", \"agent_id\": $AGENT_ID}"
+	curl --retry 5 --retry-delay 5 --retry-connrefused --fail -s -X POST -d "${PAYLOAD}" -H 'Accept: application/json' -H "Authorization: Bearer ${BEARER_TOKEN}" "${SYSINFO_URL}" || true
+}
+
+function sendStatus() {
+	MSG="$1"
+	call "{\"status\": \"installing\", \"message\": \"$MSG\"}"
+}
+
+function success() {
+	MSG="$1"
+	ID=${2:-null}
+	call "{\"status\": \"idle\", \"message\": \"$MSG\", \"agent_id\": $ID}"
+}
+
+function fail() {
+	MSG="$1"
+	call "{\"status\": \"failed\", \"message\": \"$MSG\"}"
+	exit 1
+}
+
+function downloadAndExtractRunner() {
+	sendStatus "downloading tools from {{ .DownloadURL }}"
+	if [ ! -z "{{ .TempDownloadToken }}" ]; then
+	TEMP_TOKEN="Authorization: Bearer {{ .TempDownloadToken }}"
+	fi
+	curl --retry 5 --retry-delay 5 --retry-connrefused --fail -L -H "${TEMP_TOKEN}" -o "/home/{{ .RunnerUsername }}/{{ .FileName }}" "{{ .DownloadURL }}" || fail "failed to download tools"
+	mkdir -p "$RUN_HOME" || fail "failed to create actions-runner folder"
+	sendStatus "extracting runner"
+	tar xf "/home/{{ .RunnerUsername }}/{{ .FileName }}" -C "$RUN_HOME"/ || fail "failed to extract runner"
+	chown {{ .RunnerUsername }}:{{ .RunnerGroup }} -R "$RUN_HOME"/ || fail "failed to change owner"
+}
+
+if [ ! -d "$RUN_HOME" ];then
+	downloadAndExtractRunner
+	sendStatus "installing dependencies"
+	cd "$RUN_HOME"
+	sudo ./bin/installdependencies.sh || fail "failed to install dependencies"
+else
+	sendStatus "using cached runner found in $RUN_HOME"
+	cd "$RUN_HOME"
+fi
+
+
+sendStatus "configuring runner"
+{{- if .UseJITConfig }}
+function getRunnerFile() {
+	curl --retry 5 --retry-delay 5 \
+		--retry-connrefused --fail -s \
+		-X GET -H 'Accept: application/json' \
+		-H "Authorization: Bearer ${BEARER_TOKEN}" \
+		"${METADATA_URL}/$1" -o "$2"
+}
+
+sendStatus "downloading JIT credentials"
+getRunnerFile "credentials/runner" ""$RUN_HOME"/.runner" || fail "failed to get runner file"
+getRunnerFile "credentials/credentials" ""$RUN_HOME"/.credentials" || fail "failed to get credentials file"
+getRunnerFile "credentials/credentials_rsaparams" ""$RUN_HOME"/.credentials_rsaparams" || fail "failed to get credentials_rsaparams file"
+getRunnerFile "system/service-name" ""$RUN_HOME"/.service" || fail "failed to get service name file"
+sed -i 's/$/\.service/' "$RUN_HOME"/.service
+
+SVC_NAME=$(cat "$RUN_HOME"/.service)
+
+sendStatus "generating systemd unit file"
+getRunnerFile "systemd/unit-file?runAsUser={{ .RunnerUsername }}" "$SVC_NAME" || fail "failed to get service file"
+sudo mv $SVC_NAME /etc/systemd/system/ || fail "failed to move service file"
+sudo chown root:root /etc/systemd/system/$SVC_NAME || fail "failed to change owner"
+if [ -e "/sys/fs/selinux" ];then
+	sudo chcon -h system_u:object_r:systemd_unit_file_t:s0 /etc/systemd/system/$SVC_NAME || fail "failed to change selinux context"
+fi
+
+sendStatus "enabling runner service"
+cp "$RUN_HOME"/bin/runsvc.sh "$RUN_HOME"/ || fail "failed to copy runsvc.sh"
+# Chown is not needed for the cached runner
+# sudo chown {{ .RunnerUsername }}:{{ .RunnerGroup }} -R /home/{{ .RunnerUsername }} || fail "failed to change owner"
+sudo systemctl daemon-reload || fail "failed to reload systemd"
+sudo systemctl enable $SVC_NAME
+{{- else}}
+
+GITHUB_TOKEN=$(curl --retry 5 --retry-delay 5 --retry-connrefused --fail -s -X GET -H 'Accept: application/json' -H "Authorization: Bearer ${BEARER_TOKEN}" "${METADATA_URL}/runner-registration-token/")
+
+set +e
+attempt=1
+while true; do
+	ERROUT=$(mktemp)
+	{{- if .GitHubRunnerGroup }}
+	./config.sh --unattended --url "{{ .RepoURL }}" --token "$GITHUB_TOKEN" --runnergroup {{.GitHubRunnerGroup}} --name "{{ .RunnerName }}" --labels "{{ .RunnerLabels }}" --no-default-labels --ephemeral 2>$ERROUT
+	{{- else}}
+	./config.sh --unattended --url "{{ .RepoURL }}" --token "$GITHUB_TOKEN" --name "{{ .RunnerName }}" --labels "{{ .RunnerLabels }}" --no-default-labels --ephemeral 2>$ERROUT
+	{{- end}}
+	if [ $? -eq 0 ]; then
+		rm $ERROUT || true
+		sendStatus "runner successfully configured after $attempt attempt(s)"
+		break
+	fi
+	LAST_ERR=$(cat $ERROUT)
+	echo "$LAST_ERR"
+
+	# if the runner is already configured, remove it and try again. In the past configuring a runner
+	# managed to register it but timed out later, resulting in an error.
+	./config.sh remove --token "$GITHUB_TOKEN" || true
+
+	if [ $attempt -gt 5 ];then
+		rm $ERROUT || true
+		fail "failed to configure runner: $LAST_ERR"
+	fi
+
+	sendStatus "failed to configure runner (attempt $attempt): $LAST_ERR (retrying in 5 seconds)"
+	attempt=$((attempt+1))
+	rm $ERROUT || true
+	sleep 5
+done
+set -e
+
+sendStatus "installing runner service"
+sudo ./svc.sh install {{ .RunnerUsername }} || fail "failed to install service"
+{{- end}}
+
+if [ -e "/sys/fs/selinux" ];then
+	sudo chcon -R -h user_u:object_r:bin_t:s0 /home/runner/ || fail "failed to change selinux context"
+fi
+
+AGENT_ID=""
+{{- if .UseJITConfig }}
+if [ -f "$RUN_HOME/env.sh" ];then
+	pushd $RUN_HOME
+	source env.sh
+	popd
+fi
+sudo systemctl start $SVC_NAME || fail "failed to start service"
+{{- else}}
+sendStatus "starting service"
+sudo ./svc.sh start || fail "failed to start service"
+
+set +e
+AGENT_ID=$(grep "agentId" "$RUN_HOME"/.runner |  tr -d -c 0-9)
+if [ $? -ne 0 ];then
+	fail "failed to get agent ID"
+fi
+set -e
+{{- end}}
+systemInfo $AGENT_ID
+success "runner successfully installed" $AGENT_ID

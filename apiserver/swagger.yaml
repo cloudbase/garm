@@ -86,6 +86,13 @@ definitions:
                 alias: garm_params
                 package: github.com/cloudbase/garm/params
             type: CreateScaleSetParams
+    CreateTemplateParams:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: CreateTemplateParams
     Credentials:
         items:
             $ref: '#/definitions/ForgeCredentials'
@@ -281,6 +288,22 @@ definitions:
                 alias: garm_params
                 package: github.com/cloudbase/garm/params
             type: ScaleSets
+    Template:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: Template
+    Templates:
+        items:
+            $ref: '#/definitions/Template'
+        type: array
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: Templates
     UpdateControllerParams:
         type: object
         x-go-type:
@@ -337,6 +360,13 @@ definitions:
                 alias: garm_params
                 package: github.com/cloudbase/garm/params
             type: UpdateScaleSetParams
+    UpdateTemplateParams:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: UpdateTemplateParams
     User:
         type: object
         x-go-type:
@@ -2267,6 +2297,122 @@ paths:
             summary: List runner instances in a scale set.
             tags:
                 - instances
+    /templates:
+        get:
+            operationId: ListTemplates
+            parameters:
+                - description: OS type of the templates.
+                  in: query
+                  name: osType
+                  type: string
+                - description: Partial or full name of the template.
+                  in: query
+                  name: partialName
+                  type: string
+                - description: Forge type of the templates.
+                  in: query
+                  name: forgeType
+                  type: string
+            responses:
+                "200":
+                    description: Templates
+                    schema:
+                        $ref: '#/definitions/Templates'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List templates.
+            tags:
+                - templates
+        post:
+            operationId: CreateTemplate
+            parameters:
+                - description: Parameters used when creating the template.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/CreateTemplateParams'
+                    description: Parameters used when creating the template.
+                    type: object
+            responses:
+                "200":
+                    description: Template
+                    schema:
+                        $ref: '#/definitions/Template'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Create template with the parameters given.
+            tags:
+                - templates
+    /templates/{templateID}:
+        delete:
+            operationId: DeleteTemplate
+            parameters:
+                - description: ID of the template to delete.
+                  in: path
+                  name: templateID
+                  required: true
+                  type: number
+            responses:
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get template by ID.
+            tags:
+                - templates
+        get:
+            operationId: GetTemplate
+            parameters:
+                - description: ID of the template to fetch.
+                  in: path
+                  name: templateID
+                  required: true
+                  type: number
+            responses:
+                "200":
+                    description: Template
+                    schema:
+                        $ref: '#/definitions/Template'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get template by ID.
+            tags:
+                - templates
+        put:
+            operationId: UpdateTemplate
+            parameters:
+                - description: ID of the template to update.
+                  in: path
+                  name: templateID
+                  required: true
+                  type: string
+                - description: Parameters used when updating the template.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/UpdateTemplateParams'
+                    description: Parameters used when updating the template.
+                    type: object
+            responses:
+                "200":
+                    description: Template
+                    schema:
+                        $ref: '#/definitions/Template'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Update template with the parameters given.
+            tags:
+                - templates
 produces:
     - application/json
 security:

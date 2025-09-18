@@ -17,6 +17,8 @@ package common
 import (
 	"context"
 
+	commonParams "github.com/cloudbase/garm-provider-common/params"
+
 	"github.com/cloudbase/garm/params"
 )
 
@@ -168,6 +170,15 @@ type GiteaCredentialsStore interface {
 	DeleteGiteaCredentials(ctx context.Context, id uint) (err error)
 }
 
+type TemplateStore interface {
+	ListTemplates(ctx context.Context, osType *commonParams.OSType, forgeType *params.EndpointType, partialName *string) ([]params.Template, error)
+	CreateTemplate(ctx context.Context, param params.CreateTemplateParams) (template params.Template, err error)
+	GetTemplate(ctx context.Context, id uint) (params.Template, error)
+	GetTemplateByName(ctx context.Context, name string) (params.Template, error)
+	UpdateTemplate(ctx context.Context, id uint, param params.UpdateTemplateParams) (template params.Template, err error)
+	DeleteTemplate(ctx context.Context, id uint) (err error)
+}
+
 //go:generate go run github.com/vektra/mockery/v2@latest
 type Store interface {
 	RepoStore
@@ -185,6 +196,7 @@ type Store interface {
 	ScaleSetInstanceStore
 	GiteaEndpointStore
 	GiteaCredentialsStore
+	TemplateStore
 
 	ControllerInfo() (params.ControllerInfo, error)
 	InitController() (params.ControllerInfo, error)

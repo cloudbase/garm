@@ -19,6 +19,7 @@ docs/CreateOrgParams.md
 docs/CreatePoolParams.md
 docs/CreateRepoParams.md
 docs/CreateScaleSetParams.md
+docs/CreateTemplateParams.md
 docs/CredentialsApi.md
 docs/EndpointsApi.md
 docs/Enterprise.md
@@ -57,6 +58,8 @@ docs/ScaleSet.md
 docs/ScalesetsApi.md
 docs/StatusMessage.md
 docs/Tag.md
+docs/Template.md
+docs/TemplatesApi.md
 docs/UpdateControllerParams.md
 docs/UpdateEntityParams.md
 docs/UpdateGiteaCredentialsParams.md
@@ -65,6 +68,7 @@ docs/UpdateGithubCredentialsParams.md
 docs/UpdateGithubEndpointParams.md
 docs/UpdatePoolParams.md
 docs/UpdateScaleSetParams.md
+docs/UpdateTemplateParams.md
 docs/User.md
 git_push.sh
 index.ts
