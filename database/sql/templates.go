@@ -153,6 +153,7 @@ func (s *sqlDatabase) createSystemTemplate(ctx context.Context, param params.Cre
 		Description: param.Description,
 		OSType:      param.OSType,
 		Data:        sealed,
+		ForgeType:   param.ForgeType,
 	}
 
 	if err := s.conn.Create(&tpl).Error; err != nil {

@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
@@ -229,6 +230,44 @@ func (r *Runner) UpdateRepository(ctx context.Context, repoID string, param para
 	return repo, nil
 }
 
+func (r *Runner) findTemplate(ctx context.Context, entity params.ForgeEntity, osType commonParams.OSType, templateID *uint) (params.Template, error) {
+	var template params.Template
+	if templateID != nil {
+		dbTpl, err := r.store.GetTemplate(ctx, *templateID)
+		if err != nil {
+			return params.Template{}, fmt.Errorf("failed to get template: %w", err)
+		}
+		template = dbTpl
+	} else {
+		tpls, err := r.store.ListTemplates(ctx, &osType, &entity.Credentials.ForgeType, nil)
+		if err != nil {
+			return params.Template{}, fmt.Errorf("failed to list templates: %w", err)
+		}
+		if len(tpls) == 0 {
+			return params.Template{}, runnerErrors.NewBadRequestError("no template ID supplied and no default template can be found")
+		}
+		for _, val := range tpls {
+			slog.InfoContext(ctx, "considering template", "name", val.Name, "os_type", val.OSType, "pool_os_type", osType, "forge_type", val.ForgeType, "pool_forge_type", entity.Credentials.ForgeType, "owner", val.Owner)
+			if val.OSType == osType && val.ForgeType == entity.Credentials.ForgeType && val.Owner == "system" {
+				template = val
+				break
+			}
+		}
+	}
+	if template.ID == 0 {
+		return params.Template{}, runnerErrors.NewBadRequestError("no template ID supplied and no default template can be found")
+	}
+
+	if template.OSType != osType {
+		return params.Template{}, runnerErrors.NewBadRequestError("selected template OS type (%s) and pool OS type (%s) do not match", template.OSType, osType)
+	}
+
+	if template.ForgeType != entity.Credentials.ForgeType {
+		return params.Template{}, runnerErrors.NewBadRequestError("selected template forge type (%s) and pool forge type (%s) do not match", template.ForgeType, entity.Credentials.ForgeType)
+	}
+	return template, nil
+}
+
 func (r *Runner) CreateRepoPool(ctx context.Context, repoID string, param params.CreatePoolParams) (params.Pool, error) {
 	if !auth.IsAdmin(ctx) {
 		return params.Pool{}, runnerErrors.ErrUnauthorized
@@ -243,11 +282,17 @@ func (r *Runner) CreateRepoPool(ctx context.Context, repoID string, param params
 		createPoolParams.RunnerBootstrapTimeout = appdefaults.DefaultRunnerBootstrapTimeout
 	}
 
-	entity := params.ForgeEntity{
-		ID:         repoID,
-		EntityType: params.ForgeEntityTypeRepository,
+	entity, err := r.store.GetForgeEntity(ctx, params.ForgeEntityTypeRepository, repoID)
+	if err != nil {
+		return params.Pool{}, fmt.Errorf("failed to get repo: %w", err)
 	}
 
+	template, err := r.findTemplate(ctx, entity, param.OSType, param.TemplateID)
+	if err != nil {
+		return params.Pool{}, fmt.Errorf("failed to find suitable template: %w", err)
+	}
+
+	createPoolParams.TemplateID = &template.ID
 	pool, err := r.store.CreateEntityPool(ctx, entity, createPoolParams)
 	if err != nil {
 		return params.Pool{}, fmt.Errorf("error creating pool: %w", err)
@@ -335,10 +380,17 @@ func (r *Runner) UpdateRepoPool(ctx context.Context, repoID, poolID string, para
 	if !auth.IsAdmin(ctx) {
 		return params.Pool{}, runnerErrors.ErrUnauthorized
 	}
+	entity, err := r.store.GetForgeEntity(ctx, params.ForgeEntityTypeRepository, repoID)
+	if err != nil {
+		return params.Pool{}, fmt.Errorf("failed to get repo: %w", err)
+	}
 
-	entity := params.ForgeEntity{
-		ID:         repoID,
-		EntityType: params.ForgeEntityTypeRepository,
+	if param.TemplateID != nil {
+		template, err := r.findTemplate(ctx, entity, param.OSType, param.TemplateID)
+		if err != nil {
+			return params.Pool{}, fmt.Errorf("failed to find suitable template: %w", err)
+		}
+		param.TemplateID = &template.ID
 	}
 	pool, err := r.store.GetEntityPool(ctx, entity, poolID)
 	if err != nil {

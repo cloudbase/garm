@@ -401,7 +401,8 @@ type Pool struct {
 	// order of priority.
 	Priority uint `json:"priority,omitempty"`
 
-	TemplateID uint `json:"template_id,omitempty"`
+	TemplateID   uint   `json:"template_id,omitempty"`
+	TemplateName string `json:"template_name,omitempty"`
 }
 
 func (p Pool) BelongsTo(entity ForgeEntity) bool {

@@ -288,6 +288,7 @@ func (s *sqlDatabase) sqlToCommonPool(pool Pool) (params.Pool, error) {
 
 	if pool.TemplateID != nil && *pool.TemplateID != 0 {
 		ret.TemplateID = *pool.TemplateID
+		ret.TemplateName = pool.Template.Name
 	}
 
 	var ep GithubEndpoint
@@ -997,5 +998,6 @@ func (s *sqlDatabase) sqlToParamTemplate(template Template) (params.Template, er
 		Data:        data,
 		ForgeType:   template.ForgeType,
 		Owner:       owner,
+		OSType:      template.OSType,
 	}, nil
 }

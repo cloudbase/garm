@@ -146,6 +146,14 @@ func (r *Runner) UpdateScaleSetByID(ctx context.Context, scaleSetID uint, param 
 		return params.ScaleSet{}, fmt.Errorf("error getting entity: %w", err)
 	}
 
+	if param.TemplateID != nil {
+		template, err := r.findTemplate(ctx, entity, param.OSType, param.TemplateID)
+		if err != nil {
+			return params.ScaleSet{}, fmt.Errorf("failed to find suitable template: %w", err)
+		}
+		param.TemplateID = &template.ID
+	}
+
 	ghCli, err := github.Client(ctx, entity)
 	if err != nil {
 		return params.ScaleSet{}, fmt.Errorf("error creating github client: %w", err)
@@ -215,6 +223,13 @@ func (r *Runner) CreateEntityScaleSet(ctx context.Context, entityType params.For
 	if entity.Credentials.ForgeType != params.GithubEndpointType {
 		return params.ScaleSet{}, runnerErrors.NewBadRequestError("scale sets are only supported for github entities")
 	}
+
+	template, err := r.findTemplate(ctx, entity, param.OSType, param.TemplateID)
+	if err != nil {
+		return params.ScaleSet{}, fmt.Errorf("failed to find suitable template: %w", err)
+	}
+
+	param.TemplateID = &template.ID
 
 	ghCli, err := github.Client(ctx, entity)
 	if err != nil {

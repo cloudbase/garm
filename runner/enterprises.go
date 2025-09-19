@@ -219,11 +219,17 @@ func (r *Runner) CreateEnterprisePool(ctx context.Context, enterpriseID string, 
 		param.RunnerBootstrapTimeout = appdefaults.DefaultRunnerBootstrapTimeout
 	}
 
-	entity := params.ForgeEntity{
-		ID:         enterpriseID,
-		EntityType: params.ForgeEntityTypeEnterprise,
+	entity, err := r.store.GetForgeEntity(ctx, params.ForgeEntityTypeEnterprise, enterpriseID)
+	if err != nil {
+		return params.Pool{}, fmt.Errorf("failed to get repo: %w", err)
 	}
 
+	template, err := r.findTemplate(ctx, entity, param.OSType, param.TemplateID)
+	if err != nil {
+		return params.Pool{}, fmt.Errorf("failed to find suitable template: %w", err)
+	}
+
+	createPoolParams.TemplateID = &template.ID
 	pool, err := r.store.CreateEntityPool(ctx, entity, createPoolParams)
 	if err != nil {
 		return params.Pool{}, fmt.Errorf("failed to create enterprise pool: %w", err)
@@ -298,10 +304,17 @@ func (r *Runner) UpdateEnterprisePool(ctx context.Context, enterpriseID, poolID 
 	if !auth.IsAdmin(ctx) {
 		return params.Pool{}, runnerErrors.ErrUnauthorized
 	}
+	entity, err := r.store.GetForgeEntity(ctx, params.ForgeEntityTypeEnterprise, enterpriseID)
+	if err != nil {
+		return params.Pool{}, fmt.Errorf("failed to get repo: %w", err)
+	}
 
-	entity := params.ForgeEntity{
-		ID:         enterpriseID,
-		EntityType: params.ForgeEntityTypeEnterprise,
+	if param.TemplateID != nil {
+		template, err := r.findTemplate(ctx, entity, param.OSType, param.TemplateID)
+		if err != nil {
+			return params.Pool{}, fmt.Errorf("failed to find suitable template: %w", err)
+		}
+		param.TemplateID = &template.ID
 	}
 	pool, err := r.store.GetEntityPool(ctx, entity, poolID)
 	if err != nil {
