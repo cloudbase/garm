@@ -151,20 +151,24 @@ func (amw *instanceMiddleware) getForgeEntityFromInstance(ctx context.Context, i
 
 func (amw *instanceMiddleware) claimsToContext(ctx context.Context, claims *InstanceJWTClaims) (context.Context, error) {
 	if claims == nil {
+		slog.InfoContext(ctx, "no claims for instance")
 		return ctx, runnerErrors.ErrUnauthorized
 	}
 
 	if claims.Name == "" {
+		slog.ErrorContext(ctx, "no name in calaims")
 		return nil, runnerErrors.ErrUnauthorized
 	}
 
 	instanceInfo, err := amw.store.GetInstance(ctx, claims.Name)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get instance", "error", err)
 		return ctx, runnerErrors.ErrUnauthorized
 	}
 
 	entity, err := amw.getForgeEntityFromInstance(ctx, instanceInfo)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get entity from instance", "error", err)
 		return ctx, runnerErrors.ErrUnauthorized
 	}
 

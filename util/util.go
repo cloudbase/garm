@@ -16,12 +16,16 @@ package util
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"unicode/utf8"
 
+	"github.com/cloudbase/garm-provider-common/cloudconfig"
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
+	"github.com/cloudbase/garm/internal/templates"
 	"github.com/cloudbase/garm/runner/common"
 )
 
@@ -109,4 +113,47 @@ func isASCII(s string) bool {
 		}
 	}
 	return true
+}
+
+func GetCloudConfigSpecFromExtraSpecs(extraSpecs json.RawMessage) (cloudconfig.CloudConfigSpec, error) {
+	boot := commonParams.BootstrapInstance{
+		ExtraSpecs: extraSpecs,
+	}
+
+	specs, err := cloudconfig.GetSpecs(boot)
+	if err != nil {
+		return cloudconfig.CloudConfigSpec{}, fmt.Errorf("failed to decode extra specs: %w", err)
+	}
+
+	return specs, nil
+}
+
+func MaybeAddWrapperToExtraSpecs(ctx context.Context, specs json.RawMessage, osType commonParams.OSType, metadataURL, token string) json.RawMessage {
+	data := map[string]any{}
+	if len(specs) > 0 {
+		if err := json.Unmarshal(specs, &data); err != nil {
+			slog.WarnContext(ctx, "failed to unmarshal extra specs", "error", err)
+			return specs
+		}
+	}
+
+	if _, ok := data["runner_install_template"]; ok {
+		// User has already set a runner install template override. Do not touch.
+		return specs
+	}
+
+	wrapper, err := templates.RenderRunnerInstallWrapper(osType, metadataURL, token)
+	if err != nil {
+		slog.WarnContext(ctx, "failed to get runner install wrapper", "os_type", osType, "error", err)
+		return specs
+	}
+
+	data["runner_install_template"] = wrapper
+	asJson, err := json.Marshal(data)
+	if err != nil {
+		slog.WarnContext(ctx, "failed to marshal extra specs", "error", err)
+		return specs
+	}
+
+	return json.RawMessage(asJson)
 }

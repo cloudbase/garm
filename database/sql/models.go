@@ -72,13 +72,13 @@ type Tag struct {
 type Template struct {
 	gorm.Model
 
-	Name   string     `gorm:"index:idx_template,unique,type:varchar(128)"`
+	Name   string     `gorm:"index:idx_template,unique;type:varchar(128)"`
 	UserID *uuid.UUID `gorm:"index:idx_template,unique"`
 	User   User       `gorm:"foreignKey:UserID"`
 
 	Description string              `gorm:"type:text"`
-	OSType      commonParams.OSType `gorm:"type:varchar(32),index:idx_tpl_os_type"`
-	ForgeType   params.EndpointType `gorm:"type:varchar(32),index:idx_tpl_forge_type"`
+	OSType      commonParams.OSType `gorm:"type:varchar(32);index:idx_tpl_os_type"`
+	ForgeType   params.EndpointType `gorm:"type:varchar(32);index:idx_tpl_forge_type"`
 	Data        []byte              `gorm:"type:longblob"`
 
 	ScaleSets []ScaleSet `gorm:"foreignKey:TemplateID"`

@@ -173,6 +173,7 @@ type UpdatePoolParams struct {
 	// The runner group must be created by someone with access to the enterprise.
 	GitHubRunnerGroup *string `json:"github-runner-group,omitempty"`
 	Priority          *uint   `json:"priority,omitempty"`
+	TemplateID        *uint   `json:"template_id,omitempty"`
 }
 
 type CreateInstanceParams struct {
@@ -212,6 +213,7 @@ type CreatePoolParams struct {
 	// The runner group must be created by someone with access to the enterprise.
 	GitHubRunnerGroup string `json:"github-runner-group,omitempty"`
 	Priority          uint   `json:"priority,omitempty"`
+	TemplateID        *uint  `json:"template_id,omitempty"`
 }
 
 func (p *CreatePoolParams) Validate() error {
@@ -586,6 +588,7 @@ type CreateScaleSetParams struct {
 	// pool will be added to.
 	// The runner group must be created by someone with access to the enterprise.
 	GitHubRunnerGroup string `json:"github-runner-group,omitempty"`
+	TemplateID        *uint  `json:"template_id,omitempty"`
 }
 
 func (s *CreateScaleSetParams) Validate() error {
@@ -636,6 +639,7 @@ type UpdateScaleSetParams struct {
 	GitHubRunnerGroup *string        `json:"runner_group,omitempty"`
 	State             *ScaleSetState `json:"state"`
 	ExtendedState     *string        `json:"extended_state"`
+	TemplateID        *uint          `json:"template_id,omitempty"`
 	ScaleSetID        int            `json:"-"`
 }
 

@@ -83,6 +83,7 @@ func (s *sqlDatabase) CreateEntityScaleSet(_ context.Context, entity params.Forg
 		Enabled:                param.Enabled,
 		GitHubRunnerGroup:      param.GitHubRunnerGroup,
 		State:                  params.ScaleSetPendingCreate,
+		TemplateID:             param.TemplateID,
 	}
 
 	if len(param.ExtraSpecs) > 0 {
@@ -296,6 +297,10 @@ func (s *sqlDatabase) updateScaleSet(tx *gorm.DB, scaleSet ScaleSet, param param
 
 	if param.ScaleSetID != 0 {
 		scaleSet.ScaleSetID = param.ScaleSetID
+	}
+
+	if param.TemplateID != nil {
+		scaleSet.TemplateID = param.TemplateID
 	}
 
 	if param.Name != "" {

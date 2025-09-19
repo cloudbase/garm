@@ -22,12 +22,23 @@ import (
 	"fmt"
 	"html/template"
 	"log/slog"
+	"strings"
 
+	"github.com/cloudbase/garm-provider-common/cloudconfig"
 	"github.com/cloudbase/garm-provider-common/defaults"
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	"github.com/cloudbase/garm-provider-common/util"
+	garmUtil "github.com/cloudbase/garm/util"
+
 	"github.com/cloudbase/garm/auth"
+	"github.com/cloudbase/garm/cache"
 	"github.com/cloudbase/garm/internal/templates"
 	"github.com/cloudbase/garm/params"
+)
+
+var (
+	poolIDLabelprefix     = "runner-pool-id"
+	controllerLabelPrefix = "runner-controller-id"
 )
 
 var githubSystemdUnitTemplate = `[Unit]
@@ -104,6 +115,58 @@ func (r *Runner) GetRunnerServiceName(ctx context.Context) (string, error) {
 	return serviceName, nil
 }
 
+func getLabelsForInstance(instance params.Instance) []string {
+	jitEnabled := len(instance.JitConfiguration) > 0
+	if jitEnabled {
+		return []string{}
+	}
+
+	if instance.ScaleSetID > 0 {
+		return []string{}
+	}
+
+	pool, ok := cache.GetPoolByID(instance.PoolID)
+	if !ok {
+		return []string{}
+	}
+	var labels []string
+	for _, val := range pool.Tags {
+		labels = append(labels, val.Name)
+	}
+
+	labels = append(labels, fmt.Sprintf("%s=%s", controllerLabelPrefix, cache.ControllerInfo().ControllerID.String()))
+	labels = append(labels, fmt.Sprintf("%s=%s", poolIDLabelprefix, instance.PoolID))
+	return labels
+}
+
+func (r *Runner) getRunnerInstallTemplateContext(instance params.Instance, entity params.ForgeEntity, token string) (cloudconfig.InstallRunnerParams, error) {
+	tools, err := cache.GetGithubToolsCache(entity.ID)
+	if err != nil {
+		return cloudconfig.InstallRunnerParams{}, fmt.Errorf("failed to get tools: %w", err)
+	}
+
+	foundTools, err := util.GetTools(instance.OSType, instance.OSArch, tools)
+	if err != nil {
+		return cloudconfig.InstallRunnerParams{}, fmt.Errorf("failed to find tools: %w", err)
+	}
+	installRunnerParams := cloudconfig.InstallRunnerParams{
+		FileName:          foundTools.GetFilename(),
+		DownloadURL:       foundTools.GetDownloadURL(),
+		TempDownloadToken: foundTools.GetTempDownloadToken(),
+		MetadataURL:       instance.MetadataURL,
+		RunnerUsername:    defaults.DefaultUser,
+		RunnerGroup:       defaults.DefaultUser,
+		RepoURL:           entity.ForgeURL(),
+		RunnerName:        instance.Name,
+		RunnerLabels:      strings.Join(getLabelsForInstance(instance), ","),
+		CallbackURL:       instance.CallbackURL,
+		CallbackToken:     token,
+		GitHubRunnerGroup: instance.GitHubRunnerGroup,
+		UseJITConfig:      len(instance.JitConfiguration) > 0,
+	}
+	return installRunnerParams, nil
+}
+
 func (r *Runner) GetRunnerInstallScript(ctx context.Context) ([]byte, error) {
 	instance, err := validateInstanceState(ctx)
 	if err != nil {
@@ -122,7 +185,55 @@ func (r *Runner) GetRunnerInstallScript(ctx context.Context) ([]byte, error) {
 		return nil, fmt.Errorf("failed to get instance token: %w", err)
 	}
 
-	installScript, err := templates.RenderUserdata(instance, entity, token)
+	installCtx, err := r.getRunnerInstallTemplateContext(instance, entity, token)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get runner install context: %w", err)
+	}
+
+	var templateID uint
+	var specs cloudconfig.CloudConfigSpec
+	switch {
+	case instance.PoolID != "":
+		pool, err := r.store.GetPoolByID(r.ctx, instance.PoolID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get pool for instance: %w", err)
+		}
+		specs, err = garmUtil.GetCloudConfigSpecFromExtraSpecs(pool.ExtraSpecs)
+		if err != nil {
+			return nil, fmt.Errorf("failed to extract extra specs from pool: %w", err)
+		}
+		templateID = pool.TemplateID
+	case instance.ScaleSetID > 0:
+		scaleSet, err := r.store.GetScaleSetByID(r.ctx, instance.ScaleSetID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get scale set for instance: %w", err)
+		}
+		specs, err = garmUtil.GetCloudConfigSpecFromExtraSpecs(scaleSet.ExtraSpecs)
+		if err != nil {
+			return nil, fmt.Errorf("failed to extract extra specs from scale set: %w", err)
+		}
+		templateID = scaleSet.TemplateID
+	default:
+		return nil, fmt.Errorf("instance is not part of a pool or scale set")
+	}
+
+	if templateID == 0 && len(specs.RunnerInstallTemplate) == 0 {
+		return nil, runnerErrors.NewConflictError("pool or scale set has no template associated and no template is defined in extra_specs")
+	}
+
+	var tplBytes []byte
+	if len(specs.RunnerInstallTemplate) > 0 {
+		installCtx.ExtraContext = specs.ExtraContext
+		tplBytes = specs.RunnerInstallTemplate
+	} else {
+		template, err := r.store.GetTemplate(r.ctx, templateID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get template: %w", err)
+		}
+		tplBytes = template.Data
+	}
+
+	installScript, err := templates.RenderRunnerInstallScript(string(tplBytes), installCtx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get runner install script: %w", err)
 	}

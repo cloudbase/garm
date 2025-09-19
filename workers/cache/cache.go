@@ -400,6 +400,20 @@ func (w *Worker) handleInstanceEvent(event common.ChangePayload) {
 	}
 }
 
+func (w *Worker) handleTemplateEvent(event common.ChangePayload) {
+	template, ok := event.Payload.(params.Template)
+	if !ok {
+		slog.DebugContext(w.ctx, "invalid payload type for template event", "payload", event.Payload)
+		return
+	}
+	switch event.Operation {
+	case common.CreateOperation, common.UpdateOperation:
+		cache.SetTemplateCache(template)
+	case common.DeleteOperation:
+		cache.DeleteTemplate(template.ID)
+	}
+}
+
 func (w *Worker) handleCredentialsEvent(event common.ChangePayload) {
 	credentials, ok := event.Payload.(params.ForgeCredentials)
 	if !ok {
@@ -457,6 +471,8 @@ func (w *Worker) handleEvent(event common.ChangePayload) {
 		w.handleCredentialsEvent(event)
 	case common.ControllerEntityType:
 		w.handleControllerInfoEvent(event)
+	case common.TemplateEntityType:
+		w.handleTemplateEvent(event)
 	default:
 		slog.DebugContext(w.ctx, "unknown entity type", "entity_type", event.EntityType)
 	}

@@ -166,8 +166,8 @@ func NewAPIRouter(han *controllers.APIController, authMiddleware, initMiddleware
 	metadataRouter.Handle("/credentials/{fileName}/", http.HandlerFunc(han.JITCredentialsFileHandler)).Methods("GET", "OPTIONS")
 	metadataRouter.Handle("/credentials/{fileName}", http.HandlerFunc(han.JITCredentialsFileHandler)).Methods("GET", "OPTIONS")
 	// Systemd files
-	metadataRouter.Handle("/system/service-nasystem/service-nameme/", http.HandlerFunc(han.SystemdServiceNameHandler)).Methods("GET", "OPTIONS")
-	metadataRouter.Handle("/", http.HandlerFunc(han.SystemdServiceNameHandler)).Methods("GET", "OPTIONS")
+	metadataRouter.Handle("/system/service-name/", http.HandlerFunc(han.SystemdServiceNameHandler)).Methods("GET", "OPTIONS")
+	metadataRouter.Handle("/system/service-name", http.HandlerFunc(han.SystemdServiceNameHandler)).Methods("GET", "OPTIONS")
 	metadataRouter.Handle("/systemd/unit-file/", http.HandlerFunc(han.SystemdUnitFileHandler)).Methods("GET", "OPTIONS")
 	metadataRouter.Handle("/systemd/unit-file", http.HandlerFunc(han.SystemdUnitFileHandler)).Methods("GET", "OPTIONS")
 	metadataRouter.Handle("/system/cert-bundle/", http.HandlerFunc(han.RootCertificateBundleHandler)).Methods("GET", "OPTIONS")

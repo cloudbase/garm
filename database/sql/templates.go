@@ -35,7 +35,7 @@ func (s *sqlDatabase) ListTemplates(ctx context.Context, osType *commonParams.OS
 		if err != nil {
 			return nil, fmt.Errorf("error listing templates: %w", err)
 		}
-		q = q.Where("user_id = ?", userID)
+		q = q.Where("user_id = ? or user_id IS NULL", userID)
 	}
 
 	if osType != nil {
@@ -81,7 +81,7 @@ func (s *sqlDatabase) getTemplate(ctx context.Context, tx *gorm.DB, id uint, pre
 		if err != nil {
 			return Template{}, fmt.Errorf("error listing templates: %w", err)
 		}
-		q = q.Where("user_id = ?", userID)
+		q = q.Where("user_id = ? or user_id IS NULL", userID)
 	}
 
 	q = q.First(&template)
@@ -115,7 +115,7 @@ func (s *sqlDatabase) GetTemplateByName(ctx context.Context, name string) (param
 	var template Template
 	q := s.conn.Model(&Template{}).
 		Where("name = ?", name).
-		Where("user_id = ?", userID).
+		Where("user_id = ? or user_id IS NULL", userID).
 		Preload("ScaleSets").
 		Preload("Pools")
 
@@ -132,6 +132,39 @@ func (s *sqlDatabase) GetTemplateByName(ctx context.Context, name string) (param
 		return params.Template{}, fmt.Errorf("failed to convert template: %w", err)
 	}
 	return ret, nil
+}
+
+func (s *sqlDatabase) createSystemTemplate(ctx context.Context, param params.CreateTemplateParams) (template params.Template, err error) {
+	if !auth.IsAdmin(ctx) {
+		return params.Template{}, runnerErrors.ErrUnauthorized
+	}
+	defer func() {
+		if err == nil {
+			s.sendNotify(common.TemplateEntityType, common.CreateOperation, template)
+		}
+	}()
+	sealed, err := s.marshalAndSeal(param.Data)
+	if err != nil {
+		return params.Template{}, fmt.Errorf("failed to seal data: %w", err)
+	}
+	tpl := Template{
+		UserID:      nil,
+		Name:        param.Name,
+		Description: param.Description,
+		OSType:      param.OSType,
+		Data:        sealed,
+	}
+
+	if err := s.conn.Create(&tpl).Error; err != nil {
+		return params.Template{}, fmt.Errorf("error creating template: %w", err)
+	}
+
+	template, err = s.sqlToParamTemplate(tpl)
+	if err != nil {
+		return params.Template{}, fmt.Errorf("failed to convert template: %w", err)
+	}
+
+	return template, nil
 }
 
 func (s *sqlDatabase) CreateTemplate(ctx context.Context, param params.CreateTemplateParams) (template params.Template, err error) {
@@ -161,12 +194,12 @@ func (s *sqlDatabase) CreateTemplate(ctx context.Context, param params.CreateTem
 		return params.Template{}, fmt.Errorf("error creating template: %w", err)
 	}
 
-	ret, err := s.sqlToParamTemplate(tpl)
+	template, err = s.sqlToParamTemplate(tpl)
 	if err != nil {
 		return params.Template{}, fmt.Errorf("failed to convert template: %w", err)
 	}
 
-	return ret, nil
+	return template, nil
 }
 
 func (s *sqlDatabase) UpdateTemplate(ctx context.Context, id uint, param params.UpdateTemplateParams) (template params.Template, err error) {
@@ -182,7 +215,11 @@ func (s *sqlDatabase) UpdateTemplate(ctx context.Context, id uint, param params.
 		if err != nil {
 			return fmt.Errorf("failed to get template: %w", err)
 		}
-
+		if !auth.IsAdmin(ctx) {
+			if tpl.UserID == nil {
+				return runnerErrors.NewBadRequestError("cannot edit system templates")
+			}
+		}
 		if param.Description != nil {
 			hasChange = true
 			tpl.Description = *param.Description
@@ -234,6 +271,11 @@ func (s *sqlDatabase) DeleteTemplate(ctx context.Context, id uint) (err error) {
 		tpl, err := s.getTemplate(ctx, tx, id, "Pools", "ScaleSets")
 		if err != nil {
 			return fmt.Errorf("failed to get template: %w", err)
+		}
+		if !auth.IsAdmin(ctx) {
+			if tpl.UserID == nil {
+				return runnerErrors.NewBadRequestError("cannot delete system templates")
+			}
 		}
 
 		if len(tpl.Pools) > 0 || len(tpl.ScaleSets) > 0 {

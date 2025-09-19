@@ -886,6 +886,17 @@ func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error 
 		return fmt.Errorf("error fetching instance jwt token: %w", err)
 	}
 
+	if pool.TemplateID == 0 {
+		cloudConfigSpecs, err := garmUtil.GetCloudConfigSpecFromExtraSpecs(pool.ExtraSpecs)
+		if err != nil {
+			return fmt.Errorf("pool has no template set and extra specs are invalid: %w", err)
+		}
+		if len(cloudConfigSpecs.RunnerInstallTemplate) == 0 {
+			return fmt.Errorf("pool has no template set and extra specs has no runner_install_template set")
+		}
+	}
+	specs := garmUtil.MaybeAddWrapperToExtraSpecs(r.ctx, pool.ExtraSpecs, pool.OSType, instance.MetadataURL, jwtToken)
+	// If no runner_install_template override is set by the user, we set our own.
 	hasJITConfig := len(instance.JitConfiguration) > 0
 	bootstrapArgs := commonParams.BootstrapInstance{
 		Name:              instance.Name,
@@ -898,7 +909,7 @@ func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error 
 		OSType:            pool.OSType,
 		Flavor:            pool.Flavor,
 		Image:             pool.Image,
-		ExtraSpecs:        pool.ExtraSpecs,
+		ExtraSpecs:        specs,
 		PoolID:            instance.PoolID,
 		CACertBundle:      r.entity.Credentials.CABundle,
 		GitHubRunnerGroup: instance.GitHubRunnerGroup,

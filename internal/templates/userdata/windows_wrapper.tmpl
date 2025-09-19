@@ -1,0 +1,57 @@
+$ErrorActionPreference="Stop"
+
+function Start-ExecuteWithRetry {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory=$true)]
+        [ScriptBlock]$ScriptBlock,
+        [int]$MaxRetryCount=10,
+        [int]$RetryInterval=3,
+        [string]$RetryMessage,
+        [array]$ArgumentList=@()
+    )
+    PROCESS {
+        $currentErrorActionPreference = $ErrorActionPreference
+        $ErrorActionPreference = "Continue"
+        $retryCount = 0
+        while ($true) {
+            try {
+                $res = Invoke-Command -ScriptBlock $ScriptBlock -ArgumentList $ArgumentList
+                $ErrorActionPreference = $currentErrorActionPreference
+                return $res
+            } catch [System.Exception] {
+                $retryCount++
+
+                if ($_.Exception -is [System.Net.WebException]) {
+                    $webResponse = $_.Exception.Response
+					# Skip retry on Error: 4XX (e.g. 401 Unauthorized, 404 Not Found etc.)
+                    if ($webResponse -and $webResponse.StatusCode -ge 400 -and $webResponse.StatusCode -lt 500) {
+                        # Skip retry on 4xx errors
+                        Write-Output "Encountered non-retryable error (4xx): $($_.Exception.Message)"
+                        $ErrorActionPreference = $currentErrorActionPreference
+                        throw
+                    }
+                }
+
+                if ($retryCount -gt $MaxRetryCount) {
+                    $ErrorActionPreference = $currentErrorActionPreference
+                    throw
+                } else {
+                    if ($RetryMessage) {
+                        Write-Output $RetryMessage
+                    } elseif ($_) {
+                        Write-Output $_
+                    }
+                    Start-Sleep -Seconds $RetryInterval
+                }
+            }
+        }
+    }
+}
+
+$installScript = (Join-Path $env:TMP, "garm-install.ps1")
+Start-ExecuteWithRetry -ScriptBlock {
+	wget -UseBasicParsing -Headers @{"Accept"="application/json"; "Authorization"="Bearer {{ .CallbackToken }}"} -Uri {{ .MetadataURL }}/install-script/ -OutFile $installScript
+} -MaxRetryCount 5 -RetryInterval 5 -RetryMessage "Retrying download of runner install script..."
+
+$installScript

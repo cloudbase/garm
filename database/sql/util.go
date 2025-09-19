@@ -286,6 +286,10 @@ func (s *sqlDatabase) sqlToCommonPool(pool Pool) (params.Pool, error) {
 		UpdatedAt:              pool.UpdatedAt,
 	}
 
+	if pool.TemplateID != nil && *pool.TemplateID != 0 {
+		ret.TemplateID = *pool.TemplateID
+	}
+
 	var ep GithubEndpoint
 	if pool.RepoID != nil {
 		ret.RepoID = pool.RepoID.String()
@@ -355,6 +359,10 @@ func (s *sqlDatabase) sqlToCommonScaleSet(scaleSet ScaleSet) (params.ScaleSet, e
 		ExtendedState:          scaleSet.ExtendedState,
 		LastMessageID:          scaleSet.LastMessageID,
 		DesiredRunnerCount:     scaleSet.DesiredRunnerCount,
+	}
+
+	if scaleSet.TemplateID != nil && *scaleSet.TemplateID != 0 {
+		ret.TemplateID = *scaleSet.TemplateID
 	}
 
 	var ep GithubEndpoint
@@ -530,6 +538,10 @@ func (s *sqlDatabase) updatePool(tx *gorm.DB, pool Pool, param params.UpdatePool
 
 	if param.MaxRunners != nil {
 		pool.MaxRunners = *param.MaxRunners
+	}
+
+	if param.TemplateID != nil {
+		pool.TemplateID = param.TemplateID
 	}
 
 	if param.MinIdleRunners != nil {
@@ -966,12 +978,15 @@ func getUIDFromContext(ctx context.Context) (uuid.UUID, error) {
 
 func (s *sqlDatabase) sqlToParamTemplate(template Template) (params.Template, error) {
 	var data []byte
-	var err error
 	if len(template.Data) > 0 {
-		data, err = util.Unseal(template.Data, []byte(s.cfg.Passphrase))
-		if err != nil {
+		if err := s.unsealAndUnmarshal(template.Data, &data); err != nil {
 			return params.Template{}, fmt.Errorf("error unsealing template: %w", err)
 		}
+	}
+
+	owner := "system"
+	if template.UserID != nil {
+		owner = template.UserID.String()
 	}
 	return params.Template{
 		ID:          template.ID,
@@ -981,5 +996,6 @@ func (s *sqlDatabase) sqlToParamTemplate(template Template) (params.Template, er
 		Description: template.Description,
 		Data:        data,
 		ForgeType:   template.ForgeType,
+		Owner:       owner,
 	}, nil
 }

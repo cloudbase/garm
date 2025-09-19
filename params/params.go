@@ -400,6 +400,8 @@ type Pool struct {
 	// When fetching matching pools for a set of tags, the result will be sorted in descending
 	// order of priority.
 	Priority uint `json:"priority,omitempty"`
+
+	TemplateID uint `json:"template_id,omitempty"`
 }
 
 func (p Pool) BelongsTo(entity ForgeEntity) bool {
@@ -544,6 +546,7 @@ type ScaleSet struct {
 
 	EnterpriseID   string `json:"enterprise_id,omitempty"`
 	EnterpriseName string `json:"enterprise_name,omitempty"`
+	TemplateID     uint   `json:"template_id,omitempty"`
 
 	LastMessageID int64 `json:"-"`
 }
@@ -1271,6 +1274,7 @@ type Template struct {
 	OSType      commonParams.OSType `json:"os_type"`
 	ForgeType   EndpointType        `json:"forge_type,omitempty"`
 	Data        []byte              `json:"data"`
+	Owner       string              `json:"owner_id,omitempty"`
 }
 
 // used by swagger client generated code

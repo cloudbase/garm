@@ -166,6 +166,17 @@ func (i *instanceManager) handleCreateInstanceInProvider(instance params.Instanc
 		return fmt.Errorf("tools not found in cache for entity %s: %w", entity.String(), err)
 	}
 
+	if i.scaleSet.TemplateID == 0 {
+		cloudConfigSpecs, err := garmUtil.GetCloudConfigSpecFromExtraSpecs(i.scaleSet.ExtraSpecs)
+		if err != nil {
+			return fmt.Errorf("pool has no template set and extra specs are invalid: %w", err)
+		}
+		if len(cloudConfigSpecs.RunnerInstallTemplate) == 0 {
+			return fmt.Errorf("pool has no template set and extra specs has no runner_install_template set")
+		}
+	}
+	specs := garmUtil.MaybeAddWrapperToExtraSpecs(i.ctx, i.scaleSet.ExtraSpecs, i.scaleSet.OSType, instance.MetadataURL, token)
+
 	bootstrapArgs := commonParams.BootstrapInstance{
 		Name:          instance.Name,
 		Tools:         tools,
@@ -177,7 +188,7 @@ func (i *instanceManager) handleCreateInstanceInProvider(instance params.Instanc
 		OSType:        i.scaleSet.OSType,
 		Flavor:        i.scaleSet.Flavor,
 		Image:         i.scaleSet.Image,
-		ExtraSpecs:    i.scaleSet.ExtraSpecs,
+		ExtraSpecs:    specs,
 		// This is temporary. We need to extend providers to know about scale sets.
 		PoolID:            i.pseudoPoolID(),
 		CACertBundle:      entity.Credentials.CABundle,
