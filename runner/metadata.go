@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"html/template"
@@ -138,7 +139,7 @@ func getLabelsForInstance(instance params.Instance) []string {
 	return labels
 }
 
-func (r *Runner) getRunnerInstallTemplateContext(instance params.Instance, entity params.ForgeEntity, token string) (cloudconfig.InstallRunnerParams, error) {
+func (r *Runner) getRunnerInstallTemplateContext(instance params.Instance, entity params.ForgeEntity, token string, extraContext map[string]string) (cloudconfig.InstallRunnerParams, error) {
 	tools, err := cache.GetGithubToolsCache(entity.ID)
 	if err != nil {
 		return cloudconfig.InstallRunnerParams{}, fmt.Errorf("failed to get tools: %w", err)
@@ -148,19 +149,22 @@ func (r *Runner) getRunnerInstallTemplateContext(instance params.Instance, entit
 	if err != nil {
 		return cloudconfig.InstallRunnerParams{}, fmt.Errorf("failed to find tools: %w", err)
 	}
+
 	installRunnerParams := cloudconfig.InstallRunnerParams{
 		FileName:          foundTools.GetFilename(),
 		DownloadURL:       foundTools.GetDownloadURL(),
-		TempDownloadToken: foundTools.GetTempDownloadToken(),
-		MetadataURL:       instance.MetadataURL,
 		RunnerUsername:    defaults.DefaultUser,
 		RunnerGroup:       defaults.DefaultUser,
 		RepoURL:           entity.ForgeURL(),
+		MetadataURL:       instance.MetadataURL,
 		RunnerName:        instance.Name,
 		RunnerLabels:      strings.Join(getLabelsForInstance(instance), ","),
 		CallbackURL:       instance.CallbackURL,
 		CallbackToken:     token,
+		TempDownloadToken: foundTools.GetTempDownloadToken(),
 		GitHubRunnerGroup: instance.GitHubRunnerGroup,
+		ExtraContext:      extraContext,
+		CABundle:          string(entity.Credentials.CABundle),
 		UseJITConfig:      len(instance.JitConfiguration) > 0,
 	}
 	return installRunnerParams, nil
@@ -184,13 +188,9 @@ func (r *Runner) GetRunnerInstallScript(ctx context.Context) ([]byte, error) {
 		return nil, fmt.Errorf("failed to get instance token: %w", err)
 	}
 
-	installCtx, err := r.getRunnerInstallTemplateContext(instance, entity, token)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get runner install context: %w", err)
-	}
-
 	var templateID uint
 	var specs cloudconfig.CloudConfigSpec
+	var extraSpecs json.RawMessage
 	switch {
 	case instance.PoolID != "":
 		pool, err := r.store.GetPoolByID(r.ctx, instance.PoolID)
@@ -201,6 +201,7 @@ func (r *Runner) GetRunnerInstallScript(ctx context.Context) ([]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to extract extra specs from pool: %w", err)
 		}
+		extraSpecs = pool.ExtraSpecs
 		templateID = pool.TemplateID
 	case instance.ScaleSetID > 0:
 		scaleSet, err := r.store.GetScaleSetByID(r.ctx, instance.ScaleSetID)
@@ -211,6 +212,7 @@ func (r *Runner) GetRunnerInstallScript(ctx context.Context) ([]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to extract extra specs from scale set: %w", err)
 		}
+		extraSpecs = scaleSet.ExtraSpecs
 		templateID = scaleSet.TemplateID
 	default:
 		return nil, fmt.Errorf("instance is not part of a pool or scale set")
@@ -218,6 +220,20 @@ func (r *Runner) GetRunnerInstallScript(ctx context.Context) ([]byte, error) {
 
 	if templateID == 0 && len(specs.RunnerInstallTemplate) == 0 {
 		return nil, runnerErrors.NewConflictError("pool or scale set has no template associated and no template is defined in extra_specs")
+	}
+
+	installCtx, err := r.getRunnerInstallTemplateContext(instance, entity, token, specs.ExtraContext)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get runner install context: %w", err)
+	}
+
+	var extraSpecsMap map[string]any
+	if extraSpecs != nil {
+		if err := json.Unmarshal(extraSpecs, &extraSpecsMap); err == nil {
+			if debug, ok := extraSpecsMap["enable_boot_debug"]; ok {
+				installCtx.EnableBootDebug = debug.(bool)
+			}
+		}
 	}
 
 	var tplBytes []byte
