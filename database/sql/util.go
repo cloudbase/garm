@@ -364,6 +364,7 @@ func (s *sqlDatabase) sqlToCommonScaleSet(scaleSet ScaleSet) (params.ScaleSet, e
 
 	if scaleSet.TemplateID != nil && *scaleSet.TemplateID != 0 {
 		ret.TemplateID = *scaleSet.TemplateID
+		ret.TemplateName = scaleSet.Template.Name
 	}
 
 	var ep GithubEndpoint
@@ -987,7 +988,7 @@ func (s *sqlDatabase) sqlToParamTemplate(template Template) (params.Template, er
 
 	owner := "system"
 	if template.UserID != nil {
-		owner = template.UserID.String()
+		owner = template.User.Username
 	}
 	return params.Template{
 		ID:          template.ID,

@@ -1,12 +1,14 @@
 <script lang="ts">
 	import { createEventDispatcher, onMount } from 'svelte';
 	import { garmApi } from '$lib/api/client.js';
+	import { resolve } from '$app/paths';
 	import type {
 		CreateScaleSetParams,
 		Repository,
 		Organization,
 		Enterprise,
-		Provider
+		Provider,
+		Template
 	} from '$lib/api/generated/api.js';
 	import Modal from './Modal.svelte';
 	import JsonEditor from './JsonEditor.svelte';
@@ -22,8 +24,10 @@
 	let entityLevel = '';
 	let entities: (Repository | Organization | Enterprise)[] = [];
 	let providers: Provider[] = [];
+	let templates: Template[] = [];
 	let loadingEntities = false;
 	let loadingProviders = false;
+	let loadingTemplates = false;
 
 	// Form fields
 	let name = '';
@@ -40,6 +44,16 @@
 	let githubRunnerGroup = '';
 	let enabled = true;
 	let extraSpecs = '{}';
+	let selectedTemplate: number | undefined = undefined;
+
+	// Reactive validation
+	$: isFormValid = !loading && 
+		name.trim() !== '' && 
+		entityLevel !== '' && 
+		selectedEntityId !== '' && 
+		selectedProvider !== '' && 
+		image.trim() !== '' && 
+		flavor.trim() !== '';
 
 	async function loadProviders() {
 		try {
@@ -50,6 +64,59 @@
 		} finally {
 			loadingProviders = false;
 		}
+	}
+
+	async function loadTemplates() {
+		try {
+			loadingTemplates = true;
+			
+			// Get forge type from selected entity
+			const forgeType = getSelectedEntityForgeType();
+			if (!forgeType) {
+				templates = [];
+				return;
+			}
+
+			templates = await garmApi.listTemplates(osType, undefined, forgeType);
+
+			// Auto-select system template if no template is currently selected, or if templates change
+			if (!selectedTemplate || !templates.find(t => t.id === selectedTemplate)) {
+				const systemTemplate = templates.find(t => t.owner_id === 'system');
+				if (systemTemplate) {
+					selectedTemplate = systemTemplate.id;
+				} else if (templates.length > 0) {
+					// If no system template, select the first available template
+					selectedTemplate = templates[0].id;
+				}
+			}
+		} catch (err) {
+			error = extractAPIError(err);
+		} finally {
+			loadingTemplates = false;
+		}
+	}
+
+	function getSelectedEntityForgeType(): string | null {
+		if (!selectedEntityId || !entities) return null;
+		
+		const selectedEntity = entities.find(e => e.id === selectedEntityId);
+		if (!selectedEntity) return null;
+
+		// All entities should have a forge_type or endpoint property that indicates the forge
+		// Check the entity structure to determine forge type
+		if ('forge_type' in selectedEntity) {
+			return selectedEntity.forge_type as string;
+		}
+		if ('endpoint' in selectedEntity) {
+			// Try to determine from endpoint
+			const endpoint = selectedEntity.endpoint;
+			if (endpoint && 'endpoint_type' in endpoint) {
+				return (endpoint.endpoint_type as string) || null;
+			}
+		}
+		
+		// Default to github for now
+		return 'github';
 	}
 
 	async function loadEntities() {
@@ -81,12 +148,25 @@
 		if (entityLevel === level) return;
 		entityLevel = level;
 		selectedEntityId = '';
+		selectedTemplate = undefined;
 		loadEntities();
+	}
+
+	// Reactive statements
+	$: if (selectedEntityId && osType) {
+		loadTemplates();
+	}
+
+	$: if (osType) {
+		// Reload templates when OS type changes - selection will be auto-handled in loadTemplates
+		if (selectedEntityId) {
+			loadTemplates();
+		}
 	}
 
 
 	async function handleSubmit() {
-		if (!name || !entityLevel || !selectedEntityId || !selectedProvider || !image || !flavor) {
+		if (!isFormValid) {
 			error = 'Please fill in all required fields';
 			return;
 		}
@@ -118,7 +198,8 @@
 				os_arch: osArch as any,
 				'github-runner-group': githubRunnerGroup || undefined,
 				enabled,
-				extra_specs: extraSpecs.trim() ? parsedExtraSpecs : undefined
+				extra_specs: extraSpecs.trim() ? parsedExtraSpecs : undefined,
+				template_id: selectedTemplate
 			};
 
 			// Create the scale set using entity-specific method
@@ -335,6 +416,51 @@
 							</select>
 						</div>
 					</div>
+					
+					<!-- Template Selection -->
+					<div>
+						<label for="template" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+							Runner Install Template
+						</label>
+						{#if loadingTemplates}
+							<div class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 flex items-center">
+								<div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+								<span class="text-sm text-gray-600 dark:text-gray-400">Loading templates...</span>
+							</div>
+						{:else if templates.length > 0}
+							<select
+								id="template"
+								bind:value={selectedTemplate}
+								class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+							>
+								{#each templates as template}
+									<option value={template.id}>
+										{template.name} {template.owner_id === 'system' ? '(System)' : ''}
+										{#if template.description} - {template.description}{/if}
+									</option>
+								{/each}
+							</select>
+							<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+								Templates define how the runner software is installed and configured.
+								{#if selectedEntityId}
+									Showing templates for {getSelectedEntityForgeType()} {osType}.
+								{/if}
+							</p>
+						{:else if selectedEntityId}
+							<div class="w-full px-3 py-2 border border-yellow-300 dark:border-yellow-600 rounded-md bg-yellow-50 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-200">
+								<p class="text-sm">No templates found for {getSelectedEntityForgeType()} {osType}.</p>
+								<p class="text-xs mt-1">
+									<a href={resolve('/templates')} class="text-yellow-700 dark:text-yellow-300 hover:underline">
+										Create a template first
+									</a> or proceed without a template to use default behavior.
+								</p>
+							</div>
+						{:else}
+							<div class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400">
+								<p class="text-sm">Select an entity first to see available templates</p>
+							</div>
+						{/if}
+					</div>
 				</div>
 
 				<!-- Group 3: Runner Limits & Timing -->
@@ -455,7 +581,7 @@
 				</button>
 				<button
 					type="submit"
-					disabled={loading || !name || !entityLevel || !selectedEntityId || !selectedProvider || !image || !flavor}
+					disabled={!isFormValid}
 					class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
 				>
 					{#if loading}

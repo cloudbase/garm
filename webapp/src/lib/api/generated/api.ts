@@ -440,6 +440,12 @@ export interface CreatePoolParams {
      * @memberof CreatePoolParams
      */
     'tags'?: Array<string>;
+    /**
+     * 
+     * @type {number}
+     * @memberof CreatePoolParams
+     */
+    'template_id'?: number;
 }
 /**
  * 
@@ -586,6 +592,12 @@ export interface CreateScaleSetParams {
      * @memberof CreateScaleSetParams
      */
     'tags'?: Array<string>;
+    /**
+     * 
+     * @type {number}
+     * @memberof CreateScaleSetParams
+     */
+    'template_id'?: number;
 }
 /**
  * 
@@ -1620,6 +1632,18 @@ export interface Pool {
     'tags'?: Array<Tag>;
     /**
      * 
+     * @type {number}
+     * @memberof Pool
+     */
+    'template_id'?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof Pool
+     */
+    'template_name'?: string;
+    /**
+     * 
      * @type {string}
      * @memberof Pool
      */
@@ -1949,6 +1973,18 @@ export interface ScaleSet {
     'status_messages'?: Array<StatusMessage>;
     /**
      * 
+     * @type {number}
+     * @memberof ScaleSet
+     */
+    'template_id'?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof ScaleSet
+     */
+    'template_name'?: string;
+    /**
+     * 
      * @type {string}
      * @memberof ScaleSet
      */
@@ -2052,6 +2088,12 @@ export interface Template {
      * @memberof Template
      */
     'os_type'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof Template
+     */
+    'owner_id'?: string;
     /**
      * 
      * @type {string}
@@ -2323,6 +2365,12 @@ export interface UpdatePoolParams {
      * @memberof UpdatePoolParams
      */
     'tags'?: Array<string>;
+    /**
+     * 
+     * @type {number}
+     * @memberof UpdatePoolParams
+     */
+    'template_id'?: number;
 }
 /**
  * 
@@ -2414,6 +2462,12 @@ export interface UpdateScaleSetParams {
      * @memberof UpdateScaleSetParams
      */
     'state'?: string;
+    /**
+     * 
+     * @type {number}
+     * @memberof UpdateScaleSetParams
+     */
+    'template_id'?: number;
 }
 /**
  * 

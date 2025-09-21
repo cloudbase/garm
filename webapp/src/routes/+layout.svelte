@@ -1,20 +1,22 @@
 <script lang="ts">
 	import '../app.css';
 	import { onMount } from 'svelte';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { auth, authStore } from '$lib/stores/auth.js';
+	import { themeStore } from '$lib/stores/theme.js';
 	import Navigation from '$lib/components/Navigation.svelte';
 	import Toast from '$lib/components/Toast.svelte';
 	
 	onMount(() => {
 		auth.init();
+		themeStore.init();
 		
 		// Check for redirect after auth state settles
 		setTimeout(() => {
-			const isLoginPage = $page.url.pathname === resolve('/login');
-			const isInitPage = $page.url.pathname === resolve('/init');
+			const isLoginPage = page.url.pathname === resolve('/login');
+			const isInitPage = page.url.pathname === resolve('/init');
 			
 			if (!isLoginPage && !isInitPage && !$authStore.isAuthenticated && !$authStore.loading) {
 				if ($authStore.needsInitialization) {
@@ -29,8 +31,8 @@
 	// Reactive redirect logic
 	$: {
 		if (!$authStore.loading) {
-			const isLoginPage = $page.url.pathname === resolve('/login');
-			const isInitPage = $page.url.pathname === resolve('/init');
+			const isLoginPage = page.url.pathname === resolve('/login');
+			const isInitPage = page.url.pathname === resolve('/init');
 			
 			if (!isLoginPage && !isInitPage && !$authStore.isAuthenticated) {
 				if ($authStore.needsInitialization) {
@@ -42,8 +44,8 @@
 		}
 	}
 
-	$: isLoginPage = $page.url.pathname === resolve('/login');
-	$: isInitPage = $page.url.pathname === resolve('/init');
+	$: isLoginPage = page.url.pathname === resolve('/login');
+	$: isInitPage = page.url.pathname === resolve('/init');
 	$: requiresAuth = !isLoginPage && !isInitPage;
 </script>
 

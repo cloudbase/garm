@@ -263,6 +263,10 @@ definitions:
                     type: string
                 type: array
                 x-go-name: Tags
+            template_id:
+                format: uint64
+                type: integer
+                x-go-name: TemplateID
         type: object
         x-go-package: github.com/cloudbase/garm/params
     CreateRepoParams:
@@ -343,6 +347,10 @@ definitions:
                     type: string
                 type: array
                 x-go-name: Tags
+            template_id:
+                format: uint64
+                type: integer
+                x-go-name: TemplateID
         type: object
         x-go-package: github.com/cloudbase/garm/params
     CreateTemplateParams:
@@ -1065,6 +1073,13 @@ definitions:
                     $ref: '#/definitions/Tag'
                 type: array
                 x-go-name: Tags
+            template_id:
+                format: uint64
+                type: integer
+                x-go-name: TemplateID
+            template_name:
+                type: string
+                x-go-name: TemplateName
             updated_at:
                 format: date-time
                 type: string
@@ -1282,6 +1297,13 @@ definitions:
                     $ref: '#/definitions/StatusMessage'
                 type: array
                 x-go-name: StatusMessages
+            template_id:
+                format: uint64
+                type: integer
+                x-go-name: TemplateID
+            template_name:
+                type: string
+                x-go-name: TemplateName
             updated_at:
                 format: date-time
                 type: string
@@ -1348,6 +1370,9 @@ definitions:
                 x-go-name: Name
             os_type:
                 $ref: '#/definitions/OSType'
+            owner_id:
+                type: string
+                x-go-name: Owner
             updated_at:
                 format: date-time
                 type: string
@@ -1505,6 +1530,10 @@ definitions:
                     type: string
                 type: array
                 x-go-name: Tags
+            template_id:
+                format: uint64
+                type: integer
+                x-go-name: TemplateID
         type: object
         x-go-package: github.com/cloudbase/garm/params
     UpdateScaleSetParams:
@@ -1555,6 +1584,10 @@ definitions:
                 x-go-name: Prefix
             state:
                 $ref: '#/definitions/ScaleSetState'
+            template_id:
+                format: uint64
+                type: integer
+                x-go-name: TemplateID
         type: object
         x-go-package: github.com/cloudbase/garm/params
     UpdateTemplateParams:

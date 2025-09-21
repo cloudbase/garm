@@ -520,6 +520,24 @@ func NewAPIRouter(han *controllers.APIController, authMiddleware, initMiddleware
 	apiRouter.Handle("/gitea/credentials/{id}/", http.HandlerFunc(han.UpdateGiteaCredential)).Methods("PUT", "OPTIONS")
 	apiRouter.Handle("/gitea/credentials/{id}", http.HandlerFunc(han.UpdateGiteaCredential)).Methods("PUT", "OPTIONS")
 
+	///////////////
+	// Templates //
+	///////////////
+	apiRouter.Handle("/templates/", http.HandlerFunc(han.ListTemplatesHandler)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/templates", http.HandlerFunc(han.ListTemplatesHandler)).Methods("GET", "OPTIONS")
+	// Create template
+	apiRouter.Handle("/templates/", http.HandlerFunc(han.CreateTemplateHandler)).Methods("POST", "OPTIONS")
+	apiRouter.Handle("/templates", http.HandlerFunc(han.CreateTemplateHandler)).Methods("POST", "OPTIONS")
+	// Get template
+	apiRouter.Handle("/templates/{templateID}/", http.HandlerFunc(han.GetTemplateHandler)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/templates/{templateID}", http.HandlerFunc(han.GetTemplateHandler)).Methods("GET", "OPTIONS")
+	// Delete Gitea Credential
+	apiRouter.Handle("/templates/{templateID}/", http.HandlerFunc(han.DeleteTemplateHandler)).Methods("DELETE", "OPTIONS")
+	apiRouter.Handle("/templates/{templateID}", http.HandlerFunc(han.DeleteTemplateHandler)).Methods("DELETE", "OPTIONS")
+	// Update template
+	apiRouter.Handle("/templates/{templateID}/", http.HandlerFunc(han.UpdateTemplateHandler)).Methods("PUT", "OPTIONS")
+	apiRouter.Handle("/templates/{templateID}", http.HandlerFunc(han.UpdateTemplateHandler)).Methods("PUT", "OPTIONS")
+
 	/////////////////////////
 	// Websocket endpoints //
 	/////////////////////////

@@ -1,9 +1,12 @@
 <script lang="ts">
 	import { createEventDispatcher, onMount } from 'svelte';
-	import type { ScaleSet, CreateScaleSetParams } from '$lib/api/generated/api.js';
+	import type { ScaleSet, CreateScaleSetParams, Template } from '$lib/api/generated/api.js';
+	import { resolve } from '$app/paths';
 	import Modal from './Modal.svelte';
 	import { extractAPIError } from '$lib/utils/apiError';
 	import JsonEditor from './JsonEditor.svelte';
+	import { garmApi } from '$lib/api/client.js';
+	import { eagerCache } from '$lib/stores/eager-cache.js';
 
 	export let scaleSet: ScaleSet;
 
@@ -15,6 +18,8 @@
 	let loading = false;
 	let error = '';
 	let validationError = '';
+	let templates: Template[] = [];
+	let loadingTemplates = false;
 
 	// Form fields - initialize with scale set values
 	let name = scaleSet.name || '';
@@ -29,8 +34,67 @@
 	let githubRunnerGroup = scaleSet['github-runner-group'] || '';
 	let enabled = scaleSet.enabled;
 	let extraSpecs = '{}';
+	let selectedTemplate: number | undefined = (scaleSet as any).template_id;
 
-	// Initialize extra specs
+	function getEntityForgeType(): string | null {
+		// First check if the scale set itself has an endpoint (which it does)
+		if (scaleSet.endpoint?.endpoint_type) {
+			return scaleSet.endpoint.endpoint_type;
+		}
+
+		// Fallback: Look up forge type from eager cache based on the scale set's entity
+		if (scaleSet.repo_id) {
+			const repo = $eagerCache.repositories.find(r => r.id === scaleSet.repo_id);
+			if (repo?.endpoint?.endpoint_type) {
+				return repo.endpoint.endpoint_type;
+			}
+		}
+		if (scaleSet.org_id) {
+			const org = $eagerCache.organizations.find(o => o.id === scaleSet.org_id);
+			if (org?.endpoint?.endpoint_type) {
+				return org.endpoint.endpoint_type;
+			}
+		}
+		if (scaleSet.enterprise_id) {
+			const enterprise = $eagerCache.enterprises.find(e => e.id === scaleSet.enterprise_id);
+			if (enterprise?.endpoint?.endpoint_type) {
+				return enterprise.endpoint.endpoint_type;
+			}
+		}
+		return null;
+	}
+
+	async function loadTemplates() {
+		try {
+			loadingTemplates = true;
+			
+			// Get forge type from the scale set's entity
+			const forgeType = getEntityForgeType();
+			if (!forgeType) {
+				templates = [];
+				return;
+			}
+			
+			templates = await garmApi.listTemplates(osType, undefined, forgeType);
+			
+			// Auto-select system template if no template is currently selected, or if templates change
+			if (!selectedTemplate || !templates.find(t => t.id === selectedTemplate)) {
+				const systemTemplate = templates.find(t => t.owner_id === 'system');
+				if (systemTemplate) {
+					selectedTemplate = systemTemplate.id;
+				} else if (templates.length > 0) {
+					// If no system template, select the first available template
+					selectedTemplate = templates[0].id;
+				}
+			}
+		} catch (err) {
+			error = extractAPIError(err);
+		} finally {
+			loadingTemplates = false;
+		}
+	}
+
+	// Initialize extra specs and load templates
 	onMount(() => {
 		if (scaleSet.extra_specs) {
 			try {
@@ -47,11 +111,20 @@
 				extraSpecs = (scaleSet.extra_specs as unknown as string) || '{}';
 			}
 		}
+		
+		// Load templates for the current configuration
+		loadTemplates();
 	});
+
+	// Reactive statements
+	$: if (osType) {
+		// Reload templates when OS type changes - selection will be auto-handled in loadTemplates
+		loadTemplates();
+	}
 
 	// Validation reactive statement
 	$: {
-		if (minIdleRunners !== null && maxRunners !== null && minIdleRunners > maxRunners) {
+		if (minIdleRunners !== null && minIdleRunners !== undefined && maxRunners !== null && maxRunners !== undefined && minIdleRunners > maxRunners) {
 			validationError = 'Min idle runners cannot be greater than max runners';
 		} else {
 			validationError = '';
@@ -90,7 +163,8 @@
 				os_arch: osArch !== scaleSet.os_arch ? osArch as any : undefined,
 				'github-runner-group': githubRunnerGroup !== scaleSet['github-runner-group'] ? githubRunnerGroup || undefined : undefined,
 				enabled: enabled !== scaleSet.enabled ? enabled : undefined,
-				extra_specs: extraSpecs.trim() !== JSON.stringify(scaleSet.extra_specs || {}, null, 2).trim() ? parsedExtraSpecs : undefined
+				extra_specs: extraSpecs.trim() !== JSON.stringify(scaleSet.extra_specs || {}, null, 2).trim() ? parsedExtraSpecs : undefined,
+				template_id: selectedTemplate !== (scaleSet as any).template_id ? selectedTemplate : undefined
 			};
 
 			// Remove undefined values
@@ -219,6 +293,45 @@
 							<option value="amd64">AMD64</option>
 							<option value="arm64">ARM64</option>
 						</select>
+					</div>
+					
+					<!-- Template Selection -->
+					<div class="col-span-2">
+						<label for="template" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+							Runner Install Template
+						</label>
+						{#if loadingTemplates}
+							<div class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 flex items-center">
+								<div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+								<span class="text-sm text-gray-600 dark:text-gray-400">Loading templates...</span>
+							</div>
+						{:else if templates.length > 0}
+							<select
+								id="template"
+								bind:value={selectedTemplate}
+								class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+							>
+								{#each templates as template}
+									<option value={template.id}>
+										{template.name} {template.owner_id === 'system' ? '(System)' : ''}
+										{#if template.description} - {template.description}{/if}
+									</option>
+								{/each}
+							</select>
+							<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+								Templates define how the runner software is installed and configured.
+								Showing templates for {getEntityForgeType()} {osType}.
+							</p>
+						{:else}
+							<div class="w-full px-3 py-2 border border-yellow-300 dark:border-yellow-600 rounded-md bg-yellow-50 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-200">
+								<p class="text-sm">No templates found for {getEntityForgeType()} {osType}.</p>
+								<p class="text-xs mt-1">
+									<a href={resolve('/templates')} class="text-yellow-700 dark:text-yellow-300 hover:underline">
+										Create a template first
+									</a> or proceed without a template to use default behavior.
+								</p>
+							</div>
+						{/if}
 					</div>
 				</div>
 			</div>

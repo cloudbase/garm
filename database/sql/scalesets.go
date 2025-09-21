@@ -369,6 +369,7 @@ func (s *sqlDatabase) GetScaleSetByID(_ context.Context, scaleSet uint) (params.
 		"Organization.Endpoint",
 		"Repository",
 		"Repository.Endpoint",
+		"Template",
 	)
 	if err != nil {
 		return params.ScaleSet{}, fmt.Errorf("error fetching scale set by ID: %w", err)

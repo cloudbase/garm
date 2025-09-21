@@ -76,12 +76,12 @@
 		<div>
 			<div class="mx-auto h-48 w-auto flex justify-center">
 				<img 
-					src={resolve('/assets/garm-light.svg')} 
+					src={resolve('/assets/garm-light.svg' as any)} 
 					alt="GARM" 
 					class="h-48 w-auto dark:hidden"
 				/>
 				<img 
-					src={resolve('/assets/garm-dark.svg')} 
+					src={resolve('/assets/garm-dark.svg' as any)} 
 					alt="GARM" 
 					class="h-48 w-auto hidden dark:block"
 				/>

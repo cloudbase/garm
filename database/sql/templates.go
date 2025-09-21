@@ -29,7 +29,7 @@ import (
 
 func (s *sqlDatabase) ListTemplates(ctx context.Context, osType *commonParams.OSType, forgeType *params.EndpointType, partialName *string) ([]params.Template, error) {
 	var templates []Template
-	q := s.conn.Model(&Template{}).Omit("data")
+	q := s.conn.Model(&Template{}).Omit("data").Preload("User")
 	if !auth.IsAdmin(ctx) {
 		userID, err := getUIDFromContext(ctx)
 		if err != nil {
@@ -95,7 +95,7 @@ func (s *sqlDatabase) getTemplate(ctx context.Context, tx *gorm.DB, id uint, pre
 }
 
 func (s *sqlDatabase) GetTemplate(ctx context.Context, id uint) (params.Template, error) {
-	template, err := s.getTemplate(ctx, s.conn, id)
+	template, err := s.getTemplate(ctx, s.conn, id, "User")
 	if err != nil {
 		return params.Template{}, fmt.Errorf("failed to get template: %w", err)
 	}
@@ -117,7 +117,8 @@ func (s *sqlDatabase) GetTemplateByName(ctx context.Context, name string) (param
 		Where("name = ?", name).
 		Where("user_id = ? or user_id IS NULL", userID).
 		Preload("ScaleSets").
-		Preload("Pools")
+		Preload("Pools").
+		Preload("User")
 
 	q = q.First(&template)
 	if q.Error != nil {
@@ -189,18 +190,17 @@ func (s *sqlDatabase) CreateTemplate(ctx context.Context, param params.CreateTem
 		Description: param.Description,
 		OSType:      param.OSType,
 		Data:        sealed,
+		ForgeType:   param.ForgeType,
+	}
+	if err := param.Validate(); err != nil {
+		return params.Template{}, fmt.Errorf("failed to validate create params: %w", err)
 	}
 
 	if err := s.conn.Create(&tpl).Error; err != nil {
 		return params.Template{}, fmt.Errorf("error creating template: %w", err)
 	}
 
-	template, err = s.sqlToParamTemplate(tpl)
-	if err != nil {
-		return params.Template{}, fmt.Errorf("failed to convert template: %w", err)
-	}
-
-	return template, nil
+	return s.GetTemplate(ctx, tpl.ID)
 }
 
 func (s *sqlDatabase) UpdateTemplate(ctx context.Context, id uint, param params.UpdateTemplateParams) (template params.Template, err error) {
@@ -292,5 +292,8 @@ func (s *sqlDatabase) DeleteTemplate(ctx context.Context, id uint) (err error) {
 		}
 		return nil
 	})
+	if err != nil {
+		return fmt.Errorf("failed to delete template: %w", err)
+	}
 	return nil
 }

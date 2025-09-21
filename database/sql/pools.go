@@ -72,6 +72,7 @@ func (s *sqlDatabase) GetPoolByID(_ context.Context, poolID string) (params.Pool
 		"Organization.Endpoint",
 		"Repository",
 		"Repository.Endpoint",
+		"Template",
 	}
 	pool, err := s.getPoolByID(s.conn, poolID, preloadList...)
 	if err != nil {
@@ -353,6 +354,7 @@ func (s *sqlDatabase) GetEntityPool(_ context.Context, entity params.ForgeEntity
 		"Organization.Endpoint",
 		"Repository",
 		"Repository.Endpoint",
+		"Template",
 	}
 	pool, err := s.getEntityPool(s.conn, entity.EntityType, entity.ID, poolID, preloadList...)
 	if err != nil {

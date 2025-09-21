@@ -1,4 +1,4 @@
-import type { Repository, Organization, Enterprise, Instance, Pool, ScaleSet, ForgeCredentials, EndpointType, ForgeEndpoint } from '$lib/api/generated/api.js';
+import type { Repository, Organization, Enterprise, Instance, Pool, ScaleSet, ForgeCredentials, ForgeEndpoint, Tag } from '$lib/api/generated/api.js';
 
 export function createMockRepository(overrides: Partial<Repository> = {}): Repository {
 	return {
@@ -12,18 +12,18 @@ export function createMockRepository(overrides: Partial<Repository> = {}): Repos
 		credentials: createMockCredentials(),
 		endpoint: {
 			name: 'github.com',
-			endpoint_type: 'github' as EndpointType,
+			endpoint_type: 'github',
 			description: 'GitHub endpoint',
 			api_base_url: 'https://api.github.com',
 			base_url: 'https://github.com',
 			upload_base_url: 'https://uploads.github.com',
-			ca_cert_bundle: null,
+			ca_cert_bundle: undefined,
 			created_at: '2024-01-01T00:00:00Z',
 			updated_at: '2024-01-01T00:00:00Z'
 		},
 		pool_manager_status: {
 			running: true,
-			failure_reason: null
+			failure_reason: undefined
 		},
 		...overrides
 	};
@@ -34,7 +34,6 @@ export function createMockCredentials(overrides: Partial<ForgeCredentials> = {})
 		id: Math.floor(Math.random() * 10000),
 		name: 'test-credentials',
 		description: 'Test credentials',
-		endpoint_name: 'github.com',
 		created_at: '2024-01-01T00:00:00Z',
 		updated_at: '2024-01-01T00:00:00Z',
 		...overrides
@@ -45,12 +44,12 @@ export function createMockGiteaRepository(overrides: Partial<Repository> = {}): 
 	return createMockRepository({
 		endpoint: {
 			name: 'gitea.example.com',
-			endpoint_type: 'gitea' as EndpointType,
+			endpoint_type: 'gitea',
 			description: 'Gitea endpoint',
 			api_base_url: 'https://gitea.example.com/api/v1',
 			base_url: 'https://gitea.example.com',
-			upload_base_url: null,
-			ca_cert_bundle: null,
+			upload_base_url: undefined,
+			ca_cert_bundle: undefined,
 			created_at: '2024-01-01T00:00:00Z',
 			updated_at: '2024-01-01T00:00:00Z'
 		},
@@ -69,18 +68,18 @@ export function createMockOrganization(overrides: Partial<Organization> = {}): O
 		credentials: createMockCredentials(),
 		endpoint: {
 			name: 'github.com',
-			endpoint_type: 'github' as EndpointType,
+			endpoint_type: 'github',
 			description: 'GitHub endpoint',
 			api_base_url: 'https://api.github.com',
 			base_url: 'https://github.com',
 			upload_base_url: 'https://uploads.github.com',
-			ca_cert_bundle: null,
+			ca_cert_bundle: undefined,
 			created_at: '2024-01-01T00:00:00Z',
 			updated_at: '2024-01-01T00:00:00Z'
 		},
 		pool_manager_status: {
 			running: true,
-			failure_reason: null
+			failure_reason: undefined
 		},
 		...overrides
 	};
@@ -90,12 +89,12 @@ export function createMockGiteaOrganization(overrides: Partial<Organization> = {
 	return createMockOrganization({
 		endpoint: {
 			name: 'gitea.example.com',
-			endpoint_type: 'gitea' as EndpointType,
+			endpoint_type: 'gitea',
 			description: 'Gitea endpoint',
 			api_base_url: 'https://gitea.example.com/api/v1',
 			base_url: 'https://gitea.example.com',
-			upload_base_url: null,
-			ca_cert_bundle: null,
+			upload_base_url: undefined,
+			ca_cert_bundle: undefined,
 			created_at: '2024-01-01T00:00:00Z',
 			updated_at: '2024-01-01T00:00:00Z'
 		},
@@ -114,18 +113,18 @@ export function createMockEnterprise(overrides: Partial<Enterprise> = {}): Enter
 		credentials: createMockCredentials(),
 		endpoint: {
 			name: 'github.com',
-			endpoint_type: 'github' as EndpointType,
+			endpoint_type: 'github',
 			description: 'GitHub endpoint',
 			api_base_url: 'https://api.github.com',
 			base_url: 'https://github.com',
 			upload_base_url: 'https://uploads.github.com',
-			ca_cert_bundle: null,
+			ca_cert_bundle: undefined,
 			created_at: '2024-01-01T00:00:00Z',
 			updated_at: '2024-01-01T00:00:00Z'
 		},
 		pool_manager_status: {
 			running: true,
-			failure_reason: null
+			failure_reason: undefined
 		},
 		...overrides
 	};
@@ -147,7 +146,7 @@ export function createMockPool(overrides: Partial<Pool> = {}): Pool {
 		provider_name: 'test-provider',
 		runner_bootstrap_timeout: 20,
 		runner_prefix: 'garm',
-		tags: ['ubuntu', 'test'],
+		tags: [{ id: 'ubuntu', name: 'ubuntu' }, { id: 'test', name: 'test' }] as Tag[],
 		repo_id: 'repo-123',
 		...overrides
 	};
@@ -182,7 +181,7 @@ export function createMockForgeEndpoint(overrides: Partial<ForgeEndpoint> = {}):
 		base_url: 'https://github.com',
 		api_base_url: 'https://api.github.com',
 		upload_base_url: 'https://uploads.github.com',
-		ca_cert_bundle: null,
+		ca_cert_bundle: undefined,
 		created_at: '2024-01-01T00:00:00Z',
 		updated_at: '2024-01-01T00:00:00Z',
 		...overrides
@@ -196,7 +195,7 @@ export function createMockGiteaEndpoint(overrides: Partial<ForgeEndpoint> = {}):
 		endpoint_type: 'gitea',
 		base_url: 'https://gitea.example.com',
 		api_base_url: 'https://gitea.example.com/api/v1',
-		upload_base_url: null,
+		upload_base_url: undefined,
 		...overrides
 	});
 }
@@ -245,12 +244,12 @@ export function createMockScaleSet(overrides: Partial<ScaleSet> = {}): ScaleSet 
 		extra_specs: {},
 		endpoint: {
 			name: 'github.com',
-			endpoint_type: 'github' as EndpointType,
+			endpoint_type: 'github',
 			description: 'GitHub endpoint',
 			api_base_url: 'https://api.github.com',
 			base_url: 'https://github.com',
 			upload_base_url: 'https://uploads.github.com',
-			ca_cert_bundle: null,
+			ca_cert_bundle: undefined,
 			created_at: '2024-01-01T00:00:00Z',
 			updated_at: '2024-01-01T00:00:00Z'
 		},
