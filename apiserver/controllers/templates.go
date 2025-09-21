@@ -20,10 +20,11 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/gorilla/mux"
+
 	gErrors "github.com/cloudbase/garm-provider-common/errors"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 	runnerParams "github.com/cloudbase/garm/params"
-	"github.com/gorilla/mux"
 )
 
 // swagger:route GET /templates templates ListTemplates

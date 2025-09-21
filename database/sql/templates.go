@@ -19,12 +19,13 @@ import (
 	"errors"
 	"fmt"
 
+	"gorm.io/gorm"
+
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/params"
-	"gorm.io/gorm"
 )
 
 func (s *sqlDatabase) ListTemplates(ctx context.Context, osType *commonParams.OSType, forgeType *params.EndpointType, partialName *string) ([]params.Template, error) {
@@ -253,7 +254,6 @@ func (s *sqlDatabase) UpdateTemplate(ctx context.Context, id uint, param params.
 		}
 		return nil
 	})
-
 	if err != nil {
 		return params.Template{}, fmt.Errorf("failed to update template: %w", err)
 	}

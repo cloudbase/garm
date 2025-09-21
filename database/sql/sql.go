@@ -413,6 +413,8 @@ func (s *sqlDatabase) ensureTemplates(migrateTemplates bool) error {
 		return fmt.Errorf("failed to get linux template for gitea: %w", err)
 	}
 
+	adminCtx := auth.GetAdminContext(s.ctx)
+
 	githubWindowsParams := params.CreateTemplateParams{
 		Name:        "github_windows",
 		Description: "Default Windows runner install template for GitHub",
@@ -420,7 +422,7 @@ func (s *sqlDatabase) ensureTemplates(migrateTemplates bool) error {
 		ForgeType:   params.GithubEndpointType,
 		Data:        githubWindowsData,
 	}
-	githubWindowsSystemTemplate, err := s.createSystemTemplate(s.ctx, githubWindowsParams)
+	githubWindowsSystemTemplate, err := s.createSystemTemplate(adminCtx, githubWindowsParams)
 	if err != nil {
 		return fmt.Errorf("failed to create github windows template: %w", err)
 	}
@@ -432,7 +434,7 @@ func (s *sqlDatabase) ensureTemplates(migrateTemplates bool) error {
 		ForgeType:   params.GithubEndpointType,
 		Data:        githubLinuxData,
 	}
-	githubLinuxSystemTemplate, err := s.createSystemTemplate(s.ctx, githubLinuxParams)
+	githubLinuxSystemTemplate, err := s.createSystemTemplate(adminCtx, githubLinuxParams)
 	if err != nil {
 		return fmt.Errorf("failed to create github linux template: %w", err)
 	}
@@ -444,7 +446,7 @@ func (s *sqlDatabase) ensureTemplates(migrateTemplates bool) error {
 		ForgeType:   params.GiteaEndpointType,
 		Data:        giteaLinuxData,
 	}
-	giteaLinuxSystemTemplate, err := s.createSystemTemplate(s.ctx, giteaLinuxParams)
+	giteaLinuxSystemTemplate, err := s.createSystemTemplate(adminCtx, giteaLinuxParams)
 	if err != nil {
 		return fmt.Errorf("failed to create gitea linux template: %w", err)
 	}
@@ -491,13 +493,13 @@ func (s *sqlDatabase) ensureTemplates(migrateTemplates bool) error {
 			updateParams := params.UpdatePoolParams{
 				TemplateID: &templateID,
 			}
-			if _, err := s.UpdateEntityPool(s.ctx, entity, pool.ID, updateParams); err != nil {
+			if _, err := s.UpdateEntityPool(adminCtx, entity, pool.ID, updateParams); err != nil {
 				return fmt.Errorf("failed to update pool template: %w", err)
 			}
 		}
 	}
 
-	scaleSets, err := s.ListAllScaleSets(s.ctx)
+	scaleSets, err := s.ListAllScaleSets(adminCtx)
 	if err != nil {
 		return fmt.Errorf("failed to list scale sets: %w", err)
 	}
@@ -514,7 +516,7 @@ func (s *sqlDatabase) ensureTemplates(migrateTemplates bool) error {
 			updateParams := params.UpdateScaleSetParams{
 				TemplateID: &templateID,
 			}
-			if _, err := s.UpdateEntityScaleSet(s.ctx, entity, scaleSet.ID, updateParams, nil); err != nil {
+			if _, err := s.UpdateEntityScaleSet(adminCtx, entity, scaleSet.ID, updateParams, nil); err != nil {
 				return fmt.Errorf("failed to update pool template: %w", err)
 			}
 		}

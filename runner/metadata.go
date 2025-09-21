@@ -28,12 +28,11 @@ import (
 	"github.com/cloudbase/garm-provider-common/defaults"
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm-provider-common/util"
-	garmUtil "github.com/cloudbase/garm/util"
-
 	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/cache"
 	"github.com/cloudbase/garm/internal/templates"
 	"github.com/cloudbase/garm/params"
+	garmUtil "github.com/cloudbase/garm/util"
 )
 
 var (

@@ -149,11 +149,11 @@ func MaybeAddWrapperToExtraSpecs(ctx context.Context, specs json.RawMessage, osT
 	}
 
 	data["runner_install_template"] = wrapper
-	asJson, err := json.Marshal(data)
+	ret, err := json.Marshal(data)
 	if err != nil {
 		slog.WarnContext(ctx, "failed to marshal extra specs", "error", err)
 		return specs
 	}
 
-	return json.RawMessage(asJson)
+	return json.RawMessage(ret)
 }

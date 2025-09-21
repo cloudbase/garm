@@ -29,7 +29,7 @@
 	let selectedTemplate: Template | null = null;
 
 	$: filteredTemplates = searchTerm
-		? templates.filter(template => 
+		? templates.filter(template =>
 			template.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
 			template.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
 			template.forge_type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -73,13 +73,13 @@
 
 		try {
 			await garmApi.deleteTemplate(selectedTemplate.id);
-			
+
 			toastStore.add({
 				type: 'success',
 				title: 'Template deleted',
 				message: `Template "${selectedTemplate.name}" has been deleted successfully.`
 			});
-			
+
 			showDeleteModal = false;
 			selectedTemplate = null;
 			await loadTemplates();
@@ -181,22 +181,22 @@
 			cellProps: (item: any) => {
 				const isAdmin = isCurrentUserAdmin();
 				const isSystemTemplate = item.owner_id === 'system';
-				
+
 				const actions = [];
-				
+
 				// Always show clone button
 				actions.push({ type: 'copy' as const, title: 'Clone', ariaLabel: 'Clone template', action: 'clone' as const });
-				
+
 				// Show edit button if: user is admin OR it's a user template (non-system)
 				if (isAdmin || !isSystemTemplate) {
 					actions.push({ type: 'edit' as const, title: 'Edit', ariaLabel: 'Edit template', action: 'edit' as const });
 				}
-				
+
 				// Show delete button if: user is admin OR it's a user template (non-system)
 				if (isAdmin || !isSystemTemplate) {
 					actions.push({ type: 'delete' as const, title: 'Delete', ariaLabel: 'Delete template', action: 'delete' as const });
 				}
-				
+
 				return { actions };
 			}
 		}
@@ -222,7 +222,7 @@
 				}
 			},
 			{
-				type: 'custom', 
+				type: 'custom',
 				value: (item: any) => {
 					const badge = getOSTypeBadge(item.os_type);
 					return { variant: badge.color, text: badge.text };
@@ -254,9 +254,9 @@
 	<title>Runner Install Templates - GARM</title>
 </svelte:head>
 
-<PageHeader 
-	title="Runner Install Templates" 
-	description="Manage templates for configuring runner software installation"
+<PageHeader
+	title="Runner Install Templates"
+	description="Manage templates for configuring runner software installation. These templates can be set on pools or scale sets."
 	actionLabel="Create Template"
 	showAction={true}
 	on:action={openCreateModal}

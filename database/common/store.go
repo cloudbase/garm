@@ -18,7 +18,6 @@ import (
 	"context"
 
 	commonParams "github.com/cloudbase/garm-provider-common/params"
-
 	"github.com/cloudbase/garm/params"
 )
 
