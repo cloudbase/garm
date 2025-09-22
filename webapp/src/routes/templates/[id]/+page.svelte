@@ -14,6 +14,7 @@
 	import ConfirmationModal from '$lib/components/ConfirmationModal.svelte';
 	import { isCurrentUserAdmin } from '$lib/utils/jwt';
 	import { getForgeIcon } from '$lib/utils/common.js';
+	import { websocketStore } from '$lib/stores/websocket';
 
 	let loading = true;
 	let template: Template | null = null;
@@ -329,6 +330,37 @@
 					enableEditMode();
 				}
 			});
+
+			// Subscribe to websocket events for this specific template
+			const unsubscribe = websocketStore.subscribeToEntity('template', ['update', 'delete'], (event) => {
+				// Only handle events for this specific template
+				if (event.payload && event.payload.id === templateId) {
+					if (event.operation === 'update') {
+						// Only reload if not in edit mode to avoid losing user changes
+						if (!editMode) {
+							loadTemplate();
+						} else {
+							// Show a notification that the template was updated elsewhere
+							toastStore.add({
+								type: 'info',
+								title: 'Template updated',
+								message: 'This template has been updated externally. Your changes are preserved.'
+							});
+						}
+					} else if (event.operation === 'delete') {
+						// Redirect to templates list if this template is deleted
+						toastStore.add({
+							type: 'info',
+							title: 'Template deleted',
+							message: `Template "${template?.name || 'Unknown'}" has been deleted.`
+						});
+						goto(resolve('/templates'));
+					}
+				}
+			});
+
+			// Cleanup subscription on component destroy
+			return unsubscribe;
 		} else {
 			error = 'Invalid template ID';
 			loading = false;

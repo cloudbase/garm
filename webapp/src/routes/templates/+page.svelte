@@ -13,11 +13,21 @@
 	import DeleteModal from '$lib/components/DeleteModal.svelte';
 	import { EntityCell, GenericCell, ActionsCell } from '$lib/components/cells';
 	import { isCurrentUserAdmin } from '$lib/utils/jwt';
+	import { eagerCache, eagerCacheManager } from '$lib/stores/eager-cache';
 
-	let loading = true;
 	let templates: Template[] = [];
 	let error = '';
 	let searchTerm = '';
+
+	// Subscribe to eager cache for templates
+	$: {
+		// Only use cache data if we're not in direct API mode
+		if (!templates.length || $eagerCache.loaded.templates) {
+			templates = $eagerCache.templates;
+		}
+	}
+	$: loading = $eagerCache.loading.templates;
+	$: cacheError = $eagerCache.errorMessages.templates;
 
 	// Pagination
 	let currentPage = 1;
@@ -49,20 +59,11 @@
 		currentPage * perPage
 	);
 
-	async function loadTemplates() {
+	async function retryLoadTemplates() {
 		try {
-			loading = true;
-			error = '';
-			templates = await garmApi.listTemplates();
+			await eagerCacheManager.retryResource('templates');
 		} catch (err) {
-			error = extractAPIError(err);
-			toastStore.add({
-				type: 'error',
-				title: 'Failed to load templates',
-				message: error
-			});
-		} finally {
-			loading = false;
+			console.error('Retry failed:', err);
 		}
 	}
 
@@ -82,7 +83,6 @@
 
 			showDeleteModal = false;
 			selectedTemplate = null;
-			await loadTemplates();
 		} catch (err) {
 			const errorMsg = extractAPIError(err);
 			toastStore.add({
@@ -245,8 +245,20 @@
 		]
 	};
 
-	onMount(() => {
-		loadTemplates();
+	onMount(async () => {
+		// Load templates through eager cache (priority load + background load others)
+		try {
+			const templateData = await eagerCacheManager.getTemplates();
+			// If WebSocket is disconnected, getTemplates returns direct API data
+			// Update our local templates array with this data
+			if (templateData && Array.isArray(templateData)) {
+				templates = templateData;
+			}
+		} catch (err) {
+			// Cache error is already handled by the eager cache system
+			console.error('Failed to load templates:', err);
+			error = err instanceof Error ? err.message : 'Failed to load templates';
+		}
 	});
 </script>
 
@@ -262,7 +274,7 @@
 	on:action={openCreateModal}
 />
 
-{#if error && !loading}
+{#if (error || cacheError) && !loading}
 	<div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4 mb-6">
 		<div class="flex">
 			<div class="flex-shrink-0">
@@ -275,10 +287,10 @@
 					Error loading templates
 				</h3>
 				<div class="mt-2 text-sm text-red-700 dark:text-red-300">
-					{error}
+					{error || cacheError}
 				</div>
 				<div class="mt-4">
-					<ActionButton variant="secondary" size="sm" on:click={loadTemplates}>
+					<ActionButton variant="secondary" size="sm" on:click={retryLoadTemplates}>
 						Try Again
 					</ActionButton>
 				</div>

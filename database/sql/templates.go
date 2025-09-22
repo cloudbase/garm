@@ -269,7 +269,7 @@ func (s *sqlDatabase) UpdateTemplate(ctx context.Context, id uint, param params.
 	if err != nil {
 		return params.Template{}, fmt.Errorf("failed to update template: %w", err)
 	}
-	return template, nil
+	return s.GetTemplate(ctx, tpl.ID)
 }
 
 func (s *sqlDatabase) DeleteTemplate(ctx context.Context, id uint) (err error) {

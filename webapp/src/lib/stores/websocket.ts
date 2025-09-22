@@ -13,7 +13,8 @@ export type EntityType =
 	| 'github_credentials' 
 	| 'gitea_credentials' 
 	| 'github_endpoint' 
-	| 'scaleset';
+	| 'scaleset'
+	| 'template';
 
 export type Operation = 'create' | 'update' | 'delete';
 

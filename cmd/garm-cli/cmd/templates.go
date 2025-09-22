@@ -126,6 +126,15 @@ var templateUpdateCmd = &cobra.Command{
 
 		var changes bool
 
+		if len(args) != 1 {
+			return fmt.Errorf("invalid positional parameters; requires template_id")
+		}
+
+		tplID, err := resolveTemplateAsUint(args[0])
+		if err != nil {
+			return fmt.Errorf("failed to determine template ID: %s", err)
+		}
+
 		if cmd.Flags().Changed("name") {
 			updateReq.Body.Name = &templateName
 			changes = true
@@ -135,7 +144,7 @@ var templateUpdateCmd = &cobra.Command{
 			changes = true
 		}
 
-		if cmd.Flags().Changed("description") {
+		if cmd.Flags().Changed("path") {
 			mode, err := os.Stat(templatePath)
 			if err != nil {
 				return fmt.Errorf("failed to access %s: %q", templatePath, err)
@@ -153,11 +162,8 @@ var templateUpdateCmd = &cobra.Command{
 		if !changes {
 			return fmt.Errorf("at least one of name, description or path must be specified")
 		}
-		if len(args) != 1 {
-			return fmt.Errorf("invalid positional parameters; requires template_id")
-		}
 
-		updateReq.TemplateID = args[0]
+		updateReq.TemplateID = fmt.Sprintf("%d", tplID)
 
 		response, err := apiCli.Templates.UpdateTemplate(updateReq, authToken)
 		if err != nil {
