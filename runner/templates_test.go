@@ -32,13 +32,17 @@ import (
 	runnerMocks "github.com/cloudbase/garm/runner/mocks"
 )
 
+const (
+	testTemplate1Name = "test-template-1"
+)
+
 type TemplateTestFixtures struct {
-	AdminContext    context.Context
-	Store          dbCommon.Store
-	Templates      []params.Template
-	Providers      map[string]common.Provider
-	ProviderMock   *runnerCommonMocks.Provider
-	PoolMgrCtrlMock *runnerMocks.PoolManagerController
+	AdminContext         context.Context
+	Store                dbCommon.Store
+	Templates            []params.Template
+	Providers            map[string]common.Provider
+	ProviderMock         *runnerCommonMocks.Provider
+	PoolMgrCtrlMock      *runnerMocks.PoolManagerController
 	CreateTemplateParams params.CreateTemplateParams
 	UpdateTemplateParams params.UpdateTemplateParams
 }
@@ -68,7 +72,7 @@ func (s *TemplateTestSuite) SetupTest() {
 
 	// Create test templates
 	template1, err := db.CreateTemplate(s.adminCtx, params.CreateTemplateParams{
-		Name:        "test-template-1",
+		Name:        testTemplate1Name,
 		Description: "Test template 1",
 		OSType:      commonParams.Linux,
 		ForgeType:   params.GithubEndpointType,
@@ -187,13 +191,13 @@ func (s *TemplateTestSuite) TestListTemplates() {
 
 	s.Require().Nil(err)
 	s.Require().GreaterOrEqual(len(templates), len(s.Fixtures.Templates))
-	
+
 	// Find our test templates in the results
 	foundNames := make(map[string]bool)
 	for _, template := range templates {
 		foundNames[template.Name] = true
 	}
-	
+
 	for _, expected := range s.Fixtures.Templates {
 		s.Require().True(foundNames[expected.Name], "Expected template %s not found", expected.Name)
 	}
@@ -212,21 +216,21 @@ func (s *TemplateTestSuite) TestListTemplatesWithOSTypeFilter() {
 
 	s.Require().Nil(err)
 	s.Require().GreaterOrEqual(len(templates), 1)
-	
+
 	// Verify all returned templates have the correct OS type
 	for _, template := range templates {
 		s.Require().Equal(commonParams.Linux, template.OSType)
 	}
-	
+
 	// Find our test template
 	found := false
 	for _, template := range templates {
-		if template.Name == "test-template-1" {
+		if template.Name == testTemplate1Name {
 			found = true
 			break
 		}
 	}
-	s.Require().True(found, "Expected test-template-1 not found")
+	s.Require().True(found, "Expected %s not found", testTemplate1Name)
 }
 
 func (s *TemplateTestSuite) TestListTemplatesWithForgeTypeFilter() {
@@ -235,7 +239,7 @@ func (s *TemplateTestSuite) TestListTemplatesWithForgeTypeFilter() {
 
 	s.Require().Nil(err)
 	s.Require().GreaterOrEqual(len(templates), 2)
-	
+
 	// Verify all returned templates have the correct forge type
 	for _, template := range templates {
 		s.Require().Equal(params.GithubEndpointType, template.ForgeType)
@@ -243,20 +247,20 @@ func (s *TemplateTestSuite) TestListTemplatesWithForgeTypeFilter() {
 }
 
 func (s *TemplateTestSuite) TestListTemplatesWithNameFilter() {
-	partialName := "test-template-1"
+	partialName := testTemplate1Name
 	templates, err := s.Runner.ListTemplates(s.adminCtx, nil, nil, &partialName)
 
 	s.Require().Nil(err)
 	s.Require().GreaterOrEqual(len(templates), 1)
-	
+
 	found := false
 	for _, template := range templates {
-		if template.Name == "test-template-1" {
+		if template.Name == testTemplate1Name {
 			found = true
 			break
 		}
 	}
-	s.Require().True(found, "Expected test-template-1 not found")
+	s.Require().True(found, "Expected %s not found", testTemplate1Name)
 }
 
 func (s *TemplateTestSuite) TestUpdateTemplate() {

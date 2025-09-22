@@ -26,8 +26,8 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
-	commonParams "github.com/cloudbase/garm-provider-common/params"
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	commonParams "github.com/cloudbase/garm-provider-common/params"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/database/watcher"
 	garmTesting "github.com/cloudbase/garm/internal/testing"
@@ -35,18 +35,18 @@ import (
 )
 
 type TemplatesTestFixtures struct {
-	Templates   []params.Template
-	SQLMock     sqlmock.Sqlmock
-	User        params.User
-	AdminUser   params.User
+	Templates []params.Template
+	SQLMock   sqlmock.Sqlmock
+	User      params.User
+	AdminUser params.User
 }
 
 type TemplatesTestSuite struct {
 	suite.Suite
-	Store          dbCommon.Store
-	ctx            context.Context
-	adminCtx       context.Context
-	
+	Store    dbCommon.Store
+	ctx      context.Context
+	adminCtx context.Context
+
 	StoreSQLMocked *sqlDatabase
 	Fixtures       *TemplatesTestFixtures
 }
@@ -82,7 +82,7 @@ func (s *TemplatesTestSuite) SetupTest() {
 
 	// Create test templates
 	templates := []params.Template{}
-	
+
 	// Create system template (user_id = nil)
 	sysTemplate, err := s.Store.CreateTemplate(s.adminCtx, params.CreateTemplateParams{
 		Name:        "system-template",
@@ -145,13 +145,13 @@ func (s *TemplatesTestSuite) TestListTemplates() {
 	s.Require().Nil(err)
 	// Should include both test templates and any system templates
 	s.Require().GreaterOrEqual(len(templates), len(s.Fixtures.Templates))
-	
+
 	// Find our test templates in the results
 	foundNames := make(map[string]bool)
 	for _, template := range templates {
 		foundNames[template.Name] = true
 	}
-	
+
 	for _, expected := range s.Fixtures.Templates {
 		s.Require().True(foundNames[expected.Name], "Expected template %s not found", expected.Name)
 	}
@@ -162,12 +162,12 @@ func (s *TemplatesTestSuite) TestListTemplatesWithOSTypeFilter() {
 	templates, err := s.Store.ListTemplates(s.adminCtx, &osType, nil, nil)
 	s.Require().Nil(err)
 	s.Require().GreaterOrEqual(len(templates), 1)
-	
+
 	// Verify all returned templates have the correct OS type
 	for _, template := range templates {
 		s.Require().Equal(commonParams.Linux, template.OSType)
 	}
-	
+
 	// Find our test template
 	found := false
 	for _, template := range templates {
@@ -184,7 +184,7 @@ func (s *TemplatesTestSuite) TestListTemplatesWithForgeTypeFilter() {
 	templates, err := s.Store.ListTemplates(s.adminCtx, nil, &forgeType, nil)
 	s.Require().Nil(err)
 	s.Require().GreaterOrEqual(len(templates), 2)
-	
+
 	// Verify all returned templates have the correct forge type
 	for _, template := range templates {
 		s.Require().Equal(params.GithubEndpointType, template.ForgeType)

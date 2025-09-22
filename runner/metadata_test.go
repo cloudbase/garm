@@ -37,15 +37,15 @@ import (
 
 type MetadataTestFixtures struct {
 	AdminContext    context.Context
-	Store          dbCommon.Store
-	Providers      map[string]common.Provider
-	ProviderMock   *runnerCommonMocks.Provider
-	PoolMgrMock    *runnerCommonMocks.PoolManager
+	Store           dbCommon.Store
+	Providers       map[string]common.Provider
+	ProviderMock    *runnerCommonMocks.Provider
+	PoolMgrMock     *runnerCommonMocks.PoolManager
 	PoolMgrCtrlMock *runnerMocks.PoolManagerController
-	TestInstance   params.Instance
-	TestEntity     params.ForgeEntity
-	TestPool       params.Pool
-	TestTemplate   params.Template
+	TestInstance    params.Instance
+	TestEntity      params.ForgeEntity
+	TestPool        params.Pool
+	TestTemplate    params.Template
 }
 
 type MetadataTestSuite struct {
@@ -178,7 +178,7 @@ func (s *MetadataTestSuite) setupContexts() {
 	// JIT instance context
 	jitInstance := s.Fixtures.TestInstance
 	jitInstance.JitConfiguration = map[string]string{
-		".runner": base64.StdEncoding.EncodeToString([]byte("runner config")),
+		".runner":      base64.StdEncoding.EncodeToString([]byte("runner config")),
 		".credentials": base64.StdEncoding.EncodeToString([]byte("credentials config")),
 	}
 	s.jitInstanceCtx = auth.SetInstanceParams(context.Background(), jitInstance)
@@ -277,7 +277,7 @@ func (s *MetadataTestSuite) TestGetLabelsForInstance() {
 	jitLabels := getLabelsForInstance(jitInstance)
 	s.Require().Empty(jitLabels)
 
-	// Test with scale set instance (should return empty labels) 
+	// Test with scale set instance (should return empty labels)
 	scaleSetInstance := s.Fixtures.TestInstance
 	scaleSetInstance.ScaleSetID = 123
 	scaleSetLabels := getLabelsForInstance(scaleSetInstance)
@@ -306,27 +306,27 @@ func (s *MetadataTestSuite) TestGetRunnerInstallScriptInvalidState() {
 
 func (s *MetadataTestSuite) TestGenerateSystemdUnitFile() {
 	tests := []struct {
-		name        string
-		runAsUser   string
-		forgeType   params.EndpointType
+		name             string
+		runAsUser        string
+		forgeType        params.EndpointType
 		expectedTemplate string
 	}{
 		{
-			name:        "GitHub with custom user",
-			runAsUser:   "custom-user",
-			forgeType:   params.GithubEndpointType,
+			name:             "GitHub with custom user",
+			runAsUser:        "custom-user",
+			forgeType:        params.GithubEndpointType,
 			expectedTemplate: "GitHub Actions Runner",
 		},
 		{
-			name:        "GitHub with default user",
-			runAsUser:   "",
-			forgeType:   params.GithubEndpointType,
+			name:             "GitHub with default user",
+			runAsUser:        "",
+			forgeType:        params.GithubEndpointType,
 			expectedTemplate: "GitHub Actions Runner",
 		},
 		{
-			name:        "Gitea with custom user",
-			runAsUser:   "gitea-user",
-			forgeType:   params.GiteaEndpointType,
+			name:             "Gitea with custom user",
+			runAsUser:        "gitea-user",
+			forgeType:        params.GiteaEndpointType,
 			expectedTemplate: "Act Runner",
 		},
 	}
@@ -344,7 +344,7 @@ func (s *MetadataTestSuite) TestGenerateSystemdUnitFile() {
 			s.Require().NotEmpty(unitFile)
 			s.Require().Contains(string(unitFile), tt.expectedTemplate)
 			s.Require().Contains(string(unitFile), "test-org")
-			
+
 			if tt.runAsUser != "" {
 				s.Require().Contains(string(unitFile), tt.runAsUser)
 			} else {
@@ -405,7 +405,7 @@ func (s *MetadataTestSuite) TestGetJITConfigFileNotFound() {
 
 func (s *MetadataTestSuite) TestGetInstanceGithubRegistrationToken() {
 	expectedToken := "test-registration-token"
-	
+
 	// Set up mocks
 	s.Fixtures.PoolMgrCtrlMock.On("GetOrgPoolManager", mock.AnythingOfType("params.Organization")).Return(s.Fixtures.PoolMgrMock, nil)
 	s.Fixtures.PoolMgrMock.On("GithubRunnerRegistrationToken").Return(expectedToken, nil)
@@ -414,7 +414,7 @@ func (s *MetadataTestSuite) TestGetInstanceGithubRegistrationToken() {
 
 	s.Require().Nil(err)
 	s.Require().Equal(expectedToken, token)
-	
+
 	s.Fixtures.PoolMgrMock.AssertExpectations(s.T())
 	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
 }
@@ -465,7 +465,7 @@ func (s *MetadataTestSuite) TestGetRootCertificateBundle() {
 
 	s.Require().Nil(err)
 	s.Require().Equal(expectedBundle.RootCertificates, bundle.RootCertificates)
-	
+
 	s.Fixtures.PoolMgrMock.AssertExpectations(s.T())
 	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
 }
@@ -488,7 +488,7 @@ func (s *MetadataTestSuite) TestGetRootCertificateBundleInvalidBundle() {
 	// Should return empty bundle without error when CA bundle is invalid
 	s.Require().Nil(err)
 	s.Require().Empty(bundle.RootCertificates)
-	
+
 	s.Fixtures.PoolMgrMock.AssertExpectations(s.T())
 	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
 }
