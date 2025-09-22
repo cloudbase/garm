@@ -51,6 +51,17 @@ func (r *Runner) GetTemplate(ctx context.Context, id uint) (params.Template, err
 	return template, nil
 }
 
+func (r *Runner) GetTemplateByName(ctx context.Context, templateName string) (params.Template, error) {
+	if !auth.IsAdmin(ctx) {
+		return params.Template{}, runnerErrors.ErrUnauthorized
+	}
+	template, err := r.store.GetTemplateByName(ctx, templateName)
+	if err != nil {
+		return params.Template{}, fmt.Errorf("failed to get template: %w", err)
+	}
+	return template, nil
+}
+
 func (r *Runner) ListTemplates(ctx context.Context, osType *commonParams.OSType, forgeType *params.EndpointType, partialName *string) ([]params.Template, error) {
 	if !auth.IsAdmin(ctx) {
 		return nil, runnerErrors.ErrUnauthorized

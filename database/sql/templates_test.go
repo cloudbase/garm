@@ -235,6 +235,109 @@ func (s *TemplatesTestSuite) TestGetTemplateByNameNotFound() {
 	s.Require().ErrorIs(err, runnerErrors.ErrNotFound)
 }
 
+func (s *TemplatesTestSuite) TestGetTemplateByNameMultipleTemplatesConflict() {
+	// Create a scenario where a user can see multiple templates with the same name:
+	// 1. A user template with a specific name
+	// 2. A system template (user_id = NULL) with the same name
+	// Both will be visible to the user, creating a conflict
+	templateName := "duplicate-name-template"
+	
+	// Create a user template first
+	_, err := s.Store.CreateTemplate(s.ctx, params.CreateTemplateParams{
+		Name:        templateName,
+		Description: "User template with duplicate name",
+		OSType:      commonParams.Linux,
+		ForgeType:   params.GithubEndpointType,
+		Data:        []byte(`{"provider": "lxd", "image": "ubuntu:22.04"}`),
+	})
+	s.Require().Nil(err)
+
+	// Create a system template by directly inserting into the database
+	// since the createSystemTemplate method isn't exported
+	sqlDB := s.Store.(*sqlDatabase)
+	sealed, err := sqlDB.marshalAndSeal([]byte(`{"provider": "azure", "image": "windows-2022"}`))
+	s.Require().Nil(err)
+	
+	systemTemplate := Template{
+		UserID:      nil, // system template
+		Name:        templateName,
+		Description: "System template with duplicate name",
+		OSType:      commonParams.Windows,
+		ForgeType:   params.GithubEndpointType,
+		Data:        sealed,
+	}
+	err = sqlDB.conn.Create(&systemTemplate).Error
+	s.Require().Nil(err)
+
+	// Now try to get template by name - should return conflict error
+	_, err = s.Store.GetTemplateByName(s.ctx, templateName)
+	s.Require().NotNil(err)
+	expectedErr := runnerErrors.NewConflictError("multiple templates match the specified name %q. Please get template by ID.", templateName)
+	s.Require().Equal(expectedErr, err)
+}
+
+func (s *TemplatesTestSuite) TestCreateTemplateDuplicateName() {
+	// Test that creating a template with a duplicate name for the same user returns a conflict error
+	templateName := "duplicate-user-template"
+	
+	// Create first template
+	_, err := s.Store.CreateTemplate(s.ctx, params.CreateTemplateParams{
+		Name:        templateName,
+		Description: "First template",
+		OSType:      commonParams.Linux,
+		ForgeType:   params.GithubEndpointType,
+		Data:        []byte(`{"provider": "lxd", "image": "ubuntu:22.04"}`),
+	})
+	s.Require().Nil(err)
+
+	// Try to create second template with same name for same user - should fail
+	_, err = s.Store.CreateTemplate(s.ctx, params.CreateTemplateParams{
+		Name:        templateName,
+		Description: "Second template with same name",
+		OSType:      commonParams.Windows,
+		ForgeType:   params.GithubEndpointType,
+		Data:        []byte(`{"provider": "azure", "image": "windows-2022"}`),
+	})
+	s.Require().NotNil(err)
+	expectedErr := runnerErrors.NewConflictError("a template name already exists with the specified name")
+	s.Require().Equal(expectedErr, err)
+}
+
+func (s *TemplatesTestSuite) TestCreateTemplateSystemAndUserConflict() {
+	// Test scenarios where system and user templates might conflict
+	templateName := "conflicting-template"
+	
+	// Create a user template first
+	_, err := s.Store.CreateTemplate(s.ctx, params.CreateTemplateParams{
+		Name:        templateName,
+		Description: "User template",
+		OSType:      commonParams.Linux,
+		ForgeType:   params.GithubEndpointType,
+		Data:        []byte(`{"provider": "lxd", "image": "ubuntu:22.04"}`),
+	})
+	s.Require().Nil(err)
+
+	// Now try to create a system template with the same name using direct access to createSystemTemplate
+	// This should succeed since the unique constraint is on (name, user_id) and system templates have user_id = NULL
+	sqlDB := s.Store.(*sqlDatabase)
+	_, err = sqlDB.createSystemTemplate(s.adminCtx, params.CreateTemplateParams{
+		Name:        templateName,
+		Description: "System template with same name",
+		OSType:      commonParams.Windows,
+		ForgeType:   params.GithubEndpointType,
+		Data:        []byte(`{"provider": "azure", "image": "windows-2022"}`),
+	})
+	
+	// This should succeed because system templates (user_id = NULL) and user templates 
+	// (user_id = specific_user_id) can coexist with the same name due to the composite unique constraint
+	s.Require().Nil(err)
+	
+	// Verify both templates exist
+	userTemplates, err := s.Store.ListTemplates(s.ctx, nil, nil, &templateName)
+	s.Require().Nil(err)
+	s.Require().Len(userTemplates, 2) // User can see both their template and the system template
+}
+
 func (s *TemplatesTestSuite) TestCreateTemplate() {
 	template, err := s.Store.CreateTemplate(s.ctx, params.CreateTemplateParams{
 		Name:        "new-template",

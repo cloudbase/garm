@@ -51,7 +51,9 @@ func newDBConn(dbCfg config.Database) (conn *gorm.DB, err error) {
 		return nil, fmt.Errorf("error getting DB URI string: %w", err)
 	}
 
-	gormConfig := &gorm.Config{}
+	gormConfig := &gorm.Config{
+		TranslateError: true,
+	}
 	if !dbCfg.Debug {
 		gormConfig.Logger = logger.Default.LogMode(logger.Silent)
 	}

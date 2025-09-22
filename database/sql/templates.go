@@ -113,7 +113,7 @@ func (s *sqlDatabase) GetTemplateByName(ctx context.Context, name string) (param
 	if err != nil {
 		return params.Template{}, fmt.Errorf("failed to get template: %w", err)
 	}
-	var template Template
+	var templates []Template
 	q := s.conn.Model(&Template{}).
 		Where("name = ?", name).
 		Where("user_id = ? or user_id IS NULL", userID).
@@ -121,7 +121,7 @@ func (s *sqlDatabase) GetTemplateByName(ctx context.Context, name string) (param
 		Preload("Pools").
 		Preload("User")
 
-	q = q.First(&template)
+	q = q.Find(&templates)
 	if q.Error != nil {
 		if errors.Is(q.Error, gorm.ErrRecordNotFound) {
 			return params.Template{}, runnerErrors.ErrNotFound
@@ -129,7 +129,13 @@ func (s *sqlDatabase) GetTemplateByName(ctx context.Context, name string) (param
 		return params.Template{}, fmt.Errorf("failed to get template: %w", q.Error)
 	}
 
-	ret, err := s.sqlToParamTemplate(template)
+	if len(templates) == 0 {
+		return params.Template{}, runnerErrors.ErrNotFound
+	}
+	if len(templates) > 1 {
+		return params.Template{}, runnerErrors.NewConflictError("multiple templates match the specified name %q. Please get template by ID.", name)
+	}
+	ret, err := s.sqlToParamTemplate(templates[0])
 	if err != nil {
 		return params.Template{}, fmt.Errorf("failed to convert template: %w", err)
 	}
@@ -159,6 +165,9 @@ func (s *sqlDatabase) createSystemTemplate(ctx context.Context, param params.Cre
 	}
 
 	if err := s.conn.Create(&tpl).Error; err != nil {
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			return params.Template{}, runnerErrors.NewConflictError("a template name already exists with the specified name")
+		}
 		return params.Template{}, fmt.Errorf("error creating template: %w", err)
 	}
 
@@ -198,6 +207,9 @@ func (s *sqlDatabase) CreateTemplate(ctx context.Context, param params.CreateTem
 	}
 
 	if err := s.conn.Create(&tpl).Error; err != nil {
+		if errors.Is(err, gorm.ErrDuplicatedKey) {
+			return params.Template{}, runnerErrors.NewConflictError("a template name already exists with the specified name")
+		}
 		return params.Template{}, fmt.Errorf("error creating template: %w", err)
 	}
 

@@ -61,7 +61,7 @@ func (a *APIController) ListTemplatesHandler(w http.ResponseWriter, r *http.Requ
 	var osType *commonParams.OSType
 	var forgeType *runnerParams.EndpointType
 
-	queryName := r.URL.Query().Get("name")
+	queryName := r.URL.Query().Get("partialName")
 	queryOSType := r.URL.Query().Get("osType")
 	queryForgeType := r.URL.Query().Get("forgeType")
 	if queryName != "" {
