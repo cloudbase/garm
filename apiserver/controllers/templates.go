@@ -17,6 +17,7 @@ package controllers
 import (
 	"encoding/json"
 	"log/slog"
+	"math"
 	"net/http"
 	"strconv"
 
@@ -107,12 +108,12 @@ func (a *APIController) GetTemplateHandler(w http.ResponseWriter, r *http.Reques
 	ctx := r.Context()
 
 	vars := mux.Vars(r)
-	templateID, err := getValueFromVarsAsUint64(vars, "templateID")
+	templateID, err := getValueFromVarsAsUint(vars, "templateID")
 	if err != nil {
 		handleError(ctx, w, err)
 		return
 	}
-	template, err := a.r.GetTemplate(ctx, uint(templateID))
+	template, err := a.r.GetTemplate(ctx, templateID)
 	if err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "fetching template")
 		handleError(ctx, w, err)
@@ -142,12 +143,12 @@ func (a *APIController) DeleteTemplateHandler(w http.ResponseWriter, r *http.Req
 	ctx := r.Context()
 
 	vars := mux.Vars(r)
-	templateID, err := getValueFromVarsAsUint64(vars, "templateID")
+	templateID, err := getValueFromVarsAsUint(vars, "templateID")
 	if err != nil {
 		handleError(ctx, w, err)
 		return
 	}
-	if err := a.r.DeleteTemplate(ctx, uint(templateID)); err != nil {
+	if err := a.r.DeleteTemplate(ctx, templateID); err != nil {
 		handleError(ctx, w, err)
 		return
 	}
@@ -216,7 +217,7 @@ func (a *APIController) UpdateTemplateHandler(w http.ResponseWriter, r *http.Req
 	ctx := r.Context()
 
 	vars := mux.Vars(r)
-	templateID, err := getValueFromVarsAsUint64(vars, "templateID")
+	templateID, err := getValueFromVarsAsUint(vars, "templateID")
 	if err != nil {
 		handleError(ctx, w, err)
 		return
@@ -228,7 +229,7 @@ func (a *APIController) UpdateTemplateHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	template, err := a.r.UpdateTemplate(ctx, uint(templateID), updatePayload)
+	template, err := a.r.UpdateTemplate(ctx, templateID, updatePayload)
 	if err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error updating template")
 		handleError(ctx, w, err)
@@ -241,7 +242,7 @@ func (a *APIController) UpdateTemplateHandler(w http.ResponseWriter, r *http.Req
 	}
 }
 
-func getValueFromVarsAsUint64(vars map[string]string, key string) (uint64, error) {
+func getValueFromVarsAsUint(vars map[string]string, key string) (uint, error) {
 	ret, ok := vars[key]
 	if !ok {
 		return 0, gErrors.NewBadRequestError("no %s specified", key)
@@ -251,5 +252,8 @@ func getValueFromVarsAsUint64(vars map[string]string, key string) (uint64, error
 		return 0, gErrors.NewBadRequestError("invalid value for %q: %q", key, ret)
 	}
 
-	return asUint, nil
+	if asUint > math.MaxUint {
+		return 0, gErrors.NewBadRequestError("%s is larger than allowed size for an unsigned int", key)
+	}
+	return uint(asUint), nil
 }
