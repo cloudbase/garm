@@ -48,6 +48,7 @@ var (
 	scalesetExtraSpecsFile         string
 	scalesetExtraSpecs             string
 	scalesetGitHubRunnerGroup      string
+	scaleSetTemplateNameOrID       string
 )
 
 type scalesetPayloadGetter interface {
@@ -250,6 +251,14 @@ var scaleSetAddCmd = &cobra.Command{
 		}
 
 		var err error
+		if cmd.Flags().Changed("runner-install-template") && scaleSetTemplateNameOrID != "" {
+			tmplID, err := resolveTemplateAsUint(scaleSetTemplateNameOrID)
+			if err != nil {
+				return fmt.Errorf("failed to resolve template")
+			}
+			newScaleSetParams.TemplateID = &tmplID
+		}
+
 		var response scalesetPayloadGetter
 		if cmd.Flags().Changed("repo") {
 			scalesetRepository, err = resolveRepository(scalesetRepository, endpointName)
@@ -317,6 +326,14 @@ explicitly remove them using the runner delete command.
 
 		updateScaleSetReq := apiClientScaleSets.NewUpdateScaleSetParams()
 		scaleSetUpdateParams := params.UpdateScaleSetParams{}
+
+		if cmd.Flags().Changed("runner-install-template") && scaleSetTemplateNameOrID != "" {
+			tmplID, err := resolveTemplateAsUint(scaleSetTemplateNameOrID)
+			if err != nil {
+				return fmt.Errorf("failed to resolve template")
+			}
+			scaleSetUpdateParams.TemplateID = &tmplID
+		}
 
 		if cmd.Flags().Changed("image") {
 			scaleSetUpdateParams.Image = scalesetImage
@@ -412,6 +429,7 @@ func init() {
 	scaleSetUpdateCmd.Flags().UintVar(&scalesetRunnerBootstrapTimeout, "runner-bootstrap-timeout", 20, "Duration in minutes after which a runner is considered failed if it does not join Github.")
 	scaleSetUpdateCmd.Flags().StringVar(&scalesetExtraSpecsFile, "extra-specs-file", "", "A file containing a valid json which will be passed to the IaaS provider managing the scale set.")
 	scaleSetUpdateCmd.Flags().StringVar(&scalesetExtraSpecs, "extra-specs", "", "A valid json which will be passed to the IaaS provider managing the scale set.")
+	scaleSetUpdateCmd.Flags().StringVar(&scaleSetTemplateNameOrID, "runner-install-template", "", "The runner install template name or ID to use for this scale set.")
 	scaleSetUpdateCmd.MarkFlagsMutuallyExclusive("extra-specs-file", "extra-specs")
 
 	scaleSetAddCmd.Flags().StringVar(&scalesetProvider, "provider-name", "", "The name of the provider where runners will be created.")
@@ -429,6 +447,7 @@ func init() {
 	scaleSetAddCmd.Flags().UintVar(&scalesetMinIdleRunners, "min-idle-runners", 1, "Attempt to maintain a minimum of idle self-hosted runners of this type.")
 	scaleSetAddCmd.Flags().BoolVar(&scalesetEnabled, "enabled", false, "Enable this scale set.")
 	scaleSetAddCmd.Flags().StringVar(&endpointName, "endpoint", "", "When using the name of an entity, the endpoint must be specified when multiple entities with the same name exist.")
+	scaleSetAddCmd.Flags().StringVar(&scaleSetTemplateNameOrID, "runner-install-template", "", "The runner install template name or ID to use for this scale set.")
 	scaleSetAddCmd.MarkFlagRequired("provider-name") //nolint
 	scaleSetAddCmd.MarkFlagRequired("name")          //nolint
 	scaleSetAddCmd.MarkFlagRequired("image")         //nolint
@@ -519,6 +538,7 @@ func formatOneScaleSet(scaleSet params.ScaleSet) {
 	t.AppendRow(table.Row{"Min Idle Runners", scaleSet.MinIdleRunners})
 	t.AppendRow(table.Row{"Runner Bootstrap Timeout", scaleSet.RunnerBootstrapTimeout})
 	t.AppendRow(table.Row{"Belongs to", belongsTo})
+	t.AppendRow(table.Row{"Template", fmt.Sprintf("%s (ID: %d)", scaleSet.TemplateName, scaleSet.TemplateID)})
 	t.AppendRow(table.Row{"Level", level})
 	t.AppendRow(table.Row{"Enabled", scaleSet.Enabled})
 	t.AppendRow(table.Row{"Runner Prefix", scaleSet.GetRunnerPrefix()})

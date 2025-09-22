@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 
@@ -14,9 +15,12 @@ import (
 	"github.com/cloudbase/garm/params"
 )
 
-func resolveTemplate(nameOrID string) (float64, error) {
+func resolveTemplateAsUint(nameOrID string) (uint, error) {
 	if parsed, err := strconv.ParseUint(nameOrID, 10, 64); err == nil {
-		return float64(parsed), nil
+		if parsed > math.MaxUint {
+			return 0, fmt.Errorf("ID is too large")
+		}
+		return uint(parsed), nil
 	}
 
 	listTplReq := apiTemplates.NewListTemplatesParams()
@@ -37,7 +41,15 @@ func resolveTemplate(nameOrID string) (float64, error) {
 	if len(exactMatches) > 1 {
 		return 0, fmt.Errorf("multiple templates found with name: %s", nameOrID)
 	}
-	return float64(exactMatches[0].ID), nil
+	return exactMatches[0].ID, nil
+}
+
+func resolveTemplate(nameOrID string) (float64, error) {
+	id, err := resolveTemplateAsUint(nameOrID)
+	if err != nil {
+		return 0, err
+	}
+	return float64(id), nil
 }
 
 func resolveRepository(nameOrID, endpoint string) (string, error) {

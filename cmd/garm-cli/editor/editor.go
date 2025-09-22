@@ -34,12 +34,13 @@ type Editor struct {
 
 // NewEditor creates a new editor instance
 func NewEditor() *Editor {
-	return &Editor{
+	e := &Editor{
 		app:     tview.NewApplication(),
 		pages:   tview.NewPages(),
 		useVim:  false,
 		vimMode: VimNormal,
 	}
+	return e
 }
 
 // SetVimMode enables or disables vim modal editing
@@ -119,6 +120,21 @@ func (e *Editor) handleVimInput(event *tcell.EventKey) *tcell.EventKey {
 // handleVimNormalMode handles input in vim normal mode
 func (e *Editor) handleVimNormalMode(event *tcell.EventKey) *tcell.EventKey {
 	// Handle global commands first
+	if result := e.handleGlobalCommands(event); result != event {
+		return result
+	}
+
+	// Handle vim character-based commands
+	if result := e.handleVimCharCommands(event); result != event {
+		return result
+	}
+
+	// Handle key-based navigation
+	return e.handleKeyNavigation(event)
+}
+
+// handleGlobalCommands handles global commands available in all modes
+func (e *Editor) handleGlobalCommands(event *tcell.EventKey) *tcell.EventKey {
 	switch {
 	case event.Key() == tcell.KeyCtrlS:
 		e.result = e.editor.GetText()
@@ -135,55 +151,79 @@ func (e *Editor) handleVimNormalMode(event *tcell.EventKey) *tcell.EventKey {
 		e.pages.SwitchToPage("help")
 		return nil
 	}
+	return event // Continue processing
+}
 
-	// Handle vim normal mode commands
+// handleVimCharCommands handles vim character-based commands
+func (e *Editor) handleVimCharCommands(event *tcell.EventKey) *tcell.EventKey {
+	// Handle mode switching commands
+	if result := e.handleModeSwitching(event); result != event {
+		return result
+	}
+
+	// Handle navigation commands
+	if result := e.handleCharNavigation(event); result != event {
+		return result
+	}
+
+	// Handle editing commands
+	return e.handleEditingCommands(event)
+}
+
+// handleModeSwitching handles commands that switch vim modes
+func (e *Editor) handleModeSwitching(event *tcell.EventKey) *tcell.EventKey {
 	switch event.Rune() {
-	// Mode switching
 	case 'i':
 		e.resetGCommand()
-		e.vimMode = VimInsert
-		e.updateTitle()
-		e.updateFooter()
+		e.enterInsertMode()
 		return nil
 	case 'a':
 		e.resetGCommand()
-		e.vimMode = VimInsert
-		e.updateTitle()
-		e.updateFooter()
-		// Move cursor right then enter insert mode
+		e.enterInsertMode()
 		return tcell.NewEventKey(tcell.KeyRight, 0, tcell.ModNone)
 	case 'A':
 		e.resetGCommand()
-		e.vimMode = VimInsert
-		e.updateTitle()
-		e.updateFooter()
-		// Move to end of line then enter insert mode
+		e.enterInsertMode()
 		return tcell.NewEventKey(tcell.KeyEnd, 0, tcell.ModNone)
 	case 'I':
 		e.resetGCommand()
-		e.vimMode = VimInsert
-		e.updateTitle()
-		e.updateFooter()
-		// Move to beginning of line then enter insert mode
+		e.enterInsertMode()
 		return tcell.NewEventKey(tcell.KeyHome, 0, tcell.ModNone)
 	case 'o':
 		e.resetGCommand()
-		e.vimMode = VimInsert
-		e.updateTitle()
-		e.updateFooter()
-		// Move to end of line, insert newline, enter insert mode
+		e.enterInsertMode()
 		e.insertNewLineBelow()
 		return nil
 	case 'O':
 		e.resetGCommand()
-		e.vimMode = VimInsert
-		e.updateTitle()
-		e.updateFooter()
-		// Insert line above current line, enter insert mode
+		e.enterInsertMode()
 		e.insertNewLineAbove()
 		return nil
+	}
+	return event // Continue processing
+}
 
-	// Navigation
+// enterInsertMode switches to insert mode
+func (e *Editor) enterInsertMode() {
+	e.vimMode = VimInsert
+	e.updateTitle()
+	e.updateFooter()
+}
+
+// exitInsertMode switches to normal mode
+func (e *Editor) exitInsertMode() {
+	if e.vimMode != VimInsert {
+		return
+	}
+
+	e.vimMode = VimNormal
+	e.updateTitle()
+	e.updateFooter()
+}
+
+// handleCharNavigation handles character-based navigation commands
+func (e *Editor) handleCharNavigation(event *tcell.EventKey) *tcell.EventKey {
+	switch event.Rune() {
 	case 'h':
 		e.resetGCommand()
 		return tcell.NewEventKey(tcell.KeyLeft, 0, tcell.ModNone)
@@ -208,17 +248,19 @@ func (e *Editor) handleVimNormalMode(event *tcell.EventKey) *tcell.EventKey {
 	case 'b':
 		e.resetGCommand()
 		return tcell.NewEventKey(tcell.KeyLeft, 0, tcell.ModCtrl)
-
-	// Document navigation
 	case 'G':
 		e.resetGCommand()
 		e.goToEnd()
 		return nil
 	case 'g':
-		// Handle gg (go to beginning) - don't reset here as this is part of the gg command
 		return e.handleGCommand(event)
+	}
+	return event // Continue processing
+}
 
-	// Editing
+// handleEditingCommands handles editing and search commands
+func (e *Editor) handleEditingCommands(event *tcell.EventKey) *tcell.EventKey {
+	switch event.Rune() {
 	case 'x':
 		e.resetGCommand()
 		return tcell.NewEventKey(tcell.KeyDelete, 0, tcell.ModNone)
@@ -227,30 +269,29 @@ func (e *Editor) handleVimNormalMode(event *tcell.EventKey) *tcell.EventKey {
 		return tcell.NewEventKey(tcell.KeyBackspace, 0, tcell.ModNone)
 	case 'd':
 		e.resetGCommand()
-		// Simple line deletion for now (dd)
 		return e.handleDeleteCommand(event)
 	case '/':
 		e.resetGCommand()
-		// Enter search mode
 		e.startSearch()
 		return nil
 	case 'n':
 		e.resetGCommand()
-		// Find next occurrence
 		e.findNext()
 		return nil
 	case 'N':
 		e.resetGCommand()
-		// Find previous occurrence
 		e.findPrevious()
 		return nil
 	}
 
-	// Handle key-based navigation (arrow keys, etc.)
+	return event // Continue processing
+}
+
+// handleKeyNavigation handles key-based navigation (arrow keys, etc.)
+func (e *Editor) handleKeyNavigation(event *tcell.EventKey) *tcell.EventKey {
 	switch event.Key() {
 	case tcell.KeyEscape:
 		e.resetGCommand()
-		// Already in normal mode
 		return nil
 	case tcell.KeyLeft:
 		e.resetGCommand()
@@ -286,9 +327,7 @@ func (e *Editor) handleVimNormalMode(event *tcell.EventKey) *tcell.EventKey {
 func (e *Editor) handleVimInsertMode(event *tcell.EventKey) *tcell.EventKey {
 	switch event.Key() {
 	case tcell.KeyEscape:
-		e.vimMode = VimNormal
-		e.updateTitle()
-		e.updateFooter()
+		e.exitInsertMode()
 		return nil
 	case tcell.KeyCtrlS:
 		e.result = e.editor.GetText()
@@ -466,7 +505,7 @@ func (e *Editor) goToPosition(pos int) {
 	e.editor.SetText(text, false)
 
 	// Move cursor to the right position by simulating key presses
-	for i := 0; i < pos; i++ {
+	for range pos {
 		e.editor.InputHandler()(tcell.NewEventKey(tcell.KeyRight, 0, tcell.ModNone), nil)
 	}
 }
@@ -601,7 +640,10 @@ func (e *Editor) EditText(initialContent string) (string, bool, error) {
 	e.pages.AddPage("main", grid, true, true)
 
 	e.app.SetRoot(e.pages, true)
-	if err := e.app.Run(); err != nil {
+
+	// Run the editor
+	err := e.app.Run()
+	if err != nil {
 		return "", false, err
 	}
 
@@ -690,12 +732,7 @@ Double-click to select a word
 
 	help3 := tview.NewTextView()
 	help3.SetDynamicColors(true)
-	help3.SetText(`[green]Undo/Redo[white]
-
-[yellow]Ctrl-Z[white]: Undo last action
-[yellow]Ctrl-Y[white]: Redo last undone action
-
-[green]Editor Commands[white]
+	help3.SetText(`[green]Editor Commands[white]
 
 [yellow]Ctrl-S[white]: Save changes and exit editor
 [yellow]Ctrl-Q[white]: Quit without saving changes

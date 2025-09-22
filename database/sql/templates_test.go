@@ -241,7 +241,7 @@ func (s *TemplatesTestSuite) TestGetTemplateByNameMultipleTemplatesConflict() {
 	// 2. A system template (user_id = NULL) with the same name
 	// Both will be visible to the user, creating a conflict
 	templateName := "duplicate-name-template"
-	
+
 	// Create a user template first
 	_, err := s.Store.CreateTemplate(s.ctx, params.CreateTemplateParams{
 		Name:        templateName,
@@ -257,7 +257,7 @@ func (s *TemplatesTestSuite) TestGetTemplateByNameMultipleTemplatesConflict() {
 	sqlDB := s.Store.(*sqlDatabase)
 	sealed, err := sqlDB.marshalAndSeal([]byte(`{"provider": "azure", "image": "windows-2022"}`))
 	s.Require().Nil(err)
-	
+
 	systemTemplate := Template{
 		UserID:      nil, // system template
 		Name:        templateName,
@@ -279,7 +279,7 @@ func (s *TemplatesTestSuite) TestGetTemplateByNameMultipleTemplatesConflict() {
 func (s *TemplatesTestSuite) TestCreateTemplateDuplicateName() {
 	// Test that creating a template with a duplicate name for the same user returns a conflict error
 	templateName := "duplicate-user-template"
-	
+
 	// Create first template
 	_, err := s.Store.CreateTemplate(s.ctx, params.CreateTemplateParams{
 		Name:        templateName,
@@ -306,7 +306,7 @@ func (s *TemplatesTestSuite) TestCreateTemplateDuplicateName() {
 func (s *TemplatesTestSuite) TestCreateTemplateSystemAndUserConflict() {
 	// Test scenarios where system and user templates might conflict
 	templateName := "conflicting-template"
-	
+
 	// Create a user template first
 	_, err := s.Store.CreateTemplate(s.ctx, params.CreateTemplateParams{
 		Name:        templateName,
@@ -327,11 +327,11 @@ func (s *TemplatesTestSuite) TestCreateTemplateSystemAndUserConflict() {
 		ForgeType:   params.GithubEndpointType,
 		Data:        []byte(`{"provider": "azure", "image": "windows-2022"}`),
 	})
-	
-	// This should succeed because system templates (user_id = NULL) and user templates 
+
+	// This should succeed because system templates (user_id = NULL) and user templates
 	// (user_id = specific_user_id) can coexist with the same name due to the composite unique constraint
 	s.Require().Nil(err)
-	
+
 	// Verify both templates exist
 	userTemplates, err := s.Store.ListTemplates(s.ctx, nil, nil, &templateName)
 	s.Require().Nil(err)

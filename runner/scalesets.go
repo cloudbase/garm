@@ -147,7 +147,11 @@ func (r *Runner) UpdateScaleSetByID(ctx context.Context, scaleSetID uint, param 
 	}
 
 	if param.TemplateID != nil {
-		template, err := r.findTemplate(ctx, entity, param.OSType, param.TemplateID)
+		osType := param.OSType
+		if osType == "" {
+			osType = scaleSet.OSType
+		}
+		template, err := r.findTemplate(ctx, entity, osType, param.TemplateID)
 		if err != nil {
 			return params.ScaleSet{}, fmt.Errorf("failed to find suitable template: %w", err)
 		}

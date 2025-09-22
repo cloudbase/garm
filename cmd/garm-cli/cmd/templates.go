@@ -18,10 +18,10 @@ import (
 	"os"
 	"strings"
 
-	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/spf13/cobra"
 
+	commonParams "github.com/cloudbase/garm-provider-common/params"
 	apiTemplates "github.com/cloudbase/garm/client/templates"
 	"github.com/cloudbase/garm/cmd/garm-cli/common"
 	"github.com/cloudbase/garm/cmd/garm-cli/editor"
@@ -208,7 +208,7 @@ var templateShowCmd = &cobra.Command{
 	SilenceUsage: true,
 	Short:        "Show template",
 	Long:         `Show template details.`,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -239,7 +239,7 @@ var templateDownloadCmd = &cobra.Command{
 	SilenceUsage: true,
 	Short:        "Download template",
 	Long:         `Download a specific template to a file.`,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
@@ -265,7 +265,7 @@ var templateDownloadCmd = &cobra.Command{
 			return fmt.Errorf("destination path already exists; will not overwrite")
 		}
 
-		if err := os.WriteFile(templatePath, response.Payload.Data, 0o640); err != nil {
+		if err := os.WriteFile(templatePath, response.Payload.Data, 0o600); err != nil {
 			return fmt.Errorf("failed to save file %s: %s", templatePath, err)
 		}
 		return nil
@@ -356,7 +356,7 @@ var templateEditCmd = &cobra.Command{
 	SilenceUsage: true,
 	Short:        "Edit runner install templates",
 	Long:         `Edit templates with optional basic vim keybindings.`,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}

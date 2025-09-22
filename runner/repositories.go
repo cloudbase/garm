@@ -385,16 +385,21 @@ func (r *Runner) UpdateRepoPool(ctx context.Context, repoID, poolID string, para
 		return params.Pool{}, fmt.Errorf("failed to get repo: %w", err)
 	}
 
+	pool, err := r.store.GetEntityPool(ctx, entity, poolID)
+	if err != nil {
+		return params.Pool{}, fmt.Errorf("error fetching pool: %w", err)
+	}
+
 	if param.TemplateID != nil {
-		template, err := r.findTemplate(ctx, entity, param.OSType, param.TemplateID)
+		osType := param.OSType
+		if osType == "" {
+			osType = pool.OSType
+		}
+		template, err := r.findTemplate(ctx, entity, osType, param.TemplateID)
 		if err != nil {
 			return params.Pool{}, fmt.Errorf("failed to find suitable template: %w", err)
 		}
 		param.TemplateID = &template.ID
-	}
-	pool, err := r.store.GetEntityPool(ctx, entity, poolID)
-	if err != nil {
-		return params.Pool{}, fmt.Errorf("error fetching pool: %w", err)
 	}
 
 	maxRunners := pool.MaxRunners
