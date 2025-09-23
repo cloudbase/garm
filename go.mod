@@ -29,7 +29,7 @@ require (
 	golang.org/x/sync v0.17.0
 	gopkg.in/DATA-DOG/go-sqlmock.v1 v1.3.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
-	gorm.io/datatypes v1.2.6
+	gorm.io/datatypes v1.2.7
 	gorm.io/driver/mysql v1.6.0
 	gorm.io/driver/sqlite v1.6.0
 	gorm.io/gorm v1.31.0
