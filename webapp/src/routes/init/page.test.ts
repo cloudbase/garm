@@ -338,7 +338,7 @@ describe('Init Page - Unit Tests', () => {
 				'GARM Initialized',
 				'GARM has been successfully initialized. Welcome!'
 			);
-			expect(goto).toHaveBeenCalledWith('/');
+			// Note: redirect now happens via layout reactive statements, not direct goto() call
 		});
 
 		it('should handle initialization errors', async () => {
