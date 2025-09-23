@@ -66,8 +66,7 @@
 				'GARM has been successfully initialized. Welcome!'
 			);
 			
-			// Redirect to dashboard
-			goto(resolve('/'));
+			// Redirect will happen automatically via reactive statement when auth state updates
 		} catch (err) {
 			error = extractAPIError(err);
 		} finally {
@@ -89,12 +88,14 @@
 		}
 	});
 
-	// Redirect if auth state changes
+	// Redirect if auth state changes (only if not currently submitting)
 	$: {
-		if ($authStore.isAuthenticated) {
-			goto(resolve('/'));
-		} else if (!$authStore.needsInitialization && !$authStore.loading) {
-			goto(resolve('/login'));
+		if (!loading) {
+			if ($authStore.isAuthenticated) {
+				goto(resolve('/'));
+			} else if (!$authStore.needsInitialization && !$authStore.loading) {
+				goto(resolve('/login'));
+			}
 		}
 	}
 </script>

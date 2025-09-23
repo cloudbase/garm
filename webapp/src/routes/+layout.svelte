@@ -12,23 +12,9 @@
 	onMount(() => {
 		auth.init();
 		themeStore.init();
-		
-		// Check for redirect after auth state settles
-		setTimeout(() => {
-			const isLoginPage = page.url.pathname === resolve('/login');
-			const isInitPage = page.url.pathname === resolve('/init');
-			
-			if (!isLoginPage && !isInitPage && !$authStore.isAuthenticated && !$authStore.loading) {
-				if ($authStore.needsInitialization) {
-					goto(resolve('/init'));
-				} else {
-					goto(resolve('/login'));
-				}
-			}
-		}, 200);
 	});
 
-	// Reactive redirect logic
+	// Reactive redirect logic - handles all redirects
 	$: {
 		if (!$authStore.loading) {
 			const isLoginPage = page.url.pathname === resolve('/login');
@@ -36,9 +22,9 @@
 			
 			if (!isLoginPage && !isInitPage && !$authStore.isAuthenticated) {
 				if ($authStore.needsInitialization) {
-					goto(resolve('/init'));
+					goto(resolve('/init'), { replaceState: true });
 				} else {
-					goto(resolve('/login'));
+					goto(resolve('/login'), { replaceState: true });
 				}
 			}
 		}
@@ -46,7 +32,10 @@
 
 	$: isLoginPage = page.url.pathname === resolve('/login');
 	$: isInitPage = page.url.pathname === resolve('/init');
-	$: requiresAuth = !isLoginPage && !isInitPage;
+	$: shouldShowInitPage = $authStore.needsInitialization && !$authStore.isAuthenticated && !$authStore.loading;
+	$: shouldShowLoginPage = !$authStore.needsInitialization && !$authStore.isAuthenticated && !$authStore.loading;
+	$: shouldShowMainLayout = $authStore.isAuthenticated && !$authStore.loading;
+	$: shouldShowRedirect = !shouldShowInitPage && !shouldShowLoginPage && !shouldShowMainLayout;
 </script>
 
 <svelte:head>
@@ -60,17 +49,10 @@
 			<p class="mt-4 text-gray-500 dark:text-gray-400">Loading...</p>
 		</div>
 	</div>
-{:else if requiresAuth && !$authStore.isAuthenticated}
-	<!-- Redirect to login handled by load function -->
-	<div class="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-		<div class="text-center">
-			<p class="text-gray-600 dark:text-gray-400">Redirecting to login...</p>
-		</div>
-	</div>
-{:else if isLoginPage || isInitPage}
+{:else if shouldShowLoginPage || shouldShowInitPage}
 	<!-- Login/Init page - no navigation -->
 	<slot />
-{:else}
+{:else if shouldShowMainLayout}
 	<!-- Main app layout with sidebar -->
 	<div class="min-h-screen bg-gray-100 dark:bg-gray-900">
 		<Navigation />
@@ -81,6 +63,20 @@
 					<slot />
 				</div>
 			</main>
+		</div>
+	</div>
+{:else if shouldShowRedirect}
+	<!-- Redirect to login/init handled by reactive logic -->
+	<div class="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+		<div class="text-center">
+			<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+			<p class="text-gray-600 dark:text-gray-400">
+				{#if $authStore.needsInitialization}
+					Redirecting to initialization...
+				{:else}
+					Redirecting to login...
+				{/if}
+			</p>
 		</div>
 	</div>
 {/if}

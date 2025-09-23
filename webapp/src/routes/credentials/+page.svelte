@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { garmApi } from '$lib/api/client.js';
-	import type { ForgeCredentials, ForgeEndpoint, CreateGithubCredentialsParams, GithubPAT, GithubApp } from '$lib/api/generated/api.js';
+	import type { ForgeCredentials, ForgeEndpoint, CreateGithubCredentialsParams, CreateGiteaCredentialsParams, GithubPAT, GithubApp } from '$lib/api/generated/api.js';
 	// AuthType constants
 	const AuthType = {
 		PAT: 'pat',
@@ -270,9 +270,43 @@
 		try {
 			// Use selected forge type to determine which API to call
 			if (selectedForgeType === 'github') {
-				await garmApi.createGithubCredentials(formData);
+				// Build the correct nested structure for GitHub credentials
+				const githubParams: CreateGithubCredentialsParams = {
+					name: formData.name.trim(),
+					description: formData.description.trim(),
+					endpoint: formData.endpoint.trim(),
+					auth_type: formData.auth_type
+				};
+
+				if (formData.auth_type === AuthType.PAT) {
+					githubParams.pat = {
+						oauth2_token: formData.oauth2_token.trim()
+					};
+					githubParams.app = {}; // Empty app object for PAT
+				} else {
+					githubParams.app = {
+						app_id: parseInt(formData.app_id.trim()),
+						installation_id: parseInt(formData.installation_id.trim()),
+						private_key_bytes: Array.from(atob(formData.private_key_bytes), char => char.charCodeAt(0))
+					};
+					githubParams.pat = {}; // Empty PAT object for App
+				}
+
+				await garmApi.createGithubCredentials(githubParams);
 			} else if (selectedForgeType === 'gitea') {
-				await garmApi.createGiteaCredentials(formData);
+				// Build the correct nested structure for Gitea credentials (PAT only)
+				const giteaParams: CreateGiteaCredentialsParams = {
+					name: formData.name.trim(),
+					description: formData.description.trim(),
+					endpoint: formData.endpoint.trim(),
+					auth_type: AuthType.PAT, // Gitea only supports PAT
+					pat: {
+						oauth2_token: formData.oauth2_token.trim()
+					},
+					app: {} // Empty app object since Gitea only supports PAT
+				};
+
+				await garmApi.createGiteaCredentials(giteaParams);
 			} else {
 				throw new Error('Please select a forge type');
 			}

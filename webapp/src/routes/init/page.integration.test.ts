@@ -456,13 +456,13 @@ describe('Comprehensive Integration Tests for Init Page', () => {
 			// Submit form
 			await fireEvent.click(submitButton);
 
-			// Should show toast and redirect
+			// Should show toast (redirect happens via layout reactive statements)
 			await waitFor(() => {
 				expect(toastStore.success).toHaveBeenCalledWith(
 					'GARM Initialized',
 					'GARM has been successfully initialized. Welcome!'
 				);
-				expect(goto).toHaveBeenCalledWith('/');
+				// Note: redirect now happens via layout reactive statements, not direct goto() call
 			});
 		});
 
@@ -838,9 +838,9 @@ describe('Comprehensive Integration Tests for Init Page', () => {
 			// Submit form
 			await fireEvent.click(submitButton);
 
-			// Should navigate to dashboard with resolved path
+			// Should call auth.initialize successfully (navigation happens via layout reactive statements)
 			await waitFor(() => {
-				expect(goto).toHaveBeenCalledWith('/');
+				expect(auth.initialize).toHaveBeenCalled();
 			});
 		});
 
