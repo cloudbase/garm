@@ -21,7 +21,7 @@ jobs:
       permissions:
         packages: write
       name: "Build GARM images"
-      runs-on: ubuntu-latest
+      runs-on: ubuntu-noble-garm
       steps:
         - name: "Checkout"
           uses: actions/checkout@v4
