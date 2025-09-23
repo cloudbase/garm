@@ -18,15 +18,27 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"html/template"
 	"log/slog"
+	"strings"
 
+	"github.com/cloudbase/garm-provider-common/cloudconfig"
 	"github.com/cloudbase/garm-provider-common/defaults"
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	"github.com/cloudbase/garm-provider-common/util"
 	"github.com/cloudbase/garm/auth"
+	"github.com/cloudbase/garm/cache"
+	"github.com/cloudbase/garm/internal/templates"
 	"github.com/cloudbase/garm/params"
+	garmUtil "github.com/cloudbase/garm/util"
+)
+
+var (
+	poolIDLabelprefix     = "runner-pool-id"
+	controllerLabelPrefix = "runner-controller-id"
 )
 
 var githubSystemdUnitTemplate = `[Unit]
@@ -75,43 +87,6 @@ func validateInstanceState(ctx context.Context) (params.Instance, error) {
 	return instance, nil
 }
 
-func (r *Runner) getForgeEntityFromInstance(ctx context.Context, instance params.Instance) (params.ForgeEntity, error) {
-	var entityGetter params.EntityGetter
-	var err error
-	switch {
-	case instance.PoolID != "":
-		entityGetter, err = r.store.GetPoolByID(r.ctx, instance.PoolID)
-	case instance.ScaleSetID != 0:
-		entityGetter, err = r.store.GetScaleSetByID(r.ctx, instance.ScaleSetID)
-	default:
-		return params.ForgeEntity{}, errors.New("instance not associated with a pool or scale set")
-	}
-
-	if err != nil {
-		slog.With(slog.Any("error", err)).ErrorContext(
-			ctx, "failed to get entity getter",
-			"instance", instance.Name)
-		return params.ForgeEntity{}, fmt.Errorf("error fetching entity getter: %w", err)
-	}
-
-	poolEntity, err := entityGetter.GetEntity()
-	if err != nil {
-		slog.With(slog.Any("error", err)).ErrorContext(
-			ctx, "failed to get entity",
-			"instance", instance.Name)
-		return params.ForgeEntity{}, fmt.Errorf("error fetching entity: %w", err)
-	}
-
-	entity, err := r.store.GetForgeEntity(r.ctx, poolEntity.EntityType, poolEntity.ID)
-	if err != nil {
-		slog.With(slog.Any("error", err)).ErrorContext(
-			ctx, "failed to get entity",
-			"instance", instance.Name)
-		return params.ForgeEntity{}, fmt.Errorf("error fetching entity: %w", err)
-	}
-	return entity, nil
-}
-
 func (r *Runner) getServiceNameForEntity(entity params.ForgeEntity) (string, error) {
 	switch entity.EntityType {
 	case params.ForgeEntityTypeEnterprise:
@@ -126,16 +101,10 @@ func (r *Runner) getServiceNameForEntity(entity params.ForgeEntity) (string, err
 }
 
 func (r *Runner) GetRunnerServiceName(ctx context.Context) (string, error) {
-	instance, err := validateInstanceState(ctx)
-	if err != nil {
-		slog.With(slog.Any("error", err)).ErrorContext(
-			ctx, "failed to get instance params")
-		return "", runnerErrors.ErrUnauthorized
-	}
-	entity, err := r.getForgeEntityFromInstance(ctx, instance)
+	entity, err := auth.InstanceEntity(ctx)
 	if err != nil {
 		slog.ErrorContext(r.ctx, "failed to get entity", "error", err)
-		return "", fmt.Errorf("error fetching entity: %w", err)
+		return "", runnerErrors.ErrUnauthorized
 	}
 
 	serviceName, err := r.getServiceNameForEntity(entity)
@@ -146,17 +115,151 @@ func (r *Runner) GetRunnerServiceName(ctx context.Context) (string, error) {
 	return serviceName, nil
 }
 
-func (r *Runner) GenerateSystemdUnitFile(ctx context.Context, runAsUser string) ([]byte, error) {
+func getLabelsForInstance(instance params.Instance) []string {
+	jitEnabled := len(instance.JitConfiguration) > 0
+	if jitEnabled {
+		return []string{}
+	}
+
+	if instance.ScaleSetID > 0 {
+		return []string{}
+	}
+
+	pool, ok := cache.GetPoolByID(instance.PoolID)
+	if !ok {
+		return []string{}
+	}
+	var labels []string
+	for _, val := range pool.Tags {
+		labels = append(labels, val.Name)
+	}
+
+	labels = append(labels, fmt.Sprintf("%s=%s", controllerLabelPrefix, cache.ControllerInfo().ControllerID.String()))
+	labels = append(labels, fmt.Sprintf("%s=%s", poolIDLabelprefix, instance.PoolID))
+	return labels
+}
+
+func (r *Runner) getRunnerInstallTemplateContext(instance params.Instance, entity params.ForgeEntity, token string, extraContext map[string]string) (cloudconfig.InstallRunnerParams, error) {
+	tools, err := cache.GetGithubToolsCache(entity.ID)
+	if err != nil {
+		return cloudconfig.InstallRunnerParams{}, fmt.Errorf("failed to get tools: %w", err)
+	}
+
+	foundTools, err := util.GetTools(instance.OSType, instance.OSArch, tools)
+	if err != nil {
+		return cloudconfig.InstallRunnerParams{}, fmt.Errorf("failed to find tools: %w", err)
+	}
+
+	installRunnerParams := cloudconfig.InstallRunnerParams{
+		FileName:          foundTools.GetFilename(),
+		DownloadURL:       foundTools.GetDownloadURL(),
+		RunnerUsername:    defaults.DefaultUser,
+		RunnerGroup:       defaults.DefaultUser,
+		RepoURL:           entity.ForgeURL(),
+		MetadataURL:       instance.MetadataURL,
+		RunnerName:        instance.Name,
+		RunnerLabels:      strings.Join(getLabelsForInstance(instance), ","),
+		CallbackURL:       instance.CallbackURL,
+		CallbackToken:     token,
+		TempDownloadToken: foundTools.GetTempDownloadToken(),
+		GitHubRunnerGroup: instance.GitHubRunnerGroup,
+		ExtraContext:      extraContext,
+		CABundle:          string(entity.Credentials.CABundle),
+		UseJITConfig:      len(instance.JitConfiguration) > 0,
+	}
+	return installRunnerParams, nil
+}
+
+func (r *Runner) GetRunnerInstallScript(ctx context.Context) ([]byte, error) {
 	instance, err := validateInstanceState(ctx)
 	if err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(
 			ctx, "failed to get instance params")
 		return nil, runnerErrors.ErrUnauthorized
 	}
-	entity, err := r.getForgeEntityFromInstance(ctx, instance)
+
+	entity, err := auth.InstanceEntity(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get instance entity: %w", err)
+	}
+
+	token, err := auth.InstanceAuthToken(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get instance token: %w", err)
+	}
+
+	var templateID uint
+	var specs cloudconfig.CloudConfigSpec
+	var extraSpecs json.RawMessage
+	switch {
+	case instance.PoolID != "":
+		pool, err := r.store.GetPoolByID(r.ctx, instance.PoolID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get pool for instance: %w", err)
+		}
+		specs, err = garmUtil.GetCloudConfigSpecFromExtraSpecs(pool.ExtraSpecs)
+		if err != nil {
+			return nil, fmt.Errorf("failed to extract extra specs from pool: %w", err)
+		}
+		extraSpecs = pool.ExtraSpecs
+		templateID = pool.TemplateID
+	case instance.ScaleSetID > 0:
+		scaleSet, err := r.store.GetScaleSetByID(r.ctx, instance.ScaleSetID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get scale set for instance: %w", err)
+		}
+		specs, err = garmUtil.GetCloudConfigSpecFromExtraSpecs(scaleSet.ExtraSpecs)
+		if err != nil {
+			return nil, fmt.Errorf("failed to extract extra specs from scale set: %w", err)
+		}
+		extraSpecs = scaleSet.ExtraSpecs
+		templateID = scaleSet.TemplateID
+	default:
+		return nil, fmt.Errorf("instance is not part of a pool or scale set")
+	}
+
+	if templateID == 0 && len(specs.RunnerInstallTemplate) == 0 {
+		return nil, runnerErrors.NewConflictError("pool or scale set has no template associated and no template is defined in extra_specs")
+	}
+
+	installCtx, err := r.getRunnerInstallTemplateContext(instance, entity, token, specs.ExtraContext)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get runner install context: %w", err)
+	}
+
+	var extraSpecsMap map[string]any
+	if extraSpecs != nil {
+		if err := json.Unmarshal(extraSpecs, &extraSpecsMap); err == nil {
+			if debug, ok := extraSpecsMap["enable_boot_debug"]; ok {
+				installCtx.EnableBootDebug = debug.(bool)
+			}
+		}
+	}
+
+	var tplBytes []byte
+	if len(specs.RunnerInstallTemplate) > 0 {
+		installCtx.ExtraContext = specs.ExtraContext
+		tplBytes = specs.RunnerInstallTemplate
+	} else {
+		template, err := r.store.GetTemplate(r.ctx, templateID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get template: %w", err)
+		}
+		tplBytes = template.Data
+	}
+
+	installScript, err := templates.RenderRunnerInstallScript(string(tplBytes), installCtx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get runner install script: %w", err)
+	}
+	return installScript, nil
+}
+
+func (r *Runner) GenerateSystemdUnitFile(ctx context.Context, runAsUser string) ([]byte, error) {
+	entity, err := auth.InstanceEntity(ctx)
 	if err != nil {
 		slog.ErrorContext(r.ctx, "failed to get entity", "error", err)
-		return nil, fmt.Errorf("error fetching entity: %w", err)
+		return nil, runnerErrors.ErrUnauthorized
 	}
 
 	serviceName, err := r.getServiceNameForEntity(entity)

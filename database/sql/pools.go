@@ -72,6 +72,7 @@ func (s *sqlDatabase) GetPoolByID(_ context.Context, poolID string) (params.Pool
 		"Organization.Endpoint",
 		"Repository",
 		"Repository.Endpoint",
+		"Template",
 	}
 	pool, err := s.getPoolByID(s.conn, poolID, preloadList...)
 	if err != nil {
@@ -291,6 +292,7 @@ func (s *sqlDatabase) CreateEntityPool(ctx context.Context, entity params.ForgeE
 		RunnerBootstrapTimeout: param.RunnerBootstrapTimeout,
 		GitHubRunnerGroup:      param.GitHubRunnerGroup,
 		Priority:               param.Priority,
+		TemplateID:             param.TemplateID,
 	}
 	if len(param.ExtraSpecs) > 0 {
 		newPool.ExtraSpecs = datatypes.JSON(param.ExtraSpecs)
@@ -352,6 +354,7 @@ func (s *sqlDatabase) GetEntityPool(_ context.Context, entity params.ForgeEntity
 		"Organization.Endpoint",
 		"Repository",
 		"Repository.Endpoint",
+		"Template",
 	}
 	pool, err := s.getEntityPool(s.conn, entity.EntityType, entity.ID, poolID, preloadList...)
 	if err != nil {

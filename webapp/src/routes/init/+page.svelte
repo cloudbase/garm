@@ -107,12 +107,12 @@
 	<div class="sm:mx-auto sm:w-full sm:max-w-md">
 		<div class="flex justify-center">
 			<img 
-				src={resolve('/assets/garm-light.svg')} 
+				src={resolve('/assets/garm-light.svg' as any)} 
 				alt="GARM" 
 				class="h-16 w-auto dark:hidden"
 			/>
 			<img 
-				src={resolve('/assets/garm-dark.svg')} 
+				src={resolve('/assets/garm-dark.svg' as any)} 
 				alt="GARM" 
 				class="h-16 w-auto hidden dark:block"
 			/>

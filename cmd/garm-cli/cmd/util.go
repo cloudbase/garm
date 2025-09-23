@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"fmt"
+	"math"
+	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
@@ -9,7 +11,46 @@ import (
 	apiClientEnterprises "github.com/cloudbase/garm/client/enterprises"
 	apiClientOrgs "github.com/cloudbase/garm/client/organizations"
 	apiClientRepos "github.com/cloudbase/garm/client/repositories"
+	apiTemplates "github.com/cloudbase/garm/client/templates"
+	"github.com/cloudbase/garm/params"
 )
+
+func resolveTemplateAsUint(nameOrID string) (uint, error) {
+	if parsed, err := strconv.ParseUint(nameOrID, 10, 64); err == nil {
+		if parsed > math.MaxUint {
+			return 0, fmt.Errorf("ID is too large")
+		}
+		return uint(parsed), nil
+	}
+
+	listTplReq := apiTemplates.NewListTemplatesParams()
+	listTplReq.PartialName = &nameOrID
+	response, err := apiCli.Templates.ListTemplates(listTplReq, authToken)
+	if err != nil {
+		return 0, fmt.Errorf("failed to list templates")
+	}
+	if len(response.Payload) == 0 {
+		return 0, fmt.Errorf("no such template: %s", nameOrID)
+	}
+	exactMatches := []params.Template{}
+	for _, val := range response.Payload {
+		if val.Name == nameOrID {
+			exactMatches = append(exactMatches, val)
+		}
+	}
+	if len(exactMatches) > 1 {
+		return 0, fmt.Errorf("multiple templates found with name: %s", nameOrID)
+	}
+	return exactMatches[0].ID, nil
+}
+
+func resolveTemplate(nameOrID string) (float64, error) {
+	id, err := resolveTemplateAsUint(nameOrID)
+	if err != nil {
+		return 0, err
+	}
+	return float64(id), nil
+}
 
 func resolveRepository(nameOrID, endpoint string) (string, error) {
 	if nameOrID == "" {

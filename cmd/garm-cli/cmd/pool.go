@@ -52,6 +52,7 @@ var (
 	poolAll                    bool
 	poolGitHubRunnerGroup      string
 	priority                   uint
+	poolTemplateNameOrID       string
 )
 
 type poolsPayloadGetter interface {
@@ -256,6 +257,14 @@ var poolAddCmd = &cobra.Command{
 		}
 
 		var err error
+		if cmd.Flags().Changed("runner-install-template") && poolTemplateNameOrID != "" {
+			tmplID, err := resolveTemplateAsUint(poolTemplateNameOrID)
+			if err != nil {
+				return fmt.Errorf("failed to resolve template")
+			}
+			newPoolParams.TemplateID = &tmplID
+		}
+
 		var response poolPayloadGetter
 		if cmd.Flags().Changed("repo") {
 			poolRepository, err = resolveRepository(poolRepository, endpointName)
@@ -323,6 +332,14 @@ explicitly remove them using the runner delete command.
 
 		updatePoolReq := apiClientPools.NewUpdatePoolParams()
 		poolUpdateParams := params.UpdatePoolParams{}
+
+		if cmd.Flags().Changed("runner-install-template") && poolTemplateNameOrID != "" {
+			tmplID, err := resolveTemplateAsUint(poolTemplateNameOrID)
+			if err != nil {
+				return fmt.Errorf("failed to resolve template")
+			}
+			poolUpdateParams.TemplateID = &tmplID
+		}
 
 		if cmd.Flags().Changed("image") {
 			poolUpdateParams.Image = poolImage
@@ -427,6 +444,7 @@ func init() {
 	poolUpdateCmd.Flags().StringVar(&poolExtraSpecsFile, "extra-specs-file", "", "A file containing a valid json which will be passed to the IaaS provider managing the pool.")
 	poolUpdateCmd.Flags().StringVar(&poolExtraSpecs, "extra-specs", "", "A valid json which will be passed to the IaaS provider managing the pool.")
 	poolUpdateCmd.MarkFlagsMutuallyExclusive("extra-specs-file", "extra-specs")
+	poolUpdateCmd.Flags().StringVar(&poolTemplateNameOrID, "runner-install-template", "", "The runner install template name or ID to use for this pool.")
 
 	poolAddCmd.Flags().StringVar(&poolProvider, "provider-name", "", "The name of the provider where runners will be created.")
 	poolAddCmd.Flags().UintVar(&priority, "priority", 0, "When multiple pools match the same labels, priority dictates the order by which they are returned, in descending order.")
@@ -443,6 +461,7 @@ func init() {
 	poolAddCmd.Flags().UintVar(&poolRunnerBootstrapTimeout, "runner-bootstrap-timeout", 20, "Duration in minutes after which a runner is considered failed if it does not join Github.")
 	poolAddCmd.Flags().UintVar(&poolMinIdleRunners, "min-idle-runners", 1, "Attempt to maintain a minimum of idle self-hosted runners of this type.")
 	poolAddCmd.Flags().BoolVar(&poolEnabled, "enabled", false, "Enable this pool.")
+	poolAddCmd.Flags().StringVar(&poolTemplateNameOrID, "runner-install-template", "", "The runner install template name or ID to use for this pool.")
 	poolAddCmd.Flags().StringVar(&endpointName, "endpoint", "", "When using the name of an entity, the endpoint must be specified when multiple entities with the same name exist.")
 
 	poolAddCmd.MarkFlagRequired("provider-name") //nolint
@@ -582,6 +601,7 @@ func formatOnePool(pool params.Pool) {
 	t.AppendRow(table.Row{"Tags", strings.Join(tags, ", ")})
 	t.AppendRow(table.Row{"Belongs to", belongsTo})
 	t.AppendRow(table.Row{"Level", level})
+	t.AppendRow(table.Row{"Template", fmt.Sprintf("%s (ID: %d)", pool.TemplateName, pool.TemplateID)})
 	t.AppendRow(table.Row{"Enabled", pool.Enabled})
 	t.AppendRow(table.Row{"Runner Prefix", pool.GetRunnerPrefix()})
 	t.AppendRow(table.Row{"Extra specs", string(pool.ExtraSpecs)})

@@ -16,6 +16,7 @@ import {
   ProvidersApi,
   FirstRunApi,
   HooksApi,
+  TemplatesApi,
   type Repository,
   type Organization,
   type Enterprise,
@@ -26,6 +27,9 @@ import {
   type ForgeCredentials,
   type Provider,
   type ControllerInfo,
+  type Template,
+  type CreateTemplateParams,
+  type UpdateTemplateParams,
   type CreateRepoParams,
   type CreateOrgParams,
   type CreateEnterpriseParams,
@@ -62,6 +66,9 @@ export type {
   ForgeCredentials,
   Provider,
   ControllerInfo,
+  Template,
+  CreateTemplateParams,
+  UpdateTemplateParams,
   CreateRepoParams,
   CreateOrgParams,
   CreateEnterpriseParams,
@@ -117,6 +124,7 @@ export class GeneratedGarmApiClient {
   private providersApi: ProvidersApi;
   private firstRunApi: FirstRunApi;
   private hooksApi: HooksApi;
+  private templatesApi: TemplatesApi;
 
   constructor(baseUrl: string = '') {
     this.baseUrl = baseUrl || window.location.origin;
@@ -148,6 +156,7 @@ export class GeneratedGarmApiClient {
     this.providersApi = new ProvidersApi(this.config);
     this.firstRunApi = new FirstRunApi(this.config);
     this.hooksApi = new HooksApi(this.config);
+    this.templatesApi = new TemplatesApi(this.config);
   }
 
   // Set authentication token
@@ -589,6 +598,31 @@ export class GeneratedGarmApiClient {
   async updateController(params: UpdateControllerParams): Promise<ControllerInfo> {
     const response = await this.controllerApi.updateController(params);
     return response.data;
+  }
+
+  // Templates
+  async listTemplates(osType?: string, partialName?: string, forgeType?: string): Promise<Template[]> {
+    const response = await this.templatesApi.listTemplates(osType, partialName, forgeType);
+    return response.data || [];
+  }
+
+  async getTemplate(id: number): Promise<Template> {
+    const response = await this.templatesApi.getTemplate(id);
+    return response.data;
+  }
+
+  async createTemplate(params: CreateTemplateParams): Promise<Template> {
+    const response = await this.templatesApi.createTemplate(params);
+    return response.data;
+  }
+
+  async updateTemplate(id: number, params: UpdateTemplateParams): Promise<Template> {
+    const response = await this.templatesApi.updateTemplate(id.toString(), params);
+    return response.data;
+  }
+
+  async deleteTemplate(id: number): Promise<void> {
+    await this.templatesApi.deleteTemplate(id);
   }
 }
 

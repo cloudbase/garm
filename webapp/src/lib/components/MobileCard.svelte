@@ -8,12 +8,13 @@
 	const dispatch = createEventDispatcher<{
 		edit: { item: any };
 		delete: { item: any };
+		clone: { item: any };
 		action: { type: string; item: any };
 	}>();
 
 	export let item: any;
 	export let config: {
-		entityType: 'repository' | 'organization' | 'enterprise' | 'instance' | 'pool' | 'scaleset' | 'credential' | 'endpoint';
+		entityType: 'repository' | 'organization' | 'enterprise' | 'instance' | 'pool' | 'scaleset' | 'credential' | 'endpoint' | 'template';
 		primaryText: {
 			field: string;
 			isClickable?: boolean;
@@ -33,7 +34,7 @@
 			icon?: boolean;
 		}>;
 		actions?: Array<{
-			type: 'edit' | 'delete';
+			type: 'edit' | 'delete' | 'clone';
 			handler: (item: any) => void;
 		}>;
 		customInfo?: Array<{
@@ -86,7 +87,7 @@
 		href = href.replace('{id}', item.id || '');
 		href = href.replace('{name}', encodeURIComponent(item.name || ''));
 		
-		return resolve(href);
+		return resolve(href as any);
 	}
 
 	function handleAction(actionType: string) {
@@ -102,6 +103,8 @@
 			dispatch('edit', { item });
 		} else if (actionType === 'delete') {
 			dispatch('delete', { item });
+		} else if (actionType === 'clone') {
+			dispatch('clone', { item });
 		} else {
 			dispatch('action', { type: actionType, item });
 		}
@@ -237,10 +240,10 @@
 			<div class="flex space-x-2">
 				{#each config.actions as action}
 					<ActionButton
-						action={action.type}
+						action={action.type === 'clone' ? 'copy' : action.type}
 						size="sm"
-						title={action.type === 'edit' ? `Edit ${config.entityType}` : `Delete ${config.entityType}`}
-						ariaLabel={action.type === 'edit' ? `Edit ${config.entityType}` : `Delete ${config.entityType}`}
+						title={action.type === 'edit' ? `Edit ${config.entityType}` : action.type === 'delete' ? `Delete ${config.entityType}` : action.type === 'clone' ? `Clone ${config.entityType}` : action.type}
+						ariaLabel={action.type === 'edit' ? `Edit ${config.entityType}` : action.type === 'delete' ? `Delete ${config.entityType}` : action.type === 'clone' ? `Clone ${config.entityType}` : action.type}
 						on:click={() => handleAction(action.type)}
 					/>
 				{/each}

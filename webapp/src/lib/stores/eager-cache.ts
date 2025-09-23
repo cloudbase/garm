@@ -9,7 +9,8 @@ import type {
 	ScaleSet, 
 	ForgeCredentials, 
 	ForgeEndpoint,
-	ControllerInfo 
+	ControllerInfo,
+	Template 
 } from '../api/generated/api.js';
 
 interface EagerCacheState {
@@ -21,6 +22,7 @@ interface EagerCacheState {
 	credentials: ForgeCredentials[];
 	endpoints: ForgeEndpoint[];
 	controllerInfo: ControllerInfo | null;
+	templates: Template[];
 	loading: {
 		repositories: boolean;
 		organizations: boolean;
@@ -30,6 +32,7 @@ interface EagerCacheState {
 		credentials: boolean;
 		endpoints: boolean;
 		controllerInfo: boolean;
+		templates: boolean;
 	};
 	loaded: {
 		repositories: boolean;
@@ -40,6 +43,7 @@ interface EagerCacheState {
 		credentials: boolean;
 		endpoints: boolean;
 		controllerInfo: boolean;
+		templates: boolean;
 	};
 	errorMessages: {
 		repositories: string;
@@ -50,6 +54,7 @@ interface EagerCacheState {
 		credentials: string;
 		endpoints: string;
 		controllerInfo: string;
+		templates: string;
 	};
 }
 
@@ -62,6 +67,7 @@ const initialState: EagerCacheState = {
 	credentials: [],
 	endpoints: [],
 	controllerInfo: null,
+	templates: [],
 	loading: {
 		repositories: false,
 		organizations: false,
@@ -71,6 +77,7 @@ const initialState: EagerCacheState = {
 		credentials: false,
 		endpoints: false,
 		controllerInfo: false,
+		templates: false,
 	},
 	loaded: {
 		repositories: false,
@@ -81,6 +88,7 @@ const initialState: EagerCacheState = {
 		credentials: false,
 		endpoints: false,
 		controllerInfo: false,
+		templates: false,
 	},
 	errorMessages: {
 		repositories: '',
@@ -91,6 +99,7 @@ const initialState: EagerCacheState = {
 		credentials: '',
 		endpoints: '',
 		controllerInfo: '',
+		templates: '',
 	}
 };
 
@@ -185,6 +194,9 @@ class EagerCacheManager {
 				case 'controllerInfo':
 					loadPromise = garmApi.getControllerInfo();
 					break;
+				case 'templates':
+					loadPromise = garmApi.listTemplates();
+					break;
 				default:
 					throw new Error(`Unknown resource type: ${resourceType}`);
 			}
@@ -206,7 +218,7 @@ class EagerCacheManager {
 	}
 
 	private async startBackgroundLoading(excludeResource: string) {
-		const resourceTypes = ['repositories', 'organizations', 'enterprises', 'pools', 'scalesets', 'credentials', 'endpoints'];
+		const resourceTypes = ['repositories', 'organizations', 'enterprises', 'pools', 'scalesets', 'credentials', 'endpoints', 'templates'];
 		const toLoad = resourceTypes.filter(type => type !== excludeResource);
 
 		// Load in background with slight delays to avoid overwhelming the API
@@ -241,7 +253,8 @@ class EagerCacheManager {
 			websocketStore.subscribeToEntity('controller', ['update'], this.handleControllerEvent.bind(this)),
 			websocketStore.subscribeToEntity('github_credentials', ['create', 'update', 'delete'], this.handleCredentialsEvent.bind(this)),
 			websocketStore.subscribeToEntity('gitea_credentials', ['create', 'update', 'delete'], this.handleCredentialsEvent.bind(this)),
-			websocketStore.subscribeToEntity('github_endpoint', ['create', 'update', 'delete'], this.handleEndpointEvent.bind(this))
+			websocketStore.subscribeToEntity('github_endpoint', ['create', 'update', 'delete'], this.handleEndpointEvent.bind(this)),
+			websocketStore.subscribeToEntity('template', ['create', 'update', 'delete'], this.handleTemplateEvent.bind(this))
 		];
 
 		this.unsubscribers = subscriptions;
@@ -272,7 +285,7 @@ class EagerCacheManager {
 	private async initializeAllResources() {
 		const resourceTypes: (keyof Omit<EagerCacheState, 'loading' | 'loaded' | 'errorMessages'>)[] = [
 			'repositories', 'organizations', 'enterprises', 'pools', 'scalesets', 
-			'credentials', 'endpoints', 'controllerInfo'
+			'credentials', 'endpoints', 'controllerInfo', 'templates'
 		];
 
 		// Load all resources in parallel
@@ -585,6 +598,22 @@ class EagerCacheManager {
 		return this.loadResource('controllerInfo', true);
 	}
 
+	async getTemplates(): Promise<Template[]> {
+		const wsState = get(websocketStore);
+		
+		if (!wsState.connected) {
+			console.log('[EagerCache] WebSocket disconnected - fetching templates directly from API');
+			return await garmApi.listTemplates();
+		}
+
+		const state = get(eagerCache);
+		if (state.loaded.templates) {
+			return state.templates;
+		}
+
+		return this.loadResource('templates', true);
+	}
+
 	private handleControllerEvent(event: WebSocketEvent) {
 		eagerCache.update(state => {
 			if (!state.loaded.controllerInfo) return state;
@@ -597,6 +626,28 @@ class EagerCacheManager {
 			}
 
 			return state;
+		});
+	}
+
+	private handleTemplateEvent(event: WebSocketEvent) {
+		eagerCache.update(state => {
+			if (!state.loaded.templates) return state;
+
+			const templates = [...state.templates];
+			const template = event.payload as Template;
+
+			if (event.operation === 'create') {
+				templates.push(template);
+			} else if (event.operation === 'update') {
+				const index = templates.findIndex(t => t.id === template.id);
+				if (index !== -1) templates[index] = template;
+			} else if (event.operation === 'delete') {
+				const templateId = typeof template === 'object' ? template.id : template;
+				const index = templates.findIndex(t => t.id === templateId);
+				if (index !== -1) templates.splice(index, 1);
+			}
+
+			return { ...state, templates };
 		});
 	}
 }

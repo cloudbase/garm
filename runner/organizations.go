@@ -245,11 +245,16 @@ func (r *Runner) CreateOrgPool(ctx context.Context, orgID string, param params.C
 		param.RunnerBootstrapTimeout = appdefaults.DefaultRunnerBootstrapTimeout
 	}
 
-	entity := params.ForgeEntity{
-		ID:         orgID,
-		EntityType: params.ForgeEntityTypeOrganization,
+	entity, err := r.store.GetForgeEntity(ctx, params.ForgeEntityTypeOrganization, orgID)
+	if err != nil {
+		return params.Pool{}, fmt.Errorf("failed to get repo: %w", err)
 	}
 
+	template, err := r.findTemplate(ctx, entity, param.OSType, param.TemplateID)
+	if err != nil {
+		return params.Pool{}, fmt.Errorf("failed to find suitable template: %w", err)
+	}
+	createPoolParams.TemplateID = &template.ID
 	pool, err := r.store.CreateEntityPool(ctx, entity, createPoolParams)
 	if err != nil {
 		return params.Pool{}, fmt.Errorf("error creating pool: %w", err)
@@ -330,9 +335,16 @@ func (r *Runner) UpdateOrgPool(ctx context.Context, orgID, poolID string, param 
 		return params.Pool{}, runnerErrors.ErrUnauthorized
 	}
 
-	entity := params.ForgeEntity{
-		ID:         orgID,
-		EntityType: params.ForgeEntityTypeOrganization,
+	entity, err := r.store.GetForgeEntity(ctx, params.ForgeEntityTypeOrganization, orgID)
+	if err != nil {
+		return params.Pool{}, fmt.Errorf("failed to get repo: %w", err)
+	}
+	if param.TemplateID != nil {
+		template, err := r.findTemplate(ctx, entity, param.OSType, param.TemplateID)
+		if err != nil {
+			return params.Pool{}, fmt.Errorf("failed to find suitable template: %w", err)
+		}
+		param.TemplateID = &template.ID
 	}
 
 	pool, err := r.store.GetEntityPool(ctx, entity, poolID)

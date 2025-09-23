@@ -56,7 +56,7 @@ func (s *sqlDatabase) ListAllScaleSets(_ context.Context) ([]params.ScaleSet, er
 	return ret, nil
 }
 
-func (s *sqlDatabase) CreateEntityScaleSet(_ context.Context, entity params.ForgeEntity, param params.CreateScaleSetParams) (scaleSet params.ScaleSet, err error) {
+func (s *sqlDatabase) CreateEntityScaleSet(ctx context.Context, entity params.ForgeEntity, param params.CreateScaleSetParams) (scaleSet params.ScaleSet, err error) {
 	if err := param.Validate(); err != nil {
 		return params.ScaleSet{}, fmt.Errorf("failed to validate create params: %w", err)
 	}
@@ -83,6 +83,7 @@ func (s *sqlDatabase) CreateEntityScaleSet(_ context.Context, entity params.Forg
 		Enabled:                param.Enabled,
 		GitHubRunnerGroup:      param.GitHubRunnerGroup,
 		State:                  params.ScaleSetPendingCreate,
+		TemplateID:             param.TemplateID,
 	}
 
 	if len(param.ExtraSpecs) > 0 {
@@ -118,12 +119,12 @@ func (s *sqlDatabase) CreateEntityScaleSet(_ context.Context, entity params.Forg
 		return params.ScaleSet{}, err
 	}
 
-	dbScaleSet, err := s.getScaleSetByID(s.conn, newScaleSet.ID, "Instances", "Enterprise", "Organization", "Repository")
+	dbScaleSet, err := s.GetScaleSetByID(ctx, newScaleSet.ID)
 	if err != nil {
 		return params.ScaleSet{}, fmt.Errorf("error fetching scale set: %w", err)
 	}
 
-	return s.sqlToCommonScaleSet(dbScaleSet)
+	return dbScaleSet, nil
 }
 
 func (s *sqlDatabase) listEntityScaleSets(tx *gorm.DB, entityType params.ForgeEntityType, entityID string, preload ...string) ([]ScaleSet, error) {
@@ -298,6 +299,10 @@ func (s *sqlDatabase) updateScaleSet(tx *gorm.DB, scaleSet ScaleSet, param param
 		scaleSet.ScaleSetID = param.ScaleSetID
 	}
 
+	if param.TemplateID != nil {
+		scaleSet.TemplateID = param.TemplateID
+	}
+
 	if param.Name != "" {
 		scaleSet.Name = param.Name
 	}
@@ -364,6 +369,7 @@ func (s *sqlDatabase) GetScaleSetByID(_ context.Context, scaleSet uint) (params.
 		"Organization.Endpoint",
 		"Repository",
 		"Repository.Endpoint",
+		"Template",
 	)
 	if err != nil {
 		return params.ScaleSet{}, fmt.Errorf("error fetching scale set by ID: %w", err)

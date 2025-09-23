@@ -2,7 +2,7 @@
 	import { resolve } from '$app/paths';
 
 	export let item: any;
-	export let entityType: 'repository' | 'organization' | 'enterprise' | 'pool' | 'scaleset' | 'instance' = 'repository';
+	export let entityType: 'repository' | 'organization' | 'enterprise' | 'pool' | 'scaleset' | 'instance' | 'template' = 'repository';
 	export let showOwner: boolean = false;
 	export let showId: boolean = false;
 	export let fontMono: boolean = false;
@@ -25,6 +25,8 @@
 			case 'scaleset':
 				return item.name || 'Unknown';
 			case 'instance':
+				return item.name || 'Unknown';
+			case 'template':
 				return item.name || 'Unknown';
 			default:
 				return item.name || item.id || 'Unknown';
@@ -62,6 +64,8 @@
 				return resolve(`/scalesets/${entityId}`);
 			case 'instance':
 				return resolve(`/instances/${encodeURIComponent(entityId)}`);
+			case 'template':
+				return resolve(`/templates/${entityId}`);
 			default:
 				return '#';
 		}

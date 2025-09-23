@@ -28,10 +28,12 @@ import (
 	"gorm.io/gorm/logger"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/config"
 	"github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/database/watcher"
+	"github.com/cloudbase/garm/internal/templates"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/util/appdefaults"
 )
@@ -49,7 +51,9 @@ func newDBConn(dbCfg config.Database) (conn *gorm.DB, err error) {
 		return nil, fmt.Errorf("error getting DB URI string: %w", err)
 	}
 
-	gormConfig := &gorm.Config{}
+	gormConfig := &gorm.Config{
+		TranslateError: true,
+	}
 	if !dbCfg.Debug {
 		gormConfig.Logger = logger.Default.LogMode(logger.Silent)
 	}
@@ -390,6 +394,139 @@ func (s *sqlDatabase) migrateWorkflow() error {
 	return nil
 }
 
+func (s *sqlDatabase) ensureTemplates(migrateTemplates bool) error {
+	if !migrateTemplates {
+		return nil
+	}
+	// make sure we have a default forge/OSType template. Currently we have Windows
+	// and Linux for GitHub and Linux for Gitea.
+	githubWindowsData, err := templates.GetTemplateContent(commonParams.Windows, params.GithubEndpointType)
+	if err != nil {
+		return fmt.Errorf("failed to get windows template for github: %w", err)
+	}
+
+	githubLinuxData, err := templates.GetTemplateContent(commonParams.Linux, params.GithubEndpointType)
+	if err != nil {
+		return fmt.Errorf("failed to get linux template for github: %w", err)
+	}
+
+	giteaLinuxData, err := templates.GetTemplateContent(commonParams.Linux, params.GiteaEndpointType)
+	if err != nil {
+		return fmt.Errorf("failed to get linux template for gitea: %w", err)
+	}
+
+	adminCtx := auth.GetAdminContext(s.ctx)
+
+	githubWindowsParams := params.CreateTemplateParams{
+		Name:        "github_windows",
+		Description: "Default Windows runner install template for GitHub",
+		OSType:      commonParams.Windows,
+		ForgeType:   params.GithubEndpointType,
+		Data:        githubWindowsData,
+	}
+	githubWindowsSystemTemplate, err := s.createSystemTemplate(adminCtx, githubWindowsParams)
+	if err != nil {
+		return fmt.Errorf("failed to create github windows template: %w", err)
+	}
+
+	githubLinuxParams := params.CreateTemplateParams{
+		Name:        "github_linux",
+		Description: "Default Linux runner install template for GitHub",
+		OSType:      commonParams.Linux,
+		ForgeType:   params.GithubEndpointType,
+		Data:        githubLinuxData,
+	}
+	githubLinuxSystemTemplate, err := s.createSystemTemplate(adminCtx, githubLinuxParams)
+	if err != nil {
+		return fmt.Errorf("failed to create github linux template: %w", err)
+	}
+
+	giteaLinuxParams := params.CreateTemplateParams{
+		Name:        "gitea_linux",
+		Description: "Default Linux runner install template for Gitea",
+		OSType:      commonParams.Linux,
+		ForgeType:   params.GiteaEndpointType,
+		Data:        giteaLinuxData,
+	}
+	giteaLinuxSystemTemplate, err := s.createSystemTemplate(adminCtx, giteaLinuxParams)
+	if err != nil {
+		return fmt.Errorf("failed to create gitea linux template: %w", err)
+	}
+
+	getTplID := func(forgeType params.EndpointType, osType commonParams.OSType) uint {
+		var templateID uint
+		switch forgeType {
+		case params.GiteaEndpointType:
+			switch osType {
+			case commonParams.Linux:
+				templateID = giteaLinuxSystemTemplate.ID
+			default:
+				return 0
+			}
+		case params.GithubEndpointType:
+			switch osType {
+			case commonParams.Linux:
+				templateID = githubLinuxSystemTemplate.ID
+			case commonParams.Windows:
+				templateID = githubWindowsSystemTemplate.ID
+			default:
+				return 0
+			}
+		default:
+			return 0
+		}
+		return templateID
+	}
+
+	pools, err := s.ListAllPools(s.ctx)
+	if err != nil {
+		return fmt.Errorf("failed to list pools: %w", err)
+	}
+
+	for _, pool := range pools {
+		forgeType := pool.Endpoint.EndpointType
+		osType := pool.OSType
+		entity, err := pool.GetEntity()
+		if err != nil {
+			return fmt.Errorf("failed to get pool entity: %w", err)
+		}
+		templateID := getTplID(forgeType, osType)
+		if pool.TemplateID == 0 && templateID != 0 {
+			updateParams := params.UpdatePoolParams{
+				TemplateID: &templateID,
+			}
+			if _, err := s.UpdateEntityPool(adminCtx, entity, pool.ID, updateParams); err != nil {
+				return fmt.Errorf("failed to update pool template: %w", err)
+			}
+		}
+	}
+
+	scaleSets, err := s.ListAllScaleSets(adminCtx)
+	if err != nil {
+		return fmt.Errorf("failed to list scale sets: %w", err)
+	}
+
+	for _, scaleSet := range scaleSets {
+		forgeType := scaleSet.Endpoint.EndpointType
+		osType := scaleSet.OSType
+		entity, err := scaleSet.GetEntity()
+		if err != nil {
+			return fmt.Errorf("failed to get scale set entity: %w", err)
+		}
+		templateID := getTplID(forgeType, osType)
+		if scaleSet.TemplateID == 0 && templateID != 0 {
+			updateParams := params.UpdateScaleSetParams{
+				TemplateID: &templateID,
+			}
+			if _, err := s.UpdateEntityScaleSet(adminCtx, entity, scaleSet.ID, updateParams, nil); err != nil {
+				return fmt.Errorf("failed to update pool template: %w", err)
+			}
+		}
+	}
+
+	return nil
+}
+
 func (s *sqlDatabase) migrateDB() error {
 	if s.conn.Migrator().HasIndex(&Organization{}, "idx_organizations_name") {
 		if err := s.conn.Migrator().DropIndex(&Organization{}, "idx_organizations_name"); err != nil {
@@ -446,6 +583,8 @@ func (s *sqlDatabase) migrateDB() error {
 		hasMinAgeField = true
 	}
 
+	migrateTemplates := !s.conn.Migrator().HasTable(&Template{})
+
 	s.conn.Exec("PRAGMA foreign_keys = OFF")
 	if err := s.conn.AutoMigrate(
 		&User{},
@@ -453,6 +592,7 @@ func (s *sqlDatabase) migrateDB() error {
 		&GithubCredentials{},
 		&GiteaCredentials{},
 		&Tag{},
+		&Template{},
 		&Pool{},
 		&Repository{},
 		&Organization{},
@@ -494,5 +634,10 @@ func (s *sqlDatabase) migrateDB() error {
 			return fmt.Errorf("error migrating credentials: %w", err)
 		}
 	}
+
+	if err := s.ensureTemplates(migrateTemplates); err != nil {
+		return fmt.Errorf("failed to create default templates: %w", err)
+	}
+
 	return nil
 }

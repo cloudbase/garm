@@ -16,6 +16,7 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"math"
@@ -111,21 +112,67 @@ func NewInstanceMiddleware(store dbCommon.Store, cfg config.JWTAuth) (Middleware
 	}, nil
 }
 
+func (amw *instanceMiddleware) getForgeEntityFromInstance(ctx context.Context, instance params.Instance) (params.ForgeEntity, error) {
+	var entityGetter params.EntityGetter
+	var err error
+	switch {
+	case instance.PoolID != "":
+		entityGetter, err = amw.store.GetPoolByID(ctx, instance.PoolID)
+	case instance.ScaleSetID != 0:
+		entityGetter, err = amw.store.GetScaleSetByID(ctx, instance.ScaleSetID)
+	default:
+		return params.ForgeEntity{}, errors.New("instance not associated with a pool or scale set")
+	}
+
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(
+			ctx, "failed to get entity getter",
+			"instance", instance.Name)
+		return params.ForgeEntity{}, fmt.Errorf("error fetching entity getter: %w", err)
+	}
+
+	poolEntity, err := entityGetter.GetEntity()
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(
+			ctx, "failed to get entity",
+			"instance", instance.Name)
+		return params.ForgeEntity{}, fmt.Errorf("error fetching entity: %w", err)
+	}
+
+	entity, err := amw.store.GetForgeEntity(ctx, poolEntity.EntityType, poolEntity.ID)
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(
+			ctx, "failed to get entity",
+			"instance", instance.Name)
+		return params.ForgeEntity{}, fmt.Errorf("error fetching entity: %w", err)
+	}
+	return entity, nil
+}
+
 func (amw *instanceMiddleware) claimsToContext(ctx context.Context, claims *InstanceJWTClaims) (context.Context, error) {
 	if claims == nil {
+		slog.InfoContext(ctx, "no claims for instance")
 		return ctx, runnerErrors.ErrUnauthorized
 	}
 
 	if claims.Name == "" {
+		slog.ErrorContext(ctx, "no name in calaims")
 		return nil, runnerErrors.ErrUnauthorized
 	}
 
 	instanceInfo, err := amw.store.GetInstance(ctx, claims.Name)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get instance", "error", err)
 		return ctx, runnerErrors.ErrUnauthorized
 	}
 
-	ctx = PopulateInstanceContext(ctx, instanceInfo, claims)
+	entity, err := amw.getForgeEntityFromInstance(ctx, instanceInfo)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get entity from instance", "error", err)
+		return ctx, runnerErrors.ErrUnauthorized
+	}
+
+	ctx = PopulateInstanceContext(ctx, instanceInfo, entity, claims)
 	return ctx, nil
 }
 
@@ -169,6 +216,7 @@ func (amw *instanceMiddleware) Middleware(next http.Handler) http.Handler {
 			invalidAuthResponse(ctx, w)
 			return
 		}
+		ctx = SetInstanceAuthToken(ctx, bearerToken[1])
 
 		if InstanceID(ctx) == "" {
 			invalidAuthResponse(ctx, w)

@@ -3,63 +3,34 @@
 	import { resolve } from '$app/paths';
 	import { auth, authStore } from '$lib/stores/auth.js';
 	import { websocketStore } from '$lib/stores/websocket.js';
+	import { themeStore } from '$lib/stores/theme.js';
 	import { onMount } from 'svelte';
 
 	let mobileMenuOpen = false;
 	let userMenuOpen = false;
-	let darkMode = false;
 
 	// WebSocket connection status
 	$: wsState = $websocketStore;
+	$: darkMode = $themeStore;
 
 	// Close mobile menu when route changes  
 	$: $page.url.pathname && (mobileMenuOpen = false);
 
 	onMount(() => {
-		// Initialize theme preference
-		initializeTheme();
-		
-		// Listen for system theme changes
+		// Listen for system theme changes - theme store handles initialization
 		const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 		mediaQuery.addEventListener('change', handleSystemThemeChange);
 	});
 
-	function initializeTheme() {
-		const savedTheme = localStorage.getItem('theme');
-		
-		if (savedTheme === 'dark') {
-			darkMode = true;
-		} else if (savedTheme === 'light') {
-			darkMode = false;
-		} else {
-			// No saved preference or 'system' - use system preference
-			darkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
-		}
-		
-		updateDarkMode();
-	}
-
 	function handleSystemThemeChange(e: MediaQueryListEvent) {
 		// Only update if user hasn't set a manual preference
 		if (!localStorage.getItem('theme') || localStorage.getItem('theme') === 'system') {
-			darkMode = e.matches;
-			updateDarkMode();
+			themeStore.set(e.matches);
 		}
 	}
 
 	function toggleDarkMode() {
-		darkMode = !darkMode;
-		// Save explicit preference
-		localStorage.setItem('theme', darkMode ? 'dark' : 'light');
-		updateDarkMode();
-	}
-
-	function updateDarkMode() {
-		if (darkMode) {
-			document.documentElement.classList.add('dark');
-		} else {
-			document.documentElement.classList.remove('dark');
-		}
+		themeStore.toggle();
 	}
 
 	function handleLogout() {
@@ -116,6 +87,11 @@
 			href: resolve('/endpoints'), 
 			label: 'Endpoints', 
 			icon: 'M13 10V3L4 14h7v7l9-11h-7z'
+		},
+		{ 
+			href: resolve('/templates'), 
+			label: 'Runner Install Templates', 
+			icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'
 		}
 	];
 
@@ -131,12 +107,12 @@
 			<div class="px-6 py-3 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-700">
 				<a href={resolve('/')} class="flex justify-center">
 					<img 
-						src={resolve('/assets/garm-light.svg')} 
+						src={resolve('/assets/garm-light.svg' as any)} 
 						alt="GARM" 
 						class="h-24 w-auto dark:hidden transition-transform hover:scale-105"
 					/>
 					<img 
-						src={resolve('/assets/garm-dark.svg')} 
+						src={resolve('/assets/garm-dark.svg' as any)} 
 						alt="GARM" 
 						class="h-24 w-auto hidden dark:block transition-transform hover:scale-105"
 					/>
@@ -268,12 +244,12 @@
 		<!-- Mobile logo and status -->
 		<div class="flex items-center space-x-3">
 			<img 
-				src={resolve('/assets/garm-light.svg')} 
+				src={resolve('/assets/garm-light.svg' as any)} 
 				alt="GARM" 
 				class="{darkMode ? 'hidden' : 'block'} h-8 w-8"
 			/>
 			<img 
-				src={resolve('/assets/garm-dark.svg')} 
+				src={resolve('/assets/garm-dark.svg' as any)} 
 				alt="GARM" 
 				class="{darkMode ? 'block' : 'hidden'} h-8 w-8"
 			/>

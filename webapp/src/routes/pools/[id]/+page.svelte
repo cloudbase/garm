@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { garmApi } from '$lib/api/client.js';
 	import type { Pool, UpdatePoolParams } from '$lib/api/generated/api.js';
@@ -24,7 +24,7 @@
 	let selectedInstance: Instance | null = null;
 	let unsubscribeWebsocket: (() => void) | null = null;
 
-	$: poolId = $page.params.id;
+	$: poolId = page.params.id;
 
 	async function loadPool() {
 		if (!poolId) return;
@@ -332,6 +332,16 @@
 							<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">OS Type / Architecture</dt>
 							<dd class="mt-1 text-sm text-gray-900 dark:text-white">{pool.os_type} / {pool.os_arch}</dd>
 						</div>
+						{#if (pool as any).template_name}
+							<div>
+								<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Runner Install Template</dt>
+								<dd class="mt-1">
+									<a href={resolve(`/templates/${(pool as any).template_id}`)} class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300">
+										{(pool as any).template_name}
+									</a>
+								</dd>
+							</div>
+						{/if}
 						{#if pool['github-runner-group']}
 							<div>
 								<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">GitHub Runner Group</dt>

@@ -263,6 +263,10 @@ definitions:
                     type: string
                 type: array
                 x-go-name: Tags
+            template_id:
+                format: uint64
+                type: integer
+                x-go-name: TemplateID
         type: object
         x-go-package: github.com/cloudbase/garm/params
     CreateRepoParams:
@@ -343,6 +347,30 @@ definitions:
                     type: string
                 type: array
                 x-go-name: Tags
+            template_id:
+                format: uint64
+                type: integer
+                x-go-name: TemplateID
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    CreateTemplateParams:
+        properties:
+            data:
+                items:
+                    format: uint8
+                    type: integer
+                type: array
+                x-go-name: Data
+            description:
+                type: string
+                x-go-name: Description
+            forge_type:
+                $ref: '#/definitions/EndpointType'
+            name:
+                type: string
+                x-go-name: Name
+            os_type:
+                $ref: '#/definitions/OSType'
         type: object
         x-go-package: github.com/cloudbase/garm/params
     Credentials:
@@ -1045,6 +1073,13 @@ definitions:
                     $ref: '#/definitions/Tag'
                 type: array
                 x-go-name: Tags
+            template_id:
+                format: uint64
+                type: integer
+                x-go-name: TemplateID
+            template_name:
+                type: string
+                x-go-name: TemplateName
             updated_at:
                 format: date-time
                 type: string
@@ -1262,6 +1297,13 @@ definitions:
                     $ref: '#/definitions/StatusMessage'
                 type: array
                 x-go-name: StatusMessages
+            template_id:
+                format: uint64
+                type: integer
+                x-go-name: TemplateID
+            template_name:
+                type: string
+                x-go-name: TemplateName
             updated_at:
                 format: date-time
                 type: string
@@ -1301,6 +1343,47 @@ definitions:
                 type: string
                 x-go-name: Name
         type: object
+        x-go-package: github.com/cloudbase/garm/params
+    Template:
+        properties:
+            created_at:
+                format: date-time
+                type: string
+                x-go-name: CreatedAt
+            data:
+                items:
+                    format: uint8
+                    type: integer
+                type: array
+                x-go-name: Data
+            description:
+                type: string
+                x-go-name: Description
+            forge_type:
+                $ref: '#/definitions/EndpointType'
+            id:
+                format: uint64
+                type: integer
+                x-go-name: ID
+            name:
+                type: string
+                x-go-name: Name
+            os_type:
+                $ref: '#/definitions/OSType'
+            owner_id:
+                type: string
+                x-go-name: Owner
+            updated_at:
+                format: date-time
+                type: string
+                x-go-name: UpdatedAt
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    Templates:
+        description: used by swagger client generated code
+        items:
+            $ref: '#/definitions/Template'
+        type: array
         x-go-package: github.com/cloudbase/garm/params
     UpdateControllerParams:
         properties:
@@ -1447,6 +1530,10 @@ definitions:
                     type: string
                 type: array
                 x-go-name: Tags
+            template_id:
+                format: uint64
+                type: integer
+                x-go-name: TemplateID
         type: object
         x-go-package: github.com/cloudbase/garm/params
     UpdateScaleSetParams:
@@ -1497,6 +1584,26 @@ definitions:
                 x-go-name: Prefix
             state:
                 $ref: '#/definitions/ScaleSetState'
+            template_id:
+                format: uint64
+                type: integer
+                x-go-name: TemplateID
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    UpdateTemplateParams:
+        properties:
+            data:
+                items:
+                    format: uint8
+                    type: integer
+                type: array
+                x-go-name: Data
+            description:
+                type: string
+                x-go-name: Description
+            name:
+                type: string
+                x-go-name: Name
         type: object
         x-go-package: github.com/cloudbase/garm/params
     User:
@@ -3456,6 +3563,122 @@ paths:
             summary: List runner instances in a scale set.
             tags:
                 - instances
+    /templates:
+        get:
+            operationId: ListTemplates
+            parameters:
+                - description: OS type of the templates.
+                  in: query
+                  name: osType
+                  type: string
+                - description: Partial or full name of the template.
+                  in: query
+                  name: partialName
+                  type: string
+                - description: Forge type of the templates.
+                  in: query
+                  name: forgeType
+                  type: string
+            responses:
+                "200":
+                    description: Templates
+                    schema:
+                        $ref: '#/definitions/Templates'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List templates.
+            tags:
+                - templates
+        post:
+            operationId: CreateTemplate
+            parameters:
+                - description: Parameters used when creating the template.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/CreateTemplateParams'
+                    description: Parameters used when creating the template.
+                    type: object
+            responses:
+                "200":
+                    description: Template
+                    schema:
+                        $ref: '#/definitions/Template'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Create template with the parameters given.
+            tags:
+                - templates
+    /templates/{templateID}:
+        delete:
+            operationId: DeleteTemplate
+            parameters:
+                - description: ID of the template to delete.
+                  in: path
+                  name: templateID
+                  required: true
+                  type: number
+            responses:
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get template by ID.
+            tags:
+                - templates
+        get:
+            operationId: GetTemplate
+            parameters:
+                - description: ID of the template to fetch.
+                  in: path
+                  name: templateID
+                  required: true
+                  type: number
+            responses:
+                "200":
+                    description: Template
+                    schema:
+                        $ref: '#/definitions/Template'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get template by ID.
+            tags:
+                - templates
+        put:
+            operationId: UpdateTemplate
+            parameters:
+                - description: ID of the template to update.
+                  in: path
+                  name: templateID
+                  required: true
+                  type: string
+                - description: Parameters used when updating the template.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/UpdateTemplateParams'
+                    description: Parameters used when updating the template.
+                    type: object
+            responses:
+                "200":
+                    description: Template
+                    schema:
+                        $ref: '#/definitions/Template'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Update template with the parameters given.
+            tags:
+                - templates
 produces:
     - application/json
 security:

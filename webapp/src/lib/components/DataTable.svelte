@@ -18,7 +18,7 @@
 		align?: 'left' | 'center' | 'right';
 		class?: string;
 		cellComponent?: any;
-		cellProps?: Record<string, any>;
+		cellProps?: Record<string, any> | ((item: any) => Record<string, any>);
 	}> = [];
 	
 	// Data and state
@@ -60,6 +60,7 @@
 		cellClick: { item: any; column: any; value: any };
 		edit: { item: any };
 		delete: { item: any };
+		clone: { item: any };
 		action: { type: string; item: any };
 	}>();
 	
@@ -93,6 +94,10 @@
 
 	function handleDelete(event: CustomEvent<{ item: any }>) {
 		dispatch('delete', event.detail);
+	}
+
+	function handleClone(event: CustomEvent<{ item: any }>) {
+		dispatch('clone', event.detail);
 	}
 
 	function handleAction(event: CustomEvent<{ type: string; item: any }>) {
@@ -173,6 +178,7 @@
 										config={mobileCardConfig} 
 										on:edit
 										on:delete
+										on:clone
 										on:action
 									/>
 								{/key}
@@ -207,9 +213,10 @@
 										<svelte:component 
 											this={column.cellComponent} 
 											{item} 
-											{...column.cellProps}
+											{...typeof column.cellProps === 'function' ? column.cellProps(item) : column.cellProps}
 											on:edit={handleEdit}
 											on:delete={handleDelete}
+											on:clone={handleClone}
 											on:action={handleAction}
 										/>
 									{/key}

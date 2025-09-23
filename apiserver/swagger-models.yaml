@@ -59,7 +59,7 @@ definitions:
             alias: garm_params
     items:
         $ref: '#/definitions/Job'
-  Job: 
+  Job:
     type: object
     x-go-type:
         type: Job
@@ -343,3 +343,33 @@ definitions:
         import:
             package: github.com/cloudbase/garm/params
             alias: garm_params
+  UpdateTemplateParams:
+    type: object
+    x-go-type:
+        type: UpdateTemplateParams
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+  CreateTemplateParams:
+    type: object
+    x-go-type:
+        type: CreateTemplateParams
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+  Template:
+    type: object
+    x-go-type:
+        type: Template
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+  Templates:
+    type: array
+    x-go-type:
+        type: Templates
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+    items:
+        $ref: '#/definitions/Template'

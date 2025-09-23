@@ -11,6 +11,9 @@ import {
 	type ForgeCredentials,
 	type Provider,
 	type ControllerInfo,
+	type Template,
+	type CreateTemplateParams,
+	type UpdateTemplateParams,
 	type CreateRepoParams,
 	type CreateOrgParams,
 	type CreateEnterpriseParams,
@@ -42,6 +45,9 @@ export type {
 	ForgeCredentials,
 	Provider,
 	ControllerInfo,
+	Template,
+	CreateTemplateParams,
+	UpdateTemplateParams,
 	CreateRepoParams,
 	CreateOrgParams,
 	CreateEnterpriseParams,
@@ -71,6 +77,13 @@ export class GarmApiClient extends GeneratedGarmApiClient {
 
 	// All methods are inherited from GeneratedGarmApiClient
 	// This class now acts as a simple wrapper for backward compatibility
+	
+	// Explicitly expose template methods for TypeScript
+	declare listTemplates: (osType?: string, partialName?: string, forgeType?: string) => Promise<Template[]>;
+	declare getTemplate: (id: number) => Promise<Template>;
+	declare createTemplate: (params: CreateTemplateParams) => Promise<Template>;
+	declare updateTemplate: (id: number, params: UpdateTemplateParams) => Promise<Template>;
+	declare deleteTemplate: (id: number) => Promise<void>;
 }
 
 // Create a singleton instance

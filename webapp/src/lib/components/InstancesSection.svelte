@@ -5,7 +5,7 @@
 	import { EntityCell, StatusCell, GenericCell, ActionsCell } from './cells';
 
 	export let instances: Instance[];
-	export let entityType: 'repository' | 'organization' | 'enterprise' | 'scaleset';
+	export let entityType: 'repository' | 'organization' | 'enterprise' | 'scaleset' | 'pool';
 	export let onDeleteInstance: (instance: Instance) => void;
 
 	// DataTable configuration for instances section

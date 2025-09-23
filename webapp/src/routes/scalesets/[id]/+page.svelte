@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { garmApi } from '$lib/api/client.js';
 	import type { ScaleSet, CreateScaleSetParams } from '$lib/api/generated/api.js';
@@ -24,7 +24,7 @@
 	let selectedInstance: Instance | null = null;
 	let unsubscribeWebsocket: (() => void) | null = null;
 
-	$: scaleSetId = parseInt($page.params.id || '0');
+	$: scaleSetId = parseInt(page.params.id || '0');
 
 	async function loadScaleSet() {
 		if (!scaleSetId || isNaN(scaleSetId)) return;
@@ -37,6 +37,7 @@
 			if (!scaleSet.instances) {
 				scaleSet.instances = [];
 			}
+			
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to load scale set';
 		} finally {
@@ -327,6 +328,22 @@
 						<div>
 							<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">OS Type / Architecture</dt>
 							<dd class="mt-1 text-sm text-gray-900 dark:text-white">{scaleSet.os_type} / {scaleSet.os_arch}</dd>
+						</div>
+						<div>
+							<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Runner Install Template</dt>
+							<dd class="mt-1">
+								{#if (scaleSet as any).template_name}
+									<a href={resolve(`/templates/${(scaleSet as any).template_id}`)} class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300">
+										{(scaleSet as any).template_name}
+									</a>
+								{:else if (scaleSet as any).template_id}
+									<a href={resolve(`/templates/${(scaleSet as any).template_id}`)} class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300">
+										Template ID: {(scaleSet as any).template_id}
+									</a>
+								{:else}
+									<span class="text-sm text-gray-500 dark:text-gray-400">Default system template</span>
+								{/if}
+							</dd>
 						</div>
 						{#if scaleSet['github-runner-group']}
 							<div>

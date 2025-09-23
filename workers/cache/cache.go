@@ -208,6 +208,15 @@ func (w *Worker) Start() error {
 	g, _ := errgroup.WithContext(w.ctx)
 
 	g.Go(func() error {
+		ctrlInfo, err := w.store.ControllerInfo()
+		if err != nil {
+			return fmt.Errorf("failed to get controller info: %w", err)
+		}
+		cache.SetControllerCache(ctrlInfo)
+		return nil
+	})
+
+	g.Go(func() error {
 		if err := w.loadAllGithubCredentials(); err != nil {
 			return fmt.Errorf("loading all github credentials: %w", err)
 		}
@@ -391,6 +400,20 @@ func (w *Worker) handleInstanceEvent(event common.ChangePayload) {
 	}
 }
 
+func (w *Worker) handleTemplateEvent(event common.ChangePayload) {
+	template, ok := event.Payload.(params.Template)
+	if !ok {
+		slog.DebugContext(w.ctx, "invalid payload type for template event", "payload", event.Payload)
+		return
+	}
+	switch event.Operation {
+	case common.CreateOperation, common.UpdateOperation:
+		cache.SetTemplateCache(template)
+	case common.DeleteOperation:
+		cache.DeleteTemplate(template.ID)
+	}
+}
+
 func (w *Worker) handleCredentialsEvent(event common.ChangePayload) {
 	credentials, ok := event.Payload.(params.ForgeCredentials)
 	if !ok {
@@ -420,6 +443,15 @@ func (w *Worker) handleCredentialsEvent(event common.ChangePayload) {
 	}
 }
 
+func (w *Worker) handleControllerInfoEvent(event common.ChangePayload) {
+	ctrlInfo, ok := event.Payload.(params.ControllerInfo)
+	if !ok {
+		slog.DebugContext(w.ctx, "invalid payload type for controller info event event", "payload", event.Payload)
+		return
+	}
+	cache.SetControllerCache(ctrlInfo)
+}
+
 func (w *Worker) handleEvent(event common.ChangePayload) {
 	slog.DebugContext(w.ctx, "handling event", "event_entity_type", event.EntityType, "event_operation", event.Operation)
 	switch event.EntityType {
@@ -437,6 +469,10 @@ func (w *Worker) handleEvent(event common.ChangePayload) {
 		w.handleEnterpriseEvent(event)
 	case common.GithubCredentialsEntityType, common.GiteaCredentialsEntityType:
 		w.handleCredentialsEvent(event)
+	case common.ControllerEntityType:
+		w.handleControllerInfoEvent(event)
+	case common.TemplateEntityType:
+		w.handleTemplateEvent(event)
 	default:
 		slog.DebugContext(w.ctx, "unknown entity type", "entity_type", event.EntityType)
 	}

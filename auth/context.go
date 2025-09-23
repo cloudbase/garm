@@ -41,6 +41,7 @@ const (
 	instanceEntityKey    contextFlags = "entity"
 	instanceRunnerStatus contextFlags = "status"
 	instanceTokenFetched contextFlags = "tokenFetched"
+	instanceAuthToken    contextFlags = "instanceAuthToken"
 	instanceHasJITConfig contextFlags = "hasJITConfig"
 	instanceParams       contextFlags = "instanceParams"
 	instanceForgeTypeKey contextFlags = "forge_type"
@@ -159,19 +160,31 @@ func InstancePoolType(ctx context.Context) string {
 	return elem.(string)
 }
 
-func SetInstanceEntity(ctx context.Context, val string) context.Context {
+func SetInstanceEntity(ctx context.Context, val params.ForgeEntity) context.Context {
 	return context.WithValue(ctx, instanceEntityKey, val)
 }
 
-func InstanceEntity(ctx context.Context) string {
+func InstanceEntity(ctx context.Context) (params.ForgeEntity, error) {
 	elem := ctx.Value(instanceEntityKey)
 	if elem == nil {
-		return ""
+		return params.ForgeEntity{}, runnerErrors.ErrNotFound
 	}
-	return elem.(string)
+	return elem.(params.ForgeEntity), nil
 }
 
-func PopulateInstanceContext(ctx context.Context, instance params.Instance, claims *InstanceJWTClaims) context.Context {
+func SetInstanceAuthToken(ctx context.Context, token string) context.Context {
+	return context.WithValue(ctx, instanceAuthToken, token)
+}
+
+func InstanceAuthToken(ctx context.Context) (string, error) {
+	elem := ctx.Value(instanceAuthToken)
+	if elem == nil {
+		return "", runnerErrors.ErrUnauthorized
+	}
+	return elem.(string), nil
+}
+
+func PopulateInstanceContext(ctx context.Context, instance params.Instance, entity params.ForgeEntity, claims *InstanceJWTClaims) context.Context {
 	ctx = SetInstanceID(ctx, instance.ID)
 	ctx = SetInstanceName(ctx, instance.Name)
 	ctx = SetInstancePoolID(ctx, instance.PoolID)
@@ -180,6 +193,7 @@ func PopulateInstanceContext(ctx context.Context, instance params.Instance, clai
 	ctx = SetInstanceHasJITConfig(ctx, instance.JitConfiguration)
 	ctx = SetInstanceParams(ctx, instance)
 	ctx = SetInstanceForgeType(ctx, claims.ForgeType)
+	ctx = SetInstanceEntity(ctx, entity)
 	return ctx
 }
 

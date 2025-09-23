@@ -173,6 +173,7 @@ type UpdatePoolParams struct {
 	// The runner group must be created by someone with access to the enterprise.
 	GitHubRunnerGroup *string `json:"github-runner-group,omitempty"`
 	Priority          *uint   `json:"priority,omitempty"`
+	TemplateID        *uint   `json:"template_id,omitempty"`
 }
 
 type CreateInstanceParams struct {
@@ -212,6 +213,7 @@ type CreatePoolParams struct {
 	// The runner group must be created by someone with access to the enterprise.
 	GitHubRunnerGroup string `json:"github-runner-group,omitempty"`
 	Priority          uint   `json:"priority,omitempty"`
+	TemplateID        *uint  `json:"template_id,omitempty"`
 }
 
 func (p *CreatePoolParams) Validate() error {
@@ -586,6 +588,7 @@ type CreateScaleSetParams struct {
 	// pool will be added to.
 	// The runner group must be created by someone with access to the enterprise.
 	GitHubRunnerGroup string `json:"github-runner-group,omitempty"`
+	TemplateID        *uint  `json:"template_id,omitempty"`
 }
 
 func (s *CreateScaleSetParams) Validate() error {
@@ -636,6 +639,7 @@ type UpdateScaleSetParams struct {
 	GitHubRunnerGroup *string        `json:"runner_group,omitempty"`
 	State             *ScaleSetState `json:"state"`
 	ExtendedState     *string        `json:"extended_state"`
+	TemplateID        *uint          `json:"template_id,omitempty"`
 	ScaleSetID        int            `json:"-"`
 }
 
@@ -783,6 +787,53 @@ func (u UpdateGiteaCredentialsParams) Validate() error {
 		if u.PAT.OAuth2Token == "" {
 			return runnerErrors.NewBadRequestError("missing oauth2_token")
 		}
+	}
+
+	return nil
+}
+
+// swagger:model CreateTemplateParams
+type CreateTemplateParams struct {
+	Name        string              `json:"name"`
+	Description string              `json:"description"`
+	Data        []byte              `json:"data"`
+	OSType      commonParams.OSType `json:"os_type"`
+	ForgeType   EndpointType        `json:"forge_type,omitempty"`
+}
+
+func (c *CreateTemplateParams) Validate() error {
+	if c.Name == "" {
+		return fmt.Errorf("name cannot be empty")
+	}
+
+	if len(c.Data) == 0 {
+		return fmt.Errorf("template data is empty")
+	}
+
+	switch c.OSType {
+	case commonParams.Linux, commonParams.Windows:
+	default:
+		return fmt.Errorf("invalid OS type: %q", c.OSType)
+	}
+
+	switch c.ForgeType {
+	case GithubEndpointType, GiteaEndpointType:
+	default:
+		return fmt.Errorf("invalid forge type: %q", c.ForgeType)
+	}
+	return nil
+}
+
+// swagger:model UpdateTemplateParams
+type UpdateTemplateParams struct {
+	Name        *string `json:"name"`
+	Description *string `json:"description"`
+	Data        []byte  `json:"data"`
+}
+
+func (u *UpdateTemplateParams) Validate() error {
+	if u.Name != nil && *u.Name == "" {
+		return fmt.Errorf("name cannot be empty")
 	}
 
 	return nil

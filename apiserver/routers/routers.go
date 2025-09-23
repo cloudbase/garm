@@ -172,7 +172,9 @@ func NewAPIRouter(han *controllers.APIController, authMiddleware, initMiddleware
 	metadataRouter.Handle("/systemd/unit-file", http.HandlerFunc(han.SystemdUnitFileHandler)).Methods("GET", "OPTIONS")
 	metadataRouter.Handle("/system/cert-bundle/", http.HandlerFunc(han.RootCertificateBundleHandler)).Methods("GET", "OPTIONS")
 	metadataRouter.Handle("/system/cert-bundle", http.HandlerFunc(han.RootCertificateBundleHandler)).Methods("GET", "OPTIONS")
-
+	// install script
+	metadataRouter.Handle("/install-script/", http.HandlerFunc(han.RunnerInstallScriptHandler)).Methods("GET", "OPTIONS")
+	metadataRouter.Handle("/install-script", http.HandlerFunc(han.RunnerInstallScriptHandler)).Methods("GET", "OPTIONS")
 	// Login
 	authRouter := apiSubRouter.PathPrefix("/auth").Subrouter()
 	authRouter.Handle("/{login:login\\/?}", http.HandlerFunc(han.LoginHandler)).Methods("POST", "OPTIONS")
@@ -517,6 +519,24 @@ func NewAPIRouter(han *controllers.APIController, authMiddleware, initMiddleware
 	// Update Gitea Credential
 	apiRouter.Handle("/gitea/credentials/{id}/", http.HandlerFunc(han.UpdateGiteaCredential)).Methods("PUT", "OPTIONS")
 	apiRouter.Handle("/gitea/credentials/{id}", http.HandlerFunc(han.UpdateGiteaCredential)).Methods("PUT", "OPTIONS")
+
+	///////////////
+	// Templates //
+	///////////////
+	apiRouter.Handle("/templates/", http.HandlerFunc(han.ListTemplatesHandler)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/templates", http.HandlerFunc(han.ListTemplatesHandler)).Methods("GET", "OPTIONS")
+	// Create template
+	apiRouter.Handle("/templates/", http.HandlerFunc(han.CreateTemplateHandler)).Methods("POST", "OPTIONS")
+	apiRouter.Handle("/templates", http.HandlerFunc(han.CreateTemplateHandler)).Methods("POST", "OPTIONS")
+	// Get template
+	apiRouter.Handle("/templates/{templateID}/", http.HandlerFunc(han.GetTemplateHandler)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/templates/{templateID}", http.HandlerFunc(han.GetTemplateHandler)).Methods("GET", "OPTIONS")
+	// Delete Gitea Credential
+	apiRouter.Handle("/templates/{templateID}/", http.HandlerFunc(han.DeleteTemplateHandler)).Methods("DELETE", "OPTIONS")
+	apiRouter.Handle("/templates/{templateID}", http.HandlerFunc(han.DeleteTemplateHandler)).Methods("DELETE", "OPTIONS")
+	// Update template
+	apiRouter.Handle("/templates/{templateID}/", http.HandlerFunc(han.UpdateTemplateHandler)).Methods("PUT", "OPTIONS")
+	apiRouter.Handle("/templates/{templateID}", http.HandlerFunc(han.UpdateTemplateHandler)).Methods("PUT", "OPTIONS")
 
 	/////////////////////////
 	// Websocket endpoints //

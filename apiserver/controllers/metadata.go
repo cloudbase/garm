@@ -123,3 +123,20 @@ func (a *APIController) RootCertificateBundleHandler(w http.ResponseWriter, r *h
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }
+
+func (a *APIController) RunnerInstallScriptHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	installScript, err := a.r.GetRunnerInstallScript(ctx)
+	if err != nil {
+		slog.InfoContext(ctx, "failed to get runner install template", "error", err)
+		handleError(ctx, w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/plain")
+	w.WriteHeader(http.StatusOK)
+	if _, err := w.Write(installScript); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
+	}
+}
