@@ -18,6 +18,8 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/mock"
@@ -450,26 +452,6 @@ func (s *MetadataTestSuite) TestGetInstanceGithubRegistrationTokenJITConfig() {
 	s.Require().ErrorIs(err, runnerErrors.ErrUnauthorized)
 }
 
-func (s *MetadataTestSuite) TestGetRootCertificateBundle() {
-	expectedBundle := params.CertificateBundle{
-		RootCertificates: map[string][]byte{
-			"test-ca": []byte("test-certificate"),
-		},
-	}
-
-	// Set up mocks
-	s.Fixtures.PoolMgrCtrlMock.On("GetOrgPoolManager", mock.AnythingOfType("params.Organization")).Return(s.Fixtures.PoolMgrMock, nil)
-	s.Fixtures.PoolMgrMock.On("RootCABundle").Return(expectedBundle, nil)
-
-	bundle, err := s.Runner.GetRootCertificateBundle(s.instanceCtx)
-
-	s.Require().Nil(err)
-	s.Require().Equal(expectedBundle.RootCertificates, bundle.RootCertificates)
-
-	s.Fixtures.PoolMgrMock.AssertExpectations(s.T())
-	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
-}
-
 func (s *MetadataTestSuite) TestGetRootCertificateBundleUnauthorized() {
 	_, err := s.Runner.GetRootCertificateBundle(s.unauthorizedCtx)
 
@@ -477,20 +459,39 @@ func (s *MetadataTestSuite) TestGetRootCertificateBundleUnauthorized() {
 	s.Require().ErrorIs(err, runnerErrors.ErrUnauthorized)
 }
 
-func (s *MetadataTestSuite) TestGetRootCertificateBundleInvalidBundle() {
-	// Set up mocks to return error for invalid bundle
-	s.Fixtures.PoolMgrCtrlMock.On("GetOrgPoolManager", mock.AnythingOfType("params.Organization")).Return(s.Fixtures.PoolMgrMock, nil)
-	s.Fixtures.PoolMgrMock.On("RootCABundle").Return(params.CertificateBundle{}, fmt.Errorf("invalid bundle"))
-	s.Fixtures.PoolMgrMock.On("ID").Return("test-pool-manager-id")
+func (s *MetadataTestSuite) TestGetRootCertificateBundleAuthorized() {
+	// Load a valid test certificate from testdata
+	certPath := filepath.Join("../testdata/certs", "srv-pub.pem")
+	testCertPEM, err := os.ReadFile(certPath)
+	s.Require().NoError(err, "Failed to read test certificate")
 
-	bundle, err := s.Runner.GetRootCertificateBundle(s.instanceCtx)
+	// Set up entity with valid CA bundle
+	entity := s.Fixtures.TestEntity
+	entity.Credentials.CABundle = testCertPEM
+	ctx := auth.SetInstanceParams(context.Background(), s.Fixtures.TestInstance)
+	ctx = auth.SetInstanceEntity(ctx, entity)
+
+	bundle, err := s.Runner.GetRootCertificateBundle(ctx)
+
+	s.Require().Nil(err)
+	s.Require().NotNil(bundle.RootCertificates)
+	s.Require().NotEmpty(bundle.RootCertificates)
+	// The test certificate file contains 2 certificates
+	s.Require().Len(bundle.RootCertificates, 2)
+}
+
+func (s *MetadataTestSuite) TestGetRootCertificateBundleInvalidBundle() {
+	// Set up entity with invalid CA bundle (invalid PEM data)
+	entity := s.Fixtures.TestEntity
+	entity.Credentials.CABundle = []byte("bogus cert")
+	ctx := auth.SetInstanceParams(context.Background(), s.Fixtures.TestInstance)
+	ctx = auth.SetInstanceEntity(ctx, entity)
+
+	bundle, err := s.Runner.GetRootCertificateBundle(ctx)
 
 	// Should return empty bundle without error when CA bundle is invalid
 	s.Require().Nil(err)
 	s.Require().Empty(bundle.RootCertificates)
-
-	s.Fixtures.PoolMgrMock.AssertExpectations(s.T())
-	s.Fixtures.PoolMgrCtrlMock.AssertExpectations(s.T())
 }
 
 func TestMetadataTestSuite(t *testing.T) {

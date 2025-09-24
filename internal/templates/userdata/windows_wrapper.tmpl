@@ -1,4 +1,5 @@
 $ErrorActionPreference="Stop"
+Set-ExecutionPolicy RemoteSigned
 
 function Start-ExecuteWithRetry {
     [CmdletBinding()]
@@ -49,9 +50,9 @@ function Start-ExecuteWithRetry {
     }
 }
 
-$installScript = (Join-Path $env:TMP, "garm-install.ps1")
+$installScript = (Join-Path $env:TMP "garm-install.ps1")
 Start-ExecuteWithRetry -ScriptBlock {
 	wget -UseBasicParsing -Headers @{"Accept"="application/json"; "Authorization"="Bearer {{ .CallbackToken }}"} -Uri {{ .MetadataURL }}/install-script/ -OutFile $installScript
 } -MaxRetryCount 5 -RetryInterval 5 -RetryMessage "Retrying download of runner install script..."
 
-$installScript
+powershell.exe -Sta -NonInteractive -ExecutionPolicy RemoteSigned -File $installScript
