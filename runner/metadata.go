@@ -351,7 +351,7 @@ func (r *Runner) GetInstanceGithubRegistrationToken(ctx context.Context) (string
 
 	poolMgr, err := r.getPoolManagerFromInstance(ctx, instance)
 	if err != nil {
-		return "", fmt.Errorf("error fetching pool manager for instance: %w", err)
+		return "", fmt.Errorf("error fetching pool manager for instance %s (%s): %w", instance.Name, instance.PoolID, err)
 	}
 
 	token, err := poolMgr.GithubRunnerRegistrationToken()
@@ -383,17 +383,17 @@ func (r *Runner) GetRootCertificateBundle(ctx context.Context) (params.Certifica
 		return params.CertificateBundle{}, runnerErrors.ErrUnauthorized
 	}
 
-	poolMgr, err := r.getPoolManagerFromInstance(ctx, instance)
+	entity, err := auth.InstanceEntity(ctx)
 	if err != nil {
-		return params.CertificateBundle{}, fmt.Errorf("error fetching pool manager for instance: %w", err)
+		slog.ErrorContext(r.ctx, "failed to get entity", "error", err)
+		return params.CertificateBundle{}, runnerErrors.ErrUnauthorized
 	}
 
-	bundle, err := poolMgr.RootCABundle()
+	bundle, err := entity.Credentials.RootCertificateBundle()
 	if err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(
 			ctx, "failed to get root CA bundle",
-			"instance", instance.Name,
-			"pool_manager", poolMgr.ID())
+			"instance", instance.Name)
 		// The root CA bundle is invalid. Return an empty bundle to the runner and log the event.
 		return params.CertificateBundle{
 			RootCertificates: make(map[string][]byte),
