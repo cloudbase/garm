@@ -58,6 +58,10 @@ func NewAPIController(r *runner.Runner, authenticator *auth.Authenticator, hub *
 				return false
 			}
 			for _, val := range apiCfg.CORSOrigins {
+				if val == "*" {
+					// user has a setting that allows everything
+					return true
+				}
 				corsVal, err := url.Parse(val)
 				if err != nil {
 					continue
