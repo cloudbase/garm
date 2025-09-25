@@ -12,13 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package yamlutils provides utilities to work with YAML documents.
-//
-//   - [BytesToYAMLDoc] to construct a [yaml.Node] document
-//   - [YAMLToJSON] to convert a [yaml.Node] document to JSON bytes
-//   - [YAMLMapSlice] to serialize and deserialize YAML with the order of keys maintained
-package yamlutils
+package json
 
 import (
-	_ "go.yaml.in/yaml/v3" // for documentation purpose only
+	"fmt"
+	"reflect"
+
+	"github.com/go-openapi/swag/jsonutils/adapters/ifaces"
 )
+
+func Register(dispatcher ifaces.Registrar) {
+	t := reflect.TypeOf(Adapter{})
+	dispatcher.RegisterFor(
+		ifaces.RegistryEntry{
+			Who:         fmt.Sprintf("%s.%s", t.PkgPath(), t.Name()),
+			What:        ifaces.AllCapabilities,
+			Constructor: BorrowAdapterIface,
+			Support:     support,
+		})
+}
+
+func support(_ ifaces.Capability, _ any) bool {
+	return true
+}

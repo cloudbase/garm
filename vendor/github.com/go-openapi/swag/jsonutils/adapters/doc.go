@@ -12,13 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package yamlutils provides utilities to work with YAML documents.
+// Package adapters exposes a registry of adapters to multiple
+// JSON serialization libraries.
 //
-//   - [BytesToYAMLDoc] to construct a [yaml.Node] document
-//   - [YAMLToJSON] to convert a [yaml.Node] document to JSON bytes
-//   - [YAMLMapSlice] to serialize and deserialize YAML with the order of keys maintained
-package yamlutils
-
-import (
-	_ "go.yaml.in/yaml/v3" // for documentation purpose only
-)
+// All interfaces are defined in package [ifaces.Adapter].
+package adapters
