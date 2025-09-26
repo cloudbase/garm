@@ -13,6 +13,7 @@
 	import { extractAPIError } from '$lib/utils/apiError';
 import DataTable from '$lib/components/DataTable.svelte';
 import { EndpointCell, ActionsCell, GenericCell } from '$lib/components/cells';
+import Tooltip from '$lib/components/Tooltip.svelte';
 
 	let loading = true;
 	let endpoints: ForgeEndpoint[] = [];
@@ -58,7 +59,9 @@ import { EndpointCell, ActionsCell, GenericCell } from '$lib/components/cells';
 		base_url: '',
 		api_base_url: '',
 		upload_base_url: '',
-		ca_cert_bundle: ''
+		ca_cert_bundle: '',
+		tools_metadata_url: '',
+		use_internal_tools_metadata: false
 	};
 	// Track original values for comparison during updates
 	let originalFormData: typeof formData = { ...formData };
@@ -203,7 +206,9 @@ import { EndpointCell, ActionsCell, GenericCell } from '$lib/components/cells';
 			base_url: endpoint.base_url || '',
 			api_base_url: endpoint.api_base_url || '',
 			upload_base_url: endpoint.upload_base_url || '',
-			ca_cert_bundle: typeof endpoint.ca_cert_bundle === 'string' ? endpoint.ca_cert_bundle : ''
+			ca_cert_bundle: typeof endpoint.ca_cert_bundle === 'string' ? endpoint.ca_cert_bundle : '',
+			tools_metadata_url: (endpoint as any).tools_metadata_url || '',
+			use_internal_tools_metadata: (endpoint as any).use_internal_tools_metadata || false
 		};
 		// Store original values for comparison
 		originalFormData = { ...formData };
@@ -223,7 +228,9 @@ import { EndpointCell, ActionsCell, GenericCell } from '$lib/components/cells';
 			base_url: '',
 			api_base_url: '',
 			upload_base_url: '',
-			ca_cert_bundle: ''
+			ca_cert_bundle: '',
+			tools_metadata_url: '',
+			use_internal_tools_metadata: false
 		};
 		originalFormData = { ...formData };
 	}
@@ -295,6 +302,17 @@ import { EndpointCell, ActionsCell, GenericCell } from '$lib/components/cells';
 			}
 		}
 		
+		// Gitea-only fields - only include if changed
+		if (editingEndpoint?.endpoint_type === 'gitea') {
+			if (formData.tools_metadata_url !== originalFormData.tools_metadata_url) {
+				updateParams.tools_metadata_url = formData.tools_metadata_url.trim();
+			}
+			
+			if (formData.use_internal_tools_metadata !== originalFormData.use_internal_tools_metadata) {
+				updateParams.use_internal_tools_metadata = formData.use_internal_tools_metadata;
+			}
+		}
+		
 		return updateParams;
 	}
 
@@ -309,6 +327,14 @@ import { EndpointCell, ActionsCell, GenericCell } from '$lib/components/cells';
 				api_base_url: formData.api_base_url,
 				upload_base_url: formData.upload_base_url
 			};
+			
+			// Add Gitea-specific fields
+			if (formData.endpoint_type === 'gitea') {
+				if (formData.tools_metadata_url.trim() !== '') {
+					endpointParams.tools_metadata_url = formData.tools_metadata_url.trim();
+				}
+				endpointParams.use_internal_tools_metadata = formData.use_internal_tools_metadata;
+			}
 			
 			// Convert ca_cert_bundle from base64 string to byte array if provided
 			if (formData.ca_cert_bundle && formData.ca_cert_bundle.trim() !== '') {
@@ -451,7 +477,7 @@ import { EndpointCell, ActionsCell, GenericCell } from '$lib/components/cells';
 		on:delete={handleDelete}
 	>
 		<!-- Mobile card content -->
-		<svelte:fragment slot="mobile-card" let:item={endpoint} let:index>
+		<svelte:fragment slot="mobile-card" let:item={endpoint}>
 			<div class="flex items-center justify-between">
 				<div class="flex-1 min-w-0">
 					<div class="block">
@@ -603,6 +629,52 @@ import { EndpointCell, ActionsCell, GenericCell } from '$lib/components/cells';
 							placeholder="https://gitea.example.com/api/v1 (leave empty to use Base URL)"
 						/>
 						<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">If empty, Base URL will be used as API Base URL</p>
+					</div>
+
+					<!-- Gitea-specific tools metadata fields -->
+					<div>
+						<div class="flex items-center mb-1">
+							<label for="tools_metadata_url" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+								Tools Metadata URL <span class="text-xs text-gray-500">(optional)</span>
+							</label>
+							<div class="ml-2">
+								<Tooltip
+									title="Tools Metadata URL"
+									content="URL where GARM checks for act_runner binary downloads and release information. Defaults to https://gitea.com/api/v1/repos/gitea/act_runner/releases if not specified. Use a custom URL to point to your own tools repository or mirror."
+									position="top"
+									width="w-80"
+								/>
+							</div>
+						</div>
+						<input
+							type="url"
+							id="tools_metadata_url"
+							bind:value={formData.tools_metadata_url}
+							autocomplete="off"
+							class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+							placeholder="https://gitea.com/api/v1/repos/gitea/act_runner/releases"
+						/>
+						<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Leave empty to use default Gitea releases URL</p>
+					</div>
+
+					<div class="flex items-center">
+						<input
+							id="use_internal_tools_metadata"
+							type="checkbox"
+							bind:checked={formData.use_internal_tools_metadata}
+							class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
+						/>
+						<label for="use_internal_tools_metadata" class="ml-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+							Use Internal Tools Metadata
+						</label>
+						<div class="ml-2">
+							<Tooltip
+								title="Internal Tools Metadata"
+								content="When enabled, GARM uses built-in URLs for nightly act_runner binaries instead of calling the external tools metadata URL. This is useful in air-gapped environments where runner images already include the binaries and don't need to download them."
+								position="top"
+								width="w-80"
+							/>
+						</div>
 					</div>
 				{/if}
 
@@ -757,6 +829,52 @@ import { EndpointCell, ActionsCell, GenericCell } from '$lib/components/cells';
 							class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
 						/>
 						<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">If empty, Base URL will be used as API Base URL</p>
+					</div>
+
+					<!-- Gitea-specific tools metadata fields -->
+					<div>
+						<div class="flex items-center mb-1">
+							<label for="edit_tools_metadata_url" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+								Tools Metadata URL <span class="text-xs text-gray-500">(optional)</span>
+							</label>
+							<div class="ml-2">
+								<Tooltip
+									title="Tools Metadata URL"
+									content="URL where GARM checks for act_runner binary downloads and release information. Defaults to https://gitea.com/api/v1/repos/gitea/act_runner/releases if not specified. Use a custom URL to point to your own tools repository or mirror."
+									position="top"
+									width="w-80"
+								/>
+							</div>
+						</div>
+						<input
+							type="url"
+							id="edit_tools_metadata_url"
+							bind:value={formData.tools_metadata_url}
+							autocomplete="off"
+							class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+							placeholder="https://gitea.com/api/v1/repos/gitea/act_runner/releases"
+						/>
+						<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Leave empty to use default Gitea releases URL</p>
+					</div>
+
+					<div class="flex items-center">
+						<input
+							id="edit_use_internal_tools_metadata"
+							type="checkbox"
+							bind:checked={formData.use_internal_tools_metadata}
+							class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
+						/>
+						<label for="edit_use_internal_tools_metadata" class="ml-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+							Use Internal Tools Metadata
+						</label>
+						<div class="ml-2">
+							<Tooltip
+								title="Internal Tools Metadata"
+								content="When enabled, GARM uses built-in URLs for nightly act_runner binaries instead of calling the external tools metadata URL. This is useful in air-gapped environments where runner images already include the binaries and don't need to download them."
+								position="top"
+								width="w-80"
+							/>
+						</div>
 					</div>
 				{/if}
 

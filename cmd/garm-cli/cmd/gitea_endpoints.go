@@ -20,6 +20,12 @@ import (
 
 	apiClientEndpoints "github.com/cloudbase/garm/client/endpoints"
 	"github.com/cloudbase/garm/params"
+	"github.com/cloudbase/garm/util/appdefaults"
+)
+
+var (
+	toolsMetadataURL    string
+	useInternalMetadata bool
 )
 
 var giteaEndpointCmd = &cobra.Command{
@@ -151,25 +157,43 @@ var giteaEndpointUpdateCmd = &cobra.Command{
 		}
 
 		updateParams := params.UpdateGiteaEndpointParams{}
-
+		var hasChanges bool
 		if cmd.Flags().Changed("ca-cert-path") {
 			cert, err := parseAndReadCABundle()
 			if err != nil {
 				return err
 			}
 			updateParams.CACertBundle = cert
+			hasChanges = true
+		}
+
+		if cmd.Flags().Changed("tools-metadata-url") {
+			updateParams.ToolsMetadataURL = toolsMetadataURL
+			hasChanges = true
+		}
+
+		if cmd.Flags().Changed("use-internal-tools-metadata") {
+			updateParams.UseInternalToolsMetadata = &useInternalMetadata
+			hasChanges = true
 		}
 
 		if cmd.Flags().Changed("description") {
 			updateParams.Description = &endpointDescription
+			hasChanges = true
 		}
 
 		if cmd.Flags().Changed("base-url") {
 			updateParams.BaseURL = &endpointBaseURL
+			hasChanges = true
 		}
 
 		if cmd.Flags().Changed("api-base-url") {
 			updateParams.APIBaseURL = &endpointAPIBaseURL
+			hasChanges = true
+		}
+		if !hasChanges {
+			fmt.Println("no changes made")
+			return nil
 		}
 
 		newEndpointUpdateReq := apiClientEndpoints.NewUpdateGiteaEndpointParams()
@@ -191,6 +215,8 @@ func init() {
 	giteaEndpointCreateCmd.Flags().StringVar(&endpointBaseURL, "base-url", "", "Base URL of the Gitea endpoint")
 	giteaEndpointCreateCmd.Flags().StringVar(&endpointAPIBaseURL, "api-base-url", "", "API Base URL of the Gitea endpoint")
 	giteaEndpointCreateCmd.Flags().StringVar(&endpointCACertPath, "ca-cert-path", "", "CA Cert Path of the Gitea endpoint")
+	giteaEndpointCreateCmd.Flags().StringVar(&toolsMetadataURL, "tools-metadata-url", appdefaults.GiteaRunnerReleasesURL, "URL to the releases page of the ACT runner.")
+	giteaEndpointCreateCmd.Flags().BoolVar(&useInternalMetadata, "use-internal-tools-metadata", false, "Use the static tools information (nightly) and do not attempt to fetch from metadata URL.")
 
 	giteaEndpointListCmd.Flags().BoolVarP(&long, "long", "l", false, "Include additional info.")
 
@@ -202,6 +228,8 @@ func init() {
 	giteaEndpointUpdateCmd.Flags().StringVar(&endpointBaseURL, "base-url", "", "Base URL of the Gitea endpoint")
 	giteaEndpointUpdateCmd.Flags().StringVar(&endpointAPIBaseURL, "api-base-url", "", "API Base URL of the Gitea endpoint")
 	giteaEndpointUpdateCmd.Flags().StringVar(&endpointCACertPath, "ca-cert-path", "", "CA Cert Path of the Gitea endpoint")
+	giteaEndpointUpdateCmd.Flags().StringVar(&toolsMetadataURL, "tools-metadata-url", appdefaults.GiteaRunnerReleasesURL, "URL to the releases page of the ACT runner.")
+	giteaEndpointUpdateCmd.Flags().BoolVar(&useInternalMetadata, "use-internal-tools-metadata", false, "Use the static tools information (nightly) and do not attempt to fetch from metadata URL.")
 
 	giteaEndpointCmd.AddCommand(
 		giteaEndpointListCmd,
@@ -221,11 +249,13 @@ func parseGiteaCreateParams() (params.CreateGiteaEndpointParams, error) {
 	}
 
 	ret := params.CreateGiteaEndpointParams{
-		Name:         endpointName,
-		BaseURL:      endpointBaseURL,
-		APIBaseURL:   endpointAPIBaseURL,
-		Description:  endpointDescription,
-		CACertBundle: certBundleBytes,
+		Name:                     endpointName,
+		BaseURL:                  endpointBaseURL,
+		APIBaseURL:               endpointAPIBaseURL,
+		Description:              endpointDescription,
+		CACertBundle:             certBundleBytes,
+		ToolsMetadataURL:         toolsMetadataURL,
+		UseInternalToolsMetadata: &useInternalMetadata,
 	}
 	return ret, nil
 }

@@ -27,14 +27,7 @@ import (
 	"golang.org/x/mod/semver"
 
 	commonParams "github.com/cloudbase/garm-provider-common/params"
-)
-
-const (
-	// GiteaRunnerReleasesURL is the public API URL that returns a json of all Gitea runner releases.
-	// By default it returns the last 10 releases, which is enough for our needs.
-	GiteaRunnerReleasesURL = "https://gitea.com/api/v1/repos/gitea/act_runner/releases"
-	// GiteaRunnerMinimumVersion is the minimum version we need in order to support ephemeral runners.
-	GiteaRunnerMinimumVersion = "v0.2.12"
+	"github.com/cloudbase/garm/util/appdefaults"
 )
 
 var githubArchMapping = map[string]string{
@@ -134,37 +127,70 @@ func (g GiteaEntityTools) MinimumVersion() (GiteaEntityTool, bool) {
 		return GiteaEntityTool{}, false
 	}
 	for _, tool := range g {
-		if semver.Compare(tool.TagName, GiteaRunnerMinimumVersion) >= 0 {
+		if semver.Compare(tool.TagName, appdefaults.GiteaRunnerMinimumVersion) >= 0 {
 			return tool, true
 		}
 	}
 	return GiteaEntityTool{}, false
 }
 
-func getTools(ctx context.Context) ([]commonParams.RunnerApplicationDownload, error) {
-	resp, err := http.Get(GiteaRunnerReleasesURL)
+func getReleasesFromURL(ctx context.Context, metadataURL string) (GiteaEntityTool, error) {
+	if metadataURL == "" {
+		metadataURL = appdefaults.GiteaRunnerReleasesURL
+	}
+	// We don't return the result to the user. We get the data and attempt to unmarshal
+	// the result as a specific json. If that fails, we error out. The value is set by the
+	// admin/user of GARM after authentication. If they have admin rights to GARM, they most
+	// likely have admin rights to the machine running GARM, in which case, they can just
+	// GET the metadataURL manually from that server.
+	resp, err := http.Get(metadataURL) // nolint
 	if err != nil {
-		return nil, err
+		return GiteaEntityTool{}, fmt.Errorf("failed to fetch URL %s: %w", metadataURL, err)
 	}
 	defer resp.Body.Close()
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return GiteaEntityTool{}, fmt.Errorf("failed to read response from URL %s: %w", metadataURL, err)
 	}
 
 	var tools GiteaEntityTools
 	err = json.Unmarshal(data, &tools)
 	if err != nil {
-		return nil, err
+		return GiteaEntityTool{}, fmt.Errorf("failed to unmarshal response from URL %s: %w", metadataURL, err)
 	}
 
 	if len(tools) == 0 {
-		return nil, fmt.Errorf("no tools found")
+		return GiteaEntityTool{}, fmt.Errorf("no tools found from URL %s", metadataURL)
 	}
 
 	latest, ok := tools.MinimumVersion()
 	if !ok {
+		slog.InfoContext(ctx, "failed to find tools, falling back to nightly")
 		latest = nightlyActRunner
+	}
+	return latest, nil
+}
+
+func getTools(ctx context.Context, metadataURL string, useInternal bool) ([]commonParams.RunnerApplicationDownload, error) {
+	if metadataURL == "" {
+		metadataURL = appdefaults.GiteaRunnerReleasesURL
+	}
+	var latest GiteaEntityTool
+	var err error
+	if useInternal {
+		latest = nightlyActRunner
+	} else {
+		latest, err = getReleasesFromURL(ctx, metadataURL)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to get tools from metadata URL", "error", err)
+			if metadataURL != appdefaults.GiteaRunnerReleasesURL {
+				slog.InfoContext(ctx, "attempting to get tools from default upstream", "tools_url", appdefaults.GiteaRunnerReleasesURL)
+				latest, err = getReleasesFromURL(ctx, metadataURL)
+				if err != nil {
+					return nil, fmt.Errorf("failed to get upstream tools: %w", err)
+				}
+			}
+		}
 	}
 
 	ret := []commonParams.RunnerApplicationDownload{}
@@ -184,6 +210,7 @@ func getTools(ctx context.Context) ([]commonParams.RunnerApplicationDownload, er
 			// filter out non compressed versions.
 			continue
 		}
+		slog.DebugContext(ctx, "found valid tools", "download_url", asset.DownloadURL, "os", os, "arch", arch, "file_name", asset.Name)
 		ret = append(ret, commonParams.RunnerApplicationDownload{
 			OS:           os,
 			Architecture: arch,

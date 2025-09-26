@@ -26,9 +26,13 @@ import (
 	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/params"
+	"github.com/cloudbase/garm/util/appdefaults"
 )
 
 func (s *sqlDatabase) CreateGiteaEndpoint(_ context.Context, param params.CreateGiteaEndpointParams) (ghEndpoint params.ForgeEndpoint, err error) {
+	if param.ToolsMetadataURL == "" {
+		param.ToolsMetadataURL = appdefaults.GiteaRunnerReleasesURL
+	}
 	defer func() {
 		if err == nil {
 			s.sendNotify(common.GithubEndpointEntityType, common.CreateOperation, ghEndpoint)
@@ -40,12 +44,16 @@ func (s *sqlDatabase) CreateGiteaEndpoint(_ context.Context, param params.Create
 			return fmt.Errorf("gitea endpoint already exists: %w", runnerErrors.ErrDuplicateEntity)
 		}
 		endpoint = GithubEndpoint{
-			Name:         param.Name,
-			Description:  param.Description,
-			APIBaseURL:   param.APIBaseURL,
-			BaseURL:      param.BaseURL,
-			CACertBundle: param.CACertBundle,
-			EndpointType: params.GiteaEndpointType,
+			Name:             param.Name,
+			Description:      param.Description,
+			APIBaseURL:       param.APIBaseURL,
+			BaseURL:          param.BaseURL,
+			CACertBundle:     param.CACertBundle,
+			EndpointType:     params.GiteaEndpointType,
+			ToolsMetadataURL: param.ToolsMetadataURL,
+		}
+		if param.UseInternalToolsMetadata != nil {
+			endpoint.UseInternalToolsMetadata = *param.UseInternalToolsMetadata
 		}
 
 		if err := tx.Create(&endpoint).Error; err != nil {
@@ -120,6 +128,12 @@ func (s *sqlDatabase) UpdateGiteaEndpoint(_ context.Context, name string, param 
 
 		if param.Description != nil {
 			endpoint.Description = *param.Description
+		}
+		if param.UseInternalToolsMetadata != nil {
+			endpoint.UseInternalToolsMetadata = *param.UseInternalToolsMetadata
+		}
+		if param.ToolsMetadataURL != "" {
+			endpoint.ToolsMetadataURL = param.ToolsMetadataURL
 		}
 
 		if err := tx.Save(&endpoint).Error; err != nil {
