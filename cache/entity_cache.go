@@ -351,6 +351,21 @@ func (e *EntityCache) GetEntityScaleSets(entityID string) []params.ScaleSet {
 	return nil
 }
 
+func (e *EntityCache) GetEntitiesUsingEndpoint(endpoint params.ForgeEndpoint) []params.ForgeEntity {
+	e.mux.Lock()
+	defer e.mux.Unlock()
+
+	var entities []params.ForgeEntity
+	for _, cache := range e.entities {
+		if cache.Entity.Credentials.Endpoint.Name != endpoint.Name {
+			continue
+		}
+		entities = append(entities, cache.Entity)
+	}
+	sortByCreationDate(entities)
+	return entities
+}
+
 func (e *EntityCache) GetEntitiesUsingCredentials(creds params.ForgeCredentials) []params.ForgeEntity {
 	e.mux.Lock()
 	defer e.mux.Unlock()
@@ -543,4 +558,8 @@ func GetPoolByID(poolID string) (params.Pool, bool) {
 
 func GetScaleSetByID(scaleSetID uint) (params.ScaleSet, bool) {
 	return entityCache.GetScaleSetByID(scaleSetID)
+}
+
+func GetEntitiesUsingEndpoint(endpoint params.ForgeEndpoint) []params.ForgeEntity {
+	return entityCache.GetEntitiesUsingEndpoint(endpoint)
 }

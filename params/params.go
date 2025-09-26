@@ -25,6 +25,7 @@ import (
 	"math"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/bradleyfalzon/ghinstallation/v2"
@@ -1175,17 +1176,19 @@ func (g ForgeEntity) GetForgeType() (EndpointType, error) {
 }
 
 func (g ForgeEntity) ForgeURL() string {
+	baseURL := strings.TrimRight(g.Credentials.BaseURL, "/")
+
 	switch g.Credentials.ForgeType {
 	case GiteaEndpointType:
 		return g.Credentials.Endpoint.APIBaseURL
 	default:
 		switch g.EntityType {
 		case ForgeEntityTypeRepository:
-			return fmt.Sprintf("%s/%s/%s", g.Credentials.BaseURL, g.Owner, g.Name)
+			return fmt.Sprintf("%s/%s/%s", baseURL, g.Owner, g.Name)
 		case ForgeEntityTypeOrganization:
-			return fmt.Sprintf("%s/%s", g.Credentials.BaseURL, g.Owner)
+			return fmt.Sprintf("%s/%s", baseURL, g.Owner)
 		case ForgeEntityTypeEnterprise:
-			return fmt.Sprintf("%s/enterprises/%s", g.Credentials.BaseURL, g.Owner)
+			return fmt.Sprintf("%s/enterprises/%s", baseURL, g.Owner)
 		}
 	}
 	return ""
@@ -1237,14 +1240,16 @@ type ForgeEndpoints []ForgeEndpoint
 
 // swagger:model ForgeEndpoint
 type ForgeEndpoint struct {
-	Name          string    `json:"name,omitempty"`
-	Description   string    `json:"description,omitempty"`
-	APIBaseURL    string    `json:"api_base_url,omitempty"`
-	UploadBaseURL string    `json:"upload_base_url,omitempty"`
-	BaseURL       string    `json:"base_url,omitempty"`
-	CACertBundle  []byte    `json:"ca_cert_bundle,omitempty"`
-	CreatedAt     time.Time `json:"created_at,omitempty"`
-	UpdatedAt     time.Time `json:"updated_at,omitempty"`
+	Name                     string    `json:"name,omitempty"`
+	Description              string    `json:"description,omitempty"`
+	APIBaseURL               string    `json:"api_base_url,omitempty"`
+	UploadBaseURL            string    `json:"upload_base_url,omitempty"`
+	BaseURL                  string    `json:"base_url,omitempty"`
+	CACertBundle             []byte    `json:"ca_cert_bundle,omitempty"`
+	CreatedAt                time.Time `json:"created_at,omitempty"`
+	UpdatedAt                time.Time `json:"updated_at,omitempty"`
+	ToolsMetadataURL         string    `json:"tools_metadata_url,omitempty"`
+	UseInternalToolsMetadata *bool     `json:"use_internal_tools_metadata,omitempty"`
 
 	EndpointType EndpointType `json:"endpoint_type,omitempty"`
 }

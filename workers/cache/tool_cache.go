@@ -28,10 +28,23 @@ import (
 	"github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/params"
 	garmUtil "github.com/cloudbase/garm/util"
+	"github.com/cloudbase/garm/util/appdefaults"
 	"github.com/cloudbase/garm/util/github"
 )
 
+var (
+	// githubToolsUpdateDeadline in minutes
+	githubToolsUpdateDeadline = 40
+	// giteaToolsUpdateDeadline in minutes
+	giteaToolsUpdateDeadline = 180
+)
+
 func newToolsUpdater(ctx context.Context, entity params.ForgeEntity, store common.Store) *toolsUpdater {
+	workerID := fmt.Sprintf("tools-updater-%s-%s", entity, entity.Credentials.Endpoint.Name)
+	ctx = garmUtil.WithSlogContext(
+		ctx,
+		slog.Any("worker", workerID))
+
 	return &toolsUpdater{
 		ctx:    ctx,
 		entity: entity,
@@ -92,7 +105,7 @@ func (t *toolsUpdater) Stop() error {
 }
 
 func (t *toolsUpdater) updateTools() error {
-	slog.DebugContext(t.ctx, "updating tools", "entity", t.entity.String(), "forge_type", t.entity.Credentials.ForgeType)
+	slog.DebugContext(t.ctx, "updating tools", "last_update", t.lastUpdate, "entity", t.entity.String(), "forge_type", t.entity.Credentials.ForgeType)
 	entity, ok := cache.GetEntity(t.entity.ID)
 	if !ok {
 		return fmt.Errorf("getting entity from cache: %s", t.entity.ID)
@@ -121,12 +134,7 @@ func (t *toolsUpdater) Reset() {
 	if !t.running {
 		return
 	}
-
-	if t.entity.Credentials.ForgeType == params.GiteaEndpointType {
-		// no need to reset the gitea tools updater when credentials
-		// are updated.
-		return
-	}
+	slog.DebugContext(t.ctx, "resetting tools worker", "reset", fmt.Sprintf("%v", t.reset))
 
 	if t.reset != nil {
 		close(t.reset)
@@ -162,32 +170,84 @@ func (t *toolsUpdater) giteaUpdateLoop() {
 		randInt = big.NewInt(0)
 	}
 	t.sleepWithCancel(time.Duration(randInt.Int64()) * time.Millisecond)
-	tools, err := getTools(t.ctx)
+
+	// add some jitter
+	timerJitter, err := rand.Int(rand.Reader, big.NewInt(120))
 	if err != nil {
-		t.addStatusEvent(fmt.Sprintf("failed to update gitea tools: %q", err), params.EventError)
-	} else {
-		t.addStatusEvent("successfully updated tools", params.EventInfo)
-		cache.SetGithubToolsCache(t.entity, tools)
+		timerJitter = big.NewInt(0)
+	}
+	ticker := time.NewTicker(1*time.Minute + time.Duration(timerJitter.Int64())*time.Second)
+	defer ticker.Stop()
+
+reset:
+	metadataURL := appdefaults.GiteaRunnerReleasesURL
+	var useInternal bool
+	ep, ok := cache.GetEndpoint(t.entity.Credentials.Endpoint.Name)
+	if ok {
+		if ep.ToolsMetadataURL != "" {
+			metadataURL = ep.ToolsMetadataURL
+		}
+		if ep.UseInternalToolsMetadata != nil {
+			useInternal = *ep.UseInternalToolsMetadata
+		}
 	}
 
-	// Once every 3 hours should be enough. Tools don't expire.
-	ticker := time.NewTicker(3 * time.Hour)
+	now := time.Now().UTC()
+	if now.After(t.lastUpdate.Add(time.Duration(giteaToolsUpdateDeadline) * time.Minute)) {
+		tools, err := getTools(t.ctx, metadataURL, useInternal)
+		if err != nil {
+			t.addStatusEvent(fmt.Sprintf("failed to update gitea tools: %q", err), params.EventError)
+		} else {
+			if useInternal {
+				t.addStatusEvent("using internal tools metadata", params.EventInfo)
+			} else {
+				t.addStatusEvent(fmt.Sprintf("successfully updated tools using metadata URL %s", metadataURL), params.EventInfo)
+			}
+			t.lastUpdate = now
+			cache.SetGithubToolsCache(t.entity, tools)
+		}
+	}
 
 	for {
+		t.mux.Lock()
+		if t.reset == nil {
+			t.reset = make(chan struct{})
+		}
+		t.mux.Unlock()
 		select {
 		case <-t.quit:
 			slog.DebugContext(t.ctx, "stopping tools updater")
 			return
+		case <-t.reset:
+			goto reset
 		case <-t.ctx.Done():
 			return
 		case <-ticker.C:
-			tools, err := getTools(t.ctx)
+			now := time.Now().UTC()
+			if !now.After(t.lastUpdate.Add(time.Duration(giteaToolsUpdateDeadline) * time.Minute)) {
+				continue
+			}
+			ep, ok := cache.GetEndpoint(t.entity.Credentials.Endpoint.Name)
+			if ok {
+				if ep.ToolsMetadataURL != "" {
+					metadataURL = ep.ToolsMetadataURL
+				}
+				if ep.UseInternalToolsMetadata != nil {
+					useInternal = *ep.UseInternalToolsMetadata
+				}
+			}
+			tools, err := getTools(t.ctx, metadataURL, useInternal)
 			if err != nil {
 				t.addStatusEvent(fmt.Sprintf("failed to update gitea tools: %q", err), params.EventError)
 				slog.DebugContext(t.ctx, "failed to update gitea tools", "error", err)
 				continue
 			}
-			t.addStatusEvent("successfully updated tools", params.EventInfo)
+			if useInternal {
+				t.addStatusEvent("using internal tools metadata", params.EventInfo)
+			} else {
+				t.addStatusEvent(fmt.Sprintf("successfully updated tools using metadata URL %s", metadataURL), params.EventInfo)
+			}
+			t.lastUpdate = now
 			cache.SetGithubToolsCache(t.entity, tools)
 		}
 	}
@@ -204,62 +264,56 @@ func (t *toolsUpdater) loop() {
 	}
 	t.sleepWithCancel(time.Duration(randInt.Int64()) * time.Millisecond)
 
-	var resetTime time.Time
+	// add some jitter
+	timerJitter, err := rand.Int(rand.Reader, big.NewInt(120))
+	if err != nil {
+		timerJitter = big.NewInt(0)
+	}
+	timer := time.NewTicker(1*time.Minute + time.Duration(timerJitter.Int64())*time.Second)
+	defer timer.Stop()
+
+reset:
 	now := time.Now().UTC()
-	if now.After(t.lastUpdate.Add(40 * time.Minute)) {
+	if now.After(t.lastUpdate.Add(time.Duration(githubToolsUpdateDeadline) * time.Minute)) {
+		slog.DebugContext(t.ctx, "last update after deadline", "last_update", t.lastUpdate, "deadline", t.lastUpdate.Add(time.Duration(githubToolsUpdateDeadline)*time.Minute))
 		if err := t.updateTools(); err != nil {
 			slog.ErrorContext(t.ctx, "updating tools", "error", err)
 			t.addStatusEvent(fmt.Sprintf("failed to update tools: %q", err), params.EventError)
-			resetTime = now.Add(5 * time.Minute)
 		} else {
 			// Tools are usually valid for 1 hour.
-			resetTime = t.lastUpdate.Add(40 * time.Minute)
+			t.lastUpdate = now
 			t.addStatusEvent("successfully updated tools", params.EventInfo)
 		}
 	}
 
 	for {
+		t.mux.Lock()
 		if t.reset == nil {
 			t.reset = make(chan struct{})
 		}
-		// add some jitter
-		randInt, err := rand.Int(rand.Reader, big.NewInt(300))
-		if err != nil {
-			randInt = big.NewInt(0)
-		}
-		timer := time.NewTimer(resetTime.Sub(now) + time.Duration(randInt.Int64())*time.Second)
+		t.mux.Unlock()
+
 		select {
 		case <-t.quit:
 			slog.DebugContext(t.ctx, "stopping tools updater")
-			timer.Stop()
 			return
 		case <-timer.C:
+			now := time.Now().UTC()
+			if !now.After(t.lastUpdate.Add(time.Duration(githubToolsUpdateDeadline) * time.Minute)) {
+				continue
+			}
 			slog.DebugContext(t.ctx, "updating tools")
-			now = time.Now().UTC()
 			if err := t.updateTools(); err != nil {
 				slog.ErrorContext(t.ctx, "updating tools", "error", err)
 				t.addStatusEvent(fmt.Sprintf("failed to update tools: %q", err), params.EventError)
-				resetTime = now.Add(5 * time.Minute)
 			} else {
 				// Tools are usually valid for 1 hour.
-				resetTime = t.lastUpdate.Add(40 * time.Minute)
 				t.addStatusEvent("successfully updated tools", params.EventInfo)
 			}
 		case <-t.reset:
 			slog.DebugContext(t.ctx, "resetting tools updater")
-			timer.Stop()
-			now = time.Now().UTC()
-			if err := t.updateTools(); err != nil {
-				slog.ErrorContext(t.ctx, "updating tools", "error", err)
-				t.addStatusEvent(fmt.Sprintf("failed to update tools: %q", err), params.EventError)
-				resetTime = now.Add(5 * time.Minute)
-			} else {
-				// Tools are usually valid for 1 hour.
-				resetTime = t.lastUpdate.Add(40 * time.Minute)
-				t.addStatusEvent("successfully updated tools", params.EventInfo)
-			}
+			goto reset
 		}
-		timer.Stop()
 	}
 }
 

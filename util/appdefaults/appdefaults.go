@@ -43,6 +43,12 @@ const (
 
 	// metrics data update interval
 	DefaultMetricsUpdateInterval = 60 * time.Second
+
+	// GiteaRunnerReleasesURL is the public API URL that returns a json of all Gitea runner releases.
+	// By default it returns the last 10 releases, which is enough for our needs.
+	GiteaRunnerReleasesURL = "https://gitea.com/api/v1/repos/gitea/act_runner/releases"
+	// GiteaRunnerMinimumVersion is the minimum version we need in order to support ephemeral runners.
+	GiteaRunnerMinimumVersion = "v0.2.12"
 )
 
 var Version string

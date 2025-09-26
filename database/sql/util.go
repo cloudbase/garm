@@ -30,6 +30,7 @@ import (
 	"github.com/cloudbase/garm/auth"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/params"
+	"github.com/cloudbase/garm/util/appdefaults"
 )
 
 func (s *sqlDatabase) sqlToParamsInstance(instance Instance) (params.Instance, error) {
@@ -952,7 +953,7 @@ func (s *sqlDatabase) sqlGiteaToCommonForgeCredentials(creds GiteaCredentials) (
 }
 
 func (s *sqlDatabase) sqlToCommonGithubEndpoint(ep GithubEndpoint) (params.ForgeEndpoint, error) {
-	return params.ForgeEndpoint{
+	ret := params.ForgeEndpoint{
 		Name:          ep.Name,
 		Description:   ep.Description,
 		APIBaseURL:    ep.APIBaseURL,
@@ -962,7 +963,16 @@ func (s *sqlDatabase) sqlToCommonGithubEndpoint(ep GithubEndpoint) (params.Forge
 		CreatedAt:     ep.CreatedAt,
 		EndpointType:  ep.EndpointType,
 		UpdatedAt:     ep.UpdatedAt,
-	}, nil
+	}
+	if ep.EndpointType == params.GiteaEndpointType {
+		ret.UseInternalToolsMetadata = &ep.UseInternalToolsMetadata
+		if ep.ToolsMetadataURL == "" {
+			ret.ToolsMetadataURL = appdefaults.GiteaRunnerReleasesURL
+		} else {
+			ret.ToolsMetadataURL = ep.ToolsMetadataURL
+		}
+	}
+	return ret, nil
 }
 
 func getUIDFromContext(ctx context.Context) (uuid.UUID, error) {

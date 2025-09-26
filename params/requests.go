@@ -645,11 +645,13 @@ type UpdateScaleSetParams struct {
 
 // swagger:model CreateGiteaEndpointParams
 type CreateGiteaEndpointParams struct {
-	Name         string `json:"name,omitempty"`
-	Description  string `json:"description,omitempty"`
-	APIBaseURL   string `json:"api_base_url,omitempty"`
-	BaseURL      string `json:"base_url,omitempty"`
-	CACertBundle []byte `json:"ca_cert_bundle,omitempty"`
+	Name                     string `json:"name,omitempty"`
+	Description              string `json:"description,omitempty"`
+	APIBaseURL               string `json:"api_base_url,omitempty"`
+	BaseURL                  string `json:"base_url,omitempty"`
+	CACertBundle             []byte `json:"ca_cert_bundle,omitempty"`
+	ToolsMetadataURL         string `json:"tools_metadata_url,omitempty"`
+	UseInternalToolsMetadata *bool  `json:"use_internal_tools_metadata,omitempty"`
 }
 
 func (c CreateGiteaEndpointParams) Validate() error {
@@ -682,6 +684,18 @@ func (c CreateGiteaEndpointParams) Validate() error {
 		return runnerErrors.NewBadRequestError("invalid api_base_url")
 	}
 
+	if c.ToolsMetadataURL != "" {
+		url, err = url.Parse(c.ToolsMetadataURL)
+		if err != nil || url.Scheme == "" || url.Host == "" {
+			return runnerErrors.NewBadRequestError("invalid tools_metadata_url")
+		}
+		switch url.Scheme {
+		case httpsScheme, httpScheme:
+		default:
+			return runnerErrors.NewBadRequestError("invalid tools_metadata_url")
+		}
+	}
+
 	if c.CACertBundle != nil {
 		block, _ := pem.Decode(c.CACertBundle)
 		if block == nil {
@@ -697,10 +711,12 @@ func (c CreateGiteaEndpointParams) Validate() error {
 
 // swagger:model UpdateGiteaEndpointParams
 type UpdateGiteaEndpointParams struct {
-	Description  *string `json:"description,omitempty"`
-	APIBaseURL   *string `json:"api_base_url,omitempty"`
-	BaseURL      *string `json:"base_url,omitempty"`
-	CACertBundle []byte  `json:"ca_cert_bundle,omitempty"`
+	Description              *string `json:"description,omitempty"`
+	APIBaseURL               *string `json:"api_base_url,omitempty"`
+	BaseURL                  *string `json:"base_url,omitempty"`
+	CACertBundle             []byte  `json:"ca_cert_bundle,omitempty"`
+	ToolsMetadataURL         string  `json:"tools_metadata_url,omitempty"`
+	UseInternalToolsMetadata *bool   `json:"use_internal_tools_metadata,omitempty"`
 }
 
 func (u UpdateGiteaEndpointParams) Validate() error {
@@ -735,6 +751,18 @@ func (u UpdateGiteaEndpointParams) Validate() error {
 		}
 		if _, err := x509.ParseCertificates(block.Bytes); err != nil {
 			return runnerErrors.NewBadRequestError("invalid ca_cert_bundle")
+		}
+	}
+
+	if u.ToolsMetadataURL != "" {
+		url, err := url.Parse(u.ToolsMetadataURL)
+		if err != nil || url.Scheme == "" || url.Host == "" {
+			return runnerErrors.NewBadRequestError("invalid tools_metadata_url")
+		}
+		switch url.Scheme {
+		case httpsScheme, httpScheme:
+		default:
+			return runnerErrors.NewBadRequestError("invalid tools_metadata_url")
 		}
 	}
 

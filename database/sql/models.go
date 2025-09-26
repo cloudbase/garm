@@ -409,7 +409,9 @@ type GithubEndpoint struct {
 	UpdatedAt time.Time
 	DeletedAt gorm.DeletedAt `gorm:"index"`
 
-	EndpointType params.EndpointType `gorm:"index:idx_endpoint_type"`
+	EndpointType             params.EndpointType `gorm:"index:idx_endpoint_type"`
+	ToolsMetadataURL         string              `gorm:"type:text collate nocase"`
+	UseInternalToolsMetadata bool
 
 	Description   string `gorm:"type:text"`
 	APIBaseURL    string `gorm:"type:text collate nocase"`

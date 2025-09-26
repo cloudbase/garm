@@ -25,6 +25,7 @@ import (
 	apiClientEndpoints "github.com/cloudbase/garm/client/endpoints"
 	"github.com/cloudbase/garm/cmd/garm-cli/common"
 	"github.com/cloudbase/garm/params"
+	"github.com/cloudbase/garm/util/appdefaults"
 )
 
 var githubEndpointCmd = &cobra.Command{
@@ -302,6 +303,19 @@ func formatOneEndpoint(endpoint params.ForgeEndpoint) {
 	t.AppendRow([]interface{}{"Base URL", endpoint.BaseURL})
 	if endpoint.UploadBaseURL != "" {
 		t.AppendRow([]interface{}{"Upload URL", endpoint.UploadBaseURL})
+	}
+
+	if endpoint.EndpointType == params.GiteaEndpointType {
+		metadataURL := appdefaults.GiteaRunnerReleasesURL
+		if endpoint.ToolsMetadataURL != "" {
+			metadataURL = endpoint.ToolsMetadataURL
+		}
+		var useInternal bool
+		if endpoint.UseInternalToolsMetadata != nil {
+			useInternal = *endpoint.UseInternalToolsMetadata
+		}
+		t.AppendRow([]interface{}{"Tools metadata URL", metadataURL})
+		t.AppendRow([]interface{}{"Use internal tools metadata URL", useInternal})
 	}
 	t.AppendRow([]interface{}{"API Base URL", endpoint.APIBaseURL})
 	if len(endpoint.CACertBundle) > 0 {

@@ -226,6 +226,18 @@ export interface CreateGiteaEndpointParams {
      * @memberof CreateGiteaEndpointParams
      */
     'name'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof CreateGiteaEndpointParams
+     */
+    'tools_metadata_url'?: string;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof CreateGiteaEndpointParams
+     */
+    'use_internal_tools_metadata'?: boolean;
 }
 /**
  * 
@@ -908,6 +920,12 @@ export interface ForgeEndpoint {
      * @type {string}
      * @memberof ForgeEndpoint
      */
+    'tools_metadata_url'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ForgeEndpoint
+     */
     'updated_at'?: string;
     /**
      * 
@@ -915,6 +933,12 @@ export interface ForgeEndpoint {
      * @memberof ForgeEndpoint
      */
     'upload_base_url'?: string;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof ForgeEndpoint
+     */
+    'use_internal_tools_metadata'?: boolean;
 }
 /**
  * 
@@ -2212,6 +2236,18 @@ export interface UpdateGiteaEndpointParams {
      * @memberof UpdateGiteaEndpointParams
      */
     'description'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof UpdateGiteaEndpointParams
+     */
+    'tools_metadata_url'?: string;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof UpdateGiteaEndpointParams
+     */
+    'use_internal_tools_metadata'?: boolean;
 }
 /**
  * 

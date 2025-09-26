@@ -148,6 +148,12 @@ definitions:
             name:
                 type: string
                 x-go-name: Name
+            tools_metadata_url:
+                type: string
+                x-go-name: ToolsMetadataURL
+            use_internal_tools_metadata:
+                type: boolean
+                x-go-name: UseInternalToolsMetadata
         type: object
         x-go-package: github.com/cloudbase/garm/params
     CreateGithubCredentialsParams:
@@ -549,6 +555,9 @@ definitions:
             name:
                 type: string
                 x-go-name: Name
+            tools_metadata_url:
+                type: string
+                x-go-name: ToolsMetadataURL
             updated_at:
                 format: date-time
                 type: string
@@ -556,6 +565,9 @@ definitions:
             upload_base_url:
                 type: string
                 x-go-name: UploadBaseURL
+            use_internal_tools_metadata:
+                type: boolean
+                x-go-name: UseInternalToolsMetadata
         type: object
         x-go-package: github.com/cloudbase/garm/params
     ForgeEndpoints:
@@ -1443,6 +1455,12 @@ definitions:
             description:
                 type: string
                 x-go-name: Description
+            tools_metadata_url:
+                type: string
+                x-go-name: ToolsMetadataURL
+            use_internal_tools_metadata:
+                type: boolean
+                x-go-name: UseInternalToolsMetadata
         type: object
         x-go-package: github.com/cloudbase/garm/params
     UpdateGithubCredentialsParams:

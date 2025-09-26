@@ -52,12 +52,28 @@ func (g *CredentialCache) SetCredentialsRateLimit(credsID uint, rateLimit params
 	}
 }
 
+func (g *CredentialCache) UpdateCredentialsUsingEndpoint(ep params.ForgeEndpoint) {
+	g.mux.Lock()
+	defer g.mux.Unlock()
+
+	for _, creds := range g.cache {
+		if creds.Endpoint.Name == ep.Name {
+			creds.Endpoint = ep
+			g.setCredentialsAndUpdateEntities(creds)
+		}
+	}
+}
+
+func (g *CredentialCache) setCredentialsAndUpdateEntities(credentials params.ForgeCredentials) {
+	g.cache[credentials.ID] = credentials
+	UpdateCredentialsInAffectedEntities(credentials)
+}
+
 func (g *CredentialCache) SetCredentials(credentials params.ForgeCredentials) {
 	g.mux.Lock()
 	defer g.mux.Unlock()
 
-	g.cache[credentials.ID] = credentials
-	UpdateCredentialsInAffectedEntities(credentials)
+	g.setCredentialsAndUpdateEntities(credentials)
 }
 
 func (g *CredentialCache) GetCredentials(id uint) (params.ForgeCredentials, bool) {
@@ -145,4 +161,8 @@ func GetAllGiteaCredentials() []params.ForgeCredentials {
 
 func GetAllGiteaCredentialsAsMap() map[uint]params.ForgeCredentials {
 	return giteaCredentialsCache.GetAllCredentialsAsMap()
+}
+
+func UpdateCredentialsUsingEndpoint(ep params.ForgeEndpoint) {
+	giteaCredentialsCache.UpdateCredentialsUsingEndpoint(ep)
 }

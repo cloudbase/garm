@@ -86,6 +86,24 @@ func (w *Worker) setCacheForEntity(entityGetter params.EntityGetter, pools []par
 }
 
 func (w *Worker) loadAllEntities() error {
+	endpoints, err := w.store.ListGiteaEndpoints(w.ctx)
+	if err != nil {
+		slog.ErrorContext(w.ctx, "failed to load gitea endpoints", "error", err)
+	} else {
+		for _, ep := range endpoints {
+			cache.SetEndpoint(ep)
+		}
+	}
+
+	endpoints, err = w.store.ListGithubEndpoints(w.ctx)
+	if err != nil {
+		slog.ErrorContext(w.ctx, "failed to load github endpoints", "error", err)
+	} else {
+		for _, ep := range endpoints {
+			cache.SetEndpoint(ep)
+		}
+	}
+
 	pools, err := w.store.ListAllPools(w.ctx)
 	if err != nil {
 		return fmt.Errorf("listing pools: %w", err)
@@ -443,6 +461,27 @@ func (w *Worker) handleCredentialsEvent(event common.ChangePayload) {
 	}
 }
 
+func (w *Worker) handleEndpointEvent(event common.ChangePayload) {
+	endpoint, ok := event.Payload.(params.ForgeEndpoint)
+	if !ok {
+		slog.DebugContext(w.ctx, "invalid payload type for endpoint event", "payload", event.Payload)
+		return
+	}
+	switch event.Operation {
+	case common.UpdateOperation, common.CreateOperation:
+		cache.SetEndpoint(endpoint)
+		entities := cache.GetEntitiesUsingEndpoint(endpoint)
+		for _, entity := range entities {
+			worker, ok := w.toolsWorkes[entity.ID]
+			if ok {
+				worker.Reset()
+			}
+		}
+	case common.DeleteOperation:
+		cache.RemoveEndpoint(endpoint.Name)
+	}
+}
+
 func (w *Worker) handleControllerInfoEvent(event common.ChangePayload) {
 	ctrlInfo, ok := event.Payload.(params.ControllerInfo)
 	if !ok {
@@ -473,6 +512,8 @@ func (w *Worker) handleEvent(event common.ChangePayload) {
 		w.handleControllerInfoEvent(event)
 	case common.TemplateEntityType:
 		w.handleTemplateEvent(event)
+	case common.GithubEndpointEntityType:
+		w.handleEndpointEvent(event)
 	default:
 		slog.DebugContext(w.ctx, "unknown entity type", "entity_type", event.EntityType)
 	}
