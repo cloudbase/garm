@@ -179,6 +179,8 @@ func (t *toolsUpdater) giteaUpdateLoop() {
 	ticker := time.NewTicker(1*time.Minute + time.Duration(timerJitter.Int64())*time.Second)
 	defer ticker.Stop()
 
+	oldMetadataURL := ""
+	oldUseInternal := false
 reset:
 	metadataURL := appdefaults.GiteaRunnerReleasesURL
 	var useInternal bool
@@ -193,7 +195,7 @@ reset:
 	}
 
 	now := time.Now().UTC()
-	if now.After(t.lastUpdate.Add(time.Duration(giteaToolsUpdateDeadline) * time.Minute)) {
+	if now.After(t.lastUpdate.Add(time.Duration(giteaToolsUpdateDeadline)*time.Minute)) || oldMetadataURL != metadataURL || oldUseInternal != useInternal {
 		tools, err := getTools(t.ctx, metadataURL, useInternal)
 		if err != nil {
 			t.addStatusEvent(fmt.Sprintf("failed to update gitea tools: %q", err), params.EventError)
@@ -204,6 +206,8 @@ reset:
 				t.addStatusEvent(fmt.Sprintf("successfully updated tools using metadata URL %s", metadataURL), params.EventInfo)
 			}
 			t.lastUpdate = now
+			oldMetadataURL = metadataURL
+			oldUseInternal = useInternal
 			cache.SetGithubToolsCache(t.entity, tools)
 		}
 	}
@@ -224,7 +228,7 @@ reset:
 			return
 		case <-ticker.C:
 			now := time.Now().UTC()
-			if !now.After(t.lastUpdate.Add(time.Duration(giteaToolsUpdateDeadline) * time.Minute)) {
+			if !now.After(t.lastUpdate.Add(time.Duration(giteaToolsUpdateDeadline)*time.Minute)) || oldMetadataURL != metadataURL || oldUseInternal != useInternal {
 				continue
 			}
 			ep, ok := cache.GetEndpoint(t.entity.Credentials.Endpoint.Name)
@@ -248,6 +252,8 @@ reset:
 				t.addStatusEvent(fmt.Sprintf("successfully updated tools using metadata URL %s", metadataURL), params.EventInfo)
 			}
 			t.lastUpdate = now
+			oldMetadataURL = metadataURL
+			oldUseInternal = useInternal
 			cache.SetGithubToolsCache(t.entity, tools)
 		}
 	}
