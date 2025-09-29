@@ -24,6 +24,7 @@ type encReaderV10 struct {
 	src io.Reader
 
 	buffer      packageV10
+	recycle     func() // Returns the buffer to the pool
 	offset      int
 	payloadSize int
 	stateErr    error
@@ -36,17 +37,14 @@ func encryptReaderV10(src io.Reader, config *Config) (*encReaderV10, error) {
 	if err != nil {
 		return nil, err
 	}
+	buffer, recycle := getBuffer()
 	return &encReaderV10{
 		authEncV10:  ae,
 		src:         src,
-		buffer:      packageBufferPool.Get().([]byte)[:maxPackageSize],
+		buffer:      buffer,
+		recycle:     recycle,
 		payloadSize: config.PayloadSize,
 	}, nil
-}
-
-func (r *encReaderV10) recycle() {
-	recyclePackageBufferPool(r.buffer)
-	r.buffer = nil
 }
 
 func (r *encReaderV10) Read(p []byte) (int, error) {
@@ -99,6 +97,7 @@ type decReaderV10 struct {
 	src io.Reader
 
 	buffer   packageV10
+	recycle  func() // Returns the buffer to the pool
 	offset   int
 	stateErr error
 }
@@ -110,16 +109,13 @@ func decryptReaderV10(src io.Reader, config *Config) (*decReaderV10, error) {
 	if err != nil {
 		return nil, err
 	}
+	buffer, recycle := getBuffer()
 	return &decReaderV10{
 		authDecV10: ad,
 		src:        src,
-		buffer:     packageBufferPool.Get().([]byte)[:maxPackageSize],
+		buffer:     buffer,
+		recycle:    recycle,
 	}, nil
-}
-
-func (r *decReaderV10) recycle() {
-	recyclePackageBufferPool(r.buffer)
-	r.buffer = nil
 }
 
 func (r *decReaderV10) Read(p []byte) (n int, err error) {
@@ -226,12 +222,14 @@ func (r *decReaderAtV10) ReadAt(p []byte, offset int64) (n int, err error) {
 		return 0, errUnexpectedSize
 	}
 
-	buffer := packageBufferPool.Get().([]byte)[:maxPackageSize]
-	defer recyclePackageBufferPool(buffer)
+	buffer, recycle := getBuffer()
+	defer recycle()
+
 	decReader := decReaderV10{
 		authDecV10: r.ad,
 		src:        &sectionReader{r.src, t * maxPackageSize},
 		buffer:     packageV10(buffer),
+		recycle:    recycle,
 		offset:     0,
 	}
 	decReader.SeqNum = uint32(t)

@@ -25,6 +25,7 @@ type encReaderV20 struct {
 	src io.Reader
 
 	buffer   packageV20
+	recycle  func() // Returns the buffer to the pool
 	offset   int
 	lastByte byte
 	stateErr error
@@ -32,17 +33,19 @@ type encReaderV20 struct {
 	firstRead bool
 }
 
-var packageBufferPool = sync.Pool{New: func() interface{} { return make([]byte, maxPackageSize) }}
+var packageBufferPool = sync.Pool{
+	New: func() any {
+		b := make([]byte, maxPackageSize)
+		return &b
+	},
+}
 
-func recyclePackageBufferPool(b []byte) {
-	if cap(b) < maxPackageSize {
-		return
-	}
-	// Clear so we don't potentially leak info between callers
-	for i := range b {
-		b[i] = 0
-	}
-	packageBufferPool.Put(b)
+func getBuffer() ([]byte, func()) {
+	p := packageBufferPool.Get().(*[]byte)
+	return *p, sync.OnceFunc(func() {
+		clear(*p) // Clear to avoid leaking data between callers
+		packageBufferPool.Put(p)
+	})
 }
 
 // encryptReaderV20 returns an io.Reader wrapping the given io.Reader.
@@ -52,17 +55,15 @@ func encryptReaderV20(src io.Reader, config *Config) (*encReaderV20, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	buffer, recycle := getBuffer()
 	return &encReaderV20{
 		authEncV20: ae,
 		src:        src,
-		buffer:     packageBufferPool.Get().([]byte)[:maxPackageSize],
+		buffer:     buffer,
+		recycle:    recycle,
 		firstRead:  true,
 	}, nil
-}
-
-func (r *encReaderV20) recycle() {
-	recyclePackageBufferPool(r.buffer)
-	r.buffer = nil
 }
 
 func (r *encReaderV20) Read(p []byte) (n int, err error) {
@@ -146,6 +147,7 @@ type decReaderV20 struct {
 
 	stateErr error
 	buffer   packageV20
+	recycle  func()
 	offset   int
 }
 
@@ -156,16 +158,13 @@ func decryptReaderV20(src io.Reader, config *Config) (*decReaderV20, error) {
 	if err != nil {
 		return nil, err
 	}
+	buffer, recycle := getBuffer()
 	return &decReaderV20{
 		authDecV20: ad,
 		src:        src,
-		buffer:     packageBufferPool.Get().([]byte)[:maxPackageSize],
+		buffer:     buffer,
+		recycle:    recycle,
 	}, nil
-}
-
-func (r *decReaderV20) recycle() {
-	recyclePackageBufferPool(r.buffer)
-	r.buffer = nil
 }
 
 func (r *decReaderV20) Read(p []byte) (n int, err error) {
@@ -296,13 +295,16 @@ func (r *decReaderAtV20) ReadAt(p []byte, offset int64) (n int, err error) {
 		t--
 	}
 
+	buffer, recycle := getBuffer()
+	defer recycle()
+
 	decReader := decReaderV20{
 		authDecV20: r.ad,
 		src:        &sectionReader{r.src, t * maxPackageSize},
-		buffer:     packageBufferPool.Get().([]byte)[:maxPackageSize],
+		buffer:     buffer,
+		recycle:    recycle,
 		offset:     0,
 	}
-	defer decReader.recycle()
 	decReader.SeqNum = uint32(t)
 	if k > 0 {
 		if _, err := io.CopyN(io.Discard, &decReader, k); err != nil {
@@ -312,7 +314,7 @@ func (r *decReaderAtV20) ReadAt(p []byte, offset int64) (n int, err error) {
 
 	for n < len(p) && err == nil {
 		var nn int
-		nn, err = (&decReader).Read(p[n:])
+		nn, err = decReader.Read(p[n:])
 		n += nn
 	}
 	if err == io.EOF && n == len(p) {
