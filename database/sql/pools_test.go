@@ -221,6 +221,7 @@ func (s *PoolsTestSuite) TestEntityPoolOperations() {
 
 	createPoolParams := params.CreatePoolParams{
 		ProviderName: "test-provider",
+		MaxRunners:   5,
 		Image:        "test-image",
 		Flavor:       "test-flavor",
 		OSType:       commonParams.Linux,
@@ -301,6 +302,7 @@ func (s *PoolsTestSuite) TestListEntityInstances() {
 
 	createPoolParams := params.CreatePoolParams{
 		ProviderName: "test-provider",
+		MaxRunners:   5,
 		Image:        "test-image",
 		Flavor:       "test-flavor",
 		OSType:       commonParams.Linux,

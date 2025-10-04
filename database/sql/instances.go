@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 
 	"github.com/google/uuid"
 	"gorm.io/datatypes"
@@ -31,54 +32,74 @@ import (
 	"github.com/cloudbase/garm/params"
 )
 
-func (s *sqlDatabase) CreateInstance(_ context.Context, poolID string, param params.CreateInstanceParams) (instance params.Instance, err error) {
-	pool, err := s.getPoolByID(s.conn, poolID)
-	if err != nil {
-		return params.Instance{}, fmt.Errorf("error fetching pool: %w", err)
-	}
-
+func (s *sqlDatabase) CreateInstance(ctx context.Context, poolID string, param params.CreateInstanceParams) (instance params.Instance, err error) {
 	defer func() {
 		if err == nil {
 			s.sendNotify(common.InstanceEntityType, common.CreateOperation, instance)
 		}
 	}()
 
-	var labels datatypes.JSON
-	if len(param.AditionalLabels) > 0 {
-		labels, err = json.Marshal(param.AditionalLabels)
+	err = s.conn.Transaction(func(tx *gorm.DB) error {
+		pool, err := s.getPoolByID(tx, poolID)
 		if err != nil {
-			return params.Instance{}, fmt.Errorf("error marshalling labels: %w", err)
+			return fmt.Errorf("error fetching pool: %w", err)
 		}
-	}
-
-	var secret []byte
-	if len(param.JitConfiguration) > 0 {
-		secret, err = s.marshalAndSeal(param.JitConfiguration)
-		if err != nil {
-			return params.Instance{}, fmt.Errorf("error marshalling jit config: %w", err)
+		var cnt int64
+		q := s.conn.Model(&Instance{}).Where("pool_id = ?", pool.ID).Count(&cnt)
+		if q.Error != nil {
+			return fmt.Errorf("error fetching instance count: %w", q.Error)
 		}
+		var maxRunners int64
+		if pool.MaxRunners > math.MaxInt64 {
+			maxRunners = math.MaxInt64
+		} else {
+			maxRunners = int64(pool.MaxRunners)
+		}
+		if cnt >= maxRunners {
+			return runnerErrors.NewConflictError("max runners reached for pool %s", pool.ID)
+		}
+
+		var labels datatypes.JSON
+		if len(param.AditionalLabels) > 0 {
+			labels, err = json.Marshal(param.AditionalLabels)
+			if err != nil {
+				return fmt.Errorf("error marshalling labels: %w", err)
+			}
+		}
+
+		var secret []byte
+		if len(param.JitConfiguration) > 0 {
+			secret, err = s.marshalAndSeal(param.JitConfiguration)
+			if err != nil {
+				return fmt.Errorf("error marshalling jit config: %w", err)
+			}
+		}
+
+		newInstance := Instance{
+			Pool:              pool,
+			Name:              param.Name,
+			Status:            param.Status,
+			RunnerStatus:      param.RunnerStatus,
+			OSType:            param.OSType,
+			OSArch:            param.OSArch,
+			CallbackURL:       param.CallbackURL,
+			MetadataURL:       param.MetadataURL,
+			GitHubRunnerGroup: param.GitHubRunnerGroup,
+			JitConfiguration:  secret,
+			AditionalLabels:   labels,
+			AgentID:           param.AgentID,
+		}
+		q = tx.Create(&newInstance)
+		if q.Error != nil {
+			return fmt.Errorf("error creating instance: %w", q.Error)
+		}
+		return nil
+	})
+	if err != nil {
+		return params.Instance{}, fmt.Errorf("error creating instance: %w", err)
 	}
 
-	newInstance := Instance{
-		Pool:              pool,
-		Name:              param.Name,
-		Status:            param.Status,
-		RunnerStatus:      param.RunnerStatus,
-		OSType:            param.OSType,
-		OSArch:            param.OSArch,
-		CallbackURL:       param.CallbackURL,
-		MetadataURL:       param.MetadataURL,
-		GitHubRunnerGroup: param.GitHubRunnerGroup,
-		JitConfiguration:  secret,
-		AditionalLabels:   labels,
-		AgentID:           param.AgentID,
-	}
-	q := s.conn.Create(&newInstance)
-	if q.Error != nil {
-		return params.Instance{}, fmt.Errorf("error creating instance: %w", q.Error)
-	}
-
-	return s.sqlToParamsInstance(newInstance)
+	return s.GetInstance(ctx, param.Name)
 }
 
 func (s *sqlDatabase) getPoolInstanceByName(poolID string, instanceName string) (Instance, error) {
