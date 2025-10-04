@@ -162,11 +162,46 @@ func (r *basePoolManager) handleWatcherEvent(event common.ChangePayload) {
 			return
 		}
 		r.handleEntityUpdate(entityInfo, event.Operation)
+	case common.JobEntityType:
+		slog.DebugContext(r.ctx, "new job via watcher")
+		job, ok := event.Payload.(params.Job)
+		if !ok {
+			slog.ErrorContext(r.ctx, "failed to cast payload to job")
+			return
+		}
+		if !job.BelongsTo(r.entity) {
+			slog.InfoContext(r.ctx, "job does not belong to entity", "worklof_job_id", job.WorkflowJobID, "scaleset_job_id", job.ScaleSetJobID, "job_id", job.ID)
+			return
+		}
+		slog.DebugContext(r.ctx, "recording job", "job_id", job.ID, "job_status", job.Status)
+		r.mux.Lock()
+		switch event.Operation {
+		case common.CreateOperation, common.UpdateOperation:
+			if params.JobStatus(job.Status) != params.JobStatusCompleted {
+				slog.DebugContext(r.ctx, "adding job to map", "job_id", job.ID, "job_status", job.Status)
+				r.jobs[job.ID] = job
+				break
+			}
+			fallthrough
+		case common.DeleteOperation:
+			delete(r.jobs, job.ID)
+		}
+		r.mux.Unlock()
 	}
 }
 
 func (r *basePoolManager) runWatcher() {
 	defer r.consumer.Close()
+	queued, err := r.store.ListEntityJobsByStatus(r.ctx, r.entity.EntityType, r.entity.ID, params.JobStatusQueued)
+	if err != nil {
+		slog.ErrorContext(r.ctx, "failed to list jobs", "error", err)
+	}
+
+	r.mux.Lock()
+	for _, job := range queued {
+		r.jobs[job.ID] = job
+	}
+	r.mux.Unlock()
 	for {
 		select {
 		case <-r.quit:
@@ -177,7 +212,7 @@ func (r *basePoolManager) runWatcher() {
 			if !ok {
 				return
 			}
-			go r.handleWatcherEvent(event)
+			r.handleWatcherEvent(event)
 		}
 	}
 }

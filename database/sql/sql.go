@@ -71,6 +71,7 @@ func newDBConn(dbCfg config.Database) (conn *gorm.DB, err error) {
 	if dbCfg.Debug {
 		conn = conn.Debug()
 	}
+
 	return conn, nil
 }
 

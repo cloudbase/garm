@@ -1121,6 +1121,26 @@ type Job struct {
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
 }
 
+func (j Job) BelongsTo(entity ForgeEntity) bool {
+	switch entity.EntityType {
+	case ForgeEntityTypeRepository:
+		if j.RepoID != nil {
+			return entity.ID == j.RepoID.String()
+		}
+	case ForgeEntityTypeEnterprise:
+		if j.EnterpriseID != nil {
+			return entity.ID == j.EnterpriseID.String()
+		}
+	case ForgeEntityTypeOrganization:
+		if j.OrgID != nil {
+			return entity.ID == j.OrgID.String()
+		}
+	default:
+		return false
+	}
+	return false
+}
+
 // swagger:model Jobs
 // used by swagger client generated code
 type Jobs []Job
@@ -1144,13 +1164,13 @@ type CertificateBundle struct {
 	RootCertificates map[string][]byte `json:"root_certificates,omitempty"`
 }
 
-// swagger:model ForgeEntity
 type UpdateSystemInfoParams struct {
 	OSName    string `json:"os_name,omitempty"`
 	OSVersion string `json:"os_version,omitempty"`
 	AgentID   *int64 `json:"agent_id,omitempty"`
 }
 
+// swagger:model ForgeEntity
 type ForgeEntity struct {
 	Owner            string           `json:"owner,omitempty"`
 	Name             string           `json:"name,omitempty"`

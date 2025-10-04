@@ -183,25 +183,22 @@ func WithEntityJobFilter(ghEntity params.ForgeEntity) dbCommon.PayloadFilterFunc
 
 			switch ghEntity.EntityType {
 			case params.ForgeEntityTypeRepository:
-				if job.RepoID != nil && job.RepoID.String() != ghEntity.ID {
-					return false
+				if job.RepoID != nil && job.RepoID.String() == ghEntity.ID {
+					return true
 				}
 			case params.ForgeEntityTypeOrganization:
-				if job.OrgID != nil && job.OrgID.String() != ghEntity.ID {
-					return false
+				if job.OrgID != nil && job.OrgID.String() == ghEntity.ID {
+					return true
 				}
 			case params.ForgeEntityTypeEnterprise:
-				if job.EnterpriseID != nil && job.EnterpriseID.String() != ghEntity.ID {
-					return false
+				if job.EnterpriseID != nil && job.EnterpriseID.String() == ghEntity.ID {
+					return true
 				}
-			default:
-				return false
 			}
-
-			return true
 		default:
 			return false
 		}
+		return false
 	}
 }
 

@@ -84,7 +84,30 @@ func composeWatcherFilters(entity params.ForgeEntity) dbCommon.PayloadFilterFunc
 		watcher.WithEntityFilter(entity),
 		// Watch for changes to the github credentials
 		watcher.WithForgeCredentialsFilter(entity.Credentials),
+		watcher.WithAll(
+			watcher.WithEntityJobFilter(entity),
+			watcher.WithAny(
+				watcher.WithOperationTypeFilter(dbCommon.UpdateOperation),
+				watcher.WithOperationTypeFilter(dbCommon.CreateOperation),
+				watcher.WithOperationTypeFilter(dbCommon.DeleteOperation),
+			),
+		),
 	)
+}
+
+func (r *basePoolManager) getQueuedJobs() []params.Job {
+	r.mux.Lock()
+	defer r.mux.Unlock()
+
+	ret := []params.Job{}
+
+	for _, job := range r.jobs {
+		slog.DebugContext(r.ctx, "considering job for processing", "job_id", job.ID, "job_status", job.Status)
+		if params.JobStatus(job.Status) == params.JobStatusQueued {
+			ret = append(ret, job)
+		}
+	}
+	return ret
 }
 
 func (r *basePoolManager) waitForToolsOrCancel() (hasTools, stopped bool) {

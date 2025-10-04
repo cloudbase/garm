@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -210,17 +211,182 @@ func (s *InstancesTestSuite) TestCreateInstance() {
 func (s *InstancesTestSuite) TestCreateInstanceInvalidPoolID() {
 	_, err := s.Store.CreateInstance(s.adminCtx, "dummy-pool-id", params.CreateInstanceParams{})
 
-	s.Require().Equal("error fetching pool: error parsing id: invalid request", err.Error())
+	s.Require().Equal("error creating instance: error fetching pool: error parsing id: invalid request", err.Error())
+}
+
+func (s *InstancesTestSuite) TestCreateInstanceMaxRunnersReached() {
+	// Create a fourth instance (pool has max 4 runners, already has 3)
+	fourthInstanceParams := params.CreateInstanceParams{
+		Name:        "test-instance-4",
+		OSType:      "linux",
+		OSArch:      "amd64",
+		CallbackURL: "https://garm.example.com/",
+	}
+	_, err := s.Store.CreateInstance(s.adminCtx, s.Fixtures.Pool.ID, fourthInstanceParams)
+	s.Require().Nil(err)
+
+	// Try to create a fifth instance, which should fail due to max runners limit
+	fifthInstanceParams := params.CreateInstanceParams{
+		Name:        "test-instance-5",
+		OSType:      "linux",
+		OSArch:      "amd64",
+		CallbackURL: "https://garm.example.com/",
+	}
+	_, err = s.Store.CreateInstance(s.adminCtx, s.Fixtures.Pool.ID, fifthInstanceParams)
+	s.Require().NotNil(err)
+	s.Require().Contains(err.Error(), "max runners reached for pool")
+}
+
+func (s *InstancesTestSuite) TestCreateInstanceMaxRunnersReachedSpecificPool() {
+	// Create a new pool with max runners set to 3
+	createPoolParams := params.CreatePoolParams{
+		ProviderName:   "test-provider",
+		MaxRunners:     3,
+		MinIdleRunners: 1,
+		Image:          "test-image",
+		Flavor:         "test-flavor",
+		OSType:         "linux",
+		Tags:           []string{"amd64", "linux"},
+	}
+	entity, err := s.Fixtures.Org.GetEntity()
+	s.Require().Nil(err)
+	testPool, err := s.Store.CreateEntityPool(s.adminCtx, entity, createPoolParams)
+	s.Require().Nil(err)
+
+	// Create exactly 3 instances (max limit)
+	for i := 1; i <= 3; i++ {
+		instanceParams := params.CreateInstanceParams{
+			Name:        fmt.Sprintf("max-test-instance-%d", i),
+			OSType:      "linux",
+			OSArch:      "amd64",
+			CallbackURL: "https://garm.example.com/",
+		}
+		_, err := s.Store.CreateInstance(s.adminCtx, testPool.ID, instanceParams)
+		s.Require().Nil(err)
+	}
+
+	// Try to create a fourth instance, which should fail
+	fourthInstanceParams := params.CreateInstanceParams{
+		Name:        "max-test-instance-4",
+		OSType:      "linux",
+		OSArch:      "amd64",
+		CallbackURL: "https://garm.example.com/",
+	}
+	_, err = s.Store.CreateInstance(s.adminCtx, testPool.ID, fourthInstanceParams)
+	s.Require().NotNil(err)
+	s.Require().Contains(err.Error(), "max runners reached for pool")
+
+	// Verify instance count is still 3
+	count, err := s.Store.PoolInstanceCount(s.adminCtx, testPool.ID)
+	s.Require().Nil(err)
+	s.Require().Equal(int64(3), count)
+}
+
+func (s *InstancesTestSuite) TestCreateInstanceConcurrentMaxRunnersRaceCondition() {
+	// Create a new pool with max runners set to 15, starting from 0
+	createPoolParams := params.CreatePoolParams{
+		ProviderName:   "test-provider",
+		MaxRunners:     15,
+		MinIdleRunners: 0,
+		Image:          "test-image",
+		Flavor:         "test-flavor",
+		OSType:         "linux",
+		Tags:           []string{"amd64", "linux"},
+	}
+	entity, err := s.Fixtures.Org.GetEntity()
+	s.Require().Nil(err)
+	raceTestPool, err := s.Store.CreateEntityPool(s.adminCtx, entity, createPoolParams)
+	s.Require().Nil(err)
+
+	// Verify pool starts with 0 instances
+	initialCount, err := s.Store.PoolInstanceCount(s.adminCtx, raceTestPool.ID)
+	s.Require().Nil(err)
+	s.Require().Equal(int64(0), initialCount)
+
+	// Concurrently try to create 150 instances (should only allow 15)
+	var wg sync.WaitGroup
+	results := make([]error, 150)
+
+	for i := 0; i < 150; i++ {
+		wg.Add(1)
+		go func(index int) {
+			defer wg.Done()
+			instanceParams := params.CreateInstanceParams{
+				Name:        fmt.Sprintf("race-test-instance-%d", index),
+				OSType:      "linux",
+				OSArch:      "amd64",
+				CallbackURL: "https://garm.example.com/",
+			}
+			_, err := s.Store.CreateInstance(s.adminCtx, raceTestPool.ID, instanceParams)
+			results[index] = err
+		}(i)
+	}
+
+	wg.Wait()
+
+	// Count successful and failed creations
+	successCount := 0
+	conflictErrorCount := 0
+	databaseLockedCount := 0
+	otherErrorCount := 0
+
+	for i, err := range results {
+		if err == nil {
+			successCount++
+			continue
+		}
+
+		errStr := fmt.Sprintf("%v", err)
+		expectedConflictErr1 := "error creating instance: max runners reached for pool " + raceTestPool.ID
+		expectedConflictErr2 := "max runners reached for pool " + raceTestPool.ID
+		databaseLockedErr := "error creating instance: error creating instance: database is locked"
+
+		switch errStr {
+		case expectedConflictErr1, expectedConflictErr2:
+			conflictErrorCount++
+		case databaseLockedErr:
+			databaseLockedCount++
+			s.T().Logf("Got database locked error for goroutine %d: %v", i, err)
+		default:
+			otherErrorCount++
+			s.T().Logf("Got unexpected error for goroutine %d: %v", i, err)
+		}
+	}
+
+	s.T().Logf("Results: success=%d, conflict=%d, databaseLocked=%d, other=%d",
+		successCount, conflictErrorCount, databaseLockedCount, otherErrorCount)
+
+	// Verify final instance count is <= 15 (the main test - no more than max runners)
+	finalCount, err := s.Store.PoolInstanceCount(s.adminCtx, raceTestPool.ID)
+	s.Require().Nil(err)
+	s.Require().LessOrEqual(int64(successCount), int64(15), "Should not create more than max runners")
+	s.Require().Equal(int64(successCount), finalCount, "Final count should match successful creations")
+
+	// The key test: verify we never exceeded max runners despite concurrent attempts
+	s.Require().True(finalCount <= 15, "Pool should never exceed max runners limit of 15, got %d", finalCount)
+
+	// If there were database lock errors, that's a concurrency issue but not a max runners violation
+	if databaseLockedCount > 0 {
+		s.T().Logf("WARNING: Got %d database lock errors during concurrent testing - this indicates SQLite concurrency limitations", databaseLockedCount)
+	}
+
+	// The critical assertion: total successful attempts + database locked + conflicts should equal 150
+	s.Require().Equal(150, successCount+conflictErrorCount+databaseLockedCount+otherErrorCount,
+		"All 150 goroutines should have completed with some result")
 }
 
 func (s *InstancesTestSuite) TestCreateInstanceDBCreateErr() {
 	pool := s.Fixtures.Pool
 
+	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE id = ? AND `pools`.`deleted_at` IS NULL ORDER BY `pools`.`id` LIMIT ?")).
 		WithArgs(pool.ID, 1).
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(pool.ID))
-	s.Fixtures.SQLMock.ExpectBegin()
+		WillReturnRows(sqlmock.NewRows([]string{"id", "max_runners"}).AddRow(pool.ID, 4))
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT count(*) FROM `instances` WHERE pool_id = ? AND `instances`.`deleted_at` IS NULL")).
+		WithArgs(pool.ID).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
 	s.Fixtures.SQLMock.
 		ExpectExec("INSERT INTO `pools`").
 		WillReturnResult(sqlmock.NewResult(1, 1))
@@ -233,7 +399,7 @@ func (s *InstancesTestSuite) TestCreateInstanceDBCreateErr() {
 
 	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
-	s.Require().Equal("error creating instance: mocked insert instance error", err.Error())
+	s.Require().Equal("error creating instance: error creating instance: mocked insert instance error", err.Error())
 }
 
 func (s *InstancesTestSuite) TestGetInstanceByName() {

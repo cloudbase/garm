@@ -124,6 +124,7 @@ func NewEntityPoolManager(ctx context.Context, entity params.ForgeEntity, instan
 		store:     store,
 		providers: providers,
 		quit:      make(chan struct{}),
+		jobs:      make(map[int64]params.Job),
 		wg:        wg,
 		backoff:   backoff,
 		consumer:  consumer,
@@ -142,6 +143,7 @@ type basePoolManager struct {
 	consumer            dbCommon.Consumer
 
 	store dbCommon.Store
+	jobs  map[int64]params.Job
 
 	providers map[string]common.Provider
 	tools     []commonParams.RunnerApplicationDownload
@@ -1059,7 +1061,7 @@ func (r *basePoolManager) scaleDownOnePool(ctx context.Context, pool params.Pool
 		// consideration for scale-down. The 5 minute grace period prevents a situation where a
 		// "queued" workflow triggers the creation of a new idle runner, and this routine reaps
 		// an idle runner before they have a chance to pick up a job.
-		if inst.RunnerStatus == params.RunnerIdle && inst.Status == commonParams.InstanceRunning && time.Since(inst.UpdatedAt).Minutes() > 2 {
+		if inst.RunnerStatus == params.RunnerIdle && inst.Status == commonParams.InstanceRunning {
 			idleWorkers = append(idleWorkers, inst)
 		}
 	}
@@ -1068,7 +1070,7 @@ func (r *basePoolManager) scaleDownOnePool(ctx context.Context, pool params.Pool
 		return nil
 	}
 
-	surplus := float64(len(idleWorkers) - pool.MinIdleRunnersAsInt())
+	surplus := float64(len(idleWorkers) - (pool.MinIdleRunnersAsInt() + len(r.getQueuedJobs())))
 
 	if surplus <= 0 {
 		return nil
@@ -1143,17 +1145,8 @@ func (r *basePoolManager) addRunnerToPool(pool params.Pool, aditionalLabels []st
 		return fmt.Errorf("pool %s is disabled", pool.ID)
 	}
 
-	poolInstanceCount, err := r.store.PoolInstanceCount(r.ctx, pool.ID)
-	if err != nil {
-		return fmt.Errorf("failed to list pool instances: %w", err)
-	}
-
-	if poolInstanceCount >= int64(pool.MaxRunnersAsInt()) {
-		return fmt.Errorf("max workers (%d) reached for pool %s", pool.MaxRunners, pool.ID)
-	}
-
 	if err := r.AddRunner(r.ctx, pool.ID, aditionalLabels); err != nil {
-		return fmt.Errorf("failed to add new instance for pool %s: %s", pool.ID, err)
+		return fmt.Errorf("failed to add new instance for pool %s: %w", pool.ID, err)
 	}
 	return nil
 }
@@ -1760,10 +1753,7 @@ func (r *basePoolManager) DeleteRunner(runner params.Instance, forceRemove, bypa
 // so those will trigger the creation of a runner. The jobs we don't know about will be dealt with by the idle runners.
 // Once jobs are consumed, you can set min-idle-runners to 0 again.
 func (r *basePoolManager) consumeQueuedJobs() error {
-	queued, err := r.store.ListEntityJobsByStatus(r.ctx, r.entity.EntityType, r.entity.ID, params.JobStatusQueued)
-	if err != nil {
-		return fmt.Errorf("error listing queued jobs: %w", err)
-	}
+	queued := r.getQueuedJobs()
 
 	poolsCache := poolsForTags{
 		poolCacheType: r.entity.GetPoolBalancerType(),

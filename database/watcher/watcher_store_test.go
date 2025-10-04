@@ -179,6 +179,7 @@ func (s *WatcherStoreTestSuite) TestInstanceWatcher() {
 
 	createPoolParams := params.CreatePoolParams{
 		ProviderName: "test-provider",
+		MaxRunners:   5,
 		Image:        "test-image",
 		Flavor:       "test-flavor",
 		OSType:       commonParams.Linux,
@@ -393,6 +394,7 @@ func (s *WatcherStoreTestSuite) TestPoolWatcher() {
 
 	createPoolParams := params.CreatePoolParams{
 		ProviderName: "test-provider",
+		MaxRunners:   5,
 		Image:        "test-image",
 		Flavor:       "test-flavor",
 		OSType:       commonParams.Linux,

@@ -205,7 +205,8 @@ func GetTestSqliteDBConfig(t *testing.T) config.Database {
 		DbBackend:  config.SQLiteBackend,
 		Passphrase: encryptionPassphrase,
 		SQLite: config.SQLite{
-			DBFile: filepath.Join(dir, "garm.db"),
+			DBFile:             filepath.Join(dir, "garm.db"),
+			BusyTimeoutSeconds: 30, // 30 second timeout for concurrent transactions
 		},
 	}
 }
