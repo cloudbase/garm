@@ -254,10 +254,24 @@ func (s *sqlDatabase) SearchFileObjectByTags(ctx context.Context, tags []string,
 		ret[idx] = s.sqlFileObjectToCommonParams(val)
 	}
 
+	// Calculate next and previous page numbers
+	var nextPage, previousPage *uint64
+	if page < totalPages {
+		next := page + 1
+		nextPage = &next
+	}
+	if page > 1 {
+		prev := page - 1
+		previousPage = &prev
+	}
+
 	return params.FileObjectPaginatedResponse{
-		Pages:       totalPages,
-		CurrentPage: page,
-		Results:     ret,
+		TotalCount:   uint64(total),
+		Pages:        totalPages,
+		CurrentPage:  page,
+		NextPage:     nextPage,
+		PreviousPage: previousPage,
+		Results:      ret,
 	}, nil
 }
 
@@ -345,10 +359,24 @@ func (s *sqlDatabase) ListFileObjects(ctx context.Context, page, pageSize uint64
 		results[i] = s.sqlFileObjectToCommonParams(obj)
 	}
 
+	// Calculate next and previous page numbers
+	var nextPage, previousPage *uint64
+	if page < totalPages {
+		next := page + 1
+		nextPage = &next
+	}
+	if page > 1 {
+		prev := page - 1
+		previousPage = &prev
+	}
+
 	return params.FileObjectPaginatedResponse{
-		Pages:       totalPages,
-		CurrentPage: page,
-		Results:     results,
+		TotalCount:   uint64(total),
+		Pages:        totalPages,
+		CurrentPage:  page,
+		NextPage:     nextPage,
+		PreviousPage: previousPage,
+		Results:      results,
 	}, nil
 }
 
