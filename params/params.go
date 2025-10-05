@@ -1320,9 +1320,12 @@ type FileObject struct {
 }
 
 type PaginatedResponse[T any] struct {
-	Pages       uint64 `json:"pages"`
-	CurrentPage uint64 `json:"current_page"`
-	Results     []T    `json:"results"`
+	TotalCount   uint64  `json:"total_count"`
+	Pages        uint64  `json:"pages"`
+	CurrentPage  uint64  `json:"current_page"`
+	NextPage     *uint64 `json:"next_page,omitempty"`
+	PreviousPage *uint64 `json:"previous_page,omitempty"`
+	Results      []T     `json:"results"`
 }
 
 // swagger:model FileObjectPaginatedResponse

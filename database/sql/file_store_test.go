@@ -166,6 +166,16 @@ func (s *FileStoreTestSuite) TestListFileObjects() {
 	s.Require().GreaterOrEqual(len(result.Results), len(s.Fixtures.FileObjects))
 	s.Require().Equal(uint64(1), result.CurrentPage)
 	s.Require().GreaterOrEqual(result.Pages, uint64(1))
+	s.Require().GreaterOrEqual(result.TotalCount, uint64(len(s.Fixtures.FileObjects)))
+
+	// First page should not have previous page
+	s.Require().Nil(result.PreviousPage)
+
+	// If there are more pages, next page should be set
+	if result.Pages > 1 {
+		s.Require().NotNil(result.NextPage)
+		s.Require().Equal(uint64(2), *result.NextPage)
+	}
 }
 
 func (s *FileStoreTestSuite) TestListFileObjectsPagination() {
@@ -181,6 +191,10 @@ func (s *FileStoreTestSuite) TestListFileObjectsPagination() {
 	s.Require().Nil(err)
 	s.Require().Equal(2, len(page1.Results))
 	s.Require().Equal(uint64(1), page1.CurrentPage)
+	s.Require().GreaterOrEqual(page1.TotalCount, uint64(5))
+	s.Require().Nil(page1.PreviousPage, "First page should not have previous page")
+	s.Require().NotNil(page1.NextPage, "First page should have next page")
+	s.Require().Equal(uint64(2), *page1.NextPage)
 
 	// Test second page
 	page2, err := s.Store.ListFileObjects(s.ctx, 2, 2)
@@ -188,6 +202,11 @@ func (s *FileStoreTestSuite) TestListFileObjectsPagination() {
 	s.Require().Equal(2, len(page2.Results))
 	s.Require().Equal(uint64(2), page2.CurrentPage)
 	s.Require().Equal(page1.Pages, page2.Pages)
+	s.Require().Equal(page1.TotalCount, page2.TotalCount)
+	s.Require().NotNil(page2.PreviousPage, "Second page should have previous page")
+	s.Require().Equal(uint64(1), *page2.PreviousPage)
+	s.Require().NotNil(page2.NextPage, "Second page should have next page")
+	s.Require().Equal(uint64(3), *page2.NextPage)
 
 	// Verify different results on different pages
 	if len(page1.Results) > 0 && len(page2.Results) > 0 {
@@ -589,6 +608,42 @@ func (s *FileStoreTestSuite) TestSearchFileObjectByTagsOrderByCreatedAt() {
 		}
 	}
 	s.Require().Less(file2Idx, file1Idx, "Newer file (file2) should appear before older file (file1)")
+}
+
+func (s *FileStoreTestSuite) TestPaginationFieldsLastPage() {
+	// Create exactly 5 files
+	for i := 0; i < 5; i++ {
+		content := []byte(fmt.Sprintf("Last page test %d", i))
+		_, err := s.Store.CreateFileObject(s.ctx, fmt.Sprintf("last-page-test-%d.txt", i), int64(len(content)), []string{"last-page"}, bytes.NewReader(content))
+		s.Require().Nil(err)
+	}
+
+	// Get the last page (should have 1 item with pageSize=2)
+	// Total: 5 items, pageSize: 2, so pages: 3 (2, 2, 1)
+	lastPage, err := s.Store.SearchFileObjectByTags(s.ctx, []string{"last-page"}, 3, 2)
+	s.Require().Nil(err)
+	s.Require().Equal(uint64(3), lastPage.CurrentPage)
+	s.Require().Equal(uint64(3), lastPage.Pages)
+	s.Require().Equal(uint64(5), lastPage.TotalCount)
+	s.Require().Equal(1, len(lastPage.Results), "Last page should have 1 item")
+	s.Require().NotNil(lastPage.PreviousPage, "Last page should have previous page")
+	s.Require().Equal(uint64(2), *lastPage.PreviousPage)
+	s.Require().Nil(lastPage.NextPage, "Last page should not have next page")
+}
+
+func (s *FileStoreTestSuite) TestPaginationFieldsSinglePage() {
+	// Test when all results fit in a single page
+	content := []byte("Single page test")
+	_, err := s.Store.CreateFileObject(s.ctx, "single-page-test.txt", int64(len(content)), []string{"single-page-unique-tag"}, bytes.NewReader(content))
+	s.Require().Nil(err)
+
+	result, err := s.Store.SearchFileObjectByTags(s.ctx, []string{"single-page-unique-tag"}, 1, 20)
+	s.Require().Nil(err)
+	s.Require().Equal(uint64(1), result.TotalCount)
+	s.Require().Equal(uint64(1), result.Pages)
+	s.Require().Equal(uint64(1), result.CurrentPage)
+	s.Require().Nil(result.PreviousPage, "Single page should not have previous")
+	s.Require().Nil(result.NextPage, "Single page should not have next")
 }
 
 func TestFileStoreTestSuite(t *testing.T) {
