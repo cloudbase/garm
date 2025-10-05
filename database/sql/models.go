@@ -484,7 +484,7 @@ func (FileObject) TableName() string {
 type FileObjectTag struct {
 	ID           uint   `gorm:"primaryKey"`
 	FileObjectID uint   `gorm:"index:idx_fileobject_tags_doc_id,priority:1;index:idx_fileobject_tags_tag,priority:1;not null"`
-	Tag          string `gorm:"type:TEXT;index:idx_fileobject_tags_tag,priority:2;not null"`
+	Tag          string `gorm:"type:TEXT COLLATE NOCASE;index:idx_fileobject_tags_tag,priority:2;not null"`
 }
 
 // TableName overrides the default table name

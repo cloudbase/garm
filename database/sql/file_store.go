@@ -9,12 +9,13 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/mattn/go-sqlite3"
+	"gorm.io/gorm"
+
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/util"
-	"github.com/mattn/go-sqlite3"
-	"gorm.io/gorm"
 )
 
 func (s *sqlDatabase) CreateFileObject(ctx context.Context, name string, size int64, tags []string, reader io.Reader) (fileObjParam params.FileObject, err error) {
@@ -76,7 +77,6 @@ func (s *sqlDatabase) CreateFileObject(ctx context.Context, name string, size in
 		sha256sum = hex.EncodeToString(hasher.Sum(nil))
 		return nil
 	})
-
 	if err != nil {
 		return params.FileObject{}, fmt.Errorf("failed to write blob: %w", err)
 	}
@@ -104,7 +104,7 @@ func (s *sqlDatabase) CreateFileObject(ctx context.Context, name string, size in
 	return s.sqlFileObjectToCommonParams(fileObj), nil
 }
 
-func (s *sqlDatabase) UpdateFileObject(ctx context.Context, objID uint, param params.UpdateFileObjectParams) (fileObjParam params.FileObject, err error) {
+func (s *sqlDatabase) UpdateFileObject(_ context.Context, objID uint, param params.UpdateFileObjectParams) (fileObjParam params.FileObject, err error) {
 	if err := param.Validate(); err != nil {
 		return params.FileObject{}, fmt.Errorf("failed to validate update params: %w", err)
 	}
@@ -160,7 +160,6 @@ func (s *sqlDatabase) UpdateFileObject(ctx context.Context, objID uint, param pa
 
 		return nil
 	})
-
 	if err != nil {
 		return params.FileObject{}, err
 	}
@@ -168,7 +167,7 @@ func (s *sqlDatabase) UpdateFileObject(ctx context.Context, objID uint, param pa
 	return s.sqlFileObjectToCommonParams(fileObj), nil
 }
 
-func (s *sqlDatabase) DeleteFileObject(ctx context.Context, objID uint) (err error) {
+func (s *sqlDatabase) DeleteFileObject(_ context.Context, objID uint) (err error) {
 	var fileObjParam params.FileObject
 	var noop bool
 	defer func() {
@@ -203,7 +202,7 @@ func (s *sqlDatabase) DeleteFileObject(ctx context.Context, objID uint) (err err
 	return nil
 }
 
-func (s *sqlDatabase) GetFileObject(ctx context.Context, objID uint) (params.FileObject, error) {
+func (s *sqlDatabase) GetFileObject(_ context.Context, objID uint) (params.FileObject, error) {
 	var fileObj FileObject
 	if err := s.conn.Preload("TagsList").Where("id = ?", objID).Omit("content").First(&fileObj).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -214,7 +213,7 @@ func (s *sqlDatabase) GetFileObject(ctx context.Context, objID uint) (params.Fil
 	return s.sqlFileObjectToCommonParams(fileObj), nil
 }
 
-func (s *sqlDatabase) SearchFileObjectByTags(ctx context.Context, tags []string, page, pageSize uint64) (params.FileObjectPaginatedResponse, error) {
+func (s *sqlDatabase) SearchFileObjectByTags(_ context.Context, tags []string, page, pageSize uint64) (params.FileObjectPaginatedResponse, error) {
 	if page == 0 {
 		page = 1
 	}
@@ -298,7 +297,6 @@ func (s *sqlDatabase) OpenFileObjectContent(ctx context.Context, objID uint) (io
 		}
 		return nil
 	})
-
 	if err != nil {
 		conn.Close()
 		return nil, fmt.Errorf("failed to open blob for reading: %w", err)
@@ -326,7 +324,7 @@ func (b *blobReadCloser) Close() error {
 	return connErr
 }
 
-func (s *sqlDatabase) ListFileObjects(ctx context.Context, page, pageSize uint64) (params.FileObjectPaginatedResponse, error) {
+func (s *sqlDatabase) ListFileObjects(_ context.Context, page, pageSize uint64) (params.FileObjectPaginatedResponse, error) {
 	if page == 0 {
 		page = 1
 	}

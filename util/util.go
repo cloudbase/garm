@@ -22,11 +22,11 @@ import (
 	"net/http"
 	"unicode/utf8"
 
+	"github.com/h2non/filetype"
+
 	"github.com/cloudbase/garm-provider-common/cloudconfig"
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
-	"github.com/h2non/filetype"
-
 	"github.com/cloudbase/garm/internal/templates"
 	"github.com/cloudbase/garm/runner/common"
 )
