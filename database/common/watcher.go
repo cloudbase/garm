@@ -36,6 +36,7 @@ const (
 	GithubEndpointEntityType    DatabaseEntityType = "github_endpoint"
 	ScaleSetEntityType          DatabaseEntityType = "scaleset"
 	TemplateEntityType          DatabaseEntityType = "template"
+	FileObjectEntityType        DatabaseEntityType = "file_object"
 )
 
 const (

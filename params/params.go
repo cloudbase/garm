@@ -1307,3 +1307,23 @@ type Template struct {
 // used by swagger client generated code
 // swagger:model Templates
 type Templates []Template
+
+type FileObject struct {
+	ID        uint      `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Name      string    `json:"name"`
+	Size      int64     `json:"size"`
+	Tags      []string  `json:"tags"`
+	SHA256    string    `json:"sha256,omitempty"`
+	FileType  string    `json:"file_type"`
+}
+
+type PaginatedResponse[T any] struct {
+	Pages       uint64 `json:"pages"`
+	CurrentPage uint64 `json:"current_page"`
+	Results     []T    `json:"results"`
+}
+
+// swagger:model FileObjectPaginatedResponse
+type FileObjectPaginatedResponse = PaginatedResponse[FileObject]

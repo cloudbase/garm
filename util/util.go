@@ -25,6 +25,8 @@ import (
 	"github.com/cloudbase/garm-provider-common/cloudconfig"
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
+	"github.com/h2non/filetype"
+
 	"github.com/cloudbase/garm/internal/templates"
 	"github.com/cloudbase/garm/runner/common"
 )
@@ -156,4 +158,24 @@ func MaybeAddWrapperToExtraSpecs(ctx context.Context, specs json.RawMessage, osT
 	}
 
 	return json.RawMessage(ret)
+}
+
+// DetectFileType detects the MIME type from file content
+func DetectFileType(data []byte) string {
+	// First, try http.DetectContentType (good for text files)
+	httpType := http.DetectContentType(data)
+
+	// If http detected text, use that
+	if httpType != "application/octet-stream" {
+		return httpType
+	}
+
+	// For binary files, use filetype library for specific format detection
+	kind, err := filetype.Match(data)
+	if err == nil && kind != filetype.Unknown {
+		return kind.MIME.Value
+	}
+
+	// Default to application/octet-stream for unknown types
+	return "application/octet-stream"
 }
