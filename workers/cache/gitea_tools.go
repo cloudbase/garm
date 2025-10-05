@@ -47,15 +47,15 @@ var nightlyActRunner = GiteaEntityTool{
 	Assets: []GiteaToolsAssets{
 		{
 			Name:        "act_runner-nightly-linux-amd64.xz",
-			DownloadURL: "https://dl.gitea.com/act_runner/nightly/act_runner-nightly-linux-amd64.xz",
+			DownloadURL: "https://dl.gitea.com/act_runner/nightly/act_runner-nightly-linux-amd64",
 		},
 		{
 			Name:        "act_runner-nightly-linux-arm64.xz",
-			DownloadURL: "https://dl.gitea.com/act_runner/nightly/act_runner-nightly-linux-arm64.xz",
+			DownloadURL: "https://dl.gitea.com/act_runner/nightly/act_runner-nightly-linux-arm64",
 		},
 		{
 			Name:        "act_runner-nightly-windows-amd64.exe.xz",
-			DownloadURL: "https://dl.gitea.com/act_runner/nightly/act_runner-nightly-windows-amd64.exe.xz",
+			DownloadURL: "https://dl.gitea.com/act_runner/nightly/act_runner-nightly-windows-amd64.exe",
 		},
 	},
 }
@@ -207,8 +207,9 @@ func getTools(ctx context.Context, metadataURL string, useInternal bool) ([]comm
 			slog.InfoContext(ctx, "ignoring unrecognized tools os", "tool", asset.Name)
 			continue
 		}
-		if !strings.HasSuffix(asset.DownloadURL, ".xz") {
-			// filter out non compressed versions.
+		if strings.HasSuffix(asset.DownloadURL, ".xz") || strings.HasSuffix(asset.DownloadURL, ".sha256") {
+			// filter out compressed files and sha256 sums. Windows does not have any way to uncompress
+			// .xz by default.
 			continue
 		}
 		slog.DebugContext(ctx, "found valid tools", "download_url", asset.DownloadURL, "os", os, "arch", arch, "file_name", asset.Name)
