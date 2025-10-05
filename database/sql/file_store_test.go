@@ -232,7 +232,7 @@ func (s *FileStoreTestSuite) TestUpdateFileObjectName() {
 	s.Require().Nil(err)
 	s.Require().Equal(newName, updated.Name)
 	s.Require().Equal(s.Fixtures.FileObjects[0].ID, updated.ID)
-	s.Require().Equal(s.Fixtures.FileObjects[0].Size, updated.Size) // Size should not change
+	s.Require().Equal(s.Fixtures.FileObjects[0].Size, updated.Size)     // Size should not change
 	s.Require().Equal(s.Fixtures.FileObjects[0].SHA256, updated.SHA256) // SHA256 should not change
 
 	// Verify the change persists
@@ -543,27 +543,42 @@ func (s *FileStoreTestSuite) TestSearchFileObjectByTagsAllTagsRequired() {
 	s.Require().True(foundIDs[file2.ID])
 }
 
-func (s *FileStoreTestSuite) TestSearchFileObjectByTagsCaseSensitive() {
-	// Test case sensitivity of tag search
+func (s *FileStoreTestSuite) TestSearchFileObjectByTagsCaseInsensitive() {
+	// Test case insensitivity of tag search (COLLATE NOCASE)
 	content1 := []byte("File with lowercase tag")
-	file1, err := s.Store.CreateFileObject(s.ctx, "case-test-1.txt", int64(len(content1)), []string{"lowercase"}, bytes.NewReader(content1))
+	file1, err := s.Store.CreateFileObject(s.ctx, "case-test-1.txt", int64(len(content1)), []string{"TestTag"}, bytes.NewReader(content1))
 	s.Require().Nil(err)
 
 	content2 := []byte("File with UPPERCASE tag")
-	file2, err := s.Store.CreateFileObject(s.ctx, "case-test-2.txt", int64(len(content2)), []string{"UPPERCASE"}, bytes.NewReader(content2))
+	file2, err := s.Store.CreateFileObject(s.ctx, "case-test-2.txt", int64(len(content2)), []string{"TESTTAG"}, bytes.NewReader(content2))
 	s.Require().Nil(err)
 
-	// Search for lowercase - should only return file1
-	result, err := s.Store.SearchFileObjectByTags(s.ctx, []string{"lowercase"}, 1, 10)
+	content3 := []byte("File with MixedCase tag")
+	file3, err := s.Store.CreateFileObject(s.ctx, "case-test-3.txt", int64(len(content3)), []string{"testTAG"}, bytes.NewReader(content3))
 	s.Require().Nil(err)
-	s.Require().Equal(1, len(result.Results))
-	s.Require().Equal(file1.ID, result.Results[0].ID)
 
-	// Search for UPPERCASE - should only return file2
-	result, err = s.Store.SearchFileObjectByTags(s.ctx, []string{"UPPERCASE"}, 1, 10)
+	// Search for lowercase - should return all files (case insensitive)
+	result, err := s.Store.SearchFileObjectByTags(s.ctx, []string{"testtag"}, 1, 10)
 	s.Require().Nil(err)
-	s.Require().Equal(1, len(result.Results))
-	s.Require().Equal(file2.ID, result.Results[0].ID)
+	s.Require().Equal(3, len(result.Results), "Should match all case variations")
+
+	foundIDs := make(map[uint]bool)
+	for _, fileObj := range result.Results {
+		foundIDs[fileObj.ID] = true
+	}
+	s.Require().True(foundIDs[file1.ID], "Should find file with 'TestTag'")
+	s.Require().True(foundIDs[file2.ID], "Should find file with 'TESTTAG'")
+	s.Require().True(foundIDs[file3.ID], "Should find file with 'testTAG'")
+
+	// Search for UPPERCASE - should also return all files
+	result, err = s.Store.SearchFileObjectByTags(s.ctx, []string{"TESTTAG"}, 1, 10)
+	s.Require().Nil(err)
+	s.Require().Equal(3, len(result.Results), "Should match all case variations")
+
+	// Search for MixedCase - should also return all files
+	result, err = s.Store.SearchFileObjectByTags(s.ctx, []string{"TeStTaG"}, 1, 10)
+	s.Require().Nil(err)
+	s.Require().Equal(3, len(result.Results), "Should match all case variations")
 }
 
 func (s *FileStoreTestSuite) TestSearchFileObjectByTagsOrderByCreatedAt() {
