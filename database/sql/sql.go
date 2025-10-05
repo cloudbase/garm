@@ -16,6 +16,7 @@ package sql
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -84,8 +85,14 @@ func NewSQLDatabase(ctx context.Context, cfg config.Database) (common.Store, err
 	if err != nil {
 		return nil, fmt.Errorf("error registering producer: %w", err)
 	}
+
+	sqlDB, err := conn.DB()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get underlying database connection: %w", err)
+	}
 	db := &sqlDatabase{
 		conn:     conn,
+		sqlDB:    sqlDB,
 		ctx:      ctx,
 		cfg:      cfg,
 		producer: producer,
@@ -98,7 +105,9 @@ func NewSQLDatabase(ctx context.Context, cfg config.Database) (common.Store, err
 }
 
 type sqlDatabase struct {
-	conn     *gorm.DB
+	conn  *gorm.DB
+	sqlDB *sql.DB
+
 	ctx      context.Context
 	cfg      config.Database
 	producer common.Producer
@@ -607,6 +616,8 @@ func (s *sqlDatabase) migrateDB() error {
 		&ControllerInfo{},
 		&WorkflowJob{},
 		&ScaleSet{},
+		&FileObject{},
+		&FileObjectTag{},
 	); err != nil {
 		return fmt.Errorf("error running auto migrate: %w", err)
 	}

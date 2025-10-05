@@ -16,6 +16,7 @@ package common
 
 import (
 	"context"
+	"io"
 
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm/params"
@@ -178,6 +179,16 @@ type TemplateStore interface {
 	DeleteTemplate(ctx context.Context, id uint) (err error)
 }
 
+type FileObjectStore interface {
+	ListFileObjects(ctx context.Context, page, pageSize uint64) (params.FileObjectPaginatedResponse, error)
+	SearchFileObjectByTags(ctx context.Context, tags []string, page, pageSize uint64) (params.FileObjectPaginatedResponse, error)
+	GetFileObject(ctx context.Context, objID uint) (params.FileObject, error)
+	CreateFileObject(ctx context.Context, name string, size int64, tags []string, reader io.Reader) (params.FileObject, error)
+	UpdateFileObject(ctx context.Context, objID uint, param params.UpdateFileObjectParams) (params.FileObject, error)
+	DeleteFileObject(ctx context.Context, objID uint) error
+	OpenFileObjectContent(ctx context.Context, objID uint) (io.ReadCloser, error)
+}
+
 //go:generate go run github.com/vektra/mockery/v2@latest
 type Store interface {
 	RepoStore
@@ -196,6 +207,7 @@ type Store interface {
 	GiteaEndpointStore
 	GiteaCredentialsStore
 	TemplateStore
+	FileObjectStore
 
 	ControllerInfo() (params.ControllerInfo, error)
 	InitController() (params.ControllerInfo, error)

@@ -456,3 +456,38 @@ type GiteaCredentials struct {
 	Repositories  []Repository   `gorm:"foreignKey:GiteaCredentialsID"`
 	Organizations []Organization `gorm:"foreignKey:GiteaCredentialsID"`
 }
+
+// FileObject represents the table that holds files. This can be used to store
+// GARM agent binaries, runner binary downloads that may be cached, etc.
+type FileObject struct {
+	gorm.Model
+	// Name is the name of the file
+	Name string `gotm:"type:text,index:idx_fo_name"`
+	// FileType holds the MIME type or file type description
+	FileType string `gorm:"type:text"`
+	// Size is the file size in bytes
+	Size int64 `gorm:"type:integer"`
+	// SHA256 is the sha256 checksum (hex encoded)
+	SHA256 string `gorm:"type:text"`
+	// Tags is a JSON array of tags
+	TagsList []FileObjectTag `gorm:"foreignKey:FileObjectID;constraint:OnDelete:CASCADE"`
+	// Content is a BLOB column for storing binary data
+	Content []byte `gorm:"type:blob"`
+}
+
+// TableName overrides the default table name
+func (FileObject) TableName() string {
+	return "file_objects"
+}
+
+// FileObjectTag represents the many-to-many relationship between documents and tags
+type FileObjectTag struct {
+	ID           uint   `gorm:"primaryKey"`
+	FileObjectID uint   `gorm:"index:idx_fileobject_tags_doc_id,priority:1;index:idx_fileobject_tags_tag,priority:1;not null"`
+	Tag          string `gorm:"type:TEXT;index:idx_fileobject_tags_tag,priority:2;not null"`
+}
+
+// TableName overrides the default table name
+func (FileObjectTag) TableName() string {
+	return "file_object_tags"
+}

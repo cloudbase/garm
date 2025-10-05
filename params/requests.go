@@ -866,3 +866,16 @@ func (u *UpdateTemplateParams) Validate() error {
 
 	return nil
 }
+
+type UpdateFileObjectParams struct {
+	Name *string  `json:"name"`
+	Tags []string `json:"tags"`
+}
+
+func (u *UpdateFileObjectParams) Validate() error {
+	if u.Name != nil && *u.Name == "" {
+		return fmt.Errorf("name cannot be empty")
+	}
+
+	return nil
+}
