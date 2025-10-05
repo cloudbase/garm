@@ -57,10 +57,8 @@ function fail() {
 
 function downloadAndExtractRunner() {
 	sendStatus "downloading tools from {{ .DownloadURL }}"
-	curl --retry 5 --retry-delay 5 --retry-connrefused --fail -L -o "/home/{{ .RunnerUsername }}/{{ .FileName }}" "{{ .DownloadURL }}" || fail "failed to download tools"
-	mkdir -p "$RUN_HOME" || fail "failed to create actions-runner folder"
-	sendStatus "extracting runner"
-	xz -d -c "/home/{{ .RunnerUsername }}/{{ .FileName }}" > "$RUN_HOME/act_runner" || fail "failed to extract runner"
+    mkdir -p "$RUN_HOME" || fail "failed to create actions-runner folder"
+	curl --retry 5 --retry-delay 5 --retry-connrefused --fail -L -o "$RUN_HOME/act_runner" "{{ .DownloadURL }}" || fail "failed to download tools"
 	chown {{ .RunnerUsername }}:{{ .RunnerGroup }} -R "$RUN_HOME"/ || fail "failed to change owner"
 	chmod +x "$RUN_HOME/act_runner" || fail "failed to set executable flag"
 }
