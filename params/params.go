@@ -1308,15 +1308,17 @@ type Template struct {
 // swagger:model Templates
 type Templates []Template
 
+// swagger:model FileObject
 type FileObject struct {
-	ID        uint      `json:"id"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	Name      string    `json:"name"`
-	Size      int64     `json:"size"`
-	Tags      []string  `json:"tags"`
-	SHA256    string    `json:"sha256,omitempty"`
-	FileType  string    `json:"file_type"`
+	ID          uint      `json:"id"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	Name        string    `json:"name"`
+	Description string    `json:"description,omitempty"`
+	Size        int64     `json:"size"`
+	Tags        []string  `json:"tags"`
+	SHA256      string    `json:"sha256,omitempty"`
+	FileType    string    `json:"file_type"`
 }
 
 type PaginatedResponse[T any] struct {

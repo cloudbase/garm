@@ -23,6 +23,13 @@ definitions:
                 alias: garm_params
                 package: github.com/cloudbase/garm/params
             type: CreateEnterpriseParams
+    CreateFileObjectParams:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: CreateFileObjectParams
     CreateGiteaCredentialsParams:
         type: object
         x-go-type:
@@ -118,6 +125,20 @@ definitions:
                 alias: garm_params
                 package: github.com/cloudbase/garm/params
             type: Enterprises
+    FileObject:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: FileObject
+    FileObjectPaginatedResponse:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: FileObjectPaginatedResponse
     ForgeCredentials:
         type: object
         x-go-type:
@@ -318,6 +339,13 @@ definitions:
                 alias: garm_params
                 package: github.com/cloudbase/garm/params
             type: UpdateEntityParams
+    UpdateFileObjectParams:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: UpdateFileObjectParams
     UpdateGiteaCredentialsParams:
         type: object
         x-go-type:
@@ -1290,6 +1318,99 @@ paths:
             summary: Returns a JWT token that can be used to access the metrics endpoint.
             tags:
                 - metrics-token
+    /objects:
+        get:
+            operationId: ListFileObjects
+            parameters:
+                - description: List of tags to filter by.
+                  in: query
+                  name: tags
+                  type: string
+                - description: The page at which to list.
+                  in: query
+                  name: page
+                  type: integer
+                - description: Number of items per page.
+                  in: query
+                  name: pageSize
+                  type: integer
+            responses:
+                "200":
+                    description: FileObjectPaginatedResponse
+                    schema:
+                        $ref: '#/definitions/FileObjectPaginatedResponse'
+                "400":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List file objects.
+            tags:
+                - objects
+    /objects/{objectID}:
+        delete:
+            operationId: DeleteFileObject
+            parameters:
+                - description: The ID of the file object.
+                  in: path
+                  name: objectID
+                  required: true
+                  type: string
+            responses:
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Delete a file object.
+            tags:
+                - objects
+        get:
+            operationId: GetFileObject
+            parameters:
+                - description: The ID of the file object.
+                  in: path
+                  name: objectID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: FileObject
+                    schema:
+                        $ref: '#/definitions/FileObject'
+                "400":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get a file object.
+            tags:
+                - objects
+        put:
+            operationId: UpdateFileObject
+            parameters:
+                - description: The ID of the file object.
+                  in: path
+                  name: objectID
+                  required: true
+                  type: string
+                - description: Parameters used when updating a file object.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/UpdateFileObjectParams'
+                    description: Parameters used when updating a file object.
+                    type: object
+            responses:
+                "200":
+                    description: FileObject
+                    schema:
+                        $ref: '#/definitions/FileObject'
+                "400":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Update a file object.
+            tags:
+                - objects
     /organizations:
         get:
             operationId: ListOrgs

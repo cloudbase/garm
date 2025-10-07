@@ -17,8 +17,10 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"net/url"
 	"os"
+	"time"
 
 	"github.com/go-openapi/runtime"
 	openapiRuntimeClient "github.com/go-openapi/runtime/client"
@@ -47,6 +49,7 @@ var (
 	poolBalancerType  string
 	outputFormat      common.OutputFormat = common.OutputFormatTable
 	errNeedsInitError                     = fmt.Errorf("please log into a garm installation first")
+	rawHTTPClient     *rawClient
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -90,6 +93,19 @@ func initAPIClient(baseURL, token string) {
 		WithSchemes([]string{baseURLParsed.Scheme})
 	apiCli = apiClient.NewHTTPClientWithConfig(nil, transportCfg)
 	authToken = openapiRuntimeClient.BearerToken(token)
+
+	joined, err := url.JoinPath(baseURL, apiClient.DefaultBasePath)
+	if err != nil {
+		fmt.Printf("Failed to join base url %s with %s: %s", baseURL, apiClient.DefaultBasePath, err)
+		os.Exit(1)
+	}
+	rawHTTPClient = &rawClient{
+		BaseURL: joined,
+		Token:   token,
+		HTTPClient: &http.Client{
+			Timeout: 30 * time.Second,
+		},
+	}
 }
 
 func initConfig() {

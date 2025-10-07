@@ -17,6 +17,7 @@ import {
   FirstRunApi,
   HooksApi,
   TemplatesApi,
+  ObjectsApi,
   type Repository,
   type Organization,
   type Enterprise,
@@ -51,6 +52,9 @@ import {
   type User,
   type UpdateControllerParams,
   type HookInfo,
+  type FileObject,
+  type FileObjectPaginatedResponse,
+  type UpdateFileObjectParams,
   Configuration
 } from './generated/index';
 
@@ -85,6 +89,9 @@ export type {
   NewUserParams,
   User,
   UpdateControllerParams,
+  FileObject,
+  FileObjectPaginatedResponse,
+  UpdateFileObjectParams,
 };
 
 // Define common request types for compatibility
@@ -125,6 +132,7 @@ export class GeneratedGarmApiClient {
   private firstRunApi: FirstRunApi;
   private hooksApi: HooksApi;
   private templatesApi: TemplatesApi;
+  private objectsApi: ObjectsApi;
 
   constructor(baseUrl: string = '') {
     this.baseUrl = baseUrl || window.location.origin;
@@ -157,6 +165,7 @@ export class GeneratedGarmApiClient {
     this.firstRunApi = new FirstRunApi(this.config);
     this.hooksApi = new HooksApi(this.config);
     this.templatesApi = new TemplatesApi(this.config);
+    this.objectsApi = new ObjectsApi(this.config);
   }
 
   // Set authentication token
@@ -623,6 +632,26 @@ export class GeneratedGarmApiClient {
 
   async deleteTemplate(id: number): Promise<void> {
     await this.templatesApi.deleteTemplate(id);
+  }
+
+  // File Object methods
+  async listFileObjects(tags?: string, page?: number, pageSize?: number): Promise<FileObjectPaginatedResponse> {
+    const response = await this.objectsApi.listFileObjects(tags, page, pageSize);
+    return response.data;
+  }
+
+  async getFileObject(objectID: string): Promise<FileObject> {
+    const response = await this.objectsApi.getFileObject(objectID);
+    return response.data;
+  }
+
+  async updateFileObject(objectID: string, params: UpdateFileObjectParams): Promise<FileObject> {
+    const response = await this.objectsApi.updateFileObject(objectID, params);
+    return response.data;
+  }
+
+  async deleteFileObject(objectID: string): Promise<void> {
+    await this.objectsApi.deleteFileObject(objectID);
   }
 }
 

@@ -183,7 +183,7 @@ type FileObjectStore interface {
 	ListFileObjects(ctx context.Context, page, pageSize uint64) (params.FileObjectPaginatedResponse, error)
 	SearchFileObjectByTags(ctx context.Context, tags []string, page, pageSize uint64) (params.FileObjectPaginatedResponse, error)
 	GetFileObject(ctx context.Context, objID uint) (params.FileObject, error)
-	CreateFileObject(ctx context.Context, name string, size int64, tags []string, reader io.Reader) (params.FileObject, error)
+	CreateFileObject(ctx context.Context, param params.CreateFileObjectParams, reader io.Reader) (fileObjParam params.FileObject, err error)
 	UpdateFileObject(ctx context.Context, objID uint, param params.UpdateFileObjectParams) (params.FileObject, error)
 	DeleteFileObject(ctx context.Context, objID uint) error
 	OpenFileObjectContent(ctx context.Context, objID uint) (io.ReadCloser, error)

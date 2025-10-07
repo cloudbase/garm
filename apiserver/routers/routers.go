@@ -216,6 +216,28 @@ func NewAPIRouter(han *controllers.APIController, authMiddleware, initMiddleware
 	apiRouter.Handle("/metrics-token/", http.HandlerFunc(han.MetricsTokenHandler)).Methods("GET", "OPTIONS")
 	apiRouter.Handle("/metrics-token", http.HandlerFunc(han.MetricsTokenHandler)).Methods("GET", "OPTIONS")
 
+	/////////////
+	// Objects //
+	/////////////
+	// List objects
+	apiRouter.Handle("/objects/", http.HandlerFunc(han.ListFileObjects)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/objects", http.HandlerFunc(han.ListFileObjects)).Methods("GET", "OPTIONS")
+	// Create object
+	apiRouter.Handle("/objects/", http.HandlerFunc(han.CreateFileObject)).Methods("POST", "OPTIONS")
+	apiRouter.Handle("/objects", http.HandlerFunc(han.CreateFileObject)).Methods("POST", "OPTIONS")
+	// Delete object
+	apiRouter.Handle("/objects/{objectID}/", http.HandlerFunc(han.DeleteFileObject)).Methods("DELETE", "OPTIONS")
+	apiRouter.Handle("/objects/{objectID}", http.HandlerFunc(han.DeleteFileObject)).Methods("DELETE", "OPTIONS")
+	// Download object
+	apiRouter.Handle("/objects/{objectID}/download/", http.HandlerFunc(han.DownloadFileObject)).Methods("GET", "OPTIONS", "HEAD")
+	apiRouter.Handle("/objects/{objectID}/download", http.HandlerFunc(han.DownloadFileObject)).Methods("GET", "OPTIONS", "HEAD")
+	// Get object
+	apiRouter.Handle("/objects/{objectID}/", http.HandlerFunc(han.GetFileObject)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/objects/{objectID}", http.HandlerFunc(han.GetFileObject)).Methods("GET", "OPTIONS")
+	// Update object
+	apiRouter.Handle("/objects/{objectID}/", http.HandlerFunc(han.UpdateFileObject)).Methods("PUT", "OPTIONS")
+	apiRouter.Handle("/objects/{objectID}", http.HandlerFunc(han.UpdateFileObject)).Methods("PUT", "OPTIONS")
+
 	//////////
 	// Jobs //
 	//////////

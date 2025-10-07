@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 
 	"github.com/mattn/go-sqlite3"
 	"gorm.io/gorm"
@@ -18,17 +19,18 @@ import (
 	"github.com/cloudbase/garm/util"
 )
 
-func (s *sqlDatabase) CreateFileObject(ctx context.Context, name string, size int64, tags []string, reader io.Reader) (fileObjParam params.FileObject, err error) {
+// func (s *sqlDatabase) CreateFileObject(ctx context.Context, name string, size int64, tags []string, reader io.Reader) (fileObjParam params.FileObject, err error) {
+func (s *sqlDatabase) CreateFileObject(ctx context.Context, param params.CreateFileObjectParams, reader io.Reader) (fileObjParam params.FileObject, err error) {
 	// Read first 8KB for type detection
 	buffer := make([]byte, 8192)
 	n, _ := io.ReadFull(reader, buffer)
 	fileType := util.DetectFileType(buffer[:n])
-	// Create document with pre-allocated blob
+
 	fileObj := FileObject{
-		Name:     name,
-		FileType: fileType,
-		Size:     size,
-		Content:  make([]byte, size),
+		Name:        param.Name,
+		Description: param.Description,
+		FileType:    fileType,
+		Size:        param.Size,
 	}
 
 	defer func() {
@@ -37,8 +39,17 @@ func (s *sqlDatabase) CreateFileObject(ctx context.Context, name string, size in
 		}
 	}()
 
+	// Create the file first, without any space allocated for the blob.
 	if err := s.conn.Create(&fileObj).Error; err != nil {
 		return params.FileObject{}, fmt.Errorf("failed to create file object: %w", err)
+	}
+
+	// allocate space for the blob using the zeroblob() function. This will allow us to avoid
+	// having to allocate potentially huge byte arrays in memory and writing that huge blob to
+	// disk.
+	query := fmt.Sprintf(`UPDATE %q SET content = zeroblob(?) WHERE id = ?`, fileObj.TableName())
+	if err := s.conn.Exec(query, param.Size, fileObj.ID).Error; err != nil {
+		return params.FileObject{}, fmt.Errorf("failed to allocate disk space: %w", err)
 	}
 
 	// Stream file to blob and compute SHA256
@@ -54,7 +65,7 @@ func (s *sqlDatabase) CreateFileObject(ctx context.Context, name string, size in
 
 		blob, err := sqliteConn.Blob("main", fileObj.TableName(), "content", int64(fileObj.ID), 1)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to open blob: %w", err)
 		}
 		defer blob.Close()
 
@@ -63,14 +74,14 @@ func (s *sqlDatabase) CreateFileObject(ctx context.Context, name string, size in
 
 		// Write the buffered data first
 		if _, err := blob.Write(buffer[:n]); err != nil {
-			return err
+			return fmt.Errorf("failed to write blob initial buffer: %w", err)
 		}
 		hasher.Write(buffer[:n])
 
 		// Stream the rest with hash computation
 		_, err = io.Copy(io.MultiWriter(blob, hasher), reader)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to write blob: %w", err)
 		}
 
 		// Get final hash
@@ -87,7 +98,7 @@ func (s *sqlDatabase) CreateFileObject(ctx context.Context, name string, size in
 	}
 
 	// Create tag entries
-	for _, tag := range tags {
+	for _, tag := range param.Tags {
 		fileObjTag := FileObjectTag{
 			FileObjectID: fileObj.ID,
 			Tag:          tag,
@@ -127,6 +138,10 @@ func (s *sqlDatabase) UpdateFileObject(_ context.Context, objID uint, param para
 		// Update name if provided
 		if param.Name != nil {
 			fileObj.Name = *param.Name
+		}
+
+		if param.Description != nil {
+			fileObj.Description = *param.Description
 		}
 
 		// Update tags if provided
@@ -239,9 +254,20 @@ func (s *sqlDatabase) SearchFileObjectByTags(_ context.Context, tags []string, p
 
 	offset := (page - 1) * pageSize
 
+	queryPageSize := math.MaxInt
+	if pageSize <= math.MaxInt {
+		queryPageSize = int(pageSize)
+	}
+
+	var queryOffset int
+	if offset <= math.MaxInt {
+		queryOffset = int(offset)
+	} else {
+		return params.FileObjectPaginatedResponse{}, fmt.Errorf("offset excedes max int size: %d", math.MaxInt)
+	}
 	if err := query.
-		Limit(int(pageSize)).
-		Offset(int(offset)).
+		Limit(queryPageSize).
+		Offset(queryOffset).
 		Order("created_at DESC").
 		Omit("content").
 		Find(&fileObjectRes).Error; err != nil {
@@ -343,10 +369,23 @@ func (s *sqlDatabase) ListFileObjects(_ context.Context, page, pageSize uint64) 
 	}
 
 	offset := (page - 1) * pageSize
+
+	queryPageSize := math.MaxInt
+	if pageSize <= math.MaxInt {
+		queryPageSize = int(pageSize)
+	}
+
+	var queryOffset int
+	if offset <= math.MaxInt {
+		queryOffset = int(offset)
+	} else {
+		return params.FileObjectPaginatedResponse{}, fmt.Errorf("offset excedes max int size: %d", math.MaxInt)
+	}
+
 	var fileObjs []FileObject
 	if err := s.conn.Preload("TagsList").Omit("content").
-		Limit(int(pageSize)).
-		Offset(int(offset)).
+		Limit(queryPageSize).
+		Offset(queryOffset).
 		Order("created_at DESC").
 		Find(&fileObjs).Error; err != nil {
 		return params.FileObjectPaginatedResponse{}, fmt.Errorf("failed to list file objects: %w", err)
@@ -384,13 +423,14 @@ func (s *sqlDatabase) sqlFileObjectToCommonParams(obj FileObject) params.FileObj
 		tags[idx] = val.Tag
 	}
 	return params.FileObject{
-		ID:        obj.ID,
-		CreatedAt: obj.CreatedAt,
-		UpdatedAt: obj.UpdatedAt,
-		Name:      obj.Name,
-		Size:      obj.Size,
-		FileType:  obj.FileType,
-		SHA256:    obj.SHA256,
-		Tags:      tags,
+		ID:          obj.ID,
+		CreatedAt:   obj.CreatedAt,
+		UpdatedAt:   obj.UpdatedAt,
+		Name:        obj.Name,
+		Size:        obj.Size,
+		FileType:    obj.FileType,
+		SHA256:      obj.SHA256,
+		Description: obj.Description,
+		Tags:        tags,
 	}
 }

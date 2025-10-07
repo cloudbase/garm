@@ -150,6 +150,37 @@ export interface CreateEnterpriseParams {
 /**
  * 
  * @export
+ * @interface CreateFileObjectParams
+ */
+export interface CreateFileObjectParams {
+    /**
+     * 
+     * @type {string}
+     * @memberof CreateFileObjectParams
+     */
+    'description'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof CreateFileObjectParams
+     */
+    'name'?: string;
+    /**
+     * 
+     * @type {number}
+     * @memberof CreateFileObjectParams
+     */
+    'size'?: number;
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof CreateFileObjectParams
+     */
+    'tags'?: Array<string>;
+}
+/**
+ * 
+ * @export
  * @interface CreateGiteaCredentialsParams
  */
 export interface CreateGiteaCredentialsParams {
@@ -767,6 +798,171 @@ export interface EntityEvent {
 /**
  * 
  * @export
+ * @interface FileObject
+ */
+export interface FileObject {
+    /**
+     * 
+     * @type {string}
+     * @memberof FileObject
+     */
+    'created_at'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof FileObject
+     */
+    'description'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof FileObject
+     */
+    'file_type'?: string;
+    /**
+     * 
+     * @type {number}
+     * @memberof FileObject
+     */
+    'id'?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof FileObject
+     */
+    'name'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof FileObject
+     */
+    'sha256'?: string;
+    /**
+     * 
+     * @type {number}
+     * @memberof FileObject
+     */
+    'size'?: number;
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof FileObject
+     */
+    'tags'?: Array<string>;
+    /**
+     * 
+     * @type {string}
+     * @memberof FileObject
+     */
+    'updated_at'?: string;
+}
+/**
+ * 
+ * @export
+ * @interface FileObjectPaginatedResponse
+ */
+export interface FileObjectPaginatedResponse {
+    /**
+     * 
+     * @type {number}
+     * @memberof FileObjectPaginatedResponse
+     */
+    'current_page'?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof FileObjectPaginatedResponse
+     */
+    'next_page'?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof FileObjectPaginatedResponse
+     */
+    'pages'?: number;
+    /**
+     * 
+     * @type {number}
+     * @memberof FileObjectPaginatedResponse
+     */
+    'previous_page'?: number;
+    /**
+     * 
+     * @type {Array<FileObjectPaginatedResponseResultsInner>}
+     * @memberof FileObjectPaginatedResponse
+     */
+    'results'?: Array<FileObjectPaginatedResponseResultsInner>;
+    /**
+     * 
+     * @type {number}
+     * @memberof FileObjectPaginatedResponse
+     */
+    'total_count'?: number;
+}
+/**
+ * 
+ * @export
+ * @interface FileObjectPaginatedResponseResultsInner
+ */
+export interface FileObjectPaginatedResponseResultsInner {
+    /**
+     * 
+     * @type {string}
+     * @memberof FileObjectPaginatedResponseResultsInner
+     */
+    'created_at'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof FileObjectPaginatedResponseResultsInner
+     */
+    'description'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof FileObjectPaginatedResponseResultsInner
+     */
+    'file_type'?: string;
+    /**
+     * 
+     * @type {number}
+     * @memberof FileObjectPaginatedResponseResultsInner
+     */
+    'id'?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof FileObjectPaginatedResponseResultsInner
+     */
+    'name'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof FileObjectPaginatedResponseResultsInner
+     */
+    'sha256'?: string;
+    /**
+     * 
+     * @type {number}
+     * @memberof FileObjectPaginatedResponseResultsInner
+     */
+    'size'?: number;
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof FileObjectPaginatedResponseResultsInner
+     */
+    'tags'?: Array<string>;
+    /**
+     * 
+     * @type {string}
+     * @memberof FileObjectPaginatedResponseResultsInner
+     */
+    'updated_at'?: string;
+}
+/**
+ * 
+ * @export
  * @interface ForgeCredentials
  */
 export interface ForgeCredentials {
@@ -948,22 +1144,52 @@ export interface ForgeEndpoint {
 export interface ForgeEntity {
     /**
      * 
-     * @type {number}
+     * @type {string}
      * @memberof ForgeEntity
      */
-    'agent_id'?: number;
+    'created_at'?: string;
+    /**
+     * 
+     * @type {ForgeCredentials}
+     * @memberof ForgeEntity
+     */
+    'credentials'?: ForgeCredentials;
     /**
      * 
      * @type {string}
      * @memberof ForgeEntity
      */
-    'os_name'?: string;
+    'entity_type'?: string;
     /**
      * 
      * @type {string}
      * @memberof ForgeEntity
      */
-    'os_version'?: string;
+    'id'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ForgeEntity
+     */
+    'name'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ForgeEntity
+     */
+    'owner'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ForgeEntity
+     */
+    'pool_balancing_type'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof ForgeEntity
+     */
+    'updated_at'?: string;
 }
 /**
  * 
@@ -2180,6 +2406,31 @@ export interface UpdateEntityParams {
      * @memberof UpdateEntityParams
      */
     'webhook_secret'?: string;
+}
+/**
+ * 
+ * @export
+ * @interface UpdateFileObjectParams
+ */
+export interface UpdateFileObjectParams {
+    /**
+     * 
+     * @type {string}
+     * @memberof UpdateFileObjectParams
+     */
+    'description'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof UpdateFileObjectParams
+     */
+    'name'?: string;
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof UpdateFileObjectParams
+     */
+    'tags'?: Array<string>;
 }
 /**
  * 
@@ -6914,6 +7165,359 @@ export class MetricsTokenApi extends BaseAPI {
      */
     public getMetricsToken(options?: RawAxiosRequestConfig) {
         return MetricsTokenApiFp(this.configuration).getMetricsToken(options).then((request) => request(this.axios, this.basePath));
+    }
+}
+
+
+
+/**
+ * ObjectsApi - axios parameter creator
+ * @export
+ */
+export const ObjectsApiAxiosParamCreator = function (configuration?: Configuration) {
+    return {
+        /**
+         * 
+         * @summary Delete a file object.
+         * @param {string} objectID The ID of the file object.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        deleteFileObject: async (objectID: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'objectID' is not null or undefined
+            assertParamExists('deleteFileObject', 'objectID', objectID)
+            const localVarPath = `/objects/{objectID}`
+                .replace(`{${"objectID"}}`, encodeURIComponent(String(objectID)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'DELETE', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary Get a file object.
+         * @param {string} objectID The ID of the file object.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getFileObject: async (objectID: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'objectID' is not null or undefined
+            assertParamExists('getFileObject', 'objectID', objectID)
+            const localVarPath = `/objects/{objectID}`
+                .replace(`{${"objectID"}}`, encodeURIComponent(String(objectID)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary List file objects.
+         * @param {string} [tags] List of tags to filter by.
+         * @param {number} [page] The page at which to list.
+         * @param {number} [pageSize] Number of items per page.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        listFileObjects: async (tags?: string, page?: number, pageSize?: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/objects`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+            if (tags !== undefined) {
+                localVarQueryParameter['tags'] = tags;
+            }
+
+            if (page !== undefined) {
+                localVarQueryParameter['page'] = page;
+            }
+
+            if (pageSize !== undefined) {
+                localVarQueryParameter['pageSize'] = pageSize;
+            }
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary Update a file object.
+         * @param {string} objectID The ID of the file object.
+         * @param {UpdateFileObjectParams} body Parameters used when updating a file object.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        updateFileObject: async (objectID: string, body: UpdateFileObjectParams, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'objectID' is not null or undefined
+            assertParamExists('updateFileObject', 'objectID', objectID)
+            // verify required parameter 'body' is not null or undefined
+            assertParamExists('updateFileObject', 'body', body)
+            const localVarPath = `/objects/{objectID}`
+                .replace(`{${"objectID"}}`, encodeURIComponent(String(objectID)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'PUT', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(body, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+    }
+};
+
+/**
+ * ObjectsApi - functional programming interface
+ * @export
+ */
+export const ObjectsApiFp = function(configuration?: Configuration) {
+    const localVarAxiosParamCreator = ObjectsApiAxiosParamCreator(configuration)
+    return {
+        /**
+         * 
+         * @summary Delete a file object.
+         * @param {string} objectID The ID of the file object.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async deleteFileObject(objectID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<APIErrorResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.deleteFileObject(objectID, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ObjectsApi.deleteFileObject']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary Get a file object.
+         * @param {string} objectID The ID of the file object.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getFileObject(objectID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<FileObject>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getFileObject(objectID, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ObjectsApi.getFileObject']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary List file objects.
+         * @param {string} [tags] List of tags to filter by.
+         * @param {number} [page] The page at which to list.
+         * @param {number} [pageSize] Number of items per page.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async listFileObjects(tags?: string, page?: number, pageSize?: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<FileObjectPaginatedResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.listFileObjects(tags, page, pageSize, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ObjectsApi.listFileObjects']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary Update a file object.
+         * @param {string} objectID The ID of the file object.
+         * @param {UpdateFileObjectParams} body Parameters used when updating a file object.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async updateFileObject(objectID: string, body: UpdateFileObjectParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<FileObject>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.updateFileObject(objectID, body, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ObjectsApi.updateFileObject']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+    }
+};
+
+/**
+ * ObjectsApi - factory interface
+ * @export
+ */
+export const ObjectsApiFactory = function (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) {
+    const localVarFp = ObjectsApiFp(configuration)
+    return {
+        /**
+         * 
+         * @summary Delete a file object.
+         * @param {string} objectID The ID of the file object.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        deleteFileObject(objectID: string, options?: RawAxiosRequestConfig): AxiosPromise<APIErrorResponse> {
+            return localVarFp.deleteFileObject(objectID, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Get a file object.
+         * @param {string} objectID The ID of the file object.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getFileObject(objectID: string, options?: RawAxiosRequestConfig): AxiosPromise<FileObject> {
+            return localVarFp.getFileObject(objectID, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary List file objects.
+         * @param {string} [tags] List of tags to filter by.
+         * @param {number} [page] The page at which to list.
+         * @param {number} [pageSize] Number of items per page.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        listFileObjects(tags?: string, page?: number, pageSize?: number, options?: RawAxiosRequestConfig): AxiosPromise<FileObjectPaginatedResponse> {
+            return localVarFp.listFileObjects(tags, page, pageSize, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Update a file object.
+         * @param {string} objectID The ID of the file object.
+         * @param {UpdateFileObjectParams} body Parameters used when updating a file object.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        updateFileObject(objectID: string, body: UpdateFileObjectParams, options?: RawAxiosRequestConfig): AxiosPromise<FileObject> {
+            return localVarFp.updateFileObject(objectID, body, options).then((request) => request(axios, basePath));
+        },
+    };
+};
+
+/**
+ * ObjectsApi - object-oriented interface
+ * @export
+ * @class ObjectsApi
+ * @extends {BaseAPI}
+ */
+export class ObjectsApi extends BaseAPI {
+    /**
+     * 
+     * @summary Delete a file object.
+     * @param {string} objectID The ID of the file object.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ObjectsApi
+     */
+    public deleteFileObject(objectID: string, options?: RawAxiosRequestConfig) {
+        return ObjectsApiFp(this.configuration).deleteFileObject(objectID, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Get a file object.
+     * @param {string} objectID The ID of the file object.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ObjectsApi
+     */
+    public getFileObject(objectID: string, options?: RawAxiosRequestConfig) {
+        return ObjectsApiFp(this.configuration).getFileObject(objectID, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary List file objects.
+     * @param {string} [tags] List of tags to filter by.
+     * @param {number} [page] The page at which to list.
+     * @param {number} [pageSize] Number of items per page.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ObjectsApi
+     */
+    public listFileObjects(tags?: string, page?: number, pageSize?: number, options?: RawAxiosRequestConfig) {
+        return ObjectsApiFp(this.configuration).listFileObjects(tags, page, pageSize, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Update a file object.
+     * @param {string} objectID The ID of the file object.
+     * @param {UpdateFileObjectParams} body Parameters used when updating a file object.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ObjectsApi
+     */
+    public updateFileObject(objectID: string, body: UpdateFileObjectParams, options?: RawAxiosRequestConfig) {
+        return ObjectsApiFp(this.configuration).updateFileObject(objectID, body, options).then((request) => request(this.axios, this.basePath));
     }
 }
 

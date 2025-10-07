@@ -79,13 +79,13 @@ func (s *InstancesTestSuite) SetupTest() {
 	ctx := context.Background()
 	watcher.InitWatcher(ctx)
 	// create testing sqlite database
-	db, err := NewSQLDatabase(context.Background(), garmTesting.GetTestSqliteDBConfig(s.T()))
+	db, err := NewSQLDatabase(ctx, garmTesting.GetTestSqliteDBConfig(s.T()))
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to create db connection: %s", err))
 	}
 	s.Store = db
 
-	adminCtx := garmTesting.ImpersonateAdminContext(context.Background(), db, s.T())
+	adminCtx := garmTesting.ImpersonateAdminContext(ctx, db, s.T())
 	s.adminCtx = adminCtx
 
 	githubEndpoint := garmTesting.CreateDefaultGithubEndpoint(adminCtx, db, s.T())

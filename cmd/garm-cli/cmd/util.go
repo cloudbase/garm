@@ -2,7 +2,10 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"math"
+	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -146,4 +149,28 @@ func resolveEnterprise(nameOrID, endpoint string) (string, error) {
 	}
 
 	return response.Payload[0].ID, nil
+}
+
+type rawClient struct {
+	BaseURL    string
+	Token      string
+	HTTPClient *http.Client
+}
+
+// NewRequest creates a new HTTP request with auth and proper URL
+func (c *rawClient) NewRequest(method, path string, body io.Reader) (*http.Request, error) {
+	url, err := url.JoinPath(c.BaseURL, path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to join URL: %w", err)
+	}
+
+	req, err := http.NewRequest(method, url, body)
+	if err != nil {
+		return nil, err
+	}
+
+	// Add JWT token
+	req.Header.Set("Authorization", "Bearer "+c.Token)
+
+	return req, nil
 }

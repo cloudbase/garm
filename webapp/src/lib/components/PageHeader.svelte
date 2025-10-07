@@ -25,7 +25,11 @@
 			{description}
 		</p>
 	</div>
-	{#if showAction && actionLabel}
+	{#if $$slots.actions}
+		<div class="mt-4 sm:mt-0 flex items-center space-x-4">
+			<slot name="actions" />
+		</div>
+	{:else if showAction && actionLabel}
 		<div class="mt-4 sm:mt-0 flex items-center space-x-4">
 			<Button
 				variant="primary"
