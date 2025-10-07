@@ -1,20 +1,21 @@
 import { writable, get } from 'svelte/store';
 
 // Event types that match the websocket API
-export type EntityType = 
-	| 'repository' 
-	| 'organization' 
-	| 'enterprise' 
-	| 'pool' 
-	| 'user' 
-	| 'instance' 
-	| 'job' 
-	| 'controller' 
-	| 'github_credentials' 
-	| 'gitea_credentials' 
-	| 'github_endpoint' 
+export type EntityType =
+	| 'repository'
+	| 'organization'
+	| 'enterprise'
+	| 'pool'
+	| 'user'
+	| 'instance'
+	| 'job'
+	| 'controller'
+	| 'github_credentials'
+	| 'gitea_credentials'
+	| 'github_endpoint'
 	| 'scaleset'
-	| 'template';
+	| 'template'
+	| 'file_object';
 
 export type Operation = 'create' | 'update' | 'delete';
 

@@ -4,6 +4,7 @@
 	import ErrorState from './ErrorState.svelte';
 	import EmptyState from './EmptyState.svelte';
 	import SearchFilterBar from './SearchFilterBar.svelte';
+	import BackendSearchBar from './BackendSearchBar.svelte';
 	import TablePagination from './TablePagination.svelte';
 	import MobileCard from './MobileCard.svelte';
 	
@@ -32,6 +33,8 @@
 	export let searchTerm: string = '';
 	export let searchPlaceholder: string = 'Search...';
 	export let showSearch: boolean = true;
+	export let searchType: 'client' | 'backend' = 'client'; // Type of search
+	export let searchHelpText: string = ''; // Help text for backend search
 	export let currentPage: number = 1;
 	export let perPage: number = 25;
 	export let totalPages: number = 1;
@@ -63,9 +66,11 @@
 		clone: { item: any };
 		action: { type: string; item: any };
 	}>();
-	
-	function handleSearch(event: CustomEvent<{ term: string }>) {
-		dispatch('search', event.detail);
+
+	function handleSearch(event: CustomEvent<{ term: string }> | CustomEvent<string>) {
+		// Backend search sends string directly, client search sends object
+		const term = typeof (event as any).detail === 'string' ? (event as any).detail : (event as any).detail.term;
+		dispatch('search', { term });
 	}
 	
 	function handlePageChange(event: CustomEvent<{ page: number }>) {
@@ -138,14 +143,24 @@
 
 <div class="space-y-6">
 	{#if showSearch}
-		<SearchFilterBar
-			bind:searchTerm
-			bind:perPage
-			placeholder={searchPlaceholder}
-			{showPerPageSelector}
-			on:search={handleSearch}
-			on:perPageChange={handlePerPageChange}
-		/>
+		{#if searchType === 'backend'}
+			<BackendSearchBar
+				bind:value={searchTerm}
+				placeholder={searchPlaceholder}
+				helpText={searchHelpText}
+				showButton={false}
+				on:search={handleSearch}
+			/>
+		{:else}
+			<SearchFilterBar
+				bind:searchTerm
+				bind:perPage
+				placeholder={searchPlaceholder}
+				{showPerPageSelector}
+				on:search={handleSearch}
+				on:perPageChange={handlePerPageChange}
+			/>
+		{/if}
 	{/if}
 	
 	<div class="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">

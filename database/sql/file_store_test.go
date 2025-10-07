@@ -67,7 +67,12 @@ func (s *FileStoreTestSuite) SetupTest() {
 
 	// File 1: Small text file with tags
 	content1 := []byte("Hello, World! This is test file 1.")
-	fileObj1, err := s.Store.CreateFileObject(s.ctx, "test-file-1.txt", int64(len(content1)), []string{"test", "text"}, bytes.NewReader(content1))
+	param := params.CreateFileObjectParams{
+		Name: "test-file-1.txt",
+		Size: int64(len(content1)),
+		Tags: []string{"test", "text"},
+	}
+	fileObj1, err := s.Store.CreateFileObject(s.ctx, param, bytes.NewReader(content1))
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to create test file 1: %s", err))
 	}
@@ -75,7 +80,12 @@ func (s *FileStoreTestSuite) SetupTest() {
 
 	// File 2: Binary-like content with different tags
 	content2 := []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00} // PNG header-like
-	fileObj2, err := s.Store.CreateFileObject(s.ctx, "test-image.png", int64(len(content2)), []string{"image", "binary"}, bytes.NewReader(content2))
+	param = params.CreateFileObjectParams{
+		Name: "test-image.png",
+		Size: int64(len(content2)),
+		Tags: []string{"image", "binary"},
+	}
+	fileObj2, err := s.Store.CreateFileObject(s.ctx, param, bytes.NewReader(content2))
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to create test file 2: %s", err))
 	}
@@ -83,7 +93,12 @@ func (s *FileStoreTestSuite) SetupTest() {
 
 	// File 3: No tags
 	content3 := []byte("File without tags.")
-	fileObj3, err := s.Store.CreateFileObject(s.ctx, "no-tags.txt", int64(len(content3)), []string{}, bytes.NewReader(content3))
+	param = params.CreateFileObjectParams{
+		Name: "no-tags.txt",
+		Size: int64(len(content3)),
+		Tags: []string{},
+	}
+	fileObj3, err := s.Store.CreateFileObject(s.ctx, param, bytes.NewReader(content3))
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to create test file 3: %s", err))
 	}
@@ -98,7 +113,12 @@ func (s *FileStoreTestSuite) TestCreateFileObject() {
 	content := []byte("New test file content")
 	tags := []string{"new", "test"}
 
-	fileObj, err := s.Store.CreateFileObject(s.ctx, "new-file.txt", int64(len(content)), tags, bytes.NewReader(content))
+	param := params.CreateFileObjectParams{
+		Name: "new-file.txt",
+		Size: int64(len(content)),
+		Tags: tags,
+	}
+	fileObj, err := s.Store.CreateFileObject(s.ctx, param, bytes.NewReader(content))
 	s.Require().Nil(err)
 	s.Require().NotZero(fileObj.ID)
 	s.Require().Equal("new-file.txt", fileObj.Name)
@@ -115,7 +135,12 @@ func (s *FileStoreTestSuite) TestCreateFileObject() {
 
 func (s *FileStoreTestSuite) TestCreateFileObjectEmpty() {
 	content := []byte{}
-	fileObj, err := s.Store.CreateFileObject(s.ctx, "empty-file.txt", 0, []string{}, bytes.NewReader(content))
+	param := params.CreateFileObjectParams{
+		Name: "empty-file.txt",
+		Size: 0,
+		Tags: []string{},
+	}
+	fileObj, err := s.Store.CreateFileObject(s.ctx, param, bytes.NewReader(content))
 	s.Require().Nil(err)
 	s.Require().NotZero(fileObj.ID)
 	s.Require().Equal("empty-file.txt", fileObj.Name)
@@ -141,7 +166,12 @@ func (s *FileStoreTestSuite) TestGetFileObjectNotFound() {
 func (s *FileStoreTestSuite) TestOpenFileObjectContent() {
 	// Create a file with known content
 	content := []byte("Test content for reading")
-	fileObj, err := s.Store.CreateFileObject(s.ctx, "read-test.txt", int64(len(content)), []string{"read"}, bytes.NewReader(content))
+	param := params.CreateFileObjectParams{
+		Name: "read-test.txt",
+		Size: int64(len(content)),
+		Tags: []string{"read"},
+	}
+	fileObj, err := s.Store.CreateFileObject(s.ctx, param, bytes.NewReader(content))
 	s.Require().Nil(err)
 
 	// Open and read the content
@@ -182,7 +212,12 @@ func (s *FileStoreTestSuite) TestListFileObjectsPagination() {
 	// Create more files to test pagination
 	for i := 0; i < 5; i++ {
 		content := []byte(fmt.Sprintf("File %d", i))
-		_, err := s.Store.CreateFileObject(s.ctx, fmt.Sprintf("page-test-%d.txt", i), int64(len(content)), []string{"pagination"}, bytes.NewReader(content))
+		param := params.CreateFileObjectParams{
+			Name: fmt.Sprintf("page-test-%d.txt", i),
+			Size: int64(len(content)),
+			Tags: []string{"pagination"},
+		}
+		_, err := s.Store.CreateFileObject(s.ctx, param, bytes.NewReader(content))
 		s.Require().Nil(err)
 	}
 
@@ -313,7 +348,12 @@ func (s *FileStoreTestSuite) TestUpdateFileObjectEmptyName() {
 func (s *FileStoreTestSuite) TestDeleteFileObject() {
 	// Create a file to delete
 	content := []byte("To be deleted")
-	fileObj, err := s.Store.CreateFileObject(s.ctx, "delete-me.txt", int64(len(content)), []string{"delete"}, bytes.NewReader(content))
+	param := params.CreateFileObjectParams{
+		Name: "delete-me.txt",
+		Size: int64(len(content)),
+		Tags: []string{"delete"},
+	}
+	fileObj, err := s.Store.CreateFileObject(s.ctx, param, bytes.NewReader(content))
 	s.Require().Nil(err)
 
 	// Delete the file
@@ -339,8 +379,12 @@ func (s *FileStoreTestSuite) TestCreateFileObjectLargeContent() {
 	for i := range content {
 		content[i] = byte(i % 256)
 	}
-
-	fileObj, err := s.Store.CreateFileObject(s.ctx, "large-file.bin", int64(size), []string{"large", "binary"}, bytes.NewReader(content))
+	param := params.CreateFileObjectParams{
+		Name: "large-file.bin",
+		Size: int64(size),
+		Tags: []string{"large", "binary"},
+	}
+	fileObj, err := s.Store.CreateFileObject(s.ctx, param, bytes.NewReader(content))
 	s.Require().Nil(err)
 	s.Require().Equal(int64(size), fileObj.Size)
 
@@ -357,7 +401,12 @@ func (s *FileStoreTestSuite) TestCreateFileObjectLargeContent() {
 func (s *FileStoreTestSuite) TestFileObjectImmutableFields() {
 	// Create a file
 	content := []byte("Immutable test content")
-	fileObj, err := s.Store.CreateFileObject(s.ctx, "immutable-test.txt", int64(len(content)), []string{"original"}, bytes.NewReader(content))
+	param := params.CreateFileObjectParams{
+		Name: "immutable-test.txt",
+		Size: int64(len(content)),
+		Tags: []string{"original"},
+	}
+	fileObj, err := s.Store.CreateFileObject(s.ctx, param, bytes.NewReader(content))
 	s.Require().Nil(err)
 
 	originalSize := fileObj.Size
@@ -390,19 +439,39 @@ func (s *FileStoreTestSuite) TestFileObjectImmutableFields() {
 func (s *FileStoreTestSuite) TestSearchFileObjectByTags() {
 	// Create files with specific tags for searching
 	content1 := []byte("File with tag1 and tag2")
-	file1, err := s.Store.CreateFileObject(s.ctx, "search-file-1.txt", int64(len(content1)), []string{"tag1", "tag2"}, bytes.NewReader(content1))
+	param := params.CreateFileObjectParams{
+		Name: "search-file-1.txt",
+		Size: int64(len(content1)),
+		Tags: []string{"tag1", "tag2"},
+	}
+	file1, err := s.Store.CreateFileObject(s.ctx, param, bytes.NewReader(content1))
 	s.Require().Nil(err)
 
 	content2 := []byte("File with tag1, tag2, and tag3")
-	file2, err := s.Store.CreateFileObject(s.ctx, "search-file-2.txt", int64(len(content2)), []string{"tag1", "tag2", "tag3"}, bytes.NewReader(content2))
+	param = params.CreateFileObjectParams{
+		Name: "search-file-2.txt",
+		Size: int64(len(content2)),
+		Tags: []string{"tag1", "tag2", "tag3"},
+	}
+	file2, err := s.Store.CreateFileObject(s.ctx, param, bytes.NewReader(content2))
 	s.Require().Nil(err)
 
 	content3 := []byte("File with only tag1")
-	file3, err := s.Store.CreateFileObject(s.ctx, "search-file-3.txt", int64(len(content3)), []string{"tag1"}, bytes.NewReader(content3))
+	param = params.CreateFileObjectParams{
+		Name: "search-file-3.txt",
+		Size: int64(len(content3)),
+		Tags: []string{"tag1"},
+	}
+	file3, err := s.Store.CreateFileObject(s.ctx, param, bytes.NewReader(content3))
 	s.Require().Nil(err)
 
 	content4 := []byte("File with tag3 only")
-	_, err = s.Store.CreateFileObject(s.ctx, "search-file-4.txt", int64(len(content4)), []string{"tag3"}, bytes.NewReader(content4))
+	param = params.CreateFileObjectParams{
+		Name: "search-file-4.txt",
+		Size: int64(len(content4)),
+		Tags: []string{"tag3"},
+	}
+	_, err = s.Store.CreateFileObject(s.ctx, param, bytes.NewReader(content4))
 	s.Require().Nil(err)
 
 	// Search for files with tag1 - should return 3 files
@@ -423,15 +492,30 @@ func (s *FileStoreTestSuite) TestSearchFileObjectByTags() {
 func (s *FileStoreTestSuite) TestSearchFileObjectByTagsMultipleTags() {
 	// Create files with various tag combinations
 	content1 := []byte("File with search1 and search2")
-	file1, err := s.Store.CreateFileObject(s.ctx, "multi-search-1.txt", int64(len(content1)), []string{"search1", "search2"}, bytes.NewReader(content1))
+	param := params.CreateFileObjectParams{
+		Name: "multi-search-1.txt",
+		Size: int64(len(content1)),
+		Tags: []string{"search1", "search2"},
+	}
+	file1, err := s.Store.CreateFileObject(s.ctx, param, bytes.NewReader(content1))
 	s.Require().Nil(err)
 
 	content2 := []byte("File with search1, search2, and search3")
-	file2, err := s.Store.CreateFileObject(s.ctx, "multi-search-2.txt", int64(len(content2)), []string{"search1", "search2", "search3"}, bytes.NewReader(content2))
+	param = params.CreateFileObjectParams{
+		Name: "multi-search-2.txt",
+		Size: int64(len(content2)),
+		Tags: []string{"search1", "search2", "search3"},
+	}
+	file2, err := s.Store.CreateFileObject(s.ctx, param, bytes.NewReader(content2))
 	s.Require().Nil(err)
 
 	content3 := []byte("File with only search1")
-	_, err = s.Store.CreateFileObject(s.ctx, "multi-search-3.txt", int64(len(content3)), []string{"search1"}, bytes.NewReader(content3))
+	param = params.CreateFileObjectParams{
+		Name: "multi-search-3.txt",
+		Size: int64(len(content3)),
+		Tags: []string{"search1"},
+	}
+	_, err = s.Store.CreateFileObject(s.ctx, param, bytes.NewReader(content3))
 	s.Require().Nil(err)
 
 	// Search for files with both search1 AND search2 - should return only 2 files
@@ -469,7 +553,12 @@ func (s *FileStoreTestSuite) TestSearchFileObjectByTagsPagination() {
 	// Create multiple files with the same tag
 	for i := 0; i < 5; i++ {
 		content := []byte(fmt.Sprintf("Pagination test file %d", i))
-		_, err := s.Store.CreateFileObject(s.ctx, fmt.Sprintf("page-search-%d.txt", i), int64(len(content)), []string{"pagination-test"}, bytes.NewReader(content))
+		param := params.CreateFileObjectParams{
+			Name: fmt.Sprintf("page-search-%d.txt", i),
+			Size: int64(len(content)),
+			Tags: []string{"pagination-test"},
+		}
+		_, err := s.Store.CreateFileObject(s.ctx, param, bytes.NewReader(content))
 		s.Require().Nil(err)
 	}
 
@@ -497,7 +586,12 @@ func (s *FileStoreTestSuite) TestSearchFileObjectByTagsPagination() {
 func (s *FileStoreTestSuite) TestSearchFileObjectByTagsDefaultPagination() {
 	// Create a file with a unique tag
 	content := []byte("Default pagination test")
-	_, err := s.Store.CreateFileObject(s.ctx, "default-page-search.txt", int64(len(content)), []string{"default-pagination"}, bytes.NewReader(content))
+	param := params.CreateFileObjectParams{
+		Name: "default-page-search.txt",
+		Size: int64(len(content)),
+		Tags: []string{"default-pagination"},
+	}
+	_, err := s.Store.CreateFileObject(s.ctx, param, bytes.NewReader(content))
 	s.Require().Nil(err)
 
 	// Test default values (page 0 should become 1, pageSize 0 should become 20)
@@ -511,19 +605,39 @@ func (s *FileStoreTestSuite) TestSearchFileObjectByTagsDefaultPagination() {
 func (s *FileStoreTestSuite) TestSearchFileObjectByTagsAllTagsRequired() {
 	// Test that search requires ALL specified tags (AND logic, not OR)
 	content1 := []byte("Has A and B")
-	file1, err := s.Store.CreateFileObject(s.ctx, "and-test-1.txt", int64(len(content1)), []string{"tagA", "tagB"}, bytes.NewReader(content1))
+	param := params.CreateFileObjectParams{
+		Name: "and-test-1.txt",
+		Size: int64(len(content1)),
+		Tags: []string{"tagA", "tagB"},
+	}
+	file1, err := s.Store.CreateFileObject(s.ctx, param, bytes.NewReader(content1))
 	s.Require().Nil(err)
 
 	content2 := []byte("Has A, B, and C")
-	file2, err := s.Store.CreateFileObject(s.ctx, "and-test-2.txt", int64(len(content2)), []string{"tagA", "tagB", "tagC"}, bytes.NewReader(content2))
+	param = params.CreateFileObjectParams{
+		Name: "and-test-2.txt",
+		Size: int64(len(content2)),
+		Tags: []string{"tagA", "tagB", "tagC"},
+	}
+	file2, err := s.Store.CreateFileObject(s.ctx, param, bytes.NewReader(content2))
 	s.Require().Nil(err)
 
 	content3 := []byte("Has only A")
-	_, err = s.Store.CreateFileObject(s.ctx, "and-test-3.txt", int64(len(content3)), []string{"tagA"}, bytes.NewReader(content3))
+	param = params.CreateFileObjectParams{
+		Name: "and-test-3.txt",
+		Size: int64(len(content3)),
+		Tags: []string{"tagA"},
+	}
+	_, err = s.Store.CreateFileObject(s.ctx, param, bytes.NewReader(content3))
 	s.Require().Nil(err)
 
 	content4 := []byte("Has only B")
-	_, err = s.Store.CreateFileObject(s.ctx, "and-test-4.txt", int64(len(content4)), []string{"tagB"}, bytes.NewReader(content4))
+	param = params.CreateFileObjectParams{
+		Name: "and-test-4.txt",
+		Size: int64(len(content4)),
+		Tags: []string{"tagB"},
+	}
+	_, err = s.Store.CreateFileObject(s.ctx, param, bytes.NewReader(content4))
 	s.Require().Nil(err)
 
 	// Search for files with BOTH tagA AND tagB
@@ -546,15 +660,30 @@ func (s *FileStoreTestSuite) TestSearchFileObjectByTagsAllTagsRequired() {
 func (s *FileStoreTestSuite) TestSearchFileObjectByTagsCaseInsensitive() {
 	// Test case insensitivity of tag search (COLLATE NOCASE)
 	content1 := []byte("File with lowercase tag")
-	file1, err := s.Store.CreateFileObject(s.ctx, "case-test-1.txt", int64(len(content1)), []string{"TestTag"}, bytes.NewReader(content1))
+	param := params.CreateFileObjectParams{
+		Name: "case-test-1.txt",
+		Size: int64(len(content1)),
+		Tags: []string{"TestTag"},
+	}
+	file1, err := s.Store.CreateFileObject(s.ctx, param, bytes.NewReader(content1))
 	s.Require().Nil(err)
 
 	content2 := []byte("File with UPPERCASE tag")
-	file2, err := s.Store.CreateFileObject(s.ctx, "case-test-2.txt", int64(len(content2)), []string{"TESTTAG"}, bytes.NewReader(content2))
+	param = params.CreateFileObjectParams{
+		Name: "case-test-2.txt",
+		Size: int64(len(content2)),
+		Tags: []string{"TESTTAG"},
+	}
+	file2, err := s.Store.CreateFileObject(s.ctx, param, bytes.NewReader(content2))
 	s.Require().Nil(err)
 
 	content3 := []byte("File with MixedCase tag")
-	file3, err := s.Store.CreateFileObject(s.ctx, "case-test-3.txt", int64(len(content3)), []string{"testTAG"}, bytes.NewReader(content3))
+	param = params.CreateFileObjectParams{
+		Name: "case-test-3.txt",
+		Size: int64(len(content3)),
+		Tags: []string{"testTAG"},
+	}
+	file3, err := s.Store.CreateFileObject(s.ctx, param, bytes.NewReader(content3))
 	s.Require().Nil(err)
 
 	// Search for lowercase - should return all files (case insensitive)
@@ -586,15 +715,30 @@ func (s *FileStoreTestSuite) TestSearchFileObjectByTagsOrderByCreatedAt() {
 	tag := "order-test"
 
 	content1 := []byte("First file")
-	file1, err := s.Store.CreateFileObject(s.ctx, "order-1.txt", int64(len(content1)), []string{tag}, bytes.NewReader(content1))
+	param := params.CreateFileObjectParams{
+		Name: "order-1.txt",
+		Size: int64(len(content1)),
+		Tags: []string{tag},
+	}
+	file1, err := s.Store.CreateFileObject(s.ctx, param, bytes.NewReader(content1))
 	s.Require().Nil(err)
 
 	content2 := []byte("Second file")
-	file2, err := s.Store.CreateFileObject(s.ctx, "order-2.txt", int64(len(content2)), []string{tag}, bytes.NewReader(content2))
+	param = params.CreateFileObjectParams{
+		Name: "order-2.txt",
+		Size: int64(len(content2)),
+		Tags: []string{tag},
+	}
+	file2, err := s.Store.CreateFileObject(s.ctx, param, bytes.NewReader(content2))
 	s.Require().Nil(err)
 
 	content3 := []byte("Third file")
-	file3, err := s.Store.CreateFileObject(s.ctx, "order-3.txt", int64(len(content3)), []string{tag}, bytes.NewReader(content3))
+	param = params.CreateFileObjectParams{
+		Name: "order-3.txt",
+		Size: int64(len(content3)),
+		Tags: []string{tag},
+	}
+	file3, err := s.Store.CreateFileObject(s.ctx, param, bytes.NewReader(content3))
 	s.Require().Nil(err)
 
 	// Search and verify order (should be DESC by created_at, so newest first)
@@ -629,7 +773,12 @@ func (s *FileStoreTestSuite) TestPaginationFieldsLastPage() {
 	// Create exactly 5 files
 	for i := 0; i < 5; i++ {
 		content := []byte(fmt.Sprintf("Last page test %d", i))
-		_, err := s.Store.CreateFileObject(s.ctx, fmt.Sprintf("last-page-test-%d.txt", i), int64(len(content)), []string{"last-page"}, bytes.NewReader(content))
+		param := params.CreateFileObjectParams{
+			Name: fmt.Sprintf("last-page-test-%d.txt", i),
+			Size: int64(len(content)),
+			Tags: []string{"last-page"},
+		}
+		_, err := s.Store.CreateFileObject(s.ctx, param, bytes.NewReader(content))
 		s.Require().Nil(err)
 	}
 
@@ -649,7 +798,12 @@ func (s *FileStoreTestSuite) TestPaginationFieldsLastPage() {
 func (s *FileStoreTestSuite) TestPaginationFieldsSinglePage() {
 	// Test when all results fit in a single page
 	content := []byte("Single page test")
-	_, err := s.Store.CreateFileObject(s.ctx, "single-page-test.txt", int64(len(content)), []string{"single-page-unique-tag"}, bytes.NewReader(content))
+	param := params.CreateFileObjectParams{
+		Name: "single-page-test.txt",
+		Size: int64(len(content)),
+		Tags: []string{"single-page-unique-tag"},
+	}
+	_, err := s.Store.CreateFileObject(s.ctx, param, bytes.NewReader(content))
 	s.Require().Nil(err)
 
 	result, err := s.Store.SearchFileObjectByTags(s.ctx, []string{"single-page-unique-tag"}, 1, 20)

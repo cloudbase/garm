@@ -51,18 +51,18 @@ type GithubTestSuite struct {
 	db common.Store
 }
 
+func (s *GithubTestSuite) TearDownTest() {
+	watcher.CloseWatcher()
+}
+
 func (s *GithubTestSuite) SetupTest() {
 	ctx := context.Background()
 	watcher.InitWatcher(ctx)
-	db, err := NewSQLDatabase(context.Background(), garmTesting.GetTestSqliteDBConfig(s.T()))
+	db, err := NewSQLDatabase(ctx, garmTesting.GetTestSqliteDBConfig(s.T()))
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to create db connection: %s", err))
 	}
 	s.db = db
-}
-
-func (s *GithubTestSuite) TearDownTest() {
-	watcher.CloseWatcher()
 }
 
 func (s *GithubTestSuite) TestDefaultEndpointGetsCreatedAutomaticallyIfNoOtherEndpointExists() {
@@ -953,9 +953,11 @@ func TestCredentialsAndEndpointMigration(t *testing.T) {
 	// Set the config credentials in the cfg. This is what happens in the main function.
 	// of GARM as well.
 	cfg.MigrateCredentials = credentials
+
 	ctx := context.Background()
 	watcher.InitWatcher(ctx)
 	defer watcher.CloseWatcher()
+
 	db, err := NewSQLDatabase(ctx, cfg)
 	if err != nil {
 		t.Fatalf("failed to create db connection: %s", err)

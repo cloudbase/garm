@@ -88,13 +88,13 @@ func (s *OrgTestSuite) SetupTest() {
 	watcher.InitWatcher(ctx)
 	// create testing sqlite database
 	dbConfig := garmTesting.GetTestSqliteDBConfig(s.T())
-	db, err := NewSQLDatabase(context.Background(), dbConfig)
+	db, err := NewSQLDatabase(ctx, dbConfig)
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to create db connection: %s", err))
 	}
 	s.Store = db
 
-	adminCtx := garmTesting.ImpersonateAdminContext(context.Background(), db, s.T())
+	adminCtx := garmTesting.ImpersonateAdminContext(ctx, db, s.T())
 	s.adminCtx = adminCtx
 	s.adminUserID = auth.UserID(adminCtx)
 	s.Require().NotEmpty(s.adminUserID)

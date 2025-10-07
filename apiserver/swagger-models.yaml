@@ -364,6 +364,34 @@ definitions:
         import:
             package: github.com/cloudbase/garm/params
             alias: garm_params
+  FileObjectPaginatedResponse:
+    type: object
+    x-go-type:
+        type: FileObjectPaginatedResponse
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+  FileObject:
+    type: object
+    x-go-type:
+        type: FileObject
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+  UpdateFileObjectParams:
+    type: object
+    x-go-type:
+        type: UpdateFileObjectParams
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+  CreateFileObjectParams:
+    type: object
+    x-go-type:
+        type: CreateFileObjectParams
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
   Templates:
     type: array
     x-go-type:

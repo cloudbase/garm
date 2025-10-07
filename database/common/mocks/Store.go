@@ -4,8 +4,10 @@ package mocks
 
 import (
 	context "context"
+	io "io"
 
 	garm_provider_commonparams "github.com/cloudbase/garm-provider-common/params"
+
 	mock "github.com/stretchr/testify/mock"
 
 	params "github.com/cloudbase/garm/params"
@@ -399,6 +401,64 @@ func (_c *Store_CreateEntityScaleSet_Call) Return(scaleSet params.ScaleSet, err 
 }
 
 func (_c *Store_CreateEntityScaleSet_Call) RunAndReturn(run func(context.Context, params.ForgeEntity, params.CreateScaleSetParams) (params.ScaleSet, error)) *Store_CreateEntityScaleSet_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CreateFileObject provides a mock function with given fields: ctx, param, reader
+func (_m *Store) CreateFileObject(ctx context.Context, param params.CreateFileObjectParams, reader io.Reader) (params.FileObject, error) {
+	ret := _m.Called(ctx, param, reader)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateFileObject")
+	}
+
+	var r0 params.FileObject
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, params.CreateFileObjectParams, io.Reader) (params.FileObject, error)); ok {
+		return rf(ctx, param, reader)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, params.CreateFileObjectParams, io.Reader) params.FileObject); ok {
+		r0 = rf(ctx, param, reader)
+	} else {
+		r0 = ret.Get(0).(params.FileObject)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, params.CreateFileObjectParams, io.Reader) error); ok {
+		r1 = rf(ctx, param, reader)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// Store_CreateFileObject_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateFileObject'
+type Store_CreateFileObject_Call struct {
+	*mock.Call
+}
+
+// CreateFileObject is a helper method to define mock.On call
+//   - ctx context.Context
+//   - param params.CreateFileObjectParams
+//   - reader io.Reader
+func (_e *Store_Expecter) CreateFileObject(ctx interface{}, param interface{}, reader interface{}) *Store_CreateFileObject_Call {
+	return &Store_CreateFileObject_Call{Call: _e.mock.On("CreateFileObject", ctx, param, reader)}
+}
+
+func (_c *Store_CreateFileObject_Call) Run(run func(ctx context.Context, param params.CreateFileObjectParams, reader io.Reader)) *Store_CreateFileObject_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(params.CreateFileObjectParams), args[2].(io.Reader))
+	})
+	return _c
+}
+
+func (_c *Store_CreateFileObject_Call) Return(fileObjParam params.FileObject, err error) *Store_CreateFileObject_Call {
+	_c.Call.Return(fileObjParam, err)
+	return _c
+}
+
+func (_c *Store_CreateFileObject_Call) RunAndReturn(run func(context.Context, params.CreateFileObjectParams, io.Reader) (params.FileObject, error)) *Store_CreateFileObject_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1176,6 +1236,53 @@ func (_c *Store_DeleteEntityPool_Call) Return(_a0 error) *Store_DeleteEntityPool
 }
 
 func (_c *Store_DeleteEntityPool_Call) RunAndReturn(run func(context.Context, params.ForgeEntity, string) error) *Store_DeleteEntityPool_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteFileObject provides a mock function with given fields: ctx, objID
+func (_m *Store) DeleteFileObject(ctx context.Context, objID uint) error {
+	ret := _m.Called(ctx, objID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteFileObject")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint) error); ok {
+		r0 = rf(ctx, objID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// Store_DeleteFileObject_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteFileObject'
+type Store_DeleteFileObject_Call struct {
+	*mock.Call
+}
+
+// DeleteFileObject is a helper method to define mock.On call
+//   - ctx context.Context
+//   - objID uint
+func (_e *Store_Expecter) DeleteFileObject(ctx interface{}, objID interface{}) *Store_DeleteFileObject_Call {
+	return &Store_DeleteFileObject_Call{Call: _e.mock.On("DeleteFileObject", ctx, objID)}
+}
+
+func (_c *Store_DeleteFileObject_Call) Run(run func(ctx context.Context, objID uint)) *Store_DeleteFileObject_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uint))
+	})
+	return _c
+}
+
+func (_c *Store_DeleteFileObject_Call) Return(_a0 error) *Store_DeleteFileObject_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *Store_DeleteFileObject_Call) RunAndReturn(run func(context.Context, uint) error) *Store_DeleteFileObject_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2031,6 +2138,63 @@ func (_c *Store_GetEntityPool_Call) Return(_a0 params.Pool, _a1 error) *Store_Ge
 }
 
 func (_c *Store_GetEntityPool_Call) RunAndReturn(run func(context.Context, params.ForgeEntity, string) (params.Pool, error)) *Store_GetEntityPool_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetFileObject provides a mock function with given fields: ctx, objID
+func (_m *Store) GetFileObject(ctx context.Context, objID uint) (params.FileObject, error) {
+	ret := _m.Called(ctx, objID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetFileObject")
+	}
+
+	var r0 params.FileObject
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint) (params.FileObject, error)); ok {
+		return rf(ctx, objID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uint) params.FileObject); ok {
+		r0 = rf(ctx, objID)
+	} else {
+		r0 = ret.Get(0).(params.FileObject)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uint) error); ok {
+		r1 = rf(ctx, objID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// Store_GetFileObject_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetFileObject'
+type Store_GetFileObject_Call struct {
+	*mock.Call
+}
+
+// GetFileObject is a helper method to define mock.On call
+//   - ctx context.Context
+//   - objID uint
+func (_e *Store_Expecter) GetFileObject(ctx interface{}, objID interface{}) *Store_GetFileObject_Call {
+	return &Store_GetFileObject_Call{Call: _e.mock.On("GetFileObject", ctx, objID)}
+}
+
+func (_c *Store_GetFileObject_Call) Run(run func(ctx context.Context, objID uint)) *Store_GetFileObject_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uint))
+	})
+	return _c
+}
+
+func (_c *Store_GetFileObject_Call) Return(_a0 params.FileObject, _a1 error) *Store_GetFileObject_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *Store_GetFileObject_Call) RunAndReturn(run func(context.Context, uint) (params.FileObject, error)) *Store_GetFileObject_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -3756,6 +3920,64 @@ func (_c *Store_ListEntityScaleSets_Call) RunAndReturn(run func(context.Context,
 	return _c
 }
 
+// ListFileObjects provides a mock function with given fields: ctx, page, pageSize
+func (_m *Store) ListFileObjects(ctx context.Context, page uint64, pageSize uint64) (params.FileObjectPaginatedResponse, error) {
+	ret := _m.Called(ctx, page, pageSize)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListFileObjects")
+	}
+
+	var r0 params.FileObjectPaginatedResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, uint64) (params.FileObjectPaginatedResponse, error)); ok {
+		return rf(ctx, page, pageSize)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, uint64) params.FileObjectPaginatedResponse); ok {
+		r0 = rf(ctx, page, pageSize)
+	} else {
+		r0 = ret.Get(0).(params.FileObjectPaginatedResponse)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, uint64) error); ok {
+		r1 = rf(ctx, page, pageSize)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// Store_ListFileObjects_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListFileObjects'
+type Store_ListFileObjects_Call struct {
+	*mock.Call
+}
+
+// ListFileObjects is a helper method to define mock.On call
+//   - ctx context.Context
+//   - page uint64
+//   - pageSize uint64
+func (_e *Store_Expecter) ListFileObjects(ctx interface{}, page interface{}, pageSize interface{}) *Store_ListFileObjects_Call {
+	return &Store_ListFileObjects_Call{Call: _e.mock.On("ListFileObjects", ctx, page, pageSize)}
+}
+
+func (_c *Store_ListFileObjects_Call) Run(run func(ctx context.Context, page uint64, pageSize uint64)) *Store_ListFileObjects_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uint64), args[2].(uint64))
+	})
+	return _c
+}
+
+func (_c *Store_ListFileObjects_Call) Return(_a0 params.FileObjectPaginatedResponse, _a1 error) *Store_ListFileObjects_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *Store_ListFileObjects_Call) RunAndReturn(run func(context.Context, uint64, uint64) (params.FileObjectPaginatedResponse, error)) *Store_ListFileObjects_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListGiteaCredentials provides a mock function with given fields: ctx
 func (_m *Store) ListGiteaCredentials(ctx context.Context) ([]params.ForgeCredentials, error) {
 	ret := _m.Called(ctx)
@@ -4392,6 +4614,65 @@ func (_c *Store_LockJob_Call) RunAndReturn(run func(context.Context, int64, stri
 	return _c
 }
 
+// OpenFileObjectContent provides a mock function with given fields: ctx, objID
+func (_m *Store) OpenFileObjectContent(ctx context.Context, objID uint) (io.ReadCloser, error) {
+	ret := _m.Called(ctx, objID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for OpenFileObjectContent")
+	}
+
+	var r0 io.ReadCloser
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint) (io.ReadCloser, error)); ok {
+		return rf(ctx, objID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uint) io.ReadCloser); ok {
+		r0 = rf(ctx, objID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(io.ReadCloser)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uint) error); ok {
+		r1 = rf(ctx, objID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// Store_OpenFileObjectContent_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'OpenFileObjectContent'
+type Store_OpenFileObjectContent_Call struct {
+	*mock.Call
+}
+
+// OpenFileObjectContent is a helper method to define mock.On call
+//   - ctx context.Context
+//   - objID uint
+func (_e *Store_Expecter) OpenFileObjectContent(ctx interface{}, objID interface{}) *Store_OpenFileObjectContent_Call {
+	return &Store_OpenFileObjectContent_Call{Call: _e.mock.On("OpenFileObjectContent", ctx, objID)}
+}
+
+func (_c *Store_OpenFileObjectContent_Call) Run(run func(ctx context.Context, objID uint)) *Store_OpenFileObjectContent_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uint))
+	})
+	return _c
+}
+
+func (_c *Store_OpenFileObjectContent_Call) Return(_a0 io.ReadCloser, _a1 error) *Store_OpenFileObjectContent_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *Store_OpenFileObjectContent_Call) RunAndReturn(run func(context.Context, uint) (io.ReadCloser, error)) *Store_OpenFileObjectContent_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // PoolInstanceCount provides a mock function with given fields: ctx, poolID
 func (_m *Store) PoolInstanceCount(ctx context.Context, poolID string) (int64, error) {
 	ret := _m.Called(ctx, poolID)
@@ -4445,6 +4726,65 @@ func (_c *Store_PoolInstanceCount_Call) Return(_a0 int64, _a1 error) *Store_Pool
 }
 
 func (_c *Store_PoolInstanceCount_Call) RunAndReturn(run func(context.Context, string) (int64, error)) *Store_PoolInstanceCount_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SearchFileObjectByTags provides a mock function with given fields: ctx, tags, page, pageSize
+func (_m *Store) SearchFileObjectByTags(ctx context.Context, tags []string, page uint64, pageSize uint64) (params.FileObjectPaginatedResponse, error) {
+	ret := _m.Called(ctx, tags, page, pageSize)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SearchFileObjectByTags")
+	}
+
+	var r0 params.FileObjectPaginatedResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, []string, uint64, uint64) (params.FileObjectPaginatedResponse, error)); ok {
+		return rf(ctx, tags, page, pageSize)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, []string, uint64, uint64) params.FileObjectPaginatedResponse); ok {
+		r0 = rf(ctx, tags, page, pageSize)
+	} else {
+		r0 = ret.Get(0).(params.FileObjectPaginatedResponse)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, []string, uint64, uint64) error); ok {
+		r1 = rf(ctx, tags, page, pageSize)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// Store_SearchFileObjectByTags_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SearchFileObjectByTags'
+type Store_SearchFileObjectByTags_Call struct {
+	*mock.Call
+}
+
+// SearchFileObjectByTags is a helper method to define mock.On call
+//   - ctx context.Context
+//   - tags []string
+//   - page uint64
+//   - pageSize uint64
+func (_e *Store_Expecter) SearchFileObjectByTags(ctx interface{}, tags interface{}, page interface{}, pageSize interface{}) *Store_SearchFileObjectByTags_Call {
+	return &Store_SearchFileObjectByTags_Call{Call: _e.mock.On("SearchFileObjectByTags", ctx, tags, page, pageSize)}
+}
+
+func (_c *Store_SearchFileObjectByTags_Call) Run(run func(ctx context.Context, tags []string, page uint64, pageSize uint64)) *Store_SearchFileObjectByTags_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([]string), args[2].(uint64), args[3].(uint64))
+	})
+	return _c
+}
+
+func (_c *Store_SearchFileObjectByTags_Call) Return(_a0 params.FileObjectPaginatedResponse, _a1 error) *Store_SearchFileObjectByTags_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *Store_SearchFileObjectByTags_Call) RunAndReturn(run func(context.Context, []string, uint64, uint64) (params.FileObjectPaginatedResponse, error)) *Store_SearchFileObjectByTags_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -4822,6 +5162,64 @@ func (_c *Store_UpdateEntityScaleSet_Call) Return(updatedScaleSet params.ScaleSe
 }
 
 func (_c *Store_UpdateEntityScaleSet_Call) RunAndReturn(run func(context.Context, params.ForgeEntity, uint, params.UpdateScaleSetParams, func(params.ScaleSet, params.ScaleSet) error) (params.ScaleSet, error)) *Store_UpdateEntityScaleSet_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateFileObject provides a mock function with given fields: ctx, objID, param
+func (_m *Store) UpdateFileObject(ctx context.Context, objID uint, param params.UpdateFileObjectParams) (params.FileObject, error) {
+	ret := _m.Called(ctx, objID, param)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateFileObject")
+	}
+
+	var r0 params.FileObject
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint, params.UpdateFileObjectParams) (params.FileObject, error)); ok {
+		return rf(ctx, objID, param)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uint, params.UpdateFileObjectParams) params.FileObject); ok {
+		r0 = rf(ctx, objID, param)
+	} else {
+		r0 = ret.Get(0).(params.FileObject)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uint, params.UpdateFileObjectParams) error); ok {
+		r1 = rf(ctx, objID, param)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// Store_UpdateFileObject_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateFileObject'
+type Store_UpdateFileObject_Call struct {
+	*mock.Call
+}
+
+// UpdateFileObject is a helper method to define mock.On call
+//   - ctx context.Context
+//   - objID uint
+//   - param params.UpdateFileObjectParams
+func (_e *Store_Expecter) UpdateFileObject(ctx interface{}, objID interface{}, param interface{}) *Store_UpdateFileObject_Call {
+	return &Store_UpdateFileObject_Call{Call: _e.mock.On("UpdateFileObject", ctx, objID, param)}
+}
+
+func (_c *Store_UpdateFileObject_Call) Run(run func(ctx context.Context, objID uint, param params.UpdateFileObjectParams)) *Store_UpdateFileObject_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uint), args[2].(params.UpdateFileObjectParams))
+	})
+	return _c
+}
+
+func (_c *Store_UpdateFileObject_Call) Return(_a0 params.FileObject, _a1 error) *Store_UpdateFileObject_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *Store_UpdateFileObject_Call) RunAndReturn(run func(context.Context, uint, params.UpdateFileObjectParams) (params.FileObject, error)) *Store_UpdateFileObject_Call {
 	_c.Call.Return(run)
 	return _c
 }

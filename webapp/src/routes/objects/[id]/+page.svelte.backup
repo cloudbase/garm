@@ -1,0 +1,277 @@
+<script lang="ts">
+	import { onMount } from 'svelte';
+	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
+	import { garmApi } from '$lib/api/client.js';
+	import type { FileObject } from '$lib/api/generated/api.js';
+	import PageHeader from '$lib/components/PageHeader.svelte';
+	import ActionButton from '$lib/components/ActionButton.svelte';
+	import { toastStore } from '$lib/stores/toast.js';
+	import { extractAPIError } from '$lib/utils/apiError';
+	import { formatFileSize, formatDateTime } from '$lib/utils/format';
+	import DeleteModal from '$lib/components/DeleteModal.svelte';
+	import Badge from '$lib/components/Badge.svelte';
+
+	let object: FileObject | null = null;
+	let loading = true;
+	let error = '';
+	let showDeleteModal = false;
+
+	$: objectId = $page.params.id || '';
+
+	onMount(async () => {
+		await loadObject();
+	});
+
+	async function loadObject() {
+		if (!objectId) {
+			error = 'Invalid object ID';
+			loading = false;
+			return;
+		}
+
+		try {
+			loading = true;
+			error = '';
+
+			object = await garmApi.getFileObject(objectId);
+
+		} catch (err) {
+			error = extractAPIError(err);
+			toastStore.add({
+				type: 'error',
+				title: 'Failed to load object',
+				message: error
+			});
+		} finally {
+			loading = false;
+		}
+	}
+
+	async function handleDelete() {
+		if (!object?.id) return;
+
+		try {
+			await garmApi.deleteFileObject(object.id.toString());
+
+			toastStore.add({
+				type: 'success',
+				title: 'Object deleted',
+				message: `Object "${object.name}" has been deleted successfully.`
+			});
+
+			goto(resolve('/objects'));
+		} catch (err) {
+			const errorMsg = extractAPIError(err);
+			toastStore.add({
+				type: 'error',
+				title: 'Failed to delete object',
+				message: errorMsg
+			});
+		}
+	}
+
+	async function handleDownload() {
+		if (!object?.id) return;
+
+		try {
+			const token = localStorage.getItem('token');
+			const baseURL = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+			const downloadURL = `${baseURL}/api/v1/objects/${object.id}/download`;
+
+			// Create a temporary anchor element to trigger download
+			const link = document.createElement('a');
+			link.href = downloadURL;
+			link.download = object.name || 'download';
+
+			// Add auth header via fetch and create blob
+			const response = await fetch(downloadURL, {
+				headers: {
+					'Authorization': `Bearer ${token}`
+				}
+			});
+
+			if (!response.ok) {
+				throw new Error(`Download failed with status ${response.status}`);
+			}
+
+			const blob = await response.blob();
+			const url = window.URL.createObjectURL(blob);
+			link.href = url;
+
+			document.body.appendChild(link);
+			link.click();
+			document.body.removeChild(link);
+			window.URL.revokeObjectURL(url);
+
+			toastStore.add({
+				type: 'success',
+				title: 'Download started',
+				message: `Downloading "${object.name}"...`
+			});
+		} catch (err) {
+			const errorMsg = extractAPIError(err);
+			toastStore.add({
+				type: 'error',
+				title: 'Download failed',
+				message: errorMsg
+			});
+		}
+	}
+
+	function handleBack() {
+		goto(resolve('/objects'));
+	}
+</script>
+
+<PageHeader
+	title="Object Details"
+	description="View file object information"
+>
+	<svelte:fragment slot="actions">
+		<ActionButton
+			label="Back to List"
+			on:click={handleBack}
+			variant="secondary"
+		/>
+		{#if object}
+			<ActionButton
+				label="Download"
+				on:click={handleDownload}
+				variant="primary"
+			/>
+			<ActionButton
+				label="Delete"
+				on:click={() => showDeleteModal = true}
+				variant="danger"
+			/>
+		{/if}
+	</svelte:fragment>
+</PageHeader>
+
+{#if loading}
+	<div class="flex items-center justify-center h-64">
+		<div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+	</div>
+{:else if error}
+	<div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+		<p class="text-sm text-red-800 dark:text-red-200">{error}</p>
+	</div>
+{:else if object}
+	<div class="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-lg">
+		<div class="px-4 py-5 sm:px-6 border-b border-gray-200 dark:border-gray-700">
+			<h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white">
+				File Information
+			</h3>
+		</div>
+		<div class="border-t border-gray-200 dark:border-gray-700">
+			<dl>
+				<div class="bg-gray-50 dark:bg-gray-900/50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+					<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">
+						ID
+					</dt>
+					<dd class="mt-1 text-sm text-gray-900 dark:text-white sm:mt-0 sm:col-span-2 font-mono">
+						{object.id}
+					</dd>
+				</div>
+
+				<div class="bg-white dark:bg-gray-800 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+					<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">
+						Name
+					</dt>
+					<dd class="mt-1 text-sm text-gray-900 dark:text-white sm:mt-0 sm:col-span-2">
+						{object.name}
+					</dd>
+				</div>
+
+			<div class="bg-gray-50 dark:bg-gray-900/50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+				<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">
+					Description
+				</dt>
+				<dd class="mt-1 text-sm text-gray-900 dark:text-white sm:mt-0 sm:col-span-2">
+					{#if object.description}
+						<div class="whitespace-pre-wrap break-words">
+							{object.description}
+						</div>
+					{:else}
+						<span class="text-gray-400 dark:text-gray-500">No description</span>
+					{/if}
+				</dd>
+			</div>
+
+				<div class="bg-white dark:bg-gray-800 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+					<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">
+						Size
+					</dt>
+					<dd class="mt-1 text-sm text-gray-900 dark:text-white sm:mt-0 sm:col-span-2">
+						{formatFileSize(object.size || 0)}
+					</dd>
+				</div>
+
+				<div class="bg-gray-50 dark:bg-gray-900/50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+					<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">
+						SHA256
+					</dt>
+					<dd class="mt-1 text-sm text-gray-900 dark:text-white sm:mt-0 sm:col-span-2 font-mono break-all">
+						{object.sha256 || 'N/A'}
+					</dd>
+				</div>
+
+				<div class="bg-gray-50 dark:bg-gray-900/50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+					<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">
+						File Type
+					</dt>
+					<dd class="mt-1 text-sm text-gray-900 dark:text-white sm:mt-0 sm:col-span-2">
+						{object.file_type || 'N/A'}
+					</dd>
+				</div>
+
+				<div class="bg-gray-50 dark:bg-gray-900/50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+					<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">
+						Created At
+					</dt>
+					<dd class="mt-1 text-sm text-gray-900 dark:text-white sm:mt-0 sm:col-span-2">
+						{formatDateTime(object.created_at)}
+					</dd>
+				</div>
+
+				<div class="bg-white dark:bg-gray-800 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+					<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">
+						Updated At
+					</dt>
+					<dd class="mt-1 text-sm text-gray-900 dark:text-white sm:mt-0 sm:col-span-2">
+						{formatDateTime(object.updated_at)}
+					</dd>
+				</div>
+
+				<div class="bg-gray-50 dark:bg-gray-900/50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+					<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">
+						Tags
+					</dt>
+					<dd class="mt-1 text-sm text-gray-900 dark:text-white sm:mt-0 sm:col-span-2">
+						{#if object.tags && object.tags.length > 0}
+							<div class="flex flex-wrap gap-2">
+								{#each object.tags as tag}
+									<Badge variant="blue" text={tag} />
+								{/each}
+							</div>
+						{:else}
+							<span class="text-gray-400 dark:text-gray-500">No tags</span>
+						{/if}
+					</dd>
+				</div>
+			</dl>
+		</div>
+	</div>
+{/if}
+
+<!-- Delete Modal -->
+{#if showDeleteModal && object}
+	<DeleteModal
+		title="Delete Object"
+		message="Are you sure you want to delete the object '{object.name}'? This action cannot be undone."
+		on:confirm={handleDelete}
+		on:cancel={() => showDeleteModal = false}
+	/>
+{/if}

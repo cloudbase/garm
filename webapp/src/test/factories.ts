@@ -1,4 +1,4 @@
-import type { Repository, Organization, Enterprise, Instance, Pool, ScaleSet, ForgeCredentials, ForgeEndpoint, Tag } from '$lib/api/generated/api.js';
+import type { Repository, Organization, Enterprise, Instance, Pool, ScaleSet, ForgeCredentials, ForgeEndpoint, Tag, FileObject } from '$lib/api/generated/api.js';
 
 export function createMockRepository(overrides: Partial<Repository> = {}): Repository {
 	return {
@@ -255,6 +255,20 @@ export function createMockScaleSet(overrides: Partial<ScaleSet> = {}): ScaleSet 
 		},
 		instances: [],
 		status_messages: [],
+		...overrides
+	};
+}
+
+export function createMockFileObject(overrides: Partial<FileObject> = {}): FileObject {
+	return {
+		id: 1,
+		name: 'test-file.bin',
+		size: 1024000,
+		sha256: 'a'.repeat(64),
+		file_type: 'application/octet-stream',
+		created_at: '2024-01-01T00:00:00Z',
+		updated_at: '2024-01-01T00:00:00Z',
+		tags: ['test', 'binary'],
 		...overrides
 	};
 }

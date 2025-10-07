@@ -867,9 +867,11 @@ func (u *UpdateTemplateParams) Validate() error {
 	return nil
 }
 
+// swagger:model UpdateFileObjectParams
 type UpdateFileObjectParams struct {
-	Name *string  `json:"name"`
-	Tags []string `json:"tags"`
+	Name        *string  `json:"name"`
+	Description *string  `json:"description"`
+	Tags        []string `json:"tags"`
 }
 
 func (u *UpdateFileObjectParams) Validate() error {
@@ -878,4 +880,12 @@ func (u *UpdateFileObjectParams) Validate() error {
 	}
 
 	return nil
+}
+
+// swagger:model CreateFileObjectParams
+type CreateFileObjectParams struct {
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	Size        int64    `json:"size"`
+	Tags        []string `json:"tags"`
 }

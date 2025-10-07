@@ -1,6 +1,6 @@
 // Importing from the generated client wrapper
-import { 
-	GeneratedGarmApiClient, 
+import {
+	GeneratedGarmApiClient,
 	type Repository,
 	type Organization,
 	type Enterprise,
@@ -23,6 +23,9 @@ import {
 	type UpdatePoolParams,
 	type LoginRequest,
 	type LoginResponse,
+	type FileObject,
+	type FileObjectPaginatedResponse,
+	type UpdateFileObjectParams,
 } from './generated-client.js';
 
 // Import endpoint and credentials types directly
@@ -61,6 +64,9 @@ export type {
 	UpdatePoolParams,
 	LoginRequest,
 	LoginResponse,
+	FileObject,
+	FileObjectPaginatedResponse,
+	UpdateFileObjectParams,
 };
 
 // Legacy APIError type for backward compatibility
@@ -84,6 +90,12 @@ export class GarmApiClient extends GeneratedGarmApiClient {
 	declare createTemplate: (params: CreateTemplateParams) => Promise<Template>;
 	declare updateTemplate: (id: number, params: UpdateTemplateParams) => Promise<Template>;
 	declare deleteTemplate: (id: number) => Promise<void>;
+
+	// Explicitly expose file object methods for TypeScript
+	declare listFileObjects: (tags?: string, page?: number, pageSize?: number) => Promise<FileObjectPaginatedResponse>;
+	declare getFileObject: (objectID: string) => Promise<FileObject>;
+	declare updateFileObject: (objectID: string, params: UpdateFileObjectParams) => Promise<FileObject>;
+	declare deleteFileObject: (objectID: string) => Promise<void>;
 }
 
 // Create a singleton instance

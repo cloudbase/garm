@@ -11,6 +11,7 @@ docs/ControllerApi.md
 docs/ControllerInfo.md
 docs/ControllerInfoApi.md
 docs/CreateEnterpriseParams.md
+docs/CreateFileObjectParams.md
 docs/CreateGiteaCredentialsParams.md
 docs/CreateGiteaEndpointParams.md
 docs/CreateGithubCredentialsParams.md
@@ -25,6 +26,9 @@ docs/EndpointsApi.md
 docs/Enterprise.md
 docs/EnterprisesApi.md
 docs/EntityEvent.md
+docs/FileObject.md
+docs/FileObjectPaginatedResponse.md
+docs/FileObjectPaginatedResponseResultsInner.md
 docs/FirstRunApi.md
 docs/ForgeCredentials.md
 docs/ForgeEndpoint.md
@@ -43,6 +47,7 @@ docs/JobsApi.md
 docs/LoginApi.md
 docs/MetricsTokenApi.md
 docs/NewUserParams.md
+docs/ObjectsApi.md
 docs/Organization.md
 docs/OrganizationsApi.md
 docs/PasswordLoginParams.md
@@ -62,6 +67,7 @@ docs/Template.md
 docs/TemplatesApi.md
 docs/UpdateControllerParams.md
 docs/UpdateEntityParams.md
+docs/UpdateFileObjectParams.md
 docs/UpdateGiteaCredentialsParams.md
 docs/UpdateGiteaEndpointParams.md
 docs/UpdateGithubCredentialsParams.md

@@ -462,7 +462,9 @@ type GiteaCredentials struct {
 type FileObject struct {
 	gorm.Model
 	// Name is the name of the file
-	Name string `gotm:"type:text,index:idx_fo_name"`
+	Name string `gorm:"type:text;index:idx_fo_name"`
+	// Description is a description for the file
+	Description string `gorm:"type:text"`
 	// FileType holds the MIME type or file type description
 	FileType string `gorm:"type:text"`
 	// Size is the file size in bytes

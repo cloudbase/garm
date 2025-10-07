@@ -346,9 +346,12 @@ func main() {
 		Handler:           handlers.CORS(methodsOk, headersOk, allowedOrigins)(router),
 		ReadHeaderTimeout: 5 * time.Second,
 		MaxHeaderBytes:    1 << 20, // 1 MB
-		ReadTimeout:       15 * time.Second,
-		WriteTimeout:      15 * time.Second,
-		IdleTimeout:       60 * time.Second,
+		// Increased timeouts to support large file uploads/downloads
+		// ReadTimeout covers the entire request read including body
+		ReadTimeout: 30 * time.Minute,
+		// WriteTimeout covers the entire response write
+		WriteTimeout: 30 * time.Minute,
+		IdleTimeout:  60 * time.Second,
 	}
 
 	listener, err := net.Listen("tcp", srv.Addr)

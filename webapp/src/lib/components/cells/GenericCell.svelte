@@ -1,19 +1,28 @@
 <script lang="ts">
 	import { formatDate } from '$lib/utils/common.js';
-	
+
 	export let item: any;
-	export let field: string;
+	export let field: string | undefined = undefined;
+	export let getValue: ((item: any) => string) | undefined = undefined;
 	export let type: 'text' | 'code' | 'truncated' | 'description' | 'date' = 'text';
 	export let truncateLength: number = 50;
 	export let showTitle: boolean = false;
 
-	$: value = getValue();
+	$: value = getValueInternal();
 	$: displayValue = getDisplayValue();
 
-	function getValue() {
+	function getValueInternal() {
 		// Safety check for undefined item
 		if (!item) return '';
-		
+
+		// If custom getValue function is provided, use it
+		if (getValue) {
+			return getValue(item);
+		}
+
+		// Otherwise use field-based access
+		if (!field) return '';
+
 		// Support nested field access like 'endpoint.name'
 		return field.split('.').reduce((obj, key) => obj?.[key], item) || '';
 	}

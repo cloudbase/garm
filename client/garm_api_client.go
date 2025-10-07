@@ -20,6 +20,7 @@ import (
 	"github.com/cloudbase/garm/client/jobs"
 	"github.com/cloudbase/garm/client/login"
 	"github.com/cloudbase/garm/client/metrics_token"
+	"github.com/cloudbase/garm/client/objects"
 	"github.com/cloudbase/garm/client/organizations"
 	"github.com/cloudbase/garm/client/pools"
 	"github.com/cloudbase/garm/client/providers"
@@ -80,6 +81,7 @@ func New(transport runtime.ClientTransport, formats strfmt.Registry) *GarmAPI {
 	cli.Jobs = jobs.New(transport, formats)
 	cli.Login = login.New(transport, formats)
 	cli.MetricsToken = metrics_token.New(transport, formats)
+	cli.Objects = objects.New(transport, formats)
 	cli.Organizations = organizations.New(transport, formats)
 	cli.Pools = pools.New(transport, formats)
 	cli.Providers = providers.New(transport, formats)
@@ -150,6 +152,8 @@ type GarmAPI struct {
 
 	MetricsToken metrics_token.ClientService
 
+	Objects objects.ClientService
+
 	Organizations organizations.ClientService
 
 	Pools pools.ClientService
@@ -178,6 +182,7 @@ func (c *GarmAPI) SetTransport(transport runtime.ClientTransport) {
 	c.Jobs.SetTransport(transport)
 	c.Login.SetTransport(transport)
 	c.MetricsToken.SetTransport(transport)
+	c.Objects.SetTransport(transport)
 	c.Organizations.SetTransport(transport)
 	c.Pools.SetTransport(transport)
 	c.Providers.SetTransport(transport)

@@ -109,6 +109,25 @@ definitions:
                 x-go-name: WebhookSecret
         type: object
         x-go-package: github.com/cloudbase/garm/params
+    CreateFileObjectParams:
+        properties:
+            description:
+                type: string
+                x-go-name: Description
+            name:
+                type: string
+                x-go-name: Name
+            size:
+                format: int64
+                type: integer
+                x-go-name: Size
+            tags:
+                items:
+                    type: string
+                type: array
+                x-go-name: Tags
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
     CreateGiteaCredentialsParams:
         properties:
             app:
@@ -466,6 +485,106 @@ definitions:
     EventType:
         type: string
         x-go-package: github.com/cloudbase/garm/params
+    FileObject:
+        properties:
+            created_at:
+                format: date-time
+                type: string
+                x-go-name: CreatedAt
+            description:
+                type: string
+                x-go-name: Description
+            file_type:
+                type: string
+                x-go-name: FileType
+            id:
+                format: uint64
+                type: integer
+                x-go-name: ID
+            name:
+                type: string
+                x-go-name: Name
+            sha256:
+                type: string
+                x-go-name: SHA256
+            size:
+                format: int64
+                type: integer
+                x-go-name: Size
+            tags:
+                items:
+                    type: string
+                type: array
+                x-go-name: Tags
+            updated_at:
+                format: date-time
+                type: string
+                x-go-name: UpdatedAt
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    FileObjectPaginatedResponse:
+        properties:
+            current_page:
+                format: uint64
+                type: integer
+                x-go-name: CurrentPage
+            next_page:
+                format: uint64
+                type: integer
+                x-go-name: NextPage
+            pages:
+                format: uint64
+                type: integer
+                x-go-name: Pages
+            previous_page:
+                format: uint64
+                type: integer
+                x-go-name: PreviousPage
+            results:
+                items:
+                    properties:
+                        created_at:
+                            format: date-time
+                            type: string
+                            x-go-name: CreatedAt
+                        description:
+                            type: string
+                            x-go-name: Description
+                        file_type:
+                            type: string
+                            x-go-name: FileType
+                        id:
+                            format: uint64
+                            type: integer
+                            x-go-name: ID
+                        name:
+                            type: string
+                            x-go-name: Name
+                        sha256:
+                            type: string
+                            x-go-name: SHA256
+                        size:
+                            format: int64
+                            type: integer
+                            x-go-name: Size
+                        tags:
+                            items:
+                                type: string
+                            type: array
+                            x-go-name: Tags
+                        updated_at:
+                            format: date-time
+                            type: string
+                            x-go-name: UpdatedAt
+                    type: object
+                type: array
+                x-go-name: Results
+            total_count:
+                format: uint64
+                type: integer
+                x-go-name: TotalCount
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
     ForgeAuthType:
         type: string
         x-go-package: github.com/cloudbase/garm/params
@@ -578,18 +697,33 @@ definitions:
         x-go-package: github.com/cloudbase/garm/params
     ForgeEntity:
         properties:
-            agent_id:
-                format: int64
-                type: integer
-                x-go-name: AgentID
-            os_name:
+            created_at:
+                format: date-time
                 type: string
-                x-go-name: OSName
-            os_version:
+                x-go-name: CreatedAt
+            credentials:
+                $ref: '#/definitions/ForgeCredentials'
+            entity_type:
+                $ref: '#/definitions/ForgeEntityType'
+            id:
                 type: string
-                x-go-name: OSVersion
+                x-go-name: ID
+            name:
+                type: string
+                x-go-name: Name
+            owner:
+                type: string
+                x-go-name: Owner
+            pool_balancing_type:
+                $ref: '#/definitions/PoolBalancerType'
+            updated_at:
+                format: date-time
+                type: string
+                x-go-name: UpdatedAt
         type: object
-        x-go-name: UpdateSystemInfoParams
+        x-go-package: github.com/cloudbase/garm/params
+    ForgeEntityType:
+        type: string
         x-go-package: github.com/cloudbase/garm/params
     GithubApp:
         properties:
@@ -1424,6 +1558,21 @@ definitions:
             webhook_secret:
                 type: string
                 x-go-name: WebhookSecret
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    UpdateFileObjectParams:
+        properties:
+            description:
+                type: string
+                x-go-name: Description
+            name:
+                type: string
+                x-go-name: Name
+            tags:
+                items:
+                    type: string
+                type: array
+                x-go-name: Tags
         type: object
         x-go-package: github.com/cloudbase/garm/params
     UpdateGiteaCredentialsParams:
@@ -2574,6 +2723,99 @@ paths:
             summary: Returns a JWT token that can be used to access the metrics endpoint.
             tags:
                 - metrics-token
+    /objects:
+        get:
+            operationId: ListFileObjects
+            parameters:
+                - description: List of tags to filter by.
+                  in: query
+                  name: tags
+                  type: string
+                - description: The page at which to list.
+                  in: query
+                  name: page
+                  type: integer
+                - description: Number of items per page.
+                  in: query
+                  name: pageSize
+                  type: integer
+            responses:
+                "200":
+                    description: FileObjectPaginatedResponse
+                    schema:
+                        $ref: '#/definitions/FileObjectPaginatedResponse'
+                "400":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List file objects.
+            tags:
+                - objects
+    /objects/{objectID}:
+        delete:
+            operationId: DeleteFileObject
+            parameters:
+                - description: The ID of the file object.
+                  in: path
+                  name: objectID
+                  required: true
+                  type: string
+            responses:
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Delete a file object.
+            tags:
+                - objects
+        get:
+            operationId: GetFileObject
+            parameters:
+                - description: The ID of the file object.
+                  in: path
+                  name: objectID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: FileObject
+                    schema:
+                        $ref: '#/definitions/FileObject'
+                "400":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get a file object.
+            tags:
+                - objects
+        put:
+            operationId: UpdateFileObject
+            parameters:
+                - description: The ID of the file object.
+                  in: path
+                  name: objectID
+                  required: true
+                  type: string
+                - description: Parameters used when updating a file object.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/UpdateFileObjectParams'
+                    description: Parameters used when updating a file object.
+                    type: object
+            responses:
+                "200":
+                    description: FileObject
+                    schema:
+                        $ref: '#/definitions/FileObject'
+                "400":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Update a file object.
+            tags:
+                - objects
     /organizations:
         get:
             operationId: ListOrgs
