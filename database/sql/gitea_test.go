@@ -25,6 +25,7 @@ import (
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/database/common"
+	"github.com/cloudbase/garm/database/watcher"
 	garmTesting "github.com/cloudbase/garm/internal/testing"
 	"github.com/cloudbase/garm/params"
 )
@@ -37,7 +38,9 @@ type GiteaTestSuite struct {
 }
 
 func (s *GiteaTestSuite) SetupTest() {
-	db, err := NewSQLDatabase(context.Background(), garmTesting.GetTestSqliteDBConfig(s.T()))
+	ctx := context.Background()
+	watcher.InitWatcher(ctx)
+	db, err := NewSQLDatabase(ctx, garmTesting.GetTestSqliteDBConfig(s.T()))
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to create db connection: %s", err))
 	}
@@ -50,11 +53,15 @@ func (s *GiteaTestSuite) SetupTest() {
 		APIBaseURL:  testAPIBaseURL,
 		BaseURL:     testBaseURL,
 	}
-	endpoint, err := s.db.CreateGiteaEndpoint(context.Background(), createEpParams)
+	endpoint, err := s.db.CreateGiteaEndpoint(ctx, createEpParams)
 	s.Require().NoError(err)
 	s.Require().NotNil(endpoint)
 	s.Require().Equal(testEndpointName, endpoint.Name)
 	s.giteaEndpoint = endpoint
+}
+
+func (s *GiteaTestSuite) TearDownTest() {
+	watcher.CloseWatcher()
 }
 
 func (s *GiteaTestSuite) TestCreatingEndpoint() {

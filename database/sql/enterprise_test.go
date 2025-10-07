@@ -30,6 +30,7 @@ import (
 
 	"github.com/cloudbase/garm/auth"
 	dbCommon "github.com/cloudbase/garm/database/common"
+	"github.com/cloudbase/garm/database/watcher"
 	garmTesting "github.com/cloudbase/garm/internal/testing"
 	"github.com/cloudbase/garm/params"
 )
@@ -78,15 +79,21 @@ func (s *EnterpriseTestSuite) assertSQLMockExpectations() {
 	}
 }
 
+func (s *EnterpriseTestSuite) TearDownTest() {
+	watcher.CloseWatcher()
+}
+
 func (s *EnterpriseTestSuite) SetupTest() {
+	ctx := context.Background()
+	watcher.InitWatcher(ctx)
 	// create testing sqlite database
-	db, err := NewSQLDatabase(context.Background(), garmTesting.GetTestSqliteDBConfig(s.T()))
+	db, err := NewSQLDatabase(ctx, garmTesting.GetTestSqliteDBConfig(s.T()))
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to create db connection: %s", err))
 	}
 	s.Store = db
 
-	adminCtx := garmTesting.ImpersonateAdminContext(context.Background(), db, s.T())
+	adminCtx := garmTesting.ImpersonateAdminContext(ctx, db, s.T())
 	s.adminCtx = adminCtx
 	s.adminUserID = auth.UserID(adminCtx)
 	s.Require().NotEmpty(s.adminUserID)
