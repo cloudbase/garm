@@ -30,6 +30,7 @@ import (
 
 	"github.com/cloudbase/garm/auth"
 	dbCommon "github.com/cloudbase/garm/database/common"
+	"github.com/cloudbase/garm/database/watcher"
 	garmTesting "github.com/cloudbase/garm/internal/testing"
 	"github.com/cloudbase/garm/params"
 )
@@ -78,7 +79,13 @@ func (s *OrgTestSuite) assertSQLMockExpectations() {
 	}
 }
 
+func (s *OrgTestSuite) TearDownTest() {
+	watcher.CloseWatcher()
+}
+
 func (s *OrgTestSuite) SetupTest() {
+	ctx := context.Background()
+	watcher.InitWatcher(ctx)
 	// create testing sqlite database
 	dbConfig := garmTesting.GetTestSqliteDBConfig(s.T())
 	db, err := NewSQLDatabase(context.Background(), dbConfig)

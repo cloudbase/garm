@@ -28,6 +28,7 @@ import (
 	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/config"
 	"github.com/cloudbase/garm/database/common"
+	"github.com/cloudbase/garm/database/watcher"
 	garmTesting "github.com/cloudbase/garm/internal/testing"
 	"github.com/cloudbase/garm/params"
 )
@@ -51,11 +52,17 @@ type GithubTestSuite struct {
 }
 
 func (s *GithubTestSuite) SetupTest() {
+	ctx := context.Background()
+	watcher.InitWatcher(ctx)
 	db, err := NewSQLDatabase(context.Background(), garmTesting.GetTestSqliteDBConfig(s.T()))
 	if err != nil {
 		s.FailNow(fmt.Sprintf("failed to create db connection: %s", err))
 	}
 	s.db = db
+}
+
+func (s *GithubTestSuite) TearDownTest() {
+	watcher.CloseWatcher()
 }
 
 func (s *GithubTestSuite) TestDefaultEndpointGetsCreatedAutomaticallyIfNoOtherEndpointExists() {
@@ -946,14 +953,16 @@ func TestCredentialsAndEndpointMigration(t *testing.T) {
 	// Set the config credentials in the cfg. This is what happens in the main function.
 	// of GARM as well.
 	cfg.MigrateCredentials = credentials
-
-	db, err := NewSQLDatabase(context.Background(), cfg)
+	ctx := context.Background()
+	watcher.InitWatcher(ctx)
+	defer watcher.CloseWatcher()
+	db, err := NewSQLDatabase(ctx, cfg)
 	if err != nil {
 		t.Fatalf("failed to create db connection: %s", err)
 	}
 
 	// We expect that 2 endpoints will exist in the migrated DB and 2 credentials.
-	ctx := garmTesting.ImpersonateAdminContext(context.Background(), db, t)
+	ctx = garmTesting.ImpersonateAdminContext(ctx, db, t)
 
 	endpoints, err := db.ListGithubEndpoints(ctx)
 	if err != nil {
