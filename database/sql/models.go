@@ -477,19 +477,9 @@ type FileObject struct {
 	Content []byte `gorm:"type:blob"`
 }
 
-// TableName overrides the default table name
-func (FileObject) TableName() string {
-	return "file_objects"
-}
-
 // FileObjectTag represents the many-to-many relationship between documents and tags
 type FileObjectTag struct {
 	ID           uint   `gorm:"primaryKey"`
 	FileObjectID uint   `gorm:"index:idx_fileobject_tags_doc_id,priority:1;index:idx_fileobject_tags_tag,priority:1;not null"`
 	Tag          string `gorm:"type:TEXT COLLATE NOCASE;index:idx_fileobject_tags_tag,priority:2;not null"`
-}
-
-// TableName overrides the default table name
-func (FileObjectTag) TableName() string {
-	return "file_object_tags"
 }

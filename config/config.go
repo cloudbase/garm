@@ -567,6 +567,17 @@ func (s *SQLite) Validate() error {
 	return nil
 }
 
+func (s *SQLite) BlobDBFile() (string, error) {
+	if err := s.Validate(); err != nil {
+		return "", fmt.Errorf("failed to validate sqlite3 config")
+	}
+
+	parent := filepath.Dir(s.DBFile)
+	dbFileName := filepath.Base(s.DBFile)
+	blobFile := fmt.Sprintf("blob-%s", dbFileName)
+	return filepath.Join(parent, blobFile), nil
+}
+
 func (s *SQLite) ConnectionString() (string, error) {
 	connectionString := fmt.Sprintf("%s?_journal_mode=WAL&_foreign_keys=ON&_txlock=immediate", s.DBFile)
 	if s.BusyTimeoutSeconds > 0 {

@@ -90,12 +90,46 @@ func NewSQLDatabase(ctx context.Context, cfg config.Database) (common.Store, err
 	if err != nil {
 		return nil, fmt.Errorf("failed to get underlying database connection: %w", err)
 	}
+
+	// Create separate connection for objects database (only for SQLite)
+	var objectsConn *gorm.DB
+	var objectsSqlDB *sql.DB
+	if cfg.DbBackend == config.SQLiteBackend {
+		// Get the blob database file path
+		blobFile, err := cfg.SQLite.BlobDBFile()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get blob database file: %w", err)
+		}
+
+		// Create config for objects database
+		objectsCfg := config.Database{
+			DbBackend:  config.SQLiteBackend,
+			Debug:      cfg.Debug,
+			Passphrase: cfg.Passphrase,
+			SQLite: config.SQLite{
+				DBFile: blobFile,
+			},
+		}
+
+		objectsConn, err = newDBConn(objectsCfg)
+		if err != nil {
+			return nil, fmt.Errorf("error creating objects DB connection: %w", err)
+		}
+
+		objectsSqlDB, err = objectsConn.DB()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get underlying objects database connection: %w", err)
+		}
+	}
+
 	db := &sqlDatabase{
-		conn:     conn,
-		sqlDB:    sqlDB,
-		ctx:      ctx,
-		cfg:      cfg,
-		producer: producer,
+		conn:         conn,
+		sqlDB:        sqlDB,
+		objectsConn:  objectsConn,
+		objectsSqlDB: objectsSqlDB,
+		ctx:          ctx,
+		cfg:          cfg,
+		producer:     producer,
 	}
 
 	if err := db.migrateDB(); err != nil {
@@ -107,6 +141,10 @@ func NewSQLDatabase(ctx context.Context, cfg config.Database) (common.Store, err
 type sqlDatabase struct {
 	conn  *gorm.DB
 	sqlDB *sql.DB
+
+	// objectsConn is a separate GORM connection to the objects database
+	objectsConn  *gorm.DB
+	objectsSqlDB *sql.DB
 
 	ctx      context.Context
 	cfg      config.Database
@@ -404,6 +442,25 @@ func (s *sqlDatabase) migrateWorkflow() error {
 	return nil
 }
 
+func (s *sqlDatabase) migrateFileObjects() error {
+	// Only migrate for SQLite backend
+	if s.cfg.DbBackend != config.SQLiteBackend {
+		return nil
+	}
+
+	// Use the separate objects database connection
+	if s.objectsConn == nil {
+		return fmt.Errorf("objects database connection not initialized")
+	}
+
+	// Use GORM AutoMigrate on the separate connection
+	if err := s.objectsConn.AutoMigrate(&FileObject{}, &FileObjectTag{}); err != nil {
+		return fmt.Errorf("failed to migrate file objects: %w", err)
+	}
+
+	return nil
+}
+
 func (s *sqlDatabase) ensureTemplates(migrateTemplates bool) error {
 	if !migrateTemplates {
 		return nil
@@ -616,11 +673,15 @@ func (s *sqlDatabase) migrateDB() error {
 		&ControllerInfo{},
 		&WorkflowJob{},
 		&ScaleSet{},
-		&FileObject{},
-		&FileObjectTag{},
 	); err != nil {
 		return fmt.Errorf("error running auto migrate: %w", err)
 	}
+
+	// Migrate file object tables in the attached objectsdb schema
+	if err := s.migrateFileObjects(); err != nil {
+		return fmt.Errorf("error migrating file objects: %w", err)
+	}
+
 	s.conn.Exec("PRAGMA foreign_keys = ON")
 
 	if !hasMinAgeField {
