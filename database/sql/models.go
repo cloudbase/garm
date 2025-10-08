@@ -473,6 +473,22 @@ type FileObject struct {
 	SHA256 string `gorm:"type:text"`
 	// Tags is a JSON array of tags
 	TagsList []FileObjectTag `gorm:"foreignKey:FileObjectID;constraint:OnDelete:CASCADE"`
+	// Content is a foreign key to a different table where the blob is actually stored.
+	// Updating a field in an sqlite 3 DB will read the entire field, update the column
+	// and write it back to a different location. SQLite3 will then mark the old row as "deleted"
+	// and allow it to be vaccumed. But if we have a blob column with a huge blob, any
+	// update operation will consume a lot of resources and take a long time.
+	// Using a dedicated table for the blob (which doesn't change), speeds up updates of
+	// metadata fields like name, description, tags, etc.
+	Content FileBlob `gorm:"foreignKey:FileObjectID;constraint:OnDelete:CASCADE"`
+}
+
+// FileBlob is the immutable blob of bytes that once written will not be changed.
+// We leave the SHA256, file type and size in the parent table, because we need to
+// we able to get that info easily, without preloading the blob table.
+type FileBlob struct {
+	gorm.Model
+	FileObjectID uint `gorm:"index:idx_fileobject_blob_id"`
 	// Content is a BLOB column for storing binary data
 	Content []byte `gorm:"type:blob"`
 }

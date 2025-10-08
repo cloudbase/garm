@@ -91,45 +91,33 @@ func NewSQLDatabase(ctx context.Context, cfg config.Database) (common.Store, err
 		return nil, fmt.Errorf("failed to get underlying database connection: %w", err)
 	}
 
+	db := &sqlDatabase{
+		conn:     conn,
+		sqlDB:    sqlDB,
+		ctx:      ctx,
+		cfg:      cfg,
+		producer: producer,
+	}
+
 	// Create separate connection for objects database (only for SQLite)
-	var objectsConn *gorm.DB
-	var objectsSqlDB *sql.DB
 	if cfg.DbBackend == config.SQLiteBackend {
-		// Get the blob database file path
-		blobFile, err := cfg.SQLite.BlobDBFile()
+		// Get config for objects database
+		objectsCfg, err := cfg.SQLiteBlobDatabaseConfig()
 		if err != nil {
-			return nil, fmt.Errorf("failed to get blob database file: %w", err)
+			return nil, fmt.Errorf("failed to get blob DB config: %w", err)
 		}
 
-		// Create config for objects database
-		objectsCfg := config.Database{
-			DbBackend:  config.SQLiteBackend,
-			Debug:      cfg.Debug,
-			Passphrase: cfg.Passphrase,
-			SQLite: config.SQLite{
-				DBFile: blobFile,
-			},
-		}
-
-		objectsConn, err = newDBConn(objectsCfg)
+		objectsConn, err := newDBConn(objectsCfg)
 		if err != nil {
 			return nil, fmt.Errorf("error creating objects DB connection: %w", err)
 		}
 
-		objectsSqlDB, err = objectsConn.DB()
+		objectsSqlDB, err := objectsConn.DB()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get underlying objects database connection: %w", err)
 		}
-	}
-
-	db := &sqlDatabase{
-		conn:         conn,
-		sqlDB:        sqlDB,
-		objectsConn:  objectsConn,
-		objectsSqlDB: objectsSqlDB,
-		ctx:          ctx,
-		cfg:          cfg,
-		producer:     producer,
+		db.objectsConn = objectsConn
+		db.objectsSqlDB = objectsSqlDB
 	}
 
 	if err := db.migrateDB(); err != nil {
@@ -454,7 +442,7 @@ func (s *sqlDatabase) migrateFileObjects() error {
 	}
 
 	// Use GORM AutoMigrate on the separate connection
-	if err := s.objectsConn.AutoMigrate(&FileObject{}, &FileObjectTag{}); err != nil {
+	if err := s.objectsConn.AutoMigrate(&FileObject{}, &FileBlob{}, &FileObjectTag{}); err != nil {
 		return fmt.Errorf("failed to migrate file objects: %w", err)
 	}
 

@@ -275,12 +275,6 @@ func (a *APIController) DownloadFileObject(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	objectHandle, err := a.r.GetFileObjectReader(ctx, objectID)
-	if err != nil {
-		handleError(ctx, w, err)
-		return
-	}
-	defer objectHandle.Close()
 	w.Header().Set("Content-Type", objectDetails.FileType)
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", objectDetails.Name))
 	w.Header().Set("Content-Length", strconv.FormatInt(objectDetails.Size, 10))
@@ -289,6 +283,13 @@ func (a *APIController) DownloadFileObject(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	objectHandle, err := a.r.GetFileObjectReader(ctx, objectID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get file object reader", "error", err)
+		handleError(ctx, w, err)
+		return
+	}
+	defer objectHandle.Close()
 	copied, err := io.Copy(w, objectHandle)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to stream data", "error", err)

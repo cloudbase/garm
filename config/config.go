@@ -515,6 +515,27 @@ func (d *Database) GormParams() (dbType DBBackendType, uri string, err error) {
 	return
 }
 
+func (d *Database) SQLiteBlobDatabaseConfig() (Database, error) {
+	if d.DbBackend != SQLiteBackend {
+		return Database{}, fmt.Errorf("sqlite3 is not the configured database")
+	}
+
+	blobDBFile, err := d.SQLite.BlobDBFile()
+	if err != nil {
+		return Database{}, fmt.Errorf("failed to get blob DB file: %w", err)
+	}
+	db := Database{
+		Debug:      d.Debug,
+		DbBackend:  SQLiteBackend,
+		Passphrase: d.Passphrase,
+		SQLite: SQLite{
+			DBFile:             blobDBFile,
+			BusyTimeoutSeconds: d.SQLite.BusyTimeoutSeconds,
+		},
+	}
+	return db, nil
+}
+
 // Validate validates the database config entry
 func (d *Database) Validate() error {
 	if d.DbBackend == "" {
@@ -575,16 +596,21 @@ func (s *SQLite) BlobDBFile() (string, error) {
 	parent := filepath.Dir(s.DBFile)
 	dbFileName := filepath.Base(s.DBFile)
 	blobFile := fmt.Sprintf("blob-%s", dbFileName)
-	return filepath.Join(parent, blobFile), nil
+	blobPath := filepath.Join(parent, blobFile)
+	return blobPath, nil
 }
 
-func (s *SQLite) ConnectionString() (string, error) {
-	connectionString := fmt.Sprintf("%s?_journal_mode=WAL&_foreign_keys=ON&_txlock=immediate", s.DBFile)
+func (s *SQLite) connectionStringForDBFile(dbFile string) string {
+	connectionString := fmt.Sprintf("%s?_journal_mode=WAL&_foreign_keys=ON&_txlock=immediate", dbFile)
 	if s.BusyTimeoutSeconds > 0 {
 		timeout := s.BusyTimeoutSeconds * 1000
 		connectionString = fmt.Sprintf("%s&_busy_timeout=%d", connectionString, timeout)
 	}
-	return connectionString, nil
+	return connectionString
+}
+
+func (s *SQLite) ConnectionString() (string, error) {
+	return s.connectionStringForDBFile(s.DBFile), nil
 }
 
 // MySQL is the config entry for the mysql section
