@@ -18,12 +18,24 @@ vi.mock('$lib/stores/toast.js', () => ({
 	}
 }));
 
+vi.mock('$lib/stores/websocket.js', () => ({
+	websocketStore: {
+		subscribe: vi.fn(() => () => {}),
+		subscribeToEntity: vi.fn(() => () => {})
+	}
+}));
+
 vi.mock('$app/stores', () => ({}));
 vi.mock('$app/navigation', () => ({
 	goto: vi.fn()
 }));
 vi.mock('$app/paths', () => ({
 	resolve: vi.fn((path: string) => path)
+}));
+
+vi.mock('$lib/utils/format', () => ({
+	formatFileSize: vi.fn((size) => `${(size / 1024).toFixed(1)} KB`),
+	formatDateTime: vi.fn((date) => date || 'N/A')
 }));
 
 const mockObject1 = createMockFileObject({
@@ -53,22 +65,20 @@ describe('Objects Page - Integration Tests', () => {
 	});
 
 	describe('Search Functionality', () => {
-		it('should search objects when search button is clicked', async () => {
+		it('should search objects when search term is entered', async () => {
 			const { garmApi } = await import('$lib/api/client.js');
 
 			render(ObjectsPage);
 			await waitFor(() => expect(garmApi.listFileObjects).toHaveBeenCalledTimes(1));
 
-			const searchInput = screen.getByPlaceholderText(/Search by tags/i);
-			const searchButton = screen.getByRole('button', { name: 'Search' });
+			const searchInput = screen.getByPlaceholderText(/Search by name or tags/i);
 
 			await fireEvent.input(searchInput, { target: { value: 'binary linux' } });
-			await fireEvent.click(searchButton);
 
-			// Should call API with comma-separated tags
+			// Should call API with comma-separated tags after debounce (500ms)
 			await waitFor(() => {
 				expect(garmApi.listFileObjects).toHaveBeenCalledWith('binary,linux', 1, 25);
-			});
+			}, { timeout: 1000 });
 		});
 
 		it('should search when Enter key is pressed', async () => {
@@ -77,14 +87,14 @@ describe('Objects Page - Integration Tests', () => {
 			render(ObjectsPage);
 			await waitFor(() => expect(garmApi.listFileObjects).toHaveBeenCalledTimes(1));
 
-			const searchInput = screen.getByPlaceholderText(/Search by tags/i);
+			const searchInput = screen.getByPlaceholderText(/Search by name or tags/i);
 
 			await fireEvent.input(searchInput, { target: { value: 'test' } });
 			await fireEvent.keyDown(searchInput, { key: 'Enter' });
 
 			await waitFor(() => {
 				expect(garmApi.listFileObjects).toHaveBeenCalledWith('test', 1, 25);
-			});
+			}, { timeout: 1000 });
 		});
 
 		it('should reset to page 1 when searching', async () => {
@@ -93,18 +103,16 @@ describe('Objects Page - Integration Tests', () => {
 			render(ObjectsPage);
 			await waitFor(() => expect(garmApi.listFileObjects).toHaveBeenCalled());
 
-			const searchInput = screen.getByPlaceholderText(/Search by tags/i);
-			const searchButton = screen.getByRole('button', { name: 'Search' });
+			const searchInput = screen.getByPlaceholderText(/Search by name or tags/i);
 
 			await fireEvent.input(searchInput, { target: { value: 'test' } });
-			await fireEvent.click(searchButton);
 
-			// Should call with page 1
+			// Should call with page 1 after debounce
 			await waitFor(() => {
 				const calls = (garmApi.listFileObjects as any).mock.calls;
 				const lastCall = calls[calls.length - 1];
 				expect(lastCall[1]).toBe(1); // page parameter
-			});
+			}, { timeout: 1000 });
 		});
 	});
 
@@ -147,7 +155,7 @@ describe('Objects Page - Integration Tests', () => {
 			await waitFor(() => screen.getByText('file1.bin'));
 
 			// Find and click delete button
-			const deleteButtons = screen.getAllByRole('button', { name: 'Delete' });
+			const deleteButtons = screen.getAllByRole('button', { name: 'Delete object' });
 			await fireEvent.click(deleteButtons[0]);
 
 			// Delete modal should appear
@@ -164,7 +172,7 @@ describe('Objects Page - Integration Tests', () => {
 			await waitFor(() => screen.getByText('file1.bin'));
 
 			// Click delete button
-			const deleteButtons = screen.getAllByRole('button', { name: 'Delete' });
+			const deleteButtons = screen.getAllByRole('button', { name: 'Delete object' });
 			await fireEvent.click(deleteButtons[0]);
 
 			// Confirm deletion
@@ -188,7 +196,7 @@ describe('Objects Page - Integration Tests', () => {
 			const initialCallCount = (garmApi.listFileObjects as any).mock.calls.length;
 
 			// Delete object
-			const deleteButtons = screen.getAllByRole('button', { name: 'Delete' });
+			const deleteButtons = screen.getAllByRole('button', { name: 'Delete object' });
 			await fireEvent.click(deleteButtons[0]);
 			await waitFor(() => screen.getByText(/Are you sure/i));
 
@@ -208,7 +216,7 @@ describe('Objects Page - Integration Tests', () => {
 			await waitFor(() => screen.getByText('file1.bin'));
 
 			// Click update button
-			const updateButtons = screen.getAllByRole('button', { name: 'Update' });
+			const updateButtons = screen.getAllByRole('button', { name: 'Update object' });
 			await fireEvent.click(updateButtons[0]);
 
 			// Update modal should appear
@@ -222,7 +230,7 @@ describe('Objects Page - Integration Tests', () => {
 			await waitFor(() => screen.getByText('file1.bin'));
 
 			// Click update button for first object
-			const updateButtons = screen.getAllByRole('button', { name: 'Update' });
+			const updateButtons = screen.getAllByRole('button', { name: 'Update object' });
 			await fireEvent.click(updateButtons[0]);
 
 			await waitFor(() => {
@@ -239,12 +247,12 @@ describe('Objects Page - Integration Tests', () => {
 			await waitFor(() => screen.getByText('file1.bin'));
 
 			// Open update modal
-			const updateButtons = screen.getAllByRole('button', { name: 'Update' });
+			const updateButtons = screen.getAllByRole('button', { name: 'Update object' });
 			await fireEvent.click(updateButtons[0]);
 			await waitFor(() => screen.getByText('Update Object'));
 
 			// Submit form
-			const submitButton = screen.getAllByRole('button', { name: 'Update' })[1]; // Second one is in modal
+			const submitButton = screen.getByRole('button', { name: 'Update' });
 			await fireEvent.click(submitButton);
 
 			// Should call update API
@@ -303,7 +311,7 @@ describe('Objects Page - Integration Tests', () => {
 			await waitFor(() => screen.getByText('file1.bin'));
 
 			// Try to delete
-			const deleteButtons = screen.getAllByRole('button', { name: 'Delete' });
+			const deleteButtons = screen.getAllByRole('button', { name: 'Delete object' });
 			await fireEvent.click(deleteButtons[0]);
 			await waitFor(() => screen.getByText(/Are you sure/i));
 
@@ -331,11 +339,11 @@ describe('Objects Page - Integration Tests', () => {
 			await waitFor(() => screen.getByText('file1.bin'));
 
 			// Open update modal and submit
-			const updateButtons = screen.getAllByRole('button', { name: 'Update' });
+			const updateButtons = screen.getAllByRole('button', { name: 'Update object' });
 			await fireEvent.click(updateButtons[0]);
 			await waitFor(() => screen.getByText('Update Object'));
 
-			const submitButton = screen.getAllByRole('button', { name: 'Update' })[1];
+			const submitButton = screen.getByRole('button', { name: 'Update' });
 			await fireEvent.click(submitButton);
 
 			// Should show error toast

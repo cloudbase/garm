@@ -59,8 +59,8 @@ vi.mock('$lib/components/UpdateEntityModal.svelte', () => ({
 }));
 
 vi.mock('$lib/components/DeleteModal.svelte', () => ({
-	default: function MockDeleteModal(options: any) {
-		const target = options.target;
+	default: function MockDeleteModal(anchor: any, props: any) {
+		const target = anchor?.parentNode;
 		if (target) {
 			const div = document.createElement('div');
 			div.setAttribute('data-testid', 'delete-modal');
@@ -75,21 +75,28 @@ vi.mock('$lib/components/DeleteModal.svelte', () => ({
 	}
 }));
 
+// PageHeader is NOT mocked - use real component to support slots
+// Slots don't work properly with mocked Svelte components
+/*
 vi.mock('$lib/components/PageHeader.svelte', () => ({
-	default: function MockPageHeader(options: any) {
-		const target = options.target;
+	default: function MockPageHeader(anchor: any, propsObj: any) {
+		const target = anchor?.parentNode;
 		if (target) {
 			const div = document.createElement('div');
-			// Extract title from props or use generic title
-			const props = options.props || {};
-			const title = props.title || 'Runner Instances';
-			const showAction = props.showAction !== false;
-			const actionText = props.actionText || 'Add';
-			
-			let html = `<h1>${title}</h1>`;
-			if (showAction) {
-				html += `<button data-testid="add-button">${actionText}</button>`;
-			}
+			div.setAttribute('data-testid', 'page-header');
+
+			// Extract props
+			const title = propsObj?.title || 'Runner Instances';
+			const description = propsObj?.description || '';
+
+			let html = `
+				<div class="sm:flex sm:items-center sm:justify-between">
+					<div>
+						<h1 class="text-2xl font-bold text-gray-900 dark:text-white">${title}</h1>
+						<p class="mt-2 text-sm text-gray-700 dark:text-gray-300">${description}</p>
+					</div>
+				</div>
+			`;
 			div.innerHTML = html;
 			target.appendChild(div);
 		}
@@ -100,31 +107,160 @@ vi.mock('$lib/components/PageHeader.svelte', () => ({
 		};
 	}
 }));
+*/
 
+// NOTE: DataTable is commented out to allow real component in tests
+// This is necessary because reactive props don't work well with mocks
+/*
 vi.mock('$lib/components/DataTable.svelte', () => ({
-	default: function MockDataTable(options: any) {
-		const target = options.target;
-		if (target) {
-			const div = document.createElement('div');
+	default: function MockDataTable(anchor: any, propsArg: any) {
+		const target = anchor?.parentNode;
+		const props = propsArg || {};
+		let searchInput: HTMLInputElement | null = null;
+		const eventListeners: Record<string, Array<(event: any) => void>> = {};
+
+		// Cache resolved prop values to detect changes
+		let cachedData: any[] = [];
+		let cachedLoading = false;
+		let cachedError = '';
+
+		const resolveProps = () => {
+			// Access getters to get current values
+			const data = props.data || [];
+			const loading = props.loading || false;
+			const error = props.error || '';
+
+			// Check if props changed
+			if (data !== cachedData || data.length !== cachedData.length ||
+				loading !== cachedLoading || error !== cachedError) {
+				cachedData = data;
+				cachedLoading = loading;
+				cachedError = error;
+				return { changed: true, data, loading, error };
+			}
+			return { changed: false, data, loading, error };
+		};
+
+		const renderContent = () => {
+			if (!target) return;
+
+			const div = target.querySelector('[data-testid="data-table"]') || document.createElement('div');
 			div.setAttribute('data-testid', 'data-table');
-			
-			// Extract search placeholder from props
-			const props = options.props || {};
+
+			// Access getters to get current values
+			const { data, loading, error } = resolveProps();
 			const searchPlaceholder = props.searchPlaceholder || 'Search...';
-			
-			div.innerHTML = `
-				<div>DataTable Component</div>
-				<input type="search" placeholder="${searchPlaceholder}" />
-			`;
-			target.appendChild(div);
-		}
+			const columns = props.columns || [];
+			const showSearch = props.showSearch !== false;
+			const searchType = props.searchType || 'client';
+
+			// Create table structure
+			let html = '<div>';
+
+			// Search bar
+			if (showSearch) {
+				html += `<div data-testid="${searchType}-search-bar">`;
+				html += `<input type="search" placeholder="${searchPlaceholder}" data-testid="search-input" class="search-input" />`;
+				if (searchType === 'backend') {
+					html += `<button class="search-button">Search</button>`;
+				}
+				html += `</div>`;
+			}
+
+			// Loading state
+			if (loading) {
+				html += '<div data-testid="loading-state">Loading...</div>';
+			}
+			// Error state
+			else if (error) {
+				html += `<div data-testid="error-state">${error}</div>`;
+			}
+			// Table with data
+			else if (data.length > 0 && columns.length > 0) {
+				html += '<table data-testid="data-table-table"><thead><tr>';
+				columns.forEach((col: any) => {
+					html += `<th>${col.title || col.key}</th>`;
+				});
+				html += '</tr></thead><tbody>';
+				data.forEach((item: any, index: number) => {
+					html += `<tr data-testid="table-row-${index}">`;
+					columns.forEach((col: any) => {
+						const value = item[col.key] || '';
+						html += `<td>${typeof value === 'object' ? JSON.stringify(value) : value}</td>`;
+					});
+					// Add action buttons if column has actions
+					if (columns.some((c: any) => c.key === 'actions')) {
+						html += `<td><button data-action="delete" data-index="${index}">Delete</button></td>`;
+					}
+					html += '</tr>';
+				});
+				html += '</tbody></table>';
+			}
+			// Empty state
+			else if (!loading && !error) {
+				html += '<div data-testid="empty-state">No objects found</div>';
+			}
+
+			html += '</div>';
+			div.innerHTML = html;
+
+			if (!div.parentNode) {
+				target.appendChild(div);
+			}
+
+			// Attach event listeners to search input
+			searchInput = div.querySelector('.search-input') as HTMLInputElement;
+			if (searchInput && eventListeners.search) {
+				searchInput.addEventListener('input', (e) => {
+					const term = (e.target as HTMLInputElement).value;
+					eventListeners.search?.forEach(cb => cb({ detail: { term } }));
+				});
+			}
+
+			// Attach event listeners to delete buttons
+			const deleteButtons = div.querySelectorAll('[data-action="delete"]');
+			deleteButtons.forEach((btn) => {
+				btn.addEventListener('click', (e) => {
+					const index = parseInt((e.target as HTMLElement).getAttribute('data-index') || '0');
+					const item = data[index];
+					eventListeners.delete?.forEach(cb => cb({ detail: { item } }));
+				});
+			});
+		};
+
+		// Initial render
+		renderContent();
+
 		return {
-			$destroy: vi.fn(),
-			$set: vi.fn(),
-			$on: vi.fn()
+			$destroy: vi.fn(() => {
+				if (target) {
+					const div = target.querySelector('[data-testid="data-table"]');
+					if (div) div.remove();
+				}
+			}),
+			$set: vi.fn((newProps: any) => {
+				console.log('[DataTable $set] newProps:', newProps);
+				console.log('[DataTable $set] newProps.data:', newProps?.data);
+				console.log('[DataTable $set] newProps.loading:', newProps?.loading);
+				Object.assign(props, newProps);
+				renderContent();
+			}),
+			$on: vi.fn((event: string, callback: (e: any) => void) => {
+				if (!eventListeners[event]) {
+					eventListeners[event] = [];
+				}
+				eventListeners[event].push(callback);
+				return () => {
+					const index = eventListeners[event]?.indexOf(callback);
+					if (index !== undefined && index > -1) {
+						eventListeners[event].splice(index, 1);
+					}
+				};
+			})
 		};
 	}
 }));
+*/
 
 // Mock cell components
 vi.mock('$lib/components/cells', () => ({
@@ -184,6 +320,16 @@ vi.mock('$lib/components/cells', () => ({
 			const div = document.createElement('div');
 			div.setAttribute('data-testid', 'instance-pool-cell');
 			div.textContent = 'Instance Pool Cell';
+			target.appendChild(div);
+		}
+		return { $destroy: vi.fn(), $set: vi.fn(), $on: vi.fn() };
+	},
+	TagsCell: function MockTagsCell(options: any) {
+		const target = options.target;
+		if (target) {
+			const div = document.createElement('div');
+			div.setAttribute('data-testid', 'tags-cell');
+			div.textContent = 'Tags Cell';
 			target.appendChild(div);
 		}
 		return { $destroy: vi.fn(), $set: vi.fn(), $on: vi.fn() };

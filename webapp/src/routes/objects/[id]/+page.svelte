@@ -424,6 +424,6 @@
 		title="Delete Object"
 		message="Are you sure you want to delete the object '{object.name}'? This action cannot be undone."
 		on:confirm={handleDelete}
-		on:cancel={() => showDeleteModal = false}
+		on:close={() => showDeleteModal = false}
 	/>
 {/if}

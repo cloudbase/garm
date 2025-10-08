@@ -7,7 +7,8 @@ import { createMockFileObject } from '../../../test/factories.js';
 vi.mock('$lib/api/client.js', () => ({
 	garmApi: {
 		getFileObject: vi.fn(),
-		deleteFileObject: vi.fn()
+		deleteFileObject: vi.fn(),
+		updateFileObject: vi.fn()
 	}
 }));
 
@@ -15,6 +16,18 @@ vi.mock('$lib/stores/toast.js', () => ({
 	toastStore: {
 		add: vi.fn()
 	}
+}));
+
+vi.mock('$lib/stores/websocket.js', () => ({
+	websocketStore: {
+		subscribe: vi.fn(() => () => {}),
+		subscribeToEntity: vi.fn(() => () => {})
+	}
+}));
+
+vi.mock('$lib/utils/format', () => ({
+	formatFileSize: vi.fn((size) => `${(size / 1024).toFixed(1)} KB`),
+	formatDateTime: vi.fn((date) => date || 'N/A')
 }));
 
 vi.mock('$app/stores', () => ({
@@ -50,16 +63,13 @@ describe('Object Detail Page - Integration Tests', () => {
 	});
 
 	describe('Navigation', () => {
-		it('should navigate back when back button is clicked', async () => {
-			const { goto } = await import('$app/navigation');
-
+		it('should have breadcrumb navigation link to objects page', async () => {
 			render(ObjectDetailPage);
-			await waitFor(() => screen.getByText('test-file.bin'));
+			await waitFor(() => screen.getAllByText('test-file.bin'));
 
-			const backButton = screen.getByText('Back');
-			await fireEvent.click(backButton);
-
-			expect(goto).toHaveBeenCalledWith('/objects');
+			const objectStorageLink = screen.getByText('Object Storage');
+			expect(objectStorageLink).toBeInTheDocument();
+			expect(objectStorageLink.getAttribute('href')).toBe('/objects');
 		});
 	});
 

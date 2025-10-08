@@ -7,7 +7,8 @@ import { createMockFileObject } from '../../../test/factories.js';
 vi.mock('$lib/api/client.js', () => ({
 	garmApi: {
 		getFileObject: vi.fn(),
-		deleteFileObject: vi.fn()
+		deleteFileObject: vi.fn(),
+		updateFileObject: vi.fn()
 	}
 }));
 
@@ -15,6 +16,18 @@ vi.mock('$lib/stores/toast.js', () => ({
 	toastStore: {
 		add: vi.fn()
 	}
+}));
+
+vi.mock('$lib/stores/websocket.js', () => ({
+	websocketStore: {
+		subscribe: vi.fn(() => () => {}),
+		subscribeToEntity: vi.fn(() => () => {})
+	}
+}));
+
+vi.mock('$lib/utils/format', () => ({
+	formatFileSize: vi.fn((size) => `${(size / 1024).toFixed(1)} KB`),
+	formatDateTime: vi.fn((date) => date || 'N/A')
 }));
 
 vi.mock('$app/stores', () => ({
@@ -53,22 +66,23 @@ describe('Object Detail Page - Render Tests', () => {
 
 	describe('Basic Rendering', () => {
 		it('should render without crashing', () => {
-			const { container } = render(ObjectDetailPage);
+			const { container} = render(ObjectDetailPage);
 			expect(container).toBeInTheDocument();
 		});
 
-		it('should set page title', async () => {
+		it('should render breadcrumb navigation', async () => {
 			render(ObjectDetailPage);
 			await new Promise(resolve => setTimeout(resolve, 100));
 
-			expect(document.title).toBe('test-file.bin - GARM');
+			expect(screen.getByText('Object Storage')).toBeInTheDocument();
+			expect(screen.getAllByText('test-file.bin').length).toBeGreaterThan(0);
 		});
 
-		it('should render page header', async () => {
+		it('should render file information section', async () => {
 			render(ObjectDetailPage);
 			await new Promise(resolve => setTimeout(resolve, 100));
 
-			expect(screen.getByRole('heading', { name: 'test-file.bin' })).toBeInTheDocument();
+			expect(screen.getByRole('heading', { name: 'File Information' })).toBeInTheDocument();
 		});
 	});
 
@@ -93,7 +107,7 @@ describe('Object Detail Page - Render Tests', () => {
 			render(ObjectDetailPage);
 			await new Promise(resolve => setTimeout(resolve, 100));
 
-			expect(screen.getByText('test-file.bin')).toBeInTheDocument();
+			expect(screen.getAllByText('test-file.bin').length).toBeGreaterThan(0);
 		});
 
 		it('should display formatted file size', async () => {
@@ -129,18 +143,18 @@ describe('Object Detail Page - Render Tests', () => {
 	});
 
 	describe('Action Buttons', () => {
-		it('should render back button', async () => {
-			render(ObjectDetailPage);
-			await new Promise(resolve => setTimeout(resolve, 100));
-
-			expect(screen.getByText('Back')).toBeInTheDocument();
-		});
-
 		it('should render download button', async () => {
 			render(ObjectDetailPage);
 			await new Promise(resolve => setTimeout(resolve, 100));
 
 			expect(screen.getByRole('button', { name: 'Download' })).toBeInTheDocument();
+		});
+
+		it('should render edit button', async () => {
+			render(ObjectDetailPage);
+			await new Promise(resolve => setTimeout(resolve, 100));
+
+			expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument();
 		});
 
 		it('should render delete button', async () => {
@@ -171,7 +185,7 @@ describe('Object Detail Page - Render Tests', () => {
 			await new Promise(resolve => setTimeout(resolve, 100));
 
 			// Should show error message
-			expect(screen.getByText(/Failed to load object/i)).toBeInTheDocument();
+			expect(screen.getByText(/API Error/i)).toBeInTheDocument();
 		});
 
 		it('should handle invalid object ID', async () => {
