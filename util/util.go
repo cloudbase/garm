@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"unicode/utf8"
 
 	"github.com/h2non/filetype"
@@ -178,4 +179,17 @@ func DetectFileType(data []byte) string {
 
 	// Default to application/octet-stream for unknown types
 	return "application/octet-stream"
+}
+
+func GetTmpFileHandle(baseDir string) (*os.File, error) {
+	tmpDir, err := getTempDir(baseDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tmpDir: %w", err)
+	}
+	tmpFile, err := os.CreateTemp(tmpDir, "garm-upload")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create temp file: %w", err)
+	}
+	tmpFile.Name()
+	return tmpFile, nil
 }
