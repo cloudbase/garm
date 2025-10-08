@@ -24,7 +24,7 @@ import (
 func (s *sqlDatabase) CreateFileObject(ctx context.Context, param params.CreateFileObjectParams, reader io.Reader) (fileObjParam params.FileObject, err error) {
 	// Save the file to temporary storage first. This allows us to accept the entire file, even over
 	// a slow connection, without locking the database as we stream the file to the DB.
-	// SQLite will lock the entire database (including for readers) when the data is being commited.
+	// SQLite will lock the entire database (including for readers) when the data is being committed.
 	tmpFile, err := util.GetTmpFileHandle("")
 	if err != nil {
 		return params.FileObject{}, fmt.Errorf("failed to create tmp file: %w", err)
@@ -39,7 +39,7 @@ func (s *sqlDatabase) CreateFileObject(ctx context.Context, param params.CreateF
 	if err := tmpFile.Sync(); err != nil {
 		return params.FileObject{}, fmt.Errorf("failed to flush data to disk: %w", err)
 	}
-	// File has been transfered. We need to seek to the beginning of the file. This same handler will be used
+	// File has been transferred. We need to seek to the beginning of the file. This same handler will be used
 	// to streab the data to the database.
 	if _, err := tmpFile.Seek(0, 0); err != nil {
 		return params.FileObject{}, fmt.Errorf("failed to seek to beginning: %w", err)
@@ -96,12 +96,11 @@ func (s *sqlDatabase) CreateFileObject(ctx context.Context, param params.CreateF
 		}
 		return nil
 	})
-
 	if err != nil {
 		return params.FileObject{}, fmt.Errorf("failed to create database entry for blob: %w", err)
 	}
 	// Stream file to blob and compute SHA256
-	conn, err := s.objectsSqlDB.Conn(ctx)
+	conn, err := s.objectsSQLDB.Conn(ctx)
 	if err != nil {
 		return params.FileObject{}, fmt.Errorf("failed to get connection from pool: %w", err)
 	}
@@ -339,7 +338,7 @@ func (s *sqlDatabase) SearchFileObjectByTags(_ context.Context, tags []string, p
 
 // OpenFileObjectContent opens a blob for reading and returns an io.ReadCloser
 func (s *sqlDatabase) OpenFileObjectContent(ctx context.Context, objID uint) (io.ReadCloser, error) {
-	conn, err := s.objectsSqlDB.Conn(ctx)
+	conn, err := s.objectsSQLDB.Conn(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get connection: %w", err)
 	}
