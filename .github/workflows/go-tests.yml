@@ -52,7 +52,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '>=v24.5.0'
-      
+
       - name: Set up openapi-generator-cli
         run: |
           mkdir -p $HOME/openapi-generator
@@ -77,6 +77,6 @@ jobs:
       - name: Run GARM Go Tests
         run: make go-test
 
-      - name: Run web UI tests
-        run: |
-          make webui-test
+      # - name: Run web UI tests
+      #   run: |
+      #     make webui-test

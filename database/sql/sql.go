@@ -112,12 +112,12 @@ func NewSQLDatabase(ctx context.Context, cfg config.Database) (common.Store, err
 			return nil, fmt.Errorf("error creating objects DB connection: %w", err)
 		}
 
-		objectsSqlDB, err := objectsConn.DB()
+		objectsSQLDB, err := objectsConn.DB()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get underlying objects database connection: %w", err)
 		}
 		db.objectsConn = objectsConn
-		db.objectsSqlDB = objectsSqlDB
+		db.objectsSQLDB = objectsSQLDB
 	}
 
 	if err := db.migrateDB(); err != nil {
@@ -132,7 +132,7 @@ type sqlDatabase struct {
 
 	// objectsConn is a separate GORM connection to the objects database
 	objectsConn  *gorm.DB
-	objectsSqlDB *sql.DB
+	objectsSQLDB *sql.DB
 
 	ctx      context.Context
 	cfg      config.Database
