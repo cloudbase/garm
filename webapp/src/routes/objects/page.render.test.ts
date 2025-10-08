@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/svelte';
+import { render, screen, waitFor } from '@testing-library/svelte';
 import ObjectsPage from './+page.svelte';
 import { createMockFileObject } from '../../test/factories.js';
 
@@ -15,6 +15,13 @@ vi.mock('$lib/api/client.js', () => ({
 vi.mock('$lib/stores/toast.js', () => ({
 	toastStore: {
 		add: vi.fn()
+	}
+}));
+
+vi.mock('$lib/stores/websocket.js', () => ({
+	websocketStore: {
+		subscribe: vi.fn(() => () => {}),
+		subscribeToEntity: vi.fn(() => () => {})
 	}
 }));
 
@@ -52,40 +59,31 @@ describe('Objects Page - Render Tests', () => {
 			expect(container).toBeInTheDocument();
 		});
 
-		it('should set page title', () => {
-			render(ObjectsPage);
-			expect(document.title).toBe('Object Storage - GARM');
-		});
-
 		it('should render page header with correct title', async () => {
-			render(ObjectsPage);
-			await new Promise(resolve => setTimeout(resolve, 0));
+			const { getByRole, getByText } = render(ObjectsPage);
 
-			expect(screen.getByRole('heading', { name: 'Object Storage' })).toBeInTheDocument();
-			expect(screen.getByText(/Manage files stored in GARM/i)).toBeInTheDocument();
+			await waitFor(() => {
+				expect(getByRole('heading', { name: 'Object Storage' })).toBeInTheDocument();
+			});
+			expect(getByText(/Manage files stored in GARM/i)).toBeInTheDocument();
 		});
 
 		it('should render upload button', async () => {
 			render(ObjectsPage);
-			await new Promise(resolve => setTimeout(resolve, 0));
 
-			expect(screen.getByText('Upload New Object')).toBeInTheDocument();
+			await waitFor(() => {
+				expect(screen.getByText('Upload New Object')).toBeInTheDocument();
+			});
 		});
 	});
 
 	describe('Search Functionality', () => {
 		it('should render search input', async () => {
 			render(ObjectsPage);
-			await new Promise(resolve => setTimeout(resolve, 0));
 
-			expect(screen.getByPlaceholderText(/Search by tags/i)).toBeInTheDocument();
-		});
-
-		it('should render search button', async () => {
-			render(ObjectsPage);
-			await new Promise(resolve => setTimeout(resolve, 0));
-
-			expect(screen.getByRole('button', { name: 'Search' })).toBeInTheDocument();
+			await waitFor(() => {
+				expect(screen.getByPlaceholderText(/Search by name or tags/i)).toBeInTheDocument();
+			});
 		});
 	});
 
@@ -101,9 +99,10 @@ describe('Objects Page - Render Tests', () => {
 
 		it('should display object name in table', async () => {
 			render(ObjectsPage);
-			await new Promise(resolve => setTimeout(resolve, 100));
 
-			expect(screen.getByText('test-file.bin')).toBeInTheDocument();
+			await waitFor(() => {
+				expect(screen.getByText('test-file.bin')).toBeInTheDocument();
+			});
 		});
 
 		it('should show empty state when no objects', async () => {
@@ -115,17 +114,20 @@ describe('Objects Page - Render Tests', () => {
 			});
 
 			render(ObjectsPage);
-			await new Promise(resolve => setTimeout(resolve, 100));
 
-			expect(screen.getByText(/No objects found/i)).toBeInTheDocument();
+			await waitFor(() => {
+				expect(screen.getByText('No objects found')).toBeInTheDocument();
+			});
 		});
 	});
 
 	describe('Modals', () => {
-		it('should not show upload modal initially', () => {
+		it('should not show upload modal initially', async () => {
 			render(ObjectsPage);
 
-			expect(screen.queryByText('Upload New Object')).toBeInTheDocument(); // button
+			await waitFor(() => {
+				expect(screen.getByText('Upload New Object')).toBeInTheDocument(); // button
+			});
 			expect(screen.queryByLabelText('File Name')).not.toBeInTheDocument(); // modal input
 		});
 

@@ -904,7 +904,7 @@ It is not meant to be used to serve files outside of the needs of GARM and it do
 		title="Delete Object"
 		message="Are you sure you want to delete the object '{selectedObject.name}'? This action cannot be undone."
 		on:confirm={handleDeleteObject}
-		on:cancel={() => {
+		on:close={() => {
 			showDeleteModal = false;
 			selectedObject = null;
 		}}
