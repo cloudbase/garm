@@ -172,6 +172,9 @@ func NewAPIRouter(han *controllers.APIController, authMiddleware, initMiddleware
 	metadataRouter.Handle("/systemd/unit-file", http.HandlerFunc(han.SystemdUnitFileHandler)).Methods("GET", "OPTIONS")
 	metadataRouter.Handle("/system/cert-bundle/", http.HandlerFunc(han.RootCertificateBundleHandler)).Methods("GET", "OPTIONS")
 	metadataRouter.Handle("/system/cert-bundle", http.HandlerFunc(han.RootCertificateBundleHandler)).Methods("GET", "OPTIONS")
+	// Tools
+	metadataRouter.Handle("/tools/garm/", http.HandlerFunc(han.InstanceGARMToolsHandler)).Methods("GET", "OPTIONS")
+	metadataRouter.Handle("/tools/garm", http.HandlerFunc(han.InstanceGARMToolsHandler)).Methods("GET", "OPTIONS")
 	// install script
 	metadataRouter.Handle("/install-script/", http.HandlerFunc(han.RunnerInstallScriptHandler)).Methods("GET", "OPTIONS")
 	metadataRouter.Handle("/install-script", http.HandlerFunc(han.RunnerInstallScriptHandler)).Methods("GET", "OPTIONS")
@@ -237,6 +240,11 @@ func NewAPIRouter(han *controllers.APIController, authMiddleware, initMiddleware
 	// Update object
 	apiRouter.Handle("/objects/{objectID}/", http.HandlerFunc(han.UpdateFileObject)).Methods("PUT", "OPTIONS")
 	apiRouter.Handle("/objects/{objectID}", http.HandlerFunc(han.UpdateFileObject)).Methods("PUT", "OPTIONS")
+
+	// DELETEME //
+	// Tools
+	apiRouter.Handle("/tools/garm/", http.HandlerFunc(han.InstanceGARMToolsHandler)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/tools/garm", http.HandlerFunc(han.InstanceGARMToolsHandler)).Methods("GET", "OPTIONS")
 
 	//////////
 	// Jobs //

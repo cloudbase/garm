@@ -1332,3 +1332,21 @@ type PaginatedResponse[T any] struct {
 
 // swagger:model FileObjectPaginatedResponse
 type FileObjectPaginatedResponse = PaginatedResponse[FileObject]
+
+// swagger:model GARMAgentTool
+type GARMAgentTool struct {
+	ID          uint                `json:"id"`
+	Name        string              `json:"name"`
+	Size        int64               `json:"size"`
+	SHA256SUM   string              `json:"sha256sum"`
+	Description string              `json:"description"`
+	CreatedAt   time.Time           `json:"created_at"`
+	UpdatedAt   time.Time           `json:"updated_at"`
+	FileType    string              `json:"file_type"`
+	Version     string              `json:"version"`
+	OSType      commonParams.OSType `json:"os_type"`
+	OSArch      commonParams.OSArch `json:"os_arch"`
+}
+
+// swagger:model GARMAgentToolsPaginatedResponse
+type GARMAgentToolsPaginatedResponse = PaginatedResponse[GARMAgentTool]

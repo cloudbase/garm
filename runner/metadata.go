@@ -28,6 +28,7 @@ import (
 	"github.com/cloudbase/garm-provider-common/cloudconfig"
 	"github.com/cloudbase/garm-provider-common/defaults"
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm-provider-common/util"
 	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/cache"
@@ -400,4 +401,67 @@ func (r *Runner) GetRootCertificateBundle(ctx context.Context) (params.Certifica
 		}, nil
 	}
 	return bundle, nil
+}
+
+func (r *Runner) GetGARMTools(ctx context.Context, page, pageSize uint64) (params.GARMAgentToolsPaginatedResponse, error) {
+	tags := []string{
+		"category=garm-agent",
+	}
+	instance, err := auth.InstanceParams(ctx)
+	if err != nil {
+		if !auth.IsAdmin(ctx) {
+			return params.GARMAgentToolsPaginatedResponse{}, runnerErrors.ErrUnauthorized
+		}
+	} else {
+		tags = append(tags, "os_type="+string(instance.OSType))
+		tags = append(tags, "os_arch="+string(instance.OSArch))
+	}
+
+	files, err := r.store.SearchFileObjectByTags(r.ctx, tags, page, pageSize)
+	if err != nil {
+		return params.GARMAgentToolsPaginatedResponse{}, fmt.Errorf("failed to list files: %w", err)
+	}
+
+	var tools []params.GARMAgentTool
+	for _, val := range files.Results {
+		tags := val.Tags
+		var version string
+		var os_type string
+		var os_arch string
+		for _, val := range tags {
+			if strings.HasPrefix(val, "version=") {
+				version = val[8:]
+			}
+			if strings.HasPrefix(val, "os_arch=") {
+				os_arch = val[8:]
+			}
+			if strings.HasPrefix(val, "os_type=") {
+				os_type = val[8:]
+			}
+		}
+		res := params.GARMAgentTool{
+			ID:          val.ID,
+			Name:        val.Name,
+			Size:        val.Size,
+			SHA256SUM:   val.SHA256,
+			Description: val.Description,
+			CreatedAt:   val.CreatedAt,
+			UpdatedAt:   val.UpdatedAt,
+			FileType:    val.FileType,
+			OSType:      commonParams.OSType(os_type),
+			OSArch:      commonParams.OSArch(os_arch),
+		}
+		if version != "" {
+			res.Version = version
+		}
+		tools = append(tools, res)
+	}
+	return params.GARMAgentToolsPaginatedResponse{
+		TotalCount:   files.TotalCount,
+		Pages:        files.Pages,
+		CurrentPage:  files.CurrentPage,
+		NextPage:     files.NextPage,
+		PreviousPage: files.PreviousPage,
+		Results:      tools,
+	}, nil
 }
