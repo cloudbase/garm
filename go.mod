@@ -29,7 +29,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/crypto v0.43.0
 	golang.org/x/mod v0.29.0
-	golang.org/x/oauth2 v0.31.0
+	golang.org/x/oauth2 v0.32.0
 	golang.org/x/sync v0.17.0
 	gopkg.in/DATA-DOG/go-sqlmock.v1 v1.3.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
