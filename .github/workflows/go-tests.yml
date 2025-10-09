@@ -77,6 +77,6 @@ jobs:
       - name: Run GARM Go Tests
         run: make go-test
 
-      # - name: Run web UI tests
-      #   run: |
-      #     make webui-test
+      - name: Run web UI tests
+        run: |
+          make webui-test

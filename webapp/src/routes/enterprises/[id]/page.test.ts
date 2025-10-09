@@ -52,10 +52,13 @@ vi.mock('$lib/stores/websocket.js', () => ({
 }));
 
 // Mock utilities
-vi.mock('$lib/utils/common.js', () => ({
-	getForgeIcon: vi.fn(() => 'github'),
-	formatDate: vi.fn((date) => date)
-}));
+vi.mock('$lib/utils/common.js', async (importOriginal) => {
+	const actual = await importOriginal() as any;
+	return {
+		...actual,
+		// Use all real functions
+	};
+});
 
 vi.mock('$lib/utils/apiError', () => ({
 	extractAPIError: vi.fn((err) => err.message || 'Unknown error')

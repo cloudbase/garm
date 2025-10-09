@@ -36,17 +36,17 @@
 
 	async function loadEnterprise() {
 		if (!enterpriseId) return;
-		
+
 		try {
 			loading = true;
 			error = '';
-			
+
 			const [ent, entPools, entInstances] = await Promise.all([
 				garmApi.getEnterprise(enterpriseId),
 				garmApi.listEnterprisePools(enterpriseId).catch(() => []),
 				garmApi.listEnterpriseInstances(enterpriseId).catch(() => [])
 			]);
-			
+
 			enterprise = ent;
 			pools = entPools;
 			instances = entInstances;

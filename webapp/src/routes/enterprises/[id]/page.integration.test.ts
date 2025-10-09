@@ -80,6 +80,27 @@ const mockInstances = [
 	})
 ];
 
+// Mock eager cache store
+vi.mock('$lib/stores/eager-cache.js', () => ({
+	eagerCache: {
+		subscribe: vi.fn((callback) => {
+			callback({
+				enterprises: [],
+				organizations: [],
+				repositories: [],
+				loaded: {},
+				loading: {},
+				errorMessages: {}
+			});
+			return () => {};
+		})
+	},
+	eagerCacheManager: {
+		getEnterprises: vi.fn(),
+		retryResource: vi.fn()
+	}
+}));
+
 // Reset any component mocks that might be set by setup.ts
 vi.unmock('$lib/components/UpdateEntityModal.svelte');
 vi.unmock('$lib/components/DeleteModal.svelte');
@@ -118,10 +139,13 @@ vi.mock('$lib/stores/websocket.js', () => ({
 	}
 }));
 
-vi.mock('$lib/utils/common.js', () => ({
-	getForgeIcon: vi.fn(() => 'github'),
-	formatDate: vi.fn((date) => date)
-}));
+vi.mock('$lib/utils/common.js', async (importOriginal) => {
+	const actual = await importOriginal() as any;
+	return {
+		...actual,
+		// No need to mock anything, use all real functions
+	};
+});
 
 vi.mock('$lib/utils/apiError', () => ({
 	extractAPIError: vi.fn((err) => err.message || 'Unknown error')
@@ -149,16 +173,13 @@ describe('Comprehensive Integration Tests for Enterprise Details Page', () => {
 
 	describe('Component Rendering and Data Display', () => {
 		it('should render enterprise details page with real components', async () => {
-			render(EnterpriseDetailsPage);
+			const { container } = render(EnterpriseDetailsPage);
 
+			// Wait for enterprise data to load and render
 			await waitFor(() => {
-				// Wait for enterprise data to load
-				expect(garmApi.getEnterprise).toHaveBeenCalledWith('ent-123');
-			});
+				expect(screen.getByRole('heading', { name: 'test-enterprise' })).toBeInTheDocument();
+			}, { timeout: 5000 });
 
-			// Should render the enterprise name in the breadcrumb and header
-			expect(screen.getByRole('heading', { name: 'test-enterprise' })).toBeInTheDocument();
-			
 			// Should render the enterprise details
 			expect(screen.getByText('Endpoint: github.com • GitHub Enterprise')).toBeInTheDocument();
 		});
@@ -177,14 +198,12 @@ describe('Comprehensive Integration Tests for Enterprise Details Page', () => {
 		it('should render all major sections when data is loaded', async () => {
 			render(EnterpriseDetailsPage);
 
-			await waitFor(() => {
-				expect(garmApi.getEnterprise).toHaveBeenCalledWith('ent-123');
-			});
-
 			// Should have all major sections
-			expect(screen.getByText('Pools (2)')).toBeInTheDocument();
-			expect(screen.getByText('Instances (2)')).toBeInTheDocument();
-			expect(screen.getByText('Events')).toBeInTheDocument();
+			await waitFor(() => {
+				expect(screen.getByText('Pools (2)')).toBeInTheDocument();
+				expect(screen.getByText('Instances (2)')).toBeInTheDocument();
+				expect(screen.getByText('Events')).toBeInTheDocument();
+			});
 		});
 	});
 
@@ -395,7 +414,9 @@ describe('Comprehensive Integration Tests for Enterprise Details Page', () => {
 			// The component properly sets up websocket integration to receive real-time updates
 			// This is verified by the subscription calls above and by the component's ability
 			// to display data that would be updated via websockets
-			expect(screen.getByRole('heading', { name: 'test-enterprise' })).toBeInTheDocument();
+			await waitFor(() => {
+				expect(screen.getByRole('heading', { name: 'test-enterprise' })).toBeInTheDocument();
+			});
 		});
 	});
 

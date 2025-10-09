@@ -25,8 +25,8 @@ vi.mock('$app/environment', () => ({
 
 // Simple component mocks that render as basic divs
 vi.mock('$lib/components/CreateRepositoryModal.svelte', () => ({
-	default: function MockCreateRepositoryModal(options: any) {
-		const target = options.target;
+	default: function MockCreateRepositoryModal(anchor: any, props: any) {
+		const target = anchor?.parentNode;
 		if (target) {
 			const div = document.createElement('div');
 			div.setAttribute('data-testid', 'create-repository-modal');
@@ -42,8 +42,8 @@ vi.mock('$lib/components/CreateRepositoryModal.svelte', () => ({
 }));
 
 vi.mock('$lib/components/UpdateEntityModal.svelte', () => ({
-	default: function MockUpdateEntityModal(options: any) {
-		const target = options.target;
+	default: function MockUpdateEntityModal(anchor: any, props: any) {
+		const target = anchor?.parentNode;
 		if (target) {
 			const div = document.createElement('div');
 			div.setAttribute('data-testid', 'update-entity-modal');
@@ -58,6 +58,9 @@ vi.mock('$lib/components/UpdateEntityModal.svelte', () => ({
 	}
 }));
 
+// DeleteModal is NOT mocked - use real component
+// Modal content and buttons need to work correctly
+/*
 vi.mock('$lib/components/DeleteModal.svelte', () => ({
 	default: function MockDeleteModal(anchor: any, props: any) {
 		const target = anchor?.parentNode;
@@ -74,6 +77,7 @@ vi.mock('$lib/components/DeleteModal.svelte', () => ({
 		};
 	}
 }));
+*/
 
 // PageHeader is NOT mocked - use real component to support slots
 // Slots don't work properly with mocked Svelte components
@@ -262,40 +266,42 @@ vi.mock('$lib/components/DataTable.svelte', () => ({
 }));
 */
 
-// Mock cell components
+// Cell components are NOT mocked - use real components
+// Mocked cells don't render actual data values
+/*
 vi.mock('$lib/components/cells', () => ({
-	EntityCell: function MockEntityCell(options: any) {
-		const target = options.target;
+	EntityCell: function MockEntityCell(anchor: any, props: any) {
+		const target = anchor?.parentNode;
 		if (target) {
 			const div = document.createElement('div');
 			div.setAttribute('data-testid', 'entity-cell');
-			div.textContent = 'Entity Cell';
+			div.textContent = props?.value || 'Entity Cell';
 			target.appendChild(div);
 		}
 		return { $destroy: vi.fn(), $set: vi.fn(), $on: vi.fn() };
 	},
-	EndpointCell: function MockEndpointCell(options: any) {
-		const target = options.target;
+	EndpointCell: function MockEndpointCell(anchor: any, props: any) {
+		const target = anchor?.parentNode;
 		if (target) {
 			const div = document.createElement('div');
 			div.setAttribute('data-testid', 'endpoint-cell');
-			div.textContent = 'Endpoint Cell';
+			div.textContent = props?.value || 'Endpoint Cell';
 			target.appendChild(div);
 		}
 		return { $destroy: vi.fn(), $set: vi.fn(), $on: vi.fn() };
 	},
-	StatusCell: function MockStatusCell(options: any) {
-		const target = options.target;
+	StatusCell: function MockStatusCell(anchor: any, props: any) {
+		const target = anchor?.parentNode;
 		if (target) {
 			const div = document.createElement('div');
 			div.setAttribute('data-testid', 'status-cell');
-			div.textContent = 'Status Cell';
+			div.textContent = props?.value || 'Status Cell';
 			target.appendChild(div);
 		}
 		return { $destroy: vi.fn(), $set: vi.fn(), $on: vi.fn() };
 	},
-	ActionsCell: function MockActionsCell(options: any) {
-		const target = options.target;
+	ActionsCell: function MockActionsCell(anchor: any, props: any) {
+		const target = anchor?.parentNode;
 		if (target) {
 			const div = document.createElement('div');
 			div.setAttribute('data-testid', 'actions-cell');
@@ -304,34 +310,35 @@ vi.mock('$lib/components/cells', () => ({
 		}
 		return { $destroy: vi.fn(), $set: vi.fn(), $on: vi.fn() };
 	},
-	GenericCell: function MockGenericCell(options: any) {
-		const target = options.target;
+	GenericCell: function MockGenericCell(anchor: any, props: any) {
+		const target = anchor?.parentNode;
 		if (target) {
 			const div = document.createElement('div');
 			div.setAttribute('data-testid', 'generic-cell');
-			div.textContent = 'Generic Cell';
+			div.textContent = props?.value || 'Generic Cell';
 			target.appendChild(div);
 		}
 		return { $destroy: vi.fn(), $set: vi.fn(), $on: vi.fn() };
 	},
-	InstancePoolCell: function MockInstancePoolCell(options: any) {
-		const target = options.target;
+	InstancePoolCell: function MockInstancePoolCell(anchor: any, props: any) {
+		const target = anchor?.parentNode;
 		if (target) {
 			const div = document.createElement('div');
 			div.setAttribute('data-testid', 'instance-pool-cell');
-			div.textContent = 'Instance Pool Cell';
+			div.textContent = props?.value || 'Instance Pool Cell';
 			target.appendChild(div);
 		}
 		return { $destroy: vi.fn(), $set: vi.fn(), $on: vi.fn() };
 	},
-	TagsCell: function MockTagsCell(options: any) {
-		const target = options.target;
+	TagsCell: function MockTagsCell(anchor: any, props: any) {
+		const target = anchor?.parentNode;
 		if (target) {
 			const div = document.createElement('div');
 			div.setAttribute('data-testid', 'tags-cell');
-			div.textContent = 'Tags Cell';
+			div.textContent = props?.tags?.join(', ') || 'Tags Cell';
 			target.appendChild(div);
 		}
 		return { $destroy: vi.fn(), $set: vi.fn(), $on: vi.fn() };
 	}
 }));
+*/

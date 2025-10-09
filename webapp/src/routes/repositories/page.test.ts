@@ -40,35 +40,40 @@ vi.mock('$lib/stores/toast.js', () => ({
 	}
 }));
 
-vi.mock('$lib/utils/common.js', () => ({
-	getForgeIcon: vi.fn((endpointType: string) => {
-		if (endpointType === 'github') {
-			return '<div class="github-icon">GitHub Icon</div>';
-		} else if (endpointType === 'gitea') {
-			return '<svg class="gitea-icon">Gitea Icon</svg>';
-		}
-		return '<svg class="unknown-icon">Unknown Icon</svg>';
-	}),
-	changePerPage: vi.fn((newPerPage: number) => ({
-		newPerPage,
-		newCurrentPage: 1
-	})),
-	getEntityStatusBadge: vi.fn((entity: any) => ({
-		text: entity?.pool_manager_status?.running ? 'Running' : 'Stopped',
-		variant: entity?.pool_manager_status?.running ? 'success' : 'error'
-	})),
-	filterRepositories: vi.fn((repositories: any[], searchTerm: string) => {
-		if (!searchTerm) return repositories;
-		return repositories.filter((repo: any) => 
-			repo.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-			repo.owner.toLowerCase().includes(searchTerm.toLowerCase())
-		);
-	}),
-	paginateItems: vi.fn((items: any[], currentPage: number, perPage: number) => {
-		const start = (currentPage - 1) * perPage;
-		return items.slice(start, start + perPage);
-	})
-}));
+vi.mock('$lib/utils/common.js', async (importOriginal) => {
+	const actual = await importOriginal() as any;
+	return {
+		...actual,
+		// Override only specific functions for testing
+		getForgeIcon: vi.fn((endpointType: string) => {
+			if (endpointType === 'github') {
+				return '<div class="github-icon">GitHub Icon</div>';
+			} else if (endpointType === 'gitea') {
+				return '<svg class="gitea-icon">Gitea Icon</svg>';
+			}
+			return '<svg class="unknown-icon">Unknown Icon</svg>';
+		}),
+		changePerPage: vi.fn((newPerPage: number) => ({
+			newPerPage,
+			newCurrentPage: 1
+		})),
+		getEntityStatusBadge: vi.fn((entity: any) => ({
+			text: entity?.pool_manager_status?.running ? 'Running' : 'Stopped',
+			variant: entity?.pool_manager_status?.running ? 'success' : 'error'
+		})),
+		filterRepositories: vi.fn((repositories: any[], searchTerm: string) => {
+			if (!searchTerm) return repositories;
+			return repositories.filter((repo: any) =>
+				repo.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+				repo.owner.toLowerCase().includes(searchTerm.toLowerCase())
+			);
+		}),
+		paginateItems: vi.fn((items: any[], currentPage: number, perPage: number) => {
+			const start = (currentPage - 1) * perPage;
+			return items.slice(start, start + perPage);
+		})
+	};
+});
 
 vi.mock('$lib/utils/apiError', () => ({
 	extractAPIError: vi.fn((error: any) => {

@@ -72,7 +72,12 @@ vi.mock('$lib/stores/eager-cache.js', () => ({
 	}
 }));
 
-vi.mock('$lib/utils/common.js', () => ({
+vi.mock('$lib/utils/common.js', async (importOriginal) => {
+	const actual = await importOriginal() as any;
+	return {
+		...actual,
+		// Override only specific functions for testing
+
 	getForgeIcon: vi.fn(() => '<svg data-forge="github"></svg>'),
 	filterCredentials: vi.fn((credentials, searchTerm) => {
 		if (!searchTerm) return credentials;
@@ -89,7 +94,8 @@ vi.mock('$lib/utils/common.js', () => ({
 	getAuthTypeBadge: vi.fn((authType) => authType === 'pat' ? 'PAT' : 'App'),
 	getEntityStatusBadge: vi.fn(() => 'active'),
 	formatDate: vi.fn((date) => date)
-}));
+	};
+});
 
 vi.mock('$lib/utils/apiError', () => ({
 	extractAPIError: vi.fn((err) => err.message || 'Unknown error')

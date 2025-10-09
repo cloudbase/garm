@@ -90,7 +90,12 @@ vi.mock('$lib/components/cells', () => ({
 	GenericCell: vi.fn(() => ({ destroy: vi.fn(), $$set: vi.fn() }))
 }));
 
-vi.mock('$lib/utils/common.js', () => ({
+vi.mock('$lib/utils/common.js', async (importOriginal) => {
+	const actual = await importOriginal() as any;
+	return {
+		...actual,
+		// Override only specific functions for testing
+
 	getForgeIcon: vi.fn((type) => `<svg data-forge="${type}"></svg>`),
 	getEntityStatusBadge: vi.fn(() => ({ variant: 'success', text: 'Running' })),
 	filterByName: vi.fn((items, term) => 
@@ -98,7 +103,8 @@ vi.mock('$lib/utils/common.js', () => ({
 			item.name.toLowerCase().includes(term.toLowerCase())
 		) : items
 	)
-}));
+	};
+});
 
 vi.mock('$lib/utils/apiError', () => ({
 	extractAPIError: vi.fn((error) => error.message || 'API Error')
