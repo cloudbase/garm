@@ -18,8 +18,8 @@ vi.mock('$lib/stores/eager-cache.js', () => ({
 		subscribe: vi.fn((callback) => {
 			callback({
 				repositories: [
-					createMockRepository({ name: 'test-repo-1', owner: 'owner-1' }),
-					createMockGiteaRepository({ name: 'gitea-repo', owner: 'owner-2' })
+					createMockRepository({ id: 'repo-1', name: 'test-repo-1', owner: 'owner-1' }),
+					createMockGiteaRepository({ id: 'repo-2', name: 'gitea-repo', owner: 'owner-2' })
 				],
 				loaded: { repositories: true },
 				loading: { repositories: false },
@@ -43,7 +43,12 @@ vi.mock('$lib/stores/toast.js', () => ({
 	}
 }));
 
-vi.mock('$lib/utils/common.js', () => ({
+vi.mock('$lib/utils/common.js', async (importOriginal) => {
+	const actual = await importOriginal() as any;
+	return {
+		...actual,
+		// Override only specific functions for testing
+
 	getForgeIcon: vi.fn((endpointType: string) => {
 		if (endpointType === 'github') {
 			return '<div class="github-icon">GitHub Icon</div>';
@@ -71,7 +76,8 @@ vi.mock('$lib/utils/common.js', () => ({
 		const start = (currentPage - 1) * perPage;
 		return items.slice(start, start + perPage);
 	})
-}));
+	};
+});
 
 vi.mock('$lib/utils/apiError', () => ({
 	extractAPIError: vi.fn((error: any) => {

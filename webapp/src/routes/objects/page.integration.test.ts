@@ -177,7 +177,7 @@ describe('Objects Page - Integration Tests', () => {
 
 			// Confirm deletion
 			await waitFor(() => screen.getByText(/Are you sure/i));
-			const confirmButton = screen.getByRole('button', { name: 'Confirm' });
+			const confirmButton = screen.getByRole('button', { name: 'Delete' });
 			await fireEvent.click(confirmButton);
 
 			// Should call delete API
@@ -200,7 +200,7 @@ describe('Objects Page - Integration Tests', () => {
 			await fireEvent.click(deleteButtons[0]);
 			await waitFor(() => screen.getByText(/Are you sure/i));
 
-			const confirmButton = screen.getByRole('button', { name: 'Confirm' });
+			const confirmButton = screen.getByRole('button', { name: 'Delete' });
 			await fireEvent.click(confirmButton);
 
 			// Should reload list
@@ -315,7 +315,7 @@ describe('Objects Page - Integration Tests', () => {
 			await fireEvent.click(deleteButtons[0]);
 			await waitFor(() => screen.getByText(/Are you sure/i));
 
-			const confirmButton = screen.getByRole('button', { name: 'Confirm' });
+			const confirmButton = screen.getByRole('button', { name: 'Delete' });
 			await fireEvent.click(confirmButton);
 
 			// Should show error toast

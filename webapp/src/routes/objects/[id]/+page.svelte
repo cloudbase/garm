@@ -106,6 +106,13 @@
 			document.body.appendChild(link);
 			link.click();
 			document.body.removeChild(link);
+
+			// Show success toast
+			toastStore.add({
+				type: 'success',
+				title: 'Download started',
+				message: `Downloading "${object.name}"...`
+			});
 		} catch (err) {
 			const errorMsg = extractAPIError(err);
 			toastStore.add({

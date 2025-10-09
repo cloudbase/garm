@@ -76,7 +76,8 @@ describe('Object Detail Page - Integration Tests', () => {
 	describe('Delete Functionality', () => {
 		it('should open delete modal when delete button is clicked', async () => {
 			render(ObjectDetailPage);
-			await waitFor(() => screen.getByText('test-file.bin'));
+			// Wait for page to load (File Information heading appears)
+			await waitFor(() => screen.getByText('File Information'));
 
 			const deleteButton = screen.getByRole('button', { name: 'Delete' });
 			await fireEvent.click(deleteButton);
@@ -89,7 +90,7 @@ describe('Object Detail Page - Integration Tests', () => {
 
 		it('should close delete modal when cancel is clicked', async () => {
 			render(ObjectDetailPage);
-			await waitFor(() => screen.getByText('test-file.bin'));
+			await waitFor(() => screen.getByText('File Information'));
 
 			// Open delete modal
 			const deleteButton = screen.getByRole('button', { name: 'Delete' });
@@ -110,16 +111,16 @@ describe('Object Detail Page - Integration Tests', () => {
 			(garmApi.deleteFileObject as any).mockResolvedValue(undefined);
 
 			render(ObjectDetailPage);
-			await waitFor(() => screen.getByText('test-file.bin'));
+			await waitFor(() => screen.getByText('File Information'));
 
 			// Open delete modal
-			const deleteButton = screen.getByRole('button', { name: 'Delete' });
-			await fireEvent.click(deleteButton);
+			const deleteButtons = screen.getAllByRole('button', { name: 'Delete' });
+			await fireEvent.click(deleteButtons[0]); // Click the first one (page button)
 			await waitFor(() => screen.getByText(/Are you sure/i));
 
-			// Confirm deletion
-			const confirmButton = screen.getByRole('button', { name: 'Confirm' });
-			await fireEvent.click(confirmButton);
+			// Confirm deletion (get all Delete buttons, the second one is in the modal)
+			const confirmButtons = screen.getAllByRole('button', { name: 'Delete' });
+			await fireEvent.click(confirmButtons[1]); // Click the second one (modal button)
 
 			// Should call delete API
 			await waitFor(() => {
@@ -134,15 +135,15 @@ describe('Object Detail Page - Integration Tests', () => {
 			(garmApi.deleteFileObject as any).mockResolvedValue(undefined);
 
 			render(ObjectDetailPage);
-			await waitFor(() => screen.getByText('test-file.bin'));
+			await waitFor(() => screen.getByText('File Information'));
 
 			// Delete object
-			const deleteButton = screen.getByRole('button', { name: 'Delete' });
-			await fireEvent.click(deleteButton);
+			const deleteButtons = screen.getAllByRole('button', { name: 'Delete' });
+			await fireEvent.click(deleteButtons[0]); // Click page button
 			await waitFor(() => screen.getByText(/Are you sure/i));
 
-			const confirmButton = screen.getByRole('button', { name: 'Confirm' });
-			await fireEvent.click(confirmButton);
+			const confirmButtons = screen.getAllByRole('button', { name: 'Delete' });
+			await fireEvent.click(confirmButtons[1]); // Click modal confirm button
 
 			// Should navigate to list
 			await waitFor(() => {
@@ -157,15 +158,15 @@ describe('Object Detail Page - Integration Tests', () => {
 			(garmApi.deleteFileObject as any).mockResolvedValue(undefined);
 
 			render(ObjectDetailPage);
-			await waitFor(() => screen.getByText('test-file.bin'));
+			await waitFor(() => screen.getByText('File Information'));
 
 			// Delete object
-			const deleteButton = screen.getByRole('button', { name: 'Delete' });
-			await fireEvent.click(deleteButton);
+			const deleteButtons = screen.getAllByRole('button', { name: 'Delete' });
+			await fireEvent.click(deleteButtons[0]); // Click page button
 			await waitFor(() => screen.getByText(/Are you sure/i));
 
-			const confirmButton = screen.getByRole('button', { name: 'Confirm' });
-			await fireEvent.click(confirmButton);
+			const confirmButtons = screen.getAllByRole('button', { name: 'Delete' });
+			await fireEvent.click(confirmButtons[1]); // Click modal confirm button
 
 			// Should show success toast
 			await waitFor(() => {
@@ -185,15 +186,15 @@ describe('Object Detail Page - Integration Tests', () => {
 			(garmApi.deleteFileObject as any).mockRejectedValue(new Error('Delete failed'));
 
 			render(ObjectDetailPage);
-			await waitFor(() => screen.getByText('test-file.bin'));
+			await waitFor(() => screen.getByText('File Information'));
 
 			// Try to delete
-			const deleteButton = screen.getByRole('button', { name: 'Delete' });
-			await fireEvent.click(deleteButton);
+			const deleteButtons = screen.getAllByRole('button', { name: 'Delete' });
+			await fireEvent.click(deleteButtons[0]); // Click page button
 			await waitFor(() => screen.getByText(/Are you sure/i));
 
-			const confirmButton = screen.getByRole('button', { name: 'Confirm' });
-			await fireEvent.click(confirmButton);
+			const confirmButtons = screen.getAllByRole('button', { name: 'Delete' });
+			await fireEvent.click(confirmButtons[1]); // Click modal confirm button
 
 			// Should show error toast
 			await waitFor(() => {
@@ -219,7 +220,7 @@ describe('Object Detail Page - Integration Tests', () => {
 			const removeChildSpy = vi.spyOn(document.body, 'removeChild');
 
 			render(ObjectDetailPage);
-			await waitFor(() => screen.getByText('test-file.bin'));
+			await waitFor(() => screen.getByText('File Information'));
 
 			const downloadButton = screen.getByRole('button', { name: 'Download' });
 			await fireEvent.click(downloadButton);
@@ -239,7 +240,7 @@ describe('Object Detail Page - Integration Tests', () => {
 			});
 
 			render(ObjectDetailPage);
-			await waitFor(() => screen.getByText('test-file.bin'));
+			await waitFor(() => screen.getByText('File Information'));
 
 			const downloadButton = screen.getByRole('button', { name: 'Download' });
 			await fireEvent.click(downloadButton);
@@ -263,7 +264,7 @@ describe('Object Detail Page - Integration Tests', () => {
 			});
 
 			render(ObjectDetailPage);
-			await waitFor(() => screen.getByText('test-file.bin'));
+			await waitFor(() => screen.getByText('File Information'));
 
 			const downloadButton = screen.getByRole('button', { name: 'Download' });
 			await fireEvent.click(downloadButton);
@@ -284,7 +285,7 @@ describe('Object Detail Page - Integration Tests', () => {
 			const { garmApi } = await import('$lib/api/client.js');
 
 			render(ObjectDetailPage);
-			await waitFor(() => screen.getByText('test-file.bin'));
+			await waitFor(() => screen.getByText('File Information'));
 
 			// Initially loaded once
 			expect(garmApi.getFileObject).toHaveBeenCalledTimes(1);

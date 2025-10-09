@@ -62,14 +62,20 @@ vi.mock('$lib/utils/status.js', () => ({
 	})
 }));
 
-vi.mock('$lib/utils/common.js', () => ({
+vi.mock('$lib/utils/common.js', async (importOriginal) => {
+	const actual = await importOriginal() as any;
+	return {
+		...actual,
+		// Override only specific functions for testing
+
 	formatDate: vi.fn((date) => new Date(date).toLocaleString()),
 	scrollToBottomEvents: vi.fn(),
 	getEventLevelBadge: vi.fn((level) => ({
 		variant: level === 'error' ? 'danger' : level === 'warning' ? 'warning' : 'info',
 		text: level.toUpperCase()
 	}))
-}));
+	};
+});
 
 const mockInstance = createMockInstance({
 	id: 'inst-123',

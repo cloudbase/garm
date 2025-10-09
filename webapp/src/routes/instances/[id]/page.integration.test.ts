@@ -98,7 +98,12 @@ vi.mock('$lib/utils/status.js', () => ({
 	})
 }));
 
-vi.mock('$lib/utils/common.js', () => ({
+vi.mock('$lib/utils/common.js', async (importOriginal) => {
+	const actual = await importOriginal() as any;
+	return {
+		...actual,
+		// Override only specific functions for testing
+
 	formatDate: vi.fn((date) => {
 		const d = new Date(date);
 		return d.toLocaleDateString() + ' ' + d.toLocaleTimeString();
@@ -112,7 +117,8 @@ vi.mock('$lib/utils/common.js', () => ({
 			default: return { variant: 'info', text: 'Info' };
 		}
 	})
-}));
+	};
+});
 
 // Global setup for each test
 let garmApi: any;

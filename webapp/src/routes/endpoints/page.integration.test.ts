@@ -69,7 +69,12 @@ vi.mock('$lib/stores/eager-cache.js', () => ({
 	}
 }));
 
-vi.mock('$lib/utils/common.js', () => ({
+vi.mock('$lib/utils/common.js', async (importOriginal) => {
+	const actual = await importOriginal() as any;
+	return {
+		...actual,
+		// Override only specific functions for testing
+
 	getForgeIcon: vi.fn(() => '<svg data-forge="github"></svg>'),
 	filterEndpoints: vi.fn((endpoints, searchTerm) => {
 		if (!searchTerm) return endpoints;
@@ -84,7 +89,8 @@ vi.mock('$lib/utils/common.js', () => ({
 		return items.slice(start, start + perPage);
 	}),
 	formatDate: vi.fn((date) => date)
-}));
+	};
+});
 
 vi.mock('$lib/utils/apiError', () => ({
 	extractAPIError: vi.fn((err) => err.message || 'Unknown error')
