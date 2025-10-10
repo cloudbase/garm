@@ -159,6 +159,9 @@ func NewAPIRouter(han *controllers.APIController, authMiddleware, initMiddleware
 	metadataRouter := apiSubRouter.PathPrefix("/metadata").Subrouter()
 	metadataRouter.Use(instanceMiddleware.Middleware)
 
+	// Instance metadata
+	metadataRouter.Handle("/runner-metadata/", http.HandlerFunc(han.InstanceMetadataHandler)).Methods("GET", "OPTIONS")
+	metadataRouter.Handle("/runner-metadata", http.HandlerFunc(han.InstanceMetadataHandler)).Methods("GET", "OPTIONS")
 	// Registration token
 	metadataRouter.Handle("/runner-registration-token/", http.HandlerFunc(han.InstanceGithubRegistrationTokenHandler)).Methods("GET", "OPTIONS")
 	metadataRouter.Handle("/runner-registration-token", http.HandlerFunc(han.InstanceGithubRegistrationTokenHandler)).Methods("GET", "OPTIONS")
@@ -241,10 +244,11 @@ func NewAPIRouter(han *controllers.APIController, authMiddleware, initMiddleware
 	apiRouter.Handle("/objects/{objectID}/", http.HandlerFunc(han.UpdateFileObject)).Methods("PUT", "OPTIONS")
 	apiRouter.Handle("/objects/{objectID}", http.HandlerFunc(han.UpdateFileObject)).Methods("PUT", "OPTIONS")
 
-	// DELETEME //
-	// Tools
-	apiRouter.Handle("/tools/garm/", http.HandlerFunc(han.InstanceGARMToolsHandler)).Methods("GET", "OPTIONS")
-	apiRouter.Handle("/tools/garm", http.HandlerFunc(han.InstanceGARMToolsHandler)).Methods("GET", "OPTIONS")
+	///////////////////////////////////////////////////////
+	// Tools URLs (garm agent, cached gitea runner, etc) //
+	///////////////////////////////////////////////////////
+	apiRouter.Handle("/tools/garm-agent/", http.HandlerFunc(han.InstanceGARMToolsHandler)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/tools/garm-agent", http.HandlerFunc(han.InstanceGARMToolsHandler)).Methods("GET", "OPTIONS")
 
 	//////////
 	// Jobs //
