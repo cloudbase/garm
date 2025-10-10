@@ -171,6 +171,93 @@ func (r *Runner) getRunnerInstallTemplateContext(instance params.Instance, entit
 	return installRunnerParams, nil
 }
 
+func (r *Runner) GetInstanceMetadata(ctx context.Context) (params.InstanceMetadata, error) {
+	instance, err := validateInstanceState(ctx)
+	if err != nil {
+		return params.InstanceMetadata{}, runnerErrors.ErrUnauthorized
+	}
+
+	var entityGetter params.EntityGetter
+	var extraSpecs json.RawMessage
+	switch {
+	case instance.PoolID != "":
+		pool, err := r.store.GetPoolByID(r.ctx, instance.PoolID)
+		if err != nil {
+			return params.InstanceMetadata{}, fmt.Errorf("failed to get pool: %w", err)
+		}
+		entityGetter = pool
+		extraSpecs = pool.ExtraSpecs
+	case instance.ScaleSetID != 0:
+		scaleSet, err := r.store.GetScaleSetByID(r.ctx, instance.ScaleSetID)
+		if err != nil {
+			return params.InstanceMetadata{}, fmt.Errorf("failed to get scale set: %w", err)
+		}
+		entityGetter = scaleSet
+		extraSpecs = scaleSet.ExtraSpecs
+	default:
+		// This is not actually an unauthorized scenario. This case means that an
+		// instance was created but it does not belong to any pool or scale set.
+		// This is an internal error state, but it's not something we should expose
+		// to a potential runner that is trying to start.
+		slog.ErrorContext(ctx, "runner is authentic but does not belong to a pool or scale set", "instance_name", instance.Name, "instance_id", instance.ID)
+		return params.InstanceMetadata{}, runnerErrors.ErrUnauthorized
+	}
+
+	entity, err := entityGetter.GetEntity()
+	if err != nil {
+		return params.InstanceMetadata{}, fmt.Errorf("failed to get entity: %w", err)
+	}
+
+	dbEntity, err := r.store.GetForgeEntity(ctx, entity.EntityType, entity.ID)
+	if err != nil {
+		return params.InstanceMetadata{}, fmt.Errorf("failed to get entity: %w", err)
+	}
+
+	ret := params.InstanceMetadata{
+		RunnerName:            instance.Name,
+		RunnerLabels:          getLabelsForInstance(instance),
+		RunnerRegistrationURL: dbEntity.ForgeURL(),
+		MetadataAccess: params.MetadataServiceAccessDetails{
+			CallbackURL: instance.CallbackURL,
+			MetadataURL: instance.MetadataURL,
+		},
+		ForgeType:  dbEntity.Credentials.ForgeType,
+		JITEnabled: len(instance.JitConfiguration) > 0,
+	}
+
+	if len(dbEntity.Credentials.Endpoint.CACertBundle) > 0 {
+		// We can add other CA bundles here as needed.
+		ret.CABundle["forge_ca"] = dbEntity.Credentials.Endpoint.CACertBundle
+	}
+
+	if len(extraSpecs) > 0 {
+		var specs map[string]any
+		if err := json.Unmarshal(extraSpecs, &specs); err != nil {
+			return params.InstanceMetadata{}, fmt.Errorf("failed to decode extra specs: %w", err)
+		}
+		ret.ExtraSpecs = specs
+	}
+
+	tools, err := cache.GetGithubToolsCache(dbEntity.ID)
+	if err != nil {
+		return params.InstanceMetadata{}, fmt.Errorf("failed to find tools: %w", err)
+	}
+
+	filtered, err := util.GetTools(instance.OSType, instance.OSArch, tools)
+	if err != nil {
+		return params.InstanceMetadata{}, fmt.Errorf("no tools available: %w", err)
+	}
+	ret.RunnerTools = filtered
+
+	switch dbEntity.Credentials.ForgeType {
+	case params.GiteaEndpointType:
+	case params.GithubEndpointType:
+	default:
+		return params.InstanceMetadata{}, fmt.Errorf("invalid forge type: %s", dbEntity.Credentials.ForgeType)
+	}
+	return ret, nil
+}
+
 func (r *Runner) GetRunnerInstallScript(ctx context.Context) ([]byte, error) {
 	instance, err := validateInstanceState(ctx)
 	if err != nil {
@@ -331,7 +418,7 @@ func (r *Runner) GetJITConfigFile(ctx context.Context, file string) ([]byte, err
 
 func (r *Runner) GetInstanceGithubRegistrationToken(ctx context.Context) (string, error) {
 	// Check if this instance already fetched a registration token or if it was configured using
-	// the new Just In Time runner feature. If we're still using the old way of configuring a runner,
+	// the Just In Time runner feature. If we're still using the old way of configuring a runner,
 	// we only allow an instance to fetch one token. If the instance fails to bootstrap after a token
 	// is fetched, we reset the token fetched field when re-queueing the instance.
 	if auth.InstanceTokenFetched(ctx) || auth.InstanceHasJITConfig(ctx) {
@@ -407,7 +494,7 @@ func (r *Runner) GetGARMTools(ctx context.Context, page, pageSize uint64) (param
 	tags := []string{
 		"category=garm-agent",
 	}
-	instance, err := auth.InstanceParams(ctx)
+	instance, err := validateInstanceState(ctx)
 	if err != nil {
 		if !auth.IsAdmin(ctx) {
 			return params.GARMAgentToolsPaginatedResponse{}, runnerErrors.ErrUnauthorized
@@ -426,17 +513,17 @@ func (r *Runner) GetGARMTools(ctx context.Context, page, pageSize uint64) (param
 	for _, val := range files.Results {
 		tags := val.Tags
 		var version string
-		var os_type string
-		var os_arch string
+		var osType string
+		var osArch string
 		for _, val := range tags {
 			if strings.HasPrefix(val, "version=") {
 				version = val[8:]
 			}
 			if strings.HasPrefix(val, "os_arch=") {
-				os_arch = val[8:]
+				osArch = val[8:]
 			}
 			if strings.HasPrefix(val, "os_type=") {
-				os_type = val[8:]
+				osType = val[8:]
 			}
 		}
 		res := params.GARMAgentTool{
@@ -448,8 +535,8 @@ func (r *Runner) GetGARMTools(ctx context.Context, page, pageSize uint64) (param
 			CreatedAt:   val.CreatedAt,
 			UpdatedAt:   val.UpdatedAt,
 			FileType:    val.FileType,
-			OSType:      commonParams.OSType(os_type),
-			OSArch:      commonParams.OSArch(os_arch),
+			OSType:      commonParams.OSType(osType),
+			OSArch:      commonParams.OSArch(osArch),
 		}
 		if version != "" {
 			res.Version = version

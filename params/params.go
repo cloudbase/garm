@@ -1350,3 +1350,30 @@ type GARMAgentTool struct {
 
 // swagger:model GARMAgentToolsPaginatedResponse
 type GARMAgentToolsPaginatedResponse = PaginatedResponse[GARMAgentTool]
+
+// swagger:model MetadataServiceAccessDetails
+type MetadataServiceAccessDetails struct {
+	CallbackURL string `json:"callback_url"`
+	MetadataURL string `json:"metadata_url"`
+}
+
+// swagger:model InstanceMetadata
+type InstanceMetadata struct {
+	MetadataAccess MetadataServiceAccessDetails `json:"metadata_access"`
+	ForgeType      EndpointType                 `json:"forge_type"`
+	// RunnerRegistrationURL is the URL the runner needs to configure itself
+	// against. This can be a repository, organization, enterprise (github)
+	// or system (gitea)
+	RunnerRegistrationURL string            `json:"runner_registration_url"`
+	RunnerName            string            `json:"runner_name"`
+	RunnerLabels          []string          `json:"runner_labels,omitempty"`
+	CABundle              map[string][]byte `json:"ca_bundles,omitempty"`
+	// ExtraSpecs represents the extra specs set on the pool or scale set. No secrets should
+	// be set in extra specs.
+	// Also, the instance metadata should never be saved to disk, and the metadata URL is only
+	// accessible during setup of the runner. The API returns unauthorized once the runner
+	// transitions to failed/idle.
+	ExtraSpecs  map[string]any                         `json:"extra_specs,omitempty"`
+	JITEnabled  bool                                   `json:"jit_enabled"`
+	RunnerTools commonParams.RunnerApplicationDownload `json:"runner_tools"`
+}

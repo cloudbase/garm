@@ -26,6 +26,21 @@ import (
 	"github.com/cloudbase/garm/apiserver/params"
 )
 
+func (a *APIController) InstanceMetadataHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	metadata, err := a.r.GetInstanceMetadata(ctx)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get instance metadata", "error", err)
+		handleError(ctx, w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(metadata); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
+	}
+}
+
 func (a *APIController) InstanceGARMToolsHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
