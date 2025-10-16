@@ -482,13 +482,16 @@ func (p *Pool) PoolType() ForgeEntityType {
 }
 
 func (p *Pool) HasRequiredLabels(set []string) bool {
+	if len(set) > len(p.Tags) {
+		return false
+	}
 	asMap := make(map[string]struct{}, len(p.Tags))
 	for _, t := range p.Tags {
-		asMap[t.Name] = struct{}{}
+		asMap[strings.ToLower(t.Name)] = struct{}{}
 	}
 
 	for _, l := range set {
-		if _, ok := asMap[l]; !ok {
+		if _, ok := asMap[strings.ToLower(l)]; !ok {
 			return false
 		}
 	}
