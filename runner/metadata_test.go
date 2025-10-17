@@ -200,10 +200,9 @@ func (s *MetadataTestSuite) TestGetServiceNameForEntity() {
 			name: "Organization entity",
 			entity: params.ForgeEntity{
 				EntityType: params.ForgeEntityTypeOrganization,
-				Owner:      "test-owner",
-				Name:       "test-name",
+				Owner:      "test-name",
 			},
-			expected: "actions.runner.test-owner.test-name",
+			expected: "actions.runner.test-name",
 			hasError: false,
 		},
 		{
@@ -213,7 +212,7 @@ func (s *MetadataTestSuite) TestGetServiceNameForEntity() {
 				Owner:      "test-owner",
 				Name:       "test-repo",
 			},
-			expected: "actions.runner.test-owner-test-repo.test-repo",
+			expected: "actions.runner.test-owner.test-repo",
 			hasError: false,
 		},
 		{
@@ -221,9 +220,8 @@ func (s *MetadataTestSuite) TestGetServiceNameForEntity() {
 			entity: params.ForgeEntity{
 				EntityType: params.ForgeEntityTypeEnterprise,
 				Owner:      "test-enterprise",
-				Name:       "test-name",
 			},
-			expected: "actions.runner.test-enterprise.test-name",
+			expected: "actions.runner.test-enterprise",
 			hasError: false,
 		},
 		{
@@ -256,7 +254,7 @@ func (s *MetadataTestSuite) TestGetRunnerServiceName() {
 	serviceName, err := s.Runner.GetRunnerServiceName(s.instanceCtx)
 
 	s.Require().Nil(err)
-	s.Require().Equal("actions.runner.test-org.test-org", serviceName)
+	s.Require().Equal("actions.runner.test-org", serviceName)
 }
 
 func (s *MetadataTestSuite) TestGetRunnerServiceNameUnauthorized() {

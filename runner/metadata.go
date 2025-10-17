@@ -91,11 +91,11 @@ func validateInstanceState(ctx context.Context) (params.Instance, error) {
 func (r *Runner) getServiceNameForEntity(entity params.ForgeEntity) (string, error) {
 	switch entity.EntityType {
 	case params.ForgeEntityTypeEnterprise:
-		return fmt.Sprintf("actions.runner.%s.%s", entity.Owner, entity.Name), nil
+		return fmt.Sprintf("actions.runner.%s", entity.Owner), nil
 	case params.ForgeEntityTypeOrganization:
-		return fmt.Sprintf("actions.runner.%s.%s", entity.Owner, entity.Name), nil
+		return fmt.Sprintf("actions.runner.%s", entity.Owner), nil
 	case params.ForgeEntityTypeRepository:
-		return fmt.Sprintf("actions.runner.%s-%s.%s", entity.Owner, entity.Name, entity.Name), nil
+		return fmt.Sprintf("actions.runner.%s.%s", entity.Owner, entity.Name), nil
 	default:
 		return "", errors.New("unknown entity type")
 	}
