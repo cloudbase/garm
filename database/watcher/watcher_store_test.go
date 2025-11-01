@@ -167,6 +167,7 @@ func (s *WatcherStoreTestSuite) TestInstanceWatcher() {
 		ProviderName: "test-provider",
 		Image:        "test-image",
 		Flavor:       "test-flavor",
+		MaxRunners:   100,
 		OSType:       commonParams.Linux,
 		OSArch:       commonParams.Amd64,
 		Tags:         []string{"test-tag"},

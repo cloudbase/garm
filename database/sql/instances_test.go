@@ -204,17 +204,48 @@ func (s *InstancesTestSuite) TestCreateInstance() {
 func (s *InstancesTestSuite) TestCreateInstanceInvalidPoolID() {
 	_, err := s.Store.CreateInstance(s.adminCtx, "dummy-pool-id", params.CreateInstanceParams{})
 
-	s.Require().Equal("fetching pool: parsing id: invalid request", err.Error())
+	s.Require().Equal("creating instance: fetching pool: parsing id: invalid request", err.Error())
+}
+
+func (s *InstancesTestSuite) TestCreateInstanceMaxRunnersReached() {
+	// Pool has MaxRunners=4 and already has 3 instances
+	// Create one more to reach the limit
+	_, err := s.Store.CreateInstance(s.adminCtx, s.Fixtures.Pool.ID, params.CreateInstanceParams{
+		Name:         "test-instance-4",
+		OSType:       "linux",
+		OSArch:       "amd64",
+		CallbackURL:  "https://garm.example.com/",
+		Status:       commonParams.InstanceRunning,
+		RunnerStatus: params.RunnerIdle,
+	})
+	s.Require().Nil(err)
+
+	// Now try to create a 5th instance, which should fail
+	_, err = s.Store.CreateInstance(s.adminCtx, s.Fixtures.Pool.ID, params.CreateInstanceParams{
+		Name:         "test-instance-5",
+		OSType:       "linux",
+		OSArch:       "amd64",
+		CallbackURL:  "https://garm.example.com/",
+		Status:       commonParams.InstanceRunning,
+		RunnerStatus: params.RunnerIdle,
+	})
+
+	s.Require().NotNil(err)
+	s.Require().Contains(err.Error(), "max runners reached")
 }
 
 func (s *InstancesTestSuite) TestCreateInstanceDBCreateErr() {
 	pool := s.Fixtures.Pool
 
+	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `pools` WHERE id = ? AND `pools`.`deleted_at` IS NULL ORDER BY `pools`.`id` LIMIT ?")).
 		WithArgs(pool.ID, 1).
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(pool.ID))
-	s.Fixtures.SQLMock.ExpectBegin()
+		WillReturnRows(sqlmock.NewRows([]string{"id", "max_runners"}).AddRow(pool.ID, pool.MaxRunners))
+	s.Fixtures.SQLMock.
+		ExpectQuery(regexp.QuoteMeta("SELECT count(*) FROM `instances` WHERE pool_id = ? AND `instances`.`deleted_at` IS NULL")).
+		WithArgs(pool.ID).
+		WillReturnRows(sqlmock.NewRows([]string{"count(*)"}).AddRow(0))
 	s.Fixtures.SQLMock.
 		ExpectExec("INSERT INTO `pools`").
 		WillReturnResult(sqlmock.NewResult(1, 1))
@@ -227,7 +258,7 @@ func (s *InstancesTestSuite) TestCreateInstanceDBCreateErr() {
 
 	s.assertSQLMockExpectations()
 	s.Require().NotNil(err)
-	s.Require().Equal("creating instance: mocked insert instance error", err.Error())
+	s.Require().Equal("creating instance: creating instance: mocked insert instance error", err.Error())
 }
 
 func (s *InstancesTestSuite) TestGetPoolInstanceByName() {
