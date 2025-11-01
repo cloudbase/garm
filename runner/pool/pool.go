@@ -1118,15 +1118,6 @@ func (r *basePoolManager) addRunnerToPool(pool params.Pool, aditionalLabels []st
 		return fmt.Errorf("pool %s is disabled", pool.ID)
 	}
 
-	poolInstanceCount, err := r.store.PoolInstanceCount(r.ctx, pool.ID)
-	if err != nil {
-		return fmt.Errorf("failed to list pool instances: %w", err)
-	}
-
-	if poolInstanceCount >= int64(pool.MaxRunners) {
-		return fmt.Errorf("max workers (%d) reached for pool %s", pool.MaxRunners, pool.ID)
-	}
-
 	if err := r.AddRunner(r.ctx, pool.ID, aditionalLabels); err != nil {
 		return fmt.Errorf("failed to add new instance for pool %s: %s", pool.ID, err)
 	}

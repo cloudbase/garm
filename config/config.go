@@ -569,7 +569,7 @@ func (s *SQLite) Validate() error {
 }
 
 func (s *SQLite) ConnectionString() (string, error) {
-	connectionString := fmt.Sprintf("%s?_journal_mode=WAL&_foreign_keys=ON", s.DBFile)
+	connectionString := fmt.Sprintf("%s?_journal_mode=WAL&_foreign_keys=ON&_txlock=immediate", s.DBFile)
 	if s.BusyTimeoutSeconds > 0 {
 		timeout := s.BusyTimeoutSeconds * 1000
 		connectionString = fmt.Sprintf("%s&_busy_timeout=%d", connectionString, timeout)
