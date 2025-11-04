@@ -71,7 +71,16 @@ if [ ! -d "$RUN_HOME" ];then
 	downloadAndExtractRunner
 	sendStatus "installing dependencies"
 	cd "$RUN_HOME"
-	sudo ./bin/installdependencies.sh || fail "failed to install dependencies"
+	attempt=1
+	while true; do
+		sudo ./bin/installdependencies.sh && break
+		if [ $attempt -gt 5 ];then
+			fail "failed to install dependencies after $attempt attempts"
+		fi
+		sendStatus "failed to install dependencies (attempt $attempt): (retrying in 15 seconds)"
+		attempt=$((attempt+1))
+		sleep 15
+	done
 else
 	sendStatus "using cached runner found in $RUN_HOME"
 	cd "$RUN_HOME"
