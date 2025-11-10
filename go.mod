@@ -19,7 +19,7 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.4-0.20240702125206-a62d9d2a8413
 	github.com/h2non/filetype v1.1.3
-	github.com/jedib0t/go-pretty/v6 v6.6.9
+	github.com/jedib0t/go-pretty/v6 v6.7.1
 	github.com/manifoldco/promptui v0.9.0
 	github.com/mattn/go-sqlite3 v1.14.32
 	github.com/nbutton23/zxcvbn-go v0.0.0-20210217022336-fa2cb2858354
