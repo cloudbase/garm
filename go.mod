@@ -8,7 +8,7 @@ require (
 	github.com/cloudbase/garm-provider-common v0.1.8-0.20251001105909-bbcacae60e7c
 	github.com/felixge/httpsnoop v1.0.4
 	github.com/gdamore/tcell/v2 v2.9.0
-	github.com/go-openapi/errors v0.22.3
+	github.com/go-openapi/errors v0.22.4
 	github.com/go-openapi/runtime v0.29.0
 	github.com/go-openapi/strfmt v0.24.0
 	github.com/go-openapi/swag v0.25.1
