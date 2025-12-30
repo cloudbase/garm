@@ -287,6 +287,15 @@ func main() {
 	}
 
 	authenticator := auth.NewAuthenticator(cfg.JWTAuth, db)
+
+	// Initialize OIDC if enabled
+	if cfg.OIDC.Enable {
+		if err := authenticator.InitOIDC(ctx, cfg.OIDC); err != nil {
+			log.Fatalf("failed to initialize OIDC: %+v", err)
+		}
+		log.Printf("OIDC authentication enabled with issuer: %s", cfg.OIDC.IssuerURL)
+	}
+
 	controller, err := controllers.NewAPIController(runner, authenticator, hub, agentHub, cfg.APIServer)
 	if err != nil {
 		log.Fatalf("failed to create controller: %+v", err)

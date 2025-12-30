@@ -27,6 +27,7 @@ type contextFlags string
 const (
 	isAdminKey     contextFlags = "is_admin"
 	fullNameKey    contextFlags = "full_name"
+	usernameKey    contextFlags = "username"
 	readMetricsKey contextFlags = "read_metrics"
 	// UserIDFlag is the User ID flag we set in the context
 	UserIDFlag             contextFlags = "user_id"
@@ -218,6 +219,7 @@ func PopulateContext(ctx context.Context, user params.User, authExpires *time.Ti
 	ctx = SetAdmin(ctx, user.IsAdmin)
 	ctx = SetIsEnabled(ctx, user.Enabled)
 	ctx = SetFullName(ctx, user.FullName)
+	ctx = SetUsername(ctx, user.Username)
 	ctx = SetExpires(ctx, authExpires)
 	ctx = SetPasswordGeneration(ctx, user.Generation)
 	return ctx
@@ -262,6 +264,20 @@ func FullName(ctx context.Context) string {
 		return ""
 	}
 	return name.(string)
+}
+
+// SetUsername sets the username in the context
+func SetUsername(ctx context.Context, username string) context.Context {
+	return context.WithValue(ctx, usernameKey, username)
+}
+
+// Username returns the username from context
+func Username(ctx context.Context) string {
+	username := ctx.Value(usernameKey)
+	if username == nil {
+		return ""
+	}
+	return username.(string)
 }
 
 // SetIsEnabled sets a flag indicating if account is enabled

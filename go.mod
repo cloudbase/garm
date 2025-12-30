@@ -6,6 +6,7 @@ require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/bradleyfalzon/ghinstallation/v2 v2.17.0
 	github.com/cloudbase/garm-provider-common v0.1.8-0.20251001105909-bbcacae60e7c
+	github.com/coreos/go-oidc/v3 v3.17.0
 	github.com/felixge/httpsnoop v1.0.4
 	github.com/gdamore/tcell/v2 v2.13.8
 	github.com/go-openapi/errors v0.22.6
@@ -51,6 +52,7 @@ require (
 	github.com/clipperhouse/uax29/v2 v2.5.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/gdamore/encoding v1.0.1 // indirect
+	github.com/go-jose/go-jose/v4 v4.1.3 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-openapi/analysis v0.24.2 // indirect
