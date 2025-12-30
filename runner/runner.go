@@ -977,3 +977,11 @@ func (r *Runner) getGHCliFromInstance(ctx context.Context, instance params.Insta
 	}
 	return ghCli, scaleSetCli, nil
 }
+
+func (r *Runner) ListUsers(ctx context.Context) ([]params.User, error) {
+	users, err := r.store.ListUsers(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching users: %w", err)
+	}
+	return users, nil
+}
