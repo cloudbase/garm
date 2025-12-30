@@ -80,10 +80,6 @@ func (s *sqlDatabase) CreateUser(_ context.Context, user params.NewUserParams) (
 			return runnerErrors.NewConflictError("email already exists")
 		}
 
-		if s.hasAdmin(tx) && user.IsAdmin {
-			return runnerErrors.NewBadRequestError("admin user already exists")
-		}
-
 		q := tx.Save(&newUser)
 		if q.Error != nil {
 			return fmt.Errorf("error creating user: %w", q.Error)
