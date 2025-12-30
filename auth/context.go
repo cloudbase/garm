@@ -336,3 +336,8 @@ func GetAdminContext(ctx context.Context) context.Context {
 	ctx = SetIsEnabled(ctx, true)
 	return ctx
 }
+
+// IsAuthenticated returns true if the context is authenticated, false otherwise
+func IsAuthenticated(ctx context.Context) bool {
+	return UserID(ctx) != "" || IsAdmin(ctx)
+}

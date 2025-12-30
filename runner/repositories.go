@@ -94,7 +94,7 @@ func (r *Runner) CreateRepository(ctx context.Context, param params.CreateRepoPa
 }
 
 func (r *Runner) ListRepositories(ctx context.Context, filter params.RepositoryFilter) ([]params.Repository, error) {
-	if !auth.IsAdmin(ctx) {
+	if !auth.IsAuthenticated(ctx) {
 		return nil, runnerErrors.ErrUnauthorized
 	}
 
@@ -107,7 +107,7 @@ func (r *Runner) ListRepositories(ctx context.Context, filter params.RepositoryF
 }
 
 func (r *Runner) GetRepositoryByID(ctx context.Context, repoID string) (params.Repository, error) {
-	if !auth.IsAdmin(ctx) {
+	if !auth.IsAuthenticated(ctx) {
 		return params.Repository{}, runnerErrors.ErrUnauthorized
 	}
 
@@ -277,7 +277,7 @@ func (r *Runner) CreateRepoPool(ctx context.Context, repoID string, param params
 }
 
 func (r *Runner) GetRepoPoolByID(ctx context.Context, repoID, poolID string) (params.Pool, error) {
-	if !auth.IsAdmin(ctx) {
+	if !auth.IsAuthenticated(ctx) {
 		return params.Pool{}, runnerErrors.ErrUnauthorized
 	}
 
@@ -325,9 +325,10 @@ func (r *Runner) DeleteRepoPool(ctx context.Context, repoID, poolID string) erro
 }
 
 func (r *Runner) ListRepoPools(ctx context.Context, repoID string) ([]params.Pool, error) {
-	if !auth.IsAdmin(ctx) {
-		return []params.Pool{}, runnerErrors.ErrUnauthorized
+	if !auth.IsAuthenticated(ctx) {
+		return nil, runnerErrors.ErrUnauthorized
 	}
+
 	entity := params.ForgeEntity{
 		ID:         repoID,
 		EntityType: params.ForgeEntityTypeRepository,
@@ -340,7 +341,7 @@ func (r *Runner) ListRepoPools(ctx context.Context, repoID string) ([]params.Poo
 }
 
 func (r *Runner) ListPoolInstances(ctx context.Context, poolID string, outdatedOnly bool) ([]params.Instance, error) {
-	if !auth.IsAdmin(ctx) {
+	if !auth.IsAuthenticated(ctx) {
 		return nil, runnerErrors.ErrUnauthorized
 	}
 
@@ -399,9 +400,10 @@ func (r *Runner) UpdateRepoPool(ctx context.Context, repoID, poolID string, para
 }
 
 func (r *Runner) ListRepoInstances(ctx context.Context, repoID string) ([]params.Instance, error) {
-	if !auth.IsAdmin(ctx) {
+	if !auth.IsAuthenticated(ctx) {
 		return nil, runnerErrors.ErrUnauthorized
 	}
+
 	entity := params.ForgeEntity{
 		ID:         repoID,
 		EntityType: params.ForgeEntityTypeRepository,
@@ -473,10 +475,6 @@ func (r *Runner) UninstallRepoWebhook(ctx context.Context, repoID string) error 
 }
 
 func (r *Runner) GetRepoWebhookInfo(ctx context.Context, repoID string) (params.HookInfo, error) {
-	if !auth.IsAdmin(ctx) {
-		return params.HookInfo{}, runnerErrors.ErrUnauthorized
-	}
-
 	repo, err := r.store.GetRepositoryByID(ctx, repoID)
 	if err != nil {
 		return params.HookInfo{}, fmt.Errorf("error fetching repo: %w", err)

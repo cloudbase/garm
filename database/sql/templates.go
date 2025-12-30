@@ -32,7 +32,7 @@ import (
 func (s *sqlDatabase) ListTemplates(ctx context.Context, osType *commonParams.OSType, forgeType *params.EndpointType, partialName *string) ([]params.Template, error) {
 	var templates []Template
 	q := s.conn.Model(&Template{}).Omit("data").Preload("User")
-	if !auth.IsAdmin(ctx) {
+	if !auth.IsAuthenticated(ctx) {
 		userID, err := getUIDFromContext(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("error listing templates: %w", err)
@@ -78,7 +78,7 @@ func (s *sqlDatabase) getTemplate(ctx context.Context, tx *gorm.DB, id uint, pre
 		}
 	}
 
-	if !auth.IsAdmin(ctx) {
+	if !auth.IsAuthenticated(ctx) {
 		userID, err := getUIDFromContext(ctx)
 		if err != nil {
 			return Template{}, fmt.Errorf("error listing templates: %w", err)

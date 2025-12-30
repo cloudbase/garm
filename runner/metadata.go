@@ -668,7 +668,7 @@ func fileObjectToGARMTool(obj params.FileObject, downloadURL string) (params.GAR
 // When upstream is false, it lists tools from the local object store.
 // When upstream is true, it lists tools from the cached upstream release JSON.
 func (r *Runner) GetGARMTools(ctx context.Context, page, pageSize uint64, upstream bool) (params.GARMAgentToolsPaginatedResponse, error) {
-	if !auth.IsAdmin(ctx) {
+	if !auth.IsAuthenticated(ctx) {
 		return params.GARMAgentToolsPaginatedResponse{}, runnerErrors.ErrUnauthorized
 	}
 
@@ -775,9 +775,10 @@ func (r *Runner) GetAgentGARMTools(ctx context.Context, page, pageSize uint64) (
 func (r *Runner) ShowGARMTools(ctx context.Context, toolsID uint) (params.GARMAgentTool, error) {
 	instance, err := validateInstanceState(ctx)
 	if err != nil {
-		if !auth.IsAdmin(ctx) {
-			return params.GARMAgentTool{}, runnerErrors.ErrUnauthorized
-		}
+		return params.GARMAgentTool{}, runnerErrors.ErrUnauthorized
+	}
+	if !auth.IsAuthenticated(ctx) {
+		return params.GARMAgentTool{}, runnerErrors.ErrUnauthorized
 	}
 
 	tools, err := r.store.GetFileObject(r.ctx, toolsID)

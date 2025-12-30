@@ -211,13 +211,6 @@ func (a *APIController) WebhookHandler(w http.ResponseWriter, r *http.Request) {
 
 func (a *APIController) EventsHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	if !auth.IsAdmin(ctx) {
-		w.WriteHeader(http.StatusForbidden)
-		if _, err := w.Write([]byte("events are available to admin users")); err != nil {
-			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
-		}
-		return
-	}
 
 	conn, err := a.upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -248,7 +241,7 @@ func (a *APIController) EventsHandler(w http.ResponseWriter, r *http.Request) {
 
 func (a *APIController) MetricsHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	if !auth.IsAdmin(ctx) {
+	if !auth.IsAuthenticated(ctx) {
 		w.WriteHeader(http.StatusForbidden)
 		if _, err := w.Write([]byte("metrics are available to admin users")); err != nil {
 			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
@@ -288,13 +281,6 @@ func (a *APIController) MetricsHandler(w http.ResponseWriter, r *http.Request) {
 
 func (a *APIController) WSHandler(writer http.ResponseWriter, req *http.Request) {
 	ctx := req.Context()
-	if !auth.IsAdmin(ctx) {
-		writer.WriteHeader(http.StatusForbidden)
-		if _, err := writer.Write([]byte("you need admin level access to view logs")); err != nil {
-			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
-		}
-		return
-	}
 
 	if a.hub == nil {
 		handleError(ctx, writer, gErrors.NewBadRequestError("log streamer is disabled"))
@@ -352,7 +338,7 @@ func (a *APIController) NotFoundHandler(w http.ResponseWriter, r *http.Request) 
 func (a *APIController) MetricsTokenHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	if !auth.IsAdmin(ctx) {
+	if !auth.IsAuthenticated(ctx) {
 		handleError(ctx, w, gErrors.ErrUnauthorized)
 		return
 	}
