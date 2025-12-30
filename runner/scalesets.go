@@ -29,10 +29,6 @@ import (
 )
 
 func (r *Runner) ListAllScaleSets(ctx context.Context) ([]params.ScaleSet, error) {
-	if !auth.IsAdmin(ctx) {
-		return []params.ScaleSet{}, runnerErrors.ErrUnauthorized
-	}
-
 	scalesets, err := r.store.ListAllScaleSets(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching pools: %w", err)
@@ -41,10 +37,6 @@ func (r *Runner) ListAllScaleSets(ctx context.Context) ([]params.ScaleSet, error
 }
 
 func (r *Runner) GetScaleSetByID(ctx context.Context, scaleSet uint) (params.ScaleSet, error) {
-	if !auth.IsAdmin(ctx) {
-		return params.ScaleSet{}, runnerErrors.ErrUnauthorized
-	}
-
 	set, err := r.store.GetScaleSetByID(ctx, scaleSet)
 	if err != nil {
 		return params.ScaleSet{}, fmt.Errorf("error fetching scale set: %w", err)
@@ -289,10 +281,6 @@ func (r *Runner) CreateEntityScaleSet(ctx context.Context, entityType params.For
 }
 
 func (r *Runner) ListScaleSetInstances(ctx context.Context, scalesetID uint, outdatedOnly bool) ([]params.Instance, error) {
-	if !auth.IsAdmin(ctx) {
-		return nil, runnerErrors.ErrUnauthorized
-	}
-
 	instances, err := r.store.ListScaleSetInstances(ctx, scalesetID, outdatedOnly)
 	if err != nil {
 		return []params.Instance{}, fmt.Errorf("error fetching instances: %w", err)
@@ -301,9 +289,6 @@ func (r *Runner) ListScaleSetInstances(ctx context.Context, scalesetID uint, out
 }
 
 func (r *Runner) ListEntityScaleSets(ctx context.Context, entityType params.ForgeEntityType, entityID string) ([]params.ScaleSet, error) {
-	if !auth.IsAdmin(ctx) {
-		return []params.ScaleSet{}, runnerErrors.ErrUnauthorized
-	}
 	entity := params.ForgeEntity{
 		ID:         entityID,
 		EntityType: entityType,
