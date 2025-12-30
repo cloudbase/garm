@@ -100,6 +100,7 @@ type Config struct {
 	Github    []Github   `toml:"github,omitempty"`
 	JWTAuth   JWTAuth    `toml:"jwt_auth" json:"jwt-auth"`
 	Logging   Logging    `toml:"logging" json:"logging"`
+	OIDC      OIDC       `toml:"oidc" json:"oidc"`
 }
 
 // Validate validates the config
@@ -127,6 +128,10 @@ func (c *Config) Validate() error {
 
 	if err := c.Logging.Validate(); err != nil {
 		return fmt.Errorf("error validating logging config: %w", err)
+	}
+
+	if err := c.OIDC.Validate(); err != nil {
+		return fmt.Errorf("error validating oidc config: %w", err)
 	}
 
 	providerNames := map[string]int{}
@@ -811,4 +816,57 @@ func (j *JWTAuth) Validate() error {
 		return fmt.Errorf("jwt_secret is too weak")
 	}
 	return nil
+}
+
+// OIDC holds settings for OpenID Connect authentication
+type OIDC struct {
+	// Enable enables OIDC authentication
+	Enable bool `toml:"enable" json:"enable"`
+	// IssuerURL is the OIDC provider's issuer URL (e.g., https://accounts.google.com)
+	IssuerURL string `toml:"issuer_url" json:"issuer-url"`
+	// ClientID is the OAuth2 client ID
+	ClientID string `toml:"client_id" json:"client-id"`
+	// ClientSecret is the OAuth2 client secret
+	ClientSecret string `toml:"client_secret" json:"client-secret"`
+	// RedirectURL is the callback URL for OIDC (e.g., https://garm.example.com/api/v1/auth/oidc/callback)
+	RedirectURL string `toml:"redirect_url" json:"redirect-url"`
+	// Scopes are the OAuth2 scopes to request (defaults to openid, email, profile)
+	Scopes []string `toml:"scopes" json:"scopes"`
+	// AllowedDomains restricts login to users with email addresses from these domains
+	// If empty, all authenticated users are allowed
+	AllowedDomains []string `toml:"allowed_domains" json:"allowed-domains"`
+	// JITUserCreation enables Just-In-Time user creation on first OIDC login
+	JITUserCreation bool `toml:"jit_user_creation" json:"jit-user-creation"`
+	// DefaultUserAdmin sets whether JIT-created users should be admins
+	DefaultUserAdmin bool `toml:"default_user_admin" json:"default-user-admin"`
+}
+
+// Validate validates the OIDC config
+func (o *OIDC) Validate() error {
+	if !o.Enable {
+		return nil
+	}
+
+	if o.IssuerURL == "" {
+		return fmt.Errorf("oidc issuer_url is required when OIDC is enabled")
+	}
+	if o.ClientID == "" {
+		return fmt.Errorf("oidc client_id is required when OIDC is enabled")
+	}
+	if o.ClientSecret == "" {
+		return fmt.Errorf("oidc client_secret is required when OIDC is enabled")
+	}
+	if o.RedirectURL == "" {
+		return fmt.Errorf("oidc redirect_url is required when OIDC is enabled")
+	}
+
+	return nil
+}
+
+// GetScopes returns the OAuth2 scopes, with defaults if not specified
+func (o *OIDC) GetScopes() []string {
+	if len(o.Scopes) == 0 {
+		return []string{"openid", "email", "profile"}
+	}
+	return o.Scopes
 }
