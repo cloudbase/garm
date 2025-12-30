@@ -251,6 +251,13 @@ func NewAPIRouter(han *controllers.APIController, authMiddleware, initMiddleware
 	apiRouter.Handle("/metrics-token/", http.HandlerFunc(han.MetricsTokenHandler)).Methods("GET", "OPTIONS")
 	apiRouter.Handle("/metrics-token", http.HandlerFunc(han.MetricsTokenHandler)).Methods("GET", "OPTIONS")
 
+	///////////
+	// Users //
+	///////////
+	// List users
+	apiRouter.Handle("/users/", http.HandlerFunc(han.ListUsersHandler)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/users", http.HandlerFunc(han.ListUsersHandler)).Methods("GET", "OPTIONS")
+
 	/////////////
 	// Objects //
 	/////////////

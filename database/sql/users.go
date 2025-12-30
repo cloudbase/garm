@@ -163,3 +163,17 @@ func (s *sqlDatabase) GetAdminUser(_ context.Context) (params.User, error) {
 	}
 	return s.sqlToParamsUser(user), nil
 }
+
+func (s *sqlDatabase) ListUsers(_ context.Context) ([]params.User, error) {
+	var users []User
+	q := s.conn.Model(&User{}).Find(&users)
+	if q.Error != nil {
+		return nil, fmt.Errorf("error fetching users: %w", q.Error)
+	}
+
+	ret := make([]params.User, len(users))
+	for idx, user := range users {
+		ret[idx] = s.sqlToParamsUser(user)
+	}
+	return ret, nil
+}

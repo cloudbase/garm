@@ -672,6 +672,27 @@ export class GeneratedGarmApiClient {
   async deleteFileObject(objectID: string): Promise<void> {
     await this.objectsApi.deleteFileObject(objectID);
   }
+
+  // User methods (not in generated API yet)
+  async listUsers(): Promise<User[]> {
+    const isDevMode = this.isDevelopmentMode();
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+    const response = await fetch(`${this.baseUrl}/api/v1/users`, {
+      method: 'GET',
+      headers,
+      credentials: isDevMode ? 'omit' : 'include',
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: response.statusText }));
+      throw new Error(errorData.error || errorData.details || 'Failed to fetch users');
+    }
+    return response.json();
+  }
 }
 
 // Create a singleton instance
