@@ -4,6 +4,7 @@
 	import { auth, authStore } from '$lib/stores/auth.js';
 	import { websocketStore } from '$lib/stores/websocket.js';
 	import { themeStore } from '$lib/stores/theme.js';
+	import { eagerCache } from '$lib/stores/eager-cache.js';
 	import { onMount } from 'svelte';
 
 	let mobileMenuOpen = false;
@@ -12,6 +13,7 @@
 	// WebSocket connection status
 	$: wsState = $websocketStore;
 	$: darkMode = $themeStore;
+	$: serverVersion = $eagerCache.controllerInfo?.version || '';
 
 	// Close mobile menu when route changes  
 	$: $page.url.pathname && (mobileMenuOpen = false);
@@ -232,6 +234,15 @@
 					Logout
 				</button>
 			</div>
+
+			<!-- Version section -->
+			{#if serverVersion}
+				<div class="border-t border-gray-200 dark:border-gray-600 mt-4 pt-4 px-2">
+					<div class="text-xs text-gray-500 dark:text-gray-400">
+						<span class="font-medium">GARM</span> {serverVersion}
+					</div>
+				</div>
+			{/if}
 		</nav>
 
 	</div>
@@ -378,6 +389,15 @@
 								Logout
 							</button>
 						</div>
+
+						<!-- Version section -->
+						{#if serverVersion}
+							<div class="border-t border-gray-200 dark:border-gray-600 mt-4 pt-4 px-2">
+								<div class="text-xs text-gray-500 dark:text-gray-400">
+									<span class="font-medium">GARM</span> {serverVersion}
+								</div>
+							</div>
+						{/if}
 					</nav>
 				</div>
 
