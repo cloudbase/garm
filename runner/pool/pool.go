@@ -752,7 +752,7 @@ func (r *basePoolManager) AddRunner(ctx context.Context, poolID string, aditiona
 		return fmt.Errorf("unknown provider %s for pool %s", pool.ProviderName, pool.ID)
 	}
 
-	name := fmt.Sprintf("%s-%s", pool.GetRunnerPrefix(), util.NewID())
+	name := strings.ToLower(fmt.Sprintf("%s-%s", pool.GetRunnerPrefix(), util.NewID()))
 	labels := r.getLabelsForInstance(pool)
 
 	jitConfig := make(map[string]string)
