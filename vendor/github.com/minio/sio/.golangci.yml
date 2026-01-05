@@ -1,34 +1,47 @@
-linters-settings:
-  golint:
-    min-confidence: 0
-
-  misspell:
-    locale: US
-
-  staticcheck:
-    checks: ['all', '-SA6002']
-    
+version: "2"
 linters:
-  disable-all: true
+  default: none
   enable:
     - durationcheck
+    - errcheck
     - gocritic
-    - gofumpt
-    - goimports
     - gomodguard
+    - gosec
     - govet
     - ineffassign
     - misspell
     - revive
     - staticcheck
-    - tenv
-    - typecheck
     - unconvert
     - unused
-
-issues:
-  exclude-use-default: false
-  exclude:
-      - should have a package comment
-      - error strings should not be capitalized or end with punctuation or a newline
-      - don't use ALL_CAPS in Go names
+  settings:
+    misspell:
+      locale: US
+    revive:
+      rules:
+        - name: package-comments
+          disabled: true
+        - name: error-strings
+          disabled: true
+    staticcheck:
+      checks:
+        - all
+        - -SA6002
+        - -ST1003
+  exclusions:
+    generated: lax
+    rules:
+      - linters:
+          - revive
+        text: don't use ALL_CAPS in Go names
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

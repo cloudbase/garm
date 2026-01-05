@@ -43,7 +43,8 @@ var packageBufferPool = sync.Pool{
 func getBuffer() ([]byte, func()) {
 	p := packageBufferPool.Get().(*[]byte)
 	return *p, sync.OnceFunc(func() {
-		clear(*p) // Clear to avoid leaking data between callers
+		toZero := *p
+		clear(toZero[:cap(toZero)])
 		packageBufferPool.Put(p)
 	})
 }
@@ -107,11 +108,15 @@ func (r *encReaderV20) Read(p []byte) (n int, err error) {
 			return n, err // failed to read from src
 		}
 		if err == io.EOF || err == io.ErrUnexpectedEOF { // read less than 64KB -> final package
-			r.SealFinal(p, r.buffer[headerSize:headerSize+1+nn])
+			if sealErr := r.SealFinal(p, r.buffer[headerSize:headerSize+1+nn]); sealErr != nil {
+				return n, sealErr
+			}
 			return n + headerSize + tagSize + 1 + nn, io.EOF
 		}
 		r.lastByte = r.buffer[headerSize+maxPayloadSize] // save last read byte for the next package
-		r.Seal(p, r.buffer[headerSize:headerSize+maxPayloadSize])
+		if sealErr := r.Seal(p, r.buffer[headerSize:headerSize+maxPayloadSize]); sealErr != nil {
+			return n, sealErr
+		}
 		p = p[maxPackageSize:]
 		n += maxPackageSize
 	}
@@ -124,7 +129,11 @@ func (r *encReaderV20) Read(p []byte) (n int, err error) {
 			return n, err // failed to read from src
 		}
 		if err == io.EOF || err == io.ErrUnexpectedEOF { // read less than 64KB -> final package
-			r.SealFinal(r.buffer, r.buffer[headerSize:headerSize+1+nn])
+			if sealErr := r.SealFinal(r.buffer, r.buffer[headerSize:headerSize+1+nn]); sealErr != nil {
+				r.stateErr = sealErr
+				r.recycle()
+				return n, sealErr
+			}
 			if len(p) > r.buffer.Length() {
 				n += copy(p, r.buffer[:r.buffer.Length()])
 				r.stateErr = io.EOF
@@ -133,7 +142,11 @@ func (r *encReaderV20) Read(p []byte) (n int, err error) {
 			}
 		} else {
 			r.lastByte = r.buffer[headerSize+maxPayloadSize] // save last read byte for the next package
-			r.Seal(r.buffer, r.buffer[headerSize:headerSize+maxPayloadSize])
+			if sealErr := r.Seal(r.buffer, r.buffer[headerSize:headerSize+maxPayloadSize]); sealErr != nil {
+				r.stateErr = sealErr
+				r.recycle()
+				return n, sealErr
+			}
 		}
 		r.offset = copy(p, r.buffer[:len(p)]) // len(p) < len(r.buffer) - otherwise we would be still in the for-loop
 		n += r.offset
@@ -305,7 +318,7 @@ func (r *decReaderAtV20) ReadAt(p []byte, offset int64) (n int, err error) {
 		recycle:    recycle,
 		offset:     0,
 	}
-	decReader.SeqNum = uint32(t)
+	decReader.SeqNum = uint32(t) //nolint:gosec // Safe conversion
 	if k > 0 {
 		if _, err := io.CopyN(io.Discard, &decReader, k); err != nil {
 			return 0, err

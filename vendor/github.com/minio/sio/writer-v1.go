@@ -49,12 +49,15 @@ func decryptWriterV10(dst io.Writer, config *Config) (*decWriterV10, error) {
 }
 
 func (w *decWriterV10) Write(p []byte) (n int, err error) {
+	if w.closeErr != nil {
+		return 0, w.closeErr
+	}
 	if w.offset > 0 && w.offset < headerSize { // buffer the header -> special code b/c we don't know when to decrypt without header
 		remaining := headerSize - w.offset
 		if len(p) < remaining {
 			n = copy(w.buffer[w.offset:], p)
 			w.offset += n
-			return
+			return n, err
 		}
 		n = copy(w.buffer[w.offset:], p[:remaining])
 		p = p[remaining:]
@@ -113,7 +116,7 @@ func (w *decWriterV10) Close() (err error) {
 
 	if w.closeErr != nil {
 		if dst, ok := w.dst.(io.Closer); ok {
-			dst.Close()
+			_ = dst.Close()
 		}
 		return w.closeErr
 	}
@@ -178,12 +181,15 @@ func encryptWriterV10(dst io.Writer, config *Config) (*encWriterV10, error) {
 }
 
 func (w *encWriterV10) Write(p []byte) (n int, err error) {
+	if w.closeErr != nil {
+		return 0, w.closeErr
+	}
 	if w.offset > 0 { // buffer the plaintext
 		remaining := w.payloadSize - w.offset
 		if len(p) < remaining {
 			n = copy(w.buffer[headerSize+w.offset:], p)
 			w.offset += n
-			return
+			return n, err
 		}
 		n = copy(w.buffer[headerSize+w.offset:], p[:remaining])
 		w.Seal(w.buffer, w.buffer[headerSize:headerSize+w.payloadSize])
@@ -209,7 +215,7 @@ func (w *encWriterV10) Write(p []byte) (n int, err error) {
 		w.offset = copy(w.buffer[headerSize:], p)
 		n += w.offset
 	}
-	return
+	return n, err
 }
 
 func (w *encWriterV10) Close() (err error) {
@@ -217,7 +223,7 @@ func (w *encWriterV10) Close() (err error) {
 
 	if w.closeErr != nil {
 		if dst, ok := w.dst.(io.Closer); ok {
-			dst.Close()
+			_ = dst.Close()
 		}
 		return w.closeErr
 	}

@@ -128,7 +128,7 @@ func (r *decReaderV10) Read(p []byte) (n int, err error) {
 		if len(p) < remaining {
 			n = copy(p, payload[r.offset:+r.offset+len(p)])
 			r.offset += n
-			return
+			return n, err
 		}
 		n = copy(p, payload[r.offset:r.offset+remaining])
 		p = p[remaining:]
@@ -232,7 +232,7 @@ func (r *decReaderAtV10) ReadAt(p []byte, offset int64) (n int, err error) {
 		recycle:    recycle,
 		offset:     0,
 	}
-	decReader.SeqNum = uint32(t)
+	decReader.SeqNum = uint32(t) //nolint:gosec // Safe conversion
 	if k := offset % int64(maxPayloadSize); k > 0 {
 		if _, err := io.CopyN(io.Discard, &decReader, k); err != nil {
 			return 0, err
