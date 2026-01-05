@@ -29,7 +29,7 @@ func (h headerV10) Len() int                     { return int(binary.LittleEndia
 func (h headerV10) SequenceNumber() uint32       { return binary.LittleEndian.Uint32(h[4:]) }
 func (h headerV10) SetVersion()                  { h[0] = Version10 }
 func (h headerV10) SetCipher(suite byte)         { h[1] = suite }
-func (h headerV10) SetLen(length int)            { binary.LittleEndian.PutUint16(h[2:], uint16(length-1)) }
+func (h headerV10) SetLen(length int)            { binary.LittleEndian.PutUint16(h[2:], uint16(length-1)) } //nolint:gosec // Expected conversion
 func (h headerV10) SetSequenceNumber(num uint32) { binary.LittleEndian.PutUint32(h[4:], num) }
 func (h headerV10) SetRand(randVal []byte)       { copy(h[8:headerSize], randVal) }
 func (h headerV10) Nonce() []byte                { return h[4:headerSize] }
@@ -49,7 +49,7 @@ func (h headerV20) SetVersion()           { h[0] = Version20 }
 func (h headerV20) Cipher() byte          { return h[1] }
 func (h headerV20) SetCipher(cipher byte) { h[1] = cipher }
 func (h headerV20) Length() int           { return int(binary.LittleEndian.Uint16(h[2:4])) + 1 }
-func (h headerV20) SetLength(length int)  { binary.LittleEndian.PutUint16(h[2:4], uint16(length-1)) }
+func (h headerV20) SetLength(length int)  { binary.LittleEndian.PutUint16(h[2:4], uint16(length-1)) } //nolint:gosec // Expected conversion
 func (h headerV20) IsFinal() bool         { return h[4]&0x80 == 0x80 }
 func (h headerV20) Nonce() []byte         { return h[4:headerSize] }
 func (h headerV20) AddData() []byte       { return h[:4] }
@@ -184,12 +184,12 @@ func newAuthEncV20(cfg *Config) (authEncV20, error) {
 	}, nil
 }
 
-func (ae *authEncV20) Seal(dst, src []byte)      { ae.seal(dst, src, false) }
-func (ae *authEncV20) SealFinal(dst, src []byte) { ae.seal(dst, src, true) }
+func (ae *authEncV20) Seal(dst, src []byte) error      { return ae.seal(dst, src, false) }
+func (ae *authEncV20) SealFinal(dst, src []byte) error { return ae.seal(dst, src, true) }
 
-func (ae *authEncV20) seal(dst, src []byte, finalize bool) {
+func (ae *authEncV20) seal(dst, src []byte, finalize bool) error {
 	if ae.finalized { // callers are not supposed to call Seal(Final) after a SealFinal call happened
-		panic("sio: cannot seal any package after final one")
+		return errSealAfterFinal
 	}
 	ae.finalized = finalize
 
@@ -205,6 +205,7 @@ func (ae *authEncV20) seal(dst, src []byte, finalize bool) {
 
 	ae.Cipher.Seal(dst[headerSize:headerSize], nonce[:], src, header.AddData())
 	ae.SeqNum++
+	return nil
 }
 
 type authDecV20 struct {

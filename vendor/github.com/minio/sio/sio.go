@@ -22,6 +22,7 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"errors"
+	"fmt"
 	"io"
 	"runtime"
 
@@ -45,7 +46,24 @@ const (
 
 // supportsAES indicates whether the CPU provides hardware support for AES-GCM.
 // AES-GCM should only be selected as default cipher if there's hardware support.
-var supportsAES = (cpu.X86.HasAES && cpu.X86.HasPCLMULQDQ) || runtime.GOARCH == "s390x"
+var supportsAES = detectAESSupport()
+
+func detectAESSupport() bool {
+	// x86/x86_64: Check for AES-NI and PCLMULQDQ instructions
+	if runtime.GOARCH == "amd64" || runtime.GOARCH == "386" {
+		return cpu.X86.HasAES && cpu.X86.HasPCLMULQDQ
+	}
+	// ARM64: Check for AES and PMULL crypto extensions
+	if runtime.GOARCH == "arm64" {
+		return cpu.ARM64.HasAES && cpu.ARM64.HasPMULL
+	}
+	// s390x: Has built-in hardware acceleration
+	if runtime.GOARCH == "s390x" {
+		return true
+	}
+	// For other architectures, default to ChaCha20-Poly1305
+	return false
+}
 
 const (
 	keySize = 32
@@ -83,9 +101,11 @@ var (
 	errPackageOutOfOrder = Error{"sio: sequence number mismatch"}
 
 	// Version 2.0 specific
-	errNonceMismatch  = Error{"sio: header nonce mismatch"}
-	errUnexpectedEOF  = Error{"sio: unexpected EOF"}
-	errUnexpectedData = Error{"sio: unexpected data after final package"}
+	errNonceMismatch   = Error{"sio: header nonce mismatch"}
+	errUnexpectedEOF   = Error{"sio: unexpected EOF"}
+	errUnexpectedData  = Error{"sio: unexpected data after final package"}
+	errSealAfterFinal  = Error{"sio: cannot seal any package after final one"}
+	errWriteAfterClose = Error{"sio: write to stream after close"}
 )
 
 // Error is the error returned by an io.Reader or io.Writer
@@ -179,9 +199,13 @@ func DecryptedSize(size uint64) (uint64, error) {
 func Encrypt(dst io.Writer, src io.Reader, config Config) (n int64, err error) {
 	encReader, err := EncryptReader(src, config)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("sio: failed to create encryption reader: %w", err)
 	}
-	return io.CopyBuffer(dst, encReader, make([]byte, headerSize+maxPayloadSize+tagSize))
+	n, err = io.CopyBuffer(dst, encReader, make([]byte, headerSize+maxPayloadSize+tagSize))
+	if err != nil {
+		return n, fmt.Errorf("sio: encryption failed: %w", err)
+	}
+	return n, nil
 }
 
 // Decrypt reads from src until it encounters an io.EOF and decrypts all received
@@ -194,9 +218,13 @@ func Encrypt(dst io.Writer, src io.Reader, config Config) (n int64, err error) {
 func Decrypt(dst io.Writer, src io.Reader, config Config) (n int64, err error) {
 	decReader, err := DecryptReader(src, config)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("sio: failed to create decryption reader: %w", err)
 	}
-	return io.CopyBuffer(dst, decReader, make([]byte, maxPayloadSize))
+	n, err = io.CopyBuffer(dst, decReader, make([]byte, maxPayloadSize))
+	if err != nil {
+		return n, fmt.Errorf("sio: decryption failed: %w", err)
+	}
+	return n, nil
 }
 
 // DecryptBuffer decrypts all received data in src.
