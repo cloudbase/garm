@@ -13,7 +13,7 @@
 		"test:ui": "vitest --ui"
 	},
 	"devDependencies": {
-		"@openapitools/openapi-generator-cli": "^2.22.0",
+		"@openapitools/openapi-generator-cli": "^2.27.0",
 		"@playwright/test": "^1.56.1",
 		"@sveltejs/adapter-static": "^3.0.1",
 		"@sveltejs/kit": "^2.0.0",
