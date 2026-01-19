@@ -449,6 +449,43 @@ func (s *sqlDatabase) migrateFileObjects() error {
 	return nil
 }
 
+// normalizeUUIDCase ensures all UUIDs in the database are lowercase.
+// This is necessary because GORM's Preload uses uuid.UUID.String() which
+// returns lowercase UUIDs, but SQLite text comparison is case-sensitive.
+// If UUIDs were inserted with different casing, Preload JOINs will fail.
+func (s *sqlDatabase) normalizeUUIDCase() error {
+	// Check if normalization is needed by looking for any uppercase UUIDs
+	var count int64
+	err := s.conn.Raw(`
+		SELECT COUNT(*) FROM tags WHERE id != lower(id)
+		UNION ALL
+		SELECT COUNT(*) FROM pool_tags WHERE pool_id != lower(pool_id) OR tag_id != lower(tag_id)
+	`).Scan(&count).Error
+	if err != nil {
+		return fmt.Errorf("failed to check UUID case: %w", err)
+	}
+
+	if count == 0 {
+		// No normalization needed
+		return nil
+	}
+
+	slog.Info("normalizing UUID case in database")
+
+	// Normalize UUIDs in tags table
+	if err := s.conn.Exec("UPDATE tags SET id = lower(id) WHERE id != lower(id)").Error; err != nil {
+		return fmt.Errorf("failed to normalize tags.id: %w", err)
+	}
+
+	// Normalize UUIDs in pool_tags junction table
+	if err := s.conn.Exec("UPDATE pool_tags SET pool_id = lower(pool_id), tag_id = lower(tag_id) WHERE pool_id != lower(pool_id) OR tag_id != lower(tag_id)").Error; err != nil {
+		return fmt.Errorf("failed to normalize pool_tags: %w", err)
+	}
+
+	slog.Info("UUID case normalization complete")
+	return nil
+}
+
 func (s *sqlDatabase) ensureTemplates(migrateTemplates bool) error {
 	if !migrateTemplates {
 		return nil
@@ -668,6 +705,16 @@ func (s *sqlDatabase) migrateDB() error {
 	// Migrate file object tables in the attached objectsdb schema
 	if err := s.migrateFileObjects(); err != nil {
 		return fmt.Errorf("error migrating file objects: %w", err)
+	}
+
+	// Normalize UUIDs to lowercase for SQLite. This fixes a case-sensitivity issue
+	// where GORM's Preload uses lowercase UUIDs (from uuid.UUID.String()) but some
+	// UUIDs may be stored in uppercase, causing JOIN failures in SQLite which uses
+	// case-sensitive text comparison by default.
+	if s.cfg.DbBackend == config.SQLiteBackend {
+		if err := s.normalizeUUIDCase(); err != nil {
+			return fmt.Errorf("error normalizing UUID case: %w", err)
+		}
 	}
 
 	s.conn.Exec("PRAGMA foreign_keys = ON")
