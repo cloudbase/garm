@@ -58,7 +58,7 @@ type ControllerInfo struct {
 	MetadataURL string
 	// WebhookBaseURL is the base URL used to construct the controller webhook URL.
 	WebhookBaseURL string
-	// AgentURL is the websocket enabled URL whenre garm agents connect to.
+	// AgentURL is the websocket enabled URL where garm agents connect to.
 	AgentURL string
 	// GARMAgentReleasesURL is the URL from which GARM can sync garm-agent binaries. Alternatively
 	// the user can manually upload binaries.
@@ -488,7 +488,7 @@ type FileObject struct {
 	// Size is the file size in bytes
 	Size int64 `gorm:"type:integer"`
 	// SHA256 is the sha256 checksum (hex encoded)
-	SHA256 string `gorm:"type:text"`
+	SHA256 string `gorm:"type:text;index:idx_fo_chksum"`
 	// Tags is a JSON array of tags
 	TagsList []FileObjectTag `gorm:"foreignKey:FileObjectID;constraint:OnDelete:CASCADE"`
 	// Content is a foreign key to a different table where the blob is actually stored.

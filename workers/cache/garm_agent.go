@@ -14,6 +14,12 @@
 package cache
 
 import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"sync"
 	"time"
 )
 
@@ -23,6 +29,7 @@ type GitHubReleaseAsset struct {
 	Size          uint      `json:"size"`
 	DownloadCount uint      `json:"download_count"`
 	CreatedAt     time.Time `json:"created_at"`
+	Digest        string    `json:"digest"`
 	DownloadURL   string    `json:"browser_download_url"`
 }
 
@@ -34,26 +41,44 @@ type GitHubRelease struct {
 	Assets     []GitHubReleaseAsset `json:"assets"`
 }
 
-// func getGithubReleaseFromURL(_ context.Context, releasesEndpoint string) (GitHubRelease, error) {
-// 	resp, err := http.Get(releasesEndpoint) // nolint
-// 	if err != nil {
-// 		return GitHubRelease{}, fmt.Errorf("failed to fetch URL %s: %w", releasesEndpoint, err)
-// 	}
-// 	defer resp.Body.Close()
-// 	data, err := io.ReadAll(resp.Body)
-// 	if err != nil {
-// 		return GitHubRelease{}, fmt.Errorf("failed to read response from URL %s: %w", releasesEndpoint, err)
-// 	}
+type GitHubReleases []GitHubRelease
 
-// 	var tools GitHubRelease
-// 	err = json.Unmarshal(data, &tools)
-// 	if err != nil {
-// 		return GitHubRelease{}, fmt.Errorf("failed to unmarshal response from URL %s: %w", releasesEndpoint, err)
-// 	}
+func getLatestGithubReleaseFromURL(_ context.Context, releasesEndpoint string) (GitHubRelease, error) {
+	resp, err := http.Get(releasesEndpoint)
+	if err != nil {
+		return GitHubRelease{}, fmt.Errorf("failed to fetch URL %s: %w", releasesEndpoint, err)
+	}
+	defer resp.Body.Close()
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return GitHubRelease{}, fmt.Errorf("failed to read response from URL %s: %w", releasesEndpoint, err)
+	}
 
-// 	if len(tools.Assets) == 0 {
-// 		return GitHubRelease{}, fmt.Errorf("no tools found from URL %s", releasesEndpoint)
-// 	}
+	var tools GitHubReleases
+	err = json.Unmarshal(data, &tools)
+	if err != nil {
+		return GitHubRelease{}, fmt.Errorf("failed to unmarshal response from URL %s: %w", releasesEndpoint, err)
+	}
 
-// 	return tools, nil
-// }
+	if len(tools) == 0 {
+		return GitHubRelease{}, fmt.Errorf("no tools found from URL %s", releasesEndpoint)
+	}
+
+	if len(tools[0].Assets) == 0 {
+		return GitHubRelease{}, fmt.Errorf("no downloadable assets found from URL %s", releasesEndpoint)
+	}
+
+	return tools[0], nil
+}
+
+type garmToolsSync struct {
+	ctx context.Context
+
+	mux     sync.Mutex
+	running bool
+	quit    chan struct{}
+}
+
+func (g *garmToolsSync) loop() {
+	
+}

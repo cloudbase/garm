@@ -33,7 +33,7 @@ var (
 	garmAgentOSArchARM64Tag   = "os_arch=arm64"
 )
 
-func (r *Runner) ListGARMTools(ctx context.Context) ([]params.GARMAgentTool, error) {
+func (r *Runner) ListAllGARMTools(ctx context.Context) ([]params.GARMAgentTool, error) {
 	if !auth.IsAdmin(ctx) {
 		return nil, runnerErrors.ErrUnauthorized
 	}

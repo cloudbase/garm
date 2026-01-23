@@ -14,7 +14,11 @@
 
 package params
 
-import "time"
+import (
+	"context"
+	"io"
+	"time"
+)
 
 // EntityGetter is implemented by all github entities (repositories, organizations and enterprises).
 // It defines the GetEntity() function which returns a github entity.
@@ -32,4 +36,10 @@ type CreationDateGetter interface {
 
 type ForgeCredentialsGetter interface {
 	GetForgeCredentials() ForgeCredentials
+}
+
+type GARMToolsManager interface {
+	ListAllGARMTools(ctx context.Context) ([]GARMAgentTool, error)
+	CreateGARMTool(ctx context.Context, param CreateGARMToolParams, reader io.Reader) (FileObject, error)
+	DeleteGarmTool(ctx context.Context, osType, osArch string) error
 }
