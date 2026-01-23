@@ -6,7 +6,6 @@ ARG LXD_REF=v0.1.2
 ARG INCUS_REF=v0.1.2
 ARG AWS_REF=v0.1.3
 ARG GCP_REF=v0.1.2
-ARG EQUINIX_REF=v0.1.2
 ARG K8S_REF=v0.3.2
 ARG LINODE_REF=v0.2.0
 
@@ -23,7 +22,6 @@ RUN git clone --depth 1 --branch ${LXD_REF} https://github.com/cloudbase/garm-pr
 RUN git clone --depth 1 --branch ${INCUS_REF} https://github.com/cloudbase/garm-provider-incus /build/garm-provider-incus
 RUN git clone --depth 1 --branch ${AWS_REF} https://github.com/cloudbase/garm-provider-aws /build/garm-provider-aws
 RUN git clone --depth 1 --branch ${GCP_REF} https://github.com/cloudbase/garm-provider-gcp /build/garm-provider-gcp
-RUN git clone --depth 1 --branch ${EQUINIX_REF} https://github.com/cloudbase/garm-provider-equinix /build/garm-provider-equinix
 RUN git clone --depth 1 --branch ${LINODE_REF} https://github.com/flatcar/garm-provider-linode /build/garm-provider-linode
 
 RUN git clone --depth 1 --branch v0.3.1 https://github.com/mercedes-benz/garm-provider-k8s /build/garm-provider-k8s
@@ -39,7 +37,6 @@ RUN cd /build/garm-provider-lxd && go build -ldflags="-linkmode external -extldf
 RUN cd /build/garm-provider-incus && go build -ldflags="-linkmode external -extldflags '-static' -s -w -X main.Version=${INCUS_REF}" -o /opt/garm/providers.d/garm-provider-incus . && upx /opt/garm/providers.d/garm-provider-incus
 RUN cd /build/garm-provider-aws && go build -ldflags="-linkmode external -extldflags '-static' -s -w -X main.Version=${AWS_REF}" -o /opt/garm/providers.d/garm-provider-aws . && upx /opt/garm/providers.d/garm-provider-aws
 RUN cd /build/garm-provider-gcp && go build -ldflags="-linkmode external -extldflags '-static' -s -w -X main.Version=${GCP_REF}" -o /opt/garm/providers.d/garm-provider-gcp . && upx /opt/garm/providers.d/garm-provider-gcp
-RUN cd /build/garm-provider-equinix && go build -ldflags="-linkmode external -extldflags '-static' -s -w -X main.Version=${EQUINIX_REF}" -o /opt/garm/providers.d/garm-provider-equinix . && upx /opt/garm/providers.d/garm-provider-equinix
 RUN cd /build/garm-provider-linode && go build -ldflags="-linkmode external -extldflags '-static' -s -w" -o /opt/garm/providers.d/garm-provider-linode . && upx /opt/garm/providers.d/garm-provider-linode
 
 RUN cd /build/garm-provider-k8s/cmd/garm-provider-k8s && go build -ldflags="-linkmode external -extldflags '-static' -s -w" -o /opt/garm/providers.d/garm-provider-k8s . && upx /opt/garm/providers.d/garm-provider-k8s
@@ -53,7 +50,6 @@ COPY --from=builder /opt/garm/providers.d/garm-provider-incus /opt/garm/provider
 COPY --from=builder /opt/garm/providers.d/garm-provider-azure /opt/garm/providers.d/garm-provider-azure
 COPY --from=builder /opt/garm/providers.d/garm-provider-aws /opt/garm/providers.d/garm-provider-aws
 COPY --from=builder /opt/garm/providers.d/garm-provider-gcp /opt/garm/providers.d/garm-provider-gcp
-COPY --from=builder /opt/garm/providers.d/garm-provider-equinix /opt/garm/providers.d/garm-provider-equinix
 COPY --from=builder /opt/garm/providers.d/garm-provider-linode /opt/garm/providers.d/garm-provider-linode
 
 COPY --from=builder /opt/garm/providers.d/garm-provider-k8s /opt/garm/providers.d/garm-provider-k8s

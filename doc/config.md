@@ -296,7 +296,6 @@ For non-testing purposes, these are the external providers currently available:
 * [Kubernetes](https://github.com/mercedes-benz/garm-provider-k8s) - Thanks to the amazing folks at @mercedes-benz for sharing their awesome provider!
 * [LXD](https://github.com/cloudbase/garm-provider-lxd)
 * [Incus](https://github.com/cloudbase/garm-provider-incus)
-* [Equinix Metal](https://github.com/cloudbase/garm-provider-equinix)
 * [Amazon EC2](https://github.com/cloudbase/garm-provider-aws)
 * [Google Cloud Platform (GCP)](https://github.com/cloudbase/garm-provider-gcp)
 * [Oracle Cloud Infrastructure (OCI)](https://github.com/cloudbase/garm-provider-oci)
