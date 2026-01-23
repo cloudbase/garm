@@ -135,8 +135,6 @@ ubuntu@garm:~$ garm-cli provider list
 +--------------+---------------------------------+----------+
 | Amazon EC2   | Amazon EC2 provider             | external |
 +--------------+---------------------------------+----------+
-| equinix      | Equinix Metal                   | external |
-+--------------+---------------------------------+----------+
 ```
 
 Each of these providers can be used to set up a runner pool for a repository, organization or enterprise.
@@ -540,7 +538,7 @@ Let's unpack the command and explain what happened above. We added a new pool of
 
 We also specified the `--min-idle-runners` option to tell GARM to always keep at least 1 runner idle in the pool. This is useful for repositories that have a lot of workflows that run often, and we want to make sure that we always have a runner ready to pick up a job.
 
-If we review the output of the command, we can see that the pool was created with a maximum number of 5 runners. This is just a default we can tweak when creating the pool, or later using the `garm-cli pool update` command. We can also see that the pool was created with a runner botstrap timeout of 20 minutes. This timeout is important on provider where the instance may take a long time to spin up. For example, on Equinix Metal, some operating systems can take a few minutes to install and reboot. This timeout can be tweaked to a higher value to account for this.
+If we review the output of the command, we can see that the pool was created with a maximum number of 5 runners. This is just a default we can tweak when creating the pool, or later using the `garm-cli pool update` command. We can also see that the pool was created with a runner botstrap timeout of 20 minutes. This timeout is important on provider where the instance may take a long time to spin up. For example, if you're deploying an Ironic node on OpenStack, some operating systems can take a few minutes to install and reboot. This timeout can be tweaked to a higher value to account for this.
 
 The pool was created with the `--enabled` flag set to `false`, so the pool won't create any runners yet:
 
@@ -574,7 +572,7 @@ ubuntu@garm:~/garm$ garm-cli pool list --all
 +--------------------------------------+---------------------------+--------------+-----------------------------------------+------------------+-------+---------+---------------+----------+
 | ID                                   | IMAGE                     | FLAVOR       | TAGS                                    | BELONGS TO       | LEVEL | ENABLED | RUNNER PREFIX | PRIORITY |
 +--------------------------------------+---------------------------+--------------+-----------------------------------------+------------------+-------+---------+---------------+----------+
-| 8935f6a6-f20f-4220-8fa9-9075e7bd7741 | windows_2022              | c3.small.x86 | self-hosted x64 Windows windows equinix | gsamfira/scripts | repo  | false   | garm          |        0 |
+| 8935f6a6-f20f-4220-8fa9-9075e7bd7741 | windows_2022              | c3.small.x86 | self-hosted x64 Windows windows         | gsamfira/scripts | repo  | false   | garm          |        0 |
 +--------------------------------------+---------------------------+--------------+-----------------------------------------+------------------+-------+---------+---------------+----------+
 | 9233b3f5-2ccf-4689-8f86-a8a0d656dbeb | runner-upstream:latest    | small        | self-hosted x64 Linux k8s org           | gsamfira         | org   | false   | garm          |        0 |
 +--------------------------------------+---------------------------+--------------+-----------------------------------------+------------------+-------+---------+---------------+----------+
