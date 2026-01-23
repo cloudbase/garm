@@ -375,19 +375,19 @@ func (s *GARMToolsTestSuite) TestDeleteGarmToolDeletesAllVersions() {
 	s.Equal(uint64(0), results.TotalCount)
 }
 
-func (s *GARMToolsTestSuite) TestListGARMToolsUnauthorized() {
-	_, err := s.Runner.ListGARMTools(s.UnauthorizedContext)
+func (s *GARMToolsTestSuite) TestListAllGARMToolsUnauthorized() {
+	_, err := s.Runner.ListAllGARMTools(s.UnauthorizedContext)
 	s.Require().Error(err)
 	s.Equal(runnerErrors.ErrUnauthorized, err)
 }
 
-func (s *GARMToolsTestSuite) TestListGARMToolsEmpty() {
-	tools, err := s.Runner.ListGARMTools(s.AdminContext)
+func (s *GARMToolsTestSuite) TestListAllGARMToolsEmpty() {
+	tools, err := s.Runner.ListAllGARMTools(s.AdminContext)
 	s.Require().NoError(err)
 	s.Empty(tools)
 }
 
-func (s *GARMToolsTestSuite) TestListGARMToolsSinglePlatform() {
+func (s *GARMToolsTestSuite) TestListAllGARMToolsSinglePlatform() {
 	// Create one tool
 	param := params.CreateGARMToolParams{
 		Name:        "garm-agent-linux-amd64",
@@ -401,14 +401,14 @@ func (s *GARMToolsTestSuite) TestListGARMToolsSinglePlatform() {
 	_, err := s.Runner.CreateGARMTool(s.AdminContext, param, reader)
 	s.Require().NoError(err)
 
-	tools, err := s.Runner.ListGARMTools(s.AdminContext)
+	tools, err := s.Runner.ListAllGARMTools(s.AdminContext)
 	s.Require().NoError(err)
 	s.Len(tools, 1)
 	s.Equal("linux", string(tools[0].OSType))
 	s.Equal("amd64", string(tools[0].OSArch))
 }
 
-func (s *GARMToolsTestSuite) TestListGARMToolsMultiplePlatforms() {
+func (s *GARMToolsTestSuite) TestListAllGARMToolsMultiplePlatforms() {
 	// Create tools for all supported platforms
 	platforms := []struct {
 		osType commonParams.OSType
@@ -434,7 +434,7 @@ func (s *GARMToolsTestSuite) TestListGARMToolsMultiplePlatforms() {
 		s.Require().NoError(err)
 	}
 
-	tools, err := s.Runner.ListGARMTools(s.AdminContext)
+	tools, err := s.Runner.ListAllGARMTools(s.AdminContext)
 	s.Require().NoError(err)
 	s.Len(tools, 4)
 

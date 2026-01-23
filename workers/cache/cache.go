@@ -30,18 +30,19 @@ import (
 	"github.com/cloudbase/garm/util/github"
 )
 
-func NewWorker(ctx context.Context, store common.Store) *Worker {
+func NewWorker(ctx context.Context, store common.Store, toolsManager params.GARMToolsManager) *Worker {
 	consumerID := "cache"
 	ctx = garmUtil.WithSlogContext(
 		ctx,
 		slog.Any("worker", consumerID))
 
 	return &Worker{
-		ctx:         ctx,
-		store:       store,
-		consumerID:  consumerID,
-		toolsWorkes: make(map[string]*toolsUpdater),
-		quit:        make(chan struct{}),
+		ctx:              ctx,
+		store:            store,
+		garmToolsManager: toolsManager,
+		consumerID:       consumerID,
+		toolsWorkes:      make(map[string]*toolsUpdater),
+		quit:             make(chan struct{}),
 	}
 }
 
@@ -49,9 +50,10 @@ type Worker struct {
 	ctx        context.Context
 	consumerID string
 
-	consumer    common.Consumer
-	store       common.Store
-	toolsWorkes map[string]*toolsUpdater
+	consumer         common.Consumer
+	store            common.Store
+	garmToolsManager params.GARMToolsManager
+	toolsWorkes      map[string]*toolsUpdater
 
 	mux     sync.Mutex
 	running bool

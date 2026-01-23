@@ -245,7 +245,17 @@ func main() {
 		log.Fatal(err)
 	}
 
-	cacheWorker := cache.NewWorker(ctx, db)
+	instanceTokenGetter, err := auth.NewInstanceTokenGetter(cfg.JWTAuth.Secret)
+	if err != nil {
+		log.Fatalf("failed to create instance token getter: %+v", err)
+	}
+
+	runner, err := runner.NewRunner(ctx, *cfg, db, instanceTokenGetter)
+	if err != nil {
+		log.Fatalf("failed to create controller: %+v", err)
+	}
+
+	cacheWorker := cache.NewWorker(ctx, db, runner)
 	if err := cacheWorker.Start(); err != nil {
 		log.Fatalf("failed to start cache worker: %+v", err)
 	}
@@ -263,22 +273,12 @@ func main() {
 		log.Fatalf("failed to start entity controller: %+v", err)
 	}
 
-	instanceTokenGetter, err := auth.NewInstanceTokenGetter(cfg.JWTAuth.Secret)
-	if err != nil {
-		log.Fatalf("failed to create instance token getter: %+v", err)
-	}
-
 	providerWorker, err := provider.NewWorker(ctx, db, providers, instanceTokenGetter)
 	if err != nil {
 		log.Fatalf("failed to create provider worker: %+v", err)
 	}
 	if err := providerWorker.Start(); err != nil {
 		log.Fatalf("failed to start provider worker: %+v", err)
-	}
-
-	runner, err := runner.NewRunner(ctx, *cfg, db, instanceTokenGetter)
-	if err != nil {
-		log.Fatalf("failed to create controller: %+v", err)
 	}
 
 	// If there are many repos/pools, this may take a long time.

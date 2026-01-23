@@ -218,6 +218,12 @@ func (r *Runner) GetInstanceMetadata(ctx context.Context) (params.InstanceMetada
 		return params.InstanceMetadata{}, fmt.Errorf("failed to get entity: %w", err)
 	}
 
+	switch dbEntity.Credentials.ForgeType {
+	case params.GiteaEndpointType, params.GithubEndpointType:
+	default:
+		return params.InstanceMetadata{}, runnerErrors.NewUnprocessableError("invalid forge type: %s", dbEntity.Credentials.ForgeType)
+	}
+
 	ret := params.InstanceMetadata{
 		RunnerName:            instance.Name,
 		RunnerLabels:          getLabelsForInstance(instance),
@@ -236,17 +242,22 @@ func (r *Runner) GetInstanceMetadata(ctx context.Context) (params.InstanceMetada
 	if dbEntity.AgentMode {
 		agentTools, err := r.GetGARMTools(ctx, 0, 25)
 		if err != nil {
-			return params.InstanceMetadata{}, fmt.Errorf("failed to find garm agent tools: %w", err)
+			if !errors.Is(err, runnerErrors.ErrNotFound) {
+				return params.InstanceMetadata{}, fmt.Errorf("failed to find garm agent tools: %w", err)
+			}
+			slog.ErrorContext(ctx, "failed to find agent tools", "error", err)
 		}
-		if agentTools.TotalCount == 0 {
-			return params.InstanceMetadata{}, runnerErrors.NewConflictError("agent mode is enabled, but agent tools not available")
+		if agentTools.TotalCount > 0 {
+			ret.AgentTools = &agentTools.Results[0]
+			agentToken, err := r.GetAgentJWTToken(r.ctx, instance.Name)
+			if err != nil {
+				return params.InstanceMetadata{}, fmt.Errorf("failed to get agent token: %w", err)
+			}
+			ret.AgentToken = agentToken
+		} else {
+			slog.WarnContext(ctx, "agent mode enabled but no tools found", "runner_name", instance.Name, "pool_id", instance.PoolID)
+			ret.AgentMode = false
 		}
-		ret.AgentTools = &agentTools.Results[0]
-		agentToken, err := r.GetAgentJWTToken(r.ctx, instance.Name)
-		if err != nil {
-			return params.InstanceMetadata{}, fmt.Errorf("failed to get agent token: %w", err)
-		}
-		ret.AgentToken = agentToken
 	}
 
 	if len(dbEntity.Credentials.Endpoint.CACertBundle) > 0 {
@@ -273,12 +284,6 @@ func (r *Runner) GetInstanceMetadata(ctx context.Context) (params.InstanceMetada
 	}
 	ret.RunnerTools = filtered
 
-	switch dbEntity.Credentials.ForgeType {
-	case params.GiteaEndpointType:
-	case params.GithubEndpointType:
-	default:
-		return params.InstanceMetadata{}, fmt.Errorf("invalid forge type: %s", dbEntity.Credentials.ForgeType)
-	}
 	return ret, nil
 }
 

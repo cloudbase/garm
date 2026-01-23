@@ -163,14 +163,6 @@ func (t *toolsUpdater) sleepWithCancel(sleepTime time.Duration) (canceled bool) 
 func (t *toolsUpdater) giteaUpdateLoop() {
 	defer t.Stop()
 
-	// add some jitter. When spinning up multiple entities, we add
-	// jitter to prevent stampeeding herd.
-	randInt, err := rand.Int(rand.Reader, big.NewInt(3000))
-	if err != nil {
-		randInt = big.NewInt(0)
-	}
-	t.sleepWithCancel(time.Duration(randInt.Int64()) * time.Millisecond)
-
 	// add some jitter
 	timerJitter, err := rand.Int(rand.Reader, big.NewInt(120))
 	if err != nil {
