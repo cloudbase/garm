@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"strings"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/auth"
@@ -93,13 +94,20 @@ func (r *Runner) CreateGARMTool(ctx context.Context, param params.CreateGARMTool
 		return params.FileObject{}, runnerErrors.NewBadRequestError("invalid os_arch: must be 'amd64' or 'arm64'")
 	}
 
-	// Build tags: category, os_type, os_arch, version
+	// Build tags: category, os_type, os_arch, version, origin
 	tags := []string{
 		garmAgentFileTag,
 		osTypeTag,
 		osArchTag,
 		fmt.Sprintf("version=%s", param.Version),
 	}
+
+	// Add origin tag
+	origin := param.Origin
+	if origin == "" {
+		origin = "manual" // Default to manual if not specified
+	}
+	tags = append(tags, fmt.Sprintf("origin=%s", origin))
 
 	// Create the file object params
 	createParams := params.CreateFileObjectParams{
@@ -147,6 +155,15 @@ func (r *Runner) CreateGARMTool(ctx context.Context, param params.CreateGARMTool
 
 		for _, tool := range allTools.Results {
 			if tool.ID != newTool.ID {
+				// Check if we're overwriting a synced tool
+				var oldOrigin string
+				for _, tag := range tool.Tags {
+					if strings.HasPrefix(tag, "origin=") {
+						oldOrigin = tag[7:]
+						break
+					}
+				}
+
 				// Delete old version directly via store (bypass API check since this is internal)
 				if err := r.store.DeleteFileObject(ctx, tool.ID); err != nil {
 					slog.WarnContext(ctx, "failed to delete old garm-agent version during cleanup",
@@ -158,10 +175,20 @@ func (r *Runner) CreateGARMTool(ctx context.Context, param params.CreateGARMTool
 					continue
 				}
 				deletedCount++
-				slog.DebugContext(ctx, "deleted old garm-agent version",
-					"tool_id", tool.ID,
-					"tool_name", tool.Name,
-					"tags", tool.Tags)
+
+				// Log with appropriate level based on what's being replaced
+				if oldOrigin != origin {
+					slog.InfoContext(ctx, "replaced garm-agent tool with different origin",
+						"tool_id", tool.ID,
+						"tool_name", tool.Name,
+						"old_origin", oldOrigin,
+						"new_origin", origin)
+				} else {
+					slog.DebugContext(ctx, "replaced old garm-agent version",
+						"tool_id", tool.ID,
+						"tool_name", tool.Name,
+						"origin", origin)
+				}
 			}
 		}
 

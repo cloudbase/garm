@@ -173,6 +173,33 @@ func (r *Runner) getRunnerInstallTemplateContext(instance params.Instance, entit
 	return installRunnerParams, nil
 }
 
+// getAgentTool retrieves the GARM agent tool based on sync configuration.
+// If sync is enabled, it tries to get tools from the object store first, then falls back to cached release URL.
+// If sync is disabled, it gets tools directly from the cached release URL.
+// Returns nil if no tools are available from any source.
+func (r *Runner) getAgentTool(ctx context.Context, osType commonParams.OSType, osArch commonParams.OSArch) *params.GARMAgentTool {
+	ctrlInfo := cache.ControllerInfo()
+
+	switch {
+	case ctrlInfo.SyncGARMAgentTools:
+		// Sync enabled: try to get tools from GARM object store
+		agentTools, err := r.GetGARMTools(ctx, 0, 1)
+		if err != nil && !errors.Is(err, runnerErrors.ErrNotFound) {
+			slog.WarnContext(ctx, "failed to query garm agent tools", "error", err)
+		}
+		if agentTools.TotalCount > 0 {
+			return &agentTools.Results[0]
+		}
+		// No tools in object store, fall through to get from release URL
+		slog.WarnContext(ctx, "sync enabled but no tools found in object store, falling back to release URL")
+		fallthrough
+	default:
+		// Sync disabled OR fallback from sync: get tools from cached release URL
+		tool := ctrlInfo.GetCachedAgentTool(string(osType), string(osArch))
+		return tool
+	}
+}
+
 func (r *Runner) GetInstanceMetadata(ctx context.Context) (params.InstanceMetadata, error) {
 	instance, err := validateInstanceState(ctx)
 	if err != nil {
@@ -224,6 +251,7 @@ func (r *Runner) GetInstanceMetadata(ctx context.Context) (params.InstanceMetada
 		return params.InstanceMetadata{}, runnerErrors.NewUnprocessableError("invalid forge type: %s", dbEntity.Credentials.ForgeType)
 	}
 
+	ctrlInfo := cache.ControllerInfo()
 	ret := params.InstanceMetadata{
 		RunnerName:            instance.Name,
 		RunnerLabels:          getLabelsForInstance(instance),
@@ -231,7 +259,7 @@ func (r *Runner) GetInstanceMetadata(ctx context.Context) (params.InstanceMetada
 		MetadataAccess: params.MetadataServiceAccessDetails{
 			CallbackURL: instance.CallbackURL,
 			MetadataURL: instance.MetadataURL,
-			AgentURL:    cache.ControllerInfo().AgentURL,
+			AgentURL:    ctrlInfo.AgentURL,
 		},
 		ForgeType:         dbEntity.Credentials.ForgeType,
 		JITEnabled:        len(instance.JitConfiguration) > 0,
@@ -240,22 +268,20 @@ func (r *Runner) GetInstanceMetadata(ctx context.Context) (params.InstanceMetada
 	}
 
 	if dbEntity.AgentMode {
-		agentTools, err := r.GetGARMTools(ctx, 0, 25)
-		if err != nil {
-			if !errors.Is(err, runnerErrors.ErrNotFound) {
-				return params.InstanceMetadata{}, fmt.Errorf("failed to find garm agent tools: %w", err)
-			}
-			slog.ErrorContext(ctx, "failed to find agent tools", "error", err)
-		}
-		if agentTools.TotalCount > 0 {
-			ret.AgentTools = &agentTools.Results[0]
+		agentTool := r.getAgentTool(ctx, instance.OSType, instance.OSArch)
+
+		// If we have tools, set agent metadata
+		if agentTool != nil {
+			ret.AgentTools = agentTool
 			agentToken, err := r.GetAgentJWTToken(r.ctx, instance.Name)
 			if err != nil {
 				return params.InstanceMetadata{}, fmt.Errorf("failed to get agent token: %w", err)
 			}
 			ret.AgentToken = agentToken
 		} else {
-			slog.WarnContext(ctx, "agent mode enabled but no tools found", "runner_name", instance.Name, "pool_id", instance.PoolID)
+			// No tools available from any source, disable agent mode
+			slog.WarnContext(ctx, "agent mode enabled but no tools available from any source",
+				"runner_name", instance.Name, "pool_id", instance.PoolID, "sync_enabled", ctrlInfo.SyncGARMAgentTools)
 			ret.AgentMode = false
 		}
 	}
@@ -526,6 +552,7 @@ func fileObjectToGARMTool(obj params.FileObject, downloadURL string) (params.GAR
 	var version string
 	var osType string
 	var osArch string
+	var origin string
 	for _, val := range obj.Tags {
 		if strings.HasPrefix(val, "version=") {
 			version = val[8:]
@@ -535,6 +562,9 @@ func fileObjectToGARMTool(obj params.FileObject, downloadURL string) (params.GAR
 		}
 		if strings.HasPrefix(val, "os_type=") {
 			osType = val[8:]
+		}
+		if strings.HasPrefix(val, "origin=") {
+			origin = val[7:]
 		}
 	}
 	switch {
@@ -558,6 +588,7 @@ func fileObjectToGARMTool(obj params.FileObject, downloadURL string) (params.GAR
 		OSArch:      commonParams.OSArch(osArch),
 		DownloadURL: downloadURL,
 		Version:     version,
+		Origin:      origin,
 	}
 	return res, nil
 }
@@ -620,6 +651,7 @@ func (r *Runner) ShowGARMTools(ctx context.Context, toolsID uint) (params.GARMAg
 	var version string
 	var osType string
 	var osArch string
+	var origin string
 	var category string
 	for _, val := range tools.Tags {
 		if strings.HasPrefix(val, "version=") {
@@ -630,6 +662,9 @@ func (r *Runner) ShowGARMTools(ctx context.Context, toolsID uint) (params.GARMAg
 		}
 		if strings.HasPrefix(val, "os_type=") {
 			osType = val[8:]
+		}
+		if strings.HasPrefix(val, "origin=") {
+			origin = val[7:]
 		}
 		if strings.HasPrefix(val, "category=") {
 			category = val[9:]
@@ -662,6 +697,7 @@ func (r *Runner) ShowGARMTools(ctx context.Context, toolsID uint) (params.GARMAg
 		OSType:      commonParams.OSType(osType),
 		OSArch:      commonParams.OSArch(osArch),
 		DownloadURL: downloadURL,
+		Origin:      origin,
 	}
 	if version != "" {
 		res.Version = version

@@ -71,6 +71,10 @@ type ControllerInfo struct {
 	// pick up the job. GARM would allow this amount of time for runners to react
 	// before spinning up a new one and potentially having to scale down later.
 	MinimumJobAgeBackoff uint
+	// CachedGARMAgentRelease stores the cached JSON response from GARMAgentReleasesURL
+	CachedGARMAgentRelease datatypes.JSON
+	// CachedGARMAgentReleaseFetchedAt is the timestamp when the release data was last fetched
+	CachedGARMAgentReleaseFetchedAt *time.Time
 }
 
 type Tag struct {

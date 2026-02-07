@@ -13,6 +13,7 @@ docs/ControllerInfo.md
 docs/ControllerInfoApi.md
 docs/CreateEnterpriseParams.md
 docs/CreateFileObjectParams.md
+docs/CreateGARMToolParams.md
 docs/CreateGiteaCredentialsParams.md
 docs/CreateGiteaEndpointParams.md
 docs/CreateGithubCredentialsParams.md

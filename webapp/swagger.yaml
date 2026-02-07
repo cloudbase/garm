@@ -39,6 +39,11 @@ definitions:
                     URL must be configured to allow websocket connections.
                 type: string
                 x-go-name: AgentURL
+            cached_garm_agent_release_fetched_at:
+                description: CachedGARMAgentReleaseFetchedAt is the timestamp when the release data was last fetched from GARMAgentReleasesURL
+                format: date-time
+                type: string
+                x-go-name: CachedGARMAgentReleaseFetchedAt
             callback_url:
                 description: |-
                     CallbackURL is the URL where instances can send updates back to the controller.
@@ -153,6 +158,30 @@ definitions:
                     type: string
                 type: array
                 x-go-name: Tags
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    CreateGARMToolParams:
+        properties:
+            description:
+                type: string
+                x-go-name: Description
+            name:
+                type: string
+                x-go-name: Name
+            origin:
+                type: string
+                x-go-name: Origin
+            os_arch:
+                $ref: '#/definitions/OSArch'
+            os_type:
+                $ref: '#/definitions/OSType'
+            size:
+                format: int64
+                type: integer
+                x-go-name: Size
+            version:
+                type: string
+                x-go-name: Version
         type: object
         x-go-package: github.com/cloudbase/garm/params
     CreateGiteaCredentialsParams:
@@ -792,6 +821,14 @@ definitions:
             name:
                 type: string
                 x-go-name: Name
+            origin:
+                description: |-
+                    Origin defines where the GARM agent tool originated from.
+                    When manually uploaded, this field is set to "manual". When synced
+                    from a release URL, this will hold the release URL where the tools
+                    originated from.
+                type: string
+                x-go-name: Origin
             os_arch:
                 $ref: '#/definitions/OSArch'
             os_type:
@@ -853,6 +890,14 @@ definitions:
                         name:
                             type: string
                             x-go-name: Name
+                        origin:
+                            description: |-
+                                Origin defines where the GARM agent tool originated from.
+                                When manually uploaded, this field is set to "manual". When synced
+                                from a release URL, this will hold the release URL where the tools
+                                originated from.
+                            type: string
+                            x-go-name: Origin
                         os_arch:
                             type: string
                             x-go-name: OSArch
@@ -2184,6 +2229,32 @@ paths:
             summary: Get controller info.
             tags:
                 - controllerInfo
+    /controller/tools/sync:
+        post:
+            description: |-
+                Forces an immediate sync of GARM agent tools by resetting the cached timestamp.
+                This will trigger the background worker to fetch the latest tools from the configured
+                release URL and sync them to the object store.
+
+                Note: This endpoint requires that GARM agent tools sync is enabled. If sync is disabled,
+                the request will return an error.
+            operationId: ForceToolsSync
+            responses:
+                "200":
+                    description: ControllerInfo
+                    schema:
+                        $ref: '#/definitions/ControllerInfo'
+                "400":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+                "401":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Force immediate sync of GARM agent tools.
+            tags:
+                - controller
     /enterprises:
         get:
             operationId: ListEnterprises
@@ -4287,6 +4358,39 @@ paths:
                     schema:
                         $ref: '#/definitions/APIErrorResponse'
             summary: List GARM agent tools.
+            tags:
+                - tools
+        post:
+            description: |-
+                Uploads a GARM agent tool for a specific OS and architecture.
+                This will automatically replace any existing tool for the same OS/architecture combination.
+
+                Uses custom headers for metadata:
+
+                X-Tool-Name: Name of the tool
+
+                X-Tool-Description: Description
+
+                X-Tool-OS-Type: OS type (linux or windows)
+
+                X-Tool-OS-Arch: Architecture (amd64 or arm64)
+
+                X-Tool-Version: Version string
+            operationId: UploadGARMAgentTool
+            responses:
+                "200":
+                    description: FileObject
+                    schema:
+                        $ref: '#/definitions/FileObject'
+                "400":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+                "401":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Upload a GARM agent tool binary.
             tags:
                 - tools
 produces:

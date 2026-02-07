@@ -43,11 +43,11 @@ import (
 // mockTokenGetter is a simple mock implementation of auth.InstanceTokenGetter
 type mockTokenGetter struct{}
 
-func (m *mockTokenGetter) NewInstanceJWTToken(instance params.Instance, entity params.ForgeEntity, ttlMinutes uint) (string, error) {
+func (m *mockTokenGetter) NewInstanceJWTToken(_ params.Instance, _ params.ForgeEntity, _ uint) (string, error) {
 	return "mock-instance-jwt-token", nil
 }
 
-func (m *mockTokenGetter) NewAgentJWTToken(instance params.Instance, entity params.ForgeEntity) (string, error) {
+func (m *mockTokenGetter) NewAgentJWTToken(_ params.Instance, _ params.ForgeEntity) (string, error) {
 	return "mock-agent-jwt-token", nil
 }
 
@@ -303,10 +303,10 @@ func (s *MetadataTestSuite) TestGetRunnerInstallScript() {
 	// Set up github tools cache for the entity
 	tools := []commonParams.RunnerApplicationDownload{
 		{
-			OS:           garmTesting.Ptr("linux"),
-			Architecture: garmTesting.Ptr("x64"),
-			DownloadURL:  garmTesting.Ptr("https://example.com/actions-runner-linux-x64-2.0.0.tar.gz"),
-			Filename:     garmTesting.Ptr("actions-runner-linux-x64-2.0.0.tar.gz"),
+			OS:             garmTesting.Ptr("linux"),
+			Architecture:   garmTesting.Ptr("x64"),
+			DownloadURL:    garmTesting.Ptr("https://example.com/actions-runner-linux-x64-2.0.0.tar.gz"),
+			Filename:       garmTesting.Ptr("actions-runner-linux-x64-2.0.0.tar.gz"),
 			SHA256Checksum: garmTesting.Ptr("abc123"),
 		},
 	}
@@ -1000,7 +1000,6 @@ func (s *MetadataTestSuite) TestGetGARMToolsInvalidState() {
 	s.Require().NotNil(err)
 	s.Require().ErrorIs(err, runnerErrors.ErrUnauthorized)
 }
-
 
 func (s *MetadataTestSuite) TestShowGARMToolsUnauthorized() {
 	_, err := s.Runner.ShowGARMTools(s.unauthorizedCtx, 1)

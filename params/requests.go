@@ -920,6 +920,7 @@ type CreateGARMToolParams struct {
 	OSType      commonParams.OSType `json:"os_type"`
 	OSArch      commonParams.OSArch `json:"os_arch"`
 	Version     string              `json:"version"`
+	Origin      string              `json:"origin,omitempty"`
 }
 
 // swagger:model RestoreTemplateRequest

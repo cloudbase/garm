@@ -17,6 +17,7 @@ package common
 import (
 	"context"
 	"io"
+	"time"
 
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm/params"
@@ -136,6 +137,7 @@ type ControllerStore interface {
 	InitController() (params.ControllerInfo, error)
 	UpdateController(info params.UpdateControllerParams) (params.ControllerInfo, error)
 	HasEntitiesWithAgentModeEnabled() (bool, error)
+	UpdateCachedGARMAgentRelease(releaseData []byte, fetchedAt time.Time) error
 }
 
 type ScaleSetsStore interface {
