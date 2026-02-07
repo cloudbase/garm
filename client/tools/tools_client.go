@@ -58,6 +58,8 @@ type ClientOption func(*runtime.ClientOperation)
 type ClientService interface {
 	GarmAgentList(params *GarmAgentListParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GarmAgentListOK, error)
 
+	UploadGARMAgentTool(params *UploadGARMAgentToolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UploadGARMAgentToolOK, error)
+
 	SetTransport(transport runtime.ClientTransport)
 }
 
@@ -97,6 +99,61 @@ func (a *Client) GarmAgentList(params *GarmAgentListParams, authInfo runtime.Cli
 	// unexpected success response
 	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
 	msg := fmt.Sprintf("unexpected success response for GarmAgentList: API contract not enforced by server. Client expected to get an error, but got: %T", result)
+	panic(msg)
+}
+
+/*
+	UploadGARMAgentTool uploads a g a r m agent tool binary
+
+	Uploads a GARM agent tool for a specific OS and architecture.
+
+This will automatically replace any existing tool for the same OS/architecture combination.
+
+Uses custom headers for metadata:
+
+X-Tool-Name: Name of the tool
+
+X-Tool-Description: Description
+
+X-Tool-OS-Type: OS type (linux or windows)
+
+X-Tool-OS-Arch: Architecture (amd64 or arm64)
+
+X-Tool-Version: Version string
+*/
+func (a *Client) UploadGARMAgentTool(params *UploadGARMAgentToolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UploadGARMAgentToolOK, error) {
+	// TODO: Validate the params before sending
+	if params == nil {
+		params = NewUploadGARMAgentToolParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "UploadGARMAgentTool",
+		Method:             "POST",
+		PathPattern:        "/tools/garm-agent",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &UploadGARMAgentToolReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+	success, ok := result.(*UploadGARMAgentToolOK)
+	if ok {
+		return success, nil
+	}
+	// unexpected success response
+	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
+	msg := fmt.Sprintf("unexpected success response for UploadGARMAgentTool: API contract not enforced by server. Client expected to get an error, but got: %T", result)
 	panic(msg)
 }
 

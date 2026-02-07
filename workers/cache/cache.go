@@ -54,6 +54,7 @@ type Worker struct {
 	store            common.Store
 	garmToolsManager params.GARMToolsManager
 	toolsWorkes      map[string]*toolsUpdater
+	garmToolsSync    *garmToolsSync
 
 	mux     sync.Mutex
 	running bool
@@ -232,6 +233,7 @@ func (w *Worker) Start() error {
 		if err != nil {
 			return fmt.Errorf("failed to get controller info: %w", err)
 		}
+		// CachedGARMAgentTools is now populated by the database layer during conversion
 		cache.SetControllerCache(ctrlInfo)
 		return nil
 	})
@@ -278,6 +280,12 @@ func (w *Worker) Start() error {
 	w.running = true
 	w.quit = make(chan struct{})
 
+	// Initialize and start GARM tools sync worker
+	w.garmToolsSync = newGARMToolsSync(w.ctx, w.store, w.garmToolsManager)
+	if err := w.garmToolsSync.Start(); err != nil {
+		return fmt.Errorf("starting garm tools sync: %w", err)
+	}
+
 	go w.loop()
 	go w.rateLimitLoop()
 	return nil
@@ -295,6 +303,11 @@ func (w *Worker) Stop() error {
 	for _, worker := range w.toolsWorkes {
 		if err := worker.Stop(); err != nil {
 			slog.ErrorContext(w.ctx, "stopping tools updater", "error", err)
+		}
+	}
+	if w.garmToolsSync != nil {
+		if err := w.garmToolsSync.Stop(); err != nil {
+			slog.ErrorContext(w.ctx, "stopping garm tools sync", "error", err)
 		}
 	}
 	w.consumer.Close()

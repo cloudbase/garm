@@ -494,6 +494,32 @@ paths:
             summary: Get controller info.
             tags:
                 - controllerInfo
+    /controller/tools/sync:
+        post:
+            description: |-
+                Forces an immediate sync of GARM agent tools by resetting the cached timestamp.
+                This will trigger the background worker to fetch the latest tools from the configured
+                release URL and sync them to the object store.
+
+                Note: This endpoint requires that GARM agent tools sync is enabled. If sync is disabled,
+                the request will return an error.
+            operationId: ForceToolsSync
+            responses:
+                "200":
+                    description: ControllerInfo
+                    schema:
+                        $ref: '#/definitions/ControllerInfo'
+                "400":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+                "401":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Force immediate sync of GARM agent tools.
+            tags:
+                - controller
     /enterprises:
         get:
             operationId: ListEnterprises
@@ -2597,6 +2623,39 @@ paths:
                     schema:
                         $ref: '#/definitions/APIErrorResponse'
             summary: List GARM agent tools.
+            tags:
+                - tools
+        post:
+            description: |-
+                Uploads a GARM agent tool for a specific OS and architecture.
+                This will automatically replace any existing tool for the same OS/architecture combination.
+
+                Uses custom headers for metadata:
+
+                X-Tool-Name: Name of the tool
+
+                X-Tool-Description: Description
+
+                X-Tool-OS-Type: OS type (linux or windows)
+
+                X-Tool-OS-Arch: Architecture (amd64 or arm64)
+
+                X-Tool-Version: Version string
+            operationId: UploadGARMAgentTool
+            responses:
+                "200":
+                    description: FileObject
+                    schema:
+                        $ref: '#/definitions/FileObject'
+                "400":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+                "401":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Upload a GARM agent tool binary.
             tags:
                 - tools
 produces:

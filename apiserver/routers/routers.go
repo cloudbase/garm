@@ -219,6 +219,9 @@ func NewAPIRouter(han *controllers.APIController, authMiddleware, initMiddleware
 	// Update controller
 	controllerRouter.Handle("/", http.HandlerFunc(han.UpdateControllerHandler)).Methods("PUT", "OPTIONS")
 	controllerRouter.Handle("", http.HandlerFunc(han.UpdateControllerHandler)).Methods("PUT", "OPTIONS")
+	// Force tools sync
+	controllerRouter.Handle("/tools/sync/", http.HandlerFunc(han.ForceToolsSyncHandler)).Methods("POST", "OPTIONS")
+	controllerRouter.Handle("/tools/sync", http.HandlerFunc(han.ForceToolsSyncHandler)).Methods("POST", "OPTIONS")
 
 	////////////////////////////////////
 	// API router for everything else //
@@ -266,6 +269,9 @@ func NewAPIRouter(han *controllers.APIController, authMiddleware, initMiddleware
 	///////////////////////////////////////////////////////
 	apiRouter.Handle("/tools/garm-agent/", http.HandlerFunc(han.InstanceGARMToolsHandler)).Methods("GET", "OPTIONS")
 	apiRouter.Handle("/tools/garm-agent", http.HandlerFunc(han.InstanceGARMToolsHandler)).Methods("GET", "OPTIONS")
+	// Upload garm agent tool
+	apiRouter.Handle("/tools/garm-agent/", http.HandlerFunc(han.UploadGARMAgentToolHandler)).Methods("POST", "OPTIONS")
+	apiRouter.Handle("/tools/garm-agent", http.HandlerFunc(han.UploadGARMAgentToolHandler)).Methods("POST", "OPTIONS")
 	// Download garm agent
 	apiRouter.Handle("/tools/garm-agent/{objectID}/download/", http.HandlerFunc(han.InstanceGARMToolDownloadHandler)).Methods("GET", "OPTIONS")
 	apiRouter.Handle("/tools/garm-agent/{objectID}/download", http.HandlerFunc(han.InstanceGARMToolDownloadHandler)).Methods("GET", "OPTIONS")

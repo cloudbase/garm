@@ -15,7 +15,13 @@
 package cmd
 
 import (
+	"debug/elf"
+	"debug/pe"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"os"
 
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
@@ -23,6 +29,7 @@ import (
 
 	apiClientController "github.com/cloudbase/garm/client/controller"
 	apiClientControllerInfo "github.com/cloudbase/garm/client/controller_info"
+	apiClientObject "github.com/cloudbase/garm/client/objects"
 	apiClientTools "github.com/cloudbase/garm/client/tools"
 	"github.com/cloudbase/garm/cmd/garm-cli/common"
 	"github.com/cloudbase/garm/params"
@@ -157,8 +164,8 @@ garm-cli controller update \
 
 var controllerToolsCmd = &cobra.Command{
 	Use:   "tools",
-	Short: "Show information about garm tools",
-	Long: `Show information about GARM tools available in this controller.
+	Short: "Manage GARM agent tools",
+	Long: `Manage GARM agent tools available in this controller.
 
 GARM has two modes by which we deploy runners:
 
@@ -179,9 +186,18 @@ and whether or not the user forcefully deleted the BM/VM/container the runner wa
 runner registered in github/gitea. At that point we can clean up the runner without having to thech the
 github/gitea API or the API of the provider in which the runner was spawned.
 
-This command lists the available tools in the controller. Tools can either sync automatically or be
-manually uploaded. As long as the controller has access to the tools, agent mode can be enabled.
+Tools can either sync automatically from a GitHub release URL or be manually uploaded.
+As long as the controller has access to the tools, agent mode can be enabled.
 `,
+	SilenceUsage: true,
+	Run:          nil,
+}
+
+var controllerToolsListCmd = &cobra.Command{
+	Use:          "list",
+	Aliases:      []string{"ls"},
+	Short:        "List GARM agent tools",
+	Long:         `List all GARM agent tools available in the controller.`,
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		if needsInit {
@@ -200,6 +216,255 @@ manually uploaded. As long as the controller has access to the tools, agent mode
 			return err
 		}
 		formatGARMToolsList(response.Payload)
+		return nil
+	},
+}
+
+var controllerToolsShowCmd = &cobra.Command{
+	Use:          "show <tool-id>",
+	Short:        "Show details of a specific GARM agent tool",
+	Long:         `Display detailed information about a specific GARM agent tool by ID.`,
+	Args:         cobra.ExactArgs(1),
+	SilenceUsage: true,
+	RunE: func(_ *cobra.Command, args []string) error {
+		if needsInit {
+			return errNeedsInitError
+		}
+
+		toolID := args[0]
+		getReq := apiClientObject.NewGetFileObjectParams().WithObjectID(toolID)
+		resp, err := apiCli.Objects.GetFileObject(getReq, authToken)
+		if err != nil {
+			return err
+		}
+		formatOneObject(resp.Payload)
+		return nil
+	},
+}
+
+var controllerToolsDeleteCmd = &cobra.Command{
+	Use:          "delete <tool-id>",
+	Aliases:      []string{"remove", "rm"},
+	Short:        "Delete a GARM agent tool",
+	Long:         `Delete a specific GARM agent tool from the object store by ID.`,
+	Args:         cobra.ExactArgs(1),
+	SilenceUsage: true,
+	RunE: func(_ *cobra.Command, args []string) error {
+		if needsInit {
+			return errNeedsInitError
+		}
+
+		toolID := args[0]
+		delReq := apiClientObject.NewDeleteFileObjectParams().WithObjectID(toolID)
+		err := apiCli.Objects.DeleteFileObject(delReq, authToken)
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("Tool %s deleted successfully\n", toolID)
+		return nil
+	},
+}
+
+var controllerToolsSyncCmd = &cobra.Command{
+	Use:   "sync",
+	Short: "Force immediate sync of GARM agent tools",
+	Long: `Force an immediate sync of GARM agent tools from the configured release URL.
+
+This command triggers the background worker to fetch the latest tools from the
+configured GARM agent release URL and sync them to the object store.
+
+Note: This command requires that GARM agent tools sync is enabled in the controller
+configuration. If sync is disabled, the command will return an error.`,
+	SilenceUsage: true,
+	RunE: func(_ *cobra.Command, _ []string) error {
+		if needsInit {
+			return errNeedsInitError
+		}
+
+		// POST to /controller/tools/sync endpoint
+		// Since this is not auto-generated, we'll make a direct HTTP request
+		apiURL := fmt.Sprintf("%s/api/v1/controller/tools/sync", mgr.BaseURL)
+
+		req, err := http.NewRequest("POST", apiURL, nil)
+		if err != nil {
+			return fmt.Errorf("failed to create request: %w", err)
+		}
+
+		// Add auth token
+		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", mgr.Token))
+		req.Header.Add("Content-Type", "application/json")
+
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		if err != nil {
+			return fmt.Errorf("failed to send request: %w", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			return fmt.Errorf("sync failed with status %d: %s", resp.StatusCode, string(body))
+		}
+
+		var ctrlInfo params.ControllerInfo
+		if err := json.NewDecoder(resp.Body).Decode(&ctrlInfo); err != nil {
+			return fmt.Errorf("failed to decode response: %w", err)
+		}
+
+		fmt.Println("Tools sync initiated successfully")
+		formatInfo(ctrlInfo)
+		return nil
+	},
+}
+
+var (
+	toolFilePath string
+	toolOSType   string
+	toolOSArch   string
+	toolVersion  string
+	toolName     string
+)
+
+var controllerToolsUploadCmd = &cobra.Command{
+	Use:   "upload",
+	Short: "Upload a GARM agent tool binary",
+	Long: `Upload a GARM agent tool binary for a specific OS and architecture.
+
+This command uploads a tool and automatically:
+- Sets origin=manual tag
+- Overwrites any existing auto-synced tool for the same OS/architecture
+- Ensures only one tool version per OS/architecture combination`,
+	SilenceUsage: true,
+	RunE: func(_ *cobra.Command, _ []string) error {
+		if needsInit {
+			return errNeedsInitError
+		}
+
+		// Default name if not provided
+		if toolName == "" {
+			toolName = fmt.Sprintf("garm-agent-%s-%s", toolOSType, toolOSArch)
+			if toolOSType == "windows" {
+				toolName += ".exe"
+			}
+		}
+
+		// Get file info for size
+		stat, err := os.Stat(toolFilePath)
+		if err != nil {
+			return fmt.Errorf("failed to access file: %w", err)
+		}
+
+		// Open the file
+		file, err := os.Open(toolFilePath)
+		if err != nil {
+			return fmt.Errorf("failed to open file: %w", err)
+		}
+		defer file.Close()
+
+		// Validate file type and architecture matches OS using standard library
+		if toolOSType == "linux" {
+			elfFile, err := elf.NewFile(file)
+			if err != nil {
+				return fmt.Errorf("file is not a valid ELF binary (required for Linux): %w", err)
+			}
+			defer elfFile.Close()
+
+			// Check file type is executable (ET_EXEC or ET_DYN for PIE)
+			if elfFile.Type != elf.ET_EXEC && elfFile.Type != elf.ET_DYN {
+				return fmt.Errorf("file is not a valid ELF executable (required for Linux): type is %v (must be ET_EXEC or ET_DYN)", elfFile.Type)
+			}
+
+			// Check architecture matches
+			var expectedMachine elf.Machine
+			var archName string
+			switch toolOSArch {
+			case "amd64":
+				expectedMachine = elf.EM_X86_64
+				archName = "x86-64"
+			case "arm64":
+				expectedMachine = elf.EM_AARCH64
+				archName = "ARM64"
+			}
+			if elfFile.Machine != expectedMachine {
+				return fmt.Errorf("file is ELF binary for %v, but %s (%s) was specified", elfFile.Machine, toolOSArch, archName)
+			}
+		}
+
+		if toolOSType == "windows" {
+			peFile, err := pe.NewFile(file)
+			if err != nil {
+				return fmt.Errorf("file is not a valid PE executable (required for Windows): %w", err)
+			}
+			defer peFile.Close()
+
+			// Check architecture matches
+			var expectedMachine uint16
+			var archName string
+			switch toolOSArch {
+			case "amd64":
+				expectedMachine = pe.IMAGE_FILE_MACHINE_AMD64
+				archName = "x86-64"
+			case "arm64":
+				expectedMachine = pe.IMAGE_FILE_MACHINE_ARM64
+				archName = "ARM64"
+			}
+			if peFile.Machine != expectedMachine {
+				return fmt.Errorf("file is PE executable for machine type 0x%x, but %s (%s) was specified", peFile.Machine, toolOSArch, archName)
+			}
+		}
+
+		// Seek back to beginning for upload
+		if _, err := file.Seek(0, 0); err != nil {
+			return fmt.Errorf("failed to seek to beginning of file: %w", err)
+		}
+
+		// Show initial progress
+		fmt.Printf("Uploading %s (%.2f MB)...\n", toolName, float64(stat.Size())/1024/1024)
+
+		// Create request to tools endpoint using custom headers
+		description := fmt.Sprintf("GARM Agent %s for %s/%s (manually uploaded)", toolVersion, toolOSType, toolOSArch)
+
+		req, err := http.NewRequest("POST", fmt.Sprintf("%s/api/v1/tools/garm-agent", mgr.BaseURL), file)
+		if err != nil {
+			return fmt.Errorf("failed to create request: %w", err)
+		}
+
+		// Set auth and metadata headers
+		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", mgr.Token))
+		req.Header.Set("X-Tool-Name", toolName)
+		req.Header.Set("X-Tool-Description", description)
+		req.Header.Set("X-Tool-OS-Type", toolOSType)
+		req.Header.Set("X-Tool-OS-Arch", toolOSArch)
+		req.Header.Set("X-Tool-Version", toolVersion)
+		req.ContentLength = stat.Size()
+
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return fmt.Errorf("failed to upload: %w", err)
+		}
+		defer resp.Body.Close()
+
+		data, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("failed to read response body: %w", err)
+		}
+
+		// Check for non-2xx status codes
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			return fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(data))
+		}
+
+		var uploadedTool params.FileObject
+		if err := json.Unmarshal(data, &uploadedTool); err != nil {
+			return fmt.Errorf("failed to decode response: %w", err)
+		}
+
+		fmt.Printf("\nTool uploaded successfully\n")
+		fmt.Printf("ID: %d\n", uploadedTool.ID)
+		fmt.Printf("Name: %s\n", uploadedTool.Name)
+		fmt.Printf("Size: %s\n", formatSize(uploadedTool.Size))
+		fmt.Printf("SHA256: %s\n", uploadedTool.SHA256)
 		return nil
 	},
 }
@@ -254,8 +519,28 @@ func init() {
 	controllerUpdateCmd.Flags().BoolVarP(&enableToolsSync, "enable-tools-sync", "s", false, "Enable or disable automatic garm tools sync.")
 	controllerUpdateCmd.Flags().UintVarP(&minimumJobAgeBackoff, "minimum-job-age-backoff", "b", 0, "The minimum job age backoff for the controller")
 
-	controllerToolsCmd.Flags().Int64Var(&fileObjPage, "page", 0, "The tools page to display")
-	controllerToolsCmd.Flags().Int64Var(&fileObjPageSize, "page-size", 25, "Total number of results per page")
+	controllerToolsListCmd.Flags().Int64Var(&fileObjPage, "page", 0, "The tools page to display")
+	controllerToolsListCmd.Flags().Int64Var(&fileObjPageSize, "page-size", 25, "Total number of results per page")
+
+	controllerToolsUploadCmd.Flags().StringVar(&toolFilePath, "file", "", "Path to the garm-agent binary file (required)")
+	controllerToolsUploadCmd.Flags().StringVar(&toolOSType, "os", "", "Operating system: linux or windows (required)")
+	controllerToolsUploadCmd.Flags().StringVar(&toolOSArch, "arch", "", "Architecture: amd64 or arm64 (required)")
+	controllerToolsUploadCmd.Flags().StringVar(&toolVersion, "version", "", "Version string, e.g., v1.0.0 (required)")
+	controllerToolsUploadCmd.Flags().StringVar(&toolName, "name", "", "Custom name for the tool (optional, defaults to garm-agent-{os}-{arch})")
+
+	controllerToolsUploadCmd.MarkFlagRequired("file")
+	controllerToolsUploadCmd.MarkFlagRequired("os")
+	controllerToolsUploadCmd.MarkFlagRequired("arch")
+	controllerToolsUploadCmd.MarkFlagRequired("version")
+
+	controllerToolsCmd.AddCommand(
+		controllerToolsListCmd,
+		controllerToolsShowCmd,
+		controllerToolsDeleteCmd,
+		controllerToolsSyncCmd,
+		controllerToolsUploadCmd,
+	)
+
 	controllerCmd.AddCommand(
 		controllerShowCmd,
 		controllerUpdateCmd,

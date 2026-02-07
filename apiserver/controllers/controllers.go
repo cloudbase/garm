@@ -512,3 +512,33 @@ func (a *APIController) UpdateControllerHandler(w http.ResponseWriter, r *http.R
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }
+
+// swagger:route POST /controller/tools/sync controller ForceToolsSync
+//
+// Force immediate sync of GARM agent tools.
+//
+// Forces an immediate sync of GARM agent tools by resetting the cached timestamp.
+// This will trigger the background worker to fetch the latest tools from the configured
+// release URL and sync them to the object store.
+//
+// Note: This endpoint requires that GARM agent tools sync is enabled. If sync is disabled,
+// the request will return an error.
+//
+//	Responses:
+//	  200: ControllerInfo
+//	  400: APIErrorResponse
+//	  401: APIErrorResponse
+func (a *APIController) ForceToolsSyncHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	info, err := a.r.ForceToolsSync(ctx)
+	if err != nil {
+		handleError(ctx, w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(info); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
+	}
+}

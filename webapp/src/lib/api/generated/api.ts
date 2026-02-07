@@ -87,6 +87,12 @@ export interface ControllerInfo {
      */
     'agent_url'?: string;
     /**
+     * CachedGARMAgentReleaseFetchedAt is the timestamp when the release data was last fetched from GARMAgentReleasesURL
+     * @type {string}
+     * @memberof ControllerInfo
+     */
+    'cached_garm_agent_release_fetched_at'?: string;
+    /**
      * CallbackURL is the URL where instances can send updates back to the controller. This URL is used by instances to send status updates back to the controller. The URL itself may be made available to instances via a reverse proxy or a load balancer. That means that the user is responsible for telling GARM what the public URL is, by setting this field.
      * @type {string}
      * @memberof ControllerInfo
@@ -214,6 +220,55 @@ export interface CreateFileObjectParams {
      * @memberof CreateFileObjectParams
      */
     'tags'?: Array<string>;
+}
+/**
+ * 
+ * @export
+ * @interface CreateGARMToolParams
+ */
+export interface CreateGARMToolParams {
+    /**
+     * 
+     * @type {string}
+     * @memberof CreateGARMToolParams
+     */
+    'description'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof CreateGARMToolParams
+     */
+    'name'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof CreateGARMToolParams
+     */
+    'origin'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof CreateGARMToolParams
+     */
+    'os_arch'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof CreateGARMToolParams
+     */
+    'os_type'?: string;
+    /**
+     * 
+     * @type {number}
+     * @memberof CreateGARMToolParams
+     */
+    'size'?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof CreateGARMToolParams
+     */
+    'version'?: string;
 }
 /**
  * 
@@ -1307,6 +1362,12 @@ export interface GARMAgentTool {
      */
     'name'?: string;
     /**
+     * Origin defines where the GARM agent tool originated from. When manually uploaded, this field is set to \"manual\". When synced from a release URL, this will hold the release URL where the tools originated from.
+     * @type {string}
+     * @memberof GARMAgentTool
+     */
+    'origin'?: string;
+    /**
      * 
      * @type {string}
      * @memberof GARMAgentTool
@@ -1428,6 +1489,12 @@ export interface GARMAgentToolsPaginatedResponseResultsInner {
      * @memberof GARMAgentToolsPaginatedResponseResultsInner
      */
     'name'?: string;
+    /**
+     * Origin defines where the GARM agent tool originated from. When manually uploaded, this field is set to \"manual\". When synced from a release URL, this will hold the release URL where the tools originated from.
+     * @type {string}
+     * @memberof GARMAgentToolsPaginatedResponseResultsInner
+     */
+    'origin'?: string;
     /**
      * 
      * @type {string}
@@ -3368,6 +3435,39 @@ export interface User {
 export const ControllerApiAxiosParamCreator = function (configuration?: Configuration) {
     return {
         /**
+         * Forces an immediate sync of GARM agent tools by resetting the cached timestamp. This will trigger the background worker to fetch the latest tools from the configured release URL and sync them to the object store.  Note: This endpoint requires that GARM agent tools sync is enabled. If sync is disabled, the request will return an error.
+         * @summary Force immediate sync of GARM agent tools.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        forceToolsSync: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/controller/tools/sync`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
          * 
          * @summary Update controller.
          * @param {UpdateControllerParams} body Parameters used when updating the controller.
@@ -3417,6 +3517,18 @@ export const ControllerApiFp = function(configuration?: Configuration) {
     const localVarAxiosParamCreator = ControllerApiAxiosParamCreator(configuration)
     return {
         /**
+         * Forces an immediate sync of GARM agent tools by resetting the cached timestamp. This will trigger the background worker to fetch the latest tools from the configured release URL and sync them to the object store.  Note: This endpoint requires that GARM agent tools sync is enabled. If sync is disabled, the request will return an error.
+         * @summary Force immediate sync of GARM agent tools.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async forceToolsSync(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ControllerInfo>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.forceToolsSync(options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ControllerApi.forceToolsSync']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
          * 
          * @summary Update controller.
          * @param {UpdateControllerParams} body Parameters used when updating the controller.
@@ -3440,6 +3552,15 @@ export const ControllerApiFactory = function (configuration?: Configuration, bas
     const localVarFp = ControllerApiFp(configuration)
     return {
         /**
+         * Forces an immediate sync of GARM agent tools by resetting the cached timestamp. This will trigger the background worker to fetch the latest tools from the configured release URL and sync them to the object store.  Note: This endpoint requires that GARM agent tools sync is enabled. If sync is disabled, the request will return an error.
+         * @summary Force immediate sync of GARM agent tools.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        forceToolsSync(options?: RawAxiosRequestConfig): AxiosPromise<ControllerInfo> {
+            return localVarFp.forceToolsSync(options).then((request) => request(axios, basePath));
+        },
+        /**
          * 
          * @summary Update controller.
          * @param {UpdateControllerParams} body Parameters used when updating the controller.
@@ -3459,6 +3580,17 @@ export const ControllerApiFactory = function (configuration?: Configuration, bas
  * @extends {BaseAPI}
  */
 export class ControllerApi extends BaseAPI {
+    /**
+     * Forces an immediate sync of GARM agent tools by resetting the cached timestamp. This will trigger the background worker to fetch the latest tools from the configured release URL and sync them to the object store.  Note: This endpoint requires that GARM agent tools sync is enabled. If sync is disabled, the request will return an error.
+     * @summary Force immediate sync of GARM agent tools.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ControllerApi
+     */
+    public forceToolsSync(options?: RawAxiosRequestConfig) {
+        return ControllerApiFp(this.configuration).forceToolsSync(options).then((request) => request(this.axios, this.basePath));
+    }
+
     /**
      * 
      * @summary Update controller.
@@ -13567,6 +13699,39 @@ export const ToolsApiAxiosParamCreator = function (configuration?: Configuration
                 options: localVarRequestOptions,
             };
         },
+        /**
+         * Uploads a GARM agent tool for a specific OS and architecture. This will automatically replace any existing tool for the same OS/architecture combination.  Uses custom headers for metadata:  X-Tool-Name: Name of the tool  X-Tool-Description: Description  X-Tool-OS-Type: OS type (linux or windows)  X-Tool-OS-Arch: Architecture (amd64 or arm64)  X-Tool-Version: Version string
+         * @summary Upload a GARM agent tool binary.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        uploadGARMAgentTool: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/tools/garm-agent`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
     }
 };
 
@@ -13591,6 +13756,18 @@ export const ToolsApiFp = function(configuration?: Configuration) {
             const localVarOperationServerBasePath = operationServerMap['ToolsApi.garmAgentList']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
+        /**
+         * Uploads a GARM agent tool for a specific OS and architecture. This will automatically replace any existing tool for the same OS/architecture combination.  Uses custom headers for metadata:  X-Tool-Name: Name of the tool  X-Tool-Description: Description  X-Tool-OS-Type: OS type (linux or windows)  X-Tool-OS-Arch: Architecture (amd64 or arm64)  X-Tool-Version: Version string
+         * @summary Upload a GARM agent tool binary.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async uploadGARMAgentTool(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<FileObject>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.uploadGARMAgentTool(options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ToolsApi.uploadGARMAgentTool']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
     }
 };
 
@@ -13611,6 +13788,15 @@ export const ToolsApiFactory = function (configuration?: Configuration, basePath
          */
         garmAgentList(page?: number, pageSize?: number, options?: RawAxiosRequestConfig): AxiosPromise<GARMAgentToolsPaginatedResponse> {
             return localVarFp.garmAgentList(page, pageSize, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * Uploads a GARM agent tool for a specific OS and architecture. This will automatically replace any existing tool for the same OS/architecture combination.  Uses custom headers for metadata:  X-Tool-Name: Name of the tool  X-Tool-Description: Description  X-Tool-OS-Type: OS type (linux or windows)  X-Tool-OS-Arch: Architecture (amd64 or arm64)  X-Tool-Version: Version string
+         * @summary Upload a GARM agent tool binary.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        uploadGARMAgentTool(options?: RawAxiosRequestConfig): AxiosPromise<FileObject> {
+            return localVarFp.uploadGARMAgentTool(options).then((request) => request(axios, basePath));
         },
     };
 };
@@ -13633,6 +13819,17 @@ export class ToolsApi extends BaseAPI {
      */
     public garmAgentList(page?: number, pageSize?: number, options?: RawAxiosRequestConfig) {
         return ToolsApiFp(this.configuration).garmAgentList(page, pageSize, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * Uploads a GARM agent tool for a specific OS and architecture. This will automatically replace any existing tool for the same OS/architecture combination.  Uses custom headers for metadata:  X-Tool-Name: Name of the tool  X-Tool-Description: Description  X-Tool-OS-Type: OS type (linux or windows)  X-Tool-OS-Arch: Architecture (amd64 or arm64)  X-Tool-Version: Version string
+     * @summary Upload a GARM agent tool binary.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ToolsApi
+     */
+    public uploadGARMAgentTool(options?: RawAxiosRequestConfig) {
+        return ToolsApiFp(this.configuration).uploadGARMAgentTool(options).then((request) => request(this.axios, this.basePath));
     }
 }
 

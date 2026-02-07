@@ -17,7 +17,9 @@ package sql
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/url"
+	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -25,6 +27,7 @@ import (
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/params"
+	garmUtil "github.com/cloudbase/garm/util"
 	"github.com/cloudbase/garm/util/appdefaults"
 )
 
@@ -39,17 +42,30 @@ func dbControllerToCommonController(dbInfo ControllerInfo) (params.ControllerInf
 	}
 
 	ret := params.ControllerInfo{
-		ControllerID:         dbInfo.ControllerID,
-		MetadataURL:          dbInfo.MetadataURL,
-		WebhookURL:           dbInfo.WebhookBaseURL,
-		ControllerWebhookURL: url,
-		CallbackURL:          dbInfo.CallbackURL,
-		AgentURL:             dbInfo.AgentURL,
-		MinimumJobAgeBackoff: dbInfo.MinimumJobAgeBackoff,
-		Version:              appdefaults.GetVersion(),
-		GARMAgentReleasesURL: dbInfo.GARMAgentReleasesURL,
-		SyncGARMAgentTools:   dbInfo.SyncGARMAgentTools,
+		ControllerID:                    dbInfo.ControllerID,
+		MetadataURL:                     dbInfo.MetadataURL,
+		WebhookURL:                      dbInfo.WebhookBaseURL,
+		ControllerWebhookURL:            url,
+		CallbackURL:                     dbInfo.CallbackURL,
+		AgentURL:                        dbInfo.AgentURL,
+		MinimumJobAgeBackoff:            dbInfo.MinimumJobAgeBackoff,
+		Version:                         appdefaults.GetVersion(),
+		GARMAgentReleasesURL:            dbInfo.GARMAgentReleasesURL,
+		SyncGARMAgentTools:              dbInfo.SyncGARMAgentTools,
+		CachedGARMAgentReleaseFetchedAt: dbInfo.CachedGARMAgentReleaseFetchedAt,
+		CachedGARMAgentRelease:          dbInfo.CachedGARMAgentRelease,
 	}
+
+	// Parse cached release data to populate CachedGARMAgentTools
+	if len(dbInfo.CachedGARMAgentRelease) > 0 {
+		tools, err := garmUtil.ParseToolsFromRelease(dbInfo.CachedGARMAgentRelease)
+		if err != nil {
+			slog.Warn("failed to parse cached tools during DB conversion", "error", err)
+		} else {
+			ret.CachedGARMAgentTools = tools
+		}
+	}
+
 	return ret, nil
 }
 
@@ -182,4 +198,37 @@ func (s *sqlDatabase) UpdateController(info params.UpdateControllerParams) (para
 		return params.ControllerInfo{}, fmt.Errorf("error converting controller info: %w", err)
 	}
 	return paramInfo, nil
+}
+
+func (s *sqlDatabase) UpdateCachedGARMAgentRelease(releaseData []byte, fetchedAt time.Time) error {
+	var dbInfo ControllerInfo
+	err := s.conn.Transaction(func(tx *gorm.DB) error {
+		q := tx.Model(&ControllerInfo{}).First(&dbInfo)
+		if q.Error != nil {
+			if errors.Is(q.Error, gorm.ErrRecordNotFound) {
+				return fmt.Errorf("error fetching controller info: %w", runnerErrors.ErrNotFound)
+			}
+			return fmt.Errorf("error fetching controller info: %w", q.Error)
+		}
+
+		dbInfo.CachedGARMAgentRelease = releaseData
+		dbInfo.CachedGARMAgentReleaseFetchedAt = &fetchedAt
+
+		q = tx.Save(&dbInfo)
+		if q.Error != nil {
+			return fmt.Errorf("error saving controller info: %w", q.Error)
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("error updating cached release: %w", err)
+	}
+
+	paramInfo, err := dbControllerToCommonController(dbInfo)
+	if err != nil {
+		return fmt.Errorf("error converting controller info: %w", err)
+	}
+	s.sendNotify(common.ControllerEntityType, common.UpdateOperation, paramInfo)
+
+	return nil
 }

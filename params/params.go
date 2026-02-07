@@ -995,6 +995,14 @@ type ControllerInfo struct {
 	MinimumJobAgeBackoff uint `json:"minimum_job_age_backoff,omitempty"`
 	// Version is the version of the GARM controller.
 	Version string `json:"version,omitempty"`
+	// CachedGARMAgentReleaseFetchedAt is the timestamp when the release data was last fetched from GARMAgentReleasesURL
+	CachedGARMAgentReleaseFetchedAt *time.Time `json:"cached_garm_agent_release_fetched_at,omitempty"`
+	// CachedGARMAgentRelease stores the cached JSON response from GARMAgentReleasesURL.
+	// This field is not serialized to JSON (internal use only).
+	CachedGARMAgentRelease []byte `json:"-"`
+	// CachedGARMAgentTools stores the parsed tools from CachedGARMAgentRelease, indexed by "os_type/os_arch".
+	// This field is not serialized to JSON (internal use only).
+	CachedGARMAgentTools map[string]GARMAgentTool `json:"-"`
 }
 
 func (c *ControllerInfo) JobBackoff() time.Duration {
@@ -1003,6 +1011,32 @@ func (c *ControllerInfo) JobBackoff() time.Duration {
 	}
 
 	return time.Duration(int64(c.MinimumJobAgeBackoff))
+}
+
+// GetCachedAgentTool returns the cached GARM agent tool for the specified OS type and architecture.
+// Returns nil if no cache exists, if the cache is older than 24 hours, or if the tool is not found.
+func (c *ControllerInfo) GetCachedAgentTool(osType, osArch string) *GARMAgentTool {
+	// Check staleness (24 hour threshold)
+	if c.CachedGARMAgentReleaseFetchedAt == nil {
+		return nil
+	}
+	if time.Since(*c.CachedGARMAgentReleaseFetchedAt) > 24*time.Hour {
+		return nil
+	}
+
+	// No parsed tools
+	if c.CachedGARMAgentTools == nil {
+		return nil
+	}
+
+	// Look up tool by "os_type/os_arch" key
+	key := osType + "/" + osArch
+	tool, ok := c.CachedGARMAgentTools[key]
+	if !ok {
+		return nil
+	}
+
+	return &tool
 }
 
 // swagger:model GithubRateLimit
@@ -1468,6 +1502,11 @@ type GARMAgentTool struct {
 	OSType      commonParams.OSType `json:"os_type"`
 	OSArch      commonParams.OSArch `json:"os_arch"`
 	DownloadURL string              `json:"download_url"`
+	// Origin defines where the GARM agent tool originated from.
+	// When manually uploaded, this field is set to "manual". When synced
+	// from a release URL, this will hold the release URL where the tools
+	// originated from.
+	Origin string `json:"origin"`
 }
 
 // swagger:model GARMAgentToolsPaginatedResponse

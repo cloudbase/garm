@@ -256,6 +256,40 @@ func (r *Runner) UpdateController(ctx context.Context, param params.UpdateContro
 	return info, nil
 }
 
+// ForceToolsSync forces an immediate sync of GARM agent tools by resetting the cached timestamp.
+// This triggers the garmToolsSync worker to fetch and sync tools on the next check.
+func (r *Runner) ForceToolsSync(ctx context.Context) (params.ControllerInfo, error) {
+	if !auth.IsAdmin(ctx) {
+		return params.ControllerInfo{}, runnerErrors.ErrUnauthorized
+	}
+
+	// Get current controller info
+	info, err := r.store.ControllerInfo()
+	if err != nil {
+		return params.ControllerInfo{}, fmt.Errorf("error getting controller info: %w", err)
+	}
+
+	// Check if sync is enabled
+	if !info.SyncGARMAgentTools {
+		return params.ControllerInfo{}, fmt.Errorf("GARM agent tools sync is disabled")
+	}
+
+	// Reset the timestamp to nil to trigger force sync
+	// This will cause the watcher to pick up the change and sync immediately
+	err = r.store.UpdateCachedGARMAgentRelease(nil, time.Time{})
+	if err != nil {
+		return params.ControllerInfo{}, fmt.Errorf("error resetting cached release timestamp: %w", err)
+	}
+
+	// Get updated controller info
+	info, err = r.store.ControllerInfo()
+	if err != nil {
+		return params.ControllerInfo{}, fmt.Errorf("error getting updated controller info: %w", err)
+	}
+
+	return info, nil
+}
+
 // GetControllerInfo returns the controller id and the hostname.
 // This data might be used in metrics and logging.
 func (r *Runner) GetControllerInfo(ctx context.Context) (params.ControllerInfo, error) {

@@ -25,7 +25,9 @@ import (
 	"github.com/gorilla/mux"
 
 	gErrors "github.com/cloudbase/garm-provider-common/errors"
+	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm/apiserver/params"
+	runnerParams "github.com/cloudbase/garm/params"
 )
 
 func (a *APIController) InstanceMetadataHandler(w http.ResponseWriter, r *http.Request) {
@@ -234,6 +236,68 @@ func (a *APIController) RootCertificateBundleHandler(w http.ResponseWriter, r *h
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(bundle); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
+	}
+}
+
+// swagger:route POST /tools/garm-agent tools UploadGARMAgentTool
+//
+// Upload a GARM agent tool binary.
+//
+// Uploads a GARM agent tool for a specific OS and architecture.
+// This will automatically replace any existing tool for the same OS/architecture combination.
+//
+// Uses custom headers for metadata:
+//
+//   - X-Tool-Name: Name of the tool
+//
+//   - X-Tool-Description: Description
+//
+//   - X-Tool-OS-Type: OS type (linux or windows)
+//
+//   - X-Tool-OS-Arch: Architecture (amd64 or arm64)
+//
+//   - X-Tool-Version: Version string
+//
+//     Responses:
+//     200: FileObject
+//     400: APIErrorResponse
+//     401: APIErrorResponse
+func (a *APIController) UploadGARMAgentToolHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	// Get metadata from headers
+	toolName := r.Header.Get("X-Tool-Name")
+	toolDesc := r.Header.Get("X-Tool-Description")
+	toolOSType := r.Header.Get("X-Tool-OS-Type")
+	toolOSArch := r.Header.Get("X-Tool-OS-Arch")
+	toolVersion := r.Header.Get("X-Tool-Version")
+
+	if toolName == "" || toolOSType == "" || toolOSArch == "" || toolVersion == "" {
+		handleError(ctx, w, gErrors.NewBadRequestError("missing required headers: X-Tool-Name, X-Tool-OS-Type, X-Tool-OS-Arch, X-Tool-Version"))
+		return
+	}
+
+	// Build params
+	createParams := runnerParams.CreateGARMToolParams{
+		Name:        toolName,
+		Description: toolDesc,
+		Size:        r.ContentLength,
+		OSType:      commonParams.OSType(toolOSType),
+		OSArch:      commonParams.OSArch(toolOSArch),
+		Version:     toolVersion,
+		Origin:      "manual",
+	}
+
+	// Create the tool (this will handle cleanup of old versions)
+	result, err := a.r.CreateGARMTool(ctx, createParams, r.Body)
+	if err != nil {
+		handleError(ctx, w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(result); err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }
