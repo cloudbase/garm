@@ -377,8 +377,7 @@ func (g *garmToolsSync) loop() {
 			if err := g.syncIfNeeded(); err != nil {
 				slog.ErrorContext(g.ctx, "failed initial sync of GARM agent tools", "error", err)
 			}
-			// Nil the channel so this case is never selected again
-			initialSync = nil
+			initialSync.Stop()
 		case <-ticker.C:
 			if err := g.syncIfNeeded(); err != nil {
 				slog.ErrorContext(g.ctx, "failed to sync GARM agent tools", "error", err)

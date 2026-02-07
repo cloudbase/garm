@@ -173,31 +173,30 @@ func (r *Runner) getRunnerInstallTemplateContext(instance params.Instance, entit
 	return installRunnerParams, nil
 }
 
-// getAgentTool retrieves the GARM agent tool based on sync configuration.
-// If sync is enabled, it tries to get tools from the object store first, then falls back to cached release URL.
-// If sync is disabled, it gets tools directly from the cached release URL.
+// getAgentTool retrieves the GARM agent tool for the given OS type and architecture.
+// Priority:
+// 1. Tools from object store (manual uploads or synced)
+// 2. Tools from cached upstream release (GitHub release API data)
 // Returns nil if no tools are available from any source.
 func (r *Runner) getAgentTool(ctx context.Context, osType commonParams.OSType, osArch commonParams.OSArch) *params.GARMAgentTool {
 	ctrlInfo := cache.ControllerInfo()
 
-	switch {
-	case ctrlInfo.SyncGARMAgentTools:
-		// Sync enabled: try to get tools from GARM object store
-		agentTools, err := r.GetGARMTools(ctx, 0, 1)
-		if err != nil && !errors.Is(err, runnerErrors.ErrNotFound) {
-			slog.WarnContext(ctx, "failed to query garm agent tools", "error", err)
-		}
-		if agentTools.TotalCount > 0 {
-			return &agentTools.Results[0]
-		}
-		// No tools in object store, fall through to get from release URL
-		slog.WarnContext(ctx, "sync enabled but no tools found in object store, falling back to release URL")
-		fallthrough
-	default:
-		// Sync disabled OR fallback from sync: get tools from cached release URL
-		tool := ctrlInfo.GetCachedAgentTool(string(osType), string(osArch))
-		return tool
+	// Check object store first (for both manual uploads and synced tools)
+	agentTools, err := r.GetGARMTools(ctx, 0, 100)
+	if err != nil && !errors.Is(err, runnerErrors.ErrNotFound) {
+		slog.WarnContext(ctx, "failed to query garm agent tools", "error", err)
 	}
+
+	// Filter results to match the requested OS type and architecture
+	for _, tool := range agentTools.Results {
+		if tool.OSType == osType && tool.OSArch == osArch {
+			return &tool
+		}
+	}
+
+	// No tools in object store - fall back to cached upstream release data
+	tool := ctrlInfo.GetCachedAgentTool(string(osType), string(osArch))
+	return tool
 }
 
 func (r *Runner) GetInstanceMetadata(ctx context.Context) (params.InstanceMetadata, error) {
