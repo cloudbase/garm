@@ -152,7 +152,7 @@ describe('Objects Page - Integration Tests', () => {
 	describe('Delete Functionality', () => {
 		it('should show delete modal when delete action is clicked', async () => {
 			render(ObjectsPage);
-			await waitFor(() => screen.getByText('file1.bin'));
+			await waitFor(() => expect(screen.getAllByText('file1.bin').length).toBeGreaterThan(0));
 
 			// Find and click delete button
 			const deleteButtons = screen.getAllByRole('button', { name: 'Delete object' });
@@ -169,7 +169,7 @@ describe('Objects Page - Integration Tests', () => {
 			(garmApi.deleteFileObject as any).mockResolvedValue(undefined);
 
 			render(ObjectsPage);
-			await waitFor(() => screen.getByText('file1.bin'));
+			await waitFor(() => expect(screen.getAllByText('file1.bin').length).toBeGreaterThan(0));
 
 			// Click delete button
 			const deleteButtons = screen.getAllByRole('button', { name: 'Delete object' });
@@ -191,7 +191,7 @@ describe('Objects Page - Integration Tests', () => {
 			(garmApi.deleteFileObject as any).mockResolvedValue(undefined);
 
 			render(ObjectsPage);
-			await waitFor(() => screen.getByText('file1.bin'));
+			await waitFor(() => expect(screen.getAllByText('file1.bin').length).toBeGreaterThan(0));
 
 			const initialCallCount = (garmApi.listFileObjects as any).mock.calls.length;
 
@@ -213,7 +213,7 @@ describe('Objects Page - Integration Tests', () => {
 	describe('Update Functionality', () => {
 		it('should open update modal when update button is clicked', async () => {
 			render(ObjectsPage);
-			await waitFor(() => screen.getByText('file1.bin'));
+			await waitFor(() => expect(screen.getAllByText('file1.bin').length).toBeGreaterThan(0));
 
 			// Click update button
 			const updateButtons = screen.getAllByRole('button', { name: 'Update object' });
@@ -227,7 +227,7 @@ describe('Objects Page - Integration Tests', () => {
 
 		it('should populate form with current object data', async () => {
 			render(ObjectsPage);
-			await waitFor(() => screen.getByText('file1.bin'));
+			await waitFor(() => expect(screen.getAllByText('file1.bin').length).toBeGreaterThan(0));
 
 			// Click update button for first object
 			const updateButtons = screen.getAllByRole('button', { name: 'Update object' });
@@ -244,7 +244,7 @@ describe('Objects Page - Integration Tests', () => {
 			(garmApi.updateFileObject as any).mockResolvedValue(mockObject1);
 
 			render(ObjectsPage);
-			await waitFor(() => screen.getByText('file1.bin'));
+			await waitFor(() => expect(screen.getAllByText('file1.bin').length).toBeGreaterThan(0));
 
 			// Open update modal
 			const updateButtons = screen.getAllByRole('button', { name: 'Update object' });
@@ -308,7 +308,7 @@ describe('Objects Page - Integration Tests', () => {
 			(garmApi.deleteFileObject as any).mockRejectedValue(new Error('Delete failed'));
 
 			render(ObjectsPage);
-			await waitFor(() => screen.getByText('file1.bin'));
+			await waitFor(() => expect(screen.getAllByText('file1.bin').length).toBeGreaterThan(0));
 
 			// Try to delete
 			const deleteButtons = screen.getAllByRole('button', { name: 'Delete object' });
@@ -336,7 +336,7 @@ describe('Objects Page - Integration Tests', () => {
 			(garmApi.updateFileObject as any).mockRejectedValue(new Error('Update failed'));
 
 			render(ObjectsPage);
-			await waitFor(() => screen.getByText('file1.bin'));
+			await waitFor(() => expect(screen.getAllByText('file1.bin').length).toBeGreaterThan(0));
 
 			// Open update modal and submit
 			const updateButtons = screen.getAllByRole('button', { name: 'Update object' });

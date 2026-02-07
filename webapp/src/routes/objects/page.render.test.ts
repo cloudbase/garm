@@ -101,7 +101,9 @@ describe('Objects Page - Render Tests', () => {
 			render(ObjectsPage);
 
 			await waitFor(() => {
-				expect(screen.getByText('test-file.bin')).toBeInTheDocument();
+				// Name appears in both mobile card and desktop table views
+				const elements = screen.getAllByText('test-file.bin');
+				expect(elements.length).toBeGreaterThan(0);
 			});
 		});
 

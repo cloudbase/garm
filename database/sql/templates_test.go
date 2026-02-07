@@ -201,7 +201,7 @@ func (s *TemplatesTestSuite) TestListTemplatesWithNameFilter() {
 
 func (s *TemplatesTestSuite) TestListTemplatesDBFetchErr() {
 	s.Fixtures.SQLMock.
-		ExpectQuery(regexp.QuoteMeta("SELECT `templates`.`id`,`templates`.`created_at`,`templates`.`updated_at`,`templates`.`deleted_at`,`templates`.`name`,`templates`.`user_id`,`templates`.`description`,`templates`.`os_type`,`templates`.`forge_type`,`templates`.`agent_mode` FROM `templates` WHERE `templates`.`deleted_at` IS NULL")).
+		ExpectQuery(regexp.QuoteMeta("SELECT `templates`.`id`,`templates`.`created_at`,`templates`.`updated_at`,`templates`.`deleted_at`,`templates`.`name`,`templates`.`user_id`,`templates`.`description`,`templates`.`os_type`,`templates`.`forge_type` FROM `templates` WHERE `templates`.`deleted_at` IS NULL")).
 		WillReturnError(fmt.Errorf("mocked fetching templates error"))
 
 	_, err := s.StoreSQLMocked.ListTemplates(s.adminCtx, nil, nil, nil)

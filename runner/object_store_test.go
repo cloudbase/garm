@@ -142,7 +142,7 @@ func (s *ObjectStoreTestSuite) TestCreateFileObjectWithGarmAgentTag() {
 	_, err := s.Runner.CreateFileObject(s.Fixtures.AdminContext, createParams, reader)
 
 	s.Require().NotNil(err)
-	s.Require().Contains(err.Error(), "cannot create garm-agent tools via object storage API")
+	s.Require().Contains(err.Error(), "GARM agent tools cannot be uploaded via the file objects endpoint")
 }
 
 func (s *ObjectStoreTestSuite) TestGetFileObject() {
@@ -215,15 +215,11 @@ func (s *ObjectStoreTestSuite) TestDeleteFileObjectWithGarmAgentTag() {
 	fileObj, err := s.Fixtures.Store.CreateFileObject(s.Fixtures.AdminContext, param, bytes.NewReader(content))
 	s.Require().Nil(err)
 
-	// Try to delete via API
 	err = s.Runner.DeleteFileObject(s.Fixtures.AdminContext, fileObj.ID)
-
-	s.Require().NotNil(err)
-	s.Require().Contains(err.Error(), "cannot delete garm-agent tools via object storage API")
-
-	// Verify file still exists
-	_, err = s.Fixtures.Store.GetFileObject(s.Fixtures.AdminContext, fileObj.ID)
 	s.Require().Nil(err)
+
+	_, err = s.Fixtures.Store.GetFileObject(s.Fixtures.AdminContext, fileObj.ID)
+	s.Require().NotNil(err)
 }
 
 func (s *ObjectStoreTestSuite) TestListFileObjects() {
@@ -500,15 +496,24 @@ func (s *ObjectStoreTestSuite) TestDeleteFileObjectsByTagsUnauthorized() {
 }
 
 func (s *ObjectStoreTestSuite) TestDeleteFileObjectsByTagsWithGarmAgentTag() {
-	// Try to delete with garm-agent tag
+	// Create a file with garm-agent tag via store
+	content := []byte("garm-agent tool for bulk delete")
+	param := params.CreateFileObjectParams{
+		Name: "garm-agent-bulk-delete-test.bin",
+		Size: int64(len(content)),
+		Tags: []string{"category=garm-agent", "test"},
+	}
+	_, err := s.Fixtures.Store.CreateFileObject(s.Fixtures.AdminContext, param, bytes.NewReader(content))
+	s.Require().Nil(err)
+
+	// Delete by tags should now succeed (only creation is restricted)
 	deletedCount, err := s.Runner.DeleteFileObjectsByTags(
 		s.Fixtures.AdminContext,
 		[]string{"category=garm-agent", "test"},
 	)
 
-	s.Require().NotNil(err)
-	s.Require().Contains(err.Error(), "cannot delete garm-agent tools via object storage API")
-	s.Require().Equal(int64(0), deletedCount)
+	s.Require().Nil(err)
+	s.Require().Equal(int64(1), deletedCount)
 }
 
 func (s *ObjectStoreTestSuite) TestDeleteFileObjectsByTagsNoMatches() {
