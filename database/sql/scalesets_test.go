@@ -356,7 +356,7 @@ func (s *ScaleSetsTestSuite) TestScaleSetOperations() {
 	})
 
 	s.T().Run("List repo scale set instances", func(_ *testing.T) {
-		instances, err := s.Store.ListScaleSetInstances(s.adminCtx, repoScaleSet.ID)
+		instances, err := s.Store.ListScaleSetInstances(s.adminCtx, repoScaleSet.ID, false)
 		s.Require().NoError(err)
 		s.Require().NotEmpty(instances)
 		s.Require().Len(instances, 1)

@@ -65,9 +65,13 @@ func (s *sqlDatabase) CreateScaleSetInstance(_ context.Context, scaleSetID uint,
 	return s.sqlToParamsInstance(newInstance)
 }
 
-func (s *sqlDatabase) ListScaleSetInstances(_ context.Context, scalesetID uint) ([]params.Instance, error) {
+func (s *sqlDatabase) ListScaleSetInstances(_ context.Context, scalesetID uint, outdatedOnly bool) ([]params.Instance, error) {
 	ret, err := s.listInstancesBatched(func(query *gorm.DB) *gorm.DB {
-		return query.Where("scale_set_fk_id = ?", scalesetID)
+		q := query.Where("scale_set_fk_id = ?", scalesetID)
+		if outdatedOnly {
+			q = q.Where("instances.generation < (SELECT scale_sets.generation FROM scale_sets WHERE scale_sets.id = instances.scale_set_fk_id)")
+		}
+		return q
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list scaleset instances: %w", err)

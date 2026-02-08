@@ -15,14 +15,17 @@
 package cmd
 
 import (
+	"bufio"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/spf13/cobra"
 
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 	apiClientEnterprises "github.com/cloudbase/garm/client/enterprises"
+	apiClientInstances "github.com/cloudbase/garm/client/instances"
 	apiClientOrgs "github.com/cloudbase/garm/client/organizations"
 	apiClientRepos "github.com/cloudbase/garm/client/repositories"
 	apiClientScaleSets "github.com/cloudbase/garm/client/scalesets"
@@ -415,6 +418,101 @@ explicitly remove them using the runner delete command.
 	},
 }
 
+var (
+	scalesetRunnerOutdated    bool
+	scalesetRunnerDryRun      bool
+	scalesetRunnerForce       bool
+	scalesetRunnerBypass      bool
+	scalesetRunnerConfirmSkip bool
+)
+
+var scalesetRunnerCmd = &cobra.Command{
+	Use:          "runner",
+	Short:        "Manage runners in a scale set",
+	Long:         `List or rotate runners in a scale set.`,
+	SilenceUsage: true,
+	Run:          nil,
+}
+
+var scalesetRunnerListCmd = &cobra.Command{
+	Use:          "list <scaleset-id>",
+	Aliases:      []string{"ls"},
+	Short:        "List runners in a scale set",
+	Long:         `List all runners belonging to a scale set. Use --outdated to show only runners with a generation older than the scale set.`,
+	Args:         cobra.ExactArgs(1),
+	SilenceUsage: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if needsInit {
+			return errNeedsInitError
+		}
+
+		listReq := apiClientInstances.NewListScaleSetInstancesParams()
+		listReq.ScalesetID = args[0]
+		if cmd.Flags().Changed("outdated") {
+			listReq.OutdatedOnly = &scalesetRunnerOutdated
+		}
+
+		response, err := apiCli.Instances.ListScaleSetInstances(listReq, authToken)
+		if err != nil {
+			return err
+		}
+
+		formatInstances(response.Payload, false, false)
+		return nil
+	},
+}
+
+var scalesetRunnerRotateCmd = &cobra.Command{
+	Use:          "rotate <scaleset-id>",
+	Short:        "Rotate idle runners in a scale set",
+	Long:         `Remove idle runners in a scale set so they get replaced with fresh ones. Use --outdated to only rotate runners with a generation older than the scale set.`,
+	Args:         cobra.ExactArgs(1),
+	SilenceUsage: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if needsInit {
+			return errNeedsInitError
+		}
+
+		listReq := apiClientInstances.NewListScaleSetInstancesParams()
+		listReq.ScalesetID = args[0]
+		if cmd.Flags().Changed("outdated") {
+			listReq.OutdatedOnly = &scalesetRunnerOutdated
+		}
+
+		response, err := apiCli.Instances.ListScaleSetInstances(listReq, authToken)
+		if err != nil {
+			return err
+		}
+
+		idle := filterIdleRunners(response.Payload)
+		if len(idle) == 0 {
+			fmt.Println("No idle runners to rotate.")
+			return nil
+		}
+
+		if scalesetRunnerDryRun {
+			fmt.Printf("Would remove %d idle runner(s):\n", len(idle))
+			formatInstances(idle, false, false)
+			return nil
+		}
+
+		if !scalesetRunnerConfirmSkip {
+			fmt.Printf("About to remove %d idle runner(s). Continue? [y/N] ", len(idle))
+			reader := bufio.NewReader(os.Stdin)
+			answer, _ := reader.ReadString('\n')
+			answer = strings.TrimSpace(strings.ToLower(answer))
+			if answer != "y" && answer != "yes" {
+				fmt.Println("Aborted.")
+				return nil
+			}
+		}
+
+		removed, skipped := rotateRunners(idle, scalesetRunnerForce, scalesetRunnerBypass)
+		fmt.Printf("Removed %d runner(s), skipped %d.\n", removed, skipped)
+		return nil
+	},
+}
+
 func init() {
 	scalesetListCmd.Flags().StringVarP(&scalesetRepository, "repo", "r", "", "List all scale sets within this repository.")
 	scalesetListCmd.Flags().StringVarP(&scalesetOrganization, "org", "o", "", "List all scale sets within this organization.")
@@ -467,12 +565,26 @@ func init() {
 	scaleSetAddCmd.MarkFlagsMutuallyExclusive("repo", "org", "enterprise")
 	scaleSetAddCmd.MarkFlagsMutuallyExclusive("extra-specs-file", "extra-specs")
 
+	scalesetRunnerListCmd.Flags().BoolVar(&scalesetRunnerOutdated, "outdated", false, "List only runners with a generation older than the scale set.")
+
+	scalesetRunnerRotateCmd.Flags().BoolVar(&scalesetRunnerOutdated, "outdated", false, "Only rotate runners with a generation older than the scale set.")
+	scalesetRunnerRotateCmd.Flags().BoolVar(&scalesetRunnerDryRun, "dry-run", false, "Show what would be removed without actually removing.")
+	scalesetRunnerRotateCmd.Flags().BoolVarP(&scalesetRunnerForce, "force-remove-runner", "f", false, "Ignore provider errors when removing runners.")
+	scalesetRunnerRotateCmd.Flags().BoolVarP(&scalesetRunnerBypass, "bypass-github-unauthorized", "b", false, "Ignore GitHub unauthorized errors when removing runners.")
+	scalesetRunnerRotateCmd.Flags().BoolVar(&scalesetRunnerConfirmSkip, "yes-i-really-mean-it", false, "Skip the confirmation prompt.")
+
+	scalesetRunnerCmd.AddCommand(
+		scalesetRunnerListCmd,
+		scalesetRunnerRotateCmd,
+	)
+
 	scalesetCmd.AddCommand(
 		scalesetListCmd,
 		scaleSetShowCmd,
 		scaleSetDeleteCmd,
 		scaleSetUpdateCmd,
 		scaleSetAddCmd,
+		scalesetRunnerCmd,
 	)
 
 	rootCmd.AddCommand(scalesetCmd)

@@ -798,6 +798,7 @@ func (r *basePoolManager) AddRunner(ctx context.Context, poolID string, aditiona
 		GitHubRunnerGroup: pool.GitHubRunnerGroup,
 		AditionalLabels:   aditionalLabels,
 		JitConfiguration:  jitConfig,
+		Generation:        pool.Generation,
 	}
 
 	if runner != nil {
@@ -1050,7 +1051,7 @@ func (r *basePoolManager) scaleDownOnePool(ctx context.Context, pool params.Pool
 		return nil
 	}
 
-	existingInstances, err := r.store.ListPoolInstances(r.ctx, pool.ID)
+	existingInstances, err := r.store.ListPoolInstances(r.ctx, pool.ID, false)
 	if err != nil {
 		return fmt.Errorf("failed to ensure minimum idle workers for pool %s: %w", pool.ID, err)
 	}
@@ -1156,7 +1157,7 @@ func (r *basePoolManager) ensureIdleRunnersForOnePool(pool params.Pool) error {
 		return nil
 	}
 
-	existingInstances, err := r.store.ListPoolInstances(r.ctx, pool.ID)
+	existingInstances, err := r.store.ListPoolInstances(r.ctx, pool.ID, false)
 	if err != nil {
 		return fmt.Errorf("failed to ensure minimum idle workers for pool %s: %w", pool.ID, err)
 	}
@@ -1213,7 +1214,7 @@ func (r *basePoolManager) retryFailedInstancesForOnePool(ctx context.Context, po
 		ctx, "running retry failed instances for pool",
 		"pool_id", pool.ID)
 
-	existingInstances, err := r.store.ListPoolInstances(r.ctx, pool.ID)
+	existingInstances, err := r.store.ListPoolInstances(r.ctx, pool.ID, false)
 	if err != nil {
 		return fmt.Errorf("failed to list instances for pool %s: %w", pool.ID, err)
 	}

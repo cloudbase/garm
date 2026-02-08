@@ -226,15 +226,19 @@ var runnerListCmd = &cobra.Command{
 	Use:     "list",
 	Aliases: []string{"ls"},
 	Short:   "List runners",
-	Long: `List runners of pools, repositories, orgs or all of the above.
+	Long: `List runners of pools, scale sets, repositories, orgs or all of the above.
 
-This command expects to get either a pool ID as a positional parameter, or it expects
-that one of the supported switches be used to fetch runners of --repo, --org or --all
+This command expects to get either a pool ID (UUID) or scale set ID (integer) as a
+positional parameter, or it expects that one of the supported switches be used to
+fetch runners of --repo, --org or --all
 
 Example:
 
 	List runners from one pool:
 	garm-cli runner list e87e70bd-3d0d-4b25-be9a-86b85e114bcb
+
+	List runners from one scale set:
+	garm-cli runner list 42
 
 	List runners from one repo:
 	garm-cli runner list --repo=05e7eac6-4705-486d-89c9-0170bbb576af
@@ -265,11 +269,17 @@ Example:
 				cmd.Flags().Changed("enterprise") ||
 				cmd.Flags().Changed("all") {
 
-				return fmt.Errorf("specifying a pool ID and any of [all org repo enterprise] are mutually exclusive")
+				return fmt.Errorf("specifying a pool/scaleset ID and any of [all org repo enterprise] are mutually exclusive")
 			}
-			listPoolInstancesReq := apiClientInstances.NewListPoolInstancesParams()
-			listPoolInstancesReq.PoolID = args[0]
-			response, err = apiCli.Instances.ListPoolInstances(listPoolInstancesReq, authToken)
+			if _, parseErr := uuid.Parse(args[0]); parseErr == nil {
+				listPoolInstancesReq := apiClientInstances.NewListPoolInstancesParams()
+				listPoolInstancesReq.PoolID = args[0]
+				response, err = apiCli.Instances.ListPoolInstances(listPoolInstancesReq, authToken)
+			} else {
+				listScaleSetReq := apiClientInstances.NewListScaleSetInstancesParams()
+				listScaleSetReq.ScalesetID = args[0]
+				response, err = apiCli.Instances.ListScaleSetInstances(listScaleSetReq, authToken)
+			}
 		case 0:
 			if cmd.Flags().Changed("repo") {
 				runnerRepo, resErr := resolveRepository(runnerRepository, endpointName)
@@ -309,7 +319,7 @@ Example:
 		}
 
 		instances := response.GetPayload()
-		formatInstances(instances, long)
+		formatInstances(instances, long, true)
 		return nil
 	},
 }
@@ -403,20 +413,30 @@ func init() {
 	rootCmd.AddCommand(runnerCmd)
 }
 
-func formatInstances(param []params.Instance, detailed bool) {
+func formatInstances(param []params.Instance, detailed bool, includeParent bool) {
 	if outputFormat == common.OutputFormatJSON {
 		printAsJSON(param)
 		return
 	}
 	t := table.NewWriter()
-	header := table.Row{"Nr", "Name", "Status", "Runner Status", "Pool ID", "Scalse Set ID"}
+	header := table.Row{"Nr", "Name", "Status", "Runner Status"}
+	if includeParent {
+		header = append(header, "Pool / Scale Set")
+	}
 	if detailed {
 		header = append(header, "Created At", "Updated At", "Job Name", "Started At", "Run ID", "Repository")
 	}
 	t.AppendHeader(header)
 
 	for idx, inst := range param {
-		row := table.Row{idx + 1, inst.Name, inst.Status, inst.RunnerStatus, inst.PoolID, inst.ScaleSetID}
+		row := table.Row{idx + 1, inst.Name, inst.Status, inst.RunnerStatus}
+		if includeParent {
+			poolOrScaleSet := fmt.Sprintf("Pool: %v", inst.PoolID)
+			if inst.ScaleSetID > 0 {
+				poolOrScaleSet = fmt.Sprintf("Scale Set: %d", inst.ScaleSetID)
+			}
+			row = append(row, poolOrScaleSet)
+		}
 		if detailed {
 			row = append(row, inst.CreatedAt, inst.UpdatedAt)
 			if inst.Job != nil {

@@ -288,12 +288,12 @@ func (r *Runner) CreateEntityScaleSet(ctx context.Context, entityType params.For
 	return scaleSet, nil
 }
 
-func (r *Runner) ListScaleSetInstances(ctx context.Context, scalesetID uint) ([]params.Instance, error) {
+func (r *Runner) ListScaleSetInstances(ctx context.Context, scalesetID uint, outdatedOnly bool) ([]params.Instance, error) {
 	if !auth.IsAdmin(ctx) {
 		return nil, runnerErrors.ErrUnauthorized
 	}
 
-	instances, err := r.store.ListScaleSetInstances(ctx, scalesetID)
+	instances, err := r.store.ListScaleSetInstances(ctx, scalesetID, outdatedOnly)
 	if err != nil {
 		return []params.Instance{}, fmt.Errorf("error fetching instances: %w", err)
 	}

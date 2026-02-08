@@ -4445,9 +4445,9 @@ func (_c *Store_ListOrganizations_Call) RunAndReturn(run func(context.Context, p
 	return _c
 }
 
-// ListPoolInstances provides a mock function with given fields: ctx, poolID
-func (_m *Store) ListPoolInstances(ctx context.Context, poolID string) ([]params.Instance, error) {
-	ret := _m.Called(ctx, poolID)
+// ListPoolInstances provides a mock function with given fields: ctx, poolID, oudatedOnly
+func (_m *Store) ListPoolInstances(ctx context.Context, poolID string, oudatedOnly bool) ([]params.Instance, error) {
+	ret := _m.Called(ctx, poolID, oudatedOnly)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListPoolInstances")
@@ -4455,19 +4455,19 @@ func (_m *Store) ListPoolInstances(ctx context.Context, poolID string) ([]params
 
 	var r0 []params.Instance
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) ([]params.Instance, error)); ok {
-		return rf(ctx, poolID)
+	if rf, ok := ret.Get(0).(func(context.Context, string, bool) ([]params.Instance, error)); ok {
+		return rf(ctx, poolID, oudatedOnly)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) []params.Instance); ok {
-		r0 = rf(ctx, poolID)
+	if rf, ok := ret.Get(0).(func(context.Context, string, bool) []params.Instance); ok {
+		r0 = rf(ctx, poolID, oudatedOnly)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]params.Instance)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, poolID)
+	if rf, ok := ret.Get(1).(func(context.Context, string, bool) error); ok {
+		r1 = rf(ctx, poolID, oudatedOnly)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -4483,13 +4483,14 @@ type Store_ListPoolInstances_Call struct {
 // ListPoolInstances is a helper method to define mock.On call
 //   - ctx context.Context
 //   - poolID string
-func (_e *Store_Expecter) ListPoolInstances(ctx interface{}, poolID interface{}) *Store_ListPoolInstances_Call {
-	return &Store_ListPoolInstances_Call{Call: _e.mock.On("ListPoolInstances", ctx, poolID)}
+//   - oudatedOnly bool
+func (_e *Store_Expecter) ListPoolInstances(ctx interface{}, poolID interface{}, oudatedOnly interface{}) *Store_ListPoolInstances_Call {
+	return &Store_ListPoolInstances_Call{Call: _e.mock.On("ListPoolInstances", ctx, poolID, oudatedOnly)}
 }
 
-func (_c *Store_ListPoolInstances_Call) Run(run func(ctx context.Context, poolID string)) *Store_ListPoolInstances_Call {
+func (_c *Store_ListPoolInstances_Call) Run(run func(ctx context.Context, poolID string, oudatedOnly bool)) *Store_ListPoolInstances_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string))
+		run(args[0].(context.Context), args[1].(string), args[2].(bool))
 	})
 	return _c
 }
@@ -4499,7 +4500,7 @@ func (_c *Store_ListPoolInstances_Call) Return(_a0 []params.Instance, _a1 error)
 	return _c
 }
 
-func (_c *Store_ListPoolInstances_Call) RunAndReturn(run func(context.Context, string) ([]params.Instance, error)) *Store_ListPoolInstances_Call {
+func (_c *Store_ListPoolInstances_Call) RunAndReturn(run func(context.Context, string, bool) ([]params.Instance, error)) *Store_ListPoolInstances_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -4563,9 +4564,9 @@ func (_c *Store_ListRepositories_Call) RunAndReturn(run func(context.Context, pa
 	return _c
 }
 
-// ListScaleSetInstances provides a mock function with given fields: _a0, scalesetID
-func (_m *Store) ListScaleSetInstances(_a0 context.Context, scalesetID uint) ([]params.Instance, error) {
-	ret := _m.Called(_a0, scalesetID)
+// ListScaleSetInstances provides a mock function with given fields: _a0, scalesetID, outdatedOnly
+func (_m *Store) ListScaleSetInstances(_a0 context.Context, scalesetID uint, outdatedOnly bool) ([]params.Instance, error) {
+	ret := _m.Called(_a0, scalesetID, outdatedOnly)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListScaleSetInstances")
@@ -4573,19 +4574,19 @@ func (_m *Store) ListScaleSetInstances(_a0 context.Context, scalesetID uint) ([]
 
 	var r0 []params.Instance
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint) ([]params.Instance, error)); ok {
-		return rf(_a0, scalesetID)
+	if rf, ok := ret.Get(0).(func(context.Context, uint, bool) ([]params.Instance, error)); ok {
+		return rf(_a0, scalesetID, outdatedOnly)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, uint) []params.Instance); ok {
-		r0 = rf(_a0, scalesetID)
+	if rf, ok := ret.Get(0).(func(context.Context, uint, bool) []params.Instance); ok {
+		r0 = rf(_a0, scalesetID, outdatedOnly)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]params.Instance)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, uint) error); ok {
-		r1 = rf(_a0, scalesetID)
+	if rf, ok := ret.Get(1).(func(context.Context, uint, bool) error); ok {
+		r1 = rf(_a0, scalesetID, outdatedOnly)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -4601,13 +4602,14 @@ type Store_ListScaleSetInstances_Call struct {
 // ListScaleSetInstances is a helper method to define mock.On call
 //   - _a0 context.Context
 //   - scalesetID uint
-func (_e *Store_Expecter) ListScaleSetInstances(_a0 interface{}, scalesetID interface{}) *Store_ListScaleSetInstances_Call {
-	return &Store_ListScaleSetInstances_Call{Call: _e.mock.On("ListScaleSetInstances", _a0, scalesetID)}
+//   - outdatedOnly bool
+func (_e *Store_Expecter) ListScaleSetInstances(_a0 interface{}, scalesetID interface{}, outdatedOnly interface{}) *Store_ListScaleSetInstances_Call {
+	return &Store_ListScaleSetInstances_Call{Call: _e.mock.On("ListScaleSetInstances", _a0, scalesetID, outdatedOnly)}
 }
 
-func (_c *Store_ListScaleSetInstances_Call) Run(run func(_a0 context.Context, scalesetID uint)) *Store_ListScaleSetInstances_Call {
+func (_c *Store_ListScaleSetInstances_Call) Run(run func(_a0 context.Context, scalesetID uint, outdatedOnly bool)) *Store_ListScaleSetInstances_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(uint))
+		run(args[0].(context.Context), args[1].(uint), args[2].(bool))
 	})
 	return _c
 }
@@ -4617,7 +4619,7 @@ func (_c *Store_ListScaleSetInstances_Call) Return(_a0 []params.Instance, _a1 er
 	return _c
 }
 
-func (_c *Store_ListScaleSetInstances_Call) RunAndReturn(run func(context.Context, uint) ([]params.Instance, error)) *Store_ListScaleSetInstances_Call {
+func (_c *Store_ListScaleSetInstances_Call) RunAndReturn(run func(context.Context, uint, bool) ([]params.Instance, error)) *Store_ListScaleSetInstances_Call {
 	_c.Call.Return(run)
 	return _c
 }

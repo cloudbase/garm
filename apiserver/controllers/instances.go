@@ -38,6 +38,12 @@ import (
 //	    in: path
 //	    required: true
 //
+//	  + name: outdatedOnly
+//	    description: List only instances that were created prior to a pool update that changed a setting which influences how instances are created (image, flavor, runner group, etc).
+//	    type: boolean
+//	    in: query
+//	    required: false
+//
 //	Responses:
 //	  200: Instances
 //	  default: APIErrorResponse
@@ -56,7 +62,8 @@ func (a *APIController) ListPoolInstancesHandler(w http.ResponseWriter, r *http.
 		return
 	}
 
-	instances, err := a.r.ListPoolInstances(ctx, poolID)
+	filterByOutdated, _ := strconv.ParseBool(r.URL.Query().Get("outdatedOnly"))
+	instances, err := a.r.ListPoolInstances(ctx, poolID, filterByOutdated)
 	if err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "listing pool instances")
 		handleError(ctx, w, err)
@@ -79,6 +86,12 @@ func (a *APIController) ListPoolInstancesHandler(w http.ResponseWriter, r *http.
 //	    type: string
 //	    in: path
 //	    required: true
+//
+//	  + name: outdatedOnly
+//	    description: List only instances that were created prior to a scaleset update that changed a setting which influences how instances are created (image, flavor, runner group, etc).
+//	    type: boolean
+//	    in: query
+//	    required: false
 //
 //	Responses:
 //	  200: Instances
@@ -104,7 +117,8 @@ func (a *APIController) ListScaleSetInstancesHandler(w http.ResponseWriter, r *h
 		return
 	}
 
-	instances, err := a.r.ListScaleSetInstances(ctx, uint(id))
+	filterByOutdated, _ := strconv.ParseBool(r.URL.Query().Get("outdatedOnly"))
+	instances, err := a.r.ListScaleSetInstances(ctx, uint(id), filterByOutdated)
 	if err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "listing pool instances")
 		handleError(ctx, w, err)

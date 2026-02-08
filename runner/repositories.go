@@ -364,12 +364,12 @@ func (r *Runner) ListRepoPools(ctx context.Context, repoID string) ([]params.Poo
 	return pools, nil
 }
 
-func (r *Runner) ListPoolInstances(ctx context.Context, poolID string) ([]params.Instance, error) {
+func (r *Runner) ListPoolInstances(ctx context.Context, poolID string, outdatedOnly bool) ([]params.Instance, error) {
 	if !auth.IsAdmin(ctx) {
 		return nil, runnerErrors.ErrUnauthorized
 	}
 
-	instances, err := r.store.ListPoolInstances(ctx, poolID)
+	instances, err := r.store.ListPoolInstances(ctx, poolID, outdatedOnly)
 	if err != nil {
 		return []params.Instance{}, fmt.Errorf("error fetching instances: %w", err)
 	}

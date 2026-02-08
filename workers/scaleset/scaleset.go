@@ -176,7 +176,7 @@ func (w *Worker) Start() (err error) {
 		return nil
 	}
 
-	instances, err := w.store.ListScaleSetInstances(w.ctx, w.scaleSet.ID)
+	instances, err := w.store.ListScaleSetInstances(w.ctx, w.scaleSet.ID, false)
 	if err != nil {
 		return fmt.Errorf("listing scale set instances: %w", err)
 	}

@@ -166,7 +166,6 @@ func (s *GARMToolsTestSuite) TestCreateGARMToolSuccess() {
 	s.Equal(param.Description, tool.Description)
 	s.Equal(int64(len(content)), tool.Size)
 
-	// Verify tags (should include origin=manual)
 	expectedTags := []string{
 		"category=garm-agent",
 		"os_type=linux",

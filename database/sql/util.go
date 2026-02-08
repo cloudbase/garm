@@ -75,6 +75,7 @@ func (s *sqlDatabase) sqlToParamsInstance(instance Instance) (params.Instance, e
 		GitHubRunnerGroup: instance.GitHubRunnerGroup,
 		AditionalLabels:   labels,
 		Heartbeat:         instance.Heartbeat,
+		Generation:        instance.Generation,
 	}
 
 	if len(instance.Capabilities) > 0 {
@@ -299,6 +300,7 @@ func (s *sqlDatabase) sqlToCommonPool(pool Pool) (params.Pool, error) {
 		CreatedAt:              pool.CreatedAt,
 		UpdatedAt:              pool.UpdatedAt,
 		EnableShell:            pool.EnableShell,
+		Generation:             pool.Generation,
 	}
 
 	if pool.TemplateID != nil && *pool.TemplateID != 0 {
@@ -376,6 +378,7 @@ func (s *sqlDatabase) sqlToCommonScaleSet(scaleSet ScaleSet) (params.ScaleSet, e
 		LastMessageID:          scaleSet.LastMessageID,
 		DesiredRunnerCount:     scaleSet.DesiredRunnerCount,
 		EnableShell:            scaleSet.EnableShell,
+		Generation:             scaleSet.Generation,
 	}
 
 	if scaleSet.TemplateID != nil && *scaleSet.TemplateID != 0 {
@@ -539,20 +542,24 @@ func (s *sqlDatabase) getOrCreateTag(tx *gorm.DB, tagName string) (Tag, error) {
 }
 
 func (s *sqlDatabase) updatePool(tx *gorm.DB, pool Pool, param params.UpdatePoolParams) (params.Pool, error) {
+	incrementGeneration := false
 	if param.Enabled != nil && pool.Enabled != *param.Enabled {
 		pool.Enabled = *param.Enabled
 	}
 
 	if param.Flavor != "" {
 		pool.Flavor = param.Flavor
+		incrementGeneration = true
 	}
 
 	if param.EnableShell != nil {
 		pool.EnableShell = *param.EnableShell
+		incrementGeneration = true
 	}
 
 	if param.Image != "" {
 		pool.Image = param.Image
+		incrementGeneration = true
 	}
 
 	if param.Prefix != "" {
@@ -573,14 +580,17 @@ func (s *sqlDatabase) updatePool(tx *gorm.DB, pool Pool, param params.UpdatePool
 
 	if param.OSArch != "" {
 		pool.OSArch = param.OSArch
+		incrementGeneration = true
 	}
 
 	if param.OSType != "" {
 		pool.OSType = param.OSType
+		incrementGeneration = true
 	}
 
 	if param.ExtraSpecs != nil {
 		pool.ExtraSpecs = datatypes.JSON(param.ExtraSpecs)
+		incrementGeneration = true
 	}
 
 	if param.RunnerBootstrapTimeout != nil && *param.RunnerBootstrapTimeout > 0 {
@@ -589,10 +599,15 @@ func (s *sqlDatabase) updatePool(tx *gorm.DB, pool Pool, param params.UpdatePool
 
 	if param.GitHubRunnerGroup != nil {
 		pool.GitHubRunnerGroup = *param.GitHubRunnerGroup
+		incrementGeneration = true
 	}
 
 	if param.Priority != nil {
 		pool.Priority = *param.Priority
+	}
+
+	if incrementGeneration {
+		pool.Generation++
 	}
 
 	if q := tx.Save(&pool); q.Error != nil {
