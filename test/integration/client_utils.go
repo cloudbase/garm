@@ -15,9 +15,12 @@
 package integration
 
 import (
+	"net/url"
+
 	"github.com/go-openapi/runtime"
 
 	"github.com/cloudbase/garm/client"
+	apiClientController "github.com/cloudbase/garm/client/controller"
 	clientControllerInfo "github.com/cloudbase/garm/client/controller_info"
 	clientCredentials "github.com/cloudbase/garm/client/credentials"
 	clientEndpoints "github.com/cloudbase/garm/client/endpoints"
@@ -42,6 +45,37 @@ func firstRun(apiCli *client.GarmAPI, newUser params.NewUserParams) (params.User
 		return params.User{}, err
 	}
 	return firstRunResponse.Payload, nil
+}
+
+func setControllerURLs(apiCli *client.GarmAPI, apiAuthToken runtime.ClientAuthInfoWriter, baseURL string) error {
+	metadataURL, err := url.JoinPath(baseURL, "api/v1/metadata")
+	if err != nil {
+		return err
+	}
+	callbackURL, err := url.JoinPath(baseURL, "api/v1/callbacks")
+	if err != nil {
+		return err
+	}
+	webhookURL, err := url.JoinPath(baseURL, "webhooks")
+	if err != nil {
+		return err
+	}
+	agentURL, err := url.JoinPath(baseURL, "agent")
+	if err != nil {
+		return err
+	}
+	updateUrlsReq := apiClientController.NewUpdateControllerParams()
+	updateUrlsReq.Body = params.UpdateControllerParams{
+		MetadataURL: &metadataURL,
+		CallbackURL: &callbackURL,
+		WebhookURL:  &webhookURL,
+		AgentURL:    &agentURL,
+	}
+	_, err = apiCli.Controller.UpdateController(updateUrlsReq, apiAuthToken)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func login(apiCli *client.GarmAPI, params params.PasswordLoginParams) (string, error) {
