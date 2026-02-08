@@ -90,6 +90,9 @@ func (suite *GarmSuite) SetupSuite() {
 	suite.authToken = openapiRuntimeClient.BearerToken(token)
 	t.Log("Log in successful")
 
+	err = setControllerURLs(suite.cli, suite.authToken, baseURL)
+	suite.NoError(err, "error setting controller URLs")
+
 	suite.credentialsName = os.Getenv("CREDENTIALS_NAME")
 	suite.EnsureTestCredentials(suite.credentialsName, suite.ghToken, "github.com")
 

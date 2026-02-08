@@ -114,6 +114,7 @@ garm-cli init --name=dev --url=https://runner.example.com --username=admin --pas
 			MetadataURL: &metadataURL,
 			CallbackURL: &callbackURL,
 			WebhookURL:  &webhookURL,
+			AgentURL:    &agentURL,
 		}
 
 		controllerInfoResponse, err := apiCli.Controller.UpdateController(updateUrlsReq, authToken)
