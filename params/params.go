@@ -364,6 +364,13 @@ type Instance struct {
 	Heartbeat    time.Time         `json:"heartbeat"`
 	Capabilities AgentCapabilities `json:"capabilities"`
 
+	// Generation is the pool generation at the time of creating this instance.
+	// This field is to track a divergence between when the instance was created
+	// and the settings currently set on a pool. We can then use this field to know
+	// if the instance is out of date with the pool, allowing us to remove it if we
+	// need to.
+	Generation uint64 `json:"generation"`
+
 	// Do not serialize sensitive info.
 	CallbackURL      string            `json:"-"`
 	MetadataURL      string            `json:"-"`
@@ -473,6 +480,14 @@ type Pool struct {
 	Enabled        bool                `json:"enabled,omitempty"`
 	Instances      []Instance          `json:"instances,omitempty"`
 	EnableShell    bool                `json:"enable_shell"`
+
+	// Generation holds the numeric generation of the pool. This number
+	// will be incremented, every time certain settings of the pool, which
+	// may influence how runners are created (flavor, specs, image) are changed.
+	// When a runner is created, this generation will be copied to the runners as
+	// well. That way if some settings diverge, we can target those runners
+	// to be recreated.
+	Generation uint64 `json:"generation"`
 
 	RepoID   string `json:"repo_id,omitempty"`
 	RepoName string `json:"repo_name,omitempty"`
@@ -629,6 +644,14 @@ type ScaleSet struct {
 	Instances          []Instance          `json:"instances,omitempty"`
 	DesiredRunnerCount int                 `json:"desired_runner_count,omitempty"`
 	EnableShell        bool                `json:"enable_shell"`
+
+	// Generation holds the numeric generation of the scaleset. This number
+	// will be incremented, every time certain settings of the scaleset, which
+	// may influence how runners are created (flavor, specs, image) are changed.
+	// When a runner is created, this generation will be copied to the runners as
+	// well. That way if some settings diverge, we can target those runners
+	// to be recreated.
+	Generation uint64 `json:"generation"`
 
 	Endpoint ForgeEndpoint `json:"endpoint,omitempty"`
 

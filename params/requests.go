@@ -196,6 +196,7 @@ type CreateInstanceParams struct {
 	AgentID           int64             `json:"-"`
 	AditionalLabels   []string          `json:"aditional_labels,omitempty"`
 	JitConfiguration  map[string]string `json:"jit_configuration,omitempty"`
+	Generation        uint64            `json:"generation"`
 }
 
 // swagger:model CreatePoolParams

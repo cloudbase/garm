@@ -121,6 +121,14 @@ type Pool struct {
 	GitHubRunnerGroup string
 	EnableShell       bool
 
+	// Generation holds the numeric generation of the pool. This number
+	// will be incremented, every time certain settings of the pool, which
+	// may influence how runners are created (flavor, specs, image) are changed.
+	// When a runner is created, this generation will be copied to the runners as
+	// well. That way if some settings diverge, we can target those runners
+	// to be recreated.
+	Generation uint64
+
 	RepoID     *uuid.UUID `gorm:"index"`
 	Repository Repository `gorm:"foreignKey:RepoID;"`
 
@@ -177,6 +185,13 @@ type ScaleSet struct {
 	// any kind of data needed by providers.
 	ExtraSpecs  datatypes.JSON
 	EnableShell bool
+
+	// Generation is the scaleset generation at the time of creating this instance.
+	// This field is to track a divergence between when the instance was created
+	// and the settings currently set on a scaleset. We can then use this field to know
+	// if the instance is out of date with the scaleset, allowing us to remove it if we
+	// need to.
+	Generation uint64
 
 	RepoID     *uuid.UUID `gorm:"index"`
 	Repository Repository `gorm:"foreignKey:RepoID;"`
@@ -336,6 +351,12 @@ type Instance struct {
 	GitHubRunnerGroup string
 	AditionalLabels   datatypes.JSON
 	Capabilities      datatypes.JSON
+	// Generation is the pool generation at the time of creating this instance.
+	// This field is to track a divergence between when the instance was created
+	// and the settings currently set on a pool. We can then use this field to know
+	// if the instance is out of date with the pool, allowing us to remove it if we
+	// need to.
+	Generation uint64
 
 	PoolID *uuid.UUID
 	Pool   Pool `gorm:"foreignKey:PoolID"`

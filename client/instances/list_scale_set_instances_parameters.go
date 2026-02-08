@@ -14,6 +14,7 @@ import (
 	"github.com/go-openapi/runtime"
 	cr "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
+	"github.com/go-openapi/swag"
 )
 
 // NewListScaleSetInstancesParams creates a new ListScaleSetInstancesParams object,
@@ -60,6 +61,12 @@ ListScaleSetInstancesParams contains all the parameters to send to the API endpo
 	Typically these are written to a http.Request.
 */
 type ListScaleSetInstancesParams struct {
+
+	/* OutdatedOnly.
+
+	   List only instances that were created prior to a scaleset update that changed a setting which influences how instances are created (image, flavor, runner group, etc).
+	*/
+	OutdatedOnly *bool
 
 	/* ScalesetID.
 
@@ -120,6 +127,17 @@ func (o *ListScaleSetInstancesParams) SetHTTPClient(client *http.Client) {
 	o.HTTPClient = client
 }
 
+// WithOutdatedOnly adds the outdatedOnly to the list scale set instances params
+func (o *ListScaleSetInstancesParams) WithOutdatedOnly(outdatedOnly *bool) *ListScaleSetInstancesParams {
+	o.SetOutdatedOnly(outdatedOnly)
+	return o
+}
+
+// SetOutdatedOnly adds the outdatedOnly to the list scale set instances params
+func (o *ListScaleSetInstancesParams) SetOutdatedOnly(outdatedOnly *bool) {
+	o.OutdatedOnly = outdatedOnly
+}
+
 // WithScalesetID adds the scalesetID to the list scale set instances params
 func (o *ListScaleSetInstancesParams) WithScalesetID(scalesetID string) *ListScaleSetInstancesParams {
 	o.SetScalesetID(scalesetID)
@@ -138,6 +156,23 @@ func (o *ListScaleSetInstancesParams) WriteToRequest(r runtime.ClientRequest, re
 		return err
 	}
 	var res []error
+
+	if o.OutdatedOnly != nil {
+
+		// query param outdatedOnly
+		var qrOutdatedOnly bool
+
+		if o.OutdatedOnly != nil {
+			qrOutdatedOnly = *o.OutdatedOnly
+		}
+		qOutdatedOnly := swag.FormatBool(qrOutdatedOnly)
+		if qOutdatedOnly != "" {
+
+			if err := r.SetQueryParam("outdatedOnly", qOutdatedOnly); err != nil {
+				return err
+			}
+		}
+	}
 
 	// path param scalesetID
 	if err := r.SetPathParam("scalesetID", o.ScalesetID); err != nil {

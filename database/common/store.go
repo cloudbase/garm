@@ -75,7 +75,7 @@ type PoolStore interface {
 	GetPoolByID(ctx context.Context, poolID string) (params.Pool, error)
 	DeletePoolByID(ctx context.Context, poolID string) error
 
-	ListPoolInstances(ctx context.Context, poolID string) ([]params.Instance, error)
+	ListPoolInstances(ctx context.Context, poolID string, oudatedOnly bool) ([]params.Instance, error)
 
 	PoolInstanceCount(ctx context.Context, poolID string) (int64, error)
 	FindPoolsMatchingAllTags(ctx context.Context, entityType params.ForgeEntityType, entityID string, tags []string) ([]params.Pool, error)
@@ -152,7 +152,7 @@ type ScaleSetsStore interface {
 }
 
 type ScaleSetInstanceStore interface {
-	ListScaleSetInstances(_ context.Context, scalesetID uint) ([]params.Instance, error)
+	ListScaleSetInstances(_ context.Context, scalesetID uint, outdatedOnly bool) ([]params.Instance, error)
 	CreateScaleSetInstance(_ context.Context, scaleSetID uint, param params.CreateInstanceParams) (instance params.Instance, err error)
 }
 

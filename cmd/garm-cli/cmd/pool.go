@@ -15,6 +15,7 @@
 package cmd
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -25,6 +26,7 @@ import (
 
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 	apiClientEnterprises "github.com/cloudbase/garm/client/enterprises"
+	apiClientInstances "github.com/cloudbase/garm/client/instances"
 	apiClientOrgs "github.com/cloudbase/garm/client/organizations"
 	apiClientPools "github.com/cloudbase/garm/client/pools"
 	apiClientRepos "github.com/cloudbase/garm/client/repositories"
@@ -424,6 +426,128 @@ explicitly remove them using the runner delete command.
 	},
 }
 
+var (
+	poolRunnerOutdated    bool
+	poolRunnerDryRun      bool
+	poolRunnerForce       bool
+	poolRunnerBypass      bool
+	poolRunnerConfirmSkip bool
+)
+
+var poolRunnerCmd = &cobra.Command{
+	Use:          "runner",
+	Short:        "Manage runners in a pool",
+	Long:         `List or rotate runners in a pool.`,
+	SilenceUsage: true,
+	Run:          nil,
+}
+
+var poolRunnerListCmd = &cobra.Command{
+	Use:          "list <pool-id>",
+	Aliases:      []string{"ls"},
+	Short:        "List runners in a pool",
+	Long:         `List all runners belonging to a pool. Use --outdated to show only runners with a generation older than the pool.`,
+	Args:         cobra.ExactArgs(1),
+	SilenceUsage: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if needsInit {
+			return errNeedsInitError
+		}
+
+		listReq := apiClientInstances.NewListPoolInstancesParams()
+		listReq.PoolID = args[0]
+		if cmd.Flags().Changed("outdated") {
+			listReq.OutdatedOnly = &poolRunnerOutdated
+		}
+
+		response, err := apiCli.Instances.ListPoolInstances(listReq, authToken)
+		if err != nil {
+			return err
+		}
+
+		formatInstances(response.Payload, false, false)
+		return nil
+	},
+}
+
+var poolRunnerRotateCmd = &cobra.Command{
+	Use:          "rotate <pool-id>",
+	Short:        "Rotate idle runners in a pool",
+	Long:         `Remove idle runners in a pool so they get replaced with fresh ones. Use --outdated to only rotate runners with a generation older than the pool.`,
+	Args:         cobra.ExactArgs(1),
+	SilenceUsage: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if needsInit {
+			return errNeedsInitError
+		}
+
+		listReq := apiClientInstances.NewListPoolInstancesParams()
+		listReq.PoolID = args[0]
+		if cmd.Flags().Changed("outdated") {
+			listReq.OutdatedOnly = &poolRunnerOutdated
+		}
+
+		response, err := apiCli.Instances.ListPoolInstances(listReq, authToken)
+		if err != nil {
+			return err
+		}
+
+		idle := filterIdleRunners(response.Payload)
+		if len(idle) == 0 {
+			fmt.Println("No idle runners to rotate.")
+			return nil
+		}
+
+		if poolRunnerDryRun {
+			fmt.Printf("Would remove %d idle runner(s):\n", len(idle))
+			formatInstances(idle, false, false)
+			return nil
+		}
+
+		if !poolRunnerConfirmSkip {
+			fmt.Printf("About to remove %d idle runner(s). Continue? [y/N] ", len(idle))
+			reader := bufio.NewReader(os.Stdin)
+			answer, _ := reader.ReadString('\n')
+			answer = strings.TrimSpace(strings.ToLower(answer))
+			if answer != "y" && answer != "yes" {
+				fmt.Println("Aborted.")
+				return nil
+			}
+		}
+
+		removed, skipped := rotateRunners(idle, poolRunnerForce, poolRunnerBypass)
+		fmt.Printf("Removed %d runner(s), skipped %d.\n", removed, skipped)
+		return nil
+	},
+}
+
+func filterIdleRunners(instances []params.Instance) []params.Instance {
+	var idle []params.Instance
+	for _, inst := range instances {
+		if inst.Status == commonParams.InstanceRunning && inst.RunnerStatus == params.RunnerIdle {
+			idle = append(idle, inst)
+		}
+	}
+	return idle
+}
+
+func rotateRunners(instances []params.Instance, forceRemove, bypassGH bool) (removed, skipped int) {
+	for _, inst := range instances {
+		deleteReq := apiClientInstances.NewDeleteInstanceParams()
+		deleteReq.InstanceName = inst.Name
+		deleteReq.ForceRemove = &forceRemove
+		deleteReq.BypassGHUnauthorized = &bypassGH
+		if err := apiCli.Instances.DeleteInstance(deleteReq, authToken); err != nil {
+			fmt.Printf("  Warning: failed to remove %s: %v\n", inst.Name, err)
+			skipped++
+			continue
+		}
+		fmt.Printf("  Removed %s\n", inst.Name)
+		removed++
+	}
+	return
+}
+
 func init() {
 	poolListCmd.Flags().StringVarP(&poolRepository, "repo", "r", "", "List all pools within this repository.")
 	poolListCmd.Flags().StringVarP(&poolOrganization, "org", "o", "", "List all pools within this organization.")
@@ -483,12 +607,26 @@ func init() {
 	poolAddCmd.MarkFlagsMutuallyExclusive("repo", "org", "enterprise")
 	poolAddCmd.MarkFlagsMutuallyExclusive("extra-specs-file", "extra-specs")
 
+	poolRunnerListCmd.Flags().BoolVar(&poolRunnerOutdated, "outdated", false, "List only runners with a generation older than the pool.")
+
+	poolRunnerRotateCmd.Flags().BoolVar(&poolRunnerOutdated, "outdated", false, "Only rotate runners with a generation older than the pool.")
+	poolRunnerRotateCmd.Flags().BoolVar(&poolRunnerDryRun, "dry-run", false, "Show what would be removed without actually removing.")
+	poolRunnerRotateCmd.Flags().BoolVarP(&poolRunnerForce, "force-remove-runner", "f", false, "Ignore provider errors when removing runners.")
+	poolRunnerRotateCmd.Flags().BoolVarP(&poolRunnerBypass, "bypass-github-unauthorized", "b", false, "Ignore GitHub unauthorized errors when removing runners.")
+	poolRunnerRotateCmd.Flags().BoolVar(&poolRunnerConfirmSkip, "yes-i-really-mean-it", false, "Skip the confirmation prompt.")
+
+	poolRunnerCmd.AddCommand(
+		poolRunnerListCmd,
+		poolRunnerRotateCmd,
+	)
+
 	poolCmd.AddCommand(
 		poolListCmd,
 		poolShowCmd,
 		poolDeleteCmd,
 		poolUpdateCmd,
 		poolAddCmd,
+		poolRunnerCmd,
 	)
 
 	rootCmd.AddCommand(poolCmd)

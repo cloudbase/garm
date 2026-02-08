@@ -668,14 +668,14 @@ func (s *InstancesTestSuite) TestUpdateInstanceDBUpdateAddressErr() {
 }
 
 func (s *InstancesTestSuite) TestListPoolInstances() {
-	instances, err := s.Store.ListPoolInstances(s.adminCtx, s.Fixtures.Pool.ID)
+	instances, err := s.Store.ListPoolInstances(s.adminCtx, s.Fixtures.Pool.ID, false)
 
 	s.Require().Nil(err)
 	s.equalInstancesByName(s.Fixtures.Instances, instances)
 }
 
 func (s *InstancesTestSuite) TestListPoolInstancesInvalidPoolID() {
-	_, err := s.Store.ListPoolInstances(s.adminCtx, "dummy-pool-id")
+	_, err := s.Store.ListPoolInstances(s.adminCtx, "dummy-pool-id", false)
 
 	s.Require().Equal("error parsing id: invalid request", err.Error())
 }

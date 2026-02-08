@@ -840,6 +840,14 @@ definitions:
                 format: int64
                 type: integer
                 x-go-name: Size
+            source:
+                description: |-
+                    Source indicates where this tool is currently stored.
+                    "local" means the tool is stored in the internal object store.
+                    "upstream" means the tool is only available from the upstream
+                    cached release and has not been downloaded locally.
+                type: string
+                x-go-name: Source
             updated_at:
                 format: date-time
                 type: string
@@ -911,6 +919,14 @@ definitions:
                             format: int64
                             type: integer
                             x-go-name: Size
+                        source:
+                            description: |-
+                                Source indicates where this tool is currently stored.
+                                "local" means the tool is stored in the internal object store.
+                                "upstream" means the tool is only available from the upstream
+                                cached release and has not been downloaded locally.
+                            type: string
+                            x-go-name: Source
                         updated_at:
                             format: date-time
                             type: string
@@ -1025,6 +1041,16 @@ definitions:
                 format: date-time
                 type: string
                 x-go-name: CreatedAt
+            generation:
+                description: |-
+                    Generation is the pool generation at the time of creating this instance.
+                    This field is to track a divergence between when the instance was created
+                    and the settings currently set on a pool. We can then use this field to know
+                    if the instance is out of date with the pool, allowing us to remove it if we
+                    need to.
+                format: uint64
+                type: integer
+                x-go-name: Generation
             github-runner-group:
                 description: |-
                     GithubRunnerGroup is the github runner group to which the runner belongs.
@@ -1441,6 +1467,17 @@ definitions:
             flavor:
                 type: string
                 x-go-name: Flavor
+            generation:
+                description: |-
+                    Generation holds the numeric generation of the pool. This number
+                    will be incremented, every time certain settings of the pool, which
+                    may influence how runners are created (flavor, specs, image) are changed.
+                    When a runner is created, this generation will be copied to the runners as
+                    well. That way if some settings diverge, we can target those runners
+                    to be recreated.
+                format: uint64
+                type: integer
+                x-go-name: Generation
             github-runner-group:
                 description: |-
                     GithubRunnerGroup is the github runner group in which the runners will be added.
@@ -1710,6 +1747,17 @@ definitions:
             flavor:
                 type: string
                 x-go-name: Flavor
+            generation:
+                description: |-
+                    Generation holds the numeric generation of the scaleset. This number
+                    will be incremented, every time certain settings of the scaleset, which
+                    may influence how runners are created (flavor, specs, image) are changed.
+                    When a runner is created, this generation will be copied to the runners as
+                    well. That way if some settings diverge, we can target those runners
+                    to be recreated.
+                format: uint64
+                type: integer
+                x-go-name: Generation
             github-runner-group:
                 description: |-
                     GithubRunnerGroup is the github runner group in which the runners will be added.
@@ -3675,6 +3723,10 @@ paths:
                   name: poolID
                   required: true
                   type: string
+                - description: List only instances that were created prior to a pool update that changed a setting which influences how instances are created (image, flavor, runner group, etc).
+                  in: query
+                  name: outdatedOnly
+                  type: boolean
             responses:
                 "200":
                     description: Instances
@@ -4188,6 +4240,10 @@ paths:
                   name: scalesetID
                   required: true
                   type: string
+                - description: List only instances that were created prior to a scaleset update that changed a setting which influences how instances are created (image, flavor, runner group, etc).
+                  in: query
+                  name: outdatedOnly
+                  type: boolean
             responses:
                 "200":
                     description: Instances
@@ -4338,7 +4394,7 @@ paths:
                 - templates
     /tools/garm-agent:
         get:
-            operationId: GarmAgentList
+            operationId: AdminGarmAgentList
             parameters:
                 - description: The page at which to list.
                   in: query
@@ -4348,6 +4404,10 @@ paths:
                   in: query
                   name: pageSize
                   type: integer
+                - description: If true, list tools from the upstream cached release instead of the local object store.
+                  in: query
+                  name: upstream
+                  type: boolean
             responses:
                 "200":
                     description: GARMAgentToolsPaginatedResponse
@@ -4357,7 +4417,7 @@ paths:
                     description: APIErrorResponse
                     schema:
                         $ref: '#/definitions/APIErrorResponse'
-            summary: List GARM agent tools.
+            summary: List GARM agent tools for admin users.
             tags:
                 - tools
         post:

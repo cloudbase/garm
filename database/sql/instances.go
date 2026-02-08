@@ -90,6 +90,7 @@ func (s *sqlDatabase) CreateInstance(ctx context.Context, poolID string, param p
 			JitConfiguration:  secret,
 			AditionalLabels:   labels,
 			AgentID:           param.AgentID,
+			Generation:        param.Generation,
 		}
 		q = tx.Create(&newInstance)
 		if q.Error != nil {
@@ -511,14 +512,18 @@ func (s *sqlDatabase) listInstancesBatched(queryModifier func(*gorm.DB) *gorm.DB
 	return ret, err
 }
 
-func (s *sqlDatabase) ListPoolInstances(_ context.Context, poolID string) ([]params.Instance, error) {
+func (s *sqlDatabase) ListPoolInstances(_ context.Context, poolID string, outdatedOnly bool) ([]params.Instance, error) {
 	u, err := uuid.Parse(poolID)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing id: %w", runnerErrors.ErrBadRequest)
 	}
 
 	ret, err := s.listInstancesBatched(func(query *gorm.DB) *gorm.DB {
-		return query.Where("pool_id = ?", u)
+		q := query.Where("pool_id = ?", u)
+		if outdatedOnly {
+			q = q.Where("instances.generation < (SELECT pools.generation FROM pools WHERE pools.id = instances.pool_id)")
+		}
+		return q
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list pool instances: %w", err)
@@ -527,7 +532,7 @@ func (s *sqlDatabase) ListPoolInstances(_ context.Context, poolID string) ([]par
 }
 
 func (s *sqlDatabase) ListAllInstances(_ context.Context) ([]params.Instance, error) {
-	ret, err := s.listInstancesBatched(nil) // No query modifier for all instances
+	ret, err := s.listInstancesBatched(nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list all instances: %w", err)
 	}

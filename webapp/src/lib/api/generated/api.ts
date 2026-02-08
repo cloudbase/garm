@@ -1392,6 +1392,12 @@ export interface GARMAgentTool {
      */
     'size'?: number;
     /**
+     * Source indicates where this tool is currently stored. \"local\" means the tool is stored in the internal object store. \"upstream\" means the tool is only available from the upstream cached release and has not been downloaded locally.
+     * @type {string}
+     * @memberof GARMAgentTool
+     */
+    'source'?: string;
+    /**
      * 
      * @type {string}
      * @memberof GARMAgentTool
@@ -1519,6 +1525,12 @@ export interface GARMAgentToolsPaginatedResponseResultsInner {
      * @memberof GARMAgentToolsPaginatedResponseResultsInner
      */
     'size'?: number;
+    /**
+     * Source indicates where this tool is currently stored. \"local\" means the tool is stored in the internal object store. \"upstream\" means the tool is only available from the upstream cached release and has not been downloaded locally.
+     * @type {string}
+     * @memberof GARMAgentToolsPaginatedResponseResultsInner
+     */
+    'source'?: string;
     /**
      * 
      * @type {string}
@@ -1687,6 +1699,12 @@ export interface Instance {
      * @memberof Instance
      */
     'created_at'?: string;
+    /**
+     * Generation is the pool generation at the time of creating this instance. This field is to track a divergence between when the instance was created and the settings currently set on a pool. We can then use this field to know if the instance is out of date with the pool, allowing us to remove it if we need to.
+     * @type {number}
+     * @memberof Instance
+     */
+    'generation'?: number;
     /**
      * GithubRunnerGroup is the github runner group to which the runner belongs. The runner group must be created by someone with access to the enterprise.
      * @type {string}
@@ -2254,6 +2272,12 @@ export interface Pool {
      */
     'flavor'?: string;
     /**
+     * Generation holds the numeric generation of the pool. This number will be incremented, every time certain settings of the pool, which may influence how runners are created (flavor, specs, image) are changed. When a runner is created, this generation will be copied to the runners as well. That way if some settings diverge, we can target those runners to be recreated.
+     * @type {number}
+     * @memberof Pool
+     */
+    'generation'?: number;
+    /**
      * GithubRunnerGroup is the github runner group in which the runners will be added. The runner group must be created by someone with access to the enterprise.
      * @type {string}
      * @memberof Pool
@@ -2662,6 +2686,12 @@ export interface ScaleSet {
      * @memberof ScaleSet
      */
     'flavor'?: string;
+    /**
+     * Generation holds the numeric generation of the scaleset. This number will be incremented, every time certain settings of the scaleset, which may influence how runners are created (flavor, specs, image) are changed. When a runner is created, this generation will be copied to the runners as well. That way if some settings diverge, we can target those runners to be recreated.
+     * @type {number}
+     * @memberof ScaleSet
+     */
+    'generation'?: number;
     /**
      * GithubRunnerGroup is the github runner group in which the runners will be added. The runner group must be created by someone with access to the enterprise.
      * @type {string}
@@ -7082,10 +7112,11 @@ export const InstancesApiAxiosParamCreator = function (configuration?: Configura
          * 
          * @summary List runner instances in a pool.
          * @param {string} poolID Runner pool ID.
+         * @param {boolean} [outdatedOnly] List only instances that were created prior to a pool update that changed a setting which influences how instances are created (image, flavor, runner group, etc).
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        listPoolInstances: async (poolID: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        listPoolInstances: async (poolID: string, outdatedOnly?: boolean, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'poolID' is not null or undefined
             assertParamExists('listPoolInstances', 'poolID', poolID)
             const localVarPath = `/pools/{poolID}/instances`
@@ -7103,6 +7134,10 @@ export const InstancesApiAxiosParamCreator = function (configuration?: Configura
 
             // authentication Bearer required
             await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+            if (outdatedOnly !== undefined) {
+                localVarQueryParameter['outdatedOnly'] = outdatedOnly;
+            }
 
 
     
@@ -7156,10 +7191,11 @@ export const InstancesApiAxiosParamCreator = function (configuration?: Configura
          * 
          * @summary List runner instances in a scale set.
          * @param {string} scalesetID Runner scale set ID.
+         * @param {boolean} [outdatedOnly] List only instances that were created prior to a scaleset update that changed a setting which influences how instances are created (image, flavor, runner group, etc).
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        listScaleSetInstances: async (scalesetID: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        listScaleSetInstances: async (scalesetID: string, outdatedOnly?: boolean, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'scalesetID' is not null or undefined
             assertParamExists('listScaleSetInstances', 'scalesetID', scalesetID)
             const localVarPath = `/scalesets/{scalesetID}/instances`
@@ -7177,6 +7213,10 @@ export const InstancesApiAxiosParamCreator = function (configuration?: Configura
 
             // authentication Bearer required
             await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+            if (outdatedOnly !== undefined) {
+                localVarQueryParameter['outdatedOnly'] = outdatedOnly;
+            }
 
 
     
@@ -7269,11 +7309,12 @@ export const InstancesApiFp = function(configuration?: Configuration) {
          * 
          * @summary List runner instances in a pool.
          * @param {string} poolID Runner pool ID.
+         * @param {boolean} [outdatedOnly] List only instances that were created prior to a pool update that changed a setting which influences how instances are created (image, flavor, runner group, etc).
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async listPoolInstances(poolID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<Instance>>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.listPoolInstances(poolID, options);
+        async listPoolInstances(poolID: string, outdatedOnly?: boolean, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<Instance>>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.listPoolInstances(poolID, outdatedOnly, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['InstancesApi.listPoolInstances']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -7295,11 +7336,12 @@ export const InstancesApiFp = function(configuration?: Configuration) {
          * 
          * @summary List runner instances in a scale set.
          * @param {string} scalesetID Runner scale set ID.
+         * @param {boolean} [outdatedOnly] List only instances that were created prior to a scaleset update that changed a setting which influences how instances are created (image, flavor, runner group, etc).
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async listScaleSetInstances(scalesetID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<Instance>>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.listScaleSetInstances(scalesetID, options);
+        async listScaleSetInstances(scalesetID: string, outdatedOnly?: boolean, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<Instance>>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.listScaleSetInstances(scalesetID, outdatedOnly, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['InstancesApi.listScaleSetInstances']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -7369,11 +7411,12 @@ export const InstancesApiFactory = function (configuration?: Configuration, base
          * 
          * @summary List runner instances in a pool.
          * @param {string} poolID Runner pool ID.
+         * @param {boolean} [outdatedOnly] List only instances that were created prior to a pool update that changed a setting which influences how instances are created (image, flavor, runner group, etc).
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        listPoolInstances(poolID: string, options?: RawAxiosRequestConfig): AxiosPromise<Array<Instance>> {
-            return localVarFp.listPoolInstances(poolID, options).then((request) => request(axios, basePath));
+        listPoolInstances(poolID: string, outdatedOnly?: boolean, options?: RawAxiosRequestConfig): AxiosPromise<Array<Instance>> {
+            return localVarFp.listPoolInstances(poolID, outdatedOnly, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -7389,11 +7432,12 @@ export const InstancesApiFactory = function (configuration?: Configuration, base
          * 
          * @summary List runner instances in a scale set.
          * @param {string} scalesetID Runner scale set ID.
+         * @param {boolean} [outdatedOnly] List only instances that were created prior to a scaleset update that changed a setting which influences how instances are created (image, flavor, runner group, etc).
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        listScaleSetInstances(scalesetID: string, options?: RawAxiosRequestConfig): AxiosPromise<Array<Instance>> {
-            return localVarFp.listScaleSetInstances(scalesetID, options).then((request) => request(axios, basePath));
+        listScaleSetInstances(scalesetID: string, outdatedOnly?: boolean, options?: RawAxiosRequestConfig): AxiosPromise<Array<Instance>> {
+            return localVarFp.listScaleSetInstances(scalesetID, outdatedOnly, options).then((request) => request(axios, basePath));
         },
     };
 };
@@ -7470,12 +7514,13 @@ export class InstancesApi extends BaseAPI {
      * 
      * @summary List runner instances in a pool.
      * @param {string} poolID Runner pool ID.
+     * @param {boolean} [outdatedOnly] List only instances that were created prior to a pool update that changed a setting which influences how instances are created (image, flavor, runner group, etc).
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof InstancesApi
      */
-    public listPoolInstances(poolID: string, options?: RawAxiosRequestConfig) {
-        return InstancesApiFp(this.configuration).listPoolInstances(poolID, options).then((request) => request(this.axios, this.basePath));
+    public listPoolInstances(poolID: string, outdatedOnly?: boolean, options?: RawAxiosRequestConfig) {
+        return InstancesApiFp(this.configuration).listPoolInstances(poolID, outdatedOnly, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -7494,12 +7539,13 @@ export class InstancesApi extends BaseAPI {
      * 
      * @summary List runner instances in a scale set.
      * @param {string} scalesetID Runner scale set ID.
+     * @param {boolean} [outdatedOnly] List only instances that were created prior to a scaleset update that changed a setting which influences how instances are created (image, flavor, runner group, etc).
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof InstancesApi
      */
-    public listScaleSetInstances(scalesetID: string, options?: RawAxiosRequestConfig) {
-        return InstancesApiFp(this.configuration).listScaleSetInstances(scalesetID, options).then((request) => request(this.axios, this.basePath));
+    public listScaleSetInstances(scalesetID: string, outdatedOnly?: boolean, options?: RawAxiosRequestConfig) {
+        return InstancesApiFp(this.configuration).listScaleSetInstances(scalesetID, outdatedOnly, options).then((request) => request(this.axios, this.basePath));
     }
 }
 
@@ -13658,13 +13704,14 @@ export const ToolsApiAxiosParamCreator = function (configuration?: Configuration
     return {
         /**
          * 
-         * @summary List GARM agent tools.
+         * @summary List GARM agent tools for admin users.
          * @param {number} [page] The page at which to list.
          * @param {number} [pageSize] Number of items per page.
+         * @param {boolean} [upstream] If true, list tools from the upstream cached release instead of the local object store.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        garmAgentList: async (page?: number, pageSize?: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        adminGarmAgentList: async (page?: number, pageSize?: number, upstream?: boolean, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             const localVarPath = `/tools/garm-agent`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -13686,6 +13733,10 @@ export const ToolsApiAxiosParamCreator = function (configuration?: Configuration
 
             if (pageSize !== undefined) {
                 localVarQueryParameter['pageSize'] = pageSize;
+            }
+
+            if (upstream !== undefined) {
+                localVarQueryParameter['upstream'] = upstream;
             }
 
 
@@ -13744,16 +13795,17 @@ export const ToolsApiFp = function(configuration?: Configuration) {
     return {
         /**
          * 
-         * @summary List GARM agent tools.
+         * @summary List GARM agent tools for admin users.
          * @param {number} [page] The page at which to list.
          * @param {number} [pageSize] Number of items per page.
+         * @param {boolean} [upstream] If true, list tools from the upstream cached release instead of the local object store.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async garmAgentList(page?: number, pageSize?: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GARMAgentToolsPaginatedResponse>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.garmAgentList(page, pageSize, options);
+        async adminGarmAgentList(page?: number, pageSize?: number, upstream?: boolean, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GARMAgentToolsPaginatedResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.adminGarmAgentList(page, pageSize, upstream, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['ToolsApi.garmAgentList']?.[localVarOperationServerIndex]?.url;
+            const localVarOperationServerBasePath = operationServerMap['ToolsApi.adminGarmAgentList']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -13780,14 +13832,15 @@ export const ToolsApiFactory = function (configuration?: Configuration, basePath
     return {
         /**
          * 
-         * @summary List GARM agent tools.
+         * @summary List GARM agent tools for admin users.
          * @param {number} [page] The page at which to list.
          * @param {number} [pageSize] Number of items per page.
+         * @param {boolean} [upstream] If true, list tools from the upstream cached release instead of the local object store.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        garmAgentList(page?: number, pageSize?: number, options?: RawAxiosRequestConfig): AxiosPromise<GARMAgentToolsPaginatedResponse> {
-            return localVarFp.garmAgentList(page, pageSize, options).then((request) => request(axios, basePath));
+        adminGarmAgentList(page?: number, pageSize?: number, upstream?: boolean, options?: RawAxiosRequestConfig): AxiosPromise<GARMAgentToolsPaginatedResponse> {
+            return localVarFp.adminGarmAgentList(page, pageSize, upstream, options).then((request) => request(axios, basePath));
         },
         /**
          * Uploads a GARM agent tool for a specific OS and architecture. This will automatically replace any existing tool for the same OS/architecture combination.  Uses custom headers for metadata:  X-Tool-Name: Name of the tool  X-Tool-Description: Description  X-Tool-OS-Type: OS type (linux or windows)  X-Tool-OS-Arch: Architecture (amd64 or arm64)  X-Tool-Version: Version string
@@ -13810,15 +13863,16 @@ export const ToolsApiFactory = function (configuration?: Configuration, basePath
 export class ToolsApi extends BaseAPI {
     /**
      * 
-     * @summary List GARM agent tools.
+     * @summary List GARM agent tools for admin users.
      * @param {number} [page] The page at which to list.
      * @param {number} [pageSize] Number of items per page.
+     * @param {boolean} [upstream] If true, list tools from the upstream cached release instead of the local object store.
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof ToolsApi
      */
-    public garmAgentList(page?: number, pageSize?: number, options?: RawAxiosRequestConfig) {
-        return ToolsApiFp(this.configuration).garmAgentList(page, pageSize, options).then((request) => request(this.axios, this.basePath));
+    public adminGarmAgentList(page?: number, pageSize?: number, upstream?: boolean, options?: RawAxiosRequestConfig) {
+        return ToolsApiFp(this.configuration).adminGarmAgentList(page, pageSize, upstream, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

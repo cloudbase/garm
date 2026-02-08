@@ -605,14 +605,14 @@ func (s *RepoTestSuite) TestListPoolInstances() {
 		poolInstances = append(poolInstances, instance)
 	}
 
-	instances, err := s.Runner.ListPoolInstances(s.Fixtures.AdminContext, pool.ID)
+	instances, err := s.Runner.ListPoolInstances(s.Fixtures.AdminContext, pool.ID, false)
 
 	s.Require().Nil(err)
 	garmTesting.EqualDBEntityID(s.T(), poolInstances, instances)
 }
 
 func (s *RepoTestSuite) TestListPoolInstancesErrUnauthorized() {
-	_, err := s.Runner.ListPoolInstances(context.Background(), "dummy-pool-id")
+	_, err := s.Runner.ListPoolInstances(context.Background(), "dummy-pool-id", false)
 
 	s.Require().Equal(runnerErrors.ErrUnauthorized, err)
 }

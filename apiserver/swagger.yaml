@@ -1940,6 +1940,10 @@ paths:
                   name: poolID
                   required: true
                   type: string
+                - description: List only instances that were created prior to a pool update that changed a setting which influences how instances are created (image, flavor, runner group, etc).
+                  in: query
+                  name: outdatedOnly
+                  type: boolean
             responses:
                 "200":
                     description: Instances
@@ -2453,6 +2457,10 @@ paths:
                   name: scalesetID
                   required: true
                   type: string
+                - description: List only instances that were created prior to a scaleset update that changed a setting which influences how instances are created (image, flavor, runner group, etc).
+                  in: query
+                  name: outdatedOnly
+                  type: boolean
             responses:
                 "200":
                     description: Instances

@@ -284,6 +284,7 @@ func (s *sqlDatabase) getEntityScaleSet(tx *gorm.DB, entityType params.ForgeEnti
 }
 
 func (s *sqlDatabase) updateScaleSet(tx *gorm.DB, scaleSet ScaleSet, param params.UpdateScaleSetParams) (params.ScaleSet, error) {
+	incrementGeneration := false
 	if param.Enabled != nil && scaleSet.Enabled != *param.Enabled {
 		scaleSet.Enabled = *param.Enabled
 	}
@@ -306,6 +307,7 @@ func (s *sqlDatabase) updateScaleSet(tx *gorm.DB, scaleSet ScaleSet, param param
 
 	if param.EnableShell != nil {
 		scaleSet.EnableShell = *param.EnableShell
+		incrementGeneration = true
 	}
 
 	if param.Name != "" {
@@ -314,14 +316,17 @@ func (s *sqlDatabase) updateScaleSet(tx *gorm.DB, scaleSet ScaleSet, param param
 
 	if param.GitHubRunnerGroup != nil && *param.GitHubRunnerGroup != "" {
 		scaleSet.GitHubRunnerGroup = *param.GitHubRunnerGroup
+		incrementGeneration = true
 	}
 
 	if param.Flavor != "" {
 		scaleSet.Flavor = param.Flavor
+		incrementGeneration = true
 	}
 
 	if param.Image != "" {
 		scaleSet.Image = param.Image
+		incrementGeneration = true
 	}
 
 	if param.Prefix != "" {
@@ -338,22 +343,25 @@ func (s *sqlDatabase) updateScaleSet(tx *gorm.DB, scaleSet ScaleSet, param param
 
 	if param.OSArch != "" {
 		scaleSet.OSArch = param.OSArch
+		incrementGeneration = true
 	}
 
 	if param.OSType != "" {
 		scaleSet.OSType = param.OSType
+		incrementGeneration = true
 	}
 
 	if param.ExtraSpecs != nil {
 		scaleSet.ExtraSpecs = datatypes.JSON(param.ExtraSpecs)
+		incrementGeneration = true
 	}
 
 	if param.RunnerBootstrapTimeout != nil && *param.RunnerBootstrapTimeout > 0 {
 		scaleSet.RunnerBootstrapTimeout = *param.RunnerBootstrapTimeout
 	}
 
-	if param.GitHubRunnerGroup != nil {
-		scaleSet.GitHubRunnerGroup = *param.GitHubRunnerGroup
+	if incrementGeneration {
+		scaleSet.Generation++
 	}
 
 	if q := tx.Save(&scaleSet); q.Error != nil {

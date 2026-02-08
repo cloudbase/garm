@@ -14,6 +14,7 @@ import (
 	"github.com/go-openapi/runtime"
 	cr "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
+	"github.com/go-openapi/swag"
 )
 
 // NewListPoolInstancesParams creates a new ListPoolInstancesParams object,
@@ -60,6 +61,12 @@ ListPoolInstancesParams contains all the parameters to send to the API endpoint
 	Typically these are written to a http.Request.
 */
 type ListPoolInstancesParams struct {
+
+	/* OutdatedOnly.
+
+	   List only instances that were created prior to a pool update that changed a setting which influences how instances are created (image, flavor, runner group, etc).
+	*/
+	OutdatedOnly *bool
 
 	/* PoolID.
 
@@ -120,6 +127,17 @@ func (o *ListPoolInstancesParams) SetHTTPClient(client *http.Client) {
 	o.HTTPClient = client
 }
 
+// WithOutdatedOnly adds the outdatedOnly to the list pool instances params
+func (o *ListPoolInstancesParams) WithOutdatedOnly(outdatedOnly *bool) *ListPoolInstancesParams {
+	o.SetOutdatedOnly(outdatedOnly)
+	return o
+}
+
+// SetOutdatedOnly adds the outdatedOnly to the list pool instances params
+func (o *ListPoolInstancesParams) SetOutdatedOnly(outdatedOnly *bool) {
+	o.OutdatedOnly = outdatedOnly
+}
+
 // WithPoolID adds the poolID to the list pool instances params
 func (o *ListPoolInstancesParams) WithPoolID(poolID string) *ListPoolInstancesParams {
 	o.SetPoolID(poolID)
@@ -138,6 +156,23 @@ func (o *ListPoolInstancesParams) WriteToRequest(r runtime.ClientRequest, reg st
 		return err
 	}
 	var res []error
+
+	if o.OutdatedOnly != nil {
+
+		// query param outdatedOnly
+		var qrOutdatedOnly bool
+
+		if o.OutdatedOnly != nil {
+			qrOutdatedOnly = *o.OutdatedOnly
+		}
+		qOutdatedOnly := swag.FormatBool(qrOutdatedOnly)
+		if qOutdatedOnly != "" {
+
+			if err := r.SetQueryParam("outdatedOnly", qOutdatedOnly); err != nil {
+				return err
+			}
+		}
+	}
 
 	// path param poolID
 	if err := r.SetPathParam("poolID", o.PoolID); err != nil {
