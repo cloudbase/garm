@@ -1488,6 +1488,14 @@ type PaginatedResponse[T any] struct {
 // swagger:model FileObjectPaginatedResponse
 type FileObjectPaginatedResponse = PaginatedResponse[FileObject]
 
+const (
+	// ToolSourceLocal indicates the tool is stored in the internal object store.
+	ToolSourceLocal = "local"
+	// ToolSourceUpstream indicates the tool is only available from the upstream
+	// cached release and has not been downloaded locally.
+	ToolSourceUpstream = "upstream"
+)
+
 // swagger:model GARMAgentTool
 type GARMAgentTool struct {
 	ID          uint                `json:"id"`
@@ -1507,6 +1515,11 @@ type GARMAgentTool struct {
 	// from a release URL, this will hold the release URL where the tools
 	// originated from.
 	Origin string `json:"origin"`
+	// Source indicates where this tool is currently stored.
+	// "local" means the tool is stored in the internal object store.
+	// "upstream" means the tool is only available from the upstream
+	// cached release and has not been downloaded locally.
+	Source string `json:"source"`
 }
 
 // swagger:model GARMAgentToolsPaginatedResponse

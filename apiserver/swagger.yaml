@@ -2603,7 +2603,7 @@ paths:
                 - templates
     /tools/garm-agent:
         get:
-            operationId: GarmAgentList
+            operationId: AdminGarmAgentList
             parameters:
                 - description: The page at which to list.
                   in: query
@@ -2613,6 +2613,10 @@ paths:
                   in: query
                   name: pageSize
                   type: integer
+                - description: If true, list tools from the upstream cached release instead of the local object store.
+                  in: query
+                  name: upstream
+                  type: boolean
             responses:
                 "200":
                     description: GARMAgentToolsPaginatedResponse
@@ -2622,7 +2626,7 @@ paths:
                     description: APIErrorResponse
                     schema:
                         $ref: '#/definitions/APIErrorResponse'
-            summary: List GARM agent tools.
+            summary: List GARM agent tools for admin users.
             tags:
                 - tools
         post:

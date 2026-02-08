@@ -197,25 +197,29 @@ var controllerToolsListCmd = &cobra.Command{
 	Use:          "list",
 	Aliases:      []string{"ls"},
 	Short:        "List GARM agent tools",
-	Long:         `List all GARM agent tools available in the controller.`,
+	Long:         `List all GARM agent tools available in the controller. Use --upstream to list tools from the upstream cached release.`,
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		if needsInit {
 			return errNeedsInitError
 		}
 
-		showTools := apiClientTools.NewGarmAgentListParams()
+		showTools := apiClientTools.NewAdminGarmAgentListParams()
 		if cmd.Flags().Changed("page") {
 			showTools.Page = &fileObjPage
 		}
 		if cmd.Flags().Changed("page-size") {
 			showTools.PageSize = &fileObjPageSize
 		}
-		response, err := apiCli.Tools.GarmAgentList(showTools, authToken)
+		if cmd.Flags().Changed("upstream") {
+			upstreamVal := true
+			showTools.Upstream = &upstreamVal
+		}
+		response, err := apiCli.Tools.AdminGarmAgentList(showTools, authToken)
 		if err != nil {
 			return err
 		}
-		formatGARMToolsList(response.Payload)
+		formatGARMToolsList(response.Payload, cmd.Flags().Changed("upstream"))
 		return nil
 	},
 }
@@ -521,6 +525,7 @@ func init() {
 
 	controllerToolsListCmd.Flags().Int64Var(&fileObjPage, "page", 0, "The tools page to display")
 	controllerToolsListCmd.Flags().Int64Var(&fileObjPageSize, "page-size", 25, "Total number of results per page")
+	controllerToolsListCmd.Flags().Bool("upstream", false, "List tools from the upstream cached release instead of the local object store")
 
 	controllerToolsUploadCmd.Flags().StringVar(&toolFilePath, "file", "", "Path to the garm-agent binary file (required)")
 	controllerToolsUploadCmd.Flags().StringVar(&toolOSType, "os", "", "Operating system: linux or windows (required)")
@@ -550,16 +555,24 @@ func init() {
 	rootCmd.AddCommand(controllerCmd)
 }
 
-func formatGARMToolsList(files params.GARMAgentToolsPaginatedResponse) {
+func formatGARMToolsList(files params.GARMAgentToolsPaginatedResponse, upstream bool) {
 	if outputFormat == common.OutputFormatJSON {
 		printAsJSON(files)
 		return
 	}
 	t := table.NewWriter()
-	// Define column count
-	numCols := 8
 	t.Style().Options.SeparateHeader = true
 	t.Style().Options.SeparateRows = true
+
+	var numCols int
+	var header table.Row
+	if upstream {
+		numCols = 6
+		header = table.Row{"Name", "Size", "Version", "OS Type", "OS Architecture", "Download URL"}
+	} else {
+		numCols = 8
+		header = table.Row{"ID", "Name", "Size", "Version", "OS Type", "OS Architecture", "Created", "Updated"}
+	}
 
 	// Page header - fill all columns with the same text
 	pageHeaderText := fmt.Sprintf("Page %d of %d", files.CurrentPage, files.Pages)
@@ -571,18 +584,23 @@ func formatGARMToolsList(files params.GARMAgentToolsPaginatedResponse) {
 		AutoMerge:      true,
 		AutoMergeAlign: text.AlignCenter,
 	})
-	// Column headers
-	header := table.Row{"ID", "Name", "Size", "Version", "OS Type", "OS Architecture", "Created", "Updated"}
 	t.AppendHeader(header)
-	// Right-align numeric columns
-	t.SetColumnConfigs([]table.ColumnConfig{
-		{Number: 1, Align: text.AlignRight},
-		{Number: 3, Align: text.AlignRight},
-	})
 
-	for _, val := range files.Results {
-		row := table.Row{val.ID, val.Name, formatSize(val.Size), val.Version, val.OSType, val.OSArch, val.CreatedAt.Format("2006-01-02 15:04:05"), val.UpdatedAt.Format("2006-01-02 15:04:05")}
-		t.AppendRow(row)
+	if upstream {
+		t.SetColumnConfigs([]table.ColumnConfig{
+			{Number: 2, Align: text.AlignRight},
+		})
+		for _, val := range files.Results {
+			t.AppendRow(table.Row{val.Name, formatSize(val.Size), val.Version, val.OSType, val.OSArch, val.DownloadURL})
+		}
+	} else {
+		t.SetColumnConfigs([]table.ColumnConfig{
+			{Number: 1, Align: text.AlignRight},
+			{Number: 3, Align: text.AlignRight},
+		})
+		for _, val := range files.Results {
+			t.AppendRow(table.Row{val.ID, val.Name, formatSize(val.Size), val.Version, val.OSType, val.OSArch, val.CreatedAt, val.UpdatedAt})
+		}
 	}
 	fmt.Println(t.Render())
 }
