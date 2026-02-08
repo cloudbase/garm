@@ -56,7 +56,7 @@ type ClientOption func(*runtime.ClientOperation)
 
 // ClientService is the interface for Client methods
 type ClientService interface {
-	GarmAgentList(params *GarmAgentListParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GarmAgentListOK, error)
+	AdminGarmAgentList(params *AdminGarmAgentListParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*AdminGarmAgentListOK, error)
 
 	UploadGARMAgentTool(params *UploadGARMAgentToolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UploadGARMAgentToolOK, error)
 
@@ -64,22 +64,22 @@ type ClientService interface {
 }
 
 /*
-GarmAgentList lists g a r m agent tools
+AdminGarmAgentList lists g a r m agent tools for admin users
 */
-func (a *Client) GarmAgentList(params *GarmAgentListParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GarmAgentListOK, error) {
+func (a *Client) AdminGarmAgentList(params *AdminGarmAgentListParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*AdminGarmAgentListOK, error) {
 	// TODO: Validate the params before sending
 	if params == nil {
-		params = NewGarmAgentListParams()
+		params = NewAdminGarmAgentListParams()
 	}
 	op := &runtime.ClientOperation{
-		ID:                 "GarmAgentList",
+		ID:                 "AdminGarmAgentList",
 		Method:             "GET",
 		PathPattern:        "/tools/garm-agent",
 		ProducesMediaTypes: []string{"application/json"},
 		ConsumesMediaTypes: []string{"application/json"},
 		Schemes:            []string{"http"},
 		Params:             params,
-		Reader:             &GarmAgentListReader{formats: a.formats},
+		Reader:             &AdminGarmAgentListReader{formats: a.formats},
 		AuthInfo:           authInfo,
 		Context:            params.Context,
 		Client:             params.HTTPClient,
@@ -92,13 +92,13 @@ func (a *Client) GarmAgentList(params *GarmAgentListParams, authInfo runtime.Cli
 	if err != nil {
 		return nil, err
 	}
-	success, ok := result.(*GarmAgentListOK)
+	success, ok := result.(*AdminGarmAgentListOK)
 	if ok {
 		return success, nil
 	}
 	// unexpected success response
 	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
-	msg := fmt.Sprintf("unexpected success response for GarmAgentList: API contract not enforced by server. Client expected to get an error, but got: %T", result)
+	msg := fmt.Sprintf("unexpected success response for AdminGarmAgentList: API contract not enforced by server. Client expected to get an error, but got: %T", result)
 	panic(msg)
 }
 

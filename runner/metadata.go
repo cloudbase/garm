@@ -26,6 +26,7 @@ import (
 	"log/slog"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/cloudbase/garm-provider-common/cloudconfig"
 	"github.com/cloudbase/garm-provider-common/defaults"
@@ -173,30 +174,73 @@ func (r *Runner) getRunnerInstallTemplateContext(instance params.Instance, entit
 	return installRunnerParams, nil
 }
 
-// getAgentTool retrieves the GARM agent tool for the given OS type and architecture.
-// Priority:
-// 1. Tools from object store (manual uploads or synced)
-// 2. Tools from cached upstream release (GitHub release API data)
-// Returns nil if no tools are available from any source.
-func (r *Runner) getAgentTool(ctx context.Context, osType commonParams.OSType, osArch commonParams.OSArch) *params.GARMAgentTool {
+// getUpstreamToolsForGaps returns upstream cached tools for os/arch combinations
+// not already covered by object store tools. If osType and osArch are non-nil,
+// only the matching platform is considered (instance-scoped). If nil, all
+// platforms are considered (admin-scoped).
+func getUpstreamToolsForGaps(objectStoreTools []params.GARMAgentTool, osType *commonParams.OSType, osArch *commonParams.OSArch) []params.GARMAgentTool {
 	ctrlInfo := cache.ControllerInfo()
 
-	// Check object store first (for both manual uploads and synced tools)
-	agentTools, err := r.GetGARMTools(ctx, 0, 100)
-	if err != nil && !errors.Is(err, runnerErrors.ErrNotFound) {
-		slog.WarnContext(ctx, "failed to query garm agent tools", "error", err)
+	// Check staleness - don't use cached data older than 24 hours
+	if ctrlInfo.CachedGARMAgentReleaseFetchedAt == nil {
+		return nil
+	}
+	if time.Since(*ctrlInfo.CachedGARMAgentReleaseFetchedAt) > 24*time.Hour {
+		return nil
+	}
+	if ctrlInfo.CachedGARMAgentTools == nil {
+		return nil
 	}
 
-	// Filter results to match the requested OS type and architecture
-	for _, tool := range agentTools.Results {
-		if tool.OSType == osType && tool.OSArch == osArch {
-			return &tool
+	// Build set of os_type/os_arch keys already covered by object store tools
+	covered := make(map[string]bool, len(objectStoreTools))
+	for _, tool := range objectStoreTools {
+		covered[string(tool.OSType)+"/"+string(tool.OSArch)] = true
+	}
+
+	var result []params.GARMAgentTool
+	for key, tool := range ctrlInfo.CachedGARMAgentTools {
+		if covered[key] {
+			continue
+		}
+		// For instance-scoped calls, only include matching os/arch
+		if osType != nil && osArch != nil {
+			if tool.OSType != *osType || tool.OSArch != *osArch {
+				continue
+			}
+		}
+		tool.Source = params.ToolSourceUpstream
+		result = append(result, tool)
+	}
+	return result
+}
+
+// getInstanceAgentTool retrieves the GARM agent tool for the given instance.
+// It first checks the local object store, then falls back to upstream cached tools.
+// Returns nil if no tools are available from any source.
+func (r *Runner) getInstanceAgentTool(instance params.Instance) *params.GARMAgentTool {
+	tags := []string{
+		garmAgentFileTag,
+		"os_type=" + string(instance.OSType),
+		"os_arch=" + string(instance.OSArch),
+	}
+	files, err := r.store.SearchFileObjectByTags(r.ctx, tags, 0, 1)
+	if err == nil && files.TotalCount > 0 {
+		downloadURL, err := url.JoinPath(instance.MetadataURL, "tools/garm-agent", fmt.Sprintf("%d", files.Results[0].ID), "download")
+		if err == nil {
+			tool, err := fileObjectToGARMTool(files.Results[0], downloadURL)
+			if err == nil {
+				return &tool
+			}
 		}
 	}
 
-	// No tools in object store - fall back to cached upstream release data
-	tool := ctrlInfo.GetCachedAgentTool(string(osType), string(osArch))
-	return tool
+	// Fall back to upstream cached tools
+	upstreamTools := getUpstreamToolsForGaps(nil, &instance.OSType, &instance.OSArch)
+	if len(upstreamTools) > 0 {
+		return &upstreamTools[0]
+	}
+	return nil
 }
 
 func (r *Runner) GetInstanceMetadata(ctx context.Context) (params.InstanceMetadata, error) {
@@ -267,7 +311,7 @@ func (r *Runner) GetInstanceMetadata(ctx context.Context) (params.InstanceMetada
 	}
 
 	if dbEntity.AgentMode {
-		agentTool := r.getAgentTool(ctx, instance.OSType, instance.OSArch)
+		agentTool := r.getInstanceAgentTool(instance)
 
 		// If we have tools, set agent metadata
 		if agentTool != nil {
@@ -588,22 +632,81 @@ func fileObjectToGARMTool(obj params.FileObject, downloadURL string) (params.GAR
 		DownloadURL: downloadURL,
 		Version:     version,
 		Origin:      origin,
+		Source:      params.ToolSourceLocal,
 	}
 	return res, nil
 }
 
-func (r *Runner) GetGARMTools(ctx context.Context, page, pageSize uint64) (params.GARMAgentToolsPaginatedResponse, error) {
+// GetGARMTools lists GARM agent tools available to admin users.
+// When upstream is false, it lists tools from the local object store.
+// When upstream is true, it lists tools from the cached upstream release JSON.
+func (r *Runner) GetGARMTools(ctx context.Context, page, pageSize uint64, upstream bool) (params.GARMAgentToolsPaginatedResponse, error) {
+	if !auth.IsAdmin(ctx) {
+		return params.GARMAgentToolsPaginatedResponse{}, runnerErrors.ErrUnauthorized
+	}
+
+	if upstream {
+		return r.getUpstreamGARMTools()
+	}
+
 	tags := []string{
 		garmAgentFileTag,
 	}
+	metadataURL := cache.ControllerInfo().MetadataURL
+
+	files, err := r.store.SearchFileObjectByTags(r.ctx, tags, page, pageSize)
+	if err != nil {
+		return params.GARMAgentToolsPaginatedResponse{}, fmt.Errorf("failed to list files: %w", err)
+	}
+
+	var tools []params.GARMAgentTool
+	for _, val := range files.Results {
+		objectIDAsString := fmt.Sprintf("%d", val.ID)
+		downloadURL, err := url.JoinPath(metadataURL, "tools/garm-agent", objectIDAsString, "download")
+		if err != nil {
+			return params.GARMAgentToolsPaginatedResponse{}, fmt.Errorf("failed to construct agent tools download URL: %w", err)
+		}
+		res, err := fileObjectToGARMTool(val, downloadURL)
+		if err != nil {
+			return params.GARMAgentToolsPaginatedResponse{}, fmt.Errorf("failed parse tools object: %w", err)
+		}
+		tools = append(tools, res)
+	}
+
+	return params.GARMAgentToolsPaginatedResponse{
+		TotalCount:   files.TotalCount,
+		Pages:        files.Pages,
+		CurrentPage:  files.CurrentPage,
+		NextPage:     files.NextPage,
+		PreviousPage: files.PreviousPage,
+		Results:      tools,
+	}, nil
+}
+
+// getUpstreamGARMTools returns tools from the cached upstream release JSON.
+func (r *Runner) getUpstreamGARMTools() (params.GARMAgentToolsPaginatedResponse, error) {
+	upstreamTools := getUpstreamToolsForGaps(nil, nil, nil)
+	return params.GARMAgentToolsPaginatedResponse{
+		TotalCount:  uint64(len(upstreamTools)),
+		Pages:       1,
+		CurrentPage: 0,
+		Results:     upstreamTools,
+	}, nil
+}
+
+// GetAgentGARMTools lists GARM agent tools available for an instance, filtered by
+// the instance's OS type and architecture. On the last page, upstream cached tools
+// are merged to fill gaps for os/arch combos not present in the local object store.
+func (r *Runner) GetAgentGARMTools(ctx context.Context, page, pageSize uint64) (params.GARMAgentToolsPaginatedResponse, error) {
 	instance, err := validateInstanceState(ctx)
 	if err != nil {
-		if !auth.IsAdmin(ctx) {
-			return params.GARMAgentToolsPaginatedResponse{}, runnerErrors.ErrUnauthorized
-		}
-	} else {
-		tags = append(tags, "os_type="+string(instance.OSType))
-		tags = append(tags, "os_arch="+string(instance.OSArch))
+		return params.GARMAgentToolsPaginatedResponse{}, runnerErrors.ErrUnauthorized
+	}
+
+	tags := []string{
+		garmAgentFileTag,
+		"os_type=" + string(instance.OSType),
+		"os_arch=" + string(instance.OSArch),
 	}
 
 	files, err := r.store.SearchFileObjectByTags(r.ctx, tags, page, pageSize)
@@ -624,6 +727,14 @@ func (r *Runner) GetGARMTools(ctx context.Context, page, pageSize uint64) (param
 		}
 		tools = append(tools, res)
 	}
+
+	// On the last page, merge upstream cached tools that fill gaps
+	// (os/arch combos not present in the object store).
+	if files.NextPage == nil {
+		upstreamTools := getUpstreamToolsForGaps(tools, &instance.OSType, &instance.OSArch)
+		tools = append(tools, upstreamTools...)
+	}
+
 	return params.GARMAgentToolsPaginatedResponse{
 		TotalCount:   files.TotalCount,
 		Pages:        files.Pages,

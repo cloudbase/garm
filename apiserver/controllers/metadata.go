@@ -85,7 +85,65 @@ func (a *APIController) InstanceGARMToolsHandler(w http.ResponseWriter, r *http.
 		}
 	}
 
-	tools, err := a.r.GetGARMTools(ctx, uint64(pageLocation), uint64(pageSize))
+	tools, err := a.r.GetAgentGARMTools(ctx, uint64(pageLocation), uint64(pageSize))
+	if err != nil {
+		handleError(ctx, w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(tools); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
+	}
+}
+
+// swagger:route GET /tools/garm-agent tools AdminGarmAgentList
+//
+// List GARM agent tools for admin users.
+//
+//	Parameters:
+//	  + name: page
+//	    description: The page at which to list.
+//	    type: integer
+//	    in: query
+//	    required: false
+//	  + name: pageSize
+//	    description: Number of items per page.
+//	    type: integer
+//	    in: query
+//	    required: false
+//	  + name: upstream
+//	    description: If true, list tools from the upstream cached release instead of the local object store.
+//	    type: boolean
+//	    in: query
+//	    required: false
+//
+//	Responses:
+//	  200: GARMAgentToolsPaginatedResponse
+//	  400: APIErrorResponse
+func (a *APIController) AdminGARMToolsHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var pageLocation int64
+	var pageSize int64 = 25
+	pageArg := r.URL.Query().Get("page")
+	pageSizeArg := r.URL.Query().Get("pageSize")
+
+	if pageArg != "" {
+		pageInt, err := strconv.ParseInt(pageArg, 10, 64)
+		if err == nil && pageInt >= 0 {
+			pageLocation = pageInt
+		}
+	}
+	if pageSizeArg != "" {
+		pageSizeInt, err := strconv.ParseInt(pageSizeArg, 10, 64)
+		if err == nil && pageSizeInt >= 0 {
+			pageSize = pageSizeInt
+		}
+	}
+
+	upstream := r.URL.Query().Get("upstream") == "true"
+	tools, err := a.r.GetGARMTools(ctx, uint64(pageLocation), uint64(pageSize), upstream)
 	if err != nil {
 		handleError(ctx, w, err)
 		return

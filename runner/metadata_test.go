@@ -23,6 +23,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
@@ -739,6 +740,11 @@ func (s *MetadataTestSuite) TestGetInstanceMetadataBasicFields() {
 }
 
 func (s *MetadataTestSuite) TestGetInstanceMetadataWithAgentModeNoTools() {
+	// Clear any upstream tools from controller cache (may be set by other tests)
+	cache.SetControllerCache(params.ControllerInfo{
+		MetadataURL: "http://metadata.example.com",
+	})
+
 	// Set up runner tools cache
 	tools := []commonParams.RunnerApplicationDownload{
 		{
@@ -789,6 +795,11 @@ func (s *MetadataTestSuite) TestGetInstanceMetadataAgentModeDisabledByDefault() 
 }
 
 func (s *MetadataTestSuite) TestGetInstanceMetadataWithAgentModeToolsCountZero() {
+	// Clear any upstream tools from controller cache (may be set by other tests)
+	cache.SetControllerCache(params.ControllerInfo{
+		MetadataURL: "http://metadata.example.com",
+	})
+
 	// Set up runner tools cache
 	tools := []commonParams.RunnerApplicationDownload{
 		{
@@ -820,6 +831,11 @@ func (s *MetadataTestSuite) TestGetInstanceMetadataWithAgentModeToolsCountZero()
 }
 
 func (s *MetadataTestSuite) TestGetInstanceMetadataWithAgentModeGetToolsReturnsNotFoundError() {
+	// Clear any upstream tools from controller cache (may be set by other tests)
+	cache.SetControllerCache(params.ControllerInfo{
+		MetadataURL: "http://metadata.example.com",
+	})
+
 	// Set up runner tools cache
 	tools := []commonParams.RunnerApplicationDownload{
 		{
@@ -980,25 +996,159 @@ func (s *MetadataTestSuite) TestFileObjectToGARMTool() {
 }
 
 func (s *MetadataTestSuite) TestGetGARMTools() {
-	// GetGARMTools requires file objects in database
-	// This is tested in file_store_test.go and garm_tools_test.go
-	// Here we just test the authorization paths
-	_, err := s.Runner.GetGARMTools(s.instanceCtx, 0, 25)
+	// GetGARMTools is admin-only, should succeed for admin context
+	_, err := s.Runner.GetGARMTools(s.adminCtx, 0, 25, false)
+	s.Require().NoError(err)
+}
 
-	// Should not error on authorization (might have no results)
+func (s *MetadataTestSuite) TestGetAgentGARMTools() {
+	// GetAgentGARMTools is instance-only, should succeed for instance context
+	_, err := s.Runner.GetAgentGARMTools(s.instanceCtx, 0, 25)
 	s.Require().NoError(err)
 }
 
 func (s *MetadataTestSuite) TestGetGARMToolsUnauthorized() {
-	_, err := s.Runner.GetGARMTools(s.unauthorizedCtx, 0, 25)
+	_, err := s.Runner.GetGARMTools(s.unauthorizedCtx, 0, 25, false)
 	s.Require().NotNil(err)
 	s.Require().ErrorIs(err, runnerErrors.ErrUnauthorized)
 }
 
-func (s *MetadataTestSuite) TestGetGARMToolsInvalidState() {
-	_, err := s.Runner.GetGARMTools(s.invalidInstanceCtx, 0, 25)
+func (s *MetadataTestSuite) TestGetGARMToolsInstanceUnauthorized() {
+	// GetGARMTools is admin-only, instance context should fail
+	_, err := s.Runner.GetGARMTools(s.instanceCtx, 0, 25, false)
 	s.Require().NotNil(err)
 	s.Require().ErrorIs(err, runnerErrors.ErrUnauthorized)
+}
+
+func (s *MetadataTestSuite) TestGetAgentGARMToolsUnauthorized() {
+	_, err := s.Runner.GetAgentGARMTools(s.unauthorizedCtx, 0, 25)
+	s.Require().NotNil(err)
+	s.Require().ErrorIs(err, runnerErrors.ErrUnauthorized)
+}
+
+func (s *MetadataTestSuite) TestGetAgentGARMToolsInvalidState() {
+	_, err := s.Runner.GetAgentGARMTools(s.invalidInstanceCtx, 0, 25)
+	s.Require().NotNil(err)
+	s.Require().ErrorIs(err, runnerErrors.ErrUnauthorized)
+}
+
+func (s *MetadataTestSuite) TestGetAgentGARMToolsMergesUpstreamTools() {
+	// Set up controller cache with upstream tools but no object store tools
+	now := time.Now()
+	cache.SetControllerCache(params.ControllerInfo{
+		MetadataURL:                     "http://metadata.example.com",
+		CachedGARMAgentReleaseFetchedAt: &now,
+		CachedGARMAgentTools: map[string]params.GARMAgentTool{
+			"linux/amd64": {
+				Name:        "garm-agent-linux-amd64",
+				Version:     "v0.1.0",
+				OSType:      commonParams.Linux,
+				OSArch:      commonParams.Amd64,
+				DownloadURL: "https://github.com/example/releases/download/v0.1.0/garm-agent-linux-amd64",
+			},
+			"linux/arm64": {
+				Name:        "garm-agent-linux-arm64",
+				Version:     "v0.1.0",
+				OSType:      commonParams.Linux,
+				OSArch:      commonParams.Arm64,
+				DownloadURL: "https://github.com/example/releases/download/v0.1.0/garm-agent-linux-arm64",
+			},
+		},
+	})
+
+	// Instance context filters to linux/amd64 - should get the upstream tool
+	result, err := s.Runner.GetAgentGARMTools(s.instanceCtx, 0, 25)
+	s.Require().NoError(err)
+	s.Require().Len(result.Results, 1)
+	s.Require().Equal("garm-agent-linux-amd64", result.Results[0].Name)
+	s.Require().Equal(params.ToolSourceUpstream, result.Results[0].Source)
+}
+
+func (s *MetadataTestSuite) TestGetAgentGARMToolsObjectStoreOverridesUpstream() {
+	// Set up controller cache with upstream tools
+	now := time.Now()
+	cache.SetControllerCache(params.ControllerInfo{
+		MetadataURL:                     "http://metadata.example.com",
+		CachedGARMAgentReleaseFetchedAt: &now,
+		CachedGARMAgentTools: map[string]params.GARMAgentTool{
+			"linux/amd64": {
+				Name:        "garm-agent-linux-amd64",
+				Version:     "v0.1.0",
+				OSType:      commonParams.Linux,
+				OSArch:      commonParams.Amd64,
+				DownloadURL: "https://github.com/example/releases/download/v0.1.0/garm-agent-linux-amd64",
+			},
+			"linux/arm64": {
+				Name:        "garm-agent-linux-arm64",
+				Version:     "v0.1.0",
+				OSType:      commonParams.Linux,
+				OSArch:      commonParams.Arm64,
+				DownloadURL: "https://github.com/example/releases/download/v0.1.0/garm-agent-linux-arm64",
+			},
+		},
+	})
+
+	// Create object store tool for linux/amd64
+	agentBinary := []byte("fake garm agent binary")
+	_, err := s.Runner.CreateGARMTool(s.adminCtx, params.CreateGARMToolParams{
+		Name:    "garm-agent-linux-amd64",
+		Size:    int64(len(agentBinary)),
+		OSType:  commonParams.Linux,
+		OSArch:  commonParams.Amd64,
+		Version: "v1.0.0",
+	}, bytes.NewReader(agentBinary))
+	s.Require().NoError(err)
+
+	// Instance is linux/amd64 - should get local tool, not upstream
+	result, err := s.Runner.GetAgentGARMTools(s.instanceCtx, 0, 25)
+	s.Require().NoError(err)
+	s.Require().Len(result.Results, 1)
+	s.Require().Equal(params.ToolSourceLocal, result.Results[0].Source)
+	s.Require().Equal("v1.0.0", result.Results[0].Version)
+}
+
+func (s *MetadataTestSuite) TestGetAgentGARMToolsStaleUpstreamNotIncluded() {
+	// Set up controller cache with stale upstream tools (>24h old)
+	staleTime := time.Now().Add(-25 * time.Hour)
+	cache.SetControllerCache(params.ControllerInfo{
+		MetadataURL:                     "http://metadata.example.com",
+		CachedGARMAgentReleaseFetchedAt: &staleTime,
+		CachedGARMAgentTools: map[string]params.GARMAgentTool{
+			"linux/amd64": {
+				Name:    "garm-agent-linux-amd64",
+				Version: "v0.1.0",
+				OSType:  commonParams.Linux,
+				OSArch:  commonParams.Amd64,
+			},
+		},
+	})
+
+	// Instance context - stale upstream tools should not be included
+	result, err := s.Runner.GetAgentGARMTools(s.instanceCtx, 0, 25)
+	s.Require().NoError(err)
+	s.Require().Empty(result.Results)
+}
+
+func (s *MetadataTestSuite) TestGetGARMToolsAdminNoUpstream() {
+	// Set up controller cache with upstream tools but no object store tools
+	now := time.Now()
+	cache.SetControllerCache(params.ControllerInfo{
+		MetadataURL:                     "http://metadata.example.com",
+		CachedGARMAgentReleaseFetchedAt: &now,
+		CachedGARMAgentTools: map[string]params.GARMAgentTool{
+			"linux/amd64": {
+				Name:    "garm-agent-linux-amd64",
+				Version: "v0.1.0",
+				OSType:  commonParams.Linux,
+				OSArch:  commonParams.Amd64,
+			},
+		},
+	})
+
+	// Admin context should NOT include upstream tools
+	result, err := s.Runner.GetGARMTools(s.adminCtx, 0, 25, false)
+	s.Require().NoError(err)
+	s.Require().Empty(result.Results)
 }
 
 func (s *MetadataTestSuite) TestShowGARMToolsUnauthorized() {
