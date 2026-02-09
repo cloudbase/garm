@@ -63,6 +63,7 @@ import Tooltip from '$lib/components/Tooltip.svelte';
 		tools_metadata_url: '',
 		use_internal_tools_metadata: false
 	};
+	let selectedCertFileName = '';
 	// Track original values for comparison during updates
 	let originalFormData: typeof formData = { ...formData };
 
@@ -212,6 +213,8 @@ import Tooltip from '$lib/components/Tooltip.svelte';
 		};
 		// Store original values for comparison
 		originalFormData = { ...formData };
+		// Set certificate file name indication if a certificate exists
+		selectedCertFileName = formData.ca_cert_bundle ? 'certificate.pem' : '';
 		showEditModal = true;
 	}
 
@@ -233,6 +236,7 @@ import Tooltip from '$lib/components/Tooltip.svelte';
 			use_internal_tools_metadata: false
 		};
 		originalFormData = { ...formData };
+		selectedCertFileName = '';
 	}
 
 	function handleKeydown(event: KeyboardEvent) {
@@ -419,18 +423,30 @@ import Tooltip from '$lib/components/Tooltip.svelte';
 	function handleFileUpload(event: Event) {
 		const target = event.target as HTMLInputElement;
 		const file = target.files?.[0];
-		
+
 		if (!file) {
 			formData.ca_cert_bundle = '';
+			selectedCertFileName = '';
 			return;
 		}
 
+		selectedCertFileName = file.name;
 		const reader = new FileReader();
 		reader.onload = (e) => {
 			const content = e.target?.result as string;
 			formData.ca_cert_bundle = btoa(content);
 		};
 		reader.readAsText(file);
+	}
+
+	function clearCertificate() {
+		formData.ca_cert_bundle = '';
+		selectedCertFileName = '';
+		// Reset the file input
+		const fileInput = document.getElementById('ca_cert_file') as HTMLInputElement;
+		if (fileInput) fileInput.value = '';
+		const editFileInput = document.getElementById('edit_ca_cert_file') as HTMLInputElement;
+		if (editFileInput) editFileInput.value = '';
 	}
 
 	// Reactive form validation
@@ -634,7 +650,7 @@ import Tooltip from '$lib/components/Tooltip.svelte';
 					<!-- Gitea-specific tools metadata fields -->
 					<div>
 						<div class="flex items-center mb-1">
-							<label for="tools_metadata_url" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+							<label for="tools_metadata_url" class="block text-sm font-medium {formData.use_internal_tools_metadata ? 'text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-300'}">
 								Tools Metadata URL <span class="text-xs text-gray-500">(optional)</span>
 							</label>
 							<div class="ml-2">
@@ -650,11 +666,12 @@ import Tooltip from '$lib/components/Tooltip.svelte';
 							type="url"
 							id="tools_metadata_url"
 							bind:value={formData.tools_metadata_url}
+							disabled={formData.use_internal_tools_metadata}
 							autocomplete="off"
-							class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+							class="w-full px-3 py-2 border rounded-md focus:outline-none transition-colors {formData.use_internal_tools_metadata ? 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed' : 'border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white'}"
 							placeholder="https://gitea.com/api/v1/repos/gitea/act_runner/releases"
 						/>
-						<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Leave empty to use default Gitea releases URL</p>
+						<p class="text-xs {formData.use_internal_tools_metadata ? 'text-gray-400 dark:text-gray-500' : 'text-gray-500 dark:text-gray-400'} mt-1">{formData.use_internal_tools_metadata ? 'Disabled when using internal tools metadata' : 'Leave empty to use default Gitea releases URL'}</p>
 					</div>
 
 					<div class="flex items-center">
@@ -681,7 +698,7 @@ import Tooltip from '$lib/components/Tooltip.svelte';
 				<!-- CA Certificate Upload -->
 				<div class="space-y-3 border-t border-gray-200 dark:border-gray-700 pt-4">
 					<label for="ca_cert_file" class="block text-sm font-medium text-gray-700 dark:text-gray-300">CA Certificate Bundle (Optional)</label>
-					<div class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 text-center hover:border-blue-400 dark:hover:border-blue-400 transition-colors">
+					<div class="border-2 border-dashed rounded-lg p-4 text-center transition-colors {selectedCertFileName ? 'border-green-500 dark:border-green-400 bg-green-50 dark:bg-green-900/20' : 'border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-400'}">
 						<input
 							type="file"
 							id="ca_cert_file"
@@ -689,18 +706,38 @@ import Tooltip from '$lib/components/Tooltip.svelte';
 							on:change={handleFileUpload}
 							class="hidden"
 						/>
-						<div class="space-y-2">
-							<svg class="mx-auto h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-							</svg>
-							<p class="text-sm text-gray-600 dark:text-gray-400">
-								<button type="button" on:click={() => document.getElementById('ca_cert_file')?.click()} class="text-gray-900 dark:text-white hover:text-gray-700 dark:hover:text-gray-300 hover:underline cursor-pointer">
-									Choose a file
-								</button>
-								or drag and drop
-							</p>
-							<p class="text-xs text-gray-500 dark:text-gray-400">PEM, CRT, CER, CERT files only</p>
-						</div>
+						{#if selectedCertFileName}
+							<div class="space-y-2">
+								<svg class="mx-auto h-8 w-8 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+								</svg>
+								<p class="text-sm font-medium text-green-700 dark:text-green-300">
+									{selectedCertFileName}
+								</p>
+								<div class="flex justify-center space-x-2">
+									<button type="button" on:click={() => document.getElementById('ca_cert_file')?.click()} class="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline cursor-pointer">
+										Replace
+									</button>
+									<span class="text-xs text-gray-400">•</span>
+									<button type="button" on:click={clearCertificate} class="text-xs text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 hover:underline cursor-pointer">
+										Remove
+									</button>
+								</div>
+							</div>
+						{:else}
+							<div class="space-y-2">
+								<svg class="mx-auto h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+								</svg>
+								<p class="text-sm text-gray-600 dark:text-gray-400">
+									<button type="button" on:click={() => document.getElementById('ca_cert_file')?.click()} class="text-gray-900 dark:text-white hover:text-gray-700 dark:hover:text-gray-300 hover:underline cursor-pointer">
+										Choose a file
+									</button>
+									or drag and drop
+								</p>
+								<p class="text-xs text-gray-500 dark:text-gray-400">PEM, CRT, CER, CERT files only</p>
+							</div>
+						{/if}
 					</div>
 				</div>
 
@@ -834,7 +871,7 @@ import Tooltip from '$lib/components/Tooltip.svelte';
 					<!-- Gitea-specific tools metadata fields -->
 					<div>
 						<div class="flex items-center mb-1">
-							<label for="edit_tools_metadata_url" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+							<label for="edit_tools_metadata_url" class="block text-sm font-medium {formData.use_internal_tools_metadata ? 'text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-300'}">
 								Tools Metadata URL <span class="text-xs text-gray-500">(optional)</span>
 							</label>
 							<div class="ml-2">
@@ -850,11 +887,12 @@ import Tooltip from '$lib/components/Tooltip.svelte';
 							type="url"
 							id="edit_tools_metadata_url"
 							bind:value={formData.tools_metadata_url}
+							disabled={formData.use_internal_tools_metadata}
 							autocomplete="off"
-							class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+							class="w-full px-3 py-2 border rounded-md focus:outline-none transition-colors {formData.use_internal_tools_metadata ? 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed' : 'border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white'}"
 							placeholder="https://gitea.com/api/v1/repos/gitea/act_runner/releases"
 						/>
-						<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Leave empty to use default Gitea releases URL</p>
+						<p class="text-xs {formData.use_internal_tools_metadata ? 'text-gray-400 dark:text-gray-500' : 'text-gray-500 dark:text-gray-400'} mt-1">{formData.use_internal_tools_metadata ? 'Disabled when using internal tools metadata' : 'Leave empty to use default Gitea releases URL'}</p>
 					</div>
 
 					<div class="flex items-center">
@@ -881,7 +919,7 @@ import Tooltip from '$lib/components/Tooltip.svelte';
 				<!-- CA Certificate Upload -->
 				<div class="space-y-3 border-t border-gray-200 dark:border-gray-700 pt-4">
 					<label for="edit_ca_cert_file" class="block text-sm font-medium text-gray-700 dark:text-gray-300">CA Certificate Bundle (Optional)</label>
-					<div class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 text-center hover:border-blue-400 dark:hover:border-blue-400 transition-colors">
+					<div class="border-2 border-dashed rounded-lg p-4 text-center transition-colors {selectedCertFileName ? 'border-green-500 dark:border-green-400 bg-green-50 dark:bg-green-900/20' : 'border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-400'}">
 						<input
 							type="file"
 							id="edit_ca_cert_file"
@@ -889,18 +927,38 @@ import Tooltip from '$lib/components/Tooltip.svelte';
 							on:change={handleFileUpload}
 							class="hidden"
 						/>
-						<div class="space-y-2">
-							<svg class="mx-auto h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-							</svg>
-							<p class="text-sm text-gray-600 dark:text-gray-400">
-								<button type="button" on:click={() => document.getElementById('edit_ca_cert_file')?.click()} class="text-gray-900 dark:text-white hover:text-gray-700 dark:hover:text-gray-300 hover:underline cursor-pointer">
-									Choose a file
-								</button>
-								or drag and drop
-							</p>
-							<p class="text-xs text-gray-500 dark:text-gray-400">PEM, CRT, CER, CERT files only</p>
-						</div>
+						{#if selectedCertFileName}
+							<div class="space-y-2">
+								<svg class="mx-auto h-8 w-8 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+								</svg>
+								<p class="text-sm font-medium text-green-700 dark:text-green-300">
+									{selectedCertFileName}
+								</p>
+								<div class="flex justify-center space-x-2">
+									<button type="button" on:click={() => document.getElementById('edit_ca_cert_file')?.click()} class="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline cursor-pointer">
+										Replace
+									</button>
+									<span class="text-xs text-gray-400">•</span>
+									<button type="button" on:click={clearCertificate} class="text-xs text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 hover:underline cursor-pointer">
+										Remove
+									</button>
+								</div>
+							</div>
+						{:else}
+							<div class="space-y-2">
+								<svg class="mx-auto h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+								</svg>
+								<p class="text-sm text-gray-600 dark:text-gray-400">
+									<button type="button" on:click={() => document.getElementById('edit_ca_cert_file')?.click()} class="text-gray-900 dark:text-white hover:text-gray-700 dark:hover:text-gray-300 hover:underline cursor-pointer">
+										Choose a file
+									</button>
+									or drag and drop
+								</p>
+								<p class="text-xs text-gray-500 dark:text-gray-400">PEM, CRT, CER, CERT files only</p>
+							</div>
+						{/if}
 					</div>
 				</div>
 
