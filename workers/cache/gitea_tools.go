@@ -183,15 +183,8 @@ func getTools(ctx context.Context, metadataURL string, useInternal bool) ([]comm
 		latest, err = getReleasesFromURL(ctx, metadataURL)
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to get tools from metadata URL", "error", err)
-			if metadataURL != appdefaults.GiteaRunnerReleasesURL {
-				slog.InfoContext(ctx, "attempting to get tools from default upstream", "tools_url", appdefaults.GiteaRunnerReleasesURL)
-				latest, err = getReleasesFromURL(ctx, appdefaults.GiteaRunnerReleasesURL)
-			}
+			return nil, fmt.Errorf("failed to get tools: %w", err)
 		}
-	}
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to get tools: %w", err)
 	}
 
 	ret := []commonParams.RunnerApplicationDownload{}
