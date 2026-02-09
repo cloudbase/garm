@@ -591,7 +591,6 @@ func withGiteaURLs(client *github.Client, apiBaseURL string) (*github.Client, er
 }
 
 func Client(ctx context.Context, entity params.ForgeEntity) (common.GithubClient, error) {
-	// func GithubClient(ctx context.Context, entity params.ForgeEntity) (common.GithubClient, error) {
 	httpClient, err := entity.Credentials.GetHTTPClient(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching http client: %w", err)

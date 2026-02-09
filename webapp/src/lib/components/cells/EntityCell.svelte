@@ -3,7 +3,7 @@
 	import { onMount, onDestroy } from 'svelte';
 
 	export let item: any;
-	export let entityType: 'repository' | 'organization' | 'enterprise' | 'pool' | 'scaleset' | 'instance' | 'template' | 'object' = 'repository';
+	export let entityType: 'repository' | 'organization' | 'enterprise' | 'pool' | 'scaleset' | 'instance' | 'template' | 'object' | 'credentials' = 'repository';
 	export let showOwner: boolean = false;
 	export let showId: boolean = false;
 	export let fontMono: boolean = false;
@@ -78,6 +78,8 @@
 				return item.name || 'Unknown';
 			case 'object':
 				return item.name || 'Unknown';
+			case 'credentials':
+				return item.name || 'Unknown';
 			default:
 				return item.name || item.id || 'Unknown';
 		}
@@ -98,7 +100,7 @@
 				entityId = item.id || item.name;
 				break;
 		}
-		
+
 		if (!entityId) return '#';
 
 		switch (entityType) {
@@ -118,6 +120,8 @@
 				return resolve(`/templates/${entityId}`);
 			case 'object':
 				return resolve(`/objects/${entityId}`);
+			case 'credentials':
+				return resolve(`/credentials/${entityId}`);
 			default:
 				return '#';
 		}
