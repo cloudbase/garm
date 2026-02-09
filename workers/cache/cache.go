@@ -25,6 +25,7 @@ import (
 	"github.com/cloudbase/garm/cache"
 	"github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/database/watcher"
+	"github.com/cloudbase/garm/metrics"
 	"github.com/cloudbase/garm/params"
 	garmUtil "github.com/cloudbase/garm/util"
 	"github.com/cloudbase/garm/util/github"
@@ -588,6 +589,25 @@ func (w *Worker) rateLimitLoop() {
 						Reset:     core.Reset.Unix(),
 					}
 					cache.SetCredentialsRateLimit(creds.ID, limit)
+
+					// Record Prometheus metrics
+					credID := fmt.Sprintf("%d", creds.ID)
+					credName := creds.Name
+					endpoint := creds.Endpoint.Name
+					if endpoint == "" {
+						endpoint = creds.BaseURL
+					}
+
+					labels := map[string]string{
+						"credential_name": credName,
+						"credential_id":   credID,
+						"endpoint":        endpoint,
+					}
+
+					metrics.GithubRateLimitLimit.With(labels).Set(float64(core.Limit))
+					metrics.GithubRateLimitRemaining.With(labels).Set(float64(core.Remaining))
+					metrics.GithubRateLimitUsed.With(labels).Set(float64(core.Used))
+					metrics.GithubRateLimitResetTimestamp.With(labels).Set(float64(core.Reset.Unix()))
 				}
 			}
 		}
