@@ -436,11 +436,11 @@
 
 	// DataTable configuration
 	const columns = [
-		{ 
-			key: 'name', 
+		{
+			key: 'name',
 			title: 'Name',
-			cellComponent: GenericCell,
-			cellProps: { field: 'name' }
+			cellComponent: EntityCell,
+			cellProps: { field: 'name', entityType: 'credentials' }
 		},
 		{ 
 			key: 'description', 
@@ -467,12 +467,12 @@
 		}
 	];
 
-	// Mobile card configuration  
+	// Mobile card configuration
 	const mobileCardConfig = {
 		entityType: 'credential' as const,
 		primaryText: {
 			field: 'name',
-			isClickable: false
+			isClickable: true
 		},
 		secondaryText: {
 			field: 'description'
