@@ -30,4 +30,33 @@ var (
 		Name:      "errors_total",
 		Help:      "Total number of failed github operation attempts",
 	}, []string{"operation", "scope"})
+
+	// GitHub rate limit metrics
+	GithubRateLimitLimit = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: metricsNamespace,
+		Subsystem: metricsGithubSubsystem,
+		Name:      "rate_limit_limit",
+		Help:      "The maximum number of requests allowed per hour for GitHub API",
+	}, []string{"credential_name", "credential_id", "endpoint"})
+
+	GithubRateLimitRemaining = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: metricsNamespace,
+		Subsystem: metricsGithubSubsystem,
+		Name:      "rate_limit_remaining",
+		Help:      "The number of requests remaining in the current rate limit window",
+	}, []string{"credential_name", "credential_id", "endpoint"})
+
+	GithubRateLimitUsed = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: metricsNamespace,
+		Subsystem: metricsGithubSubsystem,
+		Name:      "rate_limit_used",
+		Help:      "The number of requests used in the current rate limit window",
+	}, []string{"credential_name", "credential_id", "endpoint"})
+
+	GithubRateLimitResetTimestamp = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: metricsNamespace,
+		Subsystem: metricsGithubSubsystem,
+		Name:      "rate_limit_reset_timestamp",
+		Help:      "Unix timestamp when the rate limit resets",
+	}, []string{"credential_name", "credential_id", "endpoint"})
 )

@@ -68,6 +68,10 @@ func RegisterMetrics() error {
 		// github
 		GithubOperationCount,
 		GithubOperationFailedCount,
+		GithubRateLimitLimit,
+		GithubRateLimitRemaining,
+		GithubRateLimitUsed,
+		GithubRateLimitResetTimestamp,
 		// webhook metrics
 		WebhooksReceived,
 	)

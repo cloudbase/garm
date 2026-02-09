@@ -364,10 +364,14 @@ This is one of the features in GARM that I really love having. For one thing, it
 
 ### Github metrics
 
-| Metric name                    | Type    | Labels                                                                                                                 | Description                                                                  |
-|--------------------------------|---------|------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------|
-| `garm_github_operations_total` | Counter | `operation`=&lt;ListRunners\|CreateRegistrationToken\|...&gt; <br>`scope`=&lt;Organization\|Repository\|Enterprise&gt; | This is a counter that increments every time a github operation is performed |
-| `garm_github_errors_total`     | Counter | `operation`=&lt;ListRunners\|CreateRegistrationToken\|...&gt; <br>`scope`=&lt;Organization\|Repository\|Enterprise&gt; | This is a counter that increments every time a github operation errored      |
+| Metric name                           | Type    | Labels                                                                                                                 | Description                                                                           |
+|---------------------------------------|---------|------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------|
+| `garm_github_operations_total`        | Counter | `operation`=&lt;ListRunners\|CreateRegistrationToken\|...&gt; <br>`scope`=&lt;Organization\|Repository\|Enterprise&gt; | This is a counter that increments every time a github operation is performed          |
+| `garm_github_errors_total`            | Counter | `operation`=&lt;ListRunners\|CreateRegistrationToken\|...&gt; <br>`scope`=&lt;Organization\|Repository\|Enterprise&gt; | This is a counter that increments every time a github operation errored               |
+| `garm_github_rate_limit_limit`        | Gauge   | `credential_name`=&lt;credential name&gt; <br>`credential_id`=&lt;credential id&gt; <br>`endpoint`=&lt;endpoint name&gt; | The maximum number of requests allowed per hour for GitHub API                        |
+| `garm_github_rate_limit_remaining`    | Gauge   | `credential_name`=&lt;credential name&gt; <br>`credential_id`=&lt;credential id&gt; <br>`endpoint`=&lt;endpoint name&gt; | The number of requests remaining in the current rate limit window                     |
+| `garm_github_rate_limit_used`         | Gauge   | `credential_name`=&lt;credential name&gt; <br>`credential_id`=&lt;credential id&gt; <br>`endpoint`=&lt;endpoint name&gt; | The number of requests used in the current rate limit window                          |
+| `garm_github_rate_limit_reset_timestamp` | Gauge   | `credential_name`=&lt;credential name&gt; <br>`credential_id`=&lt;credential id&gt; <br>`endpoint`=&lt;endpoint name&gt; | Unix timestamp when the rate limit resets                                             |
 
 ### Enabling metrics
 
