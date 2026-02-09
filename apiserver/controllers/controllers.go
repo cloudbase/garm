@@ -542,3 +542,127 @@ func (a *APIController) ForceToolsSyncHandler(w http.ResponseWriter, r *http.Req
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }
+
+// swagger:route GET /auth/oidc/status oidc OIDCStatus
+//
+// Returns the OIDC configuration status (enabled/disabled).
+// This endpoint is public and does not require authentication.
+//
+//	Responses:
+//	  200: OIDCStatusResponse
+func (a *APIController) OIDCStatusHandler(w http.ResponseWriter, r *http.Request) {
+	response := struct {
+		Enabled bool `json:"enabled"`
+	}{
+		Enabled: a.auth.IsOIDCEnabled(),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(r.Context(), "failed to encode OIDC status response")
+	}
+}
+
+// swagger:route GET /auth/oidc/login oidc OIDCLogin
+//
+// Initiates OIDC login flow by redirecting to the identity provider.
+//
+//	Responses:
+//	  302: description:Redirect to OIDC provider
+//	  400: APIErrorResponse
+//	  501: APIErrorResponse
+func (a *APIController) OIDCLoginHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	if !a.auth.IsOIDCEnabled() {
+		handleError(ctx, w, gErrors.NewBadRequestError("OIDC authentication is not enabled"))
+		return
+	}
+
+	authURL, _, err := a.auth.GetOIDCAuthURL()
+	if err != nil {
+		handleError(ctx, w, err)
+		return
+	}
+
+	http.Redirect(w, r, authURL, http.StatusFound)
+}
+
+// swagger:route GET /auth/oidc/callback oidc OIDCCallback
+//
+// Handles the OIDC callback from the identity provider.
+//
+//	Responses:
+//	  200: JWTResponse
+//	  400: APIErrorResponse
+//	  401: APIErrorResponse
+func (a *APIController) OIDCCallbackHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	if !a.auth.IsOIDCEnabled() {
+		handleError(ctx, w, gErrors.NewBadRequestError("OIDC authentication is not enabled"))
+		return
+	}
+
+	// Check for error from OIDC provider first (before checking for code/state)
+	// When the IdP returns an error (e.g., user not assigned), it won't include a code
+	if errParam := r.URL.Query().Get("error"); errParam != "" {
+		errDesc := r.URL.Query().Get("error_description")
+		slog.With(slog.String("error", errParam), slog.String("description", errDesc)).Error("OIDC provider returned error")
+		handleError(ctx, w, gErrors.NewBadRequestError("OIDC provider error: %s - %s", errParam, errDesc))
+		return
+	}
+
+	code := r.URL.Query().Get("code")
+	state := r.URL.Query().Get("state")
+
+	if code == "" || state == "" {
+		handleError(ctx, w, gErrors.NewBadRequestError("missing code or state parameter"))
+		return
+	}
+
+	ctx, err := a.auth.HandleOIDCCallback(ctx, code, state)
+	if err != nil {
+		handleError(ctx, w, err)
+		return
+	}
+
+	tokenString, err := a.auth.GetJWTToken(ctx)
+	if err != nil {
+		handleError(ctx, w, err)
+		return
+	}
+
+	// Get user info from context for the cookie
+	userName := auth.Username(ctx)
+	if userName == "" {
+		userName = auth.UserID(ctx)
+	}
+
+	// Set cookies for the webapp
+	// Token cookie - NOT HttpOnly because the webapp JavaScript needs to read it
+	// to set it in the API client for authenticated requests
+	http.SetCookie(w, &http.Cookie{
+		Name:     "garm_token",
+		Value:    tokenString,
+		Path:     "/",
+		HttpOnly: false,
+		Secure:   r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https",
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   86400 * 7, // 7 days
+	})
+
+	// User cookie - accessible to JavaScript for display purposes
+	http.SetCookie(w, &http.Cookie{
+		Name:     "garm_user",
+		Value:    userName,
+		Path:     "/",
+		HttpOnly: false,
+		Secure:   r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https",
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   86400 * 7, // 7 days
+	})
+
+	// Redirect to the webapp
+	http.Redirect(w, r, "/ui/", http.StatusFound)
+}

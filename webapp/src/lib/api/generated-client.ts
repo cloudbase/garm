@@ -110,7 +110,7 @@ export class GeneratedGarmApiClient {
   private baseUrl: string;
   private token?: string;
   private config: Configuration;
-  
+
   // Check if we're in development mode (cross-origin setup)
   private isDevelopmentMode(): boolean {
     if (typeof window === 'undefined') return false;
@@ -138,7 +138,7 @@ export class GeneratedGarmApiClient {
 
   constructor(baseUrl: string = '') {
     this.baseUrl = baseUrl || window.location.origin;
-    
+
     // Create configuration for the generated client
     const isDevMode = this.isDevelopmentMode();
     this.config = new Configuration({
@@ -173,7 +173,7 @@ export class GeneratedGarmApiClient {
   // Set authentication token
   setToken(token: string) {
     this.token = token;
-    
+
     // Update configuration for all clients
     const isDevMode = this.isDevelopmentMode();
     this.config = new Configuration({
@@ -216,6 +216,19 @@ export class GeneratedGarmApiClient {
       return { token };
     }
     throw new Error('Login failed');
+  }
+
+  // OIDC Authentication
+  async getOIDCStatus(): Promise<{ enabled: boolean }> {
+    const response = await fetch(`${this.baseUrl}/api/v1/auth/oidc/status`);
+    if (!response.ok) {
+      throw new Error('Failed to get OIDC status');
+    }
+    return response.json();
+  }
+
+  getOIDCLoginUrl(): string {
+    return `${this.baseUrl}/api/v1/auth/oidc/login`;
   }
 
   async getControllerInfo(): Promise<ControllerInfo> {
