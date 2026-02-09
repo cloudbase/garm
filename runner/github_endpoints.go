@@ -41,9 +41,6 @@ func (r *Runner) CreateGithubEndpoint(ctx context.Context, param params.CreateGi
 }
 
 func (r *Runner) GetGithubEndpoint(ctx context.Context, name string) (params.ForgeEndpoint, error) {
-	if !auth.IsAdmin(ctx) {
-		return params.ForgeEndpoint{}, runnerErrors.ErrUnauthorized
-	}
 	endpoint, err := r.store.GetGithubEndpoint(ctx, name)
 	if err != nil {
 		return params.ForgeEndpoint{}, fmt.Errorf("failed to get github endpoint: %w", err)
@@ -82,10 +79,6 @@ func (r *Runner) UpdateGithubEndpoint(ctx context.Context, name string, param pa
 }
 
 func (r *Runner) ListGithubEndpoints(ctx context.Context) ([]params.ForgeEndpoint, error) {
-	if !auth.IsAdmin(ctx) {
-		return nil, runnerErrors.ErrUnauthorized
-	}
-
 	endpoints, err := r.store.ListGithubEndpoints(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list github endpoints: %w", err)

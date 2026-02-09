@@ -566,7 +566,7 @@ func (w *Worker) consolidateRunnerState(runners []params.RunnerReference) error 
 			slog.DebugContext(w.ctx, "runner is locked; skipping", "runner_name", runner.Name)
 			continue
 		}
-		defer locking.Unlock(runner.Name, false)
+		locking.Unlock(runner.Name, false)
 
 		if _, ok := providerRunnersByName[runner.Name]; !ok {
 			// The runner is not in the provider anymore. Remove it from the DB.
@@ -893,7 +893,6 @@ func (w *Worker) handleScaleDown() {
 			switch runner.RunnerStatus {
 			case params.RunnerTerminated, params.RunnerActive:
 				slog.DebugContext(w.ctx, "runner is not in a valid state; skipping", "runner_name", runner.Name, "runner_status", runner.RunnerStatus)
-				locking.Unlock(runner.Name, false)
 				continue
 			}
 			locked := locking.TryLock(runner.Name, w.consumerID)

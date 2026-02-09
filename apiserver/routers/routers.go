@@ -203,6 +203,15 @@ func NewAPIRouter(han *controllers.APIController, authMiddleware, initMiddleware
 	authRouter.Handle("/{login:login\\/?}", http.HandlerFunc(han.LoginHandler)).Methods("POST", "OPTIONS")
 	authRouter.Use(initMiddleware.Middleware)
 
+	// OIDC authentication routes (no auth middleware - these initiate/complete auth)
+	oidcRouter := apiSubRouter.PathPrefix("/auth/oidc").Subrouter()
+	oidcRouter.Handle("/status/", http.HandlerFunc(han.OIDCStatusHandler)).Methods("GET", "OPTIONS")
+	oidcRouter.Handle("/status", http.HandlerFunc(han.OIDCStatusHandler)).Methods("GET", "OPTIONS")
+	oidcRouter.Handle("/login/", http.HandlerFunc(han.OIDCLoginHandler)).Methods("GET", "OPTIONS")
+	oidcRouter.Handle("/login", http.HandlerFunc(han.OIDCLoginHandler)).Methods("GET", "OPTIONS")
+	oidcRouter.Handle("/callback/", http.HandlerFunc(han.OIDCCallbackHandler)).Methods("GET", "OPTIONS")
+	oidcRouter.Handle("/callback", http.HandlerFunc(han.OIDCCallbackHandler)).Methods("GET", "OPTIONS")
+
 	//////////////////////////
 	// Controller endpoints //
 	//////////////////////////
@@ -241,6 +250,13 @@ func NewAPIRouter(han *controllers.APIController, authMiddleware, initMiddleware
 	// Metrics Token
 	apiRouter.Handle("/metrics-token/", http.HandlerFunc(han.MetricsTokenHandler)).Methods("GET", "OPTIONS")
 	apiRouter.Handle("/metrics-token", http.HandlerFunc(han.MetricsTokenHandler)).Methods("GET", "OPTIONS")
+
+	///////////
+	// Users //
+	///////////
+	// List users
+	apiRouter.Handle("/users/", http.HandlerFunc(han.ListUsersHandler)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/users", http.HandlerFunc(han.ListUsersHandler)).Methods("GET", "OPTIONS")
 
 	/////////////
 	// Objects //

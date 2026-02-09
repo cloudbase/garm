@@ -95,10 +95,6 @@ func (r *Runner) CreateOrganization(ctx context.Context, param params.CreateOrgP
 }
 
 func (r *Runner) ListOrganizations(ctx context.Context, filter params.OrganizationFilter) ([]params.Organization, error) {
-	if !auth.IsAdmin(ctx) {
-		return nil, runnerErrors.ErrUnauthorized
-	}
-
 	orgs, err := r.store.ListOrganizations(ctx, filter)
 	if err != nil {
 		return nil, fmt.Errorf("error listing organizations: %w", err)
@@ -122,10 +118,6 @@ func (r *Runner) ListOrganizations(ctx context.Context, filter params.Organizati
 }
 
 func (r *Runner) GetOrganizationByID(ctx context.Context, orgID string) (params.Organization, error) {
-	if !auth.IsAdmin(ctx) {
-		return params.Organization{}, runnerErrors.ErrUnauthorized
-	}
-
 	org, err := r.store.GetOrganizationByID(ctx, orgID)
 	if err != nil {
 		return params.Organization{}, fmt.Errorf("error fetching organization: %w", err)
@@ -264,10 +256,6 @@ func (r *Runner) CreateOrgPool(ctx context.Context, orgID string, param params.C
 }
 
 func (r *Runner) GetOrgPoolByID(ctx context.Context, orgID, poolID string) (params.Pool, error) {
-	if !auth.IsAdmin(ctx) {
-		return params.Pool{}, runnerErrors.ErrUnauthorized
-	}
-
 	entity := params.ForgeEntity{
 		ID:         orgID,
 		EntityType: params.ForgeEntityTypeOrganization,
@@ -316,9 +304,6 @@ func (r *Runner) DeleteOrgPool(ctx context.Context, orgID, poolID string) error 
 }
 
 func (r *Runner) ListOrgPools(ctx context.Context, orgID string) ([]params.Pool, error) {
-	if !auth.IsAdmin(ctx) {
-		return []params.Pool{}, runnerErrors.ErrUnauthorized
-	}
 	entity := params.ForgeEntity{
 		ID:         orgID,
 		EntityType: params.ForgeEntityTypeOrganization,
@@ -374,10 +359,6 @@ func (r *Runner) UpdateOrgPool(ctx context.Context, orgID, poolID string, param 
 }
 
 func (r *Runner) ListOrgInstances(ctx context.Context, orgID string) ([]params.Instance, error) {
-	if !auth.IsAdmin(ctx) {
-		return nil, runnerErrors.ErrUnauthorized
-	}
-
 	entity := params.ForgeEntity{
 		ID:         orgID,
 		EntityType: params.ForgeEntityTypeOrganization,
@@ -450,10 +431,6 @@ func (r *Runner) UninstallOrgWebhook(ctx context.Context, orgID string) error {
 }
 
 func (r *Runner) GetOrgWebhookInfo(ctx context.Context, orgID string) (params.HookInfo, error) {
-	if !auth.IsAdmin(ctx) {
-		return params.HookInfo{}, runnerErrors.ErrUnauthorized
-	}
-
 	org, err := r.store.GetOrganizationByID(ctx, orgID)
 	if err != nil {
 		return params.HookInfo{}, fmt.Errorf("error fetching org: %w", err)

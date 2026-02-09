@@ -110,7 +110,7 @@ export class GeneratedGarmApiClient {
   private baseUrl: string;
   private token?: string;
   private config: Configuration;
-  
+
   // Check if we're in development mode (cross-origin setup)
   private isDevelopmentMode(): boolean {
     if (typeof window === 'undefined') return false;
@@ -138,7 +138,7 @@ export class GeneratedGarmApiClient {
 
   constructor(baseUrl: string = '') {
     this.baseUrl = baseUrl || window.location.origin;
-    
+
     // Create configuration for the generated client
     const isDevMode = this.isDevelopmentMode();
     this.config = new Configuration({
@@ -173,7 +173,7 @@ export class GeneratedGarmApiClient {
   // Set authentication token
   setToken(token: string) {
     this.token = token;
-    
+
     // Update configuration for all clients
     const isDevMode = this.isDevelopmentMode();
     this.config = new Configuration({
@@ -216,6 +216,19 @@ export class GeneratedGarmApiClient {
       return { token };
     }
     throw new Error('Login failed');
+  }
+
+  // OIDC Authentication
+  async getOIDCStatus(): Promise<{ enabled: boolean }> {
+    const response = await fetch(`${this.baseUrl}/api/v1/auth/oidc/status`);
+    if (!response.ok) {
+      throw new Error('Failed to get OIDC status');
+    }
+    return response.json();
+  }
+
+  getOIDCLoginUrl(): string {
+    return `${this.baseUrl}/api/v1/auth/oidc/login`;
   }
 
   async getControllerInfo(): Promise<ControllerInfo> {
@@ -658,6 +671,27 @@ export class GeneratedGarmApiClient {
 
   async deleteFileObject(objectID: string): Promise<void> {
     await this.objectsApi.deleteFileObject(objectID);
+  }
+
+  // User methods (not in generated API yet)
+  async listUsers(): Promise<User[]> {
+    const isDevMode = this.isDevelopmentMode();
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+    const response = await fetch(`${this.baseUrl}/api/v1/users`, {
+      method: 'GET',
+      headers,
+      credentials: isDevMode ? 'omit' : 'include',
+    });
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: response.statusText }));
+      throw new Error(errorData.error || errorData.details || 'Failed to fetch users');
+    }
+    return response.json();
   }
 }
 

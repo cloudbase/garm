@@ -42,9 +42,6 @@ func (r *Runner) CreateTemplate(ctx context.Context, param params.CreateTemplate
 }
 
 func (r *Runner) GetTemplate(ctx context.Context, id uint) (params.Template, error) {
-	if !auth.IsAdmin(ctx) {
-		return params.Template{}, runnerErrors.ErrUnauthorized
-	}
 	template, err := r.store.GetTemplate(ctx, id)
 	if err != nil {
 		return params.Template{}, fmt.Errorf("failed to get template: %w", err)
@@ -53,9 +50,6 @@ func (r *Runner) GetTemplate(ctx context.Context, id uint) (params.Template, err
 }
 
 func (r *Runner) GetTemplateByName(ctx context.Context, templateName string) (params.Template, error) {
-	if !auth.IsAdmin(ctx) {
-		return params.Template{}, runnerErrors.ErrUnauthorized
-	}
 	template, err := r.store.GetTemplateByName(ctx, templateName)
 	if err != nil {
 		return params.Template{}, fmt.Errorf("failed to get template: %w", err)
@@ -152,10 +146,6 @@ func (r *Runner) RestoreTemplate(ctx context.Context, param params.RestoreTempla
 }
 
 func (r *Runner) ListTemplates(ctx context.Context, osType *commonParams.OSType, forgeType *params.EndpointType, partialName *string) ([]params.Template, error) {
-	if !auth.IsAdmin(ctx) {
-		return nil, runnerErrors.ErrUnauthorized
-	}
-
 	templates, err := r.store.ListTemplates(ctx, osType, forgeType, partialName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list templates: %w", err)

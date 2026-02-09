@@ -293,9 +293,6 @@ func (r *Runner) ForceToolsSync(ctx context.Context) (params.ControllerInfo, err
 // GetControllerInfo returns the controller id and the hostname.
 // This data might be used in metrics and logging.
 func (r *Runner) GetControllerInfo(ctx context.Context) (params.ControllerInfo, error) {
-	if !auth.IsAdmin(ctx) {
-		return params.ControllerInfo{}, runnerErrors.ErrUnauthorized
-	}
 	// It is unlikely that fetching the hostname will encounter an error on a standard
 	// linux (or Windows) system, but if os.Hostname() can fail, we need to at least retry
 	// a few times before giving up.
@@ -336,9 +333,6 @@ func (r *Runner) GetControllerInfo(ctx context.Context) (params.ControllerInfo, 
 }
 
 func (r *Runner) ListProviders(ctx context.Context) ([]params.Provider, error) {
-	if !auth.IsAdmin(ctx) {
-		return nil, runnerErrors.ErrUnauthorized
-	}
 	ret := []params.Provider{}
 
 	for _, val := range r.providers {
@@ -753,10 +747,6 @@ func (r *Runner) appendTagsToCreatePoolParams(param params.CreatePoolParams) (pa
 }
 
 func (r *Runner) GetInstance(ctx context.Context, instanceName string) (params.Instance, error) {
-	if !auth.IsAdmin(ctx) {
-		return params.Instance{}, runnerErrors.ErrUnauthorized
-	}
-
 	instance, err := r.store.GetInstance(ctx, instanceName)
 	if err != nil {
 		return params.Instance{}, fmt.Errorf("error fetching instance: %w", err)
@@ -765,10 +755,6 @@ func (r *Runner) GetInstance(ctx context.Context, instanceName string) (params.I
 }
 
 func (r *Runner) ListAllInstances(ctx context.Context) ([]params.Instance, error) {
-	if !auth.IsAdmin(ctx) {
-		return nil, runnerErrors.ErrUnauthorized
-	}
-
 	instances, err := r.store.ListAllInstances(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching instances: %w", err)
@@ -990,4 +976,12 @@ func (r *Runner) getGHCliFromInstance(ctx context.Context, instance params.Insta
 		return nil, nil, fmt.Errorf("error creating scaleset client: %w", err)
 	}
 	return ghCli, scaleSetCli, nil
+}
+
+func (r *Runner) ListUsers(ctx context.Context) ([]params.User, error) {
+	users, err := r.store.ListUsers(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching users: %w", err)
+	}
+	return users, nil
 }

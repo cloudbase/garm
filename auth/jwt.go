@@ -35,6 +35,7 @@ import (
 type JWTClaims struct {
 	UserID      string `json:"user"`
 	TokenID     string `json:"token_id"`
+	Username    string `json:"username,omitempty"`
 	FullName    string `json:"full_name"`
 	IsAdmin     bool   `json:"is_admin"`
 	ReadMetrics bool   `json:"read_metrics"`
