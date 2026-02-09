@@ -27,6 +27,7 @@ import {
 	type FileObject,
 	type FileObjectPaginatedResponse,
 	type UpdateFileObjectParams,
+	type User,
 } from './generated-client.js';
 
 // Import endpoint and credentials types directly
@@ -68,6 +69,7 @@ export type {
 	FileObject,
 	FileObjectPaginatedResponse,
 	UpdateFileObjectParams,
+	User,
 };
 
 // Legacy APIError type for backward compatibility
@@ -84,7 +86,7 @@ export class GarmApiClient extends GeneratedGarmApiClient {
 
 	// All methods are inherited from GeneratedGarmApiClient
 	// This class now acts as a simple wrapper for backward compatibility
-	
+
 	// Explicitly expose template methods for TypeScript
 	declare listTemplates: (osType?: string, partialName?: string, forgeType?: string) => Promise<Template[]>;
 	declare getTemplate: (id: number) => Promise<Template>;
@@ -98,6 +100,9 @@ export class GarmApiClient extends GeneratedGarmApiClient {
 	declare getFileObject: (objectID: string) => Promise<FileObject>;
 	declare updateFileObject: (objectID: string, params: UpdateFileObjectParams) => Promise<FileObject>;
 	declare deleteFileObject: (objectID: string) => Promise<void>;
+
+	// Explicitly expose user methods for TypeScript
+	declare listUsers: () => Promise<User[]>;
 }
 
 // Create a singleton instance
