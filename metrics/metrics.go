@@ -28,6 +28,7 @@ const (
 	metricsEnterpriseSubsystem   = "enterprise"
 	metricsWebhookSubsystem      = "webhook"
 	metricsGithubSubsystem       = "github"
+	metricsJobsSubsystem         = "job"
 )
 
 // RegisterMetrics registers all the metrics
@@ -72,6 +73,7 @@ func RegisterMetrics() error {
 		GithubRateLimitRemaining,
 		GithubRateLimitUsed,
 		GithubRateLimitResetTimestamp,
+		JobStatus,
 		// webhook metrics
 		WebhooksReceived,
 	)
