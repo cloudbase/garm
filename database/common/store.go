@@ -119,7 +119,7 @@ type JobsStore interface {
 	LockJob(ctx context.Context, jobID int64, entityID string) error
 	BreakLockJobIsQueued(ctx context.Context, jobID int64) error
 
-	DeleteCompletedJobs(ctx context.Context) error
+	DeleteInactionableJobs(ctx context.Context) error
 }
 
 type EntityPoolStore interface {

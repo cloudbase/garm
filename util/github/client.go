@@ -400,7 +400,7 @@ func (g *githubClient) getOrganizationRunnerGroupIDByName(ctx context.Context, e
 			}
 			return 0, fmt.Errorf("error fetching runners: %w", err)
 		}
-		if err == nil && ghResp != nil {
+		if ghResp != nil {
 			g.recordLimits(ghResp.Rate)
 		}
 
@@ -440,7 +440,7 @@ func (g *githubClient) getEnterpriseRunnerGroupIDByName(ctx context.Context, ent
 			}
 			return 0, fmt.Errorf("error fetching runners: %w", err)
 		}
-		if err == nil && ghResp != nil {
+		if ghResp != nil {
 			g.recordLimits(ghResp.Rate)
 		}
 		for _, runnerGroup := range runnerGroups.RunnerGroups {

@@ -400,7 +400,7 @@ type WorkflowJob struct {
 	Conclusion string
 	// Status is the phase of the lifecycle that the job is currently in.
 	// "queued", "in_progress" and "completed".
-	Status string
+	Status string `gorm:"index:idx_workflow_jobs_status_instance_id,priority:1"`
 	// Name is the name if the job that was triggered.
 	Name string
 
@@ -409,7 +409,7 @@ type WorkflowJob struct {
 
 	GithubRunnerID int64
 
-	InstanceID *uuid.UUID `gorm:"index:idx_instance_job"`
+	InstanceID *uuid.UUID `gorm:"index:idx_instance_job;index:idx_workflow_jobs_status_instance_id,priority:2"`
 	Instance   Instance   `gorm:"foreignKey:InstanceID"`
 
 	RunnerGroupID   int64
