@@ -18,10 +18,7 @@ github.com/cespare/xxhash/v2
 # github.com/chzyer/readline v1.5.1
 ## explicit; go 1.15
 github.com/chzyer/readline
-# github.com/clipperhouse/stringish v0.1.1
-## explicit; go 1.18
-github.com/clipperhouse/stringish
-# github.com/clipperhouse/uax29/v2 v2.5.0
+# github.com/clipperhouse/uax29/v2 v2.6.0
 ## explicit; go 1.18
 github.com/clipperhouse/uax29/v2/graphemes
 # github.com/cloudbase/garm-provider-common v0.1.8-0.20251001105909-bbcacae60e7c
@@ -232,7 +229,7 @@ github.com/mattn/go-isatty
 # github.com/mattn/go-runewidth v0.0.19
 ## explicit; go 1.20
 github.com/mattn/go-runewidth
-# github.com/mattn/go-sqlite3 v1.14.33 => github.com/gabriel-samfira/go-sqlite3 v0.0.0-20251005121134-bc61ecf9b4c7
+# github.com/mattn/go-sqlite3 v1.14.34 => github.com/gabriel-samfira/go-sqlite3 v0.0.0-20251005121134-bc61ecf9b4c7
 ## explicit; go 1.19
 github.com/mattn/go-sqlite3
 # github.com/minio/sio v0.4.3
@@ -348,7 +345,7 @@ go.yaml.in/yaml/v2
 # go.yaml.in/yaml/v3 v3.0.4
 ## explicit; go 1.16
 go.yaml.in/yaml/v3
-# golang.org/x/crypto v0.47.0
+# golang.org/x/crypto v0.48.0
 ## explicit; go 1.24.0
 golang.org/x/crypto/bcrypt
 golang.org/x/crypto/blowfish
@@ -357,10 +354,10 @@ golang.org/x/crypto/chacha20poly1305
 golang.org/x/crypto/hkdf
 golang.org/x/crypto/internal/alias
 golang.org/x/crypto/internal/poly1305
-# golang.org/x/mod v0.32.0
+# golang.org/x/mod v0.33.0
 ## explicit; go 1.24.0
 golang.org/x/mod/semver
-# golang.org/x/net v0.49.0
+# golang.org/x/net v0.50.0
 ## explicit; go 1.24.0
 golang.org/x/net/idna
 golang.org/x/net/internal/socks
@@ -372,16 +369,16 @@ golang.org/x/oauth2/internal
 # golang.org/x/sync v0.19.0
 ## explicit; go 1.24.0
 golang.org/x/sync/errgroup
-# golang.org/x/sys v0.40.0
+# golang.org/x/sys v0.41.0
 ## explicit; go 1.24.0
 golang.org/x/sys/cpu
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/term v0.39.0
+# golang.org/x/term v0.40.0
 ## explicit; go 1.24.0
 golang.org/x/term
-# golang.org/x/text v0.33.0
+# golang.org/x/text v0.34.0
 ## explicit; go 1.24.0
 golang.org/x/text/cases
 golang.org/x/text/encoding
