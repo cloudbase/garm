@@ -25,6 +25,7 @@ The ```GARM``` configuration is a simple ```toml```. The sample config file in [
         - [Provider metrics](#provider-metrics)
         - [Pool metrics](#pool-metrics)
         - [Runner metrics](#runner-metrics)
+        - [Job metrics](#job-metrics)
         - [Github metrics](#github-metrics)
         - [Enabling metrics](#enabling-metrics)
         - [Configuring prometheus](#configuring-prometheus)
@@ -366,7 +367,7 @@ This is one of the features in GARM that I really love having. For one thing, it
 
 | Metric name               | Type    | Labels                                                                                                                                                                                                                                                                                      | Description                   |
 |---------------------------|---------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------|
-| `garm_job_jobs_status`    | Gauge   | `job_id`=&lt;job id&gt; <br>`name`=&lt;job name&gt; <br>`status`=&lt;job status&gt; <br>`conclusion`=&lt;job conclusion&gt; <br>`runner_name`=&lt;runner name&gt; <br>`repository`=&lt;repository&gt; <br>`requested_labels`=&lt;requested labels&gt;                                  | List of jobs and their status |
+| `garm_job_status`    | Gauge   | `job_id`=&lt;job id&gt; <br>`name`=&lt;job name&gt; <br>`status`=&lt;job status&gt; <br>`conclusion`=&lt;job conclusion&gt; <br>`runner_name`=&lt;runner name&gt; <br>`repository`=&lt;repository&gt; <br>`requested_labels`=&lt;requested labels&gt;                                  | List of jobs and their status |
 
 ### Github metrics
 
