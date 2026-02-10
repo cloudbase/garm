@@ -424,16 +424,19 @@ func (s *sqlDatabase) GetJobByID(_ context.Context, jobID int64) (params.Job, er
 	return sqlWorkflowJobToParamsJob(job)
 }
 
-// DeleteCompletedJobs deletes all completed jobs.
-func (s *sqlDatabase) DeleteCompletedJobs(_ context.Context) error {
-	query := s.conn.Model(&WorkflowJob{}).Where("status = ?", params.JobStatusCompleted)
-
-	if err := query.Unscoped().Delete(&WorkflowJob{}); err.Error != nil {
-		if errors.Is(err.Error, gorm.ErrRecordNotFound) {
-			return nil
-		}
-		return err.Error
+// DeleteInactionableJobs will delete jobs that are not in queued state and have no
+// runner associated with them. This can happen if we have a pool that matches labels
+// defined on a job, but the job itself was picked up by a runner we don't manage.
+// When a job transitions from queued to anything else, GARM only uses them for informational
+// purposes. So they are safe to delete.
+// Also deletes completed jobs with GARM runners attached as they are no longer needed.
+func (s *sqlDatabase) DeleteInactionableJobs(_ context.Context) error {
+	q := s.conn.
+		Unscoped().
+		Where("(status != ? AND instance_id IS NULL) OR (status = ? AND instance_id IS NOT NULL)", params.JobStatusQueued, params.JobStatusCompleted).
+		Delete(&WorkflowJob{})
+	if q.Error != nil {
+		return fmt.Errorf("deleting inactionable jobs: %w", q.Error)
 	}
-
 	return nil
 }

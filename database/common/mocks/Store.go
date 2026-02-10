@@ -1104,52 +1104,6 @@ func (_c *Store_CreateUser_Call) RunAndReturn(run func(context.Context, params.N
 	return _c
 }
 
-// DeleteCompletedJobs provides a mock function with given fields: ctx
-func (_m *Store) DeleteCompletedJobs(ctx context.Context) error {
-	ret := _m.Called(ctx)
-
-	if len(ret) == 0 {
-		panic("no return value specified for DeleteCompletedJobs")
-	}
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context) error); ok {
-		r0 = rf(ctx)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// Store_DeleteCompletedJobs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteCompletedJobs'
-type Store_DeleteCompletedJobs_Call struct {
-	*mock.Call
-}
-
-// DeleteCompletedJobs is a helper method to define mock.On call
-//   - ctx context.Context
-func (_e *Store_Expecter) DeleteCompletedJobs(ctx interface{}) *Store_DeleteCompletedJobs_Call {
-	return &Store_DeleteCompletedJobs_Call{Call: _e.mock.On("DeleteCompletedJobs", ctx)}
-}
-
-func (_c *Store_DeleteCompletedJobs_Call) Run(run func(ctx context.Context)) *Store_DeleteCompletedJobs_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context))
-	})
-	return _c
-}
-
-func (_c *Store_DeleteCompletedJobs_Call) Return(_a0 error) *Store_DeleteCompletedJobs_Call {
-	_c.Call.Return(_a0)
-	return _c
-}
-
-func (_c *Store_DeleteCompletedJobs_Call) RunAndReturn(run func(context.Context) error) *Store_DeleteCompletedJobs_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // DeleteEnterprise provides a mock function with given fields: ctx, enterpriseID
 func (_m *Store) DeleteEnterprise(ctx context.Context, enterpriseID string) error {
 	ret := _m.Called(ctx, enterpriseID)
@@ -1533,6 +1487,52 @@ func (_c *Store_DeleteGithubEndpoint_Call) Return(_a0 error) *Store_DeleteGithub
 }
 
 func (_c *Store_DeleteGithubEndpoint_Call) RunAndReturn(run func(context.Context, string) error) *Store_DeleteGithubEndpoint_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteInactionableJobs provides a mock function with given fields: ctx
+func (_m *Store) DeleteInactionableJobs(ctx context.Context) error {
+	ret := _m.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteInactionableJobs")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context) error); ok {
+		r0 = rf(ctx)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// Store_DeleteInactionableJobs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteInactionableJobs'
+type Store_DeleteInactionableJobs_Call struct {
+	*mock.Call
+}
+
+// DeleteInactionableJobs is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Store_Expecter) DeleteInactionableJobs(ctx interface{}) *Store_DeleteInactionableJobs_Call {
+	return &Store_DeleteInactionableJobs_Call{Call: _e.mock.On("DeleteInactionableJobs", ctx)}
+}
+
+func (_c *Store_DeleteInactionableJobs_Call) Run(run func(ctx context.Context)) *Store_DeleteInactionableJobs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context))
+	})
+	return _c
+}
+
+func (_c *Store_DeleteInactionableJobs_Call) Return(_a0 error) *Store_DeleteInactionableJobs_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *Store_DeleteInactionableJobs_Call) RunAndReturn(run func(context.Context) error) *Store_DeleteInactionableJobs_Call {
 	_c.Call.Return(run)
 	return _c
 }
