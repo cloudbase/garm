@@ -887,6 +887,19 @@ func (r *basePoolManager) AddRunner(ctx context.Context, poolID string, aditiona
 		}
 	}
 
+	defer func() {
+		if err != nil {
+			if runner != nil {
+				runnerCleanupErr := r.ghcli.RemoveEntityRunner(r.ctx, runner.GetID())
+				if err != nil {
+					slog.With(slog.Any("error", runnerCleanupErr)).ErrorContext(
+						ctx, "failed to remove runner",
+						"gh_runner_id", runner.GetID())
+				}
+			}
+		}
+	}()
+
 	createParams := params.CreateInstanceParams{
 		Name:              name,
 		Status:            commonParams.InstancePendingCreate,
@@ -906,31 +919,9 @@ func (r *basePoolManager) AddRunner(ctx context.Context, poolID string, aditiona
 		createParams.AgentID = runner.GetID()
 	}
 
-	instance, err := r.store.CreateInstance(r.ctx, poolID, createParams)
-	if err != nil {
+	if _, err := r.store.CreateInstance(r.ctx, poolID, createParams); err != nil {
 		return fmt.Errorf("error creating instance: %w", err)
 	}
-
-	defer func() {
-		if err != nil {
-			if instance.ID != "" {
-				if err := r.DeleteRunner(instance, false, false); err != nil {
-					slog.With(slog.Any("error", err)).ErrorContext(
-						ctx, "failed to cleanup instance",
-						"runner_name", instance.Name)
-				}
-			}
-
-			if runner != nil {
-				runnerCleanupErr := r.ghcli.RemoveEntityRunner(r.ctx, runner.GetID())
-				if err != nil {
-					slog.With(slog.Any("error", runnerCleanupErr)).ErrorContext(
-						ctx, "failed to remove runner",
-						"gh_runner_id", runner.GetID())
-				}
-			}
-		}
-	}()
 
 	return nil
 }
@@ -1245,6 +1236,15 @@ func (r *basePoolManager) scaleDownOnePool(ctx context.Context, pool params.Pool
 func (r *basePoolManager) addRunnerToPool(pool params.Pool, aditionalLabels []string) error {
 	if !pool.Enabled {
 		return fmt.Errorf("pool %s is disabled", pool.ID)
+	}
+
+	poolInstanceCount, err := r.store.PoolInstanceCount(r.ctx, pool.ID)
+	if err != nil {
+		return fmt.Errorf("failed to list pool instances: %w", err)
+	}
+
+	if poolInstanceCount >= int64(pool.MaxRunners) {
+		return fmt.Errorf("max workers (%d) reached for pool %s", pool.MaxRunners, pool.ID)
 	}
 
 	if err := r.AddRunner(r.ctx, pool.ID, aditionalLabels); err != nil {
