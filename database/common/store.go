@@ -96,6 +96,15 @@ type InstanceStore interface {
 	DeleteInstance(ctx context.Context, poolID string, instanceNameOrID string) error
 	DeleteInstanceByName(ctx context.Context, instanceName string) error
 	UpdateInstance(ctx context.Context, instanceNameOrID string, param params.UpdateInstanceParams) (params.Instance, error)
+	// ForceUpdateInstance functions identically to UpdateInstance with one important distinction. It does not
+	// validate the agent ID or instance status or runner status transitions. This function must only be used in
+	// recovery scenarios, where GARM crashed or was restarted while runners were going through a transitory
+	// state like "creating", "deleting", etc. In such cases, we cannot simply pick up where we left off, and
+	// we must set the instance in "pending_delete" or some other state that allows us to recover.
+	// An instance in "creating" state is currently being serviced by a call by GARM to the external provider.
+	// If GARM is just starting up and we see one in "creating", it means that the process that was creating it
+	// was most likely interrupted before it finished and we must clean it up.
+	ForceUpdateInstance(ctx context.Context, instanceName string, param params.UpdateInstanceParams) (params.Instance, error)
 
 	// Probably a bad idea without some king of filter or at least pagination
 	//
