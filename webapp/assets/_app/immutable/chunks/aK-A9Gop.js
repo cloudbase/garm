@@ -1,1 +1,0 @@
-function i(t){const n=["B","KB","MB","GB","TB"];let r=t,e=0;for(;r>=1024&&e<n.length-1;)r/=1024,e++;return`${r.toFixed(e===0?0:1)} ${n[e]}`}function o(t){if(!t)return"N/A";try{return new Date(t).toLocaleString()}catch{return t}}export{o as a,i as f};

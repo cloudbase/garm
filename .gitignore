@@ -25,3 +25,10 @@ debug.html
 git_push.sh
 webapp/src/lib/api/generated/docs
 .env
+
+# Compiled webapp assets (built during Docker build)
+webapp/assets/_app/
+webapp/assets/assets/
+webapp/assets/index.html
+webapp/assets/*.png
+webapp/build/
