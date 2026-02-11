@@ -90,14 +90,15 @@ At this point, we have a valid config file, but we still need to add the `provid
 
 This is where you have a decision to make. GARM has a number of providers you can leverage. At the time of this writing, we have support for:
 
-* [OpenStack](https://github.com/cloudbase/garm-provider-openstack)
+* [Amazon EC2](https://github.com/cloudbase/garm-provider-aws)
 * [Azure](https://github.com/cloudbase/garm-provider-azure)
+* [CloudStack](https://github.com/nexthop-ai/garm-provider-cloudstack)
+* [Equinix Metal](https://github.com/cloudbase/garm-provider-equinix)
+* [Google Cloud Platform (GCP)](https://github.com/cloudbase/garm-provider-gcp)
+* [Incus](https://github.com/cloudbase/garm-provider-incus)
 * [Kubernetes](https://github.com/mercedes-benz/garm-provider-k8s) - Thanks to the amazing folks at @mercedes-benz for sharing their awesome provider!
 * [LXD](https://github.com/cloudbase/garm-provider-lxd)
-* [Incus](https://github.com/cloudbase/garm-provider-incus)
-* [Equinix Metal](https://github.com/cloudbase/garm-provider-equinix)
-* [Amazon EC2](https://github.com/cloudbase/garm-provider-aws)
-* [Google Cloud Platform (GCP)](https://github.com/cloudbase/garm-provider-gcp)
+* [OpenStack](https://github.com/cloudbase/garm-provider-openstack)
 * [Oracle Cloud Infrastructure (OCI)](https://github.com/cloudbase/garm-provider-oci)
 
 The easiest provider to set up is probably the LXD or Incus provider. Incus is a fork of LXD so the functionality is identical (for now). For the purpose of this document, we'll continue with LXD. You don't need an account on an external cloud. You can just use your machine.

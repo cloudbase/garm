@@ -292,14 +292,15 @@ If you want to implement an external provider, you can use this file for anythin
 
 For non-testing purposes, these are the external providers currently available:
 
-* [OpenStack](https://github.com/cloudbase/garm-provider-openstack)
+* [Amazon EC2](https://github.com/cloudbase/garm-provider-aws)
 * [Azure](https://github.com/cloudbase/garm-provider-azure)
+* [CloudStack](https://github.com/nexthop-ai/garm-provider-cloudstack)
+* [Equinix Metal](https://github.com/cloudbase/garm-provider-equinix)
+* [Google Cloud Platform (GCP)](https://github.com/cloudbase/garm-provider-gcp)
+* [Incus](https://github.com/cloudbase/garm-provider-incus)
 * [Kubernetes](https://github.com/mercedes-benz/garm-provider-k8s) - Thanks to the amazing folks at @mercedes-benz for sharing their awesome provider!
 * [LXD](https://github.com/cloudbase/garm-provider-lxd)
-* [Incus](https://github.com/cloudbase/garm-provider-incus)
-* [Equinix Metal](https://github.com/cloudbase/garm-provider-equinix)
-* [Amazon EC2](https://github.com/cloudbase/garm-provider-aws)
-* [Google Cloud Platform (GCP)](https://github.com/cloudbase/garm-provider-gcp)
+* [OpenStack](https://github.com/cloudbase/garm-provider-openstack)
 * [Oracle Cloud Infrastructure (OCI)](https://github.com/cloudbase/garm-provider-oci)
 
 Details on how to install and configure them are available in their respective repositories.

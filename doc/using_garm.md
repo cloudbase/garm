@@ -137,6 +137,8 @@ ubuntu@garm:~$ garm-cli provider list
 +--------------+---------------------------------+----------+
 | equinix      | Equinix Metal                   | external |
 +--------------+---------------------------------+----------+
+| cloudstack   | CloudStack external provider    | external |
++--------------+---------------------------------+----------+
 ```
 
 Each of these providers can be used to set up a runner pool for a repository, organization or enterprise.
