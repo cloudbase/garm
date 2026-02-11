@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -31,8 +32,21 @@ import (
 	"github.com/cloudbase/garm/util/appdefaults"
 )
 
+// inferAgentURL extracts the base URL (scheme://host) from a given URL.
+// This is used to derive the AgentURL from CallbackURL when AgentURL is not explicitly set.
+func inferAgentURL(uri string) (string, error) {
+	if uri == "" {
+		return "", runnerErrors.NewConflictError("URL cannot be empty")
+	}
+	parsed, err := url.ParseRequestURI(uri)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse URL: %w", err)
+	}
+	return strings.TrimSuffix(fmt.Sprintf("%s://%s", parsed.Scheme, parsed.Host), "/"), nil
+}
+
 func dbControllerToCommonController(dbInfo ControllerInfo) (params.ControllerInfo, error) {
-	url, err := url.JoinPath(dbInfo.WebhookBaseURL, dbInfo.ControllerID.String())
+	webhookURL, err := url.JoinPath(dbInfo.WebhookBaseURL, dbInfo.ControllerID.String())
 	if err != nil {
 		return params.ControllerInfo{}, fmt.Errorf("error joining webhook URL: %w", err)
 	}
@@ -41,13 +55,23 @@ func dbControllerToCommonController(dbInfo ControllerInfo) (params.ControllerInf
 		dbInfo.GARMAgentReleasesURL = appdefaults.GARMAgentDefaultReleasesURL
 	}
 
+	// If AgentURL is not set, derive it from CallbackURL
+	agentURL := dbInfo.AgentURL
+	if agentURL == "" {
+		var err error
+		agentURL, err = inferAgentURL(dbInfo.CallbackURL)
+		if err != nil {
+			slog.Warn("failed to infer agent URL; please update controller info with proper URL", "error", err)
+		}
+	}
+
 	ret := params.ControllerInfo{
 		ControllerID:                    dbInfo.ControllerID,
 		MetadataURL:                     dbInfo.MetadataURL,
 		WebhookURL:                      dbInfo.WebhookBaseURL,
-		ControllerWebhookURL:            url,
+		ControllerWebhookURL:            webhookURL,
 		CallbackURL:                     dbInfo.CallbackURL,
-		AgentURL:                        dbInfo.AgentURL,
+		AgentURL:                        agentURL,
 		MinimumJobAgeBackoff:            dbInfo.MinimumJobAgeBackoff,
 		Version:                         appdefaults.GetVersion(),
 		GARMAgentReleasesURL:            dbInfo.GARMAgentReleasesURL,
