@@ -111,6 +111,7 @@ External providers are binaries that GARM calls into to create runners in a part
 * [Akamai/Linode](https://github.com/flatcar/garm-provider-linode) - Experimental
 * [Amazon EC2](https://github.com/cloudbase/garm-provider-aws)
 * [Azure](https://github.com/cloudbase/garm-provider-azure)
+* [CloudStack](https://github.com/nexthop-ai/garm-provider-cloudstack)
 * [Equinix Metal](https://github.com/cloudbase/garm-provider-equinix)
 * [Google Cloud Platform (GCP)](https://github.com/cloudbase/garm-provider-gcp)
 * [Incus](https://github.com/cloudbase/garm-provider-incus)
