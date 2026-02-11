@@ -655,6 +655,7 @@ func (r *basePoolManager) reapTimedOutRunners(runners []forgeRunner) error {
 func (r *basePoolManager) cleanupOrphanedGithubRunners(runners []forgeRunner) error {
 	poolInstanceCache := map[string][]commonParams.ProviderInstance{}
 	g, ctx := errgroup.WithContext(r.ctx)
+	g.SetLimit(10)
 	for _, runner := range runners {
 		if !isManagedRunner(labelsFromRunner(runner), r.controllerInfo.ControllerID.String()) {
 			slog.DebugContext(
