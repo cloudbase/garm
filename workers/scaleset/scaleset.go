@@ -237,7 +237,7 @@ func (w *Worker) Start() (err error) {
 							// it appears that it finished booting and is now running.
 							//
 							// NOTE: if the instance was in creating and it managed to boot, there
-							// is a high chance that the we do not have a provider ID for the runner
+							// is a high chance that we do not have a provider ID for the runner
 							// inside our database. When removing the runner, the provider will attempt
 							// to use the instance name instead of the provider ID, the same as when
 							// creation of the instance fails and we try to clean up any lingering resources
@@ -251,7 +251,7 @@ func (w *Worker) Start() (err error) {
 			runnerUpdateParams := params.UpdateInstanceParams{
 				Status: instanceState,
 			}
-			instance, err = w.store.UpdateInstance(w.ctx, instance.Name, runnerUpdateParams)
+			instance, err = w.store.ForceUpdateInstance(w.ctx, instance.Name, runnerUpdateParams)
 			if err != nil {
 				if !errors.Is(err, runnerErrors.ErrNotFound) {
 					locking.Unlock(instance.Name, false)
@@ -268,7 +268,7 @@ func (w *Worker) Start() (err error) {
 			runnerUpdateParams := params.UpdateInstanceParams{
 				Status: commonParams.InstancePendingDelete,
 			}
-			instance, err = w.store.UpdateInstance(w.ctx, instance.Name, runnerUpdateParams)
+			instance, err = w.store.ForceUpdateInstance(w.ctx, instance.Name, runnerUpdateParams)
 			if err != nil {
 				if !errors.Is(err, runnerErrors.ErrNotFound) {
 					locking.Unlock(instance.Name, false)
@@ -566,15 +566,16 @@ func (w *Worker) consolidateRunnerState(runners []params.RunnerReference) error 
 			slog.DebugContext(w.ctx, "runner is locked; skipping", "runner_name", runner.Name)
 			continue
 		}
-		defer locking.Unlock(runner.Name, false)
 
 		if _, ok := providerRunnersByName[runner.Name]; !ok {
 			// The runner is not in the provider anymore. Remove it from the DB.
 			slog.InfoContext(w.ctx, "runner does not exist in provider; removing from database", "runner_name", runner.Name)
 			if err := w.removeRunnerFromGithubAndSetPendingDelete(runner.Name, runner.AgentID); err != nil {
+				locking.Unlock(runner.Name, false)
 				return fmt.Errorf("removing runner %s: %w", runner.Name, err)
 			}
 		}
+		locking.Unlock(runner.Name, false)
 	}
 
 	return nil
@@ -893,7 +894,6 @@ func (w *Worker) handleScaleDown() {
 			switch runner.RunnerStatus {
 			case params.RunnerTerminated, params.RunnerActive:
 				slog.DebugContext(w.ctx, "runner is not in a valid state; skipping", "runner_name", runner.Name, "runner_status", runner.RunnerStatus)
-				locking.Unlock(runner.Name, false)
 				continue
 			}
 			locked := locking.TryLock(runner.Name, w.consumerID)

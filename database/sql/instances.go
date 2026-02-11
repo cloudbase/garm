@@ -395,7 +395,15 @@ func (s *sqlDatabase) applyInstanceUpdates(instance *Instance, param params.Upda
 	return nil
 }
 
+func (s *sqlDatabase) ForceUpdateInstance(ctx context.Context, instanceName string, param params.UpdateInstanceParams) (params.Instance, error) {
+	return s.updateInstance(ctx, instanceName, param, true)
+}
+
 func (s *sqlDatabase) UpdateInstance(ctx context.Context, instanceName string, param params.UpdateInstanceParams) (params.Instance, error) {
+	return s.updateInstance(ctx, instanceName, param, false)
+}
+
+func (s *sqlDatabase) updateInstance(ctx context.Context, instanceName string, param params.UpdateInstanceParams, force bool) (params.Instance, error) {
 	var rowsAffected int64
 	err := s.conn.Transaction(func(tx *gorm.DB) error {
 		instance, err := s.getInstance(ctx, tx, instanceName, "Pool", "ScaleSet")
@@ -403,15 +411,18 @@ func (s *sqlDatabase) UpdateInstance(ctx context.Context, instanceName string, p
 			return fmt.Errorf("error updating instance: %w", err)
 		}
 
-		// Validate transitions
-		if err := s.validateAgentID(instance.AgentID, param.AgentID); err != nil {
-			return err
-		}
-		if err := s.validateRunnerStatusTransition(instance.RunnerStatus, param.RunnerStatus); err != nil {
-			return err
-		}
-		if err := s.validateInstanceStatusTransition(instance.Status, param.Status); err != nil {
-			return err
+		if !force {
+			// Validate transitions
+			if err := s.validateAgentID(instance.AgentID, param.AgentID); err != nil {
+				return err
+			}
+
+			if err := s.validateRunnerStatusTransition(instance.RunnerStatus, param.RunnerStatus); err != nil {
+				return err
+			}
+			if err := s.validateInstanceStatusTransition(instance.Status, param.Status); err != nil {
+				return err
+			}
 		}
 
 		// Apply updates
