@@ -1,1 +1,0 @@
-function r(n){return function(...t){var e=t[0];return e.stopPropagation(),n?.apply(this,t)}}function p(n){return function(...t){var e=t[0];return e.preventDefault(),n?.apply(this,t)}}export{p,r as s};

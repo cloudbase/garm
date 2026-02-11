@@ -56,10 +56,10 @@ build: ## Build garm
 	@echo Binaries are available in $(PWD)/bin
 
 .PHONY: build-webui
-build-webui:
+build-webui: ## Build GARM web UI (for local development)
 	@echo Building GARM web ui
-	./build-webapp.sh
-	rm -rf webapp/assets/_app
+	./scripts/build-webapp.sh
+	rm -rf webapp/assets/_app webapp/assets/assets webapp/assets/index.html webapp/assets/*.png
 	cp -r webapp/build/* webapp/assets/
 
 .PHONY: generate

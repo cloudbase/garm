@@ -1,3 +1,13 @@
+# Stage 1: Build webapp
+FROM docker.io/node:lts-alpine AS webapp
+
+WORKDIR /build/webapp
+COPY webapp/package.json webapp/package-lock.json ./
+RUN npm ci
+COPY webapp/ ./
+RUN npm run build
+
+# Stage 2: Build Go binaries
 FROM docker.io/golang:alpine AS builder
 ARG GARM_REF
 
@@ -10,6 +20,10 @@ RUN echo ${GARM_REF}
 ADD . /build/garm
 
 RUN git -C /build/garm checkout ${GARM_REF}
+
+# Copy webapp build output to assets directory (after git checkout to override any checked-in assets)
+COPY --from=webapp /build/webapp/build/ /build/garm/webapp/assets/
+
 RUN cd /build/garm \
     && go build -o /bin/garm \
       -tags osusergo,netgo,sqlite_omit_load_extension \
