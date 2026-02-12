@@ -101,14 +101,14 @@ func collectMetrics(ctx context.Context, r *runner.Runner, controllerInfo params
 		return err
 	}
 
-	slog.DebugContext(ctx, "collecting health metrics")
-	err = CollectHealthMetric(controllerInfo)
+	slog.DebugContext(ctx, "collecting job metrics")
+	err = CollectJobMetric(ctx, r)
 	if err != nil {
 		return err
 	}
 
-	slog.DebugContext(ctx, "collecting jobs metrics")
-	err = CollectJobMetric(ctx, r)
+	slog.DebugContext(ctx, "collecting health metrics")
+	err = CollectHealthMetric(controllerInfo)
 	if err != nil {
 		return err
 	}

@@ -26,6 +26,17 @@ var (
 		Help:      "Status of the instance",
 	}, []string{"name", "status", "runner_status", "pool_owner", "pool_type", "pool_id", "scaleset_id", "provider"})
 
+	// InstanceCount is a low-cardinality aggregate metric that counts runners
+	// by status, runner_status, pool_owner, pool_type, and provider.
+	// Use this for dashboards and alerts instead of InstanceStatus to avoid
+	// high cardinality issues with frequently cycling runners.
+	InstanceCount = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: metricsNamespace,
+		Subsystem: metricsRunnerSubsystem,
+		Name:      "count",
+		Help:      "Count of runner instances by status",
+	}, []string{"status", "runner_status", "pool_owner", "pool_type", "provider"})
+
 	InstanceOperationCount = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: metricsNamespace,
 		Subsystem: metricsRunnerSubsystem,
