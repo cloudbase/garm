@@ -1,3 +1,13 @@
+# Stage 1: Build webapp
+FROM docker.io/node:lts-alpine AS webapp
+
+WORKDIR /build/webapp
+COPY webapp/package.json webapp/package-lock.json ./
+RUN npm ci
+COPY webapp/ ./
+RUN npm run build
+
+# Stage 2: Build Go binaries
 FROM docker.io/golang:alpine
 
 WORKDIR /root
@@ -13,5 +23,8 @@ ADD ./scripts/build-static.sh /build-static.sh
 RUN chmod +x /build-static.sh
 
 ADD . /build/garm
+
+# Copy webapp build output to assets directory
+COPY --from=webapp /build/webapp/build/ /build/garm/webapp/assets/
 
 CMD ["/bin/sh"]
