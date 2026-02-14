@@ -1125,6 +1125,10 @@ func (r *basePoolManager) paramsWorkflowJobToParamsJob(job params.WorkflowJob) (
 		Labels:          job.WorkflowJob.Labels,
 	}
 
+	if job.Repository.HTMLURL != "" && job.WorkflowJob.RunID != 0 {
+		jobParams.WorkflowRunURL = fmt.Sprintf("%s/actions/runs/%d", strings.TrimRight(job.Repository.HTMLURL, "/"), job.WorkflowJob.RunID)
+	}
+
 	switch r.entity.EntityType {
 	case params.ForgeEntityTypeEnterprise:
 		jobParams.EnterpriseID = &asUUID

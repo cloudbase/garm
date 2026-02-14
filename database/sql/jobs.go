@@ -63,11 +63,13 @@ func sqlWorkflowJobToParamsJob(job WorkflowJob) (params.Job, error) {
 		CreatedAt:       job.CreatedAt,
 		UpdatedAt:       job.UpdatedAt,
 		LockedBy:        job.LockedBy,
+		WorkflowRunURL:  job.WorkflowRunURL,
 	}
 
 	if job.InstanceID != nil {
 		jobParam.RunnerName = job.Instance.Name
 	}
+
 	return jobParam, nil
 }
 
@@ -273,6 +275,7 @@ func (s *sqlDatabase) CreateOrUpdateJob(ctx context.Context, job params.Job) (pa
 		workflowJob.GithubRunnerID = job.GithubRunnerID
 		workflowJob.RunnerGroupID = job.RunnerGroupID
 		workflowJob.RunnerGroupName = job.RunnerGroupName
+		workflowJob.WorkflowRunURL = job.WorkflowRunURL
 		if job.RunID != 0 && workflowJob.RunID == 0 {
 			workflowJob.RunID = job.RunID
 		}
@@ -312,6 +315,7 @@ func (s *sqlDatabase) CreateOrUpdateJob(ctx context.Context, job params.Job) (pa
 		if err != nil {
 			return params.Job{}, fmt.Errorf("error converting job: %w", err)
 		}
+		workflowJob.WorkflowRunURL = job.WorkflowRunURL
 		if err := s.conn.Create(&workflowJob).Error; err != nil {
 			return params.Job{}, fmt.Errorf("error creating job: %w", err)
 		}
@@ -391,7 +395,9 @@ func (s *sqlDatabase) ListAllJobs(_ context.Context) ([]params.Job, error) {
 	var jobs []WorkflowJob
 	query := s.conn.Model(&WorkflowJob{})
 
-	if err := query.Preload("Instance").Find(&jobs); err.Error != nil {
+	if err := query.
+		Preload("Instance").
+		Find(&jobs); err.Error != nil {
 		if errors.Is(err.Error, gorm.ErrRecordNotFound) {
 			return []params.Job{}, nil
 		}
