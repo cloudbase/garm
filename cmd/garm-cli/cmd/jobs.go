@@ -63,7 +63,7 @@ func formatJobs(jobs []params.Job) {
 		return
 	}
 	t := table.NewWriter()
-	header := table.Row{"ID", "Name", "Status", "Conclusion", "Runner Name", "Repository", "Requested Labels", "Locked by"}
+	header := table.Row{"Workflow Job ID", "Scale Set Job ID", "Name", "Status", "Conclusion", "Runner Name", "Repository", "Requested Labels", "Locked by"}
 	t.AppendHeader(header)
 
 	for _, job := range jobs {
@@ -72,7 +72,7 @@ func formatJobs(jobs []params.Job) {
 		if job.LockedBy != uuid.Nil {
 			lockedBy = job.LockedBy.String()
 		}
-		t.AppendRow(table.Row{job.ID, job.Name, job.Status, job.Conclusion, job.RunnerName, repo, strings.Join(job.Labels, " "), lockedBy})
+		t.AppendRow(table.Row{job.WorkflowJobID, job.ScaleSetJobID, job.Name, job.Status, job.Conclusion, job.RunnerName, repo, strings.Join(job.Labels, " "), lockedBy})
 		t.AppendSeparator()
 	}
 	fmt.Println(t.Render())

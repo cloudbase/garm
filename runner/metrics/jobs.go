@@ -35,13 +35,16 @@ func CollectJobMetric(ctx context.Context, r *runner.Runner) error {
 
 	for _, job := range jobs {
 		metrics.JobStatus.WithLabelValues(
-			fmt.Sprintf("%d", job.ID),     // label: job_id
-			job.Name,                      // label: name
-			job.Status,                    // label: status
-			job.Conclusion,                // label: conclusion
-			job.RunnerName,                // label: runner_name
-			job.RepositoryName,            // label: repository
-			strings.Join(job.Labels, " "), // label: requested_labels
+			fmt.Sprintf("%d", job.ID),            // label: job_id
+			fmt.Sprintf("%d", job.WorkflowJobID), // label: workflow_job_id
+			job.ScaleSetJobID,                    // label: scaleset_job_id
+			fmt.Sprintf("%d", job.WorkflowJobID), // label: scaleset_job_id
+			job.Name,                             // label: name
+			job.Status,                           // label: status
+			job.Conclusion,                       // label: conclusion
+			job.RunnerName,                       // label: runner_name
+			job.RepositoryName,                   // label: repository
+			strings.Join(job.Labels, " "),        // label: requested_labels
 		).Set(1)
 	}
 	return nil

@@ -330,6 +330,11 @@ func (r *basePoolManager) handleCompletedJob(jobParams params.Job) error {
 
 // handleInProgressJob processes an in-progress job webhook
 func (r *basePoolManager) handleInProgressJob(jobParams params.Job) (triggeredBy int64, err error) {
+	if jobParams.RunnerName == "" {
+		slog.DebugContext(r.ctx, "instance not found in job data", "workflow_job_id", jobParams.ID)
+		return 0, nil
+	}
+
 	// Mark runner as active (this also validates the instance exists)
 	instance, err := r.setInstanceRunnerStatus(jobParams.RunnerName, params.RunnerActive)
 	if err != nil {
@@ -393,6 +398,27 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 		return fmt.Errorf("error converting job to params: %w", err)
 	}
 
+	// For in_progress/completed jobs, check if the runner belongs to a scale set.
+	// Scale set jobs are handled by the scale set listener, not by webhooks.
+	if job.Action == "in_progress" || job.Action == "completed" {
+		if jobParams.RunnerName != "" {
+			instance, err := r.store.GetInstance(r.ctx, jobParams.RunnerName)
+			if err == nil && instance.ScaleSetID != 0 {
+				slog.DebugContext(r.ctx, "job belongs to a scale set instance, skipping webhook processing",
+					"runner_name", util.SanitizeLogEntry(jobParams.RunnerName),
+					"scale_set_id", instance.ScaleSetID)
+				// Clean up any orphaned queued job that may have been recorded
+				// via webhook before we knew it belonged to a scale set.
+				if err := r.store.DeleteJob(r.ctx, jobParams.WorkflowJobID); err != nil && !errors.Is(err, runnerErrors.ErrNotFound) {
+					slog.With(slog.Any("error", err)).ErrorContext(
+						r.ctx, "failed to delete orphaned webhook job for scale set instance",
+						"job_id", jobParams.WorkflowJobID)
+				}
+				return nil
+			}
+		}
+	}
+
 	// Process job based on action type
 	var triggeredBy int64
 	var actionErr error
@@ -400,10 +426,10 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 	switch job.Action {
 	case "queued":
 		// Queued jobs are just recorded; they'll be picked up by consumeQueuedJobs()
-	case "completed":
-		actionErr = r.handleCompletedJob(jobParams)
 	case "in_progress":
 		triggeredBy, actionErr = r.handleInProgressJob(jobParams)
+	case "completed":
+		actionErr = r.handleCompletedJob(jobParams)
 	}
 
 	// Always persist job to database (success or failure)
