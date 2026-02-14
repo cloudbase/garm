@@ -22,6 +22,7 @@ import (
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/params"
+	garmUtil "github.com/cloudbase/garm/util"
 	"github.com/cloudbase/garm/util/github/scalesets"
 )
 
@@ -30,6 +31,10 @@ var closed = make(chan struct{})
 func init() { close(closed) }
 
 func newListener(ctx context.Context, scaleSetHelper scaleSetHelper) *scaleSetListener {
+	ctx = garmUtil.WithSlogContext(
+		ctx,
+		slog.Any("sub_worker", "scaleset-listener"),
+	)
 	return &scaleSetListener{
 		ctx:            ctx,
 		scaleSetHelper: scaleSetHelper,
@@ -59,7 +64,7 @@ type scaleSetListener struct {
 }
 
 func (l *scaleSetListener) Start() error {
-	slog.DebugContext(l.ctx, "starting scale set listener", "scale_set", l.scaleSetHelper.GetScaleSet().ScaleSetID)
+	slog.DebugContext(l.ctx, "starting scale set listener", "id", l.scaleSetHelper.GetScaleSet().ID, "scale_set_id", l.scaleSetHelper.GetScaleSet().ScaleSetID)
 	l.mux.Lock()
 	defer l.mux.Unlock()
 
@@ -67,7 +72,15 @@ func (l *scaleSetListener) Start() error {
 		return nil
 	}
 
-	l.listenerCtx, l.cancelFunc = context.WithCancel(context.Background())
+	listenCtx, listenCancelFunc := context.WithCancel(context.Background())
+	listenCtx = garmUtil.CopySlogValuesToNewCtx(l.ctx, listenCtx)
+	listenCtx = garmUtil.WithSlogContext(
+		listenCtx,
+		slog.Any("session_listener", l.scaleSetHelper.GetScaleSet().ID),
+	)
+	l.listenerCtx = listenCtx
+	l.cancelFunc = listenCancelFunc
+
 	scaleSet := l.scaleSetHelper.GetScaleSet()
 	scaleSetClient, err := l.scaleSetHelper.GetScaleSetClient()
 	if err != nil {

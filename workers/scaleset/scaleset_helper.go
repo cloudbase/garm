@@ -17,6 +17,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
@@ -69,6 +70,7 @@ func (w *Worker) recordOrUpdateJob(job params.ScaleSetJobMessage) error {
 		return fmt.Errorf("getting entity ID as UUID: %w", err)
 	}
 
+	baseURL := strings.TrimRight(w.entity.Credentials.BaseURL, "/")
 	jobParams := job.ToJob()
 	jobParams.RunnerGroupName = w.scaleSet.GitHubRunnerGroup
 
@@ -81,6 +83,10 @@ func (w *Worker) recordOrUpdateJob(job params.ScaleSetJobMessage) error {
 		jobParams.OrgID = &asUUID
 	default:
 		return fmt.Errorf("unknown entity type: %s --> %s", entity.EntityType, entity)
+	}
+
+	if baseURL != "" {
+		jobParams.WorkflowRunURL = fmt.Sprintf("%s/%s/%s/actions/runs/%d", baseURL, jobParams.RepositoryOwner, jobParams.RepositoryName, jobParams.RunID)
 	}
 
 	if _, jobErr := w.store.CreateOrUpdateJob(w.ctx, jobParams); jobErr != nil {
