@@ -31,6 +31,7 @@ import (
 	"github.com/cloudbase/garm/locking"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
+	garmUtil "github.com/cloudbase/garm/util"
 )
 
 func NewWorker(ctx context.Context, store dbCommon.Store, scaleSet params.ScaleSet, provider common.Provider) (*Worker, error) {
@@ -39,6 +40,18 @@ func NewWorker(ctx context.Context, store dbCommon.Store, scaleSet params.ScaleS
 	if err != nil {
 		return nil, fmt.Errorf("getting controller info: %w", err)
 	}
+	ctx = garmUtil.WithSlogContext(
+		ctx,
+		slog.Any("worker", consumerID),
+	)
+	scalesetEntity, err := scaleSet.GetEntity()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get scaleset entity: %w", err)
+	}
+	entity, err := store.GetForgeEntity(ctx, scalesetEntity.EntityType, scalesetEntity.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get entity from the db: %w", err)
+	}
 	return &Worker{
 		ctx:            ctx,
 		controllerInfo: controllerInfo,
@@ -46,6 +59,7 @@ func NewWorker(ctx context.Context, store dbCommon.Store, scaleSet params.ScaleS
 		store:          store,
 		provider:       provider,
 		scaleSet:       scaleSet,
+		entity:         entity,
 		runners:        make(map[string]params.Instance),
 	}, nil
 }
@@ -58,6 +72,7 @@ type Worker struct {
 	provider common.Provider
 	store    dbCommon.Store
 	scaleSet params.ScaleSet
+	entity   params.ForgeEntity
 	runners  map[string]params.Instance
 
 	consumer dbCommon.Consumer

@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"math/big"
 	"net/http"
@@ -195,7 +196,11 @@ func (m *MessageSession) GetMessage(ctx context.Context, lastMessageID int64, ma
 	}
 
 	var message params.RunnerScaleSetMessage
-	if err := json.NewDecoder(resp.Body).Decode(&message); err != nil {
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return params.RunnerScaleSetMessage{}, fmt.Errorf("failed to read response body: %w", err)
+	}
+	if err := json.Unmarshal(data, &message); err != nil {
 		return params.RunnerScaleSetMessage{}, fmt.Errorf("failed to decode response: %w", err)
 	}
 	return message, nil

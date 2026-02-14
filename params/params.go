@@ -1276,6 +1276,7 @@ type Job struct {
 	// repository in which the job was triggered.
 	RepositoryName  string `json:"repository_name,omitempty"`
 	RepositoryOwner string `json:"repository_owner,omitempty"`
+	WorkflowRunURL  string `json:"workflow_run_url,omitempty"`
 
 	Labels []string `json:"labels,omitempty"`
 

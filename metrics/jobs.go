@@ -22,5 +22,16 @@ var JobStatus = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 	Namespace: metricsNamespace,
 	Subsystem: metricsJobsSubsystem,
 	Name:      "status",
-	Help:      "List of jobs and their status",
-}, []string{"job_id", "name", "status", "conclusion", "runner_name", "repository", "requested_labels"})
+	Help:      "List of workflow jobs and their status",
+}, []string{
+	"job_id",
+	"workflow_job_id",
+	"scaleset_job_id",
+	"workflow_run_id",
+	"name",
+	"status",
+	"conclusion",
+	"runner_name",
+	"repository",
+	"requested_labels",
+})

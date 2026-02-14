@@ -419,7 +419,8 @@ type WorkflowJob struct {
 	RepositoryName  string
 	RepositoryOwner string
 
-	Labels datatypes.JSON
+	Labels         datatypes.JSON
+	WorkflowRunURL string
 
 	// The entity that received the hook.
 	//

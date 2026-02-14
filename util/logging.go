@@ -28,7 +28,34 @@ const (
 var _ slog.Handler = &SlogMultiHandler{}
 
 func WithSlogContext(ctx context.Context, attrs ...slog.Attr) context.Context {
-	return context.WithValue(ctx, slogCtxFields, attrs)
+	attrMap := map[string]struct{}{}
+	for _, val := range attrs {
+		attrMap[val.Key] = struct{}{}
+	}
+
+	newAttrs := attrs
+	existingAttrs, ok := ctx.Value(slogCtxFields).([]slog.Attr)
+	if ok {
+		for _, val := range existingAttrs {
+			if _, ok := attrMap[val.Key]; !ok {
+				newAttrs = append(newAttrs, val)
+			}
+		}
+	}
+	return context.WithValue(ctx, slogCtxFields, newAttrs)
+}
+
+func GetSlogValuesFromContext(ctx context.Context) []slog.Attr {
+	vals, ok := ctx.Value(slogCtxFields).([]slog.Attr)
+	if ok {
+		return vals
+	}
+	return []slog.Attr{}
+}
+
+func CopySlogValuesToNewCtx(sourceCtx, destCtx context.Context) context.Context {
+	vals := GetSlogValuesFromContext(sourceCtx)
+	return WithSlogContext(destCtx, vals...)
 }
 
 type SlogMultiHandler struct {
