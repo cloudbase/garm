@@ -43,6 +43,7 @@ func CollectJobMetric(ctx context.Context, r *runner.Runner) error {
 			job.Status,                           // label: status
 			job.Conclusion,                       // label: conclusion
 			job.RunnerName,                       // label: runner_name
+			job.RepositoryOwner,                  // label: owner
 			job.RepositoryName,                   // label: repository
 			strings.Join(job.Labels, " "),        // label: requested_labels
 		).Set(1)
