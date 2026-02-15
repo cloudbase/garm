@@ -32,6 +32,7 @@ var JobStatus = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 	"status",
 	"conclusion",
 	"runner_name",
+	"owner",
 	"repository",
 	"requested_labels",
 })
