@@ -38,7 +38,7 @@ func CollectJobMetric(ctx context.Context, r *runner.Runner) error {
 			fmt.Sprintf("%d", job.ID),            // label: job_id
 			fmt.Sprintf("%d", job.WorkflowJobID), // label: workflow_job_id
 			job.ScaleSetJobID,                    // label: scaleset_job_id
-			fmt.Sprintf("%d", job.RunID), // label: workflow_run_id
+			fmt.Sprintf("%d", job.RunID),         // label: workflow_run_id
 			job.Name,                             // label: name
 			job.Status,                           // label: status
 			job.Conclusion,                       // label: conclusion
