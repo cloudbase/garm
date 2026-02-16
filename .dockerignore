@@ -1,0 +1,18 @@
+# Node.js
+webapp/node_modules/
+webapp/build/
+
+# Go
+vendor/
+
+# IDE
+.vscode/
+.idea/
+
+# Build artifacts
+bin/
+dist/
+
+# Test artifacts
+coverage/
+
