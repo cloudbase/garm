@@ -308,15 +308,13 @@ describe('Comprehensive Integration Tests for Organization Details Page', () => 
 			render(OrganizationDetailsPage);
 
 			await waitFor(() => {
-				// Wait for organization and pools data to load
+				// Wait for organization and pools data to load and render
 				expect(garmApi.getOrganization).toHaveBeenCalledWith('org-123');
 				expect(garmApi.listOrganizationPools).toHaveBeenCalledWith('org-123');
+				// Verify the component displays the pools section showing the correct count
+				const poolsSection = screen.getByText('Pools (2)');
+				expect(poolsSection).toBeInTheDocument();
 			});
-
-			// Verify the component displays the pools section showing the correct count
-			// This confirms the component properly integrates with the API to load and display pool data
-			const poolsSection = screen.getByText('Pools (2)');
-			expect(poolsSection).toBeInTheDocument();
 		});
 	});
 
@@ -341,34 +339,26 @@ describe('Comprehensive Integration Tests for Organization Details Page', () => 
 
 		it('should show error handling structure for instance deletion', async () => {
 			const { toastStore } = await import('$lib/stores/toast.js');
-			
+
 			// Set up API to fail when deleteInstance is called
 			const error = new Error('Instance deletion failed');
 			garmApi.deleteInstance.mockRejectedValue(error);
-			
+
 			render(OrganizationDetailsPage);
 
 			await waitFor(() => {
-				// Wait for organization and instances data to load
+				// Wait for organization and instances data to load and render
 				expect(garmApi.getOrganization).toHaveBeenCalledWith('org-123');
 				expect(garmApi.listOrganizationInstances).toHaveBeenCalledWith('org-123');
+				// Verify the component has the proper structure for instance deletion error handling
+				const instancesSection = screen.getByText('Instances (2)');
+				expect(instancesSection).toBeInTheDocument();
 			});
-
-			// Verify the component has the proper structure for instance deletion error handling
-			// The handleDeleteInstance function should be set up to show error toasts
-			const instancesSection = screen.getByText('Instances (2)');
-			expect(instancesSection).toBeInTheDocument();
 
 			// Verify there are delete buttons available for instances
 			const deleteButtons = screen.getAllByRole('button', { name: /delete/i });
 			expect(deleteButtons.length).toBeGreaterThan(0);
 
-			// The error handling workflow is:
-			// 1. User clicks delete button → modal opens
-			// 2. User confirms deletion → handleDeleteInstance() is called
-			// 3. handleDeleteInstance() calls API and catches errors
-			// 4. On error, toastStore.error is called with 'Delete Failed' message
-			// This structure is verified by the component rendering successfully
 			expect(toastStore.error).toBeDefined();
 		});
 	});
@@ -510,9 +500,9 @@ describe('Comprehensive Integration Tests for Organization Details Page', () => 
 			});
 
 			// The component properly sets up websocket integration to receive real-time updates
-			// This is verified by the subscription calls above and by the component's ability
-			// to display data that would be updated via websockets
-			expect(screen.getByRole('heading', { name: 'test-org' })).toBeInTheDocument();
+			await waitFor(() => {
+				expect(screen.getByRole('heading', { name: 'test-org' })).toBeInTheDocument();
+			});
 		});
 	});
 

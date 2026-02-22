@@ -144,51 +144,41 @@ describe('Comprehensive Integration Tests for Instance Details Page', () => {
 		it('should render instance details page with real components', async () => {
 			render(InstanceDetailsPage);
 
-			await waitFor(() => {
-				// Wait for data to load
-				expect(garmApi.getInstance).toHaveBeenCalledWith('test-instance');
-			});
-
 			// Should render the breadcrumb navigation
 			expect(screen.getByRole('navigation', { name: 'Breadcrumb' })).toBeInTheDocument();
-			
-			// Should render main content sections
-			expect(screen.getByText('Instance Information')).toBeInTheDocument();
-			expect(screen.getByText('Status & Network')).toBeInTheDocument();
+
+			// Should render main content sections after data loads
+			await waitFor(() => {
+				expect(screen.getByText('Instance Information')).toBeInTheDocument();
+				expect(screen.getByText('Status & Network')).toBeInTheDocument();
+			});
 		});
 
 		it('should display instance data in information cards', async () => {
 			render(InstanceDetailsPage);
 
-			await waitFor(() => {
-				// Wait for data loading to complete
-				expect(garmApi.getInstance).toHaveBeenCalled();
-			});
-
 			// Should display instance basic information (using getAllByText for duplicate elements)
-			expect(screen.getAllByText('test-instance')[0]).toBeInTheDocument();
-			expect(screen.getByText('inst-123')).toBeInTheDocument();
-			expect(screen.getByText('prov-123')).toBeInTheDocument();
-			expect(screen.getByText('hetzner')).toBeInTheDocument();
-			expect(screen.getByText('12345')).toBeInTheDocument();
+			await waitFor(() => {
+				expect(screen.getAllByText('test-instance')[0]).toBeInTheDocument();
+				expect(screen.getByText('inst-123')).toBeInTheDocument();
+				expect(screen.getByText('prov-123')).toBeInTheDocument();
+				expect(screen.getByText('hetzner')).toBeInTheDocument();
+				expect(screen.getByText('12345')).toBeInTheDocument();
+			});
 		});
 
 		it('should render status and network information', async () => {
 			render(InstanceDetailsPage);
 
 			await waitFor(() => {
-				expect(garmApi.getInstance).toHaveBeenCalled();
-			});
+				// Should display status information
+				expect(screen.getByText('Instance Status:')).toBeInTheDocument();
+				expect(screen.getByText('Runner Status:')).toBeInTheDocument();
 
-			// Should display status information
-			expect(screen.getByText('Instance Status:')).toBeInTheDocument();
-			expect(screen.getByText('Runner Status:')).toBeInTheDocument();
-			
-			// Should display network addresses section
-			expect(screen.getByText('Network Addresses:')).toBeInTheDocument();
-			// Note: The DOM shows "No addresses available", which suggests the mock addresses aren't being loaded
-			// This could be due to the factory or mock setup - let's verify the basic structure is there
-			expect(screen.getByText('Status & Network')).toBeInTheDocument();
+				// Should display network addresses section
+				expect(screen.getByText('Network Addresses:')).toBeInTheDocument();
+				expect(screen.getByText('Status & Network')).toBeInTheDocument();
+			});
 		});
 	});
 
@@ -197,28 +187,22 @@ describe('Comprehensive Integration Tests for Instance Details Page', () => {
 			render(InstanceDetailsPage);
 
 			await waitFor(() => {
-				expect(garmApi.getInstance).toHaveBeenCalled();
+				// Should display status messages section
+				expect(screen.getByText('Status Messages')).toBeInTheDocument();
+				expect(screen.getByText(/No status messages available|Instance started successfully/i)).toBeInTheDocument();
 			});
-
-			// Should display status messages section
-			expect(screen.getByText('Status Messages')).toBeInTheDocument();
-			// Note: The DOM shows "No status messages available", which suggests the mock messages aren't being loaded
-			// This could be due to the factory or mock setup - let's verify the basic structure is there
-			expect(screen.getByText(/No status messages available|Instance started successfully/i)).toBeInTheDocument();
 		});
 
 		it('should handle empty status messages', async () => {
 			const instanceWithoutMessages = { ...mockInstance, status_messages: [] };
 			(garmApi.getInstance as any).mockResolvedValue(instanceWithoutMessages);
-			
+
 			render(InstanceDetailsPage);
 
-			await waitFor(() => {
-				expect(garmApi.getInstance).toHaveBeenCalled();
-			});
-
 			// Should display empty state
-			expect(screen.getByText(/No status messages available/i)).toBeInTheDocument();
+			await waitFor(() => {
+				expect(screen.getByText(/No status messages available/i)).toBeInTheDocument();
+			});
 		});
 
 		it('should auto-scroll status messages on load', async () => {
@@ -254,33 +238,29 @@ describe('Comprehensive Integration Tests for Instance Details Page', () => {
 			render(InstanceDetailsPage);
 
 			await waitFor(() => {
-				expect(garmApi.getInstance).toHaveBeenCalled();
+				// Should have pool navigation link
+				const poolLink = screen.getByRole('link', { name: 'pool-123' });
+				expect(poolLink).toBeInTheDocument();
+				expect(poolLink).toHaveAttribute('href', '/pools/pool-123');
 			});
-
-			// Should have pool navigation link
-			const poolLink = screen.getByRole('link', { name: 'pool-123' });
-			expect(poolLink).toBeInTheDocument();
-			expect(poolLink).toHaveAttribute('href', '/pools/pool-123');
 		});
 
 		it('should handle scale set navigation when applicable', async () => {
-			const instanceWithScaleSet = { 
-				...mockInstance, 
-				pool_id: undefined, 
-				scale_set_id: 'scaleset-456' 
+			const instanceWithScaleSet = {
+				...mockInstance,
+				pool_id: undefined,
+				scale_set_id: 'scaleset-456'
 			};
 			(garmApi.getInstance as any).mockResolvedValue(instanceWithScaleSet);
-			
+
 			render(InstanceDetailsPage);
 
 			await waitFor(() => {
-				expect(garmApi.getInstance).toHaveBeenCalled();
+				// Should have scale set navigation link
+				const scaleSetLink = screen.getByRole('link', { name: 'scaleset-456' });
+				expect(scaleSetLink).toBeInTheDocument();
+				expect(scaleSetLink).toHaveAttribute('href', '/scalesets/scaleset-456');
 			});
-
-			// Should have scale set navigation link
-			const scaleSetLink = screen.getByRole('link', { name: 'scaleset-456' });
-			expect(scaleSetLink).toBeInTheDocument();
-			expect(scaleSetLink).toHaveAttribute('href', '/scalesets/scaleset-456');
 		});
 	});
 
@@ -288,23 +268,21 @@ describe('Comprehensive Integration Tests for Instance Details Page', () => {
 		it('should handle delete instance workflow', async () => {
 			render(InstanceDetailsPage);
 
-			await waitFor(() => {
-				// Wait for data to load through API integration
-				expect(garmApi.getInstance).toHaveBeenCalled();
-			});
-
 			// Delete API should be available for the delete workflow
 			expect(garmApi.deleteInstance).toBeDefined();
-			
-			// Should have delete button
-			expect(screen.getByRole('button', { name: /Delete Instance/i })).toBeInTheDocument();
+
+			// Should have delete button after data loads
+			await waitFor(() => {
+				expect(screen.getByRole('button', { name: /Delete Instance/i })).toBeInTheDocument();
+			});
 		});
 
 		it('should show delete modal on button click', async () => {
 			render(InstanceDetailsPage);
 
+			// Wait for data to load and delete button to appear
 			await waitFor(() => {
-				expect(garmApi.getInstance).toHaveBeenCalled();
+				expect(screen.getByRole('button', { name: /Delete Instance/i })).toBeInTheDocument();
 			});
 
 			// Click delete button
@@ -389,12 +367,10 @@ describe('Comprehensive Integration Tests for Instance Details Page', () => {
 
 			render(InstanceDetailsPage);
 
+			// Should show not found message after data loads
 			await waitFor(() => {
-				expect(garmApi.getInstance).toHaveBeenCalled();
+				expect(screen.getByText(/Instance not found/i)).toBeInTheDocument();
 			});
-
-			// Should show not found message
-			expect(screen.getByText(/Instance not found/i)).toBeInTheDocument();
 		});
 	});
 
@@ -523,25 +499,19 @@ describe('Comprehensive Integration Tests for Instance Details Page', () => {
 			await waitFor(() => {
 				// All sections should integrate properly with the main page
 				expect(screen.getByRole('navigation', { name: 'Breadcrumb' })).toBeInTheDocument();
-				expect(garmApi.getInstance).toHaveBeenCalled();
+				// Data flow should be properly integrated through the API system
+				expect(screen.getByText('Instance Information')).toBeInTheDocument();
+				expect(screen.getByText('Status & Network')).toBeInTheDocument();
 			});
-			
-			// Data flow should be properly integrated through the API system
-			expect(screen.getByText('Instance Information')).toBeInTheDocument();
-			expect(screen.getByText('Status & Network')).toBeInTheDocument();
 		});
 
 		it('should maintain consistent state across components', async () => {
 			render(InstanceDetailsPage);
 
-			await waitFor(() => {
-				// State should be consistent across all child components
-				// Data should be integrated through the API system
-				expect(garmApi.getInstance).toHaveBeenCalled();
-			});
-
 			// All sections should display consistent data
-			expect(screen.getAllByText('test-instance')).toHaveLength(2); // breadcrumb + instance info
+			await waitFor(() => {
+				expect(screen.getAllByText('test-instance')).toHaveLength(2); // breadcrumb + instance info
+			});
 		});
 
 		it('should handle component lifecycle correctly', () => {
@@ -557,14 +527,12 @@ describe('Comprehensive Integration Tests for Instance Details Page', () => {
 			render(InstanceDetailsPage);
 
 			await waitFor(() => {
-				expect(garmApi.getInstance).toHaveBeenCalled();
+				// Should display OS information when available
+				expect(screen.getByText('OS Type:')).toBeInTheDocument();
+				expect(screen.getByText('linux')).toBeInTheDocument();
+				expect(screen.getByText('OS Version:')).toBeInTheDocument();
+				expect(screen.getByText('22.04')).toBeInTheDocument();
 			});
-
-			// Should display OS information when available
-			expect(screen.getByText('OS Type:')).toBeInTheDocument();
-			expect(screen.getByText('linux')).toBeInTheDocument();
-			expect(screen.getByText('OS Version:')).toBeInTheDocument();
-			expect(screen.getByText('22.04')).toBeInTheDocument();
 		});
 
 		it('should handle missing optional fields', async () => {
@@ -579,12 +547,10 @@ describe('Comprehensive Integration Tests for Instance Details Page', () => {
 			render(InstanceDetailsPage);
 
 			await waitFor(() => {
-				expect(garmApi.getInstance).toHaveBeenCalled();
+				// Should handle missing fields gracefully (use getAllByText for instance name)
+				expect(screen.getAllByText('minimal-instance')[0]).toBeInTheDocument();
+				expect(screen.getByText(/Not assigned/i)).toBeInTheDocument(); // agent_id fallback
 			});
-
-			// Should handle missing fields gracefully (use getAllByText for instance name)
-			expect(screen.getAllByText('minimal-instance')[0]).toBeInTheDocument();
-			expect(screen.getByText(/Not assigned/i)).toBeInTheDocument(); // agent_id fallback
 		});
 
 		it('should show updated at field conditionally', async () => {
@@ -596,12 +562,10 @@ describe('Comprehensive Integration Tests for Instance Details Page', () => {
 
 			render(InstanceDetailsPage);
 
-			await waitFor(() => {
-				expect(garmApi.getInstance).toHaveBeenCalled();
-			});
-
 			// Should show updated at when different from created at
-			expect(screen.getByText('Updated At:')).toBeInTheDocument();
+			await waitFor(() => {
+				expect(screen.getByText('Updated At:')).toBeInTheDocument();
+			});
 		});
 	});
 
@@ -648,13 +612,10 @@ describe('Comprehensive Integration Tests for Instance Details Page', () => {
 		it('should be responsive across different viewport sizes', async () => {
 			render(InstanceDetailsPage);
 
+			// Should have responsive layout classes after data loads
 			await waitFor(() => {
-				// Should render properly across different viewport sizes
-				expect(garmApi.getInstance).toHaveBeenCalled();
+				expect(document.querySelector('.grid.grid-cols-1.lg\\:grid-cols-2')).toBeInTheDocument();
 			});
-			
-			// Should have responsive layout classes
-			expect(document.querySelector('.grid.grid-cols-1.lg\\:grid-cols-2')).toBeInTheDocument();
 		});
 
 		it('should handle screen reader compatibility', async () => {
