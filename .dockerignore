@@ -3,7 +3,6 @@ webapp/node_modules/
 webapp/build/
 
 # Go
-vendor/
 
 # IDE
 .vscode/
