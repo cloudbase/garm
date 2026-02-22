@@ -8,7 +8,7 @@ COPY webapp/ ./
 RUN npm run build
 
 # Stage 2: Build Go binaries
-FROM docker.io/golang:alpine
+FROM docker.io/golang:alpine AS builder
 
 WORKDIR /root
 USER root
@@ -27,4 +27,10 @@ ADD . /build/garm
 # Copy webapp build output to assets directory
 COPY --from=webapp /build/webapp/build/ /build/garm/webapp/assets/
 
-CMD ["/bin/sh"]
+ARG GARM_REF
+ENV GARM_REF=${GARM_REF}
+RUN /build-static.sh
+
+# Stage 3: Export only the binaries
+FROM scratch AS export
+COPY --from=builder /build/output/ /

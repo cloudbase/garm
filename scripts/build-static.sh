@@ -1,4 +1,5 @@
 #!/bin/sh
+set -e
 
 GARM_SOURCE="/build/garm"
 git config --global --add safe.directory /build/garm

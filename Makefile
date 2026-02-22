@@ -39,9 +39,12 @@ default: build
 .PHONY : build-static test install-lint-deps lint go-test fmt fmtcheck verify-vendor verify create-release-files release
 build-static: ## Build garm statically
 	@echo Building garm
-	$(IMAGE_BUILDER) build $(EXTRA_ARGS) --tag $(IMAGE_TAG) -f Dockerfile.build-static .
 	mkdir -p build
-	$(IMAGE_BUILDER) run --rm -e USER_ID=$(USER_ID) -e GARM_REF=$(GARM_REF) -e USER_GROUP=$(USER_GROUP) -v $(PWD)/build:/build/output:z $(IMAGE_TAG) /build-static.sh
+	$(IMAGE_BUILDER) build --no-cache $(EXTRA_ARGS) \
+		--build-arg GARM_REF=$(GARM_REF) \
+		--output type=local,dest=$(PWD)/build \
+		--target=export \
+		-f Dockerfile.build-static .
 	@echo Binaries are available in $(PWD)/build
 
 clean: ## Clean up build artifacts
