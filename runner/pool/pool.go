@@ -315,7 +315,7 @@ func (r *basePoolManager) handleCompletedJob(jobParams params.Job) error {
 	slog.DebugContext(
 		r.ctx, "marking instance as pending_delete",
 		"runner_name", util.SanitizeLogEntry(jobParams.RunnerName))
-	if _, err := r.setInstanceStatus(jobParams.RunnerName, commonParams.InstancePendingDelete, nil); err != nil {
+	if _, err := r.setInstanceStatus(jobParams.RunnerName, commonParams.InstancePendingDelete, nil, false); err != nil {
 		if errors.Is(err, runnerErrors.ErrNotFound) {
 			return nil
 		}
@@ -597,7 +597,10 @@ func (r *basePoolManager) cleanupOrphanedProviderRunners(runners []forgeRunner) 
 
 		if ok := runnerNames[instance.Name]; !ok {
 			// Set pending_delete on DB field. Allow consolidate() to remove it.
-			if _, err := r.setInstanceStatus(instance.Name, commonParams.InstancePendingDelete, nil); err != nil {
+			// We set force to true here. If we're recovering after a restart, the instance lock
+			// we attempt to acquire above, will succed. If it does and we get here, we need to
+			// bypass status transition safeguards.
+			if _, err := r.setInstanceStatus(instance.Name, commonParams.InstancePendingDelete, nil, true); err != nil {
 				slog.With(slog.Any("error", err)).ErrorContext(
 					r.ctx, "failed to update runner",
 					"runner_name", instance.Name)
@@ -871,18 +874,24 @@ func (r *basePoolManager) setInstanceRunnerStatus(runnerName string, status para
 	}
 	instance, err := r.store.UpdateInstance(r.ctx, runnerName, updateParams)
 	if err != nil {
-		return params.Instance{}, fmt.Errorf("error updating runner state: %w", err)
+		return params.Instance{}, fmt.Errorf("error updating runner status: %w", err)
 	}
 	return instance, nil
 }
 
-func (r *basePoolManager) setInstanceStatus(runnerName string, status commonParams.InstanceStatus, providerFault []byte) (params.Instance, error) {
+func (r *basePoolManager) setInstanceStatus(runnerName string, status commonParams.InstanceStatus, providerFault []byte, force bool) (params.Instance, error) {
 	updateParams := params.UpdateInstanceParams{
 		Status:        status,
 		ProviderFault: providerFault,
 	}
-
-	instance, err := r.store.UpdateInstance(r.ctx, runnerName, updateParams)
+	var instance params.Instance
+	var err error
+	switch force {
+	case true:
+		instance, err = r.store.ForceUpdateInstance(r.ctx, runnerName, updateParams)
+	default:
+		instance, err = r.store.UpdateInstance(r.ctx, runnerName, updateParams)
+	}
 	if err != nil {
 		return params.Instance{}, fmt.Errorf("error updating runner state: %w", err)
 	}
@@ -1601,7 +1610,7 @@ func (r *basePoolManager) deletePendingInstances() error {
 						"runner_name", instance.Name)
 					// failed to remove from provider. Set status to previous value, which will retry
 					// the operation.
-					if _, err := r.setInstanceStatus(instance.Name, currentStatus, []byte(err.Error())); err != nil {
+					if _, err := r.setInstanceStatus(instance.Name, currentStatus, []byte(err.Error()), true); err != nil {
 						slog.With(slog.Any("error", err)).ErrorContext(
 							r.ctx, "failed to update runner status",
 							"runner_name", instance.Name)
@@ -1610,7 +1619,7 @@ func (r *basePoolManager) deletePendingInstances() error {
 				}
 			}(instance)
 
-			if _, err := r.setInstanceStatus(instance.Name, commonParams.InstanceDeleting, nil); err != nil {
+			if _, err := r.setInstanceStatus(instance.Name, commonParams.InstanceDeleting, nil, true); err != nil {
 				slog.With(slog.Any("error", err)).ErrorContext(
 					r.ctx, "failed to update runner status",
 					"runner_name", instance.Name)
@@ -1678,7 +1687,7 @@ func (r *basePoolManager) addPendingInstances() error {
 
 		// Set the instance to "creating" before launching the goroutine. This will ensure that addPendingInstances()
 		// won't attempt to create the runner a second time.
-		if _, err := r.setInstanceStatus(instance.Name, commonParams.InstanceCreating, nil); err != nil {
+		if _, err := r.setInstanceStatus(instance.Name, commonParams.InstanceCreating, nil, false); err != nil {
 			slog.With(slog.Any("error", err)).ErrorContext(
 				r.ctx, "failed to update runner status",
 				"runner_name", instance.Name)
@@ -1699,7 +1708,7 @@ func (r *basePoolManager) addPendingInstances() error {
 					r.ctx, "failed to add instance to provider",
 					"runner_name", instance.Name)
 				errAsBytes := []byte(err.Error())
-				if _, statusErr := r.setInstanceStatus(instance.Name, commonParams.InstanceError, errAsBytes); statusErr != nil {
+				if _, statusErr := r.setInstanceStatus(instance.Name, commonParams.InstanceError, errAsBytes, false); statusErr != nil {
 					slog.With(slog.Any("error", statusErr)).ErrorContext(
 						r.ctx, "failed to update runner status",
 						"runner_name", instance.Name)
@@ -1852,7 +1861,7 @@ func (r *basePoolManager) DeleteRunner(runner params.Instance, forceRemove, bypa
 		r.ctx, "setting instance status",
 		"runner_name", runner.Name,
 		"status", instanceStatus)
-	if _, err := r.setInstanceStatus(runner.Name, instanceStatus, nil); err != nil {
+	if _, err := r.setInstanceStatus(runner.Name, instanceStatus, nil, true); err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(
 			r.ctx, "failed to update runner",
 			"runner_name", runner.Name)
