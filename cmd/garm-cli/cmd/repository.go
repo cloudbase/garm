@@ -451,6 +451,7 @@ func formatOneRepository(repo params.Repository) {
 	t.AppendRow(table.Row{"Endpoint", repo.Endpoint.Name})
 	t.AppendRow(table.Row{"Pool balancer type", repo.GetBalancerType()})
 	t.AppendRow(table.Row{"Credentials", repo.GetCredentialsName()})
+	t.AppendRow(table.Row{"Agent Mode", repo.AgentMode})
 	t.AppendRow(table.Row{"Pool manager running", repo.PoolManagerStatus.IsRunning})
 	if !repo.PoolManagerStatus.IsRunning {
 		t.AppendRow(table.Row{"Failure reason", repo.PoolManagerStatus.FailureReason})
