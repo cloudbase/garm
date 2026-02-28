@@ -271,7 +271,7 @@ func (r *Runner) ForceToolsSync(ctx context.Context) (params.ControllerInfo, err
 
 	// Check if sync is enabled
 	if !info.SyncGARMAgentTools {
-		return params.ControllerInfo{}, fmt.Errorf("GARM agent tools sync is disabled")
+		return params.ControllerInfo{}, runnerErrors.NewConflictError("GARM agent tools sync is disabled")
 	}
 
 	// Reset the timestamp to nil to trigger force sync
