@@ -274,6 +274,7 @@ func formatOneEnterprise(enterprise params.Enterprise) {
 	t.AppendRow(table.Row{"Endpoint", enterprise.Endpoint.Name})
 	t.AppendRow(table.Row{"Pool balancer type", enterprise.GetBalancerType()})
 	t.AppendRow(table.Row{"Credentials", enterprise.Credentials.Name})
+	t.AppendRow(table.Row{"Agent Mode", enterprise.AgentMode})
 	t.AppendRow(table.Row{"Pool manager running", enterprise.PoolManagerStatus.IsRunning})
 	if !enterprise.PoolManagerStatus.IsRunning {
 		t.AppendRow(table.Row{"Failure reason", enterprise.PoolManagerStatus.FailureReason})

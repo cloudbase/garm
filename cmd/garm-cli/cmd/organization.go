@@ -440,6 +440,7 @@ func formatOneOrganization(org params.Organization) {
 	t.AppendRow(table.Row{"Endpoint", org.Endpoint.Name})
 	t.AppendRow(table.Row{"Pool balancer type", org.GetBalancerType()})
 	t.AppendRow(table.Row{"Credentials", org.CredentialsName})
+	t.AppendRow(table.Row{"Agent mode", org.AgentMode})
 	t.AppendRow(table.Row{"Pool manager running", org.PoolManagerStatus.IsRunning})
 	if !org.PoolManagerStatus.IsRunning {
 		t.AppendRow(table.Row{"Failure reason", org.PoolManagerStatus.FailureReason})
