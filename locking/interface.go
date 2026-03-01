@@ -14,11 +14,15 @@
 
 package locking
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 type Locker interface {
 	TryLock(key, identifier string) bool
 	Lock(key, identifier string)
+	LockWithContext(ctx context.Context, key, identifier string) error
 	LockedBy(key string) (string, bool)
 	Unlock(key string, remove bool)
 	Delete(key string)

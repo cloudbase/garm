@@ -60,7 +60,7 @@ func (r *Runner) SetInstanceToPendingDelete(ctx context.Context) error {
 		Status: commonParams.InstancePendingDelete,
 	}
 
-	if _, err := r.store.UpdateInstance(r.ctx, instance.ID, updateParams); err != nil {
+	if _, err := r.store.ForceUpdateInstance(r.ctx, instance.ID, updateParams); err != nil {
 		return fmt.Errorf("failed to set instance to pending_delete: %w", err)
 	}
 	return nil

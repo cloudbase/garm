@@ -1770,9 +1770,41 @@ func (r *basePoolManager) cleanupOrphanedRunners(runners []forgeRunner) error {
 	return nil
 }
 
+func (r *basePoolManager) cleanupRunnersInterruptedInFlight() error {
+	instances, err := r.store.ListEntityInstances(r.ctx, r.entity)
+	if err != nil {
+		return fmt.Errorf("failed to list instances: %w", err)
+	}
+
+	for _, instance := range instances {
+		if instance.ScaleSetID != 0 {
+			// ignore scaleset instance
+			continue
+		}
+		switch instance.Status {
+		case commonParams.InstanceCreating, commonParams.InstanceDeleting:
+			if err := r.DeleteRunner(instance, false, true); err != nil {
+				slog.ErrorContext(r.ctx, "failed to delete runner", "error", err)
+				continue
+			}
+		}
+	}
+	return nil
+}
+
 func (r *basePoolManager) Start() error {
-	initialToolUpdate := make(chan struct{}, 1)
+	initializeEntity := make(chan struct{}, 1)
 	go func() {
+		// At this point, we just mark instances in `creating` and `deleting` as `pending_delete`
+		// These instances were interrupted while transitioning, so they are in a state we need
+		// to recover from. The call to DeleteRunner() will potentially remove them from github
+		// if using JIT, and mark them for deleting. The actual deletion will happen only after
+		// tools are fetched and the loops start.
+		slog.InfoContext(r.ctx, "cleaning up instances that were interrupted in flight")
+		if err := r.cleanupRunnersInterruptedInFlight(); err != nil {
+			slog.ErrorContext(r.ctx, "startup runner cleanup failed", "error", err)
+		}
+
 		slog.Info("running initial tool update")
 		for {
 			slog.DebugContext(r.ctx, "waiting for tools to be available")
@@ -1787,7 +1819,7 @@ func (r *basePoolManager) Start() error {
 		if err := r.updateTools(); err != nil {
 			slog.With(slog.Any("error", err)).Error("failed to update tools")
 		}
-		initialToolUpdate <- struct{}{}
+		initializeEntity <- struct{}{}
 	}()
 
 	go r.runWatcher()
@@ -1797,9 +1829,9 @@ func (r *basePoolManager) Start() error {
 			return
 		case <-r.ctx.Done():
 			return
-		case <-initialToolUpdate:
+		case <-initializeEntity:
 		}
-		defer close(initialToolUpdate)
+		defer close(initializeEntity)
 		go r.startLoopForFunction(r.runnerCleanup, common.PoolReapTimeoutInterval, "timeout_reaper", false)
 		go r.startLoopForFunction(r.scaleDown, common.PoolScaleDownInterval, "scale_down", false)
 		// always run the delete pending instances routine. This way we can still remove existing runners, even if the pool is not running.
@@ -1846,7 +1878,7 @@ func (r *basePoolManager) DeleteRunner(runner params.Instance, forceRemove, bypa
 				} else {
 					return fmt.Errorf("error removing runner: %w", err)
 				}
-			} else {
+			} else if !errors.Is(err, runnerErrors.ErrNotFound) {
 				return fmt.Errorf("error removing runner: %w", err)
 			}
 		}
@@ -1862,10 +1894,12 @@ func (r *basePoolManager) DeleteRunner(runner params.Instance, forceRemove, bypa
 		"runner_name", runner.Name,
 		"status", instanceStatus)
 	if _, err := r.setInstanceStatus(runner.Name, instanceStatus, nil, true); err != nil {
-		slog.With(slog.Any("error", err)).ErrorContext(
-			r.ctx, "failed to update runner",
-			"runner_name", runner.Name)
-		return fmt.Errorf("error updating runner: %w", err)
+		if !errors.Is(err, runnerErrors.ErrNotFound) {
+			slog.With(slog.Any("error", err)).ErrorContext(
+				r.ctx, "failed to update runner",
+				"runner_name", runner.Name)
+			return fmt.Errorf("error updating runner: %w", err)
+		}
 	}
 	return nil
 }
