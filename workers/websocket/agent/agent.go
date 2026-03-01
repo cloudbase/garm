@@ -16,6 +16,7 @@ import (
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/database/watcher"
+	"github.com/cloudbase/garm/locking"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner"
 	garmUtil "github.com/cloudbase/garm/util"
@@ -321,10 +322,17 @@ func (a *Agent) messageHandler(msg []byte) (err error) {
 		}
 
 		if status.Status == params.RunnerTerminated {
+			// try to grab a lock to the instance. We block here.
+			if err := locking.LockWithContext(a.ctx, a.instance.Name, a.consumerID); err != nil {
+				return fmt.Errorf("failed to acquire lock: %w", err)
+			}
+
 			// mark the instance as pending_delete
 			if err := a.agentStore.SetInstanceToPendingDelete(a.ctx); err != nil {
+				locking.Unlock(a.instance.Name, false)
 				return fmt.Errorf("failed to mark instance as pending_delete: %w", err)
 			}
+			locking.Unlock(a.instance.Name, false)
 			return ErrShuttingDown
 		}
 	}

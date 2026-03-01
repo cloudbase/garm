@@ -15,6 +15,7 @@
 package locking
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"runtime"
@@ -48,6 +49,18 @@ func Lock(key, identifier string) {
 	defer slog.Debug("lock acquired", "key", key, "identifier", identifier, "caller", fmt.Sprintf("%s:%d", filename, line))
 
 	locker.Lock(key, identifier)
+}
+
+func LockWithContext(ctx context.Context, key, identifier string) error {
+	if locker == nil {
+		panic("no locker is registered")
+	}
+
+	_, filename, line, _ := runtime.Caller(1)
+	slog.Debug("attempting to lock with context", "key", key, "identifier", identifier, "caller", fmt.Sprintf("%s:%d", filename, line))
+	defer slog.Debug("lock acquired", "key", key, "identifier", identifier, "caller", fmt.Sprintf("%s:%d", filename, line))
+
+	return locker.LockWithContext(ctx, key, identifier)
 }
 
 func Unlock(key string, remove bool) {
