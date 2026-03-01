@@ -233,6 +233,112 @@ func (a *Agent) agentReader() {
 	}
 }
 
+func (a *Agent) handleHeartbeat(agentMsg messaging.AgentMessage) error {
+	slog.DebugContext(a.ctx, "received heartbeat message from agent")
+	heartbeatMsg, err := messaging.Unmarshal[messaging.RunnerHeartbetMessage](agentMsg)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal shell disabled message: %w", err)
+	}
+	if err := a.agentStore.RecordAgentHeartbeat(a.ctx); err != nil {
+		return fmt.Errorf("failed to record heartbeat: %w", err)
+	}
+	if a.instance.AgentID != int64(heartbeatMsg.AgentID) {
+		slog.WarnContext(a.ctx, "missmatching agent ID", "instance_agent_id", a.instance.AgentID, "status_update_agent_id", heartbeatMsg.AgentID)
+	}
+	slog.DebugContext(a.ctx, "message heartbeat received", "payload", heartbeatMsg.Payload)
+	if len(heartbeatMsg.Payload) > 0 {
+		var caps params.AgentCapabilities
+		if err := json.Unmarshal(heartbeatMsg.Payload, &caps); err != nil {
+			return fmt.Errorf("failed to unmarshal capabilities: %w", err)
+		}
+		if caps.Shell != a.instance.Capabilities.Shell {
+			if err := a.agentStore.SetInstanceCapabilities(a.ctx, caps); err != nil {
+				return fmt.Errorf("failed to set agent capabilities: %w", err)
+			}
+		}
+	}
+	return nil
+}
+
+func (a *Agent) handleShellReady(agentMsg messaging.AgentMessage, raw []byte) error {
+	shellReady, err := messaging.Unmarshal[messaging.ShellReadyMessage](agentMsg)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal shell ready message: %w", err)
+	}
+	session, ok := a.shellSessions[shellReady.ID()]
+	if !ok {
+		return nil
+	}
+	if err := session.Write(raw); err != nil {
+		return fmt.Errorf("failed to write message: %w", err)
+	}
+	return nil
+}
+
+func (a *Agent) handleShellExit(agentMsg messaging.AgentMessage) error {
+	shellExit, err := messaging.Unmarshal[messaging.ShellDataMessage](agentMsg)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal shell exit message: %w", err)
+	}
+	session, ok := a.shellSessions[shellExit.ID()]
+	if !ok {
+		return nil
+	}
+	if err := a.RemoveClientSession(session.sessionID, false); err != nil {
+		return fmt.Errorf("failed to remove session: %w", err)
+	}
+	return nil
+}
+
+func (a *Agent) handleShellData(agentMsg messaging.AgentMessage, raw []byte) error {
+	shellData, err := messaging.Unmarshal[messaging.ShellDataMessage](agentMsg)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal shell data message: %w", err)
+	}
+	session, ok := a.shellSessions[shellData.ID()]
+	if !ok {
+		return nil
+	}
+	if err := session.Write(raw); err != nil {
+		return fmt.Errorf("failed to write message: %w", err)
+	}
+	return nil
+}
+
+func (a *Agent) handleStatusMessage(agentMsg messaging.AgentMessage) error {
+	statusUpdate, err := messaging.Unmarshal[messaging.RunnerUpdateMessage](agentMsg)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal runner status message: %w", err)
+	}
+	slog.InfoContext(a.ctx, "got runner status update", "status", string(statusUpdate.Payload))
+	if a.instance.AgentID != int64(statusUpdate.AgentID) {
+		slog.WarnContext(a.ctx, "missmatching agent ID", "instance_agent_id", a.instance.AgentID, "status_update_agent_id", statusUpdate.AgentID)
+	}
+	var status params.InstanceUpdateMessage
+	if err := json.Unmarshal(statusUpdate.Payload, &status); err != nil {
+		return fmt.Errorf("failed to unmarshal instance update: %w", err)
+	}
+	if err := a.agentStore.AddInstanceStatusMessage(a.ctx, status); err != nil {
+		return fmt.Errorf("failed to add status message: %w", err)
+	}
+
+	if status.Status == params.RunnerTerminated {
+		// try to grab a lock to the instance. We block here.
+		if err := locking.LockWithContext(a.ctx, a.instance.Name, a.consumerID); err != nil {
+			return fmt.Errorf("failed to acquire lock: %w", err)
+		}
+
+		// mark the instance as pending_delete
+		if err := a.agentStore.SetInstanceToPendingDelete(a.ctx); err != nil {
+			locking.Unlock(a.instance.Name, false)
+			return fmt.Errorf("failed to mark instance as pending_delete: %w", err)
+		}
+		locking.Unlock(a.instance.Name, false)
+		return ErrShuttingDown
+	}
+	return nil
+}
+
 func (a *Agent) messageHandler(msg []byte) (err error) {
 	if len(msg) < 1 {
 		return fmt.Errorf("mesage is too short")
@@ -244,97 +350,15 @@ func (a *Agent) messageHandler(msg []byte) (err error) {
 
 	switch agentMsg.Type {
 	case messaging.MessageTypeHeartbeat:
-		slog.DebugContext(a.ctx, "received heartbeat message from agent")
-		heartbeatMsg, err := messaging.Unmarshal[messaging.RunnerHeartbetMessage](agentMsg)
-		if err != nil {
-			return fmt.Errorf("failed to unmarshal shell disabled message: %w", err)
-		}
-		err = a.agentStore.RecordAgentHeartbeat(a.ctx)
-		if err != nil {
-			return fmt.Errorf("failed to record heartbeat: %w", err)
-		}
-		if a.instance.AgentID != int64(heartbeatMsg.AgentID) {
-			slog.WarnContext(a.ctx, "missmatching agent ID", "instance_agent_id", a.instance.AgentID, "status_update_agent_id", heartbeatMsg.AgentID)
-		}
-		slog.DebugContext(a.ctx, "message heartbeat received", "payload", heartbeatMsg.Payload)
-		if len(heartbeatMsg.Payload) > 0 {
-			var caps params.AgentCapabilities
-			if err := json.Unmarshal(heartbeatMsg.Payload, &caps); err != nil {
-				return fmt.Errorf("failed to unmarshal capabilities: %w", err)
-			}
-			if caps.Shell != a.instance.Capabilities.Shell {
-				if err := a.agentStore.SetInstanceCapabilities(a.ctx, caps); err != nil {
-					return fmt.Errorf("failed to set agent capabilities: %w", err)
-				}
-			}
-		}
+		return a.handleHeartbeat(agentMsg)
 	case messaging.MessageTypeShellReady:
-		shellReady, err := messaging.Unmarshal[messaging.ShellReadyMessage](agentMsg)
-		if err != nil {
-			return fmt.Errorf("failed to unmarshal shell ready message: %w", err)
-		}
-		session, ok := a.shellSessions[shellReady.ID()]
-		if !ok {
-			return nil
-		}
-		if err := session.Write(msg); err != nil {
-			return fmt.Errorf("failed to write message: %w", err)
-		}
+		return a.handleShellReady(agentMsg, msg)
 	case messaging.MessageTypeShellExit:
-		shellExit, err := messaging.Unmarshal[messaging.ShellDataMessage](agentMsg)
-		if err != nil {
-			return fmt.Errorf("failed to unmarshal shell exit message: %w", err)
-		}
-		session, ok := a.shellSessions[shellExit.ID()]
-		if !ok {
-			return nil
-		}
-		if err := a.RemoveClientSession(session.sessionID, false); err != nil {
-			return fmt.Errorf("failed to remove session: %w", err)
-		}
+		return a.handleShellExit(agentMsg)
 	case messaging.MessageTypeShellData:
-		shellData, err := messaging.Unmarshal[messaging.ShellDataMessage](agentMsg)
-		if err != nil {
-			return fmt.Errorf("failed to unmarshal shell data message: %w", err)
-		}
-		session, ok := a.shellSessions[shellData.ID()]
-		if !ok {
-			return nil
-		}
-		if err := session.Write(msg); err != nil {
-			return fmt.Errorf("failed to write message: %w", err)
-		}
+		return a.handleShellData(agentMsg, msg)
 	case messaging.MessageTypeStatusMessage:
-		statusUpdate, err := messaging.Unmarshal[messaging.RunnerUpdateMessage](agentMsg)
-		if err != nil {
-			return fmt.Errorf("failed to unmarshal runner status message: %w", err)
-		}
-		slog.InfoContext(a.ctx, "got runner status update", "status", string(statusUpdate.Payload))
-		if a.instance.AgentID != int64(statusUpdate.AgentID) {
-			slog.WarnContext(a.ctx, "missmatching agent ID", "instance_agent_id", a.instance.AgentID, "status_update_agent_id", statusUpdate.AgentID)
-		}
-		var status params.InstanceUpdateMessage
-		if err := json.Unmarshal(statusUpdate.Payload, &status); err != nil {
-			return fmt.Errorf("failed to unmarshal instance update: %w", err)
-		}
-		if err := a.agentStore.AddInstanceStatusMessage(a.ctx, status); err != nil {
-			return fmt.Errorf("failed to add status message: %w", err)
-		}
-
-		if status.Status == params.RunnerTerminated {
-			// try to grab a lock to the instance. We block here.
-			if err := locking.LockWithContext(a.ctx, a.instance.Name, a.consumerID); err != nil {
-				return fmt.Errorf("failed to acquire lock: %w", err)
-			}
-
-			// mark the instance as pending_delete
-			if err := a.agentStore.SetInstanceToPendingDelete(a.ctx); err != nil {
-				locking.Unlock(a.instance.Name, false)
-				return fmt.Errorf("failed to mark instance as pending_delete: %w", err)
-			}
-			locking.Unlock(a.instance.Name, false)
-			return ErrShuttingDown
-		}
+		return a.handleStatusMessage(agentMsg)
 	}
 	return nil
 }
