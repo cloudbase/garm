@@ -39,7 +39,7 @@ func (suite *GarmSuite) TestGithubEndpointOperations() {
 	}
 
 	endpoint, err := suite.CreateGithubEndpoint(endpointParams)
-	suite.NoError(err)
+	suite.Require().NoError(err)
 	suite.Equal(endpoint.Name, endpointParams.Name, "Endpoint name mismatch")
 	suite.Equal(endpoint.Description, endpointParams.Description, "Endpoint description mismatch")
 	suite.Equal(endpoint.BaseURL, endpointParams.BaseURL, "Endpoint base URL mismatch")
@@ -107,9 +107,9 @@ func (suite *GarmSuite) TestGithubEndpointDeletionFailsWhenCredentialsExist() {
 	}
 
 	endpoint, err := suite.CreateGithubEndpoint(endpointParams)
-	suite.NoError(err, "error creating github endpoint")
+	suite.Require().NoError(err, "error creating github endpoint")
 	creds, err := suite.createDummyCredentials("test-creds", endpoint.Name)
-	suite.NoError(err, "error creating dummy credentials")
+	suite.Require().NoError(err, "error creating dummy credentials")
 
 	err = deleteGithubEndpoint(suite.cli, suite.authToken, endpoint.Name)
 	suite.Error(err, "expected error when deleting endpoint with credentials")
@@ -139,7 +139,7 @@ func (suite *GarmSuite) TestGithubEndpointUpdateEndpoint() {
 	t := suite.T()
 	t.Log("Testing endpoint update")
 	endpoint, err := suite.createDummyEndpoint("dummy")
-	suite.NoError(err, "error creating dummy endpoint")
+	suite.Require().NoError(err, "error creating dummy endpoint")
 	t.Cleanup(func() {
 		suite.DeleteGithubEndpoint(endpoint.Name)
 	})
@@ -160,7 +160,7 @@ func (suite *GarmSuite) TestGithubEndpointUpdateEndpoint() {
 	}
 
 	updated, err := updateGithubEndpoint(suite.cli, suite.authToken, endpoint.Name, updateParams)
-	suite.NoError(err, "error updating github endpoint")
+	suite.Require().NoError(err, "error updating github endpoint")
 
 	suite.Equal(updated.Name, endpoint.Name, "Endpoint name mismatch")
 	suite.Equal(updated.Description, newDescription, "Endpoint description mismatch")
@@ -181,7 +181,7 @@ func (suite *GarmSuite) GetGithubEndpoint(name string) *params.ForgeEndpoint {
 	t := suite.T()
 	t.Log("Get GitHub endpoint")
 	endpoint, err := getGithubEndpoint(suite.cli, suite.authToken, name)
-	suite.NoError(err, "error getting GitHub endpoint")
+	suite.Require().NoError(err, "error getting GitHub endpoint")
 
 	return endpoint
 }
@@ -190,7 +190,9 @@ func (suite *GarmSuite) CreateGithubEndpoint(params params.CreateGithubEndpointP
 	t := suite.T()
 	t.Log("Create GitHub endpoint")
 	endpoint, err := createGithubEndpoint(suite.cli, suite.authToken, params)
-	suite.NoError(err, "error creating GitHub endpoint")
+	if err != nil {
+		return nil, err
+	}
 
 	return endpoint, nil
 }
