@@ -56,7 +56,8 @@ var (
 	// has picked up a different job, we can clear the lock on the job that spaned it.
 	// The job it picked up would already be transitioned to in_progress so it will be ignored by the
 	// consume loop.
-	jobLabelPrefix = "in_response_to_job"
+	jobLabelPrefix     = "in_response_to_job"
+	staleJobLockPrefix = "stale-job-check"
 )
 
 const (
@@ -121,13 +122,14 @@ func NewEntityPoolManager(ctx context.Context, entity params.ForgeEntity, instan
 		controllerInfo:      controllerInfo,
 		instanceTokenGetter: instanceTokenGetter,
 
-		store:     store,
-		providers: providers,
-		quit:      make(chan struct{}),
-		jobs:      make(map[int64]params.Job),
-		wg:        wg,
-		backoff:   backoff,
-		consumer:  consumer,
+		store:       store,
+		providers:   providers,
+		quit:        make(chan struct{}),
+		jobs:        make(map[int64]params.Job),
+		checkedJobs: make(map[int64]time.Time),
+		wg:          wg,
+		backoff:     backoff,
+		consumer:    consumer,
 	}
 	return repo, nil
 }
@@ -145,9 +147,10 @@ type basePoolManager struct {
 	store dbCommon.Store
 	jobs  map[int64]params.Job
 
-	providers map[string]common.Provider
-	tools     []commonParams.RunnerApplicationDownload
-	quit      chan struct{}
+	providers   map[string]common.Provider
+	tools       []commonParams.RunnerApplicationDownload
+	quit        chan struct{}
+	checkedJobs map[int64]time.Time
 
 	managerIsRunning   bool
 	managerErrorReason string
@@ -1841,6 +1844,7 @@ func (r *basePoolManager) Start() error {
 		go r.startLoopForFunction(r.retryFailedInstances, common.PoolConsilitationInterval, "consolidate[retry_failed]", false)
 		go r.startLoopForFunction(r.updateTools, common.PoolToolUpdateInterval, "update_tools", true)
 		go r.startLoopForFunction(r.consumeQueuedJobs, common.PoolConsilitationInterval, "job_queue_consumer", false)
+		go r.startLoopForFunction(r.reconcileStaleJobs, common.PoolStaleJobReconcileInterval, "stale_job_reconciler", false)
 	}()
 	return nil
 }
@@ -1901,6 +1905,96 @@ func (r *basePoolManager) DeleteRunner(runner params.Instance, forceRemove, bypa
 			return fmt.Errorf("error updating runner: %w", err)
 		}
 	}
+	return nil
+}
+
+// reconcileStaleJobs checks queued jobs older than 1 hour against the GitHub API to determine
+// if they are still valid. Jobs that are no longer queued on GitHub (404 or completed/in_progress)
+// are deleted from the database. This handles cases where GARM missed a webhook update
+// (e.g. GARM was down, GitHub had issues) and the job is stuck in queued state forever.
+// To avoid excessive API usage, only up to 5 jobs are checked per cycle and recently checked
+// jobs are skipped for 1 hour.
+func (r *basePoolManager) reconcileStaleJobs() error {
+	queued, err := r.store.ListEntityJobsByStatus(r.ctx, r.entity.EntityType, r.entity.ID, params.JobStatusQueued)
+	if err != nil {
+		if errors.Is(err, runnerErrors.ErrNotFound) {
+			return nil
+		}
+		return fmt.Errorf("error listing queued jobs: %w", err)
+	}
+
+	checked := 0
+	for _, job := range queued {
+		if checked >= 5 {
+			break
+		}
+
+		if time.Since(job.CreatedAt) < time.Hour {
+			continue
+		}
+
+		if lastChecked, ok := r.checkedJobs[job.WorkflowJobID]; ok {
+			if time.Since(lastChecked) < time.Hour {
+				continue
+			}
+		}
+
+		if job.RepositoryOwner == "" || job.RepositoryName == "" {
+			slog.WarnContext(r.ctx, "job is missing repository info, skipping stale check",
+				"job_id", job.WorkflowJobID)
+			continue
+		}
+
+		lockKey := fmt.Sprintf("%s-%d", staleJobLockPrefix, job.WorkflowJobID)
+		if !locking.TryLock(lockKey, r.consumerID) {
+			continue
+		}
+
+		ghJob, ghResp, err := r.ghcli.GetWorkflowJobByID(r.ctx, job.RepositoryOwner, job.RepositoryName, job.WorkflowJobID)
+		if err != nil {
+			if ghResp != nil && ghResp.StatusCode == http.StatusNotFound {
+				slog.InfoContext(r.ctx, "stale job no longer exists on GitHub, removing",
+					"job_id", job.WorkflowJobID)
+				if err := r.store.DeleteJob(r.ctx, job.WorkflowJobID); err != nil && !errors.Is(err, runnerErrors.ErrNotFound) {
+					slog.With(slog.Any("error", err)).ErrorContext(r.ctx, "failed to delete stale job",
+						"job_id", job.WorkflowJobID)
+				}
+				delete(r.checkedJobs, job.WorkflowJobID)
+				locking.Unlock(lockKey, true)
+				checked++
+				continue
+			}
+			slog.With(slog.Any("error", err)).ErrorContext(r.ctx, "failed to check job status on GitHub",
+				"job_id", job.WorkflowJobID)
+			locking.Unlock(lockKey, true)
+			checked++
+			continue
+		}
+		locking.Unlock(lockKey, true)
+		checked++
+
+		if ghJob.GetStatus() != "queued" {
+			slog.InfoContext(r.ctx, "job is no longer queued on GitHub, removing",
+				"job_id", job.WorkflowJobID,
+				"github_status", ghJob.GetStatus())
+			if err := r.store.DeleteJob(r.ctx, job.WorkflowJobID); err != nil && !errors.Is(err, runnerErrors.ErrNotFound) {
+				slog.With(slog.Any("error", err)).ErrorContext(r.ctx, "failed to delete stale job",
+					"job_id", job.WorkflowJobID)
+			}
+			delete(r.checkedJobs, job.WorkflowJobID)
+			continue
+		}
+
+		r.checkedJobs[job.WorkflowJobID] = time.Now()
+	}
+
+	// Clean up entries for jobs no longer in the checked map
+	for jobID, lastChecked := range r.checkedJobs {
+		if time.Since(lastChecked) > 2*time.Hour {
+			delete(r.checkedJobs, jobID)
+		}
+	}
+
 	return nil
 }
 
