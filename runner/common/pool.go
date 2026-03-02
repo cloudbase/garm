@@ -29,7 +29,8 @@ const (
 	// There is no point in making an API call to get available tools, for every runner
 	// we spin up. We cache the tools for 5 minutes. This should save us a lot of API calls
 	// in cases where we have a lot of runners spin up at the same time.
-	PoolToolUpdateInterval = 5 * time.Minute
+	PoolToolUpdateInterval        = 5 * time.Minute
+	PoolStaleJobReconcileInterval = 5 * time.Minute
 
 	// BackoffTimer is the time we wait before attempting to make another request
 	// to the github API.
