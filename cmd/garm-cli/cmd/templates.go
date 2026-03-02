@@ -357,6 +357,57 @@ var templateCopyCmd = &cobra.Command{
 	},
 }
 
+var templateRestoreCmd = &cobra.Command{
+	Use:          "restore",
+	SilenceUsage: true,
+	Short:        "Restore system templates",
+	Long: `Restore built-in system templates.
+
+By default, restores all system templates. Use --forge-type and --os-type to
+restore only a specific template. When either flag is specified, both must be provided.`,
+	RunE: func(cmd *cobra.Command, _ []string) error {
+		if needsInit {
+			return errNeedsInitError
+		}
+
+		restoreReq := apiTemplates.NewRestoreTemplatesParams()
+
+		forgeChanged := cmd.Flags().Changed("forge-type")
+		osChanged := cmd.Flags().Changed("os-type")
+
+		if forgeChanged != osChanged {
+			return fmt.Errorf("both --forge-type and --os-type must be specified together")
+		}
+
+		if forgeChanged {
+			forge := params.EndpointType(templateForgeType)
+			switch forge {
+			case params.GithubEndpointType, params.GiteaEndpointType:
+			default:
+				return fmt.Errorf("invalid forge type: %q (supported: %s)", forge, strings.Join([]string{string(params.GithubEndpointType), string(params.GiteaEndpointType)}, ", "))
+			}
+
+			osType := commonParams.OSType(templateOSType)
+			switch osType {
+			case commonParams.Linux, commonParams.Windows:
+			default:
+				return fmt.Errorf("invalid OS type: %q (supported: %s)", osType, strings.Join([]string{string(commonParams.Linux), string(commonParams.Windows)}, ", "))
+			}
+
+			restoreReq.Body.Forge = forge
+			restoreReq.Body.OSType = osType
+		} else {
+			restoreReq.Body.RestoreAll = true
+		}
+
+		if err := apiCli.Templates.RestoreTemplates(restoreReq, authToken); err != nil {
+			return fmt.Errorf("failed to restore templates: %s", err)
+		}
+		fmt.Println("templates restored successfully")
+		return nil
+	},
+}
+
 var templateEditCmd = &cobra.Command{
 	Use:          "edit [flags] template_name_or_id",
 	SilenceUsage: true,
@@ -432,6 +483,9 @@ func init() {
 
 	templateCopyCmd.Flags().StringVar(&templateDescription, "description", "", "Template description.")
 
+	templateRestoreCmd.Flags().StringVar(&templateForgeType, "forge-type", "", "The forge type of the template. Supported values: github, gitea.")
+	templateRestoreCmd.Flags().StringVar(&templateOSType, "os-type", "", "Operating system type (windows, linux).")
+
 	templatesCmd.AddCommand(templateCreateCmd)
 	templatesCmd.AddCommand(templateShowCmd)
 	templatesCmd.AddCommand(templateListCmd)
@@ -440,6 +494,7 @@ func init() {
 	templatesCmd.AddCommand(templateCopyCmd)
 	templatesCmd.AddCommand(templateEditCmd)
 	templatesCmd.AddCommand(templateDownloadCmd)
+	templatesCmd.AddCommand(templateRestoreCmd)
 	rootCmd.AddCommand(templatesCmd)
 }
 

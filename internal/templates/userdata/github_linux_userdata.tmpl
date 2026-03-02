@@ -189,18 +189,20 @@ sed -i 's/$/\.service/' "$RUN_HOME"/.service
 
 SVC_NAME=$(cat "$RUN_HOME"/.service)
 
-sendStatus "generating systemd unit file"
-getRunnerFile "systemd/unit-file?runAsUser={{ .RunnerUsername }}" "$SVC_NAME" || fail "failed to get service file"
-sudo mv $SVC_NAME /etc/systemd/system/ || fail "failed to move service file"
-sudo chown root:root /etc/systemd/system/$SVC_NAME || fail "failed to change owner"
-if [ -e "/sys/fs/selinux" ];then
-	sudo chcon -h system_u:object_r:systemd_unit_file_t:s0 /etc/systemd/system/$SVC_NAME || fail "failed to change selinux context"
-fi
+if [ "$AGENT_MODE" != "true" ]; then
+	sendStatus "generating systemd unit file"
+	getRunnerFile "systemd/unit-file?runAsUser={{ .RunnerUsername }}" "$SVC_NAME" || fail "failed to get service file"
+	sudo mv $SVC_NAME /etc/systemd/system/ || fail "failed to move service file"
+	sudo chown root:root /etc/systemd/system/$SVC_NAME || fail "failed to change owner"
+	if [ -e "/sys/fs/selinux" ];then
+		sudo chcon -h system_u:object_r:systemd_unit_file_t:s0 /etc/systemd/system/$SVC_NAME || fail "failed to change selinux context"
+	fi
 
-sendStatus "enabling runner service"
-cp "$RUN_HOME"/bin/runsvc.sh "$RUN_HOME"/ || fail "failed to copy runsvc.sh"
-sudo systemctl daemon-reload || fail "failed to reload systemd"
-sudo systemctl enable $SVC_NAME
+	sendStatus "enabling runner service"
+	cp "$RUN_HOME"/bin/runsvc.sh "$RUN_HOME"/ || fail "failed to copy runsvc.sh"
+	sudo systemctl daemon-reload || fail "failed to reload systemd"
+	sudo systemctl enable $SVC_NAME
+fi
 {{- else}}
 
 GITHUB_TOKEN=$(curl --retry 5 --retry-delay 5 --retry-connrefused --fail -s -X GET -H 'Accept: application/json' -H "Authorization: Bearer ${BEARER_TOKEN}" "${METADATA_URL}/runner-registration-token/")
