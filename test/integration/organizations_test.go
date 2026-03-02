@@ -70,7 +70,7 @@ func (suite *GarmSuite) CreateOrg(orgName, credentialsName, orgWebhookSecret str
 		WebhookSecret:   orgWebhookSecret,
 	}
 	org, err := createOrg(suite.cli, suite.authToken, orgParams)
-	suite.NoError(err, "error creating organization")
+	suite.Require().NoError(err, "error creating organization")
 	return org
 }
 
@@ -81,7 +81,7 @@ func (suite *GarmSuite) UpdateOrg(id, credentialsName string) *params.Organizati
 		CredentialsName: credentialsName,
 	}
 	org, err := updateOrg(suite.cli, suite.authToken, id, updateParams)
-	suite.NoError(err, "error updating organization")
+	suite.Require().NoError(err, "error updating organization")
 	return org
 }
 
@@ -92,9 +92,9 @@ func (suite *GarmSuite) InstallOrgWebhook(id string) *params.HookInfo {
 		WebhookEndpointType: params.WebhookEndpointDirect,
 	}
 	_, err := installOrgWebhook(suite.cli, suite.authToken, id, webhookParams)
-	suite.NoError(err, "error installing organization webhook")
+	suite.Require().NoError(err, "error installing organization webhook")
 	webhookInfo, err := getOrgWebhook(suite.cli, suite.authToken, id)
-	suite.NoError(err, "error getting organization webhook")
+	suite.Require().NoError(err, "error getting organization webhook")
 	return webhookInfo
 }
 
@@ -138,7 +138,7 @@ func (suite *GarmSuite) CreateOrgPool(orgID string, poolParams params.CreatePool
 	t := suite.T()
 	t.Logf("Create org pool with org_id %s", orgID)
 	pool, err := createOrgPool(suite.cli, suite.authToken, orgID, poolParams)
-	suite.NoError(err, "error creating organization pool")
+	suite.Require().NoError(err, "error creating organization pool")
 	return pool
 }
 
@@ -146,7 +146,7 @@ func (suite *GarmSuite) GetOrgPool(orgID, orgPoolID string) *params.Pool {
 	t := suite.T()
 	t.Logf("Get org pool with org_id %s and pool_id %s", orgID, orgPoolID)
 	pool, err := getOrgPool(suite.cli, suite.authToken, orgID, orgPoolID)
-	suite.NoError(err, "error getting organization pool")
+	suite.Require().NoError(err, "error getting organization pool")
 	return pool
 }
 
@@ -165,7 +165,7 @@ func (suite *GarmSuite) UpdateOrgPool(orgID, orgPoolID string, maxRunners, minId
 		MaxRunners:     &maxRunners,
 	}
 	pool, err := updateOrgPool(suite.cli, suite.authToken, orgID, orgPoolID, poolParams)
-	suite.NoError(err, "error updating organization pool")
+	suite.Require().NoError(err, "error updating organization pool")
 	return pool
 }
 
@@ -196,10 +196,14 @@ func (suite *GarmSuite) dumpOrgInstancesDetails(orgID string) {
 	instances, err := listOrgInstances(suite.cli, suite.authToken, orgID)
 	suite.NoError(err, "error listing organization instances")
 	for _, instance := range instances {
-		instance, err := getInstance(suite.cli, suite.authToken, instance.Name)
-		suite.NoError(err, "error getting instance")
-		t.Logf("Instance info for instace %s", instance.Name)
-		err = printJSONResponse(instance)
-		suite.NoError(err, "error printing instance")
+		instanceDetails, err := getInstance(suite.cli, suite.authToken, instance.Name)
+		if err != nil {
+			t.Logf("Error getting instance %s: %v", instance.Name, err)
+			continue
+		}
+		t.Logf("Instance info for instance %s", instanceDetails.Name)
+		if err := printJSONResponse(instanceDetails); err != nil {
+			t.Logf("Error printing instance %s: %v", instanceDetails.Name, err)
+		}
 	}
 }

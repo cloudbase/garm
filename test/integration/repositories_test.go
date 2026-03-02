@@ -54,7 +54,7 @@ func (suite *GarmSuite) TestRepositories() {
 		CredentialsName: fmt.Sprintf("%s-clone", suite.credentialsName),
 	}
 	repo, err := updateRepo(suite.cli, suite.authToken, suite.repo.ID, updateParams)
-	suite.NoError(err, "error updating repository")
+	suite.Require().NoError(err, "error updating repository")
 	suite.Equal(fmt.Sprintf("%s-clone", suite.credentialsName), repo.CredentialsName, "credentials name mismatch")
 	suite.repo = repo
 
@@ -101,10 +101,10 @@ func (suite *GarmSuite) InstallRepoWebhook(id string) *params.HookInfo {
 		WebhookEndpointType: params.WebhookEndpointDirect,
 	}
 	_, err := installRepoWebhook(suite.cli, suite.authToken, id, webhookParams)
-	suite.NoError(err, "error installing repository webhook")
+	suite.Require().NoError(err, "error installing repository webhook")
 
 	webhookInfo, err := getRepoWebhook(suite.cli, suite.authToken, id)
-	suite.NoError(err, "error getting repository webhook")
+	suite.Require().NoError(err, "error getting repository webhook")
 	return webhookInfo
 }
 
@@ -154,7 +154,7 @@ func (suite *GarmSuite) CreateRepoPool(repoID string, poolParams params.CreatePo
 	t := suite.T()
 	t.Logf("Create repo pool with repo_id %s and pool_params %+v", repoID, poolParams)
 	pool, err := createRepoPool(suite.cli, suite.authToken, repoID, poolParams)
-	suite.NoError(err, "error creating repository pool")
+	suite.Require().NoError(err, "error creating repository pool")
 	return pool
 }
 
@@ -162,7 +162,7 @@ func (suite *GarmSuite) GetRepoPool(repoID, repoPoolID string) *params.Pool {
 	t := suite.T()
 	t.Logf("Get repo pool repo_id %s and pool_id %s", repoID, repoPoolID)
 	pool, err := getRepoPool(suite.cli, suite.authToken, repoID, repoPoolID)
-	suite.NoError(err, "error getting repository pool")
+	suite.Require().NoError(err, "error getting repository pool")
 	return pool
 }
 
@@ -181,7 +181,7 @@ func (suite *GarmSuite) UpdateRepoPool(repoID, repoPoolID string, maxRunners, mi
 		MaxRunners:     &maxRunners,
 	}
 	pool, err := updateRepoPool(suite.cli, suite.authToken, repoID, repoPoolID, poolParams)
-	suite.NoError(err, "error updating repository pool")
+	suite.Require().NoError(err, "error updating repository pool")
 	return pool
 }
 
@@ -212,10 +212,14 @@ func (suite *GarmSuite) dumpRepoInstancesDetails(repoID string) {
 	instances, err := listRepoInstances(suite.cli, suite.authToken, repoID)
 	suite.NoError(err, "error listing repo instances")
 	for _, instance := range instances {
-		instance, err := getInstance(suite.cli, suite.authToken, instance.Name)
-		suite.NoError(err, "error getting instance")
-		t.Logf("Instance info for instance %s", instance.Name)
-		err = printJSONResponse(instance)
-		suite.NoError(err, "error printing instance")
+		instanceDetails, err := getInstance(suite.cli, suite.authToken, instance.Name)
+		if err != nil {
+			t.Logf("Error getting instance %s: %v", instance.Name, err)
+			continue
+		}
+		t.Logf("Instance info for instance %s", instanceDetails.Name)
+		if err := printJSONResponse(instanceDetails); err != nil {
+			t.Logf("Error printing instance %s: %v", instanceDetails.Name, err)
+		}
 	}
 }

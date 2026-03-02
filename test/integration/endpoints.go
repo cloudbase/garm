@@ -52,7 +52,7 @@ func checkEndpointParamsAreEqual(a, b params.ForgeEndpoint) error {
 func getTestFileContents(relPath string) ([]byte, error) {
 	baseDir := os.Getenv("GARM_CHECKOUT_DIR")
 	if baseDir == "" {
-		return nil, fmt.Errorf("ariable GARM_CHECKOUT_DIR not set")
+		return nil, fmt.Errorf("variable GARM_CHECKOUT_DIR not set")
 	}
 	contents, err := os.ReadFile(filepath.Join(baseDir, "testdata", relPath))
 	if err != nil {

@@ -47,15 +47,16 @@ func (suite *GarmSuite) TestExternalProvider() {
 	t.Logf("Updated repo pool with pool_id %s with new_params %+v", repoPool2.ID, newParams)
 
 	err := suite.WaitPoolInstances(repoPool2.ID, commonParams.InstanceRunning, params.RunnerPending, 1*time.Minute)
-	suite.NoError(err, "error waiting for pool instances to be running")
+	suite.Require().NoError(err, "error waiting for pool instances to be running")
 	repoPool2 = suite.GetRepoPool(suite.repo.ID, repoPool2.ID)
+	suite.Require().NotEmpty(repoPool2.Instances, "expected at least one instance in pool")
 	suite.DisableRepoPool(suite.repo.ID, repoPool2.ID)
 	suite.DeleteInstance(repoPool2.Instances[0].Name, false, false)
 	err = suite.WaitPoolInstances(repoPool2.ID, commonParams.InstancePendingDelete, params.RunnerPending, 1*time.Minute)
-	suite.NoError(err, "error waiting for pool instances to be pending delete")
+	suite.Require().NoError(err, "error waiting for pool instances to be pending delete")
 	suite.DeleteInstance(repoPool2.Instances[0].Name, true, false) // delete instance with forceRemove
 	err = suite.WaitInstanceToBeRemoved(repoPool2.Instances[0].Name, 1*time.Minute)
-	suite.NoError(err, "error waiting for instance to be removed")
+	suite.Require().NoError(err, "error waiting for instance to be removed")
 	suite.DeleteRepoPool(suite.repo.ID, repoPool2.ID)
 }
 

@@ -57,30 +57,34 @@ func (suite *GarmSuite) ValidateJobLifecycle(label string) {
 
 	// wait for job list to be updated
 	job, err := suite.waitLabelledJob(label, 4*time.Minute)
-	suite.NoError(err, "error waiting for job to be created")
+	suite.Require().NoError(err, "error waiting for job to be created")
+	suite.Require().NotNil(job, "expected job to be non-nil")
 
 	// check expected job status
 	job, err = suite.waitJobStatus(job.ID, params.JobStatusQueued, 4*time.Minute)
-	suite.NoError(err, "error waiting for job to be queued")
+	suite.Require().NoError(err, "error waiting for job to be queued")
+	suite.Require().NotNil(job, "expected job to be non-nil")
 
 	job, err = suite.waitJobStatus(job.ID, params.JobStatusInProgress, 4*time.Minute)
-	suite.NoError(err, "error waiting for job to be in progress")
+	suite.Require().NoError(err, "error waiting for job to be in progress")
+	suite.Require().NotNil(job, "expected job to be non-nil")
 
 	// check expected instance status
 	instance, err := suite.waitInstanceStatus(job.RunnerName, commonParams.InstanceRunning, params.RunnerActive, 5*time.Minute)
-	suite.NoError(err, "error waiting for instance to be running")
+	suite.Require().NoError(err, "error waiting for instance to be running")
+	suite.Require().NotNil(instance, "expected instance to be non-nil")
 
 	// wait for job to be completed
 	_, err = suite.waitJobStatus(job.ID, params.JobStatusCompleted, 4*time.Minute)
-	suite.NoError(err, "error waiting for job to be completed")
+	suite.Require().NoError(err, "error waiting for job to be completed")
 
 	// wait for instance to be removed
 	err = suite.WaitInstanceToBeRemoved(instance.Name, 5*time.Minute)
-	suite.NoError(err, "error waiting for instance to be removed")
+	suite.Require().NoError(err, "error waiting for instance to be removed")
 
 	// wait for GARM to rebuild the pool running idle instances
 	err = suite.WaitPoolInstances(instance.PoolID, commonParams.InstanceRunning, params.RunnerIdle, 5*time.Minute)
-	suite.NoError(err, "error waiting for pool instances to be running idle")
+	suite.Require().NoError(err, "error waiting for pool instances to be running idle")
 }
 
 func (suite *GarmSuite) waitLabelledJob(label string, timeout time.Duration) (*params.Job, error) {
@@ -148,8 +152,10 @@ func (suite *GarmSuite) waitJobStatus(id int64, status params.JobStatus, timeout
 		timeWaited += 5 * time.Second
 	}
 
-	if err := printJSONResponse(*job); err != nil {
-		return nil, err
+	if job != nil {
+		if err := printJSONResponse(*job); err != nil {
+			return nil, err
+		}
 	}
 	return nil, fmt.Errorf("timeout waiting for job %d to reach status %s", id, status)
 }
@@ -174,8 +180,10 @@ func (suite *GarmSuite) waitInstanceStatus(name string, status commonParams.Inst
 		timeWaited += 5 * time.Second
 	}
 
-	if err := printJSONResponse(*instance); err != nil {
-		return nil, err
+	if instance != nil {
+		if err := printJSONResponse(*instance); err != nil {
+			return nil, err
+		}
 	}
 	return nil, fmt.Errorf("timeout waiting for instance %s status to reach status %s and runner status %s", name, status, runnerStatus)
 }

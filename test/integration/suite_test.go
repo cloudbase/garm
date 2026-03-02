@@ -59,10 +59,10 @@ func (suite *GarmSuite) SetupSuite() {
 	adminFullName := "GARM Admin"
 	adminEmail := "admin@example.com"
 	garmURL, err := url.Parse(baseURL)
-	suite.NoError(err, "error parsing GARM_BASE_URL")
+	suite.Require().NoError(err, "error parsing GARM_BASE_URL")
 
 	apiPath, err := url.JoinPath(garmURL.Path, client.DefaultBasePath)
-	suite.NoError(err, "error joining path")
+	suite.Require().NoError(err, "error joining path")
 
 	transportCfg := client.DefaultTransportConfig().
 		WithHost(garmURL.Host).
@@ -78,7 +78,7 @@ func (suite *GarmSuite) SetupSuite() {
 		Email:    adminEmail,
 	}
 	_, err = firstRun(suite.cli, newUser)
-	suite.NoError(err, "error at first run")
+	suite.Require().NoError(err, "error at first run")
 
 	t.Log("Login")
 	loginParams := params.PasswordLoginParams{
@@ -86,12 +86,12 @@ func (suite *GarmSuite) SetupSuite() {
 		Password: adminPassword,
 	}
 	token, err := login(suite.cli, loginParams)
-	suite.NoError(err, "error at login")
+	suite.Require().NoError(err, "error at login")
 	suite.authToken = openapiRuntimeClient.BearerToken(token)
 	t.Log("Log in successful")
 
 	err = setControllerURLs(suite.cli, suite.authToken, baseURL)
-	suite.NoError(err, "error setting controller URLs")
+	suite.Require().NoError(err, "error setting controller URLs")
 
 	suite.credentialsName = os.Getenv("CREDENTIALS_NAME")
 	suite.EnsureTestCredentials(suite.credentialsName, suite.ghToken, "github.com")
@@ -107,7 +107,7 @@ func (suite *GarmSuite) SetupSuite() {
 		WebhookSecret:   repoWebhookSecret,
 	}
 	suite.repo, err = createRepo(suite.cli, suite.authToken, createParams)
-	suite.NoError(err, "error creating repository")
+	suite.Require().NoError(err, "error creating repository")
 	suite.Equal(orgName, suite.repo.Owner, "owner name mismatch")
 	suite.Equal(repoName, suite.repo.Name, "repo name mismatch")
 	suite.Equal(suite.credentialsName, suite.repo.CredentialsName, "credentials name mismatch")
@@ -183,7 +183,9 @@ func (suite *GarmSuite) waitPoolNoInstances(id string, timeout time.Duration) er
 	t.Logf("Wait until pool with id %s has no instances", id)
 	for timeWaited < timeout {
 		pool, err = getPool(suite.cli, suite.authToken, id)
-		suite.NoError(err, "error getting pool")
+		if err != nil {
+			return err
+		}
 		t.Logf("Current pool has %d instances", len(pool.Instances))
 		if len(pool.Instances) == 0 {
 			return nil
