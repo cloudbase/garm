@@ -1029,11 +1029,11 @@ type ControllerInfo struct {
 }
 
 func (c *ControllerInfo) JobBackoff() time.Duration {
-	if math.MaxInt64 > c.MinimumJobAgeBackoff {
-		return time.Duration(math.MaxInt64)
+	if c.MinimumJobAgeBackoff == 0 {
+		return 0
 	}
 
-	return time.Duration(int64(c.MinimumJobAgeBackoff))
+	return time.Duration(c.MinimumJobAgeBackoff) * time.Second
 }
 
 // GetCachedAgentTool returns the cached GARM agent tool for the specified OS type and architecture.
