@@ -23,10 +23,12 @@ The ```GARM``` configuration is a simple ```toml```. The sample config file in [
         - [Organization metrics](#organization-metrics)
         - [Repository metrics](#repository-metrics)
         - [Provider metrics](#provider-metrics)
+            - [Provider operations](#provider-operations)
         - [Pool metrics](#pool-metrics)
         - [Runner metrics](#runner-metrics)
         - [Job metrics](#job-metrics)
         - [Github metrics](#github-metrics)
+            - [GitHub operations](#github-operations)
         - [Enabling metrics](#enabling-metrics)
         - [Configuring prometheus](#configuring-prometheus)
     - [The JWT authentication config section](#the-jwt-authentication-config-section)
@@ -316,7 +318,7 @@ This is one of the features in GARM that I really love having. For one thing, it
 
 | Metric name              | Type    | Labels                                                                                                                                                                                                                                              | Description                                                                                          |
 |--------------------------|---------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------|
-| `garm_health`            | Gauge   | `controller_id`=&lt;controller id&gt; <br>`callback_url`=&lt;callback url&gt; <br>`controller_webhook_url`=&lt;controller webhook url&gt; <br>`metadata_url`=&lt;metadata url&gt; <br>`webhook_url`=&lt;webhook url&gt; <br>`name`=&lt;hostname&gt; | This is a gauge that is set to 1 if GARM is healthy and 0 if it is not. This is useful for alerting. |
+| `garm_health`            | Gauge   | `metadata_url`=&lt;metadata url&gt; <br>`callback_url`=&lt;callback url&gt; <br>`webhook_url`=&lt;webhook url&gt; <br>`controller_webhook_url`=&lt;controller webhook url&gt; <br>`controller_id`=&lt;controller id&gt; | This is a gauge that is set to 1 if GARM is healthy and 0 if it is not. This is useful for alerting. |
 | `garm_webhooks_received` | Counter | `valid`=&lt;valid request&gt; <br>`reason`=&lt;reason for invalid requests&gt;                                                                                                                                                                      | This is a counter that increments every time GARM receives a webhook from GitHub.                    |
 
 ### Enterprise metrics
@@ -342,9 +344,25 @@ This is one of the features in GARM that I really love having. For one thing, it
 
 ### Provider metrics
 
-| Metric name          | Type  | Labels                                                                                                            | Description                                                      |
-|----------------------|-------|-------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------|
-| `garm_provider_info` | Gauge | `description`=&lt;provider description&gt; <br>`name`=&lt;provider name&gt; <br>`type`=&lt;internal\|external&gt; | This is a gauge that is set to 1 and expose provider information |
+| Metric name                    | Type    | Labels                                                                                                            | Description                                                                     |
+|--------------------------------|---------|-------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------|
+| `garm_provider_info`           | Gauge   | `description`=&lt;provider description&gt; <br>`name`=&lt;provider name&gt; <br>`type`=&lt;internal\|external&gt; | This is a gauge that is set to 1 and expose provider information                |
+| `garm_runner_operations_total` | Counter | `operation`=&lt;see [operations list](#provider-operations) below&gt; <br>`provider`=&lt;provider name&gt;        | This is a counter that increments every time a provider operation is performed   |
+| `garm_runner_errors_total`     | Counter | `operation`=&lt;see [operations list](#provider-operations) below&gt; <br>`provider`=&lt;provider name&gt;        | This is a counter that increments every time a provider operation errored        |
+
+#### Provider operations
+
+The following operation names are used as values for the `operation` label in `garm_runner_operations_total` and `garm_runner_errors_total`:
+
+| Operation | Description |
+|---|---|
+| `CreateInstance` | Create a new compute instance |
+| `DeleteInstance` | Delete a compute instance |
+| `GetInstance` | Get details about a compute instance |
+| `ListInstances` | List all instances for a pool |
+| `RemoveAllInstances` | Remove all instances created by a provider |
+| `Start` | Boot up an instance |
+| `Stop` | Shut down an instance |
 
 ### Pool metrics
 
@@ -360,9 +378,7 @@ This is one of the features in GARM that I really love having. For one thing, it
 
 | Metric name                    | Type    | Labels                                                                                                                                                                                                                                                                                                                                                            | Description                                                                  |
 |--------------------------------|---------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------|
-| `garm_runner_status`           | Gauge   | `name`=&lt;runner name&gt; <br>`pool_owner`=&lt;owner name&gt; <br>`pool_type`=&lt;repository\|organization\|enterprise&gt; <br>`provider`=&lt;provider name&gt; <br>`runner_status`=&lt;running\|stopped\|error\|pending_delete\|deleting\|pending_create\|creating\|unknown&gt; <br>`status`=&lt;idle\|pending\|terminated\|installing\|failed\|active&gt; <br> | This is a gauge value that gives us details about the runners garm spawns    |
-| `garm_runner_operations_total` | Counter | `provider`=&lt;provider name&gt; <br>`operation`=&lt;CreateInstance\|DeleteInstance\|GetInstance\|ListInstances\|RemoveAllInstances\|Start\Stop&gt;                                                                                                                                                                                                               | This is a counter that increments every time a runner operation is performed |
-| `garm_runner_errors_total`     | Counter | `provider`=&lt;provider name&gt; <br>`operation`=&lt;CreateInstance\|DeleteInstance\|GetInstance\|ListInstances\|RemoveAllInstances\|Start\Stop&gt;                                                                                                                                                                                                               | This is a counter that increments every time a runner operation errored      |
+| `garm_runner_status`           | Gauge   | `name`=&lt;runner name&gt; <br>`status`=&lt;idle\|pending\|terminated\|installing\|failed\|active&gt; <br>`runner_status`=&lt;running\|stopped\|error\|pending_delete\|deleting\|pending_create\|creating\|unknown&gt; <br>`pool_owner`=&lt;owner name&gt; <br>`pool_type`=&lt;repository\|organization\|enterprise&gt; <br>`pool_id`=&lt;pool id&gt; <br>`provider`=&lt;provider name&gt; | This is a gauge value that gives us details about the runners garm spawns    |
 
 ### Job metrics
 
