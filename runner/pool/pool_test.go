@@ -527,25 +527,20 @@ func (s *PoolStressTestSuite) TestConcurrentWebhooksForSameJob() {
 		s.Require().NoError(err, "goroutine %d failed", i)
 	}
 
-	// Verify only one job record exists
-	dbJob, err := s.store.GetJobByID(s.adminCtx, 6001)
+	// CreateOrUpdateJob is wrapped in a transaction, so concurrent goroutines
+	// should not create duplicate rows. Exactly 1 job should exist.
+	allJobs, err := s.store.ListAllJobs(s.adminCtx)
 	s.Require().NoError(err)
-	s.Equal(int64(6001), dbJob.WorkflowJobID)
+	s.Len(allJobs, 1, "transaction should prevent duplicate job rows")
 
-	// Sync and consume
+	// Exactly 1 runner should be created.
 	s.syncJobsFromDB()
 	err = s.mgr.consumeQueuedJobs()
 	s.Require().NoError(err)
 
-	// Should have at most 1 runner for this job
 	instances, err := s.store.ListPoolInstances(s.adminCtx, s.pool.ID, false)
 	s.Require().NoError(err)
-	s.LessOrEqual(len(instances), 1, "should not create duplicate runners for same job")
-
-	// Verify DB: exactly one job record, no duplicates.
-	queuedJobs, err := s.store.ListAllJobs(s.adminCtx)
-	s.Require().NoError(err)
-	s.Len(queuedJobs, 1, "exactly one job record should exist despite %d concurrent webhooks", numGoroutines)
+	s.Len(instances, 1, "exactly 1 runner should be created for 1 job")
 }
 
 // TestRapidFireWebhookLifecycle fires 1000 jobs through the full
