@@ -26,7 +26,14 @@ import (
 	"github.com/cloudbase/garm/params"
 )
 
-func (s *ScaleSetClient) getActionServiceInfo(ctx context.Context) (params.ActionsServiceAdminInfoResponse, error) {
+func (s *ScaleSetClient) getActionServiceInfo(ctx context.Context) (_ params.ActionsServiceAdminInfoResponse, err error) {
+	s.recordOperation("GetActionServiceInfo")
+	defer func() {
+		if err != nil {
+			s.recordFailedOperation("GetActionServiceInfo")
+		}
+	}()
+
 	regPath := "/actions/runner-registration"
 	baseURL := s.ghCli.GithubBaseURL()
 	url, err := baseURL.Parse(regPath)

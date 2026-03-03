@@ -30,7 +30,14 @@ type scaleSetJitRunnerConfig struct {
 	WorkFolder string `json:"workFolder"`
 }
 
-func (s *ScaleSetClient) GenerateJitRunnerConfig(ctx context.Context, runnerName string, scaleSetID int) (params.RunnerScaleSetJitRunnerConfig, error) {
+func (s *ScaleSetClient) GenerateJitRunnerConfig(ctx context.Context, runnerName string, scaleSetID int) (_ params.RunnerScaleSetJitRunnerConfig, err error) {
+	s.recordOperation("GenerateJitRunnerConfig")
+	defer func() {
+		if err != nil {
+			s.recordFailedOperation("GenerateJitRunnerConfig")
+		}
+	}()
+
 	runnerSettings := scaleSetJitRunnerConfig{
 		Name:       runnerName,
 		WorkFolder: "_work",
@@ -64,7 +71,14 @@ func (s *ScaleSetClient) GenerateJitRunnerConfig(ctx context.Context, runnerName
 	return runnerJitConfig, nil
 }
 
-func (s *ScaleSetClient) GetRunner(ctx context.Context, runnerID int64) (params.RunnerReference, error) {
+func (s *ScaleSetClient) GetRunner(ctx context.Context, runnerID int64) (_ params.RunnerReference, err error) {
+	s.recordOperation("GetRunner")
+	defer func() {
+		if err != nil {
+			s.recordFailedOperation("GetRunner")
+		}
+	}()
+
 	path := fmt.Sprintf("%s/%d", runnerEndpoint, runnerID)
 
 	req, err := s.newActionsRequest(ctx, http.MethodGet, path, nil)
@@ -86,7 +100,14 @@ func (s *ScaleSetClient) GetRunner(ctx context.Context, runnerID int64) (params.
 	return runnerReference, nil
 }
 
-func (s *ScaleSetClient) ListAllRunners(ctx context.Context) (params.RunnerReferenceList, error) {
+func (s *ScaleSetClient) ListAllRunners(ctx context.Context) (_ params.RunnerReferenceList, err error) {
+	s.recordOperation("ListAllRunners")
+	defer func() {
+		if err != nil {
+			s.recordFailedOperation("ListAllRunners")
+		}
+	}()
+
 	req, err := s.newActionsRequest(ctx, http.MethodGet, runnerEndpoint, nil)
 	if err != nil {
 		return params.RunnerReferenceList{}, fmt.Errorf("failed to construct request: %w", err)
@@ -106,7 +127,14 @@ func (s *ScaleSetClient) ListAllRunners(ctx context.Context) (params.RunnerRefer
 	return runnerList, nil
 }
 
-func (s *ScaleSetClient) GetRunnerByName(ctx context.Context, runnerName string) (params.RunnerReference, error) {
+func (s *ScaleSetClient) GetRunnerByName(ctx context.Context, runnerName string) (_ params.RunnerReference, err error) {
+	s.recordOperation("GetRunnerByName")
+	defer func() {
+		if err != nil {
+			s.recordFailedOperation("GetRunnerByName")
+		}
+	}()
+
 	path := fmt.Sprintf("%s?agentName=%s", runnerEndpoint, runnerName)
 
 	req, err := s.newActionsRequest(ctx, http.MethodGet, path, nil)
@@ -136,7 +164,14 @@ func (s *ScaleSetClient) GetRunnerByName(ctx context.Context, runnerName string)
 	return runnerList.RunnerReferences[0], nil
 }
 
-func (s *ScaleSetClient) RemoveRunner(ctx context.Context, runnerID int64) error {
+func (s *ScaleSetClient) RemoveRunner(ctx context.Context, runnerID int64) (err error) {
+	s.recordOperation("RemoveRunner")
+	defer func() {
+		if err != nil {
+			s.recordFailedOperation("RemoveRunner")
+		}
+	}()
+
 	path := fmt.Sprintf("%s/%d", runnerEndpoint, runnerID)
 
 	req, err := s.newActionsRequest(ctx, http.MethodDelete, path, nil)

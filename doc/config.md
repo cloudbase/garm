@@ -374,12 +374,59 @@ This is one of the features in GARM that I really love having. For one thing, it
 
 | Metric name                           | Type    | Labels                                                                                                                 | Description                                                                           |
 |---------------------------------------|---------|------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------|
-| `garm_github_operations_total`        | Counter | `operation`=&lt;ListRunners\|CreateRegistrationToken\|...&gt; <br>`scope`=&lt;Organization\|Repository\|Enterprise&gt; | This is a counter that increments every time a github operation is performed          |
-| `garm_github_errors_total`            | Counter | `operation`=&lt;ListRunners\|CreateRegistrationToken\|...&gt; <br>`scope`=&lt;Organization\|Repository\|Enterprise&gt; | This is a counter that increments every time a github operation errored               |
+| `garm_github_operations_total`        | Counter | `operation`=&lt;see [operations list](#github-operations) below&gt; <br>`scope`=&lt;Organization\|Repository\|Enterprise&gt; | This is a counter that increments every time a github operation is performed          |
+| `garm_github_errors_total`            | Counter | `operation`=&lt;see [operations list](#github-operations) below&gt; <br>`scope`=&lt;Organization\|Repository\|Enterprise&gt; | This is a counter that increments every time a github operation errored               |
 | `garm_github_rate_limit_limit`        | Gauge   | `credential_name`=&lt;credential name&gt; <br>`credential_id`=&lt;credential id&gt; <br>`endpoint`=&lt;endpoint name&gt; | The maximum number of requests allowed per hour for GitHub API                        |
 | `garm_github_rate_limit_remaining`    | Gauge   | `credential_name`=&lt;credential name&gt; <br>`credential_id`=&lt;credential id&gt; <br>`endpoint`=&lt;endpoint name&gt; | The number of requests remaining in the current rate limit window                     |
 | `garm_github_rate_limit_used`         | Gauge   | `credential_name`=&lt;credential name&gt; <br>`credential_id`=&lt;credential id&gt; <br>`endpoint`=&lt;endpoint name&gt; | The number of requests used in the current rate limit window                          |
 | `garm_github_rate_limit_reset_timestamp` | Gauge   | `credential_name`=&lt;credential name&gt; <br>`credential_id`=&lt;credential id&gt; <br>`endpoint`=&lt;endpoint name&gt; | Unix timestamp when the rate limit resets                                             |
+
+#### GitHub operations
+
+The following operation names are used as values for the `operation` label in `garm_github_operations_total` and `garm_github_errors_total`:
+
+**GitHub client operations:**
+
+| Operation | Description |
+|---|---|
+| `ListHooks` | List webhooks on an entity |
+| `GetHook` | Get a single webhook |
+| `CreateHook` | Create a webhook |
+| `DeleteHook` | Delete a webhook |
+| `PingHook` | Ping a webhook |
+| `ListEntityRunners` | List runners for an entity |
+| `ListEntityRunnerApplicationDownloads` | List runner application downloads |
+| `RemoveEntityRunner` | Remove a runner |
+| `CreateEntityRegistrationToken` | Create a runner registration token |
+| `ListOrganizationRunnerGroups` | List organization runner groups |
+| `ListRunnerGroups` | List enterprise runner groups |
+| `GetEntityJITConfig` | Generate a JIT runner configuration |
+| `GetRateLimit` | Get API rate limit information |
+
+**Scale set operations:**
+
+| Operation | Description |
+|---|---|
+| `GetRunnerScaleSetByNameAndRunnerGroup` | Get a runner scale set by name and runner group |
+| `GetRunnerScaleSetByID` | Get a runner scale set by ID |
+| `ListRunnerScaleSets` | List all runner scale sets |
+| `CreateRunnerScaleSet` | Create a runner scale set |
+| `UpdateRunnerScaleSet` | Update a runner scale set |
+| `DeleteRunnerScaleSet` | Delete a runner scale set |
+| `GetRunnerGroupByName` | Get a runner group by name |
+| `GenerateJitRunnerConfig` | Generate a JIT runner config for a scale set |
+| `GetRunner` | Get a runner by ID |
+| `ListAllRunners` | List all runners |
+| `GetRunnerByName` | Get a runner by name |
+| `RemoveRunner` | Remove a runner |
+| `AcquireJobs` | Acquire jobs for a scale set |
+| `GetAcquirableJobs` | Get acquirable jobs for a scale set |
+| `GetActionServiceInfo` | Get actions service admin info |
+| `CreateMessageSession` | Create a message queue session |
+| `DeleteMessageSession` | Delete a message queue session |
+| `RefreshMessageSession` | Refresh a message queue session token |
+| `GetMessage` | Get a message from the message queue |
+| `DeleteMessage` | Delete a message from the message queue |
 
 ### Enabling metrics
 
