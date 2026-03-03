@@ -28,6 +28,8 @@ var (
 	eventsFilters string
 	logLevel      string
 	filters       []string
+	highlights    []string
+	filterMode    string
 	enableColor   bool
 )
 
@@ -49,8 +51,14 @@ var logCmd = &cobra.Command{
 			}
 		}
 
-		// Create log formatter with filters
-		logFormatter := common.NewLogFormatter(logLevel, attributeFilters, enableColor)
+		// Parse highlights as key names
+		attributeHighlights := make(map[string]bool)
+		for _, highlight := range highlights {
+			attributeHighlights[highlight] = true
+		}
+
+		// Create log formatter with filters and highlights
+		logFormatter := common.NewLogFormatter(logLevel, attributeFilters, attributeHighlights, filterMode, enableColor)
 
 		reader, err := garmWs.NewReader(ctx, mgr.BaseURL, "/api/v1/ws/logs", mgr.Token, logFormatter.FormatWebsocketMessage)
 		if err != nil {
@@ -69,6 +77,8 @@ var logCmd = &cobra.Command{
 func init() {
 	logCmd.Flags().StringVar(&logLevel, "log-level", "", "Minimum log level to display (DEBUG, INFO, WARN, ERROR)")
 	logCmd.Flags().StringArrayVar(&filters, "filter", []string{}, "Filter logs by attribute (format: key=value) or message content (msg=text). You can specify this option multiple times. The filter will return true for any of the attributes you set.")
+	logCmd.Flags().StringArrayVar(&highlights, "highlight", []string{}, "Highlight attribute keys in the output (format: key). You can specify this option multiple times.")
+	logCmd.Flags().StringVar(&filterMode, "filter-mode", "any", "How multiple filters are combined: \"any\" (OR, match at least one) or \"all\" (AND, match every filter)")
 	logCmd.Flags().BoolVar(&enableColor, "enable-color", true, "Enable color logging (auto-detects terminal support)")
 
 	rootCmd.AddCommand(logCmd)
