@@ -110,7 +110,14 @@ func (m *MessageSession) SessionsRelativeURL() (string, error) {
 	return relativePath, nil
 }
 
-func (m *MessageSession) Refresh(ctx context.Context) error {
+func (m *MessageSession) Refresh(ctx context.Context) (err error) {
+	m.ssCli.recordOperation("RefreshMessageSession")
+	defer func() {
+		if err != nil {
+			m.ssCli.recordFailedOperation("RefreshMessageSession")
+		}
+	}()
+
 	slog.DebugContext(ctx, "refreshing message session token", "session_id", m.session.SessionID.String())
 	m.mux.Lock()
 	defer m.mux.Unlock()
@@ -163,7 +170,14 @@ func (m *MessageSession) maybeRefreshToken(ctx context.Context) error {
 	return nil
 }
 
-func (m *MessageSession) GetMessage(ctx context.Context, lastMessageID int64, maxCapacity uint) (params.RunnerScaleSetMessage, error) {
+func (m *MessageSession) GetMessage(ctx context.Context, lastMessageID int64, maxCapacity uint) (_ params.RunnerScaleSetMessage, err error) {
+	m.ssCli.recordOperation("GetMessage")
+	defer func() {
+		if err != nil {
+			m.ssCli.recordFailedOperation("GetMessage")
+		}
+	}()
+
 	u, err := url.Parse(m.session.MessageQueueURL)
 	if err != nil {
 		return params.RunnerScaleSetMessage{}, err
@@ -206,7 +220,14 @@ func (m *MessageSession) GetMessage(ctx context.Context, lastMessageID int64, ma
 	return message, nil
 }
 
-func (m *MessageSession) DeleteMessage(ctx context.Context, messageID int64) error {
+func (m *MessageSession) DeleteMessage(ctx context.Context, messageID int64) (err error) {
+	m.ssCli.recordOperation("DeleteMessage")
+	defer func() {
+		if err != nil {
+			m.ssCli.recordFailedOperation("DeleteMessage")
+		}
+	}()
+
 	u, err := url.Parse(m.session.MessageQueueURL)
 	if err != nil {
 		return err
@@ -231,7 +252,14 @@ func (m *MessageSession) DeleteMessage(ctx context.Context, messageID int64) err
 	return nil
 }
 
-func (s *ScaleSetClient) CreateMessageSession(ctx context.Context, runnerScaleSetID int, owner string) (*MessageSession, error) {
+func (s *ScaleSetClient) CreateMessageSession(ctx context.Context, runnerScaleSetID int, owner string) (_ *MessageSession, err error) {
+	s.recordOperation("CreateMessageSession")
+	defer func() {
+		if err != nil {
+			s.recordFailedOperation("CreateMessageSession")
+		}
+	}()
+
 	path := fmt.Sprintf("%s/%d/sessions", scaleSetEndpoint, runnerScaleSetID)
 
 	newSession := params.RunnerScaleSetSession{
@@ -274,7 +302,14 @@ func (s *ScaleSetClient) CreateMessageSession(ctx context.Context, runnerScaleSe
 	return sess, nil
 }
 
-func (s *ScaleSetClient) DeleteMessageSession(ctx context.Context, session *MessageSession) error {
+func (s *ScaleSetClient) DeleteMessageSession(ctx context.Context, session *MessageSession) (err error) {
+	s.recordOperation("DeleteMessageSession")
+	defer func() {
+		if err != nil {
+			s.recordFailedOperation("DeleteMessageSession")
+		}
+	}()
+
 	path, err := session.SessionsRelativeURL()
 	if err != nil {
 		return fmt.Errorf("failed to delete session: %w", err)

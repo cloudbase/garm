@@ -36,7 +36,14 @@ const (
 	HeaderGitHubRequestID   = "X-GitHub-Request-Id"
 )
 
-func (s *ScaleSetClient) GetRunnerScaleSetByNameAndRunnerGroup(ctx context.Context, runnerGroupID int, name string) (params.RunnerScaleSet, error) {
+func (s *ScaleSetClient) GetRunnerScaleSetByNameAndRunnerGroup(ctx context.Context, runnerGroupID int, name string) (_ params.RunnerScaleSet, err error) {
+	s.recordOperation("GetRunnerScaleSetByNameAndRunnerGroup")
+	defer func() {
+		if err != nil {
+			s.recordFailedOperation("GetRunnerScaleSetByNameAndRunnerGroup")
+		}
+	}()
+
 	path := fmt.Sprintf("%s?runnerGroupId=%d&name=%s", scaleSetEndpoint, runnerGroupID, name)
 	req, err := s.newActionsRequest(ctx, http.MethodGet, path, nil)
 	if err != nil {
@@ -62,7 +69,14 @@ func (s *ScaleSetClient) GetRunnerScaleSetByNameAndRunnerGroup(ctx context.Conte
 	return runnerScaleSetList.RunnerScaleSets[0], nil
 }
 
-func (s *ScaleSetClient) GetRunnerScaleSetByID(ctx context.Context, runnerScaleSetID int) (params.RunnerScaleSet, error) {
+func (s *ScaleSetClient) GetRunnerScaleSetByID(ctx context.Context, runnerScaleSetID int) (_ params.RunnerScaleSet, err error) {
+	s.recordOperation("GetRunnerScaleSetByID")
+	defer func() {
+		if err != nil {
+			s.recordFailedOperation("GetRunnerScaleSetByID")
+		}
+	}()
+
 	path := fmt.Sprintf("%s/%d", scaleSetEndpoint, runnerScaleSetID)
 	req, err := s.newActionsRequest(ctx, http.MethodGet, path, nil)
 	if err != nil {
@@ -83,7 +97,14 @@ func (s *ScaleSetClient) GetRunnerScaleSetByID(ctx context.Context, runnerScaleS
 }
 
 // ListRunnerScaleSets lists all runner scale sets in a github entity.
-func (s *ScaleSetClient) ListRunnerScaleSets(ctx context.Context) (*params.RunnerScaleSetsResponse, error) {
+func (s *ScaleSetClient) ListRunnerScaleSets(ctx context.Context) (_ *params.RunnerScaleSetsResponse, err error) {
+	s.recordOperation("ListRunnerScaleSets")
+	defer func() {
+		if err != nil {
+			s.recordFailedOperation("ListRunnerScaleSets")
+		}
+	}()
+
 	req, err := s.newActionsRequest(ctx, http.MethodGet, scaleSetEndpoint, nil)
 	if err != nil {
 		return nil, err
@@ -107,7 +128,14 @@ func (s *ScaleSetClient) ListRunnerScaleSets(ctx context.Context) (*params.Runne
 }
 
 // CreateRunnerScaleSet creates a new runner scale set in the target GitHub entity.
-func (s *ScaleSetClient) CreateRunnerScaleSet(ctx context.Context, runnerScaleSet *params.RunnerScaleSet) (params.RunnerScaleSet, error) {
+func (s *ScaleSetClient) CreateRunnerScaleSet(ctx context.Context, runnerScaleSet *params.RunnerScaleSet) (_ params.RunnerScaleSet, err error) {
+	s.recordOperation("CreateRunnerScaleSet")
+	defer func() {
+		if err != nil {
+			s.recordFailedOperation("CreateRunnerScaleSet")
+		}
+	}()
+
 	body, err := json.Marshal(runnerScaleSet)
 	if err != nil {
 		return params.RunnerScaleSet{}, err
@@ -131,7 +159,14 @@ func (s *ScaleSetClient) CreateRunnerScaleSet(ctx context.Context, runnerScaleSe
 	return createdRunnerScaleSet, nil
 }
 
-func (s *ScaleSetClient) UpdateRunnerScaleSet(ctx context.Context, runnerScaleSetID int, runnerScaleSet params.RunnerScaleSet) (params.RunnerScaleSet, error) {
+func (s *ScaleSetClient) UpdateRunnerScaleSet(ctx context.Context, runnerScaleSetID int, runnerScaleSet params.RunnerScaleSet) (_ params.RunnerScaleSet, err error) {
+	s.recordOperation("UpdateRunnerScaleSet")
+	defer func() {
+		if err != nil {
+			s.recordFailedOperation("UpdateRunnerScaleSet")
+		}
+	}()
+
 	path := fmt.Sprintf("%s/%d", scaleSetEndpoint, runnerScaleSetID)
 
 	body, err := json.Marshal(runnerScaleSet)
@@ -157,7 +192,14 @@ func (s *ScaleSetClient) UpdateRunnerScaleSet(ctx context.Context, runnerScaleSe
 	return ret, nil
 }
 
-func (s *ScaleSetClient) DeleteRunnerScaleSet(ctx context.Context, runnerScaleSetID int) error {
+func (s *ScaleSetClient) DeleteRunnerScaleSet(ctx context.Context, runnerScaleSetID int) (err error) {
+	s.recordOperation("DeleteRunnerScaleSet")
+	defer func() {
+		if err != nil {
+			s.recordFailedOperation("DeleteRunnerScaleSet")
+		}
+	}()
+
 	path := fmt.Sprintf("%s/%d", scaleSetEndpoint, runnerScaleSetID)
 	req, err := s.newActionsRequest(ctx, http.MethodDelete, path, nil)
 	if err != nil {
@@ -178,7 +220,14 @@ func (s *ScaleSetClient) DeleteRunnerScaleSet(ctx context.Context, runnerScaleSe
 	return nil
 }
 
-func (s *ScaleSetClient) GetRunnerGroupByName(ctx context.Context, runnerGroup string) (params.RunnerGroup, error) {
+func (s *ScaleSetClient) GetRunnerGroupByName(ctx context.Context, runnerGroup string) (_ params.RunnerGroup, err error) {
+	s.recordOperation("GetRunnerGroupByName")
+	defer func() {
+		if err != nil {
+			s.recordFailedOperation("GetRunnerGroupByName")
+		}
+	}()
+
 	path := fmt.Sprintf("_apis/runtime/runnergroups/?groupName=%s", runnerGroup)
 	req, err := s.newActionsRequest(ctx, http.MethodGet, path, nil)
 	if err != nil {

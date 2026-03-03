@@ -23,6 +23,7 @@ import (
 	"github.com/google/go-github/v72/github"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	"github.com/cloudbase/garm/metrics"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
 )
@@ -49,6 +50,20 @@ type ScaleSetClient struct {
 	actionsServiceInfo *params.ActionsServiceAdminInfoResponse
 
 	mux sync.Mutex
+}
+
+func (s *ScaleSetClient) recordOperation(operation string) {
+	metrics.GithubOperationCount.WithLabelValues(
+		operation,
+		s.ghCli.GetEntity().LabelScope(),
+	).Inc()
+}
+
+func (s *ScaleSetClient) recordFailedOperation(operation string) {
+	metrics.GithubOperationFailedCount.WithLabelValues(
+		operation,
+		s.ghCli.GetEntity().LabelScope(),
+	).Inc()
 }
 
 func (s *ScaleSetClient) SetGithubClient(cli common.GithubClient) {
