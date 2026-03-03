@@ -19,7 +19,7 @@ permissions: {}
 jobs:
   linters:
     name: Linters
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-noble-garm
     timeout-minutes: 10
 
     steps:
@@ -41,7 +41,7 @@ jobs:
           make verify
 
   go-tests:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-noble-garm
     needs: [linters]
     steps:
       - name: Install dependencies
