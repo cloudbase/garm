@@ -185,7 +185,7 @@ func (r *basePoolManager) isEntityPool(pool params.Pool) bool {
 }
 
 // shouldRecordJob determines if a job should be recorded in the database
-func (r *basePoolManager) shouldRecordJob(jobParams params.Job, isNewJob bool) bool {
+func (r *basePoolManager) shouldRecordJob(ctx context.Context, jobParams params.Job, isNewJob bool) bool {
 	// Always record existing jobs
 	if !isNewJob {
 		return true
@@ -197,13 +197,13 @@ func (r *basePoolManager) shouldRecordJob(jobParams params.Job, isNewJob bool) b
 		potentialPools, err := r.store.FindPoolsMatchingAllTags(r.ctx, r.entity.EntityType, r.entity.ID, jobParams.Labels)
 		if err != nil {
 			slog.With(slog.Any("error", err)).ErrorContext(
-				r.ctx, "failed to find pools matching tags",
+				ctx, "failed to find pools matching tags",
 				"requested_tags", strings.Join(jobParams.Labels, ", "))
 			return false
 		}
 		if len(potentialPools) == 0 {
 			slog.WarnContext(
-				r.ctx, "no pools matching tags; not recording job",
+				ctx, "no pools matching tags; not recording job",
 				"requested_tags", strings.Join(jobParams.Labels, ", "))
 			return false
 		}
@@ -212,11 +212,11 @@ func (r *basePoolManager) shouldRecordJob(jobParams params.Job, isNewJob bool) b
 
 	// For new non-queued jobs, only record if runner belongs to us
 	if jobParams.RunnerName != "" {
-		_, err := r.store.GetInstance(r.ctx, jobParams.RunnerName)
+		_, err := r.store.GetInstance(ctx, jobParams.RunnerName)
 		if err != nil {
 			if !errors.Is(err, runnerErrors.ErrNotFound) {
 				slog.With(slog.Any("error", err)).ErrorContext(
-					r.ctx, "failed to get instance",
+					ctx, "failed to get instance",
 					"runner_name", util.SanitizeLogEntry(jobParams.RunnerName))
 			}
 			return false
@@ -229,77 +229,98 @@ func (r *basePoolManager) shouldRecordJob(jobParams params.Job, isNewJob bool) b
 }
 
 // persistJobToDB saves or updates the job in the database
-func (r *basePoolManager) persistJobToDB(jobParams params.Job, triggeredBy int64) {
+func (r *basePoolManager) persistJobToDB(ctx context.Context, jobParams params.Job, triggeredBy int64) {
 	if jobParams.WorkflowJobID == 0 {
 		return
 	}
 
 	// Check if job exists
-	_, err := r.store.GetJobByID(r.ctx, jobParams.WorkflowJobID)
+	_, err := r.store.GetJobByID(ctx, jobParams.WorkflowJobID)
 	isNewJob := errors.Is(err, runnerErrors.ErrNotFound)
 	if err != nil && !isNewJob {
 		slog.With(slog.Any("error", err)).ErrorContext(
-			r.ctx, "failed to get job",
+			ctx, "failed to get job",
 			"job_id", jobParams.WorkflowJobID)
 		return
 	}
 
+	slog.DebugContext(
+		ctx,
+		"determining if we should record job",
+		"workflow_job_id", jobParams.WorkflowJobID,
+		"is_new_job", isNewJob,
+		"job_action", jobParams.Action,
+	)
 	// Determine if we should record this job
-	if !r.shouldRecordJob(jobParams, isNewJob) {
+	if !r.shouldRecordJob(ctx, jobParams, isNewJob) {
+		slog.DebugContext(
+			ctx,
+			"not recording job",
+			"workflow_job_id", jobParams.WorkflowJobID,
+			"is_new_job", isNewJob,
+			"job_action", jobParams.Action,
+		)
 		return
 	}
+	slog.DebugContext(
+		ctx,
+		"recording job",
+		"workflow_job_id", jobParams.WorkflowJobID,
+		"is_new_job", isNewJob,
+		"job_action", jobParams.Action,
+	)
 
 	// Save or update the job
-	if _, jobErr := r.store.CreateOrUpdateJob(r.ctx, jobParams); jobErr != nil {
+	if _, jobErr := r.store.CreateOrUpdateJob(ctx, jobParams); jobErr != nil {
 		slog.With(slog.Any("error", jobErr)).ErrorContext(
-			r.ctx, "failed to update job", "job_id", jobParams.WorkflowJobID)
+			ctx, "failed to update job", "job_id", jobParams.WorkflowJobID)
 		return
 	}
 
 	// Break lock on the queued job that triggered this runner (if different)
 	if triggeredBy != 0 && jobParams.WorkflowJobID != triggeredBy {
-		if err := r.store.BreakLockJobIsQueued(r.ctx, triggeredBy); err != nil {
+		if err := r.store.BreakLockJobIsQueued(ctx, triggeredBy); err != nil {
 			slog.With(slog.Any("error", err)).ErrorContext(
-				r.ctx, "failed to break lock for job",
+				ctx, "failed to break lock for job",
 				"job_id", triggeredBy)
 		}
 	}
 }
 
 // handleCompletedJob processes a completed job webhook
-func (r *basePoolManager) handleCompletedJob(jobParams params.Job) error {
+func (r *basePoolManager) handleCompletedJob(ctx context.Context, jobParams params.Job) error {
 	// Ignore jobs without a runner
 	if jobParams.RunnerName == "" {
-		slog.InfoContext(r.ctx, "job never got assigned to a runner, ignoring")
+		slog.InfoContext(ctx, "job never got assigned to a runner, ignoring")
 		return nil
 	}
 
 	// Check if runner belongs to us
-	instance, err := r.store.GetInstance(r.ctx, jobParams.RunnerName)
+	instance, err := r.store.GetInstance(ctx, jobParams.RunnerName)
 	if err != nil {
 		if errors.Is(err, runnerErrors.ErrNotFound) {
 			return nil
 		}
 		slog.With(slog.Any("error", err)).ErrorContext(
-			r.ctx, "failed to get instance",
+			ctx, "failed to get instance",
 			"runner_name", util.SanitizeLogEntry(jobParams.RunnerName))
 		return nil
 	}
 
 	// Verify pool belongs to this entity
-	pool, err := r.store.GetPoolByID(r.ctx, instance.PoolID)
+	pool, err := r.store.GetPoolByID(ctx, instance.PoolID)
 	if err != nil {
 		if errors.Is(err, runnerErrors.ErrNotFound) {
 			return nil
 		}
 		slog.With(slog.Any("error", err)).ErrorContext(
-			r.ctx, "failed to get pool",
+			ctx, "failed to get pool",
 			"pool_id", instance.PoolID)
 		return nil
 	}
 
 	if !r.isEntityPool(pool) {
-		slog.DebugContext(r.ctx, "instance belongs to a pool not managed by this entity", "pool_id", instance.PoolID)
+		slog.DebugContext(ctx, "instance belongs to a pool not managed by this entity", "pool_id", instance.PoolID)
 		return nil
 	}
 
@@ -309,21 +330,21 @@ func (r *basePoolManager) handleCompletedJob(jobParams params.Job) error {
 			return nil
 		}
 		slog.With(slog.Any("error", err)).ErrorContext(
-			r.ctx, "failed to update runner status",
+			ctx, "failed to update runner status",
 			"runner_name", util.SanitizeLogEntry(jobParams.RunnerName))
 		return fmt.Errorf("error updating runner: %w", err)
 	}
 
 	// Mark instance for deletion
 	slog.DebugContext(
-		r.ctx, "marking instance as pending_delete",
+		ctx, "marking instance as pending_delete",
 		"runner_name", util.SanitizeLogEntry(jobParams.RunnerName))
 	if _, err := r.setInstanceStatus(jobParams.RunnerName, commonParams.InstancePendingDelete, nil, false); err != nil {
 		if errors.Is(err, runnerErrors.ErrNotFound) {
 			return nil
 		}
 		slog.With(slog.Any("error", err)).ErrorContext(
-			r.ctx, "failed to update runner status",
+			ctx, "failed to update runner status",
 			"runner_name", util.SanitizeLogEntry(jobParams.RunnerName))
 		return fmt.Errorf("error updating runner: %w", err)
 	}
@@ -332,9 +353,9 @@ func (r *basePoolManager) handleCompletedJob(jobParams params.Job) error {
 }
 
 // handleInProgressJob processes an in-progress job webhook
-func (r *basePoolManager) handleInProgressJob(jobParams params.Job) (triggeredBy int64, err error) {
+func (r *basePoolManager) handleInProgressJob(ctx context.Context, jobParams params.Job) (triggeredBy int64, err error) {
 	if jobParams.RunnerName == "" {
-		slog.DebugContext(r.ctx, "instance not found in job data", "workflow_job_id", jobParams.ID)
+		slog.DebugContext(ctx, "instance not found in job data", "workflow_job_id", jobParams.ID)
 		return 0, nil
 	}
 
@@ -342,29 +363,29 @@ func (r *basePoolManager) handleInProgressJob(jobParams params.Job) (triggeredBy
 	instance, err := r.setInstanceRunnerStatus(jobParams.RunnerName, params.RunnerActive)
 	if err != nil {
 		if errors.Is(err, runnerErrors.ErrNotFound) {
-			slog.DebugContext(r.ctx, "instance not found", "runner_name", jobParams.RunnerName)
+			slog.DebugContext(ctx, "instance not found", "runner_name", jobParams.RunnerName)
 			return 0, nil
 		}
 		slog.With(slog.Any("error", err)).ErrorContext(
-			r.ctx, "failed to update runner status",
+			ctx, "failed to update runner status",
 			"runner_name", util.SanitizeLogEntry(jobParams.RunnerName))
 		return 0, fmt.Errorf("error updating runner: %w", err)
 	}
 
 	// Verify pool belongs to this entity
-	pool, err := r.store.GetPoolByID(r.ctx, instance.PoolID)
+	pool, err := r.store.GetPoolByID(ctx, instance.PoolID)
 	if err != nil {
 		if errors.Is(err, runnerErrors.ErrNotFound) {
 			return 0, nil
 		}
 		slog.With(slog.Any("error", err)).ErrorContext(
-			r.ctx, "failed to get pool",
+			ctx, "failed to get pool",
 			"pool_id", instance.PoolID)
 		return 0, nil
 	}
 
 	if !r.isEntityPool(pool) {
-		slog.DebugContext(r.ctx, "instance belongs to a pool not managed by this entity", "pool_id", instance.PoolID)
+		slog.DebugContext(ctx, "instance belongs to a pool not managed by this entity", "pool_id", instance.PoolID)
 		return 0, nil
 	}
 
@@ -374,7 +395,7 @@ func (r *basePoolManager) handleInProgressJob(jobParams params.Job) (triggeredBy
 	// Ensure minimum idle runners for the pool
 	if err := r.ensureIdleRunnersForOnePool(pool); err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(
-			r.ctx, "error ensuring idle runners for pool",
+			ctx, "error ensuring idle runners for pool",
 			"pool_id", pool.ID)
 	}
 
@@ -382,22 +403,28 @@ func (r *basePoolManager) handleInProgressJob(jobParams params.Job) (triggeredBy
 }
 
 func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
+	ctx := garmUtil.WithSlogContext(
+		r.ctx,
+		slog.Any("action", "handle_workflow"),
+	)
 	// Validate job ownership
 	if err := r.ValidateOwner(job); err != nil {
-		slog.ErrorContext(r.ctx, "failed to validate owner", "error", err)
+		slog.ErrorContext(ctx, "failed to validate owner", "error", err)
 		return fmt.Errorf("error validating owner: %w", err)
 	}
 
+	slog.DebugContext(ctx, "handling job", "workflow_job", job.WorkflowJob.Name, "workflow_job_id", job.WorkflowJob.ID)
+
 	// Jobs without labels cannot be processed
 	if len(job.WorkflowJob.Labels) == 0 {
-		slog.WarnContext(r.ctx, "job has no labels", "workflow_job", job.WorkflowJob.Name)
+		slog.WarnContext(ctx, "job has no labels", "workflow_job", job.WorkflowJob.Name)
 		return nil
 	}
 
 	// Convert webhook payload to internal job format
 	jobParams, err := r.paramsWorkflowJobToParamsJob(job)
 	if err != nil {
-		slog.ErrorContext(r.ctx, "failed to convert job to params", "error", err)
+		slog.ErrorContext(ctx, "failed to convert job to params", "error", err)
 		return fmt.Errorf("error converting job to params: %w", err)
 	}
 
@@ -405,16 +432,16 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 	// Scale set jobs are handled by the scale set listener, not by webhooks.
 	if job.Action == "in_progress" || job.Action == "completed" {
 		if jobParams.RunnerName != "" {
-			instance, err := r.store.GetInstance(r.ctx, jobParams.RunnerName)
+			instance, err := r.store.GetInstance(ctx, jobParams.RunnerName)
 			if err == nil && instance.ScaleSetID != 0 {
-				slog.DebugContext(r.ctx, "job belongs to a scale set instance, skipping webhook processing",
+				slog.DebugContext(ctx, "job belongs to a scale set instance, skipping webhook processing",
 					"runner_name", util.SanitizeLogEntry(jobParams.RunnerName),
 					"scale_set_id", instance.ScaleSetID)
 				// Clean up any orphaned queued job that may have been recorded
 				// via webhook before we knew it belonged to a scale set.
-				if err := r.store.DeleteJob(r.ctx, jobParams.WorkflowJobID); err != nil && !errors.Is(err, runnerErrors.ErrNotFound) {
+				if err := r.store.DeleteJob(ctx, jobParams.WorkflowJobID); err != nil && !errors.Is(err, runnerErrors.ErrNotFound) {
 					slog.With(slog.Any("error", err)).ErrorContext(
-						r.ctx, "failed to delete orphaned webhook job for scale set instance",
+						ctx, "failed to delete orphaned webhook job for scale set instance",
 						"job_id", jobParams.WorkflowJobID)
 				}
 				return nil
@@ -430,13 +457,15 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 	case "queued":
 		// Queued jobs are just recorded; they'll be picked up by consumeQueuedJobs()
 	case "in_progress":
-		triggeredBy, actionErr = r.handleInProgressJob(jobParams)
+		triggeredBy, actionErr = r.handleInProgressJob(ctx, jobParams)
 	case "completed":
-		actionErr = r.handleCompletedJob(jobParams)
+		actionErr = r.handleCompletedJob(ctx, jobParams)
 	}
 
+	slog.DebugContext(ctx, "workflow job processed", "workflow_job_id", jobParams.WorkflowJobID, "job_action", job.Action)
+
 	// Always persist job to database (success or failure)
-	r.persistJobToDB(jobParams, triggeredBy)
+	r.persistJobToDB(ctx, jobParams, triggeredBy)
 
 	return actionErr
 }
@@ -875,7 +904,7 @@ func (r *basePoolManager) setInstanceRunnerStatus(runnerName string, status para
 	updateParams := params.UpdateInstanceParams{
 		RunnerStatus: status,
 	}
-	instance, err := r.store.UpdateInstance(r.ctx, runnerName, updateParams)
+	instance, err := r.store.ForceUpdateInstance(r.ctx, runnerName, updateParams)
 	if err != nil {
 		return params.Instance{}, fmt.Errorf("error updating runner status: %w", err)
 	}

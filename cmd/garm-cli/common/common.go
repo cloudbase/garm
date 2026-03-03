@@ -82,9 +82,11 @@ func PrintWebsocketMessage(_ int, msg []byte) error {
 }
 
 type LogFormatter struct {
-	MinLevel         string
-	AttributeFilters map[string]string
-	EnableColor      bool
+	MinLevel            string
+	AttributeFilters    map[string]string
+	AttributeHighlights map[string]bool
+	FilterMatchMode     string // "any" (OR) or "all" (AND)
+	EnableColor         bool
 }
 
 type LogRecord struct {
@@ -96,14 +98,16 @@ type LogRecord struct {
 
 // Color codes for different log levels
 const (
-	ColorReset   = "\033[0m"
-	ColorRed     = "\033[31m"
-	ColorYellow  = "\033[33m"
-	ColorBlue    = "\033[34m"
-	ColorMagenta = "\033[35m"
-	ColorCyan    = "\033[36m"
-	ColorWhite   = "\033[37m"
-	ColorGray    = "\033[90m"
+	ColorReset    = "\033[0m"
+	ColorRed      = "\033[31m"
+	ColorGreen    = "\033[32m"
+	ColorYellow   = "\033[33m"
+	ColorBlue     = "\033[34m"
+	ColorMagenta  = "\033[35m"
+	ColorCyan     = "\033[36m"
+	ColorWhite    = "\033[37m"
+	ColorGray     = "\033[90m"
+	ColorBoldCyan = "\033[1;36m"
 )
 
 func (lf *LogFormatter) colorizeLevel(level string) string {
@@ -151,29 +155,37 @@ func (lf *LogFormatter) shouldFilterLevel(level string) bool {
 	return currentLevelNum < minLevelNum
 }
 
+func (lf *LogFormatter) matchesFilter(key, expectedValue string, attrs map[string]interface{}, msg string) bool {
+	if key == "msg" {
+		return strings.Contains(msg, expectedValue)
+	}
+	actualValue, exists := attrs[key]
+	if !exists {
+		return false
+	}
+	return fmt.Sprintf("%v", actualValue) == expectedValue
+}
+
 func (lf *LogFormatter) matchesAttributeFilters(attrs map[string]interface{}, msg string) bool {
 	if len(lf.AttributeFilters) == 0 {
 		return true
 	}
 
-	for key, expectedValue := range lf.AttributeFilters {
-		// Special handling for message filtering
-		if key == "msg" {
-			if strings.Contains(msg, expectedValue) {
-				return true
+	if lf.FilterMatchMode == "all" {
+		for key, expectedValue := range lf.AttributeFilters {
+			if !lf.matchesFilter(key, expectedValue, attrs, msg) {
+				return false
 			}
 		}
-
-		// Regular attribute filtering
-		actualValue, exists := attrs[key]
-		if exists {
-			actualStr := fmt.Sprintf("%v", actualValue)
-			if actualStr == expectedValue {
-				return true
-			}
-		}
+		return true
 	}
 
+	// Default: "any" (OR) mode
+	for key, expectedValue := range lf.AttributeFilters {
+		if lf.matchesFilter(key, expectedValue, attrs, msg) {
+			return true
+		}
+	}
 	return false
 }
 
@@ -192,9 +204,12 @@ func (lf *LogFormatter) FormatWebsocketMessage(_ int, msg []byte) error {
 		return nil
 	}
 
-	// Parse additional attributes from the JSON
+	// Parse additional attributes from the JSON, using UseNumber to preserve
+	// integer formatting (avoids scientific notation for large numbers).
 	var fullRecord map[string]interface{}
-	if err := json.Unmarshal(msg, &fullRecord); err == nil {
+	dec := json.NewDecoder(strings.NewReader(string(msg)))
+	dec.UseNumber()
+	if err := dec.Decode(&fullRecord); err == nil {
 		// Remove standard fields and keep only attributes
 		delete(fullRecord, "time")
 		delete(fullRecord, "level")
@@ -216,11 +231,15 @@ func (lf *LogFormatter) FormatWebsocketMessage(_ int, msg []byte) error {
 	// Format log level to fixed width (5 characters)
 	levelStr := lf.colorizeLevel(fmt.Sprintf("%-5s", strings.ToUpper(logRecord.Level)))
 
-	// Highlight message if it matches a msg filter
+	// Highlight message if it matches a msg filter or highlight
 	msgStr := logRecord.Msg
 	if msgFilter, hasMsgFilter := lf.AttributeFilters["msg"]; hasMsgFilter {
 		if strings.Contains(msgStr, msgFilter) && lf.EnableColor {
 			msgStr = ColorYellow + msgStr + ColorReset
+		}
+	} else if lf.AttributeHighlights["msg"] {
+		if lf.EnableColor {
+			msgStr = ColorBoldCyan + msgStr + ColorReset
 		}
 	}
 
@@ -239,11 +258,17 @@ func (lf *LogFormatter) FormatWebsocketMessage(_ int, msg []byte) error {
 		for _, k := range keys {
 			v := logRecord.Attrs[k]
 			attrStr := fmt.Sprintf("%s=%v", k, v)
+			valStr := fmt.Sprintf("%v", v)
 
-			// Highlight filtered attributes
-			if filterValue, isFiltered := lf.AttributeFilters[k]; isFiltered && fmt.Sprintf("%v", v) == filterValue {
+			// Highlight filtered attributes (yellow)
+			if filterValue, isFiltered := lf.AttributeFilters[k]; isFiltered && valStr == filterValue {
 				if lf.EnableColor {
 					attrStr = ColorYellow + attrStr + ColorGray
+				}
+			} else if lf.AttributeHighlights[k] {
+				// Highlight --highlight attributes (bold cyan)
+				if lf.EnableColor {
+					attrStr = ColorBoldCyan + attrStr + ColorGray
 				}
 			} else if lf.EnableColor {
 				attrStr = ColorGray + attrStr
@@ -311,15 +336,21 @@ func supportsColor() bool {
 	return true
 }
 
-func NewLogFormatter(minLevel string, attributeFilters map[string]string, color bool) *LogFormatter {
+func NewLogFormatter(minLevel string, attributeFilters map[string]string, attributeHighlights map[string]bool, filterMatchMode string, color bool) *LogFormatter {
 	var enableColor bool
 	if color && supportsColor() {
 		enableColor = true
 	}
 
+	if filterMatchMode == "" {
+		filterMatchMode = "any"
+	}
+
 	return &LogFormatter{
-		MinLevel:         minLevel,
-		AttributeFilters: attributeFilters,
-		EnableColor:      enableColor,
+		MinLevel:            minLevel,
+		AttributeFilters:    attributeFilters,
+		AttributeHighlights: attributeHighlights,
+		FilterMatchMode:     filterMatchMode,
+		EnableColor:         enableColor,
 	}
 }
