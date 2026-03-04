@@ -125,7 +125,7 @@ func requestLogger(h http.Handler) http.Handler {
 		// gathers metrics from the upstream handlers
 		metrics := httpsnoop.CaptureMetrics(h, w, r)
 
-		slog.Info(
+		slog.Info( //nolint:gosec // G706 - structured logging with typed fields
 			"access_log",
 			slog.String("method", r.Method),
 			slog.String("uri", r.URL.RequestURI()),

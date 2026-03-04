@@ -86,7 +86,7 @@ func (s *ScaleSetClient) Do(req *http.Request) (*http.Response, error) {
 		return nil, fmt.Errorf("http client is not initialized")
 	}
 
-	resp, err := s.httpClient.Do(req)
+	resp, err := s.httpClient.Do(req) //nolint:gosec // G704 - URL is constructed from GitHub API endpoints
 	if err != nil {
 		return nil, fmt.Errorf("failed to dispatch HTTP request: %w", err)
 	}
