@@ -79,5 +79,5 @@ func ServeSPAWithPath(w http.ResponseWriter, r *http.Request, webappPath string)
 		w.Header().Set("Cache-Control", "no-cache, must-revalidate")
 	}
 
-	w.Write(content)
+	w.Write(content) //nolint:gosec // G705 - serving embedded static assets, not user input
 }

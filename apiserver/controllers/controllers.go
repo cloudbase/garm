@@ -281,7 +281,7 @@ func (a *APIController) WSHandler(writer http.ResponseWriter, req *http.Request)
 		return
 	}
 	<-client.Done()
-	slog.Info("client disconnected", "client_id", client.ID())
+	slog.Info("client disconnected", "client_id", client.ID()) //nolint:gosec // G706 - structured logging with typed field
 }
 
 // NotFoundHandler is returned when an invalid URL is acccessed

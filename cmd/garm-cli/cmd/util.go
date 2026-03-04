@@ -164,7 +164,7 @@ func (c *rawClient) NewRequest(method, path string, body io.Reader) (*http.Reque
 		return nil, fmt.Errorf("failed to join URL: %w", err)
 	}
 
-	req, err := http.NewRequest(method, url, body)
+	req, err := http.NewRequest(method, url, body) //nolint:gosec // G704 - URL is constructed from configured base URL
 	if err != nil {
 		return nil, err
 	}

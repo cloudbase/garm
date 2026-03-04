@@ -31,7 +31,7 @@ func (s *sqlDatabase) CreateFileObject(ctx context.Context, param params.CreateF
 	}
 	defer func() {
 		tmpFile.Close()
-		os.Remove(tmpFile.Name())
+		os.Remove(tmpFile.Name()) //nolint:gosec // G703 - path from os.CreateTemp, not user input
 	}()
 	if _, err := io.Copy(tmpFile, reader); err != nil {
 		return params.FileObject{}, fmt.Errorf("failed to copy data: %w", err)
