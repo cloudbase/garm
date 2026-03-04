@@ -23,7 +23,7 @@ import (
 )
 
 type providerHelper interface {
-	SetInstanceStatus(instanceName string, status commonParams.InstanceStatus, providerFault []byte) error
+	SetInstanceStatus(instanceName string, status commonParams.InstanceStatus, providerFault []byte, force bool) error
 	InstanceTokenGetter() auth.InstanceTokenGetter
 	updateArgsFromProviderInstance(instanceName string, providerInstance commonParams.ProviderInstance) (params.Instance, error)
 	GetControllerInfo() (params.ControllerInfo, error)
@@ -59,7 +59,7 @@ func (p *Provider) GetControllerInfo() (params.ControllerInfo, error) {
 	return info, nil
 }
 
-func (p *Provider) SetInstanceStatus(instanceName string, status commonParams.InstanceStatus, providerFault []byte) error {
+func (p *Provider) SetInstanceStatus(instanceName string, status commonParams.InstanceStatus, providerFault []byte, force bool) error {
 	p.mux.Lock()
 	defer p.mux.Unlock()
 
@@ -72,7 +72,13 @@ func (p *Provider) SetInstanceStatus(instanceName string, status commonParams.In
 		ProviderFault: providerFault,
 	}
 
-	_, err := p.store.UpdateInstance(p.ctx, instanceName, updateParams)
+	var err error
+	switch force {
+	case true:
+		_, err = p.store.ForceUpdateInstance(p.ctx, instanceName, updateParams)
+	default:
+		_, err = p.store.UpdateInstance(p.ctx, instanceName, updateParams)
+	}
 	if err != nil {
 		return fmt.Errorf("updating instance %s: %w", instanceName, err)
 	}

@@ -299,12 +299,12 @@ func (i *instanceManager) consolidateState() error {
 	switch i.instance.Status {
 	case commonParams.InstancePendingCreate:
 		// kick off the creation process
-		if err := i.helper.SetInstanceStatus(i.instance.Name, commonParams.InstanceCreating, nil); err != nil {
+		if err := i.helper.SetInstanceStatus(i.instance.Name, commonParams.InstanceCreating, nil, false); err != nil {
 			return fmt.Errorf("setting instance status to creating: %w", err)
 		}
 		if err := i.handleCreateInstanceInProvider(i.instance); err != nil {
 			slog.ErrorContext(i.ctx, "creating instance in provider", "error", err)
-			if err := i.helper.SetInstanceStatus(i.instance.Name, commonParams.InstanceError, []byte(err.Error())); err != nil {
+			if err := i.helper.SetInstanceStatus(i.instance.Name, commonParams.InstanceError, []byte(err.Error()), true); err != nil {
 				return fmt.Errorf("setting instance status to error: %w", err)
 			}
 		}
@@ -325,7 +325,7 @@ func (i *instanceManager) consolidateState() error {
 		}
 
 		prevStatus := i.instance.Status
-		if err := i.helper.SetInstanceStatus(i.instance.Name, commonParams.InstanceDeleting, nil); err != nil {
+		if err := i.helper.SetInstanceStatus(i.instance.Name, commonParams.InstanceDeleting, nil, true); err != nil {
 			if errors.Is(err, runnerErrors.ErrNotFound) {
 				return nil
 			}
@@ -336,14 +336,14 @@ func (i *instanceManager) consolidateState() error {
 			slog.ErrorContext(i.ctx, "deleting instance in provider", "error", err, "forced", i.instance.Status == commonParams.InstancePendingForceDelete)
 			if prevStatus == commonParams.InstancePendingDelete {
 				i.incrementBackOff()
-				if err := i.helper.SetInstanceStatus(i.instance.Name, commonParams.InstancePendingDelete, []byte(err.Error())); err != nil {
+				if err := i.helper.SetInstanceStatus(i.instance.Name, commonParams.InstancePendingDelete, []byte(err.Error()), true); err != nil {
 					return fmt.Errorf("setting instance status to error: %w", err)
 				}
 
 				return fmt.Errorf("error removing instance. Will retry: %w", err)
 			}
 		}
-		if err := i.helper.SetInstanceStatus(i.instance.Name, commonParams.InstanceDeleted, nil); err != nil {
+		if err := i.helper.SetInstanceStatus(i.instance.Name, commonParams.InstanceDeleted, nil, false); err != nil {
 			if !errors.Is(err, runnerErrors.ErrNotFound) {
 				return fmt.Errorf("setting instance status to deleted: %w", err)
 			}
@@ -352,7 +352,7 @@ func (i *instanceManager) consolidateState() error {
 	case commonParams.InstanceError:
 		// Instance is in error state. We wait for next status or potentially retry
 		// spawning the instance with a backoff timer.
-		if err := i.helper.SetInstanceStatus(i.instance.Name, commonParams.InstancePendingDelete, nil); err != nil {
+		if err := i.helper.SetInstanceStatus(i.instance.Name, commonParams.InstancePendingDelete, nil, true); err != nil {
 			return fmt.Errorf("setting instance status to error: %w", err)
 		}
 	case commonParams.InstanceDeleted:
