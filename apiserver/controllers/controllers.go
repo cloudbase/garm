@@ -80,7 +80,7 @@ func NewAPIController(r *runner.Runner, authenticator *auth.Authenticator, hub *
 		hub:      hub,
 		agentHub: agentHub,
 		upgrader: websocket.Upgrader{
-			ReadBufferSize:  1024,
+			ReadBufferSize:  4096,
 			WriteBufferSize: 16384,
 			CheckOrigin:     checkOrigin,
 		},

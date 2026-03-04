@@ -5,7 +5,7 @@ go 1.24.6
 require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/bradleyfalzon/ghinstallation/v2 v2.17.0
-	github.com/cloudbase/garm-provider-common v0.1.8-0.20251001105909-bbcacae60e7c
+	github.com/cloudbase/garm-provider-common v0.1.8-0.20260304133539-3e3d10fe78b8
 	github.com/felixge/httpsnoop v1.0.4
 	github.com/gdamore/tcell/v2 v2.13.8
 	github.com/go-openapi/errors v0.22.6
