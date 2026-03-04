@@ -102,7 +102,6 @@ func (r *basePoolManager) getQueuedJobs() []params.Job {
 	ret := []params.Job{}
 
 	for _, job := range r.jobs {
-		slog.DebugContext(r.ctx, "considering job for processing", "job_id", job.ID, "job_status", job.Status)
 		if params.JobStatus(job.Status) == params.JobStatusQueued {
 			ret = append(ret, job)
 		}
