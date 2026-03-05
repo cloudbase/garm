@@ -682,6 +682,114 @@ func (s *PoolStressTestSuite) TestRapidFireWebhookLifecycle() {
 	s.Len(completedJobs, len(allJobs), "all surviving jobs should be completed")
 }
 
+// TestPersistJobToDB_RejectsReverseTransitions verifies that persistJobToDB
+// rejects reverse state transitions and that the DB is unchanged after rejection.
+func (s *PoolStressTestSuite) TestPersistJobToDB_RejectsReverseTransitions() {
+	labels := []string{"self-hosted", "linux", "x64"}
+
+	tests := []struct {
+		name       string
+		seedAction string
+		nextAction string
+	}{
+		{name: "completed->in_progress", seedAction: "completed", nextAction: "in_progress"},
+		{name: "completed->queued", seedAction: "completed", nextAction: "queued"},
+		{name: "in_progress->queued", seedAction: "in_progress", nextAction: "queued"},
+	}
+
+	for i, tt := range tests {
+		s.Run(tt.name, func() {
+			jobID := int64(50000 + i)
+
+			// Seed the job directly in the DB
+			seedJob := params.Job{
+				WorkflowJobID:   jobID,
+				RunID:           67890,
+				Action:          tt.seedAction,
+				Status:          tt.seedAction,
+				Name:            fmt.Sprintf("test-job-%d", jobID),
+				Labels:          labels,
+				RepositoryName:  "test-repo",
+				RepositoryOwner: "test-owner",
+			}
+			_, err := s.store.CreateOrUpdateJob(s.adminCtx, seedJob)
+			s.Require().NoError(err)
+
+			// Attempt the reverse transition
+			nextJob := params.Job{
+				WorkflowJobID:   jobID,
+				RunID:           67890,
+				Action:          tt.nextAction,
+				Status:          tt.nextAction,
+				Name:            fmt.Sprintf("test-job-%d", jobID),
+				Labels:          labels,
+				RepositoryName:  "test-repo",
+				RepositoryOwner: "test-owner",
+			}
+			err = s.mgr.persistJobToDB(s.adminCtx, nextJob)
+			s.Require().Error(err, "expected reverse transition %s->%s to be rejected", tt.seedAction, tt.nextAction)
+
+			// Verify the DB still has the original action
+			dbJob, err := s.store.GetJobByID(s.adminCtx, jobID)
+			s.Require().NoError(err)
+			s.Equal(tt.seedAction, dbJob.Action, "DB should still have original action after rejected transition")
+		})
+	}
+}
+
+// TestPersistJobToDB_AllowsForwardTransitions verifies that forward transitions
+// pass validation (no error). Note: shouldRecordJob may still skip the actual
+// DB write for non-queued jobs without a runner, so we only assert no error.
+func (s *PoolStressTestSuite) TestPersistJobToDB_AllowsForwardTransitions() {
+	labels := []string{"self-hosted", "linux", "x64"}
+
+	tests := []struct {
+		name       string
+		seedAction string
+		nextAction string
+	}{
+		{name: "queued->in_progress", seedAction: "queued", nextAction: "in_progress"},
+		{name: "queued->completed", seedAction: "queued", nextAction: "completed"},
+		{name: "in_progress->completed", seedAction: "in_progress", nextAction: "completed"},
+		// Idempotent
+		{name: "queued->queued", seedAction: "queued", nextAction: "queued"},
+		{name: "in_progress->in_progress", seedAction: "in_progress", nextAction: "in_progress"},
+		{name: "completed->completed", seedAction: "completed", nextAction: "completed"},
+	}
+
+	for i, tt := range tests {
+		s.Run(tt.name, func() {
+			jobID := int64(60000 + i)
+
+			seedJob := params.Job{
+				WorkflowJobID:   jobID,
+				RunID:           67890,
+				Action:          tt.seedAction,
+				Status:          tt.seedAction,
+				Name:            fmt.Sprintf("test-job-%d", jobID),
+				Labels:          labels,
+				RepositoryName:  "test-repo",
+				RepositoryOwner: "test-owner",
+			}
+			_, err := s.store.CreateOrUpdateJob(s.adminCtx, seedJob)
+			s.Require().NoError(err)
+
+			nextJob := params.Job{
+				WorkflowJobID:   jobID,
+				RunID:           67890,
+				Action:          tt.nextAction,
+				Status:          tt.nextAction,
+				Name:            fmt.Sprintf("test-job-%d", jobID),
+				Labels:          labels,
+				RepositoryName:  "test-repo",
+				RepositoryOwner: "test-owner",
+			}
+			err = s.mgr.persistJobToDB(s.adminCtx, nextJob)
+			s.Require().NoError(err, "expected transition %s->%s to pass validation", tt.seedAction, tt.nextAction)
+		})
+	}
+}
+
 func mustParseUUID(s string) uuid.UUID {
 	u, err := uuid.Parse(s)
 	if err != nil {
