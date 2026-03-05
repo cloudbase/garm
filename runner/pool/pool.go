@@ -228,22 +228,32 @@ func (r *basePoolManager) shouldRecordJob(ctx context.Context, jobParams params.
 	return false
 }
 
-// persistJobToDB saves or updates the job in the database
-func (r *basePoolManager) persistJobToDB(ctx context.Context, jobParams params.Job, triggeredBy int64) {
+// persistJobToDB validates the job state transition and saves or updates the job
+// in the database. Returns an error if the transition is invalid.
+func (r *basePoolManager) persistJobToDB(ctx context.Context, jobParams params.Job) error {
 	if jobParams.WorkflowJobID == 0 {
-		return
+		return runnerErrors.NewBadRequestError("workflow job has no ID")
 	}
 
-	// Check if job exists
-	_, err := r.store.GetJobByID(ctx, jobParams.WorkflowJobID)
+	existingJob, err := r.store.GetJobByID(ctx, jobParams.WorkflowJobID)
 	isNewJob := errors.Is(err, runnerErrors.ErrNotFound)
 	if err != nil && !isNewJob {
-		slog.With(slog.Any("error", err)).ErrorContext(
-			ctx, "failed to get job",
-			"job_id", jobParams.WorkflowJobID)
-		return
+		return fmt.Errorf("failed to get job from db: %w", err)
 	}
 
+	// Validate job state transition (only allow forward transitions).
+	if !isNewJob {
+		statusRank := map[string]int{
+			string(params.JobStatusQueued):     1,
+			string(params.JobStatusInProgress): 2,
+			string(params.JobStatusCompleted):  3,
+		}
+		if statusRank[jobParams.Action] < statusRank[existingJob.Action] {
+			return runnerErrors.NewBadRequestError("cannot transition job from %s to %s", existingJob.Action, jobParams.Action)
+		}
+	}
+
+	// Determine if we should record this job
 	slog.DebugContext(
 		ctx,
 		"determining if we should record job",
@@ -251,7 +261,6 @@ func (r *basePoolManager) persistJobToDB(ctx context.Context, jobParams params.J
 		"is_new_job", isNewJob,
 		"job_action", jobParams.Action,
 	)
-	// Determine if we should record this job
 	if !r.shouldRecordJob(ctx, jobParams, isNewJob) {
 		slog.DebugContext(
 			ctx,
@@ -260,8 +269,9 @@ func (r *basePoolManager) persistJobToDB(ctx context.Context, jobParams params.J
 			"is_new_job", isNewJob,
 			"job_action", jobParams.Action,
 		)
-		return
+		return fmt.Errorf("job %d should not be recorded", jobParams.WorkflowJobID)
 	}
+
 	slog.DebugContext(
 		ctx,
 		"recording job",
@@ -272,19 +282,9 @@ func (r *basePoolManager) persistJobToDB(ctx context.Context, jobParams params.J
 
 	// Save or update the job
 	if _, jobErr := r.store.CreateOrUpdateJob(ctx, jobParams); jobErr != nil {
-		slog.With(slog.Any("error", jobErr)).ErrorContext(
-			ctx, "failed to update job", "job_id", jobParams.WorkflowJobID)
-		return
+		return fmt.Errorf("failed to update job %d: %w", jobParams.WorkflowJobID, jobErr)
 	}
-
-	// Break lock on the queued job that triggered this runner (if different)
-	if triggeredBy != 0 && jobParams.WorkflowJobID != triggeredBy {
-		if err := r.store.BreakLockJobIsQueued(ctx, triggeredBy); err != nil {
-			slog.With(slog.Any("error", err)).ErrorContext(
-				ctx, "failed to break lock for job",
-				"job_id", triggeredBy)
-		}
-	}
+	return nil
 }
 
 // handleCompletedJob processes a completed job webhook
@@ -449,23 +449,33 @@ func (r *basePoolManager) HandleWorkflowJob(job params.WorkflowJob) error {
 		}
 	}
 
+	// Validate and persist job to database first, then act on it.
+	if err := r.persistJobToDB(ctx, jobParams); err != nil {
+		return err
+	}
+
 	// Process job based on action type
-	var triggeredBy int64
 	var actionErr error
 
 	switch job.Action {
 	case "queued":
 		// Queued jobs are just recorded; they'll be picked up by consumeQueuedJobs()
 	case "in_progress":
-		triggeredBy, actionErr = r.handleInProgressJob(ctx, jobParams)
+		triggeredBy, inProgressErr := r.handleInProgressJob(ctx, jobParams)
+		actionErr = inProgressErr
+		// Break lock on the queued job that originally triggered this runner.
+		if triggeredBy != 0 && jobParams.WorkflowJobID != triggeredBy {
+			if err := r.store.BreakLockJobIsQueued(ctx, triggeredBy); err != nil {
+				slog.With(slog.Any("error", err)).ErrorContext(
+					ctx, "failed to break lock for job",
+					"job_id", triggeredBy)
+			}
+		}
 	case "completed":
 		actionErr = r.handleCompletedJob(ctx, jobParams)
 	}
 
 	slog.DebugContext(ctx, "workflow job processed", "workflow_job_id", jobParams.WorkflowJobID, "job_action", job.Action)
-
-	// Always persist job to database (success or failure)
-	r.persistJobToDB(ctx, jobParams, triggeredBy)
 
 	return actionErr
 }
@@ -2054,7 +2064,8 @@ func (r *basePoolManager) consumeQueuedJobs() error {
 	defer func() {
 		// Always try to clean inactionable jobs. Otherwise, if any condition
 		// makes this function exit, we never clean up jobs.
-		if err := r.store.DeleteInactionableJobs(r.ctx); err != nil {
+		// Use a 5 minute grace period to account for out of order webhooks.
+		if err := r.store.DeleteInactionableJobs(r.ctx, 5*time.Minute); err != nil {
 			slog.With(slog.Any("error", err)).ErrorContext(
 				r.ctx, "failed to delete completed jobs")
 		}

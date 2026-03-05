@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/suite"
 
@@ -108,7 +109,7 @@ func (s *JobsTestSuite) TestDeleteInactionableJobs() {
 	s.Require().Equal(int64(3), countBefore, "Should have 3 jobs before deletion")
 
 	// Run deletion
-	err = s.Store.DeleteInactionableJobs(s.adminCtx)
+	err = s.Store.DeleteInactionableJobs(s.adminCtx, 0)
 	s.Require().NoError(err)
 
 	// Count remaining jobs - should only have the queued job
@@ -171,7 +172,7 @@ func (s *JobsTestSuite) TestDeleteInactionableJobs_AllScenarios() {
 	s.Require().Equal(int64(3), countBefore)
 
 	// Run deletion
-	err = s.Store.DeleteInactionableJobs(s.adminCtx)
+	err = s.Store.DeleteInactionableJobs(s.adminCtx, 0)
 	s.Require().NoError(err)
 
 	// After deletion, only queued job should remain
@@ -186,4 +187,59 @@ func (s *JobsTestSuite) TestDeleteInactionableJobs_AllScenarios() {
 	s.Require().NoError(err)
 	s.Require().Len(jobs, 1)
 	s.Require().Equal(string(params.JobStatusQueued), jobs[0].Status)
+}
+
+// TestDeleteInactionableJobs_WithDuration verifies the duration-based filtering
+func (s *JobsTestSuite) TestDeleteInactionableJobs_WithDuration() {
+	db := s.Store.(*sqlDatabase)
+
+	// Create an inactionable job (completed, no instance) with recent created_at
+	recentJob := params.Job{
+		WorkflowJobID:   30001,
+		RunID:           67890,
+		Status:          string(params.JobStatusCompleted),
+		Name:            "recent-completed",
+		RepositoryName:  "test-repo",
+		RepositoryOwner: "test-owner",
+	}
+	_, err := s.Store.CreateOrUpdateJob(s.adminCtx, recentJob)
+	s.Require().NoError(err)
+
+	// Create an inactionable job and backdate its created_at to 2 hours ago
+	oldJob := params.Job{
+		WorkflowJobID:   30002,
+		RunID:           67890,
+		Status:          string(params.JobStatusCompleted),
+		Name:            "old-completed",
+		RepositoryName:  "test-repo",
+		RepositoryOwner: "test-owner",
+	}
+	_, err = s.Store.CreateOrUpdateJob(s.adminCtx, oldJob)
+	s.Require().NoError(err)
+
+	// Backdate the old job's created_at
+	err = db.conn.Model(&WorkflowJob{}).
+		Where("workflow_job_id = ?", 30002).
+		Update("created_at", time.Now().Add(-2*time.Hour)).Error
+	s.Require().NoError(err)
+
+	var countBefore int64
+	err = db.conn.Model(&WorkflowJob{}).Count(&countBefore).Error
+	s.Require().NoError(err)
+	s.Require().Equal(int64(2), countBefore)
+
+	// Delete inactionable jobs older than 1 hour — should only delete the old job
+	err = s.Store.DeleteInactionableJobs(s.adminCtx, 1*time.Hour)
+	s.Require().NoError(err)
+
+	var countAfter int64
+	err = db.conn.Model(&WorkflowJob{}).Count(&countAfter).Error
+	s.Require().NoError(err)
+	s.Require().Equal(int64(1), countAfter, "Only the recent job should remain")
+
+	// Verify the remaining job is the recent one
+	var remaining WorkflowJob
+	err = db.conn.Where("workflow_job_id = ?", 30001).First(&remaining).Error
+	s.Require().NoError(err)
+	s.Require().Equal("recent-completed", remaining.Name)
 }

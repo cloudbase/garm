@@ -1491,17 +1491,17 @@ func (_c *Store_DeleteGithubEndpoint_Call) RunAndReturn(run func(context.Context
 	return _c
 }
 
-// DeleteInactionableJobs provides a mock function with given fields: ctx
-func (_m *Store) DeleteInactionableJobs(ctx context.Context) error {
-	ret := _m.Called(ctx)
+// DeleteInactionableJobs provides a mock function with given fields: ctx, olderThan
+func (_m *Store) DeleteInactionableJobs(ctx context.Context, olderThan time.Duration) error {
+	ret := _m.Called(ctx, olderThan)
 
 	if len(ret) == 0 {
 		panic("no return value specified for DeleteInactionableJobs")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context) error); ok {
-		r0 = rf(ctx)
+	if rf, ok := ret.Get(0).(func(context.Context, time.Duration) error); ok {
+		r0 = rf(ctx, olderThan)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1516,13 +1516,14 @@ type Store_DeleteInactionableJobs_Call struct {
 
 // DeleteInactionableJobs is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Store_Expecter) DeleteInactionableJobs(ctx interface{}) *Store_DeleteInactionableJobs_Call {
-	return &Store_DeleteInactionableJobs_Call{Call: _e.mock.On("DeleteInactionableJobs", ctx)}
+//   - olderThan time.Duration
+func (_e *Store_Expecter) DeleteInactionableJobs(ctx interface{}, olderThan interface{}) *Store_DeleteInactionableJobs_Call {
+	return &Store_DeleteInactionableJobs_Call{Call: _e.mock.On("DeleteInactionableJobs", ctx, olderThan)}
 }
 
-func (_c *Store_DeleteInactionableJobs_Call) Run(run func(ctx context.Context)) *Store_DeleteInactionableJobs_Call {
+func (_c *Store_DeleteInactionableJobs_Call) Run(run func(ctx context.Context, olderThan time.Duration)) *Store_DeleteInactionableJobs_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context))
+		run(args[0].(context.Context), args[1].(time.Duration))
 	})
 	return _c
 }
@@ -1532,7 +1533,7 @@ func (_c *Store_DeleteInactionableJobs_Call) Return(_a0 error) *Store_DeleteInac
 	return _c
 }
 
-func (_c *Store_DeleteInactionableJobs_Call) RunAndReturn(run func(context.Context) error) *Store_DeleteInactionableJobs_Call {
+func (_c *Store_DeleteInactionableJobs_Call) RunAndReturn(run func(context.Context, time.Duration) error) *Store_DeleteInactionableJobs_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1971,6 +1972,64 @@ func (_c *Store_FindPoolsMatchingAllTags_Call) Return(_a0 []params.Pool, _a1 err
 }
 
 func (_c *Store_FindPoolsMatchingAllTags_Call) RunAndReturn(run func(context.Context, params.ForgeEntityType, string, []string) ([]params.Pool, error)) *Store_FindPoolsMatchingAllTags_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ForceUpdateInstance provides a mock function with given fields: ctx, instanceName, param
+func (_m *Store) ForceUpdateInstance(ctx context.Context, instanceName string, param params.UpdateInstanceParams) (params.Instance, error) {
+	ret := _m.Called(ctx, instanceName, param)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ForceUpdateInstance")
+	}
+
+	var r0 params.Instance
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, params.UpdateInstanceParams) (params.Instance, error)); ok {
+		return rf(ctx, instanceName, param)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, params.UpdateInstanceParams) params.Instance); ok {
+		r0 = rf(ctx, instanceName, param)
+	} else {
+		r0 = ret.Get(0).(params.Instance)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, params.UpdateInstanceParams) error); ok {
+		r1 = rf(ctx, instanceName, param)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// Store_ForceUpdateInstance_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ForceUpdateInstance'
+type Store_ForceUpdateInstance_Call struct {
+	*mock.Call
+}
+
+// ForceUpdateInstance is a helper method to define mock.On call
+//   - ctx context.Context
+//   - instanceName string
+//   - param params.UpdateInstanceParams
+func (_e *Store_Expecter) ForceUpdateInstance(ctx interface{}, instanceName interface{}, param interface{}) *Store_ForceUpdateInstance_Call {
+	return &Store_ForceUpdateInstance_Call{Call: _e.mock.On("ForceUpdateInstance", ctx, instanceName, param)}
+}
+
+func (_c *Store_ForceUpdateInstance_Call) Run(run func(ctx context.Context, instanceName string, param params.UpdateInstanceParams)) *Store_ForceUpdateInstance_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(params.UpdateInstanceParams))
+	})
+	return _c
+}
+
+func (_c *Store_ForceUpdateInstance_Call) Return(_a0 params.Instance, _a1 error) *Store_ForceUpdateInstance_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *Store_ForceUpdateInstance_Call) RunAndReturn(run func(context.Context, string, params.UpdateInstanceParams) (params.Instance, error)) *Store_ForceUpdateInstance_Call {
 	_c.Call.Return(run)
 	return _c
 }

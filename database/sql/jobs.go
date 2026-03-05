@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -493,11 +494,14 @@ func (s *sqlDatabase) GetJobByID(_ context.Context, jobID int64) (params.Job, er
 // When a job transitions from queued to anything else, GARM only uses them for informational
 // purposes. So they are safe to delete.
 // Also deletes completed jobs with GARM runners attached as they are no longer needed.
-func (s *sqlDatabase) DeleteInactionableJobs(_ context.Context) error {
+func (s *sqlDatabase) DeleteInactionableJobs(_ context.Context, olderThan time.Duration) error {
 	q := s.conn.
 		Unscoped().
-		Where("(status != ? AND instance_id IS NULL) OR (status = ? AND instance_id IS NOT NULL)", params.JobStatusQueued, params.JobStatusCompleted).
-		Delete(&WorkflowJob{})
+		Where("(status != ? AND instance_id IS NULL) OR (status = ? AND instance_id IS NOT NULL)", params.JobStatusQueued, params.JobStatusCompleted)
+	if olderThan > 0 {
+		q = q.Where("created_at < ?", time.Now().Add(-olderThan))
+	}
+	q = q.Delete(&WorkflowJob{})
 	if q.Error != nil {
 		return fmt.Errorf("deleting inactionable jobs: %w", q.Error)
 	}
