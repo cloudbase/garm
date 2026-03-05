@@ -65,10 +65,16 @@ func (h *Hub) run() {
 				}
 
 				if _, err := client.Write(message); err != nil {
+					slog.WarnContext(h.ctx, "failed to write websocket message",
+						"client_id", id,
+						"error", err)
 					staleClients = append(staleClients, id)
 				}
 			}
 			if len(staleClients) > 0 {
+				slog.WarnContext(h.ctx, "evicting stale websocket clients",
+					"count", len(staleClients),
+					"client_ids", staleClients)
 				h.mux.Lock()
 				for _, id := range staleClients {
 					if client, ok := h.clients[id]; ok {

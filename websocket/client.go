@@ -44,6 +44,9 @@ const (
 
 	// Maximum message size allowed from peer.
 	maxMessageSize = 1048576 // 1 MB
+
+	// Buffer size for the client send channel.
+	clientSendBuffer = 1024
 )
 
 type HandleWebsocketMessage func([]byte) error
@@ -107,6 +110,7 @@ func (c *Client) Stop() {
 	}
 
 	c.running = false
+	c.consumer.Close()
 	c.writeMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 	c.conn.Close()
 	close(c.send)
@@ -128,7 +132,7 @@ func (c *Client) Start() error {
 	defer c.mux.Unlock()
 
 	c.running = true
-	c.send = make(chan []byte, 100)
+	c.send = make(chan []byte, clientSendBuffer)
 	c.done = make(chan struct{})
 
 	go c.runWatcher()
@@ -289,16 +293,19 @@ func (c *Client) runWatcher() {
 			if event.Operation == common.DeleteOperation {
 				slog.InfoContext(c.ctx, "user deleted; closing connection")
 				c.Stop()
+				return
 			}
 
 			if !user.Enabled {
 				slog.InfoContext(c.ctx, "user disabled; closing connection")
 				c.Stop()
+				return
 			}
 
 			if user.Generation != c.passwordGeneration {
 				slog.InfoContext(c.ctx, "password generation mismatch; closing connection")
 				c.Stop()
+				return
 			}
 		}
 	}
