@@ -28,6 +28,7 @@ import (
 	openapiRuntimeClient "github.com/go-openapi/runtime/client"
 	"github.com/stretchr/testify/suite"
 
+	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm/client"
 	"github.com/cloudbase/garm/params"
 )
@@ -116,25 +117,37 @@ func (suite *GarmSuite) SetupSuite() {
 func (suite *GarmSuite) TearDownSuite() {
 	t := suite.T()
 	t.Log("Graceful cleanup")
-	// disable all the pools
+	// disable all pools and set min_idle_runners to 0 to prevent
+	// the pool manager from creating new instances during cleanup.
 	pools, err := listPools(suite.cli, suite.authToken)
 	suite.NoError(err, "error listing pools")
 	enabled := false
-	poolParams := params.UpdatePoolParams{Enabled: &enabled}
+	minIdleRunners := uint(0)
+	disableParams := params.UpdatePoolParams{
+		Enabled:        &enabled,
+		MinIdleRunners: &minIdleRunners,
+	}
 	for _, pool := range pools {
-		_, err := updatePool(suite.cli, suite.authToken, pool.ID, poolParams)
+		_, err := updatePool(suite.cli, suite.authToken, pool.ID, disableParams)
 		suite.NoError(err, "error disabling pool")
 		t.Logf("Pool %s disabled during stage graceful_cleanup", pool.ID)
 	}
 
-	// delete all the instances
+	// Wait for all instances to reach a stable, deletable state.
+	// Instances might still be creating or running jobs.
+	for _, pool := range pools {
+		err := suite.waitPoolInstancesDeletable(pool.ID, 3*time.Minute)
+		suite.NoError(err, "error waiting for pool instances to become deletable")
+	}
+
+	// Delete all instances.
 	for _, pool := range pools {
 		poolInstances, err := listPoolInstances(suite.cli, suite.authToken, pool.ID)
 		suite.NoError(err, "error listing pool instances")
 		for _, instance := range poolInstances {
-			err := deleteInstance(suite.cli, suite.authToken, instance.Name, false, false)
+			err := deleteInstance(suite.cli, suite.authToken, instance.Name, true, false)
 			suite.NoError(err, "error deleting instance")
-			t.Logf("Instance deletion initiated for instace %s during stage graceful_cleanup", instance.Name)
+			t.Logf("Instance deletion initiated for instance %s during stage graceful_cleanup", instance.Name)
 		}
 	}
 
@@ -172,6 +185,46 @@ func (suite *GarmSuite) TearDownSuite() {
 
 func TestGarmTestSuite(t *testing.T) {
 	suite.Run(t, new(GarmSuite))
+}
+
+// waitPoolInstancesDeletable waits for all instances in a pool to reach a state
+// where they can be safely deleted. This means:
+// - No instances in transitional states (creating, pending_create, deleting)
+// - No runners actively running jobs (runner_status != active)
+func (suite *GarmSuite) waitPoolInstancesDeletable(poolID string, timeout time.Duration) error {
+	t := suite.T()
+	var timeWaited time.Duration
+
+	t.Logf("Waiting for all instances in pool %s to become deletable", poolID)
+	for timeWaited < timeout {
+		poolInstances, err := listPoolInstances(suite.cli, suite.authToken, poolID)
+		if err != nil {
+			return err
+		}
+		if len(poolInstances) == 0 {
+			return nil
+		}
+
+		allReady := true
+		for _, instance := range poolInstances {
+			switch instance.Status {
+			case commonParams.InstancePendingCreate, commonParams.InstanceCreating, commonParams.InstanceDeleting:
+				t.Logf("Instance %s in transitional state %s, waiting...", instance.Name, instance.Status)
+				allReady = false
+			}
+			if instance.RunnerStatus == params.RunnerActive {
+				t.Logf("Instance %s runner is active (running a job), waiting...", instance.Name)
+				allReady = false
+			}
+		}
+		if allReady {
+			return nil
+		}
+
+		time.Sleep(5 * time.Second)
+		timeWaited += 5 * time.Second
+	}
+	return fmt.Errorf("timed out waiting for pool %s instances to become deletable", poolID)
 }
 
 func (suite *GarmSuite) waitPoolNoInstances(id string, timeout time.Duration) error {
