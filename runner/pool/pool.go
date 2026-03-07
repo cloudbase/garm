@@ -620,21 +620,13 @@ func (r *basePoolManager) cleanupOrphanedProviderRunners(runners []forgeRunner) 
 
 		switch instance.RunnerStatus {
 		case params.RunnerPending, params.RunnerInstalling:
-			if time.Since(instance.UpdatedAt).Minutes() < float64(pool.RunnerTimeout()) {
+			if time.Since(instance.CreatedAt).Minutes() < float64(pool.RunnerTimeout()) {
 				// runner is still installing. We give it a chance to finish.
 				slog.DebugContext(
 					r.ctx, "runner is still installing, give it a chance to finish",
 					"runner_name", instance.Name)
 				continue
 			}
-		}
-
-		if time.Since(instance.UpdatedAt).Minutes() < 5 {
-			// instance was updated recently. We give it a chance to register itself in github.
-			slog.DebugContext(
-				r.ctx, "instance was updated recently, skipping check",
-				"runner_name", instance.Name)
-			continue
 		}
 
 		if ok := runnerNames[instance.Name]; !ok {
