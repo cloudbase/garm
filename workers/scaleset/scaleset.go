@@ -399,7 +399,7 @@ func (w *Worker) reapTimedOutRunners(runners map[string]params.RunnerReference) 
 	}
 
 	for _, runner := range w.runners {
-		if time.Since(runner.UpdatedAt).Minutes() < float64(w.scaleSet.RunnerBootstrapTimeout) {
+		if time.Since(runner.CreatedAt).Minutes() < float64(w.scaleSet.RunnerTimeout()) {
 			continue
 		}
 		switch runner.Status {
