@@ -72,7 +72,7 @@ jobs:
 
       - name: Run go generate
         run: |
-          GOTOOLCHAIN=go1.24.6 make generate
+          make generate
 
       - name: Run GARM Go Tests
         run: make go-test
