@@ -232,7 +232,7 @@ func (a *APIController) RestoreTemplatesHandler(w http.ResponseWriter, r *http.R
 //	Parameters:
 //	  + name: templateID
 //	    description: ID of the template to update.
-//	    type: string
+//	    type: number
 //	    in: path
 //	    required: true
 //

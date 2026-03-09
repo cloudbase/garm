@@ -7,6 +7,7 @@ package repositories
 
 import (
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"io"
 
@@ -23,7 +24,7 @@ type CreateRepoScaleSetReader struct {
 }
 
 // ReadResponse reads a server response into the received o.
-func (o *CreateRepoScaleSetReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
+func (o *CreateRepoScaleSetReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (any, error) {
 	switch response.Code() {
 	case 200:
 		result := NewCreateRepoScaleSetOK()
@@ -104,7 +105,7 @@ func (o *CreateRepoScaleSetOK) GetPayload() garm_params.ScaleSet {
 func (o *CreateRepoScaleSetOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
 	// response payload
-	if err := consumer.Consume(response.Body(), &o.Payload); err != nil && err != io.EOF {
+	if err := consumer.Consume(response.Body(), &o.Payload); err != nil && !stderrors.Is(err, io.EOF) {
 		return err
 	}
 
@@ -176,7 +177,7 @@ func (o *CreateRepoScaleSetDefault) GetPayload() apiserver_params.APIErrorRespon
 func (o *CreateRepoScaleSetDefault) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
 	// response payload
-	if err := consumer.Consume(response.Body(), &o.Payload); err != nil && err != io.EOF {
+	if err := consumer.Consume(response.Body(), &o.Payload); err != nil && !stderrors.Is(err, io.EOF) {
 		return err
 	}
 

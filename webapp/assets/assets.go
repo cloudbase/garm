@@ -7,8 +7,8 @@ import (
 	"strings"
 )
 
-//go:generate go run github.com/go-swagger/go-swagger/cmd/swagger@v0.31.0 generate spec --output=../swagger.yaml --scan-models --work-dir=../../
-//go:generate go run github.com/go-swagger/go-swagger/cmd/swagger@v0.31.0 validate ../swagger.yaml
+//go:generate go run github.com/go-swagger/go-swagger/cmd/swagger@v0.33.1 generate spec --output=../swagger.yaml --scan-models --work-dir=../../
+//go:generate go run github.com/go-swagger/go-swagger/cmd/swagger@v0.33.1 validate ../swagger.yaml
 //go:generate rm -rf ../src/lib/api/generated
 //go:generate openapi-generator-cli generate --skip-validate-spec -i ../swagger.yaml -g typescript-axios -o ../src/lib/api/generated
 

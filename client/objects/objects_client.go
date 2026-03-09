@@ -71,7 +71,7 @@ type ClientService interface {
 DeleteFileObject deletes a file object
 */
 func (a *Client) DeleteFileObject(params *DeleteFileObjectParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewDeleteFileObjectParams()
 	}
@@ -91,11 +91,12 @@ func (a *Client) DeleteFileObject(params *DeleteFileObjectParams, authInfo runti
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	_, err := a.transport.Submit(op)
 	if err != nil {
 		return err
 	}
+	// no success response is defined: return nil
+
 	return nil
 }
 
@@ -103,7 +104,7 @@ func (a *Client) DeleteFileObject(params *DeleteFileObjectParams, authInfo runti
 GetFileObject gets a file object
 */
 func (a *Client) GetFileObject(params *GetFileObjectParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetFileObjectOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewGetFileObjectParams()
 	}
@@ -123,17 +124,22 @@ func (a *Client) GetFileObject(params *GetFileObjectParams, authInfo runtime.Cli
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*GetFileObjectOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
-	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
+
+	// unexpected success response.
+
+	// no default response is defined.
+	//
+	// safeguard: normally, in the absence of a default response, unknown success responses return an error above: so this is a codegen issue
 	msg := fmt.Sprintf("unexpected success response for GetFileObject: API contract not enforced by server. Client expected to get an error, but got: %T", result)
 	panic(msg)
 }
@@ -142,7 +148,7 @@ func (a *Client) GetFileObject(params *GetFileObjectParams, authInfo runtime.Cli
 ListFileObjects lists file objects
 */
 func (a *Client) ListFileObjects(params *ListFileObjectsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListFileObjectsOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewListFileObjectsParams()
 	}
@@ -162,17 +168,22 @@ func (a *Client) ListFileObjects(params *ListFileObjectsParams, authInfo runtime
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*ListFileObjectsOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
-	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
+
+	// unexpected success response.
+
+	// no default response is defined.
+	//
+	// safeguard: normally, in the absence of a default response, unknown success responses return an error above: so this is a codegen issue
 	msg := fmt.Sprintf("unexpected success response for ListFileObjects: API contract not enforced by server. Client expected to get an error, but got: %T", result)
 	panic(msg)
 }
@@ -181,7 +192,7 @@ func (a *Client) ListFileObjects(params *ListFileObjectsParams, authInfo runtime
 UpdateFileObject updates a file object
 */
 func (a *Client) UpdateFileObject(params *UpdateFileObjectParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateFileObjectOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewUpdateFileObjectParams()
 	}
@@ -201,17 +212,22 @@ func (a *Client) UpdateFileObject(params *UpdateFileObjectParams, authInfo runti
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*UpdateFileObjectOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
-	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
+
+	// unexpected success response.
+
+	// no default response is defined.
+	//
+	// safeguard: normally, in the absence of a default response, unknown success responses return an error above: so this is a codegen issue
 	msg := fmt.Sprintf("unexpected success response for UpdateFileObject: API contract not enforced by server. Client expected to get an error, but got: %T", result)
 	panic(msg)
 }

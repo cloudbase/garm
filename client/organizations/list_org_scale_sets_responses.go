@@ -7,6 +7,7 @@ package organizations
 
 import (
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"io"
 
@@ -23,7 +24,7 @@ type ListOrgScaleSetsReader struct {
 }
 
 // ReadResponse reads a server response into the received o.
-func (o *ListOrgScaleSetsReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
+func (o *ListOrgScaleSetsReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (any, error) {
 	switch response.Code() {
 	case 200:
 		result := NewListOrgScaleSetsOK()
@@ -104,7 +105,7 @@ func (o *ListOrgScaleSetsOK) GetPayload() garm_params.ScaleSets {
 func (o *ListOrgScaleSetsOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
 	// response payload
-	if err := consumer.Consume(response.Body(), &o.Payload); err != nil && err != io.EOF {
+	if err := consumer.Consume(response.Body(), &o.Payload); err != nil && !stderrors.Is(err, io.EOF) {
 		return err
 	}
 
@@ -176,7 +177,7 @@ func (o *ListOrgScaleSetsDefault) GetPayload() apiserver_params.APIErrorResponse
 func (o *ListOrgScaleSetsDefault) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
 	// response payload
-	if err := consumer.Consume(response.Body(), &o.Payload); err != nil && err != io.EOF {
+	if err := consumer.Consume(response.Body(), &o.Payload); err != nil && !stderrors.Is(err, io.EOF) {
 		return err
 	}
 

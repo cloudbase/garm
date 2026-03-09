@@ -69,7 +69,7 @@ type ClientService interface {
 DeleteScaleSet deletes scale set by ID
 */
 func (a *Client) DeleteScaleSet(params *DeleteScaleSetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewDeleteScaleSetParams()
 	}
@@ -89,11 +89,12 @@ func (a *Client) DeleteScaleSet(params *DeleteScaleSetParams, authInfo runtime.C
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	_, err := a.transport.Submit(op)
 	if err != nil {
 		return err
 	}
+	// no success response is defined: return nil
+
 	return nil
 }
 
@@ -101,7 +102,7 @@ func (a *Client) DeleteScaleSet(params *DeleteScaleSetParams, authInfo runtime.C
 GetScaleSet gets scale set by ID
 */
 func (a *Client) GetScaleSet(params *GetScaleSetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetScaleSetOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewGetScaleSetParams()
 	}
@@ -121,17 +122,22 @@ func (a *Client) GetScaleSet(params *GetScaleSetParams, authInfo runtime.ClientA
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*GetScaleSetOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*GetScaleSetDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -139,7 +145,7 @@ func (a *Client) GetScaleSet(params *GetScaleSetParams, authInfo runtime.ClientA
 ListScalesets lists all scalesets
 */
 func (a *Client) ListScalesets(params *ListScalesetsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListScalesetsOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewListScalesetsParams()
 	}
@@ -159,17 +165,22 @@ func (a *Client) ListScalesets(params *ListScalesetsParams, authInfo runtime.Cli
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*ListScalesetsOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*ListScalesetsDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -177,7 +188,7 @@ func (a *Client) ListScalesets(params *ListScalesetsParams, authInfo runtime.Cli
 UpdateScaleSet updates scale set by ID
 */
 func (a *Client) UpdateScaleSet(params *UpdateScaleSetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateScaleSetOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewUpdateScaleSetParams()
 	}
@@ -197,17 +208,22 @@ func (a *Client) UpdateScaleSet(params *UpdateScaleSetParams, authInfo runtime.C
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*UpdateScaleSetOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*UpdateScaleSetDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 

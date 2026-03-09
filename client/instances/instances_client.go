@@ -71,7 +71,7 @@ type ClientService interface {
 DeleteInstance deletes runner instance by name
 */
 func (a *Client) DeleteInstance(params *DeleteInstanceParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewDeleteInstanceParams()
 	}
@@ -91,11 +91,12 @@ func (a *Client) DeleteInstance(params *DeleteInstanceParams, authInfo runtime.C
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	_, err := a.transport.Submit(op)
 	if err != nil {
 		return err
 	}
+	// no success response is defined: return nil
+
 	return nil
 }
 
@@ -103,7 +104,7 @@ func (a *Client) DeleteInstance(params *DeleteInstanceParams, authInfo runtime.C
 GetInstance gets runner instance by name
 */
 func (a *Client) GetInstance(params *GetInstanceParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetInstanceOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewGetInstanceParams()
 	}
@@ -123,17 +124,22 @@ func (a *Client) GetInstance(params *GetInstanceParams, authInfo runtime.ClientA
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*GetInstanceOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*GetInstanceDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -141,7 +147,7 @@ func (a *Client) GetInstance(params *GetInstanceParams, authInfo runtime.ClientA
 ListInstances gets all runners instances
 */
 func (a *Client) ListInstances(params *ListInstancesParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListInstancesOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewListInstancesParams()
 	}
@@ -161,17 +167,22 @@ func (a *Client) ListInstances(params *ListInstancesParams, authInfo runtime.Cli
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*ListInstancesOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*ListInstancesDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -179,7 +190,7 @@ func (a *Client) ListInstances(params *ListInstancesParams, authInfo runtime.Cli
 ListPoolInstances lists runner instances in a pool
 */
 func (a *Client) ListPoolInstances(params *ListPoolInstancesParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListPoolInstancesOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewListPoolInstancesParams()
 	}
@@ -199,17 +210,22 @@ func (a *Client) ListPoolInstances(params *ListPoolInstancesParams, authInfo run
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*ListPoolInstancesOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*ListPoolInstancesDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -217,7 +233,7 @@ func (a *Client) ListPoolInstances(params *ListPoolInstancesParams, authInfo run
 ListScaleSetInstances lists runner instances in a scale set
 */
 func (a *Client) ListScaleSetInstances(params *ListScaleSetInstancesParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListScaleSetInstancesOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewListScaleSetInstancesParams()
 	}
@@ -237,17 +253,22 @@ func (a *Client) ListScaleSetInstances(params *ListScaleSetInstancesParams, auth
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*ListScaleSetInstancesOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*ListScaleSetInstancesDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 

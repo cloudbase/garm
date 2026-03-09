@@ -7,6 +7,7 @@ package organizations
 
 import (
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"io"
 
@@ -22,7 +23,7 @@ type DeleteOrgReader struct {
 }
 
 // ReadResponse reads a server response into the received o.
-func (o *DeleteOrgReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
+func (o *DeleteOrgReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (any, error) {
 	result := NewDeleteOrgDefault(response.Code())
 	if err := result.readResponse(response, consumer, o.formats); err != nil {
 		return nil, err
@@ -98,7 +99,7 @@ func (o *DeleteOrgDefault) GetPayload() apiserver_params.APIErrorResponse {
 func (o *DeleteOrgDefault) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
 	// response payload
-	if err := consumer.Consume(response.Body(), &o.Payload); err != nil && err != io.EOF {
+	if err := consumer.Consume(response.Body(), &o.Payload); err != nil && !stderrors.Is(err, io.EOF) {
 		return err
 	}
 

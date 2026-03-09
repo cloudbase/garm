@@ -14,6 +14,7 @@ import (
 	"github.com/go-openapi/runtime"
 	cr "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
+	"github.com/go-openapi/swag"
 
 	garm_params "github.com/cloudbase/garm/params"
 )
@@ -73,7 +74,7 @@ type UpdateTemplateParams struct {
 
 	   ID of the template to update.
 	*/
-	TemplateID string
+	TemplateID float64
 
 	timeout    time.Duration
 	Context    context.Context
@@ -140,13 +141,13 @@ func (o *UpdateTemplateParams) SetBody(body garm_params.UpdateTemplateParams) {
 }
 
 // WithTemplateID adds the templateID to the update template params
-func (o *UpdateTemplateParams) WithTemplateID(templateID string) *UpdateTemplateParams {
+func (o *UpdateTemplateParams) WithTemplateID(templateID float64) *UpdateTemplateParams {
 	o.SetTemplateID(templateID)
 	return o
 }
 
 // SetTemplateID adds the templateId to the update template params
-func (o *UpdateTemplateParams) SetTemplateID(templateID string) {
+func (o *UpdateTemplateParams) SetTemplateID(templateID float64) {
 	o.TemplateID = templateID
 }
 
@@ -162,7 +163,7 @@ func (o *UpdateTemplateParams) WriteToRequest(r runtime.ClientRequest, reg strfm
 	}
 
 	// path param templateID
-	if err := r.SetPathParam("templateID", o.TemplateID); err != nil {
+	if err := r.SetPathParam("templateID", swag.FormatFloat64(o.TemplateID)); err != nil {
 		return err
 	}
 

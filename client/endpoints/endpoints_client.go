@@ -81,7 +81,7 @@ type ClientService interface {
 CreateGiteaEndpoint creates a gitea endpoint
 */
 func (a *Client) CreateGiteaEndpoint(params *CreateGiteaEndpointParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateGiteaEndpointOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewCreateGiteaEndpointParams()
 	}
@@ -101,17 +101,22 @@ func (a *Client) CreateGiteaEndpoint(params *CreateGiteaEndpointParams, authInfo
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*CreateGiteaEndpointOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*CreateGiteaEndpointDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -119,7 +124,7 @@ func (a *Client) CreateGiteaEndpoint(params *CreateGiteaEndpointParams, authInfo
 CreateGithubEndpoint creates a git hub endpoint
 */
 func (a *Client) CreateGithubEndpoint(params *CreateGithubEndpointParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateGithubEndpointOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewCreateGithubEndpointParams()
 	}
@@ -139,17 +144,22 @@ func (a *Client) CreateGithubEndpoint(params *CreateGithubEndpointParams, authIn
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*CreateGithubEndpointOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*CreateGithubEndpointDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -157,7 +167,7 @@ func (a *Client) CreateGithubEndpoint(params *CreateGithubEndpointParams, authIn
 DeleteGiteaEndpoint deletes a gitea endpoint
 */
 func (a *Client) DeleteGiteaEndpoint(params *DeleteGiteaEndpointParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewDeleteGiteaEndpointParams()
 	}
@@ -177,11 +187,12 @@ func (a *Client) DeleteGiteaEndpoint(params *DeleteGiteaEndpointParams, authInfo
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	_, err := a.transport.Submit(op)
 	if err != nil {
 		return err
 	}
+	// no success response is defined: return nil
+
 	return nil
 }
 
@@ -189,7 +200,7 @@ func (a *Client) DeleteGiteaEndpoint(params *DeleteGiteaEndpointParams, authInfo
 DeleteGithubEndpoint deletes a git hub endpoint
 */
 func (a *Client) DeleteGithubEndpoint(params *DeleteGithubEndpointParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewDeleteGithubEndpointParams()
 	}
@@ -209,11 +220,12 @@ func (a *Client) DeleteGithubEndpoint(params *DeleteGithubEndpointParams, authIn
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	_, err := a.transport.Submit(op)
 	if err != nil {
 		return err
 	}
+	// no success response is defined: return nil
+
 	return nil
 }
 
@@ -221,7 +233,7 @@ func (a *Client) DeleteGithubEndpoint(params *DeleteGithubEndpointParams, authIn
 GetGiteaEndpoint gets a gitea endpoint
 */
 func (a *Client) GetGiteaEndpoint(params *GetGiteaEndpointParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetGiteaEndpointOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewGetGiteaEndpointParams()
 	}
@@ -241,17 +253,22 @@ func (a *Client) GetGiteaEndpoint(params *GetGiteaEndpointParams, authInfo runti
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*GetGiteaEndpointOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*GetGiteaEndpointDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -259,7 +276,7 @@ func (a *Client) GetGiteaEndpoint(params *GetGiteaEndpointParams, authInfo runti
 GetGithubEndpoint gets a git hub endpoint
 */
 func (a *Client) GetGithubEndpoint(params *GetGithubEndpointParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetGithubEndpointOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewGetGithubEndpointParams()
 	}
@@ -279,17 +296,22 @@ func (a *Client) GetGithubEndpoint(params *GetGithubEndpointParams, authInfo run
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*GetGithubEndpointOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*GetGithubEndpointDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -297,7 +319,7 @@ func (a *Client) GetGithubEndpoint(params *GetGithubEndpointParams, authInfo run
 ListGiteaEndpoints lists all gitea endpoints
 */
 func (a *Client) ListGiteaEndpoints(params *ListGiteaEndpointsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListGiteaEndpointsOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewListGiteaEndpointsParams()
 	}
@@ -317,17 +339,22 @@ func (a *Client) ListGiteaEndpoints(params *ListGiteaEndpointsParams, authInfo r
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*ListGiteaEndpointsOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*ListGiteaEndpointsDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -335,7 +362,7 @@ func (a *Client) ListGiteaEndpoints(params *ListGiteaEndpointsParams, authInfo r
 ListGithubEndpoints lists all git hub endpoints
 */
 func (a *Client) ListGithubEndpoints(params *ListGithubEndpointsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListGithubEndpointsOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewListGithubEndpointsParams()
 	}
@@ -355,17 +382,22 @@ func (a *Client) ListGithubEndpoints(params *ListGithubEndpointsParams, authInfo
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*ListGithubEndpointsOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*ListGithubEndpointsDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -373,7 +405,7 @@ func (a *Client) ListGithubEndpoints(params *ListGithubEndpointsParams, authInfo
 UpdateGiteaEndpoint updates a gitea endpoint
 */
 func (a *Client) UpdateGiteaEndpoint(params *UpdateGiteaEndpointParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateGiteaEndpointOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewUpdateGiteaEndpointParams()
 	}
@@ -393,17 +425,22 @@ func (a *Client) UpdateGiteaEndpoint(params *UpdateGiteaEndpointParams, authInfo
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*UpdateGiteaEndpointOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*UpdateGiteaEndpointDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -411,7 +448,7 @@ func (a *Client) UpdateGiteaEndpoint(params *UpdateGiteaEndpointParams, authInfo
 UpdateGithubEndpoint updates a git hub endpoint
 */
 func (a *Client) UpdateGithubEndpoint(params *UpdateGithubEndpointParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateGithubEndpointOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewUpdateGithubEndpointParams()
 	}
@@ -431,17 +468,22 @@ func (a *Client) UpdateGithubEndpoint(params *UpdateGithubEndpointParams, authIn
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*UpdateGithubEndpointOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*UpdateGithubEndpointDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 

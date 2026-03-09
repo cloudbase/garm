@@ -7,6 +7,7 @@ package enterprises
 
 import (
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"io"
 
@@ -23,7 +24,7 @@ type ListEnterpriseInstancesReader struct {
 }
 
 // ReadResponse reads a server response into the received o.
-func (o *ListEnterpriseInstancesReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
+func (o *ListEnterpriseInstancesReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (any, error) {
 	switch response.Code() {
 	case 200:
 		result := NewListEnterpriseInstancesOK()
@@ -104,7 +105,7 @@ func (o *ListEnterpriseInstancesOK) GetPayload() garm_params.Instances {
 func (o *ListEnterpriseInstancesOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
 	// response payload
-	if err := consumer.Consume(response.Body(), &o.Payload); err != nil && err != io.EOF {
+	if err := consumer.Consume(response.Body(), &o.Payload); err != nil && !stderrors.Is(err, io.EOF) {
 		return err
 	}
 
@@ -176,7 +177,7 @@ func (o *ListEnterpriseInstancesDefault) GetPayload() apiserver_params.APIErrorR
 func (o *ListEnterpriseInstancesDefault) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
 	// response payload
-	if err := consumer.Consume(response.Body(), &o.Payload); err != nil && err != io.EOF {
+	if err := consumer.Consume(response.Body(), &o.Payload); err != nil && !stderrors.Is(err, io.EOF) {
 		return err
 	}
 

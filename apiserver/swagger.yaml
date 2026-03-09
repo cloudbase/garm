@@ -2568,7 +2568,7 @@ paths:
                   in: path
                   name: templateID
                   required: true
-                  type: string
+                  type: number
                 - description: Parameters used when updating the template.
                   in: body
                   name: Body

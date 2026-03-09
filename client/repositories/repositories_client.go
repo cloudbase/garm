@@ -93,7 +93,7 @@ type ClientService interface {
 CreateRepo creates repository with the parameters given
 */
 func (a *Client) CreateRepo(params *CreateRepoParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateRepoOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewCreateRepoParams()
 	}
@@ -113,17 +113,22 @@ func (a *Client) CreateRepo(params *CreateRepoParams, authInfo runtime.ClientAut
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*CreateRepoOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*CreateRepoDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -131,7 +136,7 @@ func (a *Client) CreateRepo(params *CreateRepoParams, authInfo runtime.ClientAut
 CreateRepoPool creates repository pool with the parameters given
 */
 func (a *Client) CreateRepoPool(params *CreateRepoPoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateRepoPoolOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewCreateRepoPoolParams()
 	}
@@ -151,17 +156,22 @@ func (a *Client) CreateRepoPool(params *CreateRepoPoolParams, authInfo runtime.C
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*CreateRepoPoolOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*CreateRepoPoolDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -169,7 +179,7 @@ func (a *Client) CreateRepoPool(params *CreateRepoPoolParams, authInfo runtime.C
 CreateRepoScaleSet creates repository scale set with the parameters given
 */
 func (a *Client) CreateRepoScaleSet(params *CreateRepoScaleSetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateRepoScaleSetOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewCreateRepoScaleSetParams()
 	}
@@ -189,17 +199,22 @@ func (a *Client) CreateRepoScaleSet(params *CreateRepoScaleSetParams, authInfo r
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*CreateRepoScaleSetOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*CreateRepoScaleSetDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -207,7 +222,7 @@ func (a *Client) CreateRepoScaleSet(params *CreateRepoScaleSetParams, authInfo r
 DeleteRepo deletes repository by ID
 */
 func (a *Client) DeleteRepo(params *DeleteRepoParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewDeleteRepoParams()
 	}
@@ -227,11 +242,12 @@ func (a *Client) DeleteRepo(params *DeleteRepoParams, authInfo runtime.ClientAut
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	_, err := a.transport.Submit(op)
 	if err != nil {
 		return err
 	}
+	// no success response is defined: return nil
+
 	return nil
 }
 
@@ -239,7 +255,7 @@ func (a *Client) DeleteRepo(params *DeleteRepoParams, authInfo runtime.ClientAut
 DeleteRepoPool deletes repository pool by ID
 */
 func (a *Client) DeleteRepoPool(params *DeleteRepoPoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewDeleteRepoPoolParams()
 	}
@@ -259,11 +275,12 @@ func (a *Client) DeleteRepoPool(params *DeleteRepoPoolParams, authInfo runtime.C
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	_, err := a.transport.Submit(op)
 	if err != nil {
 		return err
 	}
+	// no success response is defined: return nil
+
 	return nil
 }
 
@@ -271,7 +288,7 @@ func (a *Client) DeleteRepoPool(params *DeleteRepoPoolParams, authInfo runtime.C
 GetRepo gets repository by ID
 */
 func (a *Client) GetRepo(params *GetRepoParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetRepoOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewGetRepoParams()
 	}
@@ -291,17 +308,22 @@ func (a *Client) GetRepo(params *GetRepoParams, authInfo runtime.ClientAuthInfoW
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*GetRepoOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*GetRepoDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -309,7 +331,7 @@ func (a *Client) GetRepo(params *GetRepoParams, authInfo runtime.ClientAuthInfoW
 GetRepoPool gets repository pool by ID
 */
 func (a *Client) GetRepoPool(params *GetRepoPoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetRepoPoolOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewGetRepoPoolParams()
 	}
@@ -329,17 +351,22 @@ func (a *Client) GetRepoPool(params *GetRepoPoolParams, authInfo runtime.ClientA
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*GetRepoPoolOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*GetRepoPoolDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -347,7 +374,7 @@ func (a *Client) GetRepoPool(params *GetRepoPoolParams, authInfo runtime.ClientA
 GetRepoWebhookInfo gets information about the g a r m installed webhook on a repository
 */
 func (a *Client) GetRepoWebhookInfo(params *GetRepoWebhookInfoParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetRepoWebhookInfoOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewGetRepoWebhookInfoParams()
 	}
@@ -367,17 +394,22 @@ func (a *Client) GetRepoWebhookInfo(params *GetRepoWebhookInfoParams, authInfo r
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*GetRepoWebhookInfoOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*GetRepoWebhookInfoDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -387,7 +419,7 @@ func (a *Client) GetRepoWebhookInfo(params *GetRepoWebhookInfoParams, authInfo r
 be used to validate the requests.
 */
 func (a *Client) InstallRepoWebhook(params *InstallRepoWebhookParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*InstallRepoWebhookOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewInstallRepoWebhookParams()
 	}
@@ -407,17 +439,22 @@ func (a *Client) InstallRepoWebhook(params *InstallRepoWebhookParams, authInfo r
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*InstallRepoWebhookOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*InstallRepoWebhookDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -425,7 +462,7 @@ func (a *Client) InstallRepoWebhook(params *InstallRepoWebhookParams, authInfo r
 ListRepoInstances lists repository instances
 */
 func (a *Client) ListRepoInstances(params *ListRepoInstancesParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListRepoInstancesOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewListRepoInstancesParams()
 	}
@@ -445,17 +482,22 @@ func (a *Client) ListRepoInstances(params *ListRepoInstancesParams, authInfo run
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*ListRepoInstancesOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*ListRepoInstancesDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -463,7 +505,7 @@ func (a *Client) ListRepoInstances(params *ListRepoInstancesParams, authInfo run
 ListRepoPools lists repository pools
 */
 func (a *Client) ListRepoPools(params *ListRepoPoolsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListRepoPoolsOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewListRepoPoolsParams()
 	}
@@ -483,17 +525,22 @@ func (a *Client) ListRepoPools(params *ListRepoPoolsParams, authInfo runtime.Cli
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*ListRepoPoolsOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*ListRepoPoolsDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -501,7 +548,7 @@ func (a *Client) ListRepoPools(params *ListRepoPoolsParams, authInfo runtime.Cli
 ListRepoScaleSets lists repository scale sets
 */
 func (a *Client) ListRepoScaleSets(params *ListRepoScaleSetsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListRepoScaleSetsOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewListRepoScaleSetsParams()
 	}
@@ -521,17 +568,22 @@ func (a *Client) ListRepoScaleSets(params *ListRepoScaleSetsParams, authInfo run
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*ListRepoScaleSetsOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*ListRepoScaleSetsDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -539,7 +591,7 @@ func (a *Client) ListRepoScaleSets(params *ListRepoScaleSetsParams, authInfo run
 ListRepos lists repositories
 */
 func (a *Client) ListRepos(params *ListReposParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListReposOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewListReposParams()
 	}
@@ -559,17 +611,22 @@ func (a *Client) ListRepos(params *ListReposParams, authInfo runtime.ClientAuthI
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*ListReposOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*ListReposDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -577,7 +634,7 @@ func (a *Client) ListRepos(params *ListReposParams, authInfo runtime.ClientAuthI
 UninstallRepoWebhook uninstalls organization webhook
 */
 func (a *Client) UninstallRepoWebhook(params *UninstallRepoWebhookParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewUninstallRepoWebhookParams()
 	}
@@ -597,11 +654,12 @@ func (a *Client) UninstallRepoWebhook(params *UninstallRepoWebhookParams, authIn
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	_, err := a.transport.Submit(op)
 	if err != nil {
 		return err
 	}
+	// no success response is defined: return nil
+
 	return nil
 }
 
@@ -609,7 +667,7 @@ func (a *Client) UninstallRepoWebhook(params *UninstallRepoWebhookParams, authIn
 UpdateRepo updates repository with the parameters given
 */
 func (a *Client) UpdateRepo(params *UpdateRepoParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateRepoOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewUpdateRepoParams()
 	}
@@ -629,17 +687,22 @@ func (a *Client) UpdateRepo(params *UpdateRepoParams, authInfo runtime.ClientAut
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*UpdateRepoOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*UpdateRepoDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -647,7 +710,7 @@ func (a *Client) UpdateRepo(params *UpdateRepoParams, authInfo runtime.ClientAut
 UpdateRepoPool updates repository pool with the parameters given
 */
 func (a *Client) UpdateRepoPool(params *UpdateRepoPoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateRepoPoolOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewUpdateRepoPoolParams()
 	}
@@ -667,17 +730,22 @@ func (a *Client) UpdateRepoPool(params *UpdateRepoPoolParams, authInfo runtime.C
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*UpdateRepoPoolOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*UpdateRepoPoolDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 

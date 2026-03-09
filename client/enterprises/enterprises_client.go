@@ -87,7 +87,7 @@ type ClientService interface {
 CreateEnterprise creates enterprise with the given parameters
 */
 func (a *Client) CreateEnterprise(params *CreateEnterpriseParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateEnterpriseOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewCreateEnterpriseParams()
 	}
@@ -107,17 +107,22 @@ func (a *Client) CreateEnterprise(params *CreateEnterpriseParams, authInfo runti
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*CreateEnterpriseOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*CreateEnterpriseDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -125,7 +130,7 @@ func (a *Client) CreateEnterprise(params *CreateEnterpriseParams, authInfo runti
 CreateEnterprisePool creates enterprise pool with the parameters given
 */
 func (a *Client) CreateEnterprisePool(params *CreateEnterprisePoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateEnterprisePoolOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewCreateEnterprisePoolParams()
 	}
@@ -145,17 +150,22 @@ func (a *Client) CreateEnterprisePool(params *CreateEnterprisePoolParams, authIn
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*CreateEnterprisePoolOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*CreateEnterprisePoolDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -163,7 +173,7 @@ func (a *Client) CreateEnterprisePool(params *CreateEnterprisePoolParams, authIn
 CreateEnterpriseScaleSet creates enterprise pool with the parameters given
 */
 func (a *Client) CreateEnterpriseScaleSet(params *CreateEnterpriseScaleSetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateEnterpriseScaleSetOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewCreateEnterpriseScaleSetParams()
 	}
@@ -183,17 +193,22 @@ func (a *Client) CreateEnterpriseScaleSet(params *CreateEnterpriseScaleSetParams
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*CreateEnterpriseScaleSetOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*CreateEnterpriseScaleSetDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -201,7 +216,7 @@ func (a *Client) CreateEnterpriseScaleSet(params *CreateEnterpriseScaleSetParams
 DeleteEnterprise deletes enterprise by ID
 */
 func (a *Client) DeleteEnterprise(params *DeleteEnterpriseParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewDeleteEnterpriseParams()
 	}
@@ -221,11 +236,12 @@ func (a *Client) DeleteEnterprise(params *DeleteEnterpriseParams, authInfo runti
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	_, err := a.transport.Submit(op)
 	if err != nil {
 		return err
 	}
+	// no success response is defined: return nil
+
 	return nil
 }
 
@@ -233,7 +249,7 @@ func (a *Client) DeleteEnterprise(params *DeleteEnterpriseParams, authInfo runti
 DeleteEnterprisePool deletes enterprise pool by ID
 */
 func (a *Client) DeleteEnterprisePool(params *DeleteEnterprisePoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewDeleteEnterprisePoolParams()
 	}
@@ -253,11 +269,12 @@ func (a *Client) DeleteEnterprisePool(params *DeleteEnterprisePoolParams, authIn
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	_, err := a.transport.Submit(op)
 	if err != nil {
 		return err
 	}
+	// no success response is defined: return nil
+
 	return nil
 }
 
@@ -265,7 +282,7 @@ func (a *Client) DeleteEnterprisePool(params *DeleteEnterprisePoolParams, authIn
 GetEnterprise gets enterprise by ID
 */
 func (a *Client) GetEnterprise(params *GetEnterpriseParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetEnterpriseOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewGetEnterpriseParams()
 	}
@@ -285,17 +302,22 @@ func (a *Client) GetEnterprise(params *GetEnterpriseParams, authInfo runtime.Cli
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*GetEnterpriseOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*GetEnterpriseDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -303,7 +325,7 @@ func (a *Client) GetEnterprise(params *GetEnterpriseParams, authInfo runtime.Cli
 GetEnterprisePool gets enterprise pool by ID
 */
 func (a *Client) GetEnterprisePool(params *GetEnterprisePoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetEnterprisePoolOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewGetEnterprisePoolParams()
 	}
@@ -323,17 +345,22 @@ func (a *Client) GetEnterprisePool(params *GetEnterprisePoolParams, authInfo run
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*GetEnterprisePoolOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*GetEnterprisePoolDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -341,7 +368,7 @@ func (a *Client) GetEnterprisePool(params *GetEnterprisePoolParams, authInfo run
 ListEnterpriseInstances lists enterprise instances
 */
 func (a *Client) ListEnterpriseInstances(params *ListEnterpriseInstancesParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListEnterpriseInstancesOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewListEnterpriseInstancesParams()
 	}
@@ -361,17 +388,22 @@ func (a *Client) ListEnterpriseInstances(params *ListEnterpriseInstancesParams, 
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*ListEnterpriseInstancesOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*ListEnterpriseInstancesDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -379,7 +411,7 @@ func (a *Client) ListEnterpriseInstances(params *ListEnterpriseInstancesParams, 
 ListEnterprisePools lists enterprise pools
 */
 func (a *Client) ListEnterprisePools(params *ListEnterprisePoolsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListEnterprisePoolsOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewListEnterprisePoolsParams()
 	}
@@ -399,17 +431,22 @@ func (a *Client) ListEnterprisePools(params *ListEnterprisePoolsParams, authInfo
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*ListEnterprisePoolsOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*ListEnterprisePoolsDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -417,7 +454,7 @@ func (a *Client) ListEnterprisePools(params *ListEnterprisePoolsParams, authInfo
 ListEnterpriseScaleSets lists enterprise scale sets
 */
 func (a *Client) ListEnterpriseScaleSets(params *ListEnterpriseScaleSetsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListEnterpriseScaleSetsOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewListEnterpriseScaleSetsParams()
 	}
@@ -437,17 +474,22 @@ func (a *Client) ListEnterpriseScaleSets(params *ListEnterpriseScaleSetsParams, 
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*ListEnterpriseScaleSetsOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*ListEnterpriseScaleSetsDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -455,7 +497,7 @@ func (a *Client) ListEnterpriseScaleSets(params *ListEnterpriseScaleSetsParams, 
 ListEnterprises lists all enterprises
 */
 func (a *Client) ListEnterprises(params *ListEnterprisesParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListEnterprisesOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewListEnterprisesParams()
 	}
@@ -475,17 +517,22 @@ func (a *Client) ListEnterprises(params *ListEnterprisesParams, authInfo runtime
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*ListEnterprisesOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*ListEnterprisesDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -493,7 +540,7 @@ func (a *Client) ListEnterprises(params *ListEnterprisesParams, authInfo runtime
 UpdateEnterprise updates enterprise with the given parameters
 */
 func (a *Client) UpdateEnterprise(params *UpdateEnterpriseParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateEnterpriseOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewUpdateEnterpriseParams()
 	}
@@ -513,17 +560,22 @@ func (a *Client) UpdateEnterprise(params *UpdateEnterpriseParams, authInfo runti
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*UpdateEnterpriseOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*UpdateEnterpriseDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -531,7 +583,7 @@ func (a *Client) UpdateEnterprise(params *UpdateEnterpriseParams, authInfo runti
 UpdateEnterprisePool updates enterprise pool with the parameters given
 */
 func (a *Client) UpdateEnterprisePool(params *UpdateEnterprisePoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateEnterprisePoolOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewUpdateEnterprisePoolParams()
 	}
@@ -551,17 +603,22 @@ func (a *Client) UpdateEnterprisePool(params *UpdateEnterprisePoolParams, authIn
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*UpdateEnterprisePoolOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*UpdateEnterprisePoolDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 

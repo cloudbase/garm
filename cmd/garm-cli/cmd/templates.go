@@ -163,7 +163,7 @@ var templateUpdateCmd = &cobra.Command{
 			return fmt.Errorf("at least one of name, description or path must be specified")
 		}
 
-		updateReq.TemplateID = fmt.Sprintf("%d", tplID)
+		updateReq.TemplateID = float64(tplID)
 
 		response, err := apiCli.Templates.UpdateTemplate(updateReq, authToken)
 		if err != nil {
@@ -443,7 +443,7 @@ var templateEditCmd = &cobra.Command{
 
 		if saved && newContent != string(response.Payload.Data) {
 			updateReq := apiTemplates.NewUpdateTemplateParams()
-			updateReq.TemplateID = fmt.Sprintf("%d", response.Payload.ID)
+			updateReq.TemplateID = float64(response.Payload.ID)
 			updateReq.Body.Data = []byte(newContent)
 
 			_, err = apiCli.Templates.UpdateTemplate(updateReq, authToken)
