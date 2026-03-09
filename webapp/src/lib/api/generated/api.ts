@@ -2056,6 +2056,12 @@ export interface Job {
      * @memberof Job
      */
     'workflow_job_id'?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof Job
+     */
+    'workflow_run_url'?: string;
 }
 /**
  * 
@@ -13404,12 +13410,12 @@ export const TemplatesApiAxiosParamCreator = function (configuration?: Configura
         /**
          * 
          * @summary Update template with the parameters given.
-         * @param {string} templateID ID of the template to update.
+         * @param {number} templateID ID of the template to update.
          * @param {UpdateTemplateParams} body Parameters used when updating the template.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        updateTemplate: async (templateID: string, body: UpdateTemplateParams, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        updateTemplate: async (templateID: number, body: UpdateTemplateParams, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'templateID' is not null or undefined
             assertParamExists('updateTemplate', 'templateID', templateID)
             // verify required parameter 'body' is not null or undefined
@@ -13524,12 +13530,12 @@ export const TemplatesApiFp = function(configuration?: Configuration) {
         /**
          * 
          * @summary Update template with the parameters given.
-         * @param {string} templateID ID of the template to update.
+         * @param {number} templateID ID of the template to update.
          * @param {UpdateTemplateParams} body Parameters used when updating the template.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async updateTemplate(templateID: string, body: UpdateTemplateParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Template>> {
+        async updateTemplate(templateID: number, body: UpdateTemplateParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Template>> {
             const localVarAxiosArgs = await localVarAxiosParamCreator.updateTemplate(templateID, body, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['TemplatesApi.updateTemplate']?.[localVarOperationServerIndex]?.url;
@@ -13600,12 +13606,12 @@ export const TemplatesApiFactory = function (configuration?: Configuration, base
         /**
          * 
          * @summary Update template with the parameters given.
-         * @param {string} templateID ID of the template to update.
+         * @param {number} templateID ID of the template to update.
          * @param {UpdateTemplateParams} body Parameters used when updating the template.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        updateTemplate(templateID: string, body: UpdateTemplateParams, options?: RawAxiosRequestConfig): AxiosPromise<Template> {
+        updateTemplate(templateID: number, body: UpdateTemplateParams, options?: RawAxiosRequestConfig): AxiosPromise<Template> {
             return localVarFp.updateTemplate(templateID, body, options).then((request) => request(axios, basePath));
         },
     };
@@ -13683,13 +13689,13 @@ export class TemplatesApi extends BaseAPI {
     /**
      * 
      * @summary Update template with the parameters given.
-     * @param {string} templateID ID of the template to update.
+     * @param {number} templateID ID of the template to update.
      * @param {UpdateTemplateParams} body Parameters used when updating the template.
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof TemplatesApi
      */
-    public updateTemplate(templateID: string, body: UpdateTemplateParams, options?: RawAxiosRequestConfig) {
+    public updateTemplate(templateID: number, body: UpdateTemplateParams, options?: RawAxiosRequestConfig) {
         return TemplatesApiFp(this.configuration).updateTemplate(templateID, body, options).then((request) => request(this.axios, this.basePath));
     }
 }

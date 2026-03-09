@@ -7,6 +7,7 @@ package endpoints
 
 import (
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"io"
 
@@ -22,7 +23,7 @@ type DeleteGithubEndpointReader struct {
 }
 
 // ReadResponse reads a server response into the received o.
-func (o *DeleteGithubEndpointReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
+func (o *DeleteGithubEndpointReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (any, error) {
 	result := NewDeleteGithubEndpointDefault(response.Code())
 	if err := result.readResponse(response, consumer, o.formats); err != nil {
 		return nil, err
@@ -98,7 +99,7 @@ func (o *DeleteGithubEndpointDefault) GetPayload() apiserver_params.APIErrorResp
 func (o *DeleteGithubEndpointDefault) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
 	// response payload
-	if err := consumer.Consume(response.Body(), &o.Payload); err != nil && err != io.EOF {
+	if err := consumer.Consume(response.Body(), &o.Payload); err != nil && !stderrors.Is(err, io.EOF) {
 		return err
 	}
 

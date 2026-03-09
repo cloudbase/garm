@@ -83,7 +83,7 @@ type ClientService interface {
 CreateCredentials creates a git hub credential
 */
 func (a *Client) CreateCredentials(params *CreateCredentialsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateCredentialsOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewCreateCredentialsParams()
 	}
@@ -103,17 +103,22 @@ func (a *Client) CreateCredentials(params *CreateCredentialsParams, authInfo run
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*CreateCredentialsOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
-	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
+
+	// unexpected success response.
+
+	// no default response is defined.
+	//
+	// safeguard: normally, in the absence of a default response, unknown success responses return an error above: so this is a codegen issue
 	msg := fmt.Sprintf("unexpected success response for CreateCredentials: API contract not enforced by server. Client expected to get an error, but got: %T", result)
 	panic(msg)
 }
@@ -122,7 +127,7 @@ func (a *Client) CreateCredentials(params *CreateCredentialsParams, authInfo run
 CreateGiteaCredentials creates a gitea credential
 */
 func (a *Client) CreateGiteaCredentials(params *CreateGiteaCredentialsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateGiteaCredentialsOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewCreateGiteaCredentialsParams()
 	}
@@ -142,17 +147,22 @@ func (a *Client) CreateGiteaCredentials(params *CreateGiteaCredentialsParams, au
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*CreateGiteaCredentialsOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
-	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
+
+	// unexpected success response.
+
+	// no default response is defined.
+	//
+	// safeguard: normally, in the absence of a default response, unknown success responses return an error above: so this is a codegen issue
 	msg := fmt.Sprintf("unexpected success response for CreateGiteaCredentials: API contract not enforced by server. Client expected to get an error, but got: %T", result)
 	panic(msg)
 }
@@ -161,7 +171,7 @@ func (a *Client) CreateGiteaCredentials(params *CreateGiteaCredentialsParams, au
 DeleteCredentials deletes a git hub credential
 */
 func (a *Client) DeleteCredentials(params *DeleteCredentialsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewDeleteCredentialsParams()
 	}
@@ -181,11 +191,12 @@ func (a *Client) DeleteCredentials(params *DeleteCredentialsParams, authInfo run
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	_, err := a.transport.Submit(op)
 	if err != nil {
 		return err
 	}
+	// no success response is defined: return nil
+
 	return nil
 }
 
@@ -193,7 +204,7 @@ func (a *Client) DeleteCredentials(params *DeleteCredentialsParams, authInfo run
 DeleteGiteaCredentials deletes a gitea credential
 */
 func (a *Client) DeleteGiteaCredentials(params *DeleteGiteaCredentialsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewDeleteGiteaCredentialsParams()
 	}
@@ -213,11 +224,12 @@ func (a *Client) DeleteGiteaCredentials(params *DeleteGiteaCredentialsParams, au
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	_, err := a.transport.Submit(op)
 	if err != nil {
 		return err
 	}
+	// no success response is defined: return nil
+
 	return nil
 }
 
@@ -225,7 +237,7 @@ func (a *Client) DeleteGiteaCredentials(params *DeleteGiteaCredentialsParams, au
 GetCredentials gets a git hub credential
 */
 func (a *Client) GetCredentials(params *GetCredentialsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetCredentialsOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewGetCredentialsParams()
 	}
@@ -245,17 +257,22 @@ func (a *Client) GetCredentials(params *GetCredentialsParams, authInfo runtime.C
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*GetCredentialsOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
-	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
+
+	// unexpected success response.
+
+	// no default response is defined.
+	//
+	// safeguard: normally, in the absence of a default response, unknown success responses return an error above: so this is a codegen issue
 	msg := fmt.Sprintf("unexpected success response for GetCredentials: API contract not enforced by server. Client expected to get an error, but got: %T", result)
 	panic(msg)
 }
@@ -264,7 +281,7 @@ func (a *Client) GetCredentials(params *GetCredentialsParams, authInfo runtime.C
 GetGiteaCredentials gets a gitea credential
 */
 func (a *Client) GetGiteaCredentials(params *GetGiteaCredentialsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetGiteaCredentialsOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewGetGiteaCredentialsParams()
 	}
@@ -284,17 +301,22 @@ func (a *Client) GetGiteaCredentials(params *GetGiteaCredentialsParams, authInfo
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*GetGiteaCredentialsOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
-	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
+
+	// unexpected success response.
+
+	// no default response is defined.
+	//
+	// safeguard: normally, in the absence of a default response, unknown success responses return an error above: so this is a codegen issue
 	msg := fmt.Sprintf("unexpected success response for GetGiteaCredentials: API contract not enforced by server. Client expected to get an error, but got: %T", result)
 	panic(msg)
 }
@@ -303,7 +325,7 @@ func (a *Client) GetGiteaCredentials(params *GetGiteaCredentialsParams, authInfo
 ListCredentials lists all credentials
 */
 func (a *Client) ListCredentials(params *ListCredentialsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListCredentialsOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewListCredentialsParams()
 	}
@@ -323,17 +345,22 @@ func (a *Client) ListCredentials(params *ListCredentialsParams, authInfo runtime
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*ListCredentialsOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
-	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
+
+	// unexpected success response.
+
+	// no default response is defined.
+	//
+	// safeguard: normally, in the absence of a default response, unknown success responses return an error above: so this is a codegen issue
 	msg := fmt.Sprintf("unexpected success response for ListCredentials: API contract not enforced by server. Client expected to get an error, but got: %T", result)
 	panic(msg)
 }
@@ -342,7 +369,7 @@ func (a *Client) ListCredentials(params *ListCredentialsParams, authInfo runtime
 ListGiteaCredentials lists all credentials
 */
 func (a *Client) ListGiteaCredentials(params *ListGiteaCredentialsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListGiteaCredentialsOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewListGiteaCredentialsParams()
 	}
@@ -362,17 +389,22 @@ func (a *Client) ListGiteaCredentials(params *ListGiteaCredentialsParams, authIn
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*ListGiteaCredentialsOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
-	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
+
+	// unexpected success response.
+
+	// no default response is defined.
+	//
+	// safeguard: normally, in the absence of a default response, unknown success responses return an error above: so this is a codegen issue
 	msg := fmt.Sprintf("unexpected success response for ListGiteaCredentials: API contract not enforced by server. Client expected to get an error, but got: %T", result)
 	panic(msg)
 }
@@ -381,7 +413,7 @@ func (a *Client) ListGiteaCredentials(params *ListGiteaCredentialsParams, authIn
 UpdateCredentials updates a git hub credential
 */
 func (a *Client) UpdateCredentials(params *UpdateCredentialsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateCredentialsOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewUpdateCredentialsParams()
 	}
@@ -401,17 +433,22 @@ func (a *Client) UpdateCredentials(params *UpdateCredentialsParams, authInfo run
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*UpdateCredentialsOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
-	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
+
+	// unexpected success response.
+
+	// no default response is defined.
+	//
+	// safeguard: normally, in the absence of a default response, unknown success responses return an error above: so this is a codegen issue
 	msg := fmt.Sprintf("unexpected success response for UpdateCredentials: API contract not enforced by server. Client expected to get an error, but got: %T", result)
 	panic(msg)
 }
@@ -420,7 +457,7 @@ func (a *Client) UpdateCredentials(params *UpdateCredentialsParams, authInfo run
 UpdateGiteaCredentials updates a gitea credential
 */
 func (a *Client) UpdateGiteaCredentials(params *UpdateGiteaCredentialsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateGiteaCredentialsOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewUpdateGiteaCredentialsParams()
 	}
@@ -440,17 +477,22 @@ func (a *Client) UpdateGiteaCredentials(params *UpdateGiteaCredentialsParams, au
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*UpdateGiteaCredentialsOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
-	// safeguard: normally, absent a default response, unknown success responses return an error above: so this is a codegen issue
+
+	// unexpected success response.
+
+	// no default response is defined.
+	//
+	// safeguard: normally, in the absence of a default response, unknown success responses return an error above: so this is a codegen issue
 	msg := fmt.Sprintf("unexpected success response for UpdateGiteaCredentials: API contract not enforced by server. Client expected to get an error, but got: %T", result)
 	panic(msg)
 }

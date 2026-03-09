@@ -93,7 +93,7 @@ type ClientService interface {
 CreateOrg creates organization with the parameters given
 */
 func (a *Client) CreateOrg(params *CreateOrgParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateOrgOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewCreateOrgParams()
 	}
@@ -113,17 +113,22 @@ func (a *Client) CreateOrg(params *CreateOrgParams, authInfo runtime.ClientAuthI
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*CreateOrgOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*CreateOrgDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -131,7 +136,7 @@ func (a *Client) CreateOrg(params *CreateOrgParams, authInfo runtime.ClientAuthI
 CreateOrgPool creates organization pool with the parameters given
 */
 func (a *Client) CreateOrgPool(params *CreateOrgPoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateOrgPoolOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewCreateOrgPoolParams()
 	}
@@ -151,17 +156,22 @@ func (a *Client) CreateOrgPool(params *CreateOrgPoolParams, authInfo runtime.Cli
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*CreateOrgPoolOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*CreateOrgPoolDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -169,7 +179,7 @@ func (a *Client) CreateOrgPool(params *CreateOrgPoolParams, authInfo runtime.Cli
 CreateOrgScaleSet creates organization scale set with the parameters given
 */
 func (a *Client) CreateOrgScaleSet(params *CreateOrgScaleSetParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateOrgScaleSetOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewCreateOrgScaleSetParams()
 	}
@@ -189,17 +199,22 @@ func (a *Client) CreateOrgScaleSet(params *CreateOrgScaleSetParams, authInfo run
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*CreateOrgScaleSetOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*CreateOrgScaleSetDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -207,7 +222,7 @@ func (a *Client) CreateOrgScaleSet(params *CreateOrgScaleSetParams, authInfo run
 DeleteOrg deletes organization by ID
 */
 func (a *Client) DeleteOrg(params *DeleteOrgParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewDeleteOrgParams()
 	}
@@ -227,11 +242,12 @@ func (a *Client) DeleteOrg(params *DeleteOrgParams, authInfo runtime.ClientAuthI
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	_, err := a.transport.Submit(op)
 	if err != nil {
 		return err
 	}
+	// no success response is defined: return nil
+
 	return nil
 }
 
@@ -239,7 +255,7 @@ func (a *Client) DeleteOrg(params *DeleteOrgParams, authInfo runtime.ClientAuthI
 DeleteOrgPool deletes organization pool by ID
 */
 func (a *Client) DeleteOrgPool(params *DeleteOrgPoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewDeleteOrgPoolParams()
 	}
@@ -259,11 +275,12 @@ func (a *Client) DeleteOrgPool(params *DeleteOrgPoolParams, authInfo runtime.Cli
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	_, err := a.transport.Submit(op)
 	if err != nil {
 		return err
 	}
+	// no success response is defined: return nil
+
 	return nil
 }
 
@@ -271,7 +288,7 @@ func (a *Client) DeleteOrgPool(params *DeleteOrgPoolParams, authInfo runtime.Cli
 GetOrg gets organization by ID
 */
 func (a *Client) GetOrg(params *GetOrgParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetOrgOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewGetOrgParams()
 	}
@@ -291,17 +308,22 @@ func (a *Client) GetOrg(params *GetOrgParams, authInfo runtime.ClientAuthInfoWri
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*GetOrgOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*GetOrgDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -309,7 +331,7 @@ func (a *Client) GetOrg(params *GetOrgParams, authInfo runtime.ClientAuthInfoWri
 GetOrgPool gets organization pool by ID
 */
 func (a *Client) GetOrgPool(params *GetOrgPoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetOrgPoolOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewGetOrgPoolParams()
 	}
@@ -329,17 +351,22 @@ func (a *Client) GetOrgPool(params *GetOrgPoolParams, authInfo runtime.ClientAut
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*GetOrgPoolOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*GetOrgPoolDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -347,7 +374,7 @@ func (a *Client) GetOrgPool(params *GetOrgPoolParams, authInfo runtime.ClientAut
 GetOrgWebhookInfo gets information about the g a r m installed webhook on an organization
 */
 func (a *Client) GetOrgWebhookInfo(params *GetOrgWebhookInfoParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetOrgWebhookInfoOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewGetOrgWebhookInfoParams()
 	}
@@ -367,17 +394,22 @@ func (a *Client) GetOrgWebhookInfo(params *GetOrgWebhookInfoParams, authInfo run
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*GetOrgWebhookInfoOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*GetOrgWebhookInfoDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -387,7 +419,7 @@ func (a *Client) GetOrgWebhookInfo(params *GetOrgWebhookInfoParams, authInfo run
 be used to validate the requests.
 */
 func (a *Client) InstallOrgWebhook(params *InstallOrgWebhookParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*InstallOrgWebhookOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewInstallOrgWebhookParams()
 	}
@@ -407,17 +439,22 @@ func (a *Client) InstallOrgWebhook(params *InstallOrgWebhookParams, authInfo run
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*InstallOrgWebhookOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*InstallOrgWebhookDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -425,7 +462,7 @@ func (a *Client) InstallOrgWebhook(params *InstallOrgWebhookParams, authInfo run
 ListOrgInstances lists organization instances
 */
 func (a *Client) ListOrgInstances(params *ListOrgInstancesParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListOrgInstancesOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewListOrgInstancesParams()
 	}
@@ -445,17 +482,22 @@ func (a *Client) ListOrgInstances(params *ListOrgInstancesParams, authInfo runti
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*ListOrgInstancesOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*ListOrgInstancesDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -463,7 +505,7 @@ func (a *Client) ListOrgInstances(params *ListOrgInstancesParams, authInfo runti
 ListOrgPools lists organization pools
 */
 func (a *Client) ListOrgPools(params *ListOrgPoolsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListOrgPoolsOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewListOrgPoolsParams()
 	}
@@ -483,17 +525,22 @@ func (a *Client) ListOrgPools(params *ListOrgPoolsParams, authInfo runtime.Clien
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*ListOrgPoolsOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*ListOrgPoolsDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -501,7 +548,7 @@ func (a *Client) ListOrgPools(params *ListOrgPoolsParams, authInfo runtime.Clien
 ListOrgScaleSets lists organization scale sets
 */
 func (a *Client) ListOrgScaleSets(params *ListOrgScaleSetsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListOrgScaleSetsOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewListOrgScaleSetsParams()
 	}
@@ -521,17 +568,22 @@ func (a *Client) ListOrgScaleSets(params *ListOrgScaleSetsParams, authInfo runti
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*ListOrgScaleSetsOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*ListOrgScaleSetsDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -539,7 +591,7 @@ func (a *Client) ListOrgScaleSets(params *ListOrgScaleSetsParams, authInfo runti
 ListOrgs lists organizations
 */
 func (a *Client) ListOrgs(params *ListOrgsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListOrgsOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewListOrgsParams()
 	}
@@ -559,17 +611,22 @@ func (a *Client) ListOrgs(params *ListOrgsParams, authInfo runtime.ClientAuthInf
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*ListOrgsOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*ListOrgsDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -577,7 +634,7 @@ func (a *Client) ListOrgs(params *ListOrgsParams, authInfo runtime.ClientAuthInf
 UninstallOrgWebhook uninstalls organization webhook
 */
 func (a *Client) UninstallOrgWebhook(params *UninstallOrgWebhookParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewUninstallOrgWebhookParams()
 	}
@@ -597,11 +654,12 @@ func (a *Client) UninstallOrgWebhook(params *UninstallOrgWebhookParams, authInfo
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	_, err := a.transport.Submit(op)
 	if err != nil {
 		return err
 	}
+	// no success response is defined: return nil
+
 	return nil
 }
 
@@ -609,7 +667,7 @@ func (a *Client) UninstallOrgWebhook(params *UninstallOrgWebhookParams, authInfo
 UpdateOrg updates organization with the parameters given
 */
 func (a *Client) UpdateOrg(params *UpdateOrgParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateOrgOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewUpdateOrgParams()
 	}
@@ -629,17 +687,22 @@ func (a *Client) UpdateOrg(params *UpdateOrgParams, authInfo runtime.ClientAuthI
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*UpdateOrgOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*UpdateOrgDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -647,7 +710,7 @@ func (a *Client) UpdateOrg(params *UpdateOrgParams, authInfo runtime.ClientAuthI
 UpdateOrgPool updates organization pool with the parameters given
 */
 func (a *Client) UpdateOrgPool(params *UpdateOrgPoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateOrgPoolOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewUpdateOrgPoolParams()
 	}
@@ -667,17 +730,22 @@ func (a *Client) UpdateOrgPool(params *UpdateOrgPoolParams, authInfo runtime.Cli
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*UpdateOrgPoolOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*UpdateOrgPoolDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 

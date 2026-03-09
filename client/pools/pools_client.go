@@ -69,7 +69,7 @@ type ClientService interface {
 DeletePool deletes pool by ID
 */
 func (a *Client) DeletePool(params *DeletePoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewDeletePoolParams()
 	}
@@ -89,11 +89,12 @@ func (a *Client) DeletePool(params *DeletePoolParams, authInfo runtime.ClientAut
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	_, err := a.transport.Submit(op)
 	if err != nil {
 		return err
 	}
+	// no success response is defined: return nil
+
 	return nil
 }
 
@@ -101,7 +102,7 @@ func (a *Client) DeletePool(params *DeletePoolParams, authInfo runtime.ClientAut
 GetPool gets pool by ID
 */
 func (a *Client) GetPool(params *GetPoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetPoolOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewGetPoolParams()
 	}
@@ -121,17 +122,22 @@ func (a *Client) GetPool(params *GetPoolParams, authInfo runtime.ClientAuthInfoW
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*GetPoolOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*GetPoolDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -139,7 +145,7 @@ func (a *Client) GetPool(params *GetPoolParams, authInfo runtime.ClientAuthInfoW
 ListPools lists all pools
 */
 func (a *Client) ListPools(params *ListPoolsParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListPoolsOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewListPoolsParams()
 	}
@@ -159,17 +165,22 @@ func (a *Client) ListPools(params *ListPoolsParams, authInfo runtime.ClientAuthI
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*ListPoolsOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*ListPoolsDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -177,7 +188,7 @@ func (a *Client) ListPools(params *ListPoolsParams, authInfo runtime.ClientAuthI
 UpdatePool updates pool by ID
 */
 func (a *Client) UpdatePool(params *UpdatePoolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdatePoolOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewUpdatePoolParams()
 	}
@@ -197,17 +208,22 @@ func (a *Client) UpdatePool(params *UpdatePoolParams, authInfo runtime.ClientAut
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*UpdatePoolOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*UpdatePoolDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 

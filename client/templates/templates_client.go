@@ -73,7 +73,7 @@ type ClientService interface {
 CreateTemplate creates template with the parameters given
 */
 func (a *Client) CreateTemplate(params *CreateTemplateParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*CreateTemplateOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewCreateTemplateParams()
 	}
@@ -93,17 +93,22 @@ func (a *Client) CreateTemplate(params *CreateTemplateParams, authInfo runtime.C
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*CreateTemplateOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*CreateTemplateDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -111,7 +116,7 @@ func (a *Client) CreateTemplate(params *CreateTemplateParams, authInfo runtime.C
 DeleteTemplate gets template by ID
 */
 func (a *Client) DeleteTemplate(params *DeleteTemplateParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewDeleteTemplateParams()
 	}
@@ -131,11 +136,12 @@ func (a *Client) DeleteTemplate(params *DeleteTemplateParams, authInfo runtime.C
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	_, err := a.transport.Submit(op)
 	if err != nil {
 		return err
 	}
+	// no success response is defined: return nil
+
 	return nil
 }
 
@@ -143,7 +149,7 @@ func (a *Client) DeleteTemplate(params *DeleteTemplateParams, authInfo runtime.C
 GetTemplate gets template by ID
 */
 func (a *Client) GetTemplate(params *GetTemplateParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*GetTemplateOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewGetTemplateParams()
 	}
@@ -163,17 +169,22 @@ func (a *Client) GetTemplate(params *GetTemplateParams, authInfo runtime.ClientA
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*GetTemplateOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*GetTemplateDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -181,7 +192,7 @@ func (a *Client) GetTemplate(params *GetTemplateParams, authInfo runtime.ClientA
 ListTemplates lists templates
 */
 func (a *Client) ListTemplates(params *ListTemplatesParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListTemplatesOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewListTemplatesParams()
 	}
@@ -201,17 +212,22 @@ func (a *Client) ListTemplates(params *ListTemplatesParams, authInfo runtime.Cli
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*ListTemplatesOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*ListTemplatesDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 
@@ -219,7 +235,7 @@ func (a *Client) ListTemplates(params *ListTemplatesParams, authInfo runtime.Cli
 RestoreTemplates creates template with the parameters given
 */
 func (a *Client) RestoreTemplates(params *RestoreTemplatesParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) error {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewRestoreTemplatesParams()
 	}
@@ -239,11 +255,12 @@ func (a *Client) RestoreTemplates(params *RestoreTemplatesParams, authInfo runti
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	_, err := a.transport.Submit(op)
 	if err != nil {
 		return err
 	}
+	// no success response is defined: return nil
+
 	return nil
 }
 
@@ -251,7 +268,7 @@ func (a *Client) RestoreTemplates(params *RestoreTemplatesParams, authInfo runti
 UpdateTemplate updates template with the parameters given
 */
 func (a *Client) UpdateTemplate(params *UpdateTemplateParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UpdateTemplateOK, error) {
-	// TODO: Validate the params before sending
+	// NOTE: parameters are not validated before sending
 	if params == nil {
 		params = NewUpdateTemplateParams()
 	}
@@ -271,17 +288,22 @@ func (a *Client) UpdateTemplate(params *UpdateTemplateParams, authInfo runtime.C
 	for _, opt := range opts {
 		opt(op)
 	}
-
 	result, err := a.transport.Submit(op)
 	if err != nil {
 		return nil, err
 	}
+
+	// only one success response has to be checked
 	success, ok := result.(*UpdateTemplateOK)
 	if ok {
 		return success, nil
 	}
-	// unexpected success response
+
+	// unexpected success response.
+	//
+	// a default response is provided: fill this and return an error
 	unexpectedSuccess := result.(*UpdateTemplateDefault)
+
 	return nil, runtime.NewAPIError("unexpected success response: content available as default response in error", unexpectedSuccess, unexpectedSuccess.Code())
 }
 

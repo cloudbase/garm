@@ -7,6 +7,7 @@ package tools
 
 import (
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"io"
 
@@ -23,7 +24,7 @@ type AdminGarmAgentListReader struct {
 }
 
 // ReadResponse reads a server response into the received o.
-func (o *AdminGarmAgentListReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (interface{}, error) {
+func (o *AdminGarmAgentListReader) ReadResponse(response runtime.ClientResponse, consumer runtime.Consumer) (any, error) {
 	switch response.Code() {
 	case 200:
 		result := NewAdminGarmAgentListOK()
@@ -103,7 +104,7 @@ func (o *AdminGarmAgentListOK) GetPayload() garm_params.GARMAgentToolsPaginatedR
 func (o *AdminGarmAgentListOK) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
 	// response payload
-	if err := consumer.Consume(response.Body(), &o.Payload); err != nil && err != io.EOF {
+	if err := consumer.Consume(response.Body(), &o.Payload); err != nil && !stderrors.Is(err, io.EOF) {
 		return err
 	}
 
@@ -171,7 +172,7 @@ func (o *AdminGarmAgentListBadRequest) GetPayload() apiserver_params.APIErrorRes
 func (o *AdminGarmAgentListBadRequest) readResponse(response runtime.ClientResponse, consumer runtime.Consumer, formats strfmt.Registry) error {
 
 	// response payload
-	if err := consumer.Consume(response.Body(), &o.Payload); err != nil && err != io.EOF {
+	if err := consumer.Consume(response.Body(), &o.Payload); err != nil && !stderrors.Is(err, io.EOF) {
 		return err
 	}
 

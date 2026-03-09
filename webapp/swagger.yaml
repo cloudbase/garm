@@ -1324,6 +1324,9 @@ definitions:
                 format: int64
                 type: integer
                 x-go-name: WorkflowJobID
+            workflow_run_url:
+                type: string
+                x-go-name: WorkflowRunURL
         type: object
         x-go-package: github.com/cloudbase/garm/params
     Jobs:
@@ -4351,7 +4354,7 @@ paths:
                   in: path
                   name: templateID
                   required: true
-                  type: string
+                  type: number
                 - description: Parameters used when updating the template.
                   in: body
                   name: Body
