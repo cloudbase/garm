@@ -747,12 +747,6 @@ export interface CreateScaleSetParams {
     'scale_set_id'?: number;
     /**
      * 
-     * @type {Array<string>}
-     * @memberof CreateScaleSetParams
-     */
-    'tags'?: Array<string>;
-    /**
-     * 
      * @type {number}
      * @memberof CreateScaleSetParams
      */

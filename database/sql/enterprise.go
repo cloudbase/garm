@@ -174,10 +174,9 @@ func (s *sqlDatabase) UpdateEnterprise(ctx context.Context, enterpriseID string,
 		}
 	}()
 	var enterprise Enterprise
-	var creds GithubCredentials
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
 		var err error
-		enterprise, err = s.getEnterpriseByID(ctx, tx, enterpriseID)
+		enterprise, err = s.getEnterpriseByID(ctx, tx, enterpriseID, "Endpoint")
 		if err != nil {
 			return fmt.Errorf("error fetching enterprise: %w", err)
 		}
@@ -186,19 +185,8 @@ func (s *sqlDatabase) UpdateEnterprise(ctx context.Context, enterpriseID string,
 			return fmt.Errorf("error enterprise has no endpoint: %w", runnerErrors.ErrUnprocessable)
 		}
 
-		if param.CredentialsName != "" {
-			creds, err = s.getGithubCredentialsByName(ctx, tx, param.CredentialsName, false)
-			if err != nil {
-				return fmt.Errorf("error fetching credentials: %w", err)
-			}
-			if creds.EndpointName == nil {
-				return fmt.Errorf("error credentials have no endpoint: %w", runnerErrors.ErrUnprocessable)
-			}
-
-			if *creds.EndpointName != *enterprise.EndpointName {
-				return fmt.Errorf("error endpoint mismatch: %w", runnerErrors.ErrBadRequest)
-			}
-			enterprise.CredentialsID = &creds.ID
+		if err := s.updateEntityCredentials(ctx, tx, &enterprise, param.CredentialsName); err != nil {
+			return err
 		}
 		if param.WebhookSecret != "" {
 			secret, err := util.Seal([]byte(param.WebhookSecret), []byte(s.cfg.Passphrase))
@@ -216,7 +204,7 @@ func (s *sqlDatabase) UpdateEnterprise(ctx context.Context, enterpriseID string,
 			enterprise.AgentMode = *param.AgentMode
 		}
 
-		q := tx.Save(&enterprise)
+		q := tx.Model(&enterprise).Omit("Endpoint").Save(&enterprise)
 		if q.Error != nil {
 			return fmt.Errorf("error saving enterprise: %w", q.Error)
 		}

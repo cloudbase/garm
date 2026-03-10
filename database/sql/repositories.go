@@ -160,10 +160,9 @@ func (s *sqlDatabase) UpdateRepository(ctx context.Context, repoID string, param
 		}
 	}()
 	var repo Repository
-	var creds GithubCredentials
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
 		var err error
-		repo, err = s.getRepoByID(ctx, tx, repoID)
+		repo, err = s.getRepoByID(ctx, tx, repoID, "Endpoint")
 		if err != nil {
 			return fmt.Errorf("error fetching repo: %w", err)
 		}
@@ -171,19 +170,8 @@ func (s *sqlDatabase) UpdateRepository(ctx context.Context, repoID string, param
 			return runnerErrors.NewUnprocessableError("repository has no endpoint")
 		}
 
-		if param.CredentialsName != "" {
-			creds, err = s.getGithubCredentialsByName(ctx, tx, param.CredentialsName, false)
-			if err != nil {
-				return fmt.Errorf("error fetching credentials: %w", err)
-			}
-			if creds.EndpointName == nil {
-				return runnerErrors.NewUnprocessableError("credentials have no endpoint")
-			}
-
-			if *creds.EndpointName != *repo.EndpointName {
-				return runnerErrors.NewBadRequestError("endpoint mismatch")
-			}
-			repo.CredentialsID = &creds.ID
+		if err := s.updateEntityCredentials(ctx, tx, &repo, param.CredentialsName); err != nil {
+			return err
 		}
 
 		if param.WebhookSecret != "" {
@@ -201,7 +189,7 @@ func (s *sqlDatabase) UpdateRepository(ctx context.Context, repoID string, param
 			repo.AgentMode = *param.AgentMode
 		}
 
-		q := tx.Save(&repo)
+		q := tx.Model(&repo).Omit("Endpoint").Save(&repo)
 		if q.Error != nil {
 			return fmt.Errorf("error saving repo: %w", q.Error)
 		}

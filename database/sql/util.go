@@ -152,10 +152,19 @@ func (s *sqlDatabase) sqlToCommonOrganization(org Organization, detailed bool) (
 	if err != nil {
 		return params.Organization{}, fmt.Errorf("error converting endpoint: %w", err)
 	}
+
+	// Determine credentials name based on which credentials are set
+	var credsName string
+	if org.CredentialsID != nil {
+		credsName = org.Credentials.Name
+	} else if org.GiteaCredentialsID != nil {
+		credsName = org.GiteaCredentials.Name
+	}
+
 	ret := params.Organization{
 		ID:               org.ID.String(),
 		Name:             org.Name,
-		CredentialsName:  org.Credentials.Name,
+		CredentialsName:  credsName,
 		Pools:            make([]params.Pool, len(org.Pools)),
 		WebhookSecret:    string(secret),
 		PoolBalancerType: org.PoolBalancerType,
@@ -442,11 +451,20 @@ func (s *sqlDatabase) sqlToCommonRepository(repo Repository, detailed bool) (par
 	if err != nil {
 		return params.Repository{}, fmt.Errorf("error converting endpoint: %w", err)
 	}
+
+	// Determine credentials name based on which credentials are set
+	var credsName string
+	if repo.CredentialsID != nil {
+		credsName = repo.Credentials.Name
+	} else if repo.GiteaCredentialsID != nil {
+		credsName = repo.GiteaCredentials.Name
+	}
+
 	ret := params.Repository{
 		ID:               repo.ID.String(),
 		Name:             repo.Name,
 		Owner:            repo.Owner,
-		CredentialsName:  repo.Credentials.Name,
+		CredentialsName:  credsName,
 		Pools:            make([]params.Pool, len(repo.Pools)),
 		WebhookSecret:    string(secret),
 		PoolBalancerType: repo.PoolBalancerType,
@@ -1082,4 +1100,53 @@ func (s *sqlDatabase) sqlToParamTemplate(template Template) (params.Template, er
 		Owner:       owner,
 		OSType:      template.OSType,
 	}, nil
+}
+
+type CredentialsGetter interface {
+	GetEndpointName() *string
+	GetID() uint
+}
+
+// fetchCredentialsByType fetches credentials by name for a given forge type
+func (s *sqlDatabase) fetchCredentialsByType(ctx context.Context, tx *gorm.DB, credentialsName string, forgeType params.EndpointType) (CredentialsGetter, error) {
+	switch forgeType {
+	case params.GithubEndpointType:
+		return s.getGithubCredentialsByName(ctx, tx, credentialsName, false)
+	case params.GiteaEndpointType:
+		return s.getGiteaCredentialsByName(ctx, tx, credentialsName, false)
+	default:
+		return nil, runnerErrors.NewBadRequestError("unsupported endpoint type: %s", forgeType)
+	}
+}
+
+// updateEntityCredentials fetches, validates, and assigns credentials to an entity
+func (s *sqlDatabase) updateEntityCredentials(ctx context.Context, tx *gorm.DB, entity ForgeEntity, credentialsName string) error {
+	if credentialsName == "" {
+		return nil
+	}
+
+	// Entity knows its own endpoint type
+	forgeType := entity.GetEndpoint().EndpointType
+	endpointName := entity.GetEndpointName()
+
+	if endpointName == nil {
+		return runnerErrors.NewUnprocessableError("entity has no endpoint")
+	}
+
+	// Fetch credentials by type
+	creds, err := s.fetchCredentialsByType(ctx, tx, credentialsName, forgeType)
+	if err != nil {
+		return fmt.Errorf("error fetching credentials: %w", err)
+	}
+
+	// Validate credentials
+	if creds.GetEndpointName() == nil {
+		return runnerErrors.NewUnprocessableError("credentials have no endpoint")
+	}
+	if *creds.GetEndpointName() != *endpointName {
+		return runnerErrors.NewBadRequestError("endpoint mismatch")
+	}
+
+	// Entity handles setting the right field based on its endpoint type
+	return entity.SetCredentials(creds.GetID())
 }

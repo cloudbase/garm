@@ -158,10 +158,9 @@ func (s *sqlDatabase) UpdateOrganization(ctx context.Context, orgID string, para
 		}
 	}()
 	var org Organization
-	var creds GithubCredentials
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
 		var err error
-		org, err = s.getOrgByID(ctx, tx, orgID)
+		org, err = s.getOrgByID(ctx, tx, orgID, "Endpoint")
 		if err != nil {
 			return fmt.Errorf("error fetching org: %w", err)
 		}
@@ -169,19 +168,8 @@ func (s *sqlDatabase) UpdateOrganization(ctx context.Context, orgID string, para
 			return fmt.Errorf("error org has no endpoint: %w", runnerErrors.ErrUnprocessable)
 		}
 
-		if param.CredentialsName != "" {
-			creds, err = s.getGithubCredentialsByName(ctx, tx, param.CredentialsName, false)
-			if err != nil {
-				return fmt.Errorf("error fetching credentials: %w", err)
-			}
-			if creds.EndpointName == nil {
-				return fmt.Errorf("error credentials have no endpoint: %w", runnerErrors.ErrUnprocessable)
-			}
-
-			if *creds.EndpointName != *org.EndpointName {
-				return fmt.Errorf("error endpoint mismatch: %w", runnerErrors.ErrBadRequest)
-			}
-			org.CredentialsID = &creds.ID
+		if err := s.updateEntityCredentials(ctx, tx, &org, param.CredentialsName); err != nil {
+			return err
 		}
 
 		if param.WebhookSecret != "" {
@@ -200,7 +188,7 @@ func (s *sqlDatabase) UpdateOrganization(ctx context.Context, orgID string, para
 			org.AgentMode = *param.AgentMode
 		}
 
-		q := tx.Save(&org)
+		q := tx.Model(&org).Omit("Endpoint").Save(&org)
 		if q.Error != nil {
 			return fmt.Errorf("error saving org: %w", q.Error)
 		}
