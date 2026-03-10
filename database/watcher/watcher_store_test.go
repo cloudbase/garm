@@ -525,7 +525,6 @@ func (s *WatcherStoreTestSuite) TestScaleSetWatcher() {
 		MaxRunners:     1,
 		OSType:         commonParams.Linux,
 		OSArch:         commonParams.Amd64,
-		Tags:           []string{"test-tag"},
 	}
 	scaleSet, err := s.store.CreateEntityScaleSet(s.ctx, entity, createScaleSetParams)
 	s.Require().NoError(err)

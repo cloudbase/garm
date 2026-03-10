@@ -22,6 +22,7 @@ import (
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 
+	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm/params"
 )
@@ -483,6 +484,14 @@ type GithubCredentials struct {
 	Enterprises   []Enterprise   `gorm:"foreignKey:CredentialsID"`
 }
 
+func (g GithubCredentials) GetEndpointName() *string {
+	return g.EndpointName
+}
+
+func (g GithubCredentials) GetID() uint {
+	return g.ID
+}
+
 type GiteaCredentials struct {
 	gorm.Model
 
@@ -499,6 +508,80 @@ type GiteaCredentials struct {
 
 	Repositories  []Repository   `gorm:"foreignKey:GiteaCredentialsID"`
 	Organizations []Organization `gorm:"foreignKey:GiteaCredentialsID"`
+}
+
+func (g GiteaCredentials) GetEndpointName() *string {
+	return g.EndpointName
+}
+
+func (g GiteaCredentials) GetID() uint {
+	return g.ID
+}
+
+// ForgeEntity represents an entity (Repository, Organization, Enterprise) that can have forge credentials
+type ForgeEntity interface {
+	GetEndpoint() GithubEndpoint
+	GetEndpointName() *string
+	SetCredentials(id uint) error
+}
+
+// Repository implements ForgeEntity
+func (r *Repository) GetEndpoint() GithubEndpoint {
+	return r.Endpoint
+}
+
+func (r *Repository) GetEndpointName() *string {
+	return r.EndpointName
+}
+
+func (r *Repository) SetCredentials(id uint) error {
+	switch r.Endpoint.EndpointType {
+	case params.GithubEndpointType:
+		r.CredentialsID = &id
+	case params.GiteaEndpointType:
+		r.GiteaCredentialsID = &id
+	default:
+		return runnerErrors.NewBadRequestError("unsupported endpoint type: %s", r.Endpoint.EndpointType)
+	}
+	return nil
+}
+
+// Organization implements ForgeEntity
+func (o *Organization) GetEndpoint() GithubEndpoint {
+	return o.Endpoint
+}
+
+func (o *Organization) GetEndpointName() *string {
+	return o.EndpointName
+}
+
+func (o *Organization) SetCredentials(id uint) error {
+	switch o.Endpoint.EndpointType {
+	case params.GithubEndpointType:
+		o.CredentialsID = &id
+	case params.GiteaEndpointType:
+		o.GiteaCredentialsID = &id
+	default:
+		return runnerErrors.NewBadRequestError("unsupported endpoint type: %s", o.Endpoint.EndpointType)
+	}
+	return nil
+}
+
+// Enterprise implements ForgeEntity
+func (e *Enterprise) GetEndpoint() GithubEndpoint {
+	return e.Endpoint
+}
+
+func (e *Enterprise) GetEndpointName() *string {
+	return e.EndpointName
+}
+
+func (e *Enterprise) SetCredentials(id uint) error {
+	if e.Endpoint.EndpointType != params.GithubEndpointType {
+		return runnerErrors.NewBadRequestError("enterprise only supports GitHub credentials")
+	}
+	e.CredentialsID = &id
+	return nil
 }
 
 // FileObject represents the table that holds files. This can be used to store

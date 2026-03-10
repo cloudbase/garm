@@ -435,11 +435,6 @@ definitions:
                 format: int64
                 type: integer
                 x-go-name: ScaleSetID
-            tags:
-                items:
-                    type: string
-                type: array
-                x-go-name: Tags
             template_id:
                 format: uint64
                 type: integer

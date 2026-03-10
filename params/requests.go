@@ -600,7 +600,6 @@ type CreateScaleSetParams struct {
 	Flavor                 string              `json:"flavor,omitempty"`
 	OSType                 commonParams.OSType `json:"os_type,omitempty"`
 	OSArch                 commonParams.OSArch `json:"os_arch,omitempty"`
-	Tags                   []string            `json:"tags,omitempty"`
 	Enabled                bool                `json:"enabled,omitempty"`
 	RunnerBootstrapTimeout uint                `json:"runner_bootstrap_timeout,omitempty"`
 	ExtraSpecs             json.RawMessage     `json:"extra_specs,omitempty"`
