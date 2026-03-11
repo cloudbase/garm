@@ -121,7 +121,7 @@
 			case 'object':
 				return resolve(`/objects/${entityId}`);
 			case 'credentials':
-				return resolve(`/credentials/${entityId}`);
+				return resolve(`/credentials/${item.forge_type || 'github'}/${entityId}`);
 			default:
 				return '#';
 		}

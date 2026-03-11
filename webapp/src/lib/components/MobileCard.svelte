@@ -86,6 +86,7 @@
 		// Replace placeholders
 		href = href.replace('{id}', item.id || '');
 		href = href.replace('{name}', encodeURIComponent(item.name || ''));
+		href = href.replace('{forge_type}', item.forge_type || '');
 		
 		return resolve(href as any);
 	}
