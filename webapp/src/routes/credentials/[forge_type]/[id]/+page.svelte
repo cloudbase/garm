@@ -20,11 +20,12 @@
 	let unsubscribeWebsocket: (() => void) | null = null;
 
 	$: credentialId = $page.params.id;
-	$: isGithub = credential?.forge_type === 'github';
-	$: isGitea = credential?.forge_type === 'gitea';
+	$: forgeType = $page.params.forge_type;
+	$: isGithub = forgeType === 'github';
+	$: isGitea = forgeType === 'gitea';
 
 	async function loadCredential() {
-		if (!credentialId) return;
+		if (!credentialId || !forgeType) return;
 
 		try {
 			loading = true;
@@ -37,28 +38,14 @@
 				return;
 			}
 
-			// Try to fetch as GitHub credential first, then Gitea
-			let githubError: any = null;
-			try {
+			if (forgeType === 'github') {
 				credential = await garmApi.getGithubCredentials(id);
-			} catch (err: any) {
-				githubError = err;
-				// If GitHub fails with 404, try Gitea
-				if (err?.response?.status === 404 || err?.status === 404) {
-					try {
-						credential = await garmApi.getGiteaCredentials(id);
-					} catch (giteaErr: any) {
-						// If Gitea also fails with 404, throw the original GitHub error
-						if (giteaErr?.response?.status === 404 || giteaErr?.status === 404) {
-							throw new Error(`Credential with ID ${id} not found`);
-						}
-						// For other Gitea errors, throw them
-						throw giteaErr;
-					}
-				} else {
-					// For non-404 GitHub errors, throw them
-					throw err;
-				}
+			} else if (forgeType === 'gitea') {
+				credential = await garmApi.getGiteaCredentials(id);
+			} else {
+				error = `Unknown forge type: ${forgeType}`;
+				loading = false;
+				return;
 			}
 		} catch (err) {
 			error = extractAPIError(err);
@@ -88,7 +75,8 @@
 
 	function handleCredentialEvent(event: WebSocketEvent) {
 		if (event.operation === 'delete') {
-			const deletedCredentialId = event.payload.id || event.payload;
+			const deletedCred = event.payload;
+			const deletedCredentialId = typeof deletedCred === 'object' ? deletedCred.id : deletedCred;
 			// If this credential was deleted, redirect to credentials list
 			if (credential && credential.id === deletedCredentialId) {
 				goto(resolve('/credentials'));
