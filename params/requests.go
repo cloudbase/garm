@@ -297,10 +297,11 @@ func (p PasswordLoginParams) Validate() error {
 
 // swagger:model UpdateEntityParams
 type UpdateEntityParams struct {
-	CredentialsName  string           `json:"credentials_name,omitempty"`
-	WebhookSecret    string           `json:"webhook_secret,omitempty"`
-	PoolBalancerType PoolBalancerType `json:"pool_balancer_type,omitempty"`
-	AgentMode        *bool            `json:"agent_mode,omitempty"`
+	CredentialsName   string             `json:"credentials_name,omitempty"`
+	WebhookSecret     string             `json:"webhook_secret,omitempty"`
+	PoolBalancerType  PoolBalancerType   `json:"pool_balancer_type,omitempty"`
+	AgentMode         *bool              `json:"agent_mode,omitempty"`
+	PoolManagerStatus *PoolManagerStatus `json:"-"`
 }
 
 type InstanceUpdateMessage struct {

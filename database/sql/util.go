@@ -172,6 +172,10 @@ func (s *sqlDatabase) sqlToCommonOrganization(org Organization, detailed bool) (
 		CreatedAt:        org.CreatedAt,
 		UpdatedAt:        org.UpdatedAt,
 		AgentMode:        org.AgentMode,
+		PoolManagerStatus: params.PoolManagerStatus{
+			IsRunning:     org.PoolManagerRunning,
+			FailureReason: org.PoolManagerFailureReason,
+		},
 	}
 
 	var forgeCreds params.ForgeCredentials
@@ -245,6 +249,10 @@ func (s *sqlDatabase) sqlToCommonEnterprise(enterprise Enterprise, detailed bool
 		UpdatedAt:        enterprise.UpdatedAt,
 		Endpoint:         endpoint,
 		AgentMode:        enterprise.AgentMode,
+		PoolManagerStatus: params.PoolManagerStatus{
+			IsRunning:     enterprise.PoolManagerRunning,
+			FailureReason: enterprise.PoolManagerFailureReason,
+		},
 	}
 
 	if enterprise.CredentialsID != nil {
@@ -472,6 +480,10 @@ func (s *sqlDatabase) sqlToCommonRepository(repo Repository, detailed bool) (par
 		UpdatedAt:        repo.UpdatedAt,
 		Endpoint:         endpoint,
 		AgentMode:        repo.AgentMode,
+		PoolManagerStatus: params.PoolManagerStatus{
+			IsRunning:     repo.PoolManagerRunning,
+			FailureReason: repo.PoolManagerFailureReason,
+		},
 	}
 
 	if repo.CredentialsID != nil && repo.GiteaCredentialsID != nil {
@@ -1149,4 +1161,20 @@ func (s *sqlDatabase) updateEntityCredentials(ctx context.Context, tx *gorm.DB, 
 
 	// Entity handles setting the right field based on its endpoint type
 	return entity.SetCredentials(creds.GetID())
+}
+
+func (s *sqlDatabase) SetEntityPoolManagerStatus(ctx context.Context, entity params.ForgeEntity, param params.PoolManagerStatus) error {
+	updateEntityParams := params.UpdateEntityParams{
+		PoolManagerStatus: &param,
+	}
+	var err error
+	switch entity.EntityType {
+	case params.ForgeEntityTypeEnterprise:
+		_, err = s.UpdateEnterprise(ctx, entity.ID, updateEntityParams)
+	case params.ForgeEntityTypeOrganization:
+		_, err = s.UpdateOrganization(ctx, entity.ID, updateEntityParams)
+	case params.ForgeEntityTypeRepository:
+		_, err = s.UpdateRepository(ctx, entity.ID, updateEntityParams)
+	}
+	return err
 }

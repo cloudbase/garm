@@ -104,21 +104,7 @@ func (r *Runner) ListOrganizations(ctx context.Context, filter params.Organizati
 		return nil, fmt.Errorf("error listing organizations: %w", err)
 	}
 
-	var allOrgs []params.Organization
-
-	for _, org := range orgs {
-		poolMgr, err := r.poolManagerCtrl.GetOrgPoolManager(org)
-		if err != nil {
-			org.PoolManagerStatus.IsRunning = false
-			org.PoolManagerStatus.FailureReason = fmt.Sprintf("failed to get pool manager: %q", err)
-		} else {
-			org.PoolManagerStatus = poolMgr.Status()
-		}
-
-		allOrgs = append(allOrgs, org)
-	}
-
-	return allOrgs, nil
+	return orgs, nil
 }
 
 func (r *Runner) GetOrganizationByID(ctx context.Context, orgID string) (params.Organization, error) {
@@ -131,12 +117,6 @@ func (r *Runner) GetOrganizationByID(ctx context.Context, orgID string) (params.
 		return params.Organization{}, fmt.Errorf("error fetching organization: %w", err)
 	}
 
-	poolMgr, err := r.poolManagerCtrl.GetOrgPoolManager(org)
-	if err != nil {
-		org.PoolManagerStatus.IsRunning = false
-		org.PoolManagerStatus.FailureReason = fmt.Sprintf("failed to get pool manager: %q", err)
-	}
-	org.PoolManagerStatus = poolMgr.Status()
 	return org, nil
 }
 
@@ -222,12 +202,6 @@ func (r *Runner) UpdateOrganization(ctx context.Context, orgID string, param par
 		return params.Organization{}, fmt.Errorf("error updating org: %w", err)
 	}
 
-	poolMgr, err := r.poolManagerCtrl.GetOrgPoolManager(org)
-	if err != nil {
-		return params.Organization{}, fmt.Errorf("failed to get org pool manager: %w", err)
-	}
-
-	org.PoolManagerStatus = poolMgr.Status()
 	return org, nil
 }
 

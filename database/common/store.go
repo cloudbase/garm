@@ -226,4 +226,5 @@ type Store interface {
 	InitController() (params.ControllerInfo, error)
 	GetForgeEntity(_ context.Context, entityType params.ForgeEntityType, entityID string) (params.ForgeEntity, error)
 	AddEntityEvent(ctx context.Context, entity params.ForgeEntity, event params.EventType, eventLevel params.EventLevel, statusMessage string, maxEvents int) error
+	SetEntityPoolManagerStatus(ctx context.Context, entity params.ForgeEntity, param params.PoolManagerStatus) error
 }

@@ -4967,6 +4967,54 @@ func (_c *Store_SearchFileObjectByTags_Call) RunAndReturn(run func(context.Conte
 	return _c
 }
 
+// SetEntityPoolManagerStatus provides a mock function with given fields: ctx, entity, param
+func (_m *Store) SetEntityPoolManagerStatus(ctx context.Context, entity params.ForgeEntity, param params.PoolManagerStatus) error {
+	ret := _m.Called(ctx, entity, param)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetEntityPoolManagerStatus")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, params.ForgeEntity, params.PoolManagerStatus) error); ok {
+		r0 = rf(ctx, entity, param)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// Store_SetEntityPoolManagerStatus_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetEntityPoolManagerStatus'
+type Store_SetEntityPoolManagerStatus_Call struct {
+	*mock.Call
+}
+
+// SetEntityPoolManagerStatus is a helper method to define mock.On call
+//   - ctx context.Context
+//   - entity params.ForgeEntity
+//   - param params.PoolManagerStatus
+func (_e *Store_Expecter) SetEntityPoolManagerStatus(ctx interface{}, entity interface{}, param interface{}) *Store_SetEntityPoolManagerStatus_Call {
+	return &Store_SetEntityPoolManagerStatus_Call{Call: _e.mock.On("SetEntityPoolManagerStatus", ctx, entity, param)}
+}
+
+func (_c *Store_SetEntityPoolManagerStatus_Call) Run(run func(ctx context.Context, entity params.ForgeEntity, param params.PoolManagerStatus)) *Store_SetEntityPoolManagerStatus_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(params.ForgeEntity), args[2].(params.PoolManagerStatus))
+	})
+	return _c
+}
+
+func (_c *Store_SetEntityPoolManagerStatus_Call) Return(_a0 error) *Store_SetEntityPoolManagerStatus_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *Store_SetEntityPoolManagerStatus_Call) RunAndReturn(run func(context.Context, params.ForgeEntity, params.PoolManagerStatus) error) *Store_SetEntityPoolManagerStatus_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SetScaleSetDesiredRunnerCount provides a mock function with given fields: ctx, scaleSetID, desiredRunnerCount
 func (_m *Store) SetScaleSetDesiredRunnerCount(ctx context.Context, scaleSetID uint, desiredRunnerCount int) error {
 	ret := _m.Called(ctx, scaleSetID, desiredRunnerCount)

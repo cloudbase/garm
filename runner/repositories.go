@@ -103,20 +103,7 @@ func (r *Runner) ListRepositories(ctx context.Context, filter params.RepositoryF
 		return nil, fmt.Errorf("error listing repositories: %w", err)
 	}
 
-	var allRepos []params.Repository
-
-	for _, repo := range repos {
-		poolMgr, err := r.poolManagerCtrl.GetRepoPoolManager(repo)
-		if err != nil {
-			repo.PoolManagerStatus.IsRunning = false
-			repo.PoolManagerStatus.FailureReason = fmt.Sprintf("failed to get pool manager: %q", err)
-		} else {
-			repo.PoolManagerStatus = poolMgr.Status()
-		}
-		allRepos = append(allRepos, repo)
-	}
-
-	return allRepos, nil
+	return repos, nil
 }
 
 func (r *Runner) GetRepositoryByID(ctx context.Context, repoID string) (params.Repository, error) {
@@ -129,12 +116,6 @@ func (r *Runner) GetRepositoryByID(ctx context.Context, repoID string) (params.R
 		return params.Repository{}, fmt.Errorf("error fetching repository: %w", err)
 	}
 
-	poolMgr, err := r.poolManagerCtrl.GetRepoPoolManager(repo)
-	if err != nil {
-		repo.PoolManagerStatus.IsRunning = false
-		repo.PoolManagerStatus.FailureReason = fmt.Sprintf("failed to get pool manager: %q", err)
-	}
-	repo.PoolManagerStatus = poolMgr.Status()
 	return repo, nil
 }
 
@@ -221,12 +202,6 @@ func (r *Runner) UpdateRepository(ctx context.Context, repoID string, param para
 		return params.Repository{}, fmt.Errorf("error updating repo: %w", err)
 	}
 
-	poolMgr, err := r.poolManagerCtrl.GetRepoPoolManager(repo)
-	if err != nil {
-		return params.Repository{}, fmt.Errorf("error getting pool manager: %w", err)
-	}
-
-	repo.PoolManagerStatus = poolMgr.Status()
 	return repo, nil
 }
 
