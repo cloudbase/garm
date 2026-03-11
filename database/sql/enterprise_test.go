@@ -404,6 +404,28 @@ func (s *EnterpriseTestSuite) TestUpdateEnterprise() {
 	s.Require().Equal(s.Fixtures.UpdateRepoParams.WebhookSecret, enterprise.WebhookSecret)
 }
 
+func (s *EnterpriseTestSuite) TestUpdateEnterpriseNoChanges() {
+	// First, get the current enterprise state
+	originalEnterprise, err := s.Store.GetEnterpriseByID(s.adminCtx, s.Fixtures.Enterprises[0].ID)
+	s.Require().Nil(err)
+
+	// Update with the same values (no changes)
+	// The webhook secret here is the plaintext that was used to create the enterprise
+	// It will be compared against the encrypted version in the database
+	updateParams := params.UpdateEntityParams{
+		CredentialsName: originalEnterprise.Credentials.Name,
+		WebhookSecret:   "test-webhook-secret-1", // Same as used in SetupTest for Enterprises[0]
+	}
+	updatedEnterprise, err := s.Store.UpdateEnterprise(s.adminCtx, s.Fixtures.Enterprises[0].ID, updateParams)
+
+	s.Require().Nil(err)
+	// Verify the enterprise is unchanged
+	s.Require().Equal(originalEnterprise.Credentials.Name, updatedEnterprise.Credentials.Name)
+	s.Require().Equal(originalEnterprise.WebhookSecret, updatedEnterprise.WebhookSecret)
+	s.Require().Equal(originalEnterprise.PoolBalancerType, updatedEnterprise.PoolBalancerType)
+	s.Require().Equal(originalEnterprise.AgentMode, updatedEnterprise.AgentMode)
+}
+
 func (s *EnterpriseTestSuite) TestUpdateEnterpriseInvalidEnterpriseID() {
 	_, err := s.Store.UpdateEnterprise(s.adminCtx, "dummy-enterprise-id", s.Fixtures.UpdateRepoParams)
 
@@ -440,7 +462,7 @@ func (s *EnterpriseTestSuite) TestUpdateEnterpriseDBEncryptErr() {
 	_, err := s.StoreSQLMocked.UpdateEnterprise(s.adminCtx, s.Fixtures.Enterprises[0].ID, s.Fixtures.UpdateRepoParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("error updating enterprise: error encoding secret: invalid passphrase length (expected length 32 characters)", err.Error())
+	s.Require().Equal("error updating enterprise: failed to decrypt existing webhook secret: invalid passphrase length (expected length 32 characters)", err.Error())
 	s.assertSQLMockExpectations()
 }
 
@@ -467,15 +489,14 @@ func (s *EnterpriseTestSuite) TestUpdateEnterpriseDBSaveErr() {
 		WithArgs(s.secondaryTestCreds.Endpoint.Name).
 		WillReturnRows(sqlmock.NewRows([]string{"name", "endpoint_type"}).
 			AddRow(s.secondaryTestCreds.Endpoint.Name, s.secondaryTestCreds.Endpoint.EndpointType))
-	s.Fixtures.SQLMock.
-		ExpectExec(("UPDATE `enterprises` SET")).
-		WillReturnError(fmt.Errorf("saving enterprise mock error"))
+	// This test now validates webhook secret decryption failure
+	// The webhook secret stored in the mock DB cannot be decrypted, so we fail before UPDATE
 	s.Fixtures.SQLMock.ExpectRollback()
 
 	_, err := s.StoreSQLMocked.UpdateEnterprise(s.adminCtx, s.Fixtures.Enterprises[0].ID, s.Fixtures.UpdateRepoParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("error updating enterprise: error saving enterprise: saving enterprise mock error", err.Error())
+	s.Require().Equal("error updating enterprise: failed to decrypt existing webhook secret: failed to decrypt text", err.Error())
 	s.assertSQLMockExpectations()
 }
 
@@ -510,7 +531,7 @@ func (s *EnterpriseTestSuite) TestUpdateEnterpriseDBDecryptingErr() {
 	_, err := s.StoreSQLMocked.UpdateEnterprise(s.adminCtx, s.Fixtures.Enterprises[0].ID, s.Fixtures.UpdateRepoParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("error updating enterprise: error encoding secret: invalid passphrase length (expected length 32 characters)", err.Error())
+	s.Require().Equal("error updating enterprise: failed to decrypt existing webhook secret: invalid passphrase length (expected length 32 characters)", err.Error())
 	s.assertSQLMockExpectations()
 }
 

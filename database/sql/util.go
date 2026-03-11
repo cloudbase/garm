@@ -571,77 +571,85 @@ func (s *sqlDatabase) getOrCreateTag(tx *gorm.DB, tagName string) (Tag, error) {
 	return newTag, nil
 }
 
-func (s *sqlDatabase) updatePool(tx *gorm.DB, pool Pool, param params.UpdatePoolParams) (params.Pool, error) {
+// nolint:gocyclo
+func (s *sqlDatabase) updatePool(tx *gorm.DB, pool Pool, param params.UpdatePoolParams) (params.Pool, int64, error) {
 	incrementGeneration := false
+	updates := make(map[string]interface{})
+
 	if param.Enabled != nil && pool.Enabled != *param.Enabled {
-		pool.Enabled = *param.Enabled
+		updates["enabled"] = *param.Enabled
 	}
 
-	if param.Flavor != "" {
-		pool.Flavor = param.Flavor
+	if param.Flavor != "" && param.Flavor != pool.Flavor {
+		updates["flavor"] = param.Flavor
 		incrementGeneration = true
 	}
 
-	if param.EnableShell != nil {
-		pool.EnableShell = *param.EnableShell
+	if param.EnableShell != nil && *param.EnableShell != pool.EnableShell {
+		updates["enable_shell"] = *param.EnableShell
 		incrementGeneration = true
 	}
 
-	if param.Image != "" {
-		pool.Image = param.Image
+	if param.Image != "" && param.Image != pool.Image {
+		updates["image"] = param.Image
 		incrementGeneration = true
 	}
 
-	if param.Prefix != "" {
-		pool.RunnerPrefix = param.Prefix
+	if param.Prefix != "" && param.Prefix != pool.RunnerPrefix {
+		updates["runner_prefix"] = param.Prefix
 	}
 
-	if param.MaxRunners != nil {
-		pool.MaxRunners = *param.MaxRunners
+	if param.MaxRunners != nil && *param.MaxRunners != pool.MaxRunners {
+		updates["max_runners"] = *param.MaxRunners
 	}
 
-	if param.TemplateID != nil {
-		pool.TemplateID = param.TemplateID
+	if param.TemplateID != nil && (pool.TemplateID == nil || *param.TemplateID != *pool.TemplateID) {
+		updates["template_id"] = param.TemplateID
 	}
 
-	if param.MinIdleRunners != nil {
-		pool.MinIdleRunners = *param.MinIdleRunners
+	if param.MinIdleRunners != nil && *param.MinIdleRunners != pool.MinIdleRunners {
+		updates["min_idle_runners"] = *param.MinIdleRunners
 	}
 
-	if param.OSArch != "" {
-		pool.OSArch = param.OSArch
+	if param.OSArch != "" && param.OSArch != pool.OSArch {
+		updates["os_arch"] = param.OSArch
 		incrementGeneration = true
 	}
 
-	if param.OSType != "" {
-		pool.OSType = param.OSType
+	if param.OSType != "" && param.OSType != pool.OSType {
+		updates["os_type"] = param.OSType
 		incrementGeneration = true
 	}
 
-	if param.ExtraSpecs != nil {
-		pool.ExtraSpecs = datatypes.JSON(param.ExtraSpecs)
+	if param.ExtraSpecs != nil && string(param.ExtraSpecs) != string(pool.ExtraSpecs) {
+		updates["extra_specs"] = datatypes.JSON(param.ExtraSpecs)
 		incrementGeneration = true
 	}
 
-	if param.RunnerBootstrapTimeout != nil && *param.RunnerBootstrapTimeout > 0 {
-		pool.RunnerBootstrapTimeout = *param.RunnerBootstrapTimeout
+	if param.RunnerBootstrapTimeout != nil && *param.RunnerBootstrapTimeout > 0 && *param.RunnerBootstrapTimeout != pool.RunnerBootstrapTimeout {
+		updates["runner_bootstrap_timeout"] = *param.RunnerBootstrapTimeout
 	}
 
-	if param.GitHubRunnerGroup != nil {
-		pool.GitHubRunnerGroup = *param.GitHubRunnerGroup
+	if param.GitHubRunnerGroup != nil && *param.GitHubRunnerGroup != pool.GitHubRunnerGroup {
+		updates["git_hub_runner_group"] = *param.GitHubRunnerGroup
 		incrementGeneration = true
 	}
 
-	if param.Priority != nil {
-		pool.Priority = *param.Priority
+	if param.Priority != nil && *param.Priority != pool.Priority {
+		updates["priority"] = *param.Priority
 	}
 
 	if incrementGeneration {
-		pool.Generation++
+		updates["generation"] = pool.Generation + 1
 	}
 
-	if q := tx.Save(&pool); q.Error != nil {
-		return params.Pool{}, fmt.Errorf("error saving database entry: %w", q.Error)
+	var rowsAffected int64
+	if len(updates) > 0 {
+		q := tx.Model(&pool).Omit("Repository", "Organization", "Enterprise", "Tags").Updates(updates)
+		if q.Error != nil {
+			return params.Pool{}, 0, fmt.Errorf("error saving database entry: %w", q.Error)
+		}
+		rowsAffected = q.RowsAffected
 	}
 
 	tags := []Tag{}
@@ -649,17 +657,30 @@ func (s *sqlDatabase) updatePool(tx *gorm.DB, pool Pool, param params.UpdatePool
 		for _, val := range param.Tags {
 			t, err := s.getOrCreateTag(tx, val)
 			if err != nil {
-				return params.Pool{}, fmt.Errorf("error fetching tag: %w", err)
+				return params.Pool{}, 0, fmt.Errorf("error fetching tag: %w", err)
 			}
 			tags = append(tags, t)
 		}
 
 		if err := tx.Model(&pool).Association("Tags").Replace(&tags); err != nil {
-			return params.Pool{}, fmt.Errorf("error replacing tags: %w", err)
+			return params.Pool{}, 0, fmt.Errorf("error replacing tags: %w", err)
+		}
+		// If only tags changed, we still want to notify
+		if rowsAffected == 0 {
+			rowsAffected = 1
 		}
 	}
 
-	return s.sqlToCommonPool(pool)
+	// Reload to get updated values
+	if err := tx.First(&pool, pool.ID).Error; err != nil {
+		return params.Pool{}, 0, fmt.Errorf("error reloading pool: %w", err)
+	}
+
+	commonPool, err := s.sqlToCommonPool(pool)
+	if err != nil {
+		return params.Pool{}, 0, err
+	}
+	return commonPool, rowsAffected, nil
 }
 
 func (s *sqlDatabase) getPoolByID(tx *gorm.DB, poolID string, preload ...string) (Pool, error) {
@@ -1132,7 +1153,7 @@ func (s *sqlDatabase) fetchCredentialsByType(ctx context.Context, tx *gorm.DB, c
 }
 
 // updateEntityCredentials fetches, validates, and assigns credentials to an entity
-func (s *sqlDatabase) updateEntityCredentials(ctx context.Context, tx *gorm.DB, entity ForgeEntity, credentialsName string) error {
+func (s *sqlDatabase) updateEntityCredentials(ctx context.Context, tx *gorm.DB, entity ForgeEntity, credentialsName string, updates map[string]interface{}) error {
 	if credentialsName == "" {
 		return nil
 	}
@@ -1159,8 +1180,41 @@ func (s *sqlDatabase) updateEntityCredentials(ctx context.Context, tx *gorm.DB, 
 		return runnerErrors.NewBadRequestError("endpoint mismatch")
 	}
 
-	// Entity handles setting the right field based on its endpoint type
-	return entity.SetCredentials(creds.GetID())
+	// Add the appropriate credentials field to updates based on endpoint type
+	// Only add if the credentials ID has changed
+	credID := creds.GetID()
+	switch forgeType {
+	case params.GithubEndpointType:
+		// Check current credentials ID based on entity type
+		switch e := entity.(type) {
+		case *Repository:
+			if e.CredentialsID == nil || *e.CredentialsID != credID {
+				updates["credentials_id"] = credID
+			}
+		case *Organization:
+			if e.CredentialsID == nil || *e.CredentialsID != credID {
+				updates["credentials_id"] = credID
+			}
+		case *Enterprise:
+			if e.CredentialsID == nil || *e.CredentialsID != credID {
+				updates["credentials_id"] = credID
+			}
+		}
+	case params.GiteaEndpointType:
+		switch e := entity.(type) {
+		case *Repository:
+			if e.GiteaCredentialsID == nil || *e.GiteaCredentialsID != credID {
+				updates["gitea_credentials_id"] = credID
+			}
+		case *Organization:
+			if e.GiteaCredentialsID == nil || *e.GiteaCredentialsID != credID {
+				updates["gitea_credentials_id"] = credID
+			}
+		}
+	default:
+		return runnerErrors.NewBadRequestError("unsupported endpoint type: %s", forgeType)
+	}
+	return nil
 }
 
 func (s *sqlDatabase) SetEntityPoolManagerStatus(ctx context.Context, entity params.ForgeEntity, param params.PoolManagerStatus) error {

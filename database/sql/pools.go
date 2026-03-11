@@ -403,8 +403,9 @@ func (s *sqlDatabase) DeleteEntityPool(_ context.Context, entity params.ForgeEnt
 }
 
 func (s *sqlDatabase) UpdateEntityPool(ctx context.Context, entity params.ForgeEntity, poolID string, param params.UpdatePoolParams) (updatedPool params.Pool, err error) {
+	var rowsAffected int64
 	defer func() {
-		if err == nil {
+		if err == nil && rowsAffected > 0 {
 			s.sendNotify(common.PoolEntityType, common.UpdateOperation, updatedPool)
 		}
 	}()
@@ -414,7 +415,7 @@ func (s *sqlDatabase) UpdateEntityPool(ctx context.Context, entity params.ForgeE
 			return fmt.Errorf("error fetching pool: %w", err)
 		}
 
-		updatedPool, err = s.updatePool(tx, pool, param)
+		updatedPool, rowsAffected, err = s.updatePool(tx, pool, param)
 		if err != nil {
 			return fmt.Errorf("error updating pool: %w", err)
 		}

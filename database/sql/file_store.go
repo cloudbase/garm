@@ -156,8 +156,9 @@ func (s *sqlDatabase) UpdateFileObject(_ context.Context, objID uint, param para
 		return params.FileObject{}, fmt.Errorf("failed to validate update params: %w", err)
 	}
 
+	var rowsAffected int64
 	defer func() {
-		if err == nil {
+		if err == nil && rowsAffected > 0 {
 			s.sendNotify(common.FileObjectEntityType, common.UpdateOperation, fileObjParam)
 		}
 	}()
@@ -171,13 +172,15 @@ func (s *sqlDatabase) UpdateFileObject(_ context.Context, objID uint, param para
 			return fmt.Errorf("error trying to find file object: %w", err)
 		}
 
+		updates := make(map[string]interface{})
+
 		// Update name if provided
 		if param.Name != nil {
-			fileObj.Name = *param.Name
+			updates["name"] = *param.Name
 		}
 
-		if param.Description != nil {
-			fileObj.Description = *param.Description
+		if param.Description != nil && *param.Description != fileObj.Description {
+			updates["description"] = *param.Description
 		}
 
 		// Update tags if provided
@@ -200,8 +203,15 @@ func (s *sqlDatabase) UpdateFileObject(_ context.Context, objID uint, param para
 		}
 
 		// Save the updated file object
-		if err := tx.Omit("content").Save(&fileObj).Error; err != nil {
-			return fmt.Errorf("failed to update file object: %w", err)
+		if len(updates) > 0 {
+			result := tx.Model(&fileObj).Omit("content").Updates(updates)
+			if result.Error != nil {
+				return fmt.Errorf("failed to update file object: %w", result.Error)
+			}
+			rowsAffected = result.RowsAffected
+		} else if param.Tags != nil {
+			// If only tags changed, we still want to notify
+			rowsAffected = 1
 		}
 
 		// Reload with tags

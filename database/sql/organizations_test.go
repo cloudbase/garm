@@ -470,6 +470,28 @@ func (s *OrgTestSuite) TestUpdateOrganization() {
 	s.Require().Equal(s.Fixtures.UpdateRepoParams.WebhookSecret, org.WebhookSecret)
 }
 
+func (s *OrgTestSuite) TestUpdateOrganizationNoChanges() {
+	// First, get the current organization state
+	originalOrg, err := s.Store.GetOrganizationByID(s.adminCtx, s.Fixtures.Orgs[0].ID)
+	s.Require().Nil(err)
+
+	// Update with the same values (no changes)
+	// The webhook secret here is the plaintext that was used to create the org
+	// It will be compared against the encrypted version in the database
+	updateParams := params.UpdateEntityParams{
+		CredentialsName: originalOrg.Credentials.Name,
+		WebhookSecret:   "test-webhook-secret-1", // Same as used in SetupTest for Orgs[0]
+	}
+	updatedOrg, err := s.Store.UpdateOrganization(s.adminCtx, s.Fixtures.Orgs[0].ID, updateParams)
+
+	s.Require().Nil(err)
+	// Verify the organization is unchanged
+	s.Require().Equal(originalOrg.Credentials.Name, updatedOrg.Credentials.Name)
+	s.Require().Equal(originalOrg.WebhookSecret, updatedOrg.WebhookSecret)
+	s.Require().Equal(originalOrg.PoolBalancerType, updatedOrg.PoolBalancerType)
+	s.Require().Equal(originalOrg.AgentMode, updatedOrg.AgentMode)
+}
+
 func (s *OrgTestSuite) TestUpdateOrganizationInvalidOrgID() {
 	_, err := s.Store.UpdateOrganization(s.adminCtx, "dummy-org-id", s.Fixtures.UpdateRepoParams)
 
@@ -506,11 +528,13 @@ func (s *OrgTestSuite) TestUpdateOrganizationDBEncryptErr() {
 	_, err := s.StoreSQLMocked.UpdateOrganization(s.adminCtx, s.Fixtures.Orgs[0].ID, s.Fixtures.UpdateRepoParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("error saving org: saving org: failed to encrypt string: invalid passphrase length (expected length 32 characters)", err.Error())
+	s.Require().Equal("error saving org: failed to decrypt existing webhook secret: invalid passphrase length (expected length 32 characters)", err.Error())
 	s.assertSQLMockExpectations()
 }
 
 func (s *OrgTestSuite) TestUpdateOrganizationDBSaveErr() {
+	// This test now validates webhook secret decryption failure
+	// The webhook secret stored in the mock DB cannot be decrypted, so we fail before UPDATE
 	s.Fixtures.SQLMock.ExpectBegin()
 	s.Fixtures.SQLMock.
 		ExpectQuery(regexp.QuoteMeta("SELECT * FROM `organizations` WHERE id = ? AND `organizations`.`deleted_at` IS NULL ORDER BY `organizations`.`id` LIMIT ?")).
@@ -533,15 +557,12 @@ func (s *OrgTestSuite) TestUpdateOrganizationDBSaveErr() {
 		WithArgs(s.secondaryTestCreds.Endpoint.Name).
 		WillReturnRows(sqlmock.NewRows([]string{"name", "endpoint_type"}).
 			AddRow(s.secondaryTestCreds.Endpoint.Name, s.secondaryTestCreds.Endpoint.EndpointType))
-	s.Fixtures.SQLMock.
-		ExpectExec(("UPDATE `organizations` SET")).
-		WillReturnError(fmt.Errorf("saving org mock error"))
 	s.Fixtures.SQLMock.ExpectRollback()
 
 	_, err := s.StoreSQLMocked.UpdateOrganization(s.adminCtx, s.Fixtures.Orgs[0].ID, s.Fixtures.UpdateRepoParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("error saving org: error saving org: saving org mock error", err.Error())
+	s.Require().Equal("error saving org: failed to decrypt existing webhook secret: failed to decrypt text", err.Error())
 	s.assertSQLMockExpectations()
 }
 
@@ -576,7 +597,7 @@ func (s *OrgTestSuite) TestUpdateOrganizationDBDecryptingErr() {
 	_, err := s.StoreSQLMocked.UpdateOrganization(s.adminCtx, s.Fixtures.Orgs[0].ID, s.Fixtures.UpdateRepoParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("error saving org: saving org: failed to encrypt string: invalid passphrase length (expected length 32 characters)", err.Error())
+	s.Require().Equal("error saving org: failed to decrypt existing webhook secret: invalid passphrase length (expected length 32 characters)", err.Error())
 	s.assertSQLMockExpectations()
 }
 
