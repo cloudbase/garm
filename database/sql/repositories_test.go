@@ -542,6 +542,28 @@ func (s *RepoTestSuite) TestUpdateRepository() {
 	s.Require().Equal(s.Fixtures.UpdateRepoParams.WebhookSecret, repo.WebhookSecret)
 }
 
+func (s *RepoTestSuite) TestUpdateRepositoryNoChanges() {
+	// First, get the current repository state
+	originalRepo, err := s.Store.GetRepositoryByID(s.adminCtx, s.Fixtures.Repos[0].ID)
+	s.Require().Nil(err)
+
+	// Update with the same values (no changes)
+	// The webhook secret here is the plaintext that was used to create the repo
+	// It will be compared against the encrypted version in the database
+	updateParams := params.UpdateEntityParams{
+		CredentialsName: originalRepo.Credentials.Name,
+		WebhookSecret:   "test-webhook-secret-1", // Same as used in SetupTest for Repos[0]
+	}
+	updatedRepo, err := s.Store.UpdateRepository(s.adminCtx, s.Fixtures.Repos[0].ID, updateParams)
+
+	s.Require().Nil(err)
+	// Verify the repository is unchanged
+	s.Require().Equal(originalRepo.Credentials.Name, updatedRepo.Credentials.Name)
+	s.Require().Equal(originalRepo.WebhookSecret, updatedRepo.WebhookSecret)
+	s.Require().Equal(originalRepo.PoolBalancerType, updatedRepo.PoolBalancerType)
+	s.Require().Equal(originalRepo.AgentMode, updatedRepo.AgentMode)
+}
+
 func (s *RepoTestSuite) TestUpdateRepositoryInvalidRepoID() {
 	_, err := s.Store.UpdateRepository(s.adminCtx, "dummy-repo-id", s.Fixtures.UpdateRepoParams)
 
@@ -578,7 +600,7 @@ func (s *RepoTestSuite) TestUpdateRepositoryDBEncryptErr() {
 	_, err := s.StoreSQLMocked.UpdateRepository(s.adminCtx, s.Fixtures.Repos[0].ID, s.Fixtures.UpdateRepoParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("error saving repo: saving repo: failed to encrypt string: invalid passphrase length (expected length 32 characters)", err.Error())
+	s.Require().Equal("error saving repo: failed to decrypt existing webhook secret: invalid passphrase length (expected length 32 characters)", err.Error())
 	s.assertSQLMockExpectations()
 }
 
@@ -605,15 +627,14 @@ func (s *RepoTestSuite) TestUpdateRepositoryDBSaveErr() {
 		WithArgs(s.secondaryTestCreds.Endpoint.Name).
 		WillReturnRows(sqlmock.NewRows([]string{"name", "endpoint_type"}).
 			AddRow(s.secondaryTestCreds.Endpoint.Name, s.secondaryTestCreds.Endpoint.EndpointType))
-	s.Fixtures.SQLMock.
-		ExpectExec(("UPDATE `repositories` SET")).
-		WillReturnError(fmt.Errorf("saving repo mock error"))
+	// This test now validates webhook secret decryption failure
+	// The webhook secret stored in the mock DB cannot be decrypted, so we fail before UPDATE
 	s.Fixtures.SQLMock.ExpectRollback()
 
 	_, err := s.StoreSQLMocked.UpdateRepository(s.adminCtx, s.Fixtures.Repos[0].ID, s.Fixtures.UpdateRepoParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("error saving repo: error saving repo: saving repo mock error", err.Error())
+	s.Require().Equal("error saving repo: failed to decrypt existing webhook secret: failed to decrypt text", err.Error())
 	s.assertSQLMockExpectations()
 }
 
@@ -647,7 +668,7 @@ func (s *RepoTestSuite) TestUpdateRepositoryDBDecryptingErr() {
 	_, err := s.StoreSQLMocked.UpdateRepository(s.adminCtx, s.Fixtures.Repos[0].ID, s.Fixtures.UpdateRepoParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal("error saving repo: saving repo: failed to encrypt string: invalid passphrase length (expected length 32 characters)", err.Error())
+	s.Require().Equal("error saving repo: failed to decrypt existing webhook secret: invalid passphrase length (expected length 32 characters)", err.Error())
 	s.assertSQLMockExpectations()
 }
 

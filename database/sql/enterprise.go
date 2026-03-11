@@ -168,8 +168,9 @@ func (s *sqlDatabase) DeleteEnterprise(ctx context.Context, enterpriseID string)
 }
 
 func (s *sqlDatabase) UpdateEnterprise(ctx context.Context, enterpriseID string, param params.UpdateEntityParams) (newParams params.Enterprise, err error) {
+	var rowsAffected int64
 	defer func() {
-		if err == nil {
+		if err == nil && rowsAffected > 0 {
 			s.sendNotify(common.EnterpriseEntityType, common.UpdateOperation, newParams)
 		}
 	}()
@@ -185,33 +186,51 @@ func (s *sqlDatabase) UpdateEnterprise(ctx context.Context, enterpriseID string,
 			return fmt.Errorf("error enterprise has no endpoint: %w", runnerErrors.ErrUnprocessable)
 		}
 
-		if err := s.updateEntityCredentials(ctx, tx, &enterprise, param.CredentialsName); err != nil {
+		updates := make(map[string]interface{})
+
+		if err := s.updateEntityCredentials(ctx, tx, &enterprise, param.CredentialsName, updates); err != nil {
 			return err
 		}
+
 		if param.WebhookSecret != "" {
-			secret, err := util.Seal([]byte(param.WebhookSecret), []byte(s.cfg.Passphrase))
+			// Decrypt existing secret to compare
+			existingSecret, err := util.Unseal(enterprise.WebhookSecret, []byte(s.cfg.Passphrase))
 			if err != nil {
-				return fmt.Errorf("error encoding secret: %w", err)
+				return fmt.Errorf("failed to decrypt existing webhook secret: %w", err)
 			}
-			enterprise.WebhookSecret = secret
+			// Only update if the webhook secret has changed
+			if string(existingSecret) != param.WebhookSecret {
+				secret, err := util.Seal([]byte(param.WebhookSecret), []byte(s.cfg.Passphrase))
+				if err != nil {
+					return fmt.Errorf("error encoding secret: %w", err)
+				}
+				updates["webhook_secret"] = secret
+			}
 		}
 
 		if param.PoolManagerStatus != nil {
-			enterprise.PoolManagerRunning = param.PoolManagerStatus.IsRunning
-			enterprise.PoolManagerFailureReason = param.PoolManagerStatus.FailureReason
+			if param.PoolManagerStatus.IsRunning != enterprise.PoolManagerRunning {
+				updates["pool_manager_running"] = param.PoolManagerStatus.IsRunning
+			}
+			if param.PoolManagerStatus.FailureReason != enterprise.PoolManagerFailureReason {
+				updates["pool_manager_failure_reason"] = param.PoolManagerStatus.FailureReason
+			}
 		}
 
-		if param.PoolBalancerType != "" {
-			enterprise.PoolBalancerType = param.PoolBalancerType
+		if param.PoolBalancerType != "" && param.PoolBalancerType != enterprise.PoolBalancerType {
+			updates["pool_balancer_type"] = param.PoolBalancerType
 		}
 
-		if param.AgentMode != nil {
-			enterprise.AgentMode = *param.AgentMode
+		if param.AgentMode != nil && *param.AgentMode != enterprise.AgentMode {
+			updates["agent_mode"] = *param.AgentMode
 		}
 
-		q := tx.Model(&enterprise).Omit("Endpoint").Save(&enterprise)
-		if q.Error != nil {
-			return fmt.Errorf("error saving enterprise: %w", q.Error)
+		if len(updates) > 0 {
+			q := tx.Model(&enterprise).Omit("Endpoint").Updates(updates)
+			if q.Error != nil {
+				return fmt.Errorf("error saving enterprise: %w", q.Error)
+			}
+			rowsAffected = q.RowsAffected
 		}
 
 		return nil

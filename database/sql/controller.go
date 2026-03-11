@@ -156,8 +156,9 @@ func (s *sqlDatabase) InitController() (params.ControllerInfo, error) {
 }
 
 func (s *sqlDatabase) UpdateController(info params.UpdateControllerParams) (paramInfo params.ControllerInfo, err error) {
+	var rowsAffected int64
 	defer func() {
-		if err == nil {
+		if err == nil && rowsAffected > 0 {
 			s.sendNotify(common.ControllerEntityType, common.UpdateOperation, paramInfo)
 		}
 	}()
@@ -175,20 +176,22 @@ func (s *sqlDatabase) UpdateController(info params.UpdateControllerParams) (para
 			return fmt.Errorf("error validating controller info: %w", err)
 		}
 
-		if info.MetadataURL != nil {
-			dbInfo.MetadataURL = *info.MetadataURL
+		updates := make(map[string]interface{})
+
+		if info.MetadataURL != nil && *info.MetadataURL != dbInfo.MetadataURL {
+			updates["metadata_url"] = *info.MetadataURL
 		}
 
-		if info.CallbackURL != nil {
-			dbInfo.CallbackURL = *info.CallbackURL
+		if info.CallbackURL != nil && *info.CallbackURL != dbInfo.CallbackURL {
+			updates["callback_url"] = *info.CallbackURL
 		}
 
-		if info.WebhookURL != nil {
-			dbInfo.WebhookBaseURL = *info.WebhookURL
+		if info.WebhookURL != nil && *info.WebhookURL != dbInfo.WebhookBaseURL {
+			updates["webhook_base_url"] = *info.WebhookURL
 		}
 
-		if info.AgentURL != nil {
-			dbInfo.AgentURL = *info.AgentURL
+		if info.AgentURL != nil && *info.AgentURL != dbInfo.AgentURL {
+			updates["agent_url"] = *info.AgentURL
 		}
 
 		if info.GARMAgentReleasesURL != nil {
@@ -196,20 +199,25 @@ func (s *sqlDatabase) UpdateController(info params.UpdateControllerParams) (para
 			if agentToolsURL == "" {
 				agentToolsURL = appdefaults.GARMAgentDefaultReleasesURL
 			}
-			dbInfo.GARMAgentReleasesURL = agentToolsURL
+			if agentToolsURL != dbInfo.GARMAgentReleasesURL {
+				updates["garm_agent_releases_url"] = agentToolsURL
+			}
 		}
 
-		if info.SyncGARMAgentTools != nil {
-			dbInfo.SyncGARMAgentTools = *info.SyncGARMAgentTools
+		if info.SyncGARMAgentTools != nil && *info.SyncGARMAgentTools != dbInfo.SyncGARMAgentTools {
+			updates["sync_garm_agent_tools"] = *info.SyncGARMAgentTools
 		}
 
-		if info.MinimumJobAgeBackoff != nil {
-			dbInfo.MinimumJobAgeBackoff = *info.MinimumJobAgeBackoff
+		if info.MinimumJobAgeBackoff != nil && *info.MinimumJobAgeBackoff != dbInfo.MinimumJobAgeBackoff {
+			updates["minimum_job_age_backoff"] = *info.MinimumJobAgeBackoff
 		}
 
-		q = tx.Save(&dbInfo)
-		if q.Error != nil {
-			return fmt.Errorf("error saving controller info: %w", q.Error)
+		if len(updates) > 0 {
+			q = tx.Model(&dbInfo).Updates(updates)
+			if q.Error != nil {
+				return fmt.Errorf("error saving controller info: %w", q.Error)
+			}
+			rowsAffected = q.RowsAffected
 		}
 		return nil
 	})
@@ -226,6 +234,7 @@ func (s *sqlDatabase) UpdateController(info params.UpdateControllerParams) (para
 
 func (s *sqlDatabase) UpdateCachedGARMAgentRelease(releaseData []byte, fetchedAt time.Time) error {
 	var dbInfo ControllerInfo
+	var rowsAffected int64
 	err := s.conn.Transaction(func(tx *gorm.DB) error {
 		q := tx.Model(&ControllerInfo{}).First(&dbInfo)
 		if q.Error != nil {
@@ -235,24 +244,29 @@ func (s *sqlDatabase) UpdateCachedGARMAgentRelease(releaseData []byte, fetchedAt
 			return fmt.Errorf("error fetching controller info: %w", q.Error)
 		}
 
-		dbInfo.CachedGARMAgentRelease = releaseData
-		dbInfo.CachedGARMAgentReleaseFetchedAt = &fetchedAt
+		updates := map[string]interface{}{
+			"cached_garm_agent_release":            releaseData,
+			"cached_garm_agent_release_fetched_at": &fetchedAt,
+		}
 
-		q = tx.Save(&dbInfo)
+		q = tx.Model(&dbInfo).Updates(updates)
 		if q.Error != nil {
 			return fmt.Errorf("error saving controller info: %w", q.Error)
 		}
+		rowsAffected = q.RowsAffected
 		return nil
 	})
 	if err != nil {
 		return fmt.Errorf("error updating cached release: %w", err)
 	}
 
-	paramInfo, err := dbControllerToCommonController(dbInfo)
-	if err != nil {
-		return fmt.Errorf("error converting controller info: %w", err)
+	if rowsAffected > 0 {
+		paramInfo, err := dbControllerToCommonController(dbInfo)
+		if err != nil {
+			return fmt.Errorf("error converting controller info: %w", err)
+		}
+		s.sendNotify(common.ControllerEntityType, common.UpdateOperation, paramInfo)
 	}
-	s.sendNotify(common.ControllerEntityType, common.UpdateOperation, paramInfo)
 
 	return nil
 }

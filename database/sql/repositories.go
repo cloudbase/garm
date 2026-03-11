@@ -154,8 +154,9 @@ func (s *sqlDatabase) DeleteRepository(ctx context.Context, repoID string) (err 
 }
 
 func (s *sqlDatabase) UpdateRepository(ctx context.Context, repoID string, param params.UpdateEntityParams) (newParams params.Repository, err error) {
+	var rowsAffected int64
 	defer func() {
-		if err == nil {
+		if err == nil && rowsAffected > 0 {
 			s.sendNotify(common.RepositoryEntityType, common.UpdateOperation, newParams)
 		}
 	}()
@@ -170,33 +171,50 @@ func (s *sqlDatabase) UpdateRepository(ctx context.Context, repoID string, param
 			return runnerErrors.NewUnprocessableError("repository has no endpoint")
 		}
 
-		if err := s.updateEntityCredentials(ctx, tx, &repo, param.CredentialsName); err != nil {
+		updates := make(map[string]interface{})
+
+		if err := s.updateEntityCredentials(ctx, tx, &repo, param.CredentialsName, updates); err != nil {
 			return err
 		}
 
 		if param.WebhookSecret != "" {
-			secret, err := util.Seal([]byte(param.WebhookSecret), []byte(s.cfg.Passphrase))
+			// Decrypt existing secret to compare
+			existingSecret, err := util.Unseal(repo.WebhookSecret, []byte(s.cfg.Passphrase))
 			if err != nil {
-				return fmt.Errorf("saving repo: failed to encrypt string: %w", err)
+				return fmt.Errorf("failed to decrypt existing webhook secret: %w", err)
 			}
-			repo.WebhookSecret = secret
+			// Only update if the webhook secret has changed
+			if string(existingSecret) != param.WebhookSecret {
+				secret, err := util.Seal([]byte(param.WebhookSecret), []byte(s.cfg.Passphrase))
+				if err != nil {
+					return fmt.Errorf("saving repo: failed to encrypt string: %w", err)
+				}
+				updates["webhook_secret"] = secret
+			}
 		}
 
 		if param.PoolManagerStatus != nil {
-			repo.PoolManagerRunning = param.PoolManagerStatus.IsRunning
-			repo.PoolManagerFailureReason = param.PoolManagerStatus.FailureReason
+			if param.PoolManagerStatus.IsRunning != repo.PoolManagerRunning {
+				updates["pool_manager_running"] = param.PoolManagerStatus.IsRunning
+			}
+			if param.PoolManagerStatus.FailureReason != repo.PoolManagerFailureReason {
+				updates["pool_manager_failure_reason"] = param.PoolManagerStatus.FailureReason
+			}
 		}
 
-		if param.PoolBalancerType != "" {
-			repo.PoolBalancerType = param.PoolBalancerType
+		if param.PoolBalancerType != "" && param.PoolBalancerType != repo.PoolBalancerType {
+			updates["pool_balancer_type"] = param.PoolBalancerType
 		}
-		if param.AgentMode != nil {
-			repo.AgentMode = *param.AgentMode
+		if param.AgentMode != nil && *param.AgentMode != repo.AgentMode {
+			updates["agent_mode"] = *param.AgentMode
 		}
 
-		q := tx.Model(&repo).Omit("Endpoint").Save(&repo)
-		if q.Error != nil {
-			return fmt.Errorf("error saving repo: %w", q.Error)
+		if len(updates) > 0 {
+			q := tx.Model(&repo).Omit("Endpoint").Updates(updates)
+			if q.Error != nil {
+				return fmt.Errorf("error saving repo: %w", q.Error)
+			}
+			rowsAffected = q.RowsAffected
 		}
 
 		return nil

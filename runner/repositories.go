@@ -196,7 +196,7 @@ func (r *Runner) UpdateRepository(ctx context.Context, repoID string, param para
 		return params.Repository{}, runnerErrors.NewBadRequestError("invalid pool balancer type: %s", param.PoolBalancerType)
 	}
 
-	slog.InfoContext(ctx, "updating repository", "repo_id", repoID, "param", param)
+	slog.InfoContext(ctx, "updating repository", "repo_id", repoID)
 	repo, err := r.store.UpdateRepository(ctx, repoID, param)
 	if err != nil {
 		return params.Repository{}, fmt.Errorf("error updating repo: %w", err)

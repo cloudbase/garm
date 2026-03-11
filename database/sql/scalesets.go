@@ -196,8 +196,9 @@ func (s *sqlDatabase) ListEntityScaleSets(_ context.Context, entity params.Forge
 }
 
 func (s *sqlDatabase) UpdateEntityScaleSet(ctx context.Context, entity params.ForgeEntity, scaleSetID uint, param params.UpdateScaleSetParams, callback func(old, newSet params.ScaleSet) error) (updatedScaleSet params.ScaleSet, err error) {
+	var rowsAffected int64
 	defer func() {
-		if err == nil {
+		if err == nil && rowsAffected > 0 {
 			s.sendNotify(common.ScaleSetEntityType, common.UpdateOperation, updatedScaleSet)
 		}
 	}()
@@ -212,7 +213,7 @@ func (s *sqlDatabase) UpdateEntityScaleSet(ctx context.Context, entity params.Fo
 			return fmt.Errorf("error converting scale set: %w", err)
 		}
 
-		updatedScaleSet, err = s.updateScaleSet(tx, scaleSet, param)
+		updatedScaleSet, rowsAffected, err = s.updateScaleSet(tx, scaleSet, param)
 		if err != nil {
 			return fmt.Errorf("error updating scale set: %w", err)
 		}
@@ -283,92 +284,109 @@ func (s *sqlDatabase) getEntityScaleSet(tx *gorm.DB, entityType params.ForgeEnti
 	return scaleSet, nil
 }
 
-func (s *sqlDatabase) updateScaleSet(tx *gorm.DB, scaleSet ScaleSet, param params.UpdateScaleSetParams) (params.ScaleSet, error) {
+// nolint:gocyclo
+func (s *sqlDatabase) updateScaleSet(tx *gorm.DB, scaleSet ScaleSet, param params.UpdateScaleSetParams) (params.ScaleSet, int64, error) {
+	updates := make(map[string]interface{})
 	incrementGeneration := false
+
 	if param.Enabled != nil && scaleSet.Enabled != *param.Enabled {
-		scaleSet.Enabled = *param.Enabled
+		updates["enabled"] = *param.Enabled
 	}
 
 	if param.State != nil && *param.State != scaleSet.State {
-		scaleSet.State = *param.State
+		updates["state"] = *param.State
 	}
 
 	if param.ExtendedState != nil && *param.ExtendedState != scaleSet.ExtendedState {
-		scaleSet.ExtendedState = *param.ExtendedState
+		updates["extended_state"] = *param.ExtendedState
 	}
 
-	if param.ScaleSetID != 0 {
-		scaleSet.ScaleSetID = param.ScaleSetID
+	if param.ScaleSetID != 0 && param.ScaleSetID != scaleSet.ScaleSetID {
+		updates["scale_set_id"] = param.ScaleSetID
 	}
 
-	if param.TemplateID != nil {
-		scaleSet.TemplateID = param.TemplateID
+	if param.TemplateID != nil && (scaleSet.TemplateID == nil || *param.TemplateID != *scaleSet.TemplateID) {
+		updates["template_id"] = param.TemplateID
 	}
 
-	if param.EnableShell != nil {
-		scaleSet.EnableShell = *param.EnableShell
+	if param.EnableShell != nil && *param.EnableShell != scaleSet.EnableShell {
+		updates["enable_shell"] = *param.EnableShell
 		incrementGeneration = true
 	}
 
-	if param.Name != "" {
-		scaleSet.Name = param.Name
+	if param.Name != "" && param.Name != scaleSet.Name {
+		updates["name"] = param.Name
 	}
 
-	if param.GitHubRunnerGroup != nil && *param.GitHubRunnerGroup != "" {
-		scaleSet.GitHubRunnerGroup = *param.GitHubRunnerGroup
+	if param.GitHubRunnerGroup != nil && *param.GitHubRunnerGroup != "" && *param.GitHubRunnerGroup != scaleSet.GitHubRunnerGroup {
+		updates["git_hub_runner_group"] = *param.GitHubRunnerGroup
 		incrementGeneration = true
 	}
 
-	if param.Flavor != "" {
-		scaleSet.Flavor = param.Flavor
+	if param.Flavor != "" && param.Flavor != scaleSet.Flavor {
+		updates["flavor"] = param.Flavor
 		incrementGeneration = true
 	}
 
-	if param.Image != "" {
-		scaleSet.Image = param.Image
+	if param.Image != "" && param.Image != scaleSet.Image {
+		updates["image"] = param.Image
 		incrementGeneration = true
 	}
 
-	if param.Prefix != "" {
-		scaleSet.RunnerPrefix = param.Prefix
+	if param.Prefix != "" && param.Prefix != scaleSet.RunnerPrefix {
+		updates["runner_prefix"] = param.Prefix
 	}
 
-	if param.MaxRunners != nil {
-		scaleSet.MaxRunners = *param.MaxRunners
+	if param.MaxRunners != nil && *param.MaxRunners != scaleSet.MaxRunners {
+		updates["max_runners"] = *param.MaxRunners
 	}
 
-	if param.MinIdleRunners != nil {
-		scaleSet.MinIdleRunners = *param.MinIdleRunners
+	if param.MinIdleRunners != nil && *param.MinIdleRunners != scaleSet.MinIdleRunners {
+		updates["min_idle_runners"] = *param.MinIdleRunners
 	}
 
-	if param.OSArch != "" {
-		scaleSet.OSArch = param.OSArch
+	if param.OSArch != "" && param.OSArch != scaleSet.OSArch {
+		updates["os_arch"] = param.OSArch
 		incrementGeneration = true
 	}
 
-	if param.OSType != "" {
-		scaleSet.OSType = param.OSType
+	if param.OSType != "" && param.OSType != scaleSet.OSType {
+		updates["os_type"] = param.OSType
 		incrementGeneration = true
 	}
 
-	if param.ExtraSpecs != nil {
-		scaleSet.ExtraSpecs = datatypes.JSON(param.ExtraSpecs)
+	if param.ExtraSpecs != nil && string(param.ExtraSpecs) != string(scaleSet.ExtraSpecs) {
+		updates["extra_specs"] = datatypes.JSON(param.ExtraSpecs)
 		incrementGeneration = true
 	}
 
-	if param.RunnerBootstrapTimeout != nil && *param.RunnerBootstrapTimeout > 0 {
-		scaleSet.RunnerBootstrapTimeout = *param.RunnerBootstrapTimeout
+	if param.RunnerBootstrapTimeout != nil && *param.RunnerBootstrapTimeout > 0 && *param.RunnerBootstrapTimeout != scaleSet.RunnerBootstrapTimeout {
+		updates["runner_bootstrap_timeout"] = *param.RunnerBootstrapTimeout
 	}
 
 	if incrementGeneration {
-		scaleSet.Generation++
+		updates["generation"] = scaleSet.Generation + 1
 	}
 
-	if q := tx.Save(&scaleSet); q.Error != nil {
-		return params.ScaleSet{}, fmt.Errorf("error saving database entry: %w", q.Error)
+	var rowsAffected int64
+	if len(updates) > 0 {
+		q := tx.Model(&scaleSet).Omit("Repository", "Organization", "Enterprise", "Instances", "Template").Updates(updates)
+		if q.Error != nil {
+			return params.ScaleSet{}, 0, fmt.Errorf("error saving database entry: %w", q.Error)
+		}
+		rowsAffected = q.RowsAffected
+
+		// Reload to get the updated values
+		if err := tx.First(&scaleSet, scaleSet.ID).Error; err != nil {
+			return params.ScaleSet{}, 0, fmt.Errorf("error reloading scale set: %w", err)
+		}
 	}
 
-	return s.sqlToCommonScaleSet(scaleSet)
+	commonScaleSet, err := s.sqlToCommonScaleSet(scaleSet)
+	if err != nil {
+		return params.ScaleSet{}, 0, err
+	}
+	return commonScaleSet, rowsAffected, nil
 }
 
 func (s *sqlDatabase) GetScaleSetByID(_ context.Context, scaleSet uint) (params.ScaleSet, error) {
@@ -424,8 +442,9 @@ func (s *sqlDatabase) DeleteScaleSetByID(_ context.Context, scaleSetID uint) (er
 
 func (s *sqlDatabase) SetScaleSetLastMessageID(_ context.Context, scaleSetID uint, lastMessageID int64) (err error) {
 	var scaleSet params.ScaleSet
+	var rowsAffected int64
 	defer func() {
-		if err == nil && scaleSet.ID != 0 {
+		if err == nil && scaleSet.ID != 0 && rowsAffected > 0 {
 			s.sendNotify(common.ScaleSetEntityType, common.UpdateOperation, scaleSet)
 		}
 	}()
@@ -434,9 +453,18 @@ func (s *sqlDatabase) SetScaleSetLastMessageID(_ context.Context, scaleSetID uin
 		if err != nil {
 			return fmt.Errorf("error fetching scale set: %w", err)
 		}
-		dbSet.LastMessageID = lastMessageID
-		if err := tx.Save(&dbSet).Error; err != nil {
-			return fmt.Errorf("error saving database entry: %w", err)
+		result := tx.Model(&dbSet).Updates(map[string]interface{}{
+			"last_message_id": lastMessageID,
+		})
+		if result.Error != nil {
+			return fmt.Errorf("error saving database entry: %w", result.Error)
+		}
+		rowsAffected = result.RowsAffected
+
+		// Reload to get the updated value
+		dbSet, err = s.getScaleSetByID(tx, scaleSetID, "Instances", "Enterprise", "Organization", "Repository")
+		if err != nil {
+			return fmt.Errorf("error reloading scale set: %w", err)
 		}
 		scaleSet, err = s.sqlToCommonScaleSet(dbSet)
 		if err != nil {
@@ -451,8 +479,9 @@ func (s *sqlDatabase) SetScaleSetLastMessageID(_ context.Context, scaleSetID uin
 
 func (s *sqlDatabase) SetScaleSetDesiredRunnerCount(_ context.Context, scaleSetID uint, desiredRunnerCount int) (err error) {
 	var scaleSet params.ScaleSet
+	var rowsAffected int64
 	defer func() {
-		if err == nil && scaleSet.ID != 0 {
+		if err == nil && scaleSet.ID != 0 && rowsAffected > 0 {
 			s.sendNotify(common.ScaleSetEntityType, common.UpdateOperation, scaleSet)
 		}
 	}()
@@ -461,9 +490,18 @@ func (s *sqlDatabase) SetScaleSetDesiredRunnerCount(_ context.Context, scaleSetI
 		if err != nil {
 			return fmt.Errorf("error fetching scale set: %w", err)
 		}
-		dbSet.DesiredRunnerCount = desiredRunnerCount
-		if err := tx.Save(&dbSet).Error; err != nil {
-			return fmt.Errorf("error saving database entry: %w", err)
+		result := tx.Model(&dbSet).Updates(map[string]interface{}{
+			"desired_runner_count": desiredRunnerCount,
+		})
+		if result.Error != nil {
+			return fmt.Errorf("error saving database entry: %w", result.Error)
+		}
+		rowsAffected = result.RowsAffected
+
+		// Reload to get the updated value
+		dbSet, err = s.getScaleSetByID(tx, scaleSetID, "Instances", "Enterprise", "Organization", "Repository")
+		if err != nil {
+			return fmt.Errorf("error reloading scale set: %w", err)
 		}
 		scaleSet, err = s.sqlToCommonScaleSet(dbSet)
 		if err != nil {

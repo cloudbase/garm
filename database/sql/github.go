@@ -82,8 +82,9 @@ func (s *sqlDatabase) ListGithubEndpoints(_ context.Context) ([]params.ForgeEndp
 }
 
 func (s *sqlDatabase) UpdateGithubEndpoint(_ context.Context, name string, param params.UpdateGithubEndpointParams) (ghEndpoint params.ForgeEndpoint, err error) {
+	var rowsAffected int64
 	defer func() {
-		if err == nil {
+		if err == nil && rowsAffected > 0 {
 			s.sendNotify(common.GithubEndpointEntityType, common.UpdateOperation, ghEndpoint)
 		}
 	}()
@@ -102,32 +103,47 @@ func (s *sqlDatabase) UpdateGithubEndpoint(_ context.Context, name string, param
 				return fmt.Errorf("error fetching github credentials: %w", err)
 			}
 		}
-		if credsCount > 0 && (param.APIBaseURL != nil || param.BaseURL != nil || param.UploadBaseURL != nil) {
-			return fmt.Errorf("cannot update endpoint URLs with existing credentials: %w", runnerErrors.ErrBadRequest)
+
+		updates := make(map[string]interface{})
+
+		if param.APIBaseURL != nil && *param.APIBaseURL != endpoint.APIBaseURL {
+			updates["api_base_url"] = *param.APIBaseURL
 		}
 
-		if param.APIBaseURL != nil {
-			endpoint.APIBaseURL = *param.APIBaseURL
+		if param.BaseURL != nil && *param.BaseURL != endpoint.BaseURL {
+			updates["base_url"] = *param.BaseURL
 		}
 
-		if param.BaseURL != nil {
-			endpoint.BaseURL = *param.BaseURL
+		if param.UploadBaseURL != nil && *param.UploadBaseURL != endpoint.UploadBaseURL {
+			updates["upload_base_url"] = *param.UploadBaseURL
 		}
 
-		if param.UploadBaseURL != nil {
-			endpoint.UploadBaseURL = *param.UploadBaseURL
+		if param.CACertBundle != nil && string(param.CACertBundle) != string(endpoint.CACertBundle) {
+			updates["ca_cert_bundle"] = param.CACertBundle
 		}
 
-		if param.CACertBundle != nil {
-			endpoint.CACertBundle = param.CACertBundle
+		if param.Description != nil && *param.Description != endpoint.Description {
+			updates["description"] = *param.Description
 		}
 
-		if param.Description != nil {
-			endpoint.Description = *param.Description
+		if credsCount > 0 {
+			if _, hasAPIBaseURL := updates["api_base_url"]; hasAPIBaseURL {
+				return fmt.Errorf("cannot update endpoint URLs with existing credentials: %w", runnerErrors.ErrBadRequest)
+			}
+			if _, hasBaseURL := updates["base_url"]; hasBaseURL {
+				return fmt.Errorf("cannot update endpoint URLs with existing credentials: %w", runnerErrors.ErrBadRequest)
+			}
+			if _, hasUploadBaseURL := updates["upload_base_url"]; hasUploadBaseURL {
+				return fmt.Errorf("cannot update endpoint URLs with existing credentials: %w", runnerErrors.ErrBadRequest)
+			}
 		}
 
-		if err := tx.Save(&endpoint).Error; err != nil {
-			return fmt.Errorf("error updating github endpoint: %w", err)
+		if len(updates) > 0 {
+			result := tx.Model(&endpoint).Updates(updates)
+			if result.Error != nil {
+				return fmt.Errorf("error updating github endpoint: %w", result.Error)
+			}
+			rowsAffected = result.RowsAffected
 		}
 
 		return nil
@@ -383,8 +399,9 @@ func (s *sqlDatabase) ListGithubCredentials(ctx context.Context) ([]params.Forge
 }
 
 func (s *sqlDatabase) UpdateGithubCredentials(ctx context.Context, id uint, param params.UpdateGithubCredentialsParams) (ghCreds params.ForgeCredentials, err error) {
+	var rowsAffected int64
 	defer func() {
-		if err == nil {
+		if err == nil && rowsAffected > 0 {
 			s.sendNotify(common.GithubCredentialsEntityType, common.UpdateOperation, ghCreds)
 		}
 	}()
@@ -406,11 +423,13 @@ func (s *sqlDatabase) UpdateGithubCredentials(ctx context.Context, id uint, para
 			return fmt.Errorf("error fetching github credentials: %w", err)
 		}
 
-		if param.Name != nil {
-			creds.Name = *param.Name
+		updates := make(map[string]interface{})
+
+		if param.Name != nil && *param.Name != creds.Name {
+			updates["name"] = *param.Name
 		}
-		if param.Description != nil {
-			creds.Description = *param.Description
+		if param.Description != nil && *param.Description != creds.Description {
+			updates["description"] = *param.Description
 		}
 
 		var data []byte
@@ -442,11 +461,15 @@ func (s *sqlDatabase) UpdateGithubCredentials(ctx context.Context, id uint, para
 			return fmt.Errorf("error marshaling and sealing credentials: %w", err)
 		}
 		if len(data) > 0 {
-			creds.Payload = data
+			updates["payload"] = data
 		}
 
-		if err := tx.Save(&creds).Error; err != nil {
-			return fmt.Errorf("error updating github credentials: %w", err)
+		if len(updates) > 0 {
+			result := tx.Model(&creds).Omit("Endpoint", "User", "Repositories", "Organizations", "Enterprises").Updates(updates)
+			if result.Error != nil {
+				return fmt.Errorf("error updating github credentials: %w", result.Error)
+			}
+			rowsAffected = result.RowsAffected
 		}
 		return nil
 	})

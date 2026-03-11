@@ -152,8 +152,9 @@ func (s *sqlDatabase) DeleteOrganization(ctx context.Context, orgID string) (err
 }
 
 func (s *sqlDatabase) UpdateOrganization(ctx context.Context, orgID string, param params.UpdateEntityParams) (paramOrg params.Organization, err error) {
+	var rowsAffected int64
 	defer func() {
-		if err == nil {
+		if err == nil && rowsAffected > 0 {
 			s.sendNotify(common.OrganizationEntityType, common.UpdateOperation, paramOrg)
 		}
 	}()
@@ -168,34 +169,51 @@ func (s *sqlDatabase) UpdateOrganization(ctx context.Context, orgID string, para
 			return fmt.Errorf("error org has no endpoint: %w", runnerErrors.ErrUnprocessable)
 		}
 
-		if err := s.updateEntityCredentials(ctx, tx, &org, param.CredentialsName); err != nil {
+		updates := make(map[string]interface{})
+
+		if err := s.updateEntityCredentials(ctx, tx, &org, param.CredentialsName, updates); err != nil {
 			return err
 		}
 
 		if param.WebhookSecret != "" {
-			secret, err := util.Seal([]byte(param.WebhookSecret), []byte(s.cfg.Passphrase))
+			// Decrypt existing secret to compare
+			existingSecret, err := util.Unseal(org.WebhookSecret, []byte(s.cfg.Passphrase))
 			if err != nil {
-				return fmt.Errorf("saving org: failed to encrypt string: %w", err)
+				return fmt.Errorf("failed to decrypt existing webhook secret: %w", err)
 			}
-			org.WebhookSecret = secret
+			// Only update if the webhook secret has changed
+			if string(existingSecret) != param.WebhookSecret {
+				secret, err := util.Seal([]byte(param.WebhookSecret), []byte(s.cfg.Passphrase))
+				if err != nil {
+					return fmt.Errorf("saving org: failed to encrypt string: %w", err)
+				}
+				updates["webhook_secret"] = secret
+			}
 		}
 
 		if param.PoolManagerStatus != nil {
-			org.PoolManagerRunning = param.PoolManagerStatus.IsRunning
-			org.PoolManagerFailureReason = param.PoolManagerStatus.FailureReason
+			if param.PoolManagerStatus.IsRunning != org.PoolManagerRunning {
+				updates["pool_manager_running"] = param.PoolManagerStatus.IsRunning
+			}
+			if param.PoolManagerStatus.FailureReason != org.PoolManagerFailureReason {
+				updates["pool_manager_failure_reason"] = param.PoolManagerStatus.FailureReason
+			}
 		}
 
-		if param.PoolBalancerType != "" {
-			org.PoolBalancerType = param.PoolBalancerType
+		if param.PoolBalancerType != "" && param.PoolBalancerType != org.PoolBalancerType {
+			updates["pool_balancer_type"] = param.PoolBalancerType
 		}
 
-		if param.AgentMode != nil {
-			org.AgentMode = *param.AgentMode
+		if param.AgentMode != nil && *param.AgentMode != org.AgentMode {
+			updates["agent_mode"] = *param.AgentMode
 		}
 
-		q := tx.Model(&org).Omit("Endpoint").Save(&org)
-		if q.Error != nil {
-			return fmt.Errorf("error saving org: %w", q.Error)
+		if len(updates) > 0 {
+			q := tx.Model(&org).Omit("Endpoint").Updates(updates)
+			if q.Error != nil {
+				return fmt.Errorf("error saving org: %w", q.Error)
+			}
+			rowsAffected = q.RowsAffected
 		}
 
 		return nil

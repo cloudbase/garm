@@ -90,8 +90,9 @@ func (s *sqlDatabase) ListGiteaEndpoints(_ context.Context) ([]params.ForgeEndpo
 }
 
 func (s *sqlDatabase) UpdateGiteaEndpoint(_ context.Context, name string, param params.UpdateGiteaEndpointParams) (ghEndpoint params.ForgeEndpoint, err error) {
+	var rowsAffected int64
 	defer func() {
-		if err == nil {
+		if err == nil && rowsAffected > 0 {
 			s.sendNotify(common.GithubEndpointEntityType, common.UpdateOperation, ghEndpoint)
 		}
 	}()
@@ -110,34 +111,46 @@ func (s *sqlDatabase) UpdateGiteaEndpoint(_ context.Context, name string, param 
 				return fmt.Errorf("error fetching gitea credentials: %w", err)
 			}
 		}
-		if credsCount > 0 && (param.APIBaseURL != nil || param.BaseURL != nil) {
-			return runnerErrors.NewBadRequestError("cannot update endpoint URLs with existing credentials")
+
+		updates := make(map[string]interface{})
+
+		if param.APIBaseURL != nil && *param.APIBaseURL != endpoint.APIBaseURL {
+			updates["api_base_url"] = *param.APIBaseURL
 		}
 
-		if param.APIBaseURL != nil {
-			endpoint.APIBaseURL = *param.APIBaseURL
+		if param.BaseURL != nil && *param.BaseURL != endpoint.BaseURL {
+			updates["base_url"] = *param.BaseURL
 		}
 
-		if param.BaseURL != nil {
-			endpoint.BaseURL = *param.BaseURL
+		if param.CACertBundle != nil && string(param.CACertBundle) != string(endpoint.CACertBundle) {
+			updates["ca_cert_bundle"] = param.CACertBundle
 		}
 
-		if param.CACertBundle != nil {
-			endpoint.CACertBundle = param.CACertBundle
+		if param.Description != nil && *param.Description != endpoint.Description {
+			updates["description"] = *param.Description
+		}
+		if param.UseInternalToolsMetadata != nil && *param.UseInternalToolsMetadata != endpoint.UseInternalToolsMetadata {
+			updates["use_internal_tools_metadata"] = *param.UseInternalToolsMetadata
+		}
+		if param.ToolsMetadataURL != "" && param.ToolsMetadataURL != endpoint.ToolsMetadataURL {
+			updates["tools_metadata_url"] = param.ToolsMetadataURL
 		}
 
-		if param.Description != nil {
-			endpoint.Description = *param.Description
-		}
-		if param.UseInternalToolsMetadata != nil {
-			endpoint.UseInternalToolsMetadata = *param.UseInternalToolsMetadata
-		}
-		if param.ToolsMetadataURL != "" {
-			endpoint.ToolsMetadataURL = param.ToolsMetadataURL
+		if credsCount > 0 {
+			if _, hasAPIBaseURL := updates["api_base_url"]; hasAPIBaseURL {
+				return runnerErrors.NewBadRequestError("cannot update endpoint URLs with existing credentials")
+			}
+			if _, hasBaseURL := updates["base_url"]; hasBaseURL {
+				return runnerErrors.NewBadRequestError("cannot update endpoint URLs with existing credentials")
+			}
 		}
 
-		if err := tx.Save(&endpoint).Error; err != nil {
-			return fmt.Errorf("error updating gitea endpoint: %w", err)
+		if len(updates) > 0 {
+			result := tx.Model(&endpoint).Updates(updates)
+			if result.Error != nil {
+				return fmt.Errorf("error updating gitea endpoint: %w", result.Error)
+			}
+			rowsAffected = result.RowsAffected
 		}
 
 		return nil
@@ -384,8 +397,9 @@ func (s *sqlDatabase) ListGiteaCredentials(ctx context.Context) ([]params.ForgeC
 }
 
 func (s *sqlDatabase) UpdateGiteaCredentials(ctx context.Context, id uint, param params.UpdateGiteaCredentialsParams) (gtCreds params.ForgeCredentials, err error) {
+	var rowsAffected int64
 	defer func() {
-		if err == nil {
+		if err == nil && rowsAffected > 0 {
 			s.sendNotify(common.GiteaCredentialsEntityType, common.UpdateOperation, gtCreds)
 		}
 	}()
@@ -407,11 +421,13 @@ func (s *sqlDatabase) UpdateGiteaCredentials(ctx context.Context, id uint, param
 			return fmt.Errorf("error fetching gitea credentials: %w", err)
 		}
 
-		if param.Name != nil {
-			creds.Name = *param.Name
+		updates := make(map[string]interface{})
+
+		if param.Name != nil && *param.Name != creds.Name {
+			updates["name"] = *param.Name
 		}
-		if param.Description != nil {
-			creds.Description = *param.Description
+		if param.Description != nil && *param.Description != creds.Description {
+			updates["description"] = *param.Description
 		}
 
 		var data []byte
@@ -429,11 +445,15 @@ func (s *sqlDatabase) UpdateGiteaCredentials(ctx context.Context, id uint, param
 			return fmt.Errorf("error marshaling and sealing credentials: %w", err)
 		}
 		if len(data) > 0 {
-			creds.Payload = data
+			updates["payload"] = data
 		}
 
-		if err := tx.Save(&creds).Error; err != nil {
-			return fmt.Errorf("error updating gitea credentials: %w", err)
+		if len(updates) > 0 {
+			result := tx.Model(&creds).Omit("Endpoint", "User", "Repositories", "Organizations").Updates(updates)
+			if result.Error != nil {
+				return fmt.Errorf("error updating gitea credentials: %w", result.Error)
+			}
+			rowsAffected = result.RowsAffected
 		}
 		return nil
 	})
