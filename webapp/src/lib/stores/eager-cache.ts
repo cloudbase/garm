@@ -306,7 +306,12 @@ class EagerCacheManager {
 			const repo = event.payload as Repository;
 
 			if (event.operation === 'create') {
-				repositories.push(repo);
+				const existingIndex = repositories.findIndex(r => r.id === repo.id);
+				if (existingIndex === -1) {
+					repositories.push(repo);
+				} else {
+					repositories[existingIndex] = repo;
+				}
 			} else if (event.operation === 'update') {
 				const index = repositories.findIndex(r => r.id === repo.id);
 				if (index !== -1) repositories[index] = repo;
@@ -328,7 +333,12 @@ class EagerCacheManager {
 			const org = event.payload as Organization;
 
 			if (event.operation === 'create') {
-				organizations.push(org);
+				const existingIndex = organizations.findIndex(o => o.id === org.id);
+				if (existingIndex === -1) {
+					organizations.push(org);
+				} else {
+					organizations[existingIndex] = org;
+				}
 			} else if (event.operation === 'update') {
 				const index = organizations.findIndex(o => o.id === org.id);
 				if (index !== -1) organizations[index] = org;
@@ -350,7 +360,12 @@ class EagerCacheManager {
 			const ent = event.payload as Enterprise;
 
 			if (event.operation === 'create') {
-				enterprises.push(ent);
+				const existingIndex = enterprises.findIndex(e => e.id === ent.id);
+				if (existingIndex === -1) {
+					enterprises.push(ent);
+				} else {
+					enterprises[existingIndex] = ent;
+				}
 			} else if (event.operation === 'update') {
 				const index = enterprises.findIndex(e => e.id === ent.id);
 				if (index !== -1) enterprises[index] = ent;
@@ -372,7 +387,12 @@ class EagerCacheManager {
 			const pool = event.payload as Pool;
 
 			if (event.operation === 'create') {
-				pools.push(pool);
+				const existingIndex = pools.findIndex(p => p.id === pool.id);
+				if (existingIndex === -1) {
+					pools.push(pool);
+				} else {
+					pools[existingIndex] = pool;
+				}
 			} else if (event.operation === 'update') {
 				const index = pools.findIndex(p => p.id === pool.id);
 				if (index !== -1) pools[index] = pool;
@@ -394,7 +414,12 @@ class EagerCacheManager {
 			const scaleset = event.payload as ScaleSet;
 
 			if (event.operation === 'create') {
-				scalesets.push(scaleset);
+				const existingIndex = scalesets.findIndex(s => s.id === scaleset.id);
+				if (existingIndex === -1) {
+					scalesets.push(scaleset);
+				} else {
+					scalesets[existingIndex] = scaleset;
+				}
 			} else if (event.operation === 'update') {
 				const index = scalesets.findIndex(s => s.id === scaleset.id);
 				if (index !== -1) scalesets[index] = scaleset;
@@ -414,15 +439,21 @@ class EagerCacheManager {
 
 			const credentials = [...state.credentials];
 			const cred = event.payload as ForgeCredentials;
+			// IDs are only unique per forge type, so match on both
+			const matchCred = (c: ForgeCredentials) => c.id === cred.id && c.forge_type === cred.forge_type;
 
 			if (event.operation === 'create') {
-				credentials.push(cred);
+				const existingIndex = credentials.findIndex(matchCred);
+				if (existingIndex === -1) {
+					credentials.push(cred);
+				} else {
+					credentials[existingIndex] = cred;
+				}
 			} else if (event.operation === 'update') {
-				const index = credentials.findIndex(c => c.id === cred.id);
+				const index = credentials.findIndex(matchCred);
 				if (index !== -1) credentials[index] = cred;
 			} else if (event.operation === 'delete') {
-				const credId = typeof cred === 'object' ? cred.id : cred;
-				const index = credentials.findIndex(c => c.id === credId);
+				const index = credentials.findIndex(matchCred);
 				if (index !== -1) credentials.splice(index, 1);
 			}
 
@@ -438,7 +469,12 @@ class EagerCacheManager {
 			const endpoint = event.payload as ForgeEndpoint;
 
 			if (event.operation === 'create') {
-				endpoints.push(endpoint);
+				const existingIndex = endpoints.findIndex(e => e.name === endpoint.name);
+				if (existingIndex === -1) {
+					endpoints.push(endpoint);
+				} else {
+					endpoints[existingIndex] = endpoint;
+				}
 			} else if (event.operation === 'update') {
 				const index = endpoints.findIndex(e => e.name === endpoint.name);
 				if (index !== -1) endpoints[index] = endpoint;
@@ -637,7 +673,12 @@ class EagerCacheManager {
 			const template = event.payload as Template;
 
 			if (event.operation === 'create') {
-				templates.push(template);
+				const existingIndex = templates.findIndex(t => t.id === template.id);
+				if (existingIndex === -1) {
+					templates.push(template);
+				} else {
+					templates[existingIndex] = template;
+				}
 			} else if (event.operation === 'update') {
 				const index = templates.findIndex(t => t.id === template.id);
 				if (index !== -1) templates[index] = template;

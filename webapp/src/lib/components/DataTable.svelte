@@ -193,11 +193,11 @@
 			{#if showMobileCards}
 				<!-- Mobile view - Card layout -->
 				<div class="block sm:hidden divide-y divide-gray-200 dark:divide-gray-700">
-					{#each data as item, index (item.id || item.name || index)}
+					{#each data as item, index (`${item.id ?? index}-${item.forge_type || item.endpoint_type || ''}`)}
 						<div class="px-4 py-4 hover:bg-gray-50 dark:hover:bg-gray-700 relative">
 							{#if mobileCardConfig}
 								<!-- Use MobileCard component -->
-								{#key `${item.id || item.name}-${item.updated_at}-mobile`}
+								{#key `${item.id ?? index}-${item.forge_type || item.endpoint_type || ''}-${item.updated_at}-mobile`}
 									<MobileCard 
 										{item} 
 										config={mobileCardConfig} 
@@ -230,11 +230,11 @@
 					{/each}
 					
 					<!-- Data rows -->
-					{#each data as item, index (item.id || item.name || index)}
+					{#each data as item, index (`${item.id ?? index}-${item.forge_type || item.endpoint_type || ''}`)}
 						{#each columns as column}
 							<div class="{getCellClass(column)} border-b border-gray-200 dark:border-gray-700">
 								{#if column.cellComponent}
-									{#key `${item.id || item.name}-${item.updated_at}-${column.key}`}
+									{#key `${item.id ?? index}-${item.forge_type || item.endpoint_type || ''}-${item.updated_at}-${column.key}`}
 										<svelte:component 
 											this={column.cellComponent} 
 											{item} 
