@@ -95,20 +95,7 @@ func (r *Runner) ListEnterprises(ctx context.Context, filter params.EnterpriseFi
 		return nil, fmt.Errorf("error listing enterprises: %w", err)
 	}
 
-	var allEnterprises []params.Enterprise
-
-	for _, enterprise := range enterprises {
-		poolMgr, err := r.poolManagerCtrl.GetEnterprisePoolManager(enterprise)
-		if err != nil {
-			enterprise.PoolManagerStatus.IsRunning = false
-			enterprise.PoolManagerStatus.FailureReason = fmt.Sprintf("failed to get pool manager: %q", err)
-		} else {
-			enterprise.PoolManagerStatus = poolMgr.Status()
-		}
-		allEnterprises = append(allEnterprises, enterprise)
-	}
-
-	return allEnterprises, nil
+	return enterprises, nil
 }
 
 func (r *Runner) GetEnterpriseByID(ctx context.Context, enterpriseID string) (params.Enterprise, error) {
@@ -120,12 +107,7 @@ func (r *Runner) GetEnterpriseByID(ctx context.Context, enterpriseID string) (pa
 	if err != nil {
 		return params.Enterprise{}, fmt.Errorf("error fetching enterprise: %w", err)
 	}
-	poolMgr, err := r.poolManagerCtrl.GetEnterprisePoolManager(enterprise)
-	if err != nil {
-		enterprise.PoolManagerStatus.IsRunning = false
-		enterprise.PoolManagerStatus.FailureReason = fmt.Sprintf("failed to get pool manager: %q", err)
-	}
-	enterprise.PoolManagerStatus = poolMgr.Status()
+
 	return enterprise, nil
 }
 
@@ -196,12 +178,6 @@ func (r *Runner) UpdateEnterprise(ctx context.Context, enterpriseID string, para
 		return params.Enterprise{}, fmt.Errorf("error updating enterprise: %w", err)
 	}
 
-	poolMgr, err := r.poolManagerCtrl.GetEnterprisePoolManager(enterprise)
-	if err != nil {
-		return params.Enterprise{}, fmt.Errorf("failed to get enterprise pool manager: %w", err)
-	}
-
-	enterprise.PoolManagerStatus = poolMgr.Status()
 	return enterprise, nil
 }
 

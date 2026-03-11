@@ -182,6 +182,11 @@ func (s *sqlDatabase) UpdateRepository(ctx context.Context, repoID string, param
 			repo.WebhookSecret = secret
 		}
 
+		if param.PoolManagerStatus != nil {
+			repo.PoolManagerRunning = param.PoolManagerStatus.IsRunning
+			repo.PoolManagerFailureReason = param.PoolManagerStatus.FailureReason
+		}
+
 		if param.PoolBalancerType != "" {
 			repo.PoolBalancerType = param.PoolBalancerType
 		}

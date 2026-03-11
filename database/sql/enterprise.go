@@ -196,6 +196,11 @@ func (s *sqlDatabase) UpdateEnterprise(ctx context.Context, enterpriseID string,
 			enterprise.WebhookSecret = secret
 		}
 
+		if param.PoolManagerStatus != nil {
+			enterprise.PoolManagerRunning = param.PoolManagerStatus.IsRunning
+			enterprise.PoolManagerFailureReason = param.PoolManagerStatus.FailureReason
+		}
+
 		if param.PoolBalancerType != "" {
 			enterprise.PoolBalancerType = param.PoolBalancerType
 		}

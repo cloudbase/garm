@@ -180,6 +180,11 @@ func (s *sqlDatabase) UpdateOrganization(ctx context.Context, orgID string, para
 			org.WebhookSecret = secret
 		}
 
+		if param.PoolManagerStatus != nil {
+			org.PoolManagerRunning = param.PoolManagerStatus.IsRunning
+			org.PoolManagerFailureReason = param.PoolManagerStatus.FailureReason
+		}
+
 		if param.PoolBalancerType != "" {
 			org.PoolBalancerType = param.PoolBalancerType
 		}

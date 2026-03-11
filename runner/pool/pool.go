@@ -1020,6 +1020,13 @@ func (r *basePoolManager) SetPoolRunningState(isRunning bool, failureReason stri
 	r.mux.Lock()
 	r.managerErrorReason = failureReason
 	r.managerIsRunning = isRunning
+	updateParams := params.PoolManagerStatus{
+		IsRunning:     isRunning,
+		FailureReason: failureReason,
+	}
+	if err := r.store.SetEntityPoolManagerStatus(r.ctx, r.entity, updateParams); err != nil {
+		slog.ErrorContext(r.ctx, "failed to set pool manager status", "error", err)
+	}
 	r.mux.Unlock()
 }
 
@@ -1827,6 +1834,7 @@ func (r *basePoolManager) cleanupRunnersInterruptedInFlight() error {
 }
 
 func (r *basePoolManager) Start() error {
+	r.SetPoolRunningState(false, "pool manager is starting up")
 	initializeEntity := make(chan struct{}, 1)
 	go func() {
 		// At this point, we just mark instances in `creating` and `deleting` as `pending_delete`
