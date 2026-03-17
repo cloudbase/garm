@@ -117,9 +117,13 @@ func (t *toolsUpdater) updateTools() error {
 
 	tools, err := garmUtil.FetchTools(t.ctx, ghCli)
 	if err != nil {
-		return fmt.Errorf("fetching tools: %w", err)
+		return fmt.Errorf("error fetching tools: %w", err)
 	}
-	t.lastUpdate = time.Now().UTC()
+
+	if len(tools) == 0 {
+		return fmt.Errorf("FetchTools returned no tools")
+	}
+
 	t.tools = tools
 
 	slog.DebugContext(t.ctx, "updating tools cache", "entity", t.entity.String())
@@ -279,7 +283,7 @@ reset:
 			t.addStatusEvent(fmt.Sprintf("failed to update tools: %q", err), params.EventError)
 		} else {
 			// Tools are usually valid for 1 hour.
-			t.lastUpdate = now
+			t.lastUpdate = time.Now().UTC()
 			t.addStatusEvent("successfully updated tools", params.EventInfo)
 		}
 	}
@@ -306,6 +310,7 @@ reset:
 				t.addStatusEvent(fmt.Sprintf("failed to update tools: %q", err), params.EventError)
 			} else {
 				// Tools are usually valid for 1 hour.
+				t.lastUpdate = time.Now().UTC()
 				t.addStatusEvent("successfully updated tools", params.EventInfo)
 			}
 		case <-t.reset:

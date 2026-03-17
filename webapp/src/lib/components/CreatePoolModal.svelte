@@ -125,10 +125,10 @@
 		return 'github';
 	}
 
-	function getSelectedEntityAgentMode(): boolean {
-		if (!selectedEntityId || !entities) return false;
+	function getSelectedEntityAgentMode(entityId: string, entityList: (Repository | Organization | Enterprise)[]): boolean {
+		if (!entityId || !entityList) return false;
 
-		const selectedEntity = entities.find(e => e.id === selectedEntityId);
+		const selectedEntity = entityList.find(e => e.id === entityId);
 		if (!selectedEntity) return false;
 
 		// Check if entity has agent_mode property
@@ -140,7 +140,7 @@
 	}
 
 	// Reactive statement to check agent mode
-	$: entityAgentMode = getSelectedEntityAgentMode();
+	$: entityAgentMode = getSelectedEntityAgentMode(selectedEntityId, entities);
 	$: if (!entityAgentMode) {
 		// Disable shell if agent mode is not enabled on entity
 		enableShell = false;
@@ -184,28 +184,9 @@
 
 		const updatedEntity = event.payload;
 
-		// Update the eager cache for the entity that was updated
-		if (entityLevel === 'repository' && updatedEntity.id === selectedEntityId) {
-			const repo = $eagerCache.repositories.find(r => r.id === selectedEntityId);
-			if (repo) {
-				Object.assign(repo, updatedEntity);
-				// Force reactive update by reassigning entityAgentMode
-				entityAgentMode = getSelectedEntityAgentMode();
-			}
-		} else if (entityLevel === 'organization' && updatedEntity.id === selectedEntityId) {
-			const org = $eagerCache.organizations.find(o => o.id === selectedEntityId);
-			if (org) {
-				Object.assign(org, updatedEntity);
-				// Force reactive update by reassigning entityAgentMode
-				entityAgentMode = getSelectedEntityAgentMode();
-			}
-		} else if (entityLevel === 'enterprise' && updatedEntity.id === selectedEntityId) {
-			const enterprise = $eagerCache.enterprises.find(e => e.id === selectedEntityId);
-			if (enterprise) {
-				Object.assign(enterprise, updatedEntity);
-				// Force reactive update by reassigning entityAgentMode
-				entityAgentMode = getSelectedEntityAgentMode();
-			}
+		// Update the local entities array so the reactive $: statement picks up the change
+		if (updatedEntity.id === selectedEntityId) {
+			entities = entities.map(e => e.id === updatedEntity.id ? { ...e, ...updatedEntity } : e);
 		}
 	}
 
