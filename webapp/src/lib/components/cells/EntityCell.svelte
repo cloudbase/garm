@@ -8,8 +8,8 @@
 	export let showId: boolean = false;
 	export let fontMono: boolean = false;
 
-	$: entityName = getEntityName();
-	$: entityUrl = getEntityUrl();
+	$: entityName = getEntityName(item, entityType, showOwner, showId);
+	$: entityUrl = getEntityUrl(item, entityType);
 
 	// Tooltip state for fixed positioning
 	let iconElement: SVGSVGElement | null = null;
@@ -58,7 +58,7 @@
 		window.removeEventListener('resize', updateTooltipPosition);
 	});
 
-	function getEntityName(): string {
+	function getEntityName(_item: any, _entityType: string, _showOwner: boolean, _showId: boolean): string {
 		// Safety check for undefined item
 		if (!item) return 'Unknown';
 
@@ -85,7 +85,7 @@
 		}
 	}
 
-	function getEntityUrl(): string {
+	function getEntityUrl(_item: any, _entityType: string): string {
 		// Safety check for undefined item
 		if (!item) return '#';
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { createEventDispatcher, onMount, onDestroy } from 'svelte';
+	import { createEventDispatcher, onMount } from 'svelte';
 	import type { Pool, UpdatePoolParams, Template, Repository, Organization, Enterprise, UpdateEntityParams } from '$lib/api/generated/api.js';
 	import { resolve } from '$app/paths';
 	import Modal from './Modal.svelte';
@@ -7,7 +7,6 @@
 	import { extractAPIError } from '$lib/utils/apiError';
 	import { eagerCache } from '$lib/stores/eager-cache.js';
 	import { garmApi } from '$lib/api/client.js';
-	import { websocketStore, type WebSocketEvent } from '$lib/stores/websocket.js';
 	import UpdateRepositoryModal from './UpdateRepositoryModal.svelte';
 	import UpdateOrganizationModal from './UpdateOrganizationModal.svelte';
 	import UpdateEnterpriseModal from './UpdateEnterpriseModal.svelte';
@@ -25,7 +24,6 @@
 	let templates: Template[] = [];
 	let loadingTemplates = false;
 	let showEntityUpdateModal = false;
-	let unsubscribeWebsocket: (() => void) | null = null;
 
 	// Form fields - initialize with pool values
 	let image = pool.image || '';
@@ -97,88 +95,44 @@
 		return null;
 	}
 
-	function getEntityAgentMode(): boolean {
+	function getEntityAgentMode(cache: typeof $eagerCache): boolean {
 		// Look up agent_mode from eager cache based on the pool's entity
 		if (pool.repo_id) {
-			const repo = $eagerCache.repositories.find(r => r.id === pool.repo_id);
+			const repo = cache.repositories.find(r => r.id === pool.repo_id);
 			return repo?.agent_mode ?? false;
 		}
 		if (pool.org_id) {
-			const org = $eagerCache.organizations.find(o => o.id === pool.org_id);
+			const org = cache.organizations.find(o => o.id === pool.org_id);
 			return org?.agent_mode ?? false;
 		}
 		if (pool.enterprise_id) {
-			const enterprise = $eagerCache.enterprises.find(e => e.id === pool.enterprise_id);
+			const enterprise = cache.enterprises.find(e => e.id === pool.enterprise_id);
 			return enterprise?.agent_mode ?? false;
 		}
 		return false;
 	}
 
 	// Reactive statement to check agent mode
-	$: entityAgentMode = getEntityAgentMode();
+	$: entityAgentMode = getEntityAgentMode($eagerCache);
 	$: if (!entityAgentMode) {
 		// Disable shell if agent mode is not enabled on entity
 		enableShell = false;
 	}
 
-	function handleEntityWebSocketEvent(event: WebSocketEvent) {
-		if (event.operation !== 'update') return;
-
-		const updatedEntity = event.payload;
-
-		// Update the eager cache for the entity that was updated
-		if (pool.repo_id && updatedEntity.id === pool.repo_id) {
-			const repo = $eagerCache.repositories.find(r => r.id === pool.repo_id);
-			if (repo) {
-				Object.assign(repo, updatedEntity);
-				// Directly update entityAgentMode if it changed
-				if ('agent_mode' in updatedEntity) {
-					entityAgentMode = updatedEntity.agent_mode ?? false;
-				}
-			}
-		} else if (pool.org_id && updatedEntity.id === pool.org_id) {
-			const org = $eagerCache.organizations.find(o => o.id === pool.org_id);
-			if (org) {
-				Object.assign(org, updatedEntity);
-				// Directly update entityAgentMode if it changed
-				if ('agent_mode' in updatedEntity) {
-					entityAgentMode = updatedEntity.agent_mode ?? false;
-				}
-			}
-		} else if (pool.enterprise_id && updatedEntity.id === pool.enterprise_id) {
-			const enterprise = $eagerCache.enterprises.find(e => e.id === pool.enterprise_id);
-			if (enterprise) {
-				Object.assign(enterprise, updatedEntity);
-				// Directly update entityAgentMode if it changed
-				if ('agent_mode' in updatedEntity) {
-					entityAgentMode = updatedEntity.agent_mode ?? false;
-				}
-			}
-		}
-	}
-
 	async function handleEntityUpdate(params: UpdateEntityParams) {
 		try {
-			// Update the entity
 			if (pool.repo_id) {
 				await garmApi.updateRepository(pool.repo_id, params);
-				// Update eager cache
-				const repo = $eagerCache.repositories.find(r => r.id === pool.repo_id);
-				if (repo) Object.assign(repo, params);
 			} else if (pool.org_id) {
 				await garmApi.updateOrganization(pool.org_id, params);
-				const org = $eagerCache.organizations.find(o => o.id === pool.org_id);
-				if (org) Object.assign(org, params);
 			} else if (pool.enterprise_id) {
 				await garmApi.updateEnterprise(pool.enterprise_id, params);
-				const enterprise = $eagerCache.enterprises.find(e => e.id === pool.enterprise_id);
-				if (enterprise) Object.assign(enterprise, params);
 			}
 
 			// Close the entity update modal
+			// The eager cache store will be updated via WebSocket event
 			showEntityUpdateModal = false;
 		} catch (err) {
-			// Let the modal handle the error display
 			throw err;
 		}
 	}
@@ -244,34 +198,6 @@
 
 		// Load templates for the current configuration
 		loadTemplates();
-
-		// Subscribe to entity updates via websocket
-		if (pool.repo_id) {
-			unsubscribeWebsocket = websocketStore.subscribeToEntity(
-				'repository',
-				['update'],
-				handleEntityWebSocketEvent
-			);
-		} else if (pool.org_id) {
-			unsubscribeWebsocket = websocketStore.subscribeToEntity(
-				'organization',
-				['update'],
-				handleEntityWebSocketEvent
-			);
-		} else if (pool.enterprise_id) {
-			unsubscribeWebsocket = websocketStore.subscribeToEntity(
-				'enterprise',
-				['update'],
-				handleEntityWebSocketEvent
-			);
-		}
-	});
-
-	onDestroy(() => {
-		if (unsubscribeWebsocket) {
-			unsubscribeWebsocket();
-			unsubscribeWebsocket = null;
-		}
 	});
 
 	// Reactive statements

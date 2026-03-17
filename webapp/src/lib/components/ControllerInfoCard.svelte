@@ -103,7 +103,7 @@
 	}
 
 	// Form validation
-	$: isValidUrl = (url: string) => {
+	function isValidUrl(url: string): boolean {
 		if (!url.trim()) return true; // Empty is allowed
 		try {
 			new URL(url);
@@ -111,7 +111,7 @@
 		} catch {
 			return false;
 		}
-	};
+	}
 
 	$: isFormValid =
 		isValidUrl(metadataUrl) &&

@@ -628,7 +628,7 @@ export class GeneratedGarmApiClient {
   }
 
   async updateTemplate(id: number, params: UpdateTemplateParams): Promise<Template> {
-    const response = await this.templatesApi.updateTemplate(id.toString(), params);
+    const response = await this.templatesApi.updateTemplate(id, params);
     return response.data;
   }
 

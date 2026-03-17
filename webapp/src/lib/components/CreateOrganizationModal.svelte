@@ -73,8 +73,7 @@
 	// Auto-generate webhook secret when checkbox is checked
 	$: if (generateWebhookSecret) {
 		formData.webhook_secret = generateSecureWebhookSecret();
-	} else if (!generateWebhookSecret) {
-		// Clear the secret if user unchecks auto-generate
+	} else {
 		formData.webhook_secret = '';
 	}
 

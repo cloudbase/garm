@@ -1,17 +1,19 @@
 import { writable, get } from 'svelte/store';
 import { garmApi } from '../api/client.js';
 import { websocketStore, type WebSocketEvent } from './websocket.js';
-import type { 
-	Repository, 
-	Organization, 
-	Enterprise, 
-	Pool, 
-	ScaleSet, 
-	ForgeCredentials, 
+import type {
+	Repository,
+	Organization,
+	Enterprise,
+	Pool,
+	ScaleSet,
+	ForgeCredentials,
 	ForgeEndpoint,
 	ControllerInfo,
-	Template 
+	Template
 } from '../api/generated/api.js';
+
+type CacheResourceKey = keyof Omit<EagerCacheState, 'loading' | 'loaded' | 'errorMessages'>;
 
 interface EagerCacheState {
 	repositories: Repository[];
@@ -105,6 +107,19 @@ const initialState: EagerCacheState = {
 
 export const eagerCache = writable<EagerCacheState>(initialState);
 
+// Maps resource keys to their API fetch functions for attemptLoad and getters
+const apiFetchers: Record<CacheResourceKey, () => Promise<any>> = {
+	repositories: () => garmApi.listRepositories(),
+	organizations: () => garmApi.listOrganizations(),
+	enterprises: () => garmApi.listEnterprises(),
+	pools: () => garmApi.listAllPools(),
+	scalesets: () => garmApi.listScaleSets(),
+	credentials: () => garmApi.listAllCredentials(),
+	endpoints: () => garmApi.listAllEndpoints(),
+	controllerInfo: () => garmApi.getControllerInfo(),
+	templates: () => garmApi.listTemplates(),
+};
+
 class EagerCacheManager {
 	private unsubscribers: (() => void)[] = [];
 	private loadingPromises: Map<string, Promise<any>> = new Map();
@@ -113,7 +128,7 @@ class EagerCacheManager {
 	private readonly RETRY_DELAY_MS = 1000;
 	private websocketStatusUnsubscriber: (() => void) | null = null;
 
-	async loadResource(resourceType: keyof Omit<EagerCacheState, 'loading' | 'loaded' | 'errorMessages'>, priority: boolean = false) {
+	async loadResource(resourceType: CacheResourceKey, priority: boolean = false) {
 		// Avoid duplicate loading
 		if (this.loadingPromises.has(resourceType)) {
 			return this.loadingPromises.get(resourceType);
@@ -162,52 +177,22 @@ class EagerCacheManager {
 		}
 	}
 
-	private async attemptLoad(resourceType: keyof Omit<EagerCacheState, 'loading' | 'loaded' | 'errorMessages'>): Promise<any> {
+	private async attemptLoad(resourceType: CacheResourceKey): Promise<any> {
 		const currentAttempt = (this.retryAttempts.get(resourceType) || 0) + 1;
 		this.retryAttempts.set(resourceType, currentAttempt);
 
 		try {
-			let loadPromise: Promise<any>;
-
-			switch (resourceType) {
-				case 'repositories':
-					loadPromise = garmApi.listRepositories();
-					break;
-				case 'organizations':
-					loadPromise = garmApi.listOrganizations();
-					break;
-				case 'enterprises':
-					loadPromise = garmApi.listEnterprises();
-					break;
-				case 'pools':
-					loadPromise = garmApi.listAllPools();
-					break;
-				case 'scalesets':
-					loadPromise = garmApi.listScaleSets();
-					break;
-				case 'credentials':
-					loadPromise = garmApi.listAllCredentials();
-					break;
-				case 'endpoints':
-					loadPromise = garmApi.listAllEndpoints();
-					break;
-				case 'controllerInfo':
-					loadPromise = garmApi.getControllerInfo();
-					break;
-				case 'templates':
-					loadPromise = garmApi.listTemplates();
-					break;
-				default:
-					throw new Error(`Unknown resource type: ${resourceType}`);
+			const fetcher = apiFetchers[resourceType];
+			if (!fetcher) {
+				throw new Error(`Unknown resource type: ${resourceType}`);
 			}
-
-			return await loadPromise;
+			return await fetcher();
 		} catch (error) {
 			// If we haven't reached max retries, try again with exponential backoff
 			if (currentAttempt < this.MAX_RETRIES) {
-				const delay = this.RETRY_DELAY_MS * Math.pow(2, currentAttempt - 1); // Exponential backoff
+				const delay = this.RETRY_DELAY_MS * Math.pow(2, currentAttempt - 1);
 				console.warn(`Attempt ${currentAttempt} failed for ${resourceType}, retrying in ${delay}ms...`, error);
-				
+
 				await new Promise(resolve => setTimeout(resolve, delay));
 				return this.attemptLoad(resourceType);
 			} else {
@@ -218,48 +203,42 @@ class EagerCacheManager {
 	}
 
 	private async startBackgroundLoading(excludeResource: string) {
-		const resourceTypes = ['repositories', 'organizations', 'enterprises', 'pools', 'scalesets', 'credentials', 'endpoints', 'templates'];
+		const resourceTypes = Object.keys(apiFetchers) as CacheResourceKey[];
 		const toLoad = resourceTypes.filter(type => type !== excludeResource);
 
 		// Load in background with slight delays to avoid overwhelming the API
 		for (const resourceType of toLoad) {
 			setTimeout(() => {
-				this.loadResource(resourceType as any, false).catch(error => {
+				this.loadResource(resourceType, false).catch(error => {
 					console.warn(`Background loading failed for ${resourceType}:`, error);
-					// Background loading failures are not critical, just log them
 				});
 			}, 100 * toLoad.indexOf(resourceType));
 		}
 	}
 
 	// Public method to manually retry loading a resource
-	retryResource(resourceType: keyof Omit<EagerCacheState, 'loading' | 'loaded' | 'errorMessages'>) {
-		// Clear any existing retry attempts to start fresh
+	retryResource(resourceType: CacheResourceKey) {
 		this.retryAttempts.delete(resourceType);
 		return this.loadResource(resourceType, true);
 	}
 
 	setupWebSocketSubscriptions() {
-		// Clean up existing subscriptions
 		this.cleanup();
 
-		// Subscribe to all resource types
 		const subscriptions = [
-			websocketStore.subscribeToEntity('repository', ['create', 'update', 'delete'], this.handleRepositoryEvent.bind(this)),
-			websocketStore.subscribeToEntity('organization', ['create', 'update', 'delete'], this.handleOrganizationEvent.bind(this)),
-			websocketStore.subscribeToEntity('enterprise', ['create', 'update', 'delete'], this.handleEnterpriseEvent.bind(this)),
-			websocketStore.subscribeToEntity('pool', ['create', 'update', 'delete'], this.handlePoolEvent.bind(this)),
-			websocketStore.subscribeToEntity('scaleset', ['create', 'update', 'delete'], this.handleScaleSetEvent.bind(this)),
+			websocketStore.subscribeToEntity('repository', ['create', 'update', 'delete'], (e) => this.handleCrudEvent(e, 'repositories')),
+			websocketStore.subscribeToEntity('organization', ['create', 'update', 'delete'], (e) => this.handleCrudEvent(e, 'organizations')),
+			websocketStore.subscribeToEntity('enterprise', ['create', 'update', 'delete'], (e) => this.handleCrudEvent(e, 'enterprises')),
+			websocketStore.subscribeToEntity('pool', ['create', 'update', 'delete'], (e) => this.handleCrudEvent(e, 'pools')),
+			websocketStore.subscribeToEntity('scaleset', ['create', 'update', 'delete'], (e) => this.handleCrudEvent(e, 'scalesets')),
+			websocketStore.subscribeToEntity('template', ['create', 'update', 'delete'], (e) => this.handleCrudEvent(e, 'templates')),
 			websocketStore.subscribeToEntity('controller', ['update'], this.handleControllerEvent.bind(this)),
 			websocketStore.subscribeToEntity('github_credentials', ['create', 'update', 'delete'], this.handleCredentialsEvent.bind(this)),
 			websocketStore.subscribeToEntity('gitea_credentials', ['create', 'update', 'delete'], this.handleCredentialsEvent.bind(this)),
 			websocketStore.subscribeToEntity('github_endpoint', ['create', 'update', 'delete'], this.handleEndpointEvent.bind(this)),
-			websocketStore.subscribeToEntity('template', ['create', 'update', 'delete'], this.handleTemplateEvent.bind(this))
 		];
 
 		this.unsubscribers = subscriptions;
-
-		// Monitor WebSocket connection status
 		this.setupWebSocketStatusMonitoring();
 	}
 
@@ -269,177 +248,61 @@ class EagerCacheManager {
 		}
 
 		let wasConnected = false;
-		
+
 		this.websocketStatusUnsubscriber = websocketStore.subscribe(state => {
-			// When WebSocket connects for the first time or reconnects after being disconnected
 			if (state.connected && !wasConnected) {
 				console.log('[EagerCache] WebSocket connected - reinitializing cache');
-				// Reload all resources when WebSocket connects
 				this.initializeAllResources();
 			}
 			wasConnected = state.connected;
 		});
 	}
 
-	// Reinitialize all resources when WebSocket connects
 	private async initializeAllResources() {
-		const resourceTypes: (keyof Omit<EagerCacheState, 'loading' | 'loaded' | 'errorMessages'>)[] = [
-			'repositories', 'organizations', 'enterprises', 'pools', 'scalesets', 
-			'credentials', 'endpoints', 'controllerInfo', 'templates'
-		];
-
-		// Load all resources in parallel
-		const loadPromises = resourceTypes.map(resourceType => 
+		const resourceTypes = Object.keys(apiFetchers) as CacheResourceKey[];
+		const loadPromises = resourceTypes.map(resourceType =>
 			this.loadResource(resourceType, true).catch(error => {
 				console.warn(`Failed to reload ${resourceType} on WebSocket reconnect:`, error);
 			})
 		);
-
 		await Promise.allSettled(loadPromises);
 	}
 
-	private handleRepositoryEvent(event: WebSocketEvent) {
+	// Generic CRUD handler for entities matched by .id
+	private handleCrudEvent(event: WebSocketEvent, resourceKey: CacheResourceKey) {
 		eagerCache.update(state => {
-			if (!state.loaded.repositories) return state;
+			if (!state.loaded[resourceKey]) return state;
 
-			const repositories = [...state.repositories];
-			const repo = event.payload as Repository;
+			const items = [...(state[resourceKey] as any[])];
+			const entity = event.payload as any;
 
 			if (event.operation === 'create') {
-				const existingIndex = repositories.findIndex(r => r.id === repo.id);
+				const existingIndex = items.findIndex(item => item.id === entity.id);
 				if (existingIndex === -1) {
-					repositories.push(repo);
+					items.push(entity);
 				} else {
-					repositories[existingIndex] = repo;
+					items[existingIndex] = entity;
 				}
 			} else if (event.operation === 'update') {
-				const index = repositories.findIndex(r => r.id === repo.id);
-				if (index !== -1) repositories[index] = repo;
+				const index = items.findIndex(item => item.id === entity.id);
+				if (index !== -1) items[index] = entity;
 			} else if (event.operation === 'delete') {
-				const repoId = typeof repo === 'object' ? repo.id : repo;
-				const index = repositories.findIndex(r => r.id === repoId);
-				if (index !== -1) repositories.splice(index, 1);
+				const entityId = typeof entity === 'object' ? entity.id : entity;
+				const index = items.findIndex(item => item.id === entityId);
+				if (index !== -1) items.splice(index, 1);
 			}
 
-			return { ...state, repositories };
+			return { ...state, [resourceKey]: items };
 		});
 	}
 
-	private handleOrganizationEvent(event: WebSocketEvent) {
-		eagerCache.update(state => {
-			if (!state.loaded.organizations) return state;
-
-			const organizations = [...state.organizations];
-			const org = event.payload as Organization;
-
-			if (event.operation === 'create') {
-				const existingIndex = organizations.findIndex(o => o.id === org.id);
-				if (existingIndex === -1) {
-					organizations.push(org);
-				} else {
-					organizations[existingIndex] = org;
-				}
-			} else if (event.operation === 'update') {
-				const index = organizations.findIndex(o => o.id === org.id);
-				if (index !== -1) organizations[index] = org;
-			} else if (event.operation === 'delete') {
-				const orgId = typeof org === 'object' ? org.id : org;
-				const index = organizations.findIndex(o => o.id === orgId);
-				if (index !== -1) organizations.splice(index, 1);
-			}
-
-			return { ...state, organizations };
-		});
-	}
-
-	private handleEnterpriseEvent(event: WebSocketEvent) {
-		eagerCache.update(state => {
-			if (!state.loaded.enterprises) return state;
-
-			const enterprises = [...state.enterprises];
-			const ent = event.payload as Enterprise;
-
-			if (event.operation === 'create') {
-				const existingIndex = enterprises.findIndex(e => e.id === ent.id);
-				if (existingIndex === -1) {
-					enterprises.push(ent);
-				} else {
-					enterprises[existingIndex] = ent;
-				}
-			} else if (event.operation === 'update') {
-				const index = enterprises.findIndex(e => e.id === ent.id);
-				if (index !== -1) enterprises[index] = ent;
-			} else if (event.operation === 'delete') {
-				const entId = typeof ent === 'object' ? ent.id : ent;
-				const index = enterprises.findIndex(e => e.id === entId);
-				if (index !== -1) enterprises.splice(index, 1);
-			}
-
-			return { ...state, enterprises };
-		});
-	}
-
-	private handlePoolEvent(event: WebSocketEvent) {
-		eagerCache.update(state => {
-			if (!state.loaded.pools) return state;
-
-			const pools = [...state.pools];
-			const pool = event.payload as Pool;
-
-			if (event.operation === 'create') {
-				const existingIndex = pools.findIndex(p => p.id === pool.id);
-				if (existingIndex === -1) {
-					pools.push(pool);
-				} else {
-					pools[existingIndex] = pool;
-				}
-			} else if (event.operation === 'update') {
-				const index = pools.findIndex(p => p.id === pool.id);
-				if (index !== -1) pools[index] = pool;
-			} else if (event.operation === 'delete') {
-				const poolId = typeof pool === 'object' ? pool.id : pool;
-				const index = pools.findIndex(p => p.id === poolId);
-				if (index !== -1) pools.splice(index, 1);
-			}
-
-			return { ...state, pools };
-		});
-	}
-
-	private handleScaleSetEvent(event: WebSocketEvent) {
-		eagerCache.update(state => {
-			if (!state.loaded.scalesets) return state;
-
-			const scalesets = [...state.scalesets];
-			const scaleset = event.payload as ScaleSet;
-
-			if (event.operation === 'create') {
-				const existingIndex = scalesets.findIndex(s => s.id === scaleset.id);
-				if (existingIndex === -1) {
-					scalesets.push(scaleset);
-				} else {
-					scalesets[existingIndex] = scaleset;
-				}
-			} else if (event.operation === 'update') {
-				const index = scalesets.findIndex(s => s.id === scaleset.id);
-				if (index !== -1) scalesets[index] = scaleset;
-			} else if (event.operation === 'delete') {
-				const scalesetId = typeof scaleset === 'object' ? scaleset.id : scaleset;
-				const index = scalesets.findIndex(s => s.id === scalesetId);
-				if (index !== -1) scalesets.splice(index, 1);
-			}
-
-			return { ...state, scalesets };
-		});
-	}
-
+	// Credentials match on both id and forge_type
 	private handleCredentialsEvent(event: WebSocketEvent) {
 		eagerCache.update(state => {
 			if (!state.loaded.credentials) return state;
 
 			const credentials = [...state.credentials];
 			const cred = event.payload as ForgeCredentials;
-			// IDs are only unique per forge type, so match on both
 			const matchCred = (c: ForgeCredentials) => c.id === cred.id && c.forge_type === cred.forge_type;
 
 			if (event.operation === 'create') {
@@ -461,6 +324,7 @@ class EagerCacheManager {
 		});
 	}
 
+	// Endpoints match on name instead of id
 	private handleEndpointEvent(event: WebSocketEvent) {
 		eagerCache.update(state => {
 			if (!state.loaded.endpoints) return state;
@@ -488,208 +352,75 @@ class EagerCacheManager {
 		});
 	}
 
+	// Controller is a singleton, update-only
+	private handleControllerEvent(event: WebSocketEvent) {
+		eagerCache.update(state => {
+			if (!state.loaded.controllerInfo) return state;
+			if (event.operation === 'update') {
+				return { ...state, controllerInfo: event.payload as ControllerInfo };
+			}
+			return state;
+		});
+	}
+
 	cleanup() {
 		this.unsubscribers.forEach(unsubscribe => unsubscribe());
 		this.unsubscribers = [];
-		
+
 		if (this.websocketStatusUnsubscriber) {
 			this.websocketStatusUnsubscriber();
 			this.websocketStatusUnsubscriber = null;
 		}
 	}
 
-	// Helper method to check if we should use cache or direct API
-	private shouldUseCache(): boolean {
+	// Generic getter: use cache if WS connected and loaded, otherwise fetch from API
+	private async getCachedOrFetch<T>(resourceKey: CacheResourceKey, logName: string): Promise<T> {
 		const wsState = get(websocketStore);
-		return wsState.connected;
+		if (!wsState.connected) {
+			console.log(`[EagerCache] WebSocket disconnected - fetching ${logName} directly from API`);
+			return await apiFetchers[resourceKey]() as T;
+		}
+		const state = get(eagerCache);
+		if (state.loaded[resourceKey]) {
+			return state[resourceKey] as T;
+		}
+		return this.loadResource(resourceKey, true) as Promise<T>;
 	}
 
-	// Helper methods for components - check WebSocket status first
 	async getRepositories(): Promise<Repository[]> {
-		const wsState = get(websocketStore);
-		
-		if (!wsState.connected) {
-			// WebSocket disconnected - fetch directly from API
-			console.log('[EagerCache] WebSocket disconnected - fetching repositories directly from API');
-			return await garmApi.listRepositories();
-		}
-
-		const state = get(eagerCache);
-		if (state.loaded.repositories) {
-			return state.repositories;
-		}
-
-		return this.loadResource('repositories', true);
+		return this.getCachedOrFetch('repositories', 'repositories');
 	}
 
 	async getOrganizations(): Promise<Organization[]> {
-		const wsState = get(websocketStore);
-		
-		if (!wsState.connected) {
-			console.log('[EagerCache] WebSocket disconnected - fetching organizations directly from API');
-			return await garmApi.listOrganizations();
-		}
-
-		const state = get(eagerCache);
-		if (state.loaded.organizations) {
-			return state.organizations;
-		}
-
-		return this.loadResource('organizations', true);
+		return this.getCachedOrFetch('organizations', 'organizations');
 	}
 
 	async getEnterprises(): Promise<Enterprise[]> {
-		const wsState = get(websocketStore);
-		
-		if (!wsState.connected) {
-			console.log('[EagerCache] WebSocket disconnected - fetching enterprises directly from API');
-			return await garmApi.listEnterprises();
-		}
-
-		const state = get(eagerCache);
-		if (state.loaded.enterprises) {
-			return state.enterprises;
-		}
-
-		return this.loadResource('enterprises', true);
+		return this.getCachedOrFetch('enterprises', 'enterprises');
 	}
 
 	async getPools(): Promise<Pool[]> {
-		const wsState = get(websocketStore);
-		
-		if (!wsState.connected) {
-			console.log('[EagerCache] WebSocket disconnected - fetching pools directly from API');
-			return await garmApi.listAllPools();
-		}
-
-		const state = get(eagerCache);
-		if (state.loaded.pools) {
-			return state.pools;
-		}
-
-		return this.loadResource('pools', true);
+		return this.getCachedOrFetch('pools', 'pools');
 	}
 
 	async getScaleSets(): Promise<ScaleSet[]> {
-		const wsState = get(websocketStore);
-		
-		if (!wsState.connected) {
-			console.log('[EagerCache] WebSocket disconnected - fetching scalesets directly from API');
-			return await garmApi.listScaleSets();
-		}
-
-		const state = get(eagerCache);
-		if (state.loaded.scalesets) {
-			return state.scalesets;
-		}
-
-		return this.loadResource('scalesets', true);
+		return this.getCachedOrFetch('scalesets', 'scalesets');
 	}
 
 	async getCredentials(): Promise<ForgeCredentials[]> {
-		const wsState = get(websocketStore);
-		
-		if (!wsState.connected) {
-			console.log('[EagerCache] WebSocket disconnected - fetching credentials directly from API');
-			return await garmApi.listAllCredentials();
-		}
-
-		const state = get(eagerCache);
-		if (state.loaded.credentials) {
-			return state.credentials;
-		}
-
-		return this.loadResource('credentials', true);
+		return this.getCachedOrFetch('credentials', 'credentials');
 	}
 
 	async getEndpoints(): Promise<ForgeEndpoint[]> {
-		const wsState = get(websocketStore);
-		
-		if (!wsState.connected) {
-			console.log('[EagerCache] WebSocket disconnected - fetching endpoints directly from API');
-			return await garmApi.listAllEndpoints();
-		}
-
-		const state = get(eagerCache);
-		if (state.loaded.endpoints) {
-			return state.endpoints;
-		}
-
-		return this.loadResource('endpoints', true);
+		return this.getCachedOrFetch('endpoints', 'endpoints');
 	}
 
 	async getControllerInfo(): Promise<ControllerInfo | null> {
-		const wsState = get(websocketStore);
-		
-		if (!wsState.connected) {
-			console.log('[EagerCache] WebSocket disconnected - fetching controller info directly from API');
-			return await garmApi.getControllerInfo();
-		}
-
-		const state = get(eagerCache);
-		if (state.loaded.controllerInfo) {
-			return state.controllerInfo;
-		}
-
-		return this.loadResource('controllerInfo', true);
+		return this.getCachedOrFetch('controllerInfo', 'controller info');
 	}
 
 	async getTemplates(): Promise<Template[]> {
-		const wsState = get(websocketStore);
-		
-		if (!wsState.connected) {
-			console.log('[EagerCache] WebSocket disconnected - fetching templates directly from API');
-			return await garmApi.listTemplates();
-		}
-
-		const state = get(eagerCache);
-		if (state.loaded.templates) {
-			return state.templates;
-		}
-
-		return this.loadResource('templates', true);
-	}
-
-	private handleControllerEvent(event: WebSocketEvent) {
-		eagerCache.update(state => {
-			if (!state.loaded.controllerInfo) return state;
-
-			const controllerInfo = event.payload as ControllerInfo;
-
-			// Controller info is a singleton, so we just replace it
-			if (event.operation === 'update') {
-				return { ...state, controllerInfo };
-			}
-
-			return state;
-		});
-	}
-
-	private handleTemplateEvent(event: WebSocketEvent) {
-		eagerCache.update(state => {
-			if (!state.loaded.templates) return state;
-
-			const templates = [...state.templates];
-			const template = event.payload as Template;
-
-			if (event.operation === 'create') {
-				const existingIndex = templates.findIndex(t => t.id === template.id);
-				if (existingIndex === -1) {
-					templates.push(template);
-				} else {
-					templates[existingIndex] = template;
-				}
-			} else if (event.operation === 'update') {
-				const index = templates.findIndex(t => t.id === template.id);
-				if (index !== -1) templates[index] = template;
-			} else if (event.operation === 'delete') {
-				const templateId = typeof template === 'object' ? template.id : template;
-				const index = templates.findIndex(t => t.id === templateId);
-				if (index !== -1) templates.splice(index, 1);
-			}
-
-			return { ...state, templates };
-		});
+		return this.getCachedOrFetch('templates', 'templates');
 	}
 }
 
