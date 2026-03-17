@@ -15,7 +15,6 @@
 	import JsonEditor from './JsonEditor.svelte';
 	import { extractAPIError } from '$lib/utils/apiError';
 	import { websocketStore, type WebSocketEvent } from '$lib/stores/websocket.js';
-	import { eagerCache } from '$lib/stores/eager-cache.js';
 	import UpdateRepositoryModal from './UpdateRepositoryModal.svelte';
 	import UpdateOrganizationModal from './UpdateOrganizationModal.svelte';
 	import UpdateEnterpriseModal from './UpdateEnterpriseModal.svelte';
@@ -221,16 +220,9 @@
 		return entities.find(e => e.id === selectedEntityId) || null;
 	}
 
-	// Reactive statements
+	// Reload templates when entity selection or OS type changes
 	$: if (selectedEntityId && osType) {
 		loadTemplates();
-	}
-
-	$: if (osType) {
-		// Reload templates when OS type changes - selection will be auto-handled in loadTemplates
-		if (selectedEntityId) {
-			loadTemplates();
-		}
 	}
 
 

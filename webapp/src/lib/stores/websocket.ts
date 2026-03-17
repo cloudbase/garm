@@ -104,8 +104,7 @@ function createWebSocketStore() {
 				}
 
 				// Setup heartbeat (currently no-op, but ready for future use)
-				startHeartbeat();
-			};
+				};
 
 			ws.onmessage = (event) => {
 				try {
@@ -130,8 +129,7 @@ function createWebSocketStore() {
 
 			ws.onclose = (event) => {
 				clearTimeout(connectionTimeout);
-				cleanup();
-				
+					
 				const wasManualDisconnect = event.code === 1000 && manuallyDisconnected;
 				const errorMessage = event.code !== 1000 ? `Connection closed: ${event.reason || 'Unknown reason'}` : null;
 				
@@ -151,8 +149,7 @@ function createWebSocketStore() {
 
 			ws.onerror = (error) => {
 				clearTimeout(connectionTimeout);
-				cleanup();
-				
+					
 				update(state => ({ 
 					...state, 
 					connected: false, 
@@ -176,21 +173,6 @@ function createWebSocketStore() {
 		}
 	}
 
-	function startHeartbeat() {
-		// Clear any existing intervals
-		cleanup();
-
-		// No need for client-side heartbeat checks since:
-		// 1. Server handles ping/pong automatically (every ~54 seconds)
-		// 2. Browser WebSocket automatically responds to ping frames with pong frames
-		// 3. Server will close connection if it doesn't receive pong responses
-		// 4. Server may not send any messages if there are no events to stream
-		// 5. onclose/onerror handlers will trigger reconnection if needed
-	}
-
-	function cleanup() {
-		// No intervals to clean up currently
-	}
 
 	function scheduleReconnect() {
 		if (manuallyDisconnected) {
@@ -239,8 +221,6 @@ function createWebSocketStore() {
 			clearTimeout(reconnectTimeout);
 			reconnectTimeout = null;
 		}
-		
-		cleanup();
 
 		if (ws) {
 			ws.close(1000, 'Manual disconnect');

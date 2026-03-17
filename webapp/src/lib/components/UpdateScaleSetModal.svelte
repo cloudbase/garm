@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { createEventDispatcher, onMount, onDestroy } from 'svelte';
+	import { createEventDispatcher, onMount } from 'svelte';
 	import type { ScaleSet, CreateScaleSetParams, Template, Repository, Organization, Enterprise, UpdateEntityParams } from '$lib/api/generated/api.js';
 	import { resolve } from '$app/paths';
 	import Modal from './Modal.svelte';
@@ -7,7 +7,6 @@
 	import JsonEditor from './JsonEditor.svelte';
 	import { garmApi } from '$lib/api/client.js';
 	import { eagerCache } from '$lib/stores/eager-cache.js';
-	import { websocketStore, type WebSocketEvent } from '$lib/stores/websocket.js';
 	import UpdateRepositoryModal from './UpdateRepositoryModal.svelte';
 	import UpdateOrganizationModal from './UpdateOrganizationModal.svelte';
 	import UpdateEnterpriseModal from './UpdateEnterpriseModal.svelte';
@@ -25,7 +24,6 @@
 	let templates: Template[] = [];
 	let loadingTemplates = false;
 	let showEntityUpdateModal = false;
-	let unsubscribeWebsocket: (() => void) | null = null;
 
 	// Form fields - initialize with scale set values
 	let name = scaleSet.name || '';
@@ -71,18 +69,18 @@
 		return null;
 	}
 
-	function getEntityAgentMode(): boolean {
+	function getEntityAgentMode(cache: typeof $eagerCache): boolean {
 		// Look up agent_mode from eager cache based on the scale set's entity
 		if (scaleSet.repo_id) {
-			const repo = $eagerCache.repositories.find(r => r.id === scaleSet.repo_id);
+			const repo = cache.repositories.find(r => r.id === scaleSet.repo_id);
 			return repo?.agent_mode ?? false;
 		}
 		if (scaleSet.org_id) {
-			const org = $eagerCache.organizations.find(o => o.id === scaleSet.org_id);
+			const org = cache.organizations.find(o => o.id === scaleSet.org_id);
 			return org?.agent_mode ?? false;
 		}
 		if (scaleSet.enterprise_id) {
-			const enterprise = $eagerCache.enterprises.find(e => e.id === scaleSet.enterprise_id);
+			const enterprise = cache.enterprises.find(e => e.id === scaleSet.enterprise_id);
 			return enterprise?.agent_mode ?? false;
 		}
 		return false;
@@ -96,64 +94,23 @@
 	}
 
 	// Reactive statement to check agent mode
-	$: entityAgentMode = getEntityAgentMode();
+	$: entityAgentMode = getEntityAgentMode($eagerCache);
 	$: if (!entityAgentMode) {
 		// Disable shell if agent mode is not enabled on entity
 		enableShell = false;
-	}
-
-	function handleEntityWebSocketEvent(event: WebSocketEvent) {
-		if (event.operation !== 'update') return;
-
-		const updatedEntity = event.payload;
-
-		// Update the eager cache for the entity that was updated
-		if (scaleSet.repo_id && updatedEntity.id === scaleSet.repo_id) {
-			const repo = $eagerCache.repositories.find(r => r.id === scaleSet.repo_id);
-			if (repo) {
-				Object.assign(repo, updatedEntity);
-				// Directly update entityAgentMode if it changed
-				if ('agent_mode' in updatedEntity) {
-					entityAgentMode = updatedEntity.agent_mode ?? false;
-				}
-			}
-		} else if (scaleSet.org_id && updatedEntity.id === scaleSet.org_id) {
-			const org = $eagerCache.organizations.find(o => o.id === scaleSet.org_id);
-			if (org) {
-				Object.assign(org, updatedEntity);
-				// Directly update entityAgentMode if it changed
-				if ('agent_mode' in updatedEntity) {
-					entityAgentMode = updatedEntity.agent_mode ?? false;
-				}
-			}
-		} else if (scaleSet.enterprise_id && updatedEntity.id === scaleSet.enterprise_id) {
-			const enterprise = $eagerCache.enterprises.find(e => e.id === scaleSet.enterprise_id);
-			if (enterprise) {
-				Object.assign(enterprise, updatedEntity);
-				// Directly update entityAgentMode if it changed
-				if ('agent_mode' in updatedEntity) {
-					entityAgentMode = updatedEntity.agent_mode ?? false;
-				}
-			}
-		}
 	}
 
 	async function handleEntityUpdate(params: UpdateEntityParams) {
 		try {
 			if (scaleSet.repo_id) {
 				await garmApi.updateRepository(scaleSet.repo_id, params);
-				const repo = $eagerCache.repositories.find(r => r.id === scaleSet.repo_id);
-				if (repo) Object.assign(repo, params);
 			} else if (scaleSet.org_id) {
 				await garmApi.updateOrganization(scaleSet.org_id, params);
-				const org = $eagerCache.organizations.find(o => o.id === scaleSet.org_id);
-				if (org) Object.assign(org, params);
 			} else if (scaleSet.enterprise_id) {
 				await garmApi.updateEnterprise(scaleSet.enterprise_id, params);
-				const enterprise = $eagerCache.enterprises.find(e => e.id === scaleSet.enterprise_id);
-				if (enterprise) Object.assign(enterprise, params);
 			}
 
+			// The eager cache store will be updated via WebSocket event
 			showEntityUpdateModal = false;
 		} catch (err) {
 			throw err;
@@ -221,34 +178,6 @@
 		
 		// Load templates for the current configuration
 		loadTemplates();
-
-		// Subscribe to entity updates via websocket
-		if (scaleSet.repo_id) {
-			unsubscribeWebsocket = websocketStore.subscribeToEntity(
-				'repository',
-				['update'],
-				handleEntityWebSocketEvent
-			);
-		} else if (scaleSet.org_id) {
-			unsubscribeWebsocket = websocketStore.subscribeToEntity(
-				'organization',
-				['update'],
-				handleEntityWebSocketEvent
-			);
-		} else if (scaleSet.enterprise_id) {
-			unsubscribeWebsocket = websocketStore.subscribeToEntity(
-				'enterprise',
-				['update'],
-				handleEntityWebSocketEvent
-			);
-		}
-	});
-
-	onDestroy(() => {
-		if (unsubscribeWebsocket) {
-			unsubscribeWebsocket();
-			unsubscribeWebsocket = null;
-		}
 	});
 
 	// Reactive statements

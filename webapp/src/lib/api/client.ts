@@ -76,29 +76,5 @@ export interface APIError {
 	details?: string;
 }
 
-// GarmApiClient now extends/wraps the generated client
-export class GarmApiClient extends GeneratedGarmApiClient {
-	constructor(baseUrl: string = '') {
-		super(baseUrl);
-	}
-
-	// All methods are inherited from GeneratedGarmApiClient
-	// This class now acts as a simple wrapper for backward compatibility
-	
-	// Explicitly expose template methods for TypeScript
-	declare listTemplates: (osType?: string, partialName?: string, forgeType?: string) => Promise<Template[]>;
-	declare getTemplate: (id: number) => Promise<Template>;
-	declare createTemplate: (params: CreateTemplateParams) => Promise<Template>;
-	declare updateTemplate: (id: number, params: UpdateTemplateParams) => Promise<Template>;
-	declare deleteTemplate: (id: number) => Promise<void>;
-	declare restoreTemplates: (params: RestoreTemplateRequest) => Promise<void>;
-
-	// Explicitly expose file object methods for TypeScript
-	declare listFileObjects: (tags?: string, page?: number, pageSize?: number) => Promise<FileObjectPaginatedResponse>;
-	declare getFileObject: (objectID: string) => Promise<FileObject>;
-	declare updateFileObject: (objectID: string, params: UpdateFileObjectParams) => Promise<FileObject>;
-	declare deleteFileObject: (objectID: string) => Promise<void>;
-}
-
 // Create a singleton instance
-export const garmApi = new GarmApiClient();
+export const garmApi = new GeneratedGarmApiClient();

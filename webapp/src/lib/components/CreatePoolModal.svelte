@@ -18,7 +18,6 @@
 	import UpdateRepositoryModal from './UpdateRepositoryModal.svelte';
 	import UpdateOrganizationModal from './UpdateOrganizationModal.svelte';
 	import UpdateEnterpriseModal from './UpdateEnterpriseModal.svelte';
-	import { eagerCache } from '$lib/stores/eager-cache.js';
 
 	const dispatch = createEventDispatcher<{
 		close: void;
@@ -223,16 +222,9 @@
 		return entities.find(e => e.id === selectedEntityId) || null;
 	}
 
-	// Reactive statements
+	// Reload templates when entity selection or OS type changes
 	$: if (selectedEntityId && osType) {
 		loadTemplates();
-	}
-
-	$: if (osType) {
-		// Reload templates when OS type changes - selection will be auto-handled in loadTemplates
-		if (selectedEntityId) {
-			loadTemplates();
-		}
 	}
 
 	function addTag() {

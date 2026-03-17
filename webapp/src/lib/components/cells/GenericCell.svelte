@@ -8,34 +8,18 @@
 	export let truncateLength: number = 50;
 	export let showTitle: boolean = false;
 
-	$: value = getValueInternal();
-	$: displayValue = getDisplayValue();
-
-	function getValueInternal() {
-		// Safety check for undefined item
+	$: value = (() => {
 		if (!item) return '';
-
-		// If custom getValue function is provided, use it
-		if (getValue) {
-			return getValue(item);
-		}
-
-		// Otherwise use field-based access
+		if (getValue) return getValue(item);
 		if (!field) return '';
+		return field.split('.').reduce((obj: any, key: string) => obj?.[key], item) || '';
+	})();
 
-		// Support nested field access like 'endpoint.name'
-		return field.split('.').reduce((obj, key) => obj?.[key], item) || '';
-	}
-
-	function getDisplayValue() {
-		if (type === 'date') {
-			return formatDate(value);
-		}
-		if (type === 'truncated' && value.length > truncateLength) {
-			return `${value.slice(0, truncateLength)}...`;
-		}
+	$: displayValue = (() => {
+		if (type === 'date') return formatDate(value);
+		if (type === 'truncated' && value.length > truncateLength) return `${value.slice(0, truncateLength)}...`;
 		return value;
-	}
+	})();
 
 	function getClasses() {
 		switch (type) {

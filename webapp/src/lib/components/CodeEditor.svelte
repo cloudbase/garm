@@ -229,9 +229,7 @@
 		return null;
 	}
 
-	function createEditor() {
-		if (!editorContainer) return;
-
+	function buildExtensions() {
 		const extensions = [
 			basicSetup,
 			...getThemeExtensions(isDarkMode),
@@ -279,15 +277,20 @@
 				}
 			])
 		];
-		
-		// Add template completion if enabled
+
 		if (enableTemplateCompletion) {
 			extensions.push(autocompletion({ override: [templateCompletion] }));
 		}
-		
+
+		return extensions;
+	}
+
+	function createEditor() {
+		if (!editorContainer) return;
+
 		const state = EditorState.create({
 			doc: value,
-			extensions
+			extensions: buildExtensions()
 		});
 
 		editor = new EditorView({
@@ -310,62 +313,8 @@
 			});
 		}
 
-		// Update language extension
-		const newExtensions = [
-			basicSetup,
-			...getThemeExtensions(isDarkMode),
-			getLanguageExtension(language),
-			EditorView.updateListener.of((update) => {
-				if (update.docChanged) {
-					const newValue = update.state.doc.toString();
-					value = newValue;
-					dispatch('change', { value: newValue });
-				}
-			}),
-			EditorState.readOnly.of(readonly),
-			EditorView.theme({
-				'&': {
-					minHeight: minHeight
-				},
-				'.cm-editor': {
-					minHeight: minHeight
-				},
-				'.cm-scroller': {
-					minHeight: minHeight
-				}
-			}),
-			keymap.of([
-				{
-					key: 'Tab',
-					run: (view) => {
-						if (readonly) return false;
-						const changes = view.state.changeByRange(range => ({
-							changes: { from: range.from, to: range.to, insert: '    ' },
-							range: EditorSelection.range(range.from + 4, range.from + 4)
-						}));
-						view.dispatch(changes);
-						return true;
-					}
-				},
-				{
-					key: 'Ctrl-s',
-					preventDefault: true,
-					run: () => {
-						if (readonly) return false;
-						dispatch('save');
-						return true;
-					}
-				}
-			])
-		];
-		
-		// Add template completion if enabled
-		if (enableTemplateCompletion) {
-			newExtensions.push(autocompletion({ override: [templateCompletion] }));
-		}
-
 		editor.dispatch({
-			effects: StateEffect.reconfigure.of(newExtensions)
+			effects: StateEffect.reconfigure.of(buildExtensions())
 		});
 	}
 
