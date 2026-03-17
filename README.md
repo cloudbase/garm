@@ -47,7 +47,7 @@ Here is a brief architectural diagram of how pools work and how GARM reacts to w
 ![GARM architecture diagram](/doc/images/garm-light.diagram.svg?raw=true#gh-light-mode-only)
 ![GARM architecture diagram](/doc/images/garm-dark.diagram.svg?raw=true#gh-dark-mode-only)
 
-**Scale sets** work differently. While pools (as they are defined in GARM) rely on webhooks to know when a job was started and GARM needs to internally make the right decission in terms of which pool should handle that runner, scale sets have a lot of the scheduling and decission making logic done in GitHub itself.
+**Scale sets** work differently. While pools (as they are defined in GARM) rely on webhooks to know when a job was started and GARM needs to internally make the right decision in terms of which pool should handle that runner, scale sets have a lot of the scheduling and decision making logic done in GitHub itself.
 
 > [!IMPORTANT]
 > The README and documentation in the `main` branch are relevant to the not yet released code that is present in `main`. Following the documentation from the `main` branch for a stable release of GARM, may lead to errors. To view the documentation for the latest stable release, please switch to the appropriate tag. For information about setting up `v0.1.6`, please refer to the [v0.1.6 tag](https://github.com/cloudbase/garm/tree/v0.1.6).
