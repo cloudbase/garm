@@ -2,7 +2,7 @@
 	import { createEventDispatcher, onMount } from 'svelte';
 	import type { CreateOrgParams } from '$lib/api/generated/api.js';
 	import Modal from './Modal.svelte';
-	import ForgeTypeSelector from './ForgeTypeSelector.svelte';
+	import EntityForm from './forms/EntityForm.svelte';
 	import { extractAPIError } from '$lib/utils/apiError';
 	import { eagerCache, eagerCacheManager } from '$lib/stores/eager-cache.js';
 
@@ -14,28 +14,20 @@
 	let loading = false;
 	let error = '';
 	let selectedForgeType: 'github' | 'gitea' | '' = 'github';
-	
+
 	// Get credentials from eager cache
 	$: credentials = $eagerCache.credentials;
 	$: credentialsLoading = $eagerCache.loading.credentials;
 
-	// Form data
-	let formData: CreateOrgParams = {
-		name: '',
-		credentials_name: '',
-		webhook_secret: '',
-		pool_balancer_type: 'roundrobin',
-		agent_mode: false
-	};
-
+	// Form data as individual fields
+	let name = '';
+	let owner = '';
+	let credentialsName = '';
+	let poolBalancerType = 'roundrobin';
+	let agentMode = false;
 	let installWebhook = true;
-	let generateWebhookSecret = true;
-
-	// Filtered credentials based on selected forge type
-	$: filteredCredentials = credentials.filter(cred => {
-		if (!selectedForgeType) return true;
-		return cred.forge_type === selectedForgeType;
-	});
+	let autoGenerateSecret = true;
+	let webhookSecret = '';
 
 	async function loadCredentialsIfNeeded() {
 		if (!$eagerCache.loaded.credentials && !$eagerCache.loading.credentials) {
@@ -47,48 +39,17 @@
 		}
 	}
 
-	function handleForgeTypeSelect(event: CustomEvent<'github' | 'gitea'>) {
-		selectedForgeType = event.detail;
-		// Reset credential selection when forge type changes
-		formData.credentials_name = '';
-	}
-
-	function handleCredentialChange() {
-		// Auto-detect forge type when credential is selected
-		if (formData.credentials_name) {
-			const credential = credentials.find(c => c.name === formData.credentials_name);
-			if (credential && credential.forge_type) {
-				selectedForgeType = credential.forge_type as 'github' | 'gitea';
-			}
-		}
-	}
-
-	// Generate secure random webhook secret
-	function generateSecureWebhookSecret(): string {
-		const array = new Uint8Array(32);
-		crypto.getRandomValues(array);
-		return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
-	}
-
-	// Auto-generate webhook secret when checkbox is checked
-	$: if (generateWebhookSecret) {
-		formData.webhook_secret = generateSecureWebhookSecret();
-	} else {
-		formData.webhook_secret = '';
-	}
-
 	// Check if all mandatory fields are filled
-	$: isFormValid = formData.name?.trim() !== '' && 
-					 formData.credentials_name !== '' &&
-					 (generateWebhookSecret || (formData.webhook_secret && formData.webhook_secret.trim() !== ''));
+	$: isFormValid = name?.trim() !== '' &&
+					 credentialsName !== '' &&
+					 (autoGenerateSecret || (webhookSecret && webhookSecret.trim() !== ''));
 
 	async function handleSubmit() {
-		if (!formData.name?.trim()) {
+		if (!name?.trim()) {
 			error = 'Organization name is required';
 			return;
 		}
-
-		if (!formData.credentials_name) {
+		if (!credentialsName) {
 			error = 'Please select credentials';
 			return;
 		}
@@ -97,10 +58,14 @@
 			loading = true;
 			error = '';
 
-			const submitData = {
-				...formData,
+			const submitData: CreateOrgParams & { install_webhook?: boolean; auto_generate_secret?: boolean } = {
+				name,
+				credentials_name: credentialsName,
+				webhook_secret: webhookSecret,
+				pool_balancer_type: poolBalancerType,
+				agent_mode: agentMode,
 				install_webhook: installWebhook,
-				auto_generate_secret: generateWebhookSecret
+				auto_generate_secret: autoGenerateSecret
 			};
 
 			dispatch('submit', submitData);
@@ -132,144 +97,21 @@
 			</div>
 		{:else}
 			<form on:submit|preventDefault={handleSubmit} class="space-y-4">
-				<!-- Forge Type Selection -->
-				<ForgeTypeSelector 
-					bind:selectedForgeType 
-					on:select={handleForgeTypeSelect}
+				<EntityForm
+					entityType="organization"
+					bind:name
+					bind:credentialsName
+					bind:poolBalancerType
+					bind:agentMode
+					bind:installWebhook
+					bind:webhookSecret
+					bind:autoGenerateSecret
+					bind:forgeType={selectedForgeType}
+					{credentials}
+					showCredentialsSelector={true}
+					showForgeTypeSelector={true}
+					idPrefix="org-"
 				/>
-
-				<!-- Organization Name -->
-				<div>
-					<label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-						Organization Name
-					</label>
-					<input
-						id="name"
-						type="text"
-						bind:value={formData.name}
-						required
-						class="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white sm:text-sm"
-						placeholder="Enter organization name"
-					/>
-				</div>
-
-				<!-- Credentials -->
-				<div>
-					<label for="credentials" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-						Credentials
-					</label>
-					<select
-						id="credentials"
-						bind:value={formData.credentials_name}
-						on:change={handleCredentialChange}
-						required
-						class="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white sm:text-sm"
-					>
-						<option value="">Select credentials...</option>
-						{#each filteredCredentials as credential}
-							<option value={credential.name}>
-								{credential.name} ({credential.endpoint?.name || 'Unknown endpoint'})
-							</option>
-						{/each}
-					</select>
-				</div>
-
-				<!-- Pool Balancer Type -->
-				<div>
-					<div class="flex items-center mb-1">
-						<label for="pool_balancer_type" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-							Pool Balancer Type
-						</label>
-						<div class="ml-2 relative group">
-							<svg class="w-4 h-4 text-gray-400 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-							</svg>
-							<div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-80 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-								<div class="mb-2">
-									<strong>Round Robin:</strong> Cycles through pools in turn. Job 1 → Pool 1, Job 2 → Pool 2, etc.
-								</div>
-								<div>
-									<strong>Pack:</strong> Uses first available pool until full, then moves to next pool.
-								</div>
-								<div class="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
-							</div>
-						</div>
-					</div>
-					<select
-						id="pool_balancer_type"
-						bind:value={formData.pool_balancer_type}
-						class="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white sm:text-sm"
-					>
-						<option value="roundrobin">Round Robin</option>
-						<option value="pack">Pack</option>
-					</select>
-				</div>
-
-				<!-- Agent Mode -->
-				<div>
-					<div class="flex items-center mb-3">
-						<input
-							id="agent-mode"
-							type="checkbox"
-							bind:checked={formData.agent_mode}
-							class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
-						/>
-						<label for="agent-mode" class="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-							Agent Mode
-						</label>
-						<div class="ml-2 relative group">
-							<svg class="w-4 h-4 text-gray-400 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-							</svg>
-							<div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-80 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-								When enabled, runners will be installed with the GARM agent via userdata install templates. This allows for enhanced runner management and control.
-								<div class="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
-							</div>
-						</div>
-					</div>
-				</div>
-
-				<!-- Webhook Configuration -->
-				<div>
-					<div class="flex items-center mb-3">
-						<input
-							id="install-webhook"
-							type="checkbox"
-							bind:checked={installWebhook}
-							class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
-						/>
-						<label for="install-webhook" class="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-							Install Webhook
-						</label>
-					</div>
-					
-					<div class="space-y-3">
-						<div class="flex items-center">
-							<input
-								id="generate-webhook-secret"
-								type="checkbox"
-								bind:checked={generateWebhookSecret}
-								class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
-							/>
-							<label for="generate-webhook-secret" class="ml-2 text-sm text-gray-700 dark:text-gray-300">
-								Auto-generate webhook secret
-							</label>
-						</div>
-						
-						{#if !generateWebhookSecret}
-							<input
-								type="password"
-								bind:value={formData.webhook_secret}
-								class="block w-full px-3 py-2 mt-3 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white sm:text-sm"
-								placeholder="Enter webhook secret"
-							/>
-						{:else}
-							<p class="text-sm text-gray-500 dark:text-gray-400">
-								Webhook secret will be automatically generated
-							</p>
-						{/if}
-					</div>
-				</div>
 
 				<!-- Actions -->
 				<div class="flex justify-end space-x-3 pt-4">

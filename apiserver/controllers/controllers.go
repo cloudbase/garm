@@ -40,9 +40,10 @@ import (
 	wsWriter "github.com/cloudbase/garm/websocket"
 	"github.com/cloudbase/garm/workers/websocket/agent"
 	"github.com/cloudbase/garm/workers/websocket/events"
+	wsMetrics "github.com/cloudbase/garm/workers/websocket/metrics"
 )
 
-func NewAPIController(r *runner.Runner, authenticator *auth.Authenticator, hub *wsWriter.Hub, agentHub *agent.Hub, apiCfg config.APIServer) (*APIController, error) {
+func NewAPIController(r *runner.Runner, authenticator *auth.Authenticator, hub *wsWriter.Hub, agentHub *agent.Hub, metricsHub *wsMetrics.MetricsHub, apiCfg config.APIServer) (*APIController, error) {
 	controllerInfo, err := r.GetControllerInfo(auth.GetAdminContext(context.Background()))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get controller info: %w", err)
@@ -75,10 +76,11 @@ func NewAPIController(r *runner.Runner, authenticator *auth.Authenticator, hub *
 		}
 	}
 	return &APIController{
-		r:        r,
-		auth:     authenticator,
-		hub:      hub,
-		agentHub: agentHub,
+		r:          r,
+		auth:       authenticator,
+		hub:        hub,
+		agentHub:   agentHub,
+		metricsHub: metricsHub,
 		upgrader: websocket.Upgrader{
 			ReadBufferSize:  4096,
 			WriteBufferSize: 16384,
@@ -93,6 +95,7 @@ type APIController struct {
 	auth         *auth.Authenticator
 	hub          *wsWriter.Hub
 	agentHub     *agent.Hub
+	metricsHub   *wsMetrics.MetricsHub
 	upgrader     websocket.Upgrader
 	controllerID string
 }
@@ -241,6 +244,46 @@ func (a *APIController) EventsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	<-eventHandler.Done()
+}
+
+func (a *APIController) MetricsHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	if !auth.IsAdmin(ctx) {
+		w.WriteHeader(http.StatusForbidden)
+		if _, err := w.Write([]byte("metrics are available to admin users")); err != nil {
+			slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
+		}
+		return
+	}
+
+	if a.metricsHub == nil {
+		handleError(ctx, w, gErrors.NewBadRequestError("metrics hub is not enabled"))
+		return
+	}
+
+	conn, err := a.upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "error upgrading to websockets")
+		return
+	}
+	defer conn.Close()
+
+	client, err := wsWriter.NewClient(ctx, conn)
+	if err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to create new client")
+		return
+	}
+	if err := a.metricsHub.Register(client); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to register metrics client")
+		return
+	}
+	defer a.metricsHub.Unregister(client) //nolint:errcheck
+
+	if err := client.Start(); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to start client")
+		return
+	}
+	<-client.Done()
 }
 
 func (a *APIController) WSHandler(writer http.ResponseWriter, req *http.Request) {

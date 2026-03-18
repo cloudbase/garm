@@ -783,16 +783,17 @@ func (r Repository) GetEntity() (ForgeEntity, error) {
 		return ForgeEntity{}, fmt.Errorf("repository has no ID")
 	}
 	return ForgeEntity{
-		ID:               r.ID,
-		EntityType:       ForgeEntityTypeRepository,
-		Owner:            r.Owner,
-		Name:             r.Name,
-		PoolBalancerType: r.PoolBalancerType,
-		Credentials:      r.Credentials,
-		WebhookSecret:    r.WebhookSecret,
-		CreatedAt:        r.CreatedAt,
-		UpdatedAt:        r.UpdatedAt,
-		AgentMode:        r.AgentMode,
+		ID:                r.ID,
+		EntityType:        ForgeEntityTypeRepository,
+		Owner:             r.Owner,
+		Name:              r.Name,
+		PoolBalancerType:  r.PoolBalancerType,
+		PoolManagerStatus: r.PoolManagerStatus,
+		Credentials:       r.Credentials,
+		WebhookSecret:     r.WebhookSecret,
+		CreatedAt:         r.CreatedAt,
+		UpdatedAt:         r.UpdatedAt,
+		AgentMode:         r.AgentMode,
 	}, nil
 }
 
@@ -850,15 +851,16 @@ func (o Organization) GetEntity() (ForgeEntity, error) {
 		return ForgeEntity{}, fmt.Errorf("organization has no ID")
 	}
 	return ForgeEntity{
-		ID:               o.ID,
-		EntityType:       ForgeEntityTypeOrganization,
-		Owner:            o.Name,
-		WebhookSecret:    o.WebhookSecret,
-		PoolBalancerType: o.PoolBalancerType,
-		Credentials:      o.Credentials,
-		CreatedAt:        o.CreatedAt,
-		UpdatedAt:        o.UpdatedAt,
-		AgentMode:        o.AgentMode,
+		ID:                o.ID,
+		EntityType:        ForgeEntityTypeOrganization,
+		Owner:             o.Name,
+		WebhookSecret:     o.WebhookSecret,
+		PoolBalancerType:  o.PoolBalancerType,
+		PoolManagerStatus: o.PoolManagerStatus,
+		Credentials:       o.Credentials,
+		CreatedAt:         o.CreatedAt,
+		UpdatedAt:         o.UpdatedAt,
+		AgentMode:         o.AgentMode,
 	}, nil
 }
 
@@ -912,15 +914,16 @@ func (e Enterprise) GetEntity() (ForgeEntity, error) {
 		return ForgeEntity{}, fmt.Errorf("enterprise has no ID")
 	}
 	return ForgeEntity{
-		ID:               e.ID,
-		EntityType:       ForgeEntityTypeEnterprise,
-		Owner:            e.Name,
-		WebhookSecret:    e.WebhookSecret,
-		PoolBalancerType: e.PoolBalancerType,
-		Credentials:      e.Credentials,
-		CreatedAt:        e.CreatedAt,
-		UpdatedAt:        e.UpdatedAt,
-		AgentMode:        e.AgentMode,
+		ID:                e.ID,
+		EntityType:        ForgeEntityTypeEnterprise,
+		Owner:             e.Name,
+		WebhookSecret:     e.WebhookSecret,
+		PoolBalancerType:  e.PoolBalancerType,
+		PoolManagerStatus: e.PoolManagerStatus,
+		Credentials:       e.Credentials,
+		CreatedAt:         e.CreatedAt,
+		UpdatedAt:         e.UpdatedAt,
+		AgentMode:         e.AgentMode,
 	}, nil
 }
 
@@ -1350,15 +1353,16 @@ type UpdateSystemInfoParams struct {
 
 // swagger:model ForgeEntity
 type ForgeEntity struct {
-	Owner            string           `json:"owner,omitempty"`
-	Name             string           `json:"name,omitempty"`
-	ID               string           `json:"id,omitempty"`
-	EntityType       ForgeEntityType  `json:"entity_type,omitempty"`
-	Credentials      ForgeCredentials `json:"credentials,omitempty"`
-	PoolBalancerType PoolBalancerType `json:"pool_balancing_type,omitempty"`
-	CreatedAt        time.Time        `json:"created_at,omitempty"`
-	UpdatedAt        time.Time        `json:"updated_at,omitempty"`
-	AgentMode        bool             `json:"agent_mode"`
+	Owner             string            `json:"owner,omitempty"`
+	Name              string            `json:"name,omitempty"`
+	ID                string            `json:"id,omitempty"`
+	EntityType        ForgeEntityType   `json:"entity_type,omitempty"`
+	Credentials       ForgeCredentials  `json:"credentials,omitempty"`
+	PoolBalancerType  PoolBalancerType  `json:"pool_balancing_type,omitempty"`
+	PoolManagerStatus PoolManagerStatus `json:"pool_manager_status,omitempty"`
+	CreatedAt         time.Time         `json:"created_at,omitempty"`
+	UpdatedAt         time.Time         `json:"updated_at,omitempty"`
+	AgentMode         bool              `json:"agent_mode"`
 
 	WebhookSecret string `json:"-"`
 }

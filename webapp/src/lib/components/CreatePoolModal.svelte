@@ -13,6 +13,7 @@
 	} from '$lib/api/generated/api.js';
 	import Modal from './Modal.svelte';
 	import { extractAPIError } from '$lib/utils/apiError';
+	import { getEntityForgeTypeById, getEntityAgentModeById } from '$lib/utils/entity';
 	import JsonEditor from './JsonEditor.svelte';
 	import { websocketStore, type WebSocketEvent } from '$lib/stores/websocket.js';
 	import UpdateRepositoryModal from './UpdateRepositoryModal.svelte';
@@ -102,44 +103,11 @@
 	}
 
 	function getSelectedEntityForgeType(): string | null {
-		if (!selectedEntityId || !entities) return null;
-
-		const selectedEntity = entities.find(e => e.id === selectedEntityId);
-		if (!selectedEntity) return null;
-
-		// All entities should have a forge_type or endpoint property that indicates the forge
-		// Check the entity structure to determine forge type
-		if ('forge_type' in selectedEntity) {
-			return selectedEntity.forge_type as string;
-		}
-		if ('endpoint' in selectedEntity) {
-			// Try to determine from endpoint
-			const endpoint = selectedEntity.endpoint;
-			if (endpoint && 'endpoint_type' in endpoint) {
-				return (endpoint.endpoint_type as string) || null;
-			}
-		}
-
-		// Default to github for now
-		return 'github';
-	}
-
-	function getSelectedEntityAgentMode(entityId: string, entityList: (Repository | Organization | Enterprise)[]): boolean {
-		if (!entityId || !entityList) return false;
-
-		const selectedEntity = entityList.find(e => e.id === entityId);
-		if (!selectedEntity) return false;
-
-		// Check if entity has agent_mode property
-		if ('agent_mode' in selectedEntity) {
-			return selectedEntity.agent_mode as boolean ?? false;
-		}
-
-		return false;
+		return getEntityForgeTypeById(selectedEntityId, entities);
 	}
 
 	// Reactive statement to check agent mode
-	$: entityAgentMode = getSelectedEntityAgentMode(selectedEntityId, entities);
+	$: entityAgentMode = getEntityAgentModeById(selectedEntityId, entities);
 	$: if (!entityAgentMode) {
 		// Disable shell if agent mode is not enabled on entity
 		enableShell = false;

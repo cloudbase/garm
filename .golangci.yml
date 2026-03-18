@@ -43,6 +43,7 @@ linters:
       - third_party$
       - builtin$
       - examples$
+      - node_modules
 formatters:
   enable:
     - gci
@@ -64,3 +65,4 @@ formatters:
       - third_party$
       - builtin$
       - examples$
+      - node_modules
