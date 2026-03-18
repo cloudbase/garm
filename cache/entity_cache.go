@@ -171,6 +171,12 @@ func (e *EntityCache) ReplaceEntityPools(entityID string, pools []params.Pool) {
 		return
 	}
 
+	// Remove all old pools from the global map.
+	for oldPoolID := range cache.Pools {
+		delete(e.pools, oldPoolID)
+	}
+
+	// Add the new set.
 	poolsByID := map[string]struct{}{}
 	for _, pool := range pools {
 		poolEntity, err := pool.GetEntity()
@@ -183,6 +189,7 @@ func (e *EntityCache) ReplaceEntityPools(entityID string, pools []params.Pool) {
 		// when we want to find the pool for the instance.
 		poolsByID[pool.ID] = struct{}{}
 	}
+
 	cache.Pools = poolsByID
 	e.entities[entityID] = cache
 }
@@ -196,6 +203,12 @@ func (e *EntityCache) ReplaceEntityScaleSets(entityID string, scaleSets []params
 		return
 	}
 
+	// Remove all old scale sets from the global map.
+	for oldScaleSetID := range cache.ScaleSets {
+		delete(e.scalesets, oldScaleSetID)
+	}
+
+	// Add the new set.
 	scaleSetsByID := map[uint]struct{}{}
 	for _, scaleSet := range scaleSets {
 		scaleSetEntity, err := scaleSet.GetEntity()
@@ -205,6 +218,7 @@ func (e *EntityCache) ReplaceEntityScaleSets(entityID string, scaleSets []params
 		e.scalesets[scaleSet.ID] = scaleSet
 		scaleSetsByID[scaleSet.ID] = struct{}{}
 	}
+
 	cache.ScaleSets = scaleSetsByID
 	e.entities[entityID] = cache
 }
@@ -212,6 +226,15 @@ func (e *EntityCache) ReplaceEntityScaleSets(entityID string, scaleSets []params
 func (e *EntityCache) DeleteEntity(entityID string) {
 	e.mux.Lock()
 	defer e.mux.Unlock()
+
+	if cache, ok := e.entities[entityID]; ok {
+		for poolID := range cache.Pools {
+			delete(e.pools, poolID)
+		}
+		for scaleSetID := range cache.ScaleSets {
+			delete(e.scalesets, scaleSetID)
+		}
+	}
 	delete(e.entities, entityID)
 }
 
@@ -255,6 +278,7 @@ func (e *EntityCache) DeleteEntityPool(entityID string, poolID string) {
 		delete(cache.Pools, poolID)
 		e.entities[entityID] = cache
 	}
+	delete(e.pools, poolID)
 }
 
 func (e *EntityCache) DeleteEntityScaleSet(entityID string, scaleSetID uint) {
@@ -265,6 +289,7 @@ func (e *EntityCache) DeleteEntityScaleSet(entityID string, scaleSetID uint) {
 		delete(cache.ScaleSets, scaleSetID)
 		e.entities[entityID] = cache
 	}
+	delete(e.scalesets, scaleSetID)
 }
 
 func (e *EntityCache) GetEntityPool(entityID string, poolID string) (params.Pool, bool) {

@@ -48,7 +48,7 @@
 		{
 			href: resolve('/repositories'),
 			label: 'Repositories',
-			icon: 'M7 16V4m0 0a2 2 0 100-4 2 2 0 000 4zm0 0a2 2 0 100 4 2 2 0 000-4zm10 12a2 2 0 100-4 2 2 0 000 4zm0 0V9a5 5 0 00-5-5' // Git branch icon
+			icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' // Document icon
 		},
 		{
 			href: resolve('/organizations'),
@@ -91,7 +91,7 @@
 		{
 			href: resolve('/templates'),
 			label: 'Runner Install Templates',
-			icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'
+			icon: 'M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4' // Code/script icon
 		},
 		{
 			href: resolve('/objects'),

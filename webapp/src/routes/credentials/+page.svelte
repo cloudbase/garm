@@ -8,13 +8,14 @@
 		APP: 'app'
 	} as const;
 	import PageHeader from '$lib/components/PageHeader.svelte';
-	import ForgeTypeSelector from '$lib/components/ForgeTypeSelector.svelte';
+	import CredentialsForm from '$lib/components/forms/CredentialsForm.svelte';
 	import ActionButton from '$lib/components/ActionButton.svelte';
 	import DataTable from '$lib/components/DataTable.svelte';
 	import { eagerCache, eagerCacheManager } from '$lib/stores/eager-cache.js';
 	import { toastStore } from '$lib/stores/toast.js';
 	import { getForgeIcon, filterCredentials, changePerPage, paginateItems, getAuthTypeBadge } from '$lib/utils/common.js';
 	import { extractAPIError } from '$lib/utils/apiError';
+	import { handleFileInputAsBase64 } from '$lib/utils/file';
 	import Badge from '$lib/components/Badge.svelte';
 	import { EntityCell, EndpointCell, StatusCell, ActionsCell, GenericCell } from '$lib/components/cells';
 
@@ -143,9 +144,8 @@
 	// Add forge type selection state
 	let selectedForgeType: 'github' | 'gitea' | '' = '';
 
-	function handleForgeTypeSelect(event: CustomEvent<'github' | 'gitea'>) {
-		selectedForgeType = event.detail;
-		// Reset form when forge type changes
+	function handleForgeTypeSelect() {
+		// Reset form when forge type changes (called by CredentialsForm)
 		resetForm();
 	}
 
@@ -199,11 +199,6 @@
 		deletingCredential = null;
 		selectedForgeType = '';
 		resetForm();
-	}
-
-	function handleAuthTypeChange(authType: typeof AuthType[keyof typeof AuthType]) {
-		selectedAuthType = authType;
-		formData.auth_type = authType;
 	}
 
 	function buildUpdateParams() {
@@ -378,23 +373,14 @@
 	}
 
 	function handlePrivateKeyUpload(event: Event) {
-		const target = event.target as HTMLInputElement;
-		const file = target.files?.[0];
-		
-		if (!file) {
-			formData.private_key_bytes = '';
-			return;
-		}
-
-		const reader = new FileReader();
-		reader.onload = (e) => {
-			const content = e.target?.result as string;
-			formData.private_key_bytes = btoa(content);
-		};
-		reader.readAsText(file);
+		handleFileInputAsBase64(
+			event,
+			(base64) => { formData.private_key_bytes = base64; },
+			() => { formData.private_key_bytes = ''; }
+		);
 	}
 
-	// Reactive form validation
+	// Reactive form validation for create modal
 	$: isFormValid = (() => {
 		if (!formData.name || !formData.endpoint) return false;
 		
@@ -421,18 +407,6 @@
 		// If checkbox is not checked, just need basic fields
 		return true;
 	}
-
-	function getEndpointForgeType(endpointName: string): string {
-		const endpoint = endpoints.find(e => e.name === endpointName);
-		return endpoint?.endpoint_type || '';
-	}
-
-	function isGiteaEndpoint(endpointName: string): boolean {
-		return getEndpointForgeType(endpointName) === 'gitea';
-	}
-
-	// Get filtered endpoints based on selected forge type
-	$: filteredEndpoints = selectedForgeType ? endpoints.filter(e => e.endpoint_type === selectedForgeType) : endpoints;
 
 	// DataTable configuration
 	const columns = [
@@ -633,178 +607,16 @@
 			</div>
 			
 				<form on:submit|preventDefault={handleCreateCredentials} class="p-6 space-y-4">
-					<!-- Forge Type Selection -->
-					<ForgeTypeSelector 
-						bind:selectedForgeType 
-						on:select={handleForgeTypeSelect}
-					/>
-
-					<div>
-						<label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-							Credentials Name <span class="text-red-500">*</span>
-						</label>
-						<input
-							type="text"
-							id="name"
-							bind:value={formData.name}
-							required
-							autocomplete="off"
-							class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-							placeholder="e.g., my-github-credentials"
-						/>
-					</div>
-
-				<div>
-					<label for="description" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-						Description
-					</label>
-					<textarea
-						id="description"
-						bind:value={formData.description}
-						rows="2"
-						autocomplete="off"
-						class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-						placeholder="Brief description of these credentials"
-					></textarea>
-				</div>
-
-				<div>
-					<label for="endpoint" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-						Endpoint <span class="text-red-500">*</span>
-					</label>
-					<select
-						id="endpoint"
-						bind:value={formData.endpoint}
-						required
-						autocomplete="off"
-						class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-					>
-						<option value="">Select an endpoint</option>
-						{#each filteredEndpoints as endpoint}
-							<option value={endpoint.name}>
-								{endpoint.name} ({endpoint.endpoint_type})
-							</option>
-						{/each}
-					</select>
-					{#if selectedForgeType}
-						<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-							Showing only {selectedForgeType} endpoints
-						</p>
-					{/if}
-				</div>
-
-				<!-- Authentication Type Selection -->
-				<div role="group" aria-labelledby="auth-type-heading">
-					<div id="auth-type-heading" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-						Authentication Type <span class="text-red-500">*</span>
-					</div>
-					<div class="flex space-x-4">
-						<button
-							type="button"
-							on:click={() => handleAuthTypeChange(AuthType.PAT)}
-							class="flex-1 py-2 px-4 text-sm font-medium rounded-md border focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer
-								{selectedAuthType === AuthType.PAT 
-									? 'bg-blue-600 text-white border-blue-600' 
-									: 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'}
-								{formData.endpoint && isGiteaEndpoint(formData.endpoint) ? '' : ''}"
-						>
-							PAT
-						</button>
-						<button
-							type="button"
-							on:click={() => handleAuthTypeChange(AuthType.APP)}
-							disabled={selectedForgeType === 'gitea'}
-							class="flex-1 py-2 px-4 text-sm font-medium rounded-md border focus:outline-none focus:ring-2 focus:ring-blue-500
-								{selectedAuthType === AuthType.APP 
-									? 'bg-blue-600 text-white border-blue-600' 
-									: 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'}
-								{selectedForgeType === 'gitea' ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}"
-						>
-							App
-						</button>
-					</div>
-					{#if selectedForgeType === 'gitea'}
-						<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Gitea only supports PAT authentication</p>
-					{/if}
-				</div>
-
-				<!-- PAT Fields -->
-				{#if selectedAuthType === AuthType.PAT}
-					<div>
-						<label for="oauth2_token" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-							Personal Access Token <span class="text-red-500">*</span>
-						</label>
-						<input
-							type="password"
-							id="oauth2_token"
-							bind:value={formData.oauth2_token}
-							required
-							autocomplete="off"
-							class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-							placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
-						/>
-					</div>
-				{/if}
-
-				<!-- App Fields -->
-				{#if selectedAuthType === AuthType.APP}
-					<div>
-						<label for="app_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-							App ID <span class="text-red-500">*</span>
-						</label>
-						<input
-							type="text"
-							id="app_id"
-							bind:value={formData.app_id}
-							required
-							autocomplete="off"
-							class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-							placeholder="123456"
-						/>
-					</div>
-
-					<div>
-						<label for="installation_id" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-							App Installation ID <span class="text-red-500">*</span>
-						</label>
-						<input
-							type="text"
-							id="installation_id"
-							bind:value={formData.installation_id}
-							required
-							autocomplete="off"
-							class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-							placeholder="12345678"
-						/>
-					</div>
-
-					<div>
-						<label for="private_key" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-							Private Key <span class="text-red-500">*</span>
-						</label>
-						<div class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 text-center hover:border-blue-400 dark:hover:border-blue-400 transition-colors">
-							<input
-								type="file"
-								id="private_key"
-								accept=".pem,.key"
-								on:change={handlePrivateKeyUpload}
-								class="hidden"
-							/>
-							<div class="space-y-2">
-								<svg class="mx-auto h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-								</svg>
-								<p class="text-sm text-gray-600 dark:text-gray-400">
-									<button type="button" on:click={() => document.getElementById('private_key')?.click()} class="text-gray-900 dark:text-white hover:text-gray-700 dark:hover:text-gray-300 hover:underline cursor-pointer">
-										Choose a file
-									</button>
-									or drag and drop
-								</p>
-								<p class="text-xs text-gray-500 dark:text-gray-400">PEM, KEY files only</p>
-							</div>
-						</div>
-					</div>
-				{/if}
+				<CredentialsForm
+					bind:formData
+					bind:selectedAuthType
+					bind:forgeType={selectedForgeType}
+					{endpoints}
+					showEndpointSelector={true}
+					showForgeTypeSelector={true}
+					on:forgeTypeSelect={handleForgeTypeSelect}
+					idPrefix="create-"
+				/>
 
 				<div class="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
 					<button

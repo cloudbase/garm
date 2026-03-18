@@ -611,6 +611,11 @@ export class GeneratedGarmApiClient {
     return response.data;
   }
 
+  async forceToolsSync(): Promise<ControllerInfo> {
+    const response = await this.controllerApi.forceToolsSync();
+    return response.data;
+  }
+
   // Templates
   async listTemplates(osType?: string, partialName?: string, forgeType?: string): Promise<Template[]> {
     const response = await this.templatesApi.listTemplates(osType, partialName, forgeType);

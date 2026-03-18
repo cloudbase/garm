@@ -5,15 +5,14 @@
 	import { garmApi } from '$lib/api/client.js';
 	import type { ForgeEndpoint } from '$lib/api/generated/api.js';
 	import PageHeader from '$lib/components/PageHeader.svelte';
-	import ForgeTypeSelector from '$lib/components/ForgeTypeSelector.svelte';
 	import ActionButton from '$lib/components/ActionButton.svelte';
+	import EndpointForm from '$lib/components/forms/EndpointForm.svelte';
 	import { eagerCache, eagerCacheManager } from '$lib/stores/eager-cache.js';
 	import { toastStore } from '$lib/stores/toast.js';
 	import { getForgeIcon, filterEndpoints, changePerPage, paginateItems } from '$lib/utils/common.js';
 	import { extractAPIError } from '$lib/utils/apiError';
-import DataTable from '$lib/components/DataTable.svelte';
-import { EndpointCell, ActionsCell, GenericCell } from '$lib/components/cells';
-import Tooltip from '$lib/components/Tooltip.svelte';
+	import DataTable from '$lib/components/DataTable.svelte';
+	import { EndpointCell, ActionsCell, GenericCell } from '$lib/components/cells';
 
 	let loading = true;
 	let endpoints: ForgeEndpoint[] = [];
@@ -189,13 +188,6 @@ import Tooltip from '$lib/components/Tooltip.svelte';
 		resetForm();
 		formData.endpoint_type = 'github'; // Ensure endpoint_type is set
 		showCreateModal = true;
-	}
-
-	function handleForgeTypeSelect(event: CustomEvent<'github' | 'gitea'>) {
-		selectedForgeType = event.detail;
-		// Reset form when forge type changes
-		resetForm();
-		formData.endpoint_type = event.detail;
 	}
 
 	function showEditEndpointModal(endpoint: ForgeEndpoint) {
@@ -420,35 +412,6 @@ import Tooltip from '$lib/components/Tooltip.svelte';
 		closeModals();
 	}
 
-	function handleFileUpload(event: Event) {
-		const target = event.target as HTMLInputElement;
-		const file = target.files?.[0];
-
-		if (!file) {
-			formData.ca_cert_bundle = '';
-			selectedCertFileName = '';
-			return;
-		}
-
-		selectedCertFileName = file.name;
-		const reader = new FileReader();
-		reader.onload = (e) => {
-			const content = e.target?.result as string;
-			formData.ca_cert_bundle = btoa(content);
-		};
-		reader.readAsText(file);
-	}
-
-	function clearCertificate() {
-		formData.ca_cert_bundle = '';
-		selectedCertFileName = '';
-		// Reset the file input
-		const fileInput = document.getElementById('ca_cert_file') as HTMLInputElement;
-		if (fileInput) fileInput.value = '';
-		const editFileInput = document.getElementById('edit_ca_cert_file') as HTMLInputElement;
-		if (editFileInput) editFileInput.value = '';
-	}
-
 	// Reactive form validation
 	$: isFormValid = (() => {
 		if (!formData.name || !formData.base_url) return false;
@@ -553,193 +516,12 @@ import Tooltip from '$lib/components/Tooltip.svelte';
 			</div>
 			
 			<form on:submit|preventDefault={handleCreateEndpoint} class="p-6 space-y-4">
-				<!-- Forge Type Selection -->
-				<ForgeTypeSelector 
-					bind:selectedForgeType 
-					on:select={handleForgeTypeSelect}
+				<EndpointForm
+					bind:formData
+					bind:selectedForgeType
+					bind:selectedCertFileName
+					idPrefix="create-"
 				/>
-				<div>
-					<label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-						Endpoint Name <span class="text-red-500">*</span>
-					</label>
-					<input
-						type="text"
-						id="name"
-						bind:value={formData.name}
-						required
-						autocomplete="off"
-						class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-						placeholder={selectedForgeType === 'github' ? 'e.g., github-enterprise or github-com' : 'e.g., gitea-main or my-gitea'}
-					/>
-				</div>
-
-				<div>
-					<label for="description" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-						Description
-					</label>
-					<textarea
-						id="description"
-						bind:value={formData.description}
-						rows="2"
-						autocomplete="off"
-						class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-						placeholder="Brief description of this endpoint"
-					></textarea>
-				</div>
-
-				<div>
-					<label for="base_url" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-						Base URL <span class="text-red-500">*</span>
-					</label>
-					<input
-						type="url"
-						id="base_url"
-						bind:value={formData.base_url}
-						required
-						autocomplete="off"
-						class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-						placeholder={selectedForgeType === 'github' ? 'https://github.com or https://github.example.com' : 'https://gitea.example.com'}
-					/>
-				</div>
-
-				{#if selectedForgeType === 'github'}
-					<div>
-						<label for="api_base_url" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-							API Base URL <span class="text-red-500">*</span>
-						</label>
-						<input
-							type="url"
-							id="api_base_url"
-							bind:value={formData.api_base_url}
-							required
-							autocomplete="off"
-							class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-							placeholder="https://api.github.com or https://github.example.com/api/v3"
-						/>
-					</div>
-
-					<div>
-						<label for="upload_base_url" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-							Upload Base URL
-						</label>
-						<input
-							type="url"
-							id="upload_base_url"
-							bind:value={formData.upload_base_url}
-							autocomplete="off"
-							class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-							placeholder="https://uploads.github.com"
-						/>
-					</div>
-				{:else}
-					<div>
-						<label for="api_base_url" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-							API Base URL <span class="text-xs text-gray-500">(optional)</span>
-						</label>
-						<input
-							type="url"
-							id="api_base_url"
-							bind:value={formData.api_base_url}
-							autocomplete="off"
-							class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-							placeholder="https://gitea.example.com/api/v1 (leave empty to use Base URL)"
-						/>
-						<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">If empty, Base URL will be used as API Base URL</p>
-					</div>
-
-					<!-- Gitea-specific tools metadata fields -->
-					<div>
-						<div class="flex items-center mb-1">
-							<label for="tools_metadata_url" class="block text-sm font-medium {formData.use_internal_tools_metadata ? 'text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-300'}">
-								Tools Metadata URL <span class="text-xs text-gray-500">(optional)</span>
-							</label>
-							<div class="ml-2">
-								<Tooltip
-									title="Tools Metadata URL"
-									content="URL where GARM checks for act_runner binary downloads and release information. Defaults to https://gitea.com/api/v1/repos/gitea/act_runner/releases if not specified. Use a custom URL to point to your own tools repository or mirror."
-									position="top"
-									width="w-80"
-								/>
-							</div>
-						</div>
-						<input
-							type="url"
-							id="tools_metadata_url"
-							bind:value={formData.tools_metadata_url}
-							disabled={formData.use_internal_tools_metadata}
-							autocomplete="off"
-							class="w-full px-3 py-2 border rounded-md focus:outline-none transition-colors {formData.use_internal_tools_metadata ? 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed' : 'border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white'}"
-							placeholder="https://gitea.com/api/v1/repos/gitea/act_runner/releases"
-						/>
-						<p class="text-xs {formData.use_internal_tools_metadata ? 'text-gray-400 dark:text-gray-500' : 'text-gray-500 dark:text-gray-400'} mt-1">{formData.use_internal_tools_metadata ? 'Disabled when using internal tools metadata' : 'Leave empty to use default Gitea releases URL'}</p>
-					</div>
-
-					<div class="flex items-center">
-						<input
-							id="use_internal_tools_metadata"
-							type="checkbox"
-							bind:checked={formData.use_internal_tools_metadata}
-							class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
-						/>
-						<label for="use_internal_tools_metadata" class="ml-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-							Use Internal Tools Metadata
-						</label>
-						<div class="ml-2">
-							<Tooltip
-								title="Internal Tools Metadata"
-								content="When enabled, GARM uses built-in URLs for nightly act_runner binaries instead of calling the external tools metadata URL. This is useful in air-gapped environments where runner images already include the binaries and don't need to download them."
-								position="top"
-								width="w-80"
-							/>
-						</div>
-					</div>
-				{/if}
-
-				<!-- CA Certificate Upload -->
-				<div class="space-y-3 border-t border-gray-200 dark:border-gray-700 pt-4">
-					<label for="ca_cert_file" class="block text-sm font-medium text-gray-700 dark:text-gray-300">CA Certificate Bundle (Optional)</label>
-					<div class="border-2 border-dashed rounded-lg p-4 text-center transition-colors {selectedCertFileName ? 'border-green-500 dark:border-green-400 bg-green-50 dark:bg-green-900/20' : 'border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-400'}">
-						<input
-							type="file"
-							id="ca_cert_file"
-							accept=".pem,.crt,.cer,.cert"
-							on:change={handleFileUpload}
-							class="hidden"
-						/>
-						{#if selectedCertFileName}
-							<div class="space-y-2">
-								<svg class="mx-auto h-8 w-8 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-								</svg>
-								<p class="text-sm font-medium text-green-700 dark:text-green-300">
-									{selectedCertFileName}
-								</p>
-								<div class="flex justify-center space-x-2">
-									<button type="button" on:click={() => document.getElementById('ca_cert_file')?.click()} class="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline cursor-pointer">
-										Replace
-									</button>
-									<span class="text-xs text-gray-400">•</span>
-									<button type="button" on:click={clearCertificate} class="text-xs text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 hover:underline cursor-pointer">
-										Remove
-									</button>
-								</div>
-							</div>
-						{:else}
-							<div class="space-y-2">
-								<svg class="mx-auto h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-								</svg>
-								<p class="text-sm text-gray-600 dark:text-gray-400">
-									<button type="button" on:click={() => document.getElementById('ca_cert_file')?.click()} class="text-gray-900 dark:text-white hover:text-gray-700 dark:hover:text-gray-300 hover:underline cursor-pointer">
-										Choose a file
-									</button>
-									or drag and drop
-								</p>
-								<p class="text-xs text-gray-500 dark:text-gray-400">PEM, CRT, CER, CERT files only</p>
-							</div>
-						{/if}
-					</div>
-				</div>
 
 				<div class="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
 					<button
@@ -785,182 +567,13 @@ import Tooltip from '$lib/components/Tooltip.svelte';
 			</div>
 			
 			<form on:submit|preventDefault={handleUpdateEndpoint} class="p-6 space-y-4">
-				<div>
-					<label for="edit_name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-						Endpoint Name <span class="text-red-500">*</span>
-					</label>
-					<input
-						type="text"
-						id="edit_name"
-						bind:value={formData.name}
-						required
-						autocomplete="off"
-						class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-					/>
-				</div>
-
-				<div>
-					<label for="edit_description" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-						Description
-					</label>
-					<textarea
-						id="edit_description"
-						bind:value={formData.description}
-						rows="2"
-						autocomplete="off"
-						class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-					></textarea>
-				</div>
-
-				<div>
-					<label for="edit_base_url" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-						Base URL <span class="text-red-500">*</span>
-					</label>
-					<input
-						type="url"
-						id="edit_base_url"
-						bind:value={formData.base_url}
-						required
-						autocomplete="off"
-						class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-					/>
-				</div>
-
-				{#if editingEndpoint.endpoint_type === 'github'}
-					<div>
-						<label for="edit_api_base_url" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-							API Base URL <span class="text-red-500">*</span>
-						</label>
-						<input
-							type="url"
-							id="edit_api_base_url"
-							bind:value={formData.api_base_url}
-							required
-							autocomplete="off"
-							class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-						/>
-					</div>
-
-					<div>
-						<label for="edit_upload_base_url" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-							Upload Base URL
-						</label>
-						<input
-							type="url"
-							id="edit_upload_base_url"
-							bind:value={formData.upload_base_url}
-							autocomplete="off"
-							class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-						/>
-					</div>
-				{:else}
-					<div>
-						<label for="edit_api_base_url" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-							API Base URL <span class="text-xs text-gray-500">(optional)</span>
-						</label>
-						<input
-							type="url"
-							id="edit_api_base_url"
-							bind:value={formData.api_base_url}
-							autocomplete="off"
-							class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-						/>
-						<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">If empty, Base URL will be used as API Base URL</p>
-					</div>
-
-					<!-- Gitea-specific tools metadata fields -->
-					<div>
-						<div class="flex items-center mb-1">
-							<label for="edit_tools_metadata_url" class="block text-sm font-medium {formData.use_internal_tools_metadata ? 'text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-300'}">
-								Tools Metadata URL <span class="text-xs text-gray-500">(optional)</span>
-							</label>
-							<div class="ml-2">
-								<Tooltip
-									title="Tools Metadata URL"
-									content="URL where GARM checks for act_runner binary downloads and release information. Defaults to https://gitea.com/api/v1/repos/gitea/act_runner/releases if not specified. Use a custom URL to point to your own tools repository or mirror."
-									position="top"
-									width="w-80"
-								/>
-							</div>
-						</div>
-						<input
-							type="url"
-							id="edit_tools_metadata_url"
-							bind:value={formData.tools_metadata_url}
-							disabled={formData.use_internal_tools_metadata}
-							autocomplete="off"
-							class="w-full px-3 py-2 border rounded-md focus:outline-none transition-colors {formData.use_internal_tools_metadata ? 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed' : 'border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white'}"
-							placeholder="https://gitea.com/api/v1/repos/gitea/act_runner/releases"
-						/>
-						<p class="text-xs {formData.use_internal_tools_metadata ? 'text-gray-400 dark:text-gray-500' : 'text-gray-500 dark:text-gray-400'} mt-1">{formData.use_internal_tools_metadata ? 'Disabled when using internal tools metadata' : 'Leave empty to use default Gitea releases URL'}</p>
-					</div>
-
-					<div class="flex items-center">
-						<input
-							id="edit_use_internal_tools_metadata"
-							type="checkbox"
-							bind:checked={formData.use_internal_tools_metadata}
-							class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
-						/>
-						<label for="edit_use_internal_tools_metadata" class="ml-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-							Use Internal Tools Metadata
-						</label>
-						<div class="ml-2">
-							<Tooltip
-								title="Internal Tools Metadata"
-								content="When enabled, GARM uses built-in URLs for nightly act_runner binaries instead of calling the external tools metadata URL. This is useful in air-gapped environments where runner images already include the binaries and don't need to download them."
-								position="top"
-								width="w-80"
-							/>
-						</div>
-					</div>
-				{/if}
-
-				<!-- CA Certificate Upload -->
-				<div class="space-y-3 border-t border-gray-200 dark:border-gray-700 pt-4">
-					<label for="edit_ca_cert_file" class="block text-sm font-medium text-gray-700 dark:text-gray-300">CA Certificate Bundle (Optional)</label>
-					<div class="border-2 border-dashed rounded-lg p-4 text-center transition-colors {selectedCertFileName ? 'border-green-500 dark:border-green-400 bg-green-50 dark:bg-green-900/20' : 'border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-400'}">
-						<input
-							type="file"
-							id="edit_ca_cert_file"
-							accept=".pem,.crt,.cer,.cert"
-							on:change={handleFileUpload}
-							class="hidden"
-						/>
-						{#if selectedCertFileName}
-							<div class="space-y-2">
-								<svg class="mx-auto h-8 w-8 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-								</svg>
-								<p class="text-sm font-medium text-green-700 dark:text-green-300">
-									{selectedCertFileName}
-								</p>
-								<div class="flex justify-center space-x-2">
-									<button type="button" on:click={() => document.getElementById('edit_ca_cert_file')?.click()} class="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline cursor-pointer">
-										Replace
-									</button>
-									<span class="text-xs text-gray-400">•</span>
-									<button type="button" on:click={clearCertificate} class="text-xs text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 hover:underline cursor-pointer">
-										Remove
-									</button>
-								</div>
-							</div>
-						{:else}
-							<div class="space-y-2">
-								<svg class="mx-auto h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-								</svg>
-								<p class="text-sm text-gray-600 dark:text-gray-400">
-									<button type="button" on:click={() => document.getElementById('edit_ca_cert_file')?.click()} class="text-gray-900 dark:text-white hover:text-gray-700 dark:hover:text-gray-300 hover:underline cursor-pointer">
-										Choose a file
-									</button>
-									or drag and drop
-								</p>
-								<p class="text-xs text-gray-500 dark:text-gray-400">PEM, CRT, CER, CERT files only</p>
-							</div>
-						{/if}
-					</div>
-				</div>
+				<EndpointForm
+					bind:formData
+					selectedForgeType={editingEndpoint.endpoint_type === 'github' ? 'github' : 'gitea'}
+					bind:selectedCertFileName
+					showForgeTypeSelector={false}
+					idPrefix="edit-"
+				/>
 
 				<div class="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
 					<button

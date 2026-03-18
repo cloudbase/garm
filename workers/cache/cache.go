@@ -343,6 +343,8 @@ func (w *Worker) handleEntityEvent(entityGetter params.EntityGetter, op common.O
 		}
 	case common.DeleteOperation:
 		cache.DeleteEntity(entity.ID)
+		cache.DeleteGithubClient(entity.ID)
+		cache.DeleteGithubToolsCache(entity.ID)
 		worker, ok := w.toolsWorkes[entity.ID]
 		if ok {
 			if err := worker.Stop(); err != nil {
@@ -473,7 +475,12 @@ func (w *Worker) handleCredentialsEvent(event common.ChangePayload) {
 			}
 		}
 	case common.DeleteOperation:
-		cache.DeleteGithubCredentials(credentials.ID)
+		switch credentials.ForgeType {
+		case params.GithubEndpointType:
+			cache.DeleteGithubCredentials(credentials.ID)
+		case params.GiteaEndpointType:
+			cache.DeleteGiteaCredentials(credentials.ID)
+		}
 	}
 }
 

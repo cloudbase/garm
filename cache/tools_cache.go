@@ -103,12 +103,23 @@ func (g *GithubToolsCache) SetToolsError(entity params.ForgeEntity, err error) {
 	g.entities[entity.ID] = cache
 }
 
+func (g *GithubToolsCache) Delete(entityID string) {
+	g.mux.Lock()
+	defer g.mux.Unlock()
+
+	delete(g.entities, entityID)
+}
+
 func SetGithubToolsCache(entity params.ForgeEntity, tools []commonParams.RunnerApplicationDownload) {
 	githubToolsCache.Set(entity, tools)
 }
 
 func GetGithubToolsCache(entityID string) ([]commonParams.RunnerApplicationDownload, error) {
 	return githubToolsCache.Get(entityID)
+}
+
+func DeleteGithubToolsCache(entityID string) {
+	githubToolsCache.Delete(entityID)
 }
 
 func SetGithubToolsCacheError(entity params.ForgeEntity, err error) {

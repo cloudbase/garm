@@ -53,6 +53,7 @@ import (
 	"github.com/cloudbase/garm/workers/entity"
 	"github.com/cloudbase/garm/workers/provider"
 	"github.com/cloudbase/garm/workers/websocket/agent"
+	wsMetrics "github.com/cloudbase/garm/workers/websocket/metrics"
 )
 
 var (
@@ -260,6 +261,12 @@ func main() {
 		log.Fatalf("failed to start cache worker: %+v", err)
 	}
 
+	metricsHub := wsMetrics.NewMetricsHub(ctx)
+	if err := metricsHub.Start(); err != nil {
+		log.Fatalf("failed to start metrics hub: %+v", err)
+	}
+	defer metricsHub.Stop() //nolint
+
 	providers, err := providers.LoadProvidersFromConfig(ctx, *cfg, controllerInfo.ControllerID.String())
 	if err != nil {
 		log.Fatalf("loading providers: %+v", err)
@@ -287,7 +294,7 @@ func main() {
 	}
 
 	authenticator := auth.NewAuthenticator(cfg.JWTAuth, db)
-	controller, err := controllers.NewAPIController(runner, authenticator, hub, agentHub, cfg.APIServer)
+	controller, err := controllers.NewAPIController(runner, authenticator, hub, agentHub, metricsHub, cfg.APIServer)
 	if err != nil {
 		log.Fatalf("failed to create controller: %+v", err)
 	}

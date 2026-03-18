@@ -51,10 +51,21 @@ func (g *GithubClientCache) GetClient(entityID string) (common.GithubClient, boo
 	return nil, false
 }
 
+func (g *GithubClientCache) DeleteClient(entityID string) {
+	g.mux.Lock()
+	defer g.mux.Unlock()
+
+	delete(g.cache, entityID)
+}
+
 func SetGithubClient(entityID string, client common.GithubClient) {
 	ghClientCache.SetClient(entityID, client)
 }
 
 func GetGithubClient(entityID string) (common.GithubClient, bool) {
 	return ghClientCache.GetClient(entityID)
+}
+
+func DeleteGithubClient(entityID string) {
+	ghClientCache.DeleteClient(entityID)
 }

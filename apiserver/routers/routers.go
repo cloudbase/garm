@@ -612,6 +612,9 @@ func NewAPIRouter(han *controllers.APIController, authMiddleware, initMiddleware
 	// DB watcher websocket endpoint
 	apiRouter.Handle("/ws/events/", http.HandlerFunc(han.EventsHandler)).Methods("GET")
 	apiRouter.Handle("/ws/events", http.HandlerFunc(han.EventsHandler)).Methods("GET")
+	// Metrics websocket endpoint
+	apiRouter.Handle("/ws/metrics/", http.HandlerFunc(han.MetricsHandler)).Methods("GET")
+	apiRouter.Handle("/ws/metrics", http.HandlerFunc(han.MetricsHandler)).Methods("GET")
 	apiRouter.Handle("/ws/agent/{agentName}/shell", http.HandlerFunc(han.AgentShellHandler)).Methods("GET")
 
 	// NotFound handler - this should be last
