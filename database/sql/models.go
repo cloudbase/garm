@@ -80,8 +80,9 @@ type ControllerInfo struct {
 type Tag struct {
 	Base
 
-	Name  string  `gorm:"type:varchar(64);uniqueIndex"`
-	Pools []*Pool `gorm:"many2many:pool_tags;constraint:OnDelete:CASCADE,OnUpdate:CASCADE;"`
+	Name      string      `gorm:"type:varchar(64);uniqueIndex"`
+	Pools     []*Pool     `gorm:"many2many:pool_tags;constraint:OnDelete:CASCADE,OnUpdate:CASCADE;"`
+	ScaleSets []*ScaleSet `gorm:"many2many:scaleset_tags;constraint:OnDelete:CASCADE,OnUpdate:CASCADE;"`
 }
 
 type Template struct {
@@ -145,11 +146,8 @@ type Pool struct {
 	Priority  uint       `gorm:"index:idx_pool_priority"`
 }
 
-// ScaleSet represents a github scale set. Scale sets are almost identical to pools with a few
-// notable exceptions:
-//   - Labels are no longer relevant
-//   - Workflows will use the scaleset name to target runners.
-//   - A scale set is a stand alone unit. If a workflow targets a scale set, no other runner will pick up that job.
+// ScaleSet represents a github scale set. Scale sets are almost identical to pools with
+// the notable difference that scheduling happens server side in github.
 type ScaleSet struct {
 	gorm.Model
 
@@ -205,6 +203,7 @@ type ScaleSet struct {
 	TemplateID *uint    `gorm:"index"`
 	Template   Template `gorm:"foreignKey:TemplateID"`
 
+	Tags      []*Tag     `gorm:"many2many:scaleset_tags;constraint:OnDelete:CASCADE,OnUpdate:CASCADE;"`
 	Instances []Instance `gorm:"foreignKey:ScaleSetFkID"`
 }
 

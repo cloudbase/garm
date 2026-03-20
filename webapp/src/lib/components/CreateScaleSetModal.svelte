@@ -54,6 +54,26 @@
 	let enableShell = false;
 	let extraSpecs = '{}';
 	let selectedTemplate: number | undefined = undefined;
+	let labels: string[] = [];
+	let newLabel = '';
+
+	function addLabel() {
+		if (newLabel.trim() && !labels.includes(newLabel.trim())) {
+			labels = [...labels, newLabel.trim()];
+			newLabel = '';
+		}
+	}
+
+	function removeLabel(index: number) {
+		labels = labels.filter((_, i) => i !== index);
+	}
+
+	function handleLabelKeydown(event: KeyboardEvent) {
+		if (event.key === 'Enter') {
+			event.preventDefault();
+			addLabel();
+		}
+	}
 
 	// Reactive validation
 	$: isFormValid = !loading && 
@@ -229,7 +249,8 @@
 				enabled,
 				enable_shell: enableShell,
 				extra_specs: extraSpecs.trim() ? parsedExtraSpecs : undefined,
-				template_id: selectedTemplate
+				template_id: selectedTemplate,
+				labels: labels.length > 0 ? labels : undefined
 			};
 
 			// Create the scale set using entity-specific method
@@ -599,6 +620,54 @@
 								class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
 							/>
 						</div>
+					</div>
+
+					<!-- Labels -->
+					<div class="col-span-2">
+						<label for="label-input" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+							Labels
+						</label>
+						<div class="space-y-2">
+							<div class="flex">
+								<input
+									id="label-input"
+									type="text"
+									bind:value={newLabel}
+									on:keydown={handleLabelKeydown}
+									placeholder="Enter a label"
+									class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-l-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+								/>
+								<button
+									type="button"
+									on:click={addLabel}
+									class="px-3 py-2 bg-blue-600 text-white rounded-r-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+								>
+									Add
+								</button>
+							</div>
+							{#if labels.length > 0}
+								<div class="flex flex-wrap gap-2">
+									{#each labels as label, index}
+										<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
+											{label}
+											<button
+												type="button"
+												on:click={() => removeLabel(index)}
+												aria-label={`Remove label ${label}`}
+												class="ml-1 h-4 w-4 rounded-full hover:bg-blue-200 dark:hover:bg-blue-800 flex items-center justify-center cursor-pointer"
+											>
+												<svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+												</svg>
+											</button>
+										</span>
+									{/each}
+								</div>
+							{/if}
+						</div>
+						<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+							Labels are used to target workflows to this scale set. If no labels are specified, the scale set name is used as the default label.
+						</p>
 					</div>
 
 					<!-- Extra Specs -->

@@ -119,15 +119,12 @@ func (w *Worker) ensureScaleSetInGitHub() error {
 		return fmt.Errorf("failed to get scale set: %w", err)
 	}
 
+	labels := w.scaleSet.GitHubLabels()
+
 	createScaleSetParams := &params.RunnerScaleSet{
 		Name:          w.scaleSet.Name,
 		RunnerGroupID: rgID,
-		Labels: []params.Label{
-			{
-				Name: w.scaleSet.Name,
-				Type: "System",
-			},
-		},
+		Labels:        labels,
 		RunnerSetting: params.RunnerSetting{
 			Ephemeral:     true,
 			DisableUpdate: w.scaleSet.DisableUpdate,

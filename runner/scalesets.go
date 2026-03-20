@@ -253,12 +253,7 @@ func (r *Runner) CreateEntityScaleSet(ctx context.Context, entityType params.For
 	createParam := &params.RunnerScaleSet{
 		Name:          param.Name,
 		RunnerGroupID: runnerGroupID,
-		Labels: []params.Label{
-			{
-				Name: param.Name,
-				Type: "System",
-			},
-		},
+		Labels:        param.GitHubLabels(),
 		RunnerSetting: params.RunnerSetting{
 			Ephemeral:     true,
 			DisableUpdate: param.DisableUpdate,
