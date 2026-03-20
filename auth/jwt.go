@@ -73,7 +73,7 @@ func (amw *jwtMiddleware) claimsToContext(ctx context.Context, claims *JWTClaims
 
 	var expiresAt *time.Time
 	if claims.ExpiresAt != nil {
-		expires := claims.ExpiresAt.Time.UTC()
+		expires := claims.ExpiresAt.UTC()
 		expiresAt = &expires
 	}
 

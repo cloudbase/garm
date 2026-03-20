@@ -65,7 +65,7 @@ func (suite *GarmSuite) appendCtrlInfoToGitHubEnv(controllerInfo *params.Control
 	t.Cleanup(func() {
 		file.Close()
 	})
-	if _, err := file.WriteString(fmt.Sprintf("export GARM_CONTROLLER_ID=%s\n", controllerInfo.ControllerID)); err != nil {
+	if _, err := fmt.Fprintf(file, "export GARM_CONTROLLER_ID=%s\n", controllerInfo.ControllerID); err != nil {
 		return err
 	}
 	return nil
