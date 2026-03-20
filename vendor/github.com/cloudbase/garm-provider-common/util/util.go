@@ -201,22 +201,22 @@ func GetTools(osType params.OSType, osArch params.OSArch, tools []params.RunnerA
 		return params.RunnerApplicationDownload{}, fmt.Errorf("unsupported OS arch: %s", osArch)
 	}
 
+	ghArch, err := ResolveToGithubArch(string(osArch))
+	if err != nil {
+		return params.RunnerApplicationDownload{}, fmt.Errorf("failed to convert osArch: %w", err)
+	}
+	ghOS, err := ResolveToGithubOSType(string(osType))
+	if err != nil {
+		return params.RunnerApplicationDownload{}, fmt.Errorf("failed to convert osType: %w", err)
+	}
+
 	// Find tools for OS/Arch.
 	for _, tool := range tools {
 		if tool.GetOS() == "" || tool.GetArchitecture() == "" {
 			continue
 		}
 
-		ghArch, err := ResolveToGithubArch(string(osArch))
-		if err != nil {
-			continue
-		}
-
-		ghOS, err := ResolveToGithubOSType(string(osType))
-		if err != nil {
-			continue
-		}
-		if tool.GetArchitecture() == ghArch && tool.GetOS() == ghOS {
+		if (tool.GetArchitecture() == ghArch || tool.GetArchitecture() == string(osArch)) && (tool.GetOS() == ghOS || tool.GetOS() == string(osType)) {
 			return tool, nil
 		}
 	}

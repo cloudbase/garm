@@ -24,7 +24,7 @@ const (
 	pingPeriod = (pongWait * 9) / 10
 
 	// Maximum message size allowed from peer.
-	maxMessageSize = 16384 // 16 KB
+	maxMessageSize = 1048576 // 1 MB
 )
 
 // MessageHandler is a function that processes a message received from a websocket connection.
