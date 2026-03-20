@@ -43,7 +43,6 @@ RUN set -ex; \
       cloudbase/garm-provider-incus \
       cloudbase/garm-provider-aws \
       cloudbase/garm-provider-gcp \
-      cloudbase/garm-provider-equinix \
       flatcar/garm-provider-linode \
       mercedes-benz/garm-provider-k8s \
       nexthop-ai/garm-provider-cloudstack; \
@@ -84,7 +83,6 @@ COPY --from=builder /opt/garm/providers.d/garm-provider-incus /opt/garm/provider
 COPY --from=builder /opt/garm/providers.d/garm-provider-azure /opt/garm/providers.d/garm-provider-azure
 COPY --from=builder /opt/garm/providers.d/garm-provider-aws /opt/garm/providers.d/garm-provider-aws
 COPY --from=builder /opt/garm/providers.d/garm-provider-gcp /opt/garm/providers.d/garm-provider-gcp
-COPY --from=builder /opt/garm/providers.d/garm-provider-equinix /opt/garm/providers.d/garm-provider-equinix
 
 COPY --from=builder /opt/garm/providers.d/garm-provider-k8s /opt/garm/providers.d/garm-provider-k8s
 COPY --from=builder /opt/garm/providers.d/garm-provider-cloudstack /opt/garm/providers.d/garm-provider-cloudstack
