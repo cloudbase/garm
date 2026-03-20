@@ -54,6 +54,18 @@ type scaleSet struct {
 	mux sync.Mutex
 }
 
+func (s *scaleSet) SetWorker(worker *Worker) {
+	s.mux.Lock()
+	defer s.mux.Unlock()
+	s.worker = worker
+}
+
+func (s *scaleSet) SetScaleSet(sSet params.ScaleSet) {
+	s.mux.Lock()
+	defer s.mux.Unlock()
+	s.scaleSet = sSet
+}
+
 func (s *scaleSet) Stop() error {
 	s.mux.Lock()
 	defer s.mux.Unlock()

@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+	"sync/atomic"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/params"
@@ -58,7 +59,7 @@ type scaleSetListener struct {
 	messageSession *scalesets.MessageSession
 
 	mux        sync.Mutex
-	running    bool
+	running    atomic.Bool
 	quit       chan struct{}
 	loopExited chan struct{}
 }
@@ -68,7 +69,7 @@ func (l *scaleSetListener) Start() error {
 	l.mux.Lock()
 	defer l.mux.Unlock()
 
-	if l.running {
+	if l.running.Load() {
 		return nil
 	}
 
@@ -96,7 +97,7 @@ func (l *scaleSetListener) Start() error {
 	}
 	l.messageSession = session
 	l.quit = make(chan struct{})
-	l.running = true
+	l.running.Store(true)
 	l.loopExited = make(chan struct{})
 	go l.loop()
 
@@ -107,24 +108,25 @@ func (l *scaleSetListener) Stop() error {
 	l.mux.Lock()
 	defer l.mux.Unlock()
 
-	if !l.running {
+	if !l.running.Load() {
 		return nil
-	}
-	scaleSetClient, err := l.scaleSetHelper.GetScaleSetClient()
-	if err != nil {
-		return fmt.Errorf("getting scale set client: %w", err)
 	}
 	if l.messageSession != nil {
 		slog.DebugContext(l.ctx, "closing message session", "scale_set", l.scaleSetHelper.GetScaleSet().ScaleSetID)
 		if err := l.messageSession.Close(); err != nil {
 			slog.ErrorContext(l.ctx, "closing message session", "error", err)
 		}
-		if err := scaleSetClient.DeleteMessageSession(context.Background(), l.messageSession); err != nil {
-			slog.ErrorContext(l.ctx, "error deleting message session", "error", err)
+		scaleSetClient, err := l.scaleSetHelper.GetScaleSetClient()
+		if err != nil {
+			slog.ErrorContext(l.ctx, "error getting scale set client", "error", err)
+		} else {
+			if err := scaleSetClient.DeleteMessageSession(context.Background(), l.messageSession); err != nil {
+				slog.ErrorContext(l.ctx, "error deleting message session", "error", err)
+			}
 		}
 	}
 
-	l.running = false
+	l.running.Store(false)
 	close(l.quit)
 	l.cancelFunc()
 	return nil
@@ -133,7 +135,7 @@ func (l *scaleSetListener) Stop() error {
 func (l *scaleSetListener) IsRunning() bool {
 	l.mux.Lock()
 	defer l.mux.Unlock()
-	return l.running
+	return l.running.Load()
 }
 
 func (l *scaleSetListener) handleSessionMessage(msg params.RunnerScaleSetMessage) {
@@ -297,7 +299,7 @@ func (l *scaleSetListener) Wait() <-chan struct{} {
 	l.mux.Lock()
 	defer l.mux.Unlock()
 
-	if !l.running {
+	if !l.running.Load() {
 		slog.DebugContext(l.ctx, "scale set listener is not running")
 		return closed
 	}

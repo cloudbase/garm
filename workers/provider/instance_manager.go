@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
@@ -71,7 +72,7 @@ type instanceManager struct {
 
 	updates chan dbCommon.ChangePayload
 	mux     sync.Mutex
-	running bool
+	running atomic.Bool
 	quit    chan struct{}
 }
 
@@ -80,11 +81,11 @@ func (i *instanceManager) Start() error {
 	defer i.mux.Unlock()
 
 	slog.DebugContext(i.ctx, "starting instance manager", "instance", i.instance.Name)
-	if i.running {
+	if i.running.Load() {
 		return nil
 	}
 
-	i.running = true
+	i.running.Store(true)
 	i.quit = make(chan struct{})
 	i.updates = make(chan dbCommon.ChangePayload)
 
@@ -97,11 +98,11 @@ func (i *instanceManager) Stop() error {
 	i.mux.Lock()
 	defer i.mux.Unlock()
 
-	if !i.running {
+	if !i.running.Load() {
 		return nil
 	}
 
-	i.running = false
+	i.running.Store(false)
 	close(i.quit)
 	close(i.updates)
 	return nil
@@ -292,7 +293,7 @@ func (i *instanceManager) consolidateState() error {
 	i.mux.Lock()
 	defer i.mux.Unlock()
 
-	if !i.running {
+	if !i.running.Load() {
 		return nil
 	}
 
@@ -365,7 +366,7 @@ func (i *instanceManager) handleUpdate(update dbCommon.ChangePayload) error {
 	// We need a better way to handle instance state. Database updates may fail, and we
 	// end up with an inconsistent state between what we know about the instance and what
 	// is reflected in the database.
-	if !i.running {
+	if !i.running.Load() {
 		return nil
 	}
 
@@ -381,7 +382,7 @@ func (i *instanceManager) handleUpdate(update dbCommon.ChangePayload) error {
 }
 
 func (i *instanceManager) Update(instance dbCommon.ChangePayload) error {
-	if !i.running {
+	if !i.running.Load() {
 		return runnerErrors.NewBadRequestError("instance manager is not running")
 	}
 
