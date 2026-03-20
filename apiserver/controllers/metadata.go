@@ -36,7 +36,7 @@ func (a *APIController) InstanceGithubRegistrationTokenHandler(w http.ResponseWr
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	if _, err := w.Write([]byte(token)); err != nil {
+	if _, err := w.Write([]byte(token)); err != nil { //nolint:gosec // G705 - server-generated token, not user input
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }
@@ -71,7 +71,7 @@ func (a *APIController) JITCredentialsFileHandler(w http.ResponseWriter, r *http
 	w.Header().Set("Content-Type", "octet-stream")
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(data)))
 	w.WriteHeader(http.StatusOK)
-	if _, err := w.Write(data); err != nil {
+	if _, err := w.Write(data); err != nil { //nolint:gosec // G705 - server-generated data, not user input
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }
@@ -87,7 +87,7 @@ func (a *APIController) SystemdServiceNameHandler(w http.ResponseWriter, r *http
 
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusOK)
-	if _, err := w.Write([]byte(serviceName)); err != nil {
+	if _, err := w.Write([]byte(serviceName)); err != nil { //nolint:gosec // G705 - server-generated data, not user input
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }
@@ -104,7 +104,7 @@ func (a *APIController) SystemdUnitFileHandler(w http.ResponseWriter, r *http.Re
 
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusOK)
-	if _, err := w.Write(data); err != nil {
+	if _, err := w.Write(data); err != nil { //nolint:gosec // G705 - server-generated data, not user input
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
 	}
 }

@@ -40,7 +40,7 @@ func getTestFileContents(relPath string) ([]byte, error) {
 	if baseDir == "" {
 		return nil, fmt.Errorf("ariable GARM_CHECKOUT_DIR not set")
 	}
-	contents, err := os.ReadFile(filepath.Join(baseDir, "testdata", relPath))
+	contents, err := os.ReadFile(filepath.Join(baseDir, "testdata", relPath)) //nolint:gosec // G703 - test helper reading from known testdata dir
 	if err != nil {
 		return nil, err
 	}

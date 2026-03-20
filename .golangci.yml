@@ -1,19 +1,13 @@
-# SPDX-License-Identifier: MIT
+version: "2"
 linters:
-  disable-all: true
-  fast: false
+  default: none
   enable:
-    - gci
     - goconst
     - gocritic
     - gocyclo
-    - gofmt
-    - gofumpt
-    - goimports
     - godox
-    - govet
     - gosec
-    - gosimple
+    - govet
     - importas
     - ineffassign
     - loggercheck
@@ -28,17 +22,47 @@ linters:
     - unused
     - wastedassign
     - whitespace
-
-linters-settings:
-  gci:
-    sections:
-      - standard
-      - default
-      - prefix(github.com/cloudbase/garm)
-
-  goimports:
-    local-prefixes: github.com/cloudbase/garm
-
-  gosec:
-    excludes:
-    - G115
+  settings:
+    gosec:
+      excludes:
+        - G101
+        - G115
+        - G117
+    revive:
+      rules:
+        - name: var-naming
+          disabled: true
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+      - node_modules
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - gofumpt
+    - goimports
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
+        - prefix(github.com/cloudbase/garm)
+    goimports:
+      local-prefixes:
+        - github.com/cloudbase/garm
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+      - node_modules
