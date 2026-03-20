@@ -136,7 +136,7 @@ func (c *Controller) handleScaleSetUpdateOperation(sSet params.ScaleSet) error {
 		if err != nil {
 			return fmt.Errorf("creating scale set worker: %w", err)
 		}
-		set.worker = worker
+		set.SetWorker(worker)
 		defer func() {
 			if err := worker.Start(); err != nil {
 				slog.ErrorContext(c.ctx, "failed to start worker", "error", err, "scaleset", sSet.Name)
@@ -144,7 +144,7 @@ func (c *Controller) handleScaleSetUpdateOperation(sSet params.ScaleSet) error {
 		}()
 	}
 
-	set.scaleSet = sSet
+	set.SetScaleSet(sSet)
 	c.ScaleSets.Store(sSet.ID, set)
 	// We let the watcher in the scale set worker handle the update operation.
 	return nil

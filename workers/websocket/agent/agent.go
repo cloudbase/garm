@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -70,7 +71,7 @@ type Agent struct {
 	consumerID string
 	consumer   common.Consumer
 
-	running bool
+	running atomic.Bool
 	done    chan struct{}
 
 	shellSessions map[string]*ClientSession
@@ -130,14 +131,14 @@ func (a *Agent) Done() <-chan struct{} {
 }
 
 func (a *Agent) IsRunning() bool {
-	return a.running
+	return a.running.Load()
 }
 
 func (a *Agent) Start() error {
 	a.mux.Lock()
 	defer a.mux.Unlock()
 
-	if a.running {
+	if a.running.Load() {
 		return nil
 	}
 
@@ -157,7 +158,7 @@ func (a *Agent) Start() error {
 	a.consumer = consumer
 
 	a.done = make(chan struct{})
-	a.running = true
+	a.running.Store(true)
 	go a.agentReader()
 	go a.loop()
 	return nil
@@ -167,7 +168,7 @@ func (a *Agent) Stop() error {
 	a.mux.Lock()
 	defer a.mux.Unlock()
 
-	if !a.running {
+	if !a.running.Load() {
 		return nil
 	}
 	slog.InfoContext(a.ctx, "removing sessions")
@@ -176,7 +177,7 @@ func (a *Agent) Stop() error {
 		a.RemoveClientSession(val.sessionID, true)
 	}
 
-	a.running = false
+	a.running.Store(false)
 	slog.InfoContext(a.ctx, "sending websocket close message")
 	a.writeMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 	slog.InfoContext(a.ctx, "closing connection")
