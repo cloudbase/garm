@@ -374,7 +374,9 @@ func (i *instanceManager) handleUpdate(update dbCommon.ChangePayload) error {
 		return runnerErrors.NewBadRequestError("invalid payload type")
 	}
 
+	i.mux.Lock()
 	i.instance = instance
+	i.mux.Unlock()
 	return nil
 }
 

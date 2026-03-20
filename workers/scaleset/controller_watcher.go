@@ -82,10 +82,7 @@ func (c *Controller) createScaleSetWorker(scaleSet params.ScaleSet) (*Worker, er
 }
 
 func (c *Controller) handleScaleSetCreateOperation(sSet params.ScaleSet) error {
-	c.mux.Lock()
-	defer c.mux.Unlock()
-
-	if _, ok := c.ScaleSets[sSet.ID]; ok {
+	if _, ok := c.ScaleSets.Load(sSet.ID); ok {
 		slog.DebugContext(c.ctx, "scale set already exists in worker list", "scale_set_id", sSet.ID)
 		return nil
 	}
@@ -102,42 +99,38 @@ func (c *Controller) handleScaleSetCreateOperation(sSet params.ScaleSet) error {
 		// can continue to work.
 		return fmt.Errorf("error starting scale set worker: %w", err)
 	}
-	c.ScaleSets[sSet.ID] = &scaleSet{
+	c.ScaleSets.Store(sSet.ID, &scaleSet{
 		scaleSet: sSet,
 		worker:   worker,
-	}
+	})
 	return nil
 }
 
 func (c *Controller) handleScaleSetDeleteOperation(sSet params.ScaleSet) error {
-	c.mux.Lock()
-	defer c.mux.Unlock()
-
-	set, ok := c.ScaleSets[sSet.ID]
+	val, ok := c.ScaleSets.Load(sSet.ID)
 	if !ok {
 		slog.DebugContext(c.ctx, "scale set not found in worker list", "scale_set_id", sSet.ID)
 		return nil
 	}
+	set := val.(*scaleSet)
 
 	slog.DebugContext(c.ctx, "stopping scale set worker", "scale_set_id", sSet.ID)
 	if err := set.worker.Stop(); err != nil {
 		return fmt.Errorf("stopping scale set worker: %w", err)
 	}
-	delete(c.ScaleSets, sSet.ID)
+	c.ScaleSets.Delete(sSet.ID)
 	return nil
 }
 
 func (c *Controller) handleScaleSetUpdateOperation(sSet params.ScaleSet) error {
-	c.mux.Lock()
-	defer c.mux.Unlock()
-
-	set, ok := c.ScaleSets[sSet.ID]
+	val, ok := c.ScaleSets.Load(sSet.ID)
 	if !ok {
 		// Some error may have occurred when the scale set was first created, so we
 		// attempt to create it after the user updated the scale set, hopefully
 		// fixing the reason for the failure.
 		return c.handleScaleSetCreateOperation(sSet)
 	}
+	set := val.(*scaleSet)
 	if set.worker != nil && !set.worker.IsRunning() {
 		worker, err := c.createScaleSetWorker(sSet)
 		if err != nil {
@@ -152,7 +145,7 @@ func (c *Controller) handleScaleSetUpdateOperation(sSet params.ScaleSet) error {
 	}
 
 	set.scaleSet = sSet
-	c.ScaleSets[sSet.ID] = set
+	c.ScaleSets.Store(sSet.ID, set)
 	// We let the watcher in the scale set worker handle the update operation.
 	return nil
 }
@@ -183,8 +176,8 @@ func (c *Controller) handleEntityEvent(event dbCommon.ChangePayload) {
 	case dbCommon.UpdateOperation:
 		slog.DebugContext(c.ctx, "got update operation")
 		c.mux.Lock()
-		defer c.mux.Unlock()
 		c.Entity = entity
+		c.mux.Unlock()
 	default:
 		slog.ErrorContext(c.ctx, "invalid operation type", "operation_type", event.Operation)
 		return

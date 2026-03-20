@@ -48,9 +48,6 @@ func (p *Provider) updateArgsFromProviderInstance(instanceName string, providerI
 }
 
 func (p *Provider) GetControllerInfo() (params.ControllerInfo, error) {
-	p.mux.Lock()
-	defer p.mux.Unlock()
-
 	info, err := p.store.ControllerInfo()
 	if err != nil {
 		return params.ControllerInfo{}, fmt.Errorf("getting controller info: %w", err)
@@ -60,10 +57,7 @@ func (p *Provider) GetControllerInfo() (params.ControllerInfo, error) {
 }
 
 func (p *Provider) SetInstanceStatus(instanceName string, status commonParams.InstanceStatus, providerFault []byte, force bool) error {
-	p.mux.Lock()
-	defer p.mux.Unlock()
-
-	if _, ok := p.runners[instanceName]; !ok {
+	if _, ok := p.runners.Load(instanceName); !ok {
 		return errors.ErrNotFound
 	}
 

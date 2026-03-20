@@ -41,7 +41,6 @@ func NewController(ctx context.Context, store dbCommon.Store, providers map[stri
 		ctx:        ctx,
 		store:      store,
 		providers:  providers,
-		Entities:   make(map[string]*Worker),
 	}, nil
 }
 
@@ -53,7 +52,8 @@ type Controller struct {
 	store    dbCommon.Store
 
 	providers map[string]common.Provider
-	Entities  map[string]*Worker
+	// sync.Map[string]*Worker
+	Entities sync.Map
 
 	running bool
 	quit    chan struct{}
@@ -62,8 +62,6 @@ type Controller struct {
 }
 
 func (c *Controller) loadAllRepositories() error {
-	c.mux.Lock()
-	defer c.mux.Unlock()
 	repos, err := c.store.ListRepositories(c.ctx, params.RepositoryFilter{})
 	if err != nil {
 		return fmt.Errorf("fetching repositories: %w", err)
@@ -83,7 +81,7 @@ func (c *Controller) loadAllRepositories() error {
 			if err := worker.Start(); err != nil {
 				return fmt.Errorf("starting worker: %w", err)
 			}
-			c.Entities[entity.ID] = worker
+			c.Entities.Store(entity.ID, worker)
 			return nil
 		})
 	}
@@ -94,8 +92,6 @@ func (c *Controller) loadAllRepositories() error {
 }
 
 func (c *Controller) loadAllOrganizations() error {
-	c.mux.Lock()
-	defer c.mux.Unlock()
 	orgs, err := c.store.ListOrganizations(c.ctx, params.OrganizationFilter{})
 	if err != nil {
 		return fmt.Errorf("fetching organizations: %w", err)
@@ -115,7 +111,7 @@ func (c *Controller) loadAllOrganizations() error {
 			if err := worker.Start(); err != nil {
 				return fmt.Errorf("starting worker: %w", err)
 			}
-			c.Entities[entity.ID] = worker
+			c.Entities.Store(entity.ID, worker)
 			return nil
 		})
 	}
@@ -126,8 +122,6 @@ func (c *Controller) loadAllOrganizations() error {
 }
 
 func (c *Controller) loadAllEnterprises() error {
-	c.mux.Lock()
-	defer c.mux.Unlock()
 	enterprises, err := c.store.ListEnterprises(c.ctx, params.EnterpriseFilter{})
 	if err != nil {
 		return fmt.Errorf("fetching enterprises: %w", err)
@@ -148,7 +142,7 @@ func (c *Controller) loadAllEnterprises() error {
 			if err := worker.Start(); err != nil {
 				return fmt.Errorf("starting worker: %w", err)
 			}
-			c.Entities[entity.ID] = worker
+			c.Entities.Store(entity.ID, worker)
 			return nil
 		})
 	}
@@ -220,11 +214,14 @@ func (c *Controller) Stop() error {
 	}
 	slog.DebugContext(c.ctx, "stopping entity controller")
 
-	for entityID, worker := range c.Entities {
+	c.Entities.Range(func(key, value any) bool {
+		entityID := key.(string)
+		worker := value.(*Worker)
 		if err := worker.Stop(); err != nil {
 			slog.ErrorContext(c.ctx, "stopping worker for entity", "entity_id", entityID, "error", err)
 		}
-	}
+		return true
+	})
 
 	c.running = false
 	close(c.quit)
