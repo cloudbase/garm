@@ -40,7 +40,6 @@
 	let enableShell = scaleSet.enable_shell ?? false;
 	let extraSpecs = '{}';
 	let selectedTemplate: number | undefined = (scaleSet as any).template_id;
-
 	function getEntityForgeType(): string | null {
 		// First check if the scale set itself has an endpoint (which it does)
 		if (scaleSet.endpoint?.endpoint_type) {

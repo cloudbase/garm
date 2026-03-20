@@ -608,8 +608,9 @@ type CreateScaleSetParams struct {
 	// GithubRunnerGroup is the github runner group in which the runners of this
 	// pool will be added to.
 	// The runner group must be created by someone with access to the enterprise.
-	GitHubRunnerGroup string `json:"github-runner-group,omitempty"`
-	TemplateID        *uint  `json:"template_id,omitempty"`
+	GitHubRunnerGroup string   `json:"github-runner-group,omitempty"`
+	TemplateID        *uint    `json:"template_id,omitempty"`
+	Labels            []string `json:"labels,omitempty"`
 }
 
 func (s *CreateScaleSetParams) Validate() error {
@@ -638,6 +639,23 @@ func (s *CreateScaleSetParams) Validate() error {
 	}
 
 	return nil
+}
+
+// GitHubLabels returns the label list for GitHub scale set API calls.
+// The scale set name is always included as the first "System" label,
+// matching actions-runner-controller behavior. Additional labels
+// are appended with deduplication.
+func (s CreateScaleSetParams) GitHubLabels() []Label {
+	labels := []Label{{Name: s.Name, Type: "System"}}
+	seen := map[string]bool{s.Name: true}
+	for _, l := range s.Labels {
+		if seen[l] {
+			continue
+		}
+		seen[l] = true
+		labels = append(labels, Label{Name: l})
+	}
+	return labels
 }
 
 // swagger:model UpdateScaleSetParams

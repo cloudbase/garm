@@ -366,7 +366,18 @@
 								<dd class="mt-1 text-sm text-gray-900 dark:text-white">{scaleSet['github-runner-group']}</dd>
 							</div>
 						{/if}
-						<!-- Tags are not available in ScaleSet API -->
+						{#if scaleSet.tags && scaleSet.tags.length > 0}
+							<div class="col-span-2">
+								<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Labels</dt>
+								<dd class="mt-1 flex flex-wrap gap-2">
+									{#each scaleSet.tags as tag}
+										<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
+											{tag.name}
+										</span>
+									{/each}
+								</dd>
+							</div>
+						{/if}
 					</dl>
 				</div>
 			</div>

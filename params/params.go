@@ -666,6 +666,7 @@ type ScaleSet struct {
 	// The runner group must be created by someone with access to the enterprise.
 	GitHubRunnerGroup string `json:"github-runner-group,omitempty"`
 
+	Tags           []Tag           `json:"tags,omitempty"`
 	StatusMessages []StatusMessage `json:"status_messages"`
 
 	RepoID   string `json:"repo_id,omitempty"`
@@ -680,6 +681,23 @@ type ScaleSet struct {
 	TemplateName   string `json:"template_name,omitempty"`
 
 	LastMessageID int64 `json:"-"`
+}
+
+// GitHubLabels returns the label list for GitHub scale set API calls.
+// The scale set name is always included as the first "System" label,
+// matching actions-runner-controller behavior. Additional tag names
+// are appended with deduplication.
+func (p ScaleSet) GitHubLabels() []Label {
+	labels := []Label{{Name: p.Name, Type: "System"}}
+	seen := map[string]bool{p.Name: true}
+	for _, t := range p.Tags {
+		if seen[t.Name] {
+			continue
+		}
+		seen[t.Name] = true
+		labels = append(labels, Label{Name: t.Name})
+	}
+	return labels
 }
 
 func (p ScaleSet) BelongsTo(entity ForgeEntity) bool {

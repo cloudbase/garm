@@ -387,6 +387,7 @@ func (s *sqlDatabase) sqlToCommonScaleSet(scaleSet ScaleSet) (params.ScaleSet, e
 		OSType:                 scaleSet.OSType,
 		Enabled:                scaleSet.Enabled,
 		Instances:              make([]params.Instance, len(scaleSet.Instances)),
+		Tags:                   make([]params.Tag, len(scaleSet.Tags)),
 		RunnerBootstrapTimeout: scaleSet.RunnerBootstrapTimeout,
 		ExtraSpecs:             json.RawMessage(scaleSet.ExtraSpecs),
 		GitHubRunnerGroup:      scaleSet.GitHubRunnerGroup,
@@ -435,6 +436,10 @@ func (s *sqlDatabase) sqlToCommonScaleSet(scaleSet ScaleSet) (params.ScaleSet, e
 		if err != nil {
 			return params.ScaleSet{}, fmt.Errorf("error converting instance: %w", err)
 		}
+	}
+
+	for idx, val := range scaleSet.Tags {
+		ret.Tags[idx] = s.sqlToCommonTags(*val)
 	}
 
 	return ret, nil

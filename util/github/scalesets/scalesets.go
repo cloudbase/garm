@@ -127,6 +127,15 @@ func (s *ScaleSetClient) ListRunnerScaleSets(ctx context.Context) (_ *params.Run
 	return &runnerScaleSetList, nil
 }
 
+func applyDefaultLabelTypes(labels []params.Label) []params.Label {
+	for i, label := range labels {
+		if label.Type == "" {
+			labels[i].Type = "System"
+		}
+	}
+	return labels
+}
+
 // CreateRunnerScaleSet creates a new runner scale set in the target GitHub entity.
 func (s *ScaleSetClient) CreateRunnerScaleSet(ctx context.Context, runnerScaleSet *params.RunnerScaleSet) (_ params.RunnerScaleSet, err error) {
 	s.recordOperation("CreateRunnerScaleSet")
@@ -135,6 +144,8 @@ func (s *ScaleSetClient) CreateRunnerScaleSet(ctx context.Context, runnerScaleSe
 			s.recordFailedOperation("CreateRunnerScaleSet")
 		}
 	}()
+
+	runnerScaleSet.Labels = applyDefaultLabelTypes(runnerScaleSet.Labels)
 
 	body, err := json.Marshal(runnerScaleSet)
 	if err != nil {

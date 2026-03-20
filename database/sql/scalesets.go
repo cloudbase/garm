@@ -38,6 +38,7 @@ func (s *sqlDatabase) ListAllScaleSets(_ context.Context) ([]params.ScaleSet, er
 		Preload("Repository.Endpoint").
 		Preload("Enterprise").
 		Preload("Enterprise.Endpoint").
+		Preload("Tags").
 		Omit("extra_specs").
 		Omit("status_messages").
 		Find(&scaleSets)
@@ -114,6 +115,20 @@ func (s *sqlDatabase) CreateEntityScaleSet(ctx context.Context, entity params.Fo
 			return fmt.Errorf("error creating scale set: %w", q.Error)
 		}
 
+		if len(param.Labels) > 0 {
+			var tags []*Tag
+			for _, val := range param.Labels {
+				t, err := s.getOrCreateTag(tx, val)
+				if err != nil {
+					return fmt.Errorf("error creating tag: %w", err)
+				}
+				tags = append(tags, &t)
+			}
+			if err := tx.Model(&newScaleSet).Association("Tags").Append(tags); err != nil {
+				return fmt.Errorf("error associating tags: %w", err)
+			}
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -179,7 +194,7 @@ func (s *sqlDatabase) listEntityScaleSets(tx *gorm.DB, entityType params.ForgeEn
 }
 
 func (s *sqlDatabase) ListEntityScaleSets(_ context.Context, entity params.ForgeEntity) ([]params.ScaleSet, error) {
-	scaleSets, err := s.listEntityScaleSets(s.conn, entity.EntityType, entity.ID)
+	scaleSets, err := s.listEntityScaleSets(s.conn, entity.EntityType, entity.ID, "Tags")
 	if err != nil {
 		return nil, fmt.Errorf("error fetching scale sets: %w", err)
 	}
@@ -203,7 +218,7 @@ func (s *sqlDatabase) UpdateEntityScaleSet(ctx context.Context, entity params.Fo
 		}
 	}()
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
-		scaleSet, err := s.getEntityScaleSet(tx, entity.EntityType, entity.ID, scaleSetID, "Instances")
+		scaleSet, err := s.getEntityScaleSet(tx, entity.EntityType, entity.ID, scaleSetID, "Instances", "Tags")
 		if err != nil {
 			return fmt.Errorf("error fetching scale set: %w", err)
 		}
@@ -370,16 +385,16 @@ func (s *sqlDatabase) updateScaleSet(tx *gorm.DB, scaleSet ScaleSet, param param
 
 	var rowsAffected int64
 	if len(updates) > 0 {
-		q := tx.Model(&scaleSet).Omit("Repository", "Organization", "Enterprise", "Instances", "Template").Updates(updates)
+		q := tx.Model(&scaleSet).Omit("Repository", "Organization", "Enterprise", "Instances", "Template", "Tags").Updates(updates)
 		if q.Error != nil {
 			return params.ScaleSet{}, 0, fmt.Errorf("error saving database entry: %w", q.Error)
 		}
 		rowsAffected = q.RowsAffected
+	}
 
-		// Reload to get the updated values
-		if err := tx.First(&scaleSet, scaleSet.ID).Error; err != nil {
-			return params.ScaleSet{}, 0, fmt.Errorf("error reloading scale set: %w", err)
-		}
+	// Reload to get the updated values
+	if err := tx.Preload("Tags").First(&scaleSet, scaleSet.ID).Error; err != nil {
+		return params.ScaleSet{}, 0, fmt.Errorf("error reloading scale set: %w", err)
 	}
 
 	commonScaleSet, err := s.sqlToCommonScaleSet(scaleSet)
@@ -401,6 +416,7 @@ func (s *sqlDatabase) GetScaleSetByID(_ context.Context, scaleSet uint) (params.
 		"Repository",
 		"Repository.Endpoint",
 		"Template",
+		"Tags",
 	)
 	if err != nil {
 		return params.ScaleSet{}, fmt.Errorf("error fetching scale set by ID: %w", err)

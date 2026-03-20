@@ -693,6 +693,12 @@ export interface CreateScaleSetParams {
     'image'?: string;
     /**
      * 
+     * @type {Array<string>}
+     * @memberof CreateScaleSetParams
+     */
+    'labels'?: Array<string>;
+    /**
+     * 
      * @type {number}
      * @memberof CreateScaleSetParams
      */
@@ -1306,6 +1312,12 @@ export interface ForgeEntity {
      * @memberof ForgeEntity
      */
     'pool_balancing_type'?: string;
+    /**
+     * 
+     * @type {PoolManagerStatus}
+     * @memberof ForgeEntity
+     */
+    'pool_manager_status'?: PoolManagerStatus;
     /**
      * 
      * @type {string}
@@ -2808,6 +2820,12 @@ export interface ScaleSet {
     'status_messages'?: Array<StatusMessage>;
     /**
      * 
+     * @type {Array<Tag>}
+     * @memberof ScaleSet
+     */
+    'tags'?: Array<Tag>;
+    /**
+     * 
      * @type {number}
      * @memberof ScaleSet
      */
@@ -3316,6 +3334,12 @@ export interface UpdateScaleSetParams {
      * @memberof UpdateScaleSetParams
      */
     'image'?: string;
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof UpdateScaleSetParams
+     */
+    'labels'?: Array<string>;
     /**
      * 
      * @type {number}

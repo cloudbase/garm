@@ -53,6 +53,7 @@ var (
 	scalesetGitHubRunnerGroup      string
 	scaleSetTemplateNameOrID       string
 	scalesetEnableShell            bool
+	scalesetLabels                 string
 )
 
 type scalesetPayloadGetter interface {
@@ -233,6 +234,11 @@ var scaleSetAddCmd = &cobra.Command{
 			RunnerBootstrapTimeout: scalesetRunnerBootstrapTimeout,
 			GitHubRunnerGroup:      scalesetGitHubRunnerGroup,
 			EnableShell:            scalesetEnableShell,
+		}
+
+		if cmd.Flags().Changed("labels") {
+			labels := strings.Split(scalesetLabels, ",")
+			newScaleSetParams.Labels = labels
 		}
 
 		if cmd.Flags().Changed("extra-specs") {
@@ -554,6 +560,7 @@ func init() {
 	scaleSetAddCmd.Flags().BoolVar(&scalesetEnableShell, "enable-shell", false, "Enable shell access for runners in this scale set.")
 	scaleSetAddCmd.Flags().StringVar(&endpointName, "endpoint", "", "When using the name of an entity, the endpoint must be specified when multiple entities with the same name exist.")
 	scaleSetAddCmd.Flags().StringVar(&scaleSetTemplateNameOrID, "runner-install-template", "", "The runner install template name or ID to use for this scale set.")
+	scaleSetAddCmd.Flags().StringVar(&scalesetLabels, "labels", "", "A comma separated list of labels to assign to this scale set.")
 	scaleSetAddCmd.MarkFlagRequired("provider-name") //nolint
 	scaleSetAddCmd.MarkFlagRequired("name")          //nolint
 	scaleSetAddCmd.MarkFlagRequired("image")         //nolint
@@ -664,6 +671,14 @@ func formatOneScaleSet(scaleSet params.ScaleSet) {
 	t.AppendRow(table.Row{"Runner Prefix", scaleSet.GetRunnerPrefix()})
 	t.AppendRow(table.Row{"Extra specs", string(scaleSet.ExtraSpecs)})
 	t.AppendRow(table.Row{"GitHub Runner Group", scaleSet.GitHubRunnerGroup})
+
+	if len(scaleSet.Tags) > 0 {
+		tagNames := make([]string, len(scaleSet.Tags))
+		for i, tag := range scaleSet.Tags {
+			tagNames[i] = tag.Name
+		}
+		t.AppendRow(table.Row{"Labels", strings.Join(tagNames, ", ")})
+	}
 
 	if len(scaleSet.Instances) > 0 {
 		for _, instance := range scaleSet.Instances {

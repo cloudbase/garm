@@ -406,6 +406,11 @@ definitions:
             image:
                 type: string
                 x-go-name: Image
+            labels:
+                items:
+                    type: string
+                type: array
+                x-go-name: Labels
             max_runners:
                 format: uint64
                 type: integer
@@ -785,6 +790,8 @@ definitions:
                 x-go-name: Owner
             pool_balancing_type:
                 $ref: '#/definitions/PoolBalancerType'
+            pool_manager_status:
+                $ref: '#/definitions/PoolManagerStatus'
             updated_at:
                 format: date-time
                 type: string
@@ -1822,6 +1829,11 @@ definitions:
                     $ref: '#/definitions/StatusMessage'
                 type: array
                 x-go-name: StatusMessages
+            tags:
+                items:
+                    $ref: '#/definitions/Tag'
+                type: array
+                x-go-name: Tags
             template_id:
                 format: uint64
                 type: integer
@@ -2117,6 +2129,11 @@ definitions:
             image:
                 type: string
                 x-go-name: Image
+            labels:
+                items:
+                    type: string
+                type: array
+                x-go-name: Labels
             max_runners:
                 format: uint64
                 type: integer
