@@ -2,18 +2,19 @@
 
 <!-- TOC -->
 
-  - [Create the config folder](#create-the-config-folder)
-  - [The config file](#the-config-file)
-  - [The provider section](#the-provider-section)
-  - [Starting the service](#starting-the-service)
-      - [Using Docker](#using-docker)
-      - [Setting up GARM as a system service](#setting-up-garm-as-a-system-service)
-  - [Initializing GARM](#initializing-garm)
-  - [Setting up the webhook](#setting-up-the-webhook)
-  - [Creating a GitHub endpoint Optional](#creating-a-github-endpoint-optional)
-  - [Adding credentials](#adding-credentials)
-  - [Define a repo](#define-a-repo)
-  - [Create a pool](#create-a-pool)
+- [Quick start](#quick-start)
+    - [Create the config folder](#create-the-config-folder)
+    - [The config file](#the-config-file)
+    - [The provider section](#the-provider-section)
+    - [Starting the service](#starting-the-service)
+        - [Using Docker](#using-docker)
+        - [Setting up GARM as a system service](#setting-up-garm-as-a-system-service)
+    - [Initializing GARM](#initializing-garm)
+    - [Setting up the webhook](#setting-up-the-webhook)
+    - [Creating a GitHub endpoint Optional](#creating-a-github-endpoint-optional)
+    - [Adding credentials](#adding-credentials)
+    - [Define a repo](#define-a-repo)
+    - [Create a pool](#create-a-pool)
 
 <!-- /TOC -->
 
@@ -93,7 +94,6 @@ This is where you have a decision to make. GARM has a number of providers you ca
 * [Amazon EC2](https://github.com/cloudbase/garm-provider-aws)
 * [Azure](https://github.com/cloudbase/garm-provider-azure)
 * [CloudStack](https://github.com/nexthop-ai/garm-provider-cloudstack)
-* [Equinix Metal](https://github.com/cloudbase/garm-provider-equinix)
 * [Google Cloud Platform (GCP)](https://github.com/cloudbase/garm-provider-gcp)
 * [Incus](https://github.com/cloudbase/garm-provider-incus)
 * [Kubernetes](https://github.com/mercedes-benz/garm-provider-k8s) - Thanks to the amazing folks at @mercedes-benz for sharing their awesome provider!
@@ -279,7 +279,7 @@ Controller information:
 Make sure that the URLs in the table above are reachable by the relevant parties.
 
 The metadata and callback URLs *must* be accessible by the runners that GARM spins up.
-The base webhook and the controller webhook URLs must be accessible by GitHub or GHES. 
+The base webhook and the controller webhook URLs must be accessible by GitHub or GHES.
 ```
 
 Every time you init a new GARM instance, a new profile will be created in your local `garm-cli` config. You can also log into an already initialized instance using:

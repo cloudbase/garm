@@ -135,8 +135,6 @@ ubuntu@garm:~$ garm-cli provider list
 +--------------+---------------------------------+----------+
 | Amazon EC2   | Amazon EC2 provider             | external |
 +--------------+---------------------------------+----------+
-| equinix      | Equinix Metal                   | external |
-+--------------+---------------------------------+----------+
 | cloudstack   | CloudStack external provider    | external |
 +--------------+---------------------------------+----------+
 ```
@@ -192,7 +190,7 @@ The name of the endpoint needs to be unique within GARM.
 To list existing GitHub endpoints, run the following command:
 
 ```bash
-garm-cli github endpoint list 
+garm-cli github endpoint list
 +------------+--------------------------+-------------------------------+
 | NAME       | BASE URL                 | DESCRIPTION                   |
 +------------+--------------------------+-------------------------------+
@@ -269,7 +267,7 @@ garm-cli github credentials add \
     --private-key-path /etc/garm/yiourGarmAppKey.2024-12-12.private-key.pem
 ```
 
-Notice that in both cases we specified the github endpoint for which these credentials are valid. 
+Notice that in both cases we specified the github endpoint for which these credentials are valid.
 
 ### Listing GitHub credentials
 
@@ -428,7 +426,7 @@ garm-cli enterprise add \
     --webhook-secret SuperSecretWebhookTokenPleaseReplaceMe
 ```
 
-The `name` of the enterprise is the ["slug" of the enterprise](https://docs.github.com/en/enterprise-cloud@latest/admin/managing-your-enterprise-account/creating-an-enterprise-account). 
+The `name` of the enterprise is the ["slug" of the enterprise](https://docs.github.com/en/enterprise-cloud@latest/admin/managing-your-enterprise-account/creating-an-enterprise-account).
 
 You will then have to manually add the `Controller Webhook URL` to the enterprise in the GitHub UI.
 
@@ -542,7 +540,7 @@ Let's unpack the command and explain what happened above. We added a new pool of
 
 We also specified the `--min-idle-runners` option to tell GARM to always keep at least 1 runner idle in the pool. This is useful for repositories that have a lot of workflows that run often, and we want to make sure that we always have a runner ready to pick up a job.
 
-If we review the output of the command, we can see that the pool was created with a maximum number of 5 runners. This is just a default we can tweak when creating the pool, or later using the `garm-cli pool update` command. We can also see that the pool was created with a runner botstrap timeout of 20 minutes. This timeout is important on provider where the instance may take a long time to spin up. For example, on Equinix Metal, some operating systems can take a few minutes to install and reboot. This timeout can be tweaked to a higher value to account for this.
+If we review the output of the command, we can see that the pool was created with a maximum number of 5 runners. This is just a default we can tweak when creating the pool, or later using the `garm-cli pool update` command. We can also see that the pool was created with a runner botstrap timeout of 20 minutes. This timeout is important on provider where the instance may take a long time to spin up. For example, on OpenStack when using Ironic, some operating systems can take a few minutes to install and reboot. This timeout can be tweaked to a higher value to account for this.
 
 The pool was created with the `--enabled` flag set to `false`, so the pool won't create any runners yet:
 
@@ -573,13 +571,13 @@ In the absence or the `--repo`, `--org` or `--enterprise` options, the command w
 
 ```bash
 ubuntu@garm:~/garm$ garm-cli pool list
-+--------------------------------------+---------------------------+--------------+-----------------------------------------+------------------+-------+---------+---------------+----------+
-| ID                                   | IMAGE                     | FLAVOR       | TAGS                                    | BELONGS TO       | LEVEL | ENABLED | RUNNER PREFIX | PRIORITY |
-+--------------------------------------+---------------------------+--------------+-----------------------------------------+------------------+-------+---------+---------------+----------+
-| 8935f6a6-f20f-4220-8fa9-9075e7bd7741 | windows_2022              | c3.small.x86 | self-hosted x64 Windows windows equinix | gsamfira/scripts | repo  | false   | garm          |        0 |
-+--------------------------------------+---------------------------+--------------+-----------------------------------------+------------------+-------+---------+---------------+----------+
-| 9233b3f5-2ccf-4689-8f86-a8a0d656dbeb | runner-upstream:latest    | small        | self-hosted x64 Linux k8s org           | gsamfira         | org   | false   | garm          |        0 |
-+--------------------------------------+---------------------------+--------------+-----------------------------------------+------------------+-------+---------+---------------+----------+
++--------------------------------------+---------------------------+--------------+---------------------------------+------------------+-------+---------+---------------+----------+
+| ID                                   | IMAGE                     | FLAVOR       | TAGS                            | BELONGS TO       | LEVEL | ENABLED | RUNNER PREFIX | PRIORITY |
++--------------------------------------+---------------------------+--------------+---------------------------------+------------------+-------+---------+---------------+----------+
+| 8935f6a6-f20f-4220-8fa9-9075e7bd7741 | windows_2022              | c3.small.x86 | self-hosted x64 Windows windows | gsamfira/scripts | repo  | false   | garm          |        0 |
++--------------------------------------+---------------------------+--------------+---------------------------------+------------------+-------+---------+---------------+----------+
+| 9233b3f5-2ccf-4689-8f86-a8a0d656dbeb | runner-upstream:latest    | small        | self-hosted x64 Linux k8s org   | gsamfira         | org   | false   | garm          |        0 |
++--------------------------------------+---------------------------+--------------+---------------------------------+------------------+-------+---------+---------------+----------+
 ```
 
 ### Showing pool info
@@ -780,7 +778,7 @@ Awesome! We've covered all the major parts of using GARM. This is all you need t
 GARM outputs logs to standard out, log files and optionally to a websocket for easy debugging. This is just a convenience feature that allows you to stream logs to your terminal without having to log into the server. It's disabled by default, but if you enable it, you'll be able to run:
 
 ```bash
-ubuntu@garm:~$ garm-cli debug-log 
+ubuntu@garm:~$ garm-cli debug-log
 time=2024-02-12T08:36:18.584Z level=INFO msg=access_log method=GET uri=/api/v1/ws user_agent=Go-http-client/1.1 ip=127.0.0.1:47260 code=200 bytes=0 request_time=447.445µs
 time=2024-02-12T08:36:31.251Z level=INFO msg=access_log method=GET uri=/api/v1/instances user_agent=Go-http-client/1.1 ip=127.0.0.1:58460 code=200 bytes=1410 request_time=656.184µs
 ```
