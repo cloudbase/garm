@@ -41,8 +41,6 @@ func NewWorker(ctx context.Context, store dbCommon.Store, providers map[string]c
 		consumerID:  consumerID,
 		providers:   providers,
 		tokenGetter: tokenGetter,
-		scaleSets:   make(map[uint]params.ScaleSet),
-		runners:     make(map[string]*instanceManager),
 	}, nil
 }
 
@@ -62,8 +60,10 @@ type Provider struct {
 	providers map[string]common.Provider
 	// A cache of all scale sets kept updated by the watcher.
 	// This helps us avoid a bunch of queries to the database.
-	scaleSets map[uint]params.ScaleSet
-	runners   map[string]*instanceManager
+	// sync.Map[uint]params.ScaleSet
+	scaleSets sync.Map
+	// sync.Map[string]*instanceManager
+	runners sync.Map
 
 	mux     sync.Mutex
 	running bool
@@ -77,7 +77,7 @@ func (p *Provider) loadAllScaleSets() error {
 	}
 
 	for _, scaleSet := range scaleSets {
-		p.scaleSets[scaleSet.ID] = scaleSet
+		p.scaleSets.Store(scaleSet.ID, scaleSet)
 	}
 
 	return nil
@@ -111,11 +111,12 @@ func (p *Provider) loadAllRunners() error {
 			continue
 		}
 
-		scaleSet, ok := p.scaleSets[runner.ScaleSetID]
+		val, ok := p.scaleSets.Load(runner.ScaleSetID)
 		if !ok {
 			slog.ErrorContext(p.ctx, "scale set not found", "scale_set_id", runner.ScaleSetID)
 			continue
 		}
+		scaleSet := val.(params.ScaleSet)
 		provider, ok := p.providers[scaleSet.ProviderName]
 		if !ok {
 			slog.ErrorContext(p.ctx, "provider not found", "provider_name", runner.ProviderName)
@@ -130,7 +131,7 @@ func (p *Provider) loadAllRunners() error {
 			return fmt.Errorf("starting instance manager: %w", err)
 		}
 
-		p.runners[runner.Name] = instanceManager
+		p.runners.Store(runner.Name, instanceManager)
 	}
 
 	return nil
@@ -211,9 +212,6 @@ func (p *Provider) handleWatcherEvent(payload dbCommon.ChangePayload) {
 }
 
 func (p *Provider) handleScaleSetEvent(event dbCommon.ChangePayload) {
-	p.mux.Lock()
-	defer p.mux.Unlock()
-
 	scaleSet, ok := event.Payload.(params.ScaleSet)
 	if !ok {
 		slog.ErrorContext(p.ctx, "invalid payload type", "payload_type", fmt.Sprintf("%T", event.Payload))
@@ -223,10 +221,10 @@ func (p *Provider) handleScaleSetEvent(event dbCommon.ChangePayload) {
 	switch event.Operation {
 	case dbCommon.CreateOperation, dbCommon.UpdateOperation:
 		slog.DebugContext(p.ctx, "got create/update operation")
-		p.scaleSets[scaleSet.ID] = scaleSet
+		p.scaleSets.Store(scaleSet.ID, scaleSet)
 	case dbCommon.DeleteOperation:
 		slog.DebugContext(p.ctx, "got delete operation")
-		delete(p.scaleSets, scaleSet.ID)
+		p.scaleSets.Delete(scaleSet.ID)
 	default:
 		slog.ErrorContext(p.ctx, "invalid operation type", "operation_type", event.Operation)
 		return
@@ -234,10 +232,11 @@ func (p *Provider) handleScaleSetEvent(event dbCommon.ChangePayload) {
 }
 
 func (p *Provider) handleInstanceAdded(instance params.Instance) error {
-	scaleSet, ok := p.scaleSets[instance.ScaleSetID]
+	val, ok := p.scaleSets.Load(instance.ScaleSetID)
 	if !ok {
 		return fmt.Errorf("scale set not found for instance %s", instance.Name)
 	}
+	scaleSet := val.(params.ScaleSet)
 	instanceManager, err := newInstanceManager(
 		p.ctx, instance, scaleSet, p.providers[instance.ProviderName], p)
 	if err != nil {
@@ -246,7 +245,7 @@ func (p *Provider) handleInstanceAdded(instance params.Instance) error {
 	if err := instanceManager.Start(); err != nil {
 		return fmt.Errorf("starting instance manager: %w", err)
 	}
-	p.runners[instance.Name] = instanceManager
+	p.runners.Store(instance.Name, instanceManager)
 	return nil
 }
 
@@ -254,20 +253,19 @@ func (p *Provider) stopAndDeleteInstance(instance params.Instance) error {
 	if instance.Status != commonParams.InstanceDeleted {
 		return nil
 	}
-	existingInstance, ok := p.runners[instance.Name]
-	if ok {
-		if err := existingInstance.Stop(); err != nil {
-			return fmt.Errorf("failed to stop instance manager: %w", err)
-		}
-		delete(p.runners, instance.Name)
+	val, ok := p.runners.Load(instance.Name)
+	if !ok {
+		return nil
 	}
+	existingInstance := val.(*instanceManager)
+	if err := existingInstance.Stop(); err != nil {
+		return fmt.Errorf("failed to stop instance manager: %w", err)
+	}
+	p.runners.Delete(instance.Name)
 	return nil
 }
 
 func (p *Provider) handleInstanceEvent(event dbCommon.ChangePayload) {
-	p.mux.Lock()
-	defer p.mux.Unlock()
-
 	instance, ok := event.Payload.(params.Instance)
 	if !ok {
 		slog.ErrorContext(p.ctx, "invalid payload type", "payload_type", fmt.Sprintf("%T", event.Payload))
@@ -289,19 +287,25 @@ func (p *Provider) handleInstanceEvent(event dbCommon.ChangePayload) {
 		}
 	case dbCommon.UpdateOperation:
 		slog.DebugContext(p.ctx, "got update operation")
-		existingInstance, ok := p.runners[instance.Name]
+
+		val, ok := p.runners.Load(instance.Name)
+
 		if !ok {
+			if instance.Status == commonParams.InstanceDeleted {
+				// No manager running for this instance and it's already deleted.
+				return
+			}
 			slog.DebugContext(p.ctx, "instance not found, creating new instance", "instance_name", instance.Name)
 			if err := p.handleInstanceAdded(instance); err != nil {
 				slog.ErrorContext(p.ctx, "failed to handle instance added", "error", err)
 				return
 			}
 		} else {
+			existingInstance := val.(*instanceManager)
 			slog.DebugContext(p.ctx, "updating instance", "instance_name", instance.Name)
 			if instance.Status == commonParams.InstanceDeleted {
 				if err := p.stopAndDeleteInstance(instance); err != nil {
 					slog.ErrorContext(p.ctx, "failed to clean up instance manager", "error", err)
-					return
 				}
 				return
 			}

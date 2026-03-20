@@ -768,14 +768,18 @@ Loop:
 			slog.DebugContext(w.ctx, "listener is stopped; attempting to restart")
 			w.mux.Lock()
 			if !w.scaleSet.Enabled {
-				w.listener.Stop() // cleanup
+				if err := w.listener.Stop(); err != nil {
+					slog.ErrorContext(w.ctx, "failed to stop listener", "error", err)
+				}
 				w.mux.Unlock()
 				continue Loop
 			}
 			w.mux.Unlock()
 			for {
 				w.mux.Lock()
-				w.listener.Stop() // cleanup
+				if err := w.listener.Stop(); err != nil {
+					slog.ErrorContext(w.ctx, "failed to stop listener", "error", err)
+				}
 				if !w.scaleSet.Enabled {
 					w.mux.Unlock()
 					continue Loop

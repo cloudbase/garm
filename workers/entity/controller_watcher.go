@@ -76,14 +76,12 @@ func (c *Controller) handleWatcherEvent(event dbCommon.ChangePayload) {
 }
 
 func (c *Controller) handleWatcherUpdateOperation(entity params.ForgeEntity) {
-	c.mux.Lock()
-	defer c.mux.Unlock()
-
-	worker, ok := c.Entities[entity.ID]
+	val, ok := c.Entities.Load(entity.ID)
 	if !ok {
 		slog.InfoContext(c.ctx, "entity not found in worker list", "entity_id", entity.ID)
 		return
 	}
+	worker := val.(*Worker)
 
 	if worker.IsRunning() {
 		// The worker is running. It watches for updates to its own entity. We only care about updates
@@ -104,9 +102,6 @@ func (c *Controller) handleWatcherUpdateOperation(entity params.ForgeEntity) {
 }
 
 func (c *Controller) handleWatcherCreateOperation(entity params.ForgeEntity) {
-	c.mux.Lock()
-	defer c.mux.Unlock()
-
 	worker, err := NewWorker(c.ctx, c.store, entity, c.providers)
 	if err != nil {
 		slog.ErrorContext(c.ctx, "creating worker from repository", "entity_type", entity.EntityType, "error", err)
@@ -119,22 +114,20 @@ func (c *Controller) handleWatcherCreateOperation(entity params.ForgeEntity) {
 		return
 	}
 
-	c.Entities[entity.ID] = worker
+	c.Entities.Store(entity.ID, worker)
 }
 
 func (c *Controller) handleWatcherDeleteOperation(entity params.ForgeEntity) {
-	c.mux.Lock()
-	defer c.mux.Unlock()
-
-	worker, ok := c.Entities[entity.ID]
+	val, ok := c.Entities.Load(entity.ID)
 	if !ok {
 		slog.InfoContext(c.ctx, "entity not found in worker list", "entity_id", entity.ID)
 		return
 	}
+	worker := val.(*Worker)
 	slog.InfoContext(c.ctx, "stopping entity worker", "entity_id", entity.ID, "entity_type", entity.EntityType)
 	if err := worker.Stop(); err != nil {
 		slog.ErrorContext(c.ctx, "stopping worker", "entity_id", entity.ID, "error", err)
 		return
 	}
-	delete(c.Entities, entity.ID)
+	c.Entities.Delete(entity.ID)
 }

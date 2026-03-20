@@ -41,7 +41,6 @@ func NewController(ctx context.Context, store dbCommon.Store, entity params.Forg
 	return &Controller{
 		ctx:        ctx,
 		consumerID: consumerID,
-		ScaleSets:  make(map[uint]*scaleSet),
 		Entity:     entity,
 		providers:  providers,
 		store:      store,
@@ -71,7 +70,8 @@ type Controller struct {
 	ctx        context.Context
 	consumerID string
 
-	ScaleSets map[uint]*scaleSet
+	// sync.Map[uint]*scaleSet
+	ScaleSets sync.Map
 
 	Entity params.ForgeEntity
 
@@ -149,13 +149,16 @@ func (c *Controller) Stop() error {
 	}
 	slog.DebugContext(c.ctx, "stopping scaleset controller", "entity", c.Entity.String())
 
-	for scaleSetID, scaleSet := range c.ScaleSets {
-		if err := scaleSet.Stop(); err != nil {
+	c.ScaleSets.Range(func(key, value any) bool {
+		scaleSetID := key.(uint)
+		set := value.(*scaleSet)
+		if err := set.Stop(); err != nil {
 			slog.ErrorContext(c.ctx, "stopping worker for scale set", "scale_set_id", scaleSetID, "error", err)
-			continue
+			return true
 		}
-		delete(c.ScaleSets, scaleSetID)
-	}
+		c.ScaleSets.Delete(scaleSetID)
+		return true
+	})
 
 	c.running = false
 	close(c.quit)
@@ -170,16 +173,18 @@ func (c *Controller) Stop() error {
 // runners in either github or the providers.
 func (c *Controller) ConsolidateRunnerState(byScaleSetID map[int][]params.RunnerReference) error {
 	g, ctx := errgroup.WithContext(c.ctx)
-	for _, scaleSet := range c.ScaleSets {
-		runners := byScaleSetID[scaleSet.scaleSet.ScaleSetID]
+	c.ScaleSets.Range(func(_, value any) bool {
+		set := value.(*scaleSet)
+		runners := byScaleSetID[set.scaleSet.ScaleSetID]
 		g.Go(func() error {
-			slog.DebugContext(ctx, "consolidating runners for scale set", "scale_set_id", scaleSet.scaleSet.ScaleSetID, "runners", runners)
-			if err := scaleSet.worker.consolidateRunnerState(runners); err != nil {
-				return fmt.Errorf("consolidating runners for scale set %d: %w", scaleSet.scaleSet.ScaleSetID, err)
+			slog.DebugContext(ctx, "consolidating runners for scale set", "scale_set_id", set.scaleSet.ScaleSetID, "runners", runners)
+			if err := set.worker.consolidateRunnerState(runners); err != nil {
+				return fmt.Errorf("consolidating runners for scale set %d: %w", set.scaleSet.ScaleSetID, err)
 			}
 			return nil
 		})
-	}
+		return true
+	})
 	if err := c.waitForErrorGroupOrContextCancelled(g); err != nil {
 		return fmt.Errorf("waiting for error group: %w", err)
 	}
