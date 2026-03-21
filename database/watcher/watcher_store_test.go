@@ -919,8 +919,8 @@ func (s *WatcherStoreTestSuite) TestGithubCredentialsWatcher() {
 		s.Require().Equal(common.ChangePayload{
 			EntityType: common.GithubCredentialsEntityType,
 			Operation:  common.DeleteOperation,
-			// We only get the ID and Name of the deleted entity
-			Payload: params.ForgeCredentials{ID: ghCred.ID, Name: ghCred.Name},
+			// We only get the ID, Name and ForgeType of the deleted entity
+			Payload: params.ForgeCredentials{ID: ghCred.ID, Name: ghCred.Name, ForgeType: params.GithubEndpointType},
 		}, event)
 	case <-time.After(1 * time.Second):
 		s.T().Fatal("expected payload not received")
