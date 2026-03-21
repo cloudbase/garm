@@ -172,9 +172,10 @@
 			cellComponent: EntityCell,
 			cellProps: { entityType: 'scaleset' }
 		},
-		{ 
-			key: 'image', 
+		{
+			key: 'image',
 			title: 'Image',
+			flexible: true,
 			cellComponent: GenericCell,
 			cellProps: {
 				field: 'image',
