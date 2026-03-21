@@ -382,45 +382,24 @@ if (!($CallbackURL -match "^(.*)/status(/)?$")) {
 	$CallbackURL = "$CallbackURL/status"
 }
 $GHRunnerGroup = "{{.GitHubRunnerGroup}}"
-try {
-    $instanceMetadata = (wget -UseBasicParsing -Headers @{"Accept"="application/json"; "Authorization"="Bearer $Token"} -Uri {{.MetadataURL}}/runner-metadata)
-    $metadata = ConvertFrom-Json $instanceMetadata.Content
-} catch {
-	Invoke-GarmFailure -Message "failed to get runner metadata: $_" -CallbackURL "{{.CallbackURL}}" | Out-Null
-}
-
 function Get-IsAgentMode {
-    return ($metadata.agent_mode -eq $true)
+    return {{ if .AgentMode }}$true{{ else }}$false{{ end }}
 }
 
 function Get-AgentURL {
-    $url = $metadata.metadata_access.agent_url
-    if (!$url) {
-        Throw("missing agent URL")
-    }
-    return $url
+    return "{{ .AgentURL }}"
 }
 
 function Get-AgentToken {
-    $token = $metadata.agent_token
-    if (!$token) {
-        Throw("missing agent Token")
-    }
-    return $token
+    return "{{ .AgentToken }}"
 }
 
 function Get-AgentDownloadURL {
-    $url = $metadata.agent_tools.download_url
-    if (!$url) {
-        Throw("missing agent download URL")
-    }
-    return $url
+    return "{{ .AgentDownloadURL }}"
 }
 
 function Get-AgentShellEnabled {
-    $shellEnabled = $metadata.agent_shell_enabled
-    if ($shellEnabled) {return "true"}
-    return "false"
+    return "{{ .AgentShell }}"
 }
 
 function Install-GarmAgent {

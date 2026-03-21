@@ -55,31 +55,18 @@ function fail() {
 	exit 1
 }
 
-INSTANCE_METADATA=$(curl \
-    --retry 5 \
-    --retry-delay 5 \
-    --retry-connrefused \
-    --fail -s \
-    -H 'Accept: application/json' \
-    -H "Authorization: Bearer ${BEARER_TOKEN}" \
-    "$METADATA_URL/runner-metadata" 2>&1) || fail "failed to get instance metadata: $INSTANCE_METADATA"
+{{- if .AgentMode }}
+AGENT_MODE="true"
+{{- else }}
+AGENT_MODE=""
+{{- end }}
 
-AGENT_MODE=$(echo "$INSTANCE_METADATA" | jq -r '.agent_mode // empty')
 if [ "$AGENT_MODE" == "true" ]; then
     sendStatus "Agent mode is enabled; setting up agent"
-    DOWNLOAD_URL=$(echo "$INSTANCE_METADATA" | jq -r '.agent_tools.download_url // empty')
-    if [ -z "$DOWNLOAD_URL" ]; then
-        fail "agent mode is enabled, but no agent tools found in metadata"
-    fi
-    AGENT_URL=$(echo "$INSTANCE_METADATA" | jq -r '.metadata_access.agent_url // empty')
-    if [ -z "$AGENT_URL" ]; then
-        fail "agent mode is enabled, but agent_url was not found in metadata"
-    fi
-    AGENT_TOKEN=$(echo "$INSTANCE_METADATA" | jq -r '.agent_token // empty')
-    if [ -z "$AGENT_TOKEN" ]; then
-        fail "agent mode is enabled, but agent_token was not found in metadata"
-    fi
-    AGENT_SHELL=$(echo "$INSTANCE_METADATA" | jq -r '.agent_shell_enabled // false')
+    DOWNLOAD_URL="{{ .AgentDownloadURL }}"
+    AGENT_URL="{{ .AgentURL }}"
+    AGENT_TOKEN="{{ .AgentToken }}"
+    AGENT_SHELL={{ .AgentShell }}
     sendStatus "Downloading agent from $DOWNLOAD_URL"
     sudo curl --retry 5 \
         --retry-delay 5 \

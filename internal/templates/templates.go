@@ -24,6 +24,18 @@ type WrapperContext struct {
 	MetadataURL   string
 }
 
+// InstallContext wraps the vendored InstallRunnerParams with agent-specific
+// fields so templates can render agent values directly without requiring
+// the runner to fetch metadata and parse it with jq at runtime.
+type InstallContext struct {
+	cloudconfig.InstallRunnerParams
+	AgentMode        bool
+	AgentDownloadURL string
+	AgentURL         string
+	AgentToken       string
+	AgentShell       string // "true" or "false", used verbatim in TOML config
+}
+
 func GetTemplateContent(osType commonParams.OSType, forge params.EndpointType) ([]byte, error) {
 	switch forge {
 	case params.GithubEndpointType, params.GiteaEndpointType:
@@ -53,7 +65,7 @@ func GetTemplateContent(osType commonParams.OSType, forge params.EndpointType) (
 	return data, nil
 }
 
-func RenderRunnerInstallScript(tpl string, context cloudconfig.InstallRunnerParams) ([]byte, error) {
+func RenderRunnerInstallScript(tpl string, context any) ([]byte, error) {
 	t, err := template.New("").Parse(tpl)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse template: %w", err)
