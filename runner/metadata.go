@@ -377,6 +377,7 @@ func (r *Runner) GetRunnerInstallScript(ctx context.Context) ([]byte, error) {
 	var templateID uint
 	var specs cloudconfig.CloudConfigSpec
 	var extraSpecs json.RawMessage
+	var enableShell bool
 	switch {
 	case instance.PoolID != "":
 		pool, err := r.store.GetPoolByID(r.ctx, instance.PoolID)
@@ -389,6 +390,7 @@ func (r *Runner) GetRunnerInstallScript(ctx context.Context) ([]byte, error) {
 		}
 		extraSpecs = pool.ExtraSpecs
 		templateID = pool.TemplateID
+		enableShell = pool.EnableShell
 	case instance.ScaleSetID > 0:
 		scaleSet, err := r.store.GetScaleSetByID(r.ctx, instance.ScaleSetID)
 		if err != nil {
@@ -400,6 +402,7 @@ func (r *Runner) GetRunnerInstallScript(ctx context.Context) ([]byte, error) {
 		}
 		extraSpecs = scaleSet.ExtraSpecs
 		templateID = scaleSet.TemplateID
+		enableShell = scaleSet.EnableShell
 	default:
 		return nil, fmt.Errorf("instance is not part of a pool or scale set")
 	}
@@ -425,9 +428,33 @@ func (r *Runner) GetRunnerInstallScript(ctx context.Context) ([]byte, error) {
 		}
 	}
 
+	// Build agent context for the template so templates don't need
+	// to fetch metadata and parse it with jq at runtime.
+	tplCtx := templates.InstallContext{
+		InstallRunnerParams: installCtx,
+	}
+	if entity.AgentMode {
+		tplCtx.AgentMode = true
+		agentTool := r.getInstanceAgentTool(instance)
+		if agentTool != nil {
+			tplCtx.AgentDownloadURL = agentTool.DownloadURL
+			agentToken, err := r.GetAgentJWTToken(r.ctx, instance.Name)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get agent token: %w", err)
+			}
+			tplCtx.AgentToken = agentToken
+			tplCtx.AgentURL = cache.ControllerInfo().AgentURL
+			tplCtx.AgentShell = fmt.Sprintf("%t", enableShell)
+		} else {
+			slog.WarnContext(ctx, "agent mode enabled but no tools available",
+				"runner_name", instance.Name)
+			tplCtx.AgentMode = false
+		}
+	}
+
 	var tplBytes []byte
 	if len(specs.RunnerInstallTemplate) > 0 {
-		installCtx.ExtraContext = specs.ExtraContext
+		tplCtx.ExtraContext = specs.ExtraContext
 		tplBytes = specs.RunnerInstallTemplate
 	} else {
 		template, err := r.store.GetTemplate(r.ctx, templateID)
@@ -437,7 +464,7 @@ func (r *Runner) GetRunnerInstallScript(ctx context.Context) ([]byte, error) {
 		tplBytes = template.Data
 	}
 
-	installScript, err := templates.RenderRunnerInstallScript(string(tplBytes), installCtx)
+	installScript, err := templates.RenderRunnerInstallScript(string(tplBytes), tplCtx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get runner install script: %w", err)
 	}
