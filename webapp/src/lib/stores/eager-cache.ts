@@ -303,7 +303,10 @@ class EagerCacheManager {
 
 			const credentials = [...state.credentials];
 			const cred = event.payload as ForgeCredentials;
-			const matchCred = (c: ForgeCredentials) => c.id === cred.id && c.forge_type === cred.forge_type;
+			// Derive forge_type from the WebSocket entity type if missing from payload
+			// (backend delete events may send sparse payloads without forge_type)
+			const forgeType = cred.forge_type || (event['entity-type'] === 'github_credentials' ? 'github' : 'gitea');
+			const matchCred = (c: ForgeCredentials) => c.id === cred.id && c.forge_type === forgeType;
 
 			if (event.operation === 'create') {
 				const existingIndex = credentials.findIndex(matchCred);

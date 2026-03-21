@@ -488,7 +488,7 @@ func (s *sqlDatabase) DeleteGithubCredentials(ctx context.Context, id uint) (err
 	var name string
 	defer func() {
 		if err == nil {
-			s.sendNotify(common.GithubCredentialsEntityType, common.DeleteOperation, params.ForgeCredentials{ID: id, Name: name})
+			s.sendNotify(common.GithubCredentialsEntityType, common.DeleteOperation, params.ForgeCredentials{ID: id, Name: name, ForgeType: params.GithubEndpointType})
 		}
 	}()
 	err = s.conn.Transaction(func(tx *gorm.DB) error {

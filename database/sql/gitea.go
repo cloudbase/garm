@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 
 	"gorm.io/gorm"
 
@@ -472,14 +471,10 @@ func (s *sqlDatabase) DeleteGiteaCredentials(ctx context.Context, id uint) (err 
 	var creds GiteaCredentials
 	defer func() {
 		if err == nil {
-			forgeCreds, innerErr := s.sqlGiteaToCommonForgeCredentials(creds)
-			if innerErr != nil {
-				slog.ErrorContext(ctx, "converting gitea credentials", "error", innerErr)
-			}
 			if creds.ID == 0 || creds.Name == "" {
 				return
 			}
-			s.sendNotify(common.GiteaCredentialsEntityType, common.DeleteOperation, forgeCreds)
+			s.sendNotify(common.GiteaCredentialsEntityType, common.DeleteOperation, params.ForgeCredentials{ID: creds.ID, Name: creds.Name, ForgeType: params.GiteaEndpointType})
 		}
 	}()
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
