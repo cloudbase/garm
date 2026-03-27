@@ -727,7 +727,11 @@ type APIServer struct {
 
 // BindAddress returns a host:port string.
 func (a *APIServer) BindAddress() string {
-	return fmt.Sprintf("%s:%d", a.Bind, a.Port)
+	bind := a.Bind
+	if ip := net.ParseIP(bind); ip != nil && ip.To4() == nil {
+		bind = fmt.Sprintf("[%s]", bind)
+	}
+	return fmt.Sprintf("%s:%d", bind, a.Port)
 }
 
 // Validate validates the API server config

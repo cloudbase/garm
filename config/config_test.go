@@ -267,6 +267,16 @@ func TestAPIBindAddress(t *testing.T) {
 	err := cfg.Validate()
 	require.Nil(t, err)
 	require.Equal(t, cfg.BindAddress(), "0.0.0.0:9998")
+
+	cfg.Bind = "::"
+	err = cfg.Validate()
+	require.Nil(t, err)
+	require.Equal(t, cfg.BindAddress(), "[::]:9998")
+
+	cfg.Bind = "1:2:3::4"
+	err = cfg.Validate()
+	require.Nil(t, err)
+	require.Equal(t, cfg.BindAddress(), "[1:2:3::4]:9998")
 }
 
 func TestDatabaseConfig(t *testing.T) {
