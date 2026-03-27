@@ -41,9 +41,6 @@ func (r *Runner) CreateGiteaEndpoint(ctx context.Context, param params.CreateGit
 }
 
 func (r *Runner) GetGiteaEndpoint(ctx context.Context, name string) (params.ForgeEndpoint, error) {
-	if !auth.IsAdmin(ctx) {
-		return params.ForgeEndpoint{}, runnerErrors.ErrUnauthorized
-	}
 	endpoint, err := r.store.GetGiteaEndpoint(ctx, name)
 	if err != nil {
 		return params.ForgeEndpoint{}, fmt.Errorf("failed to get gitea endpoint: %w", err)
@@ -82,10 +79,6 @@ func (r *Runner) UpdateGiteaEndpoint(ctx context.Context, name string, param par
 }
 
 func (r *Runner) ListGiteaEndpoints(ctx context.Context) ([]params.ForgeEndpoint, error) {
-	if !auth.IsAdmin(ctx) {
-		return nil, runnerErrors.ErrUnauthorized
-	}
-
 	endpoints, err := r.store.ListGiteaEndpoints(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list gitea endpoints: %w", err)

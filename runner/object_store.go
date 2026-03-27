@@ -44,7 +44,7 @@ func (r *Runner) CreateFileObject(ctx context.Context, param params.CreateFileOb
 }
 
 func (r *Runner) GetFileObject(ctx context.Context, objID uint) (params.FileObject, error) {
-	if !auth.IsAdmin(ctx) {
+	if !auth.IsAuthenticated(ctx) {
 		return params.FileObject{}, runnerErrors.ErrUnauthorized
 	}
 
@@ -83,9 +83,10 @@ func (r *Runner) DeleteFileObjectsByTags(ctx context.Context, tags []string) (in
 }
 
 func (r *Runner) ListFileObjects(ctx context.Context, page, pageSize uint64, tags []string) (params.FileObjectPaginatedResponse, error) {
-	if !auth.IsAdmin(ctx) {
+	if !auth.IsAuthenticated(ctx) {
 		return params.FileObjectPaginatedResponse{}, runnerErrors.ErrUnauthorized
 	}
+
 	var resp params.FileObjectPaginatedResponse
 	var err error
 	if len(tags) == 0 {
@@ -126,7 +127,7 @@ func (r *Runner) UpdateFileObject(ctx context.Context, objID uint, param params.
 }
 
 func (r *Runner) GetFileObjectReader(ctx context.Context, objID uint) (io.ReadCloser, error) {
-	if !auth.IsAdmin(ctx) {
+	if !auth.IsAuthenticated(ctx) {
 		return nil, runnerErrors.ErrUnauthorized
 	}
 

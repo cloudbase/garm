@@ -152,7 +152,7 @@ func (s *UserTestSuite) TestCreateUserMissingUsernameEmail() {
 	_, err := s.Store.CreateUser(context.Background(), s.Fixtures.NewUserParams)
 
 	s.Require().NotNil(err)
-	s.Require().Equal(("missing username, password or email"), err.Error())
+	s.Require().Equal(("missing username or email"), err.Error())
 }
 
 func (s *UserTestSuite) TestCreateUserUsernameAlreadyExist() {
