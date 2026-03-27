@@ -57,12 +57,16 @@ func (s *sqlDatabase) getUserByID(tx *gorm.DB, userID string) (User, error) {
 }
 
 func (s *sqlDatabase) CreateUser(_ context.Context, user params.NewUserParams) (params.User, error) {
-	if user.Username == "" || user.Email == "" || user.Password == "" {
-		return params.User{}, runnerErrors.NewBadRequestError("missing username, password or email")
+	if user.Username == "" || user.Email == "" {
+		return params.User{}, runnerErrors.NewBadRequestError("missing username or email")
+	}
+	// SSO users don't have passwords, but regular users must have one
+	if !user.IsSSOUser && user.Password == "" {
+		return params.User{}, runnerErrors.NewBadRequestError("missing password for non-SSO user")
 	}
 	newUser := User{
 		Username: user.Username,
-		Password: user.Password,
+		Password: user.Password, // Empty for SSO users
 		FullName: user.FullName,
 		Enabled:  user.Enabled,
 		Email:    user.Email,
