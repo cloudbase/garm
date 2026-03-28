@@ -3336,12 +3336,6 @@ export interface UpdateScaleSetParams {
     'image'?: string;
     /**
      * 
-     * @type {Array<string>}
-     * @memberof UpdateScaleSetParams
-     */
-    'labels'?: Array<string>;
-    /**
-     * 
      * @type {number}
      * @memberof UpdateScaleSetParams
      */

@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/google/go-github/v72/github"
+	"github.com/google/go-github/v84/github"
 
 	"github.com/cloudbase/garm/metrics"
 	"github.com/cloudbase/garm/params"

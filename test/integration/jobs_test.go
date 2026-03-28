@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/go-github/v72/github"
+	"github.com/google/go-github/v84/github"
 
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm/params"
@@ -47,7 +47,7 @@ func (suite *GarmSuite) TriggerWorkflow(ghToken, orgName, repoName, workflowFile
 			"runner_label": labelName,
 		},
 	}
-	_, err := client.Actions.CreateWorkflowDispatchEventByFileName(context.Background(), orgName, repoName, workflowFileName, eventReq)
+	_, _, err := client.Actions.CreateWorkflowDispatchEventByFileName(context.Background(), orgName, repoName, workflowFileName, eventReq)
 	suite.NoError(err, "error triggering workflow")
 }
 
