@@ -85,6 +85,7 @@ type UserStore interface {
 	GetUser(ctx context.Context, user string) (params.User, error)
 	GetUserByID(ctx context.Context, userID string) (params.User, error)
 	GetAdminUser(ctx context.Context) (params.User, error)
+	ListUsers(ctx context.Context) ([]params.User, error)
 
 	CreateUser(ctx context.Context, user params.NewUserParams) (params.User, error)
 	UpdateUser(ctx context.Context, user string, param params.UpdateUserParams) (params.User, error)

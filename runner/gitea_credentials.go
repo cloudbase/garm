@@ -24,10 +24,6 @@ import (
 )
 
 func (r *Runner) ListGiteaCredentials(ctx context.Context) ([]params.ForgeCredentials, error) {
-	if !auth.IsAdmin(ctx) {
-		return nil, runnerErrors.ErrUnauthorized
-	}
-
 	// Get the credentials from the store. The cache is always updated after the database successfully
 	// commits the transaction that created/updated the credentials.
 	// If we create a set of credentials then immediately after we call ListGiteaCredentials,
@@ -57,10 +53,6 @@ func (r *Runner) CreateGiteaCredentials(ctx context.Context, param params.Create
 }
 
 func (r *Runner) GetGiteaCredentials(ctx context.Context, id uint) (params.ForgeCredentials, error) {
-	if !auth.IsAdmin(ctx) {
-		return params.ForgeCredentials{}, runnerErrors.ErrUnauthorized
-	}
-
 	creds, err := r.store.GetGiteaCredentials(ctx, id, true)
 	if err != nil {
 		return params.ForgeCredentials{}, fmt.Errorf("error failed to get gitea credentials: %w", err)
