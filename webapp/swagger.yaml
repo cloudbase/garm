@@ -2129,11 +2129,6 @@ definitions:
             image:
                 type: string
                 x-go-name: Image
-            labels:
-                items:
-                    type: string
-                type: array
-                x-go-name: Labels
             max_runners:
                 format: uint64
                 type: integer

@@ -28,7 +28,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/go-github/v72/github"
+	"github.com/google/go-github/v84/github"
 	"github.com/google/uuid"
 	"golang.org/x/sync/errgroup"
 
