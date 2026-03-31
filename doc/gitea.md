@@ -33,7 +33,7 @@ sudo iptables -I DOCKER-USER -j ACCEPT
 
 ### Create the docker compose
 
-Create a docker compose file in `$HOME/compose.yaml`. This docker compose will deploy both gitea and GARM. If you already have a Gitea >=1.24.0, you can edit this docker compose to only deploy GARM. 
+Create a docker compose file in `$HOME/compose.yaml`. This docker compose will deploy both gitea and GARM. If you already have a Gitea >=1.24.0, you can edit this docker compose to only deploy GARM.
 
 ```yaml
 networks:
@@ -86,8 +86,7 @@ sudo chown 1000:1000 /etc/gitea /etc/garm
 Create the GARM configuration file:
 
 ```bash
-
-sudo tee /etc/garm/config.toml <<EOF
+sudo tee /etc/garm/config.toml > /dev/null <<'EOF'
 [default]
 enable_webhook_management = true
 
@@ -138,7 +137,7 @@ EOF
 Create the LXD provider config file:
 
 ```bash
-sudo tee /etc/garm/garm-provider-lxd.toml <<EOF
+sudo tee /etc/garm/garm-provider-lxd.toml > /dev/null <<'EOF'
 # the path to the unix socket that LXD is listening on. This works if garm and LXD
 # are on the same system, and this option takes precedence over the "url" option,
 # which connects over the network.
@@ -320,14 +319,6 @@ garm-cli provider list
 
 The one we configured is called `local_lxd`.
 
-Before we add a pool, there is one more important detail to know. Right now, the default runner installation script is tailored for github. But most providers offer a way to override the runner install template via an opaque JSON field called `extra_specs`. We can set this field when creating the pool or update it any time later.
-
-There is a sample extra specs file [in this github gist](https://gist.github.com/gabriel-samfira/d132169ec41d990bbe17e6097af94c4c). We can fetch it and use it when definig the pool:
-
-```bash
-curl -L -o $HOME/gitea-pool-specs.json https://gist.githubusercontent.com/gabriel-samfira/d132169ec41d990bbe17e6097af94c4c/raw/67d226d9115eca5e10b69eac5ecb04be91a48991/gitea-extra-specs.json
-```
-
 Now, add the pool:
 
 ```bash
@@ -339,8 +330,7 @@ garm-cli pool add \
     --flavor default \
     --enabled=true \
     --min-idle-runners=1 \
-    --max-runners=5 \
-    --extra-specs-file=$HOME/gitea-pool-specs.json
+    --max-runners=5
 ```
 
 You should now see 1 runner being spun up in LXD. You can check the status of the pool by doing:
@@ -355,4 +345,4 @@ To get more details about the runner, run:
 garm-cli runner show RUNNER_NAME_GOES_HERE
 ```
 
-That's it! You can now use GARM with Gitea. You can add more pools, more repos, more orgs, more endpoints and more providers. 
+That's it! You can now use GARM with Gitea. You can add more pools, more repos, more orgs, more endpoints and more providers.
