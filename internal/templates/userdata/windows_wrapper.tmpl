@@ -1,7 +1,7 @@
 #ps1_sysnative
 
+Set-ExecutionPolicy RemoteSigned -Force -ErrorAction SilentlyContinue
 $ErrorActionPreference="Stop"
-Set-ExecutionPolicy RemoteSigned
 
 function Start-ExecuteWithRetry {
     [CmdletBinding()]
