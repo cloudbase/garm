@@ -764,9 +764,8 @@ Loop:
 			w.mux.Unlock()
 			for {
 				w.mux.Lock()
-				if err := w.listener.Stop(); err != nil {
-					slog.ErrorContext(w.ctx, "failed to stop listener", "error", err)
-				}
+				// In case the scaleset was disabled while we were in the
+				// backoff sleep.
 				if !w.scaleSet.Enabled {
 					w.mux.Unlock()
 					continue Loop
@@ -774,15 +773,12 @@ Loop:
 				slog.DebugContext(w.ctx, "attempting to restart")
 				if err := w.listener.Start(); err != nil {
 					w.mux.Unlock()
-					slog.ErrorContext(w.ctx, "error restarting listener", "error", err)
-					switch {
-					case backoff > 60*time.Second:
-						backoff = 60 * time.Second
-					case backoff == 0:
+					switch backoff {
+					case 0:
 						backoff = 5 * time.Second
 						slog.InfoContext(w.ctx, "backing off restart attempt", "backoff", backoff)
 					default:
-						backoff = time.Duration(float64(backoff) * 1.5)
+						backoff = min(time.Duration(float64(backoff)*1.5), 60*time.Second)
 					}
 					slog.ErrorContext(w.ctx, "error restarting listener", "error", err, "backoff", backoff)
 					if canceled := w.sleepWithCancel(backoff); canceled {
@@ -791,6 +787,7 @@ Loop:
 					}
 					continue
 				}
+				backoff = 0
 				w.mux.Unlock()
 				continue Loop
 			}
