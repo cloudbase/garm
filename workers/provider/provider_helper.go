@@ -16,7 +16,6 @@ package provider
 import (
 	"fmt"
 
-	"github.com/cloudbase/garm-provider-common/errors"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/params"
@@ -57,10 +56,6 @@ func (p *Provider) GetControllerInfo() (params.ControllerInfo, error) {
 }
 
 func (p *Provider) SetInstanceStatus(instanceName string, status commonParams.InstanceStatus, providerFault []byte, force bool) error {
-	if _, ok := p.runners.Load(instanceName); !ok {
-		return errors.ErrNotFound
-	}
-
 	updateParams := params.UpdateInstanceParams{
 		Status:        status,
 		ProviderFault: providerFault,

@@ -245,7 +245,11 @@ func (p *Provider) handleInstanceAdded(instance params.Instance) error {
 	if err := instanceManager.Start(); err != nil {
 		return fmt.Errorf("starting instance manager: %w", err)
 	}
-	p.runners.Store(instance.Name, instanceManager)
+	if _, loaded := p.runners.LoadOrStore(instance.Name, instanceManager); loaded {
+		// A manager already exists for this instance. Stop the one we just created.
+		slog.DebugContext(p.ctx, "instance manager already exists", "instance_name", instance.Name)
+		instanceManager.Stop()
+	}
 	return nil
 }
 
@@ -253,15 +257,16 @@ func (p *Provider) stopAndDeleteInstance(instance params.Instance) error {
 	if instance.Status != commonParams.InstanceDeleted {
 		return nil
 	}
-	val, ok := p.runners.Load(instance.Name)
-	if !ok {
+	val, loaded := p.runners.LoadAndDelete(instance.Name)
+	if !loaded {
 		return nil
 	}
 	existingInstance := val.(*instanceManager)
 	if err := existingInstance.Stop(); err != nil {
+		// Re-store the manager so it can be retried.
+		p.runners.Store(instance.Name, existingInstance)
 		return fmt.Errorf("failed to stop instance manager: %w", err)
 	}
-	p.runners.Delete(instance.Name)
 	return nil
 }
 
