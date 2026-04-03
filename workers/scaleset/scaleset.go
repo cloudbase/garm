@@ -145,8 +145,7 @@ func (w *Worker) ensureScaleSetInGitHub() error {
 		return fmt.Errorf("failed to update scale set: %w", err)
 	}
 
-	// The scale set was recreated. We need to reset the last message ID we recorded previously,
-	// otherwise we'll ignore every message we get from the queue.
+	// The scale set was recreated. We need to reset the last message ID we recorded previously.
 	if err := w.SetLastMessageID(0); err != nil {
 		return fmt.Errorf("failed to reset last message id: %w", err)
 	}
@@ -324,15 +323,6 @@ func (w *Worker) Start() (err error) {
 
 	slog.DebugContext(w.ctx, "creating scale set listener")
 	listener := newListener(w.ctx, w)
-
-	if w.scaleSet.Enabled {
-		slog.DebugContext(w.ctx, "starting scale set listener")
-		if err := listener.Start(); err != nil {
-			return fmt.Errorf("error starting listener: %w", err)
-		}
-	} else {
-		slog.InfoContext(w.ctx, "scale set is disabled; not starting listener")
-	}
 
 	w.listener = listener
 	w.consumer = consumer
