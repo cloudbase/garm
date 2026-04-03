@@ -152,11 +152,6 @@ func (l *scaleSetListener) handleSessionMessage(msg params.RunnerScaleSetMessage
 		slog.ErrorContext(l.ctx, "getting jobs from body", "error", err)
 	}
 
-	if msg.MessageID < l.lastMessageID {
-		slog.InfoContext(l.ctx, "message is older than last message, ignoring", "received_msg_id", fmt.Sprintf("%d", msg.MessageID), "recorded_msg_id", fmt.Sprintf("%d", l.lastMessageID))
-		return
-	}
-
 	var completedJobs []params.ScaleSetJobMessage
 	var availableJobs []params.ScaleSetJobMessage
 	var startedJobs []params.ScaleSetJobMessage
