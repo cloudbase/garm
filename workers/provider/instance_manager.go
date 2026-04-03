@@ -404,8 +404,6 @@ func (i *instanceManager) Update(instance dbCommon.ChangePayload) error {
 
 func (i *instanceManager) updatesLoop() {
 	defer i.Stop()
-	ticker := time.NewTicker(5 * time.Second)
-	defer ticker.Stop()
 	for {
 		select {
 		case <-i.quit:

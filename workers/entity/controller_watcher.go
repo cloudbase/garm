@@ -114,20 +114,24 @@ func (c *Controller) handleWatcherCreateOperation(entity params.ForgeEntity) {
 		return
 	}
 
-	c.Entities.Store(entity.ID, worker)
+	if _, loaded := c.Entities.LoadOrStore(entity.ID, worker); loaded {
+		// A worker already exists for this entity. Stop the one we just created.
+		slog.DebugContext(c.ctx, "entity worker already exists", "entity_id", entity.ID)
+		worker.Stop()
+	}
 }
 
 func (c *Controller) handleWatcherDeleteOperation(entity params.ForgeEntity) {
-	val, ok := c.Entities.Load(entity.ID)
-	if !ok {
+	val, loaded := c.Entities.LoadAndDelete(entity.ID)
+	if !loaded {
 		slog.InfoContext(c.ctx, "entity not found in worker list", "entity_id", entity.ID)
 		return
 	}
 	worker := val.(*Worker)
 	slog.InfoContext(c.ctx, "stopping entity worker", "entity_id", entity.ID, "entity_type", entity.EntityType)
 	if err := worker.Stop(); err != nil {
+		// Re-store the worker so it can be retried.
+		c.Entities.Store(entity.ID, worker)
 		slog.ErrorContext(c.ctx, "stopping worker", "entity_id", entity.ID, "error", err)
-		return
 	}
-	c.Entities.Delete(entity.ID)
 }
