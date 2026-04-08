@@ -86,7 +86,7 @@ func (r *Runner) CreateEnterprise(ctx context.Context, param params.CreateEnterp
 }
 
 func (r *Runner) ListEnterprises(ctx context.Context, filter params.EnterpriseFilter) ([]params.Enterprise, error) {
-	if !auth.IsAdmin(ctx) {
+	if !auth.IsAuthenticated(ctx) {
 		return nil, runnerErrors.ErrUnauthorized
 	}
 
@@ -99,7 +99,7 @@ func (r *Runner) ListEnterprises(ctx context.Context, filter params.EnterpriseFi
 }
 
 func (r *Runner) GetEnterpriseByID(ctx context.Context, enterpriseID string) (params.Enterprise, error) {
-	if !auth.IsAdmin(ctx) {
+	if !auth.IsAuthenticated(ctx) {
 		return params.Enterprise{}, runnerErrors.ErrUnauthorized
 	}
 
@@ -215,9 +215,10 @@ func (r *Runner) CreateEnterprisePool(ctx context.Context, enterpriseID string, 
 }
 
 func (r *Runner) GetEnterprisePoolByID(ctx context.Context, enterpriseID, poolID string) (params.Pool, error) {
-	if !auth.IsAdmin(ctx) {
+	if !auth.IsAuthenticated(ctx) {
 		return params.Pool{}, runnerErrors.ErrUnauthorized
 	}
+
 	entity := params.ForgeEntity{
 		ID:         enterpriseID,
 		EntityType: params.ForgeEntityTypeEnterprise,
@@ -261,8 +262,8 @@ func (r *Runner) DeleteEnterprisePool(ctx context.Context, enterpriseID, poolID 
 }
 
 func (r *Runner) ListEnterprisePools(ctx context.Context, enterpriseID string) ([]params.Pool, error) {
-	if !auth.IsAdmin(ctx) {
-		return []params.Pool{}, runnerErrors.ErrUnauthorized
+	if !auth.IsAuthenticated(ctx) {
+		return nil, runnerErrors.ErrUnauthorized
 	}
 
 	entity := params.ForgeEntity{
@@ -319,9 +320,10 @@ func (r *Runner) UpdateEnterprisePool(ctx context.Context, enterpriseID, poolID 
 }
 
 func (r *Runner) ListEnterpriseInstances(ctx context.Context, enterpriseID string) ([]params.Instance, error) {
-	if !auth.IsAdmin(ctx) {
+	if !auth.IsAuthenticated(ctx) {
 		return nil, runnerErrors.ErrUnauthorized
 	}
+
 	entity := params.ForgeEntity{
 		ID:         enterpriseID,
 		EntityType: params.ForgeEntityTypeEnterprise,

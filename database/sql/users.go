@@ -57,12 +57,16 @@ func (s *sqlDatabase) getUserByID(tx *gorm.DB, userID string) (User, error) {
 }
 
 func (s *sqlDatabase) CreateUser(_ context.Context, user params.NewUserParams) (params.User, error) {
-	if user.Username == "" || user.Email == "" || user.Password == "" {
-		return params.User{}, runnerErrors.NewBadRequestError("missing username, password or email")
+	if user.Username == "" || user.Email == "" {
+		return params.User{}, runnerErrors.NewBadRequestError("missing username or email")
+	}
+	// SSO users don't have passwords, but regular users must have one
+	if !user.IsSSOUser && user.Password == "" {
+		return params.User{}, runnerErrors.NewBadRequestError("missing password for non-SSO user")
 	}
 	newUser := User{
 		Username: user.Username,
-		Password: user.Password,
+		Password: user.Password, // Empty for SSO users
 		FullName: user.FullName,
 		Enabled:  user.Enabled,
 		Email:    user.Email,
@@ -74,10 +78,6 @@ func (s *sqlDatabase) CreateUser(_ context.Context, user params.NewUserParams) (
 		}
 		if _, err := s.getUserByUsernameOrEmail(tx, user.Email); err == nil || !errors.Is(err, runnerErrors.ErrNotFound) {
 			return runnerErrors.NewConflictError("email already exists")
-		}
-
-		if s.hasAdmin(tx) && user.IsAdmin {
-			return runnerErrors.NewBadRequestError("admin user already exists")
 		}
 
 		q := tx.Save(&newUser)
@@ -162,4 +162,18 @@ func (s *sqlDatabase) GetAdminUser(_ context.Context) (params.User, error) {
 		return params.User{}, fmt.Errorf("error fetching admin user: %w", q.Error)
 	}
 	return s.sqlToParamsUser(user), nil
+}
+
+func (s *sqlDatabase) ListUsers(_ context.Context) ([]params.User, error) {
+	var users []User
+	q := s.conn.Model(&User{}).Find(&users)
+	if q.Error != nil {
+		return nil, fmt.Errorf("error fetching users: %w", q.Error)
+	}
+
+	ret := make([]params.User, len(users))
+	for idx, user := range users {
+		ret[idx] = s.sqlToParamsUser(user)
+	}
+	return ret, nil
 }

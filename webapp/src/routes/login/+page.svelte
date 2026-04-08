@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { auth, authStore } from '$lib/stores/auth.js';
+	import { garmApi } from '$lib/api/client.js';
 	import Button from '$lib/components/Button.svelte';
 	import { extractAPIError } from '$lib/utils/apiError';
 
@@ -10,11 +11,31 @@
 	let password = '';
 	let loading = false;
 	let error = '';
+	let oidcEnabled = false;
+	let oidcLoading = true;
 
-	// Initialize theme on mount
-	onMount(() => {
+	// Initialize theme and check OIDC status on mount
+	onMount(async () => {
 		initializeTheme();
+		await checkOIDCStatus();
 	});
+
+	async function checkOIDCStatus() {
+		try {
+			const response = await garmApi.getOIDCStatus();
+			oidcEnabled = response.enabled;
+		} catch (err) {
+			// OIDC status check failed, assume not enabled
+			oidcEnabled = false;
+		} finally {
+			oidcLoading = false;
+		}
+	}
+
+	function handleOIDCLogin() {
+		// Redirect to OIDC login endpoint - the backend will redirect to the IdP
+		window.location.href = garmApi.getOIDCLoginUrl();
+	}
 
 	function initializeTheme() {
 		const savedTheme = localStorage.getItem('theme');
@@ -156,5 +177,31 @@
 				</Button>
 			</div>
 		</form>
+
+		{#if !oidcLoading && oidcEnabled}
+			<div class="mt-6">
+				<div class="relative">
+					<div class="absolute inset-0 flex items-center">
+						<div class="w-full border-t border-gray-300 dark:border-gray-600"></div>
+					</div>
+					<div class="relative flex justify-center text-sm">
+						<span class="px-2 bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400">Or continue with</span>
+					</div>
+				</div>
+
+				<div class="mt-6">
+					<button
+						type="button"
+						on:click={handleOIDCLogin}
+						class="w-full flex justify-center items-center gap-3 py-2.5 px-4 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+					>
+						<svg class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+							<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+						</svg>
+						Sign in with SSO
+					</button>
+				</div>
+			</div>
+		{/if}
 	</div>
 </div>

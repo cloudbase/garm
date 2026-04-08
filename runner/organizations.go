@@ -95,7 +95,7 @@ func (r *Runner) CreateOrganization(ctx context.Context, param params.CreateOrgP
 }
 
 func (r *Runner) ListOrganizations(ctx context.Context, filter params.OrganizationFilter) ([]params.Organization, error) {
-	if !auth.IsAdmin(ctx) {
+	if !auth.IsAuthenticated(ctx) {
 		return nil, runnerErrors.ErrUnauthorized
 	}
 
@@ -108,7 +108,7 @@ func (r *Runner) ListOrganizations(ctx context.Context, filter params.Organizati
 }
 
 func (r *Runner) GetOrganizationByID(ctx context.Context, orgID string) (params.Organization, error) {
-	if !auth.IsAdmin(ctx) {
+	if !auth.IsAuthenticated(ctx) {
 		return params.Organization{}, runnerErrors.ErrUnauthorized
 	}
 
@@ -238,7 +238,7 @@ func (r *Runner) CreateOrgPool(ctx context.Context, orgID string, param params.C
 }
 
 func (r *Runner) GetOrgPoolByID(ctx context.Context, orgID, poolID string) (params.Pool, error) {
-	if !auth.IsAdmin(ctx) {
+	if !auth.IsAuthenticated(ctx) {
 		return params.Pool{}, runnerErrors.ErrUnauthorized
 	}
 
@@ -290,9 +290,10 @@ func (r *Runner) DeleteOrgPool(ctx context.Context, orgID, poolID string) error 
 }
 
 func (r *Runner) ListOrgPools(ctx context.Context, orgID string) ([]params.Pool, error) {
-	if !auth.IsAdmin(ctx) {
-		return []params.Pool{}, runnerErrors.ErrUnauthorized
+	if !auth.IsAuthenticated(ctx) {
+		return nil, runnerErrors.ErrUnauthorized
 	}
+
 	entity := params.ForgeEntity{
 		ID:         orgID,
 		EntityType: params.ForgeEntityTypeOrganization,
@@ -348,7 +349,7 @@ func (r *Runner) UpdateOrgPool(ctx context.Context, orgID, poolID string, param 
 }
 
 func (r *Runner) ListOrgInstances(ctx context.Context, orgID string) ([]params.Instance, error) {
-	if !auth.IsAdmin(ctx) {
+	if !auth.IsAuthenticated(ctx) {
 		return nil, runnerErrors.ErrUnauthorized
 	}
 
@@ -424,10 +425,6 @@ func (r *Runner) UninstallOrgWebhook(ctx context.Context, orgID string) error {
 }
 
 func (r *Runner) GetOrgWebhookInfo(ctx context.Context, orgID string) (params.HookInfo, error) {
-	if !auth.IsAdmin(ctx) {
-		return params.HookInfo{}, runnerErrors.ErrUnauthorized
-	}
-
 	org, err := r.store.GetOrganizationByID(ctx, orgID)
 	if err != nil {
 		return params.HookInfo{}, fmt.Errorf("error fetching org: %w", err)
