@@ -25,8 +25,8 @@ import (
 )
 
 func (r *Runner) ListAllPools(ctx context.Context) ([]params.Pool, error) {
-	if !auth.IsAdmin(ctx) {
-		return []params.Pool{}, runnerErrors.ErrUnauthorized
+	if !auth.IsAuthenticated(ctx) {
+		return nil, runnerErrors.ErrUnauthorized
 	}
 
 	pools, err := r.store.ListAllPools(ctx)
@@ -37,7 +37,7 @@ func (r *Runner) ListAllPools(ctx context.Context) ([]params.Pool, error) {
 }
 
 func (r *Runner) GetPoolByID(ctx context.Context, poolID string) (params.Pool, error) {
-	if !auth.IsAdmin(ctx) {
+	if !auth.IsAuthenticated(ctx) {
 		return params.Pool{}, runnerErrors.ErrUnauthorized
 	}
 
@@ -112,10 +112,6 @@ func (r *Runner) UpdatePoolByID(ctx context.Context, poolID string, param params
 }
 
 func (r *Runner) ListAllJobs(ctx context.Context) ([]params.Job, error) {
-	if !auth.IsAdmin(ctx) {
-		return []params.Job{}, runnerErrors.ErrUnauthorized
-	}
-
 	jobs, err := r.store.ListAllJobs(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching jobs: %w", err)

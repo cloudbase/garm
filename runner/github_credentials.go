@@ -25,10 +25,6 @@ import (
 )
 
 func (r *Runner) ListCredentials(ctx context.Context) ([]params.ForgeCredentials, error) {
-	if !auth.IsAdmin(ctx) {
-		return nil, runnerErrors.ErrUnauthorized
-	}
-
 	// Get the credentials from the store. The cache is always updated after the database successfully
 	// commits the transaction that created/updated the credentials.
 	// If we create a set of credentials then immediately after we call ListCredentials,
@@ -68,10 +64,6 @@ func (r *Runner) CreateGithubCredentials(ctx context.Context, param params.Creat
 }
 
 func (r *Runner) GetGithubCredentials(ctx context.Context, id uint) (params.ForgeCredentials, error) {
-	if !auth.IsAdmin(ctx) {
-		return params.ForgeCredentials{}, runnerErrors.ErrUnauthorized
-	}
-
 	creds, err := r.store.GetGithubCredentials(ctx, id, true)
 	if err != nil {
 		return params.ForgeCredentials{}, fmt.Errorf("failed to get github credentials: %w", err)

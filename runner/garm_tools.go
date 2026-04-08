@@ -35,7 +35,7 @@ var (
 )
 
 func (r *Runner) ListAllGARMTools(ctx context.Context) ([]params.GARMAgentTool, error) {
-	if !auth.IsAdmin(ctx) {
+	if !auth.IsAuthenticated(ctx) {
 		return nil, runnerErrors.ErrUnauthorized
 	}
 

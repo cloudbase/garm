@@ -17,6 +17,13 @@ import "net/http"
 
 func AdminRequiredMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Allow read-only methods for all authenticated users
+		// Only require admin for mutating operations
+		if r.Method == http.MethodGet || r.Method == http.MethodOptions || r.Method == http.MethodHead {
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		ctx := r.Context()
 		if !IsAdmin(ctx) {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
