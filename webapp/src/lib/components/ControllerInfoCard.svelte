@@ -48,10 +48,13 @@
 	let caCertBundleFileName = '';
 	let clearCaCertBundle = false;
 
-	function decodeCaCertBundle(bundle: number[]): string {
-		// Go serializes []byte as a base64 string in JSON,
-		// despite the generated TypeScript type being Array<number>.
-		return atob(bundle as unknown as string);
+	function decodeCaCertBundle(bundle: number[] | string): string {
+		if (typeof bundle === 'string') {
+			// Go serializes []byte as a base64 string in JSON,
+			// despite the generated TypeScript type being Array<number>.
+			return atob(bundle);
+		}
+		return new TextDecoder().decode(new Uint8Array(bundle));
 	}
 
 	function handleCaCertSelect(event: CustomEvent<{ base64: string; fileName: string }>) {
