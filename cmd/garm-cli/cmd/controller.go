@@ -140,15 +140,25 @@ garm-cli controller update \
 		if cmd.Flags().Changed("enable-tools-sync") {
 			params.SyncGARMAgentTools = &enableToolsSync
 		}
+		if cmd.Flags().Changed("clear-ca-bundle") {
+			params.ClearCACertBundle = &clearCABundle
+		}
+		if cmd.Flags().Changed("ca-bundle") {
+			caBundle, err := parseAndReadCABundle(controllerCABundle)
+			if err != nil {
+				return fmt.Errorf("failed to validate CA bundle %s: %q", controllerCABundle, err)
+			}
+			params.CACertBundle = caBundle
+		}
 
 		if cmd.Flags().Changed("minimum-job-age-backoff") {
 			params.MinimumJobAgeBackoff = &minimumJobAgeBackoff
 		}
 
-		if params.WebhookURL == nil && params.MetadataURL == nil && params.CallbackURL == nil && params.MinimumJobAgeBackoff == nil && params.GARMAgentReleasesURL == nil && params.SyncGARMAgentTools == nil {
-			cmd.Help()
-			return fmt.Errorf("at least one of minimum-job-age-backoff, metadata-url, callback-url, enable-tools-sync, garm-tools-url  or webhook-url must be provided")
-		}
+		// if params.WebhookURL == nil && params.MetadataURL == nil && params.CallbackURL == nil && params.MinimumJobAgeBackoff == nil && params.GARMAgentReleasesURL == nil && params.SyncGARMAgentTools == nil {
+		// 	cmd.Help()
+		// 	return fmt.Errorf("at least one of minimum-job-age-backoff, metadata-url, callback-url, enable-tools-sync, garm-tools-url  or webhook-url must be provided")
+		// }
 
 		updateUrlsReq := apiClientController.NewUpdateControllerParams()
 		updateUrlsReq.Body = params
@@ -502,6 +512,9 @@ func renderControllerInfoTable(info params.ControllerInfo) string {
 	t.AppendRow(table.Row{"Tools sync enabled", info.SyncGARMAgentTools})
 	t.AppendRow(table.Row{"Minimum Job Age Backoff", info.MinimumJobAgeBackoff})
 	t.AppendRow(table.Row{"Version", serverVersion})
+	if len(info.CACertBundle) > 0 {
+		t.AppendRow(table.Row{"CA Cert Bundle", string(info.CACertBundle)})
+	}
 	return t.Render()
 }
 
@@ -522,6 +535,9 @@ func init() {
 	controllerUpdateCmd.Flags().StringVarP(&garmToolsReleasesURL, "garm-tools-url", "t", "", "The URL for the garm-agent releases page (ie. https://api.github.com/repos/cloudbase/garm-agent/releases)")
 	controllerUpdateCmd.Flags().BoolVarP(&enableToolsSync, "enable-tools-sync", "s", false, "Enable or disable automatic garm tools sync.")
 	controllerUpdateCmd.Flags().UintVarP(&minimumJobAgeBackoff, "minimum-job-age-backoff", "b", 0, "The minimum job age backoff for the controller")
+	controllerUpdateCmd.Flags().StringVar(&controllerCABundle, "ca-bundle", "", "A CA bundle that will be used by GARM and the runners to validate HTTPS connections.")
+	controllerUpdateCmd.Flags().BoolVar(&clearCABundle, "clear-ca-bundle", false, "Remove the currently configured CA bundle from the controller.")
+	controllerUpdateCmd.MarkFlagsMutuallyExclusive("ca-bundle", "clear-ca-bundle")
 
 	controllerToolsListCmd.Flags().Int64Var(&fileObjPage, "page", 0, "The tools page to display")
 	controllerToolsListCmd.Flags().Int64Var(&fileObjPageSize, "page-size", 25, "Total number of results per page")

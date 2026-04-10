@@ -2,7 +2,7 @@
 	import { createEventDispatcher } from 'svelte';
 	import ForgeTypeSelector from '../ForgeTypeSelector.svelte';
 	import Tooltip from '../Tooltip.svelte';
-	import { handleFileInputAsBase64 } from '$lib/utils/file';
+	import CaCertUpload from './CaCertUpload.svelte';
 
 	const dispatch = createEventDispatcher<{
 		forgeTypeSelect: 'github' | 'gitea';
@@ -37,25 +37,14 @@
 		dispatch('forgeTypeSelect', event.detail);
 	}
 
-	function handleFileUpload(event: Event) {
-		handleFileInputAsBase64(
-			event,
-			(base64, fileName) => {
-				formData.ca_cert_bundle = base64;
-				selectedCertFileName = fileName;
-			},
-			() => {
-				formData.ca_cert_bundle = '';
-				selectedCertFileName = '';
-			}
-		);
+	function handleCertSelect(event: CustomEvent<{ base64: string; fileName: string }>) {
+		formData.ca_cert_bundle = event.detail.base64;
+		selectedCertFileName = event.detail.fileName;
 	}
 
-	function clearCertificate() {
+	function handleCertClear() {
 		formData.ca_cert_bundle = '';
 		selectedCertFileName = '';
-		const fileInput = document.getElementById(`${idPrefix}ca-cert-file`) as HTMLInputElement;
-		if (fileInput) fileInput.value = '';
 	}
 </script>
 
@@ -203,46 +192,10 @@
 	</div>
 {/if}
 
-<!-- CA Certificate Upload -->
-<div class="space-y-3 border-t border-gray-200 dark:border-gray-700 pt-4">
-	<label for="{idPrefix}ca-cert-file" class="block text-sm font-medium text-gray-700 dark:text-gray-300">CA Certificate Bundle (Optional)</label>
-	<div class="border-2 border-dashed rounded-lg p-4 text-center transition-colors {selectedCertFileName ? 'border-green-500 dark:border-green-400 bg-green-50 dark:bg-green-900/20' : 'border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-400'}">
-		<input
-			type="file"
-			id="{idPrefix}ca-cert-file"
-			accept=".pem,.crt,.cer,.cert"
-			on:change={handleFileUpload}
-			class="hidden"
-		/>
-		{#if selectedCertFileName}
-			<div class="space-y-2">
-				<svg class="mx-auto h-8 w-8 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-				</svg>
-				<p class="text-sm font-medium text-green-700 dark:text-green-300">{selectedCertFileName}</p>
-				<div class="flex justify-center space-x-2">
-					<button type="button" on:click={() => document.getElementById(`${idPrefix}ca-cert-file`)?.click()} class="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline cursor-pointer">
-						Replace
-					</button>
-					<span class="text-xs text-gray-400">&bull;</span>
-					<button type="button" on:click={clearCertificate} class="text-xs text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 hover:underline cursor-pointer">
-						Remove
-					</button>
-				</div>
-			</div>
-		{:else}
-			<div class="space-y-2">
-				<svg class="mx-auto h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-				</svg>
-				<p class="text-sm text-gray-600 dark:text-gray-400">
-					<button type="button" on:click={() => document.getElementById(`${idPrefix}ca-cert-file`)?.click()} class="text-gray-900 dark:text-white hover:text-gray-700 dark:hover:text-gray-300 hover:underline cursor-pointer">
-						Choose a file
-					</button>
-					or drag and drop
-				</p>
-				<p class="text-xs text-gray-500 dark:text-gray-400">PEM, CRT, CER, CERT files only</p>
-			</div>
-		{/if}
-	</div>
-</div>
+<CaCertUpload
+	fileName={selectedCertFileName}
+	idPrefix="{idPrefix}"
+	on:select={handleCertSelect}
+	on:clear={handleCertClear}
+	on:remove={handleCertClear}
+/>

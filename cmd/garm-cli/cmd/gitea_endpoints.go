@@ -159,7 +159,7 @@ var giteaEndpointUpdateCmd = &cobra.Command{
 		updateParams := params.UpdateGiteaEndpointParams{}
 		var hasChanges bool
 		if cmd.Flags().Changed("ca-cert-path") {
-			cert, err := parseAndReadCABundle()
+			cert, err := parseAndReadCABundle(endpointCACertPath)
 			if err != nil {
 				return err
 			}
@@ -243,7 +243,7 @@ func init() {
 }
 
 func parseGiteaCreateParams() (params.CreateGiteaEndpointParams, error) {
-	certBundleBytes, err := parseAndReadCABundle()
+	certBundleBytes, err := parseAndReadCABundle(endpointCACertPath)
 	if err != nil {
 		return params.CreateGiteaEndpointParams{}, err
 	}

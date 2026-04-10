@@ -87,6 +87,12 @@ export interface ControllerInfo {
      */
     'agent_url'?: string;
     /**
+     * CACertBundle holds a certificate bundle meant to validate the certificate used by GARM itself. This can be just the root certificate that can validate the GARM TLS certificate, a chain or multiple root CAs.
+     * @type {Array<number>}
+     * @memberof ControllerInfo
+     */
+    'ca_cert_bundle'?: Array<number>;
+    /**
      * CachedGARMAgentReleaseFetchedAt is the timestamp when the release data was last fetched from GARMAgentReleasesURL
      * @type {string}
      * @memberof ControllerInfo
@@ -2968,10 +2974,22 @@ export interface UpdateControllerParams {
     'agent_url'?: string;
     /**
      * 
+     * @type {Array<number>}
+     * @memberof UpdateControllerParams
+     */
+    'ca_cert_bundle'?: Array<number>;
+    /**
+     * 
      * @type {string}
      * @memberof UpdateControllerParams
      */
     'callback_url'?: string;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof UpdateControllerParams
+     */
+    'clear_ca_cert_bundle'?: boolean;
     /**
      * 
      * @type {boolean}

@@ -78,6 +78,7 @@ func dbControllerToCommonController(dbInfo ControllerInfo) (params.ControllerInf
 		SyncGARMAgentTools:              dbInfo.SyncGARMAgentTools,
 		CachedGARMAgentReleaseFetchedAt: dbInfo.CachedGARMAgentReleaseFetchedAt,
 		CachedGARMAgentRelease:          dbInfo.CachedGARMAgentRelease,
+		CACertBundle:                    dbInfo.CACertBundle,
 	}
 
 	// Parse cached release data to populate CachedGARMAgentTools
@@ -192,6 +193,12 @@ func (s *sqlDatabase) UpdateController(info params.UpdateControllerParams) (para
 
 		if info.AgentURL != nil && *info.AgentURL != dbInfo.AgentURL {
 			updates["agent_url"] = *info.AgentURL
+		}
+
+		if info.ClearCACertBundle != nil && *info.ClearCACertBundle {
+			updates["ca_cert_bundle"] = nil
+		} else if len(info.CACertBundle) > 0 {
+			updates["ca_cert_bundle"] = info.CACertBundle
 		}
 
 		if info.GARMAgentReleasesURL != nil {

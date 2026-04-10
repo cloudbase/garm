@@ -75,6 +75,11 @@ type ControllerInfo struct {
 	CachedGARMAgentRelease datatypes.JSON
 	// CachedGARMAgentReleaseFetchedAt is the timestamp when the release data was last fetched
 	CachedGARMAgentReleaseFetchedAt *time.Time
+
+	// CACertBundle holds a certificate bundle meant to validate the certificate
+	// used by GARM itself. This can be just the root certificate that can validate
+	// the GARM TLS certificate, a chain or multiple root CAs.
+	CACertBundle []byte `gorm:"type:longblob"`
 }
 
 type Tag struct {

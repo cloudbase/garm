@@ -6,6 +6,7 @@
 	import { toastStore } from '$lib/stores/toast.js';
 	import { garmApi } from '$lib/api/client.js';
 	import type { ControllerInfo, UpdateControllerParams } from '$lib/api/generated/api.js';
+	import CaCertUpload from './forms/CaCertUpload.svelte';
 
 	export let controllerInfo: ControllerInfo;
 	
@@ -14,6 +15,7 @@
 	}>();
 
 	let showSettingsModal = false;
+	let showCaCertModal = false;
 	let saving = false;
 	let syncing = false;
 
@@ -42,7 +44,35 @@
 	let minimumJobAgeBackoff: number | null = null;
 	let garmAgentReleasesUrl = '';
 	let syncGarmAgentTools = false;
+	let caCertBundleBytes: number[] | null = null;
+	let caCertBundleFileName = '';
+	let clearCaCertBundle = false;
 
+	function decodeCaCertBundle(bundle: number[]): string {
+		// Go serializes []byte as a base64 string in JSON,
+		// despite the generated TypeScript type being Array<number>.
+		return atob(bundle as unknown as string);
+	}
+
+	function handleCaCertSelect(event: CustomEvent<{ base64: string; fileName: string }>) {
+		const { base64, fileName } = event.detail;
+		const text = atob(base64);
+		caCertBundleBytes = Array.from(text, (c) => c.charCodeAt(0));
+		caCertBundleFileName = fileName;
+		clearCaCertBundle = false;
+	}
+
+	function handleCaCertClear() {
+		caCertBundleBytes = null;
+		caCertBundleFileName = '';
+		clearCaCertBundle = false;
+	}
+
+	function handleCaCertRemove() {
+		caCertBundleBytes = null;
+		caCertBundleFileName = '';
+		clearCaCertBundle = true;
+	}
 
 	function openSettingsModal() {
 		// Pre-populate form with current values
@@ -53,6 +83,9 @@
 		minimumJobAgeBackoff = controllerInfo.minimum_job_age_backoff || null;
 		garmAgentReleasesUrl = controllerInfo.garm_agent_releases_url || '';
 		syncGarmAgentTools = controllerInfo.enable_agent_tools_sync ?? false;
+		caCertBundleBytes = null;
+		caCertBundleFileName = '';
+		clearCaCertBundle = false;
 
 		showSettingsModal = true;
 	}
@@ -84,6 +117,12 @@
 			}
 			// Always send the boolean value
 			updateParams.enable_agent_tools_sync = syncGarmAgentTools;
+
+			if (clearCaCertBundle) {
+				updateParams.clear_ca_cert_bundle = true;
+			} else if (caCertBundleBytes !== null) {
+				updateParams.ca_cert_bundle = caCertBundleBytes;
+			}
 
 			// Update controller settings
 			const updatedInfo = await garmApi.updateController(updateParams);
@@ -118,6 +157,9 @@
 		minimumJobAgeBackoff = null;
 		garmAgentReleasesUrl = '';
 		syncGarmAgentTools = false;
+		caCertBundleBytes = null;
+		caCertBundleFileName = '';
+		clearCaCertBundle = false;
 	}
 
 	// Form validation
@@ -244,6 +286,36 @@
 								{:else}
 									<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
 										Disabled
+									</span>
+								{/if}
+							</div>
+						</div>
+
+						<!-- CA Certificate Bundle -->
+						<div>
+							<div class="flex items-center">
+								<div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide font-medium">CA Certificate Bundle</div>
+								<div class="ml-2">
+									<Tooltip
+										title="CA Certificate Bundle"
+										content="PEM-encoded CA certificate bundle used by GARM and runners to validate HTTPS connections. This can be a root CA, a certificate chain, or multiple root CAs."
+									/>
+								</div>
+							</div>
+							<div class="mt-1 p-2 bg-gray-50 dark:bg-gray-700 rounded text-sm font-mono text-gray-600 dark:text-gray-300 min-h-[38px] flex items-center">
+								{#if controllerInfo.ca_cert_bundle?.length}
+									<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+										Configured
+									</span>
+									<button
+										on:click={() => { showCaCertModal = true; }}
+										class="ml-2 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 font-medium cursor-pointer"
+									>
+										View
+									</button>
+								{:else}
+									<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+										Not configured
 									</span>
 								{/if}
 							</div>
@@ -549,6 +621,18 @@
 					</p>
 				</div>
 
+				<CaCertUpload
+					fileName={caCertBundleFileName}
+					hasExisting={!!controllerInfo.ca_cert_bundle?.length && !caCertBundleBytes}
+					pendingRemoval={clearCaCertBundle}
+					showView={!!controllerInfo.ca_cert_bundle?.length}
+					idPrefix="controller-"
+					on:select={handleCaCertSelect}
+					on:clear={handleCaCertClear}
+					on:remove={handleCaCertRemove}
+					on:view={() => { showCaCertModal = true; }}
+				/>
+
 				<!-- Form Actions -->
 				<div class="flex justify-end space-x-3 pt-4">
 					<button
@@ -568,6 +652,27 @@
 					</button>
 				</div>
 			</form>
+		</div>
+	</Modal>
+{/if}
+
+<!-- CA Certificate View Modal -->
+{#if showCaCertModal && controllerInfo.ca_cert_bundle?.length}
+	<Modal on:close={() => { showCaCertModal = false; }}>
+		<div class="max-w-2xl w-full p-6">
+			<div class="flex items-center justify-between mb-4">
+				<h3 class="text-lg font-medium text-gray-900 dark:text-white">CA Certificate Bundle</h3>
+			</div>
+			<pre class="p-4 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md text-xs font-mono text-gray-800 dark:text-gray-200 overflow-auto max-h-96 whitespace-pre-wrap break-all">{decodeCaCertBundle(controllerInfo.ca_cert_bundle)}</pre>
+			<div class="flex justify-end mt-4">
+				<button
+					type="button"
+					on:click={() => { showCaCertModal = false; }}
+					class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600 cursor-pointer"
+				>
+					Close
+				</button>
+			</div>
 		</div>
 	</Modal>
 {/if}
