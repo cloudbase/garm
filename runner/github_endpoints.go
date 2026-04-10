@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
+	"github.com/cloudbase/garm-provider-common/util"
 	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/params"
 )
@@ -26,6 +27,14 @@ import (
 func (r *Runner) CreateGithubEndpoint(ctx context.Context, param params.CreateGithubEndpointParams) (params.ForgeEndpoint, error) {
 	if !auth.IsAdmin(ctx) {
 		return params.ForgeEndpoint{}, runnerErrors.ErrUnauthorized
+	}
+	if len(param.CACertBundle) > 0 {
+		// deduplicate before storing.
+		sanitized, err := util.SanitizeCABundle(param.CACertBundle)
+		if err != nil {
+			return params.ForgeEndpoint{}, fmt.Errorf("failed to sanitize CA bundle: %w", err)
+		}
+		param.CACertBundle = sanitized
 	}
 
 	if err := param.Validate(); err != nil {
@@ -68,6 +77,15 @@ func (r *Runner) DeleteGithubEndpoint(ctx context.Context, name string) error {
 func (r *Runner) UpdateGithubEndpoint(ctx context.Context, name string, param params.UpdateGithubEndpointParams) (params.ForgeEndpoint, error) {
 	if !auth.IsAdmin(ctx) {
 		return params.ForgeEndpoint{}, runnerErrors.ErrUnauthorized
+	}
+
+	if len(param.CACertBundle) > 0 {
+		// deduplicate before storing.
+		sanitized, err := util.SanitizeCABundle(param.CACertBundle)
+		if err != nil {
+			return params.ForgeEndpoint{}, fmt.Errorf("failed to sanitize CA bundle: %w", err)
+		}
+		param.CACertBundle = sanitized
 	}
 
 	if err := param.Validate(); err != nil {

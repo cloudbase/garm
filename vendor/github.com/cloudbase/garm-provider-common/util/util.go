@@ -334,7 +334,6 @@ func CompressData(data []byte) ([]byte, error) {
 func SanitizeCABundle(bundle []byte) ([]byte, error) {
 	seen := map[string]struct{}{}
 	var buf bytes.Buffer
-	found := false
 
 	rest := bundle
 	for {
@@ -343,7 +342,6 @@ func SanitizeCABundle(bundle []byte) ([]byte, error) {
 		if block == nil {
 			break
 		}
-		found = true
 		if _, err := x509.ParseCertificates(block.Bytes); err != nil {
 			return nil, fmt.Errorf("invalid certificate in PEM bundle: %w", err)
 		}
@@ -356,8 +354,6 @@ func SanitizeCABundle(bundle []byte) ([]byte, error) {
 		}
 		seen[key] = struct{}{}
 	}
-	if !found {
-		return nil, fmt.Errorf("no valid PEM blocks found in bundle")
-	}
+
 	return buf.Bytes(), nil
 }

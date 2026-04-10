@@ -45,6 +45,7 @@ import (
 	garmUtil "github.com/cloudbase/garm/util"
 	ghClient "github.com/cloudbase/garm/util/github"
 	"github.com/cloudbase/garm/util/github/scalesets"
+	garmX509 "github.com/cloudbase/garm/util/x509"
 )
 
 var (
@@ -1066,7 +1067,12 @@ func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error 
 			return fmt.Errorf("pool has no template set and extra specs has no runner_install_template set")
 		}
 	}
-	specs := garmUtil.MaybeAddWrapperToExtraSpecs(r.ctx, pool.ExtraSpecs, pool.OSType, instance.MetadataURL, jwtToken)
+
+	caBundles, err := garmX509.CombineAndDeduplicateBundles(r.entity.Credentials.CABundle, r.controllerInfo.CACertBundle)
+	if err != nil {
+		return fmt.Errorf("failed to get CA cert bundle: %w", err)
+	}
+
 	// If no runner_install_template override is set by the user, we set our own.
 	hasJITConfig := len(instance.JitConfiguration) > 0
 	bootstrapArgs := commonParams.BootstrapInstance{
@@ -1080,12 +1086,16 @@ func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error 
 		OSType:            pool.OSType,
 		Flavor:            pool.Flavor,
 		Image:             pool.Image,
-		ExtraSpecs:        specs,
+		ExtraSpecs:        pool.ExtraSpecs,
 		PoolID:            instance.PoolID,
-		CACertBundle:      r.entity.Credentials.CABundle,
+		CACertBundle:      caBundles,
 		GitHubRunnerGroup: instance.GitHubRunnerGroup,
 		JitConfigEnabled:  hasJITConfig,
 	}
+	// We use the template management system unless:
+	//   * there is no template associated with the pool/scale set
+	//   * user explicitly overwrites the install template via extra specs
+	bootstrapArgs = garmUtil.MaybeAddWrapperToExtraSpecs(r.ctx, bootstrapArgs)
 
 	if !hasJITConfig {
 		// We still need the labels here for situations where we don't have a JIT config generated.

@@ -131,34 +131,35 @@ func GetCloudConfigSpecFromExtraSpecs(extraSpecs json.RawMessage) (cloudconfig.C
 	return specs, nil
 }
 
-func MaybeAddWrapperToExtraSpecs(ctx context.Context, specs json.RawMessage, osType commonParams.OSType, metadataURL, token string) json.RawMessage {
+func MaybeAddWrapperToExtraSpecs(ctx context.Context, param commonParams.BootstrapInstance) commonParams.BootstrapInstance {
 	data := map[string]any{}
-	if len(specs) > 0 {
-		if err := json.Unmarshal(specs, &data); err != nil {
+	if len(param.ExtraSpecs) > 0 {
+		if err := json.Unmarshal(param.ExtraSpecs, &data); err != nil {
 			slog.WarnContext(ctx, "failed to unmarshal extra specs", "error", err)
-			return specs
+			return param
 		}
 	}
 
 	if _, ok := data["runner_install_template"]; ok {
 		// User has already set a runner install template override. Do not touch.
-		return specs
+		return param
 	}
 
-	wrapper, err := templates.RenderRunnerInstallWrapper(osType, metadataURL, token)
+	wrapper, err := templates.RenderRunnerInstallWrapper(ctx, param.OSType, param.MetadataURL, param.InstanceToken)
 	if err != nil {
-		slog.WarnContext(ctx, "failed to get runner install wrapper", "os_type", osType, "error", err)
-		return specs
+		slog.WarnContext(ctx, "failed to get runner install wrapper", "os_type", param.OSType, "error", err)
+		return param
 	}
 
 	data["runner_install_template"] = wrapper
 	ret, err := json.Marshal(data)
 	if err != nil {
 		slog.WarnContext(ctx, "failed to marshal extra specs", "error", err)
-		return specs
+		return param
 	}
 
-	return json.RawMessage(ret)
+	param.ExtraSpecs = json.RawMessage(ret)
+	return param
 }
 
 // DetectFileType detects the MIME type from file content

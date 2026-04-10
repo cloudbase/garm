@@ -29,6 +29,7 @@ import (
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
 	garmUtil "github.com/cloudbase/garm/util"
+	garmX509 "github.com/cloudbase/garm/util/x509"
 )
 
 func newInstanceManager(ctx context.Context, instance params.Instance, scaleSet params.ScaleSet, provider common.Provider, helper providerHelper) (*instanceManager, error) {
@@ -176,7 +177,13 @@ func (i *instanceManager) handleCreateInstanceInProvider(instance params.Instanc
 			return fmt.Errorf("pool has no template set and extra specs has no runner_install_template set")
 		}
 	}
-	specs := garmUtil.MaybeAddWrapperToExtraSpecs(i.ctx, i.scaleSet.ExtraSpecs, i.scaleSet.OSType, instance.MetadataURL, token)
+
+	controllerInfo := cache.ControllerInfo()
+
+	caBundles, err := garmX509.CombineAndDeduplicateBundles(entity.Credentials.CABundle, controllerInfo.CACertBundle)
+	if err != nil {
+		return fmt.Errorf("failed to get CA cert bundle: %w", err)
+	}
 
 	bootstrapArgs := commonParams.BootstrapInstance{
 		Name:          instance.Name,
@@ -189,13 +196,17 @@ func (i *instanceManager) handleCreateInstanceInProvider(instance params.Instanc
 		OSType:        i.scaleSet.OSType,
 		Flavor:        i.scaleSet.Flavor,
 		Image:         i.scaleSet.Image,
-		ExtraSpecs:    specs,
+		ExtraSpecs:    i.scaleSet.ExtraSpecs,
 		// This is temporary. We need to extend providers to know about scale sets.
 		PoolID:            i.pseudoPoolID(),
-		CACertBundle:      entity.Credentials.CABundle,
+		CACertBundle:      caBundles,
 		GitHubRunnerGroup: i.scaleSet.GitHubRunnerGroup,
 		JitConfigEnabled:  true,
 	}
+	// We use the template management system unless:
+	//   * there is no template associated with the pool/scale set
+	//   * user explicitly overwrites the install template via extra specs
+	bootstrapArgs = garmUtil.MaybeAddWrapperToExtraSpecs(i.ctx, bootstrapArgs)
 
 	var instanceIDToDelete string
 	baseParams, err := i.getProviderBaseParams()

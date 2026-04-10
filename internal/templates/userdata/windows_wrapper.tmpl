@@ -3,6 +3,26 @@
 Set-ExecutionPolicy RemoteSigned -Force -ErrorAction SilentlyContinue
 $ErrorActionPreference="Stop"
 
+function Import-Certificate() {
+	[CmdletBinding()]
+	param (
+		[parameter(Mandatory=$true)]
+		$CertificateData,
+		[parameter(Mandatory=$false)]
+		[System.Security.Cryptography.X509Certificates.StoreLocation]$StoreLocation="LocalMachine",
+		[parameter(Mandatory=$false)]
+		[System.Security.Cryptography.X509Certificates.StoreName]$StoreName="Root"
+	)
+	PROCESS
+	{
+		$store = New-Object System.Security.Cryptography.X509Certificates.X509Store(
+			$StoreName, $StoreLocation)
+		$store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
+		$cert = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($CertificateData)
+		$store.Add($cert)
+	}
+}
+
 function Start-ExecuteWithRetry {
     [CmdletBinding()]
     param(
@@ -51,6 +71,15 @@ function Start-ExecuteWithRetry {
         }
     }
 }
+
+{{- if .CACertBundle }}
+$caBundleJson = '{{.CACertBundle}}'
+$converted = ConvertFrom-Json $caBundleJson
+foreach ($i in $converted.psobject.Properties){
+    $data = [System.Convert]::FromBase64String($i.Value)
+    Import-Certificate -CertificateData $data -StoreLocation LocalMachine
+}
+{{- end }}
 
 $installScript = (Join-Path $env:TMP "garm-install.ps1")
 Start-ExecuteWithRetry -ScriptBlock {

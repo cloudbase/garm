@@ -155,11 +155,6 @@ garm-cli controller update \
 			params.MinimumJobAgeBackoff = &minimumJobAgeBackoff
 		}
 
-		// if params.WebhookURL == nil && params.MetadataURL == nil && params.CallbackURL == nil && params.MinimumJobAgeBackoff == nil && params.GARMAgentReleasesURL == nil && params.SyncGARMAgentTools == nil {
-		// 	cmd.Help()
-		// 	return fmt.Errorf("at least one of minimum-job-age-backoff, metadata-url, callback-url, enable-tools-sync, garm-tools-url  or webhook-url must be provided")
-		// }
-
 		updateUrlsReq := apiClientController.NewUpdateControllerParams()
 		updateUrlsReq.Body = params
 

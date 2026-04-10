@@ -3,9 +3,12 @@ package templates
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"embed"
+	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path"
 	"text/template"
@@ -13,7 +16,9 @@ import (
 	"github.com/cloudbase/garm-provider-common/cloudconfig"
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
+	"github.com/cloudbase/garm/cache"
 	"github.com/cloudbase/garm/params"
+	"github.com/cloudbase/garm/util/x509"
 )
 
 //go:embed all:userdata
@@ -80,7 +85,7 @@ func RenderRunnerInstallScript(tpl string, context any) ([]byte, error) {
 	return []byte(data), nil
 }
 
-func RenderRunnerInstallWrapper(osType commonParams.OSType, metadataURL, token string) ([]byte, error) {
+func RenderRunnerInstallWrapper(ctx context.Context, osType commonParams.OSType, metadataURL, token string) ([]byte, error) {
 	tmpl, err := template.ParseFS(Userdata, "userdata/*_wrapper.tmpl")
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse templates: %w", err)
@@ -89,6 +94,28 @@ func RenderRunnerInstallWrapper(osType commonParams.OSType, metadataURL, token s
 	templateCtx := WrapperContext{
 		MetadataURL:   metadataURL,
 		CallbackToken: token,
+	}
+
+	controllerInfo := cache.ControllerInfo()
+	if osType == commonParams.Windows && len(controllerInfo.CACertBundle) > 0 {
+		// For linux, we combine the endpoint CA and controller CA, deduplicate and set it
+		// as cloud-config extra CA certificates. So by the time the wrapper runs, we already
+		// have the CA installed.
+		// The only edge case left is the one that when users overwrite runner install templates
+		// or when no garm managed template is set on the pool or scale set, windows userdata is managed
+		// by the built-in provider template, which may not explicitly handle the controller CA before
+		// making calls to the GARM API.
+		asMap, err := x509.RawCABundleToMap(controllerInfo.CACertBundle)
+		if err == nil {
+			asJs, err := json.Marshal(asMap)
+			if err != nil {
+				slog.ErrorContext(ctx, "failed to marshal controller CA cert bundle", "error", err)
+			} else {
+				templateCtx.CACertBundle = string(asJs)
+			}
+		} else {
+			slog.ErrorContext(ctx, "failed to convert CA bundle to map", "error", err)
+		}
 	}
 
 	templateName := fmt.Sprintf("%s_wrapper.tmpl", osType)

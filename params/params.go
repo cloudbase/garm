@@ -15,12 +15,10 @@
 package params
 
 import (
-	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
-	"encoding/pem"
 	"fmt"
 	"math"
 	"net"
@@ -35,6 +33,7 @@ import (
 
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm/util/appdefaults"
+	garmX509 "github.com/cloudbase/garm/util/x509"
 )
 
 type (
@@ -1206,24 +1205,9 @@ func (g ForgeCredentials) RootCertificateBundle() (CertificateBundle, error) {
 		return CertificateBundle{}, nil
 	}
 
-	ret := map[string][]byte{}
-
-	var block *pem.Block
-	rest := g.CABundle
-	for {
-		block, rest = pem.Decode(rest)
-		if block == nil {
-			break
-		}
-		pub, err := x509.ParseCertificate(block.Bytes)
-		if err != nil {
-			return CertificateBundle{}, err
-		}
-		out := &bytes.Buffer{}
-		if err := pem.Encode(out, &pem.Block{Type: "CERTIFICATE", Bytes: block.Bytes}); err != nil {
-			return CertificateBundle{}, err
-		}
-		ret[fmt.Sprintf("%d", pub.SerialNumber)] = out.Bytes()
+	ret, err := garmX509.RawCABundleToMap(g.CABundle)
+	if err != nil {
+		return CertificateBundle{}, fmt.Errorf("failed to decode bundle: %w", err)
 	}
 
 	return CertificateBundle{

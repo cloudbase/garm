@@ -210,7 +210,7 @@ func init() {
 	initCmd.Flags().StringVarP(&agentURL, "agent-url", "g", "", "The agent URL for the controller (ie. https://garm.example.com/agent)")
 	initCmd.Flags().StringVarP(&loginFullName, "full-name", "f", "", "Full name of the user")
 	initCmd.Flags().StringVarP(&loginPassword, "password", "p", "", "The admin password")
-	initCmd.Flags().StringVarP(&controllerCABundle, "ca-bundle", "b", "", "A CA bundle that will be used by GARM and the runners to validate HTTPS connections.")
+	initCmd.Flags().StringVar(&controllerCABundle, "ca-bundle", "", "A CA bundle that will be used by GARM and the runners to validate HTTPS connections.")
 	initCmd.MarkFlagRequired("name") //nolint
 	initCmd.MarkFlagRequired("url")  //nolint
 }
