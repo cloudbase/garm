@@ -159,7 +159,7 @@ var githubEndpointUpdateCmd = &cobra.Command{
 		updateParams := params.UpdateGithubEndpointParams{}
 
 		if cmd.Flags().Changed("ca-cert-path") {
-			cert, err := parseAndReadCABundle()
+			cert, err := parseAndReadCABundle(endpointCACertPath)
 			if err != nil {
 				return err
 			}
@@ -227,15 +227,15 @@ func init() {
 	githubCmd.AddCommand(githubEndpointCmd)
 }
 
-func parseAndReadCABundle() ([]byte, error) {
-	if endpointCACertPath == "" {
+func parseAndReadCABundle(bundlePath string) ([]byte, error) {
+	if bundlePath == "" {
 		return nil, nil
 	}
 
-	if _, err := os.Stat(endpointCACertPath); os.IsNotExist(err) {
-		return nil, fmt.Errorf("CA cert file not found: %s", endpointCACertPath)
+	if _, err := os.Stat(bundlePath); os.IsNotExist(err) {
+		return nil, fmt.Errorf("CA cert file not found: %s", bundlePath)
 	}
-	contents, err := os.ReadFile(endpointCACertPath)
+	contents, err := os.ReadFile(bundlePath)
 	if err != nil {
 		return nil, err
 	}
@@ -250,7 +250,7 @@ func parseAndReadCABundle() ([]byte, error) {
 }
 
 func parseCreateParams() (params.CreateGithubEndpointParams, error) {
-	certBundleBytes, err := parseAndReadCABundle()
+	certBundleBytes, err := parseAndReadCABundle(endpointCACertPath)
 	if err != nil {
 		return params.CreateGithubEndpointParams{}, err
 	}

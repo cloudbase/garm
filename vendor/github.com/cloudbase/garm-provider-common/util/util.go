@@ -18,8 +18,10 @@ import (
 	"bytes"
 	"compress/gzip"
 	"crypto/rand"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"math/big"
@@ -324,4 +326,38 @@ func CompressData(data []byte) ([]byte, error) {
 	}
 
 	return b.Bytes(), nil
+}
+
+// SanitizeCABundle parses a PEM bundle, validates that each block is a
+// valid certificate, and returns a new bundle with duplicates removed,
+// preserving the original order.
+func SanitizeCABundle(bundle []byte) ([]byte, error) {
+	seen := map[string]struct{}{}
+	var buf bytes.Buffer
+	found := false
+
+	rest := bundle
+	for {
+		var block *pem.Block
+		block, rest = pem.Decode(rest)
+		if block == nil {
+			break
+		}
+		found = true
+		if _, err := x509.ParseCertificates(block.Bytes); err != nil {
+			return nil, fmt.Errorf("invalid certificate in PEM bundle: %w", err)
+		}
+		key := string(block.Bytes)
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		if err := pem.Encode(&buf, block); err != nil {
+			return nil, fmt.Errorf("failed to encode PEM block: %w", err)
+		}
+		seen[key] = struct{}{}
+	}
+	if !found {
+		return nil, fmt.Errorf("no valid PEM blocks found in bundle")
+	}
+	return buf.Bytes(), nil
 }

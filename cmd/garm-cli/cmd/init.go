@@ -39,6 +39,8 @@ var (
 	garmToolsReleasesURL string
 	enableToolsSync      bool
 	minimumJobAgeBackoff uint
+	controllerCABundle   string
+	clearCABundle        bool
 )
 
 // initCmd represents the init command
@@ -61,6 +63,14 @@ garm-cli init --name=dev --url=https://runner.example.com --username=admin --pas
 		if cfg != nil {
 			if cfg.HasManager(loginProfileName) {
 				return fmt.Errorf("a manager with name %s already exists in your local config", loginProfileName)
+			}
+		}
+		var caBundle []byte
+		var err error
+		if controllerCABundle != "" {
+			caBundle, err = parseAndReadCABundle(controllerCABundle)
+			if err != nil {
+				return fmt.Errorf("failed to validate CA bundle %s: %q", controllerCABundle, err)
 			}
 		}
 
@@ -111,10 +121,11 @@ garm-cli init --name=dev --url=https://runner.example.com --username=admin --pas
 
 		updateUrlsReq := apiClientController.NewUpdateControllerParams()
 		updateUrlsReq.Body = params.UpdateControllerParams{
-			MetadataURL: &metadataURL,
-			CallbackURL: &callbackURL,
-			WebhookURL:  &webhookURL,
-			AgentURL:    &agentURL,
+			MetadataURL:  &metadataURL,
+			CallbackURL:  &callbackURL,
+			WebhookURL:   &webhookURL,
+			AgentURL:     &agentURL,
+			CACertBundle: caBundle,
 		}
 
 		controllerInfoResponse, err := apiCli.Controller.UpdateController(updateUrlsReq, authToken)
@@ -199,6 +210,7 @@ func init() {
 	initCmd.Flags().StringVarP(&agentURL, "agent-url", "g", "", "The agent URL for the controller (ie. https://garm.example.com/agent)")
 	initCmd.Flags().StringVarP(&loginFullName, "full-name", "f", "", "Full name of the user")
 	initCmd.Flags().StringVarP(&loginPassword, "password", "p", "", "The admin password")
+	initCmd.Flags().StringVarP(&controllerCABundle, "ca-bundle", "b", "", "A CA bundle that will be used by GARM and the runners to validate HTTPS connections.")
 	initCmd.MarkFlagRequired("name") //nolint
 	initCmd.MarkFlagRequired("url")  //nolint
 }

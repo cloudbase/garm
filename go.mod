@@ -4,8 +4,8 @@ go 1.25.0
 
 require (
 	github.com/BurntSushi/toml v1.6.0
-	github.com/bradleyfalzon/ghinstallation/v2 v2.18.0
-	github.com/cloudbase/garm-provider-common v0.1.8
+	github.com/bradleyfalzon/ghinstallation/v2 v2.17.0
+	github.com/cloudbase/garm-provider-common v0.1.9-0.20260329214520-6e544e659619
 	github.com/felixge/httpsnoop v1.0.4
 	github.com/gdamore/tcell/v2 v2.13.8
 	github.com/go-openapi/errors v0.22.7

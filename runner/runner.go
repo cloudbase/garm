@@ -249,6 +249,14 @@ func (r *Runner) UpdateController(ctx context.Context, param params.UpdateContro
 		return params.ControllerInfo{}, fmt.Errorf("error validating controller update params: %w", err)
 	}
 
+	if len(param.CACertBundle) > 0 {
+		sanitized, err := util.SanitizeCABundle(param.CACertBundle)
+		if err != nil {
+			return params.ControllerInfo{}, fmt.Errorf("failed to sanitize CA bundle: %w", err)
+		}
+		param.CACertBundle = sanitized
+	}
+
 	info, err := r.store.UpdateController(param)
 	if err != nil {
 		return params.ControllerInfo{}, fmt.Errorf("error updating controller info: %w", err)

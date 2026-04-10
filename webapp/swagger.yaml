@@ -39,6 +39,16 @@ definitions:
                     URL must be configured to allow websocket connections.
                 type: string
                 x-go-name: AgentURL
+            ca_cert_bundle:
+                description: |-
+                    CACertBundle holds a certificate bundle meant to validate the certificate
+                    used by GARM itself. This can be just the root certificate that can validate
+                    the GARM TLS certificate, a chain or multiple root CAs.
+                items:
+                    format: uint8
+                    type: integer
+                type: array
+                x-go-name: CACertBundle
             cached_garm_agent_release_fetched_at:
                 description: CachedGARMAgentReleaseFetchedAt is the timestamp when the release data was last fetched from GARMAgentReleasesURL
                 format: date-time
@@ -1927,9 +1937,18 @@ definitions:
             agent_url:
                 type: string
                 x-go-name: AgentURL
+            ca_cert_bundle:
+                items:
+                    format: uint8
+                    type: integer
+                type: array
+                x-go-name: CACertBundle
             callback_url:
                 type: string
                 x-go-name: CallbackURL
+            clear_ca_cert_bundle:
+                type: boolean
+                x-go-name: ClearCACertBundle
             enable_agent_tools_sync:
                 type: boolean
                 x-go-name: SyncGARMAgentTools

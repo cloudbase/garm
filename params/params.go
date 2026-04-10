@@ -1039,6 +1039,10 @@ type ControllerInfo struct {
 	MinimumJobAgeBackoff uint `json:"minimum_job_age_backoff,omitempty"`
 	// Version is the version of the GARM controller.
 	Version string `json:"version,omitempty"`
+	// CACertBundle holds a certificate bundle meant to validate the certificate
+	// used by GARM itself. This can be just the root certificate that can validate
+	// the GARM TLS certificate, a chain or multiple root CAs.
+	CACertBundle []byte `json:"ca_cert_bundle,omitempty"`
 	// CachedGARMAgentReleaseFetchedAt is the timestamp when the release data was last fetched from GARMAgentReleasesURL
 	CachedGARMAgentReleaseFetchedAt *time.Time `json:"cached_garm_agent_release_fetched_at,omitempty"`
 	// CachedGARMAgentRelease stores the cached JSON response from GARMAgentReleasesURL.

@@ -22,6 +22,7 @@ var Userdata embed.FS
 type WrapperContext struct {
 	CallbackToken string
 	MetadataURL   string
+	CACertBundle  string
 }
 
 // InstallContext wraps the vendored InstallRunnerParams with agent-specific

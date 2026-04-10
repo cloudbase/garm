@@ -24,6 +24,7 @@ import (
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
+	commonUtil "github.com/cloudbase/garm-provider-common/util"
 )
 
 const (
@@ -552,6 +553,8 @@ type UpdateControllerParams struct {
 	GARMAgentReleasesURL *string `json:"garm_agent_releases_url,omitempty"`
 	SyncGARMAgentTools   *bool   `json:"enable_agent_tools_sync,omitempty"`
 	MinimumJobAgeBackoff *uint   `json:"minimum_job_age_backoff,omitempty"`
+	CACertBundle         []byte  `json:"ca_cert_bundle,omitempty"`
+	ClearCACertBundle    *bool   `json:"clear_ca_cert_bundle,omitempty"`
 }
 
 func (u UpdateControllerParams) Validate() error {
@@ -559,6 +562,16 @@ func (u UpdateControllerParams) Validate() error {
 		u, err := url.Parse(*u.MetadataURL)
 		if err != nil || u.Scheme == "" || u.Host == "" {
 			return runnerErrors.NewBadRequestError("invalid metadata_url")
+		}
+	}
+
+	if len(u.CACertBundle) > 0 && u.ClearCACertBundle != nil && *u.ClearCACertBundle {
+		return runnerErrors.NewBadRequestError("ca_cert_bundle and clear_ca_cert_bundle are mutually exclusive")
+	}
+
+	if len(u.CACertBundle) > 0 {
+		if _, err := commonUtil.SanitizeCABundle(u.CACertBundle); err != nil {
+			return runnerErrors.NewBadRequestError("invalid ca_cert_bundle: %q", err)
 		}
 	}
 
