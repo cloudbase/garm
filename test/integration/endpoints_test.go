@@ -18,6 +18,8 @@
 package integration
 
 import (
+	"bytes"
+
 	"github.com/cloudbase/garm/params"
 )
 
@@ -167,7 +169,7 @@ func (suite *GarmSuite) TestGithubEndpointUpdateEndpoint() {
 	suite.Equal(updated.BaseURL, newBaseURL, "Endpoint base URL mismatch")
 	suite.Equal(updated.APIBaseURL, newAPIBaseURL, "Endpoint API base URL mismatch")
 	suite.Equal(updated.UploadBaseURL, newUploadBaseURL, "Endpoint upload base URL mismatch")
-	suite.Equal(string(updated.CACertBundle), string(newCABundle), "Endpoint CA cert bundle mismatch")
+	suite.Equal(string(bytes.Trim(newCABundle, "\r\n")), string(bytes.Trim(updated.CACertBundle, "\r\n")), "Endpoint CA cert bundle mismatch")
 }
 
 func (suite *GarmSuite) MustDefaultGithubEndpoint() {
