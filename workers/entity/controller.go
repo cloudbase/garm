@@ -18,8 +18,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
-
-	"golang.org/x/sync/errgroup"
+	"time"
 
 	"github.com/cloudbase/garm/auth"
 	dbCommon "github.com/cloudbase/garm/database/common"
@@ -27,7 +26,10 @@ import (
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
 	garmUtil "github.com/cloudbase/garm/util"
+	workersCommon "github.com/cloudbase/garm/workers/common"
 )
+
+const retryLoopInterval = 5 * time.Second
 
 func NewController(ctx context.Context, store dbCommon.Store, providers map[string]common.Provider) (*Controller, error) {
 	consumerID := "entity-controller"
@@ -41,6 +43,7 @@ func NewController(ctx context.Context, store dbCommon.Store, providers map[stri
 		ctx:        ctx,
 		store:      store,
 		providers:  providers,
+		backoff:    workersCommon.NewBackoff(workersCommon.DefaultBackoffConfig()),
 	}, nil
 }
 
@@ -55,136 +58,89 @@ type Controller struct {
 	// sync.Map[string]*Worker
 	Entities sync.Map
 
+	eventQueue *workersCommon.UnboundedChan[dbCommon.ChangePayload]
+	backoff    *workersCommon.Backoff
+
 	running bool
 	quit    chan struct{}
 
 	mux sync.Mutex
 }
 
-func (c *Controller) loadAllRepositories() error {
+func (c *Controller) loadAllRepositories() {
 	repos, err := c.store.ListRepositories(c.ctx, params.RepositoryFilter{})
 	if err != nil {
-		return fmt.Errorf("fetching repositories: %w", err)
+		slog.ErrorContext(c.ctx, "fetching repositories", "error", err)
+		return
 	}
 
-	g, _ := errgroup.WithContext(c.ctx)
 	for _, repo := range repos {
-		g.Go(func() error {
-			entity, err := repo.GetEntity()
-			if err != nil {
-				return fmt.Errorf("getting entity: %w", err)
-			}
-			worker, err := NewWorker(c.ctx, c.store, entity, c.providers)
-			if err != nil {
-				return fmt.Errorf("creating worker: %w", err)
-			}
-			if err := worker.Start(); err != nil {
-				return fmt.Errorf("starting worker: %w", err)
-			}
-			c.Entities.Store(entity.ID, worker)
-			return nil
-		})
+		entity, err := repo.GetEntity()
+		if err != nil {
+			slog.ErrorContext(c.ctx, "getting entity from repository", "error", err)
+			continue
+		}
+		c.storeEntityWorker(entity)
 	}
-	if err := c.waitForErrorGroupOrContextCancelled(g); err != nil {
-		return fmt.Errorf("waiting for error group: %w", err)
-	}
-	return nil
 }
 
-func (c *Controller) loadAllOrganizations() error {
+func (c *Controller) loadAllOrganizations() {
 	orgs, err := c.store.ListOrganizations(c.ctx, params.OrganizationFilter{})
 	if err != nil {
-		return fmt.Errorf("fetching organizations: %w", err)
+		slog.ErrorContext(c.ctx, "fetching organizations", "error", err)
+		return
 	}
 
-	g, _ := errgroup.WithContext(c.ctx)
 	for _, org := range orgs {
-		g.Go(func() error {
-			entity, err := org.GetEntity()
-			if err != nil {
-				return fmt.Errorf("getting entity: %w", err)
-			}
-			worker, err := NewWorker(c.ctx, c.store, entity, c.providers)
-			if err != nil {
-				return fmt.Errorf("creating worker: %w", err)
-			}
-			if err := worker.Start(); err != nil {
-				return fmt.Errorf("starting worker: %w", err)
-			}
-			c.Entities.Store(entity.ID, worker)
-			return nil
-		})
+		entity, err := org.GetEntity()
+		if err != nil {
+			slog.ErrorContext(c.ctx, "getting entity from organization", "error", err)
+			continue
+		}
+		c.storeEntityWorker(entity)
 	}
-	if err := c.waitForErrorGroupOrContextCancelled(g); err != nil {
-		return fmt.Errorf("waiting for error group: %w", err)
-	}
-	return nil
 }
 
-func (c *Controller) loadAllEnterprises() error {
+func (c *Controller) loadAllEnterprises() {
 	enterprises, err := c.store.ListEnterprises(c.ctx, params.EnterpriseFilter{})
 	if err != nil {
-		return fmt.Errorf("fetching enterprises: %w", err)
+		slog.ErrorContext(c.ctx, "fetching enterprises", "error", err)
+		return
 	}
-
-	g, _ := errgroup.WithContext(c.ctx)
 
 	for _, enterprise := range enterprises {
-		g.Go(func() error {
-			entity, err := enterprise.GetEntity()
-			if err != nil {
-				return fmt.Errorf("getting entity: %w", err)
-			}
-			worker, err := NewWorker(c.ctx, c.store, entity, c.providers)
-			if err != nil {
-				return fmt.Errorf("creating worker: %w", err)
-			}
-			if err := worker.Start(); err != nil {
-				return fmt.Errorf("starting worker: %w", err)
-			}
-			c.Entities.Store(entity.ID, worker)
-			return nil
-		})
+		entity, err := enterprise.GetEntity()
+		if err != nil {
+			slog.ErrorContext(c.ctx, "getting entity from enterprise", "error", err)
+			continue
+		}
+		c.storeEntityWorker(entity)
 	}
-	if err := c.waitForErrorGroupOrContextCancelled(g); err != nil {
-		return fmt.Errorf("waiting for error group: %w", err)
+}
+
+// storeEntityWorker creates a worker for the entity and stores it.
+// The retry loop will start it.
+func (c *Controller) storeEntityWorker(entity params.ForgeEntity) {
+	worker, err := NewWorker(c.ctx, c.store, entity, c.providers)
+	if err != nil {
+		slog.ErrorContext(c.ctx, "creating worker", "entity_id", entity.ID, "error", err)
+		return
 	}
-	return nil
+	c.Entities.Store(entity.ID, worker)
 }
 
 func (c *Controller) Start() error {
 	c.mux.Lock()
+	defer c.mux.Unlock()
+
 	if c.running {
-		c.mux.Unlock()
 		return nil
 	}
-	c.mux.Unlock()
+	c.quit = nil
 
-	g, _ := errgroup.WithContext(c.ctx)
-	g.Go(func() error {
-		if err := c.loadAllEnterprises(); err != nil {
-			return fmt.Errorf("loading enterprises: %w", err)
-		}
-		return nil
-	})
-
-	g.Go(func() error {
-		if err := c.loadAllOrganizations(); err != nil {
-			return fmt.Errorf("loading organizations: %w", err)
-		}
-		return nil
-	})
-
-	g.Go(func() error {
-		if err := c.loadAllRepositories(); err != nil {
-			return fmt.Errorf("loading repositories: %w", err)
-		}
-		return nil
-	})
-
-	if err := c.waitForErrorGroupOrContextCancelled(g); err != nil {
-		return fmt.Errorf("waiting for error group: %w", err)
-	}
+	c.loadAllEnterprises()
+	c.loadAllOrganizations()
+	c.loadAllRepositories()
 
 	consumer, err := watcher.RegisterConsumer(
 		c.ctx, c.consumerID,
@@ -194,13 +150,14 @@ func (c *Controller) Start() error {
 		return fmt.Errorf("failed to create consumer for entity controller: %w", err)
 	}
 
-	c.mux.Lock()
 	c.consumer = consumer
 	c.running = true
 	c.quit = make(chan struct{})
-	c.mux.Unlock()
+	c.eventQueue = workersCommon.NewUnboundedChan[dbCommon.ChangePayload](c.ctx, c.quit)
 
 	go c.loop()
+	go c.eventQueue.Process(c.handleWatcherEvent)
+	go workersCommon.RetryLoop(c.ctx, c.quit, retryLoopInterval, c.retryFailedWorkers)
 
 	return nil
 }
@@ -230,13 +187,57 @@ func (c *Controller) Stop() error {
 	return nil
 }
 
+func (c *Controller) retryFailedWorkers() {
+	c.mux.Lock()
+	defer c.mux.Unlock()
+
+	if !c.running {
+		return
+	}
+
+	c.Entities.Range(func(key, value any) bool {
+		entityID := key.(string)
+		worker := value.(*Worker)
+
+		if worker.IsRunning() {
+			return true
+		}
+
+		if !c.backoff.ShouldRetry(entityID) {
+			return true
+		}
+
+		slog.InfoContext(c.ctx, "retrying failed worker", "entity_id", entityID)
+		if err := worker.Start(); err != nil {
+			slog.ErrorContext(c.ctx, "retry failed for worker", "entity_id", entityID, "error", err)
+			worker.addStatusEvent(fmt.Sprintf("retry failed for worker %s (%s): %s", entityID, worker.Entity.ForgeURL(), err.Error()), params.EventError)
+			c.backoff.RecordFailure(entityID)
+			return true
+		}
+
+		slog.InfoContext(c.ctx, "worker successfully started after retry", "entity_id", entityID)
+		worker.addStatusEvent(fmt.Sprintf("worker successfully started after retry for entity: %s (%s)", entityID, worker.Entity.ForgeURL()), params.EventInfo)
+		c.backoff.RecordSuccess(entityID)
+		return true
+	})
+}
+
+// loop drains the watcher consumer channel as fast as possible.
+// It exits when the context is cancelled or quit is closed, triggering
+// a controller stop.
 func (c *Controller) loop() {
 	defer c.Stop()
 	for {
 		select {
 		case payload := <-c.consumer.Watch():
-			slog.InfoContext(c.ctx, "received payload")
-			go c.handleWatcherEvent(payload)
+			slog.DebugContext(c.ctx, "received payload, queuing for processing")
+			select {
+			case c.eventQueue.In() <- payload:
+			case <-c.ctx.Done():
+				return
+			case <-c.quit:
+				return
+			}
 		case <-c.ctx.Done():
 			return
 		case <-c.quit:

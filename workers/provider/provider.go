@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+	"time"
 
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm/auth"
@@ -26,7 +27,37 @@ import (
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
 	garmUtil "github.com/cloudbase/garm/util"
+	workersCommon "github.com/cloudbase/garm/workers/common"
 )
+
+const retryLoopInterval = 5 * time.Second
+
+type runnerEntry struct {
+	instance params.Instance
+	manager  *instanceManager
+	mux      sync.Mutex
+}
+
+func (r *runnerEntry) SetManager(m *instanceManager) {
+	r.mux.Lock()
+	defer r.mux.Unlock()
+	r.manager = m
+}
+
+func (r *runnerEntry) SetInstance(inst params.Instance) {
+	r.mux.Lock()
+	defer r.mux.Unlock()
+	r.instance = inst
+}
+
+func (r *runnerEntry) Stop() error {
+	r.mux.Lock()
+	defer r.mux.Unlock()
+	if r.manager == nil {
+		return nil
+	}
+	return r.manager.Stop()
+}
 
 func NewWorker(ctx context.Context, store dbCommon.Store, providers map[string]common.Provider, tokenGetter auth.InstanceTokenGetter) (*Provider, error) {
 	consumerID := "provider-worker"
@@ -41,6 +72,7 @@ func NewWorker(ctx context.Context, store dbCommon.Store, providers map[string]c
 		consumerID:  consumerID,
 		providers:   providers,
 		tokenGetter: tokenGetter,
+		backoff:     workersCommon.NewBackoff(workersCommon.DefaultBackoffConfig()),
 	}, nil
 }
 
@@ -62,8 +94,14 @@ type Provider struct {
 	// This helps us avoid a bunch of queries to the database.
 	// sync.Map[uint]params.ScaleSet
 	scaleSets sync.Map
-	// sync.Map[string]*instanceManager
+	// sync.Map[string]*runnerEntry
 	runners sync.Map
+
+	eventQueue *workersCommon.UnboundedChan[dbCommon.ChangePayload]
+	backoff    *workersCommon.Backoff
+
+	scaleSetsLoaded bool
+	runnersLoaded   bool
 
 	mux     sync.Mutex
 	running bool
@@ -79,7 +117,6 @@ func (p *Provider) loadAllScaleSets() error {
 	for _, scaleSet := range scaleSets {
 		p.scaleSets.Store(scaleSet.ID, scaleSet)
 	}
-
 	return nil
 }
 
@@ -111,29 +148,46 @@ func (p *Provider) loadAllRunners() error {
 			continue
 		}
 
+		// Skip runners that already have entries (idempotent on re-call).
+		if _, ok := p.runners.Load(runner.Name); ok {
+			continue
+		}
+
+		entry := &runnerEntry{instance: runner}
+
 		val, ok := p.scaleSets.Load(runner.ScaleSetID)
 		if !ok {
-			slog.ErrorContext(p.ctx, "scale set not found", "scale_set_id", runner.ScaleSetID)
+			slog.ErrorContext(p.ctx, "scale set not found", "scale_set_id", runner.ScaleSetID, "runner_name", runner.Name)
+			p.runners.Store(runner.Name, entry)
+			p.backoff.RecordFailure(runner.Name)
 			continue
 		}
 		scaleSet := val.(params.ScaleSet)
 		provider, ok := p.providers[scaleSet.ProviderName]
 		if !ok {
-			slog.ErrorContext(p.ctx, "provider not found", "provider_name", runner.ProviderName)
+			// The provider map is static — it only changes on app restart.
+			// No point storing an entry that will never succeed.
+			slog.ErrorContext(p.ctx, "provider not configured, skipping runner", "provider_name", scaleSet.ProviderName, "runner_name", runner.Name)
 			continue
 		}
-		instanceManager, err := newInstanceManager(
-			p.ctx, runner, scaleSet, provider, p)
+
+		manager, err := newInstanceManager(p.ctx, runner, scaleSet, provider, p)
 		if err != nil {
-			return fmt.Errorf("creating instance manager: %w", err)
+			slog.ErrorContext(p.ctx, "creating instance manager", "runner_name", runner.Name, "error", err)
+			p.runners.Store(runner.Name, entry)
+			p.backoff.RecordFailure(runner.Name)
+			continue
 		}
-		if err := instanceManager.Start(); err != nil {
-			return fmt.Errorf("starting instance manager: %w", err)
+		if err := manager.Start(); err != nil {
+			slog.ErrorContext(p.ctx, "starting instance manager", "runner_name", runner.Name, "error", err)
+			p.runners.Store(runner.Name, entry)
+			p.backoff.RecordFailure(runner.Name)
+			continue
 		}
 
-		p.runners.Store(runner.Name, instanceManager)
+		entry.SetManager(manager)
+		p.runners.Store(runner.Name, entry)
 	}
-
 	return nil
 }
 
@@ -145,24 +199,35 @@ func (p *Provider) Start() error {
 		return nil
 	}
 
-	if err := p.loadAllScaleSets(); err != nil {
-		return fmt.Errorf("loading all scale sets: %w", err)
-	}
-
-	if err := p.loadAllRunners(); err != nil {
-		return fmt.Errorf("loading all runners: %w", err)
-	}
-
+	// Register the consumer first. It must be watching before entity/scaleset
+	// workers start creating instances. This is the only fatal error.
 	consumer, err := watcher.RegisterConsumer(
 		p.ctx, p.consumerID, composeProviderWatcher())
 	if err != nil {
 		return fmt.Errorf("registering consumer: %w", err)
 	}
 	p.consumer = consumer
-
 	p.quit = make(chan struct{})
 	p.running = true
+	p.eventQueue = workersCommon.NewUnboundedChan[dbCommon.ChangePayload](p.ctx, p.quit)
+
+	// Best-effort initial DB load. The retry loop handles failures.
+	if err := p.loadAllScaleSets(); err != nil {
+		slog.ErrorContext(p.ctx, "initial scale set load failed, will retry", "error", err)
+	} else {
+		p.scaleSetsLoaded = true
+	}
+	if p.scaleSetsLoaded {
+		if err := p.loadAllRunners(); err != nil {
+			slog.ErrorContext(p.ctx, "initial runner load failed, will retry", "error", err)
+		} else {
+			p.runnersLoaded = true
+		}
+	}
+
 	go p.loop()
+	go p.eventQueue.Process(p.handleWatcherEvent)
+	go workersCommon.RetryLoop(p.ctx, p.quit, retryLoopInterval, p.retryFailedRunners)
 
 	return nil
 }
@@ -175,23 +240,130 @@ func (p *Provider) Stop() error {
 		return nil
 	}
 
-	p.consumer.Close()
-	close(p.quit)
+	p.runners.Range(func(key, value any) bool {
+		name := key.(string)
+		entry := value.(*runnerEntry)
+		if err := entry.Stop(); err != nil {
+			slog.ErrorContext(p.ctx, "stopping instance manager", "runner_name", name, "error", err)
+		}
+		return true
+	})
+
 	p.running = false
+	close(p.quit)
+	p.consumer.Close()
 	return nil
 }
 
+func (p *Provider) retryFailedRunners() {
+	p.mux.Lock()
+	defer p.mux.Unlock()
+
+	if !p.running {
+		return
+	}
+
+	// Retry DB load for scale sets if needed.
+	if !p.scaleSetsLoaded {
+		if err := p.loadAllScaleSets(); err != nil {
+			slog.ErrorContext(p.ctx, "retrying scale set load", "error", err)
+			return // Can't proceed without scale sets.
+		}
+		slog.InfoContext(p.ctx, "scale sets loaded successfully after retry")
+		p.scaleSetsLoaded = true
+	}
+
+	// Retry DB load for runners if needed.
+	if !p.runnersLoaded {
+		if err := p.loadAllRunners(); err != nil {
+			slog.ErrorContext(p.ctx, "retrying runner load", "error", err)
+		} else {
+			slog.InfoContext(p.ctx, "runners loaded successfully after retry")
+			p.runnersLoaded = true
+		}
+	}
+
+	// Retry individual failed instance managers.
+	p.runners.Range(func(key, value any) bool {
+		name := key.(string)
+		entry := value.(*runnerEntry)
+
+		entry.mux.Lock()
+		manager := entry.manager
+		instance := entry.instance
+		entry.mux.Unlock()
+
+		if manager != nil && manager.running.Load() {
+			return true
+		}
+
+		// Clean up terminated instances.
+		if instance.Status == commonParams.InstanceDeleted ||
+			instance.Status == commonParams.InstanceDeleting {
+			p.runners.Delete(name)
+			p.backoff.RecordSuccess(name)
+			return true
+		}
+
+		if !p.backoff.ShouldRetry(name) {
+			return true
+		}
+
+		val, ok := p.scaleSets.Load(instance.ScaleSetID)
+		if !ok {
+			slog.ErrorContext(p.ctx, "scale set not found for retry", "runner_name", name, "scale_set_id", instance.ScaleSetID)
+			p.backoff.RecordFailure(name)
+			return true
+		}
+		scaleSet := val.(params.ScaleSet)
+		provider, ok := p.providers[scaleSet.ProviderName]
+		if !ok {
+			// The provider map is static — retrying will never help.
+			// Remove the entry entirely.
+			slog.ErrorContext(p.ctx, "provider not configured, removing runner entry", "runner_name", name, "provider_name", scaleSet.ProviderName)
+			p.runners.Delete(name)
+			p.backoff.RecordSuccess(name)
+			return true
+		}
+
+		if manager == nil {
+			var err error
+			manager, err = newInstanceManager(p.ctx, instance, scaleSet, provider, p)
+			if err != nil {
+				slog.ErrorContext(p.ctx, "retry: creating instance manager", "runner_name", name, "error", err)
+				p.backoff.RecordFailure(name)
+				return true
+			}
+			entry.SetManager(manager)
+		}
+
+		if err := manager.Start(); err != nil {
+			slog.ErrorContext(p.ctx, "retry: starting instance manager", "runner_name", name, "error", err)
+			p.backoff.RecordFailure(name)
+			return true
+		}
+
+		slog.InfoContext(p.ctx, "instance manager started after retry", "runner_name", name)
+		p.backoff.RecordSuccess(name)
+		return true
+	})
+}
+
+// loop drains the watcher consumer channel as fast as possible into the
+// event queue. It exits when the context is cancelled or quit is closed.
 func (p *Provider) loop() {
 	defer p.Stop()
 	for {
 		select {
-		case payload, ok := <-p.consumer.Watch():
-			if !ok {
-				slog.ErrorContext(p.ctx, "watcher channel closed")
+		case payload := <-p.consumer.Watch():
+			slog.DebugContext(p.ctx, "received payload, queuing for processing")
+			select {
+			case p.eventQueue.In() <- payload:
+			case <-p.ctx.Done():
+				return
+			case <-p.quit:
 				return
 			}
-			slog.DebugContext(p.ctx, "received payload", "operation", payload.Operation, "entity_type", payload.EntityType)
-			go p.handleWatcherEvent(payload)
 		case <-p.ctx.Done():
 			return
 		case <-p.quit:
@@ -201,6 +373,13 @@ func (p *Provider) loop() {
 }
 
 func (p *Provider) handleWatcherEvent(payload dbCommon.ChangePayload) {
+	p.mux.Lock()
+	defer p.mux.Unlock()
+
+	if !p.running {
+		return
+	}
+
 	switch payload.EntityType {
 	case dbCommon.ScaleSetEntityType:
 		p.handleScaleSetEvent(payload)
@@ -231,43 +410,77 @@ func (p *Provider) handleScaleSetEvent(event dbCommon.ChangePayload) {
 	}
 }
 
-func (p *Provider) handleInstanceAdded(instance params.Instance) error {
+func (p *Provider) handleInstanceAdded(instance params.Instance) {
+	// If an entry already exists, update its instance data and let the
+	// retry loop handle restarting it if needed.
+	if val, ok := p.runners.Load(instance.Name); ok {
+		entry := val.(*runnerEntry)
+		entry.mux.Lock()
+		running := entry.manager != nil && entry.manager.running.Load()
+		entry.mux.Unlock()
+
+		if running {
+			slog.DebugContext(p.ctx, "instance manager already running", "instance_name", instance.Name)
+			return
+		}
+		entry.SetInstance(instance)
+		p.backoff.RecordSuccess(instance.Name)
+		return
+	}
+
+	entry := &runnerEntry{instance: instance}
+
 	val, ok := p.scaleSets.Load(instance.ScaleSetID)
 	if !ok {
-		return fmt.Errorf("scale set not found for instance %s", instance.Name)
+		slog.ErrorContext(p.ctx, "scale set not found for instance", "instance_name", instance.Name, "scale_set_id", instance.ScaleSetID)
+		p.runners.Store(instance.Name, entry)
+		p.backoff.RecordFailure(instance.Name)
+		return
 	}
 	scaleSet := val.(params.ScaleSet)
-	instanceManager, err := newInstanceManager(
-		p.ctx, instance, scaleSet, p.providers[instance.ProviderName], p)
+
+	provider, ok := p.providers[scaleSet.ProviderName]
+	if !ok {
+		// The provider map is static — no point storing an entry that will never work.
+		slog.ErrorContext(p.ctx, "provider not configured, skipping instance", "instance_name", instance.Name, "provider_name", scaleSet.ProviderName)
+		return
+	}
+
+	manager, err := newInstanceManager(
+		p.ctx, instance, scaleSet, provider, p)
 	if err != nil {
-		return fmt.Errorf("creating instance manager: %w", err)
+		slog.ErrorContext(p.ctx, "creating instance manager", "instance_name", instance.Name, "error", err)
+		p.runners.Store(instance.Name, entry)
+		p.backoff.RecordFailure(instance.Name)
+		return
 	}
-	if err := instanceManager.Start(); err != nil {
-		return fmt.Errorf("starting instance manager: %w", err)
+	if err := manager.Start(); err != nil {
+		slog.ErrorContext(p.ctx, "starting instance manager", "instance_name", instance.Name, "error", err)
+		p.runners.Store(instance.Name, entry)
+		p.backoff.RecordFailure(instance.Name)
+		return
 	}
-	if _, loaded := p.runners.LoadOrStore(instance.Name, instanceManager); loaded {
-		// A manager already exists for this instance. Stop the one we just created.
-		slog.DebugContext(p.ctx, "instance manager already exists", "instance_name", instance.Name)
-		instanceManager.Stop()
-	}
-	return nil
+
+	entry.SetManager(manager)
+	p.runners.Store(instance.Name, entry)
 }
 
-func (p *Provider) stopAndDeleteInstance(instance params.Instance) error {
+func (p *Provider) stopAndDeleteInstance(instance params.Instance) {
 	if instance.Status != commonParams.InstanceDeleted {
-		return nil
+		return
 	}
 	val, loaded := p.runners.LoadAndDelete(instance.Name)
 	if !loaded {
-		return nil
+		return
 	}
-	existingInstance := val.(*instanceManager)
-	if err := existingInstance.Stop(); err != nil {
-		// Re-store the manager so it can be retried.
-		p.runners.Store(instance.Name, existingInstance)
-		return fmt.Errorf("failed to stop instance manager: %w", err)
+	entry := val.(*runnerEntry)
+	if err := entry.Stop(); err != nil {
+		// Re-store the entry so it can be retried.
+		p.runners.Store(instance.Name, entry)
+		slog.ErrorContext(p.ctx, "failed to stop instance manager", "runner_name", instance.Name, "error", err)
+		return
 	}
-	return nil
+	p.backoff.RecordSuccess(instance.Name)
 }
 
 func (p *Provider) handleInstanceEvent(event dbCommon.ChangePayload) {
@@ -286,45 +499,47 @@ func (p *Provider) handleInstanceEvent(event dbCommon.ChangePayload) {
 	switch event.Operation {
 	case dbCommon.CreateOperation:
 		slog.DebugContext(p.ctx, "got create operation")
-		if err := p.handleInstanceAdded(instance); err != nil {
-			slog.ErrorContext(p.ctx, "failed to handle instance added", "error", err)
-			return
-		}
+		p.handleInstanceAdded(instance)
 	case dbCommon.UpdateOperation:
 		slog.DebugContext(p.ctx, "got update operation")
 
 		val, ok := p.runners.Load(instance.Name)
-
 		if !ok {
 			if instance.Status == commonParams.InstanceDeleted {
-				// No manager running for this instance and it's already deleted.
+				// No entry for this instance and it's already deleted.
 				return
 			}
 			slog.DebugContext(p.ctx, "instance not found, creating new instance", "instance_name", instance.Name)
-			if err := p.handleInstanceAdded(instance); err != nil {
-				slog.ErrorContext(p.ctx, "failed to handle instance added", "error", err)
-				return
+			p.handleInstanceAdded(instance)
+			return
+		}
+
+		entry := val.(*runnerEntry)
+		slog.DebugContext(p.ctx, "updating instance", "instance_name", instance.Name)
+
+		if instance.Status == commonParams.InstanceDeleted {
+			p.stopAndDeleteInstance(instance)
+			return
+		}
+
+		entry.SetInstance(instance)
+
+		entry.mux.Lock()
+		manager := entry.manager
+		entry.mux.Unlock()
+
+		if manager != nil && manager.running.Load() {
+			if err := manager.Update(event); err != nil {
+				slog.ErrorContext(p.ctx, "failed to update instance", "error", err, "instance_name", instance.Name)
 			}
 		} else {
-			existingInstance := val.(*instanceManager)
-			slog.DebugContext(p.ctx, "updating instance", "instance_name", instance.Name)
-			if instance.Status == commonParams.InstanceDeleted {
-				if err := p.stopAndDeleteInstance(instance); err != nil {
-					slog.ErrorContext(p.ctx, "failed to clean up instance manager", "error", err)
-				}
-				return
-			}
-			if err := existingInstance.Update(event); err != nil {
-				slog.ErrorContext(p.ctx, "failed to update instance", "error", err, "instance_name", instance.Name, "payload", event.Payload)
-				return
-			}
+			// Manager not running. Clear backoff so the retry loop
+			// picks up the updated instance data immediately.
+			p.backoff.RecordSuccess(instance.Name)
 		}
 	case dbCommon.DeleteOperation:
 		slog.DebugContext(p.ctx, "got delete operation", "instance_name", instance.Name)
-		if err := p.stopAndDeleteInstance(instance); err != nil {
-			slog.ErrorContext(p.ctx, "failed to clean up instance manager", "error", err)
-			return
-		}
+		p.stopAndDeleteInstance(instance)
 	default:
 		slog.ErrorContext(p.ctx, "invalid operation type", "operation_type", event.Operation)
 		return

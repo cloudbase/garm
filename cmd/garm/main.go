@@ -272,20 +272,22 @@ func main() {
 		log.Fatalf("loading providers: %+v", err)
 	}
 
-	entityController, err := entity.NewController(ctx, db, providers)
-	if err != nil {
-		log.Fatalf("failed to create entity controller: %+v", err)
-	}
-	if err := entityController.Start(); err != nil {
-		log.Fatalf("failed to start entity controller: %+v", err)
-	}
-
+	// Provider worker must start first — its watcher consumer must be
+	// registered before entity/scaleset workers create instances.
 	providerWorker, err := provider.NewWorker(ctx, db, providers, instanceTokenGetter)
 	if err != nil {
 		log.Fatalf("failed to create provider worker: %+v", err)
 	}
 	if err := providerWorker.Start(); err != nil {
 		log.Fatalf("failed to start provider worker: %+v", err)
+	}
+
+	entityController, err := entity.NewController(ctx, db, providers)
+	if err != nil {
+		log.Fatalf("failed to create entity controller: %+v", err)
+	}
+	if err := entityController.Start(); err != nil {
+		log.Fatalf("failed to start entity controller: %+v", err)
 	}
 
 	// If there are many repos/pools, this may take a long time.

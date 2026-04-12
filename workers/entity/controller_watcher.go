@@ -14,7 +14,6 @@
 package entity
 
 import (
-	"fmt"
 	"log/slog"
 
 	dbCommon "github.com/cloudbase/garm/database/common"
@@ -22,6 +21,21 @@ import (
 )
 
 func (c *Controller) handleWatcherEvent(event dbCommon.ChangePayload) {
+	c.mux.Lock()
+	defer c.mux.Unlock()
+
+	if !c.running {
+		// Controller was stopped.
+		return
+	}
+
+	switch event.EntityType {
+	case dbCommon.GithubCredentialsEntityType, dbCommon.GiteaCredentialsEntityType:
+		slog.DebugContext(c.ctx, "got credentials payload event", "entity_type", event.EntityType)
+		c.handleCredentialsUpdateEvent(event)
+		return
+	}
+
 	var entityGetter params.EntityGetter
 	switch event.EntityType {
 	case dbCommon.RepositoryEntityType:
@@ -75,6 +89,35 @@ func (c *Controller) handleWatcherEvent(event dbCommon.ChangePayload) {
 	}
 }
 
+// handleCredentialsUpdateEvent propagates credential updates to non-running workers.
+// Running workers handle credential updates themselves via their own watcher.
+func (c *Controller) handleCredentialsUpdateEvent(event dbCommon.ChangePayload) {
+	creds, ok := event.Payload.(params.ForgeCredentials)
+	if !ok {
+		slog.ErrorContext(c.ctx, "invalid payload for credentials event", "entity_type", event.EntityType, "payload", event.Payload)
+		return
+	}
+
+	c.Entities.Range(func(_, value any) bool {
+		worker := value.(*Worker)
+		if worker.IsRunning() {
+			// Running workers handle credential updates via their own watcher.
+			return true
+		}
+
+		worker.mux.Lock()
+		defer worker.mux.Unlock()
+		if worker.Entity.Credentials.GetID() != creds.GetID() {
+			return true
+		}
+		slog.InfoContext(c.ctx, "propagating credential update to non-running worker", "entity_id", worker.Entity.ID)
+		worker.Entity.Credentials = creds
+		// Clear backoff so the retry loop picks up the fix immediately.
+		c.backoff.RecordSuccess(worker.Entity.ID)
+		return true
+	})
+}
+
 func (c *Controller) handleWatcherUpdateOperation(entity params.ForgeEntity) {
 	val, ok := c.Entities.Load(entity.ID)
 	if !ok {
@@ -91,14 +134,13 @@ func (c *Controller) handleWatcherUpdateOperation(entity params.ForgeEntity) {
 	}
 
 	slog.InfoContext(c.ctx, "updating entity worker", "entity_id", entity.ID, "entity_type", entity.EntityType)
+	worker.mux.Lock()
 	worker.Entity = entity
-	if err := worker.Start(); err != nil {
-		slog.ErrorContext(c.ctx, "starting worker after update", "entity_id", entity.ID, "error", err)
-		worker.addStatusEvent(fmt.Sprintf("failed to start worker for %s (%s) after update: %s", entity.ID, entity.ForgeURL(), err.Error()), params.EventError)
-		return
-	}
-	slog.InfoContext(c.ctx, "entity worker updated and successfully started", "entity_id", entity.ID, "entity_type", entity.EntityType)
-	worker.addStatusEvent(fmt.Sprintf("worker updated and successfully started for entity: %s (%s)", entity.ID, entity.ForgeURL()), params.EventInfo)
+	worker.mux.Unlock()
+	// Clear any previous backoff so the retry loop starts the worker
+	// immediately. The user may have fixed the issue by updating the entity.
+	c.backoff.RecordSuccess(entity.ID)
+	// The retry loop will start the worker.
 }
 
 func (c *Controller) handleWatcherCreateOperation(entity params.ForgeEntity) {
@@ -108,17 +150,10 @@ func (c *Controller) handleWatcherCreateOperation(entity params.ForgeEntity) {
 		return
 	}
 
-	slog.InfoContext(c.ctx, "starting entity worker", "entity_id", entity.ID, "entity_type", entity.EntityType)
-	if err := worker.Start(); err != nil {
-		slog.ErrorContext(c.ctx, "starting worker", "entity_id", entity.ID, "error", err)
-		return
-	}
-
 	if _, loaded := c.Entities.LoadOrStore(entity.ID, worker); loaded {
-		// A worker already exists for this entity. Stop the one we just created.
-		slog.DebugContext(c.ctx, "entity worker already exists", "entity_id", entity.ID)
-		worker.Stop()
+		slog.DebugContext(c.ctx, "entity already exists in worker list", "entity_id", entity.ID)
 	}
+	// The retry loop will start the worker.
 }
 
 func (c *Controller) handleWatcherDeleteOperation(entity params.ForgeEntity) {
@@ -127,6 +162,7 @@ func (c *Controller) handleWatcherDeleteOperation(entity params.ForgeEntity) {
 		slog.InfoContext(c.ctx, "entity not found in worker list", "entity_id", entity.ID)
 		return
 	}
+	c.backoff.RecordSuccess(entity.ID)
 	worker := val.(*Worker)
 	slog.InfoContext(c.ctx, "stopping entity worker", "entity_id", entity.ID, "entity_type", entity.EntityType)
 	if err := worker.Stop(); err != nil {

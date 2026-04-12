@@ -45,7 +45,15 @@ import (
 	"github.com/cloudbase/garm/runner/providers"
 	"github.com/cloudbase/garm/util/github"
 	"github.com/cloudbase/garm/util/github/scalesets"
+	workersCommon "github.com/cloudbase/garm/workers/common"
 )
+
+const poolManagerRetryInterval = 5 * time.Second
+
+type failedEntity struct {
+	entityType params.ForgeEntityType
+	id         string
+}
 
 func NewRunner(ctx context.Context, cfg config.Config, db dbCommon.Store, token auth.InstanceTokenGetter) (*Runner, error) {
 	ctrlID, err := db.ControllerInfo()
@@ -79,11 +87,11 @@ func NewRunner(ctx context.Context, cfg config.Config, db dbCommon.Store, token 
 		tokenGetter:     token,
 		poolManagerCtrl: poolManagerCtrl,
 		providers:       providers,
+		backoff:         workersCommon.NewBackoff(workersCommon.DefaultBackoffConfig()),
+		failedEntities:  make(map[string]failedEntity),
 	}
 
-	if err := runner.loadReposOrgsAndEnterprises(); err != nil {
-		return nil, fmt.Errorf("error loading pool managers: %w", err)
-	}
+	runner.loadReposOrgsAndEnterprises()
 
 	return runner, nil
 }
@@ -237,6 +245,14 @@ type Runner struct {
 	poolManagerCtrl PoolManagerController
 
 	providers map[string]common.Provider
+	backoff   *workersCommon.Backoff
+	quit      chan struct{}
+	running   bool
+
+	failedEntities    map[string]failedEntity
+	reposLoaded       bool
+	orgsLoaded        bool
+	enterprisesLoaded bool
 }
 
 // UpdateController will update the controller settings.
@@ -355,105 +371,49 @@ func (r *Runner) ListProviders(ctx context.Context) ([]params.Provider, error) {
 	return ret, nil
 }
 
-func (r *Runner) loadReposOrgsAndEnterprises() error {
+func (r *Runner) loadReposOrgsAndEnterprises() {
 	r.mux.Lock()
 	defer r.mux.Unlock()
 
 	repos, err := r.store.ListRepositories(r.ctx, params.RepositoryFilter{})
 	if err != nil {
-		return fmt.Errorf("error fetching repositories: %w", err)
+		slog.ErrorContext(r.ctx, "fetching repositories", "error", err)
+	} else {
+		r.reposLoaded = true
+	}
+	for _, repo := range repos {
+		r.createAndStartRepoPoolManager(repo)
 	}
 
 	orgs, err := r.store.ListOrganizations(r.ctx, params.OrganizationFilter{})
 	if err != nil {
-		return fmt.Errorf("error fetching organizations: %w", err)
+		slog.ErrorContext(r.ctx, "fetching organizations", "error", err)
+	} else {
+		r.orgsLoaded = true
+	}
+	for _, org := range orgs {
+		r.createAndStartOrgPoolManager(org)
 	}
 
 	enterprises, err := r.store.ListEnterprises(r.ctx, params.EnterpriseFilter{})
 	if err != nil {
-		return fmt.Errorf("error fetching enterprises: %w", err)
+		slog.ErrorContext(r.ctx, "fetching enterprises", "error", err)
+	} else {
+		r.enterprisesLoaded = true
 	}
-
-	g, _ := errgroup.WithContext(r.ctx)
-	for _, repo := range repos {
-		repo := repo
-		g.Go(func() error {
-			slog.InfoContext(
-				r.ctx, "creating pool manager for repo",
-				"repo_owner", repo.Owner, "repo_name", repo.Name)
-			_, err := r.poolManagerCtrl.CreateRepoPoolManager(r.ctx, repo, r.providers, r.store)
-			return err
-		})
-	}
-
-	for _, org := range orgs {
-		org := org
-		g.Go(func() error {
-			slog.InfoContext(r.ctx, "creating pool manager for organization", "org_name", org.Name)
-			_, err := r.poolManagerCtrl.CreateOrgPoolManager(r.ctx, org, r.providers, r.store)
-			return err
-		})
-	}
-
 	for _, enterprise := range enterprises {
-		enterprise := enterprise
-		g.Go(func() error {
-			slog.InfoContext(r.ctx, "creating pool manager for enterprise", "enterprise_name", enterprise.Name)
-			_, err := r.poolManagerCtrl.CreateEnterprisePoolManager(r.ctx, enterprise, r.providers, r.store)
-			return err
-		})
+		r.createAndStartEnterprisePoolManager(enterprise)
 	}
-
-	if err := r.waitForErrorGroupOrTimeout(g); err != nil {
-		return fmt.Errorf("failed to create pool managers: %w", err)
-	}
-	return nil
 }
 
 func (r *Runner) Start() error {
 	r.mux.Lock()
 	defer r.mux.Unlock()
 
-	repositories, err := r.poolManagerCtrl.GetRepoPoolManagers()
-	if err != nil {
-		return fmt.Errorf("error fetch repo pool managers: %w", err)
-	}
+	r.running = true
+	r.quit = make(chan struct{})
+	go workersCommon.RetryLoop(r.ctx, r.quit, poolManagerRetryInterval, r.retryFailedPoolManagers)
 
-	organizations, err := r.poolManagerCtrl.GetOrgPoolManagers()
-	if err != nil {
-		return fmt.Errorf("error fetch org pool managers: %w", err)
-	}
-
-	enterprises, err := r.poolManagerCtrl.GetEnterprisePoolManagers()
-	if err != nil {
-		return fmt.Errorf("error fetch enterprise pool managers: %w", err)
-	}
-
-	g, _ := errgroup.WithContext(r.ctx)
-	for _, repo := range repositories {
-		repo := repo
-		g.Go(func() error {
-			return repo.Start()
-		})
-	}
-
-	for _, org := range organizations {
-		org := org
-		g.Go(func() error {
-			return org.Start()
-		})
-	}
-
-	for _, enterprise := range enterprises {
-		enterprise := enterprise
-		g.Go(func() error {
-			return enterprise.Start()
-		})
-	}
-
-	if err := r.waitForErrorGroupOrTimeout(g); err != nil {
-		return fmt.Errorf("failed to start pool managers: %w", err)
-	}
 	return nil
 }
 
@@ -476,9 +436,211 @@ func (r *Runner) waitForErrorGroupOrTimeout(g *errgroup.Group) error {
 	}
 }
 
+func (r *Runner) createAndStartRepoPoolManager(repo params.Repository) {
+	slog.InfoContext(r.ctx, "creating pool manager for repo", "repo_owner", repo.Owner, "repo_name", repo.Name)
+	poolMgr, err := r.poolManagerCtrl.CreateRepoPoolManager(r.ctx, repo, r.providers, r.store)
+	if err != nil {
+		slog.ErrorContext(r.ctx, "creating repo pool manager", "repo_owner", repo.Owner, "repo_name", repo.Name, "error", err)
+		r.failedEntities[repo.ID] = failedEntity{entityType: params.ForgeEntityTypeRepository, id: repo.ID}
+		r.backoff.RecordFailure(repo.ID)
+		return
+	}
+	if err := poolMgr.Start(); err != nil {
+		slog.ErrorContext(r.ctx, "starting repo pool manager", "repo_owner", repo.Owner, "repo_name", repo.Name, "error", err)
+		if deleteErr := r.poolManagerCtrl.DeleteRepoPoolManager(repo); deleteErr != nil {
+			slog.ErrorContext(r.ctx, "cleaning up failed repo pool manager", "repo_id", repo.ID, "error", deleteErr)
+		}
+		r.failedEntities[repo.ID] = failedEntity{entityType: params.ForgeEntityTypeRepository, id: repo.ID}
+		r.backoff.RecordFailure(repo.ID)
+		return
+	}
+	delete(r.failedEntities, repo.ID)
+	r.backoff.RecordSuccess(repo.ID)
+}
+
+func (r *Runner) createAndStartOrgPoolManager(org params.Organization) {
+	slog.InfoContext(r.ctx, "creating pool manager for organization", "org_name", org.Name)
+	poolMgr, err := r.poolManagerCtrl.CreateOrgPoolManager(r.ctx, org, r.providers, r.store)
+	if err != nil {
+		slog.ErrorContext(r.ctx, "creating org pool manager", "org_name", org.Name, "error", err)
+		r.failedEntities[org.ID] = failedEntity{entityType: params.ForgeEntityTypeOrganization, id: org.ID}
+		r.backoff.RecordFailure(org.ID)
+		return
+	}
+	if err := poolMgr.Start(); err != nil {
+		slog.ErrorContext(r.ctx, "starting org pool manager", "org_name", org.Name, "error", err)
+		if deleteErr := r.poolManagerCtrl.DeleteOrgPoolManager(org); deleteErr != nil {
+			slog.ErrorContext(r.ctx, "cleaning up failed org pool manager", "org_id", org.ID, "error", deleteErr)
+		}
+		r.failedEntities[org.ID] = failedEntity{entityType: params.ForgeEntityTypeOrganization, id: org.ID}
+		r.backoff.RecordFailure(org.ID)
+		return
+	}
+	delete(r.failedEntities, org.ID)
+	r.backoff.RecordSuccess(org.ID)
+}
+
+func (r *Runner) createAndStartEnterprisePoolManager(enterprise params.Enterprise) {
+	slog.InfoContext(r.ctx, "creating pool manager for enterprise", "enterprise_name", enterprise.Name)
+	poolMgr, err := r.poolManagerCtrl.CreateEnterprisePoolManager(r.ctx, enterprise, r.providers, r.store)
+	if err != nil {
+		slog.ErrorContext(r.ctx, "creating enterprise pool manager", "enterprise_name", enterprise.Name, "error", err)
+		r.failedEntities[enterprise.ID] = failedEntity{entityType: params.ForgeEntityTypeEnterprise, id: enterprise.ID}
+		r.backoff.RecordFailure(enterprise.ID)
+		return
+	}
+	if err := poolMgr.Start(); err != nil {
+		slog.ErrorContext(r.ctx, "starting enterprise pool manager", "enterprise_name", enterprise.Name, "error", err)
+		if deleteErr := r.poolManagerCtrl.DeleteEnterprisePoolManager(enterprise); deleteErr != nil {
+			slog.ErrorContext(r.ctx, "cleaning up failed enterprise pool manager", "enterprise_id", enterprise.ID, "error", deleteErr)
+		}
+		r.failedEntities[enterprise.ID] = failedEntity{entityType: params.ForgeEntityTypeEnterprise, id: enterprise.ID}
+		r.backoff.RecordFailure(enterprise.ID)
+		return
+	}
+	delete(r.failedEntities, enterprise.ID)
+	r.backoff.RecordSuccess(enterprise.ID)
+}
+
+func (r *Runner) retryFailedPoolManagers() {
+	r.mux.Lock()
+	defer r.mux.Unlock()
+
+	if !r.running {
+		return
+	}
+
+	// Retry listing if initial list queries failed.
+	if !r.reposLoaded {
+		repos, err := r.store.ListRepositories(r.ctx, params.RepositoryFilter{})
+		if err != nil {
+			slog.ErrorContext(r.ctx, "retrying repository list", "error", err)
+		} else {
+			slog.InfoContext(r.ctx, "repositories loaded successfully after retry")
+			r.reposLoaded = true
+			for _, repo := range repos {
+				if _, err := r.poolManagerCtrl.GetRepoPoolManager(repo); err == nil {
+					continue
+				}
+				r.createAndStartRepoPoolManager(repo)
+			}
+		}
+	}
+
+	if !r.orgsLoaded {
+		orgs, err := r.store.ListOrganizations(r.ctx, params.OrganizationFilter{})
+		if err != nil {
+			slog.ErrorContext(r.ctx, "retrying organization list", "error", err)
+		} else {
+			slog.InfoContext(r.ctx, "organizations loaded successfully after retry")
+			r.orgsLoaded = true
+			for _, org := range orgs {
+				if _, err := r.poolManagerCtrl.GetOrgPoolManager(org); err == nil {
+					continue
+				}
+				r.createAndStartOrgPoolManager(org)
+			}
+		}
+	}
+
+	if !r.enterprisesLoaded {
+		enterprises, err := r.store.ListEnterprises(r.ctx, params.EnterpriseFilter{})
+		if err != nil {
+			slog.ErrorContext(r.ctx, "retrying enterprise list", "error", err)
+		} else {
+			slog.InfoContext(r.ctx, "enterprises loaded successfully after retry")
+			r.enterprisesLoaded = true
+			for _, enterprise := range enterprises {
+				if _, err := r.poolManagerCtrl.GetEnterprisePoolManager(enterprise); err == nil {
+					continue
+				}
+				r.createAndStartEnterprisePoolManager(enterprise)
+			}
+		}
+	}
+
+	// Retry individual failed entities.
+	for id, fe := range r.failedEntities {
+		if !r.backoff.ShouldRetry(id) {
+			continue
+		}
+		r.retryFailedEntity(fe)
+	}
+}
+
+func (r *Runner) retryFailedEntity(fe failedEntity) {
+	switch fe.entityType {
+	case params.ForgeEntityTypeRepository:
+		repo, err := r.store.GetRepositoryByID(r.ctx, fe.id)
+		if err != nil {
+			if errors.Is(err, runnerErrors.ErrNotFound) {
+				slog.InfoContext(r.ctx, "repository deleted, removing from retry set", "repo_id", fe.id)
+				delete(r.failedEntities, fe.id)
+				r.backoff.RecordSuccess(fe.id)
+				return
+			}
+			slog.ErrorContext(r.ctx, "fetching repository for retry", "repo_id", fe.id, "error", err)
+			r.backoff.RecordFailure(fe.id)
+			return
+		}
+		// Clean up any stale pool manager left from a previous failed attempt
+		// before recreating. Delete is a no-op if no pool manager exists.
+		if err := r.poolManagerCtrl.DeleteRepoPoolManager(repo); err != nil {
+			slog.ErrorContext(r.ctx, "cleaning up stale repo pool manager before retry", "repo_id", fe.id, "error", err)
+			r.backoff.RecordFailure(fe.id)
+			return
+		}
+		r.createAndStartRepoPoolManager(repo)
+	case params.ForgeEntityTypeOrganization:
+		org, err := r.store.GetOrganizationByID(r.ctx, fe.id)
+		if err != nil {
+			if errors.Is(err, runnerErrors.ErrNotFound) {
+				slog.InfoContext(r.ctx, "organization deleted, removing from retry set", "org_id", fe.id)
+				delete(r.failedEntities, fe.id)
+				r.backoff.RecordSuccess(fe.id)
+				return
+			}
+			slog.ErrorContext(r.ctx, "fetching organization for retry", "org_id", fe.id, "error", err)
+			r.backoff.RecordFailure(fe.id)
+			return
+		}
+		if err := r.poolManagerCtrl.DeleteOrgPoolManager(org); err != nil {
+			slog.ErrorContext(r.ctx, "cleaning up stale org pool manager before retry", "org_id", fe.id, "error", err)
+			r.backoff.RecordFailure(fe.id)
+			return
+		}
+		r.createAndStartOrgPoolManager(org)
+	case params.ForgeEntityTypeEnterprise:
+		enterprise, err := r.store.GetEnterpriseByID(r.ctx, fe.id)
+		if err != nil {
+			if errors.Is(err, runnerErrors.ErrNotFound) {
+				slog.InfoContext(r.ctx, "enterprise deleted, removing from retry set", "enterprise_id", fe.id)
+				delete(r.failedEntities, fe.id)
+				r.backoff.RecordSuccess(fe.id)
+				return
+			}
+			slog.ErrorContext(r.ctx, "fetching enterprise for retry", "enterprise_id", fe.id, "error", err)
+			r.backoff.RecordFailure(fe.id)
+			return
+		}
+		if err := r.poolManagerCtrl.DeleteEnterprisePoolManager(enterprise); err != nil {
+			slog.ErrorContext(r.ctx, "cleaning up stale enterprise pool manager before retry", "enterprise_id", fe.id, "error", err)
+			r.backoff.RecordFailure(fe.id)
+			return
+		}
+		r.createAndStartEnterprisePoolManager(enterprise)
+	}
+}
+
 func (r *Runner) Stop() error {
 	r.mux.Lock()
 	defer r.mux.Unlock()
+
+	r.running = false
+	if r.quit != nil {
+		close(r.quit)
+		r.quit = nil
+	}
 
 	repos, err := r.poolManagerCtrl.GetRepoPoolManagers()
 	if err != nil {

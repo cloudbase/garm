@@ -16,8 +16,6 @@ package entity
 import (
 	"strings"
 
-	"golang.org/x/sync/errgroup"
-
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/database/watcher"
 	"github.com/cloudbase/garm/params"
@@ -30,15 +28,25 @@ const (
 )
 
 func composeControllerWatcherFilters() dbCommon.PayloadFilterFunc {
-	return watcher.WithAll(
-		watcher.WithAny(
-			watcher.WithEntityTypeFilter(dbCommon.RepositoryEntityType),
-			watcher.WithEntityTypeFilter(dbCommon.OrganizationEntityType),
-			watcher.WithEntityTypeFilter(dbCommon.EnterpriseEntityType),
+	return watcher.WithAny(
+		watcher.WithAll(
+			watcher.WithAny(
+				watcher.WithEntityTypeFilter(dbCommon.RepositoryEntityType),
+				watcher.WithEntityTypeFilter(dbCommon.OrganizationEntityType),
+				watcher.WithEntityTypeFilter(dbCommon.EnterpriseEntityType),
+			),
+			watcher.WithAny(
+				watcher.WithOperationTypeFilter(dbCommon.CreateOperation),
+				watcher.WithOperationTypeFilter(dbCommon.DeleteOperation),
+				watcher.WithOperationTypeFilter(dbCommon.UpdateOperation),
+			),
 		),
-		watcher.WithAny(
-			watcher.WithOperationTypeFilter(dbCommon.CreateOperation),
-			watcher.WithOperationTypeFilter(dbCommon.DeleteOperation),
+		// Watch for credential updates so we can propagate them to non-running workers.
+		watcher.WithAll(
+			watcher.WithAny(
+				watcher.WithEntityTypeFilter(dbCommon.GithubCredentialsEntityType),
+				watcher.WithEntityTypeFilter(dbCommon.GiteaCredentialsEntityType),
+			),
 			watcher.WithOperationTypeFilter(dbCommon.UpdateOperation),
 		),
 	)
@@ -56,27 +64,6 @@ func composeWorkerWatcherFilters(entity params.ForgeEntity) dbCommon.PayloadFilt
 			watcher.WithOperationTypeFilter(dbCommon.UpdateOperation),
 		),
 	)
-}
-
-func (c *Controller) waitForErrorGroupOrContextCancelled(g *errgroup.Group) error {
-	if g == nil {
-		return nil
-	}
-
-	done := make(chan error, 1)
-	go func() {
-		waitErr := g.Wait()
-		done <- waitErr
-	}()
-
-	select {
-	case err := <-done:
-		return err
-	case <-c.ctx.Done():
-		return c.ctx.Err()
-	case <-c.quit:
-		return nil
-	}
 }
 
 func poolIDFromLabels(runner params.RunnerReference) string {
