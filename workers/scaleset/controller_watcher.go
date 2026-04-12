@@ -22,6 +22,13 @@ import (
 )
 
 func (c *Controller) handleWatcherEvent(event dbCommon.ChangePayload) {
+	c.mux.Lock()
+	defer c.mux.Unlock()
+
+	if !c.running {
+		return
+	}
+
 	entityType := dbCommon.DatabaseEntityType(c.Entity.EntityType)
 	switch event.EntityType {
 	case dbCommon.ScaleSetEntityType:
@@ -65,6 +72,14 @@ func (c *Controller) handleScaleSet(event dbCommon.ChangePayload) {
 	}
 }
 
+func scaleSetBackoffKey(sSet params.ScaleSet) string {
+	runnerGroup := sSet.GitHubRunnerGroup
+	if runnerGroup == "" {
+		runnerGroup = "Default"
+	}
+	return fmt.Sprintf("%s:%d", runnerGroup, sSet.ID)
+}
+
 func (c *Controller) createScaleSetWorker(scaleSet params.ScaleSet) (*Worker, error) {
 	provider, ok := c.providers[scaleSet.ProviderName]
 	if !ok {
@@ -87,22 +102,18 @@ func (c *Controller) handleScaleSetCreateOperation(sSet params.ScaleSet) error {
 		return nil
 	}
 
+	entry := &scaleSet{scaleSet: sSet}
+
 	worker, err := c.createScaleSetWorker(sSet)
 	if err != nil {
+		// Store the entry so the retry loop can pick it up.
+		c.ScaleSets.Store(sSet.ID, entry)
+		c.backoff.RecordFailure(scaleSetBackoffKey(sSet))
 		return fmt.Errorf("error creating scale set worker: %w", err)
 	}
-	if err := worker.Start(); err != nil {
-		// The Start() function should only return an error if an unrecoverable error occurs.
-		// For transient errors, it should mark the scale set as being in error, but continue
-		// to retry fixing the condition. For example, not being able to retrieve tools due to bad
-		// credentials should not stop the worker. The credentials can be fixed and the worker
-		// can continue to work.
-		return fmt.Errorf("error starting scale set worker: %w", err)
-	}
-	c.ScaleSets.Store(sSet.ID, &scaleSet{
-		scaleSet: sSet,
-		worker:   worker,
-	})
+	entry.worker = worker
+	c.ScaleSets.Store(sSet.ID, entry)
+	// The retry loop will start the worker.
 	return nil
 }
 
@@ -115,10 +126,11 @@ func (c *Controller) handleScaleSetDeleteOperation(sSet params.ScaleSet) error {
 	set := val.(*scaleSet)
 
 	slog.DebugContext(c.ctx, "stopping scale set worker", "scale_set_id", sSet.ID)
-	if err := set.worker.Stop(); err != nil {
+	if err := set.Stop(); err != nil {
 		return fmt.Errorf("stopping scale set worker: %w", err)
 	}
 	c.ScaleSets.Delete(sSet.ID)
+	c.backoff.RecordSuccess(scaleSetBackoffKey(sSet))
 	return nil
 }
 
@@ -131,17 +143,19 @@ func (c *Controller) handleScaleSetUpdateOperation(sSet params.ScaleSet) error {
 		return c.handleScaleSetCreateOperation(sSet)
 	}
 	set := val.(*scaleSet)
-	if set.worker != nil && !set.worker.IsRunning() {
+	backoffKey := scaleSetBackoffKey(sSet)
+
+	if set.worker == nil || !set.worker.IsRunning() {
 		worker, err := c.createScaleSetWorker(sSet)
 		if err != nil {
+			c.backoff.RecordFailure(backoffKey)
 			return fmt.Errorf("creating scale set worker: %w", err)
 		}
 		set.SetWorker(worker)
-		defer func() {
-			if err := worker.Start(); err != nil {
-				slog.ErrorContext(c.ctx, "failed to start worker", "error", err, "scaleset", sSet.Name)
-			}
-		}()
+		// Clear any previous backoff so the retry loop starts the worker
+		// immediately. The user may have fixed the issue by updating the
+		// scale set.
+		c.backoff.RecordSuccess(backoffKey)
 	}
 
 	set.SetScaleSet(sSet)
@@ -175,9 +189,8 @@ func (c *Controller) handleEntityEvent(event dbCommon.ChangePayload) {
 	switch event.Operation {
 	case dbCommon.UpdateOperation:
 		slog.DebugContext(c.ctx, "got update operation")
-		c.mux.Lock()
+		// c.mux is already held by handleWatcherEvent.
 		c.Entity = entity
-		c.mux.Unlock()
 	default:
 		slog.ErrorContext(c.ctx, "invalid operation type", "operation_type", event.Operation)
 		return

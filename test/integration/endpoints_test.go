@@ -47,7 +47,7 @@ func (suite *GarmSuite) TestGithubEndpointOperations() {
 	suite.Equal(endpoint.BaseURL, endpointParams.BaseURL, "Endpoint base URL mismatch")
 	suite.Equal(endpoint.APIBaseURL, endpointParams.APIBaseURL, "Endpoint API base URL mismatch")
 	suite.Equal(endpoint.UploadBaseURL, endpointParams.UploadBaseURL, "Endpoint upload base URL mismatch")
-	suite.Equal(string(endpoint.CACertBundle), string(caBundle), "Endpoint CA cert bundle mismatch")
+	suite.Equal(string(bytes.Trim(endpoint.CACertBundle, "\r\n")), string(bytes.Trim(caBundle, "\r\n")), "Endpoint CA cert bundle mismatch")
 
 	endpoint2 := suite.GetGithubEndpoint(endpointParams.Name)
 	suite.NotNil(endpoint, "endpoint is nil")

@@ -30,6 +30,7 @@ import (
 	garmUtil "github.com/cloudbase/garm/util"
 	"github.com/cloudbase/garm/util/github"
 	"github.com/cloudbase/garm/util/github/scalesets"
+	workersCommon "github.com/cloudbase/garm/workers/common"
 	"github.com/cloudbase/garm/workers/scaleset"
 )
 
@@ -61,6 +62,8 @@ type Worker struct {
 	providers          map[string]common.Provider
 	scaleSetController *scaleset.Controller
 
+	eventQueue *workersCommon.UnboundedChan[dbCommon.ChangePayload]
+
 	mux     sync.Mutex
 	running bool
 	quit    chan struct{}
@@ -76,13 +79,19 @@ func (w *Worker) Stop() error {
 	}
 	slog.DebugContext(w.ctx, "stopping entity worker")
 
-	if err := w.scaleSetController.Stop(); err != nil {
-		return fmt.Errorf("stopping scale set controller: %w", err)
+	if w.scaleSetController != nil {
+		if err := w.scaleSetController.Stop(); err != nil {
+			return fmt.Errorf("stopping scale set controller: %w", err)
+		}
 	}
 
 	w.running = false
-	close(w.quit)
-	w.consumer.Close()
+	if w.quit != nil {
+		close(w.quit)
+	}
+	if w.consumer != nil {
+		w.consumer.Close()
+	}
 	slog.DebugContext(w.ctx, "entity worker stopped", "entity", w.consumerID)
 	return nil
 }
@@ -92,11 +101,20 @@ func (w *Worker) Start() (err error) {
 	w.mux.Lock()
 	defer w.mux.Unlock()
 
+	if w.running {
+		// already running
+		return nil
+	}
+
 	epType, err := w.Entity.GetForgeType()
 	if err != nil {
 		return fmt.Errorf("failed to get endpoint type: %w", err)
 	}
 	if epType != params.GithubEndpointType {
+		// For now, only scalesets are migrated to the new worker model. So we
+		// return early here.
+		// Mark as running so the retry loop doesn't keep calling Start().
+		w.running = true
 		return nil
 	}
 
@@ -134,8 +152,10 @@ func (w *Worker) Start() (err error) {
 
 	w.running = true
 	w.quit = make(chan struct{})
+	w.eventQueue = workersCommon.NewUnboundedChan[dbCommon.ChangePayload](w.ctx, w.quit)
 
 	go w.loop()
+	go w.eventQueue.Process(w.handleWorkerWatcherEvent)
 	go w.consolidateRunnerLoop()
 	return nil
 }
@@ -242,8 +262,14 @@ func (w *Worker) loop() {
 	for {
 		select {
 		case payload := <-w.consumer.Watch():
-			slog.InfoContext(w.ctx, "received payload")
-			w.handleWorkerWatcherEvent(payload)
+			slog.DebugContext(w.ctx, "received payload, queuing for processing")
+			select {
+			case w.eventQueue.In() <- payload:
+			case <-w.ctx.Done():
+				return
+			case <-w.quit:
+				return
+			}
 		case <-w.ctx.Done():
 			return
 		case <-w.quit:

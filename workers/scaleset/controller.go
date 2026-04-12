@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+	"time"
 
 	"golang.org/x/sync/errgroup"
 
@@ -26,7 +27,10 @@ import (
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
 	garmUtil "github.com/cloudbase/garm/util"
+	workersCommon "github.com/cloudbase/garm/workers/common"
 )
+
+const scaleSetRetryLoopInterval = 5 * time.Second
 
 func NewController(ctx context.Context, store dbCommon.Store, entity params.ForgeEntity, providers map[string]common.Provider) (*Controller, error) {
 	consumerID := fmt.Sprintf("scaleset-controller-%s", entity.ID)
@@ -44,6 +48,7 @@ func NewController(ctx context.Context, store dbCommon.Store, entity params.Forg
 		Entity:     entity,
 		providers:  providers,
 		store:      store,
+		backoff:    workersCommon.NewBackoff(workersCommon.DefaultBackoffConfig()),
 	}, nil
 }
 
@@ -90,6 +95,9 @@ type Controller struct {
 	consumer  dbCommon.Consumer
 	store     dbCommon.Store
 	providers map[string]common.Provider
+	backoff   *workersCommon.Backoff
+
+	eventQueue *workersCommon.UnboundedChan[dbCommon.ChangePayload]
 
 	mux     sync.Mutex
 	running bool
@@ -145,9 +153,12 @@ func (c *Controller) Start() (err error) {
 	c.consumer = consumer
 	c.running = true
 	c.quit = make(chan struct{})
+	c.eventQueue = workersCommon.NewUnboundedChan[dbCommon.ChangePayload](c.ctx, c.quit)
 	c.mux.Unlock()
 
 	go c.loop()
+	go c.eventQueue.Process(c.handleWatcherEvent)
+	go workersCommon.RetryLoop(c.ctx, c.quit, scaleSetRetryLoopInterval, c.retryFailedScaleSets)
 	return nil
 }
 
@@ -187,6 +198,9 @@ func (c *Controller) ConsolidateRunnerState(byScaleSetID map[int][]params.Runner
 	g, ctx := errgroup.WithContext(c.ctx)
 	c.ScaleSets.Range(func(_, value any) bool {
 		set := value.(*scaleSet)
+		if set.worker == nil || !set.worker.IsRunning() {
+			return true
+		}
 		runners := byScaleSetID[set.scaleSet.ScaleSetID]
 		g.Go(func() error {
 			slog.DebugContext(ctx, "consolidating runners for scale set", "scale_set_id", set.scaleSet.ScaleSetID, "runners", runners)
@@ -224,6 +238,56 @@ func (c *Controller) waitForErrorGroupOrContextCancelled(g *errgroup.Group) erro
 	}
 }
 
+func (c *Controller) retryFailedScaleSets() {
+	c.mux.Lock()
+	defer c.mux.Unlock()
+
+	if !c.running {
+		return
+	}
+
+	c.ScaleSets.Range(func(key, value any) bool {
+		scaleSetID := key.(uint)
+		set := value.(*scaleSet)
+		backoffKey := scaleSetBackoffKey(set.scaleSet)
+
+		if set.worker != nil && set.worker.IsRunning() {
+			return true
+		}
+
+		if !c.backoff.ShouldRetry(backoffKey) {
+			return true
+		}
+
+		slog.InfoContext(c.ctx, "retrying failed scale set", "scale_set_id", scaleSetID)
+
+		set.mux.Lock()
+		worker := set.worker
+		set.mux.Unlock()
+
+		if worker == nil {
+			var err error
+			worker, err = c.createScaleSetWorker(set.scaleSet)
+			if err != nil {
+				slog.ErrorContext(c.ctx, "retry failed: creating scale set worker", "scale_set_id", scaleSetID, "error", err)
+				c.backoff.RecordFailure(backoffKey)
+				return true
+			}
+			set.SetWorker(worker)
+		}
+
+		if err := worker.Start(); err != nil {
+			slog.ErrorContext(c.ctx, "retry failed: starting scale set worker", "scale_set_id", scaleSetID, "error", err)
+			c.backoff.RecordFailure(backoffKey)
+			return true
+		}
+
+		slog.InfoContext(c.ctx, "scale set worker successfully started after retry", "scale_set_id", scaleSetID)
+		c.backoff.RecordSuccess(backoffKey)
+		return true
+	})
+}
+
 func (c *Controller) loop() {
 	defer c.Stop()
 
@@ -234,8 +298,14 @@ func (c *Controller) loop() {
 				slog.InfoContext(c.ctx, "consumer channel closed")
 				return
 			}
-			slog.InfoContext(c.ctx, "received payload")
-			c.handleWatcherEvent(payload)
+			slog.DebugContext(c.ctx, "received payload, queuing for processing")
+			select {
+			case c.eventQueue.In() <- payload:
+			case <-c.ctx.Done():
+				return
+			case <-c.quit:
+				return
+			}
 		case <-c.ctx.Done():
 			return
 		case <-c.quit:
