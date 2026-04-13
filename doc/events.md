@@ -6,6 +6,20 @@ For example, if a new runner is created, the watcher will emit a `Create` event 
 
 This document will focus on the websocket endpoint and the events that are exported by it.
 
+<!-- TOC -->
+
+- [GARM database events](#garm-database-events)
+- [Entities and operations](#entities-and-operations)
+- [Event structure](#event-structure)
+- [Subscribing to events](#subscribing-to-events)
+    - [The filter message](#the-filter-message)
+        - [Example 1: Send all events](#example-1-send-all-events)
+        - [Example 2: Send only create events for repository entities](#example-2-send-only-create-events-for-repository-entities)
+        - [Example 3: Send create and update for repositories and delete for instances](#example-3-send-create-and-update-for-repositories-and-delete-for-instances)
+    - [Connecting to the events endpoint](#connecting-to-the-events-endpoint)
+
+<!-- /TOC -->
+
 # Entities and operations
 
 Virtually all database entities are exposed through the events endpoint. These entities are defined in the [database common package](https://github.com/cloudbase/garm/blob/56b0e6065a993fd89c74a8b4ab7de3487544e4e0/database/common/watcher.go#L12-L21). Each of the entity types represents a database table in GARM.
