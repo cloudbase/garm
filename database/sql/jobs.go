@@ -495,15 +495,50 @@ func (s *sqlDatabase) GetJobByID(_ context.Context, jobID int64) (params.Job, er
 // purposes. So they are safe to delete.
 // Also deletes completed jobs with GARM runners attached as they are no longer needed.
 func (s *sqlDatabase) DeleteInactionableJobs(_ context.Context, olderThan time.Duration) error {
-	q := s.conn.
-		Unscoped().
-		Where("(status != ? AND instance_id IS NULL) OR (status = ? AND instance_id IS NOT NULL)", params.JobStatusQueued, params.JobStatusCompleted)
-	if olderThan > 0 {
-		q = q.Where("created_at < ?", time.Now().Add(-olderThan))
+	// Fetch and delete within a transaction to avoid races.
+	var jobs []WorkflowJob
+
+	err := s.conn.Transaction(func(tx *gorm.DB) error {
+		q := tx.
+			Model(&WorkflowJob{}).
+			Preload("Instance").
+			Where("(status != ? AND instance_id IS NULL) OR (status = ? AND instance_id IS NOT NULL)", params.JobStatusQueued, params.JobStatusCompleted)
+		if olderThan > 0 {
+			q = q.Where("created_at < ?", time.Now().Add(-olderThan))
+		}
+		if err := q.Find(&jobs).Error; err != nil {
+			return fmt.Errorf("fetching inactionable jobs: %w", err)
+		}
+
+		if len(jobs) == 0 {
+			return nil
+		}
+
+		ids := make([]int64, len(jobs))
+		for i, j := range jobs {
+			ids[i] = j.ID
+		}
+
+		if err := tx.Unscoped().Where("id IN ?", ids).Delete(&WorkflowJob{}).Error; err != nil {
+			return fmt.Errorf("deleting inactionable jobs: %w", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
 	}
-	q = q.Delete(&WorkflowJob{})
-	if q.Error != nil {
-		return fmt.Errorf("deleting inactionable jobs: %w", q.Error)
+
+	for _, j := range jobs {
+		asParams, err := sqlWorkflowJobToParamsJob(j)
+		if err != nil {
+			slog.With(slog.Any("error", err)).Error("failed to convert job for notify")
+			continue
+		}
+		if notifyErr := s.sendNotify(common.JobEntityType, common.DeleteOperation, asParams); notifyErr != nil {
+			slog.With(slog.Any("error", notifyErr)).Error("failed to send delete notify for job")
+		}
 	}
+
 	return nil
 }
