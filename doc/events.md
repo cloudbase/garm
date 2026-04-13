@@ -1,6 +1,6 @@
 # GARM database events
 
-Starting with GARM version `v0.1.5`, we now have a new websocket endpoint that allows us to subscribe to some events that are emited by the database watcher. Whenever a database entity is created, updated or deleted, the database watcher will notify all interested consumers that an event has occured and as part of that event, we get a copy of the database entity that was affected.
+GARM has a websocket endpoint that allows us to subscribe to events emitted by the database watcher. Whenever a database entity is created, updated or deleted, the database watcher will notify all interested consumers that an event has occurred and as part of that event, we get a copy of the database entity that was affected.
 
 For example, if a new runner is created, the watcher will emit a `Create` event for the `Instances` entity and in the `Payload` field, we will have a copy of the `Instance` entity that was created. Internally, this will be a golang struct, but when exported via the websocket endpoint, it will be a JSON object, with all sensitive info (passwords, keys, secrets in general) stripped out.
 
@@ -21,7 +21,9 @@ Those entities are:
 * `job` - represents a recorded github workflow job in the database
 * `controller` - represents a controller in the database. This is the GARM controller.
 * `github_credentials` - represents a github credential in the database (PAT, Apps, etc). No sensitive info (token, keys, etc) is ever returned by the events endpoint.
+* `gitea_credentials` - represents a gitea credential in the database. Same security applies as for github credentials.
 * `github_endpoint` - represents a github endpoint in the database. This holds the github.com default endpoint and any GHES you may add.
+* `scaleset` - represents a scale set in the database.
 
 The operations hooked up to the events endpoint and the databse wather are:
 

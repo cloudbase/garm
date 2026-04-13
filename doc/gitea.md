@@ -1,6 +1,6 @@
 # Using GARM with Gitea
 
-Starting with Gitea 1.24 and the latest version of GARM (upcomming v0.2.0 - currently `main`), GARM supports Gitea as a forge, side by side with GitHub/GHES. A new endpoint type has been added to represent Gitea instances, which you can configure and use along side your GitHub runners.
+Starting with Gitea 1.24 and GARM v0.2.0, GARM supports Gitea as a forge, side by side with GitHub/GHES. A new endpoint type has been added to represent Gitea instances, which you can configure and use alongside your GitHub runners.
 
 You can essentially create runners for both GitHub and Gitea using the same GARM instance, using the same CLI and the same API. It's simply a matter of adding an endpoint and credentials. The rest is the same as for github.
 
@@ -42,7 +42,7 @@ networks:
 
 services:
   gitea:
-    image: docker.gitea.com/gitea:1.24.0-rc0
+    image: docker.gitea.com/gitea:1.25.5
     container_name: gitea
     environment:
       - USER_UID=1000

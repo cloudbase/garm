@@ -40,8 +40,12 @@ While using the GARM cli, you will most likely spend most of your time listing p
         - [Listing runners](#listing-runners)
         - [Showing runner info](#showing-runner-info)
         - [Deleting a runner](#deleting-a-runner)
+    - [Scale Sets](#scale-sets)
+    - [Templates](#templates)
+    - [Object Store](#object-store)
     - [The debug-log command](#the-debug-log-command)
     - [The debug-events command](#the-debug-events-command)
+    - [The top command](#the-top-command)
     - [Listing recorded jobs](#listing-recorded-jobs)
 
 <!-- /TOC -->
@@ -56,18 +60,22 @@ You can list the controller info by running the following command:
 
 ```bash
 garm-cli controller show
-+-------------------------+----------------------------------------------------------------------------+
-| FIELD                   | VALUE                                                                      |
-+-------------------------+----------------------------------------------------------------------------+
-| Controller ID           | a4dd5f41-8e1e-42a7-af53-c0ba5ff6b0b3                                       |
-| Hostname                | garm                                                                       |
-| Metadata URL            | https://garm.example.com/api/v1/metadata                                   |
-| Callback URL            | https://garm.example.com/api/v1/callbacks                                  |
-| Webhook Base URL        | https://garm.example.com/webhooks                                          |
-| Controller Webhook URL  | https://garm.example.com/webhooks/a4dd5f41-8e1e-42a7-af53-c0ba5ff6b0b3     |
-| Minimum Job Age Backoff | 30                                                                         |
-| Version                 | v0.1.6                                                                     |
-+-------------------------+----------------------------------------------------------------------------+
++---------------------------+----------------------------------------------------------------------------+
+| FIELD                     | VALUE                                                                      |
++---------------------------+----------------------------------------------------------------------------+
+| Controller ID             | a4dd5f41-8e1e-42a7-af53-c0ba5ff6b0b3                                       |
+| Hostname                  | garm                                                                       |
+| Metadata URL              | https://garm.example.com/api/v1/metadata                                   |
+| Callback URL              | https://garm.example.com/api/v1/callbacks                                  |
+| Webhook Base URL          | https://garm.example.com/webhooks                                          |
+| Controller Webhook URL    | https://garm.example.com/webhooks/a4dd5f41-8e1e-42a7-af53-c0ba5ff6b0b3     |
+| Agent URL                 | https://garm.example.com/agent                                             |
+| GARM agent tools sync URL |                                                                            |
+| Tools sync enabled        | false                                                                      |
+| Minimum Job Age Backoff   | 30                                                                         |
+| Version                   | v0.2.0-beta1                                                                     |
+| CA Cert Bundle            |                                                                            |
++---------------------------+----------------------------------------------------------------------------+
 ```
 
 There are several things of interest in this output.
@@ -78,24 +86,29 @@ There are several things of interest in this output.
 * `Callback URL` - This URL is configured by the user, and is the URL that is presented to the runners via userdata when they get set up. Runners will connect to this URL and send status updates and system information (OS version, OS name, github runner agent ID, etc) to the controller. Runners must be able to connect to this URL.
 * `Webhook Base URL` - This is the base URL for webhooks. It is configured by the user in the GARM config file. This URL can be called into by GitHub itself when hooks get triggered by a workflow. GARM needs to know when a new job is started in order to schedule the creation of a new runner. Job webhooks sent to this URL will be recorded by GARM and acted upon. While you can configure this URL directly in your GitHub repo settings, it is advised to use the `Controller Webhook URL` instead, as it is unique to each controller, and allows you to potentially install multiple GARM controller inside the same repo. Github must be able to connect to this URL.
 * `Controller Webhook URL` - This is the URL that GitHub will call into when a webhook is triggered. This URL is unique to each GARM controller and is the preferred URL to use in order to receive webhooks from GitHub. It serves the same purpose as the `Webhook Base URL`, but is unique to each controller, allowing you to potentially install multiple GARM controllers inside the same repo. Github must be able to connect to this URL.
+* `Agent URL` - This URL is used when runners are configured in agent mode. In agent mode, runners connect to this URL to communicate with the GARM agent endpoint instead of using the traditional callback mechanism. Runners must be able to connect to this URL when agent mode is enabled.
 * `Minimum Job Age Backoff` - This is the job age in seconds, after which GARM will consider spinning up a new runner to handle it. By default GARM waits for 30 seconds after receiving a new job, before it spins up a runner. This delay is there to allow any existing idle runners (managed by GARM or not) to pick up the job, before reacting to it. This way we avoid being too eager and spin up a runner for a job that would have been picked up by an existing runner anyway. You can set this to 0 if you want GARM to react immediately.
+* `GARM agent tools sync URL` - The URL from which GARM automatically syncs the garm-agent tools needed for agent mode. This is typically set to the garm-agent releases page (e.g., `https://api.github.com/repos/cloudbase/garm-agent/releases`).
+* `Tools sync enabled` - Whether automatic syncing of garm-agent tools is enabled.
 * `Version` - This is the version of GARM that is running.
+* `CA Cert Bundle` - An optional CA certificate bundle used by GARM and runners to validate HTTPS connections. This is useful when GARM or your providers use certificates signed by an internal CA.
 
 We will see the `Controller Webhook URL` later when we set up the GitHub repo to send webhooks to GARM.
 
 ### Updating controller settings
 
-As we've mentioned before, there are 3 URLs that are very important for normal operations:
+As we've mentioned before, there are several URLs that are very important for normal operations:
 
 * `metadata_url` - Must be reachable by runners
 * `callback_url` - Must be reachable by runners
+* `agent_url` - Must be reachable by runners when using agent mode
 * `webhook_url` - Must be reachable by GitHub
 
 These URLs depend heavily on how GARM was set up and what the network topology of the user is set up. GARM may be behind a NAT or reverse proxy. There may be different hostnames/URL paths set up for each of the above, etc. The short of it is that we cannot determine these URLs reliably and we must ask the user to tell GARM what they are.
 
 We can assume that the URL that the user logs in at to manage garm is the same URL that the rest of the URLs are present at, but that is just an assumption. By default, when you initialize GARM for the first time, we make this assumption to make things easy. It's also safe to assume that most users will do this anyway, but in case you don't, you will need to update the URLs in the controller and tell GARM what they are.
 
-In the previous section we saw that most URLs were set to `https://garm.example.com`. The URL path was the same as the routes that GARM sets up. For example, the `metadata_url` has `/api/v1/metadata`. The `callback_url` has `/api/v1/callbacks` and the `webhook_url` has `/webhooks`. This is the default setup and is what most users will use.
+In the previous section we saw that most URLs were set to `https://garm.example.com`. The URL path was the same as the routes that GARM sets up. For example, the `metadata_url` has `/api/v1/metadata`. The `callback_url` has `/api/v1/callbacks`, the `agent_url` has `/agent` and the `webhook_url` has `/webhooks`. This is the default setup and is what most users will use.
 
 If you need to update these URLs, you can use the following command:
 
@@ -103,7 +116,24 @@ If you need to update these URLs, you can use the following command:
 garm-cli controller update \
     --metadata-url https://garm.example.com/api/v1/metadata \
     --callback-url https://garm.example.com/api/v1/callbacks \
-    --webhook-url https://garm.example.com/webhooks
+    --webhook-url https://garm.example.com/webhooks \
+    --agent-url https://garm.example.com/agent
+```
+
+Additional controller settings you can update:
+
+* `--garm-tools-url` - The URL for the garm-agent releases page. Used for automatic agent tools sync.
+* `--enable-tools-sync` - Enable or disable automatic garm-agent tools sync.
+* `--minimum-job-age-backoff` - The minimum job age backoff in seconds.
+* `--ca-bundle` - A CA bundle for HTTPS validation by GARM and runners.
+* `--clear-ca-bundle` - Remove the currently configured CA bundle.
+
+For example, to enable automatic agent tools sync:
+
+```bash
+garm-cli controller update \
+    --garm-tools-url https://api.github.com/repos/cloudbase/garm-agent/releases \
+    --enable-tools-sync
 ```
 
 The `Controller Webhook URL` you saw in the previous section is automatically calculated by GARM and is essentially the `webhook_url` with the controller ID appended to it. This URL is unique to each controller and is the preferred URL to use in order to receive webhooks from GitHub.
@@ -143,9 +173,11 @@ Each of these providers can be used to set up a runner pool for a repository, or
 
 ## Github Endpoints
 
-GARM can be used to manage runners for repos, orgs and enterprises hosted on `github.com` or on a GitHub Enterprise Server.
+GARM can be used to manage runners for repos, orgs and enterprises hosted on `github.com`, on a GitHub Enterprise Server, or on Gitea (v1.24+).
 
-Endpoints are the way that GARM identifies where the credentials and entities you create are located and where the API endpoints for the GitHub API can be reached, along with a possible CA certificate that validates the connection. There is a default endpoint for `github.com`, so you don't need to add it, unless you're using GHES.
+Endpoints are the way that GARM identifies where the credentials and entities you create are located and where the API endpoints for the forge (GitHub or Gitea) can be reached, along with a possible CA certificate that validates the connection. There is a default endpoint for `github.com`, so you don't need to add it, unless you're using GHES.
+
+For Gitea endpoints, see the [Gitea integration guide](/doc/gitea.md).
 
 ### Creating a GitHub Endpoint
 
@@ -501,7 +533,16 @@ You can create multiple pools of runners for the same entity (repository, organi
 
 Before we create a pool, we have to decide which provider we want to use. We've listed the providers above, so let's pick one and create a pool of runners for our repository. For the purpose of this example, we'll use the `incus` provider. We'll show you how to create a pool using this provider, but keep in mind that adding another pool using a different provider is done using the exact same commands. The only difference will be in the `--image`, `--flavor` and `--extra-specs` options that you'll use when creating the pool.
 
-Out of those three options, only the `--image` and `--flavor` are mandatory. The `--extra-specs` flag is optional and is used to pass additional information to the provider when creating the pool. The `--extra-specs` option is provider specific, and you'll have to consult the provider documentation to see what options are available.
+Out of those three options, only the `--image` and `--flavor` are mandatory. The `--extra-specs` flag is optional and is used to pass additional information to the provider when creating the pool. The `--extra-specs` option is provider specific, and you'll have to consult the provider documentation to see what options are available. You can also use `--extra-specs-file` to provide the extra specs from a file.
+
+Additional notable pool options include:
+
+* `--priority` - When multiple pools match the same labels, priority dictates the order (descending) in which they are considered.
+* `--runner-prefix` - A custom prefix for runner names in this pool.
+* `--runner-install-template` - The name or ID of a runner install template to use for this pool. See the [Templates](#templates) section for more details.
+* `--runner-group` - The GitHub runner group in which runners of this pool will be added.
+* `--runner-bootstrap-timeout` - Duration in minutes after which a runner is considered failed if it doesn't join GitHub (default: 20).
+* `--enable-shell` - Enable shell access for runners in this pool.
 
 But I digress. Let's create a pool of runners using the `incus` provider, for the `gabriel-samfira/garm` repository we created above:
 
@@ -519,6 +560,7 @@ garm-cli pool add \
 +--------------------------+----------------------------------------+
 | ID                       | 9daa34aa-a08a-4f29-a782-f54950d8521a   |
 | Provider Name            | incus                                  |
+| Priority                 | 0                                      |
 | Image                    | images:ubuntu/22.04/cloud              |
 | Flavor                   | default                                |
 | OS Type                  | linux                                  |
@@ -533,6 +575,7 @@ garm-cli pool add \
 | Runner Prefix            | garm                                   |
 | Extra specs              |                                        |
 | GitHub Runner Group      |                                        |
+| Runner Install Template  |                                        |
 +--------------------------+----------------------------------------+
 ```
 
@@ -591,6 +634,7 @@ ubuntu@garm:~$ garm-cli pool show 9daa34aa-a08a-4f29-a782-f54950d8521a
 +--------------------------+----------------------------------------+
 | ID                       | 9daa34aa-a08a-4f29-a782-f54950d8521a   |
 | Provider Name            | incus                                  |
+| Priority                 | 0                                      |
 | Image                    | images:ubuntu/22.04/cloud              |
 | Flavor                   | default                                |
 | OS Type                  | linux                                  |
@@ -605,6 +649,7 @@ ubuntu@garm:~$ garm-cli pool show 9daa34aa-a08a-4f29-a782-f54950d8521a
 | Runner Prefix            | garm                                   |
 | Extra specs              |                                        |
 | GitHub Runner Group      |                                        |
+| Runner Install Template  |                                        |
 +--------------------------+----------------------------------------+
 ```
 
@@ -621,6 +666,7 @@ ubuntu@garm:~$ garm-cli pool update 9daa34aa-a08a-4f29-a782-f54950d8521a --enabl
 +--------------------------+----------------------------------------+
 | ID                       | 9daa34aa-a08a-4f29-a782-f54950d8521a   |
 | Provider Name            | incus                                  |
+| Priority                 | 0                                      |
 | Image                    | images:ubuntu/22.04/cloud              |
 | Flavor                   | default                                |
 | OS Type                  | linux                                  |
@@ -635,6 +681,7 @@ ubuntu@garm:~$ garm-cli pool update 9daa34aa-a08a-4f29-a782-f54950d8521a --enabl
 | Runner Prefix            | garm                                   |
 | Extra specs              |                                        |
 | GitHub Runner Group      |                                        |
+| Runner Install Template  |                                        |
 +--------------------------+----------------------------------------+
 ```
 
@@ -655,6 +702,7 @@ ubuntu@garm:~$ garm-cli pool update 9daa34aa-a08a-4f29-a782-f54950d8521a --enabl
 +--------------------------+----------------------------------------+
 | ID                       | 9daa34aa-a08a-4f29-a782-f54950d8521a   |
 | Provider Name            | incus                                  |
+| Priority                 | 0                                      |
 | Image                    | images:ubuntu/22.04/cloud              |
 | Flavor                   | default                                |
 | OS Type                  | linux                                  |
@@ -669,6 +717,7 @@ ubuntu@garm:~$ garm-cli pool update 9daa34aa-a08a-4f29-a782-f54950d8521a --enabl
 | Runner Prefix            | garm                                   |
 | Extra specs              |                                        |
 | GitHub Runner Group      |                                        |
+| Runner Install Template  |                                        |
 +--------------------------+----------------------------------------+
 ```
 
@@ -760,18 +809,140 @@ ubuntu@garm:~$ garm-cli runner show garm-BFrp51VoVBCO
 You can delete a runner by running the following command:
 
 ```bash
-garm-cli runner rm garm-BFrp51VoVBCO
+garm-cli runner delete garm-BFrp51VoVBCO
 ```
 
 Only idle runners can be removed. If a runner is executing a job, it cannot be removed. However, a runner that is currently running a job, will be removed anyway when that job finishes. You can wait for the job to finish or you can cancel the job from the github workflow page.
 
-In some cases, providers may error out when creating or deleting a runner. This can happen if the provider is misconfigured. To avoid situations in which GARM gets deadlocked trying to remove a runner from a provider that is in err, we can forcefully remove a runner. The `--force` flag will make GARM ignore any error returned by the provider when attempting to delete an instance:
+In some cases, providers may error out when creating or deleting a runner. This can happen if the provider is misconfigured. To avoid situations in which GARM gets deadlocked trying to remove a runner from a provider that is in err, we can forcefully remove a runner. The `--force-remove-runner` flag will make GARM ignore any error returned by the provider when attempting to delete an instance:
 
 ```bash
-garm-cli runner remove --force garm-BFrp51VoVBCO
+garm-cli runner delete --force-remove-runner garm-BFrp51VoVBCO
 ```
 
+Additionally, if your GitHub credentials have become invalid and you want to remove runners, you can use the `--bypass-github-unauthorized` flag to ignore unauthorized errors from GitHub:
+
+```bash
+garm-cli runner delete --bypass-github-unauthorized garm-BFrp51VoVBCO
+```
+
+> **WARNING**: Using `--bypass-github-unauthorized` has the potential to leave orphaned runners in GitHub. You will need to update your credentials to properly consolidate.
+
 Awesome! We've covered all the major parts of using GARM. This is all you need to have your workflows run on your self-hosted runners. Of course, each provider may have its own particularities, config options, extra specs and caveats (all of which should be documented in the provider README), but once added to the GARM config, creating a pool should be the same.
+
+## Scale Sets
+
+GARM supports [GitHub Actions scale sets](https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners-with-actions-runner-controller/deploying-runner-scale-sets-with-actions-runner-controller). Scale sets are an alternative to pools that offer advantages like no need for webhooks (GitHub schedules jobs directly), better reliability of message delivery, and easier use of runner groups.
+
+Creating and managing scale sets is very similar to pools. For detailed documentation on scale sets, including how they differ from pools, see the [Scale Sets documentation](/doc/scalesets.md).
+
+Quick reference:
+
+```bash
+# Create a scale set
+garm-cli scaleset add \
+    --repo <repo-id-or-name> \
+    --provider-name incus \
+    --image ubuntu:22.04 \
+    --name my-scale-set \
+    --flavor default \
+    --enabled \
+    --min-idle-runners=0 \
+    --max-runners=20
+
+# List scale sets
+garm-cli scaleset list --repo <repo-id-or-name>
+
+# Show scale set details
+garm-cli scaleset show <scaleset-id>
+
+# Update a scale set
+garm-cli scaleset update <scaleset-id> --max-runners=10
+
+# List runners in a scale set
+garm-cli scaleset runner list <scaleset-id>
+
+# Rotate idle runners in a scale set
+garm-cli scaleset runner rotate <scaleset-id>
+
+# Delete a scale set
+garm-cli scaleset delete <scaleset-id>
+```
+
+## Templates
+
+GARM includes a template management system for runner install scripts. Templates allow you to customize how runners are set up on new instances, without having to set the entire template body in extra_specs. GARM ships with built-in system templates for GitHub and Gitea on both Linux and Windows.
+
+```bash
+# List available templates
+garm-cli template list
+
+# Filter templates by forge type or OS
+garm-cli template list --forge-type github --os-type linux
+
+# Show template details
+garm-cli template show <template-name-or-id>
+
+# Create a new template from a file
+garm-cli template create \
+    --name my-custom-template \
+    --description "Custom runner setup" \
+    --forge-type github \
+    --os-type linux \
+    --path /path/to/template.sh
+
+# Edit a template interactively
+garm-cli template edit <template-name-or-id>
+
+# Download a template to a file
+garm-cli template download <template-name-or-id> --path /path/to/output
+
+# Clone an existing template
+garm-cli template copy <source-template> <new-name>
+
+# Restore built-in system templates
+garm-cli template restore
+
+# Delete a template
+garm-cli template delete <template-name-or-id>
+```
+
+To use a template with a pool or scale set, specify it when creating or updating:
+
+```bash
+garm-cli pool add \
+    --runner-install-template my-custom-template \
+    ...
+```
+
+## Object Store
+
+GARM includes a simple internal object storage system backed by the database. This is primarily used to store provider binaries, agent binaries, runner tools and other files needed for GARM deployments.
+
+```bash
+# Upload a file
+garm-cli object create \
+    --name my-binary \
+    --description "Provider binary for Linux" \
+    --path /path/to/file \
+    --tags "binary,os_type=linux,arch=amd64"
+
+# List objects
+garm-cli object list
+garm-cli object list --tags "binary,os_type=linux"
+
+# Show object details
+garm-cli object show <object-id>
+
+# Download an object
+garm-cli object download <object-id>
+
+# Update object metadata
+garm-cli object update <object-id> --name new-name --tags "new,tags"
+
+# Delete an object
+garm-cli object remove <object-id>
+```
 
 ## The debug-log command
 
@@ -783,13 +954,27 @@ time=2024-02-12T08:36:18.584Z level=INFO msg=access_log method=GET uri=/api/v1/w
 time=2024-02-12T08:36:31.251Z level=INFO msg=access_log method=GET uri=/api/v1/instances user_agent=Go-http-client/1.1 ip=127.0.0.1:58460 code=200 bytes=1410 request_time=656.184µs
 ```
 
+The `debug-log` command supports several filtering and display options:
+
+* `--log-level` - Minimum log level to display (`DEBUG`, `INFO`, `WARN`, `ERROR`)
+* `--filter` - Filter logs by attribute (format: `key=value`) or message content (`msg=text`). Can be specified multiple times.
+* `--filter-mode` - How multiple filters are combined: `any` (OR, default) or `all` (AND).
+* `--highlight` - Highlight specific attribute keys in the output. Can be specified multiple times.
+* `--enable-color` - Enable color logging (auto-detects terminal support, enabled by default).
+
+For example, to only show ERROR level logs related to a specific pool:
+
+```bash
+garm-cli debug-log --log-level ERROR --filter "pool_id=9daa34aa-a08a-4f29-a782-f54950d8521a"
+```
+
 This will bring a real-time log to your terminal. While this feature should be fairly secure, I encourage you to only expose it within networks you know are secure. This can be done by configuring a reverse proxy in front of GARM that only allows connections to the websocket endpoint from certain locations.
 
 ## The debug-events command
 
-Starting with GARM v0.1.5 a new command has been added to the CLI that consumes database events recorded by GARM. Whenever something is updated in the database, a new event is generated. These events are generated by the database watcher and are also exported via a websocket endpoint. This websocket endpoint is meant to be consumed by applications that wish to integrate GARM and want to avoid having to poll the API.
+The `debug-events` command consumes database events recorded by GARM. Whenever something is updated in the database, a new event is generated. These events are generated by the database watcher and are also exported via a websocket endpoint. This websocket endpoint is meant to be consumed by applications that wish to integrate GARM and want to avoid having to poll the API.
 
-This command is not meant to be used to integrate GARM events, it is mearly a debug tool that allows you to see what events are being generated by GARM. To use it, you can run:
+This command is not meant to be used to integrate GARM events, it is merely a debug tool that allows you to see what events are being generated by GARM. To use it, you can run:
 
 ```bash
 garm-cli debug-events --filters='{"send-everything": true}'
@@ -802,6 +987,16 @@ garm-cli debug-events --filters='{"filters": [{"entity-type": "instance", "opera
 ```
 
 The payloads that get sent to your terminal are described in the [events](/doc/events.md) section, but the short description is that you get the operation type (create, update, delete), the entity type (instance, pool, repo, etc) and the json payload as you normaly would when you fetch them through the API. Sensitive info like tokens or passwords are never returned.
+
+## The top command
+
+The `top` command provides an interactive terminal UI showing live GARM metrics. It connects to two WebSocket endpoints: one for periodic metrics snapshots (every 5 seconds) and one for real-time entity change events (instances, jobs, pools, etc). It's similar to the Linux `top` command but for GARM:
+
+```bash
+garm-cli top
+```
+
+This gives you a real-time dashboard of your GARM instance, including entities, pools, scale sets, runner instances and jobs.
 
 ## Listing recorded jobs
 

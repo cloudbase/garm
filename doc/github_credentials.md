@@ -1,6 +1,6 @@
 # Configuring github endpoints and credentials
 
-Starting with version `v0.1.5`, GARM saves github endpoints and github credentials in the database.
+GARM saves github endpoints and github credentials in the database.
 
 <!-- TOC -->
 

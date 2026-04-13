@@ -52,9 +52,11 @@ enable_log_streamer = false
 debug_server = false
 ```
 
-### The callback_url option
+### The callback_url option (deprecated)
 
-Your runners will call back home with status updates as they install. Once they are set up, they will also send the GitHub agent ID they were allocated. You will need to configure the ```callback_url``` option in the ```garm``` server config. This URL needs to point to the following API endpoint:
+> **NOTE**: The `callback_url` and `metadata_url` options in the `[default]` config section are deprecated. These URLs are now managed via the CLI using `garm-cli controller update`. They are set automatically when you run `garm-cli init`. If you previously had them in the config file, they will still work, but it's recommended to manage them via the CLI instead.
+
+Your runners will call back home with status updates as they install. Once they are set up, they will also send the GitHub agent ID they were allocated. The callback URL needs to point to the following API endpoint:
 
   ```txt
   POST /api/v1/callbacks/status
@@ -101,9 +103,11 @@ Authentication is done using a short-lived JWT token, that gets generated for a 
 
 There is a sample ```nginx``` config [in the testdata folder](/testdata/nginx-server.conf). Feel free to customize it in any way you see fit.
 
-### The metadata_url option
+### The metadata_url option (deprecated)
 
-The metadata URL is the base URL for any information an instance may need to fetch in order to finish setting itself up. As this URL may be placed behind a reverse proxy, you'll need to configure it in the ```garm``` config file. Ultimately this URL will need to point to the following ```garm``` API endpoint:
+> **NOTE**: See the deprecation note above for `callback_url`. The same applies to `metadata_url`.
+
+The metadata URL is the base URL for any information an instance may need to fetch in order to finish setting itself up. Ultimately this URL will need to point to the following ```garm``` API endpoint:
 
   ```bash
   GET /api/v1/metadata
