@@ -1,56 +1,94 @@
 # Webhooks
 
-Garm is designed to auto-scale github runners. To achieve this, ```garm``` relies on [GitHub Webhooks](https://docs.github.com/en/developers/webhooks-and-events/webhooks/about-webhooks). Webhooks allow ```garm``` to react to workflow events from your repository, organization or enterprise.
+GARM uses GitHub/Gitea webhooks to learn when workflow jobs are queued, so it can spin up runners on demand. GARM can manage webhooks automatically for repositories and organizations, or you can set them up manually.
 
-In your repository or organization, navigate to ```Settings --> Webhooks```:
+## Automatic webhook management
 
-![webhooks](images/webhooks.png)
+When adding a repository or organization, pass `--install-webhook` and `--random-webhook-secret`:
 
-And click on ```Add webhook```.
+```bash
+garm-cli repo add \
+  --owner your-org \
+  --name your-repo \
+  --credentials my-pat \
+  --random-webhook-secret \
+  --install-webhook
+```
 
-In the ```Payload URL``` field, enter the URL to the ```garm``` webhook endpoint. The ```garm``` API endpoint for webhooks is:
+This requires the PAT or App to have `admin:repo_hook` (or `admin:org_hook`) permissions.
 
-  ```txt
-  POST /webhooks
-  ```
+GARM uses the **Controller Webhook URL** (unique per GARM installation):
 
-If ```garm``` is running on a server under the domain ```garm.example.com```, then that field should be set to ```https://garm.example.com/webhooks```.
+```bash
+garm-cli controller show
+```
 
-In the webhook configuration page under ```Content type``` you will need to select ```application/json```, set the proper webhook URL and, really important, **make sure you configure a webhook secret**. Garm will authenticate the payloads to make sure they are coming from GitHub.
+```
++------------------------+-----------------------------------------------------------------------+
+| Controller Webhook URL | https://garm.example.com/webhooks/a4dd5f41-8e1e-42a7-af53-c0ba5ff6b0b3 |
++------------------------+-----------------------------------------------------------------------+
+```
 
-The webhook secret must be secure. Use something like this to generate one:
+## Manual webhook setup
 
-  ```bash
-  gabriel@rossak:~$ function generate_secret () {
-      tr -dc 'a-zA-Z0-9!@#$%^&*()_+?><~\`;' < /dev/urandom | head -c 64;
-      echo ''
-  }
+If you prefer to manage webhooks yourself:
 
-  gabriel@rossak:~$ generate_secret
-  9Q<fVm5dtRhUIJ>*nsr*S54g0imK64(!2$Ns6C!~VsH(p)cFj+AMLug%LM!R%FOQ
-  ```
+1. Go to your repository or organization **Settings > Webhooks > Add webhook**
+2. **Payload URL:** Use the Controller Webhook URL from `garm-cli controller show`
+3. **Content type:** Select `application/json`
+4. **Secret:** Use a strong random string (64+ characters). You'll need this when adding the entity to GARM.
 
-Make a note of that secret, as you'll need it later when you define the repo/org/enterprise in ```GARM```.
+   ```bash
+   tr -dc 'a-zA-Z0-9!@#$%^&*()_+' < /dev/urandom | head -c 64; echo
+   ```
 
-![webhook](images/input_url.png)
+5. **Events:** Click "Let me select individual events" and select only **Workflow jobs**
+6. **SSL verification:** Enable for production (use a proper TLS certificate)
+7. Click **Add webhook**
 
-While you can use `http` for your webhook, I highly recommend you set up a proper x509 certificate for your GARM server and use `https` instead. If you choose `https`, GitHub will present you with an additional option to configure the SSL certificate verification.
+Then add the entity to GARM with the same secret:
 
-![ssl](images/tls_config.png)
+```bash
+garm-cli repo add \
+  --owner your-org \
+  --name your-repo \
+  --credentials my-pat \
+  --webhook-secret "the-secret-you-used-in-github"
+```
 
-If you're testing and want to use a self signed certificate, you can disable SSL verification or just use `http`, but for production you should use `https` with a proper certificate and SSL verification set to `enabled`.
+## Enterprise webhooks
 
-It's fairly trivial to set up a proper x509 certificate for your GARM server. You can use [Let's Encrypt](https://letsencrypt.org/) to get a free certificate.
+Enterprise webhooks must always be set up manually. GARM does not manage enterprise-level webhooks:
 
+```bash
+garm-cli enterprise add \
+  --name enterprise-slug \
+  --credentials my-enterprise-pat \
+  --webhook-secret "your-secret"
+```
 
-Next, you can choose which events GitHub should send to ```garm``` via webhooks. Click on ```Let me select individual events```.
+Then configure the webhook in GitHub Enterprise Settings using the Controller Webhook URL.
 
-![events](images/select_events.png)
+## Troubleshooting
 
-Now select ```Workflow jobs``` (should be at the bottom). You can send everything if you want, but any events ```garm``` doesn't care about will simply be ignored.
+### Webhook not receiving events
 
-![workflow](images/jobs.png)
+- Verify the Webhook URL is reachable from GitHub (must be internet-accessible for github.com)
+- Check for a green checkmark next to the webhook in GitHub settings
+- Ensure you selected the "Workflow jobs" event
+- Check GARM logs: `garm-cli debug-log`
 
-Finally, click on ```Add webhook``` and you're done.
+### Idle runners not picking up jobs
 
-GitHub will send a test webhook to your endpoint. If all is well, you should see a green checkmark next to your webhook. 
+- Check that pool tags match the workflow's `runs-on` labels. Runners that are already online will only pick up jobs whose labels match.
+
+### GARM not scaling up new runners
+
+- Verify the webhook secret matches between GitHub and GARM
+- Check that pool tags match the workflow's `runs-on` labels
+- Check recorded jobs: `garm-cli job list`
+- Review the job age backoff: `garm-cli controller show` (default: 30 seconds)
+
+### Using HTTPS
+
+For production, use HTTPS with a valid certificate. [Let's Encrypt](https://letsencrypt.org/) provides free certificates. If using a self-signed certificate, you can disable SSL verification in the GitHub webhook settings, but this is not recommended for production.
