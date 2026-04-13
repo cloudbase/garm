@@ -150,7 +150,7 @@ type sqlDatabase struct {
 // main database and the objects database (if present). This reclaims disk space
 // from deleted rows/blobs and keeps the WAL file from growing unbounded.
 func (s *sqlDatabase) startSQLiteMaintenance() {
-	ticker := time.NewTicker(1 * time.Hour)
+	ticker := time.NewTicker(24 * time.Hour)
 	defer ticker.Stop()
 
 	for {
@@ -170,8 +170,8 @@ func (s *sqlDatabase) runSQLiteMaintenance(conn *gorm.DB, dbName string) {
 	if err := conn.Exec("PRAGMA wal_checkpoint(TRUNCATE)").Error; err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(s.ctx, "failed to checkpoint WAL", "database", dbName)
 	}
-	if err := conn.Exec("VACUUM").Error; err != nil {
-		slog.With(slog.Any("error", err)).ErrorContext(s.ctx, "failed to vacuum database", "database", dbName)
+	if err := conn.Exec("PRAGMA incremental_vacuum").Error; err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(s.ctx, "failed to incremental vacuum database", "database", dbName)
 	}
 }
 
@@ -480,6 +480,52 @@ func (s *sqlDatabase) migrateFileObjects() error {
 	// Use GORM AutoMigrate on the separate connection
 	if err := s.objectsConn.AutoMigrate(&FileObject{}, &FileBlob{}, &FileObjectTag{}); err != nil {
 		return fmt.Errorf("failed to migrate file objects: %w", err)
+	}
+
+	return nil
+}
+
+// migrateAutoVacuum converts SQLite databases from auto_vacuum=NONE to
+// auto_vacuum=INCREMENTAL. This is a one-time migration that allows the
+// periodic maintenance goroutine to use PRAGMA incremental_vacuum to
+// efficiently reclaim free pages without rebuilding the entire database.
+func (s *sqlDatabase) migrateAutoVacuum() error {
+	if s.cfg.DbBackend != config.SQLiteBackend {
+		return nil
+	}
+
+	if err := s.enableIncrementalVacuum(s.conn, "main"); err != nil {
+		return err
+	}
+
+	if s.objectsConn != nil {
+		if err := s.enableIncrementalVacuum(s.objectsConn, "objects"); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (s *sqlDatabase) enableIncrementalVacuum(conn *gorm.DB, dbName string) error {
+	var autoVacuum int
+	if err := conn.Raw("PRAGMA auto_vacuum").Scan(&autoVacuum).Error; err != nil {
+		return fmt.Errorf("failed to read auto_vacuum for %s db: %w", dbName, err)
+	}
+
+	// 2 = INCREMENTAL, already set
+	if autoVacuum == 2 {
+		return nil
+	}
+
+	slog.InfoContext(s.ctx, "migrating database to incremental auto_vacuum", "database", dbName)
+
+	if err := conn.Exec("PRAGMA auto_vacuum = INCREMENTAL").Error; err != nil {
+		return fmt.Errorf("failed to set auto_vacuum for %s db: %w", dbName, err)
+	}
+	// VACUUM is required to apply the auto_vacuum mode change.
+	if err := conn.Exec("VACUUM").Error; err != nil {
+		return fmt.Errorf("failed to vacuum %s db for auto_vacuum migration: %w", dbName, err)
 	}
 
 	return nil
@@ -805,6 +851,11 @@ func (s *sqlDatabase) migrateDB() error {
 	// Migrate file object tables in the attached objectsdb schema
 	if err := s.migrateFileObjects(); err != nil {
 		return fmt.Errorf("error migrating file objects: %w", err)
+	}
+
+	// Migrate auto_vacuum mode to incremental for both databases.
+	if err := s.migrateAutoVacuum(); err != nil {
+		return fmt.Errorf("error migrating auto_vacuum: %w", err)
 	}
 
 	s.conn.Exec("PRAGMA foreign_keys = ON")
