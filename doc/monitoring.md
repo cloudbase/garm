@@ -12,12 +12,13 @@ GARM provides built-in tools for monitoring, live log streaming, event watching,
         - [Metrics reference](#metrics-reference)
             - [Health](#health)
             - [Webhooks](#webhooks)
-            - [Entities repositories organizations enterprises](#entities-repositories-organizations-enterprises)
+            - [Entities repositories, organizations, enterprises](#entities-repositories-organizations-enterprises)
             - [Providers](#providers)
             - [Pools](#pools)
+            - [Scale sets](#scale-sets)
             - [Runner instances](#runner-instances)
             - [Jobs](#jobs)
-            - [GitHubGitea API](#githubgitea-api)
+            - [GitHub/Gitea API](#githubgitea-api)
     - [Live log streaming](#live-log-streaming)
         - [Filtering logs](#filtering-logs)
     - [Database events](#database-events)
@@ -113,16 +114,28 @@ The `_info` gauges are always set to 1; the labels are what carry the informatio
 | `garm_pool_min_idle_runners` | Gauge | `id` |
 | `garm_pool_bootstrap_timeout` | Gauge | `id` |
 
-> [!NOTE]
-> Pool metrics only cover pools, not scale sets. Scale sets currently have no dedicated metrics (but jobs from scale sets are captured by `garm_job_status` via the `scaleset_job_id` label).
+#### Scale sets
+
+| Metric | Type | Labels |
+|--------|------|--------|
+| `garm_scaleset_info` | Gauge | `id`, `scaleset_id`, `name`, `image`, `flavor`, `prefix`, `os_type`, `os_arch`, `tags`, `provider`, `runner_group`, `scaleset_owner`, `scaleset_type` |
+| `garm_scaleset_status` | Gauge | `id`, `enabled`, `state` |
+| `garm_scaleset_max_runners` | Gauge | `id` |
+| `garm_scaleset_min_idle_runners` | Gauge | `id` |
+| `garm_scaleset_desired_runner_count` | Gauge | `id` |
+| `garm_scaleset_bootstrap_timeout` | Gauge | `id` |
+
+The `id` label is GARM's internal scale set ID; `scaleset_id` is the numeric ID assigned by GitHub. `garm_scaleset_desired_runner_count` reflects the runner count GitHub has requested for the scale set (unique to scale sets, since GitHub drives scheduling).
 
 #### Runner instances
 
 | Metric | Type | Labels |
 |--------|------|--------|
-| `garm_runner_status` | Gauge | `name`, `status`, `runner_status`, `pool_owner`, `pool_type`, `pool_id`, `provider` |
+| `garm_runner_status` | Gauge | `name`, `status`, `runner_status`, `pool_owner`, `pool_type`, `pool_id`, `scaleset_id`, `provider` |
 | `garm_runner_operations_total` | Counter | `operation`, `provider` |
 | `garm_runner_errors_total` | Counter | `operation`, `provider` |
+
+`garm_runner_status` covers both pool-owned and scale-set-owned runners. For any given series, exactly one of `pool_id` / `scaleset_id` is populated. `pool_owner` and `pool_type` describe the owning entity (repo/org/enterprise) and apply to both.
 
 The `operation` label on `garm_runner_operations_total` / `garm_runner_errors_total` takes one of these values:
 

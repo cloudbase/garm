@@ -24,7 +24,7 @@ var (
 		Subsystem: metricsRunnerSubsystem,
 		Name:      "status",
 		Help:      "Status of the instance",
-	}, []string{"name", "status", "runner_status", "pool_owner", "pool_type", "pool_id", "provider"})
+	}, []string{"name", "status", "runner_status", "pool_owner", "pool_type", "pool_id", "scaleset_id", "provider"})
 
 	InstanceOperationCount = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Namespace: metricsNamespace,

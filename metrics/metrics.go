@@ -22,6 +22,7 @@ const (
 	metricsNamespace             = "garm"
 	metricsRunnerSubsystem       = "runner"
 	metricsPoolSubsystem         = "pool"
+	metricsScaleSetSubsystem     = "scaleset"
 	metricsProviderSubsystem     = "provider"
 	metricsOrganizationSubsystem = "organization"
 	metricsRepositorySubsystem   = "repository"
@@ -57,6 +58,13 @@ func RegisterMetrics() error {
 		PoolMaxRunners,
 		PoolMinIdleRunners,
 		PoolBootstrapTimeout,
+		// scale set metrics
+		ScaleSetInfo,
+		ScaleSetStatus,
+		ScaleSetMaxRunners,
+		ScaleSetMinIdleRunners,
+		ScaleSetDesiredRunnerCount,
+		ScaleSetBootstrapTimeout,
 		// health metrics
 		GarmHealth,
 
