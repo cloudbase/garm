@@ -51,7 +51,7 @@ garm-cli scaleset add \
     --image ubuntu:22.04 \
     --name garm-scale-set \
     --flavor default \
-    --enabled true \
+    --enabled \
     --min-idle-runners=0 \
     --max-runners=20
 +--------------------------+-----------------------+
@@ -74,6 +74,7 @@ garm-cli scaleset add \
 | Runner Prefix            | garm                  |
 | Extra specs              |                       |
 | GitHub Runner Group      | Default               |
+| Runner Install Template  |                       |
 +--------------------------+-----------------------+
 ```
 

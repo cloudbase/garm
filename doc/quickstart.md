@@ -137,7 +137,7 @@ docker run -d \
   -p 80:80 \
   -v /etc/garm:/etc/garm:rw \
   -v /var/snap/lxd/common/lxd/unix.socket:/var/snap/lxd/common/lxd/unix.socket:rw \
-  ghcr.io/cloudbase/garm:v0.1.6
+  ghcr.io/cloudbase/garm:v0.2.0-beta1
 ```
 
 You will notice that we also mounted the LXD unix socket from the host inside the container where the config you pasted expects to find it. If you plan to use an external provider that does not need to connect to LXD over a unix socket, feel free to remove that mount.
@@ -147,9 +147,9 @@ Check the logs to make sure everything is working as expected:
 ```bash
 ubuntu@garm:~$ docker logs garm
 signal.NotifyContext(context.Background, [interrupt terminated])
-2023/07/17 21:55:43 Loading provider lxd_local
-2023/07/17 21:55:43 registering prometheus metrics collectors
-2023/07/17 21:55:43 setting up metric routes
+time=2025-07-17T21:55:43.000Z level=INFO msg="Loading provider lxd_local"
+time=2025-07-17T21:55:43.000Z level=INFO msg="registering prometheus metrics collectors"
+time=2025-07-17T21:55:43.000Z level=INFO msg="setting up metric routes"
 ```
 
 ### Setting up GARM as a system service
@@ -170,7 +170,7 @@ Adding the `garm` user to the LXD group will allow it to connect to the LXD unix
 Next, download the latest release from the [releases page](https://github.com/cloudbase/garm/releases).
 
 ```bash
-wget -q -O - https://github.com/cloudbase/garm/releases/download/v0.1.6/garm-linux-amd64.tgz |  tar xzf - -C /usr/local/bin/
+wget -q -O - https://github.com/cloudbase/garm/releases/download/v0.2.0-beta1/garm-linux-amd64.tgz |  tar xzf - -C /usr/local/bin/
 ```
 
 We'll be running under an unprivileged user. If we want to be able to listen on any port under `1024`, we'll have to set some capabilities on the binary:
@@ -203,7 +203,7 @@ Copy the sample `systemd` service file:
 
 ```bash
 wget -O /etc/systemd/system/garm.service \
-  https://raw.githubusercontent.com/cloudbase/garm/v0.1.6/contrib/garm.service
+  https://raw.githubusercontent.com/cloudbase/garm/v0.2.0-beta1/contrib/garm.service
 ```
 
 Reload the `systemd` daemon and start the service:
@@ -219,14 +219,14 @@ Check the logs to make sure everything is working as expected:
 ubuntu@garm:~$ sudo journalctl -u garm
 ```
 
-Check that you can make a request to the API:
+Check the logs to make sure everything is working as expected:
 
 ```bash
-ubuntu@garm:~$ docker logs garm
+ubuntu@garm:~$ sudo journalctl -u garm
 signal.NotifyContext(context.Background, [interrupt terminated])
-2023/07/17 22:21:33 Loading provider lxd_local
-2023/07/17 22:21:33 registering prometheus metrics collectors
-2023/07/17 22:21:33 setting up metric routes
+time=2025-07-17T22:21:33.000Z level=INFO msg="Loading provider lxd_local"
+time=2025-07-17T22:21:33.000Z level=INFO msg="registering prometheus metrics collectors"
+time=2025-07-17T22:21:33.000Z level=INFO msg="setting up metric routes"
 ```
 
 Excellent! We have a working GARM installation. Now we need to initialize the controller and set up the webhook in GitHub.
@@ -238,7 +238,7 @@ Before we can start using GARM, we need initialize it. This will create the `adm
 To initialize GARM, we'll use the `garm-cli` tool. You can download the latest release from the [releases page](https://github.com/cloudbase/garm/releases):
 
 ```bash
-wget -q -O - https://github.com/cloudbase/garm/releases/download/v0.1.6/garm-cli-linux-amd64.tgz |  tar xzf - -C /usr/local/bin/
+wget -q -O - https://github.com/cloudbase/garm/releases/download/v0.2.0-beta1/garm-cli-linux-amd64.tgz |  tar xzf - -C /usr/local/bin/
 ```
 
 Now we can initialize GARM:
@@ -272,6 +272,7 @@ Controller information:
 | Controller ID          | 0c54fd66-b78b-450a-b41a-65af2fd0f71b                                  |
 | Metadata URL           | http://garm.example.com/api/v1/metadata                               |
 | Callback URL           | http://garm.example.com/api/v1/callbacks                              |
+| Agent URL              | http://garm.example.com/agent                                         |
 | Webhook Base URL       | http://garm.example.com/webhooks                                      |
 | Controller Webhook URL | http://garm.example.com/webhooks/0c54fd66-b78b-450a-b41a-65af2fd0f71b |
 +------------------------+-----------------------------------------------------------------------+
@@ -281,6 +282,16 @@ Make sure that the URLs in the table above are reachable by the relevant parties
 The metadata and callback URLs *must* be accessible by the runners that GARM spins up.
 The base webhook and the controller webhook URLs must be accessible by GitHub or GHES.
 ```
+
+The `init` command accepts additional optional flags for explicitly setting the controller URLs:
+
+* `--callback-url` - The callback URL for the controller
+* `--metadata-url` - The metadata URL for the controller
+* `--webhook-url` - The webhook base URL for the controller
+* `--agent-url` - The agent URL (needed for agent mode)
+* `--ca-bundle` - A CA bundle for HTTPS validation
+
+See `garm-cli init --help` for all available options.
 
 Every time you init a new GARM instance, a new profile will be created in your local `garm-cli` config. You can also log into an already initialized instance using:
 
@@ -455,7 +466,7 @@ Now we can create a pool:
 ```bash
 garm-cli pool add \
   --repo 0c91d9fd-2417-45d4-883c-05daeeaa8272 \
-  --enabled true \
+  --enabled \
   --provider-name lxd_local \
   --flavor default \
   --image ubuntu:22.04 \
@@ -471,7 +482,7 @@ You should see something like this:
 ```bash
 gabriel@rossak:~$ garm-cli pool add \
 >   --repo 0c91d9fd-2417-45d4-883c-05daeeaa8272 \
->   --enabled true \
+>   --enabled \
 >   --provider-name lxd_local \
 >   --flavor default \
 >   --image ubuntu:22.04 \
@@ -500,17 +511,18 @@ gabriel@rossak:~$ garm-cli pool add \
 | Runner Prefix            | garm                                       |
 | Extra specs              |                                            |
 | GitHub Runner Group      |                                            |
+| Runner Install Template  |                                            |
 +--------------------------+--------------------------------------------+
 ```
 
 If we list the pool we should see it:
 
 ```bash
-gabriel@rock:~$ garm-cli pool ls
+gabriel@rock:~$ garm-cli pool ls --repo 0c91d9fd-2417-45d4-883c-05daeeaa8272
 +--------------------------------------+---------------------------+--------------+-----------------+------------------+-------+---------+---------------+----------+
 | ID                                   | IMAGE                     | FLAVOR       | TAGS            | BELONGS TO       | LEVEL | ENABLED | RUNNER PREFIX | PRIORITY |
 +--------------------------------------+---------------------------+--------------+-----------------+------------------+-------+---------+---------------+----------+
-| 344e4a72-2035-4a18-a3d5-87bd3874b56c | ubuntu:22.04              | default      | ubuntu generic  | gsamfira/scripts | repo  | true    |  garm         |        0 |
+| 344e4a72-2035-4a18-a3d5-87bd3874b56c | ubuntu:22.04              | default      | ubuntu generic  | gsamfira/scripts | repo  | true    | garm          |        0 |
 +--------------------------------------+---------------------------+--------------+-----------------+------------------+-------+---------+---------------+----------+
 ```
 
@@ -521,7 +533,7 @@ For the purposes of this guide, we'll increase it to 1 so we have a runner creat
 First, list current runners:
 
 ```bash
-gabriel@rossak:~$ garm-cli runner ls
+gabriel@rossak:~$ garm-cli runner ls --repo 0c91d9fd-2417-45d4-883c-05daeeaa8272
 +----+------+--------+---------------+---------+
 | NR | NAME | STATUS | RUNNER STATUS | POOL ID |
 +----+------+--------+---------------+---------+
@@ -552,13 +564,14 @@ gabriel@rossak:~$ garm-cli pool update 344e4a72-2035-4a18-a3d5-87bd3874b56c --mi
 | Runner Prefix            | garm                                       |
 | Extra specs              |                                            |
 | GitHub Runner Group      |                                            |
+| Runner Install Template  |                                            |
 +--------------------------+--------------------------------------------+
 ```
 
 Now if we list the runners:
 
 ```bash
-gabriel@rossak:~$ garm-cli runner ls
+gabriel@rossak:~$ garm-cli runner ls --repo 0c91d9fd-2417-45d4-883c-05daeeaa8272
 +----+-------------------+----------------+---------------+--------------------------------------+
 | NR | NAME              | STATUS         | RUNNER STATUS | POOL ID                              |
 +----+-------------------+----------------+---------------+--------------------------------------+
