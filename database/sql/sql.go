@@ -23,6 +23,7 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"time"
 
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/sqlite"
@@ -124,6 +125,11 @@ func NewSQLDatabase(ctx context.Context, cfg config.Database) (common.Store, err
 	if err := db.migrateDB(); err != nil {
 		return nil, fmt.Errorf("error migrating database: %w", err)
 	}
+
+	if cfg.DbBackend == config.SQLiteBackend {
+		go db.startSQLiteMaintenance()
+	}
+
 	return db, nil
 }
 
@@ -138,6 +144,35 @@ type sqlDatabase struct {
 	ctx      context.Context
 	cfg      config.Database
 	producer common.Producer
+}
+
+// startSQLiteMaintenance runs periodic WAL checkpoint and VACUUM on both the
+// main database and the objects database (if present). This reclaims disk space
+// from deleted rows/blobs and keeps the WAL file from growing unbounded.
+func (s *sqlDatabase) startSQLiteMaintenance() {
+	ticker := time.NewTicker(1 * time.Hour)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-s.ctx.Done():
+			return
+		case <-ticker.C:
+			s.runSQLiteMaintenance(s.conn, "main")
+			if s.objectsConn != nil {
+				s.runSQLiteMaintenance(s.objectsConn, "objects")
+			}
+		}
+	}
+}
+
+func (s *sqlDatabase) runSQLiteMaintenance(conn *gorm.DB, dbName string) {
+	if err := conn.Exec("PRAGMA wal_checkpoint(TRUNCATE)").Error; err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(s.ctx, "failed to checkpoint WAL", "database", dbName)
+	}
+	if err := conn.Exec("VACUUM").Error; err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(s.ctx, "failed to vacuum database", "database", dbName)
+	}
 }
 
 var renameTemplate = `
