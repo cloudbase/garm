@@ -4,15 +4,23 @@ GARM needs credentials to interact with GitHub or Gitea: creating runners, manag
 
 <!-- TOC -->
 
-- [Credential types](#credential-types)
-- [GitHub permissions](#github-permissions)
-    - [PAT (classic) scopes](#pat-classic-scopes)
-    - [Fine-grained PAT permissions](#fine-grained-pat-permissions)
-    - [GitHub App permissions](#github-app-permissions)
-- [Managing credentials](#managing-credentials)
-- [Gitea credentials](#gitea-credentials)
-- [Credential and endpoint relationship](#credential-and-endpoint-relationship)
-- [Security](#security)
+- [Credentials](#credentials)
+    - [Credential types](#credential-types)
+    - [GitHub permissions](#github-permissions)
+        - [PAT classic scopes](#pat-classic-scopes)
+        - [Fine-grained PAT permissions](#fine-grained-pat-permissions)
+        - [GitHub App permissions](#github-app-permissions)
+    - [Managing credentials](#managing-credentials)
+        - [Add a PAT](#add-a-pat)
+        - [Add a GitHub App](#add-a-github-app)
+        - [List credentials](#list-credentials)
+        - [Show credential details](#show-credential-details)
+        - [Delete a credential](#delete-a-credential)
+    - [Gitea credentials](#gitea-credentials)
+        - [Create a Gitea token](#create-a-gitea-token)
+        - [Add Gitea credentials to GARM](#add-gitea-credentials-to-garm)
+    - [Credential and endpoint relationship](#credential-and-endpoint-relationship)
+    - [Security](#security)
 
 <!-- /TOC -->
 
