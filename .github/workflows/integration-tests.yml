@@ -9,15 +9,15 @@ jobs:
     runs-on: ubuntu-noble-garm
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Golang
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
 
       - name: Setup LXD
-        uses: canonical/setup-lxd@main
+        uses: canonical/setup-lxd@v1
         with:
           channel: latest/stable
 
@@ -103,7 +103,7 @@ jobs:
 
       - name: Upload GARM and e2e logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: garm-logs
           path: /artifacts-logs
