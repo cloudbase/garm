@@ -28,8 +28,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libbtrfs-dev build-essential apg jq
 
-      - uses: actions/checkout@v3
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
 
@@ -49,7 +49,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libbtrfs-dev build-essential apg jq default-jre
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '>=v24.5.0'
 
@@ -61,10 +61,10 @@ jobs:
           echo "$HOME/openapi-generator/node_modules/.bin" >> $GITHUB_PATH
 
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
 
       - name: Setup Golang
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
 
