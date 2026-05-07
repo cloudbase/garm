@@ -11,7 +11,7 @@ CALLBACK_URL="{{ .CallbackURL }}"
 METADATA_URL="{{ .MetadataURL }}"
 BEARER_TOKEN="{{ .CallbackToken }}"
 
-RUN_HOME="/home/{{.RunnerUsername}}/act-runner"
+RUN_HOME="/home/{{.RunnerUsername}}/gitea-runner"
 
 if [ -z "$METADATA_URL" ];then
 	echo "no token is available and METADATA_URL is not set"
@@ -87,7 +87,7 @@ log_file = "/var/log/garm-agent/garm-agent.log"
 work_dir = "$RUN_HOME"
 enable_shell = $AGENT_SHELL
 token = "$AGENT_TOKEN"
-runner_cmdline = ["$RUN_HOME/act_runner", "daemon", "--once"]
+runner_cmdline = ["$RUN_HOME/gitea-runner", "daemon", "--once"]
 state_db_path = "/etc/garm-agent/agent-state.db"
 EOF
 
@@ -119,9 +119,9 @@ fi
 function downloadAndExtractRunner() {
 	sendStatus "downloading tools from {{ .DownloadURL }}"
     mkdir -p "$RUN_HOME" || fail "failed to create actions-runner folder"
-	curl --retry 5 --retry-delay 5 --retry-connrefused --fail -L -o "$RUN_HOME/act_runner" "{{ .DownloadURL }}" || fail "failed to download tools"
+	curl --retry 5 --retry-delay 5 --retry-connrefused --fail -L -o "$RUN_HOME/gitea-runner" "{{ .DownloadURL }}" || fail "failed to download tools"
 	chown {{ .RunnerUsername }}:{{ .RunnerGroup }} -R "$RUN_HOME"/ || fail "failed to change owner"
-	chmod +x "$RUN_HOME/act_runner" || fail "failed to set executable flag"
+	chmod +x "$RUN_HOME/gitea-runner" || fail "failed to set executable flag"
 }
 
 if [ ! -d "$RUN_HOME" ];then
@@ -147,7 +147,7 @@ set +e
 attempt=1
 while true; do
 	ERROUT=$(mktemp)
-	./act_runner register --ephemeral --no-interactive --instance "{{ .RepoURL }}" --token "$GITHUB_TOKEN" --name "{{ .RunnerName }}" --labels "{{ .RunnerLabels }}" 2>$ERROUT
+	./gitea-runner register --ephemeral --no-interactive --instance "{{ .RepoURL }}" --token "$GITHUB_TOKEN" --name "{{ .RunnerName }}" --labels "{{ .RunnerLabels }}" 2>$ERROUT
 	if [ $? -eq 0 ]; then
 		rm $ERROUT || true
 		sendStatus "runner successfully configured after $attempt attempt(s)"

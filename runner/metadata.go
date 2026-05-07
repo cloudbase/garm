@@ -62,13 +62,13 @@ WantedBy=multi-user.target
 `
 
 var giteaSystemdUnitTemplate = `[Unit]
-Description=Act Runner ({{.ServiceName}})
+Description=Gitea Runner ({{.ServiceName}})
 After=network.target
 
 [Service]
-ExecStart=/home/{{.RunAsUser}}/act-runner/act_runner daemon --once
+ExecStart=/home/{{.RunAsUser}}/gitea-runner/gitea-runner daemon --once
 User={{.RunAsUser}}
-WorkingDirectory=/home/{{.RunAsUser}}/act-runner
+WorkingDirectory=/home/{{.RunAsUser}}/gitea-runner
 KillMode=process
 KillSignal=SIGTERM
 TimeoutStopSec=5min

@@ -453,7 +453,7 @@ func (s *MetadataTestSuite) TestGenerateSystemdUnitFile() {
 			name:             "Gitea with custom user",
 			runAsUser:        "gitea-user",
 			forgeType:        params.GiteaEndpointType,
-			expectedTemplate: "Act Runner",
+			expectedTemplate: "Gitea Runner",
 		},
 	}
 
@@ -1282,8 +1282,8 @@ func (s *MetadataTestSuite) TestGenerateSystemdUnitFileGiteaWithDefaultUser() {
 
 	s.Require().Nil(err)
 	s.Require().NotEmpty(unitFile)
-	s.Require().Contains(string(unitFile), "Act Runner")
-	s.Require().Contains(string(unitFile), "act_runner daemon --once")
+	s.Require().Contains(string(unitFile), "Gitea Runner")
+	s.Require().Contains(string(unitFile), "gitea-runner daemon --once")
 	s.Require().Contains(string(unitFile), "Restart=always")
 }
 

@@ -153,7 +153,7 @@
 			<div class="ml-2">
 				<Tooltip
 					title="Tools Metadata URL"
-					content="URL where GARM checks for act_runner binary downloads and release information. Defaults to https://gitea.com/api/v1/repos/gitea/act_runner/releases if not specified. Use a custom URL to point to your own tools repository or mirror."
+					content="URL where GARM checks for gitea-runner binary downloads and release information. Defaults to https://gitea.com/api/v1/repos/gitea/runner/releases if not specified. Use a custom URL to point to your own tools repository or mirror."
 					position="top"
 					width="w-80"
 				/>
@@ -166,7 +166,7 @@
 			disabled={formData.use_internal_tools_metadata}
 			autocomplete="off"
 			class="w-full px-3 py-2 border rounded-md focus:outline-none transition-colors {formData.use_internal_tools_metadata ? 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed' : 'border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white'}"
-			placeholder="https://gitea.com/api/v1/repos/gitea/act_runner/releases"
+			placeholder="https://gitea.com/api/v1/repos/gitea/runner/releases"
 		/>
 		<p class="text-xs {formData.use_internal_tools_metadata ? 'text-gray-400 dark:text-gray-500' : 'text-gray-500 dark:text-gray-400'} mt-1">{formData.use_internal_tools_metadata ? 'Disabled when using internal tools metadata' : 'Leave empty to use default Gitea releases URL'}</p>
 	</div>
@@ -184,7 +184,7 @@
 		<div class="ml-2">
 			<Tooltip
 				title="Internal Tools Metadata"
-				content="When enabled, GARM uses built-in URLs for nightly act_runner binaries instead of calling the external tools metadata URL. This is useful in air-gapped environments where runner images already include the binaries and don't need to download them."
+				content="When enabled, GARM uses built-in URLs for nightly gitea-runner binaries instead of calling the external tools metadata URL. This is useful in air-gapped environments where runner images already include the binaries and don't need to download them."
 				position="top"
 				width="w-80"
 			/>
