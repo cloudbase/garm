@@ -3,6 +3,12 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/svelte';
 import ObjectsPage from './+page.svelte';
 import { createMockFileObject } from '../../test/factories.js';
 
+// Reset any component mocks that might be set by setup.ts
+vi.unmock('$lib/components/PageHeader.svelte');
+vi.unmock('$lib/components/DataTable.svelte');
+vi.unmock('$lib/components/DeleteModal.svelte');
+vi.unmock('$lib/components/cells');
+
 // Only mock the GARM API
 vi.mock('$lib/api/client.js', () => ({
 	garmApi: {
@@ -34,8 +40,12 @@ vi.mock('$app/paths', () => ({
 }));
 
 vi.mock('$lib/utils/format', () => ({
-	formatFileSize: vi.fn((size) => `${(size / 1024).toFixed(1)} KB`),
-	formatDateTime: vi.fn((date) => date || 'N/A')
+	formatFileSize: vi.fn((size: number) => `${(size / 1024).toFixed(1)} KB`),
+	formatDateTime: vi.fn((date: string) => date || 'N/A')
+}));
+
+vi.mock('$lib/utils/apiError', () => ({
+	extractAPIError: vi.fn((err: any) => err.message || 'Unknown error')
 }));
 
 const mockObject1 = createMockFileObject({
@@ -55,6 +65,21 @@ const mockObject2 = createMockFileObject({
 describe('Objects Page - Integration Tests', () => {
 	beforeEach(async () => {
 		vi.clearAllMocks();
+
+		// Ensure localStorage is available (jsdom may not always provide it)
+		const mockLocalStorage = {
+			getItem: vi.fn().mockReturnValue(null),
+			setItem: vi.fn(),
+			removeItem: vi.fn(),
+			clear: vi.fn(),
+			length: 0,
+			key: vi.fn()
+		};
+		Object.defineProperty(window, 'localStorage', {
+			value: mockLocalStorage,
+			writable: true,
+			configurable: true
+		});
 
 		const { garmApi } = await import('$lib/api/client.js');
 		(garmApi.listFileObjects as any).mockResolvedValue({
