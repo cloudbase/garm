@@ -186,7 +186,7 @@ After changing `app.ini`, restart Gitea for the setting to take effect.
 
 ## Differences from GitHub
 
-- **Runner binary:** Gitea uses `act_runner` instead of the GitHub Actions runner. GARM handles the differences transparently.
+- **Runner binary:** Gitea uses `gitea-runner` (formerly `act_runner`) instead of the GitHub Actions runner. GARM handles the differences transparently.
 - **Enterprise level:** Not available for Gitea
 - **Scale sets:** Not available for Gitea (GitHub-only feature)
 - **GitHub Apps:** Gitea uses PATs only

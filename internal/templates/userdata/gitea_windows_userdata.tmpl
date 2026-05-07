@@ -465,15 +465,15 @@ function Install-NSSM {
     rm -Recurse -Force "$runnerDir\nssm"
     rm -Force "$runnerDir\nssm.zip"
     $nssm="$runnerDir/nssm.exe"
-	& $nssm install GiteaActRunner "$runnerDir/act_runner.exe"
-	& $nssm set GiteaActRunner AppParameters daemon
-	& $nssm set GiteaActRunner AppStdout $runnerDir\stdout.log
-	& $nssm set GiteaActRunner AppStderr $runnerDir\stderr.log
-	& $nssm set GiteaActRunner AppStopMethodSkip 6
-	& $nssm set GiteaActRunner AppStopMethodConsole 1000
-	& $nssm set GiteaActRunner AppThrottle 5000
-    & $nssm set GiteaActRunner ObjectName $username $password
-	& $nssm start GiteaActRunner
+	& $nssm install GiteaRunner "$runnerDir/gitea-runner.exe"
+	& $nssm set GiteaRunner AppParameters daemon
+	& $nssm set GiteaRunner AppStdout $runnerDir\stdout.log
+	& $nssm set GiteaRunner AppStderr $runnerDir\stderr.log
+	& $nssm set GiteaRunner AppStopMethodSkip 6
+	& $nssm set GiteaRunner AppStopMethodConsole 1000
+	& $nssm set GiteaRunner AppThrottle 5000
+    & $nssm set GiteaRunner ObjectName $username $password
+	& $nssm start GiteaRunner
 }
 
 
@@ -494,7 +494,7 @@ function Install-Runner() {
 			Throw "missing metadata URL"
 		}
         $runnerDir = "C:\actions-runner"
-        $runnerExecutable = Join-Path $runnerDir "act_runner.exe"
+        $runnerExecutable = Join-Path $runnerDir "gitea-runner.exe"
 
 		# Create user with administrator rights to run service as
 		$userPasswd = Get-RandomString -Length 10

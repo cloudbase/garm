@@ -40,22 +40,30 @@ var githubArchMapping = map[string]string{
 	"arm64":   "arm64",
 }
 
-var nightlyActRunner = GiteaEntityTool{
+// Known prefixes for Gitea runner asset names. The new name (gitea-runner)
+// contains a hyphen, so we can't simply split on "-" to parse the asset name.
+// We strip the prefix first, then split the remainder.
+var giteaRunnerPrefixes = []string{
+	"gitea-runner-",
+	"act_runner-",
+}
+
+var nightlyGiteaRunner = GiteaEntityTool{
 	TagName:    "nightly",
 	Name:       "nightly",
-	TarballURL: "https://gitea.com/gitea/act_runner/archive/main.tar.gz",
+	TarballURL: "https://gitea.com/gitea/runner/archive/main.tar.gz",
 	Assets: []GiteaToolsAssets{
 		{
-			Name:        "act_runner-nightly-linux-amd64",
-			DownloadURL: "https://dl.gitea.com/act_runner/nightly/act_runner-nightly-linux-amd64",
+			Name:        "gitea-runner-nightly-linux-amd64",
+			DownloadURL: "https://dl.gitea.com/runner/nightly/gitea-runner-nightly-linux-amd64",
 		},
 		{
-			Name:        "act_runner-nightly-linux-arm64",
-			DownloadURL: "https://dl.gitea.com/act_runner/nightly/act_runner-nightly-linux-arm64",
+			Name:        "gitea-runner-nightly-linux-arm64",
+			DownloadURL: "https://dl.gitea.com/runner/nightly/gitea-runner-nightly-linux-arm64",
 		},
 		{
-			Name:        "act_runner-nightly-windows-amd64.exe",
-			DownloadURL: "https://dl.gitea.com/act_runner/nightly/act_runner-nightly-windows-amd64.exe",
+			Name:        "gitea-runner-nightly-windows-amd64.exe",
+			DownloadURL: "https://dl.gitea.com/runner/nightly/gitea-runner-nightly-windows-amd64.exe",
 		},
 	},
 }
@@ -70,17 +78,35 @@ type GiteaToolsAssets struct {
 	DownloadURL   string    `json:"browser_download_url"`
 }
 
+// stripRunnerPrefix removes the known runner prefix from an asset name and
+// returns the remainder (e.g. "nightly-linux-amd64"). It returns an error
+// if the name doesn't match any known prefix.
+func stripRunnerPrefix(name string) (string, error) {
+	for _, prefix := range giteaRunnerPrefixes {
+		if remainder, ok := strings.CutPrefix(name, prefix); ok {
+			return remainder, nil
+		}
+	}
+	return "", fmt.Errorf("asset name %q does not match any known runner prefix", name)
+}
+
 func (g GiteaToolsAssets) GetOS() (*string, error) {
 	if g.Name == "" {
 		return nil, fmt.Errorf("gitea tools name is empty")
 	}
 
-	parts := strings.SplitN(g.Name, "-", 4)
-	if len(parts) != 4 {
+	remainder, err := stripRunnerPrefix(g.Name)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse asset name: %w", err)
+	}
+
+	// remainder is "{version}-{os}-{arch}[.exe]"
+	parts := strings.SplitN(remainder, "-", 3)
+	if len(parts) != 3 {
 		return nil, fmt.Errorf("could not parse asset name")
 	}
 
-	os := parts[2]
+	os := parts[1]
 	return &os, nil
 }
 
@@ -89,12 +115,18 @@ func (g GiteaToolsAssets) GetArch() (*string, error) {
 		return nil, fmt.Errorf("gitea tools name is empty")
 	}
 
-	parts := strings.SplitN(g.Name, "-", 4)
-	if len(parts) != 4 {
+	remainder, err := stripRunnerPrefix(g.Name)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse asset name: %w", err)
+	}
+
+	// remainder is "{version}-{os}-{arch}[.exe]"
+	parts := strings.SplitN(remainder, "-", 3)
+	if len(parts) != 3 {
 		return nil, fmt.Errorf("could not parse asset name")
 	}
 
-	archParts := strings.SplitN(parts[3], ".", 2)
+	archParts := strings.SplitN(parts[2], ".", 2)
 	if len(archParts) == 0 {
 		return nil, fmt.Errorf("unexpected asset name format")
 	}
@@ -166,7 +198,7 @@ func getReleasesFromURL(ctx context.Context, metadataURL string) (GiteaEntityToo
 	latest, ok := tools.MinimumVersion()
 	if !ok {
 		slog.InfoContext(ctx, "failed to find tools, falling back to nightly")
-		latest = nightlyActRunner
+		latest = nightlyGiteaRunner
 	}
 	return latest, nil
 }
@@ -178,7 +210,7 @@ func getTools(ctx context.Context, metadataURL string, useInternal bool) ([]comm
 	var latest GiteaEntityTool
 	var err error
 	if useInternal {
-		latest = nightlyActRunner
+		latest = nightlyGiteaRunner
 	} else {
 		latest, err = getReleasesFromURL(ctx, metadataURL)
 		if err != nil {
