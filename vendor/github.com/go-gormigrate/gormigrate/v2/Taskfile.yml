@@ -1,0 +1,85 @@
+# https://taskfile.dev
+
+version: '3'
+
+tasks:
+  lint:
+    desc: Run golangci-lint
+    cmds:
+      - golangci-lint run
+      - cd integration-test && golangci-lint run --path-prefix integration-test
+
+  test:
+    dir: ./integration-test
+    cmds:
+      - go test -v -tags {{.DATABASE}} ./...
+
+  test:mysql:
+    desc: Run tests for MySQL
+    cmds:
+      - task: test
+        vars: {DATABASE: mysql}
+
+  test:mariadb:
+    desc: Run tests for MariaDB
+    cmds:
+      - task: test
+        vars: {DATABASE: mariadb}
+
+  test:postgres:
+    desc: Run tests for PostgreSQL
+    cmds:
+      - task: test
+        vars: {DATABASE: postgres}
+
+  test:sqlite:
+    desc: Run tests for SQLite
+    cmds:
+      - task: test
+        vars: {DATABASE: sqlite}
+
+  test:sqlitego:
+    desc: Run tests for SQLite (Pure-Go implementation)
+    cmds:
+      - task: test
+        vars: {DATABASE: sqlitego}
+
+  test:sqlserver:
+    desc: Run tests for Microsoft SQL Server
+    cmds:
+      - task: test
+        vars: {DATABASE: sqlserver}
+
+  test:all:
+    desc: Run tests for all databases
+    deps: [test:mysql, test:mariadb, test:postgres, test:sqlite, test:sqlitego, test:sqlserver]
+
+# Docker tasks
+
+  docker:compose:
+    cmds:
+      - docker compose --project-directory ./integration-test {{.CMD}}
+
+  docker:compose:down:
+    cmds:
+      - task: docker:compose
+        vars: {CMD: down --volumes --remove-orphans}
+
+  docker:compose:up:
+    desc: Start docker compose with database services
+    deps: [docker:compose:down]
+    cmds:
+      - task: docker:compose
+        vars: {CMD: up --detach --no-deps --remove-orphans --force-recreate --wait}
+
+  docker:compose:logs:
+    desc: Start streaming docker compose logs
+    cmds:
+      - task: docker:compose
+        vars: {CMD: logs --follow --tail 50}
+
+  docker:test:
+    deps: [docker:compose:up]
+    cmds:
+      - defer: task docker:compose:down
+      - task: test:all
