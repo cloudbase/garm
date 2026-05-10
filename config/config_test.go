@@ -397,13 +397,13 @@ func TestGormParams(t *testing.T) {
 	dbType, uri, err := cfg.GormParams()
 	require.Nil(t, err)
 	require.Equal(t, SQLiteBackend, dbType)
-	require.Equal(t, filepath.Join(dir, "garm.db?_journal_mode=WAL&_foreign_keys=ON&_txlock=immediate"), uri)
+	require.Equal(t, filepath.Join(dir, "garm.db?_journal_mode=WAL&_foreign_keys=ON&_txlock=immediate&_auto_vacuum=incremental"), uri)
 
 	cfg.SQLite.BusyTimeoutSeconds = 5
 	dbType, uri, err = cfg.GormParams()
 	require.Nil(t, err)
 	require.Equal(t, SQLiteBackend, dbType)
-	require.Equal(t, filepath.Join(dir, "garm.db?_journal_mode=WAL&_foreign_keys=ON&_txlock=immediate&_busy_timeout=5000"), uri)
+	require.Equal(t, filepath.Join(dir, "garm.db?_journal_mode=WAL&_foreign_keys=ON&_txlock=immediate&_auto_vacuum=incremental&_busy_timeout=5000"), uri)
 
 	cfg.DbBackend = MySQLBackend
 	cfg.MySQL = getMySQLDefaultConfig()
