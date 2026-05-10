@@ -47,7 +47,7 @@ func (s *sqlDatabase) CreateInstance(ctx context.Context, poolID string, param p
 			return fmt.Errorf("error fetching pool: %w", err)
 		}
 		var cnt int64
-		q := s.conn.Model(&Instance{}).Where("pool_id = ?", pool.ID).Count(&cnt)
+		q := tx.Model(&Instance{}).Where("pool_id = ?", pool.ID).Count(&cnt)
 		if q.Error != nil {
 			return fmt.Errorf("error fetching instance count: %w", q.Error)
 		}

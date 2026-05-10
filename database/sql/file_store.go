@@ -20,7 +20,47 @@ import (
 	"github.com/cloudbase/garm/util"
 )
 
-// func (s *sqlDatabase) CreateFileObject(ctx context.Context, name string, size int64, tags []string, reader io.Reader) (fileObjParam params.FileObject, err error) {
+// streamBlobContent opens a raw SQLite blob handle, streams initialData followed
+// by the rest of r into it, and returns the hex-encoded SHA256 of the written content.
+// The raw *sql.Conn is closed before returning so the caller can safely use
+// s.objectsConn afterwards without pool starvation.
+func (s *sqlDatabase) streamBlobContent(ctx context.Context, blobID uint, initialData []byte, r io.Reader) (string, error) {
+	conn, err := s.objectsSQLDB.Conn(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to get connection from pool: %w", err)
+	}
+	defer conn.Close()
+
+	var sha256sum string
+	err = conn.Raw(func(driverConn any) error {
+		sqliteConn := driverConn.(*sqlite3.SQLiteConn)
+
+		blob, err := sqliteConn.Blob("main", "file_blobs", "content", int64(blobID), 1)
+		if err != nil {
+			return fmt.Errorf("failed to open blob: %w", err)
+		}
+		defer blob.Close()
+
+		hasher := sha256.New()
+
+		if _, err := blob.Write(initialData); err != nil {
+			return fmt.Errorf("failed to write blob initial buffer: %w", err)
+		}
+		hasher.Write(initialData)
+
+		if _, err := io.Copy(io.MultiWriter(blob, hasher), r); err != nil {
+			return fmt.Errorf("failed to write blob: %w", err)
+		}
+
+		sha256sum = hex.EncodeToString(hasher.Sum(nil))
+		return nil
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to write blob: %w", err)
+	}
+	return sha256sum, nil
+}
+
 func (s *sqlDatabase) CreateFileObject(ctx context.Context, param params.CreateFileObjectParams, reader io.Reader) (fileObjParam params.FileObject, err error) {
 	// Save the file to temporary storage first. This allows us to accept the entire file, even over
 	// a slow connection, without locking the database as we stream the file to the DB.
@@ -99,44 +139,12 @@ func (s *sqlDatabase) CreateFileObject(ctx context.Context, param params.CreateF
 	if err != nil {
 		return params.FileObject{}, fmt.Errorf("failed to create database entry for blob: %w", err)
 	}
-	// Stream file to blob and compute SHA256
-	conn, err := s.objectsSQLDB.Conn(ctx)
+	// Stream file to blob and compute SHA256.
+	// We obtain a raw *sql.Conn for the SQLite blob API, which pins a connection
+	// from the pool. We must close it before using s.objectsConn again.
+	sha256sum, err := s.streamBlobContent(ctx, fileBlob.ID, buffer[:n], tmpFile)
 	if err != nil {
-		return params.FileObject{}, fmt.Errorf("failed to get connection from pool: %w", err)
-	}
-	defer conn.Close()
-
-	var sha256sum string
-	err = conn.Raw(func(driverConn any) error {
-		sqliteConn := driverConn.(*sqlite3.SQLiteConn)
-
-		blob, err := sqliteConn.Blob("main", "file_blobs", "content", int64(fileBlob.ID), 1)
-		if err != nil {
-			return fmt.Errorf("failed to open blob: %w", err)
-		}
-		defer blob.Close()
-
-		// Create SHA256 hasher
-		hasher := sha256.New()
-
-		// Write the buffered data first
-		if _, err := blob.Write(buffer[:n]); err != nil {
-			return fmt.Errorf("failed to write blob initial buffer: %w", err)
-		}
-		hasher.Write(buffer[:n])
-
-		// Stream the rest with hash computation
-		_, err = io.Copy(io.MultiWriter(blob, hasher), tmpFile)
-		if err != nil {
-			return fmt.Errorf("failed to write blob: %w", err)
-		}
-
-		// Get final hash
-		sha256sum = hex.EncodeToString(hasher.Sum(nil))
-		return nil
-	})
-	if err != nil {
-		return params.FileObject{}, fmt.Errorf("failed to write blob: %w", err)
+		return params.FileObject{}, err
 	}
 
 	// Update document with SHA256
@@ -405,14 +413,17 @@ func (s *sqlDatabase) SearchFileObjectByTags(_ context.Context, tags []string, p
 
 // OpenFileObjectContent opens a blob for reading and returns an io.ReadCloser
 func (s *sqlDatabase) OpenFileObjectContent(ctx context.Context, objID uint) (io.ReadCloser, error) {
-	conn, err := s.objectsSQLDB.Conn(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get connection: %w", err)
-	}
-
+	// Query the blob metadata first, before pinning a raw connection.
+	// With MaxOpenConns(1), pinning the connection before this query would
+	// deadlock because GORM needs the same pooled connection.
 	var fileBlob FileBlob
 	if err := s.objectsConn.Where("file_object_id = ?", objID).Omit("content").First(&fileBlob).Error; err != nil {
 		return nil, fmt.Errorf("failed to get file blob: %w", err)
+	}
+
+	conn, err := s.objectsSQLDB.Conn(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get connection: %w", err)
 	}
 	var blobReader io.ReadCloser
 	err = conn.Raw(func(driverConn any) error {

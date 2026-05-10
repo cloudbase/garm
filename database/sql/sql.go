@@ -22,20 +22,18 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/go-gormigrate/gormigrate/v2"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
-
-	"github.com/go-gormigrate/gormigrate/v2"
-
-	"github.com/cloudbase/garm/database/sql/migrations"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/config"
 	"github.com/cloudbase/garm/database/common"
+	"github.com/cloudbase/garm/database/sql/migrations"
 	"github.com/cloudbase/garm/database/watcher"
 	"github.com/cloudbase/garm/internal/templates"
 	"github.com/cloudbase/garm/params"
@@ -94,6 +92,12 @@ func NewSQLDatabase(ctx context.Context, cfg config.Database) (common.Store, err
 		return nil, fmt.Errorf("failed to get underlying database connection: %w", err)
 	}
 
+	// SQLite only supports one concurrent writer per database file.
+	// Limit the pool to a single connection to prevent deadlocks with _txlock=immediate.
+	if cfg.DbBackend == config.SQLiteBackend {
+		sqlDB.SetMaxOpenConns(1)
+	}
+
 	db := &sqlDatabase{
 		conn:     conn,
 		sqlDB:    sqlDB,
@@ -119,6 +123,7 @@ func NewSQLDatabase(ctx context.Context, cfg config.Database) (common.Store, err
 		if err != nil {
 			return nil, fmt.Errorf("failed to get underlying objects database connection: %w", err)
 		}
+		objectsSQLDB.SetMaxOpenConns(1)
 		db.objectsConn = objectsConn
 		db.objectsSQLDB = objectsSQLDB
 	}
