@@ -601,7 +601,7 @@ func (s *SQLite) BlobDBFile() (string, error) {
 }
 
 func (s *SQLite) connectionStringForDBFile(dbFile string) string {
-	connectionString := fmt.Sprintf("%s?_journal_mode=WAL&_foreign_keys=ON&_txlock=immediate", dbFile)
+	connectionString := fmt.Sprintf("%s?_journal_mode=WAL&_foreign_keys=ON&_txlock=immediate&_auto_vacuum=incremental", dbFile)
 	if s.BusyTimeoutSeconds > 0 {
 		timeout := s.BusyTimeoutSeconds * 1000
 		connectionString = fmt.Sprintf("%s&_busy_timeout=%d", connectionString, timeout)
