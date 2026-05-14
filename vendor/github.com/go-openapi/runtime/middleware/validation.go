@@ -4,12 +4,13 @@
 package middleware
 
 import (
-	"mime"
 	"net/http"
 	"strings"
 
 	"github.com/go-openapi/errors"
+
 	"github.com/go-openapi/runtime"
+	"github.com/go-openapi/runtime/server-middleware/mediatype"
 )
 
 type validation struct {
@@ -20,61 +21,30 @@ type validation struct {
 	bound   map[string]any
 }
 
-// ContentType validates the content type of a request.
+// validateContentType maps [mediatype.MatchFirst] to the runtime's
+// validation errors:
 //
-// An allowed entry may carry MIME type parameters (e.g. "text/plain;charset=utf-8").
-// In that case every parameter the client sends must be present on the allowed entry
-// with the same value; the allowed entry may carry additional parameters the client
-// omits. An allowed entry without parameters accepts any client parameters.
-// "*/*" and "type/*" wildcards are matched on the bare type only.
-func validateContentType(allowed []string, actual string) error {
+//   - actual fails to parse        → HTTP 400 ([errors.NewParseError]).
+//   - actual is well-formed but
+//     no allowed entry accepts it  → HTTP 415 ([errors.InvalidContentType]).
+//
+// In the standard runtime flow, malformed Content-Type headers are
+// already caught upstream by [runtime.ContentType] (which itself returns
+// a 400 [errors.ParseError]). This function therefore only sees the
+// malformed case when invoked directly by callers that have bypassed
+// that step.
+func validateContentType(allowed []string, actual string, opts ...mediatype.MatchOption) error {
 	if len(allowed) == 0 {
 		return nil
 	}
-	actualType, actualParams, err := mime.ParseMediaType(actual)
+	_, ok, err := mediatype.MatchFirst(allowed, actual, opts...)
+	if ok {
+		return nil
+	}
 	if err != nil {
-		return errors.InvalidContentType(actual, allowed)
-	}
-	typeWildcard := ""
-	if slash := strings.IndexByte(actualType, '/'); slash > 0 {
-		typeWildcard = actualType[:slash] + "/*"
-	}
-	for _, a := range allowed {
-		if strings.EqualFold(a, "*/*") {
-			return nil
-		}
-		if typeWildcard != "" && strings.EqualFold(a, typeWildcard) {
-			return nil
-		}
-		if mediaTypeMatches(a, actualType, actualParams) {
-			return nil
-		}
+		return errors.NewParseError(runtime.HeaderContentType, "header", actual, err)
 	}
 	return errors.InvalidContentType(actual, allowed)
-}
-
-// mediaTypeMatches reports whether the actual client media type satisfies the
-// server-side allowed media type, with parameter-aware comparison.
-func mediaTypeMatches(allowed, actualType string, actualParams map[string]string) bool {
-	allowedType, allowedParams, err := mime.ParseMediaType(allowed)
-	if err != nil {
-		// Fall back to a case-insensitive bare match if the configured value
-		// can't be parsed as a media type.
-		return strings.EqualFold(allowed, actualType)
-	}
-	if !strings.EqualFold(allowedType, actualType) {
-		return false
-	}
-	if len(allowedParams) == 0 {
-		return true
-	}
-	for k, v := range actualParams {
-		sv, ok := allowedParams[k]
-		if !ok || !strings.EqualFold(sv, v) {
-			return false
-		}
-	}
-	return true
 }
 
 func validateRequest(ctx *Context, request *http.Request, route *MatchedRoute) *validation {
@@ -126,12 +96,12 @@ func (v *validation) contentType() {
 
 		if len(v.result) == 0 {
 			v.debugLogf("validating content type for %q against [%s]", ct, strings.Join(v.route.Consumes, ", "))
-			if err := validateContentType(v.route.Consumes, ct); err != nil {
+			if err := validateContentType(v.route.Consumes, ct, v.context.matchOpts()...); err != nil {
 				v.result = append(v.result, err)
 			}
 		}
 		if ct != "" && v.route.Consumer == nil {
-			cons, ok := v.route.Consumers[ct]
+			cons, ok := mediatype.Lookup(v.route.Consumers, ct, v.context.matchOpts()...)
 			if !ok {
 				v.result = append(v.result, errors.New(http.StatusInternalServerError, "no consumer registered for %s", ct))
 			} else {
@@ -142,7 +112,7 @@ func (v *validation) contentType() {
 }
 
 func (v *validation) responseFormat() {
-	// if the route provides values for Produces and no format could be identify then return an error.
+	// if the route provides values for Produces and no format could be identified then return an error.
 	// if the route does not specify values for Produces then treat request as valid since the API designer
 	// choose not to specify the format for responses.
 	if str, rCtx := v.context.ResponseFormat(v.request, v.route.Produces); str == "" && len(v.route.Produces) > 0 {
