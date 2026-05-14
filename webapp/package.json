@@ -30,7 +30,7 @@
 		"happy-dom": "^20.0.2",
 		"jsdom": "^26.1.0",
 		"postcss": "^8.4.32",
-		"svelte": "^5.53.6",
+		"svelte": "^5.55.7",
 		"svelte-check": "^4.3.1",
 		"swagger-typescript-api": "^13.2.7",
 		"tailwindcss": "^4.1.11",
