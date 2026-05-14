@@ -16,9 +16,44 @@ A runtime for go OpenAPI toolkit.
 
 The runtime component for use in code generation or as untyped usage.
 
-<!--
 ## Announcements
--->
+
+**Changes to the API surface in `v0.30.0`**:
+
+* utility package `header` has now moved to `github.com/go-openapi/runtime/server-middleware/negotiate/header`
+
+> A shim is provided to support existing programs, with a deprecation notice.
+
+**Changes in semantics in `v0.30.0`**:
+
+Function `negotiate.NegotiateContentType` (available as an alias for backward compatibility as `middleware.NegotiateContentType`
+now performs a full match considering MIME parameters.
+
+The previous behavior (matching in order of appearance after stripping parameters) may be enabled explicitly with
+option `negotiate.WithIgnoreParameters`.
+
+* **2026-05-05** : exposed content negotiation methods as a separate, dependency-free module
+
+> Users may reuse these utilities to support content-negotiation without extra dependencies.
+>
+> Newly available module: `github.com/go-openapi/runtime/server-middleware`
+>
+> Newly available packages: `github.com/go-openapi/runtime/server-middleware/negotiate` and
+> `github.com/go-openapi/runtime/server-middleware/mediatype`.
+
+* **2026-05-07** : exposed UI and Spec middleware as a separate, dependency-free module.
+
+> Newly available package: `github.com/go-openapi/runtime/server-middleware/docui` that now holds our
+> UI and spec serve middleware.
+>
+> A shim is available in `github.com/go-openapi/runtime/middleware` to bridge the older UI options to the new ones,
+> with a deprecation notice.
+>
+> Methods that were unduly exported and purely used to manipulate options (e.g. `SwaggerUIOpts.EnsureDefaults`) have been
+> removed. New options in `docui` should be used instead.
+
+> Users may reuse this middleware to serve a Redoc, Rapidoc or SwaggerUI documentation without
+> importing the complete go-openapi scaffolding.
 
 ## Status
 
@@ -34,18 +69,21 @@ go get github.com/go-openapi/runtime
 
 See <https://github.com/go-openapi/runtime/releases>
 
-For pre-v0.30.0 releases see [release notes](docs/NOTES.md).
+For v0.29.0 release see [release notes](docs/NOTES.md).
+From that release onwards, changes are tracked in the github release notes.
 
 **What coming next?**
 
 Moving forward, we want to :
 
-* [ ] continue narrowing down the scope of dependencies:
-  * yaml support in an independent module
+* [x] fix a few known issues with some file upload requests (e.g. #286)
+* [] continue narrowing down the scope of dependencies:
+  * [x] split middleware and other useful utilities as a separate dependency-free module
+  * yaml support in an independent module (v2)
   * introduce more up-to-date support for opentelemetry as a separate module that evolves
     independently from the main package (to avoid breaking changes, the existing API
-    will remain maintained, but evolve at a slower pace than opentelemetry).
-* [ ] fix a few known issues with some file upload requests (e.g. #286)
+    will remain maintained, but evolve at a slower pace than opentelemetry). (v2)
+* [] publish proper documentation and examples
 
 ## Licensing
 
