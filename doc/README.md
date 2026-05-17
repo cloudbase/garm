@@ -13,7 +13,7 @@ Get GARM running and create your first runner pool:
 ## Guides
 
 | Guide | Description |
-|-------|-------------|
+| ------- | ------------- |
 | [Credentials](credentials.md) | PATs, GitHub Apps, Gitea tokens, and required permissions |
 | [Managing Entities](managing-entities.md) | Repositories, organizations, enterprises, endpoints, and webhooks |
 | [Pools and Scaling](pools-and-scaling.md) | Pool configuration, scaling behavior, balancing, labels, and runner management |
@@ -25,7 +25,7 @@ Get GARM running and create your first runner pool:
 ## Reference
 
 | Page | Description |
-|------|-------------|
+| ------ | ------------- |
 | [Configuration Reference](configuration.md) | Complete `config.toml` reference |
 | [Providers](providers.md) | Supported providers and configuration |
 | [Monitoring and Debugging](monitoring.md) | Metrics, log streaming, events, and the `top` dashboard |
@@ -36,7 +36,7 @@ Get GARM running and create your first runner pool:
 
 ## How it works
 
-```
+```bash
 GitHub/Gitea                         GARM                        Provider (LXD, AWS, etc.)
      |                                |                                |
      |-- webhook: job queued -------->|                                |
@@ -62,7 +62,7 @@ GitHub/Gitea                         GARM                        Provider (LXD, 
 ## Key concepts
 
 | Concept | Description |
-|---------|-------------|
+| --------- | ------------- |
 | **Controller** | A GARM installation, identified by a unique Controller ID |
 | **Endpoint** | A GitHub.com, GHES, or Gitea server that GARM connects to |
 | **Credential** | A PAT or GitHub App tied to an endpoint, used to manage runners |
@@ -76,7 +76,7 @@ GitHub/Gitea                         GARM                        Provider (LXD, 
 ## Supported providers
 
 | Provider | Repository |
-|----------|-----------|
+| ---------- | ----------- |
 | Akamai/Linode | [flatcar/garm-provider-linode](https://github.com/flatcar/garm-provider-linode) (experimental) |
 | Amazon EC2 | [cloudbase/garm-provider-aws](https://github.com/cloudbase/garm-provider-aws) |
 | Azure | [cloudbase/garm-provider-azure](https://github.com/cloudbase/garm-provider-azure) |

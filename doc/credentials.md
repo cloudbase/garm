@@ -5,29 +5,29 @@ GARM needs credentials to interact with GitHub or Gitea: creating runners, manag
 <!-- TOC -->
 
 - [Credentials](#credentials)
-    - [Credential types](#credential-types)
-    - [GitHub permissions](#github-permissions)
-        - [PAT classic scopes](#pat-classic-scopes)
-        - [Fine-grained PAT permissions](#fine-grained-pat-permissions)
-        - [GitHub App permissions](#github-app-permissions)
-    - [Managing credentials](#managing-credentials)
-        - [Add a PAT](#add-a-pat)
-        - [Add a GitHub App](#add-a-github-app)
-        - [List credentials](#list-credentials)
-        - [Show credential details](#show-credential-details)
-        - [Delete a credential](#delete-a-credential)
-    - [Gitea credentials](#gitea-credentials)
-        - [Create a Gitea token](#create-a-gitea-token)
-        - [Add Gitea credentials to GARM](#add-gitea-credentials-to-garm)
-    - [Credential and endpoint relationship](#credential-and-endpoint-relationship)
-    - [Security](#security)
+  - [Credential types](#credential-types)
+  - [GitHub permissions](#github-permissions)
+    - [PAT (classic) scopes](#pat-classic-scopes)
+    - [Fine-grained PAT permissions](#fine-grained-pat-permissions)
+    - [GitHub App permissions](#github-app-permissions)
+  - [Managing credentials](#managing-credentials)
+    - [Add a PAT](#add-a-pat)
+    - [Add a GitHub App](#add-a-github-app)
+    - [List credentials](#list-credentials)
+    - [Show credential details](#show-credential-details)
+    - [Delete a credential](#delete-a-credential)
+  - [Gitea credentials](#gitea-credentials)
+    - [Create a Gitea token](#create-a-gitea-token)
+    - [Add Gitea credentials to GARM](#add-gitea-credentials-to-garm)
+  - [Credential and endpoint relationship](#credential-and-endpoint-relationship)
+  - [Security](#security)
 
 <!-- /TOC -->
 
 ## Credential types
 
 | Type | Supports | Best for |
-|------|----------|----------|
+| ------ | ---------- | ---------- |
 | PAT (classic) | Repos, orgs, enterprises | Simple setups, enterprise-level access |
 | Fine-grained PAT | Repos, orgs | Scoped access to specific repos |
 | GitHub App | Repos, orgs | Production setups, better rate limits |
@@ -41,7 +41,7 @@ GARM needs credentials to interact with GitHub or Gitea: creating runners, manag
 ### PAT (classic) scopes
 
 | Scope | When needed |
-|-------|-------------|
+| ------- | ------------- |
 | `public_repo` | Public repositories |
 | `repo` | Private repositories |
 | `admin:org` | Organization-level runner management |
@@ -101,7 +101,7 @@ garm-cli github credentials add \
 garm-cli github credentials list
 ```
 
-```
+```bash
 +----+---------+----------------------------+--------------------+------+
 | ID | NAME    | DESCRIPTION                | BASE URL           | TYPE |
 +----+---------+----------------------------+--------------------+------+

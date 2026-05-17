@@ -2,33 +2,29 @@
 
 GARM provides built-in tools for monitoring, live log streaming, event watching, and an interactive terminal dashboard.
 
-<!-- TOC -->
-
 - [Monitoring and Debugging](#monitoring-and-debugging)
-    - [Prometheus metrics](#prometheus-metrics)
-        - [Enable metrics](#enable-metrics)
-        - [Generate a metrics token](#generate-a-metrics-token)
-        - [Prometheus configuration](#prometheus-configuration)
-        - [Metrics reference](#metrics-reference)
-            - [Health](#health)
-            - [Webhooks](#webhooks)
-            - [Entities repositories, organizations, enterprises](#entities-repositories-organizations-enterprises)
-            - [Providers](#providers)
-            - [Pools](#pools)
-            - [Scale sets](#scale-sets)
-            - [Runner instances](#runner-instances)
-            - [Jobs](#jobs)
-            - [GitHub/Gitea API](#githubgitea-api)
-    - [Live log streaming](#live-log-streaming)
-        - [Filtering logs](#filtering-logs)
-    - [Database events](#database-events)
-        - [Event structure](#event-structure)
-        - [Programmatic access](#programmatic-access)
-    - [Interactive dashboard](#interactive-dashboard)
-    - [Job monitoring](#job-monitoring)
-    - [Reverse proxy considerations](#reverse-proxy-considerations)
-
-<!-- /TOC -->
+  - [Prometheus metrics](#prometheus-metrics)
+    - [Enable metrics](#enable-metrics)
+    - [Generate a metrics token](#generate-a-metrics-token)
+    - [Prometheus configuration](#prometheus-configuration)
+    - [Metrics reference](#metrics-reference)
+      - [Health](#health)
+      - [Webhooks](#webhooks)
+      - [Entities (repositories, organizations, enterprises)](#entities-repositories-organizations-enterprises)
+      - [Providers](#providers)
+      - [Pools](#pools)
+      - [Scale sets](#scale-sets)
+      - [Runner instances](#runner-instances)
+      - [Jobs](#jobs)
+      - [GitHub/Gitea API](#githubgitea-api)
+  - [Live log streaming](#live-log-streaming)
+    - [Filtering logs](#filtering-logs)
+  - [Database events](#database-events)
+    - [Event structure](#event-structure)
+    - [Programmatic access](#programmatic-access)
+  - [Interactive dashboard](#interactive-dashboard)
+  - [Job monitoring](#job-monitoring)
+  - [Reverse proxy considerations](#reverse-proxy-considerations)
 
 ## Prometheus metrics
 
@@ -72,7 +68,7 @@ All metrics use the `garm_` namespace. Metrics fall into two groups:
 #### Health
 
 | Metric | Type | Labels |
-|--------|------|--------|
+| -------- | ------ | -------- |
 | `garm_health` | Gauge | `metadata_url`, `callback_url`, `webhook_url`, `controller_webhook_url`, `controller_id` |
 
 Set to 1 if GARM is healthy, 0 otherwise. Useful for alerting.
@@ -80,7 +76,7 @@ Set to 1 if GARM is healthy, 0 otherwise. Useful for alerting.
 #### Webhooks
 
 | Metric | Type | Labels |
-|--------|------|--------|
+| -------- | ------ | -------- |
 | `garm_webhook_received` | Counter | `valid`, `reason` |
 
 Increments on every webhook received from GitHub/Gitea. The `valid` label is `true`/`false`; `reason` explains why invalid webhooks were rejected.
@@ -88,7 +84,7 @@ Increments on every webhook received from GitHub/Gitea. The `valid` label is `tr
 #### Entities (repositories, organizations, enterprises)
 
 | Metric | Type | Labels |
-|--------|------|--------|
+| -------- | ------ | -------- |
 | `garm_repository_info` | Gauge | `name`, `id` |
 | `garm_repository_pool_manager_status` | Gauge | `name`, `id`, `running` |
 | `garm_organization_info` | Gauge | `name`, `id` |
@@ -101,13 +97,13 @@ The `_info` gauges are always set to 1; the labels are what carry the informatio
 #### Providers
 
 | Metric | Type | Labels |
-|--------|------|--------|
+| -------- | ------ | -------- |
 | `garm_provider_info` | Gauge | `name`, `type`, `description` |
 
 #### Pools
 
 | Metric | Type | Labels |
-|--------|------|--------|
+| -------- | ------ | -------- |
 | `garm_pool_info` | Gauge | `id`, `image`, `flavor`, `prefix`, `os_type`, `os_arch`, `tags`, `provider`, `pool_owner`, `pool_type` |
 | `garm_pool_status` | Gauge | `id`, `enabled` |
 | `garm_pool_max_runners` | Gauge | `id` |
@@ -117,7 +113,7 @@ The `_info` gauges are always set to 1; the labels are what carry the informatio
 #### Scale sets
 
 | Metric | Type | Labels |
-|--------|------|--------|
+| -------- | ------ | -------- |
 | `garm_scaleset_info` | Gauge | `id`, `scaleset_id`, `name`, `image`, `flavor`, `prefix`, `os_type`, `os_arch`, `tags`, `provider`, `runner_group`, `scaleset_owner`, `scaleset_type` |
 | `garm_scaleset_status` | Gauge | `id`, `enabled`, `state` |
 | `garm_scaleset_max_runners` | Gauge | `id` |
@@ -130,7 +126,7 @@ The `id` label is GARM's internal scale set ID; `scaleset_id` is the numeric ID 
 #### Runner instances
 
 | Metric | Type | Labels |
-|--------|------|--------|
+| -------- | ------ | -------- |
 | `garm_runner_status` | Gauge | `name`, `status`, `runner_status`, `pool_owner`, `pool_type`, `pool_id`, `scaleset_id`, `provider` |
 | `garm_runner_operations_total` | Counter | `operation`, `provider` |
 | `garm_runner_errors_total` | Counter | `operation`, `provider` |
@@ -140,7 +136,7 @@ The `id` label is GARM's internal scale set ID; `scaleset_id` is the numeric ID 
 The `operation` label on `garm_runner_operations_total` / `garm_runner_errors_total` takes one of these values:
 
 | Operation | Description |
-|-----------|-------------|
+| ----------- | ------------- |
 | `CreateInstance` | Create a new compute instance |
 | `DeleteInstance` | Delete a compute instance |
 | `GetInstance` | Get details about a compute instance |
@@ -152,13 +148,13 @@ The `operation` label on `garm_runner_operations_total` / `garm_runner_errors_to
 #### Jobs
 
 | Metric | Type | Labels |
-|--------|------|--------|
+| -------- | ------ | -------- |
 | `garm_job_status` | Gauge | `job_id`, `workflow_job_id`, `scaleset_job_id`, `workflow_run_id`, `name`, `status`, `conclusion`, `runner_name`, `owner`, `repository`, `requested_labels` |
 
 #### GitHub/Gitea API
 
 | Metric | Type | Labels |
-|--------|------|--------|
+| -------- | ------ | -------- |
 | `garm_github_operations_total` | Counter | `operation`, `scope` |
 | `garm_github_errors_total` | Counter | `operation`, `scope` |
 | `garm_github_rate_limit_limit` | Gauge | `credential_name`, `credential_id`, `endpoint` |
@@ -171,7 +167,7 @@ The `scope` label is `Repository`, `Organization`, or `Enterprise`. The `operati
 **GitHub client operations** (hooks, runners, registration tokens):
 
 | Operation | Description |
-|-----------|-------------|
+| ----------- | ------------- |
 | `ListHooks` | List webhooks on an entity |
 | `GetHook` | Get a single webhook |
 | `CreateHook` | Create a webhook |
@@ -189,7 +185,7 @@ The `scope` label is `Repository`, `Organization`, or `Enterprise`. The `operati
 **Scale set operations** (scale set management and message queue):
 
 | Operation | Description |
-|-----------|-------------|
+| ----------- | ------------- |
 | `GetRunnerScaleSetByNameAndRunnerGroup` | Look up a scale set by name and runner group |
 | `GetRunnerScaleSetByID` | Look up a scale set by ID |
 | `ListRunnerScaleSets` | List all scale sets |

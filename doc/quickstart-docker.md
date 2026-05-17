@@ -5,16 +5,16 @@ This guide gets GARM running in Docker with the LXD provider. By the end, you wi
 <!-- TOC -->
 
 - [Quickstart: Docker](#quickstart-docker)
-    - [Prerequisites](#prerequisites)
-    - [Create the config directory](#create-the-config-directory)
-    - [Write the GARM configuration](#write-the-garm-configuration)
-    - [Write the LXD provider configuration](#write-the-lxd-provider-configuration)
-    - [Fix iptables for LXD + Docker](#fix-iptables-for-lxd--docker)
-    - [Start GARM](#start-garm)
-    - [Install garm-cli](#install-garm-cli)
-    - [Initialize GARM](#initialize-garm)
-    - [Next steps](#next-steps)
-    - [Using Docker Compose](#using-docker-compose)
+  - [Prerequisites](#prerequisites)
+  - [1. Create the config directory](#1-create-the-config-directory)
+  - [2. Write the GARM configuration](#2-write-the-garm-configuration)
+  - [3. Write the LXD provider configuration](#3-write-the-lxd-provider-configuration)
+  - [4. Fix iptables for LXD and Docker](#4-fix-iptables-for-lxd-and-docker)
+  - [5. Start GARM](#5-start-garm)
+  - [6. Install garm-cli](#6-install-garm-cli)
+  - [7. Initialize GARM](#7-initialize-garm)
+  - [Next steps](#next-steps)
+  - [Using Docker Compose](#using-docker-compose)
 
 <!-- /TOC -->
 
@@ -113,7 +113,7 @@ tls_server_certificate = ""
 EOF
 ```
 
-## 4. Fix iptables for LXD + Docker
+## 4. Fix iptables for LXD and Docker
 
 LXD and Docker can conflict on iptables rules. Without this fix, LXD containers (your runners) will not have internet access:
 
@@ -145,7 +145,7 @@ docker logs garm
 
 You should see lines like:
 
-```
+```log
 level=INFO msg="Loading provider" provider=lxd_local
 level=INFO msg="setting up metric routes"
 level=INFO msg="register metrics"
@@ -180,7 +180,7 @@ You will be prompted for a username, email, and password. These are your admin c
 
 The output shows your admin user and controller details:
 
-```
+```bash
 Admin user information:
 
 +----------+--------------------------------------+
@@ -263,6 +263,6 @@ Start with:
 docker compose up -d
 ```
 
-Then apply the [iptables fix](#4-fix-iptables-for-lxd--docker) and continue from [step 6 (Install garm-cli)](#6-install-garm-cli) above.
+Then apply the [iptables fix](#4-fix-iptables-for-lxd-and-docker) and continue from [step 6 (Install garm-cli)](#6-install-garm-cli) above.
 
 > **Tip:** The GARM container image includes provider binaries for LXD, Incus, Azure, AWS, GCP, OpenStack, OCI, and Kubernetes in `/opt/garm/providers.d/`. You can use any of them by adding the corresponding `[[provider]]` section to your config.

@@ -59,7 +59,7 @@ For Kubernetes deployments, see the [GARM operator](https://github.com/mercedes-
 Full documentation lives in the [doc/](/doc/README.md) directory:
 
 | Section | Guides |
-|---------|--------|
+| --------- | -------- |
 | **Setup** | [Credentials](/doc/credentials.md) &middot; [Configuration](/doc/configuration.md) &middot; [Webhooks](/doc/webhooks.md) |
 | **Usage** | [Managing Entities](/doc/managing-entities.md) &middot; [Pools and Scaling](/doc/pools-and-scaling.md) &middot; [Scale Sets](/doc/scale-sets.md) |
 | **Advanced** | [Templates](/doc/templates.md) &middot; [Providers](/doc/providers.md) &middot; [Gitea](/doc/gitea.md) &middot; [Agent and Object Store](/doc/agent-and-object-store.md) |
@@ -72,7 +72,7 @@ If you find the documentation lacking, please [open an issue](https://github.com
 GARM uses external providers to create runners in a particular IaaS. Providers are standalone executables that GARM calls to manage runner instances.
 
 | Provider | Repository |
-|----------|------------|
+| ---------- | ------------ |
 | Akamai/Linode | [flatcar/garm-provider-linode](https://github.com/flatcar/garm-provider-linode) (experimental) |
 | Amazon EC2 | [cloudbase/garm-provider-aws](https://github.com/cloudbase/garm-provider-aws) |
 | Azure | [cloudbase/garm-provider-azure](https://github.com/cloudbase/garm-provider-azure) |

@@ -2,38 +2,34 @@
 
 GARM manages runners at three levels: **repositories**, **organizations**, and **enterprises**. Each entity is associated with credentials that determine the GitHub/Gitea endpoint it belongs to.
 
-<!-- TOC -->
-
 - [Managing Repositories, Organizations, and Enterprises](#managing-repositories-organizations-and-enterprises)
-    - [Endpoints](#endpoints)
-        - [List endpoints](#list-endpoints)
-        - [Add a GHES endpoint](#add-a-ghes-endpoint)
-        - [Add a Gitea endpoint](#add-a-gitea-endpoint)
-        - [Delete an endpoint](#delete-an-endpoint)
-    - [Repositories](#repositories)
-        - [Add a repository](#add-a-repository)
-        - [List repositories](#list-repositories)
-        - [Delete a repository](#delete-a-repository)
-    - [Organizations](#organizations)
-        - [Add an organization](#add-an-organization)
-        - [List organizations](#list-organizations)
-        - [Delete an organization](#delete-an-organization)
-    - [Enterprises](#enterprises)
-        - [Add an enterprise](#add-an-enterprise)
-        - [List enterprises](#list-enterprises)
-        - [Delete an enterprise](#delete-an-enterprise)
-    - [Managing webhooks](#managing-webhooks)
-        - [Show webhook status](#show-webhook-status)
-        - [Install a webhook](#install-a-webhook)
-        - [Uninstall a webhook](#uninstall-a-webhook)
-        - [Manual webhook setup](#manual-webhook-setup)
-    - [Controller settings](#controller-settings)
-        - [Viewing controller settings](#viewing-controller-settings)
-        - [Controller URLs](#controller-urls)
-        - [Other controller settings](#other-controller-settings)
-        - [Updating controller settings](#updating-controller-settings)
-
-<!-- /TOC -->
+  - [Endpoints](#endpoints)
+    - [List endpoints](#list-endpoints)
+    - [Add a GHES endpoint](#add-a-ghes-endpoint)
+    - [Add a Gitea endpoint](#add-a-gitea-endpoint)
+    - [Delete an endpoint](#delete-an-endpoint)
+  - [Repositories](#repositories)
+    - [Add a repository](#add-a-repository)
+    - [List repositories](#list-repositories)
+    - [Delete a repository](#delete-a-repository)
+  - [Organizations](#organizations)
+    - [Add an organization](#add-an-organization)
+    - [List organizations](#list-organizations)
+    - [Delete an organization](#delete-an-organization)
+  - [Enterprises](#enterprises)
+    - [Add an enterprise](#add-an-enterprise)
+    - [List enterprises](#list-enterprises)
+    - [Delete an enterprise](#delete-an-enterprise)
+  - [Managing webhooks](#managing-webhooks)
+    - [Show webhook status](#show-webhook-status)
+    - [Install a webhook](#install-a-webhook)
+    - [Uninstall a webhook](#uninstall-a-webhook)
+    - [Manual webhook setup](#manual-webhook-setup)
+  - [Controller settings](#controller-settings)
+    - [Viewing controller settings](#viewing-controller-settings)
+    - [Controller URLs](#controller-urls)
+    - [Other controller settings](#other-controller-settings)
+    - [Updating controller settings](#updating-controller-settings)
 
 ## Endpoints
 
@@ -96,7 +92,7 @@ garm-cli repo add \
 ```
 
 | Option | Description |
-|--------|-------------|
+| -------- | ------------- |
 | `--owner` | GitHub user or organization that owns the repo |
 | `--name` | Repository name |
 | `--credentials` | Name of credentials to use (must exist) |
@@ -221,7 +217,9 @@ Controller settings define the URLs that runners and GitHub/Gitea use to communi
 garm-cli controller show
 ```
 
-```
+Will output something similar to:
+
+```bash
 +---------------------------+----------------------------------------------------------------------------+
 | FIELD                     | VALUE                                                                      |
 +---------------------------+----------------------------------------------------------------------------+
@@ -244,7 +242,7 @@ GARM exposes several URLs that serve different purposes. Each URL must be reacha
 When you initialize GARM for the first time, it assumes that all URLs share the same base address you logged in with. This works for most setups. If your network topology is more complex (e.g. separate internal and external addresses, or a reverse proxy with different paths), you'll need to update them.
 
 | URL | Who must reach it | Purpose |
-|-----|-------------------|---------|
+| ----- | ------------------- | --------- |
 | **Metadata URL** | Runners | Runners connect here during bootstrap to retrieve setup information (runner token, labels, etc). Injected into runner userdata. |
 | **Callback URL** | Runners | Runners connect here to send status updates and system info (OS version, runner agent ID, etc) back to the controller. Injected into runner userdata. Authentication uses a short-lived JWT scoped to the specific instance -- it can only update that instance's status and fetch its own metadata. Token validity equals the pool bootstrap timeout (default 20 min) plus the GARM polling interval (5 min). |
 | **Agent URL** | Runners (agent mode) | In agent mode, runners connect here via WebSocket for bidirectional communication instead of using callbacks. Only needed when agent mode is enabled on an entity. |
@@ -254,7 +252,7 @@ When you initialize GARM for the first time, it assumes that all URLs share the 
 The default URL paths match GARM's internal routes:
 
 | Setting | Default path |
-|---------|-------------|
+| --------- | ------------- |
 | Metadata URL | `/api/v1/metadata` |
 | Callback URL | `/api/v1/callbacks` |
 | Agent URL | `/agent` |
@@ -263,7 +261,7 @@ The default URL paths match GARM's internal routes:
 ### Other controller settings
 
 | Setting | Default | Description |
-|---------|---------|-------------|
+| --------- | --------- | ------------- |
 | **Controller ID** | (auto-generated) | Unique identifier for this GARM installation. Runners are tagged with this ID so multiple controllers can manage the same repos without conflicts. |
 | **Minimum Job Age Backoff** | `30` | Seconds to wait after receiving a job webhook before spinning up a runner. Gives existing idle runners time to pick up the job. Set to `0` for immediate reaction (useful for scale-to-zero). |
 | **CA Cert Bundle** | (none) | Optional CA certificate bundle injected into runner userdata. Allows runners to trust certificates signed by an internal CA when communicating with the controller. |

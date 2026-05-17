@@ -3,14 +3,14 @@
 <!-- TOC -->
 
 - [First Steps](#first-steps)
-    - [Resource hierarchy](#resource-hierarchy)
-    - [Add an endpoint if not using github.com](#add-an-endpoint-if-not-using-githubcom)
-    - [Add credentials](#add-credentials)
-    - [Add a repository](#add-a-repository)
-    - [Create a runner pool](#create-a-runner-pool)
-    - [Watch your runner come up](#watch-your-runner-come-up)
-    - [Use the runner in a workflow](#use-the-runner-in-a-workflow)
-    - [What's next](#whats-next)
+  - [Resource hierarchy](#resource-hierarchy)
+  - [1. Add an endpoint (if not using github.com)](#1-add-an-endpoint-if-not-using-githubcom)
+  - [2. Add credentials](#2-add-credentials)
+  - [3. Add a repository](#3-add-a-repository)
+  - [4. Create a runner pool](#4-create-a-runner-pool)
+  - [5. Watch your runner come up](#5-watch-your-runner-come-up)
+  - [6. Use the runner in a workflow](#6-use-the-runner-in-a-workflow)
+  - [What's next](#whats-next)
 
 <!-- /TOC -->
 
@@ -27,7 +27,7 @@ You have GARM running (via [Docker](quickstart-docker.md) or [systemd](quickstar
 
 GARM resources form a hierarchy:
 
-```
+```bash
 Endpoint (github.com, GHES, Gitea)
   └── Credential (PAT, GitHub App, Gitea token)
         └── Entity (repository, organization, enterprise)
@@ -171,7 +171,7 @@ garm-cli pool add \
 Key options:
 
 | Option | Description |
-|--------|-------------|
+| -------- | ------------- |
 | `--min-idle-runners` | Runners kept warm and waiting for jobs. Set to `0` for pure on-demand scaling. |
 | `--max-runners` | Upper limit on runners in this pool. |
 | `--tags` | Labels applied to runners. Workflows target these with `runs-on:`. |
@@ -186,7 +186,7 @@ garm-cli runner list --repo <REPO_ID>
 
 After a few minutes:
 
-```
+```bash
 +----+-------------------+---------+---------------+--------------------------------------------+
 | NR | NAME              | STATUS  | RUNNER STATUS | POOL / SCALE SET                           |
 +----+-------------------+---------+---------------+--------------------------------------------+
