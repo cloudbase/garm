@@ -2,30 +2,26 @@
 
 Pools are the core of GARM's runner management. Each pool defines a set of runners with the same configuration: provider, image, flavor, labels, and scaling parameters.
 
-<!-- TOC -->
-
 - [Pools and Scaling](#pools-and-scaling)
-    - [Creating a pool](#creating-a-pool)
-        - [Pool options](#pool-options)
-    - [Listing pools](#listing-pools)
-    - [Showing pool details](#showing-pool-details)
-    - [Updating a pool](#updating-a-pool)
-    - [Deleting a pool](#deleting-a-pool)
-    - [Scaling behavior](#scaling-behavior)
-        - [On-demand scaling min-idle-runners = 0](#on-demand-scaling-min-idle-runners--0)
-        - [Warm pool min-idle-runners > 0](#warm-pool-min-idle-runners--0)
-        - [Job age backoff](#job-age-backoff)
-    - [Pool balancing](#pool-balancing)
-        - [Pool priority](#pool-priority)
-    - [Labels and job matching](#labels-and-job-matching)
-        - [Default labels](#default-labels)
-    - [Extra specs](#extra-specs)
-    - [Runners](#runners)
-        - [List runners](#list-runners)
-        - [Show runner details](#show-runner-details)
-        - [Delete a runner](#delete-a-runner)
-
-<!-- /TOC -->
+  - [Creating a pool](#creating-a-pool)
+    - [Pool options](#pool-options)
+  - [Listing pools](#listing-pools)
+  - [Showing pool details](#showing-pool-details)
+  - [Updating a pool](#updating-a-pool)
+  - [Deleting a pool](#deleting-a-pool)
+  - [Scaling behavior](#scaling-behavior)
+    - [On-demand scaling](#on-demand-scaling)
+    - [Warm pool](#warm-pool)
+    - [Job age backoff](#job-age-backoff)
+  - [Pool balancing](#pool-balancing)
+    - [Pool priority](#pool-priority)
+  - [Labels and job matching](#labels-and-job-matching)
+    - [Default labels](#default-labels)
+  - [Extra specs](#extra-specs)
+  - [Runners](#runners)
+    - [List runners](#list-runners)
+    - [Show runner details](#show-runner-details)
+    - [Delete a runner](#delete-a-runner)
 
 ## Creating a pool
 
@@ -50,7 +46,7 @@ The `--image` and `--flavor` values are provider-specific. For example, on LXD/I
 ### Pool options
 
 | Option | Default | Description |
-|--------|---------|-------------|
+| -------- | --------- | ------------- |
 | `--provider-name` | (required) | Infrastructure provider to use |
 | `--image` | (required) | Provider-specific image (LXD alias, cloud AMI, etc) |
 | `--flavor` | (required) | Provider-specific sizing (LXD profile, instance type, etc) |
@@ -122,11 +118,11 @@ garm-cli pool delete <POOL_ID>
 
 ## Scaling behavior
 
-### On-demand scaling (min-idle-runners = 0)
+### On-demand scaling
 
 With `--min-idle-runners=0`, GARM creates runners only in response to queued jobs. This minimizes cost but adds startup latency.
 
-### Warm pool (min-idle-runners > 0)
+### Warm pool
 
 With `--min-idle-runners=2`, GARM keeps 2 idle runners ready at all times. When a runner picks up a job, GARM immediately creates a replacement to maintain the minimum.
 
@@ -157,7 +153,7 @@ garm-cli repo add --pool-balancer-type pack ...
 ```
 
 | Strategy | Behavior |
-|----------|----------|
+| ---------- | ---------- |
 | `roundrobin` (default) | Distributes runners across pools evenly |
 | `pack` | Fills higher-priority pools first, spills to next |
 

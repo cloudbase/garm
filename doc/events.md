@@ -6,46 +6,42 @@ For example, if a new runner is created, the watcher will emit a `Create` event 
 
 This document will focus on the websocket endpoint and the events that are exported by it.
 
-<!-- TOC -->
-
 - [GARM database events](#garm-database-events)
-- [Entities and operations](#entities-and-operations)
-- [Event structure](#event-structure)
-- [Subscribing to events](#subscribing-to-events)
+  - [Entities and operations](#entities-and-operations)
+  - [Event structure](#event-structure)
+  - [Subscribing to events](#subscribing-to-events)
     - [The filter message](#the-filter-message)
-        - [Example 1: Send all events](#example-1-send-all-events)
-        - [Example 2: Send only create events for repository entities](#example-2-send-only-create-events-for-repository-entities)
-        - [Example 3: Send create and update for repositories and delete for instances](#example-3-send-create-and-update-for-repositories-and-delete-for-instances)
-    - [Connecting to the events endpoint](#connecting-to-the-events-endpoint)
+      - [Example 1: Send all events](#example-1-send-all-events)
+      - [Example 2: Send only `create` events for `repository` entities](#example-2-send-only-create-events-for-repository-entities)
+      - [Example 3: Send `create` and `update` for repositories and `delete` for instances](#example-3-send-create-and-update-for-repositories-and-delete-for-instances)
+  - [Connecting to the events endpoint](#connecting-to-the-events-endpoint)
 
-<!-- /TOC -->
-
-# Entities and operations
+## Entities and operations
 
 Virtually all database entities are exposed through the events endpoint. These entities are defined in the [database common package](https://github.com/cloudbase/garm/blob/56b0e6065a993fd89c74a8b4ab7de3487544e4e0/database/common/watcher.go#L12-L21). Each of the entity types represents a database table in GARM.
 
 Those entities are:
 
-* `repository` - represents a repository in the database
-* `organization` - represents an organization in the database
-* `enterprise` - represents an enterprise in the database
-* `pool` - represents a pool in the database
-* `user` - represents a user in the database. Currently GARM is not multi tenant so we just have the "admin" user
-* `instance` - represents a runner instance in the database
-* `job` - represents a recorded github workflow job in the database
-* `controller` - represents a controller in the database. This is the GARM controller.
-* `github_credentials` - represents a github credential in the database (PAT, Apps, etc). No sensitive info (token, keys, etc) is ever returned by the events endpoint.
-* `gitea_credentials` - represents a gitea credential in the database. Same security applies as for github credentials.
-* `github_endpoint` - represents a github endpoint in the database. This holds the github.com default endpoint and any GHES you may add.
-* `scaleset` - represents a scale set in the database.
+- `repository` - represents a repository in the database
+- `organization` - represents an organization in the database
+- `enterprise` - represents an enterprise in the database
+- `pool` - represents a pool in the database
+- `user` - represents a user in the database. Currently GARM is not multi tenant so we just have the "admin" user
+- `instance` - represents a runner instance in the database
+- `job` - represents a recorded github workflow job in the database
+- `controller` - represents a controller in the database. This is the GARM controller.
+- `github_credentials` - represents a github credential in the database (PAT, Apps, etc). No sensitive info (token, keys, etc) is ever returned by the events endpoint.
+- `gitea_credentials` - represents a gitea credential in the database. Same security applies as for github credentials.
+- `github_endpoint` - represents a github endpoint in the database. This holds the github.com default endpoint and any GHES you may add.
+- `scaleset` - represents a scale set in the database.
 
 The operations hooked up to the events endpoint and the databse wather are:
 
-* `create` - emitted when a new entity is created
-* `update` - emitted when an entity is updated
-* `delete` - emitted when an entity is deleted
+- `create` - emitted when a new entity is created
+- `update` - emitted when an entity is updated
+- `delete` - emitted when an entity is deleted
 
-# Event structure
+## Event structure
 
 The event structure is defined in the [database common package](https://github.com/cloudbase/garm/blob/56b0e6065a993fd89c74a8b4ab7de3487544e4e0/database/common/watcher.go#L30-L34). The structure for a change payload is marshaled into a JSON object as follows:
 
@@ -61,13 +57,13 @@ Where the `payload` will be a JSON representation of one of the entities defined
 
 Note that in some cases, the `delete` operation will return the full object prior to the deletion of the entity, while others will only ever return the `ID` of the entity. This will probably be changed in future releases to only return the `ID` in case of a `delete` operation, for all entities. You should operate under the assumption that in the future, delete operations will only return the `ID` of the entity.
 
-# Subscribing to events
+## Subscribing to events
 
 By default the events endpoint returns no events. All events are filtered by default. To start receiving events, you need to emit a message on the websocket connection indicating the entities and/or operations you're interested in.
 
 This gives you the option to get fine grained control over what you receive at any given point in time. Of course, you can opt to receive everything and deal with the potential deluge (depends on how busy your GARM instance is) on your own.
 
-## The filter message
+### The filter message
 
 The filter is defined as a JSON that you write over the websocket connections. That JSON must adhere to the following schema:
 
@@ -141,7 +137,7 @@ The filter is defined as a JSON that you write over the websocket connections. T
 
 But I realize a JSON schema is not the best way to explain how to use the filter. The following examples should give you a better idea of how to use the filter.
 
-### Example 1: Send all events
+#### Example 1: Send all events
 
 ```json
 {
@@ -149,7 +145,7 @@ But I realize a JSON schema is not the best way to explain how to use the filter
 }
 ```
 
-### Example 2: Send only `create` events for `repository` entities
+#### Example 2: Send only `create` events for `repository` entities
 
 ```json
 {
@@ -163,7 +159,7 @@ But I realize a JSON schema is not the best way to explain how to use the filter
 }
 ```
 
-### Example 3: Send `create` and `update` for repositories and `delete` for instances
+#### Example 3: Send `create` and `update` for repositories and `delete` for instances
 
 ```json
 {
@@ -204,61 +200,61 @@ Now, let's write a simple go program that connects to the events endpoint and su
 package main
 
 import (
-	"context"
-	"fmt"
-	"os"
-	"os/signal"
-	"syscall"
+ "context"
+ "fmt"
+ "os"
+ "os/signal"
+ "syscall"
 
-	garmWs "github.com/cloudbase/garm-provider-common/util/websocket"
-	"github.com/gorilla/websocket"
+ garmWs "github.com/cloudbase/garm-provider-common/util/websocket"
+ "github.com/gorilla/websocket"
 )
 
 // List of signals to interrupt the program
 var signals = []os.Signal{
-	os.Interrupt,
-	syscall.SIGTERM,
+ os.Interrupt,
+ syscall.SIGTERM,
 }
 
 // printToConsoleHandler is a simple function that prints the message to the console.
 // In a real world implementation, you can use this function to decide how to properly
 // handle the events.
 func printToConsoleHandler(_ int, msg []byte) error {
-	fmt.Println(string(msg))
-	return nil
+ fmt.Println(string(msg))
+ return nil
 }
 
 func main() {
-	// Set up the context to listen for signals.
-	ctx, stop := signal.NotifyContext(context.Background(), signals...)
-	defer stop()
+ // Set up the context to listen for signals.
+ ctx, stop := signal.NotifyContext(context.Background(), signals...)
+ defer stop()
 
-	// This is the JWT token you got from the curl command above.
-	token := "superSecretJWTToken"
-	// The base URL of your GARM server
-	baseURL := "https://garm.example.com"
-	// This is the path to the events endpoint
-	pth := "/api/v1/ws/events"
+ // This is the JWT token you got from the curl command above.
+ token := "superSecretJWTToken"
+ // The base URL of your GARM server
+ baseURL := "https://garm.example.com"
+ // This is the path to the events endpoint
+ pth := "/api/v1/ws/events"
 
-	// Instantiate the websocket reader
-	reader, err := garmWs.NewReader(ctx, baseURL, pth, token, printToConsoleHandler)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
+ // Instantiate the websocket reader
+ reader, err := garmWs.NewReader(ctx, baseURL, pth, token, printToConsoleHandler)
+ if err != nil {
+  fmt.Println(err)
+  return
+ }
 
-	// Start the loop.
-	if err := reader.Start(); err != nil {
-		fmt.Println(err)
-		return
-	}
+ // Start the loop.
+ if err := reader.Start(); err != nil {
+  fmt.Println(err)
+  return
+ }
 
-	// Set the filter to receive all events. You can use a more fine grained filter if you wish.
-	reader.WriteMessage(websocket.TextMessage, []byte(`{"send-everything":true}`))
+ // Set the filter to receive all events. You can use a more fine grained filter if you wish.
+ reader.WriteMessage(websocket.TextMessage, []byte(`{"send-everything":true}`))
 
-	fmt.Println("Listening for events. Press Ctrl+C to stop.")
-	// Wait for the context to be done.
-	<-ctx.Done()
+ fmt.Println("Listening for events. Press Ctrl+C to stop.")
+ // Wait for the context to be done.
+ <-ctx.Done()
 }
 ```
 

@@ -7,7 +7,7 @@ Scale sets were introduced by GitHub to improve the reliability and efficiency o
 ## Scale sets vs pools
 
 | Feature | Pools | Scale Sets |
-|---------|-------|------------|
+| --------- | ------- | ------------ |
 | Job delivery | Webhooks (push) | Message queue (long poll) |
 | Webhook setup required | Yes | No |
 | Scheduling | GARM picks the pool | GitHub picks the scale set |

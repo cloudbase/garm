@@ -5,23 +5,23 @@ Starting with Gitea 1.24 and GARM v0.2.0, GARM supports Gitea as a forge alongsi
 <!-- TOC -->
 
 - [Using GARM with Gitea](#using-garm-with-gitea)
-    - [Quickstart: Gitea + GARM with Docker Compose](#quickstart-gitea--garm-with-docker-compose)
-        - [Prerequisites](#prerequisites)
-        - [Create directories](#create-directories)
-        - [Create docker-compose.yaml](#create-docker-composeyaml)
-        - [Create GARM and LXD provider configs](#create-garm-and-lxd-provider-configs)
-        - [Start services](#start-services)
-        - [Create a Gitea user and repo](#create-a-gitea-user-and-repo)
-        - [Initialize GARM](#initialize-garm)
-    - [Adding a Gitea endpoint](#adding-a-gitea-endpoint)
-    - [Adding Gitea credentials](#adding-gitea-credentials)
-    - [Adding a repository and pool](#adding-a-repository-and-pool)
-    - [Webhook configuration](#webhook-configuration)
-    - [Differences from GitHub](#differences-from-github)
+  - [Quickstart: Gitea and GARM with Docker Compose](#quickstart-gitea-and-garm-with-docker-compose)
+    - [Prerequisites](#prerequisites)
+    - [1. Create directories](#1-create-directories)
+    - [2. Create docker-compose.yaml](#2-create-docker-composeyaml)
+    - [3. Create GARM and LXD provider configs](#3-create-garm-and-lxd-provider-configs)
+    - [4. Start services](#4-start-services)
+    - [5. Create a Gitea user and repo](#5-create-a-gitea-user-and-repo)
+    - [6. Initialize GARM](#6-initialize-garm)
+  - [Adding a Gitea endpoint](#adding-a-gitea-endpoint)
+  - [Adding Gitea credentials](#adding-gitea-credentials)
+  - [Adding a repository and pool](#adding-a-repository-and-pool)
+  - [Webhook configuration](#webhook-configuration)
+  - [Differences from GitHub](#differences-from-github)
 
 <!-- /TOC -->
 
-## Quickstart: Gitea + GARM with Docker Compose
+## Quickstart: Gitea and GARM with Docker Compose
 
 This quickstart deploys both Gitea and GARM using Docker Compose with LXD as the runner provider.
 
@@ -31,6 +31,7 @@ This quickstart deploys both Gitea and GARM using Docker Compose with LXD as the
 
 > [!IMPORTANT]
 > Docker and LXD can conflict on iptables. If LXD containers lose internet, run:
+>
 > ```bash
 > sudo iptables -I DOCKER-USER -j ACCEPT
 > ```

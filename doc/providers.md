@@ -5,7 +5,7 @@ Providers are external executables that GARM calls to create and manage runner i
 ## Supported providers
 
 | Provider | Repository | Notes |
-|----------|-----------|-------|
+| ---------- | ----------- | ------- |
 | **Akamai/Linode** | [flatcar/garm-provider-linode](https://github.com/flatcar/garm-provider-linode) | Experimental |
 | **Amazon EC2** | [cloudbase/garm-provider-aws](https://github.com/cloudbase/garm-provider-aws) | |
 | **Azure** | [cloudbase/garm-provider-azure](https://github.com/cloudbase/garm-provider-azure) | |

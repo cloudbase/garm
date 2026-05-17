@@ -2,6 +2,16 @@
 
 GARM uses GitHub/Gitea webhooks to learn when workflow jobs are queued, so it can spin up runners on demand. GARM can manage webhooks automatically for repositories and organizations, or you can set them up manually.
 
+- [Webhooks](#webhooks)
+  - [Automatic webhook management](#automatic-webhook-management)
+  - [Manual webhook setup](#manual-webhook-setup)
+  - [Enterprise webhooks](#enterprise-webhooks)
+  - [Troubleshooting](#troubleshooting)
+    - [Webhook not receiving events](#webhook-not-receiving-events)
+    - [Idle runners not picking up jobs](#idle-runners-not-picking-up-jobs)
+    - [GARM not scaling up new runners](#garm-not-scaling-up-new-runners)
+    - [Using HTTPS](#using-https)
+
 ## Automatic webhook management
 
 When adding a repository or organization, pass `--install-webhook` and `--random-webhook-secret`:
@@ -23,7 +33,7 @@ GARM uses the **Controller Webhook URL** (unique per GARM installation):
 garm-cli controller show
 ```
 
-```
+```bash
 +------------------------+-----------------------------------------------------------------------+
 | Controller Webhook URL | https://garm.example.com/webhooks/a4dd5f41-8e1e-42a7-af53-c0ba5ff6b0b3 |
 +------------------------+-----------------------------------------------------------------------+

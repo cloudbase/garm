@@ -5,4 +5,3 @@ ExtraSpecs is an opaque raw json that gets sent to the provider as part of the b
 However, during the installation phase of the runners, GARM providers can leverage the information set in this field to augment the process in many ways. This can be used for anything ranging from overriding provider config values, to supplying a different runner install template, to passing in information that is relevant only to specific providers.
 
 For example, the [external OpenStack provider](https://github.com/cloudbase/garm-provider-openstack) uses this to [override](https://github.com/cloudbase/garm-provider-openstack#tweaking-the-provider) things like `security groups`, `storage backends`, `network ids`, etc.
-

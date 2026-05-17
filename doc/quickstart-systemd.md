@@ -5,16 +5,16 @@ This guide installs GARM as a native Linux service managed by systemd, using the
 <!-- TOC -->
 
 - [Quickstart: Systemd](#quickstart-systemd)
-    - [Prerequisites](#prerequisites)
-    - [Create config directory and system user](#create-config-directory-and-system-user)
-    - [Download GARM and garm-cli](#download-garm-and-garm-cli)
-    - [Install the LXD provider](#install-the-lxd-provider)
-    - [Write the GARM configuration](#write-the-garm-configuration)
-    - [Write the LXD provider configuration](#write-the-lxd-provider-configuration)
-    - [Set permissions and install the service](#set-permissions-and-install-the-service)
-    - [Initialize GARM](#initialize-garm)
-    - [Next steps](#next-steps)
-    - [Log rotation](#log-rotation)
+  - [Prerequisites](#prerequisites)
+  - [1. Create config directory and system user](#1-create-config-directory-and-system-user)
+  - [2. Download GARM and garm-cli](#2-download-garm-and-garm-cli)
+  - [3. Install the LXD provider](#3-install-the-lxd-provider)
+  - [4. Write the GARM configuration](#4-write-the-garm-configuration)
+  - [5. Write the LXD provider configuration](#5-write-the-lxd-provider-configuration)
+  - [6. Set permissions and install the service](#6-set-permissions-and-install-the-service)
+  - [7. Initialize GARM](#7-initialize-garm)
+  - [Next steps](#next-steps)
+  - [Log rotation](#log-rotation)
 
 <!-- /TOC -->
 
@@ -179,7 +179,7 @@ sudo journalctl -u garm -f
 
 You should see lines like:
 
-```
+```log
 level=INFO msg="Loading provider" provider=lxd_local
 level=INFO msg="setting up metric routes"
 level=INFO msg="register metrics"
@@ -197,7 +197,7 @@ You will be prompted for a username, email, and password. These are your admin c
 
 The output shows your admin user and controller details:
 
-```
+```bash
 Admin user information:
 
 +----------+--------------------------------------+

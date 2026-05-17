@@ -21,7 +21,7 @@ The `GARM_COMMAND` environment variable will be set to one of the operations def
 
 ### The GARM_PROVIDER_CONFIG_FILE variable
 
-The `GARM_PROVIDER_CONFIG_FILE` variable will contain a path on disk to a file that can contain whatever configuration your executable needs. For example, in the case of the [OpenStack external provider](https://github.com/cloudbase/garm-provider-openstack), this file is a toml which contains provider specific configuration options. The provider author decides what this file needs to contain for the provider to function properly. 
+The `GARM_PROVIDER_CONFIG_FILE` variable will contain a path on disk to a file that can contain whatever configuration your executable needs. For example, in the case of the [OpenStack external provider](https://github.com/cloudbase/garm-provider-openstack), this file is a toml which contains provider specific configuration options. The provider author decides what this file needs to contain for the provider to function properly.
 
 GARM does not read this file in any way. It is simply passed to the executable via the environment variable.
 
