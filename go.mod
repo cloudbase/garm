@@ -10,7 +10,7 @@ require (
 	github.com/gdamore/tcell/v2 v2.13.9
 	github.com/go-gormigrate/gormigrate/v2 v2.1.5
 	github.com/go-openapi/errors v0.22.7
-	github.com/go-openapi/runtime v0.30.0
+	github.com/go-openapi/runtime v0.31.0
 	github.com/go-openapi/strfmt v0.26.2
 	github.com/go-openapi/swag v0.26.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
@@ -99,7 +99,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.43.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/net v0.53.0 // indirect
+	golang.org/x/net v0.54.0 // indirect
 	golang.org/x/sys v0.44.0 // indirect
 	golang.org/x/text v0.37.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
