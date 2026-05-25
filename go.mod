@@ -7,7 +7,7 @@ require (
 	github.com/bradleyfalzon/ghinstallation/v2 v2.18.0
 	github.com/cloudbase/garm-provider-common v0.1.9
 	github.com/felixge/httpsnoop v1.0.4
-	github.com/gdamore/tcell/v2 v2.13.9
+	github.com/gdamore/tcell/v2 v2.13.10
 	github.com/go-gormigrate/gormigrate/v2 v2.1.5
 	github.com/go-openapi/errors v0.22.7
 	github.com/go-openapi/runtime v0.31.0
