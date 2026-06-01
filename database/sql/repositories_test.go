@@ -99,10 +99,7 @@ func (s *RepoTestSuite) SetupTest() {
 	ctx := context.Background()
 	watcher.InitWatcher(ctx)
 
-	db, err := NewSQLDatabase(context.Background(), garmTesting.GetTestSqliteDBConfig(s.T()))
-	if err != nil {
-		s.FailNow(fmt.Sprintf("failed to create db connection: %s", err))
-	}
+	db := newTestDB(s.T())
 	s.Store = db
 
 	adminCtx := garmTesting.ImpersonateAdminContext(context.Background(), db, s.T())

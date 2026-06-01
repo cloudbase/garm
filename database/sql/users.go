@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
@@ -46,6 +47,12 @@ func (s *sqlDatabase) getUserByUsernameOrEmail(tx *gorm.DB, user string) (User, 
 }
 
 func (s *sqlDatabase) getUserByID(tx *gorm.DB, userID string) (User, error) {
+	// PostgreSQL's uuid column rejects malformed strings with a driver error
+	// rather than returning 0 rows. Pre-validate so we return ErrNotFound
+	// consistently across backends.
+	if _, err := uuid.Parse(userID); err != nil {
+		return User{}, runnerErrors.ErrNotFound
+	}
 	var dbUser User
 	q := tx.Model(&User{}).Where("id = ?", userID).First(&dbUser)
 	if q.Error != nil {

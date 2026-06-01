@@ -80,3 +80,42 @@ jobs:
       - name: Run web UI tests
         run: |
           make webui-test
+
+  go-tests-postgres:
+    name: Go Tests (PostgreSQL)
+    runs-on: ubuntu-noble-garm
+    needs: [linters]
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: garm
+          POSTGRES_PASSWORD: garmpassword
+          POSTGRES_DB: garm
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libbtrfs-dev build-essential
+
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Golang
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Run GARM Go Tests (PostgreSQL)
+        run: make go-test
+        env:
+          GARM_TEST_POSTGRES_DSN: "postgres://garm:garmpassword@localhost:5432/garm?sslmode=disable"

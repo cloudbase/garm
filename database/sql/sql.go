@@ -29,6 +29,7 @@ import (
 
 	"github.com/go-gormigrate/gormigrate/v2"
 	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -70,6 +71,8 @@ func newDBConn(dbCfg config.Database) (conn *gorm.DB, err error) {
 		conn, err = gorm.Open(mysql.Open(connURI), gormConfig)
 	case config.SQLiteBackend:
 		conn, err = gorm.Open(sqlite.Open(connURI), gormConfig)
+	case config.PostgreSQLBackend:
+		conn, err = gorm.Open(postgres.Open(connURI), gormConfig)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("error connecting to database: %w", err)
@@ -82,7 +85,7 @@ func newDBConn(dbCfg config.Database) (conn *gorm.DB, err error) {
 	return conn, nil
 }
 
-func NewSQLDatabase(ctx context.Context, cfg config.Database) (common.Store, error) {
+func NewSQLStore(ctx context.Context, cfg config.Database) (common.Store, error) {
 	conn, err := newDBConn(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("error creating DB connection: %w", err)
@@ -103,6 +106,13 @@ func NewSQLDatabase(ctx context.Context, cfg config.Database) (common.Store, err
 		sqlDB.SetMaxOpenConns(1)
 	}
 
+	if cfg.DbBackend == config.PostgreSQLBackend {
+		sqlDB.SetMaxOpenConns(cfg.PostgreSQL.MaxOpenConns)
+		sqlDB.SetMaxIdleConns(cfg.PostgreSQL.MaxIdleConns)
+		sqlDB.SetConnMaxLifetime(time.Duration(cfg.PostgreSQL.ConnMaxLifetimeMins) * time.Minute)
+		sqlDB.SetConnMaxIdleTime(time.Duration(cfg.PostgreSQL.ConnMaxIdleTimeSecs) * time.Second)
+	}
+
 	db := &sqlDatabase{
 		conn:     conn,
 		sqlDB:    sqlDB,
@@ -111,9 +121,9 @@ func NewSQLDatabase(ctx context.Context, cfg config.Database) (common.Store, err
 		producer: producer,
 	}
 
-	// Create separate connection for objects database (only for SQLite)
-	if cfg.DbBackend == config.SQLiteBackend {
-		// Get config for objects database
+	switch cfg.DbBackend {
+	case config.SQLiteBackend:
+		// SQLite uses a separate file for blobs to avoid WAL contention during large writes.
 		objectsCfg, err := cfg.SQLiteBlobDatabaseConfig()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get blob DB config: %w", err)
@@ -131,6 +141,9 @@ func NewSQLDatabase(ctx context.Context, cfg config.Database) (common.Store, err
 		objectsSQLDB.SetMaxOpenConns(1)
 		db.objectsConn = objectsConn
 		db.objectsSQLDB = objectsSQLDB
+	case config.PostgreSQLBackend:
+		// PostgreSQL reuses the main connection — no separate DB needed for blobs.
+		db.objectsConn = conn
 	}
 
 	if err := db.migrateDB(); err != nil {
@@ -214,12 +227,27 @@ func (s *sqlDatabase) ensureGithubEndpoint() error {
 	return nil
 }
 
+// fileObjectMigrationOptions tracks file-object migrations in a dedicated
+// "file_object_migrations" table so the file-object migration history does
+// not collide with the main migration history when both run on the same
+// database connection (e.g. PostgreSQL). For the upgrade path from versions
+// that used gormigrate's default table name, see migrateLegacyFileObjectTracking.
+var fileObjectMigrationOptions = &gormigrate.Options{
+	TableName:                 "file_object_migrations",
+	IDColumnName:              gormigrate.DefaultOptions.IDColumnName,
+	IDColumnSize:              gormigrate.DefaultOptions.IDColumnSize,
+	UseTransaction:            gormigrate.DefaultOptions.UseTransaction,
+	ValidateUnknownMigrations: gormigrate.DefaultOptions.ValidateUnknownMigrations,
+}
+
 func (s *sqlDatabase) migrateFileObjects() error {
 	if s.objectsConn == nil {
 		return nil
 	}
-
-	m := gormigrate.New(s.objectsConn, gormigrate.DefaultOptions, migrations.AllFileObjects())
+	if err := s.migrateLegacyFileObjectTracking(); err != nil {
+		return fmt.Errorf("error migrating legacy file object tracking table: %w", err)
+	}
+	m := gormigrate.New(s.objectsConn, fileObjectMigrationOptions, migrations.AllFileObjects())
 	m.InitSchema(func(tx *gorm.DB) error {
 		return tx.AutoMigrate(&FileObject{}, &FileBlob{}, &FileObjectTag{})
 	})
@@ -229,6 +257,33 @@ func (s *sqlDatabase) migrateFileObjects() error {
 	}
 
 	return nil
+}
+
+// migrateLegacyFileObjectTracking renames the pre-PostgreSQL "migrations"
+// tracking table in the objects DB to "file_object_migrations" so file-object
+// migration history is preserved across the rename. Only runs when objectsConn
+// is a separate DB (SQLite); on PostgreSQL objectsConn == conn and the
+// "migrations" table belongs to the main migrator and must not be touched.
+//
+// Without this shim, an existing SQLite install upgrading from a version that
+// predates fileObjectMigrationOptions would find file_object_migrations empty,
+// trigger gormigrate's InitSchema, and mark every registered migration as
+// already applied without running its SQL. DDL that reshapes existing schema
+// (e.g. 0002's swap of idx_fileobject_tags_tag to a functional LOWER(tag)
+// index) would be silently skipped, and the risk would compound with every
+// new file-object migration added to the branch.
+func (s *sqlDatabase) migrateLegacyFileObjectTracking() error {
+	if s.objectsConn == s.conn {
+		return nil
+	}
+	migrator := s.objectsConn.Migrator()
+	if migrator.HasTable("file_object_migrations") {
+		return nil
+	}
+	if !migrator.HasTable("migrations") {
+		return nil
+	}
+	return s.objectsConn.Exec("ALTER TABLE migrations RENAME TO file_object_migrations").Error
 }
 
 func (s *sqlDatabase) ensureTemplates(migrateTemplates bool) error {

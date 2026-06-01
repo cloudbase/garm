@@ -8,6 +8,8 @@ GARM is configured via a single TOML file, typically at `/etc/garm/config.toml`.
   - [[logging]](#logging)
   - [[database]](#database)
     - [[database.sqlite3]](#databasesqlite3)
+    - [[database.postgresql]](#databasepostgresql)
+    - [Reclaiming storage from deleted file objects](#reclaiming-storage-from-deleted-file-objects)
   - [[[provider]]](#provider)
   - [[metrics]](#metrics)
   - [[jwt_auth]](#jwt_auth)
@@ -91,7 +93,7 @@ Then rotate with `systemctl reload garm`.
 | Option | Default | Description |
 | -------- | --------- | ------------- |
 | `debug` | `false` | Log all database queries |
-| `backend` | `"sqlite3"` | Database backend (only `sqlite3` is supported) |
+| `backend` | `"sqlite3"` | Database backend: `"sqlite3"` or `"postgresql"` |
 | `passphrase` | (required) | 32-character string used to encrypt secrets at rest (AES-256). Protects webhook secrets, tokens, and private keys stored in the database. |
 
 ### [database.sqlite3]
@@ -99,6 +101,48 @@ Then rotate with `systemctl reload garm`.
 | Option | Default | Description |
 | -------- | --------- | ------------- |
 | `db_file` | (required) | Path to the SQLite database file |
+
+### [database.postgresql]
+
+| Option | Default | Description |
+| -------- | --------- | ------------- |
+| `username` | (required) | PostgreSQL user |
+| `password` | (required) | PostgreSQL password |
+| `hostname` | (required) | Host or IP of the PostgreSQL server |
+| `port` | `5432` | Port the server listens on |
+| `database` | (required) | Database name |
+| `sslmode` | `"prefer"` | SSL mode: `disable`, `allow`, `prefer`, `require`, `verify-ca`, or `verify-full` |
+| `max_open_conns` | `25` | Maximum number of open connections in the pool |
+| `max_idle_conns` | `5` | Maximum number of idle connections in the pool |
+| `conn_max_lifetime_mins` | `30` | Maximum connection lifetime in minutes |
+| `conn_max_idle_time_secs` | `300` | Maximum time a connection may sit idle before being closed, in seconds |
+
+```toml
+[database]
+  backend    = "postgresql"
+  passphrase = "<random-32-char-string>"
+  [database.postgresql]
+    username = "garm"
+    password = "<password>"
+    hostname = "localhost"
+    port     = 5432
+    database = "garm"
+    sslmode  = "prefer"
+```
+
+### Reclaiming storage from deleted file objects
+
+File object content can be large. Both backends reclaim the underlying storage automatically, but the mechanics differ.
+
+**SQLite.** Blob content is stored in a separate database file (auto-vacuum is enabled in the connection string). GARM runs `PRAGMA incremental_vacuum` against both the main and objects databases every 24 hours, so freed pages are returned to the filesystem without operator intervention.
+
+**PostgreSQL.** Blob content is stored in PostgreSQL Large Objects (`pg_largeobject`). When a file object is deleted, GARM calls `lo_unlink` inline in the same transaction, and PostgreSQL's autovacuum reclaims the underlying storage.
+
+If `lo_unlink` fails during deletion (for example because of a transient connection error), GARM logs the orphaned OID at `error` level. To recover such orphans, run the `vacuumlo` utility (shipped with PostgreSQL):
+
+```
+vacuumlo -U garm -W garm
+```
 
 ## [[provider]]
 

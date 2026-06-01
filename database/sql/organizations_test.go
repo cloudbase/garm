@@ -86,12 +86,8 @@ func (s *OrgTestSuite) TearDownTest() {
 func (s *OrgTestSuite) SetupTest() {
 	ctx := context.Background()
 	watcher.InitWatcher(ctx)
-	// create testing sqlite database
-	dbConfig := garmTesting.GetTestSqliteDBConfig(s.T())
-	db, err := NewSQLDatabase(ctx, dbConfig)
-	if err != nil {
-		s.FailNow(fmt.Sprintf("failed to create db connection: %s", err))
-	}
+	// create testing database
+	db := newTestDB(s.T())
 	s.Store = db
 
 	adminCtx := garmTesting.ImpersonateAdminContext(ctx, db, s.T())
@@ -143,7 +139,7 @@ func (s *OrgTestSuite) SetupTest() {
 	}
 	s.StoreSQLMocked = &sqlDatabase{
 		conn: gormConn,
-		cfg:  dbConfig,
+		cfg:  db.(*sqlDatabase).cfg,
 	}
 
 	// setup test fixtures

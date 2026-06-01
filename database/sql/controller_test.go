@@ -24,7 +24,6 @@ import (
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/database/watcher"
-	garmTesting "github.com/cloudbase/garm/internal/testing" //nolint:typecheck
 )
 
 type CtrlTestSuite struct {
@@ -35,11 +34,7 @@ type CtrlTestSuite struct {
 func (s *CtrlTestSuite) SetupTest() {
 	ctx := context.Background()
 	watcher.InitWatcher(ctx)
-	db, err := NewSQLDatabase(ctx, garmTesting.GetTestSqliteDBConfig(s.T()))
-	if err != nil {
-		s.FailNow(fmt.Sprintf("failed to create db connection: %s", err))
-	}
-	s.Store = db
+	s.Store = newTestDB(s.T())
 }
 
 func (s *CtrlTestSuite) TearDownTest() {

@@ -26,8 +26,8 @@ import (
 func NewDatabase(ctx context.Context, cfg config.Database) (common.Store, error) {
 	dbBackend := cfg.DbBackend
 	switch dbBackend {
-	case config.MySQLBackend, config.SQLiteBackend:
-		return sql.NewSQLDatabase(ctx, cfg)
+	case config.MySQLBackend, config.SQLiteBackend, config.PostgreSQLBackend:
+		return sql.NewSQLStore(ctx, cfg)
 	default:
 		return nil, fmt.Errorf("db backend not available: %s", dbBackend)
 	}
