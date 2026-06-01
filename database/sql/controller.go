@@ -24,6 +24,7 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/database/common"
@@ -165,7 +166,7 @@ func (s *sqlDatabase) UpdateController(info params.UpdateControllerParams) (para
 	}()
 	var dbInfo ControllerInfo
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
-		q := tx.Model(&ControllerInfo{}).First(&dbInfo)
+		q := tx.Model(&ControllerInfo{}).Clauses(clause.Locking{Strength: "UPDATE"}).First(&dbInfo)
 		if q.Error != nil {
 			if errors.Is(q.Error, gorm.ErrRecordNotFound) {
 				return fmt.Errorf("error fetching controller info: %w", runnerErrors.ErrNotFound)
@@ -243,7 +244,7 @@ func (s *sqlDatabase) UpdateCachedGARMAgentRelease(releaseData []byte, fetchedAt
 	var dbInfo ControllerInfo
 	var rowsAffected int64
 	err := s.conn.Transaction(func(tx *gorm.DB) error {
-		q := tx.Model(&ControllerInfo{}).First(&dbInfo)
+		q := tx.Model(&ControllerInfo{}).Clauses(clause.Locking{Strength: "UPDATE"}).First(&dbInfo)
 		if q.Error != nil {
 			if errors.Is(q.Error, gorm.ErrRecordNotFound) {
 				return fmt.Errorf("error fetching controller info: %w", runnerErrors.ErrNotFound)

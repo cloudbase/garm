@@ -20,6 +20,7 @@ import (
 	"fmt"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/auth"
@@ -35,7 +36,7 @@ func (s *sqlDatabase) CreateGithubEndpoint(_ context.Context, param params.Creat
 	}()
 	var endpoint GithubEndpoint
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("name = ?", param.Name).First(&endpoint).Error; err == nil {
+		if err := tx.Where("LOWER(name) = LOWER(?)", param.Name).First(&endpoint).Error; err == nil {
 			return fmt.Errorf("error github endpoint already exists: %w", runnerErrors.ErrDuplicateEntity)
 		}
 		endpoint = GithubEndpoint{
@@ -90,7 +91,7 @@ func (s *sqlDatabase) UpdateGithubEndpoint(_ context.Context, name string, param
 	}()
 	var endpoint GithubEndpoint
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("name = ? and endpoint_type = ?", name, params.GithubEndpointType).First(&endpoint).Error; err != nil {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("LOWER(name) = LOWER(?) and endpoint_type = ?", name, params.GithubEndpointType).First(&endpoint).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return fmt.Errorf("error github endpoint not found: %w", runnerErrors.ErrNotFound)
 			}
@@ -161,7 +162,7 @@ func (s *sqlDatabase) UpdateGithubEndpoint(_ context.Context, name string, param
 func (s *sqlDatabase) GetGithubEndpoint(_ context.Context, name string) (params.ForgeEndpoint, error) {
 	var endpoint GithubEndpoint
 
-	err := s.conn.Where("name = ? and endpoint_type = ?", name, params.GithubEndpointType).First(&endpoint).Error
+	err := s.conn.Where("LOWER(name) = LOWER(?) and endpoint_type = ?", name, params.GithubEndpointType).First(&endpoint).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return params.ForgeEndpoint{}, fmt.Errorf("github endpoint not found: %w", runnerErrors.ErrNotFound)
@@ -180,7 +181,7 @@ func (s *sqlDatabase) DeleteGithubEndpoint(_ context.Context, name string) (err 
 	}()
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
 		var endpoint GithubEndpoint
-		if err := tx.Where("name = ? and endpoint_type = ?", name, params.GithubEndpointType).First(&endpoint).Error; err != nil {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("LOWER(name) = LOWER(?) and endpoint_type = ?", name, params.GithubEndpointType).First(&endpoint).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return nil
 			}
@@ -247,14 +248,14 @@ func (s *sqlDatabase) CreateGithubCredentials(ctx context.Context, param params.
 	var creds GithubCredentials
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
 		var endpoint GithubEndpoint
-		if err := tx.Where("name = ? and endpoint_type = ?", param.Endpoint, params.GithubEndpointType).First(&endpoint).Error; err != nil {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("LOWER(name) = LOWER(?) and endpoint_type = ?", param.Endpoint, params.GithubEndpointType).First(&endpoint).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return fmt.Errorf("github endpoint not found: %w", runnerErrors.ErrNotFound)
 			}
 			return fmt.Errorf("error fetching github endpoint: %w", err)
 		}
 
-		if err := tx.Where("name = ? and user_id = ?", param.Name, userID).First(&creds).Error; err == nil {
+		if err := tx.Where("LOWER(name) = LOWER(?) and user_id = ?", param.Name, userID).First(&creds).Error; err == nil {
 			return fmt.Errorf("github credentials already exists: %w", runnerErrors.ErrDuplicateEntity)
 		}
 
@@ -319,7 +320,7 @@ func (s *sqlDatabase) getGithubCredentialsByName(ctx context.Context, tx *gorm.D
 	}
 	q = q.Where("user_id = ?", userID)
 
-	err = q.Where("name = ?", name).First(&creds).Error
+	err = q.Where("LOWER(name) = LOWER(?)", name).First(&creds).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return GithubCredentials{}, fmt.Errorf("github credentials not found: %w", runnerErrors.ErrNotFound)
@@ -407,7 +408,7 @@ func (s *sqlDatabase) UpdateGithubCredentials(ctx context.Context, id uint, para
 	}()
 	var creds GithubCredentials
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
-		q := tx.Preload("Endpoint")
+		q := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Preload("Endpoint")
 		if !auth.IsAdmin(ctx) {
 			userID, err := getUIDFromContext(ctx)
 			if err != nil {
@@ -492,7 +493,7 @@ func (s *sqlDatabase) DeleteGithubCredentials(ctx context.Context, id uint) (err
 		}
 	}()
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
-		q := tx.Where("id = ?", id).
+		q := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ?", id).
 			Preload("Repositories").
 			Preload("Organizations").
 			Preload("Enterprises")

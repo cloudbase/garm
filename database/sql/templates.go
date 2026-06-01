@@ -21,6 +21,7 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
@@ -45,7 +46,7 @@ func (s *sqlDatabase) ListTemplates(ctx context.Context, osType *commonParams.OS
 	}
 
 	if partialName != nil {
-		q = q.Where("name like ? COLLATE NOCASE", fmt.Sprintf("%%%s%%", *partialName))
+		q = q.Where("LOWER(name) LIKE LOWER(?)", fmt.Sprintf("%%%s%%", *partialName))
 	}
 
 	if forgeType != nil {
@@ -196,7 +197,7 @@ func (s *sqlDatabase) UpdateTemplate(ctx context.Context, id uint, param params.
 	}()
 	var tpl Template
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
-		tpl, err = s.getTemplate(ctx, tx, id)
+		tpl, err = s.getTemplate(ctx, tx.Clauses(clause.Locking{Strength: "UPDATE"}), id)
 		if err != nil {
 			return fmt.Errorf("failed to get template: %w", err)
 		}
@@ -252,7 +253,7 @@ func (s *sqlDatabase) DeleteTemplate(ctx context.Context, id uint) (err error) {
 		}
 	}()
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
-		tpl, err := s.getTemplate(ctx, tx, id, "Pools", "ScaleSets")
+		tpl, err := s.getTemplate(ctx, tx.Clauses(clause.Locking{Strength: "UPDATE"}), id, "Pools", "ScaleSets")
 		if err != nil {
 			return fmt.Errorf("failed to get template: %w", err)
 		}

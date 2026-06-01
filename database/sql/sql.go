@@ -12,6 +12,11 @@
 //    License for the specific language governing permissions and limitations
 //    under the License.
 
+// Concurrency invariant: read-modify-write transactions in this package take a
+// row lock via SELECT ... FOR UPDATE (clause.Locking{Strength: "UPDATE"}) to
+// serialize concurrent updates of the same row and prevent lost updates. On a
+// single-writer backend (SQLite) the lock is effectively a no-op, but it is
+// load-bearing on any backend that permits concurrent writers — do not remove it.
 package sql
 
 import (

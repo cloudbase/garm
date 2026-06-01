@@ -22,6 +22,7 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm-provider-common/util"
@@ -163,7 +164,7 @@ func (s *sqlDatabase) UpdateRepository(ctx context.Context, repoID string, param
 	var repo Repository
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
 		var err error
-		repo, err = s.getRepoByID(ctx, tx, repoID, "Endpoint")
+		repo, err = s.getRepoByID(ctx, tx.Clauses(clause.Locking{Strength: "UPDATE"}), repoID, "Endpoint")
 		if err != nil {
 			return fmt.Errorf("error fetching repo: %w", err)
 		}
@@ -260,7 +261,7 @@ func (s *sqlDatabase) GetRepositoryByID(ctx context.Context, repoID string) (par
 func (s *sqlDatabase) getRepo(_ context.Context, owner, name, endpointName string) (Repository, error) {
 	var repo Repository
 
-	q := s.conn.Where("name = ? COLLATE NOCASE and owner = ? COLLATE NOCASE and endpoint_name = ? COLLATE NOCASE", name, owner, endpointName).
+	q := s.conn.Where("LOWER(name) = LOWER(?) and LOWER(owner) = LOWER(?) and LOWER(endpoint_name) = LOWER(?)", name, owner, endpointName).
 		Preload("Credentials").
 		Preload("Credentials.Endpoint").
 		Preload("GiteaCredentials").

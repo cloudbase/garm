@@ -22,6 +22,7 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/database/common"
@@ -218,7 +219,7 @@ func (s *sqlDatabase) UpdateEntityScaleSet(ctx context.Context, entity params.Fo
 		}
 	}()
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
-		scaleSet, err := s.getEntityScaleSet(tx, entity.EntityType, entity.ID, scaleSetID, "Instances", "Tags")
+		scaleSet, err := s.getEntityScaleSet(tx.Clauses(clause.Locking{Strength: "UPDATE"}), entity.EntityType, entity.ID, scaleSetID, "Instances", "Tags")
 		if err != nil {
 			return fmt.Errorf("error fetching scale set: %w", err)
 		}
@@ -432,7 +433,7 @@ func (s *sqlDatabase) DeleteScaleSetByID(_ context.Context, scaleSetID uint) (er
 		}
 	}()
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
-		dbSet, err := s.getScaleSetByID(tx, scaleSetID, "Instances", "Enterprise", "Organization", "Repository")
+		dbSet, err := s.getScaleSetByID(tx.Clauses(clause.Locking{Strength: "UPDATE"}), scaleSetID, "Instances", "Enterprise", "Organization", "Repository")
 		if err != nil {
 			return fmt.Errorf("error fetching scale set: %w", err)
 		}
@@ -465,7 +466,7 @@ func (s *sqlDatabase) SetScaleSetLastMessageID(_ context.Context, scaleSetID uin
 		}
 	}()
 	if err := s.conn.Transaction(func(tx *gorm.DB) error {
-		dbSet, err := s.getScaleSetByID(tx, scaleSetID, "Instances", "Enterprise", "Organization", "Repository")
+		dbSet, err := s.getScaleSetByID(tx.Clauses(clause.Locking{Strength: "UPDATE"}), scaleSetID, "Instances", "Enterprise", "Organization", "Repository")
 		if err != nil {
 			return fmt.Errorf("error fetching scale set: %w", err)
 		}
@@ -502,7 +503,7 @@ func (s *sqlDatabase) SetScaleSetDesiredRunnerCount(_ context.Context, scaleSetI
 		}
 	}()
 	if err := s.conn.Transaction(func(tx *gorm.DB) error {
-		dbSet, err := s.getScaleSetByID(tx, scaleSetID, "Instances", "Enterprise", "Organization", "Repository")
+		dbSet, err := s.getScaleSetByID(tx.Clauses(clause.Locking{Strength: "UPDATE"}), scaleSetID, "Instances", "Enterprise", "Organization", "Repository")
 		if err != nil {
 			return fmt.Errorf("error fetching scale set: %w", err)
 		}
