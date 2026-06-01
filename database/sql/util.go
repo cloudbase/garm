@@ -559,7 +559,7 @@ func (s *sqlDatabase) sqlToParamsUser(user User) params.User {
 
 func (s *sqlDatabase) getOrCreateTag(tx *gorm.DB, tagName string) (Tag, error) {
 	var tag Tag
-	q := tx.Where("name = ? COLLATE NOCASE", tagName).First(&tag)
+	q := tx.Where("LOWER(name) = LOWER(?)", tagName).First(&tag)
 	if q.Error == nil {
 		return tag, nil
 	}

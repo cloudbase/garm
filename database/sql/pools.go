@@ -18,10 +18,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/database/common"
@@ -219,14 +221,19 @@ func (s *sqlDatabase) findPoolByTags(id string, poolType params.ForgeEntityType,
 		return nil, fmt.Errorf("invalid poolType: %v", poolType)
 	}
 
+	lowerTags := make([]string, len(tags))
+	for i, t := range tags {
+		lowerTags[i] = strings.ToLower(t)
+	}
+
 	var pools []Pool
-	where := fmt.Sprintf("tags.name COLLATE NOCASE in ? and %s = ? and enabled = true", fieldName)
+	where := fmt.Sprintf("LOWER(tags.name) in ? and %s = ? and enabled = true", fieldName)
 	q := s.conn.Joins("JOIN pool_tags on pool_tags.pool_id=pools.id").
 		Joins("JOIN tags on tags.id=pool_tags.tag_id").
 		Group("pools.id").
 		Preload("Tags").
 		Having("count(1) = ?", len(tags)).
-		Where(where, tags, u).
+		Where(where, lowerTags, u).
 		Order("priority desc").
 		Find(&pools)
 
@@ -410,7 +417,7 @@ func (s *sqlDatabase) UpdateEntityPool(ctx context.Context, entity params.ForgeE
 		}
 	}()
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
-		pool, err := s.getEntityPool(tx, entity.EntityType, entity.ID, poolID, "Tags", "Instances")
+		pool, err := s.getEntityPool(tx.Clauses(clause.Locking{Strength: "UPDATE"}), entity.EntityType, entity.ID, poolID, "Tags", "Instances")
 		if err != nil {
 			return fmt.Errorf("error fetching pool: %w", err)
 		}

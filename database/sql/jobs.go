@@ -165,7 +165,7 @@ func (s *sqlDatabase) LockJob(_ context.Context, jobID int64, entityID string) e
 
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
 		var workflowJob WorkflowJob
-		q := tx.Preload("Instance").Where("workflow_job_id = ?", jobID).First(&workflowJob)
+		q := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Preload("Instance").Where("workflow_job_id = ?", jobID).First(&workflowJob)
 
 		if q.Error != nil {
 			if errors.Is(q.Error, gorm.ErrRecordNotFound) {
@@ -305,7 +305,7 @@ func (s *sqlDatabase) CreateOrUpdateJob(ctx context.Context, job params.Job) (pa
 			searchField = "scale_set_job_id = ?"
 			searchVal = job.ScaleSetJobID
 		}
-		q := tx.Preload("Instance").Where(searchField, searchVal).First(&workflowJob)
+		q := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Preload("Instance").Where(searchField, searchVal).First(&workflowJob)
 
 		if q.Error != nil {
 			if !errors.Is(q.Error, gorm.ErrRecordNotFound) {

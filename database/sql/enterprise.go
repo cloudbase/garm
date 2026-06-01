@@ -22,6 +22,7 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm-provider-common/util"
@@ -177,7 +178,7 @@ func (s *sqlDatabase) UpdateEnterprise(ctx context.Context, enterpriseID string,
 	var enterprise Enterprise
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
 		var err error
-		enterprise, err = s.getEnterpriseByID(ctx, tx, enterpriseID, "Endpoint")
+		enterprise, err = s.getEnterpriseByID(ctx, tx.Clauses(clause.Locking{Strength: "UPDATE"}), enterpriseID, "Endpoint")
 		if err != nil {
 			return fmt.Errorf("error fetching enterprise: %w", err)
 		}
@@ -253,7 +254,7 @@ func (s *sqlDatabase) UpdateEnterprise(ctx context.Context, enterpriseID string,
 func (s *sqlDatabase) getEnterprise(_ context.Context, name, endpointName string) (Enterprise, error) {
 	var enterprise Enterprise
 
-	q := s.conn.Where("name = ? COLLATE NOCASE and endpoint_name = ? COLLATE NOCASE", name, endpointName).
+	q := s.conn.Where("LOWER(name) = LOWER(?) and LOWER(endpoint_name) = LOWER(?)", name, endpointName).
 		Preload("Credentials").
 		Preload("Credentials.Endpoint").
 		Preload("Endpoint").

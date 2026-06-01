@@ -22,6 +22,7 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm-provider-common/util"
@@ -161,7 +162,7 @@ func (s *sqlDatabase) UpdateOrganization(ctx context.Context, orgID string, para
 	var org Organization
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
 		var err error
-		org, err = s.getOrgByID(ctx, tx, orgID, "Endpoint")
+		org, err = s.getOrgByID(ctx, tx.Clauses(clause.Locking{Strength: "UPDATE"}), orgID, "Endpoint")
 		if err != nil {
 			return fmt.Errorf("error fetching org: %w", err)
 		}
@@ -282,7 +283,7 @@ func (s *sqlDatabase) getOrgByID(_ context.Context, db *gorm.DB, id string, prel
 func (s *sqlDatabase) getOrg(_ context.Context, name, endpointName string) (Organization, error) {
 	var org Organization
 
-	q := s.conn.Where("name = ? COLLATE NOCASE and endpoint_name = ? COLLATE NOCASE", name, endpointName).
+	q := s.conn.Where("LOWER(name) = LOWER(?) and LOWER(endpoint_name) = LOWER(?)", name, endpointName).
 		Preload("Credentials").
 		Preload("GiteaCredentials").
 		Preload("Credentials.Endpoint").

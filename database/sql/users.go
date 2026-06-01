@@ -20,6 +20,7 @@ import (
 	"fmt"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm-provider-common/util"
@@ -122,7 +123,7 @@ func (s *sqlDatabase) UpdateUser(_ context.Context, user string, param params.Up
 	var err error
 	var dbUser User
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
-		dbUser, err = s.getUserByUsernameOrEmail(tx, user)
+		dbUser, err = s.getUserByUsernameOrEmail(tx.Clauses(clause.Locking{Strength: "UPDATE"}), user)
 		if err != nil {
 			return fmt.Errorf("error fetching user: %w", err)
 		}

@@ -42,7 +42,7 @@ func (s *sqlDatabase) CreateInstance(ctx context.Context, poolID string, param p
 	}()
 
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
-		pool, err := s.getPoolByID(tx, poolID)
+		pool, err := s.getPoolByID(tx.Clauses(clause.Locking{Strength: "UPDATE"}), poolID)
 		if err != nil {
 			return fmt.Errorf("error fetching pool: %w", err)
 		}
@@ -406,7 +406,7 @@ func (s *sqlDatabase) UpdateInstance(ctx context.Context, instanceName string, p
 func (s *sqlDatabase) updateInstance(ctx context.Context, instanceName string, param params.UpdateInstanceParams, force bool) (params.Instance, error) {
 	var rowsAffected int64
 	err := s.conn.Transaction(func(tx *gorm.DB) error {
-		instance, err := s.getInstance(ctx, tx, instanceName, "Pool", "ScaleSet")
+		instance, err := s.getInstance(ctx, tx.Clauses(clause.Locking{Strength: "UPDATE"}), instanceName, "Pool", "ScaleSet")
 		if err != nil {
 			return fmt.Errorf("error updating instance: %w", err)
 		}
