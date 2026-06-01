@@ -67,18 +67,12 @@ func (s *PoolsTestSuite) SetupTest() {
 	ctx := context.Background()
 	watcher.InitWatcher(ctx)
 
-	db, err := NewSQLDatabase(context.Background(), garmTesting.GetTestSqliteDBConfig(s.T()))
-	if err != nil {
-		s.FailNow(fmt.Sprintf("failed to create db connection: %s", err))
-	}
-	s.Store = db
+	s.Store = newTestDB(s.T())
 	s.ctx = garmTesting.ImpersonateAdminContext(ctx, s.Store, s.T())
+	s.adminCtx = s.ctx
 
-	adminCtx := garmTesting.ImpersonateAdminContext(context.Background(), db, s.T())
-	s.adminCtx = adminCtx
-
-	githubEndpoint := garmTesting.CreateDefaultGithubEndpoint(adminCtx, db, s.T())
-	creds := garmTesting.CreateTestGithubCredentials(adminCtx, "new-creds", db, s.T(), githubEndpoint)
+	githubEndpoint := garmTesting.CreateDefaultGithubEndpoint(s.adminCtx, s.Store, s.T())
+	creds := garmTesting.CreateTestGithubCredentials(s.adminCtx, "new-creds", s.Store, s.T(), githubEndpoint)
 
 	// create an organization for testing purposes
 	org, err := s.Store.CreateOrganization(s.adminCtx, "test-org", creds, "test-webhookSecret", params.PoolBalancerTypeRoundRobin, false)
@@ -91,7 +85,7 @@ func (s *PoolsTestSuite) SetupTest() {
 	// create some pool objects in the database, for testing purposes
 	orgPools := []params.Pool{}
 	for i := 1; i <= 3; i++ {
-		pool, err := db.CreateEntityPool(
+		pool, err := s.Store.CreateEntityPool(
 			s.adminCtx,
 			entity,
 			params.CreatePoolParams{

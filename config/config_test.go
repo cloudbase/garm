@@ -68,6 +68,17 @@ func getMySQLDefaultConfig() MySQL {
 	}
 }
 
+func getPostgresDefaultConfig() PostgreSQL {
+	return PostgreSQL{
+		Username: "test",
+		Password: "test",
+		Hostname: "127.0.0.1",
+		Port:     5432,
+		Database: "garm",
+		SSLMode:  "disable",
+	}
+}
+
 func getDefaultDatabaseConfig(dir string) Database {
 	return Database{
 		Debug:     false,
@@ -343,7 +354,7 @@ func TestDatabaseConfig(t *testing.T) {
 			errString: "database passphrase is too weak",
 		},
 		{
-			name: "sqlite3 backend is missconfigured",
+			name: "sqlite3 backend is misconfigured",
 			cfg: Database{
 				DbBackend: cfg.DbBackend,
 				SQLite: SQLite{
@@ -354,7 +365,7 @@ func TestDatabaseConfig(t *testing.T) {
 			errString: "validating sqlite3 config: no valid db_file was specified",
 		},
 		{
-			name: "mysql backend is missconfigured",
+			name: "mysql backend is misconfigured",
 			cfg: Database{
 				DbBackend:  MySQLBackend,
 				MySQL:      MySQL{},
@@ -367,6 +378,24 @@ func TestDatabaseConfig(t *testing.T) {
 			cfg: Database{
 				DbBackend:  MySQLBackend,
 				MySQL:      getMySQLDefaultConfig(),
+				Passphrase: cfg.Passphrase,
+			},
+			errString: "",
+		},
+		{
+			name: "postgresql backend is misconfigured",
+			cfg: Database{
+				DbBackend:  PostgreSQLBackend,
+				PostgreSQL: PostgreSQL{},
+				Passphrase: cfg.Passphrase,
+			},
+			errString: "validating postgresql config: username is required",
+		},
+		{
+			name: "postgresql backend is configured and valid",
+			cfg: Database{
+				DbBackend:  PostgreSQLBackend,
+				PostgreSQL: getPostgresDefaultConfig(),
 				Passphrase: cfg.Passphrase,
 			},
 			errString: "",
@@ -413,6 +442,15 @@ func TestGormParams(t *testing.T) {
 	require.Nil(t, err)
 	require.Equal(t, MySQLBackend, dbType)
 	require.Equal(t, "test:test@tcp(127.0.0.1)/garm?charset=utf8&parseTime=True&loc=Local&timeout=5s", uri)
+
+	cfg.DbBackend = PostgreSQLBackend
+	cfg.MySQL = MySQL{}
+	cfg.PostgreSQL = getPostgresDefaultConfig()
+
+	dbType, uri, err = cfg.GormParams()
+	require.Nil(t, err)
+	require.Equal(t, PostgreSQLBackend, dbType)
+	require.Equal(t, "host=127.0.0.1 port=5432 user=test password=test dbname=garm sslmode=disable", uri)
 }
 
 func TestSQLiteConfig(t *testing.T) {
@@ -466,6 +504,180 @@ func TestSQLiteConfig(t *testing.T) {
 				require.NotNil(t, err)
 				require.Regexp(t, tc.errString, err.Error())
 			}
+		})
+	}
+}
+
+func TestPostgreSQLConfig(t *testing.T) {
+	cfg := getPostgresDefaultConfig()
+
+	tests := []struct {
+		name      string
+		cfg       PostgreSQL
+		errString string
+	}{
+		{
+			name:      "Config is valid",
+			cfg:       cfg,
+			errString: "",
+		},
+		{
+			name: "Missing username",
+			cfg: PostgreSQL{
+				Password: "test",
+				Hostname: "127.0.0.1",
+				Database: "garm",
+			},
+			errString: "username is required",
+		},
+		{
+			name: "Missing password",
+			cfg: PostgreSQL{
+				Username: "test",
+				Hostname: "127.0.0.1",
+				Database: "garm",
+			},
+			errString: "password is required",
+		},
+		{
+			name: "Missing hostname",
+			cfg: PostgreSQL{
+				Username: "test",
+				Password: "test",
+				Database: "garm",
+			},
+			errString: "hostname is required",
+		},
+		{
+			name: "Missing database",
+			cfg: PostgreSQL{
+				Username: "test",
+				Password: "test",
+				Hostname: "127.0.0.1",
+			},
+			errString: "database is required",
+		},
+		{
+			name: "Port is negative",
+			cfg: PostgreSQL{
+				Username: "test",
+				Password: "test",
+				Hostname: "127.0.0.1",
+				Port:     -1,
+				Database: "garm",
+			},
+			errString: "invalid port",
+		},
+		{
+			name: "Port exceeds maximum",
+			cfg: PostgreSQL{
+				Username: "test",
+				Password: "test",
+				Hostname: "127.0.0.1",
+				Port:     65536,
+				Database: "garm",
+			},
+			errString: "invalid port",
+		},
+		{
+			name: "SSLMode is invalid",
+			cfg: PostgreSQL{
+				Username: "test",
+				Password: "test",
+				Hostname: "127.0.0.1",
+				Database: "garm",
+				SSLMode:  "bogus",
+			},
+			errString: "invalid sslmode",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.cfg.Validate()
+			if tc.errString == "" {
+				require.Nil(t, err)
+			} else {
+				require.NotNil(t, err)
+				require.Regexp(t, tc.errString, err.Error())
+			}
+		})
+	}
+}
+
+func TestPostgreSQLConfigDefaultsApplied(t *testing.T) {
+	cfg := PostgreSQL{
+		Username: "test",
+		Password: "test",
+		Hostname: "127.0.0.1",
+		Database: "garm",
+	}
+
+	err := cfg.Validate()
+	require.Nil(t, err)
+	require.Equal(t, 5432, cfg.Port)
+	require.Equal(t, "prefer", cfg.SSLMode)
+}
+
+func TestPostgreSQLConnectionString(t *testing.T) {
+	cfg := getPostgresDefaultConfig()
+
+	connStr, err := cfg.ConnectionString()
+	require.Nil(t, err)
+	require.Equal(t, "host=127.0.0.1 port=5432 user=test password=test dbname=garm sslmode=disable", connStr)
+}
+
+func TestPostgreSQLConnectionStringDefaultsApplied(t *testing.T) {
+	cfg := PostgreSQL{
+		Username: "test",
+		Password: "test",
+		Hostname: "127.0.0.1",
+		Database: "garm",
+	}
+
+	connStr, err := cfg.ConnectionString()
+	require.Nil(t, err)
+	require.Equal(t, "host=127.0.0.1 port=5432 user=test password=test dbname=garm sslmode=prefer", connStr)
+}
+
+func TestPostgreSQLConnectionStringSpecialChars(t *testing.T) {
+	base := PostgreSQL{
+		Username: "test",
+		Hostname: "127.0.0.1",
+		Port:     5432,
+		Database: "garm",
+		SSLMode:  "disable",
+	}
+
+	tests := []struct {
+		name     string
+		password string
+		expected string
+	}{
+		{
+			name:     "Password with space",
+			password: "my pass",
+			expected: "host=127.0.0.1 port=5432 user=test password='my pass' dbname=garm sslmode=disable",
+		},
+		{
+			name:     "Password with single quote",
+			password: "pass'word",
+			expected: `host=127.0.0.1 port=5432 user=test password='pass\'word' dbname=garm sslmode=disable`,
+		},
+		{
+			name:     "Password with backslash",
+			password: `pass\word`,
+			expected: `host=127.0.0.1 port=5432 user=test password='pass\\word' dbname=garm sslmode=disable`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := base
+			cfg.Password = tc.password
+			connStr, err := cfg.ConnectionString()
+			require.Nil(t, err)
+			require.Equal(t, tc.expected, connStr)
 		})
 	}
 }

@@ -62,10 +62,7 @@ func (s *UserTestSuite) SetupTest() {
 	ctx := context.Background()
 	watcher.InitWatcher(ctx)
 	// create testing sqlite database
-	db, err := NewSQLDatabase(context.Background(), garmTesting.GetTestSqliteDBConfig(s.T()))
-	if err != nil {
-		s.FailNow(fmt.Sprintf("failed to create db connection: %s", err))
-	}
+	db := newTestDB(s.T())
 	s.Store = db
 
 	// create some user objects in the database, for testing purposes

@@ -16,7 +16,6 @@ package sql
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"testing"
 
@@ -55,11 +54,7 @@ func (s *GithubTestSuite) TearDownTest() {
 func (s *GithubTestSuite) SetupTest() {
 	ctx := context.Background()
 	watcher.InitWatcher(ctx)
-	db, err := NewSQLDatabase(ctx, garmTesting.GetTestSqliteDBConfig(s.T()))
-	if err != nil {
-		s.FailNow(fmt.Sprintf("failed to create db connection: %s", err))
-	}
-	s.db = db
+	s.db = newTestDB(s.T())
 }
 
 func (s *GithubTestSuite) TestDefaultEndpointGetsCreatedAutomaticallyIfNoOtherEndpointExists() {

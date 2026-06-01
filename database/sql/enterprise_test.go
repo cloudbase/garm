@@ -86,11 +86,8 @@ func (s *EnterpriseTestSuite) TearDownTest() {
 func (s *EnterpriseTestSuite) SetupTest() {
 	ctx := context.Background()
 	watcher.InitWatcher(ctx)
-	// create testing sqlite database
-	db, err := NewSQLDatabase(ctx, garmTesting.GetTestSqliteDBConfig(s.T()))
-	if err != nil {
-		s.FailNow(fmt.Sprintf("failed to create db connection: %s", err))
-	}
+	// create testing database
+	db := newTestDB(s.T())
 	s.Store = db
 
 	adminCtx := garmTesting.ImpersonateAdminContext(ctx, db, s.T())

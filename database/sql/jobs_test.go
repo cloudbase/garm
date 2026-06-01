@@ -16,7 +16,6 @@ package sql
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -39,10 +38,7 @@ func (s *JobsTestSuite) SetupTest() {
 	watcher.InitWatcher(ctx)
 
 	// Create testing sqlite database
-	db, err := NewSQLDatabase(ctx, garmTesting.GetTestSqliteDBConfig(s.T()))
-	if err != nil {
-		s.FailNow(fmt.Sprintf("failed to create db connection: %s", err))
-	}
+	db := newTestDB(s.T())
 	s.Store = db
 
 	adminCtx := garmTesting.ImpersonateAdminContext(ctx, db, s.T())

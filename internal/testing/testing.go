@@ -19,13 +19,18 @@ package testing
 
 import (
 	"context"
+	dbsql "database/sql"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"testing"
 
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/stretchr/testify/require"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
@@ -191,6 +196,69 @@ func CreateTestGiteaCredentials(ctx context.Context, credsName string, db common
 		s.Fatalf("failed to create database object (%s): %v", credsName, err)
 	}
 	return newCreds
+}
+
+// OpenTestPostgresDB creates a schema-isolated *dbsql.DB for tests.
+// It reads GARM_TEST_POSTGRES_DSN (URL format) for the base connection,
+// creates a unique schema per test, and sets search_path via pgx RuntimeParams
+// so every connection in the pool targets that schema automatically.
+// The schema is dropped in t.Cleanup. The test is skipped if the env var is not set.
+//
+// The returned config.Database carries only pool settings; the caller is responsible
+// for closing the *dbsql.DB (the pool) after the store is shut down.
+func OpenTestPostgresDB(t *testing.T) (*dbsql.DB, config.Database) {
+	t.Helper()
+	baseDSN := os.Getenv("GARM_TEST_POSTGRES_DSN")
+	if baseDSN == "" {
+		t.Skip("GARM_TEST_POSTGRES_DSN not set")
+	}
+
+	schemaName := "garm_test_" + strings.ReplaceAll(uuid.New().String(), "-", "_")
+
+	adminDB, err := dbsql.Open("pgx", baseDSN)
+	if err != nil {
+		t.Fatalf("failed to open postgres connection for schema setup: %v", err)
+	}
+	if _, err := adminDB.Exec("CREATE SCHEMA " + schemaName); err != nil {
+		adminDB.Close()
+		t.Fatalf("failed to create test schema %s: %v", schemaName, err)
+	}
+	adminDB.Close()
+
+	t.Cleanup(func() {
+		conn, err := dbsql.Open("pgx", baseDSN)
+		if err != nil {
+			t.Logf("WARNING: failed to open connection for schema cleanup %s: %v", schemaName, err)
+			return
+		}
+		defer conn.Close()
+		if _, err := conn.Exec("DROP SCHEMA " + schemaName + " CASCADE"); err != nil {
+			t.Logf("WARNING: failed to drop test schema %s: %v (schema may need manual cleanup)", schemaName, err)
+		}
+	})
+
+	pgxCfg, err := pgx.ParseConfig(baseDSN)
+	if err != nil {
+		t.Fatalf("failed to parse GARM_TEST_POSTGRES_DSN: %v", err)
+	}
+	pgxCfg.RuntimeParams["search_path"] = schemaName
+	sqlDB := stdlib.OpenDB(*pgxCfg)
+
+	// Small pool and short idle timeout so per-test pools release connections
+	// quickly. Many test suites run sequentially, each creating a fresh pool;
+	// without these limits the cumulative open connections exceed the server's
+	// default max_connections=100.
+	cfg := config.Database{
+		Debug:      false,
+		DbBackend:  config.PostgreSQLBackend,
+		Passphrase: encryptionPassphrase,
+		PostgreSQL: config.PostgreSQL{
+			MaxOpenConns:        5,
+			MaxIdleConns:        2,
+			ConnMaxIdleTimeSecs: 30,
+		},
+	}
+	return sqlDB, cfg
 }
 
 func GetTestSqliteDBConfig(t *testing.T) config.Database {
