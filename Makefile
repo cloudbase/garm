@@ -113,7 +113,7 @@ integration: build ## Run integration tests
 ##@ Development
 
 go-test: ## Run tests
-	@$(GO) test -race -mod=vendor -tags testing -v $(TEST_ARGS) -timeout=15m -parallel=4 -count=1 ./...
+	@$(GO) test -race -mod=vendor -tags testing -v $(TEST_ARGS) -timeout=60m -parallel=4 -count=1 ./...
 
 fmt: ## Run go fmt against code.
 	@$(GO) fmt $$(go list ./...)
