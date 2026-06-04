@@ -95,11 +95,17 @@ jobs:
           POSTGRES_DB: garm
         ports:
           - 5432:5432
+        # Back the data directory with tmpfs (RAM). The test suite creates a
+        # fresh schema and runs the full migration for every test case, so the
+        # default disk-backed, fsync-on container makes the run slow enough to
+        # hit the test timeout. This database is ephemeral, so trading
+        # durability for speed is safe.
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+          --tmpfs /var/lib/postgresql/data
 
     steps:
       - name: Install dependencies
