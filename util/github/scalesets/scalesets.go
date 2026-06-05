@@ -20,7 +20,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/http/httputil"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/params"
@@ -108,10 +107,6 @@ func (s *ScaleSetClient) ListRunnerScaleSets(ctx context.Context) (_ *params.Run
 	req, err := s.newActionsRequest(ctx, http.MethodGet, scaleSetEndpoint, nil)
 	if err != nil {
 		return nil, err
-	}
-	data, err := httputil.DumpRequest(req, false)
-	if err == nil {
-		fmt.Println(string(data))
 	}
 	resp, err := s.Do(req)
 	if err != nil {
