@@ -435,6 +435,7 @@ var templateEditCmd = &cobra.Command{
 		}
 
 		ed := editor.NewEditor()
+		ed.SetSyntax(editor.SyntaxForOSType(string(response.Payload.OSType)))
 
 		newContent, saved, err := ed.EditText(string(response.Payload.Data))
 		if err != nil {

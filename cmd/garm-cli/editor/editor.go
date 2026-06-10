@@ -2,6 +2,7 @@ package editor
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
@@ -17,124 +18,211 @@ const (
 	VimSearch
 )
 
-// Editor represents a text editor that can be launched with initial content
+// Editor is a terminal text editor with optional vim-style keybindings.
 type Editor struct {
-	app               *tview.Application
-	pages             *tview.Pages
-	editor            *tview.TextArea
-	footer            *tview.TextView
-	result            string
-	saved             bool
-	useVim            bool
-	vimMode           VimMode
-	waitingForSecondG bool
-	searchTerm        string
-	searchInput       *tview.InputField
+	app       *tview.Application
+	pages     *tview.Pages
+	layout    *tview.Grid
+	frame     *editorFrame
+	editor    *tview.TextArea
+	gutter    *lineNumberGutter
+	footer    *tview.TextView
+	searchBar *tview.InputField
+	quitModal *tview.Modal
+
+	initialContent string
+	result         string
+	saved          bool
+
+	syntax      string
+	highlighter *syntaxHighlighter
+
+	useVim     bool
+	vimMode    VimMode
+	pendingKey rune // first key of a two-key vim command (gg, dd)
+	searchTerm string
 }
 
 // NewEditor creates a new editor instance
 func NewEditor() *Editor {
-	e := &Editor{
-		app:     tview.NewApplication(),
-		pages:   tview.NewPages(),
-		useVim:  false,
-		vimMode: VimNormal,
+	return &Editor{
+		app:   tview.NewApplication(),
+		pages: tview.NewPages(),
 	}
-	return e
+}
+
+// SetSyntax sets the language used for syntax highlighting (a chroma lexer
+// name, e.g. "bash" or "powershell"). An empty or unknown language disables
+// highlighting. It must be called before EditText.
+func (e *Editor) SetSyntax(language string) {
+	e.syntax = language
 }
 
 // SetVimMode enables or disables vim modal editing
 func (e *Editor) SetVimMode(enabled bool) {
 	e.useVim = enabled
-	if enabled {
-		e.vimMode = VimNormal
-	}
+	e.vimMode = VimNormal
+	e.pendingKey = 0
 }
 
-// toggleVimMode toggles vim mode on/off and updates the UI
-func (e *Editor) toggleVimMode() {
-	e.useVim = !e.useVim
-	if e.useVim {
-		e.vimMode = VimNormal
+// EditText launches the editor with initial content. It returns the edited
+// text and whether the user saved the changes.
+func (e *Editor) EditText(initialContent string) (string, bool, error) {
+	e.setup(initialContent)
+	if err := e.app.SetRoot(e.pages, true).EnableMouse(true).EnablePaste(true).Run(); err != nil {
+		return "", false, err
 	}
-	e.updateTitle()
-	e.updateFooter()
+	return e.result, e.saved, nil
 }
 
-// updateTitle updates the editor title to show current vim mode
-func (e *Editor) updateTitle() {
-	if e.useVim {
-		var modeStr string
-		switch e.vimMode {
-		case VimNormal:
-			modeStr = "NORMAL"
-		case VimInsert:
-			modeStr = "INSERT"
-		case VimSearch:
-			modeStr = "SEARCH"
+// setup builds the editor UI for the given content.
+func (e *Editor) setup(initialContent string) {
+	e.initialContent = initialContent
+	e.result = initialContent
+	e.saved = false
+
+	e.editor = tview.NewTextArea().
+		SetText(initialContent, false).
+		SetWrap(false)
+	e.editor.SetInputCapture(e.handleEditorKey)
+	// A mouse click back into the editor closes the search bar if it is open.
+	e.editor.SetFocusFunc(e.closeSearchBar)
+	e.editor.SetChangedFunc(e.onTextChanged)
+
+	e.highlighter = newSyntaxHighlighter(e.syntax)
+	e.gutter = newLineNumberGutter(e.editor)
+	e.frame = &editorFrame{
+		Flex: tview.NewFlex().
+			AddItem(e.gutter, 0, 0, false).
+			AddItem(e.editor, 0, 1, true),
+		editor:      e.editor,
+		gutter:      e.gutter,
+		highlighter: e.highlighter,
+	}
+	e.frame.SetBorder(true).SetTitleAlign(tview.AlignCenter)
+	e.onTextChanged()
+
+	e.footer = tview.NewTextView().
+		SetDynamicColors(true).
+		SetTextAlign(tview.AlignCenter)
+
+	e.layout = tview.NewGrid().
+		SetRows(0, 1).
+		AddItem(e.frame, 0, 0, 1, 1, 0, 0, true).
+		AddItem(e.footer, 1, 0, 1, 1, 0, 0, false)
+
+	e.pages.AddPage("main", e.layout, true, true)
+	e.createHelpPages()
+	e.createQuitModal()
+	e.refreshChrome()
+
+	// By default tview stops the application on Ctrl+C, which would silently
+	// discard all changes. Route it through the quit confirmation instead.
+	e.app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyCtrlC {
+			e.requestQuit()
+			return nil
 		}
-		e.editor.SetTitle(fmt.Sprintf("Text Editor (VIM - %s)", modeStr))
-	} else {
-		e.editor.SetTitle("Text Editor")
-	}
+		return event
+	})
 }
 
-// resetGCommand resets the gg command state
-func (e *Editor) resetGCommand() {
-	e.waitingForSecondG = false
+// Gutter colors: a subtly lighter background sets the line number strip apart
+// from the text area, dimmed numbers keep the focus on the text, and the
+// cursor line is shown in the primary text color. On terminals without 256
+// colors (e.g. TERM=xterm-color) the background would map to black, so the
+// strip falls back to vim-style colored numbers instead.
+var (
+	gutterBackground     = tcell.Color238 // #444444, clearly lighter than dark terminal themes
+	gutterNumberColor    = tcell.ColorSilver
+	gutterFallbackNumber = tcell.ColorOlive // ANSI dark yellow, vim's default LineNr
+)
+
+// lineNumberGutter renders line numbers next to the text area. It reads the
+// text area's scroll offset and cursor at draw time, so it stays in sync with
+// scrolling without any event plumbing. Screen rows equal text lines because
+// wrapping is disabled.
+type lineNumberGutter struct {
+	*tview.Box
+	editor *tview.TextArea
+	lines  int
 }
 
-// updateFooter updates the footer text based on current mode
-func (e *Editor) updateFooter() {
-	if e.footer == nil {
-		return
-	}
+func newLineNumberGutter(editor *tview.TextArea) *lineNumberGutter {
+	return &lineNumberGutter{Box: tview.NewBox(), editor: editor}
+}
 
-	footerText := "[yellow]Ctrl+S[white]: Save & Exit | [yellow]Ctrl+Q[white]: Quit | [yellow]Alt+H[white]: Help | [yellow]Alt+V[white]: Toggle VIM"
-	if e.useVim {
-		switch e.vimMode {
-		case VimNormal:
-			footerText += " | [green]VIM NORMAL[white]: i/a/o for insert, h/j/k/l/arrows nav, G/gg, / search, n/N find next/prev, x del"
-		case VimInsert:
-			footerText += " | [green]VIM INSERT[white]: Esc for normal mode"
-		case VimSearch:
-			footerText += " | [green]VIM SEARCH[white]: Enter search term, Enter to find, Esc to cancel"
+// width returns the columns needed for the highest line number plus a blank
+// separator column on each side.
+func (g *lineNumberGutter) width() int {
+	return len(strconv.Itoa(max(g.lines, 1))) + 2
+}
+
+func (g *lineNumberGutter) Draw(screen tcell.Screen) {
+	g.DrawForSubclass(screen, g)
+	x, y, width, height := g.GetInnerRect()
+	rowOffset, _ := g.editor.GetOffset()
+	cursorRow, _, _, _ := g.editor.GetCursor()
+	base := tcell.StyleDefault.Foreground(gutterFallbackNumber)
+	if screen.Colors() >= 256 {
+		base = tcell.StyleDefault.Background(gutterBackground).Foreground(gutterNumberColor)
+	}
+	for i := range height {
+		line := rowOffset + i + 1
+		style := base
+		if line-1 == cursorRow {
+			style = style.Foreground(tview.Styles.PrimaryTextColor)
+		}
+		var number string
+		if line <= g.lines {
+			number = strconv.Itoa(line)
+		}
+		// The number right-aligned with one separator column, the rest of the
+		// strip (including rows past the end of the text) just background.
+		text := fmt.Sprintf("%*s ", width-1, number)
+		for j, r := range text {
+			screen.SetContent(x+j, y+i, r, nil, style)
 		}
 	}
-	e.footer.SetText(footerText)
 }
 
-// handleVimInput manages vim modal input handling
-func (e *Editor) handleVimInput(event *tcell.EventKey) *tcell.EventKey {
-	switch e.vimMode {
-	case VimNormal:
-		return e.handleVimNormalMode(event)
-	case VimInsert:
-		return e.handleVimInsertMode(event)
-	case VimSearch:
-		return e.handleVimSearchMode(event)
-	}
-	return event
+// editorFrame is the bordered container holding the gutter and the text area.
+// Flex defers drawing the focused item (the text area) until last, and
+// TextArea.Draw may still adjust the scroll offset while drawing, so the
+// syntax recoloring pass and the gutter run afterwards to pick up the settled
+// offset.
+type editorFrame struct {
+	*tview.Flex
+	editor      *tview.TextArea
+	gutter      *lineNumberGutter
+	highlighter *syntaxHighlighter // nil when highlighting is disabled
 }
 
-// handleVimNormalMode handles input in vim normal mode
-func (e *Editor) handleVimNormalMode(event *tcell.EventKey) *tcell.EventKey {
-	// Handle global commands first
-	if result := e.handleGlobalCommands(event); result != event {
-		return result
+func (f *editorFrame) Draw(screen tcell.Screen) {
+	f.Flex.Draw(screen)
+	if f.highlighter != nil {
+		f.highlighter.recolor(screen, f.editor)
 	}
-
-	// Handle vim character-based commands
-	if result := e.handleVimCharCommands(event); result != event {
-		return result
-	}
-
-	// Handle key-based navigation
-	return e.handleKeyNavigation(event)
+	f.gutter.Draw(screen)
 }
 
-// handleGlobalCommands handles global commands available in all modes
-func (e *Editor) handleGlobalCommands(event *tcell.EventKey) *tcell.EventKey {
+// onTextChanged recounts the lines for the gutter (resizing it to fit the
+// digits of the highest line number) and re-tokenizes the text for syntax
+// highlighting.
+func (e *Editor) onTextChanged() {
+	text := e.editor.GetText()
+	e.gutter.lines = strings.Count(text, "\n") + 1
+	e.frame.ResizeItem(e.gutter, e.gutter.width(), 0)
+	if e.highlighter != nil {
+		e.highlighter.update(text)
+	}
+}
+
+// handleEditorKey is the input capture of the text area. Global shortcuts are
+// handled first; everything else goes through the vim handler when vim mode
+// is enabled.
+func (e *Editor) handleEditorKey(event *tcell.EventKey) *tcell.EventKey {
+	alt := event.Modifiers()&tcell.ModAlt != 0
 	switch {
 	case event.Key() == tcell.KeyCtrlS:
 		e.result = e.editor.GetText()
@@ -142,573 +230,387 @@ func (e *Editor) handleGlobalCommands(event *tcell.EventKey) *tcell.EventKey {
 		e.app.Stop()
 		return nil
 	case event.Key() == tcell.KeyCtrlQ:
-		e.app.Stop()
+		e.requestQuit()
 		return nil
-	case event.Rune() == 'h' && event.Modifiers()&tcell.ModAlt != 0:
+	case event.Key() == tcell.KeyCtrlUnderscore, alt && event.Rune() == 'h':
 		e.pages.SwitchToPage("help")
 		return nil
-	case event.Key() == tcell.KeyCtrlUnderscore:
-		e.pages.SwitchToPage("help")
+	case alt && event.Rune() == 'v':
+		e.toggleVimMode()
 		return nil
+	case alt && event.Rune() == 'c':
+		// Forward as Ctrl+Q, the text area's native "copy selection" binding
+		// (the Ctrl+Q key itself is taken by "quit" above).
+		return tcell.NewEventKey(tcell.KeyCtrlQ, 0, tcell.ModNone)
 	}
-	return event // Continue processing
+
+	if !e.useVim {
+		return event
+	}
+	if e.vimMode == VimInsert {
+		if event.Key() == tcell.KeyEscape {
+			e.setVimState(VimNormal)
+			return nil
+		}
+		return event
+	}
+	return e.handleVimNormalKey(event)
 }
 
-// handleVimCharCommands handles vim character-based commands
-func (e *Editor) handleVimCharCommands(event *tcell.EventKey) *tcell.EventKey {
-	// Handle mode switching commands
-	if result := e.handleModeSwitching(event); result != event {
-		return result
-	}
+// handleVimNormalKey handles input in vim normal mode.
+func (e *Editor) handleVimNormalKey(event *tcell.EventKey) *tcell.EventKey {
+	pending := e.pendingKey
+	e.pendingKey = 0
 
-	// Handle navigation commands
-	if result := e.handleCharNavigation(event); result != event {
-		return result
+	if event.Key() != tcell.KeyRune {
+		switch event.Key() {
+		case tcell.KeyLeft, tcell.KeyRight, tcell.KeyUp, tcell.KeyDown,
+			tcell.KeyHome, tcell.KeyEnd, tcell.KeyPgUp, tcell.KeyPgDn,
+			tcell.KeyDelete, tcell.KeyCtrlZ, tcell.KeyCtrlY:
+			return event
+		case tcell.KeyEnter:
+			return tcell.NewEventKey(tcell.KeyDown, 0, tcell.ModNone)
+		case tcell.KeyBackspace, tcell.KeyBackspace2:
+			return tcell.NewEventKey(tcell.KeyLeft, 0, tcell.ModNone)
+		}
+		// Block everything else so the text cannot be modified in normal mode.
+		return nil
 	}
-
-	// Handle editing commands
-	return e.handleEditingCommands(event)
+	return e.handleVimNormalRune(pending, event.Rune())
 }
 
-// handleModeSwitching handles commands that switch vim modes
-func (e *Editor) handleModeSwitching(event *tcell.EventKey) *tcell.EventKey {
-	switch event.Rune() {
-	case 'i':
-		e.resetGCommand()
-		e.enterInsertMode()
-		return nil
-	case 'a':
-		e.resetGCommand()
-		e.enterInsertMode()
+// handleVimNormalRune handles character commands in vim normal mode. The
+// pending rune is the first key of a two-key command ("gg", "dd"), or 0.
+func (e *Editor) handleVimNormalRune(pending, r rune) *tcell.EventKey {
+	switch {
+	case pending == 'g' && r == 'g':
+		e.moveTo(0)
+	case pending == 'd' && r == 'd':
+		e.deleteCurrentLine()
+	case r == 'g', r == 'd':
+		e.pendingKey = r
+	case r == 'i':
+		e.setVimState(VimInsert)
+	case r == 'a':
+		e.setVimState(VimInsert)
 		return tcell.NewEventKey(tcell.KeyRight, 0, tcell.ModNone)
-	case 'A':
-		e.resetGCommand()
-		e.enterInsertMode()
+	case r == 'A':
+		e.setVimState(VimInsert)
 		return tcell.NewEventKey(tcell.KeyEnd, 0, tcell.ModNone)
-	case 'I':
-		e.resetGCommand()
-		e.enterInsertMode()
+	case r == 'I':
+		e.setVimState(VimInsert)
 		return tcell.NewEventKey(tcell.KeyHome, 0, tcell.ModNone)
-	case 'o':
-		e.resetGCommand()
-		e.enterInsertMode()
-		e.insertNewLineBelow()
-		return nil
-	case 'O':
-		e.resetGCommand()
-		e.enterInsertMode()
-		e.insertNewLineAbove()
-		return nil
+	case r == 'o':
+		e.setVimState(VimInsert)
+		e.forwardKeys(tcell.KeyEnd, tcell.KeyEnter)
+	case r == 'O':
+		e.setVimState(VimInsert)
+		e.forwardKeys(tcell.KeyHome, tcell.KeyEnter, tcell.KeyUp)
+	case r == 'h':
+		return tcell.NewEventKey(tcell.KeyLeft, 0, tcell.ModNone)
+	case r == 'j':
+		return tcell.NewEventKey(tcell.KeyDown, 0, tcell.ModNone)
+	case r == 'k':
+		return tcell.NewEventKey(tcell.KeyUp, 0, tcell.ModNone)
+	case r == 'l':
+		return tcell.NewEventKey(tcell.KeyRight, 0, tcell.ModNone)
+	case r == '0':
+		return tcell.NewEventKey(tcell.KeyHome, 0, tcell.ModNone)
+	case r == '$':
+		return tcell.NewEventKey(tcell.KeyEnd, 0, tcell.ModNone)
+	case r == 'w':
+		return tcell.NewEventKey(tcell.KeyRight, 0, tcell.ModCtrl)
+	case r == 'b':
+		return tcell.NewEventKey(tcell.KeyLeft, 0, tcell.ModCtrl)
+	case r == 'G':
+		e.moveTo(e.editor.GetTextLength())
+	case r == 'x':
+		return tcell.NewEventKey(tcell.KeyDelete, 0, tcell.ModNone)
+	case r == 'X':
+		return tcell.NewEventKey(tcell.KeyBackspace2, 0, tcell.ModNone)
+	case r == 'u':
+		return tcell.NewEventKey(tcell.KeyCtrlZ, 0, tcell.ModNone)
+	case r == '/':
+		e.openSearchBar()
+	case r == 'n':
+		e.findNext()
+	case r == 'N':
+		e.findPrevious()
 	}
-	return event // Continue processing
+	// Block all other text input in normal mode.
+	return nil
 }
 
-// enterInsertMode switches to insert mode
-func (e *Editor) enterInsertMode() {
-	e.vimMode = VimInsert
-	e.updateTitle()
-	e.updateFooter()
+// forwardKeys feeds key events to the text area. The events pass through the
+// input capture again, so callers must make sure the current mode lets them
+// through.
+func (e *Editor) forwardKeys(keys ...tcell.Key) {
+	handler := e.editor.InputHandler()
+	for _, key := range keys {
+		handler(tcell.NewEventKey(key, 0, tcell.ModNone), nil)
+	}
 }
 
-// exitInsertMode switches to normal mode
-func (e *Editor) exitInsertMode() {
-	if e.vimMode != VimInsert {
+// setVimState switches the vim mode and updates title and footer.
+func (e *Editor) setVimState(mode VimMode) {
+	e.vimMode = mode
+	e.pendingKey = 0
+	e.refreshChrome()
+}
+
+// toggleVimMode toggles vim mode on/off and updates the UI.
+func (e *Editor) toggleVimMode() {
+	e.useVim = !e.useVim
+	e.setVimState(VimNormal)
+	// The navigation help includes a vim section only while vim mode is on.
+	e.pages.RemovePage("help")
+	e.createHelpPages()
+}
+
+// requestQuit exits the editor, asking for confirmation first if there are
+// unsaved changes.
+func (e *Editor) requestQuit() {
+	if e.editor.GetText() == e.initialContent {
+		e.app.Stop()
 		return
 	}
-
-	e.vimMode = VimNormal
-	e.updateTitle()
-	e.updateFooter()
+	e.quitModal.SetFocus(1) // default to "Cancel"
+	e.pages.ShowPage("confirm-quit")
+	e.app.SetFocus(e.quitModal)
 }
 
-// handleCharNavigation handles character-based navigation commands
-func (e *Editor) handleCharNavigation(event *tcell.EventKey) *tcell.EventKey {
-	switch event.Rune() {
-	case 'h':
-		e.resetGCommand()
-		return tcell.NewEventKey(tcell.KeyLeft, 0, tcell.ModNone)
-	case 'j':
-		e.resetGCommand()
-		return tcell.NewEventKey(tcell.KeyDown, 0, tcell.ModNone)
-	case 'k':
-		e.resetGCommand()
-		return tcell.NewEventKey(tcell.KeyUp, 0, tcell.ModNone)
-	case 'l':
-		e.resetGCommand()
-		return tcell.NewEventKey(tcell.KeyRight, 0, tcell.ModNone)
-	case '0':
-		e.resetGCommand()
-		return tcell.NewEventKey(tcell.KeyHome, 0, tcell.ModNone)
-	case '$':
-		e.resetGCommand()
-		return tcell.NewEventKey(tcell.KeyEnd, 0, tcell.ModNone)
-	case 'w':
-		e.resetGCommand()
-		return tcell.NewEventKey(tcell.KeyRight, 0, tcell.ModCtrl)
-	case 'b':
-		e.resetGCommand()
-		return tcell.NewEventKey(tcell.KeyLeft, 0, tcell.ModCtrl)
-	case 'G':
-		e.resetGCommand()
-		e.goToEnd()
-		return nil
-	case 'g':
-		return e.handleGCommand(event)
+// createQuitModal builds the unsaved-changes confirmation dialog.
+func (e *Editor) createQuitModal() {
+	cancel := func() {
+		e.pages.SwitchToPage("main")
+		e.app.SetFocus(e.editor)
 	}
-	return event // Continue processing
+	e.quitModal = tview.NewModal().
+		SetText("You have unsaved changes. Quit without saving?").
+		AddButtons([]string{"Quit without saving", "Cancel"}).
+		SetDoneFunc(func(buttonIndex int, _ string) {
+			if buttonIndex == 0 {
+				e.app.Stop()
+				return
+			}
+			cancel()
+		})
+	e.quitModal.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyEscape {
+			cancel()
+			return nil
+		}
+		return event
+	})
+	e.pages.AddPage("confirm-quit", e.quitModal, true, false)
 }
 
-// handleEditingCommands handles editing and search commands
-func (e *Editor) handleEditingCommands(event *tcell.EventKey) *tcell.EventKey {
-	switch event.Rune() {
-	case 'x':
-		e.resetGCommand()
-		return tcell.NewEventKey(tcell.KeyDelete, 0, tcell.ModNone)
-	case 'X':
-		e.resetGCommand()
-		return tcell.NewEventKey(tcell.KeyBackspace, 0, tcell.ModNone)
-	case 'd':
-		e.resetGCommand()
-		return e.handleDeleteCommand(event)
-	case '/':
-		e.resetGCommand()
-		e.startSearch()
-		return nil
-	case 'n':
-		e.resetGCommand()
-		e.findNext()
-		return nil
-	case 'N':
-		e.resetGCommand()
-		e.findPrevious()
-		return nil
+// openSearchBar replaces the footer with a vim-style search input.
+func (e *Editor) openSearchBar() {
+	bar := tview.NewInputField().SetLabel("/")
+	bar.SetDoneFunc(func(key tcell.Key) {
+		e.closeSearchBar()
+		if key == tcell.KeyEnter {
+			if term := bar.GetText(); term != "" {
+				e.searchTerm = term
+				e.findNext()
+			}
+		}
+	})
+	e.searchBar = bar
+	e.setVimState(VimSearch)
+	e.layout.RemoveItem(e.footer)
+	e.layout.AddItem(bar, 1, 0, 1, 1, 0, 0, true)
+	e.app.SetFocus(bar)
+}
+
+// closeSearchBar restores the footer and returns focus to the editor. It is a
+// no-op when the search bar is not open.
+func (e *Editor) closeSearchBar() {
+	if e.searchBar == nil {
+		return
 	}
-
-	return event // Continue processing
+	bar := e.searchBar
+	e.searchBar = nil
+	e.layout.RemoveItem(bar)
+	e.layout.AddItem(e.footer, 1, 0, 1, 1, 0, 0, false)
+	e.setVimState(VimNormal)
+	e.app.SetFocus(e.editor)
 }
 
-// handleKeyNavigation handles key-based navigation (arrow keys, etc.)
-func (e *Editor) handleKeyNavigation(event *tcell.EventKey) *tcell.EventKey {
-	switch event.Key() {
-	case tcell.KeyEscape:
-		e.resetGCommand()
-		return nil
-	case tcell.KeyLeft:
-		e.resetGCommand()
-		return tcell.NewEventKey(tcell.KeyLeft, 0, tcell.ModNone)
-	case tcell.KeyDown:
-		e.resetGCommand()
-		return tcell.NewEventKey(tcell.KeyDown, 0, tcell.ModNone)
-	case tcell.KeyUp:
-		e.resetGCommand()
-		return tcell.NewEventKey(tcell.KeyUp, 0, tcell.ModNone)
-	case tcell.KeyRight:
-		e.resetGCommand()
-		return tcell.NewEventKey(tcell.KeyRight, 0, tcell.ModNone)
-	case tcell.KeyHome:
-		e.resetGCommand()
-		return tcell.NewEventKey(tcell.KeyHome, 0, tcell.ModNone)
-	case tcell.KeyEnd:
-		e.resetGCommand()
-		return tcell.NewEventKey(tcell.KeyEnd, 0, tcell.ModNone)
-	case tcell.KeyPgUp:
-		e.resetGCommand()
-		return tcell.NewEventKey(tcell.KeyPgUp, 0, tcell.ModNone)
-	case tcell.KeyPgDn:
-		e.resetGCommand()
-		return tcell.NewEventKey(tcell.KeyPgDn, 0, tcell.ModNone)
-	}
-
-	// Block all other text input in normal mode
-	return nil
-}
-
-// handleVimInsertMode handles input in vim insert mode
-func (e *Editor) handleVimInsertMode(event *tcell.EventKey) *tcell.EventKey {
-	switch event.Key() {
-	case tcell.KeyEscape:
-		e.exitInsertMode()
-		return nil
-	case tcell.KeyCtrlS:
-		e.result = e.editor.GetText()
-		e.saved = true
-		e.app.Stop()
-		return nil
-	case tcell.KeyCtrlQ:
-		e.app.Stop()
-		return nil
-	}
-
-	// Pass through all other keys in insert mode
-	return event
-}
-
-// Helper functions for vim operations
-func (e *Editor) insertNewLineBelow() {
-	// Move to end of current line and insert newline
-	e.editor.InputHandler()(tcell.NewEventKey(tcell.KeyEnd, 0, tcell.ModNone), nil)
-	e.editor.InputHandler()(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone), nil)
-}
-
-func (e *Editor) insertNewLineAbove() {
-	// Move to beginning of line, insert newline, move up
-	e.editor.InputHandler()(tcell.NewEventKey(tcell.KeyHome, 0, tcell.ModNone), nil)
-	e.editor.InputHandler()(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone), nil)
-	e.editor.InputHandler()(tcell.NewEventKey(tcell.KeyUp, 0, tcell.ModNone), nil)
-}
-
-func (e *Editor) goToEnd() {
-	// Go to end of document by setting text with cursor at end
-	text := e.editor.GetText()
-	e.editor.SetText(text, true) // true = cursor at end
-}
-
-func (e *Editor) goToBeginning() {
-	// Go to beginning of document by setting text with cursor at beginning
-	text := e.editor.GetText()
-	e.editor.SetText(text, false) // false = cursor at beginning
-}
-
-func (e *Editor) handleGCommand(_ *tcell.EventKey) *tcell.EventKey {
-	// For now, let's implement a simpler approach
-	// In vim, single 'g' usually requires a second command
-	// But let's make gg work by tracking the state in the editor instance
-	if e.waitingForSecondG {
-		// This is the second 'g' - execute gg (go to beginning)
-		e.waitingForSecondG = false
-		e.goToBeginning()
-		return nil
-	}
-	// First 'g' press - wait for second one
-	e.waitingForSecondG = true
-	return nil
-}
-
-func (e *Editor) handleDeleteCommand(_ *tcell.EventKey) *tcell.EventKey {
-	// For now, just implement x (delete character)
-	// A full implementation would handle dd, dw, etc.
-	return tcell.NewEventKey(tcell.KeyDelete, 0, tcell.ModNone)
-}
-
-// handleVimSearchMode handles input in vim search mode
-func (e *Editor) handleVimSearchMode(event *tcell.EventKey) *tcell.EventKey {
-	// Search mode is handled by the modal dialog, so this shouldn't be called
-	// But keep it for consistency
-	switch event.Key() {
-	case tcell.KeyEscape:
-		e.cancelSearch()
-		return nil
-	case tcell.KeyCtrlS:
-		e.result = e.editor.GetText()
-		e.saved = true
-		e.app.Stop()
-		return nil
-	case tcell.KeyCtrlQ:
-		e.app.Stop()
-		return nil
-	}
-
-	return event
-}
-
-// startSearch enters search mode and shows search input
-func (e *Editor) startSearch() {
-	e.vimMode = VimSearch
-	e.updateTitle()
-	e.updateFooter()
-	e.showSearchInput()
-}
-
-// cancelSearch exits search mode without searching
-func (e *Editor) cancelSearch() {
-	e.vimMode = VimNormal
-	e.updateTitle()
-	e.updateFooter()
-	e.hideSearchInput()
-}
-
-// findNext finds the next occurrence of the search term
+// findNext selects the next occurrence of the search term, wrapping around at
+// the end of the text.
 func (e *Editor) findNext() {
 	if e.searchTerm == "" {
 		return
 	}
-
 	text := e.editor.GetText()
-	fromRow, fromCol, _, _ := e.editor.GetCursor()
-
-	// Convert current position to linear position
-	lines := strings.Split(text, "\n")
-	currentPos := 0
-	for i := 0; i < fromRow && i < len(lines); i++ {
-		currentPos += len(lines[i]) + 1 // +1 for newline
+	_, selStart, selEnd := e.editor.GetSelection()
+	from := selEnd
+	if from == selStart {
+		from++ // No active selection: skip the character under the cursor.
 	}
-	currentPos += fromCol
-
-	// Search from current position + 1
-	searchFrom := currentPos + 1
-	if searchFrom < len(text) {
-		index := strings.Index(text[searchFrom:], e.searchTerm)
-		if index != -1 {
-			e.goToPosition(searchFrom + index)
+	if from < len(text) {
+		if idx := strings.Index(text[from:], e.searchTerm); idx >= 0 {
+			e.selectMatch(from + idx)
 			return
 		}
 	}
-
-	// Wrap around search from beginning
-	index := strings.Index(text, e.searchTerm)
-	if index != -1 && index < currentPos {
-		e.goToPosition(index)
+	if idx := strings.Index(text, e.searchTerm); idx >= 0 {
+		e.selectMatch(idx)
 	}
 }
 
-// findPrevious finds the previous occurrence of the search term
+// findPrevious selects the previous occurrence of the search term, wrapping
+// around at the beginning of the text.
 func (e *Editor) findPrevious() {
 	if e.searchTerm == "" {
 		return
 	}
-
 	text := e.editor.GetText()
-	fromRow, fromCol, _, _ := e.editor.GetCursor()
-
-	// Convert current position to linear position
-	lines := strings.Split(text, "\n")
-	currentPos := 0
-	for i := 0; i < fromRow && i < len(lines); i++ {
-		currentPos += len(lines[i]) + 1 // +1 for newline
-	}
-	currentPos += fromCol
-
-	// Search backwards from current position
-	if currentPos > 0 {
-		index := strings.LastIndex(text[:currentPos], e.searchTerm)
-		if index != -1 {
-			e.goToPosition(index)
-			return
-		}
-	}
-
-	// Wrap around search from end
-	index := strings.LastIndex(text, e.searchTerm)
-	if index != -1 && index > currentPos {
-		e.goToPosition(index)
-	}
-}
-
-// goToPosition moves cursor to a specific character position in the text
-func (e *Editor) goToPosition(pos int) {
-	text := e.editor.GetText()
-	if pos >= len(text) {
+	_, selStart, _ := e.editor.GetSelection()
+	if idx := strings.LastIndex(text[:selStart], e.searchTerm); idx >= 0 {
+		e.selectMatch(idx)
 		return
 	}
-
-	// Simple approach: reset text with cursor at beginning, then move right
-	e.editor.SetText(text, false)
-
-	// Move cursor to the right position by simulating key presses
-	for range pos {
-		e.editor.InputHandler()(tcell.NewEventKey(tcell.KeyRight, 0, tcell.ModNone), nil)
+	if idx := strings.LastIndex(text, e.searchTerm); idx >= 0 {
+		e.selectMatch(idx)
 	}
 }
 
-// showSearchInput displays the search input field
-func (e *Editor) showSearchInput() {
-	// Create search input field with proper handling
-	e.searchInput = tview.NewInputField().
-		SetLabel("Search: ").
-		SetFieldWidth(30).
-		SetText("")
-
-	// Set input capture for the search input
-	e.searchInput.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Key() == tcell.KeyEnter {
-			// Get search term and perform search
-			e.searchTerm = e.searchInput.GetText()
-			if e.searchTerm != "" {
-				e.findNext()
-			}
-			e.vimMode = VimNormal
-			e.updateTitle()
-			e.updateFooter()
-			e.pages.RemovePage("search")
-			e.pages.SwitchToPage("main")
-			e.app.SetFocus(e.editor)
-			return nil
-		} else if event.Key() == tcell.KeyEscape {
-			// Cancel search
-			e.vimMode = VimNormal
-			e.updateTitle()
-			e.updateFooter()
-			e.pages.RemovePage("search")
-			e.pages.SwitchToPage("main")
-			e.app.SetFocus(e.editor)
-			return nil
-		}
-		return event
-	})
-
-	// Create a container with border and title
-	flex := tview.NewFlex().
-		SetDirection(tview.FlexRow).
-		AddItem(nil, 0, 1, false).
-		AddItem(e.searchInput, 1, 1, true).
-		AddItem(nil, 0, 1, false)
-
-	container := tview.NewFlex().
-		AddItem(nil, 0, 1, false).
-		AddItem(flex, 40, 1, true).
-		AddItem(nil, 0, 1, false)
-
-	// Create bordered frame
-	frame := tview.NewFrame(container).
-		SetBorders(1, 1, 1, 1, 2, 2).
-		AddText("Search", true, tview.AlignCenter, tcell.ColorWhite)
-
-	// Add to pages and switch
-	e.pages.AddPage("search", frame, true, true)
-	e.app.SetFocus(e.searchInput)
+// selectMatch highlights the match at the given byte offset and scrolls it
+// into view.
+func (e *Editor) selectMatch(pos int) {
+	e.materializeThrough(pos)
+	e.editor.Select(pos, pos+len(e.searchTerm))
+	e.scrollCursorIntoView()
 }
 
-// hideSearchInput hides the search input field
-func (e *Editor) hideSearchInput() {
-	e.pages.RemovePage("search")
-	e.pages.SwitchToPage("main")
-	e.app.SetFocus(e.editor)
+// moveTo places the cursor at the given byte offset.
+func (e *Editor) moveTo(pos int) {
+	e.materializeThrough(pos)
+	e.editor.Select(pos, pos)
+	e.scrollCursorIntoView()
 }
 
-// EditText launches the editor with initial content and returns the edited text
-func (e *Editor) EditText(initialContent string) (string, bool, error) {
-	e.result = initialContent
-	e.saved = false
-
-	e.editor = tview.NewTextArea().
-		SetText(initialContent, false).
-		SetWrap(false)
-
-	e.editor.SetBorder(true).
-		SetTitleAlign(tview.AlignCenter)
-
-	e.updateTitle()
-
-	e.editor.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		// Handle global commands first (available in all modes)
-		switch {
-		case event.Key() == tcell.KeyCtrlS:
-			e.result = e.editor.GetText()
-			e.saved = true
-			e.app.Stop()
-			return nil
-		case event.Key() == tcell.KeyCtrlQ:
-			e.app.Stop()
-			return nil
-		case event.Rune() == 'h' && event.Modifiers()&tcell.ModAlt != 0:
-			e.pages.SwitchToPage("help")
-			return nil
-		case event.Key() == tcell.KeyCtrlUnderscore:
-			e.pages.SwitchToPage("help")
-			return nil
-		case event.Rune() == 'v' && event.Modifiers()&tcell.ModAlt != 0:
-			// Toggle vim mode
-			e.toggleVimMode()
-			return nil
+// materializeThrough makes the text area build its internal line index at
+// least up to the line containing the given byte offset. TextArea.Select
+// mislocates offsets that lie beyond the lines materialized so far (it
+// attributes the entire remaining text to the last known line, yielding a
+// bogus cursor column far off screen), so we page the cursor down first —
+// keyboard navigation extends the index correctly. Rows equal text lines
+// here because wrapping is disabled.
+func (e *Editor) materializeThrough(pos int) {
+	targetRow := strings.Count(e.editor.GetText()[:pos], "\n")
+	handler := e.editor.InputHandler()
+	lastRow := -1
+	for {
+		row, _, _, _ := e.editor.GetCursor()
+		if row >= targetRow || row == lastRow {
+			return
 		}
-
-		// Handle vim keybindings if enabled
-		if e.useVim {
-			return e.handleVimInput(event)
-		}
-
-		return event
-	})
-
-	// Create footer with shortcuts
-	e.footer = tview.NewTextView().
-		SetDynamicColors(true).
-		SetTextAlign(tview.AlignCenter)
-
-	e.updateFooter()
-
-	// Create layout with editor and footer
-	grid := tview.NewGrid().
-		SetRows(0, 1).
-		AddItem(e.editor, 0, 0, 1, 1, 0, 0, true).
-		AddItem(e.footer, 1, 0, 1, 1, 0, 0, false)
-
-	// Create help pages
-	e.createHelpPages()
-
-	// Add main editor page
-	e.pages.AddPage("main", grid, true, true)
-
-	e.app.SetRoot(e.pages, true)
-
-	// Run the editor
-	err := e.app.Run()
-	if err != nil {
-		return "", false, err
+		lastRow = row
+		handler(tcell.NewEventKey(tcell.KeyPgDn, 0, tcell.ModNone), nil)
 	}
-
-	return e.result, e.saved, nil
 }
 
-// createHelpPages creates the help system with multiple pages
-func (e *Editor) createHelpPages() {
-	// Create three separate help pages
-	help1 := tview.NewTextView()
-	help1.SetDynamicColors(true)
-	navText := `[green]Navigation[white]
+// scrollCursorIntoView adjusts the scroll offsets so the cursor is visible.
+// The text area only scrolls automatically on keyboard navigation, not when
+// the cursor is moved programmatically via Select.
+func (e *Editor) scrollCursorIntoView() {
+	row, column, _, _ := e.editor.GetCursor()
+	rowOffset, columnOffset := e.editor.GetOffset()
+	_, _, width, height := e.editor.GetInnerRect()
+	switch {
+	case row < rowOffset:
+		rowOffset = row
+	case row >= rowOffset+height:
+		rowOffset = row - height + 1
+	}
+	switch {
+	case column < columnOffset:
+		columnOffset = column
+	case column >= columnOffset+width:
+		columnOffset = column - width + 1
+	}
+	e.editor.SetOffset(rowOffset, columnOffset)
+}
+
+// deleteCurrentLine implements vim's "dd".
+func (e *Editor) deleteCurrentLine() {
+	text := e.editor.GetText()
+	_, start, _ := e.editor.GetSelection()
+	if start > len(text) {
+		start = len(text)
+	}
+	lineStart := strings.LastIndexByte(text[:start], '\n') + 1
+	lineEnd := len(text)
+	if idx := strings.IndexByte(text[start:], '\n'); idx >= 0 {
+		lineEnd = start + idx + 1
+	}
+	e.editor.Replace(lineStart, lineEnd, "")
+}
+
+// refreshChrome updates the editor title and footer for the current mode.
+func (e *Editor) refreshChrome() {
+	title := "Text Editor"
+	footer := "[yellow]Ctrl+S[white]: Save & Exit | [yellow]Ctrl+Q[white]: Quit | [yellow]Alt+H[white]: Help | [yellow]Alt+V[white]: Toggle VIM"
+	if e.useVim {
+		var mode string
+		switch e.vimMode {
+		case VimInsert:
+			mode = "INSERT"
+			footer += " | [green]INSERT[white]: Esc for normal mode"
+		case VimSearch:
+			mode = "SEARCH"
+		default:
+			mode = "NORMAL"
+			footer += " | [green]NORMAL[white]: i insert, h/j/k/l move, gg/G, dd, x del, u undo, / n N search"
+		}
+		title = fmt.Sprintf("Text Editor (VIM - %s)", mode)
+	}
+	e.frame.SetTitle(title)
+	e.footer.SetText(footer)
+}
+
+// navigationHelp returns the navigation help text, including the vim section
+// when vim mode is enabled.
+func (e *Editor) navigationHelp() string {
+	text := `[green]Navigation[white]
 
 [yellow]Arrow Keys[white]: Move cursor around
 [yellow]Ctrl-A, Home[white]: Move to beginning of line
 [yellow]Ctrl-E, End[white]: Move to end of line
 [yellow]Ctrl-F, Page Down[white]: Move down by one page
 [yellow]Ctrl-B, Page Up[white]: Move up by one page
-[yellow]Alt-Up[white]: Scroll page up
-[yellow]Alt-Down[white]: Scroll page down
-[yellow]Alt-Left[white]: Scroll page left
-[yellow]Alt-Right[white]: Scroll page right
+[yellow]Alt-Up/Down/Left/Right[white]: Scroll the page
 [yellow]Alt-B, Ctrl-Left[white]: Move back by one word
 [yellow]Alt-F, Ctrl-Right[white]: Move forward by one word`
 
 	if e.useVim {
-		navText += `
+		text += `
 
-[green]VIM Navigation (Normal Mode)[white]
+[green]VIM Normal Mode[white]
 [yellow]h/j/k/l or Arrow Keys[white]: Move left/down/up/right
 [yellow]0/$ or Home/End[white]: Beginning/end of line
 [yellow]w/b[white]: Word forward/backward
 [yellow]gg/G[white]: Beginning/end of document
-[yellow]Page Up/Down[white]: Page navigation
-
-[green]VIM Mode Switching[white]
-[yellow]i[white]: Insert mode at cursor
-[yellow]a[white]: Insert mode after cursor
-[yellow]A[white]: Insert mode at end of line
-[yellow]I[white]: Insert mode at beginning of line
-[yellow]o[white]: New line below + insert mode
-[yellow]O[white]: New line above + insert mode
-
-[green]VIM Editing[white]
+[yellow]i/a[white]: Insert mode at/after cursor
+[yellow]I/A[white]: Insert mode at beginning/end of line
+[yellow]o/O[white]: New line below/above + insert mode
 [yellow]x/X[white]: Delete character right/left
-[yellow]Esc[white]: Return to normal mode
-[yellow]Alt+V[white]: Toggle VIM mode on/off
-
-[green]VIM Search[white]
-[yellow]/[white]: Search for text (opens dialog)
-[yellow]n[white]: Find next occurrence
-[yellow]N[white]: Find previous occurrence`
+[yellow]dd[white]: Delete current line
+[yellow]u[white]: Undo
+[yellow]/[white]: Search, then [yellow]n/N[white]: next/previous match
+[yellow]Esc[white]: Return to normal mode`
 	}
 
-	navText += `
+	return text + `
 
 [blue]Press Enter for more help, Escape to return to editor[white]`
+}
 
-	help1.SetText(navText)
-	help1.SetBorder(true)
-	help1.SetTitle("Help - Navigation")
-
-	help2 := tview.NewTextView()
-	help2.SetDynamicColors(true)
-	help2.SetText(`[green]Editing[white]
+const editingHelp = `[green]Editing[white]
 
 Type to enter text.
 [yellow]Ctrl-H, Backspace[white]: Delete left character
@@ -716,26 +618,23 @@ Type to enter text.
 [yellow]Ctrl-K[white]: Delete to end of line
 [yellow]Ctrl-W[white]: Delete rest of word
 [yellow]Ctrl-U[white]: Delete current line
+[yellow]Ctrl-Z[white]: Undo
+[yellow]Ctrl-Y[white]: Redo
 
 [green]Selection & Clipboard[white]
 
 Hold [yellow]Shift[white] + movement keys to select
-Double-click to select a word
 [yellow]Ctrl-L[white]: Select entire text
-[yellow]Ctrl-Q[white]: Copy selection
+[yellow]Alt-C[white]: Copy selection
 [yellow]Ctrl-X[white]: Cut selection
 [yellow]Ctrl-V[white]: Paste
 
-[blue]Press Enter for more help, Escape to return to editor[white]`)
-	help2.SetBorder(true)
-	help2.SetTitle("Help - Editing")
+[blue]Press Enter for more help, Escape to return to editor[white]`
 
-	help3 := tview.NewTextView()
-	help3.SetDynamicColors(true)
-	help3.SetText(`[green]Editor Commands[white]
+const commandsHelp = `[green]Editor Commands[white]
 
 [yellow]Ctrl-S[white]: Save changes and exit editor
-[yellow]Ctrl-Q[white]: Quit without saving changes
+[yellow]Ctrl-Q, Ctrl-C[white]: Quit (asks for confirmation on unsaved changes)
 [yellow]Alt+H[white]: Show this help
 [yellow]Alt+V[white]: Toggle VIM mode on/off
 
@@ -746,34 +645,43 @@ Drag to select text
 Double-click to select word
 Mouse wheel to scroll
 
-[blue]Press Enter to cycle back, Escape to return to editor[white]`)
-	help3.SetBorder(true)
-	help3.SetTitle("Help - Commands")
+[blue]Press Enter to cycle back, Escape to return to editor[white]`
 
-	helpPages := tview.NewPages()
-	helpPages.AddPage("help1", help1, true, true)
-	helpPages.AddPage("help2", help2, true, false)
-	helpPages.AddPage("help3", help3, true, false)
-
-	currentHelpPage := 0
-	helpPageNames := []string{"help1", "help2", "help3"}
-
-	// Set input capture for all help pages
-	for _, helpView := range []*tview.TextView{help1, help2, help3} {
-		helpView.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-			if event.Key() == tcell.KeyEscape {
-				e.pages.SwitchToPage("main")
-				return nil
-			} else if event.Key() == tcell.KeyEnter {
-				currentHelpPage = (currentHelpPage + 1) % len(helpPageNames)
-				helpPages.SwitchToPage(helpPageNames[currentHelpPage])
-				return nil
-			}
-			return event
-		})
+// createHelpPages creates the help system with multiple pages.
+func (e *Editor) createHelpPages() {
+	helpContent := []struct {
+		title string
+		text  string
+	}{
+		{"Help - Navigation", e.navigationHelp()},
+		{"Help - Editing", editingHelp},
+		{"Help - Commands", commandsHelp},
 	}
 
-	// Center the help dialog
+	helpPages := tview.NewPages()
+	current := 0
+	cycle := func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyEscape:
+			e.pages.SwitchToPage("main")
+			return nil
+		case tcell.KeyEnter:
+			current = (current + 1) % len(helpContent)
+			helpPages.SwitchToPage(helpContent[current].title)
+			return nil
+		}
+		return event
+	}
+
+	for i, page := range helpContent {
+		view := tview.NewTextView().SetDynamicColors(true).SetText(page.text)
+		view.SetBorder(true)
+		view.SetTitle(page.title)
+		view.SetInputCapture(cycle)
+		helpPages.AddPage(page.title, view, true, i == 0)
+	}
+
+	// Center the help dialog.
 	helpGrid := tview.NewGrid().
 		SetColumns(0, 80, 0).
 		SetRows(0, 25, 0).
