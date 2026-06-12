@@ -5,7 +5,7 @@ go 1.26.2
 require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/alecthomas/chroma/v2 v2.26.1
-	github.com/bradleyfalzon/ghinstallation/v2 v2.18.0
+	github.com/bradleyfalzon/ghinstallation/v2 v2.19.0
 	github.com/cloudbase/garm-provider-common v0.1.9
 	github.com/felixge/httpsnoop v1.0.4
 	github.com/gdamore/tcell/v2 v2.13.10
@@ -79,6 +79,7 @@ require (
 	github.com/go-sql-driver/mysql v1.10.0 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
+	github.com/google/go-github/v88 v88.0.0 // indirect
 	github.com/google/go-querystring v1.2.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
