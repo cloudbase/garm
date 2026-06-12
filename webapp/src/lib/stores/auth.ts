@@ -1,6 +1,8 @@
 import { writable } from 'svelte/store';
 import { browser } from '$app/environment';
 import { garmApi } from '../api/client.js';
+import { getCookie, setCookie, deleteCookie } from '../utils/cookies.js';
+import { isTokenExpired } from '../utils/jwt.js';
 
 // Check if we're in development mode (cross-origin setup)
 const isDevelopmentMode = () => {
@@ -26,36 +28,6 @@ const initialState: AuthState = {
 // Keep using writable store for compatibility with existing API calls
 // but enhance with Svelte 5 features where possible
 export const authStore = writable<AuthState>(initialState);
-
-// Cookie utilities
-function setCookie(name: string, value: string, days: number = 7): void {
-	if (!browser) return;
-	
-	const expires = new Date();
-	expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000));
-	document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/;SameSite=Lax`;
-}
-
-function getCookie(name: string): string | null {
-	if (!browser) return null;
-	
-	const nameEQ = name + "=";
-	const ca = document.cookie.split(';');
-	for (let i = 0; i < ca.length; i++) {
-		let c = ca[i];
-		while (c.charAt(0) === ' ') c = c.substring(1, c.length);
-		if (c.indexOf(nameEQ) === 0) {
-			const value = c.substring(nameEQ.length, c.length);
-			return value;
-		}
-	}
-	return null;
-}
-
-function deleteCookie(name: string): void {
-	if (!browser) return;
-	document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:01 GMT;path=/`;
-}
 
 // Auth utilities
 export const auth = {
@@ -112,7 +84,7 @@ export const auth = {
 				const token = getCookie('garm_token');
 				const user = getCookie('garm_user');
 				
-				if (token && user) {
+				if (token && user && !isTokenExpired(token)) {
 					// Set the token in the API client for future requests
 					garmApi.setToken(token);
 					
@@ -128,8 +100,12 @@ export const auth = {
 						});
 						return;
 					}
+				} else if (token) {
+					// Stale/expired token - clear it so we don't keep retrying with it
+					deleteCookie('garm_token');
+					deleteCookie('garm_user');
 				}
-				
+
 				// No valid token, user needs to login (but GARM is initialized)
 				authStore.update(state => ({ 
 					...state, 

@@ -70,6 +70,10 @@
 	}
 
 	function handleShell(instance: Instance) {
+		// Gate on staleness at open time only; once the session is open the
+		// terminal manages its own connection state. Re-evaluating staleness
+		// in the render condition would unmount the shell mid-session.
+		if (isHeartbeatStale(instance)) return;
 		instanceForShell = instance;
 		showShellModal = true;
 	}
@@ -336,7 +340,7 @@
 </div>
 
 <!-- Shell Modal -->
-{#if showShellModal && instanceForShell && !isHeartbeatStale(instanceForShell)}
+{#if showShellModal && instanceForShell}
 	<div class="fixed inset-0 bg-black/30 dark:bg-black/50 overflow-hidden h-full w-full z-50">
 		<div class="relative w-full h-full flex items-center justify-center p-4">
 			<ShellTerminal

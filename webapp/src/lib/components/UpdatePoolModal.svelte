@@ -7,9 +7,7 @@
 	import { extractAPIError } from '$lib/utils/apiError';
 	import { eagerCache } from '$lib/stores/eager-cache.js';
 	import { garmApi } from '$lib/api/client.js';
-	import UpdateRepositoryModal from './UpdateRepositoryModal.svelte';
-	import UpdateOrganizationModal from './UpdateOrganizationModal.svelte';
-	import UpdateEnterpriseModal from './UpdateEnterpriseModal.svelte';
+	import UpdateEntityModal from './UpdateEntityModal.svelte';
 
 	export let pool: Pool;
 
@@ -133,7 +131,8 @@
 			// The eager cache store will be updated via WebSocket event
 			showEntityUpdateModal = false;
 		} catch (err) {
-			throw err;
+			error = extractAPIError(err);
+			showEntityUpdateModal = false;
 		}
 	}
 
@@ -664,24 +663,11 @@
 {#if showEntityUpdateModal}
 	{@const entity = getEntity()}
 	{#if entity}
-		{#if pool.repo_id}
-			<UpdateRepositoryModal
-				repository={entity}
-				on:close={() => showEntityUpdateModal = false}
-				on:submit={(e) => handleEntityUpdate(e.detail)}
-			/>
-		{:else if pool.org_id}
-			<UpdateOrganizationModal
-				organization={entity}
-				on:close={() => showEntityUpdateModal = false}
-				on:submit={(e) => handleEntityUpdate(e.detail)}
-			/>
-		{:else if pool.enterprise_id}
-			<UpdateEnterpriseModal
-				enterprise={entity}
-				on:close={() => showEntityUpdateModal = false}
-				on:submit={(e) => handleEntityUpdate(e.detail)}
-			/>
-		{/if}
+		<UpdateEntityModal
+			entity={entity}
+			entityType={pool.repo_id ? 'repository' : pool.org_id ? 'organization' : 'enterprise'}
+			on:close={() => showEntityUpdateModal = false}
+			on:submit={(e) => handleEntityUpdate(e.detail)}
+		/>
 	{/if}
 {/if}

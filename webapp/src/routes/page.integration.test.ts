@@ -369,20 +369,11 @@ describe('Dashboard Page Integration Tests', () => {
 				expect(websocketStore.subscribeToEntity).toHaveBeenCalledWith(
 					'instance', ops, expect.any(Function)
 				);
-				expect(websocketStore.subscribeToEntity).toHaveBeenCalledWith(
-					'github_credentials', ops, expect.any(Function)
-				);
-				expect(websocketStore.subscribeToEntity).toHaveBeenCalledWith(
-					'gitea_credentials', ops, expect.any(Function)
-				);
-				expect(websocketStore.subscribeToEntity).toHaveBeenCalledWith(
-					'github_endpoint', ops, expect.any(Function)
-				);
 			});
 		});
 
 		it('should clean up websocket subscriptions on unmount', async () => {
-			const mockUnsubscribes = Array.from({ length: 9 }, () => vi.fn());
+			const mockUnsubscribes = Array.from({ length: 6 }, () => vi.fn());
 			let callIndex = 0;
 			(websocketStore.subscribeToEntity as any).mockImplementation(() => {
 				return mockUnsubscribes[callIndex++] || vi.fn();
@@ -391,7 +382,7 @@ describe('Dashboard Page Integration Tests', () => {
 			const { unmount } = render(DashboardPage);
 
 			await waitFor(() => {
-				expect(websocketStore.subscribeToEntity).toHaveBeenCalledTimes(9);
+				expect(websocketStore.subscribeToEntity).toHaveBeenCalledTimes(6);
 			});
 
 			unmount();

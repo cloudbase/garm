@@ -16,6 +16,7 @@
 	import { EntityCell, GenericCell, ActionsCell, TagsCell } from '$lib/components/cells';
 	import { formatFileSize, formatDateTime } from '$lib/utils/format';
 	import { websocketStore, type WebSocketEvent } from '$lib/stores/websocket.js';
+	import { getCookie } from '$lib/utils/cookies';
 
 	let objects: FileObject[] = [];
 	let loading = true;
@@ -115,6 +116,12 @@
 		if (unsubscribeWebsocket) {
 			unsubscribeWebsocket();
 			unsubscribeWebsocket = null;
+		}
+
+		// Cancel any pending debounced search so it doesn't fire after unmount
+		if (searchDebounceTimer) {
+			clearTimeout(searchDebounceTimer);
+			searchDebounceTimer = null;
 		}
 	});
 
@@ -293,8 +300,8 @@
 					reject(new Error('Upload failed'));
 				});
 
-				// Get the auth token
-				const token = localStorage.getItem('token');
+				// Get the auth token (stored in the garm_token cookie, same as the API client)
+				const token = getCookie('garm_token');
 
 				// Open connection
 				const baseURL = import.meta.env.VITE_API_BASE_URL || window.location.origin;

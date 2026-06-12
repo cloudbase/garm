@@ -57,7 +57,7 @@
 			);
 			showUpdateModal = false;
 		} catch (err) {
-			throw err; // Let the modal handle the error
+			toastStore.error('Update Failed', extractAPIError(err));
 		}
 	}
 

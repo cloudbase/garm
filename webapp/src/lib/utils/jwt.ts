@@ -1,4 +1,4 @@
-import { browser } from '$app/environment';
+import { getCookie } from './cookies';
 
 export interface JWTClaims {
 	is_admin?: boolean;
@@ -22,18 +22,19 @@ export function decodeJWT(token: string): JWTClaims | null {
 			return null;
 		}
 
-		// The payload is the second part (index 1)
-		const payload = parts[1];
-		
+		// The payload is the second part (index 1). It is base64url-encoded,
+		// so convert to standard base64 before decoding with atob.
+		const payload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+
 		// Add padding if necessary (base64 requires length to be multiple of 4)
-		const paddedPayload = payload + '='.repeat((4 - payload.length % 4) % 4);
-		
+		const paddedPayload = payload + '='.repeat((4 - (payload.length % 4)) % 4);
+
 		// Decode the base64-encoded payload
 		const decodedPayload = atob(paddedPayload);
-		
+
 		// Parse the JSON claims
 		const claims = JSON.parse(decodedPayload) as JWTClaims;
-		
+
 		return claims;
 	} catch (error) {
 		console.error('Failed to decode JWT token:', error);
@@ -42,31 +43,26 @@ export function decodeJWT(token: string): JWTClaims | null {
 }
 
 /**
+ * Check whether a JWT token is expired (or undecodable).
+ * Tokens without an exp claim are treated as non-expiring.
+ */
+export function isTokenExpired(token: string): boolean {
+	const claims = decodeJWT(token);
+	if (!claims) return true;
+	if (typeof claims.exp !== 'number') return false;
+	return claims.exp <= Math.floor(Date.now() / 1000);
+}
+
+/**
  * Get the current user's JWT claims from the stored token
  * @returns The current user's JWT claims or null if not available
  */
 export function getCurrentUserClaims(): JWTClaims | null {
-	if (!browser) return null;
-	
-	// Get the token from cookies
-	const getCookie = (name: string): string | null => {
-		const nameEQ = name + "=";
-		const ca = document.cookie.split(';');
-		for (let i = 0; i < ca.length; i++) {
-			let c = ca[i];
-			while (c.charAt(0) === ' ') c = c.substring(1, c.length);
-			if (c.indexOf(nameEQ) === 0) {
-				return c.substring(nameEQ.length, c.length);
-			}
-		}
-		return null;
-	};
-	
 	const token = getCookie('garm_token');
 	if (!token) {
 		return null;
 	}
-	
+
 	return decodeJWT(token);
 }
 

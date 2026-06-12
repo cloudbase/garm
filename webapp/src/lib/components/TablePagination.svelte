@@ -20,6 +20,24 @@
 	
 	$: startItem = totalItems === 0 ? 0 : (currentPage - 1) * perPage + 1;
 	$: endItem = Math.min(currentPage * perPage, totalItems);
+
+	// Windowed page list: always show first/last page, the current page and
+	// its neighbors, with ellipsis gaps in between (e.g. 1 … 4 5 6 … 20).
+	function getPageNumbers(current: number, total: number): (number | 'ellipsis')[] {
+		if (total <= 7) {
+			return Array.from({ length: total }, (_, i) => i + 1);
+		}
+		const pages: (number | 'ellipsis')[] = [1];
+		const start = Math.max(2, current - 1);
+		const end = Math.min(total - 1, current + 1);
+		if (start > 2) pages.push('ellipsis');
+		for (let p = start; p <= end; p++) pages.push(p);
+		if (end < total - 1) pages.push('ellipsis');
+		pages.push(total);
+		return pages;
+	}
+
+	$: pageNumbers = getPageNumbers(currentPage, totalPages);
 </script>
 
 {#if totalPages > 1}
@@ -69,16 +87,20 @@
 					>
 					</Button>
 					
-					{#each Array(totalPages) as _, i}
-						{@const page = i + 1}
-						<Button
-							variant={page === currentPage ? 'primary' : 'secondary'}
-							size="sm"
-							on:click={() => changePage(page)}
-							class="rounded-none border-l-0 first:border-l first:rounded-l-md"
-						>
-							{page}
-						</Button>
+					{#each pageNumbers as page}
+						{#if page === 'ellipsis'}
+							<span class="relative inline-flex items-center px-3 py-1.5 text-sm text-gray-500 dark:text-gray-400 border border-gray-300 dark:border-gray-600 border-l-0 bg-white dark:bg-gray-800 select-none">…</span>
+						{:else}
+							<Button
+								variant={page === currentPage ? 'primary' : 'secondary'}
+								size="sm"
+								on:click={() => changePage(page)}
+								aria-current={page === currentPage ? 'page' : undefined}
+								class="rounded-none border-l-0 first:border-l first:rounded-l-md"
+							>
+								{page}
+							</Button>
+						{/if}
 					{/each}
 
 					<Button

@@ -214,17 +214,26 @@
 	const poolSub = websocketStore.subscribeToEntity('pool', ['create', 'update', 'delete'], handlePoolEvent);
 	const scaleSub = websocketStore.subscribeToEntity('scaleset', ['create', 'update', 'delete'], handleCountEvent('scalesets'));
 	const instSub = websocketStore.subscribeToEntity('instance', ['create', 'update', 'delete'], handleInstanceEvent);
-	const credSub = websocketStore.subscribeToEntity('github_credentials', ['create', 'update', 'delete'], () => {});
-	const giteaCredSub = websocketStore.subscribeToEntity('gitea_credentials', ['create', 'update', 'delete'], () => {});
-	const endpointSub = websocketStore.subscribeToEntity('github_endpoint', ['create', 'update', 'delete'], () => {});
-	unsubscribeWebsockets = [repoSub, orgSub, entSub, poolSub, scaleSub, instSub, credSub, giteaCredSub, endpointSub];
+	unsubscribeWebsockets = [repoSub, orgSub, entSub, poolSub, scaleSub, instSub];
 
 	onDestroy(() => {
 		unsubscribeWebsockets.forEach(unsubscribe => unsubscribe());
 		unsubscribeConnection();
+		animationFrames.forEach(id => cancelAnimationFrame(id));
+		animationFrames.clear();
 	});
 
+	// One in-flight animation per element; starting a new one cancels the old
+	// so concurrent animations don't fight over textContent.
+	const animationFrames = new Map<HTMLElement, number>();
+
 	function animateNumber(element: HTMLElement, targetValue: number, duration: number = 1000) {
+		const existing = animationFrames.get(element);
+		if (existing !== undefined) {
+			cancelAnimationFrame(existing);
+			animationFrames.delete(element);
+		}
+
 		const startValue = parseInt(element.textContent || '0');
 		const increment = (targetValue - startValue) / (duration / 16);
 		let currentValue = startValue;
@@ -233,14 +242,15 @@
 			currentValue += increment;
 			if ((increment > 0 && currentValue >= targetValue) || (increment < 0 && currentValue <= targetValue)) {
 				element.textContent = targetValue.toString();
+				animationFrames.delete(element);
 				return;
 			}
 			element.textContent = Math.floor(currentValue).toString();
-			requestAnimationFrame(animate);
+			animationFrames.set(element, requestAnimationFrame(animate));
 		};
 
 		if (startValue !== targetValue) {
-			requestAnimationFrame(animate);
+			animationFrames.set(element, requestAnimationFrame(animate));
 		}
 	}
 
