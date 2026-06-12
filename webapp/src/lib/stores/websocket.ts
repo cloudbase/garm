@@ -147,20 +147,19 @@ function createWebSocketStore() {
 				}
 			};
 
-			ws.onerror = (error) => {
+			ws.onerror = () => {
 				clearTimeout(connectionTimeout);
-					
-				update(state => ({ 
-					...state, 
-					connected: false, 
-					connecting: false, 
-					error: 'WebSocket connection error' 
+
+				update(state => ({
+					...state,
+					connected: false,
+					connecting: false,
+					error: 'WebSocket connection error'
 				}));
 
-				// Schedule reconnect on error if not manually disconnected
-				if (!manuallyDisconnected) {
-					scheduleReconnect();
-				}
+				// No reconnect here: an error is always followed by a close event,
+				// and onclose schedules the reconnect. Scheduling in both places
+				// double-advances the backoff.
 			};
 
 		} catch (err) {

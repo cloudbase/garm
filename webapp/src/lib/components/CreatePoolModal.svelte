@@ -16,9 +16,7 @@
 	import { getEntityForgeTypeById, getEntityAgentModeById } from '$lib/utils/entity';
 	import JsonEditor from './JsonEditor.svelte';
 	import { websocketStore, type WebSocketEvent } from '$lib/stores/websocket.js';
-	import UpdateRepositoryModal from './UpdateRepositoryModal.svelte';
-	import UpdateOrganizationModal from './UpdateOrganizationModal.svelte';
-	import UpdateEnterpriseModal from './UpdateEnterpriseModal.svelte';
+	import UpdateEntityModal from './UpdateEntityModal.svelte';
 
 	const dispatch = createEventDispatcher<{
 		close: void;
@@ -180,8 +178,8 @@
 			// Close the entity update modal
 			showEntityUpdateModal = false;
 		} catch (err) {
-			// Let the modal handle the error display
-			throw err;
+			error = extractAPIError(err);
+			showEntityUpdateModal = false;
 		}
 	}
 
@@ -287,15 +285,8 @@
 		if (initialEntityType) {
 			loadEntities();
 		}
-
-		// Subscribe to entity updates via websocket
-		if (entityLevel && (entityLevel === 'repository' || entityLevel === 'organization' || entityLevel === 'enterprise')) {
-			unsubscribeWebsocket = websocketStore.subscribeToEntity(
-				entityLevel as 'repository' | 'organization' | 'enterprise',
-				['update'],
-				handleEntityWebSocketEvent
-			);
-		}
+		// Websocket subscription is handled by the reactive statement below,
+		// which runs on init and whenever entityLevel changes.
 	});
 
 	onDestroy(() => {
@@ -773,25 +764,12 @@
 <!-- Nested Entity Update Modals -->
 {#if showEntityUpdateModal && selectedEntityId}
 	{@const selectedEntity = getSelectedEntity()}
-	{#if selectedEntity}
-		{#if entityLevel === 'repository'}
-			<UpdateRepositoryModal
-				repository={selectedEntity}
-				on:close={() => showEntityUpdateModal = false}
-				on:submit={(e) => handleEntityUpdate(e.detail)}
-			/>
-		{:else if entityLevel === 'organization'}
-			<UpdateOrganizationModal
-				organization={selectedEntity}
-				on:close={() => showEntityUpdateModal = false}
-				on:submit={(e) => handleEntityUpdate(e.detail)}
-			/>
-		{:else if entityLevel === 'enterprise'}
-			<UpdateEnterpriseModal
-				enterprise={selectedEntity}
-				on:close={() => showEntityUpdateModal = false}
-				on:submit={(e) => handleEntityUpdate(e.detail)}
-			/>
-		{/if}
+	{#if selectedEntity && (entityLevel === 'repository' || entityLevel === 'organization' || entityLevel === 'enterprise')}
+		<UpdateEntityModal
+			entity={selectedEntity}
+			entityType={entityLevel}
+			on:close={() => showEntityUpdateModal = false}
+			on:submit={(e) => handleEntityUpdate(e.detail)}
+		/>
 	{/if}
 {/if}

@@ -140,8 +140,7 @@
 				`Repository ${createdRepo.owner}/${createdRepo.name} has been created successfully.`
 			);
 		} catch (err) {
-			error = extractAPIError(err);
-			throw err; // Let the modal handle the error display
+			toastStore.error('Creation Failed', extractAPIError(err));
 		}
 	}
 
@@ -157,7 +156,7 @@
 			);
 			closeModals();
 		} catch (err) {
-			throw err; // Let the modal handle the error
+			toastStore.error('Update Failed', extractAPIError(err));
 		}
 	}
 

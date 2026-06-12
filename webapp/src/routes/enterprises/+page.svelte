@@ -60,8 +60,7 @@ import { EntityCell, EndpointCell, StatusCell, ActionsCell, GenericCell } from '
 			);
 			showCreateModal = false;
 		} catch (err) {
-			error = extractAPIError(err);
-			throw err; // Let the modal handle the error
+			toastStore.error('Creation Failed', extractAPIError(err));
 		}
 	}
 
@@ -77,7 +76,7 @@ import { EntityCell, EndpointCell, StatusCell, ActionsCell, GenericCell } from '
 			showUpdateModal = false;
 			selectedEnterprise = null;
 		} catch (err) {
-			throw err; // Let the modal handle the error
+			toastStore.error('Update Failed', extractAPIError(err));
 		}
 	}
 

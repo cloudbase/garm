@@ -89,7 +89,6 @@ import { EntityCell, EndpointCell, StatusCell, ActionsCell, GenericCell, PoolEnt
 				title: 'Update Failed',
 				message: errorMessage
 			});
-			throw err; // Let the modal handle the error too
 		}
 	}
 

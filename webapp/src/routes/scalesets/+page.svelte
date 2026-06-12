@@ -50,20 +50,14 @@
 	);
 
 	async function handleCreateScaleSet(params: CreateScaleSetParams) {
-		try {
-			error = '';
-			// The actual creation will be handled by the modal based on entity type
-			// No need to reload - eager cache websocket will handle the update
-			showCreateModal = false;
-			// Note: We don't have access to the created scale set data here
-			toastStore.success(
-				'Scale Set Created',
-				'Scale set has been created successfully.'
-			);
-		} catch (err) {
-			error = extractAPIError(err);
-			throw err; // Let the modal handle the error
-		}
+		// The modal performs the API call and only dispatches submit on success.
+		// No need to reload - eager cache websocket will handle the update.
+		error = '';
+		showCreateModal = false;
+		toastStore.success(
+			'Scale Set Created',
+			'Scale set has been created successfully.'
+		);
 	}
 
 	async function handleUpdateScaleSet(params: Partial<CreateScaleSetParams>) {
@@ -83,7 +77,6 @@
 				'Update Failed',
 				errorMessage
 			);
-			throw err; // Let the modal handle the error too
 		}
 	}
 

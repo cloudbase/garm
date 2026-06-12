@@ -378,7 +378,9 @@
 </div>
 
 <!-- Shell Modal -->
-{#if showShellModal && instance && !isHeartbeatStale}
+<!-- Staleness gates the open button only; once open, the terminal manages its
+     own connection state and should not unmount mid-session. -->
+{#if showShellModal && instance}
 	<div class="fixed inset-0 bg-black/30 dark:bg-black/50 overflow-hidden h-full w-full z-50">
 		<div class="relative w-full h-full flex items-center justify-center p-4">
 			<ShellTerminal

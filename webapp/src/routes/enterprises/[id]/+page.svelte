@@ -12,7 +12,7 @@
 	import PoolsSection from '$lib/components/PoolsSection.svelte';
 	import InstancesSection from '$lib/components/InstancesSection.svelte';
 	import EventsSection from '$lib/components/EventsSection.svelte';
-	import { getForgeIcon } from '$lib/utils/common.js';
+	import { getForgeIcon, updateEntityFields } from '$lib/utils/common.js';
 	import { websocketStore, type WebSocketEvent } from '$lib/stores/websocket.js';
 	import { toastStore } from '$lib/stores/toast.js';
 	import CreatePoolModal from '$lib/components/CreatePoolModal.svelte';
@@ -57,19 +57,6 @@
 		}
 	}
 
-	function updateEntityFields(currentEntity: any, updatedFields: any): any {
-		// Preserve only fields that are definitely not in the API response
-		const { events: originalEvents } = currentEntity;
-		
-		// Use the API response as the primary source, add back preserved fields
-		const result = {
-			...updatedFields,
-			events: originalEvents // Always preserve events since they're managed by websockets
-		};
-		
-		return result;
-	}
-
 	async function handleUpdate(params: any) {
 		if (!enterprise) return;
 		try {
@@ -85,7 +72,7 @@
 			);
 			showUpdateModal = false;
 		} catch (err) {
-			throw err; // Let the modal handle the error
+			toastStore.error('Update Failed', extractAPIError(err));
 		}
 	}
 

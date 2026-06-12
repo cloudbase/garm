@@ -7,9 +7,7 @@
 	import JsonEditor from './JsonEditor.svelte';
 	import { garmApi } from '$lib/api/client.js';
 	import { eagerCache } from '$lib/stores/eager-cache.js';
-	import UpdateRepositoryModal from './UpdateRepositoryModal.svelte';
-	import UpdateOrganizationModal from './UpdateOrganizationModal.svelte';
-	import UpdateEnterpriseModal from './UpdateEnterpriseModal.svelte';
+	import UpdateEntityModal from './UpdateEntityModal.svelte';
 
 	export let scaleSet: ScaleSet;
 
@@ -112,7 +110,8 @@
 			// The eager cache store will be updated via WebSocket event
 			showEntityUpdateModal = false;
 		} catch (err) {
-			throw err;
+			error = extractAPIError(err);
+			showEntityUpdateModal = false;
 		}
 	}
 
@@ -582,24 +581,11 @@
 {#if showEntityUpdateModal}
 	{@const entity = getEntity()}
 	{#if entity}
-		{#if scaleSet.repo_id}
-			<UpdateRepositoryModal
-				repository={entity}
-				on:close={() => showEntityUpdateModal = false}
-				on:submit={(e) => handleEntityUpdate(e.detail)}
-			/>
-		{:else if scaleSet.org_id}
-			<UpdateOrganizationModal
-				organization={entity}
-				on:close={() => showEntityUpdateModal = false}
-				on:submit={(e) => handleEntityUpdate(e.detail)}
-			/>
-		{:else if scaleSet.enterprise_id}
-			<UpdateEnterpriseModal
-				enterprise={entity}
-				on:close={() => showEntityUpdateModal = false}
-				on:submit={(e) => handleEntityUpdate(e.detail)}
-			/>
-		{/if}
+		<UpdateEntityModal
+			entity={entity}
+			entityType={scaleSet.repo_id ? 'repository' : scaleSet.org_id ? 'organization' : 'enterprise'}
+			on:close={() => showEntityUpdateModal = false}
+			on:submit={(e) => handleEntityUpdate(e.detail)}
+		/>
 	{/if}
 {/if}
