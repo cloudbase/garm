@@ -13,7 +13,7 @@ github.com/alecthomas/chroma/v2/lexers
 # github.com/beorn7/perks v1.0.1
 ## explicit; go 1.11
 github.com/beorn7/perks/quantile
-# github.com/bradleyfalzon/ghinstallation/v2 v2.18.0
+# github.com/bradleyfalzon/ghinstallation/v2 v2.19.0
 ## explicit; go 1.25.0
 github.com/bradleyfalzon/ghinstallation/v2
 # github.com/cespare/xxhash/v2 v2.3.0
@@ -38,13 +38,13 @@ github.com/cloudbase/garm-provider-common/util/websocket
 # github.com/davecgh/go-spew v1.1.1
 ## explicit
 github.com/davecgh/go-spew/spew
-# github.com/dlclark/regexp2/v2 v2.1.1
+# github.com/dlclark/regexp2/v2 v2.2.1
 ## explicit; go 1.25
 github.com/dlclark/regexp2/v2
 github.com/dlclark/regexp2/v2/helpers
 github.com/dlclark/regexp2/v2/syntax
-# github.com/felixge/httpsnoop v1.0.4
-## explicit; go 1.13
+# github.com/felixge/httpsnoop v1.1.0
+## explicit; go 1.25
 github.com/felixge/httpsnoop
 # github.com/gdamore/encoding v1.0.1
 ## explicit; go 1.9
@@ -112,7 +112,7 @@ github.com/go-openapi/jsonpointer
 ## explicit; go 1.25.0
 github.com/go-openapi/jsonreference
 github.com/go-openapi/jsonreference/internal
-# github.com/go-openapi/loads v0.23.4
+# github.com/go-openapi/loads v0.24.0
 ## explicit; go 1.25.0
 github.com/go-openapi/loads
 # github.com/go-openapi/runtime v0.32.3
@@ -178,7 +178,7 @@ github.com/go-openapi/swag/typeutils
 # github.com/go-openapi/swag/yamlutils v0.26.1
 ## explicit; go 1.25.0
 github.com/go-openapi/swag/yamlutils
-# github.com/go-openapi/validate v0.25.3
+# github.com/go-openapi/validate v0.26.0
 ## explicit; go 1.25.0
 github.com/go-openapi/validate
 # github.com/go-sql-driver/mysql v1.10.0
@@ -197,6 +197,9 @@ github.com/golang-jwt/jwt/v5
 # github.com/google/go-github/v84 v84.0.0
 ## explicit; go 1.25.0
 github.com/google/go-github/v84/github
+# github.com/google/go-github/v88 v88.0.0
+## explicit; go 1.25.0
+github.com/google/go-github/v88/github
 # github.com/google/go-querystring v1.2.0
 ## explicit; go 1.13
 github.com/google/go-querystring/query
@@ -269,7 +272,7 @@ github.com/mattn/go-isatty
 # github.com/mattn/go-runewidth v0.0.24
 ## explicit; go 1.20
 github.com/mattn/go-runewidth
-# github.com/mattn/go-sqlite3 v1.14.44 => github.com/gabriel-samfira/go-sqlite3 v0.0.0-20251005121134-bc61ecf9b4c7
+# github.com/mattn/go-sqlite3 v1.14.45 => github.com/gabriel-samfira/go-sqlite3 v0.0.0-20251005121134-bc61ecf9b4c7
 ## explicit; go 1.19
 github.com/mattn/go-sqlite3
 # github.com/minio/sio v0.5.1
@@ -386,7 +389,7 @@ golang.org/x/crypto/internal/poly1305
 # golang.org/x/mod v0.37.0
 ## explicit; go 1.25.0
 golang.org/x/mod/semver
-# golang.org/x/net v0.55.0
+# golang.org/x/net v0.56.0
 ## explicit; go 1.25.0
 golang.org/x/net/idna
 golang.org/x/net/internal/socks
