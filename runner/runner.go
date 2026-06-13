@@ -66,12 +66,6 @@ func NewRunner(ctx context.Context, cfg config.Config, db dbCommon.Store, token 
 		return nil, fmt.Errorf("error loading providers: %w", err)
 	}
 
-	creds := map[string]config.Github{}
-
-	for _, ghcreds := range cfg.Github {
-		creds[ghcreds.Name] = ghcreds
-	}
-
 	poolManagerCtrl := &poolManagerCtrl{
 		config:        cfg,
 		store:         db,
