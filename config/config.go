@@ -15,14 +15,10 @@
 package config
 
 import (
-	"context"
 	"crypto/tls"
-	"crypto/x509"
-	"encoding/pem"
 	"fmt"
 	"log/slog"
 	"net"
-	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -30,19 +26,16 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
-	"github.com/bradleyfalzon/ghinstallation/v2"
 	zxcvbn "github.com/nbutton23/zxcvbn-go"
-	"golang.org/x/oauth2"
 
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/util/appdefaults"
 )
 
 type (
-	DBBackendType  string
-	LogLevel       string
-	LogFormat      string
-	GithubAuthType string
+	DBBackendType string
+	LogLevel      string
+	LogFormat     string
 )
 
 const (
@@ -75,13 +68,6 @@ const (
 	FormatJSON LogFormat = "json"
 )
 
-const (
-	// GithubAuthTypePAT is the OAuth token based authentication
-	GithubAuthTypePAT GithubAuthType = "pat"
-	// GithubAuthTypeApp is the GitHub App based authentication
-	GithubAuthTypeApp GithubAuthType = "app"
-)
-
 // NewConfig returns a new Config
 func NewConfig(cfgFile string) (*Config, error) {
 	var config Config
@@ -100,7 +86,6 @@ type Config struct {
 	Metrics   Metrics    `toml:"metrics,omitempty" json:"metrics,omitempty"`
 	Database  Database   `toml:"database,omitempty" json:"database,omitempty"`
 	Providers []Provider `toml:"provider,omitempty" json:"provider,omitempty"`
-	Github    []Github   `toml:"github,omitempty"`
 	JWTAuth   JWTAuth    `toml:"jwt_auth" json:"jwt-auth"`
 	Logging   Logging    `toml:"logging" json:"logging"`
 }
@@ -116,12 +101,6 @@ func (c *Config) Validate() error {
 
 	if err := c.Default.Validate(); err != nil {
 		return fmt.Errorf("error validating default config: %w", err)
-	}
-
-	for _, gh := range c.Github {
-		if err := gh.Validate(); err != nil {
-			return fmt.Errorf("error validating github config: %w", err)
-		}
 	}
 
 	if err := c.JWTAuth.Validate(); err != nil {
@@ -235,218 +214,6 @@ func (d *Default) Validate() error {
 	return nil
 }
 
-type GithubPAT struct {
-	OAuth2Token string `toml:"oauth2_token" json:"oauth2-token"`
-}
-
-type GithubApp struct {
-	AppID          int64  `toml:"app_id" json:"app-id"`
-	PrivateKeyPath string `toml:"private_key_path" json:"private-key-path"`
-	InstallationID int64  `toml:"installation_id" json:"installation-id"`
-}
-
-func (a *GithubApp) PrivateKeyBytes() ([]byte, error) {
-	keyBytes, err := os.ReadFile(a.PrivateKeyPath)
-	if err != nil {
-		return nil, fmt.Errorf("reading private_key_path: %w", err)
-	}
-	return keyBytes, nil
-}
-
-func (a *GithubApp) Validate() error {
-	if a.AppID == 0 {
-		return fmt.Errorf("missing app_id")
-	}
-	if a.PrivateKeyPath == "" {
-		return fmt.Errorf("missing private_key_path")
-	}
-	if a.InstallationID == 0 {
-		return fmt.Errorf("missing installation_id")
-	}
-
-	if _, err := os.Stat(a.PrivateKeyPath); err != nil {
-		return fmt.Errorf("error accessing private_key_path: %w", err)
-	}
-	// Read the private key as bytes
-	keyBytes, err := os.ReadFile(a.PrivateKeyPath)
-	if err != nil {
-		return fmt.Errorf("reading private_key_path: %w", err)
-	}
-	block, _ := pem.Decode(keyBytes)
-	// Parse the private key as PCKS1
-	_, err = x509.ParsePKCS1PrivateKey(block.Bytes)
-	if err != nil {
-		return fmt.Errorf("parsing private_key_path: %w", err)
-	}
-
-	return nil
-}
-
-// Github hold configuration options specific to interacting with github.
-// Currently that is just a OAuth2 personal token.
-type Github struct {
-	Name        string `toml:"name" json:"name"`
-	Description string `toml:"description" json:"description"`
-	// OAuth2Token is the personal access token used to authenticate with the
-	// github API. This is deprecated and will be removed in the future.
-	// Use the PAT section instead.
-	OAuth2Token   string `toml:"oauth2_token" json:"oauth2-token"`
-	APIBaseURL    string `toml:"api_base_url" json:"api-base-url"`
-	UploadBaseURL string `toml:"upload_base_url" json:"upload-base-url"`
-	BaseURL       string `toml:"base_url" json:"base-url"`
-	// CACertBundlePath is the path on disk to a CA certificate bundle that
-	// can validate the endpoints defined above. Leave empty if not using a
-	// self signed certificate.
-	CACertBundlePath string         `toml:"ca_cert_bundle" json:"ca-cert-bundle"`
-	AuthType         GithubAuthType `toml:"auth_type" json:"auth-type"`
-	PAT              GithubPAT      `toml:"pat" json:"pat"`
-	App              GithubApp      `toml:"app" json:"app"`
-}
-
-func (g *Github) GetAuthType() GithubAuthType {
-	if g.AuthType == "" {
-		return GithubAuthTypePAT
-	}
-	return g.AuthType
-}
-
-func (g *Github) APIEndpoint() string {
-	if g.APIBaseURL != "" {
-		return g.APIBaseURL
-	}
-	return appdefaults.GithubDefaultBaseURL
-}
-
-func (g *Github) CACertBundle() ([]byte, error) {
-	if g.CACertBundlePath == "" {
-		// No CA bundle defined.
-		return nil, nil
-	}
-	if _, err := os.Stat(g.CACertBundlePath); err != nil {
-		return nil, fmt.Errorf("error accessing ca_cert_bundle: %w", err)
-	}
-
-	contents, err := os.ReadFile(g.CACertBundlePath)
-	if err != nil {
-		return nil, fmt.Errorf("reading ca_cert_bundle: %w", err)
-	}
-
-	roots := x509.NewCertPool()
-	if ok := roots.AppendCertsFromPEM(contents); !ok {
-		return nil, fmt.Errorf("failed to parse CA cert bundle")
-	}
-
-	return contents, nil
-}
-
-func (g *Github) UploadEndpoint() string {
-	if g.UploadBaseURL == "" {
-		if g.APIBaseURL != "" {
-			return g.APIBaseURL
-		}
-		return appdefaults.GithubDefaultUploadBaseURL
-	}
-	return g.UploadBaseURL
-}
-
-func (g *Github) BaseEndpoint() string {
-	if g.BaseURL != "" {
-		return g.BaseURL
-	}
-	return appdefaults.DefaultGithubURL
-}
-
-func (g *Github) Validate() error {
-	if g.Name == "" {
-		return fmt.Errorf("missing credentials name")
-	}
-
-	if g.APIBaseURL != "" {
-		if _, err := url.ParseRequestURI(g.APIBaseURL); err != nil {
-			return fmt.Errorf("invalid api_base_url: %w", err)
-		}
-	}
-
-	if g.UploadBaseURL != "" {
-		if _, err := url.ParseRequestURI(g.UploadBaseURL); err != nil {
-			return fmt.Errorf("invalid upload_base_url: %w", err)
-		}
-	}
-
-	if g.BaseURL != "" {
-		if _, err := url.ParseRequestURI(g.BaseURL); err != nil {
-			return fmt.Errorf("invalid base_url: %w", err)
-		}
-	}
-
-	switch g.AuthType {
-	case GithubAuthTypeApp:
-		if err := g.App.Validate(); err != nil {
-			return fmt.Errorf("invalid github app config: %w", err)
-		}
-	default:
-		if g.OAuth2Token == "" && g.PAT.OAuth2Token == "" {
-			return fmt.Errorf("missing github oauth2 token")
-		}
-		if g.OAuth2Token != "" {
-			slog.Warn("the github.oauth2_token option is deprecated, please use the PAT section")
-		}
-	}
-
-	return nil
-}
-
-func (g *Github) HTTPClient(ctx context.Context) (*http.Client, error) {
-	if err := g.Validate(); err != nil {
-		return nil, fmt.Errorf("invalid github config: %w", err)
-	}
-	var roots *x509.CertPool
-	caBundle, err := g.CACertBundle()
-	if err != nil {
-		return nil, fmt.Errorf("fetching CA cert bundle: %w", err)
-	}
-	if caBundle != nil {
-		roots = x509.NewCertPool()
-		ok := roots.AppendCertsFromPEM(caBundle)
-		if !ok {
-			return nil, fmt.Errorf("failed to parse CA cert")
-		}
-	}
-	// nolint:golangci-lint,gosec,godox
-	// TODO: set TLS MinVersion
-	httpTransport := &http.Transport{
-		TLSClientConfig: &tls.Config{
-			RootCAs: roots,
-		},
-	}
-
-	var tc *http.Client
-	switch g.AuthType {
-	case GithubAuthTypeApp:
-		itr, err := ghinstallation.NewKeyFromFile(httpTransport, g.App.AppID, g.App.InstallationID, g.App.PrivateKeyPath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create github app installation transport: %w", err)
-		}
-
-		tc = &http.Client{Transport: itr}
-	default:
-		httpClient := &http.Client{Transport: httpTransport}
-		ctx = context.WithValue(ctx, oauth2.HTTPClient, httpClient)
-
-		token := g.PAT.OAuth2Token
-		if token == "" {
-			token = g.OAuth2Token
-		}
-
-		ts := oauth2.StaticTokenSource(
-			&oauth2.Token{AccessToken: token},
-		)
-		tc = oauth2.NewClient(ctx, ts)
-	}
-
-	return tc, nil
-}
-
 // Provider holds access information for a particular provider.
 // A provider offers compute resources on which we spin up self hosted runners.
 type Provider struct {
@@ -489,11 +256,6 @@ type Database struct {
 	// Don't lose or change this. It will invalidate all encrypted data
 	// in the DB. This field must be set and must be exactly 32 characters.
 	Passphrase string `toml:"passphrase"`
-
-	// MigrateCredentials is a list of github credentials that need to be migrated
-	// from the config file to the database. This field will be removed once GARM
-	// reaches version 0.2.x. It's only meant to be used for the migration process.
-	MigrateCredentials []Github `toml:"-"`
 }
 
 // GormParams returns the database type and connection URI

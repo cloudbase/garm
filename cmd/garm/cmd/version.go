@@ -12,10 +12,24 @@
 //    License for the specific language governing permissions and limitations
 //    under the License.
 
-package main
+package cmd
 
-import "github.com/cloudbase/garm/cmd/garm/cmd"
+import (
+	"fmt"
 
-func main() {
-	cmd.Execute()
+	"github.com/spf13/cobra"
+
+	"github.com/cloudbase/garm/util/appdefaults"
+)
+
+var versionCmd = &cobra.Command{
+	Use:   "version",
+	Short: "Print version and exit",
+	Run: func(_ *cobra.Command, _ []string) {
+		fmt.Println(appdefaults.GetVersion())
+	},
+}
+
+func init() {
+	rootCmd.AddCommand(versionCmd)
 }

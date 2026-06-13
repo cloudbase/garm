@@ -23,7 +23,6 @@ import (
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/auth"
-	"github.com/cloudbase/garm/config"
 	"github.com/cloudbase/garm/database"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	garmTesting "github.com/cloudbase/garm/internal/testing"
@@ -36,7 +35,6 @@ type PoolTestFixtures struct {
 	Store                dbCommon.Store
 	Pools                []params.Pool
 	Providers            map[string]common.Provider
-	Credentials          map[string]config.Github
 	CreateInstanceParams params.CreateInstanceParams
 	UpdatePoolParams     params.UpdatePoolParams
 }

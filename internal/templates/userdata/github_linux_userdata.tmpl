@@ -71,26 +71,26 @@ AGENT_MODE=""
 {{- end }}
 
 if [ "$AGENT_MODE" == "true" ]; then
-    sendStatus "Agent mode is enabled; setting up agent"
-    DOWNLOAD_URL="{{ .AgentDownloadURL }}"
-    AGENT_URL="{{ .AgentURL }}"
-    AGENT_TOKEN="{{ .AgentToken }}"
-    AGENT_SHELL={{ .AgentShell }}
-    sendStatus "Downloading agent from $DOWNLOAD_URL"
-    sudo curl --retry 5 \
-        --retry-delay 5 \
-        --retry-connrefused \
-        --fail -L \
-        -H "Authorization: Bearer ${BEARER_TOKEN}" \
-        -o /usr/local/bin/garm-agent "$DOWNLOAD_URL" || fail "failed to download garm-agent"
-    sudo chmod +x /usr/local/bin/garm-agent || fail "failed to make garm-agent executable"
-    sudo mkdir -p /var/log/garm-agent || fail "failed to create /var/log/garm-agent"
-    sudo chown {{ .RunnerUsername }}:{{ .RunnerUsername }} /var/log/garm-agent || fail "failed to chown /var/log/garm-agent"
-    sudo mkdir -p /etc/garm-agent || fail "failed to create /etc/garm"
-    sudo chown {{ .RunnerUsername }}:{{ .RunnerUsername }} /etc/garm-agent || fail "failed to change owner on /etc/garm-agent"
+	sendStatus "Agent mode is enabled; setting up agent"
+	DOWNLOAD_URL="{{ .AgentDownloadURL }}"
+	AGENT_URL="{{ .AgentURL }}"
+	AGENT_TOKEN="{{ .AgentToken }}"
+	AGENT_SHELL={{ .AgentShell }}
+	sendStatus "Downloading agent from $DOWNLOAD_URL"
+	sudo curl --retry 5 \
+		--retry-delay 5 \
+		--retry-connrefused \
+		--fail -L \
+		-H "Authorization: Bearer ${BEARER_TOKEN}" \
+		-o /usr/local/bin/garm-agent "$DOWNLOAD_URL" || fail "failed to download garm-agent"
+	sudo chmod +x /usr/local/bin/garm-agent || fail "failed to make garm-agent executable"
+	sudo mkdir -p /var/log/garm-agent || fail "failed to create /var/log/garm-agent"
+	sudo chown {{ .RunnerUsername }}:{{ .RunnerUsername }} /var/log/garm-agent || fail "failed to chown /var/log/garm-agent"
+	sudo mkdir -p /etc/garm-agent || fail "failed to create /etc/garm"
+	sudo chown {{ .RunnerUsername }}:{{ .RunnerUsername }} /etc/garm-agent || fail "failed to change owner on /etc/garm-agent"
 
-    sendStatus "Creating config and systemd unit"
-    cat > /etc/garm-agent/garm-agent.toml << EOF
+	sendStatus "Creating config and systemd unit"
+	cat > /etc/garm-agent/garm-agent.toml << EOF
 server_url = "$AGENT_URL"
 log_file = "/var/log/garm-agent/garm-agent.log"
 work_dir = "$RUN_HOME"
@@ -100,7 +100,7 @@ runner_cmdline = ["/bin/bash", "-C", "/home/runner/actions-runner/run.sh"]
 state_db_path = "/etc/garm-agent/agent-state.db"
 EOF
 
-    cat > /tmp/garm-agent.service << EOF
+	cat > /tmp/garm-agent.service << EOF
 [Unit]
 Description=GARM agent
 After=multi-user.target
@@ -119,10 +119,10 @@ Environment=LANG=en_US.UTF-8
 WantedBy=multi-user.target
 EOF
 
-    sudo mv /tmp/garm-agent.service /etc/systemd/system/garm-agent.service || fail "failed to create /etc/systemd/system/garm-agent.service"
-    sudo chown root:root /etc/systemd/system/garm-agent.service || fail "failed to change owner on /etc/systemd/system/garm-agent.service"
-    sendStatus "Reloading systemd unit"
-    sudo systemctl daemon-reload || fail "failed to reload systemd"
+	sudo mv /tmp/garm-agent.service /etc/systemd/system/garm-agent.service || fail "failed to create /etc/systemd/system/garm-agent.service"
+	sudo chown root:root /etc/systemd/system/garm-agent.service || fail "failed to change owner on /etc/systemd/system/garm-agent.service"
+	sendStatus "Reloading systemd unit"
+	sudo systemctl daemon-reload || fail "failed to reload systemd"
 fi
 
 function downloadAndExtractRunner() {
@@ -244,12 +244,12 @@ if [ -f "$RUN_HOME/env.sh" ];then
 	popd
 fi
 if [ "$AGENT_MODE" != "true" ]; then
-    sudo systemctl start $SVC_NAME || fail "failed to start service"
+	sudo systemctl start $SVC_NAME || fail "failed to start service"
 fi
 {{- else}}
 if [ "$AGENT_MODE" != "true" ]; then
-    sendStatus "starting service"
-    sudo ./svc.sh start || fail "failed to start service"
+	sendStatus "starting service"
+	sudo ./svc.sh start || fail "failed to start service"
 fi
 
 set +e
