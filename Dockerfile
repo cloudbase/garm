@@ -88,4 +88,4 @@ COPY --from=builder /opt/garm/providers.d/garm-provider-k8s /opt/garm/providers.
 COPY --from=builder /opt/garm/providers.d/garm-provider-cloudstack /opt/garm/providers.d/garm-provider-cloudstack
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
-ENTRYPOINT ["/bin/garm", "-config", "/etc/garm/config.toml"]
+ENTRYPOINT ["/bin/garm", "--config", "/etc/garm/config.toml"]
