@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
 	import SetupWizardStepper from '$lib/components/setup/SetupWizardStepper.svelte';
 	import EndpointStep from '$lib/components/setup/EndpointStep.svelte';
@@ -6,8 +7,31 @@
 	import EntityStep from '$lib/components/setup/EntityStep.svelte';
 	import RunnerStep from '$lib/components/setup/RunnerStep.svelte';
 
+	const SKIP_INTRO_KEY = 'garm-setup-skip-intro';
+
+	let showIntro = false;
+	let dontShowAgain = false;
 	let currentStep = 1;
 	let completed = false;
+
+	onMount(() => {
+		try {
+			showIntro = localStorage.getItem(SKIP_INTRO_KEY) !== 'true';
+		} catch {
+			showIntro = true;
+		}
+	});
+
+	function dismissIntro() {
+		if (dontShowAgain) {
+			try {
+				localStorage.setItem(SKIP_INTRO_KEY, 'true');
+			} catch {
+				// localStorage unavailable, ignore
+			}
+		}
+		showIntro = false;
+	}
 
 	let wizardState = {
 		endpointName: '',
@@ -89,6 +113,8 @@
 	}
 </script>
 
+<svelte:window on:keydown={(e) => { if (showIntro && e.key === 'Escape') dismissIntro(); }} />
+
 <svelte:head>
 	<title>Setup - GARM</title>
 </svelte:head>
@@ -118,12 +144,59 @@
 		</ol>
 	</nav>
 
+	{#if showIntro}
+		<!-- svelte-ignore a11y_click_events_have_key_events -->
+		<div
+			class="fixed inset-0 bg-black/30 dark:bg-black/50 z-50 flex items-center justify-center p-4"
+			on:click={dismissIntro}
+			role="dialog"
+			aria-modal="true"
+			tabindex="-1"
+		>
+			<!-- svelte-ignore a11y_click_events_have_key_events -->
+			<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+			<div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full p-6 space-y-4" on:click|stopPropagation role="document">
+				<div class="flex items-center space-x-3">
+					<div class="flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900">
+						<svg class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+						</svg>
+					</div>
+					<h2 class="text-lg font-semibold text-gray-900 dark:text-white">Set Up Runner Infrastructure</h2>
+				</div>
+
+				<div class="text-sm text-gray-600 dark:text-gray-300 space-y-3">
+					<p>This wizard will help you connect a forge to self-hosted runners. You'll set up:</p>
+					<ul class="list-disc list-inside space-y-1.5 ml-1">
+						<li>A <strong>forge endpoint</strong> (GitHub or Gitea)</li>
+						<li><strong>Credentials</strong> to authenticate with it</li>
+						<li>A <strong>repository, organization, or enterprise</strong> to manage</li>
+						<li>A <strong>pool or scale set</strong> to provision runners</li>
+					</ul>
+				</div>
+
+				<div class="flex items-center justify-between pt-2">
+					<label class="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400 cursor-pointer">
+						<input type="checkbox" bind:checked={dontShowAgain} class="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500" />
+						<span>Don't show this again</span>
+					</label>
+					<button
+						on:click={dismissIntro}
+						class="px-5 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800"
+					>
+						Begin
+					</button>
+				</div>
+			</div>
+		</div>
+	{/if}
+
 	{#if !completed}
 		<!-- Header -->
 		<div>
 			<h1 class="text-2xl font-bold text-gray-900 dark:text-white">Set Up Runner Infrastructure</h1>
 			<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-				Follow the steps below to configure your GitHub Actions runner infrastructure.
+				Configure your runner infrastructure by selecting or creating the resources below.
 			</p>
 		</div>
 

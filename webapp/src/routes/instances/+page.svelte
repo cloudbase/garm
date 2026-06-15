@@ -105,7 +105,7 @@
 				`Instance ${instanceToDelete.name} has been deleted successfully.`
 			);
 		} catch (err) {
-			error = extractAPIError(err);
+			toastStore.error('Delete Failed', extractAPIError(err));
 		} finally {
 			showDeleteModal = false;
 			instanceToDelete = null;
@@ -301,18 +301,6 @@
 		description="Monitor your running instances"
 		showAction={false}
 	/>
-
-	{#if error}
-		<div class="bg-red-50 dark:bg-red-900/50 border border-red-200 dark:border-red-800 rounded-md p-4">
-			<div class="flex">
-				<div class="ml-3">
-					<h3 class="text-sm font-medium text-red-800 dark:text-red-200">Error</h3>
-					<div class="mt-2 text-sm text-red-700 dark:text-red-300">{error}</div>
-				</div>
-			</div>
-		</div>
-	{/if}
-
 
 	<DataTable
 		{columns}
