@@ -355,7 +355,7 @@
 			);
 			closeModals();
 		} catch (err) {
-			error = extractAPIError(err);
+			toastStore.error('Create Failed', extractAPIError(err));
 		}
 	}
 
@@ -387,7 +387,7 @@
 			);
 			closeModals();
 		} catch (err) {
-			error = extractAPIError(err);
+			toastStore.error('Update Failed', extractAPIError(err));
 		}
 	}
 
