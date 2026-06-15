@@ -77,6 +77,11 @@ func NewConfig(cfgFile string) (*Config, error) {
 	if err := config.Validate(); err != nil {
 		return nil, fmt.Errorf("error validating config: %w", err)
 	}
+	// Set proxy environment variables process wide if they are set
+	// in the config. This overrides any environment variables already set
+	// by the environment from which GARM was invoked.
+	config.Proxy.populateEnv()
+
 	return &config, nil
 }
 
@@ -88,6 +93,7 @@ type Config struct {
 	Providers []Provider `toml:"provider,omitempty" json:"provider,omitempty"`
 	JWTAuth   JWTAuth    `toml:"jwt_auth" json:"jwt-auth"`
 	Logging   Logging    `toml:"logging" json:"logging"`
+	Proxy     Proxy      `toml:"proxy" json:"proxy"`
 }
 
 // Validate validates the config
@@ -109,6 +115,10 @@ func (c *Config) Validate() error {
 
 	if err := c.Logging.Validate(); err != nil {
 		return fmt.Errorf("error validating logging config: %w", err)
+	}
+
+	if err := c.Proxy.Validate(); err != nil {
+		return fmt.Errorf("failed to validate proxy settings: %w", err)
 	}
 
 	providerNames := map[string]int{}
@@ -148,6 +158,47 @@ func (c *Config) GetLoggingConfig() Logging {
 	}
 
 	return logging
+}
+
+type Proxy struct {
+	HTTPProxy  string `toml:"http_proxy" json:"http_proxy"`
+	HTTPSProxy string `toml:"https_proxy" json:"https_proxy"`
+	NoProxy    string `toml:"no_proxy" json:"no_proxy"`
+}
+
+func (p *Proxy) Validate() error {
+	if p.HTTPProxy != "" {
+		_, err := url.ParseRequestURI(p.HTTPProxy)
+		if err != nil {
+			return fmt.Errorf("invalid http_proxy: %w", err)
+		}
+	}
+
+	if p.HTTPSProxy != "" {
+		_, err := url.ParseRequestURI(p.HTTPSProxy)
+		if err != nil {
+			return fmt.Errorf("invalid https_proxy: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func (p *Proxy) populateEnv() {
+	if p.HTTPProxy != "" {
+		os.Setenv("http_proxy", p.HTTPProxy)
+		os.Setenv("HTTP_PROXY", p.HTTPProxy)
+	}
+
+	if p.HTTPSProxy != "" {
+		os.Setenv("https_proxy", p.HTTPSProxy)
+		os.Setenv("HTTPS_PROXY", p.HTTPSProxy)
+	}
+
+	if p.NoProxy != "" {
+		os.Setenv("no_proxy", p.NoProxy)
+		os.Setenv("NO_PROXY", p.NoProxy)
+	}
 }
 
 type Logging struct {

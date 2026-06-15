@@ -52,16 +52,30 @@ type External struct {
 
 func (e *External) GetEnvironmentVariables() []string {
 	envVars := []string{}
+	seen := map[string]struct{}{}
+	proxyVars := []string{
+		"http_proxy",
+		"https_proxy",
+		"no_proxy",
+		"HTTP_PROXY",
+		"HTTPS_PROXY",
+		"NO_PROXY",
+	}
+	lookups := e.EnvironmentVariables
+	lookups = append(lookups, proxyVars...)
 
-	for _, configuredEnvVars := range e.EnvironmentVariables {
+	for _, configuredEnvVars := range lookups {
+		if _, ok := seen[configuredEnvVars]; ok {
+			continue
+		}
 		// discover environment variables
 		for _, k := range os.Environ() {
 			variable := strings.SplitN(k, "=", 2)
-			if strings.HasPrefix(variable[0], configuredEnvVars) &&
-				!strings.HasPrefix(variable[0], EnvironmentVariablePrefix) {
+			if strings.HasPrefix(variable[0], configuredEnvVars) && !strings.HasPrefix(variable[0], EnvironmentVariablePrefix) {
 				envVars = append(envVars, k)
 			}
 		}
+		seen[configuredEnvVars] = struct{}{}
 	}
 	return envVars
 }
