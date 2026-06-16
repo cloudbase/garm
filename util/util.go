@@ -139,6 +139,12 @@ func MaybeAddWrapperToExtraSpecs(ctx context.Context, param commonParams.Bootstr
 			return param
 		}
 	}
+	if data == nil {
+		// Unmarshal returned nil. An explicit `null` was probably passed.
+		// Any other valid json would either fail to unmarshal or unmarshal
+		// into an actual map we can use.
+		return param
+	}
 
 	if _, ok := data["runner_install_template"]; ok {
 		// User has already set a runner install template override. Do not touch.
