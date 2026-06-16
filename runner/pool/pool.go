@@ -270,7 +270,7 @@ func (r *basePoolManager) persistJobToDB(ctx context.Context, jobParams params.J
 			"is_new_job", isNewJob,
 			"job_action", jobParams.Action,
 		)
-		return fmt.Errorf("job %d should not be recorded", jobParams.WorkflowJobID)
+		return fmt.Errorf("job %d should not be recorded: %w", jobParams.WorkflowJobID, runnerErrors.ErrUnprocessable)
 	}
 
 	slog.DebugContext(
