@@ -6,7 +6,7 @@ filippo.io/edwards25519/field
 ## explicit; go 1.18
 github.com/BurntSushi/toml
 github.com/BurntSushi/toml/internal
-# github.com/alecthomas/chroma/v2 v2.26.1
+# github.com/alecthomas/chroma/v2 v2.27.0
 ## explicit; go 1.25
 github.com/alecthomas/chroma/v2
 github.com/alecthomas/chroma/v2/lexers

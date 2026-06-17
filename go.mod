@@ -4,7 +4,7 @@ go 1.26.2
 
 require (
 	github.com/BurntSushi/toml v1.6.0
-	github.com/alecthomas/chroma/v2 v2.26.1
+	github.com/alecthomas/chroma/v2 v2.27.0
 	github.com/bradleyfalzon/ghinstallation/v2 v2.19.0
 	github.com/cloudbase/garm-provider-common v0.1.9
 	github.com/felixge/httpsnoop v1.1.0
