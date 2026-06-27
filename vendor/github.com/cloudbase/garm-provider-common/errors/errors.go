@@ -32,6 +32,7 @@ var (
 	ErrTimeout          = NewTimeoutError("timed out")
 	ErrUnprocessable    = NewUnprocessableError("cannot process request")
 	ErrNoPoolsAvailable = NewNoPoolsAvailableError("no pools available")
+	ErrNoCapacity       = NewNoCapacityError("no capacity available")
 )
 
 type baseError struct {
@@ -43,7 +44,7 @@ func (b *baseError) Error() string {
 }
 
 // NewProviderError returns a new ProviderError
-func NewProviderError(msg string, a ...interface{}) error {
+func NewProviderError(msg string, a ...any) error {
 	return &ProviderError{
 		baseError{
 			msg: fmt.Sprintf(msg, a...),
@@ -66,7 +67,7 @@ func (p *ProviderError) Is(target error) bool {
 }
 
 // NewMissingSecretError returns a new MissingSecretError
-func NewMissingSecretError(msg string, a ...interface{}) error {
+func NewMissingSecretError(msg string, a ...any) error {
 	return &MissingSecretError{
 		baseError{
 			msg: fmt.Sprintf(msg, a...),
@@ -112,7 +113,7 @@ func (p *UnauthorizedError) Is(target error) bool {
 }
 
 // NewNotFoundError returns a new NotFoundError
-func NewNotFoundError(msg string, a ...interface{}) error {
+func NewNotFoundError(msg string, a ...any) error {
 	return &NotFoundError{
 		baseError{
 			msg: fmt.Sprintf(msg, a...),
@@ -158,7 +159,7 @@ func (p *DuplicateUserError) Is(target error) bool {
 }
 
 // NewBadRequestError returns a new BadRequestError
-func NewBadRequestError(msg string, a ...interface{}) error {
+func NewBadRequestError(msg string, a ...any) error {
 	return &BadRequestError{
 		baseError{
 			msg: fmt.Sprintf(msg, a...),
@@ -181,7 +182,7 @@ func (p *BadRequestError) Is(target error) bool {
 }
 
 // NewConflictError returns a new ConflictError
-func NewConflictError(msg string, a ...interface{}) error {
+func NewConflictError(msg string, a ...any) error {
 	return &ConflictError{
 		baseError{
 			msg: fmt.Sprintf(msg, a...),
@@ -204,7 +205,7 @@ func (p *ConflictError) Is(target error) bool {
 }
 
 // NewTimeoutError returns a new TimoutError
-func NewTimeoutError(msg string, a ...interface{}) error {
+func NewTimeoutError(msg string, a ...any) error {
 	return &TimoutError{
 		baseError{
 			msg: fmt.Sprintf(msg, a...),
@@ -227,15 +228,15 @@ func (p *TimoutError) Is(target error) bool {
 }
 
 // NewUnprocessableError returns a new UnprocessableError
-func NewUnprocessableError(msg string, a ...interface{}) error {
-	return &TimoutError{
+func NewUnprocessableError(msg string, a ...any) error {
+	return &UnprocessableError{
 		baseError{
 			msg: fmt.Sprintf(msg, a...),
 		},
 	}
 }
 
-// TimoutError is returned when an operation times out.
+// UnprocessableError is returned when a request cannot be processed.
 type UnprocessableError struct {
 	baseError
 }
@@ -249,16 +250,16 @@ func (p *UnprocessableError) Is(target error) bool {
 	return ok
 }
 
-// NewNoPoolsAvailableError returns a new UnprocessableError
-func NewNoPoolsAvailableError(msg string, a ...interface{}) error {
-	return &TimoutError{
+// NewNoPoolsAvailableError returns a new NoPoolsAvailableError
+func NewNoPoolsAvailableError(msg string, a ...any) error {
+	return &NoPoolsAvailableError{
 		baseError{
 			msg: fmt.Sprintf(msg, a...),
 		},
 	}
 }
 
-// NoPoolsAvailableError is returned when anthere are not pools available.
+// NoPoolsAvailableError is returned when there are no pools available.
 type NoPoolsAvailableError struct {
 	baseError
 }
@@ -269,5 +270,28 @@ func (p *NoPoolsAvailableError) Is(target error) bool {
 	}
 
 	_, ok := target.(*NoPoolsAvailableError)
+	return ok
+}
+
+// NewNoCapacityError returns a new NoCapacityError
+func NewNoCapacityError(msg string, a ...any) error {
+	return &NoCapacityError{
+		baseError{
+			msg: fmt.Sprintf(msg, a...),
+		},
+	}
+}
+
+// NoCapacityError is returned when there is no capacity available.
+type NoCapacityError struct {
+	baseError
+}
+
+func (p *NoCapacityError) Is(target error) bool {
+	if target == nil {
+		return false
+	}
+
+	_, ok := target.(*NoCapacityError)
 	return ok
 }

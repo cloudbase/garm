@@ -1334,7 +1334,7 @@ func (r *basePoolManager) addRunnerToPool(pool params.Pool, aditionalLabels []st
 	}
 
 	if poolInstanceCount >= int64(pool.MaxRunners) {
-		return fmt.Errorf("max workers (%d) reached for pool %s", pool.MaxRunners, pool.ID)
+		return runnerErrors.NewNoCapacityError("max workers (%d) reached for pool %s", pool.MaxRunners, pool.ID)
 	}
 
 	if err := r.AddRunner(r.ctx, pool.ID, aditionalLabels); err != nil {
@@ -1412,8 +1412,6 @@ func (r *basePoolManager) retryFailedInstancesForOnePool(ctx context.Context, po
 
 	g, errCtx := errgroup.WithContext(ctx)
 	for _, instance := range existingInstances {
-		instance := instance
-
 		if instance.Status != commonParams.InstanceError {
 			continue
 		}
@@ -1472,7 +1470,10 @@ func (r *basePoolManager) retryFailedInstancesForOnePool(ctx context.Context, po
 				ctx, "queueing previously failed instance for retry",
 				"runner_name", instance.Name)
 			// Set instance to pending create and wait for retry.
-			if _, err := r.store.UpdateInstance(r.ctx, instance.Name, updateParams); err != nil {
+			// Use ForceUpdateInstance() here. It will ignore the instance transition from error to
+			// something other than a cleanup status (pending_delete/deleting). We don't really want to allow
+			// transitioning from error directly to "creating" otherwise.
+			if _, err := r.store.ForceUpdateInstance(r.ctx, instance.Name, updateParams); err != nil {
 				slog.With(slog.Any("error", err)).ErrorContext(
 					ctx, "failed to update runner status",
 					"runner_name", instance.Name)
@@ -2174,9 +2175,15 @@ func (r *basePoolManager) consumeQueuedJobs() error {
 				"pool_id", pool.ID,
 				"job_id", job.WorkflowJobID)
 			if err := r.addRunnerToPool(pool, jobLabels); err != nil {
-				slog.With(slog.Any("error", err)).ErrorContext(
-					r.ctx, "could not add runner to pool",
-					"pool_id", pool.ID)
+				if errors.Is(err, runnerErrors.ErrNoCapacity) {
+					slog.With(slog.Any("error", err)).InfoContext(
+						r.ctx, "could not add runner to pool",
+						"pool_id", pool.ID)
+				} else {
+					slog.With(slog.Any("error", err)).ErrorContext(
+						r.ctx, "could not add runner to pool",
+						"pool_id", pool.ID)
+				}
 				continue
 			}
 			slog.DebugContext(r.ctx, "a new runner was added as a response to queued job",
@@ -2187,7 +2194,7 @@ func (r *basePoolManager) consumeQueuedJobs() error {
 		}
 
 		if !runnerCreated {
-			slog.WarnContext(
+			slog.InfoContext(
 				r.ctx, "could not create a runner for job; unlocking",
 				"job_id", job.WorkflowJobID)
 			if err := r.store.UnlockJob(r.ctx, job.WorkflowJobID, r.ID()); err != nil {
