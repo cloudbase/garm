@@ -119,7 +119,7 @@ func (r *Runner) GetForgeInstanceByID(ctx context.Context, forgeInstanceID strin
 	return forgeInstance, nil
 }
 
-func (r *Runner) DeleteForgeInstance(ctx context.Context, forgeInstanceID string) error {
+func (r *Runner) DeleteForgeInstance(ctx context.Context, forgeInstanceID string, keepWebhook bool) error {
 	if !auth.IsAdmin(ctx) {
 		return runnerErrors.ErrUnauthorized
 	}
@@ -146,6 +146,19 @@ func (r *Runner) DeleteForgeInstance(ctx context.Context, forgeInstanceID string
 		}
 
 		return runnerErrors.NewBadRequestError("forge instance has pools defined (%s)", strings.Join(poolIDs, ", "))
+	}
+
+	if !keepWebhook && r.config.Default.EnableWebhookManagement {
+		poolMgr, err := r.poolManagerCtrl.GetForgeInstancePoolManager(forgeInstance)
+		if err != nil {
+			return fmt.Errorf("error fetching pool manager: %w", err)
+		}
+
+		if err := poolMgr.UninstallWebhook(ctx); err != nil {
+			slog.With(slog.Any("error", err)).ErrorContext(
+				ctx, "failed to uninstall webhook",
+				"forge_instance_id", forgeInstance.ID)
+		}
 	}
 
 	if err := r.poolManagerCtrl.DeleteForgeInstancePoolManager(forgeInstance); err != nil {

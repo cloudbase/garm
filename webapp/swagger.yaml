@@ -2783,6 +2783,10 @@ paths:
                   name: forgeInstanceID
                   required: true
                   type: string
+                - description: If true and a webhook is installed for this forge instance, it will not be removed.
+                  in: query
+                  name: keepWebhook
+                  type: boolean
             responses:
                 default:
                     description: APIErrorResponse

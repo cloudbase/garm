@@ -6698,10 +6698,11 @@ export const ForgeInstancesApiAxiosParamCreator = function (configuration?: Conf
          * 
          * @summary Delete forge instance by ID.
          * @param {string} forgeInstanceID ID of the forge instance to delete.
+         * @param {boolean} [keepWebhook] If true and a webhook is installed for this forge instance, it will not be removed.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        deleteForgeInstance: async (forgeInstanceID: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        deleteForgeInstance: async (forgeInstanceID: string, keepWebhook?: boolean, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'forgeInstanceID' is not null or undefined
             assertParamExists('deleteForgeInstance', 'forgeInstanceID', forgeInstanceID)
             const localVarPath = `/forge-instances/{forgeInstanceID}`
@@ -6719,6 +6720,10 @@ export const ForgeInstancesApiAxiosParamCreator = function (configuration?: Conf
 
             // authentication Bearer required
             await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+            if (keepWebhook !== undefined) {
+                localVarQueryParameter['keepWebhook'] = keepWebhook;
+            }
 
 
     
@@ -7209,11 +7214,12 @@ export const ForgeInstancesApiFp = function(configuration?: Configuration) {
          * 
          * @summary Delete forge instance by ID.
          * @param {string} forgeInstanceID ID of the forge instance to delete.
+         * @param {boolean} [keepWebhook] If true and a webhook is installed for this forge instance, it will not be removed.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async deleteForgeInstance(forgeInstanceID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<APIErrorResponse>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.deleteForgeInstance(forgeInstanceID, options);
+        async deleteForgeInstance(forgeInstanceID: string, keepWebhook?: boolean, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<APIErrorResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.deleteForgeInstance(forgeInstanceID, keepWebhook, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['ForgeInstancesApi.deleteForgeInstance']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -7401,11 +7407,12 @@ export const ForgeInstancesApiFactory = function (configuration?: Configuration,
          * 
          * @summary Delete forge instance by ID.
          * @param {string} forgeInstanceID ID of the forge instance to delete.
+         * @param {boolean} [keepWebhook] If true and a webhook is installed for this forge instance, it will not be removed.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        deleteForgeInstance(forgeInstanceID: string, options?: RawAxiosRequestConfig): AxiosPromise<APIErrorResponse> {
-            return localVarFp.deleteForgeInstance(forgeInstanceID, options).then((request) => request(axios, basePath));
+        deleteForgeInstance(forgeInstanceID: string, keepWebhook?: boolean, options?: RawAxiosRequestConfig): AxiosPromise<APIErrorResponse> {
+            return localVarFp.deleteForgeInstance(forgeInstanceID, keepWebhook, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -7561,12 +7568,13 @@ export class ForgeInstancesApi extends BaseAPI {
      * 
      * @summary Delete forge instance by ID.
      * @param {string} forgeInstanceID ID of the forge instance to delete.
+     * @param {boolean} [keepWebhook] If true and a webhook is installed for this forge instance, it will not be removed.
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof ForgeInstancesApi
      */
-    public deleteForgeInstance(forgeInstanceID: string, options?: RawAxiosRequestConfig) {
-        return ForgeInstancesApiFp(this.configuration).deleteForgeInstance(forgeInstanceID, options).then((request) => request(this.axios, this.basePath));
+    public deleteForgeInstance(forgeInstanceID: string, keepWebhook?: boolean, options?: RawAxiosRequestConfig) {
+        return ForgeInstancesApiFp(this.configuration).deleteForgeInstance(forgeInstanceID, keepWebhook, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

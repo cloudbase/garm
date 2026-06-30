@@ -29,14 +29,15 @@ import (
 )
 
 var (
-	forgeInstanceEndpoint       string
-	forgeInstanceWebhookSecret  string
-	forgeInstanceRandomSecret   bool
-	forgeInstanceCreds          string
-	forgeInstanceForgeType      string
-	forgeInstanceAgentMode      bool
-	installForgeInstanceWebhook    bool
-	insecureForgeInstanceWebhook  bool
+	forgeInstanceEndpoint        string
+	forgeInstanceWebhookSecret   string
+	forgeInstanceRandomSecret    bool
+	forgeInstanceCreds           string
+	forgeInstanceForgeType       string
+	forgeInstanceAgentMode       bool
+	installForgeInstanceWebhook  bool
+	insecureForgeInstanceWebhook bool
+	keepForgeInstanceWebhook     bool
 )
 
 var forgeInstanceCmd = &cobra.Command{
@@ -188,6 +189,7 @@ var forgeInstanceDeleteCmd = &cobra.Command{
 
 		deleteReq := apiClientForgeInstances.NewDeleteForgeInstanceParams()
 		deleteReq.ForgeInstanceID = forgeInstanceID
+		deleteReq.KeepWebhook = &keepForgeInstanceWebhook
 		if err := apiCli.ForgeInstances.DeleteForgeInstance(deleteReq, authToken); err != nil {
 			return err
 		}
@@ -360,6 +362,8 @@ func init() {
 
 	forgeInstanceListCmd.Flags().BoolVarP(&long, "long", "l", false, "Include additional info.")
 	forgeInstanceListCmd.Flags().StringVarP(&forgeInstanceEndpoint, "endpoint", "e", "", "Exact endpoint name to filter by.")
+
+	forgeInstanceDeleteCmd.Flags().BoolVar(&keepForgeInstanceWebhook, "keep-webhook", false, "Do not delete any existing webhook when removing the forge instance from GARM.")
 
 	forgeInstanceUpdateCmd.Flags().StringVar(&forgeInstanceWebhookSecret, "webhook-secret", "", "The webhook secret for this forge instance")
 	forgeInstanceUpdateCmd.Flags().StringVar(&forgeInstanceCreds, "credentials", "", "Credentials name. See credentials list.")

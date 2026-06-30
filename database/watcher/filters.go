@@ -92,6 +92,8 @@ func WithEntityPoolFilter(ghEntity params.ForgeEntity) dbCommon.PayloadFilterFun
 				return pool.OrgID == ghEntity.ID
 			case params.ForgeEntityTypeEnterprise:
 				return pool.EnterpriseID == ghEntity.ID
+			case params.ForgeEntityTypeInstance:
+				return pool.ForgeInstanceID == ghEntity.ID
 			default:
 				return false
 			}

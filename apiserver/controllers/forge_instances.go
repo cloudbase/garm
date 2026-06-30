@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"strconv"
 
 	"github.com/gorilla/mux"
 
@@ -149,6 +150,11 @@ func (a *APIController) GetForgeInstanceByIDHandler(w http.ResponseWriter, r *ht
 //	    in: path
 //	    required: true
 //
+//	  + name: keepWebhook
+//	    description: If true and a webhook is installed for this forge instance, it will not be removed.
+//	    type: boolean
+//	    in: query
+//
 //	Responses:
 //	  default: APIErrorResponse
 func (a *APIController) DeleteForgeInstanceHandler(w http.ResponseWriter, r *http.Request) {
@@ -167,7 +173,9 @@ func (a *APIController) DeleteForgeInstanceHandler(w http.ResponseWriter, r *htt
 		return
 	}
 
-	if err := a.r.DeleteForgeInstance(ctx, forgeInstanceID); err != nil {
+	keepWebhook, _ := strconv.ParseBool(r.URL.Query().Get("keepWebhook"))
+
+	if err := a.r.DeleteForgeInstance(ctx, forgeInstanceID, keepWebhook); err != nil {
 		slog.With(slog.Any("error", err)).ErrorContext(ctx, "removing forge instance")
 		handleError(ctx, w, err)
 		return
