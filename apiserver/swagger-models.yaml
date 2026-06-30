@@ -215,6 +215,29 @@ definitions:
         import:
             package: github.com/cloudbase/garm/params
             alias: garm_params
+  ForgeInstances:
+    type: array
+    x-go-type:
+        type: ForgeInstances
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+    items:
+        $ref: '#/definitions/ForgeInstance'
+  ForgeInstance:
+    type: object
+    x-go-type:
+        type: ForgeInstance
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+  CreateForgeInstanceParams:
+    type: object
+    x-go-type:
+        type: CreateForgeInstanceParams
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
   UpdateEntityParams:
     type: object
     x-go-type:

@@ -168,6 +168,26 @@ definitions:
                 x-go-name: Tags
         type: object
         x-go-package: github.com/cloudbase/garm/params
+    CreateForgeInstanceParams:
+        properties:
+            agent_mode:
+                type: boolean
+                x-go-name: AgentMode
+            credentials_name:
+                type: string
+                x-go-name: CredentialsName
+            endpoint_name:
+                type: string
+                x-go-name: EndpointName
+            forge_type:
+                $ref: '#/definitions/EndpointType'
+            pool_balancer_type:
+                $ref: '#/definitions/PoolBalancerType'
+            webhook_secret:
+                type: string
+                x-go-name: WebhookSecret
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
     CreateGARMToolParams:
         properties:
             description:
@@ -777,6 +797,8 @@ definitions:
                 $ref: '#/definitions/ForgeCredentials'
             entity_type:
                 $ref: '#/definitions/ForgeEntityType'
+            forge:
+                $ref: '#/definitions/ForgeEndpoint'
             id:
                 type: string
                 x-go-name: ID
@@ -798,6 +820,59 @@ definitions:
         x-go-package: github.com/cloudbase/garm/params
     ForgeEntityType:
         type: string
+        x-go-package: github.com/cloudbase/garm/params
+    ForgeInstance:
+        properties:
+            agent_mode:
+                type: boolean
+                x-go-name: AgentMode
+            created_at:
+                format: date-time
+                type: string
+                x-go-name: CreatedAt
+            credentials:
+                $ref: '#/definitions/ForgeCredentials'
+            credentials_id:
+                format: uint64
+                type: integer
+                x-go-name: CredentialsID
+            credentials_name:
+                description: |-
+                    CredentialName is the name of the credentials associated with the forge instance.
+                    This field is now deprecated. Use CredentialsID instead. This field will be
+                    removed in v0.2.0.
+                type: string
+                x-go-name: CredentialsName
+            endpoint:
+                $ref: '#/definitions/ForgeEndpoint'
+            events:
+                items:
+                    $ref: '#/definitions/EntityEvent'
+                type: array
+                x-go-name: Events
+            id:
+                type: string
+                x-go-name: ID
+            pool:
+                items:
+                    $ref: '#/definitions/Pool'
+                type: array
+                x-go-name: Pools
+            pool_balancing_type:
+                $ref: '#/definitions/PoolBalancerType'
+            pool_manager_status:
+                $ref: '#/definitions/PoolManagerStatus'
+            updated_at:
+                format: date-time
+                type: string
+                x-go-name: UpdatedAt
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    ForgeInstances:
+        description: used by swagger client generated code
+        items:
+            $ref: '#/definitions/ForgeInstance'
+        type: array
         x-go-package: github.com/cloudbase/garm/params
     GARMAgentTool:
         properties:
@@ -1236,6 +1311,10 @@ definitions:
                 format: uuid
                 type: string
                 x-go-name: EnterpriseID
+            forge_instance_id:
+                format: uuid
+                type: string
+                x-go-name: ForgeInstanceID
             id:
                 description: ID is the ID of the job.
                 format: int64
@@ -1466,6 +1545,9 @@ definitions:
             flavor:
                 type: string
                 x-go-name: Flavor
+            forge_instance_id:
+                type: string
+                x-go-name: ForgeInstanceID
             generation:
                 description: |-
                     Generation holds the numeric generation of the pool. This number
@@ -2649,6 +2731,339 @@ paths:
             summary: Initialize the first run of the controller.
             tags:
                 - first-run
+    /forge-instances:
+        get:
+            operationId: ListForgeInstances
+            parameters:
+                - description: Exact endpoint name to filter by
+                  in: query
+                  name: endpoint
+                  type: string
+            responses:
+                "200":
+                    description: ForgeInstances
+                    schema:
+                        $ref: '#/definitions/ForgeInstances'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List all forge instances.
+            tags:
+                - forge-instances
+        post:
+            operationId: CreateForgeInstance
+            parameters:
+                - description: Parameters used to create the forge instance.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/CreateForgeInstanceParams'
+                    description: Parameters used to create the forge instance.
+                    type: object
+            responses:
+                "200":
+                    description: ForgeInstance
+                    schema:
+                        $ref: '#/definitions/ForgeInstance'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Create forge instance with the given parameters.
+            tags:
+                - forge-instances
+    /forge-instances/{forgeInstanceID}:
+        delete:
+            operationId: DeleteForgeInstance
+            parameters:
+                - description: ID of the forge instance to delete.
+                  in: path
+                  name: forgeInstanceID
+                  required: true
+                  type: string
+            responses:
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Delete forge instance by ID.
+            tags:
+                - forge-instances
+        get:
+            operationId: GetForgeInstance
+            parameters:
+                - description: The ID of the forge instance to fetch.
+                  in: path
+                  name: forgeInstanceID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: ForgeInstance
+                    schema:
+                        $ref: '#/definitions/ForgeInstance'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get forge instance by ID.
+            tags:
+                - forge-instances
+        put:
+            operationId: UpdateForgeInstance
+            parameters:
+                - description: The ID of the forge instance to update.
+                  in: path
+                  name: forgeInstanceID
+                  required: true
+                  type: string
+                - description: Parameters used when updating the forge instance.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/UpdateEntityParams'
+                    description: Parameters used when updating the forge instance.
+                    type: object
+            responses:
+                "200":
+                    description: ForgeInstance
+                    schema:
+                        $ref: '#/definitions/ForgeInstance'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Update forge instance with the given parameters.
+            tags:
+                - forge-instances
+    /forge-instances/{forgeInstanceID}/instances:
+        get:
+            operationId: ListForgeInstanceInstances
+            parameters:
+                - description: Forge instance ID.
+                  in: path
+                  name: forgeInstanceID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: Instances
+                    schema:
+                        $ref: '#/definitions/Instances'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List forge instance runner instances.
+            tags:
+                - forge-instances
+    /forge-instances/{forgeInstanceID}/pools:
+        get:
+            operationId: ListForgeInstancePools
+            parameters:
+                - description: Forge instance ID.
+                  in: path
+                  name: forgeInstanceID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: Pools
+                    schema:
+                        $ref: '#/definitions/Pools'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List forge instance pools.
+            tags:
+                - forge-instances
+                - pools
+        post:
+            operationId: CreateForgeInstancePool
+            parameters:
+                - description: Forge instance ID.
+                  in: path
+                  name: forgeInstanceID
+                  required: true
+                  type: string
+                - description: Parameters used when creating the forge instance pool.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/CreatePoolParams'
+                    description: Parameters used when creating the forge instance pool.
+                    type: object
+            responses:
+                "200":
+                    description: Pool
+                    schema:
+                        $ref: '#/definitions/Pool'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Create forge instance pool with the parameters given.
+            tags:
+                - forge-instances
+                - pools
+    /forge-instances/{forgeInstanceID}/pools/{poolID}:
+        delete:
+            operationId: DeleteForgeInstancePool
+            parameters:
+                - description: Forge instance ID.
+                  in: path
+                  name: forgeInstanceID
+                  required: true
+                  type: string
+                - description: ID of the forge instance pool to delete.
+                  in: path
+                  name: poolID
+                  required: true
+                  type: string
+            responses:
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Delete forge instance pool by ID.
+            tags:
+                - forge-instances
+                - pools
+        get:
+            operationId: GetForgeInstancePool
+            parameters:
+                - description: Forge instance ID.
+                  in: path
+                  name: forgeInstanceID
+                  required: true
+                  type: string
+                - description: Pool ID.
+                  in: path
+                  name: poolID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: Pool
+                    schema:
+                        $ref: '#/definitions/Pool'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get forge instance pool by ID.
+            tags:
+                - forge-instances
+                - pools
+        put:
+            operationId: UpdateForgeInstancePool
+            parameters:
+                - description: Forge instance ID.
+                  in: path
+                  name: forgeInstanceID
+                  required: true
+                  type: string
+                - description: ID of the forge instance pool to update.
+                  in: path
+                  name: poolID
+                  required: true
+                  type: string
+                - description: Parameters used when updating the forge instance pool.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/UpdatePoolParams'
+                    description: Parameters used when updating the forge instance pool.
+                    type: object
+            responses:
+                "200":
+                    description: Pool
+                    schema:
+                        $ref: '#/definitions/Pool'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Update forge instance pool with the parameters given.
+            tags:
+                - forge-instances
+                - pools
+    /forge-instances/{forgeInstanceID}/webhook:
+        delete:
+            operationId: UninstallForgeInstanceWebhook
+            parameters:
+                - description: Forge instance ID.
+                  in: path
+                  name: forgeInstanceID
+                  required: true
+                  type: string
+            responses:
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Uninstall forge instance webhook.
+            tags:
+                - forge-instances
+                - hooks
+        get:
+            operationId: GetForgeInstanceWebhookInfo
+            parameters:
+                - description: Forge instance ID.
+                  in: path
+                  name: forgeInstanceID
+                  required: true
+                  type: string
+            responses:
+                "200":
+                    description: HookInfo
+                    schema:
+                        $ref: '#/definitions/HookInfo'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get information about the GARM installed webhook on a forge instance.
+            tags:
+                - forge-instances
+                - hooks
+        post:
+            description: |-
+                Install the GARM webhook for a forge instance. The secret configured on the forge instance will
+                be used to validate the requests.
+            operationId: InstallForgeInstanceWebhook
+            parameters:
+                - description: Forge instance ID.
+                  in: path
+                  name: forgeInstanceID
+                  required: true
+                  type: string
+                - description: Parameters used when creating the forge instance webhook.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/InstallWebhookParams'
+                    description: Parameters used when creating the forge instance webhook.
+                    type: object
+            responses:
+                "200":
+                    description: HookInfo
+                    schema:
+                        $ref: '#/definitions/HookInfo'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            tags:
+                - forge-instances
+                - hooks
     /gitea/credentials:
         get:
             operationId: ListGiteaCredentials
