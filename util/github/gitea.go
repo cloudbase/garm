@@ -99,10 +99,11 @@ func (g *githubClient) createGiteaInstanceHook(ctx context.Context, hook *github
 		Active:       hook.GetActive(),
 		BranchFilter: "*",
 		Config: map[string]string{
-			"content_type": hook.GetConfig().GetContentType(),
-			"url":          hook.GetConfig().GetURL(),
-			"http_method":  "post",
-			"secret":       hook.GetConfig().GetSecret(),
+			"content_type":      hook.GetConfig().GetContentType(),
+			"url":               hook.GetConfig().GetURL(),
+			"http_method":       "post",
+			"secret":            hook.GetConfig().GetSecret(),
+			"is_system_webhook": "true",
 		},
 	}
 
