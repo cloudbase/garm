@@ -151,6 +151,17 @@ func (w *Worker) loadAllEntities() error {
 		}
 	}
 
+	forgeInstances, err := w.store.ListForgeInstances(w.ctx, params.ForgeInstanceFilter{})
+	if err != nil {
+		return fmt.Errorf("listing forge instances: %w", err)
+	}
+
+	for _, fi := range forgeInstances {
+		if err := w.setCacheForEntity(fi, pools, scaleSets); err != nil {
+			return fmt.Errorf("setting cache for forge instance: %w", err)
+		}
+	}
+
 	for _, entity := range cache.GetAllEntities() {
 		worker := newToolsUpdater(w.ctx, entity, w.store)
 		if err := worker.Start(); err != nil {
@@ -382,6 +393,15 @@ func (w *Worker) handleEnterpriseEvent(event common.ChangePayload) {
 	w.handleEntityEvent(enterprise, event.Operation)
 }
 
+func (w *Worker) handleForgeInstanceEvent(event common.ChangePayload) {
+	fi, ok := event.Payload.(params.ForgeInstance)
+	if !ok {
+		slog.DebugContext(w.ctx, "invalid payload type for forge instance event", "payload", event.Payload)
+		return
+	}
+	w.handleEntityEvent(fi, event.Operation)
+}
+
 func (w *Worker) handlePoolEvent(event common.ChangePayload) {
 	pool, ok := event.Payload.(params.Pool)
 	if !ok {
@@ -529,6 +549,8 @@ func (w *Worker) handleEvent(event common.ChangePayload) {
 		w.handleOrgEvent(event)
 	case common.EnterpriseEntityType:
 		w.handleEnterpriseEvent(event)
+	case common.ForgeInstanceEntityType:
+		w.handleForgeInstanceEvent(event)
 	case common.GithubCredentialsEntityType, common.GiteaCredentialsEntityType:
 		w.handleCredentialsEvent(event)
 	case common.ControllerEntityType:

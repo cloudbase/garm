@@ -43,11 +43,19 @@ type EnterprisePoolManager interface {
 	GetEnterprisePoolManagers() (map[string]common.PoolManager, error)
 }
 
+type ForgeInstancePoolManager interface {
+	CreateForgeInstancePoolManager(ctx context.Context, forgeInstance params.ForgeInstance, providers map[string]common.Provider, store dbCommon.Store) (common.PoolManager, error)
+	GetForgeInstancePoolManager(forgeInstance params.ForgeInstance) (common.PoolManager, error)
+	DeleteForgeInstancePoolManager(forgeInstance params.ForgeInstance) error
+	GetForgeInstancePoolManagers() (map[string]common.PoolManager, error)
+}
+
 //go:generate go run github.com/vektra/mockery/v2@latest
 type PoolManagerController interface {
 	RepoPoolManager
 	OrgPoolManager
 	EnterprisePoolManager
+	ForgeInstancePoolManager
 }
 
 type AgentStoreOps interface {

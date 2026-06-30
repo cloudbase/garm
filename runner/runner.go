@@ -67,12 +67,13 @@ func NewRunner(ctx context.Context, cfg config.Config, db dbCommon.Store, token 
 	}
 
 	poolManagerCtrl := &poolManagerCtrl{
-		config:        cfg,
-		store:         db,
-		token:         token,
-		repositories:  map[string]common.PoolManager{},
-		organizations: map[string]common.PoolManager{},
-		enterprises:   map[string]common.PoolManager{},
+		config:         cfg,
+		store:          db,
+		token:          token,
+		repositories:   map[string]common.PoolManager{},
+		organizations:  map[string]common.PoolManager{},
+		enterprises:    map[string]common.PoolManager{},
+		forgeInstances: map[string]common.PoolManager{},
 	}
 	runner := &Runner{
 		ctx:             ctx,
@@ -97,9 +98,10 @@ type poolManagerCtrl struct {
 	store  dbCommon.Store
 	token  auth.InstanceTokenGetter
 
-	repositories  map[string]common.PoolManager
-	organizations map[string]common.PoolManager
-	enterprises   map[string]common.PoolManager
+	repositories   map[string]common.PoolManager
+	organizations  map[string]common.PoolManager
+	enterprises    map[string]common.PoolManager
+	forgeInstances map[string]common.PoolManager
 }
 
 func (p *poolManagerCtrl) CreateRepoPoolManager(ctx context.Context, repo params.Repository, providers map[string]common.Provider, store dbCommon.Store) (common.PoolManager, error) {
@@ -228,6 +230,48 @@ func (p *poolManagerCtrl) GetEnterprisePoolManagers() (map[string]common.PoolMan
 	return p.enterprises, nil
 }
 
+func (p *poolManagerCtrl) CreateForgeInstancePoolManager(ctx context.Context, forgeInstance params.ForgeInstance, providers map[string]common.Provider, store dbCommon.Store) (common.PoolManager, error) {
+	p.mux.Lock()
+	defer p.mux.Unlock()
+
+	entity, err := forgeInstance.GetEntity()
+	if err != nil {
+		return nil, fmt.Errorf("error getting entity: %w", err)
+	}
+
+	poolManager, err := pool.NewEntityPoolManager(ctx, entity, p.token, providers, store)
+	if err != nil {
+		return nil, fmt.Errorf("error creating forge instance pool manager: %w", err)
+	}
+	p.forgeInstances[forgeInstance.ID] = poolManager
+	return poolManager, nil
+}
+
+func (p *poolManagerCtrl) GetForgeInstancePoolManager(forgeInstance params.ForgeInstance) (common.PoolManager, error) {
+	if fiPoolMgr, ok := p.forgeInstances[forgeInstance.ID]; ok {
+		return fiPoolMgr, nil
+	}
+	return nil, fmt.Errorf("forge instance %s pool manager not loaded: %w", forgeInstance.ID, runnerErrors.ErrNotFound)
+}
+
+func (p *poolManagerCtrl) DeleteForgeInstancePoolManager(forgeInstance params.ForgeInstance) error {
+	p.mux.Lock()
+	defer p.mux.Unlock()
+
+	poolMgr, ok := p.forgeInstances[forgeInstance.ID]
+	if ok {
+		if err := poolMgr.Stop(); err != nil {
+			return fmt.Errorf("error stopping forge instance pool manager: %w", err)
+		}
+		delete(p.forgeInstances, forgeInstance.ID)
+	}
+	return nil
+}
+
+func (p *poolManagerCtrl) GetForgeInstancePoolManagers() (map[string]common.PoolManager, error) {
+	return p.forgeInstances, nil
+}
+
 type Runner struct {
 	mux sync.Mutex
 
@@ -243,10 +287,11 @@ type Runner struct {
 	quit      chan struct{}
 	running   bool
 
-	failedEntities    map[string]failedEntity
-	reposLoaded       bool
-	orgsLoaded        bool
-	enterprisesLoaded bool
+	failedEntities       map[string]failedEntity
+	reposLoaded          bool
+	orgsLoaded           bool
+	enterprisesLoaded    bool
+	forgeInstancesLoaded bool
 }
 
 // UpdateController will update the controller settings.
@@ -397,6 +442,16 @@ func (r *Runner) loadReposOrgsAndEnterprises() {
 	}
 	for _, enterprise := range enterprises {
 		r.createAndStartEnterprisePoolManager(enterprise)
+	}
+
+	forgeInstances, err := r.store.ListForgeInstances(r.ctx, params.ForgeInstanceFilter{})
+	if err != nil {
+		slog.ErrorContext(r.ctx, "fetching forge instances", "error", err)
+	} else {
+		r.forgeInstancesLoaded = true
+	}
+	for _, fi := range forgeInstances {
+		r.createAndStartForgeInstancePoolManager(fi)
 	}
 }
 
@@ -553,6 +608,22 @@ func (r *Runner) retryFailedPoolManagers() {
 		}
 	}
 
+	if !r.forgeInstancesLoaded {
+		forgeInstances, err := r.store.ListForgeInstances(r.ctx, params.ForgeInstanceFilter{})
+		if err != nil {
+			slog.ErrorContext(r.ctx, "retrying forge instance list", "error", err)
+		} else {
+			slog.InfoContext(r.ctx, "forge instances loaded successfully after retry")
+			r.forgeInstancesLoaded = true
+			for _, fi := range forgeInstances {
+				if _, err := r.poolManagerCtrl.GetForgeInstancePoolManager(fi); err == nil {
+					continue
+				}
+				r.createAndStartForgeInstancePoolManager(fi)
+			}
+		}
+	}
+
 	// Retry individual failed entities.
 	for id, fe := range r.failedEntities {
 		if !r.backoff.ShouldRetry(id) {
@@ -623,6 +694,25 @@ func (r *Runner) retryFailedEntity(fe failedEntity) {
 			return
 		}
 		r.createAndStartEnterprisePoolManager(enterprise)
+	case params.ForgeEntityTypeInstance:
+		fi, err := r.store.GetForgeInstanceByID(r.ctx, fe.id)
+		if err != nil {
+			if errors.Is(err, runnerErrors.ErrNotFound) {
+				slog.InfoContext(r.ctx, "forge instance deleted, removing from retry set", "forge_instance_id", fe.id)
+				delete(r.failedEntities, fe.id)
+				r.backoff.RecordSuccess(fe.id)
+				return
+			}
+			slog.ErrorContext(r.ctx, "fetching forge instance for retry", "forge_instance_id", fe.id, "error", err)
+			r.backoff.RecordFailure(fe.id)
+			return
+		}
+		if err := r.poolManagerCtrl.DeleteForgeInstancePoolManager(fi); err != nil {
+			slog.ErrorContext(r.ctx, "cleaning up stale forge instance pool manager before retry", "forge_instance_id", fe.id, "error", err)
+			r.backoff.RecordFailure(fe.id)
+			return
+		}
+		r.createAndStartForgeInstancePoolManager(fi)
 	}
 }
 
@@ -649,6 +739,11 @@ func (r *Runner) Stop() error {
 	enterprises, err := r.poolManagerCtrl.GetEnterprisePoolManagers()
 	if err != nil {
 		return fmt.Errorf("error fetching enterprise pool managers: %w", err)
+	}
+
+	forgeInstances, err := r.poolManagerCtrl.GetForgeInstancePoolManagers()
+	if err != nil {
+		return fmt.Errorf("error fetching forge instance pool managers: %w", err)
 	}
 
 	g, _ := errgroup.WithContext(r.ctx)
@@ -681,6 +776,17 @@ func (r *Runner) Stop() error {
 			err := poolMgr.Stop()
 			if err != nil {
 				return fmt.Errorf("failed to stop enterprise pool manager: %w", err)
+			}
+			return poolMgr.Wait()
+		})
+	}
+
+	for _, fi := range forgeInstances {
+		poolMgr := fi
+		g.Go(func() error {
+			err := poolMgr.Stop()
+			if err != nil {
+				return fmt.Errorf("failed to stop forge instance pool manager: %w", err)
 			}
 			return poolMgr.Wait()
 		})
@@ -866,17 +972,22 @@ func (r *Runner) DispatchWorkflowJob(hookTargetType, signature string, forgeType
 			"enterprise", util.SanitizeLogEntry(job.Enterprise.Slug),
 			"endpoint", endpoint.Name)
 		poolManager, err = r.findEnterprisePoolManager(job.Enterprise.Slug, endpoint.Name)
+	case SystemHook:
+		slog.DebugContext(
+			r.ctx, "got hook for forge instance",
+			"endpoint", endpoint.Name)
+		poolManager, err = r.findForgeInstancePoolManager(endpoint.Name)
 	default:
 		return runnerErrors.NewBadRequestError("cannot handle hook target type %s", hookTargetType)
 	}
 
-	slog.DebugContext(r.ctx, "found pool manager", "pool_manager", poolManager.ID())
 	if err != nil {
 		slog.ErrorContext(r.ctx, "failed to find pool manager", "error", err, "hook_target_type", hookTargetType)
 		// We don't have a repository or organization configured that
 		// can handle this workflow job.
 		return fmt.Errorf("error fetching poolManager: %w", err)
 	}
+	slog.DebugContext(r.ctx, "found pool manager", "pool_manager", poolManager.ID())
 
 	// We found a pool. Validate the webhook job. If a secret is configured,
 	// we make sure that the source of this workflow job is valid.
@@ -1029,6 +1140,13 @@ func (r *Runner) getPoolManagerFromInstance(ctx context.Context, instance params
 		if err != nil {
 			return nil, fmt.Errorf("error fetching pool manager for enterprise %s: %w", pool.EnterpriseName, err)
 		}
+	case pool.ForgeInstanceID != "":
+		poolMgr, err = r.findForgeInstancePoolManager(pool.Endpoint.Name)
+		if err != nil {
+			return nil, fmt.Errorf("error fetching pool manager for forge instance %s: %w", pool.Endpoint.Name, err)
+		}
+	default:
+		return nil, fmt.Errorf("pool %s has no associated entity", pool.ID)
 	}
 
 	return poolMgr, nil

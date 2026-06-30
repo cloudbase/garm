@@ -84,6 +84,17 @@ const (
 	GiteaEndpointType  EndpointType = "gitea"
 )
 
+// SupportsInstancePools reports whether this forge type supports
+// instance-level (global/admin) runner pools.
+func (e EndpointType) SupportsInstancePools() bool {
+	switch e {
+	case GiteaEndpointType:
+		return true
+	default:
+		return false
+	}
+}
+
 const (
 	// LXDProvider represents the LXD provider.
 	LXDProvider ProviderType = "lxd"
@@ -116,12 +127,14 @@ const (
 	ForgeEntityTypeRepository   ForgeEntityType = "repository"
 	ForgeEntityTypeOrganization ForgeEntityType = "organization"
 	ForgeEntityTypeEnterprise   ForgeEntityType = "enterprise"
+	ForgeEntityTypeInstance     ForgeEntityType = "instance"
 )
 
 const (
 	MetricsLabelEnterpriseScope   = "Enterprise"
 	MetricsLabelRepositoryScope   = "Repository"
 	MetricsLabelOrganizationScope = "Organization"
+	MetricsLabelInstanceScope     = "Instance"
 )
 
 const (
@@ -501,6 +514,8 @@ type Pool struct {
 	EnterpriseID   string `json:"enterprise_id,omitempty"`
 	EnterpriseName string `json:"enterprise_name,omitempty"`
 
+	ForgeInstanceID string `json:"forge_instance_id,omitempty"`
+
 	Endpoint ForgeEndpoint `json:"endpoint,omitempty"`
 
 	RunnerBootstrapTimeout uint      `json:"runner_bootstrap_timeout,omitempty"`
@@ -533,6 +548,8 @@ func (p Pool) BelongsTo(entity ForgeEntity) bool {
 		return p.OrgID == entity.ID
 	case ForgeEntityTypeEnterprise:
 		return p.EnterpriseID == entity.ID
+	case ForgeEntityTypeInstance:
+		return p.ForgeInstanceID == entity.ID
 	}
 	return false
 }
@@ -573,6 +590,11 @@ func (p Pool) GetEntity() (ForgeEntity, error) {
 			ID:         p.EnterpriseID,
 			EntityType: ForgeEntityTypeEnterprise,
 		}, nil
+	case ForgeEntityTypeInstance:
+		return ForgeEntity{
+			ID:         p.ForgeInstanceID,
+			EntityType: ForgeEntityTypeInstance,
+		}, nil
 	}
 	return ForgeEntity{}, fmt.Errorf("pool has no associated entity")
 }
@@ -596,6 +618,8 @@ func (p *Pool) PoolType() ForgeEntityType {
 		return ForgeEntityTypeOrganization
 	case p.EnterpriseID != "":
 		return ForgeEntityTypeEnterprise
+	case p.ForgeInstanceID != "":
+		return ForgeEntityTypeInstance
 	}
 	return ""
 }
@@ -967,6 +991,64 @@ func (e Enterprise) GetBalancerType() PoolBalancerType {
 // swagger:model Enterprises
 type Enterprises []Enterprise
 
+// swagger:model ForgeInstance
+type ForgeInstance struct {
+	ID    string `json:"id,omitempty"`
+	Pools []Pool `json:"pool,omitempty"`
+	// CredentialName is the name of the credentials associated with the forge instance.
+	// This field is now deprecated. Use CredentialsID instead. This field will be
+	// removed in v0.2.0.
+	CredentialsName   string            `json:"credentials_name,omitempty"`
+	Credentials       ForgeCredentials  `json:"credentials,omitempty"`
+	CredentialsID     uint              `json:"credentials_id,omitempty"`
+	PoolManagerStatus PoolManagerStatus `json:"pool_manager_status,omitempty"`
+	PoolBalancerType  PoolBalancerType  `json:"pool_balancing_type,omitempty"`
+	Endpoint          ForgeEndpoint     `json:"endpoint,omitempty"`
+	CreatedAt         time.Time         `json:"created_at,omitempty"`
+	UpdatedAt         time.Time         `json:"updated_at,omitempty"`
+	Events            []EntityEvent     `json:"events,omitempty"`
+	AgentMode         bool              `json:"agent_mode"`
+	// Do not serialize sensitive info.
+	WebhookSecret string `json:"-"`
+}
+
+func (f ForgeInstance) GetCreatedAt() time.Time {
+	return f.CreatedAt
+}
+
+func (f ForgeInstance) GetEntity() (ForgeEntity, error) {
+	if f.ID == "" {
+		return ForgeEntity{}, fmt.Errorf("forge instance has no ID")
+	}
+	return ForgeEntity{
+		ID:                f.ID,
+		EntityType:        ForgeEntityTypeInstance,
+		Owner:             f.Endpoint.Name,
+		WebhookSecret:     f.WebhookSecret,
+		PoolBalancerType:  f.PoolBalancerType,
+		PoolManagerStatus: f.PoolManagerStatus,
+		Credentials:       f.Credentials,
+		CreatedAt:         f.CreatedAt,
+		UpdatedAt:         f.UpdatedAt,
+		AgentMode:         f.AgentMode,
+	}, nil
+}
+
+func (f ForgeInstance) GetID() string {
+	return f.ID
+}
+
+func (f ForgeInstance) GetBalancerType() PoolBalancerType {
+	if f.PoolBalancerType == "" {
+		return PoolBalancerTypeRoundRobin
+	}
+	return f.PoolBalancerType
+}
+
+// used by swagger client generated code
+// swagger:model ForgeInstances
+type ForgeInstances []ForgeInstance
+
 // Users holds information about a particular user
 // swagger:model User
 type User struct {
@@ -1305,9 +1387,10 @@ type Job struct {
 	// entity type, in response to one workflow event. Thus, we will get 3 webhooks
 	// with the same run_id and job id. Record all involved entities in the same job
 	// if we have them configured in garm.
-	RepoID       *uuid.UUID `json:"repo_id,omitempty"`
-	OrgID        *uuid.UUID `json:"org_id,omitempty"`
-	EnterpriseID *uuid.UUID `json:"enterprise_id,omitempty"`
+	RepoID          *uuid.UUID `json:"repo_id,omitempty"`
+	OrgID           *uuid.UUID `json:"org_id,omitempty"`
+	EnterpriseID    *uuid.UUID `json:"enterprise_id,omitempty"`
+	ForgeInstanceID *uuid.UUID `json:"forge_instance_id,omitempty"`
 
 	LockedBy uuid.UUID `json:"locked_by,omitempty"`
 
@@ -1328,6 +1411,10 @@ func (j Job) BelongsTo(entity ForgeEntity) bool {
 	case ForgeEntityTypeOrganization:
 		if j.OrgID != nil {
 			return entity.ID == j.OrgID.String()
+		}
+	case ForgeEntityTypeInstance:
+		if j.ForgeInstanceID != nil {
+			return entity.ID == j.ForgeInstanceID.String()
 		}
 	default:
 		return false
@@ -1366,15 +1453,16 @@ type UpdateSystemInfoParams struct {
 
 // swagger:model ForgeEntity
 type ForgeEntity struct {
+	ID                string            `json:"id,omitempty"`
+	Forge             ForgeEndpoint     `json:"forge"`
 	Owner             string            `json:"owner,omitempty"`
 	Name              string            `json:"name,omitempty"`
-	ID                string            `json:"id,omitempty"`
 	EntityType        ForgeEntityType   `json:"entity_type,omitempty"`
-	Credentials       ForgeCredentials  `json:"credentials,omitempty"`
-	PoolBalancerType  PoolBalancerType  `json:"pool_balancing_type,omitempty"`
-	PoolManagerStatus PoolManagerStatus `json:"pool_manager_status,omitempty"`
-	CreatedAt         time.Time         `json:"created_at,omitempty"`
-	UpdatedAt         time.Time         `json:"updated_at,omitempty"`
+	Credentials       ForgeCredentials  `json:"credentials"`
+	PoolBalancerType  PoolBalancerType  `json:"pool_balancing_type"`
+	PoolManagerStatus PoolManagerStatus `json:"pool_manager_status"`
+	CreatedAt         time.Time         `json:"created_at"`
+	UpdatedAt         time.Time         `json:"updated_at"`
 	AgentMode         bool              `json:"agent_mode"`
 
 	WebhookSecret string `json:"-"`
@@ -1425,6 +1513,8 @@ func (g ForgeEntity) LabelScope() string {
 		return MetricsLabelOrganizationScope
 	case ForgeEntityTypeEnterprise:
 		return MetricsLabelEnterpriseScope
+	case ForgeEntityTypeInstance:
+		return MetricsLabelInstanceScope
 	}
 	return ""
 }
@@ -1435,6 +1525,8 @@ func (g ForgeEntity) String() string {
 		return fmt.Sprintf("%s/%s", g.Owner, g.Name)
 	case ForgeEntityTypeOrganization, ForgeEntityTypeEnterprise:
 		return g.Owner
+	case ForgeEntityTypeInstance:
+		return g.Credentials.Endpoint.Name
 	}
 	return ""
 }
@@ -1484,6 +1576,10 @@ type OrganizationFilter struct {
 
 type EnterpriseFilter struct {
 	Name     string
+	Endpoint string
+}
+
+type ForgeInstanceFilter struct {
 	Endpoint string
 }
 

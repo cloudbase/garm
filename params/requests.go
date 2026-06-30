@@ -147,6 +147,39 @@ func (c *CreateEnterpriseParams) Validate() error {
 	return nil
 }
 
+// swagger:model CreateForgeInstanceParams
+type CreateForgeInstanceParams struct {
+	EndpointName     string           `json:"endpoint_name,omitempty"`
+	CredentialsName  string           `json:"credentials_name,omitempty"`
+	WebhookSecret    string           `json:"webhook_secret,omitempty"`
+	ForgeType        EndpointType     `json:"forge_type,omitempty"`
+	PoolBalancerType PoolBalancerType `json:"pool_balancer_type,omitempty"`
+	AgentMode        bool             `json:"agent_mode,omitempty"`
+}
+
+func (c *CreateForgeInstanceParams) Validate() error {
+	if c.EndpointName == "" {
+		return runnerErrors.NewBadRequestError("missing endpoint name")
+	}
+	if c.CredentialsName == "" {
+		return runnerErrors.NewBadRequestError("missing credentials name")
+	}
+	if c.WebhookSecret == "" {
+		return runnerErrors.NewBadRequestError("missing webhook secret")
+	}
+
+	if !c.ForgeType.SupportsInstancePools() {
+		return runnerErrors.NewBadRequestError("forge type %q does not support instance-level pools", c.ForgeType)
+	}
+
+	switch c.PoolBalancerType {
+	case PoolBalancerTypeRoundRobin, PoolBalancerTypePack, PoolBalancerTypeNone:
+	default:
+		return runnerErrors.NewBadRequestError("invalid pool balancer type")
+	}
+	return nil
+}
+
 // NewUserParams holds the needed information to create
 // a new user
 // swagger:model NewUserParams

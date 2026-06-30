@@ -88,6 +88,67 @@ func (_c *PoolManagerController_CreateEnterprisePoolManager_Call) RunAndReturn(r
 	return _c
 }
 
+// CreateForgeInstancePoolManager provides a mock function with given fields: ctx, forgeInstance, providers, store
+func (_m *PoolManagerController) CreateForgeInstancePoolManager(ctx context.Context, forgeInstance params.ForgeInstance, providers map[string]common.Provider, store databasecommon.Store) (common.PoolManager, error) {
+	ret := _m.Called(ctx, forgeInstance, providers, store)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateForgeInstancePoolManager")
+	}
+
+	var r0 common.PoolManager
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, params.ForgeInstance, map[string]common.Provider, databasecommon.Store) (common.PoolManager, error)); ok {
+		return rf(ctx, forgeInstance, providers, store)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, params.ForgeInstance, map[string]common.Provider, databasecommon.Store) common.PoolManager); ok {
+		r0 = rf(ctx, forgeInstance, providers, store)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(common.PoolManager)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, params.ForgeInstance, map[string]common.Provider, databasecommon.Store) error); ok {
+		r1 = rf(ctx, forgeInstance, providers, store)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// PoolManagerController_CreateForgeInstancePoolManager_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateForgeInstancePoolManager'
+type PoolManagerController_CreateForgeInstancePoolManager_Call struct {
+	*mock.Call
+}
+
+// CreateForgeInstancePoolManager is a helper method to define mock.On call
+//   - ctx context.Context
+//   - forgeInstance params.ForgeInstance
+//   - providers map[string]common.Provider
+//   - store databasecommon.Store
+func (_e *PoolManagerController_Expecter) CreateForgeInstancePoolManager(ctx interface{}, forgeInstance interface{}, providers interface{}, store interface{}) *PoolManagerController_CreateForgeInstancePoolManager_Call {
+	return &PoolManagerController_CreateForgeInstancePoolManager_Call{Call: _e.mock.On("CreateForgeInstancePoolManager", ctx, forgeInstance, providers, store)}
+}
+
+func (_c *PoolManagerController_CreateForgeInstancePoolManager_Call) Run(run func(ctx context.Context, forgeInstance params.ForgeInstance, providers map[string]common.Provider, store databasecommon.Store)) *PoolManagerController_CreateForgeInstancePoolManager_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(params.ForgeInstance), args[2].(map[string]common.Provider), args[3].(databasecommon.Store))
+	})
+	return _c
+}
+
+func (_c *PoolManagerController_CreateForgeInstancePoolManager_Call) Return(_a0 common.PoolManager, _a1 error) *PoolManagerController_CreateForgeInstancePoolManager_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *PoolManagerController_CreateForgeInstancePoolManager_Call) RunAndReturn(run func(context.Context, params.ForgeInstance, map[string]common.Provider, databasecommon.Store) (common.PoolManager, error)) *PoolManagerController_CreateForgeInstancePoolManager_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateOrgPoolManager provides a mock function with given fields: ctx, org, providers, store
 func (_m *PoolManagerController) CreateOrgPoolManager(ctx context.Context, org params.Organization, providers map[string]common.Provider, store databasecommon.Store) (common.PoolManager, error) {
 	ret := _m.Called(ctx, org, providers, store)
@@ -252,6 +313,52 @@ func (_c *PoolManagerController_DeleteEnterprisePoolManager_Call) Return(_a0 err
 }
 
 func (_c *PoolManagerController_DeleteEnterprisePoolManager_Call) RunAndReturn(run func(params.Enterprise) error) *PoolManagerController_DeleteEnterprisePoolManager_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteForgeInstancePoolManager provides a mock function with given fields: forgeInstance
+func (_m *PoolManagerController) DeleteForgeInstancePoolManager(forgeInstance params.ForgeInstance) error {
+	ret := _m.Called(forgeInstance)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteForgeInstancePoolManager")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(params.ForgeInstance) error); ok {
+		r0 = rf(forgeInstance)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// PoolManagerController_DeleteForgeInstancePoolManager_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteForgeInstancePoolManager'
+type PoolManagerController_DeleteForgeInstancePoolManager_Call struct {
+	*mock.Call
+}
+
+// DeleteForgeInstancePoolManager is a helper method to define mock.On call
+//   - forgeInstance params.ForgeInstance
+func (_e *PoolManagerController_Expecter) DeleteForgeInstancePoolManager(forgeInstance interface{}) *PoolManagerController_DeleteForgeInstancePoolManager_Call {
+	return &PoolManagerController_DeleteForgeInstancePoolManager_Call{Call: _e.mock.On("DeleteForgeInstancePoolManager", forgeInstance)}
+}
+
+func (_c *PoolManagerController_DeleteForgeInstancePoolManager_Call) Run(run func(forgeInstance params.ForgeInstance)) *PoolManagerController_DeleteForgeInstancePoolManager_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(params.ForgeInstance))
+	})
+	return _c
+}
+
+func (_c *PoolManagerController_DeleteForgeInstancePoolManager_Call) Return(_a0 error) *PoolManagerController_DeleteForgeInstancePoolManager_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *PoolManagerController_DeleteForgeInstancePoolManager_Call) RunAndReturn(run func(params.ForgeInstance) error) *PoolManagerController_DeleteForgeInstancePoolManager_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -459,6 +566,121 @@ func (_c *PoolManagerController_GetEnterprisePoolManagers_Call) Return(_a0 map[s
 }
 
 func (_c *PoolManagerController_GetEnterprisePoolManagers_Call) RunAndReturn(run func() (map[string]common.PoolManager, error)) *PoolManagerController_GetEnterprisePoolManagers_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetForgeInstancePoolManager provides a mock function with given fields: forgeInstance
+func (_m *PoolManagerController) GetForgeInstancePoolManager(forgeInstance params.ForgeInstance) (common.PoolManager, error) {
+	ret := _m.Called(forgeInstance)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetForgeInstancePoolManager")
+	}
+
+	var r0 common.PoolManager
+	var r1 error
+	if rf, ok := ret.Get(0).(func(params.ForgeInstance) (common.PoolManager, error)); ok {
+		return rf(forgeInstance)
+	}
+	if rf, ok := ret.Get(0).(func(params.ForgeInstance) common.PoolManager); ok {
+		r0 = rf(forgeInstance)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(common.PoolManager)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(params.ForgeInstance) error); ok {
+		r1 = rf(forgeInstance)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// PoolManagerController_GetForgeInstancePoolManager_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetForgeInstancePoolManager'
+type PoolManagerController_GetForgeInstancePoolManager_Call struct {
+	*mock.Call
+}
+
+// GetForgeInstancePoolManager is a helper method to define mock.On call
+//   - forgeInstance params.ForgeInstance
+func (_e *PoolManagerController_Expecter) GetForgeInstancePoolManager(forgeInstance interface{}) *PoolManagerController_GetForgeInstancePoolManager_Call {
+	return &PoolManagerController_GetForgeInstancePoolManager_Call{Call: _e.mock.On("GetForgeInstancePoolManager", forgeInstance)}
+}
+
+func (_c *PoolManagerController_GetForgeInstancePoolManager_Call) Run(run func(forgeInstance params.ForgeInstance)) *PoolManagerController_GetForgeInstancePoolManager_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(params.ForgeInstance))
+	})
+	return _c
+}
+
+func (_c *PoolManagerController_GetForgeInstancePoolManager_Call) Return(_a0 common.PoolManager, _a1 error) *PoolManagerController_GetForgeInstancePoolManager_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *PoolManagerController_GetForgeInstancePoolManager_Call) RunAndReturn(run func(params.ForgeInstance) (common.PoolManager, error)) *PoolManagerController_GetForgeInstancePoolManager_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetForgeInstancePoolManagers provides a mock function with no fields
+func (_m *PoolManagerController) GetForgeInstancePoolManagers() (map[string]common.PoolManager, error) {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetForgeInstancePoolManagers")
+	}
+
+	var r0 map[string]common.PoolManager
+	var r1 error
+	if rf, ok := ret.Get(0).(func() (map[string]common.PoolManager, error)); ok {
+		return rf()
+	}
+	if rf, ok := ret.Get(0).(func() map[string]common.PoolManager); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[string]common.PoolManager)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// PoolManagerController_GetForgeInstancePoolManagers_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetForgeInstancePoolManagers'
+type PoolManagerController_GetForgeInstancePoolManagers_Call struct {
+	*mock.Call
+}
+
+// GetForgeInstancePoolManagers is a helper method to define mock.On call
+func (_e *PoolManagerController_Expecter) GetForgeInstancePoolManagers() *PoolManagerController_GetForgeInstancePoolManagers_Call {
+	return &PoolManagerController_GetForgeInstancePoolManagers_Call{Call: _e.mock.On("GetForgeInstancePoolManagers")}
+}
+
+func (_c *PoolManagerController_GetForgeInstancePoolManagers_Call) Run(run func()) *PoolManagerController_GetForgeInstancePoolManagers_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *PoolManagerController_GetForgeInstancePoolManagers_Call) Return(_a0 map[string]common.PoolManager, _a1 error) *PoolManagerController_GetForgeInstancePoolManagers_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *PoolManagerController_GetForgeInstancePoolManagers_Call) RunAndReturn(run func() (map[string]common.PoolManager, error)) *PoolManagerController_GetForgeInstancePoolManagers_Call {
 	_c.Call.Return(run)
 	return _c
 }
