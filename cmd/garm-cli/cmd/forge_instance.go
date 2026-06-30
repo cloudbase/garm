@@ -35,7 +35,8 @@ var (
 	forgeInstanceCreds          string
 	forgeInstanceForgeType      string
 	forgeInstanceAgentMode      bool
-	installForgeInstanceWebhook bool
+	installForgeInstanceWebhook    bool
+	insecureForgeInstanceWebhook  bool
 )
 
 var forgeInstanceCmd = &cobra.Command{
@@ -236,6 +237,112 @@ var forgeInstanceUpdateCmd = &cobra.Command{
 	},
 }
 
+var forgeInstanceWebhookCmd = &cobra.Command{
+	Use:          "webhook",
+	Short:        "Manage forge instance webhooks",
+	Long:         `Manage forge instance webhooks.`,
+	SilenceUsage: true,
+	Run:          nil,
+}
+
+var forgeInstanceWebhookInstallCmd = &cobra.Command{
+	Use:          "install",
+	Short:        "Install webhook",
+	Long:         `Install webhook for a forge instance.`,
+	SilenceUsage: true,
+	RunE: func(_ *cobra.Command, args []string) error {
+		if needsInit {
+			return errNeedsInitError
+		}
+		if len(args) == 0 {
+			return fmt.Errorf("requires a forge instance ID or endpoint name")
+		}
+		if len(args) > 1 {
+			return fmt.Errorf("too many arguments")
+		}
+
+		forgeInstanceID, err := resolveForgeInstance(args[0])
+		if err != nil {
+			return err
+		}
+
+		installWebhookReq := apiClientForgeInstances.NewInstallForgeInstanceWebhookParams()
+		installWebhookReq.ForgeInstanceID = forgeInstanceID
+		installWebhookReq.Body.InsecureSSL = insecureForgeInstanceWebhook
+		installWebhookReq.Body.WebhookEndpointType = params.WebhookEndpointDirect
+
+		response, err := apiCli.ForgeInstances.InstallForgeInstanceWebhook(installWebhookReq, authToken)
+		if err != nil {
+			return err
+		}
+		formatOneHookInfo(response.Payload)
+		return nil
+	},
+}
+
+var forgeInstanceWebhookShowCmd = &cobra.Command{
+	Use:          "show",
+	Short:        "Show webhook info",
+	Long:         `Show webhook info for a forge instance.`,
+	SilenceUsage: true,
+	RunE: func(_ *cobra.Command, args []string) error {
+		if needsInit {
+			return errNeedsInitError
+		}
+		if len(args) == 0 {
+			return fmt.Errorf("requires a forge instance ID or endpoint name")
+		}
+		if len(args) > 1 {
+			return fmt.Errorf("too many arguments")
+		}
+		forgeInstanceID, err := resolveForgeInstance(args[0])
+		if err != nil {
+			return err
+		}
+		showWebhookInfoReq := apiClientForgeInstances.NewGetForgeInstanceWebhookInfoParams()
+		showWebhookInfoReq.ForgeInstanceID = forgeInstanceID
+
+		response, err := apiCli.ForgeInstances.GetForgeInstanceWebhookInfo(showWebhookInfoReq, authToken)
+		if err != nil {
+			return err
+		}
+		formatOneHookInfo(response.Payload)
+		return nil
+	},
+}
+
+var forgeInstanceWebhookUninstallCmd = &cobra.Command{
+	Use:          "uninstall",
+	Short:        "Uninstall webhook",
+	Long:         `Uninstall webhook for a forge instance.`,
+	SilenceUsage: true,
+	RunE: func(_ *cobra.Command, args []string) error {
+		if needsInit {
+			return errNeedsInitError
+		}
+		if len(args) == 0 {
+			return fmt.Errorf("requires a forge instance ID or endpoint name")
+		}
+		if len(args) > 1 {
+			return fmt.Errorf("too many arguments")
+		}
+
+		forgeInstanceID, err := resolveForgeInstance(args[0])
+		if err != nil {
+			return err
+		}
+
+		uninstallWebhookReq := apiClientForgeInstances.NewUninstallForgeInstanceWebhookParams()
+		uninstallWebhookReq.ForgeInstanceID = forgeInstanceID
+
+		err = apiCli.ForgeInstances.UninstallForgeInstanceWebhook(uninstallWebhookReq, authToken)
+		if err != nil {
+			return err
+		}
+		return nil
+	},
+}
+
 func init() {
 	forgeInstanceAddCmd.Flags().StringVar(&forgeInstanceEndpoint, "endpoint", "", "The endpoint name for this forge instance")
 	forgeInstanceAddCmd.Flags().StringVar(&forgeInstanceWebhookSecret, "webhook-secret", "", "The webhook secret for this forge instance.")
@@ -259,12 +366,21 @@ func init() {
 	forgeInstanceUpdateCmd.Flags().StringVar(&poolBalancerType, "pool-balancer-type", "", "The balancing strategy to use when creating runners in pools matching requested labels.")
 	forgeInstanceUpdateCmd.Flags().BoolVar(&forgeInstanceAgentMode, "agent-mode", false, "Enable agent mode for runners in this forge instance.")
 
+	forgeInstanceWebhookInstallCmd.Flags().BoolVar(&insecureForgeInstanceWebhook, "insecure", false, "Ignore self signed certificate errors.")
+
+	forgeInstanceWebhookCmd.AddCommand(
+		forgeInstanceWebhookInstallCmd,
+		forgeInstanceWebhookUninstallCmd,
+		forgeInstanceWebhookShowCmd,
+	)
+
 	forgeInstanceCmd.AddCommand(
 		forgeInstanceListCmd,
 		forgeInstanceAddCmd,
 		forgeInstanceShowCmd,
 		forgeInstanceDeleteCmd,
 		forgeInstanceUpdateCmd,
+		forgeInstanceWebhookCmd,
 	)
 
 	rootCmd.AddCommand(forgeInstanceCmd)
