@@ -88,10 +88,10 @@ export interface ControllerInfo {
     'agent_url'?: string;
     /**
      * CACertBundle holds a certificate bundle meant to validate the certificate used by GARM itself. This can be just the root certificate that can validate the GARM TLS certificate, a chain or multiple root CAs.
-     * @type {Array<number>}
+     * @type {string}
      * @memberof ControllerInfo
      */
-    'ca_cert_bundle'?: Array<number>;
+    'ca_cert_bundle'?: string;
     /**
      * CachedGARMAgentReleaseFetchedAt is the timestamp when the release data was last fetched from GARMAgentReleasesURL
      * @type {string}
@@ -339,10 +339,10 @@ export interface CreateGiteaEndpointParams {
     'base_url'?: string;
     /**
      * 
-     * @type {Array<number>}
+     * @type {string}
      * @memberof CreateGiteaEndpointParams
      */
-    'ca_cert_bundle'?: Array<number>;
+    'ca_cert_bundle'?: string;
     /**
      * 
      * @type {string}
@@ -431,10 +431,10 @@ export interface CreateGithubEndpointParams {
     'base_url'?: string;
     /**
      * 
-     * @type {Array<number>}
+     * @type {string}
      * @memberof CreateGithubEndpointParams
      */
-    'ca_cert_bundle'?: Array<number>;
+    'ca_cert_bundle'?: string;
     /**
      * 
      * @type {string}
@@ -772,10 +772,10 @@ export interface CreateScaleSetParams {
 export interface CreateTemplateParams {
     /**
      * 
-     * @type {Array<number>}
+     * @type {string}
      * @memberof CreateTemplateParams
      */
-    'data'?: Array<number>;
+    'data'?: string;
     /**
      * 
      * @type {string}
@@ -1114,10 +1114,10 @@ export interface ForgeCredentials {
     'base_url'?: string;
     /**
      * 
-     * @type {Array<number>}
+     * @type {string}
      * @memberof ForgeCredentials
      */
-    'ca_bundle'?: Array<number>;
+    'ca_bundle'?: string;
     /**
      * 
      * @type {string}
@@ -1211,10 +1211,10 @@ export interface ForgeEndpoint {
     'base_url'?: string;
     /**
      * 
-     * @type {Array<number>}
+     * @type {string}
      * @memberof ForgeEndpoint
      */
-    'ca_cert_bundle'?: Array<number>;
+    'ca_cert_bundle'?: string;
     /**
      * 
      * @type {string}
@@ -1576,10 +1576,10 @@ export interface GithubApp {
     'installation_id'?: number;
     /**
      * 
-     * @type {Array<number>}
+     * @type {string}
      * @memberof GithubApp
      */
-    'private_key_bytes'?: Array<number>;
+    'private_key_bytes'?: string;
 }
 /**
  * 
@@ -1779,10 +1779,10 @@ export interface Instance {
     'pool_id'?: string;
     /**
      * ProviderFault holds any error messages captured from the IaaS provider that is responsible for managing the lifecycle of the runner.
-     * @type {Array<number>}
+     * @type {string}
      * @memberof Instance
      */
-    'provider_fault'?: Array<number>;
+    'provider_fault'?: string;
     /**
      * PeoviderID is the unique ID the provider associated with the compute instance. We use this to identify the instance in the provider.
      * @type {string}
@@ -2913,10 +2913,10 @@ export interface Template {
     'created_at'?: string;
     /**
      * 
-     * @type {Array<number>}
+     * @type {string}
      * @memberof Template
      */
-    'data'?: Array<number>;
+    'data'?: string;
     /**
      * 
      * @type {string}
@@ -2974,10 +2974,10 @@ export interface UpdateControllerParams {
     'agent_url'?: string;
     /**
      * 
-     * @type {Array<number>}
+     * @type {string}
      * @memberof UpdateControllerParams
      */
-    'ca_cert_bundle'?: Array<number>;
+    'ca_cert_bundle'?: string;
     /**
      * 
      * @type {string}
@@ -3122,10 +3122,10 @@ export interface UpdateGiteaEndpointParams {
     'base_url'?: string;
     /**
      * 
-     * @type {Array<number>}
+     * @type {string}
      * @memberof UpdateGiteaEndpointParams
      */
-    'ca_cert_bundle'?: Array<number>;
+    'ca_cert_bundle'?: string;
     /**
      * 
      * @type {string}
@@ -3196,10 +3196,10 @@ export interface UpdateGithubEndpointParams {
     'base_url'?: string;
     /**
      * 
-     * @type {Array<number>}
+     * @type {string}
      * @memberof UpdateGithubEndpointParams
      */
-    'ca_cert_bundle'?: Array<number>;
+    'ca_cert_bundle'?: string;
     /**
      * 
      * @type {string}
@@ -3421,10 +3421,10 @@ export interface UpdateScaleSetParams {
 export interface UpdateTemplateParams {
     /**
      * 
-     * @type {Array<number>}
+     * @type {string}
      * @memberof UpdateTemplateParams
      */
-    'data'?: Array<number>;
+    'data'?: string;
     /**
      * 
      * @type {string}
