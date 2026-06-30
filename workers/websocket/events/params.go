@@ -25,6 +25,7 @@ type Filter struct {
 func (f Filter) Validate() error {
 	switch f.EntityType {
 	case common.RepositoryEntityType, common.OrganizationEntityType, common.EnterpriseEntityType,
+		common.ForgeInstanceEntityType,
 		common.PoolEntityType, common.UserEntityType, common.InstanceEntityType,
 		common.JobEntityType, common.ControllerEntityType, common.GithubCredentialsEntityType,
 		common.GiteaCredentialsEntityType, common.ScaleSetEntityType, common.GithubEndpointEntityType,

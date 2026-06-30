@@ -22,6 +22,7 @@ const (
 	RepoHook         HookTargetType = "repository"
 	OrganizationHook HookTargetType = "organization"
 	EnterpriseHook   HookTargetType = "business"
+	SystemHook       HookTargetType = "system"
 )
 
 var (

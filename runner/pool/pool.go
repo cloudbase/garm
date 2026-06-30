@@ -180,6 +180,8 @@ func (r *basePoolManager) isEntityPool(pool params.Pool) bool {
 		return pool.OrgID != "" && pool.OrgID == r.entity.ID
 	case params.ForgeEntityTypeEnterprise:
 		return pool.EnterpriseID != "" && pool.EnterpriseID == r.entity.ID
+	case params.ForgeEntityTypeInstance:
+		return pool.ForgeInstanceID != "" && pool.ForgeInstanceID == r.entity.ID
 	default:
 		return false
 	}
@@ -1196,6 +1198,8 @@ func (r *basePoolManager) paramsWorkflowJobToParamsJob(job params.WorkflowJob) (
 		jobParams.RepoID = &asUUID
 	case params.ForgeEntityTypeOrganization:
 		jobParams.OrgID = &asUUID
+	case params.ForgeEntityTypeInstance:
+		jobParams.ForgeInstanceID = &asUUID
 	default:
 		return jobParams, fmt.Errorf("unknown pool type: %s", r.entity.EntityType)
 	}
@@ -2314,6 +2318,9 @@ func (r *basePoolManager) ValidateOwner(job params.WorkflowJob) error {
 		if !strings.EqualFold(job.Enterprise.Slug, r.entity.Owner) {
 			return runnerErrors.NewBadRequestError("job not meant for this pool manager")
 		}
+	case params.ForgeEntityTypeInstance:
+		// Instance-level (system) hooks accept all jobs from the forge instance.
+		// There is no owner/slug to validate against.
 	default:
 		return runnerErrors.NewBadRequestError("unknown entity type")
 	}
@@ -2330,25 +2337,6 @@ func (r *basePoolManager) GithubRunnerRegistrationToken() (string, error) {
 		return "", fmt.Errorf("error creating runner token: %w", err)
 	}
 	return *tk.Token, nil
-}
-
-func (r *basePoolManager) FetchTools() ([]commonParams.RunnerApplicationDownload, error) {
-	tools, ghResp, err := r.ghcli.ListEntityRunnerApplicationDownloads(r.ctx)
-	if err != nil {
-		if ghResp != nil && ghResp.StatusCode == http.StatusUnauthorized {
-			return nil, runnerErrors.NewUnauthorizedError("error fetching tools")
-		}
-		return nil, fmt.Errorf("error fetching runner tools: %w", err)
-	}
-
-	ret := []commonParams.RunnerApplicationDownload{}
-	for _, tool := range tools {
-		if tool == nil {
-			continue
-		}
-		ret = append(ret, commonParams.RunnerApplicationDownload(*tool))
-	}
-	return ret, nil
 }
 
 func (r *basePoolManager) GetWebhookInfo(ctx context.Context) (params.HookInfo, error) {
