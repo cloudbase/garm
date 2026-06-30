@@ -459,11 +459,9 @@ definitions:
     CreateTemplateParams:
         properties:
             data:
-                items:
-                    format: uint8
-                    type: integer
-                type: array
+                type: string
                 x-go-name: Data
+                x-go-type: github.com/go-openapi/strfmt.Base64
             description:
                 type: string
                 x-go-name: Description
@@ -1898,11 +1896,9 @@ definitions:
                 type: string
                 x-go-name: CreatedAt
             data:
-                items:
-                    format: uint8
-                    type: integer
-                type: array
+                type: string
                 x-go-name: Data
+                x-go-type: github.com/go-openapi/strfmt.Base64
             description:
                 type: string
                 x-go-name: Description
@@ -2188,11 +2184,9 @@ definitions:
     UpdateTemplateParams:
         properties:
             data:
-                items:
-                    format: uint8
-                    type: integer
-                type: array
+                type: string
                 x-go-name: Data
+                x-go-type: github.com/go-openapi/strfmt.Base64
             description:
                 type: string
                 x-go-name: Description

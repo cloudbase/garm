@@ -461,7 +461,7 @@ func (r *Runner) GetRunnerInstallScript(ctx context.Context) ([]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to get template: %w", err)
 		}
-		tplBytes = template.Data
+		tplBytes = []byte(template.Data)
 	}
 
 	installScript, err := templates.RenderRunnerInstallScript(string(tplBytes), tplCtx)

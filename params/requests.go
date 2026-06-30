@@ -25,6 +25,7 @@ import (
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 	commonUtil "github.com/cloudbase/garm-provider-common/util"
+	"github.com/go-openapi/strfmt"
 )
 
 const (
@@ -877,7 +878,7 @@ func (u UpdateGiteaCredentialsParams) Validate() error {
 type CreateTemplateParams struct {
 	Name        string              `json:"name"`
 	Description string              `json:"description"`
-	Data        []byte              `json:"data"`
+	Data        strfmt.Base64       `json:"data"`
 	OSType      commonParams.OSType `json:"os_type"`
 	ForgeType   EndpointType        `json:"forge_type,omitempty"`
 	IsSystem    bool                `json:"-"`
@@ -908,9 +909,9 @@ func (c *CreateTemplateParams) Validate() error {
 
 // swagger:model UpdateTemplateParams
 type UpdateTemplateParams struct {
-	Name        *string `json:"name"`
-	Description *string `json:"description"`
-	Data        []byte  `json:"data"`
+	Name        *string       `json:"name"`
+	Description *string       `json:"description"`
+	Data        strfmt.Base64 `json:"data"`
 }
 
 func (u *UpdateTemplateParams) Validate() error {

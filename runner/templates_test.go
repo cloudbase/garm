@@ -349,7 +349,7 @@ func (s *TemplateTestSuite) TestRestoreTemplateSpecific() {
 	updatedTemplate, err := s.Runner.GetTemplate(s.adminCtx, systemTemplate.ID)
 	s.Require().Nil(err)
 	s.Require().Equal(modifiedName, updatedTemplate.Name)
-	s.Require().Equal(modifiedData, updatedTemplate.Data)
+	s.Require().Equal(modifiedData, []byte(updatedTemplate.Data))
 
 	restoreParams := params.RestoreTemplateRequest{
 		Forge:      params.GithubEndpointType,
@@ -365,7 +365,7 @@ func (s *TemplateTestSuite) TestRestoreTemplateSpecific() {
 	// Name should be restored to the system default
 	s.Require().Equal("github_linux", restoredTemplate.Name)
 	// Data should be restored to original template content (not the modified content)
-	s.Require().NotEqual(modifiedData, restoredTemplate.Data)
+	s.Require().NotEqual(modifiedData, []byte(restoredTemplate.Data))
 	// Should match the original template data or be close to it (content from internal/templates)
 	s.Require().NotEmpty(restoredTemplate.Data)
 	// Verify it's still a system template

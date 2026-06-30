@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/go-openapi/strfmt"
 	"github.com/google/uuid"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
@@ -1133,7 +1134,7 @@ func (s *sqlDatabase) sqlToParamTemplate(template Template) (params.Template, er
 		UpdatedAt:   template.UpdatedAt,
 		Name:        template.Name,
 		Description: template.Description,
-		Data:        data,
+		Data:        strfmt.Base64(data),
 		ForgeType:   template.ForgeType,
 		Owner:       owner,
 		OSType:      template.OSType,

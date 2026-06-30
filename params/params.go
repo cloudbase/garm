@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/bradleyfalzon/ghinstallation/v2"
+	"github.com/go-openapi/strfmt"
 	"github.com/google/go-github/v84/github"
 	"github.com/google/uuid"
 	"golang.org/x/oauth2"
@@ -1489,7 +1490,7 @@ type Template struct {
 	Description string              `json:"description"`
 	OSType      commonParams.OSType `json:"os_type"`
 	ForgeType   EndpointType        `json:"forge_type,omitempty"`
-	Data        []byte              `json:"data"`
+	Data        strfmt.Base64       `json:"data"`
 	Owner       string              `json:"owner_id,omitempty"`
 }
 

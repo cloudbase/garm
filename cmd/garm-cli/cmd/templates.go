@@ -18,6 +18,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/go-openapi/strfmt"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/spf13/cobra"
 
@@ -101,7 +102,7 @@ var templateCreateCmd = &cobra.Command{
 		createTemplateReq.Body.ForgeType = forge
 		createTemplateReq.Body.OSType = osType
 		createTemplateReq.Body.Description = templateDescription
-		createTemplateReq.Body.Data = data
+		createTemplateReq.Body.Data = strfmt.Base64(data)
 
 		response, err := apiCli.Templates.CreateTemplate(createTemplateReq, authToken)
 		if err != nil {
@@ -156,7 +157,7 @@ var templateUpdateCmd = &cobra.Command{
 			if err != nil {
 				return fmt.Errorf("failed to read template file: %q", err)
 			}
-			updateReq.Body.Data = data
+			updateReq.Body.Data = strfmt.Base64(data)
 			changes = true
 		}
 		if !changes {
@@ -271,7 +272,7 @@ var templateDownloadCmd = &cobra.Command{
 			return fmt.Errorf("destination path already exists; will not overwrite")
 		}
 
-		if err := os.WriteFile(templatePath, response.Payload.Data, 0o600); err != nil {
+		if err := os.WriteFile(templatePath, []byte(response.Payload.Data), 0o600); err != nil {
 			return fmt.Errorf("failed to save file %s: %s", templatePath, err)
 		}
 		return nil
@@ -445,7 +446,7 @@ var templateEditCmd = &cobra.Command{
 		if saved && newContent != string(response.Payload.Data) {
 			updateReq := apiTemplates.NewUpdateTemplateParams()
 			updateReq.TemplateID = float64(response.Payload.ID)
-			updateReq.Body.Data = []byte(newContent)
+			updateReq.Body.Data = strfmt.Base64(newContent)
 
 			_, err = apiCli.Templates.UpdateTemplate(updateReq, authToken)
 			if err != nil {
