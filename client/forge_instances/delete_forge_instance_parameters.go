@@ -14,6 +14,7 @@ import (
 	"github.com/go-openapi/runtime"
 	cr "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
+	"github.com/go-openapi/swag"
 )
 
 // NewDeleteForgeInstanceParams creates a new DeleteForgeInstanceParams object,
@@ -66,6 +67,12 @@ type DeleteForgeInstanceParams struct {
 	   ID of the forge instance to delete.
 	*/
 	ForgeInstanceID string
+
+	/* KeepWebhook.
+
+	   If true and a webhook is installed for this forge instance, it will not be removed.
+	*/
+	KeepWebhook *bool
 
 	timeout    time.Duration
 	Context    context.Context
@@ -131,6 +138,17 @@ func (o *DeleteForgeInstanceParams) SetForgeInstanceID(forgeInstanceID string) {
 	o.ForgeInstanceID = forgeInstanceID
 }
 
+// WithKeepWebhook adds the keepWebhook to the delete forge instance params
+func (o *DeleteForgeInstanceParams) WithKeepWebhook(keepWebhook *bool) *DeleteForgeInstanceParams {
+	o.SetKeepWebhook(keepWebhook)
+	return o
+}
+
+// SetKeepWebhook adds the keepWebhook to the delete forge instance params
+func (o *DeleteForgeInstanceParams) SetKeepWebhook(keepWebhook *bool) {
+	o.KeepWebhook = keepWebhook
+}
+
 // WriteToRequest writes these params to a swagger request
 func (o *DeleteForgeInstanceParams) WriteToRequest(r runtime.ClientRequest, reg strfmt.Registry) error {
 
@@ -142,6 +160,23 @@ func (o *DeleteForgeInstanceParams) WriteToRequest(r runtime.ClientRequest, reg 
 	// path param forgeInstanceID
 	if err := r.SetPathParam("forgeInstanceID", o.ForgeInstanceID); err != nil {
 		return err
+	}
+
+	if o.KeepWebhook != nil {
+
+		// query param keepWebhook
+		var qrKeepWebhook bool
+
+		if o.KeepWebhook != nil {
+			qrKeepWebhook = *o.KeepWebhook
+		}
+		qKeepWebhook := swag.FormatBool(qrKeepWebhook)
+		if qKeepWebhook != "" {
+
+			if err := r.SetQueryParam("keepWebhook", qKeepWebhook); err != nil {
+				return err
+			}
+		}
 	}
 
 	if len(res) > 0 {

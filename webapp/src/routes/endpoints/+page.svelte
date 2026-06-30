@@ -183,6 +183,9 @@
 
 
 
+	// Keep formData.endpoint_type in sync with the forge type selector
+	$: formData.endpoint_type = selectedForgeType;
+
 	function showCreateEndpointModal() {
 		selectedForgeType = 'github';
 		resetForm();
