@@ -772,10 +772,10 @@ export interface CreateScaleSetParams {
 export interface CreateTemplateParams {
     /**
      * 
-     * @type {Array<number>}
+     * @type {string}
      * @memberof CreateTemplateParams
      */
-    'data'?: Array<number>;
+    'data'?: string;
     /**
      * 
      * @type {string}
@@ -2913,10 +2913,10 @@ export interface Template {
     'created_at'?: string;
     /**
      * 
-     * @type {Array<number>}
+     * @type {string}
      * @memberof Template
      */
-    'data'?: Array<number>;
+    'data'?: string;
     /**
      * 
      * @type {string}
@@ -3421,10 +3421,10 @@ export interface UpdateScaleSetParams {
 export interface UpdateTemplateParams {
     /**
      * 
-     * @type {Array<number>}
+     * @type {string}
      * @memberof UpdateTemplateParams
      */
-    'data'?: Array<number>;
+    'data'?: string;
     /**
      * 
      * @type {string}
