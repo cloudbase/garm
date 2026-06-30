@@ -47,9 +47,10 @@ import (
 )
 
 const (
-	repositoryFieldName   string = "Repository"
-	organizationFieldName string = "Organization"
-	enterpriseFieldName   string = "Enterprise"
+	repositoryFieldName    string = "Repository"
+	organizationFieldName  string = "Organization"
+	enterpriseFieldName    string = "Enterprise"
+	forgeInstanceFieldName string = "ForgeInstance"
 )
 
 // newDBConn returns a new gorm db connection, given the config
@@ -376,9 +377,11 @@ func (s *sqlDatabase) initSchema(tx *gorm.DB) error {
 		&Repository{},
 		&Organization{},
 		&Enterprise{},
+		&ForgeInstance{},
 		&EnterpriseEvent{},
 		&OrganizationEvent{},
 		&RepositoryEvent{},
+		&ForgeInstanceEvent{},
 		&Address{},
 		&InstanceStatusUpdate{},
 		&Instance{},

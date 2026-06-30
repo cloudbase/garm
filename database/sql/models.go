@@ -144,6 +144,9 @@ type Pool struct {
 	EnterpriseID *uuid.UUID `gorm:"index"`
 	Enterprise   Enterprise `gorm:"foreignKey:EnterpriseID"`
 
+	ForgeInstanceID *uuid.UUID    `gorm:"index"`
+	ForgeInstance   ForgeInstance `gorm:"foreignKey:ForgeInstanceID"`
+
 	TemplateID *uint    `gorm:"index"`
 	Template   Template `gorm:"foreignKey:TemplateID"`
 
@@ -320,6 +323,38 @@ type Enterprise struct {
 	Events []EnterpriseEvent `gorm:"foreignKey:EnterpriseID;constraint:OnDelete:CASCADE,OnUpdate:CASCADE;"`
 }
 
+type ForgeInstanceEvent struct {
+	gorm.Model
+
+	EventType  params.EventType
+	EventLevel params.EventLevel
+	Message    string `gorm:"type:text"`
+
+	ForgeInstanceID uuid.UUID     `gorm:"index:idx_forgeinstance_event"`
+	ForgeInstance   ForgeInstance `gorm:"foreignKey:ForgeInstanceID"`
+}
+
+type ForgeInstance struct {
+	Base
+
+	GiteaCredentialsID *uint            `gorm:"index"`
+	GiteaCredentials   GiteaCredentials `gorm:"foreignKey:GiteaCredentialsID;constraint:OnDelete:SET NULL"`
+
+	PoolManagerRunning       bool
+	PoolManagerFailureReason string
+
+	WebhookSecret    []byte
+	Pools            []Pool                  `gorm:"foreignKey:ForgeInstanceID"`
+	Jobs             []WorkflowJob           `gorm:"foreignKey:ForgeInstanceID;constraint:OnDelete:SET NULL"`
+	PoolBalancerType params.PoolBalancerType `gorm:"type:varchar(64)"`
+	AgentMode        bool                    `gorm:"index:forgeinstance_agent_idx"`
+
+	EndpointName *string        `gorm:"uniqueIndex:idx_forgeinstance_endpoint_nocase,expression:LOWER(endpoint_name)"`
+	Endpoint     GithubEndpoint `gorm:"foreignKey:EndpointName;constraint:OnDelete:SET NULL"`
+
+	Events []ForgeInstanceEvent `gorm:"foreignKey:ForgeInstanceID;constraint:OnDelete:CASCADE,OnUpdate:CASCADE;"`
+}
+
 type Address struct {
 	Base
 
@@ -453,6 +488,9 @@ type WorkflowJob struct {
 	EnterpriseID *uuid.UUID `gorm:"index"`
 	Enterprise   Enterprise `gorm:"foreignKey:EnterpriseID"`
 
+	ForgeInstanceID *uuid.UUID    `gorm:"index"`
+	ForgeInstance   ForgeInstance `gorm:"foreignKey:ForgeInstanceID"`
+
 	LockedBy uuid.UUID
 
 	CreatedAt time.Time
@@ -518,8 +556,9 @@ type GiteaCredentials struct {
 	Endpoint     GithubEndpoint `gorm:"foreignKey:EndpointName"`
 	EndpointName *string        `gorm:"index"`
 
-	Repositories  []Repository   `gorm:"foreignKey:GiteaCredentialsID"`
-	Organizations []Organization `gorm:"foreignKey:GiteaCredentialsID"`
+	Repositories   []Repository    `gorm:"foreignKey:GiteaCredentialsID"`
+	Organizations  []Organization  `gorm:"foreignKey:GiteaCredentialsID"`
+	ForgeInstances []ForgeInstance `gorm:"foreignKey:GiteaCredentialsID"`
 }
 
 func (g GiteaCredentials) GetEndpointName() *string {
@@ -561,6 +600,15 @@ func (e *Enterprise) GetEndpoint() GithubEndpoint {
 
 func (e *Enterprise) GetEndpointName() *string {
 	return e.EndpointName
+}
+
+// ForgeInstance implements ForgeEntity
+func (f *ForgeInstance) GetEndpoint() GithubEndpoint {
+	return f.Endpoint
+}
+
+func (f *ForgeInstance) GetEndpointName() *string {
+	return f.EndpointName
 }
 
 // FileObject represents the table that holds files. This can be used to store
