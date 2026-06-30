@@ -21,6 +21,7 @@
 	export let selectedForgeType: 'github' | 'gitea' | '' = 'github';
 	export let selectedCertFileName = '';
 	export let showForgeTypeSelector = true;
+	export let hideNameField = false;
 	export let idPrefix = '';
 
 	function handleForgeTypeSelect(event: CustomEvent<'github' | 'gitea'>) {
@@ -55,6 +56,7 @@
 	/>
 {/if}
 
+{#if !hideNameField}
 <div>
 	<label for="{idPrefix}name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
 		Endpoint Name <span class="text-red-500">*</span>
@@ -69,6 +71,7 @@
 		placeholder={selectedForgeType === 'github' ? 'e.g., github-enterprise or github-com' : 'e.g., gitea-main or my-gitea'}
 	/>
 </div>
+{/if}
 
 <div>
 	<label for="{idPrefix}description" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">

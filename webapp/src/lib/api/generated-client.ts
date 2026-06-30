@@ -10,6 +10,7 @@ import {
   RepositoriesApi,
   OrganizationsApi,
   EnterprisesApi,
+  ForgeInstancesApi,
   PoolsApi,
   ScalesetsApi,
   InstancesApi,
@@ -21,6 +22,8 @@ import {
   type Repository,
   type Organization,
   type Enterprise,
+  type ForgeInstance,
+  type CreateForgeInstanceParams,
   type ForgeEndpoint,
   type Pool,
   type ScaleSet,
@@ -64,6 +67,8 @@ export type {
   Repository,
   Organization,
   Enterprise,
+  ForgeInstance,
+  CreateForgeInstanceParams,
   ForgeEndpoint as Endpoint,
   Pool,
   ScaleSet,
@@ -127,6 +132,7 @@ export class GeneratedGarmApiClient {
   private repositoriesApi: RepositoriesApi;
   private organizationsApi: OrganizationsApi;
   private enterprisesApi: EnterprisesApi;
+  private forgeInstancesApi: ForgeInstancesApi;
   private poolsApi: PoolsApi;
   private scaleSetsApi: ScalesetsApi;
   private instancesApi: InstancesApi;
@@ -160,6 +166,7 @@ export class GeneratedGarmApiClient {
     this.repositoriesApi = new RepositoriesApi(this.config);
     this.organizationsApi = new OrganizationsApi(this.config);
     this.enterprisesApi = new EnterprisesApi(this.config);
+    this.forgeInstancesApi = new ForgeInstancesApi(this.config);
     this.poolsApi = new PoolsApi(this.config);
     this.scaleSetsApi = new ScalesetsApi(this.config);
     this.instancesApi = new InstancesApi(this.config);
@@ -195,6 +202,7 @@ export class GeneratedGarmApiClient {
     this.repositoriesApi = new RepositoriesApi(this.config);
     this.organizationsApi = new OrganizationsApi(this.config);
     this.enterprisesApi = new EnterprisesApi(this.config);
+    this.forgeInstancesApi = new ForgeInstancesApi(this.config);
     this.poolsApi = new PoolsApi(this.config);
     this.scaleSetsApi = new ScalesetsApi(this.config);
     this.instancesApi = new InstancesApi(this.config);
@@ -491,6 +499,46 @@ export class GeneratedGarmApiClient {
 
   async createEnterprisePool(id: string, params: CreatePoolParams): Promise<Pool> {
     const response = await this.enterprisesApi.createEnterprisePool(id, params);
+    return response.data;
+  }
+
+  // Forge Instances
+  async listForgeInstances(): Promise<ForgeInstance[]> {
+    const response = await this.forgeInstancesApi.listForgeInstances();
+    return response.data || [];
+  }
+
+  async getForgeInstance(id: string): Promise<ForgeInstance> {
+    const response = await this.forgeInstancesApi.getForgeInstance(id);
+    return response.data;
+  }
+
+  async createForgeInstance(params: CreateForgeInstanceParams): Promise<ForgeInstance> {
+    const response = await this.forgeInstancesApi.createForgeInstance(params);
+    return response.data;
+  }
+
+  async updateForgeInstance(id: string, params: UpdateEntityParams): Promise<ForgeInstance> {
+    const response = await this.forgeInstancesApi.updateForgeInstance(id, params);
+    return response.data;
+  }
+
+  async deleteForgeInstance(id: string): Promise<void> {
+    await this.forgeInstancesApi.deleteForgeInstance(id);
+  }
+
+  async listForgeInstancePools(id: string): Promise<Pool[]> {
+    const response = await this.forgeInstancesApi.listForgeInstancePools(id);
+    return response.data || [];
+  }
+
+  async listForgeInstanceInstances(id: string): Promise<Instance[]> {
+    const response = await this.forgeInstancesApi.listForgeInstanceInstances(id);
+    return response.data || [];
+  }
+
+  async createForgeInstancePool(id: string, params: CreatePoolParams): Promise<Pool> {
+    const response = await this.forgeInstancesApi.createForgeInstancePool(id, params);
     return response.data;
   }
 

@@ -1,14 +1,14 @@
 <script lang="ts">
 	import { createEventDispatcher, onMount } from 'svelte';
-	import type { Repository, Organization, Enterprise, ForgeCredentials, UpdateEntityParams } from '$lib/api/generated/api.js';
+	import type { Repository, Organization, Enterprise, ForgeInstance, ForgeCredentials, UpdateEntityParams } from '$lib/api/generated/api.js';
 	import { garmApi } from '$lib/api/client.js';
 	import { extractAPIError } from '$lib/utils/apiError';
 	import Modal from './Modal.svelte';
 
-	type Entity = Repository | Organization | Enterprise;
+	type Entity = Repository | Organization | Enterprise | ForgeInstance;
 	
 	export let entity: Entity;
-	export let entityType: 'repository' | 'organization' | 'enterprise';
+	export let entityType: 'repository' | 'organization' | 'enterprise' | 'forge_instance';
 
 	const dispatch = createEventDispatcher<{
 		close: void;
@@ -32,7 +32,10 @@
 			const repo = entity as Repository;
 			return `${repo.owner}/${repo.name}`;
 		}
-		return entity.name || '';
+		if (entityType === 'forge_instance') {
+			return (entity as ForgeInstance).endpoint?.name || '';
+		}
+		return (entity as any).name || '';
 	}
 
 	function getEntityTitle(): string {
@@ -146,10 +149,12 @@
 							<span class="ml-2 text-gray-900 dark:text-white">{getOwner()}</span>
 						</div>
 					{/if}
+					{#if entityType !== 'forge_instance'}
 					<div>
 						<span class="text-gray-500 dark:text-gray-400">Name:</span>
-						<span class="ml-2 text-gray-900 dark:text-white">{entity.name}</span>
+						<span class="ml-2 text-gray-900 dark:text-white">{(entity as any).name}</span>
 					</div>
+					{/if}
 					<div>
 						<span class="text-gray-500 dark:text-gray-400">Endpoint:</span>
 						<span class="ml-2 text-gray-900 dark:text-white">{entity.endpoint?.name}</span>

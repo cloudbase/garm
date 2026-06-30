@@ -1,14 +1,15 @@
 <script lang="ts">
-	import type { Repository, Organization, Enterprise } from '$lib/api/generated/api.js';
+	import type { Repository, Organization, Enterprise, ForgeInstance } from '$lib/api/generated/api.js';
 	import { formatDate } from '$lib/utils/common.js';
 	import Badge from './Badge.svelte';
 
-	type Entity = Repository | Organization | Enterprise;
+	type Entity = Repository | Organization | Enterprise | ForgeInstance;
 	
 	export let entity: Entity;
-	export let entityType: 'repository' | 'organization' | 'enterprise';
+	export let entityType: 'repository' | 'organization' | 'enterprise' | 'forge_instance';
 
 	function getEntityTitle(): string {
+		if (entityType === 'forge_instance') return 'Forge Instance Information';
 		return `${entityType.charAt(0).toUpperCase() + entityType.slice(1)} Information`;
 	}
 
@@ -21,17 +22,20 @@
 		switch (entityType) {
 			case 'repository':
 				const repo = entity as Repository;
-				return `${baseUrl}/${repo.owner}/${entity.name}`;
+				return `${baseUrl}/${repo.owner}/${(entity as Repository).name}`;
 			case 'organization':
-				return `${baseUrl}/${entity.name}`;
+				return `${baseUrl}/${(entity as Organization).name}`;
 			case 'enterprise':
-				return `${baseUrl}/enterprises/${entity.name}`;
+				return `${baseUrl}/enterprises/${(entity as Enterprise).name}`;
+			case 'forge_instance':
+				return baseUrl;
 			default:
 				return '#';
 		}
 	}
 
 	function getUrlLabel(): string {
+		if (entityType === 'forge_instance') return 'Instance URL';
 		return `${entityType.charAt(0).toUpperCase() + entityType.slice(1)} URL`;
 	}
 

@@ -13,6 +13,7 @@ docs/ControllerInfo.md
 docs/ControllerInfoApi.md
 docs/CreateEnterpriseParams.md
 docs/CreateFileObjectParams.md
+docs/CreateForgeInstanceParams.md
 docs/CreateGARMToolParams.md
 docs/CreateGiteaCredentialsParams.md
 docs/CreateGiteaEndpointParams.md
@@ -35,6 +36,8 @@ docs/FirstRunApi.md
 docs/ForgeCredentials.md
 docs/ForgeEndpoint.md
 docs/ForgeEntity.md
+docs/ForgeInstance.md
+docs/ForgeInstancesApi.md
 docs/GARMAgentTool.md
 docs/GARMAgentToolsPaginatedResponse.md
 docs/GARMAgentToolsPaginatedResponseResultsInner.md

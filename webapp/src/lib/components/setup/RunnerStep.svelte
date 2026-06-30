@@ -10,7 +10,7 @@
 	export let endpointName: string;
 	export let forgeType: 'github' | 'gitea' | '';
 	export let credentialsName: string;
-	export let entityType: 'repository' | 'organization' | 'enterprise' | '';
+	export let entityType: 'repository' | 'organization' | 'enterprise' | 'forge_instance' | '';
 	export let entityId: string;
 	export let entityName: string;
 
