@@ -91,6 +91,134 @@ func (g *githubClient) createGiteaOrgHook(ctx context.Context, owner string, hoo
 	return hook, nil
 }
 
+func (g *githubClient) createGiteaInstanceHook(ctx context.Context, hook *github.Hook) (ret *github.Hook, err error) {
+	u := "admin/hooks"
+	createOpts := &createGiteaHookOptions{
+		Type:         "gitea",
+		Events:       hook.Events,
+		Active:       hook.GetActive(),
+		BranchFilter: "*",
+		Config: map[string]string{
+			"content_type": hook.GetConfig().GetContentType(),
+			"url":          hook.GetConfig().GetURL(),
+			"http_method":  "post",
+			"secret":       hook.GetConfig().GetSecret(),
+		},
+	}
+
+	req, err := g.cli.NewRequest(http.MethodPost, u, createOpts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to construct request: %w", err)
+	}
+
+	hook = new(github.Hook)
+	_, err = g.cli.Do(ctx, req, hook)
+	if err != nil {
+		return nil, fmt.Errorf("request failed for %s: %w", req.URL.String(), err)
+	}
+	return hook, nil
+}
+
+func (g *githubClient) listGiteaInstanceHooks(ctx context.Context, opts *github.ListOptions) ([]*github.Hook, *github.Response, error) {
+	u := "admin/hooks"
+	if opts != nil {
+		u = fmt.Sprintf("%s?page=%d&limit=%d", u, opts.Page, opts.PerPage)
+	}
+
+	req, err := g.cli.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to construct request: %w", err)
+	}
+
+	var hooks []*github.Hook
+	resp, err := g.cli.Do(ctx, req, &hooks)
+	if err != nil {
+		return nil, resp, fmt.Errorf("request failed for %s: %w", req.URL.String(), err)
+	}
+	return hooks, resp, nil
+}
+
+func (g *githubClient) getGiteaInstanceHook(ctx context.Context, id int64) (*github.Hook, error) {
+	u := fmt.Sprintf("admin/hooks/%d", id)
+
+	req, err := g.cli.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to construct request: %w", err)
+	}
+
+	hook := new(github.Hook)
+	_, err = g.cli.Do(ctx, req, hook)
+	if err != nil {
+		return nil, fmt.Errorf("request failed for %s: %w", req.URL.String(), err)
+	}
+	return hook, nil
+}
+
+func (g *githubClient) deleteGiteaInstanceHook(ctx context.Context, id int64) (*github.Response, error) {
+	u := fmt.Sprintf("admin/hooks/%d", id)
+
+	req, err := g.cli.NewRequest(http.MethodDelete, u, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to construct request: %w", err)
+	}
+
+	resp, err := g.cli.Do(ctx, req, nil)
+	if err != nil {
+		return resp, fmt.Errorf("request failed for %s: %w", req.URL.String(), err)
+	}
+	return resp, nil
+}
+
+func (g *githubClient) createGiteaInstanceRegistrationToken(ctx context.Context) (*github.RegistrationToken, *github.Response, error) {
+	u := "admin/actions/runners/registration-token"
+
+	req, err := g.cli.NewRequest(http.MethodPost, u, nil)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to construct request: %w", err)
+	}
+
+	token := new(github.RegistrationToken)
+	resp, err := g.cli.Do(ctx, req, token)
+	if err != nil {
+		return nil, resp, fmt.Errorf("request failed for %s: %w", req.URL.String(), err)
+	}
+	return token, resp, nil
+}
+
+func (g *githubClient) listGiteaInstanceRunners(ctx context.Context, opts *github.ListRunnersOptions) (*github.Runners, *github.Response, error) {
+	u := "admin/actions/runners"
+	if opts != nil {
+		u = fmt.Sprintf("%s?page=%d&limit=%d", u, opts.Page, opts.PerPage)
+	}
+
+	req, err := g.cli.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to construct request: %w", err)
+	}
+
+	runners := new(github.Runners)
+	resp, err := g.cli.Do(ctx, req, runners)
+	if err != nil {
+		return nil, resp, fmt.Errorf("request failed for %s: %w", req.URL.String(), err)
+	}
+	return runners, resp, nil
+}
+
+func (g *githubClient) removeGiteaInstanceRunner(ctx context.Context, runnerID int64) (*github.Response, error) {
+	u := fmt.Sprintf("admin/actions/runners/%d", runnerID)
+
+	req, err := g.cli.NewRequest(http.MethodDelete, u, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to construct request: %w", err)
+	}
+
+	resp, err := g.cli.Do(ctx, req, nil)
+	if err != nil {
+		return resp, fmt.Errorf("request failed for %s: %w", req.URL.String(), err)
+	}
+	return resp, nil
+}
+
 func (g *githubClient) createGiteaEntityHook(ctx context.Context, hook *github.Hook) (ret *github.Hook, err error) {
 	metrics.GithubOperationCount.WithLabelValues(
 		"CreateHook",          // label: operation
@@ -109,6 +237,8 @@ func (g *githubClient) createGiteaEntityHook(ctx context.Context, hook *github.H
 		ret, err = g.createGiteaRepoHook(ctx, g.entity.Owner, g.entity.Name, hook)
 	case params.ForgeEntityTypeOrganization:
 		ret, err = g.createGiteaOrgHook(ctx, g.entity.Owner, hook)
+	case params.ForgeEntityTypeInstance:
+		ret, err = g.createGiteaInstanceHook(ctx, hook)
 	default:
 		return nil, errors.New("invalid entity type")
 	}
