@@ -188,7 +188,7 @@ func (s *sqlDatabase) listEntityPools(tx *gorm.DB, entityType params.ForgeEntity
 	}
 
 	q := tx
-	q = q.Preload(preloadEntity)
+	q = q.Preload(preloadEntity).Preload(preloadEntity + ".Endpoint")
 	if len(preload) > 0 {
 		for _, item := range preload {
 			q = q.Preload(item)
