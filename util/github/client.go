@@ -63,6 +63,8 @@ func (g *githubClient) ListEntityHooks(ctx context.Context, opts *github.ListOpt
 		ret, response, err = g.repo.ListHooks(ctx, g.entity.Owner, g.entity.Name, opts)
 	case params.ForgeEntityTypeOrganization:
 		ret, response, err = g.org.ListHooks(ctx, g.entity.Owner, opts)
+	case params.ForgeEntityTypeInstance:
+		ret, response, err = g.listGiteaInstanceHooks(ctx, opts)
 	default:
 		return nil, nil, fmt.Errorf("invalid entity type: %s", g.entity.EntityType)
 	}
@@ -91,6 +93,8 @@ func (g *githubClient) GetEntityHook(ctx context.Context, id int64) (ret *github
 		ret, response, err = g.repo.GetHook(ctx, g.entity.Owner, g.entity.Name, id)
 	case params.ForgeEntityTypeOrganization:
 		ret, response, err = g.org.GetHook(ctx, g.entity.Owner, id)
+	case params.ForgeEntityTypeInstance:
+		ret, err = g.getGiteaInstanceHook(ctx, id)
 	default:
 		return nil, errors.New("invalid entity type")
 	}
@@ -158,6 +162,8 @@ func (g *githubClient) DeleteEntityHook(ctx context.Context, id int64) (ret *git
 		ret, err = g.repo.DeleteHook(ctx, g.entity.Owner, g.entity.Name, id)
 	case params.ForgeEntityTypeOrganization:
 		ret, err = g.org.DeleteHook(ctx, g.entity.Owner, id)
+	case params.ForgeEntityTypeInstance:
+		ret, err = g.deleteGiteaInstanceHook(ctx, id)
 	default:
 		return nil, errors.New("invalid entity type")
 	}
@@ -185,6 +191,8 @@ func (g *githubClient) PingEntityHook(ctx context.Context, id int64) (ret *githu
 		ret, err = g.repo.PingHook(ctx, g.entity.Owner, g.entity.Name, id)
 	case params.ForgeEntityTypeOrganization:
 		ret, err = g.org.PingHook(ctx, g.entity.Owner, id)
+	case params.ForgeEntityTypeInstance:
+		return nil, fmt.Errorf("ping hook is not supported for instance-level entities")
 	default:
 		return nil, errors.New("invalid entity type")
 	}
@@ -220,6 +228,8 @@ func (g *githubClient) ListEntityRunners(ctx context.Context, opts *github.ListR
 		ret, response, err = g.ListOrganizationRunners(ctx, g.entity.Owner, opts)
 	case params.ForgeEntityTypeEnterprise:
 		ret, response, err = g.enterprise.ListRunners(ctx, g.entity.Owner, opts)
+	case params.ForgeEntityTypeInstance:
+		ret, response, err = g.listGiteaInstanceRunners(ctx, opts)
 	default:
 		return nil, nil, errors.New("invalid entity type")
 	}
@@ -254,6 +264,8 @@ func (g *githubClient) ListEntityRunnerApplicationDownloads(ctx context.Context)
 		ret, response, err = g.ListOrganizationRunnerApplicationDownloads(ctx, g.entity.Owner)
 	case params.ForgeEntityTypeEnterprise:
 		ret, response, err = g.enterprise.ListRunnerApplicationDownloads(ctx, g.entity.Owner)
+	case params.ForgeEntityTypeInstance:
+		return nil, nil, fmt.Errorf("listing runner application downloads is not supported for instance-level entities")
 	default:
 		return nil, nil, errors.New("invalid entity type")
 	}
@@ -328,6 +340,8 @@ func (g *githubClient) RemoveEntityRunner(ctx context.Context, runnerID int64) e
 		response, err = g.RemoveOrganizationRunner(ctx, g.entity.Owner, runnerID)
 	case params.ForgeEntityTypeEnterprise:
 		response, err = g.enterprise.RemoveRunner(ctx, g.entity.Owner, runnerID)
+	case params.ForgeEntityTypeInstance:
+		response, err = g.removeGiteaInstanceRunner(ctx, runnerID)
 	default:
 		return errors.New("invalid entity type")
 	}
@@ -367,6 +381,8 @@ func (g *githubClient) CreateEntityRegistrationToken(ctx context.Context) (*gith
 		ret, response, err = g.CreateOrganizationRegistrationToken(ctx, g.entity.Owner)
 	case params.ForgeEntityTypeEnterprise:
 		ret, response, err = g.enterprise.CreateRegistrationToken(ctx, g.entity.Owner)
+	case params.ForgeEntityTypeInstance:
+		ret, response, err = g.createGiteaInstanceRegistrationToken(ctx)
 	default:
 		return nil, nil, errors.New("invalid entity type")
 	}
