@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { createEventDispatcher, onMount } from 'svelte';
-	import type { Pool, UpdatePoolParams, Template, Repository, Organization, Enterprise, UpdateEntityParams } from '$lib/api/generated/api.js';
+	import type { Pool, UpdatePoolParams, Template, Repository, Organization, Enterprise, ForgeInstance, UpdateEntityParams } from '$lib/api/generated/api.js';
 	import { resolve } from '$app/paths';
 	import Modal from './Modal.svelte';
 	import JsonEditor from './JsonEditor.svelte';
@@ -62,6 +62,7 @@
 		if (pool.repo_id) return 'Repository';
 		if (pool.org_id) return 'Organization';
 		if (pool.enterprise_id) return 'Enterprise';
+		if (pool.forge_instance_id) return 'Forge Instance';
 		return 'Unknown';
 	}
 
@@ -107,6 +108,10 @@
 			const enterprise = cache.enterprises.find(e => e.id === pool.enterprise_id);
 			return enterprise?.agent_mode ?? false;
 		}
+		if (pool.forge_instance_id) {
+			const fi = cache.forgeInstances.find(f => f.id === pool.forge_instance_id);
+			return fi?.agent_mode ?? false;
+		}
 		return false;
 	}
 
@@ -125,6 +130,8 @@
 				await garmApi.updateOrganization(pool.org_id, params);
 			} else if (pool.enterprise_id) {
 				await garmApi.updateEnterprise(pool.enterprise_id, params);
+			} else if (pool.forge_instance_id) {
+				await garmApi.updateForgeInstance(pool.forge_instance_id, params);
 			}
 
 			// Close the entity update modal
@@ -136,13 +143,15 @@
 		}
 	}
 
-	function getEntity(): Repository | Organization | Enterprise | null {
+	function getEntity(): Repository | Organization | Enterprise | ForgeInstance | null {
 		if (pool.repo_id) {
 			return $eagerCache.repositories.find(r => r.id === pool.repo_id) || null;
 		} else if (pool.org_id) {
 			return $eagerCache.organizations.find(o => o.id === pool.org_id) || null;
 		} else if (pool.enterprise_id) {
 			return $eagerCache.enterprises.find(e => e.id === pool.enterprise_id) || null;
+		} else if (pool.forge_instance_id) {
+			return $eagerCache.forgeInstances.find(f => f.id === pool.forge_instance_id) || null;
 		}
 		return null;
 	}
@@ -665,7 +674,7 @@
 	{#if entity}
 		<UpdateEntityModal
 			entity={entity}
-			entityType={pool.repo_id ? 'repository' : pool.org_id ? 'organization' : 'enterprise'}
+			entityType={pool.repo_id ? 'repository' : pool.org_id ? 'organization' : pool.enterprise_id ? 'enterprise' : 'forge_instance'}
 			on:close={() => showEntityUpdateModal = false}
 			on:submit={(e) => handleEntityUpdate(e.detail)}
 		/>

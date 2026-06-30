@@ -12,11 +12,11 @@
 	export let credentialsName: string;
 
 	const dispatch = createEventDispatcher<{
-		complete: { entityType: 'repository' | 'organization' | 'enterprise'; entityId: string; entityName: string };
+		complete: { entityType: 'repository' | 'organization' | 'enterprise' | 'forge_instance'; entityId: string; entityName: string };
 		back: void;
 	}>();
 
-	let entityType: 'repository' | 'organization' | 'enterprise' | '' = '';
+	let entityType: 'repository' | 'organization' | 'enterprise' | 'forge_instance' | '' = '';
 	let creating = false;
 	let error = '';
 
@@ -97,7 +97,7 @@
 				toastStore.success('Enterprise Created', `Enterprise ${entityName} has been created successfully.`);
 			}
 
-			dispatch('complete', { entityType: entityType as 'repository' | 'organization' | 'enterprise', entityId, entityName });
+			dispatch('complete', { entityType: entityType as 'repository' | 'organization' | 'enterprise' | 'forge_instance', entityId, entityName });
 		} catch (err) {
 			error = extractAPIError(err);
 		} finally {

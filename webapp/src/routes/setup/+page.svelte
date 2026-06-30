@@ -37,7 +37,7 @@
 		endpointName: '',
 		forgeType: '' as 'github' | 'gitea' | '',
 		credentialsName: '',
-		entityType: '' as 'repository' | 'organization' | 'enterprise' | '',
+		entityType: '' as 'repository' | 'organization' | 'enterprise' | 'forge_instance' | '',
 		entityId: '',
 		entityName: '',
 		runnerType: '' as 'pool' | 'scaleset' | '',
@@ -62,7 +62,7 @@
 		currentStep = 3;
 	}
 
-	function handleEntityComplete(event: CustomEvent<{ entityType: 'repository' | 'organization' | 'enterprise'; entityId: string; entityName: string }>) {
+	function handleEntityComplete(event: CustomEvent<{ entityType: 'repository' | 'organization' | 'enterprise' | 'forge_instance'; entityId: string; entityName: string }>) {
 		wizardState.entityType = event.detail.entityType;
 		wizardState.entityId = event.detail.entityId;
 		wizardState.entityName = event.detail.entityName;

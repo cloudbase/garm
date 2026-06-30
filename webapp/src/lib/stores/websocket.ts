@@ -5,6 +5,7 @@ export type EntityType =
 	| 'repository'
 	| 'organization'
 	| 'enterprise'
+	| 'forge_instance'
 	| 'pool'
 	| 'user'
 	| 'instance'

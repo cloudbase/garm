@@ -230,6 +230,49 @@ export interface CreateFileObjectParams {
 /**
  * 
  * @export
+ * @interface CreateForgeInstanceParams
+ */
+export interface CreateForgeInstanceParams {
+    /**
+     * 
+     * @type {boolean}
+     * @memberof CreateForgeInstanceParams
+     */
+    'agent_mode'?: boolean;
+    /**
+     * 
+     * @type {string}
+     * @memberof CreateForgeInstanceParams
+     */
+    'credentials_name'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof CreateForgeInstanceParams
+     */
+    'endpoint_name'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof CreateForgeInstanceParams
+     */
+    'forge_type'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof CreateForgeInstanceParams
+     */
+    'pool_balancer_type'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof CreateForgeInstanceParams
+     */
+    'webhook_secret'?: string;
+}
+/**
+ * 
+ * @export
  * @interface CreateGARMToolParams
  */
 export interface CreateGARMToolParams {
@@ -1296,6 +1339,12 @@ export interface ForgeEntity {
     'entity_type'?: string;
     /**
      * 
+     * @type {ForgeEndpoint}
+     * @memberof ForgeEntity
+     */
+    'forge'?: ForgeEndpoint;
+    /**
+     * 
      * @type {string}
      * @memberof ForgeEntity
      */
@@ -1328,6 +1377,85 @@ export interface ForgeEntity {
      * 
      * @type {string}
      * @memberof ForgeEntity
+     */
+    'updated_at'?: string;
+}
+/**
+ * 
+ * @export
+ * @interface ForgeInstance
+ */
+export interface ForgeInstance {
+    /**
+     * 
+     * @type {boolean}
+     * @memberof ForgeInstance
+     */
+    'agent_mode'?: boolean;
+    /**
+     * 
+     * @type {string}
+     * @memberof ForgeInstance
+     */
+    'created_at'?: string;
+    /**
+     * 
+     * @type {ForgeCredentials}
+     * @memberof ForgeInstance
+     */
+    'credentials'?: ForgeCredentials;
+    /**
+     * 
+     * @type {number}
+     * @memberof ForgeInstance
+     */
+    'credentials_id'?: number;
+    /**
+     * CredentialName is the name of the credentials associated with the forge instance. This field is now deprecated. Use CredentialsID instead. This field will be removed in v0.2.0.
+     * @type {string}
+     * @memberof ForgeInstance
+     */
+    'credentials_name'?: string;
+    /**
+     * 
+     * @type {ForgeEndpoint}
+     * @memberof ForgeInstance
+     */
+    'endpoint'?: ForgeEndpoint;
+    /**
+     * 
+     * @type {Array<EntityEvent>}
+     * @memberof ForgeInstance
+     */
+    'events'?: Array<EntityEvent>;
+    /**
+     * 
+     * @type {string}
+     * @memberof ForgeInstance
+     */
+    'id'?: string;
+    /**
+     * 
+     * @type {Array<Pool>}
+     * @memberof ForgeInstance
+     */
+    'pool'?: Array<Pool>;
+    /**
+     * 
+     * @type {string}
+     * @memberof ForgeInstance
+     */
+    'pool_balancing_type'?: string;
+    /**
+     * 
+     * @type {PoolManagerStatus}
+     * @memberof ForgeInstance
+     */
+    'pool_manager_status'?: PoolManagerStatus;
+    /**
+     * 
+     * @type {string}
+     * @memberof ForgeInstance
      */
     'updated_at'?: string;
 }
@@ -1961,6 +2089,12 @@ export interface Job {
      */
     'enterprise_id'?: string;
     /**
+     * 
+     * @type {string}
+     * @memberof Job
+     */
+    'forge_instance_id'?: string;
+    /**
      * ID is the ID of the job.
      * @type {number}
      * @memberof Job
@@ -2289,6 +2423,12 @@ export interface Pool {
      * @memberof Pool
      */
     'flavor'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof Pool
+     */
+    'forge_instance_id'?: string;
     /**
      * Generation holds the numeric generation of the pool. This number will be incremented, every time certain settings of the pool, which may influence how runners are created (flavor, specs, image) are changed. When a runner is created, this generation will be copied to the runners as well. That way if some settings diverge, we can target those runners to be recreated.
      * @type {number}
@@ -6467,11 +6607,1151 @@ export class FirstRunApi extends BaseAPI {
 
 
 /**
+ * ForgeInstancesApi - axios parameter creator
+ * @export
+ */
+export const ForgeInstancesApiAxiosParamCreator = function (configuration?: Configuration) {
+    return {
+        /**
+         * 
+         * @summary Create forge instance with the given parameters.
+         * @param {CreateForgeInstanceParams} body Parameters used to create the forge instance.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        createForgeInstance: async (body: CreateForgeInstanceParams, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'body' is not null or undefined
+            assertParamExists('createForgeInstance', 'body', body)
+            const localVarPath = `/forge-instances`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(body, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary Create forge instance pool with the parameters given.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {CreatePoolParams} body Parameters used when creating the forge instance pool.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        createForgeInstancePool: async (forgeInstanceID: string, body: CreatePoolParams, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'forgeInstanceID' is not null or undefined
+            assertParamExists('createForgeInstancePool', 'forgeInstanceID', forgeInstanceID)
+            // verify required parameter 'body' is not null or undefined
+            assertParamExists('createForgeInstancePool', 'body', body)
+            const localVarPath = `/forge-instances/{forgeInstanceID}/pools`
+                .replace(`{${"forgeInstanceID"}}`, encodeURIComponent(String(forgeInstanceID)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(body, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary Delete forge instance by ID.
+         * @param {string} forgeInstanceID ID of the forge instance to delete.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        deleteForgeInstance: async (forgeInstanceID: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'forgeInstanceID' is not null or undefined
+            assertParamExists('deleteForgeInstance', 'forgeInstanceID', forgeInstanceID)
+            const localVarPath = `/forge-instances/{forgeInstanceID}`
+                .replace(`{${"forgeInstanceID"}}`, encodeURIComponent(String(forgeInstanceID)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'DELETE', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary Delete forge instance pool by ID.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {string} poolID ID of the forge instance pool to delete.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        deleteForgeInstancePool: async (forgeInstanceID: string, poolID: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'forgeInstanceID' is not null or undefined
+            assertParamExists('deleteForgeInstancePool', 'forgeInstanceID', forgeInstanceID)
+            // verify required parameter 'poolID' is not null or undefined
+            assertParamExists('deleteForgeInstancePool', 'poolID', poolID)
+            const localVarPath = `/forge-instances/{forgeInstanceID}/pools/{poolID}`
+                .replace(`{${"forgeInstanceID"}}`, encodeURIComponent(String(forgeInstanceID)))
+                .replace(`{${"poolID"}}`, encodeURIComponent(String(poolID)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'DELETE', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary Get forge instance by ID.
+         * @param {string} forgeInstanceID The ID of the forge instance to fetch.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getForgeInstance: async (forgeInstanceID: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'forgeInstanceID' is not null or undefined
+            assertParamExists('getForgeInstance', 'forgeInstanceID', forgeInstanceID)
+            const localVarPath = `/forge-instances/{forgeInstanceID}`
+                .replace(`{${"forgeInstanceID"}}`, encodeURIComponent(String(forgeInstanceID)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary Get forge instance pool by ID.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {string} poolID Pool ID.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getForgeInstancePool: async (forgeInstanceID: string, poolID: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'forgeInstanceID' is not null or undefined
+            assertParamExists('getForgeInstancePool', 'forgeInstanceID', forgeInstanceID)
+            // verify required parameter 'poolID' is not null or undefined
+            assertParamExists('getForgeInstancePool', 'poolID', poolID)
+            const localVarPath = `/forge-instances/{forgeInstanceID}/pools/{poolID}`
+                .replace(`{${"forgeInstanceID"}}`, encodeURIComponent(String(forgeInstanceID)))
+                .replace(`{${"poolID"}}`, encodeURIComponent(String(poolID)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary Get information about the GARM installed webhook on a forge instance.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getForgeInstanceWebhookInfo: async (forgeInstanceID: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'forgeInstanceID' is not null or undefined
+            assertParamExists('getForgeInstanceWebhookInfo', 'forgeInstanceID', forgeInstanceID)
+            const localVarPath = `/forge-instances/{forgeInstanceID}/webhook`
+                .replace(`{${"forgeInstanceID"}}`, encodeURIComponent(String(forgeInstanceID)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * Install the GARM webhook for a forge instance. The secret configured on the forge instance will be used to validate the requests.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {InstallWebhookParams} body Parameters used when creating the forge instance webhook.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        installForgeInstanceWebhook: async (forgeInstanceID: string, body: InstallWebhookParams, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'forgeInstanceID' is not null or undefined
+            assertParamExists('installForgeInstanceWebhook', 'forgeInstanceID', forgeInstanceID)
+            // verify required parameter 'body' is not null or undefined
+            assertParamExists('installForgeInstanceWebhook', 'body', body)
+            const localVarPath = `/forge-instances/{forgeInstanceID}/webhook`
+                .replace(`{${"forgeInstanceID"}}`, encodeURIComponent(String(forgeInstanceID)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(body, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary List forge instance runner instances.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        listForgeInstanceInstances: async (forgeInstanceID: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'forgeInstanceID' is not null or undefined
+            assertParamExists('listForgeInstanceInstances', 'forgeInstanceID', forgeInstanceID)
+            const localVarPath = `/forge-instances/{forgeInstanceID}/instances`
+                .replace(`{${"forgeInstanceID"}}`, encodeURIComponent(String(forgeInstanceID)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary List forge instance pools.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        listForgeInstancePools: async (forgeInstanceID: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'forgeInstanceID' is not null or undefined
+            assertParamExists('listForgeInstancePools', 'forgeInstanceID', forgeInstanceID)
+            const localVarPath = `/forge-instances/{forgeInstanceID}/pools`
+                .replace(`{${"forgeInstanceID"}}`, encodeURIComponent(String(forgeInstanceID)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary List all forge instances.
+         * @param {string} [endpoint] Exact endpoint name to filter by
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        listForgeInstances: async (endpoint?: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/forge-instances`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+            if (endpoint !== undefined) {
+                localVarQueryParameter['endpoint'] = endpoint;
+            }
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary Uninstall forge instance webhook.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        uninstallForgeInstanceWebhook: async (forgeInstanceID: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'forgeInstanceID' is not null or undefined
+            assertParamExists('uninstallForgeInstanceWebhook', 'forgeInstanceID', forgeInstanceID)
+            const localVarPath = `/forge-instances/{forgeInstanceID}/webhook`
+                .replace(`{${"forgeInstanceID"}}`, encodeURIComponent(String(forgeInstanceID)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'DELETE', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary Update forge instance with the given parameters.
+         * @param {string} forgeInstanceID The ID of the forge instance to update.
+         * @param {UpdateEntityParams} body Parameters used when updating the forge instance.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        updateForgeInstance: async (forgeInstanceID: string, body: UpdateEntityParams, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'forgeInstanceID' is not null or undefined
+            assertParamExists('updateForgeInstance', 'forgeInstanceID', forgeInstanceID)
+            // verify required parameter 'body' is not null or undefined
+            assertParamExists('updateForgeInstance', 'body', body)
+            const localVarPath = `/forge-instances/{forgeInstanceID}`
+                .replace(`{${"forgeInstanceID"}}`, encodeURIComponent(String(forgeInstanceID)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'PUT', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(body, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary Update forge instance pool with the parameters given.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {string} poolID ID of the forge instance pool to update.
+         * @param {UpdatePoolParams} body Parameters used when updating the forge instance pool.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        updateForgeInstancePool: async (forgeInstanceID: string, poolID: string, body: UpdatePoolParams, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'forgeInstanceID' is not null or undefined
+            assertParamExists('updateForgeInstancePool', 'forgeInstanceID', forgeInstanceID)
+            // verify required parameter 'poolID' is not null or undefined
+            assertParamExists('updateForgeInstancePool', 'poolID', poolID)
+            // verify required parameter 'body' is not null or undefined
+            assertParamExists('updateForgeInstancePool', 'body', body)
+            const localVarPath = `/forge-instances/{forgeInstanceID}/pools/{poolID}`
+                .replace(`{${"forgeInstanceID"}}`, encodeURIComponent(String(forgeInstanceID)))
+                .replace(`{${"poolID"}}`, encodeURIComponent(String(poolID)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'PUT', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(body, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+    }
+};
+
+/**
+ * ForgeInstancesApi - functional programming interface
+ * @export
+ */
+export const ForgeInstancesApiFp = function(configuration?: Configuration) {
+    const localVarAxiosParamCreator = ForgeInstancesApiAxiosParamCreator(configuration)
+    return {
+        /**
+         * 
+         * @summary Create forge instance with the given parameters.
+         * @param {CreateForgeInstanceParams} body Parameters used to create the forge instance.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async createForgeInstance(body: CreateForgeInstanceParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ForgeInstance>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.createForgeInstance(body, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ForgeInstancesApi.createForgeInstance']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary Create forge instance pool with the parameters given.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {CreatePoolParams} body Parameters used when creating the forge instance pool.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async createForgeInstancePool(forgeInstanceID: string, body: CreatePoolParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Pool>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.createForgeInstancePool(forgeInstanceID, body, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ForgeInstancesApi.createForgeInstancePool']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary Delete forge instance by ID.
+         * @param {string} forgeInstanceID ID of the forge instance to delete.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async deleteForgeInstance(forgeInstanceID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<APIErrorResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.deleteForgeInstance(forgeInstanceID, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ForgeInstancesApi.deleteForgeInstance']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary Delete forge instance pool by ID.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {string} poolID ID of the forge instance pool to delete.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async deleteForgeInstancePool(forgeInstanceID: string, poolID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<APIErrorResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.deleteForgeInstancePool(forgeInstanceID, poolID, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ForgeInstancesApi.deleteForgeInstancePool']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary Get forge instance by ID.
+         * @param {string} forgeInstanceID The ID of the forge instance to fetch.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getForgeInstance(forgeInstanceID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ForgeInstance>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getForgeInstance(forgeInstanceID, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ForgeInstancesApi.getForgeInstance']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary Get forge instance pool by ID.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {string} poolID Pool ID.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getForgeInstancePool(forgeInstanceID: string, poolID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Pool>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getForgeInstancePool(forgeInstanceID, poolID, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ForgeInstancesApi.getForgeInstancePool']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary Get information about the GARM installed webhook on a forge instance.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getForgeInstanceWebhookInfo(forgeInstanceID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<HookInfo>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getForgeInstanceWebhookInfo(forgeInstanceID, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ForgeInstancesApi.getForgeInstanceWebhookInfo']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * Install the GARM webhook for a forge instance. The secret configured on the forge instance will be used to validate the requests.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {InstallWebhookParams} body Parameters used when creating the forge instance webhook.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async installForgeInstanceWebhook(forgeInstanceID: string, body: InstallWebhookParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<HookInfo>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.installForgeInstanceWebhook(forgeInstanceID, body, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ForgeInstancesApi.installForgeInstanceWebhook']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary List forge instance runner instances.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async listForgeInstanceInstances(forgeInstanceID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<Instance>>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.listForgeInstanceInstances(forgeInstanceID, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ForgeInstancesApi.listForgeInstanceInstances']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary List forge instance pools.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async listForgeInstancePools(forgeInstanceID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<Pool>>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.listForgeInstancePools(forgeInstanceID, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ForgeInstancesApi.listForgeInstancePools']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary List all forge instances.
+         * @param {string} [endpoint] Exact endpoint name to filter by
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async listForgeInstances(endpoint?: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<ForgeInstance>>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.listForgeInstances(endpoint, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ForgeInstancesApi.listForgeInstances']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary Uninstall forge instance webhook.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async uninstallForgeInstanceWebhook(forgeInstanceID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<APIErrorResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.uninstallForgeInstanceWebhook(forgeInstanceID, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ForgeInstancesApi.uninstallForgeInstanceWebhook']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary Update forge instance with the given parameters.
+         * @param {string} forgeInstanceID The ID of the forge instance to update.
+         * @param {UpdateEntityParams} body Parameters used when updating the forge instance.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async updateForgeInstance(forgeInstanceID: string, body: UpdateEntityParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ForgeInstance>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.updateForgeInstance(forgeInstanceID, body, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ForgeInstancesApi.updateForgeInstance']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary Update forge instance pool with the parameters given.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {string} poolID ID of the forge instance pool to update.
+         * @param {UpdatePoolParams} body Parameters used when updating the forge instance pool.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async updateForgeInstancePool(forgeInstanceID: string, poolID: string, body: UpdatePoolParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Pool>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.updateForgeInstancePool(forgeInstanceID, poolID, body, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ForgeInstancesApi.updateForgeInstancePool']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+    }
+};
+
+/**
+ * ForgeInstancesApi - factory interface
+ * @export
+ */
+export const ForgeInstancesApiFactory = function (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) {
+    const localVarFp = ForgeInstancesApiFp(configuration)
+    return {
+        /**
+         * 
+         * @summary Create forge instance with the given parameters.
+         * @param {CreateForgeInstanceParams} body Parameters used to create the forge instance.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        createForgeInstance(body: CreateForgeInstanceParams, options?: RawAxiosRequestConfig): AxiosPromise<ForgeInstance> {
+            return localVarFp.createForgeInstance(body, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Create forge instance pool with the parameters given.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {CreatePoolParams} body Parameters used when creating the forge instance pool.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        createForgeInstancePool(forgeInstanceID: string, body: CreatePoolParams, options?: RawAxiosRequestConfig): AxiosPromise<Pool> {
+            return localVarFp.createForgeInstancePool(forgeInstanceID, body, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Delete forge instance by ID.
+         * @param {string} forgeInstanceID ID of the forge instance to delete.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        deleteForgeInstance(forgeInstanceID: string, options?: RawAxiosRequestConfig): AxiosPromise<APIErrorResponse> {
+            return localVarFp.deleteForgeInstance(forgeInstanceID, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Delete forge instance pool by ID.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {string} poolID ID of the forge instance pool to delete.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        deleteForgeInstancePool(forgeInstanceID: string, poolID: string, options?: RawAxiosRequestConfig): AxiosPromise<APIErrorResponse> {
+            return localVarFp.deleteForgeInstancePool(forgeInstanceID, poolID, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Get forge instance by ID.
+         * @param {string} forgeInstanceID The ID of the forge instance to fetch.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getForgeInstance(forgeInstanceID: string, options?: RawAxiosRequestConfig): AxiosPromise<ForgeInstance> {
+            return localVarFp.getForgeInstance(forgeInstanceID, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Get forge instance pool by ID.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {string} poolID Pool ID.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getForgeInstancePool(forgeInstanceID: string, poolID: string, options?: RawAxiosRequestConfig): AxiosPromise<Pool> {
+            return localVarFp.getForgeInstancePool(forgeInstanceID, poolID, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Get information about the GARM installed webhook on a forge instance.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getForgeInstanceWebhookInfo(forgeInstanceID: string, options?: RawAxiosRequestConfig): AxiosPromise<HookInfo> {
+            return localVarFp.getForgeInstanceWebhookInfo(forgeInstanceID, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * Install the GARM webhook for a forge instance. The secret configured on the forge instance will be used to validate the requests.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {InstallWebhookParams} body Parameters used when creating the forge instance webhook.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        installForgeInstanceWebhook(forgeInstanceID: string, body: InstallWebhookParams, options?: RawAxiosRequestConfig): AxiosPromise<HookInfo> {
+            return localVarFp.installForgeInstanceWebhook(forgeInstanceID, body, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary List forge instance runner instances.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        listForgeInstanceInstances(forgeInstanceID: string, options?: RawAxiosRequestConfig): AxiosPromise<Array<Instance>> {
+            return localVarFp.listForgeInstanceInstances(forgeInstanceID, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary List forge instance pools.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        listForgeInstancePools(forgeInstanceID: string, options?: RawAxiosRequestConfig): AxiosPromise<Array<Pool>> {
+            return localVarFp.listForgeInstancePools(forgeInstanceID, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary List all forge instances.
+         * @param {string} [endpoint] Exact endpoint name to filter by
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        listForgeInstances(endpoint?: string, options?: RawAxiosRequestConfig): AxiosPromise<Array<ForgeInstance>> {
+            return localVarFp.listForgeInstances(endpoint, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Uninstall forge instance webhook.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        uninstallForgeInstanceWebhook(forgeInstanceID: string, options?: RawAxiosRequestConfig): AxiosPromise<APIErrorResponse> {
+            return localVarFp.uninstallForgeInstanceWebhook(forgeInstanceID, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Update forge instance with the given parameters.
+         * @param {string} forgeInstanceID The ID of the forge instance to update.
+         * @param {UpdateEntityParams} body Parameters used when updating the forge instance.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        updateForgeInstance(forgeInstanceID: string, body: UpdateEntityParams, options?: RawAxiosRequestConfig): AxiosPromise<ForgeInstance> {
+            return localVarFp.updateForgeInstance(forgeInstanceID, body, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Update forge instance pool with the parameters given.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {string} poolID ID of the forge instance pool to update.
+         * @param {UpdatePoolParams} body Parameters used when updating the forge instance pool.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        updateForgeInstancePool(forgeInstanceID: string, poolID: string, body: UpdatePoolParams, options?: RawAxiosRequestConfig): AxiosPromise<Pool> {
+            return localVarFp.updateForgeInstancePool(forgeInstanceID, poolID, body, options).then((request) => request(axios, basePath));
+        },
+    };
+};
+
+/**
+ * ForgeInstancesApi - object-oriented interface
+ * @export
+ * @class ForgeInstancesApi
+ * @extends {BaseAPI}
+ */
+export class ForgeInstancesApi extends BaseAPI {
+    /**
+     * 
+     * @summary Create forge instance with the given parameters.
+     * @param {CreateForgeInstanceParams} body Parameters used to create the forge instance.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ForgeInstancesApi
+     */
+    public createForgeInstance(body: CreateForgeInstanceParams, options?: RawAxiosRequestConfig) {
+        return ForgeInstancesApiFp(this.configuration).createForgeInstance(body, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Create forge instance pool with the parameters given.
+     * @param {string} forgeInstanceID Forge instance ID.
+     * @param {CreatePoolParams} body Parameters used when creating the forge instance pool.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ForgeInstancesApi
+     */
+    public createForgeInstancePool(forgeInstanceID: string, body: CreatePoolParams, options?: RawAxiosRequestConfig) {
+        return ForgeInstancesApiFp(this.configuration).createForgeInstancePool(forgeInstanceID, body, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Delete forge instance by ID.
+     * @param {string} forgeInstanceID ID of the forge instance to delete.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ForgeInstancesApi
+     */
+    public deleteForgeInstance(forgeInstanceID: string, options?: RawAxiosRequestConfig) {
+        return ForgeInstancesApiFp(this.configuration).deleteForgeInstance(forgeInstanceID, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Delete forge instance pool by ID.
+     * @param {string} forgeInstanceID Forge instance ID.
+     * @param {string} poolID ID of the forge instance pool to delete.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ForgeInstancesApi
+     */
+    public deleteForgeInstancePool(forgeInstanceID: string, poolID: string, options?: RawAxiosRequestConfig) {
+        return ForgeInstancesApiFp(this.configuration).deleteForgeInstancePool(forgeInstanceID, poolID, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Get forge instance by ID.
+     * @param {string} forgeInstanceID The ID of the forge instance to fetch.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ForgeInstancesApi
+     */
+    public getForgeInstance(forgeInstanceID: string, options?: RawAxiosRequestConfig) {
+        return ForgeInstancesApiFp(this.configuration).getForgeInstance(forgeInstanceID, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Get forge instance pool by ID.
+     * @param {string} forgeInstanceID Forge instance ID.
+     * @param {string} poolID Pool ID.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ForgeInstancesApi
+     */
+    public getForgeInstancePool(forgeInstanceID: string, poolID: string, options?: RawAxiosRequestConfig) {
+        return ForgeInstancesApiFp(this.configuration).getForgeInstancePool(forgeInstanceID, poolID, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Get information about the GARM installed webhook on a forge instance.
+     * @param {string} forgeInstanceID Forge instance ID.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ForgeInstancesApi
+     */
+    public getForgeInstanceWebhookInfo(forgeInstanceID: string, options?: RawAxiosRequestConfig) {
+        return ForgeInstancesApiFp(this.configuration).getForgeInstanceWebhookInfo(forgeInstanceID, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * Install the GARM webhook for a forge instance. The secret configured on the forge instance will be used to validate the requests.
+     * @param {string} forgeInstanceID Forge instance ID.
+     * @param {InstallWebhookParams} body Parameters used when creating the forge instance webhook.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ForgeInstancesApi
+     */
+    public installForgeInstanceWebhook(forgeInstanceID: string, body: InstallWebhookParams, options?: RawAxiosRequestConfig) {
+        return ForgeInstancesApiFp(this.configuration).installForgeInstanceWebhook(forgeInstanceID, body, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary List forge instance runner instances.
+     * @param {string} forgeInstanceID Forge instance ID.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ForgeInstancesApi
+     */
+    public listForgeInstanceInstances(forgeInstanceID: string, options?: RawAxiosRequestConfig) {
+        return ForgeInstancesApiFp(this.configuration).listForgeInstanceInstances(forgeInstanceID, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary List forge instance pools.
+     * @param {string} forgeInstanceID Forge instance ID.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ForgeInstancesApi
+     */
+    public listForgeInstancePools(forgeInstanceID: string, options?: RawAxiosRequestConfig) {
+        return ForgeInstancesApiFp(this.configuration).listForgeInstancePools(forgeInstanceID, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary List all forge instances.
+     * @param {string} [endpoint] Exact endpoint name to filter by
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ForgeInstancesApi
+     */
+    public listForgeInstances(endpoint?: string, options?: RawAxiosRequestConfig) {
+        return ForgeInstancesApiFp(this.configuration).listForgeInstances(endpoint, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Uninstall forge instance webhook.
+     * @param {string} forgeInstanceID Forge instance ID.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ForgeInstancesApi
+     */
+    public uninstallForgeInstanceWebhook(forgeInstanceID: string, options?: RawAxiosRequestConfig) {
+        return ForgeInstancesApiFp(this.configuration).uninstallForgeInstanceWebhook(forgeInstanceID, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Update forge instance with the given parameters.
+     * @param {string} forgeInstanceID The ID of the forge instance to update.
+     * @param {UpdateEntityParams} body Parameters used when updating the forge instance.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ForgeInstancesApi
+     */
+    public updateForgeInstance(forgeInstanceID: string, body: UpdateEntityParams, options?: RawAxiosRequestConfig) {
+        return ForgeInstancesApiFp(this.configuration).updateForgeInstance(forgeInstanceID, body, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Update forge instance pool with the parameters given.
+     * @param {string} forgeInstanceID Forge instance ID.
+     * @param {string} poolID ID of the forge instance pool to update.
+     * @param {UpdatePoolParams} body Parameters used when updating the forge instance pool.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ForgeInstancesApi
+     */
+    public updateForgeInstancePool(forgeInstanceID: string, poolID: string, body: UpdatePoolParams, options?: RawAxiosRequestConfig) {
+        return ForgeInstancesApiFp(this.configuration).updateForgeInstancePool(forgeInstanceID, poolID, body, options).then((request) => request(this.axios, this.basePath));
+    }
+}
+
+
+
+/**
  * HooksApi - axios parameter creator
  * @export
  */
 export const HooksApiAxiosParamCreator = function (configuration?: Configuration) {
     return {
+        /**
+         * 
+         * @summary Get information about the GARM installed webhook on a forge instance.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getForgeInstanceWebhookInfo: async (forgeInstanceID: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'forgeInstanceID' is not null or undefined
+            assertParamExists('getForgeInstanceWebhookInfo', 'forgeInstanceID', forgeInstanceID)
+            const localVarPath = `/forge-instances/{forgeInstanceID}/webhook`
+                .replace(`{${"forgeInstanceID"}}`, encodeURIComponent(String(forgeInstanceID)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
         /**
          * 
          * @summary Get information about the GARM installed webhook on an organization.
@@ -6540,6 +7820,48 @@ export const HooksApiAxiosParamCreator = function (configuration?: Configuration
             setSearchParams(localVarUrlObj, localVarQueryParameter);
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * Install the GARM webhook for a forge instance. The secret configured on the forge instance will be used to validate the requests.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {InstallWebhookParams} body Parameters used when creating the forge instance webhook.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        installForgeInstanceWebhook: async (forgeInstanceID: string, body: InstallWebhookParams, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'forgeInstanceID' is not null or undefined
+            assertParamExists('installForgeInstanceWebhook', 'forgeInstanceID', forgeInstanceID)
+            // verify required parameter 'body' is not null or undefined
+            assertParamExists('installForgeInstanceWebhook', 'body', body)
+            const localVarPath = `/forge-instances/{forgeInstanceID}/webhook`
+                .replace(`{${"forgeInstanceID"}}`, encodeURIComponent(String(forgeInstanceID)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(body, localVarRequestOptions, configuration)
 
             return {
                 url: toPathString(localVarUrlObj),
@@ -6632,6 +7954,43 @@ export const HooksApiAxiosParamCreator = function (configuration?: Configuration
         },
         /**
          * 
+         * @summary Uninstall forge instance webhook.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        uninstallForgeInstanceWebhook: async (forgeInstanceID: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'forgeInstanceID' is not null or undefined
+            assertParamExists('uninstallForgeInstanceWebhook', 'forgeInstanceID', forgeInstanceID)
+            const localVarPath = `/forge-instances/{forgeInstanceID}/webhook`
+                .replace(`{${"forgeInstanceID"}}`, encodeURIComponent(String(forgeInstanceID)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'DELETE', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
          * @summary Uninstall organization webhook.
          * @param {string} orgID Organization ID.
          * @param {*} [options] Override http request option.
@@ -6716,6 +8075,19 @@ export const HooksApiFp = function(configuration?: Configuration) {
     return {
         /**
          * 
+         * @summary Get information about the GARM installed webhook on a forge instance.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getForgeInstanceWebhookInfo(forgeInstanceID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<HookInfo>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getForgeInstanceWebhookInfo(forgeInstanceID, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['HooksApi.getForgeInstanceWebhookInfo']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @summary Get information about the GARM installed webhook on an organization.
          * @param {string} orgID Organization ID.
          * @param {*} [options] Override http request option.
@@ -6738,6 +8110,19 @@ export const HooksApiFp = function(configuration?: Configuration) {
             const localVarAxiosArgs = await localVarAxiosParamCreator.getRepoWebhookInfo(repoID, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['HooksApi.getRepoWebhookInfo']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * Install the GARM webhook for a forge instance. The secret configured on the forge instance will be used to validate the requests.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {InstallWebhookParams} body Parameters used when creating the forge instance webhook.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async installForgeInstanceWebhook(forgeInstanceID: string, body: InstallWebhookParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<HookInfo>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.installForgeInstanceWebhook(forgeInstanceID, body, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['HooksApi.installForgeInstanceWebhook']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -6764,6 +8149,19 @@ export const HooksApiFp = function(configuration?: Configuration) {
             const localVarAxiosArgs = await localVarAxiosParamCreator.installRepoWebhook(repoID, body, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['HooksApi.installRepoWebhook']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary Uninstall forge instance webhook.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async uninstallForgeInstanceWebhook(forgeInstanceID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<APIErrorResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.uninstallForgeInstanceWebhook(forgeInstanceID, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['HooksApi.uninstallForgeInstanceWebhook']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -6804,6 +8202,16 @@ export const HooksApiFactory = function (configuration?: Configuration, basePath
     return {
         /**
          * 
+         * @summary Get information about the GARM installed webhook on a forge instance.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getForgeInstanceWebhookInfo(forgeInstanceID: string, options?: RawAxiosRequestConfig): AxiosPromise<HookInfo> {
+            return localVarFp.getForgeInstanceWebhookInfo(forgeInstanceID, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
          * @summary Get information about the GARM installed webhook on an organization.
          * @param {string} orgID Organization ID.
          * @param {*} [options] Override http request option.
@@ -6821,6 +8229,16 @@ export const HooksApiFactory = function (configuration?: Configuration, basePath
          */
         getRepoWebhookInfo(repoID: string, options?: RawAxiosRequestConfig): AxiosPromise<HookInfo> {
             return localVarFp.getRepoWebhookInfo(repoID, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * Install the GARM webhook for a forge instance. The secret configured on the forge instance will be used to validate the requests.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {InstallWebhookParams} body Parameters used when creating the forge instance webhook.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        installForgeInstanceWebhook(forgeInstanceID: string, body: InstallWebhookParams, options?: RawAxiosRequestConfig): AxiosPromise<HookInfo> {
+            return localVarFp.installForgeInstanceWebhook(forgeInstanceID, body, options).then((request) => request(axios, basePath));
         },
         /**
          * Install the GARM webhook for an organization. The secret configured on the organization will be used to validate the requests.
@@ -6841,6 +8259,16 @@ export const HooksApiFactory = function (configuration?: Configuration, basePath
          */
         installRepoWebhook(repoID: string, body: InstallWebhookParams, options?: RawAxiosRequestConfig): AxiosPromise<HookInfo> {
             return localVarFp.installRepoWebhook(repoID, body, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Uninstall forge instance webhook.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        uninstallForgeInstanceWebhook(forgeInstanceID: string, options?: RawAxiosRequestConfig): AxiosPromise<APIErrorResponse> {
+            return localVarFp.uninstallForgeInstanceWebhook(forgeInstanceID, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -6874,6 +8302,18 @@ export const HooksApiFactory = function (configuration?: Configuration, basePath
 export class HooksApi extends BaseAPI {
     /**
      * 
+     * @summary Get information about the GARM installed webhook on a forge instance.
+     * @param {string} forgeInstanceID Forge instance ID.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof HooksApi
+     */
+    public getForgeInstanceWebhookInfo(forgeInstanceID: string, options?: RawAxiosRequestConfig) {
+        return HooksApiFp(this.configuration).getForgeInstanceWebhookInfo(forgeInstanceID, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
      * @summary Get information about the GARM installed webhook on an organization.
      * @param {string} orgID Organization ID.
      * @param {*} [options] Override http request option.
@@ -6894,6 +8334,18 @@ export class HooksApi extends BaseAPI {
      */
     public getRepoWebhookInfo(repoID: string, options?: RawAxiosRequestConfig) {
         return HooksApiFp(this.configuration).getRepoWebhookInfo(repoID, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * Install the GARM webhook for a forge instance. The secret configured on the forge instance will be used to validate the requests.
+     * @param {string} forgeInstanceID Forge instance ID.
+     * @param {InstallWebhookParams} body Parameters used when creating the forge instance webhook.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof HooksApi
+     */
+    public installForgeInstanceWebhook(forgeInstanceID: string, body: InstallWebhookParams, options?: RawAxiosRequestConfig) {
+        return HooksApiFp(this.configuration).installForgeInstanceWebhook(forgeInstanceID, body, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -6918,6 +8370,18 @@ export class HooksApi extends BaseAPI {
      */
     public installRepoWebhook(repoID: string, body: InstallWebhookParams, options?: RawAxiosRequestConfig) {
         return HooksApiFp(this.configuration).installRepoWebhook(repoID, body, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Uninstall forge instance webhook.
+     * @param {string} forgeInstanceID Forge instance ID.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof HooksApi
+     */
+    public uninstallForgeInstanceWebhook(forgeInstanceID: string, options?: RawAxiosRequestConfig) {
+        return HooksApiFp(this.configuration).uninstallForgeInstanceWebhook(forgeInstanceID, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -9584,6 +11048,49 @@ export const PoolsApiAxiosParamCreator = function (configuration?: Configuration
         },
         /**
          * 
+         * @summary Create forge instance pool with the parameters given.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {CreatePoolParams} body Parameters used when creating the forge instance pool.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        createForgeInstancePool: async (forgeInstanceID: string, body: CreatePoolParams, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'forgeInstanceID' is not null or undefined
+            assertParamExists('createForgeInstancePool', 'forgeInstanceID', forgeInstanceID)
+            // verify required parameter 'body' is not null or undefined
+            assertParamExists('createForgeInstancePool', 'body', body)
+            const localVarPath = `/forge-instances/{forgeInstanceID}/pools`
+                .replace(`{${"forgeInstanceID"}}`, encodeURIComponent(String(forgeInstanceID)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(body, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
          * @summary Create organization pool with the parameters given.
          * @param {string} orgID Organization ID.
          * @param {CreatePoolParams} body Parameters used when creating the organization pool.
@@ -9683,6 +11190,47 @@ export const PoolsApiAxiosParamCreator = function (configuration?: Configuration
             assertParamExists('deleteEnterprisePool', 'poolID', poolID)
             const localVarPath = `/enterprises/{enterpriseID}/pools/{poolID}`
                 .replace(`{${"enterpriseID"}}`, encodeURIComponent(String(enterpriseID)))
+                .replace(`{${"poolID"}}`, encodeURIComponent(String(poolID)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'DELETE', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary Delete forge instance pool by ID.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {string} poolID ID of the forge instance pool to delete.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        deleteForgeInstancePool: async (forgeInstanceID: string, poolID: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'forgeInstanceID' is not null or undefined
+            assertParamExists('deleteForgeInstancePool', 'forgeInstanceID', forgeInstanceID)
+            // verify required parameter 'poolID' is not null or undefined
+            assertParamExists('deleteForgeInstancePool', 'poolID', poolID)
+            const localVarPath = `/forge-instances/{forgeInstanceID}/pools/{poolID}`
+                .replace(`{${"forgeInstanceID"}}`, encodeURIComponent(String(forgeInstanceID)))
                 .replace(`{${"poolID"}}`, encodeURIComponent(String(poolID)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -9871,6 +11419,47 @@ export const PoolsApiAxiosParamCreator = function (configuration?: Configuration
         },
         /**
          * 
+         * @summary Get forge instance pool by ID.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {string} poolID Pool ID.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getForgeInstancePool: async (forgeInstanceID: string, poolID: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'forgeInstanceID' is not null or undefined
+            assertParamExists('getForgeInstancePool', 'forgeInstanceID', forgeInstanceID)
+            // verify required parameter 'poolID' is not null or undefined
+            assertParamExists('getForgeInstancePool', 'poolID', poolID)
+            const localVarPath = `/forge-instances/{forgeInstanceID}/pools/{poolID}`
+                .replace(`{${"forgeInstanceID"}}`, encodeURIComponent(String(forgeInstanceID)))
+                .replace(`{${"poolID"}}`, encodeURIComponent(String(poolID)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
          * @summary Get organization pool by ID.
          * @param {string} orgID Organization ID.
          * @param {string} poolID Pool ID.
@@ -10027,6 +11616,43 @@ export const PoolsApiAxiosParamCreator = function (configuration?: Configuration
         },
         /**
          * 
+         * @summary List forge instance pools.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        listForgeInstancePools: async (forgeInstanceID: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'forgeInstanceID' is not null or undefined
+            assertParamExists('listForgeInstancePools', 'forgeInstanceID', forgeInstanceID)
+            const localVarPath = `/forge-instances/{forgeInstanceID}/pools`
+                .replace(`{${"forgeInstanceID"}}`, encodeURIComponent(String(forgeInstanceID)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
          * @summary List organization pools.
          * @param {string} orgID Organization ID.
          * @param {*} [options] Override http request option.
@@ -10150,6 +11776,53 @@ export const PoolsApiAxiosParamCreator = function (configuration?: Configuration
             assertParamExists('updateEnterprisePool', 'body', body)
             const localVarPath = `/enterprises/{enterpriseID}/pools/{poolID}`
                 .replace(`{${"enterpriseID"}}`, encodeURIComponent(String(enterpriseID)))
+                .replace(`{${"poolID"}}`, encodeURIComponent(String(poolID)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'PUT', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(body, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary Update forge instance pool with the parameters given.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {string} poolID ID of the forge instance pool to update.
+         * @param {UpdatePoolParams} body Parameters used when updating the forge instance pool.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        updateForgeInstancePool: async (forgeInstanceID: string, poolID: string, body: UpdatePoolParams, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'forgeInstanceID' is not null or undefined
+            assertParamExists('updateForgeInstancePool', 'forgeInstanceID', forgeInstanceID)
+            // verify required parameter 'poolID' is not null or undefined
+            assertParamExists('updateForgeInstancePool', 'poolID', poolID)
+            // verify required parameter 'body' is not null or undefined
+            assertParamExists('updateForgeInstancePool', 'body', body)
+            const localVarPath = `/forge-instances/{forgeInstanceID}/pools/{poolID}`
+                .replace(`{${"forgeInstanceID"}}`, encodeURIComponent(String(forgeInstanceID)))
                 .replace(`{${"poolID"}}`, encodeURIComponent(String(poolID)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -10342,6 +12015,20 @@ export const PoolsApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
+         * @summary Create forge instance pool with the parameters given.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {CreatePoolParams} body Parameters used when creating the forge instance pool.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async createForgeInstancePool(forgeInstanceID: string, body: CreatePoolParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Pool>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.createForgeInstancePool(forgeInstanceID, body, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['PoolsApi.createForgeInstancePool']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @summary Create organization pool with the parameters given.
          * @param {string} orgID Organization ID.
          * @param {CreatePoolParams} body Parameters used when creating the organization pool.
@@ -10380,6 +12067,20 @@ export const PoolsApiFp = function(configuration?: Configuration) {
             const localVarAxiosArgs = await localVarAxiosParamCreator.deleteEnterprisePool(enterpriseID, poolID, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['PoolsApi.deleteEnterprisePool']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary Delete forge instance pool by ID.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {string} poolID ID of the forge instance pool to delete.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async deleteForgeInstancePool(forgeInstanceID: string, poolID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<APIErrorResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.deleteForgeInstancePool(forgeInstanceID, poolID, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['PoolsApi.deleteForgeInstancePool']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -10439,6 +12140,20 @@ export const PoolsApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
+         * @summary Get forge instance pool by ID.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {string} poolID Pool ID.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getForgeInstancePool(forgeInstanceID: string, poolID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Pool>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getForgeInstancePool(forgeInstanceID, poolID, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['PoolsApi.getForgeInstancePool']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @summary Get organization pool by ID.
          * @param {string} orgID Organization ID.
          * @param {string} poolID Pool ID.
@@ -10493,6 +12208,19 @@ export const PoolsApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
+         * @summary List forge instance pools.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async listForgeInstancePools(forgeInstanceID: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<Pool>>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.listForgeInstancePools(forgeInstanceID, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['PoolsApi.listForgeInstancePools']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @summary List organization pools.
          * @param {string} orgID Organization ID.
          * @param {*} [options] Override http request option.
@@ -10542,6 +12270,21 @@ export const PoolsApiFp = function(configuration?: Configuration) {
             const localVarAxiosArgs = await localVarAxiosParamCreator.updateEnterprisePool(enterpriseID, poolID, body, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['PoolsApi.updateEnterprisePool']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary Update forge instance pool with the parameters given.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {string} poolID ID of the forge instance pool to update.
+         * @param {UpdatePoolParams} body Parameters used when updating the forge instance pool.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async updateForgeInstancePool(forgeInstanceID: string, poolID: string, body: UpdatePoolParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Pool>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.updateForgeInstancePool(forgeInstanceID, poolID, body, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['PoolsApi.updateForgeInstancePool']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -10611,6 +12354,17 @@ export const PoolsApiFactory = function (configuration?: Configuration, basePath
         },
         /**
          * 
+         * @summary Create forge instance pool with the parameters given.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {CreatePoolParams} body Parameters used when creating the forge instance pool.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        createForgeInstancePool(forgeInstanceID: string, body: CreatePoolParams, options?: RawAxiosRequestConfig): AxiosPromise<Pool> {
+            return localVarFp.createForgeInstancePool(forgeInstanceID, body, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
          * @summary Create organization pool with the parameters given.
          * @param {string} orgID Organization ID.
          * @param {CreatePoolParams} body Parameters used when creating the organization pool.
@@ -10641,6 +12395,17 @@ export const PoolsApiFactory = function (configuration?: Configuration, basePath
          */
         deleteEnterprisePool(enterpriseID: string, poolID: string, options?: RawAxiosRequestConfig): AxiosPromise<APIErrorResponse> {
             return localVarFp.deleteEnterprisePool(enterpriseID, poolID, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Delete forge instance pool by ID.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {string} poolID ID of the forge instance pool to delete.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        deleteForgeInstancePool(forgeInstanceID: string, poolID: string, options?: RawAxiosRequestConfig): AxiosPromise<APIErrorResponse> {
+            return localVarFp.deleteForgeInstancePool(forgeInstanceID, poolID, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -10687,6 +12452,17 @@ export const PoolsApiFactory = function (configuration?: Configuration, basePath
         },
         /**
          * 
+         * @summary Get forge instance pool by ID.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {string} poolID Pool ID.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getForgeInstancePool(forgeInstanceID: string, poolID: string, options?: RawAxiosRequestConfig): AxiosPromise<Pool> {
+            return localVarFp.getForgeInstancePool(forgeInstanceID, poolID, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
          * @summary Get organization pool by ID.
          * @param {string} orgID Organization ID.
          * @param {string} poolID Pool ID.
@@ -10729,6 +12505,16 @@ export const PoolsApiFactory = function (configuration?: Configuration, basePath
         },
         /**
          * 
+         * @summary List forge instance pools.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        listForgeInstancePools(forgeInstanceID: string, options?: RawAxiosRequestConfig): AxiosPromise<Array<Pool>> {
+            return localVarFp.listForgeInstancePools(forgeInstanceID, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
          * @summary List organization pools.
          * @param {string} orgID Organization ID.
          * @param {*} [options] Override http request option.
@@ -10767,6 +12553,18 @@ export const PoolsApiFactory = function (configuration?: Configuration, basePath
          */
         updateEnterprisePool(enterpriseID: string, poolID: string, body: UpdatePoolParams, options?: RawAxiosRequestConfig): AxiosPromise<Pool> {
             return localVarFp.updateEnterprisePool(enterpriseID, poolID, body, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Update forge instance pool with the parameters given.
+         * @param {string} forgeInstanceID Forge instance ID.
+         * @param {string} poolID ID of the forge instance pool to update.
+         * @param {UpdatePoolParams} body Parameters used when updating the forge instance pool.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        updateForgeInstancePool(forgeInstanceID: string, poolID: string, body: UpdatePoolParams, options?: RawAxiosRequestConfig): AxiosPromise<Pool> {
+            return localVarFp.updateForgeInstancePool(forgeInstanceID, poolID, body, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -10828,6 +12626,19 @@ export class PoolsApi extends BaseAPI {
 
     /**
      * 
+     * @summary Create forge instance pool with the parameters given.
+     * @param {string} forgeInstanceID Forge instance ID.
+     * @param {CreatePoolParams} body Parameters used when creating the forge instance pool.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof PoolsApi
+     */
+    public createForgeInstancePool(forgeInstanceID: string, body: CreatePoolParams, options?: RawAxiosRequestConfig) {
+        return PoolsApiFp(this.configuration).createForgeInstancePool(forgeInstanceID, body, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
      * @summary Create organization pool with the parameters given.
      * @param {string} orgID Organization ID.
      * @param {CreatePoolParams} body Parameters used when creating the organization pool.
@@ -10863,6 +12674,19 @@ export class PoolsApi extends BaseAPI {
      */
     public deleteEnterprisePool(enterpriseID: string, poolID: string, options?: RawAxiosRequestConfig) {
         return PoolsApiFp(this.configuration).deleteEnterprisePool(enterpriseID, poolID, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Delete forge instance pool by ID.
+     * @param {string} forgeInstanceID Forge instance ID.
+     * @param {string} poolID ID of the forge instance pool to delete.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof PoolsApi
+     */
+    public deleteForgeInstancePool(forgeInstanceID: string, poolID: string, options?: RawAxiosRequestConfig) {
+        return PoolsApiFp(this.configuration).deleteForgeInstancePool(forgeInstanceID, poolID, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -10918,6 +12742,19 @@ export class PoolsApi extends BaseAPI {
 
     /**
      * 
+     * @summary Get forge instance pool by ID.
+     * @param {string} forgeInstanceID Forge instance ID.
+     * @param {string} poolID Pool ID.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof PoolsApi
+     */
+    public getForgeInstancePool(forgeInstanceID: string, poolID: string, options?: RawAxiosRequestConfig) {
+        return PoolsApiFp(this.configuration).getForgeInstancePool(forgeInstanceID, poolID, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
      * @summary Get organization pool by ID.
      * @param {string} orgID Organization ID.
      * @param {string} poolID Pool ID.
@@ -10968,6 +12805,18 @@ export class PoolsApi extends BaseAPI {
 
     /**
      * 
+     * @summary List forge instance pools.
+     * @param {string} forgeInstanceID Forge instance ID.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof PoolsApi
+     */
+    public listForgeInstancePools(forgeInstanceID: string, options?: RawAxiosRequestConfig) {
+        return PoolsApiFp(this.configuration).listForgeInstancePools(forgeInstanceID, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
      * @summary List organization pools.
      * @param {string} orgID Organization ID.
      * @param {*} [options] Override http request option.
@@ -11013,6 +12862,20 @@ export class PoolsApi extends BaseAPI {
      */
     public updateEnterprisePool(enterpriseID: string, poolID: string, body: UpdatePoolParams, options?: RawAxiosRequestConfig) {
         return PoolsApiFp(this.configuration).updateEnterprisePool(enterpriseID, poolID, body, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Update forge instance pool with the parameters given.
+     * @param {string} forgeInstanceID Forge instance ID.
+     * @param {string} poolID ID of the forge instance pool to update.
+     * @param {UpdatePoolParams} body Parameters used when updating the forge instance pool.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof PoolsApi
+     */
+    public updateForgeInstancePool(forgeInstanceID: string, poolID: string, body: UpdatePoolParams, options?: RawAxiosRequestConfig) {
+        return PoolsApiFp(this.configuration).updateForgeInstancePool(forgeInstanceID, poolID, body, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

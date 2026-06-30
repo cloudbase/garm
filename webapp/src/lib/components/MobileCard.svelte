@@ -14,7 +14,7 @@
 
 	export let item: any;
 	export let config: {
-		entityType: 'repository' | 'organization' | 'enterprise' | 'instance' | 'pool' | 'scaleset' | 'credential' | 'endpoint' | 'template';
+		entityType: 'repository' | 'organization' | 'enterprise' | 'forge_instance' | 'instance' | 'pool' | 'scaleset' | 'credential' | 'endpoint' | 'template';
 		primaryText: {
 			field: string;
 			isClickable?: boolean;

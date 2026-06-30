@@ -551,13 +551,18 @@
 		<button class="fixed inset-0 w-full h-full bg-black/30 dark:bg-black/50 cursor-default" on:click={closeModals} aria-label="Close modal"></button>
 		<div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-screen overflow-y-auto relative z-10" role="document">
 			<div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-				<div>
-					<h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-						Edit {editingEndpoint.endpoint_type === 'github' ? 'GitHub' : 'Gitea'} Endpoint
-					</h3>
-					<p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
-						Update endpoint configuration
-					</p>
+				<div class="flex items-center space-x-3">
+					<div class="flex-shrink-0">
+						{@html getForgeIcon(editingEndpoint.endpoint_type || '', 'w-6 h-6')}
+					</div>
+					<div>
+						<h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+							Edit {editingEndpoint.name}
+						</h3>
+						<p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+							{editingEndpoint.endpoint_type === 'github' ? 'GitHub' : 'Gitea'} endpoint
+						</p>
+					</div>
 				</div>
 				<button on:click={closeModals} class="text-gray-400 hover:text-gray-600 dark:text-gray-300 dark:hover:text-gray-100 cursor-pointer" aria-label="Close modal">
 					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -565,13 +570,14 @@
 					</svg>
 				</button>
 			</div>
-			
+
 			<form on:submit|preventDefault={handleUpdateEndpoint} class="p-6 space-y-4">
 				<EndpointForm
 					bind:formData
 					selectedForgeType={editingEndpoint.endpoint_type === 'github' ? 'github' : 'gitea'}
 					bind:selectedCertFileName
 					showForgeTypeSelector={false}
+					hideNameField={true}
 					idPrefix="edit-"
 				/>
 

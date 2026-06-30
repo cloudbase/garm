@@ -9,13 +9,13 @@
 	import { createEventDispatcher } from 'svelte';
 
 	export let pools: Pool[];
-	export let entityType: 'repository' | 'organization' | 'enterprise';
+	export let entityType: 'repository' | 'organization' | 'enterprise' | 'forge_instance';
 	export let entityId: string = '';
 	export let entityName: string = '';
 
 	const dispatch = createEventDispatcher<{
 		addPool: {
-			entityType: 'repository' | 'organization' | 'enterprise';
+			entityType: 'repository' | 'organization' | 'enterprise' | 'forge_instance';
 			entityId: string;
 			entityName: string;
 		};

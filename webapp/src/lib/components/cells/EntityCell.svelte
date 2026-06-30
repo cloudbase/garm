@@ -3,7 +3,7 @@
 	import { onMount, onDestroy } from 'svelte';
 
 	export let item: any;
-	export let entityType: 'repository' | 'organization' | 'enterprise' | 'pool' | 'scaleset' | 'instance' | 'template' | 'object' | 'credentials' = 'repository';
+	export let entityType: 'repository' | 'organization' | 'enterprise' | 'forge_instance' | 'pool' | 'scaleset' | 'instance' | 'template' | 'object' | 'credentials' = 'repository';
 	export let showOwner: boolean = false;
 	export let showId: boolean = false;
 	export let fontMono: boolean = false;
@@ -68,6 +68,8 @@
 			case 'organization':
 			case 'enterprise':
 				return item.name || 'Unknown';
+			case 'forge_instance':
+				return item.endpoint?.name || 'Unknown';
 			case 'pool':
 				return showId ? (item.id || 'Unknown') : (item.name || 'Unknown');
 			case 'scaleset':
@@ -110,6 +112,8 @@
 				return resolve(`/organizations/${entityId}`);
 			case 'enterprise':
 				return resolve(`/enterprises/${entityId}`);
+			case 'forge_instance':
+				return resolve(`/forge-instances/${entityId}`);
 			case 'pool':
 				return resolve(`/pools/${entityId}`);
 			case 'scaleset':

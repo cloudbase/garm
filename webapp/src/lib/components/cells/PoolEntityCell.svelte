@@ -10,6 +10,6 @@
 		{getEntityName(item, eagerCache)}
 	</a>
 	<span class="text-xs text-gray-500 dark:text-gray-400 capitalize">
-		{getEntityType(item)}
+		{getEntityType(item).replace(/_/g, ' ')}
 	</span>
 </div>

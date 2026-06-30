@@ -9,7 +9,7 @@
 		credentialChange: void;
 	}>();
 
-	export let entityType: 'repository' | 'organization' | 'enterprise' | '' = '';
+	export let entityType: 'repository' | 'organization' | 'enterprise' | 'forge_instance' | '' = '';
 	export let name = '';
 	export let owner = '';
 	export let credentialsName = '';
@@ -155,7 +155,7 @@
 			/>
 		</div>
 	</div>
-{:else if entityType}
+{:else if entityType && entityType !== 'forge_instance'}
 	<div>
 		<label for="{idPrefix}name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
 			{entityType === 'organization' ? 'Organization' : 'Enterprise'} Name <span class="text-red-500">*</span>

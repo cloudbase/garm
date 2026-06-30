@@ -5,6 +5,7 @@ import type {
 	Repository,
 	Organization,
 	Enterprise,
+	ForgeInstance,
 	Pool,
 	ScaleSet,
 	ForgeCredentials,
@@ -19,6 +20,7 @@ interface EagerCacheState {
 	repositories: Repository[];
 	organizations: Organization[];
 	enterprises: Enterprise[];
+	forgeInstances: ForgeInstance[];
 	pools: Pool[];
 	scalesets: ScaleSet[];
 	credentials: ForgeCredentials[];
@@ -29,6 +31,7 @@ interface EagerCacheState {
 		repositories: boolean;
 		organizations: boolean;
 		enterprises: boolean;
+		forgeInstances: boolean;
 		pools: boolean;
 		scalesets: boolean;
 		credentials: boolean;
@@ -40,6 +43,7 @@ interface EagerCacheState {
 		repositories: boolean;
 		organizations: boolean;
 		enterprises: boolean;
+		forgeInstances: boolean;
 		pools: boolean;
 		scalesets: boolean;
 		credentials: boolean;
@@ -51,6 +55,7 @@ interface EagerCacheState {
 		repositories: string;
 		organizations: string;
 		enterprises: string;
+		forgeInstances: string;
 		pools: string;
 		scalesets: string;
 		credentials: string;
@@ -64,6 +69,7 @@ const initialState: EagerCacheState = {
 	repositories: [],
 	organizations: [],
 	enterprises: [],
+	forgeInstances: [],
 	pools: [],
 	scalesets: [],
 	credentials: [],
@@ -74,6 +80,7 @@ const initialState: EagerCacheState = {
 		repositories: false,
 		organizations: false,
 		enterprises: false,
+		forgeInstances: false,
 		pools: false,
 		scalesets: false,
 		credentials: false,
@@ -85,6 +92,7 @@ const initialState: EagerCacheState = {
 		repositories: false,
 		organizations: false,
 		enterprises: false,
+		forgeInstances: false,
 		pools: false,
 		scalesets: false,
 		credentials: false,
@@ -96,6 +104,7 @@ const initialState: EagerCacheState = {
 		repositories: '',
 		organizations: '',
 		enterprises: '',
+		forgeInstances: '',
 		pools: '',
 		scalesets: '',
 		credentials: '',
@@ -112,6 +121,7 @@ const apiFetchers: Record<CacheResourceKey, () => Promise<any>> = {
 	repositories: () => garmApi.listRepositories(),
 	organizations: () => garmApi.listOrganizations(),
 	enterprises: () => garmApi.listEnterprises(),
+	forgeInstances: () => garmApi.listForgeInstances(),
 	pools: () => garmApi.listAllPools(),
 	scalesets: () => garmApi.listScaleSets(),
 	credentials: () => garmApi.listAllCredentials(),
@@ -229,6 +239,7 @@ class EagerCacheManager {
 			websocketStore.subscribeToEntity('repository', ['create', 'update', 'delete'], (e) => this.handleCrudEvent(e, 'repositories')),
 			websocketStore.subscribeToEntity('organization', ['create', 'update', 'delete'], (e) => this.handleCrudEvent(e, 'organizations')),
 			websocketStore.subscribeToEntity('enterprise', ['create', 'update', 'delete'], (e) => this.handleCrudEvent(e, 'enterprises')),
+			websocketStore.subscribeToEntity('forge_instance', ['create', 'update', 'delete'], (e) => this.handleCrudEvent(e, 'forgeInstances')),
 			websocketStore.subscribeToEntity('pool', ['create', 'update', 'delete'], (e) => this.handleCrudEvent(e, 'pools')),
 			websocketStore.subscribeToEntity('scaleset', ['create', 'update', 'delete'], (e) => this.handleCrudEvent(e, 'scalesets')),
 			websocketStore.subscribeToEntity('template', ['create', 'update', 'delete'], (e) => this.handleCrudEvent(e, 'templates')),
@@ -400,6 +411,10 @@ class EagerCacheManager {
 
 	async getEnterprises(): Promise<Enterprise[]> {
 		return this.getCachedOrFetch('enterprises', 'enterprises');
+	}
+
+	async getForgeInstances(): Promise<ForgeInstance[]> {
+		return this.getCachedOrFetch('forgeInstances', 'forge instances');
 	}
 
 	async getPools(): Promise<Pool[]> {

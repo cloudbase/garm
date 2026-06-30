@@ -24,7 +24,7 @@
 	}>();
 
 	// Export props for pre-populating the modal
-	export let initialEntityType: 'repository' | 'organization' | 'enterprise' | '' = '';
+	export let initialEntityType: 'repository' | 'organization' | 'enterprise' | 'forge_instance' | '' = '';
 	export let initialEntityId: string = '';
 
 	let loading = false;
@@ -128,6 +128,9 @@
 				case 'enterprise':
 					entities = await garmApi.listEnterprises();
 					break;
+				case 'forge_instance':
+					entities = await garmApi.listForgeInstances();
+					break;
 			}
 		} catch (err) {
 			error = extractAPIError(err);
@@ -136,7 +139,7 @@
 		}
 	}
 
-	function selectEntityLevel(level: 'repository' | 'organization' | 'enterprise') {
+	function selectEntityLevel(level: 'repository' | 'organization' | 'enterprise' | 'forge_instance') {
 		if (entityLevel === level) return;
 		entityLevel = level;
 		selectedEntityId = '';
@@ -267,6 +270,9 @@
 					case 'enterprise':
 						await garmApi.createEnterprisePool(selectedEntityId, params);
 						break;
+					case 'forge_instance':
+						await garmApi.createForgeInstancePool(selectedEntityId, params);
+						break;
 					default:
 						throw new Error('Invalid entity level');
 				}
@@ -297,12 +303,12 @@
 	});
 
 	// Re-subscribe when entity level changes
-	$: if (entityLevel && (entityLevel === 'repository' || entityLevel === 'organization' || entityLevel === 'enterprise')) {
+	$: if (entityLevel && (entityLevel === 'repository' || entityLevel === 'organization' || entityLevel === 'enterprise' || entityLevel === 'forge_instance')) {
 		if (unsubscribeWebsocket) {
 			unsubscribeWebsocket();
 		}
 		unsubscribeWebsocket = websocketStore.subscribeToEntity(
-			entityLevel as 'repository' | 'organization' | 'enterprise',
+			entityLevel as 'repository' | 'organization' | 'enterprise' | 'forge_instance',
 			['update'],
 			handleEntityWebSocketEvent
 		);
@@ -359,6 +365,16 @@
 						</svg>
 						<span class="text-sm font-medium text-gray-900 dark:text-white">Enterprise</span>
 					</button>
+					<button
+						type="button"
+						on:click={() => selectEntityLevel('forge_instance')}
+						class="flex flex-col items-center justify-center p-4 border-2 rounded-lg transition-colors cursor-pointer {entityLevel === 'forge_instance' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900' : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'}"
+					>
+						<svg class="w-8 h-8 mb-2 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"/>
+						</svg>
+						<span class="text-sm font-medium text-gray-900 dark:text-white">Forge Instance</span>
+					</button>
 				</div>
 			</fieldset>
 
@@ -387,6 +403,8 @@
 										<option value={entity.id}>
 											{#if entityLevel === 'repository'}
 												{(entity as any).owner}/{entity.name} ({entity.endpoint?.name})
+											{:else if entityLevel === 'forge_instance'}
+												{entity.endpoint?.name} ({entity.credentials?.name})
 											{:else}
 												{entity.name} ({entity.endpoint?.name})
 											{/if}
