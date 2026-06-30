@@ -28,7 +28,7 @@ import (
 // from the main models so that future model changes don't break this migration.
 
 type forgeInstance0003 struct {
-	ID        uuid.UUID      `gorm:"type:uuid;primary_key;"`
+	ID        uuid.UUID `gorm:"type:uuid;primary_key;"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	DeletedAt gorm.DeletedAt `gorm:"index"`
