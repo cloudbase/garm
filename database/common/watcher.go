@@ -37,6 +37,7 @@ const (
 	ScaleSetEntityType          DatabaseEntityType = "scaleset"
 	TemplateEntityType          DatabaseEntityType = "template"
 	FileObjectEntityType        DatabaseEntityType = "file_object"
+	ForgeInstanceEntityType     DatabaseEntityType = "forge_instance"
 )
 
 const (

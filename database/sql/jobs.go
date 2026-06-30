@@ -429,6 +429,8 @@ func (s *sqlDatabase) ListEntityJobsByStatus(_ context.Context, entityType param
 		query = query.Where("repo_id = ?", u)
 	case params.ForgeEntityTypeEnterprise:
 		query = query.Where("enterprise_id = ?", u)
+	case params.ForgeEntityTypeInstance:
+		query = query.Where("forge_instance_id = ?", u)
 	}
 
 	if err := query.Find(&jobs); err.Error != nil {

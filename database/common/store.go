@@ -67,6 +67,15 @@ type EnterpriseStore interface {
 	UpdateEnterprise(ctx context.Context, enterpriseID string, param params.UpdateEntityParams) (params.Enterprise, error)
 }
 
+type ForgeInstanceStore interface {
+	CreateForgeInstance(ctx context.Context, endpointName string, credentials params.ForgeCredentials, webhookSecret string, poolBalancerType params.PoolBalancerType, agentMode bool) (params.ForgeInstance, error)
+	GetForgeInstance(ctx context.Context, endpointName string) (params.ForgeInstance, error)
+	GetForgeInstanceByID(ctx context.Context, forgeInstanceID string) (params.ForgeInstance, error)
+	ListForgeInstances(ctx context.Context, filter params.ForgeInstanceFilter) ([]params.ForgeInstance, error)
+	DeleteForgeInstance(ctx context.Context, forgeInstanceID string) error
+	UpdateForgeInstance(ctx context.Context, forgeInstanceID string, param params.UpdateEntityParams) (params.ForgeInstance, error)
+}
+
 type PoolStore interface {
 	// Probably a bad idea without some king of filter or at least pagination
 	// nolint:golangci-lint,godox
@@ -207,6 +216,7 @@ type Store interface {
 	RepoStore
 	OrgStore
 	EnterpriseStore
+	ForgeInstanceStore
 	PoolStore
 	UserStore
 	InstanceStore

@@ -31,9 +31,10 @@ import (
 )
 
 const (
-	entityTypeEnterpriseName = "enterprise_id"
-	entityTypeOrgName        = "org_id"
-	entityTypeRepoName       = "repo_id"
+	entityTypeEnterpriseName    = "enterprise_id"
+	entityTypeOrgName           = "org_id"
+	entityTypeRepoName          = "repo_id"
+	entityTypeForgeInstanceName = "forge_instance_id"
 )
 
 func (s *sqlDatabase) ListAllPools(_ context.Context) ([]params.Pool, error) {
@@ -47,6 +48,8 @@ func (s *sqlDatabase) ListAllPools(_ context.Context) ([]params.Pool, error) {
 		Preload("Repository.Endpoint").
 		Preload("Enterprise").
 		Preload("Enterprise.Endpoint").
+		Preload("ForgeInstance").
+		Preload("ForgeInstance.Endpoint").
 		Omit("extra_specs").
 		Find(&pools)
 	if q.Error != nil {
@@ -74,6 +77,8 @@ func (s *sqlDatabase) GetPoolByID(_ context.Context, poolID string) (params.Pool
 		"Organization.Endpoint",
 		"Repository",
 		"Repository.Endpoint",
+		"ForgeInstance",
+		"ForgeInstance.Endpoint",
 		"Template",
 	}
 	pool, err := s.getPoolByID(s.conn, poolID, preloadList...)
@@ -124,6 +129,9 @@ func (s *sqlDatabase) getEntityPool(tx *gorm.DB, entityType params.ForgeEntityTy
 	case params.ForgeEntityTypeEnterprise:
 		fieldName = entityTypeEnterpriseName
 		entityField = enterpriseFieldName
+	case params.ForgeEntityTypeInstance:
+		fieldName = entityTypeForgeInstanceName
+		entityField = forgeInstanceFieldName
 	default:
 		return Pool{}, fmt.Errorf("invalid entityType: %v", entityType)
 	}
@@ -172,6 +180,9 @@ func (s *sqlDatabase) listEntityPools(tx *gorm.DB, entityType params.ForgeEntity
 	case params.ForgeEntityTypeEnterprise:
 		fieldName = entityTypeEnterpriseName
 		preloadEntity = "Enterprise"
+	case params.ForgeEntityTypeInstance:
+		fieldName = entityTypeForgeInstanceName
+		preloadEntity = "ForgeInstance"
 	default:
 		return nil, fmt.Errorf("invalid entityType: %v", entityType)
 	}
@@ -217,6 +228,8 @@ func (s *sqlDatabase) findPoolByTags(id string, poolType params.ForgeEntityType,
 		fieldName = entityTypeOrgName
 	case params.ForgeEntityTypeEnterprise:
 		fieldName = entityTypeEnterpriseName
+	case params.ForgeEntityTypeInstance:
+		fieldName = entityTypeForgeInstanceName
 	default:
 		return nil, fmt.Errorf("invalid poolType: %v", poolType)
 	}
@@ -318,6 +331,8 @@ func (s *sqlDatabase) CreateEntityPool(ctx context.Context, entity params.ForgeE
 		newPool.OrgID = &entityID
 	case params.ForgeEntityTypeEnterprise:
 		newPool.EnterpriseID = &entityID
+	case params.ForgeEntityTypeInstance:
+		newPool.ForgeInstanceID = &entityID
 	}
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
 		if err := s.hasGithubEntity(tx, entity.EntityType, entity.ID); err != nil {
@@ -363,6 +378,8 @@ func (s *sqlDatabase) GetEntityPool(_ context.Context, entity params.ForgeEntity
 		"Organization.Endpoint",
 		"Repository",
 		"Repository.Endpoint",
+		"ForgeInstance",
+		"ForgeInstance.Endpoint",
 		"Template",
 	}
 	pool, err := s.getEntityPool(s.conn, entity.EntityType, entity.ID, poolID, preloadList...)
@@ -399,6 +416,8 @@ func (s *sqlDatabase) DeleteEntityPool(_ context.Context, entity params.ForgeEnt
 		fieldName = entityTypeOrgName
 	case params.ForgeEntityTypeEnterprise:
 		fieldName = entityTypeEnterpriseName
+	case params.ForgeEntityTypeInstance:
+		fieldName = entityTypeForgeInstanceName
 	default:
 		return fmt.Errorf("invalid entityType: %v", entity.EntityType)
 	}
