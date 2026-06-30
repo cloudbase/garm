@@ -340,6 +340,8 @@ type Instance struct {
 
 	// ProviderFault holds any error messages captured from the IaaS provider that is
 	// responsible for managing the lifecycle of the runner.
+	//
+	// swagger:strfmt byte
 	ProviderFault []byte `json:"provider_fault,omitempty"`
 
 	// StatusMessages is a list of status messages sent back by the runner as it sets itself
@@ -426,6 +428,8 @@ type BootstrapInstance struct {
 	// CACertBundle is a CA certificate bundle which will be sent to instances and which
 	// will tipically be installed as a system wide trusted root CA. by either cloud-init
 	// or whatever mechanism the provider will use to set up the runner.
+	//
+	// swagger:strfmt byte
 	CACertBundle []byte `json:"ca-cert-bundle,omitempty"`
 
 	// OSArch is the target OS CPU architecture of the runner.
@@ -1041,6 +1045,8 @@ type ControllerInfo struct {
 	// CACertBundle holds a certificate bundle meant to validate the certificate
 	// used by GARM itself. This can be just the root certificate that can validate
 	// the GARM TLS certificate, a chain or multiple root CAs.
+	//
+	// swagger:strfmt byte
 	CACertBundle []byte `json:"ca_cert_bundle,omitempty"`
 	// CachedGARMAgentReleaseFetchedAt is the timestamp when the release data was last fetched from GARMAgentReleasesURL
 	CachedGARMAgentReleaseFetchedAt *time.Time `json:"cached_garm_agent_release_fetched_at,omitempty"`
@@ -1107,14 +1113,15 @@ func (g GithubRateLimit) ResetAt() time.Time {
 
 // swagger:model ForgeCredentials
 type ForgeCredentials struct {
-	ID            uint          `json:"id,omitempty"`
-	Name          string        `json:"name,omitempty"`
-	Description   string        `json:"description,omitempty"`
-	APIBaseURL    string        `json:"api_base_url,omitempty"`
-	UploadBaseURL string        `json:"upload_base_url,omitempty"`
-	BaseURL       string        `json:"base_url,omitempty"`
-	CABundle      []byte        `json:"ca_bundle,omitempty"`
-	AuthType      ForgeAuthType `json:"auth-type,omitempty"`
+	ID            uint   `json:"id,omitempty"`
+	Name          string `json:"name,omitempty"`
+	Description   string `json:"description,omitempty"`
+	APIBaseURL    string `json:"api_base_url,omitempty"`
+	UploadBaseURL string `json:"upload_base_url,omitempty"`
+	BaseURL       string `json:"base_url,omitempty"`
+	// swagger:strfmt byte
+	CABundle []byte        `json:"ca_bundle,omitempty"`
+	AuthType ForgeAuthType `json:"auth-type,omitempty"`
 
 	ForgeType EndpointType `json:"forge_type,omitempty"`
 
@@ -1449,11 +1456,12 @@ type ForgeEndpoints []ForgeEndpoint
 
 // swagger:model ForgeEndpoint
 type ForgeEndpoint struct {
-	Name                     string    `json:"name,omitempty"`
-	Description              string    `json:"description,omitempty"`
-	APIBaseURL               string    `json:"api_base_url,omitempty"`
-	UploadBaseURL            string    `json:"upload_base_url,omitempty"`
-	BaseURL                  string    `json:"base_url,omitempty"`
+	Name          string `json:"name,omitempty"`
+	Description   string `json:"description,omitempty"`
+	APIBaseURL    string `json:"api_base_url,omitempty"`
+	UploadBaseURL string `json:"upload_base_url,omitempty"`
+	BaseURL       string `json:"base_url,omitempty"`
+	// swagger:strfmt byte
 	CACertBundle             []byte    `json:"ca_cert_bundle,omitempty"`
 	CreatedAt                time.Time `json:"created_at,omitempty"`
 	UpdatedAt                time.Time `json:"updated_at,omitempty"`
@@ -1489,8 +1497,9 @@ type Template struct {
 	Description string              `json:"description"`
 	OSType      commonParams.OSType `json:"os_type"`
 	ForgeType   EndpointType        `json:"forge_type,omitempty"`
-	Data        []byte              `json:"data"`
-	Owner       string              `json:"owner_id,omitempty"`
+	// swagger:strfmt byte
+	Data  []byte `json:"data"`
+	Owner string `json:"owner_id,omitempty"`
 }
 
 // used by swagger client generated code

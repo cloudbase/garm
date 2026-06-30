@@ -262,15 +262,16 @@ type UpdateInstanceParams struct {
 	// for this instance.
 	Addresses []commonParams.Address `json:"addresses,omitempty"`
 	// Status is the status of the instance inside the provider (eg: running, stopped, etc)
-	Status           commonParams.InstanceStatus `json:"status,omitempty"`
-	RunnerStatus     RunnerStatus                `json:"runner_status,omitempty"`
-	ProviderFault    []byte                      `json:"provider_fault,omitempty"`
-	Heartbeat        *time.Time                  `json:"heartbeat,omitempty"`
-	AgentID          int64                       `json:"-"`
-	CreateAttempt    int                         `json:"-"`
-	TokenFetched     *bool                       `json:"-"`
-	JitConfiguration map[string]string           `json:"-"`
-	Capabilities     *AgentCapabilities          `json:"-"`
+	Status       commonParams.InstanceStatus `json:"status,omitempty"`
+	RunnerStatus RunnerStatus                `json:"runner_status,omitempty"`
+	// swagger:strfmt byte
+	ProviderFault    []byte             `json:"provider_fault,omitempty"`
+	Heartbeat        *time.Time         `json:"heartbeat,omitempty"`
+	AgentID          int64              `json:"-"`
+	CreateAttempt    int                `json:"-"`
+	TokenFetched     *bool              `json:"-"`
+	JitConfiguration map[string]string  `json:"-"`
+	Capabilities     *AgentCapabilities `json:"-"`
 }
 
 type UpdateUserParams struct {
@@ -318,7 +319,8 @@ type CreateGithubEndpointParams struct {
 	APIBaseURL    string `json:"api_base_url,omitempty"`
 	UploadBaseURL string `json:"upload_base_url,omitempty"`
 	BaseURL       string `json:"base_url,omitempty"`
-	CACertBundle  []byte `json:"ca_cert_bundle,omitempty"`
+	// swagger:strfmt byte
+	CACertBundle []byte `json:"ca_cert_bundle,omitempty"`
 }
 
 func (c CreateGithubEndpointParams) Validate() error {
@@ -385,7 +387,8 @@ type UpdateGithubEndpointParams struct {
 	APIBaseURL    *string `json:"api_base_url,omitempty"`
 	UploadBaseURL *string `json:"upload_base_url,omitempty"`
 	BaseURL       *string `json:"base_url,omitempty"`
-	CACertBundle  []byte  `json:"ca_cert_bundle,omitempty"`
+	// swagger:strfmt byte
+	CACertBundle []byte `json:"ca_cert_bundle,omitempty"`
 }
 
 func (u UpdateGithubEndpointParams) Validate() error {
@@ -445,8 +448,9 @@ type GithubPAT struct {
 
 // swagger:model GithubApp
 type GithubApp struct {
-	AppID           int64  `json:"app_id,omitempty"`
-	InstallationID  int64  `json:"installation_id,omitempty"`
+	AppID          int64 `json:"app_id,omitempty"`
+	InstallationID int64 `json:"installation_id,omitempty"`
+	// swagger:strfmt byte
 	PrivateKeyBytes []byte `json:"private_key_bytes,omitempty"`
 }
 
@@ -553,8 +557,9 @@ type UpdateControllerParams struct {
 	GARMAgentReleasesURL *string `json:"garm_agent_releases_url,omitempty"`
 	SyncGARMAgentTools   *bool   `json:"enable_agent_tools_sync,omitempty"`
 	MinimumJobAgeBackoff *uint   `json:"minimum_job_age_backoff,omitempty"`
-	CACertBundle         []byte  `json:"ca_cert_bundle,omitempty"`
-	ClearCACertBundle    *bool   `json:"clear_ca_cert_bundle,omitempty"`
+	// swagger:strfmt byte
+	CACertBundle      []byte `json:"ca_cert_bundle,omitempty"`
+	ClearCACertBundle *bool  `json:"clear_ca_cert_bundle,omitempty"`
 }
 
 func (u UpdateControllerParams) Validate() error {
@@ -698,10 +703,11 @@ type UpdateScaleSetParams struct {
 
 // swagger:model CreateGiteaEndpointParams
 type CreateGiteaEndpointParams struct {
-	Name                     string `json:"name,omitempty"`
-	Description              string `json:"description,omitempty"`
-	APIBaseURL               string `json:"api_base_url,omitempty"`
-	BaseURL                  string `json:"base_url,omitempty"`
+	Name        string `json:"name,omitempty"`
+	Description string `json:"description,omitempty"`
+	APIBaseURL  string `json:"api_base_url,omitempty"`
+	BaseURL     string `json:"base_url,omitempty"`
+	// swagger:strfmt byte
 	CACertBundle             []byte `json:"ca_cert_bundle,omitempty"`
 	ToolsMetadataURL         string `json:"tools_metadata_url,omitempty"`
 	UseInternalToolsMetadata *bool  `json:"use_internal_tools_metadata,omitempty"`
@@ -764,12 +770,13 @@ func (c CreateGiteaEndpointParams) Validate() error {
 
 // swagger:model UpdateGiteaEndpointParams
 type UpdateGiteaEndpointParams struct {
-	Description              *string `json:"description,omitempty"`
-	APIBaseURL               *string `json:"api_base_url,omitempty"`
-	BaseURL                  *string `json:"base_url,omitempty"`
-	CACertBundle             []byte  `json:"ca_cert_bundle,omitempty"`
-	ToolsMetadataURL         string  `json:"tools_metadata_url,omitempty"`
-	UseInternalToolsMetadata *bool   `json:"use_internal_tools_metadata,omitempty"`
+	Description *string `json:"description,omitempty"`
+	APIBaseURL  *string `json:"api_base_url,omitempty"`
+	BaseURL     *string `json:"base_url,omitempty"`
+	// swagger:strfmt byte
+	CACertBundle             []byte `json:"ca_cert_bundle,omitempty"`
+	ToolsMetadataURL         string `json:"tools_metadata_url,omitempty"`
+	UseInternalToolsMetadata *bool  `json:"use_internal_tools_metadata,omitempty"`
 }
 
 func (u UpdateGiteaEndpointParams) Validate() error {
@@ -875,12 +882,13 @@ func (u UpdateGiteaCredentialsParams) Validate() error {
 
 // swagger:model CreateTemplateParams
 type CreateTemplateParams struct {
-	Name        string              `json:"name"`
-	Description string              `json:"description"`
-	Data        []byte              `json:"data"`
-	OSType      commonParams.OSType `json:"os_type"`
-	ForgeType   EndpointType        `json:"forge_type,omitempty"`
-	IsSystem    bool                `json:"-"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	// swagger:strfmt byte
+	Data      []byte              `json:"data"`
+	OSType    commonParams.OSType `json:"os_type"`
+	ForgeType EndpointType        `json:"forge_type,omitempty"`
+	IsSystem  bool                `json:"-"`
 }
 
 func (c *CreateTemplateParams) Validate() error {
@@ -910,7 +918,8 @@ func (c *CreateTemplateParams) Validate() error {
 type UpdateTemplateParams struct {
 	Name        *string `json:"name"`
 	Description *string `json:"description"`
-	Data        []byte  `json:"data"`
+	// swagger:strfmt byte
+	Data []byte `json:"data"`
 }
 
 func (u *UpdateTemplateParams) Validate() error {

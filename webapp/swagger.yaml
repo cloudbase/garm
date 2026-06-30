@@ -44,10 +44,8 @@ definitions:
                     CACertBundle holds a certificate bundle meant to validate the certificate
                     used by GARM itself. This can be just the root certificate that can validate
                     the GARM TLS certificate, a chain or multiple root CAs.
-                items:
-                    format: uint8
-                    type: integer
-                type: array
+                format: byte
+                type: string
                 x-go-name: CACertBundle
             cached_garm_agent_release_fetched_at:
                 description: CachedGARMAgentReleaseFetchedAt is the timestamp when the release data was last fetched from GARMAgentReleasesURL
@@ -222,10 +220,8 @@ definitions:
                 type: string
                 x-go-name: BaseURL
             ca_cert_bundle:
-                items:
-                    format: uint8
-                    type: integer
-                type: array
+                format: byte
+                type: string
                 x-go-name: CACertBundle
             description:
                 type: string
@@ -269,10 +265,8 @@ definitions:
                 type: string
                 x-go-name: BaseURL
             ca_cert_bundle:
-                items:
-                    format: uint8
-                    type: integer
-                type: array
+                format: byte
+                type: string
                 x-go-name: CACertBundle
             description:
                 type: string
@@ -459,10 +453,8 @@ definitions:
     CreateTemplateParams:
         properties:
             data:
-                items:
-                    format: uint8
-                    type: integer
-                type: array
+                format: byte
+                type: string
                 x-go-name: Data
             description:
                 type: string
@@ -680,10 +672,8 @@ definitions:
                 type: string
                 x-go-name: BaseURL
             ca_bundle:
-                items:
-                    format: uint8
-                    type: integer
-                type: array
+                format: byte
+                type: string
                 x-go-name: CABundle
             created_at:
                 format: date-time
@@ -738,10 +728,8 @@ definitions:
                 type: string
                 x-go-name: BaseURL
             ca_cert_bundle:
-                items:
-                    format: uint8
-                    type: integer
-                type: array
+                format: byte
+                type: string
                 x-go-name: CACertBundle
             created_at:
                 format: date-time
@@ -966,10 +954,8 @@ definitions:
                 type: integer
                 x-go-name: InstallationID
             private_key_bytes:
-                items:
-                    format: uint8
-                    type: integer
-                type: array
+                format: byte
+                type: string
                 x-go-name: PrivateKeyBytes
         type: object
         x-go-package: github.com/cloudbase/garm/params
@@ -1108,10 +1094,8 @@ definitions:
                 description: |-
                     ProviderFault holds any error messages captured from the IaaS provider that is
                     responsible for managing the lifecycle of the runner.
-                items:
-                    format: uint8
-                    type: integer
-                type: array
+                format: byte
+                type: string
                 x-go-name: ProviderFault
             provider_id:
                 description: |-
@@ -1898,10 +1882,8 @@ definitions:
                 type: string
                 x-go-name: CreatedAt
             data:
-                items:
-                    format: uint8
-                    type: integer
-                type: array
+                format: byte
+                type: string
                 x-go-name: Data
             description:
                 type: string
@@ -1938,10 +1920,8 @@ definitions:
                 type: string
                 x-go-name: AgentURL
             ca_cert_bundle:
-                items:
-                    format: uint8
-                    type: integer
-                type: array
+                format: byte
+                type: string
                 x-go-name: CACertBundle
             callback_url:
                 type: string
@@ -2018,10 +1998,8 @@ definitions:
                 type: string
                 x-go-name: BaseURL
             ca_cert_bundle:
-                items:
-                    format: uint8
-                    type: integer
-                type: array
+                format: byte
+                type: string
                 x-go-name: CACertBundle
             description:
                 type: string
@@ -2057,10 +2035,8 @@ definitions:
                 type: string
                 x-go-name: BaseURL
             ca_cert_bundle:
-                items:
-                    format: uint8
-                    type: integer
-                type: array
+                format: byte
+                type: string
                 x-go-name: CACertBundle
             description:
                 type: string
@@ -2188,10 +2164,8 @@ definitions:
     UpdateTemplateParams:
         properties:
             data:
-                items:
-                    format: uint8
-                    type: integer
-                type: array
+                format: byte
+                type: string
                 x-go-name: Data
             description:
                 type: string
