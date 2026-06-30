@@ -497,6 +497,57 @@ func NewAPIRouter(han *controllers.APIController, authMiddleware, initMiddleware
 	apiRouter.Handle("/enterprises/", http.HandlerFunc(han.CreateEnterpriseHandler)).Methods("POST", "OPTIONS")
 	apiRouter.Handle("/enterprises", http.HandlerFunc(han.CreateEnterpriseHandler)).Methods("POST", "OPTIONS")
 
+	/////////////////////////////////
+	//  Forge instances and pools  //
+	/////////////////////////////////
+
+	apiRouter.Handle("/forge-instances/{forgeInstanceID}/pools/{poolID}/", http.HandlerFunc(han.GetForgeInstancePoolHandler)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/forge-instances/{forgeInstanceID}/pools/{poolID}", http.HandlerFunc(han.GetForgeInstancePoolHandler)).Methods("GET", "OPTIONS")
+
+	apiRouter.Handle("/forge-instances/{forgeInstanceID}/pools/{poolID}/", http.HandlerFunc(han.DeleteForgeInstancePoolHandler)).Methods("DELETE", "OPTIONS")
+	apiRouter.Handle("/forge-instances/{forgeInstanceID}/pools/{poolID}", http.HandlerFunc(han.DeleteForgeInstancePoolHandler)).Methods("DELETE", "OPTIONS")
+
+	apiRouter.Handle("/forge-instances/{forgeInstanceID}/pools/{poolID}/", http.HandlerFunc(han.UpdateForgeInstancePoolHandler)).Methods("PUT", "OPTIONS")
+	apiRouter.Handle("/forge-instances/{forgeInstanceID}/pools/{poolID}", http.HandlerFunc(han.UpdateForgeInstancePoolHandler)).Methods("PUT", "OPTIONS")
+
+	apiRouter.Handle("/forge-instances/{forgeInstanceID}/pools/", http.HandlerFunc(han.ListForgeInstancePoolsHandler)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/forge-instances/{forgeInstanceID}/pools", http.HandlerFunc(han.ListForgeInstancePoolsHandler)).Methods("GET", "OPTIONS")
+
+	apiRouter.Handle("/forge-instances/{forgeInstanceID}/pools/", http.HandlerFunc(han.CreateForgeInstancePoolHandler)).Methods("POST", "OPTIONS")
+	apiRouter.Handle("/forge-instances/{forgeInstanceID}/pools", http.HandlerFunc(han.CreateForgeInstancePoolHandler)).Methods("POST", "OPTIONS")
+
+	// Forge instance instances list
+	apiRouter.Handle("/forge-instances/{forgeInstanceID}/instances/", http.HandlerFunc(han.ListForgeInstanceInstancesHandler)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/forge-instances/{forgeInstanceID}/instances", http.HandlerFunc(han.ListForgeInstanceInstancesHandler)).Methods("GET", "OPTIONS")
+
+	// Get forge instance
+	apiRouter.Handle("/forge-instances/{forgeInstanceID}/", http.HandlerFunc(han.GetForgeInstanceByIDHandler)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/forge-instances/{forgeInstanceID}", http.HandlerFunc(han.GetForgeInstanceByIDHandler)).Methods("GET", "OPTIONS")
+	// Update forge instance
+	apiRouter.Handle("/forge-instances/{forgeInstanceID}/", http.HandlerFunc(han.UpdateForgeInstanceHandler)).Methods("PUT", "OPTIONS")
+	apiRouter.Handle("/forge-instances/{forgeInstanceID}", http.HandlerFunc(han.UpdateForgeInstanceHandler)).Methods("PUT", "OPTIONS")
+	// Delete forge instance
+	apiRouter.Handle("/forge-instances/{forgeInstanceID}/", http.HandlerFunc(han.DeleteForgeInstanceHandler)).Methods("DELETE", "OPTIONS")
+	apiRouter.Handle("/forge-instances/{forgeInstanceID}", http.HandlerFunc(han.DeleteForgeInstanceHandler)).Methods("DELETE", "OPTIONS")
+	// List forge instances
+	apiRouter.Handle("/forge-instances/", http.HandlerFunc(han.ListForgeInstancesHandler)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/forge-instances", http.HandlerFunc(han.ListForgeInstancesHandler)).Methods("GET", "OPTIONS")
+	// Create forge instance
+	apiRouter.Handle("/forge-instances/", http.HandlerFunc(han.CreateForgeInstanceHandler)).Methods("POST", "OPTIONS")
+	apiRouter.Handle("/forge-instances", http.HandlerFunc(han.CreateForgeInstanceHandler)).Methods("POST", "OPTIONS")
+
+	if manageWebhooks {
+		// Install Webhook
+		apiRouter.Handle("/forge-instances/{forgeInstanceID}/webhook/", http.HandlerFunc(han.InstallForgeInstanceWebhookHandler)).Methods("POST", "OPTIONS")
+		apiRouter.Handle("/forge-instances/{forgeInstanceID}/webhook", http.HandlerFunc(han.InstallForgeInstanceWebhookHandler)).Methods("POST", "OPTIONS")
+		// Uninstall Webhook
+		apiRouter.Handle("/forge-instances/{forgeInstanceID}/webhook/", http.HandlerFunc(han.UninstallForgeInstanceWebhookHandler)).Methods("DELETE", "OPTIONS")
+		apiRouter.Handle("/forge-instances/{forgeInstanceID}/webhook", http.HandlerFunc(han.UninstallForgeInstanceWebhookHandler)).Methods("DELETE", "OPTIONS")
+		// Get webhook info
+		apiRouter.Handle("/forge-instances/{forgeInstanceID}/webhook/", http.HandlerFunc(han.GetForgeInstanceWebhookInfoHandler)).Methods("GET", "OPTIONS")
+		apiRouter.Handle("/forge-instances/{forgeInstanceID}/webhook", http.HandlerFunc(han.GetForgeInstanceWebhookInfoHandler)).Methods("GET", "OPTIONS")
+	}
+
 	// Providers
 	apiRouter.Handle("/providers/", http.HandlerFunc(han.ListProviders)).Methods("GET", "OPTIONS")
 	apiRouter.Handle("/providers", http.HandlerFunc(han.ListProviders)).Methods("GET", "OPTIONS")
