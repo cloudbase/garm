@@ -18,24 +18,24 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cloudbase/garm-provider-common/util"
 	"github.com/google/uuid"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/spf13/cobra"
 
+	"github.com/cloudbase/garm-provider-common/util"
 	apiClientForgeInstances "github.com/cloudbase/garm/client/forge_instances"
 	"github.com/cloudbase/garm/cmd/garm-cli/common"
 	"github.com/cloudbase/garm/params"
 )
 
 var (
-	forgeInstanceEndpoint          string
-	forgeInstanceWebhookSecret     string
-	forgeInstanceRandomSecret      bool
-	forgeInstanceCreds             string
-	forgeInstanceForgeType         string
-	forgeInstanceAgentMode         bool
-	installForgeInstanceWebhook    bool
+	forgeInstanceEndpoint       string
+	forgeInstanceWebhookSecret  string
+	forgeInstanceRandomSecret   bool
+	forgeInstanceCreds          string
+	forgeInstanceForgeType      string
+	forgeInstanceAgentMode      bool
+	installForgeInstanceWebhook bool
 )
 
 var forgeInstanceCmd = &cobra.Command{
@@ -246,8 +246,8 @@ func init() {
 	forgeInstanceAddCmd.Flags().BoolVar(&forgeInstanceAgentMode, "agent-mode", false, "Enable agent mode for runners in this forge instance.")
 	forgeInstanceAddCmd.Flags().BoolVar(&installForgeInstanceWebhook, "install-webhook", false, "Install the webhook as part of the add operation.")
 
-	forgeInstanceAddCmd.MarkFlagRequired("credentials")                                      //nolint
-	forgeInstanceAddCmd.MarkFlagRequired("endpoint")                                         //nolint
+	forgeInstanceAddCmd.MarkFlagRequired("credentials")                                       //nolint
+	forgeInstanceAddCmd.MarkFlagRequired("endpoint")                                          //nolint
 	forgeInstanceAddCmd.MarkFlagsMutuallyExclusive("webhook-secret", "random-webhook-secret") //nolint
 	forgeInstanceAddCmd.MarkFlagsOneRequired("webhook-secret", "random-webhook-secret")       //nolint
 
