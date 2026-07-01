@@ -1092,6 +1092,73 @@ func (s *WatcherStoreTestSuite) TestGithubEndpointWatcher() {
 	}
 }
 
+func (s *WatcherStoreTestSuite) TestForgeInstanceWatcher() {
+	consumer, err := watcher.RegisterConsumer(
+		s.ctx, "forge-instance-test",
+		watcher.WithEntityTypeFilter(common.ForgeInstanceEntityType),
+		watcher.WithAny(
+			watcher.WithOperationTypeFilter(common.CreateOperation),
+			watcher.WithOperationTypeFilter(common.UpdateOperation),
+			watcher.WithOperationTypeFilter(common.DeleteOperation)),
+	)
+	s.Require().NoError(err)
+	s.Require().NotNil(consumer)
+	s.T().Cleanup(func() { consumer.Close() })
+	consumeEvents(consumer)
+
+	giteaEp := garmTesting.CreateDefaultGiteaEndpoint(s.ctx, s.store, s.T())
+	giteaCreds := garmTesting.CreateTestGiteaCredentials(s.ctx, "test-gitea-creds", s.store, s.T(), giteaEp)
+	s.T().Cleanup(func() { s.store.DeleteGiteaCredentials(s.ctx, giteaCreds.ID) })
+
+	fi, err := s.store.CreateForgeInstance(s.ctx, giteaEp.Name, giteaCreds, "test-secret", params.PoolBalancerTypeRoundRobin, false)
+	s.Require().NoError(err)
+	s.Require().NotEmpty(fi.ID)
+
+	select {
+	case event := <-consumer.Watch():
+		s.Require().Equal(common.ChangePayload{
+			EntityType: common.ForgeInstanceEntityType,
+			Operation:  common.CreateOperation,
+			Payload:    fi,
+		}, event)
+	case <-time.After(1 * time.Second):
+		s.T().Fatal("expected payload not received")
+	}
+
+	updateParams := params.UpdateEntityParams{
+		WebhookSecret: "updated",
+	}
+
+	updatedFI, err := s.store.UpdateForgeInstance(s.ctx, fi.ID, updateParams)
+	s.Require().NoError(err)
+	s.Require().Equal("updated", updatedFI.WebhookSecret)
+
+	select {
+	case event := <-consumer.Watch():
+		s.Require().Equal(common.ChangePayload{
+			EntityType: common.ForgeInstanceEntityType,
+			Operation:  common.UpdateOperation,
+			Payload:    updatedFI,
+		}, event)
+	case <-time.After(1 * time.Second):
+		s.T().Fatal("expected payload not received")
+	}
+
+	err = s.store.DeleteForgeInstance(s.ctx, fi.ID)
+	s.Require().NoError(err)
+
+	select {
+	case event := <-consumer.Watch():
+		s.Require().Equal(common.ChangePayload{
+			EntityType: common.ForgeInstanceEntityType,
+			Operation:  common.DeleteOperation,
+			Payload:    updatedFI,
+		}, event)
+	case <-time.After(1 * time.Second):
+		s.T().Fatal("expected payload not received")
+	}
+}
+
 func consumeEvents(consumer common.Consumer) {
 consume:
 	for {
