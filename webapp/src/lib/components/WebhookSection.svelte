@@ -6,7 +6,7 @@
 	import { createEventDispatcher } from 'svelte';
 	import { extractAPIError } from '$lib/utils/apiError';
 
-	export let entityType: 'repository' | 'organization';
+	export let entityType: 'repository' | 'organization' | 'forge_instance';
 	export let entityId: string;
 	export let entityName: string;
 
@@ -25,8 +25,10 @@
 			checking = true;
 			if (entityType === 'repository') {
 				webhookInfo = await garmApi.getRepositoryWebhookInfo(entityId);
-			} else {
+			} else if (entityType === 'organization') {
 				webhookInfo = await garmApi.getOrganizationWebhookInfo(entityId);
+			} else if (entityType === 'forge_instance') {
+				webhookInfo = await garmApi.getForgeInstanceWebhookInfo(entityId);
 			}
 		} catch (err) {
 			// If we get a 404, it means no webhook is installed
@@ -49,8 +51,10 @@
 			
 			if (entityType === 'repository') {
 				await garmApi.installRepositoryWebhook(entityId);
-			} else {
+			} else if (entityType === 'organization') {
 				await garmApi.installOrganizationWebhook(entityId);
+			} else if (entityType === 'forge_instance') {
+				await garmApi.installForgeInstanceWebhook(entityId);
 			}
 			
 			toastStore.success(
@@ -79,8 +83,10 @@
 			
 			if (entityType === 'repository') {
 				await garmApi.uninstallRepositoryWebhook(entityId);
-			} else {
+			} else if (entityType === 'organization') {
 				await garmApi.uninstallOrganizationWebhook(entityId);
+			} else if (entityType === 'forge_instance') {
+				await garmApi.uninstallForgeInstanceWebhook(entityId);
 			}
 			
 			toastStore.success(

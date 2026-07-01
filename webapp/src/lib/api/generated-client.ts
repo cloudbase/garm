@@ -423,6 +423,20 @@ export class GeneratedGarmApiClient {
     const response = await this.hooksApi.getOrgWebhookInfo(orgId);
     return response.data;
   }
+
+  async installForgeInstanceWebhook(forgeInstanceId: string, params: any = {}): Promise<void> {
+    await this.forgeInstancesApi.installForgeInstanceWebhook(forgeInstanceId, params);
+  }
+
+  async uninstallForgeInstanceWebhook(forgeInstanceId: string): Promise<void> {
+    await this.forgeInstancesApi.uninstallForgeInstanceWebhook(forgeInstanceId);
+  }
+
+  async getForgeInstanceWebhookInfo(forgeInstanceId: string): Promise<HookInfo> {
+    const response = await this.forgeInstancesApi.getForgeInstanceWebhookInfo(forgeInstanceId);
+    return response.data;
+  }
+
   async listOrganizations(): Promise<Organization[]> {
     const response = await this.organizationsApi.listOrgs();
     return response.data || [];

@@ -403,7 +403,7 @@
 <!-- Modals -->
 {#if showUpdateModal && scaleSet}
 	<UpdateScaleSetModal
-		{scaleSet}
+		pool={scaleSet}
 		on:close={() => showUpdateModal = false}
 		on:submit={(e) => handleUpdate(e.detail)}
 	/>
