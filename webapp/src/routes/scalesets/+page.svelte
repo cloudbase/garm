@@ -317,7 +317,7 @@
 
 {#if showUpdateModal && selectedScaleSet}
 	<UpdateScaleSetModal
-		scaleSet={selectedScaleSet}
+		pool={selectedScaleSet}
 		on:close={() => { showUpdateModal = false; selectedScaleSet = null; }}
 		on:submit={(e) => handleUpdateScaleSet(e.detail)}
 	/>

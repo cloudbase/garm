@@ -49,18 +49,21 @@
 		}
 	}
 
-	// Only show Gitea credentials
-	$: filteredCredentials = credentials.filter(cred => cred.forge_type === 'gitea');
-
 	// Only show Gitea endpoints
 	$: giteaEndpoints = endpoints.filter(ep => ep.endpoint_type === 'gitea');
 
-	// Auto-select endpoint from selected credentials
+	// Filter credentials by selected endpoint
+	$: filteredCredentials = credentials.filter(cred =>
+		cred.forge_type === 'gitea' &&
+		(!endpointName || cred.endpoint?.name === endpointName)
+	);
+
+	// Clear credentials when endpoint changes (if current selection doesn't match)
 	$: {
-		if (credentialsName) {
-			const cred = filteredCredentials.find(c => c.name === credentialsName);
-			if (cred?.endpoint?.name) {
-				endpointName = cred.endpoint.name;
+		if (endpointName && credentialsName) {
+			const stillValid = filteredCredentials.find(c => c.name === credentialsName);
+			if (!stillValid) {
+				credentialsName = '';
 			}
 		}
 	}

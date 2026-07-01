@@ -1,19 +1,21 @@
 <script lang="ts">
 	import { createEventDispatcher, onMount } from 'svelte';
-	import type { Pool, UpdatePoolParams, Template, Repository, Organization, Enterprise, ForgeInstance, UpdateEntityParams } from '$lib/api/generated/api.js';
-	import { resolve } from '$app/paths';
+	import type { Pool, ScaleSet, UpdatePoolParams, UpdateScaleSetParams, Template, Repository, Organization, Enterprise, ForgeInstance, UpdateEntityParams } from '$lib/api/generated/api.js';
 	import Modal from './Modal.svelte';
-	import JsonEditor from './JsonEditor.svelte';
+	import RunnerConfigFields from './fields/RunnerConfigFields.svelte';
+	import RunnerLimitsFields from './fields/RunnerLimitsFields.svelte';
+	import RunnerAdvancedFields from './fields/RunnerAdvancedFields.svelte';
 	import { extractAPIError } from '$lib/utils/apiError';
 	import { eagerCache } from '$lib/stores/eager-cache.js';
 	import { garmApi } from '$lib/api/client.js';
 	import UpdateEntityModal from './UpdateEntityModal.svelte';
 
-	export let pool: Pool;
+	export let pool: Pool | ScaleSet;
+	export let poolType: 'pool' | 'scaleset' = 'pool';
 
 	const dispatch = createEventDispatcher<{
 		close: void;
-		submit: UpdatePoolParams;
+		submit: any;
 	}>();
 
 	let loading = false;
@@ -24,45 +26,55 @@
 	let showEntityUpdateModal = false;
 
 	// Form fields - initialize with pool values
+	let name = (pool as ScaleSet).name || '';
 	let image = pool.image || '';
 	let flavor = pool.flavor || '';
 	let maxRunners = pool.max_runners;
 	let minIdleRunners = pool.min_idle_runners;
 	let runnerBootstrapTimeout = pool.runner_bootstrap_timeout;
-	let priority = pool.priority;
+	let priority = (pool as Pool).priority;
 	let runnerPrefix = pool.runner_prefix || '';
 	let osType = pool.os_type || 'linux';
 	let osArch = pool.os_arch || 'amd64';
 	let githubRunnerGroup = pool['github-runner-group'] || '';
 	let enabled = pool.enabled;
 	let enableShell = pool.enable_shell ?? false;
-	let tags: string[] = (pool.tags || []).map(tag => tag.name || '').filter(Boolean);
-	let newTag = '';
+	let tags: string[] = poolType === 'pool'
+		? ((pool as Pool).tags || []).map(tag => tag.name || '').filter(Boolean)
+		: [];
 	let extraSpecs = '{}';
 	let selectedTemplate: number | undefined = (pool as any).template_id;
 
-	function getEntityName(pool: Pool): string {
+	function getEntityName(p: Pool | ScaleSet): string {
+		if (poolType === 'scaleset') {
+			const ss = p as ScaleSet;
+			if (ss.repo_name) return ss.repo_name;
+			if (ss.org_name) return ss.org_name;
+			if (ss.enterprise_name) return ss.enterprise_name;
+			return 'Unknown Entity';
+		}
+		const pp = p as Pool;
 		// Look up friendly names from eager cache
-		if (pool.repo_id) {
-			const repo = $eagerCache.repositories.find(r => r.id === pool.repo_id);
+		if (pp.repo_id) {
+			const repo = $eagerCache.repositories.find(r => r.id === pp.repo_id);
 			return repo ? `${repo.owner}/${repo.name}` : 'Unknown Entity';
 		}
-		if (pool.org_id) {
-			const org = $eagerCache.organizations.find(o => o.id === pool.org_id);
+		if (pp.org_id) {
+			const org = $eagerCache.organizations.find(o => o.id === pp.org_id);
 			return (org && org.name) ? org.name : 'Unknown Entity';
 		}
-		if (pool.enterprise_id) {
-			const enterprise = $eagerCache.enterprises.find(e => e.id === pool.enterprise_id);
+		if (pp.enterprise_id) {
+			const enterprise = $eagerCache.enterprises.find(e => e.id === pp.enterprise_id);
 			return (enterprise && enterprise.name) ? enterprise.name : 'Unknown Entity';
 		}
 		return 'Unknown Entity';
 	}
 
-	function getEntityType(pool: Pool): string {
-		if (pool.repo_id) return 'Repository';
-		if (pool.org_id) return 'Organization';
-		if (pool.enterprise_id) return 'Enterprise';
-		if (pool.forge_instance_id) return 'Forge Instance';
+	function getEntityType(p: Pool | ScaleSet): string {
+		if (p.repo_id) return 'Repository';
+		if (p.org_id) return 'Organization';
+		if (p.enterprise_id) return 'Enterprise';
+		if ((p as Pool).forge_instance_id) return 'Forge Instance';
 		return 'Unknown';
 	}
 
@@ -108,8 +120,8 @@
 			const enterprise = cache.enterprises.find(e => e.id === pool.enterprise_id);
 			return enterprise?.agent_mode ?? false;
 		}
-		if (pool.forge_instance_id) {
-			const fi = cache.forgeInstances.find(f => f.id === pool.forge_instance_id);
+		if ((pool as Pool).forge_instance_id) {
+			const fi = cache.forgeInstances.find(f => f.id === (pool as Pool).forge_instance_id);
 			return fi?.agent_mode ?? false;
 		}
 		return false;
@@ -130,8 +142,8 @@
 				await garmApi.updateOrganization(pool.org_id, params);
 			} else if (pool.enterprise_id) {
 				await garmApi.updateEnterprise(pool.enterprise_id, params);
-			} else if (pool.forge_instance_id) {
-				await garmApi.updateForgeInstance(pool.forge_instance_id, params);
+			} else if ((pool as Pool).forge_instance_id) {
+				await garmApi.updateForgeInstance((pool as Pool).forge_instance_id!, params);
 			}
 
 			// Close the entity update modal
@@ -150,25 +162,32 @@
 			return $eagerCache.organizations.find(o => o.id === pool.org_id) || null;
 		} else if (pool.enterprise_id) {
 			return $eagerCache.enterprises.find(e => e.id === pool.enterprise_id) || null;
-		} else if (pool.forge_instance_id) {
-			return $eagerCache.forgeInstances.find(f => f.id === pool.forge_instance_id) || null;
+		} else if ((pool as Pool).forge_instance_id) {
+			return $eagerCache.forgeInstances.find(f => f.id === (pool as Pool).forge_instance_id) || null;
 		}
 		return null;
+	}
+
+	function getEntityTypeForModal(): 'repository' | 'organization' | 'enterprise' | 'forge_instance' {
+		if (pool.repo_id) return 'repository';
+		if (pool.org_id) return 'organization';
+		if (pool.enterprise_id) return 'enterprise';
+		return 'forge_instance';
 	}
 
 	async function loadTemplates() {
 		try {
 			loadingTemplates = true;
-			
+
 			// Get forge type from the pool's entity
 			const forgeType = getEntityForgeType();
 			if (!forgeType) {
 				templates = [];
 				return;
 			}
-			
+
 			templates = await garmApi.listTemplates(osType, undefined, forgeType);
-			
+
 			// Auto-select system template if no template is currently selected, or if templates change
 			if (!selectedTemplate || !templates.find(t => t.id === selectedTemplate)) {
 				const systemTemplate = templates.find(t => t.owner_id === 'system');
@@ -223,24 +242,6 @@
 		}
 	}
 
-	function addTag() {
-		if (newTag.trim() && !tags.includes(newTag.trim())) {
-			tags = [...tags, newTag.trim()];
-			newTag = '';
-		}
-	}
-
-	function removeTag(index: number) {
-		tags = tags.filter((_, i) => i !== index);
-	}
-
-	function handleTagKeydown(event: KeyboardEvent) {
-		if (event.key === 'Enter') {
-			event.preventDefault();
-			addTag();
-		}
-	}
-
 	async function handleSubmit() {
 		try {
 			loading = true;
@@ -261,45 +262,81 @@
 				}
 			}
 
-			const params: UpdatePoolParams = {
-				image: image !== pool.image ? image : undefined,
-				flavor: flavor !== pool.flavor ? flavor : undefined,
-				max_runners: maxRunners !== pool.max_runners ? maxRunners : undefined,
-				min_idle_runners: minIdleRunners !== pool.min_idle_runners ? minIdleRunners : undefined,
-				runner_bootstrap_timeout: runnerBootstrapTimeout !== pool.runner_bootstrap_timeout ? runnerBootstrapTimeout : undefined,
-				priority: priority !== pool.priority ? priority : undefined,
-				runner_prefix: runnerPrefix !== pool.runner_prefix ? runnerPrefix : undefined,
-				os_type: osType !== pool.os_type ? osType : undefined,
-				os_arch: osArch !== pool.os_arch ? osArch : undefined,
-				'github-runner-group': githubRunnerGroup !== pool['github-runner-group'] ? githubRunnerGroup || undefined : undefined,
-				enabled: enabled !== pool.enabled ? enabled : undefined,
-				enable_shell: enableShell !== pool.enable_shell ? enableShell : undefined,
-				tags: JSON.stringify(tags) !== JSON.stringify((pool.tags || []).map(tag => tag.name || '').filter(Boolean)) ? tags : undefined,
-				extra_specs: extraSpecs.trim() !== JSON.stringify(pool.extra_specs || {}, null, 2).trim() ? parsedExtraSpecs : undefined,
-				template_id: selectedTemplate !== (pool as any).template_id ? selectedTemplate : undefined
-			};
+			if (poolType === 'scaleset') {
+				const ss = pool as ScaleSet;
+				const params: UpdateScaleSetParams = {
+					name: name !== ss.name ? name : undefined,
+					image: image !== ss.image ? image : undefined,
+					flavor: flavor !== ss.flavor ? flavor : undefined,
+					max_runners: maxRunners !== ss.max_runners ? maxRunners : undefined,
+					min_idle_runners: minIdleRunners !== ss.min_idle_runners ? minIdleRunners : undefined,
+					runner_bootstrap_timeout: runnerBootstrapTimeout !== ss.runner_bootstrap_timeout ? runnerBootstrapTimeout : undefined,
+					runner_prefix: runnerPrefix !== ss.runner_prefix ? runnerPrefix : undefined,
+					os_type: osType !== ss.os_type ? osType : undefined,
+					os_arch: osArch !== ss.os_arch ? osArch : undefined,
+					runner_group: githubRunnerGroup !== ss['github-runner-group'] ? githubRunnerGroup || undefined : undefined,
+					enabled: enabled !== ss.enabled ? enabled : undefined,
+					enable_shell: enableShell !== ss.enable_shell ? enableShell : undefined,
+					extra_specs: extraSpecs.trim() !== JSON.stringify(ss.extra_specs || {}, null, 2).trim() ? parsedExtraSpecs : undefined,
+					template_id: selectedTemplate !== (ss as any).template_id ? selectedTemplate : undefined
+				};
 
-			// Remove undefined values
-			Object.keys(params).forEach(key => {
-				if (params[key as keyof UpdatePoolParams] === undefined) {
-					delete params[key as keyof UpdatePoolParams];
-				}
-			});
+				// Remove undefined values
+				Object.keys(params).forEach(key => {
+					if (params[key as keyof UpdateScaleSetParams] === undefined) {
+						delete params[key as keyof UpdateScaleSetParams];
+					}
+				});
 
-			dispatch('submit', params);
+				dispatch('submit', params);
+			} else {
+				const pp = pool as Pool;
+				const params: UpdatePoolParams = {
+					image: image !== pp.image ? image : undefined,
+					flavor: flavor !== pp.flavor ? flavor : undefined,
+					max_runners: maxRunners !== pp.max_runners ? maxRunners : undefined,
+					min_idle_runners: minIdleRunners !== pp.min_idle_runners ? minIdleRunners : undefined,
+					runner_bootstrap_timeout: runnerBootstrapTimeout !== pp.runner_bootstrap_timeout ? runnerBootstrapTimeout : undefined,
+					priority: priority !== pp.priority ? priority : undefined,
+					runner_prefix: runnerPrefix !== pp.runner_prefix ? runnerPrefix : undefined,
+					os_type: osType !== pp.os_type ? osType : undefined,
+					os_arch: osArch !== pp.os_arch ? osArch : undefined,
+					'github-runner-group': githubRunnerGroup !== pp['github-runner-group'] ? githubRunnerGroup || undefined : undefined,
+					enabled: enabled !== pp.enabled ? enabled : undefined,
+					enable_shell: enableShell !== pp.enable_shell ? enableShell : undefined,
+					tags: JSON.stringify(tags) !== JSON.stringify((pp.tags || []).map(tag => tag.name || '').filter(Boolean)) ? tags : undefined,
+					extra_specs: extraSpecs.trim() !== JSON.stringify(pp.extra_specs || {}, null, 2).trim() ? parsedExtraSpecs : undefined,
+					template_id: selectedTemplate !== (pp as any).template_id ? selectedTemplate : undefined
+				};
+
+				// Remove undefined values
+				Object.keys(params).forEach(key => {
+					if (params[key as keyof UpdatePoolParams] === undefined) {
+						delete params[key as keyof UpdatePoolParams];
+					}
+				});
+
+				dispatch('submit', params);
+			}
 		} catch (err) {
 			error = extractAPIError(err);
 		} finally {
 			loading = false;
 		}
 	}
+
+	$: isPool = poolType === 'pool';
+	$: modalTitle = isPool ? `Update Pool ${pool.id}` : `Update Scale Set ${(pool as ScaleSet).name}`;
+	$: infoTitle = isPool ? 'Pool Information (Read-only)' : 'Scale Set Information';
+	$: enabledLabel = isPool ? 'Pool enabled' : 'Scale set enabled';
+	$: submitLabel = isPool ? 'Update Pool' : 'Update Scale Set';
 </script>
 
 <Modal on:close={() => dispatch('close')}>
 	<div class="max-w-6xl w-full max-h-[90vh] overflow-y-auto">
 		<div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
 			<h2 class="text-xl font-semibold text-gray-900 dark:text-white">
-				Update Pool {pool.id}
+				{modalTitle}
 			</h2>
 		</div>
 
@@ -309,16 +346,16 @@
 					<p class="text-sm font-medium text-red-800 dark:text-red-200">{error}</p>
 				</div>
 			{/if}
-			
+
 			{#if validationError}
 				<div class="rounded-md bg-yellow-50 dark:bg-yellow-900 p-4">
 					<p class="text-sm font-medium text-yellow-800 dark:text-yellow-200">{validationError}</p>
 				</div>
 			{/if}
 
-			<!-- Pool Info (Read-only) -->
+			<!-- Pool/Scale Set Info (Read-only) -->
 			<div class="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
-				<h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Pool Information (Read-only)</h3>
+				<h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{infoTitle}</h3>
 				<div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
 					<div class="flex">
 						<span class="text-gray-500 dark:text-gray-400 w-20 flex-shrink-0">Provider:</span>
@@ -333,312 +370,57 @@
 				</div>
 			</div>
 
-			<!-- Group 1: Image & OS Configuration -->
-			<div class="space-y-4">
-				<h3 class="text-lg font-medium text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-700 pb-2">
-					Image & OS Configuration
-				</h3>
-				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-					<div>
-						<label for="image" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-							Image
-						</label>
-						<input
-							id="image"
-							type="text"
-							bind:value={image}
-							placeholder="e.g., ubuntu:22.04"
-							class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-						/>
-					</div>
-					<div>
-						<label for="flavor" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-							Flavor
-						</label>
-						<input
-							id="flavor"
-							type="text"
-							bind:value={flavor}
-							placeholder="e.g., default"
-							class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-						/>
-					</div>
-					<div>
-						<label for="osType" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-							OS Type
-						</label>
-						<select
-							id="osType"
-							bind:value={osType}
-							class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-						>
-							<option value="linux">Linux</option>
-							<option value="windows">Windows</option>
-						</select>
-					</div>
-					<div>
-						<label for="osArch" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-							Architecture
-						</label>
-						<select
-							id="osArch"
-							bind:value={osArch}
-							class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-						>
-							<option value="amd64">AMD64</option>
-							<option value="arm64">ARM64</option>
-						</select>
-					</div>
-					
-					<!-- Template Selection -->
-					<div class="col-span-2">
-						<label for="template" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-							Runner Install Template
-						</label>
-						{#if loadingTemplates}
-							<div class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 flex items-center">
-								<div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
-								<span class="text-sm text-gray-600 dark:text-gray-400">Loading templates...</span>
-							</div>
-						{:else if templates.length > 0}
-							<select
-								id="template"
-								bind:value={selectedTemplate}
-								class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-							>
-								{#each templates as template}
-									<option value={template.id}>
-										{template.name} {template.owner_id === 'system' ? '(System)' : ''}
-										{#if template.description} - {template.description}{/if}
-									</option>
-								{/each}
-							</select>
-							<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-								Templates define how the runner software is installed and configured.
-								Showing templates for {getEntityForgeType()} {osType}.
-							</p>
-						{:else}
-							<div class="w-full px-3 py-2 border border-yellow-300 dark:border-yellow-600 rounded-md bg-yellow-50 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-200">
-								<p class="text-sm">No templates found for {getEntityForgeType()} {osType}.</p>
-								<p class="text-xs mt-1">
-									<a href={resolve('/templates')} class="text-yellow-700 dark:text-yellow-300 hover:underline">
-										Create a template first
-									</a> or proceed without a template to use default behavior.
-								</p>
-							</div>
-						{/if}
-					</div>
-				</div>
-			</div>
-
-			<!-- Group 2: Runner Limits & Timing -->
-			<div class="space-y-4">
-				<h3 class="text-lg font-medium text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-700 pb-2">
-					Runner Limits & Timing
-				</h3>
-				<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-					<div>
-						<label for="minIdleRunners" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-							Min Idle Runners
-						</label>
-						<input
-							id="minIdleRunners"
-							type="number"
-							bind:value={minIdleRunners}
-							min="0"
-							placeholder="0"
-							class="w-full px-3 py-2 border {validationError ? 'border-red-300 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-						/>
-					</div>
-					<div>
-						<label for="maxRunners" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-							Max Runners
-						</label>
-						<input
-							id="maxRunners"
-							type="number"
-							bind:value={maxRunners}
-							min="1"
-							placeholder="10"
-							class="w-full px-3 py-2 border {validationError ? 'border-red-300 dark:border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-						/>
-					</div>
-					<div>
-						<label for="bootstrapTimeout" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-							Bootstrap Timeout (min)
-						</label>
-						<input
-							id="bootstrapTimeout"
-							type="number"
-							bind:value={runnerBootstrapTimeout}
-							min="1"
-							placeholder="20"
-							class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-						/>
-					</div>
-				</div>
-			</div>
-
-			<!-- Group 3: Advanced Settings -->
-			<div class="space-y-4">
-				<h3 class="text-lg font-medium text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-700 pb-2">
-					Advanced Settings
-				</h3>
-				<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-					<div>
-						<label for="runnerPrefix" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-							Runner Prefix
-						</label>
-						<input
-							id="runnerPrefix"
-							type="text"
-							bind:value={runnerPrefix}
-							placeholder="garm"
-							class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-						/>
-					</div>
-					<div>
-						<label for="priority" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-							Priority
-						</label>
-						<input
-							id="priority"
-							type="number"
-							bind:value={priority}
-							min="1"
-							placeholder="100"
-							class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-						/>
-					</div>
-					<div>
-						<label for="githubRunnerGroup" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-							GitHub Runner Group (optional)
-						</label>
-						<input
-							id="githubRunnerGroup"
-							type="text"
-							bind:value={githubRunnerGroup}
-							placeholder="Default group"
-							class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-						/>
-					</div>
-				</div>
-
-				<!-- Tags -->
+			<!-- Scale Set Name (editable, only for scale sets) -->
+			{#if poolType === 'scaleset'}
 				<div>
-					<fieldset>
-						<legend class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-							Tags
-						</legend>
-					<div class="space-y-2">
-						<div class="flex">
-							<input
-								type="text"
-								bind:value={newTag}
-								on:keydown={handleTagKeydown}
-								placeholder="Enter a tag"
-								class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-l-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-							/>
-							<button
-								type="button"
-								on:click={addTag}
-								class="px-3 py-2 bg-blue-600 text-white rounded-r-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-							>
-								Add
-							</button>
-						</div>
-						{#if tags.length > 0}
-							<div class="flex flex-wrap gap-2">
-								{#each tags as tag, index}
-									<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
-										{tag}
-										<button
-											type="button"
-											on:click={() => removeTag(index)}
-											class="ml-1 h-4 w-4 rounded-full hover:bg-blue-200 dark:hover:bg-blue-800 flex items-center justify-center cursor-pointer"
-											aria-label="Remove tag {tag}"
-										>
-											<svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-											</svg>
-										</button>
-									</span>
-								{/each}
-							</div>
-						{/if}
-					</div>
-					</fieldset>
-				</div>
-
-				<!-- Extra Specs -->
-				<div>
-					<fieldset>
-						<legend class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-							Extra Specs (JSON)
-						</legend>
-					<JsonEditor
-						bind:value={extraSpecs}
-						rows={4}
-						placeholder="{'{}'}"
-					/>
-					</fieldset>
-				</div>
-
-				<!-- Enabled Checkbox -->
-				<div class="flex items-center">
-					<input
-						id="enabled"
-						type="checkbox"
-						bind:checked={enabled}
-						class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
-					/>
-					<label for="enabled" class="ml-2 block text-sm text-gray-700 dark:text-gray-300">
-						Pool enabled
+					<label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+						Scale Set Name
 					</label>
+					<input
+						id="name"
+						type="text"
+						bind:value={name}
+						placeholder="e.g., my-scale-set"
+						class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+					/>
 				</div>
+			{/if}
 
-				<!-- Enable Shell Checkbox -->
-				<div class="space-y-2">
-					<div class="flex items-center">
-						<input
-							id="enableShell"
-							type="checkbox"
-							bind:checked={enableShell}
-							disabled={!entityAgentMode}
-							class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-						/>
-						<label for="enableShell" class="ml-2 block text-sm font-medium text-gray-700 dark:text-gray-300 {!entityAgentMode ? 'opacity-50' : ''}">
-							Enable Shell
-						</label>
-						<div class="ml-2 relative group">
-							<svg class="w-4 h-4 text-gray-400 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-							</svg>
-							<div class="absolute left-full top-1/2 transform -translate-y-1/2 ml-2 w-80 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-								This enables remote shell in the GARM agent, allowing users to connect via garm-cli or web UI using websockets.
-								<div class="absolute right-full top-1/2 transform -translate-y-1/2 border-4 border-transparent border-r-gray-900"></div>
-							</div>
-						</div>
-					</div>
-					{#if !entityAgentMode}
-						<div class="ml-6 flex items-start space-x-2 text-xs text-yellow-700 dark:text-yellow-400">
-							<svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-							</svg>
-							<span>
-								Shell access requires agent mode to be enabled on the {getEntityType(pool).toLowerCase()}.
-								<button
-									type="button"
-									on:click={() => showEntityUpdateModal = true}
-									class="underline hover:text-yellow-800 dark:hover:text-yellow-300 cursor-pointer"
-								>
-									Enable agent mode
-								</button>
-							</span>
-						</div>
-					{/if}
-				</div>
-			</div>
+			<!-- Image & OS Configuration -->
+			<RunnerConfigFields
+				bind:image
+				bind:flavor
+				bind:osType
+				bind:osArch
+				bind:selectedTemplate
+				{templates}
+				{loadingTemplates}
+				idPrefix="update-{poolType}"
+			/>
+
+			<!-- Runner Limits & Timing -->
+			<RunnerLimitsFields
+				bind:minIdleRunners
+				bind:maxRunners
+				bind:runnerBootstrapTimeout
+			/>
+
+			<!-- Advanced Settings -->
+			<RunnerAdvancedFields
+				bind:runnerPrefix
+				bind:priority
+				bind:githubRunnerGroup
+				bind:tags
+				bind:extraSpecs
+				bind:enabled
+				bind:enableShell
+				{entityAgentMode}
+				{enabledLabel}
+				showTags={isPool}
+				showPriority={isPool}
+				idPrefix="update-{poolType}"
+				on:enableAgentMode={() => showEntityUpdateModal = true}
+			/>
 
 			<!-- Action Buttons -->
 			<div class="flex justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
@@ -660,7 +442,7 @@
 							Updating...
 						</div>
 					{:else}
-						Update Pool
+						{submitLabel}
 					{/if}
 				</button>
 			</div>
@@ -673,8 +455,8 @@
 	{@const entity = getEntity()}
 	{#if entity}
 		<UpdateEntityModal
-			entity={entity}
-			entityType={pool.repo_id ? 'repository' : pool.org_id ? 'organization' : pool.enterprise_id ? 'enterprise' : 'forge_instance'}
+			{entity}
+			entityType={getEntityTypeForModal()}
 			on:close={() => showEntityUpdateModal = false}
 			on:submit={(e) => handleEntityUpdate(e.detail)}
 		/>

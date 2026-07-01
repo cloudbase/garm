@@ -12,6 +12,7 @@
 	import PoolsSection from '$lib/components/PoolsSection.svelte';
 	import InstancesSection from '$lib/components/InstancesSection.svelte';
 	import EventsSection from '$lib/components/EventsSection.svelte';
+	import WebhookSection from '$lib/components/WebhookSection.svelte';
 	import { getForgeIcon, updateEntityFields } from '$lib/utils/common.js';
 	import { websocketStore, type WebSocketEvent } from '$lib/stores/websocket.js';
 	import { toastStore } from '$lib/stores/toast.js';
@@ -292,6 +293,13 @@
 
 		<!-- Forge Instance Details -->
 		<EntityInformation entity={forgeInstance} entityType="forge_instance" />
+
+		<!-- Webhook -->
+		<WebhookSection
+			entityType="forge_instance"
+			entityId={forgeInstance.id || ''}
+			entityName={forgeInstance.endpoint?.name || ''}
+		/>
 
 		<!-- Pools -->
 		<PoolsSection
