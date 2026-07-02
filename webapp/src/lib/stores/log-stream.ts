@@ -109,7 +109,7 @@ function createLogStreamStore() {
 		return `${protocol}//${host}/api/v1/ws/logs`;
 	}
 
-	function connect() {
+	async function connect() {
 		if (ws && (ws.readyState === WebSocket.CONNECTING || ws.readyState === WebSocket.OPEN)) {
 			return;
 		}
@@ -118,6 +118,28 @@ function createLogStreamStore() {
 		update(s => ({ ...s, connecting: true, error: null }));
 
 		try {
+			// Probe the endpoint with a regular HTTP request first.
+			// If log streaming is disabled, the server returns 400 before
+			// the WebSocket upgrade — the browser WS API swallows that,
+			// so we'd otherwise retry forever with no useful error message.
+			try {
+				const probeRes = await fetch(`/api/v1/ws/logs`, { method: 'GET' });
+				if (probeRes.status === 400) {
+					const body = await probeRes.text();
+					const msg = body.includes('disabled')
+						? 'Log streaming is disabled in the GARM configuration'
+						: body || 'Log streaming is not available';
+					update(s => ({ ...s, connecting: false, error: msg }));
+					return;
+				}
+				if (probeRes.status === 403) {
+					update(s => ({ ...s, connecting: false, error: 'Admin access required to view logs' }));
+					return;
+				}
+			} catch {
+				// Probe failed (network error) — fall through and try WS anyway
+			}
+
 			ws = new WebSocket(getWebSocketUrl());
 
 			const connectionTimeout = setTimeout(() => {
