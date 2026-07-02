@@ -517,8 +517,8 @@ export class GeneratedGarmApiClient {
   }
 
   // Forge Instances
-  async listForgeInstances(): Promise<ForgeInstance[]> {
-    const response = await this.forgeInstancesApi.listForgeInstances();
+  async listForgeInstances(endpoint?: string): Promise<ForgeInstance[]> {
+    const response = await this.forgeInstancesApi.listForgeInstances(endpoint);
     return response.data || [];
   }
 
