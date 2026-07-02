@@ -78,9 +78,10 @@
 		logStreamStore.disconnect();
 	});
 
-	let prevEntryCount = 0;
-	$: if (entries.length !== prevEntryCount) {
-		prevEntryCount = entries.length;
+	$: lastEntryId = entries.length > 0 ? entries[entries.length - 1].id : -1;
+	let prevLastEntryId = -1;
+	$: if (lastEntryId !== prevLastEntryId) {
+		prevLastEntryId = lastEntryId;
 		if (autoScroll && logContainer) {
 			tick().then(() => {
 				if (logContainer && autoScroll) {
