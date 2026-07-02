@@ -30,6 +30,8 @@
 
 	// Entity type selector
 	export let showEntityTypeSelector = false;
+	// When true, only show the entity type selector buttons (no form fields below)
+	export let showEntityTypeSelectorOnly = false;
 
 	export let idPrefix = '';
 
@@ -101,28 +103,40 @@
 				<p class="text-sm font-medium {entityType === 'organization' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-900 dark:text-white'}">Organization</p>
 			</button>
 
-			<button
-				type="button"
-				on:click={() => { if (forgeType !== 'gitea') { entityType = 'enterprise'; name = ''; owner = ''; } }}
-				disabled={forgeType === 'gitea'}
-				class="p-4 rounded-lg border-2 text-center transition-colors
-					{forgeType === 'gitea' ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-					{entityType === 'enterprise'
-						? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
-						: 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'}"
-			>
-				<svg class="w-8 h-8 mx-auto mb-2 {entityType === 'enterprise' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
-				</svg>
-				<p class="text-sm font-medium {entityType === 'enterprise' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-900 dark:text-white'}">Enterprise</p>
-				{#if forgeType === 'gitea'}
-					<p class="text-xs text-gray-400 mt-1">GitHub only</p>
-				{/if}
-			</button>
+			{#if forgeType === 'gitea'}
+				<button
+					type="button"
+					on:click={() => { entityType = 'forge_instance'; name = ''; owner = ''; }}
+					class="p-4 rounded-lg border-2 text-center transition-colors cursor-pointer
+						{entityType === 'forge_instance'
+							? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+							: 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'}"
+				>
+					<svg class="w-8 h-8 mx-auto mb-2 {entityType === 'forge_instance' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"/>
+					</svg>
+					<p class="text-sm font-medium {entityType === 'forge_instance' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-900 dark:text-white'}">Forge Instance</p>
+				</button>
+			{:else}
+				<button
+					type="button"
+					on:click={() => { entityType = 'enterprise'; name = ''; owner = ''; }}
+					class="p-4 rounded-lg border-2 text-center transition-colors cursor-pointer
+						{entityType === 'enterprise'
+							? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+							: 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'}"
+				>
+					<svg class="w-8 h-8 mx-auto mb-2 {entityType === 'enterprise' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+					</svg>
+					<p class="text-sm font-medium {entityType === 'enterprise' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-900 dark:text-white'}">Enterprise</p>
+				</button>
+			{/if}
 		</div>
 	</div>
 {/if}
 
+{#if !showEntityTypeSelectorOnly}
 <!-- Name / Owner fields -->
 {#if entityType === 'repository'}
 	<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -324,5 +338,6 @@
 			/>
 		{/if}
 	</div>
+{/if}
 {/if}
 {/if}

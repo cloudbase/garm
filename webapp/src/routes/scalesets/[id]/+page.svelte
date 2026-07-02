@@ -317,15 +317,15 @@
 					<dl class="space-y-4">
 						<div>
 							<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Max Runners</dt>
-							<dd class="mt-1 text-sm text-gray-900 dark:text-white">{scaleSet.max_runners}</dd>
+							<dd class="mt-1 text-sm text-gray-900 dark:text-white">{scaleSet.max_runners ?? 0}</dd>
 						</div>
 						<div>
 							<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Min Idle Runners</dt>
-							<dd class="mt-1 text-sm text-gray-900 dark:text-white">{scaleSet.min_idle_runners}</dd>
+							<dd class="mt-1 text-sm text-gray-900 dark:text-white">{scaleSet.min_idle_runners ?? 0}</dd>
 						</div>
 						<div>
 							<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Bootstrap Timeout</dt>
-							<dd class="mt-1 text-sm text-gray-900 dark:text-white">{scaleSet.runner_bootstrap_timeout} minutes</dd>
+							<dd class="mt-1 text-sm text-gray-900 dark:text-white">{scaleSet.runner_bootstrap_timeout ?? 20} minutes</dd>
 						</div>
 						<!-- Priority is not available in ScaleSet API -->
 						<div>

@@ -363,6 +363,10 @@
 		if (initialEntityType) {
 			loadEntities();
 		}
+		// Scale sets are GitHub-only — auto-select forge type
+		if (poolType === 'scaleset' && !selectedForgeType) {
+			selectedForgeType = 'github';
+		}
 	});
 
 	onDestroy(() => {
@@ -399,12 +403,14 @@
 	<!-- Step 0: Target -->
 	<div slot="step-0">
 		{#if !initialEntityType}
-			<!-- Forge Type Selection -->
-			<ForgeTypeSelector
-				{selectedForgeType}
-				label="Forge Type *"
-				on:select={(e) => selectForgeType(e.detail)}
-			/>
+			<!-- Forge Type Selection (skip for scale sets — GitHub only) -->
+			{#if poolType !== 'scaleset'}
+				<ForgeTypeSelector
+					{selectedForgeType}
+					label="Forge Type *"
+					on:select={(e) => selectForgeType(e.detail)}
+				/>
+			{/if}
 
 			<!-- Entity Level Selection (filtered by forge type) -->
 			{#if selectedForgeType}
@@ -569,6 +575,8 @@
 			bind:enabled
 			bind:enableShell
 			{entityAgentMode}
+			enabledLabel={poolType === 'scaleset' ? 'Enable scale set immediately' : 'Enable pool immediately'}
+			showPriority={poolType !== 'scaleset'}
 			idPrefix="create-pool"
 			on:enableAgentMode={() => { if (selectedEntityId) showEntityUpdateModal = true; }}
 		/>

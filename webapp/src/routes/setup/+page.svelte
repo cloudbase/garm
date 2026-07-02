@@ -47,7 +47,7 @@
 	const steps = [
 		{ number: 1, title: 'Endpoint', description: 'Select forge endpoint' },
 		{ number: 2, title: 'Credentials', description: 'Configure authentication' },
-		{ number: 3, title: 'Entity', description: 'Add repo, org, or enterprise' },
+		{ number: 3, title: 'Entity', description: 'Add repo, org, or instance' },
 		{ number: 4, title: 'Runner', description: 'Create pool or scale set' }
 	];
 

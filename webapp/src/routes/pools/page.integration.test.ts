@@ -20,7 +20,21 @@ vi.unmock('$lib/components/cells');
 vi.mock('$lib/api/client.js', () => ({
 	garmApi: {
 		updatePool: vi.fn(),
-		deletePool: vi.fn()
+		deletePool: vi.fn(),
+		listProviders: vi.fn().mockResolvedValue([]),
+		listTemplates: vi.fn().mockResolvedValue([]),
+		listRepositories: vi.fn().mockResolvedValue([]),
+		listOrganizations: vi.fn().mockResolvedValue([]),
+		listEnterprises: vi.fn().mockResolvedValue([]),
+		listForgeInstances: vi.fn().mockResolvedValue([]),
+		listEndpoints: vi.fn().mockResolvedValue([])
+	}
+}));
+
+vi.mock('$lib/stores/websocket.js', () => ({
+	websocketStore: {
+		subscribeToEntity: vi.fn(() => () => {}),
+		subscribe: vi.fn(() => () => {})
 	}
 }));
 
@@ -185,7 +199,9 @@ describe('Comprehensive Integration Tests for Pools Page', () => {
 			
 			// Click add button should show create modal
 			await fireEvent.click(addButton);
-			expect(screen.getByText(/Create Pool/i)).toBeInTheDocument();
+			await waitFor(() => {
+				expect(screen.getByText(/Create.*Pool|Create.*Scale/i)).toBeInTheDocument();
+			});
 		});
 
 		it('should show success toast on pool creation', async () => {
@@ -514,7 +530,9 @@ describe('Comprehensive Integration Tests for Pools Page', () => {
 			// Should integrate create modal workflow
 			const addButton = screen.getByRole('button', { name: /Add Pool/i });
 			await fireEvent.click(addButton);
-			expect(screen.getByText(/Create Pool/i)).toBeInTheDocument();
+			await waitFor(() => {
+				expect(screen.getByText(/Create.*Pool/i)).toBeInTheDocument();
+			});
 
 			// Modal should integrate with main page state
 			expect(screen.getByRole('heading', { name: 'Pools' })).toBeInTheDocument();
@@ -530,7 +548,9 @@ describe('Comprehensive Integration Tests for Pools Page', () => {
 			// Open modal
 			const addButton = screen.getByRole('button', { name: /Add Pool/i });
 			await fireEvent.click(addButton);
-			expect(screen.getByText(/Create Pool/i)).toBeInTheDocument();
+			await waitFor(() => {
+				expect(screen.getByText(/Create.*Pool/i)).toBeInTheDocument();
+			});
 
 			// Close modal (would be handled by modal's close event)
 			// State should be properly cleaned up

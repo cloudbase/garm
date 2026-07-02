@@ -33,7 +33,7 @@
 	<h3 class="text-lg font-medium text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-700 pb-2">
 		Advanced Settings
 	</h3>
-	<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+	<div class="grid grid-cols-1 {showPriority ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-4">
 		<div>
 			<label for={inputId('runnerPrefix')} class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
 				Runner Prefix
