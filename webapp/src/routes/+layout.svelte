@@ -59,7 +59,7 @@
 		<!-- Main content -->
 		<div class="lg:pl-64">
 			<main class="py-6 pt-20 lg:pt-6">
-				<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+				<div class="{page.url.pathname === resolve('/logs') ? 'px-4 sm:px-6' : 'mx-auto max-w-7xl px-4 sm:px-6 lg:px-8'}">
 					<slot />
 				</div>
 			</main>
