@@ -109,7 +109,9 @@ function createLogStreamStore() {
 		return `${protocol}//${host}/api/v1/ws/logs`;
 	}
 
-	async function connect() {
+	let everConnected = false;
+
+	function connect() {
 		if (ws && (ws.readyState === WebSocket.CONNECTING || ws.readyState === WebSocket.OPEN)) {
 			return;
 		}
@@ -118,28 +120,6 @@ function createLogStreamStore() {
 		update(s => ({ ...s, connecting: true, error: null }));
 
 		try {
-			// Probe the endpoint with a regular HTTP request first.
-			// If log streaming is disabled, the server returns 400 before
-			// the WebSocket upgrade — the browser WS API swallows that,
-			// so we'd otherwise retry forever with no useful error message.
-			try {
-				const probeRes = await fetch(`/api/v1/ws/logs`, { method: 'GET' });
-				if (probeRes.status === 400) {
-					const body = await probeRes.text();
-					const msg = body.includes('disabled')
-						? 'Log streaming is disabled in the GARM configuration'
-						: body || 'Log streaming is not available';
-					update(s => ({ ...s, connecting: false, error: msg }));
-					return;
-				}
-				if (probeRes.status === 403) {
-					update(s => ({ ...s, connecting: false, error: 'Admin access required to view logs' }));
-					return;
-				}
-			} catch {
-				// Probe failed (network error) — fall through and try WS anyway
-			}
-
 			ws = new WebSocket(getWebSocketUrl());
 
 			const connectionTimeout = setTimeout(() => {
@@ -152,6 +132,7 @@ function createLogStreamStore() {
 				clearTimeout(connectionTimeout);
 				reconnectAttempts = 0;
 				reconnectInterval = baseReconnectInterval;
+				everConnected = true;
 				update(s => ({ ...s, connected: true, connecting: false, error: null }));
 			};
 
@@ -203,6 +184,15 @@ function createLogStreamStore() {
 		if (reconnectTimeout) clearTimeout(reconnectTimeout);
 
 		reconnectAttempts++;
+
+		if (!everConnected && reconnectAttempts >= 3) {
+			update(s => ({
+				...s,
+				error: 'Unable to connect to log stream. Log streaming may be disabled in the GARM configuration (enable_log_streamer).',
+			}));
+			return;
+		}
+
 		if (reconnectAttempts > 50) {
 			reconnectAttempts = 1;
 			reconnectInterval = baseReconnectInterval;
@@ -219,6 +209,7 @@ function createLogStreamStore() {
 
 	function disconnect() {
 		manuallyDisconnected = true;
+		everConnected = false;
 		if (flushTimer !== null) {
 			clearTimeout(flushTimer);
 			flushTimer = null;
