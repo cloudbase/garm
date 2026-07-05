@@ -16,6 +16,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/jedib0t/go-pretty/v6/table"
@@ -29,11 +30,12 @@ import (
 )
 
 var (
-	templateName        string
-	templatePath        string
-	templateOSType      string
-	templateForgeType   string
-	templateDescription string
+	templateName         string
+	templatePath         string
+	templateOSType       string
+	templateForgeType    string
+	templateDescription  string
+	templateEditExternal bool
 )
 
 // templatesCmd represents the the templates command.
@@ -412,7 +414,12 @@ var templateEditCmd = &cobra.Command{
 	Use:          "edit [flags] template_name_or_id",
 	SilenceUsage: true,
 	Short:        "Edit runner install templates",
-	Long:         `Edit templates with optional basic vim keybindings.`,
+	Long: `Edit templates in the built-in editor.
+
+The built-in editor supports optional vim keybindings (F2 or Alt+V toggles
+them; the choice is remembered in the CLI config). Saving from the editor
+(Ctrl+S or :w) updates the template directly. With --external the template
+is opened in $EDITOR instead.`,
 	RunE: func(_ *cobra.Command, args []string) error {
 		if needsInit {
 			return errNeedsInitError
@@ -434,29 +441,104 @@ var templateEditCmd = &cobra.Command{
 			return fmt.Errorf("failed to get source template: %q", err)
 		}
 
+		original := string(response.Payload.Data)
+		updateTemplate := func(text string) error {
+			updateReq := apiTemplates.NewUpdateTemplateParams()
+			updateReq.TemplateID = float64(response.Payload.ID)
+			updateReq.Body.Data = []byte(text)
+			_, err := apiCli.Templates.UpdateTemplate(updateReq, authToken)
+			return err
+		}
+
+		if templateEditExternal {
+			newContent, changed, err := editWithExternalEditor(original, string(response.Payload.OSType))
+			if err != nil {
+				return err
+			}
+			if !changed {
+				fmt.Println("no changes made")
+				return nil
+			}
+			if err := updateTemplate(newContent); err != nil {
+				return fmt.Errorf("failed to update template: %s", err)
+			}
+			fmt.Println("changes saved successfully")
+			return nil
+		}
+
 		ed := editor.NewEditor()
 		ed.SetSyntax(editor.SyntaxForOSType(string(response.Payload.OSType)))
+		ed.SetTitle(fmt.Sprintf("Template: %s", response.Payload.Name))
+		ed.SetVimMode(cfg.EditorUseVim)
+		// Saving inside the editor (Ctrl+S, :w, :wq) pushes the update
+		// directly, so nothing needs to happen after EditText returns.
+		ed.SetSaveHandler(updateTemplate)
 
-		newContent, saved, err := ed.EditText(string(response.Payload.Data))
+		_, saved, err := ed.EditText(original)
 		if err != nil {
 			return fmt.Errorf("failed to open editor: %s", err)
 		}
 
-		if saved && newContent != string(response.Payload.Data) {
-			updateReq := apiTemplates.NewUpdateTemplateParams()
-			updateReq.TemplateID = float64(response.Payload.ID)
-			updateReq.Body.Data = []byte(newContent)
-
-			_, err = apiCli.Templates.UpdateTemplate(updateReq, authToken)
-			if err != nil {
-				return fmt.Errorf("failed to update template: %s", err)
+		// Remember the vim preference across sessions.
+		if ed.VimEnabled() != cfg.EditorUseVim {
+			cfg.EditorUseVim = ed.VimEnabled()
+			if err := cfg.SaveConfig(); err != nil {
+				fmt.Fprintf(os.Stderr, "warning: failed to save editor preference: %s\n", err)
 			}
+		}
+
+		switch {
+		case saved:
 			fmt.Println("changes saved successfully")
-		} else {
+		case ed.DiscardedChanges():
 			fmt.Println("changes discarded")
+		default:
+			fmt.Println("no changes made")
 		}
 		return nil
 	},
+}
+
+// editWithExternalEditor writes the template to a temporary file, opens it
+// in $EDITOR (falling back to vi) and reads the result back.
+func editWithExternalEditor(content, osType string) (string, bool, error) {
+	ext := ".sh"
+	if strings.EqualFold(osType, "windows") {
+		ext = ".ps1"
+	}
+	tmp, err := os.CreateTemp("", "garm-template-*"+ext)
+	if err != nil {
+		return "", false, fmt.Errorf("failed to create temporary file: %w", err)
+	}
+	path := tmp.Name()
+	defer os.Remove(path)
+	if _, err := tmp.WriteString(content); err != nil {
+		tmp.Close()
+		return "", false, fmt.Errorf("failed to write temporary file: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return "", false, fmt.Errorf("failed to write temporary file: %w", err)
+	}
+
+	editorCmd := os.Getenv("EDITOR")
+	if editorCmd == "" {
+		editorCmd = "vi"
+	}
+	// $EDITOR may carry arguments (e.g. "code --wait").
+	parts := strings.Fields(editorCmd)
+	cmd := exec.Command(parts[0], append(parts[1:], path)...) // #nosec G204,G702 -- $EDITOR is user-controlled by design
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return "", false, fmt.Errorf("editor %q failed: %w", editorCmd, err)
+	}
+
+	edited, err := os.ReadFile(path) // #nosec G304,G703 -- our own temp file
+	if err != nil {
+		return "", false, fmt.Errorf("failed to read edited file: %w", err)
+	}
+	return string(edited), string(edited) != content, nil
 }
 
 func init() {
@@ -481,6 +563,8 @@ func init() {
 
 	templateDownloadCmd.Flags().StringVar(&templatePath, "path", "", "Destination path for the download.")
 	templateDownloadCmd.MarkFlagRequired("path") //nolint
+
+	templateEditCmd.Flags().BoolVar(&templateEditExternal, "external", false, "Edit in $EDITOR (falls back to vi) instead of the built-in editor.")
 
 	templateCopyCmd.Flags().StringVar(&templateDescription, "description", "", "Template description.")
 

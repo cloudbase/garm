@@ -51,11 +51,17 @@ type syntaxHighlighter struct {
 }
 
 // newSyntaxHighlighter returns a highlighter for the given chroma language
-// name, or nil if the language is unknown or empty.
+// name, or nil if the language is unknown or empty. Runner install templates
+// are Go templates, so the language lexer is wrapped in a delegating lexer
+// that highlights the template actions and hands everything else to the
+// language.
 func newSyntaxHighlighter(language string) *syntaxHighlighter {
 	lexer := lexers.Get(language)
 	if lexer == nil {
 		return nil
+	}
+	if tmpl := lexers.Get("go-text-template"); tmpl != nil {
+		lexer = chroma.DelegatingLexer(lexer, tmpl)
 	}
 	return &syntaxHighlighter{lexer: chroma.Coalesce(lexer)}
 }
@@ -118,11 +124,10 @@ func (h *syntaxHighlighter) update(text string) {
 }
 
 // recolor applies the syntax colors to the visible cells of the text area.
-// It walks each visible line with the same width rules the text area uses
-// (tabs render as TabSize cells, everything else uses grapheme cluster
-// widths). Only cells whose foreground still is the default text color are
-// touched, so the selection keeps its inverted styling.
+// Only cells whose foreground still is the default text color are touched,
+// so the selection keeps its inverted styling.
 func (h *syntaxHighlighter) recolor(screen tcell.Screen, area *tview.TextArea) {
+	defaultFg := tview.Styles.PrimaryTextColor
 	x, y, width, height := area.GetInnerRect()
 	rowOffset, columnOffset := area.GetOffset()
 	for row := range height {
@@ -130,14 +135,28 @@ func (h *syntaxHighlighter) recolor(screen tcell.Screen, area *tview.TextArea) {
 		if lineIdx >= len(h.lines) {
 			break
 		}
-		if len(h.spans[lineIdx]) > 0 {
-			h.recolorLine(screen, x, y+row, width, columnOffset, h.lines[lineIdx], h.spans[lineIdx])
+		if len(h.spans[lineIdx]) == 0 {
+			continue
 		}
+		visitSpanCells(x, y+row, width, columnOffset, h.lines[lineIdx], h.spans[lineIdx],
+			func(cx, cy int, span lineSpan) {
+				str, style, _ := screen.Get(cx, cy)
+				if str == "" {
+					return // continuation cell of a wide character
+				}
+				if fg, _, _ := style.Decompose(); fg == defaultFg {
+					screen.Put(cx, cy, str, style.Foreground(span.color))
+				}
+			})
 	}
 }
 
-func (h *syntaxHighlighter) recolorLine(screen tcell.Screen, x, y, width, columnOffset int, line string, spans []lineSpan) {
-	defaultFg := tview.Styles.PrimaryTextColor
+// visitSpanCells walks one visible line of the text area with the same width
+// rules the text area uses (tabs render as TabSize cells, everything else
+// uses grapheme cluster widths) and calls visit for every on-screen cell
+// covered by a span. It is shared by the syntax recoloring and the search
+// match highlighting.
+func visitSpanCells(x, y, width, columnOffset int, line string, spans []lineSpan, visit func(cx, cy int, span lineSpan)) {
 	pos, col, state, spanIdx := 0, 0, -1, 0
 	for line != "" && col-columnOffset < width {
 		var cluster string
@@ -156,13 +175,7 @@ func (h *syntaxHighlighter) recolorLine(screen tcell.Screen, x, y, width, column
 				if cx < 0 || cx >= width {
 					continue
 				}
-				str, style, _ := screen.Get(x+cx, y)
-				if str == "" {
-					continue // continuation cell of a wide character
-				}
-				if fg, _, _ := style.Decompose(); fg == defaultFg {
-					screen.Put(x+cx, y, str, style.Foreground(spans[spanIdx].color))
-				}
+				visit(x+cx, y, spans[spanIdx])
 			}
 		}
 		pos += len(cluster)
