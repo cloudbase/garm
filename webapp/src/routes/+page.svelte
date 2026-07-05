@@ -61,7 +61,7 @@
 	}
 
 	function getPoolDisplayName(p: MetricsPool): string {
-		const entity = p.repo_name || p.org_name || p.enterprise_name || '';
+		const entity = p.repo_name || p.org_name || p.enterprise_name || p.forge_instance_name || '';
 		const shortId = (p.id || '').slice(0, 8);
 		return entity ? `${entity} / ${shortId}` : shortId || 'Unknown';
 	}

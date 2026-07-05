@@ -14,6 +14,7 @@
 package metrics
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"log/slog"
@@ -124,6 +125,19 @@ func (m *MetricsHub) tickerLoop() {
 	}
 }
 
+// entityDisplayName returns the name shown for an entity in dashboards:
+// "owner/name" for repositories, the plain name otherwise, falling back to
+// the owner (e.g. forge instances carry their name in Owner).
+func entityDisplayName(e params.ForgeEntity) string {
+	if e.EntityType == params.ForgeEntityTypeRepository && e.Owner != "" && e.Name != "" {
+		return e.Owner + "/" + e.Name
+	}
+	if e.Name == "" {
+		return e.Owner
+	}
+	return e.Name
+}
+
 // BuildSnapshot reads from the in-memory cache and aggregates data into
 // a MetricsSnapshot. This function is safe to call concurrently — the
 // cache handles its own locking.
@@ -136,14 +150,7 @@ func BuildSnapshot() MetricsSnapshot {
 	// Count pools per entity
 	poolCountByEntity := make(map[string]int, len(allEntities))
 	for _, pool := range allPools {
-		entityID := pool.RepoID
-		if entityID == "" {
-			entityID = pool.OrgID
-		}
-		if entityID == "" {
-			entityID = pool.EnterpriseID
-		}
-		if entityID != "" {
+		if entityID := cmp.Or(pool.RepoID, pool.OrgID, pool.EnterpriseID, pool.ForgeInstanceID); entityID != "" {
 			poolCountByEntity[entityID]++
 		}
 	}
@@ -151,32 +158,22 @@ func BuildSnapshot() MetricsSnapshot {
 	// Count scalesets per entity
 	scaleSetCountByEntity := make(map[string]int, len(allEntities))
 	for _, ss := range allScaleSets {
-		entityID := ss.RepoID
-		if entityID == "" {
-			entityID = ss.OrgID
-		}
-		if entityID == "" {
-			entityID = ss.EnterpriseID
-		}
-		if entityID != "" {
+		if entityID := cmp.Or(ss.RepoID, ss.OrgID, ss.EnterpriseID); entityID != "" {
 			scaleSetCountByEntity[entityID]++
 		}
 	}
 
-	// Build entity metrics
+	// Build entity metrics. Forge-instance pools only reference their owner
+	// by ID, so remember the display names for the pool loop below.
 	entities := make([]MetricsEntity, 0, len(allEntities))
+	forgeInstanceNames := make(map[string]string)
 	for _, e := range allEntities {
-		name := e.Name
-		if name == "" {
-			name = e.Owner
+		if e.EntityType == params.ForgeEntityTypeInstance {
+			forgeInstanceNames[e.ID] = entityDisplayName(e)
 		}
-		if e.EntityType == params.ForgeEntityTypeRepository && e.Owner != "" && e.Name != "" {
-			name = e.Owner + "/" + e.Name
-		}
-
 		entities = append(entities, MetricsEntity{
 			ID:            e.ID,
-			Name:          name,
+			Name:          entityDisplayName(e),
 			Type:          string(e.EntityType),
 			Endpoint:      e.Credentials.Endpoint.Name,
 			PoolCount:     poolCountByEntity[e.ID],
@@ -243,6 +240,7 @@ func BuildSnapshot() MetricsSnapshot {
 			RepoName:           p.RepoName,
 			OrgName:            p.OrgName,
 			EnterpriseName:     p.EnterpriseName,
+			ForgeInstanceName:  forgeInstanceNames[p.ForgeInstanceID],
 			RunnerCounts:       counts,
 			RunnerStatusCounts: rsCounts,
 		})

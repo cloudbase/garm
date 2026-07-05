@@ -36,14 +36,19 @@ type MetricsEntity struct {
 
 // MetricsPool represents a pool with runner counts grouped by instance status.
 type MetricsPool struct {
-	ID                 string         `json:"id"`
-	ProviderName       string         `json:"provider_name"`
-	OSType             string         `json:"os_type"`
-	MaxRunners         uint           `json:"max_runners"`
-	Enabled            bool           `json:"enabled"`
-	RepoName           string         `json:"repo_name,omitempty"`
-	OrgName            string         `json:"org_name,omitempty"`
-	EnterpriseName     string         `json:"enterprise_name,omitempty"`
+	ID             string `json:"id"`
+	ProviderName   string `json:"provider_name"`
+	OSType         string `json:"os_type"`
+	MaxRunners     uint   `json:"max_runners"`
+	Enabled        bool   `json:"enabled"`
+	RepoName       string `json:"repo_name,omitempty"`
+	OrgName        string `json:"org_name,omitempty"`
+	EnterpriseName string `json:"enterprise_name,omitempty"`
+	// ForgeInstanceName is the display name of the forge instance owning the
+	// pool. Unlike repos/orgs/enterprises, pools only carry the forge
+	// instance ID, so the name is resolved from the entity cache when the
+	// snapshot is built.
+	ForgeInstanceName  string         `json:"forge_instance_name,omitempty"`
 	RunnerCounts       map[string]int `json:"runner_counts"`
 	RunnerStatusCounts map[string]int `json:"runner_status_counts"`
 }
