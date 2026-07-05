@@ -71,6 +71,10 @@ type Config struct {
 	mux           sync.Mutex
 	Managers      []Manager `toml:"manager"`
 	ActiveManager string    `toml:"active_manager"`
+	// EditorUseVim remembers whether the built-in template editor should
+	// start with vim keybindings. It is updated when the user toggles vim
+	// mode in the editor.
+	EditorUseVim bool `toml:"editor_use_vim,omitempty"`
 }
 
 func (c *Config) HasManager(mgr string) bool {

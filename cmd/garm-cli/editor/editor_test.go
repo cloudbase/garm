@@ -36,7 +36,7 @@ func TestFindNextSelectsMatchesAndWraps(t *testing.T) {
 	// search operates on byte offsets, not screen columns.
 	content := "héllo\twörld\nfirst foo\nsecond foo\nlast"
 	e := newTestEditor(t, content)
-	e.searchTerm = "foo"
+	e.setSearchTerm("foo")
 
 	first := strings.Index(content, "foo")
 	second := strings.LastIndex(content, "foo")
@@ -60,7 +60,7 @@ func TestFindNextSelectsMatchesAndWraps(t *testing.T) {
 func TestFindPreviousWrapsAround(t *testing.T) {
 	content := "first foo\nsecond foo\n"
 	e := newTestEditor(t, content)
-	e.searchTerm = "foo"
+	e.setSearchTerm("foo")
 
 	// Cursor is at the beginning: wrap to the last occurrence.
 	e.findPrevious()
@@ -87,7 +87,7 @@ func TestSearchBeyondVisibleAreaScrollsCorrectly(t *testing.T) {
 	content := sb.String()
 
 	e := newTestEditor(t, content)
-	e.searchTerm = "needle"
+	e.setSearchTerm("needle")
 	e.findNext()
 
 	row, col, _, _ := e.editor.GetCursor()
@@ -329,17 +329,287 @@ func TestSearchBarOpensAndCloses(t *testing.T) {
 	e.SetVimMode(true)
 
 	require.Nil(t, e.handleVimNormalRune(0, '/'))
-	require.NotNil(t, e.searchBar)
+	require.NotNil(t, e.bottomBar)
 	require.Equal(t, VimSearch, e.vimMode)
 
 	// Type a term and submit it via the done func.
-	e.searchBar.SetText("foo")
-	handler := e.searchBar.InputHandler()
+	e.bottomBar.SetText("foo")
+	handler := e.bottomBar.InputHandler()
 	handler(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone), func(tview.Primitive) {})
-	require.Nil(t, e.searchBar)
+	require.Nil(t, e.bottomBar)
 	require.Equal(t, VimNormal, e.vimMode)
 	require.Equal(t, "foo", e.searchTerm)
 	text, start, _ := selection(e)
 	require.Equal(t, "foo", text)
 	require.Equal(t, 6, start)
+}
+
+func TestSmartCaseSearch(t *testing.T) {
+	e := newTestEditor(t, "FOO bar\nfoo baz\nFoo qux")
+
+	// All-lowercase terms match case-insensitively.
+	e.setSearchTerm("foo")
+	require.Len(t, e.searchMatches(), 3)
+
+	// Terms with uppercase letters match exactly.
+	e.setSearchTerm("Foo")
+	require.Len(t, e.searchMatches(), 1)
+
+	// Regex metacharacters are matched literally.
+	e = newTestEditor(t, "a.c\nabc")
+	e.setSearchTerm("a.c")
+	require.Len(t, e.searchMatches(), 1)
+}
+
+func TestSearchStatusMessages(t *testing.T) {
+	e := newTestEditor(t, "one foo two foo")
+	e.setSearchTerm("foo")
+
+	e.findNext()
+	require.Equal(t, "/foo — match 1 of 2", e.statusMsg)
+	require.False(t, e.statusErr)
+	require.True(t, e.hlSearch)
+
+	e.findNext()
+	require.Equal(t, "/foo — match 2 of 2", e.statusMsg)
+	e.findNext()
+	require.Contains(t, e.statusMsg, "(wrapped)")
+
+	e.setSearchTerm("missing")
+	e.findNext()
+	require.Equal(t, "pattern not found: missing", e.statusMsg)
+	require.True(t, e.statusErr)
+
+	// Escape clears the highlighting and the status, like vim's :noh.
+	e.dismissTransients()
+	require.False(t, e.hlSearch)
+	require.Empty(t, e.statusMsg)
+}
+
+func TestFindWithoutPatternReportsStatus(t *testing.T) {
+	e := newTestEditor(t, "some text")
+	e.findNext()
+	require.True(t, e.statusErr)
+	require.Contains(t, e.statusMsg, "no search pattern")
+}
+
+func TestVimRedoAndNavigationChords(t *testing.T) {
+	e := newTestEditor(t, "some text")
+	e.SetVimMode(true)
+
+	// Ctrl+R translates to the text area's redo binding.
+	event := e.handleVimNormalKey(tcell.NewEventKey(tcell.KeyCtrlR, 0, tcell.ModNone))
+	require.NotNil(t, event)
+	require.Equal(t, tcell.KeyCtrlY, event.Key())
+
+	// Pure-movement emacs chords pass through in normal mode...
+	for _, key := range []tcell.Key{tcell.KeyCtrlA, tcell.KeyCtrlE, tcell.KeyCtrlB} {
+		passed := e.handleVimNormalKey(tcell.NewEventKey(key, 0, tcell.ModNone))
+		require.NotNil(t, passed, "key %v must pass through", key)
+	}
+	// ...but destructive ones stay blocked.
+	for _, key := range []tcell.Key{tcell.KeyCtrlK, tcell.KeyCtrlU, tcell.KeyCtrlW, tcell.KeyCtrlD} {
+		require.Nil(t, e.handleVimNormalKey(tcell.NewEventKey(key, 0, tcell.ModNone)), "key %v must be blocked", key)
+	}
+}
+
+func TestYankAndPaste(t *testing.T) {
+	e := newTestEditor(t, "one\ntwo\nthree")
+	e.SetVimMode(true)
+
+	// yy yanks the current line linewise.
+	e.moveTo(5) // on "two"
+	require.Nil(t, e.handleVimNormalRune(0, 'y'))
+	require.Equal(t, 'y', e.pendingKey)
+	require.Nil(t, e.handleVimNormalRune('y', 'y'))
+	require.Equal(t, "two\n", e.clipText)
+	require.True(t, e.clipLinewise)
+	require.Equal(t, "1 line yanked", e.statusMsg)
+
+	// p pastes the line below the cursor line.
+	e.handleVimNormalRune(0, 'p')
+	require.Equal(t, "one\ntwo\ntwo\nthree", e.editor.GetText())
+
+	// P pastes above.
+	e.moveTo(0)
+	e.handleVimNormalRune(0, 'P')
+	require.Equal(t, "two\none\ntwo\ntwo\nthree", e.editor.GetText())
+}
+
+func TestDeleteLineYanks(t *testing.T) {
+	e := newTestEditor(t, "one\ntwo\nthree")
+	e.moveTo(5) // on "two"
+	e.deleteCurrentLine()
+	require.Equal(t, "one\nthree", e.editor.GetText())
+	require.Equal(t, "two\n", e.clipText)
+	require.True(t, e.clipLinewise)
+
+	// dd on the last line (no trailing newline) still yanks a full line and
+	// p can paste it back at the end.
+	e.moveTo(e.editor.GetTextLength())
+	e.deleteCurrentLine()
+	require.Equal(t, "one\n", e.editor.GetText())
+	require.Equal(t, "three\n", e.clipText)
+	e.moveTo(0)
+	e.pasteClipboard(false)
+	require.Equal(t, "one\nthree\n", e.editor.GetText())
+}
+
+func TestCharwisePaste(t *testing.T) {
+	e := newTestEditor(t, "abc")
+	e.setClipText("XY", false)
+	e.moveTo(1) // cursor on 'b'
+
+	// p inserts after the cursor character, P at the cursor.
+	e.pasteClipboard(false)
+	require.Equal(t, "abXYc", e.editor.GetText())
+	e.moveTo(0)
+	e.pasteClipboard(true)
+	require.Equal(t, "XYabXYc", e.editor.GetText())
+}
+
+func TestGoToLineAndCommands(t *testing.T) {
+	e := newTestEditor(t, "one\ntwo\nthree\nfour")
+
+	e.runCommand("3")
+	_, start, _ := e.editor.GetSelection()
+	require.Equal(t, len("one\ntwo\n"), start)
+
+	// Out-of-range line numbers clamp.
+	e.runCommand("999")
+	_, start, _ = e.editor.GetSelection()
+	require.Equal(t, len("one\ntwo\nthree\n"), start)
+
+	e.runCommand("nonsense")
+	require.True(t, e.statusErr)
+	require.Contains(t, e.statusMsg, "unknown command")
+}
+
+func TestWriteInPlace(t *testing.T) {
+	e := newTestEditor(t, "initial")
+
+	// Without a save handler, :w explains itself.
+	e.writeInPlace()
+	require.True(t, e.statusErr)
+	require.Contains(t, e.statusMsg, "no in-place save")
+
+	var savedText string
+	e.saveHandler = func(text string) error {
+		savedText = text
+		return nil
+	}
+	e.editor.SetText("modified", true)
+	e.writeInPlace()
+	require.Equal(t, "modified", savedText)
+	require.True(t, e.saved)
+	require.False(t, e.modified)
+	require.Equal(t, "modified", e.initialContent, "the baseline moves to the written text")
+
+	// A failing handler reports the error and keeps the baseline.
+	e.saveHandler = func(string) error { return fmt.Errorf("boom") }
+	e.editor.SetText("more changes", true)
+	e.writeInPlace()
+	require.True(t, e.statusErr)
+	require.Contains(t, e.statusMsg, "boom")
+	require.Equal(t, "modified", e.initialContent)
+}
+
+func TestSaveAndExitSkipsHandlerWhenUnchanged(t *testing.T) {
+	e := newTestEditor(t, "initial")
+	called := false
+	e.saveHandler = func(string) error { called = true; return nil }
+
+	e.saveAndExit()
+	require.False(t, called, "an unchanged buffer is not persisted")
+	require.False(t, e.saved)
+
+	e.editor.SetText("changed", true)
+	e.saveAndExit()
+	require.True(t, called)
+	require.True(t, e.saved)
+}
+
+func TestDiscardedChanges(t *testing.T) {
+	e := newTestEditor(t, "initial")
+	e.runCommand("q!")
+	require.False(t, e.DiscardedChanges(), "no changes, nothing discarded")
+
+	e = newTestEditor(t, "initial")
+	e.editor.SetText("modified", true)
+	e.runCommand("q!")
+	require.True(t, e.DiscardedChanges())
+}
+
+func TestModifiedMarkerInTitle(t *testing.T) {
+	e := newTestEditor(t, "initial")
+	e.SetTitle("Template: test")
+	e.refreshChrome()
+	require.False(t, e.modified)
+
+	e.editor.SetText("changed", true)
+	require.True(t, e.modified)
+	require.Contains(t, e.frame.GetTitle(), "Template: test [+]")
+
+	e.editor.SetText("initial", true)
+	require.False(t, e.modified)
+	require.NotContains(t, e.frame.GetTitle(), "[+]")
+}
+
+func TestSearchBarWorksWithoutVim(t *testing.T) {
+	e := newTestEditor(t, "first foo\nsecond foo\n")
+
+	// Ctrl+F opens the search bar even with vim disabled.
+	require.Nil(t, e.handleEditorKey(tcell.NewEventKey(tcell.KeyCtrlF, 0, tcell.ModNone)))
+	require.NotNil(t, e.bottomBar)
+
+	e.bottomBar.SetText("foo")
+	handler := e.bottomBar.InputHandler()
+	handler(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone), func(tview.Primitive) {})
+	require.Nil(t, e.bottomBar)
+	text, _, _ := e.editor.GetSelection()
+	require.Equal(t, "foo", text)
+
+	// F3 finds the next match.
+	require.Nil(t, e.handleEditorKey(tcell.NewEventKey(tcell.KeyF3, 0, tcell.ModNone)))
+	require.Equal(t, "/foo — match 2 of 2", e.statusMsg)
+}
+
+func TestEmptySearchSubmissionRepeatsLastSearch(t *testing.T) {
+	e := newTestEditor(t, "foo one foo")
+	e.setSearchTerm("foo")
+	e.findNext()
+	_, first, _ := e.editor.GetSelection()
+
+	e.openSearchBar()
+	handler := e.bottomBar.InputHandler()
+	handler(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone), func(tview.Primitive) {})
+	_, second, _ := e.editor.GetSelection()
+	require.NotEqual(t, first, second, "empty submission repeats the search")
+	require.Equal(t, "foo", e.searchTerm)
+}
+
+func TestCopySelectionSetsClipboard(t *testing.T) {
+	e := newTestEditor(t, "hello world")
+	e.editor.Select(0, 5)
+	e.copySelection()
+	require.Equal(t, "hello", e.clipText)
+	require.False(t, e.clipLinewise)
+}
+
+func TestQuitModalHasSaveOption(t *testing.T) {
+	e := newTestEditor(t, "initial")
+	saved := ""
+	e.saveHandler = func(text string) error { saved = text; return nil }
+	e.editor.SetText("modified", true)
+
+	require.Nil(t, e.handleEditorKey(tcell.NewEventKey(tcell.KeyCtrlQ, 0, tcell.ModNone)))
+	name, _ := e.pages.GetFrontPage()
+	require.Equal(t, "confirm-quit", name)
+
+	// The modal's first button saves through the handler and exits.
+	handler := e.quitModal.InputHandler()
+	e.quitModal.SetFocus(0)
+	handler(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone), func(tview.Primitive) {})
+	require.Equal(t, "modified", saved)
+	require.True(t, e.saved)
 }
