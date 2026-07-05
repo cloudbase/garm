@@ -149,13 +149,29 @@ func (c *ClientSession) clientReader() {
 		}
 
 		switch agentMsg.Type {
-		case messaging.MessageTypeClientShellClosed, messaging.MessageTypeShellData,
-			messaging.MessageTypeShellResize:
+		case messaging.MessageTypeClientShellClosed:
+			_, err = messaging.Unmarshal[messaging.ClientShellClosedMessage](agentMsg)
+			if err != nil {
+				slog.ErrorContext(c.ctx, "invalid client shell closed message", "error", err)
+				return
+			}
+		case messaging.MessageTypeShellData:
+			_, err = messaging.Unmarshal[messaging.ShellDataMessage](agentMsg)
+			if err != nil {
+				slog.ErrorContext(c.ctx, "invalid client shell data message", "error", err)
+				return
+			}
+		case messaging.MessageTypeShellResize:
+			_, err = messaging.Unmarshal[messaging.ShellResizeMessage](agentMsg)
+			if err != nil {
+				slog.ErrorContext(c.ctx, "invalid client shell resize message", "error", err)
+				return
+			}
 		default:
 			slog.ErrorContext(c.ctx, "invalid message type received from client", "message_type", agentMsg.Type)
 			return
 		}
-		if !bytes.Equal(agentMsg.Data[:16], c.sessionID[:]) {
+		if len(agentMsg.Data) < 16 || !bytes.Equal(agentMsg.Data[:16], c.sessionID[:]) {
 			slog.ErrorContext(c.ctx, "invalid session ID")
 			return
 		}
