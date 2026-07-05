@@ -21,6 +21,7 @@ export interface MetricsPool {
 	repo_name?: string;
 	org_name?: string;
 	enterprise_name?: string;
+	forge_instance_name?: string;
 	runner_counts: Record<string, number>;
 	runner_status_counts: Record<string, number>;
 }
