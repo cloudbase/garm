@@ -105,7 +105,7 @@ func (a *APIController) AgentShellHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 	slog.InfoContext(ctx, "shell session created", "session_id", sessionID, "agent_name", agentName)
-	defer agent.RemoveClientSession(sessionID, false)
+	defer agent.RemoveClientSession(sessionID)
 
 	select {
 	case <-sess.Done():
