@@ -40,6 +40,9 @@ type InstallContext struct {
 	AgentURL         string
 	AgentToken       string
 	AgentShell       string // "true" or "false", used verbatim in TOML config
+	// ForceInsecureGARMAgent allows the agent to connect back to GARM even when
+	// TLS is not enabled in GARM itself.
+	ForceInsecureGARMAgent bool
 }
 
 func GetTemplateContent(osType commonParams.OSType, forge params.EndpointType) ([]byte, error) {

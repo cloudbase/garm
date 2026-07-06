@@ -426,6 +426,9 @@ server_url = "$agentURL"
 log_file = "C:/garm-agent/garm-agent.log"
 shell = "cmd.exe"
 enable_shell = $shellEnabled
+{{- if .ForceInsecureGARMAgent }}
+force_insecure = true
+{{- end }}
 work_dir = "C:/actions-runner/"
 token = "$agentToken"
 runner_cmdline = ["C:\\Windows\\system32\\cmd.exe", "/C", "C:\\actions-runner\\run.cmd"]

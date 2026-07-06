@@ -39,6 +39,14 @@ definitions:
                     URL must be configured to allow websocket connections.
                 type: string
                 x-go-name: AgentURL
+            allow_insecure_garm_agent:
+                description: |-
+                    AllowInsecureGARMAgent configures deployed garm-agents with
+                    force_insecure enabled, permitting them to connect back to GARM over
+                    plain http/ws when GARM itself does not use TLS. The agent token is
+                    sent in plain text; meant for local development and testing only.
+                type: boolean
+                x-go-name: AllowInsecureGARMAgent
             ca_cert_bundle:
                 description: |-
                     CACertBundle holds a certificate bundle meant to validate the certificate
@@ -2087,6 +2095,13 @@ definitions:
             agent_url:
                 type: string
                 x-go-name: AgentURL
+            allow_insecure_garm_agent:
+                description: |-
+                    AllowInsecureGARMAgent configures deployed garm-agents to connect to
+                    GARM over plain http/ws (the agent's force_insecure setting). Meant
+                    for local development and testing only.
+                type: boolean
+                x-go-name: AllowInsecureGARMAgent
             ca_cert_bundle:
                 format: byte
                 type: string

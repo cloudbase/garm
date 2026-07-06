@@ -1152,6 +1152,11 @@ type ControllerInfo struct {
 	// SyncGARMAgentTools is enabled) downloaded, for operators who want to
 	// stick with a known good agent version.
 	GARMAgentVersion string `json:"garm_agent_version"`
+	// AllowInsecureGARMAgent configures deployed garm-agents with
+	// force_insecure enabled, permitting them to connect back to GARM over
+	// plain http/ws when GARM itself does not use TLS. The agent token is
+	// sent in plain text; meant for local development and testing only.
+	AllowInsecureGARMAgent bool `json:"allow_insecure_garm_agent"`
 	// MinimumJobAgeBackoff is the minimum time in seconds that a job must be in queued state
 	// before GARM will attempt to allocate a runner for it. When set to a non zero value,
 	// GARM will ignore the job until the job's age is greater than this value. When using

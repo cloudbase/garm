@@ -39,6 +39,7 @@ var (
 	garmToolsReleasesURL string
 	garmAgentVersion     string
 	enableToolsSync      bool
+	allowInsecureAgent   bool
 	minimumJobAgeBackoff uint
 	controllerCABundle   string
 	clearCABundle        bool

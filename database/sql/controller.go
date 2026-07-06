@@ -78,6 +78,7 @@ func dbControllerToCommonController(dbInfo ControllerInfo) (params.ControllerInf
 		GARMAgentReleasesURL:            dbInfo.GARMAgentReleasesURL,
 		SyncGARMAgentTools:              dbInfo.SyncGARMAgentTools,
 		GARMAgentVersion:                dbInfo.GARMAgentVersion,
+		AllowInsecureGARMAgent:          dbInfo.AllowInsecureGARMAgent,
 		CachedGARMAgentReleaseFetchedAt: dbInfo.CachedGARMAgentReleaseFetchedAt,
 		CachedGARMAgentReleases:         dbInfo.CachedGARMAgentReleases,
 		CACertBundle:                    dbInfo.CACertBundle,
@@ -215,6 +216,10 @@ func controllerUpdates(info params.UpdateControllerParams, dbInfo ControllerInfo
 		if agentVersion != dbInfo.GARMAgentVersion {
 			updates["garm_agent_version"] = agentVersion
 		}
+	}
+
+	if info.AllowInsecureGARMAgent != nil && *info.AllowInsecureGARMAgent != dbInfo.AllowInsecureGARMAgent {
+		updates["allow_insecure_garm_agent"] = *info.AllowInsecureGARMAgent
 	}
 
 	if info.MinimumJobAgeBackoff != nil && *info.MinimumJobAgeBackoff != dbInfo.MinimumJobAgeBackoff {

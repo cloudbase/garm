@@ -86,6 +86,9 @@ server_url = "$AGENT_URL"
 log_file = "/var/log/garm-agent/garm-agent.log"
 work_dir = "$RUN_HOME"
 enable_shell = $AGENT_SHELL
+{{- if .ForceInsecureGARMAgent }}
+force_insecure = true
+{{- end }}
 token = "$AGENT_TOKEN"
 runner_cmdline = ["$RUN_HOME/gitea-runner", "daemon", "--once"]
 state_db_path = "/etc/garm-agent/agent-state.db"
