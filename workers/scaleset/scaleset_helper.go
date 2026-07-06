@@ -122,10 +122,25 @@ func (w *Worker) HandleJobsCompleted(jobs []params.ScaleSetJobMessage) (err erro
 		locking.Lock(job.RunnerName, w.consumerID)
 		_, err := w.store.UpdateInstance(w.ctx, job.RunnerName, runnerUpdateParams)
 		if err != nil {
-			if !errors.Is(err, runnerErrors.ErrNotFound) {
-				locking.Unlock(job.RunnerName, false)
-				return fmt.Errorf("updating runner %s: %w", job.RunnerName, err)
+			if errors.Is(err, runnerErrors.ErrNotFound) {
+				locking.Unlock(job.RunnerName, true)
+				continue
 			}
+			if errors.Is(err, runnerErrors.ErrBadRequest) {
+				// The instance is no longer in a state that can transition to
+				// pending_delete (e.g. it was already deleted or is being deleted
+				// by some other codepath, such as the reconciler noticing it went
+				// missing from the provider/github). There is nothing further for
+				// us to do here. Treating this as fatal would cause this message
+				// to be retried forever, since we never advance past it or delete
+				// it, blocking every subsequent message for this scale set.
+				slog.InfoContext(w.ctx, "runner already being handled/removed; ignoring completed job status update",
+					"runner_name", job.RunnerName, "error", err)
+				locking.Unlock(job.RunnerName, true)
+				continue
+			}
+			locking.Unlock(job.RunnerName, false)
+			return fmt.Errorf("updating runner %s: %w", job.RunnerName, err)
 		}
 		locking.Unlock(job.RunnerName, false)
 	}
@@ -157,6 +172,16 @@ func (w *Worker) HandleJobsStarted(jobs []params.ScaleSetJobMessage) (err error)
 		if err != nil {
 			if errors.Is(err, runnerErrors.ErrNotFound) {
 				slog.InfoContext(w.ctx, "runner not found; handled by some other controller?", "runner_name", job.RunnerName)
+				locking.Unlock(job.RunnerName, true)
+				continue
+			}
+			if errors.Is(err, runnerErrors.ErrBadRequest) {
+				// The runner is already in a terminal/being-deleted state (e.g. it
+				// was reaped after going missing from the provider or github). Same
+				// reasoning as in HandleJobsCompleted: don't fail the whole message,
+				// or we'll retry it forever and block the scale set's message queue.
+				slog.InfoContext(w.ctx, "runner already being handled/removed; ignoring started job status update",
+					"runner_name", job.RunnerName, "error", err)
 				locking.Unlock(job.RunnerName, true)
 				continue
 			}
