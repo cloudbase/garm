@@ -65,15 +65,21 @@ type ControllerInfo struct {
 	GARMAgentReleasesURL string
 	// SyncGARMAgentTools enables or disables automatic sync of garm-agent tools.
 	SyncGARMAgentTools bool
+	// GARMAgentVersion is the preferred GARM agent version. Empty or "latest" will
+	// default to the latest version available at GARMAgentReleasesURL. A specific version
+	// will cache and download (if SyncGARMAgentTools is true) the specified version.
+	GARMAgentVersion string
 	// MinimumJobAgeBackoff is the minimum time that a job must be in the queue
 	// before GARM will attempt to allocate a runner to service it. This backoff
 	// is useful if you have idle runners in various pools that could potentially
 	// pick up the job. GARM would allow this amount of time for runners to react
 	// before spinning up a new one and potentially having to scale down later.
 	MinimumJobAgeBackoff uint
-	// CachedGARMAgentRelease stores the cached JSON response from GARMAgentReleasesURL
-	CachedGARMAgentRelease datatypes.JSON
-	// CachedGARMAgentReleaseFetchedAt is the timestamp when the release data was last fetched
+	// CachedGARMAgentReleases stores the release index fetched from
+	// GARMAgentReleasesURL: the source URL plus the list of releases
+	// (a marshaled util.AgentReleaseIndex).
+	CachedGARMAgentReleases datatypes.JSON
+	// CachedGARMAgentReleaseFetchedAt is the timestamp when the release index was last fetched
 	CachedGARMAgentReleaseFetchedAt *time.Time
 
 	// CACertBundle holds a certificate bundle meant to validate the certificate

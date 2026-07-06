@@ -58,6 +58,8 @@ type ClientOption func(*runtime.ClientOperation)
 type ClientService interface {
 	AdminGarmAgentList(params *AdminGarmAgentListParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*AdminGarmAgentListOK, error)
 
+	ListGARMAgentReleases(params *ListGARMAgentReleasesParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListGARMAgentReleasesOK, error)
+
 	UploadGARMAgentTool(params *UploadGARMAgentToolParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*UploadGARMAgentToolOK, error)
 
 	SetTransport(transport runtime.ClientTransport)
@@ -104,6 +106,54 @@ func (a *Client) AdminGarmAgentList(params *AdminGarmAgentListParams, authInfo r
 	//
 	// safeguard: normally, in the absence of a default response, unknown success responses return an error above: so this is a codegen issue
 	msg := fmt.Sprintf("unexpected success response for AdminGarmAgentList: API contract not enforced by server. Client expected to get an error, but got: %T", result)
+	panic(msg)
+}
+
+/*
+	ListGARMAgentReleases lists the garm agent releases available at the controller s releases URL
+
+	as recorded in the cached release index. The release the controller is
+
+pinned to and the release "latest" resolves to are marked.
+*/
+func (a *Client) ListGARMAgentReleases(params *ListGARMAgentReleasesParams, authInfo runtime.ClientAuthInfoWriter, opts ...ClientOption) (*ListGARMAgentReleasesOK, error) {
+	// NOTE: parameters are not validated before sending
+	if params == nil {
+		params = NewListGARMAgentReleasesParams()
+	}
+	op := &runtime.ClientOperation{
+		ID:                 "ListGARMAgentReleases",
+		Method:             "GET",
+		PathPattern:        "/tools/garm-agent/releases",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http"},
+		Params:             params,
+		Reader:             &ListGARMAgentReleasesReader{formats: a.formats},
+		AuthInfo:           authInfo,
+		Context:            params.Context,
+		Client:             params.HTTPClient,
+	}
+	for _, opt := range opts {
+		opt(op)
+	}
+	result, err := a.transport.Submit(op)
+	if err != nil {
+		return nil, err
+	}
+
+	// only one success response has to be checked
+	success, ok := result.(*ListGARMAgentReleasesOK)
+	if ok {
+		return success, nil
+	}
+
+	// unexpected success response.
+
+	// no default response is defined.
+	//
+	// safeguard: normally, in the absence of a default response, unknown success responses return an error above: so this is a codegen issue
+	msg := fmt.Sprintf("unexpected success response for ListGARMAgentReleases: API contract not enforced by server. Client expected to get an error, but got: %T", result)
 	panic(msg)
 }
 

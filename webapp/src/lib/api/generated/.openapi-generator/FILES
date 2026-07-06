@@ -38,6 +38,8 @@ docs/ForgeEndpoint.md
 docs/ForgeEntity.md
 docs/ForgeInstance.md
 docs/ForgeInstancesApi.md
+docs/GARMAgentRelease.md
+docs/GARMAgentReleaseAsset.md
 docs/GARMAgentTool.md
 docs/GARMAgentToolsPaginatedResponse.md
 docs/GARMAgentToolsPaginatedResponseResultsInner.md

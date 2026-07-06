@@ -19,6 +19,8 @@ import {
   HooksApi,
   TemplatesApi,
   ObjectsApi,
+  ToolsApi,
+  type GARMAgentRelease,
   type Repository,
   type Organization,
   type Enterprise,
@@ -141,6 +143,7 @@ export class GeneratedGarmApiClient {
   private hooksApi: HooksApi;
   private templatesApi: TemplatesApi;
   private objectsApi: ObjectsApi;
+  private toolsApi: ToolsApi;
 
   constructor(baseUrl: string = '') {
     this.baseUrl = baseUrl || window.location.origin;
@@ -175,6 +178,7 @@ export class GeneratedGarmApiClient {
     this.hooksApi = new HooksApi(this.config);
     this.templatesApi = new TemplatesApi(this.config);
     this.objectsApi = new ObjectsApi(this.config);
+    this.toolsApi = new ToolsApi(this.config);
   }
 
   // Set authentication token
@@ -676,6 +680,11 @@ export class GeneratedGarmApiClient {
   async forceToolsSync(): Promise<ControllerInfo> {
     const response = await this.controllerApi.forceToolsSync();
     return response.data;
+  }
+
+  async listGARMAgentReleases(): Promise<GARMAgentRelease[]> {
+    const response = await this.toolsApi.listGARMAgentReleases();
+    return response.data || [];
   }
 
   // Templates

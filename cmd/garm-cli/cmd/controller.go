@@ -22,6 +22,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
@@ -33,6 +34,7 @@ import (
 	apiClientTools "github.com/cloudbase/garm/client/tools"
 	"github.com/cloudbase/garm/cmd/garm-cli/common"
 	"github.com/cloudbase/garm/params"
+	garmUtil "github.com/cloudbase/garm/util"
 )
 
 var controllerCmd = &cobra.Command{
@@ -114,11 +116,29 @@ mode. This url is called garm-tools-url:
 
 garm-cli controller update \
 	--garm-tools-url=https://api.github.com/repos/cloudbase/garm-agent/releases
+
+By default GARM tracks the latest garm-agent release. Operators that want to
+stick with a known good agent version can pin the controller to a specific
+semver version:
+
+garm-cli controller update --garm-agent-version=v0.1.0
+
+Setting it back to "latest" resumes tracking the newest release. The versions
+available upstream can be listed with "garm-cli controller tools list --online".
 `,
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		if needsInit {
 			return errNeedsInitError
+		}
+
+		if cmd.Flags().Changed("garm-agent-version") {
+			// Reject invalid versions before making the API call; the
+			// server validates again.
+			garmAgentVersion = strings.TrimSpace(garmAgentVersion)
+			if err := params.ValidateGARMAgentVersion(garmAgentVersion); err != nil {
+				return err
+			}
 		}
 
 		params := params.UpdateControllerParams{}
@@ -136,6 +156,9 @@ garm-cli controller update \
 		}
 		if cmd.Flags().Changed("garm-tools-url") {
 			params.GARMAgentReleasesURL = &garmToolsReleasesURL
+		}
+		if cmd.Flags().Changed("garm-agent-version") {
+			params.GARMAgentVersion = &garmAgentVersion
 		}
 		if cmd.Flags().Changed("enable-tools-sync") {
 			params.SyncGARMAgentTools = &enableToolsSync
@@ -199,14 +222,28 @@ As long as the controller has access to the tools, agent mode can be enabled.
 }
 
 var controllerToolsListCmd = &cobra.Command{
-	Use:          "list",
-	Aliases:      []string{"ls"},
-	Short:        "List GARM agent tools",
-	Long:         `List all GARM agent tools available in the controller. Use --upstream to list tools from the upstream cached release.`,
+	Use:     "list",
+	Aliases: []string{"ls"},
+	Short:   "List GARM agent tools",
+	Long: `List all GARM agent tools available in the controller.
+
+Use --upstream to list the tools of the release the controller currently
+resolves to (pinned version or latest) as cached from the releases URL. Use
+--online to list all garm-agent releases known from the cached release index,
+including which one is pinned and which one "latest" resolves to.`,
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		if needsInit {
 			return errNeedsInitError
+		}
+
+		if cmd.Flags().Changed("online") {
+			releasesResp, err := apiCli.Tools.ListGARMAgentReleases(apiClientTools.NewListGARMAgentReleasesParams(), authToken)
+			if err != nil {
+				return err
+			}
+			formatGARMAgentReleases(releasesResp.Payload)
+			return nil
 		}
 
 		showTools := apiClientTools.NewAdminGarmAgentListParams()
@@ -227,6 +264,101 @@ var controllerToolsListCmd = &cobra.Command{
 		formatGARMToolsList(response.Payload, cmd.Flags().Changed("upstream"))
 		return nil
 	},
+}
+
+var controllerToolsShowReleaseCmd = &cobra.Command{
+	Use:   "show-release <version>",
+	Short: "Show details and release notes for a garm-agent release",
+	Long: `Show details about one of the garm-agent releases available at the
+configured releases URL, including its release notes. The releases known to
+the controller can be listed with "garm-cli controller tools list --online".`,
+	Args:         cobra.ExactArgs(1),
+	SilenceUsage: true,
+	RunE: func(_ *cobra.Command, args []string) error {
+		if needsInit {
+			return errNeedsInitError
+		}
+
+		releasesResp, err := apiCli.Tools.ListGARMAgentReleases(apiClientTools.NewListGARMAgentReleasesParams(), authToken)
+		if err != nil {
+			return err
+		}
+		for _, release := range releasesResp.Payload {
+			if garmUtil.AgentVersionsMatch(release.Version, args[0]) {
+				formatGARMAgentReleaseDetails(release)
+				return nil
+			}
+		}
+		return fmt.Errorf("release %q not found; the available releases can be listed with \"garm-cli controller tools list --online\"", args[0])
+	},
+}
+
+// formatGARMAgentReleaseDetails renders one garm-agent release, including
+// its assets and release notes.
+func formatGARMAgentReleaseDetails(release params.GARMAgentRelease) {
+	if outputFormat == common.OutputFormatJSON {
+		printAsJSON(release)
+		return
+	}
+	t := table.NewWriter()
+	t.Style().Options.SeparateHeader = true
+	t.AppendHeader(table.Row{"Field", "Value"})
+	t.AppendRow(table.Row{"Version", release.Version})
+	t.AppendRow(table.Row{"Pre-release", release.Prerelease})
+	t.AppendRow(table.Row{"OS/Arch", strings.Join(release.OSArchs, ", ")})
+	t.AppendRow(table.Row{"Latest", release.Latest})
+	t.AppendRow(table.Row{"Pinned", release.Pinned})
+	fmt.Println(t.Render())
+
+	if len(release.Assets) > 0 {
+		fmt.Println("\nAssets:")
+		at := table.NewWriter()
+		at.Style().Options.SeparateHeader = true
+		at.AppendHeader(table.Row{"Name", "Size", "Digest"})
+		for _, asset := range release.Assets {
+			digest := asset.Digest
+			if digest == "" {
+				digest = "-"
+			}
+			at.AppendRow(table.Row{asset.Name, asset.Size, digest})
+		}
+		fmt.Println(at.Render())
+	}
+
+	fmt.Println("\nRelease notes:")
+	if release.ReleaseNotes == "" {
+		fmt.Println("(none)")
+		return
+	}
+	fmt.Println(release.ReleaseNotes)
+}
+
+// formatGARMAgentReleases renders the garm-agent releases known from the
+// cached release index.
+func formatGARMAgentReleases(releases params.GARMAgentReleases) {
+	if outputFormat == common.OutputFormatJSON {
+		printAsJSON(releases)
+		return
+	}
+	t := table.NewWriter()
+	t.Style().Options.SeparateHeader = true
+	t.AppendHeader(table.Row{"Version", "Pre-release", "OS/Arch", "Notes"})
+	for _, release := range releases {
+		var notes []string
+		if release.Latest {
+			notes = append(notes, "latest")
+		}
+		if release.Pinned {
+			notes = append(notes, "pinned")
+		}
+		t.AppendRow(table.Row{
+			release.Version,
+			release.Prerelease,
+			strings.Join(release.OSArchs, ", "),
+			strings.Join(notes, ", "),
+		})
+	}
+	fmt.Println(t.Render())
 }
 
 var controllerToolsShowCmd = &cobra.Command{
@@ -505,6 +637,11 @@ func renderControllerInfoTable(info params.ControllerInfo) string {
 	t.AppendRow(table.Row{"Agent URL", info.AgentURL})
 	t.AppendRow(table.Row{"GARM agent tools sync URL", info.GARMAgentReleasesURL})
 	t.AppendRow(table.Row{"Tools sync enabled", info.SyncGARMAgentTools})
+	agentVersion := info.GARMAgentVersion
+	if agentVersion == "" {
+		agentVersion = params.GARMAgentLatestVersion
+	}
+	t.AppendRow(table.Row{"GARM agent version", agentVersion})
 	t.AppendRow(table.Row{"Minimum Job Age Backoff", info.MinimumJobAgeBackoff})
 	t.AppendRow(table.Row{"Version", serverVersion})
 	if len(info.CACertBundle) > 0 {
@@ -528,6 +665,7 @@ func init() {
 	controllerUpdateCmd.Flags().StringVarP(&webhookURL, "webhook-url", "w", "", "The webhook URL for the controller (ie. https://garm.example.com/webhooks)")
 	controllerUpdateCmd.Flags().StringVarP(&agentURL, "agent-url", "g", "", "The agent URL for the controller (ie. https://garm.example.com/agent)")
 	controllerUpdateCmd.Flags().StringVarP(&garmToolsReleasesURL, "garm-tools-url", "t", "", "The URL for the garm-agent releases page (ie. https://api.github.com/repos/cloudbase/garm-agent/releases)")
+	controllerUpdateCmd.Flags().StringVar(&garmAgentVersion, "garm-agent-version", "", "Pin the GARM agent version to use (a semver version like v0.1.0). Use \"latest\" to track the newest release.")
 	controllerUpdateCmd.Flags().BoolVarP(&enableToolsSync, "enable-tools-sync", "s", false, "Enable or disable automatic garm tools sync.")
 	controllerUpdateCmd.Flags().UintVarP(&minimumJobAgeBackoff, "minimum-job-age-backoff", "b", 0, "The minimum job age backoff for the controller")
 	controllerUpdateCmd.Flags().StringVar(&controllerCABundle, "ca-bundle", "", "A CA bundle that will be used by GARM and the runners to validate HTTPS connections.")
@@ -537,6 +675,8 @@ func init() {
 	controllerToolsListCmd.Flags().Int64Var(&fileObjPage, "page", 0, "The tools page to display")
 	controllerToolsListCmd.Flags().Int64Var(&fileObjPageSize, "page-size", 25, "Total number of results per page")
 	controllerToolsListCmd.Flags().Bool("upstream", false, "List tools from the upstream cached release instead of the local object store")
+	controllerToolsListCmd.Flags().Bool("online", false, "List the garm-agent releases available at the configured releases URL (from the cached release index)")
+	controllerToolsListCmd.MarkFlagsMutuallyExclusive("upstream", "online")
 
 	controllerToolsUploadCmd.Flags().StringVar(&toolFilePath, "file", "", "Path to the garm-agent binary file (required)")
 	controllerToolsUploadCmd.Flags().StringVar(&toolOSType, "os", "", "Operating system: linux or windows (required)")
@@ -552,6 +692,7 @@ func init() {
 	controllerToolsCmd.AddCommand(
 		controllerToolsListCmd,
 		controllerToolsShowCmd,
+		controllerToolsShowReleaseCmd,
 		controllerToolsDeleteCmd,
 		controllerToolsSyncCmd,
 		controllerToolsUploadCmd,

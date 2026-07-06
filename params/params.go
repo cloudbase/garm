@@ -23,18 +23,49 @@ import (
 	"math"
 	"net"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/bradleyfalzon/ghinstallation/v2"
 	"github.com/google/go-github/v84/github"
 	"github.com/google/uuid"
+	"golang.org/x/mod/semver"
 	"golang.org/x/oauth2"
 
+	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm/util/appdefaults"
 	garmX509 "github.com/cloudbase/garm/util/x509"
 )
+
+// GARMAgentLatestVersion denotes that the controller should track the latest
+// GARM agent release available at GARMAgentReleasesURL. An empty version is
+// equivalent.
+const GARMAgentLatestVersion = "latest"
+
+// semverCoreRe matches a full major.minor.patch version core with an optional
+// leading "v". golang.org/x/mod/semver alone would also accept shorthands
+// like "v1" or "v1.2", which are not valid semver.
+var semverCoreRe = regexp.MustCompile(`^v?\d+\.\d+\.\d+([-+]|$)`)
+
+// ValidateGARMAgentVersion checks that a GARM agent version is either empty,
+// the "latest" keyword or a valid semver version (with or without a leading
+// "v"). It is used by the API, the CLI and the database layer so an invalid
+// version is rejected everywhere controller info can be updated.
+func ValidateGARMAgentVersion(version string) error {
+	if version == "" || version == GARMAgentLatestVersion {
+		return nil
+	}
+	canonical := version
+	if !strings.HasPrefix(canonical, "v") {
+		canonical = "v" + canonical
+	}
+	if !semverCoreRe.MatchString(canonical) || !semver.IsValid(canonical) {
+		return runnerErrors.NewBadRequestError("invalid garm_agent_version %q: must be %q or a semver version (e.g. v1.2.3)", version, GARMAgentLatestVersion)
+	}
+	return nil
+}
 
 type (
 	ForgeEntityType     string
@@ -1115,6 +1146,12 @@ type ControllerInfo struct {
 	GARMAgentReleasesURL string `json:"garm_agent_releases_url"`
 	// SyncGARMAgentTools enables or disables automatic sync of garm-agent tools.
 	SyncGARMAgentTools bool `json:"enable_agent_tools_sync"`
+	// GARMAgentVersion is the garm-agent version the controller uses. Empty or
+	// "latest" tracks the newest stable release available at GARMAgentReleasesURL.
+	// A specific semver version pins the release that gets cached and (when
+	// SyncGARMAgentTools is enabled) downloaded, for operators who want to
+	// stick with a known good agent version.
+	GARMAgentVersion string `json:"garm_agent_version"`
 	// MinimumJobAgeBackoff is the minimum time in seconds that a job must be in queued state
 	// before GARM will attempt to allocate a runner for it. When set to a non zero value,
 	// GARM will ignore the job until the job's age is greater than this value. When using
@@ -1130,13 +1167,16 @@ type ControllerInfo struct {
 	//
 	// swagger:strfmt byte
 	CACertBundle []byte `json:"ca_cert_bundle,omitempty"`
-	// CachedGARMAgentReleaseFetchedAt is the timestamp when the release data was last fetched from GARMAgentReleasesURL
+	// CachedGARMAgentReleaseFetchedAt is the timestamp when the release index was last fetched from GARMAgentReleasesURL
 	CachedGARMAgentReleaseFetchedAt *time.Time `json:"cached_garm_agent_release_fetched_at,omitempty"`
-	// CachedGARMAgentRelease stores the cached JSON response from GARMAgentReleasesURL.
-	// This field is not serialized to JSON (internal use only).
-	CachedGARMAgentRelease []byte `json:"-"`
-	// CachedGARMAgentTools stores the parsed tools from CachedGARMAgentRelease, indexed by "os_type/os_arch".
-	// This field is not serialized to JSON (internal use only).
+	// CachedGARMAgentReleases stores the cached release index fetched from
+	// GARMAgentReleasesURL (a marshaled util.AgentReleaseIndex: the source URL
+	// plus the list of releases). This field is not serialized to JSON
+	// (internal use only).
+	CachedGARMAgentReleases []byte `json:"-"`
+	// CachedGARMAgentTools stores the tools of the resolved release (the pinned
+	// version, or the latest release when no pin is set), indexed by
+	// "os_type/os_arch". This field is not serialized to JSON (internal use only).
 	CachedGARMAgentTools map[string]GARMAgentTool `json:"-"`
 }
 
@@ -1663,6 +1703,50 @@ type GARMAgentTool struct {
 
 // swagger:model GARMAgentToolsPaginatedResponse
 type GARMAgentToolsPaginatedResponse = PaginatedResponse[GARMAgentTool]
+
+// GARMAgentRelease describes one garm-agent release available at the
+// controller's releases URL, as recorded in the cached release index.
+//
+// swagger:model GARMAgentRelease
+type GARMAgentRelease struct {
+	// Version is the release tag.
+	Version string `json:"version"`
+	// Prerelease indicates the release is marked as a pre-release upstream.
+	Prerelease bool `json:"prerelease"`
+	// OSArchs lists the "os_type/os_arch" combinations the release ships
+	// agent binaries for.
+	OSArchs []string `json:"os_archs,omitempty"`
+	// Pinned indicates this is the version the controller is pinned to.
+	Pinned bool `json:"pinned"`
+	// Latest indicates this is the release "latest" currently resolves to.
+	Latest bool `json:"latest"`
+	// ReleaseNotes holds the release description as published upstream
+	// (typically markdown), so operators can see what changed in a release
+	// before pinning to it.
+	ReleaseNotes string `json:"release_notes,omitempty"`
+	// Assets lists the downloadable binaries the release ships. Checksum
+	// files are omitted; the digest of each asset is included instead.
+	Assets []GARMAgentReleaseAsset `json:"assets,omitempty"`
+}
+
+// GARMAgentReleaseAsset describes one downloadable binary of a garm-agent
+// release.
+//
+// swagger:model GARMAgentReleaseAsset
+type GARMAgentReleaseAsset struct {
+	// Name is the file name of the asset.
+	Name string `json:"name"`
+	// Size is the size of the asset in bytes.
+	Size uint `json:"size"`
+	// Digest is the checksum of the asset as declared upstream (typically
+	// "sha256:<hex>").
+	Digest string `json:"digest,omitempty"`
+	// DownloadURL is the upstream URL the asset can be downloaded from.
+	DownloadURL string `json:"download_url"`
+}
+
+// swagger:model GARMAgentReleases
+type GARMAgentReleases []GARMAgentRelease
 
 // swagger:model MetadataServiceAccessDetails
 type MetadataServiceAccessDetails struct {

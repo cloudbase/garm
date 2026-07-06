@@ -77,18 +77,24 @@ func dbControllerToCommonController(dbInfo ControllerInfo) (params.ControllerInf
 		Version:                         appdefaults.GetVersion(),
 		GARMAgentReleasesURL:            dbInfo.GARMAgentReleasesURL,
 		SyncGARMAgentTools:              dbInfo.SyncGARMAgentTools,
+		GARMAgentVersion:                dbInfo.GARMAgentVersion,
 		CachedGARMAgentReleaseFetchedAt: dbInfo.CachedGARMAgentReleaseFetchedAt,
-		CachedGARMAgentRelease:          dbInfo.CachedGARMAgentRelease,
+		CachedGARMAgentReleases:         dbInfo.CachedGARMAgentReleases,
 		CACertBundle:                    dbInfo.CACertBundle,
 	}
 
-	// Parse cached release data to populate CachedGARMAgentTools
-	if len(dbInfo.CachedGARMAgentRelease) > 0 {
-		tools, err := garmUtil.ParseToolsFromRelease(dbInfo.CachedGARMAgentRelease)
+	// Populate CachedGARMAgentTools with the tools of the resolved release:
+	// the pinned version when one is set, the latest release otherwise. All
+	// consumers of the cached tools (metadata, upstream tool listings)
+	// automatically serve the desired version this way. A pin that is absent
+	// from the index resolves to the latest release; the sync worker owns
+	// warning about it.
+	if len(dbInfo.CachedGARMAgentReleases) > 0 {
+		index, err := garmUtil.ParseReleaseIndex(dbInfo.CachedGARMAgentReleases)
 		if err != nil {
-			slog.Warn("failed to parse cached tools during DB conversion", "error", err)
-		} else {
-			ret.CachedGARMAgentTools = tools
+			slog.Warn("failed to parse cached release index during DB conversion", "error", err)
+		} else if release, _ := garmUtil.ResolveAgentRelease(index.Releases, dbInfo.GARMAgentVersion); release.TagName != "" {
+			ret.CachedGARMAgentTools = garmUtil.ToolsFromRelease(release)
 		}
 	}
 
@@ -157,6 +163,67 @@ func (s *sqlDatabase) InitController() (params.ControllerInfo, error) {
 	}, nil
 }
 
+// controllerUpdates maps the requested controller changes onto the columns
+// that actually differ from the stored values.
+func controllerUpdates(info params.UpdateControllerParams, dbInfo ControllerInfo) map[string]interface{} {
+	updates := make(map[string]interface{})
+
+	if info.MetadataURL != nil && *info.MetadataURL != dbInfo.MetadataURL {
+		updates["metadata_url"] = *info.MetadataURL
+	}
+
+	if info.CallbackURL != nil && *info.CallbackURL != dbInfo.CallbackURL {
+		updates["callback_url"] = *info.CallbackURL
+	}
+
+	if info.WebhookURL != nil && *info.WebhookURL != dbInfo.WebhookBaseURL {
+		updates["webhook_base_url"] = *info.WebhookURL
+	}
+
+	if info.AgentURL != nil && *info.AgentURL != dbInfo.AgentURL {
+		updates["agent_url"] = *info.AgentURL
+	}
+
+	if info.ClearCACertBundle != nil && *info.ClearCACertBundle {
+		updates["ca_cert_bundle"] = nil
+	} else if len(info.CACertBundle) > 0 {
+		updates["ca_cert_bundle"] = info.CACertBundle
+	}
+
+	if info.GARMAgentReleasesURL != nil {
+		agentToolsURL := *info.GARMAgentReleasesURL
+		if agentToolsURL == "" {
+			agentToolsURL = appdefaults.GARMAgentDefaultReleasesURL
+		}
+		if agentToolsURL != dbInfo.GARMAgentReleasesURL {
+			updates["garm_agent_releases_url"] = agentToolsURL
+		}
+	}
+
+	if info.SyncGARMAgentTools != nil && *info.SyncGARMAgentTools != dbInfo.SyncGARMAgentTools {
+		updates["sync_garm_agent_tools"] = *info.SyncGARMAgentTools
+	}
+
+	if info.GARMAgentVersion != nil {
+		agentVersion := strings.TrimSpace(*info.GARMAgentVersion)
+		// The empty string is the canonical form for "track the latest
+		// release"; Validate already made sure anything else is a proper
+		// semver version.
+		if agentVersion == params.GARMAgentLatestVersion {
+			agentVersion = ""
+		}
+		if agentVersion != dbInfo.GARMAgentVersion {
+			updates["garm_agent_version"] = agentVersion
+		}
+	}
+
+	if info.MinimumJobAgeBackoff != nil && *info.MinimumJobAgeBackoff != dbInfo.MinimumJobAgeBackoff {
+		updates["minimum_job_age_backoff"] = *info.MinimumJobAgeBackoff
+	}
+
+	return updates
+}
+
 func (s *sqlDatabase) UpdateController(info params.UpdateControllerParams) (paramInfo params.ControllerInfo, err error) {
 	var rowsAffected int64
 	defer func() {
@@ -178,49 +245,7 @@ func (s *sqlDatabase) UpdateController(info params.UpdateControllerParams) (para
 			return fmt.Errorf("error validating controller info: %w", err)
 		}
 
-		updates := make(map[string]interface{})
-
-		if info.MetadataURL != nil && *info.MetadataURL != dbInfo.MetadataURL {
-			updates["metadata_url"] = *info.MetadataURL
-		}
-
-		if info.CallbackURL != nil && *info.CallbackURL != dbInfo.CallbackURL {
-			updates["callback_url"] = *info.CallbackURL
-		}
-
-		if info.WebhookURL != nil && *info.WebhookURL != dbInfo.WebhookBaseURL {
-			updates["webhook_base_url"] = *info.WebhookURL
-		}
-
-		if info.AgentURL != nil && *info.AgentURL != dbInfo.AgentURL {
-			updates["agent_url"] = *info.AgentURL
-		}
-
-		if info.ClearCACertBundle != nil && *info.ClearCACertBundle {
-			updates["ca_cert_bundle"] = nil
-		} else if len(info.CACertBundle) > 0 {
-			updates["ca_cert_bundle"] = info.CACertBundle
-		}
-
-		if info.GARMAgentReleasesURL != nil {
-			agentToolsURL := *info.GARMAgentReleasesURL
-			if agentToolsURL == "" {
-				agentToolsURL = appdefaults.GARMAgentDefaultReleasesURL
-			}
-			if agentToolsURL != dbInfo.GARMAgentReleasesURL {
-				updates["garm_agent_releases_url"] = agentToolsURL
-			}
-		}
-
-		if info.SyncGARMAgentTools != nil && *info.SyncGARMAgentTools != dbInfo.SyncGARMAgentTools {
-			updates["sync_garm_agent_tools"] = *info.SyncGARMAgentTools
-		}
-
-		if info.MinimumJobAgeBackoff != nil && *info.MinimumJobAgeBackoff != dbInfo.MinimumJobAgeBackoff {
-			updates["minimum_job_age_backoff"] = *info.MinimumJobAgeBackoff
-		}
-
-		if len(updates) > 0 {
+		if updates := controllerUpdates(info, dbInfo); len(updates) > 0 {
 			q = tx.Model(&dbInfo).Updates(updates)
 			if q.Error != nil {
 				return fmt.Errorf("error saving controller info: %w", q.Error)
@@ -240,7 +265,9 @@ func (s *sqlDatabase) UpdateController(info params.UpdateControllerParams) (para
 	return paramInfo, nil
 }
 
-func (s *sqlDatabase) UpdateCachedGARMAgentRelease(releaseData []byte, fetchedAt time.Time) error {
+// UpdateCachedGARMAgentReleases persists the release index (a marshaled
+// util.AgentReleaseIndex) fetched from the controller's releases URL.
+func (s *sqlDatabase) UpdateCachedGARMAgentReleases(index []byte, fetchedAt time.Time) error {
 	var dbInfo ControllerInfo
 	var rowsAffected int64
 	err := s.conn.Transaction(func(tx *gorm.DB) error {
@@ -253,7 +280,7 @@ func (s *sqlDatabase) UpdateCachedGARMAgentRelease(releaseData []byte, fetchedAt
 		}
 
 		updates := map[string]interface{}{
-			"cached_garm_agent_release":            releaseData,
+			"cached_garm_agent_releases":           index,
 			"cached_garm_agent_release_fetched_at": &fetchedAt,
 		}
 
@@ -265,7 +292,7 @@ func (s *sqlDatabase) UpdateCachedGARMAgentRelease(releaseData []byte, fetchedAt
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("error updating cached release: %w", err)
+		return fmt.Errorf("error updating cached release index: %w", err)
 	}
 
 	if rowsAffected > 0 {

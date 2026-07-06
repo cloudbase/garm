@@ -37,6 +37,7 @@ var (
 	webhookURL           string
 	agentURL             string
 	garmToolsReleasesURL string
+	garmAgentVersion     string
 	enableToolsSync      bool
 	minimumJobAgeBackoff uint
 	controllerCABundle   string

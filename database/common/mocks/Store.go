@@ -5440,17 +5440,17 @@ func (_c *Store_UnlockJob_Call) RunAndReturn(run func(context.Context, int64, st
 	return _c
 }
 
-// UpdateCachedGARMAgentRelease provides a mock function with given fields: releaseData, fetchedAt
-func (_m *Store) UpdateCachedGARMAgentRelease(releaseData []byte, fetchedAt time.Time) error {
-	ret := _m.Called(releaseData, fetchedAt)
+// UpdateCachedGARMAgentReleases provides a mock function with given fields: index, fetchedAt
+func (_m *Store) UpdateCachedGARMAgentReleases(index []byte, fetchedAt time.Time) error {
+	ret := _m.Called(index, fetchedAt)
 
 	if len(ret) == 0 {
-		panic("no return value specified for UpdateCachedGARMAgentRelease")
+		panic("no return value specified for UpdateCachedGARMAgentReleases")
 	}
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func([]byte, time.Time) error); ok {
-		r0 = rf(releaseData, fetchedAt)
+		r0 = rf(index, fetchedAt)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -5458,31 +5458,31 @@ func (_m *Store) UpdateCachedGARMAgentRelease(releaseData []byte, fetchedAt time
 	return r0
 }
 
-// Store_UpdateCachedGARMAgentRelease_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateCachedGARMAgentRelease'
-type Store_UpdateCachedGARMAgentRelease_Call struct {
+// Store_UpdateCachedGARMAgentReleases_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateCachedGARMAgentReleases'
+type Store_UpdateCachedGARMAgentReleases_Call struct {
 	*mock.Call
 }
 
-// UpdateCachedGARMAgentRelease is a helper method to define mock.On call
-//   - releaseData []byte
+// UpdateCachedGARMAgentReleases is a helper method to define mock.On call
+//   - index []byte
 //   - fetchedAt time.Time
-func (_e *Store_Expecter) UpdateCachedGARMAgentRelease(releaseData interface{}, fetchedAt interface{}) *Store_UpdateCachedGARMAgentRelease_Call {
-	return &Store_UpdateCachedGARMAgentRelease_Call{Call: _e.mock.On("UpdateCachedGARMAgentRelease", releaseData, fetchedAt)}
+func (_e *Store_Expecter) UpdateCachedGARMAgentReleases(index interface{}, fetchedAt interface{}) *Store_UpdateCachedGARMAgentReleases_Call {
+	return &Store_UpdateCachedGARMAgentReleases_Call{Call: _e.mock.On("UpdateCachedGARMAgentReleases", index, fetchedAt)}
 }
 
-func (_c *Store_UpdateCachedGARMAgentRelease_Call) Run(run func(releaseData []byte, fetchedAt time.Time)) *Store_UpdateCachedGARMAgentRelease_Call {
+func (_c *Store_UpdateCachedGARMAgentReleases_Call) Run(run func(index []byte, fetchedAt time.Time)) *Store_UpdateCachedGARMAgentReleases_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].([]byte), args[1].(time.Time))
 	})
 	return _c
 }
 
-func (_c *Store_UpdateCachedGARMAgentRelease_Call) Return(_a0 error) *Store_UpdateCachedGARMAgentRelease_Call {
+func (_c *Store_UpdateCachedGARMAgentReleases_Call) Return(_a0 error) *Store_UpdateCachedGARMAgentReleases_Call {
 	_c.Call.Return(_a0)
 	return _c
 }
 
-func (_c *Store_UpdateCachedGARMAgentRelease_Call) RunAndReturn(run func([]byte, time.Time) error) *Store_UpdateCachedGARMAgentRelease_Call {
+func (_c *Store_UpdateCachedGARMAgentReleases_Call) RunAndReturn(run func([]byte, time.Time) error) *Store_UpdateCachedGARMAgentReleases_Call {
 	_c.Call.Return(run)
 	return _c
 }

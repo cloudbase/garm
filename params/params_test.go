@@ -159,3 +159,56 @@ func TestPool_HasRequiredLabels(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateGARMAgentVersion(t *testing.T) {
+	valid := []string{
+		"",
+		GARMAgentLatestVersion,
+		"v1.2.3",
+		"1.2.3",
+		"v0.1.0",
+		"v1.2.3-rc1",
+		"1.2.3-beta.1",
+		"v1.2.3+build.5",
+	}
+	for _, version := range valid {
+		if err := ValidateGARMAgentVersion(version); err != nil {
+			t.Errorf("expected version %q to be valid, got: %v", version, err)
+		}
+	}
+
+	invalid := []string{
+		"Latest", // the keyword is case sensitive
+		"v1",
+		"v1.2", // x/mod shorthands are not valid semver
+		"1.2",
+		"v1.2.3.4",
+		"not-a-version",
+		"v1.2.x",
+		"v 1.2.3",
+		"1.2.3 ",
+	}
+	for _, version := range invalid {
+		if err := ValidateGARMAgentVersion(version); err == nil {
+			t.Errorf("expected version %q to be rejected", version)
+		}
+	}
+}
+
+func TestUpdateControllerParamsValidateAgentVersion(t *testing.T) {
+	version := "v1.2.3"
+	if err := (UpdateControllerParams{GARMAgentVersion: &version}).Validate(); err != nil {
+		t.Errorf("expected %q to validate, got: %v", version, err)
+	}
+
+	// Surrounding whitespace is trimmed before validation.
+	version = "  latest  "
+	if err := (UpdateControllerParams{GARMAgentVersion: &version}).Validate(); err != nil {
+		t.Errorf("expected %q to validate, got: %v", version, err)
+	}
+
+	version = "bogus"
+	if err := (UpdateControllerParams{GARMAgentVersion: &version}).Validate(); err == nil {
+		t.Errorf("expected %q to be rejected", version)
+	}
+}

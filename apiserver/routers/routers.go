@@ -267,6 +267,9 @@ func NewAPIRouter(han *controllers.APIController, authMiddleware, initMiddleware
 	///////////////////////////////////////////////////////
 	// Tools URLs (garm agent, cached gitea runner, etc) //
 	///////////////////////////////////////////////////////
+	// List garm-agent releases available upstream (from the cached release index)
+	apiRouter.Handle("/tools/garm-agent/releases/", http.HandlerFunc(han.ListGARMAgentReleasesHandler)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/tools/garm-agent/releases", http.HandlerFunc(han.ListGARMAgentReleasesHandler)).Methods("GET", "OPTIONS")
 	apiRouter.Handle("/tools/garm-agent/", http.HandlerFunc(han.AdminGARMToolsHandler)).Methods("GET", "OPTIONS")
 	apiRouter.Handle("/tools/garm-agent", http.HandlerFunc(han.AdminGARMToolsHandler)).Methods("GET", "OPTIONS")
 	// Upload garm agent tool

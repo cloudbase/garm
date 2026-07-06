@@ -19,11 +19,14 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"maps"
+	"slices"
 	"strings"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/params"
+	garmUtil "github.com/cloudbase/garm/util"
 )
 
 var (
@@ -33,6 +36,58 @@ var (
 	garmAgentOSArchAMD64Tag   = "os_arch=amd64"
 	garmAgentOSArchARM64Tag   = "os_arch=arm64"
 )
+
+// ListGARMAgentReleases returns the garm-agent releases recorded in the
+// cached release index, marking the version the controller is pinned to and
+// the release "latest" currently resolves to. The list is served from the
+// cache; use ForceToolsSync to refresh it.
+func (r *Runner) ListGARMAgentReleases(ctx context.Context) (params.GARMAgentReleases, error) {
+	if !auth.IsAdmin(ctx) {
+		return nil, runnerErrors.ErrUnauthorized
+	}
+
+	info, err := r.store.ControllerInfo()
+	if err != nil {
+		return nil, fmt.Errorf("error getting controller info: %w", err)
+	}
+	if len(info.CachedGARMAgentReleases) == 0 {
+		return params.GARMAgentReleases{}, nil
+	}
+
+	index, err := garmUtil.ParseReleaseIndex(info.CachedGARMAgentReleases)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing cached release index: %w", err)
+	}
+
+	latest, _ := garmUtil.LatestAgentRelease(index.Releases)
+	ret := make(params.GARMAgentReleases, 0, len(index.Releases))
+	for _, release := range index.Releases {
+		var assets []params.GARMAgentReleaseAsset
+		for _, asset := range release.Assets {
+			// Checksum files are redundant here; each asset carries its
+			// upstream digest.
+			if garmUtil.IsChecksumAsset(asset.Name) {
+				continue
+			}
+			assets = append(assets, params.GARMAgentReleaseAsset{
+				Name:        asset.Name,
+				Size:        asset.Size,
+				Digest:      asset.Digest,
+				DownloadURL: asset.DownloadURL,
+			})
+		}
+		ret = append(ret, params.GARMAgentRelease{
+			Version:      release.TagName,
+			Prerelease:   release.Prerelease,
+			OSArchs:      slices.Sorted(maps.Keys(garmUtil.ToolsFromRelease(release))),
+			Pinned:       info.GARMAgentVersion != "" && garmUtil.AgentVersionsMatch(release.TagName, info.GARMAgentVersion),
+			Latest:       release.TagName == latest.TagName,
+			ReleaseNotes: release.Body,
+			Assets:       assets,
+		})
+	}
+	return ret, nil
+}
 
 func (r *Runner) ListAllGARMTools(ctx context.Context) ([]params.GARMAgentTool, error) {
 	if !auth.IsAdmin(ctx) {

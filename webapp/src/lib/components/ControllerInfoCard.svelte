@@ -5,7 +5,7 @@
 	import Tooltip from './Tooltip.svelte';
 	import { toastStore } from '$lib/stores/toast.js';
 	import { garmApi } from '$lib/api/client.js';
-	import type { ControllerInfo, UpdateControllerParams } from '$lib/api/generated/api.js';
+	import type { ControllerInfo, UpdateControllerParams, GARMAgentRelease } from '$lib/api/generated/api.js';
 	import CaCertUpload from './forms/CaCertUpload.svelte';
 
 	export let controllerInfo: ControllerInfo;
@@ -47,6 +47,66 @@
 	let caCertBundleBytes: number[] | null = null;
 	let caCertBundleFileName = '';
 	let clearCaCertBundle = false;
+
+	// Agent version picker. The dropdown offers "latest" plus the versions
+	// known from the cached release index; pinning a version outside the
+	// index is possible through the custom entry.
+	const customVersionChoice = '__custom__';
+	const maxVersionChoices = 10;
+	let agentVersionChoice = 'latest';
+	let agentVersionCustom = '';
+	let availableAgentReleases: GARMAgentRelease[] = [];
+
+	$: effectiveAgentVersion =
+		agentVersionChoice === customVersionChoice
+			? agentVersionCustom.trim()
+			: agentVersionChoice === 'latest'
+				? ''
+				: agentVersionChoice;
+
+	// The dropdown offers the newest releases, but the currently pinned one
+	// must stay selectable even when it sits deeper in the index — pinning an
+	// older version records its release at the end of the cached index.
+	$: agentVersionOptions = (() => {
+		const shown = availableAgentReleases.slice(0, maxVersionChoices);
+		const pinned = availableAgentReleases.find((r) => r.pinned);
+		if (pinned && !shown.some((r) => r.version === pinned.version)) {
+			shown.push(pinned);
+		}
+		return shown;
+	})();
+
+	// Release notes for the release the picker currently resolves to, so
+	// operators can see what changed before pinning.
+	$: selectedAgentRelease =
+		agentVersionChoice === customVersionChoice
+			? undefined
+			: agentVersionChoice === 'latest'
+				? availableAgentReleases.find((r) => r.latest)
+				: availableAgentReleases.find((r) => r.version === agentVersionChoice);
+
+	async function loadAgentReleases(currentVersion: string) {
+		try {
+			availableAgentReleases = await garmApi.listGARMAgentReleases();
+		} catch {
+			availableAgentReleases = [];
+		}
+		if (!currentVersion) {
+			return;
+		}
+		// The server marks the release the pin refers to, tolerating a
+		// missing/extra "v" prefix; snap the picker to its exact tag so the
+		// dropdown entry is selected.
+		const pinned = availableAgentReleases.find((r) => r.pinned);
+		if (pinned && pinned.version) {
+			agentVersionChoice = pinned.version;
+			return;
+		}
+		// A pin that is not part of the (possibly empty) index can only be
+		// represented through the custom entry.
+		agentVersionChoice = customVersionChoice;
+		agentVersionCustom = currentVersion;
+	}
 
 	function decodeCaCertBundle(bundle: number[] | string): string {
 		if (typeof bundle === 'string') {
@@ -90,6 +150,12 @@
 		caCertBundleFileName = '';
 		clearCaCertBundle = false;
 
+		const currentVersion = controllerInfo.garm_agent_version || '';
+		agentVersionChoice = currentVersion === '' ? 'latest' : currentVersion;
+		agentVersionCustom = '';
+		availableAgentReleases = [];
+		loadAgentReleases(currentVersion);
+
 		showSettingsModal = true;
 	}
 
@@ -118,6 +184,9 @@
 			if (garmAgentReleasesUrl.trim()) {
 				updateParams.garm_agent_releases_url = garmAgentReleasesUrl.trim();
 			}
+			// Always send the version: an empty string means "track latest",
+			// which is how a pin gets cleared.
+			updateParams.garm_agent_version = effectiveAgentVersion;
 			// Always send the boolean value
 			updateParams.enable_agent_tools_sync = syncGarmAgentTools;
 
@@ -163,6 +232,9 @@
 		caCertBundleBytes = null;
 		caCertBundleFileName = '';
 		clearCaCertBundle = false;
+		agentVersionChoice = 'latest';
+		agentVersionCustom = '';
+		availableAgentReleases = [];
 	}
 
 	// Form validation
@@ -176,12 +248,22 @@
 		}
 	}
 
+	// Mirrors the backend rule: empty or "latest" tracks the newest release,
+	// anything else must be a semver version (optionally prefixed with "v").
+	// The server validates again and rejects invalid versions.
+	const semverRe = /^v?\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$/;
+	function isValidAgentVersion(version: string): boolean {
+		const v = version.trim();
+		return v === '' || v === 'latest' || semverRe.test(v);
+	}
+
 	$: isFormValid =
 		isValidUrl(metadataUrl) &&
 		isValidUrl(callbackUrl) &&
 		isValidUrl(webhookUrl) &&
 		isValidUrl(agentUrl) &&
 		isValidUrl(garmAgentReleasesUrl) &&
+		(agentVersionChoice !== customVersionChoice || isValidAgentVersion(agentVersionCustom)) &&
 		(minimumJobAgeBackoff === null || minimumJobAgeBackoff >= 0);
 </script>
 
@@ -341,6 +423,30 @@
 								</div>
 							</div>
 						{/if}
+
+						<!-- Agent Version -->
+						<div>
+							<div class="flex items-center">
+								<div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide font-medium">Agent Version</div>
+								<div class="ml-2">
+									<Tooltip
+										title="Agent Version"
+										content="The garm-agent version GARM uses. When set to latest, GARM tracks the newest release at the configured releases URL. Pin a specific version to stick with a known good agent version."
+									/>
+								</div>
+							</div>
+							<div class="mt-1 p-2 bg-gray-50 dark:bg-gray-700 rounded text-sm font-mono text-gray-600 dark:text-gray-300 min-h-[38px] flex items-center">
+								{#if controllerInfo.garm_agent_version}
+									<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+										Pinned: {controllerInfo.garm_agent_version}
+									</span>
+								{:else}
+									<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+										latest
+									</span>
+								{/if}
+							</div>
+						</div>
 					</div>
 				</div>
 			</div>
@@ -604,6 +710,53 @@
 					<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
 						URL where GARM fetches garm-agent binaries (must be compatible with GitHub releases API)
 					</p>
+				</div>
+
+				<!-- Agent Version -->
+				<div>
+					<label for="garmAgentVersion" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+						Agent Version
+					</label>
+					<select
+						id="garmAgentVersion"
+						bind:value={agentVersionChoice}
+						class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white sm:text-sm"
+					>
+						<option value="latest">latest (track the newest release)</option>
+						{#each agentVersionOptions as release}
+							<option value={release.version}>
+								{release.version}{release.prerelease ? ' (pre-release)' : ''}{release.latest ? ' (latest)' : ''}
+							</option>
+						{/each}
+						<option value={customVersionChoice}>Custom version...</option>
+					</select>
+					{#if agentVersionChoice === customVersionChoice}
+						<input
+							id="garmAgentVersionCustom"
+							type="text"
+							bind:value={agentVersionCustom}
+							placeholder="v0.1.0"
+							class="mt-2 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white sm:text-sm"
+							class:border-red-300={!isValidAgentVersion(agentVersionCustom)}
+						/>
+						{#if !isValidAgentVersion(agentVersionCustom)}
+							<p class="mt-1 text-sm text-red-600">Must be "latest" or a semver version (e.g. v0.1.0)</p>
+						{/if}
+					{/if}
+					<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+						Pin the garm-agent version GARM uses; select "latest" to track the newest release
+					</p>
+					{#if selectedAgentRelease?.release_notes}
+						<div class="mt-2">
+							<div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide font-medium mb-1">
+								Release notes for {selectedAgentRelease.version}
+							</div>
+							<div
+								data-testid="agent-release-notes"
+								class="max-h-40 overflow-y-auto p-2 rounded border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-xs text-gray-600 dark:text-gray-300 whitespace-pre-wrap"
+							>{selectedAgentRelease.release_notes}</div>
+						</div>
+					{/if}
 				</div>
 
 				<!-- Sync Agent Tools -->
