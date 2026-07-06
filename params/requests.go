@@ -593,8 +593,12 @@ type UpdateControllerParams struct {
 	// GARMAgentVersion pins the garm-agent version the controller uses. An
 	// empty string or "latest" tracks the newest release at
 	// GARMAgentReleasesURL; any other value must be a valid semver version.
-	GARMAgentVersion     *string `json:"garm_agent_version,omitempty"`
-	MinimumJobAgeBackoff *uint   `json:"minimum_job_age_backoff,omitempty"`
+	GARMAgentVersion *string `json:"garm_agent_version,omitempty"`
+	// AllowInsecureGARMAgent configures deployed garm-agents to connect to
+	// GARM over plain http/ws (the agent's force_insecure setting). Meant
+	// for local development and testing only.
+	AllowInsecureGARMAgent *bool `json:"allow_insecure_garm_agent,omitempty"`
+	MinimumJobAgeBackoff   *uint `json:"minimum_job_age_backoff,omitempty"`
 	// swagger:strfmt byte
 	CACertBundle      []byte `json:"ca_cert_bundle,omitempty"`
 	ClearCACertBundle *bool  `json:"clear_ca_cert_bundle,omitempty"`

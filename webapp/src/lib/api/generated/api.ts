@@ -87,6 +87,12 @@ export interface ControllerInfo {
      */
     'agent_url'?: string;
     /**
+     * AllowInsecureGARMAgent configures deployed garm-agents with force_insecure enabled, permitting them to connect back to GARM over plain http/ws when GARM itself does not use TLS. The agent token is sent in plain text; meant for local development and testing only.
+     * @type {boolean}
+     * @memberof ControllerInfo
+     */
+    'allow_insecure_garm_agent'?: boolean;
+    /**
      * CACertBundle holds a certificate bundle meant to validate the certificate used by GARM itself. This can be just the root certificate that can validate the GARM TLS certificate, a chain or multiple root CAs.
      * @type {string}
      * @memberof ControllerInfo
@@ -3198,6 +3204,12 @@ export interface UpdateControllerParams {
      * @memberof UpdateControllerParams
      */
     'agent_url'?: string;
+    /**
+     * AllowInsecureGARMAgent configures deployed garm-agents to connect to GARM over plain http/ws (the agent\'s force_insecure setting). Meant for local development and testing only.
+     * @type {boolean}
+     * @memberof UpdateControllerParams
+     */
+    'allow_insecure_garm_agent'?: boolean;
     /**
      * 
      * @type {string}

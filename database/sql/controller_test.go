@@ -113,6 +113,36 @@ func (s *CtrlTestSuite) TestUpdateControllerGARMAgentVersion() {
 	s.Require().Equal("v2.0.0", info.GARMAgentVersion)
 }
 
+func (s *CtrlTestSuite) TestUpdateControllerAllowInsecureGARMAgent() {
+	_, err := s.Store.InitController()
+	s.Require().NoError(err)
+
+	// The flag defaults to off.
+	info, err := s.Store.ControllerInfo()
+	s.Require().NoError(err)
+	s.Require().False(info.AllowInsecureGARMAgent)
+
+	// Enabling it persists and round-trips through ControllerInfo.
+	allow := true
+	info, err = s.Store.UpdateController(params.UpdateControllerParams{AllowInsecureGARMAgent: &allow})
+	s.Require().NoError(err)
+	s.Require().True(info.AllowInsecureGARMAgent)
+	info, err = s.Store.ControllerInfo()
+	s.Require().NoError(err)
+	s.Require().True(info.AllowInsecureGARMAgent)
+
+	// A nil pointer leaves the stored value untouched.
+	info, err = s.Store.UpdateController(params.UpdateControllerParams{})
+	s.Require().NoError(err)
+	s.Require().True(info.AllowInsecureGARMAgent)
+
+	// It can be turned off again.
+	allow = false
+	info, err = s.Store.UpdateController(params.UpdateControllerParams{AllowInsecureGARMAgent: &allow})
+	s.Require().NoError(err)
+	s.Require().False(info.AllowInsecureGARMAgent)
+}
+
 func (s *CtrlTestSuite) TestControllerInfoResolvesCachedTools() {
 	_, err := s.Store.InitController()
 	s.Require().NoError(err)

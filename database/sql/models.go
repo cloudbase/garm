@@ -81,6 +81,9 @@ type ControllerInfo struct {
 	CachedGARMAgentReleases datatypes.JSON
 	// CachedGARMAgentReleaseFetchedAt is the timestamp when the release index was last fetched
 	CachedGARMAgentReleaseFetchedAt *time.Time
+	// AllowInsecureGARMAgent tells GARM to configure the garm-agent (when used) to connect
+	// to the GARM API even when not using TLS.
+	AllowInsecureGARMAgent bool
 
 	// CACertBundle holds a certificate bundle meant to validate the certificate
 	// used by GARM itself. This can be just the root certificate that can validate

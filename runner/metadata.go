@@ -445,8 +445,10 @@ func (r *Runner) GetRunnerInstallScript(ctx context.Context) ([]byte, error) {
 				return nil, fmt.Errorf("failed to get agent token: %w", err)
 			}
 			tplCtx.AgentToken = agentToken
-			tplCtx.AgentURL = cache.ControllerInfo().AgentURL
+			controllerInfo := cache.ControllerInfo()
+			tplCtx.AgentURL = controllerInfo.AgentURL
 			tplCtx.AgentShell = fmt.Sprintf("%t", enableShell)
+			tplCtx.ForceInsecureGARMAgent = controllerInfo.AllowInsecureGARMAgent
 		} else {
 			slog.WarnContext(ctx, "agent mode enabled but no tools available",
 				"runner_name", instance.Name)

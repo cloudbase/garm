@@ -44,6 +44,7 @@
 	let minimumJobAgeBackoff: number | null = null;
 	let garmAgentReleasesUrl = '';
 	let syncGarmAgentTools = false;
+	let allowInsecureAgent = false;
 	let caCertBundleBytes: number[] | null = null;
 	let caCertBundleFileName = '';
 	let clearCaCertBundle = false;
@@ -146,6 +147,7 @@
 		minimumJobAgeBackoff = controllerInfo.minimum_job_age_backoff || null;
 		garmAgentReleasesUrl = controllerInfo.garm_agent_releases_url || '';
 		syncGarmAgentTools = controllerInfo.enable_agent_tools_sync ?? false;
+		allowInsecureAgent = controllerInfo.allow_insecure_garm_agent ?? false;
 		caCertBundleBytes = null;
 		caCertBundleFileName = '';
 		clearCaCertBundle = false;
@@ -189,6 +191,7 @@
 			updateParams.garm_agent_version = effectiveAgentVersion;
 			// Always send the boolean value
 			updateParams.enable_agent_tools_sync = syncGarmAgentTools;
+			updateParams.allow_insecure_garm_agent = allowInsecureAgent;
 
 			if (clearCaCertBundle) {
 				updateParams.clear_ca_cert_bundle = true;
@@ -229,6 +232,7 @@
 		minimumJobAgeBackoff = null;
 		garmAgentReleasesUrl = '';
 		syncGarmAgentTools = false;
+		allowInsecureAgent = false;
 		caCertBundleBytes = null;
 		caCertBundleFileName = '';
 		clearCaCertBundle = false;
@@ -367,6 +371,30 @@
 								{#if controllerInfo.enable_agent_tools_sync}
 									<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
 										Enabled
+									</span>
+								{:else}
+									<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+										Disabled
+									</span>
+								{/if}
+							</div>
+						</div>
+
+						<!-- Insecure Agent Connections -->
+						<div>
+							<div class="flex items-center">
+								<div class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide font-medium">Insecure Agent Connections</div>
+								<div class="ml-2">
+									<Tooltip
+										title="Insecure Agent Connections"
+										content="When allowed, deployed garm-agents are configured with force_insecure and may connect to GARM over plain http/ws. The agent token is sent in plain text. Meant for local development and testing only."
+									/>
+								</div>
+							</div>
+							<div class="mt-1 p-2 bg-gray-50 dark:bg-gray-700 rounded text-sm font-mono text-gray-600 dark:text-gray-300 min-h-[38px] flex items-center">
+								{#if controllerInfo.allow_insecure_garm_agent}
+									<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+										Allowed
 									</span>
 								{:else}
 									<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
@@ -774,6 +802,25 @@
 					</label>
 					<p class="mt-1 text-xs text-gray-500 dark:text-gray-400 ml-6">
 						Automatically synchronize garm-agent tools from the configured releases URL
+					</p>
+				</div>
+
+				<!-- Allow Insecure Agent Connections -->
+				<div>
+					<label class="flex items-center cursor-pointer">
+						<input
+							id="allowInsecureAgent"
+							type="checkbox"
+							bind:checked={allowInsecureAgent}
+							class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer"
+						/>
+						<span class="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+							Allow Insecure Agent Connections
+						</span>
+					</label>
+					<p class="mt-1 text-xs text-amber-600 dark:text-amber-400 ml-6">
+						Configures deployed garm-agents to connect over plain http/ws (force_insecure). The
+						agent token is sent in plain text — meant for local development and testing only.
 					</p>
 				</div>
 

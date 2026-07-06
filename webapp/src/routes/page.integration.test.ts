@@ -482,6 +482,36 @@ describe('Dashboard Page Integration Tests', () => {
 			});
 		});
 
+		it('should send the insecure agent toggle when saving settings', async () => {
+			const { garmApi } = await import('$lib/api/client.js');
+			(garmApi.updateController as any).mockResolvedValueOnce({
+				...mockControllerInfo,
+				allow_insecure_garm_agent: true
+			});
+			render(DashboardPage);
+
+			await waitFor(() => {
+				expect(screen.getByText('Settings')).toBeInTheDocument();
+			});
+			await fireEvent.click(screen.getByText('Settings'));
+
+			const checkbox = await waitFor(() => {
+				const el = document.getElementById('allowInsecureAgent') as HTMLInputElement;
+				expect(el).toBeInTheDocument();
+				return el;
+			});
+			expect(checkbox.checked).toBe(false);
+			await fireEvent.click(checkbox);
+
+			await fireEvent.click(screen.getByText('Save Changes'));
+
+			await waitFor(() => {
+				expect(garmApi.updateController).toHaveBeenCalledWith(
+					expect.objectContaining({ allow_insecure_garm_agent: true })
+				);
+			});
+		});
+
 		it('should show the release notes of the selected version', async () => {
 			render(DashboardPage);
 
