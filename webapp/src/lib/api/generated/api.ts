@@ -93,7 +93,7 @@ export interface ControllerInfo {
      */
     'ca_cert_bundle'?: string;
     /**
-     * CachedGARMAgentReleaseFetchedAt is the timestamp when the release data was last fetched from GARMAgentReleasesURL
+     * CachedGARMAgentReleaseFetchedAt is the timestamp when the release index was last fetched from GARMAgentReleasesURL
      * @type {string}
      * @memberof ControllerInfo
      */
@@ -128,6 +128,12 @@ export interface ControllerInfo {
      * @memberof ControllerInfo
      */
     'garm_agent_releases_url'?: string;
+    /**
+     * GARMAgentVersion is the garm-agent version the controller uses. Empty or \"latest\" tracks the newest stable release available at GARMAgentReleasesURL. A specific semver version pins the release that gets cached and (when SyncGARMAgentTools is enabled) downloaded, for operators who want to stick with a known good agent version.
+     * @type {string}
+     * @memberof ControllerInfo
+     */
+    'garm_agent_version'?: string;
     /**
      * Hostname is the hostname of the machine that runs this controller. In the future, this field will be migrated to a separate table that will keep track of each the controller nodes that are part of a cluster. This will happen when we implement controller scale-out capability.
      * @type {string}
@@ -1458,6 +1464,86 @@ export interface ForgeInstance {
      * @memberof ForgeInstance
      */
     'updated_at'?: string;
+}
+/**
+ * GARMAgentRelease describes one garm-agent release available at the controller\'s releases URL, as recorded in the cached release index.
+ * @export
+ * @interface GARMAgentRelease
+ */
+export interface GARMAgentRelease {
+    /**
+     * Assets lists the downloadable binaries the release ships. Checksum files are omitted; the digest of each asset is included instead.
+     * @type {Array<GARMAgentReleaseAsset>}
+     * @memberof GARMAgentRelease
+     */
+    'assets'?: Array<GARMAgentReleaseAsset>;
+    /**
+     * Latest indicates this is the release \"latest\" currently resolves to.
+     * @type {boolean}
+     * @memberof GARMAgentRelease
+     */
+    'latest'?: boolean;
+    /**
+     * OSArchs lists the \"os_type/os_arch\" combinations the release ships agent binaries for.
+     * @type {Array<string>}
+     * @memberof GARMAgentRelease
+     */
+    'os_archs'?: Array<string>;
+    /**
+     * Pinned indicates this is the version the controller is pinned to.
+     * @type {boolean}
+     * @memberof GARMAgentRelease
+     */
+    'pinned'?: boolean;
+    /**
+     * Prerelease indicates the release is marked as a pre-release upstream.
+     * @type {boolean}
+     * @memberof GARMAgentRelease
+     */
+    'prerelease'?: boolean;
+    /**
+     * ReleaseNotes holds the release description as published upstream (typically markdown), so operators can see what changed in a release before pinning to it.
+     * @type {string}
+     * @memberof GARMAgentRelease
+     */
+    'release_notes'?: string;
+    /**
+     * Version is the release tag.
+     * @type {string}
+     * @memberof GARMAgentRelease
+     */
+    'version'?: string;
+}
+/**
+ * GARMAgentReleaseAsset describes one downloadable binary of a garm-agent release.
+ * @export
+ * @interface GARMAgentReleaseAsset
+ */
+export interface GARMAgentReleaseAsset {
+    /**
+     * Digest is the checksum of the asset as declared upstream (typically \"sha256:<hex>\").
+     * @type {string}
+     * @memberof GARMAgentReleaseAsset
+     */
+    'digest'?: string;
+    /**
+     * DownloadURL is the upstream URL the asset can be downloaded from.
+     * @type {string}
+     * @memberof GARMAgentReleaseAsset
+     */
+    'download_url'?: string;
+    /**
+     * Name is the file name of the asset.
+     * @type {string}
+     * @memberof GARMAgentReleaseAsset
+     */
+    'name'?: string;
+    /**
+     * Size is the size of the asset in bytes.
+     * @type {number}
+     * @memberof GARMAgentReleaseAsset
+     */
+    'size'?: number;
 }
 /**
  * 
@@ -3142,6 +3228,12 @@ export interface UpdateControllerParams {
      * @memberof UpdateControllerParams
      */
     'garm_agent_releases_url'?: string;
+    /**
+     * GARMAgentVersion pins the garm-agent version the controller uses. An empty string or \"latest\" tracks the newest release at GARMAgentReleasesURL; any other value must be a valid semver version.
+     * @type {string}
+     * @memberof UpdateControllerParams
+     */
+    'garm_agent_version'?: string;
     /**
      * 
      * @type {string}
@@ -15658,6 +15750,39 @@ export const ToolsApiAxiosParamCreator = function (configuration?: Configuration
             };
         },
         /**
+         * as recorded in the cached release index. The release the controller is pinned to and the release \"latest\" resolves to are marked.
+         * @summary List the garm-agent releases available at the controller\'s releases URL,
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        listGARMAgentReleases: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/tools/garm-agent/releases`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
          * Uploads a GARM agent tool for a specific OS and architecture. This will automatically replace any existing tool for the same OS/architecture combination.  Uses custom headers for metadata:  X-Tool-Name: Name of the tool  X-Tool-Description: Description  X-Tool-OS-Type: OS type (linux or windows)  X-Tool-OS-Arch: Architecture (amd64 or arm64)  X-Tool-Version: Version string
          * @summary Upload a GARM agent tool binary.
          * @param {*} [options] Override http request option.
@@ -15716,6 +15841,18 @@ export const ToolsApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
+         * as recorded in the cached release index. The release the controller is pinned to and the release \"latest\" resolves to are marked.
+         * @summary List the garm-agent releases available at the controller\'s releases URL,
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async listGARMAgentReleases(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<GARMAgentRelease>>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.listGARMAgentReleases(options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ToolsApi.listGARMAgentReleases']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
          * Uploads a GARM agent tool for a specific OS and architecture. This will automatically replace any existing tool for the same OS/architecture combination.  Uses custom headers for metadata:  X-Tool-Name: Name of the tool  X-Tool-Description: Description  X-Tool-OS-Type: OS type (linux or windows)  X-Tool-OS-Arch: Architecture (amd64 or arm64)  X-Tool-Version: Version string
          * @summary Upload a GARM agent tool binary.
          * @param {*} [options] Override http request option.
@@ -15750,6 +15887,15 @@ export const ToolsApiFactory = function (configuration?: Configuration, basePath
             return localVarFp.adminGarmAgentList(page, pageSize, upstream, options).then((request) => request(axios, basePath));
         },
         /**
+         * as recorded in the cached release index. The release the controller is pinned to and the release \"latest\" resolves to are marked.
+         * @summary List the garm-agent releases available at the controller\'s releases URL,
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        listGARMAgentReleases(options?: RawAxiosRequestConfig): AxiosPromise<Array<GARMAgentRelease>> {
+            return localVarFp.listGARMAgentReleases(options).then((request) => request(axios, basePath));
+        },
+        /**
          * Uploads a GARM agent tool for a specific OS and architecture. This will automatically replace any existing tool for the same OS/architecture combination.  Uses custom headers for metadata:  X-Tool-Name: Name of the tool  X-Tool-Description: Description  X-Tool-OS-Type: OS type (linux or windows)  X-Tool-OS-Arch: Architecture (amd64 or arm64)  X-Tool-Version: Version string
          * @summary Upload a GARM agent tool binary.
          * @param {*} [options] Override http request option.
@@ -15780,6 +15926,17 @@ export class ToolsApi extends BaseAPI {
      */
     public adminGarmAgentList(page?: number, pageSize?: number, upstream?: boolean, options?: RawAxiosRequestConfig) {
         return ToolsApiFp(this.configuration).adminGarmAgentList(page, pageSize, upstream, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * as recorded in the cached release index. The release the controller is pinned to and the release \"latest\" resolves to are marked.
+     * @summary List the garm-agent releases available at the controller\'s releases URL,
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ToolsApi
+     */
+    public listGARMAgentReleases(options?: RawAxiosRequestConfig) {
+        return ToolsApiFp(this.configuration).listGARMAgentReleases(options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

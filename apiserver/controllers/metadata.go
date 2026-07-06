@@ -155,6 +155,30 @@ func (a *APIController) AdminGARMToolsHandler(w http.ResponseWriter, r *http.Req
 	}
 }
 
+// swagger:route GET /tools/garm-agent/releases tools ListGARMAgentReleases
+//
+// List the garm-agent releases available at the controller's releases URL,
+// as recorded in the cached release index. The release the controller is
+// pinned to and the release "latest" resolves to are marked.
+//
+//	Responses:
+//	  200: GARMAgentReleases
+//	  400: APIErrorResponse
+func (a *APIController) ListGARMAgentReleasesHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	releases, err := a.r.ListGARMAgentReleases(ctx)
+	if err != nil {
+		handleError(ctx, w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(releases); err != nil {
+		slog.With(slog.Any("error", err)).ErrorContext(ctx, "failed to encode response")
+	}
+}
+
 func (a *APIController) InstanceShowGARMToolHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 

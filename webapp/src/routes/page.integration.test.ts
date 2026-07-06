@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/svelte';
+import { render, screen, waitFor, fireEvent } from '@testing-library/svelte';
 import type { ControllerInfo } from '$lib/api/generated/api.js';
 import type { MetricsSnapshot } from '$lib/stores/metrics-ws.js';
 import { writable } from 'svelte/store';
@@ -52,7 +52,13 @@ vi.mock('$lib/stores/metrics-ws.js', () => ({
 // Mock ONLY the API (still needed for ControllerInfoCard updateController)
 vi.mock('$lib/api/client.js', () => ({
 	garmApi: {
-		updateController: vi.fn()
+		updateController: vi.fn(),
+		listGARMAgentReleases: vi.fn(() =>
+			Promise.resolve([
+				{ version: 'v0.2.0', prerelease: false, os_archs: ['linux/amd64'], pinned: false, latest: true, release_notes: 'Fixed the flux capacitor' },
+				{ version: 'v0.1.0-beta1', prerelease: true, os_archs: ['linux/amd64'], pinned: false, latest: false, release_notes: 'Initial beta' }
+			])
+		)
 	}
 }));
 
@@ -341,6 +347,213 @@ describe('Dashboard Page Integration Tests', () => {
 
 			await waitFor(() => {
 				expect(screen.getByText('Controller Information')).toBeInTheDocument();
+			});
+		});
+
+		it('should show the agent version as latest when no version is pinned', async () => {
+			render(DashboardPage);
+
+			await waitFor(() => {
+				expect(screen.getAllByText('Agent Version').length).toBeGreaterThanOrEqual(1);
+				expect(screen.getAllByText('latest').length).toBeGreaterThanOrEqual(1);
+			});
+		});
+
+		it('should show the pinned agent version', async () => {
+			mockStoreData = {
+				controllerInfo: { ...mockControllerInfo, garm_agent_version: 'v0.1.0-beta1' },
+				loaded: { controllerInfo: true }
+			};
+			render(DashboardPage);
+
+			await waitFor(() => {
+				expect(screen.getByText('Pinned: v0.1.0-beta1')).toBeInTheDocument();
+			});
+		});
+
+		it('should offer the cached releases in the settings version picker', async () => {
+			render(DashboardPage);
+
+			await waitFor(() => {
+				expect(screen.getByText('Settings')).toBeInTheDocument();
+			});
+			await fireEvent.click(screen.getByText('Settings'));
+
+			await waitFor(() => {
+				const select = document.getElementById('garmAgentVersion') as HTMLSelectElement;
+				expect(select).toBeInTheDocument();
+				const labels = Array.from(select.options).map((o) => o.textContent?.trim());
+				expect(labels.some((l) => l?.startsWith('latest'))).toBe(true);
+				expect(labels.some((l) => l?.includes('v0.2.0'))).toBe(true);
+				expect(labels.some((l) => l?.includes('v0.1.0-beta1 (pre-release)'))).toBe(true);
+				expect(labels.some((l) => l?.includes('Custom version...'))).toBe(true);
+			});
+		});
+
+		it('should keep an older pinned release selectable beyond the dropdown limit', async () => {
+			// Pinning an older version records its release at the end of the
+			// cached index, past the 10 releases the dropdown normally shows.
+			const manyReleases = Array.from({ length: 11 }, (_, i) => ({
+				version: `v0.${12 - i}.0`,
+				prerelease: false,
+				os_archs: ['linux/amd64'],
+				pinned: false,
+				latest: i === 0,
+				release_notes: ''
+			}));
+			manyReleases.push({
+				version: 'v0.0.5',
+				prerelease: false,
+				os_archs: ['linux/amd64'],
+				pinned: true,
+				latest: false,
+				release_notes: 'Ancient history'
+			});
+			const { garmApi } = await import('$lib/api/client.js');
+			(garmApi.listGARMAgentReleases as any).mockResolvedValueOnce(manyReleases);
+			mockStoreData = {
+				controllerInfo: { ...mockControllerInfo, garm_agent_version: 'v0.0.5' },
+				loaded: { controllerInfo: true }
+			};
+			render(DashboardPage);
+
+			await waitFor(() => {
+				expect(screen.getByText('Settings')).toBeInTheDocument();
+			});
+			await fireEvent.click(screen.getByText('Settings'));
+
+			await waitFor(() => {
+				const select = document.getElementById('garmAgentVersion') as HTMLSelectElement;
+				expect(select).toBeInTheDocument();
+				const values = Array.from(select.options).map((o) => o.value);
+				expect(values).toContain('v0.0.5');
+				expect(select.value).toBe('v0.0.5');
+			});
+			// The pinned release's notes are shown, proving it resolved to the
+			// release entry rather than the blind custom input.
+			await waitFor(() => {
+				expect(screen.getByTestId('agent-release-notes')).toHaveTextContent('Ancient history');
+			});
+		});
+
+		it('should snap a pin without the v prefix to its release entry', async () => {
+			const { garmApi } = await import('$lib/api/client.js');
+			(garmApi.listGARMAgentReleases as any).mockResolvedValueOnce([
+				{ version: 'v0.2.0', prerelease: false, os_archs: ['linux/amd64'], pinned: true, latest: true, release_notes: 'Fixed the flux capacitor' },
+				{ version: 'v0.1.0-beta1', prerelease: true, os_archs: ['linux/amd64'], pinned: false, latest: false, release_notes: 'Initial beta' }
+			]);
+			mockStoreData = {
+				controllerInfo: { ...mockControllerInfo, garm_agent_version: '0.2.0' },
+				loaded: { controllerInfo: true }
+			};
+			render(DashboardPage);
+
+			await waitFor(() => {
+				expect(screen.getByText('Settings')).toBeInTheDocument();
+			});
+			await fireEvent.click(screen.getByText('Settings'));
+
+			await waitFor(() => {
+				const select = document.getElementById('garmAgentVersion') as HTMLSelectElement;
+				expect(select).toBeInTheDocument();
+				expect(select.value).toBe('v0.2.0');
+			});
+		});
+
+		it('should fall back to the custom entry for a pin missing from the index', async () => {
+			mockStoreData = {
+				controllerInfo: { ...mockControllerInfo, garm_agent_version: 'v9.9.9' },
+				loaded: { controllerInfo: true }
+			};
+			render(DashboardPage);
+
+			await waitFor(() => {
+				expect(screen.getByText('Settings')).toBeInTheDocument();
+			});
+			await fireEvent.click(screen.getByText('Settings'));
+
+			await waitFor(() => {
+				const select = document.getElementById('garmAgentVersion') as HTMLSelectElement;
+				expect(select).toBeInTheDocument();
+				expect(select.value).toBe('__custom__');
+				const input = document.getElementById('garmAgentVersionCustom') as HTMLInputElement;
+				expect(input).toBeInTheDocument();
+				expect(input.value).toBe('v9.9.9');
+			});
+		});
+
+		it('should show the release notes of the selected version', async () => {
+			render(DashboardPage);
+
+			await waitFor(() => {
+				expect(screen.getByText('Settings')).toBeInTheDocument();
+			});
+			await fireEvent.click(screen.getByText('Settings'));
+
+			const select = await waitFor(() => {
+				const el = document.getElementById('garmAgentVersion') as HTMLSelectElement;
+				expect(el).toBeInTheDocument();
+				return el;
+			});
+
+			// "latest" shows the notes of the release it resolves to.
+			await waitFor(() => {
+				expect(screen.getByTestId('agent-release-notes')).toHaveTextContent(
+					'Fixed the flux capacitor'
+				);
+			});
+
+			// Selecting a specific version shows that version's notes.
+			await fireEvent.change(select, { target: { value: 'v0.1.0-beta1' } });
+			await waitFor(() => {
+				expect(screen.getByTestId('agent-release-notes')).toHaveTextContent('Initial beta');
+			});
+
+			// The custom entry has no known release, so no notes are shown.
+			await fireEvent.change(select, { target: { value: '__custom__' } });
+			await waitFor(() => {
+				expect(screen.queryByTestId('agent-release-notes')).not.toBeInTheDocument();
+			});
+		});
+
+		it('should reject an invalid custom agent version in the settings form', async () => {
+			render(DashboardPage);
+
+			await waitFor(() => {
+				expect(screen.getByText('Settings')).toBeInTheDocument();
+			});
+			await fireEvent.click(screen.getByText('Settings'));
+
+			const select = await waitFor(() => {
+				const el = document.getElementById('garmAgentVersion') as HTMLSelectElement;
+				expect(el).toBeInTheDocument();
+				return el;
+			});
+			await fireEvent.change(select, { target: { value: '__custom__' } });
+
+			const customInput = await waitFor(() => {
+				const input = document.getElementById('garmAgentVersionCustom') as HTMLInputElement;
+				expect(input).toBeInTheDocument();
+				return input;
+			});
+			await fireEvent.input(customInput, { target: { value: 'not-a-version' } });
+
+			await waitFor(() => {
+				expect(
+					screen.getByText('Must be "latest" or a semver version (e.g. v0.1.0)')
+				).toBeInTheDocument();
+				const saveButton = screen.getByText('Save Changes').closest('button');
+				expect(saveButton).toBeDisabled();
+			});
+
+			// A valid pinned version clears the error and re-enables submit.
+			await fireEvent.input(customInput, { target: { value: 'v1.2.3' } });
+			await waitFor(() => {
+				expect(
+					screen.queryByText('Must be "latest" or a semver version (e.g. v0.1.0)')
+				).not.toBeInTheDocument();
+				const saveButton = screen.getByText('Save Changes').closest('button');
+				expect(saveButton).not.toBeDisabled();
 			});
 		});
 	});

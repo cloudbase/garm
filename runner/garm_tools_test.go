@@ -22,6 +22,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/suite"
 
@@ -31,6 +32,7 @@ import (
 	dbCommon "github.com/cloudbase/garm/database/common"
 	garmTesting "github.com/cloudbase/garm/internal/testing"
 	"github.com/cloudbase/garm/params"
+	garmUtil "github.com/cloudbase/garm/util"
 )
 
 var (
@@ -462,4 +464,60 @@ func getVersionFromTags(tags []string) string {
 
 func TestGARMToolsTestSuite(t *testing.T) {
 	suite.Run(t, new(GARMToolsTestSuite))
+}
+
+func (s *GARMToolsTestSuite) TestListGARMAgentReleases() {
+	_, err := s.Store.InitController()
+	s.Require().NoError(err)
+
+	index := garmUtil.AgentReleaseIndex{
+		SourceURL: "https://example.com/releases",
+		Releases: garmUtil.GitHubReleases{
+			{
+				TagName: "v0.2.0",
+				Body:    "## What's changed\nthings",
+				Assets: []garmUtil.GitHubReleaseAsset{
+					{Name: "garm-agent-linux-amd64-v0.2.0", Size: 100, Digest: "sha256:abc", DownloadURL: "https://example.com/v0.2.0/linux-amd64"},
+					{Name: "garm-agent-linux-amd64-v0.2.0.sha256", Size: 96, Digest: "sha256:def", DownloadURL: "https://example.com/v0.2.0/linux-amd64.sha256"},
+				},
+			},
+			{
+				TagName:    "v0.1.0",
+				Prerelease: true,
+				Assets: []garmUtil.GitHubReleaseAsset{
+					{Name: "garm-agent-linux-amd64-v0.1.0", Size: 90, DownloadURL: "https://example.com/v0.1.0/linux-amd64"},
+				},
+			},
+		},
+	}
+	data, err := garmUtil.MarshalReleaseIndex(index)
+	s.Require().NoError(err)
+	s.Require().NoError(s.Store.UpdateCachedGARMAgentReleases(data, time.Now()))
+
+	version := "v0.1.0"
+	_, err = s.Store.UpdateController(params.UpdateControllerParams{GARMAgentVersion: &version})
+	s.Require().NoError(err)
+
+	releases, err := s.Runner.ListGARMAgentReleases(s.AdminContext)
+	s.Require().NoError(err)
+	s.Require().Len(releases, 2)
+
+	s.Require().Equal("v0.2.0", releases[0].Version)
+	s.Require().True(releases[0].Latest)
+	s.Require().False(releases[0].Pinned)
+	s.Require().Equal("## What's changed\nthings", releases[0].ReleaseNotes)
+	// Checksum files are filtered from the asset listing; digests come from
+	// the assets themselves.
+	s.Require().Len(releases[0].Assets, 1)
+	s.Require().Equal("garm-agent-linux-amd64-v0.2.0", releases[0].Assets[0].Name)
+	s.Require().Equal("sha256:abc", releases[0].Assets[0].Digest)
+	s.Require().Equal([]string{"linux/amd64"}, releases[0].OSArchs)
+
+	s.Require().Equal("v0.1.0", releases[1].Version)
+	s.Require().True(releases[1].Pinned)
+	s.Require().False(releases[1].Latest)
+
+	// Non-admin contexts are rejected.
+	_, err = s.Runner.ListGARMAgentReleases(s.UnauthorizedContext)
+	s.Require().ErrorIs(err, runnerErrors.ErrUnauthorized)
 }

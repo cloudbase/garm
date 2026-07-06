@@ -185,6 +185,22 @@ definitions:
                 alias: garm_params
                 package: github.com/cloudbase/garm/params
             type: ForgeInstances
+    GARMAgentRelease:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: GARMAgentRelease
+    GARMAgentReleases:
+        items:
+            $ref: '#/definitions/GARMAgentRelease'
+        type: array
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: GARMAgentReleases
     GARMAgentTool:
         type: object
         x-go-type:
@@ -3028,6 +3044,24 @@ paths:
                     schema:
                         $ref: '#/definitions/APIErrorResponse'
             summary: Upload a GARM agent tool binary.
+            tags:
+                - tools
+    /tools/garm-agent/releases:
+        get:
+            description: |-
+                as recorded in the cached release index. The release the controller is
+                pinned to and the release "latest" resolves to are marked.
+            operationId: ListGARMAgentReleases
+            responses:
+                "200":
+                    description: GARMAgentReleases
+                    schema:
+                        $ref: '#/definitions/GARMAgentReleases'
+                "400":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List the garm-agent releases available at the controller's releases URL,
             tags:
                 - tools
 produces:

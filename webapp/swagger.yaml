@@ -48,7 +48,7 @@ definitions:
                 type: string
                 x-go-name: CACertBundle
             cached_garm_agent_release_fetched_at:
-                description: CachedGARMAgentReleaseFetchedAt is the timestamp when the release data was last fetched from GARMAgentReleasesURL
+                description: CachedGARMAgentReleaseFetchedAt is the timestamp when the release index was last fetched from GARMAgentReleasesURL
                 format: date-time
                 type: string
                 x-go-name: CachedGARMAgentReleaseFetchedAt
@@ -87,6 +87,15 @@ definitions:
                     The default value for this field is: https://api.github.com/repos/cloudbase/garm-agent/releases
                 type: string
                 x-go-name: GARMAgentReleasesURL
+            garm_agent_version:
+                description: |-
+                    GARMAgentVersion is the garm-agent version the controller uses. Empty or
+                    "latest" tracks the newest stable release available at GARMAgentReleasesURL.
+                    A specific semver version pins the release that gets cached and (when
+                    SyncGARMAgentTools is enabled) downloaded, for operators who want to
+                    stick with a known good agent version.
+                type: string
+                x-go-name: GARMAgentVersion
             hostname:
                 description: |-
                     Hostname is the hostname of the machine that runs this controller. In the
@@ -872,6 +881,83 @@ definitions:
         description: used by swagger client generated code
         items:
             $ref: '#/definitions/ForgeInstance'
+        type: array
+        x-go-package: github.com/cloudbase/garm/params
+    GARMAgentRelease:
+        description: |-
+            GARMAgentRelease describes one garm-agent release available at the
+            controller's releases URL, as recorded in the cached release index.
+        properties:
+            assets:
+                description: |-
+                    Assets lists the downloadable binaries the release ships. Checksum
+                    files are omitted; the digest of each asset is included instead.
+                items:
+                    $ref: '#/definitions/GARMAgentReleaseAsset'
+                type: array
+                x-go-name: Assets
+            latest:
+                description: Latest indicates this is the release "latest" currently resolves to.
+                type: boolean
+                x-go-name: Latest
+            os_archs:
+                description: |-
+                    OSArchs lists the "os_type/os_arch" combinations the release ships
+                    agent binaries for.
+                items:
+                    type: string
+                type: array
+                x-go-name: OSArchs
+            pinned:
+                description: Pinned indicates this is the version the controller is pinned to.
+                type: boolean
+                x-go-name: Pinned
+            prerelease:
+                description: Prerelease indicates the release is marked as a pre-release upstream.
+                type: boolean
+                x-go-name: Prerelease
+            release_notes:
+                description: |-
+                    ReleaseNotes holds the release description as published upstream
+                    (typically markdown), so operators can see what changed in a release
+                    before pinning to it.
+                type: string
+                x-go-name: ReleaseNotes
+            version:
+                description: Version is the release tag.
+                type: string
+                x-go-name: Version
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    GARMAgentReleaseAsset:
+        description: |-
+            GARMAgentReleaseAsset describes one downloadable binary of a garm-agent
+            release.
+        properties:
+            digest:
+                description: |-
+                    Digest is the checksum of the asset as declared upstream (typically
+                    "sha256:<hex>").
+                type: string
+                x-go-name: Digest
+            download_url:
+                description: DownloadURL is the upstream URL the asset can be downloaded from.
+                type: string
+                x-go-name: DownloadURL
+            name:
+                description: Name is the file name of the asset.
+                type: string
+                x-go-name: Name
+            size:
+                description: Size is the size of the asset in bytes.
+                format: uint64
+                type: integer
+                x-go-name: Size
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    GARMAgentReleases:
+        items:
+            $ref: '#/definitions/GARMAgentRelease'
         type: array
         x-go-package: github.com/cloudbase/garm/params
     GARMAgentTool:
@@ -2017,6 +2103,13 @@ definitions:
             garm_agent_releases_url:
                 type: string
                 x-go-name: GARMAgentReleasesURL
+            garm_agent_version:
+                description: |-
+                    GARMAgentVersion pins the garm-agent version the controller uses. An
+                    empty string or "latest" tracks the newest release at
+                    GARMAgentReleasesURL; any other value must be a valid semver version.
+                type: string
+                x-go-name: GARMAgentVersion
             metadata_url:
                 type: string
                 x-go-name: MetadataURL
@@ -4873,6 +4966,24 @@ paths:
                     schema:
                         $ref: '#/definitions/APIErrorResponse'
             summary: Upload a GARM agent tool binary.
+            tags:
+                - tools
+    /tools/garm-agent/releases:
+        get:
+            description: |-
+                as recorded in the cached release index. The release the controller is
+                pinned to and the release "latest" resolves to are marked.
+            operationId: ListGARMAgentReleases
+            responses:
+                "200":
+                    description: GARMAgentReleases
+                    schema:
+                        $ref: '#/definitions/GARMAgentReleases'
+                "400":
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List the garm-agent releases available at the controller's releases URL,
             tags:
                 - tools
 produces:

@@ -20,6 +20,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"net/url"
+	"strings"
 	"time"
 
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
@@ -589,6 +590,10 @@ type UpdateControllerParams struct {
 	AgentURL             *string `json:"agent_url,omitempty"`
 	GARMAgentReleasesURL *string `json:"garm_agent_releases_url,omitempty"`
 	SyncGARMAgentTools   *bool   `json:"enable_agent_tools_sync,omitempty"`
+	// GARMAgentVersion pins the garm-agent version the controller uses. An
+	// empty string or "latest" tracks the newest release at
+	// GARMAgentReleasesURL; any other value must be a valid semver version.
+	GARMAgentVersion     *string `json:"garm_agent_version,omitempty"`
 	MinimumJobAgeBackoff *uint   `json:"minimum_job_age_backoff,omitempty"`
 	// swagger:strfmt byte
 	CACertBundle      []byte `json:"ca_cert_bundle,omitempty"`
@@ -631,6 +636,12 @@ func (u UpdateControllerParams) Validate() error {
 		u, err := url.Parse(*u.AgentURL)
 		if err != nil || u.Scheme == "" || u.Host == "" {
 			return runnerErrors.NewBadRequestError("invalid agent_url")
+		}
+	}
+
+	if u.GARMAgentVersion != nil {
+		if err := ValidateGARMAgentVersion(strings.TrimSpace(*u.GARMAgentVersion)); err != nil {
+			return err
 		}
 	}
 

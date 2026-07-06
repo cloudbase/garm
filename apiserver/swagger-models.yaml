@@ -445,3 +445,19 @@ definitions:
         import:
             package: github.com/cloudbase/garm/params
             alias: garm_params
+  GARMAgentReleases:
+    type: array
+    x-go-type:
+        type: GARMAgentReleases
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+    items:
+        $ref: '#/definitions/GARMAgentRelease'
+  GARMAgentRelease:
+    type: object
+    x-go-type:
+        type: GARMAgentRelease
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params

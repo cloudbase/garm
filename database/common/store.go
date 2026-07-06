@@ -155,7 +155,7 @@ type ControllerStore interface {
 	InitController() (params.ControllerInfo, error)
 	UpdateController(info params.UpdateControllerParams) (params.ControllerInfo, error)
 	HasEntitiesWithAgentModeEnabled() (bool, error)
-	UpdateCachedGARMAgentRelease(releaseData []byte, fetchedAt time.Time) error
+	UpdateCachedGARMAgentReleases(index []byte, fetchedAt time.Time) error
 }
 
 type ScaleSetsStore interface {

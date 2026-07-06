@@ -24,7 +24,9 @@ import (
 	"errors"
 	"fmt"
 	"hash"
+	"io"
 	"log/slog"
+	"net/http"
 	"net/url"
 	"os"
 	"strings"
@@ -43,6 +45,7 @@ import (
 	"github.com/cloudbase/garm/runner/common"
 	"github.com/cloudbase/garm/runner/pool"
 	"github.com/cloudbase/garm/runner/providers"
+	garmUtil "github.com/cloudbase/garm/util"
 	"github.com/cloudbase/garm/util/github"
 	"github.com/cloudbase/garm/util/github/scalesets"
 	workersCommon "github.com/cloudbase/garm/workers/common"
@@ -294,6 +297,36 @@ type Runner struct {
 	forgeInstancesLoaded bool
 }
 
+// validateReleasesURL fetches a garm-agent releases URL and checks that it
+// responds with a list of releases. It is called when the URL is changed on
+// the controller, so a misconfigured endpoint is rejected at update time
+// instead of failing silently in the sync worker later.
+func validateReleasesURL(ctx context.Context, releasesURL string) error {
+	reqCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, releasesURL, nil)
+	if err != nil {
+		return runnerErrors.NewBadRequestError("invalid garm_agent_releases_url: %q", err)
+	}
+	resp, err := http.DefaultClient.Do(req) // #nosec G704 -- validating the admin-supplied URL is the point of this function
+	if err != nil {
+		return runnerErrors.NewBadRequestError("failed to fetch garm_agent_releases_url: %q", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return runnerErrors.NewBadRequestError("garm_agent_releases_url returned status %d", resp.StatusCode)
+	}
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return runnerErrors.NewBadRequestError("failed to read response from garm_agent_releases_url: %q", err)
+	}
+	if _, err := garmUtil.ParseReleaseList(data); err != nil {
+		return runnerErrors.NewBadRequestError("garm_agent_releases_url does not expose a github compatible list of releases: %q", err)
+	}
+	return nil
+}
+
 // UpdateController will update the controller settings.
 func (r *Runner) UpdateController(ctx context.Context, param params.UpdateControllerParams) (params.ControllerInfo, error) {
 	if !auth.IsAdmin(ctx) {
@@ -310,6 +343,14 @@ func (r *Runner) UpdateController(ctx context.Context, param params.UpdateContro
 			return params.ControllerInfo{}, fmt.Errorf("failed to sanitize CA bundle: %w", err)
 		}
 		param.CACertBundle = sanitized
+	}
+
+	// A new releases URL must expose a valid release list before we accept
+	// it. An empty value resets to the default URL, which is known good.
+	if param.GARMAgentReleasesURL != nil && *param.GARMAgentReleasesURL != "" {
+		if err := validateReleasesURL(ctx, *param.GARMAgentReleasesURL); err != nil {
+			return params.ControllerInfo{}, err
+		}
 	}
 
 	info, err := r.store.UpdateController(param)
@@ -337,11 +378,11 @@ func (r *Runner) ForceToolsSync(ctx context.Context) (params.ControllerInfo, err
 		return params.ControllerInfo{}, runnerErrors.NewConflictError("GARM agent tools sync is disabled")
 	}
 
-	// Reset the timestamp to nil to trigger force sync
+	// Reset the cached index to trigger force sync.
 	// This will cause the watcher to pick up the change and sync immediately
-	err = r.store.UpdateCachedGARMAgentRelease(nil, time.Time{})
+	err = r.store.UpdateCachedGARMAgentReleases(nil, time.Time{})
 	if err != nil {
-		return params.ControllerInfo{}, fmt.Errorf("error resetting cached release timestamp: %w", err)
+		return params.ControllerInfo{}, fmt.Errorf("error resetting cached release index: %w", err)
 	}
 
 	// Get updated controller info
