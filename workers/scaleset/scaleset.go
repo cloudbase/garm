@@ -395,8 +395,8 @@ func (w *Worker) reapTimedOutRunners(runners map[string]params.RunnerReference) 
 			continue
 		}
 
-		if runner.RunnerStatus != params.RunnerPending && runner.RunnerStatus != params.RunnerInstalling {
-			slog.DebugContext(w.ctx, "runner is not pending or installing; skipping", "runner_name", runner.Name)
+		if runner.RunnerStatus != params.RunnerPending && runner.RunnerStatus != params.RunnerInstalling && runner.RunnerStatus != params.RunnerFailed {
+			slog.DebugContext(w.ctx, "runner is not pending, installing or failed; skipping", "runner_name", runner.Name)
 			continue
 		}
 		if ghRunner, ok := runners[runner.Name]; !ok || ghRunner.GetStatus() == params.RunnerOffline {
