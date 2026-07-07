@@ -31,6 +31,7 @@ import (
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm/database/common"
+	garmErrors "github.com/cloudbase/garm/internal/errors"
 	"github.com/cloudbase/garm/params"
 )
 
@@ -319,7 +320,7 @@ func (s *sqlDatabase) validateRunnerStatusTransition(current, newStatus params.R
 	}
 
 	if !slices.Contains(allowedTransitions, newStatus) {
-		return runnerErrors.NewBadRequestError("invalid runner status transition from %s to %s", current, newStatus)
+		return garmErrors.NewRunnerTransitionError(current, newStatus)
 	}
 	return nil
 }
@@ -338,7 +339,7 @@ func (s *sqlDatabase) validateInstanceStatusTransition(current, newStatus common
 	}
 
 	if !slices.Contains(allowedTransitions, newStatus) {
-		return runnerErrors.NewBadRequestError("invalid instance status transition from %s to %s", current, newStatus)
+		return runnerErrors.NewInstanceTransitionError(current, newStatus)
 	}
 	return nil
 }
