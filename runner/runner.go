@@ -41,6 +41,7 @@ import (
 	"github.com/cloudbase/garm/auth"
 	"github.com/cloudbase/garm/config"
 	dbCommon "github.com/cloudbase/garm/database/common"
+	garmErrors "github.com/cloudbase/garm/internal/errors"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
 	"github.com/cloudbase/garm/runner/pool"
@@ -1111,6 +1112,12 @@ func (r *Runner) AddInstanceStatusMessage(ctx context.Context, param params.Inst
 	}
 
 	if _, err := r.store.UpdateInstance(r.ctx, instanceName, updateParams); err != nil {
+		var te *garmErrors.RunnerTransitionError
+		if errors.As(err, &te) && garmErrors.RunnerIsTerminal(te.From) {
+			// The runner is already terminal (e.g. reaped after going missing);
+			// its self-reported status update is moot.
+			return nil
+		}
 		return fmt.Errorf("error updating runner agent ID: %w", err)
 	}
 
@@ -1265,6 +1272,12 @@ func (r *Runner) DeleteRunner(ctx context.Context, instanceName string, forceDel
 	}
 	_, err = r.store.UpdateInstance(r.ctx, instance.Name, updateParams)
 	if err != nil {
+		var te *runnerErrors.InstanceTransitionError
+		if errors.As(err, &te) && garmErrors.InstanceIsBeingDeleted(te.From) {
+			// Another code path already moved the instance into the deletion
+			// lane; the deletion the caller asked for is already under way.
+			return nil
+		}
 		return fmt.Errorf("error updating runner state: %w", err)
 	}
 

@@ -28,6 +28,7 @@ import (
 	"github.com/cloudbase/garm/cache"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/database/watcher"
+	garmErrors "github.com/cloudbase/garm/internal/errors"
 	"github.com/cloudbase/garm/locking"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
@@ -502,7 +503,13 @@ func (w *Worker) consolidateRunnerState(runners []params.RunnerReference) error 
 			slog.InfoContext(w.ctx, "runner does not exist in github; removing from provider", "runner_name", name)
 			instance, err := w.setRunnerDBStatus(runner.Name, commonParams.InstancePendingDelete)
 			if err != nil {
-				if !errors.Is(err, runnerErrors.ErrNotFound) {
+				var te *runnerErrors.InstanceTransitionError
+				switch {
+				case errors.Is(err, runnerErrors.ErrNotFound):
+				case errors.As(err, &te) && garmErrors.InstanceIsBeingDeleted(te.From):
+					// Already being deleted by another code path; nothing to do.
+					continue
+				default:
 					return fmt.Errorf("updating runner %s: %w", instance.Name, err)
 				}
 			}
@@ -936,6 +943,14 @@ func (w *Worker) handleScaleDown() {
 					// state, so either the update never came from the watcher or something else happened.
 					// Remove it from the local cache.
 					delete(w.runners, runner.ID)
+					removed++
+					locking.Unlock(runner.Name, true)
+					continue
+				}
+				var te *runnerErrors.InstanceTransitionError
+				if errors.As(err, &te) && garmErrors.InstanceIsBeingDeleted(te.From) {
+					// Another code path already moved the instance into the
+					// deletion lane; it is being removed, which is what we wanted.
 					removed++
 					locking.Unlock(runner.Name, true)
 					continue
