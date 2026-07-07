@@ -470,7 +470,11 @@ func (r *Runner) GetRunnerInstallScript(ctx context.Context) ([]byte, error) {
 
 	installScript, err := templates.RenderRunnerInstallScript(string(tplBytes), tplCtx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get runner install script: %w", err)
+		// A render failure is deterministic (the template is broken), so return
+		// a bad-request rather than a generic 500 error. A 500 error is opaque
+		// to the caller. The install wrapper surfaces this detail as the runner's
+		// "failed" status so the instance doesn't hang in "installing" forever.
+		return nil, runnerErrors.NewBadRequestError("failed to render runner install script: %s", err)
 	}
 	return installScript, nil
 }
