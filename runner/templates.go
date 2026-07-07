@@ -34,6 +34,13 @@ func (r *Runner) CreateTemplate(ctx context.Context, param params.CreateTemplate
 		return params.Template{}, runnerErrors.NewBadRequestError("invalid create params %q", err)
 	}
 
+	// ValidateTemplate returns a typed bad-request error carrying the parse
+	// error message. Wrap with %w to add call-site context for tracking while
+	// preserving the bad-request type (so it still maps to HTTP 400).
+	if err := templates.ValidateTemplate(param.Data); err != nil {
+		return params.Template{}, fmt.Errorf("failed to validate template: %w", err)
+	}
+
 	template, err := r.store.CreateTemplate(ctx, param)
 	if err != nil {
 		return params.Template{}, fmt.Errorf("failed to create template: %w", err)
@@ -170,6 +177,15 @@ func (r *Runner) UpdateTemplate(ctx context.Context, id uint, param params.Updat
 
 	if err := param.Validate(); err != nil {
 		return params.Template{}, runnerErrors.NewBadRequestError("invalid update params: %q", err)
+	}
+
+	// Data is optional on update (name/description-only updates leave it nil,
+	// and the store only writes it when non-empty), so only validate the
+	// template body when the caller is actually changing it.
+	if len(param.Data) > 0 {
+		if err := templates.ValidateTemplate(param.Data); err != nil {
+			return params.Template{}, fmt.Errorf("failed to validate template: %w", err)
+		}
 	}
 
 	template, err := r.store.UpdateTemplate(ctx, id, param)

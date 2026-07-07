@@ -6,7 +6,7 @@ require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/alecthomas/chroma/v2 v2.27.0
 	github.com/bradleyfalzon/ghinstallation/v2 v2.19.0
-	github.com/cloudbase/garm-provider-common v0.1.10-0.20260627162627-e00d7529cc6f
+	github.com/cloudbase/garm-provider-common v0.1.10-0.20260707095006-33396540b57b
 	github.com/felixge/httpsnoop v1.1.0
 	github.com/gdamore/tcell/v2 v2.13.10
 	github.com/go-gormigrate/gormigrate/v2 v2.1.6
@@ -106,6 +106,7 @@ require (
 	go.opentelemetry.io/otel/metric v1.44.0 // indirect
 	go.opentelemetry.io/otel/trace v1.44.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
+	go.yaml.in/yaml/v4 v4.0.0-rc.6 // indirect
 	golang.org/x/net v0.56.0 // indirect
 	golang.org/x/sys v0.46.0 // indirect
 	golang.org/x/text v0.38.0 // indirect

@@ -14,6 +14,8 @@
 package cmd
 
 import (
+	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -23,6 +25,7 @@ import (
 	"github.com/spf13/cobra"
 
 	commonParams "github.com/cloudbase/garm-provider-common/params"
+	apiserverParams "github.com/cloudbase/garm/apiserver/params"
 	apiTemplates "github.com/cloudbase/garm/client/templates"
 	"github.com/cloudbase/garm/cmd/garm-cli/common"
 	"github.com/cloudbase/garm/cmd/garm-cli/editor"
@@ -446,24 +449,40 @@ is opened in $EDITOR instead.`,
 			updateReq := apiTemplates.NewUpdateTemplateParams()
 			updateReq.TemplateID = float64(response.Payload.ID)
 			updateReq.Body.Data = []byte(text)
-			_, err := apiCli.Templates.UpdateTemplate(updateReq, authToken)
-			return err
+			if _, err := apiCli.Templates.UpdateTemplate(updateReq, authToken); err != nil {
+				// Surface the API's error detail (e.g. the template parse error)
+				// rather than the raw go-swagger response blob. The built-in
+				// editor reports this in place, keeping the editor open to fix.
+				return errors.New(templateAPIErrorMessage(err))
+			}
+			return nil
 		}
 
 		if templateEditExternal {
-			newContent, changed, err := editWithExternalEditor(original, string(response.Payload.OSType))
-			if err != nil {
-				return err
-			}
-			if !changed {
-				fmt.Println("no changes made")
+			// The external editor closes after each pass, so on a failed save we
+			// show the error and offer to reopen with the user's edits intact.
+			toEdit := original
+			for {
+				newContent, _, err := editWithExternalEditor(toEdit, string(response.Payload.OSType))
+				if err != nil {
+					return err
+				}
+				if newContent == original {
+					fmt.Println("no changes made")
+					return nil
+				}
+				if err := updateTemplate(newContent); err != nil {
+					fmt.Fprintf(os.Stderr, "\ntemplate not saved: %s\nHit enter to retry, ctrl-c to cancel edit ", err)
+					if _, rerr := bufio.NewReader(os.Stdin).ReadString('\n'); rerr != nil {
+						// stdin closed (e.g. non-interactive) — nothing to retry with.
+						return errors.New("template not saved")
+					}
+					toEdit = newContent
+					continue
+				}
+				fmt.Println("changes saved successfully")
 				return nil
 			}
-			if err := updateTemplate(newContent); err != nil {
-				return fmt.Errorf("failed to update template: %s", err)
-			}
-			fmt.Println("changes saved successfully")
-			return nil
 		}
 
 		ed := editor.NewEditor()
@@ -539,6 +558,36 @@ func editWithExternalEditor(content, osType string) (string, bool, error) {
 		return "", false, fmt.Errorf("failed to read edited file: %w", err)
 	}
 	return string(edited), string(edited) != content, nil
+}
+
+// templateAPIErrorMessage extracts the human-readable message from a template
+// API error, preferring the structured APIErrorResponse detail (already
+// unmarshaled by the client) over the raw go-swagger response string.
+func templateAPIErrorMessage(err error) string {
+	var updateErr *apiTemplates.UpdateTemplateDefault
+	if errors.As(err, &updateErr) {
+		if msg := apiErrorResponseMessage(updateErr.Payload); msg != "" {
+			return msg
+		}
+	}
+	var createErr *apiTemplates.CreateTemplateDefault
+	if errors.As(err, &createErr) {
+		if msg := apiErrorResponseMessage(createErr.Payload); msg != "" {
+			return msg
+		}
+	}
+	return err.Error()
+}
+
+func apiErrorResponseMessage(p apiserverParams.APIErrorResponse) string {
+	switch {
+	case p.Details != "":
+		return p.Details
+	case p.Error != "":
+		return p.Error
+	default:
+		return ""
+	}
 }
 
 func init() {

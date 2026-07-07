@@ -23,8 +23,8 @@ import (
 
 	"github.com/cloudbase/garm-provider-common/defaults"
 
+	"go.yaml.in/yaml/v4"
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v3"
 )
 
 func NewDefaultCloudInitConfig() *CloudInit {
@@ -78,6 +78,7 @@ type CloudInit struct {
 	RunCmd            []string    `yaml:"runcmd,omitempty"`
 	WriteFiles        []File      `yaml:"write_files,omitempty"`
 	CACerts           CACerts     `yaml:"ca-certs,omitempty"`
+	BootCmd           []string    `yaml:"bootcmd,omitempty"`
 }
 
 type CACerts struct {
@@ -142,8 +143,13 @@ func (c *CloudInit) AddPackage(pkgs ...string) {
 func (c *CloudInit) AddRunCmd(cmd string) {
 	c.mux.Lock()
 	defer c.mux.Unlock()
-
 	c.RunCmd = append(c.RunCmd, cmd)
+}
+
+func (c *CloudInit) AddBootCmd(cmd string) {
+	c.mux.Lock()
+	defer c.mux.Unlock()
+	c.BootCmd = append(c.BootCmd, cmd)
 }
 
 func (c *CloudInit) AddFile(contents []byte, path, owner, permissions string) {

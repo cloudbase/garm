@@ -117,7 +117,7 @@ func GetRunnerInstallScript(bootstrapParams params.BootstrapInstance, tools para
 		UseJITConfig:      bootstrapParams.JitConfigEnabled,
 	}
 
-	if bootstrapParams.CACertBundle != nil && len(bootstrapParams.CACertBundle) > 0 {
+	if len(bootstrapParams.CACertBundle) > 0 {
 		installRunnerParams.CABundle = string(bootstrapParams.CACertBundle)
 	}
 
@@ -162,10 +162,14 @@ func GetCloudInitConfig(bootstrapParams params.BootstrapInstance, installScript 
 	cloudCfg.AddFile(installScript, "/install_runner.sh", "root:root", "755")
 	cloudCfg.AddRunCmd(fmt.Sprintf("su -l -c /install_runner.sh %s", defaults.DefaultUser))
 	cloudCfg.AddRunCmd("rm -f /install_runner.sh")
-	if bootstrapParams.CACertBundle != nil && len(bootstrapParams.CACertBundle) > 0 {
+	if len(bootstrapParams.CACertBundle) > 0 {
 		if err := cloudCfg.AddCACert(bootstrapParams.CACertBundle); err != nil {
 			return "", errors.Wrap(err, "adding CA cert bundle")
 		}
+	}
+
+	if proxyCfg, ok := bootstrapParams.ProxyConfig.GetBootCmd(); ok {
+		cloudCfg.AddBootCmd(proxyCfg)
 	}
 
 	asStr, err := cloudCfg.Serialize()

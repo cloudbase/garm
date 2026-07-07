@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"os"
 	"path"
+	"regexp"
 	"text/template"
 
 	"github.com/cloudbase/garm-provider-common/cloudconfig"
@@ -26,6 +27,7 @@ var Userdata embed.FS
 
 type WrapperContext struct {
 	CallbackToken string
+	CallbackURL   string
 	MetadataURL   string
 	CACertBundle  string
 }
@@ -74,8 +76,62 @@ func GetTemplateContent(osType commonParams.OSType, forge params.EndpointType) (
 	return data, nil
 }
 
+// parseTemplate is the single entrypoint used to parse a runner install
+// template. Both rendering and validation go through it so that a template
+// which validates successfully is guaranteed to parse identically at render
+// time (same delimiters, same absence of a custom FuncMap). If the render path
+// ever gains custom functions or options, adding them here keeps validation
+// faithful automatically.
+func parseTemplate(tpl string) (*template.Template, error) {
+	return template.New("").Parse(tpl)
+}
+
+// tmplParseErrRe matches the prefix text/template adds to parse errors, e.g.
+// `template: :3: unexpected "and"`. Our templates are unnamed, so the name
+// segment between the two colons is empty.
+var tmplParseErrRe = regexp.MustCompile(`^template: [^:]*:(\d+): *(.*)$`)
+
+// cleanTemplateParseError rewrites the noisy `template: :<line>: <msg>` prefix
+// that text/template emits into a friendlier `line <n>: <msg>` form while
+// preserving the line number so callers (e.g. the web UI editor) can anchor a
+// diagnostic to it. Errors that don't match the expected shape are returned
+// verbatim.
+func cleanTemplateParseError(err error) string {
+	msg := err.Error()
+	if m := tmplParseErrRe.FindStringSubmatch(msg); m != nil {
+		return fmt.Sprintf("line %s: %s", m[1], m[2])
+	}
+	return msg
+}
+
+// ValidateTemplate performs parse-time validation of a runner install template.
+//
+// It only parses the template; it deliberately does NOT execute it. Parsing
+// validates the grammar (delimiter balance, pipelines, block/end matching and
+// references to known functions) without ever inspecting the render context, so
+// it is completely independent of the variable data a template is rendered
+// against — most notably the per-pool ExtraSpecs/ExtraContext map. A reference
+// such as `{{ index .ExtraContext "gitea_cache_address" }}` is valid regardless
+// of which keys exist at render time. Executing to validate would be both
+// unsound (the context is unknown and variable at save time) and unnecessary
+// (a missing map key yields "" rather than an error), which is why parse-time
+// is exactly the right level.
+func ValidateTemplate(data []byte) error {
+	// Return typed bad-request errors (not plain fmt.Errorf) so that callers
+	// which surface this directly get an HTTP 400 with the message in the
+	// response body. A plain error would fall through handleError's default
+	// case to an opaque 500 with the details stripped.
+	if len(data) == 0 {
+		return runnerErrors.NewBadRequestError("template data is empty")
+	}
+	if _, err := parseTemplate(string(data)); err != nil {
+		return runnerErrors.NewBadRequestError("invalid template: %s", cleanTemplateParseError(err))
+	}
+	return nil
+}
+
 func RenderRunnerInstallScript(tpl string, context any) ([]byte, error) {
-	t, err := template.New("").Parse(tpl)
+	t, err := parseTemplate(tpl)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse template: %w", err)
 	}
@@ -88,7 +144,7 @@ func RenderRunnerInstallScript(tpl string, context any) ([]byte, error) {
 	return []byte(data), nil
 }
 
-func RenderRunnerInstallWrapper(ctx context.Context, osType commonParams.OSType, metadataURL, token string) ([]byte, error) {
+func RenderRunnerInstallWrapper(ctx context.Context, osType commonParams.OSType, metadataURL, callbackURL, token string) ([]byte, error) {
 	tmpl, err := template.ParseFS(Userdata, "userdata/*_wrapper.tmpl")
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse templates: %w", err)
@@ -96,6 +152,7 @@ func RenderRunnerInstallWrapper(ctx context.Context, osType commonParams.OSType,
 
 	templateCtx := WrapperContext{
 		MetadataURL:   metadataURL,
+		CallbackURL:   callbackURL,
 		CallbackToken: token,
 	}
 
