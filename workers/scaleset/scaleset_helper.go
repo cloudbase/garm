@@ -22,6 +22,7 @@ import (
 	runnerErrors "github.com/cloudbase/garm-provider-common/errors"
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm/cache"
+	garmErrors "github.com/cloudbase/garm/internal/errors"
 	"github.com/cloudbase/garm/locking"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/util/github/scalesets"
@@ -122,10 +123,24 @@ func (w *Worker) HandleJobsCompleted(jobs []params.ScaleSetJobMessage) (err erro
 		locking.Lock(job.RunnerName, w.consumerID)
 		_, err := w.store.UpdateInstance(w.ctx, job.RunnerName, runnerUpdateParams)
 		if err != nil {
-			if !errors.Is(err, runnerErrors.ErrNotFound) {
-				locking.Unlock(job.RunnerName, false)
-				return fmt.Errorf("updating runner %s: %w", job.RunnerName, err)
+			if errors.Is(err, runnerErrors.ErrNotFound) {
+				locking.Unlock(job.RunnerName, true)
+				continue
 			}
+			// If the transition was refused because the instance is already on
+			// its way out (some other code path — reaper, consolidate, provider
+			// — is deleting it), our intent to remove the runner is already
+			// satisfied. te.From is the status seen inside the update's tx, and
+			// the deletion lane is monotonic, so it can't have reverted.
+			var te *runnerErrors.InstanceTransitionError
+			if errors.As(err, &te) && garmErrors.InstanceIsBeingDeleted(te.From) {
+				slog.InfoContext(w.ctx, "runner already being removed; ignoring completed job status update",
+					"runner_name", job.RunnerName, "from_status", te.From)
+				locking.Unlock(job.RunnerName, true)
+				continue
+			}
+			locking.Unlock(job.RunnerName, false)
+			return fmt.Errorf("updating runner %s: %w", job.RunnerName, err)
 		}
 		locking.Unlock(job.RunnerName, false)
 	}
@@ -157,6 +172,17 @@ func (w *Worker) HandleJobsStarted(jobs []params.ScaleSetJobMessage) (err error)
 		if err != nil {
 			if errors.Is(err, runnerErrors.ErrNotFound) {
 				slog.InfoContext(w.ctx, "runner not found; handled by some other controller?", "runner_name", job.RunnerName)
+				locking.Unlock(job.RunnerName, true)
+				continue
+			}
+			// If the runner was already terminal (e.g. reaped after going missing)
+			// by the time this started message was processed, it can't transition
+			// to active and the job won't run on it (github will requeue). te.From
+			// is the status seen inside the update's tx; nothing to do here.
+			var te *garmErrors.RunnerTransitionError
+			if errors.As(err, &te) && garmErrors.RunnerIsTerminal(te.From) {
+				slog.InfoContext(w.ctx, "runner already terminal; ignoring started job status update",
+					"runner_name", job.RunnerName, "from_status", te.From)
 				locking.Unlock(job.RunnerName, true)
 				continue
 			}

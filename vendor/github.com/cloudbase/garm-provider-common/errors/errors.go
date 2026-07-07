@@ -14,7 +14,11 @@
 
 package errors
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/cloudbase/garm-provider-common/params"
+)
 
 var (
 	// ErrUnauthorized is returned when a user does not have
@@ -294,4 +298,43 @@ func (p *NoCapacityError) Is(target error) bool {
 
 	_, ok := target.(*NoCapacityError)
 	return ok
+}
+
+// NewInstanceTransitionError returns an InstanceTransitionError describing an
+// invalid instance status state machine transition.
+func NewInstanceTransitionError(from, to params.InstanceStatus) error {
+	return &InstanceTransitionError{
+		baseError: baseError{
+			msg: fmt.Sprintf("invalid instance status transition from %s to %s", from, to),
+		},
+		From: from,
+		To:   to,
+	}
+}
+
+// InstanceTransitionError is returned when a requested instance status
+// transition is rejected by the state machine. It carries the current (From)
+// and requested (To) statuses as their proper type, so callers working with a
+// params.Instance can compare them directly (via errors.As) without casting
+// through strings, and decide whether the refusal is benign for their intent
+// (for example, the instance is already further along the same terminal path)
+// or a genuine error to stop on. It also reports as a BadRequestError, so it
+// maps to an HTTP 400.
+type InstanceTransitionError struct {
+	baseError
+	From params.InstanceStatus
+	To   params.InstanceStatus
+}
+
+func (e *InstanceTransitionError) Is(target error) bool {
+	if target == nil {
+		return false
+	}
+
+	switch target.(type) {
+	case *InstanceTransitionError, *BadRequestError:
+		return true
+	default:
+		return false
+	}
 }
