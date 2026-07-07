@@ -39,6 +39,7 @@ import (
 	"github.com/cloudbase/garm/cache"
 	dbCommon "github.com/cloudbase/garm/database/common"
 	"github.com/cloudbase/garm/database/watcher"
+	garmErrors "github.com/cloudbase/garm/internal/errors"
 	"github.com/cloudbase/garm/locking"
 	"github.com/cloudbase/garm/params"
 	"github.com/cloudbase/garm/runner/common"
@@ -344,6 +345,12 @@ func (r *basePoolManager) handleCompletedJob(ctx context.Context, jobParams para
 		"runner_name", util.SanitizeLogEntry(jobParams.RunnerName))
 	if _, err := r.setInstanceStatus(jobParams.RunnerName, commonParams.InstancePendingDelete, nil, false); err != nil {
 		if errors.Is(err, runnerErrors.ErrNotFound) {
+			return nil
+		}
+		var te *runnerErrors.InstanceTransitionError
+		if errors.As(err, &te) && garmErrors.InstanceIsBeingDeleted(te.From) {
+			// Another code path already moved the instance into the deletion
+			// lane; the runner is being removed, which is what we wanted.
 			return nil
 		}
 		slog.With(slog.Any("error", err)).ErrorContext(
