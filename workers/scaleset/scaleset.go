@@ -393,6 +393,15 @@ func (w *Worker) reapTimedOutRunners(runners map[string]params.RunnerReference) 
 		case commonParams.InstancePendingDelete, commonParams.InstancePendingForceDelete,
 			commonParams.InstanceDeleting, commonParams.InstanceDeleted:
 			continue
+		case commonParams.InstanceCreating, commonParams.InstancePendingCreate:
+			// Instance is still being created in the provider, or is about to be
+			// created. The provider worker owns create timeouts/failures for this
+			// instance and will move it through Error -> PendingDelete on its own
+			// if creation fails or times out. Nothing for the scale-set-level
+			// reaper to do here; jumping straight to pending_delete from here is
+			// also not a valid status transition (creating only allows -> error
+			// or -> running).
+			continue
 		}
 
 		if runner.RunnerStatus != params.RunnerPending && runner.RunnerStatus != params.RunnerInstalling && runner.RunnerStatus != params.RunnerFailed {
@@ -404,17 +413,21 @@ func (w *Worker) reapTimedOutRunners(runners map[string]params.RunnerReference) 
 				slog.DebugContext(w.ctx, "runner is locked; skipping", "runner_name", runner.Name)
 				continue
 			}
-			lockNames = append(lockNames, runner.Name)
 
 			slog.InfoContext(
 				w.ctx, "reaping timed-out/failed runner",
 				"runner_name", runner.Name)
 
 			if err := w.removeRunnerFromGithubAndSetPendingDelete(runner.Name, runner.AgentID); err != nil {
+				// Don't let a single poisoned runner (e.g. one that raced into a
+				// status that can no longer transition to pending_delete through
+				// some other codepath) abort reaping for the rest of the batch.
+				// Log it, release just this runner's lock, and keep going.
 				slog.ErrorContext(w.ctx, "error removing runner", "runner_name", runner.Name, "error", err)
-				unlockFn()
-				return nil, fmt.Errorf("removing runner %s: %w", runner.Name, err)
+				locking.Unlock(runner.Name, false)
+				continue
 			}
+			lockNames = append(lockNames, runner.Name)
 		}
 	}
 	return unlockFn, nil
