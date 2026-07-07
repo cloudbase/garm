@@ -14,8 +14,12 @@ Starting with Gitea 1.24 and GARM v0.2.0, GARM supports Gitea as a forge alongsi
     - [5. Create a Gitea user and repo](#5-create-a-gitea-user-and-repo)
     - [6. Initialize GARM](#6-initialize-garm)
   - [Adding a Gitea endpoint](#adding-a-gitea-endpoint)
-  - [Adding Gitea credentials](#adding-gitea-credentials)
-  - [Adding a repository and pool](#adding-a-repository-and-pool)
+  - [Setup for an individual repo](#setup-for-an-individual-repo)
+    - [Adding Gitea repo credentials](#adding-gitea-repo-credentials)
+    - [Adding a repository and pool](#adding-a-repository-and-pool)
+  - [Setup for a full server](#setup-for-a-full-server)
+    - [Adding Gitea instance credentials](#adding-gitea-instance-credentials)
+    - [Adding a forge instance and pool](#adding-a-forge-instance-and-pool)
   - [Webhook configuration](#webhook-configuration)
   - [Differences from GitHub](#differences-from-github)
 
@@ -122,7 +126,11 @@ garm-cli gitea endpoint create \
   --name local-gitea
 ```
 
-## Adding Gitea credentials
+## Setup for an individual repo
+
+This configures a garm pool for a single git repo.
+
+### Adding Gitea repo credentials
 
 Create a Gitea PAT with `write:repository` and `write:organization` scopes:
 
@@ -142,7 +150,7 @@ garm-cli gitea credentials add \
   --description "Gitea runner management token"
 ```
 
-## Adding a repository and pool
+### Adding a repository and pool
 
 ```bash
 garm-cli repo add \
@@ -154,6 +162,61 @@ garm-cli repo add \
 
 garm-cli pool add \
   --repo <REPO_ID> \
+  --provider-name lxd_local \
+  --image ubuntu:24.04 \
+  --tags ubuntu-latest \
+  --flavor default \
+  --os-arch amd64 \
+  --os-type linux \
+  --enabled=true \
+  --min-idle-runners=1 \
+  --max-runners=5
+```
+
+Check the runner:
+
+```bash
+garm-cli runner list
+garm-cli runner show <RUNNER_NAME>
+```
+
+
+## Setup for a full server
+
+This configures a garm pool for an entire gitea instance.
+
+### Adding Gitea instance credentials
+
+Create a Gitea PAT with `write:admin` scopes:
+
+```bash
+LOGIN=$(curl -s -X POST http://localhost/api/v1/users/testing/tokens \
+  -u 'testing:superSecretPassword' \
+  -H "Content-Type: application/json" \
+  -d '{"name": "garm-token", "scopes": ["write:admin"]}')
+
+TOKEN=$(echo $LOGIN | jq -r '.sha1')
+
+garm-cli gitea credentials add \
+  --endpoint local-gitea \
+  --auth-type pat \
+  --pat-oauth-token $TOKEN \
+  --name gitea-token \
+  --description "Gitea runner management token"
+```
+
+### Adding a forge instance and pool
+
+```bash
+garm-cli forge-instance add \
+  --forge-type gitea \
+  --credentials gitea-token \
+  --endpoint local-gitea \
+  --random-webhook-secret \
+  --install-webhook
+
+garm-cli pool add \
+  --forge-instance gitea \
   --provider-name lxd_local \
   --image ubuntu:24.04 \
   --tags ubuntu-latest \
@@ -188,6 +251,6 @@ After changing `app.ini`, restart Gitea for the setting to take effect.
 ## Differences from GitHub
 
 - **Runner binary:** Gitea uses `gitea-runner` (formerly `act_runner`) instead of the GitHub Actions runner. GARM handles the differences transparently.
-- **Enterprise level:** Not available for Gitea
+- **Enterprise level:** Gitea instances are configured using `forge-instance` objects, rather than `enterprise` objects.
 - **Scale sets:** Not available for Gitea (GitHub-only feature)
 - **GitHub Apps:** Gitea uses PATs only
