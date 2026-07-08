@@ -136,7 +136,12 @@ func (w *Worker) HandleJobsCompleted(jobs []params.ScaleSetJobMessage) (err erro
 			if errors.As(err, &te) && garmErrors.InstanceIsBeingDeleted(te.From) {
 				slog.InfoContext(w.ctx, "runner already being removed; ignoring completed job status update",
 					"runner_name", job.RunnerName, "from_status", te.From)
-				locking.Unlock(job.RunnerName, true)
+				// The runner still exists and another code path is actively
+				// working on it (that is why the transition was refused), so
+				// keep the lock entry; removing it while a waiter is blocked
+				// on it would let two workers hold the same runner's lock.
+				// The deletion path removes the entry once the record is gone.
+				locking.Unlock(job.RunnerName, false)
 				continue
 			}
 			// A slow provider can outlive the runner's entire lifecycle: the
@@ -197,7 +202,10 @@ func (w *Worker) HandleJobsStarted(jobs []params.ScaleSetJobMessage) (err error)
 			if errors.As(err, &te) && garmErrors.RunnerIsTerminal(te.From) {
 				slog.InfoContext(w.ctx, "runner already terminal; ignoring started job status update",
 					"runner_name", job.RunnerName, "from_status", te.From)
-				locking.Unlock(job.RunnerName, true)
+				// Keep the lock entry: the runner record still exists and the
+				// code path that drove it terminal may be contending for this
+				// lock. See HandleJobsCompleted for details.
+				locking.Unlock(job.RunnerName, false)
 				continue
 			}
 			locking.Unlock(job.RunnerName, false)
