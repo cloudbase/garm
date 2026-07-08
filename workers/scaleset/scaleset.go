@@ -613,8 +613,12 @@ func (w *Worker) consolidateRunnerState(runners []params.RunnerReference) error 
 			// The runner is not in the provider anymore. Remove it from the DB.
 			slog.InfoContext(w.ctx, "runner does not exist in provider; removing from database", "runner_name", runner.Name)
 			if err := w.removeRunnerFromGithubAndSetPendingDelete(runner.Name, runner.AgentID); err != nil {
+				// Same reasoning as reapTimedOutRunners and the github cross
+				// check above: one poisoned runner must not abort the sweep
+				// for the rest of the scale set. Log it and keep going.
+				slog.ErrorContext(w.ctx, "error removing runner", "runner_name", runner.Name, "error", err)
 				locking.Unlock(runner.Name, false)
-				return fmt.Errorf("removing runner %s: %w", runner.Name, err)
+				continue
 			}
 		}
 		locking.Unlock(runner.Name, false)
