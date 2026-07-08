@@ -294,6 +294,9 @@ var RunnerStatusTransitions = map[RunnerStatus][]RunnerStatus{
 		// Same as RunnerPending: the forge saying a job started on this
 		// runner is proof it finished installing.
 		RunnerActive,
+		// When an agent manages the runner, the runner itself is offline,
+		// until the process is started and set online by the agent.
+		RunnerOffline,
 	},
 	RunnerIdle: {
 		RunnerOffline,

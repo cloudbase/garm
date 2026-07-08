@@ -123,6 +123,9 @@ func handleError(ctx context.Context, w http.ResponseWriter, err error) {
 	case errors.Is(err, gErrors.ErrDuplicateEntity), errors.Is(err, &gErrors.ConflictError{}):
 		w.WriteHeader(http.StatusConflict)
 		apiErr.Error = "Conflict"
+	case errors.Is(err, gErrors.ErrUnprocessable):
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		apiErr.Error = "Unprocessable Content"
 	default:
 		w.WriteHeader(http.StatusInternalServerError)
 		apiErr.Error = "Server error"
