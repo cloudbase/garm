@@ -280,12 +280,20 @@ var RunnerStatusTransitions = map[RunnerStatus][]RunnerStatus{
 		RunnerInstalling,
 		RunnerTerminated,
 		RunnerPending,
+		// The forge assigns jobs based on its own registration state; a
+		// "job started" event can arrive before the runner's own idle
+		// callback (or the image may never send callbacks at all), so a
+		// runner the forge considers busy is authoritatively active.
+		RunnerActive,
 	},
 	RunnerInstalling: {
 		RunnerFailed,
 		RunnerIdle,
 		RunnerTerminated,
 		RunnerInstalling,
+		// Same as RunnerPending: the forge saying a job started on this
+		// runner is proof it finished installing.
+		RunnerActive,
 	},
 	RunnerIdle: {
 		RunnerOffline,
