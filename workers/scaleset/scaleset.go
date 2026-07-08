@@ -951,8 +951,12 @@ func (w *Worker) handleScaleDown() {
 				if errors.As(err, &te) && garmErrors.InstanceIsBeingDeleted(te.From) {
 					// Another code path already moved the instance into the
 					// deletion lane; it is being removed, which is what we wanted.
+					// Keep the lock entry (remove=false): the runner record still
+					// exists and whoever is deleting it may be contending for
+					// this lock; removing the entry from under a blocked waiter
+					// would let two workers hold the same runner's lock.
 					removed++
-					locking.Unlock(runner.Name, true)
+					locking.Unlock(runner.Name, false)
 					continue
 				}
 				// nolint:golangci-lint,godox
