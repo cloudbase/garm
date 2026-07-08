@@ -351,9 +351,7 @@ func (w *Worker) setRunnerDBStatus(runner string, status commonParams.InstanceSt
 	}
 	newDbInstance, err := w.store.UpdateInstance(w.ctx, runner, updateParams)
 	if err != nil {
-		if !errors.Is(err, runnerErrors.ErrNotFound) {
-			return params.Instance{}, fmt.Errorf("updating runner %s: %w", runner, err)
-		}
+		return params.Instance{}, fmt.Errorf("updating runner %s: %w", runner, err)
 	}
 	return newDbInstance, nil
 }
@@ -370,7 +368,13 @@ func (w *Worker) removeRunnerFromGithubAndSetPendingDelete(runnerName string, ag
 	}
 	instance, err := w.setRunnerDBStatus(runnerName, commonParams.InstancePendingDelete)
 	if err != nil {
-		return fmt.Errorf("updating runner %s: %w", instance.Name, err)
+		if errors.Is(err, runnerErrors.ErrNotFound) {
+			// The runner record is already gone from the database; there is
+			// nothing left to mark. The watcher delete event will evict it
+			// from the local cache.
+			return nil
+		}
+		return fmt.Errorf("updating runner %s: %w", runnerName, err)
 	}
 	w.runners[instance.ID] = instance
 	return nil
@@ -484,6 +488,13 @@ func (w *Worker) consolidateRunnerState(runners []params.RunnerReference) error 
 		case commonParams.InstancePendingDelete, commonParams.InstancePendingForceDelete,
 			commonParams.InstanceDeleting, commonParams.InstanceDeleted:
 			continue
+		case commonParams.InstanceCreating:
+			// The provider worker owns provisioning; an instance in creating
+			// cannot transition to pending_delete while the create call is in
+			// flight. If its runner is missing from github, we will pick it up
+			// on a later pass, once the create returns and the instance moves
+			// to running or error.
+			continue
 		}
 
 		if _, ok := ghRunnersByName[name]; !ok {
@@ -506,11 +517,19 @@ func (w *Worker) consolidateRunnerState(runners []params.RunnerReference) error 
 				var te *runnerErrors.InstanceTransitionError
 				switch {
 				case errors.Is(err, runnerErrors.ErrNotFound):
+					// The record is already gone from the database. Drop it from
+					// the local cache rather than writing back the zero-value
+					// instance below.
+					delete(w.runners, runner.ID)
+					continue
 				case errors.As(err, &te) && garmErrors.InstanceIsBeingDeleted(te.From):
 					// Already being deleted by another code path; nothing to do.
 					continue
 				default:
-					return fmt.Errorf("updating runner %s: %w", instance.Name, err)
+					// Don't let one runner's error abort consolidation for the
+					// entire scale set; log it and keep processing the rest.
+					slog.ErrorContext(w.ctx, "error updating runner", "runner_name", runner.Name, "error", err)
+					continue
 				}
 			}
 			// We will get an update event anyway from the watcher, but updating the runner
