@@ -139,6 +139,20 @@ func (w *Worker) HandleJobsCompleted(jobs []params.ScaleSetJobMessage) (err erro
 				locking.Unlock(job.RunnerName, true)
 				continue
 			}
+			// A slow provider can outlive the runner's entire lifecycle: the
+			// JIT-registered runner boots, runs the job and completes it before
+			// CreateInstance returns, so the instance is still in creating and
+			// cannot transition to pending_delete (the provider worker owns
+			// that stage). Failing here would block the message queue for the
+			// remainder of the create call. Skip instead: once the create
+			// returns, the runner is gone from github and consolidation will
+			// move the instance to pending_delete.
+			if errors.As(err, &te) && garmErrors.InstanceIsProvisioning(te.From) {
+				slog.InfoContext(w.ctx, "instance is still provisioning; deferring removal to consolidation",
+					"runner_name", job.RunnerName, "from_status", te.From)
+				locking.Unlock(job.RunnerName, false)
+				continue
+			}
 			locking.Unlock(job.RunnerName, false)
 			return fmt.Errorf("updating runner %s: %w", job.RunnerName, err)
 		}

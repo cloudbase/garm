@@ -72,6 +72,22 @@ func InstanceIsBeingDeleted(s commonParams.InstanceStatus) bool {
 	}
 }
 
+// InstanceIsProvisioning reports whether an instance status indicates the
+// provider is still creating the instance (or is about to). The provider
+// worker owns this stage of the lifecycle: deletion cannot be requested until
+// the create call returns (creating only transitions to error or running).
+// Pair it with InstanceTransitionError.From to decide whether a rejected
+// transition to pending_delete should be deferred to a later reconciliation
+// pass instead of being treated as fatal.
+func InstanceIsProvisioning(s commonParams.InstanceStatus) bool {
+	switch s {
+	case commonParams.InstancePendingCreate, commonParams.InstanceCreating:
+		return true
+	default:
+		return false
+	}
+}
+
 // RunnerIsTerminal reports whether a runner status is terminal, meaning a
 // transition to active can no longer succeed and a late "started" message for
 // the runner is moot. Pair it with RunnerTransitionError.From.
