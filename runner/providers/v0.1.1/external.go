@@ -83,7 +83,7 @@ func (e *external) execWithTimeout(ctx context.Context, stdinData []byte, enviro
 	}
 	out, err := garmExec.Exec(ctx, e.execPath, stdinData, environ)
 	if err != nil && errors.Is(ctx.Err(), context.DeadlineExceeded) {
-		return nil, garmErrors.NewProviderError("provider binary %s timed out after %s", e.execPath, timeout)
+		return nil, garmErrors.NewProviderError("provider binary %s timed out (context deadline exceeded)", e.execPath)
 	}
 	return out, err
 }

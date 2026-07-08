@@ -237,7 +237,15 @@ func (i *instanceManager) handleCreateInstanceInProvider(instance params.Instanc
 		},
 	}
 
-	providerInstance, err := i.provider.CreateInstance(i.ctx, bootstrapArgs, createInstanceParams)
+	// Bound the create call by the scale set's bootstrap timeout. Past that
+	// point the runner is considered failed anyway, and reaping skips
+	// instances in creating, so allowing the provider call to outlive the
+	// bootstrap timeout would leave the instance stuck until the binary
+	// resolved on its own. The provider-level exec timeout (if configured and
+	// smaller) still applies; the effective deadline is whichever is sooner.
+	createCtx, cancel := context.WithTimeout(i.ctx, time.Duration(i.scaleSet.RunnerTimeout())*time.Minute)
+	defer cancel()
+	providerInstance, err := i.provider.CreateInstance(createCtx, bootstrapArgs, createInstanceParams)
 	if err != nil {
 		instanceIDToDelete = instance.Name
 		return fmt.Errorf("creating instance in provider: %w", err)

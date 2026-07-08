@@ -1137,7 +1137,13 @@ func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error 
 			ProviderBaseParams: r.getProviderBaseParams(pool),
 		},
 	}
-	providerInstance, err := provider.CreateInstance(r.ctx, bootstrapArgs, createInstanceParams)
+	// Bound the create call by the pool's bootstrap timeout; past that point
+	// the runner is considered failed anyway. The provider-level exec timeout
+	// (if configured and smaller) still applies; the effective deadline is
+	// whichever is sooner.
+	createCtx, cancel := context.WithTimeout(r.ctx, time.Duration(pool.RunnerTimeout())*time.Minute)
+	defer cancel()
+	providerInstance, err := provider.CreateInstance(createCtx, bootstrapArgs, createInstanceParams)
 	if err != nil {
 		instanceIDToDelete = instance.Name
 		return fmt.Errorf("error creating instance: %w", err)
