@@ -58,10 +58,13 @@ func (e *RunnerTransitionError) Is(target error) bool {
 }
 
 // InstanceIsBeingDeleted reports whether an instance status is on the deletion
-// lane, meaning the runner is already on its way out. The deletion lane is
-// monotonic, so a status observed here won't revert to a live state. Pair it
-// with InstanceTransitionError.From to decide whether a rejected transition to
-// pending_delete is benign (the instance is already being removed elsewhere).
+// lane, meaning the runner is already on its way out. Note that the lane is
+// not strictly monotonic: a failed provider delete moves the instance from
+// deleting to error. Tolerating a status observed here is still safe because
+// reconciliation re-drives error back to pending_delete until the delete
+// succeeds — the system converges by retry, and the intent behind a rejected
+// transition to pending_delete (the runner should be removed) remains
+// satisfied. Pair it with InstanceTransitionError.From.
 func InstanceIsBeingDeleted(s commonParams.InstanceStatus) bool {
 	switch s {
 	case commonParams.InstancePendingDelete, commonParams.InstancePendingForceDelete,
