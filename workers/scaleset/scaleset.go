@@ -543,7 +543,14 @@ func (w *Worker) consolidateRunnerState(runners []params.RunnerReference) error 
 		}
 	}
 
-	// Cross check what exists in the provider with the DB.
+	return w.consolidateProviderState()
+}
+
+// consolidateProviderState cross checks what exists in the provider with the
+// DB. Provider instances with no DB record are removed from the provider, and
+// DB runners with no provider instance are marked as pending_delete. Must be
+// called with w.mux held.
+func (w *Worker) consolidateProviderState() error {
 	pseudoPoolID, err := w.pseudoPoolID()
 	if err != nil {
 		return fmt.Errorf("getting pseudo pool ID: %w", err)
@@ -574,8 +581,8 @@ func (w *Worker) consolidateRunnerState(runners []params.RunnerReference) error 
 		},
 	}
 
-	// refresh the map. It may have been mutated above.
-	dbRunnersByName = w.runnerByName()
+	// The runner cache may have been mutated by the github cross check.
+	dbRunnersByName := w.runnerByName()
 	for _, runner := range providerRunners {
 		if _, ok := dbRunnersByName[runner.Name]; !ok {
 			slog.InfoContext(w.ctx, "runner does not exist in database; removing from provider", "runner_name", runner.Name)
