@@ -19,6 +19,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/cloudbase/garm-provider-common/util/exec"
 )
@@ -48,6 +49,19 @@ type External struct {
 	// EnvironmentVariables is a list of environment variable names that will be
 	// passed to the external binary together with their values.
 	EnvironmentVariables []string `toml:"environment_variables" json:"environment-variables"`
+	// ExecTimeoutSeconds is the maximum number of seconds a single invocation
+	// of the provider binary may run. When exceeded, the binary is killed and
+	// the operation fails; for instance creation this marks the instance as
+	// error and normal cleanup takes over. This bounds how long an instance
+	// can sit in the creating/deleting states if a provider binary hangs.
+	// A value of 0 (the default) disables the timeout.
+	ExecTimeoutSeconds uint `toml:"exec_timeout_seconds" json:"exec-timeout-seconds"`
+}
+
+// ExecTimeout returns the configured provider binary execution timeout as a
+// time.Duration. A zero duration means no timeout is enforced.
+func (e *External) ExecTimeout() time.Duration {
+	return time.Duration(e.ExecTimeoutSeconds) * time.Second
 }
 
 func (e *External) GetEnvironmentVariables() []string {

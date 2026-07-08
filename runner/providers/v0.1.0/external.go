@@ -70,6 +70,25 @@ type external struct {
 	environmentVariables []string
 }
 
+// execWithTimeout invokes the provider binary, bounding the call by the
+// provider's configured exec timeout (if any). On expiry the child process is
+// killed and a ProviderError is returned so the operation fails and normal
+// cleanup takes over, instead of the instance being stuck in a transient
+// state (e.g. creating) for as long as a hung binary sits there.
+func (e *external) execWithTimeout(ctx context.Context, stdinData []byte, environ []string) ([]byte, error) {
+	timeout := e.cfg.External.ExecTimeout()
+	if timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, timeout)
+		defer cancel()
+	}
+	out, err := garmExec.Exec(ctx, e.execPath, stdinData, environ)
+	if err != nil && errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		return nil, garmErrors.NewProviderError("provider binary %s timed out after %s", e.execPath, timeout)
+	}
+	return out, err
+}
+
 // CreateInstance creates a new compute instance in the provider.
 func (e *external) CreateInstance(ctx context.Context, bootstrapParams commonParams.BootstrapInstance, _ common.CreateInstanceParams) (commonParams.ProviderInstance, error) {
 	asEnv := []string{
@@ -90,7 +109,7 @@ func (e *external) CreateInstance(ctx context.Context, bootstrapParams commonPar
 		e.cfg.Name,       // label: provider
 	).Inc()
 
-	out, err := garmExec.Exec(ctx, e.execPath, asJs, asEnv)
+	out, err := e.execWithTimeout(ctx, asJs, asEnv)
 	if err != nil {
 		metrics.InstanceOperationFailedCount.WithLabelValues(
 			"CreateInstance", // label: operation
@@ -137,7 +156,7 @@ func (e *external) DeleteInstance(ctx context.Context, instance string, _ common
 		"DeleteInstance", // label: operation
 		e.cfg.Name,       // label: provider
 	).Inc()
-	_, err := garmExec.Exec(ctx, e.execPath, nil, asEnv)
+	_, err := e.execWithTimeout(ctx, nil, asEnv)
 	if err != nil {
 		var exitErr *exec.ExitError
 		if !errors.As(err, &exitErr) || exitErr.ExitCode() != commonExecution.ExitCodeNotFound {
@@ -168,7 +187,7 @@ func (e *external) GetInstance(ctx context.Context, instance string, _ common.Ge
 		"GetInstance", // label: operation
 		e.cfg.Name,    // label: provider
 	).Inc()
-	out, err := garmExec.Exec(ctx, e.execPath, nil, asEnv)
+	out, err := e.execWithTimeout(ctx, nil, asEnv)
 	if err != nil {
 		metrics.InstanceOperationFailedCount.WithLabelValues(
 			"GetInstance", // label: operation
@@ -212,7 +231,7 @@ func (e *external) ListInstances(ctx context.Context, poolID string, _ common.Li
 		e.cfg.Name,      // label: provider
 	).Inc()
 
-	out, err := garmExec.Exec(ctx, e.execPath, nil, asEnv)
+	out, err := e.execWithTimeout(ctx, nil, asEnv)
 	if err != nil {
 		metrics.InstanceOperationFailedCount.WithLabelValues(
 			"ListInstances", // label: operation
@@ -258,7 +277,7 @@ func (e *external) RemoveAllInstances(ctx context.Context, _ common.RemoveAllIns
 		e.cfg.Name,           // label: provider
 	).Inc()
 
-	_, err := garmExec.Exec(ctx, e.execPath, nil, asEnv)
+	_, err := e.execWithTimeout(ctx, nil, asEnv)
 	if err != nil {
 		metrics.InstanceOperationFailedCount.WithLabelValues(
 			"RemoveAllInstances", // label: operation
@@ -283,7 +302,7 @@ func (e *external) Stop(ctx context.Context, instance string, _ common.StopParam
 		"Stop",     // label: operation
 		e.cfg.Name, // label: provider
 	).Inc()
-	_, err := garmExec.Exec(ctx, e.execPath, nil, asEnv)
+	_, err := e.execWithTimeout(ctx, nil, asEnv)
 	if err != nil {
 		metrics.InstanceOperationFailedCount.WithLabelValues(
 			"Stop",     // label: operation
@@ -309,7 +328,7 @@ func (e *external) Start(ctx context.Context, instance string, _ common.StartPar
 		e.cfg.Name, // label: provider
 	).Inc()
 
-	_, err := garmExec.Exec(ctx, e.execPath, nil, asEnv)
+	_, err := e.execWithTimeout(ctx, nil, asEnv)
 	if err != nil {
 		metrics.InstanceOperationFailedCount.WithLabelValues(
 			"Start",    // label: operation

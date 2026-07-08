@@ -50,6 +50,22 @@ However, some providers need access to host environment variables for authentica
 
 This passes all environment variables starting with `AWS_` to the provider. You can also specify exact variable names (e.g., `["AZURE_CLIENT_ID", "AZURE_TENANT_ID"]`).
 
+## Bounding provider execution time
+
+By default, GARM waits indefinitely for the provider binary to finish. If a provider binary hangs (for example, due to an unresponsive cloud API), the instance it was operating on remains stuck in a transient state such as `creating` until GARM is restarted. You can bound every invocation of a provider binary with `exec_timeout_seconds`:
+
+```toml
+[provider.external]
+  provider_executable = "/opt/garm/providers.d/garm-provider-aws"
+  config_file = "/etc/garm/garm-provider-aws.toml"
+  exec_timeout_seconds = 900
+```
+
+When the timeout is exceeded, the binary is killed and the operation fails. For instance creation, the instance is marked as `error` and is cleaned up through the normal lifecycle.
+
+> [!IMPORTANT]
+> The timeout applies to all operations of that provider (create, delete, list, etc.). Set it comfortably above the slowest instance creation time you expect from your cloud, including periods of degraded performance. A value of `0` (the default) disables the timeout.
+
 ## Listing configured providers
 
 ```bash
