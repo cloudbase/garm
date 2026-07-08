@@ -138,22 +138,20 @@ func (w *Worker) HandleJobsCompleted(jobs []params.ScaleSetJobMessage) (err erro
 			if errors.As(err, &te) && garmErrors.InstanceIsBeingDeleted(te.From) {
 				slog.InfoContext(w.ctx, "runner already being removed; ignoring completed job status update",
 					"runner_name", job.RunnerName, "from_status", te.From)
-				// The runner still exists and another code path is actively
-				// working on it (that is why the transition was refused), so
-				// keep the lock entry; removing it while a waiter is blocked
-				// on it would let two workers hold the same runner's lock.
-				// The deletion path removes the entry once the record is gone.
+				// The runner record still exists, so keep the lock entry;
+				// another goroutine of this worker (reaper, consolidate, scale
+				// down) may be blocked on it, and removing the entry from under
+				// a blocked waiter would let two goroutines hold the same
+				// runner's lock. The entry is removed once the record is gone.
 				locking.Unlock(job.RunnerName, false)
 				continue
 			}
-			// A slow provider can outlive the runner's entire lifecycle: the
-			// JIT-registered runner boots, runs the job and completes it before
-			// CreateInstance returns, so the instance is still in creating and
-			// cannot transition to pending_delete (the provider worker owns
-			// that stage). Failing here would block the message queue for the
-			// remainder of the create call. Skip instead: once the create
-			// returns, the runner is gone from github and consolidation will
-			// move the instance to pending_delete.
+			// The instance is still in creating. The provider create call has
+			// not returned or hit its deadline yet (creates are bounded by the
+			// bootstrap timeout). But somehow the compute instance it spun up managed
+			// to finish bootstrap, accept a job and finish, within the runner bootstrap
+			// timeout. While this scenario is wildly unlikely, unless the provider is
+			// badly broken, we need to account for it.
 			if errors.As(err, &te) && garmErrors.InstanceIsProvisioning(te.From) {
 				slog.InfoContext(w.ctx, "instance is still provisioning; deferring removal to consolidation",
 					"runner_name", job.RunnerName, "from_status", te.From)
@@ -204,9 +202,9 @@ func (w *Worker) HandleJobsStarted(jobs []params.ScaleSetJobMessage) (err error)
 			if errors.As(err, &te) && garmErrors.RunnerIsTerminal(te.From) {
 				slog.InfoContext(w.ctx, "runner already terminal; ignoring started job status update",
 					"runner_name", job.RunnerName, "from_status", te.From)
-				// Keep the lock entry: the runner record still exists and the
-				// code path that drove it terminal may be contending for this
-				// lock. See HandleJobsCompleted for details.
+				// Keep the lock entry: the runner record still exists and other
+				// goroutines of this worker may be blocked on this lock. See
+				// HandleJobsCompleted for details.
 				locking.Unlock(job.RunnerName, false)
 				continue
 			}

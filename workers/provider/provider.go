@@ -136,11 +136,13 @@ func (p *Provider) loadAllRunners() error {
 			continue
 		}
 		// Ignore runners in "creating" state. If we're just starting up and
-		// we find a runner in "creating" it was most likely interrupted while
-		// creating. It is unlikely that it is still usable. We allow the scale set
-		// worker to clean it up. It will eventually be marked as pending delete and
-		// this worker will get an update to clean up any resources left behing by
-		// an incomplete creation event.
+		// we find a runner in "creating", the create was interrupted by a
+		// restart (the provider binary died with the previous process). It is
+		// unlikely that it is still usable. The scale set worker resolves
+		// these in its own Start(): it force-marks them pending_delete (or
+		// running, if the runner managed to register with the forge in the
+		// meantime), and this worker will get an update to clean up any
+		// resources left behind by the incomplete creation.
 		if runner.Status == commonParams.InstanceCreating {
 			continue
 		}

@@ -400,12 +400,14 @@ func (w *Worker) reapTimedOutRunners(runners map[string]params.RunnerReference) 
 			continue
 		case commonParams.InstanceCreating, commonParams.InstancePendingCreate:
 			// Instance is still being created in the provider, or is about to be
-			// created. The provider worker owns create timeouts/failures for this
-			// instance and will move it through Error -> PendingDelete on its own
-			// if creation fails or times out. Nothing for the scale-set-level
-			// reaper to do here; jumping straight to pending_delete from here is
-			// also not a valid status transition (creating only allows -> error
-			// or -> running).
+			// created. The provider worker owns create timeouts/failures: the
+			// create call carries a deadline derived from the bootstrap timeout
+			// (and optionally the provider exec timeout), so an instance cannot
+			// linger here past it; on failure or expiry the provider worker moves
+			// it through Error -> PendingDelete on its own. Nothing for the
+			// scale-set-level reaper to do; jumping straight to pending_delete
+			// from here is also not a valid status transition (creating only
+			// allows -> error or -> running).
 			continue
 		}
 
@@ -502,13 +504,14 @@ func (w *Worker) consolidateRunnerState(runners []params.RunnerReference) error 
 				slog.DebugContext(w.ctx, "runner is locked; skipping", "runner_name", name)
 				continue
 			}
-			// unlock the runner only after this function returns. This function also cross
-			// checks between the provider and the database, and removes left over runners.
-			// If we unlock early, the provider worker will attempt to remove runners that
-			// we set in pending_delete. This function holds the mutex, so we won't see those
-			// changes until we return. So we hold the instance lock here until we are done.
-			// That way, even if the provider sees the pending_delete status, it won't act on
-			// it until it manages to lock the instance.
+			// unlock the runner only after this function returns. These locks are
+			// worker-local: they serialize this worker's own goroutines (listener
+			// handlers, reaper, scale down) so none of them process this runner
+			// while we reconcile it, including the provider cross-check further
+			// down. The provider worker does NOT participate in instance locking;
+			// it reacts to the pending_delete status via watcher events as soon
+			// as the transition commits. Cross-worker coordination is done by the
+			// status state machine, not by these locks.
 			defer locking.Unlock(name, false)
 
 			slog.InfoContext(w.ctx, "runner does not exist in github; removing from provider", "runner_name", name)
@@ -975,9 +978,9 @@ func (w *Worker) handleScaleDown() {
 					// Another code path already moved the instance into the
 					// deletion lane; it is being removed, which is what we wanted.
 					// Keep the lock entry (remove=false): the runner record still
-					// exists and whoever is deleting it may be contending for
-					// this lock; removing the entry from under a blocked waiter
-					// would let two workers hold the same runner's lock.
+					// exists and other goroutines of this worker may be blocked
+					// on this lock; removing the entry from under a blocked
+					// waiter would let two goroutines hold the same runner's lock.
 					removed++
 					locking.Unlock(runner.Name, false)
 					continue
