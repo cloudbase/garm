@@ -130,8 +130,10 @@ func (w *Worker) HandleJobsCompleted(jobs []params.ScaleSetJobMessage) (err erro
 			// If the transition was refused because the instance is already on
 			// its way out (some other code path — reaper, consolidate, provider
 			// — is deleting it), our intent to remove the runner is already
-			// satisfied. te.From is the status seen inside the update's tx, and
-			// the deletion lane is monotonic, so it can't have reverted.
+			// satisfied. te.From is the status seen inside the update's tx.
+			// Even if the in-flight delete later fails (deleting can bounce to
+			// error), reconciliation re-drives it to pending_delete, so skipping
+			// this update never strands the runner.
 			var te *runnerErrors.InstanceTransitionError
 			if errors.As(err, &te) && garmErrors.InstanceIsBeingDeleted(te.From) {
 				slog.InfoContext(w.ctx, "runner already being removed; ignoring completed job status update",
