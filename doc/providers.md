@@ -52,7 +52,9 @@ This passes all environment variables starting with `AWS_` to the provider. You 
 
 ## Bounding provider execution time
 
-By default, GARM waits indefinitely for the provider binary to finish. If a provider binary hangs (for example, due to an unresponsive cloud API), the instance it was operating on remains stuck in a transient state such as `creating` until GARM is restarted. You can bound every invocation of a provider binary with `exec_timeout_seconds`:
+Instance creation is always bounded by the pool or scale set's `runner_bootstrap_timeout`. If the provider binary does not return within that window, it is killed, the instance is marked as `error` and it is cleaned up through the normal lifecycle. Past that point the runner would be considered failed anyway, so there is no reason to keep waiting on a hung create.
+
+All other provider operations (delete, list, etc.) run without a deadline by default. You can bound every invocation of a provider binary with `exec_timeout_seconds`:
 
 ```toml
 [provider.external]
@@ -61,10 +63,10 @@ By default, GARM waits indefinitely for the provider binary to finish. If a prov
   exec_timeout_seconds = 900
 ```
 
-When the timeout is exceeded, the binary is killed and the operation fails. For instance creation, the instance is marked as `error` and is cleaned up through the normal lifecycle.
+When the timeout is exceeded, the binary is killed and the operation fails.
 
 > [!IMPORTANT]
-> The timeout applies to all operations of that provider (create, delete, list, etc.). Set it comfortably above the slowest instance creation time you expect from your cloud, including periods of degraded performance. A value of `0` (the default) disables the timeout.
+> For instance creation, the effective deadline is the smaller of `exec_timeout_seconds` and the pool or scale set's `runner_bootstrap_timeout`. If you set `exec_timeout_seconds`, keep it below your bootstrap timeouts — a create that is allowed to outlive the bootstrap timeout only produces a runner that is already considered failed. A value of `0` (the default) leaves non-create operations unbounded.
 
 ## Listing configured providers
 
