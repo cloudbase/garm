@@ -462,7 +462,8 @@ func (s *MetadataTestSuite) TestGenerateSystemdUnitFile() {
 			// Set up entity with specific forge type
 			entity := s.Fixtures.TestEntity
 			entity.Credentials.ForgeType = tt.forgeType
-			ctx := auth.SetInstanceEntity(context.Background(), entity)
+			ctx := auth.SetInstanceParams(context.Background(), s.Fixtures.TestInstance)
+			ctx = auth.SetInstanceEntity(ctx, entity)
 
 			unitFile, err := s.Runner.GenerateSystemdUnitFile(ctx, tt.runAsUser)
 
@@ -483,7 +484,8 @@ func (s *MetadataTestSuite) TestGenerateSystemdUnitFile() {
 func (s *MetadataTestSuite) TestGenerateSystemdUnitFileUnknownForgeType() {
 	entity := s.Fixtures.TestEntity
 	entity.Credentials.ForgeType = "unknown"
-	ctx := auth.SetInstanceEntity(context.Background(), entity)
+	ctx := auth.SetInstanceParams(context.Background(), s.Fixtures.TestInstance)
+	ctx = auth.SetInstanceEntity(ctx, entity)
 
 	_, err := s.Runner.GenerateSystemdUnitFile(ctx, "test-user")
 
@@ -1276,7 +1278,8 @@ func (s *MetadataTestSuite) TestGetJITConfigFileMultipleFiles() {
 func (s *MetadataTestSuite) TestGenerateSystemdUnitFileGiteaWithDefaultUser() {
 	entity := s.Fixtures.TestEntity
 	entity.Credentials.ForgeType = params.GiteaEndpointType
-	ctx := auth.SetInstanceEntity(context.Background(), entity)
+	ctx := auth.SetInstanceParams(context.Background(), s.Fixtures.TestInstance)
+	ctx = auth.SetInstanceEntity(ctx, entity)
 
 	unitFile, err := s.Runner.GenerateSystemdUnitFile(ctx, "")
 
@@ -1285,6 +1288,60 @@ func (s *MetadataTestSuite) TestGenerateSystemdUnitFileGiteaWithDefaultUser() {
 	s.Require().Contains(string(unitFile), "Gitea Runner")
 	s.Require().Contains(string(unitFile), "gitea-runner daemon --once")
 	s.Require().Contains(string(unitFile), "Restart=always")
+}
+
+func (s *MetadataTestSuite) TestGenerateSystemdUnitFileWithProxy() {
+	cache.SetProxyCache(params.Proxy{
+		ID:         42,
+		Name:       "airgap",
+		HTTPSProxy: "http://proxy.example.com:3128",
+		NoProxy:    "localhost,10.0.0.0/8",
+		Username:   "user",
+		Password:   "p%ss",
+	})
+	defer cache.DeleteProxy(42)
+
+	entity := s.Fixtures.TestEntity
+	cache.SetEntity(entity)
+	defer cache.DeleteEntity(entity.ID)
+	pool := params.Pool{ID: "proxied-pool-id", OrgID: entity.ID, ProxyID: 42}
+	cache.SetEntityPool(entity.ID, pool)
+
+	instance := s.Fixtures.TestInstance
+	instance.PoolID = pool.ID
+
+	ctx := auth.SetInstanceParams(context.Background(), instance)
+	ctx = auth.SetInstanceEntity(ctx, entity)
+
+	unitFile, err := s.Runner.GenerateSystemdUnitFile(ctx, "")
+
+	s.Require().Nil(err)
+	// The password contains a percent sign, which url.UserPassword encodes
+	// as %25 and the unit file renderer escapes as %%25. systemd expands %
+	// as a specifier.
+	s.Require().Contains(string(unitFile), `Environment="HTTPS_PROXY=http://user:p%%25ss@proxy.example.com:3128"`)
+	s.Require().Contains(string(unitFile), `Environment="https_proxy=http://user:p%%25ss@proxy.example.com:3128"`)
+	s.Require().Contains(string(unitFile), `Environment="NO_PROXY=localhost,10.0.0.0/8"`)
+	s.Require().NotContains(string(unitFile), `Environment="HTTP_PROXY=`)
+}
+
+func (s *MetadataTestSuite) TestGenerateSystemdUnitFileMissingProxy() {
+	entity := s.Fixtures.TestEntity
+	cache.SetEntity(entity)
+	defer cache.DeleteEntity(entity.ID)
+	pool := params.Pool{ID: "missing-proxy-pool-id", OrgID: entity.ID, ProxyID: 4242}
+	cache.SetEntityPool(entity.ID, pool)
+
+	instance := s.Fixtures.TestInstance
+	instance.PoolID = pool.ID
+
+	ctx := auth.SetInstanceParams(context.Background(), instance)
+	ctx = auth.SetInstanceEntity(ctx, entity)
+
+	_, err := s.Runner.GenerateSystemdUnitFile(ctx, "")
+
+	s.Require().NotNil(err)
+	s.Require().Contains(err.Error(), "was not found in cache")
 }
 
 func (s *MetadataTestSuite) TestGetLabelsForInstanceWithCache() {

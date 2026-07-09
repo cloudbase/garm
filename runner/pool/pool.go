@@ -1101,6 +1101,15 @@ func (r *basePoolManager) addInstanceToProvider(instance params.Instance) error 
 		GitHubRunnerGroup: instance.GitHubRunnerGroup,
 		JitConfigEnabled:  hasJITConfig,
 	}
+
+	if pool.ProxyID != 0 {
+		proxy, ok := cache.GetProxy(pool.ProxyID)
+		if !ok {
+			return fmt.Errorf("proxy %d (%s) set on pool %s was not found in cache", pool.ProxyID, pool.ProxyName, pool.ID)
+		}
+		bootstrapArgs.ProxyConfig = proxy.ProxyConfig()
+	}
+
 	// We use the template management system unless:
 	//   * there is no template associated with the pool/scale set
 	//   * user explicitly overwrites the install template via extra specs

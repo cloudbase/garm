@@ -13,6 +13,7 @@ import (
 
 	apiClientEnterprises "github.com/cloudbase/garm/client/enterprises"
 	apiClientOrgs "github.com/cloudbase/garm/client/organizations"
+	apiClientProxies "github.com/cloudbase/garm/client/proxies"
 	apiClientRepos "github.com/cloudbase/garm/client/repositories"
 	apiTemplates "github.com/cloudbase/garm/client/templates"
 	"github.com/cloudbase/garm/params"
@@ -45,6 +46,27 @@ func resolveTemplateAsUint(nameOrID string) (uint, error) {
 		return 0, fmt.Errorf("multiple templates found with name: %s", nameOrID)
 	}
 	return exactMatches[0].ID, nil
+}
+
+func resolveProxyAsUint(nameOrID string) (uint, error) {
+	if parsed, err := strconv.ParseUint(nameOrID, 10, 64); err == nil {
+		if parsed > math.MaxUint {
+			return 0, fmt.Errorf("ID is too large")
+		}
+		return uint(parsed), nil
+	}
+
+	listProxiesReq := apiClientProxies.NewListProxiesParams()
+	response, err := apiCli.Proxies.ListProxies(listProxiesReq, authToken)
+	if err != nil {
+		return 0, fmt.Errorf("failed to list proxies")
+	}
+	for _, val := range response.Payload {
+		if strings.EqualFold(val.Name, nameOrID) {
+			return val.ID, nil
+		}
+	}
+	return 0, fmt.Errorf("no such proxy: %s", nameOrID)
 }
 
 func resolveTemplate(nameOrID string) (float64, error) {

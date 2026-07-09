@@ -49,9 +49,9 @@ func (c *CacheTestSuite) TearDownTest() {
 	githubToolsCache.mux.Lock()
 	defer githubToolsCache.mux.Unlock()
 	githubToolsCache.entities = make(map[string]GithubEntityTools)
-	giteaCredentialsCache.cache = make(map[uint]params.ForgeCredentials)
-	credentialsCache.cache = make(map[uint]params.ForgeCredentials)
-	instanceCache.cache = make(map[string]params.Instance)
+	giteaCredentialsCache.Clear()
+	credentialsCache.Clear()
+	instanceCache.Clear()
 	entityCache = &EntityCache{
 		entities:  make(map[string]EntityItem),
 		pools:     make(map[string]params.Pool),

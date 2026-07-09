@@ -80,6 +80,7 @@ func (s *sqlDatabase) GetPoolByID(_ context.Context, poolID string) (params.Pool
 		"ForgeInstance",
 		"ForgeInstance.Endpoint",
 		"Template",
+		"Proxy",
 	}
 	pool, err := s.getPoolByID(s.conn, poolID, preloadList...)
 	if err != nil {
@@ -299,6 +300,10 @@ func (s *sqlDatabase) CreateEntityPool(ctx context.Context, entity params.ForgeE
 		}
 	}()
 
+	if param.ProxyID != nil && *param.ProxyID == 0 {
+		param.ProxyID = nil
+	}
+
 	newPool := Pool{
 		ProviderName:           param.ProviderName,
 		MaxRunners:             param.MaxRunners,
@@ -313,6 +318,7 @@ func (s *sqlDatabase) CreateEntityPool(ctx context.Context, entity params.ForgeE
 		GitHubRunnerGroup:      param.GitHubRunnerGroup,
 		Priority:               param.Priority,
 		TemplateID:             param.TemplateID,
+		ProxyID:                param.ProxyID,
 		EnableShell:            param.EnableShell,
 	}
 	if len(param.ExtraSpecs) > 0 {
@@ -337,6 +343,12 @@ func (s *sqlDatabase) CreateEntityPool(ctx context.Context, entity params.ForgeE
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
 		if err := s.hasGithubEntity(tx, entity.EntityType, entity.ID); err != nil {
 			return fmt.Errorf("error checking entity existence: %w", err)
+		}
+
+		if param.ProxyID != nil && *param.ProxyID != 0 {
+			if err := s.hasProxy(tx, *param.ProxyID); err != nil {
+				return fmt.Errorf("error checking pool proxy: %w", err)
+			}
 		}
 
 		var tags []*Tag
@@ -381,6 +393,7 @@ func (s *sqlDatabase) GetEntityPool(_ context.Context, entity params.ForgeEntity
 		"ForgeInstance",
 		"ForgeInstance.Endpoint",
 		"Template",
+		"Proxy",
 	}
 	pool, err := s.getEntityPool(s.conn, entity.EntityType, entity.ID, poolID, preloadList...)
 	if err != nil {

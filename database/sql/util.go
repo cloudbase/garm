@@ -395,6 +395,11 @@ func (s *sqlDatabase) sqlToCommonPool(pool Pool) (params.Pool, error) {
 		ret.TemplateName = pool.Template.Name
 	}
 
+	if pool.ProxyID != nil && *pool.ProxyID != 0 {
+		ret.ProxyID = *pool.ProxyID
+		ret.ProxyName = pool.Proxy.Name
+	}
+
 	var ep GithubEndpoint
 	if pool.RepoID != nil {
 		ret.RepoID = pool.RepoID.String()
@@ -477,6 +482,11 @@ func (s *sqlDatabase) sqlToCommonScaleSet(scaleSet ScaleSet) (params.ScaleSet, e
 	if scaleSet.TemplateID != nil && *scaleSet.TemplateID != 0 {
 		ret.TemplateID = *scaleSet.TemplateID
 		ret.TemplateName = scaleSet.Template.Name
+	}
+
+	if scaleSet.ProxyID != nil && *scaleSet.ProxyID != 0 {
+		ret.ProxyID = *scaleSet.ProxyID
+		ret.ProxyName = scaleSet.Proxy.Name
 	}
 
 	var ep GithubEndpoint
@@ -685,6 +695,21 @@ func (s *sqlDatabase) updatePool(tx *gorm.DB, pool Pool, param params.UpdatePool
 
 	if param.TemplateID != nil && (pool.TemplateID == nil || *param.TemplateID != *pool.TemplateID) {
 		updates["template_id"] = param.TemplateID
+	}
+
+	if param.ProxyID != nil && (pool.ProxyID == nil || *param.ProxyID != *pool.ProxyID) {
+		if *param.ProxyID == 0 {
+			if pool.ProxyID != nil {
+				updates["proxy_id"] = nil
+				incrementGeneration = true
+			}
+		} else {
+			if err := s.hasProxy(tx, *param.ProxyID); err != nil {
+				return params.Pool{}, 0, fmt.Errorf("error checking pool proxy: %w", err)
+			}
+			updates["proxy_id"] = *param.ProxyID
+			incrementGeneration = true
+		}
 	}
 
 	if param.MinIdleRunners != nil && *param.MinIdleRunners != pool.MinIdleRunners {

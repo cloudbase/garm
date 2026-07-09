@@ -19,7 +19,7 @@ import (
 
 type Filter struct {
 	Operations []common.OperationType    `json:"operations,omitempty" jsonschema:"title=operations,description=A list of operations to filter on,enum=create,enum=update,enum=delete"`
-	EntityType common.DatabaseEntityType `json:"entity-type,omitempty" jsonschema:"title=entity type,description=The type of entity to filter on,enum=repository,enum=organization,enum=enterprise,enum=pool,enum=user,enum=instance,enum=job,enum=controller,enum=github_credentials,enum=github_endpoint"`
+	EntityType common.DatabaseEntityType `json:"entity-type,omitempty" jsonschema:"title=entity type,description=The type of entity to filter on,enum=repository,enum=organization,enum=enterprise,enum=pool,enum=user,enum=instance,enum=job,enum=controller,enum=github_credentials,enum=github_endpoint,enum=proxy"`
 }
 
 func (f Filter) Validate() error {
@@ -29,7 +29,7 @@ func (f Filter) Validate() error {
 		common.PoolEntityType, common.UserEntityType, common.InstanceEntityType,
 		common.JobEntityType, common.ControllerEntityType, common.GithubCredentialsEntityType,
 		common.GiteaCredentialsEntityType, common.ScaleSetEntityType, common.GithubEndpointEntityType,
-		common.TemplateEntityType, common.FileObjectEntityType:
+		common.TemplateEntityType, common.FileObjectEntityType, common.ProxyEntityType:
 	default:
 		return common.ErrInvalidEntityType
 	}

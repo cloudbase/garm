@@ -18,6 +18,7 @@ import {
   FirstRunApi,
   HooksApi,
   TemplatesApi,
+  ProxiesApi,
   ObjectsApi,
   ToolsApi,
   type GARMAgentRelease,
@@ -36,6 +37,9 @@ import {
   type Template,
   type CreateTemplateParams,
   type UpdateTemplateParams,
+  type Proxy,
+  type CreateProxyParams,
+  type UpdateProxyParams,
   type CreateRepoParams,
   type CreateOrgParams,
   type CreateEnterpriseParams,
@@ -81,6 +85,9 @@ export type {
   Template,
   CreateTemplateParams,
   UpdateTemplateParams,
+  Proxy,
+  CreateProxyParams,
+  UpdateProxyParams,
   CreateRepoParams,
   CreateOrgParams,
   CreateEnterpriseParams,
@@ -142,6 +149,7 @@ export class GeneratedGarmApiClient {
   private firstRunApi: FirstRunApi;
   private hooksApi: HooksApi;
   private templatesApi: TemplatesApi;
+  private proxiesApi: ProxiesApi;
   private objectsApi: ObjectsApi;
   private toolsApi: ToolsApi;
 
@@ -177,6 +185,7 @@ export class GeneratedGarmApiClient {
     this.firstRunApi = new FirstRunApi(this.config);
     this.hooksApi = new HooksApi(this.config);
     this.templatesApi = new TemplatesApi(this.config);
+    this.proxiesApi = new ProxiesApi(this.config);
     this.objectsApi = new ObjectsApi(this.config);
     this.toolsApi = new ToolsApi(this.config);
   }
@@ -714,6 +723,31 @@ export class GeneratedGarmApiClient {
 
   async restoreTemplates(params: RestoreTemplateRequest): Promise<void> {
     await this.templatesApi.restoreTemplates(params);
+  }
+
+  // Proxies
+  async listProxies(): Promise<Proxy[]> {
+    const response = await this.proxiesApi.listProxies();
+    return response.data || [];
+  }
+
+  async getProxy(id: number): Promise<Proxy> {
+    const response = await this.proxiesApi.getProxy(id);
+    return response.data;
+  }
+
+  async createProxy(params: CreateProxyParams): Promise<Proxy> {
+    const response = await this.proxiesApi.createProxy(params);
+    return response.data;
+  }
+
+  async updateProxy(id: number, params: UpdateProxyParams): Promise<Proxy> {
+    const response = await this.proxiesApi.updateProxy(id, params);
+    return response.data;
+  }
+
+  async deleteProxy(id: number): Promise<void> {
+    await this.proxiesApi.deleteProxy(id);
   }
 
   // File Object methods

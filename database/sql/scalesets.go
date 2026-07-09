@@ -69,6 +69,10 @@ func (s *sqlDatabase) CreateEntityScaleSet(ctx context.Context, entity params.Fo
 		}
 	}()
 
+	if param.ProxyID != nil && *param.ProxyID == 0 {
+		param.ProxyID = nil
+	}
+
 	newScaleSet := ScaleSet{
 		Name:                   param.Name,
 		ScaleSetID:             param.ScaleSetID,
@@ -86,6 +90,7 @@ func (s *sqlDatabase) CreateEntityScaleSet(ctx context.Context, entity params.Fo
 		GitHubRunnerGroup:      param.GitHubRunnerGroup,
 		State:                  params.ScaleSetPendingCreate,
 		TemplateID:             param.TemplateID,
+		ProxyID:                param.ProxyID,
 		EnableShell:            param.EnableShell,
 	}
 
@@ -109,6 +114,12 @@ func (s *sqlDatabase) CreateEntityScaleSet(ctx context.Context, entity params.Fo
 	err = s.conn.Transaction(func(tx *gorm.DB) error {
 		if err := s.hasGithubEntity(tx, entity.EntityType, entity.ID); err != nil {
 			return fmt.Errorf("error checking entity existence: %w", err)
+		}
+
+		if param.ProxyID != nil && *param.ProxyID != 0 {
+			if err := s.hasProxy(tx, *param.ProxyID); err != nil {
+				return fmt.Errorf("error checking scale set proxy: %w", err)
+			}
 		}
 
 		q := tx.Create(&newScaleSet)
@@ -325,6 +336,21 @@ func (s *sqlDatabase) updateScaleSet(tx *gorm.DB, scaleSet ScaleSet, param param
 		updates["template_id"] = param.TemplateID
 	}
 
+	if param.ProxyID != nil && (scaleSet.ProxyID == nil || *param.ProxyID != *scaleSet.ProxyID) {
+		if *param.ProxyID == 0 {
+			if scaleSet.ProxyID != nil {
+				updates["proxy_id"] = nil
+				incrementGeneration = true
+			}
+		} else {
+			if err := s.hasProxy(tx, *param.ProxyID); err != nil {
+				return params.ScaleSet{}, 0, fmt.Errorf("error checking scale set proxy: %w", err)
+			}
+			updates["proxy_id"] = *param.ProxyID
+			incrementGeneration = true
+		}
+	}
+
 	if param.EnableShell != nil && *param.EnableShell != scaleSet.EnableShell {
 		updates["enable_shell"] = *param.EnableShell
 		incrementGeneration = true
@@ -386,7 +412,7 @@ func (s *sqlDatabase) updateScaleSet(tx *gorm.DB, scaleSet ScaleSet, param param
 
 	var rowsAffected int64
 	if len(updates) > 0 {
-		q := tx.Model(&scaleSet).Omit("Repository", "Organization", "Enterprise", "Instances", "Template", "Tags").Updates(updates)
+		q := tx.Model(&scaleSet).Omit("Repository", "Organization", "Enterprise", "Instances", "Template", "Proxy", "Tags").Updates(updates)
 		if q.Error != nil {
 			return params.ScaleSet{}, 0, fmt.Errorf("error saving database entry: %w", q.Error)
 		}
@@ -417,6 +443,7 @@ func (s *sqlDatabase) GetScaleSetByID(_ context.Context, scaleSet uint) (params.
 		"Repository",
 		"Repository.Endpoint",
 		"Template",
+		"Proxy",
 		"Tags",
 	)
 	if err != nil {

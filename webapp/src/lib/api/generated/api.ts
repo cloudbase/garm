@@ -631,6 +631,12 @@ export interface CreatePoolParams {
      */
     'provider_name'?: string;
     /**
+     * ProxyID is the ID of the proxy definition runners in this pool will use.
+     * @type {number}
+     * @memberof CreatePoolParams
+     */
+    'proxy_id'?: number;
+    /**
      * 
      * @type {number}
      * @memberof CreatePoolParams
@@ -654,6 +660,55 @@ export interface CreatePoolParams {
      * @memberof CreatePoolParams
      */
     'template_id'?: number;
+}
+/**
+ * 
+ * @export
+ * @interface CreateProxyParams
+ */
+export interface CreateProxyParams {
+    /**
+     * 
+     * @type {string}
+     * @memberof CreateProxyParams
+     */
+    'description'?: string;
+    /**
+     * HTTPProxy is the proxy URL used for plain HTTP requests.
+     * @type {string}
+     * @memberof CreateProxyParams
+     */
+    'http_proxy'?: string;
+    /**
+     * HTTPSProxy is the proxy URL used for HTTPS requests.
+     * @type {string}
+     * @memberof CreateProxyParams
+     */
+    'https_proxy'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof CreateProxyParams
+     */
+    'name'?: string;
+    /**
+     * NoProxy is a comma separated list of hosts, domains or CIDRs for which the proxy should be bypassed.
+     * @type {string}
+     * @memberof CreateProxyParams
+     */
+    'no_proxy'?: string;
+    /**
+     * Password is the password used to authenticate to the proxy.
+     * @type {string}
+     * @memberof CreateProxyParams
+     */
+    'password'?: string;
+    /**
+     * Username is the username used to authenticate to the proxy.
+     * @type {string}
+     * @memberof CreateProxyParams
+     */
+    'username'?: string;
 }
 /**
  * 
@@ -794,6 +849,12 @@ export interface CreateScaleSetParams {
      * @memberof CreateScaleSetParams
      */
     'provider_name'?: string;
+    /**
+     * ProxyID is the ID of the proxy definition runners in this scale set will use.
+     * @type {number}
+     * @memberof CreateScaleSetParams
+     */
+    'proxy_id'?: number;
     /**
      * 
      * @type {number}
@@ -2600,6 +2661,18 @@ export interface Pool {
      */
     'provider_name'?: string;
     /**
+     * ProxyID is the ID of the proxy definition that will be used by runners spawned in this pool. Runners will use the proxy settings to reach back to GARM, the forge and any other resources they need during setup.
+     * @type {number}
+     * @memberof Pool
+     */
+    'proxy_id'?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof Pool
+     */
+    'proxy_name'?: string;
+    /**
      * 
      * @type {string}
      * @memberof Pool
@@ -2691,6 +2764,67 @@ export interface Provider {
      * @memberof Provider
      */
     'type'?: string;
+}
+/**
+ * 
+ * @export
+ * @interface Proxy
+ */
+export interface Proxy {
+    /**
+     * 
+     * @type {string}
+     * @memberof Proxy
+     */
+    'created_at'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof Proxy
+     */
+    'description'?: string;
+    /**
+     * HTTPProxy is the proxy URL used for plain HTTP requests.
+     * @type {string}
+     * @memberof Proxy
+     */
+    'http_proxy'?: string;
+    /**
+     * HTTPSProxy is the proxy URL used for HTTPS requests.
+     * @type {string}
+     * @memberof Proxy
+     */
+    'https_proxy'?: string;
+    /**
+     * 
+     * @type {number}
+     * @memberof Proxy
+     */
+    'id'?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof Proxy
+     */
+    'name'?: string;
+    /**
+     * NoProxy is a comma separated list of hosts, domains or CIDRs for which the proxy should be bypassed.
+     * @type {string}
+     * @memberof Proxy
+     */
+    'no_proxy'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof Proxy
+     */
+    'updated_at'?: string;
+    /**
+     * Username is the username used to authenticate to the proxy. If set, it will be composed into the final proxy URLs handed to runners.
+     * @type {string}
+     * @memberof Proxy
+     */
+    'username'?: string;
 }
 /**
  * 
@@ -3014,6 +3148,18 @@ export interface ScaleSet {
      * @memberof ScaleSet
      */
     'provider_name'?: string;
+    /**
+     * ProxyID is the ID of the proxy definition that will be used by runners spawned in this scale set. Runners will use the proxy settings to reach back to GARM, the forge and any other resources they need during setup.
+     * @type {number}
+     * @memberof ScaleSet
+     */
+    'proxy_id'?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof ScaleSet
+     */
+    'proxy_name'?: string;
     /**
      * 
      * @type {string}
@@ -3530,6 +3676,12 @@ export interface UpdatePoolParams {
      */
     'priority'?: number;
     /**
+     * ProxyID is the ID of the proxy definition runners in this pool will use. Setting it to 0 removes the proxy from the pool.
+     * @type {number}
+     * @memberof UpdatePoolParams
+     */
+    'proxy_id'?: number;
+    /**
      * 
      * @type {number}
      * @memberof UpdatePoolParams
@@ -3553,6 +3705,55 @@ export interface UpdatePoolParams {
      * @memberof UpdatePoolParams
      */
     'template_id'?: number;
+}
+/**
+ * 
+ * @export
+ * @interface UpdateProxyParams
+ */
+export interface UpdateProxyParams {
+    /**
+     * 
+     * @type {string}
+     * @memberof UpdateProxyParams
+     */
+    'description'?: string;
+    /**
+     * HTTPProxy is the proxy URL used for plain HTTP requests.
+     * @type {string}
+     * @memberof UpdateProxyParams
+     */
+    'http_proxy'?: string;
+    /**
+     * HTTPSProxy is the proxy URL used for HTTPS requests.
+     * @type {string}
+     * @memberof UpdateProxyParams
+     */
+    'https_proxy'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof UpdateProxyParams
+     */
+    'name'?: string;
+    /**
+     * NoProxy is a comma separated list of hosts, domains or CIDRs for which the proxy should be bypassed. Setting it to an empty string clears the value.
+     * @type {string}
+     * @memberof UpdateProxyParams
+     */
+    'no_proxy'?: string;
+    /**
+     * Password is the password used to authenticate to the proxy. Setting it to an empty string clears the password.
+     * @type {string}
+     * @memberof UpdateProxyParams
+     */
+    'password'?: string;
+    /**
+     * Username is the username used to authenticate to the proxy. Setting it to an empty string clears the proxy credentials.
+     * @type {string}
+     * @memberof UpdateProxyParams
+     */
+    'username'?: string;
 }
 /**
  * 
@@ -3626,6 +3827,12 @@ export interface UpdateScaleSetParams {
      * @memberof UpdateScaleSetParams
      */
     'os_type'?: string;
+    /**
+     * ProxyID is the ID of the proxy definition runners in this scale set will use. Setting it to 0 removes the proxy from the scale set.
+     * @type {number}
+     * @memberof UpdateScaleSetParams
+     */
+    'proxy_id'?: number;
     /**
      * 
      * @type {number}
@@ -13133,6 +13340,409 @@ export class ProvidersApi extends BaseAPI {
      */
     public listProviders(options?: RawAxiosRequestConfig) {
         return ProvidersApiFp(this.configuration).listProviders(options).then((request) => request(this.axios, this.basePath));
+    }
+}
+
+
+
+/**
+ * ProxiesApi - axios parameter creator
+ * @export
+ */
+export const ProxiesApiAxiosParamCreator = function (configuration?: Configuration) {
+    return {
+        /**
+         * 
+         * @summary Create proxy with the parameters given.
+         * @param {CreateProxyParams} body Parameters used when creating the proxy.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        createProxy: async (body: CreateProxyParams, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'body' is not null or undefined
+            assertParamExists('createProxy', 'body', body)
+            const localVarPath = `/proxies`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(body, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary Delete proxy by ID.
+         * @param {number} proxyID ID of the proxy to delete.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        deleteProxy: async (proxyID: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'proxyID' is not null or undefined
+            assertParamExists('deleteProxy', 'proxyID', proxyID)
+            const localVarPath = `/proxies/{proxyID}`
+                .replace(`{${"proxyID"}}`, encodeURIComponent(String(proxyID)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'DELETE', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary Get proxy by ID.
+         * @param {number} proxyID ID of the proxy to fetch.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getProxy: async (proxyID: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'proxyID' is not null or undefined
+            assertParamExists('getProxy', 'proxyID', proxyID)
+            const localVarPath = `/proxies/{proxyID}`
+                .replace(`{${"proxyID"}}`, encodeURIComponent(String(proxyID)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary List proxies.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        listProxies: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/proxies`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary Update proxy with the parameters given.
+         * @param {number} proxyID ID of the proxy to update.
+         * @param {UpdateProxyParams} body Parameters used when updating the proxy.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        updateProxy: async (proxyID: number, body: UpdateProxyParams, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'proxyID' is not null or undefined
+            assertParamExists('updateProxy', 'proxyID', proxyID)
+            // verify required parameter 'body' is not null or undefined
+            assertParamExists('updateProxy', 'body', body)
+            const localVarPath = `/proxies/{proxyID}`
+                .replace(`{${"proxyID"}}`, encodeURIComponent(String(proxyID)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'PUT', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication Bearer required
+            await setApiKeyToObject(localVarHeaderParameter, "Authorization", configuration)
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(body, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+    }
+};
+
+/**
+ * ProxiesApi - functional programming interface
+ * @export
+ */
+export const ProxiesApiFp = function(configuration?: Configuration) {
+    const localVarAxiosParamCreator = ProxiesApiAxiosParamCreator(configuration)
+    return {
+        /**
+         * 
+         * @summary Create proxy with the parameters given.
+         * @param {CreateProxyParams} body Parameters used when creating the proxy.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async createProxy(body: CreateProxyParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Proxy>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.createProxy(body, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ProxiesApi.createProxy']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary Delete proxy by ID.
+         * @param {number} proxyID ID of the proxy to delete.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async deleteProxy(proxyID: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<APIErrorResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.deleteProxy(proxyID, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ProxiesApi.deleteProxy']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary Get proxy by ID.
+         * @param {number} proxyID ID of the proxy to fetch.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getProxy(proxyID: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Proxy>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getProxy(proxyID, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ProxiesApi.getProxy']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary List proxies.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async listProxies(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<Proxy>>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.listProxies(options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ProxiesApi.listProxies']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary Update proxy with the parameters given.
+         * @param {number} proxyID ID of the proxy to update.
+         * @param {UpdateProxyParams} body Parameters used when updating the proxy.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async updateProxy(proxyID: number, body: UpdateProxyParams, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Proxy>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.updateProxy(proxyID, body, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ProxiesApi.updateProxy']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+    }
+};
+
+/**
+ * ProxiesApi - factory interface
+ * @export
+ */
+export const ProxiesApiFactory = function (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) {
+    const localVarFp = ProxiesApiFp(configuration)
+    return {
+        /**
+         * 
+         * @summary Create proxy with the parameters given.
+         * @param {CreateProxyParams} body Parameters used when creating the proxy.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        createProxy(body: CreateProxyParams, options?: RawAxiosRequestConfig): AxiosPromise<Proxy> {
+            return localVarFp.createProxy(body, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Delete proxy by ID.
+         * @param {number} proxyID ID of the proxy to delete.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        deleteProxy(proxyID: number, options?: RawAxiosRequestConfig): AxiosPromise<APIErrorResponse> {
+            return localVarFp.deleteProxy(proxyID, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Get proxy by ID.
+         * @param {number} proxyID ID of the proxy to fetch.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getProxy(proxyID: number, options?: RawAxiosRequestConfig): AxiosPromise<Proxy> {
+            return localVarFp.getProxy(proxyID, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary List proxies.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        listProxies(options?: RawAxiosRequestConfig): AxiosPromise<Array<Proxy>> {
+            return localVarFp.listProxies(options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary Update proxy with the parameters given.
+         * @param {number} proxyID ID of the proxy to update.
+         * @param {UpdateProxyParams} body Parameters used when updating the proxy.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        updateProxy(proxyID: number, body: UpdateProxyParams, options?: RawAxiosRequestConfig): AxiosPromise<Proxy> {
+            return localVarFp.updateProxy(proxyID, body, options).then((request) => request(axios, basePath));
+        },
+    };
+};
+
+/**
+ * ProxiesApi - object-oriented interface
+ * @export
+ * @class ProxiesApi
+ * @extends {BaseAPI}
+ */
+export class ProxiesApi extends BaseAPI {
+    /**
+     * 
+     * @summary Create proxy with the parameters given.
+     * @param {CreateProxyParams} body Parameters used when creating the proxy.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ProxiesApi
+     */
+    public createProxy(body: CreateProxyParams, options?: RawAxiosRequestConfig) {
+        return ProxiesApiFp(this.configuration).createProxy(body, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Delete proxy by ID.
+     * @param {number} proxyID ID of the proxy to delete.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ProxiesApi
+     */
+    public deleteProxy(proxyID: number, options?: RawAxiosRequestConfig) {
+        return ProxiesApiFp(this.configuration).deleteProxy(proxyID, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Get proxy by ID.
+     * @param {number} proxyID ID of the proxy to fetch.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ProxiesApi
+     */
+    public getProxy(proxyID: number, options?: RawAxiosRequestConfig) {
+        return ProxiesApiFp(this.configuration).getProxy(proxyID, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary List proxies.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ProxiesApi
+     */
+    public listProxies(options?: RawAxiosRequestConfig) {
+        return ProxiesApiFp(this.configuration).listProxies(options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary Update proxy with the parameters given.
+     * @param {number} proxyID ID of the proxy to update.
+     * @param {UpdateProxyParams} body Parameters used when updating the proxy.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof ProxiesApi
+     */
+    public updateProxy(proxyID: number, body: UpdateProxyParams, options?: RawAxiosRequestConfig) {
+        return ProxiesApiFp(this.configuration).updateProxy(proxyID, body, options).then((request) => request(this.axios, this.basePath));
     }
 }
 

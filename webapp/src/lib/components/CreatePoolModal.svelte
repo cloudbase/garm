@@ -11,6 +11,7 @@
 		Enterprise,
 		Provider,
 		Template,
+		Proxy,
 		UpdateEntityParams
 	} from '$lib/api/generated/api.js';
 	import WizardModal from './WizardModal.svelte';
@@ -41,9 +42,11 @@
 	let entities: (Repository | Organization | Enterprise)[] = [];
 	let providers: Provider[] = [];
 	let templates: Template[] = [];
+	let proxies: Proxy[] = [];
 	let loadingEntities = false;
 	let loadingProviders = false;
 	let loadingTemplates = false;
+	let loadingProxies = false;
 	let showEntityUpdateModal = false;
 	let unsubscribeWebsocket: (() => void) | null = null;
 
@@ -66,6 +69,7 @@
 	let tags: string[] = [];
 	let extraSpecs = '{}';
 	let selectedTemplate: number | undefined = undefined;
+	let selectedProxy: number | undefined = undefined;
 
 	$: wizardTitle = poolType === 'pool' ? 'Create New Pool' : 'Create New Scale Set';
 	$: wizardSubmitLabel = poolType === 'pool' ? 'Create Pool' : 'Create Scale Set';
@@ -107,6 +111,18 @@
 			error = extractAPIError(err);
 		} finally {
 			loadingProviders = false;
+		}
+	}
+
+	async function loadProxies() {
+		try {
+			loadingProxies = true;
+			const allProxies = await garmApi.listProxies();
+			proxies = allProxies.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+		} catch (err) {
+			error = extractAPIError(err);
+		} finally {
+			loadingProxies = false;
 		}
 	}
 
@@ -288,7 +304,8 @@
 					enable_shell: enableShell,
 					labels: tags,
 					extra_specs: extraSpecs.trim() ? parsedExtraSpecs : undefined,
-					template_id: selectedTemplate
+					template_id: selectedTemplate,
+					proxy_id: selectedProxy
 				};
 
 				if (initialEntityType && initialEntityId) {
@@ -326,7 +343,8 @@
 					enable_shell: enableShell,
 					tags,
 					extra_specs: extraSpecs.trim() ? parsedExtraSpecs : undefined,
-					template_id: selectedTemplate
+					template_id: selectedTemplate,
+					proxy_id: selectedProxy
 				};
 
 				if (initialEntityType && initialEntityId) {
@@ -360,6 +378,7 @@
 
 	onMount(() => {
 		loadProviders();
+		loadProxies();
 		if (initialEntityType) {
 			loadEntities();
 		}
@@ -553,6 +572,9 @@
 			bind:selectedTemplate
 			{templates}
 			{loadingTemplates}
+			bind:selectedProxy
+			{proxies}
+			{loadingProxies}
 			idPrefix="create-pool"
 		/>
 		<div class="mt-6">

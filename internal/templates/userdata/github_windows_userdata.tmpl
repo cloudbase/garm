@@ -6,6 +6,29 @@ Param(
 
 $ErrorActionPreference="Stop"
 
+if ($env:HTTPS_PROXY -or $env:HTTP_PROXY) {
+	$proxyAddress = $env:HTTPS_PROXY
+	if (!$proxyAddress) { $proxyAddress = $env:HTTP_PROXY }
+	$proxyUri = [System.Uri]$proxyAddress
+	$defaultProxy = New-Object System.Net.WebProxy("$($proxyUri.Scheme)://$($proxyUri.Host):$($proxyUri.Port)")
+	if ($proxyUri.UserInfo) {
+		$proxyUserInfo = $proxyUri.UserInfo.Split(":", 2)
+		$proxyUser = [System.Uri]::UnescapeDataString($proxyUserInfo[0])
+		$proxyPass = ""
+		if ($proxyUserInfo.Length -gt 1) { $proxyPass = [System.Uri]::UnescapeDataString($proxyUserInfo[1]) }
+		$defaultProxy.Credentials = New-Object System.Net.NetworkCredential($proxyUser, $proxyPass)
+	}
+	if ($env:NO_PROXY) {
+		$proxyBypass = @()
+		foreach ($bypassEntry in $env:NO_PROXY -split ",") {
+			$trimmedEntry = $bypassEntry.Trim().TrimStart(".")
+			if ($trimmedEntry) { $proxyBypass += ([regex]::Escape($trimmedEntry) + "$") }
+		}
+		if ($proxyBypass.Count -gt 0) { $defaultProxy.BypassList = $proxyBypass }
+	}
+	[System.Net.WebRequest]::DefaultWebProxy = $defaultProxy
+}
+
 function Start-ExecuteWithRetry {
 	[CmdletBinding()]
 	param(
@@ -434,6 +457,15 @@ token = "$agentToken"
 runner_cmdline = ["C:\\Windows\\system32\\cmd.exe", "/C", "C:\\actions-runner\\run.cmd"]
 state_db_path = "C:/garm-agent/agent-state.db"
 "@
+{{- if or .HTTPProxy .HTTPSProxy }}
+	Add-Content "$agentDir\garm-agent.toml" @'
+
+[proxy]
+http_proxy = "{{ .HTTPProxy }}"
+https_proxy = "{{ .HTTPSProxy }}"
+no_proxy = "{{ .NoProxy }}"
+'@
+{{- end }}
 
 	Update-GarmStatus -Message "Downloading agent from: $agentDownloadURL" -CallbackURL $CallbackURL | Out-Null
 	Start-ExecuteWithRetry -ScriptBlock {
@@ -527,6 +559,21 @@ function Install-Runner() {
 
 		Update-GarmStatus -CallbackURL $CallbackURL -Message "configuring and starting runner"
 		cd $runnerDir
+		{{- if or .HTTPProxy .HTTPSProxy }}
+
+		Update-GarmStatus -CallbackURL $CallbackURL -Message "setting runner proxy config"
+		Set-Content -Path (Join-Path $runnerDir ".env") -Value @'
+{{- if .HTTPProxy }}
+http_proxy={{ .HTTPProxy }}
+{{- end }}
+{{- if .HTTPSProxy }}
+https_proxy={{ .HTTPSProxy }}
+{{- end }}
+{{- if .NoProxy }}
+no_proxy={{ .NoProxy }}
+{{- end }}
+'@
+		{{- end }}
 
 		{{- if .UseJITConfig }}
 		Update-GarmStatus -CallbackURL $CallbackURL -Message "downloading JIT credentials"

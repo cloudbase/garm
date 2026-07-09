@@ -23,6 +23,7 @@ import (
 	"math"
 	"net"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 	"time"
@@ -580,6 +581,12 @@ type Pool struct {
 
 	TemplateID   uint   `json:"template_id,omitempty"`
 	TemplateName string `json:"template_name,omitempty"`
+
+	// ProxyID is the ID of the proxy definition that will be used by runners
+	// spawned in this pool. Runners will use the proxy settings to reach back
+	// to GARM, the forge and any other resources they need during setup.
+	ProxyID   uint   `json:"proxy_id,omitempty"`
+	ProxyName string `json:"proxy_name,omitempty"`
 }
 
 func (p Pool) BelongsTo(entity ForgeEntity) bool {
@@ -748,6 +755,12 @@ type ScaleSet struct {
 	EnterpriseName string `json:"enterprise_name,omitempty"`
 	TemplateID     uint   `json:"template_id,omitempty"`
 	TemplateName   string `json:"template_name,omitempty"`
+
+	// ProxyID is the ID of the proxy definition that will be used by runners
+	// spawned in this scale set. Runners will use the proxy settings to reach
+	// back to GARM, the forge and any other resources they need during setup.
+	ProxyID   uint   `json:"proxy_id,omitempty"`
+	ProxyName string `json:"proxy_name,omitempty"`
 
 	LastMessageID int64 `json:"-"`
 }
@@ -1657,6 +1670,73 @@ type Template struct {
 // used by swagger client generated code
 // swagger:model Templates
 type Templates []Template
+
+// swagger:model Proxy
+type Proxy struct {
+	ID        uint      `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+
+	// HTTPProxy is the proxy URL used for plain HTTP requests.
+	HTTPProxy string `json:"http_proxy,omitempty"`
+	// HTTPSProxy is the proxy URL used for HTTPS requests.
+	HTTPSProxy string `json:"https_proxy,omitempty"`
+	// NoProxy is a comma separated list of hosts, domains or CIDRs for
+	// which the proxy should be bypassed.
+	NoProxy string `json:"no_proxy,omitempty"`
+
+	// Username is the username used to authenticate to the proxy. If set,
+	// it will be composed into the final proxy URLs handed to runners.
+	Username string `json:"username,omitempty"`
+	// Password is the password used to authenticate to the proxy. This
+	// field is never serialized. Secrets are not echoed back via the API.
+	Password string `json:"-"`
+}
+
+func (p Proxy) GetID() uint {
+	return p.ID
+}
+
+// HasCredentials returns true if the proxy definition has credentials set.
+func (p Proxy) HasCredentials() bool {
+	return p.Username != ""
+}
+
+// composeProxyURL embeds the proxy credentials (if any) into the given proxy
+// URL. The URL is assumed to have been validated at create/update time.
+func (p Proxy) composeProxyURL(proxyURL string) string {
+	if proxyURL == "" || !p.HasCredentials() {
+		return proxyURL
+	}
+	parsed, err := url.Parse(proxyURL)
+	if err != nil {
+		return proxyURL
+	}
+	if p.Password != "" {
+		parsed.User = url.UserPassword(p.Username, p.Password)
+	} else {
+		parsed.User = url.User(p.Username)
+	}
+	return parsed.String()
+}
+
+// ProxyConfig composes the final proxy configuration that gets handed to
+// providers as part of the bootstrap params. Credentials, if set, are
+// embedded into the proxy URLs.
+func (p Proxy) ProxyConfig() commonParams.ProxyConfig {
+	return commonParams.ProxyConfig{
+		HTTPProxy:  p.composeProxyURL(p.HTTPProxy),
+		HTTPSProxy: p.composeProxyURL(p.HTTPSProxy),
+		NoProxy:    p.NoProxy,
+	}
+}
+
+// used by swagger client generated code
+// swagger:model Proxies
+type Proxies []Proxy
 
 // swagger:model FileObject
 type FileObject struct {

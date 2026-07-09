@@ -32,6 +32,7 @@ const (
 	DefaultRunnerPrefix string = "garm"
 	httpsScheme         string = "https"
 	httpScheme          string = "http"
+	socks5Scheme        string = "socks5"
 )
 
 type InstanceRequest struct {
@@ -214,6 +215,9 @@ type UpdatePoolParams struct {
 	GitHubRunnerGroup *string `json:"github-runner-group,omitempty"`
 	Priority          *uint   `json:"priority,omitempty"`
 	TemplateID        *uint   `json:"template_id,omitempty"`
+	// ProxyID is the ID of the proxy definition runners in this pool will
+	// use. Setting it to 0 removes the proxy from the pool.
+	ProxyID *uint `json:"proxy_id,omitempty"`
 }
 
 type CreateInstanceParams struct {
@@ -256,6 +260,8 @@ type CreatePoolParams struct {
 	GitHubRunnerGroup string `json:"github-runner-group,omitempty"`
 	Priority          uint   `json:"priority,omitempty"`
 	TemplateID        *uint  `json:"template_id,omitempty"`
+	// ProxyID is the ID of the proxy definition runners in this pool will use.
+	ProxyID *uint `json:"proxy_id,omitempty"`
 }
 
 func (p *CreatePoolParams) Validate() error {
@@ -677,6 +683,9 @@ type CreateScaleSetParams struct {
 	GitHubRunnerGroup string   `json:"github-runner-group,omitempty"`
 	TemplateID        *uint    `json:"template_id,omitempty"`
 	Labels            []string `json:"labels,omitempty"`
+	// ProxyID is the ID of the proxy definition runners in this scale set
+	// will use.
+	ProxyID *uint `json:"proxy_id,omitempty"`
 }
 
 func (s *CreateScaleSetParams) Validate() error {
@@ -747,6 +756,9 @@ type UpdateScaleSetParams struct {
 	ExtendedState     *string        `json:"extended_state"`
 	TemplateID        *uint          `json:"template_id,omitempty"`
 	ScaleSetID        int            `json:"-"`
+	// ProxyID is the ID of the proxy definition runners in this scale set
+	// will use. Setting it to 0 removes the proxy from the scale set.
+	ProxyID *uint `json:"proxy_id,omitempty"`
 }
 
 // swagger:model CreateGiteaEndpointParams
@@ -973,6 +985,121 @@ type UpdateTemplateParams struct {
 func (u *UpdateTemplateParams) Validate() error {
 	if u.Name != nil && *u.Name == "" {
 		return fmt.Errorf("name cannot be empty")
+	}
+
+	return nil
+}
+
+// validateProxyURL validates a proxy URL. Credentials must not be embedded
+// in the URL itself. They are set separately and composed into the final
+// proxy URL when needed.
+func validateProxyURL(proxyURL string) error {
+	parsed, err := url.Parse(proxyURL)
+	if err != nil {
+		return runnerErrors.NewBadRequestError("invalid proxy URL: %q", proxyURL)
+	}
+
+	switch parsed.Scheme {
+	case httpScheme, httpsScheme, socks5Scheme:
+	default:
+		return runnerErrors.NewBadRequestError("invalid proxy URL scheme %q; supported schemes are http, https and socks5", parsed.Scheme)
+	}
+
+	if parsed.Host == "" {
+		return runnerErrors.NewBadRequestError("invalid proxy URL: %q; missing host", proxyURL)
+	}
+
+	if parsed.User != nil {
+		return runnerErrors.NewBadRequestError("proxy URLs must not embed credentials; use the username and password fields instead")
+	}
+
+	return nil
+}
+
+// swagger:model CreateProxyParams
+type CreateProxyParams struct {
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+
+	// HTTPProxy is the proxy URL used for plain HTTP requests.
+	HTTPProxy string `json:"http_proxy,omitempty"`
+	// HTTPSProxy is the proxy URL used for HTTPS requests.
+	HTTPSProxy string `json:"https_proxy,omitempty"`
+	// NoProxy is a comma separated list of hosts, domains or CIDRs for
+	// which the proxy should be bypassed.
+	NoProxy string `json:"no_proxy,omitempty"`
+
+	// Username is the username used to authenticate to the proxy.
+	Username string `json:"username,omitempty"`
+	// Password is the password used to authenticate to the proxy.
+	Password string `json:"password,omitempty"`
+}
+
+func (c *CreateProxyParams) Validate() error {
+	if c.Name == "" {
+		return runnerErrors.NewBadRequestError("name cannot be empty")
+	}
+
+	if c.HTTPProxy == "" && c.HTTPSProxy == "" {
+		return runnerErrors.NewBadRequestError("at least one of http_proxy or https_proxy must be set")
+	}
+
+	if c.HTTPProxy != "" {
+		if err := validateProxyURL(c.HTTPProxy); err != nil {
+			return err
+		}
+	}
+
+	if c.HTTPSProxy != "" {
+		if err := validateProxyURL(c.HTTPSProxy); err != nil {
+			return err
+		}
+	}
+
+	if c.Password != "" && c.Username == "" {
+		return runnerErrors.NewBadRequestError("password cannot be set without a username")
+	}
+
+	return nil
+}
+
+// swagger:model UpdateProxyParams
+type UpdateProxyParams struct {
+	Name        *string `json:"name,omitempty"`
+	Description *string `json:"description,omitempty"`
+
+	// HTTPProxy is the proxy URL used for plain HTTP requests.
+	HTTPProxy *string `json:"http_proxy,omitempty"`
+	// HTTPSProxy is the proxy URL used for HTTPS requests.
+	HTTPSProxy *string `json:"https_proxy,omitempty"`
+	// NoProxy is a comma separated list of hosts, domains or CIDRs for
+	// which the proxy should be bypassed. Setting it to an empty string
+	// clears the value.
+	NoProxy *string `json:"no_proxy,omitempty"`
+
+	// Username is the username used to authenticate to the proxy. Setting
+	// it to an empty string clears the proxy credentials.
+	Username *string `json:"username,omitempty"`
+	// Password is the password used to authenticate to the proxy. Setting
+	// it to an empty string clears the password.
+	Password *string `json:"password,omitempty"`
+}
+
+func (u *UpdateProxyParams) Validate() error {
+	if u.Name != nil && *u.Name == "" {
+		return runnerErrors.NewBadRequestError("name cannot be empty")
+	}
+
+	if u.HTTPProxy != nil && *u.HTTPProxy != "" {
+		if err := validateProxyURL(*u.HTTPProxy); err != nil {
+			return err
+		}
+	}
+
+	if u.HTTPSProxy != nil && *u.HTTPSProxy != "" {
+		if err := validateProxyURL(*u.HTTPSProxy); err != nil {
+			return err
+		}
 	}
 
 	return nil

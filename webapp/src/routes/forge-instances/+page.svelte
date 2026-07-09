@@ -9,7 +9,7 @@
 	import type { CreateForgeInstanceParams } from '$lib/api/generated/api.js';
 	import { eagerCache, eagerCacheManager } from '$lib/stores/eager-cache.js';
 	import { toastStore } from '$lib/stores/toast.js';
-	import { filterEntities } from '$lib/utils/common.js';
+	import { filterEntities, getEntityStatusBadge, getForgeIcon } from '$lib/utils/common.js';
 	import { extractAPIError } from '$lib/utils/apiError';
 	import DataTable from '$lib/components/DataTable.svelte';
 	import ActionButton from '$lib/components/ActionButton.svelte';
@@ -172,18 +172,19 @@
 		primaryText: {
 			field: 'endpoint.name',
 			isClickable: true,
+			href: '/forge-instances/{id}',
 			entityType: 'forge_instance' as const
 		},
-		secondaryText: {
-			field: 'credentials_name'
-		},
+		customInfo: [
+			{
+				icon: (item: any) => getForgeIcon(item?.endpoint?.endpoint_type || 'unknown'),
+				text: (item: any) => item?.credentials_name || 'Unknown'
+			}
+		],
 		badges: [
 			{
-				field: 'pool_manager_status.is_running',
-				trueLabel: 'Running',
-				falseLabel: 'Stopped',
-				trueColor: 'green' as const,
-				falseColor: 'red' as const
+				type: 'custom' as const,
+				value: (item: any) => getEntityStatusBadge(item)
 			}
 		],
 		actions: [

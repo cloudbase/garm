@@ -38,6 +38,7 @@ const (
 	TemplateEntityType          DatabaseEntityType = "template"
 	FileObjectEntityType        DatabaseEntityType = "file_object"
 	ForgeInstanceEntityType     DatabaseEntityType = "forge_instance"
+	ProxyEntityType             DatabaseEntityType = "proxy"
 )
 
 const (

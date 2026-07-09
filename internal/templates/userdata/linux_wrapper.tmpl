@@ -6,6 +6,18 @@ set -o pipefail
 CALLBACK_URL="{{ .CallbackURL }}"
 METADATA_URL="{{ .MetadataURL }}"
 BEARER_TOKEN="{{ .CallbackToken }}"
+{{- if .HTTPProxy }}
+export HTTP_PROXY='{{ .HTTPProxy }}'
+export http_proxy='{{ .HTTPProxy }}'
+{{- end }}
+{{- if .HTTPSProxy }}
+export HTTPS_PROXY='{{ .HTTPSProxy }}'
+export https_proxy='{{ .HTTPSProxy }}'
+{{- end }}
+{{- if .NoProxy }}
+export NO_PROXY='{{ .NoProxy }}'
+export no_proxy='{{ .NoProxy }}'
+{{- end }}
 
 function call() {
 	PAYLOAD="$1"

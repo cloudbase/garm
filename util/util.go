@@ -151,7 +151,7 @@ func MaybeAddWrapperToExtraSpecs(ctx context.Context, param commonParams.Bootstr
 		return param
 	}
 
-	wrapper, err := templates.RenderRunnerInstallWrapper(ctx, param.OSType, param.MetadataURL, param.CallbackURL, param.InstanceToken)
+	wrapper, err := templates.RenderRunnerInstallWrapper(ctx, param.OSType, param.MetadataURL, param.CallbackURL, param.InstanceToken, param.ProxyConfig)
 	if err != nil {
 		slog.WarnContext(ctx, "failed to get runner install wrapper", "os_type", param.OSType, "error", err)
 		return param

@@ -117,12 +117,12 @@
 
 <div class="bg-white dark:bg-gray-800 shadow rounded-lg">
 	<div class="px-4 py-5 sm:p-6">
-		<div class="flex items-center justify-between">
-			<div>
+		<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+			<div class="min-w-0 flex-1">
 				<h3 class="text-lg font-medium text-gray-900 dark:text-white">
 					Webhook Status
 				</h3>
-				<div class="mt-1 flex items-center">
+				<div class="mt-1">
 					{#if checking}
 						<div class="flex items-center">
 							<div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
@@ -130,19 +130,19 @@
 						</div>
 					{:else if isInstalled}
 						<div class="flex items-center">
-							<svg class="w-4 h-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+							<svg class="w-4 h-4 text-green-500 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
 								<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
 							</svg>
 							<span class="text-sm text-green-700 dark:text-green-300">Webhook installed</span>
 						</div>
 						{#if webhookInfo}
-							<div class="ml-4 text-xs text-gray-500 dark:text-gray-400">
+							<div class="mt-1 text-xs text-gray-500 dark:text-gray-400 break-all">
 								URL: {webhookInfo.url || 'N/A'}
 							</div>
 						{/if}
 					{:else}
 						<div class="flex items-center">
-							<svg class="w-4 h-4 text-gray-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
+							<svg class="w-4 h-4 text-gray-400 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
 								<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm0-2a6 6 0 100-12 6 6 0 000 12zm0-10a1 1 0 011 1v3a1 1 0 01-2 0V7a1 1 0 011-1z" clip-rule="evenodd"/>
 							</svg>
 							<span class="text-sm text-gray-500 dark:text-gray-400">No webhook installed</span>
@@ -150,8 +150,8 @@
 					{/if}
 				</div>
 			</div>
-			
-			<div class="flex space-x-2">
+
+			<div class="flex space-x-2 flex-shrink-0">
 				{#if !checking}
 					{#if isInstalled}
 						<Button

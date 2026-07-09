@@ -16,6 +16,7 @@ export type EntityType =
 	| 'github_endpoint'
 	| 'scaleset'
 	| 'template'
+	| 'proxy'
 	| 'file_object';
 
 export type Operation = 'create' | 'update' | 'delete';

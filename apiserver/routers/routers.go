@@ -654,6 +654,24 @@ func NewAPIRouter(han *controllers.APIController, authMiddleware, initMiddleware
 	// Restore templates
 	apiRouter.Handle("/templates/restore/", http.HandlerFunc(han.RestoreTemplatesHandler)).Methods("POST", "OPTIONS")
 	apiRouter.Handle("/templates/restore", http.HandlerFunc(han.RestoreTemplatesHandler)).Methods("POST", "OPTIONS")
+
+	/////////////
+	// Proxies //
+	/////////////
+	apiRouter.Handle("/proxies/", http.HandlerFunc(han.ListProxiesHandler)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/proxies", http.HandlerFunc(han.ListProxiesHandler)).Methods("GET", "OPTIONS")
+	// Create proxy
+	apiRouter.Handle("/proxies/", http.HandlerFunc(han.CreateProxyHandler)).Methods("POST", "OPTIONS")
+	apiRouter.Handle("/proxies", http.HandlerFunc(han.CreateProxyHandler)).Methods("POST", "OPTIONS")
+	// Get proxy
+	apiRouter.Handle("/proxies/{proxyID}/", http.HandlerFunc(han.GetProxyHandler)).Methods("GET", "OPTIONS")
+	apiRouter.Handle("/proxies/{proxyID}", http.HandlerFunc(han.GetProxyHandler)).Methods("GET", "OPTIONS")
+	// Delete proxy
+	apiRouter.Handle("/proxies/{proxyID}/", http.HandlerFunc(han.DeleteProxyHandler)).Methods("DELETE", "OPTIONS")
+	apiRouter.Handle("/proxies/{proxyID}", http.HandlerFunc(han.DeleteProxyHandler)).Methods("DELETE", "OPTIONS")
+	// Update proxy
+	apiRouter.Handle("/proxies/{proxyID}/", http.HandlerFunc(han.UpdateProxyHandler)).Methods("PUT", "OPTIONS")
+	apiRouter.Handle("/proxies/{proxyID}", http.HandlerFunc(han.UpdateProxyHandler)).Methods("PUT", "OPTIONS")
 	/////////////////////////
 	// Websocket endpoints //
 	/////////////////////////

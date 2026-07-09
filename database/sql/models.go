@@ -115,6 +115,27 @@ type Template struct {
 	Pools     []Pool     `gorm:"foreignKey:TemplateID"`
 }
 
+// Proxy holds a named proxy definition. Pools and scale sets may reference
+// a proxy, in which case runners created for them will be configured to use
+// the proxy settings defined here.
+type Proxy struct {
+	gorm.Model
+
+	Name        string `gorm:"index:idx_proxy_name,unique,expression:LOWER(name);type:varchar(64)"`
+	Description string `gorm:"type:text"`
+
+	HTTPProxy  string `gorm:"column:http_proxy;type:text"`
+	HTTPSProxy string `gorm:"column:https_proxy;type:text"`
+	NoProxy    string `gorm:"column:no_proxy;type:text"`
+
+	// Credentials holds the sealed proxy credentials (username/password),
+	// if any were set.
+	Credentials []byte
+
+	Pools     []Pool     `gorm:"foreignKey:ProxyID"`
+	ScaleSets []ScaleSet `gorm:"foreignKey:ProxyID"`
+}
+
 type Pool struct {
 	Base
 
@@ -158,6 +179,9 @@ type Pool struct {
 
 	TemplateID *uint    `gorm:"index"`
 	Template   Template `gorm:"foreignKey:TemplateID"`
+
+	ProxyID *uint `gorm:"index"`
+	Proxy   Proxy `gorm:"foreignKey:ProxyID"`
 
 	Instances []Instance `gorm:"foreignKey:PoolID"`
 	Priority  uint       `gorm:"index:idx_pool_priority"`
@@ -219,6 +243,9 @@ type ScaleSet struct {
 
 	TemplateID *uint    `gorm:"index"`
 	Template   Template `gorm:"foreignKey:TemplateID"`
+
+	ProxyID *uint `gorm:"index"`
+	Proxy   Proxy `gorm:"foreignKey:ProxyID"`
 
 	Tags      []*Tag     `gorm:"many2many:scaleset_tags;constraint:OnDelete:CASCADE,OnUpdate:CASCADE;"`
 	Instances []Instance `gorm:"foreignKey:ScaleSetFkID"`

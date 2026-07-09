@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { createEventDispatcher, onMount } from 'svelte';
-	import type { Pool, ScaleSet, UpdatePoolParams, UpdateScaleSetParams, Template, Repository, Organization, Enterprise, ForgeInstance, UpdateEntityParams } from '$lib/api/generated/api.js';
+	import type { Pool, ScaleSet, UpdatePoolParams, UpdateScaleSetParams, Template, Proxy, Repository, Organization, Enterprise, ForgeInstance, UpdateEntityParams } from '$lib/api/generated/api.js';
 	import Modal from './Modal.svelte';
 	import RunnerConfigFields from './fields/RunnerConfigFields.svelte';
 	import RunnerLimitsFields from './fields/RunnerLimitsFields.svelte';
@@ -23,6 +23,8 @@
 	let validationError = '';
 	let templates: Template[] = [];
 	let loadingTemplates = false;
+	let proxies: Proxy[] = [];
+	let loadingProxies = false;
 	let showEntityUpdateModal = false;
 
 	// Form fields - initialize with pool values
@@ -44,6 +46,7 @@
 		: [];
 	let extraSpecs = '{}';
 	let selectedTemplate: number | undefined = (pool as any).template_id;
+	let selectedProxy: number | undefined = pool.proxy_id || undefined;
 
 	function getEntityName(p: Pool | ScaleSet): string {
 		if (poolType === 'scaleset') {
@@ -205,6 +208,18 @@
 		}
 	}
 
+	async function loadProxies() {
+		try {
+			loadingProxies = true;
+			const allProxies = await garmApi.listProxies();
+			proxies = allProxies.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+		} catch (err) {
+			error = extractAPIError(err);
+		} finally {
+			loadingProxies = false;
+		}
+	}
+
 	// Initialize extra specs and load templates
 	onMount(() => {
 		if (pool.extra_specs) {
@@ -225,6 +240,8 @@
 
 		// Load templates for the current configuration
 		loadTemplates();
+		// Load proxies for the proxy selection dropdown
+		loadProxies();
 	});
 
 	// Reactive statements
@@ -278,7 +295,9 @@
 					enabled: enabled !== ss.enabled ? enabled : undefined,
 					enable_shell: enableShell !== ss.enable_shell ? enableShell : undefined,
 					extra_specs: extraSpecs.trim() !== JSON.stringify(ss.extra_specs || {}, null, 2).trim() ? parsedExtraSpecs : undefined,
-					template_id: selectedTemplate !== (ss as any).template_id ? selectedTemplate : undefined
+					template_id: selectedTemplate !== (ss as any).template_id ? selectedTemplate : undefined,
+					// Sending proxy_id: 0 clears the proxy from the scale set
+					proxy_id: selectedProxy !== (ss.proxy_id || undefined) ? (selectedProxy ?? 0) : undefined
 				};
 
 				// Remove undefined values
@@ -306,7 +325,9 @@
 					enable_shell: enableShell !== pp.enable_shell ? enableShell : undefined,
 					tags: JSON.stringify(tags) !== JSON.stringify((pp.tags || []).map(tag => tag.name || '').filter(Boolean)) ? tags : undefined,
 					extra_specs: extraSpecs.trim() !== JSON.stringify(pp.extra_specs || {}, null, 2).trim() ? parsedExtraSpecs : undefined,
-					template_id: selectedTemplate !== (pp as any).template_id ? selectedTemplate : undefined
+					template_id: selectedTemplate !== (pp as any).template_id ? selectedTemplate : undefined,
+					// Sending proxy_id: 0 clears the proxy from the pool
+					proxy_id: selectedProxy !== (pp.proxy_id || undefined) ? (selectedProxy ?? 0) : undefined
 				};
 
 				// Remove undefined values
@@ -395,6 +416,9 @@
 				bind:selectedTemplate
 				{templates}
 				{loadingTemplates}
+				bind:selectedProxy
+				{proxies}
+				{loadingProxies}
 				idPrefix="update-{poolType}"
 			/>
 

@@ -21,6 +21,7 @@ docs/CreateGithubCredentialsParams.md
 docs/CreateGithubEndpointParams.md
 docs/CreateOrgParams.md
 docs/CreatePoolParams.md
+docs/CreateProxyParams.md
 docs/CreateRepoParams.md
 docs/CreateScaleSetParams.md
 docs/CreateTemplateParams.md
@@ -68,6 +69,8 @@ docs/PoolManagerStatus.md
 docs/PoolsApi.md
 docs/Provider.md
 docs/ProvidersApi.md
+docs/ProxiesApi.md
+docs/Proxy.md
 docs/RepositoriesApi.md
 docs/Repository.md
 docs/RestoreTemplateRequest.md
@@ -88,6 +91,7 @@ docs/UpdateGiteaEndpointParams.md
 docs/UpdateGithubCredentialsParams.md
 docs/UpdateGithubEndpointParams.md
 docs/UpdatePoolParams.md
+docs/UpdateProxyParams.md
 docs/UpdateScaleSetParams.md
 docs/UpdateTemplateParams.md
 docs/User.md

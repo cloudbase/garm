@@ -1,79 +1,32 @@
 package cache
 
 import (
-	"sync"
-
 	commonParams "github.com/cloudbase/garm-provider-common/params"
 	"github.com/cloudbase/garm/params"
 )
 
-var templateCache *TemplateCache
-
-func init() {
-	tplCache := &TemplateCache{
-		cache: make(map[uint]params.Template),
-	}
-	templateCache = tplCache
-}
-
-type TemplateCache struct {
-	mux sync.Mutex
-
-	cache map[uint]params.Template
-}
-
-func (t *TemplateCache) SetTemplateCache(tpl params.Template) {
-	t.mux.Lock()
-	defer t.mux.Unlock()
-
-	t.cache[tpl.ID] = tpl
-}
-
-func (t *TemplateCache) GetTemplate(id uint) (params.Template, bool) {
-	t.mux.Lock()
-	defer t.mux.Unlock()
-
-	tpl, ok := t.cache[id]
-	if !ok {
-		return params.Template{}, false
-	}
-
-	return tpl, true
-}
-
-func (t *TemplateCache) ListTemplates(osType *commonParams.OSType, forgeType *params.EndpointType) []params.Template {
-	ret := []params.Template{}
-	for _, val := range t.cache {
-		if osType != nil && val.OSType != *osType {
-			continue
-		}
-		if forgeType != nil && val.ForgeType != *forgeType {
-			continue
-		}
-		ret = append(ret, val)
-	}
-	return ret
-}
-
-func (t *TemplateCache) DeleteTemplate(id uint) {
-	t.mux.Lock()
-	defer t.mux.Unlock()
-
-	delete(t.cache, id)
-}
+var templateCache = newKeyedCache[uint, params.Template](0)
 
 func SetTemplateCache(tpl params.Template) {
-	templateCache.SetTemplateCache(tpl)
+	templateCache.Set(tpl.ID, tpl)
 }
 
 func GetTemplate(id uint) (params.Template, bool) {
-	return templateCache.GetTemplate(id)
+	return templateCache.Get(id)
 }
 
 func ListTemplates(osType *commonParams.OSType, forgeType *params.EndpointType) []params.Template {
-	return templateCache.ListTemplates(osType, forgeType)
+	return templateCache.List(func(tpl params.Template) bool {
+		if osType != nil && tpl.OSType != *osType {
+			return false
+		}
+		if forgeType != nil && tpl.ForgeType != *forgeType {
+			return false
+		}
+		return true
+	})
 }
 
 func DeleteTemplate(id uint) {
-	templateCache.DeleteTemplate(id)
+	templateCache.Delete(id)
 }

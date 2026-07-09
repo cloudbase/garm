@@ -52,6 +52,8 @@ var (
 	scalesetExtraSpecs             string
 	scalesetGitHubRunnerGroup      string
 	scaleSetTemplateNameOrID       string
+	scaleSetProxyNameOrID          string
+	scaleSetClearProxy             bool
 	scalesetEnableShell            bool
 	scalesetLabels                 string
 )
@@ -270,6 +272,14 @@ var scaleSetAddCmd = &cobra.Command{
 			newScaleSetParams.TemplateID = &tmplID
 		}
 
+		if cmd.Flags().Changed("proxy") && scaleSetProxyNameOrID != "" {
+			proxyID, err := resolveProxyAsUint(scaleSetProxyNameOrID)
+			if err != nil {
+				return err
+			}
+			newScaleSetParams.ProxyID = &proxyID
+		}
+
 		var response scalesetPayloadGetter
 		if cmd.Flags().Changed("repo") {
 			scalesetRepository, err = resolveRepository(scalesetRepository, endpointName)
@@ -344,6 +354,17 @@ explicitly remove them using the runner delete command.
 				return fmt.Errorf("failed to resolve template")
 			}
 			scaleSetUpdateParams.TemplateID = &tmplID
+		}
+
+		if cmd.Flags().Changed("proxy") && scaleSetProxyNameOrID != "" {
+			proxyID, err := resolveProxyAsUint(scaleSetProxyNameOrID)
+			if err != nil {
+				return err
+			}
+			scaleSetUpdateParams.ProxyID = &proxyID
+		} else if scaleSetClearProxy {
+			var noProxy uint
+			scaleSetUpdateParams.ProxyID = &noProxy
 		}
 
 		if cmd.Flags().Changed("image") {
@@ -541,6 +562,9 @@ func init() {
 	scaleSetUpdateCmd.Flags().StringVar(&scalesetExtraSpecs, "extra-specs", "", "A valid json which will be passed to the IaaS provider managing the scale set.")
 	scaleSetUpdateCmd.Flags().BoolVar(&scalesetEnableShell, "enable-shell", false, "Enable shell access for runners in this scale set.")
 	scaleSetUpdateCmd.Flags().StringVar(&scaleSetTemplateNameOrID, "runner-install-template", "", "The runner install template name or ID to use for this scale set.")
+	scaleSetUpdateCmd.Flags().StringVar(&scaleSetProxyNameOrID, "proxy", "", "The proxy name or ID runners in this scale set will use.")
+	scaleSetUpdateCmd.Flags().BoolVar(&scaleSetClearProxy, "clear-proxy", false, "Remove the proxy from this scale set.")
+	scaleSetUpdateCmd.MarkFlagsMutuallyExclusive("proxy", "clear-proxy")
 	scaleSetUpdateCmd.MarkFlagsMutuallyExclusive("extra-specs-file", "extra-specs")
 
 	scaleSetAddCmd.Flags().StringVar(&scalesetProvider, "provider-name", "", "The name of the provider where runners will be created.")
@@ -560,6 +584,7 @@ func init() {
 	scaleSetAddCmd.Flags().BoolVar(&scalesetEnableShell, "enable-shell", false, "Enable shell access for runners in this scale set.")
 	scaleSetAddCmd.Flags().StringVar(&endpointName, "endpoint", "", "When using the name of an entity, the endpoint must be specified when multiple entities with the same name exist.")
 	scaleSetAddCmd.Flags().StringVar(&scaleSetTemplateNameOrID, "runner-install-template", "", "The runner install template name or ID to use for this scale set.")
+	scaleSetAddCmd.Flags().StringVar(&scaleSetProxyNameOrID, "proxy", "", "The proxy name or ID runners in this scale set will use.")
 	scaleSetAddCmd.Flags().StringVar(&scalesetLabels, "labels", "", "A comma separated list of labels to assign to this scale set.")
 	scaleSetAddCmd.MarkFlagRequired("provider-name") //nolint
 	scaleSetAddCmd.MarkFlagRequired("name")          //nolint
@@ -666,6 +691,9 @@ func formatOneScaleSet(scaleSet params.ScaleSet) {
 	t.AppendRow(table.Row{"Runner Bootstrap Timeout", scaleSet.RunnerBootstrapTimeout})
 	t.AppendRow(table.Row{"Belongs to", belongsTo})
 	t.AppendRow(table.Row{"Template", fmt.Sprintf("%s (ID: %d)", scaleSet.TemplateName, scaleSet.TemplateID)})
+	if scaleSet.ProxyID != 0 {
+		t.AppendRow(table.Row{"Proxy", fmt.Sprintf("%s (ID: %d)", scaleSet.ProxyName, scaleSet.ProxyID)})
+	}
 	t.AppendRow(table.Row{"Level", level})
 	t.AppendRow(table.Row{"Enabled", scaleSet.Enabled})
 	t.AppendRow(table.Row{"Runner Prefix", scaleSet.GetRunnerPrefix()})

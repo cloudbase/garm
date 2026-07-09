@@ -102,6 +102,15 @@ token = "$AGENT_TOKEN"
 runner_cmdline = ["/bin/bash", "-C", "/home/runner/actions-runner/run.sh"]
 state_db_path = "/etc/garm-agent/agent-state.db"
 EOF
+{{- if or .HTTPProxy .HTTPSProxy }}
+	cat >> /etc/garm-agent/garm-agent.toml << 'PROXY_EOF'
+
+[proxy]
+http_proxy = "{{ .HTTPProxy }}"
+https_proxy = "{{ .HTTPSProxy }}"
+no_proxy = "{{ .NoProxy }}"
+PROXY_EOF
+{{- end }}
 
 	cat > /tmp/garm-agent.service << EOF
 [Unit]
@@ -234,6 +243,22 @@ set -e
 sendStatus "installing runner service"
 sudo ./svc.sh install {{ .RunnerUsername }} || fail "failed to install service"
 {{- end}}
+{{- if or .HTTPProxy .HTTPSProxy }}
+
+sendStatus "setting runner proxy config"
+cat >> "$RUN_HOME/.env" << 'PROXY_EOF'
+{{- if .HTTPProxy }}
+http_proxy={{ .HTTPProxy }}
+{{- end }}
+{{- if .HTTPSProxy }}
+https_proxy={{ .HTTPSProxy }}
+{{- end }}
+{{- if .NoProxy }}
+no_proxy={{ .NoProxy }}
+{{- end }}
+PROXY_EOF
+chown {{ .RunnerUsername }}:{{ .RunnerGroup }} "$RUN_HOME/.env" || fail "failed to change .env owner"
+{{- end }}
 
 if [ -e "/sys/fs/selinux" ];then
 	sudo chcon -R -h user_u:object_r:bin_t:s0 /home/runner/ || fail "failed to change selinux context"
