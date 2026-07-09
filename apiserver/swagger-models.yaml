@@ -431,6 +431,36 @@ definitions:
         import:
             package: github.com/cloudbase/garm/params
             alias: garm_params
+  Proxy:
+    type: object
+    x-go-type:
+        type: Proxy
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+  Proxies:
+    type: array
+    x-go-type:
+        type: Proxies
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+    items:
+        $ref: '#/definitions/Proxy'
+  CreateProxyParams:
+    type: object
+    x-go-type:
+        type: CreateProxyParams
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
+  UpdateProxyParams:
+    type: object
+    x-go-type:
+        type: UpdateProxyParams
+        import:
+            package: github.com/cloudbase/garm/params
+            alias: garm_params
   GARMAgentToolsPaginatedResponse:
     type: object
     x-go-type:

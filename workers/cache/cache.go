@@ -184,6 +184,18 @@ func (w *Worker) loadAllInstances() error {
 	return nil
 }
 
+func (w *Worker) loadAllProxies() error {
+	proxies, err := w.store.ListProxies(w.ctx)
+	if err != nil {
+		return fmt.Errorf("listing proxies: %w", err)
+	}
+
+	for _, proxy := range proxies {
+		cache.SetProxyCache(proxy)
+	}
+	return nil
+}
+
 func (w *Worker) loadAllGithubCredentials() error {
 	creds, err := w.store.ListGithubCredentials(w.ctx)
 	if err != nil {
@@ -274,6 +286,13 @@ func (w *Worker) Start() error {
 	g.Go(func() error {
 		if err := w.loadAllInstances(); err != nil {
 			return fmt.Errorf("loading all instances: %w", err)
+		}
+		return nil
+	})
+
+	g.Go(func() error {
+		if err := w.loadAllProxies(); err != nil {
+			return fmt.Errorf("loading all proxies: %w", err)
 		}
 		return nil
 	})
@@ -470,6 +489,20 @@ func (w *Worker) handleTemplateEvent(event common.ChangePayload) {
 	}
 }
 
+func (w *Worker) handleProxyEvent(event common.ChangePayload) {
+	proxy, ok := event.Payload.(params.Proxy)
+	if !ok {
+		slog.DebugContext(w.ctx, "invalid payload type for proxy event", "payload", event.Payload)
+		return
+	}
+	switch event.Operation {
+	case common.CreateOperation, common.UpdateOperation:
+		cache.SetProxyCache(proxy)
+	case common.DeleteOperation:
+		cache.DeleteProxy(proxy.ID)
+	}
+}
+
 func (w *Worker) handleCredentialsEvent(event common.ChangePayload) {
 	credentials, ok := event.Payload.(params.ForgeCredentials)
 	if !ok {
@@ -557,6 +590,8 @@ func (w *Worker) handleEvent(event common.ChangePayload) {
 		w.handleControllerInfoEvent(event)
 	case common.TemplateEntityType:
 		w.handleTemplateEvent(event)
+	case common.ProxyEntityType:
+		w.handleProxyEvent(event)
 	case common.GithubEndpointEntityType:
 		w.handleEndpointEvent(event)
 	default:

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Template } from '$lib/api/generated/api.js';
+	import type { Template, Proxy } from '$lib/api/generated/api.js';
 
 	export let image: string = '';
 	export let flavor: string = '';
@@ -8,6 +8,9 @@
 	export let selectedTemplate: number | undefined = undefined;
 	export let templates: Template[] = [];
 	export let loadingTemplates: boolean = false;
+	export let selectedProxy: number | undefined = undefined;
+	export let proxies: Proxy[] = [];
+	export let loadingProxies: boolean = false;
 	export let idPrefix: string = '';
 
 	function inputId(name: string): string {
@@ -104,6 +107,33 @@
 			<div class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400">
 				<p class="text-sm">No templates available</p>
 			</div>
+		{/if}
+	</div>
+
+	<!-- Proxy Selection -->
+	<div>
+		<label for={inputId('proxy')} class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+			Proxy
+		</label>
+		{#if loadingProxies}
+			<div class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 flex items-center">
+				<div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+				<span class="text-sm text-gray-600 dark:text-gray-400">Loading proxies...</span>
+			</div>
+		{:else}
+			<select
+				id={inputId('proxy')}
+				bind:value={selectedProxy}
+				class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+			>
+				<option value={undefined}>No proxy</option>
+				{#each proxies as proxy}
+					<option value={proxy.id}>{proxy.name}</option>
+				{/each}
+			</select>
+			<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+				Optional proxy runners will use to reach GARM, the forge and other resources during setup.
+			</p>
 		{/if}
 	</div>
 </div>

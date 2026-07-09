@@ -200,6 +200,15 @@ type TemplateStore interface {
 	DeleteTemplate(ctx context.Context, id uint) (err error)
 }
 
+type ProxyStore interface {
+	ListProxies(ctx context.Context) ([]params.Proxy, error)
+	CreateProxy(ctx context.Context, param params.CreateProxyParams) (proxy params.Proxy, err error)
+	GetProxy(ctx context.Context, id uint) (params.Proxy, error)
+	GetProxyByName(ctx context.Context, name string) (params.Proxy, error)
+	UpdateProxy(ctx context.Context, id uint, param params.UpdateProxyParams) (proxy params.Proxy, err error)
+	DeleteProxy(ctx context.Context, id uint) (err error)
+}
+
 type FileObjectStore interface {
 	ListFileObjects(ctx context.Context, page, pageSize uint64) (params.FileObjectPaginatedResponse, error)
 	SearchFileObjectByTags(ctx context.Context, tags []string, page, pageSize uint64) (params.FileObjectPaginatedResponse, error)
@@ -230,6 +239,7 @@ type Store interface {
 	GiteaEndpointStore
 	GiteaCredentialsStore
 	TemplateStore
+	ProxyStore
 	FileObjectStore
 
 	ControllerInfo() (params.ControllerInfo, error)

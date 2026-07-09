@@ -379,6 +379,11 @@ definitions:
             provider_name:
                 type: string
                 x-go-name: ProviderName
+            proxy_id:
+                description: ProxyID is the ID of the proxy definition runners in this pool will use.
+                format: uint64
+                type: integer
+                x-go-name: ProxyID
             runner_bootstrap_timeout:
                 format: uint64
                 type: integer
@@ -395,6 +400,38 @@ definitions:
                 format: uint64
                 type: integer
                 x-go-name: TemplateID
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    CreateProxyParams:
+        properties:
+            description:
+                type: string
+                x-go-name: Description
+            http_proxy:
+                description: HTTPProxy is the proxy URL used for plain HTTP requests.
+                type: string
+                x-go-name: HTTPProxy
+            https_proxy:
+                description: HTTPSProxy is the proxy URL used for HTTPS requests.
+                type: string
+                x-go-name: HTTPSProxy
+            name:
+                type: string
+                x-go-name: Name
+            no_proxy:
+                description: |-
+                    NoProxy is a comma separated list of hosts, domains or CIDRs for
+                    which the proxy should be bypassed.
+                type: string
+                x-go-name: NoProxy
+            password:
+                description: Password is the password used to authenticate to the proxy.
+                type: string
+                x-go-name: Password
+            username:
+                description: Username is the username used to authenticate to the proxy.
+                type: string
+                x-go-name: Username
         type: object
         x-go-package: github.com/cloudbase/garm/params
     CreateRepoParams:
@@ -470,6 +507,13 @@ definitions:
             provider_name:
                 type: string
                 x-go-name: ProviderName
+            proxy_id:
+                description: |-
+                    ProxyID is the ID of the proxy definition runners in this scale set
+                    will use.
+                format: uint64
+                type: integer
+                x-go-name: ProxyID
             runner_bootstrap_timeout:
                 format: uint64
                 type: integer
@@ -1699,6 +1743,17 @@ definitions:
             provider_name:
                 type: string
                 x-go-name: ProviderName
+            proxy_id:
+                description: |-
+                    ProxyID is the ID of the proxy definition that will be used by runners
+                    spawned in this pool. Runners will use the proxy settings to reach back
+                    to GARM, the forge and any other resources they need during setup.
+                format: uint64
+                type: integer
+                x-go-name: ProxyID
+            proxy_name:
+                type: string
+                x-go-name: ProxyName
             repo_id:
                 type: string
                 x-go-name: RepoID
@@ -1769,6 +1824,54 @@ definitions:
         items:
             $ref: '#/definitions/Provider'
         type: array
+        x-go-package: github.com/cloudbase/garm/params
+    Proxies:
+        description: used by swagger client generated code
+        items:
+            $ref: '#/definitions/Proxy'
+        type: array
+        x-go-package: github.com/cloudbase/garm/params
+    Proxy:
+        properties:
+            created_at:
+                format: date-time
+                type: string
+                x-go-name: CreatedAt
+            description:
+                type: string
+                x-go-name: Description
+            http_proxy:
+                description: HTTPProxy is the proxy URL used for plain HTTP requests.
+                type: string
+                x-go-name: HTTPProxy
+            https_proxy:
+                description: HTTPSProxy is the proxy URL used for HTTPS requests.
+                type: string
+                x-go-name: HTTPSProxy
+            id:
+                format: uint64
+                type: integer
+                x-go-name: ID
+            name:
+                type: string
+                x-go-name: Name
+            no_proxy:
+                description: |-
+                    NoProxy is a comma separated list of hosts, domains or CIDRs for
+                    which the proxy should be bypassed.
+                type: string
+                x-go-name: NoProxy
+            updated_at:
+                format: date-time
+                type: string
+                x-go-name: UpdatedAt
+            username:
+                description: |-
+                    Username is the username used to authenticate to the proxy. If set,
+                    it will be composed into the final proxy URLs handed to runners.
+                type: string
+                x-go-name: Username
+        type: object
         x-go-package: github.com/cloudbase/garm/params
     Repositories:
         description: used by swagger client generated code
@@ -1975,6 +2078,17 @@ definitions:
             provider_name:
                 type: string
                 x-go-name: ProviderName
+            proxy_id:
+                description: |-
+                    ProxyID is the ID of the proxy definition that will be used by runners
+                    spawned in this scale set. Runners will use the proxy settings to reach
+                    back to GARM, the forge and any other resources they need during setup.
+                format: uint64
+                type: integer
+                x-go-name: ProxyID
+            proxy_name:
+                type: string
+                x-go-name: ProxyName
             repo_id:
                 type: string
                 x-go-name: RepoID
@@ -2276,6 +2390,13 @@ definitions:
                 format: uint64
                 type: integer
                 x-go-name: Priority
+            proxy_id:
+                description: |-
+                    ProxyID is the ID of the proxy definition runners in this pool will
+                    use. Setting it to 0 removes the proxy from the pool.
+                format: uint64
+                type: integer
+                x-go-name: ProxyID
             runner_bootstrap_timeout:
                 format: uint64
                 type: integer
@@ -2292,6 +2413,43 @@ definitions:
                 format: uint64
                 type: integer
                 x-go-name: TemplateID
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
+    UpdateProxyParams:
+        properties:
+            description:
+                type: string
+                x-go-name: Description
+            http_proxy:
+                description: HTTPProxy is the proxy URL used for plain HTTP requests.
+                type: string
+                x-go-name: HTTPProxy
+            https_proxy:
+                description: HTTPSProxy is the proxy URL used for HTTPS requests.
+                type: string
+                x-go-name: HTTPSProxy
+            name:
+                type: string
+                x-go-name: Name
+            no_proxy:
+                description: |-
+                    NoProxy is a comma separated list of hosts, domains or CIDRs for
+                    which the proxy should be bypassed. Setting it to an empty string
+                    clears the value.
+                type: string
+                x-go-name: NoProxy
+            password:
+                description: |-
+                    Password is the password used to authenticate to the proxy. Setting
+                    it to an empty string clears the password.
+                type: string
+                x-go-name: Password
+            username:
+                description: |-
+                    Username is the username used to authenticate to the proxy. Setting
+                    it to an empty string clears the proxy credentials.
+                type: string
+                x-go-name: Username
         type: object
         x-go-package: github.com/cloudbase/garm/params
     UpdateScaleSetParams:
@@ -2329,6 +2487,13 @@ definitions:
                 $ref: '#/definitions/OSArch'
             os_type:
                 $ref: '#/definitions/OSType'
+            proxy_id:
+                description: |-
+                    ProxyID is the ID of the proxy definition runners in this scale set
+                    will use. Setting it to 0 removes the proxy from the scale set.
+                format: uint64
+                type: integer
+                x-go-name: ProxyID
             runner_bootstrap_timeout:
                 format: uint64
                 type: integer
@@ -4284,6 +4449,109 @@ paths:
             summary: List all providers.
             tags:
                 - providers
+    /proxies:
+        get:
+            operationId: ListProxies
+            responses:
+                "200":
+                    description: Proxies
+                    schema:
+                        $ref: '#/definitions/Proxies'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List proxies.
+            tags:
+                - proxies
+        post:
+            operationId: CreateProxy
+            parameters:
+                - description: Parameters used when creating the proxy.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/CreateProxyParams'
+                    description: Parameters used when creating the proxy.
+                    type: object
+            responses:
+                "200":
+                    description: Proxy
+                    schema:
+                        $ref: '#/definitions/Proxy'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Create proxy with the parameters given.
+            tags:
+                - proxies
+    /proxies/{proxyID}:
+        delete:
+            operationId: DeleteProxy
+            parameters:
+                - description: ID of the proxy to delete.
+                  in: path
+                  name: proxyID
+                  required: true
+                  type: number
+            responses:
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Delete proxy by ID.
+            tags:
+                - proxies
+        get:
+            operationId: GetProxy
+            parameters:
+                - description: ID of the proxy to fetch.
+                  in: path
+                  name: proxyID
+                  required: true
+                  type: number
+            responses:
+                "200":
+                    description: Proxy
+                    schema:
+                        $ref: '#/definitions/Proxy'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get proxy by ID.
+            tags:
+                - proxies
+        put:
+            operationId: UpdateProxy
+            parameters:
+                - description: ID of the proxy to update.
+                  in: path
+                  name: proxyID
+                  required: true
+                  type: number
+                - description: Parameters used when updating the proxy.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/UpdateProxyParams'
+                    description: Parameters used when updating the proxy.
+                    type: object
+            responses:
+                "200":
+                    description: Proxy
+                    schema:
+                        $ref: '#/definitions/Proxy'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Update proxy with the parameters given.
+            tags:
+                - proxies
     /repositories:
         get:
             operationId: ListRepos

@@ -86,6 +86,13 @@ definitions:
                 alias: garm_params
                 package: github.com/cloudbase/garm/params
             type: CreatePoolParams
+    CreateProxyParams:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: CreateProxyParams
     CreateRepoParams:
         type: object
         x-go-type:
@@ -330,6 +337,22 @@ definitions:
                 alias: garm_params
                 package: github.com/cloudbase/garm/params
             type: Providers
+    Proxies:
+        items:
+            $ref: '#/definitions/Proxy'
+        type: array
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: Proxies
+    Proxy:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: Proxy
     Repositories:
         items:
             $ref: '#/definitions/Repository'
@@ -441,6 +464,13 @@ definitions:
                 alias: garm_params
                 package: github.com/cloudbase/garm/params
             type: UpdatePoolParams
+    UpdateProxyParams:
+        type: object
+        x-go-type:
+            import:
+                alias: garm_params
+                package: github.com/cloudbase/garm/params
+            type: UpdateProxyParams
     UpdateScaleSetParams:
         type: object
         x-go-type:
@@ -2347,6 +2377,109 @@ paths:
             summary: List all providers.
             tags:
                 - providers
+    /proxies:
+        get:
+            operationId: ListProxies
+            responses:
+                "200":
+                    description: Proxies
+                    schema:
+                        $ref: '#/definitions/Proxies'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: List proxies.
+            tags:
+                - proxies
+        post:
+            operationId: CreateProxy
+            parameters:
+                - description: Parameters used when creating the proxy.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/CreateProxyParams'
+                    description: Parameters used when creating the proxy.
+                    type: object
+            responses:
+                "200":
+                    description: Proxy
+                    schema:
+                        $ref: '#/definitions/Proxy'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Create proxy with the parameters given.
+            tags:
+                - proxies
+    /proxies/{proxyID}:
+        delete:
+            operationId: DeleteProxy
+            parameters:
+                - description: ID of the proxy to delete.
+                  in: path
+                  name: proxyID
+                  required: true
+                  type: number
+            responses:
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Delete proxy by ID.
+            tags:
+                - proxies
+        get:
+            operationId: GetProxy
+            parameters:
+                - description: ID of the proxy to fetch.
+                  in: path
+                  name: proxyID
+                  required: true
+                  type: number
+            responses:
+                "200":
+                    description: Proxy
+                    schema:
+                        $ref: '#/definitions/Proxy'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Get proxy by ID.
+            tags:
+                - proxies
+        put:
+            operationId: UpdateProxy
+            parameters:
+                - description: ID of the proxy to update.
+                  in: path
+                  name: proxyID
+                  required: true
+                  type: number
+                - description: Parameters used when updating the proxy.
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/UpdateProxyParams'
+                    description: Parameters used when updating the proxy.
+                    type: object
+            responses:
+                "200":
+                    description: Proxy
+                    schema:
+                        $ref: '#/definitions/Proxy'
+                default:
+                    description: APIErrorResponse
+                    schema:
+                        $ref: '#/definitions/APIErrorResponse'
+            summary: Update proxy with the parameters given.
+            tags:
+                - proxies
     /repositories:
         get:
             operationId: ListRepos

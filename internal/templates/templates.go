@@ -30,6 +30,16 @@ type WrapperContext struct {
 	CallbackURL   string
 	MetadataURL   string
 	CACertBundle  string
+
+	// HTTPProxy, HTTPSProxy and NoProxy hold the final proxy URLs (with
+	// credentials embedded, if any) and the proxy bypass list. The wrappers
+	// export these as environment variables. The install scripts and the
+	// runner itself inherit them. On Windows, where PowerShell 5.1 ignores
+	// proxy environment variables, the wrapper also sets the .NET default
+	// web proxy from these values.
+	HTTPProxy  string
+	HTTPSProxy string
+	NoProxy    string
 }
 
 // InstallContext wraps the vendored InstallRunnerParams with agent-specific
@@ -45,6 +55,15 @@ type InstallContext struct {
 	// ForceInsecureGARMAgent allows the agent to connect back to GARM even when
 	// TLS is not enabled in GARM itself.
 	ForceInsecureGARMAgent bool
+
+	// HTTPProxy, HTTPSProxy and NoProxy hold the final proxy URLs (with
+	// credentials embedded, if any) and the proxy bypass list. Templates
+	// render these into the garm-agent config. Note that garm-agent
+	// versions older than v0.1.1 do not know about the proxy section, so
+	// templates must only emit it when a proxy is actually set.
+	HTTPProxy  string
+	HTTPSProxy string
+	NoProxy    string
 }
 
 func GetTemplateContent(osType commonParams.OSType, forge params.EndpointType) ([]byte, error) {
@@ -144,7 +163,7 @@ func RenderRunnerInstallScript(tpl string, context any) ([]byte, error) {
 	return []byte(data), nil
 }
 
-func RenderRunnerInstallWrapper(ctx context.Context, osType commonParams.OSType, metadataURL, callbackURL, token string) ([]byte, error) {
+func RenderRunnerInstallWrapper(ctx context.Context, osType commonParams.OSType, metadataURL, callbackURL, token string, proxyConfig commonParams.ProxyConfig) ([]byte, error) {
 	tmpl, err := template.ParseFS(Userdata, "userdata/*_wrapper.tmpl")
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse templates: %w", err)
@@ -154,6 +173,9 @@ func RenderRunnerInstallWrapper(ctx context.Context, osType commonParams.OSType,
 		MetadataURL:   metadataURL,
 		CallbackURL:   callbackURL,
 		CallbackToken: token,
+		HTTPProxy:     proxyConfig.HTTPProxy,
+		HTTPSProxy:    proxyConfig.HTTPSProxy,
+		NoProxy:       proxyConfig.NoProxy,
 	}
 
 	controllerInfo := cache.ControllerInfo()

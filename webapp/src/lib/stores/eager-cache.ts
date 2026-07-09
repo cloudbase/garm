@@ -11,7 +11,8 @@ import type {
 	ForgeCredentials,
 	ForgeEndpoint,
 	ControllerInfo,
-	Template
+	Template,
+	Proxy
 } from '../api/generated/api.js';
 
 type CacheResourceKey = keyof Omit<EagerCacheState, 'loading' | 'loaded' | 'errorMessages'>;
@@ -27,6 +28,7 @@ interface EagerCacheState {
 	endpoints: ForgeEndpoint[];
 	controllerInfo: ControllerInfo | null;
 	templates: Template[];
+	proxies: Proxy[];
 	loading: {
 		repositories: boolean;
 		organizations: boolean;
@@ -38,6 +40,7 @@ interface EagerCacheState {
 		endpoints: boolean;
 		controllerInfo: boolean;
 		templates: boolean;
+		proxies: boolean;
 	};
 	loaded: {
 		repositories: boolean;
@@ -50,6 +53,7 @@ interface EagerCacheState {
 		endpoints: boolean;
 		controllerInfo: boolean;
 		templates: boolean;
+		proxies: boolean;
 	};
 	errorMessages: {
 		repositories: string;
@@ -62,6 +66,7 @@ interface EagerCacheState {
 		endpoints: string;
 		controllerInfo: string;
 		templates: string;
+		proxies: string;
 	};
 }
 
@@ -76,6 +81,7 @@ const initialState: EagerCacheState = {
 	endpoints: [],
 	controllerInfo: null,
 	templates: [],
+	proxies: [],
 	loading: {
 		repositories: false,
 		organizations: false,
@@ -87,6 +93,7 @@ const initialState: EagerCacheState = {
 		endpoints: false,
 		controllerInfo: false,
 		templates: false,
+		proxies: false,
 	},
 	loaded: {
 		repositories: false,
@@ -99,6 +106,7 @@ const initialState: EagerCacheState = {
 		endpoints: false,
 		controllerInfo: false,
 		templates: false,
+		proxies: false,
 	},
 	errorMessages: {
 		repositories: '',
@@ -111,6 +119,7 @@ const initialState: EagerCacheState = {
 		endpoints: '',
 		controllerInfo: '',
 		templates: '',
+		proxies: '',
 	}
 };
 
@@ -128,6 +137,7 @@ const apiFetchers: Record<CacheResourceKey, () => Promise<any>> = {
 	endpoints: () => garmApi.listAllEndpoints(),
 	controllerInfo: () => garmApi.getControllerInfo(),
 	templates: () => garmApi.listTemplates(),
+	proxies: () => garmApi.listProxies(),
 };
 
 class EagerCacheManager {
@@ -243,6 +253,7 @@ class EagerCacheManager {
 			websocketStore.subscribeToEntity('pool', ['create', 'update', 'delete'], (e) => this.handleCrudEvent(e, 'pools')),
 			websocketStore.subscribeToEntity('scaleset', ['create', 'update', 'delete'], (e) => this.handleCrudEvent(e, 'scalesets')),
 			websocketStore.subscribeToEntity('template', ['create', 'update', 'delete'], (e) => this.handleCrudEvent(e, 'templates')),
+			websocketStore.subscribeToEntity('proxy', ['create', 'update', 'delete'], (e) => this.handleCrudEvent(e, 'proxies')),
 			websocketStore.subscribeToEntity('controller', ['update'], this.handleControllerEvent.bind(this)),
 			websocketStore.subscribeToEntity('github_credentials', ['create', 'update', 'delete'], this.handleCredentialsEvent.bind(this)),
 			websocketStore.subscribeToEntity('gitea_credentials', ['create', 'update', 'delete'], this.handleCredentialsEvent.bind(this)),
@@ -439,6 +450,10 @@ class EagerCacheManager {
 
 	async getTemplates(): Promise<Template[]> {
 		return this.getCachedOrFetch('templates', 'templates');
+	}
+
+	async getProxies(): Promise<Proxy[]> {
+		return this.getCachedOrFetch('proxies', 'proxies');
 	}
 }
 

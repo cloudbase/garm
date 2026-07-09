@@ -14,59 +14,22 @@
 package cache
 
 import (
-	"sync"
-
 	"github.com/cloudbase/garm/params"
 )
 
-var endpointCache *EndpointCache
-
-func init() {
-	epCache := &EndpointCache{
-		endpoints: make(map[string]params.ForgeEndpoint),
-	}
-	endpointCache = epCache
-}
-
-type EndpointCache struct {
-	endpoints map[string]params.ForgeEndpoint
-	mux       sync.Mutex
-}
-
-func (e *EndpointCache) SetEndpoint(ep params.ForgeEndpoint) {
-	e.mux.Lock()
-	defer e.mux.Unlock()
-
-	e.endpoints[ep.Name] = ep
-	UpdateCredentialsUsingEndpoint(ep)
-}
-
-func (e *EndpointCache) GetEndpoint(epName string) (params.ForgeEndpoint, bool) {
-	e.mux.Lock()
-	defer e.mux.Unlock()
-
-	ep, ok := e.endpoints[epName]
-	if ok {
-		return ep, true
-	}
-	return params.ForgeEndpoint{}, false
-}
-
-func (e *EndpointCache) RemoveEndpoint(epName string) {
-	e.mux.Lock()
-	defer e.mux.Unlock()
-
-	delete(e.endpoints, epName)
-}
+var endpointCache = newKeyedCache[string, params.ForgeEndpoint](0)
 
 func SetEndpoint(ep params.ForgeEndpoint) {
-	endpointCache.SetEndpoint(ep)
+	endpointCache.Update(func(endpoints map[string]params.ForgeEndpoint) {
+		endpoints[ep.Name] = ep
+		UpdateCredentialsUsingEndpoint(ep)
+	})
 }
 
 func GetEndpoint(epName string) (params.ForgeEndpoint, bool) {
-	return endpointCache.GetEndpoint(epName)
+	return endpointCache.Get(epName)
 }
 
 func RemoveEndpoint(epName string) {
-	endpointCache.RemoveEndpoint(epName)
+	endpointCache.Delete(epName)
 }

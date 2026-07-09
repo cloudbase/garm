@@ -6,6 +6,41 @@ $ErrorActionPreference="Stop"
 $MetadataUrl = "{{ .MetadataURL }}"
 $CallbackUrl = "{{ .CallbackURL }}"
 $CallbackToken = "{{ .CallbackToken }}"
+{{- if .HTTPProxy }}
+$env:HTTP_PROXY = '{{ .HTTPProxy }}'
+[Environment]::SetEnvironmentVariable("HTTP_PROXY", $env:HTTP_PROXY, "Machine")
+{{- end }}
+{{- if .HTTPSProxy }}
+$env:HTTPS_PROXY = '{{ .HTTPSProxy }}'
+[Environment]::SetEnvironmentVariable("HTTPS_PROXY", $env:HTTPS_PROXY, "Machine")
+{{- end }}
+{{- if .NoProxy }}
+$env:NO_PROXY = '{{ .NoProxy }}'
+[Environment]::SetEnvironmentVariable("NO_PROXY", $env:NO_PROXY, "Machine")
+{{- end }}
+{{- if or .HTTPProxy .HTTPSProxy }}
+
+$proxyAddress = $env:HTTPS_PROXY
+if (!$proxyAddress) { $proxyAddress = $env:HTTP_PROXY }
+$proxyUri = [System.Uri]$proxyAddress
+$defaultProxy = New-Object System.Net.WebProxy("$($proxyUri.Scheme)://$($proxyUri.Host):$($proxyUri.Port)")
+if ($proxyUri.UserInfo) {
+	$proxyUserInfo = $proxyUri.UserInfo.Split(":", 2)
+	$proxyUser = [System.Uri]::UnescapeDataString($proxyUserInfo[0])
+	$proxyPass = ""
+	if ($proxyUserInfo.Length -gt 1) { $proxyPass = [System.Uri]::UnescapeDataString($proxyUserInfo[1]) }
+	$defaultProxy.Credentials = New-Object System.Net.NetworkCredential($proxyUser, $proxyPass)
+}
+if ($env:NO_PROXY) {
+	$proxyBypass = @()
+	foreach ($bypassEntry in $env:NO_PROXY -split ",") {
+		$trimmedEntry = $bypassEntry.Trim().TrimStart(".")
+		if ($trimmedEntry) { $proxyBypass += ([regex]::Escape($trimmedEntry) + "$") }
+	}
+	if ($proxyBypass.Count -gt 0) { $defaultProxy.BypassList = $proxyBypass }
+}
+[System.Net.WebRequest]::DefaultWebProxy = $defaultProxy
+{{- end }}
 
 function Import-Certificate() {
 	[CmdletBinding()]

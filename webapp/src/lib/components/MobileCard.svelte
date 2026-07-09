@@ -43,11 +43,16 @@
 		}>;
 	};
 
+	function resolveField(obj: any, path: string): any {
+		if (!obj || !path) return undefined;
+		return path.split('.').reduce((acc, key) => (acc == null ? undefined : acc[key]), obj);
+	}
+
 	function getPrimaryText(): string {
 		if (!item) return 'Unknown';
-		
+
 		const { field, useId, showOwner } = config.primaryText;
-		const value = item[field];
+		const value = resolveField(item, field);
 		
 		if (useId && value) {
 			// For pools - show truncated ID
@@ -75,7 +80,7 @@
 			return computedValue;
 		}
 		
-		return item?.[field] || '';
+		return resolveField(item, field) || '';
 	}
 
 	function getEntityHref(): string {

@@ -57,6 +57,8 @@ var (
 	poolGitHubRunnerGroup      string
 	priority                   uint
 	poolTemplateNameOrID       string
+	poolProxyNameOrID          string
+	poolClearProxy             bool
 	poolEnableShell            bool
 )
 
@@ -279,6 +281,14 @@ var poolAddCmd = &cobra.Command{
 			newPoolParams.TemplateID = &tmplID
 		}
 
+		if cmd.Flags().Changed("proxy") && poolProxyNameOrID != "" {
+			proxyID, err := resolveProxyAsUint(poolProxyNameOrID)
+			if err != nil {
+				return err
+			}
+			newPoolParams.ProxyID = &proxyID
+		}
+
 		var response poolPayloadGetter
 		if cmd.Flags().Changed("repo") {
 			poolRepository, err = resolveRepository(poolRepository, endpointName)
@@ -362,6 +372,17 @@ explicitly remove them using the runner delete command.
 				return fmt.Errorf("failed to resolve template")
 			}
 			poolUpdateParams.TemplateID = &tmplID
+		}
+
+		if cmd.Flags().Changed("proxy") && poolProxyNameOrID != "" {
+			proxyID, err := resolveProxyAsUint(poolProxyNameOrID)
+			if err != nil {
+				return err
+			}
+			poolUpdateParams.ProxyID = &proxyID
+		} else if poolClearProxy {
+			var noProxy uint
+			poolUpdateParams.ProxyID = &noProxy
 		}
 
 		if cmd.Flags().Changed("image") {
@@ -596,6 +617,9 @@ func init() {
 	poolUpdateCmd.Flags().BoolVar(&poolEnableShell, "enable-shell", false, "Enable shell access for runners in this pool.")
 	poolUpdateCmd.MarkFlagsMutuallyExclusive("extra-specs-file", "extra-specs")
 	poolUpdateCmd.Flags().StringVar(&poolTemplateNameOrID, "runner-install-template", "", "The runner install template name or ID to use for this pool.")
+	poolUpdateCmd.Flags().StringVar(&poolProxyNameOrID, "proxy", "", "The proxy name or ID runners in this pool will use.")
+	poolUpdateCmd.Flags().BoolVar(&poolClearProxy, "clear-proxy", false, "Remove the proxy from this pool.")
+	poolUpdateCmd.MarkFlagsMutuallyExclusive("proxy", "clear-proxy")
 
 	poolAddCmd.Flags().StringVar(&poolProvider, "provider-name", "", "The name of the provider where runners will be created.")
 	poolAddCmd.Flags().UintVar(&priority, "priority", 0, "When multiple pools match the same labels, priority dictates the order by which they are returned, in descending order.")
@@ -614,6 +638,7 @@ func init() {
 	poolAddCmd.Flags().BoolVar(&poolEnabled, "enabled", false, "Enable this pool.")
 	poolAddCmd.Flags().BoolVar(&poolEnableShell, "enable-shell", false, "Enable shell access for runners in this pool.")
 	poolAddCmd.Flags().StringVar(&poolTemplateNameOrID, "runner-install-template", "", "The runner install template name or ID to use for this pool.")
+	poolAddCmd.Flags().StringVar(&poolProxyNameOrID, "proxy", "", "The proxy name or ID runners in this pool will use.")
 	poolAddCmd.Flags().StringVar(&endpointName, "endpoint", "", "When using the name of an entity, the endpoint must be specified when multiple entities with the same name exist.")
 
 	poolAddCmd.MarkFlagRequired("provider-name") //nolint
@@ -775,6 +800,9 @@ func formatOnePool(pool params.Pool) {
 	t.AppendRow(table.Row{"Belongs to", belongsTo})
 	t.AppendRow(table.Row{"Level", level})
 	t.AppendRow(table.Row{"Template", fmt.Sprintf("%s (ID: %d)", pool.TemplateName, pool.TemplateID)})
+	if pool.ProxyID != 0 {
+		t.AppendRow(table.Row{"Proxy", fmt.Sprintf("%s (ID: %d)", pool.ProxyName, pool.ProxyID)})
+	}
 	t.AppendRow(table.Row{"Enabled", pool.Enabled})
 	t.AppendRow(table.Row{"Runner Prefix", pool.GetRunnerPrefix()})
 	t.AppendRow(table.Row{"Extra specs", string(pool.ExtraSpecs)})

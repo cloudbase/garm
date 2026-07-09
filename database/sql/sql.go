@@ -373,6 +373,7 @@ func (s *sqlDatabase) initSchema(tx *gorm.DB) error {
 		&GiteaCredentials{},
 		&Tag{},
 		&Template{},
+		&Proxy{},
 		&Pool{},
 		&Repository{},
 		&Organization{},

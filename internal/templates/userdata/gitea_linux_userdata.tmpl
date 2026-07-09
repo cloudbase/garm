@@ -93,6 +93,15 @@ token = "$AGENT_TOKEN"
 runner_cmdline = ["$RUN_HOME/gitea-runner", "daemon", "--once"]
 state_db_path = "/etc/garm-agent/agent-state.db"
 EOF
+{{- if or .HTTPProxy .HTTPSProxy }}
+	cat >> /etc/garm-agent/garm-agent.toml << 'PROXY_EOF'
+
+[proxy]
+http_proxy = "{{ .HTTPProxy }}"
+https_proxy = "{{ .HTTPSProxy }}"
+no_proxy = "{{ .NoProxy }}"
+PROXY_EOF
+{{- end }}
 
 	cat > /tmp/garm-agent.service << EOF
 [Unit]

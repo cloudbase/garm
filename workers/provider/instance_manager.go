@@ -203,6 +203,15 @@ func (i *instanceManager) handleCreateInstanceInProvider(instance params.Instanc
 		GitHubRunnerGroup: i.scaleSet.GitHubRunnerGroup,
 		JitConfigEnabled:  true,
 	}
+
+	if i.scaleSet.ProxyID != 0 {
+		proxy, ok := cache.GetProxy(i.scaleSet.ProxyID)
+		if !ok {
+			return fmt.Errorf("proxy %d (%s) set on scale set %d was not found in cache", i.scaleSet.ProxyID, i.scaleSet.ProxyName, i.scaleSet.ID)
+		}
+		bootstrapArgs.ProxyConfig = proxy.ProxyConfig()
+	}
+
 	// We use the template management system unless:
 	//   * there is no template associated with the pool/scale set
 	//   * user explicitly overwrites the install template via extra specs
