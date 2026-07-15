@@ -271,7 +271,7 @@ func (i *instanceManager) handleCreateInstanceInProvider(instance params.Instanc
 	if err != nil {
 		return fmt.Errorf("updating instance args: %w", err)
 	}
-	i.instance = updated
+	i.setInstance(updated)
 
 	return nil
 }
@@ -317,32 +317,73 @@ func (i *instanceManager) handleDeleteInstanceInProvider(instance params.Instanc
 	return nil
 }
 
-func (i *instanceManager) consolidateState() error {
+func (i *instanceManager) getInstance() params.Instance {
 	i.mux.Lock()
 	defer i.mux.Unlock()
+	return i.instance
+}
 
+func (i *instanceManager) setInstance(instance params.Instance) {
+	i.mux.Lock()
+	defer i.mux.Unlock()
+	i.instance = instance
+}
+
+// refreshInstanceFromDB reads the instance from the database and updates the
+// in-memory copy. Watcher updates may be dropped if the manager is busy when
+// they are delivered, leaving the in-memory copy stale forever. The database
+// is the source of truth, so we reconcile against it on every tick.
+func (i *instanceManager) refreshInstanceFromDB() (params.Instance, error) {
+	instance, err := i.helper.GetInstance(i.getInstance().Name)
+	if err != nil {
+		if errors.Is(err, runnerErrors.ErrNotFound) {
+			return params.Instance{}, ErrInstanceDeleted
+		}
+		// Transient DB error; fall back to the in-memory copy.
+		slog.WarnContext(i.ctx, "failed to refresh instance from db; using in-memory copy", "error", err)
+		return i.getInstance(), nil
+	}
+	i.setInstance(instance)
+	return instance, nil
+}
+
+func (i *instanceManager) consolidateState() error {
 	if !i.running.Load() {
 		return nil
 	}
 
-	switch i.instance.Status {
+	// NOTE: we must not hold i.mux for the duration of this function. Provider
+	// operations and backoff sleeps can take minutes, and holding the lock that
+	// long starves handleUpdate(), causing watcher updates to be dropped after
+	// the send timeout in Update().
+	instance, err := i.refreshInstanceFromDB()
+	if err != nil {
+		return err
+	}
+
+	switch instance.Status {
 	case commonParams.InstancePendingCreate:
 		// kick off the creation process
-		if err := i.helper.SetInstanceStatus(i.instance.Name, commonParams.InstanceCreating, nil, false); err != nil {
+		if err := i.helper.SetInstanceStatus(instance.Name, commonParams.InstanceCreating, nil, false); err != nil {
 			return fmt.Errorf("setting instance status to creating: %w", err)
 		}
-		if err := i.handleCreateInstanceInProvider(i.instance); err != nil {
+		if err := i.handleCreateInstanceInProvider(instance); err != nil {
 			slog.ErrorContext(i.ctx, "creating instance in provider", "error", err)
-			if err := i.helper.SetInstanceStatus(i.instance.Name, commonParams.InstanceError, []byte(err.Error()), true); err != nil {
+			if err := i.helper.SetInstanceStatus(instance.Name, commonParams.InstanceError, []byte(err.Error()), true); err != nil {
 				return fmt.Errorf("setting instance status to error: %w", err)
 			}
 		}
 	case commonParams.InstanceRunning:
 		// Nothing to do. The provider finished creating the instance.
-	case commonParams.InstancePendingDelete, commonParams.InstancePendingForceDelete:
+	case commonParams.InstancePendingDelete, commonParams.InstancePendingForceDelete, commonParams.InstanceDeleting:
 		// Remove or force remove the runner. When force remove is specified, we ignore
 		// IaaS errors.
-		if i.instance.Status == commonParams.InstancePendingDelete {
+		//
+		// An instance found in "deleting" state here means a previous delete
+		// attempt was interrupted or its status update event was lost. This
+		// manager is the only actor performing provider deletions, so it is
+		// safe to retry it as a normal delete.
+		if instance.Status != commonParams.InstancePendingForceDelete {
 			// invoke backoff sleep. We only do this for non forced removals,
 			// as force delete will always return, regardless of whether or not
 			// the remove operation succeeded in the provider. A user may decide
@@ -353,26 +394,26 @@ func (i *instanceManager) consolidateState() error {
 			}
 		}
 
-		prevStatus := i.instance.Status
-		if err := i.helper.SetInstanceStatus(i.instance.Name, commonParams.InstanceDeleting, nil, true); err != nil {
+		forced := instance.Status == commonParams.InstancePendingForceDelete
+		if err := i.helper.SetInstanceStatus(instance.Name, commonParams.InstanceDeleting, nil, true); err != nil {
 			if errors.Is(err, runnerErrors.ErrNotFound) {
 				return nil
 			}
 			return fmt.Errorf("setting instance status to deleting: %w", err)
 		}
 
-		if err := i.handleDeleteInstanceInProvider(i.instance); err != nil {
-			slog.ErrorContext(i.ctx, "deleting instance in provider", "error", err, "forced", i.instance.Status == commonParams.InstancePendingForceDelete)
-			if prevStatus == commonParams.InstancePendingDelete {
+		if err := i.handleDeleteInstanceInProvider(instance); err != nil {
+			slog.ErrorContext(i.ctx, "deleting instance in provider", "error", err, "forced", forced)
+			if !forced {
 				i.incrementBackOff()
-				if err := i.helper.SetInstanceStatus(i.instance.Name, commonParams.InstancePendingDelete, []byte(err.Error()), true); err != nil {
+				if err := i.helper.SetInstanceStatus(instance.Name, commonParams.InstancePendingDelete, []byte(err.Error()), true); err != nil {
 					return fmt.Errorf("setting instance status to error: %w", err)
 				}
 
 				return fmt.Errorf("error removing instance. Will retry: %w", err)
 			}
 		}
-		if err := i.helper.SetInstanceStatus(i.instance.Name, commonParams.InstanceDeleted, nil, false); err != nil {
+		if err := i.helper.SetInstanceStatus(instance.Name, commonParams.InstanceDeleted, nil, false); err != nil {
 			if !errors.Is(err, runnerErrors.ErrNotFound) {
 				return fmt.Errorf("setting instance status to deleted: %w", err)
 			}
@@ -381,7 +422,7 @@ func (i *instanceManager) consolidateState() error {
 	case commonParams.InstanceError:
 		// Instance is in error state. We wait for next status or potentially retry
 		// spawning the instance with a backoff timer.
-		if err := i.helper.SetInstanceStatus(i.instance.Name, commonParams.InstancePendingDelete, nil, true); err != nil {
+		if err := i.helper.SetInstanceStatus(instance.Name, commonParams.InstancePendingDelete, nil, true); err != nil {
 			return fmt.Errorf("setting instance status to error: %w", err)
 		}
 	case commonParams.InstanceDeleted:
@@ -403,9 +444,7 @@ func (i *instanceManager) handleUpdate(update dbCommon.ChangePayload) error {
 		return runnerErrors.NewBadRequestError("invalid payload type")
 	}
 
-	i.mux.Lock()
-	i.instance = instance
-	i.mux.Unlock()
+	i.setInstance(instance)
 	return nil
 }
 

@@ -22,6 +22,7 @@ import (
 )
 
 type providerHelper interface {
+	GetInstance(instanceName string) (params.Instance, error)
 	SetInstanceStatus(instanceName string, status commonParams.InstanceStatus, providerFault []byte, force bool) error
 	InstanceTokenGetter() auth.InstanceTokenGetter
 	updateArgsFromProviderInstance(instanceName string, providerInstance commonParams.ProviderInstance) (params.Instance, error)
@@ -44,6 +45,14 @@ func (p *Provider) updateArgsFromProviderInstance(instanceName string, providerI
 		return params.Instance{}, fmt.Errorf("updating instance %s: %w", instanceName, err)
 	}
 	return updated, nil
+}
+
+func (p *Provider) GetInstance(instanceName string) (params.Instance, error) {
+	instance, err := p.store.GetInstance(p.ctx, instanceName)
+	if err != nil {
+		return params.Instance{}, fmt.Errorf("getting instance %s: %w", instanceName, err)
+	}
+	return instance, nil
 }
 
 func (p *Provider) GetControllerInfo() (params.ControllerInfo, error) {
