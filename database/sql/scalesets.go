@@ -360,6 +360,10 @@ func (s *sqlDatabase) updateScaleSet(tx *gorm.DB, scaleSet ScaleSet, param param
 		updates["name"] = param.Name
 	}
 
+	if param.DisableUpdate != nil && *param.DisableUpdate != scaleSet.DisableUpdate {
+		updates["disable_update"] = *param.DisableUpdate
+	}
+
 	if param.GitHubRunnerGroup != nil && *param.GitHubRunnerGroup != "" && *param.GitHubRunnerGroup != scaleSet.GitHubRunnerGroup {
 		updates["git_hub_runner_group"] = *param.GitHubRunnerGroup
 		incrementGeneration = true
