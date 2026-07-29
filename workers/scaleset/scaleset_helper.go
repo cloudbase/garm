@@ -75,6 +75,7 @@ func (w *Worker) recordOrUpdateJob(job params.ScaleSetJobMessage) error {
 	baseURL := strings.TrimRight(w.entity.Credentials.BaseURL, "/")
 	jobParams := job.ToJob()
 	jobParams.RunnerGroupName = w.scaleSet.GitHubRunnerGroup
+	jobParams.ScaleSetID = w.scaleSet.ID
 
 	switch entity.EntityType {
 	case params.ForgeEntityTypeEnterprise:

@@ -474,6 +474,11 @@ type WorkflowJob struct {
 	// ScaleSetJobID is the job ID for a scaleset job.
 	ScaleSetJobID string `gorm:"index:scaleset_job_id_idx"`
 
+	// ScaleSetFkID is the ID of the scale set that this job was assigned to,
+	// if the job came in through a scale set listener.
+	ScaleSetFkID *uint    `gorm:"index"`
+	ScaleSet     ScaleSet `gorm:"foreignKey:ScaleSetFkID"`
+
 	// RunID is the ID of the workflow run. A run may have multiple jobs.
 	RunID int64
 	// Action is the specific activity that triggered the event.
