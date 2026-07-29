@@ -738,6 +738,7 @@ type UpdateScaleSetParams struct {
 	RunnerPrefix
 
 	Name                   string              `json:"name,omitempty"`
+	DisableUpdate          *bool               `json:"disable_update,omitempty"`
 	Enabled                *bool               `json:"enabled,omitempty"`
 	MaxRunners             *uint               `json:"max_runners,omitempty"`
 	MinIdleRunners         *uint               `json:"min_idle_runners,omitempty"`
