@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import { resolve } from '$app/paths';
 	import { garmApi } from '$lib/api/client.js';
-	import type { Job, Pool, ScaleSet } from '$lib/api/generated/api.js';
+	import type { Instance, Job, Pool, ScaleSet } from '$lib/api/generated/api.js';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import { websocketStore, type WebSocketEvent } from '$lib/stores/websocket.js';
 	import { eagerCacheManager } from '$lib/stores/eager-cache.js';
@@ -10,10 +11,12 @@
 	let jobs: Job[] = [];
 	let scaleSets: ScaleSet[] = [];
 	let pools: Pool[] = [];
+	let instances: Instance[] = [];
 	let loading = true;
 	let error = '';
 	let searchTerm = '';
 	let unsubscribeWebsocket: (() => void) | null = null;
+	let unsubscribeInstanceWebsocket: (() => void) | null = null;
 
 	// Current time, refreshed periodically so "waiting for" durations stay fresh.
 	let currentTime = Date.now();
@@ -24,9 +27,26 @@
 		kind: 'scaleset' | 'pool' | 'unmatched';
 		title: string;
 		subtitle: string;
+		href?: string;
 		maxRunners?: number;
+		// Runner instance counts (same source as the Grafana runner_count metric).
+		runners: number;
+		busyRunners: number;
+		idleRunners: number;
+		// TotalAssignedJobs as reported by GitHub for scale sets; includes jobs
+		// GitHub has not yet sent individual messages for.
+		githubAssigned?: number;
 		queued: Job[];
 		inProgress: Job[];
+	}
+
+	function runnerCounts(list: Instance[]) {
+		const running = list.filter((i) => i.status === 'running');
+		return {
+			runners: running.length,
+			busyRunners: running.filter((i) => i.runner_status === 'active').length,
+			idleRunners: running.filter((i) => i.runner_status === 'idle').length
+		};
 	}
 
 	function isScaleSetJob(job: Job): boolean {
@@ -54,9 +74,9 @@
 		(j) => (j.status === 'queued' || j.status === 'in_progress') && matchesSearch(j, searchTerm)
 	);
 
-	$: queueGroups = buildGroups(activeJobs, scaleSets, pools);
+	$: queueGroups = buildGroups(activeJobs, scaleSets, pools, instances);
 
-	function buildGroups(active: Job[], sets: ScaleSet[], poolList: Pool[]): QueueGroup[] {
+	function buildGroups(active: Job[], sets: ScaleSet[], poolList: Pool[], instanceList: Instance[]): QueueGroup[] {
 		const byTime = (a: Job, b: Job) =>
 			new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime();
 		const queued = active.filter((j) => j.status === 'queued').sort(byTime);
@@ -71,13 +91,17 @@
 			const r = running.filter((j) => j.scale_set_id === set.id);
 			q.forEach((j) => attributed.add(j.id!));
 			r.forEach((j) => attributed.add(j.id!));
-			if (q.length === 0 && r.length === 0) continue;
+			const counts = runnerCounts(instanceList.filter((i) => i.scale_set_id === set.id));
+			if (q.length === 0 && r.length === 0 && counts.runners === 0) continue;
 			groups.push({
 				key: `scaleset-${set.id}`,
 				kind: 'scaleset',
 				title: set.name || `Scale set ${set.id}`,
 				subtitle: getEntityName(set),
+				href: resolve(`/scalesets/${set.id}`),
 				maxRunners: set.max_runners,
+				...counts,
+				githubAssigned: set.desired_runner_count,
 				queued: q,
 				inProgress: r
 			});
@@ -90,13 +114,16 @@
 			const r = running.filter((j) => !isScaleSetJob(j) && jobMatchesPool(j, pool));
 			q.forEach((j) => attributed.add(j.id!));
 			r.forEach((j) => attributed.add(j.id!));
-			if (q.length === 0 && r.length === 0) continue;
+			const counts = runnerCounts(instanceList.filter((i) => i.pool_id === pool.id));
+			if (q.length === 0 && r.length === 0 && counts.runners === 0) continue;
 			groups.push({
 				key: `pool-${pool.id}`,
 				kind: 'pool',
 				title: `Pool ${pool.id?.slice(0, 8)} (${pool.image || pool.flavor || ''})`,
 				subtitle: getEntityName(pool),
+				href: resolve(`/pools/${pool.id}`),
 				maxRunners: (pool as any).max_runners,
+				...counts,
 				queued: q,
 				inProgress: r
 			});
@@ -112,6 +139,9 @@
 				kind: 'unmatched',
 				title: 'Unattributed jobs',
 				subtitle: 'No matching scale set or pool',
+				runners: 0,
+				busyRunners: 0,
+				idleRunners: 0,
 				queued: leftoverQueued,
 				inProgress: leftoverRunning
 			});
@@ -152,14 +182,16 @@
 		try {
 			loading = true;
 			error = '';
-			const [jobData, scaleSetData, poolData] = await Promise.all([
+			const [jobData, scaleSetData, poolData, instanceData] = await Promise.all([
 				garmApi.listJobs(),
 				eagerCacheManager.getScaleSets(),
-				eagerCacheManager.getPools()
+				eagerCacheManager.getPools(),
+				garmApi.listInstances()
 			]);
 			jobs = jobData;
 			scaleSets = scaleSetData || [];
 			pools = poolData || [];
+			instances = instanceData || [];
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to load job queue';
 		} finally {
@@ -180,6 +212,19 @@
 		}
 	}
 
+	function handleInstanceEvent(event: WebSocketEvent) {
+		if (event.operation === 'create') {
+			const inst = event.payload as Instance;
+			instances = [...instances.filter((i) => i.name !== inst.name), inst];
+		} else if (event.operation === 'update') {
+			const inst = event.payload as Instance;
+			instances = instances.map((i) => (i.name === inst.name ? inst : i));
+		} else if (event.operation === 'delete') {
+			const name = event.payload.name || event.payload;
+			instances = instances.filter((i) => i.name !== name);
+		}
+	}
+
 	onMount(() => {
 		loadData();
 
@@ -187,6 +232,12 @@
 			'job',
 			['create', 'update', 'delete'],
 			handleJobEvent
+		);
+
+		unsubscribeInstanceWebsocket = websocketStore.subscribeToEntity(
+			'instance',
+			['create', 'update', 'delete'],
+			handleInstanceEvent
 		);
 
 		clockInterval = setInterval(() => {
@@ -198,6 +249,10 @@
 		if (unsubscribeWebsocket) {
 			unsubscribeWebsocket();
 			unsubscribeWebsocket = null;
+		}
+		if (unsubscribeInstanceWebsocket) {
+			unsubscribeInstanceWebsocket();
+			unsubscribeInstanceWebsocket = null;
 		}
 		if (clockInterval) {
 			clearInterval(clockInterval);
@@ -261,16 +316,25 @@
 				<div class="px-4 py-4 sm:px-6 border-b border-gray-200 dark:border-gray-700 flex flex-wrap items-center justify-between gap-2">
 					<div>
 						<h2 class="text-lg font-medium text-gray-900 dark:text-white">
-							{group.title}
+							{#if group.href}
+								<a href={group.href} class="hover:underline text-blue-600 dark:text-blue-400">{group.title}</a>
+							{:else}
+								{group.title}
+							{/if}
 						</h2>
 						<p class="text-sm text-gray-500 dark:text-gray-400">{group.subtitle}</p>
 					</div>
-					<div class="flex items-center gap-2 text-sm">
+					<div class="flex flex-wrap items-center gap-2 text-sm">
 						<span class="inline-flex items-center px-2.5 py-0.5 rounded-full font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
 							{group.queued.length} queued
 						</span>
-						<span class="inline-flex items-center px-2.5 py-0.5 rounded-full font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-							{group.inProgress.length} running{group.maxRunners ? ` / ${group.maxRunners} max` : ''}
+						{#if group.githubAssigned !== undefined && group.githubAssigned > group.queued.length + group.inProgress.length}
+							<span class="inline-flex items-center px-2.5 py-0.5 rounded-full font-medium bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200" title="TotalAssignedJobs reported by GitHub; includes jobs GitHub has not yet delivered to GARM">
+							{group.githubAssigned} assigned on GitHub
+							</span>
+						{/if}
+						<span class="inline-flex items-center px-2.5 py-0.5 rounded-full font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" title="Runner instances in running state (busy = running a job, idle = waiting for work)">
+							{group.runners} runners{group.maxRunners ? ` / ${group.maxRunners} max` : ''} ({group.busyRunners} busy, {group.idleRunners} idle)
 						</span>
 					</div>
 				</div>

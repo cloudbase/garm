@@ -12,7 +12,8 @@ vi.mock('$app/stores', () => ({}));
 
 vi.mock('$lib/api/client.js', () => ({
 	garmApi: {
-		listJobs: vi.fn()
+		listJobs: vi.fn(),
+		listInstances: vi.fn()
 	}
 }));
 
@@ -54,6 +55,7 @@ const mockScaleSets = [
 		org_name: 'nexthop',
 		max_runners: 100,
 		min_idle_runners: 32,
+		desired_runner_count: 60,
 		enabled: true
 	},
 	{
@@ -76,6 +78,13 @@ const mockPools = [
 		max_runners: 4,
 		tags: [{ id: 't1', name: 'self-hosted' }, { id: 't2', name: 'pool-label' }]
 	}
+];
+
+const mockInstances = [
+	{ name: 'r1', scale_set_id: 5, status: 'running', runner_status: 'active' },
+	{ name: 'r2', scale_set_id: 5, status: 'running', runner_status: 'idle' },
+	{ name: 'r3', scale_set_id: 5, status: 'pending_create', runner_status: 'pending' },
+	{ name: 'p1', pool_id: 'aaaabbbb-cccc-dddd-eeee-ffff00001111', status: 'running', runner_status: 'active' }
 ];
 
 const mockJobs = [
@@ -158,6 +167,7 @@ describe('Queue Page - Integration Tests', () => {
 		vi.mocked(cacheModule.eagerCacheManager.getScaleSets).mockResolvedValue(mockScaleSets);
 		vi.mocked(cacheModule.eagerCacheManager.getPools).mockResolvedValue(mockPools);
 		vi.mocked(garmApi.listJobs).mockResolvedValue(mockJobs as any);
+		vi.mocked(garmApi.listInstances).mockResolvedValue(mockInstances as any);
 	});
 
 	it('renders page title', async () => {
@@ -176,7 +186,14 @@ describe('Queue Page - Integration Tests', () => {
 
 		// Scale set group shows queued and running counts (incl. max runners)
 		expect(screen.getByText('2 queued')).toBeInTheDocument();
-		expect(screen.getByText('1 running / 100 max')).toBeInTheDocument();
+		// Runner counts come from instances (2 running, of which 1 busy / 1 idle)
+		expect(screen.getByText(/2 runners \/ 100 max \(1 busy, 1 idle\)/)).toBeInTheDocument();
+
+		// GitHub-reported backlog badge and scale set link
+		expect(screen.getByText('60 assigned on GitHub')).toBeInTheDocument();
+		expect(
+			screen.getByRole('heading', { name: 'cloudstack-ubuntu24-micro' }).querySelector('a')
+		).toHaveAttribute('href', '/scalesets/5');
 
 		// Queue order: 'test' (older) before 'build'
 		const rows = screen.getAllByRole('row');
@@ -210,6 +227,7 @@ describe('Queue Page - Integration Tests', () => {
 
 	it('shows empty state when there are no active jobs', async () => {
 		vi.mocked(garmApi.listJobs).mockResolvedValue([]);
+		vi.mocked(garmApi.listInstances).mockResolvedValue([]);
 		render(QueuePage);
 
 		await waitFor(() => {
@@ -224,6 +242,7 @@ describe('Queue Page - job links', () => {
 		const cacheModule = await import('$lib/stores/eager-cache.js');
 		vi.mocked(cacheModule.eagerCacheManager.getScaleSets).mockResolvedValue(mockScaleSets);
 		vi.mocked(cacheModule.eagerCacheManager.getPools).mockResolvedValue(mockPools);
+		vi.mocked(garmApi.listInstances).mockResolvedValue([]);
 	});
 
 	it('deep-links webhook jobs to the GitHub job page and scale set jobs to the run page', async () => {
