@@ -2019,6 +2019,38 @@ definitions:
                 x-go-name: Prefix
         type: object
         x-go-package: github.com/cloudbase/garm/params
+    RunnerScaleSetStatistic:
+        properties:
+            totalAcquiredJobs:
+                format: int64
+                type: integer
+                x-go-name: TotalAcquiredJobs
+            totalAssignedJobs:
+                format: int64
+                type: integer
+                x-go-name: TotalAssignedJobs
+            totalAvailableJobs:
+                format: int64
+                type: integer
+                x-go-name: TotalAvailableJobs
+            totalBusyRunners:
+                format: int64
+                type: integer
+                x-go-name: TotalBusyRunners
+            totalIdleRunners:
+                format: int64
+                type: integer
+                x-go-name: TotalIdleRunners
+            totalRegisteredRunners:
+                format: int64
+                type: integer
+                x-go-name: TotalRegisteredRunners
+            totalRunningJobs:
+                format: int64
+                type: integer
+                x-go-name: TotalRunningJobs
+        type: object
+        x-go-package: github.com/cloudbase/garm/params
     RunnerStatus:
         type: string
         x-go-package: github.com/cloudbase/garm/params
@@ -2147,6 +2179,8 @@ definitions:
                 x-go-name: ScaleSetID
             state:
                 $ref: '#/definitions/ScaleSetState'
+            statistics:
+                $ref: '#/definitions/RunnerScaleSetStatistic'
             status_messages:
                 items:
                     $ref: '#/definitions/StatusMessage'

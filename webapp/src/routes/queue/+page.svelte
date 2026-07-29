@@ -2,7 +2,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { resolve } from '$app/paths';
 	import { garmApi } from '$lib/api/client.js';
-	import type { Instance, Job, Pool, ScaleSet } from '$lib/api/generated/api.js';
+	import type { Instance, Job, Pool, RunnerScaleSetStatistic, ScaleSet } from '$lib/api/generated/api.js';
 	import PageHeader from '$lib/components/PageHeader.svelte';
 	import { websocketStore, type WebSocketEvent } from '$lib/stores/websocket.js';
 	import { eagerCacheManager } from '$lib/stores/eager-cache.js';
@@ -33,19 +33,29 @@
 		runners: number;
 		busyRunners: number;
 		idleRunners: number;
-		// TotalAssignedJobs as reported by GitHub for scale sets; includes jobs
-		// GitHub has not yet sent individual messages for.
-		githubAssigned?: number;
+		// Runners whose agent GitHub reports as offline (won't receive jobs).
+		offlineRunners: number;
+		// Instances GARM is still creating (not yet in running state).
+		provisioning: number;
+		// GitHub's own view of the scale set (busy/idle runners, assigned jobs),
+		// from the last message session statistics. Divergence from the GARM
+		// instance counts usually means runners GitHub considers offline/gone.
+		githubStats?: RunnerScaleSetStatistic;
 		queued: Job[];
 		inProgress: Job[];
 	}
 
 	function runnerCounts(list: Instance[]) {
 		const running = list.filter((i) => i.status === 'running');
+		const provisioning = list.filter((i) =>
+			['pending_create', 'creating', 'pending'].includes(i.status || '')
+		);
 		return {
 			runners: running.length,
 			busyRunners: running.filter((i) => i.runner_status === 'active').length,
-			idleRunners: running.filter((i) => i.runner_status === 'idle').length
+			idleRunners: running.filter((i) => i.runner_status === 'idle').length,
+			offlineRunners: running.filter((i) => i.runner_status === 'offline').length,
+			provisioning: provisioning.length
 		};
 	}
 
@@ -101,7 +111,7 @@
 				href: resolve(`/scalesets/${set.id}`),
 				maxRunners: set.max_runners,
 				...counts,
-				githubAssigned: set.desired_runner_count,
+				githubStats: set.statistics,
 				queued: q,
 				inProgress: r
 			});
@@ -142,13 +152,15 @@
 				runners: 0,
 				busyRunners: 0,
 				idleRunners: 0,
+				offlineRunners: 0,
+				provisioning: 0,
 				queued: leftoverQueued,
 				inProgress: leftoverRunning
 			});
 		}
 
-		// Busiest queues first.
-		groups.sort((a, b) => b.queued.length - a.queued.length);
+		// Alphabetical, so the layout is stable across refreshes.
+		groups.sort((a, b) => a.title.localeCompare(b.title));
 		return groups;
 	}
 
@@ -328,13 +340,13 @@
 						<span class="inline-flex items-center px-2.5 py-0.5 rounded-full font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
 							{group.queued.length} queued
 						</span>
-						{#if group.githubAssigned !== undefined && group.githubAssigned > group.queued.length + group.inProgress.length}
-							<span class="inline-flex items-center px-2.5 py-0.5 rounded-full font-medium bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200" title="TotalAssignedJobs reported by GitHub; includes jobs GitHub has not yet delivered to GARM">
-							{group.githubAssigned} assigned on GitHub
+						{#if group.githubStats}
+							<span class="inline-flex items-center px-2.5 py-0.5 rounded-full font-medium bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200" title="GitHub's view of this scale set from the last session message: assigned jobs (queued + running) and busy/idle runners. Divergence from the runner counts usually means runners GitHub considers offline.">
+							GitHub: {group.githubStats.totalAssignedJobs ?? 0} assigned ({group.githubStats.totalBusyRunners ?? 0} busy, {group.githubStats.totalIdleRunners ?? 0} idle)
 							</span>
 						{/if}
-						<span class="inline-flex items-center px-2.5 py-0.5 rounded-full font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" title="Runner instances in running state (busy = running a job, idle = waiting for work)">
-							{group.runners} runners{group.maxRunners ? ` / ${group.maxRunners} max` : ''} ({group.busyRunners} busy, {group.idleRunners} idle)
+						<span class="inline-flex items-center px-2.5 py-0.5 rounded-full font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" title="GARM runner instances: running (busy = running a job, idle = waiting for work) plus instances still being provisioned">
+							{group.runners} runners{group.maxRunners ? ` / ${group.maxRunners} max` : ''} ({group.busyRunners} busy, {group.idleRunners} idle{group.offlineRunners ? `, ${group.offlineRunners} offline` : ''}{group.provisioning ? `, ${group.provisioning} provisioning` : ''})
 						</span>
 					</div>
 				</div>

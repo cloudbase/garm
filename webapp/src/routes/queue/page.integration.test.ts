@@ -56,6 +56,7 @@ const mockScaleSets = [
 		max_runners: 100,
 		min_idle_runners: 32,
 		desired_runner_count: 60,
+		statistics: { totalAssignedJobs: 60, totalBusyRunners: 40, totalIdleRunners: 2 },
 		enabled: true
 	},
 	{
@@ -83,7 +84,9 @@ const mockPools = [
 const mockInstances = [
 	{ name: 'r1', scale_set_id: 5, status: 'running', runner_status: 'active' },
 	{ name: 'r2', scale_set_id: 5, status: 'running', runner_status: 'idle' },
+	{ name: 'r5', scale_set_id: 5, status: 'running', runner_status: 'offline' },
 	{ name: 'r3', scale_set_id: 5, status: 'pending_create', runner_status: 'pending' },
+	{ name: 'r4', scale_set_id: 5, status: 'creating', runner_status: 'pending' },
 	{ name: 'p1', pool_id: 'aaaabbbb-cccc-dddd-eeee-ffff00001111', status: 'running', runner_status: 'active' }
 ];
 
@@ -186,11 +189,13 @@ describe('Queue Page - Integration Tests', () => {
 
 		// Scale set group shows queued and running counts (incl. max runners)
 		expect(screen.getByText('2 queued')).toBeInTheDocument();
-		// Runner counts come from instances (2 running, of which 1 busy / 1 idle)
-		expect(screen.getByText(/2 runners \/ 100 max \(1 busy, 1 idle\)/)).toBeInTheDocument();
+		// Runner counts come from instances (2 running: 1 busy / 1 idle; 2 provisioning)
+		expect(
+			screen.getByText(/3 runners \/ 100 max \(1 busy, 1 idle, 1 offline, 2 provisioning\)/)
+		).toBeInTheDocument();
 
-		// GitHub-reported backlog badge and scale set link
-		expect(screen.getByText('60 assigned on GitHub')).toBeInTheDocument();
+		// GitHub's view from the scale set statistics
+		expect(screen.getByText(/GitHub: 60 assigned \(40 busy, 2 idle\)/)).toBeInTheDocument();
 		expect(
 			screen.getByRole('heading', { name: 'cloudstack-ubuntu24-micro' }).querySelector('a')
 		).toHaveAttribute('href', '/scalesets/5');

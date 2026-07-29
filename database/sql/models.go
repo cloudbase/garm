@@ -219,6 +219,10 @@ type ScaleSet struct {
 	Enabled                bool
 	LastMessageID          int64
 	DesiredRunnerCount     int
+	// RunnerStatistics is the last RunnerScaleSetStatistic received from
+	// GitHub on the message session (busy/idle/assigned counts as GitHub
+	// sees them).
+	RunnerStatistics datatypes.JSON
 	// ExtraSpecs is an opaque json that gets sent to the provider
 	// as part of the bootstrap params for instances. It can contain
 	// any kind of data needed by providers.
